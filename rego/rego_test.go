@@ -7,10 +7,13 @@ package rego
 import (
 	"context"
 	"encoding/json"
-	"github.com/open-policy-agent/opa/internal/storage/mock"
+	"log"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/open-policy-agent/opa/internal/storage/mock"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/metrics"
@@ -824,24 +827,82 @@ func TestModulePassing(t *testing.T) {
 }
 
 func TestUnsafeBuiltins(t *testing.T) {
-	r1 := New(
-		Query(`count([1, 2, 3])`),
-		UnsafeBuiltins(map[string]struct{}{"count": struct{}{}}),
-	)
-	if _, err := r1.Eval(context.Background()); err == nil {
-		t.Fatal("Expected error for unsafe built-in")
-	}
 
-	r2 := New(
-		Query(`data.pkg.deny`),
-		Module("pkg.rego", `package pkg
-        deny {
-            count(input.requests) > 10
-        }
-        `),
-		UnsafeBuiltins(map[string]struct{}{"count": struct{}{}}),
-	)
-	if _, err := r2.Eval(context.Background()); err == nil {
-		t.Fatal("Expected error for unsafe built-in")
-	}
+	ctx := context.Background()
+
+	unsafeCountExpr := "unsafe built-in function calls in expression: count"
+
+	t.Run("unsafe query", func(t *testing.T) {
+		r := New(
+			Query(`count([1, 2, 3])`),
+			UnsafeBuiltins(map[string]struct{}{"count": struct{}{}}),
+		)
+		if _, err := r.Eval(ctx); err == nil || !strings.Contains(err.Error(), unsafeCountExpr) {
+			t.Fatalf("Expected unsafe built-in error but got %v", err)
+		}
+	})
+
+	t.Run("unsafe module", func(t *testing.T) {
+		r := New(
+			Query(`data.pkg.deny`),
+			Module("pkg.rego", `package pkg
+			deny {
+				count(input.requests) > 10
+			}
+			`),
+			UnsafeBuiltins(map[string]struct{}{"count": struct{}{}}),
+		)
+		if _, err := r.Eval(ctx); err == nil || !strings.Contains(err.Error(), unsafeCountExpr) {
+			t.Fatalf("Expected unsafe built-in error but got %v", err)
+		}
+	})
+
+	t.Run("inherit in query", func(t *testing.T) {
+		r := New(
+			Compiler(ast.NewCompiler().WithUnsafeBuiltins(map[string]struct{}{"count": struct{}{}})),
+			Query("count([])"),
+		)
+		if _, err := r.Eval(ctx); err == nil || !strings.Contains(err.Error(), unsafeCountExpr) {
+			t.Fatalf("Expected unsafe built-in error but got %v", err)
+		}
+	})
+
+	t.Run("override/disable in query", func(t *testing.T) {
+		r := New(
+			Compiler(ast.NewCompiler().WithUnsafeBuiltins(map[string]struct{}{"count": struct{}{}})),
+			UnsafeBuiltins(map[string]struct{}{}),
+			Query("count([])"),
+		)
+		if _, err := r.Eval(ctx); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("override/change in query", func(t *testing.T) {
+		r := New(
+			Compiler(ast.NewCompiler().WithUnsafeBuiltins(map[string]struct{}{"count": struct{}{}})),
+			UnsafeBuiltins(map[string]struct{}{"max": struct{}{}}),
+			Query("count([]); max([1,2])"),
+		)
+
+		_, err := r.Eval(ctx)
+		if err == nil || err.Error() != "1 error occurred: 1:12: rego_type_error: unsafe built-in function calls in expression: max" {
+			t.Fatalf("expected error for max but got: %v", err)
+		}
+	})
+
+	t.Run("ignore if given compiler", func(t *testing.T) {
+		r := New(
+			Compiler(ast.NewCompiler()),
+			UnsafeBuiltins(map[string]struct{}{"count": struct{}{}}),
+			Query("data.test.p = 0"),
+			Module("test.rego", `package test
+
+			p = count([])`),
+		)
+		rs, err := r.Eval(context.Background())
+		if err != nil || len(rs) != 1 {
+			log.Fatalf("Unexpected error or result. Result: %v. Error: %v", rs, err)
+		}
+	})
 }
