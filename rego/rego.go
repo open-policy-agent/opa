@@ -167,6 +167,22 @@ func EvalParsedUnknowns(unknowns []*ast.Term) EvalOption {
 	}
 }
 
+func (pq preparedQuery) Modules() map[string]*ast.Module {
+	mods := make(map[string]*ast.Module)
+
+	for name, mod := range pq.r.parsedModules {
+		mods[name] = mod
+	}
+
+	for _, b := range pq.r.bundles {
+		for _, mf := range b.Modules {
+			mods[mf.Path] = mf.Parsed
+		}
+	}
+
+	return mods
+}
+
 // newEvalContext creates a new EvalContext overlaying any EvalOptions over top
 // the Rego object on the preparedQuery. The returned function should be called
 // once the evaluation is complete to close any transactions that might have
