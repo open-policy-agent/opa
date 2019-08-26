@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/open-policy-agent/opa/ast"
-	"github.com/open-policy-agent/opa/util"
 )
 
 type undo struct {
@@ -38,30 +37,12 @@ var sentinel = newBindings(math.MaxUint64, nil)
 
 type bindings struct {
 	id     uint64
-	values *util.HashMap
+	values bindingsArrayHashmap
 	instr  *Instrumentation
 }
 
 func newBindings(id uint64, instr *Instrumentation) *bindings {
-
-	eq := func(a, b util.T) bool {
-		v1, ok1 := a.(*ast.Term)
-		if ok1 {
-			v2 := b.(*ast.Term)
-			return v1.Equal(v2)
-		}
-		uv1 := a.(*value)
-		uv2 := b.(*value)
-		return uv1.equal(uv2)
-	}
-
-	hash := func(x util.T) int {
-		v := x.(*ast.Term)
-		return v.Hash()
-	}
-
-	values := util.NewHashMap(eq, hash)
-
+	values := newBindingsArrayHashmap()
 	return &bindings{id, values, instr}
 }
 
@@ -69,12 +50,11 @@ func (u *bindings) Iter(caller *bindings, iter func(*ast.Term, *ast.Term) error)
 
 	var err error
 
-	u.values.Iter(func(k, v util.T) bool {
+	u.values.Iter(func(k *ast.Term, v value) bool {
 		if err != nil {
 			return true
 		}
-		term := k.(*ast.Term)
-		err = iter(term, u.PlugNamespaced(term, caller))
+		err = iter(k, u.PlugNamespaced(k, caller))
 
 		return false
 	})
@@ -184,11 +164,7 @@ func (u *bindings) get(v *ast.Term) (value, bool) {
 	if u == nil {
 		return value{}, false
 	}
-	r, ok := u.values.Get(v)
-	if !ok {
-		return value{}, false
-	}
-	return r.(value), true
+	return u.values.Get(v)
 }
 
 func (u *bindings) String() string {
@@ -196,7 +172,7 @@ func (u *bindings) String() string {
 		return "()"
 	}
 	var buf []string
-	u.values.Iter(func(a, b util.T) bool {
+	u.values.Iter(func(a *ast.Term, b value) bool {
 		buf = append(buf, fmt.Sprintf("%v: %v", a, b))
 		return false
 	})
@@ -308,4 +284,113 @@ func (vis namespacingVisitor) namespaceTerm(a *ast.Term) *ast.Term {
 		return &cpy
 	}
 	return a
+}
+
+const maxLinearScan = 16
+
+// bindingsArrayHashMap uses an array with linear scan instead of a hash map for smaller # of entries. Hash maps start to show off their performance advantage only after 16 keys.
+type bindingsArrayHashmap struct {
+	n int // Entries in the array.
+	a *[maxLinearScan]bindingArrayKeyValue
+	m map[ast.Var]bindingArrayKeyValue
+}
+
+type bindingArrayKeyValue struct {
+	key   *ast.Term
+	value value
+}
+
+func newBindingsArrayHashmap() bindingsArrayHashmap {
+	return bindingsArrayHashmap{}
+}
+
+func (b *bindingsArrayHashmap) Put(key *ast.Term, value value) {
+	if b.m == nil {
+		if b.a == nil {
+			b.a = new([maxLinearScan]bindingArrayKeyValue)
+		} else if i := b.find(key); i >= 0 {
+			(*b.a)[i].value = value
+			return
+		}
+
+		if b.n < maxLinearScan {
+			(*b.a)[b.n] = bindingArrayKeyValue{key, value}
+			b.n++
+			return
+		}
+
+		// Array is full, revert to using the hash map instead.
+
+		b.m = make(map[ast.Var]bindingArrayKeyValue, maxLinearScan+1)
+		for _, kv := range *b.a {
+			b.m[kv.key.Value.(ast.Var)] = bindingArrayKeyValue{kv.key, kv.value}
+		}
+		b.m[key.Value.(ast.Var)] = bindingArrayKeyValue{key, value}
+
+		b.n = 0
+		return
+	}
+
+	b.m[key.Value.(ast.Var)] = bindingArrayKeyValue{key, value}
+}
+
+func (b *bindingsArrayHashmap) Get(key *ast.Term) (value, bool) {
+	if b.m == nil {
+		if i := b.find(key); i >= 0 {
+			return (*b.a)[i].value, true
+		}
+
+		return value{}, false
+	}
+
+	v, ok := b.m[key.Value.(ast.Var)]
+	if ok {
+		return v.value, true
+	}
+
+	return value{}, false
+}
+
+func (b *bindingsArrayHashmap) Delete(key *ast.Term) {
+	if b.m == nil {
+		if i := b.find(key); i >= 0 {
+			n := b.n - 1
+			if i < n {
+				(*b.a)[i] = (*b.a)[n]
+			}
+
+			b.n = n
+		}
+		return
+	}
+
+	delete(b.m, key.Value.(ast.Var))
+}
+
+func (b *bindingsArrayHashmap) Iter(f func(k *ast.Term, v value) bool) {
+	if b.m == nil {
+		for i := 0; i < b.n; i++ {
+			if f((*b.a)[i].key, (*b.a)[i].value) {
+				return
+			}
+		}
+		return
+	}
+
+	for _, v := range b.m {
+		if f(v.key, v.value) {
+			return
+		}
+	}
+}
+
+func (b *bindingsArrayHashmap) find(key *ast.Term) int {
+	v := key.Value.(ast.Var)
+	for i := 0; i < b.n; i++ {
+		if (*b.a)[i].key.Value.(ast.Var) == v {
+			return i
+		}
+	}
+
+	return -1
 }
