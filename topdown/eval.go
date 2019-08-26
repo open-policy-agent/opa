@@ -665,6 +665,10 @@ func (e *eval) biunifyObjectsRec(a, b ast.Object, b1, b2 *bindings, iter unifyIt
 }
 
 func (e *eval) biunifyValues(a, b *ast.Term, b1, b2 *bindings, iter unifyIterator) error {
+	// Try to evaluate refs and comprehensions. If partial evaluation is
+	// enabled, then skip evaluation (and save the expression) if the term is
+	// in the save set. Currently, comprehensions are not evaluated during
+	// partial eval. This could be improved in the future.
 
 	var saveA, saveB bool
 
@@ -672,37 +676,31 @@ func (e *eval) biunifyValues(a, b *ast.Term, b1, b2 *bindings, iter unifyIterato
 		saveA = e.saveSet.ContainsRecursive(a, b1)
 	} else {
 		saveA = e.saveSet.Contains(a, b1)
+		if !saveA {
+			if _, refA := a.Value.(ast.Ref); refA {
+				return e.biunifyRef(a, b, b1, b2, iter)
+			}
+		}
 	}
 
 	if _, ok := b.Value.(ast.Set); ok {
 		saveB = e.saveSet.ContainsRecursive(b, b2)
 	} else {
 		saveB = e.saveSet.Contains(b, b2)
+		if !saveB {
+			if _, refB := b.Value.(ast.Ref); refB {
+				return e.biunifyRef(b, a, b2, b1, iter)
+			}
+		}
 	}
-
-	_, refA := a.Value.(ast.Ref)
-	_, refB := b.Value.(ast.Ref)
-
-	// Try to evaluate refs and comprehensions. If partial evaluation is
-	// enabled, then skip evaluation (and save the expression) if the term is
-	// in the save set. Currently, comprehensions are not evaluated during
-	// partial eval. This could be improved in the future.
-	if refA && !saveA {
-		return e.biunifyRef(a, b, b1, b2, iter)
-	} else if refB && !saveB {
-		return e.biunifyRef(b, a, b2, b1, iter)
-	}
-
-	compA := ast.IsComprehension(a.Value)
-	compB := ast.IsComprehension(b.Value)
 
 	if saveA || saveB {
 		return e.saveUnify(a, b, b1, b2, iter)
 	}
 
-	if compA {
+	if ast.IsComprehension(a.Value) {
 		return e.biunifyComprehension(a, b, b1, b2, false, iter)
-	} else if compB {
+	} else if ast.IsComprehension(b.Value) {
 		return e.biunifyComprehension(b, a, b2, b1, true, iter)
 	}
 
