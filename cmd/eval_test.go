@@ -9,7 +9,10 @@ import (
 	"bytes"
 	"fmt"
 	"path/filepath"
+	"reflect"
 	"testing"
+
+	"github.com/open-policy-agent/opa/rego"
 
 	"github.com/open-policy-agent/opa/internal/presentation"
 	"github.com/open-policy-agent/opa/util"
@@ -171,5 +174,55 @@ func TestEvalReturnsRegoError(t *testing.T) {
 	_, err := eval([]string{"1/0"}, newEvalCommandParams(), buf)
 	if _, ok := err.(regoError); !ok {
 		t.Fatal("expected regoError but got:", err)
+	}
+}
+
+func TestEvalWithBundleData(t *testing.T) {
+	files := map[string]string{
+		"x/x.rego":            "package x\np = 1",
+		"x/data.json":         `{"b": "bar"}`,
+		"other/not-data.json": `{"ignored": "data"}`,
+	}
+
+	test.WithTempFS(files, func(path string) {
+
+		params := newEvalCommandParams()
+		params.bundlePaths = repeatedStringFlag{
+			v:     []string{path},
+			isSet: true,
+		}
+
+		var buf bytes.Buffer
+
+		defined, err := eval([]string{"data"}, params, &buf)
+		if !defined || err != nil {
+			t.Fatalf("Unexpected undefined or error: %v", err)
+		}
+
+		var output presentation.Output
+
+		if err := util.NewJSONDecoder(&buf).Decode(&output); err != nil {
+			t.Fatal(err)
+		}
+
+		assertResultSet(t, output.Result, `[[{"x": {"p": 1, "b": "bar"}}]]`)
+	})
+}
+
+func assertResultSet(t *testing.T, rs rego.ResultSet, expected string) {
+	t.Helper()
+	result := []interface{}{}
+
+	for i := range rs {
+		values := []interface{}{}
+		for j := range rs[i].Expressions {
+			values = append(values, rs[i].Expressions[j].Value)
+		}
+		result = append(result, values)
+	}
+
+	parsedExpected := util.MustUnmarshalJSON([]byte(expected))
+	if !reflect.DeepEqual(result, parsedExpected) {
+		t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", parsedExpected, result)
 	}
 }

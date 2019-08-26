@@ -12,6 +12,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/open-policy-agent/opa/metrics"
+
+	"github.com/open-policy-agent/opa/bundle"
+
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/loader"
 	"github.com/open-policy-agent/opa/rego"
@@ -95,6 +99,8 @@ type Runner struct {
 	trace       bool
 	runtime     *ast.Term
 	failureLine bool
+	modules     map[string]*ast.Module
+	bundles     map[string]*bundle.Bundle
 }
 
 // NewRunner returns a new runner.
@@ -145,6 +151,20 @@ func (r *Runner) SetRuntime(term *ast.Term) *Runner {
 	return r
 }
 
+// SetModules will add modules to the Runner which will be compiled then used
+// for discovering and evaluating tests.
+func (r *Runner) SetModules(modules map[string]*ast.Module) *Runner {
+	r.modules = modules
+	return r
+}
+
+// SetBundles will add bundles to the Runner which will be compiled then used
+// for discovering and evaluating tests.
+func (r *Runner) SetBundles(bundles map[string]*bundle.Bundle) *Runner {
+	r.bundles = bundles
+	return r
+}
+
 func getFailedAtFromTrace(bufFailureLineTracer *topdown.BufferTracer) *ast.Expr {
 	events := *bufFailureLineTracer
 	const SecondToLast = 2
@@ -161,11 +181,102 @@ func getFailedAtFromTrace(bufFailureLineTracer *topdown.BufferTracer) *ast.Expr 
 }
 
 // Run executes all tests contained in supplied modules.
+// Deprecated: Use RunTests and the Runner#SetModules or Runner#SetBundles
+// helpers instead. This will NOT use the modules or bundles set on the Runner.
 func (r *Runner) Run(ctx context.Context, modules map[string]*ast.Module) (ch chan *Result, err error) {
+	return r.SetModules(modules).RunTests(ctx, nil)
+}
 
-	// rewrite duplicate test_* rule names
+// RunTests executes all tests contained in modules
+// found in either modules or bundles loaded on the runner.
+func (r *Runner) RunTests(ctx context.Context, txn storage.Transaction) (ch chan *Result, err error) {
+	if r.compiler == nil {
+		r.compiler = ast.NewCompiler()
+	}
+
+	// rewrite duplicate test_* rule names as we compile modules
+	r.compiler.WithStageAfter("ResolveRefs", ast.CompilerStageDefinition{
+		Name:       "RewriteDuplicateTestNames",
+		MetricName: "rewrite_duplicate_test_names",
+		Stage:      rewriteDuplicateTestNames,
+	})
+
+	if r.store == nil {
+		r.store = inmem.New()
+	}
+
+	if r.bundles != nil && len(r.bundles) > 0 {
+		if txn == nil {
+			return nil, fmt.Errorf("unable to activate bundles: storage transaction is nil")
+		}
+
+		// Activate the bundle(s) to get their info and policies into the store
+		// the actual compiled policies will overwritten later..
+		opts := &bundle.ActivateOpts{
+			Ctx:      ctx,
+			Store:    r.store,
+			Txn:      txn,
+			Compiler: r.compiler,
+			Metrics:  metrics.New(),
+			Bundles:  r.bundles,
+		}
+		err = bundle.Activate(opts)
+		if err != nil {
+			return nil, err
+		}
+
+		// Aggregate the bundle modules with other ones provided
+		if r.modules == nil {
+			r.modules = map[string]*ast.Module{}
+		}
+		for _, b := range r.bundles {
+			for _, mf := range b.Modules {
+				r.modules[mf.Path] = mf.Parsed
+			}
+		}
+	}
+
+	if r.modules != nil && len(r.modules) > 0 {
+		if r.compiler.Compile(r.modules); r.compiler.Failed() {
+			return nil, r.compiler.Errors
+		}
+	}
+
+	filenames := make([]string, 0, len(r.compiler.Modules))
+	for name := range r.compiler.Modules {
+		filenames = append(filenames, name)
+	}
+
+	sort.Strings(filenames)
+
+	ch = make(chan *Result)
+
+	go func() {
+		defer close(ch)
+		for _, name := range filenames {
+			module := r.compiler.Modules[name]
+			for _, rule := range module.Rules {
+				if !strings.HasPrefix(string(rule.Head.Name), TestPrefix) {
+					continue
+				}
+				tr, stop := r.runTest(ctx, txn, module, rule)
+				ch <- tr
+				if stop {
+					return
+				}
+			}
+		}
+	}()
+
+	return ch, nil
+}
+
+// rewriteDuplicateTestNames will rewrite duplicate test names to have a numbered suffix.
+// This uses a global "count" of each to ensure compiling more than once as new modules
+// are added can't introduce duplicates again.
+func rewriteDuplicateTestNames(compiler *ast.Compiler) *ast.Error {
 	count := map[string]int{}
-	for _, mod := range modules {
+	for _, mod := range compiler.Modules {
 		for _, rule := range mod.Rules {
 			name := rule.Head.Name.String()
 			if !strings.HasPrefix(name, TestPrefix) {
@@ -178,49 +289,10 @@ func (r *Runner) Run(ctx context.Context, modules map[string]*ast.Module) (ch ch
 			count[key]++
 		}
 	}
-
-	if r.compiler == nil {
-		r.compiler = ast.NewCompiler()
-	}
-
-	if r.store == nil {
-		r.store = inmem.New()
-	}
-
-	filenames := make([]string, 0, len(modules))
-	for name := range modules {
-		filenames = append(filenames, name)
-	}
-
-	sort.Strings(filenames)
-
-	if r.compiler.Compile(modules); r.compiler.Failed() {
-		return nil, r.compiler.Errors
-	}
-
-	ch = make(chan *Result)
-
-	go func() {
-		defer close(ch)
-		for _, name := range filenames {
-			module := r.compiler.Modules[name]
-			for _, rule := range module.Rules {
-				if !strings.HasPrefix(string(rule.Head.Name), TestPrefix) {
-					continue
-				}
-				tr, stop := r.runTest(ctx, module, rule)
-				ch <- tr
-				if stop {
-					return
-				}
-			}
-		}
-	}()
-
-	return ch, nil
+	return nil
 }
 
-func (r *Runner) runTest(ctx context.Context, mod *ast.Module, rule *ast.Rule) (*Result, bool) {
+func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.Module, rule *ast.Rule) (*Result, bool) {
 
 	var bufferTracer *topdown.BufferTracer
 	var bufFailureLineTracer *topdown.BufferTracer
@@ -238,6 +310,7 @@ func (r *Runner) runTest(ctx context.Context, mod *ast.Module, rule *ast.Rule) (
 
 	rego := rego.New(
 		rego.Store(r.store),
+		rego.Transaction(txn),
 		rego.Compiler(r.compiler),
 		rego.Query(rule.Path().String()),
 		rego.Tracer(tracer),
@@ -282,8 +355,34 @@ func Load(args []string, filter loader.Filter) (map[string]*ast.Module, storage.
 	}
 	store := inmem.NewFromObject(loaded.Documents)
 	modules := map[string]*ast.Module{}
-	for _, loadedModule := range loaded.Modules {
-		modules[loadedModule.Name] = loadedModule.Parsed
+	ctx := context.Background()
+	err = storage.Txn(ctx, store, storage.WriteParams, func(txn storage.Transaction) error {
+		for _, loadedModule := range loaded.Modules {
+			modules[loadedModule.Name] = loadedModule.Parsed
+
+			// Add the policies to the store to ensure that any future bundle
+			// activations will preserve them and re-compile the module with
+			// the bundle modules.
+			err := store.UpsertPolicy(ctx, txn, loadedModule.Name, loadedModule.Raw)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	return modules, store, err
+}
+
+// LoadBundles will load the given args as bundles, either tarball or directory is OK.
+func LoadBundles(args []string, filter loader.Filter) (map[string]*bundle.Bundle, error) {
+	bundles := map[string]*bundle.Bundle{}
+	for _, bundleDir := range args {
+		b, err := loader.AsBundle(bundleDir)
+		if err != nil {
+			return nil, fmt.Errorf("unable to load bundle %s: %s", bundleDir, err)
+		}
+		bundles[bundleDir] = b
 	}
-	return modules, store, nil
+
+	return bundles, nil
 }
