@@ -2843,6 +2843,17 @@ func TestQueryCompilerWithStageAfterWithMetrics(t *testing.T) {
 	}
 }
 
+func TestQueryCompilerWithUnsafeBuiltins(t *testing.T) {
+	c := NewCompiler().WithUnsafeBuiltins(map[string]struct{}{
+		"count": struct{}{},
+	})
+
+	_, err := c.QueryCompiler().WithUnsafeBuiltins(map[string]struct{}{}).Compile(MustParseBody("count([])"))
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func assertCompilerErrorStrings(t *testing.T, compiler *Compiler, expected []string) {
 	result := compilerErrsToStringSlice(compiler.Errors)
 
