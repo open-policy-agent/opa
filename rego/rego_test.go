@@ -907,6 +907,45 @@ func TestUnsafeBuiltins(t *testing.T) {
 	})
 }
 
+func TestPreparedQueryGetModules(t *testing.T) {
+	mods := map[string]string{
+		"a.rego": "package a\np = 1",
+		"b.rego": "package b\nq = 1",
+		"c.rego": "package c\nr = 1",
+	}
+
+	var regoArgs []func(r *Rego)
+
+	for name, mod := range mods {
+		regoArgs = append(regoArgs, Module(name, mod))
+	}
+
+	regoArgs = append(regoArgs, Query("data"))
+
+	ctx := context.Background()
+	pq, err := New(regoArgs...).PrepareForEval(ctx)
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+
+	actualMods := pq.Modules()
+
+	if len(actualMods) != len(mods) {
+		t.Fatalf("Expected %d modules, got %d", len(mods), len(actualMods))
+	}
+
+	for name, actualMod := range actualMods {
+		expectedMod, found := mods[name]
+		if !found {
+			t.Fatalf("Unexpected module %s", name)
+		}
+		if actualMod.String() != ast.MustParseModule(expectedMod).String() {
+			t.Fatalf("Modules for %s do not match.\n\nExpected:\n%s\n\nActual:\n%s\n\n",
+				name, actualMod.String(), expectedMod)
+		}
+	}
+}
+
 func TestRegoEvalWithFile(t *testing.T) {
 	files := map[string]string{
 		"x/x.rego": "package x\np = 1",
