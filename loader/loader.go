@@ -15,6 +15,8 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/open-policy-agent/opa/internal/file"
+
 	"github.com/ghodss/yaml"
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
@@ -129,6 +131,37 @@ func Rego(path string) (*RegoFile, error) {
 		return nil, err
 	}
 	return loadRego(path, bs)
+}
+
+// AsBundle loads a path as a bundle. If it is a single file
+// it will be treated as a normal tarball bundle. If a directory
+// is supplied it will be loaded as an unzipped bundle tree.
+func AsBundle(path string) (*bundle.Bundle, error) {
+	path, err := cleanFileURL(path)
+	if err != nil {
+		return nil, err
+	}
+
+	fi, err := os.Stat(path)
+	if err != nil {
+		return nil, fmt.Errorf("error reading %q: %s", path, err)
+	}
+
+	var bundleLoader file.DirectoryLoader
+
+	if fi.IsDir() {
+		bundleLoader = file.NewDirectoryLoader(path)
+	} else {
+		fh, err := os.Open(path)
+		if err != nil {
+			return nil, err
+		}
+		bundleLoader = file.NewTarballLoader(fh)
+	}
+
+	br := bundle.NewCustomReader(bundleLoader)
+	b, err := br.Read()
+	return &b, err
 }
 
 // CleanPath returns the normalized version of a path that can be used as an identifier.
@@ -328,7 +361,7 @@ func loadKnownTypes(path string, bs []byte) (interface{}, error) {
 		return loadYAML(path, bs)
 	default:
 		if strings.HasSuffix(path, ".tar.gz") {
-			return loadBundle(bs)
+			return loadBundleFile(bs)
 		}
 	}
 	return nil, unrecognizedFile(path)
@@ -350,9 +383,14 @@ func loadFileForAnyType(path string, bs []byte) (interface{}, error) {
 	return nil, unrecognizedFile(path)
 }
 
-func loadBundle(bs []byte) (bundle.Bundle, error) {
-	br := bundle.NewReader(bytes.NewBuffer(bs)).IncludeManifestInData(true)
+func loadBundleFile(bs []byte) (bundle.Bundle, error) {
+	tl := file.NewTarballLoader(bytes.NewBuffer(bs))
+	br := bundle.NewCustomReader(tl).IncludeManifestInData(true)
 	return br.Read()
+}
+
+func loadBundleDir(path string) (bundle.Bundle, error) {
+	return bundle.Bundle{}, nil
 }
 
 func loadRego(path string, bs []byte) (*RegoFile, error) {
