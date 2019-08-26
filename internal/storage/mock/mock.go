@@ -8,10 +8,11 @@ package mock
 import (
 	"context"
 	"fmt"
+	"testing"
+
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
-	"testing"
 )
 
 // Transaction is a mock storage.Transaction implementation for use in testing.
@@ -147,32 +148,32 @@ func (s *Store) AssertValid(t *testing.T) {
 
 // Register just shims the call to the underlying inmem store
 func (s *Store) Register(ctx context.Context, txn storage.Transaction, config storage.TriggerConfig) (storage.TriggerHandle, error) {
-	return s.inmem.Register(ctx, txn, config)
+	return s.inmem.Register(ctx, getRealTxn(txn), config)
 }
 
 // ListPolicies just shims the call to the underlying inmem store
 func (s *Store) ListPolicies(ctx context.Context, txn storage.Transaction) ([]string, error) {
-	return s.ListPolicies(ctx, txn)
+	return s.inmem.ListPolicies(ctx, getRealTxn(txn))
 }
 
 // GetPolicy just shims the call to the underlying inmem store
 func (s *Store) GetPolicy(ctx context.Context, txn storage.Transaction, name string) ([]byte, error) {
-	return s.inmem.GetPolicy(ctx, txn, name)
+	return s.inmem.GetPolicy(ctx, getRealTxn(txn), name)
 }
 
 // UpsertPolicy just shims the call to the underlying inmem store
 func (s *Store) UpsertPolicy(ctx context.Context, txn storage.Transaction, name string, policy []byte) error {
-	return s.inmem.UpsertPolicy(ctx, txn, name, policy)
+	return s.inmem.UpsertPolicy(ctx, getRealTxn(txn), name, policy)
 }
 
 // DeletePolicy just shims the call to the underlying inmem store
 func (s *Store) DeletePolicy(ctx context.Context, txn storage.Transaction, name string) error {
-	return s.inmem.DeletePolicy(ctx, txn, name)
+	return s.inmem.DeletePolicy(ctx, getRealTxn(txn), name)
 }
 
 // Build just shims the call to the underlying inmem store
 func (s *Store) Build(ctx context.Context, txn storage.Transaction, ref ast.Ref) (storage.Index, error) {
-	return s.inmem.Build(ctx, txn, ref)
+	return s.inmem.Build(ctx, getRealTxn(txn), ref)
 }
 
 // NewTransaction will create a new transaction on the underlying inmem store
@@ -251,4 +252,9 @@ func (s *Store) Abort(ctx context.Context, txn storage.Transaction) {
 	s.inmem.Abort(ctx, mockTxn.txn)
 	mockTxn.Aborted++
 	return
+}
+
+func getRealTxn(txn storage.Transaction) storage.Transaction {
+	return txn.(*Transaction).txn
+
 }
