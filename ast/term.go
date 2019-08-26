@@ -1215,7 +1215,7 @@ type set struct {
 
 // Copy returns a deep copy of s.
 func (s *set) Copy() Set {
-	cpy := NewSet()
+	cpy := newset(s.Len())
 	s.Foreach(func(x *Term) {
 		cpy.Add(x.Copy())
 	})
