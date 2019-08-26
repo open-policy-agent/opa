@@ -177,10 +177,10 @@ func (r *Reader) Read() (Bundle, error) {
 		if strings.HasSuffix(path, RegoExt) {
 			module, err := ast.ParseModule(path, buf.String())
 			if err != nil {
-				return bundle, errors.Wrap(err, "bundle load failed")
+				return bundle, err
 			}
 			if module == nil {
-				return bundle, errors.Wrap(fmt.Errorf("module '%s' is empty", path), "bundle load failed")
+				return bundle, fmt.Errorf("module '%s' is empty", path)
 			}
 
 			mf := ModuleFile{

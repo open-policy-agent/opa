@@ -2,7 +2,16 @@ package bundle
 
 import (
 	"context"
+	"reflect"
+	"strings"
 	"testing"
+
+	"github.com/open-policy-agent/opa/util"
+
+	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/metrics"
+
+	"github.com/open-policy-agent/opa/internal/storage/mock"
 
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
@@ -199,5 +208,803 @@ func verifyReadLegacyRevision(ctx context.Context, t *testing.T, store storage.S
 
 	if actual != expected {
 		t.Fatalf("Expected revision %s, got %s", expected, actual)
+	}
+}
+
+func TestBundleLifecycle(t *testing.T) {
+	ctx := context.Background()
+	mockStore := mock.New()
+
+	compiler := ast.NewCompiler()
+	m := metrics.New()
+
+	extraMods := map[string]*ast.Module{
+		"mod1": ast.MustParseModule("package x\np = true"),
+	}
+
+	mod2 := "package a\np = true"
+	mod3 := "package b\np = true"
+
+	bundles := map[string]*Bundle{
+		"bundle1": {
+			Manifest: Manifest{
+				Roots: &[]string{"a"},
+			},
+			Data: map[string]interface{}{
+				"a": map[string]interface{}{
+					"b": "foo",
+				},
+			},
+			Modules: []ModuleFile{
+				{
+					Path:   "a/policy.rego",
+					Raw:    []byte(mod2),
+					Parsed: ast.MustParseModule(mod2),
+				},
+			},
+		},
+		"bundle2": {
+			Manifest: Manifest{
+				Roots: &[]string{"b", "c"},
+			},
+			Data: nil,
+			Modules: []ModuleFile{
+				{
+					Path:   "b/policy.rego",
+					Raw:    []byte(mod3),
+					Parsed: ast.MustParseModule(mod3),
+				},
+			},
+		},
+	}
+
+	txn := storage.NewTransactionOrDie(ctx, mockStore, storage.WriteParams)
+
+	err := Activate(&ActivateOpts{
+		Ctx:          ctx,
+		Store:        mockStore,
+		Txn:          txn,
+		Compiler:     compiler,
+		Metrics:      m,
+		Bundles:      bundles,
+		ExtraModules: extraMods,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	err = mockStore.Commit(ctx, txn)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	// Ensure the bundle was activated
+	txn = storage.NewTransactionOrDie(ctx, mockStore)
+	names, err := ReadBundleNamesFromStore(ctx, mockStore, txn)
+
+	if len(names) != len(bundles) {
+		t.Fatalf("expected %d bundles in store, found %d", len(bundles), len(names))
+	}
+	for _, name := range names {
+		if _, ok := bundles[name]; !ok {
+			t.Fatalf("unexpected bundle name found in store: %s", name)
+		}
+	}
+
+	for name, bundle := range bundles {
+		for _, mod := range bundle.Modules {
+			if _, ok := compiler.Modules[mod.Path]; !ok {
+				t.Fatalf("expected module %s from bundle %s to have been compiled", mod.Path, name)
+			}
+		}
+	}
+
+	actual, err := mockStore.Read(ctx, txn, storage.MustParsePath("/"))
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	expectedRaw := `
+{
+	"a": {
+		"b": "foo"
+	},
+	"system": {
+		"bundles": {
+			"bundle1": {
+				"manifest": {
+					"revision": "",
+					"roots": ["a"]
+				}
+			},
+			"bundle2": {
+				"manifest": {
+					"revision": "",
+					"roots": ["b", "c"]
+				}
+			}
+		}
+	}
+}
+`
+	expected := loadExpectedSortedResult(expectedRaw)
+	if !reflect.DeepEqual(expected, actual) {
+		t.Errorf("expected %v, got %v", expectedRaw, string(util.MustMarshalJSON(actual)))
+	}
+
+	// Ensure that the extra module was included
+	if _, ok := compiler.Modules["mod1"]; !ok {
+		t.Fatalf("expected extra module to be compiled")
+	}
+
+	// Stop the "read" transaction
+	mockStore.Abort(ctx, txn)
+
+	txn = storage.NewTransactionOrDie(ctx, mockStore, storage.WriteParams)
+
+	err = Deactivate(&DeactivateOpts{
+		Ctx:         ctx,
+		Store:       mockStore,
+		Txn:         txn,
+		BundleNames: map[string]struct{}{"bundle1": {}, "bundle2": {}},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	err = mockStore.Commit(ctx, txn)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	// Expect the store to have been cleared out after deactivating the bundles
+	txn = storage.NewTransactionOrDie(ctx, mockStore)
+	names, err = ReadBundleNamesFromStore(ctx, mockStore, txn)
+
+	if len(names) != 0 {
+		t.Fatalf("expected 0 bundles in store, found %d", len(names))
+	}
+
+	actual, err = mockStore.Read(ctx, txn, storage.MustParsePath("/"))
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	expectedRaw = `{"system": {"bundles": {}}}`
+	expected = loadExpectedSortedResult(expectedRaw)
+	if !reflect.DeepEqual(expected, actual) {
+		t.Errorf("expected %v, got %v", expectedRaw, string(util.MustMarshalJSON(actual)))
+	}
+
+	mockStore.AssertValid(t)
+}
+
+func TestEraseData(t *testing.T) {
+	ctx := context.Background()
+	cases := []struct {
+		note        string
+		initialData map[string]interface{}
+		roots       []string
+		expectErr   bool
+		expected    string
+	}{
+		{
+			note: "erase all",
+			initialData: map[string]interface{}{
+				"a": map[string]interface{}{
+					"b": "foo",
+				},
+				"b": "bar",
+			},
+			roots:     []string{"a", "b"},
+			expectErr: false,
+			expected:  `{}`,
+		},
+		{
+			note: "erase none",
+			initialData: map[string]interface{}{
+				"a": map[string]interface{}{
+					"b": "foo",
+				},
+				"b": "bar",
+			},
+			roots:     []string{},
+			expectErr: false,
+			expected:  `{"a": {"b": "foo"}, "b": "bar"}`,
+		},
+		{
+			note: "erase partial",
+			initialData: map[string]interface{}{
+				"a": map[string]interface{}{
+					"b": "foo",
+				},
+				"b": "bar",
+			},
+			roots:     []string{"a"},
+			expectErr: false,
+			expected:  `{"b": "bar"}`,
+		},
+		{
+			note: "erase partial path",
+			initialData: map[string]interface{}{
+				"a": map[string]interface{}{
+					"b": "foo",
+					"c": map[string]interface{}{
+						"d": 123,
+					},
+				},
+			},
+			roots:     []string{"a/c/d"},
+			expectErr: false,
+			expected:  `{"a": {"b": "foo", "c":{}}}`,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			mockStore := mock.NewWithData(tc.initialData)
+			txn := storage.NewTransactionOrDie(ctx, mockStore, storage.WriteParams)
+
+			roots := map[string]struct{}{}
+			for _, root := range tc.roots {
+				roots[root] = struct{}{}
+			}
+
+			err := eraseData(ctx, mockStore, txn, roots)
+			if !tc.expectErr && err != nil {
+				t.Fatalf("unepected error: %s", err)
+			} else if tc.expectErr && err == nil {
+				t.Fatalf("expected error, got: %s", err)
+			}
+
+			err = mockStore.Commit(ctx, txn)
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			}
+			mockStore.AssertValid(t)
+
+			txn = storage.NewTransactionOrDie(ctx, mockStore)
+			actual, err := mockStore.Read(ctx, txn, storage.MustParsePath("/"))
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			}
+			expected := loadExpectedSortedResult(tc.expected)
+			if !reflect.DeepEqual(expected, actual) {
+				t.Errorf("expected %v, got %v", tc.expected, actual)
+			}
+		})
+	}
+}
+
+func TestErasePolicies(t *testing.T) {
+	ctx := context.Background()
+	cases := []struct {
+		note              string
+		initialPolicies   map[string][]byte
+		roots             []string
+		expectErr         bool
+		expectedRemaining []string
+	}{
+		{
+			note: "erase all",
+			initialPolicies: map[string][]byte{
+				"mod1": []byte("package a\np = true"),
+			},
+			roots:             []string{""},
+			expectErr:         false,
+			expectedRemaining: []string{},
+		},
+		{
+			note: "erase none",
+			initialPolicies: map[string][]byte{
+				"mod1": []byte("package a\np = true"),
+				"mod2": []byte("package b\np = true"),
+			},
+			roots:             []string{"c"},
+			expectErr:         false,
+			expectedRemaining: []string{"mod1", "mod2"},
+		},
+		{
+			note: "erase some",
+			initialPolicies: map[string][]byte{
+				"mod1": []byte("package a\np = true"),
+				"mod2": []byte("package b\np = true"),
+			},
+			roots:             []string{"b"},
+			expectErr:         false,
+			expectedRemaining: []string{"mod1"},
+		},
+		{
+			note: "error: parsing module",
+			initialPolicies: map[string][]byte{
+				"mod1": []byte("package a\np = true"),
+				"mod2": []byte("bad-policy-syntax"),
+			},
+			roots:             []string{"b"},
+			expectErr:         true,
+			expectedRemaining: []string{"mod1"},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			mockStore := mock.New()
+			txn := storage.NewTransactionOrDie(ctx, mockStore, storage.WriteParams)
+
+			for name, mod := range tc.initialPolicies {
+				err := mockStore.UpsertPolicy(ctx, txn, name, mod)
+				if err != nil {
+					t.Fatalf("unexpected error: %s", err)
+				}
+			}
+
+			roots := map[string]struct{}{}
+			for _, root := range tc.roots {
+				roots[root] = struct{}{}
+			}
+			remaining, err := erasePolicies(ctx, mockStore, txn, roots)
+			if !tc.expectErr && err != nil {
+				t.Fatalf("unepected error: %s", err)
+			} else if tc.expectErr && err == nil {
+				t.Fatalf("expected error, got: %s", err)
+			}
+
+			if !tc.expectErr {
+				if len(remaining) != len(tc.expectedRemaining) {
+					t.Fatalf("expected %d modules remaining, got %d", len(remaining), len(tc.expectedRemaining))
+				}
+				for _, name := range tc.expectedRemaining {
+					if _, ok := remaining[name]; !ok {
+						t.Fatalf("expected remaining module %s not found", name)
+					}
+				}
+
+				err = mockStore.Commit(ctx, txn)
+				if err != nil {
+					t.Fatalf("unexpected error: %s", err)
+				}
+				mockStore.AssertValid(t)
+
+				txn = storage.NewTransactionOrDie(ctx, mockStore)
+				actualRemaining, err := mockStore.ListPolicies(ctx, txn)
+				if err != nil {
+					t.Fatalf("unexpected error: %s", err)
+				}
+
+				if len(actualRemaining) != len(tc.expectedRemaining) {
+					t.Fatalf("expected %d modules remaining in the store, got %d", len(tc.expectedRemaining), len(actualRemaining))
+				}
+				for _, expectedName := range tc.expectedRemaining {
+					found := false
+					for _, actualName := range actualRemaining {
+						if expectedName == actualName {
+							found = true
+							break
+						}
+					}
+					if !found {
+						t.Fatalf("expected remaining module %s not found", expectedName)
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestWriteData(t *testing.T) {
+	ctx := context.Background()
+	cases := []struct {
+		note         string
+		existingData map[string]interface{}
+		roots        []string
+		data         map[string]interface{}
+		expected     string
+		expectErr    bool
+	}{
+		{
+			note:  "single root",
+			roots: []string{"a"},
+			data: map[string]interface{}{
+				"a": map[string]interface{}{
+					"b": map[string]interface{}{
+						"c": 123,
+					},
+				},
+			},
+			expected:  `{"a": {"b": {"c": 123}}}`,
+			expectErr: false,
+		},
+		{
+			note:  "multiple roots",
+			roots: []string{"a", "b/c/d"},
+			data: map[string]interface{}{
+				"a": "foo",
+				"b": map[string]interface{}{
+					"c": map[string]interface{}{
+						"d": "bar",
+					},
+				},
+			},
+			expected:  `{"a": "foo","b": {"c": {"d": "bar"}}}`,
+			expectErr: false,
+		},
+		{
+			note:  "data not in roots",
+			roots: []string{"a"},
+			data: map[string]interface{}{
+				"a": "foo",
+				"b": map[string]interface{}{
+					"c": map[string]interface{}{
+						"d": "bar",
+					},
+				},
+			},
+			expected:  `{"a": "foo"}`,
+			expectErr: false,
+		},
+		{
+			note:         "no data",
+			roots:        []string{"a"},
+			existingData: map[string]interface{}{},
+			data:         map[string]interface{}{},
+			expected:     `{}`,
+			expectErr:    false,
+		},
+		{
+			note:  "no new data",
+			roots: []string{"a"},
+			existingData: map[string]interface{}{
+				"a": "foo",
+			},
+			data:      map[string]interface{}{},
+			expected:  `{"a": "foo"}`,
+			expectErr: false,
+		},
+		{
+			note:  "overwrite data",
+			roots: []string{"a"},
+			existingData: map[string]interface{}{
+				"a": map[string]interface{}{
+					"b": "foo",
+				},
+			},
+			data: map[string]interface{}{
+				"a": "bar",
+			},
+			expected:  `{"a": "bar"}`,
+			expectErr: false,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			mockStore := mock.NewWithData(tc.existingData)
+			txn := storage.NewTransactionOrDie(ctx, mockStore, storage.WriteParams)
+
+			err := writeData(ctx, mockStore, txn, tc.roots, tc.data)
+			if !tc.expectErr && err != nil {
+				t.Fatalf("unepected error: %s", err)
+			} else if tc.expectErr && err == nil {
+				t.Fatalf("expected error, got: %s", err)
+			}
+
+			err = mockStore.Commit(ctx, txn)
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			}
+			mockStore.AssertValid(t)
+
+			txn = storage.NewTransactionOrDie(ctx, mockStore)
+			actual, err := mockStore.Read(ctx, txn, storage.MustParsePath("/"))
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			}
+			expected := loadExpectedSortedResult(tc.expected)
+			if !reflect.DeepEqual(expected, actual) {
+				t.Errorf("expected %v, got %v", tc.expected, actual)
+			}
+		})
+	}
+}
+
+func loadExpectedResult(input string) interface{} {
+	if len(input) == 0 {
+		return nil
+	}
+	var data interface{}
+	if err := util.UnmarshalJSON([]byte(input), &data); err != nil {
+		panic(err)
+	}
+	return data
+}
+
+func loadExpectedSortedResult(input string) interface{} {
+	data := loadExpectedResult(input)
+	switch data := data.(type) {
+	case []interface{}:
+		return data
+	default:
+		return data
+	}
+}
+
+func TestWriteModules(t *testing.T) {
+	ctx := context.Background()
+
+	cases := []struct {
+		note         string
+		modFiles     []ModuleFile // Only need to give raw text and path
+		extraMods    map[string]*ast.Module
+		compilerMods map[string]*ast.Module
+		storeData    map[string]interface{}
+		expectErr    bool
+		writeToStore bool
+	}{
+		{
+			note: "module files only",
+			modFiles: []ModuleFile{
+				{
+					Path: "mod1",
+					Raw:  []byte("package a\np = true"),
+				},
+			},
+			expectErr:    false,
+			writeToStore: true,
+		},
+		{
+			note: "extra modules only",
+			extraMods: map[string]*ast.Module{
+				"mod1": ast.MustParseModule("package a\np = true"),
+			},
+			expectErr:    false,
+			writeToStore: true,
+		},
+		{
+			note: "compiler modules only",
+			compilerMods: map[string]*ast.Module{
+				"mod1": ast.MustParseModule("package a\np = true"),
+			},
+			expectErr:    false,
+			writeToStore: true,
+		},
+		{
+			note: "module files and extra modules",
+			modFiles: []ModuleFile{
+				{
+					Path: "mod1",
+					Raw:  []byte("package a\np = true"),
+				},
+			},
+			extraMods: map[string]*ast.Module{
+				"mod2": ast.MustParseModule("package b\np = false"),
+			},
+			expectErr:    false,
+			writeToStore: true,
+		},
+		{
+			note: "module files and compiler modules",
+			modFiles: []ModuleFile{
+				{
+					Path: "mod1",
+					Raw:  []byte("package a\np = true"),
+				},
+			},
+			compilerMods: map[string]*ast.Module{
+				"mod2": ast.MustParseModule("package b\np = false"),
+			},
+			expectErr:    false,
+			writeToStore: true,
+		},
+		{
+			note: "extra modules and compiler modules",
+			extraMods: map[string]*ast.Module{
+				"mod1": ast.MustParseModule("package a\np = true"),
+			},
+			compilerMods: map[string]*ast.Module{
+				"mod2": ast.MustParseModule("package b\np = false"),
+			},
+			expectErr:    false,
+			writeToStore: true,
+		},
+		{
+			note: "compile error: path conflict",
+			modFiles: []ModuleFile{
+				{
+					Path: "mod1",
+					Raw:  []byte("package a\np = true"),
+				},
+			},
+			storeData: map[string]interface{}{
+				"a": map[string]interface{}{
+					"p": "foo",
+				},
+			},
+			expectErr:    true,
+			writeToStore: false,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			mockStore := mock.NewWithData(tc.storeData)
+			txn := storage.NewTransactionOrDie(ctx, mockStore, storage.WriteParams)
+
+			compiler := ast.NewCompiler().WithPathConflictsCheck(storage.NonEmpty(ctx, mockStore, txn))
+			m := metrics.New()
+
+			// if supplied, pre-parse the module files
+			var parsedMods []ModuleFile
+			for _, mf := range tc.modFiles {
+				parsedMods = append(parsedMods, ModuleFile{
+					Path:   mf.Path,
+					Raw:    mf.Raw,
+					Parsed: ast.MustParseModule(string(mf.Raw)),
+				})
+			}
+			tc.modFiles = parsedMods
+
+			// if supplied, setup the compiler with modules already compiled on it
+			if len(tc.compilerMods) > 0 {
+				compiler.Compile(tc.compilerMods)
+				if len(compiler.Errors) > 0 {
+					t.Fatalf("unexpected error: %s", compiler.Errors)
+				}
+			}
+
+			err := writeModules(ctx, mockStore, txn, compiler, m, tc.modFiles, tc.extraMods)
+			if !tc.expectErr && err != nil {
+				t.Fatalf("unepected error: %s", err)
+			} else if tc.expectErr && err == nil {
+				t.Fatalf("expected error, got: %s", err)
+			}
+
+			if !tc.expectErr {
+				// ensure all policy files were saved to storage
+				policies, err := mockStore.ListPolicies(ctx, txn)
+				if err != nil {
+					t.Fatalf("unexpected error: %s", err)
+				}
+
+				if len(policies) != len(tc.modFiles) {
+					t.Fatalf("expected %d policies in storage, found %d", len(tc.modFiles), len(policies))
+				}
+
+				for _, mf := range tc.modFiles {
+					found := false
+					for _, p := range policies {
+						if p == mf.Path {
+							found = true
+							break
+						}
+					}
+					if !found {
+						t.Fatalf("policy %s not found in storage", mf.Path)
+					}
+				}
+
+				// ensure all the modules were compiled together and we aren't missing any
+				expectedModCount := len(tc.modFiles) + len(tc.extraMods) + len(tc.compilerMods)
+				if len(compiler.Modules) != expectedModCount {
+					t.Fatalf("expected %d modules on compiler, found %d", expectedModCount, len(compiler.Modules))
+				}
+
+				for name := range compiler.Modules {
+					found := false
+					if _, ok := tc.extraMods[name]; ok {
+						continue
+					}
+					if _, ok := tc.compilerMods[name]; ok {
+						continue
+					}
+					for _, mf := range tc.modFiles {
+						if mf.Path == name {
+							found = true
+							break
+						}
+					}
+					if found {
+						continue
+					}
+					t.Errorf("unexpected module %s on compiler", name)
+				}
+
+			}
+
+			err = mockStore.Commit(ctx, txn)
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			}
+
+			mockStore.AssertValid(t)
+		})
+	}
+}
+
+func TestHasRootsOverlap(t *testing.T) {
+	ctx := context.Background()
+
+	cases := []struct {
+		note        string
+		storeRoots  map[string]*[]string
+		bundleRoots map[string]*[]string
+		overlaps    bool
+	}{
+		{
+			note:        "no overlap with existing roots",
+			storeRoots:  map[string]*[]string{"bundle1": {"a", "b"}},
+			bundleRoots: map[string]*[]string{"bundle2": {"c"}},
+			overlaps:    false,
+		},
+		{
+			note:        "no overlap with existing roots multiple bundles",
+			storeRoots:  map[string]*[]string{"bundle1": {"a", "b"}},
+			bundleRoots: map[string]*[]string{"bundle2": {"c"}, "bundle3": {"d"}},
+			overlaps:    false,
+		},
+		{
+			note:        "no overlap no existing roots",
+			storeRoots:  map[string]*[]string{},
+			bundleRoots: map[string]*[]string{"bundle1": {"a", "b"}},
+			overlaps:    false,
+		},
+		{
+			note:        "no overlap without existing roots multiple bundles",
+			storeRoots:  map[string]*[]string{},
+			bundleRoots: map[string]*[]string{"bundle1": {"a", "b"}, "bundle2": {"c"}},
+			overlaps:    false,
+		},
+		{
+			note:        "overlap without existing roots multiple bundles",
+			storeRoots:  map[string]*[]string{},
+			bundleRoots: map[string]*[]string{"bundle1": {"a", "b"}, "bundle2": {"a", "c"}},
+			overlaps:    true,
+		},
+		{
+			note:        "overlap with existing roots",
+			storeRoots:  map[string]*[]string{"bundle1": {"a", "b"}},
+			bundleRoots: map[string]*[]string{"bundle2": {"c", "a"}},
+			overlaps:    true,
+		},
+		{
+			note:        "overlap with existing roots multiple bundles",
+			storeRoots:  map[string]*[]string{"bundle1": {"a", "b"}},
+			bundleRoots: map[string]*[]string{"bundle2": {"c", "a"}, "bundle3": {"a"}},
+			overlaps:    true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			mockStore := mock.New()
+			txn := storage.NewTransactionOrDie(ctx, mockStore, storage.WriteParams)
+
+			for name, roots := range tc.storeRoots {
+				err := WriteManifestToStore(ctx, mockStore, txn, name, Manifest{Roots: roots})
+				if err != nil {
+					t.Fatalf("unexpected error: %s", err)
+				}
+			}
+
+			bundles := map[string]*Bundle{}
+			for name, roots := range tc.bundleRoots {
+				bundles[name] = &Bundle{
+					Manifest: Manifest{
+						Roots: roots,
+					},
+				}
+			}
+
+			err := hasRootsOverlap(ctx, mockStore, txn, bundles)
+			if !tc.overlaps && err != nil {
+				t.Fatalf("unepected error: %s", err)
+			} else if tc.overlaps && (err == nil || !strings.Contains(err.Error(), "detected overlapping roots in bundle manifest")) {
+				t.Fatalf("expected overlapping roots error, got: %s", err)
+			}
+
+			err = mockStore.Commit(ctx, txn)
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			}
+
+			mockStore.AssertValid(t)
+		})
 	}
 }
