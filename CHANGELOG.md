@@ -3,6 +3,19 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
+## Unreleased
+
+- Status API messages now include a dump of OPA's Prometheus metric
+  registry. This increases the Status API message size significantly
+  (~6KB). If you are indexing the the Status API messages, consider
+  removing the metrics. Nonetheless, for Status API implementations,
+  having access to the Prometheus metrics is important for monitoring
+  the health of the OPAs.
+
+## 0.13.4
+
+- Fix panic in OPA HTTP server caused by concurrent map writes ([#1666](https://github.com/open-policy-agent/opa/issues/1666))
+
 ## 0.13.3
 
 ### Fixes
