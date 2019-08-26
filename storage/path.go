@@ -57,6 +57,8 @@ func NewPathForRef(ref ast.Ref) (path Path, err error) {
 		return Path{}, nil
 	}
 
+	path = make(Path, 0, len(ref)-1)
+
 	for _, term := range ref[1:] {
 		switch v := term.Value.(type) {
 		case ast.String:
