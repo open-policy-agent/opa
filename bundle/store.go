@@ -7,6 +7,11 @@ package bundle
 import (
 	"context"
 	"fmt"
+	"strings"
+
+	"github.com/open-policy-agent/opa/metrics"
+
+	"github.com/open-policy-agent/opa/ast"
 
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/util"
@@ -136,6 +141,336 @@ func readRevisionFromStore(ctx context.Context, store storage.Store, txn storage
 	return str, nil
 }
 
+// ActivateOpts defines options for the Activate API call.
+type ActivateOpts struct {
+	Ctx          context.Context
+	Store        storage.Store
+	Txn          storage.Transaction
+	Compiler     *ast.Compiler
+	Metrics      metrics.Metrics
+	Bundles      map[string]*Bundle     // Optional
+	ExtraModules map[string]*ast.Module // Optional
+
+	legacy bool
+}
+
+// Activate the bundle(s) by loading into the given Store. This will load policies, data, and record
+// the manifest in storage. The compiler provided will have had the polices compiled on it.
+func Activate(opts *ActivateOpts) error {
+	opts.legacy = false
+	return activateBundles(opts)
+}
+
+// DeactivateOpts defines options for the Deactivate API call
+type DeactivateOpts struct {
+	Ctx         context.Context
+	Store       storage.Store
+	Txn         storage.Transaction
+	BundleNames map[string]struct{}
+}
+
+// Deactivate the bundle(s). This will erase associated data, policies, and the manifest entry from the store.
+func Deactivate(opts *DeactivateOpts) error {
+	erase := map[string]struct{}{}
+	for name := range opts.BundleNames {
+		if roots, err := ReadBundleRootsFromStore(opts.Ctx, opts.Store, opts.Txn, name); err == nil {
+			for _, root := range roots {
+				erase[root] = struct{}{}
+			}
+		} else if !storage.IsNotFound(err) {
+			return err
+		}
+	}
+	_, err := eraseBundles(opts.Ctx, opts.Store, opts.Txn, opts.BundleNames, erase)
+	return err
+}
+
+func activateBundles(opts *ActivateOpts) error {
+
+	// Build collections of bundle names, modules, and roots to erase
+	var modules []ModuleFile
+	erase := map[string]struct{}{}
+	names := map[string]struct{}{}
+
+	for name, b := range opts.Bundles {
+		names[name] = struct{}{}
+		modules = append(modules, b.Modules...)
+
+		if roots, err := ReadBundleRootsFromStore(opts.Ctx, opts.Store, opts.Txn, name); err == nil {
+			for _, root := range roots {
+				erase[root] = struct{}{}
+			}
+		} else if !storage.IsNotFound(err) {
+			return err
+		}
+
+		// Erase data at new roots to prepare for writing the new data
+		for _, root := range *b.Manifest.Roots {
+			erase[root] = struct{}{}
+		}
+	}
+
+	// Before changing anything make sure the roots don't collide with any
+	// other bundles that already are activated or other bundles being activated.
+	err := hasRootsOverlap(opts.Ctx, opts.Store, opts.Txn, opts.Bundles)
+	if err != nil {
+		return err
+	}
+
+	// Erase data and policies at new + old roots, and remove the old
+	// manifests before activating a new bundles.
+	remaining, err := eraseBundles(opts.Ctx, opts.Store, opts.Txn, names, erase)
+	if err != nil {
+		return err
+	}
+
+	for _, b := range opts.Bundles {
+		// Write data from each new bundle into the store. Only write under the
+		// roots contained in their manifest. This should be done *before* the
+		// policies so that path conflict checks can occur.
+		if err := writeData(opts.Ctx, opts.Store, opts.Txn, *b.Manifest.Roots, b.Data); err != nil {
+			return err
+		}
+	}
+
+	// Write and compile the modules all at once to avoid having to re-do work.
+	remainingAndExtra := make(map[string]*ast.Module)
+	for name, mod := range remaining {
+		remainingAndExtra[name] = mod
+	}
+	for name, mod := range opts.ExtraModules {
+		remainingAndExtra[name] = mod
+	}
+
+	err = writeModules(opts.Ctx, opts.Store, opts.Txn, opts.Compiler, opts.Metrics, modules, remainingAndExtra)
+	if err != nil {
+		return err
+	}
+
+	for name, b := range opts.Bundles {
+		// Always write manifests to the named location. If the plugin is in the older style config
+		// then also write to the old legacy unnamed location.
+		if err := WriteManifestToStore(opts.Ctx, opts.Store, opts.Txn, name, b.Manifest); err != nil {
+			return err
+		}
+		if opts.legacy {
+			if err := LegacyWriteManifestToStore(opts.Ctx, opts.Store, opts.Txn, b.Manifest); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// erase bundles by name and roots. This will clear all policies and data at its roots and remove its
+// manifest from storage.
+func eraseBundles(ctx context.Context, store storage.Store, txn storage.Transaction, names map[string]struct{}, roots map[string]struct{}) (map[string]*ast.Module, error) {
+
+	if err := eraseData(ctx, store, txn, roots); err != nil {
+		return nil, err
+	}
+
+	remaining, err := erasePolicies(ctx, store, txn, roots)
+	if err != nil {
+		return nil, err
+	}
+
+	for name := range names {
+		if err := EraseManifestFromStore(ctx, store, txn, name); err != nil && !storage.IsNotFound(err) {
+			return nil, err
+		}
+
+		if err := LegacyEraseManifestFromStore(ctx, store, txn); err != nil && !storage.IsNotFound(err) {
+			return nil, err
+		}
+	}
+
+	return remaining, nil
+}
+
+func eraseData(ctx context.Context, store storage.Store, txn storage.Transaction, roots map[string]struct{}) error {
+	for root := range roots {
+		path, ok := storage.ParsePathEscaped("/" + root)
+		if !ok {
+			return fmt.Errorf("manifest root path invalid: %v", root)
+		}
+		if len(path) > 0 {
+			if err := store.Write(ctx, txn, storage.RemoveOp, path, nil); err != nil {
+				if !storage.IsNotFound(err) {
+					return err
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func erasePolicies(ctx context.Context, store storage.Store, txn storage.Transaction, roots map[string]struct{}) (map[string]*ast.Module, error) {
+
+	ids, err := store.ListPolicies(ctx, txn)
+	if err != nil {
+		return nil, err
+	}
+
+	remaining := map[string]*ast.Module{}
+
+	for _, id := range ids {
+		bs, err := store.GetPolicy(ctx, txn, id)
+		if err != nil {
+			return nil, err
+		}
+		module, err := ast.ParseModule(id, string(bs))
+		if err != nil {
+			return nil, err
+		}
+		path, err := module.Package.Path.Ptr()
+		if err != nil {
+			return nil, err
+		}
+		deleted := false
+		for root := range roots {
+			if strings.HasPrefix(path, root) {
+				if err := store.DeletePolicy(ctx, txn, id); err != nil {
+					return nil, err
+				}
+				deleted = true
+				break
+			}
+		}
+		if !deleted {
+			remaining[id] = module
+		}
+	}
+
+	return remaining, nil
+}
+
+func writeData(ctx context.Context, store storage.Store, txn storage.Transaction, roots []string, data map[string]interface{}) error {
+	for _, root := range roots {
+		path, ok := storage.ParsePathEscaped("/" + root)
+		if !ok {
+			return fmt.Errorf("manifest root path invalid: %v", root)
+		}
+		if value, ok := lookup(path, data); ok {
+			if len(path) > 0 {
+				if err := storage.MakeDir(ctx, store, txn, path[:len(path)-1]); err != nil {
+					return err
+				}
+			}
+			if err := store.Write(ctx, txn, storage.AddOp, path, value); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func writeModules(ctx context.Context, store storage.Store, txn storage.Transaction, compiler *ast.Compiler, m metrics.Metrics, files []ModuleFile, extraModules map[string]*ast.Module) error {
+
+	m.Timer(metrics.RegoModuleCompile)
+	defer m.Timer(metrics.RegoModuleCompile)
+
+	modules := map[string]*ast.Module{}
+
+	// preserve any modules already on the compiler
+	for name, module := range compiler.Modules {
+		modules[name] = module
+	}
+
+	// preserve any modules passed in from the store
+	for name, module := range extraModules {
+		modules[name] = module
+	}
+
+	// include all the new bundle modules
+	for _, f := range files {
+		modules[f.Path] = f.Parsed
+	}
+
+	if compiler.Compile(modules); compiler.Failed() {
+		return compiler.Errors
+	}
+	for _, f := range files {
+		if err := store.UpsertPolicy(ctx, txn, f.Path, f.Raw); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func lookup(path storage.Path, data map[string]interface{}) (interface{}, bool) {
+	if len(path) == 0 {
+		return data, true
+	}
+	for i := 0; i < len(path)-1; i++ {
+		value, ok := data[path[i]]
+		if !ok {
+			return nil, false
+		}
+		obj, ok := value.(map[string]interface{})
+		if !ok {
+			return nil, false
+		}
+		data = obj
+	}
+	value, ok := data[path[len(path)-1]]
+	return value, ok
+}
+
+func hasRootsOverlap(ctx context.Context, store storage.Store, txn storage.Transaction, bundles map[string]*Bundle) error {
+	collisions := map[string][]string{}
+	allBundles, err := ReadBundleNamesFromStore(ctx, store, txn)
+	if err != nil && !storage.IsNotFound(err) {
+		return err
+	}
+
+	allRoots := map[string][]string{}
+
+	// Build a map of roots for existing bundles already in the system
+	for _, name := range allBundles {
+		roots, err := ReadBundleRootsFromStore(ctx, store, txn, name)
+		if err != nil && !storage.IsNotFound(err) {
+			return err
+		}
+		allRoots[name] = roots
+	}
+
+	// Add in any bundles that are being activated, overwrite existing roots
+	// with new ones where bundles are in both groups.
+	for name, bundle := range bundles {
+		allRoots[name] = *bundle.Manifest.Roots
+	}
+
+	// Now check for each new bundle if it conflicts with any of the others
+	for name, bundle := range bundles {
+		for otherBundle, otherRoots := range allRoots {
+			if name == otherBundle {
+				// Skip the current bundle being checked
+				continue
+			}
+
+			// Compare the "new" roots with other existing (or a different bundles new roots)
+			for _, newRoot := range *bundle.Manifest.Roots {
+				for _, otherRoot := range otherRoots {
+					if RootPathsOverlap(newRoot, otherRoot) {
+						collisions[otherBundle] = append(collisions[otherBundle], newRoot)
+					}
+				}
+			}
+		}
+	}
+
+	if len(collisions) > 0 {
+		var bundleNames []string
+		for name := range collisions {
+			bundleNames = append(bundleNames, name)
+		}
+		return fmt.Errorf("detected overlapping roots in bundle manifest with: %s", bundleNames)
+	}
+	return nil
+}
+
 // Helpers for the older single (unnamed) bundle style manifest storage.
 
 // LegacyManifestStoragePath is the older unnamed bundle path for manifests to be stored.
@@ -163,4 +498,11 @@ func LegacyEraseManifestFromStore(ctx context.Context, store storage.Store, txn 
 // Deprecated: Use ReadBundleRevisionFromStore and named bundles instead.
 func LegacyReadRevisionFromStore(ctx context.Context, store storage.Store, txn storage.Transaction) (string, error) {
 	return readRevisionFromStore(ctx, store, txn, legacyRevisionStoragePath)
+}
+
+// ActivateLegacy calls Activate for the bundles but will also write their manifest to the older unnamed store location.
+// Deprecated: Use Activate with named bundles instead.
+func ActivateLegacy(opts *ActivateOpts) error {
+	opts.legacy = true
+	return activateBundles(opts)
 }
