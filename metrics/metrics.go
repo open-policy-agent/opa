@@ -27,6 +27,8 @@ const (
 	RegoModuleCompile = "rego_module_compile"
 	RegoPartialEval   = "rego_partial_eval"
 	RegoInputParse    = "rego_input_parse"
+	RegoLoadFiles     = "rego_load_files"
+	RegoLoadBundles   = "rego_load_bundles"
 )
 
 // Info contains attributes describing the underlying metrics provider.

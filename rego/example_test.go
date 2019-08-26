@@ -302,7 +302,7 @@ func ExampleRego_Eval_transactions() {
 	)
 
 	// Create rego query that DOES NOT use the transaction created above. Under
-	// the hood, the rego package will create it's own read-only transaction to
+	// the hood, the rego package will create it's own transaction to
 	// ensure it evaluates over a consistent snapshot of the storage layer.
 	outside := rego.New(
 		rego.Query("data.favourites.pizza"),
@@ -315,7 +315,7 @@ func ExampleRego_Eval_transactions() {
 		// Handle error.
 	}
 
-	// Run evaluation INSIDE the transction.
+	// Run evaluation INSIDE the transaction.
 	rs, err := inside.Eval(ctx)
 	if err != nil {
 		// Handle error.
@@ -338,14 +338,16 @@ func ExampleRego_Eval_transactions() {
 	// Run evaluation AFTER the transaction commits.
 	rs, err = outside.Eval(ctx)
 	if err != nil {
-		fmt.Println("error (after txn):", err)
+		// Handle error.
 	}
+
+	fmt.Println("value (after txn):", rs[0].Expressions[0].Value)
 
 	// Output:
 	//
 	// value (inside txn): pepperoni
 	// value (outside txn): cheese
-	// error (after txn): storage_invalid_txn_error: stale transaction
+	// value (after txn): pepperoni
 }
 
 func ExampleRego_Eval_errors() {
@@ -364,14 +366,11 @@ q = {1, 2, 3} { true }`,
 	_, err := r.Eval(ctx)
 
 	switch err := err.(type) {
-	case rego.Errors:
-		for i := range err {
-			switch e := err[i].(type) {
-			case *ast.Error:
-				fmt.Println("code:", e.Code)
-				fmt.Println("row:", e.Location.Row)
-				fmt.Println("filename:", e.Location.File)
-			}
+	case ast.Errors:
+		for _, e := range err {
+			fmt.Println("code:", e.Code)
+			fmt.Println("row:", e.Location.Row)
+			fmt.Println("filename:", e.Location.File)
 		}
 	default:
 		// Some other error occurred.

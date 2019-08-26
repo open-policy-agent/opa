@@ -13,15 +13,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/open-policy-agent/opa/internal/storage/mock"
-
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/internal/storage/mock"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/topdown"
 	"github.com/open-policy-agent/opa/types"
 	"github.com/open-policy-agent/opa/util"
+	"github.com/open-policy-agent/opa/util/test"
 )
 
 func assertEval(t *testing.T, r *Rego, expected string) {
@@ -903,6 +903,173 @@ func TestUnsafeBuiltins(t *testing.T) {
 		rs, err := r.Eval(context.Background())
 		if err != nil || len(rs) != 1 {
 			log.Fatalf("Unexpected error or result. Result: %v. Error: %v", rs, err)
+		}
+	})
+}
+
+func TestRegoEvalWithFile(t *testing.T) {
+	files := map[string]string{
+		"x/x.rego": "package x\np = 1",
+		"x/x.json": `{"y": "foo"}`,
+	}
+
+	test.WithTempFS(files, func(path string) {
+		ctx := context.Background()
+
+		pq, err := New(
+			Load([]string{path}, nil),
+			Query("data"),
+		).PrepareForEval(ctx)
+
+		if err != nil {
+			t.Fatalf("Unexpected error: %s", err)
+		}
+
+		rs, err := pq.Eval(ctx)
+		if err != nil {
+			t.Fatalf("Unexpected error: %s", err)
+		}
+
+		assertResultSet(t, rs, `[[{"x":{"p":1,"y":"foo"}}]]`)
+	})
+}
+
+func TestRegoEvalWithBundle(t *testing.T) {
+	files := map[string]string{
+		"x/x.rego":            "package x\np = data.x.b",
+		"x/data.json":         `{"b": "bar"}`,
+		"other/not-data.json": `{"ignored": "data"}`,
+	}
+
+	test.WithTempFS(files, func(path string) {
+		ctx := context.Background()
+
+		pq, err := New(
+			LoadBundle(path),
+			Query("data.x.p"),
+		).PrepareForEval(ctx)
+
+		if err != nil {
+			t.Fatalf("Unexpected error: %s", err)
+		}
+
+		rs, err := pq.Eval(ctx)
+		if err != nil {
+			t.Fatalf("Unexpected error: %s", err)
+		}
+
+		assertResultSet(t, rs, `[["bar"]]`)
+	})
+}
+
+func TestRegoEvalPoliciesinStore(t *testing.T) {
+	store := mock.New()
+	ctx := context.Background()
+	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
+
+	err := store.UpsertPolicy(ctx, txn, "a.rego", []byte("package a\np=1"))
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+	err = store.Commit(ctx, txn)
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+
+	pq, err := New(
+		Store(store),
+		Module("b.rego", "package b\np = data.a.p"),
+		Query("data.b.p"),
+	).PrepareForEval(ctx)
+
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+
+	rs, err := pq.Eval(ctx)
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+
+	assertResultSet(t, rs, `[[1]]`)
+}
+
+func TestRegoEvalModulesOnCompiler(t *testing.T) {
+	compiler := ast.NewCompiler()
+
+	compiler.Compile(map[string]*ast.Module{
+		"a.rego": ast.MustParseModule("package a\np = 1"),
+	})
+
+	if len(compiler.Errors) > 0 {
+		t.Fatalf("Unexpected compile errors: %s", compiler.Errors)
+	}
+
+	ctx := context.Background()
+
+	pq, err := New(
+		Compiler(compiler),
+		Query("data.a.p"),
+	).PrepareForEval(ctx)
+
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+
+	rs, err := pq.Eval(ctx)
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+
+	assertResultSet(t, rs, `[[1]]`)
+}
+
+func TestRegoLoadFilesWithProvidedStore(t *testing.T) {
+	ctx := context.Background()
+	store := mock.New()
+
+	files := map[string]string{
+		"x.rego": "package x\np = data.x.b",
+	}
+
+	test.WithTempFS(files, func(path string) {
+		pq, err := New(
+			Store(store),
+			Query("data"),
+			Load([]string{path}, nil),
+		).PrepareForEval(ctx)
+
+		if err == nil {
+			t.Fatal("Expected an error but err == nil")
+		}
+
+		if pq.r != nil {
+			t.Fatalf("Expected pq.r == nil, got: %+v", pq)
+		}
+	})
+}
+
+func TestRegoLoadBundleWithProvidedStore(t *testing.T) {
+	ctx := context.Background()
+	store := mock.New()
+
+	files := map[string]string{
+		"x/x.rego": "package x\np = data.x.b",
+	}
+
+	test.WithTempFS(files, func(path string) {
+		pq, err := New(
+			Store(store),
+			Query("data"),
+			LoadBundle(path),
+		).PrepareForEval(ctx)
+
+		if err == nil {
+			t.Fatal("Expected an error but err == nil")
+		}
+
+		if pq.r != nil {
+			t.Fatalf("Expected pq.r == nil, got: %+v", pq)
 		}
 	})
 }
