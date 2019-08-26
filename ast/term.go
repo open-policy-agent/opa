@@ -133,7 +133,7 @@ func InterfaceToValue(x interface{}) (Value, error) {
 	case string:
 		return String(x), nil
 	case []interface{}:
-		r := Array{}
+		r := make(Array, 0, len(x))
 		for _, e := range x {
 			e, err := InterfaceToValue(e)
 			if err != nil {
@@ -143,7 +143,7 @@ func InterfaceToValue(x interface{}) (Value, error) {
 		}
 		return r, nil
 	case map[string]interface{}:
-		r := NewObject()
+		r := newobject(len(x))
 		for k, v := range x {
 			k, err := InterfaceToValue(k)
 			if err != nil {
@@ -157,7 +157,7 @@ func InterfaceToValue(x interface{}) (Value, error) {
 		}
 		return r, nil
 	case map[string]string:
-		r := NewObject()
+		r := newobject(len(x))
 		for k, v := range x {
 			k, err := InterfaceToValue(k)
 			if err != nil {
