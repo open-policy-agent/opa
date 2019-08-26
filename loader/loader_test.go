@@ -259,6 +259,126 @@ func TestLoadBundleSubDir(t *testing.T) {
 	})
 }
 
+func TestAsBundleWithDir(t *testing.T) {
+	files := map[string]string{
+		"/foo/data.json":    "[1,2,3]",
+		"/bar/bar.yaml":     "abc",  // Should be ignored
+		"/baz/qux/qux.json": "null", // Should be ignored
+		"/foo/policy.rego":  "package foo\np = 1",
+		"base.rego":         "package bar\nx = 1",
+		"/.manifest":        `{"roots": ["foo", "bar", "baz"]}`,
+	}
+
+	test.WithTempFS(files, func(rootDir string) {
+		b, err := AsBundle(rootDir)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+
+		if b == nil {
+			t.Fatalf("Expected bundle to be non-nil")
+		}
+
+		if len(b.Modules) != 2 {
+			t.Fatalf("expected 2 modules, got %d", len(b.Modules))
+		}
+
+		expectedData := util.MustUnmarshalJSON([]byte(`{"foo": [1,2,3]}`))
+		if !reflect.DeepEqual(b.Data, expectedData) {
+			t.Fatalf("expected data %+v, got %+v", expectedData, b.Data)
+		}
+
+		expectedRoots := []string{"foo", "bar", "baz"}
+		if !reflect.DeepEqual(*b.Manifest.Roots, expectedRoots) {
+			t.Fatalf("expected roots %s, got: %s", expectedRoots, *b.Manifest.Roots)
+		}
+	})
+}
+
+func TestAsBundleWithFileURLDir(t *testing.T) {
+	files := map[string]string{
+		"/foo/data.json": "[1,2,3]",
+		"/.manifest":     `{"roots": ["foo"]}`,
+	}
+
+	test.WithTempFS(files, func(rootDir string) {
+		b, err := AsBundle("file://" + rootDir)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+
+		if b == nil {
+			t.Fatalf("Expected bundle to be non-nil")
+		}
+
+		expectedData := util.MustUnmarshalJSON([]byte(`{"foo": [1,2,3]}`))
+		if !reflect.DeepEqual(b.Data, expectedData) {
+			t.Fatalf("expected data %+v, got %+v", expectedData, b.Data)
+		}
+
+		expectedRoots := []string{"foo"}
+		if !reflect.DeepEqual(*b.Manifest.Roots, expectedRoots) {
+			t.Fatalf("expected roots %s, got: %s", expectedRoots, *b.Manifest.Roots)
+		}
+	})
+}
+
+func TestAsBundleWithFile(t *testing.T) {
+	files := map[string]string{
+		"bundle.tar.gz": "",
+	}
+
+	mod := "package b.c\np=1"
+
+	b := &bundle.Bundle{
+		Manifest: bundle.Manifest{
+			Roots:    &[]string{"a", "b/c"},
+			Revision: "123",
+		},
+		Data: map[string]interface{}{
+			"a": map[string]interface{}{
+				"b": []int{4, 5, 6},
+			},
+		},
+		Modules: []bundle.ModuleFile{
+			{
+				Path:   "/policy.rego",
+				Raw:    []byte(mod),
+				Parsed: ast.MustParseModule(mod),
+			},
+		},
+	}
+
+	test.WithTempFS(files, func(rootDir string) {
+		path := filepath.Join(rootDir, "bundle.tar.gz")
+		f, err := os.Create(path)
+		if err != nil {
+			t.Fatalf("Unexpected error: %s", err)
+		}
+
+		err = bundle.Write(f, *b)
+		f.Close()
+		if err != nil {
+			t.Fatalf("Unexpected error: %s", err)
+		}
+
+		actual, err := AsBundle(path)
+		if err != nil {
+			t.Fatalf("Unexpected error: %s", err)
+		}
+
+		var tmp interface{} = b
+		err = util.RoundTrip(&tmp)
+		if err != nil {
+			t.Fatalf("Unexpected error: %s", err)
+		}
+
+		if !actual.Equal(*b) {
+			t.Fatalf("Loaded bundle doesn't match expected.\n\nExpected: %+v\n\nActual: %+v\n\n", b, actual)
+		}
+	})
+}
+
 func TestLoadRooted(t *testing.T) {
 	files := map[string]string{
 		"/foo.json":         "[1,2,3]",
