@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strconv"
+	"strings"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/storage"
@@ -1022,7 +1024,12 @@ func (e *eval) getRules(ref ast.Ref) (*ast.IndexResult, error) {
 	if len(result.Rules) == 1 {
 		msg = "(matched 1 rule)"
 	} else {
-		msg = fmt.Sprintf("(matched %v rules)", len(result.Rules))
+		var b strings.Builder
+		b.Grow(len("(matched NNNN rules)"))
+		b.WriteString("matched ")
+		b.WriteString(strconv.FormatInt(int64(len(result.Rules)), 10))
+		b.WriteString(" rules)")
+		msg = b.String()
 	}
 	e.traceIndex(e.query[e.index], msg)
 	return result, err
