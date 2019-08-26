@@ -747,7 +747,6 @@ func (e *eval) biunifyValues(a, b *ast.Term, b1, b2 *bindings, iter unifyIterato
 func (e *eval) biunifyRef(a, b *ast.Term, b1, b2 *bindings, iter unifyIterator) error {
 
 	ref := a.Value.(ast.Ref)
-	plugged := ref.Copy()
 
 	if ref[0].Equal(ast.DefaultRootDocument) {
 		node := e.compiler.RuleTree.Child(ref[0].Value)
@@ -756,7 +755,7 @@ func (e *eval) biunifyRef(a, b *ast.Term, b1, b2 *bindings, iter unifyIterator) 
 			e:         e,
 			ref:       ref,
 			pos:       1,
-			plugged:   plugged,
+			plugged:   ref.Copy(),
 			bindings:  b1,
 			rterm:     b,
 			rbindings: b2,
