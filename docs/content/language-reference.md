@@ -129,6 +129,12 @@ The following table shows examples of how ``glob.match`` works:
 | --- | --- |
 | <span class="opa-keep-it-together">``output := to_number(x)``</span> | ``output`` is ``x`` converted to a number. `null` is converted to zero, `true` and `false` are converted to one and zero (respectively), `string` values are interpreted as base 10, and `numbers` are a no-op. Other types are not supported. |
 
+### Units
+
+| Built-in | Description |
+| --- | --- |
+| <span class="opa-keep-it-together">``output := units.parse_bytes(x)``</span> | ``output`` is ``x`` converted to a number with support for standard byte units (e.g., KB, KiB, etc.) KB, MB, GB, and TB are treated as decimal units and KiB, MiB, GiB, and TiB are treated as binary units. |
+
 ### Types
 
 | Built-in | Description |

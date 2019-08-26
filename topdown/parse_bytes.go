@@ -32,7 +32,7 @@ const (
 var numRunes = []rune("0123456789.")
 
 func parseNumBytesError(msg string) error {
-	return fmt.Errorf("%s error: %s", ast.ParseNumBytes.Name, msg)
+	return fmt.Errorf("%s error: %s", ast.UnitsParseBytes.Name, msg)
 }
 
 func errUnitNotRecognized(unit string) error {
@@ -151,5 +151,5 @@ func extractNumAndUnit(s string) (string, string) {
 }
 
 func init() {
-	RegisterFunctionalBuiltin1(ast.ParseNumBytes.Name, builtinNumBytes)
+	RegisterFunctionalBuiltin1(ast.UnitsParseBytes.Name, builtinNumBytes)
 }
