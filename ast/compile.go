@@ -170,6 +170,13 @@ type QueryCompiler interface {
 	// to Compile will take the QueryContext into account.
 	WithContext(qctx *QueryContext) QueryCompiler
 
+	// WithUnsafeBuiltins sets the built-in functions to treat as unsafe and not
+	// allow inside of queries. By default the query compiler inherits the
+	// compiler's unsafe built-in functions. This function allows callers to
+	// override that set. If an empty (non-nil) map is provided, all built-ins
+	// are allowed.
+	WithUnsafeBuiltins(unsafe map[string]struct{}) QueryCompiler
+
 	// WithStageAfter registers a stage to run during query compilation after
 	// the named stage.
 	WithStageAfter(after string, stage QueryCompilerStageDefinition) QueryCompiler
@@ -1032,11 +1039,12 @@ func (c *Compiler) setGraph() {
 }
 
 type queryCompiler struct {
-	compiler  *Compiler
-	qctx      *QueryContext
-	typeEnv   *TypeEnv
-	rewritten map[Var]Var
-	after     map[string][]QueryCompilerStageDefinition
+	compiler       *Compiler
+	qctx           *QueryContext
+	typeEnv        *TypeEnv
+	rewritten      map[Var]Var
+	after          map[string][]QueryCompilerStageDefinition
+	unsafeBuiltins map[string]struct{}
 }
 
 func newQueryCompiler(compiler *Compiler) QueryCompiler {
@@ -1055,6 +1063,11 @@ func (qc *queryCompiler) WithContext(qctx *QueryContext) QueryCompiler {
 
 func (qc *queryCompiler) WithStageAfter(after string, stage QueryCompilerStageDefinition) QueryCompiler {
 	qc.after[after] = append(qc.after[after], stage)
+	return qc
+}
+
+func (qc *queryCompiler) WithUnsafeBuiltins(unsafe map[string]struct{}) QueryCompiler {
+	qc.unsafeBuiltins = unsafe
 	return qc
 }
 
@@ -1209,7 +1222,13 @@ func (qc *queryCompiler) checkTypes(qctx *QueryContext, body Body) (Body, error)
 }
 
 func (qc *queryCompiler) checkUnsafeBuiltins(qctx *QueryContext, body Body) (Body, error) {
-	errs := checkUnsafeBuiltins(qc.compiler.unsafeBuiltinsMap, body)
+	var unsafe map[string]struct{}
+	if qc.unsafeBuiltins != nil {
+		unsafe = qc.unsafeBuiltins
+	} else {
+		unsafe = qc.compiler.unsafeBuiltinsMap
+	}
+	errs := checkUnsafeBuiltins(unsafe, body)
 	if len(errs) > 0 {
 		return nil, errs
 	}

@@ -602,20 +602,13 @@ func PrintTrace(w io.Writer, r *Rego) {
 	topdown.PrettyTrace(w, *r.tracebuf)
 }
 
-// UnsafeBuiltins is a helper that sets a set of unsafe builtins on the
-// compiler.
-//
-// If a rule or query is found to refer to an unsafe a built-in function, an
-// error will be returned when the Rego object is executed.
+// UnsafeBuiltins sets the built-in functions to treat as unsafe and not allow.
+// This option is ignored for module compilation if the caller supplies the
+// compiler. This option is always honored for query compilation. Provide an
+// empty (non-nil) map to disable checks on queries.
 func UnsafeBuiltins(unsafeBuiltins map[string]struct{}) func(r *Rego) {
 	return func(r *Rego) {
-		if r.unsafeBuiltins == nil && len(unsafeBuiltins) > 0 {
-			r.unsafeBuiltins = make(map[string]struct{})
-		}
-
-		for name := range unsafeBuiltins {
-			r.unsafeBuiltins[name] = struct{}{}
-		}
+		r.unsafeBuiltins = unsafeBuiltins
 	}
 }
 
@@ -633,7 +626,7 @@ func New(options ...func(r *Rego)) *Rego {
 	}
 
 	if r.compiler == nil {
-		r.compiler = ast.NewCompiler()
+		r.compiler = ast.NewCompiler().WithUnsafeBuiltins(r.unsafeBuiltins)
 	}
 
 	if r.store == nil {
@@ -656,10 +649,6 @@ func New(options ...func(r *Rego)) *Rego {
 
 	if r.partialNamespace == "" {
 		r.partialNamespace = defaultPartialNamespace
-	}
-
-	if r.unsafeBuiltins != nil {
-		r.compiler.WithUnsafeBuiltins(r.unsafeBuiltins)
 	}
 
 	return r
@@ -1177,7 +1166,9 @@ func (r *Rego) compileQuery(query ast.Body, m metrics.Metrics, extras []extraSta
 		WithPackage(pkg).
 		WithImports(imports)
 
-	qc := r.compiler.QueryCompiler().WithContext(qctx)
+	qc := r.compiler.QueryCompiler().
+		WithContext(qctx).
+		WithUnsafeBuiltins(r.unsafeBuiltins)
 
 	for _, extra := range extras {
 		qc = qc.WithStageAfter(extra.after, extra.stage)
