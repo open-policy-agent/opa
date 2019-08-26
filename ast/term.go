@@ -19,6 +19,8 @@ import (
 	"github.com/pkg/errors"
 )
 
+var errFindNotFound = fmt.Errorf("find: not found")
+
 // Location records a position in source code
 type Location struct {
 	Text []byte `json:"-"`    // The original text fragment from the source.
@@ -539,7 +541,7 @@ func (null Null) Find(path Ref) (Value, error) {
 	if len(path) == 0 {
 		return null, nil
 	}
-	return nil, fmt.Errorf("find: not found")
+	return nil, errFindNotFound
 }
 
 // Hash returns the hash code for the Value.
@@ -585,7 +587,7 @@ func (bol Boolean) Find(path Ref) (Value, error) {
 	if len(path) == 0 {
 		return bol, nil
 	}
-	return nil, fmt.Errorf("find: not found")
+	return nil, errFindNotFound
 }
 
 // Hash returns the hash code for the Value.
@@ -645,7 +647,7 @@ func (num Number) Find(path Ref) (Value, error) {
 	if len(path) == 0 {
 		return num, nil
 	}
-	return nil, fmt.Errorf("find: not found")
+	return nil, errFindNotFound
 }
 
 // Hash returns the hash code for the Value.
@@ -732,7 +734,7 @@ func (str String) Find(path Ref) (Value, error) {
 	if len(path) == 0 {
 		return str, nil
 	}
-	return nil, fmt.Errorf("find: not found")
+	return nil, errFindNotFound
 }
 
 // IsGround always returns true.
@@ -780,7 +782,7 @@ func (v Var) Find(path Ref) (Value, error) {
 	if len(path) == 0 {
 		return v, nil
 	}
-	return nil, fmt.Errorf("find: not found")
+	return nil, errFindNotFound
 }
 
 // Hash returns the hash code for the Value.
@@ -941,7 +943,7 @@ func (ref Ref) Find(path Ref) (Value, error) {
 	if len(path) == 0 {
 		return ref, nil
 	}
-	return nil, fmt.Errorf("find: not found")
+	return nil, errFindNotFound
 }
 
 // Hash returns the hash code for the Value.
@@ -1094,14 +1096,14 @@ func (arr Array) Find(path Ref) (Value, error) {
 	}
 	num, ok := path[0].Value.(Number)
 	if !ok {
-		return nil, fmt.Errorf("find: not found")
+		return nil, errFindNotFound
 	}
 	i, ok := num.Int()
 	if !ok {
-		return nil, fmt.Errorf("find: not found")
+		return nil, errFindNotFound
 	}
 	if i < 0 || i >= len(arr) {
-		return nil, fmt.Errorf("find: not found")
+		return nil, errFindNotFound
 	}
 	return arr[i].Value.Find(path[1:])
 }
@@ -1271,7 +1273,7 @@ func (s *set) Find(path Ref) (Value, error) {
 		return s, nil
 	}
 	if !s.Contains(path[0]) {
-		return nil, fmt.Errorf("find: not found")
+		return nil, errFindNotFound
 	}
 	return path[0].Value.Find(path[1:])
 }
@@ -1562,7 +1564,7 @@ func (obj *object) Find(path Ref) (Value, error) {
 	}
 	value := obj.Get(path[0])
 	if value == nil {
-		return nil, fmt.Errorf("find: not found")
+		return nil, errFindNotFound
 	}
 	return value.Value.Find(path[1:])
 }
@@ -1811,7 +1813,7 @@ func (ac *ArrayComprehension) Find(path Ref) (Value, error) {
 	if len(path) == 0 {
 		return ac, nil
 	}
-	return nil, fmt.Errorf("find: not found")
+	return nil, errFindNotFound
 }
 
 // Hash returns the hash code of the Value.
@@ -1871,7 +1873,7 @@ func (oc *ObjectComprehension) Find(path Ref) (Value, error) {
 	if len(path) == 0 {
 		return oc, nil
 	}
-	return nil, fmt.Errorf("find: not found")
+	return nil, errFindNotFound
 }
 
 // Hash returns the hash code of the Value.
@@ -1928,7 +1930,7 @@ func (sc *SetComprehension) Find(path Ref) (Value, error) {
 	if len(path) == 0 {
 		return sc, nil
 	}
-	return nil, fmt.Errorf("find: not found")
+	return nil, errFindNotFound
 }
 
 // Hash returns the hash code of the Value.
@@ -1967,7 +1969,7 @@ func (c Call) Compare(other Value) int {
 
 // Find returns the current value or a not found error.
 func (c Call) Find(Ref) (Value, error) {
-	return nil, fmt.Errorf("find: not found")
+	return nil, errFindNotFound
 }
 
 // Hash returns the hash code for the Value.
