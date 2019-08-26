@@ -10,6 +10,10 @@ import (
 	"os"
 	"time"
 
+	"github.com/open-policy-agent/opa/storage/inmem"
+
+	"github.com/open-policy-agent/opa/bundle"
+
 	"github.com/open-policy-agent/opa/internal/runtime"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/topdown/lineage"
@@ -37,6 +41,7 @@ var testParams = struct {
 	timeout      time.Duration
 	ignore       []string
 	failureLine  bool
+	bundleMode   bool
 }{
 	outputFormat: util.NewEnumFlag(testPrettyOutput, []string{testPrettyOutput, testJSONOutput}),
 	explain:      newExplainFlag([]string{explainModeFails, explainModeFull, explainModeNotes}),
@@ -50,6 +55,11 @@ var testCommand = &cobra.Command{
 The 'test' command takes a file or directory path as input and executes all
 test cases discovered in matching files. Test cases are rules whose names have the prefix "test_".
 
+If the '--bundle' option is specified the paths will be treated as policy bundles
+and loaded following standard bundle conventions. The path can be a compressed archive
+file or a directory which will be treated as a bundle. Without the '--bundle' flag OPA
+will recursively load ALL *.rego, *.json, and *.yaml files for evaluating the test cases.
+	
 Example policy (example/authz.rego):
 
 	package authz
@@ -109,13 +119,24 @@ func opaTest(args []string) int {
 		Ignore: testParams.ignore,
 	}
 
-	modules, store, err := tester.Load(args, filter.Apply)
+	var modules map[string]*ast.Module
+	var bundles map[string]*bundle.Bundle
+	var store storage.Store
+	var err error
+
+	if testParams.bundleMode {
+		bundles, err = tester.LoadBundles(args, filter.Apply)
+		store = inmem.New()
+	} else {
+		modules, store, err = tester.Load(args, filter.Apply)
+	}
+
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
 
-	txn, err := store.NewTransaction(ctx)
+	txn, err := store.NewTransaction(ctx, storage.WriteParams)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
@@ -151,9 +172,11 @@ func opaTest(args []string) int {
 		EnableTracing(testParams.verbose).
 		SetCoverageTracer(coverTracer).
 		EnableFailureLine(testParams.failureLine).
-		SetRuntime(info)
+		SetRuntime(info).
+		SetModules(modules).
+		SetBundles(bundles)
 
-	ch, err := runner.Run(ctx, modules)
+	ch, err := runner.RunTests(ctx, txn)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
@@ -220,6 +243,7 @@ func init() {
 	testCommand.Flags().VarP(testParams.outputFormat, "format", "f", "set output format")
 	testCommand.Flags().BoolVarP(&testParams.coverage, "coverage", "c", false, "report coverage (overrides debug tracing)")
 	testCommand.Flags().Float64VarP(&testParams.threshold, "threshold", "", 0, "set coverage threshold and exit with non-zero status if coverage is less than threshold %")
+	testCommand.Flags().BoolVarP(&testParams.bundleMode, "bundle", "b", false, "load paths as bundle files or root directories")
 	setMaxErrors(testCommand.Flags(), &testParams.errLimit)
 	setIgnore(testCommand.Flags(), &testParams.ignore)
 	setExplain(testCommand.Flags(), testParams.explain)
