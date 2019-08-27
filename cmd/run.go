@@ -73,17 +73,21 @@ an HTTP API for managing policies, reading and writing data, and executing
 queries.
 
 The runtime can be initialized with one or more files that contain policies or
-data. OPA supports both JSON and YAML data. If a directory is given, OPA will
-recursively load the files contained in the directory. When loading from
-directories, only files with known extensions are considered. The current set of
-file extensions that OPA will consider are:
+data. If the '--bundle' option is specified the paths will be treated as policy
+bundles and loaded following standard bundle conventions. The path can be a
+compressed archive file or a directory which will be treated as a bundle.
+Without the '--bundle' flag OPA will recursively load ALL rego, JSON, and YAML
+files.
+
+When loading from directories, only files with known extensions are considered.
+The current set of file extensions that OPA will consider are:
 
 	.json          # JSON data
 	.yaml or .yml  # YAML data
 	.rego          # Rego file
 
-Data file and directory paths can be prefixed with the desired destination in
-the data document with the following syntax:
+Non-bundle data file and directory paths can be prefixed with the desired
+destination in the data document with the following syntax:
 
 	<dotted-path>:<file-path>
 
@@ -156,6 +160,7 @@ File paths can be specified as URLs to resolve ambiguity in paths containing col
 	runCommand.Flags().IntVar(&params.GracefulShutdownPeriod, "shutdown-grace-period", 10, "set the time (in seconds) that the server will wait to gracefully shut down")
 	runCommand.Flags().StringArrayVar(&params.ConfigOverrides, "set", []string{}, "override config values on the command line (use commas to specify multiple values)")
 	runCommand.Flags().StringArrayVar(&params.ConfigOverrideFiles, "set-file", []string{}, "override config values with files on the command line (use commas to specify multiple values)")
+	runCommand.Flags().BoolVarP(&params.BundleMode, "bundle", "b", false, "load paths as bundle files or root directories")
 	setIgnore(runCommand.Flags(), &ignore)
 
 	usageTemplate := `Usage:
