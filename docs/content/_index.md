@@ -4,11 +4,22 @@ kind: documentation
 weight: 1
 ---
 
-A [**policy**](#policy) is a set of rules that governs the behavior of a
-service. [**Policy enablement**](#policy-enablement) empowers users to read,
-write, and manage these rules without needing specialized development or
-operational expertise. When your users can implement policies without
-recompiling your source code, then your service is **policy enabled**.
+A [**policy**](#policy) is a set of rules that governs the behavior of a software 
+service.  That policy could describe rate-limits, names of trusted servers, the clusters an application
+should be deployed to, permitted network routes, or accounts a user can withdraw money from. 
+
+Authorization is a special kind of policy that often dictates which people or machines
+can run which actions on which resources. Authorization is sometimes confused with Authentication: how people or machines prove they are who they say they are.  Authorization and more generally policy often utilize the results of authentication (the username, user attributes, groups, claims), but makes decisions based on far more information than just who the user is.  Generalizing away from authorization back to policy makes the distinction even clearer because some policy decisions have nothing to do with users, e.g. policy simply describes invariants that must hold in a software system (e.g. all binaries must come from a trusted source).
+
+Today policy is often a hard-coded feature of the software service it 
+actually governs.  Open Policy Agent lets you [**decouple policy**](#policy-decoupling)
+from that software service so that the people responsible for policy 
+can read, write, analyze, version, distribute, and in general manage policy 
+separate from the service itself. OPA also gives you a unified toolset to decouple policy
+from any software service you like, and to write context-aware policies using any
+context that you like.  In short, OPA helps you decouple any policy using any context from
+any software system.
+
 
 ## What is Policy? {#policy}
 
@@ -22,19 +33,21 @@ are written down or conventions that are unspoken but permeate an
 organization’s culture. Policies may also be enforced with application logic or
 statically configured at deploy time.
 
-## What is Policy Enablement? {#policy-enablement}
+## What is Policy Decoupling? {#policy-decoupling}
 
-Policy-enabled services allow policies to be specified declaratively, updated
-at any time without recompiling or redeploying, and enforced automatically
-(which is especially valuable when decisions need to be made faster than
-humanly possible). They make deployments more adaptable to changing business
-requirements, improve the ability to discover violations and conflicts,
-increase the consistency of policy compliance, and mitigate the risk of human
-error.
+Software services should allow policies to be specified declaratively, 
+updated at any time without recompiling or redeploying, and 
+enforced automatically (which is especially valuable when decisions need to be made faster than
+humanly possible). 
 
-A policy-enabled service is able to answer questions by comparing relevant
-input from its environment to policy statements written by administrators. For
-example, a cloud computing service could answer questions such as:
+Decoupling policy helps you build such software services at scale, makes them
+adaptable to changing business requirements, improves the ability to discover 
+violations and conflicts, increases the consistency of policy compliance, and 
+mitigates the risk of human error.  The policies you write can adapt more
+easily to the external environment--to factors that the developer could never
+have imagined at the time the software service was designed.
+
+For example, a cloud computing service could answer questions such as:
 
 * Can I add compute capacity?
 * In what regions can I add compute capacity?
@@ -49,7 +62,7 @@ library.
 Services offload policy decisions to OPA by executing *queries*. OPA evaluates
 policies and data to produce query results (which are sent back to the client).
 Policies are written in a high-level declarative language and can be loaded
-into OPA via the filesystem or well-defined APIs.
+dynamically into OPA remotely via APIs or through the local filesystem.
 
 ## Why use OPA?
 
@@ -66,7 +79,7 @@ OPA’s RESTful APIs use JSON over HTTP so you and your users can integrate OPA 
   * Pushing relevant data about your service’s state into OPA’s document store
   * Offloading some or all decision-making to OPA by querying it
 
-When your service is integrated with OPA, your users will be able author and deploy custom policies that control the behavior of your service’s policy-enabled features. Furthermore, users can publish data to OPA that is not available to your service about their own deployment context.
+When your service is integrated with OPA, your users will be able author and deploy custom policies that control the behavior of your service. Furthermore, users can publish data to OPA that is not available to your service about their own deployment context.
 
 {{< figure src="request-response.svg" width="50" caption="OPA's query and decision model" >}}
 
