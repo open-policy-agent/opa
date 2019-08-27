@@ -18,6 +18,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/open-policy-agent/opa/bundle"
+
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/internal/prometheus"
 	"github.com/open-policy-agent/opa/internal/runtime"
@@ -95,6 +97,10 @@ type Params struct {
 	// Optional filter that will be passed to the file loader.
 	Filter loader.Filter
 
+	// BundleMode will enable treating the Paths provided as bundles rather than
+	// loading all data & policy files.
+	BundleMode bool
+
 	// Watch flag controls whether OPA will watch the Paths files for changes.
 	// If this flag is true, OPA will watch the Paths files for changes and
 	// reload the storage layer each time they change. This is useful for
@@ -149,7 +155,8 @@ type LoggingConfig struct {
 // NewParams returns a new Params object.
 func NewParams() Params {
 	return Params{
-		Output: os.Stdout,
+		Output:     os.Stdout,
+		BundleMode: false,
 	}
 }
 
@@ -178,9 +185,9 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		}
 	}
 
-	loaded, err := loader.Filtered(params.Paths, params.Filter)
+	loaded, err := loadPaths(params.Paths, params.Filter, params.BundleMode)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "load error")
 	}
 
 	store := inmem.New()
@@ -190,28 +197,31 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		return nil, err
 	}
 
-	if err := store.Write(ctx, txn, storage.AddOp, storage.Path{}, loaded.Documents); err != nil {
-		store.Abort(ctx, txn)
-		return nil, errors.Wrapf(err, "storage error")
+	if len(loaded.Documents) > 0 {
+		if err := store.Write(ctx, txn, storage.AddOp, storage.Path{}, loaded.Documents); err != nil {
+			return nil, errors.Wrap(err, "storage error")
+		}
 	}
 
+	if err := compileAndStoreInputs(ctx, store, txn, loaded, params.ErrorLimit); err != nil {
+		store.Abort(ctx, txn)
+		return nil, errors.Wrap(err, "compile error")
+	}
+
+	// Write the version *after* any data loaded from files or bundles to
+	// avoid it being deleted.
 	if err := storedversion.Write(ctx, store, txn); err != nil {
 		store.Abort(ctx, txn)
-		return nil, errors.Wrapf(err, "storage error")
-	}
-
-	if err := compileAndStoreInputs(ctx, store, txn, loaded.Modules, params.ErrorLimit); err != nil {
-		store.Abort(ctx, txn)
-		return nil, errors.Wrapf(err, "compile error")
+		return nil, errors.Wrap(err, "storage error")
 	}
 
 	if err := store.Commit(ctx, txn); err != nil {
-		return nil, errors.Wrapf(err, "storage error")
+		return nil, errors.Wrap(err, "storage error")
 	}
 
 	bs, err := loadConfig(params)
 	if err != nil {
-		return nil, errors.Wrapf(err, "config error")
+		return nil, errors.Wrap(err, "config error")
 	}
 
 	info, err := runtime.Term(runtime.Params{Config: bs})
@@ -221,14 +231,14 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 
 	manager, err := plugins.New(bs, params.ID, store, plugins.Info(info))
 	if err != nil {
-		return nil, errors.Wrapf(err, "config error")
+		return nil, errors.Wrap(err, "config error")
 	}
 
 	metrics := prometheus.New(metrics.New(), errorLogger)
 
 	disco, err := discovery.New(manager, discovery.Factories(registeredPlugins), discovery.Metrics(metrics))
 	if err != nil {
-		return nil, errors.Wrapf(err, "config error")
+		return nil, errors.Wrap(err, "config error")
 	}
 
 	manager.Register("discovery", disco)
@@ -418,7 +428,7 @@ func (rt *Runtime) readWatcher(ctx context.Context, watcher *fsnotify.Watcher, p
 
 func (rt *Runtime) processWatcherUpdate(ctx context.Context, paths []string, removed string) error {
 
-	loaded, err := loader.Filtered(paths, rt.Params.Filter)
+	loaded, err := loadPaths(paths, rt.Params.Filter, rt.Params.BundleMode)
 	if err != nil {
 		return err
 	}
@@ -426,33 +436,36 @@ func (rt *Runtime) processWatcherUpdate(ctx context.Context, paths []string, rem
 	removed = loader.CleanPath(removed)
 
 	return storage.Txn(ctx, rt.Store, storage.WriteParams, func(txn storage.Transaction) error {
-		if err := rt.Store.Write(ctx, txn, storage.AddOp, storage.Path{}, loaded.Documents); err != nil {
-			return err
+		if len(loaded.Documents) > 0 {
+			if err := rt.Store.Write(ctx, txn, storage.AddOp, storage.Path{}, loaded.Documents); err != nil {
+				return err
+			}
 		}
-		ids, err := rt.Store.ListPolicies(ctx, txn)
-		if err != nil {
-			return err
-		}
-		for _, id := range ids {
-			if id == removed {
-				if err := rt.Store.DeletePolicy(ctx, txn, id); err != nil {
-					return err
-				}
-			} else if _, exists := loaded.Modules[id]; !exists {
-				// This branch get hit in two cases.
-				// 1. Another piece of code has access to the store and inserts
-				//    a policy out-of-band.
-				// 2. In between FS notification and loader.Filtered() call above, a
-				//    policy is removed from disk.
-				bs, err := rt.Store.GetPolicy(ctx, txn, id)
-				if err != nil {
-					return err
-				}
-				module, err := ast.ParseModule(id, string(bs))
-				if err != nil {
-					return err
-				}
-				if _, ok := loaded.Modules[id]; !ok {
+
+		if !rt.Params.BundleMode {
+			ids, err := rt.Store.ListPolicies(ctx, txn)
+			if err != nil {
+				return err
+			}
+			for _, id := range ids {
+				if id == removed {
+					if err := rt.Store.DeletePolicy(ctx, txn, id); err != nil {
+						return err
+					}
+				} else if _, exists := loaded.Modules[id]; !exists {
+					// This branch get hit in two cases.
+					// 1. Another piece of code has access to the store and inserts
+					//    a policy out-of-band.
+					// 2. In between FS notification and loader.Filtered() call above, a
+					//    policy is removed from disk.
+					bs, err := rt.Store.GetPolicy(ctx, txn, id)
+					if err != nil {
+						return err
+					}
+					module, err := ast.ParseModule(id, string(bs))
+					if err != nil {
+						return err
+					}
 					loaded.Modules[id] = &loader.RegoFile{
 						Name:   id,
 						Raw:    bs,
@@ -461,7 +474,11 @@ func (rt *Runtime) processWatcherUpdate(ctx context.Context, paths []string, rem
 				}
 			}
 		}
-		return compileAndStoreInputs(ctx, rt.Store, txn, loaded.Modules, -1)
+		if err := compileAndStoreInputs(ctx, rt.Store, txn, loaded, -1); err != nil {
+			return err
+		}
+
+		return nil
 	})
 }
 
@@ -486,21 +503,63 @@ func (rt *Runtime) gracefulServerShutdown(s *server.Server) error {
 	return nil
 }
 
-func compileAndStoreInputs(ctx context.Context, store storage.Store, txn storage.Transaction, modules map[string]*loader.RegoFile, errorLimit int) error {
+type loadResult struct {
+	loader.Result
+	Bundles map[string]*bundle.Bundle
+}
 
-	policies := make(map[string]*ast.Module, len(modules))
+func loadPaths(paths []string, filter loader.Filter, asBundle bool) (*loadResult, error) {
+	result := &loadResult{}
+	var err error
 
-	for id, parsed := range modules {
+	if asBundle {
+		result.Bundles = make(map[string]*bundle.Bundle, len(paths))
+		for _, path := range paths {
+			result.Bundles[path], err = loader.AsBundle(path)
+			if err != nil {
+				return nil, err
+			}
+		}
+	} else {
+		loaded, err := loader.Filtered(paths, filter)
+		if err != nil {
+			return nil, err
+		}
+		result.Modules = loaded.Modules
+		result.Documents = loaded.Documents
+	}
+
+	return result, nil
+}
+
+func compileAndStoreInputs(ctx context.Context, store storage.Store, txn storage.Transaction, loaded *loadResult, errorLimit int) error {
+
+	policies := make(map[string]*ast.Module, len(loaded.Modules))
+
+	for id, parsed := range loaded.Modules {
 		policies[id] = parsed.Parsed
 	}
 
 	c := ast.NewCompiler().SetErrorLimit(errorLimit).WithPathConflictsCheck(storage.NonEmpty(ctx, store, txn))
 
-	if c.Compile(policies); c.Failed() {
-		return c.Errors
+	opts := &bundle.ActivateOpts{
+		Ctx:          ctx,
+		Store:        store,
+		Txn:          txn,
+		Compiler:     c,
+		Metrics:      metrics.New(),
+		Bundles:      loaded.Bundles,
+		ExtraModules: policies,
 	}
 
-	for id, parsed := range modules {
+	err := bundle.Activate(opts)
+	if err != nil {
+		return err
+	}
+
+	// Policies in bundles will have already been added to the store, but
+	// modules loaded outside of bundles will need to be added manually.
+	for id, parsed := range loaded.Modules {
 		if err := store.UpsertPolicy(ctx, txn, id, parsed.Raw); err != nil {
 			return err
 		}
