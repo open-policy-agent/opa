@@ -215,6 +215,13 @@ func testRuntimeProcessWatchEvents(t *testing.T, asBundle bool) {
 			t.Fatal(err)
 		}
 
+		txn := storage.NewTransactionOrDie(ctx, rt.Store)
+		_, err = rt.Store.Read(ctx, txn, storage.MustParsePath("/system/version"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		rt.Store.Abort(ctx, txn)
+
 		var buf bytes.Buffer
 
 		if err := rt.startWatcher(ctx, params.Paths, onReloadPrinter(&buf)); err != nil {
@@ -244,6 +251,13 @@ func testRuntimeProcessWatchEvents(t *testing.T, asBundle bool) {
 			if err != nil {
 				panic(err)
 			}
+
+			// Ensure the update didn't overwrite the system version information
+			_, err = rt.Store.Read(ctx, txn, storage.MustParsePath("/system/version"))
+			if err != nil {
+				t.Fatal(err)
+			}
+
 			rt.Store.Abort(ctx, txn)
 			if reflect.DeepEqual(val, expected) {
 				return // success
