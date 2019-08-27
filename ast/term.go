@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"net/url"
 	"regexp"
 	"sort"
@@ -376,6 +377,8 @@ func (term *Term) Equal(other *Term) bool {
 	case Null:
 		return v.Equal(other.Value)
 	case Boolean:
+		return v.Equal(other.Value)
+	case Number:
 		return v.Equal(other.Value)
 	case String:
 		return v.Equal(other.Value)
@@ -1426,8 +1429,48 @@ func (s *set) Slice() []*Term {
 
 func (s *set) insert(x *Term) {
 	hash := x.Hash()
+	var equal func(v Value) bool
+
+	switch x := x.Value.(type) {
+	case Null, Boolean, String, Var:
+		equal = func(y Value) bool { return x == y }
+	case Number:
+		if xi, err := json.Number(x).Int64(); err == nil {
+			equal = func(y Value) bool {
+				if y, ok := y.(Number); ok {
+					if yi, err := json.Number(y).Int64(); err == nil {
+						return xi == yi
+					}
+				}
+
+				return false
+			}
+			break
+		}
+
+		a, ok := new(big.Float).SetString(string(x))
+		if !ok {
+			panic("illegal value")
+		}
+
+		equal = func(b Value) bool {
+			if b, ok := b.(Number); ok {
+				b, ok := new(big.Float).SetString(string(b))
+				if !ok {
+					panic("illegal value")
+				}
+
+				return a.Cmp(b) == 0
+			}
+
+			return false
+		}
+	default:
+		equal = func(y Value) bool { return Compare(x, y) == 0 }
+	}
+
 	for curr, ok := s.elems[hash]; ok; {
-		if Compare(curr, x) == 0 {
+		if equal(curr.Value) {
 			return
 		}
 
@@ -1441,8 +1484,48 @@ func (s *set) insert(x *Term) {
 
 func (s *set) get(x *Term) *Term {
 	hash := x.Hash()
+	var equal func(v Value) bool
+
+	switch x := x.Value.(type) {
+	case Null, Boolean, String, Var:
+		equal = func(y Value) bool { return x == y }
+	case Number:
+		if xi, err := json.Number(x).Int64(); err == nil {
+			equal = func(y Value) bool {
+				if y, ok := y.(Number); ok {
+					if yi, err := json.Number(y).Int64(); err == nil {
+						return xi == yi
+					}
+				}
+
+				return false
+			}
+			break
+		}
+
+		a, ok := new(big.Float).SetString(string(x))
+		if !ok {
+			panic("illegal value")
+		}
+
+		equal = func(b Value) bool {
+			if b, ok := b.(Number); ok {
+				b, ok := new(big.Float).SetString(string(b))
+				if !ok {
+					panic("illegal value")
+				}
+
+				return a.Cmp(b) == 0
+			}
+
+			return false
+		}
+	default:
+		equal = func(y Value) bool { return Compare(x, y) == 0 }
+	}
+
 	for curr, ok := s.elems[hash]; ok; {
-		if Compare(curr, x) == 0 {
+		if equal(curr.Value) {
 			return curr
 		}
 
@@ -1747,8 +1830,49 @@ func (obj object) String() string {
 
 func (obj *object) get(k *Term) *objectElem {
 	hash := k.Hash()
+
+	var equal func(v Value) bool
+
+	switch x := k.Value.(type) {
+	case Null, Boolean, String, Var:
+		equal = func(y Value) bool { return x == y }
+	case Number:
+		if xi, err := json.Number(x).Int64(); err == nil {
+			equal = func(y Value) bool {
+				if y, ok := y.(Number); ok {
+					if yi, err := json.Number(y).Int64(); err == nil {
+						return xi == yi
+					}
+				}
+
+				return false
+			}
+			break
+		}
+
+		a, ok := new(big.Float).SetString(string(x))
+		if !ok {
+			panic("illegal value")
+		}
+
+		equal = func(b Value) bool {
+			if b, ok := b.(Number); ok {
+				b, ok := new(big.Float).SetString(string(b))
+				if !ok {
+					panic("illegal value")
+				}
+
+				return a.Cmp(b) == 0
+			}
+
+			return false
+		}
+	default:
+		equal = func(y Value) bool { return Compare(x, y) == 0 }
+	}
+
 	for curr := obj.elems[hash]; curr != nil; curr = curr.next {
-		if Compare(curr.key, k) == 0 {
+		if equal(curr.key.Value) {
 			return curr
 		}
 	}
@@ -1758,8 +1882,48 @@ func (obj *object) get(k *Term) *objectElem {
 func (obj *object) insert(k, v *Term) {
 	hash := k.Hash()
 	head := obj.elems[hash]
+	var equal func(v Value) bool
+
+	switch x := k.Value.(type) {
+	case Null, Boolean, String, Var:
+		equal = func(y Value) bool { return x == y }
+	case Number:
+		if xi, err := json.Number(x).Int64(); err == nil {
+			equal = func(y Value) bool {
+				if y, ok := y.(Number); ok {
+					if yi, err := json.Number(y).Int64(); err == nil {
+						return xi == yi
+					}
+				}
+
+				return false
+			}
+			break
+		}
+
+		a, ok := new(big.Float).SetString(string(x))
+		if !ok {
+			panic("illegal value")
+		}
+
+		equal = func(b Value) bool {
+			if b, ok := b.(Number); ok {
+				b, ok := new(big.Float).SetString(string(b))
+				if !ok {
+					panic("illegal value")
+				}
+
+				return a.Cmp(b) == 0
+			}
+
+			return false
+		}
+	default:
+		equal = func(y Value) bool { return Compare(x, y) == 0 }
+	}
+
 	for curr := head; curr != nil; curr = curr.next {
-		if Compare(curr.key, k) == 0 {
+		if equal(curr.key.Value) {
 			curr.value = v
 			return
 		}
