@@ -27,6 +27,9 @@ func TestCompare(t *testing.T) {
 		// Numbers
 		{"0", "1", -1},
 		{"1", "0", 1},
+		{"0", "0", 0},
+		{"0", "1.5", -1},
+		{"1.5", "0", 1},
 
 		// Object comparisons are consistent
 		{`{1: 2, 3: 4}`, `{4: 3, 1: 2}`, -1},

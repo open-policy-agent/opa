@@ -84,6 +84,40 @@ func TestInterfaceToValue(t *testing.T) {
 
 }
 
+func TestObjectInsertGetLen(t *testing.T) {
+	tests := []struct {
+		insert   [][2]string
+		expected map[string]string
+	}{
+		{[][2]string{{`null`, `value1`}, {`null`, `value2`}}, map[string]string{`null`: `value2`}},
+		{[][2]string{{`false`, `value`}, {`true`, `value1`}, {`true`, `value2`}}, map[string]string{`false`: `value`, `true`: `value2`}},
+		{[][2]string{{`0`, `value`}, {`1`, `value1`}, {`1`, `value2`}, {`1.5`, `value`}}, map[string]string{`0`: `value`, `1`: `value2`, `1.5`: `value`}},
+		{[][2]string{{`"string"`, `value1`}, {`"string"`, `value2`}}, map[string]string{`"string"`: `value2`}},
+		{[][2]string{{`["other"]`, `value1`}, {`["other"]`, `value2`}}, map[string]string{`["other"]`: `value2`}},
+	}
+
+	for _, tc := range tests {
+		o := NewObject()
+		for _, kv := range tc.insert {
+			o.Insert(MustParseTerm(kv[0]), MustParseTerm(kv[1]))
+
+			if v := o.Get(MustParseTerm(kv[0])); v == nil || !MustParseTerm(kv[1]).Equal(v) {
+				t.Errorf("Expected the object to contain %v", v)
+			}
+		}
+
+		if o.Len() != len(tc.expected) {
+			t.Errorf("Expected the object to have %v entries", len(tc.expected))
+		}
+
+		for k, v := range tc.expected {
+			if x := o.Get(MustParseTerm(k)); x == nil || !MustParseTerm(v).Equal(x) {
+				t.Errorf("Expected the object to contain %v", k)
+			}
+		}
+	}
+}
+
 func TestObjectSetOperations(t *testing.T) {
 
 	a := MustParseTerm(`{"a": "b", "c": "d"}`).Value.(Object)
@@ -520,6 +554,41 @@ func TestSetMap(t *testing.T) {
 		t.Fatalf("Expected oops to be returned but got: %v, %v", result, err)
 	}
 
+}
+
+func TestSetAddContainsLen(t *testing.T) {
+	tests := []struct {
+		add      []string
+		expected []string
+	}{
+		{[]string{`null`, `null`}, []string{`null`}},
+		{[]string{`true`, `true`, `false`}, []string{`true`, `false`}},
+		{[]string{`0`, `1`, `1`, `1.5`}, []string{`0`, `1`, `1.5`}},
+		{[]string{`"string"`, `"string"`}, []string{`"string"`}},
+		{[]string{`["other"]`, `["other"]`}, []string{`["other"]`}},
+	}
+
+	for _, tc := range tests {
+		s := NewSet()
+		for _, v := range tc.add {
+			x := MustParseTerm(v)
+			s.Add(x)
+
+			if !s.Contains(x) {
+				t.Errorf("Expected the set to contain %v", v)
+			}
+		}
+
+		if s.Len() != len(tc.expected) {
+			t.Errorf("Expected the set to have %v entries", len(tc.expected))
+		}
+
+		for _, v := range tc.expected {
+			if !s.Contains(MustParseTerm(v)) {
+				t.Errorf("Expected the set to contain %v", v)
+			}
+		}
+	}
 }
 
 func TestSetOperations(t *testing.T) {
