@@ -478,6 +478,11 @@ func (rt *Runtime) processWatcherUpdate(ctx context.Context, paths []string, rem
 			return err
 		}
 
+		// re-add the version as it might have been overwritten from loading data files
+		if err := storedversion.Write(ctx, rt.Store, txn); err != nil {
+			return err
+		}
+
 		return nil
 	})
 }
