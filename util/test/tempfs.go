@@ -13,7 +13,7 @@ import (
 // WithTempFS creates a temporary directory structure and invokes f with the
 // root directory path.
 func WithTempFS(files map[string]string, f func(string)) {
-	rootDir, cleanup, err := MakeTempFS("", "loader_test", files)
+	rootDir, cleanup, err := MakeTempFS("", "opa_test", files)
 	if err != nil {
 		panic(err)
 	}
