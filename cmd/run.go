@@ -159,7 +159,7 @@ File paths can be specified as URLs to resolve ambiguity in paths containing col
 	setIgnore(runCommand.Flags(), &ignore)
 
 	usageTemplate := `Usage:
-  {{.UseLine}} [flags] [files]
+  {{.UseLine}} [files]
 
 Flags:
 {{.LocalFlags.FlagUsages | trimRightSpace}}
