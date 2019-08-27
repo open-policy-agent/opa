@@ -7,7 +7,6 @@
 {{ $twitter     := site.Params.social.twitter }}
 {{ $latest      := index site.Data.releases 0 }}
 {{ $version     := index (split .File.Path "/") 1 }}
-{{ $isLatest    := eq $latest $version }}
 
 <!-- Basic metadata -->
 <meta charset="utf-8">
@@ -46,11 +45,7 @@
 
 <!-- Algolia metadata -->
 <meta name="docsearch:language" content="en" />
-{{ if $isLatest }}
-<meta name="docsearch:version" content='["{{ $version }}", "latest"]' />
-{{ else }}
 <meta name="docsearch:version" content="{{ $version }}" />
-{{ end }}
 
 <!-- Site generator -->
 {{ hugo.Generator }}
