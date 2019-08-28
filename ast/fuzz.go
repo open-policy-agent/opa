@@ -2,13 +2,17 @@
 
 package ast
 
-import "bytes"
+import (
+	"bytes"
+)
+
+var blacklist = []string{
+	"{{{{{", // nested { and [ cause the parse time to explode
+	"[[[[[",
+}
+
 
 func Fuzz(data []byte) int {
-	blacklist := []string{
-		"{{{{{", // nested { and [ cause the parse time to explode
-		"[[[[[",
-	}
 	for i := range blacklist {
 		if bytes.Contains(data, []byte(blacklist[i])) {
 			return -1

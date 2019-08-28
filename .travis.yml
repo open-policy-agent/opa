@@ -1,6 +1,8 @@
 sudo: required
 language: go
 go_import_path: github.com/open-policy-agent/opa
+# This is needed for clang to be included so we can build libFuzzer targets
+dist: bionic
 go:
 - "1.12.8"
 script: make travis-all
@@ -13,6 +15,8 @@ env:
   - secure: "PHiSwVZvWhSalyPgZ2vXpl8MKOzoyZdDr2Ib8n7Dx8iOEhm3QFbnxhLHfFI01Uy0rSbEFY8ZKarmOcmK1tyOKjXHi7byx8/HArXKiOB4kNEGBdtXZirJtc5OKkzdG8Q66E8m5NKU8Psi9Id3tHDlWF4akqzWREyNHyDo5ZH1t20q79PisTZ6YJKU9P4QZP/iO3NtudUetZHege77NU4e1Ivj/Xsj7nlY8sXdZV7XkNfvr2XXW2GKZ7HBBAuxohPdt8dYL1iMyf7MddDJAuPrScJZj+hqthz2CIR5l6Ep0P2k6Fz02sUloGr4EcOKQISC4QQf27Ggp6DtFIXCKBYKQ3tMl+kV+76Ds6o0Fi/npCGrCNXpUzT1QYNFDMHmyMPDsbBppJV1X4FuljAEOg01+ASIn9WDeTovkafYNdgdtBP9e7dX7BeopA+lwZQmtGwerCdg0MNaQwk8lS8Q8TzKqKeAfaXKPxwoDpKAFPjS4N0MNPQ4EXSWPoGaXAChK3MD6EdLUGdW23n9swJ8RMfH3snouMnuzLUYdUP7NdjG4+uesKESyfRpTU1guBRRJ8JIaiZXdsum1BK4W3p5WjWS/dFD83nkhNzJJ9cTcOxR3b2RP8ymGuOyLTtPiEfR4dC18oBwsJpJtohspWdcl2RslEet0HRERDDJb3F3bsaAVcA="
   - secure: RQIMmk6hPYwWUVIpplBJpoGtWqw80KU21DYkG3x57jBAHvoG58JiOc/0Tt6qmTJr7iSLPZLuivfxsJikTrFxMg6OYwlvpxzKB4Rr/unMFBP50+AP5rvUoZUtf1Swy+cVvovtgDn8Isik5gloNZ00dri73pKKn/a0d07YRz3PetdmwiXn3b/08HCAxoBrhchIECHCjg/b/XC+r9QA+WvSI0hfPnd3zL8/IMisgMFHvP/v8f9yH3NysyvJY6VMR/chrcXzm4RdUcLUNQ62wUliKQvBisa5Fuu5ReZ8y3KVhCXiANwocNlTrpEEe7QHa7dJlZHLqPv1RDKOfyZWY7mFsQDeapdGsXBR7r19uh1QTKEgLZqINVAFoxfZtH3jSG4UzYAZ1hrZVNkM2Ta0feRRH/q1kINxT2ovgn073immgC1v6yv9TYXLPmE7ADS14E/ab7ZRZnR+aiI6biZUP5+KTnaZBNKTf24a5SIAeP49UqPkIKCvterGFzVuPRF5z+8QBjYekkgNbVcM/rL20QdAUsWn8MRTEckaCSDUyJmj/kpUw76MruJwrSwshYfPkzPaPRqk99oUZucN47w3QJm65DkRNEB3oEKs3ZTH6OQXYedsv9P4wKmThngzWF9GHB0hc1twAc3tctDOfgcBxp+CDQnJ+xWH7n36tKfixp5QFVY=
   - secure: Oi8pwShwTKnBVQtb9WoCrZSUZbDWXwO4383S6F8/USUASE/r06Zxws0XombEsy7dlG1YBS/3aLLGe5/5umrYu8XlKa0C5f1k+1ABroxQIDaiOoHJLmCTlCW0mDcbAH+THiKriPnULBnCk9qGCVofWDObPqGIIgeE5tHGm8kdfgx0hmuX5XxbZEDStSTh0eag3MFC0AdLqm4LYMaqHs56om976DmxKiO9FvkDhTSUhXsOjcgXnKoneBbzbf+1RnAr2QvuRaHS8nSZEcFnHiWNjGD/ag6Cvd2T4Aa8r5LasdYr9sx93GDteaZiyJmT4zTce4ote2kzddcEdAfK93ERUPiNXBvf0jMrqaVzbx6yI9EdcNvHRA5LARSxkT7CrOA/BjYeP+HuCjW6BJVmstDR9kFL2GoQSZJtrlI2KvHM6H3WWAMYpOCekaYKlxNa6KFoi/4RZbptJj0X5999G3qccBocfs133YQVgSNLrlBQ0KhXw4yMaO7UU8p1m063ls8VWFupWynagWGCrzWGl5w7S0r1YRVUB9kXrUmkRwqtW0niZfM1fX6BKo5PPfql7n0knhjqwo73n3kBuWxfQzYjOACYN3DFPgj0/qaNWR+AvZpqBAE5PyfxccEfpcWUvp2yrfZGuUWV628qPZLA/vQ33iN0lIndK/bCtoz6oqQq9iw=
+  # THIS IS FUZZIT_API_KEY
+  - secure: "SfZjmPYtRVNbFZn6GJduwbE4ljGGGzrwu86olozQwv6IoMn34j48gAvf4R3MVffjslsWiZrxwksCDL+hBl59E1TTrmoPMzJm8BpC85BhC3eoxqpBRFUbURfmY0BsReXYbcn8nsbiqQi/dRdMl5tPfOVJdY4zVCX0QP33byEYwMshbwq/a0nZtbikKVBkuSiDuJc48kMJTet0FlsInK+guCzYtuvEh0fMtWXKpH6tDW7vt3JWQJ5QNX4N1gbSSkFSVtCC1mWcvvrO/qNNGMuAYgmntr9ATHBpzhpzVtsqBfyMbNUg98yS987nDTxAUzuow/H6L0A4fPSSuGdgQY5boCjQxnjoXPuv8uyMnpHi3dDlEt+4gd7ldS7dGP/xTCdTTA/Qq8dcQKly/PZovgxKCZ948UTD9/5OkW3r1RuUkZq3lIXZylJ2AejEdqg//A+TfY5Q2JPpvBFQAjFAiCsGj85r/HYWQ9UtJTZbCr91abbK/o067DcBnkoJk2+61xF+H/ss2+5j6SYu9xubY/Yl1hKujDDxH37jsUL0I/1xfx0/b8ji2pRXYTxbGwpKDKlSX9RGjV4vac7+uNKztXUwtvmlOpAtsioA2XQYiKuQ400MysOC2BU0LHz8qCfaPeQw2/s14Xe97Frb8zP7NN/GrWAgSfQQco9nR+Ln1nLnA10="
 services:
 - docker
 deploy:
@@ -52,3 +56,11 @@ deploy:
       repo: open-policy-agent/opa
       condition: $TRAVIS_BRANCH =~ ^release-.*$
       tags: true
+
+  - provider: script
+    skip_cleanup: true  # do not delete artifacts because linux executable is needed
+    script: make fuzzit-fuzzing
+    on:
+      repo: open-policy-agent/opa
+      branch: master
+      tags: false

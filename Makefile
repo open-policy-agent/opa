@@ -81,6 +81,14 @@ install: generate
 .PHONY: test
 test: opa-wasm-test go-test wasm-test
 
+.PHONE: fuzzit-local-regression
+fuzzit-local-regression:
+	./build/fuzzit.sh local-regression
+
+.PHONE: fuzzit-fuzzing
+fuzzit-fuzzing:
+	./build/fuzzit.sh fuzzing
+
 .PHONY: opa-wasm-test
 opa-wasm-test:
 ifeq ($(DOCKER_INSTALLED), 1)
@@ -147,7 +155,7 @@ docs-%:
 ######################################################
 
 .PHONY: travis-all
-travis-all: deps build-linux build-darwin build-windows test perf check
+travis-all: deps build-linux build-darwin build-windows test fuzzit-local-regression perf check
 
 .PHONY: build-linux
 build-linux:
