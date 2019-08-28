@@ -142,7 +142,7 @@ func readSections(r io.Reader, m *module.Module) error {
 
 		switch id {
 		case constant.CustomSectionID, constant.ElementSectionID, constant.StartSectionID, constant.MemorySectionID:
-			break
+			continue
 		case constant.TypeSectionID:
 			if err := readTypeSection(bufr, &m.Type); err != nil {
 				return errors.Wrap(err, "type section")
