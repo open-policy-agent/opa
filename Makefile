@@ -154,15 +154,18 @@ docs-%:
 ######################################################
 
 .PHONY: travis-build
-travis-build: wasm-build opa-wasm-test
-	# this image is used in `Dockerfile` for image-quick
+travis-build: wasm-build
+	@# this image is used in `Dockerfile` for image-quick
 	$(DOCKER) build -t build-$(BUILD_COMMIT) --build-arg GOVERSION=$(GOVERSION) -f Dockerfile.build .
-	# the '/.' means "don't create the directory, copy its content only"
-	# note: we don't bother cleaning up the container
+	@# the '/.' means "don't create the directory, copy its content only"
+	@# these are copied our to be used from the s3 upload targets
+	@# note: we don't bother cleaning up the container created here
 	$(DOCKER) cp "$$($(DOCKER) create build-$(BUILD_COMMIT)):/out/." .
 
 .PHONY: travis-all
-travis-all: travis-build wasm-test fuzzit-local-regression
+travis-all: travis-build opa-wasm-test fuzzit-local-regression
+	@./build/run-wasm-tests.sh # wasm-test sans 'generate'
+	$(DOCKER) run build-$(BUILD_COMMIT) make go-test perf check
 
 .PHONY: build-linux
 build-linux:

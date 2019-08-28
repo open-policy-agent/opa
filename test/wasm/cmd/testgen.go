@@ -72,7 +72,7 @@ func compileTestCases(ctx context.Context, tests testCaseSet) (*compiledTestCase
 	return &compiledTestCaseSet{Cases: result}, nil
 }
 
-func run(params params, args []string) error {
+func run(params params) error {
 
 	ctx := context.Background()
 
@@ -193,7 +193,7 @@ func main() {
 		Use:   executable,
 		Short: executable,
 		RunE: func(_ *cobra.Command, args []string) error {
-			return run(params, args)
+			return run(params)
 		},
 	}
 
