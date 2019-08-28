@@ -92,7 +92,7 @@ fuzzit-fuzzing:
 .PHONY: opa-wasm-test
 opa-wasm-test:
 ifeq ($(DOCKER_INSTALLED), 1)
-	@$(MAKE)  -C wasm test
+	@$(MAKE) -C wasm test
 else
 	@echo "Docker not installed. Skipping OPA-WASM library test."
 endif
@@ -156,10 +156,10 @@ docs-%:
 .PHONY: travis-build
 travis-build: wasm-build opa-wasm-test
 	# this image is used in `Dockerfile` for image-quick
-	docker build -t build-$(BUILD_COMMIT) --build-arg GOVERSION=$(GOVERSION) -f Dockerfile.build .
+	$(DOCKER) build -t build-$(BUILD_COMMIT) --build-arg GOVERSION=$(GOVERSION) -f Dockerfile.build .
 	# the '/.' means "don't create the directory, copy its content only"
 	# note: we don't bother cleaning up the container
-	docker cp "$$(docker create build-$(BUILD_COMMIT)):/out/." .
+	$(DOCKER) cp "$$($(DOCKER) create build-$(BUILD_COMMIT)):/out/." .
 
 .PHONY: travis-all
 travis-all: travis-build wasm-test fuzzit-local-regression
@@ -179,27 +179,27 @@ build-windows:
 
 .PHONY: image-quick
 image-quick:
-	docker build --build-arg BUILD_COMMIT=$(BUILD_COMMIT) -t $(IMAGE):$(VERSION) .
-	docker build --build-arg BUILD_COMMIT=$(BUILD_COMMIT) -t $(IMAGE):$(VERSION)-debug --build-arg VARIANT=:debug .
-	docker build --build-arg BUILD_COMMIT=$(BUILD_COMMIT) -t $(IMAGE):$(VERSION)-rootless --build-arg USER=1 .
+	$(DOCKER) build --build-arg BUILD_COMMIT=$(BUILD_COMMIT) -t $(IMAGE):$(VERSION) .
+	$(DOCKER) build --build-arg BUILD_COMMIT=$(BUILD_COMMIT) -t $(IMAGE):$(VERSION)-debug --build-arg VARIANT=:debug .
+	$(DOCKER) build --build-arg BUILD_COMMIT=$(BUILD_COMMIT) -t $(IMAGE):$(VERSION)-rootless --build-arg USER=1 .
 
 .PHONY: push
 push:
-	docker push $(IMAGE):$(VERSION)
-	docker push $(IMAGE):$(VERSION)-debug
-	docker push $(IMAGE):$(VERSION)-rootless
+	$(DOCKER) push $(IMAGE):$(VERSION)
+	$(DOCKER) push $(IMAGE):$(VERSION)-debug
+	$(DOCKER) push $(IMAGE):$(VERSION)-rootless
 
 .PHONY: tag-latest
 tag-latest:
-	docker tag $(IMAGE):$(VERSION) $(IMAGE):latest
-	docker tag $(IMAGE):$(VERSION)-debug $(IMAGE):latest-debug
-	docker tag $(IMAGE):$(VERSION)-rootless $(IMAGE):latest-rootless
+	$(DOCKER) tag $(IMAGE):$(VERSION) $(IMAGE):latest
+	$(DOCKER) tag $(IMAGE):$(VERSION)-debug $(IMAGE):latest-debug
+	$(DOCKER) tag $(IMAGE):$(VERSION)-rootless $(IMAGE):latest-rootless
 
 .PHONY: push-latest
 push-latest:
-	docker push $(IMAGE):latest
-	docker push $(IMAGE):latest-debug
-	docker push $(IMAGE):latest-rootless
+	$(DOCKER) push $(IMAGE):latest
+	$(DOCKER) push $(IMAGE):latest-debug
+	$(DOCKER) push $(IMAGE):latest-rootless
 
 .PHONY: push-binary-edge
 push-binary-edge:
@@ -209,19 +209,19 @@ push-binary-edge:
 
 .PHONY: tag-edge
 tag-edge:
-	docker tag $(IMAGE):$(VERSION) $(IMAGE):edge
-	docker tag $(IMAGE):$(VERSION)-debug $(IMAGE):edge-debug
-	docker tag $(IMAGE):$(VERSION)-rootless $(IMAGE):edge-rootless
+	$(DOCKER) tag $(IMAGE):$(VERSION) $(IMAGE):edge
+	$(DOCKER) tag $(IMAGE):$(VERSION)-debug $(IMAGE):edge-debug
+	$(DOCKER) tag $(IMAGE):$(VERSION)-rootless $(IMAGE):edge-rootless
 
 .PHONY: push-edge
 push-edge:
-	docker push $(IMAGE):edge
-	docker push $(IMAGE):edge-debug
-	docker push $(IMAGE):edge-rootless
+	$(DOCKER) push $(IMAGE):edge
+	$(DOCKER) push $(IMAGE):edge-debug
+	$(DOCKER) push $(IMAGE):edge-rootless
 
 .PHONY: docker-login
 docker-login:
-	@docker login -u ${DOCKER_USER} -p ${DOCKER_PASSWORD}
+	@$(DOCKER) login -u ${DOCKER_USER} -p ${DOCKER_PASSWORD}
 
 .PHONY: push-image
 push-image: docker-login image-quick push
@@ -243,7 +243,7 @@ release-bugfix-travis: deploy-travis
 
 .PHONY: release
 release:
-	docker run -it --rm \
+	$(DOCKER) run -it --rm \
 		-v $(PWD)/_release/$(VERSION):/_release/$(VERSION) \
 		-v $(PWD):/_src \
 		$(RELEASE_BUILD_IMAGE) \
@@ -251,7 +251,7 @@ release:
 
 .PHONY: release-local
 release-local:
-	docker run -it --rm \
+	$(DOCKER) run -it --rm \
 		-v $(PWD)/_release/$(VERSION):/_release/$(VERSION) \
 		-v $(PWD):/_src \
 		$(RELEASE_BUILD_IMAGE) \
@@ -259,7 +259,7 @@ release-local:
 
 .PHONY: release-patch
 release-patch:
-	@docker run -it --rm \
+	@$(DOCKER) run -it --rm \
 		-e LAST_VERSION=$(LAST_VERSION) \
 		-v $(PWD):/_src \
 		python:2.7 \
@@ -267,7 +267,7 @@ release-patch:
 
 .PHONY: dev-patch
 dev-patch:
-	@docker run -it --rm \
+	@$(DOCKER) run -it --rm \
 		-v $(PWD):/_src \
 		python:2.7 \
 		/_src/build/gen-dev-patch.sh --version=$(VERSION) --source-url=/_src
