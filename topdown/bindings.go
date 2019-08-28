@@ -128,11 +128,6 @@ func (u *bindings) plugNamespaced(a *ast.Term, caller *bindings) *ast.Term {
 }
 
 func (u *bindings) bind(a *ast.Term, b *ast.Term, other *bindings) *undo {
-	// See note in apply about non-var terms.
-	_, ok := a.Value.(ast.Var)
-	if !ok {
-		panic("illegal value")
-	}
 	u.values.Put(a, value{
 		u: other,
 		v: b,
