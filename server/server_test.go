@@ -21,7 +21,6 @@ import (
 	"reflect"
 	"sort"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -81,7 +80,6 @@ func TestUnversionedGetHealthCheckBundleActivationSingle(t *testing.T) {
 	// Initialize the server as if a bundle plugin was
 	// configured on the manager.
 	f.server.manager.Register(pluginBundle.Name, &pluginBundle.Plugin{})
-	f.server.bundleStatusMtx = new(sync.RWMutex)
 	f.server.bundleStatuses = map[string]*pluginBundle.Status{
 		bundleName: &pluginBundle.Status{Name: bundleName},
 	}
@@ -106,6 +104,31 @@ func TestUnversionedGetHealthCheckBundleActivationSingle(t *testing.T) {
 	}
 }
 
+func TestUnversionedGetHealthCheckBundleActivationSingleLegacy(t *testing.T) {
+
+	// Initialize the server as if there is no bundle plugin
+
+	f := newFixture(t)
+
+	ctx := context.Background()
+
+	err := storage.Txn(ctx, f.server.store, storage.WriteParams, func(txn storage.Transaction) error {
+		return bundle.LegacyWriteManifestToStore(ctx, f.server.store, txn, bundle.Manifest{
+			Revision: "a",
+		})
+	})
+
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+
+	// The heath check should now respond as healthy
+	req := newReqUnversioned(http.MethodGet, "/health?bundle=true", "")
+	if err := f.executeRequest(req, 200, `{}`); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestUnversionedGetHealthCheckBundleActivationMulti(t *testing.T) {
 
 	f := newFixture(t)
@@ -118,7 +141,6 @@ func TestUnversionedGetHealthCheckBundleActivationMulti(t *testing.T) {
 		"b3": {Service: "s3", Resource: "bundle.tar.gz"},
 	}}, f.server.manager)
 	f.server.manager.Register(pluginBundle.Name, bp)
-	f.server.bundleStatusMtx = new(sync.RWMutex)
 	f.server.bundleStatuses = map[string]*pluginBundle.Status{
 		"b1": {Name: "b1"},
 		"b2": {Name: "b2"},
@@ -187,10 +209,6 @@ func TestInitWithBundlePlugin(t *testing.T) {
 		t.Error("server.hasBundle should be true")
 	}
 
-	if server.bundleStatusMtx == nil {
-		t.Error("server.bundleStatusMtx should be initialized")
-	}
-
 	isActivated := server.bundlesActivated()
 	if isActivated {
 		t.Error("bundle should not be initialized to activated status")
@@ -223,10 +241,6 @@ func TestInitWithBundlePluginMultiBundle(t *testing.T) {
 
 	if !server.hasBundle() {
 		t.Error("server.hasBundle should be true")
-	}
-
-	if server.bundleStatusMtx == nil {
-		t.Error("server.bundleStatusMtx should be initialized")
 	}
 
 	isActivated := server.bundlesActivated()
@@ -1662,7 +1676,6 @@ func TestDataProvenanceSingleBundle(t *testing.T) {
 	// Initialize as if a bundle plugin is running
 	bp := pluginBundle.New(&pluginBundle.Config{Name: "b1"}, f.server.manager)
 	f.server.manager.Register(pluginBundle.Name, bp)
-	f.server.bundleStatusMtx = new(sync.RWMutex)
 	f.server.bundleStatuses = map[string]*pluginBundle.Status{
 		"b1": {Name: "b1"},
 	}
@@ -1774,7 +1787,6 @@ func TestDataProvenanceMultiBundle(t *testing.T) {
 	}}, f.server.manager)
 	f.server.manager.Register(pluginBundle.Name, bp)
 
-	f.server.bundleStatusMtx = new(sync.RWMutex)
 	f.server.bundleStatuses = map[string]*pluginBundle.Status{
 		"b1": {Name: "b1"},
 		"b2": {Name: "b2"},
