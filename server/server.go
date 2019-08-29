@@ -110,7 +110,7 @@ type Server struct {
 	runtime           *ast.Term
 	httpListeners     []httpListener
 	bundleStatuses    map[string]*bundlePlugin.Status
-	bundleStatusMtx   *sync.RWMutex
+	bundleStatusMtx   sync.RWMutex
 }
 
 // Loop will contain all the calls from the server that we'll be listening on.
@@ -172,7 +172,6 @@ func (s *Server) Init(ctx context.Context) (*Server, error) {
 
 	bp := bundlePlugin.Lookup(s.manager)
 	if bp != nil {
-		s.bundleStatusMtx = new(sync.RWMutex)
 
 		// initialize statuses to empty defaults for server /health check
 		s.bundleStatuses = map[string]*bundlePlugin.Status{}
