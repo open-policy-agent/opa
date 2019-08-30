@@ -12,6 +12,11 @@ project adheres to [Semantic Versioning](http://semver.org/).
   having access to the Prometheus metrics is important for monitoring
   the health of the OPAs.
 
+## 0.13.5
+
+- Fix panic in OPA HTTP server with `/health?bundle=true` when
+  using bundles loaded from CLI ([#1703](https://github.com/open-policy-agent/opa/issues/1703)).
+
 ## 0.13.4
 
 - Fix panic in OPA HTTP server caused by concurrent map writes ([#1666](https://github.com/open-policy-agent/opa/issues/1666))
