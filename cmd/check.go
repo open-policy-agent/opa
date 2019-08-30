@@ -16,9 +16,10 @@ import (
 )
 
 var checkParams = struct {
-	format   *util.EnumFlag
-	errLimit int
-	ignore   []string
+	format     *util.EnumFlag
+	errLimit   int
+	ignore     []string
+	bundleMode bool
 }{
 	format: util.NewEnumFlag(checkFormatPretty, []string{
 		checkFormatPretty, checkFormatJSON,
@@ -52,21 +53,33 @@ and exit with a non-zero exit code.`,
 }
 
 func checkModules(args []string) int {
-
-	f := loaderFilter{
-		Ignore: checkParams.ignore,
-	}
-
-	result, err := loader.Filtered(args, f.Apply)
-	if err != nil {
-		outputErrors(err)
-		return 1
-	}
-
 	modules := map[string]*ast.Module{}
 
-	for _, m := range result.Modules {
-		modules[m.Name] = m.Parsed
+	if checkParams.bundleMode {
+		for _, path := range args {
+			b, err := loader.AsBundle(path)
+			if err != nil {
+				outputErrors(err)
+				return 1
+			}
+			for _, mf := range b.Modules {
+				modules[mf.Path] = mf.Parsed
+			}
+		}
+	} else {
+		f := loaderFilter{
+			Ignore: checkParams.ignore,
+		}
+
+		result, err := loader.Filtered(args, f.Apply)
+		if err != nil {
+			outputErrors(err)
+			return 1
+		}
+
+		for _, m := range result.Modules {
+			modules[m.Name] = m.Parsed
+		}
 	}
 
 	compiler := ast.NewCompiler().SetErrorLimit(checkParams.errLimit)
@@ -103,5 +116,6 @@ func init() {
 	setMaxErrors(checkCommand.Flags(), &checkParams.errLimit)
 	setIgnore(checkCommand.Flags(), &checkParams.ignore)
 	checkCommand.Flags().VarP(checkParams.format, "format", "f", "set output format")
+	checkCommand.Flags().BoolVarP(&checkParams.bundleMode, "bundle", "b", false, "load paths as bundle files or root directories")
 	RootCommand.AddCommand(checkCommand)
 }
