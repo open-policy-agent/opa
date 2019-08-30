@@ -3,6 +3,14 @@
 {{ $tagline     := site.Params.tagline }}
 {{ $socialMenu  := site.Menus.social }}
 {{ $docs        := "/docs/latest" }}
+{{ $introduction  := "/docs/latest" }}
+{{ $tutorial  := "/docs/latest/get-started" }}
+{{ $policyLanguage  := "/docs/latest/policy-language" }}
+{{ $kubernetes  := "/docs/latest/kubernetes-introduction" }}
+{{ $microservices  := "/docs/latest/http-api-authorization" }}
+{{ $kafka  := "/docs/latest/kafka-authorization" }}
+{{ $terraform  := "/docs/latest/terraform" }}
+{{ $opaSummit  := "https://www.papercall.io/opa-summit" }}
 {{ $getStarted  := "/docs/latest/get-started" }}
 <header role="banner">
   <nav class="nav--banner" role="navigation">
@@ -63,13 +71,39 @@
       </p>
 
       <p class="headline--nav">
-        <a id="headline--get-started" href="{{ $getStarted }}" rel="help">
-          Get started
+        <span class="headline--navtitle">Core Docs</span>  
+        <a id="headline--get-started" class="headline--link" href="{{ $introduction }}" rel="help">
+          Introduction
         </a>
+        <a class="headline--link" href="{{ $tutorial }}" rel="help">
+          Tutorial
+        </a>
+        <a class="headline--link" href="{{ $policyLanguage }}" rel="help">
+          Policy Language
+        </a>
+      </p>
+      <p class="headline--nav">
+          <span class="headline--navtitle">Use Cases</span> 
+          <a class="headline--link" href="{{ $kubernetes }}" rel="help">
+            Kubernetes
+          </a>
+          <a class="headline--link" href="{{ $microservices }}" rel="help">
+            Microservice APIs
+          </a>
+          <a class="headline--link" href="{{ $kafka }}" rel="help">
+            Kafka
+          </a>
+          <a class="headline--link" href="{{ $terraform }}" rel="help">
+              Terraform
+          </a>
+      </p>
+      <p class="headline--nav">
+          <span class="headline--navtitle">Events</span> 
+          <a class="headline--link" href="{{ $opaSummit }}" rel="help">
+            OPA Summit
+          </a>
+      </p>
 
-        <a id="headline--learn-more" href="{{ $docs }}" rel="help">
-          Learn more
-        </a>
       </p>
     </div>
 

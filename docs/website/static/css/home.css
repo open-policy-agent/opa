@@ -77,12 +77,11 @@ p {
   margin-bottom: 1.3em;
 }
 
-ul, {
+ul {
   list-style: none;
 }
 
-#headline--get-started,
-#headline--learn-more {
+.headline--link {
   border: solid 2px #008391;
   border-radius: 6px;
   display: inline-block;
@@ -92,16 +91,25 @@ ul, {
   text-align: center;
   text-decoration: none;
   width: 180px;
-}
-
-#headline--get-started {
+  /* background-color: #fff;
+  color: #008391; */
   background-color: #008391;
   color: #fff;
 }
 
-#headline--learn-more {
-  background-color: #fff;
-  color: #008391;
+.headline--navtitle {
+  width: 100px;
+  float: left;
+  text-align: left;
+  vertical-align: middle;
+  line-height: 44px;
+  color: rgba(0, 0, 0, .54);
+  /* font-size: 1.25em; */
+
+}
+#headline--get-started {
+  background-color: #008391;
+  color: #fff;
 }
 
 footer {
