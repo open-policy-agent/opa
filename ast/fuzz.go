@@ -9,6 +9,7 @@ import (
 var blacklist = []string{
 	"{{{{{", // nested { and [ cause the parse time to explode
 	"[[[[[",
+	"[{{[{{{{[{{",
 }
 
 
