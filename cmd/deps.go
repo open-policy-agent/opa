@@ -19,9 +19,10 @@ import (
 )
 
 type depsCommandParams struct {
-	dataPaths repeatedStringFlag
-	format    *util.EnumFlag
-	ignore    []string
+	dataPaths   repeatedStringFlag
+	format      *util.EnumFlag
+	ignore      []string
+	bundlePaths repeatedStringFlag
 }
 
 const (
@@ -56,6 +57,7 @@ func init() {
 
 	depsCommand.Flags().VarP(params.format, "format", "f", "set output format")
 	depsCommand.Flags().VarP(&params.dataPaths, "data", "d", "set data file(s) or directory path(s)")
+	depsCommand.Flags().VarP(&params.bundlePaths, "bundle", "b", "set bundle file(s) or directory path(s)")
 	setIgnore(depsCommand.Flags(), &params.ignore)
 
 	RootCommand.AddCommand(depsCommand)
@@ -68,18 +70,34 @@ func deps(args []string, params depsCommandParams) error {
 		return err
 	}
 
-	f := loaderFilter{
-		Ignore: params.ignore,
-	}
-
-	result, err := loader.Filtered(params.dataPaths.v, f.Apply)
-	if err != nil {
-		return err
-	}
-
 	modules := map[string]*ast.Module{}
-	for _, m := range result.Modules {
-		modules[m.Name] = m.Parsed
+
+	if len(params.dataPaths.v) > 0 {
+		f := loaderFilter{
+			Ignore: params.ignore,
+		}
+
+		result, err := loader.Filtered(params.dataPaths.v, f.Apply)
+		if err != nil {
+			return err
+		}
+
+		for _, m := range result.Modules {
+			modules[m.Name] = m.Parsed
+		}
+	}
+
+	if len(params.bundlePaths.v) > 0 {
+		for _, path := range params.bundlePaths.v {
+			b, err := loader.AsBundle(path)
+			if err != nil {
+				return err
+			}
+
+			for _, m := range b.Modules {
+				modules[m.Path] = m.Parsed
+			}
+		}
 	}
 
 	compiler := ast.NewCompiler()
