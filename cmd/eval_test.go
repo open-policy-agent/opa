@@ -226,3 +226,31 @@ func assertResultSet(t *testing.T, rs rego.ResultSet, expected string) {
 		t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", parsedExpected, result)
 	}
 }
+
+func TestEvalErrorJSONOutput(t *testing.T) {
+	params := newEvalCommandParams()
+	err := params.outputFormat.Set(evalJSONOutput)
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+
+	var buf bytes.Buffer
+
+	defined, err := eval([]string{"{1,2,3} == {1,x,3}"}, params, &buf)
+	if defined && err == nil {
+		t.Fatalf("Expected an error")
+	}
+
+	// Only check that it *can* be loaded as valid JSON, and that the errors
+	// are populated.
+	var output map[string]interface{}
+
+	if err := util.NewJSONDecoder(&buf).Decode(&output); err != nil {
+		t.Fatal(err)
+	}
+
+	if output["error"] == nil {
+		t.Fatalf("Expected error to be non-nil")
+	}
+
+}
