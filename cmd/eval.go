@@ -332,19 +332,19 @@ func eval(args []string, params evalCommandParams, w io.Writer) (bool, error) {
 	var parsedModules map[string]*ast.Module
 
 	if !params.partial {
-		pq, err := eval.PrepareForEval(ctx)
-		if err != nil {
-			return false, err
+		var pq rego.PreparedEvalQuery
+		pq, result.Error = eval.PrepareForEval(ctx)
+		if result.Error == nil {
+			parsedModules = pq.Modules()
+			result.Result, result.Error = pq.Eval(ctx)
 		}
-		parsedModules = pq.Modules()
-		result.Result, result.Error = pq.Eval(ctx)
 	} else {
-		pq, err := eval.PrepareForPartial(ctx)
-		if err != nil {
-			return false, err
+		var pq rego.PreparedPartialQuery
+		pq, result.Error = eval.PrepareForPartial(ctx)
+		if result.Error == nil {
+			parsedModules = pq.Modules()
+			result.Partial, result.Error = eval.Partial(ctx)
 		}
-		parsedModules = pq.Modules()
-		result.Partial, result.Error = eval.Partial(ctx)
 	}
 
 	switch params.explain.String() {
