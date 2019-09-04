@@ -11,6 +11,7 @@ import (
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/util"
+	"github.com/open-policy-agent/opa/version"
 )
 
 // Params controls the types of runtime information to return.
@@ -50,6 +51,8 @@ func Term(params Params) (*ast.Term, error) {
 	}
 
 	obj.Insert(ast.StringTerm("env"), ast.NewTerm(env))
+
+	obj.Insert(ast.StringTerm("version"), ast.StringTerm(version.Version))
 
 	return ast.NewTerm(obj), nil
 }
