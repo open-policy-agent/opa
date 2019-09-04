@@ -37,14 +37,16 @@ docker-serve:
 			--source /src/website \
 			--contentDir generated
 
-.PHONY: production-build
-production-build: clean generate
+.PHONY: hugo-production-build
+hugo-production-build:
 	hugo \
 		--source $(CURDIR)/website \
 		--contentDir generated \
 		--ignoreCache \
 		--minify
-	make live-blocks-inject
+
+.PHONY: production-build
+production-build: clean generate hugo-production-build live-blocks-inject
 
 .PHONY: preview-build
 preview-build: clean generate
