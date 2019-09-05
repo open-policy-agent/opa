@@ -169,35 +169,47 @@ func builtinJWTVerifyES256(a ast.Value, b ast.Value) (ast.Value, error) {
 	})
 }
 
-// getKeyFromCert returns the public key found in a X.509 certificate.
-func getKeyFromCert(certificate string) (key interface{}, err error) {
-	block, rest := pem.Decode([]byte(certificate))
-	if block == nil || block.Type != "CERTIFICATE" || len(rest) > 0 {
-		return nil, fmt.Errorf("failed to decode PEM block containing certificate")
+// getKeyFromCertOrJWK returns the public key found in a X.509 certificate or JWK key.
+// A valid PEM block is never valid JSON (and vice versa), hence can try parsing both.
+func getKeyFromCertOrJWK(certificate string) (key interface{}, err error) {
+	if block, rest := pem.Decode([]byte(certificate)); block != nil {
+		if block.Type != "CERTIFICATE" {
+			return nil, fmt.Errorf("failed to find a PEM certificate block")
+		}
+
+		if len(rest) > 0 {
+			return nil, fmt.Errorf("extra data after a PEM certificate block")
+		}
+
+		cert, err := x509.ParseCertificate(block.Bytes)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to parse a PEM certificate")
+		}
+
+		return cert.PublicKey, nil
 	}
 
-	cert, err := x509.ParseCertificate(block.Bytes)
+	keys, err := jwk.ParseString(certificate)
 	if err != nil {
-		return nil, errors.Wrap(err, "PEM parse error")
+		return nil, errors.Wrap(err, "failed to parse a JWK key (set)")
 	}
-	key = cert.PublicKey
-	return
+
+	return keys.Keys[0].Materialize()
 }
 
 // Implements JWT signature verification.
 func builtinJWTVerify(a ast.Value, b ast.Value, verify func(publicKey interface{}, digest []byte, signature []byte) error) (ast.Value, error) {
-	// Decode the JSON Web Token
 	token, err := decodeJWT(a)
 	if err != nil {
 		return nil, err
 	}
 
-	// Process PEM encoded certificate input
-	astCertificate, err := builtins.StringOperand(b, 2)
+	s, err := builtins.StringOperand(b, 2)
 	if err != nil {
 		return nil, err
 	}
-	key, err := getKeyFromCert(string(astCertificate))
+
+	key, err := getKeyFromCertOrJWK(string(s))
 	if err != nil {
 		return nil, err
 	}
@@ -299,15 +311,13 @@ var tokenConstraintTypes = map[string]tokenConstraintHandler{
 
 // tokenConstraintCert handles the `cert` constraint.
 func tokenConstraintCert(value ast.Value, constraints *tokenConstraints) (err error) {
-	var cert ast.String
+	var s ast.String
 	var ok bool
-	if cert, ok = value.(ast.String); !ok {
-		err = fmt.Errorf("cert constraint: must be a string")
-		return
+	if s, ok = value.(ast.String); !ok {
+		return fmt.Errorf("cert constraint: must be a string")
 	}
-	if constraints.key, err = getKeyFromCert(string(cert)); err != nil {
-		return
-	}
+
+	constraints.key, err = getKeyFromCertOrJWK(string(s))
 	return
 }
 

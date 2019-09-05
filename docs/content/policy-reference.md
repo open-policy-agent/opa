@@ -284,9 +284,9 @@ io.jwt.encode_sign_raw(`{"typ":"JWT","alg":"HS256"}`, `{"iss":"joe","exp":130081
 
 | Built-in | Description |
 | ------- |-------------|
-| <span class="opa-keep-it-together">``output := io.jwt.verify_rs256(string, certificate)``</span> | ``output`` is ``true`` if the RS256 signature of the input token is valid. ``certificate`` is the PEM encoded certificate used to verify the RS256 signature|
-| <span class="opa-keep-it-together">``output := io.jwt.verify_ps256(string, certificate)``</span> | ``output`` is ``true`` if the PS256 signature of the input token is valid. ``certificate`` is the PEM encoded certificate used to verify the PS256 signature|
-| <span class="opa-keep-it-together">``output := io.jwt.verify_es256(string, certificate)``</span> | ``output`` is ``true`` if the ES256 signature of the input token is valid. ``certificate`` is the PEM encoded certificate used to verify the ES256 signature|
+| <span class="opa-keep-it-together">``output := io.jwt.verify_rs256(string, certificate)``</span> | ``output`` is ``true`` if the RS256 signature of the input token is valid. ``certificate`` is the PEM encoded certificate or the JWK key (set) used to verify the RS256 signature|
+| <span class="opa-keep-it-together">``output := io.jwt.verify_ps256(string, certificate)``</span> | ``output`` is ``true`` if the PS256 signature of the input token is valid. ``certificate`` is the PEM encoded certificate or the JWK key (set) used to verify the PS256 signature|
+| <span class="opa-keep-it-together">``output := io.jwt.verify_es256(string, certificate)``</span> | ``output`` is ``true`` if the ES256 signature of the input token is valid. ``certificate`` is the PEM encoded certificate or the JWK key (set) used to verify the ES256 signature|
 | <span class="opa-keep-it-together">``output := io.jwt.verify_hs256(string, secret)``</span> | ``output`` is ``true`` if the Secret signature of the input token is valid. ``secret`` is a plain text secret used to verify the HS256 signature|
 | <span class="opa-keep-it-together">``output := io.jwt.decode(string)``</span> | ``output`` is of the form ``[header, payload, sig]``.  ``header`` and ``payload`` are ``object``. ``sig`` is the hexadecimal representation of the signature on the token. |
 | <span class="opa-keep-it-together">``output := io.jwt.decode_verify(string, constraints)``</span> | ``output`` is of the form ``[valid, header, payload]``.  If the input token verifies and meets the requirements of ``constraints`` then ``valid`` is ``true`` and ``header`` and ``payload`` are objects containing the JOSE header and the JWT claim set. Otherwise, ``valid`` is ``false`` and ``header`` and ``payload`` are ``{}``. |
@@ -297,7 +297,7 @@ For ``io.jwt.decode_verify``, ``constraints`` is an object with the following me
 
 | Name | Meaning | Required |
 | ---- | ------- | -------- |
-| ``cert`` | A PEM encoded certificate containing an RSA or ECDSA public key. | See below |
+| ``cert`` | A PEM encoded certificate or a JWK key (set) containing an RSA or ECDSA public key. | See below |
 | ``secret`` | The secret key for HS256, HS384 and HS512 verification. | See below |
 | ``alg`` | The JWA algorithm name to use. If it is absent then any algorithm that is compatible with the key is accepted. | Optional |
 | ``iss`` | The issuer string. If it is present the only tokens with this issuer are accepted. If it is absent then any issuer is accepted. | Optional |
