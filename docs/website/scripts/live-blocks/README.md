@@ -19,7 +19,7 @@ or from the root of this repository using `make docs-live-blocks-<script name>`.
 You probably want to run `install-deps` to automatically install JS dependencies. When testing, you might want to use something like
 `make docs-live-blocks-clear-bundle-cache && make docs-serve` so that the bundles get re-built. If a cache gets corrupted, you can
 run `clear-caches` or the script for a specific one to delete it. Once you're done, you can run `check`
-to lint, test, and sort package.json.
+to test and sort package.json.
 
 ## Folder Structure
 
