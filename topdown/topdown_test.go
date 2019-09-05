@@ -2416,6 +2416,37 @@ func TestTopDownElseKeyword(t *testing.T) {
 	}
 }
 
+// Test that dynamic dispatch is not broken by the recursion check.
+func TestTopdownDynamicDispatch(t *testing.T) {
+	compiler := compileModules([]string{`
+		package animals
+
+		dog = "woof"
+		cat = "meow"
+	`, `
+		package dynamic
+
+		sound = data.animals[animal]
+		animal = "dog" {
+			2 > 1
+		}
+	`})
+
+	data := map[string]interface{}{}
+	store := inmem.NewFromObject(data)
+
+	assertTopDownWithPath(t, compiler, store, "dynamic dispatch", []string{}, `{}`, `{
+		"animals": {
+			"cat": "meow",
+			"dog": "woof"
+		},
+		"dynamic": {
+			"animal": "dog",
+			"sound": "woof"
+		}
+	}`)
+}
+
 func TestTopDownSystemDocument(t *testing.T) {
 
 	compiler := compileModules([]string{`
