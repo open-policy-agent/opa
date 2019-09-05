@@ -479,6 +479,82 @@ func (c *Compiler) GetRules(ref Ref) (rules []*Rule) {
 	return rules
 }
 
+// GetRulesDynamic returns a slice of rules that could be referred to by a ref.
+// When parts of the ref are statically known, we use that information to narrow
+// down which rules the ref could refer to, but in the most general case this
+// will be an over-approximation.
+//
+// E.g., given the following modules:
+//
+//  package a.b.c
+//
+//  r1 = 1  # rule1
+//
+// and:
+//
+//  package a.d.c
+//
+//  r2 = 2  # rule2
+//
+// The following calls yield the rules on the right.
+//
+//  GetRulesDynamic("data.a[x].c[y]")			=> [rule1, rule2]
+//  GetRulesDynamic("data.a[x].c.r2")	=> [rule2]
+//  GetRulesDynamic("data.a.b[x][y]")	=> [rule1]
+func (c *Compiler) GetRulesDynamic(ref Ref) (rules []*Rule) {
+	node := c.RuleTree
+
+	set := map[*Rule]struct{}{}
+	var walk func(node *TreeNode, i int)
+	walk = func(node *TreeNode, i int) {
+		if i >= len(ref) {
+			// We've reached the end of the reference and want to collect everything
+			// under this "prefix".
+			node.DepthFirst(func(descendant *TreeNode) bool {
+				insertRules(set, descendant.Values)
+				return descendant.Hide
+			})
+		} else if i == 0 || IsConstant(ref[i].Value) {
+			// The head of the ref is always grounded.  In case another part of the
+			// ref is also grounded, we can lookup the exact child.  If it's not found
+			// we can immediately return...
+			if child := node.Child(ref[i].Value); child == nil {
+				return
+			} else if len(child.Values) > 0 {
+				// If there are any rules at this position, it's what the ref would
+				// refer to.  We can just append those and stop here.
+				insertRules(set, child.Values)
+			} else {
+				// Otherwise, we continue using the child node.
+				walk(child, i+1)
+			}
+		} else {
+			// This part of the ref is a dynamic term.  We can't know what it refers
+			// to and will just need to try all of the children.
+			for _, child := range node.Children {
+				if child.Hide {
+					continue
+				}
+				insertRules(set, child.Values)
+				walk(child, i+1)
+			}
+		}
+	}
+
+	walk(node, 0)
+	for rule := range set {
+		rules = append(rules, rule)
+	}
+	return rules
+}
+
+// Utility: add all rule values to the set.
+func insertRules(set map[*Rule]struct{}, rules []util.T) {
+	for _, rule := range rules {
+		set[rule.(*Rule)] = struct{}{}
+	}
+}
+
 // RuleIndex returns a RuleIndex built for the rule set referred to by path.
 // The path must refer to the rule set exactly, i.e., given a rule set at path
 // data.a.b.c.p, refs data.a.b.c.p.x and data.a.b.c would not return a
@@ -1039,7 +1115,7 @@ func (c *Compiler) setRuleTree() {
 }
 
 func (c *Compiler) setGraph() {
-	c.Graph = NewGraph(c.Modules, c.GetRules)
+	c.Graph = NewGraph(c.Modules, c.GetRulesDynamic)
 }
 
 type queryCompiler struct {
@@ -1404,7 +1480,7 @@ func NewGraph(modules map[string]*Module, list func(Ref) []*Rule) *Graph {
 		return NewGenericVisitor(func(x interface{}) bool {
 			switch x := x.(type) {
 			case Ref:
-				for _, b := range list(x.GroundPrefix()) {
+				for _, b := range list(x) {
 					for node := b; node != nil; node = node.Else {
 						graph.addDependency(a, node)
 					}
