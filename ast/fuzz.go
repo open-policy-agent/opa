@@ -3,26 +3,26 @@
 package ast
 
 import (
-	"bytes"
+	"regexp"
 )
 
-var blacklist = []string{
-	"{{{{{", // nested { and [ cause the parse time to explode
-	"[[[[[",
-}
-
+// nested { and [ tokens cause the parse time to explode.
+// see: https://github.com/mna/pigeon/issues/75
+var blacklistRegexp = regexp.MustCompile(`[{\[]{5,}`)
 
 func Fuzz(data []byte) int {
-	for i := range blacklist {
-		if bytes.Contains(data, []byte(blacklist[i])) {
-			return -1
-		}
+
+	if blacklistRegexp.Match(data) {
+		return -1
 	}
+
 	str := string(data)
 	_, _, err := ParseStatements("", str)
+
 	if err == nil {
 		CompileModules(map[string]string{"": str})
 		return 1
 	}
+
 	return 0
 }
