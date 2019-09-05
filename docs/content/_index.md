@@ -1,608 +1,1033 @@
 ---
-title: Introduction
+title: "Introduction"
 kind: documentation
 weight: 1
 ---
 
-A [**policy**](#policy) is a set of rules that governs the behavior of a software 
-service.  That policy could describe rate-limits, names of trusted servers, the clusters an application
-should be deployed to, permitted network routes, or accounts a user can withdraw money from. 
+The Open Policy Agent (OPA, pronounced "oh-pa") is an open source,
+general-purpose policy engine that unifies policy enforcement across the stack.
+OPA provides a high-level declarative language that let's you specify policy as
+code and simple APIs to offload policy decision-making from your software. You
+can use OPA to enforce policies in microservices, Kubernetes, CI/CD pipelines,
+API gateways, and more.
 
-Authorization is a special kind of policy that often dictates which people or machines
-can run which actions on which resources. Authorization is sometimes confused with Authentication: how people or machines prove they are who they say they are.  Authorization and more generally policy often utilize the results of authentication (the username, user attributes, groups, claims), but makes decisions based on far more information than just who the user is.  Generalizing away from authorization back to policy makes the distinction even clearer because some policy decisions have nothing to do with users, e.g. policy simply describes invariants that must hold in a software system (e.g. all binaries must come from a trusted source).
+Read this page to learn about the core concepts in OPA's policy language
+([Rego](policy-language)) as well as how to download, run, and integrate OPA.
 
-Today policy is often a hard-coded feature of the software service it 
-actually governs.  Open Policy Agent lets you [**decouple policy**](#policy-decoupling)
-from that software service so that the people responsible for policy 
-can read, write, analyze, version, distribute, and in general manage policy 
-separate from the service itself. OPA also gives you a unified toolset to decouple policy
-from any software service you like, and to write context-aware policies using any
-context that you like.  In short, OPA helps you decouple any policy using any context from
-any software system.
+## Overview
 
+OPA [decouples](philosophy#policy-decoupling) policy decision-making from policy
+enforcement. When your software needs to make policy decisions it **queries**
+OPA and supplies structured data (e.g., JSON) as input. OPA accepts arbitrary
+structured data as input.
 
-## What is Policy? {#policy}
+<!--- source: https://docs.google.com/drawings/d/10_iIoQO6VgORsMpXyQ--fu8F5xSe9E4vIz5qRAIon78/edit --->
 
-All organizations have policies. Policies are essential to the long-term
-success of organizations because they encode important knowledge about how to
-comply with legal requirements, work within technical constraints, avoid
-repeating mistakes, and so on.
+{{< figure src="opa-service.svg" width="65" caption="Policy Decoupling" >}}
 
-In their simplest form, policies can be applied manually based on rules that
-are written down or conventions that are unspoken but permeate an
-organization’s culture. Policies may also be enforced with application logic or
-statically configured at deploy time.
+OPA generates policy decisions by evaluating the query input and against
+policies and data. OPA and Rego are domain-agnostic so you can describe almost
+any kind of invariant in your policies. For example:
 
-## What is Policy Decoupling? {#policy-decoupling}
+* Which users can access which resources.
+* Which subnets egress traffic is allowed to.
+* Which clusters a workload must be deployed to.
+* Which registries binaries can be downloaded from.
+* Which OS capabilities a container can execute with.
+* Which times of day the system can be accessed at.
 
-Software services should allow policies to be specified declaratively, 
-updated at any time without recompiling or redeploying, and 
-enforced automatically (which is especially valuable when decisions need to be made faster than
-humanly possible). 
+Policy decisions are not limited to simple yes/no or allow/deny answers. Like
+query inputs, your policies can generate arbitrary structured data as output.
 
-Decoupling policy helps you build such software services at scale, makes them
-adaptable to changing business requirements, improves the ability to discover 
-violations and conflicts, increases the consistency of policy compliance, and 
-mitigates the risk of human error.  The policies you write can adapt more
-easily to the external environment--to factors that the developer could never
-have imagined at the time the software service was designed.
+Let's look at an example.
 
-For example, a cloud computing service could answer questions such as:
+## Example
 
-* Can I add compute capacity?
-* In what regions can I add compute capacity?
-* Which instances are currently running in the wrong region?
+Imagine you work for an organization with the following system:
 
-## What is OPA?
+<!--- source: https://docs.google.com/drawings/d/1nPZ08-G8zEZyTlVTmLGnlnS-CdBEltiV8kds0cwd_qQ/edit --->
 
-OPA is a lightweight general-purpose policy engine that can be co-located with
-your service. You can integrate OPA as a sidecar, host-level daemon, or
-library.
+{{< figure src="system.svg" width="65" caption="Example System" >}}
 
-Services offload policy decisions to OPA by executing *queries*. OPA evaluates
-policies and data to produce query results (which are sent back to the client).
-Policies are written in a high-level declarative language and can be loaded
-dynamically into OPA remotely via APIs or through the local filesystem.
+There are three kinds of components in the system:
 
-## Why use OPA?
+* Servers expose zero or more protocols (e.g., `http`, `ssh`, etc.)
+* Networks connect servers and can be public or private. Public networks are connected to the Internet.
+* Ports attach servers to networks.
 
-{{< figure src="benefits.svg" width="65" caption="Open Policy Agent: before and after" >}}
+All of the servers, networks, and ports are provisioned by a script. The script
+receives a JSON representation of the system as input:
 
-OPA is a full-featured policy engine that offloads policy decisions from your service. You can think of it as a concierge for your service who can answer detailed questions on behalf of your users to meet their specific needs.
-
-
-## How does OPA work?
-
-OPA’s RESTful APIs use JSON over HTTP so you and your users can integrate OPA with any programming language. At a high level, integrating OPA into your service involves:
-
-  * Deploying OPA alongside your service
-  * Pushing relevant data about your service’s state into OPA’s document store
-  * Offloading some or all decision-making to OPA by querying it
-
-When your service is integrated with OPA, your users will be able author and deploy custom policies that control the behavior of your service. Furthermore, users can publish data to OPA that is not available to your service about their own deployment context.
-
-{{< figure src="request-response.svg" width="50" caption="OPA's query and decision model" >}}
-
-
-## Deployment
-
-Unless you embed OPA as a Go library, you will deploy it alongside your service – either directly as an operating system daemon or inside a container. In this way, transactions will have low latency and availability will be determined through shared fate with your service.
-
-When OPA starts for the first time, it will not contain any policies or data. Policies and data can be added, removed, and modified at any time. For example: by deployment automation software or your service as it is deployed, by your service during an upgrade, or by administrators as needed.
-
-## Data and Policies
-
-The primary unit of data in OPA is a document, which is similar to a JSON value. Documents typically correspond to single, self-contained objects and are capable of representing both primitive types (strings, numbers, booleans, and null) as well as structured types (objects, and arrays). Documents are created, read, updated, and deleted via OPA’s [RESTful HTTP APIs](./rest-api).
-
-{{< figure src="data-model-dependencies.svg" width="70" caption="OPA data model dependencies" >}}
-
-### Base Documents
-
-So-called base documents contain static, structured data stored in-memory. Your service will publish and update base documents in order to describe its current state, and your users can do the same to include relevant data about the state of their own deployment context.
-
-Base documents are published and updated using OPA’s Data API. For example, the following request publishes a list of servers to OPA:
-
-```http
-PATCH https://example.com/v1/data/servers HTTP/1.1
-Content-Type: application/json-patch+json
+```live:example:input
+{
+    "servers": [
+        {"id": "app", "protocols": ["https", "ssh"], "ports": ["p1", "p2", "p3"]},
+        {"id": "db", "protocols": ["mysql"], "ports": ["p3"]},
+        {"id": "cache", "protocols": ["memcache"], "ports": ["p3"]},
+        {"id": "ci", "protocols": ["http"], "ports": ["p1", "p2"]},
+        {"id": "busybox", "protocols": ["telnet"], "ports": ["p1"]}
+    ],
+    "networks": [
+        {"id": "net1", "public": false},
+        {"id": "net2", "public": false},
+        {"id": "net3", "public": true},
+        {"id": "net4", "public": true}
+    ],
+    "ports": [
+        {"id": "p1", "network": "net1"},
+        {"id": "p2", "network": "net3"},
+        {"id": "p3", "network": "net2"}
+    ]
+}
 ```
 
-```json
+Earlier in the day your boss told you about a new security policy that has to be
+implemented:
+
+```
+1. Servers reachable from the Internet must not expose the insecure 'http' protocol.
+2. Servers are not allowed to expose the 'telnet' protocol.
+```
+
+The policy needs to be enforced when servers, networks, and ports are
+provisioned and the compliance team wants to periodically audit the system to
+find servers that violate the policy.
+
+Your boss has asked you to determine if OPA would be a good fit for implementing
+the policy.
+
+## Rego
+
+OPA policies are expressed in a high-level declarative language called Rego.
+Rego is purpose-built for expressing policies over complex hierarchical data
+structures. For detailed information on Rego see the [Policy
+Language](policy-language) documentation.
+
+> 💡 The examples below are interactive! If you edit the input data above
+containing servers, networks, and ports, the output will change below.
+Similarly, if you edit the queries or rules in the examples below the output
+will change. As you read through this section, try changing the input, queries,
+and rules and observe the difference in output.
+
+### References
+
+```live:example/refs:module:hidden
+package example
+```
+
+When OPA evaluates policies it binds data provided in the query to a global
+variable called `input`. You can refer to data in the input using the `.` (dot)
+operator.
+
+```live:example/refs/1:query:merge_down
+input.servers
+```
+```live:example/refs/1:output
+```
+
+To refer to array elements you can use the familiar square-bracket syntax:
+
+```live:example/refs/array:query:merge_down
+input.servers[0].protocols[0]
+```
+```live:example/refs/array:output
+```
+
+> 💡 You can use the same square bracket syntax if keys contain other than
+> `[a-zA-Z0-9_]`. E.g., `input["foo~bar"]`.
+
+If you refer to a value that does not exist, OPA returns _undefined_. Undefined
+means that OPA was not able to find any results.
+
+```live:example/refs/undefined:query:merge_down
+input.deadbeef
+```
+```live:example/refs/undefined:output:expect_undefined
+```
+
+### Expressions (Logical AND)
+
+```live:example/exprs:module:hidden
+package example
+```
+
+To produce policy decisions in Rego you write expressions against input and
+other data.
+
+```live:example/exprs/eq:query:merge_down
+input.servers[0].id == "app"
+```
+```live:example/exprs/eq:output
+```
+
+OPA includes a set of built-in functions you can use to perform common
+operations like string manipulation, regular expression matching, arithmetic,
+aggregation, and more.
+
+```live:example/exprs/builtins:query:merge_down
+count(input.servers[0].protocols) >= 1
+```
+```live:example/exprs/builtins:output
+```
+
+For a complete list of built-in functions supported in OPA out-of-the-box see
+the [Policy Reference](./policy-reference) page.
+
+Multiple expressions are joined together with the `;` (AND) operator. For
+queries to produce results, all of the expressions in the query must be true or
+defined. The order of expressions does not matter.
+
+```live:example/exprs/multi:query:merge_down
+input.servers[0].id == "app"; input.servers[0].protocols[0] == "https"
+```
+```live:example/exprs/multi:output
+```
+
+You can omit the `;` (AND) operator by splitting expressions across multiple
+lines. The following query has the same meaning as the previous one:
+
+```live:example/exprs/multi_line:query:merge_down
+input.servers[0].id == "app"
+input.servers[0].protocols[0] == "https"
+```
+```live:example/exprs/multi_line:output
+```
+
+If any of the expressions in the query are not true (or defined) the result is
+undefined. In the example below, the second expression is false:
+
+```live:example/exprs/multi_undefined:query:merge_down
+input.servers[0].id == "app"
+input.servers[0].protocols[0] == "telnet"
+```
+```live:example/exprs/multi_undefined:output:expect_undefined
+```
+
+### Variables
+
+```live:example/vars:module:hidden
+package example
+```
+
+You can store values in intermediate variables using the `:=` (assignment)
+operator. Variables can be referenced just like `input`.
+
+```live:example/vars/1:query:merge_down
+s := input.servers[0]
+s.id == "app"
+p := s.protocols[0]
+p == "https"
+```
+```live:example/vars/1:output
+```
+
+When OPA evaluates expressions, it finds values for the variables that make all
+of the expressions true. If there are no variable assignments that make all of
+the expressions true, the result is undefined.
+
+```live:example/vars/undefined:query:merge_down
+s := input.servers[0]
+s.id == "app"
+s.protocols[1] == "telnet"
+```
+```live:example/vars/undefined:output:expect_undefined
+```
+
+Variables are immutable. OPA reports an error if you try to assign the same
+variable twice.
+
+```live:example/vars/assign_error:query:merge_down
+s := input.servers[0]
+s := input.servers[1]
+```
+```live:example/vars/assign_error:output:expect_assigned_above
+```
+
+OPA must be able to enumerate the values for all variables in all expressions.
+If OPA cannot enumerate the values of a variable in any expression, OPA will
+report an error.
+
+```live:example/vars/unsafe:query:merge_down
+x := 1
+x != y  # y has not been assigned a value
+```
+```live:example/vars/unsafe:output:expect_unsafe_var
+```
+
+### Iteration
+
+```live:example/iter:module:hidden
+package example
+```
+
+Like other declarative languages (e.g., SQL), Rego does not have an explicit
+loop or iteration construct. Instead, iteration happens implicitly when you
+inject variables into expressions.
+
+To understand how iteration works in Rego, imagine you need to check if any
+networks are public. Recall that the networks are supplied inside an array:
+
+```live:example/iter/recall:query:merge_down
+input.networks
+```
+```live:example/iter/recall:output
+```
+
+One option would be to test each network in the input:
+
+```live:example/iter/check_public_0:query:merge_down
+input.networks[0].public == true
+```
+```live:example/iter/check_public_0:output:merge_down
+```
+```live:example/iter/check_public_1:query:merge_down
+input.networks[1].public == true
+```
+```live:example/iter/check_public_1:output:merge_down
+```
+```live:example/iter/check_public_2:query:merge_down
+input.networks[2].public == true
+```
+```live:example/iter/check_public_2:output
+```
+
+This approach is problematic because there may be too many networks to list
+statically, or more importantly, the number of networks may not be known in
+advance.
+
+In Rego, the solution is to substitute the array index with a variable.
+
+```live:example/iter/1:query:merge_down
+some i; input.networks[i].public == true
+```
+```live:example/iter/1:output
+```
+
+Now the query asks for values of `i` that make the overall expression true. When
+you substitute variables in references, OPA automatically finds variable
+assignments that satisfy all of the expressions in the query. Just like
+intermediate variables, OPA returns the values of the variables.
+
+You can substitute as many variables as you want. For example, to find out if
+any servers expose the insecure `"http"` protocol you could write:
+
+```live:example/iter/double:query:merge_down
+some i, j; input.servers[i].protocols[j] == "http"
+```
+```live:example/iter/double:output
+```
+
+If variables appear multiple times the assignments satisfy all of the
+expressions. For example, to find the ids of ports connected to public networks,
+you could write:
+
+```live:example/iter/join:query:merge_down
+some i, j
+id := input.ports[i].id
+input.ports[i].network == input.networks[j].id
+input.networks[j].public
+```
+```live:example/iter/join:output
+```
+
+Providing good names for variables can be hard. If you only refer to the
+variable once, you can replace it with the special `_` (wildcard variable)
+operator. Conceptually, each instance of `_` is a unique variable.
+
+```live:example/iter/wildcard:query:merge_down
+input.servers[_].protocols[_] == "http"
+```
+```live:example/iter/wildcard:output
+```
+
+Just like references that refer to non-existent fields or expressions that fail
+to match, if OPA is unable to find any variable assignments that satisfy all of
+the expressions, the result is undefined.
+
+```live:example/iter/undefined:query:merge_down
+some i; input.servers[i].protocols[i] == "ssh"  # there is no assignment of i that satisfies the expression
+```
+```live:example/iter/undefined:output:expect_undefined
+```
+
+### Rules
+
+Rego lets you encapsulate and reuse logic with rules. Rules are just if-then
+logic statements. Rules can either be complete or incremental.
+
+#### Complete Rules
+
+Complete rules are if-then statements that assign a single value to a variable.
+For example:
+
+```live:example/complete/1:module:openable
+package example.rules
+
+any_public_networks = true {  # is true if...
+    net := input.networks[_]  # some network exists and..
+    net.public                # it is public.
+}
+```
+
+Every rule consists of a _head_ and a _body_. In Rego we say the rule head is
+true _if_ the rule body is true for some set of variable assignments. In the
+example above `any_public_networks = true` is the head and `net :=
+input.networks[_]; net.public` is the body.
+
+You can query for the value generated by rules just like any other value:
+
+```live:example/complete/1:query
+any_public_networks
+```
+```live:example/complete/1:output
+```
+
+All values generated by rules can be queried via the global `data` variable.
+
+```live:example/complete/1/abs:query:merge_down
+data.example.rules.any_public_networks
+```
+```live:example/complete/1/abs:output:merge_down
+```
+
+> 💡 You can query the value of any rule loaded into OPA by referring to it with an
+> absolute path. The path of a rule is always:
+> `data.<package-path>.<rule-name>`.
+
+If you omit the `= <value>` part of the rule head the value defaults to `true`.
+You could rewrite the example above as follows without changing the meaning:
+
+```live:example/complete_elided:module:read_only,openable
+package example.rules
+
+any_public_networks {
+    net := input.networks[_]
+    net.public
+}
+```
+
+To define constants, omit the rule body. When you omit the rule body it defaults
+to `true`. Since the rule body is true, the rule head is always true/defined.
+
+```live:example/complete_constant:module:openable
+package example.constants
+
+pi = 3.14
+```
+
+Constants defined like this can be queried just like any other values:
+
+```live:example/complete_constant:query:merge_down
+pi > 3
+```
+```live:example/complete_constant:output
+```
+
+If OPA cannot find variable assignments that satisfy the rule body, we say that
+the rule is undefined. For example, if the `input` provided to OPA does not
+include a public network then `any_public_networks` will be undefined (which is
+not the same as false.) Below, OPA is given a different set of input networks
+(none of which are public):
+
+```live:example/complete/1/undefined:input:merge_down
+{
+    "networks": [
+        {"id": "n1", "public": false},
+        {"id": "n2", "public": false}
+    ]
+}
+```
+```live:example/complete/1/undefined:query:merge_down
+any_public_networks
+```
+```live:example/complete/1/undefined:output:expect_undefined
+```
+
+#### Incremental Rules
+
+Incremental rules are if-then statements that generate a set of values and
+assign that set to a variable. For example:
+
+```live:example/incremental:module:openable
+package example.rules
+
+public_network[net.id] {      # net.id is in the public_network set if...
+    net := input.networks[_]  # some network exists and...
+    net.public                # it is public.
+}
+```
+
+In the example above `public_network[net.id]` is the rule head and `net :=
+input.networks[_]; net.public` is the rule body. You can query for the entire
+set of values just like any other value:
+
+```live:example/incremental/extent:query:merge_down
+public_network
+```
+```live:example/incremental/extent:output
+```
+
+You can iterate over the set of values by referencing the set elements with a
+variable:
+
+```live:example/incremental/iteration:query:merge_down
+some n; public_network[n]
+```
+```live:example/incremental/iteration:output
+```
+
+Lastly, you can check if a value exists in the set using the same syntax:
+
+```live:example/incremental/exists:query:merge_down
+public_network["net3"]
+```
+```live:example/incremental/exists:output
+```
+
+#### Logical OR
+
+When you join multiple expressions together in a query you are expressing
+logical AND. To express logical OR in Rego you define multiple rules with the
+same name. Let's look at an example.
+
+Imagine you wanted to know if any servers expose protocols that give clients
+shell access. To determine this you could define a complete rule that declares
+`shell_accessible` to be `true` if any servers expose the `"telnet"` or `"ssh"`
+protocols:
+
+```live:example/logical_or/complete:module:openable,merge_down
+package example.logical_or
+
+default shell_accessible = false
+
+shell_accessible = true {
+    input.servers[_].protocols[_] == "telnet"
+}
+
+shell_accessible = true {
+    input.servers[_].protocols[_] == "ssh"
+}
+```
+```live:example/logical_or/complete:input:merge_down
+{
+    "servers": [
+        {
+            "id": "busybox",
+            "protocols": ["http", "telnet"]
+        },
+        {
+            "id": "web",
+            "protocols": ["https"]
+        }
+    ]
+}
+```
+```live:example/logical_or/complete:query:merge_down
+shell_accessible
+```
+```live:example/logical_or/complete:output
+```
+
+> 💡 The `default` keyword tells OPA to assign a value to the variable if all of
+> the other rules with the same name are undefined.
+
+When you use logical OR with incremental rules, each rule definition contributes
+to the set of values assigned to the variable. For example, the example above
+could be modified to generate a set of servers that expose `"telnet"` or
+`"ssh"`.
+
+```live:example/logical_or/incremental:module:openable,merge_down
+package example.logical_or
+
+shell_accessible[server.id] {
+    server := input.servers[_]
+    server.protocols[_] == "telnet"
+}
+
+shell_accessible[server.id] {
+    server := input.servers[_]
+    server.protocols[_] == "ssh"
+}
+```
+```live:example/logical_or/incremental:input:merge_down
+{
+    "servers": [
+        {
+            "id": "busybox",
+            "protocols": ["http", "telnet"]
+        },
+        {
+            "id": "db",
+            "protocols": ["mysql", "ssh"]
+        },
+        {
+            "id": "web",
+            "protocols": ["https"]
+        }
+    ]
+}
+```
+```live:example/logical_or/incremental:query:merge_down
+shell_accessible
+```
+```live:example/logical_or/incremental:output
+```
+
+<!---TBD: explain conflicts --->
+
+### Putting It Together
+
+The sections above explain the core concepts in Rego. To put it all together
+let's review the desired policy (in English):
+
+```
+1. Servers reachable from the Internet must not expose the insecure 'http' protocol.
+2. Servers are not allowed to expose the 'telnet' protocol.
+```
+
+At a high-level the policy needs to identify servers that violate some
+conditions. To implement this policy we could define rules called `violation`
+that generate a set of servers that are in violation.
+
+For example:
+
+```live:example/final:module:openable,merge_down
+package example
+
+allow = true {                                      # allow is true if...
+    count(violation) == 0                           # there are zero violations.
+}
+
+violation[server.id] {                              # a server is in the violation set if...
+    some server
+    public_server[server]                           # it exists in the 'public_server' set and...
+    server.protocols[_] == "http"                   # it contains the insecure "http" protocol.
+}
+
+violation[server.id] {                              # a server is in the violation set if...
+    server := input.servers[_]                      # it exists in the input.servers collection and...
+    server.protocols[_] == "telnet"                 # it contains the "telnet" protocol.
+}
+
+public_server[server] {                             # a server exists in the public_server set if...
+    some i, j
+    server := input.servers[_]                      # it exists in the input.servers collection and...
+    server.ports[_] == input.ports[i].id            # it references a port in the input.ports collection and...
+    input.ports[i].network == input.networks[j].id  # the port references a network in the input.networks collection and...
+    input.networks[j].public                        # the network is public.
+}
+```
+```live:example/final:query:merge_down
+some x; violation[x]
+```
+```live:example/final:output
+```
+
+## Running OPA
+
+This section explains how you can query OPA directly and interact with it on
+your own machine.
+
+### 1. Download OPA
+
+To get started download an OPA binary for your platform from GitHub releases:
+
+On macOS (64-bit):
+
+```shell
+curl -L -o opa https://github.com/open-policy-agent/opa/releases/download/{{< current_version >}}/opa_darwin_amd64
+```
+
+On Linux (64-bit):
+
+```shell
+curl -L -o opa https://github.com/open-policy-agent/opa/releases/download/{{< current_version >}}/opa_linux_amd64
+```
+
+> Windows users can obtain the OPA executable from [GitHub
+> Releases](https://github.com/open-policy-agent/opa/releases). The steps below
+> are the same for Windows users except the executable name will be different.
+
+Set permissions on the OPA executable:
+
+```shell
+chmod 755 ./opa
+```
+
+> You can also download and run OPA via Docker. The latest stable image tag is
+> `openpolicyagent/opa:{{< current_docker_version >}}`.
+
+### 2. Try `opa eval`
+
+The simplest way to interact with OPA is via the command-line using the `opa
+eval` sub-command. `opa eval` is a swiss-army knife that you can use to evaluate
+arbitrary Rego expressions and policies. `opa eval` supports a large number of
+options for controlling evaluation. Commonly used flags include:
+
+| Flag | Short | Description |
+| --- | --- | --- |
+| `--bundle` | `-b`| Load a bundle file or directory into OPA. This flag can be repeated. |
+| `--data` | `-d` | Load policy or data files into OPA. This flag can be repeated. |
+| `--input` | `-i` | Load a data file and use it as `input`. This flag cannot be repeated. |
+| `--format` | `-f` | Set the output format to use. The default is `json` and is intended for programmatic use. The `pretty` format emits more human-readable output. |
+| `--fail` | n/a | Exit with a non-zero exit code if the query is undefined. |
+| `--fail-defined` | n/a | Exit with a non-zero exit code if the query is not undefined. |
+
+For example:
+
+**input.json**:
+
+```live:example/using_opa:input
+{
+    "servers": [
+        {"id": "app", "protocols": ["https", "ssh"], "ports": ["p1", "p2", "p3"]},
+        {"id": "db", "protocols": ["mysql"], "ports": ["p3"]},
+        {"id": "cache", "protocols": ["memcache"], "ports": ["p3"]},
+        {"id": "ci", "protocols": ["http"], "ports": ["p1", "p2"]},
+        {"id": "busybox", "protocols": ["telnet"], "ports": ["p1"]}
+    ],
+    "networks": [
+        {"id": "net1", "public": false},
+        {"id": "net2", "public": false},
+        {"id": "net3", "public": true},
+        {"id": "net4", "public": true}
+    ],
+    "ports": [
+        {"id": "p1", "network": "n1"},
+        {"id": "p2", "network": "n3"},
+        {"id": "p3", "network": "n2"}
+    ]
+}
+```
+
+**example.rego**:
+
+```live:example/using_opa:module:openable,read_only
+package example
+
+allow = true {                                      # allow is true if...
+    count(violation) == 0                           # there are zero violations.
+}
+
+violation[server.id] {                              # a server is in the violation set if...
+    some server
+    public_server[server]                           # it exists in the 'public_server' set and...
+    server.protocols[_] == "http"                   # it contains the insecure "http" protocol.
+}
+
+violation[server.id] {                              # a server is in the violation set if...
+    server := input.servers[_]                      # it exists in the input.servers collection and...
+    server.protocols[_] == "telnet"                 # it contains the "telnet" protocol.
+}
+
+public_server[server] {                             # a server exists in the public_server set if...
+    some i, j
+    server := input.servers[_]                      # it exists in the input.servers collection and...
+    server.ports[_] == input.ports[i].id            # it references a port in the input.ports collection and...
+    input.ports[i].network == input.networks[j].id  # the port references a network in the input.networks collection and...
+    input.networks[j].public                        # the network is public.
+}
+```
+
+```bash
+# Evaluate a trivial expression.
+./opa eval '1*2+3'
+
+# Evaluate a policy on the command line.
+./opa eval -i input.json -d example.rego 'data.example.violation[x]'
+
+# Evaluate a policy on the command line and use the exit code.
+./opa eval --fail-defined -i input.json -d example.rego 'data.example.violation[x]'
+echo $?
+```
+
+### 3. Try `opa run` (interactive)
+
+OPA includes an interactive shell or REPL (Read-Eval-Print-Loop). You can use
+the REPL to experiment with policies and prototype new ones.
+
+To start the REPL just:
+
+```bash
+./opa run
+```
+
+When you enter statements in the REPL, OPA evaluates them and prints the result.
+
+
+```ruby
+> true
+true
+> 3.14
+3.14
+> ["hello", "world"]
 [
-  {
-    "op": "add",
-    "path": "-",
-    "value": {
-      "id": "s1",
-      "name": "app",
-      "protocols": [
-        "http",
-        "https",
-        "ssh"
-      ],
-      "ports": [
-        "p1",
-        "p2",
-        "p3"
-      ]
-    }
-  },
-  {
-    "op": "add",
-    "path": "-",
-    "value": {
-      "id": "s2",
-      "name": "db",
-      "protocols": [
-        "mysql"
-      ],
-      "ports": [
-        "p3"
-      ]
-    }
-  },
-  {
-    "op": "add",
-    "path": "-",
-    "value": {
-      "id": "s3",
-      "name": "cache",
-      "protocols": [
-        "memcache"
-      ],
-      "ports": [
-        "p3"
-      ]
-    }
-  },
-  {
-    "op": "add",
-    "path": "-",
-    "value": {
-      "id": "s4",
-      "name": "dev",
-      "protocols": [
-        "http",
-        "https",
-        "ssh"
-      ],
-      "ports": [
-        "p1",
-        "p2"
-      ]
-    }
-  }
+  "hello",
+  "world"
 ]
 ```
 
-### Policies
+Most REPLs let you define variables that you can reference later on. OPA allows
+you to do something similar. For example, you can define a `pi` constant as
+follows:
 
-Policies are written using OPA’s purpose-built, declarative language Rego. Rego includes rich support for traversing nested documents and transforming data using syntax inspired by dictionary and array access in languages like Python and JSONPath. For detailed information about using Rego, see [How Do I Write Policies?](./policy-language).
+```ruby
+> pi := 3.14
+```
 
-Each Rego file defines a policy module using a collection of rules that describe the expected state of your service. Both your service and its users can publish and update policy modules using OPA’s Policy API. For example, the following request creates a policy with two rules (violations and public_servers) named “exempli-gratia”:
+Once "pi" is defined, you query for the value and write expressions in terms of
+it:
 
-```http
-PUT https://example.com/v1/policies/exempli-gratia HTTP/1.1
-Content-Type: text/plain
+```ruby
+> pi
+3.14
+> pi > 3
+true
+```
+
+Quit out of the REPL by pressing Control-D or typing `exit`:
+
+```ruby
+> exit
+```
+
+You can load policy and data files into the REPL by passing them on the command
+line. By default, JSON and YAML files are rooted under `data`.
+
+```
+opa run input.json
+```
+
+Run a few queries to poke around the data:
+
+```ruby
+> data.servers[0].protocols[1]
+```
+```ruby
+> data.servers[i].protocols[j]
+```
+```ruby
+> net := data.networks[_]; net.public
+```
+
+To set a data file as the `input` document in the REPL prefix the file path:
+
+```bash
+opa run example.rego repl.input:input.json
 ```
 
 ```ruby
-package opa.examples
-
-import data.servers
-import data.networks
-import data.ports
-
-violations[server] {
-    server := servers[_]
-    server.protocols[_] == "http"
-    public_servers[server]
-}
-
-public_servers[server] {
-    some i, j
-    server := servers[_]
-    server.ports[_] == ports[i].id
-    ports[i].networks[_] == networks[j].id
-    networks[j].public == true
-}
+> data.example.public_servers[s]
 ```
 
-A policy file must contain a single package declaration, which defines the path to the policy module and its rules (for example, data.opa.examples.violations – see The data Document for more information about accessing nested documents). The policy name itself (in this case, “exempli-gratia”) is only used to identify policies for file management purposes; it is not used otherwise.
+> 💡 Prefixing file paths with a reference controls where file is loaded under
+> `data`. By convention, the REPL sets the `input` document that queries see by
+> reading `data.repl.input` each time a statement is evaluated. See `help input`
+> for details in the REPL.
 
-### Rules and Virtual Documents
-
-In contrast to base documents, virtual documents embody the results of evaluating the rules included in policy modules. Virtual documents are computed when users publish new policy modules, update existing modules, run queries, and when any relevant base document is published or updated. Rules allow policy authors to write questions with yes-no answers (that is, predicates) and to generate structured values from raw data found in base documents as well as from intermediate data found in other virtual documents.
-
-### The `data` Document
-
-All documents pushed into OPA or computed by rules are nested under a built-in root document named data.
-
-{{< figure src="data-model-logical.svg" width="70" caption="OPA document structure" >}}
-
-Example `data` document:
-
-```json
-{
-  "servers": [...],
-  "ports": [...],
-  "networks": [...],
-  "opa": {
-    "examples": {
-      "violations": [...],
-      "public_servers": [...]
-    }
-  }
-}
-```
-
-As a result, any document, base or virtual, can be accessed hierarchically starting from the root data node – either as an identifier:
+Quit out of the REPL by pressing Control-D or typing `exit`:
 
 ```ruby
-import data.servers                            # Base document
-import data.opa.examples.violations            # Virtual document
+> exit
 ```
 
-or as a URI component in an HTTP request:
+### 4. Try `opa run` (server)
 
-```http
-GET https://example.com/v1/data/servers HTTP/1.1
+To integrate with OPA you can run it as a server and execute queries over HTTP.
+You can start OPA as a server with `-s` or `--server`:
+
+```bash
+./opa run --server
 ```
 
-```http
-GET https://example.com/v1/data/opa/examples/violations HTTP/1.1
-```
+By default OPA listens for HTTP connections on `0.0.0.0:8181`. See `opa run
+--help` for a list of options to change the listening address, enable TLS, and
+more.
 
-> Since the `data` document includes both base and virtual documents,
-> it is possible to query for both at the same time. The easiest way
-> to illustrate this is to query for _all_ of `data` at once. Note,
-> OPA does NOT allow base and virtual documents to overlap. For
-> example, if you try to load a rule that defines a virtual document
-> at path a/b/c (which is already defined by a base document), OPA
-> will return an error. Similarly, if you try to load a base document
-> into a path that is already defined by a virtual document, OPA will
-> also return an error.
-
-### The `input` Document
-
-In some cases, policies require input values. In addition to the built-in
-`data` document, OPA also has a built-in `input` document. When you query
-OPA, you can set the value of the `input` document.
-
-Example `input` document:
+Inside of another terminal use `curl` (or a similar tool) to access OPA's HTTP
+API. When you query the `/v1/data` HTTP API you must wrap input data inside of a
+JSON object:
 
 ```json
 {
-  "method": "GET",
-  "path": "/servers/s2",
-  "user": "alice"
+    "input": <value>
 }
 ```
 
-The `input` document can be referenced just like the `data` document.
+Create a copy the input file for sending via `curl`:
 
-```ruby
-# Let 'bob' perform read-only operations.
-allow {
-  input.user == "bob"
-  input.method == "GET"
-}
-
-# Let 'alice' perform any operation.
-allow {
-  input.user == "alice"
-}
 ```
-
-To supply the input document, query OPA using the POST method.
-
-```http
-POST /v1/data/opa/examples/allow HTTP/1.1
-Content-Type: application/json
-```
-
-```json
+cat <<EOF > v1-data-input.json
 {
-  "input": {
-    "method": "GET",
-    "path": "/servers/s2",
-    "user": "alice"
-  }
+    "input": $(cat input.json)
+}
+EOF
+```
+
+Execute a few `curl` requests and inspect the output:
+
+```bash
+curl localhost:8181/v1/data/example/violation -d @v1-data-input.json -H 'Content-Type: application/json'
+curl localhost:8181/v1/data/example/allow -d @v1-data-input.json -H 'Content-Type: application/json'
+```
+
+By default `data.system.main` is used to serve policy queries without a path.
+When you execute queries without providing a path, you do not have to wrap the
+input. If the `data.system.main` decision is undefined it is treated as an
+error:
+
+```bash
+curl localhost:8181 -i -d @input.json -H 'Content-Type: application/json'
+```
+
+You can restart OPA and configure to use any decision as the default decision:
+
+```
+./opa run --server --set=default_decision=example/allow
+```
+
+Re-run the last `curl` command from above:
+
+```bash
+curl localhost:8181 -i -d @input.json -H 'Content-Type: application/json'
+```
+
+### 5. Try OPA as a Go library
+
+OPA can be embedded inside Go programs as a library. The simplest way to embed
+OPA as a library is to import the `github.com/open-policy-agent/opa/rego`
+package.
+
+```golang
+import "github.com/open-policy-agent/opa/rego"
+```
+
+Call the `rego.New` function to create an object that can be prepared or
+evaluated:
+
+```golang
+r := rego.New(
+    rego.Query("x = data.example.allow"),
+    rego.Load([]string{"./example.rego"}, nil))
+```
+
+The `rego.Rego` supports several options that let you customize evaluation. See
+the [GoDoc](https://godoc.org/github.com/open-policy-agent/opa/rego) page for
+details. After constructing a new `rego.Rego` object you can call
+`PrepareForEval()` to obtain an executable query. If `PrepareForEval()` fails it
+indicates one of the options passed to the `rego.New()` call was invalid (e.g.,
+parse error, compile error, etc.)
+
+```golang
+ctx := context.Background()
+query, err := r.PrepareForEval(ctx)
+if err != nil {
+    // handle error
 }
 ```
 
-## Putting It All Together
+The prepared query object can be cached in-memory, shared across multiple
+goroutines, and invoked repeatedly with different inputs. Call `Eval()` to
+execute the prepared query.
 
-Let’s take a look at some documents representing the state of a hypothetical service and a policy module that uses this data. The following documents describe a set of servers, the protocols they use, the ports they open, and the networks those ports are connected to.
+```golang
+bs, err := ioutil.ReadFile("./input.json")
+if err != nil {
+    // handle error
+}
 
-Example `data` document:
+var input interface{}
 
-```json
-{
-  "servers": [
-    {
-      "id": "s1",
-      "name": "app",
-      "protocols": [
-        "https",
-        "ssh"
-      ],
-      "ports": [
-        "p1",
-        "p2",
-        "p3"
-      ]
-    },
-    {
-      "id": "s2",
-      "name": "db",
-      "protocols": [
-        "mysql"
-      ],
-      "ports": [
-        "p3"
-      ]
-    },
-    {
-      "id": "s3",
-      "name": "cache",
-      "protocols": [
-        "memcache",
-        "http"
-      ],
-      "ports": [
-        "p3"
-      ]
-    },
-    {
-      "id": "s4",
-      "name": "dev",
-      "protocols": [
-        "http"
-      ],
-      "ports": [
-        "p1",
-        "p2"
-      ]
-    }
-  ],
-  "networks": [
-    {
-      "id": "n1",
-      "public": false
-    },
-    {
-      "id": "n2",
-      "public": false
-    },
-    {
-      "id": "n3",
-      "public": true
-    }
-  ],
-  "ports": [
-    {
-      "id": "p1",
-      "networks": [
-        "n1"
-      ]
-    },
-    {
-      "id": "p2",
-      "networks": [
-        "n3"
-      ]
-    },
-    {
-      "id": "p3",
-      "networks": [
-        "n2"
-      ]
-    }
-  ]
+if err := json.Unmarshal(bs, &input); err != nil {
+    // handle error
+}
+
+rs, err := query.Eval(ctx, rego.EvalInput(input))
+if err != nil {
+    // handle error
 }
 ```
 
-When the data is published, we can use OPA’s API to inspect base documents like servers:
+The policy decision is contained in the results returned by the `Eval()` call.
+You can inspect the decision and handle it accordingly:
 
-```http
-GET https://example.com/v1/data/servers HTTP/1.1
+```golang
+// In this example we expect a single result (stored in the variable 'x').
+fmt.Println("Result:", rs[0].Bindings["x"])
 ```
 
-The response is an object that contains the array of servers:
+You can combine the steps above into a simple command-line program that
+evaluates policies and outputs the result:
 
-```json
-{
-  "result": [
-    {
-      "id": "s1",
-      "name": "app",
-      "protocols": [
-        "https",
-        "ssh"
-      ],
-      "ports": [
-        "p1",
-        "p2",
-        "p3"
-      ]
-    },
-    {
-      "id": "s2",
-      "name": "db",
-      "protocols": [
-        "mysql"
-      ],
-      "ports": [
-        "p3"
-      ]
-    },
-    {
-      "id": "s3",
-      "name": "cache",
-      "protocols": [
-        "memcache",
-        "http"
-      ],
-      "ports": [
-        "p3"
-      ]
-    },
-    {
-      "id": "s4",
-      "name": "dev",
-      "protocols": [
-        "http"
-      ],
-      "ports": [
-        "p1",
-        "p2"
-      ]
-    }
-  ]
+**main.go**:
+
+```golang
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"log"
+	"os"
+
+	"github.com/open-policy-agent/opa/rego"
+)
+
+func main() {
+
+	ctx := context.Background()
+
+	// Construct a Rego object that can be prepared or evaluated.
+	r := rego.New(
+		rego.Query(os.Args[2]),
+		rego.Load([]string{os.Args[1]}, nil))
+
+	// Create a prepared query that can be evaluated.
+	query, err := r.PrepareForEval(ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Load the input document from stdin.
+	var input interface{}
+	dec := json.NewDecoder(os.Stdin)
+	dec.UseNumber()
+	if err := dec.Decode(&input); err != nil {
+		log.Fatal(err)
+	}
+
+	// Execute the prepared query.
+	rs, err := query.Eval(ctx, rego.EvalInput(input))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+    // Do something with the result.
+	fmt.Println(rs)
 }
 ```
 
-Now let’s write a policy that enumerates servers that are connected to public networks and that are using HTTP. These servers are violating a business rule that states that all public servers must use HTTPS.
+Run the code above as follows:
 
-```ruby
-# This policy module belongs to the opa.examples package.
-package opa.examples
-
-# Refer to data.servers as `servers`.
-import data.servers
-# Refer to the data.networks as `networks`.
-import data.networks
-# Refer to the data.ports as `ports`.
-import data.ports
-
-# A server exists in the violations set if...
-violations[server] {
-    # ...the server exists
-    server := servers[_]
-    # ...and any of the server’s protocols is HTTP
-    server.protocols[_] == "http"
-    # ...and the server is public.
-    public_servers[server]
-}
-
-# A server exists in the public_servers set if...
-public_servers[server] {
-    some i, j
-    # ...the server exists
-    server := servers[_]
-    # ...and the server is connected to a port
-    server.ports[_] == ports[i].id
-    # ...and the port is connected to a network
-    ports[i].networks[_] == networks[j].id
-    # ...and the network is public.
-    networks[j].public == true
-}
+```bash
+go run main.go example.rego 'data.example.violation' < input.json
 ```
 
-Note that:
+## Next Steps
 
-  * Rules consist of assertions about data stored in OPA. In this case, the assertions test for equality with, and membership of, values in the servers, networks, and ports documents.
-  * Expressions can reference elements in a collection using the `[_]` and `[<variable>]` syntax. OPA knows to evaluate such queries by iterating over each element in the corresponding collection.
-  * Assertions about elements in a collection are `true` if any of the elements match the expression, and are only `false` when none of the elements match. For example, `ports[i].networks[_] == networks[j].id` will be `true` whenever any element in `ports[i].networks` matches the id of any element in `networks`.
-  * Expressions can reference nested documents. For example, `ports[i].networks[_]` refers to each network ID listed in each port document.
-  * Expressions can reference virtual documents. For example, `public_servers[server] == true` matches only if `server` is in the list produced by the `public_servers` rule.
+Congratulations on making it through the introduction to OPA. If you made it
+this far you have learned the core concepts behind OPA's policy language as well
+as how to get OPA and run it on your own.
 
+If you have more questions about how to write policies in Rego check out:
 
-After publishing this policy module, the `data` document will include
-additional documents corresponding to the module’s package declaration
-(opa.examples) and the virtual documents its rules generate.
+* The [Policy Reference](policy-reference) page for reference documentation on built-in functions.
+* The [Policy Language](policy-language) page for complete descriptions of all language features.
+* The [Policy Cheatsheet](policy-cheatsheet) page for a listing of common patterns.
 
-```http
-GET https://example.com/v1/data HTTP/1.1
-```
+If you want to try OPA for a specific use case check out:
 
-```http
-HTTP/1.1 200 OK
-Content-Type: application/json
-```
-
-```json
-{
-  "result": {
-    "servers": [...],
-    "networks": [...],
-    "ports": [...],
-    "opa": {
-      "examples": {
-        "violations": [
-          {
-            "id": "s4",
-            "name": "dev",
-            "protocols": [
-              "http"
-            ],
-            "ports": [
-              "p1",
-              "p2"
-            ]
-          }
-        ],
-        "public_servers": [
-          {
-            "id": "s1",
-            "name": "app",
-            "protocols": [
-              "https",
-              "ssh"
-            ],
-            "ports": [
-              "p1",
-              "p2",
-              "p3"
-            ]
-          },
-          {
-            "id": "s4",
-            "name": "dev",
-            "protocols": [
-              "http"
-            ],
-            "ports": [
-              "p1",
-              "p2"
-            ]
-          }
-        ]
-      }
-    }
-  }
-}
-```
-
-In this case, we are only interested in the set of servers that violate the
-policy. We can use OPA's API to query for just those servers.
-
-```http
-GET https://example.com/v1/data/opa/examples/violations HTTP/1.1
-```
-
-...the response is the subset of the servers base document that use HTTP and are connected to a public network:
-
-```http
-HTTP/1.1 200 OK
-Content-Type: application/json
-```
-
-```json
-{
-  "result": [
-    {
-      "id": "s4",
-      "name": "dev",
-      "protocols": [
-        "http"
-      ],
-      "ports": [
-        "p1",
-        "p2"
-      ]
-    }
-  ]
-}
-```
+* The [Kubernetes](kubernetes-introduction) page for how to use OPA as an admission controller in Kubernetes.
+* The [Envoy](envoy-authorization) page for how to use OPA as an external authorizer with Envoy.
+* The [Terraform](terraform) page for how to use OPA to validate Terraform plans.

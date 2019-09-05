@@ -18,4 +18,5 @@ mkdir -p ../../public/live-blocks # Other assets
 cp -r static/* ../../public/live-blocks/
 
 # Preprocess the docs
+npm run --silent preprocess ../../public/docs/*/*.html
 npm run --silent preprocess ../../public/docs/*/*/*.html
