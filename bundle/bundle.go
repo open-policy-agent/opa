@@ -173,7 +173,8 @@ func (r *Reader) Read() (Bundle, error) {
 			return bundle, fmt.Errorf("bundle exceeded max size (%v bytes)", bundleLimitBytes-1)
 		}
 
-		path := f.Path()
+		// Normalize the paths to use `/` separators
+		path := filepath.ToSlash(f.Path())
 
 		if strings.HasSuffix(path, RegoExt) {
 			module, err := ast.ParseModule(path, buf.String())
