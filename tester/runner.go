@@ -229,9 +229,9 @@ func (r *Runner) RunTests(ctx context.Context, txn storage.Transaction) (ch chan
 		if r.modules == nil {
 			r.modules = map[string]*ast.Module{}
 		}
-		for _, b := range r.bundles {
-			for _, mf := range b.Modules {
-				r.modules[mf.Path] = mf.Parsed
+		for path, b := range r.bundles {
+			for name, mod := range b.ParsedModules(path) {
+				r.modules[name] = mod
 			}
 		}
 	}

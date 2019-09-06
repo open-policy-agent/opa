@@ -62,8 +62,8 @@ func checkModules(args []string) int {
 				outputErrors(err)
 				return 1
 			}
-			for _, mf := range b.Modules {
-				modules[mf.Path] = mf.Parsed
+			for name, mod := range b.ParsedModules(path) {
+				modules[name] = mod
 			}
 		}
 	} else {

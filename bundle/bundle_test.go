@@ -292,3 +292,77 @@ func TestRootPathsOverlap(t *testing.T) {
 		})
 	}
 }
+
+func TestParsedModules(t *testing.T) {
+	cases := []struct {
+		note            string
+		bundle          Bundle
+		name            string
+		expectedModules []string
+	}{
+		{
+			note: "base",
+			bundle: Bundle{
+				Modules: []ModuleFile{
+					{
+						Path:   "/foo/policy.rego",
+						Parsed: ast.MustParseModule(`package foo`),
+						Raw:    []byte(`package foo`),
+					},
+				},
+			},
+			name: "test-bundle",
+			expectedModules: []string{
+				"test-bundle/foo/policy.rego",
+			},
+		},
+		{
+			note: "filepath name",
+			bundle: Bundle{
+				Modules: []ModuleFile{
+					{
+						Path:   "/foo/policy.rego",
+						Parsed: ast.MustParseModule(`package foo`),
+						Raw:    []byte(`package foo`),
+					},
+				},
+			},
+			name: "/some/system/path",
+			expectedModules: []string{
+				"/some/system/path/foo/policy.rego",
+			},
+		},
+		{
+			note: "file url name",
+			bundle: Bundle{
+				Modules: []ModuleFile{
+					{
+						Path:   "/foo/policy.rego",
+						Parsed: ast.MustParseModule(`package foo`),
+						Raw:    []byte(`package foo`),
+					},
+				},
+			},
+			name: "file:///some/system/path",
+			expectedModules: []string{
+				"/some/system/path/foo/policy.rego",
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			parsedMods := tc.bundle.ParsedModules(tc.name)
+
+			for _, exp := range tc.expectedModules {
+				mod, ok := parsedMods[exp]
+				if !ok {
+					t.Fatalf("Missing expected module %s, got: %+v", exp, parsedMods)
+				}
+				if mod == nil {
+					t.Fatalf("Expected module to be non-nil")
+				}
+			}
+		})
+	}
+}

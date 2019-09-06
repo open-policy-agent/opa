@@ -213,11 +213,7 @@ func processBundle(ctx context.Context, manager *plugins.Manager, factories map[
 
 func evaluateBundle(ctx context.Context, id string, info *ast.Term, b *bundleApi.Bundle, query string) (*config.Config, error) {
 
-	modules := map[string]*ast.Module{}
-
-	for _, file := range b.Modules {
-		modules[file.Path] = file.Parsed
-	}
+	modules := b.ParsedModules("discovery")
 
 	compiler := ast.NewCompiler()
 

@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"reflect"
 	"sort"
 	"strings"
@@ -116,7 +117,7 @@ func TestPluginOneShotCompileError(t *testing.T) {
 	plugin.oneShot(ctx, bundleName, download.Update{Bundle: b2})
 	txn := storage.NewTransactionOrDie(ctx, manager.Store)
 
-	_, err := manager.Store.GetPolicy(ctx, txn, "/example.rego")
+	_, err := manager.Store.GetPolicy(ctx, txn, filepath.Join(bundleName, "/example.rego"))
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -143,7 +144,7 @@ func TestPluginOneShotCompileError(t *testing.T) {
 
 	txn = storage.NewTransactionOrDie(ctx, manager.Store)
 
-	_, err = manager.Store.GetPolicy(ctx, txn, "/example.rego")
+	_, err = manager.Store.GetPolicy(ctx, txn, filepath.Join(bundleName, "/example.rego"))
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -207,7 +208,7 @@ func TestPluginOneShotActivationRemovesOld(t *testing.T) {
 		ids, err := manager.Store.ListPolicies(ctx, txn)
 		if err != nil {
 			return err
-		} else if !reflect.DeepEqual([]string{"/example2.rego"}, ids) {
+		} else if !reflect.DeepEqual([]string{filepath.Join(bundleName, "/example2.rego")}, ids) {
 			return fmt.Errorf("expected updated policy ids")
 		}
 		data, err := manager.Store.Read(ctx, txn, storage.Path{})
@@ -694,7 +695,7 @@ func TestPluginActivateScopedBundle(t *testing.T) {
 	// Ensure a/a3-6 are intact. a1-2 are overwritten by bundle, and
 	// that the manifest has been written to storage.
 	expData := util.MustUnmarshalJSON([]byte(`{"a1": "foo", "a3": "x2", "a5": "x3"}`))
-	expIds := []string{"bundle/id1", "some/id2", "some/id3"}
+	expIds := []string{filepath.Join(bundleName, "bundle/id1"), "some/id2", "some/id3"}
 	validateStoreState(ctx, t, manager.Store, "/a", expData, expIds, bundleName, "quickbrownfaux")
 
 	// Activate a bundle that is scoped to a/a3 ad a/a6. Include a function
@@ -723,7 +724,7 @@ func TestPluginActivateScopedBundle(t *testing.T) {
 
 	// Ensure a/a5-a6 are intact. a3 and a4 are overwritten by bundle.
 	expData = util.MustUnmarshalJSON([]byte(`{"a3": "foo", "a5": "x3"}`))
-	expIds = []string{"bundle/id2", "some/id3"}
+	expIds = []string{filepath.Join(bundleName, "bundle/id2"), "some/id3"}
 	validateStoreState(ctx, t, manager.Store, "/a", expData, expIds, bundleName, "quickbrownfaux-2")
 
 	// Upsert policy outside of bundle scope that depends on bundle.
@@ -744,7 +745,7 @@ func TestPluginActivateScopedBundle(t *testing.T) {
 
 	// Ensure bundle activation failed by checking that previous revision is
 	// still active.
-	expIds = []string{"bundle/id2", "not_scoped", "some/id3"}
+	expIds = []string{filepath.Join(bundleName, "bundle/id2"), "not_scoped", "some/id3"}
 	validateStoreState(ctx, t, manager.Store, "/a", expData, expIds, bundleName, "quickbrownfaux-2")
 }
 
@@ -798,7 +799,7 @@ func TestPluginSetCompilerOnContext(t *testing.T) {
 		t.Fatalf("Expected 2 events but got: %+v", events)
 	} else if compiler := plugins.GetCompilerOnContext(events[1].Context); compiler == nil {
 		t.Fatalf("Expected compiler on 2nd event but got: %+v", events)
-	} else if !compiler.Modules["/test.rego"].Equal(exp) {
+	} else if !compiler.Modules[filepath.Join(bundleName, "/test.rego")].Equal(exp) {
 		t.Fatalf("Expected module on compiler but got: %v", compiler.Modules)
 	}
 }
@@ -1054,7 +1055,8 @@ func TestUpgradeLegacyBundleToMuiltiBundleSameBundle(t *testing.T) {
 	b.Manifest.Revision = "quickbrownfaux-2"
 	plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b})
 
-	// None of the data should have changed, only the revision
+	// The only thing that should have changed is the store id for the policy
+	expIds = []string{"test-bundle/bundle/id1"}
 	validateStoreState(ctx, t, manager.Store, "/a", expData, expIds, bundleName, "quickbrownfaux-2")
 
 	// Make sure the legacy path is gone now that we are in multi-bundle mode
@@ -1177,7 +1179,7 @@ func TestUpgradeLegacyBundleToMuiltiBundleNewBundles(t *testing.T) {
 		},
 		Modules: []bundle.ModuleFile{
 			bundle.ModuleFile{
-				Path:   "b2/id1",
+				Path:   "id1",
 				Parsed: ast.MustParseModule(module),
 				Raw:    []byte(module),
 			},
@@ -1230,6 +1232,7 @@ func validateStoreState(ctx context.Context, t *testing.T, store storage.Store, 
 		}
 
 		sort.Strings(ids)
+		sort.Strings(expIds)
 
 		if !reflect.DeepEqual(ids, expIds) {
 			return fmt.Errorf("Expected ids %v but got %v", expIds, ids)

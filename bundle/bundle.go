@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/url"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -288,6 +289,19 @@ func writeManifest(tw *tar.Writer, bundle Bundle) error {
 	return archive.WriteFile(tw, manifestExt, buf.Bytes())
 }
 
+// ParsedModules returns a map of parsed modules with names that are
+// unique and human readable for the given a bundle name.
+func (b *Bundle) ParsedModules(bundleName string) map[string]*ast.Module {
+
+	mods := make(map[string]*ast.Module, len(b.Modules))
+
+	for _, mf := range b.Modules {
+		mods[modulePathWithPrefix(bundleName, mf.Path)] = mf.Parsed
+	}
+
+	return mods
+}
+
 // Equal returns true if this bundle's contents equal the other bundle's
 // contents.
 func (b Bundle) Equal(other Bundle) bool {
@@ -400,4 +414,18 @@ func dfs(value interface{}, path string, fn func(string, interface{}) (bool, err
 		}
 	}
 	return nil
+}
+
+func modulePathWithPrefix(bundleName string, modulePath string) string {
+	// Default prefix is just the bundle name
+	prefix := bundleName
+
+	// Bundle names are sometimes just file paths, some of which
+	// are full urls (file:///foo/). Parse these and only use the path.
+	parsed, err := url.Parse(bundleName)
+	if err == nil {
+		prefix = filepath.Join(parsed.Host, parsed.Path)
+	}
+
+	return filepath.Join(prefix, modulePath)
 }

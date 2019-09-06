@@ -174,9 +174,9 @@ func (pq preparedQuery) Modules() map[string]*ast.Module {
 		mods[name] = mod
 	}
 
-	for _, b := range pq.r.bundles {
-		for _, mf := range b.Modules {
-			mods[mf.Path] = mf.Parsed
+	for path, b := range pq.r.bundles {
+		for name, mod := range b.ParsedModules(path) {
+			mods[name] = mod
 		}
 	}
 
