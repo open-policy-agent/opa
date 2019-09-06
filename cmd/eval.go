@@ -15,6 +15,7 @@ import (
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/cover"
+	fileurl "github.com/open-policy-agent/opa/internal/file/url"
 	pr "github.com/open-policy-agent/opa/internal/presentation"
 	"github.com/open-policy-agent/opa/internal/runtime"
 	"github.com/open-policy-agent/opa/metrics"
@@ -109,8 +110,8 @@ To evaluate a query against JSON data:
 To evaluate a query against JSON data supplied with a file:// URL:
 
 	$ opa eval --data file:///path/to/file.json 'data'
-		
-		
+
+
 File & Bundle Loading
 ---------------------
 
@@ -137,12 +138,12 @@ The JSON file 'foo/bar/data.json' would be loaded and rooted under
 package path contained inside the file. Only data files named data.json or
 data.yaml will be loaded. In the example above the manifest.yaml would be
 ignored.
-		
+
 See https://www.openpolicyagent.org/docs/latest/bundles/ for more details
 on bundle directory structures.
 
 The --data flag can be used to recursively load ALL *.rego, *.json, and
-*.yaml files under the specified directory. 
+*.yaml files under the specified directory.
 
 Output Formats
 --------------
@@ -421,7 +422,11 @@ func readInputBytes(params evalCommandParams) ([]byte, error) {
 	if params.stdinInput {
 		return ioutil.ReadAll(os.Stdin)
 	} else if params.inputPath != "" {
-		return ioutil.ReadFile(params.inputPath)
+		path, err := fileurl.Clean(params.inputPath)
+		if err != nil {
+			return nil, err
+		}
+		return ioutil.ReadFile(path)
 	}
 	return nil, nil
 }
