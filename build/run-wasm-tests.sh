@@ -10,13 +10,6 @@ function interrupt {
 
 trap interrupt SIGINT SIGTERM
 
-# Generate the test tarball from the asset files.
-if [ ! -f _test/testcases.tar.gz ]; then
-    go run test/wasm/cmd/testgen.go \
-       --input-dir test/wasm/assets \
-       --output _test/testcases.tar.gz
-fi
-
 # Execute wasm tests inside a node container.
 container_name=opa-wasm-test-$RANDOM
 

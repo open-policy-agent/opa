@@ -102,12 +102,18 @@ go-test: generate
 	$(GO) test ./...
 
 .PHONY: wasm-test
-wasm-test: generate
+wasm-test: wasm-test-cases
 ifeq ($(DOCKER_INSTALLED), 1)
 	@./build/run-wasm-tests.sh
 else
 	@echo "Docker not installed. Skipping WASM-based test execution."
 endif
+
+.PHONY: wasm-test-cases
+wasm-test-cases:
+	@# Generate the test tarball from the asset files.
+	go run test/wasm/cmd/testgen.go --input-dir test/wasm/assets --output _test/testcases.tar.gz
+
 
 .PHONY: perf
 perf: generate
@@ -154,7 +160,7 @@ docs-%:
 ######################################################
 
 .PHONY: travis-build
-travis-build: wasm-build
+travis-build: wasm-build wasm-test-cases
 	@# this image is used in `Dockerfile` for image-quick
 	$(DOCKER) build -t build-$(BUILD_COMMIT) --build-arg GOVERSION=$(GOVERSION) -f Dockerfile.build .
 	@# the '/.' means "don't create the directory, copy its content only"
@@ -163,8 +169,7 @@ travis-build: wasm-build
 	$(DOCKER) cp "$$($(DOCKER) create build-$(BUILD_COMMIT)):/out/." .
 
 .PHONY: travis-all
-travis-all: travis-build opa-wasm-test fuzzit-local-regression
-	@./build/run-wasm-tests.sh # wasm-test sans 'generate'
+travis-all: travis-build wasm-test opa-wasm-test fuzzit-local-regression
 	$(DOCKER) run build-$(BUILD_COMMIT) make go-test perf check
 
 .PHONY: build-linux
