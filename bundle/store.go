@@ -188,13 +188,11 @@ func Deactivate(opts *DeactivateOpts) error {
 func activateBundles(opts *ActivateOpts) error {
 
 	// Build collections of bundle names, modules, and roots to erase
-	var modules []ModuleFile
 	erase := map[string]struct{}{}
 	names := map[string]struct{}{}
 
 	for name, b := range opts.Bundles {
 		names[name] = struct{}{}
-		modules = append(modules, b.Modules...)
 
 		if roots, err := ReadBundleRootsFromStore(opts.Ctx, opts.Store, opts.Txn, name); err == nil {
 			for _, root := range roots {
@@ -242,7 +240,7 @@ func activateBundles(opts *ActivateOpts) error {
 		remainingAndExtra[name] = mod
 	}
 
-	err = writeModules(opts.Ctx, opts.Store, opts.Txn, opts.Compiler, opts.Metrics, modules, remainingAndExtra)
+	err = writeModules(opts.Ctx, opts.Store, opts.Txn, opts.Compiler, opts.Metrics, opts.Bundles, remainingAndExtra, opts.legacy)
 	if err != nil {
 		return err
 	}
@@ -366,7 +364,7 @@ func writeData(ctx context.Context, store storage.Store, txn storage.Transaction
 	return nil
 }
 
-func writeModules(ctx context.Context, store storage.Store, txn storage.Transaction, compiler *ast.Compiler, m metrics.Metrics, files []ModuleFile, extraModules map[string]*ast.Module) error {
+func writeModules(ctx context.Context, store storage.Store, txn storage.Transaction, compiler *ast.Compiler, m metrics.Metrics, bundles map[string]*Bundle, extraModules map[string]*ast.Module, legacy bool) error {
 
 	m.Timer(metrics.RegoModuleCompile)
 	defer m.Timer(metrics.RegoModuleCompile)
@@ -384,16 +382,36 @@ func writeModules(ctx context.Context, store storage.Store, txn storage.Transact
 	}
 
 	// include all the new bundle modules
-	for _, f := range files {
-		modules[f.Path] = f.Parsed
+	for bundleName, b := range bundles {
+		if legacy {
+			for _, mf := range b.Modules {
+				modules[mf.Path] = mf.Parsed
+			}
+		} else {
+			for name, module := range b.ParsedModules(bundleName) {
+				modules[name] = module
+			}
+		}
 	}
 
 	if compiler.Compile(modules); compiler.Failed() {
 		return compiler.Errors
 	}
-	for _, f := range files {
-		if err := store.UpsertPolicy(ctx, txn, f.Path, f.Raw); err != nil {
-			return err
+	for bundleName, b := range bundles {
+		for _, mf := range b.Modules {
+			var path string
+
+			// For backwards compatibility, in legacy mode, upsert policies to
+			// the unprefixed path.
+			if legacy {
+				path = mf.Path
+			} else {
+				path = modulePathWithPrefix(bundleName, mf.Path)
+			}
+
+			if err := store.UpsertPolicy(ctx, txn, path, mf.Raw); err != nil {
+				return err
+			}
 		}
 	}
 	return nil

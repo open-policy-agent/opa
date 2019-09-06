@@ -94,8 +94,8 @@ func deps(args []string, params depsCommandParams) error {
 				return err
 			}
 
-			for _, m := range b.Modules {
-				modules[m.Path] = m.Parsed
+			for name, mod := range b.ParsedModules(path) {
+				modules[name] = mod
 			}
 		}
 	}

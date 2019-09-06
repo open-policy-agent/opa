@@ -2,6 +2,7 @@ package bundle
 
 import (
 	"context"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -291,10 +292,10 @@ func TestBundleLifecycle(t *testing.T) {
 		}
 	}
 
-	for name, bundle := range bundles {
-		for _, mod := range bundle.Modules {
-			if _, ok := compiler.Modules[mod.Path]; !ok {
-				t.Fatalf("expected module %s from bundle %s to have been compiled", mod.Path, name)
+	for bundleName, bundle := range bundles {
+		for modName := range bundle.ParsedModules(bundleName) {
+			if _, ok := compiler.Modules[modName]; !ok {
+				t.Fatalf("expected module %s from bundle %s to have been compiled", modName, bundleName)
 			}
 		}
 	}
@@ -726,24 +727,29 @@ func loadExpectedSortedResult(input string) interface{} {
 	}
 }
 
-func TestWriteModules(t *testing.T) {
-	ctx := context.Background()
+type testWriteModuleCase struct {
+	note         string
+	bundles      map[string]*Bundle // Only need to give raw text and path for modules
+	extraMods    map[string]*ast.Module
+	compilerMods map[string]*ast.Module
+	storeData    map[string]interface{}
+	expectErr    bool
+	writeToStore bool
+}
 
-	cases := []struct {
-		note         string
-		modFiles     []ModuleFile // Only need to give raw text and path
-		extraMods    map[string]*ast.Module
-		compilerMods map[string]*ast.Module
-		storeData    map[string]interface{}
-		expectErr    bool
-		writeToStore bool
-	}{
+func TestWriteModules(t *testing.T) {
+
+	cases := []testWriteModuleCase{
 		{
 			note: "module files only",
-			modFiles: []ModuleFile{
-				{
-					Path: "mod1",
-					Raw:  []byte("package a\np = true"),
+			bundles: map[string]*Bundle{
+				"bundle1": {
+					Modules: []ModuleFile{
+						{
+							Path: "mod1",
+							Raw:  []byte("package a\np = true"),
+						},
+					},
 				},
 			},
 			expectErr:    false,
@@ -767,10 +773,14 @@ func TestWriteModules(t *testing.T) {
 		},
 		{
 			note: "module files and extra modules",
-			modFiles: []ModuleFile{
-				{
-					Path: "mod1",
-					Raw:  []byte("package a\np = true"),
+			bundles: map[string]*Bundle{
+				"bundle1": {
+					Modules: []ModuleFile{
+						{
+							Path: "mod1",
+							Raw:  []byte("package a\np = true"),
+						},
+					},
 				},
 			},
 			extraMods: map[string]*ast.Module{
@@ -781,10 +791,14 @@ func TestWriteModules(t *testing.T) {
 		},
 		{
 			note: "module files and compiler modules",
-			modFiles: []ModuleFile{
-				{
-					Path: "mod1",
-					Raw:  []byte("package a\np = true"),
+			bundles: map[string]*Bundle{
+				"bundle1": {
+					Modules: []ModuleFile{
+						{
+							Path: "mod1",
+							Raw:  []byte("package a\np = true"),
+						},
+					},
 				},
 			},
 			compilerMods: map[string]*ast.Module{
@@ -806,10 +820,14 @@ func TestWriteModules(t *testing.T) {
 		},
 		{
 			note: "compile error: path conflict",
-			modFiles: []ModuleFile{
-				{
-					Path: "mod1",
-					Raw:  []byte("package a\np = true"),
+			bundles: map[string]*Bundle{
+				"bundle1": {
+					Modules: []ModuleFile{
+						{
+							Path: "mod1",
+							Raw:  []byte("package a\np = true"),
+						},
+					},
 				},
 			},
 			storeData: map[string]interface{}{
@@ -823,54 +841,84 @@ func TestWriteModules(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		t.Run(tc.note, func(t *testing.T) {
-			mockStore := mock.NewWithData(tc.storeData)
-			txn := storage.NewTransactionOrDie(ctx, mockStore, storage.WriteParams)
+		testWriteData(t, tc, false)
+		testWriteData(t, tc, true)
+	}
+}
 
-			compiler := ast.NewCompiler().WithPathConflictsCheck(storage.NonEmpty(ctx, mockStore, txn))
-			m := metrics.New()
+func testWriteData(t *testing.T, tc testWriteModuleCase, legacy bool) {
+	t.Helper()
 
-			// if supplied, pre-parse the module files
+	testName := tc.note
+	if legacy {
+		testName += "_legacy"
+	}
+
+	t.Run(testName, func(t *testing.T) {
+
+		ctx := context.Background()
+		mockStore := mock.NewWithData(tc.storeData)
+		txn := storage.NewTransactionOrDie(ctx, mockStore, storage.WriteParams)
+
+		compiler := ast.NewCompiler().WithPathConflictsCheck(storage.NonEmpty(ctx, mockStore, txn))
+		m := metrics.New()
+
+		// if supplied, pre-parse the module files
+
+		for _, b := range tc.bundles {
 			var parsedMods []ModuleFile
-			for _, mf := range tc.modFiles {
+			for _, mf := range b.Modules {
 				parsedMods = append(parsedMods, ModuleFile{
 					Path:   mf.Path,
 					Raw:    mf.Raw,
 					Parsed: ast.MustParseModule(string(mf.Raw)),
 				})
 			}
-			tc.modFiles = parsedMods
+			b.Modules = parsedMods
+		}
 
-			// if supplied, setup the compiler with modules already compiled on it
-			if len(tc.compilerMods) > 0 {
-				compiler.Compile(tc.compilerMods)
-				if len(compiler.Errors) > 0 {
-					t.Fatalf("unexpected error: %s", compiler.Errors)
-				}
+		// if supplied, setup the compiler with modules already compiled on it
+		if len(tc.compilerMods) > 0 {
+			compiler.Compile(tc.compilerMods)
+			if len(compiler.Errors) > 0 {
+				t.Fatalf("unexpected error: %s", compiler.Errors)
+			}
+		}
+
+		err := writeModules(ctx, mockStore, txn, compiler, m, tc.bundles, tc.extraMods, legacy)
+		if !tc.expectErr && err != nil {
+			t.Fatalf("unepected error: %s", err)
+		} else if tc.expectErr && err == nil {
+			t.Fatalf("expected error, got: %s", err)
+		}
+
+		if !tc.expectErr {
+			// ensure all policy files were saved to storage
+			policies, err := mockStore.ListPolicies(ctx, txn)
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err)
 			}
 
-			err := writeModules(ctx, mockStore, txn, compiler, m, tc.modFiles, tc.extraMods)
-			if !tc.expectErr && err != nil {
-				t.Fatalf("unepected error: %s", err)
-			} else if tc.expectErr && err == nil {
-				t.Fatalf("expected error, got: %s", err)
+			expectedNumMods := 0
+			for _, b := range tc.bundles {
+				expectedNumMods += len(b.Modules)
 			}
 
-			if !tc.expectErr {
-				// ensure all policy files were saved to storage
-				policies, err := mockStore.ListPolicies(ctx, txn)
-				if err != nil {
-					t.Fatalf("unexpected error: %s", err)
-				}
+			if len(policies) != expectedNumMods {
+				t.Fatalf("expected %d policies in storage, found %d", expectedNumMods, len(policies))
+			}
 
-				if len(policies) != len(tc.modFiles) {
-					t.Fatalf("expected %d policies in storage, found %d", len(tc.modFiles), len(policies))
-				}
-
-				for _, mf := range tc.modFiles {
+			for bundleName, b := range tc.bundles {
+				for _, mf := range b.Modules {
 					found := false
 					for _, p := range policies {
-						if p == mf.Path {
+						var expectedPath string
+						if legacy {
+							expectedPath = mf.Path
+						} else {
+							expectedPath = filepath.Join(bundleName, mf.Path)
+						}
+						if p == expectedPath {
 							found = true
 							break
 						}
@@ -879,43 +927,53 @@ func TestWriteModules(t *testing.T) {
 						t.Fatalf("policy %s not found in storage", mf.Path)
 					}
 				}
+			}
 
-				// ensure all the modules were compiled together and we aren't missing any
-				expectedModCount := len(tc.modFiles) + len(tc.extraMods) + len(tc.compilerMods)
-				if len(compiler.Modules) != expectedModCount {
-					t.Fatalf("expected %d modules on compiler, found %d", expectedModCount, len(compiler.Modules))
+			// ensure all the modules were compiled together and we aren't missing any
+			expectedModCount := expectedNumMods + len(tc.extraMods) + len(tc.compilerMods)
+			if len(compiler.Modules) != expectedModCount {
+				t.Fatalf("expected %d modules on compiler, found %d", expectedModCount, len(compiler.Modules))
+			}
+
+			for moduleName := range compiler.Modules {
+				found := false
+				if _, ok := tc.extraMods[moduleName]; ok {
+					continue
 				}
-
-				for name := range compiler.Modules {
-					found := false
-					if _, ok := tc.extraMods[name]; ok {
-						continue
-					}
-					if _, ok := tc.compilerMods[name]; ok {
-						continue
-					}
-					for _, mf := range tc.modFiles {
-						if mf.Path == name {
-							found = true
-							break
+				if _, ok := tc.compilerMods[moduleName]; ok {
+					continue
+				}
+				for bundleName, b := range tc.bundles {
+					if legacy {
+						for _, mf := range b.Modules {
+							if moduleName == mf.Path {
+								found = true
+								break
+							}
+						}
+					} else {
+						for bundleModuleName := range b.ParsedModules(bundleName) {
+							if moduleName == bundleModuleName {
+								found = true
+								break
+							}
 						}
 					}
-					if found {
-						continue
-					}
-					t.Errorf("unexpected module %s on compiler", name)
 				}
-
+				if found {
+					continue
+				}
+				t.Errorf("unexpected module %s on compiler", moduleName)
 			}
+		}
 
-			err = mockStore.Commit(ctx, txn)
-			if err != nil {
-				t.Fatalf("unexpected error: %s", err)
-			}
+		err = mockStore.Commit(ctx, txn)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
 
-			mockStore.AssertValid(t)
-		})
-	}
+		mockStore.AssertValid(t)
+	})
 }
 
 func TestHasRootsOverlap(t *testing.T) {

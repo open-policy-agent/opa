@@ -209,6 +209,45 @@ func TestEvalWithBundleData(t *testing.T) {
 	})
 }
 
+func TestEvalWithBundleDuplicateFileNames(t *testing.T) {
+	files := map[string]string{
+		// bundle a
+		"a/policy.rego": "package a\np = 1",
+		"a/.manifest":   `{"roots":["a"]}`,
+
+		// bundle b
+		"b/policy.rego": "package b\nq = 1",
+		"b/.manifest":   `{"roots":["b"]}`,
+	}
+
+	test.WithTempFS(files, func(path string) {
+
+		params := newEvalCommandParams()
+		params.bundlePaths = repeatedStringFlag{
+			v: []string{
+				filepath.Join(path, "a"),
+				filepath.Join(path, "b"),
+			},
+			isSet: true,
+		}
+
+		var buf bytes.Buffer
+
+		defined, err := eval([]string{"data"}, params, &buf)
+		if !defined || err != nil {
+			t.Fatalf("Unexpected undefined or error: %v", err)
+		}
+
+		var output presentation.Output
+
+		if err := util.NewJSONDecoder(&buf).Decode(&output); err != nil {
+			t.Fatal(err)
+		}
+
+		assertResultSet(t, output.Result, `[[{"a":{"p":1},"b":{"q":1}}]]`)
+	})
+}
+
 func assertResultSet(t *testing.T, rs rego.ResultSet, expected string) {
 	t.Helper()
 	result := []interface{}{}
