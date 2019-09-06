@@ -14,7 +14,7 @@ import (
 	"path/filepath"
 
 	"github.com/open-policy-agent/opa/format"
-
+	fileurl "github.com/open-policy-agent/opa/internal/file/url"
 	"github.com/spf13/cobra"
 )
 
@@ -59,6 +59,14 @@ func opaFmt(args []string) int {
 	}
 
 	for _, filename := range args {
+
+		var err error
+		filename, err = fileurl.Clean(filename)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 1
+		}
+
 		if err := filepath.Walk(filename, formatFile); err != nil {
 			switch err := err.(type) {
 			case fmtError:

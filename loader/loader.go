@@ -9,17 +9,15 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
-	"net/url"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
-
-	"github.com/open-policy-agent/opa/internal/file"
 
 	"github.com/ghodss/yaml"
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
+	"github.com/open-policy-agent/opa/internal/file"
+	fileurl "github.com/open-policy-agent/opa/internal/file/url"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/util"
@@ -122,7 +120,7 @@ func Filtered(paths []string, filter Filter) (*Result, error) {
 
 // Rego returns a RegoFile object loaded from the given path.
 func Rego(path string) (*RegoFile, error) {
-	path, err := cleanFileURL(path)
+	path, err := fileurl.Clean(path)
 	if err != nil {
 		return nil, err
 	}
@@ -137,7 +135,7 @@ func Rego(path string) (*RegoFile, error) {
 // it will be treated as a normal tarball bundle. If a directory
 // is supplied it will be loaded as an unzipped bundle tree.
 func AsBundle(path string) (*bundle.Bundle, error) {
-	path, err := cleanFileURL(path)
+	path, err := fileurl.Clean(path)
 	if err != nil {
 		return nil, err
 	}
@@ -173,7 +171,7 @@ func CleanPath(path string) string {
 // and path is a directory, then Paths will walk the directory structure
 // recursively and list files at each level.
 func Paths(path string, recurse bool) (paths []string, err error) {
-	path, err = cleanFileURL(path)
+	path, err = fileurl.Clean(path)
 	if err != nil {
 		return nil, err
 	}
@@ -276,7 +274,7 @@ func all(paths []string, filter Filter, f func(*Result, string, int) error) (*Re
 
 func allRec(path string, filter Filter, errors *loaderErrors, loaded *Result, depth int, f func(*Result, string, int) error) {
 
-	path, err := cleanFileURL(path)
+	path, err := fileurl.Clean(path)
 	if err != nil {
 		errors.Add(err)
 		return
@@ -314,32 +312,6 @@ func allRec(path string, filter Filter, errors *loaderErrors, loaded *Result, de
 	for _, file := range files {
 		allRec(filepath.Join(path, file.Name()), filter, errors, loaded, depth+1, f)
 	}
-}
-
-func cleanFileURL(path string) (string, error) {
-
-	if strings.Contains(path, "://") {
-
-		url, err := url.Parse(path)
-		if err != nil {
-			return "", err
-		}
-
-		if url.Scheme != "file" {
-			return "", fmt.Errorf("unsupported URL scheme: %v", path)
-		}
-
-		path = url.Path
-
-		// Trim leading slash on Windows if present. The url.Path field returned
-		// by url.Parse has leading slash that causes CreateFile() calls to fail
-		// on Windows. See https://github.com/golang/go/issues/6027 for details.
-		if runtime.GOOS == "windows" && len(path) >= 1 && path[0] == '/' {
-			path = path[1:]
-		}
-	}
-
-	return path, nil
 }
 
 func exclude(filters []Filter, path string, info os.FileInfo, depth int) bool {
