@@ -19,6 +19,7 @@ type Config struct {
 	Name            *string `json:"name"`     // name of the discovery bundle
 	Prefix          *string `json:"prefix"`   // path prefix for downloader
 	Decision        *string `json:"decision"` // the name of the query to run on the bundle to get the config
+	Service          string  `json:"service"` // the name of the service used to download discovery bundle from
 
 	service string
 	path    string
@@ -52,8 +53,19 @@ func (c *Config) validateAndInjectDefaults(services []string) error {
 		c.Prefix = &s
 	}
 
-	if len(services) != 1 {
-		return fmt.Errorf("discovery requires exactly one service")
+	if (c.Service == "") {
+		if len(services) != 1 {
+			return fmt.Errorf("discovery requires exactly one service")
+		}
+
+		c.service = services[0]
+	} else {
+		service, err := c.getServiceFromList(c.Service, services)
+		if err != nil {
+			return fmt.Errorf("invalid configuration for decision service: %s", err.Error())
+		}
+
+		c.service = service
 	}
 
 	decision := c.Decision
@@ -62,11 +74,22 @@ func (c *Config) validateAndInjectDefaults(services []string) error {
 		decision = c.Name
 	}
 
-	c.service = services[0]
 	c.path = fmt.Sprintf("%v/%v", strings.Trim(*c.Prefix, "/"), strings.Trim(*c.Name, "/"))
 	c.query = fmt.Sprintf("%v.%v", ast.DefaultRootDocument, strings.Replace(strings.Trim(*decision, "/"), "/", ".", -1))
 
 	return c.Config.ValidateAndInjectDefaults()
+}
+
+func (c *Config) getServiceFromList(service string, services []string) (string, error) {
+	if service == "" && len(services) != 0 {
+		return services[0], nil
+	}
+	for _, svc := range services {
+		if svc == service {
+			return service, nil
+		}
+	}
+	return service, fmt.Errorf("service name %q not found", service)
 }
 
 const (
