@@ -8,7 +8,7 @@ import (
 
 // nested { and [ tokens cause the parse time to explode.
 // see: https://github.com/mna/pigeon/issues/75
-var blacklistRegexp = regexp.MustCompile(`[{\[]{5,}`)
+var blacklistRegexp = regexp.MustCompile(`[{(\[]{5,}`)
 
 func Fuzz(data []byte) int {
 
