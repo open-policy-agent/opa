@@ -9,9 +9,6 @@ FROM golang:${GOVERSION}
 ARG GOARCH=amd64
 WORKDIR /go/src/github.com/open-policy-agent/opa
 COPY . .
-RUN make deps build-linux build-darwin build-windows
-RUN mkdir /out && cp opa_linux_${GOARCH} opa_darwin_${GOARCH} opa_windows_${GOARCH}.exe /out
-# Generate the test tarball from the asset files.
-RUN go run test/wasm/cmd/testgen.go \
-   --input-dir test/wasm/assets \
-   --output /out/_test/testcases.tar.gz
+RUN make deps build-linux build-darwin build-windows _test/testcases.tar.gz
+RUN mkdir /out && cp opa_linux_${GOARCH} opa_darwin_${GOARCH} opa_windows_${GOARCH}.exe /out && \
+    mkdir /out/_test && cp _test/testcases.tar.gz /out/_test
