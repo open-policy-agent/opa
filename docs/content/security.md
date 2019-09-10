@@ -14,7 +14,7 @@ authorization so that:
 - Traffic between OPA and clients is encrypted.
 - Clients verify the OPA API endpoint identity.
 - OPA verifies client identities.
-- Clients are only granted access to specific APIs or sections of [The `data` Document](../how-does-opa-work#the-data-document).
+- Clients are only granted access to specific APIs or sections of [The `data` Document](../#the-data-document).
 
 ## TLS and HTTPS
 
@@ -466,7 +466,7 @@ few things to keep in mind:
 * Do not pass credentials as command-line arguments.
 * Run OPA as a non-root user ideally inside it's own account.
 
-With OPA configured to fetch policies using the [Bundles](../bundles) feature
+With OPA configured to fetch policies using the [Bundles](../management/#bundles) feature
 you can configure OPA with a restrictive authorization policy that only grants
 clients access to the default policy decision, i.e., `POST /`:
 
