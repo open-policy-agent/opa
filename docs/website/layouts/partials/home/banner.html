@@ -7,9 +7,8 @@
 {{ $tutorial  := "/docs/latest/get-started/" }}
 {{ $policyLanguage  := "/docs/latest/policy-language/" }}
 {{ $kubernetes  := "/docs/latest/kubernetes-introduction/" }}
-{{ $microservices  := "/docs/latest/http-api-authorization/" }}
+{{ $envoy  := "/docs/latest/envoy-authorization/" }}
 {{ $kafka  := "/docs/latest/kafka-authorization/" }}
-{{ $terraform  := "/docs/latest/terraform/" }}
 {{ $opaSummit  := "https://www.papercall.io/opa-summit" }}
 <header role="banner">
   <nav class="nav--banner" role="navigation">
@@ -68,42 +67,30 @@
       <p class="headline--subtitle">
         {{ $tagline }}
       </p>
+      <div class="headline--nav headline--columns columns">
+        <a class="column headline--link is-narrow" href="{{ $docs }}" rel="help">
+          <img class="headline--link-img" src="/img/logos/opa-no-text-color.png"/>
+          <div class="headline--link-label">Documentation</div>
+        </a>
+        <a class="column headline--link is-narrow" href="{{ $kubernetes }}" rel="help">
+          <img class="headline--link-img" src="/img/logos/kubernetes.png"/>
+          <div class="headline--link-label">Guide & Tutorial</div>
+        </a>
+        <a class="column headline--link is-narrow" href="{{ $envoy }}" rel="help">
+          <img class="headline--link-img" src="/img/logos/envoy.png" />
+          <div class="headline--link-label">Tutorial</div>
+        </a>
+        <a class="column headline--link is-narrow" href="{{ $kafka }}" rel="help">
+          <img class="headline--link-img" src="/img/logos/kafka.png"/>
+          <div class="headline--link-label">Tutorial</div>
+        </a>
+        <a class="column headline--link is-narrow" href="{{ $opaSummit }}" rel="help">
+          <img class="headline--link-img" src="/img/logos/opa-summit.png" />
+          <div class="headline--link-label">OPA Summit 2019</div>
+        </a>
+      </span>
 
-      <p class="headline--nav">
-        <span class="headline--navtitle">Core Docs</span>  
-        <a id="headline--get-started" class="headline--link" href="{{ $introduction }}" rel="help">
-          Introduction
-        </a>
-        <a class="headline--link" href="{{ $tutorial }}" rel="help">
-          Tutorial
-        </a>
-        <a class="headline--link" href="{{ $policyLanguage }}" rel="help">
-          Policy Language
-        </a>
-      </p>
-      <p class="headline--nav">
-          <span class="headline--navtitle">Use Cases</span> 
-          <a class="headline--link" href="{{ $kubernetes }}" rel="help">
-            Kubernetes
-          </a>
-          <a class="headline--link" href="{{ $microservices }}" rel="help">
-            Microservice APIs
-          </a>
-          <a class="headline--link" href="{{ $kafka }}" rel="help">
-            Kafka
-          </a>
-          <a class="headline--link" href="{{ $terraform }}" rel="help">
-              Terraform
-          </a>
-      </p>
-      <p class="headline--nav">
-          <span class="headline--navtitle">Events</span> 
-          <a class="headline--link" href="{{ $opaSummit }}" rel="help">
-            OPA Summit
-          </a>
-      </p>
-
-      </p>
+      </div>
     </div>
 
     <div class="headline--wave--bg" role="presentation"></div>
