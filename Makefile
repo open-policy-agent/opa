@@ -253,7 +253,7 @@ docker-fuzzit-local-regression: fuzzer
 		./fuzzit create job --type "local-regression" opa/ast ast-fuzzer
 
 .PHONY: docker-fuzzit-fuzzing
-docker-fuzzit-fuzzing: docker-fuzzit
+docker-fuzzit-fuzzing: fuzzer
 	docker run \
 		-v /var/run/docker.sock:/var/run/docker.sock \
 		openpolicyagent/fuzzer:$(BUILD_COMMIT) \
