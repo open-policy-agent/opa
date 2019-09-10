@@ -60,19 +60,6 @@ preview-build: clean generate
 		--minify
 	make live-blocks-inject
 
-.PHONY: linkcheck-build
-linkcheck-build:
-	hugo \
-		--source $(CURDIR)/website \
-		--contentDir generated \
-		--baseURL "/" \
-		--buildDrafts \
-		--buildFuture
-
-.PHONY: linkcheck
-linkcheck: clean generate linkcheck-build
-	htmlproofer ./public --empty-alt-ignore
-
 # The live-blocks-% pattern target will shim to the
 # npm scripts in ./website/scripts/live-blocks
 .PHONY: live-blocks-%

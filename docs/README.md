@@ -176,17 +176,19 @@ re-deployed.
 
 ## Checking links
 
-To check the site's links, first install the [`htmlproofer`](https://github.com/gjtorikian/html-proofer) Ruby gem:
-
-```bash
-gem install htmlproofer
-```
+To check the site's links, first start the full site preview locally (see [Serving the full site](#serving-the-full-site) instructions))
 
 Then run:
 
 ```bash
-make linkcheck
+docker run --rm -it --net=host linkchecker/linkchecker $URL
 ```
+
+Note: You may need to adjust the `URL` (host and/or port) depending on the environment. For OSX
+and Windows the host might need to be `host.docker.internal` instead of `localhost`.
+
+> This link checker will work on best with Netlify previews! Just point it at the preview URL instead of the local server.
+  The "pretty url" feature seems to work best when deployed, running locally may result in erroneous links.
 
 ## Live Code Blocks
 
