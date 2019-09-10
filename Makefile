@@ -254,8 +254,9 @@ docker-fuzzit-local-regression: fuzzer
 
 .PHONY: docker-fuzzit-fuzzing
 docker-fuzzit-fuzzing: fuzzer
-	docker run \
+	@docker run \
 		-v /var/run/docker.sock:/var/run/docker.sock \
+		-e FUZZIT_API_KEY=$(FUZZIT_API_KEY) \
 		openpolicyagent/fuzzer:$(BUILD_COMMIT) \
 		./fuzzit create job --type "fuzzing" opa/ast ast-fuzzer
 
