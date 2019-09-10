@@ -51,8 +51,8 @@ func Term(params Params) (*ast.Term, error) {
 	}
 
 	obj.Insert(ast.StringTerm("env"), ast.NewTerm(env))
-
 	obj.Insert(ast.StringTerm("version"), ast.StringTerm(version.Version))
+	obj.Insert(ast.StringTerm("commit"), ast.StringTerm(version.Vcs))
 
 	return ast.NewTerm(obj), nil
 }

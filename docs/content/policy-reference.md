@@ -391,7 +391,7 @@ In order to trigger the use of HTTPs the user must provide one of the following 
 ### OPA
 | Built-in | Description |
 | ------- |-------------|
-| <span class="opa-keep-it-together">``output := opa.runtime()``</span> | ``opa.runtime`` returns a JSON object ``output`` that describes the runtime environment where OPA is deployed. **Caution**: Policies that depend on the output of ``opa.runtime`` may return different answers depending on how OPA was started. If possible, prefer using an explicit `input` or `data` value instead of `opa.runtime`. The ``output`` of ``opa.runtime`` will include a ``"config"`` key if OPA was started with a configuration file. The ``output`` of ``opa.runtime`` will include a ``"env"`` key containing the environment variables that the OPA process was started with. The ``output`` of ``opa.runtime`` will include a ``"version"`` key containing the version of OPA. |
+| <span class="opa-keep-it-together">``output := opa.runtime()``</span> | ``opa.runtime`` returns a JSON object ``output`` that describes the runtime environment where OPA is deployed. **Caution**: Policies that depend on the output of ``opa.runtime`` may return different answers depending on how OPA was started. If possible, prefer using an explicit `input` or `data` value instead of `opa.runtime`. The ``output`` of ``opa.runtime`` will include a ``"config"`` key if OPA was started with a configuration file. The ``output`` of ``opa.runtime`` will include a ``"env"`` key containing the environment variables that the OPA process was started with. The ``output`` of ``opa.runtime`` will include ``"version"`` and ``"commit"`` keys containing the semantic version and build commit of OPA. |
 
 ### Debugging
 | Built-in | Description |
