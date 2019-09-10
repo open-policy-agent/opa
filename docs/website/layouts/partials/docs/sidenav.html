@@ -8,7 +8,7 @@
 {{ $pageUrl    := .URL }}
 {{ $isDocsHome := eq .URL $docsHome.URL }}
 {{ $version    := index (split .File.Path "/") 1 }}
-{{ $latest     := index site.Data.releases 0 }}
+{{ $latest     := index site.Data.releases 1 }}
 
 <span class="docs-nav-title">
   Core Docs

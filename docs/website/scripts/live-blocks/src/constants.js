@@ -99,6 +99,7 @@ export const MAX_CONCUR_FILE_EVALS = 50
 
 // The version string for edge (e.g. not 'x.x.x[-x]')
 export const VERSION_EDGE = 'edge'
+export const VERSION_LATEST = 'latest'
 
 // Platforms that there are OPA releases for.
 export const PLATFORMS = {

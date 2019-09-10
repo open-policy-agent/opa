@@ -1,9 +1,9 @@
 {{ $home       := site.BaseURL }}
 {{ $logo       := site.Params.logos.sidebar | relURL }}
 {{ $releases   := site.Data.releases }}
-{{ $latest     := index $releases 0 }}
+{{ $latest     := index $releases 1 }}
 {{ $version    := index (split .File.Path "/") 1 }}
-{{ $isLatest   := eq $version $latest }}
+{{ $isLatest   := or (eq $version $latest) (eq $version "latest") }}
 <div class="dashboard">
   <div class="dashboard-panel left has-background-white-bis is-hidden-mobile">
     <div class="dashboard-panel-header has-text-centered">
@@ -13,13 +13,16 @@
         </a>
       </div>
 
-      {{ $latest := index site.Data.releases 0 }}
       <div class="dropdown is-left">
         <div class="dropdown-trigger">
           <button class="button is-dark" aria-haspopup="true" aria-controls="dropdown-menu">
             <span>
               <strong>
+                {{ if eq $version "latest" }}
+                {{ $latest }}
+                {{ else }}
                 {{ $version }}
+                {{ end }}
               </strong>
             </span>
             {{ if $isLatest }}
@@ -44,19 +47,21 @@
         <div class="dropdown-menu">
           <div class="dropdown-content">
             {{ range $releases }}
-            {{ $isLatest := eq . (index site.Data.releases 0) }}
-            {{ $verRef := . }}
-            {{ if $isLatest }}
-              {{ $verRef = "latest" }}
-            {{ end }}
-            <a href="/docs/{{ $verRef }}" class="dropdown-item">
-              {{ . }}
-              {{ if $isLatest }}
-              <span class="tag latest-tag is-success is-small has-text-weight-bold">
-                  latest
-                </span>
+              {{ if ne . "latest" }}
+                {{ $isLatest := eq . (index site.Data.releases 1) }}
+                {{ $verRef := . }}
+                {{ if $isLatest }}
+                  {{ $verRef = "latest" }}
+                {{ end }}
+                <a href="/docs/{{ $verRef }}" class="dropdown-item">
+                  {{ . }}
+                  {{ if $isLatest }}
+                  <span class="tag latest-tag is-success is-small has-text-weight-bold">
+                      latest
+                    </span>
+                  {{ end }}
+                </a>
               {{ end }}
-            </a>
             {{ end }}
           </div>
         </div>

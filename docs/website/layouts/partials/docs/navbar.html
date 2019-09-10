@@ -13,7 +13,6 @@
 {{ $operations := where $allDocs ".Params.kind" "eq" "operations" }}
 {{ $misc := where $allDocs ".Params.kind" "eq" "misc" }}
 {{ $version   := index (split .File.Path "/") 1 }}
-{{ $latest    := index site.Data.releases 0 }}
 {{ $pageUrl   := .URL }}
 <nav class="navbar is-primary">
   <div class="navbar-brand is-hidden-tablet">
