@@ -36,7 +36,7 @@ See [Health API](../rest-api#health-api) for details.
 
 OPA can periodically report status updates to remote HTTP servers. The
 updates contain status information for OPA itself as well as the
-[Bundles](../bundles) that have been downloaded and activated.
+[Bundles](#bundles) that have been downloaded and activated.
 
 OPA sends status reports whenever bundles are downloaded and activated. If
 the bundle download or activation fails for any reason, the status update
@@ -47,7 +47,7 @@ OPA instance. OPA automatically includes an `id` value in the label set that
 provides a globally unique identifier or the running OPA instance and a
 `version` value that provides the version of OPA.
 
-See the [Configuration Reference](../configuration) for configuration details.
+See the [Configuration Reference](#configuration-reference) for configuration details.
 
 ### Status Service API
 
@@ -261,7 +261,7 @@ reporting **cannot** be configured manually. Similarly, discovered configuration
 cannot override the original discovery settings in the configuration file that
 OPA was booted with.
 
-See the [Configuration Reference](../configuration) for configuration details.
+See the [Configuration Reference](#configuration-reference) for configuration details.
 
 ### Discovery Service API
 
@@ -525,7 +525,7 @@ By default, the OPA REST APIs will prevent you from modifying policy and data
 loaded via bundles. If you need to load policy and data from multiple sources,
 see the section below.
 
-See the [Configuration Reference](../configuration) for configuration details.
+See the [Configuration Reference](#configuration-reference) for configuration details.
 
 ### Bundle Service API
 
@@ -605,7 +605,7 @@ files in the bundle must be organized hierarchically into directories inside
 the tarball.
 
 > The hierarchical organization indicates to OPA where to load the data files
-> into the [the `data` Document](../how-does-opa-work#the-data-document).
+> into the [the `data` Document](../#the-data-document).
 
 You can list the content of a bundle with `tar`.
 
@@ -645,7 +645,7 @@ fields:
 * OPA will only load data files named `data.json` or `data.yaml` (which contain
   JSON or YAML respectively). Other JSON and YAML files will be ignored.
 
-* The `*.rego` policy files must be valid [Modules](/docs/{{< current_version >}}/how-do-i-write-policies#modules)
+* The `*.rego` policy files must be valid [Modules](../policy-language/#modules)
 
 > YAML data loaded into OPA is converted to JSON. Since JSON is a subset of
 > YAML, you are not allowed to use binary or null keys in objects and boolean
@@ -715,7 +715,7 @@ the Status API.
 > **Warning!** There are *no* ordering guarantees for which bundle loads first and
   takes over some root. If multiple bundles conflict, but are loaded at different
   times, OPA may go into an error state. It is highly recommended to use
-  the health check and include bundle state: [Monitoring OPA](../monitoring/#health-checks)
+  the health check and include bundle state: [Monitoring OPA](#health-checks)
 
 ### Debugging Your Bundles
 
@@ -738,7 +738,7 @@ that enables auditing and offline debugging of policy decisions.
 When decision logging is enabled the OPA server will include a `decision_id`
 field in API calls that return policy decisions.
 
-See the [Configuration Reference](../configuration) for configuration details.
+See the [Configuration Reference](#configuration-reference) for configuration details.
 
 ### Decision Log Service API
 
@@ -813,7 +813,7 @@ decision_logs:
 ```
 
 This will dump all decision through the OPA logging system at the `info` level. See
-[Configuration Reference](../configuration) for more details.
+[Configuration Reference](#configuration-reference) for more details.
 
 
 ### Masking Sensitive Data

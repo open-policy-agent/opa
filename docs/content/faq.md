@@ -7,7 +7,7 @@ weight: 17
 
 ## How do I make user attributes stored in LDAP/AD available to OPA for making decisions?
 
-[This best-practice guide](../guides-identity) explains three options: JSON Web Tokens, synchronization with LDAP/AD, and calling into LDAP/AD during policy evaluation.
+[This best-practice guide](../external-data) explains three options: JSON Web Tokens, synchronization with LDAP/AD, and calling into LDAP/AD during policy evaluation.
 
 ## How does OPA do conflict resolution? {#conflict-resolution}
 
@@ -384,7 +384,7 @@ io.jwt.decode_verify(input.token, {
 ```live:jwt_decode/verify:output
 ```
 
-See the [Language Reference](../language-reference#tokens) for additional verification constraints.
+See the [Policy Reference](../policy-reference#tokens) for additional verification constraints.
 
 To get certificates into the policy, you can either hardcode them or provide them as environmental variables to OPA and then use the `opa.runtime` builtin to retrieve those variables.
 

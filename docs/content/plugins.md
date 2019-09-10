@@ -122,7 +122,7 @@ You can register your factory with OPA by calling [github.com/open-policy-agent/
 
 ### Putting It Together
 
-The example below shows how you can implement a custom [Decision Logger](../decision-logs)
+The example below shows how you can implement a custom [Decision Logger](../management/#decision-logs)
 that writes events to a stream (e.g., stdout/stderr).
 
 ```golang
@@ -222,5 +222,5 @@ log event written to stdout.
 
 The source code for this example can be found [here](https://github.com/open-policy-agent/contrib/tree/master/decision_logger_plugin_example).
 
-> If there is a mask policy set (see [Decision Logger](../decision-logs) for details) the `Event`
+> If there is a mask policy set (see [Decision Logger](../management/#decision-logs) for details) the `Event`
   received by the demo plugin will potentially be different than the example documented.
