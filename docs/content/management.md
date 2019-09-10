@@ -294,6 +294,7 @@ services:
 discovery:
   name: /example/discovery
   prefix: configuration
+  service: acmecorp
 ```
 
 Using the boot configuration above, OPA will fetch discovery bundles from:
@@ -301,14 +302,14 @@ Using the boot configuration above, OPA will fetch discovery bundles from:
 ```
 https://example.com/control-plane-api/v1/configuration/example/discovery
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ ^^^^^^^^^^^^^ ^^^^^^^^^^^^^^^^^
-services[0].url                          |                   |
+services[discovery.service].url                          |                   |
                                          + discovery.prefix  |
                                                              + discovery.name
 ```
 
 > The `discovery.prefix` field defaults to `bundles`. The default is convenient if
 you want to serve discovery bundles and normal bundles from the same API
-endpoint.
+endpoint. If only one service is defined, there is no need to set `discovery.service`.
 
 OPA generates it's subsequent configuration by querying the Rego and JSON files
 contained inside the discovery bundle. The query is defined by the
