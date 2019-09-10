@@ -13,8 +13,9 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/open-policy-agent/opa/test/e2e"
 	"github.com/sirupsen/logrus/hooks/test"
+
+	"github.com/open-policy-agent/opa/test/e2e"
 )
 
 var testRuntime *e2e.TestRuntime
@@ -82,13 +83,21 @@ func TestDecisionLogWithInput(t *testing.T) {
 	}
 
 	// Check for some important fields
-	expectedFields := map[string]bool{
-		"labels":      false,
-		"decision_id": false,
-		"path":        false,
-		"input":       false,
-		"result":      false,
-		"timestamp":   false,
+	expectedFields := map[string]*struct {
+		found bool
+		match func(*testing.T, string)
+	}{
+		"labels":      {},
+		"decision_id": {},
+		"path":        {},
+		"input":       {},
+		"result":      {},
+		"timestamp":   {},
+		"type": {match: func(t *testing.T, actual string) {
+			if actual != "openpolicyagent.org/decision_logs" {
+				t.Fatalf("Expected field 'type' to be 'openpolicyagent.org/decision_logs'")
+			}
+		}},
 	}
 	var entry *logrus.Entry
 	for _, e := range hook.AllEntries() {
@@ -102,14 +111,17 @@ func TestDecisionLogWithInput(t *testing.T) {
 	}
 
 	// Ensure expected fields exist
-	for k := range entry.Data {
-		if _, ok := expectedFields[k]; ok {
-			expectedFields[k] = true
+	for fieldName, rawField := range entry.Data {
+		if fd, ok := expectedFields[fieldName]; ok {
+			if fieldValue, ok := rawField.(string); ok && fd.match != nil {
+				fd.match(t, fieldValue)
+			}
+			fd.found = true
 		}
 	}
 
-	for field, found := range expectedFields {
-		if !found {
+	for field, fd := range expectedFields {
+		if !fd.found {
 			t.Errorf("Missing expected field in decision log: %s\n\nEntry: %+v\n\n", field, entry)
 		}
 	}
