@@ -588,6 +588,6 @@ func (p *Plugin) logEvent(ctx context.Context, event EventV1) error {
 	}
 	logrus.WithFields(fields).WithFields(logrus.Fields{
 		"type": "openpolicyagent.org/decision_logs",
-	  }).Info("Decision Log")
+	}).Info("Decision Log")
 	return nil
 }
