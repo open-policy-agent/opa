@@ -2,7 +2,7 @@
 
 set -xe
 
-ORIGINAL_COMMIT=$(git name-rev --name-only HEAD)
+ORIGINAL_COMMIT=$(git symbolic-ref -q --short HEAD || git name-rev --name-only HEAD)
 # If no name can be found "git name-rev" returns
 # "undefined", in which case we'll just use the
 # current commit ID.
