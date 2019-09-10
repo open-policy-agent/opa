@@ -32,8 +32,8 @@ for release in ${ALL_RELEASES}; do
 
     # ignore versions from before we used this static site generator
     if [[ (${CUR_MAJOR_VER} -lt 0) || \
-            (${CUR_MAJOR_VER} -le 0 && ${CUR_MINOR_VER} -lt 10) || \
-            (${CUR_MAJOR_VER} -le 0 && ${CUR_MINOR_VER} -le 10 && ${CUR_PATCH_VER} -le 5) ]]; then
+            (${CUR_MAJOR_VER} -le 0 && ${CUR_MINOR_VER} -lt 11) || \
+            (${CUR_MAJOR_VER} -le 0 && ${CUR_MINOR_VER} -le 10 && ${CUR_PATCH_VER} -le 7) ]]; then
         continue
     fi
 
@@ -111,16 +111,8 @@ for release in "${RELEASES[@]}"; do
     fi
 
     echo "Copying doc content from tag ${release}"
-    # TODO: Remove this check once we are no longer showing docs for v0.10.7 
-    # or older those releases have the docs content in a different location.
-    if [[ -d "${ROOT_DIR}/docs/content/code/" ]]; then
-        # new location
-        cp -r ${ROOT_DIR}/docs/content/* ${version_docs_dir}/
-    else
-        # old location
-        cp -r ${ROOT_DIR}/docs/content/docs/* ${version_docs_dir}/
-        cp -r ${ROOT_DIR}/docs/code ${version_docs_dir}/
-    fi
+    cp -r ${ROOT_DIR}/docs/content/* ${version_docs_dir}/
+
 done
 
 # Go back to the original tree state
