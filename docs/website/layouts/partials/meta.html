@@ -5,7 +5,6 @@
 {{ $pageType    := cond $isHome "website" "article" }}
 {{ $imageUrl    := "/img/logos/opa-horizontal-color.png" | absURL }}
 {{ $twitter     := site.Params.social.twitter }}
-{{ $latest      := index site.Data.releases 0 }}
 {{ $version     := index (split .File.Path "/") 1 }}
 
 <!-- Basic metadata -->

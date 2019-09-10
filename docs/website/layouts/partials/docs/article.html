@@ -1,5 +1,5 @@
 {{ $releases   := site.Data.releases }}
-{{ $latest     := printf "%s" (index $releases 0) }}
+{{ $latest     := printf "%s" (index $releases 1) }}
 {{ $version    := index (split .File.Path "/") 1 }}
 <article class="article">
   {{ with (eq $version "edge") }}

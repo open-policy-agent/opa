@@ -1,10 +1,12 @@
 import process from 'process'
 import {promises as promFS} from 'fs'
 
+import * as filepath from 'path';
+
 import cheerio from 'cheerio'
 
 import {batchMapFold, batchProcess, expectedErrorTags, infoFromLabel, println, report, toArray} from '../helpers.js'
-import {BLOCK_SELECTOR, BLOCK_TYPES, CLASSES, CSS_BUNDLE_BATH, ICONS, JS_BUNDLE_PATH, MAX_CONCUR_FILE_EVALS, MAX_CONCUR_FILES, STATIC_TAG_TYPES, VERSION_EDGE} from '../constants.js'
+import {BLOCK_SELECTOR, BLOCK_TYPES, CLASSES, CSS_BUNDLE_BATH, ICONS, JS_BUNDLE_PATH, MAX_CONCUR_FILE_EVALS, MAX_CONCUR_FILES, STATIC_TAG_TYPES, VERSION_EDGE, VERSION_LATEST} from '../constants.js'
 import {ChainedError, OPAErrors} from '../errors.js'
 
 import localEval from './localEval.js'
@@ -75,11 +77,12 @@ async function processFile(path) {
 // --- PROCESSING HELPERS ---
 // Based on a file's path containing /v[VERSION]/ or /edge/ returns the version string (e.g. '0.12.1' or 'edge'). Returns undefined if it can't find a version.
 function getVersion(path) {
-  const versionMatch = (new RegExp(`/(?:v([^/]*)|(?:${VERSION_EDGE}))/`)).exec(path)
+  const versionMatch = (new RegExp(`/(v[^/]*|${VERSION_EDGE}|${VERSION_LATEST})/`)).exec(filepath.resolve(path))
   if (!versionMatch) {
     return // Not found.
   }
-  return versionMatch[1] || VERSION_EDGE // If the capture is empty but there was a match it had to be 'edge'.
+
+  return versionMatch[1]
 }
 
 // Constructs an object of the following form, may throw an array of errors.

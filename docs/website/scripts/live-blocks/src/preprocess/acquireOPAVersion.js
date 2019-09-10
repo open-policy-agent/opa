@@ -5,7 +5,7 @@ import fetch from 'node-fetch'
 
 import {ChainedError} from '../errors'
 import {handleLater, println} from '../helpers'
-import {OPA_CACHE_PATH, OPA_EDGE_CACHE_PERIOD, PLATFORMS, VERSION_EDGE} from '../constants'
+import {OPA_CACHE_PATH, OPA_EDGE_CACHE_PERIOD, PLATFORMS, VERSION_EDGE, VERSION_LATEST} from '../constants'
 
 const PLATFORM = (() => { // Current platform, massaged into the format that OPA releases use.
   let p = process.platform
@@ -75,7 +75,13 @@ async function getAssetURL(version) {
   }
 
   // Releases are on GitHub
-  const releaseURL = `https://api.github.com/repos/open-policy-agent/opa/releases/tags/v${version}`
+  let releaseURL;
+  if (version === VERSION_LATEST) {
+    releaseURL = `https://api.github.com/repos/open-policy-agent/opa/releases/latest`
+  } else {
+    releaseURL = `https://api.github.com/repos/open-policy-agent/opa/releases/tags/v${version}`;
+  }
+
   try {
     const release = await (await fetch(releaseURL)).json()
     for (let asset of Object.values(release.assets)) {
