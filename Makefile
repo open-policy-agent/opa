@@ -50,25 +50,12 @@ version:
 deps:
 	@./build/install-deps.sh
 
-.PHONY: wasm-build
-wasm-build:
-ifeq ($(DOCKER_INSTALLED), 1)
-	@$(MAKE) -C wasm build
-	cp wasm/_obj/opa.wasm internal/compiler/wasm/opa/opa.wasm
-else
-	@echo "Docker not installed. Skipping OPA-WASM library build."
-endif
-
 .PHONY: generate
 generate: wasm-build
 	$(GO) generate
 
 .PHONY: build
 build: go-build
-
-.PHONY: go-build
-go-build: generate
-	$(GO) build -o $(BIN) -ldflags $(LDFLAGS)
 
 .PHONY: image
 image: build-linux
@@ -79,41 +66,65 @@ install: generate
 	$(GO) install -ldflags $(LDFLAGS)
 
 .PHONY: test
-test: opa-wasm-test go-test wasm-test
+test: wasm-test go-test wasm-rego-test
 
-.PHONE: fuzzit-local-regression
-fuzzit-local-regression:
-	./build/fuzzit.sh local-regression
+.PHONY: go-build
+go-build: generate
+	$(GO) build -o $(BIN) -ldflags $(LDFLAGS)
 
-.PHONE: fuzzit-fuzzing
-fuzzit-fuzzing:
-	./build/fuzzit.sh fuzzing
+.PHONY: go-test
+go-test: generate
+	$(GO) test ./...
 
-.PHONY: opa-wasm-test
-opa-wasm-test:
+.PHONY: wasm-build
+wasm-build:
+ifeq ($(DOCKER_INSTALLED), 1)
+	@$(MAKE) -C wasm build
+	cp wasm/_obj/opa.wasm internal/compiler/wasm/opa/opa.wasm
+else
+	@echo "Docker not installed. Skipping OPA-WASM library build."
+endif
+
+.PHONY: wasm-clean
+wasm-clean:
+	@$(MAKE) -C wasm clean
+
+.PHONY: wasm-test
+wasm-test:
 ifeq ($(DOCKER_INSTALLED), 1)
 	@$(MAKE) -C wasm test
 else
 	@echo "Docker not installed. Skipping OPA-WASM library test."
 endif
 
-.PHONY: go-test
-go-test: generate
-	$(GO) test ./...
-
 .PHONY: wasm-test
-wasm-test: wasm-test-cases
+wasm-rego-test: _test/testcases.tar.gz
 ifeq ($(DOCKER_INSTALLED), 1)
 	@./build/run-wasm-tests.sh
 else
 	@echo "Docker not installed. Skipping WASM-based test execution."
 endif
 
-.PHONY: wasm-test-cases
-wasm-test-cases:
-	@# Generate the test tarball from the asset files.
-	go run test/wasm/cmd/testgen.go --input-dir test/wasm/assets --output _test/testcases.tar.gz
+_test/testcases.tar.gz: $(shell find ./test/wasm/ -type f)
+	go run test/wasm/cmd/testgen.go \
+		--input-dir test/wasm/assets \
+		--output $@
 
+.PHONE: fuzzit-local-regression
+docker-fuzzit-local-regression:
+	docker run -v /var/run/docker.sock:/var/run/docker.sock \
+		-v $(PWD):/go/src/github.com/open-policy-agent/opa \
+		-w /go/src/github.com/open-policy-agent/opa \
+		golang:$(GOVERSION) \
+		./build/docker-fuzzit.sh local-regression
+
+.PHONE: fuzzit-fuzzing
+docker-fuzzit-fuzzing:
+	docker run -v /var/run/docker.sock:/var/run/docker.sock \
+		-v $(PWD):/go/src/github.com/open-policy-agent/opa \
+		-w /go/src/github.com/open-policy-agent/opa \
+		golang:$(GOVERSION) \
+		./build/docker-fuzzit.sh fuzzing
 
 .PHONY: perf
 perf: generate
@@ -138,10 +149,6 @@ check-lint:
 fmt:
 	$(GO) fmt ./...
 
-.PHONY: wasm-clean
-wasm-clean:
-	@$(MAKE) -C wasm clean
-
 .PHONY: clean
 clean: wasm-clean
 	rm -f opa_*_*
@@ -160,7 +167,7 @@ docs-%:
 ######################################################
 
 .PHONY: travis-build
-travis-build: wasm-build wasm-test-cases
+travis-build: wasm-build
 	@# this image is used in `Dockerfile` for image-quick
 	$(DOCKER) build -t build-$(BUILD_COMMIT) --build-arg GOVERSION=$(GOVERSION) -f Dockerfile.build .
 	@# the '/.' means "don't create the directory, copy its content only"
@@ -168,9 +175,12 @@ travis-build: wasm-build wasm-test-cases
 	@# note: we don't bother cleaning up the container created here
 	$(DOCKER) cp "$$($(DOCKER) create build-$(BUILD_COMMIT)):/out/." .
 
-.PHONY: travis-all
-travis-all: travis-build wasm-test opa-wasm-test fuzzit-local-regression
+.PHONY: travis-test
+travis-test: travis-build wasm-test wasm-rego-test
 	$(DOCKER) run build-$(BUILD_COMMIT) make go-test perf check
+
+.PHONY: travis-all
+travis-all: travis-test docker-fuzzit-local-regression
 
 .PHONY: build-linux
 build-linux:

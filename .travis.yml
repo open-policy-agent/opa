@@ -1,10 +1,4 @@
 sudo: required
-language: go
-go_import_path: github.com/open-policy-agent/opa
-# This is needed for clang to be included so we can build libFuzzer targets
-dist: bionic
-go:
-- "1.12.9"
 script: make travis-all
 install:
   # AWS CLI is required for pushing the edge binaries to S3.
@@ -59,7 +53,7 @@ deploy:
 
   - provider: script
     skip_cleanup: true  # do not delete artifacts because linux executable is needed
-    script: make fuzzit-fuzzing
+    script: make docker-fuzzit-fuzzing
     on:
       repo: open-policy-agent/opa
       branch: master

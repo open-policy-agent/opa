@@ -1,5 +1,11 @@
 #!/bin/bash
+
+# This script assumes it is running inside of Docker.
+
 # Build fuzz targets
+apt-get update
+apt-get install -y clang
+
 go get -u github.com/dvyukov/go-fuzz/go-fuzz github.com/dvyukov/go-fuzz/go-fuzz-build
 go-fuzz-build -libfuzzer -o ast-fuzzer.a ./ast/
 clang -fsanitize=fuzzer ast-fuzzer.a -o ast-fuzzer
