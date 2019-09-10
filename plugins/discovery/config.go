@@ -73,7 +73,10 @@ func (c *Config) validateAndInjectDefaults(services []string) error {
 }
 
 func (c *Config) getServiceFromList(service string, services []string) (string, error) {
-	if service == "" && len(services) != 0 {
+	if service == "" {
+		if len(services) != 1 {
+			return nil, fmt.Errorf("more than one service is defined")
+		}
 		return services[0], nil
 	}
 	for _, svc := range services {
