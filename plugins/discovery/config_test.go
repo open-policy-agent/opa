@@ -101,7 +101,7 @@ func TestConfigService(t *testing.T) {
 		service  string
 	}{
 		{
-			input:    `{}`,
+			input:    `{"name": "a/b/c"}`,
 			services: []string{"service1"},
 			service:  "service1",
 		},
