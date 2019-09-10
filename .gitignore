@@ -16,5 +16,10 @@ policy.wasm
 .npm
 .gitbook
 
+# ci artifacts
+fuzzit
+ast-fuzzer
+ast-fuzzer.a
+
 # runtime artifacts
 policies
