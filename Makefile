@@ -110,22 +110,6 @@ _test/testcases.tar.gz: $(shell find ./test/wasm/ -type f)
 		--input-dir test/wasm/assets \
 		--output $@
 
-.PHONE: fuzzit-local-regression
-docker-fuzzit-local-regression:
-	docker run -v /var/run/docker.sock:/var/run/docker.sock \
-		-v $(PWD):/go/src/github.com/open-policy-agent/opa \
-		-w /go/src/github.com/open-policy-agent/opa \
-		golang:$(GOVERSION) \
-		./build/docker-fuzzit.sh local-regression
-
-.PHONE: fuzzit-fuzzing
-docker-fuzzit-fuzzing:
-	docker run -v /var/run/docker.sock:/var/run/docker.sock \
-		-v $(PWD):/go/src/github.com/open-policy-agent/opa \
-		-w /go/src/github.com/open-policy-agent/opa \
-		golang:$(GOVERSION) \
-		./build/docker-fuzzit.sh fuzzing
-
 .PHONY: perf
 perf: generate
 	$(GO) test -run=- -bench=. -benchmem ./...
@@ -252,6 +236,28 @@ release-travis: push-image tag-latest push-latest
 
 .PHONY: release-bugfix-travis
 release-bugfix-travis: deploy-travis
+
+.PHONY: fuzzer
+fuzzer:
+	docker build \
+		-f Dockerfile.fuzzit \
+		-t openpolicyagent/fuzzer:$(BUILD_COMMIT) \
+		--build-arg GOVERSION=$(GOVERSION) \
+		.
+
+.PHONY: docker-fuzzit-local-regression
+docker-fuzzit-local-regression: fuzzer
+	docker run \
+		-v /var/run/docker.sock:/var/run/docker.sock \
+		openpolicyagent/fuzzer:$(BUILD_COMMIT) \
+		./fuzzit create job --type "local-regression" opa/ast ast-fuzzer
+
+.PHONY: docker-fuzzit-fuzzing
+docker-fuzzit-fuzzing: docker-fuzzit
+	docker run \
+		-v /var/run/docker.sock:/var/run/docker.sock \
+		openpolicyagent/fuzzer:$(BUILD_COMMIT) \
+		./fuzzit create job --type "fuzzing" opa/ast ast-fuzzer
 
 ######################################################
 #
