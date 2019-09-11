@@ -330,24 +330,27 @@ func eval(args []string, params evalCommandParams, w io.Writer) (bool, error) {
 	eval := rego.New(regoArgs...)
 
 	var result pr.Output
+	var resultErr error
 
 	var parsedModules map[string]*ast.Module
 
 	if !params.partial {
 		var pq rego.PreparedEvalQuery
-		pq, result.Error = eval.PrepareForEval(ctx)
-		if result.Error == nil {
+		pq, resultErr = eval.PrepareForEval(ctx)
+		if resultErr == nil {
 			parsedModules = pq.Modules()
-			result.Result, result.Error = pq.Eval(ctx)
+			result.Result, resultErr = pq.Eval(ctx)
 		}
 	} else {
 		var pq rego.PreparedPartialQuery
-		pq, result.Error = eval.PrepareForPartial(ctx)
-		if result.Error == nil {
+		pq, resultErr = eval.PrepareForPartial(ctx)
+		if resultErr == nil {
 			parsedModules = pq.Modules()
-			result.Partial, result.Error = eval.Partial(ctx)
+			result.Partial, resultErr = eval.Partial(ctx)
 		}
 	}
+
+	result.Errors = pr.NewOutputErrors(resultErr)
 
 	switch params.explain.String() {
 	case explainModeFull:
@@ -390,7 +393,7 @@ func eval(args []string, params evalCommandParams, w io.Writer) (bool, error) {
 
 	if err != nil {
 		return false, err
-	} else if result.Error != nil {
+	} else if len(result.Errors) > 0 {
 		// If the rego package returned an error, return a special error here so
 		// that the command doesn't print the same error twice. The error will
 		// have been printed above by the presentation package.

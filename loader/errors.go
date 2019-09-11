@@ -11,9 +11,10 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 )
 
-type loaderErrors []error
+// Errors is a wrapper for multiple loader errors.
+type Errors []error
 
-func (e loaderErrors) Error() string {
+func (e Errors) Error() string {
 	if len(e) == 0 {
 		return "no error(s)"
 	}
@@ -27,7 +28,7 @@ func (e loaderErrors) Error() string {
 	return fmt.Sprintf("%v errors occurred during loading:\n", len(e)) + strings.Join(buf, "\n")
 }
 
-func (e *loaderErrors) Add(err error) {
+func (e *Errors) add(err error) {
 	if errs, ok := err.(ast.Errors); ok {
 		for i := range errs {
 			*e = append(*e, errs[i])

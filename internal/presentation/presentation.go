@@ -21,9 +21,11 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/cover"
 	"github.com/open-policy-agent/opa/format"
+	"github.com/open-policy-agent/opa/loader"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/profiler"
 	"github.com/open-policy-agent/opa/rego"
+	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/topdown"
 )
 
@@ -107,7 +109,7 @@ func (o DepAnalysisOutput) sort() {
 
 // Output contains the result of evaluation to be presented.
 type Output struct {
-	Error       error                `json:"error,omitempty"`
+	Errors      OutputErrors         `json:"errors,omitempty"`
 	Result      rego.ResultSet       `json:"result,omitempty"`
 	Partial     *rego.PartialQueries `json:"partial,omitempty"`
 	Metrics     metrics.Metrics      `json:"metrics,omitempty"`
@@ -127,6 +129,114 @@ func (e Output) undefined() bool {
 	return len(e.Result) == 0 && (e.Partial == nil || len(e.Partial.Queries) == 0)
 }
 
+// NewOutputErrors creates a new slice of OutputError's based
+// on the type of error passed in. Known structured types will
+// be translated as appropriate, while unknown errors are
+// placed into a structured format with their string value.
+func NewOutputErrors(err error) []OutputError {
+	var errs []OutputError
+	if err != nil {
+		// Handle known structured errors
+
+		switch typedErr := err.(type) {
+		case *ast.Error:
+			oe := OutputError{
+				Code:    typedErr.Code,
+				Message: typedErr.Message,
+				Details: typedErr.Details,
+				err:     typedErr,
+			}
+
+			// TODO(patrick-east): Why does the JSON marshaller marshal
+			// location as `null` when err.location == nil?!
+			if typedErr.Location != nil {
+				oe.Location = typedErr.Location
+			}
+			errs = []OutputError{oe}
+		case *topdown.Error:
+			errs = []OutputError{{
+				Code:     typedErr.Code,
+				Message:  typedErr.Message,
+				Location: typedErr.Location,
+				err:      typedErr,
+			}}
+		case *storage.Error:
+			errs = []OutputError{{
+				Code:    typedErr.Code,
+				Message: typedErr.Message,
+				err:     typedErr,
+			}}
+
+		// The cases below are wrappers for other errors, format errors
+		// recursively on them.
+		case ast.Errors:
+			for _, e := range typedErr {
+				if e != nil {
+					errs = append(errs, NewOutputErrors(e)...)
+				}
+			}
+		case rego.Errors:
+			for _, e := range typedErr {
+				if e != nil {
+					errs = append(errs, NewOutputErrors(e)...)
+				}
+			}
+		case loader.Errors:
+			{
+				for _, e := range typedErr {
+					if e != nil {
+						errs = append(errs, NewOutputErrors(e)...)
+					}
+				}
+			}
+		default:
+			// Any errors which don't have a structure we know about
+			// are converted to their string representation only.
+			errs = []OutputError{{
+				Message: err.Error(),
+				err:     typedErr,
+			}}
+		}
+	}
+	return errs
+}
+
+// OutputErrors is a list of errors encountered
+// which are to presented.
+type OutputErrors []OutputError
+
+func (e OutputErrors) Error() string {
+	if len(e) == 0 {
+		return "no error(s)"
+	}
+
+	if len(e) == 1 {
+		return fmt.Sprintf("1 error occurred: %v", e[0].Error())
+	}
+
+	var s []string
+	for _, err := range e {
+		s = append(s, err.Error())
+	}
+
+	return fmt.Sprintf("%d errors occurred:\n%s", len(e), strings.Join(s, "\n"))
+}
+
+// OutputError provides a common structure for all OPA
+// library errors so that the JSON output given by the
+// presentation package is consistent and parsable.
+type OutputError struct {
+	Message  string      `json:"message"`
+	Code     string      `json:"code,omitempty"`
+	Location interface{} `json:"location,omitempty"`
+	Details  interface{} `json:"details,omitempty"`
+	err      error
+}
+
+func (j OutputError) Error() string {
+	return j.err.Error()
+}
+
 // JSON writes x to w with indentation.
 func JSON(w io.Writer, x interface{}) error {
 	encoder := json.NewEncoder(w)
@@ -136,8 +246,8 @@ func JSON(w io.Writer, x interface{}) error {
 
 // Bindings prints the bindings from r to w.
 func Bindings(w io.Writer, r Output) error {
-	if r.Error != nil {
-		return prettyError(w, r.Error)
+	if r.Errors != nil {
+		return prettyError(w, r.Errors)
 	}
 	for _, rs := range r.Result {
 		if err := JSON(w, rs.Bindings); err != nil {
@@ -149,8 +259,8 @@ func Bindings(w io.Writer, r Output) error {
 
 // Values prints the values from r to w.
 func Values(w io.Writer, r Output) error {
-	if r.Error != nil {
-		return prettyError(w, r.Error)
+	if r.Errors != nil {
+		return prettyError(w, r.Errors)
 	}
 	for _, rs := range r.Result {
 		line := make([]interface{}, len(rs.Expressions))
@@ -171,8 +281,8 @@ func Pretty(w io.Writer, r Output) error {
 			return err
 		}
 	}
-	if r.Error != nil {
-		if err := prettyError(w, r.Error); err != nil {
+	if r.Errors != nil {
+		if err := prettyError(w, r.Errors); err != nil {
 			return err
 		}
 	} else if r.undefined() {

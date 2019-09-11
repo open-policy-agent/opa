@@ -864,7 +864,7 @@ func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, input ast.V
 	rs, err := eval.Eval(ctx)
 
 	output := pr.Output{
-		Error:   err,
+		Errors:  pr.NewOutputErrors(err),
 		Result:  rs,
 		Metrics: r.metrics,
 	}
@@ -920,7 +920,7 @@ func (r *REPL) evalPartial(ctx context.Context, compiler *ast.Compiler, input as
 	output := pr.Output{
 		Metrics: r.metrics,
 		Partial: pq,
-		Error:   err,
+		Errors:  pr.NewOutputErrors(err),
 	}
 
 	switch r.explain {
