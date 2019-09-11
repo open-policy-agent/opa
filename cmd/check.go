@@ -5,13 +5,14 @@
 package cmd
 
 import (
-	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 
 	"github.com/spf13/cobra"
 
 	"github.com/open-policy-agent/opa/ast"
+	pr "github.com/open-policy-agent/opa/internal/presentation"
 	"github.com/open-policy-agent/opa/loader"
 	"github.com/open-policy-agent/opa/util"
 )
@@ -99,14 +100,18 @@ func checkModules(args []string) int {
 func outputErrors(err error) {
 	switch checkParams.format.String() {
 	case checkFormatJSON:
-		result := map[string]error{
-			"errors": err,
+		result := pr.Output{
+			Errors: pr.NewOutputErrors(err),
 		}
-		bs, err := json.MarshalIndent(result, "", "  ")
+		var out io.Writer
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			out = os.Stderr
 		} else {
-			fmt.Fprintln(os.Stdout, string(bs))
+			out = os.Stdout
+		}
+		err := pr.JSON(out, result)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err.Error())
 		}
 	default:
 		fmt.Fprintln(os.Stdout, err)

@@ -248,7 +248,7 @@ func (l *Result) withParent(p string) *Result {
 }
 
 func all(paths []string, filter Filter, f func(*Result, string, int) error) (*Result, error) {
-	errors := loaderErrors{}
+	errors := Errors{}
 	root := newResult()
 
 	for _, path := range paths {
@@ -274,17 +274,17 @@ func all(paths []string, filter Filter, f func(*Result, string, int) error) (*Re
 	return root, nil
 }
 
-func allRec(path string, filter Filter, errors *loaderErrors, loaded *Result, depth int, f func(*Result, string, int) error) {
+func allRec(path string, filter Filter, errors *Errors, loaded *Result, depth int, f func(*Result, string, int) error) {
 
 	path, err := fileurl.Clean(path)
 	if err != nil {
-		errors.Add(err)
+		errors.add(err)
 		return
 	}
 
 	info, err := os.Stat(path)
 	if err != nil {
-		errors.Add(err)
+		errors.add(err)
 		return
 	}
 
@@ -294,7 +294,7 @@ func allRec(path string, filter Filter, errors *loaderErrors, loaded *Result, de
 
 	if !info.IsDir() {
 		if err := f(loaded, path, depth); err != nil {
-			errors.Add(err)
+			errors.add(err)
 		}
 		return
 	}
@@ -307,7 +307,7 @@ func allRec(path string, filter Filter, errors *loaderErrors, loaded *Result, de
 
 	files, err := ioutil.ReadDir(path)
 	if err != nil {
-		errors.Add(err)
+		errors.add(err)
 		return
 	}
 

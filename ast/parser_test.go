@@ -1542,15 +1542,15 @@ func TestParseErrorDetails(t *testing.T) {
 
 	tests := []struct {
 		note  string
-		exp   *parserErrorDetail
+		exp   *ParserErrorDetail
 		err   string
 		input string
 	}{
 		{
 			note: "no match: bad rule name",
-			exp: &parserErrorDetail{
-				line: ".",
-				idx:  0,
+			exp: &ParserErrorDetail{
+				Line: ".",
+				Idx:  0,
 			},
 			input: `
 package test
@@ -1558,54 +1558,54 @@ package test
 		},
 		{
 			note: "no match: bad termination for comprehension",
-			exp: &parserErrorDetail{
-				line: "p = [true | true}",
-				idx:  16,
+			exp: &ParserErrorDetail{
+				Line: "p = [true | true}",
+				Idx:  16,
 			},
 			input: `
 package test
 p = [true | true}`},
 		{
 			note: "no match: non-terminated comprehension",
-			exp: &parserErrorDetail{
-				line: "p = [true | true",
-				idx:  15,
+			exp: &ParserErrorDetail{
+				Line: "p = [true | true",
+				Idx:  15,
 			},
 			input: `
 package test
 p = [true | true`},
 		{
 			note: "no match: expected expression",
-			exp: &parserErrorDetail{
-				line: "p { true; }",
-				idx:  10,
+			exp: &ParserErrorDetail{
+				Line: "p { true; }",
+				Idx:  10,
 			},
 			input: `
 package test
 p { true; }`},
 		{
 			note: "empty body",
-			exp: &parserErrorDetail{
-				line: "p { }",
-				idx:  2,
+			exp: &ParserErrorDetail{
+				Line: "p { }",
+				Idx:  2,
 			},
 			input: `
 package test
 p { }`},
 		{
 			note: "non-terminated string",
-			exp: &parserErrorDetail{
-				line: `p = "foo`,
-				idx:  4,
+			exp: &ParserErrorDetail{
+				Line: `p = "foo`,
+				Idx:  4,
 			},
 			input: `
 package test
 p = "foo`},
 		{
 			note: "rule with error begins with one tab",
-			exp: &parserErrorDetail{
-				line: "\tas",
-				idx:  2,
+			exp: &ParserErrorDetail{
+				Line: "\tas",
+				Idx:  2,
 			},
 			input: `
 package test
@@ -1615,9 +1615,9 @@ package test
 	 ^`},
 		{
 			note: "rule term with error begins with two tabs",
-			exp: &parserErrorDetail{
-				line: "\t\tas",
-				idx:  3,
+			exp: &ParserErrorDetail{
+				Line: "\t\tas",
+				Idx:  3,
 			},
 			input: `
 package test

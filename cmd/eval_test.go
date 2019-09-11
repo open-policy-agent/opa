@@ -288,7 +288,7 @@ func TestEvalErrorJSONOutput(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if output["error"] == nil {
+	if output["errors"] == nil {
 		t.Fatalf("Expected error to be non-nil")
 	}
 

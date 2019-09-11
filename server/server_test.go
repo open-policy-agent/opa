@@ -3027,7 +3027,10 @@ func TestBadQueryV1(t *testing.T) {
         "row": 1,
         "col": 1
       },
-      "details": {}
+      "details": {
+        "line": "^ -i",
+        "idx": 0
+      }
     }
   ]
 }`

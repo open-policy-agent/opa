@@ -1254,7 +1254,7 @@ func (r *Rego) parseModules(ctx context.Context, txn storage.Transaction, m metr
 	}
 
 	if len(errs) > 0 {
-		return errors.New(errs.Error())
+		return errs
 	}
 
 	return nil
@@ -1266,7 +1266,7 @@ func (r *Rego) loadFiles(ctx context.Context, txn storage.Transaction, m metrics
 
 	result, err := loader.Filtered(r.loadPaths.paths, r.loadPaths.filter)
 	if err != nil {
-		return fmt.Errorf("error loading paths: %s", err)
+		return err
 	}
 	for name, mod := range result.Modules {
 		r.parsedModules[name] = mod.Parsed
@@ -1275,7 +1275,7 @@ func (r *Rego) loadFiles(ctx context.Context, txn storage.Transaction, m metrics
 	if len(result.Documents) > 0 {
 		err = r.store.Write(ctx, txn, storage.AddOp, storage.Path{}, result.Documents)
 		if err != nil {
-			return fmt.Errorf("error writing loaded documents to store: %s", err)
+			return err
 		}
 	}
 	return nil
