@@ -11,12 +11,14 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"reflect"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/olekukonko/tablewriter"
+
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/cover"
 	"github.com/open-policy-agent/opa/format"
@@ -126,10 +128,84 @@ func (e Output) undefined() bool {
 	return len(e.Result) == 0 && (e.Partial == nil || len(e.Partial.Queries) == 0)
 }
 
+func (e *Output) wrapError() (*Output, error) {
+	if e.Error != nil {
+		if _, ok := e.Error.(json.Marshaler); !ok {
+
+			// No custom marshaller, see if it has json tags
+			needsWrapper := false
+			et := reflect.TypeOf(e.Error).Elem()
+
+			// Handle structs and arrays/slices, assume anything
+			// else will not need a wrapper.
+			switch et.Kind() {
+			case reflect.Struct:
+				needsWrapper = !hasJSONTags(et)
+			case reflect.Slice:
+				fallthrough
+			case reflect.Array:
+				v := reflect.ValueOf(e.Error)
+				for i := 0; i < v.Len(); i++ {
+					if !hasJSONTags(v.Index(i).Type()) {
+						needsWrapper = true
+						break
+					}
+				}
+			}
+
+			if needsWrapper {
+				e.Error = &structuredErrWrapper{e.Error}
+			}
+		}
+	}
+	return e, nil
+}
+
+func hasJSONTags(t reflect.Type) bool {
+	for i := 0; i < t.NumField(); i++ {
+		field := t.Field(i)
+		if field.Tag.Get("json") != "" {
+			return true
+		}
+	}
+
+	return false
+}
+
+type structuredErrWrapper struct {
+	err error
+}
+
+func (w *structuredErrWrapper) Error() string {
+	if w.err == nil {
+		return ""
+	}
+	return w.err.Error()
+}
+
+func (w *structuredErrWrapper) MarshalJSON() ([]byte, error) {
+	if w.err == nil {
+		return []byte{}, nil
+	}
+	return json.Marshal(w.Error())
+}
+
 // JSON writes x to w with indentation.
 func JSON(w io.Writer, x interface{}) error {
 	encoder := json.NewEncoder(w)
 	encoder.SetIndent("", "  ")
+
+	// Special case for the Output struct, if we are JSON marshalling
+	// one of them we want to ensure that the error is in a safe
+	// to marshal state.
+	if output, ok := x.(Output); ok {
+		processedOutput, err := output.wrapError()
+		if err != nil {
+			return nil
+		}
+		return encoder.Encode(processedOutput)
+	}
+
 	return encoder.Encode(x)
 }
 
