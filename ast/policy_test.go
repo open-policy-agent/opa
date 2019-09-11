@@ -504,7 +504,7 @@ func TestSomeDeclString(t *testing.T) {
 	}
 
 	result := decl.String()
-	expected := "var a, b"
+	expected := "some a, b"
 
 	if result != expected {
 		t.Fatalf("Expected %v but got %v", expected, result)
