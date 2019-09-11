@@ -1139,7 +1139,7 @@ func (d *SomeDecl) String() string {
 	for i := range buf {
 		buf[i] = d.Symbols[i].String()
 	}
-	return "var " + strings.Join(buf, ", ")
+	return "some " + strings.Join(buf, ", ")
 }
 
 // SetLoc sets the Location on d.
