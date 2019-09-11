@@ -1,7 +1,7 @@
 ---
 title: REST API
 kind: documentation
-weight: 7
+weight: 80
 restrictedtoc: true
 ---
 
