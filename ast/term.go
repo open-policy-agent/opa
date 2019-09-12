@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"math/big"
 	"net/url"
 	"regexp"
@@ -176,6 +177,20 @@ func InterfaceToValue(x interface{}) (Value, error) {
 	default:
 		return nil, fmt.Errorf("ast: illegal value: %T", x)
 	}
+}
+
+// ValueFromReader returns an AST value from a JSON serialized value in the reader.
+func ValueFromReader(r io.Reader) (Value, error) {
+	var x interface{}
+	if err := util.NewJSONDecoder(r).Decode(&x); err != nil {
+		return nil, err
+	}
+	return InterfaceToValue(x)
+}
+
+// As converts v into a Go native type referred to by x.
+func As(v Value, x interface{}) error {
+	return util.NewJSONDecoder(bytes.NewBufferString(v.String())).Decode(x)
 }
 
 // Resolver defines the interface for resolving references to native Go values.
