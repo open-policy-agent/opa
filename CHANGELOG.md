@@ -3,7 +3,16 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.14.0
+
+This release includes a large number of improvements to the docs as
+well as performance optimizations that improve several end-to-end
+benchmarks by ~25%. Also, the `opa eval` and other sub-commands now
+accept a `-b` or `--bundle` flag that tell OPA to treat file paths as
+bundles (either .tar.gz or directories). This improves behaviour in
+large or mixed workspaces.
+
+### Compatibility Notes
 
 - Status API messages now include a dump of OPA's Prometheus metric
   registry. This increases the Status API message size significantly
@@ -11,6 +20,49 @@ project adheres to [Semantic Versioning](http://semver.org/).
   removing the metrics. Nonetheless, for Status API implementations,
   having access to the Prometheus metrics is important for monitoring
   the health of the OPAs.
+
+### Built-in Functions
+
+This release includes a few improvements to built-in functions:
+
+* A new function for converting SI strings (e.g., "10MB") to numbers:
+  `units.num_bytes(x)`
+  ([#1561](https://github.com/open-policy-agent/opa/issues/1561)). This
+  is useful in the context of Kubernetes if you need to deal with
+  resource limits and requests.
+
+* The `io.jwt.verify_*` functions have been extended to support JWKs.
+
+This release also improves support for providing custom built-in
+functions to OPA. See the extensions documentation on openpolicyagent.org.
+
+### Fixes
+
+- ast, rego: Refactor unsafe built-in handling ([#1666](https://github.com/open-policy-agent/opa/issues/1666))
+- ast: Fix ordering of rule type checking errors ([#1620](https://github.com/open-policy-agent/opa/issues/1620))
+- ast: Update rule head to track assignments ([#1541](https://github.com/open-policy-agent/opa/issues/1541))
+- ast: Fix bug that allowed recursion in dynamic refs ([#1565](https://github.com/open-policy-agent/opa/issues/1565))
+- ast: Fix parsing of var-like scalars ([#1582](https://github.com/open-policy-agent/opa/issues/1582))
+- docs: Add note about benchmark result page ([#1275](https://github.com/open-policy-agent/opa/issues/1275))
+- docs: Update to show undefined example with != ([#1626](https://github.com/open-policy-agent/opa/issues/1626))
+- docs: Update to use live blocks ([#1650](https://github.com/open-policy-agent/opa/issues/1650))
+- format: Fix formatter to start line after writing comments ([#1560](https://github.com/open-policy-agent/opa/issues/1560))
+- loader: Update to accept file:// URLs. ([#1505](https://github.com/open-policy-agent/opa/issues/1505))
+- server: Improve decision log-related error messages ([#1367](https://github.com/open-policy-agent/opa/issues/1367))
+
+### Miscellaneous
+
+- Add support for fuzzing the ast package in CI
+- Add search bar powered by Algolia to the docs
+- Add "type" field to decision log events sent to the console
+- Add support for := assignments at file level
+- Add build commit and version to runtime info
+- Fix moduleLoader to copy returned parsed Modules
+- Fix panic in /health?bundle=true
+- Update the --plugin-dir flag as deprecated
+- Update formatter to preserve rule assigmemnts
+- Update metrics object to be thread-safe
+- Support loading bundles and files w/ Rego API
 
 ## 0.13.5
 
