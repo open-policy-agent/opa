@@ -9,13 +9,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"os"
+	"strings"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/topdown"
+	"github.com/open-policy-agent/opa/types"
 	"github.com/open-policy-agent/opa/util"
 )
 
@@ -701,4 +704,94 @@ func ExampleRego_PrepareForPartial() {
 	// Second evaluation
 	// Query #1: input.path = ["reviews", _]; input.is_admin
 	// Query #2: input.path = ["reviews", user3]; user3 = input.user
+}
+
+func ExampleRego_custom_functional_builtin() {
+
+	r := rego.New(
+		// An example query that uses a custom function.
+		rego.Query(`x = trim_and_split("/foo/bar/baz/", "/")`),
+
+		// A custom function that trims and splits strings on the same delimiter.
+		rego.Function2(
+			&rego.Function{
+				Name: "trim_and_split",
+				Decl: types.NewFunction(
+					types.Args(types.S, types.S), // two string inputs
+					types.NewArray(nil, types.S), // variable-length string array output
+				),
+			},
+			func(_ rego.BuiltinContext, a, b *ast.Term) (*ast.Term, error) {
+
+				str, ok1 := a.Value.(ast.String)
+				delim, ok2 := b.Value.(ast.String)
+
+				// The function is undefined for non-string inputs. Built-in
+				// functions should only return errors in unrecoverable cases.
+				if !ok1 || !ok2 {
+					return nil, nil
+				}
+
+				result := strings.Split(strings.Trim(string(str), string(delim)), string(delim))
+
+				arr := make(ast.Array, len(result))
+				for i := range result {
+					arr[i] = ast.StringTerm(result[i])
+				}
+
+				return ast.NewTerm(arr), nil
+			},
+		),
+	)
+
+	rs, err := r.Eval(context.Background())
+	if err != nil {
+		// handle error
+	}
+
+	fmt.Println(rs[0].Bindings["x"])
+
+	// Output:
+	//
+	// [foo bar baz]
+}
+
+func ExampleRego_custom_function_caching() {
+
+	type builtinCacheKey string
+
+	source := rand.NewSource(0)
+
+	r := rego.New(
+		// An example query that uses a custom function.
+		rego.Query(`x = myrandom("foo"); y = myrandom("foo")`),
+
+		// A custom function that uses caching.
+		rego.FunctionDyn(
+			&rego.Function{
+				Name:    "myrandom",
+				Memoize: true,
+				Decl: types.NewFunction(
+					types.Args(types.S), // one string input
+					types.N,             // one number output
+				),
+			},
+			func(_ topdown.BuiltinContext, args []*ast.Term) (*ast.Term, error) {
+				return ast.IntNumberTerm(int(source.Int63())), nil
+			},
+		),
+	)
+
+	rs, err := r.Eval(context.Background())
+	if err != nil {
+		// handle error
+	}
+
+	fmt.Println("x:", rs[0].Bindings["x"])
+	fmt.Println("y:", rs[0].Bindings["y"])
+
+	// Output:
+	//
+	// x: 8717895732742165505
+	// y: 8717895732742165505
 }

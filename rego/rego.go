@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/open-policy-agent/opa/loader"
+	"github.com/open-policy-agent/opa/types"
 
 	"github.com/open-policy-agent/opa/bundle"
 
@@ -428,10 +429,123 @@ type Rego struct {
 	termVarID        int
 	dump             io.Writer
 	runtime          *ast.Term
+	builtinDecls     map[string]*ast.Builtin
+	builtinFuncs     map[string]*topdown.Builtin
 	unsafeBuiltins   map[string]struct{}
 	loadPaths        loadPaths
 	bundlePaths      []string
 	bundles          map[string]*bundle.Bundle
+}
+
+// Function represents a built-in function that is callable in Rego.
+type Function struct {
+	Name    string
+	Decl    *types.Function
+	Memoize bool
+}
+
+// BuiltinContext contains additional attributes from the evaluator that
+// built-in functions can use, e.g., the request context.Context, caches, etc.
+type BuiltinContext = topdown.BuiltinContext
+
+type (
+	// Builtin1 defines a built-in function that accepts 1 argument.
+	Builtin1 func(bctx BuiltinContext, op1 *ast.Term) (*ast.Term, error)
+
+	// Builtin2 defines a built-in function that accepts 2 arguments.
+	Builtin2 func(bctx BuiltinContext, op1, op2 *ast.Term) (*ast.Term, error)
+
+	// Builtin3 defines a built-in function that accepts 3 argument.
+	Builtin3 func(bctx BuiltinContext, op1, op2, op3 *ast.Term) (*ast.Term, error)
+
+	// Builtin4 defines a built-in function that accepts 4 argument.
+	Builtin4 func(bctx BuiltinContext, op1, op2, op3, op4 *ast.Term) (*ast.Term, error)
+
+	// BuiltinDyn defines a built-in function  that accepts a list of arguments.
+	BuiltinDyn func(bctx BuiltinContext, terms []*ast.Term) (*ast.Term, error)
+)
+
+// Function1 returns an option that adds a built-in function to the Rego object.
+func Function1(decl *Function, f Builtin1) func(*Rego) {
+	return newFunction(decl, func(bctx BuiltinContext, terms []*ast.Term, iter func(*ast.Term) error) error {
+		result, err := memoize(decl, bctx, terms, func() (*ast.Term, error) { return f(bctx, terms[0]) })
+		return finishFunction(decl.Name, bctx, result, err, iter)
+	})
+}
+
+// Function2 returns an option that adds a built-in function to the Rego object.
+func Function2(decl *Function, f Builtin2) func(*Rego) {
+	return newFunction(decl, func(bctx BuiltinContext, terms []*ast.Term, iter func(*ast.Term) error) error {
+		result, err := memoize(decl, bctx, terms, func() (*ast.Term, error) { return f(bctx, terms[0], terms[1]) })
+		return finishFunction(decl.Name, bctx, result, err, iter)
+	})
+}
+
+// Function3 returns an option that adds a built-in function to the Rego object.
+func Function3(decl *Function, f Builtin3) func(*Rego) {
+	return newFunction(decl, func(bctx BuiltinContext, terms []*ast.Term, iter func(*ast.Term) error) error {
+		result, err := memoize(decl, bctx, terms, func() (*ast.Term, error) { return f(bctx, terms[0], terms[1], terms[2]) })
+		return finishFunction(decl.Name, bctx, result, err, iter)
+	})
+}
+
+// Function4 returns an option that adds a built-in function to the Rego object.
+func Function4(decl *Function, f Builtin4) func(*Rego) {
+	return newFunction(decl, func(bctx BuiltinContext, terms []*ast.Term, iter func(*ast.Term) error) error {
+		result, err := memoize(decl, bctx, terms, func() (*ast.Term, error) { return f(bctx, terms[0], terms[1], terms[2], terms[3]) })
+		return finishFunction(decl.Name, bctx, result, err, iter)
+	})
+}
+
+// FunctionDyn returns an option that adds a built-in function to the Rego object.
+func FunctionDyn(decl *Function, f BuiltinDyn) func(*Rego) {
+	return newFunction(decl, func(bctx BuiltinContext, terms []*ast.Term, iter func(*ast.Term) error) error {
+		result, err := memoize(decl, bctx, terms, func() (*ast.Term, error) { return f(bctx, terms) })
+		return finishFunction(decl.Name, bctx, result, err, iter)
+	})
+}
+
+type memo struct {
+	term *ast.Term
+	err  error
+}
+
+type memokey string
+
+func memoize(decl *Function, bctx BuiltinContext, terms []*ast.Term, ifEmpty func() (*ast.Term, error)) (*ast.Term, error) {
+
+	if !decl.Memoize {
+		return ifEmpty()
+	}
+
+	// NOTE(tsandall): we assume memoization is applied to infrequent built-in
+	// calls that do things like fetch data from remote locations. As such,
+	// converting the terms to strings is acceptable for now.
+	var b strings.Builder
+	if _, err := b.WriteString(decl.Name); err != nil {
+		return nil, err
+	}
+
+	// The term slice _may_ include an output term depending on how the caller
+	// referred to the built-in function. Only use the arguments as the cache
+	// key. Unification ensures we don't get false positive matches.
+	for i := 0; i < len(decl.Decl.Args()); i++ {
+		if _, err := b.WriteString(terms[i].String()); err != nil {
+			return nil, err
+		}
+	}
+
+	key := memokey(b.String())
+	hit, ok := bctx.Cache.Get(key)
+	var m memo
+	if ok {
+		m = hit.(memo)
+	} else {
+		m.term, m.err = ifEmpty()
+		bctx.Cache.Put(key, m)
+	}
+
+	return m.term, m.err
 }
 
 // Dump returns an argument that sets the writer to dump debugging information to.
@@ -683,6 +797,8 @@ func New(options ...func(r *Rego)) *Rego {
 		parsedModules:   map[string]*ast.Module{},
 		capture:         map[*ast.Expr]ast.Var{},
 		compiledQueries: map[queryType]compiledQuery{},
+		builtinDecls:    map[string]*ast.Builtin{},
+		builtinFuncs:    map[string]*topdown.Builtin{},
 	}
 
 	for _, option := range options {
@@ -690,7 +806,9 @@ func New(options ...func(r *Rego)) *Rego {
 	}
 
 	if r.compiler == nil {
-		r.compiler = ast.NewCompiler().WithUnsafeBuiltins(r.unsafeBuiltins)
+		r.compiler = ast.NewCompiler().
+			WithUnsafeBuiltins(r.unsafeBuiltins).
+			WithBuiltins(r.builtinDecls)
 	}
 
 	if r.store == nil {
@@ -1337,6 +1455,7 @@ func (r *Rego) eval(ctx context.Context, ectx *EvalContext) (ResultSet, error) {
 		WithCompiler(r.compiler).
 		WithStore(r.store).
 		WithTransaction(ectx.txn).
+		WithBuiltins(r.builtinFuncs).
 		WithMetrics(ectx.metrics).
 		WithInstrumentation(ectx.instrumentation).
 		WithRuntime(r.runtime)
@@ -1511,6 +1630,7 @@ func (r *Rego) partial(ctx context.Context, ectx *EvalContext) (*PartialQueries,
 		WithCompiler(r.compiler).
 		WithStore(r.store).
 		WithTransaction(ectx.txn).
+		WithBuiltins(r.builtinFuncs).
 		WithMetrics(ectx.metrics).
 		WithInstrumentation(ectx.instrumentation).
 		WithUnknowns(unknowns).
@@ -1771,4 +1891,35 @@ func parseStringsToRefs(s []string) ([]ast.Ref, error) {
 	}
 
 	return refs, nil
+}
+
+// helper function to finish a built-in function call. If an error occured,
+// wrap the error and return it. Otherwise, invoke the iterator if the result
+// was defined.
+func finishFunction(name string, bctx topdown.BuiltinContext, result *ast.Term, err error, iter func(*ast.Term) error) error {
+	if err != nil {
+		return &topdown.Error{
+			Code:     topdown.BuiltinErr,
+			Message:  fmt.Sprintf("%v: %v", name, err.Error()),
+			Location: bctx.Location,
+		}
+	}
+	if result == nil {
+		return nil
+	}
+	return iter(result)
+}
+
+// helper function to return an option that sets a custom built-in function.
+func newFunction(decl *Function, f topdown.BuiltinFunc) func(*Rego) {
+	return func(r *Rego) {
+		r.builtinDecls[decl.Name] = &ast.Builtin{
+			Name: decl.Name,
+			Decl: decl.Decl,
+		}
+		r.builtinFuncs[decl.Name] = &topdown.Builtin{
+			Decl: r.builtinDecls[decl.Name],
+			Func: f,
+		}
+	}
 }
