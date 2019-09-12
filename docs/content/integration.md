@@ -1,7 +1,7 @@
 ---
-title: Integration
-kind: operations
-weight: 1
+title: Integrating OPA
+kind: documentation
+weight: 65
 restrictedtoc: true
 ---
 
