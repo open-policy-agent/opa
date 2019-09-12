@@ -79,7 +79,7 @@ async function getAssetURL(version) {
   if (version === VERSION_LATEST) {
     releaseURL = `https://api.github.com/repos/open-policy-agent/opa/releases/latest`
   } else {
-    releaseURL = `https://api.github.com/repos/open-policy-agent/opa/releases/tags/v${version}`;
+    releaseURL = `https://api.github.com/repos/open-policy-agent/opa/releases/tags/${version}`;
   }
 
   try {
