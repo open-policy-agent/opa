@@ -3,6 +3,8 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
+## Unreleased
+
 ## 0.14.0
 
 This release includes a large number of improvements to the docs as
