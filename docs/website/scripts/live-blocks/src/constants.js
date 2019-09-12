@@ -123,7 +123,7 @@ export const CSS_BUNDLE_BATH = JS_BUNDLE_PATH.replace(/js/g, 'css')
 
 // --- UI ---
 // Only blocks on pages whose paths match this regexp will be interactive (for limiting live functionality to the version that the playground supports).
-export const INTERACTIVE_PATH = /^\/docs\/edge/ // TODO update to /^\/docs\/latest/ once backported and/or there's a new release.
+export const INTERACTIVE_PATH = /^\/docs\/(latest|edge)/
 
 // The path to initially open a new tab to with when opening a group in the playground
 export const OPENING_IN_PLAYGROUND_PATH = '/live-blocks/opening-in-playground'
