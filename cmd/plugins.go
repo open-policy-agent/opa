@@ -70,6 +70,7 @@ func init() {
 
 	// flag is persistent (can be loaded on all children commands)
 	RootCommand.PersistentFlags().StringVarP(&pluginDir, "plugin-dir", "", "", `set directory path to load built-in and plugin shared object files from`)
+	RootCommand.PersistentFlags().MarkDeprecated("plugin-dir", "Shared objects are deprecated. See https://www.openpolicyagent.org/docs/latest/extensions/.")
 
 	// Runs before *all* children commands
 	RootCommand.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
