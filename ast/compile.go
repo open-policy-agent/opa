@@ -86,14 +86,12 @@ type Compiler struct {
 		metricName string
 		f          func()
 	}
-	maxErrs    int
-	sorted     []string // list of sorted module names
-	pathExists func([]string) (bool, error)
-	after      map[string][]CompilerStageDefinition
-	metrics    metrics.Metrics
-
-	// This is a set of unsafe built-in functions that we are not allowed to
-	// use.
+	maxErrs           int
+	sorted            []string // list of sorted module names
+	pathExists        func([]string) (bool, error)
+	after             map[string][]CompilerStageDefinition
+	metrics           metrics.Metrics
+	builtins          map[string]*Builtin
 	unsafeBuiltinsMap map[string]struct{}
 }
 
@@ -219,8 +217,11 @@ func NewCompiler() *Compiler {
 	c.ModuleTree = NewModuleTree(nil)
 	c.RuleTree = NewRuleTree(c.ModuleTree)
 
+	// Initialize the compiler with the statically compiled built-in functions.
+	// If the caller customizes the compiler, a copy will be made.
+	c.builtins = BuiltinMap
 	checker := newTypeChecker()
-	c.TypeEnv = checker.checkLanguageBuiltins()
+	c.TypeEnv = checker.checkLanguageBuiltins(nil, c.builtins)
 
 	c.stages = []struct {
 		name       string
@@ -288,6 +289,25 @@ func (c *Compiler) WithMetrics(metrics metrics.Metrics) *Compiler {
 	return c
 }
 
+// WithBuiltins adds a set of custom built-in functions to the compiler.
+func (c *Compiler) WithBuiltins(builtins map[string]*Builtin) *Compiler {
+	if len(builtins) == 0 {
+		return c
+	}
+	cpy := make(map[string]*Builtin, len(c.builtins)+len(builtins))
+	for k, v := range c.builtins {
+		cpy[k] = v
+	}
+	for k, v := range builtins {
+		cpy[k] = v
+	}
+	c.builtins = cpy
+	// Build type env for custom functions and wrap existing one.
+	checker := newTypeChecker()
+	c.TypeEnv = checker.checkLanguageBuiltins(c.TypeEnv, builtins)
+	return c
+}
+
 // WithUnsafeBuiltins will add all built-ins in the map to the "blacklist".
 func (c *Compiler) WithUnsafeBuiltins(unsafeBuiltins map[string]struct{}) *Compiler {
 	for name := range unsafeBuiltins {
@@ -328,7 +348,7 @@ func (c *Compiler) Failed() bool {
 // ref refers to built-in function, the built-in declaration is consulted,
 // otherwise, the ref is used to perform a ruleset lookup.
 func (c *Compiler) GetArity(ref Ref) int {
-	if bi := BuiltinMap[ref.String()]; bi != nil {
+	if bi := c.builtins[ref.String()]; bi != nil {
 		return len(bi.Decl.Args())
 	}
 	rules := c.GetRulesExact(ref)
@@ -713,7 +733,7 @@ func (c *Compiler) checkSafetyRuleBodies() {
 }
 
 func (c *Compiler) checkBodySafety(safe VarSet, m *Module, b Body) Body {
-	reordered, unsafe := reorderBodyForSafety(c.GetArity, safe, b)
+	reordered, unsafe := reorderBodyForSafety(c.builtins, c.GetArity, safe, b)
 	if errs := safetyErrorSlice(unsafe); len(errs) > 0 {
 		for _, err := range errs {
 			c.err(err)
@@ -1284,7 +1304,7 @@ func (qc *queryCompiler) rewriteLocalVars(_ *QueryContext, body Body) (Body, err
 
 func (qc *queryCompiler) checkSafety(_ *QueryContext, body Body) (Body, error) {
 	safe := ReservedVars.Copy()
-	reordered, unsafe := reorderBodyForSafety(qc.compiler.GetArity, safe, body)
+	reordered, unsafe := reorderBodyForSafety(qc.compiler.builtins, qc.compiler.GetArity, safe, body)
 	if errs := safetyErrorSlice(unsafe); len(errs) > 0 {
 		return nil, errs
 	}
@@ -1702,9 +1722,9 @@ func (vs unsafeVars) Slice() (result []unsafePair) {
 //
 // If the body cannot be reordered to ensure safety, the second return value
 // contains a mapping of expressions to unsafe variables in those expressions.
-func reorderBodyForSafety(arity func(Ref) int, globals VarSet, body Body) (Body, unsafeVars) {
+func reorderBodyForSafety(builtins map[string]*Builtin, arity func(Ref) int, globals VarSet, body Body) (Body, unsafeVars) {
 
-	body, unsafe := reorderBodyForClosures(arity, globals, body)
+	body, unsafe := reorderBodyForClosures(builtins, arity, globals, body)
 	if len(unsafe) != 0 {
 		return nil, unsafe
 	}
@@ -1730,7 +1750,7 @@ func reorderBodyForSafety(arity func(Ref) int, globals VarSet, body Body) (Body,
 				continue
 			}
 
-			safe.Update(outputVarsForExpr(e, arity, safe))
+			safe.Update(outputVarsForExpr(e, builtins, arity, safe))
 
 			for v := range unsafe[e] {
 				if safe.Contains(v) {
@@ -1758,10 +1778,11 @@ func reorderBodyForSafety(arity func(Ref) int, globals VarSet, body Body) (Body,
 			g.Update(reordered[i-1].Vars(safetyCheckVarVisitorParams))
 		}
 		vis := &bodySafetyVisitor{
-			arity:   arity,
-			current: e,
-			globals: g,
-			unsafe:  unsafe,
+			builtins: builtins,
+			arity:    arity,
+			current:  e,
+			globals:  g,
+			unsafe:   unsafe,
 		}
 		Walk(vis, e)
 	}
@@ -1774,10 +1795,11 @@ func reorderBodyForSafety(arity func(Ref) int, globals VarSet, body Body) (Body,
 }
 
 type bodySafetyVisitor struct {
-	arity   func(Ref) int
-	current *Expr
-	globals VarSet
-	unsafe  unsafeVars
+	builtins map[string]*Builtin
+	arity    func(Ref) int
+	current  *Expr
+	globals  VarSet
+	unsafe   unsafeVars
 }
 
 func (vis *bodySafetyVisitor) Visit(x interface{}) Visitor {
@@ -1809,7 +1831,7 @@ func (vis *bodySafetyVisitor) checkComprehensionSafety(tv VarSet, body Body) Bod
 	}
 
 	// Check body for safety, reordering as necessary.
-	r, u := reorderBodyForSafety(vis.arity, vis.globals, body)
+	r, u := reorderBodyForSafety(vis.builtins, vis.arity, vis.globals, body)
 	if len(u) == 0 {
 		return r
 	}
@@ -1835,7 +1857,7 @@ func (vis *bodySafetyVisitor) checkSetComprehensionSafety(sc *SetComprehension) 
 // reorderBodyForClosures returns a copy of the body ordered such that
 // expressions (such as array comprehensions) that close over variables are ordered
 // after other expressions that contain the same variable in an output position.
-func reorderBodyForClosures(arity func(Ref) int, globals VarSet, body Body) (Body, unsafeVars) {
+func reorderBodyForClosures(builtins map[string]*Builtin, arity func(Ref) int, globals VarSet, body Body) (Body, unsafeVars) {
 
 	reordered := Body{}
 	unsafe := unsafeVars{}
@@ -1861,7 +1883,7 @@ func reorderBodyForClosures(arity func(Ref) int, globals VarSet, body Body) (Bod
 			// contained in the output position of an expression in the reordered
 			// body. These vars are considered unsafe.
 			cv := vs.Intersect(body.Vars(safetyCheckVarVisitorParams)).Diff(globals)
-			uv := cv.Diff(outputVarsForBody(reordered, arity, globals))
+			uv := cv.Diff(outputVarsForBody(reordered, builtins, arity, globals))
 
 			if len(uv) == 0 {
 				reordered = append(reordered, e)
@@ -1879,15 +1901,15 @@ func reorderBodyForClosures(arity func(Ref) int, globals VarSet, body Body) (Bod
 	return reordered, unsafe
 }
 
-func outputVarsForBody(body Body, arity func(Ref) int, safe VarSet) VarSet {
+func outputVarsForBody(body Body, builtins map[string]*Builtin, arity func(Ref) int, safe VarSet) VarSet {
 	o := safe.Copy()
 	for _, e := range body {
-		o.Update(outputVarsForExpr(e, arity, o))
+		o.Update(outputVarsForExpr(e, builtins, arity, o))
 	}
 	return o.Diff(safe)
 }
 
-func outputVarsForExpr(expr *Expr, arity func(Ref) int, safe VarSet) VarSet {
+func outputVarsForExpr(expr *Expr, builtins map[string]*Builtin, arity func(Ref) int, safe VarSet) VarSet {
 
 	// Negated expressions must be safe.
 	if expr.Negated {
@@ -1916,14 +1938,14 @@ func outputVarsForExpr(expr *Expr, arity func(Ref) int, safe VarSet) VarSet {
 	terms := expr.Terms.([]*Term)
 	name := terms[0].String()
 
-	if b := BuiltinMap[name]; b != nil {
+	if b := builtins[name]; b != nil {
 		if b.Name == Equality.Name {
 			return outputVarsForExprEq(expr, safe)
 		}
 		return outputVarsForExprBuiltin(expr, b, safe)
 	}
 
-	return outputVarsForExprCall(expr, arity, safe, terms)
+	return outputVarsForExprCall(expr, builtins, arity, safe, terms)
 }
 
 func outputVarsForExprBuiltin(expr *Expr, b *Builtin, safe VarSet) VarSet {
@@ -1976,7 +1998,7 @@ func outputVarsForExprEq(expr *Expr, safe VarSet) VarSet {
 	return output.Diff(safe)
 }
 
-func outputVarsForExprCall(expr *Expr, arity func(Ref) int, safe VarSet, terms []*Term) VarSet {
+func outputVarsForExprCall(expr *Expr, builtins map[string]*Builtin, arity func(Ref) int, safe VarSet, terms []*Term) VarSet {
 
 	output := outputVarsForExprRefs(expr, safe)
 
