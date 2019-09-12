@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/open-policy-agent/opa/metrics"
+	"github.com/open-policy-agent/opa/types"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/util/test"
 )
@@ -2573,6 +2574,63 @@ r3 = 3`,
 		})
 	}
 
+}
+
+func TestCompileCustomBuiltins(t *testing.T) {
+
+	compiler := NewCompiler().WithBuiltins(map[string]*Builtin{
+		"baz": &Builtin{
+			Name: "baz",
+			Decl: types.NewFunction([]types.Type{types.S}, types.A),
+		},
+		"foo.bar": &Builtin{
+			Name: "foo.bar",
+			Decl: types.NewFunction([]types.Type{types.S}, types.A),
+		},
+	})
+
+	compiler.Compile(map[string]*Module{
+		"test.rego": MustParseModule(`
+			package test
+
+			p { baz("x") = x }
+			q { foo.bar("x") = x }
+		`),
+	})
+
+	// Ensure no type errors occur.
+	if compiler.Failed() {
+		t.Fatal("Unexpected compilation error:", compiler.Errors)
+	}
+
+	_, err := compiler.QueryCompiler().Compile(MustParseBody(`baz("x") = x; foo.bar("x") = x`))
+	if err != nil {
+		t.Fatal("Unexpected compilation error:", err)
+	}
+
+	// Ensure type errors occur.
+	exp1 := `rego_type_error: baz: invalid argument(s)`
+	exp2 := `rego_type_error: foo.bar: invalid argument(s)`
+
+	_, err = compiler.QueryCompiler().Compile(MustParseBody(`baz(1) = x; foo.bar(1) = x`))
+	if err == nil {
+		t.Fatal("Expected compilation error")
+	} else if !strings.Contains(err.Error(), exp1) {
+		t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", exp1, err)
+	} else if !strings.Contains(err.Error(), exp2) {
+		t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", exp2, err)
+	}
+
+	compiler.Compile(map[string]*Module{
+		"test.rego": MustParseModule(`
+			package test
+
+			p { baz(1) = x }  # type error
+			q { foo.bar(1) = x }  # type error
+		`),
+	})
+
+	assertCompilerErrorStrings(t, compiler, []string{exp1, exp2})
 }
 
 func TestCompilerLazyLoadingError(t *testing.T) {

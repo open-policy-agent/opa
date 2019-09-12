@@ -266,7 +266,7 @@ func TestCheckInference(t *testing.T) {
 		test.Subtest(t, tc.note, func(t *testing.T) {
 			body := MustParseBody(tc.query)
 			checker := newTypeChecker()
-			env := checker.checkLanguageBuiltins()
+			env := checker.checkLanguageBuiltins(nil, BuiltinMap)
 			env, err := checker.CheckBody(env, body)
 			if len(err) != 0 {
 				t.Fatalf("Unexpected error: %v", err)
@@ -508,7 +508,7 @@ func TestCheckErrorSuppression(t *testing.T) {
 
 	query = `_ = [true | count(1)]`
 
-	_, errs = newTypeChecker().CheckBody(newTypeChecker().checkLanguageBuiltins(), MustParseBody(query))
+	_, errs = newTypeChecker().CheckBody(newTypeChecker().checkLanguageBuiltins(nil, BuiltinMap), MustParseBody(query))
 	if len(errs) != 1 {
 		t.Fatalf("Expected exactly one error but got: %v", errs)
 	}
@@ -537,7 +537,7 @@ func TestCheckBadCardinality(t *testing.T) {
 	for _, test := range tests {
 		body := MustParseBody(test.body)
 		tc := newTypeChecker()
-		env := tc.checkLanguageBuiltins()
+		env := tc.checkLanguageBuiltins(nil, BuiltinMap)
 		_, err := tc.CheckBody(env, body)
 		if len(err) != 1 || err[0].Code != TypeErr {
 			t.Fatalf("Expected 1 type error from %v but got: %v", body, err)
@@ -938,7 +938,7 @@ func TestFunctionTypeInferenceUnappliedWithObjectVarKey(t *testing.T) {
 		f(x) = y { y = {x: 1} }
 	`)
 
-	env, err := newTypeChecker().CheckTypes(newTypeChecker().checkLanguageBuiltins(), []util.T{
+	env, err := newTypeChecker().CheckTypes(newTypeChecker().checkLanguageBuiltins(nil, BuiltinMap), []util.T{
 		module.Rules[0],
 	})
 
@@ -1077,7 +1077,7 @@ func newTestEnv(rs []string) *TypeEnv {
 		}
 	}
 
-	env, err := newTypeChecker().CheckTypes(newTypeChecker().checkLanguageBuiltins(), elems)
+	env, err := newTypeChecker().CheckTypes(newTypeChecker().checkLanguageBuiltins(nil, BuiltinMap), elems)
 	if len(err) > 0 {
 		panic(err)
 	}
