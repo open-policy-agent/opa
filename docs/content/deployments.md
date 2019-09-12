@@ -1,7 +1,7 @@
 ---
 title: Deployment
 kind: operations
-weight: 1
+weight: 20
 ---
 
 This document helps you get OPA up and running in different deployment

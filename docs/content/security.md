@@ -1,7 +1,7 @@
 ---
 title: Security
 kind: operations
-weight: 14
+weight: 40
 ---
 
 This document provides guidelines for deploying OPA inside untrusted
