@@ -46,6 +46,7 @@ type eval struct {
 	targetStack     *refStack
 	tracers         []Tracer
 	instr           *Instrumentation
+	builtins        map[string]*Builtin
 	builtinCache    builtins.Cache
 	virtualCache    *virtualCache
 	saveSet         *saveSet
@@ -65,6 +66,22 @@ func (e *eval) Run(iter evalIterator) error {
 		e.traceRedo(e.query)
 		return err
 	})
+}
+
+func (e *eval) builtinFunc(name string) (*ast.Builtin, BuiltinFunc, bool) {
+	decl, ok := ast.BuiltinMap[name]
+	if !ok {
+		bi, ok := e.builtins[name]
+		if ok {
+			return bi.Decl, bi.Func, true
+		}
+	} else {
+		f, ok := builtinFunctions[name]
+		if ok {
+			return decl, f, true
+		}
+	}
+	return nil, nil, false
 }
 
 func (e *eval) closure(query ast.Body) *eval {
@@ -508,8 +525,8 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 		return eval.eval(iter)
 	}
 
-	bi := ast.BuiltinMap[ref.String()]
-	if bi == nil {
+	bi, f, ok := e.builtinFunc(ref.String())
+	if !ok {
 		return unsupportedBuiltinErr(e.query[e.index].Location)
 	}
 
@@ -537,17 +554,13 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 		}
 	}
 
-	f := builtinFunctions[bi.Name]
-	if f == nil {
-		return unsupportedBuiltinErr(e.query[e.index].Location)
-	}
-
 	var parentID uint64
 	if e.parent != nil {
 		parentID = e.parent.queryID
 	}
 
 	bctx := BuiltinContext{
+		Context:  e.ctx,
 		Runtime:  e.runtime,
 		Cache:    e.builtinCache,
 		Location: e.query[e.index].Location,

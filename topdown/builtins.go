@@ -5,6 +5,7 @@
 package topdown
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -12,55 +13,28 @@ import (
 )
 
 type (
-	// FunctionalBuiltin1 defines an interface for simple functional built-ins.
-	//
-	// Implement this interface if your built-in function takes one input and
-	// produces one output.
-	//
-	// If an error occurs, the functional built-in should return a descriptive
-	// message. The message should not be prefixed with the built-in name as the
-	// framework takes care of this.
+	// FunctionalBuiltin1 is deprecated. Use BuiltinFunc instead.
 	FunctionalBuiltin1 func(op1 ast.Value) (output ast.Value, err error)
 
-	// FunctionalBuiltin2 defines an interface for simple functional built-ins.
-	//
-	// Implement this interface if your built-in function takes two inputs and
-	// produces one output.
-	//
-	// If an error occurs, the functional built-in should return a descriptive
-	// message. The message should not be prefixed with the built-in name as the
-	// framework takes care of this.
+	// FunctionalBuiltin2 is deprecated. Use BuiltinFunc instead.
 	FunctionalBuiltin2 func(op1, op2 ast.Value) (output ast.Value, err error)
 
-	// FunctionalBuiltin3 defines an interface for simple functional built-ins.
-	//
-	// Implement this interface if your built-in function takes three inputs and
-	// produces one output.
-	//
-	// If an error occurs, the functional built-in should return a descriptive
-	// message. The message should not be prefixed with the built-in name as the
-	// framework takes care of this.
+	// FunctionalBuiltin3 is deprecated. Use BuiltinFunc instead.
 	FunctionalBuiltin3 func(op1, op2, op3 ast.Value) (output ast.Value, err error)
 
-	// FunctionalBuiltin4 defines an interface for simple functional built-ins.
-	//
-	// Implement this interface if your built-in function takes four inputs and
-	// produces one output.
-	//
-	// If an error occurs, the functional built-in should return a descriptive
-	// message. The message should not be prefixed with the built-in name as the
-	// framework takes care of this.
+	// FunctionalBuiltin4 is deprecated. Use BuiltinFunc instead.
 	FunctionalBuiltin4 func(op1, op2, op3, op4 ast.Value) (output ast.Value, err error)
 
 	// BuiltinContext contains context from the evaluator that may be used by
 	// built-in functions.
 	BuiltinContext struct {
-		Runtime  *ast.Term      // runtime information on the OPA instance
-		Cache    builtins.Cache // built-in function state cache
-		Location *ast.Location  // location of built-in call
-		Tracers  []Tracer       // tracer objects for trace() built-in function
-		QueryID  uint64         // identifies query being evaluated
-		ParentID uint64         // identifies parent of query being evaluated
+		Context  context.Context // request context that was passed when query started
+		Runtime  *ast.Term       // runtime information on the OPA instance
+		Cache    builtins.Cache  // built-in function state cache
+		Location *ast.Location   // location of built-in call
+		Tracers  []Tracer        // tracer objects for trace() built-in function
+		QueryID  uint64          // identifies query being evaluated
+		ParentID uint64          // identifies parent of query being evaluated
 	}
 
 	// BuiltinFunc defines an interface for implementing built-in functions.
@@ -76,32 +50,27 @@ func RegisterBuiltinFunc(name string, f BuiltinFunc) {
 	builtinFunctions[name] = f
 }
 
-// RegisterFunctionalBuiltin1 adds a new built-in function to the evaluation
-// engine.
+// RegisterFunctionalBuiltin1 is deprecated use RegisterBuiltinFunc instead.
 func RegisterFunctionalBuiltin1(name string, fun FunctionalBuiltin1) {
 	builtinFunctions[name] = functionalWrapper1(name, fun)
 }
 
-// RegisterFunctionalBuiltin2 adds a new built-in function to the evaluation
-// engine.
+// RegisterFunctionalBuiltin2 is deprecated use RegisterBuiltinFunc instead.
 func RegisterFunctionalBuiltin2(name string, fun FunctionalBuiltin2) {
 	builtinFunctions[name] = functionalWrapper2(name, fun)
 }
 
-// RegisterFunctionalBuiltin3 adds a new built-in function to the evaluation
-// engine.
+// RegisterFunctionalBuiltin3 is deprecated use RegisterBuiltinFunc instead.
 func RegisterFunctionalBuiltin3(name string, fun FunctionalBuiltin3) {
 	builtinFunctions[name] = functionalWrapper3(name, fun)
 }
 
-// RegisterFunctionalBuiltin4 adds a new built-in function to the evaluation
-// engine.
+// RegisterFunctionalBuiltin4 is deprecated use RegisterBuiltinFunc instead.
 func RegisterFunctionalBuiltin4(name string, fun FunctionalBuiltin4) {
 	builtinFunctions[name] = functionalWrapper4(name, fun)
 }
 
-// BuiltinEmpty is used to signal that the built-in function evaluated, but the
-// result is undefined so evaluation should not continue.
+// BuiltinEmpty is deprecated.
 type BuiltinEmpty struct{}
 
 func (BuiltinEmpty) Error() string {

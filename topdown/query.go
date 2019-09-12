@@ -34,6 +34,13 @@ type Query struct {
 	disableInlining  []ast.Ref
 	genvarprefix     string
 	runtime          *ast.Term
+	builtins         map[string]*Builtin
+}
+
+// Builtin represents a built-in function that queries can call.
+type Builtin struct {
+	Decl *ast.Builtin
+	Func BuiltinFunc
 }
 
 // NewQuery returns a new Query object that can be run.
@@ -128,6 +135,13 @@ func (q *Query) WithRuntime(runtime *ast.Term) *Query {
 	return q
 }
 
+// WithBuiltins adds a set of built-in functions that can be called by the
+// query.
+func (q *Query) WithBuiltins(builtins map[string]*Builtin) *Query {
+	q.builtins = builtins
+	return q
+}
+
 // PartialRun executes partial evaluation on the query with respect to unknown
 // values. Partial evaluation attempts to evaluate as much of the query as
 // possible without requiring values for the unknowns set on the query. The
@@ -156,6 +170,7 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 		input:           q.input,
 		tracers:         q.tracers,
 		instr:           q.instr,
+		builtins:        q.builtins,
 		builtinCache:    builtins.Cache{},
 		virtualCache:    newVirtualCache(),
 		saveSet:         newSaveSet(q.unknowns, b, q.instr),
@@ -244,6 +259,7 @@ func (q *Query) Iter(ctx context.Context, iter func(QueryResult) error) error {
 		input:        q.input,
 		tracers:      q.tracers,
 		instr:        q.instr,
+		builtins:     q.builtins,
 		builtinCache: builtins.Cache{},
 		virtualCache: newVirtualCache(),
 		genvarprefix: q.genvarprefix,
