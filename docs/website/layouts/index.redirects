@@ -7,6 +7,7 @@
 
 # v0.14.0 re-org redirects
 # TODO: Remove at some point in the future when its more ok to break old links en-mass
+/docs/latest/get-started                            /docs/latest/
 /docs/latest/how-does-opa-work/                     /docs/latest/#how-does-opa-work
 /docs/latest/how-do-i-write-policies/               /docs/latest/policy-language/
 /docs/latest/how-do-i-test-policies/                /docs/latest/policy-testing/
