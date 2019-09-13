@@ -549,6 +549,26 @@ func TestUnknownJSON(t *testing.T) {
 	}
 }
 
+func TestUnknownInvalid(t *testing.T) {
+	ctx := context.Background()
+	store := inmem.New()
+	var buffer bytes.Buffer
+	repl := newRepl(store, &buffer)
+
+	err := repl.OneShot(ctx, "unknown x-1")
+	if err == nil || !strings.Contains(err.Error(), "usage: unknown <input/data reference>") {
+		t.Fatal("expected error from setting bad unknown but got:", err)
+	}
+
+	// Ensure that partial evaluation has not been enabled.
+	buffer.Reset()
+	repl.OneShot(ctx, "1+2")
+	result := strings.TrimSpace(buffer.String())
+	if result != "3" {
+		t.Fatal("want true but got:", result)
+	}
+}
+
 func TestUnset(t *testing.T) {
 	ctx := context.Background()
 	store := inmem.New()
