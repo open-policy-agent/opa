@@ -118,6 +118,9 @@ recommend using an explicit version tag.
 Development builds are also available on Docker Hub. For each version the
 `{version}-dev` tag refers the most recent development build for that version.
 
+The `edge` tag refers to the current `master` branch of OPA. Useful for testing
+unreleased features. It is not recommended to use `edge` for production deployments.
+
 The version information is contained in the OPA executable itself. You can check
 the version with the following command:
 
