@@ -482,18 +482,27 @@ func (r *REPL) cmdTypes() error {
 	return nil
 }
 
+var errUnknownUsage = fmt.Errorf("usage: unknown <input/data reference> [<input/data reference> [...]] (hint: try 'input')")
+
 func (r *REPL) cmdUnknown(s []string) error {
+
 	if len(s) == 0 && len(r.unknowns) == 0 {
-		return fmt.Errorf("usage: unknown <unknown-1> [<unknown-2> [...]] (hint: try just 'input')")
+		return errUnknownUsage
 	}
-	r.unknowns = make([]*ast.Term, len(s))
-	for i := range r.unknowns {
+
+	unknowns := make([]*ast.Term, len(s))
+
+	for i := range unknowns {
+
 		ref, err := ast.ParseRef(s[i])
 		if err != nil {
-			return err
+			return errUnknownUsage
 		}
-		r.unknowns[i] = ast.NewTerm(ref)
+
+		unknowns[i] = ast.NewTerm(ref)
 	}
+
+	r.unknowns = unknowns
 	return nil
 }
 
