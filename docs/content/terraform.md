@@ -61,6 +61,7 @@ resource "aws_launch_configuration" "my_web_config" {
     image_id = "ami-09b4b74c"
     instance_type = "t2.micro"
 }
+EOF
 ```
 
 Then initialize Terraform and ask it to calculate what changes it will make and store the output in `plan.binary`.
@@ -551,7 +552,7 @@ To evaluate the policy against that plan, you hand OPA the policy, the Terraform
 ask it to evaluate `data.terraform.analysis.authz`.
 
 ```shell
-opa eval --data terraform.rego --input tfplan.json "data.terraform.analysis.authz"
+opa eval --format pretty --data terraform.rego --input tfplan.json "data.terraform.analysis.authz"
 ```
 ```live:terraform/authz:query:hidden
 data.terraform.analysis.authz
@@ -564,7 +565,7 @@ If you're curious, you can ask for the score that the policy used to make the au
 In our example, it is 11 (10 for the creation of the auto-scaling group and 1 for the creation of the server).
 
 ```shell
-opa eval --data terraform.rego --input tfplan.json "data.terraform.analysis.score"
+opa eval --format pretty --data terraform.rego --input tfplan.json "data.terraform.analysis.score"
 ```
 
 ```live:terraform/score:query:hidden
