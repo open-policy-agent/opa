@@ -387,7 +387,9 @@ func insertValue(b *Bundle, path string, value interface{}) error {
 	// Remove leading / and . characters from the directory path. If the bundle
 	// was written with OPA then the paths will contain a leading slash. On the
 	// other hand, if the path is empty, filepath.Dir will return '.'.
-	dirpath := strings.TrimLeft(filepath.Dir(path), "/.")
+	// Note: filepath.Dir can return paths with '\' separators, always use
+	// filepath.ToSlash to keep them normalized.
+	dirpath := strings.TrimLeft(filepath.ToSlash(filepath.Dir(path)), "/.")
 	var key []string
 	if dirpath != "" {
 		key = strings.Split(dirpath, "/")
