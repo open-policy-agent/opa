@@ -13,11 +13,9 @@
 /docs/latest/how-do-i-test-policies/                /docs/latest/policy-testing/
 /docs/latest/language-reference/                    /docs/latest/policy-reference/
 /docs/latest/language-cheatsheet/                   /docs/latest/edge/policy-cheatsheet/
-/docs/latest/configuration/                         /docs/latest/management/#configuration-reference
 /docs/latest/bundles/                               /docs/latest/management/#bundles
 /docs/latest/status/                                /docs/latest/management/#status
 /docs/latest/decision-logs/                         /docs/latest/management/#decision-logs
-/docs/latest/monitoring/                            /docs/latest/management/#monitoring
 /docs/latest/discovery/                             /docs/latest/management/#discovery
 /docs/latest/kubernetes-admission-control/          /docs/latest/kubernetes-tutorial/
 
