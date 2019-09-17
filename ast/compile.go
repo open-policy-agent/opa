@@ -247,6 +247,7 @@ func NewCompiler() *Compiler {
 		{"RewriteRefsInHead", "compile_stage_rewrite_refs_in_head", c.rewriteRefsInHead},
 		{"RewriteWithValues", "compile_stage_rewrite_with_values", c.rewriteWithModifiers},
 		{"CheckRuleConflicts", "compile_stage_check_rule_conflicts", c.checkRuleConflicts},
+		{"CheckUndefinedFuncs", "compile_stage_check_undefined_funcs", c.checkUndefinedFuncs},
 		{"CheckSafetyRuleHeads", "compile_stage_check_safety_rule_heads", c.checkSafetyRuleHeads},
 		{"CheckSafetyRuleBodies", "compile_stage_check_safety_rule_bodies", c.checkSafetyRuleBodies},
 		{"RewriteEquals", "compile_stage_rewrite_equals", c.rewriteEquals},
@@ -715,6 +716,34 @@ func (c *Compiler) checkRuleConflicts() {
 		}
 		return false
 	})
+}
+
+func (c *Compiler) checkUndefinedFuncs() {
+	for _, name := range c.sorted {
+		m := c.Modules[name]
+		for _, err := range checkUndefinedFuncs(m, c.GetArity) {
+			c.err(err)
+		}
+	}
+}
+
+func checkUndefinedFuncs(x interface{}, arity func(Ref) int) Errors {
+
+	var errs Errors
+
+	WalkExprs(x, func(expr *Expr) bool {
+		if !expr.IsCall() {
+			return false
+		}
+		ref := expr.Operator()
+		if arity(ref) >= 0 {
+			return false
+		}
+		errs = append(errs, NewError(TypeErr, expr.Loc(), "undefined function %v", ref))
+		return true
+	})
+
+	return errs
 }
 
 // checkSafetyRuleBodies ensures that variables appearing in negated expressions or non-target
@@ -1205,6 +1234,7 @@ func (qc *queryCompiler) Compile(query Body) (Body, error) {
 		{"RewriteExprTerms", "query_compile_stage_rewrite_expr_terms", qc.rewriteExprTerms},
 		{"RewriteComprehensionTerms", "query_compile_stage_rewrite_comprehension_terms", qc.rewriteComprehensionTerms},
 		{"RewriteWithValues", "query_compile_stage_rewrite_with_values", qc.rewriteWithModifiers},
+		{"CheckUndefinedFuncs", "query_compile_stage_check_undefined_funcs", qc.checkUndefinedFuncs},
 		{"CheckSafety", "query_compile_stage_check_safety", qc.checkSafety},
 		{"RewriteDynamicTerms", "query_compile_stage_rewrite_dynamic_terms", qc.rewriteDynamicTerms},
 		{"CheckTypes", "query_compile_stage_check_types", qc.checkTypes},
@@ -1298,6 +1328,13 @@ func (qc *queryCompiler) rewriteLocalVars(_ *QueryContext, body Body) (Body, err
 		if Compare(k, v) != 0 {
 			qc.rewritten[v] = k
 		}
+	}
+	return body, nil
+}
+
+func (qc *queryCompiler) checkUndefinedFuncs(_ *QueryContext, body Body) (Body, error) {
+	if errs := checkUndefinedFuncs(body, qc.compiler.GetArity); len(errs) > 0 {
+		return nil, errs
 	}
 	return body, nil
 }
