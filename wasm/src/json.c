@@ -1,4 +1,3 @@
-#include "malloc.h"
 #include "string.h"
 #include "value.h"
 #include "json.h"

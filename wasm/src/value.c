@@ -645,6 +645,7 @@ opa_value *opa_object()
 {
     opa_object_t *ret = (opa_object_t *)opa_malloc(sizeof(opa_object_t));
     ret->hdr.type = OPA_OBJECT;
+    ret->head = NULL;
     return &ret->hdr;
 }
 
@@ -652,6 +653,7 @@ opa_value *opa_set()
 {
     opa_set_t *ret = (opa_set_t *)opa_malloc(sizeof(opa_set_t));
     ret->hdr.type = OPA_SET;
+    ret->head = NULL;
     return &ret->hdr;
 }
 
