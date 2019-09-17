@@ -433,7 +433,6 @@ func TestCompilerCheckSafetyBodyReordering(t *testing.T) {
 		contains(x, "oo")
 	`},
 		{"userfunc", `split(y, ".", z); data.a.b.funcs.fn("...foo.bar..", y)`, `data.a.b.funcs.fn("...foo.bar..", y); split(y, ".", z)`},
-		{"call-vars", `data.f.g[i](1); i = "foo"`, `i = "foo"; data.f.g[i](1)`},
 	}
 
 	for i, tc := range tests {
@@ -544,7 +543,6 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 		{"with-value-2", `p { x = data.a.b.d.t with input as x }`, `{x,}`},
 		{"else-kw", "p { false } else { count(x, 1) }", `{x,}`},
 		{"function", "foo(x) = [y, z] { split(x, y, z) }", `{y,z}`},
-		{"call-vars", "p { f[i].g[j](1) }", `{i, j}`},
 		{"call-vars-input", "p { f(x, x) } f(x) = x { true }", `{x,}`},
 		{"call-no-output", "p { f(x) } f(x) = x { true }", `{x,}`},
 		{"call-too-few", "p { f(1,x) } f(x,y) { true }", "{x,}"},
@@ -699,6 +697,52 @@ p2 := 2`})
 	}
 
 	assertCompilerErrorStrings(t, c, expected)
+}
+
+func TestCompilerCheckUndefinedFuncs(t *testing.T) {
+
+	module := `
+		package test
+
+		undefined_function {
+			data.deadbeef(x)
+		}
+
+		undefined_global {
+			deadbeef(x)
+		}
+
+		undefined_dynamic_dispatch {
+			x = "f"; data.test2[x](1)  # not currently supported
+		}
+	`
+
+	module2 := `
+		package test2
+
+		f(x) = x
+	`
+
+	_, err := CompileModules(map[string]string{
+		"test.rego":  module,
+		"test2.rego": module2,
+	})
+	if err == nil {
+		t.Fatal("expected errors")
+	}
+
+	result := err.Error()
+	want := []string{
+		"rego_type_error: undefined function data.deadbeef",
+		"rego_type_error: undefined function deadbeef",
+		"rego_type_error: undefined function data.test2[x]",
+	}
+
+	for _, w := range want {
+		if !strings.Contains(result, w) {
+			t.Fatalf("Expected %q in result but got: %v", w, result)
+		}
+	}
 }
 
 func TestCompilerImportsResolved(t *testing.T) {
@@ -2887,6 +2931,11 @@ func TestQueryCompiler(t *testing.T) {
 			pkg:      "",
 			imports:  nil,
 			expected: fmt.Errorf("match error\n\tleft  : number\n\tright : null"),
+		},
+		{
+			note:     "undefined function",
+			q:        "data.deadbeef(x)",
+			expected: fmt.Errorf("rego_type_error: undefined function data.deadbeef"),
 		},
 	}
 	for _, tc := range tests {
