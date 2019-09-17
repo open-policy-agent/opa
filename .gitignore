@@ -15,6 +15,7 @@ site.tar.gz
 policy.wasm
 .npm
 .gitbook
+.go
 
 # ci artifacts
 fuzzit
