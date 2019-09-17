@@ -1,5 +1,6 @@
 #include "string.h"
 #include "json.h"
+#include "malloc.h"
 
 void opa_test_fail(const char *note, const char *func, const char *file, int line);
 void opa_test_pass(const char *note, const char *func);
@@ -19,6 +20,25 @@ void opa_test_pass(const char *note, const char *func);
     {                                                      \
         opa_test_pass(note, __func__);                     \
     }
+
+void test_opa_malloc()
+{
+    // NOTE(tsandall): These numbers are not particularly important. They're
+    // sized to cause opa_malloc to call grow.memory. The tester initializes
+    // memory with 2 pages so we allocate ~4 pages of memory here.
+    const int N = 256;
+    const int S = 1024;
+
+    for(int i = 0; i < N; i++)
+    {
+        char *buf = opa_malloc(S);
+
+        for(int x = 0; x < S; x++)
+        {
+            buf[x] = x % 255;
+        }
+    }
+}
 
 void test_opa_strlen()
 {

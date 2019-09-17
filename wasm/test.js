@@ -1,7 +1,7 @@
 const { readFileSync } = require('fs');
 
 function stringDecoder(mem) {
-    return function(addr) {
+    return function (addr) {
         const i8 = new Int8Array(mem.buffer);
         const start = addr;
         var s = "";
@@ -24,9 +24,8 @@ function yellow(text) {
     return '\x1b[0m\x1b[33m' + text + '\x1b[0m';
 }
 
-function namespace(cache, func, note)
-{
-    let key = func+note;
+function namespace(cache, func, note) {
+    let key = func + note;
     if (key in cache) {
         cache[key] += 1;
         note = note + ' (' + cache[key] + ')'
@@ -50,7 +49,7 @@ function report(passed, error, msg) {
 
 async function test(executable) {
 
-    const mem = new WebAssembly.Memory({initial: 5});
+    const mem = new WebAssembly.Memory({ initial: 2 });
     const addr2string = stringDecoder(mem);
 
     let cache = {};
@@ -90,11 +89,10 @@ async function test(executable) {
         if (key.startsWith("test_")) {
             try {
                 module.instance.exports[key]();
-                if (!(key in seenFuncs))
-                {
+                if (!(key in seenFuncs)) {
                     report(true, undefined, key);
                 }
-            } catch(e) {
+            } catch (e) {
                 report(false, e, key)
             }
         }
