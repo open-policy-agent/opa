@@ -123,6 +123,9 @@ async function test() {
                 opa_abort: function (addr) {
                     throw addr2string(addr);
                 },
+                opa_println: function (addr) {
+                    console.log(addr2string(addr));
+                },
             },
         });
 
