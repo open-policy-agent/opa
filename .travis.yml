@@ -1,5 +1,5 @@
 sudo: required
-script: make travis-all
+script: make travis
 install:
   # AWS CLI is required for pushing the edge binaries to S3.
   - pip install --user awscli

@@ -38,8 +38,7 @@ export GO15VENDOREXPERIMENT
 #
 ######################################################
 
-# If you update the 'all' target check/update the call in Dockerfile.build target
-# to make sure they're consistent.
+# If you update the 'all' target make sure the 'travis' target is consistent.
 .PHONY: all
 all: build test perf check
 
@@ -48,7 +47,7 @@ version:
 	@echo $(VERSION)
 
 .PHONY: generate
-generate: wasm-build
+generate: wasm-lib-build
 	$(GO) generate
 
 .PHONY: build
@@ -63,7 +62,7 @@ install: generate
 	$(GO) install -ldflags $(LDFLAGS)
 
 .PHONY: test
-test: wasm-test go-test wasm-rego-test
+test: go-test wasm-test
 
 .PHONY: go-build
 go-build: generate
@@ -72,40 +71,6 @@ go-build: generate
 .PHONY: go-test
 go-test: generate
 	$(GO) test ./...
-
-.PHONY: wasm-build
-wasm-build:
-ifeq ($(DOCKER_INSTALLED), 1)
-	@$(MAKE) -C wasm build
-	cp wasm/_obj/opa.wasm internal/compiler/wasm/opa/opa.wasm
-else
-	@echo "Docker not installed. Skipping OPA-WASM library build."
-endif
-
-.PHONY: wasm-clean
-wasm-clean:
-	@$(MAKE) -C wasm clean
-
-.PHONY: wasm-test
-wasm-test:
-ifeq ($(DOCKER_INSTALLED), 1)
-	@$(MAKE) -C wasm test
-else
-	@echo "Docker not installed. Skipping OPA-WASM library test."
-endif
-
-.PHONY: wasm-test
-wasm-rego-test: _test/testcases.tar.gz
-ifeq ($(DOCKER_INSTALLED), 1)
-	@./build/run-wasm-tests.sh
-else
-	@echo "Docker not installed. Skipping WASM-based test execution."
-endif
-
-_test/testcases.tar.gz: $(shell find ./test/wasm/ -type f)
-	go run test/wasm/cmd/testgen.go \
-		--input-dir test/wasm/assets \
-		--output $@
 
 .PHONY: perf
 perf: generate
@@ -131,9 +96,14 @@ fmt:
 	./build/run-fmt.sh
 
 .PHONY: clean
-clean: wasm-clean
+clean: wasm-lib-clean
 	rm -f opa_*_*
-	rm -fr _test
+
+######################################################
+#
+# Documentation targets
+#
+######################################################
 
 # The docs-% pattern target will shim to the
 # makefile in ./docs
@@ -143,25 +113,72 @@ docs-%:
 
 ######################################################
 #
+# Wasm targets
+#
+######################################################
+
+.PHONY: wasm-test
+wasm-test: wasm-lib-test wasm-rego-test
+
+.PHONY: wasm-lib-build
+wasm-lib-build:
+ifeq ($(DOCKER_INSTALLED), 1)
+	@$(MAKE) -C wasm build
+	cp wasm/_obj/opa.wasm internal/compiler/wasm/opa/opa.wasm
+else
+	@echo "Docker not installed. Skipping OPA-WASM library build."
+endif
+
+.PHONY: wasm-lib-test
+wasm-lib-test:
+ifeq ($(DOCKER_INSTALLED), 1)
+	@$(MAKE) -C wasm test
+else
+	@echo "Docker not installed. Skipping OPA-WASM library test."
+endif
+
+.PHONY: wasm-rego-test
+wasm-rego-test: generate
+ifeq ($(DOCKER_INSTALLED), 1)
+	GOVERSION=$(GOVERSION) ./build/run-wasm-rego-tests.sh
+else
+	@echo "Docker not installed. Skipping Rego-WASM test."
+endif
+
+.PHONY: wasm-lib-clean
+wasm-lib-clean:
+	@$(MAKE) -C wasm clean
+
+.PHONY: wasm-rego-testgen-install
+wasm-rego-testgen-install:
+	$(GO) install -i ./test/wasm/cmd/wasm-rego-testgen
+
+######################################################
+#
 # CI targets
 #
 ######################################################
 
-.PHONY: travis-build
-travis-build: wasm-build
-	@# this image is used in `Dockerfile` for image-quick
-	$(DOCKER) build -t build-$(BUILD_COMMIT) --build-arg GOVERSION=$(GOVERSION) -f Dockerfile.build .
-	@# the '/.' means "don't create the directory, copy its content only"
-	@# these are copied our to be used from the s3 upload targets
-	@# note: we don't bother cleaning up the container created here
-	$(DOCKER) cp "$$($(DOCKER) create build-$(BUILD_COMMIT)):/out/." .
+.PHONY: travis-go
+travis-go:
+	$(DOCKER) run \
+		--rm \
+		-u $(shell id -u):$(shell id -g) \
+		-v $(PWD):/src \
+		-w /src \
+		-e GOCACHE=/src/.go/cache \
+		golang:$(GOVERSION) \
+		make build-linux build-windows build-darwin go-test perf check
 
-.PHONY: travis-test
-travis-test: travis-build wasm-test wasm-rego-test
-	$(DOCKER) run build-$(BUILD_COMMIT) make go-test perf check
+# The travis-wasm target exists because we do not want to run the generate
+# target outside of Docker. This step duplicates the the wasm-rego-test target
+# above.
+.PHONY: travis-wasm
+travis-wasm: wasm-lib-test
+	GOVERSION=$(GOVERSION) ./build/run-wasm-rego-tests.sh
 
-.PHONY: travis-all
-travis-all: travis-test docker-fuzzit-local-regression
+.PHONY: travis
+travis: travis-go travis-wasm docker-fuzzit-local-regression
 
 .PHONY: build-linux
 build-linux:
@@ -178,9 +195,9 @@ build-windows:
 
 .PHONY: image-quick
 image-quick:
-	$(DOCKER) build --build-arg BUILD_COMMIT=$(BUILD_COMMIT) -t $(IMAGE):$(VERSION) .
-	$(DOCKER) build --build-arg BUILD_COMMIT=$(BUILD_COMMIT) -t $(IMAGE):$(VERSION)-debug --build-arg VARIANT=:debug .
-	$(DOCKER) build --build-arg BUILD_COMMIT=$(BUILD_COMMIT) -t $(IMAGE):$(VERSION)-rootless --build-arg USER=1 .
+	$(DOCKER) build -t $(IMAGE):$(VERSION) .
+	$(DOCKER) build -t $(IMAGE):$(VERSION)-debug --build-arg VARIANT=:debug .
+	$(DOCKER) build -t $(IMAGE):$(VERSION)-rootless --build-arg USER=1 .
 
 .PHONY: push
 push:

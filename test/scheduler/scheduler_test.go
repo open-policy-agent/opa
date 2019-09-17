@@ -6,7 +6,6 @@ package scheduler
 
 import (
 	"fmt"
-	"go/build"
 	"os"
 	"path/filepath"
 	"testing"
@@ -76,7 +75,7 @@ func loadDataStore(filename string) storage.Store {
 }
 
 func getFilename(filename string) string {
-	return filepath.Join(build.Default.GOPATH, path, filename)
+	return filepath.Join("testdata", filename)
 }
 
 const (
