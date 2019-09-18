@@ -12,3 +12,8 @@
 # Legacy git book redirects
 /docs/{{ . }}.html /docs/latest/{{ . }}
 {{- end }}
+
+# Download URLs
+/downloads/edge/*       https://opa-releases.s3.amazonaws.com/edge/:splat 200
+/downloads/latest/*     https://github.com/open-policy-agent/opa/releases/download/{{ $latest }}/:splat 200
+/downloads/*            https://github.com/open-policy-agent/opa/releases/download/:splat 200
