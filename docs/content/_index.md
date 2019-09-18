@@ -635,13 +635,13 @@ To get started download an OPA binary for your platform from GitHub releases:
 On macOS (64-bit):
 
 ```shell
-curl -L -o opa https://github.com/open-policy-agent/opa/releases/download/{{< current_version >}}/opa_darwin_amd64
+curl -L -o opa https://openpolicyagent.org/downloads/{{< current_version >}}/opa_darwin_amd64
 ```
 
 On Linux (64-bit):
 
 ```shell
-curl -L -o opa https://github.com/open-policy-agent/opa/releases/download/{{< current_version >}}/opa_linux_amd64
+curl -L -o opa https://openpolicyagent.org/downloads/{{< current_version >}}/opa_linux_amd64
 ```
 
 > Windows users can obtain the OPA executable from [GitHub
