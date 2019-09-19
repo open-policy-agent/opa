@@ -14,14 +14,16 @@ import (
 	"strings"
 
 	"github.com/ghodss/yaml"
+	"github.com/pkg/errors"
+
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/internal/file"
 	fileurl "github.com/open-policy-agent/opa/internal/file/url"
+	"github.com/open-policy-agent/opa/internal/merge"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/util"
-	"github.com/pkg/errors"
 )
 
 // Result represents the result of successfully loading zero or more files.
@@ -226,7 +228,7 @@ func (l *Result) mergeDocument(path string, doc interface{}) error {
 	if !ok {
 		return unsupportedDocumentType(path)
 	}
-	merged, ok := mergeInterfaces(l.Documents, obj)
+	merged, ok := merge.InterfaceMaps(l.Documents, obj)
 	if !ok {
 		return mergeError(path)
 	}

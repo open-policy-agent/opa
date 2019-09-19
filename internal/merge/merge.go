@@ -2,11 +2,11 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-package loader
+package merge
 
-// mergeInterfaces returns the result of merging a and b. If a and b cannot be
+// InterfaceMaps returns the result of merging a and b. If a and b cannot be
 // merged because of conflicting key-value pairs, ok is false.
-func mergeInterfaces(a map[string]interface{}, b map[string]interface{}) (c map[string]interface{}, ok bool) {
+func InterfaceMaps(a map[string]interface{}, b map[string]interface{}) (c map[string]interface{}, ok bool) {
 
 	c = map[string]interface{}{}
 	for k := range a {
@@ -28,7 +28,7 @@ func mergeInterfaces(a map[string]interface{}, b map[string]interface{}) (c map[
 			return nil, false
 		}
 
-		c[k], ok = mergeInterfaces(existObj, addObj)
+		c[k], ok = InterfaceMaps(existObj, addObj)
 		if !ok {
 			return nil, false
 		}
