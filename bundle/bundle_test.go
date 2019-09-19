@@ -11,9 +11,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/open-policy-agent/opa/internal/file/archive"
-
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/internal/file/archive"
 )
 
 func TestRead(t *testing.T) {
@@ -23,6 +22,7 @@ func TestRead(t *testing.T) {
 		{"/a/b/d/data.json", "true"},
 		{"/a/b/y/data.yaml", `foo: 1`},
 		{"/example/example.rego", `package example`},
+		{"/data.json", `{"x": {"y": true}, "a": {"b": {"z": true}}}}`},
 	}
 
 	buf := archive.MustWriteTarGz(files)
@@ -42,7 +42,11 @@ func TestRead(t *testing.T) {
 					"y": map[string]interface{}{
 						"foo": json.Number("1"),
 					},
+					"z": true,
 				},
+			},
+			"x": map[string]interface{}{
+				"y": true,
 			},
 		},
 		Modules: []ModuleFile{
@@ -55,7 +59,7 @@ func TestRead(t *testing.T) {
 	}
 
 	if !exp.Equal(bundle) {
-		t.Fatal("Exp:", exp, "\n\nGot:", bundle)
+		t.Fatal("\nExp:", exp, "\n\nGot:", bundle)
 	}
 }
 
@@ -216,6 +220,10 @@ func TestReadErrorBadContents(t *testing.T) {
 			{"a/b/c/data.json", "true"},
 		}},
 		{[][2]string{{"/test.rego", ""}}},
+		{[][2]string{
+			{"/a/b/data.json", `{"c": "foo"}`},
+			{"/data.json", `{"a": {"b": {"c": [123]}}}`},
+		}},
 	}
 	for _, test := range tests {
 		buf := archive.MustWriteTarGz(test.files)

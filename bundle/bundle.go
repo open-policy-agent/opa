@@ -18,11 +18,13 @@ import (
 	"strings"
 
 	"github.com/open-policy-agent/opa/internal/file/archive"
+	"github.com/open-policy-agent/opa/internal/merge"
+
+	"github.com/pkg/errors"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/internal/file"
 	"github.com/open-policy-agent/opa/util"
-	"github.com/pkg/errors"
 )
 
 // Common file extensions and file names.
@@ -327,38 +329,42 @@ func (b Bundle) Equal(other Bundle) bool {
 }
 
 func (b *Bundle) insert(key []string, value interface{}) error {
-	if len(key) == 0 {
-		obj, ok := value.(map[string]interface{})
-		if !ok {
-			return fmt.Errorf("root value must be object")
-		}
-		b.Data = obj
-		return nil
-	}
-
-	obj, err := b.mkdir(key[:len(key)-1])
+	// Build an object with the full structure for the value
+	obj, err := mktree(key, value)
 	if err != nil {
 		return err
 	}
 
-	obj[key[len(key)-1]] = value
+	// Merge the new data in with the current bundle data object
+	merged, ok := merge.InterfaceMaps(b.Data, obj)
+	if !ok {
+		return fmt.Errorf("failed to insert data file from path %s", filepath.Join(key...))
+	}
+
+	b.Data = merged
+
 	return nil
 }
 
-func (b *Bundle) mkdir(key []string) (map[string]interface{}, error) {
-	obj := b.Data
-	for i := 0; i < len(key); i++ {
-		node, ok := obj[key[i]]
+func mktree(path []string, value interface{}) (map[string]interface{}, error) {
+	if len(path) == 0 {
+		// For 0 length path the value is the full tree.
+		obj, ok := value.(map[string]interface{})
 		if !ok {
-			node = map[string]interface{}{}
-			obj[key[i]] = node
+			return nil, fmt.Errorf("root value must be object")
 		}
-		obj, ok = node.(map[string]interface{})
-		if !ok {
-			return nil, fmt.Errorf("non-leaf value must be object")
-		}
+		return obj, nil
 	}
-	return obj, nil
+
+	dir := map[string]interface{}{}
+	for i := len(path) - 1; i > 0; i-- {
+		dir[path[i]] = value
+		value = dir
+		dir = map[string]interface{}{}
+	}
+	dir[path[0]] = value
+
+	return dir, nil
 }
 
 // RootPathsOverlap takes in two bundle root paths and returns
