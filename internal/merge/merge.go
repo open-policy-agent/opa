@@ -2,6 +2,8 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
+// Package merge contains helpers to merge data structures
+// frequently encountered in OPA.
 package merge
 
 // InterfaceMaps returns the result of merging a and b. If a and b cannot be
