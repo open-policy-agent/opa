@@ -2,7 +2,7 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-package loader
+package merge
 
 import (
 	"reflect"
@@ -38,7 +38,7 @@ func TestMergeDocs(t *testing.T) {
 
 		if len(tc.c) == 0 {
 
-			c, ok := mergeInterfaces(a, b)
+			c, ok := InterfaceMaps(a, b)
 			if ok {
 				t.Errorf("Expected merge(%v,%v) == false but got: %v", a, b, c)
 			}
@@ -50,7 +50,7 @@ func TestMergeDocs(t *testing.T) {
 				panic(err)
 			}
 
-			c, ok := mergeInterfaces(a, b)
+			c, ok := InterfaceMaps(a, b)
 			if !ok || !reflect.DeepEqual(c, expected) {
 				t.Errorf("Expected merge(%v, %v) == %v but got: %v (ok: %v)", a, b, expected, c, ok)
 			}
