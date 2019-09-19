@@ -63,7 +63,7 @@ By default, the OPA REST APIs will prevent you from modifying policy and data
 loaded via bundles. If you need to load policy and data from multiple sources,
 see the section below.
 
-See the [Configuration Reference](#configuration-reference) for configuration details.
+See the [Configuration Reference](../configuration) for configuration details.
 
 ### Bundle Service API
 
@@ -276,7 +276,7 @@ that enables auditing and offline debugging of policy decisions.
 When decision logging is enabled the OPA server will include a `decision_id`
 field in API calls that return policy decisions.
 
-See the [Configuration Reference](#configuration-reference) for configuration details.
+See the [Configuration Reference](../configuration) for configuration details.
 
 ### Decision Log Service API
 
@@ -351,7 +351,7 @@ decision_logs:
 ```
 
 This will dump all decision through the OPA logging system at the `info` level. See
-[Configuration Reference](#configuration-reference) for more details.
+[Configuration Reference](../configuration) for more details.
 
 
 ### Masking Sensitive Data
@@ -439,7 +439,7 @@ OPA instance. OPA automatically includes an `id` value in the label set that
 provides a globally unique identifier or the running OPA instance and a
 `version` value that provides the version of OPA.
 
-See the [Configuration Reference](#configuration-reference) for configuration details.
+See the [Configuration Reference](../configuration) for configuration details.
 
 ### Status Service API
 
@@ -653,7 +653,7 @@ reporting **cannot** be configured manually. Similarly, discovered configuration
 cannot override the original discovery settings in the configuration file that
 OPA was booted with.
 
-See the [Configuration Reference](#configuration-reference) for configuration details.
+See the [Configuration Reference](../configuration) for configuration details.
 
 ### Discovery Service API
 
