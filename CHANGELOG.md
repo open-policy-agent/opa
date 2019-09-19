@@ -3,6 +3,11 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
+## 0.14.1
+
+- Fix a number of links in the OPA documentation.
+- Fix issue with bundle root path comparisons on Windows.
+
 ## 0.14.0
 
 This release includes a large number of improvements to the docs as
