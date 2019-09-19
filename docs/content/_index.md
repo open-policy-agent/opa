@@ -638,6 +638,12 @@ On macOS (64-bit):
 curl -L -o opa https://github.com/open-policy-agent/opa/releases/download/{{< current_version >}}/opa_darwin_amd64
 ```
 
+or using [Homebrew](https://brew.sh/)
+
+```shell
+brew install opa
+```
+
 On Linux (64-bit):
 
 ```shell
