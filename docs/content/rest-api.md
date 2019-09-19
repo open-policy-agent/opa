@@ -1370,7 +1370,7 @@ If the default decision (defaulting to `/system/main`) is undefined, the server 
 
 The policy example below shows how to define a rule that will
 produce a value for the `/data/system/main` document. You can configure OPA
-to use a different URL path to serve these queries. See the [Configuration Reference](../management/#configuration-reference)
+to use a different URL path to serve these queries. See the [Configuration Reference](../configuration)
 for more information.
 
 The request message body is mapped to the [Input Document](../#the-input-document).
