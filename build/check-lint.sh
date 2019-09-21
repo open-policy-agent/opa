@@ -12,7 +12,7 @@ function opa::check_lint() {
     exec 5>&1
     exit_code=0
     for pkg in $(opa::go_packages); do
-        __output=$(golint $pkg | tee >(cat - >&5))
+        __output=$(go run ./vendor/github.com/golang/lint/golint $pkg | tee >(cat - >&5))
         if [ ! -z "$__output" ]; then
             exit_code=1
         fi
