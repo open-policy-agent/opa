@@ -1,7 +1,0 @@
-{
-package issue1
-}
-
-TableRef <- database:(ID '.')? table:ID    { return fmt.Sprintf("%v.%s", database, table), nil }
-ID <- [a-z]+                               { return c.text, nil }
-

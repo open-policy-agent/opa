@@ -1,6 +1,0 @@
-{
-package maxexprcnt
-}
-
-// trigger an infinite parse
-infinite_rule = infinite_rule
