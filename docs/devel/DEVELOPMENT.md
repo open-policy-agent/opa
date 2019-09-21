@@ -50,11 +50,10 @@ with `make check`.
    into your account by clicking the "Fork" button.
 
 1. Clone the fork to your local machine.
-
-    ```
-    cd $GOPATH
-    mkdir -p src/github.com/open-policy-agent
-    cd src/github.com/open-policy-agent
+    
+    ```bash
+    # Note: With Go modules this repo can be in _any_ location,
+    # and does not need to be in the GOSRC path.
     git clone git@github.com/<GITHUB USERNAME>/opa.git opa
     cd opa
     git remote add upstream https://github.com/open-policy-agent/opa.git
@@ -110,22 +109,43 @@ the results are posted and can be viewed
 
 ## Dependencies
 
-[Glide](https://github.com/Masterminds/glide) is a command line tool used for
-dependency management. You must have Glide installed in order to add new
-dependencies or update existing dependencies. If you are not changing
-dependencies you do not have to install Glide, all of the dependencies are
-contained in the vendor directory.
+OPA is a Go module [https://github.com/golang/go/wiki/Modules](https://github.com/golang/go/wiki/Modules)
+and dependencies are tracked with the standard [go.mod](../../go.mod) file.
 
-Update `glide.yaml` if you are adding a new dependency and then run:
+We also keep a full copy of the dependencies in the [vendor](../../vendor)
+directory. All `go` commands from the [Makefile](../../Makefile) will enable
+module mode by setting `GO111MODULE=on GOFLAGS=-mod=vendor` which will also
+force using the `vendor` directory.
 
-```
-glide update --strip-vendor
-```
-
-This assumes you have Glide v0.12 or newer installed.
+To update a dependency ensure that `GO111MODULE` is either on, or the repository
+qualifies for `auto` to enable module mode. Then simply use `go get ..` to get
+the version desired. This should update the [go.mod](../../go.mod) and (potentially)
+[go.sum](../../go.sum) files. After this you *MUST* run `go mod vendor` to ensure
+that the `vendor` directory is in sync.
 
 After updating dependencies, be sure to check if the parser-generator ("pigeon")
 was updated. If it was, re-generate the parser and commit the changes.
+
+Example workflow for updating a dependency:
+
+```bash
+go get -u github.com/sirupsen/logrus@v1.4.2  # Get the specified version of the package.
+go mod tidy                                  # (Somewhat optional) Prunes removed dependencies.
+go mod vendor                                # Ensure the vendor directory is up to date.
+```
+
+If dependencies have been removed ensure to run `go mod tidy` to clean them up.
+
+
+### Tool Dependencies
+
+We use some tools such as `pigeon`, `goimports`, etc which are versioned and vendored
+with OPA as depedencies. See [tools.go](../../tools.go) for a list of tools.
+
+More details on the pattern: [https://github.com/go-modules-by-example/index/blob/master/010_tools/README.md](https://github.com/go-modules-by-example/index/blob/master/010_tools/README.md)
+
+Update these the same way as any other Go package. Ensure that any build script
+only uses `go run ./vendor/<tool pkg>` to force using the correct version.
 
 ## Rego
 
