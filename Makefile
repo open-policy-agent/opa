@@ -128,7 +128,7 @@ check-lint:
 
 .PHONY: fmt
 fmt:
-	$(GO) fmt ./...
+	./build/run-fmt.sh
 
 .PHONY: clean
 clean: wasm-clean

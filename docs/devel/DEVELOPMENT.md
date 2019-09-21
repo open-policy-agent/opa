@@ -44,6 +44,8 @@ with `make test`, and execute all of the performance benchmarks with `make perf`
 The static analysis checks (e.g., `go fmt`, `golint`, `go vet`) can be run
 with `make check`.
 
+> To correct any imports or style errors run `make fmt`.
+
 ## Workflow
 
 1. Go to [https://github.com/open-policy-agent/opa](https://github.com/open-policy-agent/opa) and fork the repository
