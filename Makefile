@@ -41,15 +41,11 @@ export GO15VENDOREXPERIMENT
 # If you update the 'all' target check/update the call in Dockerfile.build target
 # to make sure they're consistent.
 .PHONY: all
-all: deps build test perf check
+all: build test perf check
 
 .PHONY: version
 version:
 	@echo $(VERSION)
-
-.PHONY: deps
-deps:
-	@./build/install-deps.sh
 
 .PHONY: generate
 generate: wasm-build
