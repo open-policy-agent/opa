@@ -4,7 +4,9 @@
 
 VERSION := 0.15.0-dev
 
-GO := go
+# Always use the vendor directory. Remove this
+# when the OPA vendor directory is removed.
+GO := GOFLAGS=-mod=vendor go
 GOVERSION := 1.12.9
 GOARCH := $(shell go env GOARCH)
 GOOS := $(shell go env GOOS)
