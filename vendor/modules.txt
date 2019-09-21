@@ -13,6 +13,8 @@ github.com/gobwas/glob/syntax/ast
 github.com/gobwas/glob/util/runes
 github.com/gobwas/glob/syntax/lexer
 github.com/gobwas/glob/util/strings
+# github.com/golang/lint v0.0.0-20181023182221-1baf3a9d7d67
+github.com/golang/lint/golint
 # github.com/golang/protobuf v0.0.0-20181025225059-d3de96c4c28e
 github.com/golang/protobuf/proto
 # github.com/gorilla/mux v0.0.0-20181024020800-521ea7b17d02
@@ -25,6 +27,10 @@ github.com/konsorten/go-windows-terminal-sequences
 github.com/mattn/go-runewidth
 # github.com/matttproud/golang_protobuf_extensions v1.0.1
 github.com/matttproud/golang_protobuf_extensions/pbutil
+# github.com/mna/pigeon v0.0.0-20180808201053-bb0192cfc2ae
+github.com/mna/pigeon
+github.com/mna/pigeon/ast
+github.com/mna/pigeon/builder
 # github.com/olekukonko/tablewriter v0.0.1
 github.com/olekukonko/tablewriter
 # github.com/peterh/liner v0.0.0-20170211195444-bf27d3ba8e1d
@@ -57,8 +63,18 @@ github.com/spf13/cobra
 github.com/spf13/pflag
 # github.com/yashtewari/glob-intersection v0.0.0-20180916065949-5c77d914dd0b
 github.com/yashtewari/glob-intersection
+# golang.org/x/lint v0.0.0-20181023182221-1baf3a9d7d67
+golang.org/x/lint
 # golang.org/x/sys v0.0.0-20181026064943-731415f00dce
 golang.org/x/sys/unix
+# golang.org/x/tools v0.0.0-20181030221726-6c7e314b6563
+golang.org/x/tools/cmd/goimports
+golang.org/x/tools/imports
+golang.org/x/tools/go/ast/astutil
+golang.org/x/tools/go/gcexportdata
+golang.org/x/tools/internal/gopathwalk
+golang.org/x/tools/go/internal/gcimporter
+golang.org/x/tools/internal/fastwalk
 # gopkg.in/fsnotify.v1 v1.4.7
 gopkg.in/fsnotify.v1
 # gopkg.in/yaml.v2 v2.2.1
