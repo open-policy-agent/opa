@@ -7,11 +7,11 @@ github.com/ghodss/yaml
 # github.com/gobwas/glob v0.2.3
 github.com/gobwas/glob
 github.com/gobwas/glob/compiler
-github.com/gobwas/glob/syntax
 github.com/gobwas/glob/match
+github.com/gobwas/glob/syntax
 github.com/gobwas/glob/syntax/ast
-github.com/gobwas/glob/util/runes
 github.com/gobwas/glob/syntax/lexer
+github.com/gobwas/glob/util/runes
 github.com/gobwas/glob/util/strings
 # github.com/golang/lint v0.0.0-20181023182221-1baf3a9d7d67
 github.com/golang/lint/golint
@@ -39,19 +39,19 @@ github.com/peterh/liner
 github.com/pkg/errors
 # github.com/prometheus/client_golang v0.0.0-20181025174421-f30f42803563
 github.com/prometheus/client_golang/prometheus
-github.com/prometheus/client_golang/prometheus/promhttp
 github.com/prometheus/client_golang/prometheus/internal
+github.com/prometheus/client_golang/prometheus/promhttp
 # github.com/prometheus/client_model v0.0.0-20180712105110-5c3871d89910
 github.com/prometheus/client_model/go
 # github.com/prometheus/common v0.0.0-20181020173914-7e9e6cabbd39
 github.com/prometheus/common/expfmt
-github.com/prometheus/common/model
 github.com/prometheus/common/internal/bitbucket.org/ww/goautoneg
+github.com/prometheus/common/model
 # github.com/prometheus/procfs v0.0.0-20181005140218-185b4288413d
 github.com/prometheus/procfs
+github.com/prometheus/procfs/internal/util
 github.com/prometheus/procfs/nfs
 github.com/prometheus/procfs/xfs
-github.com/prometheus/procfs/internal/util
 # github.com/rcrowley/go-metrics v0.0.0-20181016184325-3113b8401b8a
 github.com/rcrowley/go-metrics
 # github.com/sirupsen/logrus v1.4.1
@@ -65,16 +65,21 @@ github.com/spf13/pflag
 github.com/yashtewari/glob-intersection
 # golang.org/x/lint v0.0.0-20181023182221-1baf3a9d7d67
 golang.org/x/lint
-# golang.org/x/sys v0.0.0-20181026064943-731415f00dce
+# golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a
 golang.org/x/sys/unix
-# golang.org/x/tools v0.0.0-20181030221726-6c7e314b6563
+# golang.org/x/tools v0.0.0-20190920225731-5eefd052ad72
 golang.org/x/tools/cmd/goimports
-golang.org/x/tools/imports
 golang.org/x/tools/go/ast/astutil
 golang.org/x/tools/go/gcexportdata
-golang.org/x/tools/internal/gopathwalk
 golang.org/x/tools/go/internal/gcimporter
+golang.org/x/tools/go/internal/packagesdriver
+golang.org/x/tools/go/packages
+golang.org/x/tools/imports
 golang.org/x/tools/internal/fastwalk
+golang.org/x/tools/internal/gopathwalk
+golang.org/x/tools/internal/imports
+golang.org/x/tools/internal/module
+golang.org/x/tools/internal/semver
 # gopkg.in/fsnotify.v1 v1.4.7
 gopkg.in/fsnotify.v1
 # gopkg.in/yaml.v2 v2.2.1
