@@ -1,7 +1,0 @@
-a = 1
-if a:
-    b = 2
-    if b:
-        a = 40
-    b = a + b
-return b
