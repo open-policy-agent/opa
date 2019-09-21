@@ -4,8 +4,10 @@
 
 package topdown
 
-import "github.com/open-policy-agent/opa/ast"
-import "github.com/open-policy-agent/opa/topdown/builtins"
+import (
+	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/topdown/builtins"
+)
 
 func builtinBinaryAnd(a ast.Value, b ast.Value) (ast.Value, error) {
 

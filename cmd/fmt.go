@@ -13,9 +13,10 @@ import (
 	"os/exec"
 	"path/filepath"
 
+	"github.com/spf13/cobra"
+
 	"github.com/open-policy-agent/opa/format"
 	fileurl "github.com/open-policy-agent/opa/internal/file/url"
-	"github.com/spf13/cobra"
 )
 
 var fmtParams = struct {

@@ -4,9 +4,12 @@
 
 package main
 
-import "fmt"
-import "os"
-import "github.com/open-policy-agent/opa/cmd"
+import (
+	"fmt"
+	"os"
+
+	"github.com/open-policy-agent/opa/cmd"
+)
 
 func main() {
 	if err := cmd.RootCommand.Execute(); err != nil {

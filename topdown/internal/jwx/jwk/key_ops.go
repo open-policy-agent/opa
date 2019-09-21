@@ -3,6 +3,7 @@ package jwk
 import (
 	"encoding/json"
 	"fmt"
+
 	"github.com/pkg/errors"
 )
 

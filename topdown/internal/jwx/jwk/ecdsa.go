@@ -5,8 +5,9 @@ import (
 	"crypto/elliptic"
 	"math/big"
 
-	"github.com/open-policy-agent/opa/topdown/internal/jwx/jwa"
 	"github.com/pkg/errors"
+
+	"github.com/open-policy-agent/opa/topdown/internal/jwx/jwa"
 )
 
 func newECDSAPublicKey(key *ecdsa.PublicKey) (*ECDSAPublicKey, error) {

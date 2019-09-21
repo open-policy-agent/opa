@@ -6,10 +6,11 @@ package bundle
 
 import (
 	"fmt"
-	"github.com/open-policy-agent/opa/download"
-	"github.com/open-policy-agent/opa/util"
 	"path"
 	"strings"
+
+	"github.com/open-policy-agent/opa/download"
+	"github.com/open-policy-agent/opa/util"
 )
 
 // ParseConfig validates the config and injects default values. This is

@@ -23,11 +23,12 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"strings"
+
 	"github.com/open-policy-agent/opa/topdown/internal/jwx/jwa"
 	"github.com/open-policy-agent/opa/topdown/internal/jwx/jwk"
 	"github.com/open-policy-agent/opa/topdown/internal/jwx/jws/sign"
 	"github.com/open-policy-agent/opa/topdown/internal/jwx/jws/verify"
-	"strings"
 
 	"github.com/pkg/errors"
 )

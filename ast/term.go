@@ -17,8 +17,9 @@ import (
 	"strings"
 
 	"github.com/OneOfOne/xxhash"
-	"github.com/open-policy-agent/opa/util"
 	"github.com/pkg/errors"
+
+	"github.com/open-policy-agent/opa/util"
 )
 
 var errFindNotFound = fmt.Errorf("find: not found")

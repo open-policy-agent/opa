@@ -9,8 +9,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/open-policy-agent/opa/rego"
 	"github.com/spf13/cobra"
+
+	"github.com/open-policy-agent/opa/rego"
 )
 
 var buildParams = struct {

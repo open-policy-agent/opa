@@ -6,8 +6,9 @@ package topdown
 
 import (
 	"fmt"
-	"github.com/open-policy-agent/opa/ast"
 	"testing"
+
+	"github.com/open-policy-agent/opa/ast"
 )
 
 func TestToArray(t *testing.T) {

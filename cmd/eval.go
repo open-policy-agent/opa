@@ -13,6 +13,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
+
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/cover"
 	fileurl "github.com/open-policy-agent/opa/internal/file/url"
@@ -24,8 +27,6 @@ import (
 	"github.com/open-policy-agent/opa/topdown"
 	"github.com/open-policy-agent/opa/topdown/lineage"
 	"github.com/open-policy-agent/opa/util"
-	"github.com/pkg/errors"
-	"github.com/spf13/cobra"
 )
 
 type evalCommandParams struct {

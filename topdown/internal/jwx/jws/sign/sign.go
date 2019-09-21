@@ -1,8 +1,9 @@
 package sign
 
 import (
-	"github.com/open-policy-agent/opa/topdown/internal/jwx/jwa"
 	"github.com/pkg/errors"
+
+	"github.com/open-policy-agent/opa/topdown/internal/jwx/jwa"
 )
 
 // New creates a signer that signs payloads using the given signature algorithm.

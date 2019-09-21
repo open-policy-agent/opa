@@ -11,12 +11,13 @@ import (
 	"net/http"
 	"reflect"
 
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
+
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/plugins/bundle"
 	"github.com/open-policy-agent/opa/util"
-	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // UpdateRequestV1 represents the status update message that OPA sends to

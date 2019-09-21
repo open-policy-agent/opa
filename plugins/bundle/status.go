@@ -7,9 +7,10 @@ package bundle
 import (
 	"time"
 
+	"github.com/pkg/errors"
+
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/server/types"
-	"github.com/pkg/errors"
 )
 
 const (

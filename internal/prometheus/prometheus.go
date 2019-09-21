@@ -11,9 +11,10 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/open-policy-agent/opa/metrics"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+
+	"github.com/open-policy-agent/opa/metrics"
 )
 
 // Provider wraps a metrics.Metrics provider with a Prometheus registry that can

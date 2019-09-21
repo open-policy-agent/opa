@@ -9,10 +9,11 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"github.com/open-policy-agent/opa/internal/version"
 	"io"
 	"io/ioutil"
 	"strconv"
+
+	"github.com/open-policy-agent/opa/internal/version"
 
 	"net/http"
 	"os"

@@ -4,6 +4,7 @@ import (
 	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
+
 	"github.com/open-policy-agent/opa/topdown/internal/jwx/jwa"
 
 	"github.com/pkg/errors"
