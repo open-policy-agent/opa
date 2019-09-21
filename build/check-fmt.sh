@@ -1,19 +1,15 @@
 #!/usr/bin/env bash
 
 OPA_DIR=$(dirname "${BASH_SOURCE}")/..
-source $OPA_DIR/build/utils.sh
+source ${OPA_DIR}/build/utils.sh
 
 function opa::check_fmt() {
     exec 5>&1
     exit_code=0
-    for pkg in $(opa::go_packages); do
-        for file in $(opa::go_files_in_package $pkg); do
-            __diff=$(gofmt -d $file | tee >(cat - >&5))
-            if [ ! -z "$__diff" ]; then
-                exit_code=1
-            fi
-        done
-    done
+    out=$(${OPA_DIR}/build/run-goimports.sh -format-only -d $(opa::all_go_files) | tee >(cat - >&5))
+    if [ ! -z "$out" ]; then
+        exit_code=1
+    fi
     exit $exit_code
 }
 

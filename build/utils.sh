@@ -20,3 +20,12 @@ function opa::go_files_in_package() {
     done
 }
 
+function opa::all_go_files() {
+    FILES=""
+    for pkg in $(opa::go_packages); do
+        for file in $(opa::go_files_in_package $pkg); do
+            FILES+=" ${file}"
+        done
+    done
+    echo "${FILES}"
+}
