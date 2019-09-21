@@ -8,13 +8,14 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"github.com/open-policy-agent/opa/internal/version"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/open-policy-agent/opa/internal/version"
 )
 
 func TestNew(t *testing.T) {

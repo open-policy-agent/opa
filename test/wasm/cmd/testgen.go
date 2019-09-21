@@ -17,10 +17,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/open-policy-agent/opa/rego"
-	"github.com/open-policy-agent/opa/util"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+
+	"github.com/open-policy-agent/opa/rego"
+	"github.com/open-policy-agent/opa/util"
 )
 
 type params struct {

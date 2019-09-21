@@ -20,6 +20,10 @@ import (
 
 	"github.com/open-policy-agent/opa/bundle"
 
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
+	"gopkg.in/fsnotify.v1"
+
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/internal/prometheus"
 	"github.com/open-policy-agent/opa/internal/runtime"
@@ -34,9 +38,6 @@ import (
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/version"
-	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
-	"gopkg.in/fsnotify.v1"
 )
 
 var (

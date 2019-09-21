@@ -1,8 +1,9 @@
 package verify
 
 import (
-	"github.com/open-policy-agent/opa/topdown/internal/jwx/jwa"
 	"github.com/pkg/errors"
+
+	"github.com/open-policy-agent/opa/topdown/internal/jwx/jwa"
 )
 
 // New creates a new JWS verifier using the specified algorithm

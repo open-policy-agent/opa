@@ -6,8 +6,9 @@ package bundle
 
 import (
 	"fmt"
-	"gopkg.in/yaml.v2"
 	"testing"
+
+	"gopkg.in/yaml.v2"
 )
 
 func TestConfigValidation(t *testing.T) {

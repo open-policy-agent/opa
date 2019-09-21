@@ -10,13 +10,14 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/pkg/errors"
+
 	"github.com/open-policy-agent/opa/internal/compiler/wasm/opa"
 	"github.com/open-policy-agent/opa/internal/ir"
 	"github.com/open-policy-agent/opa/internal/wasm/encoding"
 	"github.com/open-policy-agent/opa/internal/wasm/instruction"
 	"github.com/open-policy-agent/opa/internal/wasm/module"
 	"github.com/open-policy-agent/opa/internal/wasm/types"
-	"github.com/pkg/errors"
 )
 
 const (

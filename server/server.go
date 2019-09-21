@@ -26,6 +26,8 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/pkg/errors"
+
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/metrics"
@@ -42,7 +44,6 @@ import (
 	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/version"
 	"github.com/open-policy-agent/opa/watch"
-	"github.com/pkg/errors"
 )
 
 // AuthenticationScheme enumerates the supported authentication schemes. The

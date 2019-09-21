@@ -1,8 +1,9 @@
 package sign
 
 import (
-	"github.com/open-policy-agent/opa/topdown/internal/jwx/jwa"
 	"testing"
+
+	"github.com/open-policy-agent/opa/topdown/internal/jwx/jwa"
 )
 
 func TestECDSASign(t *testing.T) {

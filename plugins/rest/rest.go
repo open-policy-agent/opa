@@ -10,11 +10,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/open-policy-agent/opa/internal/version"
 	"io"
 	"net/http"
 	"reflect"
 	"strings"
+
+	"github.com/open-policy-agent/opa/internal/version"
 
 	"github.com/sirupsen/logrus"
 

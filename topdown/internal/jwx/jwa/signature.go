@@ -1,8 +1,9 @@
 package jwa
 
 import (
-	"github.com/pkg/errors"
 	"strconv"
+
+	"github.com/pkg/errors"
 )
 
 // SignatureAlgorithm represents the various signature algorithms as described in https://tools.ietf.org/html/rfc7518#section-3.1

@@ -19,9 +19,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sirupsen/logrus"
+
 	"github.com/open-policy-agent/opa/runtime"
 	"github.com/open-policy-agent/opa/util"
-	"github.com/sirupsen/logrus"
 )
 
 const (

@@ -1,8 +1,9 @@
 package verify
 
 import (
-	"github.com/open-policy-agent/opa/topdown/internal/jwx/jwa"
 	"testing"
+
+	"github.com/open-policy-agent/opa/topdown/internal/jwx/jwa"
 )
 
 func TestHMACVerify(t *testing.T) {
