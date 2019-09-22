@@ -139,6 +139,14 @@ func TestConfigPath(t *testing.T) {
 			input: `{"name": "a/b/c"}`,
 			path:  "bundles/a/b/c",
 		},
+		{
+			input: `{"name": "a/b/c/", "resource": "x/y/z"}`,
+			path:  "x/y/z",
+		},
+		{
+			input: `{"name": "a/b/c", "prefix": "/bundles2", resource: "x/y/z"}`,
+			path:  "x/y/z",
+		},
 	}
 
 	for i, test := range tests {
