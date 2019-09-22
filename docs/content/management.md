@@ -660,7 +660,7 @@ See the [Configuration Reference](../configuration) for configuration details.
 OPA expects the service to expose an API endpoint that serves bundles.
 
 ```http
-GET /<service_url>/<discovery.prefix>/<discovery.name> HTTP/1.1
+GET /<service_url>/<discovery.resource>HTTP/1.1
 ```
 
 If the bundle exists, the server should respond with an HTTP 200 OK status
@@ -684,24 +684,25 @@ services:
         token: "bGFza2RqZmxha3NkamZsa2Fqc2Rsa2ZqYWtsc2RqZmtramRmYWxkc2tm"
 
 discovery:
-  name: /example/discovery
-  prefix: configuration
+  name: example
+  resource: /configuration/example/discovery.tar.gz
   service: acmecorp
 ```
 
 Using the boot configuration above, OPA will fetch discovery bundles from:
 
 ```
-https://example.com/control-plane-api/v1/configuration/example/discovery
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ ^^^^^^^^^^^^^ ^^^^^^^^^^^^^^^^^
-services[discovery.service].url                          |                   |
-                                         + discovery.prefix  |
-                                                             + discovery.name
+https://example.com/control-plane-api/v1/configuration/example/discovery.tar.gz
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+services[discovery.service].url          discovery.resource
 ```
 
-> The `discovery.prefix` field defaults to `bundles`. The default is convenient if
-you want to serve discovery bundles and normal bundles from the same API
+> The `discovery.resource` field defaults to `bundles/<discovery.name>`. The default
+is convenient if you want to serve discovery bundles and normal bundles from the same API
 endpoint. If only one service is defined, there is no need to set `discovery.service`.
+
+> The `discovery.prefix` configuration option is still available but has been
+  deprecated in favor of `discovery.resource`. It will eventually be removed.
 
 OPA generates it's subsequent configuration by querying the Rego and JSON files
 contained inside the discovery bundle. The query is defined by the
@@ -709,10 +710,10 @@ contained inside the discovery bundle. The query is defined by the
 example. with the boot configuration above, OPA executes the following query:
 
 ```
-data.example.discovery
+data.example
 ```
 
-As an alternative, you can also provide a `decision` field, to specifiy the name of the query. For example, with this configuration:
+As an alternative, you can also provide a `decision` field, to specify the name of the query. For example, with this configuration:
 ```yaml
 services:
   - name: acmecorp
@@ -721,13 +722,13 @@ services:
       bearer:
         token: "bGFza2RqZmxha3NkamZsa2Fqc2Rsa2ZqYWtsc2RqZmtramRmYWxkc2tm"
 discovery:
-  name: /example/discovery
-  prefix: configuration
-  decision: config
+  name: example
+  resource: /configuration/example/discovery.tar.gz
+  decision: example/discovery
 ```
 OPA executes the following query:
 ```
-data.config
+data.example.discovery
 ```
 
 If the discovery bundle contained the following Rego file:
@@ -823,7 +824,9 @@ region_bundle = {
 }
 ```
 
-The `bundle_name` variable in `line 7` of the above policy will be dynamically selected based on the value of the label `region`. So if an OPA was started with `region: "US"`, then the `bundle_name` will be `example/test1/p`.
+The `bundle_name` variable in `line 7` of the above policy will be dynamically
+selected based on the value of the label `region`. So if an OPA was started
+with `region: "US"`, then the `bundle_name` will be `example/test1/p`.
 
 Start an OPA with a boot configuration as shown below:
 

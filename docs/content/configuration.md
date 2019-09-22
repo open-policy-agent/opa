@@ -70,8 +70,8 @@ services:
         token: "${BEARER_TOKEN}"
 
 discovery:
-  name: /example/discovery
-  prefix: configuration
+  name: example
+  resource: /configuration/example/discovery
 ```
 The environment variables `BASE_URL` and `BEARER_TOKEN` will be substituted in when the config
 file is loaded by the OPA runtime.
@@ -363,7 +363,8 @@ server provenance, etc.
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `discovery.name` | `string` | Yes | Name of the discovery configuration to download. |
-| `discovery.prefix` | `string` | No (default: `bundles`) | Path prefix to use to download configuration from remote server. |
+| `discovery.resource` | `string` | No (default: `/bundles/<name>` | Resource path to use to download bundle from configured service. |
+| `discovery.prefix` | `string` | No (default: `bundles`) | Deprecated: Use `resource` instead. Path prefix to use to download configuration from remote server. |
 | `discovery.decision` | `string` | No (default: value of `discovery.name` configuration field) | Name of the OPA query that will be used to calculate the configuration |
 | `discovery.polling.min_delay_seconds` | `int64` | No (default: `60`) | Minimum amount of time to wait between configuration downloads. |
 | `discovery.polling.max_delay_seconds` | `int64` | No (default: `120`) | Maximum amount of time to wait between configuration downloads. |
