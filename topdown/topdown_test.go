@@ -2672,6 +2672,25 @@ p[x] { data.a[i] = x }`,
 	}
 }
 
+func TestTopDownCompositeBaseDereference(t *testing.T) {
+	tests := []struct {
+		note     string
+		rule     string
+		expected interface{}
+	}{
+		// Expect that each of these will evaluate without any errors raised
+		{"array", `p { not data.a[[0]] }`, "true"},
+		{"object", `p { not data.a[{"b": "c"}] }`, "true"},
+		{"set", `p { not data.a[["b"]] }`, "true"},
+	}
+
+	data := loadSmallTestData()
+
+	for _, tc := range tests {
+		runTopDownTestCase(t, data, tc.note, []string{tc.rule}, tc.expected)
+	}
+}
+
 func compileModules(input []string) *ast.Compiler {
 
 	mods := map[string]*ast.Module{}

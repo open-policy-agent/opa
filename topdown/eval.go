@@ -1114,6 +1114,10 @@ func (e *eval) Resolve(ref ast.Ref) (ast.Value, error) {
 }
 
 func (e *eval) resolveReadFromStorage(ref ast.Ref, a ast.Value) (ast.Value, error) {
+	if refContainsNonScalar(ref) {
+		return a, nil
+	}
+
 	path, err := storage.NewPathForRef(ref)
 	if err != nil {
 		if !storage.IsNotFound(err) {
@@ -2299,6 +2303,15 @@ func mergeObjects(objA, objB ast.Object) (result ast.Object, ok bool) {
 func refSliceContainsPrefix(sl []ast.Ref, prefix ast.Ref) bool {
 	for _, ref := range sl {
 		if ref.HasPrefix(prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+func refContainsNonScalar(ref ast.Ref) bool {
+	for _, term := range ref[1:] {
+		if !ast.IsScalar(term.Value) {
 			return true
 		}
 	}
