@@ -73,3 +73,53 @@ func TestMergeError(t *testing.T) {
 		t.Fatal("Expected error")
 	}
 }
+
+func TestRefContainsNonScalar(t *testing.T) {
+	cases := []struct {
+		note     string
+		ref      ast.Ref
+		expected bool
+	}{
+		{
+			note:     "empty ref",
+			ref:      ast.MustParseRef("data"),
+			expected: false,
+		},
+		{
+			note:     "string ref",
+			ref:      ast.MustParseRef(`data.foo["bar"]`),
+			expected: false,
+		},
+		{
+			note:     "number ref",
+			ref:      ast.MustParseRef("data.foo[1]"),
+			expected: false,
+		},
+		{
+			note:     "set ref",
+			ref:      ast.MustParseRef("data.foo[{0}]"),
+			expected: true,
+		},
+		{
+			note:     "array ref",
+			ref:      ast.MustParseRef(`data.foo[["bar"]]`),
+			expected: true,
+		},
+		{
+			note:     "object ref",
+			ref:      ast.MustParseRef(`data.foo[{"bar": 1}]`),
+			expected: true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			actual := refContainsNonScalar(tc.ref)
+
+			if actual != tc.expected {
+				t.Errorf("Expected %t for %s", tc.expected, tc.ref)
+			}
+		})
+	}
+
+}
