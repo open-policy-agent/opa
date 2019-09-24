@@ -244,7 +244,7 @@ f(x) = "C" { x >= 70; x < 80 }
 x := {"a": true, "b": false}
 y := {"b": "foo", "c": 4}
 z := {"a": true, "b": "foo", "c": 4}
-merge_objects(x, y) == z
+merge_objects(x, y) = z
 ```
 
 ```live:rules/merge:module:read_only
