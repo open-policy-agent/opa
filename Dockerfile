@@ -1,6 +1,7 @@
 # Copyright 2019 The OPA Authors.  All rights reserved.
 # Use of this source code is governed by an Apache2
 # license that can be found in the LICENSE file.
+ARG VARIANT
 ARG BUILD_COMMIT
 # we cant use build-args in `COPY --from=...` below, so work around this
 # see: https://medium.com/@tonistiigi/advanced-multi-stage-build-patterns-6f741b852fae
