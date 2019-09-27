@@ -44,7 +44,12 @@ export default async function localEval(groups, groupName, opaVersion) {
           if (e2.stdout) { // Reevaluation seems to have worked
             let opaErrors
             try { // Parse the reevaluation result into an OPAErrors object to be thrown.
-              opaErrors = new OPAErrors(pretty, JSON.parse(e2.stdout).error)
+              let parsed = JSON.parse(e2.stdout)
+              if (parsed.errors) {
+                opaErrors = new OPAErrors(pretty, parsed.errors)
+              } else {
+                opaErrors = new OPAErrors(pretty, parsed.error)
+              }
             } catch (e3) {
               throw new ChainedError('invalid response while trying to get details about an evaluation failure', e3)
             }
