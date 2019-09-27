@@ -210,7 +210,7 @@ async function populateOutputs(groups, opaVersion) {
 
       }
       // Errors are not from OPA, something bad happened.
-      throw new ChainedError(`${groupName} evaluation failed for an unexpectable, possibly internal reason (check for additional logs): ${e.message}`, e)
+      throw new ChainedError(`${groupName} evaluation failed for an unexpected, possibly internal reason (check for additional logs): ${e.message}`, e)
     }
 
     // If there's not an error, one might have been expected.

@@ -15,9 +15,9 @@ export class OPAErrors extends Error {
   // Consumes the pretty-formatted message and the one or more (the latter as an array) errors that OPA produced.
   // In the case of undefined decisions, call this with 'undefined decision', undefined.
   // The constructor may error with a non-user-friendly message.
-  constructor(pretty, error) {
+  constructor(pretty, errors) {
     super(pretty)
-    this.errors = toArray(error)
+    this.errors = toArray(errors)
 
     // Validate there are more than one properly formatted errors
     if (!this.errors.length) {
