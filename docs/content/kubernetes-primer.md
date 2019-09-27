@@ -19,7 +19,7 @@ deny[msg] {                                                                 # li
   input.request.kind.kind == "Pod"                                          # line 3
   image := input.request.object.spec.containers[_].image                    # line 4
   not startswith(image, "hooli.com/")                                       # line 5
-  msg := sprintf("image fails to come from trusted registry: %v", [image])  # line 6
+  msg := sprintf("image '%v' comes from untrusted registry", [image])       # line 6
 }
 ```
 
@@ -216,7 +216,8 @@ test_image_safety {                                       # line 3
       }
     }
   }
-  count(admission.deny) == 1 with input as unsafe_image   # line 5
+  expected := "image 'busybox' comes from untrusted registry"
+  admission.deny[expected] with input as unsafe_image     # line 5
 }
 ```
 
@@ -228,10 +229,9 @@ test_image_safety {                                       # line 3
 
 **Assignment**. On line 4 `unsafe_image` is the input we want to use for the test.  Ideally this would be a real AdmissionReview object, though those are so long that in this example we hand-rolled a partial input.
 
-**Dot for packages**.  On line 5 we use the Dot operator on a package.  `admission.deny` runs (all) the `deny` rule(s) in package `admission` (and all other `deny` rules in the `admission` package).
+**Dot for packages**.  On line 5 we use the Dot operator on a package.  `admission.deny[expected]` runs the `deny` rule(s) in package `admission` and checks if the message is contained in the set defined by `deny`.
 
-
-**Test Input**.  Also on line 5 the stanza `with input as unsafe_image` sets the value of `input` to be `unsafe_image` while evaluating `count(admission.deny) == 1`.
+**Test Input**.  Also on line 5 the stanza `with input as unsafe_image` sets the value of `input` to be `unsafe_image` while evaluating `admission.deny[expected]`.
 
 **Running Tests**. If you've created the files *image-safety.rego* and *test-image-safety.rego* in the current directory then you run the tests by naming the files explicitly as shown below or by handing the `opa test` command the directory (and subdirectories) of files to load: `opa test .`
 
