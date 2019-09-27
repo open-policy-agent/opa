@@ -2,5 +2,11 @@
   "private": true,
   "devDependencies": {
     "bulma": "0.7.4"
+  },
+  "dependencies": {
+    "collections": "^5.1.9",
+    "read-yaml": "^1.1.0",
+    "set": "^1.1.1",
+    "write": "^2.0.0"
   }
 }
