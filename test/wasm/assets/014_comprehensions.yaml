@@ -1,0 +1,45 @@
+cases:
+- note: set comprehension
+  query: |
+    {x | input[_] = x} == {1,2,3}
+  input: [1,2,3]
+  return_code: 1
+- note: set comprehension (negative)
+  query: |
+    {x | input[_] = x; x > 1} == {1,2,3}
+  input: [1,2,3]
+  return_code: 0
+- note: array comprehension
+  query: |
+    [x | input[_] = x] == [1,2,3]
+  input: [1,2,3]
+  return_code: 1
+- note: array comprehension (negative)
+  query: |
+    [x | input[_] = x; x > 1] == [1,2,3]
+  input: [1,2,3]
+  return_code: 0
+- note: array comprehension unify
+  query: |
+    [x | input[_] = x] = [1,y,3]
+  input: [1,2,3]
+  return_code: 1
+- note: object comprehension
+  query: |
+    {k: v | input[k] = v} == {"a": 1, "b": 2}
+  input: {"a": 1, "b": 2}
+  return_code: 1
+- note: object comprehension (negative)
+  query: |
+    {k: v | input[k] = v; v > 1} == {"a": 1, "b": 2}
+  input: {"a": 1, "b": 2}
+  return_code: 0
+- note: object comprehension unify
+  query: |
+    {k: v | input[k] = v} = {"a": y, "b": z}
+  input: {"a": 1, "b": 2}
+  return_code: 1
+- note: closure
+  query: |
+    a = [1,2,3]; b = 1; {x | a[_] = x; x > b} == {2,3}
+  return_code: 1

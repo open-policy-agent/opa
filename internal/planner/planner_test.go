@@ -146,6 +146,14 @@ func TestPlannerHelloWorld(t *testing.T) {
 				q = 2 { false }
 			`},
 		},
+		{
+			note:    "comprehension",
+			queries: []string{`{x | input[_] = x}`},
+		},
+		{
+			note:    "closure",
+			queries: []string{`a = [1]; {x | a[_] = x}`},
+		},
 	}
 
 	for _, tc := range tests {

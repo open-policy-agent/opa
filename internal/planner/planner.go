@@ -538,7 +538,7 @@ func (p *Planner) planCallArgs(terms []*ast.Term, idx int, args []ir.Local, iter
 func (p *Planner) planUnify(a, b *ast.Term, iter planiter) error {
 
 	switch va := a.Value.(type) {
-	case ast.Null, ast.Boolean, ast.Number, ast.String, ast.Ref, ast.Set:
+	case ast.Null, ast.Boolean, ast.Number, ast.String, ast.Ref, ast.Set, *ast.SetComprehension, *ast.ArrayComprehension, *ast.ObjectComprehension:
 		return p.planTerm(a, func() error {
 			return p.planUnifyLocal(p.ltarget, b, iter)
 		})
@@ -596,7 +596,7 @@ func (p *Planner) planUnifyVar(a ast.Var, b *ast.Term, iter planiter) error {
 
 func (p *Planner) planUnifyLocal(a ir.Local, b *ast.Term, iter planiter) error {
 	switch vb := b.Value.(type) {
-	case ast.Null, ast.Boolean, ast.Number, ast.String, ast.Ref, ast.Set:
+	case ast.Null, ast.Boolean, ast.Number, ast.String, ast.Ref, ast.Set, *ast.SetComprehension, *ast.ArrayComprehension, *ast.ObjectComprehension:
 		return p.planTerm(b, func() error {
 			p.appendStmt(&ir.EqualStmt{
 				A: a,
@@ -791,6 +791,12 @@ func (p *Planner) planTerm(t *ast.Term, iter planiter) error {
 		return p.planObject(v, iter)
 	case ast.Set:
 		return p.planSet(v, iter)
+	case *ast.SetComprehension:
+		return p.planSetComprehension(v, iter)
+	case *ast.ArrayComprehension:
+		return p.planArrayComprehension(v, iter)
+	case *ast.ObjectComprehension:
+		return p.planObjectComprehension(v, iter)
 	default:
 		return fmt.Errorf("%v term not implemented", ast.TypeName(v))
 	}
@@ -951,6 +957,91 @@ func (p *Planner) planSetRec(set ast.Set, index int, elems []*ast.Term, lset ir.
 		})
 		return p.planSetRec(set, index+1, elems, lset, iter)
 	})
+}
+
+func (p *Planner) planSetComprehension(sc *ast.SetComprehension, iter planiter) error {
+
+	lset := p.newLocal()
+
+	p.appendStmt(&ir.MakeSetStmt{
+		Target: lset,
+	})
+
+	return p.planComprehension(sc.Body, func() error {
+		return p.planTerm(sc.Term, func() error {
+			p.appendStmt(&ir.SetAddStmt{
+				Value: p.ltarget,
+				Set:   lset,
+			})
+			return nil
+		})
+	}, lset, iter)
+}
+
+func (p *Planner) planArrayComprehension(ac *ast.ArrayComprehension, iter planiter) error {
+
+	larr := p.newLocal()
+
+	p.appendStmt(&ir.MakeArrayStmt{
+		Target: larr,
+	})
+
+	return p.planComprehension(ac.Body, func() error {
+		return p.planTerm(ac.Term, func() error {
+			p.appendStmt(&ir.ArrayAppendStmt{
+				Value: p.ltarget,
+				Array: larr,
+			})
+			return nil
+		})
+	}, larr, iter)
+}
+
+func (p *Planner) planObjectComprehension(oc *ast.ObjectComprehension, iter planiter) error {
+
+	lobj := p.newLocal()
+
+	p.appendStmt(&ir.MakeObjectStmt{
+		Target: lobj,
+	})
+
+	return p.planComprehension(oc.Body, func() error {
+		return p.planTerm(oc.Key, func() error {
+			lkey := p.ltarget
+			return p.planTerm(oc.Value, func() error {
+				p.appendStmt(&ir.ObjectInsertOnceStmt{
+					Key:    lkey,
+					Value:  p.ltarget,
+					Object: lobj,
+				})
+				return nil
+			})
+		})
+	}, lobj, iter)
+}
+
+func (p *Planner) planComprehension(body ast.Body, closureIter planiter, target ir.Local, iter planiter) error {
+
+	prev := p.curr
+	p.curr = &ir.Block{}
+
+	if err := p.planQuery(body, 0, func() error {
+		return closureIter()
+	}); err != nil {
+		return err
+	}
+
+	block := p.curr
+	p.curr = prev
+
+	p.appendStmt(&ir.BlockStmt{
+		Blocks: []*ir.Block{
+			block,
+		},
+	})
+
+	p.ltarget = target
+	return iter()
 }
 
 func (p *Planner) planRef(ref ast.Ref, iter planiter) error {
