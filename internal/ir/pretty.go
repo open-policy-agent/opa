@@ -34,7 +34,7 @@ func (pp *prettyPrinter) After(x interface{}) {
 }
 
 func (pp *prettyPrinter) Visit(x interface{}) (Visitor, error) {
-	pp.writeIndent("%T %v", x, x)
+	pp.writeIndent("%T %+v", x, x)
 	return pp, nil
 }
 
