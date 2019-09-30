@@ -82,6 +82,11 @@ complex types.
 | <span class="opa-keep-it-together">``startswith(string, search)``</span> | true if ``string`` begins with ``search`` |
 | <span class="opa-keep-it-together">``output := substring(string, start, length)``</span> | ``output`` is the portion of ``string`` from index ``start`` and having a length of ``length``.  If ``length`` is less than zero, ``length`` is the remainder of the ``string``. If ``start`` is greater than the length of the string, ``output`` is empty. It is invalid to pass a negative offset to this function. |
 | <span class="opa-keep-it-together">``output := trim(string, cutset)``</span> | ``output`` is a ``string`` representing ``string`` with all leading and trailing instances of the characters in ``cutset`` removed. |
+| <span class="opa-keep-it-together">``output := trim_left(string, cutset)``</span> | ``output`` is a ``string`` representing ``string`` with all leading instances of the characters in ``cutset`` removed. |
+| <span class="opa-keep-it-together">``output := trim_prefix(string, prefix)``</span> | ``output`` is a ``string`` representing ``string`` with leading instance of ``prefix`` removed. If ``string`` doesn't start with prefix, ``string`` is returned unchanged.|
+| <span class="opa-keep-it-together">``output := trim_right(string, cutset)``</span> | ``output`` is a ``string`` representing ``string`` with all trailing instances of the characters in ``cutset`` removed. |
+| <span class="opa-keep-it-together">``output := trim_suffix(string, prefix)``</span> | ``output`` is a ``string`` representing ``string`` with trailing instance of ``suffix`` removed. If ``string`` doesn't end with suffix, ``string`` is returned unchanged.|
+| <span class="opa-keep-it-together">``output := trim_space(string)``</span> | ``output`` is a ``string`` representing ``string`` with all leading and trailing white space removed.|
 | <span class="opa-keep-it-together">``output := upper(string)``</span> | ``output`` is ``string`` after converting to upper case |
 
 ### Regex
