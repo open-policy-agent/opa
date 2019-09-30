@@ -241,6 +241,71 @@ func builtinTrim(a, b ast.Value) (ast.Value, error) {
 	return ast.String(strings.Trim(string(s), string(c))), nil
 }
 
+func builtinTrimLeft(a, b ast.Value) (ast.Value, error) {
+	s, err := builtins.StringOperand(a, 1)
+	if err != nil {
+		return nil, err
+	}
+
+	c, err := builtins.StringOperand(b, 2)
+	if err != nil {
+		return nil, err
+	}
+
+	return ast.String(strings.TrimLeft(string(s), string(c))), nil
+}
+
+func builtinTrimPrefix(a, b ast.Value) (ast.Value, error) {
+	s, err := builtins.StringOperand(a, 1)
+	if err != nil {
+		return nil, err
+	}
+
+	pre, err := builtins.StringOperand(b, 2)
+	if err != nil {
+		return nil, err
+	}
+
+	return ast.String(strings.TrimPrefix(string(s), string(pre))), nil
+}
+
+func builtinTrimRight(a, b ast.Value) (ast.Value, error) {
+	s, err := builtins.StringOperand(a, 1)
+	if err != nil {
+		return nil, err
+	}
+
+	c, err := builtins.StringOperand(b, 2)
+	if err != nil {
+		return nil, err
+	}
+
+	return ast.String(strings.TrimRight(string(s), string(c))), nil
+}
+
+func builtinTrimSuffix(a, b ast.Value) (ast.Value, error) {
+	s, err := builtins.StringOperand(a, 1)
+	if err != nil {
+		return nil, err
+	}
+
+	suf, err := builtins.StringOperand(b, 2)
+	if err != nil {
+		return nil, err
+	}
+
+	return ast.String(strings.TrimSuffix(string(s), string(suf))), nil
+}
+
+func builtinTrimSpace(a ast.Value) (ast.Value, error) {
+	s, err := builtins.StringOperand(a, 1)
+	if err != nil {
+		return nil, err
+	}
+
+	return ast.String(strings.TrimSpace(string(s))), nil
+}
+
 func builtinSprintf(a, b ast.Value) (ast.Value, error) {
 	s, err := builtins.StringOperand(a, 1)
 	if err != nil {
@@ -287,5 +352,10 @@ func init() {
 	RegisterFunctionalBuiltin2(ast.Split.Name, builtinSplit)
 	RegisterFunctionalBuiltin3(ast.Replace.Name, builtinReplace)
 	RegisterFunctionalBuiltin2(ast.Trim.Name, builtinTrim)
+	RegisterFunctionalBuiltin2(ast.TrimLeft.Name, builtinTrimLeft)
+	RegisterFunctionalBuiltin2(ast.TrimPrefix.Name, builtinTrimPrefix)
+	RegisterFunctionalBuiltin2(ast.TrimRight.Name, builtinTrimRight)
+	RegisterFunctionalBuiltin2(ast.TrimSuffix.Name, builtinTrimSuffix)
+	RegisterFunctionalBuiltin1(ast.TrimSpace.Name, builtinTrimSpace)
 	RegisterFunctionalBuiltin2(ast.Sprintf.Name, builtinSprintf)
 }
