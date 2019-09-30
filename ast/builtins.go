@@ -103,6 +103,11 @@ var DefaultBuiltins = [...]*Builtin{
 	Split,
 	Replace,
 	Trim,
+	TrimLeft,
+	TrimPrefix,
+	TrimRight,
+	TrimSuffix,
+	TrimSpace,
 	Sprintf,
 
 	// Encoding
@@ -761,13 +766,74 @@ var Replace = &Builtin{
 	),
 }
 
-// Trim returns the given string will all leading or trailing instances of the second
+// Trim returns the given string with all leading or trailing instances of the second
 // argument removed.
 var Trim = &Builtin{
 	Name: "trim",
 	Decl: types.NewFunction(
 		types.Args(
 			types.S,
+			types.S,
+		),
+		types.S,
+	),
+}
+
+// TrimLeft returns the given string with all leading instances of second argument removed.
+var TrimLeft = &Builtin{
+	Name: "trim_left",
+	Decl: types.NewFunction(
+		types.Args(
+			types.S,
+			types.S,
+		),
+		types.S,
+	),
+}
+
+// TrimPrefix returns the given string without the second argument prefix string.
+// If the given string doesn't start with prefix, it is returned unchanged.
+var TrimPrefix = &Builtin{
+	Name: "trim_prefix",
+	Decl: types.NewFunction(
+		types.Args(
+			types.S,
+			types.S,
+		),
+		types.S,
+	),
+}
+
+// TrimRight returns the given string with all trailing instances of second argument removed.
+var TrimRight = &Builtin{
+	Name: "trim_right",
+	Decl: types.NewFunction(
+		types.Args(
+			types.S,
+			types.S,
+		),
+		types.S,
+	),
+}
+
+// TrimSuffix returns the given string without the second argument suffix string.
+// If the given string doesn't end with suffix, it is returned unchanged.
+var TrimSuffix = &Builtin{
+	Name: "trim_suffix",
+	Decl: types.NewFunction(
+		types.Args(
+			types.S,
+			types.S,
+		),
+		types.S,
+	),
+}
+
+// TrimSpace return the given string with all leading and trailing white space removed.
+var TrimSpace = &Builtin{
+	Name: "trim_space",
+	Decl: types.NewFunction(
+		types.Args(
 			types.S,
 		),
 		types.S,
