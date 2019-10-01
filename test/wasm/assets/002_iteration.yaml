@@ -61,3 +61,15 @@ cases:
       ]
     }
     return_code: 0
+  - note: iteration composite
+    query: a = {["t",1], ["u",2], ["v", 3]}; a[["v", v]]; v == 3
+    return_code: 1
+  - note: iteration composite (negative)
+    query: a = {["t",1], ["u",2], ["v", 3]}; a[["u", u]]; u == 3
+    return_code: 0
+  - note: no scan required
+    query: u = 2; a = {["t",1], ["u",2], ["v", 3]}; a[["u", u]]
+    return_code: 1
+  - note: no scan required (negative)
+    query: v = 2; a = {["t",1], ["u",2], ["v", 3]}; a[["v", v]]
+    return_code: 0

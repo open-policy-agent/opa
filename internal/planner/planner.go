@@ -1069,94 +1069,92 @@ func (p *Planner) planRefRec(ref ast.Ref, index int, iter planiter) error {
 		return iter()
 	}
 
-	switch v := ref[index].Value.(type) {
+	scan := false
 
-	case ast.Null, ast.Boolean, ast.Number, ast.String:
-		source := p.ltarget
-		return p.planTerm(ref[index], func() error {
-			key := p.ltarget
-			target := p.newLocal()
-			p.appendStmt(&ir.DotStmt{
-				Source: source,
-				Key:    key,
-				Target: target,
-			})
-			p.ltarget = target
-			return p.planRefRec(ref, index+1, iter)
-		})
-
-	case ast.Var:
-		if _, ok := p.vars[v]; !ok {
-			return p.planRefScan(ref, index, func() error {
-				return p.planRefRec(ref, index+1, iter)
-			})
+	ast.WalkVars(ref[index], func(v ast.Var) bool {
+		if !scan {
+			_, exists := p.vars[v]
+			if !exists {
+				scan = true
+			}
 		}
-		target := p.newLocal()
-		p.appendStmt(&ir.DotStmt{
-			Source: p.ltarget,
-			Key:    p.vars[v],
-			Target: target,
-		})
-		p.ltarget = target
-		return p.planRefRec(ref, index+1, iter)
+		return scan
+	})
 
-	default:
-		return fmt.Errorf("%v reference operand not implemented", ast.TypeName(ref[index].Value))
+	if !scan {
+		return p.planRefRecDot(ref, index, iter)
 	}
+
+	return p.planRefRecScan(ref, index, iter)
 }
 
-func (p *Planner) planRefScan(ref ast.Ref, index int, iter planiter) error {
+func (p *Planner) planRefRecDot(ref ast.Ref, index int, iter planiter) error {
 
 	source := p.ltarget
 
-	return p.planVar(ref[index].Value.(ast.Var), func() error {
+	return p.planTerm(ref[index], func() error {
 
-		key := p.ltarget
-		cond := p.newLocal()
-		value := p.newLocal()
+		target := p.newLocal()
 
-		p.appendStmt(&ir.MakeBooleanStmt{
-			Value:  false,
-			Target: cond,
-		})
-
-		scan := &ir.ScanStmt{
+		p.appendStmt(&ir.DotStmt{
 			Source: source,
-			Key:    key,
-			Value:  value,
-			Block:  &ir.Block{},
-		}
-
-		prev := p.curr
-		p.curr = scan.Block
-		p.ltarget = value
-
-		if err := iter(); err != nil {
-			return err
-		}
-
-		p.appendStmt(&ir.AssignBooleanStmt{
-			Value:  true,
-			Target: cond,
+			Key:    p.ltarget,
+			Target: target,
 		})
 
-		p.curr = prev
-		p.appendStmt(scan)
+		p.ltarget = target
 
-		truth := p.newLocal()
-
-		p.appendStmt(&ir.MakeBooleanStmt{
-			Value:  true,
-			Target: truth,
-		})
-
-		p.appendStmt(&ir.EqualStmt{
-			A: cond,
-			B: truth,
-		})
-
-		return nil
+		return p.planRefRec(ref, index+1, iter)
 	})
+}
+
+func (p *Planner) planRefRecScan(ref ast.Ref, index int, iter planiter) error {
+
+	cond := p.newLocal()
+
+	p.appendStmt(&ir.MakeBooleanStmt{
+		Value:  false,
+		Target: cond,
+	})
+
+	scan := &ir.ScanStmt{
+		Source: p.ltarget,
+		Key:    p.newLocal(),
+		Value:  p.newLocal(),
+		Block:  &ir.Block{},
+	}
+
+	prev := p.curr
+	p.curr = scan.Block
+	p.ltarget = scan.Value
+
+	if err := p.planUnifyLocal(scan.Key, ref[index], func() error {
+		return p.planRefRec(ref, index+1, iter)
+	}); err != nil {
+		return err
+	}
+
+	p.appendStmt(&ir.AssignBooleanStmt{
+		Value:  true,
+		Target: cond,
+	})
+
+	p.curr = prev
+	p.appendStmt(scan)
+
+	truth := p.newLocal()
+
+	p.appendStmt(&ir.MakeBooleanStmt{
+		Value:  true,
+		Target: truth,
+	})
+
+	p.appendStmt(&ir.EqualStmt{
+		A: cond,
+		B: truth,
+	})
+
+	return nil
 }
 
 func (p *Planner) planRefData(node *functrie, ref ast.Ref, idx int, iter planiter) error {
