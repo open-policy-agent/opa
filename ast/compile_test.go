@@ -1178,8 +1178,9 @@ elsekw {
 func TestCompilerRewriteLocalAssignments(t *testing.T) {
 
 	tests := []struct {
-		module string
-		exp    string
+		module          string
+		exp             string
+		expRewrittenMap map[Var]Var
 	}{
 		{
 			module: `
@@ -1190,6 +1191,9 @@ func TestCompilerRewriteLocalAssignments(t *testing.T) {
 				package test
 				body = true { __local0__ = 1; gt(__local0__, 0) }
 			`,
+			expRewrittenMap: map[Var]Var{
+				Var("__local0__"): Var("a"),
+			},
 		},
 		{
 			module: `
@@ -1200,6 +1204,9 @@ func TestCompilerRewriteLocalAssignments(t *testing.T) {
 				package test
 				head_vars(a) = __local0__ { __local0__ = a }
 			`,
+			expRewrittenMap: map[Var]Var{
+				Var("__local0__"): Var("b"),
+			},
 		},
 		{
 			module: `
@@ -1210,6 +1217,9 @@ func TestCompilerRewriteLocalAssignments(t *testing.T) {
 				package test
 				head_key[__local0__] { __local0__ = 1 }
 			`,
+			expRewrittenMap: map[Var]Var{
+				Var("__local0__"): Var("a"),
+			},
 		},
 		{
 			module: `
@@ -1225,6 +1235,9 @@ func TestCompilerRewriteLocalAssignments(t *testing.T) {
 					x = 4
 					head_nested[data.test.p[__local0__]]
 			`,
+			expRewrittenMap: map[Var]Var{
+				Var("__local0__"): Var("x"),
+			},
 		},
 		{
 			module: `
@@ -1241,6 +1254,9 @@ func TestCompilerRewriteLocalAssignments(t *testing.T) {
 					y = [true | __local0__ = 1]
 				}
 			`,
+			expRewrittenMap: map[Var]Var{
+				Var("__local0__"): Var("x"),
+			},
 		},
 		{
 			module: `
@@ -1254,6 +1270,10 @@ func TestCompilerRewriteLocalAssignments(t *testing.T) {
 				package test
 				nested = true { __local0__ = [1, 2, 3]; __local1__ = [true | gt(__local0__[i], 1)] }
 			`,
+			expRewrittenMap: map[Var]Var{
+				Var("__local0__"): Var("a"),
+				Var("__local1__"): Var("x"),
+			},
 		},
 		{
 			module: `
@@ -1266,6 +1286,9 @@ func TestCompilerRewriteLocalAssignments(t *testing.T) {
 				x = 2 { true }
 				shadow_globals[__local0__] { __local0__ = 1 }
 			`,
+			expRewrittenMap: map[Var]Var{
+				Var("__local0__"): Var("x"),
+			},
 		},
 		{
 			module: `
@@ -1276,6 +1299,9 @@ func TestCompilerRewriteLocalAssignments(t *testing.T) {
 				package test
 				shadow_rule[__local0__] { __local0__ = 1 }
 			`,
+			expRewrittenMap: map[Var]Var{
+				Var("__local0__"): Var("shadow_rule"),
+			},
 		},
 		{
 			module: `
@@ -1286,6 +1312,10 @@ func TestCompilerRewriteLocalAssignments(t *testing.T) {
 				package test
 				shadow_roots_1 = true { __local0__ = 1; __local1__ = 2; gt(__local1__, __local0__) }
 			`,
+			expRewrittenMap: map[Var]Var{
+				Var("__local0__"): Var("data"),
+				Var("__local1__"): Var("input"),
+			},
 		},
 		{
 			module: `
@@ -1296,6 +1326,9 @@ func TestCompilerRewriteLocalAssignments(t *testing.T) {
 				package test
 				shadow_roots_2 = true { __local0__ = {"a": 1}; gt(__local0__.a, 0) }
 			`,
+			expRewrittenMap: map[Var]Var{
+				Var("__local0__"): Var("input"),
+			},
 		},
 		{
 			module: `
@@ -1306,6 +1339,10 @@ func TestCompilerRewriteLocalAssignments(t *testing.T) {
 				package test
 				skip_with_target = true { __local0__ = 1; __local1__ = 2; data.p with input as __local0__ }
 			`,
+			expRewrittenMap: map[Var]Var{
+				Var("__local0__"): Var("a"),
+				Var("__local1__"): Var("input"),
+			},
 		},
 		{
 			module: `
@@ -1320,6 +1357,12 @@ func TestCompilerRewriteLocalAssignments(t *testing.T) {
 				package test
 				shadow_comprehensions = true { __local0__ = 1; [true | __local1__ = 2; __local2__ = 1]; __local3__ = 2 }
 			`,
+			expRewrittenMap: map[Var]Var{
+				Var("__local0__"): Var("a"),
+				Var("__local1__"): Var("a"),
+				Var("__local2__"): Var("b"),
+				Var("__local3__"): Var("b"),
+			},
 		},
 		{
 			module: `
@@ -1333,6 +1376,10 @@ func TestCompilerRewriteLocalAssignments(t *testing.T) {
 				package test
 				scoping = true { [true | __local0__ = 1]; [true | __local1__ = 2] }
 			`,
+			expRewrittenMap: map[Var]Var{
+				Var("__local0__"): Var("a"),
+				Var("__local1__"): Var("a"),
+			},
 		},
 		{
 			module: `
@@ -1345,6 +1392,10 @@ func TestCompilerRewriteLocalAssignments(t *testing.T) {
 				package test
 				object_keys = true { {k: __local0__, "k2": __local1__} = {"foo": 1, "k2": 2} }
 			`,
+			expRewrittenMap: map[Var]Var{
+				Var("__local0__"): Var("v1"),
+				Var("__local1__"): Var("v2"),
+			},
 		},
 		{
 			module: `
@@ -1359,6 +1410,12 @@ func TestCompilerRewriteLocalAssignments(t *testing.T) {
 				head_set_comprehensions = {[__local1__] | __local1__ = 1} { true }
 				head_object_comprehensions = {__local2__: [__local3__] | __local2__ = "foo"; __local3__ = 1} { true }
 			`,
+			expRewrittenMap: map[Var]Var{
+				Var("__local0__"): Var("x"),
+				Var("__local1__"): Var("x"),
+				Var("__local2__"): Var("k"),
+				Var("__local3__"): Var("x"),
+			},
 		},
 		{
 			module: `
@@ -1372,6 +1429,9 @@ func TestCompilerRewriteLocalAssignments(t *testing.T) {
 				package test
 				rewritten_object_key = true { __local0__ = "foo"; {__local0__: 1} }
 			`,
+			expRewrittenMap: map[Var]Var{
+				Var("__local0__"): Var("k"),
+			},
 		},
 		{
 			module: `
@@ -1384,6 +1444,9 @@ func TestCompilerRewriteLocalAssignments(t *testing.T) {
 				package test
 				rewritten_object_key_head[[{__local0__: 1}]] { __local0__ = "foo" }
 			`,
+			expRewrittenMap: map[Var]Var{
+				Var("__local0__"): Var("k"),
+			},
 		},
 		{
 			module: `
@@ -1396,6 +1459,9 @@ func TestCompilerRewriteLocalAssignments(t *testing.T) {
 				package test
 				rewritten_object_key_head_value = [{__local0__: 1}] { __local0__ = "foo" }
 			`,
+			expRewrittenMap: map[Var]Var{
+				Var("__local0__"): Var("k"),
+			},
 		},
 		{
 			module: `
@@ -1409,6 +1475,10 @@ func TestCompilerRewriteLocalAssignments(t *testing.T) {
 				package test
 				skip_with_target_in_assignment = true { __local0__ = 1; __local1__ = [true | true with input as 2; true with input as 3] }
 			`,
+			expRewrittenMap: map[Var]Var{
+				Var("__local0__"): Var("input"),
+				Var("__local1__"): Var("a"),
+			},
 		},
 		{
 			module: `
@@ -1422,6 +1492,10 @@ func TestCompilerRewriteLocalAssignments(t *testing.T) {
 				package test
 				rewrite_value_in_assignment = true { __local0__ = 1; __local1__ = 1 with input as [__local0__] }
 			`,
+			expRewrittenMap: map[Var]Var{
+				Var("__local0__"): Var("a"),
+				Var("__local1__"): Var("b"),
+			},
 		},
 		{
 			module: `
@@ -1437,6 +1511,9 @@ func TestCompilerRewriteLocalAssignments(t *testing.T) {
 				global = {} { true }
 				ref_shadowed = true { __local0__ = {"a": 1}; gt(__local0__.a, 0) }
 			`,
+			expRewrittenMap: map[Var]Var{
+				Var("__local0__"): Var("global"),
+			},
 		},
 		{
 			module: `
@@ -1451,9 +1528,13 @@ func TestCompilerRewriteLocalAssignments(t *testing.T) {
 			`,
 			exp: `
 				package test
-
+		
 				f(x) = __local0__ { x == 1; __local0__ = 2 } else = __local1__ { x == 3; __local1__ = 4 }
 			`,
+			expRewrittenMap: map[Var]Var{
+				Var("__local0__"): Var("y"),
+				Var("__local1__"): Var("y"),
+			},
 		},
 	}
 
@@ -1468,7 +1549,10 @@ func TestCompilerRewriteLocalAssignments(t *testing.T) {
 			result := c.Modules["test.rego"]
 			exp := MustParseModule(tc.exp)
 			if result.Compare(exp) != 0 {
-				t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", exp, result)
+				t.Fatalf("\nExpected:\n\n%v\n\nGot:\n\n%v", exp, result)
+			}
+			if !reflect.DeepEqual(c.RewrittenVars, tc.expRewrittenMap) {
+				t.Fatalf("\nExpected Rewritten Vars:\n\n\t%+v\n\nGot:\n\n\t%+v\n\n", tc.expRewrittenMap, c.RewrittenVars)
 			}
 		})
 	}
