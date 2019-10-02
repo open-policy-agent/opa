@@ -95,3 +95,18 @@ func TestBuiltinTrimSpace(t *testing.T) {
 		runTopDownTestCase(t, map[string]interface{}{}, tc.note, tc.rules, tc.expected)
 	}
 }
+
+func TestReplaceN(t *testing.T) {
+	tests := []struct {
+		note     string
+		rules    []string
+		expected interface{}
+	}{
+		{"replace multiple patterns", []string{`p[x] { x = strings.replace_n({"<": "&lt;", ">": "&gt;"}, "This is <b>HTML</b>!") }`}, `["This is &lt;b&gt;HTML&lt;/b&gt;!"]`},
+		{"find no patterns", []string{`p[x] { x = strings.replace_n({"old1": "new1", "old2": "new2"}, "Everything is new1, new2") }`}, `["Everything is new1, new2"]`},
+	}
+
+	for _, tc := range tests {
+		runTopDownTestCase(t, map[string]interface{}{}, tc.note, tc.rules, tc.expected)
+	}
+}

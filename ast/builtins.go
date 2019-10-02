@@ -84,6 +84,7 @@ var DefaultBuiltins = [...]*Builtin{
 	GlobsMatch,
 	RegexTemplateMatch,
 	RegexFind,
+	RegexFindAllStringSubmatch,
 
 	// Sets
 	SetDiff,
@@ -102,6 +103,7 @@ var DefaultBuiltins = [...]*Builtin{
 	EndsWith,
 	Split,
 	Replace,
+	ReplaceN,
 	Trim,
 	TrimLeft,
 	TrimPrefix,
@@ -572,6 +574,21 @@ var RegexMatch = &Builtin{
 	),
 }
 
+// RegexFindAllStringSubmatch returns an array of all successive matches of the expression.
+// It takes two strings and a number, the pattern, the value and number of matches to
+// return, -1 means all matches.
+var RegexFindAllStringSubmatch = &Builtin{
+	Name: "regex.find_all_string_submatch_n",
+	Decl: types.NewFunction(
+		types.Args(
+			types.S,
+			types.S,
+			types.N,
+		),
+		types.NewArray(nil, types.NewArray(nil, types.S)),
+	),
+}
+
 // RegexTemplateMatch takes two strings and evaluates to true if the string in the second
 // position matches the pattern in the first position.
 var RegexTemplateMatch = &Builtin{
@@ -760,6 +777,24 @@ var Replace = &Builtin{
 		types.Args(
 			types.S,
 			types.S,
+			types.S,
+		),
+		types.S,
+	),
+}
+
+// ReplaceN replaces a string from a list of old, new string pairs.
+// Replacements are performed in the order they appear in the target string, without overlapping matches.
+// The old string comparisons are done in argument order.
+var ReplaceN = &Builtin{
+	Name: "strings.replace_n",
+	Decl: types.NewFunction(
+		types.Args(
+			types.NewObject(
+				nil,
+				types.NewDynamicProperty(
+					types.S,
+					types.S)),
 			types.S,
 		),
 		types.S,
