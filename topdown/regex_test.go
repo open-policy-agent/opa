@@ -32,3 +32,23 @@ func TestRegexFind(t *testing.T) {
 		runTopDownTestCase(t, map[string]interface{}{}, tc.note, tc.rules, tc.expected)
 	}
 }
+
+func TestRegexFindAllStringSubmatch(t *testing.T) {
+	tests := []struct {
+		note     string
+		rules    []string
+		expected interface{}
+	}{
+		{"finds no matches", []string{`p[x] { x = regex.find_all_string_submatch_n("a(x*)b", "-", -1) }`}, `[[]]]`},
+		{"single match without captures", []string{`p[x] { x = regex.find_all_string_submatch_n("a(x*)b", "-ab-", -1) }`}, `[[["ab", ""]]]]`},
+		{"single match with a capture", []string{`p[x] { x = regex.find_all_string_submatch_n("a(x*)b", "-axxb-", -1) }`}, `[[["axxb", "xx"]]]]`},
+		{"multiple matches with captures-1", []string{`p[x] { x = regex.find_all_string_submatch_n("a(x*)b", "-ab-axb-", -1) }`}, `[[["ab", ""], ["axb", "x"]]]]`},
+		{"multiple matches with captures-2", []string{`p[x] { x = regex.find_all_string_submatch_n("a(x*)b", "-axxb-ab-", -1) }`}, `[[["axxb", "xx"], ["ab", ""]]]]`},
+		{"multiple patterns, matches, and captures", []string{`p[x] { x = regex.find_all_string_submatch_n("[^aouiye]([aouiye])([^aouiye])?", "somestri", -1) }`}, `[[["som", "o", "m"], ["ri", "i", ""]]]]`},
+		{"multiple patterns, matches, and captures with specified number of matches", []string{`p[x] { x = regex.find_all_string_submatch_n("[^aouiye]([aouiye])([^aouiye])?", "somestri", 1) }`}, `[[["som", "o", "m"]]]]`},
+	}
+
+	for _, tc := range tests {
+		runTopDownTestCase(t, map[string]interface{}{}, tc.note, tc.rules, tc.expected)
+	}
+}

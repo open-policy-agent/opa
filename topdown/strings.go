@@ -5,6 +5,7 @@
 package topdown
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -227,6 +228,36 @@ func builtinReplace(a, b, c ast.Value) (ast.Value, error) {
 	return ast.String(strings.Replace(string(s), string(old), string(new), -1)), nil
 }
 
+func builtinReplaceN(a, b ast.Value) (ast.Value, error) {
+	asJSON, err := ast.JSON(a)
+	if err != nil {
+		return nil, err
+	}
+	oldnewObj, ok := asJSON.(map[string]interface{})
+	if !ok {
+		return nil, builtins.NewOperandTypeErr(1, a, "object")
+	}
+
+	s, err := builtins.StringOperand(b, 2)
+	if err != nil {
+		return nil, err
+	}
+
+	var oldnewArr []string
+	for k, v := range oldnewObj {
+		strVal, ok := v.(string)
+		if !ok {
+			return nil, errors.New("non-string value found in pattern object")
+		}
+		oldnewArr = append(oldnewArr, k, strVal)
+	}
+
+	r := strings.NewReplacer(oldnewArr...)
+	replaced := r.Replace(string(s))
+
+	return ast.String(replaced), nil
+}
+
 func builtinTrim(a, b ast.Value) (ast.Value, error) {
 	s, err := builtins.StringOperand(a, 1)
 	if err != nil {
@@ -351,6 +382,7 @@ func init() {
 	RegisterFunctionalBuiltin1(ast.Lower.Name, builtinLower)
 	RegisterFunctionalBuiltin2(ast.Split.Name, builtinSplit)
 	RegisterFunctionalBuiltin3(ast.Replace.Name, builtinReplace)
+	RegisterFunctionalBuiltin2(ast.ReplaceN.Name, builtinReplaceN)
 	RegisterFunctionalBuiltin2(ast.Trim.Name, builtinTrim)
 	RegisterFunctionalBuiltin2(ast.TrimLeft.Name, builtinTrimLeft)
 	RegisterFunctionalBuiltin2(ast.TrimPrefix.Name, builtinTrimPrefix)
