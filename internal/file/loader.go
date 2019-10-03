@@ -90,7 +90,7 @@ func (d *dirLoader) NextFile() (*Descriptor, error) {
 		d.files = []string{}
 		err := filepath.Walk(d.root, func(path string, info os.FileInfo, err error) error {
 			if info != nil && info.Mode().IsRegular() {
-				d.files = append(d.files, path)
+				d.files = append(d.files, filepath.ToSlash(path))
 			}
 			return nil
 		})
