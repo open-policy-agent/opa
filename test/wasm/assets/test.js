@@ -54,23 +54,48 @@ function formatMicros(us) {
     }
 }
 
-function evaluate(mem, policy, input) {
+async function instantiate(bytes, memory) {
 
-    const str = JSON.stringify(input)
-    const rawAddr = policy.instance.exports.opa_malloc(str.length);
-    const buf = new Uint8Array(mem.buffer);
+    const addr2string = stringDecoder(memory);
+
+    const mod = await WebAssembly.instantiate(bytes, {
+        env: {
+            memory: memory,
+            opa_abort: function (addr) {
+                throw addr2string(addr);
+            },
+            opa_println: function (addr) {
+                console.log(addr2string(addr));
+            },
+        },
+    });
+
+    const heapPtr = mod.instance.exports.opa_heap_ptr_get();
+    const heapTop = mod.instance.exports.opa_heap_top_get();
+
+    return { module: mod, memory: memory, heapPtr: heapPtr, heapTop: heapTop };
+}
+
+function evaluate(policy, input) {
+
+    policy.module.instance.exports.opa_heap_ptr_set(policy.heapPtr);
+    policy.module.instance.exports.opa_heap_top_set(policy.heapTop);
+
+    const str = JSON.stringify(input);
+    const rawAddr = policy.module.instance.exports.opa_malloc(str.length);
+    const buf = new Uint8Array(policy.memory.buffer);
 
     for (let i = 0; i < str.length; i++) {
         buf[rawAddr + i] = str.charCodeAt(i);
     }
 
-    const parsedAddr = policy.instance.exports.opa_json_parse(rawAddr, str.length);
+    const parsedAddr = policy.module.instance.exports.opa_json_parse(rawAddr, str.length);
 
     if (parsedAddr == 0) {
         throw "failed to parse input json"
     }
 
-    const returnCode = policy.instance.exports.eval(parsedAddr);
+    const returnCode = policy.module.instance.exports.eval(parsedAddr);
 
     return { returnCode: returnCode };
 }
@@ -87,11 +112,8 @@ function namespace(cache, key) {
 
 async function test() {
 
-    const mem = new WebAssembly.Memory({ initial: 5 });
-    const addr2string = stringDecoder(mem);
-
+    const memory = new WebAssembly.Memory({ initial: 5 });
     const t0 = now();
-
     var testCases = [];
     const files = readdirSync('.');
     let numFiles = 0;
@@ -122,23 +144,12 @@ async function test() {
 
     for (let i = 0; i < testCases.length; i++) {
 
-        const policy = await WebAssembly.instantiate(testCases[i].wasmBytes, {
-            env: {
-                memory: mem,
-                opa_abort: function (addr) {
-                    throw addr2string(addr);
-                },
-                opa_println: function (addr) {
-                    console.log(addr2string(addr));
-                },
-            },
-        });
-
         let passed = false;
         let error = undefined;
 
         try {
-            const result = evaluate(mem, policy, testCases[i].input);
+            const policy = await instantiate(testCases[i].wasmBytes, memory);
+            const result = evaluate(policy, testCases[i].input);
             passed = result.returnCode === testCases[i].return_code;
         } catch (e) {
             if (testCases[i].want_error === undefined) {
