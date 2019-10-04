@@ -254,7 +254,6 @@ spec:
             mountPath: /policy
             name: opa-policy
           args:
-          - "--plugin-dir=/app"
           - "run" 
           - "--server"
           - "--set=plugins.envoy_ext_authz_grpc.addr=:9191"
