@@ -109,6 +109,12 @@ const (
 const (
 	// Input is the local variable that refers to the global input document.
 	Input Local = iota
+
+	// Data is the local variable that refers to the global data document.
+	Data
+
+	// Unused is the free local variable that can be allocated in a plan.
+	Unused
 )
 
 func (a *Policy) String() string {

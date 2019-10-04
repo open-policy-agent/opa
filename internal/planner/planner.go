@@ -31,9 +31,10 @@ type Planner struct {
 // New returns a new Planner object.
 func New() *Planner {
 	return &Planner{
-		lcurr: ir.Input + 1,
+		lcurr: ir.Unused,
 		vars: map[ast.Var]ir.Local{
-			ast.InputRootDocument.Value.(ast.Var): ir.Input,
+			ast.InputRootDocument.Value.(ast.Var):   ir.Input,
+			ast.DefaultRootDocument.Value.(ast.Var): ir.Data,
 		},
 		funcs: newFunctrie(),
 	}
@@ -119,8 +120,11 @@ func (p *Planner) planRules(trieNode *functrieValue) error {
 
 	// Create function definition for rules.
 	fn := &ir.Func{
-		Name:   rules[0].Path().String(),
-		Params: []ir.Local{p.newLocal()},
+		Name: rules[0].Path().String(),
+		Params: []ir.Local{
+			p.newLocal(),
+			p.newLocal(),
+		},
 		Return: p.newLocal(),
 	}
 
@@ -131,7 +135,7 @@ func (p *Planner) planRules(trieNode *functrieValue) error {
 		fn.Params = append(fn.Params, p.newLocal())
 	}
 
-	params := fn.Params[1:]
+	params := fn.Params[2:]
 
 	// Initialize return value for partial set/object rules. Complete docs do
 	// not require their return value to be initialized.
@@ -191,7 +195,8 @@ func (p *Planner) planRules(trieNode *functrieValue) error {
 
 			// Setup planner for block.
 			p.vars = map[ast.Var]ir.Local{
-				ast.InputRootDocument.Value.(ast.Var): fn.Params[0],
+				ast.InputRootDocument.Value.(ast.Var):   fn.Params[0],
+				ast.DefaultRootDocument.Value.(ast.Var): fn.Params[1],
 			}
 
 			curr := &ir.Block{}
@@ -493,6 +498,7 @@ func (p *Planner) planExprCall(e *ast.Expr, iter planiter) error {
 
 		args := []ir.Local{
 			p.vars[ast.InputRootDocument.Value.(ast.Var)],
+			p.vars[ast.DefaultRootDocument.Value.(ast.Var)],
 		}
 
 		if len(operands) == arity {
@@ -1181,8 +1187,11 @@ func (p *Planner) planRefData(node *functrie, ref ast.Ref, idx int, iter planite
 	p.ltarget = p.newLocal()
 
 	p.appendStmt(&ir.CallStmt{
-		Func:   ref[:idx+1].String(),
-		Args:   []ir.Local{p.vars[ast.InputRootDocument.Value.(ast.Var)]},
+		Func: ref[:idx+1].String(),
+		Args: []ir.Local{
+			p.vars[ast.InputRootDocument.Value.(ast.Var)],
+			p.vars[ast.DefaultRootDocument.Value.(ast.Var)],
+		},
 		Result: p.ltarget,
 	})
 
@@ -1238,8 +1247,11 @@ func (p *Planner) planRefDataVirtualExtent(node *functrie, iter planiter) error 
 				&ir.Block{
 					Stmts: []ir.Stmt{
 						&ir.CallStmt{
-							Func:   child.val.Rules[0].Path().String(),
-							Args:   []ir.Local{p.vars[ast.InputRootDocument.Value.(ast.Var)]},
+							Func: child.val.Rules[0].Path().String(),
+							Args: []ir.Local{
+								p.vars[ast.InputRootDocument.Value.(ast.Var)],
+								p.vars[ast.DefaultRootDocument.Value.(ast.Var)],
+							},
 							Result: lvalue,
 						},
 						&ir.ObjectInsertStmt{

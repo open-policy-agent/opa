@@ -140,7 +140,7 @@ func (c *Compiler) initModule() error {
 	}
 
 	c.emitFunctionDecl("eval", module.FunctionType{
-		Params:  []types.ValueType{types.I32},
+		Params:  []types.ValueType{types.I32, types.I32},
 		Results: []types.ValueType{types.I32},
 	}, true)
 
@@ -197,6 +197,7 @@ func (c *Compiler) compilePlan() error {
 	c.nextLocal = 0
 	c.locals = map[ir.Local]uint32{}
 	_ = c.local(ir.Input)
+	_ = c.local(ir.Data)
 
 	c.code = &module.CodeEntry{}
 

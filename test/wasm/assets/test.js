@@ -54,7 +54,26 @@ function formatMicros(us) {
     }
 }
 
-async function instantiate(bytes, memory) {
+function loadJSON(mod, memory, value) {
+
+    const str = JSON.stringify(value);
+    const rawAddr = mod.instance.exports.opa_malloc(str.length);
+    const buf = new Uint8Array(memory.buffer);
+
+    for (let i = 0; i < str.length; i++) {
+        buf[rawAddr + i] = str.charCodeAt(i);
+    }
+
+    const parsedAddr = mod.instance.exports.opa_json_parse(rawAddr, str.length);
+
+    if (parsedAddr == 0) {
+        throw "failed to parse json value"
+    }
+
+    return parsedAddr;
+}
+
+async function instantiate(bytes, memory, data) {
 
     const addr2string = stringDecoder(memory);
 
@@ -70,33 +89,18 @@ async function instantiate(bytes, memory) {
         },
     });
 
+    const dataAddr = loadJSON(mod, memory, data);
     const heapPtr = mod.instance.exports.opa_heap_ptr_get();
     const heapTop = mod.instance.exports.opa_heap_top_get();
 
-    return { module: mod, memory: memory, heapPtr: heapPtr, heapTop: heapTop };
+    return { module: mod, memory: memory, heapPtr: heapPtr, heapTop: heapTop, dataAddr: dataAddr };
 }
 
 function evaluate(policy, input) {
-
     policy.module.instance.exports.opa_heap_ptr_set(policy.heapPtr);
     policy.module.instance.exports.opa_heap_top_set(policy.heapTop);
-
-    const str = JSON.stringify(input);
-    const rawAddr = policy.module.instance.exports.opa_malloc(str.length);
-    const buf = new Uint8Array(policy.memory.buffer);
-
-    for (let i = 0; i < str.length; i++) {
-        buf[rawAddr + i] = str.charCodeAt(i);
-    }
-
-    const parsedAddr = policy.module.instance.exports.opa_json_parse(rawAddr, str.length);
-
-    if (parsedAddr == 0) {
-        throw "failed to parse input json"
-    }
-
-    const returnCode = policy.module.instance.exports.eval(parsedAddr);
-
+    const inputAddr = loadJSON(policy.module, policy.memory, input);
+    const returnCode = policy.module.instance.exports.eval(inputAddr, policy.dataAddr);
     return { returnCode: returnCode };
 }
 
@@ -148,7 +152,7 @@ async function test() {
         let error = undefined;
 
         try {
-            const policy = await instantiate(testCases[i].wasmBytes, memory);
+            const policy = await instantiate(testCases[i].wasmBytes, memory, {});
             const result = evaluate(policy, testCases[i].input);
             passed = result.returnCode === testCases[i].return_code;
         } catch (e) {
