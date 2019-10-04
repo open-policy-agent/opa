@@ -57,15 +57,20 @@ function formatMicros(us) {
 function evaluate(mem, policy, input) {
 
     const str = JSON.stringify(input)
-    const addr = policy.instance.exports.opa_malloc(str.length);
+    const rawAddr = policy.instance.exports.opa_malloc(str.length);
     const buf = new Uint8Array(mem.buffer);
 
     for (let i = 0; i < str.length; i++) {
-        buf[addr + i] = str.charCodeAt(i);
+        buf[rawAddr + i] = str.charCodeAt(i);
     }
 
+    const parsedAddr = policy.instance.exports.opa_json_parse(rawAddr, str.length);
 
-    const returnCode = policy.instance.exports.eval(addr, str.length);
+    if (parsedAddr == 0) {
+        throw "failed to parse input json"
+    }
+
+    const returnCode = policy.instance.exports.eval(parsedAddr);
 
     return { returnCode: returnCode };
 }

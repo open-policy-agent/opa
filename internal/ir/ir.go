@@ -107,16 +107,8 @@ const (
 )
 
 const (
-	// InputRaw refers to the local variable containing the address of the raw
-	// (serialized) input data.
-	InputRaw Local = 0
-
-	// InputLen refers to the local variable containing the length of the raw input.
-	InputLen Local = 1
-
-	// Input refers to the local variable containing the address of the deserialized
-	// input value.
-	Input Local = 2
+	// Input is the local variable that refers to the global input document.
+	Input Local = iota
 )
 
 func (a *Policy) String() string {
