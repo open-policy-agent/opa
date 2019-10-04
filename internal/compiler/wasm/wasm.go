@@ -140,7 +140,7 @@ func (c *Compiler) initModule() error {
 	}
 
 	c.emitFunctionDecl("eval", module.FunctionType{
-		Params:  []types.ValueType{types.I32, types.I32},
+		Params:  []types.ValueType{types.I32},
 		Results: []types.ValueType{types.I32},
 	}, true)
 
@@ -196,16 +196,9 @@ func (c *Compiler) compilePlan() error {
 	// reset local variables and declare raw ptr, len, and input ptr.
 	c.nextLocal = 0
 	c.locals = map[ir.Local]uint32{}
-	_ = c.local(ir.InputRaw)
-	_ = c.local(ir.InputLen)
 	_ = c.local(ir.Input)
 
 	c.code = &module.CodeEntry{}
-
-	c.appendInstr(instruction.GetLocal{Index: c.local(ir.InputRaw)})
-	c.appendInstr(instruction.GetLocal{Index: c.local(ir.InputLen)})
-	c.appendInstr(instruction.Call{Index: c.function(opaJSONParse)})
-	c.appendInstr(instruction.SetLocal{Index: c.local(ir.Input)})
 
 	for i := range c.policy.Plan.Blocks {
 
