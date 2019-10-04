@@ -472,12 +472,12 @@ func TestTopDownPartialEval(t *testing.T) {
 		{
 			note:        "comprehensions: save",
 			query:       `x = [true | true]; y = {true | true}; z = {a: true | a = "foo"}`,
-			wantQueries: []string{`x = [true | true]; y = {true | true}; z = {a0: true | a0 = "foo"}`},
+			wantQueries: []string{`x = [true | true]; y = {true | true}; z = {a: true | a = "foo"}`},
 		},
 		{
 			note:        "comprehensions: closure",
 			query:       `i = 1; xs = [x | x = data.foo[i]]`,
-			wantQueries: []string{`xs = [x0 | x0 = data.foo[i0]; i0 = 1]; i = 1`},
+			wantQueries: []string{`xs = [x | x = data.foo[1]; 1 = 1]; i = 1`},
 		},
 		{
 			note:  "save: sub path",
@@ -718,7 +718,7 @@ func TestTopDownPartialEval(t *testing.T) {
 			wantSupport: []string{
 				`package partial.test
 				p = 1 { input.x = 1 }
-				p = x { input.x = x }
+				p = x1 { input.x = x1 }
 				default p = 0
 				`,
 			},
@@ -1395,6 +1395,22 @@ func TestTopDownPartialEval(t *testing.T) {
 			},
 		},
 		{
+			note:  "negation: inlining namespaced variables",
+			query: "data.test.p[x]",
+			modules: []string{
+				`package test
+
+				p[y] {
+					y = input
+					not y = 1
+				}
+				`,
+			},
+			wantQueries: []string{
+				`x = input; not x = 1; x`,
+			},
+		},
+		{
 			note:  "disable inlining: complete doc",
 			query: "data.test.p = true",
 			modules: []string{`
@@ -1490,6 +1506,50 @@ func TestTopDownPartialEval(t *testing.T) {
 			disableInlining: []string{`data.test.q`},
 		},
 		{
+			note:            "disable inlining: partial rule namespaced variables (negation)",
+			query:           "data.test.p[x]",
+			disableInlining: []string{"data.test.p"},
+			modules: []string{
+				`package test
+
+				p[y] {
+					y = input
+					not y = 1
+				}
+				`,
+			},
+			wantQueries: []string{
+				`data.partial.test.p[x]`,
+			},
+			wantSupport: []string{
+				`package partial.test
+
+				p[y1] { y1 = input; not y1 = 1 }`,
+			},
+		},
+		{
+			note:            "disable inlining: complete rule namespaced variables (negation)",
+			query:           "data.test.p = x",
+			disableInlining: []string{"data.test.p"},
+			modules: []string{
+				`package test
+
+				p = y {
+					y = input
+					not y = 1
+				}
+				`,
+			},
+			wantQueries: []string{
+				`data.partial.test.p = x`,
+			},
+			wantSupport: []string{
+				`package partial.test
+
+				p = y1 { y1 = input; not y1 = 1 }`,
+			},
+		},
+		{
 			note:  "comprehensions: ref heads (with namespacing)",
 			query: "data.test.p = true; input.x = x",
 			modules: []string{
@@ -1504,7 +1564,7 @@ func TestTopDownPartialEval(t *testing.T) {
 		{
 			note:        "comprehensions: ref heads (with live vars)",
 			query:       "x = [0]; y = {true | x[0]}",
-			wantQueries: []string{`y = {true | x0[0]; x0 = [0]}; x = [0]`},
+			wantQueries: []string{`y = {true | x[0]; x = [0]}; x = [0]`},
 		},
 	}
 

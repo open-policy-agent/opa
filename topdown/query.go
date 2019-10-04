@@ -181,6 +181,7 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 		genvarprefix:    q.genvarprefix,
 		runtime:         q.runtime,
 	}
+	e.caller = e
 	q.startTimer(metrics.RegoPartialEval)
 	defer q.stopTimer(metrics.RegoPartialEval)
 
@@ -265,6 +266,7 @@ func (q *Query) Iter(ctx context.Context, iter func(QueryResult) error) error {
 		genvarprefix: q.genvarprefix,
 		runtime:      q.runtime,
 	}
+	e.caller = e
 	q.startTimer(metrics.RegoQueryEval)
 	err := e.Run(func(e *eval) error {
 		qr := QueryResult{}

@@ -33,6 +33,7 @@ type eval struct {
 	queryID         uint64
 	queryIDFact     *queryIDFactory
 	parent          *eval
+	caller          *eval
 	cancel          Cancel
 	query           ast.Body
 	index           int
@@ -386,27 +387,13 @@ func (e *eval) evalNotPartial(iter evalIterator) error {
 	negation := expr.Complement().NoWith()
 	child := e.closure(ast.NewBody(negation))
 
-	var caller *bindings
-
-	if e.parent == nil {
-		// The top-level query is being evaluated. Do not namespace variables from this
-		// query.
-		caller = e.bindings
-	} else {
-		// The top-level query is NOT being evaluated. All variables in the queries
-		// that are emitted by partial evaluation of this query MUST be namespaced. A
-		// sentinel is used because the plug operations do not namespace if the caller
-		// is nil.
-		caller = sentinel
-	}
-
 	// Unknowns is the set of variables that are marked as unknown. The variables
 	// are namespaced with the query ID that they originate in. This ensures that
 	// variables across two or more queries are identified uniquely.
 	//
 	// NOTE(tsandall): this is greedy in the sense that we only need variable
 	// dependencies of the negation.
-	unknowns := e.saveSet.Vars(caller)
+	unknowns := e.saveSet.Vars(e.caller.bindings)
 
 	// Run partial evaluation, plugging the result and applying copy propagation to
 	// each result. Since the result may require support, push a new query onto the
@@ -417,7 +404,7 @@ func (e *eval) evalNotPartial(iter evalIterator) error {
 
 	child.eval(func(*eval) error {
 		query := e.saveStack.Peek()
-		plugged := query.Plug(caller)
+		plugged := query.Plug(e.caller.bindings)
 		result := applyCopyPropagation(p, e.instr, plugged)
 		savedQueries = append(savedQueries, result)
 		return nil
@@ -834,7 +821,7 @@ func (e *eval) biunifyComprehensionPartial(a, b *ast.Term, b1, b2 *bindings, swa
 	// needed.) Eventually we may want to make the logic a bit smarter.
 	var extras []*ast.Expr
 
-	err := b1.Iter(sentinel, func(k, v *ast.Term) error {
+	err := b1.Iter(e.caller.bindings, func(k, v *ast.Term) error {
 		extras = append(extras, ast.Equality.Expr(k, v))
 		return nil
 	})
@@ -862,7 +849,7 @@ func (e *eval) biunifyComprehensionPartial(a, b *ast.Term, b1, b2 *bindings, swa
 		body.Append(e)
 	}
 
-	b1.Namespace(a, sentinel)
+	b1.Namespace(a, e.caller.bindings)
 
 	// The other term might need to be plugged so include the bindings. The
 	// bindings for the comprehension term are saved (for compatibility) but
@@ -1740,16 +1727,16 @@ func (e evalVirtualPartial) partialEvalSupportRule(iter unifyIterator, rule *ast
 		child.traceExit(rule)
 
 		current := e.e.saveStack.PopQuery()
-		plugged := current.Plug(child.bindings)
+		plugged := current.Plug(e.e.caller.bindings)
 
 		var key, value *ast.Term
 
 		if rule.Head.Key != nil {
-			key = child.bindings.PlugNamespaced(rule.Head.Key, child.bindings)
+			key = child.bindings.PlugNamespaced(rule.Head.Key, e.e.caller.bindings)
 		}
 
 		if rule.Head.Value != nil {
-			value = child.bindings.PlugNamespaced(rule.Head.Value, child.bindings)
+			value = child.bindings.PlugNamespaced(rule.Head.Value, e.e.caller.bindings)
 		}
 
 		head := ast.NewHead(rule.Head.Name, key, value)
@@ -1985,9 +1972,9 @@ func (e evalVirtualComplete) partialEvalSupportRule(iter unifyIterator, rule *as
 		child.traceExit(rule)
 
 		current := e.e.saveStack.PopQuery()
-		plugged := current.Plug(child.bindings)
+		plugged := current.Plug(e.e.caller.bindings)
 
-		head := ast.NewHead(rule.Head.Name, nil, child.bindings.PlugNamespaced(rule.Head.Value, child.bindings))
+		head := ast.NewHead(rule.Head.Name, nil, child.bindings.PlugNamespaced(rule.Head.Value, e.e.caller.bindings))
 		p := copypropagation.New(head.Vars()).WithEnsureNonEmptyBody(true)
 
 		e.e.saveSupport.Insert(path, &ast.Rule{
