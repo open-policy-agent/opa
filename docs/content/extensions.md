@@ -291,7 +291,7 @@ plugins:
     stderr: false
 ```
 
-Start OPA with the plugin directory and configuration file:
+Start OPA with the configuration file:
 
 ```bash
 ./opa++ run --server --config-file config.yaml
