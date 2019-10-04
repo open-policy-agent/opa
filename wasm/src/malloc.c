@@ -7,6 +7,27 @@ static unsigned int heap_ptr;
 static unsigned int heap_top;
 extern unsigned char __heap_base; // set by lld
 
+
+unsigned int opa_heap_ptr_get(void)
+{
+    return heap_ptr;
+}
+
+unsigned int opa_heap_top_get(void)
+{
+    return heap_top;
+}
+
+void opa_heap_ptr_set(unsigned int ptr)
+{
+    heap_ptr = ptr;
+}
+
+void opa_heap_top_set(unsigned int top)
+{
+    heap_top = top;
+}
+
 void *opa_malloc(size_t size)
 {
     if (!initialized)
