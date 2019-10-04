@@ -111,6 +111,7 @@ export const PLATFORMS = {
 // The folder where OPA binaries will be downloaded into.
 // NOTE: Update package.json with any changes
 export const OPA_CACHE_PATH = './opa_versions/'
+export const OPA_EDGE_PATH = '../../../../'  // Repo root
 
 // The amount of time between redownloads of the edge release (ms).
 export const OPA_EDGE_CACHE_PERIOD = 24 * 60 * 60 * 1000 // 1 day

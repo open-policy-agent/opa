@@ -1,3 +1,4 @@
+import cp from 'child_process'
 import path from 'path'
 import {constants as fsConsts, promises as promFS} from 'fs'
 
@@ -5,7 +6,7 @@ import fetch from 'node-fetch'
 
 import {ChainedError} from '../errors'
 import {handleLater, println} from '../helpers'
-import {OPA_CACHE_PATH, OPA_EDGE_CACHE_PERIOD, PLATFORMS, VERSION_EDGE, VERSION_LATEST} from '../constants'
+import {OPA_CACHE_PATH, OPA_EDGE_PATH, PLATFORMS, VERSION_EDGE, VERSION_LATEST} from '../constants'
 
 const PLATFORM = (() => { // Current platform, massaged into the format that OPA releases use.
   let p = process.platform
@@ -13,6 +14,12 @@ const PLATFORM = (() => { // Current platform, massaged into the format that OPA
     p = PLATFORMS.WINDOWS
   }
   return p
+})()
+const GOOS = (() => {
+  return cp.execSync("go env GOOS").toString().trim()
+})()
+const GOARCH = (() => {
+  return cp.execSync("go env GOARCH").toString().trim()
 })()
 const OPA_PATH = path.resolve(OPA_CACHE_PATH)
 
@@ -38,11 +45,21 @@ export async function acquireOPAVersion(version) {
 // WARNING: This function and it's resulting acquirer should only get called once per version.
 function createAcquirer(version) {
   return async () => {
+
+    println(`Locating OPA version ${version}...`)
+
     const path = pathToVersion(version)
+
     if (await needsDownloading(version, path)) { // This does not protect against run conditions within a single preprocessing script run, simply allows (long-term) caching.
 
-      println(`Locating OPA version ${version}...`)
-      const assetURL = await getAssetURL(version)
+      // Edge is required to have been built from the current source tree,
+      // expect the binary to be available at the normal build output location.
+      // We will _NOT_ download anything for it.
+      if (version === VERSION_EDGE) {
+        throw new Error(`binary for ${VERSION_EDGE} is not available at path ${path}, ensure it has been built for the current platform`)
+      }
+
+      const assetURL = await getReleaseAssetURL(version)
 
       let file
       try {
@@ -58,22 +75,22 @@ function createAcquirer(version) {
         throw new ChainedError(`unable to download the OPA version ${version} for ${PLATFORM} from ${assetURL}`, e)
       }
     }
+
+    println(`Found OPA version ${version}, available at ${path}`)
     return path
   }
 }
 
-// The absolute path where an OPA copy should be downloaded to if it doesn't exist there already.
+// The absolute path where an OPA copy should be located.
 function pathToVersion(version) {
-  return path.resolve(OPA_PATH, `${version}-${PLATFORM}${PLATFORM === PLATFORMS.WINDOWS ? '.exe' : ''}`)
+  if (version === VERSION_EDGE) {
+    return path.resolve(OPA_EDGE_PATH, `opa_${GOOS}_${GOARCH}`)
+  }
+  return path.resolve(OPA_CACHE_PATH, `${version}-${PLATFORM}${PLATFORM === PLATFORMS.WINDOWS ? '.exe' : ''}`)
 }
 
 // Gets the URL that can be used to download a given version of OPA for the current platform. May error with a user-friendly message.
-async function getAssetURL(version) {
-  // Edge is built by travis automatically
-  if (version === VERSION_EDGE) {
-    return `https://opa-releases.s3.amazonaws.com/edge/opa_${PLATFORM}_amd64${PLATFORM === PLATFORMS.WINDOWS ? '.exe' : ''}`
-  }
-
+async function getReleaseAssetURL(version) {
   // Releases are on GitHub
   let releaseURL;
   if (version === VERSION_LATEST) {
@@ -105,17 +122,4 @@ async function needsDownloading(version, path) {
   } catch (e) {
     return true // Can't be accessed, download it
   }
-
-  if (version === VERSION_EDGE) {
-    // Invalidate the edge cache based on when it was downloaded
-    try {
-      return new Date().getTime() - (await promFS.stat(path)).mtimeMs > OPA_EDGE_CACHE_PERIOD
-    } catch (e) {
-      return true // That's odd, shouldn't error given that it can be accessed. Anyway, might as well try redownloading it.
-    }
-  } else {
-    // Don't unnecessarily redownload released versions
-    return false
-  }
-
 }
