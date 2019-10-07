@@ -147,7 +147,7 @@ func (c *Discovery) processUpdate(ctx context.Context, u download.Update) {
 	}
 
 	if u.ETag == c.etag {
-		c.logError("Discovery update skipped, server replied with not modified.")
+		c.logDebug("Discovery update skipped, server replied with not modified.")
 		c.status.SetError(nil)
 		return
 	}
