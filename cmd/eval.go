@@ -252,6 +252,7 @@ func eval(args []string, params evalCommandParams, w io.Writer) (bool, error) {
 	}
 
 	regoArgs := []func(*rego.Rego){rego.Query(query), rego.Runtime(info)}
+	var evalArgs []rego.EvalOption
 
 	if len(params.imports.v) > 0 {
 		regoArgs = append(regoArgs, rego.Imports(params.imports.v))
@@ -294,18 +295,22 @@ func eval(args []string, params evalCommandParams, w io.Writer) (bool, error) {
 
 	if params.explain.String() != explainModeOff {
 		tracer = topdown.NewBufferTracer()
-		regoArgs = append(regoArgs, rego.Tracer(tracer))
+		evalArgs = append(evalArgs, rego.EvalTracer(tracer))
 	}
 
 	var m metrics.Metrics
 
 	if params.metrics {
 		m = metrics.New()
+
+		// Use the same metrics for preparing and evaluating
 		regoArgs = append(regoArgs, rego.Metrics(m))
+		evalArgs = append(evalArgs, rego.EvalMetrics(m))
 	}
 
 	if params.instrument {
 		regoArgs = append(regoArgs, rego.Instrument(true))
+		evalArgs = append(evalArgs, rego.EvalInstrument(true))
 	}
 
 	var p *profiler.Profiler
@@ -324,7 +329,7 @@ func eval(args []string, params evalCommandParams, w io.Writer) (bool, error) {
 
 	if params.coverage {
 		c = cover.New()
-		regoArgs = append(regoArgs, rego.Tracer(c))
+		evalArgs = append(evalArgs, rego.EvalTracer(c))
 	}
 
 	eval := rego.New(regoArgs...)
@@ -339,7 +344,7 @@ func eval(args []string, params evalCommandParams, w io.Writer) (bool, error) {
 		pq, resultErr = eval.PrepareForEval(ctx)
 		if resultErr == nil {
 			parsedModules = pq.Modules()
-			result.Result, resultErr = pq.Eval(ctx)
+			result.Result, resultErr = pq.Eval(ctx, evalArgs...)
 		}
 	} else {
 		var pq rego.PreparedPartialQuery
