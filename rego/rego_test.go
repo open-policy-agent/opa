@@ -242,17 +242,85 @@ func TestRegoMetrics(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	exp := []string{
+	validateRegoMetrics(t, m, []string{
 		"timer_rego_query_parse_ns",
 		"timer_rego_query_eval_ns",
 		"timer_rego_query_compile_ns",
 		"timer_rego_module_parse_ns",
 		"timer_rego_module_compile_ns",
+	})
+}
+
+func TestPreparedRegoMetrics(t *testing.T) {
+	m := metrics.New()
+	r := New(Query("foo = 1"), Module("foo.rego", "package x"), Metrics(m))
+	ctx := context.Background()
+	pq, err := r.PrepareForEval(ctx)
+	if err != nil {
+		t.Fatal(err)
 	}
+
+	_, err = pq.Eval(ctx, EvalMetrics(m))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	validateRegoMetrics(t, m, []string{
+		"timer_rego_query_parse_ns",
+		"timer_rego_query_eval_ns",
+		"timer_rego_query_compile_ns",
+		"timer_rego_module_parse_ns",
+		"timer_rego_module_compile_ns",
+	})
+}
+
+func TestPreparedRegoMetricsPrepareOnly(t *testing.T) {
+	m := metrics.New()
+	r := New(Query("foo = 1"), Module("foo.rego", "package x"), Metrics(m))
+	ctx := context.Background()
+	pq, err := r.PrepareForEval(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = pq.Eval(ctx) // No EvalMetrics() passed in
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	validateRegoMetrics(t, m, []string{
+		"timer_rego_query_parse_ns",
+		"timer_rego_query_compile_ns",
+		"timer_rego_module_parse_ns",
+		"timer_rego_module_compile_ns",
+	})
+}
+
+func TestPreparedRegoMetricsEvalOnly(t *testing.T) {
+	m := metrics.New()
+	r := New(Query("foo = 1"), Module("foo.rego", "package x")) // No Metrics() passed in
+	ctx := context.Background()
+	pq, err := r.PrepareForEval(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = pq.Eval(ctx, EvalMetrics(m))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	validateRegoMetrics(t, m, []string{
+		"timer_rego_query_eval_ns",
+	})
+}
+
+func validateRegoMetrics(t *testing.T, m metrics.Metrics, expectedFields []string) {
+	t.Helper()
 
 	all := m.All()
 
-	for _, name := range exp {
+	for _, name := range expectedFields {
 		if _, ok := all[name]; !ok {
 			t.Errorf("expected to find %v but did not", name)
 		}
@@ -277,6 +345,45 @@ func TestRegoInstrumentExtraEvalCompilerStage(t *testing.T) {
 	for _, name := range exp {
 		if _, ok := all[name]; !ok {
 			t.Errorf("expected to find %v but did not", name)
+		}
+	}
+}
+
+func TestPreparedRegoInstrumentExtraEvalCompilerStage(t *testing.T) {
+	m := metrics.New()
+	r := New(Query("foo = 1"), Module("foo.rego", "package x"), Metrics(m), Instrument(true))
+	ctx := context.Background()
+	pq, err := r.PrepareForEval(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// No metrics flag is passed in, should not affect results for compiler stage
+	// but expect to turn off instrumentation for evaluation.
+	_, err = pq.Eval(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	exp := []string{
+		"timer_query_compile_stage_rewrite_to_capture_value_ns",
+	}
+
+	nExp := []string{
+		"timer_eval_op_plug_ns", // We should *not* see the eval timers
+	}
+
+	all := m.All()
+
+	for _, name := range exp {
+		if _, ok := all[name]; !ok {
+			t.Errorf("expected to find %v but did not", name)
+		}
+	}
+
+	for _, name := range nExp {
+		if _, ok := all[name]; ok {
+			t.Errorf("did not expect to find %v", name)
 		}
 	}
 }
@@ -322,6 +429,34 @@ func TestRegoInstrumentExtraPartialResultCompilerStage(t *testing.T) {
 		if _, ok := all[name]; !ok {
 			t.Errorf("Expected to find '%v' in metrics\n\nActual:\n %+v", name, all)
 		}
+	}
+}
+
+func TestPreparedRegoTracerNoPropagate(t *testing.T) {
+	tracer := topdown.NewBufferTracer()
+	mod := `
+	package test
+
+	p = {
+		input.x == 10
+	}
+	`
+	pq, err := New(
+		Query("data"),
+		Module("foo.rego", mod),
+		Tracer(tracer),
+		Input(map[string]interface{}{"x": 10})).PrepareForEval(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error %s", err)
+	}
+
+	_, err = pq.Eval(context.Background()) // no EvalTracer option
+	if err != nil {
+		t.Fatalf("unexpected error %s", err)
+	}
+
+	if len(*tracer) > 0 {
+		t.Fatal("expected 0 traces to be collected")
 	}
 }
 

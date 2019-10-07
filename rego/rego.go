@@ -193,12 +193,12 @@ func (pq preparedQuery) newEvalContext(ctx context.Context, options []EvalOption
 		hasInput:         false,
 		rawInput:         nil,
 		parsedInput:      nil,
-		metrics:          pq.r.metrics,
+		metrics:          nil,
 		txn:              nil,
-		instrument:       pq.r.instrument,
-		instrumentation:  pq.r.instrumentation,
+		instrument:       false,
+		instrumentation:  nil,
 		partialNamespace: pq.r.partialNamespace,
-		tracers:          pq.r.tracers,
+		tracers:          nil,
 		unknowns:         pq.r.unknowns,
 		parsedUnknowns:   pq.r.parsedUnknowns,
 		compiledQuery:    compiledQuery{},
@@ -206,6 +206,10 @@ func (pq preparedQuery) newEvalContext(ctx context.Context, options []EvalOption
 
 	for _, o := range options {
 		o(ectx)
+	}
+
+	if ectx.metrics == nil {
+		ectx.metrics = metrics.New()
 	}
 
 	if ectx.instrument {
@@ -858,7 +862,17 @@ func (r *Rego) Eval(ctx context.Context) (ResultSet, error) {
 		return nil, err
 	}
 
-	rs, err := pq.Eval(ctx, EvalTransaction(r.txn))
+	evalArgs := []EvalOption{
+		EvalTransaction(r.txn),
+		EvalMetrics(r.metrics),
+		EvalInstrument(r.instrument),
+	}
+
+	for _, t := range r.tracers {
+		evalArgs = append(evalArgs, EvalTracer(t))
+	}
+
+	rs, err := pq.Eval(ctx, evalArgs...)
 	txnErr := txnClose(ctx, err) // Always call closer
 	if err == nil {
 		err = txnErr
@@ -913,7 +927,17 @@ func (r *Rego) Partial(ctx context.Context) (*PartialQueries, error) {
 		return nil, err
 	}
 
-	pqs, err := pq.Partial(ctx, EvalTransaction(r.txn))
+	evalArgs := []EvalOption{
+		EvalTransaction(r.txn),
+		EvalMetrics(r.metrics),
+		EvalInstrument(r.instrument),
+	}
+
+	for _, t := range r.tracers {
+		evalArgs = append(evalArgs, EvalTracer(t))
+	}
+
+	pqs, err := pq.Partial(ctx, evalArgs...)
 	txnErr := txnClose(ctx, err) // Always call closer
 	if err == nil {
 		err = txnErr
