@@ -460,6 +460,63 @@ func TestPreparedRegoTracerNoPropagate(t *testing.T) {
 	}
 }
 
+func TestRegoDisableIndexing(t *testing.T) {
+	tracer := topdown.NewBufferTracer()
+	mod := `
+	package test
+
+	p {
+		input.x = 1
+	}
+
+	p {
+		input.y = 1
+	}
+	`
+	pq, err := New(
+		Query("data"),
+		Module("foo.rego", mod),
+	).PrepareForEval(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error %s", err)
+	}
+
+	_, err = pq.Eval(
+		context.Background(),
+		EvalTracer(tracer),
+		EvalRuleIndexing(false),
+		EvalInput(map[string]interface{}{"x": 10}),
+	)
+	if err != nil {
+		t.Fatalf("unexpected error %s", err)
+	}
+
+	var evalNodes []string
+	for _, e := range *tracer {
+		if e.Op == topdown.EvalOp {
+			evalNodes = append(evalNodes, string(e.Node.Loc().Text))
+		}
+	}
+
+	expectedEvalNodes := []string{
+		"input.x = 1",
+		"input.y = 1",
+	}
+
+	for _, expected := range expectedEvalNodes {
+		found := false
+		for _, actual := range evalNodes {
+			if actual == expected {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Fatalf("Missing expected eval node in trace: %q\nGot: %q\n", expected, evalNodes)
+		}
+	}
+}
+
 func TestRegoCatchPathConflicts(t *testing.T) {
 	r := New(
 		Query("data"),

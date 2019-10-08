@@ -37,6 +37,7 @@ type eval struct {
 	cancel          Cancel
 	query           ast.Body
 	index           int
+	indexing        bool
 	bindings        *bindings
 	store           storage.Store
 	baseCache       *baseCache
@@ -1012,7 +1013,14 @@ func (e *eval) getRules(ref ast.Ref) (*ast.IndexResult, error) {
 		return nil, nil
 	}
 
-	result, err := index.Lookup(e)
+	var result *ast.IndexResult
+	var err error
+	if e.indexing {
+		result, err = index.Lookup(e)
+	} else {
+		result, err = index.AllRules(e)
+	}
+
 	if err != nil {
 		return nil, err
 	}

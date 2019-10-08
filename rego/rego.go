@@ -84,6 +84,7 @@ type EvalContext struct {
 	unknowns         []string
 	disableInlining  []ast.Ref
 	parsedUnknowns   []*ast.Term
+	indexing         bool
 }
 
 // EvalOption defines a function to set an option on an EvalConfig
@@ -168,6 +169,14 @@ func EvalParsedUnknowns(unknowns []*ast.Term) EvalOption {
 	}
 }
 
+// EvalRuleIndexing will disable indexing optimizations for the
+// evaluation. This should only be used when tracing in debug mode.
+func EvalRuleIndexing(enabled bool) EvalOption {
+	return func(e *EvalContext) {
+		e.indexing = enabled
+	}
+}
+
 func (pq preparedQuery) Modules() map[string]*ast.Module {
 	mods := make(map[string]*ast.Module)
 
@@ -202,6 +211,7 @@ func (pq preparedQuery) newEvalContext(ctx context.Context, options []EvalOption
 		unknowns:         pq.r.unknowns,
 		parsedUnknowns:   pq.r.parsedUnknowns,
 		compiledQuery:    compiledQuery{},
+		indexing:         true,
 	}
 
 	for _, o := range options {
@@ -1461,18 +1471,6 @@ func (r *Rego) compileQuery(query ast.Body, m metrics.Metrics, extras []extraSta
 
 }
 
-func (r *Rego) evalContext(input ast.Value, txn storage.Transaction) EvalContext {
-	return EvalContext{
-		rawInput:        r.rawInput,
-		parsedInput:     input,
-		metrics:         r.metrics,
-		txn:             txn,
-		instrument:      r.instrument,
-		instrumentation: r.instrumentation,
-		tracers:         r.tracers,
-	}
-}
-
 func (r *Rego) eval(ctx context.Context, ectx *EvalContext) (ResultSet, error) {
 
 	q := topdown.NewQuery(ectx.compiledQuery.query).
@@ -1482,7 +1480,8 @@ func (r *Rego) eval(ctx context.Context, ectx *EvalContext) (ResultSet, error) {
 		WithBuiltins(r.builtinFuncs).
 		WithMetrics(ectx.metrics).
 		WithInstrumentation(ectx.instrumentation).
-		WithRuntime(r.runtime)
+		WithRuntime(r.runtime).
+		WithIndexing(ectx.indexing)
 
 	for i := range ectx.tracers {
 		q = q.WithTracer(ectx.tracers[i])
@@ -1571,6 +1570,7 @@ func (r *Rego) partialResult(ctx context.Context, pCfg *PrepareConfig) (PartialR
 		tracers:          r.tracers,
 		compiledQuery:    r.compiledQueries[partialResultQueryType],
 		instrumentation:  r.instrumentation,
+		indexing:         true,
 	}
 
 	disableInlining := r.disableInlining
@@ -1659,7 +1659,8 @@ func (r *Rego) partial(ctx context.Context, ectx *EvalContext) (*PartialQueries,
 		WithInstrumentation(ectx.instrumentation).
 		WithUnknowns(unknowns).
 		WithDisableInlining(ectx.disableInlining).
-		WithRuntime(r.runtime)
+		WithRuntime(r.runtime).
+		WithIndexing(ectx.indexing)
 
 	for i := range ectx.tracers {
 		q = q.WithTracer(r.tracers[i])

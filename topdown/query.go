@@ -35,6 +35,7 @@ type Query struct {
 	genvarprefix     string
 	runtime          *ast.Term
 	builtins         map[string]*Builtin
+	indexing         bool
 }
 
 // Builtin represents a built-in function that queries can call.
@@ -48,6 +49,7 @@ func NewQuery(query ast.Body) *Query {
 	return &Query{
 		query:        query,
 		genvarprefix: ast.WildcardPrefix,
+		indexing:     true,
 	}
 }
 
@@ -142,6 +144,13 @@ func (q *Query) WithBuiltins(builtins map[string]*Builtin) *Query {
 	return q
 }
 
+// WithIndexing will enable or disable using rule indexing for the evaluation
+// of the query. The default is enabled.
+func (q *Query) WithIndexing(enabled bool) *Query {
+	q.indexing = enabled
+	return q
+}
+
 // PartialRun executes partial evaluation on the query with respect to unknown
 // values. Partial evaluation attempts to evaluate as much of the query as
 // possible without requiring values for the unknowns set on the query. The
@@ -180,6 +189,7 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 		disableInlining: q.disableInlining,
 		genvarprefix:    q.genvarprefix,
 		runtime:         q.runtime,
+		indexing:        q.indexing,
 	}
 	e.caller = e
 	q.startTimer(metrics.RegoPartialEval)
@@ -265,6 +275,7 @@ func (q *Query) Iter(ctx context.Context, iter func(QueryResult) error) error {
 		virtualCache: newVirtualCache(),
 		genvarprefix: q.genvarprefix,
 		runtime:      q.runtime,
+		indexing:     q.indexing,
 	}
 	e.caller = e
 	q.startTimer(metrics.RegoQueryEval)
