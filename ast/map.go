@@ -4,7 +4,11 @@
 
 package ast
 
-import "github.com/open-policy-agent/opa/util"
+import (
+	"encoding/json"
+
+	"github.com/open-policy-agent/opa/util"
+)
 
 // ValueMap represents a key/value map between AST term values. Any type of term
 // can be used as a key in the map.
@@ -18,6 +22,21 @@ func NewValueMap() *ValueMap {
 		hashMap: util.NewHashMap(valueEq, valueHash),
 	}
 	return vs
+}
+
+// MarshalJSON provides a custom marshaller for the ValueMap which
+// will include the key, value, and value type.
+func (vs *ValueMap) MarshalJSON() ([]byte, error) {
+	var tmp []map[string]interface{}
+	vs.Iter(func(k Value, v Value) bool {
+		tmp = append(tmp, map[string]interface{}{
+			"name":  k.String(),
+			"type":  TypeName(v),
+			"value": v,
+		})
+		return false
+	})
+	return json.Marshal(tmp)
 }
 
 // Copy returns a shallow copy of the ValueMap.

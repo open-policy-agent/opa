@@ -34,6 +34,7 @@ type evalCommandParams struct {
 	partial           bool
 	unknowns          []string
 	disableInlining   []string
+	disableIndexing   bool
 	dataPaths         repeatedStringFlag
 	inputPath         string
 	imports           repeatedStringFlag
@@ -213,6 +214,7 @@ Set the output format with the --format flag.
 	evalCommand.Flags().BoolVarP(&params.partial, "partial", "p", false, "perform partial evaluation")
 	evalCommand.Flags().StringSliceVarP(&params.unknowns, "unknowns", "u", []string{"input"}, "set paths to treat as unknown during partial evaluation")
 	evalCommand.Flags().StringSliceVarP(&params.disableInlining, "disable-inlining", "", []string{}, "set paths of documents to exclude from inlining")
+	evalCommand.Flags().BoolVar(&params.disableIndexing, "disable-indexing", false, "disable indexing optimizations")
 	evalCommand.Flags().VarP(&params.dataPaths, "data", "d", "set data file(s) or directory path(s)")
 	evalCommand.Flags().VarP(&params.bundlePaths, "bundle", "b", "set bundle file(s) or directory path(s)")
 	evalCommand.Flags().StringVarP(&params.inputPath, "input", "i", "", "set input file path")
@@ -302,6 +304,10 @@ func eval(args []string, params evalCommandParams, w io.Writer) (bool, error) {
 		evalArgs = append(evalArgs, rego.EvalTracer(tracer))
 	}
 
+	if params.disableIndexing {
+		evalArgs = append(evalArgs, rego.EvalRuleIndexing(false))
+	}
+
 	var m metrics.Metrics
 
 	if params.metrics {
@@ -355,7 +361,7 @@ func eval(args []string, params evalCommandParams, w io.Writer) (bool, error) {
 		pq, resultErr = eval.PrepareForPartial(ctx)
 		if resultErr == nil {
 			parsedModules = pq.Modules()
-			result.Partial, resultErr = eval.Partial(ctx)
+			result.Partial, resultErr = pq.Partial(ctx, evalArgs...)
 		}
 	}
 
