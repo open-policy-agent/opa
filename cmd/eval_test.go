@@ -12,9 +12,10 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/open-policy-agent/opa/rego"
-
+	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/internal/presentation"
+	"github.com/open-policy-agent/opa/rego"
+	"github.com/open-policy-agent/opa/topdown"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/util/test"
 )
@@ -291,5 +292,122 @@ func TestEvalErrorJSONOutput(t *testing.T) {
 	if output["errors"] == nil {
 		t.Fatalf("Expected error to be non-nil")
 	}
+}
 
+func TestEvalDebugTraceJSONOutput(t *testing.T) {
+	params := newEvalCommandParams()
+	err := params.outputFormat.Set(evalJSONOutput)
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+
+	err = params.explain.Set(explainModeFull)
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+
+	params.disableIndexing = true
+
+	mod := `package x
+	
+	p {
+		a := input.z
+		a == 1
+	}
+
+	p {
+		b := input.y
+		b == 1
+	}
+	`
+
+	input := `{"z": 1}`
+
+	files := map[string]string{
+		"policy.rego": mod,
+		"input.json":  input,
+	}
+
+	var buf bytes.Buffer
+	var policyFile string
+
+	test.WithTempFS(files, func(path string) {
+		params.inputPath = filepath.Join(path, "input.json")
+		policyFile = filepath.Join(path, "policy.rego")
+		err := params.dataPaths.Set(policyFile)
+		if err != nil {
+			t.Fatalf("Unexpected error: %s", err)
+		}
+
+		_, err = eval([]string{"data.x.p"}, params, &buf)
+		if err != nil {
+			t.Fatalf("Unexpected error: %s", err)
+		}
+	})
+
+	var output struct {
+		Explanation []struct {
+			Op            string                   `json:"Op"`
+			Node          interface{}              `json:"Node"`
+			Location      *ast.Location            `json:"Location"`
+			Locals        []map[string]interface{} `json:"Locals"`
+			LocalMetadata map[string]struct {
+				Name string `json:"name"`
+			} `json:"LocalMetadata"`
+		}
+	}
+
+	if err := util.NewJSONDecoder(&buf).Decode(&output); err != nil {
+		t.Fatal(err)
+	}
+	if len(output.Explanation) == 0 {
+		t.Fatalf("Expected explanations to be non-nil")
+	}
+
+	type locationAndVars struct {
+		location    *ast.Location
+		varBindings map[string]string
+	}
+
+	var evals []locationAndVars
+	for _, e := range output.Explanation {
+		if e.Op == string(topdown.EvalOp) {
+			bindings := map[string]string{}
+			for k, v := range e.LocalMetadata {
+				bindings[k] = v.Name
+			}
+
+			evals = append(evals, locationAndVars{location: e.Location, varBindings: bindings})
+		}
+	}
+
+	expectedEvalLocationsAndVars := []locationAndVars{
+		{
+			location:    ast.NewLocation(nil, policyFile, 4, 3), // a := input.z
+			varBindings: map[string]string{},
+		},
+		{
+			location:    ast.NewLocation(nil, policyFile, 5, 3), // a == 1
+			varBindings: map[string]string{"__local0__": "a"},
+		},
+		{
+			location:    ast.NewLocation(nil, policyFile, 9, 3), // b := input.y
+			varBindings: map[string]string{},
+		},
+	}
+
+	for _, expected := range expectedEvalLocationsAndVars {
+		found := false
+		for _, actual := range evals {
+			if expected.location.Compare(actual.location) == 0 {
+				found = true
+				if !reflect.DeepEqual(expected.varBindings, actual.varBindings) {
+					t.Errorf("Expected var bindings:\n\n\t%+v\n\nGot\n\n\t%+v\n\n", expected.varBindings, actual.varBindings)
+				}
+			}
+		}
+		if !found {
+			t.Fatalf("Missing expected eval node in trace: %+v\nGot: %+v\n", expected, evals)
+		}
+	}
 }

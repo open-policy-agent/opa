@@ -44,14 +44,23 @@ const (
 	IndexOp Op = "Index"
 )
 
+// VarMetadata provides some user facing information about
+// a variable in some policy.
+type VarMetadata struct {
+	Name     string        `json:"name"`
+	Location *ast.Location `json:"location"`
+}
+
 // Event contains state associated with a tracing event.
 type Event struct {
-	Op       Op            // Identifies type of event.
-	Node     ast.Node      // Contains AST node relevant to the event.
-	QueryID  uint64        // Identifies the query this event belongs to.
-	ParentID uint64        // Identifies the parent query this event belongs to.
-	Locals   *ast.ValueMap // Contains local variable bindings from the query context.
-	Message  string        // Contains message for Note events.
+	Op            Op                     // Identifies type of event.
+	Node          ast.Node               // Contains AST node relevant to the event.
+	Location      *ast.Location          // The location of the Node this event relates to.
+	QueryID       uint64                 // Identifies the query this event belongs to.
+	ParentID      uint64                 // Identifies the parent query this event belongs to.
+	Locals        *ast.ValueMap          // Contains local variable bindings from the query context.
+	LocalMetadata map[string]VarMetadata // Contains metadata for the local variable bindings.
+	Message       string                 // Contains message for Note events.
 }
 
 // HasRule returns true if the Event contains an ast.Rule.

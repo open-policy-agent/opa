@@ -151,7 +151,23 @@ func (e *eval) traceEvent(op Op, x ast.Node, msg string) {
 	}
 
 	locals := ast.NewValueMap()
+	localMeta := map[string]VarMetadata{}
 	e.bindings.Iter(nil, func(k, v *ast.Term) error {
+		// Check if the var has a different name in the source policy
+		name := k.Value.(ast.Var)
+		if e.compiler != nil {
+			rewritten, ok := e.compiler.RewrittenVars[name]
+			if ok {
+				name = rewritten
+			}
+		}
+
+		localMeta[k.Value.String()] = VarMetadata{
+			Name:     name.String(),
+			Location: k.Loc(),
+		}
+
+		// For backwards compatibility save a copy of the values too..
 		locals.Put(k.Value, v.Value)
 		return nil
 	})
@@ -162,12 +178,14 @@ func (e *eval) traceEvent(op Op, x ast.Node, msg string) {
 	}
 
 	evt := &Event{
-		QueryID:  e.queryID,
-		ParentID: parentID,
-		Op:       op,
-		Node:     x,
-		Locals:   locals,
-		Message:  msg,
+		QueryID:       e.queryID,
+		ParentID:      parentID,
+		Op:            op,
+		Node:          x,
+		Location:      x.Loc(),
+		Locals:        locals,
+		LocalMetadata: localMeta,
+		Message:       msg,
 	}
 
 	for i := range e.tracers {

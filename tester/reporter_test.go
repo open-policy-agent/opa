@@ -195,6 +195,8 @@ func TestJSONReporter(t *testing.T) {
 		  "QueryID": 0,
 		  "ParentID": 0,
 		  "Locals": null,
+          "LocalMetadata": null,
+		  "Location": null,
 		  "Message": ""
 		}
 	  ]
@@ -233,6 +235,8 @@ func TestJSONReporter(t *testing.T) {
 		  "QueryID": 0,
 		  "ParentID": 0,
 		  "Locals": null,
+		  "LocalMetadata": null,
+		  "Location": null,
 		  "Message": ""
 		}
 	  ]
@@ -271,6 +275,8 @@ func TestJSONReporter(t *testing.T) {
 		  "QueryID": 0,
 		  "ParentID": 0,
 		  "Locals": null,
+		  "LocalMetadata": null,
+		  "Location": null,
 		  "Message": ""
 		}
 	  ]  }
