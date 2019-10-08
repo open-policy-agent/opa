@@ -1310,7 +1310,7 @@ func (qc *queryCompiler) resolveRefs(qctx *QueryContext, body Body) (Body, error
 }
 
 func (qc *queryCompiler) rewriteComprehensionTerms(_ *QueryContext, body Body) (Body, error) {
-	gen := newLocalVarGenerator(body)
+	gen := newLocalVarGenerator("q", body)
 	f := newEqualityFactory(gen)
 	node, err := rewriteComprehensionTerms(f, body)
 	if err != nil {
@@ -1320,18 +1320,18 @@ func (qc *queryCompiler) rewriteComprehensionTerms(_ *QueryContext, body Body) (
 }
 
 func (qc *queryCompiler) rewriteDynamicTerms(_ *QueryContext, body Body) (Body, error) {
-	gen := newLocalVarGenerator(body)
+	gen := newLocalVarGenerator("q", body)
 	f := newEqualityFactory(gen)
 	return rewriteDynamics(f, body), nil
 }
 
 func (qc *queryCompiler) rewriteExprTerms(_ *QueryContext, body Body) (Body, error) {
-	gen := newLocalVarGenerator(body)
+	gen := newLocalVarGenerator("q", body)
 	return rewriteExprTermsInBody(gen, body), nil
 }
 
 func (qc *queryCompiler) rewriteLocalVars(_ *QueryContext, body Body) (Body, error) {
-	gen := newLocalVarGenerator(body)
+	gen := newLocalVarGenerator("q", body)
 	stack := newLocalDeclaredVars()
 	body, _, err := rewriteLocalVars(gen, stack, nil, nil, body)
 	if len(err) != 0 {
@@ -1388,7 +1388,7 @@ func (qc *queryCompiler) checkUnsafeBuiltins(qctx *QueryContext, body Body) (Bod
 }
 
 func (qc *queryCompiler) rewriteWithModifiers(qctx *QueryContext, body Body) (Body, error) {
-	f := newEqualityFactory(newLocalVarGenerator(body))
+	f := newEqualityFactory(newLocalVarGenerator("q", body))
 	body, err := rewriteWithModifiersInBody(qc.compiler, f, body)
 	if err != nil {
 		return nil, Errors{err}
@@ -2126,6 +2126,7 @@ func (f *equalityFactory) Generate(other *Term) *Expr {
 
 type localVarGenerator struct {
 	exclude VarSet
+	suffix  string
 	next    int
 }
 
@@ -2138,16 +2139,16 @@ func newLocalVarGeneratorForModuleSet(sorted []string, modules map[string]*Modul
 	return &localVarGenerator{exclude: exclude, next: 0}
 }
 
-func newLocalVarGenerator(node interface{}) *localVarGenerator {
+func newLocalVarGenerator(suffix string, node interface{}) *localVarGenerator {
 	exclude := NewVarSet()
 	vis := &VarVisitor{vars: exclude}
 	Walk(vis, node)
-	return &localVarGenerator{exclude: exclude, next: 0}
+	return &localVarGenerator{exclude: exclude, suffix: suffix, next: 0}
 }
 
 func (l *localVarGenerator) Generate() Var {
 	for {
-		result := Var("__local" + strconv.Itoa(l.next) + "__")
+		result := Var("__local" + l.suffix + strconv.Itoa(l.next) + "__")
 		l.next++
 		if !l.exclude.Contains(result) {
 			return result

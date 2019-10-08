@@ -109,5 +109,5 @@ min_x = 100 { true }`
 
 	// Output:
 	//
-	// Compiled: data.opa.example.p[x]; __local0__ = input.query_arg; lt(x, __local0__)
+	// Compiled: data.opa.example.p[x]; __localq0__ = input.query_arg; lt(x, __localq0__)
 }

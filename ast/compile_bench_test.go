@@ -20,7 +20,7 @@ func BenchmarkRewriteDynamics(b *testing.B) {
 
 	for i := range sizes {
 		b.Run(fmt.Sprint(sizes[i]), func(b *testing.B) {
-			factory := newEqualityFactory(newLocalVarGenerator(nil))
+			factory := newEqualityFactory(newLocalVarGenerator("q", nil))
 			b.ResetTimer()
 			for n := 0; n < b.N; n++ {
 				for _, body := range queries[i] {

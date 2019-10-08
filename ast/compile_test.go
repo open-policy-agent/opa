@@ -893,7 +893,7 @@ func TestCompilerExprExpansion(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			gen := newLocalVarGenerator(NullTerm())
+			gen := newLocalVarGenerator("", NullTerm())
 			expr := MustParseExpr(tc.input)
 			result := expandExpr(gen, expr.Copy())
 			if len(result) != len(tc.expected) {
@@ -2944,7 +2944,7 @@ func TestQueryCompiler(t *testing.T) {
 			q:        "a := 1; [b, c] := data.foo",
 			pkg:      "",
 			imports:  nil,
-			expected: "__local0__ = 1; [__local1__, __local2__] = data.foo",
+			expected: "__localq0__ = 1; [__localq1__, __localq2__] = data.foo",
 		},
 		{
 			note:     "exports resolved",
@@ -2965,7 +2965,7 @@ func TestQueryCompiler(t *testing.T) {
 			q:        "[x[i] | a = [[1], [2]]; x = a[j]]",
 			pkg:      "",
 			imports:  nil,
-			expected: "[__local0__ | a = [[1], [2]]; x = a[j]; __local0__ = x[i]]",
+			expected: "[__localq0__ | a = [[1], [2]]; x = a[j]; __localq0__ = x[i]]",
 		},
 		{
 			note:     "unsafe vars",
@@ -3000,7 +3000,7 @@ func TestQueryCompiler(t *testing.T) {
 			q:        `1 with input as [z]`,
 			pkg:      "package a.b.c",
 			imports:  nil,
-			expected: `__local1__ = data.a.b.c.z; __local0__ = [__local1__]; 1 with input as __local0__`,
+			expected: `__localq1__ = data.a.b.c.z; __localq0__ = [__localq1__]; 1 with input as __localq0__`,
 		},
 		{
 			note:     "unsafe exprs",
@@ -3033,8 +3033,8 @@ func TestQueryCompilerRewrittenVars(t *testing.T) {
 		q    string
 		vars map[string]string
 	}{
-		{"assign", "a := 1", map[string]string{"__local0__": "a"}},
-		{"suppress only seen", "b = 1; a := b", map[string]string{"__local0__": "a"}},
+		{"assign", "a := 1", map[string]string{"__localq0__": "a"}},
+		{"suppress only seen", "b = 1; a := b", map[string]string{"__localq0__": "a"}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
