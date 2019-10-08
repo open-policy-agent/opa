@@ -559,3 +559,57 @@ func TestSplitStringEscaped(t *testing.T) {
 		})
 	}
 }
+
+func TestGetAllRules(t *testing.T) {
+	module := MustParseModule(`
+	package test
+	
+	default p = 42
+	
+	p {
+		input.x = "x1"
+		input.y = "y1"
+	} else {
+		true
+	} else {
+		input.z = "z1"
+	}
+
+	p {
+		input.z = "z1"      
+	}
+	`)
+
+	index := newBaseDocEqIndex(func(Ref) bool { return false })
+
+	ok := index.Build(module.Rules)
+	if !ok {
+		t.Fatalf("Expected index build to succeed")
+	}
+
+	result, err := index.AllRules(testResolver{input: MustParseTerm(`{}`)})
+	if err != nil {
+		t.Fatalf("Unexpected error during index lookup: %v", err)
+	}
+
+	expectedRules := NewRuleSet(
+		module.Rules[1],
+		module.Rules[2])
+
+	expectedElse := map[*Rule]RuleSet{
+		module.Rules[1]: []*Rule{
+			module.Rules[1].Else,
+			module.Rules[1].Else.Else,
+		},
+	}
+
+	if !NewRuleSet(result.Rules...).Equal(expectedRules) {
+		t.Fatalf("Expected rules to be %v but got: %v", expectedRules, result.Rules)
+	}
+
+	r1 := module.Rules[1]
+
+	if !NewRuleSet(result.Else[r1]...).Equal(expectedElse[r1]) {
+		t.Fatalf("Expected else to be %v but got: %v", result.Else[r1], expectedElse[r1])
+	}
+}

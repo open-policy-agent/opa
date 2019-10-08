@@ -23,6 +23,12 @@ type RuleIndex interface {
 	// Lookup searches the index for rules that will match the provided
 	// resolver. If the resolver returns an error, it is returned via err.
 	Lookup(resolver ValueResolver) (result *IndexResult, err error)
+
+	// AllRules traverses the index and returns all rules that will match
+	// the provided resolver without any optimizations (effectively with
+	// indexing disabled). If the resolver returns an error, it is returned
+	// via err.
+	AllRules(resolver ValueResolver) (result *IndexResult, err error)
 }
 
 // IndexResult contains the result of an index lookup.
@@ -137,6 +143,47 @@ func (i *baseDocEqIndex) Lookup(resolver ValueResolver) (*IndexResult, error) {
 	}
 
 	return result, nil
+}
+
+func (i *baseDocEqIndex) AllRules(resolver ValueResolver) (*IndexResult, error) {
+	tr := newTrieTraversalResult()
+
+	// Walk over the rule trie and accumulate _all_ rules
+	rw := &ruleWalker{result: tr}
+	i.root.Do(rw)
+
+	result := NewIndexResult(i.kind)
+	result.Default = i.defaultRule
+	result.Rules = make([]*Rule, 0, len(tr.ordering))
+
+	for _, pos := range tr.ordering {
+		sort.Slice(tr.unordered[pos], func(i, j int) bool {
+			return tr.unordered[pos][i].prio[1] < tr.unordered[pos][j].prio[1]
+		})
+		nodes := tr.unordered[pos]
+		root := nodes[0].rule
+		result.Rules = append(result.Rules, root)
+		if len(nodes) > 1 {
+			result.Else[root] = make([]*Rule, len(nodes)-1)
+			for i := 1; i < len(nodes); i++ {
+				result.Else[root][i-1] = nodes[i].rule
+			}
+		}
+	}
+
+	return result, nil
+}
+
+type ruleWalker struct {
+	result *trieTraversalResult
+}
+
+func (r *ruleWalker) Do(x interface{}) trieWalker {
+	tn := x.(*trieNode)
+	for _, rn := range tn.rules {
+		r.result.Add(rn)
+	}
+	return r
 }
 
 type valueMapper func(Value) Value
