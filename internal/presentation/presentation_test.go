@@ -123,7 +123,7 @@ func TestOutputJSONErrorStructuredTopdownErr(t *testing.T) {
 		p(x) = y {
 			y = x[_]
 		}
-		
+
 		z := p([1, 2, 3])
 		`
 
@@ -357,4 +357,38 @@ q {
 `
 
 	validateJSONOutput(t, err, expected)
+}
+
+func TestSource(t *testing.T) {
+
+	buf := new(bytes.Buffer)
+
+	Source(buf, Output{
+		Partial: &rego.PartialQueries{
+			Queries: []ast.Body{
+				ast.MustParseBody("a = 1; b = 2"),
+			},
+			Support: []*ast.Module{
+				ast.MustParseModule(`
+            package test
+            p = 1
+        `),
+			},
+		},
+	})
+
+	exp := `# Query 1
+a = 1
+b = 2
+
+# Module 1
+package test
+
+p = 1
+`
+
+	if buf.String() != exp {
+		t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", exp, buf.String())
+	}
+
 }

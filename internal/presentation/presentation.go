@@ -314,6 +314,35 @@ func Pretty(w io.Writer, r Output) error {
 	return nil
 }
 
+// Source prints partial evaluation results in r to w in a source file friendly
+// format.
+func Source(w io.Writer, r Output) error {
+
+	if r.Errors != nil {
+		return prettyError(w, r.Errors)
+	}
+
+	for i := range r.Partial.Queries {
+		fmt.Fprintf(w, "# Query %d\n", i+1)
+		bs, err := format.Ast(r.Partial.Queries[i])
+		if err != nil {
+			return err
+		}
+		fmt.Fprintln(w, string(bs))
+	}
+
+	for i := range r.Partial.Support {
+		fmt.Fprintf(w, "# Module %d\n", i+1)
+		bs, err := format.Ast(r.Partial.Support[i])
+		if err != nil {
+			return err
+		}
+		fmt.Fprint(w, string(bs))
+	}
+
+	return nil
+}
+
 func prettyError(w io.Writer, err error) error {
 	_, err = fmt.Fprintln(w, err)
 	return err
