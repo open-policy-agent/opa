@@ -62,6 +62,7 @@ func newEvalCommandParams() evalCommandParams {
 			evalValuesOutput,
 			evalBindingsOutput,
 			evalPrettyOutput,
+			evalSourceOutput,
 		}),
 		explain: newExplainFlag([]string{explainModeOff, explainModeFull, explainModeNotes, explainModeFails}),
 	}
@@ -72,6 +73,7 @@ const (
 	evalValuesOutput   = "values"
 	evalBindingsOutput = "bindings"
 	evalPrettyOutput   = "pretty"
+	evalSourceOutput   = "source"
 
 	// number of profile results to return by default
 	defaultProfileLimit = 10
@@ -175,8 +177,10 @@ Set the output format with the --format flag.
 				return errors.New("specify --fail or --fail-defined but not both")
 			}
 			of := params.outputFormat.String()
-			if params.partial && of != evalPrettyOutput && of != evalJSONOutput {
+			if params.partial && of != evalPrettyOutput && of != evalJSONOutput && of != evalSourceOutput {
 				return errors.New("invalid output format for partial evaluation")
+			} else if !params.partial && of == evalSourceOutput {
+				return errors.New("invalid output format for evaluation")
 			}
 			if params.profileLimit.isFlagSet() || params.profileCriteria.isFlagSet() {
 				params.profile = true
@@ -392,6 +396,8 @@ func eval(args []string, params evalCommandParams, w io.Writer) (bool, error) {
 		err = pr.Values(w, result)
 	case evalPrettyOutput:
 		err = pr.Pretty(w, result)
+	case evalSourceOutput:
+		err = pr.Source(w, result)
 	default:
 		err = pr.JSON(w, result)
 	}
