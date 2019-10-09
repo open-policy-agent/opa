@@ -1134,9 +1134,9 @@ func (p *Planner) planRefRecScan(ref ast.Ref, index int, iter planiter) error {
 
 	prev := p.curr
 	p.curr = scan.Block
-	p.ltarget = scan.Value
 
 	if err := p.planUnifyLocal(scan.Key, ref[index], func() error {
+		p.ltarget = scan.Value
 		return p.planRefRec(ref, index+1, iter)
 	}); err != nil {
 		return err
