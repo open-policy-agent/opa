@@ -102,6 +102,7 @@ opa_value *opa_value_get(opa_value *node, opa_value *key);
 opa_value *opa_value_iter(opa_value *node, opa_value *prev);
 size_t opa_value_length(opa_value *node);
 void opa_value_free(opa_value *node);
+opa_value *opa_value_merge(opa_value *a, opa_value *b);
 
 long long opa_value_int(opa_value *node);
 double opa_value_float(opa_value *node);

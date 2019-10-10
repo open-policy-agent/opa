@@ -49,6 +49,7 @@ const (
 	opaValueGet          = "opa_value_get"
 	opaValueIter         = "opa_value_iter"
 	opaValueLength       = "opa_value_length"
+	opaValueMerge        = "opa_value_merge"
 	opaValueType         = "opa_value_type"
 )
 
@@ -484,6 +485,18 @@ func (c *Compiler) compileBlock(block *ir.Block) ([]instruction.Instruction, err
 					instruction.GetLocal{Index: c.local(stmt.Key)},
 					instruction.GetLocal{Index: c.local(stmt.Value)},
 					instruction.Call{Index: c.function(opaObjectInsert)},
+				},
+			})
+		case *ir.ObjectMergeStmt:
+			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.A)})
+			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.B)})
+			instrs = append(instrs, instruction.Call{Index: c.function(opaValueMerge)})
+			instrs = append(instrs, instruction.SetLocal{Index: c.local(stmt.Target)})
+			instrs = append(instrs, instruction.Block{
+				Instrs: []instruction.Instruction{
+					instruction.GetLocal{Index: c.local(stmt.Target)},
+					instruction.BrIf{Index: 0},
+					instruction.Unreachable{}, // TODO(tsandall): replace with conflict error
 				},
 			})
 		case *ir.SetAddStmt:

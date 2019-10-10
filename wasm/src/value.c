@@ -518,6 +518,58 @@ void opa_value_free(opa_value *node)
     }
 }
 
+opa_value *opa_value_merge(opa_value *a, opa_value *b)
+{
+    if (opa_value_type(a) != OPA_OBJECT || opa_value_type(b) != OPA_OBJECT)
+    {
+        return NULL;
+    }
+
+    opa_object_t *obj = opa_cast_object(a);
+    opa_object_t *result = opa_cast_object(opa_object());
+    opa_object_elem_t *elem = opa_object_iter(obj, NULL);
+
+    while (elem != NULL)
+    {
+        opa_value *other = opa_value_get(b, elem->k);
+
+        if (other == NULL)
+        {
+            opa_object_insert(result, elem->k, elem->v);
+        }
+        else
+        {
+            opa_value *merged = opa_value_merge(elem->v, other);
+
+            if (merged == NULL)
+            {
+                return NULL;
+            }
+
+            opa_object_insert(result, elem->k, merged);
+        }
+
+        elem = opa_object_iter(obj, elem);
+    }
+
+    obj = opa_cast_object(b);
+    elem = opa_object_iter(obj, NULL);
+
+    while (elem != NULL)
+    {
+        opa_value *other = opa_value_get(a, elem->k);
+
+        if (other == NULL)
+        {
+            opa_object_insert(result, elem->k, elem->v);
+        }
+
+        elem = opa_object_iter(obj, elem);
+    }
+
+    return &result->hdr;
+}
+
 int opa_value_boolean(opa_value *node)
 {
     return opa_cast_boolean(node)->v;
