@@ -1090,79 +1090,14 @@ func (p *Planner) planRefRec(ref ast.Ref, index int, iter planiter) error {
 	})
 
 	if !scan {
-		return p.planRefRecDot(ref, index, iter)
-	}
-
-	return p.planRefRecScan(ref, index, iter)
-}
-
-func (p *Planner) planRefRecDot(ref ast.Ref, index int, iter planiter) error {
-
-	source := p.ltarget
-
-	return p.planTerm(ref[index], func() error {
-
-		target := p.newLocal()
-
-		p.appendStmt(&ir.DotStmt{
-			Source: source,
-			Key:    p.ltarget,
-			Target: target,
+		return p.planDot(ref[index], func() error {
+			return p.planRefRec(ref, index+1, iter)
 		})
-
-		p.ltarget = target
-
-		return p.planRefRec(ref, index+1, iter)
-	})
-}
-
-func (p *Planner) planRefRecScan(ref ast.Ref, index int, iter planiter) error {
-
-	cond := p.newLocal()
-
-	p.appendStmt(&ir.MakeBooleanStmt{
-		Value:  false,
-		Target: cond,
-	})
-
-	scan := &ir.ScanStmt{
-		Source: p.ltarget,
-		Key:    p.newLocal(),
-		Value:  p.newLocal(),
-		Block:  &ir.Block{},
 	}
 
-	prev := p.curr
-	p.curr = scan.Block
-
-	if err := p.planUnifyLocal(scan.Key, ref[index], func() error {
-		p.ltarget = scan.Value
+	return p.planScan(ref[index], func(lkey ir.Local) error {
 		return p.planRefRec(ref, index+1, iter)
-	}); err != nil {
-		return err
-	}
-
-	p.appendStmt(&ir.AssignBooleanStmt{
-		Value:  true,
-		Target: cond,
 	})
-
-	p.curr = prev
-	p.appendStmt(scan)
-
-	truth := p.newLocal()
-
-	p.appendStmt(&ir.MakeBooleanStmt{
-		Value:  true,
-		Target: truth,
-	})
-
-	p.appendStmt(&ir.EqualStmt{
-		A: cond,
-		B: truth,
-	})
-
-	return nil
 }
 
 func (p *Planner) planRefData(node *functrie, ref ast.Ref, idx int, iter planiter) error {
@@ -1271,6 +1206,78 @@ func (p *Planner) planRefDataVirtualExtent(node *functrie, iter planiter) error 
 	// Set target to object and recurse.
 	p.ltarget = target
 	return iter()
+}
+
+func (p *Planner) planDot(key *ast.Term, iter planiter) error {
+
+	source := p.ltarget
+
+	return p.planTerm(key, func() error {
+
+		target := p.newLocal()
+
+		p.appendStmt(&ir.DotStmt{
+			Source: source,
+			Key:    p.ltarget,
+			Target: target,
+		})
+
+		p.ltarget = target
+
+		return iter()
+	})
+}
+
+type scaniter func(ir.Local) error
+
+func (p *Planner) planScan(key *ast.Term, iter scaniter) error {
+
+	cond := p.newLocal()
+
+	p.appendStmt(&ir.MakeBooleanStmt{
+		Value:  false,
+		Target: cond,
+	})
+
+	scan := &ir.ScanStmt{
+		Source: p.ltarget,
+		Key:    p.newLocal(),
+		Value:  p.newLocal(),
+		Block:  &ir.Block{},
+	}
+
+	prev := p.curr
+	p.curr = scan.Block
+
+	if err := p.planUnifyLocal(scan.Key, key, func() error {
+		p.ltarget = scan.Value
+		return iter(scan.Key)
+	}); err != nil {
+		return err
+	}
+
+	p.appendStmt(&ir.AssignBooleanStmt{
+		Value:  true,
+		Target: cond,
+	})
+
+	p.curr = prev
+	p.appendStmt(scan)
+
+	truth := p.newLocal()
+
+	p.appendStmt(&ir.MakeBooleanStmt{
+		Value:  true,
+		Target: truth,
+	})
+
+	p.appendStmt(&ir.EqualStmt{
+		A: cond,
+		B: truth,
+	})
+
+	return nil
+
 }
 
 func (p *Planner) appendStmt(s ir.Stmt) {
