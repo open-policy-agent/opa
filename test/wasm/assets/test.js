@@ -89,7 +89,7 @@ async function instantiate(bytes, memory, data) {
         },
     });
 
-    const dataAddr = loadJSON(mod, memory, data);
+    const dataAddr = loadJSON(mod, memory, data || {});
     const heapPtr = mod.instance.exports.opa_heap_ptr_get();
     const heapTop = mod.instance.exports.opa_heap_top_get();
 
@@ -152,7 +152,7 @@ async function test() {
         let error = undefined;
 
         try {
-            const policy = await instantiate(testCases[i].wasmBytes, memory, {});
+            const policy = await instantiate(testCases[i].wasmBytes, memory, testCases[i].data);
             const result = evaluate(policy, testCases[i].input);
             passed = result.returnCode === testCases[i].return_code;
         } catch (e) {
