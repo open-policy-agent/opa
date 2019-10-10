@@ -1038,7 +1038,9 @@ func (p *Planner) planRef(ref ast.Ref, iter planiter) error {
 	}
 
 	if head.Compare(ast.DefaultRootDocument.Value) == 0 {
-		return p.planRefData(p.funcs, ref, 0, iter)
+		virtual := p.funcs.children[ref[0].Value]
+		base := &baseptr{local: p.vars.GetOrEmpty(ast.DefaultRootDocument.Value.(ast.Var))}
+		return p.planRefData(virtual, base, ref, 1, iter)
 	}
 
 	p.ltarget, ok = p.vars.Get(head)
@@ -1078,111 +1080,267 @@ func (p *Planner) planRefRec(ref ast.Ref, index int, iter planiter) error {
 	})
 }
 
-func (p *Planner) planRefData(node *functrie, ref ast.Ref, idx int, iter planiter) error {
-
-	if idx >= len(ref) {
-		return p.planRefDataVirtualExtent(node, iter)
-	}
-
-	term := ref[idx]
-
-	if _, ok := term.Value.(ast.String); !ok && idx > 0 {
-		return fmt.Errorf("not implemented: refs with non-string operands")
-	}
-
-	child, ok := node.children[term.Value]
-	if !ok {
-		return nil
-	}
-
-	if child.val == nil {
-		return p.planRefData(child, ref, idx+1, iter)
-	}
-
-	p.ltarget = p.newLocal()
-
-	p.appendStmt(&ir.CallStmt{
-		Func: ref[:idx+1].String(),
-		Args: []ir.Local{
-			p.vars.GetOrEmpty(ast.InputRootDocument.Value.(ast.Var)),
-			p.vars.GetOrEmpty(ast.DefaultRootDocument.Value.(ast.Var)),
-		},
-		Result: p.ltarget,
-	})
-
-	return p.planRefRec(ref, idx+1, iter)
+type baseptr struct {
+	local ir.Local
+	path  ast.Ref
 }
 
-func (p *Planner) planRefDataVirtualExtent(node *functrie, iter planiter) error {
+// planRefData implements the virtual document model by generating the value of
+// the ref parameter and invoking the iterator with the planner target set to
+// the virtual document and all variables in the reference assigned.
+func (p *Planner) planRefData(virtual *functrie, base *baseptr, ref ast.Ref, index int, iter planiter) error {
 
-	// Create a new object document. The target is not set until the planner
-	// recurses so that we can build the hierarchy depth-first.
-	target := p.newLocal()
+	// Early-exit if the end of the reference has been reached. In this case the
+	// plan has to materialize the full extent of the referenced value.
+	if index >= len(ref) {
+		return p.planRefDataExtent(virtual, base, iter)
+	}
 
-	p.appendStmt(&ir.MakeObjectStmt{
-		Target: target,
-	})
+	// If the reference operand is ground then either continue to the next
+	// operand or invoke the function for the rule referred to by this operand.
+	if ref[index].IsGround() {
 
-	for key, child := range node.children {
+		var vchild *functrie
 
-		// Skip functions.
-		if child.val != nil && child.val.Arity() > 0 {
-			continue
+		if virtual != nil {
+			vchild = virtual.children[ref[index].Value]
 		}
 
-		lkey := p.newLocal()
-		idx := p.appendStringConst(string(key.(ast.String)))
-		p.appendStmt(&ir.MakeStringStmt{
-			Index:  idx,
-			Target: lkey,
-		})
-
-		// Build object hierarchy depth-first.
-		if child.val == nil {
-			err := p.planRefDataVirtualExtent(child, func() error {
-				p.appendStmt(&ir.ObjectInsertStmt{
-					Object: target,
-					Key:    lkey,
-					Value:  p.ltarget,
-				})
-				return nil
+		if vchild != nil && vchild.val != nil {
+			p.ltarget = p.newLocal()
+			p.appendStmt(&ir.CallStmt{
+				Func: vchild.val.Rules[0].Path().String(),
+				Args: []ir.Local{
+					p.vars.GetOrEmpty(ast.InputRootDocument.Value.(ast.Var)),
+					p.vars.GetOrEmpty(ast.DefaultRootDocument.Value.(ast.Var)),
+				},
+				Result: p.ltarget,
 			})
-			if err != nil {
+			return p.planRefRec(ref, index+1, iter)
+		}
+
+		bchild := *base
+		bchild.path = append(bchild.path, ref[index])
+
+		return p.planRefData(vchild, &bchild, ref, index+1, iter)
+	}
+
+	exclude := ast.NewSet()
+
+	// The planner does not support dynamic dispatch so generate blocks to
+	// evaluate each of the rulesets on the child nodes.
+	if virtual != nil {
+
+		stmt := &ir.BlockStmt{}
+
+		for _, child := range virtual.Children() {
+
+			block := &ir.Block{}
+			prev := p.curr
+			p.curr = block
+			key := ast.NewTerm(child)
+			exclude.Add(key)
+
+			// Assignments in each block due to local unification must be undone
+			// so create a new frame that will be popped after this key is
+			// processed.
+			p.vars.Push(map[ast.Var]ir.Local{})
+
+			if err := p.planTerm(key, func() error {
+				return p.planUnifyLocal(p.ltarget, ref[index], func() error {
+					// Create a copy of the reference with this operand plugged.
+					// This will result in evaluation of the rulesets on the
+					// child node.
+					cpy := ref.Copy()
+					cpy[index] = key
+					return p.planRefData(virtual, base, cpy, index, iter)
+				})
+			}); err != nil {
 				return err
 			}
-			continue
+
+			p.vars.Pop()
+			p.curr = prev
+			stmt.Blocks = append(stmt.Blocks, block)
 		}
 
-		// Generate virtual document for leaf.
-		lvalue := p.newLocal()
+		p.appendStmt(stmt)
+	}
 
-		// Add leaf to object if defined.
-		p.appendStmt(&ir.BlockStmt{
-			Blocks: []*ir.Block{
-				&ir.Block{
-					Stmts: []ir.Stmt{
-						&ir.CallStmt{
-							Func: child.val.Rules[0].Path().String(),
-							Args: []ir.Local{
-								p.vars.GetOrEmpty(ast.InputRootDocument.Value.(ast.Var)),
-								p.vars.GetOrEmpty(ast.DefaultRootDocument.Value.(ast.Var)),
+	// If the virtual tree was enumerated then we do not want to enumerate base
+	// trees that are rooted at the same key as any of the virtual sub trees. To
+	// prevent this we build a set of keys that are to be excluded and check
+	// below during the base scan.
+	var lexclude *ir.Local
+
+	if exclude.Len() > 0 {
+		if err := p.planSet(exclude, func() error {
+			v := p.ltarget
+			lexclude = &v
+			return nil
+		}); err != nil {
+			return err
+		}
+	}
+
+	p.ltarget = base.local
+
+	// Perform a scan of the base documents starting from the location referred
+	// to by the data pointer. Use the set we built above to avoid revisiting
+	// sub trees.
+	return p.planRefRec(base.path, 0, func() error {
+		return p.planScan(ref[index], func(lkey ir.Local) error {
+			if lexclude != nil {
+				lignore := p.newLocal()
+				p.appendStmt(&ir.NotStmt{
+					Block: &ir.Block{
+						Stmts: []ir.Stmt{
+							&ir.DotStmt{
+								Source: *lexclude,
+								Key:    lkey,
+								Target: lignore,
 							},
-							Result: lvalue,
 						},
-						&ir.ObjectInsertStmt{
-							Object: target,
-							Key:    lkey,
-							Value:  lvalue,
+					},
+				})
+			}
+
+			// Assume that virtual sub trees have been visited already so
+			// recurse without the virtual node.
+			return p.planRefData(nil, &baseptr{local: p.ltarget}, ref, index+1, iter)
+		})
+	})
+}
+
+// planRefDataExtent generates the full extent (combined) of the base and
+// virtual nodes and then invokes the iterator with the planner target set to
+// the full extent.
+func (p *Planner) planRefDataExtent(virtual *functrie, base *baseptr, iter planiter) error {
+
+	vtarget := p.newLocal()
+
+	// Generate the virtual document out of rules contained under the virtual
+	// node (recursively). This document will _ONLY_ contain values generated by
+	// rules. No base document values will be included.
+	if virtual != nil {
+
+		p.appendStmt(&ir.MakeObjectStmt{
+			Target: vtarget,
+		})
+
+		for key, child := range virtual.children {
+
+			// Skip functions.
+			if child.val != nil && child.val.Arity() > 0 {
+				continue
+			}
+
+			lkey := p.newLocal()
+			idx := p.appendStringConst(string(key.(ast.String)))
+			p.appendStmt(&ir.MakeStringStmt{
+				Index:  idx,
+				Target: lkey,
+			})
+
+			// Build object hierarchy depth-first.
+			if child.val == nil {
+				err := p.planRefDataExtent(child, nil, func() error {
+					p.appendStmt(&ir.ObjectInsertStmt{
+						Object: vtarget,
+						Key:    lkey,
+						Value:  p.ltarget,
+					})
+					return nil
+				})
+				if err != nil {
+					return err
+				}
+				continue
+			}
+
+			// Generate virtual document for leaf.
+			lvalue := p.newLocal()
+
+			// Add leaf to object if defined.
+			p.appendStmt(&ir.BlockStmt{
+				Blocks: []*ir.Block{
+					&ir.Block{
+						Stmts: []ir.Stmt{
+							&ir.CallStmt{
+								Func: child.val.Rules[0].Path().String(),
+								Args: []ir.Local{
+									p.vars.GetOrEmpty(ast.InputRootDocument.Value.(ast.Var)),
+									p.vars.GetOrEmpty(ast.DefaultRootDocument.Value.(ast.Var)),
+								},
+								Result: lvalue,
+							},
+							&ir.ObjectInsertStmt{
+								Object: vtarget,
+								Key:    lkey,
+								Value:  lvalue,
+							},
 						},
 					},
 				},
-			},
-		})
+			})
+		}
 
+		// At this point vtarget refers to the full extent of the virtual
+		// document at ref. If the base pointer is unset, no further processing
+		// is required.
+		if base == nil {
+			p.ltarget = vtarget
+			return iter()
+		}
 	}
 
-	// Set target to object and recurse.
+	// Obtain the base document value and merge (recursively) with the virtual
+	// document value above if needed.
+	prev := p.curr
+	p.curr = &ir.Block{}
+	p.ltarget = base.local
+	target := p.newLocal()
+
+	err := p.planRefRec(base.path, 0, func() error {
+
+		if virtual == nil {
+			target = p.ltarget
+		} else {
+			stmt := &ir.ObjectMergeStmt{
+				A:      p.ltarget,
+				B:      vtarget,
+				Target: target,
+			}
+			p.appendStmt(stmt)
+			p.appendStmt(&ir.BreakStmt{Index: 1})
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return err
+	}
+
+	inner := p.curr
+	p.curr = &ir.Block{}
+	p.appendStmt(&ir.BlockStmt{Blocks: []*ir.Block{inner}})
+
+	if virtual != nil {
+		p.appendStmt(&ir.AssignVarStmt{
+			Source: vtarget,
+			Target: target,
+		})
+	}
+
+	outer := p.curr
+	p.curr = prev
+	p.appendStmt(&ir.BlockStmt{Blocks: []*ir.Block{outer}})
+
+	// At this point, target refers to either the full extent of the base and
+	// virtual documents at ref or just the base document at ref.
 	p.ltarget = target
+
 	return iter()
 }
 

@@ -154,6 +154,25 @@ func TestPlannerHelloWorld(t *testing.T) {
 			note:    "closure",
 			queries: []string{`a = [1]; {x | a[_] = x}`},
 		},
+		{
+			note:    "iteration: packages and rules",
+			queries: []string{"data.test[x][y] = 3"},
+			modules: []string{
+				`
+					package test.a
+
+					p = 1
+					q = 2 { false }
+					r = 3
+				`,
+				`
+					package test.z
+
+					s = 3
+					t = 4
+				`,
+			},
+		},
 	}
 
 	for _, tc := range tests {
