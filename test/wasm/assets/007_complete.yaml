@@ -152,7 +152,7 @@ cases:
         package x
         p = 1
         p = 2
-    want_error: "unreachable"  # TODO(tsandall): replace with conflict error.
+    want_error: "var assignment conflict"
   - note: packages
     query: data.x.p = 1
     modules:

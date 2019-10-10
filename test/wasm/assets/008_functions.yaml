@@ -103,4 +103,4 @@ cases:
         package x
         f(x) = 1
         f(x) = 2
-    want_error: "unreachable"  # TODO(tsandall): replace with conflict error.
+    want_error: var assignment conflict

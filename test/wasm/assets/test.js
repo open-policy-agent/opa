@@ -34,7 +34,7 @@ function report(passed, error, msg) {
     } else if (error === undefined) {
         console.log(yellow('FAIL'), msg);
     } else {
-        console.log(red('ERROR'), msg, error);
+        console.log(red('ERROR'), msg + ':', error);
     }
     return true
 }
@@ -81,7 +81,7 @@ async function instantiate(bytes, memory, data) {
         env: {
             memory: memory,
             opa_abort: function (addr) {
-                throw addr2string(addr);
+                throw { message: addr2string(addr) };
             },
             opa_println: function (addr) {
                 console.log(addr2string(addr));
@@ -128,6 +128,7 @@ async function test() {
             const testFile = JSON.parse(readFileSync(file));
             if (Array.isArray(testFile.cases)) {
                 testFile.cases.forEach(testCase => {
+                    testCase.note = file + ': ' + testCase.note;
                     testCase.wasmBytes = Buffer.from(testCase.wasm, 'base64');
                     testCases.push(testCase);
                 });
@@ -157,8 +158,12 @@ async function test() {
             passed = result.returnCode === testCases[i].return_code;
         } catch (e) {
             const exp = testCases[i].want_error;
-            if (exp !== undefined && exp.length !== 0 && e.message.includes(exp)) {
-                passed = true
+            if (exp !== undefined && exp.length !== 0) {
+                if (e.message.includes(exp)) {
+                    passed = true
+                } else {
+                    error = 'want: ' + yellow(exp) + ' but got: ' + red(e.message);
+                }
             } else {
                 error = e;
             }
