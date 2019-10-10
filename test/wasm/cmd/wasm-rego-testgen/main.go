@@ -35,12 +35,13 @@ type testCaseSet struct {
 }
 
 type testCase struct {
-	Note       string       `json:"note"`
-	Query      string       `json:"query"`
-	Modules    []string     `json:"modules"`
-	Input      *interface{} `json:"input"`
-	ReturnCode int          `json:"return_code"`
-	WantError  string       `json:"want_error"`
+	Note       string                  `json:"note"`
+	Query      string                  `json:"query"`
+	Modules    []string                `json:"modules"`
+	Data       *map[string]interface{} `json:"data,omitempty"`
+	Input      *interface{}            `json:"input"`
+	ReturnCode int                     `json:"return_code"`
+	WantError  string                  `json:"want_error"`
 }
 
 type compiledTestCaseSet struct {
