@@ -561,7 +561,11 @@ func (c *Compiler) compileScan(scan *ir.ScanStmt, result *[]instruction.Instruct
 	if err != nil {
 		return err
 	}
-	instrs = append(instrs, instruction.Loop{Instrs: body})
+	instrs = append(instrs, instruction.Block{
+		Instrs: []instruction.Instruction{
+			instruction.Loop{Instrs: body},
+		},
+	})
 	*result = instrs
 	return nil
 }
@@ -592,6 +596,7 @@ func (c *Compiler) compileScanBlock(scan *ir.ScanStmt) ([]instruction.Instructio
 		return nil, err
 	}
 
+	// Continue.
 	instrs = append(instrs, nested...)
 	instrs = append(instrs, instruction.Br{Index: 0})
 
