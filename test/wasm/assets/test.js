@@ -156,13 +156,10 @@ async function test() {
             const result = evaluate(policy, testCases[i].input);
             passed = result.returnCode === testCases[i].return_code;
         } catch (e) {
-            if (testCases[i].want_error === undefined) {
-                passed = false;
-                error = e;
-            } else if (e.message.includes(testCases[i].want_error)) {
-                passed = true;
+            const exp = testCases[i].want_error;
+            if (exp !== undefined && exp.length !== 0 && e.message.includes(exp)) {
+                passed = true
             } else {
-                passed = false;
                 error = e;
             }
         }
