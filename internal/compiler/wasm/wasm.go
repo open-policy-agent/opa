@@ -548,12 +548,26 @@ func (c *Compiler) compileScanBlock(scan *ir.ScanStmt) ([]instruction.Instructio
 func (c *Compiler) compileNot(not *ir.NotStmt, result *[]instruction.Instruction) error {
 	var instrs = *result
 
+	// generate and initialize condition variable
+	cond := c.genLocal()
+	instrs = append(instrs, instruction.I32Const{Value: 1})
+	instrs = append(instrs, instruction.SetLocal{Index: cond})
+
 	nested, err := c.compileBlock(not.Block)
 	if err != nil {
 		return err
 	}
 
+	// unset condition variable if end of block is reached
+	nested = append(nested, instruction.I32Const{Value: 0})
+	nested = append(nested, instruction.SetLocal{Index: cond})
 	instrs = append(instrs, instruction.Block{Instrs: nested})
+
+	// break out of block if condition variable was unset
+	instrs = append(instrs, instruction.GetLocal{Index: cond})
+	instrs = append(instrs, instruction.I32Eqz{})
+	instrs = append(instrs, instruction.BrIf{Index: 0})
+
 	*result = instrs
 	return nil
 }

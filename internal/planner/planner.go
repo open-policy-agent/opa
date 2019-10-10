@@ -379,15 +379,7 @@ func (p *Planner) planExpr(e *ast.Expr, iter planiter) error {
 
 func (p *Planner) planNot(e *ast.Expr, iter planiter) error {
 
-	cond := p.newLocal()
-
-	p.appendStmt(&ir.MakeBooleanStmt{
-		Value:  true,
-		Target: cond,
-	})
-
 	not := &ir.NotStmt{
-		Cond:  cond,
 		Block: &ir.Block{},
 	}
 
@@ -395,10 +387,6 @@ func (p *Planner) planNot(e *ast.Expr, iter planiter) error {
 	p.curr = not.Block
 
 	if err := p.planExpr(e.Complement(), func() error {
-		p.appendStmt(&ir.AssignBooleanStmt{
-			Value:  false,
-			Target: cond,
-		})
 		return nil
 	}); err != nil {
 		return err
@@ -406,18 +394,6 @@ func (p *Planner) planNot(e *ast.Expr, iter planiter) error {
 
 	p.curr = prev
 	p.appendStmt(not)
-
-	truth := p.newLocal()
-
-	p.appendStmt(&ir.MakeBooleanStmt{
-		Value:  true,
-		Target: truth,
-	})
-
-	p.appendStmt(&ir.EqualStmt{
-		A: cond,
-		B: truth,
-	})
 
 	return iter()
 }

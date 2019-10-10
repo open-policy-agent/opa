@@ -208,10 +208,8 @@ type ScanStmt struct {
 	Block  *Block
 }
 
-// NotStmt represents a negated statement. The last statement in the negation
-// block will set the condition to false.
+// NotStmt represents a negated statement.
 type NotStmt struct {
-	Cond  Local
 	Block *Block
 }
 
