@@ -360,6 +360,15 @@ type ObjectInsertOnceStmt struct {
 	Object Local
 }
 
+// ObjectMergeStmt performs a recursive merge of two object values. If either of
+// the locals refer to non-object values this operation will abort with a
+// conflict error. Overlapping object keys are merged recursively.
+type ObjectMergeStmt struct {
+	A      Local
+	B      Local
+	Target Local
+}
+
 // SetAddStmt represents a dynamic add operation of an element into a set.
 type SetAddStmt struct {
 	Value Local

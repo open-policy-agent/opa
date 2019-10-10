@@ -600,3 +600,75 @@ void test_opa_value_iter_set()
         test_fatal("set iter third did not return expected value");
     }
 }
+
+void test_opa_value_merge_fail()
+{
+    opa_value *fail = opa_value_merge(opa_number_int(1), opa_string_terminated("foo"));
+
+    if (fail != NULL)
+    {
+        test_fatal("expected merge of two scalars to fail");
+    }
+}
+
+void test_opa_value_merge_simple()
+{
+    opa_object_t *obj1 = opa_cast_object(opa_object());
+    opa_object_t *obj2 = opa_cast_object(opa_object());
+
+    opa_object_insert(obj1, opa_string_terminated("a"), opa_number_int(1));
+    opa_object_insert(obj2, opa_string_terminated("b"), opa_number_int(2));
+
+    opa_object_t *exp1 = opa_cast_object(opa_object());
+    opa_object_insert(exp1, opa_string_terminated("a"), opa_number_int(1));
+    opa_object_insert(exp1, opa_string_terminated("b"), opa_number_int(2));
+
+    opa_value *result = opa_value_merge(&obj1->hdr, &obj2->hdr);
+
+    if (result == NULL)
+    {
+        test_fatal("object merge failed");
+    }
+    else if (opa_value_compare(result, &exp1->hdr) != 0)
+    {
+        test_fatal("object merge returned unexpected result");
+    }
+}
+
+
+void test_opa_value_merge_nested()
+{
+    opa_object_t *obj1 = opa_cast_object(opa_object());
+    opa_object_t *obj1a = opa_cast_object(opa_object());
+
+    opa_object_insert(obj1a, opa_string_terminated("b"), opa_number_int(1));
+    opa_object_insert(obj1, opa_string_terminated("a"), &obj1a->hdr);
+    opa_object_insert(obj1, opa_string_terminated("c"), opa_number_int(2));
+
+    opa_object_t *obj2 = opa_cast_object(opa_object());
+    opa_object_t *obj2a = opa_cast_object(opa_object());
+
+    opa_object_insert(obj2a, opa_string_terminated("d"), opa_number_int(3));
+    opa_object_insert(obj2, opa_string_terminated("a"), &obj2a->hdr);
+    opa_object_insert(obj2, opa_string_terminated("e"), opa_number_int(4));
+
+    opa_object_t *exp1 = opa_cast_object(opa_object());
+    opa_object_t *exp1a = opa_cast_object(opa_object());
+
+    opa_object_insert(exp1a, opa_string_terminated("b"), opa_number_int(1));
+    opa_object_insert(exp1a, opa_string_terminated("d"), opa_number_int(3));
+    opa_object_insert(exp1, opa_string_terminated("a"), &exp1a->hdr);
+    opa_object_insert(exp1, opa_string_terminated("c"), opa_number_int(2));
+    opa_object_insert(exp1, opa_string_terminated("e"), opa_number_int(4));
+
+    opa_value *result = opa_value_merge(&obj1->hdr, &obj2->hdr);
+
+    if (result == NULL)
+    {
+        test_fatal("object merge failed");
+    }
+    else if (opa_value_compare(&exp1->hdr, result) != 0)
+    {
+        test_fatal("object merge returned unexpected result");
+    }
+}
