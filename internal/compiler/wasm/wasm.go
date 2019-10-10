@@ -31,6 +31,7 @@ const (
 
 const (
 	opaFuncPrefix        = "opa_"
+	opaAbort             = "opa_abort"
 	opaJSONParse         = "opa_json_parse"
 	opaNull              = "opa_null"
 	opaBoolean           = "opa_boolean"
@@ -62,12 +63,28 @@ type Compiler struct {
 	module *module.Module    // output WASM module
 	code   *module.CodeEntry // output WASM code
 
-	stringOffset int32             // null-terminated string data base offset
-	stringAddrs  []uint32          // null-terminated string constant addresses
-	funcs        map[string]uint32 // maps exported function names to function indices
+	builtinStringAddrs map[int]uint32    // addresses of built-in string constants
+	stringOffset       int32             // null-terminated string data base offset
+	stringAddrs        []uint32          // null-terminated string constant addresses
+	funcs              map[string]uint32 // maps exported function names to function indices
 
 	nextLocal uint32
 	locals    map[ir.Local]uint32
+}
+
+const (
+	errVarAssignConflict int = iota
+	errObjectInsertConflict
+	errObjectMergeConflict
+)
+
+var errorMessages = [...]struct {
+	id      int
+	message string
+}{
+	{errVarAssignConflict, "var assignment conflict"},
+	{errObjectInsertConflict, "object insert conflict"},
+	{errObjectMergeConflict, "object merge conflict"},
 }
 
 // New returns a new compiler object.
@@ -118,6 +135,14 @@ func (c *Compiler) initModule() error {
 	}
 
 	c.funcs = make(map[string]uint32)
+	var funcidx uint32
+
+	for _, imp := range c.module.Import.Imports {
+		if imp.Descriptor.Kind() == module.FunctionImportType && strings.HasPrefix(imp.Name, opaFuncPrefix) {
+			c.funcs[imp.Name] = funcidx
+			funcidx++
+		}
+	}
 
 	for _, exp := range c.module.Export.Exports {
 		if exp.Descriptor.Type == module.FunctionExportType && strings.HasPrefix(exp.Name, opaFuncPrefix) {
@@ -161,6 +186,15 @@ func (c *Compiler) compileStrings() error {
 		buf.WriteString(s.Value)
 		buf.WriteByte(0)
 		c.stringAddrs[i] = addr
+	}
+
+	c.builtinStringAddrs = make(map[int]uint32, len(errorMessages))
+
+	for i := range errorMessages {
+		addr := uint32(buf.Len()) + uint32(c.stringOffset)
+		buf.WriteString(errorMessages[i].message)
+		buf.WriteByte(0)
+		c.builtinStringAddrs[errorMessages[i].id] = addr
 	}
 
 	c.module.Data.Segments = append(c.module.Data.Segments, module.DataSegment{
@@ -320,7 +354,9 @@ func (c *Compiler) compileBlock(block *ir.Block) ([]instruction.Instruction, err
 							instruction.Call{Index: c.function(opaValueCompare)},
 							instruction.I32Eqz{},
 							instruction.BrIf{Index: 1},
-							instruction.Unreachable{}, // TODO(tsandall): replace with conflict error
+							instruction.I32Const{Value: c.builtinStringAddr(errVarAssignConflict)},
+							instruction.Call{Index: c.function(opaAbort)},
+							instruction.Unreachable{},
 						},
 					},
 					instruction.GetLocal{Index: c.local(stmt.Source)},
@@ -478,7 +514,9 @@ func (c *Compiler) compileBlock(block *ir.Block) ([]instruction.Instruction, err
 							instruction.Call{Index: c.function(opaValueCompare)},
 							instruction.I32Eqz{},
 							instruction.BrIf{Index: 1},
-							instruction.Unreachable{}, // TODO(tsandall): replace with conflict error
+							instruction.I32Const{Value: c.builtinStringAddr(errObjectInsertConflict)},
+							instruction.Call{Index: c.function(opaAbort)},
+							instruction.Unreachable{},
 						},
 					},
 					instruction.GetLocal{Index: c.local(stmt.Object)},
@@ -496,7 +534,9 @@ func (c *Compiler) compileBlock(block *ir.Block) ([]instruction.Instruction, err
 				Instrs: []instruction.Instruction{
 					instruction.GetLocal{Index: c.local(stmt.Target)},
 					instruction.BrIf{Index: 0},
-					instruction.Unreachable{}, // TODO(tsandall): replace with conflict error
+					instruction.I32Const{Value: c.builtinStringAddr(errObjectMergeConflict)},
+					instruction.Call{Index: c.function(opaAbort)},
+					instruction.Unreachable{},
 				},
 			})
 		case *ir.SetAddStmt:
@@ -626,6 +666,10 @@ func (c *Compiler) emitFunction(name string, entry *module.CodeEntry) error {
 
 func (c *Compiler) stringAddr(index int) int32 {
 	return int32(c.stringAddrs[index])
+}
+
+func (c *Compiler) builtinStringAddr(code int) int32 {
+	return int32(c.builtinStringAddrs[code])
 }
 
 func (c *Compiler) local(l ir.Local) uint32 {
