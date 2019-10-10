@@ -1,6 +1,8 @@
 package planner
 
 import (
+	"sort"
+
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/internal/ir"
 )
@@ -66,6 +68,21 @@ func (t *functrie) FuncMap() map[string]*ir.Func {
 	result := map[string]*ir.Func{}
 	t.toMap(result)
 	return result
+}
+
+func (t *functrie) Children() []ast.Value {
+
+	sorted := make([]ast.Value, 0, len(t.children))
+
+	for key := range t.children {
+		sorted = append(sorted, key)
+	}
+
+	sort.Slice(sorted, func(i, j int) bool {
+		return sorted[i].Compare(sorted[j]) < 0
+	})
+
+	return sorted
 }
 
 func (t *functrie) toMap(result map[string]*ir.Func) {
