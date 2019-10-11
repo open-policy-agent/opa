@@ -318,15 +318,13 @@ func (c *Compiler) compileBlock(block *ir.Block) ([]instruction.Instruction, err
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Source)})
 			instrs = append(instrs, instruction.Return{})
 		case *ir.BlockStmt:
-			nested := make([]instruction.Instruction, len(stmt.Blocks))
 			for i := range stmt.Blocks {
 				block, err := c.compileBlock(stmt.Blocks[i])
 				if err != nil {
 					return nil, err
 				}
-				nested[i] = instruction.Block{Instrs: block}
+				instrs = append(instrs, instruction.Block{Instrs: block})
 			}
-			instrs = append(instrs, instruction.Block{Instrs: nested})
 		case *ir.BreakStmt:
 			instrs = append(instrs, instruction.Br{Index: stmt.Index})
 		case *ir.CallStmt:
