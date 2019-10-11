@@ -39,6 +39,6 @@ func (pp *prettyPrinter) Visit(x interface{}) (Visitor, error) {
 }
 
 func (pp *prettyPrinter) writeIndent(f string, a ...interface{}) {
-	pad := strings.Repeat(" ", pp.depth)
+	pad := strings.Repeat("| ", pp.depth)
 	fmt.Fprintf(pp.w, pad+f+"\n", a...)
 }
