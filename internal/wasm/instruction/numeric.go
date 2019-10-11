@@ -38,6 +38,36 @@ func (i I64Const) ImmediateArgs() []interface{} {
 	return []interface{}{i.Value}
 }
 
+// F32Const represents the WASM f32.const instruction.
+type F32Const struct {
+	Value int32
+}
+
+// Op returns the opcode of the instruction.
+func (F32Const) Op() opcode.Opcode {
+	return opcode.F32Const
+}
+
+// ImmediateArgs returns the f32 value to push onto the stack.
+func (i F32Const) ImmediateArgs() []interface{} {
+	return []interface{}{i.Value}
+}
+
+// F64Const represents the WASM f64.const instruction.
+type F64Const struct {
+	Value float64
+}
+
+// Op returns the opcode of the instruction.
+func (F64Const) Op() opcode.Opcode {
+	return opcode.F64Const
+}
+
+// ImmediateArgs returns the f64 value to push onto the stack.
+func (i F64Const) ImmediateArgs() []interface{} {
+	return []interface{}{i.Value}
+}
+
 // I32Eqz represents the WASM i32.eqz instruction.
 type I32Eqz struct {
 	NoImmediateArgs

@@ -36,6 +36,7 @@ const (
 	opaNull              = "opa_null"
 	opaBoolean           = "opa_boolean"
 	opaNumberInt         = "opa_number_int"
+	opaNumberFloat       = "opa_number_float"
 	opaNumberSize        = "opa_number_size"
 	opaArrayWithCap      = "opa_array_with_cap"
 	opaArrayAppend       = "opa_array_append"
@@ -445,6 +446,10 @@ func (c *Compiler) compileBlock(block *ir.Block) ([]instruction.Instruction, err
 			}
 			instrs = append(instrs, instr)
 			instrs = append(instrs, instruction.Call{Index: c.function(opaBoolean)})
+			instrs = append(instrs, instruction.SetLocal{Index: c.local(stmt.Target)})
+		case *ir.MakeNumberFloatStmt:
+			instrs = append(instrs, instruction.F64Const{Value: stmt.Value})
+			instrs = append(instrs, instruction.Call{Index: c.function(opaNumberFloat)})
 			instrs = append(instrs, instruction.SetLocal{Index: c.local(stmt.Target)})
 		case *ir.MakeNumberIntStmt:
 			instrs = append(instrs, instruction.I64Const{Value: stmt.Value})

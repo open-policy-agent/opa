@@ -682,11 +682,17 @@ func (num Number) Hash() int {
 
 // Int returns the int representation of num if possible.
 func (num Number) Int() (int, bool) {
+	i64, ok := num.Int64()
+	return int(i64), ok
+}
+
+// Int64 returns the int64 representation of num if possible.
+func (num Number) Int64() (int64, bool) {
 	i, err := json.Number(num).Int64()
 	if err != nil {
 		return 0, false
 	}
-	return int(i), true
+	return i, true
 }
 
 // Float64 returns the float64 representation of num if possible.

@@ -7,6 +7,14 @@ cases:
     query: "input.x = 1"
     input: {"x": 2}
     return_code: 0
+  - note: eq/float
+    query: "input.x = 2.5"
+    input: {"x": 2.5}
+    return_code: 1
+  - note: eq/float (negative)
+    query: "input.x = 2.5"
+    input: {"x": 2.4}
+    return_code: 0
   - note: eq/string
     query: input.x = "hello"
     input: {"x": "hello"}
