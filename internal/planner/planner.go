@@ -17,21 +17,23 @@ type binaryiter func(ir.Local, ir.Local) error
 
 // Planner implements a query planner for Rego queries.
 type Planner struct {
-	queries []ast.Body        // input query to plan
-	modules []*ast.Module     // input modules to support queries
-	strings []*ir.StringConst // planned (global) string constants
-	blocks  []*ir.Block       // planned blocks
-	funcs   *functrie         // planned functions to support blocks
-	curr    *ir.Block         // in-progress query block
-	vars    *varstack         // in-scope variables
-	ltarget ir.Local          // target variable of last planned statement
-	lcurr   ir.Local          // next variable to use
+	queries  []ast.Body        // input query to plan
+	modules  []*ast.Module     // input modules to support queries
+	strindex map[string]int    // global string constant indices
+	strings  []*ir.StringConst // planned (global) string constants
+	blocks   []*ir.Block       // planned blocks
+	funcs    *functrie         // planned functions to support blocks
+	curr     *ir.Block         // in-progress query block
+	vars     *varstack         // in-scope variables
+	ltarget  ir.Local          // target variable of last planned statement
+	lcurr    ir.Local          // next variable to use
 }
 
 // New returns a new Planner object.
 func New() *Planner {
 	return &Planner{
-		lcurr: ir.Unused,
+		strindex: map[string]int{},
+		lcurr:    ir.Unused,
 		vars: newVarstack(map[ast.Var]ir.Local{
 			ast.InputRootDocument.Value.(ast.Var):   ir.Input,
 			ast.DefaultRootDocument.Value.(ast.Var): ir.Data,
@@ -1261,10 +1263,14 @@ func (p *Planner) appendStmt(s ir.Stmt) {
 }
 
 func (p *Planner) appendStringConst(s string) int {
-	index := len(p.strings)
-	p.strings = append(p.strings, &ir.StringConst{
-		Value: s,
-	})
+	index, ok := p.strindex[s]
+	if !ok {
+		index = len(p.strings)
+		p.strings = append(p.strings, &ir.StringConst{
+			Value: s,
+		})
+		p.strindex[s] = index
+	}
 	return index
 }
 
