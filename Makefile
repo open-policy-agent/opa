@@ -178,7 +178,7 @@ travis-wasm: wasm-lib-test
 	GOVERSION=$(GOVERSION) ./build/run-wasm-rego-tests.sh
 
 .PHONY: travis
-travis: travis-go travis-wasm docker-fuzzit-local-regression
+travis: travis-go travis-wasm
 
 .PHONY: build-linux
 build-linux:
