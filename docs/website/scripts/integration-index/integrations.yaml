@@ -223,6 +223,21 @@ integrations:
     - cisco
     - styra
 
+  dart-authorization:
+    title: HTTP API Authorization in Dart
+    description: This integration demonstrates how to leverage OPA to perform basic HTTP API authorization in a simple Dart microservice. OPA makes it possible to provide fine-grained context-aware authorization for each REST endpoint and access method.
+    labels:
+      layer: network
+      category: application
+    software:
+    - dart
+    tutorials:
+    - https://github.com/adaptant-labs/opa-api-authz-dart/README.md
+    code:
+    - https://github.com/adaptant-labs/opa-api-authz-dart
+    inventors:
+    - adaptant
+
   springsecurity-api:
     title: Authorization for Java Spring Security
     description: Spring Security provides a framework for securing Java applications.  This integration provides a simple implementation of an AccessDecisionVoter for Spring Security that uses OPA for making API authorization decisions.
@@ -408,6 +423,9 @@ organizations:
   cisco:
     name: Cisco
     link: https://www.cisco.com/
+  adaptant:
+    name: Adaptant
+    link: https://www.adaptant.io/
   armory:
     name: Armory
     link: https://www.armory.io/
@@ -477,6 +495,9 @@ software:
   minio:
     name: Minio
     link: https://min.io/
+  dart:
+    name: dart
+    link: https://dart.dev/
   docker:
     name: Docker
     link: https://www.docker.com/
