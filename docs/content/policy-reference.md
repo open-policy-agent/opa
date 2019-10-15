@@ -86,7 +86,7 @@ complex types.
 | <span class="opa-keep-it-together">``output := trim_left(string, cutset)``</span> | ``output`` is a ``string`` representing ``string`` with all leading instances of the characters in ``cutset`` removed. |
 | <span class="opa-keep-it-together">``output := trim_prefix(string, prefix)``</span> | ``output`` is a ``string`` representing ``string`` with leading instance of ``prefix`` removed. If ``string`` doesn't start with prefix, ``string`` is returned unchanged.|
 | <span class="opa-keep-it-together">``output := trim_right(string, cutset)``</span> | ``output`` is a ``string`` representing ``string`` with all trailing instances of the characters in ``cutset`` removed. |
-| <span class="opa-keep-it-together">``output := trim_suffix(string, prefix)``</span> | ``output`` is a ``string`` representing ``string`` with trailing instance of ``suffix`` removed. If ``string`` doesn't end with suffix, ``string`` is returned unchanged.|
+| <span class="opa-keep-it-together">``output := trim_suffix(string, suffix)``</span> | ``output`` is a ``string`` representing ``string`` with trailing instance of ``suffix`` removed. If ``string`` doesn't end with suffix, ``string`` is returned unchanged.|
 | <span class="opa-keep-it-together">``output := trim_space(string)``</span> | ``output`` is a ``string`` representing ``string`` with all leading and trailing white space removed.|
 | <span class="opa-keep-it-together">``output := upper(string)``</span> | ``output`` is ``string`` after converting to upper case |
 
