@@ -106,6 +106,21 @@ integrations:
     inventors: 
     - google
 
+  openfaas-function-authorization:
+    title: OpenFaaS Serverless Function Authorization
+    description: OpenFaaS is a serverless function framework that runs on Docker Swarm and Kubernetes. OPA makes it possible to provide fine-grained context-aware authorization on a per-function basis.
+    labels:
+      layer: application
+      category: serverless
+    software:
+    - openfaas
+    code:
+    - https://github.com/adaptant-labs/openfaas-function-auth-opa
+    tutorials:
+    - https://github.com/adaptant-labs/openfaas-function-auth-opa/blob/master/README.md
+    inventors:
+    - adaptant
+
   kong-authorization:
     title: API Gateway Authorization with Kong
     description: Kong is a microservice API Gateway.  OPA provides fine-grained, context-aware control over the requests that Kong receives.
@@ -494,6 +509,9 @@ software:
   cloudflare:
     name: Cloudflare
     link: https://www.cloudflare.com
+  openfaas:
+    name: OpenFaaS
+    link: https://www.openfaas.com/
   minio:
     name: Minio
     link: https://min.io/
