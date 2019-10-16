@@ -9,6 +9,9 @@ Kubernetes there are a few things you can check to make sure everything is
 configured correctly. If none of these tips work, feel free to join
 [slack.openpolicyagent.org](https://slack.openpolicyagent.org) and ask for help.
 
+The tips below cover the OPA-Kubernetes integration that uses kube-mgmt.
+The [OPA Gatekeeper version](https://github.com/open-policy-agent/gatekeeper) has its own docs.
+
 ### Check for the `openpolicyagent.org/policy-status` annotation on ConfigMaps containing policies
 
 If you are loading policies into OPA via
