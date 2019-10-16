@@ -57,7 +57,7 @@ If you want to kick the tires:
 **Recommendation**: OPA Gatekeeper is currently in beta. If you are getting
 started with admission control, we recommend you try it out.
 
-## How Does It Work With Plain OPA?
+## How Does It Work With Plain OPA and Kube-mgmt?
 
 The Kubernetes API Server is configured to query OPA for admission control
 decisions when objects (e.g., Pods, Services, etc.) are created, updated, or
