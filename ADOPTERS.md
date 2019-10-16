@@ -104,6 +104,7 @@ testing include:
 * [Pinterest](https://www.pinterest.com/)
 * [SolarWinds](https://www.solarwinds.com/) via [Lee Calcote](https://github.com/leecalcote)
 * [State Street Corporation](http://www.statestreet.com/)
+* [Yelp](https://www.yelp.com/)
 
 If you have adopted OPA and would like to be included in this list,
 feel free to submit a PR.
