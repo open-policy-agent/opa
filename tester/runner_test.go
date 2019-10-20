@@ -154,20 +154,8 @@ func TestRun(t *testing.T) {
 
 func TestRunnerCancel(t *testing.T) {
 
-	ast.RegisterBuiltin(&ast.Builtin{
-		Name: "test.sleep",
-		Decl: types.NewFunction(
-			types.Args(types.S),
-			types.NewNull(),
-		),
-	})
-
-	topdown.RegisterFunctionalBuiltin1("test.sleep", func(a ast.Value) (ast.Value, error) {
-		d, _ := time.ParseDuration(string(a.(ast.String)))
-		time.Sleep(d)
-		return ast.Null{}, nil
-	})
-
+	registerSleepBuiltin()
+	
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
@@ -189,5 +177,57 @@ func TestRunnerCancel(t *testing.T) {
 			t.Fatalf("Expected cancel error but got: %v", results[0].Error)
 		}
 	})
+}
 
+func TestRunner_Timeout(t *testing.T) {
+
+	registerSleepBuiltin()
+
+	ctx := context.Background()
+
+	files := map[string]string{
+		"/a_test.rego": `package foo
+
+		test_1 { test.sleep("100ms") }
+		test_2 { true }`,
+	}
+
+	test.WithTempFS(files, func(d string) {
+		paths := []string{d}
+		modules, store, err := tester.Load(paths, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		duration, err := time.ParseDuration("1ns")
+		if err != nil {
+			t.Fatal(err)
+		}
+		ch, err := tester.NewRunner().SetTimeout(duration).SetStore(store).Run(ctx, modules)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var results []*tester.Result
+		for r := range ch {
+			results = append(results, r)
+		}
+		if !topdown.IsCancel(results[0].Error) {
+			t.Fatalf("Expected cancel error but got: %v", results[0].Error)
+		}
+	})
+}
+
+func registerSleepBuiltin() {
+	ast.RegisterBuiltin(&ast.Builtin{
+		Name: "test.sleep",
+		Decl: types.NewFunction(
+			types.Args(types.S),
+			types.NewNull(),
+		),
+	})
+
+	topdown.RegisterFunctionalBuiltin1("test.sleep", func(a ast.Value) (ast.Value, error) {
+		d, _ := time.ParseDuration(string(a.(ast.String)))
+		time.Sleep(d)
+		return ast.Null{}, nil
+	})
 }
