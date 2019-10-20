@@ -99,6 +99,7 @@ type Runner struct {
 	trace       bool
 	runtime     *ast.Term
 	failureLine bool
+	timeout     time.Duration
 	modules     map[string]*ast.Module
 	bundles     map[string]*bundle.Bundle
 }
@@ -148,6 +149,12 @@ func (r *Runner) EnableFailureLine(yes bool) *Runner {
 // SetRuntime sets runtime information to expose to the evaluation engine.
 func (r *Runner) SetRuntime(term *ast.Term) *Runner {
 	r.runtime = term
+	return r
+}
+
+// SetTimeout sets the timeout for the individual test cases
+func (r *Runner) SetTimeout(timout time.Duration) *Runner {
+	r.timeout = timout
 	return r
 }
 
@@ -259,7 +266,9 @@ func (r *Runner) RunTests(ctx context.Context, txn storage.Transaction) (ch chan
 				if !strings.HasPrefix(string(rule.Head.Name), TestPrefix) {
 					continue
 				}
-				tr, stop := r.runTest(ctx, txn, module, rule)
+				runCtx, cancel := context.WithTimeout(ctx, r.timeout)
+				defer cancel()
+				tr, stop := r.runTest(runCtx, txn, module, rule)
 				ch <- tr
 				if stop {
 					return
