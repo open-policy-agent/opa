@@ -320,7 +320,7 @@ func eval(args []string, params evalCommandParams, w io.Writer) (bool, error) {
 	var p *profiler.Profiler
 	if params.profile {
 		p = profiler.New()
-		regoArgs = append(regoArgs, rego.Tracer(p))
+		evalArgs = append(evalArgs, rego.EvalTracer(p))
 	}
 
 	if params.partial {
