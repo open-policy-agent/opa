@@ -50,6 +50,38 @@ func TestEvalExitCode(t *testing.T) {
 	}
 }
 
+func TestEvalWithProfiler(t *testing.T) {
+	files := map[string]string{
+		"x.rego": `package x
+
+p = 1`,
+	}
+
+	test.WithTempFS(files, func(path string) {
+
+		params := newEvalCommandParams()
+		params.profile = true
+		params.dataPaths = newrepeatedStringFlag([]string{path})
+
+		var buf bytes.Buffer
+
+		defined, err := eval([]string{"data"}, params, &buf)
+		if !defined || err != nil {
+			t.Fatalf("Unexpected undefined or error: %v", err)
+		}
+
+		var output presentation.Output
+
+		if err := util.NewJSONDecoder(&buf).Decode(&output); err != nil {
+			t.Fatal(err)
+		}
+
+		if len(output.Profile) == 0 {
+			t.Fatal("Expected profile output to be non-empty")
+		}
+	})
+}
+
 func TestEvalWithCoverage(t *testing.T) {
 
 	files := map[string]string{
