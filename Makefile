@@ -251,29 +251,6 @@ release-travis: push-image tag-latest push-latest
 .PHONY: release-bugfix-travis
 release-bugfix-travis: deploy-travis
 
-.PHONY: fuzzer
-fuzzer:
-	docker build \
-		-f Dockerfile.fuzzit \
-		-t openpolicyagent/fuzzer:$(BUILD_COMMIT) \
-		--build-arg GOVERSION=$(GOVERSION) \
-		.
-
-.PHONY: docker-fuzzit-local-regression
-docker-fuzzit-local-regression: fuzzer
-	docker run \
-		-v /var/run/docker.sock:/var/run/docker.sock \
-		openpolicyagent/fuzzer:$(BUILD_COMMIT) \
-		./fuzzit create job --type "local-regression" opa/ast ast-fuzzer
-
-.PHONY: docker-fuzzit-fuzzing
-docker-fuzzit-fuzzing: fuzzer
-	@docker run \
-		-v /var/run/docker.sock:/var/run/docker.sock \
-		-e FUZZIT_API_KEY=$(FUZZIT_API_KEY) \
-		openpolicyagent/fuzzer:$(BUILD_COMMIT) \
-		./fuzzit create job --type "fuzzing" opa/ast ast-fuzzer
-
 ######################################################
 #
 # Release targets
