@@ -269,9 +269,11 @@ func (r *Runner) RunTests(ctx context.Context, txn storage.Transaction) (ch chan
 				if !strings.HasPrefix(string(rule.Head.Name), TestPrefix) {
 					continue
 				}
-				runCtx, cancel := context.WithTimeout(ctx, r.timeout)
-				defer cancel()
-				tr, stop := r.runTest(runCtx, txn, module, rule)
+				tr, stop := func() (*Result, bool) {
+					runCtx, cancel := context.WithTimeout(ctx, r.timeout)
+					defer cancel()
+					return r.runTest(runCtx, txn, module, rule)
+				}()
 				ch <- tr
 				if stop {
 					return
