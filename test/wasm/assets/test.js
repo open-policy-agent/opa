@@ -100,8 +100,8 @@ function evaluate(policy, input) {
     policy.module.instance.exports.opa_heap_ptr_set(policy.heapPtr);
     policy.module.instance.exports.opa_heap_top_set(policy.heapTop);
     const inputAddr = loadJSON(policy.module, policy.memory, input);
-    const returnCode = policy.module.instance.exports.eval(inputAddr, policy.dataAddr);
-    return { returnCode: returnCode };
+    const resultAddr = policy.module.instance.exports.eval(inputAddr, policy.dataAddr);
+    return { addr: resultAddr };
 }
 
 function namespace(cache, key) {
@@ -155,12 +155,20 @@ async function test() {
         try {
             const policy = await instantiate(testCases[i].wasmBytes, memory, testCases[i].data);
             const result = evaluate(policy, testCases[i].input);
-            passed = result.returnCode === testCases[i].return_code;
+            const len = policy.module.instance.exports.opa_value_length(result.addr);
+            const exp = testCases[i].want_defined;
+            if (exp !== undefined) {
+                if (exp && len > 0) {
+                    passed = true;
+                } else if (!exp && len == 0) {
+                    passed = true;
+                }
+            }
         } catch (e) {
             const exp = testCases[i].want_error;
             if (exp !== undefined && exp.length !== 0) {
                 if (e.message.includes(exp)) {
-                    passed = true
+                    passed = true;
                 } else {
                     error = 'want: ' + yellow(exp) + ' but got: ' + red(e.message);
                 }

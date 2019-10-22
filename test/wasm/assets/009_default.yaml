@@ -5,7 +5,7 @@ cases:
       - |
         package x
         default p = 1
-    return_code: 1
+    want_defined: true
   - note: default fallback
     query: data.x.p = 1
     modules:
@@ -13,7 +13,7 @@ cases:
         package x
         default p = 1
         p = 2 { false }
-    return_code: 1
+    want_defined: true
   - note: default fallback (negative)
     query: data.x.p = 2
     modules:
@@ -21,7 +21,7 @@ cases:
         package x
         default p = 1
         p = 2 { false }
-    return_code: 0
+    want_defined: false
   - note: default skipped
     query: data.x.p = 2
     modules:
@@ -29,4 +29,4 @@ cases:
         package x
         default p = 1
         p = 2
-    return_code: 1
+    want_defined: true

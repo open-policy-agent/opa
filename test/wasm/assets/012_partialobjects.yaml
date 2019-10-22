@@ -6,7 +6,7 @@ cases:
         package x
         p["a"] = 1
         p["b"] = 2
-    return_code: 1
+    want_defined: true
   - note: additive (negative)
     query:  'data.x.p = {"a": 1, "b": 2}'
     modules:
@@ -15,7 +15,7 @@ cases:
         p["a"] = 1
         p["b"] = 2
         p["c"] = 3
-    return_code: 0
+    want_defined: false
   - note: input
     query: 'data.x.p = {"b": 2, "a": 1}'
     modules:
@@ -23,7 +23,7 @@ cases:
         package x
         p["a"] = 1 { input.x = 1 }
         p["b"] = 2 { input.y = 2 }
-    return_code: 1
+    want_defined: true
     input: {"x": 1, "y": 2}
   - note: input (negative)
     query: 'data.x.p = {"a": 1, "b": 2}'
@@ -33,7 +33,7 @@ cases:
         p["a"] = 1 { input.x = 1 }
         p["b"] = 2 { input.y = 2 }
         p["c"] = 3 { input.z = 3 }
-    return_code: 1
+    want_defined: true
     input: {"x": 1, "y": 2}
   - note: composites
     query: 'data.x.p = {"a": [1], "b": [2]}'
@@ -42,7 +42,7 @@ cases:
         package x
         p[x] = [y] { x = "a"; y = 1 }
         p[x] = [y] { x = "b"; y = 2 }
-    return_code: 1
+    want_defined: true
   - note: conflict error
     query: 'data.x.p = {"a": 1}'
     modules:
@@ -57,11 +57,11 @@ cases:
       - |
         package x
         p["a"] = {"b": 1}
-    return_code: 1
+    want_defined: true
   - note: object dereference (negative)
     query: data.x.p.a.b = 1
     modules:
       - |
         package x
         p["a"] = {"b": 2}
-    return_code: 0
+    want_defined: false

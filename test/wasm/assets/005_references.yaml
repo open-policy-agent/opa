@@ -2,13 +2,13 @@ cases:
   - note: defined
     query: input.x
     input: {"x": 1}
-    return_code: 1
+    want_defined: true
   - note: undefined
     query: input.deadbeef
     input: {}
-    return_code: 0
+    want_defined: false
   - note: "false"
     query: input.x
     input: {"x": false}
-    return_code: 0
+    want_defined: false
 

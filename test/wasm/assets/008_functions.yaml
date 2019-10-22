@@ -5,56 +5,56 @@ cases:
       - |
         package x
         f(x) = x
-    return_code: 1
+    want_defined: true
   - note: identity (negative)
     query: data.x.f(1, 2)
     modules:
       - |
         package x
         f(x) = x
-    return_code: 0
+    want_defined: false
   - note: identity implicit
     query: data.x.f(1) = 1
     modules:
       - |
         package x
         f(x) = x
-    return_code: 1
+    want_defined: true
   - note: identity implicit (negative)
     query: data.x.f(1) = 2
     modules:
       - |
         package x
         f(x) = x
-    return_code: 0
+    want_defined: false
   - note: composite arg
     query: data.x.f([1]) = 1
     modules:
       - |
         package x
         f(x) = x[0]
-    return_code: 1
+    want_defined: true
   - note: composite param
     query: data.x.f([1]) = 1
     modules:
       - |
         package x
         f([x]) = x
-    return_code: 1
+    want_defined: true
   - note: multiple params
     query: data.x.f(1, 2) = [2, 1]
     modules:
       - |
         package x
         f(x, y) = [y, x]
-    return_code: 1
+    want_defined: true
   - note: multiple params (negative)
     query: data.x.f(1, 2) = [2, 1]
     modules:
       - |
         package x
         f(x, y) = [x, x]
-    return_code: 0
+    want_defined: false
   - note: disjunction
     query: data.x.f(1) = 0
     modules:
@@ -62,7 +62,7 @@ cases:
         package x
         f(x) = 1 { x <= 0 }
         f(x) = 0 { x > 0 }
-    return_code: 1
+    want_defined: true
   - note: disjunction (negative)
     query: data.x.f(1) = 2
     modules:
@@ -70,14 +70,14 @@ cases:
         package x
         f(x) = 1 { x <= 0 }
         f(x) = 0 { x > 0 }
-    return_code: 0
+    want_defined: false
   - note: negation
     query: not data.x.f(-1)
     modules:
       - |
         package x
         f(x) = x { x >= 0 }
-    return_code: 1
+    want_defined: true
   - note: input
     query: data.x.f(1) = 1
     modules:
@@ -86,7 +86,7 @@ cases:
         f(x) = g(x)
         g(x) = x { input.x = x }
     input: {"x": 1}
-    return_code: 1
+    want_defined: true
   - note: input (negative)
     query: data.x.f(1) = 1
     modules:
@@ -95,7 +95,7 @@ cases:
         f(x) = g(x)
         g(x) = x { input.x = x }
     input: {"x": 2}
-    return_code: 0
+    want_defined: false
   - note: conflict error
     query: data.x.f(1) = 1
     modules:
