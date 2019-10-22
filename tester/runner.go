@@ -7,7 +7,6 @@ package tester
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -346,7 +345,7 @@ func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.
 
 	if err != nil {
 		tr.Error = err
-		if topdown.IsCancel(err) && !errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		if topdown.IsCancel(err) && !(ctx.Err() == context.DeadlineExceeded) {
 			stop = true
 		}
 	} else if len(rs) == 0 {
