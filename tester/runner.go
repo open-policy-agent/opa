@@ -107,7 +107,9 @@ type Runner struct {
 
 // NewRunner returns a new runner.
 func NewRunner() *Runner {
-	return &Runner{}
+	return &Runner{
+		timeout: 5 * time.Second,
+	}
 }
 
 // SetCompiler sets the compiler used by the runner.
