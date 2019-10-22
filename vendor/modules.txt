@@ -13,8 +13,6 @@ github.com/gobwas/glob/syntax/ast
 github.com/gobwas/glob/syntax/lexer
 github.com/gobwas/glob/util/runes
 github.com/gobwas/glob/util/strings
-# github.com/golang/lint v0.0.0-20181023182221-1baf3a9d7d67
-github.com/golang/lint/golint
 # github.com/golang/protobuf v0.0.0-20181025225059-d3de96c4c28e
 github.com/golang/protobuf/proto
 # github.com/gorilla/mux v0.0.0-20181024020800-521ea7b17d02
@@ -65,6 +63,7 @@ github.com/spf13/pflag
 github.com/yashtewari/glob-intersection
 # golang.org/x/lint v0.0.0-20181023182221-1baf3a9d7d67
 golang.org/x/lint
+golang.org/x/lint/golint
 # golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a
 golang.org/x/sys/unix
 # golang.org/x/tools v0.0.0-20190920225731-5eefd052ad72
