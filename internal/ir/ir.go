@@ -33,7 +33,8 @@ type (
 
 	// Func represents a named plan (function) that can be invoked. Functions
 	// accept one or more parameters and return a value. By convention, the
-	// input document is always passed as the first argument.
+	// input document and data documents are always passed as the first and
+	// second arguments (respectively).
 	Func struct {
 		Name   string
 		Params []Local
