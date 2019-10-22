@@ -35,13 +35,13 @@ type testCaseSet struct {
 }
 
 type testCase struct {
-	Note       string                  `json:"note"`
-	Query      string                  `json:"query"`
-	Modules    []string                `json:"modules"`
-	Data       *map[string]interface{} `json:"data,omitempty"`
-	Input      *interface{}            `json:"input"`
-	ReturnCode int                     `json:"return_code"`
-	WantError  string                  `json:"want_error"`
+	Note        string                  `json:"note"`
+	Query       string                  `json:"query"`
+	Modules     []string                `json:"modules"`
+	Data        *map[string]interface{} `json:"data,omitempty"`
+	Input       *interface{}            `json:"input"`
+	WantDefined *bool                   `json:"want_defined,omitempty"`
+	WantError   *string                 `json:"want_error,omitempty"`
 }
 
 type compiledTestCaseSet struct {
@@ -56,16 +56,34 @@ type compiledTestCase struct {
 func compileTestCases(ctx context.Context, tests testCaseSet) (*compiledTestCaseSet, error) {
 	var result []compiledTestCase
 	for _, tc := range tests.Cases {
+
+		var numExpects int
+
+		if tc.WantDefined != nil {
+			numExpects++
+		}
+
+		if tc.WantError != nil {
+			numExpects++
+		}
+
+		if numExpects != 1 {
+			return nil, fmt.Errorf("test case %v: must specify exactly one expectation (e.g., want_defined) but got %v", tc.Note, numExpects)
+		}
+
 		args := []func(*rego.Rego){
 			rego.Query(tc.Query),
 		}
+
 		for idx, module := range tc.Modules {
 			args = append(args, rego.Module(fmt.Sprintf("module%d.rego", idx), module))
 		}
+
 		cr, err := rego.New(args...).Compile(ctx)
 		if err != nil {
 			return nil, err
 		}
+
 		result = append(result, compiledTestCase{
 			testCase: tc,
 			WASM:     cr.Bytes,

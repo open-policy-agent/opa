@@ -2,88 +2,88 @@ cases:
   - note: eq/number
     query: "input.x = 1"
     input: {"x": 1}
-    return_code: 1
+    want_defined: true
   - note: eq/number (negative)
     query: "input.x = 1"
     input: {"x": 2}
-    return_code: 0
+    want_defined: false
   - note: eq/float
     query: "input.x = 2.5"
     input: {"x": 2.5}
-    return_code: 1
+    want_defined: true
   - note: eq/float (negative)
     query: "input.x = 2.5"
     input: {"x": 2.4}
-    return_code: 0
+    want_defined: false
   - note: eq/string
     query: input.x = "hello"
     input: {"x": "hello"}
-    return_code: 1
+    want_defined: true
   - note: eq/string (negative)
     query: input.x = "hello"
     input: {"x": "world"}
-    return_code: 0
+    want_defined: false
   - note: eq/true
     query: input.x = true
     input: {"x": true}
-    return_code: 1
+    want_defined: true
   - note: eq/true (negative)
     query: input.x = false
     input: {"x": true}
-    return_code: 0
+    want_defined: false
   - note: eq/false
     query: input.x = false
     input: {"x": false}
-    return_code: 1
+    want_defined: true
   - note: eq/false (negative)
     query: input.x = true
     input: {"x": false}
-    return_code: 0
+    want_defined: false
   - note: eq/null
     query: input.x = null
     input: {"x": null}
-    return_code: 1
+    want_defined: true
   - note: eq/null (negative)
     query: input.x = null
     input: {"x": false}
-    return_code: 0
+    want_defined: false
   - note: eq/array-empty
     query: input.x = []
     input: {"x": []}
-    return_code: 1
+    want_defined: true
   - note: eq/array-empty (negative)
     query: input.x = []
     input: {"x": [1]}
-    return_code: 0
+    want_defined: false
   - note: eq/array-non-empty
     query: input.x = [1,2,3]
     input: {"x": [1,2,3]}
-    return_code: 1
+    want_defined: true
   - note: eq/array-non-empty (negative)
     query: input.x = [1,2,3]
     input: {"x": [1,3,2]}
-    return_code: 0
+    want_defined: false
   - note: eq/object-empty
     query: 'input.x = {}'
     input: {"x": {}}
-    return_code: 1
+    want_defined: true
   - note: eq/object-empty (negative)
     query: 'input.x = {}'
     input: {"x": {"a": 1}}
-    return_code: 0
+    want_defined: false
   - note: eq/object-non-empty
     query: 'input.x = {"a": 1, "b": 2}'
     input: {"x": {"a": 1, "b": 2}}
-    return_code: 1
+    want_defined: true
   - note: eq/object-non-empty (negative)
     query: 'input.x = {"a": 1, "b": 2}'
     input: {"x": {"a": 2, "b": 1}}
-    return_code: 0
+    want_defined: false
   - note: eq/set-non-empty
     query: '{input.a, input.b} = {input.b, input.a}'
     input: {"a": 1, "b": 2}
-    return_code: 1
+    want_defined: true
   - note: eq/set-non-empty (negative)
     query: '{input.a, input.b} = {input.a, input.c}'
     input: {"a": 1, "b": 2, "c": 3}
-    return_code: 0
+    want_defined: false
