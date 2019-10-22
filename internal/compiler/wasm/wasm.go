@@ -312,9 +312,6 @@ func (c *Compiler) compileBlock(block *ir.Block) ([]instruction.Instruction, err
 
 	for _, stmt := range block.Stmts {
 		switch stmt := stmt.(type) {
-		case *ir.ReturnStmt:
-			instrs = append(instrs, instruction.I32Const{Value: int32(stmt.Code)})
-			instrs = append(instrs, instruction.Return{})
 		case *ir.ReturnLocalStmt:
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Source)})
 			instrs = append(instrs, instruction.Return{})

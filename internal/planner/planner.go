@@ -318,14 +318,25 @@ func (p *Planner) planFuncParams(params []ir.Local, args ast.Args, idx int, iter
 
 func (p *Planner) planQueries() error {
 
+	lrs := p.newLocal()
+
+	p.curr = &ir.Block{}
+	p.appendStmt(&ir.MakeSetStmt{Target: lrs})
+	p.blocks = append(p.blocks, p.curr)
+
 	for _, q := range p.queries {
 		p.curr = &ir.Block{}
 		p.vars.Push(map[ast.Var]ir.Local{})
 		defined := false
 
 		if err := p.planQuery(q, 0, func() error {
-			p.appendStmt(&ir.ReturnStmt{
-				Code: ir.Defined,
+			lr := p.newLocal()
+			p.appendStmt(&ir.MakeObjectStmt{
+				Target: lr,
+			})
+			p.appendStmt(&ir.SetAddStmt{
+				Value: lr,
+				Set:   lrs,
 			})
 			defined = true
 			return nil
@@ -342,8 +353,8 @@ func (p *Planner) planQueries() error {
 
 	p.blocks = append(p.blocks, &ir.Block{
 		Stmts: []ir.Stmt{
-			&ir.ReturnStmt{
-				Code: ir.Undefined,
+			&ir.ReturnLocalStmt{
+				Source: lrs,
 			},
 		},
 	})

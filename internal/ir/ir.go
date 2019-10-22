@@ -42,9 +42,8 @@ type (
 		Blocks []*Block // TODO(tsandall): should this be a plan?
 	}
 
-	// Plan represents an ordered series of blocks to execute. All plans contain a
-	// final block that returns indicating the plan result was undefined. Plan
-	// execution stops when a block returns a value. Blocks are executed in-order.
+	// Plan represents an ordered series of blocks to execute. Plan execution
+	// stops when a return statement is reached. Blocks are executed in-order.
 	Plan struct {
 		Blocks []*Block
 	}
@@ -147,12 +146,6 @@ func (a *NullConst) typeMarker()    {}
 func (a *IntConst) typeMarker()     {}
 func (a *FloatConst) typeMarker()   {}
 func (a *StringConst) typeMarker()  {}
-
-// ReturnStmt represents a return statement. Return statements halt execution of
-// a plan with the given code.
-type ReturnStmt struct {
-	Code int32 // 32-bit integer for compatibility with languages like JavaScript.
-}
 
 // ReturnLocalStmt represents a return statement that yields a local value.
 type ReturnLocalStmt struct {
