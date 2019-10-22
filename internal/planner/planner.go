@@ -18,16 +18,17 @@ type binaryiter func(ir.Local, ir.Local) error
 
 // Planner implements a query planner for Rego queries.
 type Planner struct {
-	queries  []ast.Body        // input query to plan
-	modules  []*ast.Module     // input modules to support queries
-	strindex map[string]int    // global string constant indices
-	strings  []*ir.StringConst // planned (global) string constants
-	blocks   []*ir.Block       // planned blocks
-	funcs    *functrie         // planned functions to support blocks
-	curr     *ir.Block         // in-progress query block
-	vars     *varstack         // in-scope variables
-	ltarget  ir.Local          // target variable of last planned statement
-	lcurr    ir.Local          // next variable to use
+	queries   []ast.Body          // input query to plan
+	modules   []*ast.Module       // input modules to support queries
+	rewritten map[ast.Var]ast.Var // rewritten query vars
+	strindex  map[string]int      // global string constant indices
+	strings   []*ir.StringConst   // planned (global) string constants
+	blocks    []*ir.Block         // planned blocks
+	funcs     *functrie           // planned functions to support blocks
+	curr      *ir.Block           // in-progress query block
+	vars      *varstack           // in-scope variables
+	ltarget   ir.Local            // target variable of last planned statement
+	lcurr     ir.Local            // next variable to use
 }
 
 // New returns a new Planner object.
@@ -52,6 +53,14 @@ func (p *Planner) WithQueries(queries []ast.Body) *Planner {
 // WithModules sets the module set that contains query dependencies.
 func (p *Planner) WithModules(modules []*ast.Module) *Planner {
 	p.modules = modules
+	return p
+}
+
+// WithRewrittenVars sets a mapping of rewritten query vars on the planner. The
+// plan will use the rewritten variable name but the result set key will be the
+// original variable name.
+func (p *Planner) WithRewrittenVars(vs map[ast.Var]ast.Var) *Planner {
+	p.rewritten = vs
 	return p
 }
 
@@ -318,26 +327,67 @@ func (p *Planner) planFuncParams(params []ir.Local, args ast.Args, idx int, iter
 
 func (p *Planner) planQueries() error {
 
-	lrs := p.newLocal()
-
+	// Initialize the plan with a block that prepares the query result.
 	p.curr = &ir.Block{}
-	p.appendStmt(&ir.MakeSetStmt{Target: lrs})
+	lresultset := p.newLocal()
+	p.appendStmt(&ir.MakeSetStmt{Target: lresultset})
+
+	// Build a set of variables appearing in the query and allocate strings for
+	// each one. The strings will be used in the result set objects.
+	qvs := ast.NewVarSet()
+
+	for _, q := range p.queries {
+		vs := q.Vars(ast.VarVisitorParams{SkipRefCallHead: true, SkipClosures: true}).Diff(ast.ReservedVars)
+		qvs.Update(vs)
+	}
+
+	lvarnames := make(map[ast.Var]ir.Local, len(qvs))
+
+	for _, qv := range qvs.Sorted() {
+		qv = p.rewrittenVar(qv)
+		if !qv.IsGenerated() && !qv.IsWildcard() {
+			stmt := &ir.MakeStringStmt{
+				Index:  p.appendStringConst(string(qv)),
+				Target: p.newLocal(),
+			}
+			p.appendStmt(stmt)
+			lvarnames[qv] = stmt.Target
+		}
+	}
+
 	p.blocks = append(p.blocks, p.curr)
 
 	for _, q := range p.queries {
 		p.curr = &ir.Block{}
 		p.vars.Push(map[ast.Var]ir.Local{})
 		defined := false
+		qvs := q.Vars(ast.VarVisitorParams{SkipRefCallHead: true, SkipClosures: true}).Diff(ast.ReservedVars).Sorted()
 
 		if err := p.planQuery(q, 0, func() error {
+
+			// Add an object containing variable bindings into the result set.
 			lr := p.newLocal()
+
 			p.appendStmt(&ir.MakeObjectStmt{
 				Target: lr,
 			})
+
+			for _, qv := range qvs {
+				rw := p.rewrittenVar(qv)
+				if !rw.IsGenerated() && !rw.IsWildcard() {
+					p.appendStmt(&ir.ObjectInsertStmt{
+						Object: lr,
+						Key:    lvarnames[rw],
+						Value:  p.vars.GetOrEmpty(qv),
+					})
+				}
+			}
+
 			p.appendStmt(&ir.SetAddStmt{
 				Value: lr,
-				Set:   lrs,
+				Set:   lresultset,
 			})
+
 			defined = true
 			return nil
 		}); err != nil {
@@ -354,7 +404,7 @@ func (p *Planner) planQueries() error {
 	p.blocks = append(p.blocks, &ir.Block{
 		Stmts: []ir.Stmt{
 			&ir.ReturnLocalStmt{
-				Source: lrs,
+				Source: lresultset,
 			},
 		},
 	})
@@ -1470,4 +1520,12 @@ func (p *Planner) newLocal() ir.Local {
 	x := p.lcurr
 	p.lcurr++
 	return x
+}
+
+func (p *Planner) rewrittenVar(k ast.Var) ast.Var {
+	rw, ok := p.rewritten[k]
+	if !ok {
+		return k
+	}
+	return rw
 }

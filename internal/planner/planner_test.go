@@ -173,6 +173,10 @@ func TestPlannerHelloWorld(t *testing.T) {
 				`,
 			},
 		},
+		{
+			note:    "variables in query",
+			queries: []string{"x = 1", "y = 2", "x = 1; y = 2"},
+		},
 	}
 
 	for _, tc := range tests {

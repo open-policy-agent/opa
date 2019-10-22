@@ -1045,7 +1045,11 @@ func (r *Rego) Compile(ctx context.Context, opts ...CompileOption) (*CompileResu
 		queries = []ast.Body{r.compiledQueries[compileQueryType].query}
 	}
 
-	policy, err := planner.New().WithQueries(queries).WithModules(modules).Plan()
+	policy, err := planner.New().
+		WithQueries(queries).
+		WithModules(modules).
+		WithRewrittenVars(r.compiledQueries[compileQueryType].compiler.RewrittenVars()).
+		Plan()
 	if err != nil {
 		return nil, err
 	}
