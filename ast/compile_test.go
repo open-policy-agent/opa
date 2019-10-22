@@ -1528,7 +1528,7 @@ func TestCompilerRewriteLocalAssignments(t *testing.T) {
 			`,
 			exp: `
 				package test
-		
+
 				f(x) = __local0__ { x == 1; __local0__ = 2 } else = __local1__ { x == 3; __local1__ = 4 }
 			`,
 			expRewrittenMap: map[Var]Var{
@@ -1635,6 +1635,78 @@ func TestRewriteLocalVarDeclarationErrors(t *testing.T) {
 		if result[i] != expectedErrors[i] {
 			t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", strings.Join(expectedErrors, "\n"), strings.Join(result, "\n"))
 		}
+	}
+}
+
+func TestRewriteDecledVarsStage(t *testing.T) {
+
+	// Unlike the following test case, this only executes up to the
+	// RewriteLocalVars stage. This is done so that later stages like
+	// RewriteDynamics are not executed.
+
+	tests := []struct {
+		note   string
+		module string
+		exp    string
+	}{
+		{
+			note: "object ref key",
+			module: `
+				package test
+
+				p {
+					a := {"a": "a"}
+					{a.a: a.a}
+				}
+			`,
+			exp: `
+				package test
+
+				p {
+					__local0__ = {"a": "a"}
+					{__local0__.a: __local0__.a}
+				}
+			`,
+		},
+		{
+			note: "set ref element",
+			module: `
+				package test
+
+				p {
+					a := {"a": "a"}
+					{a.a}
+				}
+			`,
+			exp: `
+				package test
+
+				p {
+					__local0__ = {"a": "a"}
+					{__local0__.a}
+				}
+			`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+
+			c := NewCompiler()
+
+			c.Modules = map[string]*Module{
+				"test.rego": MustParseModule(tc.module),
+			}
+
+			compileStages(c, c.rewriteLocalVars)
+
+			exp := MustParseModule(tc.exp)
+			result := c.Modules["test.rego"]
+
+			if !exp.Equal(result) {
+				t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", exp, result)
+			}
+		})
 	}
 }
 
