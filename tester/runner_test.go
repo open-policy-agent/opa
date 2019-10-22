@@ -198,7 +198,7 @@ func TestRunner_Timeout(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		duration, err := time.ParseDuration("1ns")
+		duration, err := time.ParseDuration("15ms")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -212,6 +212,9 @@ func TestRunner_Timeout(t *testing.T) {
 		}
 		if !topdown.IsCancel(results[0].Error) {
 			t.Fatalf("Expected cancel error but got: %v", results[0].Error)
+		}
+		if topdown.IsCancel(results[1].Error) {
+			t.Fatalf("Expected no error for second test, but it timed out")
 		}
 	})
 }
