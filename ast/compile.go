@@ -3053,9 +3053,16 @@ func rewriteDeclaredVarsInTerm(g *localVarGenerator, stack *localDeclaredVars, t
 	case Object:
 		cpy, _ := v.Map(func(k, v *Term) (*Term, *Term, error) {
 			kcpy := k.Copy()
-			_, errs = rewriteDeclaredVarsInTerm(g, stack, kcpy, errs)
-			_, errs = rewriteDeclaredVarsInTerm(g, stack, v, errs)
+			errs = rewriteDeclaredVarsInTermRecursive(g, stack, kcpy, errs)
+			errs = rewriteDeclaredVarsInTermRecursive(g, stack, v, errs)
 			return kcpy, v, nil
+		})
+		term.Value = cpy
+	case Set:
+		cpy, _ := v.Map(func(elem *Term) (*Term, error) {
+			elemcpy := elem.Copy()
+			errs = rewriteDeclaredVarsInTermRecursive(g, stack, elemcpy, errs)
+			return elemcpy, nil
 		})
 		term.Value = cpy
 	case *ArrayComprehension:
@@ -3072,15 +3079,15 @@ func rewriteDeclaredVarsInTerm(g *localVarGenerator, stack *localDeclaredVars, t
 
 func rewriteDeclaredVarsInTermRecursive(g *localVarGenerator, stack *localDeclaredVars, term *Term, errs Errors) Errors {
 	WalkNodes(term, func(n Node) bool {
+		var stop bool
 		switch n := n.(type) {
 		case *With:
 			_, errs = rewriteDeclaredVarsInTerm(g, stack, n.Value, errs)
-			return true
+			stop = true
 		case *Term:
-			_, errs = rewriteDeclaredVarsInTerm(g, stack, n, errs)
-			return false
+			stop, errs = rewriteDeclaredVarsInTerm(g, stack, n, errs)
 		}
-		return false
+		return stop
 	})
 	return errs
 }
