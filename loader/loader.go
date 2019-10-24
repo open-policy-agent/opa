@@ -161,6 +161,9 @@ func AsBundle(path string) (*bundle.Bundle, error) {
 
 	br := bundle.NewCustomReader(bundleLoader)
 	b, err := br.Read()
+	if err != nil {
+		err = errors.Wrap(err, fmt.Sprintf("bundle %s", path))
+	}
 	return &b, err
 }
 
@@ -335,7 +338,11 @@ func loadKnownTypes(path string, bs []byte) (interface{}, error) {
 		return loadYAML(path, bs)
 	default:
 		if strings.HasSuffix(path, ".tar.gz") {
-			return loadBundleFile(bs)
+			r, err := loadBundleFile(bs)
+			if err != nil {
+				err = errors.Wrap(err, fmt.Sprintf("bundle %s", path))
+			}
+			return r, err
 		}
 	}
 	return nil, unrecognizedFile(path)

@@ -135,7 +135,7 @@ func TestReadRootValidation(t *testing.T) {
 				{"/.manifest", `{"revision": "abcd", "roots": []}`},
 				{"/x.rego", `package foo`},
 			},
-			err: "manifest roots do not permit 'package foo' in /x.rego",
+			err: "manifest roots [] do not permit 'package foo' in module '/x.rego'",
 		},
 		{
 			note: "err: overlapped",
@@ -158,7 +158,7 @@ func TestReadRootValidation(t *testing.T) {
 				{"/a.rego", `package b.c`},
 				{"/x.rego", `package c.e`},
 			},
-			err: "manifest roots do not permit 'package c.e' in /x.rego",
+			err: "manifest roots [a b c/d] do not permit 'package c.e' in module '/x.rego'",
 		},
 		{
 			note: "err: data outside scope",
@@ -167,7 +167,7 @@ func TestReadRootValidation(t *testing.T) {
 				{"/data.json", `{"a": 1}`},
 				{"/c/e/data.json", `"bad bad bad"`},
 			},
-			err: "manifest roots do not permit data at path c/e",
+			err: "manifest roots [a b c/d] do not permit data at path '/c/e'",
 		},
 	}
 
