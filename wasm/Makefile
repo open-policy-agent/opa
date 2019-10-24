@@ -40,6 +40,9 @@ hack:
 $(WASM_OBJ_DIR)/malloc.wasm: src/malloc.c
 	@$(CC) $(CFLAGS) -c $^ -o $@
 
+$(WASM_OBJ_DIR)/printf.wasm: src/printf.c
+	@$(CC) $(CFLAGS) -c $^ -o $@
+
 $(WASM_OBJ_DIR)/string.wasm: src/string.c
 	@$(CC) $(CFLAGS) -c $^ -o $@
 
@@ -51,6 +54,7 @@ $(WASM_OBJ_DIR)/value.wasm: src/value.c
 
 $(WASM_OBJ_DIR)/opa.wasm: $(WASM_OBJ_DIR)/malloc.wasm \
 		$(WASM_OBJ_DIR)/value.wasm \
+		$(WASM_OBJ_DIR)/printf.wasm \
 		$(WASM_OBJ_DIR)/string.wasm \
 		$(WASM_OBJ_DIR)/json.wasm
 	@wasm-ld-8 \
@@ -68,6 +72,7 @@ $(WASM_OBJ_DIR)/test.wasm: tests/test.c
 $(WASM_OBJ_DIR)/opa-test.wasm: $(WASM_OBJ_DIR)/test.wasm \
 		$(WASM_OBJ_DIR)/malloc.wasm \
 		$(WASM_OBJ_DIR)/value.wasm \
+		$(WASM_OBJ_DIR)/printf.wasm \
 		$(WASM_OBJ_DIR)/string.wasm \
 		$(WASM_OBJ_DIR)/json.wasm
 	@wasm-ld-8 \
