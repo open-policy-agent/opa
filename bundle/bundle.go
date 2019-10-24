@@ -92,7 +92,7 @@ func (m *Manifest) validateAndInjectDefaults(b Bundle) error {
 			}
 		}
 		if !found {
-			return fmt.Errorf("manifest roots do not permit '%v' in %v", module.Parsed.Package, module.Path)
+			return fmt.Errorf("manifest roots %v do not permit '%v' in module '%v'", roots, module.Parsed.Package, module.Path)
 		}
 	}
 
@@ -111,7 +111,7 @@ func (m *Manifest) validateAndInjectDefaults(b Bundle) error {
 				}
 			}
 		}
-		return false, fmt.Errorf("manifest roots do not permit data at path %v", path)
+		return false, fmt.Errorf("manifest roots %v do not permit data at path '/%s' (hint: check bundle directory structure)", roots, path)
 	})
 }
 

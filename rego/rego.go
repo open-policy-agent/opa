@@ -1322,7 +1322,7 @@ func (r *Rego) loadBundles(ctx context.Context, txn storage.Transaction, m metri
 	for _, path := range r.bundlePaths {
 		bndl, err := loader.AsBundle(path)
 		if err != nil {
-			return fmt.Errorf("error loading bundle path %s: %s", path, err)
+			return fmt.Errorf("loading error: %s", err)
 		}
 		r.bundles[path] = bndl
 	}
