@@ -1,3 +1,5 @@
+const assert = require('assert');
+
 const { readFileSync, readdirSync } = require('fs');
 
 function stringDecoder(mem) {
@@ -24,17 +26,24 @@ function yellow(text) {
     return '\x1b[0m\x1b[33m' + text + '\x1b[0m';
 }
 
-function report(passed, error, msg) {
-    if (passed === true) {
+const PASS = 'PASS';
+const FAIL = 'FAIL';
+const ERROR = 'ERROR';
+
+function report(state, name, msg, extra) {
+    if (state === PASS) {
         if (process.env.VERBOSE === '1') {
-            console.log(green('PASS'), msg);
+            console.log(green('PASS'), name);
             return true;
         }
         return false;
-    } else if (error === undefined) {
-        console.log(yellow('FAIL'), msg);
+    } else if (state === FAIL) {
+        console.log(yellow('FAIL'), name + ':', msg);
     } else {
-        console.log(red('ERROR'), msg + ':', error);
+        console.log(red('ERROR'), name + ':', msg);
+    }
+    if (extra !== '') {
+        console.log(extra);
     }
     return true
 }
@@ -104,6 +113,22 @@ function evaluate(policy, input) {
     return { addr: resultAddr };
 }
 
+function decodeResultSet(policy, result) {
+
+    const rawAddr = policy.module.instance.exports.opa_json_dump(result.addr);
+    const buf = new Uint8Array(policy.memory.buffer);
+
+    // NOTE(tsandall): There must be a better way of doing this...
+    let s = '';
+    let idx = rawAddr;
+
+    while (buf[idx] != 0) {
+        s += String.fromCharCode(buf[idx++]);
+    }
+
+    return JSON.parse(s);
+}
+
 function namespace(cache, key) {
     if (key in cache) {
         cache[key] += 1;
@@ -149,43 +174,73 @@ async function test() {
 
     for (let i = 0; i < testCases.length; i++) {
 
-        let passed = false;
-        let error = undefined;
+        let state = 'FAIL';
+        let name = namespace(cache, testCases[i].note);
+        let msg = '';
+        let extra = '';
 
         try {
             const policy = await instantiate(testCases[i].wasmBytes, memory, testCases[i].data);
             const result = evaluate(policy, testCases[i].input);
-            const len = policy.module.instance.exports.opa_value_length(result.addr);
-            const exp = testCases[i].want_defined;
-            if (exp !== undefined) {
-                if (exp && len > 0) {
-                    passed = true;
-                } else if (!exp && len == 0) {
-                    passed = true;
+
+            const expDefined = testCases[i].want_defined;
+
+            if (expDefined !== undefined) {
+                const len = policy.module.instance.exports.opa_value_length(result.addr);
+                if (expDefined) {
+                    if (len > 0) {
+                        state = PASS;
+                    } else {
+                        msg = 'expected non-empty/defined result';
+                    }
+                } else {
+                    if (len == 0) {
+                        state = PASS;
+                    } else {
+                        msg = 'expected empty/undefined result';
+                    }
                 }
             }
+
+            const expResultSet = testCases[i].want_result;
+
+            if (expResultSet !== undefined) {
+
+                const rs = decodeResultSet(policy, result);
+
+                try {
+                    assert.deepStrictEqual(rs, expResultSet, 'unexpected result set');
+                    state = PASS;
+                } catch (e) {
+                    msg = 'unexpected result';
+                    extra = '\twant: ' + JSON.stringify(expResultSet) + '\n\tgot : ' + JSON.stringify(rs);
+                }
+            }
+
         } catch (e) {
             const exp = testCases[i].want_error;
             if (exp !== undefined && exp.length !== 0) {
                 if (e.message.includes(exp)) {
-                    passed = true;
+                    state = PASS;
                 } else {
-                    error = 'want: ' + yellow(exp) + ' but got: ' + red(e.message);
+                    state = ERROR;
+                    msg = 'want: ' + yellow(exp) + ' but got: ' + red(e.message);
                 }
             } else {
-                error = e;
+                state = ERROR;
+                msg = e;
             }
         }
 
-        if (passed) {
+        if (state == PASS) {
             numPassed++;
-        } else if (error === undefined) {
+        } else if (state === FAIL) {
             numFailed++;
         } else {
             numErrors++;
         }
 
-        dirty = report(passed, error, namespace(cache, testCases[i].note)) || dirty;
+        dirty = report(state, name, msg, extra) || dirty;
     }
 
     const t_end = now();

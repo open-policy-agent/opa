@@ -35,13 +35,14 @@ type testCaseSet struct {
 }
 
 type testCase struct {
-	Note        string                  `json:"note"`
-	Query       string                  `json:"query"`
-	Modules     []string                `json:"modules"`
-	Data        *map[string]interface{} `json:"data,omitempty"`
-	Input       *interface{}            `json:"input"`
-	WantDefined *bool                   `json:"want_defined,omitempty"`
-	WantError   *string                 `json:"want_error,omitempty"`
+	Note        string                    `json:"note"`
+	Query       string                    `json:"query"`
+	Modules     []string                  `json:"modules"`
+	Data        *map[string]interface{}   `json:"data,omitempty"`
+	Input       *interface{}              `json:"input"`
+	WantResult  *[]map[string]interface{} `json:"want_result,omitempty"`
+	WantDefined *bool                     `json:"want_defined,omitempty"`
+	WantError   *string                   `json:"want_error,omitempty"`
 }
 
 type compiledTestCaseSet struct {
@@ -64,6 +65,10 @@ func compileTestCases(ctx context.Context, tests testCaseSet) (*compiledTestCase
 		}
 
 		if tc.WantError != nil {
+			numExpects++
+		}
+
+		if tc.WantResult != nil {
 			numExpects++
 		}
 
