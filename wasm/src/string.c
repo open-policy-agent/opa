@@ -88,3 +88,58 @@ int opa_ishex(char b)
 {
     return opa_isdigit(b) || (b >= 'A' && b <= 'F') || (b >= 'a' && b <= 'f');
 }
+
+char *opa_reverse(char *str)
+{
+    size_t n = opa_strlen(str)-1;
+
+    if (n <= 0)
+    {
+        return str;
+    }
+
+    int i = 0;
+
+    while (i < n)
+    {
+        char tmp = str[i];
+        str[i] = str[n];
+        str[n] = tmp;
+
+        i++;
+        n--;
+    }
+
+    return str;
+}
+
+const char *digits = "0123456789abcdef";
+
+char *opa_itoa(long long i, char *str, int base)
+{
+    char *buf = str;
+    int is_negative = 0;
+
+    if (i < 0)
+    {
+        is_negative = 1;
+        i = -i;
+    }
+
+    do
+    {
+        int x = i % base;
+        *buf++ = digits[x];
+        i /= base;
+    }
+    while (i > 0);
+
+    if (is_negative)
+    {
+        *buf++ = '-';
+    }
+
+    *buf++ = 0;
+
+    return opa_reverse(str);
+}

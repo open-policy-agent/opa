@@ -10,5 +10,7 @@ int opa_strcmp(const char *a, const char *b);
 int opa_isdigit(char b);
 int opa_isspace(char b);
 int opa_ishex(char b);
+char *opa_itoa(long long i, char *str, int base);
+char *opa_reverse(char *str);
 
 #endif
