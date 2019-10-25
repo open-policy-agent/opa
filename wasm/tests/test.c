@@ -698,3 +698,47 @@ void test_opa_value_merge_nested()
         test_fatal("object merge returned unexpected result");
     }
 }
+
+void test_opa_json_dump()
+{
+    test("null", opa_strcmp(opa_json_dump(opa_null()), "null") == 0);
+    test("false", opa_strcmp(opa_json_dump(opa_boolean(0)), "false") == 0);
+    test("true", opa_strcmp(opa_json_dump(opa_boolean(1)), "true") == 0);
+    test("strings", opa_strcmp(opa_json_dump(opa_string_terminated("hello\"world")), "\"hello\\\"world\"") == 0);
+    test("numbers", opa_strcmp(opa_json_dump(opa_number_int(127)), "127") == 0);
+
+    // NOTE(tsandall): the string representation is lossy. We should store
+    // user-supplied floating-point values as strings so that round-trip
+    // operations are lossless. Computed values can be lossy for the time being.
+    test("numbers/float", opa_strcmp(opa_json_dump(opa_number_float(12345.678)), "12345.7") == 0);
+
+    // NOTE(tsandall): trailing zeros should be omitted but this appears to be an open issue: https://github.com/mpaland/printf/issues/55
+    test("numbers/float", opa_strcmp(opa_json_dump(opa_number_float(10.5)), "10.5000") == 0);
+
+    opa_value *arr = opa_array();
+    test("arrays", opa_strcmp(opa_json_dump(arr), "[]") == 0);
+
+    opa_array_append(opa_cast_array(arr), opa_string_terminated("hello"));
+    test("arrays", opa_strcmp(opa_json_dump(arr), "[\"hello\"]") == 0);
+
+    opa_array_append(opa_cast_array(arr), opa_string_terminated("world"));
+    test("arrays", opa_strcmp(opa_json_dump(arr), "[\"hello\",\"world\"]") == 0);
+
+    opa_value *set = opa_set();
+    test("sets", opa_strcmp(opa_json_dump(set), "[]") == 0);
+
+    opa_set_add(opa_cast_set(set), opa_string_terminated("hello"));
+    test("sets", opa_strcmp(opa_json_dump(set), "[\"hello\"]") == 0);
+
+    opa_set_add(opa_cast_set(set), opa_string_terminated("world"));
+    test("sets", opa_strcmp(opa_json_dump(set), "[\"hello\",\"world\"]") == 0);
+
+    opa_value *obj = opa_object();
+    test("objects", opa_strcmp(opa_json_dump(obj), "{}") == 0);
+
+    opa_object_insert(opa_cast_object(obj), opa_string_terminated("k1"), opa_string_terminated("v1"));
+    test("objects", opa_strcmp(opa_json_dump(obj), "{\"k1\":\"v1\"}") == 0);
+
+    opa_object_insert(opa_cast_object(obj), opa_string_terminated("k2"), opa_string_terminated("v2"));
+    test("objects", opa_strcmp(opa_json_dump(obj), "{\"k1\":\"v1\",\"k2\":\"v2\"}") == 0);
+}
