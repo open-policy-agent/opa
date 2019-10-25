@@ -58,6 +58,10 @@ func WriteModule(w io.Writer, module *module.Module) error {
 		return err
 	}
 
+	if err := writeElementSection(w, module.Element); err != nil {
+		return err
+	}
+
 	if err := writeRawCodeSection(w, module.Code); err != nil {
 		return err
 	}
@@ -276,6 +280,37 @@ func writeExportSection(w io.Writer, s module.ExportSection) error {
 	return writeRawSection(w, &buf)
 }
 
+func writeElementSection(w io.Writer, s module.ElementSection) error {
+
+	if len(s.Segments) == 0 {
+		return nil
+	}
+
+	if err := writeByte(w, constant.ElementSectionID); err != nil {
+		return err
+	}
+
+	var buf bytes.Buffer
+
+	if err := leb128.WriteVarUint32(&buf, uint32(len(s.Segments))); err != nil {
+		return err
+	}
+
+	for _, seg := range s.Segments {
+		if err := leb128.WriteVarUint32(&buf, seg.Index); err != nil {
+			return err
+		}
+		if err := writeInstructions(&buf, seg.Offset.Instrs); err != nil {
+			return err
+		}
+		if err := writeVarUint32Vector(&buf, seg.Indices); err != nil {
+			return err
+		}
+	}
+
+	return writeRawSection(w, &buf)
+}
+
 func writeRawCodeSection(w io.Writer, s module.RawCodeSection) error {
 
 	if len(s.Segments) == 0 {
@@ -483,6 +518,21 @@ func writeLimits(w io.Writer, lim module.Limit) error {
 	if lim.Max != nil {
 		return leb128.WriteVarUint32(w, *lim.Max)
 	}
+	return nil
+}
+
+func writeVarUint32Vector(w io.Writer, v []uint32) error {
+
+	if err := leb128.WriteVarUint32(w, uint32(len(v))); err != nil {
+		return err
+	}
+
+	for i := range v {
+		if err := leb128.WriteVarUint32(w, v[i]); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
