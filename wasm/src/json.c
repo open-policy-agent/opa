@@ -1,6 +1,8 @@
 #include "string.h"
 #include "value.h"
 #include "json.h"
+#include "malloc.h"
+#include "printf.h"
 
 static opa_value *opa_json_parse_token(opa_json_lex *ctx, int token);
 
@@ -493,4 +495,285 @@ opa_value *opa_json_parse(const char *input, size_t len)
     opa_json_lex_init(input, len, &ctx);
     int token = opa_json_lex_read(&ctx);
     return opa_json_parse_token(&ctx, token);
+}
+
+typedef struct {
+    char *buf;
+    char *next;
+    size_t len;
+} opa_json_writer;
+
+void opa_json_writer_init(opa_json_writer *w)
+{
+    w->buf = NULL;
+    w->next = NULL;
+    w->len = 0;
+}
+
+size_t opa_json_writer_offset(opa_json_writer *w)
+{
+    return w->next - w->buf;
+}
+
+size_t opa_json_writer_space(opa_json_writer *w)
+{
+    return w->len - opa_json_writer_offset(w);
+}
+
+int opa_json_writer_grow(opa_json_writer *w, size_t newlen, size_t copy)
+{
+    char *newbuf = (char *)opa_malloc(newlen);
+
+    if (newbuf == NULL)
+    {
+        return -1;
+    }
+
+    for (size_t i = 0; i < copy; i++)
+    {
+        newbuf[i] = w->buf[i];
+    }
+
+    size_t offset = opa_json_writer_offset(w);
+
+    w->buf = newbuf;
+    w->next = newbuf + offset;
+    w->len = newlen;
+
+    return 0;
+}
+
+int opa_json_writer_emit_chars(opa_json_writer *w, const char *bs, size_t nb)
+{
+    size_t offset = opa_json_writer_offset(w);
+
+    if (offset + nb > w->len)
+    {
+        int rc = opa_json_writer_grow(w, (offset + nb) * 2, w->len);
+
+        if (rc != 0)
+        {
+            return rc;
+        }
+    }
+
+    for(int i = 0; i < nb; i++)
+    {
+        w->next[i] = bs[i];
+    }
+
+    w->next += nb;
+
+    return 0;
+}
+
+int opa_json_writer_emit_char(opa_json_writer *w, char b)
+{
+    char bs[] = {b};
+
+    return opa_json_writer_emit_chars(w, bs, sizeof(bs));
+}
+
+int opa_json_writer_emit_null(opa_json_writer *w)
+{
+    char bs[] = "null";
+
+    return opa_json_writer_emit_chars(w, bs, sizeof(bs));
+}
+
+int opa_json_writer_emit_boolean(opa_json_writer *w, opa_boolean_t *b)
+{
+    if (b->v == 0)
+    {
+        char bs[] = "false";
+
+        return opa_json_writer_emit_chars(w, bs, sizeof(bs));
+    }
+
+    char bs[] = "true";
+
+    return opa_json_writer_emit_chars(w, bs, sizeof(bs));
+}
+
+int opa_json_writer_emit_float(opa_json_writer *w, double f)
+{
+    char str[32];
+    snprintf(str, sizeof(str), "%g", f);
+    return opa_json_writer_emit_chars(w, str, opa_strlen(str));
+}
+
+int opa_json_writer_emit_integer(opa_json_writer *w, long long i)
+{
+    char str[sizeof(i)*8+1]; // once base=2 is supported we need 8 bits per byte.
+    opa_itoa(i, str, 10);
+    return opa_json_writer_emit_chars(w, str, opa_strlen(str));
+}
+
+int opa_json_writer_emit_number(opa_json_writer *w, opa_number_t *n)
+{
+    if (n->is_float)
+    {
+        return opa_json_writer_emit_float(w, n->v.f);
+    }
+
+    return opa_json_writer_emit_integer(w, n->v.i);
+}
+
+int opa_json_writer_emit_string(opa_json_writer *w, opa_string_t *s)
+{
+    int rc = opa_json_writer_emit_char(w, '"');
+
+    if (rc != 0)
+    {
+        return rc;
+    }
+
+    for (size_t i = 0; i < s->len; i++)
+    {
+        if (s->v[i] == '"')
+        {
+            rc = opa_json_writer_emit_char(w, '\\');
+
+            if (rc != 0)
+            {
+                return rc;
+            }
+        }
+
+        rc = opa_json_writer_emit_char(w, s->v[i]);
+
+        if (rc != 0)
+        {
+            return rc;
+        }
+    }
+
+    rc = opa_json_writer_emit_char(w, '"');
+
+    if (rc != 0)
+    {
+        return rc;
+    }
+
+    return 0;
+}
+
+int opa_json_writer_emit_value(opa_json_writer *, opa_value *);
+
+int opa_json_writer_emit_array_element(opa_json_writer *w, opa_value *coll, opa_value *k)
+{
+    return opa_json_writer_emit_value(w, opa_value_get(coll, k));
+}
+
+int opa_json_writer_emit_set_element(opa_json_writer *w, opa_value *coll, opa_value *k)
+{
+    return opa_json_writer_emit_value(w, k);
+}
+
+int opa_json_writer_emit_object_element(opa_json_writer *w, opa_value *coll, opa_value *k)
+{
+    int rc = opa_json_writer_emit_value(w, k);
+
+    if (rc != 0)
+    {
+        return rc;
+    }
+
+    rc = opa_json_writer_emit_char(w, ':');
+
+    if (rc != 0)
+    {
+        return rc;
+    }
+
+    return opa_json_writer_emit_value(w, opa_value_get(coll, k));
+}
+
+int opa_json_writer_emit_collection(opa_json_writer *w, opa_value *v, char open, char close, int (*emitfunc)(opa_json_writer *, opa_value *, opa_value *))
+{
+    int rc = opa_json_writer_emit_char(w, open);
+
+    if (rc != 0)
+    {
+        return rc;
+    }
+
+    opa_value *prev = NULL;
+    opa_value *curr = NULL;
+
+    while ((curr = opa_value_iter(v, prev)) != NULL)
+    {
+        if (prev != NULL)
+        {
+            rc = opa_json_writer_emit_char(w, ',');
+
+            if (rc != 0)
+            {
+                return rc;
+            }
+        }
+
+        rc = emitfunc(w, v, curr);
+
+        if (rc != 0)
+        {
+            return rc;
+        }
+
+        prev = curr;
+    }
+
+    return opa_json_writer_emit_char(w, close);
+}
+
+
+int opa_json_writer_emit_value(opa_json_writer *w, opa_value *v)
+{
+    switch (opa_value_type(v))
+    {
+    case OPA_NULL:
+        return opa_json_writer_emit_null(w);
+    case OPA_BOOLEAN:
+        return opa_json_writer_emit_boolean(w, opa_cast_boolean(v));
+    case OPA_STRING:
+        return opa_json_writer_emit_string(w, opa_cast_string(v));
+    case OPA_NUMBER:
+        return opa_json_writer_emit_number(w, opa_cast_number(v));
+    case OPA_ARRAY:
+        return opa_json_writer_emit_collection(w, v, '[', ']', opa_json_writer_emit_array_element);
+    case OPA_SET:
+        return opa_json_writer_emit_collection(w, v, '[', ']', opa_json_writer_emit_set_element);
+    case OPA_OBJECT:
+        return opa_json_writer_emit_collection(w, v, '{', '}', opa_json_writer_emit_object_element);
+    }
+
+    return -2;
+}
+
+const char *opa_json_dump(opa_value *v)
+{
+    opa_json_writer w;
+
+    opa_json_writer_init(&w);
+
+    if (opa_json_writer_grow(&w, 1024, 0) != 0)
+    {
+        goto errout;
+    }
+
+    if (opa_json_writer_emit_value(&w, v) != 0)
+    {
+        goto errout;
+    }
+
+    if (opa_json_writer_emit_char(&w, 0) != 0)
+    {
+        goto errout;
+    }
+
+    return w.buf;
+
+errout:
+    opa_free(w.buf);
+    return NULL;
 }
