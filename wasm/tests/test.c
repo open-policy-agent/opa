@@ -64,6 +64,32 @@ void test_opa_strcmp()
     test("longer", opa_strcmp("1234", "123") > 0);
 }
 
+void test_opa_itoa()
+{
+    char buf[sizeof(long long)*8+1];
+
+    test("itoa", opa_strcmp(opa_itoa(0, buf, 10), "0") == 0);
+    test("itoa", opa_strcmp(opa_itoa(-128, buf, 10), "-128") == 0);
+    test("itoa", opa_strcmp(opa_itoa(127, buf, 10), "127") == 0);
+    test("itoa", opa_strcmp(opa_itoa(0x7FFFFFFFFFFFFFFF, buf, 10), "9223372036854775807") == 0);
+    test("itoa", opa_strcmp(opa_itoa(0x8000000000000001, buf, 10), "-9223372036854775807") == 0);
+    test("itoa", opa_strcmp(opa_itoa(0xFFFFFFFFFFFFFFFF, buf, 10), "-1") == 0);
+
+    test("itoa/base2", opa_strcmp(opa_itoa(0, buf, 2), "0") == 0);
+    test("itoa/base2", opa_strcmp(opa_itoa(-128, buf, 2), "-10000000") == 0);
+    test("itoa/base2", opa_strcmp(opa_itoa(127, buf, 2), "1111111") == 0);
+    test("itoa/base2", opa_strcmp(opa_itoa(0x7FFFFFFFFFFFFFFF, buf, 2), "111111111111111111111111111111111111111111111111111111111111111") == 0);
+    test("itoa/base2", opa_strcmp(opa_itoa(0x8000000000000001, buf, 2), "-111111111111111111111111111111111111111111111111111111111111111") == 0);
+    test("itoa/base2", opa_strcmp(opa_itoa(0xFFFFFFFFFFFFFFFF, buf, 2), "-1") == 0);
+
+    test("itoa/base16", opa_strcmp(opa_itoa(0, buf, 16), "0") == 0);
+    test("itoa/base16", opa_strcmp(opa_itoa(-128, buf, 16), "-80") == 0);
+    test("itoa/base16", opa_strcmp(opa_itoa(127, buf, 16), "7f") == 0);
+    test("itoa/base16", opa_strcmp(opa_itoa(0x7FFFFFFFFFFFFFFF, buf,16), "7fffffffffffffff") == 0);
+    test("itoa/base16", opa_strcmp(opa_itoa(0x8000000000000001, buf, 16), "-7fffffffffffffff") == 0);
+    test("itoa/base16", opa_strcmp(opa_itoa(0xFFFFFFFFFFFFFFFF, buf, 16), "-1") == 0);
+}
+
 int lex_crunch(const char *s)
 {
     opa_json_lex ctx;
