@@ -253,6 +253,7 @@ main {
   border: solid 1px rgba(0, 0, 0, .13333);
   border-bottom-left-radius: 8px;
   border-bottom-right-radius: 8px;
+  color: #fff;
   line-height: 20px;
   margin: 0;
   overflow: auto;
