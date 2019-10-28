@@ -1,0 +1,485 @@
+
+integrations:
+  kubernetes-validating-admission: 
+    title: Kubernetes Admission Control
+    description: Kubernetes automates deployment, scaling, and management of containerized applications.  OPA provides fine-grained, context-aware authorization for which application component configuration.
+    software:
+    - kubernetes
+    labels:
+      category: containers
+      layer: orchestration
+    tutorials: 
+    - https://www.openpolicyagent.org/docs/kubernetes-admission-control.html
+    code: 
+    - https://github.com/open-policy-agent/kube-mgmt
+    - https://github.com/open-policy-agent/gatekeeper
+    inventors:
+    - styra
+    - microsoft
+    - google
+    videos:
+    - title: Securing Kubernetes With Admission Controllers
+      speakers:
+      - name: Dave Strebel
+        organization: microsoft
+      venue: Kubecon Seattle 2018
+      link: https://sched.co/GrZQ
+    - title: Using OPA for Admission Control in Production 
+      speakers:
+      - name: Zach Abrahamson
+        organization: Capital One
+      - name: Todd Ekenstam
+        organization: Intuit 
+      venue: Kubecon Seattle 2018
+      link: https://sched.co/Grbn
+    - title: Liz Rice Keynote
+      speakers:
+      - name: Liz Rice
+        organization: AquaSecurity
+      venue: Kubecon Seattle 2018
+      link: https://youtu.be/McDzaTnUVWs?t=418
+    - title: Intro to Open Policy Agent Gatekeeper
+      speakers:
+      - name: Rita Zhang
+        organization: microsoft
+      - name: Max Smythe
+        organization: google
+      venue: Kubecon Barcelona 2019
+      link: https://kccnceu19.sched.com/event/MPiM/intro-open-policy-agent-rita-zhang-microsoft-max-smythe-google
+    blogs:
+    - https://medium.com/@sbueringer/kubernetes-authorization-via-open-policy-agent-a9455d9d5ceb
+    - https://medium.com/@jimmy.ray/policy-enabled-kubernetes-with-open-policy-agent-3b612b3f0203
+    - https://blog.openpolicyagent.org/securing-the-kubernetes-api-with-open-policy-agent-ce93af0552c3
+
+  envoy-authorization:
+    title: Container Network Authorization with Envoy
+    description: Envoy is a networking abstraction for cloud-native applications. OPA hooks into Envoy’s external authorization filter to provide fine-grained, context-aware authorization for network or HTTP requests.
+    labels:
+      category: servicemesh
+      layer: network
+    software: 
+    - envoy
+    tutorials:
+    - https://github.com/tsandall/minimal-opa-envoy-example/blob/master/README.md
+    - https://www.openpolicyagent.org/docs/latest/envoy-authorization/
+    code: 
+    - https://github.com/open-policy-agent/opa-istio-plugin
+    - https://github.com/tsandall/minimal-opa-envoy-example
+    inventors: 
+    - styra
+    blogs:
+    - https://blog.openpolicyagent.org/envoy-external-authorization-with-opa-578213ed567c
+
+  istio-authorization-edge:
+    title: Container Network Authorization with Istio (at the Edge)
+    description: Istio is a networking abstraction for cloud-native applications that uses Envoy at the edge. OPA hooks into Envoy’s external authorization filter to provide fine-grained, context-aware authorization for network or HTTP requests.
+    labels:
+      category: servicemesh
+      layer: network
+    software:
+    - istio
+    - envoy
+    - spire
+    tutorials:
+    - https://github.com/open-policy-agent/opa-istio-plugin/blob/master/README.md
+    code: 
+    - https://github.com/open-policy-agent/opa-istio-plugin
+    - https://github.com/tsandall/minimal-opa-envoy-example
+    - https://github.com/open-policy-agent/opa-envoy-spire-ext-authz
+    blogs:
+    - https://blog.openpolicyagent.org/envoy-external-authorization-with-opa-578213ed567c
+    inventors: 
+    - styra
+
+  istio-authorization-mixer:
+    title: Container Network Authorization with Istio (as part of Mixer)
+    description: Istio is a networking abstraction for cloud-native applications. In this Istio integration OPA hooks into the centralized Mixer component of Istio, to provide fine-grained, context-aware authorization for network or HTTP requests.
+    labels:
+      category: servicemesh
+      layer: network
+    software:
+    - istio
+    tutorials:
+    - https://istio.io/docs/reference/config/policy-and-telemetry/adapters/opa/
+    code: 
+    - https://github.com/istio/istio/tree/master/mixer/adapter/opa
+    inventors: 
+    - google
+
+  kong-authorization:
+    title: API Gateway Authorization with Kong
+    description: Kong is a microservice API Gateway.  OPA provides fine-grained, context-aware control over the requests that Kong receives.
+    labels:
+      layer: network
+      category: gateway
+    software:
+    - kong
+    code: 
+    - https://github.com/TravelNest/kong-authorization-opa
+    inventors: 
+    - travelnest
+
+  linux-pam:
+    title: SSH and Sudo Authorization with Linux
+    description: Host-level access controls are an important part of every organization's security strategy. OPA provides fine-grained, context-aware controls for SSH and sudo using Linux-PAM.
+    software:
+    - linuxpam
+    labels:
+      layer: server
+    tutorials: 
+    - https://www.openpolicyagent.org/docs/ssh-and-sudo-authorization.html
+    code: 
+    - https://github.com/open-policy-agent/contrib/tree/master/pam_authz  
+    inventors:
+    - styra  
+
+  kafka-authorization:
+    title: Kafka Topic Authorization 
+    description: Apache Kafka is a high-performance distributed streaming platform deployed by thousands of companies.  OPA provides fine-grained, context-aware access control of which users can read/write which Kafka topics to enforce important requirements around confidentiality and integrity.
+    software:
+    - kafka
+    labels:
+      category: streaming
+      layer: data
+    tutorials: 
+    - https://www.openpolicyagent.org/docs/kafka-authorization.html
+    code: 
+    - https://github.com/llofberg/kafka-authorizer-opa
+    - https://github.com/open-policy-agent/contrib/tree/master/kafka_authorizer
+    inventors:
+    - ticketmaster
+    - styra
+
+  ceph:
+    title: Ceph Object Storage Authorization
+    description: Ceph is a highly scalable distributed storage solution that uniquely delivers object, block, and file storage in one unified system.  OPA provides fine-grained, context-aware authorization of the information stored within Ceph.
+    software:
+    - ceph
+    labels:
+      category: object
+      layer: data
+    tutorials: 
+    - https://docs.ceph.com/docs/master/radosgw/opa/
+    - https://www.katacoda.com/styra/scenarios/opa-ceph
+    inventors:
+    - styra
+    - redhat
+    videos:
+    - https://www.youtube.com/watch?v=9m4FymEvOqM&feature=share
+  
+  minio:
+    title: Minio API Authorization
+    description: Minio is an open source, on-premise object database compatible with the Amazon S3 API.  This integration lets OPA enforce policies on Minio's API. 
+    software:
+    - minio
+    labels:
+      layer: data
+      category: authorization
+    tutorials:
+    - https://github.com/minio/minio/blob/master/docs/sts/opa.md
+    inventors:
+    - minio
+    - styra
+
+  terraform:
+    title: Terraform Authorization
+    description: Terraform lets you describe the infrastructure you want and automatically creates, deletes, and modifies your existing infrastructure to match. OPA makes it possible to write policies that test the changes Terraform is about to make before it makes them.
+    software:
+    - terraform
+    - aws
+    - gcp
+    - azure
+    labels:
+      category: publiccloud
+      layer: orchestration
+    tutorials: 
+    - https://www.openpolicyagent.org/docs/terraform.html
+    - https://github.com/instrumenta/conftest/blob/master/README.md
+    code:
+    - https://github.com/instrumenta/conftest
+    policies: 
+    - https://github.com/open-policy-agent/library/tree/master/terraform 
+    inventors:
+    - medallia
+    - styra
+    - docker
+    - snyk
+  
+  iptables:
+    title: IPTables
+    description: IPTables is a useful tool available to Linux kernel for filtering network packets. OPA makes it possible to manage IPTables rules using context-aware policy.
+    labels:
+      layer: network
+      category: linux
+    software:
+    - Linux
+    tutorials:
+    - https://github.com/open-policy-agent/contrib/blob/master/opa-iptables/docs/tutorial.md
+    code: 
+    - https://github.com/open-policy-agent/contrib/tree/master/opa-iptables
+    inventors:
+    - name: Urvil Patel
+      organization: gsoc
+    - cisco
+    - styra
+
+  springsecurity-api:
+    title: Authorization for Java Spring Security
+    description: Spring Security provides a framework for securing Java applications.  This integration provides a simple implementation of an AccessDecisionVoter for Spring Security that uses OPA for making API authorization decisions.
+    labels:
+      layer: network
+      category: application
+    software:
+    - javaspringsecurity
+    code:
+    - https://github.com/open-policy-agent/contrib/tree/master/spring_authz  
+    tutorials:
+    - https://github.com/open-policy-agent/contrib/blob/master/spring_authz/README.md
+    inventors:
+    - styra
+
+  spinnaker-pipeline:
+    title: Spinnaker Pipeline Policy Enforcment
+    description: Spinnaker is a  Continuous Delivery and Deployment tool started by Netflix.  OPA lets you configure policies that dictate what kinds of Spinnaker pipelines developers can create.
+    labels:
+      layer: cicd
+    software:
+      - spinnaker
+    tutorials:
+    - https://docs.armory.io/spinnaker/policy_engine/
+    inventors:
+    - armory
+
+  elasticsearch-datafiltering:
+    title: Elasticsearch Data Filtering
+    description: Elasticsearch is a distributed, open source search and analytics engine.  This OPA integration lets an elasticsearch client construct queries so that the data returned by elasticsearch obeys OPA-defined policies.
+    labels:
+      layer: data
+      category: filtering
+    software:
+    - elasticsearch
+    code:
+    - https://github.com/open-policy-agent/contrib/tree/master/data_filter_elasticsearch
+    tutorials:
+    - https://github.com/open-policy-agent/contrib/blob/master/data_filter_elasticsearch/README.md
+    inventors:
+    - styra
+
+  # These two exist in the contrib directory, but what kind of integration they are illustrating is less
+  #   clear than the others.  Need to come back to finish these.
+  # azure-cosmos-datafiltering:
+  #   title: Azure Cosmos Data Authorization
+  #   description: 
+  #   labels:
+  #     layer: data
+  #     category: filtering
+  #   software:
+  #   - azurecosmos
+  #   code:
+  #   - https://github.com/open-policy-agent/contrib/tree/master/data_filter_azure
+  #   tutorials:
+  #   - https://github.com/open-policy-agent/contrib/blob/master/data_filter_azure/README.documentdb.md
+  #   inventors:
+  #   - microsoft
+
+  # azure-tablestorage-datasource:
+  #   title: Azure Table Storage as External Data
+  #   description: 
+  #   labels:
+  #     type: datasource
+  #   software:
+  #   - azuretablestorage
+  #   code:
+  #   - https://github.com/open-policy-agent/contrib/tree/master/data_filter_azure
+  #   tutorials:
+  #   - https://github.com/open-policy-agent/contrib/blob/master/data_filter_azure/README.documentdb.md
+  #   inventors:
+  #   - microsoft
+
+  sql-datafiltering:
+    title: SQL Database Data Filtering
+    description: This integration enables the client of a SQL database to enhance a SQL query so that the results obey an OPA-defined policy.
+    labels:
+      layer: data
+      category: filtering
+    software:
+    - sqlite
+    code:
+    - https://github.com/open-policy-agent/contrib/tree/master/data_filter_example
+    blogs:
+    - https://blog.openpolicyagent.org/write-policy-in-opa-enforce-policy-in-sql-d9d24db93bf4
+    inventors:
+    - styra
+
+  clair-datasource:
+    title: Kubernetes Admission Control using Vulnerability Scanning
+    description: Admission control policies in Kubernetes can be augmented with vulnerability scanning results to make more informed decisions.  This integration demonstrates how to integrate Clair with OPA and run it as an admission controller.
+    software:
+    - kubernetes
+    - clair
+    labels:
+      layer: orchestration
+      category: containers
+      datasource: clair
+    code:
+    - https://github.com/open-policy-agent/contrib/tree/master/image_enforcer
+    tutorials:
+    - https://github.com/open-policy-agent/contrib/blob/master/image_enforcer/README.md
+
+  cloudflare-worker:
+    title: Cloudflare Worker Enforcement of OPA Policies Using WASM
+    description: Cloudflare Workers are a serverless platform that supports WASM.  This integration uses OPA's WASM compiler to generate code enforced at the edge of Cloudflare's network.
+    software:
+    - cloudflare
+    labels:
+      layer: application
+      category: serverless
+    code:
+    - https://github.com/open-policy-agent/contrib/tree/master/wasm/cloudflare-worker
+    tutorials:
+    - https://github.com/open-policy-agent/contrib/blob/master/wasm/cloudflare-worker/README.md
+
+  docker-machine:
+    title: Docker controls via OPA Policies
+    description: Docker's out of the box authorization model is all or nothing.  This integration demonstrates how to use OPA's context-aware policies to exert fine-grained control over Docker.
+    software:
+    - docker
+    labels:
+      layer: server
+      category: container
+    code:
+    - https://github.com/open-policy-agent/opa-docker-authz
+    tutorials:
+    - https://www.openpolicyagent.org/docs/latest/docker-authorization/
+    inventors:
+    - styra
+
+  conftest:
+    title: Conftest -- Configuration checking
+    description: Conftest is a utility built on top of OPA to help you write tests against structured configuration data.
+    labels:
+      type: poweredbyopa
+      layer: configuration
+    code:
+    - https://github.com/instrumenta/conftest
+    software:
+    - CUE
+    - Kustomize
+    - terraform
+    - Serverless Framework
+    - AWS SAM Framework
+    - INI
+    - TOML
+    - Dockerfile
+    - HCL2
+
+organizations:
+  styra:
+    name: Styra
+    link: https://styra.com
+  microsoft:
+    name: Microsoft
+    link: https://microsoft.com
+  google:
+    name: Google
+    link: https://google.com
+  travelnest:
+    name: TravelNest
+    link: http://travelnest.com
+  ticketmaster:
+    name: TicketMaster
+    link: https://www.ticketmaster.com/
+  docker:
+    name: Docker
+    link: https://www.docker.com/
+  snyk:
+    name: Snyk
+    link: https://snyk.io/
+  ceph:
+    name: Ceph
+    link: https://ceph.io/
+  redhat:
+    name: RedHat
+    link: https://www.redhat.com
+  medallia:
+    name: Medallia
+    link: https://www.medallia.com/
+  gsoc:
+    name: Google Summer of Code
+    link: https://summerofcode.withgoogle.com/
+  cisco:
+    name: Cisco
+    link: https://www.cisco.com/
+  armory:
+    name: Armory
+    link: https://www.armory.io/
+  minio:
+    name: Minio
+    link: https://min.io/
+
+
+software:
+  kubernetes:
+    name: Kubernetes
+    link: https://kubernetes.io
+  envoy:
+    name: Envoy
+    link: https://envoyproxy.io
+  istio:
+    name: Istio
+    link: https://istio.io
+  kong:
+    name: Kong
+    link: https://konghq.com/
+  linuxpam:
+    name: Linux PAM
+    link: http://www.linux-pam.org/
+  terraform:
+    name: Terraform
+    link: https://www.terraform.io/
+  kafka:
+    name: Kafka
+    link: https://kafka.apache.org/
+  ceph:
+    name: Ceph
+    link: https://ceph.io/
+  aws:
+    name: Amazon Public Cloud
+    link: https://aws.com
+  gcp:
+    name: Google Public Cloud
+    link: https://cloud.google.com/
+  azure:
+    name: Microsoft Public Cloud
+    link: http://azure.microsoft.com/
+  javaspringsecurity:
+    name: Spring Security
+    link: https://spring.io/projects/spring-security
+  spinnaker:
+    name: Spinnaker
+    link: https://www.spinnaker.io/
+  elasticsearch:
+    name: Elastic Search
+    link: https://www.elastic.co/
+  azurecosmos:
+    name: Azure Cosmos
+    link: https://docs.microsoft.com/en-us/azure/cosmos-db/introduction
+  azuretablestorage:
+    name: Azure Table Storage
+    link: https://docs.microsoft.com/en-us/azure/cosmos-db/table-storage-overview
+  sqlite:
+    name: SQLite
+    link: https://www.sqlite.org/index.html
+  clair:
+    name: Clair
+    link: https://github.com/coreos/clair
+  cloudflare:
+    name: Cloudflare
+    link: https://www.cloudflare.com
+  minio:
+    name: Minio
+    link: https://min.io/
+  docker:
+    name: Docker
+    link: https://www.docker.com/
+
