@@ -98,6 +98,10 @@ s[2] { true }`,
 	if user.Hide {
 		t.Fatalf("Expected user.system node to be visible")
 	}
+
+	if !isVirtual(tree, MustParseRef("data.a.b.empty")) {
+		t.Fatal("Expected data.a.b.empty to be virtual")
+	}
 }
 
 func TestCompilerEmpty(t *testing.T) {

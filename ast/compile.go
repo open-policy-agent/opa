@@ -618,7 +618,7 @@ func (c *Compiler) buildRuleIndices() {
 			return false
 		}
 		index := newBaseDocEqIndex(func(ref Ref) bool {
-			return len(c.GetRules(ref.GroundPrefix())) > 0
+			return isVirtual(c.RuleTree, ref.GroundPrefix())
 		})
 		if rules := extractRules(node.Values); index.Build(rules) {
 			c.ruleIndices.Put(rules[0].Path(), index)
@@ -3227,6 +3227,19 @@ func isDataRef(term *Term) bool {
 		}
 	}
 	return false
+}
+
+func isVirtual(node *TreeNode, ref Ref) bool {
+	for i := 0; i < len(ref); i++ {
+		child := node.Child(ref[i].Value)
+		if child == nil {
+			return false
+		} else if len(child.Values) > 0 {
+			return true
+		}
+		node = child
+	}
+	return true
 }
 
 func safetyErrorSlice(unsafe unsafeVars) (result Errors) {
