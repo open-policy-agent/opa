@@ -756,6 +756,28 @@ p[x] = y { data.enum_errors.a[x] = y }`,
 	assertTopDownWithPath(t, compiler, store, "enumerate virtual errors", []string{"enum_errors", "caller", "p"}, `{}`, fmt.Errorf("divide by zero"))
 }
 
+func TestTopDownFix1863(t *testing.T) {
+
+	compiler := ast.MustCompileModules(map[string]string{
+		"test1.rego": `
+			package a.b
+
+			# this module is empty
+		`,
+		"test2.rego": `
+			package x
+
+			p = data.a.b  # p should be defined (an empty object)
+		`,
+	})
+
+	store := inmem.New()
+
+	assertTopDownWithPath(t, compiler, store, "is defined", []string{}, ``, `{"a": {"b": {}}, "x": {"p": {}}}`)
+	assertTopDownWithPath(t, compiler, store, "is defined", []string{"x"}, ``, `{"p": {}}`)
+	assertTopDownWithPath(t, compiler, store, "is defined", []string{"x", "p"}, ``, `{}`)
+}
+
 func TestTopDownNestedReferences(t *testing.T) {
 	tests := []struct {
 		note     string
