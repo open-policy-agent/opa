@@ -71,8 +71,9 @@ This is a list of production adopters of OPA (in alphabetical order):
   Kubernetes that offload policy decisions to OPA sidecars. VGS has
   implemented a synchronization protocol on top of the Bundle and
   Status APIs so that the system can determine when permission updates
-  have propagated. For more details on the VGS use case see [this blog
-  post](https://blog.verygoodsecurity.com/posts/building-a-fine-grained-permission-system-in-a-distributed-environment).
+  have propagated. For more details on the VGS use case see these blog posts:
+  [part 1](https://blog.verygoodsecurity.com/posts/building-a-fine-grained-permission-system-in-a-distributed-environment),
+  [part 2](https://blog.verygoodsecurity.com/posts/building-a-fine-grained-permissions-system-in-a-distributed-environment).
 
 In addition, there are several production adopters that prefer to
 remain anonymous.
