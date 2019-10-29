@@ -311,8 +311,79 @@ For ``io.jwt.decode_verify``, ``constraints`` is an object with the following me
 |``time`` | The time in nanoseconds to verify the token at. If this is present then the ``exp`` and ``nbf`` claims are compared against this value. If it is absent then they are compared against the current time. | Optional |
 |``aud`` | The audience that the verifier identifies with.  If this is present then the ``aud`` claim is checked against it. If it is absent then the ``aud`` claim must be absent too. | Optional |
 
-Exactly one of ``cert`` and ``secret`` must be present.
-If there are any unrecognized constraints then the token is considered invalid.
+Exactly one of ``cert`` and ``secret`` must be present. If there are any
+unrecognized constraints then the token is considered invalid.
+
+
+#### Token Verification Examples
+
+The examples below use the following token:
+
+```live:jwt/verify:module
+es256_token = "eyJ0eXAiOiAiSldUIiwgImFsZyI6ICJFUzI1NiJ9.eyJuYmYiOiAxNDQ0NDc4NDAwLCAiaXNzIjogInh4eCJ9.lArczfN-pIL8oUU-7PU83u-zfXougXBZj6drFeKFsPEoVhy9WAyiZlRshYqjTSXdaw8yw2L-ovt4zTUZb2PWMg"
+```
+
+##### Using JWKS
+
+```live:jwt/verify/jwks:module
+jwks = `{
+    "keys": [{
+        "kty":"EC",
+        "crv":"P-256",
+        "x":"z8J91ghFy5o6f2xZ4g8LsLH7u2wEpT2ntj8loahnlsE",
+        "y":"7bdeXLH61KrGWRdh7ilnbcGQACxykaPKfmBccTHIOUo"
+    }]
+}`
+```
+
+```live:jwt/verify/jwks/two_step:query:merge_down
+io.jwt.verify_es256(es256_token, jwks)
+[header, payload, _] := io.jwt.decode(es256_token)
+payload.iss == "xxx"
+```
+```live:jwt/verify/jwks/two_step:output
+```
+
+```live:jwt/verify/jwks/one_step:query:merge_down
+[valid, header, payload] := io.jwt.decode_verify(es256_token, {
+    "cert": jwks,
+    "iss": "xxx",
+})
+```
+```live:jwt/verify/jwks/one_step:output
+```
+
+##### Using PEM encoded X.509 Certificate
+
+```live:jwt/verify/cert:module
+cert = `-----BEGIN CERTIFICATE-----
+MIIBcDCCARagAwIBAgIJAMZmuGSIfvgzMAoGCCqGSM49BAMCMBMxETAPBgNVBAMM
+CHdoYXRldmVyMB4XDTE4MDgxMDE0Mjg1NFoXDTE4MDkwOTE0Mjg1NFowEzERMA8G
+A1UEAwwId2hhdGV2ZXIwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAATPwn3WCEXL
+mjp/bFniDwuwsfu7bASlPae2PyWhqGeWwe23Xlyx+tSqxlkXYe4pZ23BkAAscpGj
+yn5gXHExyDlKo1MwUTAdBgNVHQ4EFgQUElRjSoVgKjUqY5AXz2o74cLzzS8wHwYD
+VR0jBBgwFoAUElRjSoVgKjUqY5AXz2o74cLzzS8wDwYDVR0TAQH/BAUwAwEB/zAK
+BggqhkjOPQQDAgNIADBFAiEA4yQ/88ZrUX68c6kOe9G11u8NUaUzd8pLOtkKhniN
+OHoCIHmNX37JOqTcTzGn2u9+c8NlnvZ0uDvsd1BmKPaUmjmm
+-----END CERTIFICATE-----`
+```
+
+```live:jwt/verify/cert/two_step:query:merge_down
+io.jwt.verify_es256(es256_token, cert)
+[header, payload, _] := io.jwt.decode(es256_token)
+payload.iss == "xxx"
+```
+```live:jwt/verify/cert/two_step:output
+```
+
+```live:jwt/verify/cert/one_step:query:merge_down
+[valid, header, payload] := io.jwt.decode_verify(es256_token, {
+    "cert": cert,
+    "iss": "xxx",
+})
+```
+```live:jwt/verify/cert/one_step:output
+```
 
 ### Time
 
