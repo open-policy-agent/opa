@@ -177,6 +177,24 @@ func TestPlannerHelloWorld(t *testing.T) {
 			note:    "variables in query",
 			queries: []string{"x = 1", "y = 2", "x = 1; y = 2"},
 		},
+		{
+			note: "with keyword",
+			queries: []string{
+				`input[i] = 1 with input as [1]; i > 1`,
+			},
+		},
+		{
+			note:    "with keyword data",
+			queries: []string{`data = x with data.foo as 1 with data.bar.r as 3`},
+			modules: []string{
+				`package foo
+
+				p = 1`,
+				`package bar
+
+				q = 2`,
+			},
+		},
 	}
 
 	for _, tc := range tests {
