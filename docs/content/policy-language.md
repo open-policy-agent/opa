@@ -93,7 +93,7 @@ v
 ```live:eg/undefined:output:expect_undefined
 ```
 
-Expressions that refer to undefined values are also undefine. This includes comparisons such as `!=`.
+Expressions that refer to undefined values are also undefined. This includes comparisons such as `!=`.
 
 ```live:eg/undefined/expression:query:merge_down
 v == true
