@@ -28,7 +28,7 @@ type (
 	// Funcs represents a collection of planned functions to include in the
 	// policy.
 	Funcs struct {
-		Funcs map[string]*Func
+		Funcs []*Func
 	}
 
 	// Func represents a named plan (function) that can be invoked. Functions
