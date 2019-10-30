@@ -42,7 +42,6 @@ elif [ -z "$SOURCE_URL" ]; then
 fi
 
 build_release() {
-    make deps
     GOOS=darwin GOARCH=amd64 make build
     GOOS=linux GOARCH=amd64 make build
     GOOS=windows GOARCH=amd64 make build
