@@ -352,8 +352,8 @@ some i; input.servers[i].protocols[i] == "ssh"  # there is no assignment of i th
 
 ### Rules
 
-Rego lets you encapsulate and reuse logic with rules. Rules are just if-then
-logic statements. Rules can either be complete or incremental.
+Rego lets you encapsulate and re-use logic with rules. Rules are just if-then
+logic statements. Rules can either be "complete" or "partial".
 
 #### Complete Rules
 
@@ -443,12 +443,12 @@ any_public_networks
 ```live:example/complete/1/undefined:output:expect_undefined
 ```
 
-#### Incremental Rules
+#### Partial Rules
 
-Incremental rules are if-then statements that generate a set of values and
+Partial rules are if-then statements that generate a set of values and
 assign that set to a variable. For example:
 
-```live:example/incremental:module:openable
+```live:example/partial_set:module:openable
 package example.rules
 
 public_network[net.id] {      # net.id is in the public_network set if...
@@ -461,28 +461,33 @@ In the example above `public_network[net.id]` is the rule head and `net :=
 input.networks[_]; net.public` is the rule body. You can query for the entire
 set of values just like any other value:
 
-```live:example/incremental/extent:query:merge_down
+```live:example/partial_set/extent:query:merge_down
 public_network
 ```
-```live:example/incremental/extent:output
+```live:example/partial_set/extent:output
 ```
 
 You can iterate over the set of values by referencing the set elements with a
 variable:
 
-```live:example/incremental/iteration:query:merge_down
+```live:example/partial_set/iteration:query:merge_down
 some n; public_network[n]
 ```
-```live:example/incremental/iteration:output
+```live:example/partial_set/iteration:output
 ```
 
 Lastly, you can check if a value exists in the set using the same syntax:
 
-```live:example/incremental/exists:query:merge_down
+```live:example/partial_set/exists:query:merge_down
 public_network["net3"]
 ```
-```live:example/incremental/exists:output
+```live:example/partial_set/exists:output
 ```
+
+In addition to partially defining sets, You can also partially define key/value
+pairs (aka objects). See
+[Rules](https://www.openpolicyagent.org/docs/latest/policy-language/#rules) in
+the language guide for more information.
 
 #### Logical OR
 
@@ -531,12 +536,12 @@ shell_accessible
 > 💡 The `default` keyword tells OPA to assign a value to the variable if all of
 > the other rules with the same name are undefined.
 
-When you use logical OR with incremental rules, each rule definition contributes
+When you use logical OR with partial rules, each rule definition contributes
 to the set of values assigned to the variable. For example, the example above
 could be modified to generate a set of servers that expose `"telnet"` or
 `"ssh"`.
 
-```live:example/logical_or/incremental:module:openable,merge_down
+```live:example/logical_or/partial_set:module:openable,merge_down
 package example.logical_or
 
 shell_accessible[server.id] {
@@ -549,7 +554,7 @@ shell_accessible[server.id] {
     server.protocols[_] == "ssh"
 }
 ```
-```live:example/logical_or/incremental:input:merge_down
+```live:example/logical_or/partial_set:input:merge_down
 {
     "servers": [
         {
@@ -567,10 +572,10 @@ shell_accessible[server.id] {
     ]
 }
 ```
-```live:example/logical_or/incremental:query:merge_down
+```live:example/logical_or/partial_set:query:merge_down
 shell_accessible
 ```
-```live:example/logical_or/incremental:output
+```live:example/logical_or/partial_set:output
 ```
 
 <!---TBD: explain conflicts --->
