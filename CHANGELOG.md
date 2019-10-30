@@ -3,7 +3,49 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.15.0
+
+This release includes many small improvements and bug fixes.
+
+### Built-in Functions
+
+This release includes a few new built-in functions for string
+manipulation:
+
+- `trim_left`, `trim_right`, `trim_prefix`, and `trim_suffix` (thanks @hasit)
+- `regex.find_all_string_submatch_n` and `strings.replace_n` (thanks @kenfdev)
+
+### Fixes
+
+- tester: Fix --timeout to apply to each test case ([#1788](https://github.com/open-policy-agent/opa/issues/1788))
+- ast: Check for undefined functions before safety check ([#1141](https://github.com/open-policy-agent/opa/issues/1141))
+- ast: Fix object corruption during local rewrite ([#1852](https://github.com/open-policy-agent/opa/issues/1852))
+- ast: Fix virtual predicate used for rule index build ([#1863](https://github.com/open-policy-agent/opa/issues/1863))
+- discovery: Fix log level message when on HTTP 304 ([#1826](https://github.com/open-policy-agent/opa/issues/1826))
+- docs: Update Kubernetes primer test to avoid false-positives ([#1794](https://github.com/open-policy-agent/opa/issues/1794))
+- repl: Fix unknown argument processing ([#1670](https://github.com/open-policy-agent/opa/issues/1670))
+- topdown: Fix namespacing to use caller bindings ([#1814](https://github.com/open-policy-agent/opa/issues/1814))
+- topdown: Fix units.parse_bytes implementation to use int64 ([#1815](https://github.com/open-policy-agent/opa/issues/1815))
+- topdown: Fix base document dereference with composite ([#1057](https://github.com/open-policy-agent/opa/issues/1057))
+- wasm: Add support for comprehensions ([#1120](https://github.com/open-policy-agent/opa/issues/1120))
+- wasm: Add support for full virtual document model ([#1117](https://github.com/open-policy-agent/opa/issues/1117))
+- wasm: Remove memory.grow calls on every malloc ([#1121](https://github.com/open-policy-agent/opa/issues/1121))
+
+### Miscellaneous
+
+- build: Migrate to Go modules from Glide for dependency management
+- build: Fix *-debug docker images to be ":debug" tag based
+- ast: Replace "var" with "some" in SomeDecl#String
+- ast: Add map of rewritten vars to Compiler
+- topdown: Add API to disable rule indexing for evaluation
+- bundle: Add more details to manifest root errors
+- bundle: Ensure data paths use `/` separators for key
+- bundle: Fix for overwriting data file keys
+- cmd: Ensure all errors are in JSON formatted CLI output
+- cmd: Add source output format for partial eval
+- cmd: Fix opa eval to specify profiler tracer correctly
+- discovery: Support `resource` configuration option
+- rego: Don't propagate non-threadsafe fields from Rego to preparedQuery
 
 ## 0.14.2
 
