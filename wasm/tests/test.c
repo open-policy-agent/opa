@@ -535,6 +535,16 @@ void test_opa_set_add_and_get()
     {
         test_fatal("set should contain string term c")
     }
+
+    opa_set_t *order = opa_cast_set(opa_set());
+    opa_set_add(order, opa_string_terminated("b"));
+    opa_set_add(order, opa_string_terminated("c"));
+    opa_set_add(order, opa_string_terminated("a"));
+
+    if (opa_value_compare(&set->hdr, &order->hdr) != 0)
+    {
+        test_fatal("sets should be equal")
+    }
 }
 
 void test_opa_value_iter_object()

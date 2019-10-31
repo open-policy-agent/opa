@@ -896,12 +896,10 @@ opa_set_elem_t *__opa_set_elem_alloc(opa_value *v)
 void opa_set_add(opa_set_t *set, opa_value *v)
 {
     opa_set_elem_t *prev = NULL;
-    opa_set_elem_t *next = NULL;
+    opa_set_elem_t *curr = NULL;
 
-    for (opa_set_elem_t *curr = set->head; curr != NULL; curr = next)
+    for (curr = set->head; curr != NULL; curr = curr->next)
     {
-        next = curr->next;
-
         int cmp = opa_value_compare(curr->v, v);
 
         if (cmp == 0)
@@ -927,10 +925,7 @@ void opa_set_add(opa_set_t *set, opa_value *v)
         set->head = added;
     }
 
-    if (next != NULL)
-    {
-        added->next = next;
-    }
+    added->next = curr;
 }
 
 opa_set_elem_t *opa_set_iter(opa_set_t *set, opa_set_elem_t *prev)
