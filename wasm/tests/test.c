@@ -709,6 +709,22 @@ void test_opa_value_merge_nested()
     }
 }
 
+void test_opa_value_shallow_copy()
+{
+    // construct a value that has one of each type
+    char str[] = "{\"a\": [1, true, null, 2.5]}";
+    opa_value *obj = opa_json_parse(str, sizeof(str));
+    opa_set_t *set = opa_cast_set(opa_set());
+    opa_set_add(set, obj);
+
+    opa_value *cpy = opa_value_shallow_copy(&set->hdr);
+
+    if (opa_value_compare(cpy, &set->hdr) != 0)
+    {
+        test_fatal("expected original and shallow copy to be equal");
+    }
+}
+
 void test_opa_json_dump()
 {
     test("null", opa_strcmp(opa_json_dump(opa_null()), "null") == 0);

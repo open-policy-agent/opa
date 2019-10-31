@@ -103,6 +103,7 @@ opa_value *opa_value_iter(opa_value *node, opa_value *prev);
 size_t opa_value_length(opa_value *node);
 void opa_value_free(opa_value *node);
 opa_value *opa_value_merge(opa_value *a, opa_value *b);
+opa_value *opa_value_shallow_copy(opa_value *node);
 
 long long opa_value_int(opa_value *node);
 double opa_value_float(opa_value *node);
@@ -118,6 +119,7 @@ opa_value *opa_string(const char *v, size_t len);
 opa_value *opa_string_terminated(const char *v);
 opa_value *opa_array();
 opa_value *opa_array_with_cap(size_t cap);
+opa_value *opa_array_with_elems(opa_array_elem_t *elems, size_t len, size_t cap);
 opa_value *opa_object();
 opa_value *opa_set();
 

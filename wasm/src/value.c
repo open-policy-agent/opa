@@ -570,6 +570,94 @@ opa_value *opa_value_merge(opa_value *a, opa_value *b)
     return &result->hdr;
 }
 
+opa_value *opa_value_shallow_copy_boolean(opa_boolean_t *b)
+{
+    return opa_boolean(b->v);
+}
+
+opa_value *opa_value_shallow_copy_number(opa_number_t *n)
+{
+    if (n->is_float)
+    {
+        return opa_number_float(n->v.f);
+    }
+
+    return opa_number_int(n->v.i);
+}
+
+opa_value *opa_value_shallow_copy_string(opa_string_t *s)
+{
+    return opa_string(s->v, s->len);
+}
+
+opa_value *opa_value_shallow_copy_array(opa_array_t *a)
+{
+    opa_array_elem_t *cpy = (opa_array_elem_t *)opa_malloc(sizeof(opa_array_elem_t) * a->cap);
+
+    for (size_t idx = 0; idx < a->cap; idx++)
+    {
+        cpy[idx] = a->elems[idx];
+    }
+
+    return opa_array_with_elems(cpy, a->len, a->cap);
+}
+
+opa_value *opa_value_shallow_copy_object(opa_object_t *o)
+{
+    opa_value *node = &o->hdr;
+    opa_object_t *cpy = opa_cast_object(opa_object());
+    opa_value *prev = NULL;
+    opa_value *curr = NULL;
+
+    while ((curr = opa_value_iter(node, prev)) != NULL)
+    {
+        opa_value *v = opa_value_get(node, curr);
+        opa_object_insert(cpy, curr, v);
+        prev = curr;
+    }
+
+    return &cpy->hdr;
+}
+
+opa_value *opa_value_shallow_copy_set(opa_set_t *s)
+{
+    opa_value *node = &s->hdr;
+    opa_set_t *cpy = opa_cast_set(opa_set());
+    opa_value *prev = NULL;
+    opa_value *curr = NULL;
+
+    while ((curr = opa_value_iter(node, prev)) != NULL)
+    {
+        opa_set_add(cpy, curr);
+        prev = curr;
+    }
+
+    return &cpy->hdr;
+}
+
+opa_value *opa_value_shallow_copy(opa_value *node)
+{
+    switch (node->type)
+    {
+    case OPA_NULL:
+        return node;
+    case OPA_BOOLEAN:
+        return opa_value_shallow_copy_boolean(opa_cast_boolean(node));
+    case OPA_NUMBER:
+        return opa_value_shallow_copy_number(opa_cast_number(node));
+    case OPA_STRING:
+        return opa_value_shallow_copy_string(opa_cast_string(node));
+    case OPA_ARRAY:
+        return opa_value_shallow_copy_array(opa_cast_array(node));
+    case OPA_OBJECT:
+        return opa_value_shallow_copy_object(opa_cast_object(node));
+    case OPA_SET:
+        return opa_value_shallow_copy_set(opa_cast_set(node));
+    }
+
+    return NULL;
+}
+
 int opa_value_boolean(opa_value *node)
 {
     return opa_cast_boolean(node)->v;
@@ -689,6 +777,18 @@ opa_value *opa_array_with_cap(size_t cap)
     {
         __opa_array_grow(ret);
     }
+
+    return &ret->hdr;
+}
+
+opa_value *opa_array_with_elems(opa_array_elem_t *elems, size_t len, size_t cap)
+{
+    opa_array_t *ret = (opa_array_t *)opa_malloc(sizeof(opa_array_t));
+
+    ret->hdr.type = OPA_ARRAY;
+    ret->len = len;
+    ret->cap = cap;
+    ret->elems = elems;
 
     return &ret->hdr;
 }
