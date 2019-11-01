@@ -65,6 +65,10 @@ function formatMicros(us) {
 
 function loadJSON(mod, memory, value) {
 
+    if (value === undefined) {
+        return 0;
+    }
+
     const str = JSON.stringify(value);
     const rawAddr = mod.instance.exports.opa_malloc(str.length);
     const buf = new Uint8Array(memory.buffer);
