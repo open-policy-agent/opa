@@ -52,6 +52,7 @@ const (
 	opaValueIter         = "opa_value_iter"
 	opaValueLength       = "opa_value_length"
 	opaValueMerge        = "opa_value_merge"
+	opaValueShallowCopy  = "opa_value_shallow_copy"
 	opaValueType         = "opa_value_type"
 )
 
@@ -334,6 +335,10 @@ func (c *Compiler) compileBlock(block *ir.Block) ([]instruction.Instruction, err
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Result)})
 			instrs = append(instrs, instruction.I32Eqz{})
 			instrs = append(instrs, instruction.BrIf{Index: 0})
+		case *ir.WithStmt:
+			if err := c.compileWithStmt(stmt, &instrs); err != nil {
+				return instrs, err
+			}
 		case *ir.AssignVarStmt:
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Source)})
 			instrs = append(instrs, instruction.SetLocal{Index: c.local(stmt.Target)})
@@ -627,6 +632,118 @@ func (c *Compiler) compileNot(not *ir.NotStmt, result *[]instruction.Instruction
 	instrs = append(instrs, instruction.BrIf{Index: 0})
 
 	*result = instrs
+	return nil
+}
+
+func (c *Compiler) compileWithStmt(stmt *ir.WithStmt, result *[]instruction.Instruction) error {
+
+	var instrs = *result
+
+	// If the path is empty just assign the value to the target.
+	if len(stmt.Path) == 0 {
+		instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Value)})
+		instrs = append(instrs, instruction.SetLocal{Index: c.local(stmt.Target)})
+		*result = instrs
+		return nil
+	}
+
+	lcopy := c.genLocal() // holds copy of source local
+	instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Source)})
+	instrs = append(instrs, instruction.SetLocal{Index: lcopy})
+
+	// Initialize the target by either shallow copying the source or setting it
+	// to an empty object.
+	instrs = append(instrs, instruction.Block{
+		Instrs: []instruction.Instruction{
+			instruction.Block{Instrs: []instruction.Instruction{
+				instruction.GetLocal{Index: lcopy},
+				instruction.I32Eqz{},
+				instruction.BrIf{Index: 0},
+				instruction.GetLocal{Index: lcopy},
+				instruction.Call{Index: c.function(opaValueShallowCopy)},
+				instruction.SetLocal{Index: lcopy},
+				instruction.GetLocal{Index: lcopy},
+				instruction.SetLocal{Index: c.local(stmt.Target)},
+				instruction.Br{Index: 1},
+			}},
+			instruction.Call{Index: c.function(opaObject)},
+			instruction.SetLocal{Index: lcopy},
+			instruction.GetLocal{Index: lcopy},
+			instruction.SetLocal{Index: c.local(stmt.Target)},
+		},
+	})
+
+	// Initialize the locals that specify the path of the upsert operation.
+	lpath := make(map[int]uint32, len(stmt.Path))
+
+	for i := 0; i < len(stmt.Path); i++ {
+		lpath[i] = c.genLocal()
+		instrs = append(instrs, instruction.I32Const{Value: c.stringAddr(stmt.Path[i])})
+		instrs = append(instrs, instruction.Call{Index: c.function(opaStringTerminated)})
+		instrs = append(instrs, instruction.SetLocal{Index: lpath[i]})
+	}
+
+	// Generate a block that traverses the path of the upsert operation,
+	// shallowing copying values at each step as needed. Stop before the final
+	// segment that will only be inserted.
+	var inner []instruction.Instruction
+	ltemp := c.genLocal()
+
+	for i := 0; i < len(stmt.Path)-1; i++ {
+
+		// Lookup the next part of the path.
+		inner = append(inner, instruction.GetLocal{Index: lcopy})
+		inner = append(inner, instruction.GetLocal{Index: lpath[i]})
+		inner = append(inner, instruction.Call{Index: c.function(opaValueGet)})
+		inner = append(inner, instruction.SetLocal{Index: ltemp})
+
+		// If the next node is missing, break.
+		inner = append(inner, instruction.GetLocal{Index: ltemp})
+		inner = append(inner, instruction.I32Eqz{})
+		inner = append(inner, instruction.BrIf{Index: uint32(i)})
+
+		// Otherwise, shallow copy the next node node and insert into the copy
+		// before continuing.
+		inner = append(inner, instruction.GetLocal{Index: ltemp})
+		inner = append(inner, instruction.Call{Index: c.function(opaValueShallowCopy)})
+		inner = append(inner, instruction.SetLocal{Index: ltemp})
+		inner = append(inner, instruction.GetLocal{Index: lcopy})
+		inner = append(inner, instruction.GetLocal{Index: lpath[i]})
+		inner = append(inner, instruction.GetLocal{Index: ltemp})
+		inner = append(inner, instruction.Call{Index: c.function(opaObjectInsert)})
+		inner = append(inner, instruction.GetLocal{Index: ltemp})
+		inner = append(inner, instruction.SetLocal{Index: lcopy})
+	}
+
+	inner = append(inner, instruction.Br{Index: uint32(len(stmt.Path) - 1)})
+
+	// Generate blocks that handle missing nodes during traversal.
+	var block []instruction.Instruction
+	lval := c.genLocal()
+
+	for i := 0; i < len(stmt.Path)-1; i++ {
+		block = append(block, instruction.Block{Instrs: inner})
+		block = append(block, instruction.Call{Index: c.function(opaObject)})
+		block = append(block, instruction.SetLocal{Index: lval})
+		block = append(block, instruction.GetLocal{Index: lcopy})
+		block = append(block, instruction.GetLocal{Index: lpath[i]})
+		block = append(block, instruction.GetLocal{Index: lval})
+		block = append(block, instruction.Call{Index: c.function(opaObjectInsert)})
+		block = append(block, instruction.GetLocal{Index: lval})
+		block = append(block, instruction.SetLocal{Index: lcopy})
+		inner = block
+		block = nil
+	}
+
+	// Finish by inserting the statement's value into the shallow copied node.
+	instrs = append(instrs, instruction.Block{Instrs: inner})
+	instrs = append(instrs, instruction.GetLocal{Index: lcopy})
+	instrs = append(instrs, instruction.GetLocal{Index: lpath[len(stmt.Path)-1]})
+	instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Value)})
+	instrs = append(instrs, instruction.Call{Index: c.function(opaObjectInsert)})
+
+	*result = instrs
+
 	return nil
 }
 

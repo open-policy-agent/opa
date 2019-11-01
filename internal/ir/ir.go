@@ -375,3 +375,14 @@ type SetAddStmt struct {
 	Value Local
 	Set   Local
 }
+
+// WithStmt creates a shallow copy of the source value with the value upserted
+// into the specified path. If the intermediate nodes in the path do not exist,
+// they will be created. If the path is empty this has the same affect as
+// assigning the value to the target.
+type WithStmt struct {
+	Source Local
+	Path   []int
+	Value  Local
+	Target Local
+}
