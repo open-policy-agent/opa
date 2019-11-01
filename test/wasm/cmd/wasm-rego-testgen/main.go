@@ -39,7 +39,7 @@ type testCase struct {
 	Query       string                    `json:"query"`
 	Modules     []string                  `json:"modules"`
 	Data        *map[string]interface{}   `json:"data,omitempty"`
-	Input       *interface{}              `json:"input"`
+	Input       *interface{}              `json:"input,omitempty"`
 	WantResult  *[]map[string]interface{} `json:"want_result,omitempty"`
 	WantDefined *bool                     `json:"want_defined,omitempty"`
 	WantError   *string                   `json:"want_error,omitempty"`
