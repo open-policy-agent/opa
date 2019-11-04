@@ -914,25 +914,24 @@ opa_object_elem_t *__opa_object_elem_alloc(opa_value *k, opa_value *v)
 
 void opa_object_insert(opa_object_t *obj, opa_value *k, opa_value *v)
 {
-    opa_object_elem_t *curr = NULL;
+    opa_object_elem_t *prev = NULL;
 
-    if (obj->head != NULL)
+    for (opa_object_elem_t *curr = obj->head; curr != NULL; curr = curr->next)
     {
-        for (curr = obj->head; curr->next != NULL; curr = curr->next)
+        if (opa_value_compare(curr->k, k) == 0)
         {
-            if (opa_value_compare(curr->k, k) == 0)
-            {
-                curr->v = v;
-                return;
-            }
+            curr->v = v;
+            return;
         }
+
+        prev = curr;
     }
 
     opa_object_elem_t *new = __opa_object_elem_alloc(k, v);
 
-    if (curr != NULL)
+    if (prev != NULL)
     {
-        curr->next = new;
+        prev->next = new;
     }
     else
     {
