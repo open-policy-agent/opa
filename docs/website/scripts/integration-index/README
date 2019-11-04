@@ -1,0 +1,48 @@
+# Integration Index
+
+The integration index makes it easy to find either a specific integration with OPA 
+or to browse the integrations with OPA within a particular category.  And it pulls 
+information about that integration (e.g. blogs, videos, tutorials, code) into a 
+single place while allowing integration authors to maintain the code wherever they like.  
+
+# Schema
+
+The schema of integrations.yaml has the following highlevel entries, each of which is self-explanatory.
+* integrations
+* organizations
+* software
+
+Each entry is an object where keys are unique identifiers for each subentry.  
+Organizations and Software are self-explanatory by inspection.  The schema for integrations is as follows.
+
+* title: string
+* description: string
+* software: array of strings
+* labels: collection of key/value pairs.
+* tutorials: array of links
+* code: array of links
+* inventors: array of either
+  * string (organization name)
+  * object with fields
+    * name: string
+    * organization: string
+* videos: array of either
+  * link
+  * object with fields
+    * title: string
+    * speakers: array of name/organization objects
+    * venue: string
+    * link: string
+* blogs: array of links
+
+
+In the near future this data will be used to produce a GUI for perusing integrations.  The plan is to use the 
+following labels to generate categories of integrations.
+
+* layer: which layer of the stack does this belong to
+* category: which kind of component within that layer is this
+* type: what kind of integration this is.  Either `enforcement` or `poweredbyopa`.  `enforcement` is the default 
+  if `type` is missing.  `poweredbyopa` is intended to be integrations built using OPA that are not tied to a 
+  particular layer of the stack.  This distinction is the most ambiguous and may change.
+
+
