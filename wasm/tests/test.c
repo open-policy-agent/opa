@@ -510,6 +510,15 @@ void test_opa_object_insert()
     {
         test_fatal("object insert did not replace value")
     }
+
+    opa_object_insert(obj, opa_string_terminated("b"), opa_number_int(4));
+
+    opa_value *v2 = opa_value_get(&obj->hdr, opa_string_terminated("b"));
+
+    if (opa_value_compare(v2, opa_number_int(4)) != 0)
+    {
+        test_fatal("object insert did not replace value")
+    }
 }
 
 void test_opa_set_add_and_get()
