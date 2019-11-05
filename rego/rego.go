@@ -1478,6 +1478,7 @@ func (r *Rego) compileQuery(query ast.Body, m metrics.Metrics, extras []extraSta
 func (r *Rego) eval(ctx context.Context, ectx *EvalContext) (ResultSet, error) {
 
 	q := topdown.NewQuery(ectx.compiledQuery.query).
+		WithQueryCompiler(ectx.compiledQuery.compiler).
 		WithCompiler(r.compiler).
 		WithStore(r.store).
 		WithTransaction(ectx.txn).
@@ -1655,6 +1656,7 @@ func (r *Rego) partial(ctx context.Context, ectx *EvalContext) (*PartialQueries,
 	}
 
 	q := topdown.NewQuery(ectx.compiledQuery.query).
+		WithQueryCompiler(ectx.compiledQuery.compiler).
 		WithCompiler(r.compiler).
 		WithStore(r.store).
 		WithTransaction(ectx.txn).

@@ -22,6 +22,7 @@ type QueryResult map[ast.Var]*ast.Term
 type Query struct {
 	cancel           Cancel
 	query            ast.Body
+	queryCompiler    ast.QueryCompiler
 	compiler         *ast.Compiler
 	store            storage.Store
 	txn              storage.Transaction
@@ -51,6 +52,12 @@ func NewQuery(query ast.Body) *Query {
 		genvarprefix: ast.WildcardPrefix,
 		indexing:     true,
 	}
+}
+
+// WithQueryCompiler sets the queryCompiler used for the query.
+func (q *Query) WithQueryCompiler(queryCompiler ast.QueryCompiler) *Query {
+	q.queryCompiler = queryCompiler
+	return q
 }
 
 // WithCompiler sets the compiler to use for the query.
@@ -168,6 +175,7 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 		ctx:             ctx,
 		cancel:          q.cancel,
 		query:           q.query,
+		queryCompiler:   q.queryCompiler,
 		queryIDFact:     f,
 		queryID:         f.Next(),
 		bindings:        b,
@@ -256,26 +264,27 @@ func (q *Query) Run(ctx context.Context) (QueryResultSet, error) {
 func (q *Query) Iter(ctx context.Context, iter func(QueryResult) error) error {
 	f := &queryIDFactory{}
 	e := &eval{
-		ctx:          ctx,
-		cancel:       q.cancel,
-		query:        q.query,
-		queryIDFact:  f,
-		queryID:      f.Next(),
-		bindings:     newBindings(0, q.instr),
-		compiler:     q.compiler,
-		store:        q.store,
-		baseCache:    newBaseCache(),
-		targetStack:  newRefStack(),
-		txn:          q.txn,
-		input:        q.input,
-		tracers:      q.tracers,
-		instr:        q.instr,
-		builtins:     q.builtins,
-		builtinCache: builtins.Cache{},
-		virtualCache: newVirtualCache(),
-		genvarprefix: q.genvarprefix,
-		runtime:      q.runtime,
-		indexing:     q.indexing,
+		ctx:           ctx,
+		cancel:        q.cancel,
+		query:         q.query,
+		queryCompiler: q.queryCompiler,
+		queryIDFact:   f,
+		queryID:       f.Next(),
+		bindings:      newBindings(0, q.instr),
+		compiler:      q.compiler,
+		store:         q.store,
+		baseCache:     newBaseCache(),
+		targetStack:   newRefStack(),
+		txn:           q.txn,
+		input:         q.input,
+		tracers:       q.tracers,
+		instr:         q.instr,
+		builtins:      q.builtins,
+		builtinCache:  builtins.Cache{},
+		virtualCache:  newVirtualCache(),
+		genvarprefix:  q.genvarprefix,
+		runtime:       q.runtime,
+		indexing:      q.indexing,
 	}
 	e.caller = e
 	q.startTimer(metrics.RegoQueryEval)

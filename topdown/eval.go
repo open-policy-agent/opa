@@ -36,6 +36,7 @@ type eval struct {
 	caller          *eval
 	cancel          Cancel
 	query           ast.Body
+	queryCompiler   ast.QueryCompiler
 	index           int
 	indexing        bool
 	bindings        *bindings
@@ -159,6 +160,11 @@ func (e *eval) traceEvent(op Op, x ast.Node, msg string) {
 			rewritten, ok := e.compiler.RewrittenVars[name]
 			if ok {
 				name = rewritten
+			} else if e.queryCompiler != nil {
+				rewritten, ok := e.queryCompiler.RewrittenVars()[name]
+				if ok {
+					name = rewritten
+				}
 			}
 		}
 
