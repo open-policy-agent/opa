@@ -282,3 +282,50 @@ func TestMultipleTracers(t *testing.T) {
 	}
 
 }
+
+func TestTraceRewrittenQueryVars(t *testing.T) {
+	module := `package test
+
+	y = [1, 2, 3]`
+
+	ctx := context.Background()
+	compiler := compileModules([]string{module})
+	queryCompiler := compiler.QueryCompiler()
+	data := loadSmallTestData()
+	store := inmem.NewFromObject(data)
+	txn := storage.NewTransactionOrDie(ctx, store)
+	defer store.Abort(ctx, txn)
+
+	compiledQuery, err := queryCompiler.Compile(ast.MustParseBody("z := {a | a := data.y[_]}"))
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	tracer := NewBufferTracer()
+	query := NewQuery(compiledQuery).
+		WithQueryCompiler(queryCompiler).
+		WithCompiler(compiler).
+		WithStore(store).
+		WithTransaction(txn).
+		WithTracer(tracer)
+
+	_, err = query.Run(ctx)
+	if err != nil {
+		panic(err)
+	}
+
+	foundQueryVar := false
+	var traces []*Event = *tracer
+	for _, trace := range traces {
+		if trace.LocalMetadata != nil {
+			name, ok := trace.LocalMetadata["__localq1__"]
+			if ok && name.Name == "z" {
+				foundQueryVar = true
+				break
+			}
+		}
+	}
+	if !foundQueryVar {
+		t.Error("Expected to find trace with rewritten var 'z' -> '__localq__")
+	}
+}
