@@ -57,6 +57,9 @@ assigned := 1
 		t.Fatalf("Expected roundtripped module to be equal to original:\nExpected:\n\n%v\n\nGot:\n\n%v\n", mod, roundtrip)
 	}
 
+	if mod.Rules[3].Path().String() != "data.a.b.c.t" {
+		t.Fatal("expected path data.a.b.c.t for 4th rule in module but got:", mod.Rules[3].Path())
+	}
 }
 
 func TestBodyEmptyJSON(t *testing.T) {
