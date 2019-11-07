@@ -192,6 +192,8 @@ func TestSelect(t *testing.T) {
 		{"static", NewArray([]Type{S}, nil), json.Number("0"), S},
 		{"dynamic", NewArray(nil, S), json.Number("100"), S},
 		{"out of range", NewArray([]Type{S, N, B}, nil), json.Number("4"), nil},
+		{"out of range negative", NewArray([]Type{S, N, B}, nil), json.Number("-4"), nil},
+		{"negative", NewArray([]Type{S, N, B}, nil), json.Number("-2"), nil},
 		{"non int", NewArray([]Type{S, N, B}, nil), json.Number("1.5"), nil},
 		{"non int-2", NewArray([]Type{S, N, B}, nil), 1, nil},
 		{"static", NewObject([]*StaticProperty{NewStaticProperty("hello", S)}, nil), "hello", S},
