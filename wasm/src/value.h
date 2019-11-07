@@ -40,6 +40,7 @@ typedef struct
 typedef struct
 {
     opa_value hdr;
+    unsigned char free; // if set 'v' is not a reference and should be freed
     size_t len;
     const char *v;
 } opa_string_t;
@@ -117,6 +118,7 @@ opa_value *opa_number_int(long long v);
 opa_value *opa_number_float(double v);
 opa_value *opa_string(const char *v, size_t len);
 opa_value *opa_string_terminated(const char *v);
+opa_value *opa_string_allocated(const char *v, size_t len);
 opa_value *opa_array();
 opa_value *opa_array_with_cap(size_t cap);
 opa_value *opa_array_with_elems(opa_array_elem_t *elems, size_t len, size_t cap);
@@ -125,6 +127,8 @@ opa_value *opa_set();
 
 void opa_value_boolean_set(opa_value *v, int b);
 void opa_value_number_set_int(opa_value *v, long long i);
+
+void opa_string_free(opa_string_t *s);
 
 void opa_array_free(opa_array_t *arr);
 void opa_array_append(opa_array_t *arr, opa_value *v);
