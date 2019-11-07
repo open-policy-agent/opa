@@ -40,3 +40,82 @@ $panel-header-logo-width: 85%
         margin: 0 2rem
       +touch
         margin: 0 1rem
+
+.integration-index
+  +flex
+  +row
+  flex-wrap: wrap
+  justify-content: left
+  padding-left: 1rem
+  padding-top: 1rem
+
+.ecosystem-navbar
+  padding-top: 0.5rem
+  padding-right: 4rem
+  padding-left: 1rem
+  min-width: 100%
+
+.ecosystem-container
+  display: block
+  width: 100%
+
+.integration-item
+  +flex
+  flex: 0 0 10%
+  margin: 1rem
+  min-width: 220px
+
+.integration-item:hover
+  cursor: pointer
+
+.integration-item .image
+  padding: 10px
+  height: 150px
+
+.integration-item .image img
+  width: 100%
+  height: 100%
+  object-fit: contain
+
+.integration-details
+  margin: 1rem
+  border-radius: 100px
+
+.integration-details ul > li
+  margin-left: 10px
+
+.integration-details ul
+  list-style: black
+
+.integration-details-labels
+  margin-top: 0
+  margin-bottom: 1rem
+  padding: 5px
+
+.integration-label-wrapper
+  padding-top: 4px
+  padding-bottom: 4px
+  display: inline-block
+
+.integration-label
+  border-radius: 1000px
+  padding: 4px 10px
+  color: black
+  background-color: #aaaaaa
+
+.integration-label-layer
+  background-color: #7d9199
+
+.integration-label-category
+  background-color: #009900
+
+.integration-label-software
+  background-color: #9acd32
+
+.integration-logo
+  height: 200px
+  border: 1px
+
+//  Work around for bulma css weird jumbo sized default margin-bottom
+.title:not(:last-child)
+  margin-bottom: 0.2rem

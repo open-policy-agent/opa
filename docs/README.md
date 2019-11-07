@@ -14,6 +14,9 @@ the website.
 directory. This content is versioned for each release and should have all images
 and code snippets alongside the markdown content files.
 
+[website/data/integrations.yaml](./website/data/integrations.yaml) - Source for the
+integrations index. See [Integration Index](#integration-index) below for more details.
+
 ## Website Components
 
 The website ([openpolicyagent.org](https://openpolicyagent.org)) and doc's hosted there
@@ -339,3 +342,68 @@ Finally, outputs can also be tagged one or more times with `include(<group name>
 another group's module when evaluating (e.g. so that they can be imported).
 
 > If a query isn't specified for the output's group, when other modules are included the default becomes `data` instead of `data.<package name>`.
+
+# Integration Index
+
+The integration index makes it easy to find either a specific integration with OPA 
+or to browse the integrations with OPA within a particular category.  And it pulls 
+information about that integration (e.g. blogs, videos, tutorials, code) into a 
+single place while allowing integration authors to maintain the code wherever they like.  
+
+## Schema
+
+The schema of integrations.yaml has the following highlevel entries, each of which is self-explanatory.
+* integrations
+* organizations
+* software
+
+Each entry is an object where keys are unique identifiers for each subentry.  
+Organizations and Software are self-explanatory by inspection.  The schema for integrations is as follows.
+
+* title: string
+* description: string
+* software: array of strings
+* labels: collection of key/value pairs.
+* tutorials: array of links
+* code: array of links
+* inventors: array of either
+  * string (organization name)
+  * object with fields
+    * name: string
+    * organization: string
+* videos: array of either
+  * link
+  * object with fields
+    * title: string
+    * speakers: array of name/organization objects
+    * venue: string
+    * link: string
+* blogs: array of links
+
+The UI for this is currently hosted at [https://openpolicyagent.org/docs/latest/ecosystem/](https://openpolicyagent.org/docs/latest/ecosystem/)
+
+The future plan is to use the following labels to generate categories of integrations.
+
+* layer: which layer of the stack does this belong to
+* category: which kind of component within that layer is this
+* type: what kind of integration this is.  Either `enforcement` or `poweredbyopa`.  `enforcement` is the default 
+  if `type` is missing.  `poweredbyopa` is intended to be integrations built using OPA that are not tied to a 
+  particular layer of the stack.  This distinction is the most ambiguous and may change.
+
+As of now the labels are only displayed for each entry.
+
+## Logos
+For each entry in the [integrations.yaml](./website/data/integrations.yaml) integrations section the UI will use a
+PNG logo with the same name as the key from [./website/static/img/logos/integrations](./website/static/img/logos/integrations)
+
+For example:
+
+```yaml
+integrations:
+  my-cool-integration:
+    ...
+```
+
+Would need a file called `my-cool-integration.png` at `./website/static/img/logos/integrations/my-cool-integration.png`
+
+If it doesn't exist the OPA logo will be shown by default.
