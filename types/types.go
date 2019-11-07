@@ -182,11 +182,13 @@ func (t *Array) Len() int {
 
 // Select returns the type of element at the zero-based pos.
 func (t *Array) Select(pos int) Type {
-	if len(t.static) > pos {
-		return t.static[pos]
-	}
-	if t.dynamic != nil {
-		return t.dynamic
+	if pos >= 0 {
+		if len(t.static) > pos {
+			return t.static[pos]
+		}
+		if t.dynamic != nil {
+			return t.dynamic
+		}
 	}
 	return nil
 }
