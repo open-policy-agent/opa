@@ -145,6 +145,7 @@ int opa_json_lex_read_string(opa_json_lex *ctx)
     }
 
     ctx->buf = ++ctx->curr;
+    int escaped = 0;
 
     while (1)
     {
@@ -158,6 +159,7 @@ int opa_json_lex_read_string(opa_json_lex *ctx)
         switch (b)
         {
         case '\\':
+            escaped = 1;
             ctx->curr++;
 
             if (opa_json_lex_eof(ctx))
@@ -190,6 +192,7 @@ int opa_json_lex_read_string(opa_json_lex *ctx)
                 goto err;
             }
 
+            break;
         case '"':
             goto out;
 
@@ -204,6 +207,12 @@ int opa_json_lex_read_string(opa_json_lex *ctx)
     }
 out:
     ctx->buf_end = ctx->curr++;
+
+    if (escaped)
+    {
+        return OPA_JSON_TOKEN_STRING_ESCAPED;
+    }
+
     return OPA_JSON_TOKEN_STRING;
 
 err:
@@ -370,6 +379,78 @@ double opa_json_parse_float(const char *buf, int len)
     return d * (double)(exp_sign * x);
 }
 
+opa_value *opa_json_parse_string(int token, const char *buf, int len)
+{
+    if (token == OPA_JSON_TOKEN_STRING)
+    {
+        return opa_string(buf, len);
+    }
+
+    // The lexer will catch invalid escaping, e.g., if the last char in the
+    // buffer is reverse solidus this will be caught ahead-of-time.
+    int skip = 0;
+
+    for (int i = 0; i < len; i++)
+    {
+        if (buf[i] == '\\')
+        {
+            skip++;
+            i++;
+        }
+    }
+
+    char *cpy = (char *)opa_malloc(len-skip);
+    char *out = cpy;
+
+    for (int i = 0; i < len;)
+    {
+        if (buf[i] != '\\')
+        {
+            *out++ = buf[i++];
+            continue;
+        }
+
+        char next = buf[i+1];
+
+        switch (next)
+        {
+            case '"':
+            case '\\':
+            case '/':
+                *out++ = next;
+                i += 2;
+                break;
+            case 'b':
+                *out++ = '\b';
+                i += 2;
+                break;
+            case 'f':
+                *out++ = '\f';
+                i += 2;
+                break;
+            case 'n':
+                *out++ = '\n';
+                i += 2;
+                break;
+            case 'r':
+                *out++ = '\r';
+                i += 2;
+                break;
+            case 't':
+                *out++ = '\t';
+                i += 2;
+                break;
+            case 'u':
+                opa_abort("not implemented: UTF-16 parsing");
+            default:
+                // this is unreachable.
+                opa_abort("illegal string escape character");
+        }
+    }
+
+    return opa_string_allocated(cpy, out-cpy);
+}
+
 opa_value *opa_json_parse_number(const char *buf, int len)
 {
     for (int i = 0; i < len; i++)
@@ -479,7 +560,8 @@ opa_value *opa_json_parse_token(opa_json_lex *ctx, int token)
     case OPA_JSON_TOKEN_NUMBER:
         return opa_json_parse_number(ctx->buf, ctx->buf_end - ctx->buf);
     case OPA_JSON_TOKEN_STRING:
-        return opa_string(ctx->buf, ctx->buf_end - ctx->buf);
+    case OPA_JSON_TOKEN_STRING_ESCAPED:
+        return opa_json_parse_string(token, ctx->buf, ctx->buf_end - ctx->buf);
     case OPA_JSON_TOKEN_ARRAY_START:
         return opa_json_parse_array(ctx);
     case OPA_JSON_TOKEN_OBJECT_START:

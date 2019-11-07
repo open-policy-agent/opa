@@ -504,7 +504,7 @@ void opa_value_free(opa_value *node)
         opa_free(opa_cast_number(node));
         return;
     case OPA_STRING:
-        opa_free(opa_cast_string(node));
+        opa_string_free(opa_cast_string(node));
         return;
     case OPA_ARRAY:
         opa_array_free(opa_cast_array(node));
@@ -724,6 +724,7 @@ opa_value *opa_string(const char *v, size_t len)
 {
     opa_string_t *ret = (opa_string_t *)opa_malloc(sizeof(opa_string_t));
     ret->hdr.type = OPA_STRING;
+    ret->free = 0;
     ret->len = len;
     ret->v = v;
     return &ret->hdr;
@@ -733,9 +734,30 @@ opa_value *opa_string_terminated(const char *v)
 {
     opa_string_t *ret = (opa_string_t *)opa_malloc(sizeof(opa_string_t));
     ret->hdr.type = OPA_STRING;
+    ret->free = 0;
     ret->len = opa_strlen(v);
     ret->v = v;
     return &ret->hdr;
+}
+
+opa_value *opa_string_allocated(const char *v, size_t len)
+{
+    opa_string_t *ret = (opa_string_t *)opa_malloc(sizeof(opa_string_t));
+    ret->hdr.type = OPA_STRING;
+    ret->free = 1;
+    ret->len = len;
+    ret->v = v;
+    return &ret->hdr;
+}
+
+void opa_string_free(opa_string_t *s)
+{
+    if (s->free)
+    {
+        opa_free((void *)s->v);
+    }
+
+    opa_free(s);
 }
 
 void __opa_array_grow(opa_array_t *arr)

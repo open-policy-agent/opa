@@ -19,12 +19,13 @@ typedef struct
 #define OPA_JSON_TOKEN_FALSE 4
 #define OPA_JSON_TOKEN_NUMBER 5
 #define OPA_JSON_TOKEN_STRING 6
-#define OPA_JSON_TOKEN_OBJECT_START 7
-#define OPA_JSON_TOKEN_OBJECT_END 8
-#define OPA_JSON_TOKEN_ARRAY_START 9
-#define OPA_JSON_TOKEN_ARRAY_END 10
-#define OPA_JSON_TOKEN_COMMA 11
-#define OPA_JSON_TOKEN_COLON 12
+#define OPA_JSON_TOKEN_STRING_ESCAPED 7
+#define OPA_JSON_TOKEN_OBJECT_START 8
+#define OPA_JSON_TOKEN_OBJECT_END 9
+#define OPA_JSON_TOKEN_ARRAY_START 10
+#define OPA_JSON_TOKEN_ARRAY_END 11
+#define OPA_JSON_TOKEN_COMMA 12
+#define OPA_JSON_TOKEN_COLON 13
 
 void opa_json_lex_init(const char *input, size_t len, opa_json_lex *ctx);
 int opa_json_lex_read(opa_json_lex *ctx);
