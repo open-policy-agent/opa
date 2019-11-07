@@ -1033,6 +1033,9 @@ If you have more questions about how to write policies in Rego check out:
 
 If you want to try OPA for a specific use case check out:
 
+* The [Ecosystem](ecosystem) page which showcases various of OPA integrations.
+
+Some popular tutorials include:
 * The [Kubernetes](kubernetes-introduction) page for how to use OPA as an admission controller in Kubernetes.
 * The [Envoy](envoy-authorization) page for how to use OPA as an external authorizer with Envoy.
 * The [Terraform](terraform) page for how to use OPA to validate Terraform plans.

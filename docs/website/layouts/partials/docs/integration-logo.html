@@ -1,0 +1,6 @@
+{{- $logoFile := (printf "%s.png" .name) -}}
+{{- if fileExists (printf "/static/img/logos/integrations/%s" $logoFile) -}}
+<img class="integration-logo is-vcentered" src="{{ (printf "/img/logos/integrations/%s" $logoFile) }}" alt="Integration Logo">
+{{- else -}}
+<img class="integration-logo is-vcentered" src="/img/logos/opa-no-text-color.png" alt="Integration Logo">
+{{- end -}}
