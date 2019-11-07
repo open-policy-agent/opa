@@ -571,14 +571,14 @@ int opa_json_writer_emit_char(opa_json_writer *w, char b)
 {
     char bs[] = {b};
 
-    return opa_json_writer_emit_chars(w, bs, sizeof(bs));
+    return opa_json_writer_emit_chars(w, bs, 1);
 }
 
 int opa_json_writer_emit_null(opa_json_writer *w)
 {
     char bs[] = "null";
 
-    return opa_json_writer_emit_chars(w, bs, sizeof(bs));
+    return opa_json_writer_emit_chars(w, bs, sizeof(bs)-1);
 }
 
 int opa_json_writer_emit_boolean(opa_json_writer *w, opa_boolean_t *b)
@@ -587,12 +587,12 @@ int opa_json_writer_emit_boolean(opa_json_writer *w, opa_boolean_t *b)
     {
         char bs[] = "false";
 
-        return opa_json_writer_emit_chars(w, bs, sizeof(bs));
+        return opa_json_writer_emit_chars(w, bs, sizeof(bs)-1);
     }
 
     char bs[] = "true";
 
-    return opa_json_writer_emit_chars(w, bs, sizeof(bs));
+    return opa_json_writer_emit_chars(w, bs, sizeof(bs)-1);
 }
 
 int opa_json_writer_emit_float(opa_json_writer *w, double f)

@@ -776,4 +776,11 @@ void test_opa_json_dump()
 
     opa_object_insert(opa_cast_object(obj), opa_string_terminated("k2"), opa_string_terminated("v2"));
     test("objects", opa_strcmp(opa_json_dump(obj), "{\"k1\":\"v1\",\"k2\":\"v2\"}") == 0);
+
+    opa_value *terminators = opa_array();
+    opa_array_append(opa_cast_array(terminators), opa_boolean(1));
+    opa_array_append(opa_cast_array(terminators), opa_boolean(0));
+    opa_array_append(opa_cast_array(terminators), opa_null());
+
+    test("bool/null terminators", opa_strcmp(opa_json_dump(terminators), "[true,false,null]") == 0);
 }
