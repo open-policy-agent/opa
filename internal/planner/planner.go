@@ -275,13 +275,17 @@ func (p *Planner) planRules(rules []*ast.Rule) (string, error) {
 
 		p.curr = fn.Blocks[len(fn.Blocks)-1]
 
-		if err := p.planTerm(defaultRule.Head.Value, func() error {
-			p.appendStmt(&ir.AssignVarStmt{
-				Target: fn.Return,
-				Source: p.ltarget,
+		err := p.planQuery(defaultRule.Body, 0, func() error {
+			return p.planTerm(defaultRule.Head.Value, func() error {
+				p.appendStmt(&ir.AssignVarOnceStmt{
+					Target: fn.Return,
+					Source: p.ltarget,
+				})
+				return nil
 			})
-			return nil
-		}); err != nil {
+		})
+
+		if err != nil {
 			return "", err
 		}
 	}

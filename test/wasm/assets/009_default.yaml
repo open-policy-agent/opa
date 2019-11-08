@@ -30,3 +30,19 @@ cases:
         default p = 1
         p = 2
     want_defined: true
+  - note: default requires eval
+    query: data.x.p = []
+    modules:
+      - |
+        package x
+        default p = [1 | false]
+        p = "deadbeef" { false }
+    want_defined: True
+  - note: default requires eval
+    query: data.x.p = [1]
+    modules:
+      - |
+        package x
+        default p = [1 | true]
+        p = "deadbeef" { false }
+    want_defined: true
