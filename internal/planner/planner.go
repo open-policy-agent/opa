@@ -1541,9 +1541,9 @@ func (p *Planner) planRefDataExtent(virtual *ruletrie, base *baseptr, iter plani
 				Target: target,
 			}
 			p.appendStmt(stmt)
-			p.appendStmt(&ir.BreakStmt{Index: 1})
 		}
 
+		p.appendStmt(&ir.BreakStmt{Index: 1})
 		return nil
 	})
 
@@ -1552,6 +1552,9 @@ func (p *Planner) planRefDataExtent(virtual *ruletrie, base *baseptr, iter plani
 	}
 
 	inner := p.curr
+
+	// Fallback to virtual document value if base document is undefined.
+	// Otherwise, this block is undefined.
 	p.curr = &ir.Block{}
 	p.appendStmt(&ir.BlockStmt{Blocks: []*ir.Block{inner}})
 
@@ -1560,6 +1563,8 @@ func (p *Planner) planRefDataExtent(virtual *ruletrie, base *baseptr, iter plani
 			Source: vtarget,
 			Target: target,
 		})
+	} else {
+		p.appendStmt(&ir.BreakStmt{Index: 1})
 	}
 
 	outer := p.curr
