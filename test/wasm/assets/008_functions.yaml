@@ -104,3 +104,19 @@ cases:
         f(x) = 1
         f(x) = 2
     want_error: var assignment conflict
+  - note: 'false result'
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        f(x) = false
+        p = true { f(1) }
+    want_defined: false
+  - note: 'negated false result'
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        f(x) = false
+        p = true { not f(1) }
+    want_defined: true
