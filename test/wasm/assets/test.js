@@ -48,6 +48,12 @@ function report(state, name, msg, extra) {
     return true
 }
 
+function skip(name, msg) {
+    if (process.env.VERBOSE === '1') {
+        console.log(yellow('SKIP'), name + ':', msg);
+    }
+}
+
 function now() {
     const [sec, nsec] = process.hrtime();
     return (sec * 1000 * 1000) + (nsec / 1000);
@@ -158,7 +164,9 @@ async function test() {
             if (Array.isArray(testFile.cases)) {
                 testFile.cases.forEach(testCase => {
                     testCase.note = file + ': ' + testCase.note;
-                    testCase.wasmBytes = Buffer.from(testCase.wasm, 'base64');
+                    if (testCase.wasm !== undefined) {
+                        testCase.wasmBytes = Buffer.from(testCase.wasm, 'base64');
+                    }
                     testCases.push(testCase);
                 });
             }
@@ -170,6 +178,7 @@ async function test() {
     console.log('Found ' + testCases.length + ' WASM test cases in ' + numFiles + ' file(s). Took ' + formatMicros(dt_load) + '. Running now.');
     console.log();
 
+    let numSkipped = 0;
     let numPassed = 0;
     let numFailed = 0;
     let numErrors = 0;
@@ -180,6 +189,13 @@ async function test() {
 
         let state = 'FAIL';
         let name = namespace(cache, testCases[i].note);
+
+        if (testCases[i].skip === true) {
+            skip(name, testCases[i].skip_reason);
+            numSkipped++;
+            continue
+        }
+
         let msg = '';
         let extra = '';
 
@@ -260,6 +276,10 @@ async function test() {
 
     if (numFailed > 0) {
         console.log('FAIL:', numFailed + '/' + testCases.length);
+    }
+
+    if (numSkipped > 0) {
+        console.log('SKIP:', numSkipped + '/' + testCases.length);
     }
 
     if (numErrors > 0) {

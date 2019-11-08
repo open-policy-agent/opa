@@ -37,15 +37,17 @@ type testCaseSet struct {
 }
 
 type testCase struct {
-	Note        string                    `json:"note"`
-	Query       string                    `json:"query"`
-	Modules     []string                  `json:"modules"`
-	ModuleASTs  map[string]*ast.Module    `json:"module_asts"`
-	Data        *map[string]interface{}   `json:"data,omitempty"`
-	Input       *interface{}              `json:"input,omitempty"`
-	WantResult  *[]map[string]interface{} `json:"want_result,omitempty"`
-	WantDefined *bool                     `json:"want_defined,omitempty"`
-	WantError   *string                   `json:"want_error,omitempty"`
+	Note        string                     `json:"note"`
+	Query       string                     `json:"query"`
+	Modules     []string                   `json:"modules,omitempty"`
+	ModuleASTs  map[string]json.RawMessage `json:"module_asts,omitempty"`
+	Data        *map[string]interface{}    `json:"data,omitempty"`
+	Input       *interface{}               `json:"input,omitempty"`
+	Skip        bool                       `json:"skip,omitempty"`
+	SkipReason  string                     `json:"skip_reason,omitempty"`
+	WantResult  *[]map[string]interface{}  `json:"want_result,omitempty"`
+	WantDefined *bool                      `json:"want_defined,omitempty"`
+	WantError   *string                    `json:"want_error,omitempty"`
 }
 
 type compiledTestCaseSet struct {
@@ -54,12 +56,17 @@ type compiledTestCaseSet struct {
 
 type compiledTestCase struct {
 	testCase
-	WASM []byte `json:"wasm"`
+	WASM []byte `json:"wasm,omitempty"`
 }
 
 func compileTestCases(ctx context.Context, tests testCaseSet) (*compiledTestCaseSet, error) {
 	var result []compiledTestCase
 	for _, tc := range tests.Cases {
+
+		if tc.Skip {
+			result = append(result, compiledTestCase{testCase: tc})
+			continue
+		}
 
 		var numExpects int
 
@@ -87,20 +94,32 @@ func compileTestCases(ctx context.Context, tests testCaseSet) (*compiledTestCase
 			args = append(args, rego.Module(fmt.Sprintf("module%d.rego", idx), module))
 		}
 
-		for _, module := range tc.ModuleASTs {
-			args = append(args, rego.ParsedModule(module))
+		for _, bs := range tc.ModuleASTs {
+			var module ast.Module
+			if err := util.UnmarshalJSON(bs, &module); err != nil {
+				tc.Skip = true
+				tc.SkipReason = err.Error()
+			} else {
+				args = append(args, rego.ParsedModule(&module))
+			}
 		}
+
+		var bs []byte
 
 		cr, err := rego.New(args...).Compile(ctx)
 		if err != nil {
-			return nil, err
+			tc.Skip = true
+			tc.SkipReason = err.Error()
+		} else {
+			bs = cr.Bytes
 		}
 
 		result = append(result, compiledTestCase{
 			testCase: tc,
-			WASM:     cr.Bytes,
+			WASM:     bs,
 		})
 	}
+
 	return &compiledTestCaseSet{Cases: result}, nil
 }
 
@@ -151,6 +170,7 @@ func run(params params) error {
 				}
 
 				var tcs testCaseSet
+
 				if err := util.Unmarshal(bs, &tcs); err != nil {
 					return err
 				}
@@ -169,6 +189,7 @@ func run(params params) error {
 				if err := writeFile(tw, dst, bs); err != nil {
 					return err
 				}
+
 				return nil
 			}()
 			if err != nil {
