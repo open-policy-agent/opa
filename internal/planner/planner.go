@@ -678,7 +678,7 @@ func (p *Planner) planExprCall(e *ast.Expr, iter planiter) error {
 
 		if len(operands) == arity {
 			// rule: f(x) = x { ... }
-			// call: f(x) == 1 or f(x) # result not captured
+			// call: f(x) # result not captured
 			return p.planCallArgs(operands, 0, args, func(args []ir.Local) error {
 				p.ltarget = p.newLocal()
 				p.appendStmt(&ir.CallStmt{
@@ -686,6 +686,19 @@ func (p *Planner) planExprCall(e *ast.Expr, iter planiter) error {
 					Args:   args,
 					Result: p.ltarget,
 				})
+
+				falsy := p.newLocal()
+
+				p.appendStmt(&ir.MakeBooleanStmt{
+					Value:  false,
+					Target: falsy,
+				})
+
+				p.appendStmt(&ir.NotEqualStmt{
+					A: p.ltarget,
+					B: falsy,
+				})
+
 				return iter()
 			})
 		} else if len(operands) == arity+1 {
