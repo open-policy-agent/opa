@@ -20,14 +20,16 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
+	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/util"
 )
 
 type params struct {
-	Output          string
-	InputDir        string
-	TestFilePattern string
+	Output           string
+	InputDir         string
+	TestFilePatterns []string
+	TestRunner       string
 }
 
 type testCaseSet struct {
@@ -38,6 +40,7 @@ type testCase struct {
 	Note        string                    `json:"note"`
 	Query       string                    `json:"query"`
 	Modules     []string                  `json:"modules"`
+	ModuleASTs  map[string]*ast.Module    `json:"module_asts"`
 	Data        *map[string]interface{}   `json:"data,omitempty"`
 	Input       *interface{}              `json:"input,omitempty"`
 	WantResult  *[]map[string]interface{} `json:"want_result,omitempty"`
@@ -84,6 +87,10 @@ func compileTestCases(ctx context.Context, tests testCaseSet) (*compiledTestCase
 			args = append(args, rego.Module(fmt.Sprintf("module%d.rego", idx), module))
 		}
 
+		for _, module := range tc.ModuleASTs {
+			args = append(args, rego.ParsedModule(module))
+		}
+
 		cr, err := rego.New(args...).Compile(ctx)
 		if err != nil {
 			return nil, err
@@ -95,6 +102,17 @@ func compileTestCases(ctx context.Context, tests testCaseSet) (*compiledTestCase
 		})
 	}
 	return &compiledTestCaseSet{Cases: result}, nil
+}
+
+func pathMatchesAny(patterns []string, p string) (bool, error) {
+	for i := range patterns {
+		if ok, err := path.Match(patterns[i], p); err != nil {
+			return false, err
+		} else if ok {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 func run(params params) error {
@@ -123,10 +141,11 @@ func run(params params) error {
 	}
 
 	for i := range files {
-		if ok, err := path.Match(params.TestFilePattern, files[i].Name()); ok {
-
+		if ok, err := pathMatchesAny(params.TestFilePatterns, files[i].Name()); ok {
 			err := func() error {
-				bs, err := ioutil.ReadFile(filepath.Join(params.InputDir, files[i].Name()))
+				abspath := filepath.Join(params.InputDir, files[i].Name())
+
+				bs, err := ioutil.ReadFile(abspath)
 				if err != nil {
 					return err
 				}
@@ -152,7 +171,6 @@ func run(params params) error {
 				}
 				return nil
 			}()
-
 			if err != nil {
 				return errors.Wrap(err, files[i].Name())
 			}
@@ -161,7 +179,7 @@ func run(params params) error {
 		}
 	}
 
-	return copyFile(tw, "test.js", filepath.Join(params.InputDir, "test.js"))
+	return copyFile(tw, "test.js", params.TestRunner)
 }
 
 func writeFile(tw *tar.Writer, dst string, bs []byte) error {
@@ -224,7 +242,8 @@ func main() {
 
 	command.Flags().StringVarP(&params.Output, "output", "", "", "set path of output file")
 	command.Flags().StringVarP(&params.InputDir, "input-dir", "", "", "set path of input directory containing test files")
-	command.Flags().StringVarP(&params.TestFilePattern, "file-pattern", "", "*.yaml", "set filename pattern to match test files against")
+	command.Flags().StringSliceVarP(&params.TestFilePatterns, "file-pattern", "", []string{"*.yaml", "*.json"}, "set filename patterns to match test files against")
+	command.Flags().StringVarP(&params.TestRunner, "runner", "", "", "set path of test runner")
 
 	if err := command.Execute(); err != nil {
 		os.Exit(1)
