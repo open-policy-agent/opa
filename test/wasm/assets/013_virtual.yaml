@@ -9,6 +9,26 @@ cases:
       data == {"x": {"y": 1, "z": 2}}
     data: {"x": {"y": 1, "z": "deadbeef"}}
     want_defined: false
+  - note: base data extent path
+    query: |
+      data.x == {"y": 1, "z": 2}
+    data: {'x': {'y': 1, 'z': 2}}
+    want_defined: true
+  - note: base data extent path (negative)
+    query: |
+      data.deadbeef
+    data: {'x': {'y': 1, 'z': 2}}
+    want_defined: false
+  - note: base data extent path-2
+    query: |
+      data.x.y == 1
+    data: {'x': {'y': 1, 'z': 2}}
+    want_defined: true
+  - note: base data extent path-2 (negative)
+    query: |
+      data.x.deadbeef
+    data: {'x': {'y': 1, 'z': 2}}
+    want_defined: false
   - note: base data iteration
     query: data.foo[x] = y; x == "b"; y == 2
     data: {"foo": {"a": 1, "b": 2, "c": 3}}
