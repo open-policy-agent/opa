@@ -10,6 +10,7 @@
 set -ex
 
 GOVERSION=${GOVERSION:?"You must set the GOVERSION environment variable."}
+ASSETS=${ASSETS:-"$PWD/test/wasm/assets"}
 VERBOSE=${VERBOSE:-"0"}
 TESTGEN_CONTAINER_NAME="opa-wasm-testgen-container"
 TESTRUN_CONTAINER_NAME="opa-wasm-testrun-container"
@@ -46,12 +47,14 @@ function generate_testcases {
         -u $(id -u):$(id -g) \
         -v $PWD/.go/bin:/go/bin \
         -v $PWD:/src \
+        -v $ASSETS:/assets \
         -e GOCACHE=/src/.go/cache \
         -w /src \
         golang:$GOVERSION \
         sh -c 'make wasm-rego-testgen-install \
                 && wasm-rego-testgen \
-                --input-dir=/src/test/wasm/assets \
+                --input-dir=/assets \
+                --runner=/src/test/wasm/assets/test.js \
                 --output=/src/.go/cache/testcases.tar.gz'
 }
 
