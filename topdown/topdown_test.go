@@ -6,11 +6,15 @@ package topdown
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
+	"path/filepath"
 	"reflect"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -2067,7 +2071,7 @@ func TestTopDownWithKeyword(t *testing.T) {
 		},
 		{
 			note: "with conflict",
-			exp:  fmt.Errorf("conflicting documents"),
+			exp:  &Error{Code: ConflictErr, Message: errConflictingDoc.Error()},
 			modules: []string{`package ex
 			loopback = __local0__ { true; __local0__ = input }`},
 			rules: []string{`p = true { data.ex.loopback with input.foo as "x" with input.foo.bar as "y" }`},
@@ -2887,6 +2891,22 @@ func assertTopDownWithPath(t *testing.T, compiler *ast.Compiler, store storage.S
 	rhs := ast.VarTerm(ast.WildcardPrefix + "result")
 	body := ast.NewBody(ast.Equality.Expr(lhs, rhs))
 
+	var requiresSort bool
+
+	if rules := compiler.GetRulesExact(lhs.Value.(ast.Ref)); len(rules) > 0 && rules[0].Head.DocKind() == ast.PartialSetDoc {
+		requiresSort = true
+	}
+
+	if os.Getenv("OPA_DUMP_TEST") != "" {
+
+		data, err := store.Read(ctx, txn, storage.MustParsePath("/"))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		dump(note, compiler.Modules, data, path, inputTerm, expected, requiresSort)
+	}
+
 	query := NewQuery(body).
 		WithCompiler(compiler).
 		WithStore(store).
@@ -2947,12 +2967,6 @@ func assertTopDownWithPath(t *testing.T, compiler *ast.Compiler, store storage.S
 			result, err := ast.JSON(qrs[0][rhs.Value.(ast.Var)].Value)
 			if err != nil {
 				t.Fatal(err)
-			}
-
-			var requiresSort bool
-
-			if rules := compiler.GetRulesExact(lhs.Value.(ast.Ref)); len(rules) > 0 && rules[0].Head.DocKind() == ast.PartialSetDoc {
-				requiresSort = true
 			}
 
 			expected := util.MustUnmarshalJSON([]byte(e))
@@ -3079,5 +3093,87 @@ func init() {
 		time.Sleep(d)
 		return ast.Null{}, nil
 	})
+
+}
+
+var testID = 0
+var testIDMutex sync.Mutex
+
+func dump(note string, modules map[string]*ast.Module, data interface{}, docpath []string, input *ast.Term, exp interface{}, requiresSort bool) {
+
+	// Replace topdown errors with simpler errors that are reported by compiled
+	// policies today.
+	var (
+		varAssignmentConflictErr = "var assignment conflict"
+		withConflictErr          = "with target conflict"
+		objectInsertConflictErr  = "object insert conflict"
+
+		errMap = map[string]string{
+			"eval_conflict_error: complete rules must not produce multiple outputs":            varAssignmentConflictErr,
+			"eval_conflict_error: functions must not produce multiple outputs for same inputs": varAssignmentConflictErr,
+			"eval_conflict_error: object keys must be unique":                                  objectInsertConflictErr,
+			"eval_with_merge_error: real and replacement data could not be merged":             withConflictErr, // data conflict
+			"eval_conflict_error: conflicting documents":                                       withConflictErr, // input conflict
+		}
+	)
+
+	test := map[string]interface{}{
+		"note":        note,
+		"data":        data,
+		"module_asts": modules,
+		"query":       strings.Join(append([]string{"data"}, docpath...), ".") + " = x",
+	}
+
+	if input != nil {
+		var err error
+		test["input"], err = ast.JSON(input.Value)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	switch e := exp.(type) {
+	case string:
+		rs := []map[string]interface{}{}
+		if len(e) > 0 {
+			exp := util.MustUnmarshalJSON([]byte(e))
+			if requiresSort {
+				sl := exp.([]interface{})
+				sort.Sort(resultSet(sl))
+			}
+			rs = append(rs, map[string]interface{}{"x": exp})
+		}
+		test["want_result"] = rs
+	case error:
+		str := e.Error()
+		if replace, ok := errMap[str]; ok {
+			test["want_error"] = replace
+		} else {
+			test["want_error"] = str
+		}
+	default:
+		test["skip"] = true
+		test["skip_reason"] = "test case not supported"
+	}
+
+	bs, err := json.MarshalIndent(map[string]interface{}{"cases": []interface{}{test}}, "", "  ")
+	if err != nil {
+		panic(err)
+	}
+
+	dir := os.Getenv("OPA_DUMP_TEST")
+
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		panic(err)
+	}
+
+	testIDMutex.Lock()
+	testID++
+	c := testID
+	testIDMutex.Unlock()
+
+	if err := ioutil.WriteFile(filepath.Join(dir, fmt.Sprintf("test-%04d.json", c)), bs, 0644); err != nil {
+		panic(err)
+	}
 
 }
