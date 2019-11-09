@@ -75,5 +75,7 @@ func (w *walkerImpl) walk(x interface{}) {
 		w.walk(x.Block)
 	case *NotStmt:
 		w.walk(x.Block)
+	case *WithStmt:
+		w.walk(x.Block)
 	}
 }

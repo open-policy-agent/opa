@@ -418,7 +418,6 @@ func (p *Planner) planQuery(q ast.Body, index int, iter planiter) error {
 
 // TODO(tsandall): improve errors to include location information.
 func (p *Planner) planExpr(e *ast.Expr, iter planiter) error {
-
 	if e.Negated {
 		return p.planNot(e, iter)
 	}
@@ -467,126 +466,121 @@ func (p *Planner) planWith(e *ast.Expr, iter planiter) error {
 
 	return p.planTermSlice(values, func(locals []ir.Local) error {
 
-		// Save the current values of the input and cached data documents.
-		linput := p.vars.GetOrEmpty(ast.InputRootDocument.Value.(ast.Var))
-		ldata := p.vars.GetOrEmpty(ast.DefaultRootDocument.Value.(ast.Var))
-		lprev := p.planSaveLocals(linput, ldata)
-		datarefs := []ast.Ref{}
+		paths := make([][]int, len(e.With))
+		saveVars := ast.NewVarSet()
+		dataRefs := []ast.Ref{}
 
-		// Apply with modifiers to the input and cached data documents.
 		for i := range e.With {
 
 			target := e.With[i].Target.Value.(ast.Ref)
-			head := target[0].Value.(ast.Var)
-			lhead := p.vars.GetOrEmpty(head)
-			lpath := make([]int, len(target)-1)
+			paths[i] = make([]int, len(target)-1)
 
-			for i := 1; i < len(target); i++ {
-				if s, ok := target[i].Value.(ast.String); ok {
-					lpath[i-1] = p.getStringConst(string(s))
+			for j := 1; j < len(target); j++ {
+				if s, ok := target[j].Value.(ast.String); ok {
+					paths[i][j-1] = p.getStringConst(string(s))
 				} else {
 					return errors.New("invalid with target")
 				}
 			}
 
-			p.appendStmt(&ir.WithStmt{
-				Source: lhead,
-				Path:   lpath,
-				Value:  locals[i],
-				Target: lhead,
-			})
+			head := target[0].Value.(ast.Var)
+			saveVars.Add(head)
 
-			if target[0].Equal(ast.DefaultRootDocument) {
-				datarefs = append(datarefs, target)
+			if head.Equal(ast.DefaultRootDocument.Value) {
+				dataRefs = append(dataRefs, target)
 			}
 		}
 
-		// Save the new values of the input and cached data documents so they
-		// can be re-applied.
-		//
-		// NOTE(tsandall): If either of the documents have not been modified
-		// these statements are no-ops. We could safely elide them in the future
-		// if which heads had been touched. The same holds for the undo and
-		// re-apply operations below.
-		lmodified := p.planSaveLocals(linput, ldata)
-		prev := p.curr
-		p.curr = &ir.Block{}
+		restore := make([][2]ir.Local, len(saveVars))
+
+		for i, v := range saveVars.Sorted() {
+			lorig := p.vars.GetOrEmpty(v)
+			lsave := p.newLocal()
+			p.appendStmt(&ir.AssignVarStmt{Source: lorig, Target: lsave})
+			restore[i] = [2]ir.Local{lorig, lsave}
+		}
 
 		// If any of the with statements targeted the data document we shadow
 		// the existing planned functions during expression planning. This
 		// causes the planner to re-plan any rules that may be required during
 		// planning of this expression (transitively).
-		if len(datarefs) > 0 {
+		if len(dataRefs) > 0 {
 			p.funcs.Push(map[string]string{})
-			for _, ref := range datarefs {
+			for _, ref := range dataRefs {
 				p.rules.Push(ref)
 			}
 		}
 
-		err := p.planExpr(e.NoWith(), func() error {
+		return p.planWithRec(e, paths, locals, 0, func() error {
 
-			var funcs map[string]string
-
-			if len(datarefs) > 0 {
-				funcs = p.funcs.Pop()
-				for i := len(datarefs) - 1; i >= 0; i-- {
-					p.rules.Pop(datarefs[i])
+			if len(dataRefs) > 0 {
+				p.funcs.Pop()
+				for i := len(dataRefs) - 1; i >= 0; i-- {
+					p.rules.Pop(dataRefs[i])
 				}
 			}
 
-			// Undo the with modifiers by restoring the saved input and cached
-			// data document values.
-			p.appendStmt(&ir.AssignVarStmt{Source: lprev[0], Target: linput})
-			p.appendStmt(&ir.AssignVarStmt{Source: lprev[1], Target: ldata})
-			prev := p.curr
-			p.curr = &ir.Block{}
-
-			if err := iter(); err != nil {
-				return err
-			}
-
-			block := p.curr
-			p.curr = prev
-			p.appendStmt(&ir.BlockStmt{Blocks: []*ir.Block{block}})
-
-			// Re-apply the modified input and cached data documents in case we
-			// re-enter.
-			p.appendStmt(&ir.AssignVarStmt{Source: lmodified[0], Target: linput})
-			p.appendStmt(&ir.AssignVarStmt{Source: lmodified[1], Target: ldata})
-
-			if len(datarefs) > 0 {
-				p.funcs.Push(funcs)
-				for _, ref := range datarefs {
-					p.rules.Push(ref)
-				}
-			}
-
-			return nil
+			return p.planWithUndoRec(restore, 0, iter)
 		})
-
-		if err != nil {
-			return err
-		}
-
-		block := p.curr
-		p.curr = prev
-
-		p.appendStmt(&ir.BlockStmt{Blocks: []*ir.Block{block}})
-
-		// Restore the original input and cahced data document values after
-		// generating the plan for the rest of the query.
-		p.appendStmt(&ir.AssignVarStmt{Source: lprev[0], Target: linput})
-		p.appendStmt(&ir.AssignVarStmt{Source: lprev[1], Target: ldata})
-
-		if len(datarefs) > 0 {
-			_ = p.funcs.Pop()
-			for i := len(datarefs) - 1; i >= 0; i-- {
-				p.rules.Pop(datarefs[i])
-			}
-		}
-
-		return nil
 	})
+}
+
+func (p *Planner) planWithRec(e *ast.Expr, targets [][]int, values []ir.Local, index int, iter planiter) error {
+
+	if index >= len(e.With) {
+		return p.planExpr(e.NoWith(), iter)
+	}
+
+	prev := p.curr
+	p.curr = &ir.Block{}
+
+	err := p.planWithRec(e, targets, values, index+1, iter)
+	if err != nil {
+		return err
+	}
+
+	block := p.curr
+	p.curr = prev
+	target := e.With[index].Target.Value.(ast.Ref)
+	head := target[0].Value.(ast.Var)
+
+	stmt := &ir.WithStmt{
+		Local: p.vars.GetOrEmpty(head),
+		Path:  targets[index],
+		Value: values[index],
+		Block: block,
+	}
+
+	p.appendStmt(stmt)
+
+	return nil
+}
+
+func (p *Planner) planWithUndoRec(restore [][2]ir.Local, index int, iter planiter) error {
+
+	if index >= len(restore) {
+		return iter()
+	}
+
+	prev := p.curr
+	p.curr = &ir.Block{}
+
+	if err := p.planWithUndoRec(restore, index+1, iter); err != nil {
+		return err
+	}
+
+	block := p.curr
+	p.curr = prev
+	lorig := restore[index][0]
+	lsave := restore[index][1]
+
+	p.appendStmt(&ir.WithStmt{
+		Local: lorig,
+		Value: lsave,
+		Block: block,
+	})
+
+	return nil
 }
 
 func (p *Planner) planExprTerm(e *ast.Expr, iter planiter) error {

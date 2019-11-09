@@ -376,13 +376,14 @@ type SetAddStmt struct {
 	Set   Local
 }
 
-// WithStmt creates a shallow copy of the source value with the value upserted
-// into the specified path. If the intermediate nodes in the path do not exist,
-// they will be created. If the path is empty this has the same affect as
-// assigning the value to the target.
+// WithStmt replaces the Local or a portion of the document referred to by the
+// Local with the Value and executes the contained block. If the Path is
+// non-empty, the Value is upserted into the Local. If the intermediate nodes in
+// the Local referred to by the Path do not exist, they will be created. When
+// the WithStmt finishes the Local is reset to it's original value.
 type WithStmt struct {
-	Source Local
-	Path   []int
-	Value  Local
-	Target Local
+	Local Local
+	Path  []int
+	Value Local
+	Block *Block
 }
