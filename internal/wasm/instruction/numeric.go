@@ -78,6 +78,16 @@ func (I32Eqz) Op() opcode.Opcode {
 	return opcode.I32Eqz
 }
 
+// I32Eq represents the WASM i32.eq instruction.
+type I32Eq struct {
+	NoImmediateArgs
+}
+
+// Op returns the opcode of the instruction.
+func (I32Eq) Op() opcode.Opcode {
+	return opcode.I32Eq
+}
+
 // I32Ne represents the WASM i32.ne instruction.
 type I32Ne struct {
 	NoImmediateArgs
