@@ -218,3 +218,11 @@ cases:
         't': [1],
       }
     ]
+  - note: with negation
+    query: |
+      not input with input as false
+    want_result: [{}]
+  - note: with negation (negative)
+    query: |
+      not input with input as true
+    want_result: []

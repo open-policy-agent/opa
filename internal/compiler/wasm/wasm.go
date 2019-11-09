@@ -635,24 +635,49 @@ func (c *Compiler) compileNot(not *ir.NotStmt, result *[]instruction.Instruction
 	return nil
 }
 
-func (c *Compiler) compileWithStmt(stmt *ir.WithStmt, result *[]instruction.Instruction) error {
+func (c *Compiler) compileWithStmt(with *ir.WithStmt, result *[]instruction.Instruction) error {
 
 	var instrs = *result
+	save := c.genLocal()
+	instrs = append(instrs, instruction.GetLocal{Index: c.local(with.Local)})
+	instrs = append(instrs, instruction.SetLocal{Index: save})
 
-	// If the path is empty just assign the value to the target.
-	if len(stmt.Path) == 0 {
-		instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Value)})
-		instrs = append(instrs, instruction.SetLocal{Index: c.local(stmt.Target)})
-		*result = instrs
-		return nil
+	if len(with.Path) == 0 {
+		instrs = append(instrs, instruction.GetLocal{Index: c.local(with.Value)})
+		instrs = append(instrs, instruction.SetLocal{Index: c.local(with.Local)})
+	} else {
+		instrs = c.compileUpsert(with.Local, with.Path, with.Value, instrs)
 	}
 
-	lcopy := c.genLocal() // holds copy of source local
-	instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Source)})
+	undefined := c.genLocal()
+	instrs = append(instrs, instruction.I32Const{Value: 1})
+	instrs = append(instrs, instruction.SetLocal{Index: undefined})
+
+	nested, err := c.compileBlock(with.Block)
+	if err != nil {
+		return err
+	}
+
+	nested = append(nested, instruction.I32Const{Value: 0})
+	nested = append(nested, instruction.SetLocal{Index: undefined})
+	instrs = append(instrs, instruction.Block{Instrs: nested})
+	instrs = append(instrs, instruction.GetLocal{Index: save})
+	instrs = append(instrs, instruction.SetLocal{Index: c.local(with.Local)})
+	instrs = append(instrs, instruction.GetLocal{Index: undefined})
+	instrs = append(instrs, instruction.BrIf{Index: 0})
+
+	*result = instrs
+
+	return nil
+}
+
+func (c *Compiler) compileUpsert(local ir.Local, path []int, value ir.Local, instrs []instruction.Instruction) []instruction.Instruction {
+
+	lcopy := c.genLocal() // holds copy of local
+	instrs = append(instrs, instruction.GetLocal{Index: c.local(local)})
 	instrs = append(instrs, instruction.SetLocal{Index: lcopy})
 
-	// Initialize the target by either shallow copying the source or setting it
-	// to an empty object.
+	// Shallow copy the local if defined otherwise initialize to an empty object.
 	instrs = append(instrs, instruction.Block{
 		Instrs: []instruction.Instruction{
 			instruction.Block{Instrs: []instruction.Instruction{
@@ -663,22 +688,22 @@ func (c *Compiler) compileWithStmt(stmt *ir.WithStmt, result *[]instruction.Inst
 				instruction.Call{Index: c.function(opaValueShallowCopy)},
 				instruction.SetLocal{Index: lcopy},
 				instruction.GetLocal{Index: lcopy},
-				instruction.SetLocal{Index: c.local(stmt.Target)},
+				instruction.SetLocal{Index: c.local(local)},
 				instruction.Br{Index: 1},
 			}},
 			instruction.Call{Index: c.function(opaObject)},
 			instruction.SetLocal{Index: lcopy},
 			instruction.GetLocal{Index: lcopy},
-			instruction.SetLocal{Index: c.local(stmt.Target)},
+			instruction.SetLocal{Index: c.local(local)},
 		},
 	})
 
 	// Initialize the locals that specify the path of the upsert operation.
-	lpath := make(map[int]uint32, len(stmt.Path))
+	lpath := make(map[int]uint32, len(path))
 
-	for i := 0; i < len(stmt.Path); i++ {
+	for i := 0; i < len(path); i++ {
 		lpath[i] = c.genLocal()
-		instrs = append(instrs, instruction.I32Const{Value: c.stringAddr(stmt.Path[i])})
+		instrs = append(instrs, instruction.I32Const{Value: c.stringAddr(path[i])})
 		instrs = append(instrs, instruction.Call{Index: c.function(opaStringTerminated)})
 		instrs = append(instrs, instruction.SetLocal{Index: lpath[i]})
 	}
@@ -689,7 +714,7 @@ func (c *Compiler) compileWithStmt(stmt *ir.WithStmt, result *[]instruction.Inst
 	var inner []instruction.Instruction
 	ltemp := c.genLocal()
 
-	for i := 0; i < len(stmt.Path)-1; i++ {
+	for i := 0; i < len(path)-1; i++ {
 
 		// Lookup the next part of the path.
 		inner = append(inner, instruction.GetLocal{Index: lcopy})
@@ -715,13 +740,13 @@ func (c *Compiler) compileWithStmt(stmt *ir.WithStmt, result *[]instruction.Inst
 		inner = append(inner, instruction.SetLocal{Index: lcopy})
 	}
 
-	inner = append(inner, instruction.Br{Index: uint32(len(stmt.Path) - 1)})
+	inner = append(inner, instruction.Br{Index: uint32(len(path) - 1)})
 
 	// Generate blocks that handle missing nodes during traversal.
 	var block []instruction.Instruction
 	lval := c.genLocal()
 
-	for i := 0; i < len(stmt.Path)-1; i++ {
+	for i := 0; i < len(path)-1; i++ {
 		block = append(block, instruction.Block{Instrs: inner})
 		block = append(block, instruction.Call{Index: c.function(opaObject)})
 		block = append(block, instruction.SetLocal{Index: lval})
@@ -738,13 +763,11 @@ func (c *Compiler) compileWithStmt(stmt *ir.WithStmt, result *[]instruction.Inst
 	// Finish by inserting the statement's value into the shallow copied node.
 	instrs = append(instrs, instruction.Block{Instrs: inner})
 	instrs = append(instrs, instruction.GetLocal{Index: lcopy})
-	instrs = append(instrs, instruction.GetLocal{Index: lpath[len(stmt.Path)-1]})
-	instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Value)})
+	instrs = append(instrs, instruction.GetLocal{Index: lpath[len(path)-1]})
+	instrs = append(instrs, instruction.GetLocal{Index: c.local(value)})
 	instrs = append(instrs, instruction.Call{Index: c.function(opaObjectInsert)})
 
-	*result = instrs
-
-	return nil
+	return instrs
 }
 
 func (c *Compiler) emitFunctionDecl(name string, tpe module.FunctionType, export bool) {
