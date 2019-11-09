@@ -1014,8 +1014,9 @@ func (expr *Expr) IncludeWith(target *Term, value *Term) *Expr {
 
 // NoWith returns a copy of expr where the with modifier has been removed.
 func (expr *Expr) NoWith() *Expr {
-	expr.With = nil
-	return expr
+	cpy := *expr
+	cpy.With = nil
+	return &cpy
 }
 
 // IsEquality returns true if this is an equality expression.
