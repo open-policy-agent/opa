@@ -1606,13 +1606,6 @@ type scaniter func(ir.Local) error
 
 func (p *Planner) planScan(key *ast.Term, iter scaniter) error {
 
-	cond := p.newLocal()
-
-	p.appendStmt(&ir.MakeBooleanStmt{
-		Value:  false,
-		Target: cond,
-	})
-
 	scan := &ir.ScanStmt{
 		Source: p.ltarget,
 		Key:    p.newLocal(),
@@ -1630,25 +1623,8 @@ func (p *Planner) planScan(key *ast.Term, iter scaniter) error {
 		return err
 	}
 
-	p.appendStmt(&ir.AssignBooleanStmt{
-		Value:  true,
-		Target: cond,
-	})
-
 	p.curr = prev
 	p.appendStmt(scan)
-
-	truth := p.newLocal()
-
-	p.appendStmt(&ir.MakeBooleanStmt{
-		Value:  true,
-		Target: truth,
-	})
-
-	p.appendStmt(&ir.EqualStmt{
-		A: cond,
-		B: truth,
-	})
 
 	return nil
 
