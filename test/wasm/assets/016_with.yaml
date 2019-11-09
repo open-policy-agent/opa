@@ -226,3 +226,7 @@ cases:
     query: |
       not input with input as true
     want_result: []
+  - note: with conflict
+    query: |
+      input = x with input.foo as 1 with input.foo.bar as 2
+    want_error: with target conflict

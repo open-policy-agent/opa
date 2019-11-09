@@ -78,6 +78,7 @@ const (
 	errVarAssignConflict int = iota
 	errObjectInsertConflict
 	errObjectMergeConflict
+	errWithConflict
 )
 
 var errorMessages = [...]struct {
@@ -87,6 +88,7 @@ var errorMessages = [...]struct {
 	{errVarAssignConflict, "var assignment conflict"},
 	{errObjectInsertConflict, "object insert conflict"},
 	{errObjectMergeConflict, "object merge conflict"},
+	{errWithConflict, "with target conflict"},
 }
 
 // New returns a new compiler object.
@@ -726,6 +728,19 @@ func (c *Compiler) compileUpsert(local ir.Local, path []int, value ir.Local, ins
 		inner = append(inner, instruction.GetLocal{Index: ltemp})
 		inner = append(inner, instruction.I32Eqz{})
 		inner = append(inner, instruction.BrIf{Index: uint32(i)})
+
+		// If the next node is not an object, generate a conflict error.
+		inner = append(inner, instruction.Block{
+			Instrs: []instruction.Instruction{
+				instruction.GetLocal{Index: ltemp},
+				instruction.Call{Index: c.function(opaValueType)},
+				instruction.I32Const{Value: opaTypeObject},
+				instruction.I32Eq{},
+				instruction.BrIf{Index: 0},
+				instruction.I32Const{Value: c.builtinStringAddr(errWithConflict)},
+				instruction.Call{Index: c.function(opaAbort)},
+			},
+		})
 
 		// Otherwise, shallow copy the next node node and insert into the copy
 		// before continuing.
