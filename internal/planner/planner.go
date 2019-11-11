@@ -28,7 +28,7 @@ type Planner struct {
 	curr      *ir.Block           // in-progress query block
 	vars      *varstack           // in-scope variables
 	ltarget   ir.Local            // target variable of last planned statement
-	lcurr     ir.Local            // next variable to use
+	lnext     ir.Local            // next variable to use
 }
 
 // New returns a new Planner object.
@@ -40,7 +40,7 @@ func New() *Planner {
 			Funcs:  &ir.Funcs{},
 		},
 		strings: map[string]int{},
-		lcurr:   ir.Unused,
+		lnext:   ir.Unused,
 		vars: newVarstack(map[ast.Var]ir.Local{
 			ast.InputRootDocument.Value.(ast.Var):   ir.Input,
 			ast.DefaultRootDocument.Value.(ast.Var): ir.Data,
@@ -118,12 +118,25 @@ func (p *Planner) planRules(rules []*ast.Rule) (string, error) {
 		return funcName, nil
 	}
 
+	// Save current state of planner.
+	//
+	// TODO(tsandall): perhaps we would be better off using stacks here or
+	// splitting block planner into separate struct that could be instantiated
+	// for rule and comprehension bodies.
+	pvars := p.vars
+	pcurr := p.curr
+	pltarget := p.ltarget
+	plnext := p.lnext
+
+	// Reset the variable counter for the function plan.
+	p.lnext = ir.Input
+
 	// Create function definition for rules.
 	fn := &ir.Func{
 		Name: fmt.Sprintf("g%d.%s", p.funcs.gen, path),
 		Params: []ir.Local{
-			p.newLocal(),
-			p.newLocal(),
+			p.newLocal(), // input document
+			p.newLocal(), // data document
 		},
 		Return: p.newLocal(),
 	}
@@ -155,13 +168,9 @@ func (p *Planner) planRules(rules []*ast.Rule) (string, error) {
 		})
 	}
 
-	// Save current state of planner.
-	//
-	// TODO(tsandall): perhaps we would be better off using stacks here or
-	// splitting block planner into separate struct that could be instantiated
-	// for rule and comprehension bodies.
-	currVars := p.vars
-	currBlock := p.curr
+	// At this point the locals for the params and return value have been
+	// allocated. This will be the first local that can be used in each block.
+	lnext := p.lnext
 
 	var defaultRule *ast.Rule
 
@@ -192,6 +201,7 @@ func (p *Planner) planRules(rules []*ast.Rule) (string, error) {
 		for rule := rules[i]; rule != nil; rule = rule.Else {
 
 			// Setup planner for block.
+			p.lnext = lnext
 			p.vars = newVarstack(map[ast.Var]ir.Local{
 				ast.InputRootDocument.Value.(ast.Var):   fn.Params[0],
 				ast.DefaultRootDocument.Value.(ast.Var): fn.Params[1],
@@ -303,8 +313,10 @@ func (p *Planner) planRules(rules []*ast.Rule) (string, error) {
 	p.funcs.Add(path, fn.Name)
 
 	// Restore the state of the planner.
-	p.vars = currVars
-	p.curr = currBlock
+	p.lnext = plnext
+	p.ltarget = pltarget
+	p.vars = pvars
+	p.curr = pcurr
 
 	return fn.Name, nil
 }
@@ -348,11 +360,13 @@ func (p *Planner) planQueries() error {
 		}
 	}
 
+	lnext := p.lnext
 	p.appendBlock(p.curr)
 
 	for _, q := range p.queries {
-		p.curr = &ir.Block{}
+		p.lnext = lnext
 		p.vars.Push(map[ast.Var]ir.Local{})
+		p.curr = &ir.Block{}
 		defined := false
 		qvs := q.Vars(ast.VarVisitorParams{SkipRefCallHead: true, SkipClosures: true}).Diff(ast.ReservedVars).Sorted()
 
@@ -1698,8 +1712,8 @@ func (p *Planner) appendBlock(b *ir.Block) {
 }
 
 func (p *Planner) newLocal() ir.Local {
-	x := p.lcurr
-	p.lcurr++
+	x := p.lnext
+	p.lnext++
 	return x
 }
 
