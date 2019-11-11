@@ -1019,16 +1019,16 @@ func (p *Planner) planBoolean(b ast.Boolean, iter planiter) error {
 
 func (p *Planner) planNumber(num ast.Number, iter planiter) error {
 
-	i, ok := num.Int64()
-	if !ok {
-		f, ok := num.Float64()
-		if !ok {
-			return errors.New("arbitrary-precision numbers are not supported")
-		}
-		return p.planNumberFloat(f, iter)
-	}
+	index := p.getStringConst(string(num))
+	target := p.newLocal()
 
-	return p.planNumberInt(i, iter)
+	p.appendStmt(&ir.MakeNumberRefStmt{
+		Index:  index,
+		Target: target,
+	})
+
+	p.ltarget = target
+	return iter()
 }
 
 func (p *Planner) planNumberFloat(f float64, iter planiter) error {

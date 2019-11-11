@@ -265,6 +265,12 @@ type MakeNumberIntStmt struct {
 	Target Local
 }
 
+// MakeNumberRefStmt constructs a local variable that refers to a number stored as a string.
+type MakeNumberRefStmt struct {
+	Index  int
+	Target Local
+}
+
 // MakeArrayStmt constructs a local variable that refers to an array value.
 type MakeArrayStmt struct {
 	Capacity int32

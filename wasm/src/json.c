@@ -278,107 +278,6 @@ void opa_json_lex_init(const char *input, size_t len, opa_json_lex *ctx)
     ctx->buf_end = NULL;
 }
 
-long long opa_json_parse_int(const char *buf, int len)
-{
-    int i = 0;
-    int sign = 1;
-
-    if (buf[i] == '-')
-    {
-        sign = -1;
-        i++;
-    }
-
-    long long n = 0;
-
-    for (; i < len; i++)
-    {
-        n = (n * 10) + (long long)(buf[i] - '0');
-    }
-
-    return n * sign;
-}
-
-double opa_json_parse_float(const char *buf, int len)
-{
-    double sign = 1.0;
-    int i = 0;
-
-    if (buf[i] == '-')
-    {
-        sign = -1.0;
-        i++;
-    }
-
-    // Handle integer component.
-    double d = 0.0;
-
-    for (; i < len && opa_isdigit(buf[i]); i++)
-    {
-        d = (10.0 * d) + (double)(buf[i] - '0');
-    }
-
-    d *= sign;
-
-    if (i == len)
-    {
-        return d;
-    }
-
-    // Handle fraction component.
-    if (buf[i] == '.')
-    {
-        i++;
-
-        double b = 0.1;
-        double frac = 0;
-
-        for (; i < len && opa_isdigit(buf[i]); i++)
-        {
-            frac += b * (buf[i] - '0');
-            b /= 10.0;
-        }
-
-        d += (frac * sign);
-
-        if (i == len)
-        {
-            return d;
-        }
-    }
-
-    // Handle exponent component.
-    i++;
-    int exp_sign = 1;
-
-    if (buf[i] == '-')
-    {
-        exp_sign = -1;
-        i++;
-    }
-    else if (buf[i] == '+')
-    {
-        i++;
-    }
-
-    int e = 0;
-
-    for (; i < len; i++)
-    {
-        e = 10 * e + (int)(buf[i] - '0');
-    }
-
-    // Calculate pow(10, e).
-    int x = 1;
-
-    for (; e > 0; e--)
-    {
-        x *= 10;
-    }
-
-    return d * (double)(exp_sign * x);
-}
-
 opa_value *opa_json_parse_string(int token, const char *buf, int len)
 {
     if (token == OPA_JSON_TOKEN_STRING)
@@ -453,15 +352,7 @@ opa_value *opa_json_parse_string(int token, const char *buf, int len)
 
 opa_value *opa_json_parse_number(const char *buf, int len)
 {
-    for (int i = 0; i < len; i++)
-    {
-        if (buf[i] == '.' || buf[i] == 'e' || buf[i] == 'E')
-        {
-            return opa_number_float(opa_json_parse_float(buf, len));
-        }
-    }
-
-    return opa_number_int(opa_json_parse_int(buf, len));
+    return opa_number_ref(buf, len);
 }
 
 opa_value *opa_json_parse_array(opa_json_lex *ctx)
@@ -693,12 +584,18 @@ int opa_json_writer_emit_integer(opa_json_writer *w, long long i)
 
 int opa_json_writer_emit_number(opa_json_writer *w, opa_number_t *n)
 {
-    if (n->is_float)
+    switch (n->repr)
     {
+    case OPA_NUMBER_REPR_FLOAT:
         return opa_json_writer_emit_float(w, n->v.f);
+    case OPA_NUMBER_REPR_INT:
+        return opa_json_writer_emit_integer(w, n->v.i);
+    case OPA_NUMBER_REPR_REF:
+        return opa_json_writer_emit_chars(w, n->v.ref.s, n->v.ref.len);
+    default:
+        opa_abort("opa_json_writer_emit_number: illegal repr");
+        return -1;
     }
-
-    return opa_json_writer_emit_integer(w, n->v.i);
 }
 
 int opa_json_writer_emit_string(opa_json_writer *w, opa_string_t *s)
