@@ -11,8 +11,9 @@
 #define OPA_OBJECT (6)
 #define OPA_SET (7)
 
-#define OPA_EXT_INT (1)
-#define OPA_EXT_FLOAT (2)
+#define OPA_NUMBER_REPR_INT (1)
+#define OPA_NUMBER_REPR_FLOAT (2)
+#define OPA_NUMBER_REPR_REF (3)
 
 typedef struct opa_value opa_value;
 
@@ -29,11 +30,18 @@ typedef struct
 
 typedef struct
 {
+    const char *s;
+    size_t len;
+} opa_number_ref_t;
+
+typedef struct
+{
     opa_value hdr;
-    unsigned char is_float;
+    unsigned char repr;
     union {
         long long i;
         double f;
+        opa_number_ref_t ref;
     } v;
 } opa_number_t;
 
@@ -106,16 +114,12 @@ void opa_value_free(opa_value *node);
 opa_value *opa_value_merge(opa_value *a, opa_value *b);
 opa_value *opa_value_shallow_copy(opa_value *node);
 
-long long opa_value_int(opa_value *node);
-double opa_value_float(opa_value *node);
-const char *opa_value_string(opa_value *node);
-int opa_value_boolean(opa_value *node);
-
 opa_value *opa_null();
 opa_value *opa_boolean(int v);
 opa_value *opa_number_size(size_t v);
 opa_value *opa_number_int(long long v);
 opa_value *opa_number_float(double v);
+opa_value *opa_number_ref(const char *s, size_t len);
 opa_value *opa_string(const char *v, size_t len);
 opa_value *opa_string_terminated(const char *v);
 opa_value *opa_string_allocated(const char *v, size_t len);
@@ -127,6 +131,9 @@ opa_value *opa_set();
 
 void opa_value_boolean_set(opa_value *v, int b);
 void opa_value_number_set_int(opa_value *v, long long i);
+
+int opa_number_try_int(opa_number_t *n, long long *i);
+double opa_number_as_float(opa_number_t *n);
 
 void opa_string_free(opa_string_t *s);
 

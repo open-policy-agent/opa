@@ -52,17 +52,19 @@ opa_value *opa_value_get_array(opa_array_t *arr, opa_value *key)
 
     opa_number_t *num = opa_cast_number(key);
 
-    if (num->is_float)
+    long long i;
+
+    if (opa_number_try_int(num, &i) != 0)
     {
         return NULL;
     }
 
-    if (num->v.i < 0)
+    if (i < 0)
     {
         return NULL;
     }
 
-    return opa_value_get_array_native(arr, num->v.i);
+    return opa_value_get_array_native(arr, i);
 }
 
 opa_value *opa_value_get(opa_value *node, opa_value *key)
@@ -145,12 +147,13 @@ opa_value *opa_value_iter_array(opa_array_t *arr, opa_value *prev)
 
     opa_number_t *num = opa_cast_number(prev);
 
-    if (num->is_float)
+    long long i;
+
+    if (opa_number_try_int(num, &i) != 0)
     {
         return NULL;
     }
 
-    long long i = num->v.i;
     i++;
 
     if (i < 0 || i >= arr->len)
@@ -241,38 +244,25 @@ int opa_value_compare_float(double a, double b)
 
 int opa_value_compare_number(opa_number_t *a, opa_number_t *b)
 {
-    if (!a->is_float && !b->is_float)
+    long long la, lb;
+
+    if (opa_number_try_int(a, &la) == 0 && opa_number_try_int(b, &lb) == 0)
     {
-        if (a->v.i < b->v.i)
+        if (la < lb)
         {
             return -1;
         }
-        else if (a->v.i > b->v.i)
+        else if (la > lb)
         {
             return 1;
         }
         return 0;
     }
 
-    if (a->is_float && b->is_float)
-    {
-        return opa_value_compare_float(a->v.f, b->v.f);
-    }
+    double da = opa_number_as_float(a);
+    double db = opa_number_as_float(b);
 
-    double a1, b1;
-
-    if (!a->is_float)
-    {
-        a1 = (double)a->v.i;
-        b1 = b->v.f;
-    }
-    else
-    {
-        a1 = a->v.f;
-        b1 = (double)b->v.i;
-    }
-
-    return opa_value_compare_float(a1, b1);
+    return opa_value_compare_float(da, db);
 }
 
 int opa_value_compare_string(opa_string_t *a, opa_string_t *b)
@@ -577,12 +567,18 @@ opa_value *opa_value_shallow_copy_boolean(opa_boolean_t *b)
 
 opa_value *opa_value_shallow_copy_number(opa_number_t *n)
 {
-    if (n->is_float)
+    switch (n->repr)
     {
+    case OPA_NUMBER_REPR_FLOAT:
         return opa_number_float(n->v.f);
+    case OPA_NUMBER_REPR_REF:
+        return opa_number_ref(n->v.ref.s, n->v.ref.len);
+    case OPA_NUMBER_REPR_INT:
+        return opa_number_int(n->v.i);
+    default:
+        opa_abort("opa_value_shallow_copy_number: illegal repr");
+        return NULL;
     }
-
-    return opa_number_int(n->v.i);
 }
 
 opa_value *opa_value_shallow_copy_string(opa_string_t *s)
@@ -658,26 +654,6 @@ opa_value *opa_value_shallow_copy(opa_value *node)
     return NULL;
 }
 
-int opa_value_boolean(opa_value *node)
-{
-    return opa_cast_boolean(node)->v;
-}
-
-long long opa_value_int(opa_value *node)
-{
-    return opa_cast_number(node)->v.i;
-}
-
-double opa_value_float(opa_value *node)
-{
-    return opa_cast_number(node)->v.f;
-}
-
-const char *opa_value_string(opa_value *node)
-{
-    return opa_cast_string(node)->v;
-}
-
 opa_value *opa_null()
 {
     opa_value *ret = (opa_value *)opa_malloc(sizeof(opa_value));
@@ -697,7 +673,7 @@ opa_value *opa_number_size(size_t v)
 {
     opa_number_t *ret = (opa_number_t *)opa_malloc(sizeof(opa_number_t));
     ret->hdr.type = OPA_NUMBER;
-    ret->is_float = 0;
+    ret->repr = OPA_NUMBER_REPR_INT;
     ret->v.i = (long long)v;
     return &ret->hdr;
 }
@@ -706,7 +682,7 @@ opa_value *opa_number_int(long long v)
 {
     opa_number_t *ret = (opa_number_t *)opa_malloc(sizeof(opa_number_t));
     ret->hdr.type = OPA_NUMBER;
-    ret->is_float = 0;
+    ret->repr = OPA_NUMBER_REPR_INT;
     ret->v.i = v;
     return &ret->hdr;
 }
@@ -715,9 +691,60 @@ opa_value *opa_number_float(double v)
 {
     opa_number_t *ret = (opa_number_t *)opa_malloc(sizeof(opa_number_t));
     ret->hdr.type = OPA_NUMBER;
-    ret->is_float = 1;
+    ret->repr = OPA_NUMBER_REPR_FLOAT;
     ret->v.f = v;
     return &ret->hdr;
+}
+
+opa_value *opa_number_ref(const char *s, size_t len)
+{
+    opa_number_t *ret = (opa_number_t *)opa_malloc(sizeof(opa_number_t));
+    ret->hdr.type = OPA_NUMBER;
+    ret->repr = OPA_NUMBER_REPR_REF;
+    ret->v.ref.s = s;
+    ret->v.ref.len = len;
+    return &ret->hdr;
+}
+
+int opa_number_try_int(opa_number_t *n, long long *i)
+{
+    switch (n->repr)
+    {
+    case OPA_NUMBER_REPR_FLOAT:
+        return -1;
+    case OPA_NUMBER_REPR_INT:
+        *i = n->v.i;
+        return 0;
+    case OPA_NUMBER_REPR_REF:
+        return opa_atoi64(n->v.ref.s, n->v.ref.len, i);
+    default:
+        opa_abort("opa_number_try_int: illegal repr");
+        return -1;
+    }
+}
+
+double opa_number_as_float(opa_number_t *n)
+{
+    switch (n->repr)
+    {
+    case OPA_NUMBER_REPR_FLOAT:
+        return n->v.f;
+    case OPA_NUMBER_REPR_INT:
+        return (double)n->v.i;
+    case OPA_NUMBER_REPR_REF:
+    {
+        double d;
+        int rc = opa_atof64(n->v.ref.s, n->v.ref.len, &d);
+        if (rc != 0)
+        {
+            opa_abort("opa_number_as_float: illegal ref");
+        }
+        return d;
+    }
+    default:
+        opa_abort("opa_number_as_float: illegal repr");
+        return 0.0;
+    }
 }
 
 opa_value *opa_string(const char *v, size_t len)
@@ -840,7 +867,7 @@ void opa_value_boolean_set(opa_value *v, int b)
 void opa_value_number_set_int(opa_value *v, long long i)
 {
 	opa_number_t *ret = opa_cast_number(v);
-	ret->is_float = 0;
+	ret->repr = OPA_NUMBER_REPR_INT;
 	ret->v.i = i;
 }
 

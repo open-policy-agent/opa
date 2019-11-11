@@ -90,6 +90,54 @@ void test_opa_itoa()
     test("itoa/base16", opa_strcmp(opa_itoa(0xFFFFFFFFFFFFFFFF, buf, 16), "-1") == 0);
 }
 
+
+int crunch_opa_atoi64(const char *str, long long exp, int exp_rc)
+{
+    long long result;
+    int rc;
+
+    if ((rc = opa_atoi64(str, opa_strlen(str), &result)) != exp_rc)
+    {
+        return 0;
+    }
+
+    return exp_rc != 0 || result == exp;
+}
+
+void test_opa_atoi64()
+{
+    test("integer", crunch_opa_atoi64("127", 127, 0));
+    test("negative integer", crunch_opa_atoi64("-128", -128, 0));
+    test("non integer", crunch_opa_atoi64("-128.3", 0, -2));
+    test("empty", crunch_opa_atoi64("", 0, -1));
+}
+
+int crunch_opa_atof64(const char *str, double exp, int exp_rc)
+{
+    double result;
+    int rc;
+
+    if ((rc = opa_atof64(str, opa_strlen(str), &result)) != exp_rc)
+    {
+        return 0;
+    }
+
+    return exp_rc != 0 || result == exp;
+}
+
+void test_opa_atof64()
+{
+    test("empty", crunch_opa_atof64("", 0, -1));
+    test("bad integer", crunch_opa_atof64("1234-6", 0, -2));
+    test("bad fraction", crunch_opa_atof64("1234.5-6", 0, -2));
+    test("bad exponent", crunch_opa_atof64("1234.5e6-", 0, -2));
+    test("bad exponent", crunch_opa_atof64("12345e6-", 0, -2));
+    test("integer", crunch_opa_atof64("127", 127, 0));
+    test("negative integer", crunch_opa_atof64("-128", -128, 0));
+    test("fraction", crunch_opa_atof64("16.7", 16.7, 0));
+    test("exponent", crunch_opa_atof64("6e7", 6e7, 0));
+}
+
 int lex_crunch(const char *s)
 {
     opa_json_lex ctx;
@@ -760,6 +808,8 @@ void test_opa_json_dump()
 
     // NOTE(tsandall): trailing zeros should be omitted but this appears to be an open issue: https://github.com/mpaland/printf/issues/55
     test("numbers/float", opa_strcmp(opa_json_dump(opa_number_float(10.5)), "10.5000") == 0);
+
+    test("numbers/ref", opa_strcmp(opa_json_dump(opa_number_ref("127", 3)), "127") == 0);
 
     opa_value *arr = opa_array();
     test("arrays", opa_strcmp(opa_json_dump(arr), "[]") == 0);

@@ -143,3 +143,134 @@ char *opa_itoa(long long i, char *str, int base)
 
     return opa_reverse(str);
 }
+
+int opa_atoi64(const char *str, int len, long long *result)
+{
+    if (len <= 0)
+    {
+        return -1;
+    }
+
+    int i = 0;
+    int sign = 1;
+
+    if (str[i] == '-')
+    {
+        sign = -1;
+        i++;
+    }
+
+    long long n = 0;
+
+    for (; i < len; i++)
+    {
+        if (!opa_isdigit(str[i]))
+        {
+            return -2;
+        }
+
+        n = (n * 10) + (long long)(str[i] - '0');
+    }
+
+    *result = n * sign;
+
+    return 0;
+}
+
+int opa_atof64(const char *str, int len, double *result)
+{
+    if (len <= 0)
+    {
+        return -1;
+    }
+
+    // Handle sign.
+    double sign = 1.0;
+    int i = 0;
+
+    if (str[i] == '-')
+    {
+        sign = -1.0;
+        i++;
+    }
+
+    // Handle integer component.
+    double d = 0.0;
+
+    for (; i < len && opa_isdigit(str[i]); i++)
+    {
+        d = (10.0 * d) + (double)(str[i] - '0');
+    }
+
+    d *= sign;
+
+    if (i == len)
+    {
+        *result = d;
+        return 0;
+    }
+
+    // Handle fraction component.
+    if (str[i] == '.')
+    {
+        i++;
+
+        double b = 0.1;
+        double frac = 0;
+
+        for (; i < len && opa_isdigit(str[i]); i++)
+        {
+            frac += b * (str[i] - '0');
+            b /= 10.0;
+        }
+
+        d += (frac * sign);
+
+        if (i == len)
+        {
+            *result = d;
+            return 0;
+        }
+
+    }
+
+    // Handle exponent component.
+    if (str[i] == 'e' || str[i] == 'E')
+    {
+        i++;
+        int exp_sign = 1;
+
+        if (str[i] == '-')
+        {
+            exp_sign = -1;
+            i++;
+        }
+        else if (str[i] == '+')
+        {
+            i++;
+        }
+
+        int e = 0;
+
+        for (; i < len && opa_isdigit(str[i]); i++)
+        {
+            e = 10 * e + (int)(str[i] - '0');
+        }
+
+        if (i == len)
+        {
+            // Calculate pow(10, e).
+            int x = 1;
+
+            for (; e > 0; e--)
+            {
+                x *= 10;
+            }
+
+            *result = d * (double)(exp_sign * x);
+            return 0;
+        }
+    }
+
+    return -2;
+}
