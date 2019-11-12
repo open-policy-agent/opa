@@ -73,6 +73,8 @@ type Compiler struct {
 
 	nextLocal uint32
 	locals    map[ir.Local]uint32
+	lctx      uint32 // local pointing to eval context
+	lrs       uint32 // local pointing to result set
 }
 
 const (
@@ -171,7 +173,7 @@ func (c *Compiler) initModule() error {
 	}
 
 	c.emitFunctionDecl("eval", module.FunctionType{
-		Params:  []types.ValueType{types.I32, types.I32},
+		Params:  []types.ValueType{types.I32},
 		Results: []types.ValueType{types.I32},
 	}, true)
 
@@ -233,13 +235,27 @@ func (c *Compiler) compileFuncs() error {
 // the module.
 func (c *Compiler) compilePlan() error {
 
-	// reset local variables and declare raw ptr, len, and input ptr.
+	c.code = &module.CodeEntry{}
 	c.nextLocal = 0
 	c.locals = map[ir.Local]uint32{}
-	_ = c.local(ir.Input)
-	_ = c.local(ir.Data)
+	c.lctx = c.genLocal()
+	c.lrs = c.genLocal()
 
-	c.code = &module.CodeEntry{}
+	// Initialize the input and data locals.
+	c.appendInstr(instruction.GetLocal{Index: c.lctx})
+	c.appendInstr(instruction.I32Load{Offset: 0, Align: 2})
+	c.appendInstr(instruction.SetLocal{Index: c.local(ir.Input)})
+
+	c.appendInstr(instruction.GetLocal{Index: c.lctx})
+	c.appendInstr(instruction.I32Load{Offset: 4, Align: 2})
+	c.appendInstr(instruction.SetLocal{Index: c.local(ir.Data)})
+
+	// Initialize the result set.
+	c.appendInstr(instruction.Call{Index: c.function(opaSet)})
+	c.appendInstr(instruction.SetLocal{Index: c.lrs})
+	c.appendInstr(instruction.GetLocal{Index: c.lctx})
+	c.appendInstr(instruction.GetLocal{Index: c.lrs})
+	c.appendInstr(instruction.I32Store{Offset: 8, Align: 2})
 
 	for i := range c.policy.Plan.Blocks {
 
@@ -248,12 +264,10 @@ func (c *Compiler) compilePlan() error {
 			return errors.Wrapf(err, "block %d", i)
 		}
 
-		if i < len(c.policy.Plan.Blocks)-1 {
-			c.appendInstr(instruction.Block{Instrs: instrs})
-		} else {
-			c.appendInstrs(instrs)
-		}
+		c.appendInstr(instruction.Block{Instrs: instrs})
 	}
+
+	c.appendInstr(instruction.I32Const{Value: int32(0)})
 
 	c.code.Func.Locals = []module.LocalDeclaration{
 		{
@@ -316,6 +330,10 @@ func (c *Compiler) compileBlock(block *ir.Block) ([]instruction.Instruction, err
 
 	for _, stmt := range block.Stmts {
 		switch stmt := stmt.(type) {
+		case *ir.ResultSetAdd:
+			instrs = append(instrs, instruction.GetLocal{Index: c.lrs})
+			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Value)})
+			instrs = append(instrs, instruction.Call{Index: c.function(opaSetAdd)})
 		case *ir.ReturnLocalStmt:
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Source)})
 			instrs = append(instrs, instruction.Return{})

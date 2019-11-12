@@ -334,8 +334,6 @@ func (p *Planner) planQueries() error {
 
 	// Initialize the plan with a block that prepares the query result.
 	p.curr = &ir.Block{}
-	lresultset := p.newLocal()
-	p.appendStmt(&ir.MakeSetStmt{Target: lresultset})
 
 	// Build a set of variables appearing in the query and allocate strings for
 	// each one. The strings will be used in the result set objects.
@@ -360,8 +358,11 @@ func (p *Planner) planQueries() error {
 		}
 	}
 
+	if len(p.curr.Stmts) > 0 {
+		p.appendBlock(p.curr)
+	}
+
 	lnext := p.lnext
-	p.appendBlock(p.curr)
 
 	for _, q := range p.queries {
 		p.lnext = lnext
@@ -390,9 +391,8 @@ func (p *Planner) planQueries() error {
 				}
 			}
 
-			p.appendStmt(&ir.SetAddStmt{
+			p.appendStmt(&ir.ResultSetAdd{
 				Value: lr,
-				Set:   lresultset,
 			})
 
 			defined = true
@@ -407,14 +407,6 @@ func (p *Planner) planQueries() error {
 			p.appendBlock(p.curr)
 		}
 	}
-
-	p.appendBlock(&ir.Block{
-		Stmts: []ir.Stmt{
-			&ir.ReturnLocalStmt{
-				Source: lresultset,
-			},
-		},
-	})
 
 	return nil
 }
