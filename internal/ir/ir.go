@@ -95,18 +95,6 @@ type (
 )
 
 const (
-	// Undefined represents an undefined return value. An undefined return value
-	// indicates the policy did not return a definitive answer.
-	Undefined int32 = iota
-
-	// Defined represents a defined return value.
-	Defined
-
-	// Error indicates a runtime error occurred during evaluation.
-	Error
-)
-
-const (
 	// Input is the local variable that refers to the global input document.
 	Input Local = iota
 
@@ -392,4 +380,9 @@ type WithStmt struct {
 	Path  []int
 	Value Local
 	Block *Block
+}
+
+// ResultSetAdd adds a value into the result set returned by the query plan.
+type ResultSetAdd struct {
+	Value Local
 }

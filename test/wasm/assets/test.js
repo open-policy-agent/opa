@@ -116,10 +116,20 @@ async function instantiate(bytes, memory, data) {
 }
 
 function evaluate(policy, input) {
+
     policy.module.instance.exports.opa_heap_ptr_set(policy.heapPtr);
     policy.module.instance.exports.opa_heap_top_set(policy.heapTop);
+
     const inputAddr = loadJSON(policy.module, policy.memory, input);
-    const resultAddr = policy.module.instance.exports.eval(inputAddr, policy.dataAddr);
+    const ctxAddr = policy.module.instance.exports.opa_eval_ctx_new();
+
+    policy.module.instance.exports.opa_eval_ctx_set_input(ctxAddr, inputAddr);
+    policy.module.instance.exports.opa_eval_ctx_set_data(ctxAddr, policy.dataAddr);
+
+    policy.module.instance.exports.eval(ctxAddr);
+
+    const resultAddr = policy.module.instance.exports.opa_eval_ctx_get_result(ctxAddr);
+
     return { addr: resultAddr };
 }
 
