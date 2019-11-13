@@ -1,13 +1,1648 @@
 {{ define "main" }}
-{{ partial "home/svg.html" . }}
-{{ partial "home/banner.html" . }}
+  <!doctype html>
+  <html lang="en">
 
-<main role="main">
-  {{ partial "home/traits.html" . }}
-  {{ partial "home/use-cases.html" . }}
-</main>
+  <head>
+      {{ partial "google-analytics.html" . }}
+      {{ partial "meta.html" . }}
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1, shrink-to-fit=no">
 
-{{ partial "home/footer.html" . }}
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="css/bootstrap.min.css">
 
-<script type="text/javascript" src="/js/home.js"></script>
+    <title>OPA </title>
+    <link rel="stylesheet" href="./css/home.css">
+  </head>
+
+  <body data-spy="scroll" data-target=".navbar" data-offset="90">
+  <div id="navigation">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-transparent">
+      <div class="container">
+
+        <a class="navbar-brand" href="#top"><img src="./img/logo-white.png"
+                                                 class="img-fluid"></a>
+        <button class="navbar-toggler navbar-toggler-right collapsed"
+                type="button" data-toggle="collapse"
+                data-target="#navb" aria-expanded="false">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="navbar-collapse collapse" id="navb">
+          <ul class="navbar-nav mr-auto">
+          </ul>
+
+          <ul class="navbar-nav">
+            <li class="nav-item">
+              <a class="nav-link" href="./docs/latest/">Documentation </a>
+            </li>
+            <!-- <li class="nav-item">
+              <a class="nav-link" href="./docs/latest/get-started/">Tutorials </a>
+            </li> -->
+            <li class="nav-item">
+              <a class="nav-link"
+                 href="./docs/edge/ecosystem/">Integrations </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="./support">Support</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="https://play.openpolicyagent.org/">Playground</a>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+    </nav>
+  </div>
+
+  <!-- <section id="homebackground">
+      <div class="bg"><img src="./img/homebg.png"></div>
+      <div class="cloud-top"><img src="./img/cloudAll.png"></div>
+      <div class="homepageconterimage"><img src="./img/homeBanner.png"></div>
+    </section> -->
+
+  <section id="homebackground">
+
+    <div class="bg">
+      <div class="banner-content">Policy-based control for cloud native
+        environments
+      </div>
+      <div class="banner-subcontent">Flexible, fine-grained control for
+        administrators across the stack
+      </div>
+      <img src="./img/banner-image.png">
+      <div class="mobile-view-Banner"><img
+                src="./img/opa-mobile-banner_mobile.png"></div>
+    </div>
+  </section>
+
+  <div class="clearfix"></div>
+
+  <section id="about">
+    <div class="container">
+      <div class="row">
+        <div class="col-12">
+          <div class="about-text">
+            <p>
+              Stop using a different policy language, policy model, and policy
+              API for every product and service you use. Use OPA for a unified
+              toolset and framework for policy across the cloud native stack.
+            </p>
+          </div>
+          <div class="subparagraph about-text">
+            <p>
+              Whether for one service or for all your services, use OPA to
+              decouple policy from the service's code so you can release,
+              analyze, and review policies (which security and compliance teams
+              love) without sacrificing availability or performance.
+            </p>
+          </div>
+          <div class="mt-5 text-center blue">
+            <button class="btn btn-primary"><a><span>Learn More:</span></a> <a
+                      href="./docs/latest/kubernetes-introduction/">Kubernetes</a>
+              - <a
+                      href="./docs/latest/envoy-authorization/">Envoy</a> - <a
+                      href="./docs/latest/terraform/">Terraform</a> - <a
+                      href="./docs/latest/kafka-authorization/">Kafka</a>
+              -
+              <a href="https://blog.openpolicyagent.org/write-policy-in-opa-enforce-policy-in-sql-d9d24db93bf4">SQL</a>
+              - <a href="./docs/latest/ssh-and-sudo-authorization/">Linux</a>
+            </button>
+          </div>
+          <div class="mt-5 text-center">
+            <div class="styraText">
+              <p>Created By</p><span> <a href="https://styra.com"><img
+                          src="./img/styra-logo.jpg"
+                          class="img-fluid"></a></span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!--
+      <div class="row">
+        <div class="col-12 col-sm-4 col-md-4 col-lg-2 mt-5">
+          <a href="#">
+            <div class="box-1 text-center">
+                <div class="boxTop">
+                  <div class="boxTop-heading">
+                    <h3>OPA v 0.14.1 Released</h3>
+                    <h3>Release Notes</h3>
+                    <div class="pt-4"></div>
+                  </div>
+                </div>
+            </div>
+            <div class="boxBottom text-center">
+              <div class="boxBottom-heading pt-4 pb-4">
+                <p>August 8, 2019</p>
+              </div>
+            </div>
+          </a>
+        </div>
+        <div class="col-12 col-sm-4 col-md-4 col-lg-2 mt-5">
+          <a href="#">
+            <div class="box-1 text-center">
+              <div class="boxTop">
+                <div class="boxTop-heading">
+                  <h3>Blog on WASM</h3>
+                  <div class="pt-4"></div>
+                </div>
+              </div>
+            </div>
+            <div class="boxBottom text-center">
+              <div class="boxBottom-heading  pt-4 pb-4">
+                <p>August 15, 2019</p>
+              </div>
+            </div>
+          </a>
+        </div>
+        <div class="col-12 col-sm-4 col-md-4 col-lg-2 mt-5">
+          <a href="#">
+            <div class="box-1 text-center">
+              <div class="boxTop">
+                <div class="boxTop-heading">
+                  <h3>External blog on SSH</h3>
+                  <div class="pt-4"></div>
+                </div>
+              </div>
+            </div>
+            <div class="boxBottom text-center">
+              <div class="boxBottom-heading  pt-4 pb-4">
+                <p>August 19, 2019</p>
+              </div>
+            </div>
+          </a>
+        </div>
+        <div class="col-12 col-sm-4 col-md-4 col-lg-2 mt-5">
+          <a href="#">
+            <div class="box-1 text-center">
+              <div class="boxTop">
+                <div class="boxTop-heading">
+                  <h3>Meetup in SF on OPA: OPA for CICD</h3>
+                  <div class="pt-4"></div>
+                </div>
+              </div>
+            </div>
+            <div class="boxBottom text-center">
+              <div class="boxBottom-heading  pt-4 pb-4">
+                <p>August 20, 2019</p>
+              </div>
+            </div>
+          </a>
+        </div>
+        <div class="col-12 col-sm-4 col-md-4 col-lg-2 mt-5">
+          <a href="#">
+            <div class="box-1 text-center">
+              <div class="boxTop">
+                <div class="boxTop-heading">
+                  <h3>OPA Summit at Kubecon. CFPs</h3>
+                  <div class="pt-4"></div>
+                </div>
+              </div>
+            </div>
+            <div class="boxBottom text-center">
+              <div class="boxBottom-heading  pt-4 pb-4">
+                <p>Sept 1, 2019</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div> -->
+    </div>
+  </section>
+
+  <section id="gray">
+
+    <div class="gray-top-image"><img src="./img/gray-top.png"></div>
+    <section id="declarative-policy">
+
+      <div class="container">
+        <div class="row desktopView">
+          <div class="col-12 text-center pt-5">
+            <h2>Declarative Policy</h2>
+            <div class="subText">Context-aware, Expressive, Fast, Portable</div>
+          </div>
+          <div class="col-12  mt-sm-5">
+            <div class="declarative-table mt-5">
+
+              <div class="tab-pane " id="tab-5" role="tabpanel">
+                <ul class="nav nav-tabs" role="tablist" id="tableOne">
+                  <li class="nav-item">
+                    <a class="nav-link nav-width active" data-toggle="tab"
+                       href="#tabs-1" role="tab">
+                      <img src="./img/policyIcon-1.png">
+                      Kubernetes</a>
+                  </li>
+                  <li class="nav-item">
+                    <a class="nav-link nav-width" data-toggle="tab"
+                       href="#tabs-2" role="tab">
+                      <img src="./img/envoy-square.png">
+                      Envoy</a>
+                  </li>
+                  <li class="nav-item">
+                    <a class="nav-link nav-width" data-toggle="tab"
+                       href="#tabs-4" role="tab">
+                      <img src="./img/policyIcon-4.png">
+                      Application</a>
+                  </li>
+                </ul>
+
+                <div class="tab-content">
+                  <div class="tab-pane active" id="tabs-1" role="tabpanel">
+                    <div class="tab-innerContainer">
+                      <div class="row">
+                        <div class="col-12 col-sm-12 col-md-12 col-lg-4">
+                          <div class="declarative-left">
+                            <div class="current"></div>
+                            <div class="nav flex-column nav-pills"
+                                 id="v-pills-tab" role="tablist"
+                                 aria-orientation="vertical">
+                              <a class="nav-link active" id="v-pills-k8s-1-desktop-tab"
+                                 data-toggle="pill" href="#v-pills-k8s-1-desktop-content"
+                                 role="tab" aria-controls="v-pills-k8s-1-desktop-content"
+                                 aria-selected="true">Ensure all images come
+                                from a trusted registry</a>
+                              <a class="nav-link" id="v-pills-k8s-2-desktop-tab"
+                                 data-toggle="pill" href="#v-pills-k8s-2-desktop-content"
+                                 role="tab"
+                                 aria-controls="v-pills-k8s-2-desktop-content"
+                                 aria-selected="false">Stop ingresses from using
+                                the same host name</a>
+                            </div>
+                          </div>
+                        </div>
+                        <div class="col-12 col-sm-12 col-md-12 col-lg-8 ">
+                          <div class="declarative-right">
+                            <div class="tab-content code-tab-content" id="v-pills-tabContent">
+                              <div class="tab-pane fade show active"
+                                   id="v-pills-k8s-1-desktop-content" role="tabpanel"
+                                   aria-labelledby="v-pills-k8s-1-desktop-tab">
+                                <div class="col-12 highlight">
+                                  <pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">
+                                    <code class="language-live"
+                                          data-lang="live:kubernetes_registry_check_desktop:input:hidden">
+{
+    "apiVersion": "admission.k8s.io/v1beta1",
+    "kind": "AdmissionReview",
+    "request": {
+        "kind": {
+            "group": "",
+            "kind": "Pod",
+            "version": "v1"
+        },
+        "object": {
+            "metadata": {
+                "name": "myapp"
+            },
+            "spec": {
+                "containers": [
+                    {
+                        "image": "nginx",
+                        "name": "nginx-frontend"
+                    },
+                    {
+                        "image": "mysql",
+                        "name": "mysql-backend"
+                    }
+                ]
+            }
+        }
+    }
+}
+                                          </code>
+                                        </pre>
+                                </div>
+                                <div class="highlight">
+                                    <a onclick='window.open("https://play.openpolicyagent.org/p/ikesWCFIH8")'>
+                                        <pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">
+                                          <code class="language-live"
+                                                data-lang="live:kubernetes_registry_check_desktop:module:read_only">package kubernetes.admission
+
+deny[msg] {
+    input.request.kind.kind == "Pod"
+    some i
+    image := input.request.object.spec.containers[i].image
+    not startswith(image, "hooli.com/")
+    msg := sprintf("image '%v' comes from untrusted registry", [image])
+}
+                                          </code>
+                                        </pre>
+                                    </a>
+                                </div>
+                                <div class="highlight">
+                                  <pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">
+                                    <code class="language-live"
+                                          data-lang="live:kubernetes_registry_check_desktop:output:hidden">
+                                    </code>
+                                  </pre>
+                                </div>
+                              </div>
+                              <div class="tab-pane fade" id="v-pills-k8s-2-desktop-content"
+                                   role="tabpanel"
+                                   aria-labelledby="v-pills-k8s-2-desktop-tab">
+                                <div class="col-12 highlight">
+                                  <pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">
+                                    <code class="language-live"
+                                          data-lang="live:kubernetes_ingress_check_desktop:input:hidden">
+{
+    "apiVersion": "admission.k8s.io/v1beta1",
+    "kind": "AdmissionReview",
+    "request": {
+        "kind": {
+            "group": "extensions",
+            "kind": "Ingress",
+            "version": "v1beta1"
+        },
+        "object": {
+            "metadata": {
+                "name": "prod",
+                "namespace": "bar"
+            },
+            "spec": {
+                "rules": [
+                    {
+                        "host": "initech.com",
+                        "http": {
+                            "paths": [
+                                {
+                                    "backend": {
+                                        "serviceName": "banking",
+                                        "servicePort": 443
+                                    },
+                                    "path": "/finance"
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        }
+    }
+}
+                                    </code>
+                                  </pre>
+                                </div>
+                                <div class="highlight">
+                                  <a onclick='window.open("https://play.openpolicyagent.org/p/oL4Ofd1nQi")'>
+                                    <pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">
+                                      <code class="language-live"
+                                            data-lang="live:kubernetes_ingress_check_desktop:module:read_only">package kubernetes.admission
+# Reject any ingress with the same host as an existing ingress
+deny[msg] {
+    input.request.kind.kind == "Ingress"
+    # iterate over all hosts in input Ingress
+    some i
+    newhost := input.request.object.spec.rules[i].host
+    # iterate over all existing ingresses and all hosts for each ingress
+    some namespace, name, j
+    oldhost := data.kubernetes.ingresses[namespace][name].spec.rules[j].host
+    # reject if the oldhost and the newhost are the same
+    newhost == oldhost
+    msg := sprintf("ingress host conflicts with ingress %v/%v", [namespace, name])
+}
+                                      </code>
+                                    </pre>
+                                  </a>
+                                </div>
+
+                                <div class="highlight">
+                                    <pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">
+                                      <code class="language-live"
+                                            data-lang="live:kubernetes_ingress_check_desktop:output:hidden">
+                                        <!-- example output -->
+                                      </code>
+                                    </pre>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="tab-pane" id="tabs-2" role="tabpanel">
+                    <div class="row">
+                      <div class="col-12 col-sm-12 col-md-12 col-lg-4">
+                        <div class="declarative-left">
+
+                          <div class="nav flex-column nav-pills"
+                               id="v-pills-tab" role="tablist"
+                               aria-orientation="vertical">
+                            <a class="nav-link active" id="v-pills-envoy-1-desktop-tab"
+                               data-toggle="pill" href="#v-pills-envoy-1-desktop-content"
+                               role="tab" aria-controls="v-pills-envoy-1-desktop-content"
+                               aria-selected="true">Allow everyone to run GET on
+                              <code>/pets</code></a>
+                            <a class="nav-link" id="v-pills-envoy-2-desktop-tab"
+                               data-toggle="pill" href="#v-pills-envoy-2-desktop-content" role="tab"
+                               aria-controls="v-pills-envoy-2-desktop-content"
+                               aria-selected="false">Allow frontend service to
+                              run GET on <code>/pets/owners</code></a>
+
+                          </div>
+                        </div>
+                      </div>
+                      <div class="col-12 col-sm-12 col-md-12 col-lg-8">
+                        <div class="declarative-right">
+                          <div class="tab-content code-tab-content" id="v-pills-tabContent">
+
+                            <div class="tab-pane fade show active"
+                                 id="v-pills-envoy-1-desktop-content" role="tabpanel"
+                                 aria-labelledby="v-pills-envoy-1-desktop-tab">
+                              <div class="col-12 highlight">
+                                <pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">
+                                  <code class="language-live"
+                                        data-lang="live:envoy_get_pets_desktop:input:hidden">
+{
+    "attributes": {
+        "destination": {
+            "address": {
+                "Address": {
+                    "SocketAddress": {
+                        "PortSpecifier": {
+                            "PortValue": 8000
+                        },
+                        "address": "172.17.0.8"
+                    }
+                }
+            }
+        },
+        "request": {
+            "http": {
+                "headers": {
+                    ":authority": "example-app",
+                    ":method": "GET",
+                    ":path": "/pets",
+                    "user-agent": "Wget",
+                    "x-forwarded-proto": "http",
+                    "x-request-id": "4d75f8d5-983f-4ec5-92bb-d27e620b4921"
+                },
+                "host": "example-app",
+                "id": "8910035251488566126",
+                "method": "GET",
+                "path": "/pets",
+                "protocol": "HTTP/1.1"
+            }
+        },
+        "source": {
+            "address": {
+                "Address": {
+                    "SocketAddress": {
+                        "PortSpecifier": {
+                            "PortValue": 54292
+                        },
+                        "address": "172.17.0.6"
+                    }
+                }
+            }
+        }
+    },
+    "parsed_path": [
+        "pets"
+    ]
+}
+                                  </code>
+                                </pre>
+                              </div>
+                              <div class="highlight">
+                                <a onclick='window.open("https://play.openpolicyagent.org/p/DqXNKeLm20")'>
+                                  <pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">
+                                    <code class="language-live"
+                                          data-lang="live:envoy_get_pets_desktop:module:read_only">package envoy.authz
+
+# allow all GET requests to /pets
+default allow = false
+allow {
+    input.attributes.request.http.method == "GET"
+    input.attributes.request.http.path == "/pets"
+}
+                                    </code>
+                                  </pre>
+                                </a>
+                              </div>
+                              <div class="highlight">
+                                <pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">
+                                  <code class="language-live"
+                                        data-lang="live:envoy_get_pets_desktop:output:hidden">
+                                    <!-- example output -->
+                                  </code>
+                                </pre>
+                              </div>
+                            </div>
+                            <div class="tab-pane fade" id="v-pills-envoy-2-desktop-content"
+                                 role="tabpanel"
+                                 aria-labelledby="v-pills-envoy-2-desktop-tab">
+                              <div class="col-12 highlight">
+                                <pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">
+                                  <code class="language-live"
+                                        data-lang="live:envoy_get_pets_owners_desktop:input:hidden">
+{
+    "attributes": {
+        "destination": {
+            "address": {
+                "Address": {
+                    "SocketAddress": {
+                        "PortSpecifier": {
+                            "PortValue": 8000
+                        },
+                        "address": "172.17.0.8"
+                    }
+                }
+            }
+        },
+        "request": {
+            "http": {
+                "headers": {
+                    ":authority": "example-app",
+                    ":method": "GET",
+                    ":path": "/pets/owners",
+                    "user-agent": "Wget",
+                    "x-forwarded-client-cert": "By=spiffe://domain.test/db-server;Hash=331f2f4eb2a1729fa4e0f46c8c663786098151ae571fed7b66680e970f6a0f94;URI=spiffe://domain.test/frontend",
+                    "x-forwarded-proto": "http",
+                    "x-request-id": "4d75f8d5-983f-4ec5-92bb-d27e620b4921"
+                },
+                "host": "example-app",
+                "id": "8910035251488566126",
+                "method": "GET",
+                "path": "/pets/owners",
+                "protocol": "HTTP/1.1"
+            }
+        },
+        "source": {
+            "address": {
+                "Address": {
+                    "SocketAddress": {
+                        "PortSpecifier": {
+                            "PortValue": 54292
+                        },
+                        "address": "172.17.0.6"
+                    }
+                }
+            }
+        }
+    },
+    "parsed_path": [
+        "pets",
+        "owners"
+    ]
+}
+                                  </code>
+                                </pre>
+                              </div>
+                              <div class="highlight">
+                                <a onclick='window.open("https://play.openpolicyagent.org/p/FiFAMwNoqm")'>
+                                      <pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">
+                                        <code class="language-live"
+                                              data-lang="live:envoy_get_pets_owners_desktop:module:read_only">package envoy.authz
+import input.attributes.request.http as http_request
+
+# allow only the frontend service to GET /pets/owners
+default allow = false
+allow {
+    http_request.path == "/pets/owners"
+    http_request.method == "GET"
+    source_spiffe_id == "spiffe://domain.test/frontend"
+}
+
+source_spiffe_id = client_id {
+    [_, _, uri_type_san] := split(http_request.headers["x-forwarded-client-cert"], ";")
+    [_, client_id] := split(uri_type_san, "=")
+}
+                                    </code>
+                                  </pre>
+                                </a>
+                              </div>
+                              <div class="highlight">
+                                <pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">
+                                  <code class="language-live"
+                                        data-lang="live:envoy_get_pets_owners_desktop:output:hidden">
+                                    <!-- example output -->
+                                  </code>
+                                </pre>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="tab-pane" id="tabs-4" role="tabpanel">
+                    <div class="row">
+                      <div class="col-12  col-sm-12 col-md-12 col-lg-4">
+                        <div class="declarative-left">
+                          <div class="nav flex-column nav-pills"
+                               id="v-pills-tab" role="tablist"
+                               aria-orientation="vertical">
+                            <a class="nav-link active" id="v-pills-app-1-desktop-tab"
+                               data-toggle="pill" href="#v-pills-app-1-desktop-content"
+                               role="tab" aria-controls="v-pills-app-1-desktop-content"
+                               aria-selected="true">Only the pet's owner can
+                              update that pet's information</a>
+                            <a class="nav-link" id="v-pills-app-2-desktop-tab"
+                               data-toggle="pill" href="#v-pills-app-2-desktop-content" role="tab"
+                               aria-controls="v-pills-app-2-desktop-content"
+                               aria-selected="false">Only employees,
+                              authenticated with a JWT, can see already adopted
+                              pets</a>
+
+                          </div>
+                        </div>
+                      </div>
+                      <div class="col-12  col-sm-12 col-md-12 col-lg-8">
+                        <div class="declarative-right">
+                          <div class="tab-content code-tab-content" id="v-pills-tabContent">
+                            <div class="tab-pane fade show active"
+                                 id="v-pills-app-1-desktop-content" role="tabpanel"
+                                 aria-labelledby="v-pills-app-1-desktop-tab">
+                              <div class="col-12 highlight">
+                                  <pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">
+                                    <code class="language-live"
+                                          data-lang="live:app_check_owner_desktop:input:hidden">
+{
+    "method": "PUT",
+    "owner": "bob@hooli.com",
+    "path": [
+        "pets",
+        "pet113-987"
+    ],
+    "user": "alice@hooli.com"
+}
+                                    </code>
+                                  </pre>
+                              </div>
+                              <div class="highlight">
+                                <a onclick='window.open("https://play.openpolicyagent.org/p/qUkvgJRpIU")'>
+                                  <pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">
+                                    <code class="language-live"
+                                          data-lang="live:app_check_owner_desktop:module:read_only">package application.authz
+
+# Only owner can update the pet's information
+# Ownership information is provided as part of OPA's input
+default allow = false
+allow {
+    input.method == "PUT"
+    some petid
+    input.path = ["pets", petid]
+    input.user == input.owner
+}
+                                    </code>
+                                  </pre>
+                                </a>
+                              </div>
+                              <div class="highlight">
+                                <pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">
+                                  <code class="language-live"
+                                        data-lang="live:app_check_owner_desktop:output:hidden">
+                                    <!-- example output -->
+                                  </code>
+                                </pre>
+                              </div>
+                            </div>
+                            <div class="tab-pane fade" id="v-pills-app-2-desktop-content"
+                                 role="tabpanel"
+                                 aria-labelledby="v-pills-app-2-desktop-tab">
+                              <div class="col-12 highlight">
+                                <pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">
+                                  <code class="language-live"
+                                        data-lang="live:app_jwt_auth_desktop:input:hidden">
+{
+    "pet_list": [
+        {
+            "breed": "St. Bernard",
+            "name": "Cujo",
+            "up_for_adoption": false
+        },
+        {
+            "breed": "Collie",
+            "name": "Lassie",
+            "up_for_adoption": true
+        }
+    ],
+    "token": "eyJ1IjoiSFMyNTYiLCJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyIjoiYWxpY2UiLCJlbXBsb3llZSI6dHJ1ZSwibmFtZSI6IkFsaWNlIFNtaXRoIn0.vMBYEW8VK9XM7yPkKTu1C3Gy1tOq1A0d4-xYMkkRpEc"
+}
+                                  </code>
+                                </pre>
+                              </div>
+                              <div class="highlight">
+                                <a onclick='window.open("https://play.openpolicyagent.org/p/c6412EHjS7")'>
+                                  <pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">
+                                    <code class="language-live"
+                                          data-lang="live:app_jwt_auth_desktop:module:read_only">
+package application.authz
+
+# Everyone can see adopted pets
+allowed_pets[pet] {
+    some i
+    pet := input.pet_list[i]
+    pet.up_for_adoption == true
+}
+
+# Employees can see all pets.
+allowed_pets[pet] {
+    [header, payload, signature] := io.jwt.decode(input.token)
+    payload.employee == true
+    some i
+    pet := input.pet_list[i]
+}
+                                    </code>
+                                  </pre>
+                                </a>
+                              </div>
+                              <div class="highlight">
+                                      <pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">
+                                        <code class="language-live"
+                                              data-lang="live:app_jwt_auth_desktop:output:hidden">
+                                          <!-- example output -->
+                                        </code>
+                                      </pre>
+                              </div>
+                            </div>
+
+
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+
+        <div class="row mobileView">
+          <div class="col-12 text-center pt-5">
+            <h2>Declarative Policy</h2>
+            <div class="subText">Context-aware, Expressive, Fast, Portable</div>
+          </div>
+          <div class="col-12 mt-3 mt-sm-5">
+            <div class="row">
+              <div class="col-6 col-sm-6 col-md-6 col-lg-3">
+                <div class="declarativeBOx">
+                  <a href="#kubernetes">
+                    <div class="declarativeInnerBOx">
+                      <img src="./img/policyIcon-1.png"
+                           class="declarativeImage">
+                      <p class="declarativeText">Kubernetes</p>
+                    </div>
+
+                    <div class="downArrow">
+                      <img src="./img/downArrow.svg">
+                    </div>
+                  </a>
+
+                </div>
+              </div>
+
+              <div class="col-6 col-sm-6 col-md-6 col-lg-3">
+                <div class="declarativeBOx envoy">
+                  <a href="#envoy">
+                    <div class="declarativeInnerBOx ">
+                      <img src="./img/policyIcon-2.png"
+                           class="declarativeImage">
+                      <p class="declarativeText">Envoy</p>
+                    </div>
+
+                    <div class="downArrow">
+                      <img src="./img/downArrow.svg">
+                    </div>
+                  </a>
+
+                </div>
+              </div>
+
+              <div class="col-6 col-sm-6 col-md-6 col-lg-3">
+                <div class="declarativeBOx">
+                  <a href="#application">
+                    <div class="declarativeInnerBOx">
+                      <img src="./img/policyIcon-4.png"
+                           class="declarativeImage">
+                      <p class="declarativeText">Application</p>
+                    </div>
+
+                    <div class="downArrow">
+                      <img src="./img/downArrow.svg">
+                    </div>
+                  </a>
+
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12 mt-3 mt-sm-5" id="kubernetes">
+            <div class="declarative-policy-contentBox">
+              <div class="declarative-policy-contentBox-header">
+                <img src="./img/policyIcon-1.png" class="declarativeImage">
+                <p class="declarativeText">Kubernetes</p>
+              </div>
+              <div class="row">
+                <div class="col-12 col-sm-12 col-md-12 col-lg-4">
+                  <div class="declarative-left">
+                    <div class="current"></div>
+                    <div class="nav flex-column nav-pills" id="v-pills-tab"
+                         role="tablist" aria-orientation="vertical">
+                      <a class="nav-link active" id="v-pills-k8s-1-mobile-tab"
+                         data-toggle="pill" href="#v-pills-k8s-1-mobile-content"
+                         role="tab" aria-controls="v-pills-k8s-1-mobile-content"
+                         aria-selected="true">Ensure all images come from a
+                        trusted registry</a>
+                      <a class="nav-link" id="v-pills-k8s-2-mobile-content-tab"
+                         data-toggle="pill" href="#v-pills-k8s-2-mobile-content" role="tab"
+                         aria-controls="v-pills-k8s-2-mobile-content" aria-selected="false">Stop
+                        ingresses from using the same host name</a>
+
+                    </div>
+                  </div>
+                </div>
+                <div class="col-12 col-sm-12 col-md-12 col-lg-8 ">
+                  <div class="declarative-right">
+                    <div class="tab-content code-tab-content" id="v-pills-tabContent">
+                      <div class="tab-pane fade show active" id="v-pills-k8s-1-mobile-content"
+                           role="tabpanel"
+                           aria-labelledby="v-pills-k8s-1-mobile-content-tab">
+                        <div class="col-12 highlight">
+                            <pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">
+                              <code class="language-live"
+                                    data-lang="live:kubernetes_registry_check_mobile:input:hidden">
+{
+    "apiVersion": "admission.k8s.io/v1beta1",
+    "kind": "AdmissionReview",
+    "request": {
+        "kind": {
+            "group": "",
+            "kind": "Pod",
+            "version": "v1"
+        },
+        "object": {
+            "metadata": {
+                "name": "myapp"
+            },
+            "spec": {
+                "containers": [
+                    {
+                        "image": "nginx",
+                        "name": "nginx-frontend"
+                    },
+                    {
+                        "image": "mysql",
+                        "name": "mysql-backend"
+                    }
+                ]
+            }
+        }
+    }
+}
+                              </code>
+                            </pre>
+                        </div>
+                        <div class="highlight">
+                          <a onclick='window.open("https://play.openpolicyagent.org/p/ikesWCFIH8")'>
+                            <pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">
+                              <code class="language-live"
+                                    data-lang="live:kubernetes_registry_check_mobile:module:read_only">package kubernetes.admission
+
+deny[msg] {
+    input.request.kind.kind == "Pod"
+    some i
+    image := input.request.object.spec.containers[i].image
+    not startswith(image, "hooli.com/")
+    msg := sprintf("image '%v' comes from untrusted registry", [image])
+}
+                              </code>
+                            </pre>
+                          </a>
+                        </div>
+                        <div class="highlight">
+                            <pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">
+                              <code class="language-live"
+                                    data-lang="live:kubernetes_registry_check_mobile:output:hidden">
+                              </code>
+                            </pre>
+                        </div>
+                      </div>
+                      <div class="tab-pane fade" id="v-pills-k8s-2-mobile-content"
+                           role="tabpanel"
+                           aria-labelledby="v-pills-k8s-2-mobile-content-tab">
+                        <div class="col-12 highlight">
+                            <pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">
+                              <code class="language-live"
+                                    data-lang="live:kubernetes_ingress_check_mobile:input:hidden">
+{
+    "apiVersion": "admission.k8s.io/v1beta1",
+    "kind": "AdmissionReview",
+    "request": {
+        "kind": {
+            "group": "extensions",
+            "kind": "Ingress",
+            "version": "v1beta1"
+        },
+        "object": {
+            "metadata": {
+                "name": "prod",
+                "namespace": "bar"
+            },
+            "spec": {
+                "rules": [
+                    {
+                        "host": "initech.com",
+                        "http": {
+                            "paths": [
+                                {
+                                    "backend": {
+                                        "serviceName": "banking",
+                                        "servicePort": 443
+                                    },
+                                    "path": "/finance"
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        }
+    }
+}
+                              </code>
+                            </pre>
+                        </div>
+                        <div class="highlight">
+                          <a onclick='window.open("https://play.openpolicyagent.org/p/oL4Ofd1nQi")'>
+                            <pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">
+                              <code class="language-live"
+                                    data-lang="live:kubernetes_ingress_check_mobile:module:read_only">package kubernetes.admission
+
+# Reject any ingress with the same host as an existing ingress
+deny[msg] {
+    input.request.kind.kind == "Ingress"
+    # iterate over all hosts in input Ingress
+    some i
+    newhost := input.request.object.spec.rules[i].host
+    # iterate over all existing ingresses and all hosts for each ingress
+    some namespace, name, j
+    oldhost := data.kubernetes.ingresses[namespace][name].spec.rules[j].host
+    # reject if the oldhost and the newhost are the same
+    newhost == oldhost
+    msg := sprintf("ingress host conflicts with ingress %v/%v", [namespace, name])
+}
+                              </code>
+                            </pre>
+                          </a>
+                        </div>
+                        <div class="highlight">
+                            <pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">
+                              <code class="language-live"
+                                    data-lang="live:kubernetes_ingress_check_mobile:output:hidden">
+                                <!-- example output -->
+                              </code>
+                            </pre>
+                        </div>
+                      </div>
+
+
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12 mt-3 mt-sm-5" id="envoy">
+            <div class="declarative-policy-contentBox">
+              <div class="declarative-policy-contentBox-header">
+                <img src="./img/policyIcon-2.png" class="declarativeImage">
+                <p class="declarativeText declarativeEnvoy">Envoy</p>
+              </div>
+              <div class="row">
+                <div class="col-12 col-sm-12 col-md-12 col-lg-4">
+                  <div class="declarative-left">
+
+                    <div class="nav flex-column nav-pills" id="v-pills-tab"
+                         role="tablist" aria-orientation="vertical">
+                      <a class="nav-link active" id="v-pills-envoy-1-mobile-tab"
+                         data-toggle="pill" href="#v-pills-envoy-1-mobile-content"
+                         role="tab" aria-controls="v-pills-envoy-1-mobile-content"
+                         aria-selected="true">Allow everyone to run GET on
+                        <code>/pets</code></a>
+                      <a class="nav-link" id="v-pills-envoy-2-mobile-tab"
+                         data-toggle="pill" href="#v-pills-envoy-2-mobile-content" role="tab"
+                         aria-controls="v-pills-envoy-2-mobile-content" aria-selected="false">Allow
+                        frontend service to run GET on <code>/pets/owners</code></a>
+
+                    </div>
+                  </div>
+                </div>
+                <div class="col-12 col-sm-12 col-md-12 col-lg-8">
+                  <div class="declarative-right">
+                    <div class="tab-content code-tab-content" id="v-pills-tabContent">
+
+                      <div class="tab-pane fade show active" id="v-pills-envoy-1-mobile-content"
+                           role="tabpanel"
+                           aria-labelledby="v-pills-envoy-1-mobile-tab">
+                        <div class="col-12 highlight">
+                            <pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">
+                              <code class="language-live"
+                                    data-lang="live:envoy_get_pets_mobile:input:hidden">
+{
+    "attributes": {
+        "destination": {
+            "address": {
+                "Address": {
+                    "SocketAddress": {
+                        "PortSpecifier": {
+                            "PortValue": 8000
+                        },
+                        "address": "172.17.0.8"
+                    }
+                }
+            }
+        },
+        "request": {
+            "http": {
+                "headers": {
+                    ":authority": "example-app",
+                    ":method": "GET",
+                    ":path": "/pets",
+                    "user-agent": "Wget",
+                    "x-forwarded-proto": "http",
+                    "x-request-id": "4d75f8d5-983f-4ec5-92bb-d27e620b4921"
+                },
+                "host": "example-app",
+                "id": "8910035251488566126",
+                "method": "GET",
+                "path": "/pets",
+                "protocol": "HTTP/1.1"
+            }
+        },
+        "source": {
+            "address": {
+                "Address": {
+                    "SocketAddress": {
+                        "PortSpecifier": {
+                            "PortValue": 54292
+                        },
+                        "address": "172.17.0.6"
+                    }
+                }
+            }
+        }
+    },
+    "parsed_path": [
+        "pets"
+    ]
+}
+                              </code>
+                            </pre>
+                        </div>
+                        <div class="highlight">
+                          <a onclick='window.open("https://play.openpolicyagent.org/p/DqXNKeLm20")'>
+                            <pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">
+                              <code class="language-live"
+                                    data-lang="live:envoy_get_pets_mobile:module:read_only">package envoy.authz
+
+# allow all GET requests to /pets
+default allow = false
+allow {
+    input.attributes.request.http.method == "GET"
+    input.attributes.request.http.path == "/pets"
+}
+                              </code>
+                            </pre>
+                          </a>
+                        </div>
+                        <div class="highlight">
+                            <pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">
+                              <code class="language-live"
+                                    data-lang="live:envoy_get_pets_mobile:output:hidden">
+                                <!-- example output -->
+                              </code>
+                            </pre>
+                        </div>
+                      </div>
+                      <div class="tab-pane fade" id="v-pills-envoy-2-mobile-content"
+                           role="tabpanel"
+                           aria-labelledby="v-pills-envoy-2-mobile-tab">
+                        <div class="col-12 highlight">
+                            <pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">
+                              <code class="language-live"
+                                    data-lang="live:envoy_get_pets_owners_mobile:input:hidden">
+{
+    "attributes": {
+        "destination": {
+            "address": {
+                "Address": {
+                    "SocketAddress": {
+                        "PortSpecifier": {
+                            "PortValue": 8000
+                        },
+                        "address": "172.17.0.8"
+                    }
+                }
+            }
+        },
+        "request": {
+            "http": {
+                "headers": {
+                    ":authority": "example-app",
+                    ":method": "GET",
+                    ":path": "/pets/owners",
+                    "user-agent": "Wget",
+                    "x-forwarded-client-cert": "By=spiffe://domain.test/db-server;Hash=331f2f4eb2a1729fa4e0f46c8c663786098151ae571fed7b66680e970f6a0f94;URI=spiffe://domain.test/frontend",
+                    "x-forwarded-proto": "http",
+                    "x-request-id": "4d75f8d5-983f-4ec5-92bb-d27e620b4921"
+                },
+                "host": "example-app",
+                "id": "8910035251488566126",
+                "method": "GET",
+                "path": "/pets/owners",
+                "protocol": "HTTP/1.1"
+            }
+        },
+        "source": {
+            "address": {
+                "Address": {
+                    "SocketAddress": {
+                        "PortSpecifier": {
+                            "PortValue": 54292
+                        },
+                        "address": "172.17.0.6"
+                    }
+                }
+            }
+        }
+    },
+    "parsed_path": [
+        "pets",
+        "owners"
+    ]
+}
+                              </code>
+                            </pre>
+                        </div>
+                        <div class="highlight">
+                          <a onclick='window.open("https://play.openpolicyagent.org/p/FiFAMwNoqm")'>
+                            <pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">
+                              <code class="language-live"
+                                    data-lang="live:envoy_get_pets_owners_mobile:module:read_only">package envoy.authz
+import input.attributes.request.http as http_request
+
+# allow only the frontend service to GET /pets/owners
+default allow = false
+allow {
+    http_request.path == "/pets/owners"
+    http_request.method == "GET"
+    source_spiffe_id == "spiffe://domain.test/frontend"
+}
+
+source_spiffe_id = client_id {
+    [_, _, uri_type_san] := split(http_request.headers["x-forwarded-client-cert"], ";")
+    [_, client_id] := split(uri_type_san, "=")
+}
+                              </code>
+                            </pre>
+                          </a>
+                        </div>
+                        <div class="highlight">
+                            <pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">
+                              <code class="language-live"
+                                    data-lang="live:envoy_get_pets_owners_mobile:output:hidden">
+                                <!-- example output -->
+                              </code>
+                            </pre>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12 mt-3 mt-sm-5" id="application">
+            <div class="declarative-policy-contentBox">
+              <div class="declarative-policy-contentBox-header">
+                <img src="./img/policyIcon-4.png" class="declarativeImage">
+                <p class="declarativeText">Application</p>
+              </div>
+              <div class="row">
+                <div class="col-12  col-sm-12 col-md-12 col-lg-4">
+                  <div class="declarative-left">
+                    <div class="nav flex-column nav-pills" id="v-pills-tab"
+                         role="tablist" aria-orientation="vertical">
+                      <a class="nav-link active" id="v-pills-app-1-mobile-tab"
+                         data-toggle="pill" href="#v-pills-app-1-mobile-content"
+                         role="tab" aria-controls="v-pills-app-1-mobile-content"
+                         aria-selected="true">Only the pet's owner can update
+                        that pet's information</a>
+                      <a class="nav-link" id="v-pills-app-2-mobile-tab"
+                         data-toggle="pill" href="#v-pills-app-2-mobile-content" role="tab"
+                         aria-controls="v-pills-app-2-mobile-content" aria-selected="false">Only
+                        employees, authenticated with a JWT, can see already
+                        adopted pets</a>
+
+                    </div>
+                  </div>
+                </div>
+                <div class="col-12  col-sm-12 col-md-12 col-lg-8">
+                  <div class="declarative-right">
+                    <div class="tab-content code-tab-content" id="v-pills-tabContent">
+                      <div class="tab-pane fade show active" id="v-pills-app-1-mobile-content"
+                           role="tabpanel"
+                           aria-labelledby="v-pills-app-1-mobile-tab">
+                        <div class="col-12 highlight">
+                            <pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">
+                              <code class="language-live"
+                                    data-lang="live:app_check_owner_mobile:input:hidden">
+{
+    "method": "PUT",
+    "owner": "bob@hooli.com",
+    "path": [
+        "pets",
+        "pet113-987"
+    ],
+    "user": "alice@hooli.com"
+}
+                              </code>
+                            </pre>
+                        </div>
+                        <div class="highlight">
+                          <a onclick='window.open("https://play.openpolicyagent.org/p/qUkvgJRpIU")'>
+                            <pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">
+                              <code class="language-live"
+                                    data-lang="live:app_check_owner_mobile:module:read_only">package application.authz
+
+# Only owner can update the pet's information
+# Ownership information is provided as part of OPA's input
+default allow = false
+allow {
+    input.method == "PUT"
+    some petid
+    input.path = ["pets", petid]
+    input.user == input.owner
+}
+                              </code>
+                            </pre>
+                          </a>
+                        </div>
+                        <div class="highlight">
+                            <pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">
+                              <code class="language-live"
+                                    data-lang="live:app_check_owner_mobile:output:hidden">
+                                <!-- example output -->
+                              </code>
+                            </pre>
+                        </div>
+                      </div>
+                      <div class="tab-pane fade" id="v-pills-app-2-mobile-content"
+                           role="tabpanel"
+                           aria-labelledby="v-pills-app-2-mobile-tab">
+                        <div class="col-12 highlight">
+                          <a onclick='window.open("https://play.openpolicyagent.org/p/c6412EHjS7")'>
+                            <pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">
+                              <code class="language-live"
+                                    data-lang="live:app_jwt_auth_mobile:input:hidden">
+{
+    "pet_list": [
+        {
+            "breed": "St. Bernard",
+            "name": "Cujo",
+            "up_for_adoption": false
+        },
+        {
+            "breed": "Collie",
+            "name": "Lassie",
+            "up_for_adoption": true
+        }
+    ],
+    "token": "eyJ1IjoiSFMyNTYiLCJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyIjoiYWxpY2UiLCJlbXBsb3llZSI6dHJ1ZSwibmFtZSI6IkFsaWNlIFNtaXRoIn0.vMBYEW8VK9XM7yPkKTu1C3Gy1tOq1A0d4-xYMkkRpEc"
+}
+                              </code>
+                            </pre>
+                          </a>
+                        </div>
+                        <div class="highlight">
+                            <pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">
+                              <code class="language-live"
+                                    data-lang="live:app_jwt_auth_mobile:module:read_only">
+package application.authz
+
+# Everyone can see adopted pets
+allowed_pets[pet] {
+    some i
+    pet := input.pet_list[i]
+    pet.up_for_adoption == true
+}
+
+# Employees can see all pets.
+allowed_pets[pet] {
+    [header, payload, signature] := io.jwt.decode(input.token)
+    payload.employee == true
+    some i
+    pet := input.pet_list[i]
+}
+                              </code>
+                            </pre>
+                        </div>
+                        <div class="highlight">
+                            <pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">
+                              <code class="language-live"
+                                    data-lang="live:app_jwt_auth_mobile:output:hidden">
+                                <!-- example output -->
+                              </code>
+                            </pre>
+                        </div>
+                      </div>
+
+
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+    <div class="declarative-policy-tabs-graphic-2"></div>
+  </section>
+
+  <section id="declarative-policy-tabs">
+    <div class="declarative-policy-tabs-graphic"></div>
+
+    <div class="container">
+      <div class="row">
+        <div class="col-12 col-sm-12 col-md-6">
+          <p><span style="font-weight:600">Declarative.</span> Express policy in
+            a high-level,
+            declarative language that promotes safe,
+            performant, fine-grained controls. Use a language
+            purpose-built for policy in a world where JSON is
+            pervasive. Iterate, traverse hierarchies, and apply
+            50+ built-ins like string manipulation and JWT
+            decoding to declare the policies you want enforced.</p>
+        </div>
+        <div class="col-12 col-sm-12 col-md-6 mt-3 mt-sm-0">
+          <p><span style="font-weight:600">Context-aware.</span> Leverage
+            external information to
+            write the policies you really care about. Stop
+            inventing roles that represent complex relationships
+            that years down the road no one will understand.
+            Instead, write logic that adapts to the world around
+            it and attach that logic to the systems that need it.</p>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-12">
+          <div class="mt-5 text-center blue">
+            <button class="btn btn-primary"><span>Learn More:</span> <a
+                        href="./docs/latest/kubernetes-introduction/">Kubernetes</a>
+                - <a
+                        href="./docs/latest/envoy-authorization/">Envoy</a> - <a
+                        href="./docs/latest/terraform/">Terraform</a> - <a
+                        href="./docs/latest/kafka-authorization/">Kafka</a>
+                -
+                <a href="https://blog.openpolicyagent.org/write-policy-in-opa-enforce-policy-in-sql-d9d24db93bf4">SQL</a>
+                - <a href="./docs/latest/ssh-and-sudo-authorization/">Linux</a>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <section id="curveImage">
+    <!-- <div class="curveImage-container"></div> -->
+    <img src="./img/curve.png">
+  </section>
+
+  <section id="architectural-flexibility">
+    <div class="architectural-flexibility-graphic-left"></div>
+    <div class="architectural-flexibility-graphic-right"></div>
+    <div class="container">
+      <div class="row">
+        <div class="col-12 text-center">
+          <h2>Architectural Flexibility</h2>
+          <div class="subText colorGray">Balance integration, availability,
+            consistency
+          </div>
+        </div>
+      </div>
+
+
+      <div class="row">
+        <div class="col-12 col-sm-12 col-md-6">
+          <div class="directBox text-center">
+            <div class="pt-3 pb-3">
+              <h3>Daemon</h3>
+            </div>
+
+            <div class="service-circle">
+              <div class="service-text dark">
+                <h3>Service</h3>
+              </div>
+            </div>
+            <div class="service-graphics">
+              <img src="./img/Deployment-Options-3.png">
+              <div class="service-graphics-text">
+                <div class="row">
+                  <div class="col-3"></div>
+                  <div class="col-3 space-left blackColor">Policy<br> (Rego)
+                  </div>
+                  <div class="col-3 space-right blackColor">Data<br> (JSON)
+                  </div>
+                  <div class="col-3"></div>
+                </div>
+                <div class="mt-5 text-left">
+                  <p>Deploy OPA as a separate process on the same
+                    host as your service. Integrate OPA by changing
+                    your service’s code, importing an OPA-enabled
+                    library, or using a network proxy integrated with OPA.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12 col-sm-12  col-md-6 ">
+          <div class="directBox text-center">
+            <div class="pt-3 pb-3">
+              <h3>Library</h3>
+            </div>
+
+            <div class="service-mediumcircle">
+              <div class="service-subtext dark pt-5">
+                <h3>Service</h3>
+                <div class="service-smallCircle">
+                  <img src="./img/logo.png">
+                  <!-- <div class="service-innertext dark">
+                                <h3>Services</h3>
+                              </div> -->
+                </div>
+              </div>
+            </div>
+            <div class="service-graphic">
+              <img src="./img/Deployment-Options-1.png">
+              <div class="service-graphics-text">
+                <div class="row">
+                  <div class="col-3"></div>
+                  <div class="col-3 space-left blackColor">Policy<br> (Rego)
+                  </div>
+                  <div class="col-3 space-right blackColor">Data<br> (JSON)
+                  </div>
+                  <div class="col-3"></div>
+                </div>
+                <div class="mt-5 text-left">
+                  <p>Embed OPA policies into your service. Integrate OPA as a Go
+                    library
+                    that evaluates policy, or integrate a WebAssembly runtime
+                    and use OPA
+                    to compile policy to WebAssembly instructions.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-12 mt-5">
+          <div class="mt-5 text-center blue">
+            <button class="btn btn-primary"><a><span>Learn More:</span></a> <a
+                      href="./docs/latest/deployments/">Daemon</a> - <a
+                      href="./docs/latest/integration/#integrating-with-the-go-api">Library</a>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="curveImage">
+    <!-- <div class="curveImage-container"></div> -->
+    <img src="./img/curve-up.png">
+  </section>
+
+  <section id="policy-authoring">
+    <div class="container">
+      <div class="row">
+        <div class="col-12 text-center">
+          <h2>Tools for Policy Authoring</h2>
+          <div class="subText">IDEs, Sharing, Profiling, Testing, Coverage</div>
+        </div>
+      </div>
+      <div class="row text-center center-align-content">
+        <div class="col-12 col-sm-12 col-md-12 col-lg-6  p-sm-0">
+          <div class="policy-sharing center-align-content">
+            <img src="./img/tools-playground.png" class="img-fluid">
+            <h4>Rego Playground for Policy Sharing</h4>
+          </div>
+        </div>
+        <div class="col-12 col-sm-12 col-md-12 col-lg-6 p-sm-0">
+          <div class="policy-sharing center-align-content">
+            <img src="./img/tools-vscode.png" class="img-fluid">
+            <h4>VS Code for Policy Authoring</h4>
+          </div>
+        </div>
+        <div class="col-12 col-sm-12 col-md-12 col-lg-6 p-sm-0">
+          <div class="policy-sharing center-align-content">
+            <img src="./img/tools-cli.png" class="img-fluid">
+            <h4>CLI and REPL for complete control</h4>
+          </div>
+        </div>
+        <div class="col-12 mt-3 policy-text text-left">
+          <p>OPA embraces policy-as-code, complete with tools that help people
+            use and understand the policies they put
+            in
+            place. Integrated development environments, testing, profiling,
+            coverage, automated performance tuning, and
+            hot
+            reloading aren’t just things you need for programming--you need them
+            for policy too, and OPA delivers.</p>
+        </div>
+        <div class="col-12 mt-5">
+          <div class="text-center blue">
+            <button class="btn btn-primary"><a><span>Learn More:</span></a>
+              <a href="https://marketplace.visualstudio.com/items?itemName=tsandall.opa">VScode</a>
+              - <a href="https://play.openpolicyagent.org/">Rego
+                Playground</a> - <a href="./docs/latest/#running-opa">General
+                Tooling</a></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="footer" class="mt-sm-5">
+    <div class="container">
+      <div class="row">
+        <div class="col-12">
+          <div class="footer-text">
+            Open Policy Agent is a Cloud Native Computing Foundation incubating
+            project.
+          </div>
+          <div class="footer-logo pb-4">
+            <img src="img/cloud-native-logo.png">
+          </div>
+          <div class="social-icon mb-4">
+            <ul>
+              <li><a href="https://blog.openpolicyagent.org/"><img
+                          src="./img/Footer-Icon-1.png"></a></li>
+              <li><a href="https://twitter.com/openpolicyagent"><img
+                          src="./img/Footer-Icon-2.png"></a></li>
+              <li><a href="https://slack.openpolicyagent.org/"><img
+                          src="./img/Footer-Icon-3.png"></a></li>
+              <li><a href="https://github.com/open-policy-agent/opa"><img
+                          src="./img/Footer-Icon-4.png"></a></li>
+            </ul>
+          </div>
+          <div class="footer-bottom">
+            © 2019 Open Policy Agent contributors. Licensed under the Apache
+            License, Version 2.0. For information about
+            contributing, see CONTRIBUTING.md.
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- jQuery first, then Popper.js, then Bootstrap JS -->
+  <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"
+          integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo"
+          crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js"
+          integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1"
+          crossorigin="anonymous"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"
+          integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM"
+          crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/smooth-scroll/16.0.3/smooth-scroll.min.js"></script>
+  <script>
+      $(function () {
+          var offset = 50;
+          var scroll = new SmoothScroll('a[href*="#"]', {
+              speed: 500, offset
+          });
+      });
+  </script>
+
+  <script>
+
+      $('a[data-toggle="pill"],a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
+          $(".CodeMirror").each(function () {
+              this.CodeMirror.refresh();
+          });
+      });
+
+  </script>
+
+
+  </body>
+
+  </html>
 {{ end }}

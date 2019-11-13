@@ -8,9 +8,7 @@ set -xe
 npm run install-deps
 
 # Bundle web js and css if needed
-if ! [ -d "dist/" ]; then
-  npm run --silent bundle-web
-fi
+npm run --silent bundle-web
 
 # Copy everything over
 # NOTE: Update package.json, src/constants.js, and static/opening-in-playground.html with any changes.
@@ -20,5 +18,6 @@ mkdir -p ../../public/live-blocks # Other assets
 cp -r static/* ../../public/live-blocks/
 
 # Preprocess the docs
+npm run --silent preprocess ../../public/index.html
 npm run --silent preprocess ../../public/docs/*/*.html
 npm run --silent preprocess ../../public/docs/*/*/*.html

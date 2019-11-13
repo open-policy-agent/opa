@@ -1,3 +1,5 @@
+DEPLOY_PRIME_URL ?= "http://localhost:8888"
+
 .PHONY: clean
 clean:
 	rm -rf ${CURDIR}/website/data/releases.yaml
@@ -49,15 +51,14 @@ hugo-production-build:
 production-build: clean generate hugo-production-build live-blocks-inject
 
 .PHONY: preview-build
-preview-build: clean generate
+preview-build:
 	hugo \
 		--source $(CURDIR)/website \
 		--contentDir generated \
 		--baseURL $(DEPLOY_PRIME_URL) \
 		--buildDrafts \
 		--buildFuture \
-		--ignoreCache \
-		--minify
+		--ignoreCache
 	make live-blocks-inject
 
 # The live-blocks-% pattern target will shim to the

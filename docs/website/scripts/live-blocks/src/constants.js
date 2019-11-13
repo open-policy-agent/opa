@@ -123,8 +123,8 @@ export const JS_BUNDLE_PATH = pkg.browser.replace(/dist/, '/js')
 export const CSS_BUNDLE_BATH = JS_BUNDLE_PATH.replace(/js/g, 'css')
 
 // --- UI ---
-// Only blocks on pages whose paths match this regexp will be interactive (for limiting live functionality to the version that the playground supports).
-export const INTERACTIVE_PATH = /^\/docs\/(latest|edge)/
+// Blocks on pages that match this regex will be non interactive (for limiting live functionality to the version that the playground supports).
+export const NON_INTERACTIVE_PATH = /^(\/docs\/(?!=(latest|edge)))/
 
 // The path to initially open a new tab to with when opening a group in the playground
 export const OPENING_IN_PLAYGROUND_PATH = '/live-blocks/opening-in-playground'
