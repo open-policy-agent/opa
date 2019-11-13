@@ -18,7 +18,6 @@ import (
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
-	"github.com/open-policy-agent/opa/internal/file"
 	fileurl "github.com/open-policy-agent/opa/internal/file/url"
 	"github.com/open-policy-agent/opa/internal/merge"
 	"github.com/open-policy-agent/opa/storage"
@@ -147,16 +146,16 @@ func AsBundle(path string) (*bundle.Bundle, error) {
 		return nil, fmt.Errorf("error reading %q: %s", path, err)
 	}
 
-	var bundleLoader file.DirectoryLoader
+	var bundleLoader bundle.DirectoryLoader
 
 	if fi.IsDir() {
-		bundleLoader = file.NewDirectoryLoader(path)
+		bundleLoader = bundle.NewDirectoryLoader(path)
 	} else {
 		fh, err := os.Open(path)
 		if err != nil {
 			return nil, err
 		}
-		bundleLoader = file.NewTarballLoader(fh)
+		bundleLoader = bundle.NewTarballLoader(fh)
 	}
 
 	br := bundle.NewCustomReader(bundleLoader)
@@ -365,7 +364,7 @@ func loadFileForAnyType(path string, bs []byte) (interface{}, error) {
 }
 
 func loadBundleFile(bs []byte) (bundle.Bundle, error) {
-	tl := file.NewTarballLoader(bytes.NewBuffer(bs))
+	tl := bundle.NewTarballLoader(bytes.NewBuffer(bs))
 	br := bundle.NewCustomReader(tl).IncludeManifestInData(true)
 	return br.Read()
 }

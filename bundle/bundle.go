@@ -23,7 +23,6 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/open-policy-agent/opa/ast"
-	"github.com/open-policy-agent/opa/internal/file"
 	"github.com/open-policy-agent/opa/util"
 )
 
@@ -124,19 +123,18 @@ type ModuleFile struct {
 
 // Reader contains the reader to load the bundle from.
 type Reader struct {
-	loader                file.DirectoryLoader
+	loader                DirectoryLoader
 	includeManifestInData bool
 }
 
-// NewReader returns a new Reader.
-// Deprecated: Use NewCustomReader with TarballLoader instead
+// NewReader returns a new Reader which is configured for reading tarballs.
 func NewReader(r io.Reader) *Reader {
-	return NewCustomReader(file.NewTarballLoader(r))
+	return NewCustomReader(NewTarballLoader(r))
 }
 
 // NewCustomReader returns a new Reader configured to use the
 // specified DirectoryLoader.
-func NewCustomReader(loader file.DirectoryLoader) *Reader {
+func NewCustomReader(loader DirectoryLoader) *Reader {
 	nr := Reader{
 		loader: loader,
 	}
