@@ -51,6 +51,9 @@ func (w *walkerImpl) walk(x interface{}) {
 		for _, s := range x.Strings {
 			w.walk(s)
 		}
+		for _, f := range x.BuiltinFuncs {
+			w.walk(f)
+		}
 	case *Funcs:
 		for _, fn := range x.Funcs {
 			w.walk(fn)

@@ -8,7 +8,6 @@ package wasm
 import (
 	"bytes"
 	"fmt"
-	"strings"
 
 	"github.com/pkg/errors"
 
@@ -57,6 +56,14 @@ const (
 	opaValueType         = "opa_value_type"
 )
 
+var builtins = [...]string{
+	"opa_builtin0",
+	"opa_builtin1",
+	"opa_builtin2",
+	"opa_builtin3",
+	"opa_builtin4",
+}
+
 // Compiler implements an IR->WASM compiler backend.
 type Compiler struct {
 	stages []func() error // compiler stages to execute
@@ -66,10 +73,12 @@ type Compiler struct {
 	module *module.Module    // output WASM module
 	code   *module.CodeEntry // output WASM code
 
-	builtinStringAddrs map[int]uint32    // addresses of built-in string constants
-	stringOffset       int32             // null-terminated string data base offset
-	stringAddrs        []uint32          // null-terminated string constant addresses
-	funcs              map[string]uint32 // maps exported function names to function indices
+	builtinStringAddrs   map[int]uint32    // addresses of built-in string constants
+	builtinFuncNameAddrs map[string]int32  // addresses of built-in function names for listing
+	builtinFuncs         map[string]int32  // built-in function ids
+	stringOffset         int32             // null-terminated string data base offset
+	stringAddrs          []uint32          // null-terminated string constant addresses
+	funcs                map[string]uint32 // maps imported and exported function names to function indices
 
 	nextLocal uint32
 	locals    map[ir.Local]uint32
@@ -100,6 +109,7 @@ func New() *Compiler {
 	c.stages = []func() error{
 		c.initModule,
 		c.compileStrings,
+		c.compileBuiltinDecls,
 		c.compileFuncs,
 		c.compilePlan,
 	}
@@ -145,14 +155,15 @@ func (c *Compiler) initModule() error {
 	var funcidx uint32
 
 	for _, imp := range c.module.Import.Imports {
-		if imp.Descriptor.Kind() == module.FunctionImportType && strings.HasPrefix(imp.Name, opaFuncPrefix) {
+		if imp.Descriptor.Kind() == module.FunctionImportType {
 			c.funcs[imp.Name] = funcidx
 			funcidx++
 		}
 	}
 
-	for _, exp := range c.module.Export.Exports {
-		if exp.Descriptor.Type == module.FunctionExportType && strings.HasPrefix(exp.Name, opaFuncPrefix) {
+	for i := range c.module.Export.Exports {
+		exp := &c.module.Export.Exports[i]
+		if exp.Descriptor.Type == module.FunctionExportType {
 			c.funcs[exp.Name] = exp.Descriptor.Index
 		}
 	}
@@ -177,6 +188,11 @@ func (c *Compiler) initModule() error {
 		Results: []types.ValueType{types.I32},
 	}, true)
 
+	c.emitFunctionDecl("builtins", module.FunctionType{
+		Params:  nil,
+		Results: []types.ValueType{types.I32},
+	}, true)
+
 	return nil
 }
 
@@ -193,6 +209,15 @@ func (c *Compiler) compileStrings() error {
 		buf.WriteString(s.Value)
 		buf.WriteByte(0)
 		c.stringAddrs[i] = addr
+	}
+
+	c.builtinFuncNameAddrs = make(map[string]int32, len(c.policy.Static.BuiltinFuncs))
+
+	for _, decl := range c.policy.Static.BuiltinFuncs {
+		addr := int32(buf.Len()) + int32(c.stringOffset)
+		buf.WriteString(decl.Name)
+		buf.WriteByte(0)
+		c.builtinFuncNameAddrs[decl.Name] = addr
 	}
 
 	c.builtinStringAddrs = make(map[int]uint32, len(errorMessages))
@@ -217,6 +242,44 @@ func (c *Compiler) compileStrings() error {
 	})
 
 	return nil
+}
+
+// compileBuiltinDecls generates a function that lists the built-ins required by
+// the policy. The host environment should invoke this function obtain the list
+// of built-in function identifiers (represented as integers) that will be used
+// when calling out.
+func (c *Compiler) compileBuiltinDecls() error {
+
+	c.code = &module.CodeEntry{}
+	c.nextLocal = 0
+	c.locals = map[ir.Local]uint32{}
+
+	lobj := c.genLocal()
+
+	c.appendInstr(instruction.Call{Index: c.function(opaObject)})
+	c.appendInstr(instruction.SetLocal{Index: lobj})
+	c.builtinFuncs = make(map[string]int32, len(c.policy.Static.BuiltinFuncs))
+
+	for index, decl := range c.policy.Static.BuiltinFuncs {
+		c.appendInstr(instruction.GetLocal{Index: lobj})
+		c.appendInstr(instruction.I32Const{Value: c.builtinFuncNameAddrs[decl.Name]})
+		c.appendInstr(instruction.Call{Index: c.function(opaStringTerminated)})
+		c.appendInstr(instruction.I64Const{Value: int64(index)})
+		c.appendInstr(instruction.Call{Index: c.function(opaNumberInt)})
+		c.appendInstr(instruction.Call{Index: c.function(opaObjectInsert)})
+		c.builtinFuncs[decl.Name] = int32(index)
+	}
+
+	c.appendInstr(instruction.GetLocal{Index: lobj})
+
+	c.code.Func.Locals = []module.LocalDeclaration{
+		{
+			Count: c.nextLocal,
+			Type:  types.I32,
+		},
+	}
+
+	return c.emitFunction("builtins", c.code)
 }
 
 // compileFuncs compiles the policy functions and emits them into the module.
@@ -348,14 +411,9 @@ func (c *Compiler) compileBlock(block *ir.Block) ([]instruction.Instruction, err
 		case *ir.BreakStmt:
 			instrs = append(instrs, instruction.Br{Index: stmt.Index})
 		case *ir.CallStmt:
-			for _, arg := range stmt.Args {
-				instrs = append(instrs, instruction.GetLocal{Index: c.local(arg)})
+			if err := c.compileCallStmt(stmt, &instrs); err != nil {
+				return nil, err
 			}
-			instrs = append(instrs, instruction.Call{Index: c.function(stmt.Func)})
-			instrs = append(instrs, instruction.SetLocal{Index: c.local(stmt.Result)})
-			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Result)})
-			instrs = append(instrs, instruction.I32Eqz{})
-			instrs = append(instrs, instruction.BrIf{Index: 0})
 		case *ir.WithStmt:
 			if err := c.compileWithStmt(stmt, &instrs); err != nil {
 				return instrs, err
@@ -809,12 +867,67 @@ func (c *Compiler) compileUpsert(local ir.Local, path []int, value ir.Local, ins
 	return instrs
 }
 
+func (c *Compiler) compileCallStmt(stmt *ir.CallStmt, result *[]instruction.Instruction) error {
+
+	if index, ok := c.funcs[stmt.Func]; ok {
+		return c.compileInternalCall(stmt, index, result)
+	}
+
+	if id, ok := c.builtinFuncs[stmt.Func]; ok {
+		return c.compileBuiltinCall(stmt, id, result)
+	}
+
+	c.errors = append(c.errors, fmt.Errorf("undefined function: %q", stmt.Func))
+
+	return nil
+}
+
+func (c *Compiler) compileInternalCall(stmt *ir.CallStmt, index uint32, result *[]instruction.Instruction) error {
+	instrs := *result
+
+	for _, arg := range stmt.Args {
+		instrs = append(instrs, instruction.GetLocal{Index: c.local(arg)})
+	}
+
+	instrs = append(instrs, instruction.Call{Index: index})
+	instrs = append(instrs, instruction.SetLocal{Index: c.local(stmt.Result)})
+	instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Result)})
+	instrs = append(instrs, instruction.I32Eqz{})
+	instrs = append(instrs, instruction.BrIf{Index: 0})
+	*result = instrs
+	return nil
+}
+
+func (c *Compiler) compileBuiltinCall(stmt *ir.CallStmt, id int32, result *[]instruction.Instruction) error {
+
+	if len(stmt.Args) >= len(builtins) {
+		c.errors = append(c.errors, fmt.Errorf("too many built-in call arguments: %q", stmt.Func))
+		return nil
+	}
+
+	instrs := *result
+	instrs = append(instrs, instruction.I32Const{Value: id})
+	instrs = append(instrs, instruction.I32Const{Value: 0}) // unused context parameter
+
+	for _, arg := range stmt.Args {
+		instrs = append(instrs, instruction.GetLocal{Index: c.local(arg)})
+	}
+
+	instrs = append(instrs, instruction.Call{Index: c.funcs[builtins[len(stmt.Args)]]})
+	instrs = append(instrs, instruction.SetLocal{Index: c.local(stmt.Result)})
+	instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Result)})
+	instrs = append(instrs, instruction.I32Eqz{})
+	instrs = append(instrs, instruction.BrIf{Index: 0})
+	*result = instrs
+	return nil
+}
+
 func (c *Compiler) emitFunctionDecl(name string, tpe module.FunctionType, export bool) {
 
 	typeIndex := c.emitFunctionType(tpe)
 	c.module.Function.TypeIndices = append(c.module.Function.TypeIndices, typeIndex)
 	c.module.Code.Segments = append(c.module.Code.Segments, module.RawCodeSegment{})
-	c.funcs[name] = uint32(len(c.module.Function.TypeIndices))
+	c.funcs[name] = uint32((len(c.module.Function.TypeIndices) - 1) + c.functionImportCount())
 
 	if export {
 		c.module.Export.Exports = append(c.module.Export.Exports, module.Export{
@@ -843,9 +956,21 @@ func (c *Compiler) emitFunction(name string, entry *module.CodeEntry) error {
 	if err := encoding.WriteCodeEntry(&buf, entry); err != nil {
 		return err
 	}
-	index := c.function(name)
-	c.module.Code.Segments[index-1].Code = buf.Bytes()
+	index := c.function(name) - uint32(c.functionImportCount())
+	c.module.Code.Segments[index].Code = buf.Bytes()
 	return nil
+}
+
+func (c *Compiler) functionImportCount() int {
+	var count int
+
+	for _, imp := range c.module.Import.Imports {
+		if imp.Descriptor.Kind() == module.FunctionImportType {
+			count++
+		}
+	}
+
+	return count
 }
 
 func (c *Compiler) stringAddr(index int) int32 {
@@ -874,11 +999,7 @@ func (c *Compiler) genLocal() uint32 {
 }
 
 func (c *Compiler) function(name string) uint32 {
-	index, ok := c.funcs[name]
-	if !ok {
-		c.errors = append(c.errors, fmt.Errorf("illegal function reference %q", name))
-	}
-	return index
+	return c.funcs[name]
 }
 
 func (c *Compiler) appendInstr(instr instruction.Instruction) {

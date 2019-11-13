@@ -22,7 +22,14 @@ type (
 
 	// Static represents a static data segment that is indexed into by the policy.
 	Static struct {
-		Strings []*StringConst
+		Strings      []*StringConst
+		BuiltinFuncs []*BuiltinFunc
+	}
+
+	// BuiltinFunc represents a built-in function that may be required by the
+	// policy.
+	BuiltinFunc struct {
+		Name string
 	}
 
 	// Funcs represents a collection of planned functions to include in the

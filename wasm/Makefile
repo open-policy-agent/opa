@@ -80,8 +80,9 @@ $(WASM_OBJ_DIR)/opa-test.wasm: $(WASM_OBJ_DIR)/test.wasm \
 		$(WASM_OBJ_DIR)/string.wasm \
 		$(WASM_OBJ_DIR)/context.wasm \
 		$(WASM_OBJ_DIR)/json.wasm
+	@cat src/undefined.symbols tests/undefined.symbols > _obj/undefined.symbols
 	@wasm-ld-8 \
-			--allow-undefined-file=tests/undefined.symbols \
+			--allow-undefined-file=_obj/undefined.symbols \
 			--import-memory \
 			--no-entry \
 			--export-all \

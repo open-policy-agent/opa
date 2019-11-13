@@ -8,6 +8,7 @@ package planner
 import (
 	"errors"
 	"fmt"
+	"sort"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/internal/ir"
@@ -18,17 +19,19 @@ type binaryiter func(ir.Local, ir.Local) error
 
 // Planner implements a query planner for Rego queries.
 type Planner struct {
-	policy    *ir.Policy          // result of planning
-	queries   []ast.Body          // input query to plan
-	modules   []*ast.Module       // input modules to support queries
-	rewritten map[ast.Var]ast.Var // rewritten query vars
-	strings   map[string]int      // global string constant indices
-	rules     *ruletrie           // rules that may be planned
-	funcs     *funcstack          // functions that have been planned
-	curr      *ir.Block           // in-progress query block
-	vars      *varstack           // in-scope variables
-	ltarget   ir.Local            // target variable of last planned statement
-	lnext     ir.Local            // next variable to use
+	policy    *ir.Policy              // result of planning
+	queries   []ast.Body              // input query to plan
+	modules   []*ast.Module           // input modules to support queries
+	rewritten map[ast.Var]ast.Var     // rewritten query vars
+	strings   map[string]int          // global string constant indices
+	externs   map[string]struct{}     // built-in functions that are required in execution environment
+	decls     map[string]*ast.Builtin // built-in functions that may be provided in execution environment
+	rules     *ruletrie               // rules that may be planned
+	funcs     *funcstack              // functions that have been planned
+	curr      *ir.Block               // in-progress query block
+	vars      *varstack               // in-scope variables
+	ltarget   ir.Local                // target variable of last planned statement
+	lnext     ir.Local                // next variable to use
 }
 
 // New returns a new Planner object.
@@ -40,6 +43,7 @@ func New() *Planner {
 			Funcs:  &ir.Funcs{},
 		},
 		strings: map[string]int{},
+		externs: map[string]struct{}{},
 		lnext:   ir.Unused,
 		vars: newVarstack(map[ast.Var]ir.Local{
 			ast.InputRootDocument.Value.(ast.Var):   ir.Input,
@@ -48,6 +52,13 @@ func New() *Planner {
 		rules: newRuletrie(),
 		funcs: newFuncstack(),
 	}
+}
+
+// WithBuiltinDecls tells the planner what built-in function may be available
+// inside the execution environment.
+func (p *Planner) WithBuiltinDecls(decls map[string]*ast.Builtin) *Planner {
+	p.decls = decls
+	return p
 }
 
 // WithQueries sets the query set to generate a plan for.
@@ -78,6 +89,10 @@ func (p *Planner) Plan() (*ir.Policy, error) {
 	}
 
 	if err := p.planQueries(); err != nil {
+		return nil, err
+	}
+
+	if err := p.planExterns(); err != nil {
 		return nil, err
 	}
 
@@ -658,23 +673,33 @@ func (p *Planner) planExprCall(e *ast.Expr, iter planiter) error {
 			return iter()
 		})
 	default:
+
+		var name string
+		var arity int
+		var args []ir.Local
+
 		node := p.rules.Lookup(e.Operator())
-		if node == nil {
-			return fmt.Errorf("illegal call: unknown operator %v", operator)
+
+		if node != nil {
+			var err error
+			name, err = p.planRules(node.Rules())
+			if err != nil {
+				return err
+			}
+			arity = node.Arity()
+			args = []ir.Local{
+				p.vars.GetOrEmpty(ast.InputRootDocument.Value.(ast.Var)),
+				p.vars.GetOrEmpty(ast.DefaultRootDocument.Value.(ast.Var)),
+			}
+		} else if decl, ok := p.decls[operator]; ok {
+			arity = len(decl.Decl.Args())
+			name = operator
+			p.externs[operator] = struct{}{}
+		} else {
+			return fmt.Errorf("illegal call: unknown operator %q", operator)
 		}
 
-		funcName, err := p.planRules(node.Rules())
-		if err != nil {
-			return err
-		}
-
-		arity := node.Arity()
 		operands := e.Operands()
-
-		args := []ir.Local{
-			p.vars.GetOrEmpty(ast.InputRootDocument.Value.(ast.Var)),
-			p.vars.GetOrEmpty(ast.DefaultRootDocument.Value.(ast.Var)),
-		}
 
 		if len(operands) == arity {
 			// rule: f(x) = x { ... }
@@ -682,7 +707,7 @@ func (p *Planner) planExprCall(e *ast.Expr, iter planiter) error {
 			return p.planCallArgs(operands, 0, args, func(args []ir.Local) error {
 				p.ltarget = p.newLocal()
 				p.appendStmt(&ir.CallStmt{
-					Func:   funcName,
+					Func:   name,
 					Args:   args,
 					Result: p.ltarget,
 				})
@@ -707,7 +732,7 @@ func (p *Planner) planExprCall(e *ast.Expr, iter planiter) error {
 			return p.planCallArgs(operands[:len(operands)-1], 0, args, func(args []ir.Local) error {
 				result := p.newLocal()
 				p.appendStmt(&ir.CallStmt{
-					Func:   funcName,
+					Func:   name,
 					Args:   args,
 					Result: result,
 				})
@@ -1677,6 +1702,21 @@ func (p *Planner) planTermSliceRec(terms []*ast.Term, locals []ir.Local, index i
 		locals[index] = p.ltarget
 		return p.planTermSliceRec(terms, locals, index+1, iter)
 	})
+}
+
+func (p *Planner) planExterns() error {
+
+	p.policy.Static.BuiltinFuncs = make([]*ir.BuiltinFunc, 0, len(p.externs))
+
+	for name := range p.externs {
+		p.policy.Static.BuiltinFuncs = append(p.policy.Static.BuiltinFuncs, &ir.BuiltinFunc{Name: name})
+	}
+
+	sort.Slice(p.policy.Static.BuiltinFuncs, func(i, j int) bool {
+		return p.policy.Static.BuiltinFuncs[i].Name < p.policy.Static.BuiltinFuncs[j].Name
+	})
+
+	return nil
 }
 
 func (p *Planner) getStringConst(s string) int {

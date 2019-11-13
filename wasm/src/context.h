@@ -15,4 +15,10 @@ void opa_eval_ctx_set_input(opa_eval_ctx_t *ctx, opa_value *v);
 void opa_eval_ctx_set_data(opa_eval_ctx_t *ctx, opa_value *v);
 opa_value *opa_eval_ctx_get_result(opa_eval_ctx_t *ctx);
 
+opa_value *opa_builtin0(int, void *);
+opa_value *opa_builtin1(int, void *, opa_value *);
+opa_value *opa_builtin2(int, void *, opa_value *, opa_value *);
+opa_value *opa_builtin3(int, void *, opa_value *, opa_value *, opa_value *);
+opa_value *opa_builtin4(int, void *, opa_value *, opa_value *, opa_value *, opa_value *);
+
 #endif

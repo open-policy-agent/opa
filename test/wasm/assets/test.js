@@ -92,11 +92,70 @@ function loadJSON(mod, memory, value) {
     return parsedAddr;
 }
 
+function dumpJSON(mod, memory, addr) {
+
+    const rawAddr = mod.instance.exports.opa_json_dump(addr);
+    const buf = new Uint8Array(memory.buffer);
+
+    // NOTE(tsandall): There must be a better way of doing this...
+    let s = '';
+    let idx = rawAddr;
+    while (buf[idx] != 0) {
+        s += String.fromCharCode(buf[idx++]);
+    }
+
+    return JSON.parse(s);
+}
+
+function builtinPlus(a, b) {
+    return a+b;
+}
+
+function builtinCustomTest(a) {
+    return a+1;
+}
+
+function builtinCustomTestImpure() {
+    return "foo";
+}
+
+const builtinFuncs = {
+    plus: builtinPlus,
+    custom_builtin_test: builtinCustomTest,
+    custom_builtin_test_impure: builtinCustomTestImpure,
+}
+
+// builtinCall dispatches the built-in function. Arguments are deserialized from
+// JSON into JavaScript values and the result is serialized for passing back
+// into Wasm.
+function builtinCall(policy, func) {
+
+    const impl = builtinFuncs[policy.builtins[func]];
+
+    if (impl === undefined) {
+        throw {message: "not implemented: built-in " + func + ": " + policy.builtins[func]}
+    }
+
+    var argArray = Array.prototype.slice.apply(arguments);
+    let args = [];
+
+    for (let i = 2; i < argArray.length; i++) {
+        const jsArg = dumpJSON(policy.module, policy.memory, argArray[i]);
+        args.push(jsArg);
+    }
+
+    const result = impl(...args);
+
+    return loadJSON(policy.module, policy.memory, result);
+}
+
 async function instantiate(bytes, memory, data) {
 
     const addr2string = stringDecoder(memory);
 
-    const mod = await WebAssembly.instantiate(bytes, {
+    let policy = {memory: memory};
+
+    policy.module = await WebAssembly.instantiate(bytes, {
         env: {
             memory: memory,
             opa_abort: function (addr) {
@@ -105,14 +164,36 @@ async function instantiate(bytes, memory, data) {
             opa_println: function (addr) {
                 console.log(addr2string(addr));
             },
+            opa_builtin0: function(func, ctx) {
+                return builtinCall(policy, func);
+            },
+            opa_builtin1: function(func, ctx, v1) {
+                return builtinCall(policy, func, v1);
+            },
+            opa_builtin2: function(func, ctx, v1, v2) {
+                return builtinCall(policy, func, v1, v2);
+            },
+            opa_builtin3: function(func, ctx, v1, v2, v3) {
+                return builtinCall(policy, func, v1, v2, v3);
+            },
+            opa_builtin4: function(func, ctx, v1, v2, v3, v4) {
+                return builtinCall(policy, func, v1, v2, v3, v4);
+            },
         },
     });
 
-    const dataAddr = loadJSON(mod, memory, data || {});
-    const heapPtr = mod.instance.exports.opa_heap_ptr_get();
-    const heapTop = mod.instance.exports.opa_heap_top_get();
+    builtins = dumpJSON(policy.module, policy.memory, policy.module.instance.exports.builtins());
+    policy.builtins = {};
 
-    return { module: mod, memory: memory, heapPtr: heapPtr, heapTop: heapTop, dataAddr: dataAddr };
+    for (var key of Object.keys(builtins)) {
+        policy.builtins[builtins[key]] = key
+    }
+
+    policy.dataAddr = loadJSON(policy.module, policy.memory, data || {});
+    policy.heapPtr = policy.module.instance.exports.opa_heap_ptr_get();
+    policy.heapTop = policy.module.instance.exports.opa_heap_top_get();
+
+    return policy;
 }
 
 function evaluate(policy, input) {
@@ -131,22 +212,6 @@ function evaluate(policy, input) {
     const resultAddr = policy.module.instance.exports.opa_eval_ctx_get_result(ctxAddr);
 
     return { addr: resultAddr };
-}
-
-function decodeResultSet(policy, result) {
-
-    const rawAddr = policy.module.instance.exports.opa_json_dump(result.addr);
-    const buf = new Uint8Array(policy.memory.buffer);
-
-    // NOTE(tsandall): There must be a better way of doing this...
-    let s = '';
-    let idx = rawAddr;
-
-    while (buf[idx] != 0) {
-        s += String.fromCharCode(buf[idx++]);
-    }
-
-    return JSON.parse(s);
 }
 
 function namespace(cache, key) {
@@ -236,7 +301,7 @@ async function test() {
 
             if (expResultSet !== undefined) {
 
-                const rs = decodeResultSet(policy, result);
+                const rs = dumpJSON(policy.module, policy.memory, result.addr);
 
                 try {
                     assert.deepStrictEqual(rs, expResultSet, 'unexpected result set');
