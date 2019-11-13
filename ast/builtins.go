@@ -125,6 +125,9 @@ var DefaultBuiltins = [...]*Builtin{
 	YAMLMarshal,
 	YAMLUnmarshal,
 
+	// JSON Object Manipulation
+	JSONFilter,
+
 	// Tokens
 	JWTDecode,
 	JWTVerifyRS256,
@@ -917,6 +920,24 @@ var JSONUnmarshal = &Builtin{
 	Name: "json.unmarshal",
 	Decl: types.NewFunction(
 		types.Args(types.S),
+		types.A,
+	),
+}
+
+// JSONFilter filters the JSON object
+var JSONFilter = &Builtin{
+	Name: "json.filter",
+	Decl: types.NewFunction(
+		types.Args(
+			types.NewObject(
+				nil,
+				types.NewDynamicProperty(types.A, types.A),
+			),
+			types.NewAny(
+				types.NewArray(nil, types.S),
+				types.NewSet(types.S),
+			),
+		),
 		types.A,
 	),
 }

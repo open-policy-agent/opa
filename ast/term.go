@@ -1571,6 +1571,7 @@ type Object interface {
 	Diff(other Object) Object
 	Intersect(other Object) [][3]*Term
 	Merge(other Object) (Object, bool)
+	Filter(filter Object) (Object, error)
 	Keys() []*Term
 }
 
@@ -1837,6 +1838,16 @@ func (obj object) Merge(other Object) (result Object, ok bool) {
 	return result, true
 }
 
+// Filter returns a new object from values in obj where the keys are
+// found in filter.
+func (obj *object) Filter(filter Object) (Object, error) {
+	filtered, err := filterObject(obj, filter)
+	if err != nil {
+		return nil, err
+	}
+	return filtered.(Object), nil
+}
+
 // Len returns the number of elements in the object.
 func (obj object) Len() int {
 	return len(obj.keys)
@@ -1957,6 +1968,51 @@ func (obj *object) insert(k, v *Term) {
 	}
 	obj.keys = append(obj.keys, k)
 	obj.ground = obj.ground && k.IsGround() && v.IsGround()
+}
+
+func filterObject(o Value, filter Value) (Value, error) {
+	if filter.Compare(Null{}) == 0 {
+		return o, nil
+	}
+
+	filteredObj, ok := filter.(Object)
+	if !ok {
+		return nil, fmt.Errorf("invalid filter value %q, expected an object", filter)
+	}
+
+	switch v := o.(type) {
+	case String, Number, Boolean, Null:
+		return o, nil
+	case Array:
+		var values Array
+		for i, t := range v {
+			subFilter := filteredObj.Get(StringTerm(strconv.Itoa(i)))
+			if subFilter != nil {
+				filteredValue, err := filterObject(t.Value, subFilter.Value)
+				if err != nil {
+					return nil, err
+				}
+				values = append(values, NewTerm(filteredValue))
+			}
+		}
+		return values, nil
+	case Object:
+		values := NewObject()
+		err := v.Iter(func(k *Term, v *Term) error {
+			subFilter := filteredObj.Get(k)
+			if subFilter != nil {
+				filteredValue, err := filterObject(v.Value, subFilter.Value)
+				if err != nil {
+					return err
+				}
+				values.Insert(k, NewTerm(filteredValue))
+			}
+			return nil
+		})
+		return values, err
+	default:
+		return nil, fmt.Errorf("invalid object value type for %q", v)
+	}
 }
 
 // ArrayComprehension represents an array comprehension as defined in the language.
