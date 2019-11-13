@@ -1,4 +1,3 @@
-{{ $isHome       := .IsHome }}
 {{ $inServerMode := site.IsServer }}
 {{ $sass         := "sass/style.sass" }}
 {{ $cssOutput    := "css/style.css" }}
@@ -22,6 +21,6 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/docsearch.js@2/dist/cdn/docsearch.min.css" />
 {{ end }}
 
-{{ if or $isHome (eq .Kind "404") }}
-  <link media="screen" charset="utf-8" rel="stylesheet" href="/css/home.css">
+{{ if (eq .Kind "404") }}
+  <link media="screen" charset="utf-8" rel="stylesheet" href="/css/viking-boats.css">
 {{ end }}
