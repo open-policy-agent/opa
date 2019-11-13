@@ -147,6 +147,79 @@ func TestObjectSetOperations(t *testing.T) {
 	}
 }
 
+func TestObjectFilter(t *testing.T) {
+	cases := []struct {
+		note     string
+		object   string
+		filter   string
+		expected string
+	}{
+		{
+			note:     "base",
+			object:   `{"a": {"b": {"c": 7, "d": 8}}, "e": 9}`,
+			filter:   `{"a": {"b": {"c": null}}}`,
+			expected: `{"a": {"b": {"c": 7}}}`,
+		},
+		{
+			note:     "multiple roots",
+			object:   `{"a": {"b": {"c": 7, "d": 8}}, "e": 9}`,
+			filter:   `{"a": {"b": {"c": null}}, "e": null}`,
+			expected: `{"a": {"b": {"c": 7}}, "e": 9}`,
+		},
+		{
+			note:     "shared roots",
+			object:   `{"a": {"b": {"c": 7, "d": 8}, "e": 9}}`,
+			filter:   `{"a": {"b": {"c": null}, "e": null}}`,
+			expected: `{"a": {"b": {"c": 7}, "e": 9}}`,
+		},
+		{
+			note:     "empty filter",
+			object:   `{"a": 7}`,
+			filter:   `{}`,
+			expected: `{}`,
+		},
+		{
+			note:     "empty object",
+			object:   `{}`,
+			filter:   `{"a": {"b": null}}`,
+			expected: `{}`,
+		},
+		{
+			note:     "arrays",
+			object:   `{"a": [{"b": 7, "c": 8}, {"d": 9}]}`,
+			filter:   `{"a": {"0": {"b": null}, "1": null}}`,
+			expected: `{"a": [{"b": 7}, {"d": 9}]}`,
+		},
+		{
+			note:     "object with number keys",
+			object:   `{"a": [{"1":["b", "c", "d"]}, {"x": "y"}]}`,
+			filter:   `{"a": {"0": {"1": {"2": null}}}}`,
+			expected: `{"a": [{"1": ["d"]}]}`,
+		},
+		{
+			note:     "sets",
+			object:   `{"a": {"b", "c", "d"}, "x": {"y"}}`,
+			filter:   `{"a": {"b": null, "d": null}, "x": null}`,
+			expected: `{"a": {"b", "d"}, "x": {"y"}}`,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			obj := MustParseTerm(tc.object).Value.(Object)
+			filterObj := MustParseTerm(tc.filter).Value.(Object)
+			expected := MustParseTerm(tc.expected).Value.(Object)
+			actual, err := obj.Filter(filterObj)
+			if err != nil {
+				t.Errorf("unexpected error: %s", err)
+			}
+			if actual.Compare(expected) != 0 {
+				t.Errorf("Expected:\n\n\t%s\n\nGot:\n\n\t%s\n\n", expected, actual)
+			}
+		})
+	}
+}
+
 func TestTermBadJSON(t *testing.T) {
 
 	input := `{

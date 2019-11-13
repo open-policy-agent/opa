@@ -66,6 +66,13 @@ complex types.
 | <span class="opa-keep-it-together">``output := intersection(set[set])``</span> | ``output`` is the intersection of the sets in the input set  |
 | <span class="opa-keep-it-together">``output := union(set[set])``</span> | ``output`` is the union of the sets in the input set  |
 
+### Objects
+| Built-in | Description |
+| -------- | ----------- |
+| <span class="opa-keep-it-together">`filtered := json.filter(object, paths)`</span> | `filtered` is the remaining data from `object` with only keys specified in `paths` which is an array or set of key paths. Each path may be a JSON string path or an array of path segments. For example: `json.filter({"a": {"b": "x", "c": "y"}}, ["a/b"]` will result in `{"a": {"b": "x"}}`). |
+
+The `json` string `paths` may reference into array values by using index numbers. For example with the object `{"a": ["x", "y", "z"]}` the path `a/1` references `y`
+
 ### Strings
 
 | Built-in | Description |
