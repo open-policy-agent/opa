@@ -519,6 +519,22 @@ func FunctionDyn(decl *Function, f BuiltinDyn) func(*Rego) {
 	})
 }
 
+// FunctionDecl returns an option that adds a custom-built-in function
+// __declaration__. NO implementation is provided. This is used for
+// non-interpreter execution envs (e.g., Wasm).
+func FunctionDecl(decl *Function) func(*Rego) {
+	return newDecl(decl)
+}
+
+func newDecl(decl *Function) func(*Rego) {
+	return func(r *Rego) {
+		r.builtinDecls[decl.Name] = &ast.Builtin{
+			Name: decl.Name,
+			Decl: decl.Decl,
+		}
+	}
+}
+
 type memo struct {
 	term *ast.Term
 	err  error
@@ -1045,10 +1061,21 @@ func (r *Rego) Compile(ctx context.Context, opts ...CompileOption) (*CompileResu
 		queries = []ast.Body{r.compiledQueries[compileQueryType].query}
 	}
 
+	decls := make(map[string]*ast.Builtin, len(r.builtinDecls)+len(ast.BuiltinMap))
+
+	for k, v := range ast.BuiltinMap {
+		decls[k] = v
+	}
+
+	for k, v := range r.builtinDecls {
+		decls[k] = v
+	}
+
 	policy, err := planner.New().
 		WithQueries(queries).
 		WithModules(modules).
 		WithRewrittenVars(r.compiledQueries[compileQueryType].compiler.RewrittenVars()).
+		WithBuiltinDecls(decls).
 		Plan()
 	if err != nil {
 		return nil, err

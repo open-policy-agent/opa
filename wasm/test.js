@@ -59,6 +59,11 @@ async function test(executable) {
     const module = await WebAssembly.instantiate(readFileSync(executable), {
         env: {
             memory: mem,
+            opa_builtin0: (_1, _2) => { return 0; },
+            opa_builtin1: (_1, _2, _3, _4) => { return 0; },
+            opa_builtin2: (_1, _2, _3, _4) => { return 0; },
+            opa_builtin3: (_1, _2, _3, _4, _5) => { return 0; },
+            opa_builtin4: (_1, _2, _3, _4, _5, _6) => { return 0; },
             opa_println: (msg) => {
                 console.log(addr2string(msg));
             },

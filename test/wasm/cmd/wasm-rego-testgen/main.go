@@ -22,6 +22,7 @@ import (
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/rego"
+	"github.com/open-policy-agent/opa/types"
 	"github.com/open-policy-agent/opa/util"
 )
 
@@ -88,6 +89,20 @@ func compileTestCases(ctx context.Context, tests testCaseSet) (*compiledTestCase
 
 		args := []func(*rego.Rego){
 			rego.Query(tc.Query),
+			rego.FunctionDecl(&rego.Function{
+				Name: "custom_builtin_test",
+				Decl: types.NewFunction(
+					[]types.Type{types.N},
+					types.N,
+				),
+			}),
+			rego.FunctionDecl(&rego.Function{
+				Name: "custom_builtin_test_impure",
+				Decl: types.NewFunction(
+					[]types.Type{},
+					types.N,
+				),
+			}),
 		}
 
 		for idx, module := range tc.Modules {

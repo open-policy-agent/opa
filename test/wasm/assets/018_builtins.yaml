@@ -1,0 +1,13 @@
+cases:
+  - note: registered built-in
+    query: plus(1,1,x)
+    want_result: [{'x': 2}]
+  - note: custom built-in
+    query: x = custom_builtin_test(100)
+    want_result: [{'x': 101}]
+  - note: impure built-in
+    query: x = custom_builtin_test_impure()
+    want_result: [{'x': "foo"}]
+  - note: nested
+    query: arr = ["foo","bar","baz","qux"]; x = arr[1+1+1]
+    want_result: [{'arr': ['foo', 'bar', 'baz', 'qux'], 'x': "qux"}]

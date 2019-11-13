@@ -24,3 +24,12 @@ opa_value *opa_eval_ctx_get_result(opa_eval_ctx_t *ctx)
 {
     return ctx->result;
 }
+
+void __force_import_opa_builtins()
+{
+    opa_builtin0(-1, NULL);
+    opa_builtin1(-1, NULL, NULL);
+    opa_builtin2(-1, NULL, NULL, NULL);
+    opa_builtin3(-1, NULL, NULL, NULL, NULL);
+    opa_builtin4(-1, NULL, NULL, NULL, NULL, NULL);
+}
