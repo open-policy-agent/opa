@@ -33,6 +33,7 @@ var allowedKeyNames = [...]string{
 	"enable_redirect",
 	"force_json_decode",
 	"headers",
+	"raw_body",
 	"tls_use_system_certs",
 	"tls_ca_cert_file",
 	"tls_ca_cert_env_variable",
@@ -131,6 +132,7 @@ func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) 
 	var tlsClientCertFile string
 	var tlsClientKeyFile string
 	var body *bytes.Buffer
+	var rawBody *bytes.Buffer
 	var enableRedirect bool
 	var forceJSONDecode bool
 	var tlsUseSystemCerts bool
@@ -173,6 +175,12 @@ func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) 
 				return nil, err
 			}
 			body = bytes.NewBuffer(bodyValBytes)
+		case "raw_body":
+			s, ok := obj.Get(val).Value.(ast.String)
+			if !ok {
+				return nil, fmt.Errorf("raw_body must be a string")
+			}
+			rawBody = bytes.NewBuffer([]byte(s))
 		case "tls_use_system_certs":
 			tlsUseSystemCerts, err = strconv.ParseBool(obj.Get(val).String())
 			if err != nil {
@@ -211,7 +219,7 @@ func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) 
 				return nil, fmt.Errorf("invalid type for headers key")
 			}
 		default:
-			return nil, fmt.Errorf("Invalid Key %v", key)
+			return nil, fmt.Errorf("invalid parameter %q", key)
 		}
 	}
 
@@ -249,7 +257,9 @@ func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) 
 		client.CheckRedirect = nil
 	}
 
-	if body == nil {
+	if rawBody != nil {
+		body = rawBody
+	} else if body == nil {
 		body = bytes.NewBufferString("")
 	}
 

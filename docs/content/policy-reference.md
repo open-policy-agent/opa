@@ -424,36 +424,51 @@ Note that the opa executable will need access to the timezone files in the envir
 
 | Built-in | Description |
 | ------- |-------------|
-| <span class="opa-keep-it-together">``http.send(request, output)``</span> | ``http.send`` executes a HTTP request and returns the response.``request`` is an object containing keys ``method``, ``url`` and  optionally ``body``, ``enable_redirect``, ``force_json_decode``, ``headers``, ``tls_use_system_certs``, ``tls_ca_cert_file``, ``tls_ca_cert_env_variable``, ``tls_client_cert_env_variable``, ``tls_client_key_env_variable`` or ``tls_client_cert_file``, ``tls_client_key_file`` . For example, ``http.send({"method": "get", "url": "http://www.openpolicyagent.org/", "headers": {"X-Foo":"bar", "X-Opa": "rules"}}, output)``. ``output`` is an object containing keys ``status``, ``status_code``, ``body`` and ``raw_body`` which represent the HTTP status, status code, JSON value from the response body and response body as string respectively. Sample output, ``{"status": "200 OK", "status_code": 200, "body": {"hello": "world"}, "raw_body": "{\"hello\": \"world\"}"``}. By default, HTTP redirects are not enabled. To enable, set ``enable_redirect`` to ``true``. Also ``force_json_decode`` is set to ``false`` by default. This means if the HTTP server response does not specify the ``Content-type`` as ``application/json``, the response body will not be JSON decoded ie. output's ``body`` field will be ``null``. To change this behaviour, set ``force_json_decode`` to ``true``.|
+| <span class="opa-keep-it-together">``response := http.send(request)``</span> | ``http.send`` executes an HTTP `request` and returns a `response`. |
 
-#### HTTPs Usage
+The `request` object parameter may contain the following fields:
 
-The following table explains the HTTPs objects
+| Field | Required | Type | Description |
+| --- | --- | --- | --- |
+| `url` | yes | `string` | HTTP URL to specify in the request (e.g., `"https://www.openpolicyagent.org"`). |
+| `method` | yes | `string` | HTTP method to specify in request (e.g., `"GET"`, `"POST"`, `"PUT"`, etc.) |
+| `body` | no | `any` | HTTP message body to include in request. The value will be serialized to JSON. |
+| `raw_body` | no | `string` | HTTP message body to include in request. The value WILL NOT be serialized. Use this for non-JSON messages. |
+| `headers` | no | `object` | HTTP headers to include in the request (e.g,. `{"X-Opa": "rules"}`). |
+| `enable_redirect` | no | `boolean` | Follow HTTP redirects. Default: `false`. |
+| `force_json_decode` | no | `boolean` | Decode the HTTP response message body as JSON even if the `Content-Type` header is missing. Default: `false`. |
+| `tls_use_system_certs` | no | `boolean` | Use system certificate pool. |
+| `tls_ca_cert_file` | no | `string` | Path to file containing a root certificate in PEM encoded format. |
+| `tls_ca_cert_env_variable` | no | `string` | Environment variable containing a root certificate in PEM encoded format. |
+| `tls_client_cert_env_variable` | no | `string` | Environment variable containing a client certificate in PEM encoded format. |
+| `tls_client_key_env_variable` | no | `string` | Environment variable containing a client key in PEM encoded format. |
+| `tls_client_cert_file` | no | `string` | Path to file containing a client certificate in PEM encoded format. |
+| `tls_client_key_file` | no | `string` | Path to file containing a key  in PEM encoded format. |
 
-| Object |  Definition | Value|
-| -------- |-----------|------|
-| tls_use_system_certs | Use system certificate pool | true or false
-| tls_ca_cert_file | Path to file containing a root certificate in PEM encoded format | double-quoted string
-| tls_ca_cert_env_variable | Environment variable containing a root certificate in PEM encoded format | double-quoted string
-| tls_client_cert_env_variable | Environment variable containing a client certificate in PEM encoded format | double-quoted string
-| tls_client_key_env_variable | Environment variable containing a client key in PEM encoded format | double-quoted string
-| tls_client_cert_file | Path to file containing a client certificate in PEM encoded format | double-quoted string
-| tls_client_key_file | Path to file containing a key  in PEM encoded format | double-quoted string
 
-In order to trigger the use of HTTPs the user must provide one of the following combinations:
+To trigger the use of HTTPs the user must provide one of the following combinations:
 
  * ``tls_client_cert_file``, ``tls_client_key_file``
  * ``tls_client_cert_env_variable``, ``tls_client_key_env_variable``
 
  The user must also provide a trusted root CA through tls_ca_cert_file or tls_ca_cert_env_variable. Alternatively the user could set tls_use_system_certs to ``true`` and the system certificate pool will be used.
 
-#### HTTPs Examples
+The `response` object parameter will contain the following fields:
 
-| Examples |  Comments |
+| Field | Type | Description |
+| --- | --- | --- |
+| `status` | `string` | HTTP status message (e.g., `"200 OK"`). |
+| `status_code` | `number` | HTTP status code (e.g., `200`). |
+| `body` | `any` | Any JSON value. If the HTTP response message body was not deserialized from JSON, this field is set to `null`. |
+| `raw_body` | `string` | The entire raw HTTP resposne message body represented as a string. |
+
+The table below shows examples of calling `http.send`:
+
+| Example |  Comments |
 | -------- |-----------|
-| Files containing TLS material | ``http.send({"method": "get", "url": "https://127.0.0.1:65331", "tls_ca_cert_file": "testdata/ca.pem", "tls_client_cert_file": "testdata/client-cert.pem", "tls_client_key_file": "testdata/client-key.pem"}, output)``.
-|Environment variables containing TLS material | ``http.send({"method": "get", "url": "https://127.0.0.1:65360", "tls_ca_cert_env_variable": "CLIENT_CA_ENV", "tls_client_cert_env_variable": "CLIENT_CERT_ENV", "tls_client_key_env_variable": "CLIENT_KEY_ENV"}, output)``.|
-| Accessing Google using System Cert Pool | ``http.send({"method": "get", "url": "https://www.google.com", "tls_use_system_certs": true, "tls_client_cert_file": "testdata/client-cert.pem", "tls_client_key_file": "testdata/client-key.pem"}, output)``
+| Files containing TLS material | ``http.send({"method": "get", "url": "https://127.0.0.1:65331", "tls_ca_cert_file": "testdata/ca.pem", "tls_client_cert_file": "testdata/client-cert.pem", "tls_client_key_file": "testdata/client-key.pem"})`` |
+|Environment variables containing TLS material | ``http.send({"method": "get", "url": "https://127.0.0.1:65360", "tls_ca_cert_env_variable": "CLIENT_CA_ENV", "tls_client_cert_env_variable": "CLIENT_CERT_ENV", "tls_client_key_env_variable": "CLIENT_KEY_ENV"})`` |
+| Accessing Google using System Cert Pool | ``http.send({"method": "get", "url": "https://www.google.com", "tls_use_system_certs": true, "tls_client_cert_file": "testdata/client-cert.pem", "tls_client_key_file": "testdata/client-key.pem"})`` |
 
 ### Net
 | Built-in | Description |
