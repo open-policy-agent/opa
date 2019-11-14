@@ -68,15 +68,15 @@ receives a JSON representation of the system as input:
         {"id": "busybox", "protocols": ["telnet"], "ports": ["p1"]}
     ],
     "networks": [
-        {"id": "net1", "public": false},
-        {"id": "net2", "public": false},
-        {"id": "net3", "public": true},
-        {"id": "net4", "public": true}
+        {"id": "n1", "public": false},
+        {"id": "n2", "public": false},
+        {"id": "n3", "public": true},
+        {"id": "n4", "public": true}
     ],
     "ports": [
-        {"id": "p1", "network": "net1"},
-        {"id": "p2", "network": "net3"},
-        {"id": "p3", "network": "net2"}
+        {"id": "p1", "network": "n1"},
+        {"id": "p2", "network": "n3"},
+        {"id": "p3", "network": "n2"}
     ]
 }
 ```
@@ -692,10 +692,10 @@ For example:
         {"id": "busybox", "protocols": ["telnet"], "ports": ["p1"]}
     ],
     "networks": [
-        {"id": "net1", "public": false},
-        {"id": "net2", "public": false},
-        {"id": "net3", "public": true},
-        {"id": "net4", "public": true}
+        {"id": "n1", "public": false},
+        {"id": "n2", "public": false},
+        {"id": "n3", "public": true},
+        {"id": "n4", "public": true}
     ],
     "ports": [
         {"id": "p1", "network": "n1"},
