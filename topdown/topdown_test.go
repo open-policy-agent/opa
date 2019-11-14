@@ -2979,7 +2979,7 @@ func assertTopDownWithPath(t *testing.T, compiler *ast.Compiler, store storage.S
 			}
 
 			if util.Compare(expected, result) != 0 {
-				t.Fatalf("Unexpected result:\nGot: %v\nExp:\n%v", result, expected)
+				t.Fatalf("Unexpected result:\nGot: %+v\nExp:\n%+v", result, expected)
 			}
 
 			// If the test case involved the input document, re-run it with partial

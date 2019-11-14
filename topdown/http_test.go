@@ -9,6 +9,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -185,59 +186,96 @@ func TestHTTPCustomHeaders(t *testing.T) {
 // TestHTTPostRequest adds a new person
 func TestHTTPostRequest(t *testing.T) {
 
-	// test server
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-		var person Person
-		if r.Body == nil {
-			http.Error(w, "Please send a request body", 400)
-			return
-		}
-		err := json.NewDecoder(r.Body).Decode(&person)
+		contentType := r.Header.Get("Content-Type")
+
+		bs, err := ioutil.ReadAll(r.Body)
 		if err != nil {
-			http.Error(w, err.Error(), 400)
-			return
+			t.Fatal(err)
 		}
 
-		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Content-Type", contentType)
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(person)
+		w.Write(bs)
 	}))
 
 	defer ts.Close()
 
-	// expected result
-	expectedResult := map[string]interface{}{
-		"status":      "200 OK",
-		"status_code": http.StatusOK,
-		"body":        map[string]string{"id": "2", "firstname": "Joe"},
-		"raw_body":    "{\"id\":\"2\",\"firstname\":\"Joe\"}\n",
-	}
-
-	resultObj, err := ast.InterfaceToValue(expectedResult)
-	if err != nil {
-		panic(err)
-	}
-
-	// create a new person object
-	person2 := Person{ID: "2", Firstname: "Joe"}
-	b := new(bytes.Buffer)
-	json.NewEncoder(b).Encode(person2)
-
-	// run the test
 	tests := []struct {
 		note     string
-		rules    []string
+		params   string
 		expected interface{}
 	}{
-		{"http.send", []string{fmt.Sprintf(
-			`p = x { http.send({"method": "post", "url": "%s", "body": %s}, x) }`, ts.URL, b)}, resultObj.String()},
+
+		{
+			note: "basic",
+			params: `{
+				"method": "post",
+				"headers": {"Content-Type": "application/json"},
+				"body": {"id": "2", "firstname": "Joe"}
+			}`,
+			expected: `{
+				"status": "200 OK",
+				"status_code": 200,
+				"body": {"id": "2", "firstname": "Joe"},
+				"raw_body": "{\"firstname\":\"Joe\",\"id\":\"2\"}"
+			}`,
+		},
+		{
+			note: "raw_body",
+			params: `{
+				"method": "post",
+				"headers": {"Content-Type": "application/x-www-form-encoded"},
+				"raw_body": "username=foobar&password=baz"
+			}`,
+			expected: `{
+				"status": "200 OK",
+				"status_code": 200,
+				"body": null,
+				"raw_body": "username=foobar&password=baz"
+			}`,
+		},
+		{
+			note: "raw_body overrides body",
+			params: `{
+				"method": "post",
+				"headers": {"Content-Type": "application/x-www-form-encoded"},
+				"body": {"foo": 1},
+				"raw_body": "username=foobar&password=baz"
+			}`,
+			expected: `{
+				"status": "200 OK",
+				"status_code": 200,
+				"body": null,
+				"raw_body": "username=foobar&password=baz"
+			}`,
+		},
+		{
+			note: "raw_body bad type",
+			params: `{
+				"method": "post",
+				"headers": {"Content-Type": "application/x-www-form-encoded"},
+				"raw_body": {"bar": "bar"}
+			}`,
+			expected: errors.New("raw_body must be a string"),
+		},
 	}
 
-	data := loadSmallTestData()
+	data := map[string]interface{}{}
 
 	for _, tc := range tests {
-		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
+
+		// Automatically set the URL because it's generated when the test server
+		// is started. If needed, the test cases can override in the future.
+		term := ast.MustParseTerm(tc.params)
+		term.Value.(ast.Object).Insert(ast.StringTerm("url"), ast.StringTerm(ts.URL))
+
+		rules := []string{
+			fmt.Sprintf(`p = x { http.send(%s, x) }`, term),
+		}
+
+		runTopDownTestCase(t, data, tc.note, rules, tc.expected)
 	}
 }
 
