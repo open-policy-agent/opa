@@ -479,7 +479,7 @@ some n; public_network[n]
 Lastly, you can check if a value exists in the set using the same syntax:
 
 ```live:example/partial_set/exists:query:merge_down
-public_network["net3"]
+public_network["n3"]
 ```
 ```live:example/partial_set/exists:output
 ```
