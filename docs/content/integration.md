@@ -228,6 +228,12 @@ For more examples of embedding OPA as a library see the
 [`rego`](https://godoc.org/github.com/open-policy-agent/opa/rego#pkg-examples)
 package in the Go documentation.
 
+### WebAssembly (Wasm)
+
+Policies can be evaluated as compiled Wasm binaries.
+
+See [OPA Wasm docs](../wasm) for more details.
+
 ## Managing OPA
 
 OPA supports a set of management APIs for distributing policies and collecting
