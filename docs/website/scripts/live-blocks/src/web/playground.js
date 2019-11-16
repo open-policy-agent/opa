@@ -27,6 +27,9 @@ export async function playgroundEval(groups, groupName) {
     if (parsed.pretty) {
       return parsed.pretty.replace(/\n$/, '') // Some responses may have trailing newlines
     }
+    if (parsed.result === null) {
+      throw new OPAErrors("undefined decision", undefined)
+    }
     // Else throw below
   } else if (parsed.message) { // The server returned a non-200 code and a message
     const message = parsed.message.replace(/\n$/, '') // Some messages may have trailing newlines
