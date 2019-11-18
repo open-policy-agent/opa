@@ -402,6 +402,21 @@ integrations:
       - Dockerfile
       - HCL2
 
+  boomerang-bosun:
+    title: Boomerang Bosun Policy Gating
+    description: Boomerang Bosun is a policy-based gating system that combines Policy Templates with Rules and data to validate Gates.
+    labels:
+      type: poweredbyopa
+      layer: application
+    code:
+      - https://www.useboomerang.io/
+      - https://github.com/boomerang-io
+    inventors:
+      - ibm
+      - boomerang
+    software:
+      - bosun
+
 organizations:
   styra:
     name: Styra
@@ -448,7 +463,12 @@ organizations:
   minio:
     name: Minio
     link: https://min.io/
-
+  ibm:
+    name: IBM
+    link: https://developer.ibm.com/open
+  boomerang:
+    name: Boomerang
+    link: https://www.useboomerang.io/
 
 software:
   kubernetes:
@@ -520,4 +540,6 @@ software:
   docker:
     name: Docker
     link: https://www.docker.com/
-
+  bosun:
+    name: Boomerang Bosun
+    link: https://www.useboomerang.io/
