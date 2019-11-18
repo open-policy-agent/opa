@@ -32,7 +32,6 @@ implemented in the host environment (e.g., JavaScript).
 You can compile Rego policies into Wasm modules using the:
 
 * `opa build` CLI
-* [Compile REST API](../rest-api/#compile-api)
 * [github.com/open-policy-agent/opa/rego package in Golang](https://godoc.org/github.com/open-policy-agent/opa/rego#Rego.Compile)
 
 For example, the `opa build` command below compiles the `example.rego` file with
