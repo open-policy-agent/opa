@@ -417,6 +417,21 @@ integrations:
     software:
       - bosun
 
+  kubeshield:
+    title: Secure Kubernetes using eBPF & Open Policy Agent
+    description: Ensure runtime security in any linux machine by combining Extended Berkeley Packet Filter(eBPF) and Open Policy Agent.
+    software:
+      - Linux
+      - Kubernetes
+      - eBPF
+    labels:
+      layer: application
+      catagory: filtering
+    code:
+      - https://github.com/kubeshield/bpf-opa-demo
+    blogs:
+      - https://blog.byte.builders/post/bpf-opa/
+
 organizations:
   styra:
     name: Styra
