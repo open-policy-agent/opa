@@ -154,7 +154,7 @@ html, body {
 }
 
 .navbar-dark .navbar-nav .nav-item {
-    padding: 0px 15px;
+    padding: 0px 5px;
 }
 
 .clearfix {
@@ -819,12 +819,18 @@ h4 {
     width: 60%;
 }
 
-.social-icon ul li {
-    display: inline-block;
+.social-icon-link {
+    padding: 0;
 }
 
-.social-icon ul li img {
-    width: 80%;
+.social-icon-link img {
+    height: 2rem;
+    width: auto;
+    padding: 0;
+}
+
+.social-icon-title {
+    display: none;
 }
 
 .footer-bottom {
@@ -1831,3 +1837,26 @@ h4 {
     }
 }
 
+@media (min-width: 992px) {
+    .social-icon-link {
+        padding: 0;
+    }
+    .social-icon-link img {
+        padding: 0;
+    }
+}
+
+/* 991px is when the mobile nav-bar shows up */
+@media screen and (max-width: 991px) {
+    .social-icon-title {
+        display: inline;
+    }
+
+    .social-icon-link {
+        padding: 0.5rem 1rem;
+    }
+
+    .social-icon-link img {
+        display: none;
+    }
+}
