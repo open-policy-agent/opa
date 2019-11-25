@@ -341,7 +341,7 @@ func TestEvalDebugTraceJSONOutput(t *testing.T) {
 	params.disableIndexing = true
 
 	mod := `package x
-	
+
 	p {
 		a := input.z
 		a == 1
@@ -416,7 +416,7 @@ func TestEvalDebugTraceJSONOutput(t *testing.T) {
 	expectedEvalLocationsAndVars := []locationAndVars{
 		{
 			location:    ast.NewLocation(nil, policyFile, 4, 3), // a := input.z
-			varBindings: map[string]string{},
+			varBindings: map[string]string{"__local0__": "a"},
 		},
 		{
 			location:    ast.NewLocation(nil, policyFile, 5, 3), // a == 1
@@ -424,7 +424,7 @@ func TestEvalDebugTraceJSONOutput(t *testing.T) {
 		},
 		{
 			location:    ast.NewLocation(nil, policyFile, 9, 3), // b := input.y
-			varBindings: map[string]string{},
+			varBindings: map[string]string{"__local1__": "b"},
 		},
 	}
 

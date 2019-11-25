@@ -315,17 +315,28 @@ func TestTraceRewrittenQueryVars(t *testing.T) {
 	}
 
 	foundQueryVar := false
-	var traces []*Event = *tracer
-	for _, trace := range traces {
-		if trace.LocalMetadata != nil {
-			name, ok := trace.LocalMetadata["__localq1__"]
+
+	for _, event := range *tracer {
+		if event.LocalMetadata != nil {
+			name, ok := event.LocalMetadata["__localq1__"]
 			if ok && name.Name == "z" {
 				foundQueryVar = true
 				break
 			}
 		}
 	}
+
 	if !foundQueryVar {
 		t.Error("Expected to find trace with rewritten var 'z' -> '__localq__")
+	}
+
+	// Rewrite the vars in the first event (which is a query) and verify that
+	// that vars have been mapped to user-provided names.
+	cpy := rewrite((*tracer)[0])
+	node := cpy.Node.(ast.Body)
+	exp := ast.MustParseBody("z = {a | a = data.y[_]}")
+
+	if !node.Equal(exp) {
+		t.Errorf("Expected %v but got %v", exp, node)
 	}
 }
