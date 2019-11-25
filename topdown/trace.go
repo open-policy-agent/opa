@@ -47,20 +47,20 @@ const (
 // VarMetadata provides some user facing information about
 // a variable in some policy.
 type VarMetadata struct {
-	Name     string        `json:"name"`
+	Name     ast.Var       `json:"name"`
 	Location *ast.Location `json:"location"`
 }
 
 // Event contains state associated with a tracing event.
 type Event struct {
-	Op            Op                     // Identifies type of event.
-	Node          ast.Node               // Contains AST node relevant to the event.
-	Location      *ast.Location          // The location of the Node this event relates to.
-	QueryID       uint64                 // Identifies the query this event belongs to.
-	ParentID      uint64                 // Identifies the parent query this event belongs to.
-	Locals        *ast.ValueMap          // Contains local variable bindings from the query context.
-	LocalMetadata map[string]VarMetadata // Contains metadata for the local variable bindings.
-	Message       string                 // Contains message for Note events.
+	Op            Op                      // Identifies type of event.
+	Node          ast.Node                // Contains AST node relevant to the event.
+	Location      *ast.Location           // The location of the Node this event relates to.
+	QueryID       uint64                  // Identifies the query this event belongs to.
+	ParentID      uint64                  // Identifies the parent query this event belongs to.
+	Locals        *ast.ValueMap           // Contains local variable bindings from the query context.
+	LocalMetadata map[ast.Var]VarMetadata // Contains metadata for the local variable bindings.
+	Message       string                  // Contains message for Note events.
 }
 
 // HasRule returns true if the Event contains an ast.Rule.
@@ -170,7 +170,7 @@ func formatEvent(event *Event, depth int) string {
 		case *ast.Rule:
 			return fmt.Sprintf("%v%v %v", padding, event.Op, node.Path())
 		default:
-			return fmt.Sprintf("%v%v %v", padding, event.Op, event.Node)
+			return fmt.Sprintf("%v%v %v", padding, event.Op, rewrite(event).Node)
 		}
 	}
 }
@@ -243,6 +243,32 @@ func traceIsEnabled(tracers []Tracer) bool {
 		}
 	}
 	return false
+}
+
+func rewrite(event *Event) *Event {
+
+	cpy := *event
+	node := cpy.Node
+
+	switch node := node.(type) {
+	case *ast.Expr:
+		node = node.Copy()
+	case ast.Body:
+		node = node.Copy()
+	case *ast.Rule:
+		node = node.Copy()
+	}
+
+	ast.WalkTerms(node, func(term *ast.Term) bool {
+		if v, ok := term.Value.(ast.Var); ok {
+			if meta, ok := cpy.LocalMetadata[v]; ok {
+				term.Value = ast.Var(meta.Name)
+			}
+		}
+		return false
+	})
+
+	return &cpy
 }
 
 func init() {
