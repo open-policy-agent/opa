@@ -807,7 +807,7 @@ func (c *Compiler) checkSafetyRuleHeads() {
 func (c *Compiler) checkTypes() {
 	// Recursion is caught in earlier step, so this cannot fail.
 	sorted, _ := c.Graph.Sort()
-	checker := newTypeChecker()
+	checker := newTypeChecker().WithVarRewriter(rewriteVarsInRef(c.RewrittenVars))
 	env, errs := checker.CheckTypes(c.TypeEnv, sorted)
 	for _, err := range errs {
 		c.err(err)
@@ -1365,7 +1365,7 @@ func (qc *queryCompiler) checkSafety(_ *QueryContext, body Body) (Body, error) {
 
 func (qc *queryCompiler) checkTypes(qctx *QueryContext, body Body) (Body, error) {
 	var errs Errors
-	checker := newTypeChecker()
+	checker := newTypeChecker().WithVarRewriter(rewriteVarsInRef(qc.rewritten, qc.compiler.RewrittenVars))
 	qc.typeEnv, errs = checker.CheckBody(qc.compiler.TypeEnv, body)
 	if len(errs) > 0 {
 		return nil, errs
@@ -3297,4 +3297,22 @@ func checkUnsafeBuiltins(unsafeBuiltinsMap map[string]struct{}, node interface{}
 		return false
 	})
 	return errs
+}
+
+func rewriteVarsInRef(vars ...map[Var]Var) func(Ref) Ref {
+	return func(node Ref) Ref {
+		i, _ := TransformVars(node, func(v Var) (Value, error) {
+			for _, m := range vars {
+				if u, ok := m[v]; ok {
+					return u, nil
+				}
+			}
+			return v, nil
+		})
+		return i.(Ref)
+	}
+}
+
+func rewriteVarsNop(node Ref) Ref {
+	return node
 }

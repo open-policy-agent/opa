@@ -13,6 +13,8 @@ import (
 	"github.com/open-policy-agent/opa/util"
 )
 
+type rewriteVars func(x Ref) Ref
+
 // exprChecker defines the interface for executing type checking on a single
 // expression. The exprChecker must update the provided TypeEnv with inferred
 // types of vars.
@@ -24,6 +26,7 @@ type exprChecker func(*TypeEnv, *Expr) *Error
 type typeChecker struct {
 	errs         Errors
 	exprCheckers map[string]exprChecker
+	varRewriter  rewriteVars
 }
 
 // newTypeChecker returns a new typeChecker object that has no errors.
@@ -32,6 +35,11 @@ func newTypeChecker() *typeChecker {
 	tc.exprCheckers = map[string]exprChecker{
 		"eq": tc.checkExprEq,
 	}
+	return tc
+}
+
+func (tc *typeChecker) WithVarRewriter(f rewriteVars) *typeChecker {
+	tc.varRewriter = f
 	return tc
 }
 
@@ -55,7 +63,7 @@ func (tc *typeChecker) CheckBody(env *TypeEnv, body Body) (*TypeEnv, Errors) {
 
 		hasClosureErrors := len(closureErrs) > 0
 
-		vis := newRefChecker(env)
+		vis := newRefChecker(env, tc.varRewriter)
 		Walk(vis, expr)
 		for _, err := range vis.errs {
 			tc.err(err)
@@ -101,19 +109,19 @@ func (tc *typeChecker) checkClosures(env *TypeEnv, expr *Expr) Errors {
 	WalkClosures(expr, func(x interface{}) bool {
 		switch x := x.(type) {
 		case *ArrayComprehension:
-			_, errs := newTypeChecker().CheckBody(env, x.Body)
+			_, errs := newTypeChecker().WithVarRewriter(tc.varRewriter).CheckBody(env, x.Body)
 			if len(errs) > 0 {
 				result = errs
 				return true
 			}
 		case *SetComprehension:
-			_, errs := newTypeChecker().CheckBody(env, x.Body)
+			_, errs := newTypeChecker().WithVarRewriter(tc.varRewriter).CheckBody(env, x.Body)
 			if len(errs) > 0 {
 				result = errs
 				return true
 			}
 		case *ObjectComprehension:
-			_, errs := newTypeChecker().CheckBody(env, x.Body)
+			_, errs := newTypeChecker().WithVarRewriter(tc.varRewriter).CheckBody(env, x.Body)
 			if len(errs) > 0 {
 				result = errs
 				return true
@@ -486,14 +494,21 @@ func (tc *typeChecker) err(err *Error) {
 }
 
 type refChecker struct {
-	env  *TypeEnv
-	errs Errors
+	env         *TypeEnv
+	errs        Errors
+	varRewriter rewriteVars
 }
 
-func newRefChecker(env *TypeEnv) *refChecker {
+func newRefChecker(env *TypeEnv, f rewriteVars) *refChecker {
+
+	if f == nil {
+		f = rewriteVarsNop
+	}
+
 	return &refChecker{
-		env:  env,
-		errs: nil,
+		env:         env,
+		errs:        nil,
+		varRewriter: f,
 	}
 }
 
@@ -527,7 +542,7 @@ func (rc *refChecker) Visit(x interface{}) Visitor {
 func (rc *refChecker) checkApply(curr *TypeEnv, ref Ref) *Error {
 	if tpe := curr.Get(ref); tpe != nil {
 		if _, ok := tpe.(*types.Function); ok {
-			return newRefErrUnsupported(ref[0].Location, ref, len(ref)-1, tpe)
+			return newRefErrUnsupported(ref[0].Location, rc.varRewriter(ref), len(ref)-1, tpe)
 		}
 	}
 	return nil
@@ -573,7 +588,7 @@ func (rc *refChecker) checkRef(curr *TypeEnv, node *typeTreeNode, ref Ref, idx i
 
 		if exist := rc.env.Get(value); exist != nil {
 			if !unifies(types.S, exist) {
-				return newRefErrInvalid(ref[0].Location, ref, idx, exist, types.S, getOneOfForNode(node))
+				return newRefErrInvalid(ref[0].Location, rc.varRewriter(ref), idx, exist, types.S, getOneOfForNode(node))
 			}
 		} else {
 			rc.env.tree.PutOne(value, types.S)
@@ -589,13 +604,13 @@ func (rc *refChecker) checkRef(curr *TypeEnv, node *typeTreeNode, ref Ref, idx i
 		}
 
 		if !unifies(types.S, exist) {
-			return newRefErrInvalid(ref[0].Location, ref, idx, exist, types.S, getOneOfForNode(node))
+			return newRefErrInvalid(ref[0].Location, rc.varRewriter(ref), idx, exist, types.S, getOneOfForNode(node))
 		}
 
 	// Catch other ref operand types here. Non-leaf nodes must be referred to
 	// with string values.
 	default:
-		return newRefErrInvalid(ref[0].Location, ref, idx, nil, types.S, getOneOfForNode(node))
+		return newRefErrInvalid(ref[0].Location, rc.varRewriter(ref), idx, nil, types.S, getOneOfForNode(node))
 	}
 
 	// Run checking on remaining portion of the ref. Note, since the ref
@@ -619,7 +634,7 @@ func (rc *refChecker) checkRefLeaf(tpe types.Type, ref Ref, idx int) *Error {
 
 	keys := types.Keys(tpe)
 	if keys == nil {
-		return newRefErrUnsupported(ref[0].Location, ref, idx-1, tpe)
+		return newRefErrUnsupported(ref[0].Location, rc.varRewriter(ref), idx-1, tpe)
 	}
 
 	switch value := head.Value.(type) {
@@ -627,7 +642,7 @@ func (rc *refChecker) checkRefLeaf(tpe types.Type, ref Ref, idx int) *Error {
 	case Var:
 		if exist := rc.env.Get(value); exist != nil {
 			if !unifies(exist, keys) {
-				return newRefErrInvalid(ref[0].Location, ref, idx, exist, keys, getOneOfForType(tpe))
+				return newRefErrInvalid(ref[0].Location, rc.varRewriter(ref), idx, exist, keys, getOneOfForType(tpe))
 			}
 		} else {
 			rc.env.tree.PutOne(value, types.Keys(tpe))
@@ -636,23 +651,23 @@ func (rc *refChecker) checkRefLeaf(tpe types.Type, ref Ref, idx int) *Error {
 	case Ref:
 		if exist := rc.env.Get(value); exist != nil {
 			if !unifies(exist, keys) {
-				return newRefErrInvalid(ref[0].Location, ref, idx, exist, keys, getOneOfForType(tpe))
+				return newRefErrInvalid(ref[0].Location, rc.varRewriter(ref), idx, exist, keys, getOneOfForType(tpe))
 			}
 		}
 
 	case Array, Object, Set:
 		// Composite references operands may only be used with a set.
 		if !unifies(tpe, types.NewSet(types.A)) {
-			return newRefErrInvalid(ref[0].Location, ref, idx, tpe, types.NewSet(types.A), nil)
+			return newRefErrInvalid(ref[0].Location, rc.varRewriter(ref), idx, tpe, types.NewSet(types.A), nil)
 		}
 		if !unify1(rc.env, head, keys, false) {
-			return newRefErrInvalid(ref[0].Location, ref, idx, rc.env.Get(head), keys, nil)
+			return newRefErrInvalid(ref[0].Location, rc.varRewriter(ref), idx, rc.env.Get(head), keys, nil)
 		}
 
 	default:
 		child := selectConstant(tpe, head)
 		if child == nil {
-			return newRefErrInvalid(ref[0].Location, ref, idx, nil, types.Keys(tpe), getOneOfForType(tpe))
+			return newRefErrInvalid(ref[0].Location, rc.varRewriter(ref), idx, nil, types.Keys(tpe), getOneOfForType(tpe))
 		}
 		return rc.checkRefLeaf(child, ref, idx+1)
 	}
