@@ -1060,6 +1060,28 @@ func TestCheckErrorOrdering(t *testing.T) {
 	}
 }
 
+func TestRewrittenVarsInErrors(t *testing.T) {
+
+	_, errs := newTypeChecker().WithVarRewriter(rewriteVarsInRef(map[Var]Var{
+		"__local0__": "foo",
+		"__local1__": "bar",
+	})).CheckBody(nil, MustParseBody(`__local0__ = [[1]]; __local1__ = "bar"; __local0__[0][__local1__]`))
+
+	if len(errs) != 1 {
+		t.Fatal("expected exactly one error but got:", len(errs))
+	}
+
+	detail, ok := errs[0].Details.(*RefErrInvalidDetail)
+	if !ok {
+		t.Fatal("expected invalid ref detail but got:", errs[0].Details)
+	}
+
+	if !detail.Ref.Equal(MustParseRef("foo[0][bar]")) {
+		t.Fatal("expected ref to be foo[0][bar] but got:", detail.Ref)
+	}
+
+}
+
 func newTestEnv(rs []string) *TypeEnv {
 	module := MustParseModule(`
 		package test
