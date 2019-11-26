@@ -175,9 +175,18 @@ The following table shows examples of how ``glob.match`` works:
 
 OPA provides two builtins that implement JSON Web Signature [RFC7515](https://tools.ietf.org/html/rfc7515) functionality.
 
-``io.jwt.encode_sign_raw()`` takes three JSON Objects (strings) as parameters and returns their JWS Compact Serialization. This builtin should be used by those that want maximum control over the signing and serialization procedure. It is important to remember that StringOrURI values are compared as case-sensitive strings with no transformations or canonicalizations applied. Therefore, line breaks and whitespaces are significant.
+``io.jwt.encode_sign_raw()`` takes three JSON Objects (strings) as parameters and returns their JWS Compact Serialization.
+ This builtin should be used by those that want maximum control over the signing and serialization procedure. It is
+ important to remember that StringOrURI values are compared as case-sensitive strings with no transformations or
+ canonicalizations applied. Therefore, line breaks and whitespaces are significant.
 
-``io.jwt.encode_sign()`` takes three Rego Objects as parameters and returns their JWS Compact Serialization. This builtin should be used by those that want to use rego objects for signing during policy evaluation. Notice that since these are objects canonicalization *is applied* and all whitespace is removed.
+``io.jwt.encode_sign()`` takes three Rego Objects as parameters and returns their JWS Compact Serialization. This builtin
+ should be used by those that want to use rego objects for signing during policy evaluation. 
+ 
+> Note that with `io.jwt.encode_sign` the Rego objects are serialized to JSON with standard formatting applied
+> whereas the `io.jwt.encode_sign_raw` built-in will **not** affect whitespace of the strings passed in.
+> This will mean that the final encoded token may have different string values, but the decoded and parsed
+> JSON will match.
 
 The following algorithms are supported:
 
@@ -200,7 +209,10 @@ The following algorithms are supported:
 | Built-in | Description |
 | ------- |-------------|
 | <span class="opa-keep-it-together">``output := io.jwt.encode_sign_raw(headers, payload, key)``</span> | ``headers``, ``payload`` and  ``key`` as strings that represent the JWS Protected Header, JWS Payload and JSON Web Key ([RFC7517](https://tools.ietf.org/html/rfc7517)) respectively.|
-``output := io.jwt.encode_sign(headers, payload, key)``</span> | ``headers``, ``payload`` and  ``key`` are JSON objects that represent the JWS Protected Header, JWS Payload and JSON Web Key ([RFC7517](https://tools.ietf.org/html/rfc7517)) respectively.|
+| <span class="opa-keep-it-together">``output := io.jwt.encode_sign(headers, payload, key)``</span> | ``headers``, ``payload`` and  ``key`` are JSON objects that represent the JWS Protected Header, JWS Payload and JSON Web Key ([RFC7517](https://tools.ietf.org/html/rfc7517)) respectively.|
+
+> Note that the key's provided should be base64 encoded as per the specification ([RFC7517](https://tools.ietf.org/html/rfc7517)).
+> This differs from the plain text secrets provided with the algorithm specific verify built-ins described below.
 
 #### Token Signing Examples
 
@@ -282,7 +294,11 @@ If you need to generate the signature for a serialized token you an use the
 parameters.
 
 ```live:jwt/raw:query:merge_down
-io.jwt.encode_sign_raw(`{"typ":"JWT","alg":"HS256"}`, `{"iss":"joe","exp":1300819380,"http://example.com/is_root":true}`, `{"kty":"oct","k":"AyM1SysPpbyDfgZld3umj1qzKObwVMkoqQ-EstJQLr_T-1qS0gZH75aKtMN3Yj0iPS4hcgUuTwjAzZr1Z9CAow"}`)
+io.jwt.encode_sign_raw(
+    `{"typ":"JWT","alg":"HS256"}`,
+     `{"iss":"joe","exp":1300819380,"http://example.com/is_root":true}`,
+    `{"kty":"oct","k":"AyM1SysPpbyDfgZld3umj1qzKObwVMkoqQ-EstJQLr_T-1qS0gZH75aKtMN3Yj0iPS4hcgUuTwjAzZr1Z9CAow"}`
+)
 ```
 ```live:jwt/raw:output
 ```
@@ -298,6 +314,9 @@ io.jwt.encode_sign_raw(`{"typ":"JWT","alg":"HS256"}`, `{"iss":"joe","exp":130081
 | <span class="opa-keep-it-together">``output := io.jwt.decode(string)``</span> | ``output`` is of the form ``[header, payload, sig]``.  ``header`` and ``payload`` are ``object``. ``sig`` is the hexadecimal representation of the signature on the token. |
 | <span class="opa-keep-it-together">``output := io.jwt.decode_verify(string, constraints)``</span> | ``output`` is of the form ``[valid, header, payload]``.  If the input token verifies and meets the requirements of ``constraints`` then ``valid`` is ``true`` and ``header`` and ``payload`` are objects containing the JOSE header and the JWT claim set. Otherwise, ``valid`` is ``false`` and ``header`` and ``payload`` are ``{}``. |
 
+> Note that the `io.jwt.verify_XX` built-in methods verify **only** the signature. They **do not** provide any validation for the JWT
+> payload and any claims specified. The `io.jwt.decode_verify` built-in will verify the payload and **all** standard claims.
+
 The input `string` is a JSON Web Token encoded with JWS Compact Serialization. JWE and JWS JSON Serialization are not supported. If nested signing was used, the ``header``, ``payload`` and ``signature`` will represent the most deeply nested token.
 
 For ``io.jwt.decode_verify``, ``constraints`` is an object with the following members:
@@ -308,8 +327,8 @@ For ``io.jwt.decode_verify``, ``constraints`` is an object with the following me
 | ``secret`` | The secret key for HS256, HS384 and HS512 verification. | See below |
 | ``alg`` | The JWA algorithm name to use. If it is absent then any algorithm that is compatible with the key is accepted. | Optional |
 | ``iss`` | The issuer string. If it is present the only tokens with this issuer are accepted. If it is absent then any issuer is accepted. | Optional |
-|``time`` | The time in nanoseconds to verify the token at. If this is present then the ``exp`` and ``nbf`` claims are compared against this value. If it is absent then they are compared against the current time. | Optional |
-|``aud`` | The audience that the verifier identifies with.  If this is present then the ``aud`` claim is checked against it. If it is absent then the ``aud`` claim must be absent too. | Optional |
+| ``time`` | The time in nanoseconds to verify the token at. If this is present then the ``exp`` and ``nbf`` claims are compared against this value. If it is absent then they are compared against the current time. | Optional |
+| ``aud`` | The audience that the verifier identifies with.  If this is present then the ``aud`` claim is checked against it. **If it is absent then the ``aud`` claim must be absent too.** | Optional |
 
 Exactly one of ``cert`` and ``secret`` must be present. If there are any
 unrecognized constraints then the token is considered invalid.
@@ -324,7 +343,9 @@ es256_token = "eyJ0eXAiOiAiSldUIiwgImFsZyI6ICJFUzI1NiJ9.eyJuYmYiOiAxNDQ0NDc4NDAw
 ```
 
 ##### Using JWKS
-
+This example shows a two-step process to verify the token signature and then decode it for
+further checks of the payload content. This approach gives more flexibility in verifying only
+the claims that the policy needs to enforce.
 ```live:jwt/verify/jwks:module
 jwks = `{
     "keys": [{
@@ -337,13 +358,16 @@ jwks = `{
 ```
 
 ```live:jwt/verify/jwks/two_step:query:merge_down
-io.jwt.verify_es256(es256_token, jwks)
-[header, payload, _] := io.jwt.decode(es256_token)
-payload.iss == "xxx"
+io.jwt.verify_es256(es256_token, jwks)                  # Verify the token with the JWKS
+[header, payload, _] := io.jwt.decode(es256_token)      # Decode the token
+payload.iss == "xxx"                                    # Ensure the issuer (`iss`) claim is the expected value
 ```
 ```live:jwt/verify/jwks/two_step:output
 ```
-
+The next example shows doing the token signature verification, decoding, and content checks
+all in one call using `io.jwt.decode_verify`. Note that this gives less flexibility in validating
+the payload content as **all** claims defined in the JWT spec are verified with the provided
+constraints.
 ```live:jwt/verify/jwks/one_step:query:merge_down
 [valid, header, payload] := io.jwt.decode_verify(es256_token, {
     "cert": jwks,
@@ -354,7 +378,8 @@ payload.iss == "xxx"
 ```
 
 ##### Using PEM encoded X.509 Certificate
-
+The following examples will demonstrate verifying tokens using an X.509 Certificate
+defined as:
 ```live:jwt/verify/cert:module
 cert = `-----BEGIN CERTIFICATE-----
 MIIBcDCCARagAwIBAgIJAMZmuGSIfvgzMAoGCCqGSM49BAMCMBMxETAPBgNVBAMM
@@ -367,23 +392,80 @@ BggqhkjOPQQDAgNIADBFAiEA4yQ/88ZrUX68c6kOe9G11u8NUaUzd8pLOtkKhniN
 OHoCIHmNX37JOqTcTzGn2u9+c8NlnvZ0uDvsd1BmKPaUmjmm
 -----END CERTIFICATE-----`
 ```
-
+This example shows a two-step process to verify the token signature and then decode it for
+further checks of the payload content. This approach gives more flexibility in verifying only
+the claims that the policy needs to enforce.
 ```live:jwt/verify/cert/two_step:query:merge_down
-io.jwt.verify_es256(es256_token, cert)
-[header, payload, _] := io.jwt.decode(es256_token)
-payload.iss == "xxx"
+io.jwt.verify_es256(es256_token, cert)                # Verify the token with the certificate
+[header, payload, _] := io.jwt.decode(es256_token)    # Decode the token
+payload.iss == "xxx"                                  # Ensure the issuer claim is the expected value
 ```
 ```live:jwt/verify/cert/two_step:output
 ```
-
+The next example shows doing the same token signature verification, decoding, and content checks
+but instead with a single call to `io.jwt.decode_verify`. Note that this gives less flexibility
+in validating the payload content as **all** claims defined in the JWT spec are verified with the
+provided constraints.
 ```live:jwt/verify/cert/one_step:query:merge_down
-[valid, header, payload] := io.jwt.decode_verify(es256_token, {
-    "cert": cert,
-    "iss": "xxx",
-})
+[valid, header, payload] := io.jwt.decode_verify(     # Decode and verify in one-step
+    es256_token,
+    {                                                 # With the supplied constraints:
+        "cert": cert,                                 #   Verify the token with the certificate
+        "iss": "xxx",                                 #   Ensure the issuer claim is the expected value
+    }
+)
 ```
 ```live:jwt/verify/cert/one_step:output
 ```
+
+##### Round Trip - Sign and Verify
+This example shows how to encode a token, verify, and decode it with the different options available.
+
+Start with using the `io.jwt.encode_sign_raw` built-in:
+```live:jwt/verify/round_trip_raw:module:hidden
+```
+```live:jwt/verify/round_trip_raw:query
+raw_result_hs256 := io.jwt.encode_sign_raw(
+    `{"alg":"HS256","typ":"JWT"}`,
+    `{}`,
+    `{"kty":"oct","k":"Zm9v"}`  	# "Zm9v" is the base64 URL encoded string "foo"
+)
+
+# Important!! - Use the un-encoded plain text secret to verify and decode
+raw_result_valid_hs256 := io.jwt.verify_hs256(raw_result_hs256, "foo")
+raw_result_parts_hs256 := io.jwt.decode_verify(raw_result_hs256, {"secret": "foo"})
+```
+```live:jwt/verify/round_trip_raw:output
+```
+
+Now encode the and sign the same token contents but with `io.jwt.encode_sign` instead of the `raw` varient.
+```live:jwt/verify/round_trip:module:hidden
+```
+```live:jwt/verify/round_trip:query:merge_down
+result_hs256 := io.jwt.encode_sign(
+    {
+        "alg":"HS256",
+        "typ":"JWT"
+    },
+    {},
+    {
+        "kty":"oct",
+        "k":"Zm9v"
+    }
+)
+
+# Important!! - Use the un-encoded plain text secret to verify and decode
+result_parts_hs256 := io.jwt.decode_verify(result_hs256, {"secret": "foo"})
+result_valid_hs256 := io.jwt.verify_hs256(result_hs256, "foo")
+```
+```live:jwt/verify/round_trip:output
+```
+
+> Note that the resulting encoded token is different from the first example using
+> `io.jwt.encode_sign_raw`. The reason is that the `io.jwt.encode_sign` function
+> is using canonicalized formatting for the header and payload whereas
+> `io.jwt.encode_sign_raw` does not change the whitespace of the strings passed
+> in. The decoded and parsed JSON values are still the same.
 
 ### Time
 
