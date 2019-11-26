@@ -82,19 +82,19 @@ The primary exported functions for interacting with policy modules are:
 
 | Function Signature | Description|
 | --- | --- |
-| `int32 eval(ctx_addr)` | Evaluates the loaded policy with the provided evaluation context. The return value is reserved for future use. |
-| `value_addr builtins(void)` | Returns the address of a mapping of built-in function names to numeric identifiers that are required by the policy. |
-| `ctx_addr opa_eval_ctx_new(void)` | Returns the address of a newly allocated evaluation context. |
-| `void opa_eval_ctx_set_input(ctx_addr, value_addr)` | Set the input value to use during evaluation. This must be called before each `eval()` call. If the input value is not set before evaluation, references to the `input` document result produce no results (i.e., they are undefined.) |
-| `void opa_eval_ctx_set_data(ctx_addr, value_addr)`  | Set the data value to use during evalutaion. This should be called before each `eval()` call. If the data value is not set before evalutaion, references to base `data` documents produce no results (i.e., they are undefined.) |
-| `value_addr opa_eval_ctx_get_result(ctx_addr)` | Get the result set produced by the evaluation process. |
-| `addr opa_malloc(int32 size)` | Allocates size bytes in the shared memory and returns the starting address. |
-| `value_addr opa_json_parse(str_addr, size)` | Parses the JSON serialized value starting at str_addr of size bytes and returns the address of the parsed value. The parsed value may refer to a null, boolean, number, string, array, or object value. |
-| `str_addr opa_json_dump(value_addr)` | Dumps the value referred to by `value_addr` to a null-terminated JSON serialized string and returns the address of the start of the string. |
-| `void opa_heap_ptr_set(addr)` | Set the heap pointer for the next evaluation. |
-| `addr opa_heap_ptr_get(void)` | Get the current heap pointer. |
-| `void opa_heap_top_set(addr)` | Set the heap top for the next evaluation. |
-| `addr opa_heap_top_get(void)` | Get the current heap top. |
+| <span class="opa-keep-it-together">`int32 eval(ctx_addr)`</span> | Evaluates the loaded policy with the provided evaluation context. The return value is reserved for future use. |
+| <span class="opa-keep-it-together">`value_addr builtins(void)`</span> | Returns the address of a mapping of built-in function names to numeric identifiers that are required by the policy. |
+| <span class="opa-keep-it-together">`ctx_addr opa_eval_ctx_new(void)`</span> | Returns the address of a newly allocated evaluation context. |
+| <span class="opa-keep-it-together">`void opa_eval_ctx_set_input(ctx_addr, value_addr)`</span> | Set the input value to use during evaluation. This must be called before each `eval()` call. If the input value is not set before evaluation, references to the `input` document result produce no results (i.e., they are undefined.) |
+| <span class="opa-keep-it-together">`void opa_eval_ctx_set_data(ctx_addr, value_addr)`</span>  | Set the data value to use during evalutaion. This should be called before each `eval()` call. If the data value is not set before evalutaion, references to base `data` documents produce no results (i.e., they are undefined.) |
+| <span class="opa-keep-it-together">`value_addr opa_eval_ctx_get_result(ctx_addr)`</span> | Get the result set produced by the evaluation process. |
+| <span class="opa-keep-it-together">`addr opa_malloc(int32 size)`</span> | Allocates size bytes in the shared memory and returns the starting address. |
+| <span class="opa-keep-it-together">`value_addr opa_json_parse(str_addr, size)`</span> | Parses the JSON serialized value starting at str_addr of size bytes and returns the address of the parsed value. The parsed value may refer to a null, boolean, number, string, array, or object value. |
+| <span class="opa-keep-it-together">`str_addr opa_json_dump(value_addr)`</span> | Dumps the value referred to by `value_addr` to a null-terminated JSON serialized string and returns the address of the start of the string. |
+| <span class="opa-keep-it-together">`void opa_heap_ptr_set(addr)`</span> | Set the heap pointer for the next evaluation. |
+| <span class="opa-keep-it-together">`addr opa_heap_ptr_get(void)`</span> | Get the current heap pointer. |
+| <span class="opa-keep-it-together">`void opa_heap_top_set(addr)`</span> | Set the heap top for the next evaluation. |
+| <span class="opa-keep-it-together">`addr opa_heap_top_get(void)`</span> | Get the current heap top. |
 
 The addresses passed and returned by the policy modules are 32-bit integer
 offsets into the shared memory region. The `value_addr` parameters and return
@@ -108,11 +108,11 @@ Policy modules require the following function imports at instantiation-time:
 | Namespace | Name | Params | Result | Description |
 | --- | --- | --- | --- | --- |
 | `env` | `opa_abort` | `(addr)` | `void` | Called if an internal error occurs. The `addr` refers to a null-terminated string in the shared memory buffer. |
-| `env` | `opa_builtin0` | `(builtin_id, ctx)` | `addr` | Called to dispatch the built-in function identified by the `builtin_id`. The `ctx` parameter reserved for future use. The result `addr` must refer to a value in the shared-memory buffer. The function accepts 0 arguments. |
-| `env` | `opa_builtin1` | `(builtin_id, ctx, _1)` | `addr` | Same as previous except the function accepts 1 argument. |
-| `env` | `opa_builtin2` | `(builtin_id, ctx, _1, _2)` | `addr` | Same as previous except the function accepts 2 arguments. |
-| `env` | `opa_builtin3` | `(builtin_id, ctx, _1, _2, _3)` | `addr` | Same as previous except the function accepts 3 arguments. |
-| `env` | `opa_builtin4` | `(builtin_id, ctx, _1, _2, _3, _4)` | `addr` | Same as previous except the function accepts 4 arguments. |
+| `env` | `opa_builtin0` | <span class="opa-keep-it-together">`(builtin_id, ctx)`</span> | `addr` | Called to dispatch the built-in function identified by the `builtin_id`. The `ctx` parameter reserved for future use. The result `addr` must refer to a value in the shared-memory buffer. The function accepts 0 arguments. |
+| `env` | `opa_builtin1` | <span class="opa-keep-it-together">`(builtin_id, ctx, _1)`</span> | `addr` | Same as previous except the function accepts 1 argument. |
+| `env` | `opa_builtin2` | <span class="opa-keep-it-together">`(builtin_id, ctx, _1, _2)`</span> | `addr` | Same as previous except the function accepts 2 arguments. |
+| `env` | `opa_builtin3` | <span class="opa-keep-it-together">`(builtin_id, ctx, _1, _2, _3)`</span> | `addr` | Same as previous except the function accepts 3 arguments. |
+| `env` | `opa_builtin4` | <span class="opa-keep-it-together">`(builtin_id, ctx, _1, _2, _3, _4)`</span> | `addr` | Same as previous except the function accepts 4 arguments. |
 
 The policy module also requires a shared memory buffer named `env.memory`.
 
