@@ -50,6 +50,26 @@ integrations:
       - https://medium.com/@jimmy.ray/policy-enabled-kubernetes-with-open-policy-agent-3b612b3f0203
       - https://blog.openpolicyagent.org/securing-the-kubernetes-api-with-open-policy-agent-ce93af0552c3
 
+  kubernetes-provisioning:
+    title: Kubernetes Provisioning
+    description: Kubernetes automates deployment, scaling, and management of containerized applications.  OPA decides which resources need to be created on k8s in response to a namespace being created.
+    software:
+      - kubernetes
+    labels:
+      category: containers
+      layer: orchestration
+    inventors:
+      - goldmansachs
+    videos:
+      - title: Kubernetes Policy Enforcement Using OPA at Goldman Sachs
+        speakers:
+          - name: Miguel Uzcategui
+            organization: goldmansachs
+          - name: Tim Hinrichs
+            organization: styra
+        venue: Kubecon San Diego 2019
+        link: https://www.youtube.com/watch?v=lYHr_UaHsYQ&list=PLj6h78yzYM2NDs-iu8WU5fMxINxHXlien&index=140&t=0s
+
   envoy-authorization:
     title: Container Network Authorization with Envoy
     description: Envoy is a networking abstraction for cloud-native applications. OPA hooks into Envoy’s external authorization filter to provide fine-grained, context-aware authorization for network or HTTP requests.
@@ -469,6 +489,9 @@ organizations:
   boomerang:
     name: Boomerang
     link: https://www.useboomerang.io/
+  goldmansachs:
+    name: Goldman Sachs
+    link: https://www.goldmansachs.com/
 
 software:
   kubernetes:
