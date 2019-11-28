@@ -9,6 +9,7 @@ integrations:
       layer: orchestration
     tutorials:
       - https://www.openpolicyagent.org/docs/kubernetes-admission-control.html
+      - https://katacoda.com/austinheiman/scenarios/open-policy-agent-gatekeeper
     code:
       - https://github.com/open-policy-agent/kube-mgmt
       - https://github.com/open-policy-agent/gatekeeper
@@ -45,10 +46,57 @@ integrations:
             organization: google
         venue: Kubecon Barcelona 2019
         link: https://kccnceu19.sched.com/event/MPiM/intro-open-policy-agent-rita-zhang-microsoft-max-smythe-google
+      - title: Policy Enabled Kubernetes and CICD
+        speakers:
+          - name: Jimmy Ray
+            organization: capitalone
+        venue: OPA Summit at Kubecon San Diego 2019
+        link: https://www.youtube.com/watch?v=vkvWZuqSk5M
+      - title: "TripAdvisor: Building a Testing Framework for Integrating OPA into K8s"
+        speakers:
+          - name: Luke Massa
+            organization: tripadvisor
+        venue: OPA Summit at Kubecon San Diego 2019
+        link: https://www.youtube.com/watch?v=X09c1eXvCFM
+      - title: Enforcing automatic mTLS with Linkerd and OPA Gatekeeper
+        speakers:
+          - name: Ivan Sim
+            organization: buoyant
+          - name: Rita Zhang
+            organization: microsoft
+        venue: Kubecon San Diego 2019
+        link: https://www.youtube.com/watch?v=gMaGVHnvNfs
+      - title: Enforcing Service Mesh Structure using OPA Gatekeeper
+        speakers:
+          - name: Sandeep Parikh
+            organization: google
+        venue: Kubecon San Diego 2019
+        link: https://www.youtube.com/watch?v=90RHTBinAFU
+
     blogs:
       - https://medium.com/@sbueringer/kubernetes-authorization-via-open-policy-agent-a9455d9d5ceb
       - https://medium.com/@jimmy.ray/policy-enabled-kubernetes-with-open-policy-agent-3b612b3f0203
       - https://blog.openpolicyagent.org/securing-the-kubernetes-api-with-open-policy-agent-ce93af0552c3
+
+  kubernetes-provisioning:
+    title: Kubernetes Provisioning
+    description: Kubernetes automates deployment, scaling, and management of containerized applications.  OPA decides which resources need to be created on k8s in response to a namespace being created.
+    software:
+      - kubernetes
+    labels:
+      category: containers
+      layer: orchestration
+    inventors:
+      - goldmansachs
+    videos:
+      - title: Kubernetes Policy Enforcement Using OPA at Goldman Sachs
+        speakers:
+          - name: Miguel Uzcategui
+            organization: goldmansachs
+          - name: Tim Hinrichs
+            organization: styra
+        venue: Kubecon San Diego 2019
+        link: https://www.youtube.com/watch?v=lYHr_UaHsYQ&list=PLj6h78yzYM2NDs-iu8WU5fMxINxHXlien&index=140&t=0s
 
   envoy-authorization:
     title: Container Network Authorization with Envoy
@@ -68,6 +116,50 @@ integrations:
       - styra
     blogs:
       - https://blog.openpolicyagent.org/envoy-external-authorization-with-opa-578213ed567c
+    videos:
+      - title: "OPA at Scale: How Pinterest Manages Policy Distribution"
+        speakers:
+          - name: Will Fu
+            organization: pinterest
+          - name: Jeremy Krach
+            organization: pinterest
+        venue: OPA Summit at Kubecon San Diego 2019
+        link: https://www.youtube.com/watch?v=LhgxFICWsA8
+      - title: "Deploying Open Policy Agent at Atlassian"
+        speakers:
+          - name: Chris Stivers
+            organization: atlassian
+          - name: Nicholas Higgins
+            organization: atlassian
+        venue: OPA Summit at Kubecon San Diego 2019
+        link: https://www.youtube.com/watch?v=nvRTO8xjmrg
+      - title: How Yelp Moved Security From the App to the Mesh with Envoy and OPA
+        speakers:
+          - name: Daniel Popescu
+            organization: yelp
+          - name: Ben Plotnick
+            organization: yelp
+        venue: Kubecon San Diego 2019
+        link: https://www.youtube.com/watch?v=Z6aN3Smt-9M
+
+  custom-library-microservice-authorization:
+    title: Library-based Microservice Authorization
+    description: Microservice authorization can be enforced through a network proxy like Envoy/Istio/Linkerd/...
+                 or can be enforced by modifying the microservice code to use a common library.  In both cases
+                 OPA makes the authorization decision that the network proxy or the library enforce.
+    labels:
+      category: servicemesh
+      layer: library
+    videos:
+      - title: How Netflix is Solving Authorization Across Their Cloud
+        speakers:
+          - name: Manish Mehta
+            organization: netflix
+          - name: Torin Sandall
+            organization: styra
+        venue: Kubecon Austin 2017
+        link: https://www.youtube.com/watch?v=R6tUNpRpdnY
+
 
   istio-authorization-edge:
     title: Container Network Authorization with Istio (at the Edge)
@@ -165,6 +257,16 @@ integrations:
       - ticketmaster
       - styra
       - bisnode
+    videos:
+      - title: "OPA at Scale: How Pinterest Manages Policy Distribution"
+        speakers:
+          - name: Will Fu
+            organization: pinterest
+          - name: Jeremy Krach
+            organization: pinterest
+        venue: OPA Summit at Kubecon San Diego 2019
+        link: https://www.youtube.com/watch?v=LhgxFICWsA8
+
 
   ceph:
     title: Ceph Object Storage Authorization
@@ -280,6 +382,26 @@ integrations:
       - https://docs.armory.io/spinnaker/policy_engine/
     inventors:
       - armory
+
+  jenkins-job-authorization:
+    title: Jenkins Job Trigger Policy Enforcement
+    description: Jenkins automates software development processes.  OPA lets you control which people and which machines can run which Jenkins jobs.
+    labels:
+      layer: cicd
+    software:
+      - jenkins
+    inventors:
+      - pinterest
+    videos:
+      - title: "OPA at Scale: How Pinterest Manages Policy Distribution"
+        speakers:
+          - name: Will Fu
+            organization: pinterest
+          - name: Jeremy Krach
+            organization: pinterest
+        venue: OPA Summit at Kubecon San Diego 2019
+        link: https://www.youtube.com/watch?v=LhgxFICWsA8
+
 
   elasticsearch-datafiltering:
     title: Elasticsearch Data Filtering
@@ -403,6 +525,13 @@ integrations:
       - TOML
       - Dockerfile
       - HCL2
+    videos:
+      - title: "Applying Policy Throughout the Application Lifecycle with Open Policy Agent"
+        speakers:
+          - name: Gareth Rushgrove
+            organization: snyk
+        venue: Kubecon San Diego 2019
+        link: https://www.youtube.com/watch?v=cXfsaE6RKfc
 
   boomerang-bosun:
     title: Boomerang Bosun Policy Gating
@@ -467,6 +596,24 @@ integrations:
     inventors:
       - bisnode
 
+  custom-application:
+    title: Custom Application Authorization
+    description: |
+      Application require authorization decisions made at the API gateway, frontend, backend, and database.
+      OPA helps developers decouple authorization logic from application code, define a custom authorization model
+      that enables end-users to control tenant permissions, and enforce that policy across the different components of the
+      application (gateway, frontend, backend, database).
+    tutorials:
+      - https://github.com/chef/automate/tree/master/components/authz-service#authz-with-opa
+    videos:
+      - title: "OPA in Practice: From Angular to OPA in Chef Automate"
+        speakers:
+          - name: Michael Sorens
+            organization: chef
+        venue: OPA Summit at Kubecon San Diego 2019
+        link: https://www.youtube.com/watch?v=jrrW855xL3s
+
+
 organizations:
   styra:
     name: Styra
@@ -522,6 +669,33 @@ organizations:
   bisnode:
     name: Bisnode
     link: https://www.bisnode.com
+  goldmansachs:
+    name: Goldman Sachs
+    link: https://www.goldmansachs.com/
+  pinterest:
+    name: Pinterest
+    link: https://www.pinterest.com/
+  atlassian:
+    name: Atlassian
+    link: https://www.atlassian.com/
+  tripadvisor:
+    name: TripAdvisor
+    link: https://www.tripadvisor.com/
+  chef:
+    name: Chef
+    link: https://www.chef.io/
+  buoyant:
+    name: Buoyant
+    link: https://buoyant.io/
+  netflix:
+    name: Netflix
+    link: https://www.netflix.com/
+  capitalone:
+    name: CapitalOne
+    link: https://www.capitalone.com/
+  yelp:
+    name: Yelp
+    link: https://www.yelp.com/
 
 software:
   kubernetes:
@@ -602,3 +776,7 @@ software:
   gradle:
     name: Gradle
     link: https://gradle.org/
+  jenkins:
+    name: Jenkins
+    link: https://jenkins.io/
+
