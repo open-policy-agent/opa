@@ -366,8 +366,8 @@ func writeData(ctx context.Context, store storage.Store, txn storage.Transaction
 
 func writeModules(ctx context.Context, store storage.Store, txn storage.Transaction, compiler *ast.Compiler, m metrics.Metrics, bundles map[string]*Bundle, extraModules map[string]*ast.Module, legacy bool) error {
 
-	m.Timer(metrics.RegoModuleCompile)
-	defer m.Timer(metrics.RegoModuleCompile)
+	m.Timer(metrics.RegoModuleCompile).Start()
+	defer m.Timer(metrics.RegoModuleCompile).Stop()
 
 	modules := map[string]*ast.Module{}
 

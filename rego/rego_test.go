@@ -321,8 +321,12 @@ func validateRegoMetrics(t *testing.T, m metrics.Metrics, expectedFields []strin
 	all := m.All()
 
 	for _, name := range expectedFields {
-		if _, ok := all[name]; !ok {
+		value, ok := all[name]
+		if !ok {
 			t.Errorf("expected to find %v but did not", name)
+		}
+		if value.(int64) == 0 {
+			t.Errorf("expected metric %v to have some non-zero value, but found 0", name)
 		}
 	}
 }
