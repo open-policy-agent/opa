@@ -710,6 +710,8 @@ For example:
 ```live:example/using_opa:module:openable,read_only
 package example
 
+default allow = false                               # unless otherwise defined, allow is false
+
 allow = true {                                      # allow is true if...
     count(violation) == 0                           # there are zero violations.
 }
@@ -842,7 +844,7 @@ To integrate with OPA you can run it as a server and execute queries over HTTP.
 You can start OPA as a server with `-s` or `--server`:
 
 ```bash
-./opa run --server
+./opa run --server ./example.rego
 ```
 
 By default OPA listens for HTTP connections on `0.0.0.0:8181`. See `opa run
@@ -888,7 +890,7 @@ curl localhost:8181 -i -d @input.json -H 'Content-Type: application/json'
 You can restart OPA and configure to use any decision as the default decision:
 
 ```
-./opa run --server --set=default_decision=example/allow
+./opa run --server --set=default_decision=example/allow ./example.rego
 ```
 
 Re-run the last `curl` command from above:
