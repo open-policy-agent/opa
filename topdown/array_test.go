@@ -5,7 +5,6 @@
 package topdown
 
 import (
-	"fmt"
 	"testing"
 )
 
@@ -17,8 +16,8 @@ func TestTopDownArray(t *testing.T) {
 		expected interface{}
 	}{
 		{"concat", []string{`p = x { x = array.concat([1,2], [3,4]) }`}, "[1,2,3,4]"},
-		{"concat: err", []string{`p = x { x = array.concat(data.b, [3,4]) }`}, fmt.Errorf("operand 1 must be array")},
-		{"concat: err rhs", []string{`p = x { x = array.concat([1,2], data.b) }`}, fmt.Errorf("operand 2 must be array")},
+		{"concat: err", []string{`p = x { x = array.concat(data.b, [3,4]) }`}, &Error{Code: TypeErr, Message: "array.concat: operand 1 must be array but got object"}},
+		{"concat: err rhs", []string{`p = x { x = array.concat([1,2], data.b) }`}, &Error{Code: TypeErr, Message: "array.concat: operand 2 must be array but got object"}},
 
 		{"slice", []string{`p = x { x = array.slice([1,2,3,4,5], 1, 3) }`}, "[2,3]"},
 		{"slice: empty slice", []string{`p = x { x = array.slice([1,2,3], 0, 0) }`}, "[]"},

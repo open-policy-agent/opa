@@ -40,7 +40,7 @@ func TestCryptoX509ParseCertificates(t *testing.T) {
 			note:     "bad",
 			certs:    `YmFkc3RyaW5n`,
 			rule:     rule,
-			expected: fmt.Errorf("asn1: structure error"),
+			expected: &Error{Code: BuiltinErr, Message: "asn1: structure error"},
 		},
 	}
 

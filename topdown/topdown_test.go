@@ -757,7 +757,7 @@ p[x] = y { data.enum_errors.a[x] = y }`,
 	assertTopDownWithPath(t, compiler, store, "base/virtual: missing input value", []string{"topdown", "u"}, "{}", "{}")
 	assertTopDownWithPath(t, compiler, store, "iterate ground", []string{"topdown", "iterate_ground"}, "{}", `["p", "r"]`)
 	assertTopDownWithPath(t, compiler, store, "base/virtual: conflicts", []string{"topdown.conflicts"}, "{}", `{"k": "foo"}`)
-	assertTopDownWithPath(t, compiler, store, "enumerate virtual errors", []string{"enum_errors", "caller", "p"}, `{}`, fmt.Errorf("divide by zero"))
+	assertTopDownWithPath(t, compiler, store, "enumerate virtual errors", []string{"enum_errors", "caller", "p"}, `{}`, &Error{Code: BuiltinErr, Message: "divide by zero"})
 }
 
 func TestTopDownFix1863(t *testing.T) {
@@ -1097,11 +1097,11 @@ func TestTopDownArithmetic(t *testing.T) {
 		{"minus", []string{`p[y] { a[i] = x; y = i - x }`}, "[-1]"},
 		{"multiply", []string{`p[y] { a[i] = x; y = i * x }`}, "[0,2,6,12]"},
 		{"divide+round", []string{`p[z] { a[i] = x; y = i / x; round(y, z) }`}, "[0, 1]"},
-		{"divide+error", []string{`p[y] { a[i] = x; y = x / i }`}, fmt.Errorf("divide by zero")},
+		{"divide+error", []string{`p[y] { a[i] = x; y = x / i }`}, &Error{Code: BuiltinErr, Message: "divide by zero"}},
 		{"abs", []string{`p = true { abs(-10, x); x = 10 }`}, "true"},
 		{"remainder", []string{`p = x { x = 7 % 4 }`}, "3"},
-		{"remainder+error", []string{`p = x { x = 7 % 0 }`}, fmt.Errorf("modulo by zero")},
-		{"remainder+error+floating", []string{`p = x { x = 1.1 % 1 }`}, fmt.Errorf("modulo on floating-point number")},
+		{"remainder+error", []string{`p = x { x = 7 % 0 }`}, &Error{Code: BuiltinErr, Message: "modulo by zero"}},
+		{"remainder+error+floating", []string{`p = x { x = 1.1 % 1 }`}, &Error{Code: BuiltinErr, Message: "modulo on floating-point number"}},
 		{"arity 1 ref dest", []string{`p = true { abs(-4, a[3]) }`}, "true"},
 		{"arity 1 ref dest (2)", []string{`p = true { not abs(-5, a[3]) }`}, "true"},
 		{"arity 2 ref dest", []string{`p = true { a[2] = 1 + 2 }`}, "true"},
@@ -1127,7 +1127,7 @@ func TestTopDownCasts(t *testing.T) {
 			"[-42.0, 0, 100.1, 0, 1]"},
 		{"to_number ref dest", []string{`p = true { to_number("3", a[2]) }`}, "true"},
 		{"to_number ref dest", []string{`p = true { not to_number("-1", a[2]) }`}, "true"},
-		{"to_number: bad input", []string{`p { to_number("broken", x) }`}, fmt.Errorf("invalid syntax")},
+		{"to_number: bad input", []string{`p { to_number("broken", x) }`}, &Error{Code: BuiltinErr, Message: "invalid syntax"}},
 	}
 
 	data := loadSmallTestData()
@@ -1269,7 +1269,7 @@ func TestTopDownRegexMatch(t *testing.T) {
 	}{
 		{"re_match", []string{`p = true { re_match("^[a-z]+\\[[0-9]+\\]$", "foo[1]") }`}, "true"},
 		{"re_match: undefined", []string{`p = true { re_match("^[a-z]+\\[[0-9]+\\]$", "foo[\"bar\"]") }`}, ""},
-		{"re_match: bad pattern err", []string{`p = true { re_match("][", "foo[\"bar\"]") }`}, fmt.Errorf("re_match: error parsing regexp: missing closing ]: `[`")},
+		{"re_match: bad pattern err", []string{`p = true { re_match("][", "foo[\"bar\"]") }`}, &Error{Code: BuiltinErr, Message: "re_match: error parsing regexp: missing closing ]: `[`"}},
 		{"re_match: ref", []string{`p[x] { re_match("^b.*$", d.e[x]) }`}, "[0,1]"},
 
 		{"re_match: raw", []string{fmt.Sprintf(`p = true { re_match(%s, "foo[1]") }`, "`^[a-z]+\\[[0-9]+\\]$`")}, "true"},
@@ -1309,7 +1309,7 @@ func TestTopDownGlobsMatch(t *testing.T) {
 	}{
 		{"regex.globs_match", []string{`p = true { regex.globs_match("a.a.[0-9]+z", ".b.b2359825792*594823z") }`}, "true"},
 		{"regex.globs_match", []string{`p = true { regex.globs_match("[a-z]+", "[0-9]*") }`}, ""},
-		{"regex.globs_match: bad pattern err", []string{`p = true { regex.globs_match("pqrs]", "[a-b]+") }`}, fmt.Errorf("input:pqrs], pos:5, set-close ']' with no preceding '[': the input provided is invalid")},
+		{"regex.globs_match: bad pattern err", []string{`p = true { regex.globs_match("pqrs]", "[a-b]+") }`}, &Error{Code: BuiltinErr, Message: "input:pqrs], pos:5, set-close ']' with no preceding '[': the input provided is invalid"}},
 		{"regex.globs_match: ref", []string{`p[x] { regex.globs_match("b.*", d.e[x]) }`}, "[0,1]"},
 
 		{"regex.globs_match: raw", []string{fmt.Sprintf(`p = true { regex.globs_match(%s, "foo\\[1\\]") }`, "`[a-z]+\\[[0-9]+\\]`")}, "true"},
@@ -1354,7 +1354,7 @@ func TestTopDownStrings(t *testing.T) {
 		{"format_int: undefined", []string{`p = true { format_int(15.5, 16, "10000") }`}, ""},
 		{"format_int: ref dest", []string{`p = true { format_int(3.1, 10, numbers[2]) }`}, "true"},
 		{"format_int: ref dest (2)", []string{`p = true { not format_int(4.1, 10, numbers[2]) }`}, "true"},
-		{"format_int: err: bad base", []string{`p = true { format_int(4.1, 199, x) }`}, fmt.Errorf("operand 2 must be one of {2, 8, 10, 16}")},
+		{"format_int: err: bad base", []string{`p = true { format_int(4.1, 199, x) }`}, &Error{Code: TypeErr, Message: "operand 2 must be one of {2, 8, 10, 16}"}},
 		{"concat", []string{`p = x { concat("/", ["", "foo", "bar", "0", "baz"], x) }`}, `"/foo/bar/0/baz"`},
 		{"concat: set", []string{`p = x { concat(",", {"1", "2", "3"}, x) }`}, `"1,2,3"`},
 		{"concat: undefined", []string{`p = true { concat("/", ["a", "b"], "deadbeef") }`}, ""},
@@ -1365,7 +1365,7 @@ func TestTopDownStrings(t *testing.T) {
 		{"substring", []string{`p = x { substring("abcdefgh", 2, 3, x) }`}, `"cde"`},
 		{"substring: remainder", []string{`p = x { substring("abcdefgh", 2, -1, x) }`}, `"cdefgh"`},
 		{"substring: too long", []string{`p = x { substring("abcdefgh", 2, 10000, x) }`}, `"cdefgh"`},
-		{"substring: offset negative", []string{`p = x { substring("aaa", -1, -1, x) }`}, fmt.Errorf("negative offset")},
+		{"substring: offset negative", []string{`p = x { substring("aaa", -1, -1, x) }`}, &Error{Code: BuiltinErr, Message: "negative offset"}},
 		{"substring: offset too long", []string{`p = x { substring("aaa", 3, -1, x) }`}, `""`},
 		{"substring: offset too long 2", []string{`p = x { substring("aaa", 4, -1, x) }`}, `""`},
 		{"contains", []string{`p = true { contains("abcdefgh", "defg") }`}, "true"},
@@ -1415,9 +1415,9 @@ func TestTopDownJSONBuiltins(t *testing.T) {
 	}{
 		{"marshal", []string{`p = x { json.marshal([{"foo": {1,2,3}}], x) }`}, `"[{\"foo\":[1,2,3]}]"`},
 		{"unmarshal", []string{`p = x { json.unmarshal("[{\"foo\":[1,2,3]}]", x) }`}, `[{"foo": [1,2,3]}]"`},
-		{"unmarshal-non-string", []string{`p = x { json.unmarshal(data.a[0], x) }`}, fmt.Errorf("operand 1 must be string but got number")},
+		{"unmarshal-non-string", []string{`p = x { json.unmarshal(data.a[0], x) }`}, &Error{Code: TypeErr, Message: "operand 1 must be string but got number"}},
 		{"yaml round-trip", []string{`p = y { yaml.marshal([{"foo": {1,2,3}}], x); yaml.unmarshal(x, y) }`}, `[{"foo": [1,2,3]}]`},
-		{"yaml unmarshal error", []string{`p { yaml.unmarshal("[1,2,3", _) } `}, fmt.Errorf("yaml: line 1: did not find")},
+		{"yaml unmarshal error", []string{`p { yaml.unmarshal("[1,2,3", _) } `}, &Error{Code: BuiltinErr, Message: "yaml: line 1: did not find"}},
 	}
 
 	data := loadSmallTestData()
@@ -1524,7 +1524,7 @@ func TestTopDownTime(t *testing.T) {
 		p = [year, month, day] { [year, month, day] := time.date(1582977600*1000*1000*1000) }`}, "[2020, 2, 29]")
 
 	runTopDownTestCase(t, data, "date too big", []string{`
-		p = [year, month, day] { [year, month, day] := time.date(1582977600*1000*1000*1000*1000) }`}, fmt.Errorf("timestamp too big"))
+		p = [year, month, day] { [year, month, day] := time.date(1582977600*1000*1000*1000*1000) }`}, &Error{Code: BuiltinErr, Message: "timestamp too big"})
 
 	runTopDownTestCase(t, data, "clock", []string{`
 		p = [hour, minute, second] { [hour, minute, second] := time.clock(1517832000*1000*1000*1000) }`}, "[12, 0, 0]")
@@ -1536,7 +1536,7 @@ func TestTopDownTime(t *testing.T) {
 		p = [hour, minute, second] { [hour, minute, second] := time.clock(1582977600*1000*1000*1000) }`}, "[12, 0, 0]")
 
 	runTopDownTestCase(t, data, "clock too big", []string{`
-		p = [hour, minute, second] { [hour, minute, second] := time.clock(1582977600*1000*1000*1000*1000) }`}, fmt.Errorf("timestamp too big"))
+		p = [hour, minute, second] { [hour, minute, second] := time.clock(1582977600*1000*1000*1000*1000) }`}, &Error{Code: BuiltinErr, Message: "timestamp too big"})
 
 	for i, day := range []string{"Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"} {
 		ts := 1517832000*1000*1000*1000 + i*24*int(time.Hour)
@@ -1545,7 +1545,7 @@ func TestTopDownTime(t *testing.T) {
 	}
 
 	runTopDownTestCase(t, data, "weekday too big", []string{`
-		p = weekday { weekday := time.weekday(1582977600*1000*1000*1000*1000) }`}, fmt.Errorf("timestamp too big"))
+		p = weekday { weekday := time.weekday(1582977600*1000*1000*1000*1000) }`}, &Error{Code: BuiltinErr, Message: "timestamp too big"})
 }
 
 func TestTopDownWalkBuiltin(t *testing.T) {
@@ -2879,7 +2879,11 @@ func runTopDownTestCaseWithModules(t *testing.T, data map[string]interface{}, no
 
 	compiler, err := compileRules(imports, rules, modules)
 	if err != nil {
-		t.Errorf("%v: Compiler error: %v", note, err)
+		if _, ok := expected.(error); ok {
+			assertError(t, expected, err)
+		} else {
+			t.Errorf("%v: Compiler error: %v", note, err)
+		}
 		return
 	}
 
@@ -2941,27 +2945,9 @@ func assertTopDownWithPath(t *testing.T, compiler *ast.Compiler, store storage.S
 
 	testutil.Subtest(t, note, func(t *testing.T) {
 		switch e := expected.(type) {
-		case Error:
-			result, err := query.Run(ctx)
-			if err == nil {
-				t.Errorf("Expected error but got: %v", result)
-				return
-			}
-			errString := err.Error()
-			if !strings.Contains(errString, e.Code) || !strings.Contains(errString, e.Message) {
-				t.Errorf("Expected error %v but got: %v", e, err)
-			}
-		case error:
-			result, err := query.Run(ctx)
-			if err == nil {
-				t.Errorf("Expected error but got: %v", result)
-				return
-			}
-
-			if !strings.Contains(err.Error(), e.Error()) {
-				t.Errorf("Expected error %v but got: %v", e, err)
-			}
-
+		case Error, error:
+			_, err := query.Run(ctx)
+			assertError(t, expected, err)
 		case string:
 			qrs, err := query.Run(ctx)
 
@@ -3196,4 +3182,44 @@ func dump(note string, modules map[string]*ast.Module, data interface{}, docpath
 		panic(err)
 	}
 
+}
+
+func assertError(t *testing.T, expected interface{}, actual error) {
+	t.Helper()
+	if actual == nil {
+		t.Errorf("Expected error but got: %v", actual)
+		return
+	}
+
+	errString := actual.Error()
+
+	if reflect.TypeOf(expected) != reflect.TypeOf(actual) {
+		t.Errorf("Expected error of type '%T', got '%T'", expected, actual)
+	}
+
+	switch e := expected.(type) {
+	case Error:
+		assertErrorContains(t, errString, e.Code)
+		assertErrorContains(t, errString, e.Message)
+	case *Error:
+		assertErrorContains(t, errString, e.Code)
+		assertErrorContains(t, errString, e.Message)
+	case *ast.Error:
+		assertErrorContains(t, errString, e.Code)
+		assertErrorContains(t, errString, e.Message)
+	case ast.Errors:
+		for _, astErr := range e {
+			assertErrorContains(t, errString, astErr.Code)
+			assertErrorContains(t, errString, astErr.Message)
+		}
+	case error:
+		assertErrorContains(t, errString, e.Error())
+	}
+}
+
+func assertErrorContains(t *testing.T, actualErrMsg string, expected string) {
+	t.Helper()
+	if !strings.Contains(actualErrMsg, expected) {
+		t.Errorf("Expected error '%v' but got: '%v'", expected, actualErrMsg)
+	}
 }

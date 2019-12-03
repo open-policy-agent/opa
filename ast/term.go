@@ -1571,6 +1571,7 @@ type Object interface {
 	Diff(other Object) Object
 	Intersect(other Object) [][3]*Term
 	Merge(other Object) (Object, bool)
+	MergeWith(other Object, conflictResolver func(v1, v2 *Term) (*Term, bool)) (Object, bool)
 	Filter(filter Object) (Object, error)
 	Keys() []*Term
 }
@@ -1808,28 +1809,48 @@ func (obj *object) MarshalJSON() ([]byte, error) {
 // overlapping keys between obj and other, the values of associated with the keys are merged. Only
 // objects can be merged with other objects. If the values cannot be merged, the second turn value
 // will be false.
-func (obj object) Merge(other Object) (result Object, ok bool) {
-	result = NewObject()
-	stop := obj.Until(func(k, v *Term) bool {
-		if v2 := other.Get(k); v2 == nil {
-			result.Insert(k, v)
-		} else {
-			obj1, ok1 := v.Value.(Object)
-			obj2, ok2 := v2.Value.(Object)
-			if !ok1 || !ok2 {
-				return true
-			}
-			obj3, ok := obj1.Merge(obj2)
-			if !ok {
-				return true
-			}
-			result.Insert(k, NewTerm(obj3))
+func (obj object) Merge(other Object) (Object, bool) {
+	return obj.MergeWith(other, func(v1, v2 *Term) (*Term, bool) {
+		obj1, ok1 := v1.Value.(Object)
+		obj2, ok2 := v2.Value.(Object)
+		if !ok1 || !ok2 {
+			return nil, true
 		}
-		return false
+		obj3, ok := obj1.Merge(obj2)
+		if !ok {
+			return nil, true
+		}
+		return NewTerm(obj3), false
 	})
+}
+
+// MergeWith returns a new Object containing the merged keys of obj and other.
+// If there are overlapping keys between obj and other, the conflictResolver
+// is called. The conflictResolver can return a merged value and a boolean
+// indicating if the merge has failed and should stop.
+func (obj object) MergeWith(other Object, conflictResolver func(v1, v2 *Term) (*Term, bool)) (Object, bool) {
+	result := NewObject()
+	stop := obj.Until(func(k, v *Term) bool {
+		v2 := other.Get(k)
+		// The key didn't exist in other, keep the original value
+		if v2 == nil {
+			result.Insert(k, v)
+			return false
+		}
+
+		// The key exists in both, resolve the conflict if possible
+		merged, stop := conflictResolver(v, v2)
+		if !stop {
+			result.Insert(k, merged)
+		}
+		return stop
+	})
+
 	if stop {
 		return nil, false
 	}
+
+	// Copy in any values from other for keys that don't exist in obj
 	other.Foreach(func(k, v *Term) {
 		if v2 := obj.Get(k); v2 == nil {
 			result.Insert(k, v)
