@@ -167,8 +167,8 @@ Call <- operator:(Ref / Var) "(" _ args:ExprTermList _ ")" {
     return makeCall(currentLocation(c), operator, args)
 }
 
-Term <- val:( Comprehension / Composite / Scalar / Call / Ref / Var ) {
-    return val, nil
+Term <- val:( Comprehension / Composite / Scalar / Call / Var ) refs:RefOperand* {
+    return makeRef(currentLocation(c), val, refs)
 }
 
 TermPair <- key:Term _ ":" _ value:Term {
@@ -212,7 +212,7 @@ SetNonEmpty <- '{' _ list:ExprTermList _ '}' {
     return makeSet(currentLocation(c), list)
 }
 
-Ref <- head:Var rest:RefOperand+ {
+Ref <- head:(Composite / Var) rest:RefOperand+ {
     return makeRef(currentLocation(c), head, rest)
 }
 

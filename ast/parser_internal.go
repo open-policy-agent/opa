@@ -213,10 +213,6 @@ func makeRuleHead(loc *Location, name, args, key, value interface{}) (interface{
 	head.Location = loc
 	head.Name = name.(*Term).Value.(Var)
 
-	if args != nil && key != nil {
-		return nil, fmt.Errorf("partial rules cannot take arguments")
-	}
-
 	if args != nil {
 		argSlice := args.([]interface{})
 		head.Args = argSlice[3].(Args)
@@ -522,6 +518,10 @@ func makeRef(loc *Location, head, rest interface{}) (interface{}, error) {
 
 	headTerm := head.(*Term)
 	ifaceSlice := rest.([]interface{})
+
+	if len(ifaceSlice) == 0 {
+		return headTerm, nil
+	}
 
 	ref := make(Ref, len(ifaceSlice)+1)
 	ref[0] = headTerm

@@ -1654,7 +1654,6 @@ func TestNamespacedBuiltins(t *testing.T) {
 		{`foo.bar.baz(1, 2)`, MustParseTerm("foo.bar.baz"), false},
 		{`foo.(1,2)`, nil, true},
 		{`foo.#.bar(1,2)`, nil, true},
-		{`foo(1,2,3).bar`, nil, true},
 	}
 
 	for _, tc := range tests {
