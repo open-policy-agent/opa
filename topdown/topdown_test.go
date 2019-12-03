@@ -918,6 +918,24 @@ func TestTopDownCompositeReferences(t *testing.T) {
 	}
 }
 
+func TestTopDownIndirectReferences(t *testing.T) {
+	tests := []struct {
+		note     string
+		rules    []string
+		expected interface{}
+	}{
+		{"array", []string{`p[x] {[1, 2, 3][x]}`}, "[0, 1, 2]"},
+		{"call", []string{`p {split("foo.bar", ".")[0] == "foo"}`}, "true"},
+		{"multiple call", []string{`p[x] {split(split("foo.bar:qux", ".")[_], ":")[i] = x}`}, `["foo", "bar", "qux"]`},
+	}
+
+	data := loadSmallTestData()
+
+	for _, tc := range tests {
+		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
+	}
+}
+
 func TestTopDownDisjunction(t *testing.T) {
 
 	tests := []struct {

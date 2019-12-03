@@ -893,6 +893,23 @@ func TestCompilerExprExpansion(t *testing.T) {
 				MustParseExpr("__local0__ = [[__local1__ | plus(z,1,__local2__); sum(y[__local2__], __local3__); eq(x, __local3__); plus(x, 1, __local1__)], __local4__]"),
 			},
 		},
+		{
+			note:  "indirect references",
+			input: `[1, 2, 3][i]`,
+			expected: []*Expr{
+				MustParseExpr("__local0__ = [1, 2, 3]"),
+				MustParseExpr("__local0__[i]"),
+			},
+		},
+		{
+			note:  "multiple indirect references",
+			input: `split(split("foo.bar:qux", ".")[_], ":")[i]`,
+			expected: []*Expr{
+				MustParseExpr(`split("foo.bar:qux", ".", __local0__)`),
+				MustParseExpr(`split(__local0__[_], ":", __local1__)`),
+				MustParseExpr(`__local1__[i]`),
+			},
+		},
 	}
 
 	for _, tc := range tests {

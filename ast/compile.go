@@ -2716,7 +2716,7 @@ func expandExprTerm(gen *localVarGenerator, term *Term) (support []*Expr, output
 		expr.Generated = true
 		support = append(support, expr)
 	case Ref:
-		support = expandExprTermSlice(gen, v)
+		support = expandExprRef(gen, v)
 	case Array:
 		support = expandExprTermSlice(gen, v)
 	case Object:
@@ -2761,6 +2761,35 @@ func expandExprTerm(gen *localVarGenerator, term *Term) (support []*Expr, output
 		}
 		v.Value = value
 		v.Body = rewriteExprTermsInBody(gen, v.Body)
+	}
+	return
+}
+
+func expandExprRef(gen *localVarGenerator, v []*Term) (support []*Expr) {
+	// Start by calling a normal expandExprTerm on all terms.
+	support = expandExprTermSlice(gen, v)
+
+	// Rewrite references in order to support indirect references.  We rewrite
+	// e.g.
+	//
+	//     [1, 2, 3][i]
+	//
+	// to
+	//
+	//     __local_var = [1, 2, 3]
+	//     __local_var[i]
+	//
+	// to support these.  This only impacts the reference subject, i.e. the
+	// first item in the slice.
+	if len(v) > 0 {
+		var subject = v[0]
+		switch subject.Value.(type) {
+		case Array, Object, Set, *ArrayComprehension, *SetComprehension, *ObjectComprehension, Call:
+			f := newEqualityFactory(gen)
+			assignToLocal := f.Generate(subject)
+			support = append(support, assignToLocal)
+			v[0] = assignToLocal.Operand(0)
+		}
 	}
 	return
 }
