@@ -125,6 +125,11 @@ var DefaultBuiltins = [...]*Builtin{
 	YAMLMarshal,
 	YAMLUnmarshal,
 
+	// Object Manipulation
+	ObjectUnion,
+	ObjectRemove,
+	ObjectFilter,
+
 	// JSON Object Manipulation
 	JSONFilter,
 
@@ -936,6 +941,60 @@ var JSONFilter = &Builtin{
 			types.NewAny(
 				types.NewArray(nil, types.S),
 				types.NewSet(types.S),
+			),
+		),
+		types.A,
+	),
+}
+
+// ObjectUnion creates a new object that is the asymmetric union of two objects
+var ObjectUnion = &Builtin{
+	Name: "object.union",
+	Decl: types.NewFunction(
+		types.Args(
+			types.NewObject(
+				nil,
+				types.NewDynamicProperty(types.A, types.A),
+			),
+			types.NewObject(
+				nil,
+				types.NewDynamicProperty(types.A, types.A),
+			),
+		),
+		types.A,
+	),
+}
+
+// ObjectRemove Removes specified keys from an object
+var ObjectRemove = &Builtin{
+	Name: "object.remove",
+	Decl: types.NewFunction(
+		types.Args(
+			types.NewObject(
+				nil,
+				types.NewDynamicProperty(types.A, types.A),
+			),
+			types.NewAny(
+				types.NewArray(nil, types.A),
+				types.NewSet(types.A),
+			),
+		),
+		types.A,
+	),
+}
+
+// ObjectFilter filters the object by keeping only specified keys
+var ObjectFilter = &Builtin{
+	Name: "object.filter",
+	Decl: types.NewFunction(
+		types.Args(
+			types.NewObject(
+				nil,
+				types.NewDynamicProperty(types.A, types.A),
+			),
+			types.NewAny(
+				types.NewArray(nil, types.A),
+				types.NewSet(types.A),
 			),
 		),
 		types.A,
