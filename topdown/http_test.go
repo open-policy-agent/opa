@@ -9,7 +9,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -183,8 +182,8 @@ func TestHTTPCustomHeaders(t *testing.T) {
 	}
 }
 
-// TestHTTPostRequest adds a new person
-func TestHTTPostRequest(t *testing.T) {
+// TestHTTPPostRequest adds a new person
+func TestHTTPPostRequest(t *testing.T) {
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -258,7 +257,7 @@ func TestHTTPostRequest(t *testing.T) {
 				"headers": {"Content-Type": "application/x-www-form-encoded"},
 				"raw_body": {"bar": "bar"}
 			}`,
-			expected: errors.New("raw_body must be a string"),
+			expected: &Error{Code: BuiltinErr, Message: "raw_body must be a string"},
 		},
 	}
 
@@ -365,8 +364,8 @@ func TestInvalidKeyError(t *testing.T) {
 		rules    []string
 		expected interface{}
 	}{
-		{"invalid keys", []string{`p = x { http.send({"method": "get", "url": "http://127.0.0.1:51113", "bad_key": "bad_value"}, x) }`}, fmt.Errorf(`invalid request parameters(s): {"bad_key"}`)},
-		{"missing keys", []string{`p = x { http.send({"method": "get"}, x) }`}, fmt.Errorf(`missing required request parameters(s): {"url"}`)},
+		{"invalid keys", []string{`p = x { http.send({"method": "get", "url": "http://127.0.0.1:51113", "bad_key": "bad_value"}, x) }`}, &Error{Code: TypeErr, Message: `invalid request parameters(s): {"bad_key"}`}},
+		{"missing keys", []string{`p = x { http.send({"method": "get"}, x) }`}, &Error{Code: TypeErr, Message: `missing required request parameters(s): {"url"}`}},
 	}
 
 	data := loadSmallTestData()
@@ -644,7 +643,7 @@ func TestHTTPSClient(t *testing.T) {
 
 	t.Run("Negative Test: No Root Ca", func(t *testing.T) {
 
-		expectedResult := Error{Code: BuiltinErr, Message: "x509: certificate signed by unknown authority", Location: nil}
+		expectedResult := &Error{Code: BuiltinErr, Message: "x509: certificate signed by unknown authority", Location: nil}
 		data := loadSmallTestData()
 		rule := []string{fmt.Sprintf(
 			`p = x { http.send({"method": "get", "url": "%s", "tls_client_cert_file": "%s", "tls_client_key_file": "%s"}, x) }`, s.URL, localClientCertFile, localClientKeyFile)}
@@ -655,7 +654,7 @@ func TestHTTPSClient(t *testing.T) {
 
 	t.Run("Negative Test: Wrong Cert/Key Pair", func(t *testing.T) {
 
-		expectedResult := Error{Code: BuiltinErr, Message: "tls: private key does not match public key", Location: nil}
+		expectedResult := &Error{Code: BuiltinErr, Message: "tls: private key does not match public key", Location: nil}
 		data := loadSmallTestData()
 		rule := []string{fmt.Sprintf(
 			`p = x { http.send({"method": "get", "url": "%s", "tls_ca_cert_file": "%s", "tls_client_cert_file": "%s", "tls_client_key_file": "%s"}, x) }`, s.URL, localCaFile, localClientCert2File, localClientKeyFile)}
@@ -666,7 +665,7 @@ func TestHTTPSClient(t *testing.T) {
 
 	t.Run("Negative Test: System Certs do not include local rootCA", func(t *testing.T) {
 
-		expectedResult := Error{Code: BuiltinErr, Message: "x509: certificate signed by unknown authority", Location: nil}
+		expectedResult := &Error{Code: BuiltinErr, Message: "x509: certificate signed by unknown authority", Location: nil}
 		data := loadSmallTestData()
 		rule := []string{fmt.Sprintf(
 			`p = x { http.send({"method": "get", "url": "%s", "tls_client_cert_file": "%s", "tls_client_key_file": "%s", "tls_use_system_certs": true}, x) }`, s.URL, localClientCertFile, localClientKeyFile)}

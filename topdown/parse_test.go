@@ -5,7 +5,6 @@
 package topdown
 
 import (
-	"fmt"
 	"testing"
 )
 
@@ -24,6 +23,6 @@ func TestRegoParseModule(t *testing.T) {
 		`p = x { rego.parse_module("x.rego", data.ok, module); x = module["package"].path[1].value }`}, `"foo"`)
 
 	runTopDownTestCase(t, data, "error", []string{
-		`p = x { rego.parse_module("x.rego", data.err, x) }`}, fmt.Errorf("rego_parse_error: no match found"))
+		`p = x { rego.parse_module("x.rego", data.err, x) }`}, &Error{Code: BuiltinErr, Message: "rego_parse_error: no match found"})
 
 }

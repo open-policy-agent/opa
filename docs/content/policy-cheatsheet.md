@@ -259,6 +259,15 @@ merge_objects(a, b) = c {
 }
 ```
 
+> Note: use the `object.union` builtin function unless custom behavior is required!
+
+```live:rules/merge_builtin:query:read_only
+x := {"a": true, "b": false}
+y := {"b": "foo", "c": 4}
+z := {"a": true, "b": "foo", "c": 4}
+object.union(y, x) == z
+```
+
 ## Tests
 
 ```live:tests:module:read_only

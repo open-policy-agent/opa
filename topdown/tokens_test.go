@@ -250,7 +250,7 @@ func TestTopDownJWTEncodeSignPayloadErrors(t *testing.T) {
 		var exp interface{}
 		exp = fmt.Sprintf(`%s`, p.result)
 		if p.err != "" {
-			exp = errors.New(p.err)
+			exp = &Error{Code: BuiltinErr, Message: p.err}
 		}
 
 		tests = append(tests, test{
@@ -353,7 +353,7 @@ func TestTopDownJWTEncodeSignHeaderErrors(t *testing.T) {
 		var exp interface{}
 		exp = fmt.Sprintf(`%s`, p.result)
 		if p.err != "" {
-			exp = errors.New(p.err)
+			exp = &Error{Code: BuiltinErr, Message: p.err}
 		}
 
 		tests = append(tests, test{
@@ -456,7 +456,7 @@ func TestTopDownJWTEncodeSignRaw(t *testing.T) {
 		var exp interface{}
 		exp = fmt.Sprintf(`%s`, p.result)
 		if p.err != "" {
-			exp = errors.New(p.err)
+			exp = &Error{Code: BuiltinErr, Message: p.err}
 		}
 
 		rawTests = append(rawTests, test{
@@ -844,7 +844,7 @@ func TestTopDownJWTBuiltins(t *testing.T) {
 		var exp interface{}
 		exp = fmt.Sprintf(`[%s, %s, "%s"]`, p.header, p.payload, p.signature)
 		if p.err != "" {
-			exp = errors.New(p.err)
+			exp = &Error{Code: BuiltinErr, Message: p.err}
 		}
 
 		tests = append(tests, test{
@@ -1029,7 +1029,7 @@ func TestTopDownJWTVerifyRSA(t *testing.T) {
 		var exp interface{}
 		exp = fmt.Sprintf(`%t`, p.result)
 		if p.err != "" {
-			exp = errors.New(p.err)
+			exp = &Error{Code: BuiltinErr, Message: p.err}
 		}
 
 		tests = append(tests, test{
@@ -1088,7 +1088,7 @@ func TestTopDownJWTVerifyHS256(t *testing.T) {
 		var exp interface{}
 		exp = fmt.Sprintf(`%t`, p.result)
 		if p.err != "" {
-			exp = errors.New(p.err)
+			exp = &Error{Code: BuiltinErr, Message: p.err}
 		}
 
 		tests = append(tests, test{
