@@ -362,7 +362,7 @@ func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.
 
 // Load returns modules and an in-memory store for running tests.
 func Load(args []string, filter loader.Filter) (map[string]*ast.Module, storage.Store, error) {
-	loaded, err := loader.Filtered(args, filter)
+	loaded, err := loader.NewFileLoader().Filtered(args, filter)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -390,7 +390,7 @@ func Load(args []string, filter loader.Filter) (map[string]*ast.Module, storage.
 func LoadBundles(args []string, filter loader.Filter) (map[string]*bundle.Bundle, error) {
 	bundles := map[string]*bundle.Bundle{}
 	for _, bundleDir := range args {
-		b, err := loader.AsBundle(bundleDir)
+		b, err := loader.NewFileLoader().AsBundle(bundleDir)
 		if err != nil {
 			return nil, fmt.Errorf("unable to load bundle %s: %s", bundleDir, err)
 		}

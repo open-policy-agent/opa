@@ -521,13 +521,13 @@ func loadPaths(paths []string, filter loader.Filter, asBundle bool) (*loadResult
 	if asBundle {
 		result.Bundles = make(map[string]*bundle.Bundle, len(paths))
 		for _, path := range paths {
-			result.Bundles[path], err = loader.AsBundle(path)
+			result.Bundles[path], err = loader.NewFileLoader().AsBundle(path)
 			if err != nil {
 				return nil, err
 			}
 		}
 	} else {
-		loaded, err := loader.Filtered(paths, filter)
+		loaded, err := loader.NewFileLoader().Filtered(paths, filter)
 		if err != nil {
 			return nil, err
 		}

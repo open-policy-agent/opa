@@ -78,7 +78,7 @@ func deps(args []string, params depsCommandParams) error {
 			Ignore: params.ignore,
 		}
 
-		result, err := loader.Filtered(params.dataPaths.v, f.Apply)
+		result, err := loader.NewFileLoader().Filtered(params.dataPaths.v, f.Apply)
 		if err != nil {
 			return err
 		}
@@ -90,7 +90,7 @@ func deps(args []string, params depsCommandParams) error {
 
 	if len(params.bundlePaths.v) > 0 {
 		for _, path := range params.bundlePaths.v {
-			b, err := loader.AsBundle(path)
+			b, err := loader.NewFileLoader().AsBundle(path)
 			if err != nil {
 				return err
 			}

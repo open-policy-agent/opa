@@ -38,13 +38,6 @@ func (e *Errors) add(err error) {
 	}
 }
 
-func newResult() *Result {
-	return &Result{
-		Documents: map[string]interface{}{},
-		Modules:   map[string]*RegoFile{},
-	}
-}
-
 type unsupportedDocumentType string
 
 func (path unsupportedDocumentType) Error() string {
