@@ -16,6 +16,8 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/pkg/errors"
 
+	"github.com/open-policy-agent/opa/metrics"
+
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
 	fileurl "github.com/open-policy-agent/opa/internal/file/url"
@@ -77,23 +79,42 @@ func GlobExcludeName(pattern string, minDepth int) Filter {
 	}
 }
 
-// All returns a Result object loaded (recursively) from the specified paths.
-func All(paths []string) (*Result, error) {
-	return Filtered(paths, nil)
+// FileLoader defines an interface for loading OPA data files
+// and Rego policies.
+type FileLoader interface {
+	All(paths []string) (*Result, error)
+	Filtered(paths []string, filter Filter) (*Result, error)
+	AsBundle(path string) (*bundle.Bundle, error)
+
+	WithMetrics(m metrics.Metrics) FileLoader
 }
 
-// AllRegos returns a Result object loaded (recursively) with all Rego source
-// files from the specified paths.
-func AllRegos(paths []string) (*Result, error) {
-	return Filtered(paths, func(_ string, info os.FileInfo, depth int) bool {
-		return !info.IsDir() && !strings.HasSuffix(info.Name(), bundle.RegoExt)
-	})
+// NewFileLoader returns a new FileLoader instance.
+func NewFileLoader() FileLoader {
+	return &fileLoader{
+		metrics: metrics.New(),
+	}
+}
+
+type fileLoader struct {
+	metrics metrics.Metrics
+}
+
+// WithMetrics provides the metrics instance to use while loading
+func (fl *fileLoader) WithMetrics(m metrics.Metrics) FileLoader {
+	fl.metrics = m
+	return fl
+}
+
+// All returns a Result object loaded (recursively) from the specified paths.
+func (fl fileLoader) All(paths []string) (*Result, error) {
+	return fl.Filtered(paths, nil)
 }
 
 // Filtered returns a Result object loaded (recursively) from the specified
 // paths while applying the given filters. If any filter returns true, the
 // file/directory is excluded.
-func Filtered(paths []string, filter Filter) (*Result, error) {
+func (fl fileLoader) Filtered(paths []string, filter Filter) (*Result, error) {
 	return all(paths, filter, func(curr *Result, path string, depth int) error {
 
 		bs, err := ioutil.ReadFile(path)
@@ -101,7 +122,7 @@ func Filtered(paths []string, filter Filter) (*Result, error) {
 			return err
 		}
 
-		result, err := loadKnownTypes(path, bs)
+		result, err := loadKnownTypes(path, bs, fl.metrics)
 		if err != nil {
 			if !isUnrecognizedFile(err) {
 				return err
@@ -109,7 +130,7 @@ func Filtered(paths []string, filter Filter) (*Result, error) {
 			if depth > 0 {
 				return nil
 			}
-			result, err = loadFileForAnyType(path, bs)
+			result, err = loadFileForAnyType(path, bs, fl.metrics)
 			if err != nil {
 				return err
 			}
@@ -119,23 +140,10 @@ func Filtered(paths []string, filter Filter) (*Result, error) {
 	})
 }
 
-// Rego returns a RegoFile object loaded from the given path.
-func Rego(path string) (*RegoFile, error) {
-	path, err := fileurl.Clean(path)
-	if err != nil {
-		return nil, err
-	}
-	bs, err := ioutil.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-	return loadRego(path, bs)
-}
-
 // AsBundle loads a path as a bundle. If it is a single file
 // it will be treated as a normal tarball bundle. If a directory
 // is supplied it will be loaded as an unzipped bundle tree.
-func AsBundle(path string) (*bundle.Bundle, error) {
+func (fl fileLoader) AsBundle(path string) (*bundle.Bundle, error) {
 	path, err := fileurl.Clean(path)
 	if err != nil {
 		return nil, err
@@ -158,12 +166,55 @@ func AsBundle(path string) (*bundle.Bundle, error) {
 		bundleLoader = bundle.NewTarballLoader(fh)
 	}
 
-	br := bundle.NewCustomReader(bundleLoader)
+	br := bundle.NewCustomReader(bundleLoader).WithMetrics(fl.metrics)
 	b, err := br.Read()
 	if err != nil {
 		err = errors.Wrap(err, fmt.Sprintf("bundle %s", path))
 	}
 	return &b, err
+}
+
+// All returns a Result object loaded (recursively) from the specified paths.
+// Deprecated: Use FileLoader.Filtered() instead.
+func All(paths []string) (*Result, error) {
+	return NewFileLoader().Filtered(paths, nil)
+}
+
+// Filtered returns a Result object loaded (recursively) from the specified
+// paths while applying the given filters. If any filter returns true, the
+// file/directory is excluded.
+// Deprecated: Use FileLoader.Filtered() instead.
+func Filtered(paths []string, filter Filter) (*Result, error) {
+	return NewFileLoader().Filtered(paths, filter)
+}
+
+// AsBundle loads a path as a bundle. If it is a single file
+// it will be treated as a normal tarball bundle. If a directory
+// is supplied it will be loaded as an unzipped bundle tree.
+// Deprecated: Use FileLoader.AsBundle() instead.
+func AsBundle(path string) (*bundle.Bundle, error) {
+	return NewFileLoader().AsBundle(path)
+}
+
+// AllRegos returns a Result object loaded (recursively) with all Rego source
+// files from the specified paths.
+func AllRegos(paths []string) (*Result, error) {
+	return NewFileLoader().Filtered(paths, func(_ string, info os.FileInfo, depth int) bool {
+		return !info.IsDir() && !strings.HasSuffix(info.Name(), bundle.RegoExt)
+	})
+}
+
+// Rego returns a RegoFile object loaded from the given path.
+func Rego(path string) (*RegoFile, error) {
+	path, err := fileurl.Clean(path)
+	if err != nil {
+		return nil, err
+	}
+	bs, err := ioutil.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	return loadRego(path, bs, metrics.New())
 }
 
 // CleanPath returns the normalized version of a path that can be used as an identifier.
@@ -249,6 +300,13 @@ func (l *Result) withParent(p string) *Result {
 	}
 }
 
+func newResult() *Result {
+	return &Result{
+		Documents: map[string]interface{}{},
+		Modules:   map[string]*RegoFile{},
+	}
+}
+
 func all(paths []string, filter Filter, f func(*Result, string, int) error) (*Result, error) {
 	errors := Errors{}
 	root := newResult()
@@ -318,26 +376,17 @@ func allRec(path string, filter Filter, errors *Errors, loaded *Result, depth in
 	}
 }
 
-func exclude(filters []Filter, path string, info os.FileInfo, depth int) bool {
-	for _, f := range filters {
-		if f(path, info, depth) {
-			return true
-		}
-	}
-	return false
-}
-
-func loadKnownTypes(path string, bs []byte) (interface{}, error) {
+func loadKnownTypes(path string, bs []byte, m metrics.Metrics) (interface{}, error) {
 	switch filepath.Ext(path) {
 	case ".json":
-		return loadJSON(path, bs)
+		return loadJSON(path, bs, m)
 	case ".rego":
-		return Rego(path)
+		return loadRego(path, bs, m)
 	case ".yaml", ".yml":
-		return loadYAML(path, bs)
+		return loadYAML(path, bs, m)
 	default:
 		if strings.HasSuffix(path, ".tar.gz") {
-			r, err := loadBundleFile(bs)
+			r, err := loadBundleFile(bs, m)
 			if err != nil {
 				err = errors.Wrap(err, fmt.Sprintf("bundle %s", path))
 			}
@@ -347,34 +396,32 @@ func loadKnownTypes(path string, bs []byte) (interface{}, error) {
 	return nil, unrecognizedFile(path)
 }
 
-func loadFileForAnyType(path string, bs []byte) (interface{}, error) {
-	module, err := loadRego(path, bs)
+func loadFileForAnyType(path string, bs []byte, m metrics.Metrics) (interface{}, error) {
+	module, err := loadRego(path, bs, m)
 	if err == nil {
 		return module, nil
 	}
-	doc, err := loadJSON(path, bs)
+	doc, err := loadJSON(path, bs, m)
 	if err == nil {
 		return doc, nil
 	}
-	doc, err = loadYAML(path, bs)
+	doc, err = loadYAML(path, bs, m)
 	if err == nil {
 		return doc, nil
 	}
 	return nil, unrecognizedFile(path)
 }
 
-func loadBundleFile(bs []byte) (bundle.Bundle, error) {
+func loadBundleFile(bs []byte, m metrics.Metrics) (bundle.Bundle, error) {
 	tl := bundle.NewTarballLoader(bytes.NewBuffer(bs))
-	br := bundle.NewCustomReader(tl).IncludeManifestInData(true)
+	br := bundle.NewCustomReader(tl).WithMetrics(m).IncludeManifestInData(true)
 	return br.Read()
 }
 
-func loadBundleDir(path string) (bundle.Bundle, error) {
-	return bundle.Bundle{}, nil
-}
-
-func loadRego(path string, bs []byte) (*RegoFile, error) {
+func loadRego(path string, bs []byte, m metrics.Metrics) (*RegoFile, error) {
+	m.Timer(metrics.RegoModuleParse).Start()
 	module, err := ast.ParseModule(path, string(bs))
+	m.Timer(metrics.RegoModuleParse).Stop()
 	if err != nil {
 		return nil, err
 	}
@@ -389,22 +436,27 @@ func loadRego(path string, bs []byte) (*RegoFile, error) {
 	return result, nil
 }
 
-func loadJSON(path string, bs []byte) (interface{}, error) {
+func loadJSON(path string, bs []byte, m metrics.Metrics) (interface{}, error) {
+	m.Timer(metrics.RegoDataParse).Start()
 	buf := bytes.NewBuffer(bs)
 	decoder := util.NewJSONDecoder(buf)
 	var x interface{}
-	if err := decoder.Decode(&x); err != nil {
+	err := decoder.Decode(&x)
+	m.Timer(metrics.RegoDataParse).Stop()
+	if err != nil {
 		return nil, errors.Wrap(err, path)
 	}
 	return x, nil
 }
 
-func loadYAML(path string, bs []byte) (interface{}, error) {
+func loadYAML(path string, bs []byte, m metrics.Metrics) (interface{}, error) {
+	m.Timer(metrics.RegoDataParse).Start()
 	bs, err := yaml.YAMLToJSON(bs)
+	m.Timer(metrics.RegoDataParse).Stop()
 	if err != nil {
 		return nil, fmt.Errorf("%v: error converting YAML to JSON: %v", path, err)
 	}
-	return loadJSON(path, bs)
+	return loadJSON(path, bs, m)
 }
 
 func makeDir(path []string, x interface{}) (map[string]interface{}, bool) {

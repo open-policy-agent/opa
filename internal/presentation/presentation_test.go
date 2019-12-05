@@ -297,7 +297,7 @@ func TestOutputJSONErrorStructuredLoaderErrList(t *testing.T) {
 	var tmpPath string
 	test.WithTempFS(files, func(path string) {
 		tmpPath = path
-		_, err = loader.All([]string{path})
+		_, err = loader.NewFileLoader().All([]string{path})
 	})
 
 	expected := fmt.Sprintf(`{

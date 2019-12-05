@@ -1329,7 +1329,7 @@ func (r *Rego) loadFiles(ctx context.Context, txn storage.Transaction, m metrics
 	m.Timer(metrics.RegoLoadFiles).Start()
 	defer m.Timer(metrics.RegoLoadFiles).Stop()
 
-	result, err := loader.Filtered(r.loadPaths.paths, r.loadPaths.filter)
+	result, err := loader.NewFileLoader().WithMetrics(m).Filtered(r.loadPaths.paths, r.loadPaths.filter)
 	if err != nil {
 		return err
 	}
@@ -1351,7 +1351,7 @@ func (r *Rego) loadBundles(ctx context.Context, txn storage.Transaction, m metri
 	defer m.Timer(metrics.RegoLoadBundles).Stop()
 
 	for _, path := range r.bundlePaths {
-		bndl, err := loader.AsBundle(path)
+		bndl, err := loader.NewFileLoader().WithMetrics(m).AsBundle(path)
 		if err != nil {
 			return fmt.Errorf("loading error: %s", err)
 		}

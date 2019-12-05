@@ -19,6 +19,7 @@ import (
 
 	"github.com/open-policy-agent/opa/internal/file/archive"
 	"github.com/open-policy-agent/opa/internal/merge"
+	"github.com/open-policy-agent/opa/metrics"
 
 	"github.com/pkg/errors"
 
@@ -125,6 +126,7 @@ type ModuleFile struct {
 type Reader struct {
 	loader                DirectoryLoader
 	includeManifestInData bool
+	metrics               metrics.Metrics
 }
 
 // NewReader returns a new Reader which is configured for reading tarballs.
@@ -136,7 +138,8 @@ func NewReader(r io.Reader) *Reader {
 // specified DirectoryLoader.
 func NewCustomReader(loader DirectoryLoader) *Reader {
 	nr := Reader{
-		loader: loader,
+		loader:  loader,
+		metrics: metrics.New(),
 	}
 	return &nr
 }
@@ -145,6 +148,12 @@ func NewCustomReader(loader DirectoryLoader) *Reader {
 // included in the bundle's data.
 func (r *Reader) IncludeManifestInData(includeManifestInData bool) *Reader {
 	r.includeManifestInData = includeManifestInData
+	return r
+}
+
+// WithMetrics sets the metrics object to be used while loading bundles
+func (r *Reader) WithMetrics(m metrics.Metrics) *Reader {
+	r.metrics = m
 	return r
 }
 
@@ -177,7 +186,9 @@ func (r *Reader) Read() (Bundle, error) {
 		path := filepath.ToSlash(f.Path())
 
 		if strings.HasSuffix(path, RegoExt) {
+			r.metrics.Timer(metrics.RegoModuleParse).Start()
 			module, err := ast.ParseModule(path, buf.String())
+			r.metrics.Timer(metrics.RegoModuleParse).Stop()
 			if err != nil {
 				return bundle, err
 			}
@@ -194,7 +205,12 @@ func (r *Reader) Read() (Bundle, error) {
 
 		} else if filepath.Base(path) == dataFile {
 			var value interface{}
-			if err := util.NewJSONDecoder(&buf).Decode(&value); err != nil {
+
+			r.metrics.Timer(metrics.RegoDataParse).Start()
+			err := util.NewJSONDecoder(&buf).Decode(&value)
+			r.metrics.Timer(metrics.RegoDataParse).Stop()
+
+			if err != nil {
 				return bundle, errors.Wrapf(err, "bundle load failed on %v", path)
 			}
 
@@ -205,7 +221,12 @@ func (r *Reader) Read() (Bundle, error) {
 		} else if filepath.Base(path) == yamlDataFile {
 
 			var value interface{}
-			if err := util.Unmarshal(buf.Bytes(), &value); err != nil {
+
+			r.metrics.Timer(metrics.RegoDataParse).Start()
+			err := util.Unmarshal(buf.Bytes(), &value)
+			r.metrics.Timer(metrics.RegoDataParse).Stop()
+
+			if err != nil {
 				return bundle, errors.Wrapf(err, "bundle load failed on %v", path)
 			}
 

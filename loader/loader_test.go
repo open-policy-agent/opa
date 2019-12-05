@@ -27,7 +27,7 @@ func TestLoadJSON(t *testing.T) {
 
 	test.WithTempFS(files, func(rootDir string) {
 
-		loaded, err := All([]string{filepath.Join(rootDir, "foo.json")})
+		loaded, err := NewFileLoader().All([]string{filepath.Join(rootDir, "foo.json")})
 
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
@@ -50,7 +50,7 @@ p = true { true }`}
 
 	test.WithTempFS(files, func(rootDir string) {
 		moduleFile := filepath.Join(rootDir, "foo.rego")
-		loaded, err := All([]string{moduleFile})
+		loaded, err := NewFileLoader().All([]string{moduleFile})
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -77,7 +77,7 @@ func TestLoadYAML(t *testing.T) {
 
 	test.WithTempFS(files, func(rootDir string) {
 		yamlFile := filepath.Join(rootDir, "foo.yml")
-		loaded, err := All([]string{yamlFile})
+		loaded, err := NewFileLoader().All([]string{yamlFile})
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -97,7 +97,7 @@ func TestLoadGuessYAML(t *testing.T) {
 	}
 	test.WithTempFS(files, func(rootDir string) {
 		yamlFile := filepath.Join(rootDir, "foo")
-		loaded, err := All([]string{yamlFile})
+		loaded, err := NewFileLoader().All([]string{yamlFile})
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -121,7 +121,7 @@ func TestLoadDirRecursive(t *testing.T) {
 	}
 
 	test.WithTempFS(files, func(rootDir string) {
-		loaded, err := All(mustListPaths(rootDir, false)[1:])
+		loaded, err := NewFileLoader().All(mustListPaths(rootDir, false)[1:])
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -185,7 +185,7 @@ func TestLoadBundle(t *testing.T) {
 		}
 
 		paths := mustListPaths(rootDir, false)[1:]
-		loaded, err := All(paths)
+		loaded, err := NewFileLoader().All(paths)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -241,7 +241,7 @@ func TestLoadBundleSubDir(t *testing.T) {
 		}
 
 		paths := mustListPaths(rootDir, false)[1:]
-		loaded, err := All(paths)
+		loaded, err := NewFileLoader().All(paths)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -270,7 +270,7 @@ func TestAsBundleWithDir(t *testing.T) {
 	}
 
 	test.WithTempFS(files, func(rootDir string) {
-		b, err := AsBundle(rootDir)
+		b, err := NewFileLoader().AsBundle(rootDir)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -302,7 +302,7 @@ func TestAsBundleWithFileURLDir(t *testing.T) {
 	}
 
 	test.WithTempFS(files, func(rootDir string) {
-		b, err := AsBundle("file://" + rootDir)
+		b, err := NewFileLoader().AsBundle("file://" + rootDir)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -362,7 +362,7 @@ func TestAsBundleWithFile(t *testing.T) {
 			t.Fatalf("Unexpected error: %s", err)
 		}
 
-		actual, err := AsBundle(path)
+		actual, err := NewFileLoader().AsBundle(path)
 		if err != nil {
 			t.Fatalf("Unexpected error: %s", err)
 		}
@@ -392,7 +392,7 @@ func TestLoadRooted(t *testing.T) {
 		paths[0] = "one.two:" + paths[0]
 		paths[1] = "three:" + paths[1]
 		paths[2] = "four:" + paths[2]
-		loaded, err := All(paths)
+		loaded, err := NewFileLoader().All(paths)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -418,7 +418,7 @@ func TestGlobExcludeName(t *testing.T) {
 	test.WithTempFS(files, func(rootDir string) {
 		paths := mustListPaths(rootDir, false)[1:]
 		sort.Strings(paths)
-		result, err := Filtered(paths, GlobExcludeName(".*", 1))
+		result, err := NewFileLoader().Filtered(paths, GlobExcludeName(".*", 1))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -448,7 +448,7 @@ func TestLoadErrors(t *testing.T) {
 	test.WithTempFS(files, func(rootDir string) {
 		paths := mustListPaths(rootDir, false)[1:]
 		sort.Strings(paths)
-		_, err := All(paths)
+		_, err := NewFileLoader().All(paths)
 		if err == nil {
 			t.Fatalf("Expected failure")
 		}
@@ -486,7 +486,7 @@ func TestLoadFileURL(t *testing.T) {
 
 		paths[2] = "c:" + paths[2]
 
-		result, err := All(paths)
+		result, err := NewFileLoader().All(paths)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -499,7 +499,7 @@ func TestLoadFileURL(t *testing.T) {
 }
 
 func TestUnsupportedURLScheme(t *testing.T) {
-	_, err := All([]string{"http://openpolicyagent.org"})
+	_, err := NewFileLoader().All([]string{"http://openpolicyagent.org"})
 	if err == nil || !strings.Contains(err.Error(), "unsupported URL scheme: http://openpolicyagent.org") {
 		t.Fatal(err)
 	}

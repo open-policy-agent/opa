@@ -24,6 +24,7 @@ const (
 	RegoQueryEval     = "rego_query_eval"
 	RegoQueryParse    = "rego_query_parse"
 	RegoModuleParse   = "rego_module_parse"
+	RegoDataParse     = "rego_data_parse"
 	RegoModuleCompile = "rego_module_compile"
 	RegoPartialEval   = "rego_partial_eval"
 	RegoInputParse    = "rego_input_parse"
