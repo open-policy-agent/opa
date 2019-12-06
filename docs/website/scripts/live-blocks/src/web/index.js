@@ -7,7 +7,7 @@ import 'codemirror/lib/codemirror.css'
 import 'codemirror/mode/javascript/javascript'
 
 import './style.css'
-import {BASE_EDITOR_OPTS, BLOCK_SELECTOR, BLOCK_TYPES, CLASSES, EDITOR_MODES, HYDRATION_QUEUE_SORT_PERIOD, ICONS, NON_INTERACTIVE_PATH, LINE_NUMBERS_EDITOR_OPTS, OPENING_IN_PLAYGROUND_PATH, READ_ONLY_EDITOR_OPTS, STATIC_TAG_TYPES} from '../constants'
+import {BASE_EDITOR_OPTS, BLOCK_SELECTOR, BLOCK_TYPES, CLASSES, EDITOR_MODES, HYDRATION_QUEUE_SORT_PERIOD, ICONS, INTERACTIVE_PATH, LINE_NUMBERS_EDITOR_OPTS, OPENING_IN_PLAYGROUND_PATH, READ_ONLY_EDITOR_OPTS, STATIC_TAG_TYPES} from '../constants'
 import {batchProcess, delay, getAllGroupModules, getGroupField, handleLater, includedGroupNames, infoFromLabel, report} from '../helpers'
 import {OPAErrors} from '../errors'
 
@@ -266,10 +266,8 @@ function isInteractive(tags) {
   if (tags.includes(STATIC_TAG_TYPES.HIDDEN)) {
     return false
   }
-  if (NON_INTERACTIVE_PATH.test(window.location.pathname)) {
-    return false
-  }
-  return true
+  return INTERACTIVE_PATH.test(window.location.pathname);
+
 }
 
 // Determines whether a block should be editable based on its type, tags, and the current page's path.
