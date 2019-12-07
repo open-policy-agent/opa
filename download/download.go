@@ -15,6 +15,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 
+	"github.com/open-policy-agent/opa/metrics"
+
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/plugins/rest"
 	"github.com/open-policy-agent/opa/util"
@@ -28,9 +30,10 @@ const (
 // field will be non-nil. If a new bundle is available, the Bundle field will
 // be non-nil.
 type Update struct {
-	ETag   string
-	Bundle *bundle.Bundle
-	Error  error
+	ETag    string
+	Bundle  *bundle.Bundle
+	Error   error
+	Metrics metrics.Metrics
 }
 
 // Downloader implements low-level OPA bundle downloading. Downloader can be
@@ -119,11 +122,11 @@ func (d *Downloader) loop() {
 }
 
 func (d *Downloader) oneShot(ctx context.Context) error {
-
-	b, etag, err := d.download(ctx)
+	m := metrics.New()
+	b, etag, err := d.download(ctx, m)
 
 	if d.f != nil {
-		d.f(ctx, Update{ETag: etag, Bundle: b, Error: err})
+		d.f(ctx, Update{ETag: etag, Bundle: b, Error: err, Metrics: m})
 	}
 
 	d.etag = etag
@@ -131,7 +134,7 @@ func (d *Downloader) oneShot(ctx context.Context) error {
 	return err
 }
 
-func (d *Downloader) download(ctx context.Context) (*bundle.Bundle, string, error) {
+func (d *Downloader) download(ctx context.Context, m metrics.Metrics) (*bundle.Bundle, string, error) {
 
 	d.logDebug("Download starting.")
 
@@ -146,7 +149,9 @@ func (d *Downloader) download(ctx context.Context) (*bundle.Bundle, string, erro
 	case http.StatusOK:
 		if resp.Body != nil {
 			d.logDebug("Download in progress.")
-			b, err := bundle.NewReader(resp.Body).Read()
+			m.Timer(metrics.RegoLoadBundles).Start()
+			defer m.Timer(metrics.RegoLoadBundles).Stop()
+			b, err := bundle.NewReader(resp.Body).WithMetrics(m).Read()
 			if err != nil {
 				return nil, "", err
 			}

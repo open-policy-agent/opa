@@ -466,7 +466,12 @@ on the agent, updates will be sent to `/status`.
         "http/example/authz": {
             "active_revision": "TODO",
             "last_successful_download": "2018-01-01T00:00:00.000Z",
-            "last_successful_activation": "2018-01-01T00:00:00.000Z"
+            "last_successful_activation": "2018-01-01T00:00:00.000Z",
+            "metrics": {
+                "timer_rego_data_parse_ns": 12345,
+                "timer_rego_module_compile_ns": 12345,
+                "timer_rego_module_parse_ns": 12345
+             }
         }
     },
   "metrics": {
@@ -599,6 +604,7 @@ Status updates contain the following fields:
 | `bundles[_].active_revision` | `string` | Opaque revision identifier of the last successful activation. |
 | `bundles[_].last_successful_download` | `string` | RFC3339 timestamp of last successful bundle download. |
 | `bundles[_].last_successful_activation` | `string` | RFC3339 timestamp of last successful bundle activation. |
+| `bundles[_].metrics` | `object` | Metrics from the last update of the bundle. |
 | `discovery.name` | `string` | Name of discovery bundle that the OPA instance is configured to download. |
 | `discovery.active_revision` | `string` | Opaque revision identifier of the last successful discovery activation. |
 | `discovery.last_successful_download` | `string` | RFC3339 timestamp of last successful discovery bundle download. |
@@ -614,7 +620,7 @@ the following additional fields.
 | `bundle.message` | `string` | Human readable messages describing the error(s). |
 | `bundle.errors` | `array` | Collection of detailed parse or compile errors that occurred during activation. |
 
-If the bundle download or activation failed, the status update will contain
+If the discovery bundle download or activation failed, the status update will contain
 the following additional fields.
 
 | Field | Type | Description |

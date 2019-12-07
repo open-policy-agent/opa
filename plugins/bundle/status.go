@@ -9,6 +9,8 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/open-policy-agent/opa/metrics"
+
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/server/types"
 )
@@ -19,13 +21,14 @@ const (
 
 // Status represents the status of processing a bundle.
 type Status struct {
-	Name                     string    `json:"name"`
-	ActiveRevision           string    `json:"active_revision,omitempty"`
-	LastSuccessfulActivation time.Time `json:"last_successful_activation,omitempty"`
-	LastSuccessfulDownload   time.Time `json:"last_successful_download,omitempty"`
-	Code                     string    `json:"code,omitempty"`
-	Message                  string    `json:"message,omitempty"`
-	Errors                   []error   `json:"errors,omitempty"`
+	Name                     string          `json:"name"`
+	ActiveRevision           string          `json:"active_revision,omitempty"`
+	LastSuccessfulActivation time.Time       `json:"last_successful_activation,omitempty"`
+	LastSuccessfulDownload   time.Time       `json:"last_successful_download,omitempty"`
+	Code                     string          `json:"code,omitempty"`
+	Message                  string          `json:"message,omitempty"`
+	Errors                   []error         `json:"errors,omitempty"`
+	Metrics                  metrics.Metrics `json:"metrics,omitempty"`
 }
 
 // SetActivateSuccess updates the status object to reflect a successful
