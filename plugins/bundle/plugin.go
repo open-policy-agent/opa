@@ -12,11 +12,11 @@ import (
 	"reflect"
 	"sync"
 
+	"github.com/sirupsen/logrus"
+
 	"github.com/open-policy-agent/opa/metrics"
 
 	"github.com/open-policy-agent/opa/ast"
-
-	"github.com/sirupsen/logrus"
 
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/download"
@@ -258,6 +258,12 @@ func (p *Plugin) oneShot(ctx context.Context, name string, u download.Update) {
 
 func (p *Plugin) process(ctx context.Context, name string, u download.Update) {
 
+	if u.Metrics != nil {
+		p.status[name].Metrics = u.Metrics
+	} else {
+		p.status[name].Metrics = metrics.New()
+	}
+
 	if u.Error != nil {
 		p.logError(name, "Bundle download failed: %v", u.Error)
 		p.status[name].SetError(u.Error)
@@ -266,6 +272,9 @@ func (p *Plugin) process(ctx context.Context, name string, u download.Update) {
 
 	if u.Bundle != nil {
 		p.status[name].SetDownloadSuccess()
+
+		p.status[name].Metrics.Timer(metrics.RegoLoadBundles).Start()
+		defer p.status[name].Metrics.Timer(metrics.RegoLoadBundles).Stop()
 
 		if err := p.activate(ctx, name, u.Bundle); err != nil {
 			p.logError(name, "Bundle activation failed: %v", err)
@@ -306,14 +315,13 @@ func (p *Plugin) activate(ctx context.Context, name string, b *bundle.Bundle) er
 		compiler := ast.NewCompiler().WithPathConflictsCheck(storage.NonEmpty(ctx, p.manager.Store, txn))
 
 		var activateErr error
-		m := metrics.New()
 
 		opts := &bundle.ActivateOpts{
 			Ctx:      ctx,
 			Store:    p.manager.Store,
 			Txn:      txn,
 			Compiler: compiler,
-			Metrics:  m,
+			Metrics:  p.status[name].Metrics,
 			Bundles:  map[string]*bundle.Bundle{name: b},
 		}
 

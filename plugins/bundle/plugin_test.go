@@ -20,6 +20,7 @@ import (
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/config"
 	"github.com/open-policy-agent/opa/download"
+	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
@@ -32,7 +33,7 @@ func TestPluginOneShot(t *testing.T) {
 	manager := getTestManager()
 	plugin := Plugin{manager: manager, status: map[string]*Status{}, etags: map[string]string{}}
 	bundleName := "test-bundle"
-	plugin.status[bundleName] = &Status{Name: bundleName}
+	plugin.status[bundleName] = &Status{Name: bundleName, Metrics: metrics.New()}
 
 	module := "package foo\n\ncorge=1"
 
@@ -50,7 +51,7 @@ func TestPluginOneShot(t *testing.T) {
 
 	b.Manifest.Init()
 
-	plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b})
+	plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New()})
 
 	txn := storage.NewTransactionOrDie(ctx, manager.Store)
 	defer manager.Store.Abort(ctx, txn)
@@ -101,7 +102,7 @@ func TestPluginOneShotCompileError(t *testing.T) {
 	}
 
 	b1.Manifest.Init()
-	plugin.oneShot(ctx, bundleName, download.Update{Bundle: b1})
+	plugin.oneShot(ctx, bundleName, download.Update{Bundle: b1, Metrics: metrics.New()})
 
 	b2 := &bundle.Bundle{
 		Data: map[string]interface{}{"a": "b"},
@@ -367,9 +368,7 @@ func TestPluginListener(t *testing.T) {
 	go plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b})
 	s1 := <-ch
 
-	if s1.ActiveRevision != "quickbrownfaux" || s1.Code != "" {
-		t.Fatal("Unexpected status update, got:", s1)
-	}
+	validateStatus(t, s1, "quickbrownfaux", false)
 
 	module = "package gork\np[x]"
 
@@ -384,9 +383,7 @@ func TestPluginListener(t *testing.T) {
 	go plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b})
 	s2 := <-ch
 
-	if s2.ActiveRevision != "quickbrownfaux" || s2.Code == "" || s2.Message == "" || len(s2.Errors) == 0 {
-		t.Fatal("Unexpected status update, got:", s2)
-	}
+	validateStatus(t, s2, "quickbrownfaux", true)
 
 	module = "package gork\np[1]"
 	b.Manifest.Revision = "fancybluederg"
@@ -400,18 +397,32 @@ func TestPluginListener(t *testing.T) {
 	go plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b})
 	s3 := <-ch
 
-	if s3.ActiveRevision != "fancybluederg" || s3.Code != "" || s3.Message != "" || len(s3.Errors) != 0 {
-		t.Fatal("Unexpected status update, got:", s3)
-	}
+	validateStatus(t, s3, "fancybluederg", false)
 
 	// Test that empty download update results in status update.
 	go plugin.oneShot(ctx, bundleName, download.Update{})
 	s4 := <-ch
 
-	if !reflect.DeepEqual(s3, s4) {
-		t.Fatalf("Expected: %v but got: %v", s3, s4)
+	// Nothing should have changed in the update
+	validateStatus(t, s4, s3.ActiveRevision, false)
+}
+
+func isErrStatus(s Status) bool {
+	return s.Code != "" || len(s.Errors) != 0 || s.Message != ""
+}
+
+func validateStatus(t *testing.T, actual Status, expected string, expectStatusErr bool) {
+	t.Helper()
+
+	if expectStatusErr && !isErrStatus(actual) {
+		t.Errorf("Expected status to be in an error state, but no error has occured.")
+	} else if !expectStatusErr && isErrStatus(actual) {
+		t.Errorf("Unexpected error status %s", actual)
 	}
 
+	if actual.ActiveRevision != expected {
+		t.Errorf("Expected status revision %s, got %s", expected, actual.ActiveRevision)
+	}
 }
 
 func TestPluginListenerErrorClearedOn304(t *testing.T) {
