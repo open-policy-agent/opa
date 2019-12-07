@@ -302,7 +302,7 @@ func (p *Plugin) Log(ctx context.Context, decision *server.Info) error {
 	}
 
 	if p.config.ConsoleLogs {
-		err := p.logEvent(ctx, event)
+		err := p.logEvent(event)
 		if err != nil {
 			p.logError("Failed to log to console: %v.", err)
 		}
@@ -577,7 +577,7 @@ func (p *Plugin) logrusFields() logrus.Fields {
 	}
 }
 
-func (p *Plugin) logEvent(ctx context.Context, event EventV1) error {
+func (p *Plugin) logEvent(event EventV1) error {
 	eventBuf, err := json.Marshal(&event)
 	if err != nil {
 		return err
