@@ -7,6 +7,7 @@ package status
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"reflect"
@@ -49,13 +50,18 @@ type Plugin struct {
 type Config struct {
 	Service       string `json:"service"`
 	PartitionName string `json:"partition_name,omitempty"`
+	ConsoleLogs   bool   `json:"console"`
 }
 
 func (c *Config) validateAndInjectDefaults(services []string) error {
 
-	if c.Service == "" && len(services) != 0 {
+	if c.Service == "" && len(services) != 0 && !c.ConsoleLogs {
+		// For backwards compatibility allow defaulting to the first
+		// service listed, but only if console logging is disabled. If enabled
+		// we can't tell if the deployer wanted to use only console logs or
+		// both console logs and the default service option.
 		c.Service = services[0]
-	} else {
+	} else if c.Service != "" {
 		found := false
 
 		for _, svc := range services {
@@ -68,6 +74,11 @@ func (c *Config) validateAndInjectDefaults(services []string) error {
 		if !found {
 			return fmt.Errorf("invalid service name %q in status", c.Service)
 		}
+	}
+
+	// If a service wasn't found, and console logging isn't enabled.
+	if c.Service == "" && !c.ConsoleLogs {
+		return fmt.Errorf("invalid status config, must have a `service` target or `console` logging specified")
 	}
 
 	return nil
@@ -214,26 +225,36 @@ func (p *Plugin) oneShot(ctx context.Context) error {
 		req.Metrics = map[string]interface{}{p.metrics.Info().Name: p.metrics.All()}
 	}
 
-	resp, err := p.manager.Client(p.config.Service).
-		WithJSON(req).
-		Do(ctx, "POST", fmt.Sprintf("/status/%v", p.config.PartitionName))
-
-	if err != nil {
-		return errors.Wrap(err, "Status update failed")
+	if p.config.ConsoleLogs {
+		err := p.logUpdate(req)
+		if err != nil {
+			p.logError("Failed to log to console: %v.", err)
+		}
 	}
 
-	defer util.Close(resp)
+	if p.config.Service != "" {
+		resp, err := p.manager.Client(p.config.Service).
+			WithJSON(req).
+			Do(ctx, "POST", fmt.Sprintf("/status/%v", p.config.PartitionName))
 
-	switch resp.StatusCode {
-	case http.StatusOK:
-		return nil
-	case http.StatusNotFound:
-		return fmt.Errorf("Status update failed, server replied with not found")
-	case http.StatusUnauthorized:
-		return fmt.Errorf("Status update failed, server replied with not authorized")
-	default:
-		return fmt.Errorf("Status update failed, server replied with HTTP %v", resp.StatusCode)
+		if err != nil {
+			return errors.Wrap(err, "Status update failed")
+		}
+
+		defer util.Close(resp)
+
+		switch resp.StatusCode {
+		case http.StatusOK:
+			return nil
+		case http.StatusNotFound:
+			return fmt.Errorf("status update failed, server replied with not found")
+		case http.StatusUnauthorized:
+			return fmt.Errorf("status update failed, server replied with not authorized")
+		default:
+			return fmt.Errorf("status update failed, server replied with HTTP %v", resp.StatusCode)
+		}
 	}
+	return nil
 }
 
 func (p *Plugin) reconfigure(config interface{}) {
@@ -264,4 +285,20 @@ func (p *Plugin) logrusFields() logrus.Fields {
 	return logrus.Fields{
 		"plugin": Name,
 	}
+}
+
+func (p *Plugin) logUpdate(update *UpdateRequestV1) error {
+	eventBuf, err := json.Marshal(&update)
+	if err != nil {
+		return err
+	}
+	fields := logrus.Fields{}
+	err = util.UnmarshalJSON(eventBuf, &fields)
+	if err != nil {
+		return err
+	}
+	logrus.WithFields(fields).WithFields(logrus.Fields{
+		"type": "openpolicyagent.org/status",
+	}).Info("Status Log")
+	return nil
 }
