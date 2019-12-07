@@ -632,6 +632,22 @@ the following additional fields.
 Services should reply with HTTP status `200 OK` if the status update is
 processed successfully.
 
+### Local Status Logs
+
+Local console logging of status updates can be enabled via the `console` config option.
+This does not require any remote server. Example of minimal config to enable:
+
+```yaml
+status:
+    console: true
+```
+This will dump all status updates through the OPA logging system at the `info` level. See
+[Configuration Reference](../configuration) for more details.
+
+> Warning: Status update messages are somewhat infrequent but can be very verbose! The
+>`metrics.prometheus` portion of the status update in particular can create a considerable
+> amount of log text at info level.
+
 ## Discovery
 
 
