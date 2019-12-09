@@ -45,6 +45,7 @@
     "rollup-plugin-postcss": "^2.0.3",
     "rollup-plugin-terser": "^5.1.1",
     "sinon": "^7.4.1",
-    "sort-package-json": "^1.22.1"
+    "sort-package-json": "^1.22.1",
+    "serialize-javascript": ">=2.1.1"
   }
 }
