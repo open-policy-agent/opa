@@ -939,6 +939,10 @@ func (ref Ref) Concat(terms []*Term) Ref {
 
 // Dynamic returns the offset of the first non-constant operand of ref.
 func (ref Ref) Dynamic() int {
+	switch ref[0].Value.(type) {
+	case Call:
+		return 0
+	}
 	for i := 1; i < len(ref); i++ {
 		if !IsConstant(ref[i].Value) {
 			return i

@@ -486,6 +486,10 @@ func TestRefDynamic(t *testing.T) {
 	if a[:a.Dynamic()].Dynamic() != -1 {
 		t.Fatalf("Expected dynamic offset to be -1 for foo.bar")
 	}
+
+	if MustParseRef("f(x)[0]").Dynamic() != 0 {
+		t.Fatalf("Expected dynamic offset to be f(x) for foo.bar[baz.qux].corge")
+	}
 }
 
 func TestRefExtend(t *testing.T) {
