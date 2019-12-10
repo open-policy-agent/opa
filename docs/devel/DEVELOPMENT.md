@@ -9,30 +9,16 @@ Requirements:
 
 - Git
 - GitHub account (if you are contributing)
-- Go (version 1.13 is supported though older versions are likely to work)
+- Go (version 1.13+ is supported though older versions are likely to work)
 - GNU Make
 
 ## Getting Started
 
 After cloning the repository, just run `make`. This will:
 
-- Install required dependencies, e.g., the parser-generator ("pigeon").
 - Build the OPA binary.
 - Run all of the tests.
 - Run all of the static analysis checks.
-
-If `make` fails with `main.go:20: running "pigeon": exec: "pigeon":
-executable file not found in $PATH` make sure that `$GOPATH/bin` is
-in `$PATH`. If `$GOPATH` is undefined, it defaults to
-`$HOME/go/bin`:
-
-```
-export PATH=$PATH:$GOPATH/bin
-
-# OR
-
-export PATH=$PATH:$HOME/go/bin
-```
 
 If the build was successful, a binary will be produced in the top directory (`opa_<OS>_<ARCH>`).
 
@@ -125,9 +111,6 @@ the version desired. This should update the [go.mod](../../go.mod) and (potentia
 [go.sum](../../go.sum) files. After this you *MUST* run `go mod vendor` to ensure
 that the `vendor` directory is in sync.
 
-After updating dependencies, be sure to check if the parser-generator ("pigeon")
-was updated. If it was, re-generate the parser and commit the changes.
-
 Example workflow for updating a dependency:
 
 ```bash
@@ -141,7 +124,7 @@ If dependencies have been removed ensure to run `go mod tidy` to clean them up.
 
 ### Tool Dependencies
 
-We use some tools such as `pigeon`, `goimports`, etc which are versioned and vendored
+We use some tools such as `goimports` which are versioned and vendored
 with OPA as depedencies. See [tools.go](../../tools.go) for a list of tools.
 
 More details on the pattern: [https://github.com/go-modules-by-example/index/blob/master/010_tools/README.md](https://github.com/go-modules-by-example/index/blob/master/010_tools/README.md)

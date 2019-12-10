@@ -1394,7 +1394,7 @@ func TestTopDownStrings(t *testing.T) {
 		{"sprintf: int", []string{`p = x { sprintf("hi %02d", [5], x) }`}, `"hi 05"`},
 		{"sprintf: hex", []string{`p = x { sprintf("hi %02X.%02X", [127, 1], x) }`}, `"hi 7F.01"`},
 		{"sprintf: float", []string{`p = x { sprintf("hi %.2f", [3.1415], x) }`}, `"hi 3.14"`},
-		{"sprintf: float too big", []string{`p = x { sprintf("hi %v", [2e308], x) }`}, `"hi 2e+308"`},
+		{"sprintf: float too big", []string{`p = x { sprintf("hi %v", [2e308], x) }`}, `"hi 2e308"`},
 		{"sprintf: bool", []string{`p = x { sprintf("hi %s", [true], x) }`}, `"hi true"`},
 		{"sprintf: composite", []string{`p = x { sprintf("hi %v", [["there", 5, 3.14]], x) }`}, `"hi [\"there\", 5, 3.14]"`},
 	}

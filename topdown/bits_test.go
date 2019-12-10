@@ -115,9 +115,9 @@ func TestBuiltinBitsShiftLeft(t *testing.T) {
 			`4294967294`,
 		},
 		{
-			"shift of max int64 doesn't overflow, but it's lossy do to conversion to exponent type (see discussion in #2160)",
+			"shift of max int64 doesn't overflow and is not lossy",
 			[]string{fmt.Sprintf(`p = x { x := bits.lsh(%d, 1) }`, math.MaxInt64)},
-			`18446744074000000000`,
+			`18446744073709551614`,
 		},
 	}
 

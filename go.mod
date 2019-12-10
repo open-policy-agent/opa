@@ -5,7 +5,6 @@ go 1.12
 require (
 	github.com/OneOfOne/xxhash v1.2.7
 	github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973 // indirect
-	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/fsnotify/fsnotify v1.4.7 // indirect
 	github.com/ghodss/yaml v0.0.0-20180820084758-c7ce16629ff4
 	github.com/gobwas/glob v0.2.3
@@ -16,7 +15,6 @@ require (
 	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
 	github.com/mattn/go-runewidth v0.0.0-20181025052659-b20a3daf6a39 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
-	github.com/mna/pigeon v0.0.0-20180808201053-bb0192cfc2ae
 	github.com/olekukonko/tablewriter v0.0.1
 	github.com/peterh/liner v0.0.0-20170211195444-bf27d3ba8e1d
 	github.com/pkg/errors v0.0.0-20181023235946-059132a15dd0

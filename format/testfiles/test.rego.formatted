@@ -61,10 +61,12 @@ fn(x) = y {
 
 fn_else(x) = 1 {
 	true
-} # foo
+}
 
-# bar
+# foo
 else = 2 {
+	# bar
+
 	true
 }
 
@@ -100,14 +102,16 @@ fn2(
 	trim(a, z, d) # function comment 1
 	split(c[0], d, b)
 	x = sprintf("hello %v", ["world"])
-	#function comment 2
-} # function comment 3
+}
+
+#function comment 2
+# function comment 3
 
 f[x] {
 	x = "hi"
-} # Comment on chain
+}
 
-f[x] {
+f[x] { # Comment on chain
 	x = "bye"
 }
 
@@ -184,7 +188,9 @@ p[x] = y {
 		y = x[_]
 		# inner comment
 	}
-} # Comment on rule closing brace
+}
+
+# Comment on rule closing brace
 
 nested_infix {
 	x + 1

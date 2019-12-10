@@ -444,7 +444,7 @@ func TestRenderBenchmarkErrorJSONOutput(t *testing.T) {
 	expected := `{
   "errors": [
     {
-      "message": "no match found",
+      "message": "illegal token",
       "code": "rego_parse_error",
       "location": {
         "file": "",
@@ -487,7 +487,7 @@ func testPrettyBenchmarkOutput(t *testing.T, params benchmarkCommandParams) {
 	renderBenchmarkError(params, err, &buf)
 
 	actual := buf.String()
-	expected := `1 error occurred: 1:1: rego_parse_error: no match found
+	expected := `1 error occurred: 1:1: rego_parse_error: illegal token
 	???
 	^
 `

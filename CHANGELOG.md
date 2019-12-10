@@ -5,6 +5,97 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### New Parser
+
+The next minor release includes a new parser implementation that resolves a number
+of existing issues with the old parser. As part of implementing the new parser
+a small number of backwards incompatible changes have been made.
+
+#### Backwards Compatibility
+
+The new parser contains a small number of backwards incompatible changes that
+correct questionable behaviour from the old parser. These changes affect
+a very small number of actual policies and we feel confident in the decision to
+break backwards compatibility here.
+
+- Numbers no longer lose-precision [#501](https://github.com/open-policy-agent/opa/issues/501)
+- Leading commas do not cause objects to lose values [#2198](https://github.com/open-policy-agent/opa/issues/2198)
+- Rules wrapped with braces no longer parse [#2199](https://github.com/open-policy-agent/opa/issues/2199)
+- Rule names can no longer contain dots/hyphens [#2200](https://github.com/open-policy-agent/opa/issues/2200)
+- Object comprehensions now have priority over logical OR in all cases [#2201](https://github.com/open-policy-agent/opa/issues/2201)
+
+In addition there are a few small changes backwards incompatible changes in APIs:
+
+- The `message` field on `rego_parse_error` objects contains a human-readable description
+  of the parse error. The old parser would often report "no match found" to indicate
+  the input contained invalid syntax. The new parser has slightly more specific
+  errors. If you integrated with OPA and implemented error handling based on the
+  content of these human-readable error message strings, your integration may be affected.
+- The `github.com/open-policy-agent/opa/format#Bytes` function has been removed (it was unused.)
+
+#### Benchmark Results
+
+The output below shows the Go `benchstat` result for master (5a5d2a42) compared to the new parser.
+
+```
+name                                 old time/op    new time/op    delta
+ParseModuleRulesBase/1-16               210µs ± 1%       4µs ± 1%  -98.02%  (p=0.008 n=5+5)
+ParseModuleRulesBase/10-16             1.39ms ± 1%    0.03ms ± 0%  -97.93%  (p=0.008 n=5+5)
+ParseModuleRulesBase/100-16            13.5ms ± 1%     0.3ms ± 1%  -97.93%  (p=0.008 n=5+5)
+ParseModuleRulesBase/1000-16            148ms ± 5%       3ms ± 6%  -97.77%  (p=0.008 n=5+5)
+ParseStatementBasicCall-16              141µs ± 5%       3µs ± 1%  -97.92%  (p=0.008 n=5+5)
+ParseStatementMixedJSON-16             9.06ms ± 2%    0.07ms ± 1%  -99.19%  (p=0.008 n=5+5)
+ParseStatementSimpleArray/1-16          131µs ± 6%       2µs ± 1%  -98.10%  (p=0.008 n=5+5)
+ParseStatementSimpleArray/10-16         499µs ± 6%       7µs ± 2%  -98.54%  (p=0.008 n=5+5)
+ParseStatementSimpleArray/100-16       4.00ms ± 2%    0.06ms ± 4%  -98.58%  (p=0.008 n=5+5)
+ParseStatementSimpleArray/1000-16      42.0ms ± 3%     0.5ms ± 4%  -98.70%  (p=0.008 n=5+5)
+ParseStatementNestedObjects/1x1-16      233µs ± 6%       4µs ± 3%  -98.49%  (p=0.008 n=5+5)
+ParseStatementNestedObjects/5x1-16      514µs ± 0%       9µs ± 4%  -98.33%  (p=0.008 n=5+5)
+ParseStatementNestedObjects/10x1-16     911µs ± 5%      14µs ± 5%  -98.46%  (p=0.008 n=5+5)
+ParseStatementNestedObjects/1x5-16     4.24ms ± 1%    0.01ms ± 1%  -99.82%  (p=0.016 n=4+5)
+ParseStatementNestedObjects/1x10-16     138ms ± 1%       0ms ± 1%  -99.99%  (p=0.008 n=5+5)
+ParseStatementNestedObjects/5x5-16      714ms ± 0%       5ms ± 5%  -99.26%  (p=0.016 n=4+5)
+ParseBasicABACModule-16                3.12ms ± 3%    0.04ms ± 4%  -98.63%  (p=0.008 n=5+5)
+
+name                                 old alloc/op   new alloc/op   delta
+ParseModuleRulesBase/1-16              99.2kB ± 0%     5.7kB ± 0%  -94.30%  (p=0.008 n=5+5)
+ParseModuleRulesBase/10-16              600kB ± 0%      29kB ± 0%  -95.16%  (p=0.008 n=5+5)
+ParseModuleRulesBase/100-16            5.72MB ± 0%    0.27MB ± 0%  -95.34%  (p=0.008 n=5+5)
+ParseModuleRulesBase/1000-16           58.0MB ± 0%     2.7MB ± 0%  -95.42%  (p=0.008 n=5+5)
+ParseStatementBasicCall-16             70.2kB ± 0%     5.0kB ± 0%  -92.82%  (p=0.008 n=5+5)
+ParseStatementMixedJSON-16             3.64MB ± 0%    0.06MB ± 0%  -98.34%  (p=0.008 n=5+5)
+ParseStatementSimpleArray/1-16         63.7kB ± 0%     4.8kB ± 0%  -92.42%  (p=0.008 n=5+5)
+ParseStatementSimpleArray/10-16         205kB ± 0%       8kB ± 0%  -96.00%  (p=0.008 n=5+5)
+ParseStatementSimpleArray/100-16       1.64MB ± 0%    0.05MB ± 0%  -97.19%  (p=0.008 n=5+5)
+ParseStatementSimpleArray/1000-16      16.5MB ± 0%     0.4MB ± 0%  -97.50%  (p=0.008 n=5+5)
+ParseStatementNestedObjects/1x1-16     98.6kB ± 0%     5.7kB ± 0%  -94.22%  (p=0.008 n=5+5)
+ParseStatementNestedObjects/5x1-16      224kB ± 0%       9kB ± 0%  -96.05%  (p=0.008 n=5+5)
+ParseStatementNestedObjects/10x1-16     381kB ± 0%      13kB ± 0%  -96.63%  (p=0.008 n=5+5)
+ParseStatementNestedObjects/1x5-16     1.76MB ± 0%    0.01MB ± 0%  -99.38%  (p=0.008 n=5+5)
+ParseStatementNestedObjects/1x10-16    56.2MB ± 0%     0.0MB ± 0%  -99.97%  (p=0.008 n=5+5)
+ParseStatementNestedObjects/5x5-16      280MB ± 0%       4MB ± 0%  -98.67%  (p=0.008 n=5+5)
+ParseBasicABACModule-16                1.27MB ± 0%    0.04MB ± 0%  -97.08%  (p=0.008 n=5+5)
+
+name                                 old allocs/op  new allocs/op  delta
+ParseModuleRulesBase/1-16               2.28k ± 0%     0.07k ± 0%  -96.75%  (p=0.008 n=5+5)
+ParseModuleRulesBase/10-16              16.1k ± 0%      0.5k ± 0%  -96.59%  (p=0.008 n=5+5)
+ParseModuleRulesBase/100-16              159k ± 0%        5k ± 0%  -96.64%  (p=0.008 n=5+5)
+ParseModuleRulesBase/1000-16            1.62M ± 0%     0.05M ± 0%  -96.72%  (p=0.008 n=5+5)
+ParseStatementBasicCall-16              1.36k ± 0%     0.05k ± 0%  -96.25%  (p=0.008 n=5+5)
+ParseStatementMixedJSON-16               105k ± 0%        1k ± 0%     ~     (p=0.079 n=4+5)
+ParseStatementSimpleArray/1-16          1.34k ± 0%     0.04k ± 0%  -97.09%  (p=0.008 n=5+5)
+ParseStatementSimpleArray/10-16         5.49k ± 0%     0.12k ± 0%  -97.90%  (p=0.008 n=5+5)
+ParseStatementSimpleArray/100-16        47.8k ± 0%      0.8k ± 0%     ~     (p=0.079 n=4+5)
+ParseStatementSimpleArray/1000-16        481k ± 0%        8k ± 0%  -98.33%  (p=0.008 n=5+5)
+ParseStatementNestedObjects/1x1-16      2.38k ± 0%     0.05k ± 0%  -97.82%  (p=0.008 n=5+5)
+ParseStatementNestedObjects/5x1-16      6.02k ± 0%     0.12k ± 0%  -97.94%  (p=0.008 n=5+5)
+ParseStatementNestedObjects/10x1-16     10.6k ± 0%      0.2k ± 0%  -98.01%  (p=0.008 n=5+5)
+ParseStatementNestedObjects/1x5-16      51.2k ± 0%      0.1k ± 0%     ~     (p=0.079 n=4+5)
+ParseStatementNestedObjects/1x10-16     1.66M ± 0%     0.00M ± 0%  -99.99%  (p=0.008 n=5+5)
+ParseStatementNestedObjects/5x5-16      8.16M ± 0%     0.07M ± 0%  -99.13%  (p=0.008 n=5+5)
+ParseBasicABACModule-16                 36.5k ± 0%      0.7k ± 0%  -98.09%  (p=0.008 n=5+5)
+```
+
 ## 0.18.0
 
 ### Features

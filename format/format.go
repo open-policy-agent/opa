@@ -13,17 +13,6 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 )
 
-// Bytes formats Rego source code. The bytes provided do not have to be an entire
-// source file, but they must be parse-able. If the bytes are not parse-able, Bytes
-// will return an error resulting from the attempt to parse them.
-func Bytes(src []byte) ([]byte, error) {
-	astElem, err := ast.Parse("", src, ast.CommentsOption())
-	if err != nil {
-		return nil, err
-	}
-	return Ast(astElem)
-}
-
 // Source formats a Rego source file. The bytes provided must describe a complete
 // Rego module. If they don't, Source will return an error resulting from the attempt
 // to parse the bytes.
@@ -443,13 +432,12 @@ func (w *writer) writeTermParens(parens bool, term *ast.Term, comments []*ast.Co
 	case *ast.SetComprehension:
 		comments = w.writeSetComprehension(x, term.Location, comments)
 	case ast.String:
-		if term.Location.Text[0] == '.' {
-			// This string was parsed from a ref, so preserve the value.
-			w.write(`"` + string(x) + `"`)
-		} else {
+		if term.Location.Text[0] == '`' {
 			// To preserve raw strings, we need to output the original text,
 			// not what x.String() would give us.
 			w.write(string(term.Location.Text))
+		} else {
+			w.write(x.String())
 		}
 	case ast.Call:
 		comments = w.writeCall(parens, x, term.Location, comments)
