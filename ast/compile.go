@@ -2781,15 +2781,13 @@ func expandExprRef(gen *localVarGenerator, v []*Term) (support []*Expr) {
 	//
 	// to support these.  This only impacts the reference subject, i.e. the
 	// first item in the slice.
-	if len(v) > 0 {
-		var subject = v[0]
-		switch subject.Value.(type) {
-		case Array, Object, Set, *ArrayComprehension, *SetComprehension, *ObjectComprehension, Call:
-			f := newEqualityFactory(gen)
-			assignToLocal := f.Generate(subject)
-			support = append(support, assignToLocal)
-			v[0] = assignToLocal.Operand(0)
-		}
+	var subject = v[0]
+	switch subject.Value.(type) {
+	case Array, Object, Set, *ArrayComprehension, *SetComprehension, *ObjectComprehension, Call:
+		f := newEqualityFactory(gen)
+		assignToLocal := f.Generate(subject)
+		support = append(support, assignToLocal)
+		v[0] = assignToLocal.Operand(0)
 	}
 	return
 }
