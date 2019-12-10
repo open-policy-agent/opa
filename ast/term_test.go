@@ -347,6 +347,8 @@ func TestTermString(t *testing.T) {
 	assertToString(t, RefTerm(VarTerm("foo"), StringTerm("bar"), VarTerm("i"), IntNumberTerm(0), StringTerm("baz")).Value, "foo.bar[i][0].baz")
 	assertToString(t, RefTerm(VarTerm("foo"), BooleanTerm(false), NullTerm(), StringTerm("bar")).Value, "foo[false][null].bar")
 	assertToString(t, RefTerm(VarTerm("p"), StringTerm("not")).Value, `p["not"]`)
+	assertToString(t, RefTerm(CallTerm(VarTerm("f"), VarTerm("x")), IntNumberTerm(0)).Value, "f(x)[0]")
+	assertToString(t, RefTerm(ArrayTerm(StringTerm("a"), StringTerm("b")), IntNumberTerm(0)).Value, "[\"a\", \"b\"][0]")
 	assertToString(t, ArrayTerm().Value, "[]")
 	assertToString(t, ObjectTerm().Value, "{}")
 	assertToString(t, SetTerm().Value, "set()")
