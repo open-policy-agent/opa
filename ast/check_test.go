@@ -137,7 +137,7 @@ func TestCheckInference(t *testing.T) {
 				obj[i] = v1;
 				arr[j] = v2;
 				set[v3];
-				obj = {"foo": "bar"}
+				obj = {"foo": "bar"};
 				arr = [1];
 				set = {1,2,3}
 				`, map[Var]types.Type{
@@ -574,19 +574,19 @@ func TestCheckMatchErrors(t *testing.T) {
 		note  string
 		query string
 	}{
-		{"null", "{ null = true }"},
-		{"boolean", "{ true = null }"},
-		{"number", "{ 1 = null }"},
-		{"string", `{ "hello" = null }`},
-		{"array", "{[1,2,3] = null}"},
-		{"array-nested", `{[1,2,3] = [1,2,"3"]}`},
-		{"array-nested-2", `{[1,2] = [1,2,3]}`},
-		{"array-dynamic", `{ [ true | true ] = [x | a = [1, "foo"]; x = a[_]] }`},
-		{"object", `{{"a": 1, "b": 2} = null}`},
-		{"object-nested", `{ {"a": 1, "b": "2"} = {"a": 1, "b": 2} }`},
-		{"object-nested-2", `{ {"a": 1} = {"a": 1, "b": "2"} }`},
-		{"set", "{{1,2,3} = null}"},
-		{"any", `{x = ["str", 1]; x[_] = null}`},
+		{"null", "null = true"},
+		{"boolean", "true = null"},
+		{"number", "1 = null"},
+		{"string", `"hello" = null`},
+		{"array", "[1,2,3] = null"},
+		{"array-nested", `[1,2,3] = [1,2,"3"]`},
+		{"array-nested-2", `[1,2] = [1,2,3]`},
+		{"array-dynamic", `[ true | true ] = [x | a = [1, "foo"]; x = a[_]]`},
+		{"object", `{"a": 1, "b": 2} = null`},
+		{"object-nested", `{"a": 1, "b": "2"} = {"a": 1, "b": 2}`},
+		{"object-nested-2", `{"a": 1} = {"a": 1, "b": "2"}`},
+		{"set", "{1,2,3} = null"},
+		{"any", `x = ["str", 1]; x[_] = null`},
 	}
 	for _, tc := range tests {
 		test.Subtest(t, tc.note, func(t *testing.T) {

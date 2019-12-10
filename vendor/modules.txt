@@ -25,10 +25,6 @@ github.com/konsorten/go-windows-terminal-sequences
 github.com/mattn/go-runewidth
 # github.com/matttproud/golang_protobuf_extensions v1.0.1
 github.com/matttproud/golang_protobuf_extensions/pbutil
-# github.com/mna/pigeon v0.0.0-20180808201053-bb0192cfc2ae
-github.com/mna/pigeon
-github.com/mna/pigeon/ast
-github.com/mna/pigeon/builder
 # github.com/olekukonko/tablewriter v0.0.1
 github.com/olekukonko/tablewriter
 # github.com/peterh/liner v0.0.0-20170211195444-bf27d3ba8e1d
@@ -73,7 +69,6 @@ golang.org/x/tools/go/gcexportdata
 golang.org/x/tools/go/internal/gcimporter
 golang.org/x/tools/go/internal/packagesdriver
 golang.org/x/tools/go/packages
-golang.org/x/tools/imports
 golang.org/x/tools/internal/fastwalk
 golang.org/x/tools/internal/gopathwalk
 golang.org/x/tools/internal/imports

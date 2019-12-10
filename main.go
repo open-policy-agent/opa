@@ -18,8 +18,5 @@ func main() {
 	}
 }
 
-// Rego parser generation:
-//
-//go:generate build/run-pigeon.sh -o ast/parser.go ast/rego.peg
-//go:generate build/run-goimports.sh -w ast/parser.go
+// WASM base binary generation:
 //go:generate build/gen-opa-wasm.sh internal/cmd/genopawasm/main.go -o internal/compiler/wasm/opa/opa.go internal/compiler/wasm/opa/opa.wasm

@@ -227,7 +227,7 @@ func TestOutputJSONErrorStructuredAstParseErr(t *testing.T) {
 	expected := `{
   "errors": [
     {
-      "message": "no match found",
+      "message": "illegal ! character",
       "code": "rego_parse_error",
       "location": {
         "file": "parse-err.rego",
