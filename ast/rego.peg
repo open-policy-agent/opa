@@ -24,12 +24,16 @@ DefaultRules <- "default" ws name:Var _ operator:( ":=" / "=" ) _ value:Term {
     return makeDefaultRule(currentLocation(c), name, operator, value)
 }
 
-NormalRules <- head:RuleHead _ rest:(NonEmptyBraceEnclosedBody ( _ RuleExt)* ) {
+NormalRules <- head:(PartialRuleHead / RuleHead) _ rest:(NonEmptyBraceEnclosedBody ( _ RuleExt)* ) {
     return makeRule(currentLocation(c), head, rest)
 }
 
-RuleHead <- name:Var args:( _ "(" _ Args _ ")" _ )? key:( _ "[" _ ExprTerm _ "]" _ )? value:( _ ( ":=" / "=" ) _ ExprTerm )? {
-    return makeRuleHead(currentLocation(c), name, args, key, value)
+PartialRuleHead <- name:Var args:( _ "(" _ Args _ ")" _ ) value:( _ ( ":=" / "=" ) _ ExprTerm )? {
+    return makeRuleHead(currentLocation(c), name, args, nil, value)
+}
+
+RuleHead <- name:Var key:( _ "[" _ ExprTerm _ "]" _ )? value:( _ ( ":=" / "=" ) _ ExprTerm )? {
+    return makeRuleHead(currentLocation(c), name, nil, key, value)
 }
 
 Args <- list:ExprTermList {
