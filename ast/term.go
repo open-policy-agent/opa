@@ -1054,13 +1054,8 @@ func (ref Ref) String() string {
 	if len(ref) == 0 {
 		return ""
 	}
-	var buf []string
-	path := ref
-	switch v := ref[0].Value.(type) {
-	case Var:
-		buf = append(buf, string(v))
-		path = path[1:]
-	}
+	buf := []string{ref[0].Value.String()}
+	path := ref[1:]
 	for _, p := range path {
 		switch p := p.Value.(type) {
 		case String:
