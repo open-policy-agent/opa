@@ -80,7 +80,6 @@ func (c *Config) authPrepare(req *http.Request) error {
 // Client implements an HTTP/REST client for communicating with remote
 // services.
 type Client struct {
-	Client  http.Client
 	bytes   *[]byte
 	json    *interface{}
 	config  Config
@@ -104,14 +103,8 @@ func New(config []byte, opts ...func(*Client)) (Client, error) {
 
 	parsedConfig.URL = strings.TrimRight(parsedConfig.URL, "/")
 
-	httpClient, err := parsedConfig.authHTTPClient()
-	if err != nil {
-		return Client{}, err
-	}
-
 	client := Client{
 		config: parsedConfig,
-		Client: *httpClient,
 	}
 
 	for _, f := range opts {
@@ -157,6 +150,11 @@ func (c Client) WithBytes(body []byte) Client {
 
 // Do executes a request using the client.
 func (c Client) Do(ctx context.Context, method, path string) (*http.Response, error) {
+
+	httpClient, err := c.config.authHTTPClient()
+	if err != nil {
+		return nil, err
+	}
 
 	path = strings.Trim(path, "/")
 
@@ -210,7 +208,7 @@ func (c Client) Do(ctx context.Context, method, path string) (*http.Response, er
 		"headers": req.Header,
 	}).Debug("Sending request.")
 
-	resp, err := c.Client.Do(req)
+	resp, err := httpClient.Do(req)
 	if resp != nil {
 		// Only log for debug purposes. If an error occurred, the caller should handle
 		// that. In the non-error case, the caller may not do anything.

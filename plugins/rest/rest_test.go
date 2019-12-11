@@ -6,16 +6,26 @@ package rest
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
 	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
+	"errors"
 	"fmt"
 	"io/ioutil"
+	"math/big"
+	"net"
 	"net/http"
 	"net/http/httptest"
-	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/open-policy-agent/opa/internal/version"
+	"github.com/open-policy-agent/opa/util/test"
 )
 
 func TestNew(t *testing.T) {
@@ -187,10 +197,6 @@ func TestNew(t *testing.T) {
 		results = append(results, client)
 	}
 
-	if results[2].config.Credentials.Bearer.Scheme != "Bearer" {
-		t.Fatalf("Expected token scheme to be set to Bearer but got: %v", results[2].config.Credentials.Bearer.Scheme)
-	}
-
 	if results[3].config.Credentials.Bearer.Scheme != "Acmecorp-Token" {
 		t.Fatalf("Expected custom token but got: %v", results[3].config.Credentials.Bearer.Scheme)
 	}
@@ -219,11 +225,11 @@ func TestValidUrl(t *testing.T) {
 	}
 }
 
-func TestBearerToken(t *testing.T) {
+func testBearerToken(t *testing.T, scheme, token string) {
 	ts := testServer{
 		t:               t,
-		expBearerScheme: "Acmecorp-Token",
-		expBearerToken:  "secret",
+		expBearerScheme: scheme,
+		expBearerToken:  token,
 	}
 	ts.start()
 	defer ts.stop()
@@ -232,11 +238,11 @@ func TestBearerToken(t *testing.T) {
 		"url": %q,
 		"credentials": {
 			"bearer": {
-				"scheme": "Acmecorp-Token",
-				"token": "secret"
+				"scheme": "%s",
+				"token": "%s"
 			}
 		}
-	}`, ts.server.URL)
+	}`, ts.server.URL, scheme, token)
 	client, err := New([]byte(config))
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
@@ -247,6 +253,14 @@ func TestBearerToken(t *testing.T) {
 	}
 }
 
+func TestBearerTokenDefaultScheme(t *testing.T) {
+	testBearerToken(t, "", "secret")
+}
+
+func TestBearerTokenCustomScheme(t *testing.T) {
+	testBearerToken(t, "Acmecorp-Token", "secret")
+}
+
 func TestClientCert(t *testing.T) {
 	ts := testServer{
 		t:                t,
@@ -255,48 +269,65 @@ func TestClientCert(t *testing.T) {
 	}
 	ts.start()
 	defer ts.stop()
-	tmpPem, err := ioutil.TempFile("", "client.pem")
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
+
+	files := map[string]string{
+		"client.pem": string(ts.clientCertPem),
+		"client.key": string(ts.clientCertKey),
 	}
-	defer os.Remove(tmpPem.Name())
-	tmpKey, err := ioutil.TempFile("", "client.key")
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
-	defer os.Remove(tmpKey.Name())
-	if _, err := tmpPem.Write([]byte(ts.clientCertPem)); err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
-	if err := tmpPem.Close(); err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
-	if _, err := tmpKey.Write([]byte(ts.clientCertKey)); err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
-	if err := tmpKey.Close(); err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
-	config := fmt.Sprintf(`{
-		"name": "foo",
-		"url": %q,
-		"allow_insecure_tls": true,
-		"credentials": {
-			"client_tls": {
-				"cert": %q,
-				"private_key": %q,
-				"private_key_passphrase": "secret",
-			}
+
+	test.WithTempFS(files, func(path string) {
+		certPath := filepath.Join(path, "client.pem")
+		keyPath := filepath.Join(path, "client.key")
+
+		client := newTestClient(t, &ts, certPath, keyPath)
+
+		ctx := context.Background()
+		if _, err := client.Do(ctx, "GET", "test"); err != nil {
+			t.Fatalf("Unexpected error: %v", err)
 		}
-	}`, ts.server.URL, tmpPem.Name(), tmpKey.Name())
+
+		// Scramble the keys in the server
+		ts.stop()
+		ts.start()
+
+		// Ensure the keys don't work anymore, make a new client as the url will have changed
+		client = newTestClient(t, &ts, certPath, keyPath)
+		_, err := client.Do(ctx, "GET", "test")
+		expectedErrMsg := "tls: bad certificate"
+		if err == nil || !strings.Contains(err.Error(), expectedErrMsg) {
+			t.Fatalf("Expected '%s' error but request succeeded", expectedErrMsg)
+		}
+
+		// Update the key files and try again..
+		if err := ioutil.WriteFile(filepath.Join(path, "client.pem"), ts.clientCertPem, 0644); err != nil {
+			t.Fatalf("Unexpected error: %s", err)
+		}
+		if err := ioutil.WriteFile(filepath.Join(path, "client.key"), ts.clientCertKey, 0644); err != nil {
+			t.Fatalf("Unexpected error: %s", err)
+		}
+		if _, err := client.Do(ctx, "GET", "test"); err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+	})
+}
+
+func newTestClient(t *testing.T, ts *testServer, certPath string, keypath string) *Client {
+	config := fmt.Sprintf(`{
+			"name": "foo",
+			"url": %q,
+			"allow_insecure_tls": true,
+			"credentials": {
+				"client_tls": {
+					"cert": %q,
+					"private_key": %q
+				}
+			}
+		}`, ts.server.URL, certPath, keypath)
 	client, err := New([]byte(config))
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
-	ctx := context.Background()
-	if _, err := client.Do(ctx, "GET", "test"); err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
+	return &client
 }
 
 type testServer struct {
@@ -310,6 +341,7 @@ type testServer struct {
 	clientCertPem    []byte
 	clientCertKey    []byte
 	expectClientCert bool
+	serverCertPool   *x509.CertPool
 }
 
 func (t *testServer) handle(w http.ResponseWriter, r *http.Request) {
@@ -344,66 +376,67 @@ func (t *testServer) handle(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(200)
 }
 
-var (
-	clientCertPem = []byte(`-----BEGIN CERTIFICATE-----
-MIIC/jCCAeYCAQEwDQYJKoZIhvcNAQELBQAwRTELMAkGA1UEBhMCc2UxEzARBgNV
-BAgMClNvbWUtU3RhdGUxITAfBgNVBAoMGEludGVybmV0IFdpZGdpdHMgUHR5IEx0
-ZDAeFw0xODEwMTQyMTMwNTVaFw0xOTEwMTQyMTMwNTVaMEUxCzAJBgNVBAYTAkFV
-MRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBXaWRnaXRz
-IFB0eSBMdGQwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDEPiWZCKrb
-FIusaNlOJ4R41ARd63PVJglwYxxoOfBUVvmgh7Sq5ccQDWQvs5QpQSt6HcQHsoS+
-behOxl13sW7UY2nQiBSmFqnd8PkgZg89q9tmk0cRdrl90crCs72Lt3t/AgRC1YEz
-WQ7Fa2ig/k60ftwOq98Ogsjc6+/ToIiZD2BKy/3DHTl5TXNuPCSvZCKkFGM3zlse
-H5UtY1ZaO5gFC+SotJ0RrGfEiJY6nuqXcMRHTj5NluGZhkQR/1TdHa9nAWG2TlUD
-IEabN5yggtvH0Wz0lQD7okTyOOC+X9gUbOoILUR98SUytAYaiiPbAAlOpvdSjPS+
-LzT22wBSPjRxAgMBAAEwDQYJKoZIhvcNAQELBQADggEBAKMW44mCKXIjx7p+c8pn
-qmmaioYtXrWeDE3/gAKhkB3Z4pY4ajEGogGNP19t2DoGDx7y2KJpMA777HoagclW
-HFATMYN1J6YSkTrXFJnItvaQnv8mMqK4xR2kN4yO1CEITANakhu4pYZn0oU1sxEY
-R3Cl3YMMR/OHoPpR2FKaX0G67xZZ2SXHf2jN2KsRV38PHfmb4ASX3Cbg6hzl1+du
-ORxvL+DSwh2/n8Vdby0SdRQ7BxfqtSaIRogtScN2QzquaHeW1ErENfRqmeV/XHJr
-1bmaSvfZe+CZnlLCeTlHcxu0i1fkdoYgi/oRWFPI1DBH6F1cGY+wWMuS4Job1zOK
-OtQ=
------END CERTIFICATE-----
-`)
-	clientCertKey = []byte(`-----BEGIN RSA PRIVATE KEY-----
-Proc-Type: 4,ENCRYPTED
-DEK-Info: DES-EDE3-CBC,64355BD1C400418C
+func (t *testServer) generateClientKeys() {
+	// generate a new set of root key+cert objects
+	rootKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.t.Fatalf("generating random key: %v", err)
+	}
 
-6gIaC8pHDkQFFDBEInaH5V28EhU/d5lo+XUzGxPLdUKW2dgy+WgLq7apD0YwMh1N
-8FEazXR1h++WihI1zNaoOdLyGjW1uyzi4RiuWpZPzbn4Ms4nPy8ZOEqMJZD2XTIG
-19AibbBfUO9nmfs3G0afcgEM9QhWcij7DYO9QJBc3WEz5A4zC5jO+r2V4b5a2a1Q
-UL0vWtuBEJ0XVaog9AGWOr4dV5rfpDIOKEMkGYURyUVe67AeL8Km5iuMdPyDuyjw
-mEedculc15i3QwmVeJGNkhIbr8VRBQbzvdZlI4VeicFwLfhGS0pRTupKEVZuIpXI
-rRWnCvCNJVIXIzqCWDknsJz4UrR8fXSpjuX3+R5XOJVvkgwlR5At5CbsVSu8T2NS
-NAJzXLaqpl4QJCOIG4oTIZ9oZ8x/dcOE/ey8/TLXHknlKJvKfvvpEhIFcyKgF4p4
-jJEaAE2o67V82hENZB8WhiXb5IaUFGPlii1B1L56mKnP8gv6HHBuxjmQ/DdzBOvZ
-DVPyZ/Yy7VpcYr/5iGNEjEW9Td4apPAQTAkcEOrj9v5nslHUuyRnzC07hKa/gvG2
-hrd9CgQ6ZmgT/AczASA0sbvliDwpSvublEAHiBtwWe5rmxxcFE937ljU/QdU6jiR
-abxymx3gHZMIIG5YoqbXhuntYXeiZdiCTn62n9yO/7Lvps4kIBqL11fZenkuDxR9
-QIDgoxzIZX3Ts16fUJdEVoPd0kLizuntuiNVUFukhKyz8eBzTI8xYgfnPjisxdEb
-eU7Wzw/jntu5DHjUnREyiWLZK+MDCYk2wdlqMR4+4p0hWGBPgK2o9QNW2j1MePsO
-pAhV0YBYKt1VMNrQv5M89DWkFFffuj7IZUsUPeO7A4Gs7NJ9eArjCKijKptX2Osw
-Lh1Zb6assP6Mqd63UUINC31FQwwTjXjApA/sRYsVTQplbMJ1RVF4IRdH8K/HKVRW
-1ACB+DZqDox5eS7xjxQ+tJozU1LdDOi8i7M673IFF7vAFzSHROsXgOkxZbVEEwrQ
-F8rtogulYjgZpHEOWAcla961nE/j+wDzC8Uc9XNjvBnDyTeVqaA8aYzbDWOVTZ9n
-i5HJgvaGdEQVt6tWGKDtGTUYLHHhXSslRKh77gprA2wuofR1qXzgEij2h7KIcoqA
-kw/e2lwc4XFhU1/6mZSD8X3B8oOQQegv4h55xJzO7lZUNb2yXjAlm3HwD1tl3499
-YfwbxGI9OAMomlq61W2rPDMWeDN0v9vSJ9iebE7rPe4A3RJwdfm2lYui0B+o/rLB
-ppmX9Mv5LVFaXsDI4q41tziQOM26WhOzx+vF8h1l+aeTo5G3mTlT64+mJ26HcPDP
-c+jtZ0vWdvf67HTncZxhoITFd5wKp2yru8wRTCT+VCSABZfMZQ6SYGyzVP+Wgf6t
-U65k7iKsT2gUhk5QJIg0ZGvERDiGLXupcoyGhuoZhLm4HmmOZzvDx6f9VjM7Npt0
-IJdvDV2sh3QXk4LTwn/0gCw+LxBBuubw3XKYyRKbzw6jYgqsazRNVn2zdkuchcc8
-EnVu9NNEzAkTEEYIG99ECBmCIR9QknQXfqHRa5zNBndjBPJuOyVUwA==
------END RSA PRIVATE KEY-----
-`)
-)
+	rootCertTmpl, err := certTemplate()
+	if err != nil {
+		t.t.Fatalf("creating cert template: %v", err)
+	}
+	rootCertTmpl.IsCA = true
+	rootCertTmpl.KeyUsage = x509.KeyUsageCertSign | x509.KeyUsageDigitalSignature
+	rootCertTmpl.ExtKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth}
+	rootCertTmpl.IPAddresses = []net.IP{net.ParseIP("127.0.0.1")}
+
+	rootCert, rootCertPEM, err := createCert(rootCertTmpl, rootCertTmpl, &rootKey.PublicKey, rootKey)
+	if err != nil {
+		t.t.Fatalf("error creating cert: %v", err)
+	}
+
+	// save a copy of the root certificate for clients to use
+	t.serverCertPool = x509.NewCertPool()
+	t.serverCertPool.AppendCertsFromPEM(rootCertPEM)
+
+	// create a key-pair for the client
+	clientKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.t.Fatalf("generating random key: %v", err)
+	}
+
+	// create a template for the client
+	clientCertTmpl, err := certTemplate()
+	if err != nil {
+		t.t.Fatalf("creating cert template: %v", err)
+	}
+	clientCertTmpl.KeyUsage = x509.KeyUsageDigitalSignature
+	clientCertTmpl.ExtKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth}
+
+	// the root cert signs the client cert
+	_, t.clientCertPem, err = createCert(clientCertTmpl, rootCert, &clientKey.PublicKey, rootKey)
+	if err != nil {
+		t.t.Fatalf("error creating cert: %v", err)
+	}
+
+	// encode and load the cert and private key for the client
+	t.clientCertKey = pem.EncodeToMemory(&pem.Block{
+		Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(clientKey),
+	})
+
+}
 
 func (t *testServer) start() {
 	t.server = httptest.NewUnstartedServer(http.HandlerFunc(t.handle))
-	t.clientCertPem = clientCertPem
-	t.clientCertKey = clientCertKey
+
 	if t.tls {
-		t.server.TLS = &tls.Config{ClientAuth: tls.RequireAnyClientCert}
+		t.generateClientKeys()
+		t.server.TLS = &tls.Config{
+			ClientAuth: tls.RequireAndVerifyClientCert,
+			ClientCAs:  t.serverCertPool,
+		}
 		t.server.StartTLS()
 	} else {
 		t.server.Start()
@@ -412,4 +445,42 @@ func (t *testServer) start() {
 
 func (t *testServer) stop() {
 	t.server.Close()
+}
+
+// helper function to create a cert template with a serial number and other required fields
+func certTemplate() (*x509.Certificate, error) {
+	// generate a random serial number (a real cert authority would have some logic behind this)
+	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
+	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
+	if err != nil {
+		return nil, errors.New("failed to generate serial number: " + err.Error())
+	}
+
+	tmpl := x509.Certificate{
+		SerialNumber:          serialNumber,
+		Subject:               pkix.Name{Organization: []string{"OPA"}},
+		SignatureAlgorithm:    x509.SHA256WithRSA,
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().Add(time.Hour), // valid for an hour
+		BasicConstraintsValid: true,
+	}
+	return &tmpl, nil
+}
+
+func createCert(template, parent *x509.Certificate, pub interface{}, parentPriv interface{}) (
+	cert *x509.Certificate, certPEM []byte, err error) {
+
+	certDER, err := x509.CreateCertificate(rand.Reader, template, parent, pub, parentPriv)
+	if err != nil {
+		return
+	}
+	// parse the resulting certificate so we can use it again
+	cert, err = x509.ParseCertificate(certDER)
+	if err != nil {
+		return
+	}
+	// PEM encode the certificate (this is a standard TLS encoding)
+	b := pem.Block{Type: "CERTIFICATE", Bytes: certDER}
+	certPEM = pem.EncodeToMemory(&b)
+	return
 }
