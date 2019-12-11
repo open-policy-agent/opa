@@ -226,11 +226,6 @@ func (e *eval) evalExpr(iter evalIterator) error {
 	e.traceEval(expr)
 
 	if len(expr.With) > 0 {
-		if e.partial() {
-			return e.saveExpr(expr, e.bindings, func() error {
-				return e.next(iter)
-			})
-		}
 		return e.evalWith(iter)
 	}
 
@@ -332,6 +327,23 @@ func (e *eval) evalWith(iter evalIterator) error {
 
 	expr := e.query[e.index]
 
+	if e.partial() {
+		// If the any of the with statements on this expression refer to a value
+		// that is unknown then we save the expression for now because the state
+		// that keeps track of with modified input/data values does not include
+		// bindings (which are required for proper namespacing). If those states
+		// were updated to include bindings this save would not be required.
+		for _, with := range expr.With {
+			for v := range with.Value.Vars() {
+				if e.saveSet.Contains(ast.NewTerm(v), e.bindings) {
+					return e.saveExpr(expr, e.bindings, func() error {
+						return e.next(iter)
+					})
+				}
+			}
+		}
+	}
+
 	pairsInput := [][2]*ast.Term{}
 	pairsData := [][2]*ast.Term{}
 	targets := []ast.Ref{}
@@ -412,7 +424,13 @@ func (e *eval) evalNotPartial(iter evalIterator) error {
 
 	// Prepare query normally.
 	expr := e.query[e.index]
+
+	// NOTE(tsandall): Remove with keywords because if PE has made it here it
+	// means the with keywords were applied already. When the complemented
+	// expression is evaluated they will be in-scope and should not be
+	// re-applied.
 	negation := expr.Complement().NoWith()
+
 	child := e.closure(ast.NewBody(negation))
 
 	// Unknowns is the set of variables that are marked as unknown. The variables
@@ -464,7 +482,7 @@ func (e *eval) evalNotPartial(iter evalIterator) error {
 	//
 	//	(!A && !C) || (!A && !D) || (!B && !C) || (!B && !D)
 	return complementedCartesianProduct(savedQueries, 0, nil, func(q ast.Body) error {
-		return e.savePluggedExprs(q, func() error {
+		return e.saveInlinedNegatedExprs(q, func() error {
 			return e.next(iter)
 		})
 	})
@@ -522,7 +540,7 @@ func (e *eval) evalNotPartialSupport(expr *ast.Expr, unknowns ast.VarSet, querie
 		expr.Terms = term
 	}
 
-	return e.savePluggedExprs([]*ast.Expr{expr}, func() error {
+	return e.saveInlinedNegatedExprs([]*ast.Expr{expr}, func() error {
 		return e.next(iter)
 	})
 }
@@ -957,14 +975,22 @@ func getSavePairs(x *ast.Term, b *bindings, result []savePair) []savePair {
 }
 
 func (e *eval) saveExpr(expr *ast.Expr, b *bindings, iter unifyIterator) error {
+	pairs, err := e.getWithValuesForSave()
+	if err != nil {
+		return err
+	}
+	expr = prependWithValues(expr, pairs)
 	e.saveStack.Push(expr, b, b)
 	e.traceSave(expr)
-	err := iter()
+	err = iter()
 	e.saveStack.Pop()
 	return err
 }
 
-func (e *eval) savePluggedExprs(exprs []*ast.Expr, iter unifyIterator) error {
+func (e *eval) saveInlinedNegatedExprs(exprs []*ast.Expr, iter unifyIterator) error {
+	// NOTE(tsandall): The with keyword(s) do not have to be applied here
+	// because these expressions were already saved at some point (and would
+	// have had with keywords applied then.)
 	for _, expr := range exprs {
 		e.saveStack.Push(expr, nil, nil)
 		e.traceSave(expr)
@@ -977,8 +1003,18 @@ func (e *eval) savePluggedExprs(exprs []*ast.Expr, iter unifyIterator) error {
 }
 
 func (e *eval) saveUnify(a, b *ast.Term, b1, b2 *bindings, iter unifyIterator) error {
+
 	e.instr.startTimer(partialOpSaveUnify)
+
 	expr := ast.Equality.Expr(a, b)
+
+	pairs, err := e.getWithValuesForSave()
+	if err != nil {
+		return err
+	}
+
+	expr = prependWithValues(expr, pairs)
+
 	pops := 0
 	if pairs := getSavePairs(a, b1, nil); len(pairs) > 0 {
 		pops += len(pairs)
@@ -996,7 +1032,7 @@ func (e *eval) saveUnify(a, b *ast.Term, b1, b2 *bindings, iter unifyIterator) e
 	e.saveStack.Push(expr, b1, b2)
 	e.traceSave(expr)
 	e.instr.stopTimer(partialOpSaveUnify)
-	err := iter()
+	err = iter()
 
 	e.saveStack.Pop()
 	for i := 0; i < pops; i++ {
@@ -1007,7 +1043,16 @@ func (e *eval) saveUnify(a, b *ast.Term, b1, b2 *bindings, iter unifyIterator) e
 }
 
 func (e *eval) saveCall(declArgsLen int, terms []*ast.Term, iter unifyIterator) error {
+
 	expr := ast.NewExpr(terms)
+
+	pairs, err := e.getWithValuesForSave()
+	if err != nil {
+		return err
+	}
+
+	expr = prependWithValues(expr, pairs)
+
 	// If call-site includes output value then partial eval must add vars in output
 	// position to the save set.
 
@@ -1022,13 +1067,47 @@ func (e *eval) saveCall(declArgsLen int, terms []*ast.Term, iter unifyIterator) 
 	}
 	e.saveStack.Push(expr, e.bindings, nil)
 	e.traceSave(expr)
-	err := iter()
+	err = iter()
 
 	e.saveStack.Pop()
 	for i := 0; i < pops; i++ {
 		e.saveSet.Pop()
 	}
 	return err
+}
+
+func (e *eval) getWithValuesForSave() ([][2]*ast.Term, error) {
+	result := [][2]*ast.Term{}
+	for _, frame := range e.targetStack.sl {
+		for _, ref := range frame.refs {
+			var doc ast.Value
+			if ref[0].Equal(ast.InputRootDocument) {
+				doc = e.input.Value
+			} else if ref[0].Equal(ast.DefaultRootDocument) {
+				doc = e.data.Value
+			}
+			if doc == nil {
+				// This error is purely defensive. It should not be possible to
+				// encounter this unless there is a bug inside of OPA.
+				return nil, &Error{
+					Code:     InternalErr,
+					Message:  "unexpected with stack target (need 'input' or 'data')",
+					Location: e.query[e.index].Loc(),
+				}
+			}
+			v, err := doc.Find(ref[1:])
+			if err != nil {
+				// Same as above.
+				return nil, &Error{
+					Code:     InternalErr,
+					Message:  "corrupt with stack state: missing value",
+					Location: e.query[e.index].Loc(),
+				}
+			}
+			result = append(result, [2]*ast.Term{ast.NewTerm(ref), ast.NewTerm(v)})
+		}
+	}
+	return result, nil
 }
 
 func (e *eval) getRules(ref ast.Ref) (*ast.IndexResult, error) {
@@ -2334,6 +2413,24 @@ func mergeObjects(objA, objB ast.Object) (result ast.Object, ok bool) {
 		}
 	})
 	return result, true
+}
+
+func prependWithValues(expr *ast.Expr, pairs [][2]*ast.Term) *ast.Expr {
+
+	cpy := expr.NoWith()
+
+	for i := range pairs {
+		cpy.With = append(cpy.With, &ast.With{
+			Target: pairs[i][0],
+			Value:  pairs[i][1],
+		})
+	}
+
+	for i := range expr.With {
+		cpy.With = append(cpy.With, expr.With[i])
+	}
+
+	return cpy
 }
 
 func refSliceContainsPrefix(sl []ast.Ref, prefix ast.Ref) bool {

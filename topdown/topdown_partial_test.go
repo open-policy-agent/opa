@@ -480,6 +480,142 @@ func TestTopDownPartialEval(t *testing.T) {
 			wantQueries: []string{`xs = [x | x = data.foo[1]; 1 = 1]; i = 1`},
 		},
 		{
+			note:  "with: materialize trivial",
+			query: "data.test.p = true",
+			modules: []string{
+				`package test
+				p { input.x = 1; q with input as {"y": 2} }
+				q { input.y = 2; input.z = 3 }`,
+			},
+			wantQueries: []string{
+				`input.x = 1; input.y = 2 with input as {"y": 2}; input.z = 3 with input as {"y": 2}`,
+			},
+		},
+		{
+			note:  "with: materialize multiple",
+			query: "data.test.p = true",
+			modules: []string{
+				`package test
+				p { q with input.a as 1 with input.b as 2 }
+				q { input.a = 1; input.b = 2 }`,
+			},
+			wantQueries: []string{
+				`input.a = 1 with input.a as 1 with input.b as 2; input.b = 2 with input.a as 1 with input.b as 2`,
+			},
+		},
+		{
+			note:  "with: materialize stack",
+			query: "data.test.p = true",
+			modules: []string{
+				`package test
+				p { q with input.a as 1 }
+				q { r with input.b as 2; input.c = 3 }
+				r { input.a = 1; input.b = 2 }`,
+			},
+			wantQueries: []string{
+				`input.a = 1 with input.a as 1 with input.b as 2; input.b = 2 with input.a as 1 with input.b as 2; input.c = 3 with input.a as 1`,
+			},
+		},
+		{
+			note:  "with: materialize term expr",
+			query: "data.test.p = true",
+			modules: []string{
+				`package test
+				p { q with input as 1 }
+				q { input }`,
+			},
+			wantQueries: []string{
+				// expect with statement on generated expression for term false-ness
+				`input = x_term_2_02 with input as 1; x_term_2_02 with input as 1`,
+			},
+		},
+		{
+			note:  "with: materialize call expr",
+			query: "data.test.p = true",
+			modules: []string{
+				`package test
+				p { q with input as 1 }
+				q { input = x; count(x, y); y > 1 }`,
+			},
+			wantQueries: []string{
+				// NOTE(tsandall): copy propagation does not get applied here. In future this could be improved.
+				"input = x2 with input as 1; count(x2, y2) with input as 1; y2 > 1 with input as 1",
+			},
+		},
+		{
+			note:  "with: materialize under negation",
+			query: "data.test.p = true",
+			modules: []string{
+				`package test
+				p { q with input as 1 }
+				q { not r }
+				r { input.x = 1; input.y = 2 }
+				r { input.z = 3 }`,
+			},
+			wantQueries: []string{
+				`not input.z = 3 with input as 1; not input.x = 1 with input as 1`,
+				`not input.z = 3 with input as 1; not input.y = 2 with input as 1`,
+			},
+			ignoreOrder: true,
+		},
+		{
+			note:  "with: materialize under negation w/ cross product limit",
+			query: "data.test.p = true",
+			modules: []string{
+				`package test
+				
+				p { q with input as 1 }
+				q { not r }
+				r {
+					# size of cross product is 27 which exceeds default limit
+					a = {1,2,3}
+					a[x]
+					input.x = x
+					input.y = x
+					input.z = 0
+				}
+				`,
+			},
+			wantQueries: []string{
+				`not data.partial.__not2_0__`,
+			},
+			wantSupport: []string{
+				`package partial
+
+				__not2_0__ = true { input.x = 1 with input as 1; input.y = 1 with input as 1; input.z = 0 with input as 1 }
+				__not2_0__ = true { input.x = 2 with input as 1; input.y = 2 with input as 1; input.z = 0 with input as 1 }
+				__not2_0__ = true { input.x = 3 with input as 1; input.y = 3 with input as 1; input.z = 0 with input as 1 }`,
+			},
+		},
+		{
+			note:  "with: prepending",
+			query: "data.test.p = true",
+			modules: []string{
+				`package test
+				p { q with input.a as 1 }
+				q { r = x with input.b as 2 } # refer to full extent of r to force save
+				r[1] {
+					input = {"a": 1, "b": 2}
+				}`,
+			},
+			wantQueries: []string{
+				"data.test.r = x2 with input.a as 1 with input.b as 2",
+			},
+		},
+		{
+			note:  "with: partial evaluation sees modified values",
+			query: "data.test.p = true",
+			modules: []string{
+				`package test
+				
+				p { q with data.foo as 1 }
+				q { input.x == data.foo }`,
+			},
+			wantQueries: []string{
+				`input.x = 1 with data.foo as 1`,
+			},
+		},
+		{
 			note:  "save: sub path",
 			query: "input.x = 1; input.y = 2; input.z.a = 3; input.z.b = x",
 			input: `{"x": 1, "z": {"b": 4}}`,
@@ -584,18 +720,6 @@ func TestTopDownPartialEval(t *testing.T) {
 				else = false { x = 2 }`},
 			wantQueries: []string{
 				`input = x; data.test.f(x)`,
-			},
-		},
-		{
-			note:  "save: with",
-			query: "data.test.p = true",
-			modules: []string{
-				`package test
-				p { input.x = 1; q with input as {"y": 2} }
-				q { input.y = 2 }`,
-			},
-			wantQueries: []string{
-				`input.x = 1; data.test.q with input as {"y": 2}`,
 			},
 		},
 		{
