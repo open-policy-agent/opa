@@ -111,8 +111,47 @@ func builtinNetCIDRContains(a, b ast.Value) (ast.Value, error) {
 	return ast.Boolean(cidrContained), nil
 }
 
+func builtinNetCIDRExpand(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+
+	s, err := builtins.StringOperand(operands[0].Value, 1)
+	if err != nil {
+		return err
+	}
+
+	ip, ipNet, err := net.ParseCIDR(string(s))
+	if err != nil {
+		return err
+	}
+
+	result := ast.NewSet()
+
+	for ip := ip.Mask(ipNet.Mask); ipNet.Contains(ip); incIP(ip) {
+
+		if bctx.Cancel != nil && bctx.Cancel.Cancelled() {
+			return &Error{
+				Code:    CancelErr,
+				Message: "net.cidr_expand: timed out before generating all IP addresses",
+			}
+		}
+
+		result.Add(ast.StringTerm(ip.String()))
+	}
+
+	return iter(ast.NewTerm(result))
+}
+
+func incIP(ip net.IP) {
+	for j := len(ip) - 1; j >= 0; j-- {
+		ip[j]++
+		if ip[j] > 0 {
+			break
+		}
+	}
+}
+
 func init() {
 	RegisterFunctionalBuiltin2(ast.NetCIDROverlap.Name, builtinNetCIDRContains)
 	RegisterFunctionalBuiltin2(ast.NetCIDRIntersects.Name, builtinNetCIDRIntersects)
 	RegisterFunctionalBuiltin2(ast.NetCIDRContains.Name, builtinNetCIDRContains)
+	RegisterBuiltinFunc(ast.NetCIDRExpand.Name, builtinNetCIDRExpand)
 }

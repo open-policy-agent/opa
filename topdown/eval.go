@@ -576,6 +576,7 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 
 	bctx := BuiltinContext{
 		Context:  e.ctx,
+		Cancel:   e.cancel,
 		Runtime:  e.runtime,
 		Cache:    e.builtinCache,
 		Location: e.query[e.index].Location,
