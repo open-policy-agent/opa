@@ -1875,8 +1875,45 @@ func TestDataMetrics(t *testing.T) {
 
 	f := newFixture(t)
 
-	req := newReqV1(http.MethodPost, "/data?metrics", "")
+	testDataMetrics(t, f, "/data?metrics", []string{
+		"counter_server_query_cache_hit",
+		"timer_rego_input_parse_ns",
+		"timer_rego_load_bundles_ns",
+		"timer_rego_load_files_ns",
+		"timer_rego_module_parse_ns",
+		"timer_rego_query_parse_ns",
+		"timer_rego_query_compile_ns",
+		"timer_rego_query_eval_ns",
+		"timer_server_handler_ns",
+	})
+
+	testDataMetrics(t, f, "/data?metrics", []string{
+		"counter_server_query_cache_hit",
+		"timer_rego_input_parse_ns",
+		"timer_rego_query_parse_ns",
+		"timer_rego_query_eval_ns",
+		"timer_server_handler_ns",
+	})
+
+	testDataMetrics(t, f, "/data?metrics&partial", []string{
+		"counter_server_query_cache_hit",
+		"timer_rego_input_parse_ns",
+		"timer_rego_load_bundles_ns",
+		"timer_rego_load_files_ns",
+		"timer_rego_module_compile_ns",
+		"timer_rego_module_parse_ns",
+		"timer_rego_query_parse_ns",
+		"timer_rego_query_compile_ns",
+		"timer_rego_query_eval_ns",
+		"timer_rego_partial_eval_ns",
+		"timer_server_handler_ns",
+	})
+}
+
+func testDataMetrics(t *testing.T, f *fixture, url string, expected []string) {
+	t.Helper()
 	f.reset()
+	req := newReqV1(http.MethodPost, url, "")
 	f.server.Handler.ServeHTTP(f.recorder, req)
 
 	var result types.DataResponseV1
@@ -1885,45 +1922,20 @@ func TestDataMetrics(t *testing.T) {
 		t.Fatalf("Unexpected JSON decode error: %v", err)
 	}
 
-	// Test some basic well-known metrics.
-	expected := []string{
-		"timer_rego_query_parse_ns",
-		"timer_rego_query_compile_ns",
-		"timer_rego_query_eval_ns",
-		"timer_server_handler_ns",
-	}
-
 	for _, key := range expected {
-		if result.Metrics[key] == nil {
-			t.Fatalf("Expected non-zero metric for %v but got: %v", key, result)
+		v, ok := result.Metrics[key]
+		if !ok {
+			t.Fatalf("Missing expected metric: %s", key)
 		}
-	}
-
-	req = newReqV1(http.MethodPost, "/data?metrics&partial", "")
-
-	f.reset()
-	f.server.Handler.ServeHTTP(f.recorder, req)
-
-	result = types.DataResponseV1{}
-
-	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&result); err != nil {
-		t.Fatalf("Unexpected JSON decode error: %v", err)
-	}
-
-	expected = []string{
-		"timer_rego_query_parse_ns",
-		"timer_rego_query_compile_ns",
-		"timer_rego_query_eval_ns",
-		"timer_rego_partial_eval_ns",
-		"timer_server_handler_ns",
-	}
-
-	for _, key := range expected {
-		if result.Metrics[key] == nil {
-			t.Fatalf("Expected non-zero metric for %v but got: %v", key, result)
+		if v == nil {
+			t.Fatalf("Expected non-nil value for metric: %s", key)
 		}
+
 	}
 
+	if len(expected) != len(result.Metrics) {
+		t.Fatalf("Expected %d metrics, got %d\n\n\tValues: %+v", len(expected), len(result.Metrics), result.Metrics)
+	}
 }
 
 func TestV1Pretty(t *testing.T) {
@@ -2625,7 +2637,7 @@ func TestDecisionLogging(t *testing.T) {
 		nextID++
 		return fmt.Sprint(nextID)
 	}).WithDecisionLoggerWithErr(func(_ context.Context, info *Info) error {
-		if info.Path == "data.fail_closed.decision_logger_err" {
+		if info.Path == "fail_closed/decision_logger_err" {
 			return fmt.Errorf("some error")
 		}
 		decisions = append(decisions, info)
@@ -2753,17 +2765,17 @@ func TestDecisionLogging(t *testing.T) {
 		query   string
 		wantErr bool
 	}{
-		{path: "data"},
-		{path: "data"},
-		{path: "data.nonexistent", input: `{"foo": 1}`},
-		{path: "data"},
-		{path: "data.system.main"},
+		{path: ""},
+		{path: ""},
+		{path: "nonexistent", input: `{"foo": 1}`},
+		{path: ""},
+		{path: "system/main"},
 		{query: "data = x"},
 		{query: "data = x"},
-		{path: "data", wantErr: true},
-		{path: "data", wantErr: true},
-		{path: "data.system.main", wantErr: true},
-		{path: `data.test`, wantErr: true},
+		{path: "", wantErr: true},
+		{path: "", wantErr: true},
+		{path: "system/main", wantErr: true},
+		{path: `test`, wantErr: true},
 	}
 
 	if len(decisions) != len(exp) {
@@ -3405,7 +3417,7 @@ func (f *fixture) executeRequest(req *http.Request, code int, resp string) error
 	f.reset()
 	f.server.Handler.ServeHTTP(f.recorder, req)
 	if f.recorder.Code != code {
-		return fmt.Errorf("Expected code %v from %v %v but got: %v", code, req.Method, req.URL, f.recorder)
+		return fmt.Errorf("Expected code %v from %v %v but got: %+v", code, req.Method, req.URL, f.recorder)
 	}
 	if resp != "" {
 		var result interface{}

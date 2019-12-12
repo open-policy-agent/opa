@@ -19,17 +19,18 @@ import (
 
 // Well-known metric names.
 const (
-	ServerHandler     = "server_handler"
-	RegoQueryCompile  = "rego_query_compile"
-	RegoQueryEval     = "rego_query_eval"
-	RegoQueryParse    = "rego_query_parse"
-	RegoModuleParse   = "rego_module_parse"
-	RegoDataParse     = "rego_data_parse"
-	RegoModuleCompile = "rego_module_compile"
-	RegoPartialEval   = "rego_partial_eval"
-	RegoInputParse    = "rego_input_parse"
-	RegoLoadFiles     = "rego_load_files"
-	RegoLoadBundles   = "rego_load_bundles"
+	ServerHandler       = "server_handler"
+	ServerQueryCacheHit = "server_query_cache_hit"
+	RegoQueryCompile    = "rego_query_compile"
+	RegoQueryEval       = "rego_query_eval"
+	RegoQueryParse      = "rego_query_parse"
+	RegoModuleParse     = "rego_module_parse"
+	RegoDataParse       = "rego_data_parse"
+	RegoModuleCompile   = "rego_module_compile"
+	RegoPartialEval     = "rego_partial_eval"
+	RegoInputParse      = "rego_input_parse"
+	RegoLoadFiles       = "rego_load_files"
+	RegoLoadBundles     = "rego_load_bundles"
 )
 
 // Info contains attributes describing the underlying metrics provider.
