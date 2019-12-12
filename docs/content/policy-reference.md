@@ -526,8 +526,8 @@ query           = literal { ";" | [\r\n] literal }
 literal         = ( some-decl | expr | "not" expr ) { with-modifier }
 with-modifier   = "with" term "as" term
 some-decl       = "some" var { "," var }
-expr            = term | expr-built-in | expr-infix
-expr-built-in   = var [ "." var ] "(" [ term { , term } ] ")"
+expr            = term | expr-call | expr-infix
+expr-call       = var [ "." var ] "(" [ term { , term } ] ")"
 expr-infix      = [ term "=" ] term infix-operator term
 term            = ref | var | scalar | array | object | set | array-compr | object-compr | set-compr
 array-compr     = "[" term "|" rule-body "]"
@@ -537,7 +537,7 @@ infix-operator  = bool-operator | arith-operator | bin-operator
 bool-operator   = "==" | "!=" | "<" | ">" | ">=" | "<="
 arith-operator  = "+" | "-" | "*" | "/"
 bin-operator    = "&" | "|"
-ref             = var { ref-arg }
+ref             = ( var | array | object | set | array-compr | object-compr | set-compr | expr-call ) { ref-arg }
 ref-arg         = ref-arg-dot | ref-arg-brack
 ref-arg-brack   = "[" ( scalar | var | array | object | set | "_" ) "]"
 ref-arg-dot     = "." var
