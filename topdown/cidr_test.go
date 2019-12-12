@@ -1,6 +1,15 @@
 package topdown
 
-import "testing"
+import (
+	"context"
+	"errors"
+	"testing"
+	"time"
+
+	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/storage"
+	"github.com/open-policy-agent/opa/storage/inmem"
+)
 
 func TestNetCIDROverlap(t *testing.T) {
 	tests := []struct {
@@ -65,4 +74,94 @@ func TestNetCIDRContains(t *testing.T) {
 	for _, tc := range tests {
 		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
 	}
+}
+
+func TestNetCIDRExpand(t *testing.T) {
+	tests := []struct {
+		note     string
+		rules    []string
+		expected interface{}
+	}{
+		{
+			note: "cidr includes host and broadcast",
+			rules: []string{
+				`p = x { net.cidr_expand("192.168.1.1/30", x) }`,
+			},
+			expected: `[
+				"192.168.1.0",
+				"192.168.1.1",
+				"192.168.1.2",
+				"192.168.1.3"
+			]`,
+		},
+		{
+			note: "cidr last octet all 1s",
+			rules: []string{
+				`p = x { net.cidr_expand("172.16.100.255/30", x) }`,
+			},
+			expected: `[
+				"172.16.100.252",
+				"172.16.100.253",
+				"172.16.100.254",
+				"172.16.100.255"
+			]`,
+		},
+		{
+			note: "cidr all bits",
+			rules: []string{
+				`p = x { net.cidr_expand("192.168.1.1/32", x) }`,
+			},
+			expected: `[
+				"192.168.1.1"
+			]`,
+		},
+		{
+			note: "cidr invalid mask",
+			rules: []string{
+				`p = x { net.cidr_expand("192.168.1.1/33", x) }`,
+			},
+			expected: errors.New("invalid CIDR address"),
+		},
+	}
+
+	data := loadSmallTestData()
+
+	for _, tc := range tests {
+		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
+	}
+}
+
+func TestNetCIDRExpandCancellation(t *testing.T) {
+
+	ctx := context.Background()
+
+	compiler := compileModules([]string{
+		`
+		package test
+
+		p { net.cidr_expand("1.0.0.0/1") }  # generating 2**31 hosts will take a while...
+		`,
+	})
+
+	store := inmem.NewFromObject(map[string]interface{}{})
+	txn := storage.NewTransactionOrDie(ctx, store)
+	cancel := NewCancel()
+
+	query := NewQuery(ast.MustParseBody("data.test.p")).
+		WithCompiler(compiler).
+		WithStore(store).
+		WithTransaction(txn).
+		WithCancel(cancel)
+
+	go func() {
+		time.Sleep(time.Millisecond * 50)
+		cancel.Cancel()
+	}()
+
+	qrs, err := query.Run(ctx)
+
+	if err == nil || err.(*Error).Code != CancelErr {
+		t.Fatalf("Expected cancel error but got: %v (err: %v)", qrs, err)
+	}
+
 }

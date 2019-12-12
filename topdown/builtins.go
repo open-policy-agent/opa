@@ -29,6 +29,7 @@ type (
 	// built-in functions.
 	BuiltinContext struct {
 		Context  context.Context // request context that was passed when query started
+		Cancel   Cancel          // atomic value that signals evaluation to halt
 		Runtime  *ast.Term       // runtime information on the OPA instance
 		Cache    builtins.Cache  // built-in function state cache
 		Location *ast.Location   // location of built-in call

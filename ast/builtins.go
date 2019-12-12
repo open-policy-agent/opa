@@ -179,6 +179,7 @@ var DefaultBuiltins = [...]*Builtin{
 	NetCIDROverlap,
 	NetCIDRIntersects,
 	NetCIDRContains,
+	NetCIDRExpand,
 
 	// Glob
 	GlobMatch,
@@ -1485,6 +1486,17 @@ var NetCIDRIntersects = &Builtin{
 			types.S,
 		),
 		types.B,
+	),
+}
+
+// NetCIDRExpand returns a set of hosts inside the specified cidr.
+var NetCIDRExpand = &Builtin{
+	Name: "net.cidr_expand",
+	Decl: types.NewFunction(
+		types.Args(
+			types.S,
+		),
+		types.NewSet(types.S),
 	),
 }
 
