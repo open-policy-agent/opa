@@ -5,6 +5,18 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Fixes
+- Rego parse and compile metrics are now correctly tracked and returned
+  when using bundles.
+  
+### Compatibility Notes
+- The `Path` string provided to decision log implementations via the
+  `server.Info#Path` parameter is no longer dot-notation rego reference
+  string. It is now a `/` separated path which has had the `data` prefix
+  removed. This change corrects is issue described in
+  [1532](https://github.com/open-policy-agent/opa/issues/1532) and may
+  affect custom decision log plugins that rely on the `Path`.
+
 ## 0.15.1
 
 In this release we reached a milestone for Wasm: any Rego policy can
