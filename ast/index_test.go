@@ -116,6 +116,8 @@ func TestBaseDocEqIndexing(t *testing.T) {
 		# include one rule that can be indexed to exercise merging of root non-indexable
 		# rules with other rules.
 		input.x = 1
+	} {
+		input.foo = "bar" with data.baz as "qux"
 	}
 
 	# exercise default keyword
