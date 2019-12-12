@@ -419,13 +419,16 @@ Both forms are valid, however, the dot-access style is typically more readable. 
   3. Variable keys which are described later.
   4. Composite keys which are described later.
 
-References are always prefixed with a variable that identifies the root
-document. In the example above this is `sites`. The root document may be:
+The prefix of a reference identifies the root document for that reference. In
+the example above this is `sites`. The root document may be:
 
   * a local variable inside a rule.
   * a rule inside the same package.
   * a document stored in OPA.
   * a documented temporarily provided to OPA as part of a transaction.
+  * an array, object or set, e.g. `[1, 2, 3][0]`.
+  * a function call, e.g. `split("a.b.c", ".")[1]`.
+  * a [comprehension](#comprehensions).
 
 ### Variable Keys
 
