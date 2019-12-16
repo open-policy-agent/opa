@@ -432,6 +432,20 @@ integrations:
     blogs:
       - https://blog.byte.builders/post/bpf-opa/
 
+  php-authorization:
+    title: HTTP API Authorization in PHP
+    description: This integration demonstrates using OPA to perform API authorization in a PSR-15 compliant framework.
+    labels:
+      layer: network
+      category: application
+    software:
+      - php
+    tutorials:
+      - https://coil.com/p/segra/OPA-for-API-Authorization-with-Slim-PHP/H-7YsQL2m
+    code:
+      - https://github.com/segrax/opa-php-examples
+      - https://github.com/segrax/openpolicyagent
+
 organizations:
   styra:
     name: Styra
@@ -558,3 +572,6 @@ software:
   bosun:
     name: Boomerang Bosun
     link: https://www.useboomerang.io/
+  php:
+    name: PHP
+    link: https://www.php.net/
