@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -16,7 +17,14 @@ import (
 )
 
 func TestRead(t *testing.T) {
+	testReadBundle(t, "")
+}
 
+func TestReadWithBaseDir(t *testing.T) {
+	testReadBundle(t, "/foo/bar")
+}
+
+func testReadBundle(t *testing.T, baseDir string) {
 	files := [][2]string{
 		{"/a/b/c/data.json", "[1,2,3]"},
 		{"/a/b/d/data.json", "true"},
@@ -26,12 +34,20 @@ func TestRead(t *testing.T) {
 	}
 
 	buf := archive.MustWriteTarGz(files)
-	bundle, err := NewReader(buf).Read()
+	loader := NewTarballLoader(buf)
+	br := NewCustomReader(loader).WithBaseDir(baseDir)
+
+	bundle, err := br.Read()
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	module := `package example`
+
+	modulePath := "/example/example.rego"
+	if baseDir != "" {
+		modulePath = filepath.Join(baseDir, modulePath)
+	}
 
 	exp := Bundle{
 		Data: map[string]interface{}{
@@ -51,7 +67,7 @@ func TestRead(t *testing.T) {
 		},
 		Modules: []ModuleFile{
 			{
-				Path:   "/example/example.rego",
+				Path:   modulePath,
 				Parsed: ast.MustParseModule(module),
 				Raw:    []byte(module),
 			},

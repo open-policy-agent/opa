@@ -127,6 +127,7 @@ type Reader struct {
 	loader                DirectoryLoader
 	includeManifestInData bool
 	metrics               metrics.Metrics
+	baseDir               string
 }
 
 // NewReader returns a new Reader which is configured for reading tarballs.
@@ -154,6 +155,13 @@ func (r *Reader) IncludeManifestInData(includeManifestInData bool) *Reader {
 // WithMetrics sets the metrics object to be used while loading bundles
 func (r *Reader) WithMetrics(m metrics.Metrics) *Reader {
 	r.metrics = m
+	return r
+}
+
+// WithBaseDir sets a base directory for file paths of loaded Rego
+// modules. This will *NOT* affect the loaded path of data files.
+func (r *Reader) WithBaseDir(dir string) *Reader {
+	r.baseDir = dir
 	return r
 }
 
@@ -186,18 +194,19 @@ func (r *Reader) Read() (Bundle, error) {
 		path := filepath.ToSlash(f.Path())
 
 		if strings.HasSuffix(path, RegoExt) {
+			fullPath := r.fullPath(path)
 			r.metrics.Timer(metrics.RegoModuleParse).Start()
-			module, err := ast.ParseModule(path, buf.String())
+			module, err := ast.ParseModule(fullPath, buf.String())
 			r.metrics.Timer(metrics.RegoModuleParse).Stop()
 			if err != nil {
 				return bundle, err
 			}
 			if module == nil {
-				return bundle, fmt.Errorf("module '%s' is empty", path)
+				return bundle, fmt.Errorf("module '%s' is empty", fullPath)
 			}
 
 			mf := ModuleFile{
-				Path:   path,
+				Path:   fullPath,
 				Raw:    buf.Bytes(),
 				Parsed: module,
 			}
@@ -211,7 +220,7 @@ func (r *Reader) Read() (Bundle, error) {
 			r.metrics.Timer(metrics.RegoDataParse).Stop()
 
 			if err != nil {
-				return bundle, errors.Wrapf(err, "bundle load failed on %v", path)
+				return bundle, errors.Wrapf(err, "bundle load failed on %v", r.fullPath(path))
 			}
 
 			if err := insertValue(&bundle, path, value); err != nil {
@@ -227,7 +236,7 @@ func (r *Reader) Read() (Bundle, error) {
 			r.metrics.Timer(metrics.RegoDataParse).Stop()
 
 			if err != nil {
-				return bundle, errors.Wrapf(err, "bundle load failed on %v", path)
+				return bundle, errors.Wrapf(err, "bundle load failed on %v", r.fullPath(path))
 			}
 
 			if err := insertValue(&bundle, path, value); err != nil {
@@ -266,6 +275,13 @@ func (r *Reader) Read() (Bundle, error) {
 	}
 
 	return bundle, nil
+}
+
+func (r *Reader) fullPath(path string) string {
+	if r.baseDir != "" {
+		path = filepath.Join(r.baseDir, path)
+	}
+	return path
 }
 
 // Write serializes the Bundle and writes it to w.

@@ -283,6 +283,16 @@ func TestAsBundleWithDir(t *testing.T) {
 			t.Fatalf("expected 2 modules, got %d", len(b.Modules))
 		}
 
+		expectedModulePaths := map[string]struct{}{
+			filepath.Join(rootDir, "foo/policy.rego"): {},
+			filepath.Join(rootDir, "base.rego"):       {},
+		}
+		for _, mf := range b.Modules {
+			if _, found := expectedModulePaths[mf.Path]; !found {
+				t.Errorf("Unexpected module file with path %s in bundle modules", mf.Path)
+			}
+		}
+
 		expectedData := util.MustUnmarshalJSON([]byte(`{"foo": [1,2,3]}`))
 		if !reflect.DeepEqual(b.Data, expectedData) {
 			t.Fatalf("expected data %+v, got %+v", expectedData, b.Data)

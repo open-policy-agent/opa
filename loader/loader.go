@@ -167,10 +167,18 @@ func (fl fileLoader) AsBundle(path string) (*bundle.Bundle, error) {
 	}
 
 	br := bundle.NewCustomReader(bundleLoader).WithMetrics(fl.metrics)
+
+	// For bundle directories add the full path in front of module file names
+	// to simplify debugging.
+	if fi.IsDir() {
+		br.WithBaseDir(path)
+	}
+
 	b, err := br.Read()
 	if err != nil {
 		err = errors.Wrap(err, fmt.Sprintf("bundle %s", path))
 	}
+
 	return &b, err
 }
 
