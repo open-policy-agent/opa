@@ -1275,6 +1275,10 @@ func (r *Rego) prepare(ctx context.Context, qType queryType, extras []extraStage
 }
 
 func (r *Rego) parseModules(ctx context.Context, txn storage.Transaction, m metrics.Metrics) error {
+	if len(r.modules) == 0 {
+		return nil
+	}
+
 	m.Timer(metrics.RegoModuleParse).Start()
 	defer m.Timer(metrics.RegoModuleParse).Stop()
 	var errs Errors
@@ -1282,31 +1286,29 @@ func (r *Rego) parseModules(ctx context.Context, txn storage.Transaction, m metr
 	// Parse any modules in the are saved to the store, but only if
 	// another compile step is going to occur (ie. we have parsed modules
 	// that need to be compiled).
-	if len(r.modules) > 0 {
-		ids, err := r.store.ListPolicies(ctx, txn)
+	ids, err := r.store.ListPolicies(ctx, txn)
+	if err != nil {
+		return err
+	}
+
+	for _, id := range ids {
+		// if it is already on the compiler we're using
+		// then don't bother to re-parse it from source
+		if _, haveMod := r.compiler.Modules[id]; haveMod {
+			continue
+		}
+
+		bs, err := r.store.GetPolicy(ctx, txn, id)
 		if err != nil {
 			return err
 		}
 
-		for _, id := range ids {
-			// if it is already on the compiler we're using
-			// then don't bother to re-parse it from source
-			if _, haveMod := r.compiler.Modules[id]; haveMod {
-				continue
-			}
-
-			bs, err := r.store.GetPolicy(ctx, txn, id)
-			if err != nil {
-				return err
-			}
-
-			parsed, err := ast.ParseModule(id, string(bs))
-			if err != nil {
-				errs = append(errs, err)
-			}
-
-			r.parsedModules[id] = parsed
+		parsed, err := ast.ParseModule(id, string(bs))
+		if err != nil {
+			errs = append(errs, err)
 		}
+
+		r.parsedModules[id] = parsed
 	}
 
 	// Parse any passed in as arguments to the Rego object
@@ -1326,6 +1328,10 @@ func (r *Rego) parseModules(ctx context.Context, txn storage.Transaction, m metr
 }
 
 func (r *Rego) loadFiles(ctx context.Context, txn storage.Transaction, m metrics.Metrics) error {
+	if len(r.loadPaths.paths) == 0 {
+		return nil
+	}
+
 	m.Timer(metrics.RegoLoadFiles).Start()
 	defer m.Timer(metrics.RegoLoadFiles).Stop()
 
@@ -1347,6 +1353,10 @@ func (r *Rego) loadFiles(ctx context.Context, txn storage.Transaction, m metrics
 }
 
 func (r *Rego) loadBundles(ctx context.Context, txn storage.Transaction, m metrics.Metrics) error {
+	if len(r.bundlePaths) == 0 {
+		return nil
+	}
+
 	m.Timer(metrics.RegoLoadBundles).Start()
 	defer m.Timer(metrics.RegoLoadBundles).Stop()
 
@@ -1357,7 +1367,6 @@ func (r *Rego) loadBundles(ctx context.Context, txn storage.Transaction, m metri
 		}
 		r.bundles[path] = bndl
 	}
-
 	return nil
 }
 
@@ -1369,42 +1378,35 @@ func (r *Rego) parseInput() (ast.Value, error) {
 }
 
 func (r *Rego) parseRawInput(rawInput *interface{}, m metrics.Metrics) (ast.Value, error) {
+	var input ast.Value
+
+	if rawInput == nil {
+		return input, nil
+	}
+
 	m.Timer(metrics.RegoInputParse).Start()
 	defer m.Timer(metrics.RegoInputParse).Stop()
-	var input ast.Value
-	if rawInput != nil {
-		rawPtr := util.Reference(rawInput)
-		// roundtrip through json: this turns slices (e.g. []string, []bool) into
-		// []interface{}, the only array type ast.InterfaceToValue can work with
-		if err := util.RoundTrip(rawPtr); err != nil {
-			return nil, err
-		}
-		val, err := ast.InterfaceToValue(*rawPtr)
-		if err != nil {
-			return nil, err
-		}
-		input = val
+
+	rawPtr := util.Reference(rawInput)
+
+	// roundtrip through json: this turns slices (e.g. []string, []bool) into
+	// []interface{}, the only array type ast.InterfaceToValue can work with
+	if err := util.RoundTrip(rawPtr); err != nil {
+		return nil, err
 	}
-	return input, nil
+
+	return ast.InterfaceToValue(*rawPtr)
 }
 
 func (r *Rego) parseQuery(m metrics.Metrics) (ast.Body, error) {
+	if r.parsedQuery != nil {
+		return r.parsedQuery, nil
+	}
+
 	m.Timer(metrics.RegoQueryParse).Start()
 	defer m.Timer(metrics.RegoQueryParse).Stop()
 
-	var query ast.Body
-
-	if r.parsedQuery != nil {
-		query = r.parsedQuery
-	} else {
-		var err error
-		query, err = ast.ParseBody(r.query)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return query, nil
+	return ast.ParseBody(r.query)
 }
 
 func (r *Rego) compileModules(ctx context.Context, txn storage.Transaction, m metrics.Metrics) error {
