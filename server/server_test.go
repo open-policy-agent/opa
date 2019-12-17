@@ -1871,41 +1871,48 @@ func TestDataProvenanceMultiBundle(t *testing.T) {
 	}
 }
 
-func TestDataMetrics(t *testing.T) {
-
+func TestDataMetricsEval(t *testing.T) {
 	f := newFixture(t)
 
+	// Make a request to evaluate `data`
 	testDataMetrics(t, f, "/data?metrics", []string{
 		"counter_server_query_cache_hit",
 		"timer_rego_input_parse_ns",
-		"timer_rego_load_bundles_ns",
-		"timer_rego_load_files_ns",
-		"timer_rego_module_parse_ns",
 		"timer_rego_query_parse_ns",
 		"timer_rego_query_compile_ns",
 		"timer_rego_query_eval_ns",
 		"timer_server_handler_ns",
 	})
 
+	// Repeat previous request, expect to have hit the query cache
+	// so fewer timers should have been reported.
 	testDataMetrics(t, f, "/data?metrics", []string{
 		"counter_server_query_cache_hit",
 		"timer_rego_input_parse_ns",
-		"timer_rego_query_parse_ns",
 		"timer_rego_query_eval_ns",
 		"timer_server_handler_ns",
 	})
 
+	// Make a request to evaluate `data` and use partial evaluation,
+	// this should not hit the same query cache result as the previous
+	// request.
 	testDataMetrics(t, f, "/data?metrics&partial", []string{
 		"counter_server_query_cache_hit",
 		"timer_rego_input_parse_ns",
-		"timer_rego_load_bundles_ns",
-		"timer_rego_load_files_ns",
 		"timer_rego_module_compile_ns",
-		"timer_rego_module_parse_ns",
 		"timer_rego_query_parse_ns",
 		"timer_rego_query_compile_ns",
 		"timer_rego_query_eval_ns",
 		"timer_rego_partial_eval_ns",
+		"timer_server_handler_ns",
+	})
+
+	// Repeat previous partial eval request, this time it should
+	// be cached
+	testDataMetrics(t, f, "/data?metrics&partial", []string{
+		"counter_server_query_cache_hit",
+		"timer_rego_input_parse_ns",
+		"timer_rego_query_eval_ns",
 		"timer_server_handler_ns",
 	})
 }
@@ -1925,16 +1932,15 @@ func testDataMetrics(t *testing.T, f *fixture, url string, expected []string) {
 	for _, key := range expected {
 		v, ok := result.Metrics[key]
 		if !ok {
-			t.Fatalf("Missing expected metric: %s", key)
-		}
-		if v == nil {
-			t.Fatalf("Expected non-nil value for metric: %s", key)
+			t.Errorf("Missing expected metric: %s", key)
+		} else if v == nil {
+			t.Errorf("Expected non-nil value for metric: %s", key)
 		}
 
 	}
 
 	if len(expected) != len(result.Metrics) {
-		t.Fatalf("Expected %d metrics, got %d\n\n\tValues: %+v", len(expected), len(result.Metrics), result.Metrics)
+		t.Errorf("Expected %d metrics, got %d\n\n\tValues: %+v", len(expected), len(result.Metrics), result.Metrics)
 	}
 }
 
