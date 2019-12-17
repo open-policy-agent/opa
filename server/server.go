@@ -1033,7 +1033,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 	includeInstrumentation := getBoolParam(r.URL, types.ParamInstrumentV1, true)
 	provenance := getBoolParam(r.URL, types.ParamProvenanceV1, true)
 
-	m.Timer(metrics.RegoQueryParse).Start()
+	m.Timer(metrics.RegoInputParse).Start()
 
 	inputs := r.URL.Query()[types.ParamInputV1]
 
@@ -1048,8 +1048,6 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	m.Timer(metrics.RegoQueryParse).Stop()
-
 	var goInput *interface{}
 	if input != nil {
 		x, err := ast.JSON(input)
@@ -1059,6 +1057,8 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 		}
 		goInput = &x
 	}
+
+	m.Timer(metrics.RegoInputParse).Stop()
 
 	// Prepare for query.
 	txn, err := s.store.NewTransaction(ctx)
@@ -1231,7 +1231,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 	partial := getBoolParam(r.URL, types.ParamPartialV1, true)
 	provenance := getBoolParam(r.URL, types.ParamProvenanceV1, true)
 
-	m.Timer(metrics.RegoQueryParse).Start()
+	m.Timer(metrics.RegoInputParse).Start()
 
 	input, err := readInputPostV1(r)
 	if err != nil {
@@ -1249,7 +1249,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 		goInput = &x
 	}
 
-	m.Timer(metrics.RegoQueryParse).Stop()
+	m.Timer(metrics.RegoInputParse).Stop()
 
 	txn, err := s.store.NewTransaction(ctx)
 	if err != nil {
