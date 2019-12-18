@@ -188,8 +188,8 @@ OPA provides two builtins that implement JSON Web Signature [RFC7515](https://to
  canonicalizations applied. Therefore, line breaks and whitespaces are significant.
 
 ``io.jwt.encode_sign()`` takes three Rego Objects as parameters and returns their JWS Compact Serialization. This builtin
- should be used by those that want to use rego objects for signing during policy evaluation. 
- 
+ should be used by those that want to use rego objects for signing during policy evaluation.
+
 > Note that with `io.jwt.encode_sign` the Rego objects are serialized to JSON with standard formatting applied
 > whereas the `io.jwt.encode_sign_raw` built-in will **not** affect whitespace of the strings passed in.
 > This will mean that the final encoded token may have different string values, but the decoded and parsed
@@ -502,6 +502,9 @@ Note that the opa executable will need access to the timezone files in the envir
 | Built-in | Description |
 | -------- | ----------- |
 | <span class="opa-keep-it-together">``output := crypto.x509.parse_certificates(string)``</span> | ``output`` is an array of X.509 certificates represented as JSON objects. |
+| <span class="opa-keep-it-together">``output := crypto.md5(string)``</span> | ``output`` is ``string`` md5 hashed. |
+| <span class="opa-keep-it-together">``output := crypto.sha1(string)``</span> | ``output`` is ``string`` sha1 hashed. |
+| <span class="opa-keep-it-together">``output := crypto.sha256(string)``</span> | ``output`` is ``string`` sha256 hashed. |
 
 ### Graphs
 
