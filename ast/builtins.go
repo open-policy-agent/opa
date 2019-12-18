@@ -149,6 +149,9 @@ var DefaultBuiltins = [...]*Builtin{
 
 	// Crypto
 	CryptoX509ParseCertificates,
+	CryptoMd5,
+	CryptoSha1,
+	CryptoSha256,
 
 	// Graphs
 	WalkBuiltin,
@@ -1256,6 +1259,33 @@ var CryptoX509ParseCertificates = &Builtin{
 	Decl: types.NewFunction(
 		types.Args(types.S),
 		types.NewArray(nil, types.NewObject(nil, types.NewDynamicProperty(types.S, types.A))),
+	),
+}
+
+// CryptoMd5 returns a string representing the input string hashed with the md5 function
+var CryptoMd5 = &Builtin{
+	Name: "crypto.md5",
+	Decl: types.NewFunction(
+		types.Args(types.S),
+		types.S,
+	),
+}
+
+// CryptoSha1 returns a string representing the input string hashed with the sha1 function
+var CryptoSha1 = &Builtin{
+	Name: "crypto.sha1",
+	Decl: types.NewFunction(
+		types.Args(types.S),
+		types.S,
+	),
+}
+
+// CryptoSha256 returns a string representing the input string hashed with the sha256 function
+var CryptoSha256 = &Builtin{
+	Name: "crypto.sha256",
+	Decl: types.NewFunction(
+		types.Args(types.S),
+		types.S,
 	),
 }
 

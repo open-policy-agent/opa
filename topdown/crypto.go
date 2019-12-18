@@ -5,12 +5,16 @@
 package topdown
 
 import (
+	"crypto/md5"
+	"crypto/sha1"
+	"crypto/sha256"
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/topdown/builtins"
 	"github.com/open-policy-agent/opa/util"
 )
 
@@ -40,8 +44,31 @@ func builtinCryptoX509ParseCertificates(a ast.Value) (ast.Value, error) {
 	return ast.InterfaceToValue(x)
 }
 
+func hashHelper(a ast.Value, h func(ast.String) string) (ast.Value, error) {
+	s, err := builtins.StringOperand(a, 1)
+	if err != nil {
+		return nil, err
+	}
+	return ast.String(h(s)), nil
+}
+
+func builtinCryptoMd5(a ast.Value) (ast.Value, error) {
+	return hashHelper(a, func(s ast.String) string { return fmt.Sprintf("%x", md5.Sum([]byte(s))) })
+}
+
+func builtinCryptoSha1(a ast.Value) (ast.Value, error) {
+	return hashHelper(a, func(s ast.String) string { return fmt.Sprintf("%x", sha1.Sum([]byte(s))) })
+}
+
+func builtinCryptoSha256(a ast.Value) (ast.Value, error) {
+	return hashHelper(a, func(s ast.String) string { return fmt.Sprintf("%x", sha256.Sum256([]byte(s))) })
+}
+
 func init() {
 	RegisterFunctionalBuiltin1(ast.CryptoX509ParseCertificates.Name, builtinCryptoX509ParseCertificates)
+	RegisterFunctionalBuiltin1(ast.CryptoMd5.Name, builtinCryptoMd5)
+	RegisterFunctionalBuiltin1(ast.CryptoSha1.Name, builtinCryptoSha1)
+	RegisterFunctionalBuiltin1(ast.CryptoSha256.Name, builtinCryptoSha256)
 }
 
 // createRootCAs creates a new Cert Pool from scratch or adds to a copy of System Certs

@@ -58,3 +58,75 @@ func TestCryptoX509ParseCertificates(t *testing.T) {
 	}
 
 }
+
+func TestCryptoMd5(t *testing.T) {
+
+	tests := []struct {
+		note     string
+		rule     []string
+		expected interface{}
+	}{
+		{
+			note:     "crypto.md5 with string",
+			rule:     []string{`p[hash] { hash := crypto.md5("lorem ipsum") }`},
+			expected: `["80a751fde577028640c419000e33eba6"]`,
+		},
+	}
+
+	data := loadSmallTestData()
+
+	fmt.Println(data)
+
+	for _, tc := range tests {
+		runTopDownTestCase(t, data, tc.note, tc.rule, tc.expected)
+	}
+
+}
+
+func TestCryptoSha1(t *testing.T) {
+
+	tests := []struct {
+		note     string
+		rule     []string
+		expected interface{}
+	}{
+		{
+			note:     "crypto.sha1 with string",
+			rule:     []string{`p[hash] { hash := crypto.sha1("lorem ipsum") }`},
+			expected: `["bfb7759a67daeb65410490b4d98bb9da7d1ea2ce"]`,
+		},
+	}
+
+	data := loadSmallTestData()
+
+	fmt.Println(data)
+
+	for _, tc := range tests {
+		runTopDownTestCase(t, data, tc.note, tc.rule, tc.expected)
+	}
+
+}
+
+func TestCryptoSha256(t *testing.T) {
+
+	tests := []struct {
+		note     string
+		rule     []string
+		expected interface{}
+	}{
+		{
+			note:     "crypto.sha256 with string",
+			rule:     []string{`p[hash] { hash := crypto.sha256("lorem ipsum") }`},
+			expected: `["5e2bf57d3f40c4b6df69daf1936cb766f832374b4fc0259a7cbff06e2f70f269"]`,
+		},
+	}
+
+	data := loadSmallTestData()
+
+	fmt.Println(data)
+
+	for _, tc := range tests {
+		runTopDownTestCase(t, data, tc.note, tc.rule, tc.expected)
+	}
+
+}
