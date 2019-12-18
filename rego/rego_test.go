@@ -1308,3 +1308,61 @@ func TestRegoLoadBundleWithProvidedStore(t *testing.T) {
 		}
 	})
 }
+
+func TestRegoCustomBuiltinPartialPropagate(t *testing.T) {
+	mod := `package test
+	p {
+		x = trim_and_split(input.foo, "/")
+		x == ["foo", "bar", "baz"]
+	}
+	`
+
+	originalRego := New(
+		Module("test.rego", mod),
+		Query(`data.test.p`),
+		Function2(
+			&Function{
+				Name: "trim_and_split",
+				Decl: types.NewFunction(
+					types.Args(types.S, types.S), // two string inputs
+					types.NewArray(nil, types.S), // variable-length string array output
+				),
+			},
+			func(_ BuiltinContext, a, b *ast.Term) (*ast.Term, error) {
+
+				str, ok1 := a.Value.(ast.String)
+				delim, ok2 := b.Value.(ast.String)
+
+				// The function is undefined for non-string inputs. Built-in
+				// functions should only return errors in unrecoverable cases.
+				if !ok1 || !ok2 {
+					return nil, nil
+				}
+
+				result := strings.Split(strings.Trim(string(str), string(delim)), string(delim))
+
+				arr := make(ast.Array, len(result))
+				for i := range result {
+					arr[i] = ast.StringTerm(result[i])
+				}
+
+				return ast.NewTerm(arr), nil
+			},
+		),
+	)
+
+	pr, err := originalRego.PartialResult(context.Background())
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+
+	rs, err := pr.Rego(
+		Input(map[string]interface{}{"foo": "/foo/bar/baz/"}),
+	).Eval(context.Background())
+
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+	assertResultSet(t, rs, `[[true]]`)
+
+}
