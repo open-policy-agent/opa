@@ -3,19 +3,43 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.16.0
+
+### New Built-in Functions
+
+- Add `json.filter` to mask/filter nested fields ([#1617](https://github.com/open-policy-agent/opa/issues/1617))
+- Add `net.cidr_expand` to generate CIDR hosts
 
 ### Fixes
-- Rego parse and compile metrics are now correctly tracked and returned
-  when using bundles.
-  
+
+- Reduce server latency for indexed policies by ~30-40% by caching prepared queries across requests ([#1958](https://github.com/open-policy-agent/opa/issues/1567))
+- Improve type checker error and trace output readability ([#1430](https://github.com/open-policy-agent/opa/issues/1430) and [#1208](https://github.com/open-policy-agent/opa/issues/1208))
+- Re-create service clients to pickup certificate changes ([#1898](https://github.com/open-policy-agent/opa/issues/1898))
+- Report full system path for bundle file locations ([#1796](https://github.com/open-policy-agent/opa/issues/1796))
+- Add `status.console` option to log Status messages to console ([#1937](https://github.com/open-policy-agent/opa/issues/1937))
+- Fix `io.jwt.decode_verify` to support multiple keys in JWKS ([#1901](https://github.com/open-policy-agent/opa/issues/1901))
+- Fix `path` decision log field for queries against "/data" ([1532](https://github.com/open-policy-agent/opa/issues/1532))
+
+This release also includes:
+
+- Documentation improvements on how to use the `io.jwt.*` built-in functions for token verification
+- Metrics for bundle processing and activation (e.g., read, parse, and compile times)
+- Better parse metric reporting in the server
+
 ### Compatibility Notes
-- The `Path` string provided to decision log implementations via the
-  `server.Info#Path` parameter is no longer dot-notation rego reference
-  string. It is now a `/` separated path which has had the `data` prefix
-  removed. This change corrects is issue described in
-  [1532](https://github.com/open-policy-agent/opa/issues/1532) and may
-  affect custom decision log plugins that rely on the `Path`.
+
+- The fix for #1532 required a backwards incompatible change for v0 and v1
+  queries against "/data". This only affects queries against the exact path
+  "/data", not paths prefixed with "/data/", e.g., "/data/example/allow". Since
+  queries against "/data" are rare and normally only seen in development
+  environments, this is a low-impact change. As part of this change, the
+  `server.Info#Path` field has been changed to use slash-separated paths instead
+  of the string representation of Rego references (i.e., a dotted path rooted at
+  "data"). If you are registering a logging callback directly against the server
+  (e.g., by calling `server.Server#WithDecisionLoggerWithErr`) you will have to
+  update your logging callback to deal with the new path format. Decision log
+  consumers should treat a missing/empty `path` field as a query against
+  "/data".
 
 ## 0.15.1
 
