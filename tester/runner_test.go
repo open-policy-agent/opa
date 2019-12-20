@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/tester"
 	"github.com/open-policy-agent/opa/topdown"
 	"github.com/open-policy-agent/opa/types"
@@ -89,9 +90,21 @@ func TestRunner_EnableFailureLine(t *testing.T) {
 }
 
 func TestRun(t *testing.T) {
+	testRun(t, false)
+}
 
-	ctx := context.Background()
+func TestRunBenchmark(t *testing.T) {
+	testRun(t, true)
+}
 
+type expectedTestResult struct {
+	wantErr  bool
+	wantFail bool
+}
+
+type expectedTestResults map[[2]string]expectedTestResult
+
+func testRun(t *testing.T, bench bool) {
 	files := map[string]string{
 		"/a.rego": `package foo
 			allow { true }
@@ -113,10 +126,7 @@ func TestRun(t *testing.T) {
 		test_duplicate { true }`,
 	}
 
-	tests := map[[2]string]struct {
-		wantErr  bool
-		wantFail bool
-	}{
+	tests := expectedTestResults{
 		{"data.foo", "test_pass"}:          {false, false},
 		{"data.foo", "test_fail"}:          {false, true},
 		{"data.foo", "test_fail_non_bool"}: {false, true},
@@ -128,36 +138,208 @@ func TestRun(t *testing.T) {
 	}
 
 	test.WithTempFS(files, func(d string) {
+		rs := doTestRunWithTmpDir(t, d, bench, "")
+		validateTestResults(t, tests, rs, bench)
+	})
+}
 
-		rs, err := tester.Run(ctx, d)
-		if err != nil {
-			t.Fatal(err)
-		}
-		seen := map[[2]string]struct{}{}
-		for i := range rs {
-			k := [2]string{rs[i].Package, rs[i].Name}
-			seen[k] = struct{}{}
-			exp, ok := tests[k]
-			if !ok {
-				t.Errorf("Unexpected result for %v", k)
-			} else if exp.wantErr != (rs[i].Error != nil) || exp.wantFail != rs[i].Fail {
-				t.Errorf("Expected %v for %v but got: %v", exp, k, rs[i])
+func doTestRunWithTmpDir(t *testing.T, dir string, bench bool, regex string) []*tester.Result {
+	t.Helper()
+
+	ctx := context.Background()
+
+	paths := []string{dir}
+	modules, store, err := tester.Load(paths, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	txn := storage.NewTransactionOrDie(ctx, store)
+	defer store.Abort(ctx, txn)
+
+	runner := tester.NewRunner().SetStore(store).SetModules(modules).Filter(regex).SetTimeout(60 * time.Second)
+
+	var ch chan *tester.Result
+	if bench {
+		ch, err = runner.RunBenchmarks(ctx, txn, tester.BenchmarkOptions{})
+	} else {
+		ch, err = runner.RunTests(ctx, txn)
+	}
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+	var rs []*tester.Result
+	for r := range ch {
+		rs = append(rs, r)
+	}
+
+	return rs
+}
+
+func validateTestResults(t *testing.T, tests expectedTestResults, rs []*tester.Result, bench bool) {
+	t.Helper()
+	seen := map[[2]string]struct{}{}
+	for i := range rs {
+		k := [2]string{rs[i].Package, rs[i].Name}
+		seen[k] = struct{}{}
+		exp, ok := tests[k]
+		if !ok {
+			t.Errorf("Unexpected result for %v", k)
+		} else if exp.wantErr != (rs[i].Error != nil) || exp.wantFail != rs[i].Fail {
+			t.Errorf("Expected %+v for %v but got: %v", exp, k, rs[i])
+		} else {
+			// Test passed
+			if bench && rs[i].BenchmarkResult == nil {
+				t.Errorf("Expected BenchmarkResult for test %v, got nil", k)
+			} else if !bench && rs[i].BenchmarkResult != nil {
+				t.Errorf("Unexpected BenchmarkResult for test %v, expected nil", k)
 			}
 		}
-		for k := range tests {
-			if _, ok := seen[k]; !ok {
-				t.Errorf("Expected result for %v", k)
-			}
+	}
+	for k := range tests {
+		if _, ok := seen[k]; !ok {
+			t.Errorf("Expected result for %v", k)
+		}
+	}
+}
+
+func TestRunWithFilterRegex(t *testing.T) {
+	files := map[string]string{
+		"/a.rego": `package foo
+			allow { true }
+			`,
+		"/a_test.rego": `package foo
+			test_pass { allow }
+			non_test { true }
+			test_fail { not allow }
+			test_fail_non_bool = 100
+			test_err { conflict }
+			conflict = true
+			conflict = false
+			test_duplicate { false }
+			test_duplicate { true }
+			test_duplicate { true }
+			`,
+		"/b_test.rego": `package bar
+
+		test_duplicate { true }`,
+	}
+
+	cases := []struct {
+		note  string
+		regex string
+		tests expectedTestResults
+	}{
+		{
+			note:  "all tests match",
+			regex: ".*",
+			tests: expectedTestResults{
+				{"data.foo", "test_pass"}:          {false, false},
+				{"data.foo", "test_fail"}:          {false, true},
+				{"data.foo", "test_fail_non_bool"}: {false, true},
+				{"data.foo", "test_duplicate"}:     {false, true},
+				{"data.foo", "test_duplicate#01"}:  {false, false},
+				{"data.foo", "test_duplicate#02"}:  {false, false},
+				{"data.foo", "test_err"}:           {true, false},
+				{"data.bar", "test_duplicate"}:     {false, false},
+			},
+		},
+		{
+			note:  "no filter",
+			regex: "",
+			tests: expectedTestResults{
+				{"data.foo", "test_pass"}:          {false, false},
+				{"data.foo", "test_fail"}:          {false, true},
+				{"data.foo", "test_fail_non_bool"}: {false, true},
+				{"data.foo", "test_duplicate"}:     {false, true},
+				{"data.foo", "test_duplicate#01"}:  {false, false},
+				{"data.foo", "test_duplicate#02"}:  {false, false},
+				{"data.foo", "test_err"}:           {true, false},
+				{"data.bar", "test_duplicate"}:     {false, false},
+			},
+		},
+		{
+			note:  "no tests match",
+			regex: "^$",
+			tests: nil,
+		},
+		{
+			note:  "single package name",
+			regex: "bar",
+			tests: expectedTestResults{
+				{"data.bar", "test_duplicate"}: {false, false},
+			},
+		},
+		{
+			note:  "single package explicit",
+			regex: "data.bar.test_duplicate",
+			tests: expectedTestResults{
+				{"data.bar", "test_duplicate"}: {false, false},
+			},
+		},
+		{
+			note:  "single test ",
+			regex: "test_pass",
+			tests: expectedTestResults{
+				{"data.foo", "test_pass"}: {false, false},
+			},
+		},
+		{
+			note:  "single test explicit",
+			regex: "data.foo.test_pass",
+			tests: expectedTestResults{
+				{"data.foo", "test_pass"}: {false, false},
+			},
+		},
+		{
+			note:  "wildcards",
+			regex: "^.*foo.*_fail.*$",
+			tests: expectedTestResults{
+				{"data.foo", "test_fail"}:          {false, true},
+				{"data.foo", "test_fail_non_bool"}: {false, true},
+			},
+		},
+		{
+			note:  "mixed",
+			regex: "(bar|data.foo.test_pass)",
+			tests: expectedTestResults{
+				{"data.foo", "test_pass"}:      {false, false},
+				{"data.bar", "test_duplicate"}: {false, false},
+			},
+		},
+		{
+			note:  "case insensitive",
+			regex: "(?i)DATA.BAR",
+			tests: expectedTestResults{
+				{"data.bar", "test_duplicate"}: {false, false},
+			},
+		},
+	}
+
+	test.WithTempFS(files, func(d string) {
+
+		for _, tc := range cases {
+			t.Run(tc.note, func(t *testing.T) {
+				rs := doTestRunWithTmpDir(t, d, false, tc.regex)
+				validateTestResults(t, tc.tests, rs, false)
+			})
 		}
 	})
 }
 
 func TestRunnerCancel(t *testing.T) {
+	testCancel(t, false)
+}
+
+func TestRunnerCancelBenchmark(t *testing.T) {
+	testCancel(t, true)
+}
+
+func testCancel(t *testing.T, bench bool) {
 
 	registerSleepBuiltin()
-	
+
 	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
 
 	module := `package foo
 
@@ -169,18 +351,51 @@ func TestRunnerCancel(t *testing.T) {
 	}
 
 	test.WithTempFS(files, func(d string) {
-		results, err := tester.Run(ctx, d)
+		paths := []string{d}
+		modules, store, err := tester.Load(paths, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
+
+		txn := storage.NewTransactionOrDie(ctx, store)
+		runner := tester.NewRunner().SetStore(store).SetModules(modules)
+
+		// Everything below uses a canceled context..
+		cancel()
+
+		var ch chan *tester.Result
+		if bench {
+			ch, err = runner.RunBenchmarks(ctx, txn, tester.BenchmarkOptions{})
+		} else {
+			ch, err = runner.RunTests(ctx, txn)
+		}
+		if err != nil {
+			t.Fatalf("Unexpected error: %s", err)
+		}
+		var results []*tester.Result
+		for r := range ch {
+			results = append(results, r)
+		}
+
+		if len(results) != 1 {
+			t.Fatalf("Expected only a single test result, got: %d", len(results))
+		}
+
 		if !topdown.IsCancel(results[0].Error) {
-			t.Fatalf("Expected cancel error but got: %v", results[0].Error)
+			t.Fatalf("Expected cancel error for first test but got: %v", results[0].Error)
 		}
 	})
 }
 
-func TestRunner_Timeout(t *testing.T) {
+func TestRunnerTimeout(t *testing.T) {
+	testTimeout(t, false)
+}
 
+func TestRunnerTimeoutBenchmark(t *testing.T) {
+	testTimeout(t, true)
+}
+
+func testTimeout(t *testing.T, bench bool) {
 	registerSleepBuiltin()
 
 	ctx := context.Background()
@@ -189,7 +404,10 @@ func TestRunner_Timeout(t *testing.T) {
 		"/a_test.rego": `package foo
 
 		test_1 { test.sleep("100ms") }
-		test_2 { true }`,
+
+		# 1ms is low enough for a single test to pass,
+		# but long enough for benchmark to timeout
+		test_2 { test.sleep("1ms") }`,
 	}
 
 	test.WithTempFS(files, func(d string) {
@@ -202,19 +420,35 @@ func TestRunner_Timeout(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		ch, err := tester.NewRunner().SetTimeout(duration).SetStore(store).Run(ctx, modules)
+
+		txn := storage.NewTransactionOrDie(ctx, store)
+		runner := tester.NewRunner().SetTimeout(duration).SetStore(store).SetModules(modules)
+
+		var ch chan *tester.Result
+		if bench {
+			ch, err = runner.RunBenchmarks(ctx, txn, tester.BenchmarkOptions{})
+		} else {
+			ch, err = runner.RunTests(ctx, txn)
+		}
 		if err != nil {
-			t.Fatal(err)
+			t.Fatalf("Unexpected error: %s", err)
 		}
 		var results []*tester.Result
 		for r := range ch {
 			results = append(results, r)
 		}
 		if !topdown.IsCancel(results[0].Error) {
-			t.Fatalf("Expected cancel error but got: %v", results[0].Error)
+			t.Fatalf("Expected cancel error for first test but got: %v", results[0].Error)
 		}
-		if topdown.IsCancel(results[1].Error) {
-			t.Fatalf("Expected no error for second test, but it timed out")
+
+		if bench {
+			if !topdown.IsCancel(results[1].Error) {
+				t.Fatalf("Expected cancel error for second test but got: %v", results[1].Error)
+			}
+		} else {
+			if topdown.IsCancel(results[1].Error) {
+				t.Fatalf("Expected no error for second test, but it timed out")
+			}
 		}
 	})
 }

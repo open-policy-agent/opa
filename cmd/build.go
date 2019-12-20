@@ -93,6 +93,6 @@ func init() {
 	buildCommand.Flags().BoolVarP(&buildParams.debug, "debug", "D", false, "enable debug output")
 	buildCommand.Flags().VarP(&buildParams.dataPaths, "data", "d", "set data file(s) or directory path(s)")
 	buildCommand.Flags().VarP(&buildParams.bundlePaths, "bundle", "b", "set bundle file(s) or directory path(s)")
-	setIgnore(buildCommand.Flags(), &buildParams.ignore)
+	addIgnoreFlag(buildCommand.Flags(), &buildParams.ignore)
 	RootCommand.AddCommand(buildCommand)
 }

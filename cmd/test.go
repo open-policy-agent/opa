@@ -43,8 +43,12 @@ var testParams = struct {
 	ignore       []string
 	failureLine  bool
 	bundleMode   bool
+	benchmark    bool
+	benchMem     bool
+	runRegex     string
+	count        int
 }{
-	outputFormat: util.NewEnumFlag(testPrettyOutput, []string{testPrettyOutput, testJSONOutput}),
+	outputFormat: util.NewEnumFlag(testPrettyOutput, []string{testPrettyOutput, testJSONOutput, benchmarkGoBenchOutput}),
 	explain:      newExplainFlag([]string{explainModeFails, explainModeFull, explainModeNotes}),
 }
 
@@ -99,6 +103,14 @@ Example test (example/authz_test.rego):
 Example test run:
 
 	$ opa test ./example/
+
+If used with the '--bench' option then tests will be benchmarked.
+
+Example benchmark run:
+
+	$ opa test --bench ./example/
+
+The optional "gobench" output format conforms to the Go Benchmark Data Format.
 `,
 	PreRunE: func(Cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
@@ -115,6 +127,11 @@ Example test run:
 func opaTest(args []string) int {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	if testParams.outputFormat.String() == benchmarkGoBenchOutput && !testParams.benchmark {
+		fmt.Fprintf(os.Stderr, "cannot use output format %s without running benchmarks (--bench)\n", benchmarkGoBenchOutput)
+		return 0
+	}
 
 	filter := loaderFilter{
 		Ignore: testParams.ignore,
@@ -163,6 +180,10 @@ func opaTest(args []string) int {
 	var coverTracer topdown.Tracer
 
 	if testParams.coverage {
+		if testParams.benchmark {
+			fmt.Fprintln(os.Stderr, "coverage reporting is not supported when benchmarking tests")
+			return 1
+		}
 		cov = cover.New()
 		coverTracer = cov
 	}
@@ -176,15 +197,12 @@ func opaTest(args []string) int {
 		SetRuntime(info).
 		SetModules(modules).
 		SetBundles(bundles).
-		SetTimeout(testParams.timeout)
-
-	ch, err := runner.RunTests(ctx, txn)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return 1
-	}
+		SetTimeout(testParams.timeout).
+		Filter(testParams.runRegex)
 
 	var reporter tester.Reporter
+
+	goBench := false
 
 	if !testParams.coverage {
 		switch testParams.outputFormat.String() {
@@ -192,11 +210,17 @@ func opaTest(args []string) int {
 			reporter = tester.JSONReporter{
 				Output: os.Stdout,
 			}
+		case benchmarkGoBenchOutput:
+			goBench = true
+			fallthrough
 		default:
 			reporter = tester.PrettyReporter{
-				Verbose:     testParams.verbose,
-				FailureLine: testParams.failureLine,
-				Output:      os.Stdout,
+				Verbose:                  testParams.verbose,
+				FailureLine:              testParams.failureLine,
+				Output:                   os.Stdout,
+				BenchmarkResults:         testParams.benchmark,
+				BenchMarkShowAllocations: testParams.benchMem,
+				BenchMarkGoBenchFormat:   goBench,
 			}
 		}
 	} else {
@@ -206,6 +230,33 @@ func opaTest(args []string) int {
 			Output:    os.Stdout,
 			Threshold: testParams.threshold,
 		}
+	}
+
+	for i := 0; i < testParams.count; i++ {
+		exitCode := runTests(ctx, txn, runner, reporter)
+		if exitCode != 0 {
+			return exitCode
+		}
+	}
+
+	return 0
+}
+
+func runTests(ctx context.Context, txn storage.Transaction, runner *tester.Runner, reporter tester.Reporter) int {
+	var err error
+	var ch chan *tester.Result
+	if testParams.benchmark {
+		benchOpts := tester.BenchmarkOptions{
+			ReportAllocations: testParams.benchMem,
+		}
+		ch, err = runner.RunBenchmarks(ctx, txn, benchOpts)
+	} else {
+		ch, err = runner.RunTests(ctx, txn)
+	}
+
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
 	}
 
 	exitCode := 0
@@ -229,8 +280,10 @@ func opaTest(args []string) int {
 
 	if err := reporter.Report(dup); err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		if _, ok := err.(*cover.CoverageThresholdError); ok {
-			return 2
+		if !testParams.benchmark {
+			if _, ok := err.(*cover.CoverageThresholdError); ok {
+				return 2
+			}
 		}
 		return 1
 	}
@@ -246,8 +299,12 @@ func init() {
 	testCommand.Flags().BoolVarP(&testParams.coverage, "coverage", "c", false, "report coverage (overrides debug tracing)")
 	testCommand.Flags().Float64VarP(&testParams.threshold, "threshold", "", 0, "set coverage threshold and exit with non-zero status if coverage is less than threshold %")
 	testCommand.Flags().BoolVarP(&testParams.bundleMode, "bundle", "b", false, "load paths as bundle files or root directories")
-	setMaxErrors(testCommand.Flags(), &testParams.errLimit)
-	setIgnore(testCommand.Flags(), &testParams.ignore)
-	setExplain(testCommand.Flags(), testParams.explain)
+	testCommand.Flags().BoolVar(&testParams.benchmark, "bench", false, "benchmark the unit tests")
+	testCommand.Flags().StringVarP(&testParams.runRegex, "run", "r", "", "run only test cases matching the regular expression.")
+	addBenchmemFlag(testCommand.Flags(), &testParams.benchMem, true)
+	addCountFlag(testCommand.Flags(), &testParams.count, "test")
+	addMaxErrorsFlag(testCommand.Flags(), &testParams.errLimit)
+	addIgnoreFlag(testCommand.Flags(), &testParams.ignore)
+	setExplainFlag(testCommand.Flags(), testParams.explain)
 	RootCommand.AddCommand(testCommand)
 }

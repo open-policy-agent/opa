@@ -8,8 +8,10 @@ package tester
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
+	"testing"
 	"time"
 
 	"github.com/open-policy-agent/opa/metrics"
@@ -24,7 +26,7 @@ import (
 	"github.com/open-policy-agent/opa/topdown"
 )
 
-// TestPrefix declares the prefix for all rules.
+// TestPrefix declares the prefix for all test rules.
 const TestPrefix = "test_"
 
 // Run executes all test cases found under files in path.
@@ -52,14 +54,15 @@ func RunWithFilter(ctx context.Context, filter loader.Filter, paths ...string) (
 
 // Result represents a single test case result.
 type Result struct {
-	Location *ast.Location    `json:"location"`
-	Package  string           `json:"package"`
-	Name     string           `json:"name"`
-	Fail     bool             `json:"fail,omitempty"`
-	Error    error            `json:"error,omitempty"`
-	Duration time.Duration    `json:"duration"`
-	Trace    []*topdown.Event `json:"trace,omitempty"`
-	FailedAt *ast.Expr        `json:"failed_at,omitempty"`
+	Location        *ast.Location            `json:"location"`
+	Package         string                   `json:"package"`
+	Name            string                   `json:"name"`
+	Fail            bool                     `json:"fail,omitempty"`
+	Error           error                    `json:"error,omitempty"`
+	Duration        time.Duration            `json:"duration"`
+	Trace           []*topdown.Event         `json:"trace,omitempty"`
+	FailedAt        *ast.Expr                `json:"failed_at,omitempty"`
+	BenchmarkResult *testing.BenchmarkResult `json:"benchmark_result,omitempty"`
 }
 
 func newResult(loc *ast.Location, pkg, name string, duration time.Duration, trace []*topdown.Event) *Result {
@@ -91,6 +94,11 @@ func (r *Result) outcome() string {
 	return "ERROR"
 }
 
+// BenchmarkOptions defines options specific to benchmarking tests
+type BenchmarkOptions struct {
+	ReportAllocations bool
+}
+
 // Runner implements simple test discovery and execution.
 type Runner struct {
 	compiler    *ast.Compiler
@@ -102,6 +110,7 @@ type Runner struct {
 	timeout     time.Duration
 	modules     map[string]*ast.Module
 	bundles     map[string]*bundle.Bundle
+	filter      string
 }
 
 // NewRunner returns a new runner.
@@ -174,6 +183,13 @@ func (r *Runner) SetBundles(bundles map[string]*bundle.Bundle) *Runner {
 	return r
 }
 
+// Filter will set a test name regex filter for the test runner. Only test
+// cases which match the filter will be run.
+func (r *Runner) Filter(regex string) *Runner {
+	r.filter = regex
+	return r
+}
+
 func getFailedAtFromTrace(bufFailureLineTracer *topdown.BufferTracer) *ast.Expr {
 	events := *bufFailureLineTracer
 	const SecondToLast = 2
@@ -196,9 +212,29 @@ func (r *Runner) Run(ctx context.Context, modules map[string]*ast.Module) (ch ch
 	return r.SetModules(modules).RunTests(ctx, nil)
 }
 
-// RunTests executes all tests contained in modules
-// found in either modules or bundles loaded on the runner.
+// RunTests executes tests found in either modules or bundles loaded on the runner.
 func (r *Runner) RunTests(ctx context.Context, txn storage.Transaction) (ch chan *Result, err error) {
+	return r.runTests(ctx, txn, r.runTest)
+}
+
+// RunBenchmarks executes tests similar to tester.Runner#RunTests but will repeat
+// a number of times to get stable performance metrics.
+func (r *Runner) RunBenchmarks(ctx context.Context, txn storage.Transaction, options BenchmarkOptions) (ch chan *Result, err error) {
+	return r.runTests(ctx, txn, func(ctx context.Context, txn storage.Transaction, module *ast.Module, rule *ast.Rule) (result *Result, b bool) {
+		return r.runBenchmark(ctx, txn, module, rule, options)
+	})
+}
+
+func (r *Runner) runTests(ctx context.Context, txn storage.Transaction, runFunc func(context.Context, storage.Transaction, *ast.Module, *ast.Rule) (*Result, bool)) (ch chan *Result, err error) {
+	var testRegex *regexp.Regexp
+	if r.filter != "" {
+		var err error
+		testRegex, err = regexp.Compile(r.filter)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	if r.compiler == nil {
 		r.compiler = ast.NewCompiler()
 	}
@@ -265,13 +301,13 @@ func (r *Runner) RunTests(ctx context.Context, txn storage.Transaction) (ch chan
 		for _, name := range filenames {
 			module := r.compiler.Modules[name]
 			for _, rule := range module.Rules {
-				if !strings.HasPrefix(string(rule.Head.Name), TestPrefix) {
+				if !r.shouldRun(rule, testRegex) {
 					continue
 				}
 				tr, stop := func() (*Result, bool) {
 					runCtx, cancel := context.WithTimeout(ctx, r.timeout)
 					defer cancel()
-					return r.runTest(runCtx, txn, module, rule)
+					return runFunc(runCtx, txn, module, rule)
 				}()
 				ch <- tr
 				if stop {
@@ -282,6 +318,23 @@ func (r *Runner) RunTests(ctx context.Context, txn storage.Transaction) (ch chan
 	}()
 
 	return ch, nil
+}
+
+func (r *Runner) shouldRun(rule *ast.Rule, testRegex *regexp.Regexp) bool {
+	ruleName := string(rule.Head.Name)
+
+	// All tests must have the right prefix
+	if !strings.HasPrefix(ruleName, TestPrefix) {
+		return false
+	}
+
+	// Even with the prefix it needs to pass the regex (if applicable)
+	fullName := fmt.Sprintf("%s.%s", rule.Module.Package.Path.String(), ruleName)
+	if testRegex != nil && !testRegex.MatchString(fullName) {
+		return false
+	}
+
+	return true
 }
 
 // rewriteDuplicateTestNames will rewrite duplicate test names to have a numbered suffix.
@@ -356,6 +409,83 @@ func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.
 	} else if b, ok := rs[0].Expressions[0].Value.(bool); !ok || !b {
 		tr.Fail = true
 	}
+
+	return tr, stop
+}
+
+func (r *Runner) runBenchmark(ctx context.Context, txn storage.Transaction, mod *ast.Module, rule *ast.Rule, options BenchmarkOptions) (*Result, bool) {
+	tr := &Result{
+		Location: rule.Loc(),
+		Package:  mod.Package.Path.String(),
+		Name:     string(rule.Head.Name),
+	}
+
+	var stop bool
+
+	t0 := time.Now()
+
+	br := testing.Benchmark(func(b *testing.B) {
+
+		pq, err := rego.New(
+			rego.Store(r.store),
+			rego.Transaction(txn),
+			rego.Compiler(r.compiler),
+			rego.Query(rule.Path().String()),
+			rego.Runtime(r.runtime),
+		).PrepareForEval(ctx)
+
+		if err != nil {
+			tr.Fail = true
+			b.Fatalf("Unexpected error: %s", err)
+		}
+
+		m := metrics.New()
+
+		// Track memory allocations
+		if options.ReportAllocations {
+			b.ReportAllocs()
+		}
+
+		// Don't count setup in the benchmark time, only evaluation time
+		b.ResetTimer()
+
+		for i := 0; i < b.N; i++ {
+
+			// Start the timer (might already be started, but that's ok)
+			b.StartTimer()
+
+			rs, err := pq.Eval(
+				ctx,
+				rego.EvalTransaction(txn),
+				rego.EvalMetrics(m),
+			)
+
+			// Stop the timer so we don't count any of the error handling time
+			b.StopTimer()
+
+			if err != nil {
+				tr.Error = err
+				if topdown.IsCancel(err) && !(ctx.Err() == context.DeadlineExceeded) {
+					stop = true
+				}
+				b.Fatalf("Unexpected error: %s", err)
+			} else if len(rs) == 0 {
+				tr.Fail = true
+				b.Fatal("Expected boolean result, got `undefined`")
+			} else if pass, ok := rs[0].Expressions[0].Value.(bool); !ok || !pass {
+				tr.Fail = true
+				b.Fatal("Expected test to evaluate as true, got false")
+			}
+		}
+
+		for k, v := range m.All() {
+			fv := float64(v.(int64)) / float64(b.N)
+			b.ReportMetric(fv, k+"/op")
+		}
+	})
+
+	tr.Duration = time.Since(t0)
+	tr.BenchmarkResult = &br
 
 	return tr, stop
 }

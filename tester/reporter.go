@@ -26,9 +26,12 @@ type Reporter interface {
 
 // PrettyReporter reports test results in a simple human readable format.
 type PrettyReporter struct {
-	Output      io.Writer
-	Verbose     bool
-	FailureLine bool
+	Output                   io.Writer
+	Verbose                  bool
+	FailureLine              bool
+	BenchmarkResults         bool
+	BenchMarkShowAllocations bool
+	BenchMarkGoBenchFormat   bool
 }
 
 // Report prints the test report to the reporter's output.
@@ -67,7 +70,10 @@ func (r PrettyReporter) Report(ch chan *Result) error {
 
 	// Report individual tests.
 	for _, tr := range results {
-		if r.Verbose {
+		if tr.Pass() && r.BenchmarkResults {
+			dirty = true
+			fmt.Fprintln(r.Output, r.fmtBenchmark(tr))
+		} else if r.Verbose {
 			dirty = true
 			fmt.Fprintln(r.Output, tr)
 		} else if !tr.Pass() {
@@ -111,6 +117,33 @@ func (r PrettyReporter) Report(ch chan *Result) error {
 
 func (r PrettyReporter) hl() {
 	fmt.Fprintln(r.Output, strings.Repeat("-", 80))
+}
+
+func (r PrettyReporter) fmtBenchmark(tr *Result) string {
+	if tr.BenchmarkResult == nil {
+		return ""
+	}
+	name := fmt.Sprintf("%v.%v", tr.Package, tr.Name)
+	if r.BenchMarkGoBenchFormat {
+		// The Golang benchmark data format requires the line start with "Benchmark" and then
+		// the next letter needs to be capitalized.
+		// https://go.googlesource.com/proposal/+/master/design/14313-benchmark-format.md
+		//
+		// This converts the test case name like data.foo.bar.test_auth to be more
+		// like BenchmarkDataFooBarTestAuth.
+		camelCaseName := ""
+		for _, part := range strings.Split(strings.Replace(name, "_", ".", -1), ".") {
+			camelCaseName += strings.Title(part)
+		}
+		name = "Benchmark" + camelCaseName
+	}
+
+	result := fmt.Sprintf("%s\t%s", name, tr.BenchmarkResult.String())
+	if r.BenchMarkShowAllocations {
+		result += "\t" + tr.BenchmarkResult.MemString()
+	}
+
+	return result
 }
 
 // JSONReporter reports test results as array of JSON objects.

@@ -6,7 +6,7 @@ VERSION := 0.18.0-dev
 
 # Force modules on and to use the vendor directory.
 GO := GO111MODULE=on GOFLAGS=-mod=vendor go
-GOVERSION := 1.12.9
+GOVERSION := $(shell cat ./.go-version)
 GOARCH := $(shell go env GOARCH)
 GOOS := $(shell go env GOOS)
 
@@ -250,6 +250,12 @@ release-travis: push-image tag-latest push-latest
 
 .PHONY: release-bugfix-travis
 release-bugfix-travis: deploy-travis
+
+.PHONY: netlify-prod
+netlify-prod: clean docs-clean build docs-generate docs-production-build
+
+.PHONY: netlify-preview
+netlify-preview: clean docs-clean build docs-generate docs-preview-build
 
 ######################################################
 #

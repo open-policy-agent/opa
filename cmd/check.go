@@ -120,8 +120,8 @@ func outputErrors(err error) {
 }
 
 func init() {
-	setMaxErrors(checkCommand.Flags(), &checkParams.errLimit)
-	setIgnore(checkCommand.Flags(), &checkParams.ignore)
+	addMaxErrorsFlag(checkCommand.Flags(), &checkParams.errLimit)
+	addIgnoreFlag(checkCommand.Flags(), &checkParams.ignore)
 	checkCommand.Flags().VarP(checkParams.format, "format", "f", "set output format")
 	checkCommand.Flags().BoolVarP(&checkParams.bundleMode, "bundle", "b", false, "load paths as bundle files or root directories")
 	RootCommand.AddCommand(checkCommand)

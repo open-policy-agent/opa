@@ -1,15 +1,15 @@
 [build]
 publish = "docs/website/public"
-command = "make docs-clean build docs-generate docs-production-build"
+command = "make netlify-prod"
 
 [build.environment]
 HUGO_VERSION = "0.55.5"
 
 [context.deploy-preview]
-command = "make docs-clean build docs-generate docs-preview-build"
+command = "make netlify-preview"
 
 [context.branch-deploy]
-command = "make docs-clean build docs-generate docs-preview-build"
+command = "make netlify-preview"
 
 [dev]
 # "netlify dev" will serve the static content using netlify locally
