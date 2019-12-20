@@ -9,7 +9,7 @@ Requirements:
 
 - Git
 - GitHub account (if you are contributing)
-- Go (version 1.12 is supported though older versions are likely to work)
+- Go (version 1.13 is supported though older versions are likely to work)
 - GNU Make
 
 ## Getting Started
@@ -164,4 +164,5 @@ code is kept in the repository so that commands such as `go get` work.
 If you need to update the version of Go used to build OPA you must update these
 files in the root of this repository:
 
-* `Makefile`- which is used to produce releases locally. Update the `GOVERSION` variable.
+* `.go-version`- which is used by the Makefile and CI tooling. Put the exact go
+  version that OPA should use.

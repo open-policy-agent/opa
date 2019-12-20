@@ -148,7 +148,7 @@ File paths can be specified as URLs to resolve ambiguity in paths containing col
 	runCommand.Flags().MarkDeprecated("insecure-addr", "use --addr instead")
 	runCommand.Flags().StringVarP(&params.OutputFormat, "format", "f", "pretty", "set shell output format, i.e, pretty, json")
 	runCommand.Flags().BoolVarP(&params.Watch, "watch", "w", false, "watch command line files for changes")
-	setMaxErrors(runCommand.Flags(), &params.ErrorLimit)
+	addMaxErrorsFlag(runCommand.Flags(), &params.ErrorLimit)
 	runCommand.Flags().BoolVarP(&params.PprofEnabled, "pprof", "", false, "enables pprof endpoints")
 	runCommand.Flags().StringVarP(&tlsCertFile, "tls-cert-file", "", "", "set path of TLS certificate file")
 	runCommand.Flags().StringVarP(&tlsPrivateKeyFile, "tls-private-key-file", "", "", "set path of TLS private key file")
@@ -161,7 +161,7 @@ File paths can be specified as URLs to resolve ambiguity in paths containing col
 	runCommand.Flags().StringArrayVar(&params.ConfigOverrides, "set", []string{}, "override config values on the command line (use commas to specify multiple values)")
 	runCommand.Flags().StringArrayVar(&params.ConfigOverrideFiles, "set-file", []string{}, "override config values with files on the command line (use commas to specify multiple values)")
 	runCommand.Flags().BoolVarP(&params.BundleMode, "bundle", "b", false, "load paths as bundle files or root directories")
-	setIgnore(runCommand.Flags(), &ignore)
+	addIgnoreFlag(runCommand.Flags(), &ignore)
 
 	usageTemplate := `Usage:
   {{.UseLine}} [files]

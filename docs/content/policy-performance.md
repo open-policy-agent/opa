@@ -333,6 +333,192 @@ Another way to get the same output as above would be the following:
 opa eval --data rbac.rego --profile-limit 5 --profile-sort num_eval --profile-sort num_redo --format=pretty 'data.rbac.allow'
 ```
 
+## Benchmarking Queries
+OPA provides CLI options to benchmark a single query via the `opa bench` command. This will evaluate similarly to
+`opa eval` but it will repeat the evaluation (in its most efficient form) a number of times and report metrics.
+
+
+#### Example: Benchmark rbac allow
+Using the same [policy source as shown above](#example-policy):
+```bash
+$ opa bench --data rbac.rego 'data.rbac.allow'
+```
+
+Will result in an output similar to:
+```
++-------------------------------------------+------------+
+| samples                                   |      27295 |
+| ns/op                                     |      45032 |
+| B/op                                      |      20977 |
+| allocs/op                                 |        382 |
+| histogram_timer_rego_query_eval_ns_stddev |      25568 |
+| histogram_timer_rego_query_eval_ns_99.9%  |     335906 |
+| histogram_timer_rego_query_eval_ns_99.99% |     336493 |
+| histogram_timer_rego_query_eval_ns_mean   |      40355 |
+| histogram_timer_rego_query_eval_ns_median |      35846 |
+| histogram_timer_rego_query_eval_ns_99%    |     133936 |
+| histogram_timer_rego_query_eval_ns_90%    |      44780 |
+| histogram_timer_rego_query_eval_ns_95%    |      50815 |
+| histogram_timer_rego_query_eval_ns_min    |      31284 |
+| histogram_timer_rego_query_eval_ns_max    |     336493 |
+| histogram_timer_rego_query_eval_ns_75%    |      38254 |
+| histogram_timer_rego_query_eval_ns_count  |      27295 |
++-------------------------------------------+------------+
+```
+
+These results capture metrics of `samples` runs, where only the query evaluation is measured. All time spent preparing
+to evaluate (loading, parsing, compiling, etc.) is omitted.
+
+> Note: all `*/op` results are an average over the number of `samples` (or `N` in the JSON format)
+
+#### Options for `opa bench`
+| Option | Detail | Default |
+| --- | --- | --- |
+| <span class="opa-keep-it-together">`--benchmem`</span> | Report memory allocations with benchmark results. | true |
+| <span class="opa-keep-it-together">`--metrics`</span> | Report additional query performance metrics. | true |
+| <span class="opa-keep-it-together">`--count`</span> | Number of times to repeat the benchmark. | 1 |
+
+
+### Benchmarking OPA Tests
+
+There is also a `--bench` option for `opa test` which will perform benchmarking on OPA unit tests. This will evaluate
+any loaded tests as benchmarks. There will be additional time for any test-specific actions are included so the timing
+will typically be longer than what is seen with `opa bench`. The primary use-case is not for absolute time, but to
+track relative time as policies change.
+
+#### Options for `opa test --bench`
+| Option | Detail | Default |
+| --- | --- | --- |
+| <span class="opa-keep-it-together">`--benchmem`</span> | Report memory allocations with benchmark results. | true |
+| <span class="opa-keep-it-together">`--count`</span> | Number of times to repeat the benchmark. | 1 |
+
+
+#### Example Tests
+Adding a unit test file for the [policy source as shown above](#example-policy):
+
+```rego
+package rbac
+
+
+test_user_has_role_dev {
+    user_has_role["dev"] with input as {"subject": "alice"}
+}
+
+test_user_has_role_negative {
+    not user_has_role["super-admin"] with input as {"subject": "alice"}
+}
+```
+
+Which when run normally will output something like:
+```
+$ opa test -v ./rbac.rego ./rbac_test.rego
+data.rbac.test_user_has_role_dev: PASS (605.076µs)
+data.rbac.test_user_has_role_negative: PASS (318.047µs)
+--------------------------------------------------------------------------------
+PASS: 2/2
+```
+
+#### Example: Benchmark rbac unit tests
+
+```bash
+opa test -v --bench ./rbac.rego ./rbac_test.rego
+```
+Results in output:
+```
+data.rbac.test_user_has_role_dev	   44749	     27677 ns/op	     23146 timer_rego_query_eval_ns/op	   12303 B/op	     229 allocs/op
+data.rbac.test_user_has_role_negative	   44526	     26348 ns/op	     22033 timer_rego_query_eval_ns/op	   12470 B/op	     235 allocs/op
+--------------------------------------------------------------------------------
+PASS: 2/2
+```
+
+#### Example: Benchmark rbac unit tests and compare with `benchstat`
+The benchmark output formats default to `pretty`, but support a `gobench` format which complies with the
+[Golang Benchmark Data Format](https://go.googlesource.com/proposal/+/master/design/14313-benchmark-format.md).
+This allows for usage of tools like [benchstat](https://godoc.org/golang.org/x/perf/cmd/benchstat) to gain additional
+insight into the benchmark results and to diff between benchmark results.
+
+Example:
+```bash
+opa test -v --bench --count 10 --format gobench ./rbac.rego ./rbac_test.rego | tee ./old.txt
+```
+Will result in an `old.txt` and output similar to:
+```
+BenchmarkDataRbacTestUserHasRoleDev	   45152	     26323 ns/op	     22026 timer_rego_query_eval_ns/op	   12302 B/op	     229 allocs/op
+BenchmarkDataRbacTestUserHasRoleNegative	   45483	     26253 ns/op	     21986 timer_rego_query_eval_ns/op	   12470 B/op	     235 allocs/op
+--------------------------------------------------------------------------------
+PASS: 2/2
+.
+.
+```
+Repeated 10 times (as specified by the `--count` flag).
+
+This format can then be loaded by `benchstat`:
+
+```bash
+benchstat ./old.txt
+```
+Output:
+```
+name                             time/op
+DataRbacTestUserHasRoleDev                       29.8µs ±18%
+DataRbacTestUserHasRoleNegative                  32.0µs ±35%
+
+name                             timer_rego_query_eval_ns/op
+DataRbacTestUserHasRoleDev                        25.0k ±18%
+DataRbacTestUserHasRoleNegative                   26.7k ±35%
+
+name                             alloc/op
+DataRbacTestUserHasRoleDev                       12.3kB ± 0%
+DataRbacTestUserHasRoleNegative                  12.5kB ± 0%
+
+name                             allocs/op
+DataRbacTestUserHasRoleDev                          229 ± 0%
+DataRbacTestUserHasRoleNegative                     235 ± 0%
+```
+
+If later on a change was introduced that altered the performance we can run again:
+
+```bash
+opa test -v --bench --count 10 --format gobench ./rbac.rego ./rbac_test.rego | tee ./new.txt
+```
+```
+BenchmarkDataRbacTestUserHasRoleDev	   27415	     43671 ns/op	     39301 timer_rego_query_eval_ns/op	   17201 B/op	     379 allocs/op
+BenchmarkDataRbacTestUserHasRoleNegative	   27583	     44743 ns/op	     40152 timer_rego_query_eval_ns/op	   17369 B/op	     385 allocs/op
+--------------------------------------------------------------------------------
+PASS: 2/2
+.
+.
+```
+(Repeated 10 times)
+
+Then we can compare the results via:
+
+```bash
+benchstat ./old.txt ./new.txt
+```
+```
+name                             old time/op                      new time/op                      delta
+DataRbacTestUserHasRoleDev                           29.8µs ±18%                      47.4µs ±15%  +59.06%  (p=0.000 n=9+10)
+DataRbacTestUserHasRoleNegative                      32.0µs ±35%                      47.1µs ±14%  +47.48%  (p=0.000 n=10+9)
+
+name                             old timer_rego_query_eval_ns/op  new timer_rego_query_eval_ns/op  delta
+DataRbacTestUserHasRoleDev                            25.0k ±18%                       42.6k ±15%  +70.51%  (p=0.000 n=9+10)
+DataRbacTestUserHasRoleNegative                       26.7k ±35%                       42.3k ±14%  +58.15%  (p=0.000 n=10+9)
+
+name                             old alloc/op                     new alloc/op                     delta
+DataRbacTestUserHasRoleDev                           12.3kB ± 0%                      17.2kB ± 0%  +39.81%  (p=0.000 n=10+10)
+DataRbacTestUserHasRoleNegative                      12.5kB ± 0%                      17.4kB ± 0%  +39.28%  (p=0.000 n=10+10)
+
+name                             old allocs/op                    new allocs/op                    delta
+DataRbacTestUserHasRoleDev                              229 ± 0%                         379 ± 0%  +65.50%  (p=0.000 n=10+10)
+DataRbacTestUserHasRoleNegative                         235 ± 0%                         385 ± 0%  +63.83%  (p=0.000 n=10+10)
+```
+
+This gives clear feedback that the evaluations have slowed down considerably by looking at the `delta`
+
+> Note that for [benchstat](https://godoc.org/golang.org/x/perf/cmd/benchstat) you will want to run with `--count` to
+> repeat the benchmarks a number of times (5-10 is usually enough). The tool requires several data points else the `p`
+> value will not show meaningful changes and the `delta` will be `~`.
 
 ### Key Takeaways
 
@@ -343,5 +529,5 @@ For high-performance use cases:
   * Consider [partial-evaluation](https://blog.openpolicyagent.org/partial-evaluation-162750eaf422) to compile non-linear policies to linear policies.
 * Write your policies with indexed statements so that [rule-indexing](https://blog.openpolicyagent.org/optimizing-opa-rule-indexing-59f03f17caf3) is effective.
 * Use the profiler to help identify portions of the policy that would benefit the most from improved performance.
-
+* Use the benchmark tools to help get real world timing data and detect policy performance changes.
 

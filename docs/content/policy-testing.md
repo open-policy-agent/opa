@@ -116,6 +116,12 @@ The `opa test` subcommand runs all of the tests (i.e., rules prefixed with
 passed as command line arguments, `opa test` will load their file contents
 recursively.
 
+## Specifying Tests to Run
+
+The `opa test` subcommand supports a `--run`/`-r` regex option to further
+specify which of the discovered tests should be evaluated. The option supports
+[re2 syntax](https://github.com/google/re2/wiki/Syntax)
+
 ## Test Results
 
 If the test rule is undefined or generates a non-`true` value the test result
