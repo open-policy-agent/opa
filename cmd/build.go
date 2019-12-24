@@ -32,8 +32,8 @@ executable that can be loaded into an enforcement point and evaluated with
 input values. By default, the build command produces WebAssembly (WASM)
 executables.`,
 	PreRunE: func(Cmd *cobra.Command, args []string) error {
-		if len(args) == 0 {
-			return fmt.Errorf("specify query argument")
+		if len(args) != 1 {
+			return fmt.Errorf("specify exactly one query argument")
 		}
 		return nil
 	},
