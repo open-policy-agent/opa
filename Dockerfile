@@ -4,13 +4,13 @@
 
 ARG VARIANT
 
+FROM gcr.io/distroless/base${VARIANT}
+
 # Any non-zero number will do, and unfortunately a named user will not, as k8s
 # pod securityContext runAsNonRoot can't resolve the user ID:
 # https://github.com/kubernetes/kubernetes/issues/40958. Make root (uid 0) when
 # not specified.
 ARG USER=0
-
-FROM gcr.io/distroless/base${VARIANT}
 
 MAINTAINER Torin Sandall <torinsandall@gmail.com>
 COPY opa_linux_amd64 /opa
