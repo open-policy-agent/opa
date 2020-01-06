@@ -13,7 +13,7 @@ For the purpose of the tutorial we will deploy two policies that ensure:
 
 ## Prerequisites
 
-This tutorial requires Kubernetes 1.9 or later. To run the tutorial locally, we recommend using [minikube](https://kubernetes.io/docs/getting-started-guides/minikube) in version `v0.28+` with Kubernetes 1.10 (which is the default).
+This tutorial requires Kubernetes 1.13 or later. To run the tutorial locally ensure you start a cluster with Kubernetes version 1.13+, we recommend using [minikube](https://kubernetes.io/docs/getting-started-guides/minikube) or [KIND](https://kind.sigs.k8s.io/).
 
 ## Steps
 
@@ -146,7 +146,7 @@ spec:
     port: 443
     targetPort: 443
 ---
-apiVersion: extensions/v1beta1
+apiVersion: apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
