@@ -48,6 +48,16 @@ This is a list of production adopters of OPA (in alphabetical order):
   description of how Netflix has architected access control with OPA
   check out [this talk from KubeCon Austin 2017](https://www.youtube.com/watch?v=R6tUNpRpdnY).
 
+* [Plex Systems](https://www.plex.com) uses OPA to enforce policy throughout
+  their entire release process; from local development to continuous production
+  audits. The CI/CD pipelines at Plex leverage [conftest](https://github.com/instrumenta/conftest),
+  a policy enforcement tool that relies on OPA, to automatically reject changes that do not adhere 
+  to defined policies. Plex also uses
+  [Gatekeeper](https://github.com/open-policy-agent/gatekeeper), a Kubernetes policy controller, as
+  a means to enforce policies within their Kubernetes clusters. The general-purpose nature of OPA
+  has enabled Plex to have a consistent means of policy enforcement,
+  no matter the environment.
+
 * [SAP/InfraBox](https://github.com/SAP/Infrabox) integrates OPA to
   implement authorization over HTTP API resources. OPA policies
   evaluate user and permission data replicated from Postgres to make
