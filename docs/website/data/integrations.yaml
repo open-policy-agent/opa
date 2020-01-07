@@ -160,9 +160,11 @@ integrations:
     code:
       - https://github.com/llofberg/kafka-authorizer-opa
       - https://github.com/open-policy-agent/contrib/tree/master/kafka_authorizer
+      - https://github.com/Bisnode/opa-kafka-plugin
     inventors:
       - ticketmaster
       - styra
+      - bisnode
 
   ceph:
     title: Ceph Object Storage Authorization
@@ -446,6 +448,25 @@ integrations:
       - https://github.com/segrax/opa-php-examples
       - https://github.com/segrax/openpolicyagent
 
+  gradle-plugin:
+    title: Gradle Build Plugin
+    description: Build plugin adding various tasks to support using OPA as part of Gradle builds
+    labels:
+      layer: cicd
+      category: cicdplugin
+      type: poweredbyopa
+    software:
+      - gradle
+      - java
+      - groovy
+      - kotlin
+      - jvm
+    code:
+      - https://github.com/Bisnode/opa-gradle-plugin
+      - https://plugins.gradle.org/plugin/com.bisnode.opa
+    inventors:
+      - bisnode
+
 organizations:
   styra:
     name: Styra
@@ -498,6 +519,9 @@ organizations:
   boomerang:
     name: Boomerang
     link: https://www.useboomerang.io/
+  bisnode:
+    name: Bisnode
+    link: https://www.bisnode.com
 
 software:
   kubernetes:
@@ -575,3 +599,6 @@ software:
   php:
     name: PHP
     link: https://www.php.net/
+  gradle:
+    name: Gradle
+    link: https://gradle.org/
