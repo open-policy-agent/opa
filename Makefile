@@ -197,7 +197,7 @@ build-windows:
 image-quick:
 	$(DOCKER) build -t $(IMAGE):$(VERSION) .
 	$(DOCKER) build -t $(IMAGE):$(VERSION)-debug --build-arg VARIANT=:debug .
-	$(DOCKER) build -t $(IMAGE):$(VERSION)-rootless --build-arg USER=1 .
+	$(DOCKER) build -t $(IMAGE):$(VERSION)-rootless --build-arg USER=1000 .
 
 .PHONY: push
 push:
