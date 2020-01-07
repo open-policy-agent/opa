@@ -97,6 +97,12 @@ pre-production (in alphabetical order):
   December 2018, ~850 ORY Keto instances were running in a mix of
   pre-production and production environments.
 
+* [Spacelift](https://spacelift.io) is a specialized CI/CD platform
+  for infrastructure-as-code. Spacelift is [using OPA](https://docs.spacelift.io/concepts/policy) to provide flexible,
+  fine-grained controls at various application decision points, including
+  automated code review, defining access levels or blocking execution of
+  unwanted code.
+
 Other adopters that have gone into production or various stages of
 testing include:
 
