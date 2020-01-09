@@ -643,6 +643,56 @@ func TestPluginBulkListener(t *testing.T) {
 	}
 }
 
+func TestPluginBulkListenerStatusCopyOnly(t *testing.T) {
+	ctx := context.Background()
+	manager := getTestManager()
+	plugin := Plugin{manager: manager, status: map[string]*Status{}, etags: map[string]string{}}
+	bundleNames := []string{
+		"b1",
+		"b2",
+		"b3",
+	}
+	for _, name := range bundleNames {
+		plugin.status[name] = &Status{Name: name}
+	}
+	bulkChan := make(chan map[string]*Status)
+
+	plugin.RegisterBulkListener("bulk test", func(status map[string]*Status) {
+		bulkChan <- status
+	})
+
+	module := "package gork\np[x] { x = 1 }"
+
+	b := bundle.Bundle{
+		Manifest: bundle.Manifest{
+			Revision: "quickbrownfaux",
+			Roots:    &[]string{"gork"},
+		},
+		Data: map[string]interface{}{},
+		Modules: []bundle.ModuleFile{
+			{
+				Path:   "/foo.rego",
+				Parsed: ast.MustParseModule(module),
+				Raw:    []byte(module),
+			},
+		},
+	}
+
+	b.Manifest.Init()
+
+	// Test that initial bundle is ok. Defer to separate goroutine so we can
+	// check result with channel.
+	go plugin.oneShot(ctx, bundleNames[0], download.Update{Bundle: &b})
+	s1 := <-bulkChan
+
+	// Modify the status map received and ensure it doesn't affect the one on the plugin
+	delete(s1, "b1")
+
+	if _, ok := plugin.status["b1"]; !ok {
+		t.Fatalf("Expected status for 'b1' to still be in 'plugin.status'")
+	}
+}
+
 func TestPluginActivateScopedBundle(t *testing.T) {
 
 	ctx := context.Background()
