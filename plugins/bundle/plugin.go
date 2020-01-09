@@ -252,7 +252,15 @@ func (p *Plugin) oneShot(ctx context.Context, name string, u download.Update) {
 	}
 
 	for _, listener := range p.bulkListeners {
-		listener(p.status)
+		// Send a copy of the full status map to the bulk listeners.
+		// They shouldn't have access to the original underlying
+		// map, primarily for thread safety issues with modifications
+		// made to it.
+		statusCpy := map[string]*Status{}
+		for k, v := range p.status {
+			statusCpy[k] = v
+		}
+		listener(statusCpy)
 	}
 }
 
