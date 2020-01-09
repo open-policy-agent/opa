@@ -15,6 +15,8 @@ github.com/gobwas/glob/util/runes
 github.com/gobwas/glob/util/strings
 # github.com/golang/protobuf v0.0.0-20181025225059-d3de96c4c28e
 github.com/golang/protobuf/proto
+# github.com/google/gofuzz v1.0.0
+github.com/google/gofuzz
 # github.com/gorilla/mux v0.0.0-20181024020800-521ea7b17d02
 github.com/gorilla/mux
 # github.com/inconshreveable/mousetrap v1.0.0
@@ -81,5 +83,7 @@ golang.org/x/tools/internal/module
 golang.org/x/tools/internal/semver
 # gopkg.in/fsnotify.v1 v1.4.7
 gopkg.in/fsnotify.v1
+# gopkg.in/inf.v0 v0.9.1
+gopkg.in/inf.v0
 # gopkg.in/yaml.v2 v2.2.1
 gopkg.in/yaml.v2

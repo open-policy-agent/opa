@@ -193,6 +193,7 @@ var DefaultBuiltins = [...]*Builtin{
 
 	// Units
 	UnitsParseBytes,
+	UnitsCompareMemory,
 }
 
 // BuiltinMap provides a convenient mapping of built-in names to
@@ -900,6 +901,18 @@ var UnitsParseBytes = &Builtin{
 	Name: "units.parse_bytes",
 	Decl: types.NewFunction(
 		types.Args(
+			types.S,
+		),
+		types.N,
+	),
+}
+
+// UnitsCompareMemory compares size of memory sizes such as 1Ei, 0.5G.
+var UnitsCompareMemory = &Builtin{
+	Name: "units.compare_memory",
+	Decl: types.NewFunction(
+		types.Args(
+			types.S,
 			types.S,
 		),
 		types.N,

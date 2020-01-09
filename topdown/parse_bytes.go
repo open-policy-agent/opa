@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/internal/resource"
 	"github.com/open-policy-agent/opa/topdown/builtins"
 )
 
@@ -33,6 +34,10 @@ func parseNumBytesError(msg string) error {
 	return fmt.Errorf("%s error: %s", ast.UnitsParseBytes.Name, msg)
 }
 
+func compareMemoryError(msg string) error {
+	return fmt.Errorf("%s error: %s", ast.UnitsCompareMemory.Name, msg)
+}
+
 func errUnitNotRecognized(unit string) error {
 	return parseNumBytesError(fmt.Sprintf("byte unit %s not recognized", unit))
 }
@@ -41,6 +46,7 @@ var (
 	errNoAmount       = parseNumBytesError("no byte amount provided")
 	errIntConv        = parseNumBytesError("could not parse byte amount to integer")
 	errIncludesSpaces = parseNumBytesError("spaces not allowed in resource strings")
+	errParsingMemory  = compareMemoryError("could not parse parameters into valid quantity before comparision")
 )
 
 func builtinNumBytes(a ast.Value) (ast.Value, error) {
@@ -148,6 +154,30 @@ func extractNumAndUnit(s string) (string, string) {
 	}
 }
 
+func builtinCompareMemory(a ast.Value, b ast.Value) (ast.Value, error) {
+
+	rawA, err := builtins.StringOperand(a, 1)
+	if err != nil {
+		return nil, err
+	}
+	quantityA, err := resource.ParseQuantity(string(rawA))
+	if err != nil {
+		return nil, errParsingMemory
+	}
+
+	rawB, err := builtins.StringOperand(b, 1)
+	if err != nil {
+		return nil, err
+	}
+	quantityB, err := resource.ParseQuantity(string(rawB))
+	if err != nil {
+		return nil, errParsingMemory
+	}
+
+	return builtins.IntToNumber(big.NewInt(int64(quantityA.Cmp(quantityB)))), nil
+}
+
 func init() {
 	RegisterFunctionalBuiltin1(ast.UnitsParseBytes.Name, builtinNumBytes)
+	RegisterFunctionalBuiltin2(ast.UnitsCompareMemory.Name, builtinCompareMemory)
 }

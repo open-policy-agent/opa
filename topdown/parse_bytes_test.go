@@ -138,3 +138,101 @@ func parseIntFromString(t *testing.T, s string) int {
 
 	return num
 }
+
+func TestCompareMemory(t *testing.T) {
+
+	t.Run("SuccessfulCompare", func(t *testing.T) {
+		tests := []struct {
+			note, first, second string
+			expected            int
+		}{
+			{"zero", `0`, `0`, 0},
+			{"zeroNoNumber", `Gi`, `G`, 0},
+			{"zeroNoNumberCrossUnit", `Gi`, `k`, 0},
+			{"RawNumber", `12345`, `2`, 1},
+			{"RawNumberFloat", `10.25`, `10.25`, 0},
+			{"RawNumberFloatTwo", `10.25M`, `10.25`, 1},
+			{"RawNumberScientificGreater", `12345`, `2e3`, 1},
+			{"RawNumberScientificLess", `123`, `2e3`, -1},
+			{"RawNumberScientificEqual", `2000`, `2e3`, 0},
+			{"CrossUnitLess", `123Mi`, `1G`, -1},
+			{"CrossUnitGreaterOne", `1235Mi`, `1G`, 1},
+			{"CrossUnitGreaterTwo", `1025Mi`, `1G`, 1},
+			{"CrossUnitGreaterThree", `1G`, `999M`, 1},
+			{"CrossUnitSameOne", `1024`, `1Ki`, 0},
+			{"CrossUnitSameTwo", `1000`, `1k`, 0},
+			{"CrossUnitSameThree", `1024Mi`, `1Gi`, 0},
+			{"CrossUnitSameFour", `1024Pi`, `1Ei`, 0},
+			{"CrossUnitSameFive", `129M`, `129e6`, 0},
+			{"CrossUnitSameSix", `128974848`, `123Mi`, 0},
+			{"BigNumber", `1000E`, `10000E`, -1},
+			{"BigNumberTwo", `1e234`, `1e235`, -1},
+		}
+
+		for _, tc := range tests {
+			runCompareMemoryTest(t, tc.note, tc.first, tc.second, tc.expected)
+		}
+	})
+
+	t.Run("ExpectFailure", func(t *testing.T) {
+		tests := []struct {
+			first, second string
+			expectedErr   error
+		}{
+			{"xGi", "123", errParsingMemory},
+			{"foo", "123", errParsingMemory},
+			{"123", "xGi", errParsingMemory},
+			{"123", "foo", errParsingMemory},
+		}
+
+		for _, tc := range tests {
+			runCompareMemoryFailureTest(t, tc.first, tc.second, tc.expectedErr)
+		}
+	})
+}
+
+func runCompareMemoryFailureTest(t *testing.T, first string, second string, expectedErr error) {
+	firstVal := ast.StringTerm(first).Value
+	secondVal := ast.StringTerm(second).Value
+	res, err := builtinCompareMemory(firstVal, secondVal)
+
+	if res != nil {
+		t.Fatalf(`compare memory err: expected returned value for %s and %s to be nil`, first, second)
+	}
+
+	if err == nil {
+		t.Fatalf(`compare memory err: compare %s and %s should return error`, first, second)
+	}
+
+	if err.Error() != expectedErr.Error() {
+		t.Fatalf(`compare memory err: compare %s and %s should produce error %v but got %v`, first, second, expectedErr, err)
+	}
+}
+
+func runCompareMemoryTest(t *testing.T, note, first string, second string, expected int) {
+	t.Helper()
+
+	num := compareMemory(t, first, second)
+
+	if num != expected {
+		t.Fatalf(`compare memory failure on "%s": expected value %d, but got %d`, note, expected, num)
+	}
+}
+
+func compareMemory(t *testing.T, first string, second string) int {
+	firstVal := ast.StringTerm(first).Value
+	secondVal := ast.StringTerm(second).Value
+	res, err := builtinCompareMemory(firstVal, secondVal)
+
+	if err != nil {
+		t.Fatalf(`compare memory err: could not parse "%s" or "%s" into quantity: %v`, firstVal, secondVal, err)
+	}
+
+	i := res.(ast.Number)
+	num, ok := i.Int()
+	if !ok {
+		t.Fatalf("compare memory err: could not parse value %s into int", res.String())
+	}
+
+	return num
+}

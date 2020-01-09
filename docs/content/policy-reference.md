@@ -148,7 +148,7 @@ The following table shows examples of how ``glob.match`` works:
 | Built-in | Description |
 | --- | --- |
 | <span class="opa-keep-it-together">``output := units.parse_bytes(x)``</span> | ``output`` is ``x`` converted to a number with support for standard byte units (e.g., KB, KiB, etc.) KB, MB, GB, and TB are treated as decimal units and KiB, MiB, GiB, and TiB are treated as binary units. |
-
+| <span class="opa-keep-it-together">``output := units.compare_memory(x, y)``</span> | ``output`` is ``0`` if x is equal to y; ``-1`` if x is smaller than y and ``1`` if x is greater than y|
 ### Types
 
 | Built-in | Description |
