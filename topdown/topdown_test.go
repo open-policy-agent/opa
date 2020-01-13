@@ -927,6 +927,8 @@ func TestTopDownIndirectReferences(t *testing.T) {
 		{"array", []string{`p[x] {[1, 2, 3][x]}`}, "[0, 1, 2]"},
 		{"call", []string{`p {split("foo.bar", ".")[0] == "foo"}`}, "true"},
 		{"multiple call", []string{`p[x] {split(split("foo.bar:qux", ".")[_], ":")[i] = x}`}, `["foo", "bar", "qux"]`},
+		{"user call", []string{`f(x) = [x] {true}`, `p[x] {x = f(1)[0]}`}, "[1]"},
+		{"user call in comprehension", []string{`f(x) = [x] {true}`, `p[x] {x = [y | y = f(1)][_][_]}`}, "[1]"},
 	}
 
 	data := loadSmallTestData()

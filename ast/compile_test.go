@@ -1027,6 +1027,30 @@ p[foo[bar[i]]] = {"baz": baz} { true }`)
 		}
 		`)
 
+	c.Modules["indirectrefs"] = MustParseModule(`package indirectrefs
+
+		f(x) = [x] {true}
+
+		p {
+			f(1)[0]
+		}
+		`)
+
+	c.Modules["comprehensions"] = MustParseModule(`package comprehensions
+
+		nums = [1, 2, 3]
+
+		f(x) = [x] {true}
+
+		p[[1]] {true}
+
+		q {
+			p[[x | x = nums[_]]]
+		}
+
+		r = [y | y = f(1)[0]]
+		`)
+
 	compileStages(c, c.resolveAllRefs)
 	assertNotFailed(t, c)
 
@@ -1129,6 +1153,15 @@ p[foo[bar[i]]] = {"baz": baz} { true }`)
 	if parsedLoc.Row != compiledLoc.Row {
 		t.Fatalf("Expected parsed location (%v) and compiled location (%v) to be equal", parsedLoc.Row, compiledLoc.Row)
 	}
+
+	// Indirect references.
+	mod12 := c.Modules["indirectrefs"]
+	assertExprEqual(t, mod12.Rules[1].Body[0], MustParseExpr("data.indirectrefs.f(1)[0]"))
+
+	// Comprehensions
+	mod13 := c.Modules["comprehensions"]
+	assertExprEqual(t, mod13.Rules[3].Body[0].Terms.(*Term).Value.(Ref)[3].Value.(*ArrayComprehension).Body[0], MustParseExpr("x = data.comprehensions.nums[_]"))
+	assertExprEqual(t, mod13.Rules[4].Head.Value.Value.(*ArrayComprehension).Body[0], MustParseExpr("y = data.comprehensions.f(1)[0]"))
 }
 
 func TestCompilerResolveErrors(t *testing.T) {
