@@ -2212,7 +2212,7 @@ func resolveRef(globals map[Var]Ref, ignore *declaredVarStack, ref Ref) Ref {
 			} else {
 				r = append(r, x)
 			}
-		case Ref, Array, Object, Set:
+		case Ref, Array, Object, Set, *ArrayComprehension, *SetComprehension, *ObjectComprehension, Call:
 			r = append(r, resolveRefsInTerm(globals, ignore, x))
 		default:
 			r = append(r, x)
