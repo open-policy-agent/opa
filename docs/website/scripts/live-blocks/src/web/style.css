@@ -31,7 +31,7 @@
   flex-direction: row-reverse;
   display: flex;
   justify-content: flex-start;
-  font-size: 0.875em; /*TODO set for both this and codemirror, try setting it on container*/
+  font-size: 1.275em; /*TODO set for both this and codemirror, try setting it on container*/
   align-items: center;
 }
 
