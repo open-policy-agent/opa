@@ -31,7 +31,7 @@ func All(x interface{}) (resolved []ast.Ref, err error) {
 			return true
 		case ast.Body:
 			vars := ast.NewVarVisitor()
-			ast.Walk(vars, x)
+			vars.Walk(x)
 
 			var arr ast.Array
 			for v := range vars.Vars() {
@@ -55,7 +55,7 @@ func All(x interface{}) (resolved []ast.Ref, err error) {
 		}
 		return false
 	})
-	ast.Walk(visitor, x)
+	visitor.Walk(x)
 	if len(rawResolved) == 0 {
 		return nil, nil
 	}
@@ -219,17 +219,18 @@ func ruleDeps(rule *ast.Rule) (resolved []ast.Ref) {
 	// Clean up whatever refs are remaining among the other expressions.
 	for _, expr := range others {
 		ast.WalkRefs(expr, resolveRef)
-		ast.Walk(varVisitor, expr)
+		varVisitor.Walk(expr)
 	}
 
 	// If a reference ending in a header variable is a prefix of an already
 	// resolved reference, skip it and simply walk the nodes below it.
-	visitor := skipVisitor{resolveRef}
+	visitor := &skipVisitor{fn: resolveRef}
 	for _, r := range headRefs {
 		if !containsPrefix(resolved, r) {
 			resolved = append(resolved, r.Copy())
 		}
-		ast.Walk(visitor, r)
+		visitor.skipped = false
+		ast.NewGenericVisitor(visitor.Visit).Walk(r)
 	}
 
 	usedVars := varVisitor.Vars()
@@ -365,16 +366,18 @@ func resolveOthers(others []*ast.Expr, headVars ast.VarSet, joined map[ast.Var]*
 	return headRefs, leftover
 }
 
-func resolveRemainingVars(joined map[ast.Var]*util.HashMap, visitor ast.Visitor, usedVars ast.VarSet, headVars ast.VarSet) {
+func resolveRemainingVars(joined map[ast.Var]*util.HashMap, visitor *skipVisitor, usedVars ast.VarSet, headVars ast.VarSet) {
 	for v, refs := range joined {
 		visit := visitor
+		visit.skipped = false
+
 		if headVars.Contains(v) || refs.Len() > 1 || usedVars.Contains(v) {
-			visit = visit.Visit(nil)
+			visit.skipped = true
 		}
 
 		refs.Iter(func(a, _ util.T) bool {
 			r := a.(ast.Ref)
-			ast.Walk(visit, r)
+			ast.NewGenericVisitor(visit.Visit).Walk(r)
 			return false
 		})
 	}
@@ -400,14 +403,17 @@ func refHash(a util.T) int {
 }
 
 type skipVisitor struct {
-	fn func(ast.Ref) bool
+	fn      func(ast.Ref) bool
+	skipped bool
 }
 
-func (sv skipVisitor) Visit(v interface{}) ast.Visitor {
-	return ast.NewGenericVisitor(func(x interface{}) bool {
-		if r, ok := x.(ast.Ref); ok {
+func (sv *skipVisitor) Visit(v interface{}) bool {
+	if sv.skipped {
+		if r, ok := v.(ast.Ref); ok {
 			return sv.fn(r)
 		}
-		return false
-	})
+	}
+
+	sv.skipped = true
+	return false
 }

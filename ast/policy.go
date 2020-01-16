@@ -667,13 +667,13 @@ func (head *Head) Vars() VarSet {
 	vis := &VarVisitor{vars: VarSet{}}
 	// TODO: improve test coverage for this.
 	if head.Args != nil {
-		Walk(vis, head.Args)
+		vis.Walk(head.Args)
 	}
 	if head.Key != nil {
-		Walk(vis, head.Key)
+		vis.Walk(head.Key)
 	}
 	if head.Value != nil {
-		Walk(vis, head.Value)
+		vis.Walk(head.Value)
 	}
 	return vis.vars
 }
@@ -726,7 +726,7 @@ func (a Args) SetLoc(loc *Location) {
 // Vars returns a set of vars that appear in a.
 func (a Args) Vars() VarSet {
 	vis := &VarVisitor{vars: VarSet{}}
-	Walk(vis, a)
+	vis.Walk(a)
 	return vis.vars
 }
 
@@ -856,7 +856,7 @@ func (body Body) String() string {
 // control which vars are included.
 func (body Body) Vars(params VarVisitorParams) VarSet {
 	vis := NewVarVisitor().WithParams(params)
-	Walk(vis, body)
+	vis.Walk(body)
 	return vis.Vars()
 }
 
@@ -1147,7 +1147,7 @@ func (expr *Expr) UnmarshalJSON(bs []byte) error {
 // control which vars are included.
 func (expr *Expr) Vars(params VarVisitorParams) VarSet {
 	vis := NewVarVisitor().WithParams(params)
-	Walk(vis, expr)
+	vis.Walk(expr)
 	return vis.Vars()
 }
 

@@ -58,10 +58,11 @@ func (u *bindings) Iter(caller *bindings, iter func(*ast.Term, *ast.Term) error)
 }
 
 func (u *bindings) Namespace(x ast.Node, caller *bindings) {
-	ast.Walk(namespacingVisitor{
+	vis := namespacingVisitor{
 		b:      u,
 		caller: caller,
-	}, x)
+	}
+	ast.NewGenericVisitor(vis.Visit).Walk(x)
 }
 
 func (u *bindings) Plug(a *ast.Term) *ast.Term {
@@ -205,21 +206,21 @@ type namespacingVisitor struct {
 	caller *bindings
 }
 
-func (vis namespacingVisitor) Visit(x interface{}) ast.Visitor {
+func (vis namespacingVisitor) Visit(x interface{}) bool {
 	switch x := x.(type) {
 	case *ast.ArrayComprehension:
 		x.Term = vis.namespaceTerm(x.Term)
-		ast.Walk(vis, x.Body)
-		return nil
+		ast.NewGenericVisitor(vis.Visit).Walk(x.Body)
+		return true
 	case *ast.SetComprehension:
 		x.Term = vis.namespaceTerm(x.Term)
-		ast.Walk(vis, x.Body)
-		return nil
+		ast.NewGenericVisitor(vis.Visit).Walk(x.Body)
+		return true
 	case *ast.ObjectComprehension:
 		x.Key = vis.namespaceTerm(x.Key)
 		x.Value = vis.namespaceTerm(x.Value)
-		ast.Walk(vis, x.Body)
-		return nil
+		ast.NewGenericVisitor(vis.Visit).Walk(x.Body)
+		return true
 	case *ast.Expr:
 		switch terms := x.Terms.(type) {
 		case []*ast.Term:
@@ -234,7 +235,7 @@ func (vis namespacingVisitor) Visit(x interface{}) ast.Visitor {
 			w.Value = vis.namespaceTerm(w.Value)
 		}
 	}
-	return vis
+	return false
 }
 
 func (vis namespacingVisitor) namespaceTerm(a *ast.Term) *ast.Term {

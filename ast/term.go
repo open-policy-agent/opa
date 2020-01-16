@@ -463,14 +463,14 @@ func (term *Term) UnmarshalJSON(bs []byte) error {
 // Vars returns a VarSet with variables contained in this term.
 func (term *Term) Vars() VarSet {
 	vis := &VarVisitor{vars: VarSet{}}
-	Walk(vis, term)
+	vis.Walk(term)
 	return vis.vars
 }
 
 // IsConstant returns true if the AST value is constant.
 func IsConstant(v Value) bool {
 	found := false
-	Walk(&GenericVisitor{
+	vis := GenericVisitor{
 		func(x interface{}) bool {
 			switch x.(type) {
 			case Var, Ref, *ArrayComprehension, *ObjectComprehension, *SetComprehension, Call:
@@ -479,7 +479,8 @@ func IsConstant(v Value) bool {
 			}
 			return false
 		},
-	}, v)
+	}
+	vis.Walk(v)
 	return !found
 }
 
@@ -1080,7 +1081,7 @@ func (ref Ref) String() string {
 //  this expression in isolation.
 func (ref Ref) OutputVars() VarSet {
 	vis := NewVarVisitor().WithParams(VarVisitorParams{SkipRefHead: true})
-	Walk(vis, ref)
+	vis.Walk(ref)
 	return vis.Vars()
 }
 

@@ -12,9 +12,9 @@ type testVis struct {
 	elems []interface{}
 }
 
-func (vis *testVis) Visit(x interface{}) Visitor {
+func (vis *testVis) Visit(x interface{}) bool {
 	vis.elems = append(vis.elems, x)
-	return vis
+	return false
 }
 
 func TestVisitor(t *testing.T) {
@@ -38,7 +38,7 @@ fn([x, y]) = z { json.unmarshal(x, z); z > y }
 `)
 	vis := &testVis{}
 
-	Walk(vis, rule)
+	NewGenericVisitor(vis.Visit).Walk(rule)
 
 	/*
 		mod
@@ -311,6 +311,75 @@ func TestWalkVars(t *testing.T) {
 	}
 }
 
+func TestGenericVisitor(t *testing.T) {
+	rule := MustParseModule(`package a.b
+
+import input.x.y as z
+
+t[x] = y {
+	p[x] = {"foo": [y, 2, {"bar": 3}]}
+	not q[x]
+	y = [[x, z] | x = "x"; z = "z"]
+	z = {"foo": [x, z] | x = "x"; z = "z"}
+	s = {1 | a[i] = "foo"}
+	count({1, 2, 3}, n) with input.foo.bar as x
+}
+
+p { false } else { false } else { true }
+
+fn([x, y]) = z { json.unmarshal(x, z); z > y }
+`)
+
+	var elems []interface{}
+	vis := NewGenericVisitor(func(x interface{}) bool {
+		elems = append(elems, x)
+		return false
+	})
+	vis.Walk(rule)
+
+	if len(elems) != 246 {
+		t.Errorf("Expected exactly 246 elements in AST but got %d: %v", len(elems), elems)
+	}
+}
+
+func TestBeforeAfterVisitor(t *testing.T) {
+	rule := MustParseModule(`package a.b
+
+import input.x.y as z
+
+t[x] = y {
+	p[x] = {"foo": [y, 2, {"bar": 3}]}
+	not q[x]
+	y = [[x, z] | x = "x"; z = "z"]
+	z = {"foo": [x, z] | x = "x"; z = "z"}
+	s = {1 | a[i] = "foo"}
+	count({1, 2, 3}, n) with input.foo.bar as x
+}
+
+p { false } else { false } else { true }
+
+fn([x, y]) = z { json.unmarshal(x, z); z > y }
+`)
+
+	var before, after []interface{}
+	vis := NewBeforeAfterVisitor(func(x interface{}) bool {
+		before = append(before, x)
+		return false
+	},
+		func(x interface{}) {
+			after = append(after, x)
+		})
+	vis.Walk(rule)
+
+	if len(before) != 246 {
+		t.Errorf("Expected exactly 246 before elements in AST but got %d: %v", len(before), before)
+	}
+
+	if len(after) != 246 {
+		t.Errorf("Expected exactly 246 after elements in AST but got %d: %v", len(after), after)
+	}
+}
+
 func TestVarVisitor(t *testing.T) {
 
 	tests := []struct {
@@ -328,13 +397,13 @@ func TestVarVisitor(t *testing.T) {
 	for _, tc := range tests {
 		stmt := MustParseStatement(tc.stmt)
 
-		vis := NewVarVisitor().WithParams(tc.params)
-		Walk(vis, stmt)
-
 		expected := NewVarSet()
 		for _, x := range MustParseTerm(tc.expected).Value.(Array) {
 			expected.Add(x.Value.(Var))
 		}
+
+		vis := NewVarVisitor().WithParams(tc.params)
+		vis.Walk(stmt)
 
 		if !vis.Vars().Equal(expected) {
 			t.Errorf("For %v w/ %v expected %v but got: %v", stmt, tc.params, expected, vis.Vars())

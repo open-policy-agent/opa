@@ -1082,7 +1082,7 @@ func (r *REPL) printTypes(ctx context.Context, typeEnv *ast.TypeEnv, body ast.Bo
 		SkipRefHead: true,
 	})
 
-	ast.Walk(vis, body)
+	vis.Walk(body)
 
 	for v := range vis.Vars() {
 		fmt.Fprintf(r.output, "# %v: %v\n", v, typeEnv.Get(v))

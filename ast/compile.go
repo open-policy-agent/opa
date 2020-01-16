@@ -1136,14 +1136,14 @@ func (c *Compiler) rewriteLocalVars() {
 				return false
 			})
 
-			Walk(vis, rule.Head.Args)
+			vis.Walk(rule.Head.Args)
 
 			if rule.Head.Key != nil {
-				Walk(vis, rule.Head.Key)
+				vis.Walk(rule.Head.Key)
 			}
 
 			if rule.Head.Value != nil {
-				Walk(vis, rule.Head.Value)
+				vis.Walk(rule.Head.Value)
 			}
 
 			return false
@@ -1547,7 +1547,7 @@ func NewGraph(modules map[string]*Module, list func(Ref) []*Rule) *Graph {
 
 	// Create visitor to walk a rule AST and add edges to the rule graph for
 	// each dependency.
-	vis := func(a *Rule) Visitor {
+	vis := func(a *Rule) *GenericVisitor {
 		stop := false
 		return NewGenericVisitor(func(x interface{}) bool {
 			switch x := x.(type) {
@@ -1573,7 +1573,7 @@ func NewGraph(modules map[string]*Module, list func(Ref) []*Rule) *Graph {
 	for _, module := range modules {
 		WalkRules(module, func(a *Rule) bool {
 			graph.addNode(a)
-			Walk(vis(a), a)
+			vis(a).Walk(a)
 			return false
 		})
 	}
@@ -1836,7 +1836,7 @@ func reorderBodyForSafety(builtins map[string]*Builtin, arity func(Ref) int, glo
 			globals:  g,
 			unsafe:   unsafe,
 		}
-		Walk(vis, e)
+		NewGenericVisitor(vis.Visit).Walk(e)
 	}
 
 	// Need to reset expression indices as re-ordering may have
@@ -1854,23 +1854,37 @@ type bodySafetyVisitor struct {
 	unsafe   unsafeVars
 }
 
-func (vis *bodySafetyVisitor) Visit(x interface{}) Visitor {
+func (vis *bodySafetyVisitor) Visit(x interface{}) bool {
 	switch x := x.(type) {
 	case *Expr:
 		cpy := *vis
 		cpy.current = x
-		return &cpy
+
+		switch ts := x.Terms.(type) {
+		case *SomeDecl:
+			NewGenericVisitor(cpy.Visit).Walk(ts)
+		case []*Term:
+			for _, t := range ts {
+				NewGenericVisitor(cpy.Visit).Walk(t)
+			}
+		case *Term:
+			NewGenericVisitor(cpy.Visit).Walk(ts)
+		}
+		for i := range x.With {
+			NewGenericVisitor(cpy.Visit).Walk(x.With[i])
+		}
+		return true
 	case *ArrayComprehension:
 		vis.checkArrayComprehensionSafety(x)
-		return nil
+		return true
 	case *ObjectComprehension:
 		vis.checkObjectComprehensionSafety(x)
-		return nil
+		return true
 	case *SetComprehension:
 		vis.checkSetComprehensionSafety(x)
-		return nil
+		return true
 	}
-	return vis
+	return false
 }
 
 // Check term for safety. This is analogous to the rule head safety check.
@@ -1927,7 +1941,7 @@ func reorderBodyForClosures(builtins map[string]*Builtin, arity func(Ref) int, g
 			vs := VarSet{}
 			WalkClosures(e, func(x interface{}) bool {
 				vis := &VarVisitor{vars: vs}
-				Walk(vis, x)
+				vis.Walk(x)
 				return true
 			})
 
@@ -2016,7 +2030,7 @@ func outputVarsForExprBuiltin(expr *Expr, b *Builtin, safe VarSet) VarSet {
 			SkipObjectKeys: true,
 			SkipRefHead:    true,
 		})
-		Walk(vis, t)
+		vis.Walk(t)
 		unsafe := vis.Vars().Diff(output).Diff(safe)
 		if len(unsafe) > 0 {
 			return VarSet{}
@@ -2032,7 +2046,7 @@ func outputVarsForExprBuiltin(expr *Expr, b *Builtin, safe VarSet) VarSet {
 				SkipObjectKeys: true,
 				SkipClosures:   true,
 			})
-			Walk(vis, t)
+			vis.Walk(t)
 			output.Update(vis.vars)
 		}
 	}
@@ -2077,7 +2091,7 @@ func outputVarsForExprCall(expr *Expr, builtins map[string]*Builtin, arity func(
 		SkipRefHead:    true,
 	})
 
-	Walk(vis, Args(terms[:numInputTerms]))
+	vis.Walk(Args(terms[:numInputTerms]))
 	unsafe := vis.Vars().Diff(output).Diff(safe)
 
 	if len(unsafe) > 0 {
@@ -2091,7 +2105,7 @@ func outputVarsForExprCall(expr *Expr, builtins map[string]*Builtin, arity func(
 		SkipClosures:   true,
 	})
 
-	Walk(vis, Args(terms[numInputTerms:]))
+	vis.Walk(Args(terms[numInputTerms:]))
 	output.Update(vis.vars)
 	return output
 }
@@ -2134,7 +2148,7 @@ func newLocalVarGeneratorForModuleSet(sorted []string, modules map[string]*Modul
 	exclude := NewVarSet()
 	vis := &VarVisitor{vars: exclude}
 	for _, key := range sorted {
-		Walk(vis, modules[key])
+		vis.Walk(modules[key])
 	}
 	return &localVarGenerator{exclude: exclude, next: 0}
 }
@@ -2142,7 +2156,7 @@ func newLocalVarGeneratorForModuleSet(sorted []string, modules map[string]*Modul
 func newLocalVarGenerator(suffix string, node interface{}) *localVarGenerator {
 	exclude := NewVarSet()
 	vis := &VarVisitor{vars: exclude}
-	Walk(vis, node)
+	vis.Walk(node)
 	return &localVarGenerator{exclude: exclude, suffix: suffix, next: 0}
 }
 
@@ -2226,7 +2240,7 @@ func resolveRefsInRule(globals map[Var]Ref, rule *Rule) error {
 	ignore := &declaredVarStack{}
 
 	vars := NewVarSet()
-	var vis Visitor
+	var vis *GenericVisitor
 	var err error
 
 	// Walk args to collect vars and transform body so that callers can shadow
@@ -2241,9 +2255,9 @@ func resolveRefsInRule(globals map[Var]Ref, rule *Rule) error {
 
 		// Object keys cannot be pattern matched so only walk values.
 		case Object:
-			x.Foreach(func(_, v *Term) {
-				Walk(vis, v)
-			})
+			for _, k := range x.Keys() {
+				vis.Walk(x.Get(k))
+			}
 
 		// Skip terms that could contain vars that cannot be pattern matched.
 		case Set, *ArrayComprehension, *SetComprehension, *ObjectComprehension, Call:
@@ -2264,7 +2278,7 @@ func resolveRefsInRule(globals map[Var]Ref, rule *Rule) error {
 		return false
 	})
 
-	Walk(vis, rule.Head.Args)
+	vis.Walk(rule.Head.Args)
 
 	if err != nil {
 		return err
@@ -2436,7 +2450,7 @@ func declaredVars(x interface{}) VarSet {
 		}
 		return false
 	})
-	Walk(vis, x)
+	vis.Walk(x)
 	return vars
 }
 
@@ -2991,7 +3005,7 @@ func rewriteDeclaredVarsInExpr(g *localVarGenerator, stack *localDeclaredVars, e
 		}
 		return stop
 	})
-	Walk(vis, expr)
+	vis.Walk(expr)
 	return expr, errs
 }
 

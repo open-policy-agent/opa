@@ -1949,7 +1949,7 @@ func iteration(x interface{}) bool {
 		return stopped
 	})
 
-	ast.Walk(vis, x)
+	vis.Walk(x)
 
 	return stopped
 }

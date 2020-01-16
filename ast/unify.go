@@ -123,7 +123,7 @@ func (u *unifier) unify(a *Term, b *Term) {
 
 func (u *unifier) markAllSafe(x Value) {
 	vis := u.varVisitor()
-	Walk(vis, x)
+	vis.Walk(x)
 	for v := range vis.Vars() {
 		u.markSafe(v)
 	}
@@ -163,7 +163,7 @@ func (u *unifier) unifyAll(a Var, b Value) {
 		u.markAllSafe(b)
 	} else {
 		vis := u.varVisitor()
-		Walk(vis, b)
+		vis.Walk(b)
 		unsafe := vis.Vars().Diff(u.safe).Diff(u.unified)
 		if len(unsafe) == 0 {
 			u.markSafe(a)
