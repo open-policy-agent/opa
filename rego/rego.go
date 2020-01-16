@@ -1713,7 +1713,7 @@ func (r *Rego) partial(ctx context.Context, ectx *EvalContext) (*PartialQueries,
 		WithIndexing(ectx.indexing)
 
 	for i := range ectx.tracers {
-		q = q.WithTracer(r.tracers[i])
+		q = q.WithTracer(ectx.tracers[i])
 	}
 
 	if ectx.parsedInput != nil {
