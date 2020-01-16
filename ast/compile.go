@@ -524,9 +524,9 @@ func (c *Compiler) GetRules(ref Ref) (rules []*Rule) {
 //
 // The following calls yield the rules on the right.
 //
-//  GetRulesDynamic("data.a[x].c[y]")			=> [rule1, rule2]
-//  GetRulesDynamic("data.a[x].c.r2")	=> [rule2]
-//  GetRulesDynamic("data.a.b[x][y]")	=> [rule1]
+//  GetRulesDynamic("data.a[x].c[y]") => [rule1, rule2]
+//  GetRulesDynamic("data.a[x].c.r2") => [rule2]
+//  GetRulesDynamic("data.a.b[x][y]") => [rule1]
 func (c *Compiler) GetRulesDynamic(ref Ref) (rules []*Rule) {
 	node := c.RuleTree
 
