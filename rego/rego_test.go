@@ -953,6 +953,46 @@ func TestPartialResultWithInput(t *testing.T) {
 	assertEval(t, r2, "[[true]]")
 }
 
+func TestPreparedPartialResultWithTracer(t *testing.T) {
+	mod := `
+	package test
+	default p = false
+	p {
+		input.x = 1
+	}
+	`
+	r := New(
+		Query("data.test.p == true"),
+		Module("test.rego", mod),
+	)
+
+	tracer := topdown.NewBufferTracer()
+
+	ctx := context.Background()
+	pq, err := r.PrepareForPartial(ctx)
+	if err != nil {
+		t.Fatalf("unexpected error from Rego.PrepareForPartial(): %s", err.Error())
+	}
+
+	pqs, err := pq.Partial(ctx, EvalTracer(tracer))
+	if err != nil {
+		t.Fatalf("unexpected error from PreparedEvalQuery.Partial(): %s", err.Error())
+	}
+
+	expectedQuery := "input.x = 1"
+	if len(pqs.Queries) != 1 {
+		t.Errorf("expected 1 query but found %d: %+v", len(pqs.Queries), pqs)
+	}
+	if pqs.Queries[0].String() != expectedQuery {
+		t.Errorf("unexpected query in result, expected='%s' found='%s'",
+			expectedQuery, pqs.Queries[0].String())
+	}
+
+	if len(*tracer) == 0 {
+		t.Errorf("Expected buffer tracer to contain > 0 traces")
+	}
+}
+
 func TestMissingLocation(t *testing.T) {
 
 	// Create a query programmatically and evaluate it. The Location information
