@@ -949,7 +949,7 @@ func getSavePairs(x *ast.Term, b *bindings, result []savePair) []savePair {
 		SkipClosures: true,
 		SkipRefHead:  true,
 	})
-	ast.Walk(vis, x)
+	vis.Walk(x)
 	for v := range vis.Vars() {
 		y, next := b.apply(ast.NewTerm(v))
 		result = getSavePairs(y, next, result)
@@ -2239,7 +2239,7 @@ func canInlineNegation(safe ast.VarSet, queries []ast.Body) bool {
 					SkipRefCallHead: true,
 					SkipClosures:    true,
 				})
-				ast.Walk(vis, expr)
+				vis.Walk(expr)
 				unsafe := vis.Vars().Diff(safe).Diff(ast.ReservedVars)
 				if len(unsafe) > 0 {
 					return false

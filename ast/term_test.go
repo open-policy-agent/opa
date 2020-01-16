@@ -709,12 +709,13 @@ func TestSetOperations(t *testing.T) {
 func TestSetCopy(t *testing.T) {
 	orig := MustParseTerm("{1,2,3}")
 	cpy := orig.Copy()
-	Walk(NewGenericVisitor(func(x interface{}) bool {
+	vis := NewGenericVisitor(func(x interface{}) bool {
 		if Compare(IntNumberTerm(2), x) == 0 {
 			x.(*Term).Value = String("modified")
 		}
 		return false
-	}), orig)
+	})
+	vis.Walk(orig)
 	expOrig := MustParseTerm(`{1, "modified", 3}`)
 	expCpy := MustParseTerm(`{1,2,3}`)
 	if !expOrig.Equal(orig) {

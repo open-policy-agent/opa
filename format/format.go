@@ -138,7 +138,7 @@ func (w *writer) writeModule(module *ast.Module) {
 			return false
 		}
 	})
-	ast.Walk(visitor, module)
+	visitor.Walk(module)
 
 	sort.Slice(comments, func(i, j int) bool {
 		return locLess(comments[i], comments[j])

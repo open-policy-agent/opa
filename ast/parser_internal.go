@@ -123,7 +123,7 @@ func makeDefaultRule(loc *Location, name, operator, value interface{}) (interfac
 		return false
 	})
 
-	Walk(vis, term)
+	vis.Walk(term)
 
 	if err != nil {
 		return nil, err

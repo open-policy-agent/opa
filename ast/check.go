@@ -64,7 +64,7 @@ func (tc *typeChecker) CheckBody(env *TypeEnv, body Body) (*TypeEnv, Errors) {
 		hasClosureErrors := len(closureErrs) > 0
 
 		vis := newRefChecker(env, tc.varRewriter)
-		Walk(vis, expr)
+		NewGenericVisitor(vis.Visit).Walk(expr)
 		for _, err := range vis.errs {
 			tc.err(err)
 		}
@@ -512,31 +512,31 @@ func newRefChecker(env *TypeEnv, f rewriteVars) *refChecker {
 	}
 }
 
-func (rc *refChecker) Visit(x interface{}) Visitor {
+func (rc *refChecker) Visit(x interface{}) bool {
 	switch x := x.(type) {
 	case *ArrayComprehension, *ObjectComprehension, *SetComprehension:
-		return nil
+		return true
 	case *Expr:
 		switch terms := x.Terms.(type) {
 		case []*Term:
 			for i := 1; i < len(terms); i++ {
-				Walk(rc, terms[i])
+				NewGenericVisitor(rc.Visit).Walk(terms[i])
 			}
-			return nil
+			return true
 		case *Term:
-			Walk(rc, terms)
-			return nil
+			NewGenericVisitor(rc.Visit).Walk(terms)
+			return true
 		}
 	case Ref:
 		if err := rc.checkApply(rc.env, x); err != nil {
 			rc.errs = append(rc.errs, err)
-			return nil
+			return true
 		}
 		if err := rc.checkRef(rc.env, rc.env.tree, x, 0); err != nil {
 			rc.errs = append(rc.errs, err)
 		}
 	}
-	return rc
+	return false
 }
 
 func (rc *refChecker) checkApply(curr *TypeEnv, ref Ref) *Error {

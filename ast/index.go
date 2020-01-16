@@ -695,7 +695,7 @@ func eqOperandsToRefAndValue(isVirtual func(Ref) bool, a, b *Term) (Ref, Value, 
 			}
 			return stop
 		})
-		Walk(vis, b)
+		vis.Walk(b)
 		if !stop {
 			return ref, b, true
 		}
