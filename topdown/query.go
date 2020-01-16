@@ -172,33 +172,37 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 	f := &queryIDFactory{}
 	b := newBindings(0, q.instr)
 	e := &eval{
-		ctx:             ctx,
-		cancel:          q.cancel,
-		query:           q.query,
-		queryCompiler:   q.queryCompiler,
-		queryIDFact:     f,
-		queryID:         f.Next(),
-		bindings:        b,
-		compiler:        q.compiler,
-		store:           q.store,
-		baseCache:       newBaseCache(),
-		targetStack:     newRefStack(),
-		txn:             q.txn,
-		input:           q.input,
-		tracers:         q.tracers,
-		instr:           q.instr,
-		builtins:        q.builtins,
-		builtinCache:    builtins.Cache{},
-		virtualCache:    newVirtualCache(),
-		saveSet:         newSaveSet(q.unknowns, b, q.instr),
-		saveStack:       newSaveStack(),
-		saveSupport:     newSaveSupport(),
-		saveNamespace:   ast.StringTerm(q.partialNamespace),
-		disableInlining: q.disableInlining,
-		genvarprefix:    q.genvarprefix,
-		runtime:         q.runtime,
-		indexing:        q.indexing,
+		ctx:           ctx,
+		cancel:        q.cancel,
+		query:         q.query,
+		queryCompiler: q.queryCompiler,
+		queryIDFact:   f,
+		queryID:       f.Next(),
+		bindings:      b,
+		compiler:      q.compiler,
+		store:         q.store,
+		baseCache:     newBaseCache(),
+		targetStack:   newRefStack(),
+		txn:           q.txn,
+		input:         q.input,
+		tracers:       q.tracers,
+		instr:         q.instr,
+		builtins:      q.builtins,
+		builtinCache:  builtins.Cache{},
+		virtualCache:  newVirtualCache(),
+		saveSet:       newSaveSet(q.unknowns, b, q.instr),
+		saveStack:     newSaveStack(),
+		saveSupport:   newSaveSupport(),
+		saveNamespace: ast.StringTerm(q.partialNamespace),
+		genvarprefix:  q.genvarprefix,
+		runtime:       q.runtime,
+		indexing:      q.indexing,
 	}
+
+	if len(q.disableInlining) > 0 {
+		e.disableInlining = [][]ast.Ref{q.disableInlining}
+	}
+
 	e.caller = e
 	q.startTimer(metrics.RegoPartialEval)
 	defer q.stopTimer(metrics.RegoPartialEval)
