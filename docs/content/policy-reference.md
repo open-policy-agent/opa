@@ -69,9 +69,8 @@ complex types.
 ### Objects
 | Built-in | Description |
 | -------- | ----------- |
-| <span class="opa-keep-it-together">`filtered := json.filter(object, paths)`</span> | `filtered` is the remaining data from `object` with only keys specified in `paths` which is an array or set of key paths. Each path may be a JSON string path or an array of path segments. For example: `json.filter({"a": {"b": "x", "c": "y"}}, ["a/b"]` will result in `{"a": {"b": "x"}}`). |
-
-The `json` string `paths` may reference into array values by using index numbers. For example with the object `{"a": ["x", "y", "z"]}` the path `a/1` references `y`
+| <span class="opa-keep-it-together">`filtered := json.filter(object, paths)`</span> | `filtered` is the remaining data from `object` with only keys specified in `paths` which is an array or set of key paths. Each path may be a JSON string path or an array of path segments. For example: `json.filter({"a": {"b": "x", "c": "y"}}, ["a/b"]` will result in `{"a": {"b": "x"}}`). The `json` string `paths` may reference into array values by using index numbers. For example with the object `{"a": ["x", "y", "z"]}` the path `a/1` references `y` |
+| <span class="opa-keep-it-together">`ret := lookup(object, key, default)`</span> | `ret` is the value stored by the `object` at `key`. If no value is found, `default` is returned. |
 
 ### Strings
 
