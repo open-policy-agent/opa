@@ -434,7 +434,7 @@ OPA allows you to modify policies on-the-fly without recompiling any of the serv
 
 To enforce the second half of the policy from the start of this tutorial you can load another policy into OPA that prevents Ingress objects in different namespaces from sharing the same hostname.
 
-**ingress-conflicts**:
+**ingress-conflicts.rego**:
 
 ```live:ingress_conflicts:module:read_only
 package kubernetes.admission
