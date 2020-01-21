@@ -5,19 +5,19 @@ import (
 	"github.com/open-policy-agent/opa/topdown/builtins"
 )
 
-func builtinObjectGet(a, b, c ast.Value) (ast.Value, error) {
-	object, err := builtins.ObjectOperand(a, 1)
+func builtinObjectGet(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	object, err := builtins.ObjectOperand(operands[0].Value, 1)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	if ret := object.Get(&ast.Term{Value: b}); ret != nil {
-		return ret.Value, nil
+	if ret := object.Get(operands[1]); ret != nil {
+		return iter(ret)
 	}
 
-	return c, nil
+	return iter(operands[2])
 }
 
 func init() {
-	RegisterFunctionalBuiltin3(ast.ObjectGet.Name, builtinObjectGet)
+	RegisterBuiltinFunc(ast.ObjectGet.Name, builtinObjectGet)
 }
