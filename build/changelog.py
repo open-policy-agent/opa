@@ -27,7 +27,7 @@ def get_commit_message(commit_id):
 
 
 def fixes_issue_id(commit_message):
-    match = re.search(r"Fixes #(\d+)", commit_message)
+    match = re.search(r"Fixes:?\s*#(\d+)", commit_message)
     if match:
         return match.group(1)
 
@@ -71,17 +71,17 @@ def main():
         changelog.setdefault(group, []).append(line)
 
     if "Fixes" in changelog:
-        print "### Fixes"
-        print ""
+        print("### Fixes")
+        print("")
         for line in sorted(changelog["Fixes"]):
-            print "- {}".format(line)
-        print ""
+            print("- {}".format(line))
+        print("")
 
     if None in changelog:
-        print "### Miscellaneous"
-        print ""
+        print("### Miscellaneous")
+        print("")
         for line in sorted(changelog[None]):
-            print "- {}".format(line)
+            print("- {}".format(line))
 
 
 if __name__ == "__main__":
