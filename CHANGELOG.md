@@ -5,7 +5,7 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
-- Added `lookup` built-in;
+- Added `object.get` built-in;
 
 ## 0.16.1
 

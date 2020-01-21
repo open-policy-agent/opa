@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestLookup(t *testing.T) {
+func TestObjectGet(t *testing.T) {
 	cases := []struct {
 		note     string
 		object   string
@@ -60,7 +60,7 @@ func TestLookup(t *testing.T) {
 
 	for _, tc := range cases {
 		rules := []string{
-			fmt.Sprintf("p = x { x := lookup(%s, %s, %s) }", tc.object, tc.key, tc.fallback),
+			fmt.Sprintf("p = x { x := object.get(%s, %s, %s) }", tc.object, tc.key, tc.fallback),
 		}
 		runTopDownTestCase(t, map[string]interface{}{}, tc.note, rules, tc.expected)
 	}

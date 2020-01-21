@@ -5,7 +5,7 @@ import (
 	"github.com/open-policy-agent/opa/topdown/builtins"
 )
 
-func builtinLookup(a, b, c ast.Value) (ast.Value, error) {
+func builtinObjectGet(a, b, c ast.Value) (ast.Value, error) {
 	object, err := builtins.ObjectOperand(a, 1)
 	if err != nil {
 		return nil, err
@@ -19,5 +19,5 @@ func builtinLookup(a, b, c ast.Value) (ast.Value, error) {
 }
 
 func init() {
-	RegisterFunctionalBuiltin3(ast.Lookup.Name, builtinLookup)
+	RegisterFunctionalBuiltin3(ast.ObjectGet.Name, builtinObjectGet)
 }
