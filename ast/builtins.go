@@ -129,7 +129,7 @@ var DefaultBuiltins = [...]*Builtin{
 	JSONFilter,
 
 	// Other object functions
-	Lookup,
+	ObjectGet,
 
 	// Tokens
 	JWTDecode,
@@ -1670,10 +1670,10 @@ var CastObject = &Builtin{
 	),
 }
 
-// Lookup returns takes an object and returns a value under its key if present,
-// otherwise it returns the default.
-var Lookup = &Builtin{
-	Name: "lookup",
+// ObjectGet returns takes an object and returns a value under its key if
+// present, otherwise it returns the default.
+var ObjectGet = &Builtin{
+	Name: "object.get",
 	Decl: types.NewFunction(
 		types.Args(
 			types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)),
