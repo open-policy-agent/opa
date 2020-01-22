@@ -257,56 +257,152 @@ func TestRuntimeComplexityBuiltin(t *testing.T) {
 	}
 }
 
-func TestRuntimeComplexityMissing(t *testing.T) {
+func TestRuntimeComplexityFunctionCall(t *testing.T) {
 
-	moduleCompre := ast.MustParseModule(`
-		package example
+	moduleFuncCallConstantRuntime := ast.MustParseModule(`
+				package example
 
-		comprehension =  original_set {
-			original := ["test", "test", "big", "opa", "rego", "rego"]
-			original_set := {x | x := original[_]}
-		}
-	`)
+				block_master_toleration[reason] {
+					tolerations := get_tolerations(input.request)
+					toleration := tolerations[_]
 
-	moduleFuncCall := ast.MustParseModule(`
-		package example
+					toleration.operator == "Exists"
+					not toleration.key
+					reason := sprintf("Resource %v tolerates everything", [toleration.name])
+				}
 
-		block_master_toleration[reason] {
-			tolerations := get_tolerations(input.request)
-			toleration := tolerations[_]
+				get_tolerations(request) = result {
+					request.kind.kind == "Pod"
+					result := request.object.spec.tolerations
+				}
+			`)
 
-			toleration.operator == "Exists"
-			not toleration.key
-			reason := sprintf("Resource %v tolerates everything", [toleration.name])
-		}
+	moduleFuncCallAdv := ast.MustParseModule(`
+				package example
 
-		get_tolerations(request) = result {
-			request.kind.kind == "Pod"
-			result := request.object.spec.tolerations
-		}
-	`)
+				block_master_toleration_adv[reason] {
+					tolerations := get_tolerations(input.request)
+					toleration := tolerations[_]
 
-	moduleWalk := ast.MustParseModule(`
-		package example
+					toleration.operator == "Exists"
+					not toleration.key
+					reason := sprintf("Resource %v tolerates everything", [toleration.name])
+				}
 
-		example_data = {
-			"apiVersion": "v1"
-		}
-
-		walk_example {
-			some path, value
-			walk(example_data, [path, value])
-			path[count(path)-1] == "apiVersion"
-		}
-	`)
+				get_tolerations(request) = result {
+					x := request.object.spec.tolerations[_]
+					x.kind.kind == "Pod"
+					result := request.object.spec.tolerations
+				}
+			`)
 
 	tests := map[string]struct {
 		input *ast.Module
 		want  string
 	}{
-		"missing_w_compre":    {input: moduleCompre, want: "comprehension"},
-		"missing_w_func_call": {input: moduleFuncCall, want: "block_master_toleration"},
-		"missing_w_walk":      {input: moduleWalk, want: "walk_example"},
+		"block_master_toleration":     {input: moduleFuncCallConstantRuntime, want: "O(input.request.object.spec.tolerations)"},
+		"block_master_toleration_adv": {input: moduleFuncCallAdv, want: "O(input.request.object.spec.tolerations)  + [O(input.request.object.spec.tolerations)]"},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			actual := CalculateRuntimeComplexity(tc.input)
+			if tc.want != actual.Result[name][0] {
+				t.Fatalf("Expected runtime complexity %v but got %v", tc.want, actual.Result[name][0])
+			}
+		})
+	}
+}
+
+func TestRuntimeComplexityMissing(t *testing.T) {
+
+	moduleFuncCallLocalVarAsArg := ast.MustParseModule(`
+					package example
+
+					block_master_toleration_local[reason] {
+						some container
+						input_container[container]
+
+						tolerations := get_tolerations(container)
+						toleration := tolerations[_]
+
+						toleration.operator == "Exists"
+						not toleration.key
+
+						reason := sprintf("Resource %v tolerates everything", [toleration.name])
+					}
+
+					get_tolerations(request) = result {
+						x := request.object.spec.tolerations[_]
+						x.kind.kind == "Pod"
+						result := request.object.spec.tolerations
+					}
+
+					input_container[c] {
+						c := input.request.object.spec.initContainers[_]
+					}
+				`)
+
+	moduleFuncCallWithChaining := ast.MustParseModule(`
+				package example
+
+				block_master_toleration_chaining[reason] {
+					tolerations := get_tolerations(input.request)
+					toleration := tolerations[_]
+
+					toleration.operator == "Exists"
+					not toleration.key
+
+					dolerations := get_dolerations(toleration.foo)
+					doleration := dolerations[_]
+					not doleration.key
+
+					reason := sprintf("Resource %v tolerates everything", [toleration.name])
+				}
+
+				get_tolerations(request) = result {
+					x := request.object.spec.tolerations[_]
+					x.kind.kind == "Pod"
+					result := request.object.spec.tolerations
+				}
+
+				get_dolerations(request) = result {
+					request.kind.kind == "ReplicaSet"
+					result := request.object.spec.dolerations
+				}
+			`)
+
+	moduleCompre := ast.MustParseModule(`
+						package example
+
+						comprehension =  original_set {
+							original := ["test", "test", "big", "opa", "rego", "rego"]
+							original_set := {x | x := original[_]}
+						}
+					`)
+
+	moduleWalk := ast.MustParseModule(`
+						package example
+
+						example_data = {
+							"apiVersion": "v1"
+						}
+
+						walk_example {
+							some path, value
+							walk(example_data, [path, value])
+							path[count(path)-1] == "apiVersion"
+						}
+					`)
+
+	tests := map[string]struct {
+		input *ast.Module
+		want  string
+	}{
+		"missing_w_func_local_var_as_arg": {input: moduleFuncCallLocalVarAsArg, want: "block_master_toleration_local"},
+		"missing_w_function_chaining":     {input: moduleFuncCallWithChaining, want: "block_master_toleration_chaining"},
+		"missing_w_compre":                {input: moduleCompre, want: "comprehension"},
+		"missing_w_walk":                  {input: moduleWalk, want: "walk_example"},
 	}
 
 	for name, tc := range tests {
