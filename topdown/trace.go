@@ -248,25 +248,26 @@ func traceIsEnabled(tracers []Tracer) bool {
 func rewrite(event *Event) *Event {
 
 	cpy := *event
-	node := cpy.Node
 
-	switch node := node.(type) {
+	var node ast.Node
+
+	switch v := event.Node.(type) {
 	case *ast.Expr:
-		node = node.Copy()
+		node = v.Copy()
 	case ast.Body:
-		node = node.Copy()
+		node = v.Copy()
 	case *ast.Rule:
-		node = node.Copy()
+		node = v.Copy()
 	}
 
-	ast.WalkTerms(node, func(term *ast.Term) bool {
-		if v, ok := term.Value.(ast.Var); ok {
-			if meta, ok := cpy.LocalMetadata[v]; ok {
-				term.Value = ast.Var(meta.Name)
-			}
+	ast.TransformVars(node, func(v ast.Var) (ast.Value, error) {
+		if meta, ok := cpy.LocalMetadata[v]; ok {
+			return meta.Name, nil
 		}
-		return false
+		return v, nil
 	})
+
+	cpy.Node = node
 
 	return &cpy
 }
