@@ -11,14 +11,14 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/open-policy-agent/opa/ast"
-	"github.com/open-policy-agent/opa/internal/cmd/analyze"
+	"github.com/open-policy-agent/opa/internal/cmd/complexity"
 	pr "github.com/open-policy-agent/opa/internal/presentation"
 	"github.com/open-policy-agent/opa/loader"
 )
 
 var analyzeCommand = &cobra.Command{
-	Use:    "analyze <path>",
-	Short:  "Analyze Rego source code",
+	Use:    "complexity <path>",
+	Short:  "Compute runtime complexity of Rego source code",
 	Hidden: true,
 
 	PreRunE: func(Cmd *cobra.Command, args []string) error {
@@ -58,7 +58,7 @@ func analyzeModules(args []string) int {
 	}
 
 	for _, module := range compiler.Modules {
-		result := analyze.CalculateRuntimeComplexity(module)
+		result := complexity.CalculateRuntimeComplexity(module)
 
 		fmt.Println()
 		if len(result.Result) != 0 {
