@@ -5,7 +5,12 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
-- Added `object.get` built-in;
+## 0.16.2
+
+This release includes an important bugfix for users that enable
+tracing and use the "pretty" trace formatter.
+
+- topdown: Fix bug in var rewriting during trace formatting ([#2022](https://github.com/open-policy-agent/opa/issues/2022))
 
 ## 0.16.1
 
