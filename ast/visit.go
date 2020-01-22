@@ -9,7 +9,7 @@ package ast
 // element v. If the Visit function returns nil, the children will not be
 // visited. This is deprecated.
 type Visitor interface {
-	Visit(v interface{}) bool
+	Visit(v interface{}) (w Visitor)
 }
 
 // BeforeAndAfterVisitor wraps Visitor to provide hooks for being called before
@@ -39,98 +39,99 @@ func WalkBeforeAndAfter(v BeforeAndAfterVisitor, x interface{}) {
 }
 
 func walk(v Visitor, x interface{}) {
-	if v.Visit(x) {
+	w := v.Visit(x)
+	if w == nil {
 		return
 	}
 	switch x := x.(type) {
 	case *Module:
-		Walk(v, x.Package)
+		Walk(w, x.Package)
 		for _, i := range x.Imports {
-			Walk(v, i)
+			Walk(w, i)
 		}
 		for _, r := range x.Rules {
-			Walk(v, r)
+			Walk(w, r)
 		}
 		for _, c := range x.Comments {
-			Walk(v, c)
+			Walk(w, c)
 		}
 	case *Package:
-		Walk(v, x.Path)
+		Walk(w, x.Path)
 	case *Import:
-		Walk(v, x.Path)
-		Walk(v, x.Alias)
+		Walk(w, x.Path)
+		Walk(w, x.Alias)
 	case *Rule:
-		Walk(v, x.Head)
-		Walk(v, x.Body)
+		Walk(w, x.Head)
+		Walk(w, x.Body)
 		if x.Else != nil {
-			Walk(v, x.Else)
+			Walk(w, x.Else)
 		}
 	case *Head:
-		Walk(v, x.Name)
-		Walk(v, x.Args)
+		Walk(w, x.Name)
+		Walk(w, x.Args)
 		if x.Key != nil {
-			Walk(v, x.Key)
+			Walk(w, x.Key)
 		}
 		if x.Value != nil {
-			Walk(v, x.Value)
+			Walk(w, x.Value)
 		}
 	case Body:
 		for _, e := range x {
-			Walk(v, e)
+			Walk(w, e)
 		}
 	case Args:
 		for _, t := range x {
-			Walk(v, t)
+			Walk(w, t)
 		}
 	case *Expr:
 		switch ts := x.Terms.(type) {
 		case *SomeDecl:
-			Walk(v, ts)
+			Walk(w, ts)
 		case []*Term:
 			for _, t := range ts {
-				Walk(v, t)
+				Walk(w, t)
 			}
 		case *Term:
-			Walk(v, ts)
+			Walk(w, ts)
 		}
 		for i := range x.With {
-			Walk(v, x.With[i])
+			Walk(w, x.With[i])
 		}
 	case *With:
-		Walk(v, x.Target)
-		Walk(v, x.Value)
+		Walk(w, x.Target)
+		Walk(w, x.Value)
 	case *Term:
-		Walk(v, x.Value)
+		Walk(w, x.Value)
 	case Ref:
 		for _, t := range x {
-			Walk(v, t)
+			Walk(w, t)
 		}
 	case Object:
 		x.Foreach(func(k, vv *Term) {
-			Walk(v, k)
-			Walk(v, vv)
+			Walk(w, k)
+			Walk(w, vv)
 		})
 	case Array:
 		for _, t := range x {
-			Walk(v, t)
+			Walk(w, t)
 		}
 	case Set:
 		x.Foreach(func(t *Term) {
-			Walk(v, t)
+			Walk(w, t)
 		})
 	case *ArrayComprehension:
-		Walk(v, x.Term)
-		Walk(v, x.Body)
+		Walk(w, x.Term)
+		Walk(w, x.Body)
 	case *ObjectComprehension:
-		Walk(v, x.Key)
-		Walk(v, x.Value)
-		Walk(v, x.Body)
+		Walk(w, x.Key)
+		Walk(w, x.Value)
+		Walk(w, x.Body)
 	case *SetComprehension:
-		Walk(v, x.Term)
-		Walk(v, x.Body)
+		Walk(w, x.Term)
+		Walk(w, x.Body)
 	case Call:
 		for _, t := range x {
-			Walk(v, t)
+			Walk(w, t)
 		}
 	}
 }
