@@ -340,3 +340,23 @@ func TestTraceRewrittenQueryVars(t *testing.T) {
 		t.Errorf("Expected %v but got %v", exp, node)
 	}
 }
+
+func TestTraceRewrittenVarsIssue2022(t *testing.T) {
+
+	input := &Event{
+		Node: &ast.Expr{
+			Terms: ast.VarTerm("foo"),
+		},
+		LocalMetadata: map[ast.Var]VarMetadata{
+			ast.Var("foo"): VarMetadata{Name: ast.Var("bar")},
+		},
+	}
+
+	output := rewrite(input)
+
+	if input.Node == output.Node {
+		t.Fatal("expected node to have been copied")
+	} else if !output.Node.(*ast.Expr).Equal(ast.NewExpr(ast.VarTerm("bar"))) {
+		t.Fatal("expected copy to contain rewritten var")
+	}
+}
