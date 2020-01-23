@@ -186,6 +186,15 @@ You can register your factory with OPA by calling
 [github.com/open-policy-agent/opa/runtime#RegisterPlugin](https://godoc.org/github.com/open-policy-agent/opa/runtime#RegisterPlugin)
 inside your main function.
 
+### Plugin Status
+The plugin may (optionally) report its current status to the plugin Manager via the `plugins.Manager#UpdatePluginStatus`
+API.
+
+> If no status is provided the plugin is assumed to be working OK.
+
+Typically the plugin should report `StatusNotReady` at creation time and update to `StatusOK` (or `StatusErr`) when
+appropriate.
+
 ### Putting It Together
 
 The example below shows how you can implement a custom [Decision Logger](../management/#decision-logs)
@@ -196,39 +205,45 @@ import (
 	"github.com/open-policy-agent/opa/plugins/logs"
 )
 
+const PluginName = "println_decision_logger"
+
 type Config struct {
 	Stderr bool `json:"stderr"` // false => stdout, true => stderr
 }
 
 type PrintlnLogger struct {
-	mtx sync.Mutex
-	config Config
+	manager *plugins.Manager
+	mtx     sync.Mutex
+	config  Config
 }
 
 func (p *PrintlnLogger) Start(ctx context.Context) error {
-	// No-op.
+	p.manager.UpdatePluginStatus(PluginName, &plugins.Status{State: plugins.StateOK})
 	return nil
 }
 
 func (p *PrintlnLogger) Stop(ctx context.Context) {
-	// No-op.
+	p.manager.UpdatePluginStatus(PluginName, &plugins.Status{State: plugins.StateNotReady})
 }
 
 func (p *PrintlnLogger) Reconfigure(ctx context.Context, config interface{}) {
-    p.mtx.Lock()
-    defer p.mtx.Unlock()
-    p.config = config.(Config)
+	p.mtx.Lock()
+	defer p.mtx.Unlock()
+	p.config = config.(Config)
 }
 
 func (p *PrintlnLogger) Log(ctx context.Context, event logs.EventV1) error {
-    p.mtx.Lock()
-    defer p.mtx.Unlock()
-    w := os.Stdout
-    if p.config.Stderr {
-        w = os.Stderr
-    }
-    fmt.Fprintln(w, event) // ignoring errors!
-    return nil
+	p.mtx.Lock()
+	defer p.mtx.Unlock()
+	w := os.Stdout
+	if p.config.Stderr {
+		w = os.Stderr
+	}
+	_, err := fmt.Fprintln(w, event)
+	if err != nil {
+		p.manager.UpdatePluginStatus(PluginName, &plugins.Status{State: plugins.StateErr})
+	}
+	return nil
 }
 ```
 
@@ -242,9 +257,13 @@ import (
 
 type Factory struct{}
 
-func (Factory) New(_ *plugins.Manager, config interface{}) plugins.Plugin {
+func (Factory) New(m *plugins.Manager, config interface{}) plugins.Plugin {
+
+	m.UpdatePluginStatus(PluginName, &plugins.Status{State: plugins.StateNotReady})
+
 	return &PrintlnLogger{
-		config: config.(Config),
+		manager: m,
+		config:  config.(Config),
 	}
 }
 
@@ -264,7 +283,7 @@ import (
 )
 
 func main() {
-	runtime.RegisterPlugin("println_decision_logger", Factory{})
+	runtime.RegisterPlugin(PluginName, Factory{})
 
 	if err := cmd.RootCommand.Execute(); err != nil {
 		fmt.Println(err)
