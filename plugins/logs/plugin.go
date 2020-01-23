@@ -266,8 +266,6 @@ func (p *Plugin) Stop(ctx context.Context) {
 // Log appends a decision log event to the buffer for uploading.
 func (p *Plugin) Log(ctx context.Context, decision *server.Info) error {
 
-	path := strings.Replace(strings.TrimPrefix(decision.Path, "data."), ".", "/", -1)
-
 	bundles := map[string]BundleInfoV1{}
 	for name, info := range decision.Bundles {
 		bundles[name] = BundleInfoV1{Revision: info.Revision}
@@ -278,7 +276,7 @@ func (p *Plugin) Log(ctx context.Context, decision *server.Info) error {
 		DecisionID:  decision.DecisionID,
 		Revision:    decision.Revision,
 		Bundles:     bundles,
-		Path:        path,
+		Path:        decision.Path,
 		Query:       decision.Query,
 		Input:       decision.Input,
 		Result:      decision.Results,
