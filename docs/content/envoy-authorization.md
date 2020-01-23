@@ -127,7 +127,9 @@ allow {
 
 is_token_valid {
   token.valid
-  token.payload.nbf <= time.now_ns() < token.payload.exp
+  now := time.now_ns()
+  token.payload.nbf <= now
+  now < token.payload.exp
 }
 
 action_allowed {
