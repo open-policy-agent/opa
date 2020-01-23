@@ -816,7 +816,7 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, urlPath str
 		)
 		pq, err := rego.PrepareForEval(ctx)
 		if err != nil {
-			_ = logger.Log(ctx, txn, decisionID, r.RemoteAddr, path.String(), "", goInput, nil, err, m)
+			_ = logger.Log(ctx, txn, decisionID, r.RemoteAddr, urlPath, "", goInput, nil, err, m)
 			writer.ErrorAuto(w, err)
 			return
 		}

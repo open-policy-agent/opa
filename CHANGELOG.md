@@ -5,6 +5,18 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Compatibility Notes
+
+- Related to the fix for [#2031](https://github.com/open-policy-agent/opa/issues/2031)
+  and the changes with OPA v0.16.0 to use `/` separated `path`'s with
+  the decision log plugin API. The decision logger will no longer modify
+  the `server.Info#Path` field. Older versions would substitute `.` for
+  `/` but this was causing incorrect results. As of v0.16.0 the server has
+  been updated to provide the correct paths so REST API users are unaffected.
+  Golang API users of the `plugins.log.Logger#Log` interface may be impacted
+  if passing `ast.Ref` style strings as a path as it will no longer be changed
+  to `/` separated. Callers need to do any transformation beforehand.
+
 ## 0.16.2
 
 This release includes an important bugfix for users that enable
