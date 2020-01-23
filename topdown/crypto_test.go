@@ -75,8 +75,6 @@ func TestCryptoMd5(t *testing.T) {
 
 	data := loadSmallTestData()
 
-	fmt.Println(data)
-
 	for _, tc := range tests {
 		runTopDownTestCase(t, data, tc.note, tc.rule, tc.expected)
 	}
@@ -99,8 +97,6 @@ func TestCryptoSha1(t *testing.T) {
 
 	data := loadSmallTestData()
 
-	fmt.Println(data)
-
 	for _, tc := range tests {
 		runTopDownTestCase(t, data, tc.note, tc.rule, tc.expected)
 	}
@@ -122,8 +118,6 @@ func TestCryptoSha256(t *testing.T) {
 	}
 
 	data := loadSmallTestData()
-
-	fmt.Println(data)
 
 	for _, tc := range tests {
 		runTopDownTestCase(t, data, tc.note, tc.rule, tc.expected)
