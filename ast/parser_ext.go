@@ -142,6 +142,10 @@ func ParseRuleFromExpr(module *Module, expr *Expr) (*Rule, error) {
 		return nil, fmt.Errorf("negated expressions cannot be used for rule head")
 	}
 
+	if _, ok := expr.Terms.(*SomeDecl); ok {
+		return nil, errors.New("some declarations cannot be used for rule head")
+	}
+
 	if term, ok := expr.Terms.(*Term); ok {
 		switch v := term.Value.(type) {
 		case Ref:
@@ -149,6 +153,12 @@ func ParseRuleFromExpr(module *Module, expr *Expr) (*Rule, error) {
 		default:
 			return nil, fmt.Errorf("%v cannot be used for rule name", TypeName(v))
 		}
+	}
+
+	if _, ok := expr.Terms.([]*Term); !ok {
+		// This is a defensive check in case other kinds of expression terms are
+		// introduced in the future.
+		return nil, errors.New("expression cannot be used for rule head")
 	}
 
 	if expr.IsAssignment() {
