@@ -1427,6 +1427,11 @@ data = {"bar": 2} { true }`
 
 	"foo" := 1`
 
+	someDecl := `
+	package a
+
+	some x`
+
 	assertParseModuleError(t, "multiple expressions", multipleExprs)
 	assertParseModuleError(t, "non-equality", nonEquality)
 	assertParseModuleError(t, "non-var name", nonVarName)
@@ -1437,6 +1442,13 @@ data = {"bar": 2} { true }`
 	assertParseModuleError(t, "non ref term", nonRefTerm)
 	assertParseModuleError(t, "zero args", zeroArgs)
 	assertParseModuleError(t, "assign to term", assignToTerm)
+	assertParseModuleError(t, "some decl", someDecl)
+
+	if _, err := ParseRuleFromExpr(&Module{}, &Expr{
+		Terms: struct{}{},
+	}); err == nil {
+		t.Fatal("expected error for unknown expression term type")
+	}
 }
 
 func TestWildcards(t *testing.T) {
