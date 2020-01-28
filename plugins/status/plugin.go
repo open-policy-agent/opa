@@ -24,11 +24,12 @@ import (
 // UpdateRequestV1 represents the status update message that OPA sends to
 // remote HTTP endpoints.
 type UpdateRequestV1 struct {
-	Labels    map[string]string         `json:"labels"`
-	Bundle    *bundle.Status            `json:"bundle,omitempty"` // Deprecated: Use bulk `bundles` status updates instead
-	Bundles   map[string]*bundle.Status `json:"bundles,omitempty"`
-	Discovery *bundle.Status            `json:"discovery,omitempty"`
-	Metrics   map[string]interface{}    `json:"metrics,omitempty"`
+	Labels    map[string]string          `json:"labels"`
+	Bundle    *bundle.Status             `json:"bundle,omitempty"` // Deprecated: Use bulk `bundles` status updates instead
+	Bundles   map[string]*bundle.Status  `json:"bundles,omitempty"`
+	Discovery *bundle.Status             `json:"discovery,omitempty"`
+	Metrics   map[string]interface{}     `json:"metrics,omitempty"`
+	Plugins   map[string]*plugins.Status `json:"plugins,omitempty"`
 }
 
 // Plugin implements status reporting. Updates can be triggered by the caller.
@@ -44,6 +45,8 @@ type Plugin struct {
 	stop               chan chan struct{}
 	reconfig           chan interface{}
 	metrics            metrics.Metrics
+	lastPluginStatuses map[string]*plugins.Status
+	pluginStatusCh     chan map[string]*plugins.Status
 }
 
 // Config contains configuration for the plugin.
@@ -106,15 +109,20 @@ func ParseConfig(config []byte, services []string) (*Config, error) {
 
 // New returns a new Plugin with the given config.
 func New(parsedConfig *Config, manager *plugins.Manager) *Plugin {
-	return &Plugin{
-		manager:      manager,
-		config:       *parsedConfig,
-		bundleCh:     make(chan bundle.Status),
-		bulkBundleCh: make(chan map[string]*bundle.Status),
-		discoCh:      make(chan bundle.Status),
-		stop:         make(chan chan struct{}),
-		reconfig:     make(chan interface{}),
+	p := &Plugin{
+		manager:        manager,
+		config:         *parsedConfig,
+		bundleCh:       make(chan bundle.Status),
+		bulkBundleCh:   make(chan map[string]*bundle.Status),
+		discoCh:        make(chan bundle.Status),
+		stop:           make(chan chan struct{}),
+		reconfig:       make(chan interface{}),
+		pluginStatusCh: make(chan map[string]*plugins.Status),
 	}
+
+	p.manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateNotReady})
+
+	return p
 }
 
 // WithMetrics sets the global metrics provider to be used by the plugin.
@@ -137,16 +145,28 @@ func Lookup(manager *plugins.Manager) *Plugin {
 // Start starts the plugin.
 func (p *Plugin) Start(ctx context.Context) error {
 	p.logInfo("Starting status reporter.")
+
 	go p.loop()
+
+	// Setup a listener for plugin statuses, but only after starting the loop
+	// to prevent blocking threads pushing the plugin updates.
+	p.manager.RegisterPluginStatusListener(Name, p.UpdatePluginStatus)
+
+	// Set the status plugin's status to OK now that everything is registered and
+	// the loop is running. This will trigger an update on the listener with the
+	// current status of all the other plugins too.
+	p.manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateOK})
 	return nil
 }
 
 // Stop stops the plugin.
 func (p *Plugin) Stop(ctx context.Context) {
 	p.logInfo("Stopping status reporter.")
+	p.manager.UnregisterPluginStatusListener(Name)
 	done := make(chan struct{})
 	p.stop <- done
 	_ = <-done
+	p.manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateNotReady})
 }
 
 // UpdateBundleStatus notifies the plugin that the policy bundle was updated.
@@ -165,6 +185,11 @@ func (p *Plugin) UpdateDiscoveryStatus(status bundle.Status) {
 	p.discoCh <- status
 }
 
+// UpdatePluginStatus notifies the plugin that a plugin status was updated.
+func (p *Plugin) UpdatePluginStatus(status map[string]*plugins.Status) {
+	p.pluginStatusCh <- status
+}
+
 // Reconfigure notifies the plugin with a new configuration.
 func (p *Plugin) Reconfigure(_ context.Context, config interface{}) {
 	p.reconfig <- config
@@ -176,6 +201,14 @@ func (p *Plugin) loop() {
 
 	for {
 		select {
+		case statuses := <-p.pluginStatusCh:
+			p.lastPluginStatuses = statuses
+			err := p.oneShot(ctx)
+			if err != nil {
+				p.logError("%v.", err)
+			} else {
+				p.logInfo("Status update sent successfully in response to plugin update.")
+			}
 		case statuses := <-p.bulkBundleCh:
 			p.lastBundleStatuses = statuses
 			err := p.oneShot(ctx)
@@ -219,6 +252,7 @@ func (p *Plugin) oneShot(ctx context.Context) error {
 		Discovery: p.lastDiscoStatus,
 		Bundle:    p.lastBundleStatus,
 		Bundles:   p.lastBundleStatuses,
+		Plugins:   p.lastPluginStatuses,
 	}
 
 	if p.metrics != nil {

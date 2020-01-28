@@ -40,9 +40,8 @@ func TestPluginStart(t *testing.T) {
 	fixture.plugin.Start(ctx)
 	defer fixture.plugin.Stop(ctx)
 
-	status := testStatus()
-
-	fixture.plugin.UpdateBundleStatus(*status)
+	// Start will trigger a status update when the plugin state switches
+	// from "not ready" to "ok".
 	result := <-fixture.server.ch
 
 	exp := UpdateRequestV1{
@@ -51,8 +50,21 @@ func TestPluginStart(t *testing.T) {
 			"app":     "example-app",
 			"version": version.Version,
 		},
-		Bundle: status,
+		Plugins: map[string]*plugins.Status{
+			"status": {State: plugins.StateOK},
+		},
 	}
+
+	if !reflect.DeepEqual(result, exp) {
+		t.Fatalf("Expected: %v but got: %v", exp, result)
+	}
+
+	status := testStatus()
+
+	fixture.plugin.UpdateBundleStatus(*status)
+	result = <-fixture.server.ch
+
+	exp.Bundle = status
 
 	if !reflect.DeepEqual(result, exp) {
 		t.Fatalf("Expected: %v but got: %v", exp, result)
@@ -70,9 +82,8 @@ func TestPluginStartBulkUpdate(t *testing.T) {
 	fixture.plugin.Start(ctx)
 	defer fixture.plugin.Stop(ctx)
 
-	status := testStatus()
-
-	fixture.plugin.BulkUpdateBundleStatus(map[string]*bundle.Status{status.Name: status})
+	// Start will trigger a status update when the plugin state switches
+	// from "not ready" to "ok".
 	result := <-fixture.server.ch
 
 	exp := UpdateRequestV1{
@@ -81,8 +92,17 @@ func TestPluginStartBulkUpdate(t *testing.T) {
 			"app":     "example-app",
 			"version": version.Version,
 		},
-		Bundles: map[string]*bundle.Status{status.Name: status},
+		Plugins: map[string]*plugins.Status{
+			"status": {State: plugins.StateOK},
+		},
 	}
+
+	status := testStatus()
+
+	fixture.plugin.BulkUpdateBundleStatus(map[string]*bundle.Status{status.Name: status})
+	result = <-fixture.server.ch
+
+	exp.Bundles = map[string]*bundle.Status{status.Name: status}
 
 	if !reflect.DeepEqual(result, exp) {
 		t.Fatalf("Expected: %v but got: %v", exp, result)
@@ -99,6 +119,9 @@ func TestPluginStartBulkUpdateMultiple(t *testing.T) {
 
 	fixture.plugin.Start(ctx)
 	defer fixture.plugin.Stop(ctx)
+
+	// Ignore the plugin updating its status (tested elsewhere)
+	<-fixture.server.ch
 
 	statuses := map[string]*bundle.Status{}
 	tDownload, _ := time.Parse("2018-01-01T00:00:00.0000000Z", time.RFC3339Nano)
@@ -152,6 +175,9 @@ func TestPluginStartDiscovery(t *testing.T) {
 	fixture.plugin.Start(ctx)
 	defer fixture.plugin.Stop(ctx)
 
+	// Ignore the plugin updating its status (tested elsewhere)
+	<-fixture.server.ch
+
 	status := testStatus()
 
 	fixture.plugin.UpdateDiscoveryStatus(*status)
@@ -164,6 +190,9 @@ func TestPluginStartDiscovery(t *testing.T) {
 			"version": version.Version,
 		},
 		Discovery: status,
+		Plugins: map[string]*plugins.Status{
+			"status": {State: plugins.StateOK},
+		},
 	}
 
 	if !reflect.DeepEqual(result, exp) {
@@ -240,6 +269,9 @@ func TestMetrics(t *testing.T) {
 
 	fixture.plugin.Start(ctx)
 	defer fixture.plugin.Stop(ctx)
+
+	// Ignore the plugin updating its status (tested elsewhere)
+	<-fixture.server.ch
 
 	status := testStatus()
 
