@@ -430,9 +430,12 @@ OPA can periodically report status updates to remote HTTP servers. The
 updates contain status information for OPA itself as well as the
 [Bundles](#bundles) that have been downloaded and activated.
 
-OPA sends status reports whenever bundles are downloaded and activated. If
-the bundle download or activation fails for any reason, the status update
-will include error information describing the failure.
+OPA sends status reports whenever one of the following happens:
+ 
+* Bundles are downloaded and activated -- If the bundle download or activation fails for any reason, the status update
+  will include error information describing the failure. This includes Discovery bundles.
+* A plugin state has changed -- All plugin status is reported, and an update to any plugin will
+  trigger a Status API report which contains the latest state.
 
 The status updates will include a set of labels that uniquely identify the
 OPA instance. OPA automatically includes an `id` value in the label set that
@@ -457,23 +460,34 @@ on the agent, updates will be sent to `/status`.
 
 ```json
 {
-    "labels": {
-        "app": "my-example-app",
-        "id": "1780d507-aea2-45cc-ae50-fa153c8e4a5a",
-        "version": "{{< current_version >}}"
+  "labels": {
+    "app": "my-example-app",
+    "id": "1780d507-aea2-45cc-ae50-fa153c8e4a5a",
+    "version": "{{< current_version >}}"
+  },
+  "bundles": {
+    "http/example/authz": {
+      "active_revision": "ABC",
+      "last_successful_download": "2018-01-01T00:00:00.000Z",
+      "last_successful_activation": "2018-01-01T00:00:00.000Z",
+      "metrics": {
+        "timer_rego_data_parse_ns": 12345,
+        "timer_rego_module_compile_ns": 12345,
+        "timer_rego_module_parse_ns": 12345
+      }
+    }
+  },
+  "plugins": {
+    "bundle": {
+      "state": "OK"
     },
-    "bundles": {
-        "http/example/authz": {
-            "active_revision": "TODO",
-            "last_successful_download": "2018-01-01T00:00:00.000Z",
-            "last_successful_activation": "2018-01-01T00:00:00.000Z",
-            "metrics": {
-                "timer_rego_data_parse_ns": 12345,
-                "timer_rego_module_compile_ns": 12345,
-                "timer_rego_module_parse_ns": 12345
-             }
-        }
+    "discovery": {
+      "state": "OK"
     },
+    "status": {
+      "state": "OK"
+    }
+  },
   "metrics": {
     "prometheus": {
       "go_gc_duration_seconds": {
@@ -609,6 +623,8 @@ Status updates contain the following fields:
 | `discovery.active_revision` | `string` | Opaque revision identifier of the last successful discovery activation. |
 | `discovery.last_successful_download` | `string` | RFC3339 timestamp of last successful discovery bundle download. |
 | `discovery.last_successful_activation` | `string` | RFC3339 timestamp of last successful discovery bundle activation. |
+| `plugins` | `object` | A set of objects describing the state of configured plugins in OPA's runtime. |
+| `plugins[_].state | `string` | The state of each plugin. |
 | `metrics.prometheus` | `object` | Global performance metrics for the OPA instance. |
 
 If the bundle download or activation failed, the status update will contain
