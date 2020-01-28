@@ -73,17 +73,13 @@ func TestUnversionedGetHealthBundleNoBundleSet(t *testing.T) {
 	}
 }
 
-func TestUnversionedGetHealthCheckBundleActivationSingle(t *testing.T) {
+func TestUnversionedGetHealthCheckOnlyBundlePlugin(t *testing.T) {
 
 	f := newFixture(t)
-	bundleName := "test-bundle"
 
 	// Initialize the server as if a bundle plugin was
 	// configured on the manager.
-	f.server.manager.Register(pluginBundle.Name, &pluginBundle.Plugin{})
-	f.server.bundleStatuses = map[string]*pluginBundle.Status{
-		bundleName: &pluginBundle.Status{Name: bundleName},
-	}
+	f.server.manager.UpdatePluginStatus("bundle", &plugins.Status{State: plugins.StateNotReady})
 
 	// The bundle hasn't been activated yet, expect the health check to fail
 	req := newReqUnversioned(http.MethodGet, "/health?bundle=true", "")
@@ -92,11 +88,40 @@ func TestUnversionedGetHealthCheckBundleActivationSingle(t *testing.T) {
 	}
 
 	// Set the bundle to be activated.
-	status := map[string]*pluginBundle.Status{
-		bundleName: &pluginBundle.Status{},
+	f.server.manager.UpdatePluginStatus("bundle", &plugins.Status{State: plugins.StateOK})
+
+	// The heath check should now respond as healthy
+	req = newReqUnversioned(http.MethodGet, "/health?bundle=true", "")
+	if err := f.executeRequest(req, 200, `{}`); err != nil {
+		t.Fatal(err)
 	}
-	status[bundleName].SetActivateSuccess("")
-	f.server.updateBundleStatus(status)
+}
+
+func TestUnversionedGetHealthCheckDiscoveryWithBundle(t *testing.T) {
+
+	f := newFixture(t)
+
+	// Initialize the server as if a discovery bundle is configured
+	f.server.manager.UpdatePluginStatus("discovery", &plugins.Status{State: plugins.StateNotReady})
+
+	// The discovery bundle hasn't been activated yet, expect the health check to fail
+	req := newReqUnversioned(http.MethodGet, "/health?bundle=true", "")
+	if err := f.executeRequest(req, 500, `{}`); err != nil {
+		t.Fatal(err)
+	}
+
+	// Set the bundle to be not ready (plugin configured and created, but hasn't activated all bundles yet).
+	f.server.manager.UpdatePluginStatus("discovery", &plugins.Status{State: plugins.StateOK})
+	f.server.manager.UpdatePluginStatus("bundle", &plugins.Status{State: plugins.StateNotReady})
+
+	// The discovery bundle is OK, but the newly configured bundle hasn't been activated yet, expect the health check to fail
+	req = newReqUnversioned(http.MethodGet, "/health?bundle=true", "")
+	if err := f.executeRequest(req, 500, `{}`); err != nil {
+		t.Fatal(err)
+	}
+
+	// Set the bundle to be activated.
+	f.server.manager.UpdatePluginStatus("bundle", &plugins.Status{State: plugins.StateOK})
 
 	// The heath check should now respond as healthy
 	req = newReqUnversioned(http.MethodGet, "/health?bundle=true", "")
@@ -113,6 +138,12 @@ func TestUnversionedGetHealthCheckBundleActivationSingleLegacy(t *testing.T) {
 
 	ctx := context.Background()
 
+	// The server doesn't know about any bundles, so return a healthy status
+	req := newReqUnversioned(http.MethodGet, "/health?bundle=true", "")
+	if err := f.executeRequest(req, 200, `{}`); err != nil {
+		t.Fatal(err)
+	}
+
 	err := storage.Txn(ctx, f.server.store, storage.WriteParams, func(txn storage.Transaction) error {
 		return bundle.LegacyWriteManifestToStore(ctx, f.server.store, txn, bundle.Manifest{
 			Revision: "a",
@@ -123,130 +154,305 @@ func TestUnversionedGetHealthCheckBundleActivationSingleLegacy(t *testing.T) {
 		t.Fatalf("Unexpected error: %s", err)
 	}
 
-	// The heath check should now respond as healthy
-	req := newReqUnversioned(http.MethodGet, "/health?bundle=true", "")
+	// The heath check still respond as healthy with a legacy bundle found in storage
+	req = newReqUnversioned(http.MethodGet, "/health?bundle=true", "")
 	if err := f.executeRequest(req, 200, `{}`); err != nil {
 		t.Fatal(err)
 	}
 }
 
-func TestUnversionedGetHealthCheckBundleActivationMulti(t *testing.T) {
+func TestBundlesReady(t *testing.T) {
 
+	cases := []struct {
+		note   string
+		status map[string]*plugins.Status
+		ready  bool
+	}{
+		{
+			note:   "nil status",
+			status: nil,
+			ready:  true,
+		},
+		{
+			note:   "empty status",
+			status: map[string]*plugins.Status{},
+			ready:  true,
+		},
+		{
+			note: "discovery not ready - bundle missing",
+			status: map[string]*plugins.Status{
+				"discovery": {State: plugins.StateNotReady},
+			},
+			ready: false,
+		},
+		{
+			note: "discovery ok - bundle missing",
+			status: map[string]*plugins.Status{
+				"discovery": {State: plugins.StateOK},
+			},
+			ready: true, // bundles aren't enabled, only discovery plugin configured
+		},
+		{
+			note: "discovery missing - bundle not ready",
+			status: map[string]*plugins.Status{
+				"bundle": {State: plugins.StateNotReady},
+			},
+			ready: false,
+		},
+		{
+			note: "discovery missing - bundle ok",
+			status: map[string]*plugins.Status{
+				"bundle": {State: plugins.StateOK},
+			},
+			ready: true, // discovery isn't enabled, only bundle plugin configured
+		},
+		{
+			note: "discovery not ready - bundle not ready",
+			status: map[string]*plugins.Status{
+				"discovery": {State: plugins.StateNotReady},
+				"bundle":    {State: plugins.StateNotReady},
+			},
+			ready: false,
+		},
+		{
+			note: "discovery ok - bundle not ready",
+			status: map[string]*plugins.Status{
+				"discovery": {State: plugins.StateOK},
+				"bundle":    {State: plugins.StateNotReady},
+			},
+			ready: false,
+		},
+		{
+			note: "discovery not ready - bundle ok",
+			status: map[string]*plugins.Status{
+				"discovery": {State: plugins.StateNotReady},
+				"bundle":    {State: plugins.StateOK},
+			},
+			ready: false,
+		},
+		{
+			note: "discovery ok - bundle ok",
+			status: map[string]*plugins.Status{
+				"discovery": {State: plugins.StateOK},
+				"bundle":    {State: plugins.StateOK},
+			},
+			ready: true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			f := newFixture(t)
+
+			actual := f.server.bundlesReady(tc.status)
+			if actual != tc.ready {
+				t.Errorf("Expected %t got %t", tc.ready, actual)
+			}
+		})
+	}
+}
+
+func TestUnversionedGetHealthCheckDiscoveryWithPlugins(t *testing.T) {
+
+	// Use the same server through the cases, the status updates apply incrementally to it.
 	f := newFixture(t)
 
-	// Initialize the server as if a bundle plugin was
-	// configured on the manager.
-	bp := pluginBundle.New(&pluginBundle.Config{Bundles: map[string]*pluginBundle.Source{
-		"b1": {Service: "s1", Resource: "bundle.tar.gz"},
-		"b2": {Service: "s2", Resource: "bundle.tar.gz"},
-		"b3": {Service: "s3", Resource: "bundle.tar.gz"},
-	}}, f.server.manager)
-	f.server.manager.Register(pluginBundle.Name, bp)
-	f.server.bundleStatuses = map[string]*pluginBundle.Status{
-		"b1": {Name: "b1"},
-		"b2": {Name: "b2"},
-		"b3": {Name: "b3"},
+	cases := []struct {
+		note          string
+		statusUpdates map[string]*plugins.Status
+		exp           int
+	}{
+		{
+			note:          "no plugins configured",
+			statusUpdates: nil,
+			exp:           200,
+		},
+		{
+			note: "one plugin configured - not ready",
+			statusUpdates: map[string]*plugins.Status{
+				"p1": {State: plugins.StateNotReady},
+			},
+			exp: 500,
+		},
+		{
+			note: "one plugin configured - ready",
+			statusUpdates: map[string]*plugins.Status{
+				"p1": {State: plugins.StateOK},
+			},
+			exp: 200,
+		},
+		{
+			note: "one plugin configured - error state",
+			statusUpdates: map[string]*plugins.Status{
+				"p1": {State: plugins.StateErr},
+			},
+			exp: 500,
+		},
+		{
+			note: "one plugin configured - recovered from error",
+			statusUpdates: map[string]*plugins.Status{
+				"p1": {State: plugins.StateOK},
+			},
+			exp: 200,
+		},
+		{
+			note: "add second plugin - not ready",
+			statusUpdates: map[string]*plugins.Status{
+				"p1": {State: plugins.StateOK},
+				"p2": {State: plugins.StateNotReady},
+			},
+			exp: 500,
+		},
+		{
+			note: "add third plugin - not ready",
+			statusUpdates: map[string]*plugins.Status{
+				"p1": {State: plugins.StateOK},
+				"p2": {State: plugins.StateNotReady},
+				"p3": {State: plugins.StateNotReady},
+			},
+			exp: 500,
+		},
+		{
+			note: "mixed states - not ready",
+			statusUpdates: map[string]*plugins.Status{
+				"p1": {State: plugins.StateOK},
+				"p2": {State: plugins.StateErr},
+				"p3": {State: plugins.StateNotReady},
+			},
+			exp: 500,
+		},
+		{
+			note: "mixed states - still not ready",
+			statusUpdates: map[string]*plugins.Status{
+				"p1": {State: plugins.StateOK},
+				"p2": {State: plugins.StateErr},
+				"p3": {State: plugins.StateOK},
+			},
+			exp: 500,
+		},
+		{
+			note: "all plugins ready",
+			statusUpdates: map[string]*plugins.Status{
+				"p1": {State: plugins.StateOK},
+				"p2": {State: plugins.StateOK},
+				"p3": {State: plugins.StateOK},
+			},
+			exp: 200,
+		},
+		{
+			note: "one plugins fails",
+			statusUpdates: map[string]*plugins.Status{
+				"p1": {State: plugins.StateErr},
+				"p2": {State: plugins.StateOK},
+				"p3": {State: plugins.StateOK},
+			},
+			exp: 500,
+		},
+
+		{
+			note: "all plugins ready - recovery",
+			statusUpdates: map[string]*plugins.Status{
+				"p1": {State: plugins.StateOK},
+				"p2": {State: plugins.StateOK},
+				"p3": {State: plugins.StateOK},
+			},
+			exp: 200,
+		},
 	}
 
-	// No bundle has been activated yet, expect the health check to fail
-	req := newReqUnversioned(http.MethodGet, "/health?bundle=true", "")
-	if err := f.executeRequest(req, 500, `{}`); err != nil {
-		t.Fatal(err)
-	}
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			for name, status := range tc.statusUpdates {
+				f.server.manager.UpdatePluginStatus(name, status)
+			}
 
-	// Set one bundle to be activated
-	update := map[string]*pluginBundle.Status{
-		"b1": {Name: "b1"},
-		"b2": {Name: "b2"},
-		"b3": {Name: "b3"},
-	}
-	update["b2"].SetActivateSuccess("A")
-	f.server.updateBundleStatus(update)
-
-	// The heath check should still respond as unhealthy
-	req = newReqUnversioned(http.MethodGet, "/health?bundle=true", "")
-	if err := f.executeRequest(req, 500, `{}`); err != nil {
-		t.Fatal(err)
-	}
-
-	// Activate all the bundles
-	update["b1"].SetActivateSuccess("B")
-	update["b3"].SetActivateSuccess("C")
-	f.server.updateBundleStatus(update)
-
-	// The heath check should succeed now
-	req = newReqUnversioned(http.MethodGet, "/health?bundle=true", "")
-	if err := f.executeRequest(req, 200, `{}`); err != nil {
-		t.Fatal(err)
+			req := newReqUnversioned(http.MethodGet, "/health?plugins", "")
+			if err := f.executeRequest(req, tc.exp, `{}`); err != nil {
+				t.Fatal(err)
+			}
+		})
 	}
 }
 
-func TestInitWithBundlePlugin(t *testing.T) {
-	store := inmem.New()
-	m, err := plugins.New([]byte{}, "test", store)
-	if err != nil {
-		t.Fatalf("Unexpected error creating plugin manager: %s", err.Error())
+func TestUnversionedGetHealthCheckBundleAndPlugins(t *testing.T) {
+
+	cases := []struct {
+		note     string
+		statuses map[string]*plugins.Status
+		exp      int
+	}{
+		{
+			note:     "no plugins configured",
+			statuses: nil,
+			exp:      200,
+		},
+		{
+			note: "only bundle plugin configured - not ready",
+			statuses: map[string]*plugins.Status{
+				"bundle": {State: plugins.StateNotReady},
+			},
+			exp: 500,
+		},
+		{
+			note: "only bundle plugin configured - ok",
+			statuses: map[string]*plugins.Status{
+				"bundle": {State: plugins.StateOK},
+			},
+			exp: 200,
+		},
+		{
+			note: "only custom plugin configured - not ready",
+			statuses: map[string]*plugins.Status{
+				"p1": {State: plugins.StateNotReady},
+			},
+			exp: 500,
+		},
+		{
+			note: "only custom plugin configured - ok",
+			statuses: map[string]*plugins.Status{
+				"p1": {State: plugins.StateOK},
+			},
+			exp: 200,
+		},
+		{
+			note: "both configured - bundle not ready",
+			statuses: map[string]*plugins.Status{
+				"bundle": {State: plugins.StateNotReady},
+				"p1":     {State: plugins.StateOK},
+			},
+			exp: 500,
+		},
+		{
+			note: "both configured - custom plugin not ready",
+			statuses: map[string]*plugins.Status{
+				"bundle": {State: plugins.StateOK},
+				"p1":     {State: plugins.StateNotReady},
+			},
+			exp: 500,
+		},
+		{
+			note: "both configured - both ready",
+			statuses: map[string]*plugins.Status{
+				"bundle": {State: plugins.StateOK},
+				"p1":     {State: plugins.StateOK},
+			},
+			exp: 200,
+		},
 	}
 
-	bundleName := "test-bundle"
-	bundleConf := &pluginBundle.Config{
-		Name:    bundleName,
-		Service: "s1",
-		Bundles: map[string]*pluginBundle.Source{"b1": {}},
-	}
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			f := newFixture(t)
 
-	m.Register(pluginBundle.Name, pluginBundle.New(bundleConf, m))
+			for name, status := range tc.statuses {
+				f.server.manager.UpdatePluginStatus(name, status)
+			}
 
-	server, err := New().
-		WithStore(store).
-		WithManager(m).
-		Init(context.Background())
-
-	if err != nil {
-		t.Fatalf("Unexpected error initializing server: %s", err.Error())
-	}
-
-	if !server.hasBundle() {
-		t.Error("server.hasBundle should be true")
-	}
-
-	isActivated := server.bundlesActivated()
-	if isActivated {
-		t.Error("bundle should not be initialized to activated status")
-	}
-}
-
-func TestInitWithBundlePluginMultiBundle(t *testing.T) {
-	store := inmem.New()
-	m, err := plugins.New([]byte{}, "test", store)
-	if err != nil {
-		t.Fatalf("Unexpected error creating plugin manager: %s", err.Error())
-	}
-
-	bundleConf := &pluginBundle.Config{Bundles: map[string]*pluginBundle.Source{
-		"b1": {},
-		"b2": {},
-		"b3": {},
-	}}
-
-	m.Register(pluginBundle.Name, pluginBundle.New(bundleConf, m))
-
-	server, err := New().
-		WithStore(store).
-		WithManager(m).
-		Init(context.Background())
-
-	if err != nil {
-		t.Fatalf("Unexpected error initializing server: %s", err.Error())
-	}
-
-	if !server.hasBundle() {
-		t.Error("server.hasBundle should be true")
-	}
-
-	isActivated := server.bundlesActivated()
-	if isActivated {
-		t.Error("bundle should not be initialized to activated")
+			req := newReqUnversioned(http.MethodGet, "/health?plugins&bundle", "")
+			if err := f.executeRequest(req, tc.exp, `{}`); err != nil {
+				t.Fatal(err)
+			}
+		})
 	}
 }
 
@@ -1680,9 +1886,6 @@ func TestDataProvenanceSingleBundle(t *testing.T) {
 	// Initialize as if a bundle plugin is running
 	bp := pluginBundle.New(&pluginBundle.Config{Name: "b1"}, f.server.manager)
 	f.server.manager.Register(pluginBundle.Name, bp)
-	f.server.bundleStatuses = map[string]*pluginBundle.Status{
-		"b1": {Name: "b1"},
-	}
 
 	req := newReqV1(http.MethodPost, "/data?provenance", "")
 	f.reset()
@@ -1790,11 +1993,6 @@ func TestDataProvenanceMultiBundle(t *testing.T) {
 		"b2": {Service: "s2", Resource: "bundle.tar.gz"},
 	}}, f.server.manager)
 	f.server.manager.Register(pluginBundle.Name, bp)
-
-	f.server.bundleStatuses = map[string]*pluginBundle.Status{
-		"b1": {Name: "b1"},
-		"b2": {Name: "b2"},
-	}
 
 	req := newReqV1(http.MethodPost, "/data?provenance", "")
 	f.reset()

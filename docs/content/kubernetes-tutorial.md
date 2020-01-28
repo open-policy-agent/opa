@@ -187,7 +187,7 @@ spec:
               name: opa-server
           readinessProbe:
             httpGet:
-              path: /health
+              path: /health?plugins&bundle
               scheme: HTTPS
               port: 443
             initialDelaySeconds: 3

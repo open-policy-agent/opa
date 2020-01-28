@@ -2046,12 +2046,15 @@ that the server is operational. Optionally it can account for bundle activation 
 
 #### Query Parameters
 `bundle` - Boolean parameter to account for bundle activation status in response.
+`plugins` - Boolean parameter to account for plugin status in response.
 
 #### Status Codes
 - **200** - OPA service is healthy. If `bundle=true` then all configured bundles have
-            been activated.
+            been activated. If the `plugins` option is specified then all plugins are in an OK state.
 - **500** - OPA service is not healthy. If `bundle=true` this can mean any of the configured
-            bundles have not yet been activated.
+            bundles have not yet been activated. If the `plugins` option is specified then at least one
+            plugin is in a non-OK state.
+            
 
 > *Note*: The bundle activation check is only for initial startup. Subsequent downloads
   will not affect the health check. The [Status](../management/#status)
@@ -2065,6 +2068,11 @@ GET /health HTTP/1.1
 #### Example Request (bundle activation)
 ```http
 GET /health?bundle=true HTTP/1.1
+```
+
+#### Example Request (plugin status)
+```http
+GET /health?plugins HTTP/1.1
 ```
 
 #### Healthy Response
