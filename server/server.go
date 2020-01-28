@@ -110,8 +110,6 @@ type Server struct {
 	pprofEnabled        bool
 	runtime             *ast.Term
 	httpListeners       []httpListener
-	bundleStatuses      map[string]*bundlePlugin.Status
-	bundleStatusMtx     sync.RWMutex
 	metrics             Metrics
 	defaultDecisionPath string
 }
@@ -179,18 +177,6 @@ func (s *Server) Init(ctx context.Context) (*Server, error) {
 
 	s.partials = map[string]rego.PartialResult{}
 	s.preparedEvalQueries = newCache(pqMaxCacheSize)
-
-	bp := bundlePlugin.Lookup(s.manager)
-	if bp != nil {
-
-		// initialize statuses to empty defaults for server /health check
-		s.bundleStatuses = map[string]*bundlePlugin.Status{}
-		for bundleName := range bp.Config().Bundles {
-			s.bundleStatuses[bundleName] = &bundlePlugin.Status{Name: bundleName}
-		}
-
-		bp.RegisterBulkListener("REST API Server", s.updateBundleStatus)
-	}
 
 	// Check if there is a bundle revision available at the legacy storage path
 	rev, err := bundle.LegacyReadRevisionFromStore(ctx, s.store, txn)
@@ -871,12 +857,6 @@ func (s *Server) getCachedPreparedEvalQuery(key string, m metrics.Metrics) (*reg
 	return nil, false
 }
 
-func (s *Server) updateBundleStatus(status map[string]*bundlePlugin.Status) {
-	s.bundleStatusMtx.Lock()
-	defer s.bundleStatusMtx.Unlock()
-	s.bundleStatuses = status
-}
-
 func (s *Server) canEval(ctx context.Context) bool {
 	// Create very simple query that binds a single variable.
 	eval := rego.New(rego.Compiler(s.getCompiler()),
@@ -886,7 +866,7 @@ func (s *Server) canEval(ctx context.Context) bool {
 	if err != nil {
 		return false
 	}
-	type emptyObject struct{}
+
 	v, ok := rs[0].Bindings["x"]
 	if ok {
 		jsonNumber, ok := v.(json.Number)
@@ -897,15 +877,22 @@ func (s *Server) canEval(ctx context.Context) bool {
 	return false
 }
 
-func (s *Server) bundlesActivated() bool {
-	s.bundleStatusMtx.RLock()
-	defer s.bundleStatusMtx.RUnlock()
+func (s *Server) bundlesReady(pluginStatuses map[string]*plugins.Status) bool {
 
-	for _, status := range s.bundleStatuses {
-		// Ensure that all of the bundle statuses have an activation time set on them
-		if (status.LastSuccessfulActivation == time.Time{}) {
-			return false
-		}
+	// Look for a discovery plugin first, if it exists and isn't ready
+	// then don't bother with the others.
+	// Note: use "discovery" instead of `discovery.Name` to avoid import
+	// cycle problems..
+	dpStatus, ok := pluginStatuses["discovery"]
+	if ok && dpStatus != nil && (dpStatus.State != plugins.StateOK) {
+		return false
+	}
+
+	// The bundle plugin won't return "OK" until the first activation
+	// of each configured bundle.
+	bpStatus, ok := pluginStatuses[bundlePlugin.Name]
+	if ok && bpStatus != nil && (bpStatus.State != plugins.StateOK) {
+		return false
 	}
 
 	return true
@@ -913,23 +900,50 @@ func (s *Server) bundlesActivated() bool {
 
 func (s *Server) unversionedGetHealth(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	includeBundleStatus := getBoolParam(r.URL, types.ParamBundleActivationV1, false)
+	includeBundleStatus := getBoolParam(r.URL, types.ParamBundleActivationV1, true)
+	includePluginStatus := getBoolParam(r.URL, types.ParamPluginsV1, true)
 
 	// Ensure the server can evaluate a simple query
-	type emptyObject struct{}
 	if !s.canEval(ctx) {
-		writer.JSON(w, http.StatusInternalServerError, emptyObject{}, false)
+		writeHealthResponse(w, errors.New("unable to perform evaluation"), struct{}{})
 		return
 	}
+
+	pluginStatuses := s.manager.PluginStatus()
 
 	// Ensure that bundles (if configured, and requested to be included in the result)
-	// have been activated successfully.
-	if includeBundleStatus && s.hasBundle() && !s.bundlesActivated() {
-		writer.JSON(w, http.StatusInternalServerError, emptyObject{}, false)
+	// have been activated successfully. This will include discovery bundles as well as
+	// normal bundles that are configured.
+	if includeBundleStatus && !s.bundlesReady(pluginStatuses) {
+		// For backwards compatibility we don't return a payload with statuses for the bundle endpoint
+		writeHealthResponse(w, errors.New("not all configured bundles have been activated"), struct{}{})
 		return
 	}
 
-	writer.JSON(w, http.StatusOK, emptyObject{}, false)
+	if includePluginStatus {
+		// Ensure that all plugins (if requested to be included in the result) have an OK status.
+		hasErr := false
+		for _, status := range pluginStatuses {
+			if status.State != plugins.StateOK {
+				hasErr = true
+				break
+			}
+		}
+		if hasErr {
+			writeHealthResponse(w, errors.New("not all plugins in OK state"), struct{}{})
+			return
+		}
+	}
+	writeHealthResponse(w, nil, struct{}{})
+}
+
+func writeHealthResponse(w http.ResponseWriter, err error, payload interface{}) {
+	status := http.StatusOK
+	if err != nil {
+		status = http.StatusInternalServerError
+	}
+
+	writer.JSON(w, status, payload, false)
 }
 
 func (s *Server) v1CompilePost(w http.ResponseWriter, r *http.Request) {
@@ -2126,10 +2140,6 @@ func (s *Server) getProvenance() *types.ProvenanceV1 {
 	}
 
 	return p
-}
-
-func (s *Server) hasBundle() bool {
-	return bundlePlugin.Lookup(s.manager) != nil || s.legacyRevision != ""
 }
 
 func (s *Server) hasLegacyBundle() bool {
