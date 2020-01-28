@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sync"
 
 	"github.com/open-policy-agent/opa/metrics"
 
@@ -26,6 +27,9 @@ import (
 	"github.com/open-policy-agent/opa/storage/inmem"
 )
 
+// Name is the discovery plugin name that will be registered with the plugin manager.
+const Name = "discovery"
+
 // Discovery implements configuration discovery for OPA. When discovery is
 // started it will periodically download a configuration bundle and try to
 // reconfigure the OPA.
@@ -37,6 +41,7 @@ type Discovery struct {
 	status     *bundle.Status       // discovery status
 	etag       string               // discovery bundle etag for caching purposes
 	metrics    metrics.Metrics
+	readyOnce  sync.Once
 }
 
 // Factories provides a set of factory functions to use for
@@ -86,6 +91,7 @@ func New(manager *plugins.Manager, opts ...func(*Discovery)) (*Discovery, error)
 		Name: *config.Name,
 	}
 
+	manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateNotReady})
 	return result, nil
 }
 
@@ -93,6 +99,9 @@ func New(manager *plugins.Manager, opts ...func(*Discovery)) (*Discovery, error)
 func (c *Discovery) Start(ctx context.Context) error {
 	if c.downloader != nil {
 		c.downloader.Start(ctx)
+	} else {
+		// If there is no dynamic discovery then update the status to OK.
+		c.manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateOK})
 	}
 	return nil
 }
@@ -102,6 +111,8 @@ func (c *Discovery) Stop(ctx context.Context) {
 	if c.downloader != nil {
 		c.downloader.Stop(ctx)
 	}
+
+	c.manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateNotReady})
 }
 
 // Reconfigure is a no-op on discovery.
@@ -137,6 +148,12 @@ func (c *Discovery) processUpdate(ctx context.Context, u download.Update) {
 
 		c.status.SetError(nil)
 		c.status.SetActivateSuccess(u.Bundle.Manifest.Revision)
+
+		// On the first activation success mark the plugin as being in OK state
+		c.readyOnce.Do(func() {
+			c.manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateOK})
+		})
+
 		if u.ETag != "" {
 			c.logInfo("Discovery update processed successfully. Etag updated to %v.", u.ETag)
 		} else {
@@ -410,12 +427,8 @@ func registerBundleStatusUpdates(m *plugins.Manager) {
 	// Depending on how the plugin was configured we will want to use different listeners
 	// for backwards compatibility.
 	if !bp.Config().IsMultiBundle() {
-		bp.Register(pluginlistener(status.Name), func(s bundle.Status) {
-			sp.UpdateBundleStatus(s)
-		})
+		bp.Register(pluginlistener(status.Name), sp.UpdateBundleStatus)
 	} else {
-		bp.RegisterBulkListener(pluginlistener(status.Name), func(s map[string]*bundle.Status) {
-			sp.BulkUpdateBundleStatus(s)
-		})
+		bp.RegisterBulkListener(pluginlistener(status.Name), sp.BulkUpdateBundleStatus)
 	}
 }
