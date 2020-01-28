@@ -31,9 +31,11 @@ func TestPluginOneShot(t *testing.T) {
 
 	ctx := context.Background()
 	manager := getTestManager()
-	plugin := Plugin{manager: manager, status: map[string]*Status{}, etags: map[string]string{}}
+	plugin := New(&Config{}, manager)
 	bundleName := "test-bundle"
 	plugin.status[bundleName] = &Status{Name: bundleName, Metrics: metrics.New()}
+
+	ensurePluginState(t, plugin, plugins.StateNotReady)
 
 	module := "package foo\n\ncorge=1"
 
@@ -52,6 +54,8 @@ func TestPluginOneShot(t *testing.T) {
 	b.Manifest.Init()
 
 	plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New()})
+
+	ensurePluginState(t, plugin, plugins.StateOK)
 
 	txn := storage.NewTransactionOrDie(ctx, manager.Store)
 	defer manager.Store.Abort(ctx, txn)
@@ -85,9 +89,12 @@ func TestPluginOneShotCompileError(t *testing.T) {
 
 	ctx := context.Background()
 	manager := getTestManager()
-	plugin := Plugin{manager: manager, status: map[string]*Status{}, etags: map[string]string{}}
+	plugin := New(&Config{}, manager)
 	bundleName := "test-bundle"
 	plugin.status[bundleName] = &Status{Name: bundleName}
+
+	ensurePluginState(t, plugin, plugins.StateNotReady)
+
 	raw1 := "package foo\n\np[x] { x = 1 }"
 
 	b1 := &bundle.Bundle{
@@ -104,6 +111,8 @@ func TestPluginOneShotCompileError(t *testing.T) {
 	b1.Manifest.Init()
 	plugin.oneShot(ctx, bundleName, download.Update{Bundle: b1, Metrics: metrics.New()})
 
+	ensurePluginState(t, plugin, plugins.StateOK)
+
 	b2 := &bundle.Bundle{
 		Data: map[string]interface{}{"a": "b"},
 		Modules: []bundle.ModuleFile{
@@ -116,6 +125,9 @@ func TestPluginOneShotCompileError(t *testing.T) {
 
 	b2.Manifest.Init()
 	plugin.oneShot(ctx, bundleName, download.Update{Bundle: b2})
+
+	ensurePluginState(t, plugin, plugins.StateOK)
+
 	txn := storage.NewTransactionOrDie(ctx, manager.Store)
 
 	_, err := manager.Store.GetPolicy(ctx, txn, filepath.Join(bundleName, "/example.rego"))
@@ -143,6 +155,8 @@ func TestPluginOneShotCompileError(t *testing.T) {
 	b3.Manifest.Init()
 	plugin.oneShot(ctx, bundleName, download.Update{Bundle: b3})
 
+	ensurePluginState(t, plugin, plugins.StateOK)
+
 	txn = storage.NewTransactionOrDie(ctx, manager.Store)
 
 	_, err = manager.Store.GetPolicy(ctx, txn, filepath.Join(bundleName, "/example.rego"))
@@ -161,9 +175,11 @@ func TestPluginOneShotActivationRemovesOld(t *testing.T) {
 
 	ctx := context.Background()
 	manager := getTestManager()
-	plugin := Plugin{manager: manager, status: map[string]*Status{}, etags: map[string]string{}}
+	plugin := New(&Config{}, manager)
 	bundleName := "test-bundle"
 	plugin.status[bundleName] = &Status{Name: bundleName}
+
+	ensurePluginState(t, plugin, plugins.StateNotReady)
 
 	module1 := `package example
 
@@ -185,6 +201,8 @@ func TestPluginOneShotActivationRemovesOld(t *testing.T) {
 	b1.Manifest.Init()
 	plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b1})
 
+	ensurePluginState(t, plugin, plugins.StateOK)
+
 	module2 := `package example
 
 		p = 2`
@@ -204,6 +222,8 @@ func TestPluginOneShotActivationRemovesOld(t *testing.T) {
 
 	b2.Manifest.Init()
 	plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b2})
+
+	ensurePluginState(t, plugin, plugins.StateOK)
 
 	err := storage.Txn(ctx, manager.Store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 		ids, err := manager.Store.ListPolicies(ctx, txn)
@@ -231,7 +251,10 @@ func TestPluginOneShotActivationRemovesOld(t *testing.T) {
 func TestPluginOneShotActivationConflictingRoots(t *testing.T) {
 	ctx := context.Background()
 	manager := getTestManager()
-	plugin := Plugin{manager: manager, status: map[string]*Status{}, etags: map[string]string{}}
+	plugin := New(&Config{}, manager)
+
+	ensurePluginState(t, plugin, plugins.StateNotReady)
+
 	bundleNames := []string{"test-bundle1", "test-bundle2", "test-bundle3"}
 
 	for _, name := range bundleNames {
@@ -245,14 +268,18 @@ func TestPluginOneShotActivationConflictingRoots(t *testing.T) {
 		},
 	}})
 
+	ensurePluginState(t, plugin, plugins.StateNotReady)
+
 	plugin.oneShot(ctx, bundleNames[1], download.Update{Bundle: &bundle.Bundle{
 		Manifest: bundle.Manifest{
 			Roots: &[]string{"a/c"},
 		},
 	}})
 
+	ensurePluginState(t, plugin, plugins.StateNotReady)
+
 	// ensure that both bundles are *not* in error status
-	ensureBundleOverlapStatus(t, &plugin, bundleNames, []bool{false, false, false})
+	ensureBundleOverlapStatus(t, plugin, bundleNames, []bool{false, false, false})
 
 	// Add a third bundle that conflicts with one
 	plugin.oneShot(ctx, bundleNames[2], download.Update{Bundle: &bundle.Bundle{
@@ -261,8 +288,10 @@ func TestPluginOneShotActivationConflictingRoots(t *testing.T) {
 		},
 	}})
 
+	ensurePluginState(t, plugin, plugins.StateNotReady)
+
 	// ensure that both in the conflict go into error state
-	ensureBundleOverlapStatus(t, &plugin, bundleNames, []bool{false, false, true})
+	ensureBundleOverlapStatus(t, plugin, bundleNames, []bool{false, false, true})
 
 	// Update to fix conflict
 	plugin.oneShot(ctx, bundleNames[2], download.Update{Bundle: &bundle.Bundle{
@@ -271,7 +300,8 @@ func TestPluginOneShotActivationConflictingRoots(t *testing.T) {
 		},
 	}})
 
-	ensureBundleOverlapStatus(t, &plugin, bundleNames, []bool{false, false, false})
+	ensurePluginState(t, plugin, plugins.StateOK)
+	ensureBundleOverlapStatus(t, plugin, bundleNames, []bool{false, false, false})
 
 	// Ensure empty roots conflict with all roots
 	plugin.oneShot(ctx, bundleNames[2], download.Update{Bundle: &bundle.Bundle{
@@ -280,7 +310,8 @@ func TestPluginOneShotActivationConflictingRoots(t *testing.T) {
 		},
 	}})
 
-	ensureBundleOverlapStatus(t, &plugin, bundleNames, []bool{false, false, true})
+	ensurePluginState(t, plugin, plugins.StateOK)
+	ensureBundleOverlapStatus(t, plugin, bundleNames, []bool{false, false, true})
 }
 
 func TestPluginOneShotActivationPrefixMatchingRoots(t *testing.T) {
@@ -336,7 +367,7 @@ func TestPluginListener(t *testing.T) {
 
 	ctx := context.Background()
 	manager := getTestManager()
-	plugin := Plugin{manager: manager, status: map[string]*Status{}, etags: map[string]string{}}
+	plugin := New(&Config{}, manager)
 	bundleName := "test-bundle"
 	plugin.status[bundleName] = &Status{Name: bundleName}
 	ch := make(chan Status)
@@ -393,7 +424,7 @@ func TestPluginListener(t *testing.T) {
 		Parsed: ast.MustParseModule(module),
 	}
 
-	// Test that new update is successful.
+	// Test that the new update is successful.
 	go plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b})
 	s3 := <-ch
 
@@ -900,6 +931,20 @@ func TestPluginReconfigure(t *testing.T) {
 	var delay int64 = 10
 	baseConf := download.Config{Polling: download.PollingConfig{MinDelaySeconds: &delay, MaxDelaySeconds: &delay}}
 
+	// Expect the plugin to emit a "not ready" status update each time we change the configuration
+	updateCount := 0
+	manager.RegisterPluginStatusListener(t.Name(), func(status map[string]*plugins.Status) {
+		updateCount++
+		bStatus, ok := status[Name]
+		if !ok {
+			t.Errorf("Expected to find status for %s in plugin status update, got: %+v", Name, status)
+		}
+
+		if bStatus.State != plugins.StateNotReady {
+			t.Errorf("Expected plugin status update to have state = %s, got %s", plugins.StateNotReady, bStatus.State)
+		}
+	})
+
 	// Note: test stages are accumulating state with reconfigures between them, the order does matter!
 	// Each stage defines the new config, side effects are validated.
 	stages := []struct {
@@ -920,7 +965,7 @@ func TestPluginReconfigure(t *testing.T) {
 			},
 		},
 		{
-			name: "switch to mutli-bundle",
+			name: "switch to multi-bundle",
 			cfg: &Config{
 				Bundles: map[string]*Source{
 					"b1": {Config: baseConf, Service: serviceName, Resource: "/bundles/bundle.tar.gz"},
@@ -1049,6 +1094,9 @@ func TestPluginReconfigure(t *testing.T) {
 				}
 			}
 		})
+	}
+	if len(stages) != updateCount {
+		t.Fatalf("Expected to have recieved %d updates, got %d", len(stages), updateCount)
 	}
 }
 
@@ -1312,5 +1360,17 @@ func validateStoreState(ctx context.Context, t *testing.T, store storage.Store, 
 
 	}); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func ensurePluginState(t *testing.T, p *Plugin, state plugins.State) {
+	t.Helper()
+	status, ok := p.manager.PluginStatus()[Name]
+	if !ok {
+		t.Fatalf("Expected to find state for %s, found nil", Name)
+		return
+	}
+	if status.State != state {
+		t.Fatalf("Unexpected status state found in plugin manager for %s:\n\n\tFound:%+v\n\n\tExpected: %s", Name, status.State, state)
 	}
 }

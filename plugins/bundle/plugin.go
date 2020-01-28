@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"reflect"
 	"sync"
+	"time"
 
 	"github.com/sirupsen/logrus"
 
@@ -36,6 +37,7 @@ type Plugin struct {
 	mtx           sync.Mutex
 	cfgMtx        sync.Mutex
 	legacyConfig  bool
+	ready         bool
 }
 
 // New returns a new Plugin with the given config.
@@ -53,8 +55,10 @@ func New(parsedConfig *Config, manager *plugins.Manager) *Plugin {
 		status:      initialStatus,
 		downloaders: make(map[string]*download.Downloader),
 		etags:       make(map[string]string),
+		ready:       false,
 	}
-	p.initDownloaders()
+
+	manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateNotReady})
 	return p
 }
 
@@ -75,6 +79,7 @@ func Lookup(manager *plugins.Manager) *Plugin {
 func (p *Plugin) Start(ctx context.Context) error {
 	p.mtx.Lock()
 	defer p.mtx.Unlock()
+	p.initDownloaders()
 	for name, dl := range p.downloaders {
 		p.logInfo(name, "Starting bundle downloader.")
 		dl.Start(ctx)
@@ -160,6 +165,8 @@ func (p *Plugin) Reconfigure(ctx context.Context, config interface{}) {
 		panic(errors.New("Unable deactivate bundle: " + err.Error()))
 	}
 
+	readyNow := p.ready
+
 	for name, source := range p.config.Bundles {
 		_, updated := updatedBundles[name]
 		_, isNew := newBundles[name]
@@ -173,8 +180,15 @@ func (p *Plugin) Reconfigure(ctx context.Context, config interface{}) {
 			}
 			p.downloaders[name] = p.newDownloader(name, source)
 			p.downloaders[name].Start(ctx)
+			readyNow = false
 		}
 	}
+
+	if !readyNow {
+		p.ready = false
+		p.manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateNotReady})
+	}
+
 }
 
 // Register a listener to receive status updates. The name must be comparable.
@@ -298,6 +312,23 @@ func (p *Plugin) process(ctx context.Context, name string, u download.Update) {
 			p.logInfo(name, "Bundle downloaded and activated successfully.")
 		}
 		p.etags[name] = u.ETag
+
+		// If the plugin wasn't ready yet then check if we are now after activating this bundle.
+		if !p.ready {
+			readyNow := true // optimistically
+			for _, status := range p.status {
+				if len(status.Errors) > 0 || (status.LastSuccessfulActivation == time.Time{}) {
+					readyNow = false // Not ready yet, check again on next bundle activation.
+					break
+				}
+			}
+
+			if readyNow {
+				p.ready = true
+				p.manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateOK})
+			}
+
+		}
 		return
 	}
 
