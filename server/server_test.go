@@ -67,7 +67,7 @@ func TestUnversionedGetHealthBundleNoBundleSet(t *testing.T) {
 
 	f := newFixture(t)
 
-	req := newReqUnversioned(http.MethodGet, "/health?bundle=true", "")
+	req := newReqUnversioned(http.MethodGet, "/health?bundles=true", "")
 	if err := f.executeRequest(req, 200, `{}`); err != nil {
 		t.Fatalf("Unexpected error while health check: %v", err)
 	}
@@ -82,7 +82,7 @@ func TestUnversionedGetHealthCheckOnlyBundlePlugin(t *testing.T) {
 	f.server.manager.UpdatePluginStatus("bundle", &plugins.Status{State: plugins.StateNotReady})
 
 	// The bundle hasn't been activated yet, expect the health check to fail
-	req := newReqUnversioned(http.MethodGet, "/health?bundle=true", "")
+	req := newReqUnversioned(http.MethodGet, "/health?bundles=true", "")
 	if err := f.executeRequest(req, 500, `{}`); err != nil {
 		t.Fatal(err)
 	}
@@ -91,7 +91,7 @@ func TestUnversionedGetHealthCheckOnlyBundlePlugin(t *testing.T) {
 	f.server.manager.UpdatePluginStatus("bundle", &plugins.Status{State: plugins.StateOK})
 
 	// The heath check should now respond as healthy
-	req = newReqUnversioned(http.MethodGet, "/health?bundle=true", "")
+	req = newReqUnversioned(http.MethodGet, "/health?bundles=true", "")
 	if err := f.executeRequest(req, 200, `{}`); err != nil {
 		t.Fatal(err)
 	}
@@ -105,7 +105,7 @@ func TestUnversionedGetHealthCheckDiscoveryWithBundle(t *testing.T) {
 	f.server.manager.UpdatePluginStatus("discovery", &plugins.Status{State: plugins.StateNotReady})
 
 	// The discovery bundle hasn't been activated yet, expect the health check to fail
-	req := newReqUnversioned(http.MethodGet, "/health?bundle=true", "")
+	req := newReqUnversioned(http.MethodGet, "/health?bundles=true", "")
 	if err := f.executeRequest(req, 500, `{}`); err != nil {
 		t.Fatal(err)
 	}
@@ -115,7 +115,7 @@ func TestUnversionedGetHealthCheckDiscoveryWithBundle(t *testing.T) {
 	f.server.manager.UpdatePluginStatus("bundle", &plugins.Status{State: plugins.StateNotReady})
 
 	// The discovery bundle is OK, but the newly configured bundle hasn't been activated yet, expect the health check to fail
-	req = newReqUnversioned(http.MethodGet, "/health?bundle=true", "")
+	req = newReqUnversioned(http.MethodGet, "/health?bundles=true", "")
 	if err := f.executeRequest(req, 500, `{}`); err != nil {
 		t.Fatal(err)
 	}
@@ -124,7 +124,7 @@ func TestUnversionedGetHealthCheckDiscoveryWithBundle(t *testing.T) {
 	f.server.manager.UpdatePluginStatus("bundle", &plugins.Status{State: plugins.StateOK})
 
 	// The heath check should now respond as healthy
-	req = newReqUnversioned(http.MethodGet, "/health?bundle=true", "")
+	req = newReqUnversioned(http.MethodGet, "/health?bundles=true", "")
 	if err := f.executeRequest(req, 200, `{}`); err != nil {
 		t.Fatal(err)
 	}
@@ -448,7 +448,7 @@ func TestUnversionedGetHealthCheckBundleAndPlugins(t *testing.T) {
 				f.server.manager.UpdatePluginStatus(name, status)
 			}
 
-			req := newReqUnversioned(http.MethodGet, "/health?plugins&bundle", "")
+			req := newReqUnversioned(http.MethodGet, "/health?plugins&bundles", "")
 			if err := f.executeRequest(req, tc.exp, `{}`); err != nil {
 				t.Fatal(err)
 			}

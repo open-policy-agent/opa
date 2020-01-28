@@ -900,7 +900,8 @@ func (s *Server) bundlesReady(pluginStatuses map[string]*plugins.Status) bool {
 
 func (s *Server) unversionedGetHealth(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	includeBundleStatus := getBoolParam(r.URL, types.ParamBundleActivationV1, true)
+	includeBundleStatus := getBoolParam(r.URL, types.ParamBundleActivationV1, true) ||
+		getBoolParam(r.URL, types.ParamBundlesActivationV1, true)
 	includePluginStatus := getBoolParam(r.URL, types.ParamPluginsV1, true)
 
 	// Ensure the server can evaluate a simple query
