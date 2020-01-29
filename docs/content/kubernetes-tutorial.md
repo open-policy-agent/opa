@@ -146,7 +146,7 @@ spec:
     port: 443
     targetPort: 443
 ---
-apiVersion: apiVersion: apps/v1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
