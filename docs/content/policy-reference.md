@@ -117,6 +117,7 @@ The following table shows examples of how ``glob.match`` works:
 | ``call`` | ``output`` | Description |
 | -------- | ---------- | ----------- |
 | ``output := glob.match("*.github.com", [], "api.github.com")`` | ``true`` | A glob with the default ``["."]`` delimiter. |
+| ``output := glob.match("*.github.com", [], "api.cdn.github.com")`` | ``false`` | A glob with the default ``["."]`` delimiter. |
 | ``output := glob.match("*:github:com", [":"], "api:github:com")`` | ``true`` | A glob with delimiters ``[":"]``. |
 | ``output := glob.match("api.**.com", [], "api.github.com")`` | ``true`` | A super glob. |
 | ``output := glob.match("api.**.com", [], "api.cdn.github.com")`` | ``true`` | A super glob. |
