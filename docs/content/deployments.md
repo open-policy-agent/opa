@@ -172,7 +172,7 @@ the file system.
 **deployment-opa.yaml**:
 
 ```yaml
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: opa
@@ -180,6 +180,9 @@ metadata:
     app: opa
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      app: opa
   template:
     metadata:
       labels:
