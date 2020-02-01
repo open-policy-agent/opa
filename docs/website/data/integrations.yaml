@@ -72,11 +72,29 @@ integrations:
             organization: google
         venue: Kubecon San Diego 2019
         link: https://www.youtube.com/watch?v=90RHTBinAFU
+      - title: "TGIK: Exploring the Open Policy Agent"
+        speakers:
+          - name: Joe Beda
+            organization: VMware
+        link: https://www.youtube.com/watch?v=QU9BGPf0hBw
 
     blogs:
       - https://medium.com/@sbueringer/kubernetes-authorization-via-open-policy-agent-a9455d9d5ceb
       - https://medium.com/@jimmy.ray/policy-enabled-kubernetes-with-open-policy-agent-3b612b3f0203
       - https://blog.openpolicyagent.org/securing-the-kubernetes-api-with-open-policy-agent-ce93af0552c3
+      - https://itnext.io/kubernetes-authorization-via-open-policy-agent-a9455d9d5ceb
+      - https://medium.com/capital-one-tech/policy-enabled-kubernetes-with-open-policy-agent-3b612b3f0203
+      - https://blog.openshift.com/fine-grained-policy-enforcement-in-openshift-with-open-policy-agent/
+
+  kubernetes-authorization:
+    title: Kubernetes Authorization
+    description: |
+      Kubernetes Authorization is a pluggable mechanism that lets administrators control which users can run which APIs and
+      is often handled by builtin RBAC.  OPA's policy language is more flexible than the RBAC, for example,
+      writing policy using a prohibited list of APIs instead of the usual RBAC style of listing the permitted APIs.
+    blogs:
+      - https://itnext.io/kubernetes-authorization-via-open-policy-agent-a9455d9d5ceb
+      - https://itnext.io/optimizing-open-policy-agent-based-kubernetes-authorization-via-go-execution-tracer-7b439bb5dc5b
 
   kubernetes-provisioning:
     title: Kubernetes Provisioning
@@ -97,6 +115,59 @@ integrations:
             organization: styra
         venue: Kubecon San Diego 2019
         link: https://www.youtube.com/watch?v=lYHr_UaHsYQ&list=PLj6h78yzYM2NDs-iu8WU5fMxINxHXlien&index=140&t=0s
+
+  gcp-forseti:
+    title: GCP audit with Forseti
+    description: |
+      Google cloud provides a plethora of software as a service.
+      Forseti, built using OPA, lets you run policy checks against the software resources on Google cloud and remediate violations.
+    labels:
+      category: publiccloud
+    inventors:
+      - google
+    code:
+      - https://forsetisecurity.org
+    videos:
+      - title: Repeatable GCP Environments at Scale with Cloud Build Infra-as-Code Pipelines
+        speakers:
+          - name: Morgante Pell
+            organization: google
+          - name: Andrew Phillips
+            organization: google
+        venue: Cloud Next 2019
+        link: https://www.youtube.com/watch?v=3vfXQxWJazM&feature=youtu.be&t=2054
+
+  aws-api-gateway:
+    title: AWS API Gateway
+    description: The AWS API Gateway controls API traffic for your application running on AWS.  OPA can be configured as an external authorizer for that Gateway to implement authorization policies on APIs.
+    labels:
+      category: servicemesh
+      layer: gateway
+    code:
+      - https://github.com/zotoio/sls-lambda-opa
+
+  traefik-api-gateway:
+    title: Traefik API Gateway
+    description: |
+      The Traefik API Gateway is open-source software that controls API traffic into your application.
+      OPA can be configured as a plugin to implement authorization policies for those APIs.
+    labels:
+      category: servicemesh
+      layer: gateway
+    blogs:
+      - https://engineering.etermax.com/api-authorization-with-kubernetes-traefik-and-open-policy-agent-23647fc384a1
+
+  gloo-api-gateway:
+    title: Gloo API Gateway
+    description: |
+      Gloo is an open-source Kubernetes-native ingress controller, and next-generation API gateway.
+      OPA can be used to implement authorization policies for those APIs.
+    labels:
+      category: servicemesh
+      layer: gateway
+    blogs:
+      - https://medium.com/solo-io/5-min-with-gloo-api-gateway-configuration-with-open-policy-agent-53da276a6534
+      - https://docs.solo.io/gloo/latest/security/auth/opa/
 
   envoy-authorization:
     title: Container Network Authorization with Envoy
@@ -378,6 +449,8 @@ integrations:
       layer: cicd
     software:
       - spinnaker
+    blogs:
+      - https://blog.armory.io/deployment-policies-with-spinnaker/
     tutorials:
       - https://docs.armory.io/spinnaker/policy_engine/
     inventors:
@@ -605,6 +678,8 @@ integrations:
       application (gateway, frontend, backend, database).
     tutorials:
       - https://github.com/chef/automate/tree/master/components/authz-service#authz-with-opa
+    blogs:
+      - https://blog.verygoodsecurity.com/posts/building-a-fine-grained-permission-system-in-a-distributed-environment/
     videos:
       - title: "OPA in Practice: From Angular to OPA in Chef Automate"
         speakers:
