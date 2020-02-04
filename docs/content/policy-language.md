@@ -152,8 +152,8 @@ The order of expressions in a rule does not affect the document’s content.
 ```live:eg/expression_order:module
 s {
     x > y
-    y = 41
-    x = 42
+    y := 41
+    x := 42
 }
 ```
 
