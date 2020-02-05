@@ -201,9 +201,6 @@ func (r *Reader) Read() (Bundle, error) {
 			if err != nil {
 				return bundle, err
 			}
-			if module == nil {
-				return bundle, fmt.Errorf("module '%s' is empty", fullPath)
-			}
 
 			mf := ModuleFile{
 				Path:   fullPath,

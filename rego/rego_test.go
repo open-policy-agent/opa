@@ -1436,3 +1436,15 @@ func TestRegoCustomBuiltinPartialPropagate(t *testing.T) {
 	assertResultSet(t, rs, `[[true]]`)
 
 }
+
+func TestPrepareWithEmptyModule(t *testing.T) {
+	_, err := New(
+		Query("d"),
+		Module("example.rego", ""),
+	).PrepareForEval(context.Background())
+
+	expected := "1 error occurred: example.rego:0: rego_parse_error: empty module"
+	if err == nil || err.Error() != expected {
+		t.Fatalf("Expected error %s, got %s", expected, err)
+	}
+}

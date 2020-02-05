@@ -5,6 +5,11 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Compatibility Notes
+
+- The `ast.ParseModule` helper will now return an error if an empty module is provided.
+  Previously it would return a `nil` error and `nil` module. ([#2054](https://github.com/open-policy-agent/opa/issues/2054))
+  
 ## 0.17.2
 
 ### Fixes

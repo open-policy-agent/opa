@@ -379,7 +379,7 @@ func ParseModule(filename, input string) (*Module, error) {
 	if err != nil {
 		return nil, err
 	}
-	return parseModule(stmts, comments)
+	return parseModule(filename, stmts, comments)
 }
 
 // ParseBody returns exactly one body.
@@ -599,10 +599,10 @@ func formatParserError(filename string, bs []byte, e *parserError) *Error {
 	return err
 }
 
-func parseModule(stmts []Statement, comments []*Comment) (*Module, error) {
+func parseModule(filename string, stmts []Statement, comments []*Comment) (*Module, error) {
 
 	if len(stmts) == 0 {
-		return nil, nil
+		return nil, NewError(ParseErr, &Location{File: filename}, "empty module")
 	}
 
 	var errs Errors
