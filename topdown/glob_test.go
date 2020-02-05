@@ -30,6 +30,10 @@ func TestGlobMatch(t *testing.T) {
 		{"glob match with pattern-alternatives list (fat)", []string{`p[x] { glob.match("{cat,bat,[fr]at}", [], "fat", x) }`}, "[true]"},
 		{"glob match with pattern-alternatives list (rat)", []string{`p[x] { glob.match("{cat,bat,[fr]at}", [], "rat", x) }`}, "[true]"},
 		{"glob no match with pattern-alternatives list", []string{`p[x] { glob.match("{cat,bat,[fr]at}", [], "at", x) }`}, "[false]"},
+		{"glob match single with . delimiter", []string{`p[x] { glob.match("*", ["."], "foo", x) }`}, "[true]"},
+		{"glob match single with default delimiter", []string{`p[x] { glob.match("*", [], "foo", x) }`}, "[true]"},
+		{"glob no match single with . delimiter", []string{`p[x] { glob.match("*", ["."], "foo.bar", x) }`}, "[false]"},
+		{"glob no match single with default delimiter", []string{`p[x] { glob.match("*", [], "foo.bar", x) }`}, "[false]"},
 	}
 
 	data := loadSmallTestData()
