@@ -1153,8 +1153,8 @@ f(x) { x > 1000 }`,
 
 func TestEmptyModule(t *testing.T) {
 	r, err := ParseModule("", "    ")
-	if err != nil {
-		t.Errorf("Expected nil for empty module: %s", err)
+	if err == nil {
+		t.Error("Expected error for empty module")
 		return
 	}
 	if r != nil {

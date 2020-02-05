@@ -467,8 +467,9 @@ func TestLoadErrors(t *testing.T) {
 			"bad_doc.json: bad document type",
 			"a.json: EOF",
 			"b.yaml: error converting YAML to JSON",
-			"empty.rego: empty policy",
+			"empty.rego:0: rego_parse_error: empty module",
 			"x2.json: merge error",
+			"rego_parse_error: empty module",
 		}
 
 		for _, s := range expected {
