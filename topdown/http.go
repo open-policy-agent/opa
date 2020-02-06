@@ -239,14 +239,22 @@ func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) 
 		clientCerts = append(clientCerts, clientCertFromEnv)
 	}
 
+	isTLS := false
 	if len(clientCerts) > 0 {
-		// this is a TLS connection
+		isTLS = true
+		tlsConfig.Certificates = append(tlsConfig.Certificates, clientCerts...)
+	}
+
+	if tlsUseSystemCerts || len(tlsCaCertFile) > 0 || len(tlsCaCertEnvVar) > 0 {
+		isTLS = true
 		connRootCAs, err := createRootCAs(tlsCaCertFile, tlsCaCertEnvVar, tlsUseSystemCerts)
 		if err != nil {
 			return nil, err
 		}
-		tlsConfig.Certificates = append(tlsConfig.Certificates, clientCerts...)
 		tlsConfig.RootCAs = connRootCAs
+	}
+
+	if isTLS {
 		client.Transport = &http.Transport{
 			TLSClientConfig: &tlsConfig,
 		}

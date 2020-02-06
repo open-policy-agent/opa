@@ -537,12 +537,12 @@ The `request` object parameter may contain the following fields:
 | `tls_client_key_file` | no | `string` | Path to file containing a key  in PEM encoded format. |
 
 
-To trigger the use of HTTPs the user must provide one of the following combinations:
+When sending HTTPS requests with client certificates at least one the following combinations must be included
 
- * ``tls_client_cert_file``, ``tls_client_key_file``
- * ``tls_client_cert_env_variable``, ``tls_client_key_env_variable``
+ * ``tls_client_cert_file`` and ``tls_client_key_file``
+ * ``tls_client_cert_env_variable`` and ``tls_client_key_env_variable``
 
- The user must also provide a trusted root CA through tls_ca_cert_file or tls_ca_cert_env_variable. Alternatively the user could set tls_use_system_certs to ``true`` and the system certificate pool will be used.
+> The user must also provide a trusted root CA through tls_ca_cert_file or tls_ca_cert_env_variable. Alternatively the user could set tls_use_system_certs to ``true`` and the system certificate pool will be used.
 
 The `response` object parameter will contain the following fields:
 
@@ -557,9 +557,9 @@ The table below shows examples of calling `http.send`:
 
 | Example |  Comments |
 | -------- |-----------|
+| Accessing Google using System Cert Pool | ``http.send({"method": "get", "url": "https://www.google.com", "tls_use_system_certs": true })`` |
 | Files containing TLS material | ``http.send({"method": "get", "url": "https://127.0.0.1:65331", "tls_ca_cert_file": "testdata/ca.pem", "tls_client_cert_file": "testdata/client-cert.pem", "tls_client_key_file": "testdata/client-key.pem"})`` |
-|Environment variables containing TLS material | ``http.send({"method": "get", "url": "https://127.0.0.1:65360", "tls_ca_cert_env_variable": "CLIENT_CA_ENV", "tls_client_cert_env_variable": "CLIENT_CERT_ENV", "tls_client_key_env_variable": "CLIENT_KEY_ENV"})`` |
-| Accessing Google using System Cert Pool | ``http.send({"method": "get", "url": "https://www.google.com", "tls_use_system_certs": true, "tls_client_cert_file": "testdata/client-cert.pem", "tls_client_key_file": "testdata/client-key.pem"})`` |
+| Environment variables containing TLS material | ``http.send({"method": "get", "url": "https://127.0.0.1:65360", "tls_ca_cert_env_variable": "CLIENT_CA_ENV", "tls_client_cert_env_variable": "CLIENT_CERT_ENV", "tls_client_key_env_variable": "CLIENT_KEY_ENV"})`` |
 
 ### Net
 | Built-in | Description |
