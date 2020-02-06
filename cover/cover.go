@@ -58,7 +58,7 @@ func (c *Cover) Report(modules map[string]*ast.Module) (report Report) {
 			return false
 		})
 		ast.WalkExprs(module, func(x *ast.Expr) bool {
-			if hasFileLocation(x.Location) {
+			if includeExprInCoverage(x) {
 				if !report.IsCovered(x.Location.File, x.Location.Row) {
 					notCovered = append(notCovered, Position{x.Location.Row})
 				}
@@ -257,4 +257,16 @@ func hasFileLocation(loc *ast.Location) bool {
 // round returns the number with the specified precision.
 func round(number float64, precision int) float64 {
 	return math.Round(number*10*float64(precision)) / (10.0 * float64(precision))
+}
+
+// Check the expression and return true if it should be included in the coverage report
+func includeExprInCoverage(x *ast.Expr) bool {
+	includeExprType := true
+
+	switch x.Terms.(type) {
+	case *ast.SomeDecl:
+		includeExprType = false
+	}
+
+	return includeExprType && hasFileLocation(x.Location)
 }
