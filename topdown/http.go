@@ -50,6 +50,12 @@ var allowedKeys = ast.NewSet()
 
 var requiredKeys = ast.NewSet(ast.StringTerm("method"), ast.StringTerm("url"))
 
+type httpSendKey string
+
+// httpSendBuiltinCacheKey is the key in the builtin context cache that
+// points to the http.send() specific cache resides at.
+const httpSendBuiltinCacheKey httpSendKey = "HTTP_SEND_CACHE_KEY"
+
 func builtinHTTPSend(bctx BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
 
 	req, err := validateHTTPRequestOperand(args[0], 1)
@@ -57,9 +63,17 @@ func builtinHTTPSend(bctx BuiltinContext, args []*ast.Term, iter func(*ast.Term)
 		return handleBuiltinErr(ast.HTTPSend.Name, bctx.Location, err)
 	}
 
-	resp, err := executeHTTPRequest(bctx, req)
-	if err != nil {
-		return handleHTTPSendErr(bctx, err)
+	// check if cache already has a response for this query
+	resp := checkHTTPSendCache(bctx, req)
+	if resp == nil {
+		var err error
+		resp, err = executeHTTPRequest(bctx, req)
+		if err != nil {
+			return handleHTTPSendErr(bctx, err)
+		}
+
+		// add result to cache
+		insertIntoHTTPSendCache(bctx, req, resp)
 	}
 
 	return iter(ast.NewTerm(resp))
@@ -295,12 +309,6 @@ func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) 
 		body = bytes.NewBufferString("")
 	}
 
-	// check if cache already has a response for this query
-	cachedResponse := checkCache(method, url, bctx)
-	if cachedResponse != nil {
-		return cachedResponse, nil
-	}
-
 	// create the http request, use the builtin context's context to ensure
 	// the request is cancelled if evaluation is cancelled.
 	req, err := http.NewRequest(method, url, body)
@@ -309,8 +317,7 @@ func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) 
 	}
 	req = req.WithContext(bctx.Context)
 
-	// Add custom headers passed from CLI
-
+	// Add custom headers
 	if len(customHeaders) != 0 {
 		if ok, err := addHeaders(req, customHeaders); !ok {
 			return nil, err
@@ -358,10 +365,6 @@ func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) 
 		return nil, err
 	}
 
-	// add result to cache
-	key := getCtxKey(method, url)
-	bctx.Cache.Put(key, resultObj)
-
 	return resultObj, nil
 }
 
@@ -369,22 +372,41 @@ func isContentTypeJSON(header http.Header) bool {
 	return strings.Contains(header.Get("Content-Type"), "application/json")
 }
 
-// getCtxKey returns the cache key.
-// Key format: <METHOD>_<url>
-func getCtxKey(method string, url string) string {
-	keyTerms := []string{strings.ToUpper(method), url}
-	return strings.Join(keyTerms, "_")
+// In the BuiltinContext cache we only store a single entry that points to
+// our ValueMap which is the "real" http.send() cache.
+func getHTTPSendCache(bctx BuiltinContext) *ast.ValueMap {
+	raw, ok := bctx.Cache.Get(httpSendBuiltinCacheKey)
+	if !ok {
+		// Initialize if it isn't there
+		cache := ast.NewValueMap()
+		bctx.Cache.Put(httpSendBuiltinCacheKey, cache)
+		return cache
+	}
+
+	cache, ok := raw.(*ast.ValueMap)
+	if !ok {
+		return nil
+	}
+	return cache
 }
 
-// checkCache checks for the given key's value in the cache
-func checkCache(method string, url string, bctx BuiltinContext) ast.Value {
-	key := getCtxKey(method, url)
-
-	val, ok := bctx.Cache.Get(key)
-	if ok {
-		return val.(ast.Value)
+// checkHTTPSendCache checks for the given key's value in the cache
+func checkHTTPSendCache(bctx BuiltinContext, key ast.Object) ast.Value {
+	requestCache := getHTTPSendCache(bctx)
+	if requestCache == nil {
+		return nil
 	}
-	return nil
+
+	return requestCache.Get(key)
+}
+
+func insertIntoHTTPSendCache(bctx BuiltinContext, key ast.Object, value ast.Value) {
+	requestCache := getHTTPSendCache(bctx)
+	if requestCache == nil {
+		// Should never happen.. if it does just skip caching the value
+		return
+	}
+	requestCache.Put(key, value)
 }
 
 func createAllowedKeys() {
