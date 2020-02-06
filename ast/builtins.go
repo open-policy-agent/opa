@@ -141,6 +141,9 @@ var DefaultBuiltins = [...]*Builtin{
 	JWTEncodeSignRaw,
 	JWTEncodeSign,
 
+	// Verify OpenID Connect JWT Tokens
+	OpenIdConnectVerify,
+
 	// Time
 	NowNanos,
 	ParseNanos,
@@ -1131,6 +1134,21 @@ var JWTDecodeVerify = &Builtin{
 		types.NewArray([]types.Type{
 			types.B,
 			types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)),
+			types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)),
+		}, nil),
+	),
+}
+
+// Verifies an openId connect token and decodes the claims if it is valid.
+var OpenIdConnectVerify = &Builtin{
+	Name: "io.openid.verify",
+	Decl: types.NewFunction(
+		types.Args(
+			types.S,
+			types.NewArray(nil, types.S),
+		),
+		types.NewArray([]types.Type{
+			types.B,
 			types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)),
 		}, nil),
 	),

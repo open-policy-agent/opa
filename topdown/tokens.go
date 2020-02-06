@@ -864,7 +864,89 @@ func builtinJWTDecodeVerify(a ast.Value, b ast.Value) (v ast.Value, err error) {
 	return arr, nil
 }
 
+func extractUnverifiedPayloadAsAST(token ast.Value) (ast.Value, error) {
+	jwtToken, err := decodeJWT(token)
+	if err != nil {
+		return nil, err
+	}
+
+	p, err := builtinBase64UrlDecode(ast.String(jwtToken.payload))
+	if err != nil {
+		return nil, fmt.Errorf("JWT payload had invalid encoding: %v", err)
+	}
+
+	payload, err := extractJSONObject(string(p.(ast.String)));
+	if err != nil {
+		return nil, err
+	}
+
+	return payload, nil
+}
+
+// Implements full JWT decoding, validation and verification.
+func builtinOpenIdConnectTokenVerifyAndParse(a ast.Value, b ast.Value) (v ast.Value, err error) {
+	// io.openid.verify(string, [trusted_idp's])
+	//
+	// If valid is true iff token is valid.
+	//
+	// Decoding errors etc are returned as errors.
+	ret := make(ast.Array, 3)
+	ret[0] = ast.BooleanTerm(false)    // By default, not verified
+	ret[1] = ast.NewTerm(ast.NewObject()) // The parsed payload
+
+	// Grab the token as a string.
+	var token *string
+	if token, err = getString(a); err != nil {
+		return
+	}
+
+	// Parse the trusted issuers.
+	var trustedIssuers []*string
+	if arrayB, ok := b.(ast.Array); ok {
+		for _, trustedIssuerArrayB := range arrayB {
+			if trustedIssuerAst, ok := trustedIssuerArrayB.Value.(ast.String); ok {
+				trustedIssuerStr := trustedIssuerAst.String()
+				trustedIssuers = append(trustedIssuers, &trustedIssuerStr)
+			} else {
+				// Ill-formed trusted issuer
+				err = fmt.Errorf("parsing error of trusted issuers: %v", trustedIssuerArrayB.Value)
+				return nil, err
+			}
+		}
+	}
+
+	// Load or create oidc verifiers for these trusted issuers
+	IdProviderVerifiers, err := GetTrustedIdentityProviderManager(trustedIssuers)
+	if err != nil {
+		return nil, err
+	}
+
+	// Verify the issuer is one of the trusted issuers, else fail.
+	_, err = IdProviderVerifiers.VerifyToken(token)
+	if err != nil {
+		return nil, err
+	}
+
+	// Extract an ast payload from the original token payload.
+	val, err := extractUnverifiedPayloadAsAST(a)
+
+	// Package up return values as ast.
+	ret[0] = ast.BooleanTerm(true)
+	ret[1] = ast.NewTerm(val)
+	return ret, nil
+}
+
 // -- Utilities --
+
+func getString(a ast.Value) (*string, error) {
+	// Parse the JSON Web Token
+	astEncode, err := builtins.StringOperand(a, 1)
+	if err != nil {
+		return nil, err
+	}
+	encoding := string(astEncode)
+	return &encoding, nil
+}
 
 func decodeJWT(a ast.Value) (*JSONWebToken, error) {
 	// Parse the JSON Web Token
@@ -955,4 +1037,5 @@ func init() {
 	RegisterFunctionalBuiltin2(ast.JWTDecodeVerify.Name, builtinJWTDecodeVerify)
 	RegisterFunctionalBuiltin3(ast.JWTEncodeSignRaw.Name, builtinJWTEncodeSignRaw)
 	RegisterFunctionalBuiltin3(ast.JWTEncodeSign.Name, builtinJWTEncodeSign)
+	RegisterFunctionalBuiltin2(ast.OpenIdConnectVerify.Name, builtinOpenIdConnectTokenVerifyAndParse)
 }
