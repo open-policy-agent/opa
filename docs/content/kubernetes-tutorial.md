@@ -10,6 +10,9 @@ For the purpose of the tutorial we will deploy two policies that ensure:
 
 - Ingress hostnames must be whitelisted on the Namespace containing the Ingress.
 - Two ingresses in different namespaces must not have the same hostname.
+  - Note: this behavior may suffer from a race condition in which two ingress with the same
+    hostname may both be allowed into the cluster.  This is because OPA evaluates policies
+    against an eventually-consistent view of the global cluster state.
 
 ## Prerequisites
 
