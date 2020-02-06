@@ -1948,7 +1948,7 @@ func encodeVarint(b []byte, x uint64) []byte {
 // If there is an error, it returns 0,0.
 func decodeVarint(b []byte) (uint64, int) {
 	var x, y uint64
-	if len(b) == 0 {
+	if len(b) <= 0 {
 		goto bad
 	}
 	x = uint64(b[0])
