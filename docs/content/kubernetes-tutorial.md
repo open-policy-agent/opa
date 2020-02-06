@@ -11,6 +11,17 @@ For the purpose of the tutorial we will deploy two policies that ensure:
 - Ingress hostnames must be whitelisted on the Namespace containing the Ingress.
 - Two ingresses in different namespaces must not have the same hostname.
 
+> 💡 Kubernetes does not guarantee consistency across resources. If two
+> ingresses are created in parallel, there is no guarantee that OPA (or any
+> other admission controller) will observe the creation of one ingress before
+> the other. This means that it's not possible to enforce these policies during
+> admission control 100% of the time. There will be a small window of time
+> (usually on the order of milliseconds) when the eventually consistent cache
+> inside of OPA (or any other admission controller) is out-of-date. To catch
+> these violations we recommend you periodically audit the state of the cluster
+> against your policies. Offline auditing is one of the features provided by the
+> [OPA Gatekeeper](https://github.com/open-policy-agent/gatekeeper) project.
+
 ## Prerequisites
 
 This tutorial requires Kubernetes 1.13 or later. To run the tutorial locally ensure you start a cluster with Kubernetes version 1.13+, we recommend using [minikube](https://kubernetes.io/docs/getting-started-guides/minikube) or [KIND](https://kind.sigs.k8s.io/).
