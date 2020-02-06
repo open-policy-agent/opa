@@ -633,6 +633,130 @@ func TestHTTPRedirectEnable(t *testing.T) {
 	runTopDownTestCase(t, data, "http.send", rule, resultObj.String())
 }
 
+func TestHTTPSendCaching(t *testing.T) {
+	// test server
+	nextResponse := "{}"
+	var requests []*http.Request
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests = append(requests, r)
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(nextResponse))
+	}))
+	defer ts.Close()
+
+	// expected result
+
+	var body []interface{}
+	bodyMap := map[string]string{"id": "1", "firstname": "John"}
+	body = append(body, bodyMap)
+
+	// run the test
+	tests := []struct {
+		note             string
+		ruleTemplate     string
+		body             string
+		response         string
+		expectedReqCount int
+	}{
+		{
+			note:             "http.send GET single",
+			ruleTemplate:     `p = x { http.send({"method": "get", "url": "%URL%", "force_json_decode": true}, r); x = r.body }`,
+			response:         `{"x": 1}`,
+			expectedReqCount: 1,
+		},
+		{
+			note: "http.send GET cache hit",
+			ruleTemplate: `p = x { 
+									r1 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true})
+									r2 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true})  # cached
+									r3 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true})  # cached
+									r1 == r2
+									r2 == r3
+									x = r1.body
+								}`,
+			response:         `{"x": 1}`,
+			expectedReqCount: 1,
+		},
+		{
+			note: "http.send GET cache miss different method",
+			ruleTemplate: `p = x { 
+									r1 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true})
+									r2 = http.send({"method": "post", "url": "%URL%", "force_json_decode": true})
+									r1_2 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true})  # cached
+									r2_2 = http.send({"method": "post", "url": "%URL%", "force_json_decode": true})  # cached
+									x = r1.body
+								}`,
+			response:         `{"x": 1}`,
+			expectedReqCount: 2,
+		},
+		{
+			note: "http.send GET cache miss different url",
+			ruleTemplate: `p = x { 
+									r1 = http.send({"method": "get", "url": "%URL%/foo", "force_json_decode": true})
+									r2 = http.send({"method": "get", "url": "%URL%/bar", "force_json_decode": true})
+									r1_2 = http.send({"method": "get", "url": "%URL%/foo", "force_json_decode": true})  # cached
+									r2_2 = http.send({"method": "get", "url": "%URL%/bar", "force_json_decode": true})  # cached
+									x = r1.body
+								}`,
+			response:         `{"x": 1}`,
+			expectedReqCount: 2,
+		},
+		{
+			note: "http.send GET cache miss different decode opt",
+			ruleTemplate: `p = x { 
+									r1 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true})
+									r2 = http.send({"method": "get", "url": "%URL%", "force_json_decode": false})
+									r1_2 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true})  # cached
+									r2_2 = http.send({"method": "get", "url": "%URL%", "force_json_decode": false})  # cached
+									x = r1.body
+								}`,
+			response:         `{"x": 1}`,
+			expectedReqCount: 2,
+		},
+		{
+			note: "http.send GET cache miss different headers",
+			ruleTemplate: `p = x { 
+									r1 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "headers": {"h1": "v1", "h2": "v2"}})
+									r2 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "headers": {"h2": "v2"}})
+									r2 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "headers": {"h2": "v3"}})
+									r1_2 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "headers": {"h1": "v1", "h2": "v2"}})  # cached
+									r2_2 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "headers": {"h2": "v2"}})  # cached
+									r2_2 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "headers": {"h2": "v3"}})  # cached
+									x = r1.body
+								}`,
+			response:         `{"x": 1}`,
+			expectedReqCount: 3,
+		},
+		{
+			note: "http.send POST cache miss different body",
+			ruleTemplate: `p = x { 
+									r1 = http.send({"method": "post", "url": "%URL%", "force_json_decode": true, "headers": {"h2": "v2"}, "body": "{\"foo\": 42}"})
+									r2 = http.send({"method": "post", "url": "%URL%", "force_json_decode": true, "headers": {"h2": "v3"}, "body": "{\"foo\": 23}"})
+									r1_2 = http.send({"method": "post", "url": "%URL%", "force_json_decode": true, "headers": {"h2": "v2"}, "body": "{\"foo\": 42}"})  # cached
+									r2_2 = http.send({"method": "post", "url": "%URL%", "force_json_decode": true, "headers": {"h2": "v3"}, "body": "{\"foo\": 23}"})  # cached
+									x = r1.body
+								}`,
+			response:         `{"x": 1}`,
+			expectedReqCount: 2,
+		},
+	}
+
+	data := loadSmallTestData()
+
+	for _, tc := range tests {
+		nextResponse = tc.response
+		requests = nil
+		runTopDownTestCase(t, data, tc.note, []string{strings.ReplaceAll(tc.ruleTemplate, "%URL%", ts.URL)}, tc.response)
+
+		// Note: The runTopDownTestCase ends up evaluating twice (once with and once without partial
+		// eval first), so expect 2x the total request count the test case specified.
+		actualCount := len(requests) / 2
+		if actualCount != tc.expectedReqCount {
+			t.Fatalf("Expected to only get %d requests, got %d", tc.expectedReqCount, actualCount)
+		}
+	}
+}
+
 func getTestServer() (baseURL string, teardownFn func()) {
 	mux := http.NewServeMux()
 	ts := httptest.NewServer(mux)
