@@ -674,3 +674,139 @@ func TestHTTPSClient(t *testing.T) {
 		runTopDownTestCase(t, data, "http.send", rule, expectedResult)
 	})
 }
+
+func TestHTTPSNoClientCerts(t *testing.T) {
+
+	const (
+		localCaFile         = "testdata/ca.pem"
+		localServerCertFile = "testdata/server-cert.pem"
+		localServerKeyFile  = "testdata/server-key.pem"
+	)
+
+	caCertPEM, err := ioutil.ReadFile(localCaFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	caPool := x509.NewCertPool()
+	if ok := caPool.AppendCertsFromPEM(caCertPEM); !ok {
+		t.Fatal("failed to parse CA cert")
+	}
+
+	cert, err := tls.LoadX509KeyPair(localServerCertFile, localServerKeyFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = os.Setenv("CLIENT_CA_ENV", string(caCertPEM))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Replicating some of what happens in the server's HTTPS listener
+	s := getTLSTestServer()
+	s.TLS = &tls.Config{
+		Certificates: []tls.Certificate{cert},
+		ClientCAs:    caPool,
+	}
+	s.StartTLS()
+	defer s.Close()
+
+	t.Run("HTTPS Get with CA Cert File", func(t *testing.T) {
+		// expected result
+		expectedResult := map[string]interface{}{
+			"status":      "200 OK",
+			"status_code": http.StatusOK,
+			"body":        nil,
+			"raw_body":    "",
+		}
+
+		resultObj, err := ast.InterfaceToValue(expectedResult)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		data := loadSmallTestData()
+		rule := []string{fmt.Sprintf(
+			`p = x { http.send({"method": "get", "url": "%s", "tls_ca_cert_file": "%s"}, x) }`, s.URL, localCaFile)}
+
+		// run the test
+		runTopDownTestCase(t, data, "http.send", rule, resultObj.String())
+	})
+
+	t.Run("HTTPS Get with CA Cert ENV", func(t *testing.T) {
+		// expected result
+		expectedResult := map[string]interface{}{
+			"status":      "200 OK",
+			"status_code": http.StatusOK,
+			"body":        nil,
+			"raw_body":    "",
+		}
+
+		resultObj, err := ast.InterfaceToValue(expectedResult)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		data := loadSmallTestData()
+		rule := []string{fmt.Sprintf(
+			`p = x { http.send({"method": "get", "url": "%s", "tls_ca_cert_env_variable": "CLIENT_CA_ENV"}, x) }`, s.URL)}
+
+		// run the test
+		runTopDownTestCase(t, data, "http.send", rule, resultObj.String())
+	})
+
+	t.Run("HTTPS Get with System CA Cert Pool", func(t *testing.T) {
+		// expected result
+		expectedResult := map[string]interface{}{
+			"status":      "200 OK",
+			"status_code": http.StatusOK,
+			"body":        nil,
+			"raw_body":    "",
+		}
+
+		resultObj, err := ast.InterfaceToValue(expectedResult)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		data := loadSmallTestData()
+		rule := []string{fmt.Sprintf(
+			`p = x { http.send({"method": "get", "url": "%s", "tls_ca_cert_env_variable": "CLIENT_CA_ENV"}, x) }`, s.URL)}
+
+		// run the test
+		runTopDownTestCase(t, data, "http.send", rule, resultObj.String())
+	})
+
+	t.Run("HTTPS Get with System Certs, Env and File Cert", func(t *testing.T) {
+		// expected result
+		expectedResult := map[string]interface{}{
+			"status":      "200 OK",
+			"status_code": http.StatusOK,
+			"body":        nil,
+			"raw_body":    "",
+		}
+
+		resultObj, err := ast.InterfaceToValue(expectedResult)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		data := loadSmallTestData()
+		rule := []string{fmt.Sprintf(
+			`p = x { http.send({"method": "get", "url": "%s", "tls_use_system_certs": true, "tls_ca_cert_env_variable": "CLIENT_CA_ENV", "tls_ca_cert_file": "%s"}, x) }`, s.URL, localCaFile)}
+
+		// run the test
+		runTopDownTestCase(t, data, "http.send", rule, resultObj.String())
+	})
+
+	t.Run("Negative Test: System Certs do not include local rootCA", func(t *testing.T) {
+
+		expectedResult := Error{Code: BuiltinErr, Message: "x509: certificate signed by unknown authority", Location: nil}
+		data := loadSmallTestData()
+		rule := []string{fmt.Sprintf(
+			`p = x { http.send({"method": "get", "url": "%s", "tls_use_system_certs": true}, x) }`, s.URL)}
+
+		// run the test
+		runTopDownTestCase(t, data, "http.send", rule, expectedResult)
+	})
+}
