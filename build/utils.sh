@@ -4,6 +4,9 @@ set -o errexit
 set -o pipefail
 set -o nounset
 
+export GO111MODULE=on
+export GOFLAGS=-mod=vendor
+
 function opa::go_packages() {
     for pkg in $(go list ./.../ 2>/dev/null | grep -v vendor); do
         echo $pkg

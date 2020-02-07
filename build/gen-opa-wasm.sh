@@ -2,4 +2,4 @@
 
 set -e
 
-GOOS="" GOARCH="" go run $@
+GOFLAGS=-mod=vendor GO111MODULE=on GOOS="" GOARCH="" go run $@
