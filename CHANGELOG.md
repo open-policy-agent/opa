@@ -3,7 +3,26 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.17.0
+
+### Major Features
+
+- This release improves partial evaluation to avoid saving statements when they
+  do not depend on unknowns (e.g., comprehensions, references that require
+  materializing the full extent of partial sets/objects, etc.) Also, expressions
+  containing `with` statements are partially evaluated now.
+
+- This release lets policy authors to de-reference calls (and other terms)
+  without assignign the result to an intermediate variable. For example, instead
+  of writing `a := f(x); a.foo == 1` users can now write `f(x).a == 1` directly.
+  Thanks @jaspervdj-luminal!
+
+### New Built-in Functiosn
+
+This release includes the following new built-in functions:
+
+- `object.get` built-in function to lookup object keys with a fallback.
+- `crypto.md5`, `crypto.sha1`, `crypto.sha256` built-in functions to hash strings.
 
 ### Compatibility Notes
 
@@ -16,6 +35,27 @@ project adheres to [Semantic Versioning](http://semver.org/).
   Golang API users of the `plugins.log.Logger#Log` interface may be impacted
   if passing `ast.Ref` style strings as a path as it will no longer be changed
   to `/` separated. Callers need to do any transformation beforehand.
+
+### Fixes
+
+- docs: Update Kubernetes apiVersions to use `apps/v1` instead of `extensions/v1` ([#1977](https://github.com/open-policy-agent/opa/issues/1977))
+- plugins/logs: Leave the path unchanged for decisions ([#2031](https://github.com/open-policy-agent/opa/issues/2031))
+- plugins/bundle: Include last successful request timestamp in status ([#2009](https://github.com/open-policy-agent/opa/issues/2009))
+- plugins/bundle: Pass copy of status to bulk listeners ([#1962](https://github.com/open-policy-agent/opa/issues/1962))
+- rego: Fix panic when partial evaluating with tracers ([#2007](https://github.com/open-policy-agent/opa/issues/2007))
+- rego: Propagate custom builtins to `PartialResult` ([#1792](https://github.com/open-policy-agent/opa/issues/1792))
+- server: Update health check to use plugin status ([#2010](https://github.com/open-policy-agent/opa/issues/2010))
+- topdown: Correct glob default delimeter ([#2039](https://github.com/open-policy-agent/opa/issues/2039))
+
+### Miscellaneous
+
+
+- ast: Do not index expressions containing with statements
+- ast: Fix panic in module parsing
+- ast: Improve visitor performance by avoiding heap allocations
+- cmd/build: return error if there is more than one positional argument
+- docs: Fix live docs button size
+- docs: Fix token validation example in Envoy tutorial
 
 ## 0.16.2
 
