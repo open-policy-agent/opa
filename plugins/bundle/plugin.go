@@ -286,14 +286,18 @@ func (p *Plugin) process(ctx context.Context, name string, u download.Update) {
 		p.status[name].Metrics = metrics.New()
 	}
 
+	p.status[name].SetRequest()
+
 	if u.Error != nil {
 		p.logError(name, "Bundle download failed: %v", u.Error)
 		p.status[name].SetError(u.Error)
 		return
 	}
 
+	p.status[name].LastSuccessfulRequest = p.status[name].LastRequest
+
 	if u.Bundle != nil {
-		p.status[name].SetDownloadSuccess()
+		p.status[name].LastSuccessfulDownload = p.status[name].LastSuccessfulRequest
 
 		p.status[name].Metrics.Timer(metrics.RegoLoadBundles).Start()
 		defer p.status[name].Metrics.Timer(metrics.RegoLoadBundles).Stop()

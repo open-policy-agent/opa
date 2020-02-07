@@ -431,7 +431,7 @@ updates contain status information for OPA itself as well as the
 [Bundles](#bundles) that have been downloaded and activated.
 
 OPA sends status reports whenever one of the following happens:
- 
+
 * Bundles are downloaded and activated -- If the bundle download or activation fails for any reason, the status update
   will include error information describing the failure. This includes Discovery bundles.
 * A plugin state has changed -- All plugin status is reported, and an update to any plugin will
@@ -468,6 +468,8 @@ on the agent, updates will be sent to `/status`.
   "bundles": {
     "http/example/authz": {
       "active_revision": "ABC",
+      "last_request": "2018-01-01T00:00:00.000Z",
+      "last_successful_request": "2018-01-01T00:00:00.000Z",
       "last_successful_download": "2018-01-01T00:00:00.000Z",
       "last_successful_activation": "2018-01-01T00:00:00.000Z",
       "metrics": {
@@ -616,6 +618,8 @@ Status updates contain the following fields:
 | `bundles` | `object` | Set of objects describing the status for each bundle configured with OPA. |
 | `bundles[_].name` | `string` | Name of bundle that the OPA instance is configured to download. |
 | `bundles[_].active_revision` | `string` | Opaque revision identifier of the last successful activation. |
+| `bundles[_].last_request` | `string` | RFC3339 timestamp of last bundle request. This timestamp should be >= to the successful request timestamp in normal operation. |
+| `bundles[_].last_successful_request` | `string` | RFC3339 timestamp of last successful bundle request. This timestamp should be >= to the successful download timestamp in normal operation. |
 | `bundles[_].last_successful_download` | `string` | RFC3339 timestamp of last successful bundle download. |
 | `bundles[_].last_successful_activation` | `string` | RFC3339 timestamp of last successful bundle activation. |
 | `bundles[_].metrics` | `object` | Metrics from the last update of the bundle. |
