@@ -1987,28 +1987,28 @@ func TestEvalTrace(t *testing.T) {
 	repl.OneShot(ctx, "trace")
 	repl.OneShot(ctx, `data.a[i].b.c[j] = x; data.a[k].b.c[x] = 1`)
 	expected := strings.TrimSpace(`
-Enter data.a[i].b.c[j] = x; data.a[k].b.c[x] = 1
-| Eval data.a[i].b.c[j] = x
-| Eval data.a[k].b.c[x] = 1
-| Fail data.a[k].b.c[x] = 1
-| Redo data.a[i].b.c[j] = x
-| Eval data.a[k].b.c[x] = 1
-| Exit data.a[i].b.c[j] = x; data.a[k].b.c[x] = 1
-Redo data.a[i].b.c[j] = x; data.a[k].b.c[x] = 1
-| Redo data.a[k].b.c[x] = 1
-| Redo data.a[i].b.c[j] = x
-| Eval data.a[k].b.c[x] = 1
-| Fail data.a[k].b.c[x] = 1
-| Redo data.a[i].b.c[j] = x
-| Eval data.a[k].b.c[x] = 1
-| Fail data.a[k].b.c[x] = 1
-| Redo data.a[i].b.c[j] = x
-| Eval data.a[k].b.c[x] = 1
-| Fail data.a[k].b.c[x] = 1
-| Redo data.a[i].b.c[j] = x
-| Eval data.a[k].b.c[x] = 1
-| Fail data.a[k].b.c[x] = 1
-| Redo data.a[i].b.c[j] = x
+query:1             Enter data.a[i].b.c[j] = x; data.a[k].b.c[x] = 1
+query:1             | Eval data.a[i].b.c[j] = x
+query:1             | Eval data.a[k].b.c[x] = 1
+query:1             | Fail data.a[k].b.c[x] = 1
+query:1             | Redo data.a[i].b.c[j] = x
+query:1             | Eval data.a[k].b.c[x] = 1
+query:1             | Exit data.a[i].b.c[j] = x; data.a[k].b.c[x] = 1
+query:1             Redo data.a[i].b.c[j] = x; data.a[k].b.c[x] = 1
+query:1             | Redo data.a[k].b.c[x] = 1
+query:1             | Redo data.a[i].b.c[j] = x
+query:1             | Eval data.a[k].b.c[x] = 1
+query:1             | Fail data.a[k].b.c[x] = 1
+query:1             | Redo data.a[i].b.c[j] = x
+query:1             | Eval data.a[k].b.c[x] = 1
+query:1             | Fail data.a[k].b.c[x] = 1
+query:1             | Redo data.a[i].b.c[j] = x
+query:1             | Eval data.a[k].b.c[x] = 1
+query:1             | Fail data.a[k].b.c[x] = 1
+query:1             | Redo data.a[i].b.c[j] = x
+query:1             | Eval data.a[k].b.c[x] = 1
+query:1             | Fail data.a[k].b.c[x] = 1
+query:1             | Redo data.a[i].b.c[j] = x
 +---+---+---+---+
 | i | j | k | x |
 +---+---+---+---+
@@ -2030,12 +2030,12 @@ func TestEvalNotes(t *testing.T) {
 	repl.OneShot(ctx, "notes")
 	buffer.Reset()
 	repl.OneShot(ctx, "p")
-	expected := strings.TrimSpace(`Enter data.repl.p = _
-| Enter data.repl.p
-| | Note "x = 2"
-Redo data.repl.p = _
-| Redo data.repl.p
-| | Note "x = 3"
+	expected := strings.TrimSpace(`query:1             Enter data.repl.p = _
+query:1             | Enter data.repl.p
+note                | | Note "x = 2"
+query:1             Redo data.repl.p = _
+query:1             | Redo data.repl.p
+note                | | Note "x = 3"
 true`)
 	expected += "\n"
 	if expected != buffer.String() {
