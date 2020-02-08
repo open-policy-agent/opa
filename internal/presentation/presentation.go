@@ -444,7 +444,7 @@ func prettyProfile(w io.Writer, profile []profiler.ExprStats) error {
 }
 
 func prettyExplanation(w io.Writer, explanation []*topdown.Event) error {
-	topdown.PrettyTrace(w, explanation)
+	topdown.PrettyTraceWithLocation(w, explanation)
 	return nil
 }
 
