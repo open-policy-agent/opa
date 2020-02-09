@@ -15,11 +15,11 @@ project adheres to [Semantic Versioning](http://semver.org/).
   containing `with` statements are partially evaluated now.
 
 - This release lets policy authors to de-reference calls (and other terms)
-  without assignign the result to an intermediate variable. For example, instead
+  without assigning the result to an intermediate variable. For example, instead
   of writing `a := f(x); a.foo == 1` users can now write `f(x).a == 1` directly.
   Thanks @jaspervdj-luminal!
 
-### New Built-in Functiosn
+### New Built-in Functions
 
 This release includes the following new built-in functions:
 
@@ -27,6 +27,15 @@ This release includes the following new built-in functions:
 - `crypto.md5`, `crypto.sha1`, `crypto.sha256` built-in functions to hash strings.
 
 ### Compatibility Notes
+
+- The `glob.match` built-in function was not defaulting the delimiter to "."
+  like the documentation described. This was fixed in
+  [#2061](https://github.com/open-policy-agent/opa/pull/2061) however the fix
+  is not backwards compatible. If you are using the `glob.match` built-in
+  function, you should ensure that a delimiter is being supplied. A search of
+  .rego files on GitHub only revealed a few instances of the `glob.match` in-use
+  so we decided to err towards fixing the broken behaviour rather than
+  preserving buggy behaviour going forward.
 
 - Related to the fix for [#2031](https://github.com/open-policy-agent/opa/issues/2031)
   and the changes with OPA v0.16.0 to use `/` separated `path`'s with
