@@ -1092,7 +1092,10 @@ func (c *Compiler) rewriteLocalVars() {
 			}
 
 			stack := newLocalDeclaredVars()
-			body, declared, errs := rewriteLocalVars(gen, stack, rule.Head.Args.Vars(), used, rule.Body)
+
+			c.rewriteLocalArgVars(gen, stack, rule)
+
+			body, declared, errs := rewriteLocalVars(gen, stack, used, rule.Body)
 			for _, err := range errs {
 				c.err(err)
 			}
@@ -1148,6 +1151,66 @@ func (c *Compiler) rewriteLocalVars() {
 
 			return false
 		})
+	}
+}
+
+func (c *Compiler) rewriteLocalArgVars(gen *localVarGenerator, stack *localDeclaredVars, rule *Rule) {
+
+	vis := &ruleArgLocalRewriter{
+		stack: stack,
+		gen:   gen,
+	}
+
+	for i := range rule.Head.Args {
+		Walk(vis, rule.Head.Args[i])
+	}
+
+	for i := range vis.errs {
+		c.err(vis.errs[i])
+	}
+}
+
+type ruleArgLocalRewriter struct {
+	stack *localDeclaredVars
+	gen   *localVarGenerator
+	errs  []*Error
+}
+
+func (vis *ruleArgLocalRewriter) Visit(x interface{}) Visitor {
+
+	t, ok := x.(*Term)
+	if !ok {
+		return vis
+	}
+
+	switch v := t.Value.(type) {
+	case Var:
+		gv, ok := vis.stack.Declared(v)
+		if !ok {
+			gv = vis.gen.Generate()
+			vis.stack.Insert(v, gv, argVar)
+		}
+		t.Value = gv
+		return nil
+	case Object:
+		if cpy, err := v.Map(func(k, v *Term) (*Term, *Term, error) {
+			vcpy := v.Copy()
+			Walk(vis, vcpy)
+			return k, vcpy, nil
+		}); err != nil {
+			vis.errs = append(vis.errs, NewError(CompileErr, t.Location, err.Error()))
+		} else {
+			t.Value = cpy
+		}
+		return nil
+	case Null, Boolean, Number, String, *ArrayComprehension, *SetComprehension, *ObjectComprehension, Set:
+		// Scalars are no-ops. Comprehensions are handled above. Sets must not
+		// contain variables.
+		return nil
+	default:
+		// Recurse on refs, arrays, and calls. Any embedded
+		// variables can be rewritten.
+		return vis
 	}
 }
 
@@ -1333,7 +1396,7 @@ func (qc *queryCompiler) rewriteExprTerms(_ *QueryContext, body Body) (Body, err
 func (qc *queryCompiler) rewriteLocalVars(_ *QueryContext, body Body) (Body, error) {
 	gen := newLocalVarGenerator("q", body)
 	stack := newLocalDeclaredVars()
-	body, _, err := rewriteLocalVars(gen, stack, nil, nil, body)
+	body, _, err := rewriteLocalVars(gen, stack, nil, body)
 	if len(err) != 0 {
 		return nil, err
 	}
@@ -2910,10 +2973,7 @@ func (s localDeclaredVars) Occurrence(x Var) varOccurrence {
 // __local0__ = 1; p[__local0__]
 //
 // During rewriting, assignees are validated to prevent use before declaration.
-func rewriteLocalVars(g *localVarGenerator, stack *localDeclaredVars, args VarSet, used VarSet, body Body) (Body, map[Var]Var, Errors) {
-	for v := range args {
-		stack.Insert(v, v, argVar)
-	}
+func rewriteLocalVars(g *localVarGenerator, stack *localDeclaredVars, used VarSet, body Body) (Body, map[Var]Var, Errors) {
 	var errs Errors
 	body, errs = rewriteDeclaredVarsInBody(g, stack, used, body, errs)
 	return body, stack.Pop().vs, errs
