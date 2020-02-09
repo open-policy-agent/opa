@@ -956,17 +956,17 @@ func TestCompilerRewriteExprTerms(t *testing.T) {
 	expected := MustParseModule(`
 		package test
 
-		p { mul(b, y, __local0__); plus(a, __local0__, __local1__); eq(x, __local1__) }
+		p { mul(b, y, __local1__); plus(a, __local1__, __local2__); eq(x, __local2__) }
 
-		q[[__local2__]] { x = 1; data.test.f(x, __local2__) }
+		q[[__local3__]] { x = 1; data.test.f(x, __local3__) }
 
-		r = [__local3__] { x = 1; data.test.f(x, __local3__) }
+		r = [__local4__] { x = 1; data.test.f(x, __local4__) }
 
-		f(x) = __local4__ { true; data.test.g(x, __local4__) }
+		f(__local0__) = __local5__ { true; data.test.g(__local0__, __local5__) }
 
-		pi = __local5__ { true; plus(3, 0.14, __local5__) }
+		pi = __local6__ { true; plus(3, 0.14, __local6__) }
 
-		with_value { data.test.f(1, __local6__); 1 with input as __local6__ }
+		with_value { data.test.f(1, __local7__); 1 with input as __local7__ }
 	`)
 
 	if !expected.Equal(compiler.Modules["test"]) {
@@ -1233,7 +1233,7 @@ func TestCompilerRewriteLocalAssignments(t *testing.T) {
 
 	tests := []struct {
 		module          string
-		exp             string
+		exp             interface{}
 		expRewrittenMap map[Var]Var
 	}{
 		{
@@ -1256,10 +1256,11 @@ func TestCompilerRewriteLocalAssignments(t *testing.T) {
 			`,
 			exp: `
 				package test
-				head_vars(a) = __local0__ { __local0__ = a }
+				head_vars(__local0__) = __local1__ { __local1__ = __local0__ }
 			`,
 			expRewrittenMap: map[Var]Var{
-				Var("__local0__"): Var("b"),
+				Var("__local0__"): Var("a"),
+				Var("__local1__"): Var("b"),
 			},
 		},
 		{
@@ -1580,14 +1581,51 @@ func TestCompilerRewriteLocalAssignments(t *testing.T) {
 					y := 4
 				}
 			`,
+			// Each "else" rule has a separate rule head and the vars in the
+			// args will be rewritten. Since we cannot currently redefine the
+			// args, we must parse the module and then manually update the args.
+			exp: func() *Module {
+				module := MustParseModule(`
+					package test
+
+					f(__local0__) = __local1__ { __local0__ == 1; __local1__ = 2 } else = __local3__ { __local2__ == 3; __local3__ = 4 }
+				`)
+				module.Rules[0].Else.Head.Args[0].Value = Var("__local2__")
+				return module
+			},
+			expRewrittenMap: map[Var]Var{
+				Var("__local0__"): Var("x"),
+				Var("__local1__"): Var("y"),
+				Var("__local2__"): Var("x"),
+				Var("__local3__"): Var("y"),
+			},
+		},
+		{
+			module: `
+				package test
+				f({"x": [x]}) = y { x == 1; y := 2 }`,
 			exp: `
 				package test
 
-				f(x) = __local0__ { x == 1; __local0__ = 2 } else = __local1__ { x == 3; __local1__ = 4 }
+				f({"x": [__local0__]}) = __local1__ { __local0__ == 1; __local1__ = 2 }`,
+			expRewrittenMap: map[Var]Var{
+				Var("__local0__"): Var("x"),
+				Var("__local1__"): Var("y"),
+			},
+		},
+		{
+			module: `
+				package test
+
+				f(x, [x]) = x { x == 1 }
+			`,
+			exp: `
+				package test
+
+				f(__local0__, [__local0__]) = __local0__ { __local0__ == 1 }
 			`,
 			expRewrittenMap: map[Var]Var{
-				Var("__local0__"): Var("y"),
-				Var("__local1__"): Var("y"),
+				Var("__local0__"): Var("x"),
 			},
 		},
 	}
@@ -1601,7 +1639,15 @@ func TestCompilerRewriteLocalAssignments(t *testing.T) {
 			compileStages(c, c.rewriteLocalVars)
 			assertNotFailed(t, c)
 			result := c.Modules["test.rego"]
-			exp := MustParseModule(tc.exp)
+			var exp *Module
+			switch e := tc.exp.(type) {
+			case string:
+				exp = MustParseModule(e)
+			case func() *Module:
+				exp = e()
+			default:
+				panic("expected value must be string or func() *Module")
+			}
 			if result.Compare(exp) != 0 {
 				t.Fatalf("\nExpected:\n\n%v\n\nGot:\n\n%v", exp, result)
 			}
