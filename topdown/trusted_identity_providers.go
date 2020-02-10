@@ -12,7 +12,7 @@ import (
 
 
 var globalTrustedIdProviderManager TrustedIdProviderManagerImpl
-var globalTrustedIssuerContextTimeout = time.Second * time.Duration(5)
+var globalTrustedIssuerContextTimeout = 30 * time.Second
 
 // May be used to manage an token verification against an entire collection
 // of trusted IdP's.
@@ -52,9 +52,9 @@ func CreateOrGetVerifier(idp *string) (*oidc.IDTokenVerifier, error) {
 
 	var verifier = provider.Verifier(
 		&oidc.Config{
-			SkipClientIDCheck: true, // Today, we trust all clients from the idp
+			SkipClientIDCheck: true, // Today, just trust all clients from the idp
 			SkipExpiryCheck: false,  // Enforce issued at, and, expires at. Your local clock time matters.
-			SkipIssuerCheck: false,  // Enforce iss claim in tokens, too.
+			SkipIssuerCheck: false,  // Enforce iss claim in tokens, too. ONLY FOR TESTING.
 		})
 
 	// Save this verifier for latter requests.
@@ -94,7 +94,7 @@ func (idpm *TrustedIdProviderManagerImpl) VerifyToken(token *string) (*oidc.IDTo
 	}
 
 	// Extract the claims.
-	var extractedClaims jwt.Claims
+	extractedClaims := &jwt.Claims{}
 	err = parsed.UnsafeClaimsWithoutVerification(extractedClaims)
 	if err != nil {
 		return nil, err
@@ -108,7 +108,8 @@ func (idpm *TrustedIdProviderManagerImpl) VerifyToken(token *string) (*oidc.IDTo
 
 	// Verify the token (signature, expiry, and issuer)
 	typedVerifier := verifier.(*oidc.IDTokenVerifier)
-	ctx, _ := context.WithTimeout(context.Background(), globalTrustedIssuerContextTimeout)
+	ctx, cancel := context.WithTimeout(context.TODO(), globalTrustedIssuerContextTimeout)
+	defer cancel()  // releases resources if slowOperation completes before timeout elapses
 	verifiedToken, err := typedVerifier.Verify(ctx, *token)
 	if err != nil {
 		return nil, err
