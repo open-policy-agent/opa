@@ -368,16 +368,16 @@ func resolveOthers(others []*ast.Expr, headVars ast.VarSet, joined map[ast.Var]*
 
 func resolveRemainingVars(joined map[ast.Var]*util.HashMap, visitor *skipVisitor, usedVars ast.VarSet, headVars ast.VarSet) {
 	for v, refs := range joined {
-		visit := visitor
-		visit.skipped = false
+		skipped := false
 
 		if headVars.Contains(v) || refs.Len() > 1 || usedVars.Contains(v) {
-			visit.skipped = true
+			skipped = true
 		}
 
 		refs.Iter(func(a, _ util.T) bool {
+			visitor.skipped = skipped
 			r := a.(ast.Ref)
-			ast.NewGenericVisitor(visit.Visit).Walk(r)
+			ast.NewGenericVisitor(visitor.Visit).Walk(r)
 			return false
 		})
 	}
