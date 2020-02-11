@@ -79,7 +79,7 @@ func GetTrustedIdentityProviderManager(trustedIdentityProviders []*string) (*Tru
 			return nil, err
 		}
 
-		ret.trustedVerifiers.Store(trustedIssuer, verifier)
+		ret.trustedVerifiers.Store(*trustedIssuer, verifier)
 	}
 
 	return &ret, nil
