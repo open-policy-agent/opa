@@ -133,6 +133,7 @@ var DefaultBuiltins = [...]*Builtin{
 
 	// JSON Object Manipulation
 	JSONFilter,
+	JSONRemove,
 
 	// Tokens
 	JWTDecode,
@@ -937,6 +938,41 @@ var JSONUnmarshal = &Builtin{
 // JSONFilter filters the JSON object
 var JSONFilter = &Builtin{
 	Name: "json.filter",
+	Decl: types.NewFunction(
+		types.Args(
+			types.NewObject(
+				nil,
+				types.NewDynamicProperty(types.A, types.A),
+			),
+			types.NewAny(
+				types.NewArray(
+					nil,
+					types.NewAny(
+						types.S,
+						types.NewArray(
+							nil,
+							types.A,
+						),
+					),
+				),
+				types.NewSet(
+					types.NewAny(
+						types.S,
+						types.NewArray(
+							nil,
+							types.A,
+						),
+					),
+				),
+			),
+		),
+		types.A,
+	),
+}
+
+// JSONRemove removes paths in the JSON object
+var JSONRemove = &Builtin{
+	Name: "json.remove",
 	Decl: types.NewFunction(
 		types.Args(
 			types.NewObject(

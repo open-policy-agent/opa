@@ -5,11 +5,114 @@
 package topdown
 
 import (
+	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/topdown/builtins"
 )
+
+func builtinJSONRemove(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+
+	// Expect an object and a string or array/set of strings
+	_, err := builtins.ObjectOperand(operands[0].Value, 1)
+	if err != nil {
+		return err
+	}
+
+	// Build a list of json pointers to remove
+	paths, err := getJSONPaths(operands[1].Value)
+	if err != nil {
+		return err
+	}
+
+	newObj, err := jsonRemove(operands[0], ast.NewTerm(pathsToObject(paths)))
+	if err != nil {
+		return err
+	}
+
+	if newObj == nil {
+		return nil
+	}
+
+	return iter(newObj)
+}
+
+// jsonRemove returns a new term that is the result of walking
+// through a and omitting removing any values that are in b but
+// have ast.Null values (ie leaf nodes for b).
+func jsonRemove(a *ast.Term, b *ast.Term) (*ast.Term, error) {
+	if b == nil {
+		// The paths diverged, return a
+		return a, nil
+	}
+
+	var bObj ast.Object
+	switch bValue := b.Value.(type) {
+	case ast.Object:
+		bObj = bValue
+	case ast.Null:
+		// Means we hit a leaf node on "b", dont add the value for a
+		return nil, nil
+	default:
+		// The paths diverged, return a
+		return a, nil
+	}
+
+	switch aValue := a.Value.(type) {
+	case ast.String, ast.Number, ast.Boolean, ast.Null:
+		return a, nil
+	case ast.Object:
+		newObj := ast.NewObject()
+		err := aValue.Iter(func(k *ast.Term, v *ast.Term) error {
+			// recurse and add the diff of sub objects as needed
+			diffValue, err := jsonRemove(v, bObj.Get(k))
+			if err != nil || diffValue == nil {
+				return err
+			}
+			newObj.Insert(k, diffValue)
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+		return ast.NewTerm(newObj), nil
+	case ast.Set:
+		newSet := ast.NewSet()
+		err := aValue.Iter(func(v *ast.Term) error {
+			// recurse and add the diff of sub objects as needed
+			diffValue, err := jsonRemove(v, bObj.Get(v))
+			if err != nil || diffValue == nil {
+				return err
+			}
+			newSet.Add(diffValue)
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+		return ast.NewTerm(newSet), nil
+	case ast.Array:
+		// When indexes are removed we shift left to close empty spots in the array
+		// as per the JSON patch spec.
+		var newArray ast.Array
+		for i, v := range aValue {
+			// recurse and add the diff of sub objects as needed
+			// Note: Keys in b will be strings for the index, eg path /a/1/b => {"a": {"1": {"b": null}}}
+			diffValue, err := jsonRemove(v, bObj.Get(ast.StringTerm(strconv.Itoa(i))))
+			if err != nil {
+				return nil, err
+			}
+			if diffValue != nil {
+				newArray = append(newArray, diffValue)
+			}
+		}
+		return ast.NewTerm(newArray), nil
+	default:
+		return nil, fmt.Errorf("invalid value type %T", a)
+	}
+}
 
 func builtinJSONFilter(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 
@@ -20,31 +123,9 @@ func builtinJSONFilter(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Te
 	}
 
 	// Build a list of filter strings
-	var filters [][]ast.Value
-
-	switch v := operands[1].Value.(type) {
-	case ast.Array:
-		for _, f := range v {
-			filter, err := parsePath(f)
-			if err != nil {
-				return err
-			}
-			filters = append(filters, filter)
-		}
-	case ast.Set:
-		err := v.Iter(func(f *ast.Term) error {
-			filter, err := parsePath(f)
-			if err != nil {
-				return err
-			}
-			filters = append(filters, filter)
-			return nil
-		})
-		if err != nil {
-			return err
-		}
-	default:
-		return builtins.NewOperandTypeErr(2, v, "set", "array")
+	filters, err := getJSONPaths(operands[1].Value)
+	if err != nil {
+		return err
 	}
 
 	// Actually do the filtering
@@ -57,28 +138,60 @@ func builtinJSONFilter(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Te
 	return iter(ast.NewTerm(r))
 }
 
-func parsePath(path *ast.Term) ([]ast.Value, error) {
+func getJSONPaths(operand ast.Value) ([]ast.Ref, error) {
+	var paths []ast.Ref
+
+	switch v := operand.(type) {
+	case ast.Array:
+		for _, f := range v {
+			filter, err := parsePath(f)
+			if err != nil {
+				return nil, err
+			}
+			paths = append(paths, filter)
+		}
+	case ast.Set:
+		err := v.Iter(func(f *ast.Term) error {
+			filter, err := parsePath(f)
+			if err != nil {
+				return err
+			}
+			paths = append(paths, filter)
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+	default:
+		return nil, builtins.NewOperandTypeErr(2, v, "set", "array")
+	}
+
+	return paths, nil
+}
+
+func parsePath(path *ast.Term) (ast.Ref, error) {
 	// paths can either be a `/` separated json path or
 	// an array or set of values
-	var pathSegments []ast.Value
+	var pathSegments ast.Ref
 	switch p := path.Value.(type) {
 	case ast.String:
 		parts := strings.Split(strings.Trim(string(p), "/"), "/")
 		for _, part := range parts {
-			pathSegments = append(pathSegments, ast.String(part))
+			part = strings.ReplaceAll(strings.ReplaceAll(part, "~1", "/"), "~0", "~")
+			pathSegments = append(pathSegments, ast.StringTerm(part))
 		}
 	case ast.Array:
 		for _, term := range p {
-			pathSegments = append(pathSegments, term.Value)
+			pathSegments = append(pathSegments, term)
 		}
 	default:
-		return nil, builtins.NewOperandErr(2, "expected set or array containing string paths or list of path segments")
+		return nil, builtins.NewOperandErr(2, "must be one of {set, array} containing string paths or array of path segments but got %v", ast.TypeName(p))
 	}
 
 	return pathSegments, nil
 }
 
-func pathsToObject(paths [][]ast.Value) ast.Object {
+func pathsToObject(paths []ast.Ref) ast.Object {
 
 	root := ast.NewObject()
 
@@ -88,7 +201,7 @@ func pathsToObject(paths [][]ast.Value) ast.Object {
 
 		for i := 0; i < len(path)-1 && !done; i++ {
 
-			k := ast.NewTerm(path[i])
+			k := path[i]
 			child := node.Get(k)
 
 			if child == nil {
@@ -109,7 +222,7 @@ func pathsToObject(paths [][]ast.Value) ast.Object {
 		}
 
 		if !done {
-			node.Insert(ast.NewTerm(path[len(path)-1]), ast.NullTerm())
+			node.Insert(path[len(path)-1], ast.NullTerm())
 		}
 	}
 
@@ -118,4 +231,5 @@ func pathsToObject(paths [][]ast.Value) ast.Object {
 
 func init() {
 	RegisterBuiltinFunc(ast.JSONFilter.Name, builtinJSONFilter)
+	RegisterBuiltinFunc(ast.JSONRemove.Name, builtinJSONRemove)
 }
