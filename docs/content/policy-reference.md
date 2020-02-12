@@ -73,11 +73,28 @@ complex types.
 | <span class="opa-keep-it-together">`output := object.remove(object, keys)`</span> | `output` is a new object which is the result of removing the specified `keys` from `object`. `keys` must be either an array, object, or set of keys. |
 | <span class="opa-keep-it-together">`output := object.union(objectA, objectB)`</span> | `output` is a new object which is the result of an asymmetric recursive union of two objects where conflicts are resolved by choosing the key from the right-hand object (`objectB`). For example: `object.union({"a": 1, "b": 2, "c": {"d": 3}}, {"a": 7, "c": {"d": 4, "e": 5}})` will result in `{"a": 7, "b": 2, "c": {"d": 4, "e": 5}}`  |
 | <span class="opa-keep-it-together">`filtered := object.filter(object, keys)`</span> | `filtered` is a new object with the remaining data from `object` with only keys specified in `keys` which is an array, object, or set of keys. For example: `object.filter({"a": {"b": "x", "c": "y"}, "d": "z"}, ["a"])` will result in `{"a": {"b": "x", "c": "y"}}`). |
-| <span class="opa-keep-it-together">`filtered := json.filter(object, paths)`</span> | `filtered` is the remaining data from `object` with only keys specified in `paths` which is an array or set of JSON string paths. For example: `json.filter({"a": {"b": "x", "c": "y"}}, ["a/b"])` will result in `{"a": {"b": "x"}}`). |
+| <span class="opa-keep-it-together">`filtered := json.filter(object, paths)`</span> | `filtered` is the remaining data from `object` with only keys specified in `paths` which is an array or set of JSON string paths. For example: `json.filter({"a": {"b": "x", "c": "y"}}, ["a/b"])` will result in `{"a": {"b": "x"}}`). Paths are not filtered in-order and are deduplicated before being evaluated. |
+| <span class="opa-keep-it-together">`output := json.remove(object, paths)`</span> | `output` is a new object which is the result of removing all keys specified in `paths` which is an array or set of JSON string paths. For example: `json.remove{"a": {"b": "x", "c": "y"}, ["a/b"]}` will result in `{"a": {"c": "y"}}`. Paths are not removed in-order and are deduplicated before being evaluated. | 
 
-> The `json` string `paths` may reference into array values by using index numbers. For example with the object `{"a": ["x", "y", "z"]}` the path `a[1]` references `y`
+* When `keys` are provided as an object only the top level keys on the object will be used, values are ignored. 
+  For example: `object.remove({"a": {"b": {"c": 2}}, "x": 123}, {"a": 1}) == {"x": 123}` regardless of the value
+  for key `a` in the keys object, the following `keys` object gives the same result
+  `object.remove({"a": {"b": {"c": 2}}, "x": 123}, {"a": {"b": {"foo": "bar"}}}) == {"x": 123}`.
 
-> When `keys` are provided as an object only the top level keys on the object will be used, values are ignored. For example: `object.remove({"a": {"b": {"c": 2}}, "x": 123}, {"a": 1}) == {"x": 123}` regardless of the value for key `a` in the keys object, the following `keys` object gives the same result `object.remove({"a": {"b": {"c": 2}}, "x": 123}, {"a": {"b": {"foo": "bar"}}}) == {"x": 123}` 
+
+* The `json` string `paths` may reference into array values by using index numbers. For example with the object
+  `{"a": ["x", "y", "z"]}` the path `a/1` references `y`. Nested structures are supported as well, for example:
+  `{"a": ["x", {"y": {"y1": {"y2": ["foo", "bar"]}}}, "z"]}` the path `a/1/y1/y2/0` references `"foo"`.
+
+
+* The `json` string `paths` support `~0`, or `~1` characters for `~` and `/` characters in key names.
+  It does not support `-` for last index of an array. For example the path `/foo~1bar~0` will reference `baz`
+  in `{ "foo/bar~": "baz" }`.
+
+
+* The `json` string `paths` may be an array of string path segments rather than a `/` separated string. For example
+  the path `a/b/c` can be passed in as `["a", "b", "c"]`.
+
 
 ### Strings
 
