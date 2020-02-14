@@ -6,18 +6,24 @@ package topdown
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strconv"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/open-policy-agent/opa/internal/version"
+	"github.com/open-policy-agent/opa/topdown/builtins"
 
 	"github.com/open-policy-agent/opa/ast"
 )
@@ -372,6 +378,201 @@ func TestInvalidKeyError(t *testing.T) {
 
 	for _, tc := range tests {
 		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
+	}
+}
+
+func TestHTTPSendTimeout(t *testing.T) {
+
+	// Each test can tweak the response delay, default is 0 with no delay
+	var responseDelay time.Duration
+
+	tsMtx := sync.Mutex{}
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		tsMtx.Lock()
+		defer tsMtx.Unlock()
+		time.Sleep(responseDelay)
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`hello`))
+	}))
+	defer ts.Close()
+
+	tests := []struct {
+		note           string
+		rule           string
+		input          string
+		defaultTimeout time.Duration
+		evalTimeout    time.Duration
+		serverDelay    time.Duration
+		expected       interface{}
+	}{
+		{
+			note:     "no timeout",
+			rule:     `p = x { http.send({"method": "get", "url": "%URL%" }, x) }`,
+			expected: `{"body": null, "raw_body": "hello", "status": "200 OK", "status_code": 200}`,
+		},
+		{
+			note:           "default timeout",
+			rule:           `p = x { http.send({"method": "get", "url": "%URL%" }, x) }`,
+			evalTimeout:    1 * time.Minute,
+			serverDelay:    500 * time.Millisecond,
+			defaultTimeout: 1 * time.Microsecond,
+			expected:       &Error{Code: BuiltinErr, Message: "http.send: Get %URL%: request timed out"},
+		},
+		{
+			note:           "eval timeout",
+			rule:           `p = x { http.send({"method": "get", "url": "%URL%" }, x) }`,
+			evalTimeout:    1 * time.Microsecond,
+			serverDelay:    500 * time.Millisecond,
+			defaultTimeout: 1 * time.Minute,
+			expected:       &Error{Code: BuiltinErr, Message: "http.send: Get %URL%: context deadline exceeded"},
+		},
+		{
+			note:           "param timeout less than default",
+			rule:           `p = x { http.send({"method": "get", "url": "%URL%", "timeout": "1ms"}, x) }`,
+			evalTimeout:    1 * time.Minute,
+			serverDelay:    500 * time.Millisecond,
+			defaultTimeout: 1 * time.Minute,
+			expected:       &Error{Code: BuiltinErr, Message: "http.send: Get %URL%: request timed out"},
+		},
+		{
+			note:           "param timeout greater than default",
+			rule:           `p = x { http.send({"method": "get", "url": "%URL%", "timeout": "1ms"}, x) }`,
+			evalTimeout:    1 * time.Minute,
+			serverDelay:    500 * time.Millisecond,
+			defaultTimeout: 1 * time.Microsecond,
+			expected:       &Error{Code: BuiltinErr, Message: "http.send: Get %URL%: request timed out"},
+		},
+		{
+			note:           "eval timeout less than param",
+			rule:           `p = x { http.send({"method": "get", "url": "%URL%", "timeout": "1m" }, x) }`,
+			evalTimeout:    1 * time.Millisecond,
+			serverDelay:    100 * time.Millisecond,
+			defaultTimeout: 1 * time.Minute,
+			expected:       &Error{Code: BuiltinErr, Message: "http.send: Get %URL%: context deadline exceeded"},
+		},
+	}
+
+	for _, tc := range tests {
+		responseDelay = tc.serverDelay
+
+		ctx := context.Background()
+		var cancel context.CancelFunc
+		if tc.evalTimeout > 0 {
+			ctx, cancel = context.WithTimeout(ctx, tc.evalTimeout)
+		}
+
+		// TODO(patrick-east): Remove this along with the environment variable so that the "default" can't change
+		originalDefaultTimeout := defaultHTTPRequestTimeout
+		if tc.defaultTimeout > 0 {
+			defaultHTTPRequestTimeout = tc.defaultTimeout
+		}
+
+		rule := strings.ReplaceAll(tc.rule, "%URL%", ts.URL)
+		if e, ok := tc.expected.(*Error); ok {
+			e.Message = strings.ReplaceAll(e.Message, "%URL%", ts.URL)
+		}
+
+		runTopDownTestCaseWithContext(ctx, t, map[string]interface{}{}, tc.note, []string{rule}, nil, tc.input, tc.expected)
+
+		// Put back the default (may not have changed)
+		defaultHTTPRequestTimeout = originalDefaultTimeout
+		if cancel != nil {
+			cancel()
+		}
+	}
+}
+
+func TestParseTimeout(t *testing.T) {
+	tests := []struct {
+		note     string
+		raw      ast.Value
+		expected interface{}
+	}{
+		{
+			note:     "zero string",
+			raw:      ast.String("0"),
+			expected: time.Duration(0),
+		},
+		{
+			note:     "zero number",
+			raw:      ast.Number(strconv.FormatInt(0, 10)),
+			expected: time.Duration(0),
+		},
+		{
+			note:     "number",
+			raw:      ast.Number(strconv.FormatInt(1234, 10)),
+			expected: time.Duration(1234),
+		},
+		{
+			note:     "number with invalid float",
+			raw:      ast.Number("1.234"),
+			expected: errors.New("invalid timeout number value"),
+		},
+		{
+			note:     "string no units",
+			raw:      ast.String("1000"),
+			expected: time.Duration(1000),
+		},
+		{
+			note:     "string with units",
+			raw:      ast.String("10ms"),
+			expected: time.Duration(10000000),
+		},
+		{
+			note:     "string with complex units",
+			raw:      ast.String("1s10ms5us"),
+			expected: time.Second + (10 * time.Millisecond) + (5 * time.Microsecond),
+		},
+		{
+			note:     "string with invalid duration format",
+			raw:      ast.String("1xyz 2"),
+			expected: errors.New("invalid timeout value"),
+		},
+		{
+			note:     "string with float",
+			raw:      ast.String("1.234"),
+			expected: errors.New("invalid timeout value"),
+		},
+		{
+			note:     "invalid value type object",
+			raw:      ast.NewObject(),
+			expected: builtins.NewOperandErr(1, "'timeout' must be one of {string, number} but got object"),
+		},
+		{
+			note:     "invalid value type set",
+			raw:      ast.NewSet(),
+			expected: builtins.NewOperandErr(1, "'timeout' must be one of {string, number} but got set"),
+		},
+		{
+			note:     "invalid value type array",
+			raw:      &ast.Array{},
+			expected: builtins.NewOperandErr(1, "'timeout' must be one of {string, number} but got array"),
+		},
+		{
+			note:     "invalid value type boolean",
+			raw:      ast.Boolean(true),
+			expected: builtins.NewOperandErr(1, "'timeout' must be one of {string, number} but got boolean"),
+		},
+		{
+			note:     "invalid value type null",
+			raw:      ast.Null{},
+			expected: builtins.NewOperandErr(1, "'timeout' must be one of {string, number} but got null"),
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			actual, err := parseTimeout(tc.raw)
+			switch e := tc.expected.(type) {
+			case error:
+				assertError(t, tc.expected, err)
+			case time.Duration:
+				if e != actual {
+					t.Fatalf("Expected %d but got %d", e, actual)
+				}
+			}
+		})
 	}
 }
 

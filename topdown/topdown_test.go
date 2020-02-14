@@ -2868,10 +2868,14 @@ func loadSmallTestData() map[string]interface{} {
 }
 
 func runTopDownTestCase(t *testing.T, data map[string]interface{}, note string, rules []string, expected interface{}) {
-	runTopDownTestCaseWithModules(t, data, note, rules, nil, "", expected)
+	runTopDownTestCaseWithContext(context.Background(), t, data, note, rules, nil, "", expected)
 }
 
 func runTopDownTestCaseWithModules(t *testing.T, data map[string]interface{}, note string, rules []string, modules []string, input string, expected interface{}) {
+	runTopDownTestCaseWithContext(context.Background(), t, data, note, rules, modules, input, expected)
+}
+
+func runTopDownTestCaseWithContext(ctx context.Context, t *testing.T, data map[string]interface{}, note string, rules []string, modules []string, input string, expected interface{}) {
 	imports := []string{}
 	for k := range data {
 		imports = append(imports, "data."+k)
@@ -2889,10 +2893,14 @@ func runTopDownTestCaseWithModules(t *testing.T, data map[string]interface{}, no
 
 	store := inmem.NewFromObject(data)
 
-	assertTopDownWithPath(t, compiler, store, note, []string{"p"}, input, expected)
+	assertTopDownWithPathAndContext(ctx, t, compiler, store, note, []string{"p"}, input, expected)
 }
 
 func assertTopDownWithPath(t *testing.T, compiler *ast.Compiler, store storage.Store, note string, path []string, input string, expected interface{}) {
+	assertTopDownWithPathAndContext(context.Background(), t, compiler, store, note, path, input, expected)
+}
+
+func assertTopDownWithPathAndContext(ctx context.Context, t *testing.T, compiler *ast.Compiler, store storage.Store, note string, path []string, input string, expected interface{}) {
 
 	var inputTerm *ast.Term
 
@@ -2900,7 +2908,6 @@ func assertTopDownWithPath(t *testing.T, compiler *ast.Compiler, store storage.S
 		inputTerm = ast.MustParseTerm(input)
 	}
 
-	ctx := context.Background()
 	txn := storage.NewTransactionOrDie(ctx, store)
 
 	defer store.Abort(ctx, txn)
