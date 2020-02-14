@@ -2,7 +2,6 @@ package topdown
 
 import (
 	"context"
-	"net"
 	"testing"
 	"time"
 
@@ -120,7 +119,7 @@ func TestNetCIDRExpand(t *testing.T) {
 			rules: []string{
 				`p = x { net.cidr_expand("192.168.1.1/33", x) }`,
 			},
-			expected: &net.ParseError{Type: "CIDR address", Text: "192.168.1.1/33"},
+			expected: &Error{Code: BuiltinErr, Message: "net.cidr_expand: invalid CIDR address: 192.168.1.1/33"},
 		},
 	}
 

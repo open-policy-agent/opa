@@ -48,7 +48,7 @@ type (
 
 // RegisterBuiltinFunc adds a new built-in function to the evaluation engine.
 func RegisterBuiltinFunc(name string, f BuiltinFunc) {
-	builtinFunctions[name] = f
+	builtinFunctions[name] = builtinErrorWrapper(name, f)
 }
 
 // RegisterFunctionalBuiltin1 is deprecated use RegisterBuiltinFunc instead.
@@ -85,14 +85,21 @@ func (BuiltinEmpty) Error() string {
 
 var builtinFunctions = map[string]BuiltinFunc{}
 
+func builtinErrorWrapper(name string, fn BuiltinFunc) BuiltinFunc {
+	return func(bctx BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
+		err := fn(bctx, args, iter)
+		if err == nil {
+			return nil
+		}
+		return handleBuiltinErr(name, bctx.Location, err)
+	}
+}
+
 func functionalWrapper1(name string, fn FunctionalBuiltin1) BuiltinFunc {
 	return func(bctx BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
 		result, err := fn(args[0].Value)
 		if err == nil {
 			return iter(ast.NewTerm(result))
-		}
-		if _, empty := err.(BuiltinEmpty); empty {
-			return nil
 		}
 		return handleBuiltinErr(name, bctx.Location, err)
 	}
@@ -104,9 +111,6 @@ func functionalWrapper2(name string, fn FunctionalBuiltin2) BuiltinFunc {
 		if err == nil {
 			return iter(ast.NewTerm(result))
 		}
-		if _, empty := err.(BuiltinEmpty); empty {
-			return nil
-		}
 		return handleBuiltinErr(name, bctx.Location, err)
 	}
 }
@@ -116,9 +120,6 @@ func functionalWrapper3(name string, fn FunctionalBuiltin3) BuiltinFunc {
 		result, err := fn(args[0].Value, args[1].Value, args[2].Value)
 		if err == nil {
 			return iter(ast.NewTerm(result))
-		}
-		if _, empty := err.(BuiltinEmpty); empty {
-			return nil
 		}
 		return handleBuiltinErr(name, bctx.Location, err)
 	}
@@ -141,6 +142,8 @@ func handleBuiltinErr(name string, loc *ast.Location, err error) error {
 	switch err := err.(type) {
 	case BuiltinEmpty:
 		return nil
+	case *Error:
+		return err
 	case builtins.ErrOperand:
 		return &Error{
 			Code:     TypeErr,
