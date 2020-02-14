@@ -840,6 +840,7 @@ func New(options ...func(r *Rego)) *Rego {
 		compiledQueries: map[queryType]compiledQuery{},
 		builtinDecls:    map[string]*ast.Builtin{},
 		builtinFuncs:    map[string]*topdown.Builtin{},
+		bundles:         map[string]*bundle.Bundle{},
 	}
 
 	for _, option := range options {
@@ -875,10 +876,6 @@ func New(options ...func(r *Rego)) *Rego {
 
 	if r.partialNamespace == "" {
 		r.partialNamespace = defaultPartialNamespace
-	}
-
-	if r.bundles == nil {
-		r.bundles = map[string]*bundle.Bundle{}
 	}
 
 	return r
