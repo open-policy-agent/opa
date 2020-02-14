@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/internal/storage/mock"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/storage"
@@ -1009,6 +1010,35 @@ func TestMissingLocation(t *testing.T) {
 	if rs[0].Expressions[0].Location != nil {
 		t.Fatal("Expected location data to be unset.")
 	}
+}
+
+func TestBundlePassing(t *testing.T) {
+
+	opaBundle := bundle.Bundle{
+		Modules: []bundle.ModuleFile{
+			{
+				Path: "policy.rego",
+				Parsed: ast.MustParseModule(`package foo
+                         allow = true`),
+				Raw: []byte(`package foo
+                         allow = true`),
+			},
+		},
+		Manifest: bundle.Manifest{Revision: "test", Roots: &[]string{"/"}},
+	}
+
+	// Pass a bundle
+	r := New(
+		ParsedBundle("123", &opaBundle),
+		Query("x = data.foo.allow"),
+	)
+
+	res, err := r.Eval(context.Background())
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertResultSet(t, res, `[[true]]`)
 }
 
 func TestModulePassing(t *testing.T) {
