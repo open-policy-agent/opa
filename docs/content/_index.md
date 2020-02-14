@@ -99,8 +99,8 @@ the policy.
 ## Rego
 
 OPA policies are expressed in a high-level declarative language called Rego.
-Rego is purpose-built for expressing policies over complex hierarchical data
-structures. For detailed information on Rego see the [Policy
+Rego (pronounced "ray-go") is purpose-built for expressing policies over complex
+hierarchical data structures. For detailed information on Rego see the [Policy
 Language](policy-language) documentation.
 
 > 💡 The examples below are interactive! If you edit the input data above
