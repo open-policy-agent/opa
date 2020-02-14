@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net/url"
 	"strconv"
 
 	"github.com/open-policy-agent/opa/internal/version"
@@ -24,7 +25,9 @@ import (
 	"github.com/open-policy-agent/opa/topdown/builtins"
 )
 
-const defaultHTTPRequestTimeout = time.Second * 5
+const defaultHTTPRequestTimeoutEnv = "HTTP_SEND_TIMEOUT"
+
+var defaultHTTPRequestTimeout = time.Second * 5
 
 var allowedKeyNames = [...]string{
 	"method",
@@ -41,12 +44,11 @@ var allowedKeyNames = [...]string{
 	"tls_client_key_env_variable",
 	"tls_client_cert_file",
 	"tls_client_key_file",
+	"timeout",
 }
 var allowedKeys = ast.NewSet()
 
 var requiredKeys = ast.NewSet(ast.StringTerm("method"), ast.StringTerm("url"))
-
-var client *http.Client
 
 func builtinHTTPSend(bctx BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
 
@@ -57,7 +59,7 @@ func builtinHTTPSend(bctx BuiltinContext, args []*ast.Term, iter func(*ast.Term)
 
 	resp, err := executeHTTPRequest(bctx, req)
 	if err != nil {
-		return handleBuiltinErr(ast.HTTPSend.Name, bctx.Location, err)
+		return handleHTTPSendErr(bctx, err)
 	}
 
 	return iter(ast.NewTerm(resp))
@@ -65,23 +67,32 @@ func builtinHTTPSend(bctx BuiltinContext, args []*ast.Term, iter func(*ast.Term)
 
 func init() {
 	createAllowedKeys()
-	createHTTPClient()
+	initDefaults()
 	RegisterBuiltinFunc(ast.HTTPSend.Name, builtinHTTPSend)
 }
 
-func createHTTPClient() {
-	timeout := defaultHTTPRequestTimeout
-	timeoutDuration := os.Getenv("HTTP_SEND_TIMEOUT")
-	if timeoutDuration != "" {
-		timeout, _ = time.ParseDuration(timeoutDuration)
+func handleHTTPSendErr(bctx BuiltinContext, err error) error {
+	// Return HTTP client timeout errors in a generic error message to avoid confusion about what happened.
+	// Do not do this if the builtin context was cancelled and is what caused the request to stop.
+	if urlErr, ok := err.(*url.Error); ok && urlErr.Timeout() && bctx.Context.Err() == nil {
+		err = fmt.Errorf("%s %s: request timed out", urlErr.Op, urlErr.URL)
 	}
+	return handleBuiltinErr(ast.HTTPSend.Name, bctx.Location, err)
+}
 
-	// create a http client with redirects disabled
-	client = &http.Client{
-		Timeout: timeout,
-		CheckRedirect: func(*http.Request, []*http.Request) error {
-			return http.ErrUseLastResponse
-		},
+func initDefaults() {
+	timeoutDuration := os.Getenv(defaultHTTPRequestTimeoutEnv)
+	if timeoutDuration != "" {
+		var err error
+		defaultHTTPRequestTimeout, err = time.ParseDuration(timeoutDuration)
+		if err != nil {
+			// If it is set to something not valid don't let the process continue in a state
+			// that will almost definitely give unexpected results by having it set at 0
+			// which means no timeout..
+			// This environment variable isn't considered part of the public API.
+			// TODO(patrick-east): Remove the environment variable
+			panic(fmt.Sprintf("invalid value for HTTP_SEND_TIMEOUT: %s", err))
+		}
 	}
 }
 
@@ -139,6 +150,8 @@ func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) 
 	var tlsConfig tls.Config
 	var clientCerts []tls.Certificate
 	var customHeaders map[string]interface{}
+	var timeout = defaultHTTPRequestTimeout
+
 	for _, val := range obj.Keys() {
 		key, err := ast.JSON(val.Value)
 		if err != nil {
@@ -149,7 +162,7 @@ func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) 
 		switch key {
 		case "method":
 			method = obj.Get(val).String()
-			method = strings.Trim(method, "\"")
+			method = strings.ToUpper(strings.Trim(method, "\""))
 		case "url":
 			url = obj.Get(val).String()
 			url = strings.Trim(url, "\"")
@@ -218,9 +231,18 @@ func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) 
 			if !ok {
 				return nil, fmt.Errorf("invalid type for headers key")
 			}
+		case "timeout":
+			timeout, err = parseTimeout(obj.Get(val).Value)
+			if err != nil {
+				return nil, err
+			}
 		default:
 			return nil, fmt.Errorf("invalid parameter %q", key)
 		}
+	}
+
+	client := &http.Client{
+		Timeout: timeout,
 	}
 
 	if tlsClientCertFile != "" && tlsClientKeyFile != "" {
@@ -253,8 +275,10 @@ func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) 
 	}
 
 	// check if redirects are enabled
-	if enableRedirect {
-		client.CheckRedirect = nil
+	if !enableRedirect {
+		client.CheckRedirect = func(*http.Request, []*http.Request) error {
+			return http.ErrUseLastResponse
+		}
 	}
 
 	if rawBody != nil {
@@ -269,11 +293,13 @@ func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) 
 		return cachedResponse, nil
 	}
 
-	// create the http request
-	req, err := http.NewRequest(strings.ToUpper(method), url, body)
+	// create the http request, use the builtin context's context to ensure
+	// the request is cancelled if evaluation is cancelled.
+	req, err := http.NewRequest(method, url, body)
 	if err != nil {
 		return nil, err
 	}
+	req = req.WithContext(bctx.Context)
 
 	// Add custom headers passed from CLI
 
@@ -356,5 +382,33 @@ func checkCache(method string, url string, bctx BuiltinContext) ast.Value {
 func createAllowedKeys() {
 	for _, element := range allowedKeyNames {
 		allowedKeys.Add(ast.StringTerm(element))
+	}
+}
+
+func parseTimeout(timeoutVal ast.Value) (time.Duration, error) {
+	var timeout time.Duration
+	switch t := timeoutVal.(type) {
+	case ast.Number:
+		timeoutInt, ok := t.Int64()
+		if !ok {
+			return timeout, fmt.Errorf("invalid timeout number value %v, must be int64", timeoutVal)
+		}
+		return time.Duration(timeoutInt), nil
+	case ast.String:
+		// Support strings without a unit, treat them the same as just a number value (ns)
+		var err error
+		timeoutInt, err := strconv.ParseInt(string(t), 10, 64)
+		if err == nil {
+			return time.Duration(timeoutInt), nil
+		}
+
+		// Try parsing it as a duration (requires a supported units suffix)
+		timeout, err = time.ParseDuration(string(t))
+		if err != nil {
+			return timeout, fmt.Errorf("invalid timeout value %v: %s", timeoutVal, err)
+		}
+		return timeout, nil
+	default:
+		return timeout, builtins.NewOperandErr(1, "'timeout' must be one of {string, number} but got %s", ast.TypeName(t))
 	}
 }
