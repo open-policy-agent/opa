@@ -109,7 +109,7 @@ Similarly, if you edit the queries or rules in the examples below the output
 will change. As you read through this section, try changing the input, queries,
 and rules and observe the difference in output.
 >
-> 💻 They can also be run locally on your machine using the [`opa eval` command, here are setup instructions.](#Running-OPA)
+> 💻 They can also be run locally on your machine using the [`opa eval` command, here are setup instructions.](#running-opa)
 
 ### References
 
