@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast"
-	"github.com/open-policy-agent/opa/topdown/builtins"
 )
 
 func TestObjectGet(t *testing.T) {
@@ -146,7 +145,7 @@ func TestBuiltinObjectUnion(t *testing.T) {
 			objectA:  `input.a`,
 			objectB:  `{"b": 2}`,
 			input:    `{"a": [1, 2, 3]}`,
-			expected: builtins.NewOperandErr(1, "must be object but got array"),
+			expected: &Error{Code: TypeErr, Message: "object.union: operand 1 must be object but got array"},
 		},
 		{
 			note:     "error wrong rhs type",
@@ -159,7 +158,7 @@ func TestBuiltinObjectUnion(t *testing.T) {
 			objectA:  `{"a": 1}`,
 			objectB:  `input.b`,
 			input:    `{"b": [1, 2, 3]}`,
-			expected: builtins.NewOperandErr(2, "must be object but got array"),
+			expected: &Error{Code: TypeErr, Message: "object.union: operand 2 must be object but got array"},
 		},
 		{
 			note:     "error wrong both params",
@@ -262,35 +261,35 @@ func TestBuiltinObjectRemove(t *testing.T) {
 			object:   `input.x`,
 			keys:     `{"a"}`,
 			input:    `{"x": ["a"]}`,
-			expected: builtins.NewOperandErr(1, "must be object but got array"),
+			expected: &Error{Code: TypeErr, Message: "object.remove: operand 1 must be object but got array"},
 		},
 		{
 			note:     "error invalid object param type bool input",
 			object:   `input.x`,
 			keys:     `{"a"}`,
 			input:    `{"x": false}`,
-			expected: builtins.NewOperandErr(1, "must be object but got boolean"),
+			expected: &Error{Code: TypeErr, Message: "object.remove: operand 1 must be object but got boolean"},
 		},
 		{
 			note:     "error invalid object param type number input",
 			object:   `input.x`,
 			keys:     `{"a"}`,
 			input:    `{"x": 123}`,
-			expected: builtins.NewOperandErr(1, "must be object but got number"),
+			expected: &Error{Code: TypeErr, Message: "object.remove: operand 1 must be object but got number"},
 		},
 		{
 			note:     "error invalid object param type string input",
 			object:   `input.x`,
 			keys:     `{"a"}`,
 			input:    `{"x": "foo"}`,
-			expected: builtins.NewOperandErr(1, "must be object but got string"),
+			expected: &Error{Code: TypeErr, Message: "object.remove: operand 1 must be object but got string"},
 		},
 		{
 			note:     "error invalid object param type nil input",
 			object:   `input.x`,
 			keys:     `{"a"}`,
 			input:    `{"x": none}`,
-			expected: builtins.NewOperandErr(1, "must be object but got var"),
+			expected: &Error{Code: TypeErr, Message: "object.remove: operand 1 must be object but got var"},
 		},
 		{
 			note:     "error invalid key param type string",
@@ -309,28 +308,28 @@ func TestBuiltinObjectRemove(t *testing.T) {
 			object:   `{"a": 1}`,
 			keys:     `input.x`,
 			input:    `{"x": "foo"}`,
-			expected: builtins.NewOperandErr(2, "must be one of {object, string, array} but got string"),
+			expected: &Error{Code: TypeErr, Message: "object.remove: operand 2 must be one of {object, string, array} but got string"},
 		},
 		{
 			note:     "error invalid key param type boolean input",
 			object:   `{"a": 1}`,
 			keys:     `input.x`,
 			input:    `{"x": true}`,
-			expected: builtins.NewOperandErr(2, "must be one of {object, string, array} but got boolean"),
+			expected: &Error{Code: TypeErr, Message: "object.remove: operand 2 must be one of {object, string, array} but got boolean"},
 		},
 		{
 			note:     "error invalid key param type number input",
 			object:   `{"a": 1}`,
 			keys:     `input.x`,
 			input:    `{"x": 22}`,
-			expected: builtins.NewOperandErr(2, "must be one of {object, string, array} but got number"),
+			expected: &Error{Code: TypeErr, Message: "object.remove: operand 2 must be one of {object, string, array} but got number"},
 		},
 		{
 			note:     "error invalid key param type nil input",
 			object:   `{"a": 1}`,
 			keys:     `input.x`,
 			input:    `{"x": none}`,
-			expected: builtins.NewOperandErr(2, "must be one of {object, string, array} but got var"),
+			expected: &Error{Code: TypeErr, Message: "object.remove: operand 2 must be one of {object, string, array} but got var"},
 		},
 	}
 
@@ -442,35 +441,35 @@ func TestBuiltinObjectFilter(t *testing.T) {
 			object:   `input.x`,
 			filters:  `{"a"}`,
 			input:    `{"x": ["a"]}`,
-			expected: builtins.NewOperandErr(1, "must be object but got array"),
+			expected: &Error{Code: TypeErr, Message: "object.filter: operand 1 must be object but got array"},
 		},
 		{
 			note:     "error invalid object param type bool input",
 			object:   `input.x`,
 			filters:  `{"a"}`,
 			input:    `{"x": false}`,
-			expected: builtins.NewOperandErr(1, "must be object but got boolean"),
+			expected: &Error{Code: TypeErr, Message: "object.filter: operand 1 must be object but got boolean"},
 		},
 		{
 			note:     "error invalid object param type number input",
 			object:   `input.x`,
 			filters:  `{"a"}`,
 			input:    `{"x": 123}`,
-			expected: builtins.NewOperandErr(1, "must be object but got number"),
+			expected: &Error{Code: TypeErr, Message: "object.filter: operand 1 must be object but got number"},
 		},
 		{
 			note:     "error invalid object param type string input",
 			object:   `input.x`,
 			filters:  `{"a"}`,
 			input:    `{"x": "foo"}`,
-			expected: builtins.NewOperandErr(1, "must be object but got string"),
+			expected: &Error{Code: TypeErr, Message: "object.filter: operand 1 must be object but got string"},
 		},
 		{
 			note:     "error invalid object param type nil input",
 			object:   `input.x`,
 			filters:  `{"a"}`,
 			input:    `{"x": none}`,
-			expected: builtins.NewOperandErr(1, "must be object but got var"),
+			expected: &Error{Code: TypeErr, Message: "object.filter: operand 1 must be object but got var"},
 		},
 		{
 			note:     "error invalid key param type string",
@@ -489,28 +488,28 @@ func TestBuiltinObjectFilter(t *testing.T) {
 			object:   `{"a": 1}`,
 			filters:  `input.x`,
 			input:    `{"x": "foo"}`,
-			expected: builtins.NewOperandErr(2, "must be one of {object, string, array} but got string"),
+			expected: &Error{Code: TypeErr, Message: "object.filter: operand 2 must be one of {object, string, array} but got string"},
 		},
 		{
 			note:     "error invalid key param type boolean input",
 			object:   `{"a": 1}`,
 			filters:  `input.x`,
 			input:    `{"x": true}`,
-			expected: builtins.NewOperandErr(2, "must be one of {object, string, array} but got boolean"),
+			expected: &Error{Code: TypeErr, Message: "object.filter: operand 2 must be one of {object, string, array} but got boolean"},
 		},
 		{
 			note:     "error invalid key param type number input",
 			object:   `{"a": 1}`,
 			filters:  `input.x`,
 			input:    `{"x": 22}`,
-			expected: builtins.NewOperandErr(2, "must be one of {object, string, array} but got number"),
+			expected: &Error{Code: TypeErr, Message: "object.filter: operand 2 must be one of {object, string, array} but got number"},
 		},
 		{
 			note:     "error invalid key param type nil input",
 			object:   `{"a": 1}`,
 			filters:  `input.x`,
 			input:    `{"x": none}`,
-			expected: builtins.NewOperandErr(2, "must be one of {object, string, array} but got var"),
+			expected: &Error{Code: TypeErr, Message: "object.filter: operand 2 must be one of {object, string, array} but got var"},
 		},
 	}
 
