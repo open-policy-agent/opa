@@ -801,7 +801,7 @@ func TestHTTPSNoClientCerts(t *testing.T) {
 
 	t.Run("Negative Test: System Certs do not include local rootCA", func(t *testing.T) {
 
-		expectedResult := Error{Code: BuiltinErr, Message: "x509: certificate signed by unknown authority", Location: nil}
+		expectedResult := &Error{Code: BuiltinErr, Message: "x509: certificate signed by unknown authority", Location: nil}
 		data := loadSmallTestData()
 		rule := []string{fmt.Sprintf(
 			`p = x { http.send({"method": "get", "url": "%s", "tls_use_system_certs": true}, x) }`, s.URL)}
