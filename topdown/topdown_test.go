@@ -2944,8 +2944,9 @@ func assertTopDownWithPath(t *testing.T, compiler *ast.Compiler, store storage.S
 	}
 
 	testutil.Subtest(t, note, func(t *testing.T) {
+
 		switch e := expected.(type) {
-		case Error, error:
+		case *Error, error:
 			_, err := query.Run(ctx)
 			assertError(t, expected, err)
 		case string:
