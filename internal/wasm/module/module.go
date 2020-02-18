@@ -20,6 +20,7 @@ type (
 		Import   ImportSection
 		Function FunctionSection
 		Table    TableSection
+		Memory   MemorySection
 		Element  ElementSection
 		Global   GlobalSection
 		Export   ExportSection
@@ -45,6 +46,11 @@ type (
 	// TableSection represents a WASM table section.
 	TableSection struct {
 		Tables []Table
+	}
+
+	// MemorySection represents a WASM memory section.
+	MemorySection struct {
+		Memories []Memory
 	}
 
 	// ElementSection represents a WASM element section.
@@ -139,6 +145,11 @@ type (
 	Table struct {
 		Type types.ElementType
 		Lim  Limit
+	}
+
+	// Memory represents a WASM memory statement.
+	Memory struct {
+		Mem MemType
 	}
 
 	// Global represents a WASM global statement.

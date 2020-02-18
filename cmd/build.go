@@ -15,11 +15,13 @@ import (
 )
 
 var buildParams = struct {
-	outputFile  string
-	debug       bool
-	dataPaths   repeatedStringFlag
-	ignore      []string
-	bundlePaths repeatedStringFlag
+	outputFile   string
+	debug        bool
+	exportMemory bool
+	memoryLimit  uint32
+	dataPaths    repeatedStringFlag
+	ignore       []string
+	bundlePaths  repeatedStringFlag
 }{}
 
 var buildCommand = &cobra.Command{
@@ -72,7 +74,7 @@ func build(args []string) error {
 	}
 
 	r := rego.New(regoArgs...)
-	cr, err := r.Compile(ctx, rego.CompilePartial(false))
+	cr, err := r.Compile(ctx, rego.CompilePartial(false), rego.CompileExportMemory(buildParams.exportMemory), rego.CompileMemoryLimit(buildParams.memoryLimit))
 	if err != nil {
 		return err
 	}
@@ -90,6 +92,8 @@ func build(args []string) error {
 
 func init() {
 	buildCommand.Flags().StringVarP(&buildParams.outputFile, "output", "o", "policy.wasm", "set the filename of the compiled policy")
+	buildCommand.Flags().BoolVarP(&buildParams.exportMemory, "export-memory", "e", false, "enable exporting of memory in the compiled policy")
+	buildCommand.Flags().Uint32VarP(&buildParams.memoryLimit, "memory-limit", "m", 0, "set the memory limit of the compiled policy with exported memory (0 means no limit)")
 	buildCommand.Flags().BoolVarP(&buildParams.debug, "debug", "D", false, "enable debug output")
 	buildCommand.Flags().VarP(&buildParams.dataPaths, "data", "d", "set data file(s) or directory path(s)")
 	buildCommand.Flags().VarP(&buildParams.bundlePaths, "bundle", "b", "set bundle file(s) or directory path(s)")

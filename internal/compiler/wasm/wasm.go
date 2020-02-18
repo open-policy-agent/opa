@@ -69,9 +69,11 @@ type Compiler struct {
 	stages []func() error // compiler stages to execute
 	errors []error        // compilation errors encountered
 
-	policy *ir.Policy        // input policy to compile
-	module *module.Module    // output WASM module
-	code   *module.CodeEntry // output WASM code
+	policy           *ir.Policy        // input policy to compile
+	exportMemory     bool              // WASM memory exporting enabled
+	memoryLimitPages uint32            // WASM memory limit (in 64kB pages)
+	module           *module.Module    // output WASM module
+	code             *module.CodeEntry // output WASM code
 
 	builtinStringAddrs   map[int]uint32    // addresses of built-in string constants
 	builtinFuncNameAddrs map[string]int32  // addresses of built-in function names for listing
@@ -122,6 +124,21 @@ func (c *Compiler) WithPolicy(p *ir.Policy) *Compiler {
 	return c
 }
 
+// WithExportMemory sets the memory exporting on, instead of the
+// default memory import. If limit is non-zero, it indicates the
+// maximum allowed memory usage in bytes.
+func (c *Compiler) WithExportMemory(limit uint32) *Compiler {
+	c.exportMemory = true
+
+	pageSize := uint32(65536)
+	c.memoryLimitPages = limit / pageSize
+	if limit%pageSize != 0 {
+		c.memoryLimitPages++
+	}
+
+	return c
+}
+
 // Compile returns a compiled WASM module.
 func (c *Compiler) Compile() (*module.Module, error) {
 
@@ -149,6 +166,36 @@ func (c *Compiler) initModule() error {
 	c.module, err = encoding.ReadModule(bytes.NewReader(bs))
 	if err != nil {
 		return err
+	}
+
+	if c.exportMemory {
+		// Replace the default memory import with an export.
+
+		for i, v := range c.module.Import.Imports {
+			if v.Module == "env" && v.Name == "memory" {
+				c.module.Import.Imports = append(c.module.Import.Imports[0:i], c.module.Import.Imports[i+1:]...)
+				break
+			}
+		}
+
+		c.module.Export.Exports = append(c.module.Export.Exports, module.Export{
+			Name: "memory",
+			Descriptor: module.ExportDescriptor{
+				Type:  module.MemoryExportType,
+				Index: 0,
+			},
+		})
+
+		var max *uint32
+		if c.memoryLimitPages > 0 {
+			max = &c.memoryLimitPages
+		}
+
+		c.module.Memory.Memories = append(c.module.Memory.Memories, module.Memory{
+			Mem: module.MemType{
+				Lim: module.Limit{Min: 2, Max: max},
+			},
+		})
 	}
 
 	c.funcs = make(map[string]uint32)

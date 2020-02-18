@@ -142,7 +142,7 @@ func readSections(r io.Reader, m *module.Module) error {
 		bufr := bytes.NewReader(buf)
 
 		switch id {
-		case constant.CustomSectionID, constant.StartSectionID, constant.MemorySectionID:
+		case constant.CustomSectionID, constant.StartSectionID:
 			continue
 		case constant.TypeSectionID:
 			if err := readTypeSection(bufr, &m.Type); err != nil {
@@ -159,6 +159,10 @@ func readSections(r io.Reader, m *module.Module) error {
 		case constant.TableSectionID:
 			if err := readTableSection(bufr, &m.Table); err != nil {
 				return errors.Wrap(err, "table section")
+			}
+		case constant.MemorySectionID:
+			if err := readMemorySection(bufr, &m.Memory); err != nil {
+				return errors.Wrap(err, "memory section")
 			}
 		case constant.FunctionSectionID:
 			if err := readFunctionSection(bufr, &m.Function); err != nil {
@@ -251,6 +255,27 @@ func readTableSection(r io.Reader, s *module.TableSection) error {
 		}
 
 		s.Tables = append(s.Tables, table)
+	}
+
+	return nil
+}
+
+func readMemorySection(r io.Reader, s *module.MemorySection) error {
+
+	n, err := leb128.ReadVarUint32(r)
+	if err != nil {
+		return err
+	}
+
+	for i := uint32(0); i < n; i++ {
+
+		var memory module.Memory
+
+		if err := readLimits(r, &memory.Mem.Lim); err != nil {
+			return err
+		}
+
+		s.Memories = append(s.Memories, memory)
 	}
 
 	return nil

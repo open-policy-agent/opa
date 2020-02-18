@@ -986,7 +986,9 @@ type CompileOption func(*CompileContext)
 
 // CompileContext contains options for Compile calls.
 type CompileContext struct {
-	partial bool
+	partial      bool
+	exportMemory bool
+	memoryLimit  uint32
 }
 
 // CompilePartial defines an option to control whether partial evaluation is run
@@ -994,6 +996,23 @@ type CompileContext struct {
 func CompilePartial(yes bool) CompileOption {
 	return func(cfg *CompileContext) {
 		cfg.partial = yes
+	}
+}
+
+// CompileExportMemory defines an option to control whether the
+// compiled WASM module exports or imports its memory.
+func CompileExportMemory(yes bool) CompileOption {
+	return func(cfg *CompileContext) {
+		cfg.exportMemory = yes
+	}
+}
+
+// CompileMemoryLimit defines an option to control the memory limit
+// (in bytes) for the compiled WASM module. Valid only if memory is
+// exported.
+func CompileMemoryLimit(limit uint32) CompileOption {
+	return func(cfg *CompileContext) {
+		cfg.memoryLimit = limit
 	}
 }
 
@@ -1098,7 +1117,12 @@ func (r *Rego) Compile(ctx context.Context, opts ...CompileOption) (*CompileResu
 		fmt.Fprintln(r.dump)
 	}
 
-	m, err := wasm.New().WithPolicy(policy).Compile()
+	c := wasm.New().WithPolicy(policy)
+	if cfg.exportMemory {
+		c = c.WithExportMemory(cfg.memoryLimit)
+	}
+
+	m, err := c.Compile()
 	if err != nil {
 		return nil, err
 	}
