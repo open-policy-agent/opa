@@ -71,6 +71,11 @@ func RegisterFunctionalBuiltin4(name string, fun FunctionalBuiltin4) {
 	builtinFunctions[name] = functionalWrapper4(name, fun)
 }
 
+// GetBuiltin returns a built-in function implementation, nil if no built-in found.
+func GetBuiltin(name string) BuiltinFunc {
+	return builtinFunctions[name]
+}
+
 // BuiltinEmpty is deprecated.
 type BuiltinEmpty struct{}
 
