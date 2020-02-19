@@ -395,7 +395,9 @@ func TestHTTPSendTimeout(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`hello`))
 	}))
-	defer ts.Close()
+	// Note: We don't Close() the test server as it will block waiting for the
+	// timed out clients connections to shut down gracefully (they wont).
+	// We don't need to clean it up nicely for the unit test.
 
 	tests := []struct {
 		note           string
@@ -415,39 +417,39 @@ func TestHTTPSendTimeout(t *testing.T) {
 			note:           "default timeout",
 			rule:           `p = x { http.send({"method": "get", "url": "%URL%" }, x) }`,
 			evalTimeout:    1 * time.Minute,
-			serverDelay:    500 * time.Millisecond,
-			defaultTimeout: 1 * time.Microsecond,
+			serverDelay:    5 * time.Second,
+			defaultTimeout: 500 * time.Millisecond,
 			expected:       &Error{Code: BuiltinErr, Message: "http.send: Get %URL%: request timed out"},
 		},
 		{
 			note:           "eval timeout",
 			rule:           `p = x { http.send({"method": "get", "url": "%URL%" }, x) }`,
-			evalTimeout:    1 * time.Microsecond,
-			serverDelay:    500 * time.Millisecond,
+			evalTimeout:    500 * time.Millisecond,
+			serverDelay:    5 * time.Second,
 			defaultTimeout: 1 * time.Minute,
 			expected:       &Error{Code: BuiltinErr, Message: "http.send: Get %URL%: context deadline exceeded"},
 		},
 		{
 			note:           "param timeout less than default",
-			rule:           `p = x { http.send({"method": "get", "url": "%URL%", "timeout": "1ms"}, x) }`,
+			rule:           `p = x { http.send({"method": "get", "url": "%URL%", "timeout": "500ms"}, x) }`,
 			evalTimeout:    1 * time.Minute,
-			serverDelay:    500 * time.Millisecond,
+			serverDelay:    5 * time.Second,
 			defaultTimeout: 1 * time.Minute,
 			expected:       &Error{Code: BuiltinErr, Message: "http.send: Get %URL%: request timed out"},
 		},
 		{
 			note:           "param timeout greater than default",
-			rule:           `p = x { http.send({"method": "get", "url": "%URL%", "timeout": "1ms"}, x) }`,
+			rule:           `p = x { http.send({"method": "get", "url": "%URL%", "timeout": "500ms"}, x) }`,
 			evalTimeout:    1 * time.Minute,
-			serverDelay:    500 * time.Millisecond,
-			defaultTimeout: 1 * time.Microsecond,
+			serverDelay:    5 * time.Second,
+			defaultTimeout: 1 * time.Millisecond,
 			expected:       &Error{Code: BuiltinErr, Message: "http.send: Get %URL%: request timed out"},
 		},
 		{
 			note:           "eval timeout less than param",
 			rule:           `p = x { http.send({"method": "get", "url": "%URL%", "timeout": "1m" }, x) }`,
-			evalTimeout:    1 * time.Millisecond,
-			serverDelay:    100 * time.Millisecond,
+			evalTimeout:    500 * time.Millisecond,
+			serverDelay:    5 * time.Second,
 			defaultTimeout: 1 * time.Minute,
 			expected:       &Error{Code: BuiltinErr, Message: "http.send: Get %URL%: context deadline exceeded"},
 		},
