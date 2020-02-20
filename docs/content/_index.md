@@ -651,8 +651,8 @@ On Linux (64-bit):
 curl -L -o opa https://openpolicyagent.org/downloads/{{< current_version >}}/opa_linux_amd64
 ```
 
-> Windows users can obtain the OPA executable from [GitHub
-> Releases](https://github.com/open-policy-agent/opa/releases). The steps below
+> Windows users can obtain the OPA executable from [here](https://openpolicyagent.org/downloads/{{< current_version >}}/opa_windows_amd64.exe).
+> The steps below
 > are the same for Windows users except the executable name will be different.
 
 Set permissions on the OPA executable:
