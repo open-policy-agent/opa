@@ -3,7 +3,25 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.17.2
+
+### Fixes
+
+- Add location information into pretty printed trace output. ([#2070](https://github.com/open-policy-agent/opa/issues/2070))
+- Add timeout for `http.send` builtin ([#2099](https://github.com/open-policy-agent/opa/issues/2099))
+- build: Force module mode and using only the vendor directory ([#2063](https://github.com/open-policy-agent/opa/issues/2063))
+- cover: Exclude `some` expressions in coverage report ([#1972](https://github.com/open-policy-agent/opa/issues/1972))
+- docs: How to say "ray-go" ([#2106](https://github.com/open-policy-agent/opa/issues/2106))
+- topdown: Make http.send() caching use full request ([#1980](https://github.com/open-policy-agent/opa/issues/1980))
+- topdown: Wrap all builtin functions for errors normalization ([#2101](https://github.com/open-policy-agent/opa/issues/2101))
+- topdown: http.send use provided CA without client certs ([#1976](https://github.com/open-policy-agent/opa/issues/1976))
+
+### Miscellaneous
+
+- Add `object` manipulation built-ins
+- docs: Add link to Rego Playground in table of contents
+- docs: Update tutorial with note about consistency
+- topdown: Export builtin implementations outside the package
 
 ## 0.17.1
 
