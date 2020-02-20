@@ -1,0 +1,22 @@
+---
+- id: opa-fmt
+  name: opa/rego format
+  description: Format Open Policy Agent rego policy files
+  entry: pre-commit/opa-fmt.sh
+  language: script
+  types:
+    - file
+    - text
+  files: '\.rego$'
+
+- id: opa-test
+  name: opa/rego tests
+  description: Run Open Policy Agent rego tests
+  entry: pre-commit/opa-test.sh
+  language: script
+  types:
+    - file
+    - text
+  pass_filenames: false  # because it's really fast, just test the whole tree.
+  files: '\.rego$'
+  # In your config, supply args with the root path of where you keep your OPA tests.
