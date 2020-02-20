@@ -2,7 +2,7 @@
 # Use of this source code is governed by an Apache2
 # license that can be found in the LICENSE file.
 
-VERSION := 0.17.2
+VERSION := 0.18.0-dev
 
 # Force modules on and to use the vendor directory.
 GO := GO111MODULE=on GOFLAGS=-mod=vendor go
