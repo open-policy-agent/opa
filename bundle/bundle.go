@@ -30,6 +30,7 @@ import (
 // Common file extensions and file names.
 const (
 	RegoExt      = ".rego"
+	WasmFile     = "/policy.wasm"
 	manifestExt  = ".manifest"
 	dataFile     = "data.json"
 	yamlDataFile = "data.yaml"
@@ -42,6 +43,7 @@ type Bundle struct {
 	Manifest Manifest
 	Data     map[string]interface{}
 	Modules  []ModuleFile
+	Wasm     []byte
 }
 
 // Manifest represents the manifest from a bundle. The manifest may contain
@@ -212,6 +214,9 @@ func (r *Reader) Read() (Bundle, error) {
 			}
 			bundle.Modules = append(bundle.Modules, mf)
 
+		} else if path == WasmFile {
+			bundle.Wasm = buf.Bytes()
+
 		} else if filepath.Base(path) == dataFile {
 			var value interface{}
 
@@ -305,6 +310,10 @@ func Write(w io.Writer, bundle Bundle) error {
 		}
 	}
 
+	if err := writeWasm(tw, bundle); err != nil {
+		return err
+	}
+
 	if err := writeManifest(tw, bundle); err != nil {
 		return err
 	}
@@ -314,6 +323,14 @@ func Write(w io.Writer, bundle Bundle) error {
 	}
 
 	return gw.Close()
+}
+
+func writeWasm(tw *tar.Writer, bundle Bundle) error {
+	if len(bundle.Wasm) == 0 {
+		return nil
+	}
+
+	return archive.WriteFile(tw, WasmFile, bundle.Wasm)
 }
 
 func writeManifest(tw *tar.Writer, bundle Bundle) error {
@@ -360,7 +377,11 @@ func (b Bundle) Equal(other Bundle) bool {
 			return false
 		}
 	}
-	return true
+	if (b.Wasm == nil && other.Wasm != nil) || (b.Wasm != nil && other.Wasm == nil) {
+		return false
+	}
+
+	return bytes.Equal(b.Wasm, other.Wasm)
 }
 
 func (b *Bundle) insert(key []string, value interface{}) error {

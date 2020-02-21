@@ -30,6 +30,7 @@ func testReadBundle(t *testing.T, baseDir string) {
 		{"/a/b/d/data.json", "true"},
 		{"/a/b/y/data.yaml", `foo: 1`},
 		{"/example/example.rego", `package example`},
+		{"/policy.wasm", `modules-compiled-as-wasm-binary`},
 		{"/data.json", `{"x": {"y": true}, "a": {"b": {"z": true}}}}`},
 	}
 
@@ -72,6 +73,7 @@ func testReadBundle(t *testing.T, baseDir string) {
 				Raw:    []byte(module),
 			},
 		},
+		Wasm: []byte("modules-compiled-as-wasm-binary"),
 	}
 
 	if !exp.Equal(bundle) {
@@ -268,6 +270,7 @@ func TestRoundtrip(t *testing.T) {
 				Raw:    []byte(`package foo.corge`),
 			},
 		},
+		Wasm: []byte("modules-compiled-as-wasm-binary"),
 		Manifest: Manifest{
 			Revision: "quickbrownfaux",
 		},
