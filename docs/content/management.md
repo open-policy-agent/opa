@@ -163,6 +163,9 @@ http/example/authz/authz.rego
 
 In this example, the bundle contains one policy file (`authz.rego`) and two
 data files (`roles/bindings/data.json` and `roles/permissions/data.json`).
+The bundle may also contain an optional wasm binary file (`policy.wasm`).
+It stores the WebAssembly compiled version of all the Rego policy files within
+the bundle.
 
 Bundle files may contain an optional `.manifest` file that stores bundle
 metadata. The file should contain a JSON serialized object, with the following
