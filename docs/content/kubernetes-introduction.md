@@ -12,7 +12,7 @@ control is fundamental to policy enforcement in Kubernetes.
 For example, by deploying OPA as an admission controller you can:
 
 * Require specific labels on all resources.
-* Require container images come the corporate image registry.
+* Require container images come from the corporate image registry.
 * Require all Pods specify resource requests and limits.
 * Prevent conflicting Ingress objects from being created.
 
