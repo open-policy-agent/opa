@@ -134,8 +134,8 @@ opa run --set-file "services.acmecorp.credentials.bearer.token=/var/run/secrets/
 
 It will read the contents of the file and set the config value with the token.
 
-###### Override Limitations
-####### Lists
+##### Override Limitations
+###### Lists
 If using arrays/lists in the configuration the `--set` and `--set-file` overrides will not be able to
 patch sub-objects of the list. They will overwrite the entire index with the new object.
 
@@ -166,7 +166,7 @@ Because the entire `0` index was overwritten.
 
 It is highly recommended to use objects/maps instead of lists for configuration for this reason.
 
-####### Empty objects
+###### Empty objects
 If you need to set an empty object with the CLI overrides, for example with plugin configuration like:
 
 ```yaml
@@ -183,7 +183,7 @@ You can do this by setting the value with `null`. For example:
 opa run --set "decision_logger.plugin=my_plugin" --set "plugins.my_plugin=null"
 ```
 
-####### Keys with Special Characters
+###### Keys with Special Characters
 
 If you have a key which contains a special character (`.`, `=`, etc), like `opa.example.com`, and want to use
 the `--set` or `--set-file` options you will need to escape the character with a backslash (`\`).
