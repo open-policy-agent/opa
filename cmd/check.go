@@ -98,23 +98,24 @@ func checkModules(args []string) int {
 }
 
 func outputErrors(err error) {
+	var out io.Writer
+	if err != nil {
+		out = os.Stderr
+	} else {
+		out = os.Stdout
+	}
+
 	switch checkParams.format.String() {
 	case checkFormatJSON:
 		result := pr.Output{
 			Errors: pr.NewOutputErrors(err),
-		}
-		var out io.Writer
-		if err != nil {
-			out = os.Stderr
-		} else {
-			out = os.Stdout
 		}
 		err := pr.JSON(out, result)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err.Error())
 		}
 	default:
-		fmt.Fprintln(os.Stdout, err)
+		fmt.Fprintln(out, err)
 	}
 }
 
