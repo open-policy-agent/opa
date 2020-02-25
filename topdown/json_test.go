@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast"
-	"github.com/open-policy-agent/opa/topdown/builtins"
 )
 
 func TestBuiltinJSONFilter(t *testing.T) {
@@ -321,28 +320,28 @@ func TestBuiltinJSONRemove(t *testing.T) {
 			object:   `input.x`,
 			paths:    `{"a/b/c"}`,
 			input:    `{"x": "foo"}`,
-			expected: builtins.NewOperandErr(1, "must be object but got string"),
+			expected: &Error{Code: TypeErr, Message: "json.remove: operand 1 must be object but got string"},
 		},
 		{
 			note:     "error invalid target type number input",
 			object:   `input.x`,
 			paths:    `{"a/b/c"}`,
 			input:    `{"x": 22}`,
-			expected: builtins.NewOperandErr(1, "must be object but got number"),
+			expected: &Error{Code: TypeErr, Message: "json.remove: operand 1 must be object but got number"},
 		},
 		{
 			note:     "error invalid target type boolean input",
 			object:   `input.x`,
 			paths:    `{"a/b/c"}`,
 			input:    `{"x": true}`,
-			expected: builtins.NewOperandErr(1, "must be object but got boolean"),
+			expected: &Error{Code: TypeErr, Message: "json.remove: operand 1 must be object but got boolean"},
 		},
 		{
 			note:     "error invalid target type array input",
 			object:   `input.x`,
 			paths:    `{"a/b/c"}`,
 			input:    `{"x": ["a", "b", "c"]}`,
-			expected: builtins.NewOperandErr(1, "must be object but got array"),
+			expected: &Error{Code: TypeErr, Message: "json.remove: operand 1 must be object but got array"},
 		},
 		{
 			note:     "error invalid paths type string",
@@ -397,56 +396,56 @@ func TestBuiltinJSONRemove(t *testing.T) {
 			object:   `{"a": {"b": {"c": 123}}}`,
 			paths:    `input.x`,
 			input:    `{"x": "foo"}`,
-			expected: builtins.NewOperandErr(2, "must be one of {set, array} but got string"),
+			expected: &Error{Code: TypeErr, Message: "json.remove: operand 2 must be one of {set, array} but got string"},
 		},
 		{
 			note:     "error invalid paths type number",
 			object:   `{"a": {"b": {"c": 123}}}`,
 			paths:    `input.x`,
 			input:    `{"x": 22}`,
-			expected: builtins.NewOperandErr(2, "must be one of {set, array} but got number"),
+			expected: &Error{Code: TypeErr, Message: "json.remove: operand 2 must be one of {set, array} but got number"},
 		},
 		{
 			note:     "error invalid paths type boolean",
 			object:   `{"a": {"b": {"c": 123}}}`,
 			paths:    `input.x`,
 			input:    `{"x": true}`,
-			expected: builtins.NewOperandErr(2, "must be one of {set, array} but got boolean"),
+			expected: &Error{Code: TypeErr, Message: "json.remove: operand 2 must be one of {set, array} but got boolean"},
 		},
 		{
 			note:     "error invalid paths type object",
 			object:   `{"a": {"b": {"c": 123}}}`,
 			paths:    `input.x`,
 			input:    `{"x": {"y": 123}}`,
-			expected: builtins.NewOperandErr(2, "must be one of {set, array} but got object"),
+			expected: &Error{Code: TypeErr, Message: "json.remove: operand 2 must be one of {set, array} but got object"},
 		},
 		{
 			note:     "error invalid paths type set with numbers",
 			object:   `{"a": {"b": {"c": 123}}}`,
 			paths:    `input.x`,
 			input:    `{"x": {"a", 1, 2, 3}}`,
-			expected: builtins.NewOperandErr(2, "must be one of {set, array} containing string paths or array of path segments but got number"),
+			expected: &Error{Code: TypeErr, Message: "json.remove: operand 2 must be one of {set, array} containing string paths or array of path segments but got number"},
 		},
 		{
 			note:     "error invalid paths type set with objects",
 			object:   `{"a": {"b": {"c": 123}}}`,
 			paths:    `input.x`,
 			input:    `{"x": {"a", {"x": 1}, {"y": 2}}}`,
-			expected: builtins.NewOperandErr(2, "must be one of {set, array} containing string paths or array of path segments but got object"),
+			expected: &Error{Code: TypeErr, Message: "json.remove: operand 2 must be one of {set, array} containing string paths or array of path segments but got object"},
 		},
 		{
 			note:     "error invalid paths type array with numbers",
 			object:   `{"a": {"b": {"c": 123}}}`,
 			paths:    `input.x`,
 			input:    `{"x": ["a", 1, 2, 3]}`,
-			expected: builtins.NewOperandErr(2, "must be one of {set, array} containing string paths or array of path segments but got number"),
+			expected: &Error{Code: TypeErr, Message: "json.remove: operand 2 must be one of {set, array} containing string paths or array of path segments but got number"},
 		},
 		{
 			note:     "error invalid paths type array with objects",
 			object:   `{"a": {"b": {"c": 123}}}`,
 			paths:    `input.x`,
 			input:    `{"x": ["a", {"x": 1}, {"y": 2}]}`,
-			expected: builtins.NewOperandErr(2, "must be one of {set, array} containing string paths or array of path segments but got object"),
+			expected: &Error{Code: TypeErr, Message: "json.remove: operand 2 must be one of {set, array} containing string paths or array of path segments but got object"},
 		},
 	}
 
