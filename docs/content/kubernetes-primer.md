@@ -136,9 +136,9 @@ input.request.object.spec.containers
 
 Lines 3, 4, 6 all use a form of equality.  There are 3 forms of equality in OPA.
 
-* `x := 7` declares a local variable `x` and assigns variable `x` to the value 7.  The compiler throws an error if `x` already has a value.
-* `x == 7` returns true if `x`'s value is 7.  The compiler throws an error if `x` has no value.
-* `x = 7` either assigns `x` to 7 if `x` has no value or compares `x`'s value to 7 if it has a value.  The compiler never throws an error.
+* `x := 7` declares a local variable `x` and assigns it a value of 7.  The compiler throws an error if `x` already has a value.
+* `x == 7` returns true if `x` has a value of 7.  The compiler throws an error if `x` has no value.
+* `x = 7` either assigns the value 7 to `x` if `x` has no value or compares `x`'s value to 7 if it has a value.  The compiler never throws an error.
 
 The recommendation for rule-writing is to use `:=` and `==` wherever possible.  Rules written with `:=` and `==` are easier to write and to read.  `=` is invaluable in more advanced use cases, and outside of rules is the only supported form of equality.
 
