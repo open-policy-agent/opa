@@ -119,7 +119,7 @@ For simple equality statements (`=` and `==`) to be indexed one side must be a n
 | `input.x.y = "bar"` | yes | n/a |
 | `input.x = ["foo", i]` | yes | n/a |
 | `input.x[i] = "foo"` | no | reference contains variables |
-| `input.x[input.y] = "foo"]` | no | reference is nested |
+| `input.x[input.y] = "foo"` | no | reference is nested |
 
 #### Glob statements
 
