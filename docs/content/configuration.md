@@ -170,7 +170,7 @@ It is highly recommended to use objects/maps instead of lists for configuration 
 If you need to set an empty object with the CLI overrides, for example with plugin configuration like:
 
 ```yaml
-decision_logger:
+decision_logs:
   plugin: my_plugin
 
 plugins:
@@ -180,7 +180,7 @@ plugins:
 
 You can do this by setting the value with `null`. For example:
 ```
-opa run --set "decision_logger.plugin=my_plugin" --set "plugins.my_plugin=null"
+opa run --set "decision_logs.plugin=my_plugin" --set "plugins.my_plugin=null"
 ```
 
 ###### Keys with Special Characters
