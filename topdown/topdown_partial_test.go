@@ -1728,6 +1728,17 @@ func TestTopDownPartialEval(t *testing.T) {
 			query:       "x = [0]; y = {true | x[0]; input.y = 1}", // include an unknown in the comprehension to force saving
 			wantQueries: []string{`y = {true | x[0]; input.y = 1; x = [0]}; x = [0]`},
 		},
+		{
+			note:        "negation: save inline negated with",
+			query:       `not input with data.x as 2; data.x = 1`,
+			data:        `{"x": 1}`,
+			wantQueries: []string{"not input"},
+		},
+		{
+			note:        "negation: save inline negated with (undefined)",
+			query:       `not input with data.x as 1; data.x = 1`,
+			wantQueries: []string{},
+		},
 	}
 
 	ctx := context.Background()
