@@ -332,7 +332,7 @@ func (e *eval) evalNot(iter evalIterator) error {
 	}
 
 	if !defined {
-		return e.next(iter)
+		return iter(e)
 	}
 
 	e.traceFail(expr)
@@ -480,7 +480,7 @@ func (e *eval) evalNotPartial(iter evalIterator) error {
 	// If partial evaluation produced no results, the expression is always undefined
 	// so it does not have to be saved.
 	if len(savedQueries) == 0 {
-		return e.next(iter)
+		return iter(e)
 	}
 
 	// Check if the partial evaluation result can be inlined in this query. If not,
@@ -502,7 +502,7 @@ func (e *eval) evalNotPartial(iter evalIterator) error {
 	//	(!A && !C) || (!A && !D) || (!B && !C) || (!B && !D)
 	return complementedCartesianProduct(savedQueries, 0, nil, func(q ast.Body) error {
 		return e.saveInlinedNegatedExprs(q, func() error {
-			return e.next(iter)
+			return iter(e)
 		})
 	})
 }
@@ -1042,7 +1042,7 @@ func (e *eval) saveCall(declArgsLen int, terms []*ast.Term, iter unifyIterator) 
 
 func (e *eval) saveInlinedNegatedExprs(exprs []*ast.Expr, iter unifyIterator) error {
 
-	// This function does not have include with statements on the exprs because
+	// This function does not include with statements on the exprs because
 	// they will have already been saved and therefore had their any relevant
 	// with statements set.
 	for _, expr := range exprs {

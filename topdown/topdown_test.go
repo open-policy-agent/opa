@@ -2105,6 +2105,15 @@ func TestTopDownWithKeyword(t *testing.T) {
 				`q = x { r = x with input.a.c as 2 }`,
 				`p = x { q = x with input.a.b as 1 }`,
 			},
+		}, {
+			note:  "with not stack",
+			input: `{"a": {"d": 3}, "e": 4}`,
+			exp:   `{"a": {"b": 1, "c": 2, "d": 3}, "e": 4}`,
+			rules: []string{
+				`r = input { true }`,
+				`q = x { not false with input as {}; r = x with input.a.c as 2 }`,
+				`p = x { q = x with input.a.b as 1 }`,
+			},
 		},
 		{
 			note: "with stack (data)",
@@ -2118,6 +2127,23 @@ func TestTopDownWithKeyword(t *testing.T) {
 			rules: []string{
 				`r = data.test { true }`,
 				`q = x { r = x with data.test.a.c as 2 }`,
+				`p = x { q = x with data.test.a.b as 1 }`,
+			},
+		},
+		{
+			note: "with not stack (data)",
+			exp:  `{"a": {"b": 1, "c": 2, "d": 3}, "e": 4}`,
+			modules: []string{
+				`package test.a
+				d = 3`,
+				`package test
+				e = 4`,
+			},
+			rules: []string{
+				`r = data.test { true }`,
+				`n1 { data.test.a.z == 7 }`,
+				`n { not n1 } `,
+				`q = x { not n with data.test.a.z as 7; r = x with data.test.a.c as 2 }`,
 				`p = x { q = x with data.test.a.b as 1 }`,
 			},
 		},
