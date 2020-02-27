@@ -44,7 +44,6 @@ var parseCommand = &cobra.Command{
 }
 
 func parse(args []string) int {
-
 	if len(args) == 0 {
 		return 0
 	}
@@ -65,6 +64,10 @@ func parse(args []string) int {
 		}
 		fmt.Println(string(bs))
 	default:
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 1
+		}
 		ast.Pretty(os.Stdout, result.Parsed)
 	}
 
