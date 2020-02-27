@@ -143,7 +143,7 @@ files in the bundle must be organized hierarchically into directories inside
 the tarball.
 
 > The hierarchical organization indicates to OPA where to load the data files
-> into the [the `data` Document](../#the-data-document).
+> into the the `data` Document.
 
 You can list the content of a bundle with `tar`.
 
@@ -256,7 +256,7 @@ the Status API.
 > **Warning!** There are *no* ordering guarantees for which bundle loads first and
   takes over some root. If multiple bundles conflict, but are loaded at different
   times, OPA may go into an error state. It is highly recommended to use
-  the health check and include bundle state: [Monitoring OPA](#health-checks)
+  the health check and include bundle state: [Monitoring OPA](../monitoring#health-checks)
 
 ### Debugging Your Bundles
 

@@ -244,5 +244,5 @@ telemetry information on OPA deployments.
 - See the [Decision Log API](../management/#decision-logs) for collecting a log of policy decisions made by agents.
 - See the [Health API](../rest-api#health-api) for checking agent deployment readiness and health.
 
-OPA also exports a [Prometheus API endpoint](../management/#prometheus) that can be scraped to obtain
+OPA also exports a [Prometheus API endpoint](../monitoring/#prometheus) that can be scraped to obtain
 insight into performance and errors.

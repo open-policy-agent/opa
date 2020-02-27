@@ -1,10 +1,10 @@
 {{ $src     := .Get "src" }}
 {{ $version  := index (split $.Page.File.Path "/") 1 }}
-{{/* 
+{{/*
   TODO: Remove this check once we no longer have doc releases
    with non versioned images. As-is just point them to "edge" since
    that version will not have the image bundled with the versioned
-   markdown content. 
+   markdown content.
 */}}
 {{ if (hasPrefix $src "/img/") }}
 {{ $src = strings.TrimPrefix "/img/" $src }}
@@ -16,7 +16,7 @@
 {{ $width   := .Get "width" | default 50 }}
 {{ $alt     := cond (isset .Params "caption") $caption (.Get "alt" | markdownify) }}
 <figure class="figure">
-  <img src="{{ $relPath }}" width="{{ $width }}%">
+  <img src="{{ $relPath }}" width="{{ $width }}%" alt="{{ $alt }}">
 
   {{ with $caption }}
   <figcaption class="has-text-weight-light">

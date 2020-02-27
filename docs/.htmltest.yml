@@ -1,4 +1,3 @@
 DirectoryPath: website/public
 IgnoreDirectoryMissingTrailingSlash: true
 CheckExternal: false
-#IgnoreAltMissing: true

@@ -11,10 +11,10 @@
           content="width=device-width, initial-scale=1, shrink-to-fit=no">
 
     <!-- Bootstrap CSS -->
-    <link rel="stylesheet" href="css/bootstrap.min.css">
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
 
     <title>Open Policy Agent</title>
-    <link rel="stylesheet" href="./css/home.css">
+    <link rel="stylesheet" href="/css/home.css">
   </head>
 
   <body data-spy="scroll" data-target=".navbar" data-offset="90">
@@ -22,8 +22,10 @@
     <nav class="navbar navbar-expand-lg navbar-dark bg-transparent">
       <div class="container">
 
-        <a class="navbar-brand" href="/"><img src="./img/logo-white.png"
-                                                 class="img-fluid"></a>
+        <a class="navbar-brand" href="/">
+          <img src="/img/logo-white.png" class="img-fluid" alt="OPA navbar logo">
+        </a>
+
         <button class="navbar-toggler navbar-toggler-right collapsed"
                 type="button" data-toggle="collapse"
                 data-target="#navb" aria-expanded="false">
@@ -36,17 +38,17 @@
 
           <ul class="navbar-nav">
             <li class="nav-item">
-              <a class="nav-link" href="./docs/latest/">Documentation </a>
+              <a class="nav-link" href="/docs/latest/">Documentation </a>
             </li>
             <!-- <li class="nav-item">
-              <a class="nav-link" href="./docs/latest/get-started/">Tutorials </a>
+              <a class="nav-link" href="/docs/latest/get-started/">Tutorials </a>
             </li> -->
             <li class="nav-item">
               <a class="nav-link"
-                 href="./docs/latest/ecosystem/">Integrations </a>
+                 href="/docs/latest/ecosystem/">Integrations </a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" href="./support">Support</a>
+              <a class="nav-link" href="/support">Support</a>
             </li>
             <li class="nav-item">
               <a class="nav-link" href="https://play.openpolicyagent.org/">Playground</a>
@@ -56,19 +58,19 @@
             </li>
             <li class="nav-item social-nav-item">
               <a class="nav-link social-icon-link" href="https://twitter.com/openpolicyagent">
-                <img src="./img/twitter-icon.png" alt="Twitter">
+                <img src="/img/twitter-icon.png" alt="Twitter">
                 <div class="nav-link social-icon-title">Twitter</div>
               </a>
             </li>
             <li class="nav-item social-nav-item">
               <a class="nav-link social-icon-link" href="https://slack.openpolicyagent.org/">
-                <img src="./img/slack-icon.png" alt="Slack">
+                <img src="/img/slack-icon.png" alt="Slack">
                 <div class="nav-link social-icon-title">Slack</div>
               </a>
             </li>
             <li class="nav-item social-nav-item">
               <a class="nav-link social-icon-link" href="https://github.com/open-policy-agent/opa">
-                <img src="./img/github-icon.png" alt="GitHub">
+                <img src="/img/github-icon.png" alt="GitHub">
                 <div class="social-icon-title">GitHub</div>
               </a>
             </li>
@@ -80,9 +82,9 @@
   </div>
 
   <!-- <section id="homebackground">
-      <div class="bg"><img src="./img/homebg.png"></div>
-      <div class="cloud-top"><img src="./img/cloudAll.png"></div>
-      <div class="homepageconterimage"><img src="./img/homeBanner.png"></div>
+      <div class="bg"><img src="/img/homebg.png"></div>
+      <div class="cloud-top"><img src="/img/cloudAll.png"></div>
+      <div class="homepageconterimage"><img src="/img/homeBanner.png"></div>
     </section> -->
 
   <section id="homebackground">
@@ -94,9 +96,9 @@
       <div class="banner-subcontent">Flexible, fine-grained control for
         administrators across the stack
       </div>
-      <img src="./img/banner-image.png">
+      <img src="/img/banner-image.png" alt="OPA banner">
       <div class="mobile-view-Banner"><img
-                src="./img/opa-mobile-banner_mobile.png"></div>
+                src="/img/opa-mobile-banner_mobile.png" alt="OPA mobile banner"></div>
     </div>
   </section>
 
@@ -123,21 +125,21 @@
           </div>
           <div class="mt-5 text-center blue">
             <button class="btn btn-primary"><a><span>Learn More:</span></a> <a
-                      href="./docs/latest/kubernetes-introduction/">Kubernetes</a>
+                      href="/docs/latest/kubernetes-introduction/">Kubernetes</a>
               - <a
-                      href="./docs/latest/envoy-authorization/">Envoy</a> - <a
-                      href="./docs/latest/terraform/">Terraform</a> - <a
-                      href="./docs/latest/kafka-authorization/">Kafka</a>
+                      href="/docs/latest/envoy-authorization/">Envoy</a> - <a
+                      href="/docs/latest/terraform/">Terraform</a> - <a
+                      href="/docs/latest/kafka-authorization/">Kafka</a>
               -
               <a href="https://blog.openpolicyagent.org/write-policy-in-opa-enforce-policy-in-sql-d9d24db93bf4">SQL</a>
-              - <a href="./docs/latest/ssh-and-sudo-authorization/">Linux</a>
+              - <a href="/docs/latest/ssh-and-sudo-authorization/">Linux</a>
             </button>
           </div>
           <div class="mt-5 text-center">
             <div class="styraText">
               <p>Created By</p><span> <a href="https://styra.com"><img
-                          src="./img/styra-logo.jpg"
-                          class="img-fluid"></a></span>
+                          src="/img/styra-logo.jpg"
+                          class="img-fluid" alt="Styra logo"></a></span>
             </div>
           </div>
         </div>
@@ -236,7 +238,7 @@
 
   <section id="gray">
 
-    <div class="gray-top-image"><img src="./img/gray-top.png"></div>
+    <div class="gray-top-image"><img src="/img/gray-top.png" alt="Light grey background image"></div>
     <section id="declarative-policy">
 
       <div class="container">
@@ -253,19 +255,19 @@
                   <li class="nav-item">
                     <a class="nav-link nav-width active" data-toggle="tab"
                        href="#tabs-1" role="tab">
-                      <img src="./img/policyIcon-1.png">
+                      <img src="/img/policyIcon-1.png" alt="Kubernetes logo">
                       Kubernetes</a>
                   </li>
                   <li class="nav-item">
                     <a class="nav-link nav-width" data-toggle="tab"
                        href="#tabs-2" role="tab">
-                      <img src="./img/envoy-square.png">
+                      <img src="/img/envoy-square.png" alt="Envoy logo">
                       Envoy</a>
                   </li>
                   <li class="nav-item">
                     <a class="nav-link nav-width" data-toggle="tab"
                        href="#tabs-4" role="tab">
-                      <img src="./img/policyIcon-4.png">
+                      <img src="/img/policyIcon-4.png" alt="Application logo">
                       Application</a>
                   </li>
                 </ul>
@@ -805,13 +807,13 @@ allowed_pets[pet] {
                 <div class="declarativeBOx">
                   <a href="#kubernetes">
                     <div class="declarativeInnerBOx">
-                      <img src="./img/policyIcon-1.png"
-                           class="declarativeImage">
+                      <img src="/img/policyIcon-1.png"
+                           class="declarativeImage" alt="Kubernetes logo">
                       <p class="declarativeText">Kubernetes</p>
                     </div>
 
                     <div class="downArrow">
-                      <img src="./img/downArrow.svg">
+                      <img src="/img/downArrow.svg" alt="Down arrow">
                     </div>
                   </a>
 
@@ -822,13 +824,13 @@ allowed_pets[pet] {
                 <div class="declarativeBOx envoy">
                   <a href="#envoy">
                     <div class="declarativeInnerBOx ">
-                      <img src="./img/policyIcon-2.png"
-                           class="declarativeImage">
+                      <img src="/img/policyIcon-2.png"
+                           class="declarativeImage" alt="Envoy logo">
                       <p class="declarativeText">Envoy</p>
                     </div>
 
                     <div class="downArrow">
-                      <img src="./img/downArrow.svg">
+                      <img src="/img/downArrow.svg" alt="Down arrow">
                     </div>
                   </a>
 
@@ -839,13 +841,13 @@ allowed_pets[pet] {
                 <div class="declarativeBOx">
                   <a href="#application">
                     <div class="declarativeInnerBOx">
-                      <img src="./img/policyIcon-4.png"
-                           class="declarativeImage">
+                      <img src="/img/policyIcon-4.png"
+                           class="declarativeImage" alt="Application logo">
                       <p class="declarativeText">Application</p>
                     </div>
 
                     <div class="downArrow">
-                      <img src="./img/downArrow.svg">
+                      <img src="/img/downArrow.svg" alt="Down arrow">
                     </div>
                   </a>
 
@@ -857,7 +859,7 @@ allowed_pets[pet] {
           <div class="col-12 mt-3 mt-sm-5" id="kubernetes">
             <div class="declarative-policy-contentBox">
               <div class="declarative-policy-contentBox-header">
-                <img src="./img/policyIcon-1.png" class="declarativeImage">
+                <img src="/img/policyIcon-1.png" class="declarativeImage" alt="Kubernetes logo">
                 <p class="declarativeText">Kubernetes</p>
               </div>
               <div class="row">
@@ -1034,7 +1036,7 @@ deny[msg] {
           <div class="col-12 mt-3 mt-sm-5" id="envoy">
             <div class="declarative-policy-contentBox">
               <div class="declarative-policy-contentBox-header">
-                <img src="./img/policyIcon-2.png" class="declarativeImage">
+                <img src="/img/policyIcon-2.png" class="declarativeImage" alt="Envoy logo">
                 <p class="declarativeText declarativeEnvoy">Envoy</p>
               </div>
               <div class="row">
@@ -1245,7 +1247,7 @@ source_spiffe_id = client_id {
           <div class="col-12 mt-3 mt-sm-5" id="application">
             <div class="declarative-policy-contentBox">
               <div class="declarative-policy-contentBox-header">
-                <img src="./img/policyIcon-4.png" class="declarativeImage">
+                <img src="/img/policyIcon-4.png" class="declarativeImage" alt="Application logo">
                 <p class="declarativeText">Application</p>
               </div>
               <div class="row">
@@ -1421,14 +1423,14 @@ allowed_pets[pet] {
         <div class="col-12">
           <div class="mt-5 text-center blue">
             <button class="btn btn-primary"><span>Learn More:</span> <a
-                        href="./docs/latest/kubernetes-introduction/">Kubernetes</a>
+                        href="/docs/latest/kubernetes-introduction/">Kubernetes</a>
                 - <a
-                        href="./docs/latest/envoy-authorization/">Envoy</a> - <a
-                        href="./docs/latest/terraform/">Terraform</a> - <a
-                        href="./docs/latest/kafka-authorization/">Kafka</a>
+                        href="/docs/latest/envoy-authorization/">Envoy</a> - <a
+                        href="/docs/latest/terraform/">Terraform</a> - <a
+                        href="/docs/latest/kafka-authorization/">Kafka</a>
                 -
                 <a href="https://blog.openpolicyagent.org/write-policy-in-opa-enforce-policy-in-sql-d9d24db93bf4">SQL</a>
-                - <a href="./docs/latest/ssh-and-sudo-authorization/">Linux</a>
+                - <a href="/docs/latest/ssh-and-sudo-authorization/">Linux</a>
             </button>
           </div>
         </div>
@@ -1439,7 +1441,7 @@ allowed_pets[pet] {
 
   <section id="curveImage">
     <!-- <div class="curveImage-container"></div> -->
-    <img src="./img/curve.png">
+    <img src="/img/curve.png" alt="Curve image container">
   </section>
 
   <section id="architectural-flexibility">
@@ -1469,7 +1471,7 @@ allowed_pets[pet] {
               </div>
             </div>
             <div class="service-graphics">
-              <img src="./img/Deployment-Options-3.png">
+              <img src="/img/Deployment-Options-3.png" alt="Daemon logo">
               <div class="service-graphics-text">
                 <div class="row">
                   <div class="col-3"></div>
@@ -1500,7 +1502,7 @@ allowed_pets[pet] {
               <div class="service-subtext dark pt-5">
                 <h3>Service</h3>
                 <div class="service-smallCircle">
-                  <img src="./img/logo.png">
+                  <img src="/img/logo.png" alt="Library logo">
                   <!-- <div class="service-innertext dark">
                                 <h3>Services</h3>
                               </div> -->
@@ -1508,7 +1510,7 @@ allowed_pets[pet] {
               </div>
             </div>
             <div class="service-graphic">
-              <img src="./img/Deployment-Options-1.png">
+              <img src="/img/Deployment-Options-1.png" alt="Service logo">
               <div class="service-graphics-text">
                 <div class="row">
                   <div class="col-3"></div>
@@ -1535,8 +1537,8 @@ allowed_pets[pet] {
         <div class="col-12 mt-5">
           <div class="mt-5 text-center blue">
             <button class="btn btn-primary"><a><span>Learn More:</span></a> <a
-                      href="./docs/latest/deployments/">Daemon</a> - <a
-                      href="./docs/latest/integration/#integrating-with-the-go-api">Library</a>
+                      href="/docs/latest/deployments/">Daemon</a> - <a
+                      href="/docs/latest/integration/#integrating-with-the-go-api">Library</a>
             </button>
           </div>
         </div>
@@ -1546,7 +1548,7 @@ allowed_pets[pet] {
 
   <section id="curveImage">
     <!-- <div class="curveImage-container"></div> -->
-    <img src="./img/curve-up.png">
+    <img src="/img/curve-up.png" alt="Curve up background image">
   </section>
 
   <section id="policy-authoring">
@@ -1560,19 +1562,19 @@ allowed_pets[pet] {
       <div class="row text-center center-align-content">
         <div class="col-12 col-sm-12 col-md-12 col-lg-6  p-sm-0">
           <div class="policy-sharing center-align-content">
-            <img src="./img/tools-playground.png" class="img-fluid">
+            <img src="/img/tools-playground.png" class="img-fluid" alt="Rego Playground screenshot">
             <h4>Rego Playground for Policy Sharing</h4>
           </div>
         </div>
         <div class="col-12 col-sm-12 col-md-12 col-lg-6 p-sm-0">
           <div class="policy-sharing center-align-content">
-            <img src="./img/tools-vscode.png" class="img-fluid">
+            <img src="/img/tools-vscode.png" class="img-fluid" alt="Visual Studio Code screenshot">
             <h4>VS Code for Policy Authoring</h4>
           </div>
         </div>
         <div class="col-12 col-sm-12 col-md-12 col-lg-6 p-sm-0">
           <div class="policy-sharing center-align-content">
-            <img src="./img/tools-cli.png" class="img-fluid">
+            <img src="/img/tools-cli.png" class="img-fluid" alt="CLI and REPL screenshot">
             <h4>CLI and REPL for complete control</h4>
           </div>
         </div>
@@ -1591,7 +1593,7 @@ allowed_pets[pet] {
             <button class="btn btn-primary"><a><span>Learn More:</span></a>
               <a href="https://marketplace.visualstudio.com/items?itemName=tsandall.opa">VScode</a>
               - <a href="https://play.openpolicyagent.org/">Rego
-                Playground</a> - <a href="./docs/latest/#running-opa">General
+                Playground</a> - <a href="/docs/latest/#running-opa">General
                 Tooling</a></button>
           </div>
         </div>
@@ -1608,7 +1610,7 @@ allowed_pets[pet] {
             project.
           </div>
           <div class="footer-logo pb-4">
-            <img src="img/cloud-native-logo.png">
+            <img src="img/cloud-native-logo.png" alt="CNCF logo">
           </div>
           <div class="footer-bottom">
             © 2019 Open Policy Agent contributors. Licensed under the Apache

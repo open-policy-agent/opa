@@ -659,9 +659,8 @@ b
 
 ## Rules
 
-Rules define the content of [Virtual Documents](../#rules-and-virtual-documents) in
-OPA. When OPA evaluates a rule, we say OPA *generates* the content of the
-document that is defined by the rule.
+Rules define the content of Virtual Documents in OPA. When OPA evaluates a rule, we say OPA
+*generates* the content of the document that is defined by the rule.
 
 The sample code in this section make use of the data defined in [Examples](#example-data).
 
@@ -835,7 +834,7 @@ pi := 3.14156   # Redeclaration error because 'pi' already declared above.
 
 ### Functions
 
-Rego supports user-defined functions that can be called with the same semantics as [Built-in Functions](#built-in-functions). They have access to both the [the data Document](../#the-data-document) and [the input Document](../#the-input-document).
+Rego supports user-defined functions that can be called with the same semantics as [Built-in Functions](#built-in-functions). They have access to both the the data Document and the input Document.
 
 For example, the following function will return the result of trimming the spaces from a string and then splitting it by periods.
 
@@ -956,7 +955,7 @@ s(5, 3)
 
 ## Negation
 
-To generate the content of a [Virtual Document](../#rules-and-virtual-documents), OPA attempts to bind variables in the body of the rule such that all expressions in the rule evaluate to True.
+To generate the content of a Virtual Document, OPA attempts to bind variables in the body of the rule such that all expressions in the rule evaluate to True.
 
 This generates the correct result when the expressions represent assertions about what states should exist in the data stored in OPA. In some cases, you want to express that certain states *should not* exist in the data stored in OPA. In these cases, negation must be used.
 
@@ -1151,7 +1150,7 @@ Import statements declare dependencies that modules have on documents defined ou
 
 All modules contain implicit statements which import the `data` and `input` documents.
 
-Modules use the same syntax to declare dependencies on [Base Documents](../#base-documents) and [Virtual Documents](../#rules-and-virtual-documents).
+Modules use the same syntax to declare dependencies on Base Documents and Virtual Documents.
 
 ```live:import_data:module:read_only
 package opa.examples
@@ -1253,7 +1252,7 @@ behaviour of other rules.
 ## With Keyword
 
 The `with` keyword allows queries to programmatically specify values nested
-under the [input Document](../##the-input-document) and the [data Document](../#the-data-document).
+under the `input` Document and the `data` Document.
 
 For example, given the simple authorization policy in the [Imports](#imports)
 section, we can write a query that checks whether a particular request would be

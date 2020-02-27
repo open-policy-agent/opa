@@ -384,7 +384,7 @@ io.jwt.decode_verify(input.token, {
 ```live:jwt_decode/verify:output
 ```
 
-See the [Policy Reference](../policy-reference#tokens) for additional verification constraints.
+See the [Policy Reference](../policy-reference#token-signing) for additional verification constraints.
 
 To get certificates into the policy, you can either hardcode them or provide them as environmental variables to OPA and then use the `opa.runtime` builtin to retrieve those variables.
 
