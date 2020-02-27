@@ -66,3 +66,8 @@ preview-build:
 .PHONY: live-blocks-%
 live-blocks-%:
 	cd $(CURDIR)/website/scripts/live-blocks && npm run --silent $*
+
+.PHONY: check-links
+check-links:
+	curl https://raw.githubusercontent.com/wjdp/htmltest/master/godownloader.sh | bash
+	bin/htmltest
