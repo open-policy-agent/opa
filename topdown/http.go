@@ -139,12 +139,22 @@ func addHeaders(req *http.Request, headers map[string]interface{}) (bool, error)
 	for k, v := range headers {
 		// Type assertion
 		header, ok := v.(string)
-		if ok {
+		if !ok {
+			return false, fmt.Errorf("invalid type for headers value %q", v)
+		}
+
+		// If the Host header is given, bump that up to
+		// the request. Otherwise, just collect it in the
+		// headers.
+		k := http.CanonicalHeaderKey(k)
+		switch k {
+		case "Host":
+			req.Host = header
+		default:
 			req.Header.Add(k, header)
-		} else {
-			return false, fmt.Errorf("invalid type for headers value")
 		}
 	}
+
 	return true, nil
 }
 

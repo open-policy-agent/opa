@@ -241,6 +241,40 @@ func TestHTTPCustomHeaders(t *testing.T) {
 	}
 }
 
+// TestHTTPHostHeader tests Host header support
+func TestHTTPHostHeader(t *testing.T) {
+
+	// test server
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(r.Host)
+	}))
+
+	defer ts.Close()
+
+	expectedResult, err := json.Marshal(map[string]interface{}{
+		"status":      "200 OK",
+		"status_code": http.StatusOK,
+		"body":        t.Name(),
+		"raw_body":    fmt.Sprintf("\"%s\"\n", t.Name()),
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	data := loadSmallTestData()
+
+	for _, h := range []string{"HOST", "Host", "host"} {
+		runTopDownTestCase(t,
+			data,
+			fmt.Sprintf("http.send custom Host header %q", h),
+			[]string{fmt.Sprintf(
+				`p = x { http.send({ "method": "get", "url": "%s", "headers": {"%s": "%s"}}, x) }`, ts.URL, h, t.Name()),
+			},
+			string(expectedResult))
+	}
+}
+
 // TestHTTPPostRequest adds a new person
 func TestHTTPPostRequest(t *testing.T) {
 
