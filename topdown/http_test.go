@@ -74,6 +74,59 @@ func TestHTTPGetRequest(t *testing.T) {
 	}{
 		{"http.send", []string{fmt.Sprintf(
 			`p = x { http.send({"method": "get", "url": "%s", "force_json_decode": true}, x) }`, ts.URL)}, resultObj.String()},
+		{"http.send", []string{fmt.Sprintf(
+			`p = x { http.send({"method": "get", "url": "%s", "force_json_decode": true, "tls_insecure_skip_verify": true}, x) }`, ts.URL)}, resultObj.String()},
+	}
+
+	data := loadSmallTestData()
+
+	for _, tc := range tests {
+		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
+	}
+}
+
+// TestHTTPGetRequest returns the list of persons
+func TestHTTPGetRequestTlsInsecureSkipVerify(t *testing.T) {
+
+	var people []Person
+
+	// test data
+	people = append(people, Person{ID: "1", Firstname: "John"})
+
+	// test server
+	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(people)
+	}))
+	defer ts.Close()
+
+	// expected result
+	expectedResult := make(map[string]interface{})
+	expectedResult["status"] = "200 OK"
+	expectedResult["status_code"] = http.StatusOK
+
+	var body []interface{}
+	bodyMap := map[string]string{"id": "1", "firstname": "John"}
+	body = append(body, bodyMap)
+	expectedResult["body"] = body
+	expectedResult["raw_body"] = "[{\"id\":\"1\",\"firstname\":\"John\"}]\n"
+
+	resultObj, err := ast.InterfaceToValue(expectedResult)
+	if err != nil {
+		panic(err)
+	}
+
+	// run the test
+	tests := []struct {
+		note          string
+		rules         []string
+		expected      interface{}
+		expectedError error
+	}{
+		{note: "http.send", rules: []string{fmt.Sprintf(
+			`p = x { http.send({"method": "get", "url": "%s", "force_json_decode": true}, x) }`, ts.URL)}, expected: &Error{Message: "x509: certificate signed by unknown authority"}},
+		{note: "http.send", rules: []string{fmt.Sprintf(
+			`p = x { http.send({"method": "get", "url": "%s", "force_json_decode": true, "tls_insecure_skip_verify": true}, x) }`, ts.URL)}, expected: resultObj.String()},
 	}
 
 	data := loadSmallTestData()
