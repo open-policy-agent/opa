@@ -44,6 +44,7 @@ var allowedKeyNames = [...]string{
 	"tls_client_key_env_variable",
 	"tls_client_cert_file",
 	"tls_client_key_file",
+	"tls_insecure_skip_verify",
 	"timeout",
 }
 var allowedKeys = ast.NewSet()
@@ -164,6 +165,7 @@ func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) 
 	var tlsConfig tls.Config
 	var clientCerts []tls.Certificate
 	var customHeaders map[string]interface{}
+	var tlsInsecureSkipVerify bool
 	var timeout = defaultHTTPRequestTimeout
 
 	for _, val := range obj.Keys() {
@@ -245,6 +247,11 @@ func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) 
 			if !ok {
 				return nil, fmt.Errorf("invalid type for headers key")
 			}
+		case "tls_insecure_skip_verify":
+			tlsInsecureSkipVerify, err = strconv.ParseBool(obj.Get(val).String())
+			if err != nil {
+				return nil, err
+			}
 		case "timeout":
 			timeout, err = parseTimeout(obj.Get(val).Value)
 			if err != nil {
@@ -259,6 +266,11 @@ func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) 
 		Timeout: timeout,
 	}
 
+	if tlsInsecureSkipVerify {
+		client.Transport = &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: tlsInsecureSkipVerify},
+		}
+	}
 	if tlsClientCertFile != "" && tlsClientKeyFile != "" {
 		clientCertFromFile, err := tls.LoadX509KeyPair(tlsClientCertFile, tlsClientKeyFile)
 		if err != nil {

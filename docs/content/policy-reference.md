@@ -561,6 +561,7 @@ The `request` object parameter may contain the following fields:
 | `tls_client_cert_file` | no | `string` | Path to file containing a client certificate in PEM encoded format. |
 | `tls_client_key_file` | no | `string` | Path to file containing a key  in PEM encoded format. |
 | `timeout` | no | `string` or `number` | Timeout for the HTTP request with a default of 5 seconds (`5s`). Numbers provided are in nanoseconds. Strings must be a valid duration string where a duration string is a possibly signed sequence of decimal numbers, each with optional fraction and a unit suffix, such as "300ms", "-1.5h" or "2h45m". Valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h". A zero timeout means no timeout.|
+|`tls_insecure_skip_verify`| no | `bool` | Allows for skipping TLS verification when calling a network endpoint. Not recommended for production |
 
 When sending HTTPS requests with client certificates at least one the following combinations must be included
 
