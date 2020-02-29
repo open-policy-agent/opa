@@ -91,6 +91,10 @@ destination in the data document with the following syntax:
 
 	<dotted-path>:<file-path>
 
+When working with rules that operate on input, you can set repl.input like so:
+
+	repl.input:/path/to/data.json
+
 File paths can be specified as URLs to resolve ambiguity in paths containing colons:
 
 	$ opa run file:///c:/path/to/data.json
