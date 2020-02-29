@@ -50,6 +50,14 @@ var DefaultBuiltins = [...]*Builtin{
 	Abs,
 	Rem,
 
+	// Bitwise Arithmetic
+	BitsOr,
+	BitsAnd,
+	BitsNegate,
+	BitsXOr,
+	BitsShiftLeft,
+	BitsShiftRight,
+
 	// Binary
 	And,
 	Or,
@@ -383,10 +391,69 @@ var Rem = &Builtin{
 }
 
 /**
- * Binary
+ * Bitwise
  */
 
-// TODO(tsandall): update binary operators to support integers.
+// BitsOr returns the bitwise "or" of two integers.
+var BitsOr = &Builtin{
+	Name: "bits.or",
+	Decl: types.NewFunction(
+		types.Args(types.N, types.N),
+		types.N,
+	),
+}
+
+// BitsAnd returns the bitwise "and" of two integers.
+var BitsAnd = &Builtin{
+	Name: "bits.and",
+	Decl: types.NewFunction(
+		types.Args(types.N, types.N),
+		types.N,
+	),
+}
+
+// BitsNegate returns the bitwise "negation" of an integer (i.e. flips each
+// bit).
+var BitsNegate = &Builtin{
+	Name: "bits.negate",
+	Decl: types.NewFunction(
+		types.Args(types.N),
+		types.N,
+	),
+}
+
+// BitsXOr returns the bitwise "exclusive-or" of two integers.
+var BitsXOr = &Builtin{
+	Name: "bits.xor",
+	Decl: types.NewFunction(
+		types.Args(types.N, types.N),
+		types.N,
+	),
+}
+
+// BitsShiftLeft returns a new integer with its bits shifted some value to the
+// left.
+var BitsShiftLeft = &Builtin{
+	Name: "bits.lsh",
+	Decl: types.NewFunction(
+		types.Args(types.N, types.N),
+		types.N,
+	),
+}
+
+// BitsShiftRight returns a new integer with its bits shifted some value to the
+// right.
+var BitsShiftRight = &Builtin{
+	Name: "bits.rsh",
+	Decl: types.NewFunction(
+		types.Args(types.N, types.N),
+		types.N,
+	),
+}
+
+/**
+ * Sets
+ */
 
 // And performs an intersection operation on sets.
 var And = &Builtin{
