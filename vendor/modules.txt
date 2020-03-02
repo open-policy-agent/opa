@@ -1,4 +1,4 @@
-# github.com/OneOfOne/xxhash v1.2.3
+# github.com/OneOfOne/xxhash v1.2.7
 github.com/OneOfOne/xxhash
 # github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973
 github.com/beorn7/perks/quantile
