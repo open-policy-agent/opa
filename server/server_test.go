@@ -782,7 +782,7 @@ func TestCompileV1UnsafeBuiltin(t *testing.T) {
 func TestDataV1Redirection(t *testing.T) {
 	f := newFixture(t)
 	// Testing redirect at the root level
-	if err := f.v1(http.MethodPut, "/data/", `{"foo": [1,2,3]}`, 301, ""); err != nil {
+	if err := f.v1(http.MethodPut, "/data/", `{"foo": [1,2,3]}`, 308, ""); err != nil {
 		t.Fatalf("Unexpected error from PUT: %v", err)
 	}
 	locHdr := f.recorder.Header().Get("Location")
@@ -797,7 +797,7 @@ func TestDataV1Redirection(t *testing.T) {
 		t.Fatalf("Unexpected error from GET: %v", err)
 	}
 	// Now we test redirection a few levels down
-	if err := f.v1(http.MethodPut, "/data/a/b/c/", `{"foo": [1,2,3]}`, 301, ""); err != nil {
+	if err := f.v1(http.MethodPut, "/data/a/b/c/", `{"foo": [1,2,3]}`, 308, ""); err != nil {
 		t.Fatalf("Unexpected error from PUT: %v", err)
 	}
 	locHdrLv := f.recorder.Header().Get("Location")
