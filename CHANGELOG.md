@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
+## 0.17.3
+
+### Fixes
+
+- vendor: Update xxhash to workaround checkptr errors with Go 1.14
+- cmd/parse: Fix panic when parsing encounters an error
+
 ## 0.17.2
 
 ### Fixes
