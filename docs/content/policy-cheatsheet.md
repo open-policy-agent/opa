@@ -268,6 +268,148 @@ z := {"a": true, "b": "foo", "c": 4}
 object.union(y, x) == z
 ```
 
+#### Parse array of sets into nested objects
+
+This is an example of parsing an array of sets that have a known structure into nested objects.
+
+```live:rules/parse_array_to_nested_objs:query:read_only
+entity_array = [
+  [
+    "productName1", 
+    "entityType1", 
+    "entityId1", 
+    "duck",
+    {
+      "name": "Yolanda"
+    }
+  ],
+  [
+    "productName1", 
+    "entityType1", 
+    "entityId2", 
+    "weave", 
+    {
+      "name": "Zoey"
+    }
+  ],
+  [
+    "productName1", 
+    "entityType2", 
+    "entityId3", 
+    "wink",
+    {
+      "name": "Audrey"
+    }
+  ],
+  [
+    "productName2", 
+    "entityType1", 
+    "entityId4", 
+    "wave", 
+    {
+      "name": "Beryl"
+    }
+  ],
+  [
+    "productName2", 
+    "entityType2", 
+    "entityId5", 
+    "wander",
+    {
+      "name": "Cynthia"
+    }
+  ],
+  [
+    "productName2", 
+    "entityType2", 
+    "entityId6", 
+    "waft",
+    {
+      "name": "Daniela"
+    }
+  ]
+]
+
+nestedobjs = objs {
+  objs := parse_to_nestedobjs(entity_array)
+}
+```
+
+```live:rules/parse_array_to_nested_objs:module:read_only
+parse_to_nestedobjs(arr) = res {
+  res := { product_name : entity_types | 
+    product_name := arr[_][0]
+    entity_types := { entity_type : entities | 
+      arr[idx1][0] == product_name
+      entity_type := arr[idx1][1]    
+      entities := { entity_id : entity | 
+        arr[idx2][0] == product_name
+        arr[idx2][1] == entity_type
+        entity_id := arr[idx2][2]
+        entity := {
+          "action": arr[idx2][3],
+          "metadata": arr[idx2][4]
+        }
+      } 
+    }
+  }
+}
+```
+
+The result will be
+```live:rules/parse_array_to_nested_objs:result:read_only
+{
+  "productName1": {
+    "entityType1": {
+      "entityId1": {
+        "action": "duck",
+        "metadata": {
+          "name": "Yolanda"
+        }
+      },
+      "entityId2": {
+        "action": "weave",
+        "metadata": {
+          "name": "Zoe"
+        }
+      }
+    },
+    "entityType2": {
+      "entityId3": {
+        "action": "wink",
+        "metadata": {
+          "name": "Audrey"
+        }
+      }
+    }
+  },
+  "productName2": {
+    "entityType1": {
+      "entityId4": {
+        "action": "wave",
+        "metadata": {
+          "name": "Beryl"
+        }
+      }
+    },
+    "entityType2": {
+      "entityId5": {
+        "action": "wander",
+        "metadata": {
+          "name": "Cynthia"
+        }
+      },
+      "entityId6": {
+        "action": "waft",
+        "metadata": {
+          "name": "Daniela"
+        }
+      }
+    }
+  }
+}
+```
+
 ## Tests
 
 ```live:tests:module:read_only
