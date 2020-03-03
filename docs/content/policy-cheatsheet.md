@@ -273,79 +273,39 @@ object.union(y, x) == z
 This is an example of parsing an array of sets that have a known structure into nested objects.
 
 ```live:rules/parse_array_to_nested_objs:query:read_only
-entity_array = [
-  [
-    "productName1",
-    "entityType1",
-    "entityId1",
-    "duck",
-    {
-      "name": "Yolanda"
-    }
-  ],
-  [
-    "productName1",
-    "entityType1",
-    "entityId2",
-    "weave",
-    {
-      "name": "Zoe"
-    }
-  ],
-  [
-    "productName1",
-    "entityType2",
-    "entityId3",
-    "wink",
-    {
-      "name": "Audrey"
-    }
-  ],
-  [
-    "productName2",
-    "entityType1",
-    "entityId4",
-    "wave",
-    {
-      "name": "Beryl"
-    }
-  ],
-  [
-    "productName2",
-    "entityType2",
-    "entityId5",
-    "wander",
-    {
-      "name": "Cynthia"
-    }
-  ],
-  [
-    "productName2",
-    "entityType2",
-    "entityId6",
-    "waft",
-    {
-      "name": "Daniela"
-    }
-  ]
+some_array = [
+  [ "product1", "type1", "id1", "view", { "name": "Audrey" } ],
+  [ "product1", "type1", "id2", "write", { "name": "Brian" } ],
+  [ "product1", "type2", "id3", "write", { "name": "Cynthia" } ],
+  [ "product2", "type2", "id4", "view", { "name": "Derek" } ]
 ]
 
 nestedobjs = objs {
-  objs := parse_to_nestedobjs(entity_array)
+  objs := parse_to_nestedobjs(some_array)
 }
 ```
 
 ```live:rules/parse_array_to_nested_objs:module:read_only
+package nested_example
+
 parse_to_nestedobjs(arr) = res {
-  res := { product_name : entity_types |
-    product_name := arr[_][0]
-    entity_types := { entity_type : entities |
-      arr[idx1][0] == product_name
-      entity_type := arr[idx1][1]
-      entities := { entity_id : entity |
-        arr[idx2][0] == product_name
-        arr[idx2][1] == entity_type
-        entity_id := arr[idx2][2]
+  # using nested comprehensions, top level is product
+  res := { productId : types |
+    # get the list of products
+    productId := arr[_][0]
+    # next level down
+    types := { typeId : entities |
+      # filter by product
+      arr[idx1][0] == productId
+      # get the list of types
+      typeId := arr[idx1][1]
+      # next level down
+      entities := { id : entity |
+        # filter by product and type
+        arr[idx2][0] == productId
+        arr[idx2][1] == typeId
+        # get the list of ids
+        id := arr[idx2][2]
         entity := {
           "action": arr[idx2][3],
           "metadata": arr[idx2][4]
@@ -357,6 +317,7 @@ parse_to_nestedobjs(arr) = res {
 ```
 
 The result will be
+
 ```live:rules/parse_array_to_nested_objs:output
 ```
 
