@@ -11,6 +11,13 @@ project adheres to [Semantic Versioning](http://semver.org/).
   Previously it would return a `nil` error and `nil` module. ([#2054](https://github.com/open-policy-agent/opa/issues/2054))
 - The `cmd` and `tester` packages in OPA will now require Go 1.13+ to compile. Most library users should be unaffected.
   
+## 0.17.3
+
+### Fixes
+
+- vendor: Update xxhash to workaround checkptr errors with Go 1.14
+- cmd/parse: Fix panic when parsing encounters an error
+
 ## 0.17.2
 
 ### Fixes
