@@ -272,7 +272,7 @@ object.union(y, x) == z
 
 This is an example of parsing an array of sets that have a known structure into nested objects.
 
-```live:rules/parse_array_to_nested_objs:query:read_only
+```live:rules/parse_array_to_nested_objs:query
 some_array = [
   [ "product1", "type1", "id1", "view", { "name": "Audrey" } ],
   [ "product1", "type1", "id2", "write", { "name": "Brian" } ],
@@ -285,8 +285,8 @@ nestedobjs = objs {
 }
 ```
 
-```live:rules/parse_array_to_nested_objs:module:read_only
-package nested_example
+```live:rules/parse_array_to_nested_objs:module:openable
+package parse_array_to_nested_objs
 
 parse_to_nestedobjs(arr) = res {
   # using nested comprehensions, top level is product
