@@ -273,42 +273,33 @@ object.union(y, x) == z
 This is an example of parsing an array of sets that have a known structure into nested objects.
 
 ```live:rules/parse_array_to_nested_objs:query
+
 some_array = [
-  [ "product1", "type1", "id1", "view", { "name": "Audrey" } ],
-  [ "product1", "type1", "id2", "write", { "name": "Brian" } ],
-  [ "product1", "type2", "id3", "write", { "name": "Cynthia" } ],
-  [ "product2", "type2", "id4", "view", { "name": "Derek" } ]
+  [ "x", "a", "id1", "read", "Audrey" ],
+  [ "x", "a", "id2", "write", "Brian" ],
+  [ "x", "b", "id3", "write", "Cynthia" ],
+  [ "y", "a", "id4", "read", "Derek" ]
 ]
 
-nestedobjs = objs {
-  objs := parse_to_nestedobjs(some_array)
-}
+objs := parse_to_nestedobjs(some_array)
 ```
 
 ```live:rules/parse_array_to_nested_objs:module:openable
-package parse_array_to_nested_objs
+package example
 
 parse_to_nestedobjs(arr) = res {
-  # using nested comprehensions, top level is product
-  res := { productId : types |
-    # get the list of products
-    productId := arr[_][0]
-    # next level down
-    types := { typeId : entities |
-      # filter by product
-      arr[idx1][0] == productId
-      # get the list of types
-      typeId := arr[idx1][1]
-      # next level down
-      entities := { id : entity |
-        # filter by product and type
-        arr[idx2][0] == productId
-        arr[idx2][1] == typeId
-        # get the list of ids
-        id := arr[idx2][2]
-        entity := {
+  res := { k0 : k1s |                 # using nested comprehensions
+    k0 := arr[_][0]                   # get the list of ids for the top level
+    k1s := { k1 : obj |               # next level down comprehension
+      arr[idx1][0] == k0              # filter by first level key
+      k1 := arr[idx1][1]              # get the list of ids for the next level
+      obj := { k2 : o |               # next level down comprehension
+        arr[idx2][0] == k0            # filter by top level key
+        arr[idx2][1] == k1            # and second level key
+        k2 := arr[idx2][2]            # get the list of ids for the next level
+        o := {                        # construct the bottom level object
           "action": arr[idx2][3],
-          "metadata": arr[idx2][4]
+          "name": arr[idx2][4]
         }
       }
     }
