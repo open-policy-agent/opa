@@ -590,7 +590,7 @@ The `response` object parameter will contain the following fields:
 | `status` | `string` | HTTP status message (e.g., `"200 OK"`). |
 | `status_code` | `number` | HTTP status code (e.g., `200`). |
 | `body` | `any` | Any JSON value. If the HTTP response message body was not deserialized from JSON, this field is set to `null`. |
-| `raw_body` | `string` | The entire raw HTTP resposne message body represented as a string. |
+| `raw_body` | `string` | The entire raw HTTP response message body represented as a string. |
 
 The table below shows examples of calling `http.send`:
 
