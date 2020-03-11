@@ -1207,8 +1207,11 @@ func (vis *ruleArgLocalRewriter) Visit(x interface{}) Visitor {
 		// Scalars are no-ops. Comprehensions are handled above. Sets must not
 		// contain variables.
 		return nil
+	case Call:
+		vis.errs = append(vis.errs, NewError(CompileErr, t.Location, "rule arguments cannot contain calls"))
+		return nil
 	default:
-		// Recurse on refs, arrays, and calls. Any embedded
+		// Recurse on refs and arrays. Any embedded
 		// variables can be rewritten.
 		return vis
 	}
