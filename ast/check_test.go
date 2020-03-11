@@ -958,7 +958,7 @@ func TestFunctionTypeInferenceUnappliedWithObjectVarKey(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Check inferrred type for reference to function.
+	// Check inferred type for reference to function.
 	tpe := env.Get(MustParseRef("data.test.f"))
 	exp := types.NewFunction([]types.Type{types.A}, types.NewObject(nil, types.NewDynamicProperty(types.A, types.N)))
 
