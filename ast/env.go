@@ -129,6 +129,10 @@ func (env *TypeEnv) Get(x interface{}) types.Type {
 		}
 		return nil
 
+	// Calls.
+	case Call:
+		return nil
+
 	default:
 		panic("unreachable")
 	}

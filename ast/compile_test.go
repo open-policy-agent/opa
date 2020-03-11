@@ -930,47 +930,106 @@ func TestCompilerExprExpansion(t *testing.T) {
 }
 
 func TestCompilerRewriteExprTerms(t *testing.T) {
-	module := `
-		package test
-
-		p { x = a + b * y }
-
-		q[[data.test.f(x)]] { x = 1 }
-
-		r = [data.test.f(x)] { x = 1 }
-
-		f(x) = data.test.g(x)
-
-		pi = 3 + .14
-
-		with_value { 1 with input as f(1) }
-	`
-
-	compiler := NewCompiler()
-	compiler.Modules = map[string]*Module{
-		"test": MustParseModule(module),
+	cases := []struct {
+		note     string
+		module   string
+		expected interface{}
+	}{
+		{
+			note: "base",
+			module: `
+				package test
+		
+				p { x = a + b * y }
+		
+				q[[data.test.f(x)]] { x = 1 }
+		
+				r = [data.test.f(x)] { x = 1 }
+		
+				f(x) = data.test.g(x)
+		
+				pi = 3 + .14
+		
+				with_value { 1 with input as f(1) }
+			`,
+			expected: `
+				package test
+		
+				p { mul(b, y, __local1__); plus(a, __local1__, __local2__); eq(x, __local2__) }
+		
+				q[[__local3__]] { x = 1; data.test.f(x, __local3__) }
+		
+				r = [__local4__] { x = 1; data.test.f(x, __local4__) }
+		
+				f(__local0__) = __local5__ { true; data.test.g(__local0__, __local5__) }
+		
+				pi = __local6__ { true; plus(3, 0.14, __local6__) }
+		
+				with_value { data.test.f(1, __local7__); 1 with input as __local7__ }
+			`,
+		},
+		{
+			note: "builtin calls in head",
+			module: `
+				package test
+		
+				f(1+1) = 7
+			`,
+			expected: Errors{&Error{Message: "rule arguments cannot contain calls"}},
+		},
+		{
+			note: "builtin calls in head",
+			module: `
+				package test
+		
+				f(object.get(x)) { object := {"a": 1}; object.a == x }
+			`,
+			expected: Errors{&Error{Message: "rule arguments cannot contain calls"}},
+		},
 	}
-	compileStages(compiler, compiler.rewriteExprTerms)
-	assertNotFailed(t, compiler)
 
-	expected := MustParseModule(`
-		package test
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			compiler := NewCompiler()
+			compiler.Modules = map[string]*Module{
+				"test": MustParseModule(tc.module),
+			}
+			compileStages(compiler, compiler.rewriteExprTerms)
 
-		p { mul(b, y, __local1__); plus(a, __local1__, __local2__); eq(x, __local2__) }
+			switch exp := tc.expected.(type) {
+			case string:
+				assertNotFailed(t, compiler)
 
-		q[[__local3__]] { x = 1; data.test.f(x, __local3__) }
+				expected := MustParseModule(exp)
 
-		r = [__local4__] { x = 1; data.test.f(x, __local4__) }
+				if !expected.Equal(compiler.Modules["test"]) {
+					t.Fatalf("Expected modules to be equal. Expected:\n\n%v\n\nGot:\n\n%v", expected, compiler.Modules["test"])
+				}
+			case Errors:
+				if len(exp) != len(compiler.Errors) {
+					t.Fatalf("Expected %d errors, got %d:\n\n%s\n", len(exp), len(compiler.Errors), compiler.Errors.Error())
+				}
+				incorrectErrs := false
+				for _, e := range exp {
+					found := false
+					for _, actual := range compiler.Errors {
+						if e.Message == actual.Message {
+							found = true
+							break
+						}
+					}
+					if !found {
+						incorrectErrs = true
+					}
+				}
+				if incorrectErrs {
+					t.Fatalf("Expected errors:\n\n%s\n\nGot:\n\n%s\n", exp.Error(), compiler.Errors.Error())
+				}
+			default:
+				t.Fatalf("Unsupported value type for test case 'expected' field: %v", exp)
+			}
 
-		f(__local0__) = __local5__ { true; data.test.g(__local0__, __local5__) }
-
-		pi = __local6__ { true; plus(3, 0.14, __local6__) }
-
-		with_value { data.test.f(1, __local7__); 1 with input as __local7__ }
-	`)
-
-	if !expected.Equal(compiler.Modules["test"]) {
-		t.Fatalf("Expected modules to be equal. Expected:\n\n%v\n\nGot:\n\n%v", expected, compiler.Modules["test"])
+		})
 	}
 }
 
@@ -3336,7 +3395,7 @@ func assertCompilerErrorStrings(t *testing.T, compiler *Compiler, expected []str
 
 func assertNotFailed(t *testing.T, c *Compiler) {
 	if c.Failed() {
-		t.Errorf("Unexpected compilation error: %v", c.Errors)
+		t.Fatalf("Unexpected compilation error: %v", c.Errors)
 	}
 }
 
