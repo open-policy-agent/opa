@@ -6,39 +6,39 @@ package cmd
 
 import (
 	"fmt"
+	"io"
 	"os"
 
 	"github.com/spf13/cobra"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/internal/cmd/complexity"
-	pr "github.com/open-policy-agent/opa/internal/presentation"
 	"github.com/open-policy-agent/opa/loader"
+	"github.com/open-policy-agent/opa/util"
 )
 
-var analyzeCommand = &cobra.Command{
-	Use:    "complexity <path>",
-	Short:  "Compute runtime complexity of Rego source code",
-	Hidden: true,
+const (
+	complexityPrettyOutput = "pretty"
+	complexityJSONOutput   = "json"
+)
 
-	PreRunE: func(Cmd *cobra.Command, args []string) error {
-		if len(args) == 0 {
-			return fmt.Errorf("specify at least one file")
-		}
-		return nil
-	},
-
-	Run: func(cmd *cobra.Command, args []string) {
-		os.Exit(analyzeModules(args))
-	},
+type complexityCommandParams struct {
+	outputFormat *util.EnumFlag
+	query        string
 }
 
-func analyzeModules(args []string) int {
+func newComplexityCommandParams() complexityCommandParams {
+	return complexityCommandParams{
+		outputFormat: util.NewEnumFlag(complexityPrettyOutput, []string{complexityPrettyOutput, complexityJSONOutput}),
+	}
+}
+
+func analyzeModules(args []string, params complexityCommandParams, w io.Writer) int {
 	modules := map[string]*ast.Module{}
 
 	f := loaderFilter{}
 
-	result, err := loader.Filtered(args, f.Apply)
+	result, err := loader.NewFileLoader().Filtered(args, f.Apply)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
@@ -53,28 +53,43 @@ func analyzeModules(args []string) int {
 	compiler.Compile(modules)
 
 	if compiler.Failed() {
-		fmt.Println(compiler.Errors)
+		fmt.Fprintln(w, compiler.Errors)
 		return 1
 	}
 
-	for _, module := range compiler.Modules {
-		result := complexity.CalculateRuntimeComplexity(module)
+	complexityCalculator := complexity.New().WithCompiler(compiler).WithQuery(params.query)
+	report, err := complexityCalculator.Calculate()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
 
-		fmt.Println()
-		if len(result.Result) != 0 {
-			fmt.Printf("Time Complexity Results for rules in %v:\n", module.Package.Location.File)
-			pr.JSON(os.Stdout, result.Result)
+	switch params.outputFormat.String() {
+	case complexityJSONOutput:
+		err := report.JSON(w)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err.Error())
 		}
-
-		// Missing/Unhandled rules
-		if len(result.Missing) != 0 {
-			fmt.Printf("\nRules with unhandled expressions in %v:\n", module.Package.Location.File)
-			pr.JSON(os.Stdout, result.Missing)
-		}
+	default:
+		fmt.Fprintln(w, report.String())
 	}
 	return 0
 }
 
 func init() {
-	RootCommand.AddCommand(analyzeCommand)
+	params := newComplexityCommandParams()
+
+	complexityCommand := &cobra.Command{
+		Use:    "complexity",
+		Short:  "Compute runtime complexity of a Rego query. Command is under active development and currently hidden",
+		Hidden: true,
+
+		Run: func(cmd *cobra.Command, args []string) {
+			os.Exit(analyzeModules(args, params, os.Stdout))
+		},
+	}
+
+	complexityCommand.Flags().VarP(params.outputFormat, "format", "f", "set output format")
+	complexityCommand.Flags().StringVarP(&params.query, "query", "q", "data", "set a Rego query to calculate runtime of a rule")
+	RootCommand.AddCommand(complexityCommand)
 }

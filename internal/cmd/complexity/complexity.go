@@ -6,985 +6,664 @@ package complexity
 
 import (
 	"fmt"
-	"regexp"
-	"strconv"
+	"io"
 	"strings"
 
 	"github.com/open-policy-agent/opa/ast"
+	pr "github.com/open-policy-agent/opa/internal/presentation"
 )
 
-// analyzeResult holds the result of rule analysis that groups the variables
-// in a rule into one-value and many-value buckets.
-// one-value: Variable can have only one value
-// many-value: Variable can be assigned multiple values
-type analyzeResult struct {
-	Raw          *ast.Rule
-	Rule         string
-	OneValue     map[string]ast.Value
-	ManyValue    map[string]string
-	RevManyValue map[string]string
-	Error        error
-	Missing      []string
-	Iterates     bool
+// Report holds the result for runtime complexity for the query
+type Report struct {
+	calculator *Calculator
+	Complexity *analyzeQuery `json:"results"`
 }
 
-// analyzeExpression holds the result of expression analysis
-type analyzeExpression struct {
-	Raw            *ast.Expr
-	Count          string
-	Time           string
-	TimeComplexity string
+// JSON outputs complexity results to w as JSON
+func (r *Report) JSON(w io.Writer) error {
+	return pr.JSON(w, r)
 }
 
-// RuntimeComplexityResult holds the result for runtime complexity of rules
-type RuntimeComplexityResult struct {
-	Result  map[string][]string
-	Missing map[string][]string
-}
-
-var (
-	varRegexp                    = regexp.MustCompile("^[[:alpha:]_][[:alpha:][:digit:]_]*$")
-	virtualDocRegexp             = regexp.MustCompile(`{[^}]*}`)
-	functionCallRegexp           = regexp.MustCompile(`\#(.*?)\#`)
-	functionResultGroupingRegexp = regexp.MustCompile(`]`)
-	argRegexp                    = regexp.MustCompile(`\((.*?)\)`)
-	indexSeparator               = "$"
-	underscoreCount              = 0
-	localVarCount                = 0
-
-	varVisitorParams = ast.VarVisitorParams{
-		SkipRefCallHead: true,
-		SkipRefHead:     true,
-	}
-)
-
-// CalculateRuntimeComplexity returns the runtime complexity for the rules
-// in the given module
-func CalculateRuntimeComplexity(m *ast.Module) *RuntimeComplexityResult {
-	results := []*analyzeResult{}
-	finalResult := RuntimeComplexityResult{}
-	finalResult.Result = make(map[string][]string)
-	finalResult.Missing = make(map[string][]string)
-
-	// Walk over the rules in the module and record the variables in them.
-	// Categorize those variables into 2 groups:
-	// 1. Variables which have only one value. eg. x := 1
-	// 2. Variables that can be assigned multiple values. eg. p[x]
-	ast.WalkRules(m, func(r *ast.Rule) bool {
-		result := analyzeResult{}
-		result.Raw = r
-		result.Rule = r.Head.Name.String()
-		result.OneValue = make(map[string]ast.Value)
-		result.ManyValue = make(map[string]string)
-		result.RevManyValue = make(map[string]string)
-		seen := make(map[string]bool)
-
-		// mark function arguments as seen
-		if len(r.Head.Args) > 0 {
-			for _, term := range r.Head.Args {
-				seen[term.String()] = true
-			}
-		}
-
-		for _, expr := range r.Body {
-			analyzeExpr(expr, seen, &result)
-		}
-		results = append(results, &result)
-
-		return false
-	})
-
-	resultsPre := runtimeComplexityRule(m, results, finalResult.Missing)
-	finalResult.Result = postProcessComplexityResults(resultsPre, finalResult.Missing)
-	return &finalResult
-}
-
-// postProcessComplexityResults walks through the complexity results and
-// replaces results with rule names with their actual complexity results
-//
-// Example:
-// Rule: allow  Complexity: O(foo)
-// Rule: foo    Complexity: O(input.bar)
-//
-// becomes
-//
-// Rule: allow  Complexity: O(input.bar)
-// Rule: foo    Complexity: O(input.bar)
-func postProcessComplexityResults(preRes map[string][]string, missing map[string][]string) map[string][]string {
-
-	postRes := make(map[string][]string)
-
-	for ruleName, results := range preRes {
-		for _, result := range results {
-			matches := virtualDocRegexp.FindAllString(result, -1)
-
-			if matches == nil || len(matches) == 0 {
-				postRes[ruleName] = append(postRes[ruleName], result)
-				continue
-			}
-
-			for _, match := range matches {
-				fullName := strings.Trim(match, "{O()}")
-				name := strings.Split(fullName, ".")
-				rule := name[len(name)-1]
-
-				replaceWith := postProcessComplexityResultsHelper(rule, preRes, missing)
-				result = strings.Replace(result, match, replaceWith, -1)
-			}
-			postRes[ruleName] = append(postRes[ruleName], result)
-		}
-	}
-	return postProcessFunctionCall(postRes, missing)
-}
-
-func postProcessComplexityResultsHelper(ruleName string, preRes map[string][]string, missing map[string][]string) string {
-
-	var ok bool
-	var values []string
-	if values, ok = preRes[ruleName]; !ok {
-		// try the missing results
-		if _, ok = missing[ruleName]; ok {
-			return fmt.Sprintf("{O(%v)}", ruleName)
-		}
-		panic(fmt.Sprintf("Rule %v not found in pre time complexity result map or missing map", ruleName))
-	}
-
-	result := []string{}
-	for _, val := range values {
-		matches := virtualDocRegexp.FindAllString(val, -1)
-
-		if matches == nil || len(matches) == 0 {
-			result = append(result, val)
-		} else {
-			for _, match := range matches {
-				fullName := strings.Trim(match, "{O()}")
-				name := strings.Split(fullName, ".")
-				rule := name[len(name)-1]
-
-				replaceWith := postProcessComplexityResultsHelper(rule, preRes, missing)
-				val = strings.Replace(val, match, replaceWith, -1)
-				result = append(result, val)
-			}
-		}
-	}
-	if len(result) > 1 {
-		return fmt.Sprintf("[%v]", strings.Join(result, " + "))
-	}
-	return strings.Join(result, "")
-}
-
-// postProcessFunctionCall walks through the complexity results and
-// replaces results with function names with their actual complexity results
-func postProcessFunctionCall(postRes map[string][]string, missing map[string][]string) map[string][]string {
-	finalRes := make(map[string][]string)
-
-	for ruleName, results := range postRes {
-		for _, result := range results {
-			matches := functionCallRegexp.FindAllString(result, -1)
-
-			if matches == nil || len(matches) == 0 {
-				finalRes[ruleName] = append(finalRes[ruleName], result)
-				continue
-			}
-
-			for _, match := range matches {
-				fullName := strings.Trim(match, "#")
-				name := strings.Split(fullName, "(")
-				rule := name[0]
-
-				replaceWith := postProcessFunctionCallHelper(rule, postRes, missing)
-				result = strings.Replace(result, match, substituteFunctionArgs(fullName, replaceWith, true), -1)
-			}
-
-			finalRes[ruleName] = append(finalRes[ruleName], generateGroupedResult(result))
-		}
-	}
-	return finalRes
-}
-
-func postProcessFunctionCallHelper(ruleName string, postRes map[string][]string, missing map[string][]string) string {
-
-	var ok bool
-	var values []string
-	if values, ok = postRes[ruleName]; !ok {
-		// try the missing results
-		if _, ok = missing[ruleName]; ok {
-			return fmt.Sprintf("{O(%v)}", ruleName)
-		}
-		panic(fmt.Sprintf("Rule %v not found in pre time complexity result map or missing map", ruleName))
-	}
-
-	result := []string{}
-	for _, val := range values {
-		matches := functionCallRegexp.FindAllString(val, -1)
-
-		if matches == nil || len(matches) == 0 {
-			if val != "O(1)" {
-				result = append(result, val)
-			}
-
-		} else {
-			for _, match := range matches {
-				fullName := strings.Trim(match, "#")
-				name := strings.Split(fullName, "(")
-				rule := name[0]
-
-				replaceWith := postProcessFunctionCallHelper(rule, postRes, missing)
-				val = strings.Replace(val, match, substituteFunctionArgs(fullName, replaceWith, false), -1)
-				result = append(result, val)
-			}
-		}
-	}
-
-	if len(result) == 0 {
-		result = append(result, "O(1)")
-	} else if len(result) > 1 {
-		return fmt.Sprintf("[%v]", strings.Join(result, " + "))
-	}
-	return strings.Join(result, "")
-}
-
-// substituteFunctionArgs rewrites the runtime of a function in terms of the
-// arguments provided to the function by the caller
-//
-// Example:
-// foo {
-//    bar(input.request)
-// }
-//
-// bar(request) {
-//    request.spec[_] == "hello"
-// }
-//
-// Rule: foo    Complexity: O(bar(input.request))
-// Rule: bar    Complexity: O(request.spec$0)  # where $0 indicates the position
-//                                             # of the argument. In this case
-//                                             # "request" is the first (ie 0th)
-//                                             # argument to the function bar
-//
-// becomes
-//
-// Rule: foo    Complexity: O(input.request.spec)
-func substituteFunctionArgs(original, subWith string, topLevelRule bool) string {
-
-	if subWith == "O(1)" {
-		return subWith
-	}
-
-	matches := argRegexp.FindAllString(original, -1)
-	argsOriginal := strings.Split(strings.Trim(matches[0], "()"), " ")
-
-	matches = argRegexp.FindAllString(subWith, -1)
-	inputsSub := strings.Split(strings.Trim(matches[0], "()"), " ")
-
-	if len(inputsSub) > len(argsOriginal) {
-		panic(fmt.Sprintf("Error replacing inputs in complexity result %v with arguments in function %v", subWith, original))
-	}
-
-	for _, item := range inputsSub {
-		items := strings.Split(item, indexSeparator)
-		index := items[len(items)-1]
-		i, err := strconv.Atoi(index)
-		if err != nil {
-			continue
-		}
-
-		remaining := strings.Join(items[:len(items)-1], "")
-		remainingParts := strings.Split(remaining, ".")
-
-		arg := argsOriginal[i]
-		if len(remainingParts) > 0 {
-			arg = fmt.Sprintf("%v.%v", arg, strings.Join(remainingParts[1:len(remainingParts)], "."))
-		}
-
-		newArg := fmt.Sprintf("%v%v%v", arg, indexSeparator, index)
-		if topLevelRule {
-			newArg = fmt.Sprintf("%v", arg)
-		}
-
-		subWith = strings.Replace(subWith, item, newArg, -1)
-	}
-
-	return subWith
-}
-
-// runtimeComplexityRule walks over the rules in a module and returns their
-// runtime complexity
-func runtimeComplexityRule(m *ast.Module, analyzeResults []*analyzeResult, missing map[string][]string) map[string][]string {
-	analyzeResultsCopy := make([]*analyzeResult, len(analyzeResults))
-	copy(analyzeResultsCopy, analyzeResults)
-
-	complexityResults := make(map[string][]string)
-	var ruleAnalyzeResult analyzeResult
-
-	// walk over the rules, to calculate the time complexity
-	ast.WalkRules(m, func(r *ast.Rule) bool {
-		var complexity string
-
-		// check if rule has body
-		if len(r.Body) == 0 {
-			complexity = "O(1)"
-		} else {
-			// TimeComplexity(rule) = TimeComplexity(body)
-			// TODO: Make this a map to optimize rule lookup
-			i := 0
-			var item *analyzeResult
-			for i, item = range analyzeResultsCopy {
-				if item.Rule == r.Head.Name.String() {
-					ruleAnalyzeResult = *item
-					break
-				}
-			}
-
-			analyzeResultsCopy = append(analyzeResultsCopy[:i], analyzeResultsCopy[i+1:]...)
-			complexity = runtimeComplexityBody(r.Body, &ruleAnalyzeResult, analyzeResults)
-		}
-
-		if len(ruleAnalyzeResult.Missing) == 0 {
-			complexityResults[r.Head.Name.String()] = append(complexityResults[r.Head.Name.String()], strings.TrimSpace(complexity))
-		} else {
-			missing[r.Head.Name.String()] = ruleAnalyzeResult.Missing
-		}
-
-		return false
-	})
-	return complexityResults
-}
-
-// runtimeComplexityBody analyzes the expressions in the rule body and returns
-// the runtime complexity for the rule
-func runtimeComplexityBody(body ast.Body, analyzeRuleResult *analyzeResult, all []*analyzeResult) string {
-
-	results := []analyzeExpression{}
-	for _, expr := range body {
-		result := analyzeExpression{}
-		result.Raw = expr
-		runtimeComplexityExpr(expr, &result, analyzeRuleResult, all)
-		results = append(results, result)
-	}
-
-	// stitch the time complexity results for the rule by walking over the
-	// expressions in the rule body
-	var resultComplexity string
-
-	for i := len(results) - 1; i >= 0; i-- {
-		if results[i].TimeComplexity == "" {
-			continue
-		}
-
-		if len(resultComplexity) == 0 && results[i].TimeComplexity != "O(1)" {
-
-			if strings.HasPrefix(results[i].TimeComplexity, "^") {
-				resultComplexity = fmt.Sprintf("+ [%v]", strings.TrimPrefix(results[i].TimeComplexity, "^"))
-			} else {
-				resultComplexity = fmt.Sprintf("%v", results[i].TimeComplexity)
-			}
-
-		} else {
-			if strings.HasPrefix(results[i].TimeComplexity, "^") {
-				resultComplexity = fmt.Sprintf("+ [%v] %v", strings.TrimPrefix(results[i].TimeComplexity, "^"), resultComplexity)
-			} else {
-				if results[i].TimeComplexity != "O(1)" {
-
-					if strings.HasPrefix(resultComplexity, "+") {
-						resultComplexity = fmt.Sprintf("[ %v  %v ]", results[i].TimeComplexity, resultComplexity)
-					} else {
-						if ast.ContainsRefs(results[i].Raw) {
-							resultComplexity = fmt.Sprintf("[ %v * %v ]", results[i].TimeComplexity, resultComplexity)
-						} else {
-							resultComplexity = fmt.Sprintf("[ %v + %v ]", results[i].TimeComplexity, resultComplexity)
-						}
-					}
-				}
-			}
-		}
-	}
-
-	if resultComplexity == "" {
-		resultComplexity = "O(1)"
-	}
-
-	// remove leading "+" sign
-	if len(analyzeRuleResult.Raw.Head.Args) != 0 {
-		resultComplexity = strings.TrimPrefix(resultComplexity, "+")
-	}
-
-	resultComplexity = strings.TrimSpace(resultComplexity)
-
-	// remove end brackets
-	resultComplexity = strings.TrimPrefix(resultComplexity, "[")
-	return strings.TrimSuffix(resultComplexity, "]")
-}
-
-// runtimeComplexityExpr analyzes an expression and returns its runtime complexity
-func runtimeComplexityExpr(expr *ast.Expr, analyzeExprResult *analyzeExpression, analyzeRuleResult *analyzeResult, all []*analyzeResult) {
-
-	if expr.IsGround() && !ast.ContainsRefs(expr) {
-		analyzeExprResult.Count = "O(1)"
-		analyzeExprResult.Time = "O(1)"
-
-		analyzeExprResult.TimeComplexity = "O(1)"
-	} else if expr.IsEquality() || expr.IsAssignment() {
-		analyzeExprResult.Count = "O(1)"
-
-		temp := []string{}
-		for _, term := range expr.Operands() {
-			result := runtimeComplexityTerm(term, analyzeRuleResult, all)
-			if result != "" && result != "O(1)" {
-				temp = append(temp, result)
-			}
-		}
-
-		if len(temp) == 0 {
-			temp = append(temp, "O(1)")
-		}
-
-		analyzeExprResult.Time = strings.Join(temp, " * ")
-
-		analyzeExprResult.TimeComplexity = analyzeExprResult.Time
-
-	} else if expr.IsCall() {
-		operator := expr.Operator().String()
-
-		_, ok := ast.BuiltinMap[operator]
-		if ok {
-			if operator != ast.WalkBuiltin.Name {
-				analyzeExprResult.Count = "O(1)"
-				analyzeExprResult.Time = "O(1)"
-
-				if operator == ast.Assign.Name {
-					analyzeExprResult.Time = runtimeComplexityTerm(expr.Operands()[1], analyzeRuleResult, all)
-				}
-
-				analyzeExprResult.TimeComplexity = analyzeExprResult.Time
-			} else {
-				analyzeRuleResult.Missing = append(analyzeRuleResult.Missing, expr.String())
-			}
-
-		} else {
-			opSl := strings.Split(operator, ".")
-			op := opSl[len(opSl)-1]
-
-			temp := []string{}
-			for i := range expr.Operands() {
-
-				// check the one value and many value bucket to see if the
-				// function's argument points to a local variable or a rule/function.
-				// Add such an expression to the missing list as the runtime of
-				// the function cannot be represented definitively in terms
-				// of the original dependancy of the argument
-				//
-				// Example:
-				// foo {
-				//    some container
-				//    input_container[container]
-				//    bar(container)
-				// }
-				//
-				// input_container[c] {
-				//    c := input.request.object.spec.containers[_]
-				// }
-				//
-				// bar(item) {
-				//    item.spec[_] == "hello"
-				// }
-				//
-				// In rule "foo", the runtime of the function "bar" depends
-				// on the argument "container" which is a local
-				// variable. The value of the variable "container" itself
-				// depends on "input.request.object.spec.containers"
-				// as described in the rule "input_container". For such scenarios,
-				// where is it not definitive to track the dependancy of the
-				// variable in this case "container", add the expression to the
-				// missing list
-
-				var value string
-				var val ast.Value
-				var ok bool
-
-				if val, ok = analyzeRuleResult.OneValue[expr.Operand(i).String()]; ok {
-					if val != nil {
-						if isLocal(val.String()) || len(isVirtualDoc(val.String(), all)) != 0 {
-							analyzeRuleResult.Missing = append(analyzeRuleResult.Missing, expr.String())
-						} else {
-							temp = append(temp, val.String())
-						}
-					}
-				} else if value, ok = analyzeRuleResult.ManyValue[expr.Operand(i).String()]; ok {
-					if value != "" {
-						if isLocal(value) || len(isVirtualDoc(value, all)) != 0 {
-							analyzeRuleResult.Missing = append(analyzeRuleResult.Missing, expr.String())
-						} else {
-							temp = append(temp, value)
-						}
-					}
-				} else {
-					temp = append(temp, expr.Operand(i).String())
-				}
-			}
-			analyzeExprResult.TimeComplexity = fmt.Sprintf("#%v(%v)#", op, strings.Join(temp, " "))
-		}
-
-	} else if ast.ContainsRefs(expr) && !ast.ContainsComprehensions(expr) {
-		analyzeExprResult.Time = "O(1)"
-
-		switch terms := expr.Terms.(type) {
-		case []*ast.Term:
-			temp := []string{}
-			for _, term := range terms {
-				result := runtimeComplexityTerm(term, analyzeRuleResult, all)
-				if result != "" && result != "O(1)" {
-					temp = append(temp, result)
-				}
-			}
-
-			if len(temp) == 0 {
-				temp = append(temp, "O(1)")
-			}
-
-			analyzeExprResult.Count = strings.Join(temp, " * ")
-		case *ast.Term:
-			analyzeExprResult.Count = runtimeComplexityTerm(terms, analyzeRuleResult, all)
-		}
-
-		analyzeExprResult.TimeComplexity = analyzeExprResult.Count
-
-	} else if ast.ContainsComprehensions(expr) {
-		analyzeRuleResult.Missing = append(analyzeRuleResult.Missing, expr.String())
+// String returns the string representation of the runtime complexity
+func (r *Report) String() string {
+	queryRes := r.Complexity
+	buf := fmt.Sprintf("\nComplexity Results for query \"%v\":\n", queryRes.Query.String())
+
+	if len(queryRes.Missing) != 0 {
+		buf = buf + "Missing:\n" + strings.Join(queryRes.Missing, "\n")
 	} else {
-		analyzeRuleResult.Missing = append(analyzeRuleResult.Missing, expr.String())
+		analyzeResults := queryRes.String()
+		if analyzeResults == "" {
+			buf = buf + "O(1)"
+		} else {
+			buf = buf + fmt.Sprintf("O(%v)", analyzeResults)
+		}
+	}
+	return buf
+}
+
+// analyzeQuery holds the result of analyzing the query
+// Expressions -> time complexity of each expression in the rule body
+// Missing     -> unhandled expression
+// relation    -> whether the expression is a relation or not
+//			      An expression is a relation if the reference it contains
+// 			      has first occurrence of a variable. eg. p[x]
+// time        -> time complexity of each variable in query
+// count       -> count complexity of each variable in query
+// size        -> size complexity of each variable in query
+// binding     -> map of variable to the value it refers to
+// complexity  -> runtime complexity of query
+type analyzeQuery struct {
+	Query       ast.Body `json:"query"`
+	Expressions []*time  `json:"expressions,omitempty"`
+	Missing     []string `json:"missing,omitempty"`
+	relation    []bool
+	time        map[ast.Var]*time
+	size        map[ast.Var]*size
+	count       map[ast.Var]*count
+	binding     *ast.ValueMap
+	complexity  *time `json:"complexity"`
+}
+
+func newAnalyzeQuery(query ast.Body) *analyzeQuery {
+	return &analyzeQuery{
+		Query:       query,
+		Expressions: make([]*time, len(query)),
+		Missing:     []string{},
+		relation:    make([]bool, len(query)),
+		time:        make(map[ast.Var]*time),
+		size:        make(map[ast.Var]*size),
+		count:       make(map[ast.Var]*count),
+		binding:     ast.NewValueMap(),
+		complexity:  nil,
 	}
 }
 
-// runtimeComplexityTerm returns the runtime complexity of a term
-func runtimeComplexityTerm(term *ast.Term, analyzeRuleResult *analyzeResult, all []*analyzeResult) string {
-
-	if term.IsGround() && !ast.ContainsRefs(term) {
-		return "O(1)"
+// String returns the string representation of the runtime complexity
+func (q *analyzeQuery) String() string {
+	if q.complexity == nil {
+		return ""
 	}
-
-	vars := getTermVars(term, varVisitorParams)
-
-	switch x := term.Value.(type) {
-	case ast.Ref:
-		// virtual-doc reference
-		if len(isVirtualDoc(x.GroundPrefix().String(), all)) != 0 {
-			// Time(virtual-object) + Count(x.GroundPrefix()) => O(1) + Count(x.GroundPrefix())
-			return fmt.Sprintf("{O(%v)}", x.GroundPrefix())
-		}
-
-		// strict data reference
-		temp := []string{}
-		for v := range vars {
-			var value string
-
-			// resolve underscores
-			if v.String() == "_" {
-				for vr, iter := range analyzeRuleResult.ManyValue {
-					if isGenerated(vr) {
-						value = iter
-						delete(analyzeRuleResult.ManyValue, vr)
-						break
-					}
-				}
-			} else {
-				value = analyzeRuleResult.ManyValue[v.String()]
-			}
-
-			// check if a reference in the many value bucket is a prefix to this
-			// reference
-			// case: input.foo[y].bar[z]
-			// Complexity is O(input.foo) and not O(input.foo.bar)
-			// Reference: input.foo[y].bar
-			// RevManyValue: map[input.foo:y input.foo[y].bar:z]
-
-			// check if a variable in the one value bucket is a prefix to this
-			// reference
-			// case: x := input.foo[y]
-			//		 x.bar[z]
-			// Complexity is O(input.foo) and not O(input.foo) * O(x.bar)
-			// Reference: x.bar
-			// OnveValue: map[x:<nil>]
-
-			// The existence of a prefix to the given reference implies that we
-			// have an original input/data rooted reference that will contribute
-			// to the complexity of the term
-
-			if isPrefixInManyVal(value, analyzeRuleResult) ||
-				isPrefixInOneVal(value, analyzeRuleResult.OneValue) {
-				continue
-			}
-
-			if value != "" && !isLocal(value) {
-				tempRes := fmt.Sprintf("O(%v)", value)
-
-				// if the term is part of an expression in the function body,
-				// check if the runtime complexity of the term
-				// references any of the function's arguments
-				//
-				// Example:
-				// get_foo(a, b) {
-				//	 a[_]
-				//   b.foo[_]
-				// }
-				//
-				// Complexity: O(a_0) * O(b.foo_1) where "0" and "1" indicate
-				// position of the arguments in the function definition
-				if len(analyzeRuleResult.Raw.Head.Args) != 0 {
-					args := analyzeRuleResult.Raw.Head.Args
-					for i := range args {
-						if strings.HasPrefix(value, args[i].String()) {
-							tempRes = fmt.Sprintf("O(%v%v%v)", value, indexSeparator, i)
-							break
-						}
-					}
-				}
-
-				temp = append(temp, tempRes)
-			}
-		}
-
-		return strings.Join(temp, " * ")
-	case *ast.ArrayComprehension:
-		analyzeRuleResult.Missing = append(analyzeRuleResult.Missing, term.String())
-		return fmt.Sprintf("O(%v)", term.String())
-	case *ast.ObjectComprehension:
-		analyzeRuleResult.Missing = append(analyzeRuleResult.Missing, term.String())
-		return fmt.Sprintf("O(%v)", term.String())
-	case *ast.SetComprehension:
-		analyzeRuleResult.Missing = append(analyzeRuleResult.Missing, term.String())
-		return fmt.Sprintf("O(%v)", term.String())
-	case ast.Null, ast.Boolean, ast.Number, ast.String:
-		return "O(1)"
-	case ast.Var:
-		// if the variable is the return value of the function,
-		// check if the variable points to a value that
-		// references any of the function's arguments
-		if term.Equal(analyzeRuleResult.Raw.Head.Value) {
-			var value string
-			var val ast.Value
-			var ok bool
-
-			if val, ok = analyzeRuleResult.OneValue[term.String()]; ok {
-				if val != nil {
-					tempRes := fmt.Sprintf("O(%v)", val.String())
-					if len(analyzeRuleResult.Raw.Head.Args) != 0 {
-						args := analyzeRuleResult.Raw.Head.Args
-						for i := range args {
-							if strings.HasPrefix(val.String(), args[i].String()) {
-								tempRes = fmt.Sprintf("^O(%v%v%v)", val.String(), indexSeparator, i)
-								break
-							}
-						}
-					}
-					return tempRes
-				}
-			} else if value, ok = analyzeRuleResult.ManyValue[term.String()]; ok {
-				return fmt.Sprintf("O(%v)", value)
-			} else {
-				return fmt.Sprintf("O(%v)", term.String())
-			}
-		}
-		return "O(1)"
-	case ast.Array, ast.Set, ast.Object:
-		return "O(1)"
-	case ast.Call:
-		if !x.IsGround() || len(isVirtualDoc(strings.Split(term.String(), "(")[0], all)) != 0 {
-
-			matches := argRegexp.FindAllString(term.String(), -1)
-
-			for _, match := range matches {
-				arg := strings.Trim(match, "()")
-
-				// check if the function's argument or its prefix is a locally
-				// generated variable. If yes, it implies that the function was
-				// provided a result of a previous rule/function evaluation.
-				// Since the runtime of such a function cannot be represented
-				// definitively in terms of the original dependancy of the argument,
-				// add the function to the missing list
-
-				var value string
-				var val ast.Value
-				var ok, okOneValue, okManyValue bool
-
-				// use the argument's prefix if it exists in the one value or
-				// many value bucket. If it doesn't, use the original argument
-				resolvedArg := resolvePrefix(arg, analyzeRuleResult)
-
-				if val, ok = analyzeRuleResult.OneValue[resolvedArg]; ok {
-					if val != nil {
-						_, okOneValue = analyzeRuleResult.OneValue[val.String()]
-						_, okManyValue = analyzeRuleResult.ManyValue[val.String()]
-						if okOneValue || isPrefixInOneVal(val.String(), analyzeRuleResult.OneValue) ||
-							okManyValue || isPrefixInManyVal(val.String(), analyzeRuleResult) ||
-							len(isVirtualDoc(val.String(), all)) != 0 {
-							analyzeRuleResult.Missing = append(analyzeRuleResult.Missing, term.String())
-						}
-					}
-				} else if value, ok = analyzeRuleResult.ManyValue[resolvedArg]; ok {
-					if value != "" {
-						_, okOneValue = analyzeRuleResult.OneValue[value]
-						_, okManyValue = analyzeRuleResult.ManyValue[value]
-						if okOneValue || isPrefixInOneVal(value, analyzeRuleResult.OneValue) ||
-							okManyValue || isPrefixInManyVal(value, analyzeRuleResult) ||
-							len(isVirtualDoc(value, all)) != 0 {
-							analyzeRuleResult.Missing = append(analyzeRuleResult.Missing, term.String())
-						}
-					}
-				}
-			}
-			return fmt.Sprintf("#%v#", term.String())
-		}
-		return "O(1)"
-	default:
-		analyzeRuleResult.Missing = append(analyzeRuleResult.Missing, term.String())
-		return "ERROR"
-	}
+	return q.complexity.String()
 }
 
-// analyzeExpr analyzes an expression by categorizing the variables in the
-// expression into one-value and many-value. The variable's first occurrence
-// in the body of the rule determines its category
-func analyzeExpr(expr *ast.Expr, seen map[string]bool, result *analyzeResult) {
+// runtime calculates the runtime complexity of a query
+// Time(Body) = Time(ExprN) * [Time(ExprN+1) * ...] when ExprN is a relation
+// Time(Body) = Time(ExprN) + [Time(ExprN+1) + ...] when ExprN is not a relation
+func runtime(q *analyzeQuery) *time {
+	var isProduct bool
+	var result time
 
-	if expr.IsEquality() || expr.IsAssignment() {
-		for _, term := range expr.Operands() {
-			analyzeTerm(term, seen, result)
+	for i := range q.Expressions {
+		exprTime := q.Expressions[i]
+		if exprTime == nil {
+			continue
 		}
 
-		// For expressions that contain references with no variables on the RHS,
-		// assign the variable on the LHS to the RHS in the one-value category
-		// eg. x := input.request.object.metadata.name
-		switch x := expr.Operands()[1].Value.(type) {
-		case ast.Ref:
-			if _, ok := result.OneValue[x.String()]; !ok {
-				result.OneValue[expr.Operands()[0].String()] = x
-			}
+		if isProduct {
+			result = product(*exprTime, result)
+		} else {
+			result = sum(*exprTime, result)
 		}
-	} else if expr.IsCall() {
-		operator := expr.Operator().String()
+		isProduct = q.relation[i]
+	}
+	return &result
+}
 
-		_, ok := ast.BuiltinMap[operator]
+func product(a, b time) time {
+	var result time
+	result.product = append(result.product, b) // add existing
+	result.product = append(result.product, a) // add new
+	return result
+}
 
-		if ok && operator != ast.WalkBuiltin.Name {
-			for _, term := range expr.Operands() {
-				analyzeTerm(term, seen, result)
-			}
+func sum(a, b time) time {
+	var result time
+	result.sum = append(result.sum, b) // add existing
+	result.sum = append(result.sum, a) // add new
+	return result
+}
+
+// time holds results for time complexity
+// time complexity can be:
+// 1) constant ie. O(1)
+// 2) reference ie. represented in terms of base ref
+// 3) sum of the time complexity of multiple rules/expressions
+// 4) product of the time complexity of multiple expressions
+type time struct {
+	r       ast.Ref
+	sum     []time
+	product []time
+}
+
+func (t *time) String() string {
+	var result string
+
+	if len(t.r) != 0 {
+		result = t.r.String()
+	} else if len(t.sum) != 0 {
+		result = t.stringGeneratorSum()
+	} else if len(t.product) != 0 {
+		result = t.stringGeneratorProduct()
+	}
+	return result
+}
+
+func (t *time) stringGeneratorSum() string {
+
+	groupResult := []string{}
+	for _, group := range t.sum {
+		temp := group.String()
+
+		if temp == "" {
+			continue
 		}
-	} else if ast.ContainsRefs(expr) && !ast.ContainsComprehensions(expr) {
-		switch terms := expr.Terms.(type) {
-		case []*ast.Term:
-			for _, term := range terms {
-				analyzeTerm(term, seen, result)
-			}
-		case *ast.Term:
-			analyzeTerm(terms, seen, result)
+
+		groupResult = append(groupResult, temp)
+	}
+	return strings.Join(groupResult, " + ")
+}
+
+func (t *time) stringGeneratorProduct() string {
+
+	groupResult := []string{}
+	for _, group := range t.product {
+		temp := group.String()
+
+		if temp == "" {
+			continue
 		}
 
-	} else if ast.ContainsComprehensions(expr) {
-		ast.WalkClosures(expr, func(x interface{}) bool {
-			switch x := x.(type) {
-			case *ast.ArrayComprehension:
-				for _, expr := range x.Body {
-					analyzeExpr(expr, seen, result)
+		if len(strings.Fields(temp)) > 1 && encloseString(temp) {
+			groupResult = append(groupResult, fmt.Sprintf("[%v]", temp))
+		} else {
+			groupResult = append(groupResult, temp)
+		}
+	}
+
+	result := strings.Join(groupResult, " * ")
+	if result != "" {
+		result = fmt.Sprintf("[%v]", result)
+	}
+	return result
+}
+
+// contains checks if t contains other
+//
+// If t and other are both refs, check if the refs are equal.
+//
+// If t is a ref and other is a collection of time objects, check that every
+// item in other is contained in t.
+//
+// If t is a collection and other is a ref, check that other is contained in one
+// of the time objects in t.
+//
+// If t and other are both collections, check that every object in other is
+// contained in one of the time objects in t.
+func (t *time) contains(other *time) bool {
+
+	if other.isEmpty() {
+		return true
+	}
+
+	if len(t.r) != 0 {
+		if len(other.r) != 0 {
+			return t.r.Equal(other.r)
+		} else if len(other.sum) != 0 {
+			return containsComposite(t, other.sum)
+		} else if len(other.product) != 0 {
+			return containsComposite(t, other.product)
+		}
+	} else if len(t.sum) != 0 {
+		if len(other.r) != 0 {
+			for _, group := range t.sum {
+				if group.contains(other) {
+					return true
 				}
-			case *ast.SetComprehension:
-				for _, expr := range x.Body {
-					analyzeExpr(expr, seen, result)
-				}
-			case *ast.ObjectComprehension:
-				for _, expr := range x.Body {
-					analyzeExpr(expr, seen, result)
+			}
+		} else if len(other.sum) != 0 {
+			return containsComposite(t, other.sum)
+		} else if len(other.product) != 0 {
+			return containsComposite(t, other.product)
+		}
+	} else if len(t.product) != 0 {
+		if len(other.r) != 0 {
+			for _, group := range t.product {
+				if group.contains(other) {
+					return true
 				}
 			}
+		} else if len(other.sum) != 0 {
+			return containsComposite(t, other.sum)
+		} else if len(other.product) != 0 {
+			return containsComposite(t, other.product)
+		}
+	}
+	return false
+}
+
+func (t *time) isEmpty() bool {
+	return len(t.r) == 0 && len(t.sum) == 0 && len(t.product) == 0
+}
+
+func containsComposite(a *time, b []time) bool {
+	for _, t := range b {
+		if !a.contains(&t) {
 			return false
-		})
-	} else {
-		vars := expr.Vars(varVisitorParams)
-		for v := range vars {
-			updateAnalyzeResult(seen, v, "", "Missing", result)
 		}
 	}
+	return true
 }
 
-func analyzeTerm(term *ast.Term, seen map[string]bool, result *analyzeResult) {
-	vars := getTermVars(term, varVisitorParams)
-
-	switch x := term.Value.(type) {
-	case ast.Ref:
-		varToRefPrefix := generateVarToRefPrefix(x)
-		for v := range vars {
-			updateAnalyzeResult(seen, v, varToRefPrefix[v], "ManyValue", result)
-		}
-	case *ast.ArrayComprehension:
-		for _, expr := range x.Body {
-			analyzeExpr(expr, seen, result)
-		}
-	case *ast.ObjectComprehension:
-		for _, expr := range x.Body {
-			analyzeExpr(expr, seen, result)
-		}
-	case *ast.SetComprehension:
-		for _, expr := range x.Body {
-			analyzeExpr(expr, seen, result)
-		}
-	case ast.Null, ast.Boolean, ast.Number, ast.String, ast.Var:
-		for v := range vars {
-			updateAnalyzeResult(seen, v, "", "OneValue", result)
-		}
-	case ast.Array, ast.Set, ast.Object:
-		for v := range vars {
-			updateAnalyzeResult(seen, v, "", "OneValue", result)
-		}
-	case ast.Call:
-		for v := range vars {
-			updateAnalyzeResult(seen, v, "", "OneValue", result)
-		}
-	default:
-		result.Error = fmt.Errorf("Unknown term type %T", x)
-	}
+// count holds results for count complexity of a term, var
+// count complexity can be:
+// 1) constant ie. O(1)
+// 2) reference ie. represented in terms of base ref
+// 3) product of the count complexity of the variables in the term
+type count struct {
+	r       ast.Ref
+	product []count
 }
 
-// helper functions
+func (c *count) countToSize() size {
+	var result size
 
-// updateAnalyzeResult updates the map of seen variables and places given variable
-// in the right category
-func updateAnalyzeResult(seen map[string]bool, item ast.Var, refPrefix string, bucket string, result *analyzeResult) {
-	if _, ok := seen[item.String()]; !ok {
-
-		if item.String() == "_" {
-			item = rewriteUnderscoreInExpr()
-		}
-
-		seen[item.String()] = true
-
-		if bucket == "OneValue" {
-			result.OneValue[item.String()] = nil
-		} else if bucket == "ManyValue" {
-			result.ManyValue[item.String()] = refPrefix
-			result.RevManyValue[refPrefix] = item.String()
-			result.Iterates = true
-		} else if bucket == "Missing" {
-			result.Missing = append(result.Missing, item.String())
-		}
-	}
-}
-
-func isVirtualDoc(item string, all []*analyzeResult) []*analyzeResult {
-
-	name := strings.Split(item, ".")
-	rule := name[len(name)-1]
-	results := []*analyzeResult{}
-
-	for _, result := range all {
-		if result.Rule == rule {
-			results = append(results, result)
-		}
-	}
-	return results
-}
-
-func isPrefixInManyVal(item string, analyzeRuleResult *analyzeResult) bool {
-	for iter := range analyzeRuleResult.RevManyValue {
-		if item != iter && strings.HasPrefix(item, iter) {
-			return true
-		}
-	}
-
-	return false
-}
-
-func isPrefixInOneVal(item string, oneValue map[string]ast.Value) bool {
-	for iter := range oneValue {
-		if item != iter && strings.HasPrefix(item, iter) {
-			return true
-		}
-	}
-	return false
-}
-
-func resolvePrefix(item string, analyzeRuleResult *analyzeResult) string {
-	for iter := range analyzeRuleResult.OneValue {
-		if item != iter && strings.HasPrefix(item, iter) {
-			return iter
-		}
-	}
-
-	for iter := range analyzeRuleResult.RevManyValue {
-		if item != iter && strings.HasPrefix(item, iter) {
-			return iter
-		}
-	}
-
-	return item
-}
-
-func getTermVars(term *ast.Term, params ast.VarVisitorParams) ast.VarSet {
-	vis := ast.NewVarVisitor().WithParams(params)
-	ast.Walk(vis, term)
-	return vis.Vars()
-}
-
-func rewriteUnderscoreInExpr() ast.Var {
-	result := fmt.Sprintf("_$%v", underscoreCount)
-	underscoreCount++
-	return ast.Var(result)
-}
-
-func generateLocalVar() ast.Var {
-	result := fmt.Sprintf("__local%v__", localVarCount)
-	localVarCount++
-	return ast.Var(result)
-}
-
-func isGenerated(v string) bool {
-	return strings.HasPrefix(v, "_$")
-}
-
-func isLocal(v string) bool {
-	return strings.HasPrefix(v, "__local")
-}
-
-func generateVarToRefPrefix(ref ast.Ref) map[ast.Var]string {
-	result := make(map[ast.Var]string)
-	var buf []string
-	path := ref
-	switch v := ref[0].Value.(type) {
-	case ast.Var:
-		buf = append(buf, string(v))
-		path = path[1:]
-	}
-	for _, p := range path {
-		switch p := p.Value.(type) {
-		case ast.String:
-			str := string(p)
-			if varRegexp.MatchString(str) && len(buf) > 0 && !ast.IsKeyword(str) {
-				buf = append(buf, "."+str)
-			} else {
-				buf = append(buf, "["+p.String()+"]")
-			}
-		case ast.Var:
-			result[p] = strings.Join(buf, "")
-			buf = append(buf, "["+p.String()+"]")
-		default:
-			buf = append(buf, "["+p.String()+"]")
+	if len(c.r) != 0 {
+		result.r = c.r
+	} else if len(c.product) != 0 {
+		for _, cp := range c.product {
+			result.product = append(result.product, cp.countToSize())
 		}
 	}
 	return result
 }
 
-func generateGroupedResult(input string) string {
-	matches := functionResultGroupingRegexp.FindAllStringIndex(input, -1)
+// size holds results for size complexity of a ref, term, var
+// size complexity can be:
+// 1) constant ie. O(1)
+// 2) reference ie. represented in terms of base ref
+// 3) sum of the size complexity of multiple rules
+// 4) product of the size complexity of multiple expressions
+type size struct {
+	r       ast.Ref
+	sum     []size
+	product []size
+}
 
-	if matches == nil || len(matches) == 0 {
-		return input
+func (s *size) sizeToTime() time {
+	var result time
+
+	if len(s.r) != 0 {
+		result.r = s.r
+	} else if len(s.sum) != 0 {
+		for _, ss := range s.sum {
+			result.sum = append(result.sum, ss.sizeToTime())
+		}
+	} else if len(s.product) != 0 {
+		for _, sp := range s.product {
+			result.product = append(result.product, sp.sizeToTime())
+		}
+	}
+	return result
+}
+
+// Calculator provides the interface to initiate the runtime complexity
+// calculation for a query
+type Calculator struct {
+	compiler *ast.Compiler
+	query    ast.Body
+}
+
+// New returns a new Calculator object
+func New() *Calculator {
+	return &Calculator{}
+}
+
+// WithCompiler sets the compiler to use for the calculator
+func (c *Calculator) WithCompiler(compiler *ast.Compiler) *Calculator {
+	c.compiler = compiler
+	return c
+}
+
+// WithQuery sets the query to use for the calculator
+func (c *Calculator) WithQuery(query string) *Calculator {
+	c.query = ast.MustParseBody(query)
+	return c
+}
+
+// WithParsedQuery sets the parsed query to use for the calculator
+func (c *Calculator) WithParsedQuery(query ast.Body) *Calculator {
+	c.query = query
+	return c
+}
+
+// Calculate calculates the runtime complexity of the query and generates a report
+func (c *Calculator) Calculate() (*Report, error) {
+	report := Report{}
+	report.calculator = c
+
+	compiledQuery, err := c.compiler.QueryCompiler().Compile(c.query)
+	if err != nil {
+		return nil, err
 	}
 
-	shift := 0
-	for _, item := range matches {
-		idx := item[0]
-		input = input[:idx-shift] + input[idx-shift+1:] + "]"
-		shift++
+	report.Complexity, err = c.analyzeQuery(compiledQuery)
+	if err != nil {
+		return nil, err
 	}
-	return input
+
+	return &report, nil
+}
+
+func (c *Calculator) analyzeQuery(body ast.Body) (*analyzeQuery, error) {
+
+	if len(body) == 0 {
+		return nil, nil
+	}
+
+	analyzeQueryResult := newAnalyzeQuery(c.query)
+
+	for i, e := range body {
+		err := c.analyzeExpr(analyzeQueryResult, e, i)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// calculate query time complexity
+	analyzeQueryResult.complexity = runtime(analyzeQueryResult)
+
+	return analyzeQueryResult, nil
+}
+
+func (c *Calculator) analyzeExpr(a *analyzeQuery, expr *ast.Expr, idx int) error {
+
+	switch expr.Terms.(type) {
+	case []*ast.Term:
+		if expr.IsEquality() {
+			switch x := expr.Operands()[0].Value.(type) {
+			case ast.Var:
+				switch y := expr.Operands()[1].Value.(type) {
+				case ast.Null, ast.Boolean, ast.Number, ast.String, ast.Array, ast.Set, ast.Object, ast.Var:
+					if a.binding.Get(x) == nil {
+						addVarBinding(x, y, a)
+
+						// set time, count, size complexity of var
+						a.time[x] = nil
+						a.count[x] = nil
+						a.size[x] = nil
+					}
+				case ast.Ref:
+					if len(c.compiler.GetRulesDynamic(y)) != 0 {
+						err := c.analyzeExprEqVarVirtualRef(x, y, a, idx)
+						if err != nil {
+							return err
+						}
+					} else {
+						c.analyzeExprEqVarBaseRef(x, y, a, idx)
+					}
+					return nil
+				case *ast.ArrayComprehension, *ast.ObjectComprehension, *ast.SetComprehension:
+					//TODO
+				default:
+					a.Missing = append(a.Missing, expr.String())
+					return nil
+				}
+			}
+		} else {
+			// TODO: functions and builtins
+		}
+	case *ast.Term:
+		// TODO
+	}
+	return nil
+}
+
+func (c *Calculator) analyzeExprEqVarVirtualRef(v ast.Var, r ast.Ref, a *analyzeQuery, idx int) error {
+
+	rules := c.compiler.GetRulesDynamic(r)
+	timeComplexitySum := []time{}
+	sizeComplexitySum := []size{}
+
+	for _, rule := range rules {
+		queryResult, err := getTimeComplexityRuleBody(rule.Body, c.compiler)
+		if err != nil {
+			return err
+		}
+
+		// time complexity for rule
+		if queryResult.complexity != nil {
+
+			// check if the new time result is redundant to the overall time
+			// complexity of the expression
+			// For example: current = O(input.foo)
+			//				new = O(input.foo)
+			//				overall time result  = O(input.foo) + O(input.foo)
+			//									 = O(input.foo)
+			contains := false
+			for _, t := range timeComplexitySum {
+				if ctn := t.contains(queryResult.complexity); ctn {
+					contains = true
+					break
+				}
+			}
+
+			if !contains {
+				timeComplexitySum = append(timeComplexitySum, *queryResult.complexity)
+			}
+		}
+
+		// size complexity for rule
+		size := getSizeComplexityRule(rule, queryResult)
+		if size != nil {
+			sizeComplexitySum = append(sizeComplexitySum, *size)
+		}
+	}
+
+	// expression time complexity
+	a.Expressions[idx] = &time{sum: timeComplexitySum}
+
+	relation := false
+	ast.WalkVars(r, func(x ast.Var) bool {
+		if !isRootDocument(x) && a.binding.Get(x) == nil {
+			relation = true
+			bindVarVirtualRef(x, r, sizeComplexitySum, a)
+		}
+		return false
+	})
+
+	if relation {
+		for _, s := range sizeComplexitySum {
+			sTot := s.sizeToTime()
+			contains := a.Expressions[idx].contains(&sTot)
+
+			// include size complexity in the overall time complexity result of
+			// the expression only if it adds to the overall result. This check
+			// prevents addition of redundant values to the overall time result.
+			// For example: time = O(input.foo * input.bar)
+			//				size = O(input.foo)
+			//				overall time result  = O(input.foo * input.bar) + O(input.foo)
+			//									 = O(input.foo * input.bar)
+			if !contains {
+				a.Expressions[idx].sum = append(a.Expressions[idx].sum, sTot)
+			}
+		}
+
+		a.relation[idx] = true
+	}
+
+	// bind var on the lhs of the equality expression
+	bindVarVirtualRef(v, r, sizeComplexitySum, a)
+
+	return nil
+}
+
+func (c *Calculator) analyzeExprEqVarBaseRef(v ast.Var, r ast.Ref, a *analyzeQuery, idx int) {
+
+	relation := false
+	ast.WalkVars(r, func(x ast.Var) bool {
+		if !isRootDocument(x) && a.binding.Get(x) == nil {
+			relation = true
+			bindVarBaseRef(x, r, a, relation)
+		}
+		return false
+	})
+
+	if relation {
+		a.Expressions[idx] = &time{r: r.GroundPrefix()}
+		a.relation[idx] = true
+	}
+
+	// bind var on the lhs of the equality expression
+	bindVarBaseRef(v, r, a, relation)
+}
+
+// helper functions
+
+func bindVarVirtualRef(v ast.Var, bindVal ast.Ref, complexityVal []size, a *analyzeQuery) {
+	if a.binding.Get(v) == nil {
+		addVarBinding(v, bindVal.GroundPrefix(), a)
+		setComplexityVarVirtualRef(v, a, complexityVal)
+	}
+}
+
+func bindVarBaseRef(v ast.Var, bindVal ast.Ref, a *analyzeQuery, isRelation bool) {
+	addVarBinding(v, bindVal.GroundPrefix(), a)
+	setComplexityVarBaseRef(v, bindVal.GroundPrefix(), a, isRelation)
+}
+
+func addVarBinding(k, v ast.Value, a *analyzeQuery) {
+	a.binding.Put(k, v)
+}
+
+func setComplexityVarVirtualRef(v ast.Var, a *analyzeQuery, sizeComplexitySum []size) {
+
+	// time complexity
+	a.time[v] = nil
+
+	// count complexity
+	a.count[v] = nil
+
+	// size complexity
+	a.size[v] = &size{sum: sizeComplexitySum}
+}
+
+func setComplexityVarBaseRef(v ast.Var, r ast.Ref, a *analyzeQuery, isRelation bool) {
+
+	// time complexity
+	a.time[v] = nil
+
+	// count complexity
+	a.count[v] = nil
+
+	if isRelation {
+		a.count[v] = &count{r: r}
+	}
+
+	// size complexity
+	a.size[v] = &size{r: r}
+}
+
+func getSizeComplexityRule(r *ast.Rule, a *analyzeQuery) *size {
+
+	switch r.Head.DocKind() {
+	case ast.CompleteDoc:
+		switch x := r.Head.Value.Value.(type) {
+		case ast.Var:
+			seen := make(map[ast.Var]struct{})
+			return getSizeComplexityCompleteRule(x, a, seen)
+		}
+	case ast.PartialSetDoc, ast.PartialObjectDoc:
+		key := r.Head.Key
+		if key != nil {
+			var countHead count
+			seen := make(map[ast.Var]struct{})
+			for v := range key.Vars() {
+				countVar := getCountComplexityPartialRule(v, a, seen)
+				if countVar != nil {
+					countHead.product = append(countHead.product, *countVar)
+				}
+			}
+			// convert count complexity to size
+			sizeHead := countHead.countToSize()
+			return &sizeHead
+		}
+	default:
+		panic("illegal rule kind")
+	}
+	return nil
+}
+
+func getSizeComplexityCompleteRule(v ast.Var, a *analyzeQuery, seen map[ast.Var]struct{}) *size {
+
+	if _, ok := seen[v]; ok {
+		return nil
+	}
+
+	seen[v] = struct{}{}
+
+	var result *size
+	var ok bool
+	if result, ok = a.size[v]; !ok {
+		return nil
+	}
+
+	if result != nil {
+		return result
+	}
+
+	// Check if the variable is bound to another variable.
+	// If it is, get the size complexity of the assignment
+	boundVal := a.binding.Get(v)
+	if boundVal != nil {
+		switch y := boundVal.(type) {
+		case ast.Var:
+			return getSizeComplexityCompleteRule(y, a, seen)
+		}
+	}
+	return nil
+}
+
+func getCountComplexityPartialRule(v ast.Var, a *analyzeQuery, seen map[ast.Var]struct{}) *count {
+
+	if _, ok := seen[v]; ok {
+		return nil
+	}
+
+	seen[v] = struct{}{}
+
+	var result *count
+	var ok bool
+	if result, ok = a.count[v]; !ok {
+		return nil
+	}
+
+	if result != nil {
+		return result
+	}
+
+	// Check if the variable is bound to another variable.
+	// If it is, get the count complexity of the assignment
+	boundVal := a.binding.Get(v)
+	if boundVal != nil {
+		switch y := boundVal.(type) {
+		case ast.Var:
+			return getCountComplexityPartialRule(y, a, seen)
+		}
+	}
+	return nil
+}
+
+func getTimeComplexityRuleBody(b ast.Body, c *ast.Compiler) (*analyzeQuery, error) {
+	complexityCalculator := New().WithCompiler(c).WithParsedQuery(b)
+	report, err := complexityCalculator.Calculate()
+	return report.Complexity, err
+}
+
+func encloseString(s string) bool {
+	return !(strings.HasPrefix(s, "[") && strings.HasSuffix(s, "]"))
+}
+
+func isRootDocument(v ast.Var) bool {
+	return v.Equal(ast.InputRootDocument.Value) || v.Equal(ast.DefaultRootDocument.Value)
 }

@@ -10,412 +10,282 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 )
 
-func TestRuntimeComplexityAssignment(t *testing.T) {
+func TestRuntimeComplexityEqualityExpressionMix(t *testing.T) {
 
-	module := ast.MustParseModule(`
+	module := `
 		package example
 
-		allow {
-			x := 1
-			y := 2
+		scalar_number {
+			a := 1
 		}
-	`)
 
-	actual := CalculateRuntimeComplexity(module)
+		scalar_array {
+			b := [1,2,3]
+		}
 
-	expected := "O(1)"
+		base_ref_gnd {
+			c := input.foo
+		}
 
-	if len(actual.Result["allow"]) != 1 {
-		t.Fatalf("Expected 1 result for rule \"allow\" but got %v", len(actual.Result["allow"]))
+		base_ref_non_gnd {
+			d := input.foo[_]
+		}
+
+		# repeated to test that result don't contain duplciate refs
+		base_ref_non_gnd {
+			e := input.foo[_]
+		}
+
+		base_ref_non_gnd {
+			f := input.bar[_]
+			g := input.baz[_]
+		}
+
+		virtual_ref_gnd {
+			h := non_linear_iteration
+		}
+
+		virtual_ref_non_gnd {
+			i := non_linear_iteration[_]
+		}
+
+		virtual_ref_non_gnd_constant_size {
+			j := non_linear_iteration_array[_]
+		}
+
+		non_linear_iteration = k {
+			k := input.foo[_]
+			l := input.bar[_]
+		}
+
+		non_linear_iteration = n {
+			m := input.foz[x]
+			n := m
+			o := input.boz[y]
+		}
+
+		non_linear_iteration_array = [p,q] {
+			p := input.foo[_]
+			q := input.bar[_]
+		}
+		`
+
+	compiler := getCompiler(module)
+
+	expected_scalar_number := []string{`
+Complexity Results for query "equal(data.example.scalar_number, true)":
+O(1)`}
+
+	expected_scalar_array := []string{`
+Complexity Results for query "equal(data.example.scalar_array, true)":
+O(1)`}
+
+	expected_base_ref_gnd := []string{`
+Complexity Results for query "equal(data.example.base_ref_gnd, true)":
+O(1)`}
+
+	expected_base_ref_non_gnd_one := `
+Complexity Results for query "equal(data.example.base_ref_non_gnd, true)":
+O(input.foo + [input.bar * input.baz])`
+
+	expected_base_ref_non_gnd_two := `
+Complexity Results for query "equal(data.example.base_ref_non_gnd, true)":
+O([input.bar * input.baz] + input.foo)`
+
+	expected_base_ref_non_gnd := []string{expected_base_ref_non_gnd_one, expected_base_ref_non_gnd_two}
+
+	expected_virtual_ref_gnd_one := `
+Complexity Results for query "equal(data.example.virtual_ref_gnd, true)":
+O([input.foo * input.bar] + [input.foz * input.boz])`
+
+	expected_virtual_ref_gnd_two := `
+Complexity Results for query "equal(data.example.virtual_ref_gnd, true)":
+O([input.foz * input.boz] + [input.foo * input.bar])`
+
+	expected_virtual_ref_gnd := []string{expected_virtual_ref_gnd_one, expected_virtual_ref_gnd_two}
+
+	expected_virtual_ref_non_gnd_one := `
+Complexity Results for query "equal(data.example.virtual_ref_non_gnd, true)":
+O([input.foo * input.bar] + [input.foz * input.boz])`
+
+	expected_virtual_ref_non_gnd_two := `
+Complexity Results for query "equal(data.example.virtual_ref_non_gnd, true)":
+O([input.foz * input.boz] + [input.foo * input.bar])`
+
+	expected_virtual_ref_non_gnd := []string{expected_virtual_ref_non_gnd_one, expected_virtual_ref_non_gnd_two}
+
+	expected_virtual_ref_non_gnd_constant_size := []string{`
+Complexity Results for query "equal(data.example.virtual_ref_non_gnd_constant_size, true)":
+O([input.foo * input.bar])`}
+
+	tests := map[string]struct {
+		compiler *ast.Compiler
+		query    string
+		want     []string
+	}{
+		"eq_scalar":                            {compiler: compiler, query: "data.example.scalar_number == true", want: expected_scalar_number},
+		"eq_array":                             {compiler: compiler, query: "data.example.scalar_array == true", want: expected_scalar_array},
+		"eq_base_ref_gnd":                      {compiler: compiler, query: "data.example.base_ref_gnd == true", want: expected_base_ref_gnd},
+		"eq_base_ref_non_gnd":                  {compiler: compiler, query: "data.example.base_ref_non_gnd == true", want: expected_base_ref_non_gnd},
+		"eq_virtual_ref_gnd":                   {compiler: compiler, query: "data.example.virtual_ref_gnd == true", want: expected_virtual_ref_gnd},
+		"eq_virtual_ref_non_gnd":               {compiler: compiler, query: "data.example.virtual_ref_non_gnd == true", want: expected_virtual_ref_non_gnd},
+		"eq_virtual_ref_non_gnd_constant_size": {compiler: compiler, query: "data.example.virtual_ref_non_gnd_constant_size == true", want: expected_virtual_ref_non_gnd_constant_size},
 	}
 
-	if expected != actual.Result["allow"][0] {
-		t.Fatalf("Expected runtime complexity %v but got %v", expected, actual.Result["allow"][0])
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			report := getReport(tc.compiler, tc.query)
+			if !assertTrue(report.String(), tc.want) {
+				t.Fatalf("Expected a result from %v but got %v", tc.want, report.String())
+			}
+		})
 	}
 }
 
-func TestRuntimeComplexityRuleWithHelper(t *testing.T) {
+func TestRuntimeComplexityEqualityCompleteRules(t *testing.T) {
 
-	module := ast.MustParseModule(`
+	module := `
 		package example
 
-		expect_container_resource_requirements[reason] {
-			some container
-			input_container[container]
-			not container.resources.requests.cpu
-			not container.resources.limits.cpu
-			reason := sprintf("Resource %v container %v is missing CPU requirements", ["some_id", container.name])
+		deny[u] {
+			input.request.foo == myname
+			u := sprintf("something here %v", [myname])
 		}
 
+		myname = 7 {
+			x := p[_]
+			y := p[_]
+			z := p[_]
+		}
+
+		p = x {
+			x = y
+			y = z
+			z = input.bar
+
+		}`
+
+	compiler := getCompiler(module)
+
+	expected_p := `
+Complexity Results for query "equal(data.example.p, true)":
+O(1)`
+
+	expected_myname := `
+Complexity Results for query "equal(data.example.myname, true)":
+O([[input.bar * input.bar] * input.bar])`
+
+	expected_deny := `
+Complexity Results for query "equal(data.example.deny, true)":
+O([[input.bar * input.bar] * input.bar])`
+
+	tests := map[string]struct {
+		compiler *ast.Compiler
+		query    string
+		want     string
+	}{
+		"p":      {compiler: compiler, query: "data.example.p == true", want: expected_p},
+		"myname": {compiler: compiler, query: "data.example.myname == true", want: expected_myname},
+		"deny":   {compiler: compiler, query: "data.example.deny == true", want: expected_deny},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			report := getReport(tc.compiler, tc.query)
+			if report.String() != tc.want {
+				t.Fatalf("Expected %v but got %v", tc.want, report.String())
+			}
+		})
+	}
+}
+
+func TestRuntimeComplexityEqualityPartialRules(t *testing.T) {
+
+	module := `
+		package example
+
 		input_container[c] {
+			a := data.baz[b]
 			c := input.request.object.spec.containers[_]
 		}
 
 		input_container[c] {
-			c := input.request.object.spec.initContainers[_]
+			c := input.request.object.spec.init_containers[_]
 		}
 
-		input_container[c] {
-			c := input.request.object.spec.specialContainers[_]
+
+		input_container_multi[{"someKeyA": d, "someKeyB": e}] {
+			d := input.request.object.spec.containers[_]
+			e := input.request.object.spec.init_containers[_]
 		}
-	`)
 
-	actual := CalculateRuntimeComplexity(module)
-
-	if len(actual.Result["input_container"]) != 3 {
-		t.Fatalf("Expected 3 results for rule \"input_container\" but got %v", len(actual.Result["input_container"]))
-	}
-
-	expected := map[string]bool{
-		"O(input.request.object.spec.containers)":        true,
-		"O(input.request.object.spec.initContainers)":    true,
-		"O(input.request.object.spec.specialContainers)": true}
-	for _, val := range actual.Result["input_container"] {
-		if _, ok := expected[val]; !ok {
-			t.Fatalf("Expected runtime complexity for rule \"input_container\" %v but got %v", expected, val)
+		foo {
+			u := data.foo[v]
+			c := input_container[container]
 		}
-	}
 
-	if len(actual.Result["expect_container_resource_requirements"]) != 1 {
-		t.Fatalf("Expected 1 result for rule \"expect_container_resource_requirements\" but got %v", len(actual.Result["expect_container_resource_requirements"]))
-	}
-
-	expectedRes := "[O(input.request.object.spec.containers) + O(input.request.object.spec.initContainers) + O(input.request.object.spec.specialContainers)]"
-	if expectedRes != actual.Result["expect_container_resource_requirements"][0] {
-		t.Fatalf("Expected runtime complexity for rule \"expect_container_resource_requirements\" %v but got %v", expectedRes, actual.Result["expect_container_resource_requirements"][0])
-	}
-}
-
-func TestRuntimeComplexityLinearIteration(t *testing.T) {
-
-	module1 := ast.MustParseModule(`
-			package example
-
-			linear_iteration {
-				input.foo[y].bar[z]
-			}
-		`)
-
-	module2 := ast.MustParseModule(`
-		package example
-
-		linear_iteration_local_var {
-			x := input.foo[y]
-			x.bar[z]
+		foo_multi {
+			u := data.foo[v]
+			c := input_container_multi[container]
 		}
-	`)
+		`
+
+	compiler := getCompiler(module)
+
+	expected_foo_one := `
+Complexity Results for query "equal(data.example.foo, true)":
+O([data.foo * [[data.baz * input.request.object.spec.containers] + input.request.object.spec.init_containers]])`
+
+	expected_foo_two := `
+Complexity Results for query "equal(data.example.foo, true)":
+O([data.foo * [input.request.object.spec.init_containers + [data.baz * input.request.object.spec.containers]]])`
+
+	expected_foo := []string{expected_foo_one, expected_foo_two}
+
+	expected_foo_multi := []string{`
+Complexity Results for query "equal(data.example.foo_multi, true)":
+O([data.foo * [input.request.object.spec.containers * input.request.object.spec.init_containers]])`}
 
 	tests := map[string]struct {
-		input *ast.Module
-		want  string
+		compiler *ast.Compiler
+		query    string
+		want     []string
 	}{
-		"linear_iteration":           {input: module1, want: "O(input.foo)"},
-		"linear_iteration_local_var": {input: module2, want: "O(input.foo)"},
+		"foo":       {compiler: compiler, query: "data.example.foo == true", want: expected_foo},
+		"foo_multi": {compiler: compiler, query: "data.example.foo_multi == true", want: expected_foo_multi},
 	}
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			actual := CalculateRuntimeComplexity(tc.input)
-			if tc.want != actual.Result[name][0] {
-				t.Fatalf("Expected runtime complexity %v but got %v", tc.want, actual.Result[name][0])
+			report := getReport(tc.compiler, tc.query)
+			if !assertTrue(report.String(), tc.want) {
+				t.Fatalf("Expected a result from %v but got %v", tc.want, report.String())
 			}
 		})
 	}
 }
 
-func TestRuntimeComplexityNonLinearIteration(t *testing.T) {
-
-	module1 := ast.MustParseModule(`
-		package example
-
-		non_linear_iteration_w_input {
-			input.foo[x]
-			input.bar[y]
-		}
-	`)
-
-	module2 := ast.MustParseModule(`
-		package example
-
-		non_linear_iteration_w_rule {
-			input.foo[x]
-			block_master_toleration[reason]
-			input.bar[y]
-		}
-	`)
-
-	module3 := ast.MustParseModule(`
-		package example
-
-		non_linear_iteration_w_multiple_rule {
-			input.foo[x]
-			expect_container_resource_requirements[reason]
-			input.bar[y]
-		}
-
-		expect_container_resource_requirements[reason] {
-		   some container
-		   input_container[container]
-		   not container.resources.requests.cpu
-		   not container.resources.limits.cpu
-		   reason := sprintf("Resource %v container %v is missing CPU requirements", ["some_id", container.name])
-		}
-
-		input_container[c] {
-			c := input.request.object.spec.containers[_]
-		}
-
-		input_container[c] {
-			c := input.request.object.spec.initContainers[_]
-		}
-
-		input_container[c] {
-			c := input.request.object.spec.specialContainers[_]
-		}
-	`)
-
-	tests := map[string]struct {
-		input *ast.Module
-		want  string
-	}{
-		"non_linear_iteration_w_input":         {input: module1, want: "O(input.foo) * O(input.bar)"},
-		"non_linear_iteration_w_rule":          {input: module2, want: "O(input.foo) * [ O(block_master_toleration) * O(input.bar) ]"},
-		"non_linear_iteration_w_multiple_rule": {input: module3, want: "O(input.foo) * [ [O(input.request.object.spec.containers) + O(input.request.object.spec.initContainers) + O(input.request.object.spec.specialContainers)] * O(input.bar) ]"},
-	}
-
-	for name, tc := range tests {
-		t.Run(name, func(t *testing.T) {
-			actual := CalculateRuntimeComplexity(tc.input)
-			if tc.want != actual.Result[name][0] {
-				t.Fatalf("Expected runtime complexity %v but got %v", tc.want, actual.Result[name][0])
-			}
-		})
-	}
+func getReport(compiler *ast.Compiler, query string) *Report {
+	calculator := New().WithCompiler(compiler).WithQuery(query)
+	report, _ := calculator.Calculate()
+	return report
 }
 
-func TestRuntimeComplexityReference(t *testing.T) {
+func getCompiler(module string) *ast.Compiler {
+	parsedModule := ast.MustParseModule(module)
+	modules := map[string]*ast.Module{"test": parsedModule}
 
-	module1 := ast.MustParseModule(`
-		package example
+	compiler := ast.NewCompiler()
+	compiler.Compile(modules)
 
-		ref_constant {
-			v := 1
-			data.foo.bar[v]
+	return compiler
+}
+
+func assertTrue(actual string, expected []string) bool {
+	for _, r := range expected {
+		if actual == r {
+			return true
 		}
-	`)
-
-	module2 := ast.MustParseModule(`
-			package example
-
-			ref_linear {
-				data.foo.bar[v]
-			}
-		`)
-
-	tests := map[string]struct {
-		input *ast.Module
-		want  string
-	}{
-		"ref_constant": {input: module1, want: "O(1)"},
-		"ref_linear":   {input: module2, want: "O(data.foo.bar)"},
 	}
-
-	for name, tc := range tests {
-		t.Run(name, func(t *testing.T) {
-			actual := CalculateRuntimeComplexity(tc.input)
-			if tc.want != actual.Result[name][0] {
-				t.Fatalf("Expected runtime complexity %v but got %v", tc.want, actual.Result[name][0])
-			}
-		})
-	}
-}
-
-func TestRuntimeComplexityBuiltin(t *testing.T) {
-
-	module := ast.MustParseModule(`
-			package example
-
-			builtin_upper = x {
-				x := upper("hello")
-			}
-		`)
-
-	tests := map[string]struct {
-		input *ast.Module
-		want  string
-	}{
-		"builtin_upper": {input: module, want: "O(1)"},
-	}
-
-	for name, tc := range tests {
-		t.Run(name, func(t *testing.T) {
-			actual := CalculateRuntimeComplexity(tc.input)
-			if tc.want != actual.Result[name][0] {
-				t.Fatalf("Expected runtime complexity %v but got %v", tc.want, actual.Result[name][0])
-			}
-		})
-	}
-}
-
-func TestRuntimeComplexityFunctionCall(t *testing.T) {
-
-	moduleFuncCallConstantRuntime := ast.MustParseModule(`
-				package example
-
-				block_master_toleration[reason] {
-					tolerations := get_tolerations(input.request)
-					toleration := tolerations[_]
-
-					toleration.operator == "Exists"
-					not toleration.key
-					reason := sprintf("Resource %v tolerates everything", [toleration.name])
-				}
-
-				get_tolerations(request) = result {
-					request.kind.kind == "Pod"
-					result := request.object.spec.tolerations
-				}
-			`)
-
-	moduleFuncCallAdv := ast.MustParseModule(`
-				package example
-
-				block_master_toleration_adv[reason] {
-					tolerations := get_tolerations(input.request)
-					toleration := tolerations[_]
-
-					toleration.operator == "Exists"
-					not toleration.key
-					reason := sprintf("Resource %v tolerates everything", [toleration.name])
-				}
-
-				get_tolerations(request) = result {
-					x := request.object.spec.tolerations[_]
-					x.kind.kind == "Pod"
-					result := request.object.spec.tolerations
-				}
-			`)
-
-	tests := map[string]struct {
-		input *ast.Module
-		want  string
-	}{
-		"block_master_toleration":     {input: moduleFuncCallConstantRuntime, want: "O(input.request.object.spec.tolerations)"},
-		"block_master_toleration_adv": {input: moduleFuncCallAdv, want: "O(input.request.object.spec.tolerations)  + [O(input.request.object.spec.tolerations)]"},
-	}
-
-	for name, tc := range tests {
-		t.Run(name, func(t *testing.T) {
-			actual := CalculateRuntimeComplexity(tc.input)
-			if tc.want != actual.Result[name][0] {
-				t.Fatalf("Expected runtime complexity %v but got %v", tc.want, actual.Result[name][0])
-			}
-		})
-	}
-}
-
-func TestRuntimeComplexityMissing(t *testing.T) {
-
-	moduleFuncCallLocalVarAsArg := ast.MustParseModule(`
-					package example
-
-					block_master_toleration_local[reason] {
-						some container
-						input_container[container]
-
-						tolerations := get_tolerations(container)
-						toleration := tolerations[_]
-
-						toleration.operator == "Exists"
-						not toleration.key
-
-						reason := sprintf("Resource %v tolerates everything", [toleration.name])
-					}
-
-					get_tolerations(request) = result {
-						x := request.object.spec.tolerations[_]
-						x.kind.kind == "Pod"
-						result := request.object.spec.tolerations
-					}
-
-					input_container[c] {
-						c := input.request.object.spec.initContainers[_]
-					}
-				`)
-
-	moduleFuncCallWithChaining := ast.MustParseModule(`
-				package example
-
-				block_master_toleration_chaining[reason] {
-					tolerations := get_tolerations(input.request)
-					toleration := tolerations[_]
-
-					toleration.operator == "Exists"
-					not toleration.key
-
-					dolerations := get_dolerations(toleration.foo)
-					doleration := dolerations[_]
-					not doleration.key
-
-					reason := sprintf("Resource %v tolerates everything", [toleration.name])
-				}
-
-				get_tolerations(request) = result {
-					x := request.object.spec.tolerations[_]
-					x.kind.kind == "Pod"
-					result := request.object.spec.tolerations
-				}
-
-				get_dolerations(request) = result {
-					request.kind.kind == "ReplicaSet"
-					result := request.object.spec.dolerations
-				}
-			`)
-
-	moduleCompre := ast.MustParseModule(`
-						package example
-
-						comprehension =  original_set {
-							original := ["test", "test", "big", "opa", "rego", "rego"]
-							original_set := {x | x := original[_]}
-						}
-					`)
-
-	moduleWalk := ast.MustParseModule(`
-						package example
-
-						example_data = {
-							"apiVersion": "v1"
-						}
-
-						walk_example {
-							some path, value
-							walk(example_data, [path, value])
-							path[count(path)-1] == "apiVersion"
-						}
-					`)
-
-	tests := map[string]struct {
-		input *ast.Module
-		want  string
-	}{
-		"missing_w_func_local_var_as_arg": {input: moduleFuncCallLocalVarAsArg, want: "block_master_toleration_local"},
-		"missing_w_function_chaining":     {input: moduleFuncCallWithChaining, want: "block_master_toleration_chaining"},
-		"missing_w_compre":                {input: moduleCompre, want: "comprehension"},
-		"missing_w_walk":                  {input: moduleWalk, want: "walk_example"},
-	}
-
-	for name, tc := range tests {
-		t.Run(name, func(t *testing.T) {
-			actual := CalculateRuntimeComplexity(tc.input)
-
-			if len(actual.Missing) == 0 {
-				t.Fatal("Expected missing complexity results but got none")
-			}
-
-			if _, ok := actual.Missing[tc.want]; !ok {
-				t.Fatalf("Expected missing complexity result for rule %v", tc.want)
-			}
-		})
-	}
+	return false
 }
