@@ -63,16 +63,16 @@ func (env *TypeEnv) Get(x interface{}) types.Type {
 		x.Foreach(func(k, v *Term) {
 			if IsConstant(k.Value) {
 				kjson, err := JSON(k.Value)
-				if err != nil {
-					panic("unreachable")
+				if err == nil {
+					tpe := env.Get(v)
+					static = append(static, types.NewStaticProperty(kjson, tpe))
+					return
 				}
-				tpe := env.Get(v)
-				static = append(static, types.NewStaticProperty(kjson, tpe))
-			} else {
-				typeK := env.Get(k.Value)
-				typeV := env.Get(v.Value)
-				dynamic = types.NewDynamicProperty(typeK, typeV)
 			}
+			// Can't handle it as a static property, fallback to dynamic
+			typeK := env.Get(k.Value)
+			typeV := env.Get(v.Value)
+			dynamic = types.NewDynamicProperty(typeK, typeV)
 		})
 
 		if len(static) == 0 && dynamic == nil {
