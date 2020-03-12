@@ -99,6 +99,18 @@ func TestCheckInference(t *testing.T) {
 			Var("x"): types.NewObject([]*types.StaticProperty{{Key: json.Number("1"), Value: types.N}}, nil),
 			Var("y"): types.N,
 		}},
+		{"object-object-key", `x = {{{}: 1}: 1}`, map[Var]types.Type{
+			Var("x"): types.NewObject(
+				nil,
+				types.NewDynamicProperty(
+					types.NewObject(
+						[]*types.StaticProperty{types.NewStaticProperty(map[string]interface{}{}, types.N)},
+						nil,
+					),
+					types.N,
+				),
+			),
+		}},
 		{"sets", `x = {1, 2}; y = {{"foo", 1}, x}`, map[Var]types.Type{
 			Var("x"): types.NewSet(types.N),
 			Var("y"): types.NewSet(
