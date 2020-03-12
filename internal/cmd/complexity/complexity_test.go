@@ -72,49 +72,49 @@ func TestRuntimeComplexityEqualityExpressionMix(t *testing.T) {
 
 	compiler := getCompiler(module)
 
-	expected_scalar_number := []string{`
+	expectedScalarNumber := []string{`
 Complexity Results for query "equal(data.example.scalar_number, true)":
 O(1)`}
 
-	expected_scalar_array := []string{`
+	expectedScalarArray := []string{`
 Complexity Results for query "equal(data.example.scalar_array, true)":
 O(1)`}
 
-	expected_base_ref_gnd := []string{`
+	expectedBaseRefGnd := []string{`
 Complexity Results for query "equal(data.example.base_ref_gnd, true)":
 O(1)`}
 
-	expected_base_ref_non_gnd_one := `
+	expectedBaseRefNonGndOne := `
 Complexity Results for query "equal(data.example.base_ref_non_gnd, true)":
 O(input.foo + [input.bar * input.baz])`
 
-	expected_base_ref_non_gnd_two := `
+	expectedBaseRefNonGndTwo := `
 Complexity Results for query "equal(data.example.base_ref_non_gnd, true)":
 O([input.bar * input.baz] + input.foo)`
 
-	expected_base_ref_non_gnd := []string{expected_base_ref_non_gnd_one, expected_base_ref_non_gnd_two}
+	expectedBaseRefNonGnd := []string{expectedBaseRefNonGndOne, expectedBaseRefNonGndTwo}
 
-	expected_virtual_ref_gnd_one := `
+	expectedVirtualRefGndOne := `
 Complexity Results for query "equal(data.example.virtual_ref_gnd, true)":
 O([input.foo * input.bar] + [input.foz * input.boz])`
 
-	expected_virtual_ref_gnd_two := `
+	expectedVirtualRefGndTwo := `
 Complexity Results for query "equal(data.example.virtual_ref_gnd, true)":
 O([input.foz * input.boz] + [input.foo * input.bar])`
 
-	expected_virtual_ref_gnd := []string{expected_virtual_ref_gnd_one, expected_virtual_ref_gnd_two}
+	expectedVirtualRefGnd := []string{expectedVirtualRefGndOne, expectedVirtualRefGndTwo}
 
-	expected_virtual_ref_non_gnd_one := `
+	expectedVirtualRefNonGndOne := `
 Complexity Results for query "equal(data.example.virtual_ref_non_gnd, true)":
 O([input.foo * input.bar] + [input.foz * input.boz])`
 
-	expected_virtual_ref_non_gnd_two := `
+	expectedVirtualRefNonGndTwo := `
 Complexity Results for query "equal(data.example.virtual_ref_non_gnd, true)":
 O([input.foz * input.boz] + [input.foo * input.bar])`
 
-	expected_virtual_ref_non_gnd := []string{expected_virtual_ref_non_gnd_one, expected_virtual_ref_non_gnd_two}
+	expectedVirtualRefNonGnd := []string{expectedVirtualRefNonGndOne, expectedVirtualRefNonGndTwo}
 
-	expected_virtual_ref_non_gnd_constant_size := []string{`
+	expectedVirtualRefNonGndConstantSize := []string{`
 Complexity Results for query "equal(data.example.virtual_ref_non_gnd_constant_size, true)":
 O([input.foo * input.bar])`}
 
@@ -123,13 +123,13 @@ O([input.foo * input.bar])`}
 		query    string
 		want     []string
 	}{
-		"eq_scalar":                            {compiler: compiler, query: "data.example.scalar_number == true", want: expected_scalar_number},
-		"eq_array":                             {compiler: compiler, query: "data.example.scalar_array == true", want: expected_scalar_array},
-		"eq_base_ref_gnd":                      {compiler: compiler, query: "data.example.base_ref_gnd == true", want: expected_base_ref_gnd},
-		"eq_base_ref_non_gnd":                  {compiler: compiler, query: "data.example.base_ref_non_gnd == true", want: expected_base_ref_non_gnd},
-		"eq_virtual_ref_gnd":                   {compiler: compiler, query: "data.example.virtual_ref_gnd == true", want: expected_virtual_ref_gnd},
-		"eq_virtual_ref_non_gnd":               {compiler: compiler, query: "data.example.virtual_ref_non_gnd == true", want: expected_virtual_ref_non_gnd},
-		"eq_virtual_ref_non_gnd_constant_size": {compiler: compiler, query: "data.example.virtual_ref_non_gnd_constant_size == true", want: expected_virtual_ref_non_gnd_constant_size},
+		"eq_scalar":                            {compiler: compiler, query: "data.example.scalar_number == true", want: expectedScalarNumber},
+		"eq_array":                             {compiler: compiler, query: "data.example.scalar_array == true", want: expectedScalarArray},
+		"eq_base_ref_gnd":                      {compiler: compiler, query: "data.example.base_ref_gnd == true", want: expectedBaseRefGnd},
+		"eq_base_ref_non_gnd":                  {compiler: compiler, query: "data.example.base_ref_non_gnd == true", want: expectedBaseRefNonGnd},
+		"eq_virtual_ref_gnd":                   {compiler: compiler, query: "data.example.virtual_ref_gnd == true", want: expectedVirtualRefGnd},
+		"eq_virtual_ref_non_gnd":               {compiler: compiler, query: "data.example.virtual_ref_non_gnd == true", want: expectedVirtualRefNonGnd},
+		"eq_virtual_ref_non_gnd_constant_size": {compiler: compiler, query: "data.example.virtual_ref_non_gnd_constant_size == true", want: expectedVirtualRefNonGndConstantSize},
 	}
 
 	for name, tc := range tests {
@@ -167,15 +167,15 @@ func TestRuntimeComplexityEqualityCompleteRules(t *testing.T) {
 
 	compiler := getCompiler(module)
 
-	expected_p := `
+	expectedP := `
 Complexity Results for query "equal(data.example.p, true)":
 O(1)`
 
-	expected_myname := `
+	expectedMyname := `
 Complexity Results for query "equal(data.example.myname, true)":
 O([[input.bar * input.bar] * input.bar])`
 
-	expected_deny := `
+	expectedDeny := `
 Complexity Results for query "equal(data.example.deny, true)":
 O([[input.bar * input.bar] * input.bar])`
 
@@ -184,9 +184,9 @@ O([[input.bar * input.bar] * input.bar])`
 		query    string
 		want     string
 	}{
-		"p":      {compiler: compiler, query: "data.example.p == true", want: expected_p},
-		"myname": {compiler: compiler, query: "data.example.myname == true", want: expected_myname},
-		"deny":   {compiler: compiler, query: "data.example.deny == true", want: expected_deny},
+		"p":      {compiler: compiler, query: "data.example.p == true", want: expectedP},
+		"myname": {compiler: compiler, query: "data.example.myname == true", want: expectedMyname},
+		"deny":   {compiler: compiler, query: "data.example.deny == true", want: expectedDeny},
 	}
 
 	for name, tc := range tests {
@@ -232,17 +232,17 @@ func TestRuntimeComplexityEqualityPartialRules(t *testing.T) {
 
 	compiler := getCompiler(module)
 
-	expected_foo_one := `
+	expectedFooOne := `
 Complexity Results for query "equal(data.example.foo, true)":
 O([data.foo * [[data.baz * input.request.object.spec.containers] + input.request.object.spec.init_containers]])`
 
-	expected_foo_two := `
+	expectedFooTwo := `
 Complexity Results for query "equal(data.example.foo, true)":
 O([data.foo * [input.request.object.spec.init_containers + [data.baz * input.request.object.spec.containers]]])`
 
-	expected_foo := []string{expected_foo_one, expected_foo_two}
+	expectedFoo := []string{expectedFooOne, expectedFooTwo}
 
-	expected_foo_multi := []string{`
+	expectedFooMulti := []string{`
 Complexity Results for query "equal(data.example.foo_multi, true)":
 O([data.foo * [input.request.object.spec.containers * input.request.object.spec.init_containers]])`}
 
@@ -251,8 +251,8 @@ O([data.foo * [input.request.object.spec.containers * input.request.object.spec.
 		query    string
 		want     []string
 	}{
-		"foo":       {compiler: compiler, query: "data.example.foo == true", want: expected_foo},
-		"foo_multi": {compiler: compiler, query: "data.example.foo_multi == true", want: expected_foo_multi},
+		"foo":       {compiler: compiler, query: "data.example.foo == true", want: expectedFoo},
+		"foo_multi": {compiler: compiler, query: "data.example.foo_multi == true", want: expectedFooMulti},
 	}
 
 	for name, tc := range tests {

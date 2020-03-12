@@ -24,7 +24,9 @@ const (
 
 type complexityCommandParams struct {
 	outputFormat *util.EnumFlag
-	query        string
+	dataPaths    repeatedStringFlag
+	ignore       []string
+	bundlePaths  repeatedStringFlag
 }
 
 func newComplexityCommandParams() complexityCommandParams {
@@ -33,19 +35,42 @@ func newComplexityCommandParams() complexityCommandParams {
 	}
 }
 
-func analyzeModules(args []string, params complexityCommandParams, w io.Writer) int {
+func analyzeModules(query string, params complexityCommandParams, w io.Writer) int {
+
 	modules := map[string]*ast.Module{}
 
-	f := loaderFilter{}
+	if len(params.dataPaths.v) > 0 {
+		f := loaderFilter{
+			Ignore: checkParams.ignore,
+		}
 
-	result, err := loader.NewFileLoader().Filtered(args, f.Apply)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return 1
+		result, err := loader.NewFileLoader().Filtered(params.dataPaths.v, f.Apply)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 1
+		}
+
+		if result != nil {
+			for _, m := range result.Modules {
+				modules[m.Name] = m.Parsed
+			}
+		}
 	}
 
-	for _, m := range result.Modules {
-		modules[m.Name] = m.Parsed
+	if params.bundlePaths.isFlagSet() {
+		for _, bundleDir := range params.bundlePaths.v {
+			result, err := loader.NewFileLoader().AsBundle(bundleDir)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				return 1
+			}
+
+			if result != nil {
+				for _, m := range result.Modules {
+					modules[m.Path] = m.Parsed
+				}
+			}
+		}
 	}
 
 	// compile
@@ -57,7 +82,7 @@ func analyzeModules(args []string, params complexityCommandParams, w io.Writer) 
 		return 1
 	}
 
-	complexityCalculator := complexity.New().WithCompiler(compiler).WithQuery(params.query)
+	complexityCalculator := complexity.New().WithCompiler(compiler).WithQuery(query)
 	report, err := complexityCalculator.Calculate()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -80,16 +105,47 @@ func init() {
 	params := newComplexityCommandParams()
 
 	complexityCommand := &cobra.Command{
-		Use:    "complexity",
-		Short:  "Compute runtime complexity of a Rego query. Command is under active development and currently hidden",
+		Use:   "complexity <query>",
+		Short: "Compute runtime complexity of a Rego query. Command is under active development and currently hidden",
+		Long: `Compute runtime complexity of a Rego query and print the result. Command is under active development and currently hidden.
+
+Examples
+--------
+
+To compute runtime of a simple query:
+
+	$ opa complexity '1 == 1'
+
+To compute runtime of a query defined in a Rego file:
+
+	$ opa complexity --data policy.rego 'data.authz.foo  == true'
+
+To compute runtime of a query defined in a Rego file inside a bundle:
+
+	$ opa complexity --bundle /some/path 'data.authz.foo  == true'
+
+Where /some/path contains:
+
+	foo/
+	  +-- policy.rego
+`,
 		Hidden: true,
 
+		PreRunE: func(Cmd *cobra.Command, args []string) error {
+			if len(args) != 1 {
+				return fmt.Errorf("specify exactly one query argument")
+			}
+			return nil
+		},
+
 		Run: func(cmd *cobra.Command, args []string) {
-			os.Exit(analyzeModules(args, params, os.Stdout))
+			os.Exit(analyzeModules(args[0], params, os.Stdout))
 		},
 	}
 
 	complexityCommand.Flags().VarP(params.outputFormat, "format", "f", "set output format")
-	complexityCommand.Flags().StringVarP(&params.query, "query", "q", "data", "set a Rego query to calculate runtime of a rule")
+	addDataFlag(complexityCommand.Flags(), &params.dataPaths)
+	addIgnoreFlag(complexityCommand.Flags(), &params.ignore)
+	addBundleFlag(complexityCommand.Flags(), &params.bundlePaths)
 	RootCommand.AddCommand(complexityCommand)
 }

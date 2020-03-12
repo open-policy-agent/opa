@@ -55,44 +55,44 @@ func (r *Report) String() string {
 // complexity  -> runtime complexity of query
 type analyzeQuery struct {
 	Query       ast.Body `json:"query"`
-	Expressions []*time  `json:"expressions,omitempty"`
+	Expressions []*Time  `json:"expressions,omitempty"`
 	Missing     []string `json:"missing,omitempty"`
 	relation    []bool
-	time        map[ast.Var]*time
+	time        map[ast.Var]*Time
 	size        map[ast.Var]*size
 	count       map[ast.Var]*count
 	binding     *ast.ValueMap
-	complexity  *time `json:"complexity"`
+	Complexity  *Time `json:"complexity,omitempty"`
 }
 
 func newAnalyzeQuery(query ast.Body) *analyzeQuery {
 	return &analyzeQuery{
 		Query:       query,
-		Expressions: make([]*time, len(query)),
+		Expressions: make([]*Time, len(query)),
 		Missing:     []string{},
 		relation:    make([]bool, len(query)),
-		time:        make(map[ast.Var]*time),
+		time:        make(map[ast.Var]*Time),
 		size:        make(map[ast.Var]*size),
 		count:       make(map[ast.Var]*count),
 		binding:     ast.NewValueMap(),
-		complexity:  nil,
+		Complexity:  nil,
 	}
 }
 
 // String returns the string representation of the runtime complexity
 func (q *analyzeQuery) String() string {
-	if q.complexity == nil {
+	if q.Complexity == nil {
 		return ""
 	}
-	return q.complexity.String()
+	return q.Complexity.String()
 }
 
 // runtime calculates the runtime complexity of a query
 // Time(Body) = Time(ExprN) * [Time(ExprN+1) * ...] when ExprN is a relation
 // Time(Body) = Time(ExprN) + [Time(ExprN+1) + ...] when ExprN is not a relation
-func runtime(q *analyzeQuery) *time {
+func runtime(q *analyzeQuery) *Time {
 	var isProduct bool
-	var result time
+	var result Time
 
 	for i := range q.Expressions {
 		exprTime := q.Expressions[i]
@@ -110,49 +110,49 @@ func runtime(q *analyzeQuery) *time {
 	return &result
 }
 
-func product(a, b time) time {
-	var result time
-	result.product = append(result.product, b) // add existing
-	result.product = append(result.product, a) // add new
+func product(a, b Time) Time {
+	var result Time
+	result.Product = append(result.Product, b) // add existing
+	result.Product = append(result.Product, a) // add new
 	return result
 }
 
-func sum(a, b time) time {
-	var result time
-	result.sum = append(result.sum, b) // add existing
-	result.sum = append(result.sum, a) // add new
+func sum(a, b Time) Time {
+	var result Time
+	result.Sum = append(result.Sum, b) // add existing
+	result.Sum = append(result.Sum, a) // add new
 	return result
 }
 
-// time holds results for time complexity
+// Time holds results for time complexity
 // time complexity can be:
 // 1) constant ie. O(1)
 // 2) reference ie. represented in terms of base ref
 // 3) sum of the time complexity of multiple rules/expressions
 // 4) product of the time complexity of multiple expressions
-type time struct {
-	r       ast.Ref
-	sum     []time
-	product []time
+type Time struct {
+	R       ast.Ref `json:"ref,omitempty"`
+	Sum     []Time  `json:"sum,omitempty"`
+	Product []Time  `json:"product,omitempty"`
 }
 
-func (t *time) String() string {
+func (t *Time) String() string {
 	var result string
 
-	if len(t.r) != 0 {
-		result = t.r.String()
-	} else if len(t.sum) != 0 {
+	if len(t.R) != 0 {
+		result = t.R.String()
+	} else if len(t.Sum) != 0 {
 		result = t.stringGeneratorSum()
-	} else if len(t.product) != 0 {
+	} else if len(t.Product) != 0 {
 		result = t.stringGeneratorProduct()
 	}
 	return result
 }
 
-func (t *time) stringGeneratorSum() string {
+func (t *Time) stringGeneratorSum() string {
 
 	groupResult := []string{}
-	for _, group := range t.sum {
+	for _, group := range t.Sum {
 		temp := group.String()
 
 		if temp == "" {
@@ -164,10 +164,10 @@ func (t *time) stringGeneratorSum() string {
 	return strings.Join(groupResult, " + ")
 }
 
-func (t *time) stringGeneratorProduct() string {
+func (t *Time) stringGeneratorProduct() string {
 
 	groupResult := []string{}
-	for _, group := range t.product {
+	for _, group := range t.Product {
 		temp := group.String()
 
 		if temp == "" {
@@ -200,53 +200,53 @@ func (t *time) stringGeneratorProduct() string {
 //
 // If t and other are both collections, check that every object in other is
 // contained in one of the time objects in t.
-func (t *time) contains(other *time) bool {
+func (t *Time) contains(other *Time) bool {
 
 	if other.isEmpty() {
 		return true
 	}
 
-	if len(t.r) != 0 {
-		if len(other.r) != 0 {
-			return t.r.Equal(other.r)
-		} else if len(other.sum) != 0 {
-			return containsComposite(t, other.sum)
-		} else if len(other.product) != 0 {
-			return containsComposite(t, other.product)
+	if len(t.R) != 0 {
+		if len(other.R) != 0 {
+			return t.R.Equal(other.R)
+		} else if len(other.Sum) != 0 {
+			return containsComposite(t, other.Sum)
+		} else if len(other.Product) != 0 {
+			return containsComposite(t, other.Product)
 		}
-	} else if len(t.sum) != 0 {
-		if len(other.r) != 0 {
-			for _, group := range t.sum {
+	} else if len(t.Sum) != 0 {
+		if len(other.R) != 0 {
+			for _, group := range t.Sum {
 				if group.contains(other) {
 					return true
 				}
 			}
-		} else if len(other.sum) != 0 {
-			return containsComposite(t, other.sum)
-		} else if len(other.product) != 0 {
-			return containsComposite(t, other.product)
+		} else if len(other.Sum) != 0 {
+			return containsComposite(t, other.Sum)
+		} else if len(other.Product) != 0 {
+			return containsComposite(t, other.Product)
 		}
-	} else if len(t.product) != 0 {
-		if len(other.r) != 0 {
-			for _, group := range t.product {
+	} else if len(t.Product) != 0 {
+		if len(other.R) != 0 {
+			for _, group := range t.Product {
 				if group.contains(other) {
 					return true
 				}
 			}
-		} else if len(other.sum) != 0 {
-			return containsComposite(t, other.sum)
-		} else if len(other.product) != 0 {
-			return containsComposite(t, other.product)
+		} else if len(other.Sum) != 0 {
+			return containsComposite(t, other.Sum)
+		} else if len(other.Product) != 0 {
+			return containsComposite(t, other.Product)
 		}
 	}
 	return false
 }
 
-func (t *time) isEmpty() bool {
-	return len(t.r) == 0 && len(t.sum) == 0 && len(t.product) == 0
+func (t *Time) isEmpty() bool {
+	return len(t.R) == 0 && len(t.Sum) == 0 && len(t.Product) == 0
 }
 
-func containsComposite(a *time, b []time) bool {
+func containsComposite(a *Time, b []Time) bool {
 	for _, t := range b {
 		if !a.contains(&t) {
 			return false
@@ -290,18 +290,18 @@ type size struct {
 	product []size
 }
 
-func (s *size) sizeToTime() time {
-	var result time
+func (s *size) sizeToTime() Time {
+	var result Time
 
 	if len(s.r) != 0 {
-		result.r = s.r
+		result.R = s.r
 	} else if len(s.sum) != 0 {
 		for _, ss := range s.sum {
-			result.sum = append(result.sum, ss.sizeToTime())
+			result.Sum = append(result.Sum, ss.sizeToTime())
 		}
 	} else if len(s.product) != 0 {
 		for _, sp := range s.product {
-			result.product = append(result.product, sp.sizeToTime())
+			result.Product = append(result.Product, sp.sizeToTime())
 		}
 	}
 	return result
@@ -371,7 +371,7 @@ func (c *Calculator) analyzeQuery(body ast.Body) (*analyzeQuery, error) {
 	}
 
 	// calculate query time complexity
-	analyzeQueryResult.complexity = runtime(analyzeQueryResult)
+	analyzeQueryResult.Complexity = runtime(analyzeQueryResult)
 
 	return analyzeQueryResult, nil
 }
@@ -422,7 +422,7 @@ func (c *Calculator) analyzeExpr(a *analyzeQuery, expr *ast.Expr, idx int) error
 func (c *Calculator) analyzeExprEqVarVirtualRef(v ast.Var, r ast.Ref, a *analyzeQuery, idx int) error {
 
 	rules := c.compiler.GetRulesDynamic(r)
-	timeComplexitySum := []time{}
+	timeComplexitySum := []Time{}
 	sizeComplexitySum := []size{}
 
 	for _, rule := range rules {
@@ -432,7 +432,7 @@ func (c *Calculator) analyzeExprEqVarVirtualRef(v ast.Var, r ast.Ref, a *analyze
 		}
 
 		// time complexity for rule
-		if queryResult.complexity != nil {
+		if queryResult.Complexity != nil {
 
 			// check if the new time result is redundant to the overall time
 			// complexity of the expression
@@ -442,14 +442,14 @@ func (c *Calculator) analyzeExprEqVarVirtualRef(v ast.Var, r ast.Ref, a *analyze
 			//									 = O(input.foo)
 			contains := false
 			for _, t := range timeComplexitySum {
-				if ctn := t.contains(queryResult.complexity); ctn {
+				if ctn := t.contains(queryResult.Complexity); ctn {
 					contains = true
 					break
 				}
 			}
 
 			if !contains {
-				timeComplexitySum = append(timeComplexitySum, *queryResult.complexity)
+				timeComplexitySum = append(timeComplexitySum, *queryResult.Complexity)
 			}
 		}
 
@@ -461,7 +461,7 @@ func (c *Calculator) analyzeExprEqVarVirtualRef(v ast.Var, r ast.Ref, a *analyze
 	}
 
 	// expression time complexity
-	a.Expressions[idx] = &time{sum: timeComplexitySum}
+	a.Expressions[idx] = &Time{Sum: timeComplexitySum}
 
 	relation := false
 	ast.WalkVars(r, func(x ast.Var) bool {
@@ -485,7 +485,7 @@ func (c *Calculator) analyzeExprEqVarVirtualRef(v ast.Var, r ast.Ref, a *analyze
 			//				overall time result  = O(input.foo * input.bar) + O(input.foo)
 			//									 = O(input.foo * input.bar)
 			if !contains {
-				a.Expressions[idx].sum = append(a.Expressions[idx].sum, sTot)
+				a.Expressions[idx].Sum = append(a.Expressions[idx].Sum, sTot)
 			}
 		}
 
@@ -510,7 +510,7 @@ func (c *Calculator) analyzeExprEqVarBaseRef(v ast.Var, r ast.Ref, a *analyzeQue
 	})
 
 	if relation {
-		a.Expressions[idx] = &time{r: r.GroundPrefix()}
+		a.Expressions[idx] = &Time{R: r.GroundPrefix()}
 		a.relation[idx] = true
 	}
 
