@@ -46,23 +46,23 @@ func (r *Report) String() string {
 // Expressions -> time complexity of each expression in the rule body
 // Missing     -> unhandled expression
 // relation    -> whether the expression is a relation or not
-//			      An expression is a relation if the reference it contains
-// 			      has first occurrence of a variable. eg. p[x]
+//                An expression is a relation if the reference it contains
+//                has first occurrence of a variable. eg. p[x]
 // time        -> time complexity of each variable in query
 // count       -> count complexity of each variable in query
 // size        -> size complexity of each variable in query
-// binding     -> map of variable to the value it refers to
+// binding     -> map of variable to the value assigned to it
 // complexity  -> runtime complexity of query
 type analyzeQuery struct {
 	Query       ast.Body `json:"query"`
 	Expressions []*Time  `json:"expressions,omitempty"`
 	Missing     []string `json:"missing,omitempty"`
+	Complexity  *Time    `json:"complexity,omitempty"`
 	relation    []bool
 	time        map[ast.Var]*Time
 	size        map[ast.Var]*size
 	count       map[ast.Var]*count
 	binding     *ast.ValueMap
-	Complexity  *Time `json:"complexity,omitempty"`
 }
 
 func newAnalyzeQuery(query ast.Body) *analyzeQuery {
@@ -402,9 +402,11 @@ func (c *Calculator) analyzeExpr(a *analyzeQuery, expr *ast.Expr, idx int) error
 					} else {
 						c.analyzeExprEqVarBaseRef(x, y, a, idx)
 					}
-					return nil
-				case *ast.ArrayComprehension, *ast.ObjectComprehension, *ast.SetComprehension:
-					//TODO
+				case *ast.ArrayComprehension, *ast.SetComprehension, *ast.ObjectComprehension:
+					err := c.analyzeExprEqVarComprehension(x, y, a, idx)
+					if err != nil {
+						return err
+					}
 				default:
 					a.Missing = append(a.Missing, expr.String())
 					return nil
@@ -518,6 +520,53 @@ func (c *Calculator) analyzeExprEqVarBaseRef(v ast.Var, r ast.Ref, a *analyzeQue
 	bindVarBaseRef(v, r, a, relation)
 }
 
+func (c *Calculator) analyzeExprEqVarComprehension(v ast.Var, val ast.Value, a *analyzeQuery, idx int) error {
+
+	var head *ast.Term
+	var body ast.Body
+	var sizeHead size
+
+	switch x := val.(type) {
+	case *ast.ArrayComprehension:
+		head = x.Term
+		body = x.Body
+
+	case *ast.SetComprehension:
+		head = x.Term
+		body = x.Body
+
+	case *ast.ObjectComprehension:
+		head = x.Key
+		body = x.Body
+	}
+
+	// calculate time and size complexity
+	queryResult, err := getTimeComplexityRuleBody(body, c.compiler)
+	if err != nil {
+		return err
+	}
+
+	a.Expressions[idx] = queryResult.Complexity
+
+	if head != nil {
+		var countHead count
+		seen := make(map[ast.Var]struct{})
+		for av := range head.Vars() {
+			countVar := getCountComplexityPartialRule(av, queryResult, seen)
+			if countVar != nil {
+				countHead.product = append(countHead.product, *countVar)
+			}
+		}
+
+		// convert count complexity to size
+		sizeHead = countHead.countToSize()
+	}
+
+	// bind var on the lhs of the equality expression
+	bindVarComprehension(v, sizeHead, a)
+	return nil
+}
+
 // helper functions
 
 func bindVarVirtualRef(v ast.Var, bindVal ast.Ref, complexityVal []size, a *analyzeQuery) {
@@ -528,8 +577,17 @@ func bindVarVirtualRef(v ast.Var, bindVal ast.Ref, complexityVal []size, a *anal
 }
 
 func bindVarBaseRef(v ast.Var, bindVal ast.Ref, a *analyzeQuery, isRelation bool) {
-	addVarBinding(v, bindVal.GroundPrefix(), a)
-	setComplexityVarBaseRef(v, bindVal.GroundPrefix(), a, isRelation)
+	if a.binding.Get(v) == nil {
+		addVarBinding(v, bindVal.GroundPrefix(), a)
+		setComplexityVarBaseRef(v, bindVal.GroundPrefix(), a, isRelation)
+	}
+}
+
+func bindVarComprehension(v ast.Var, complexityVal size, a *analyzeQuery) {
+	if a.binding.Get(v) == nil {
+		addVarBinding(v, ast.StringTerm("Comprehension").Value, a)
+		setComplexityVarComprehension(v, &complexityVal, a)
+	}
 }
 
 func addVarBinding(k, v ast.Value, a *analyzeQuery) {
@@ -562,6 +620,18 @@ func setComplexityVarBaseRef(v ast.Var, r ast.Ref, a *analyzeQuery, isRelation b
 
 	// size complexity
 	a.size[v] = &size{r: r}
+}
+
+func setComplexityVarComprehension(v ast.Var, s *size, a *analyzeQuery) {
+
+	// time complexity
+	a.time[v] = nil
+
+	// count complexity
+	a.count[v] = nil
+
+	// size complexity
+	a.size[v] = s
 }
 
 func getSizeComplexityRule(r *ast.Rule, a *analyzeQuery) *size {
@@ -657,6 +727,9 @@ func getCountComplexityPartialRule(v ast.Var, a *analyzeQuery, seen map[ast.Var]
 func getTimeComplexityRuleBody(b ast.Body, c *ast.Compiler) (*analyzeQuery, error) {
 	complexityCalculator := New().WithCompiler(c).WithParsedQuery(b)
 	report, err := complexityCalculator.Calculate()
+	if err != nil {
+		return nil, err
+	}
 	return report.Complexity, err
 }
 

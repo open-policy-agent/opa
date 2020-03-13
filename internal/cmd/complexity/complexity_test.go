@@ -5,6 +5,7 @@
 package complexity
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -142,7 +143,7 @@ O([input.foo * input.bar])`}
 	}
 }
 
-func TestRuntimeComplexityEqualityCompleteRules(t *testing.T) {
+func TestRuntimeComplexityEqualityCompleteRule(t *testing.T) {
 
 	module := `
 		package example
@@ -199,7 +200,7 @@ O([[input.bar * input.bar] * input.bar])`
 	}
 }
 
-func TestRuntimeComplexityEqualityPartialRules(t *testing.T) {
+func TestRuntimeComplexityEqualityPartialRule(t *testing.T) {
 
 	module := `
 		package example
@@ -265,9 +266,95 @@ O([data.foo * [input.request.object.spec.containers * input.request.object.spec.
 	}
 }
 
+func TestRuntimeComplexityEqualityComprehension(t *testing.T) {
+
+	module := `
+		package example
+
+		deny[u] {
+			input.request.foo == myname
+			u := sprintf("something here %v", [myname])
+		}
+
+		myname = 7 {
+			x := a[_]
+			y := a[_]
+			z := a[_]
+		}
+
+		a = d {
+			d := [x | x := input.foo[_]; y := input.bar[_]]
+		}
+
+		s = e {
+			e := {x | x := non_linear_iteration[_]}
+		}
+
+		non_linear_iteration = u {
+			u := input.foo[_]
+			v := input.bar[_]
+		}
+
+		o := {app.name: hostnames |
+				some i
+				app := input.apps[i]
+				hostnames := [hostname |
+							name := input.apps[i].servers[_]
+							s := input.sites[_].servers[_]
+							s.name == name
+							hostname := s.hostname]
+		}`
+
+	compiler := getCompiler(module)
+
+	expectedArrayComp := `
+Complexity Results for query "equal(data.example.a, true)":
+O([input.foo * input.bar])`
+
+	expectedMyname := `
+Complexity Results for query "equal(data.example.myname, true)":
+O([[[input.foo * input.bar] * [input.foo * input.bar]] * [input.foo * input.bar]])`
+
+	expectedDeny := `
+Complexity Results for query "equal(data.example.deny, true)":
+O([[[input.foo * input.bar] * [input.foo * input.bar]] * [input.foo * input.bar]])`
+
+	expectedSetComp := `
+Complexity Results for query "equal(data.example.s, true)":
+O([input.foo * input.bar])`
+
+	expectedObjectComp := `
+Complexity Results for query "equal(data.example.o, true)":
+O([input.apps * [input.apps * input.sites]])`
+
+	tests := map[string]struct {
+		compiler *ast.Compiler
+		query    string
+		want     string
+	}{
+		"a":      {compiler: compiler, query: "data.example.a == true", want: expectedArrayComp},
+		"myname": {compiler: compiler, query: "data.example.myname == true", want: expectedMyname},
+		"deny":   {compiler: compiler, query: "data.example.deny == true", want: expectedDeny},
+		"s":      {compiler: compiler, query: "data.example.s == true", want: expectedSetComp},
+		"o":      {compiler: compiler, query: "data.example.o == true", want: expectedObjectComp},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			report := getReport(tc.compiler, tc.query)
+			if report.String() != tc.want {
+				t.Fatalf("Expected %v but got %v", tc.want, report.String())
+			}
+		})
+	}
+}
+
 func getReport(compiler *ast.Compiler, query string) *Report {
 	calculator := New().WithCompiler(compiler).WithQuery(query)
-	report, _ := calculator.Calculate()
+	report, err := calculator.Calculate()
+	if err != nil {
+		fmt.Println(err)
+	}
 	return report
 }
 
