@@ -80,7 +80,19 @@ export function getAllGroupModules(groups, groupName) {
   return out.reverse() // Correct the order
 }
 
-// Returns an object of the form {module: string, package: string[, input: value][, query: string][, included: map[filename]string}, throws an error with a human-readable message if the specified or any included groups don't have modules, the group's package cannot be found, or if the input cannot be parsed.
+// Returns an object of the form
+//
+// {
+//    module: string,
+//    package: string
+//    input: value
+//    query: string,
+//    included: map[filename]string
+// }
+//
+// Throws an error with a human-readable message if the specified or any
+// included groups don't have modules, the group's package cannot be found, or
+// if the input cannot be parsed.
 export function getGroupData(groups, groupName) {
   const queryBlock = getGroupField(groups, groupName, BLOCK_TYPES.QUERY)
   const inputBlock = getGroupField(groups, groupName, BLOCK_TYPES.INPUT)

@@ -247,18 +247,7 @@ describe('getGroupData', () => {
       'a': {module: {get: () => 'package foo\na'}},
       'a/b/c': {module: {get: () => 'c'}, output: {tags: ['include(d)']}},
       'd': {module: {get: () => 'd'}}
-    }, 'a/b/c').included.d).to.equal('d')
-  })
-
-  it('doesn\'t mutate groups', () => {
-    const groups = {
-      'a': {input: {get: () => '{}'}, module: {get: () => 'package foo\na'}}, // Will error if gets from this parent
-      'a/b/c': {query: {get: () => 'foobar'}, module: {get: () => 'c'}}
-    }
-    const arg = Object.fromEntries(Object.entries(groups).map(([key, value]) => [key, Object.assign({}, value)])) // depth 2 object clone
-
-    getGroupData(arg, 'a/b/c/d')
-    expect(arg).to.deep.equal(groups)
+    }, 'a/b/c').included["d.rego"]).to.equal('d')
   })
 })
 
