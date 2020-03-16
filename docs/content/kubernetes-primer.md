@@ -83,6 +83,7 @@ The admission review request to sent to OPA would look like this:
 When the `deny` rule is evaluated with the input above, the answer is:
 
 ```live:container_images:query:hidden
+```
 
 ```live:container_images:output
 ```
