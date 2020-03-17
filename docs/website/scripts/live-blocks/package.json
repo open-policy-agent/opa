@@ -47,6 +47,7 @@
     "sinon": "^7.4.1",
     "sort-package-json": "^1.22.1",
     "serialize-javascript": ">=2.1.1",
-    "acorn": ">=6.4.1"
+    "acorn": ">=6.4.1",
+    "minimist": ">=1.2.2"
   }
 }
