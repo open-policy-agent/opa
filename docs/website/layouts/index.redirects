@@ -3,27 +3,27 @@
 {{- $docRedirects := site.Data.redirects }}
 
 # Redirect to latest doc version by default
-/docs     /docs/latest
+/docs     /docs/latest      301!
 
 # v0.14.0 re-org redirects
 # TODO: Remove at some point in the future when its more ok to break old links en-mass
-/docs/latest/get-started                            /docs/latest/
-/docs/latest/how-does-opa-work/                     /docs/latest/#how-does-opa-work
-/docs/latest/how-do-i-write-policies/               /docs/latest/policy-language/
-/docs/latest/how-do-i-test-policies/                /docs/latest/policy-testing/
-/docs/latest/language-reference/                    /docs/latest/policy-reference/
-/docs/latest/language-cheatsheet/                   /docs/latest/edge/policy-cheatsheet/
-/docs/latest/bundles/                               /docs/latest/management/#bundles
-/docs/latest/status/                                /docs/latest/management/#status
-/docs/latest/decision-logs/                         /docs/latest/management/#decision-logs
-/docs/latest/discovery/                             /docs/latest/management/#discovery
-/docs/latest/kubernetes-admission-control/          /docs/latest/kubernetes-tutorial/
+/docs/latest/get-started                            /docs/latest/                           301!
+/docs/latest/how-does-opa-work/                     /docs/latest/#how-does-opa-work         301!
+/docs/latest/how-do-i-write-policies/               /docs/latest/policy-language/           301!
+/docs/latest/how-do-i-test-policies/                /docs/latest/policy-testing/            301!
+/docs/latest/language-reference/                    /docs/latest/policy-reference/          301!
+/docs/latest/language-cheatsheet/                   /docs/latest/edge/policy-cheatsheet/    301!
+/docs/latest/bundles/                               /docs/latest/management/#bundles        301!
+/docs/latest/status/                                /docs/latest/management/#status         301!
+/docs/latest/decision-logs/                         /docs/latest/management/#decision-logs  301!
+/docs/latest/discovery/                             /docs/latest/management/#discovery      301!
+/docs/latest/kubernetes-admission-control/          /docs/latest/kubernetes-tutorial/       301!
 
 {{- range $docRedirects }}
-/docs/{{ . }}     /docs/latest/{{ . }}
+/docs/{{ . }}     /docs/latest/{{ . }}      301!
 
 # Legacy git book redirects
-/docs/{{ . }}.html /docs/latest/{{ . }}
+/docs/{{ . }}.html /docs/latest/{{ . }}     301!
 {{- end }}
 
 # Download URLs
