@@ -1,6 +1,16 @@
 # Adopters
 
-This is a list of production adopters of OPA (in alphabetical order):
+<!-- Hello! If you are using OPA and contributing to this file, thank you! -->
+<!-- Please keep lines shorter than 80 characters (or so.) Links can go long. -->
+
+This is a list of organizations that have spoken publicly about their adoption or
+production users that have added themselves (in alphabetical order):
+
+* [Atlassian](https://www.atlassian.com/) uses OPA in a heterogeneous cloud
+  environment for microservice API authorization. OPA is deployed per-host and
+  inside of their Slauth (AAA) system. Policies are tagged and categorized
+  (e.g., platform, service, etc.) and distributed via S3. Custom log infrastructure
+  consumes decision logs. For more information see this talk from [OPA Summit 2019](https://www.youtube.com/watch?v=nvRTO8xjmrg).
 
 * [bol.com](https://www.bol.com/) uses OPA for a mix of
   validating and mutating admission control use cases in their
@@ -8,6 +18,16 @@ This is a list of production adopters of OPA (in alphabetical order):
   load balancer properties, and tolerations based on contextual
   information stored on namespaces. OPA is deployed on multiple
   clusters with ~100 nodes and ~300 namespaces total.
+
+* [BNY Mellon](https://www.bnymellon.com/) uses OPA as a sidecar to enforce access
+  control over applications based on external context coming from AD and other
+  internal services. For more information see this talk from [QCon 2019](https://www.infoq.com/presentations/opa-spring-boot-hocon/).
+
+* [Capital One](https://www.capitalone.com/) uses OPA to enforce a variety of
+  admission control policies across their Kubernetes clusters including image
+  registry whitelisting, label requirements, resource requirements, container
+  privileges, etc. For more information see this talk from [KubeCon US 2018](https://www.youtube.com/watch?v=CDDsjMOtJ-c&t=6m35s)
+  and this talk from [OPA Summit 2019](https://www.youtube.com/watch?v=vkvWZuqSk5M).
 
 * [Chef](https://www.chef.io/) integrates OPA to implement IAM-style
   access control and enumerate user->resource permissions in Chef
@@ -26,6 +46,11 @@ This is a list of production adopters of OPA (in alphabetical order):
 * [Fugue](https://fugue.co) is a cloud security SaaS that uses OPA to
   classify compliance violations and security risks in AWS and Azure
   accounts and generate compliance reports and notifications.
+
+* [Goldman Sachs](https://www.goldmansachs.com/) uses OPA to enforce admission control
+  policies in their multi-tenant Kubernetes clusters as well as for _provisioning_
+  RBAC, PV, and Quota resources that are central to the security and operation of
+  these clusters. For more information see this talk from [KubeCon US 2019](https://www.youtube.com/watch?v=lYHr_UaHsYQ).
 
 * [Intuit](https://www.intuit.com/company/) uses OPA as a validating
   and mutating admission controller to implement various security,
@@ -48,10 +73,15 @@ This is a list of production adopters of OPA (in alphabetical order):
   description of how Netflix has architected access control with OPA
   check out [this talk from KubeCon Austin 2017](https://www.youtube.com/watch?v=R6tUNpRpdnY).
 
+* [Pinterest](https://www.pinterest.com/) uses OPA to solve multiple policy-related use cases
+  including access control in Kafka, Envoy, and Jenkins! At peak, their Kafka-OPA
+  integration handles ~400K QPS without caching. With caching the system
+  handles ~8.5M QPS. For more information see this talk from [OPA Summit 2019](https://www.youtube.com/watch?v=LhgxFICWsA8).
+
 * [Plex Systems](https://www.plex.com) uses OPA to enforce policy throughout
   their entire release process; from local development to continuous production
   audits. The CI/CD pipelines at Plex leverage [conftest](https://github.com/instrumenta/conftest),
-  a policy enforcement tool that relies on OPA, to automatically reject changes that do not adhere 
+  a policy enforcement tool that relies on OPA, to automatically reject changes that do not adhere
   to defined policies. Plex also uses
   [Gatekeeper](https://github.com/open-policy-agent/gatekeeper), a Kubernetes policy controller, as
   a means to enforce policies within their Kubernetes clusters. The general-purpose nature of OPA
@@ -74,6 +104,12 @@ This is a list of production adopters of OPA (in alphabetical order):
   because the clusters are air-gapped. For more information on how
   Tremolo Security uses OPA see [this blog post](https://www.tremolosecurity.com/beyond-rbac-in-openshift-open-policy-agent/).
 
+* [Tripadvisor](http://tripadvisor.com/) uses OPA to enforce
+  admission control policies in Kubernetes. In the process of rolling out OPA,
+  they created an integration testing framework that verifies clusters are accepting
+  and rejecting the right objects when OPA is deployed. For more information see
+  this talk from [OPA Summit 2019](https://www.youtube.com/watch?v=X09c1eXvCFM).
+
 * [Very Good Security (VGS)](https://www.vgs.io/) integrates OPA to
   implement a fine-grained permission system and enumerate
   user->resource permissions in their product. The backend is
@@ -84,6 +120,10 @@ This is a list of production adopters of OPA (in alphabetical order):
   have propagated. For more details on the VGS use case see these blog posts:
   [part 1](https://blog.verygoodsecurity.com/posts/building-a-fine-grained-permission-system-in-a-distributed-environment),
   [part 2](https://blog.verygoodsecurity.com/posts/building-a-fine-grained-permissions-system-in-a-distributed-environment).
+
+* [Yelp](https://www.yelp.com/) use OPA and Envoy to enforce authorization policies
+  across a fleet of microservices that evolved out of a monolithic architecture.
+  For more information see this talk from [KubeCon US 2019](https://www.youtube.com/watch?v=Z6aN3Smt-9M).
 
 In addition, there are several production adopters that prefer to
 remain anonymous.
@@ -118,10 +158,8 @@ testing include:
 
 * [Cisco](https://www.cisco.com/)
 * [Nefeli Networks](https://nefeli.io)
-* [Pinterest](https://www.pinterest.com/)
 * [SolarWinds](https://www.solarwinds.com/) via [Lee Calcote](https://github.com/leecalcote)
 * [State Street Corporation](http://www.statestreet.com/)
-* [Yelp](https://www.yelp.com/)
 
 If you have adopted OPA and would like to be included in this list,
 feel free to submit a PR.
