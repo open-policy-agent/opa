@@ -700,9 +700,9 @@ For example:
         {"id": "net4", "public": true}
     ],
     "ports": [
-        {"id": "p1", "network": "n1"},
-        {"id": "p2", "network": "n3"},
-        {"id": "p3", "network": "n2"}
+        {"id": "p1", "network": "net1"},
+        {"id": "p2", "network": "net3"},
+        {"id": "p3", "network": "net2"}
     ]
 }
 ```
@@ -826,7 +826,7 @@ opa run example.rego repl.input:input.json
 ```
 
 ```ruby
-> data.example.public_servers[s]
+> data.example.public_server[s]
 ```
 
 > 💡 Prefixing file paths with a reference controls where file is loaded under
