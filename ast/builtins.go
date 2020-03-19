@@ -200,6 +200,7 @@ var DefaultBuiltins = [...]*Builtin{
 	NetCIDROverlap,
 	NetCIDRIntersects,
 	NetCIDRContains,
+	NetCIDRContainsMatches,
 	NetCIDRExpand,
 
 	// Glob
@@ -1744,6 +1745,34 @@ var NetCIDRContains = &Builtin{
 		types.B,
 	),
 }
+
+// NetCIDRContainsMatches checks if collections of cidrs or ips are contained within another collection of cidrs and returns matches.
+var NetCIDRContainsMatches = &Builtin{
+	Name: "net.cidr_contains_matches",
+	Decl: types.NewFunction(
+		types.Args(netCidrContainsMatchesOperandType, netCidrContainsMatchesOperandType),
+		types.NewSet(types.NewArray([]types.Type{types.A, types.A}, nil)),
+	),
+}
+
+var netCidrContainsMatchesOperandType = types.NewAny(
+	types.S,
+	types.NewArray(nil, types.NewAny(
+		types.S,
+		types.NewArray(nil, types.A),
+	)),
+	types.NewSet(types.NewAny(
+		types.S,
+		types.NewArray(nil, types.A),
+	)),
+	types.NewObject(nil, types.NewDynamicProperty(
+		types.S,
+		types.NewAny(
+			types.S,
+			types.NewArray(nil, types.A),
+		),
+	)),
+)
 
 /**
  * Deprecated built-ins.

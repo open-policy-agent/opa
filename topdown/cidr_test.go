@@ -75,6 +75,66 @@ func TestNetCIDRContains(t *testing.T) {
 	}
 }
 
+func TestNetCIDRContainsMatches(t *testing.T) {
+	tests := []struct {
+		note     string
+		rules    []string
+		expected interface{}
+	}{
+		{
+			note:     "strings",
+			rules:    []string{`p = x { x := net.cidr_contains_matches("1.1.1.0/24", "1.1.1.1") }`},
+			expected: `[["1.1.1.0/24", "1.1.1.1"]]`,
+		},
+		{
+			note:     "arrays",
+			rules:    []string{`p = x { x := net.cidr_contains_matches(["1.1.2.0/24", "1.1.1.0/24"], ["1.1.1.1", "1.1.2.1"]) }`},
+			expected: `[[0,1], [1,0]]`,
+		},
+		{
+			note:     "arrays of tuples",
+			rules:    []string{`p = x { x := net.cidr_contains_matches([["1.1.2.0/24", 1], "1.1.1.0/24"], ["1.1.1.1", "1.1.2.1"]) }`},
+			expected: `[[0,1], [1,0]]`,
+		},
+		{
+			note:     "bad array",
+			rules:    []string{`p = x { x := net.cidr_contains_matches(["1.1.2.0/24", "1.1.1.0/24"], ["1.1.1.1", data.a[0]]) }`},
+			expected: &Error{Code: BuiltinErr, Message: "net.cidr_contains_matches: operand 2: element must be string or non-empty array"},
+		},
+		{
+			note:     "sets of strings",
+			rules:    []string{`p = x { x := net.cidr_contains_matches({"1.1.2.0/24", "1.1.1.0/24"}, {"1.1.1.1", "1.1.2.1"}) }`},
+			expected: `[["1.1.1.0/24", "1.1.1.1"], ["1.1.2.0/24", "1.1.2.1"]]`,
+		},
+		{
+			note:     "sets of tuples",
+			rules:    []string{`p = x { x := net.cidr_contains_matches({["1.1.2.0/24", "foo"], ["1.1.1.0/24", "bar"]}, {["1.1.1.1", "baz"], ["1.1.2.1", "qux"]}) }`},
+			expected: `[[["1.1.1.0/24", "bar"], ["1.1.1.1", "baz"]], [["1.1.2.0/24", "foo"], ["1.1.2.1", "qux"]]]`,
+		},
+		{
+			note:     "bad set",
+			rules:    []string{`p = x { x := net.cidr_contains_matches({["1.1.2.0/24", "foo"], ["1.1.1.0/24", "bar"]}, {data.a[0], ["1.1.2.1", "qux"]}) }`},
+			expected: &Error{Code: BuiltinErr, Message: `net.cidr_contains_matches: operand 2: element must be string or non-empty array`},
+		},
+		{
+			note:     "bad set tuple element",
+			rules:    []string{`p = x { x := net.cidr_contains_matches({["1.1.2.0/24", "foo"], ["1.1.1.0/24", "bar"]}, {[], ["1.1.2.1", "qux"]}) }`},
+			expected: &Error{Code: BuiltinErr, Message: `net.cidr_contains_matches: operand 2: element must be string or non-empty array`},
+		},
+		{
+			note:     "objects",
+			rules:    []string{`p = x { x := net.cidr_contains_matches({"k1": "1.1.1.1/24", "k2": ["1.1.1.2/24", 1]}, "1.1.1.128") }`},
+			expected: `[["k1", "1.1.1.128"], ["k2", "1.1.1.128"]]`,
+		},
+	}
+
+	data := loadSmallTestData()
+
+	for _, tc := range tests {
+		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
+	}
+}
+
 func TestNetCIDRExpand(t *testing.T) {
 	tests := []struct {
 		note     string
