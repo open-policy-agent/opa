@@ -74,9 +74,9 @@ complex types.
 | <span class="opa-keep-it-together">`output := object.union(objectA, objectB)`</span> | `output` is a new object which is the result of an asymmetric recursive union of two objects where conflicts are resolved by choosing the key from the right-hand object (`objectB`). For example: `object.union({"a": 1, "b": 2, "c": {"d": 3}}, {"a": 7, "c": {"d": 4, "e": 5}})` will result in `{"a": 7, "b": 2, "c": {"d": 4, "e": 5}}`  |
 | <span class="opa-keep-it-together">`filtered := object.filter(object, keys)`</span> | `filtered` is a new object with the remaining data from `object` with only keys specified in `keys` which is an array, object, or set of keys. For example: `object.filter({"a": {"b": "x", "c": "y"}, "d": "z"}, ["a"])` will result in `{"a": {"b": "x", "c": "y"}}`). |
 | <span class="opa-keep-it-together">`filtered := json.filter(object, paths)`</span> | `filtered` is the remaining data from `object` with only keys specified in `paths` which is an array or set of JSON string paths. For example: `json.filter({"a": {"b": "x", "c": "y"}}, ["a/b"])` will result in `{"a": {"b": "x"}}`). Paths are not filtered in-order and are deduplicated before being evaluated. |
-| <span class="opa-keep-it-together">`output := json.remove(object, paths)`</span> | `output` is a new object which is the result of removing all keys specified in `paths` which is an array or set of JSON string paths. For example: `json.remove{"a": {"b": "x", "c": "y"}, ["a/b"]}` will result in `{"a": {"c": "y"}}`. Paths are not removed in-order and are deduplicated before being evaluated. | 
+| <span class="opa-keep-it-together">`output := json.remove(object, paths)`</span> | `output` is a new object which is the result of removing all keys specified in `paths` which is an array or set of JSON string paths. For example: `json.remove{"a": {"b": "x", "c": "y"}, ["a/b"]}` will result in `{"a": {"c": "y"}}`. Paths are not removed in-order and are deduplicated before being evaluated. |
 
-* When `keys` are provided as an object only the top level keys on the object will be used, values are ignored. 
+* When `keys` are provided as an object only the top level keys on the object will be used, values are ignored.
   For example: `object.remove({"a": {"b": {"c": 2}}, "x": 123}, {"a": 1}) == {"x": 123}` regardless of the value
   for key `a` in the keys object, the following `keys` object gives the same result
   `object.remove({"a": {"b": {"c": 2}}, "x": 123}, {"a": {"b": {"foo": "bar"}}}) == {"x": 123}`.
@@ -604,8 +604,61 @@ The table below shows examples of calling `http.send`:
 | Built-in | Description |
 | ------- |-------------|
 | <span class="opa-keep-it-together">``net.cidr_contains(cidr, cidr_or_ip)``</span> | `output` is `true` if `cidr_or_ip` (e.g. `127.0.0.64/26` or `127.0.0.1`) is contained within `cidr` (e.g. `127.0.0.1/24`) and false otherwise. Supports both IPv4 and IPv6 notations.|
+| <span class="opa-keep-it-together">``output := net.cidr_contains_matches(cidrs, cidrs_or_ips)``</span> | `output` is a `set` of tuples identifying matches where `cidrs_or_ips` are contained within `cidrs`. This function is similar to `net.cidr_contains` except it allows callers to pass collections of CIDRs or IPs as arguments and returns the matches (as opposed to a boolean result indicating a match between two CIDRs/IPs.) See below for examples. |
 | <span class="opa-keep-it-together">``net.cidr_intersects(cidr1, cidr2)``</span> | `output` is `true` if `cidr1` (e.g. `192.168.0.0/16`) overlaps with `cidr2` (e.g. `192.168.1.0/24`) and false otherwise. Supports both IPv4 and IPv6 notations.|
 | <span class="opa-keep-it-together">``net.cidr_expand(cidr)``</span> | `output` is the set of hosts in `cidr`  (e.g., `net.cidr_expand("192.168.0.0/30")` generates 4 hosts: `{"192.168.0.0", "192.168.0.1", "192.168.0.2", "192.168.0.3"}` |
+
+**`net.cidr_contains_matches` examples**
+
+The `output := net.cidr_contains_matches(a, b)` function allows callers to supply
+strings, arrays, sets, or objects for either `a` or `b`. The `output` value in
+all cases is a set of tuples (2-element arrays) that identify matches, i.e.,
+elements of `b` contained by elements of `a`. The first tuple element refers to
+the match in `a` and the second tuple element refers to the match in `b`.
+
+| Input Type | Output Type |
+| --- | --- |
+| `string` | `string` |
+| `array` | `array` index |
+| `set` | `set` element |
+| `object` | `object` key |
+
+
+```live:netcidrcontainsmatches:module:hidden
+package netcidrcontainsmatches
+```
+
+If both operands are string values the function is similar to `net.cidr_contains`.
+
+```live:netcidrcontainsmatches/strings:query:merge_down
+net.cidr_contains_matches("1.1.1.0/24", "1.1.1.128")
+```
+```live:netcidrcontainsmatches/strings:output
+```
+
+Either (or both) operand(s) may be an array, set, or object.
+
+```live:netcidrcontainsmatches/array:query:merge_down
+net.cidr_contains_matches(["1.1.1.0/24", "1.1.2.0/24"], "1.1.1.128")
+```
+```live:netcidrcontainsmatches/array:output
+```
+
+The array/set/object elements may be arrays. In that case, the first element must be a valid CIDR/IP.
+
+```live:netcidrcontainsmatches/tuples:query:merge_down
+net.cidr_contains_matches([["1.1.0.0/16", "foo"], "1.1.2.0/24"], ["1.1.1.128", ["1.1.254.254", "bar"]])
+```
+```live:netcidrcontainsmatches/tuples:output
+```
+
+If the operand is a set, the outputs are matching elements. If the operand is an object, the outputs are matching keys.
+
+```live:netcidrcontainsmatches/sets_and_objects:query:merge_down
+net.cidr_contains_matches({["1.1.0.0/16", "foo"], "1.1.2.0/24"}, {"x": "1.1.1.128", "y": ["1.1.254.254", "bar"]})
+```
+```live:netcidrcontainsmatches/sets_and_objects:output:merge_down
+```
 
 ### Rego
 | Built-in | Description |
