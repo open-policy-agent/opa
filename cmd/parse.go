@@ -7,6 +7,7 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -39,11 +40,11 @@ var parseCommand = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		os.Exit(parse(args))
+		os.Exit(parse(args, os.Stdout, os.Stderr))
 	},
 }
 
-func parse(args []string) int {
+func parse(args []string, stdout io.Writer, stderr io.Writer) int {
 	if len(args) == 0 {
 		return 0
 	}
@@ -53,22 +54,22 @@ func parse(args []string) int {
 	switch parseParams.format.String() {
 	case parseFormatJSON:
 		if err != nil {
-			pr.JSON(os.Stderr, pr.Output{Errors: pr.NewOutputErrors(err)})
+			pr.JSON(stderr, pr.Output{Errors: pr.NewOutputErrors(err)})
 			return 1
 		}
 
 		bs, err := json.MarshalIndent(result.Parsed, "", "  ")
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			fmt.Fprintln(stderr, err)
 			return 1
 		}
 		fmt.Println(string(bs))
 	default:
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			fmt.Fprintln(stderr, err)
 			return 1
 		}
-		ast.Pretty(os.Stdout, result.Parsed)
+		ast.Pretty(stdout, result.Parsed)
 	}
 
 	return 0
