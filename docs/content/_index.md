@@ -1044,3 +1044,5 @@ Some popular tutorials include:
 * The [Kubernetes](kubernetes-introduction) page for how to use OPA as an admission controller in Kubernetes.
 * The [Envoy](envoy-authorization) page for how to use OPA as an external authorizer with Envoy.
 * The [Terraform](terraform) page for how to use OPA to validate Terraform plans.
+
+Don't forget to install the OPA (Rego) Plugin for your favorite [IDE or Text Editor](editor-and-ide-support)
