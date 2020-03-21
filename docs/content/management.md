@@ -631,7 +631,7 @@ Status updates contain the following fields:
 | `discovery.last_successful_download` | `string` | RFC3339 timestamp of last successful discovery bundle download. |
 | `discovery.last_successful_activation` | `string` | RFC3339 timestamp of last successful discovery bundle activation. |
 | `plugins` | `object` | A set of objects describing the state of configured plugins in OPA's runtime. |
-| `plugins[_].state | `string` | The state of each plugin. |
+| `plugins[_].state` | `string` | The state of each plugin. |
 | `metrics.prometheus` | `object` | Global performance metrics for the OPA instance. |
 
 If the bundle download or activation failed, the status update will contain
