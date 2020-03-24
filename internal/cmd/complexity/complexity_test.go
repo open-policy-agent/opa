@@ -440,7 +440,11 @@ func TestRuntimeComplexitySingleTerm(t *testing.T) {
 
 	module := `
 		package example
-		default allow = false`
+
+		foo {
+			x = input.foo
+			x[_] = a
+		}`
 
 	compiler := getCompiler(module)
 
@@ -452,6 +456,10 @@ O(1)`
 Complexity Results for query "input.foo[_]":
 O(input.foo)`
 
+	expectedFoo := `
+Complexity Results for query "data.example.foo":
+O(input.foo)`
+
 	tests := map[string]struct {
 		compiler *ast.Compiler
 		query    string
@@ -459,6 +467,7 @@ O(input.foo)`
 	}{
 		"base_ref_gnd":     {compiler: compiler, query: "input.foo", want: expectedBaseRefGnd},
 		"base_ref_non_gnd": {compiler: compiler, query: "input.foo[_]", want: expectedBaseRefNonGnd},
+		"foo":              {compiler: compiler, query: "data.example.foo", want: expectedFoo},
 	}
 
 	for name, tc := range tests {

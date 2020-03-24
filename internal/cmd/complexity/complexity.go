@@ -406,40 +406,17 @@ func (c *Calculator) analyzeExpr(a *analyzeQuery, expr *ast.Expr, idx int) error
 	switch t := expr.Terms.(type) {
 	case []*ast.Term:
 		if expr.IsEquality() {
-			switch x := expr.Operands()[0].Value.(type) {
-			case ast.Var:
-				switch y := expr.Operands()[1].Value.(type) {
-				case ast.Null, ast.Boolean, ast.Number, ast.String, ast.Array, ast.Set, ast.Object, ast.Var:
-					if a.binding.Get(x) == nil {
-						addVarBinding(x, y, a)
+			left, right := t[1], t[2]
+			var err error
 
-						// set time, count, size complexity of var
-						a.time[x] = nil
-						a.count[x] = nil
-						a.size[x] = nil
+			if l, ok := left.Value.(ast.Var); ok {
+				err = c.analyzeExprEquality(l, right, a, expr, idx)
+			} else if r, ok := right.Value.(ast.Var); ok {
+				err = c.analyzeExprEquality(r, left, a, expr, idx)
+			}
 
-						v, ok := y.(ast.Var)
-						if ok {
-							a.size[x] = a.size[v]
-						}
-					}
-				case ast.Ref:
-					if len(c.compiler.GetRulesDynamic(y)) != 0 {
-						err := c.analyzeExprEqVarVirtualRef(x, y, a, idx)
-						if err != nil {
-							return err
-						}
-					} else {
-						c.analyzeExprEqVarBaseRef(x, y, a, idx)
-					}
-				case *ast.ArrayComprehension, *ast.SetComprehension, *ast.ObjectComprehension:
-					err := c.analyzeExprEqVarComprehension(x, y, a, idx)
-					if err != nil {
-						return err
-					}
-				default:
-					a.Missing = append(a.Missing, expr.String())
-				}
+			if err != nil {
+				return err
 			}
 		} else {
 			if _, ok := ast.BuiltinMap[expr.Operator().String()]; ok {
@@ -456,6 +433,43 @@ func (c *Calculator) analyzeExpr(a *analyzeQuery, expr *ast.Expr, idx int) error
 		if err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+func (c *Calculator) analyzeExprEquality(v ast.Var, t *ast.Term, a *analyzeQuery, expr *ast.Expr, idx int) error {
+
+	switch x := t.Value.(type) {
+	case ast.Null, ast.Boolean, ast.Number, ast.String, ast.Array, ast.Set, ast.Object, ast.Var:
+		if a.binding.Get(v) == nil {
+			addVarBinding(v, x, a)
+
+			// set time, count, size complexity of var
+			a.time[v] = nil
+			a.count[v] = nil
+			a.size[v] = nil
+
+			y, ok := x.(ast.Var)
+			if ok {
+				a.size[v] = a.size[y]
+			}
+		}
+	case ast.Ref:
+		if len(c.compiler.GetRulesDynamic(x)) != 0 {
+			err := c.analyzeExprEqVarVirtualRef(v, x, a, idx)
+			if err != nil {
+				return err
+			}
+		} else {
+			c.analyzeExprEqVarBaseRef(v, x, a, idx)
+		}
+	case *ast.ArrayComprehension, *ast.SetComprehension, *ast.ObjectComprehension:
+		err := c.analyzeExprEqVarComprehension(v, x, a, idx)
+		if err != nil {
+			return err
+		}
+	default:
+		a.Missing = append(a.Missing, expr.String())
 	}
 	return nil
 }
