@@ -5,7 +5,6 @@
 package complexity
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -74,49 +73,49 @@ func TestRuntimeComplexityEqualityExpressionMix(t *testing.T) {
 	compiler := getCompiler(module)
 
 	expectedScalarNumber := []string{`
-Complexity Results for query "equal(data.example.scalar_number, true)":
+Complexity Results for query "data.example.scalar_number == true":
 O(1)`}
 
 	expectedScalarArray := []string{`
-Complexity Results for query "equal(data.example.scalar_array, true)":
+Complexity Results for query "data.example.scalar_array == true":
 O(1)`}
 
 	expectedBaseRefGnd := []string{`
-Complexity Results for query "equal(data.example.base_ref_gnd, true)":
+Complexity Results for query "data.example.base_ref_gnd == true":
 O(1)`}
 
 	expectedBaseRefNonGndOne := `
-Complexity Results for query "equal(data.example.base_ref_non_gnd, true)":
+Complexity Results for query "data.example.base_ref_non_gnd == true":
 O(input.foo + [input.bar * input.baz])`
 
 	expectedBaseRefNonGndTwo := `
-Complexity Results for query "equal(data.example.base_ref_non_gnd, true)":
+Complexity Results for query "data.example.base_ref_non_gnd == true":
 O([input.bar * input.baz] + input.foo)`
 
 	expectedBaseRefNonGnd := []string{expectedBaseRefNonGndOne, expectedBaseRefNonGndTwo}
 
 	expectedVirtualRefGndOne := `
-Complexity Results for query "equal(data.example.virtual_ref_gnd, true)":
+Complexity Results for query "data.example.virtual_ref_gnd == true":
 O([input.foo * input.bar] + [input.foz * input.boz])`
 
 	expectedVirtualRefGndTwo := `
-Complexity Results for query "equal(data.example.virtual_ref_gnd, true)":
+Complexity Results for query "data.example.virtual_ref_gnd == true":
 O([input.foz * input.boz] + [input.foo * input.bar])`
 
 	expectedVirtualRefGnd := []string{expectedVirtualRefGndOne, expectedVirtualRefGndTwo}
 
 	expectedVirtualRefNonGndOne := `
-Complexity Results for query "equal(data.example.virtual_ref_non_gnd, true)":
+Complexity Results for query "data.example.virtual_ref_non_gnd == true":
 O([input.foo * input.bar] + [input.foz * input.boz])`
 
 	expectedVirtualRefNonGndTwo := `
-Complexity Results for query "equal(data.example.virtual_ref_non_gnd, true)":
+Complexity Results for query "data.example.virtual_ref_non_gnd == true":
 O([input.foz * input.boz] + [input.foo * input.bar])`
 
 	expectedVirtualRefNonGnd := []string{expectedVirtualRefNonGndOne, expectedVirtualRefNonGndTwo}
 
 	expectedVirtualRefNonGndConstantSize := []string{`
-Complexity Results for query "equal(data.example.virtual_ref_non_gnd_constant_size, true)":
+Complexity Results for query "data.example.virtual_ref_non_gnd_constant_size == true":
 O([input.foo * input.bar])`}
 
 	tests := map[string]struct {
@@ -135,7 +134,11 @@ O([input.foo * input.bar])`}
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			report := getReport(tc.compiler, tc.query)
+			report, err := getReport(tc.compiler, tc.query)
+			if err != nil {
+				t.Fatalf("Unexpected error %v", err.Error())
+			}
+
 			if !assertTrue(report.String(), tc.want) {
 				t.Fatalf("Expected a result from %v but got %v", tc.want, report.String())
 			}
@@ -169,15 +172,15 @@ func TestRuntimeComplexityEqualityCompleteRule(t *testing.T) {
 	compiler := getCompiler(module)
 
 	expectedP := `
-Complexity Results for query "equal(data.example.p, true)":
+Complexity Results for query "data.example.p == true":
 O(1)`
 
 	expectedMyname := `
-Complexity Results for query "equal(data.example.myname, true)":
+Complexity Results for query "data.example.myname == true":
 O([[input.bar * input.bar] * input.bar])`
 
 	expectedDeny := `
-Complexity Results for query "equal(data.example.deny, true)":
+Complexity Results for query "data.example.deny == true":
 O([[input.bar * input.bar] * input.bar])`
 
 	tests := map[string]struct {
@@ -192,7 +195,11 @@ O([[input.bar * input.bar] * input.bar])`
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			report := getReport(tc.compiler, tc.query)
+			report, err := getReport(tc.compiler, tc.query)
+			if err != nil {
+				t.Fatalf("Unexpected error %v", err.Error())
+			}
+
 			if report.String() != tc.want {
 				t.Fatalf("Expected %v but got %v", tc.want, report.String())
 			}
@@ -234,17 +241,17 @@ func TestRuntimeComplexityEqualityPartialRule(t *testing.T) {
 	compiler := getCompiler(module)
 
 	expectedFooOne := `
-Complexity Results for query "equal(data.example.foo, true)":
+Complexity Results for query "data.example.foo == true":
 O([data.foo * [[data.baz * input.request.object.spec.containers] + input.request.object.spec.init_containers]])`
 
 	expectedFooTwo := `
-Complexity Results for query "equal(data.example.foo, true)":
+Complexity Results for query "data.example.foo == true":
 O([data.foo * [input.request.object.spec.init_containers + [data.baz * input.request.object.spec.containers]]])`
 
 	expectedFoo := []string{expectedFooOne, expectedFooTwo}
 
 	expectedFooMulti := []string{`
-Complexity Results for query "equal(data.example.foo_multi, true)":
+Complexity Results for query "data.example.foo_multi == true":
 O([data.foo * [input.request.object.spec.containers * input.request.object.spec.init_containers]])`}
 
 	tests := map[string]struct {
@@ -258,7 +265,11 @@ O([data.foo * [input.request.object.spec.containers * input.request.object.spec.
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			report := getReport(tc.compiler, tc.query)
+			report, err := getReport(tc.compiler, tc.query)
+			if err != nil {
+				t.Fatalf("Unexpected error %v", err.Error())
+			}
+
 			if !assertTrue(report.String(), tc.want) {
 				t.Fatalf("Expected a result from %v but got %v", tc.want, report.String())
 			}
@@ -272,11 +283,11 @@ func TestRuntimeComplexityEqualityComprehension(t *testing.T) {
 		package example
 
 		deny[u] {
-			input.request.foo == myname
-			u := sprintf("something here %v", [myname])
+			input.request.foo == my_name
+			u := sprintf("something here %v", [my_name])
 		}
 
-		myname = 7 {
+		my_name = 7 {
 			x := a[_]
 			y := a[_]
 			z := a[_]
@@ -308,23 +319,23 @@ func TestRuntimeComplexityEqualityComprehension(t *testing.T) {
 	compiler := getCompiler(module)
 
 	expectedArrayComp := `
-Complexity Results for query "equal(data.example.a, true)":
+Complexity Results for query "data.example.a == true":
 O([input.foo * input.bar])`
 
-	expectedMyname := `
-Complexity Results for query "equal(data.example.myname, true)":
+	expectedMyName := `
+Complexity Results for query "data.example.my_name == true":
 O([[[input.foo * input.bar] * [input.foo * input.bar]] * [input.foo * input.bar]])`
 
 	expectedDeny := `
-Complexity Results for query "equal(data.example.deny, true)":
+Complexity Results for query "data.example.deny":
 O([[[input.foo * input.bar] * [input.foo * input.bar]] * [input.foo * input.bar]])`
 
 	expectedSetComp := `
-Complexity Results for query "equal(data.example.s, true)":
+Complexity Results for query "data.example.s":
 O([input.foo * input.bar])`
 
 	expectedObjectComp := `
-Complexity Results for query "equal(data.example.o, true)":
+Complexity Results for query "data.example.o":
 O([input.apps * [input.apps * input.sites]])`
 
 	tests := map[string]struct {
@@ -332,16 +343,20 @@ O([input.apps * [input.apps * input.sites]])`
 		query    string
 		want     string
 	}{
-		"a":      {compiler: compiler, query: "data.example.a == true", want: expectedArrayComp},
-		"myname": {compiler: compiler, query: "data.example.myname == true", want: expectedMyname},
-		"deny":   {compiler: compiler, query: "data.example.deny == true", want: expectedDeny},
-		"s":      {compiler: compiler, query: "data.example.s == true", want: expectedSetComp},
-		"o":      {compiler: compiler, query: "data.example.o == true", want: expectedObjectComp},
+		"a":       {compiler: compiler, query: "data.example.a == true", want: expectedArrayComp},
+		"my_name": {compiler: compiler, query: "data.example.my_name == true", want: expectedMyName},
+		"deny":    {compiler: compiler, query: "data.example.deny", want: expectedDeny},
+		"s":       {compiler: compiler, query: "data.example.s", want: expectedSetComp},
+		"o":       {compiler: compiler, query: "data.example.o", want: expectedObjectComp},
 	}
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			report := getReport(tc.compiler, tc.query)
+			report, err := getReport(tc.compiler, tc.query)
+			if err != nil {
+				t.Fatalf("Unexpected error %v", err.Error())
+			}
+
 			if report.String() != tc.want {
 				t.Fatalf("Expected %v but got %v", tc.want, report.String())
 			}
@@ -349,13 +364,170 @@ O([input.apps * [input.apps * input.sites]])`
 	}
 }
 
-func getReport(compiler *ast.Compiler, query string) *Report {
+func TestRuntimeComplexityUserFunctions(t *testing.T) {
+	module := `
+		package example
+
+		array_arg {
+			x := input.foo
+			y := input.bar
+			t := get_blah([x,y])
+			t[_]
+		}
+
+		get_blah([a,b]) = x {
+			x = a
+			x[_] = 1
+		}
+
+		deny[reason] {
+			t := get_foo(input.request.foo)
+			x := t[_]
+			reason := x.name
+		}
+
+		foo {
+			t1 := get_foo(input.request.foo)
+			t2 := get_foo(input.request.bar)
+			t3 := get_foo(input.request.baz)
+		}
+
+		get_foo(request) = result {
+			x := request.object.spec[_]
+			x.kind.kind == "foo"
+			result := request.object.spec
+		}`
+
+	compiler := getCompiler(module)
+
+	expectedFoo := `
+Complexity Results for query "data.example.foo == true":
+O(input.request.foo + input.request.bar + input.request.baz)`
+
+	expectedDeny := `
+Complexity Results for query "data.example.deny":
+O(input.request.foo)`
+
+	expectedArrayArg := `
+Complexity Results for query "data.example.array_arg":
+O(input.foo)`
+
+	tests := map[string]struct {
+		compiler *ast.Compiler
+		query    string
+		want     string
+	}{
+		"foo":       {compiler: compiler, query: "data.example.foo == true", want: expectedFoo},
+		"deny":      {compiler: compiler, query: "data.example.deny", want: expectedDeny},
+		"array_arg": {compiler: compiler, query: "data.example.array_arg", want: expectedArrayArg},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			report, err := getReport(tc.compiler, tc.query)
+			if err != nil {
+				t.Fatalf("Unexpected error %v", err.Error())
+			}
+
+			if report.String() != tc.want {
+				t.Fatalf("Expected %v but got %v", tc.want, report.String())
+			}
+		})
+	}
+}
+
+func TestRuntimeComplexitySingleTerm(t *testing.T) {
+
+	module := `
+		package example
+		default allow = false`
+
+	compiler := getCompiler(module)
+
+	expectedBaseRefGnd := `
+Complexity Results for query "input.foo":
+O(1)`
+
+	expectedBaseRefNonGnd := `
+Complexity Results for query "input.foo[_]":
+O(input.foo)`
+
+	tests := map[string]struct {
+		compiler *ast.Compiler
+		query    string
+		want     string
+	}{
+		"base_ref_gnd":     {compiler: compiler, query: "input.foo", want: expectedBaseRefGnd},
+		"base_ref_non_gnd": {compiler: compiler, query: "input.foo[_]", want: expectedBaseRefNonGnd},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			report, err := getReport(tc.compiler, tc.query)
+			if err != nil {
+				t.Fatalf("Unexpected error %v", err.Error())
+			}
+
+			if report.String() != tc.want {
+				t.Fatalf("Expected %v but got %v", tc.want, report.String())
+			}
+		})
+	}
+}
+
+func TestRuntimeComplexityMissing(t *testing.T) {
+	module := `
+		package example
+
+		var_arg {
+			x := input.foo
+			y := input.bar
+			z := [x, y]
+			t := get_blah(z)
+			t[_]
+		}
+
+		get_blah([a,b]) = x {
+			x = a
+			x[_] = 1
+		}`
+
+	compiler := getCompiler(module)
+
+	expectedVarArg := `
+Complexity Results for query "data.example.var_arg":
+Missing:
+data.example.get_blah(__local2__, __local6__)`
+
+	tests := map[string]struct {
+		compiler *ast.Compiler
+		query    string
+		want     string
+	}{
+		"var_arg": {compiler: compiler, query: "data.example.var_arg", want: expectedVarArg},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			report, err := getReport(tc.compiler, tc.query)
+			if err != nil {
+				t.Fatalf("Unexpected error %v", err.Error())
+			}
+
+			if report.String() != tc.want {
+				t.Fatalf("Expected %v but got %v", tc.want, report.String())
+			}
+		})
+	}
+}
+
+func getReport(compiler *ast.Compiler, query string) (*Report, error) {
 	calculator := New().WithCompiler(compiler).WithQuery(query)
 	report, err := calculator.Calculate()
 	if err != nil {
-		fmt.Println(err)
+		return nil, err
 	}
-	return report
+	return report, nil
 }
 
 func getCompiler(module string) *ast.Compiler {

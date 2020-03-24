@@ -27,7 +27,7 @@ func (r *Report) JSON(w io.Writer) error {
 // String returns the string representation of the runtime complexity
 func (r *Report) String() string {
 	queryRes := r.Complexity
-	buf := fmt.Sprintf("\nComplexity Results for query \"%v\":\n", queryRes.Query.String())
+	buf := fmt.Sprintf("\nComplexity Results for query \"%v\":\n", queryRes.Query)
 
 	if len(queryRes.Missing) != 0 {
 		buf = buf + "Missing:\n" + strings.Join(queryRes.Missing, "\n")
@@ -54,28 +54,30 @@ func (r *Report) String() string {
 // binding     -> map of variable to the value assigned to it
 // complexity  -> runtime complexity of query
 type analyzeQuery struct {
-	Query       ast.Body `json:"query"`
+	Query       string   `json:"query"`
 	Expressions []*Time  `json:"expressions,omitempty"`
 	Missing     []string `json:"missing,omitempty"`
 	Complexity  *Time    `json:"complexity,omitempty"`
 	relation    []bool
+	body        ast.Body
 	time        map[ast.Var]*Time
 	size        map[ast.Var]*size
 	count       map[ast.Var]*count
 	binding     *ast.ValueMap
 }
 
-func newAnalyzeQuery(query ast.Body) *analyzeQuery {
+func newAnalyzeQuery(query string, body ast.Body) *analyzeQuery {
 	return &analyzeQuery{
 		Query:       query,
-		Expressions: make([]*Time, len(query)),
+		Expressions: make([]*Time, len(body)),
 		Missing:     []string{},
-		relation:    make([]bool, len(query)),
+		Complexity:  nil,
+		relation:    make([]bool, len(body)),
+		body:        body,
 		time:        make(map[ast.Var]*Time),
 		size:        make(map[ast.Var]*size),
 		count:       make(map[ast.Var]*count),
 		binding:     ast.NewValueMap(),
-		Complexity:  nil,
 	}
 }
 
@@ -90,7 +92,7 @@ func (q *analyzeQuery) String() string {
 // runtime calculates the runtime complexity of a query
 // Time(Body) = Time(ExprN) * [Time(ExprN+1) * ...] when ExprN is a relation
 // Time(Body) = Time(ExprN) + [Time(ExprN+1) + ...] when ExprN is not a relation
-func runtime(q *analyzeQuery) *Time {
+func (q *analyzeQuery) runtime() {
 	var isProduct bool
 	var result Time
 
@@ -107,7 +109,7 @@ func runtime(q *analyzeQuery) *Time {
 		}
 		isProduct = q.relation[i]
 	}
-	return &result
+	q.Complexity = &result
 }
 
 func product(a, b Time) Time {
@@ -120,7 +122,10 @@ func product(a, b Time) Time {
 func sum(a, b Time) Time {
 	var result Time
 	result.Sum = append(result.Sum, b) // add existing
-	result.Sum = append(result.Sum, a) // add new
+
+	if !result.contains(&a) {
+		result.Sum = append(result.Sum, a) // add new
+	}
 	return result
 }
 
@@ -307,11 +312,39 @@ func (s *size) sizeToTime() Time {
 	return result
 }
 
+func (s *size) sizeToRef() ast.Ref {
+	ref := make(ast.Ref, 0)
+
+	if s == nil {
+		return nil
+	}
+
+	if len(s.r) != 0 {
+		for _, t := range s.r {
+			ref = ref.Append(t)
+		}
+	} else if len(s.sum) != 0 {
+		for _, ss := range s.sum {
+			for _, t := range ss.sizeToRef() {
+				ref = ref.Append(t)
+			}
+		}
+	} else if len(s.product) != 0 {
+		for _, ss := range s.product {
+			for _, t := range ss.sizeToRef() {
+				ref = ref.Append(t)
+			}
+		}
+	}
+	return ref
+}
+
 // Calculator provides the interface to initiate the runtime complexity
 // calculation for a query
 type Calculator struct {
-	compiler *ast.Compiler
-	query    ast.Body
+	compiler   *ast.Compiler
+	query      string
+	parseQuery ast.Body
 }
 
 // New returns a new Calculator object
@@ -327,12 +360,6 @@ func (c *Calculator) WithCompiler(compiler *ast.Compiler) *Calculator {
 
 // WithQuery sets the query to use for the calculator
 func (c *Calculator) WithQuery(query string) *Calculator {
-	c.query = ast.MustParseBody(query)
-	return c
-}
-
-// WithParsedQuery sets the parsed query to use for the calculator
-func (c *Calculator) WithParsedQuery(query ast.Body) *Calculator {
 	c.query = query
 	return c
 }
@@ -342,43 +369,41 @@ func (c *Calculator) Calculate() (*Report, error) {
 	report := Report{}
 	report.calculator = c
 
-	compiledQuery, err := c.compiler.QueryCompiler().Compile(c.query)
+	compiledQuery, err := c.compiler.QueryCompiler().Compile(ast.MustParseBody(c.query))
 	if err != nil {
 		return nil, err
 	}
 
-	report.Complexity, err = c.analyzeQuery(compiledQuery)
-	if err != nil {
-		return nil, err
-	}
+	if len(compiledQuery) == 0 {
+		report.Complexity = nil
+	} else {
+		report.Complexity = newAnalyzeQuery(c.query, compiledQuery)
 
-	return &report, nil
-}
-
-func (c *Calculator) analyzeQuery(body ast.Body) (*analyzeQuery, error) {
-
-	if len(body) == 0 {
-		return nil, nil
-	}
-
-	analyzeQueryResult := newAnalyzeQuery(c.query)
-
-	for i, e := range body {
-		err := c.analyzeExpr(analyzeQueryResult, e, i)
+		err := c.analyzeQuery(report.Complexity)
 		if err != nil {
 			return nil, err
 		}
 	}
+	return &report, nil
+}
+
+func (c *Calculator) analyzeQuery(a *analyzeQuery) error {
+
+	for i, e := range a.body {
+		err := c.analyzeExpr(a, e, i)
+		if err != nil {
+			return err
+		}
+	}
 
 	// calculate query time complexity
-	analyzeQueryResult.Complexity = runtime(analyzeQueryResult)
-
-	return analyzeQueryResult, nil
+	a.runtime()
+	return nil
 }
 
 func (c *Calculator) analyzeExpr(a *analyzeQuery, expr *ast.Expr, idx int) error {
 
-	switch expr.Terms.(type) {
+	switch t := expr.Terms.(type) {
 	case []*ast.Term:
 		if expr.IsEquality() {
 			switch x := expr.Operands()[0].Value.(type) {
@@ -392,6 +417,11 @@ func (c *Calculator) analyzeExpr(a *analyzeQuery, expr *ast.Expr, idx int) error
 						a.time[x] = nil
 						a.count[x] = nil
 						a.size[x] = nil
+
+						v, ok := y.(ast.Var)
+						if ok {
+							a.size[x] = a.size[v]
+						}
 					}
 				case ast.Ref:
 					if len(c.compiler.GetRulesDynamic(y)) != 0 {
@@ -409,26 +439,225 @@ func (c *Calculator) analyzeExpr(a *analyzeQuery, expr *ast.Expr, idx int) error
 					}
 				default:
 					a.Missing = append(a.Missing, expr.String())
-					return nil
 				}
 			}
 		} else {
-			// TODO: functions and builtins
+			if _, ok := ast.BuiltinMap[expr.Operator().String()]; ok {
+				//TODO builtins
+			} else {
+				err := c.analyzeExprUserDefinedFunctions(expr, a, idx)
+				if err != nil {
+					return err
+				}
+			}
 		}
 	case *ast.Term:
-		// TODO
+		err := c.analyzeExprSingleTerm(t, a, idx)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (c *Calculator) analyzeExprSingleTerm(t *ast.Term, a *analyzeQuery, idx int) error {
+
+	switch x := t.Value.(type) {
+	case ast.Var:
+		a.time[x] = nil
+		a.count[x] = nil
+		a.size[x] = nil
+	case ast.Ref:
+		if len(c.compiler.GetRulesDynamic(x)) != 0 {
+			_, err := c.analyzeExprVirtualRef(x, a, idx)
+			if err != nil {
+				return err
+			}
+		} else {
+			c.analyzeExprBaseRef(x, a, idx)
+		}
+	case *ast.ArrayComprehension, *ast.SetComprehension, *ast.ObjectComprehension:
+		_, err := c.analyzeExprComprehension(x, a, idx)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
 func (c *Calculator) analyzeExprEqVarVirtualRef(v ast.Var, r ast.Ref, a *analyzeQuery, idx int) error {
+	s, err := c.analyzeExprVirtualRef(r, a, idx)
+	if err != nil {
+		return err
+	}
 
+	// bind var on the lhs of the equality expression
+	bindVarVirtualRef(v, r, s, a)
+	return nil
+}
+
+func (c *Calculator) analyzeExprVirtualRef(r ast.Ref, a *analyzeQuery, idx int) ([]size, error) {
+	t, s, m, err := c.getTimeAndSizeVirtualRef(r)
+	if err != nil {
+		return s, err
+	}
+
+	if len(m) != 0 {
+		a.Missing = append(a.Missing, m...)
+		return s, nil
+	}
+
+	setTimeAndSizeVirtualRef(r, a, idx, t, s)
+	return s, nil
+}
+
+func (c *Calculator) getTimeAndSizeVirtualRef(r ast.Ref) ([]Time, []size, []string, error) {
 	rules := c.compiler.GetRulesDynamic(r)
+	timeComplexitySum := []Time{}
+	sizeComplexitySum := []size{}
+	missing := []string{}
+
+	for _, rule := range rules {
+		queryResult, err := c.getTimeComplexityRuleBody(rule.Body)
+		if err != nil {
+			return timeComplexitySum, sizeComplexitySum, missing, err
+		}
+
+		if queryResult == nil {
+			continue
+		}
+
+		if len(queryResult.Missing) != 0 {
+			missing = append(missing, queryResult.Missing...)
+			continue
+		}
+
+		// time complexity for rule
+		if queryResult.Complexity != nil {
+
+			// check if the new time result is redundant to the overall time
+			// complexity of the expression
+			// For example: current = O(input.foo)
+			//				new = O(input.foo)
+			//				overall time result  = O(input.foo) + O(input.foo)
+			//									 = O(input.foo)
+			contains := false
+			for _, t := range timeComplexitySum {
+				if ctn := t.contains(queryResult.Complexity); ctn {
+					contains = true
+					break
+				}
+			}
+
+			if !contains {
+				timeComplexitySum = append(timeComplexitySum, *queryResult.Complexity)
+			}
+		}
+
+		// size complexity for rule
+		size := getSizeComplexityRule(rule, queryResult)
+		if size != nil {
+			sizeComplexitySum = append(sizeComplexitySum, *size)
+		}
+	}
+	return timeComplexitySum, sizeComplexitySum, missing, nil
+}
+
+func (c *Calculator) analyzeExprEqVarBaseRef(v ast.Var, r ast.Ref, a *analyzeQuery, idx int) {
+	c.analyzeExprBaseRef(r, a, idx)
+
+	// bind var on the lhs of the equality expression
+	bindVarBaseRef(v, r, a, a.relation[idx])
+}
+
+func (c *Calculator) analyzeExprBaseRef(r ast.Ref, a *analyzeQuery, idx int) {
+
+	relation := false
+
+	ast.WalkVars(r, func(x ast.Var) bool {
+		if !isRootDocument(x) && a.binding.Get(x) == nil {
+			relation = true
+			bindVarBaseRef(x, r, a, relation)
+		}
+		return false
+	})
+
+	if relation {
+		ref := rewriteRefInTermsOfBaseDoc(r, a)
+		a.Expressions[idx] = &Time{R: ref.GroundPrefix()}
+		a.relation[idx] = true
+	}
+}
+
+func (c *Calculator) analyzeExprEqVarComprehension(v ast.Var, val ast.Value, a *analyzeQuery, idx int) error {
+
+	s, err := c.analyzeExprComprehension(val, a, idx)
+	if err != nil {
+		return err
+	}
+
+	// bind var on the lhs of the equality expression
+	bindVarComprehension(v, *s, a)
+	return nil
+}
+
+func (c *Calculator) analyzeExprComprehension(val ast.Value, a *analyzeQuery, idx int) (*size, error) {
+
+	var head *ast.Term
+	var body ast.Body
+	var sizeHead size
+
+	switch x := val.(type) {
+	case *ast.ArrayComprehension:
+		head = x.Term
+		body = x.Body
+
+	case *ast.SetComprehension:
+		head = x.Term
+		body = x.Body
+
+	case *ast.ObjectComprehension:
+		head = x.Key
+		body = x.Body
+	}
+
+	// calculate time and size complexity
+	queryResult, err := c.getTimeComplexityRuleBody(body)
+	if err != nil {
+		return nil, err
+	}
+
+	if queryResult != nil {
+		a.Expressions[idx] = queryResult.Complexity
+	}
+
+	if head != nil {
+		var countHead count
+		seen := make(map[ast.Var]struct{})
+		for av := range head.Vars() {
+			countVar := getCountComplexityPartialRule(av, queryResult, seen)
+			if countVar != nil {
+				countHead.product = append(countHead.product, *countVar)
+			}
+		}
+
+		// convert count complexity to size
+		sizeHead = countHead.countToSize()
+	}
+	return &sizeHead, nil
+}
+
+func (c *Calculator) analyzeExprUserDefinedFunctions(e *ast.Expr, a *analyzeQuery, idx int) error {
+
+	rules := c.compiler.GetRulesDynamic(e.Operator())
 	timeComplexitySum := []Time{}
 	sizeComplexitySum := []size{}
 
 	for _, rule := range rules {
-		queryResult, err := getTimeComplexityRuleBody(rule.Body, c.compiler)
+
+		queryResult := c.unify(e, rule, a)
+
+		err := c.analyzeQuery(queryResult)
 		if err != nil {
 			return err
 		}
@@ -465,109 +694,137 @@ func (c *Calculator) analyzeExprEqVarVirtualRef(v ast.Var, r ast.Ref, a *analyze
 	// expression time complexity
 	a.Expressions[idx] = &Time{Sum: timeComplexitySum}
 
-	relation := false
-	ast.WalkVars(r, func(x ast.Var) bool {
-		if !isRootDocument(x) && a.binding.Get(x) == nil {
-			relation = true
-			bindVarVirtualRef(x, r, sizeComplexitySum, a)
+	for _, s := range sizeComplexitySum {
+		sTot := s.sizeToTime()
+		contains := a.Expressions[idx].contains(&sTot)
+
+		// include size complexity in the overall time complexity result of
+		// the expression only if it adds to the overall result. This check
+		// prevents addition of redundant values to the overall time result.
+		// For example: time = O(input.foo * input.bar)
+		//				size = O(input.foo)
+		//				overall time result  = O(input.foo * input.bar) + O(input.foo)
+		//									 = O(input.foo * input.bar)
+		if !contains {
+			a.Expressions[idx].Sum = append(a.Expressions[idx].Sum, sTot)
 		}
-		return false
-	})
-
-	if relation {
-		for _, s := range sizeComplexitySum {
-			sTot := s.sizeToTime()
-			contains := a.Expressions[idx].contains(&sTot)
-
-			// include size complexity in the overall time complexity result of
-			// the expression only if it adds to the overall result. This check
-			// prevents addition of redundant values to the overall time result.
-			// For example: time = O(input.foo * input.bar)
-			//				size = O(input.foo)
-			//				overall time result  = O(input.foo * input.bar) + O(input.foo)
-			//									 = O(input.foo * input.bar)
-			if !contains {
-				a.Expressions[idx].Sum = append(a.Expressions[idx].Sum, sTot)
-			}
-		}
-
-		a.relation[idx] = true
 	}
 
-	// bind var on the lhs of the equality expression
-	bindVarVirtualRef(v, r, sizeComplexitySum, a)
+	// set the size complexity of the output variable of the function
+	last := e.Operand(len(e.Operands()) - 1)
+	if last != nil {
+		switch x := last.Value.(type) {
+		case ast.Var:
 
+			// time complexity
+			a.time[x] = nil
+
+			// count complexity
+			a.count[x] = nil
+
+			// size complexity
+			a.size[x] = &size{sum: sizeComplexitySum}
+		}
+	}
 	return nil
 }
 
-func (c *Calculator) analyzeExprEqVarBaseRef(v ast.Var, r ast.Ref, a *analyzeQuery, idx int) {
+// unify unifies the arguments at the call-site and the function declaration
+func (c *Calculator) unify(e *ast.Expr, r *ast.Rule, a *analyzeQuery) *analyzeQuery {
 
-	relation := false
-	ast.WalkVars(r, func(x ast.Var) bool {
-		if !isRootDocument(x) && a.binding.Get(x) == nil {
-			relation = true
-			bindVarBaseRef(x, r, a, relation)
-		}
-		return false
-	})
+	operands := e.Operands()
+	result := newAnalyzeQuery(c.query, r.Body)
 
-	if relation {
-		a.Expressions[idx] = &Time{R: r.GroundPrefix()}
-		a.relation[idx] = true
+	for i := 0; i < len(r.Head.Args); i++ {
+		unifyTerms(e, operands[i], r.Head.Args[i], a, result)
 	}
-
-	// bind var on the lhs of the equality expression
-	bindVarBaseRef(v, r, a, relation)
+	return result
 }
 
-func (c *Calculator) analyzeExprEqVarComprehension(v ast.Var, val ast.Value, a *analyzeQuery, idx int) error {
+func (c *Calculator) getTimeComplexityRuleBody(b ast.Body) (*analyzeQuery, error) {
 
-	var head *ast.Term
-	var body ast.Body
-	var sizeHead size
-
-	switch x := val.(type) {
-	case *ast.ArrayComprehension:
-		head = x.Term
-		body = x.Body
-
-	case *ast.SetComprehension:
-		head = x.Term
-		body = x.Body
-
-	case *ast.ObjectComprehension:
-		head = x.Key
-		body = x.Body
+	if len(b) == 0 {
+		return nil, nil
 	}
 
-	// calculate time and size complexity
-	queryResult, err := getTimeComplexityRuleBody(body, c.compiler)
+	a := newAnalyzeQuery(c.query, b)
+
+	err := c.analyzeQuery(a)
 	if err != nil {
-		return err
+		return nil, err
 	}
-
-	a.Expressions[idx] = queryResult.Complexity
-
-	if head != nil {
-		var countHead count
-		seen := make(map[ast.Var]struct{})
-		for av := range head.Vars() {
-			countVar := getCountComplexityPartialRule(av, queryResult, seen)
-			if countVar != nil {
-				countHead.product = append(countHead.product, *countVar)
-			}
-		}
-
-		// convert count complexity to size
-		sizeHead = countHead.countToSize()
-	}
-
-	// bind var on the lhs of the equality expression
-	bindVarComprehension(v, sizeHead, a)
-	return nil
+	return a, nil
 }
 
 // helper functions
+
+func unifyTerms(e *ast.Expr, a, b *ast.Term, aCurr, aNew *analyzeQuery) {
+
+	switch x := a.Value.(type) {
+	case ast.Null, ast.Boolean, ast.Number, ast.String:
+		switch y := b.Value.(type) {
+		case ast.Var:
+			aNew.time[y] = nil
+			aNew.size[y] = nil
+			aNew.count[y] = nil
+		case ast.Array, ast.Set, ast.Object:
+			aCurr.Missing = append(aCurr.Missing, e.String())
+		}
+	case ast.Var:
+		switch y := b.Value.(type) {
+		case ast.Var:
+			aNew.time[y] = aCurr.time[x]
+			aNew.size[y] = aCurr.size[x]
+			aNew.count[y] = aCurr.count[x]
+		case ast.Array, ast.Set, ast.Object:
+			aCurr.Missing = append(aCurr.Missing, e.String())
+		}
+	case ast.Array:
+		switch y := b.Value.(type) {
+		case ast.Null, ast.Boolean, ast.Number, ast.String:
+			aCurr.Missing = append(aCurr.Missing, e.String())
+		case ast.Var:
+			aCurr.Missing = append(aCurr.Missing, e.String())
+		case ast.Array:
+			if len(x) != len(y) {
+				aCurr.Missing = append(aCurr.Missing, e.String())
+			}
+			unifySlice(e, x, y, aCurr, aNew)
+		}
+	case ast.Set:
+		switch y := b.Value.(type) {
+		case ast.Null, ast.Boolean, ast.Number, ast.String:
+			aCurr.Missing = append(aCurr.Missing, e.String())
+		case ast.Var:
+			aCurr.Missing = append(aCurr.Missing, e.String())
+		case ast.Set:
+			if x.Len() != y.Len() {
+				aCurr.Missing = append(aCurr.Missing, e.String())
+			}
+			unifySlice(e, x.Slice(), y.Slice(), aCurr, aNew)
+		}
+	case ast.Object:
+		switch y := b.Value.(type) {
+		case ast.Null, ast.Boolean, ast.Number, ast.String:
+			aCurr.Missing = append(aCurr.Missing, e.String())
+		case ast.Var:
+			aCurr.Missing = append(aCurr.Missing, e.String())
+		case ast.Object:
+			if x.Len() != y.Len() {
+				aCurr.Missing = append(aCurr.Missing, e.String())
+			}
+			unifySlice(e, x.Keys(), y.Keys(), aCurr, aNew)
+		}
+	}
+	return
+}
+
+func unifySlice(expr *ast.Expr, a, b []*ast.Term, aCurr, aNew *analyzeQuery) {
+	for i := range a {
+		unifyTerms(expr, a[i], b[i], aCurr, aNew)
+	}
+	return
+}
 
 func bindVarVirtualRef(v ast.Var, bindVal ast.Ref, complexityVal []size, a *analyzeQuery) {
 	if a.binding.Get(v) == nil {
@@ -594,6 +851,41 @@ func addVarBinding(k, v ast.Value, a *analyzeQuery) {
 	a.binding.Put(k, v)
 }
 
+func setTimeAndSizeVirtualRef(r ast.Ref, a *analyzeQuery, idx int, t []Time, s []size) {
+
+	// expression time complexity
+	a.Expressions[idx] = &Time{Sum: t}
+
+	relation := false
+	ast.WalkVars(r, func(x ast.Var) bool {
+		if !isRootDocument(x) && a.binding.Get(x) == nil {
+			relation = true
+			bindVarVirtualRef(x, r, s, a)
+		}
+		return false
+	})
+
+	if relation {
+		for _, e := range s {
+			sTot := e.sizeToTime()
+			contains := a.Expressions[idx].contains(&sTot)
+
+			// include size complexity in the overall time complexity result of
+			// the expression only if it adds to the overall result. This check
+			// prevents addition of redundant values to the overall time result.
+			// For example: time = O(input.foo * input.bar)
+			//				size = O(input.foo)
+			//				overall time result  = O(input.foo * input.bar) + O(input.foo)
+			//									 = O(input.foo * input.bar)
+			if !contains {
+				a.Expressions[idx].Sum = append(a.Expressions[idx].Sum, sTot)
+			}
+		}
+
+		a.relation[idx] = true
+	}
+}
+
 func setComplexityVarVirtualRef(v ast.Var, a *analyzeQuery, sizeComplexitySum []size) {
 
 	// time complexity
@@ -607,6 +899,7 @@ func setComplexityVarVirtualRef(v ast.Var, a *analyzeQuery, sizeComplexitySum []
 }
 
 func setComplexityVarBaseRef(v ast.Var, r ast.Ref, a *analyzeQuery, isRelation bool) {
+	ref := rewriteRefInTermsOfBaseDoc(r, a)
 
 	// time complexity
 	a.time[v] = nil
@@ -615,11 +908,11 @@ func setComplexityVarBaseRef(v ast.Var, r ast.Ref, a *analyzeQuery, isRelation b
 	a.count[v] = nil
 
 	if isRelation {
-		a.count[v] = &count{r: r}
+		a.count[v] = &count{r: ref}
 	}
 
 	// size complexity
-	a.size[v] = &size{r: r}
+	a.size[v] = &size{r: ref}
 }
 
 func setComplexityVarComprehension(v ast.Var, s *size, a *analyzeQuery) {
@@ -724,13 +1017,21 @@ func getCountComplexityPartialRule(v ast.Var, a *analyzeQuery, seen map[ast.Var]
 	return nil
 }
 
-func getTimeComplexityRuleBody(b ast.Body, c *ast.Compiler) (*analyzeQuery, error) {
-	complexityCalculator := New().WithCompiler(c).WithParsedQuery(b)
-	report, err := complexityCalculator.Calculate()
-	if err != nil {
-		return nil, err
+func rewriteRefInTermsOfBaseDoc(r ast.Ref, a *analyzeQuery) ast.Ref {
+	if len(r) == 0 {
+		return r
 	}
-	return report.Complexity, err
+
+	result := r.GroundPrefix()
+
+	switch x := r[0].Value.(type) {
+	case ast.Var:
+		if isRootDocument(x) {
+			return result
+		}
+		return rewriteRefInTermsOfBaseDoc(a.size[x].sizeToRef(), a)
+	}
+	return result
 }
 
 func encloseString(s string) bool {
