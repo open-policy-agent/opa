@@ -27,7 +27,7 @@ deploy:
       tags: false
 
   # This deployment is mutually exclusive with the other deployments. This
-  # deployment builds and publishes the docker image whenver a new tag is
+  # deployment builds and publishes the docker image whenever a new tag is
   # created on the master branch. The latest tag is updated to point to the
   # image produced by this deployment. The edge tag is not updated.
   - provider: script

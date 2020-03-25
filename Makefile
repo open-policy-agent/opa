@@ -246,7 +246,12 @@ push-image: docker-login image-quick push
 deploy-travis: push-image tag-edge push-edge push-binary-edge
 
 .PHONY: release-travis
+# Don't tag and push "latest" image tags if the version is a release candidate
+ifneq (,$(findstring rc,$(VERSION)))
+release-travis: push-image
+else
 release-travis: push-image tag-latest push-latest
+endif
 
 .PHONY: release-bugfix-travis
 release-bugfix-travis: deploy-travis
