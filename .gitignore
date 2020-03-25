@@ -24,3 +24,6 @@ ast-fuzzer.a
 
 # runtime artifacts
 policies
+
+# Local Netlify folder
+.netlify

@@ -37,110 +37,31 @@ which are defined in [website/layouts/index.redirects](./webiste/layouts/index.r
 and are build into a `_redirects` file when the Hugo build happens via
 `make production-build` or `make preview-build`.
 
-### How to Edit and Test
+## Site updates
 
-Because of the different components at play there are a few different ways to
-test/view the website. The choice depends largely on what is being modified:
+The OPA site is automatically published using [Netlify](https://netlify.com). Whenever
+changes in this directory are pushed to `master`, the site will be re-built and
+re-deployed.
 
-#### Full Site Preview
+## How to Edit and Test
+### Preview Markdown `content` (*.md)
 
-Go to [Netlify](https://www.netlify.com/) and log-in. Link to your public fork of
-OPA on github and have it deploy a site. As long as it is public this is free
-and can be configured to deploy test branches before opening PR's on the official
-OPA github repo.
-
-This approach gives the best simulation for what the website will behave like once
-code has merged.
-
-
-#### Modifying `content` (*.md)
-
-The majorify of this can be done with any markdown renderer (typically built-in or
-a plug-in for IDE's). The rendered output will be very similar to what Hugo will
+The majority of this can be done with any markdown renderer (typically built into or
+a via plug-in for IDE's and editors). The rendered output will be very similar to what Hugo will
 generate.
  
 > This excludes the Hugo shortcodes (places with `{{< SHORT_CODE >}}` in the markdown.
   To see the output of these you'll need to involve Hugo. Additionally, to validate
-  and view live code blocks, a full site build is required (e.g. `make serve`,
-  details below). See the "Live Code Blocks" section for more information on
-  how to write them.
+  and view live code blocks, a full site preview is required.
 
-#### Modifying the Hugo templates and/or website (HTML/CSS/JS)
+### Full Site Preview
 
-The easiest way is to run Hugo locally in dev mode. Changes made will be reflected
-immediately be the Hugo dev server. See 
-[Run the site locally using Docker](#run-the-site-locally-using-docker)
-
-> This approach will *not* include the Netlify redirects so urls like
-  `http://localhost:1313/docs/latest/` will not work. You must navigate directly to
-  the version of docs you want to test. Typically this will be
-  [http://localhost:1313/docs/edge/](http://localhost:1313/docs/edge/).
-  It will also not include the processing required for live code blocks
-  to show up correctly.
-
-
-#### Modifying the netlify config/redirects
-
-This requires either using the [Full Site Preview](#full-site-preview) or using
-the local dev tools as described below in:
-[Run the site locally without Docker](#run-the-site-locally-without-docker)
-
-The local dev tools will *not* give live updates as the content changes, but
-will give the most accurate production simulation.
-
-## Run the site locally
-
-You can run the site locally [with Docker](#run-the-site-locally-using-docker) or
-[without Docker](#run-the-site-locally-without-docker).
-
-### Generating Versioned Content ###
-
-> This *MUST* be done before you can serve the site locally!
-
-The site will show all versions of doc content from the tagged versions listed
-in [RELEASES](./RELEASES).
-
-To generate them run:
-```shell
-make generate
-```
-The content then will be placed into `docs/website/generated/docs/$VERSION/`.
-
-This will attempt to fetch the latest tags from git. The fetch will be skipped
-if the `OFFLINE` environment variable is defined. For example:
-
-```shell
-OFFLINE=1 make generate
-```
-
-### Run the site locally using Docker
-
-> Note: running with docker only uses the Hugo server and not Netlify locally.
-  This means that redirects and other Netlify features the site relies on will not work.
-  It will also not include the processing required for live code blocks
-  to show up correctly.
-
-If [Docker is running](https://docs.docker.com/get-started/):
-
-```bash
-make docker-serve
-```
-
-Open your browser to http://localhost:1313 to see the site running locally. The docs
-are available at http://localhost:1313/docs.
-
-### Run the site locally without Docker
-
-To build and serve the site locally without using Docker, install the following packages
+To build and serve the site install the following dependencies
 on your system:
 
-- The [Hugo](#installing-hugo) static site generator
-- The [Netlify dev CLI](https://www.netlify.com/products/dev/)
+- The [Hugo](#installing-hugo) static site generator (See details below)
 - [NodeJS](https://nodejs.org) (and NPM)
-
-The site will be running from the Hugo dev server and fronted through netlify running
-as a local reverse proxy. This more closely simulates the production environment but
-gives live updates as code changes.
+- The [Netlify dev CLI](https://www.netlify.com/products/dev/)
 
 #### Installing Hugo
 
@@ -159,23 +80,39 @@ using the non-extended version:
 error: failed to transform resource: TOCSS: failed to transform "sass/style.sass" (text/x-sass): this feature is not available in your current Hugo version
 ```
 
-#### Serving the full site
+#### Remote Preview on Netlify
 
-From this directory:
+This option provides the best preview of the site content, using the exact same infrastructure as the production website.
 
-```shell
-make serve
-```
+1) Go to [Netlify](https://www.netlify.com/) and create an account/log-in.
 
-Watch the console output for a localhost URL (the port is randomized). The docs are
-available at http://localhost:$PORT/docs.
+1) (Optional) Create a new "site" in Netlify, linking to your fork of OPA on GitHub. This step makes for an easy way
+   to see the "real" site deployed from branches you are working on, but is not required for dev previews.
+
+1) Log in with the `netlify` CLI tool [https://docs.netlify.com/cli/get-started/#authentication](https://docs.netlify.com/cli/get-started/#authentication)
+
+1) Deploy the site on Netlify using local content via the `make docs-serve-remote`. Follow any prompts the `netlify`
+   tool asks. If you have not already linked the site select `Create & configure a new site` and specify your personal
+   user account (which should have been configured in the previous step).
+   
+1) Netlify will then upload the built content and serve it via their CDN. A URL to the preview will be given in the
+   CLI console output.
 
 
-## Site updates
+#### Local Preview via `netlify dev`
 
-The OPA site is automatically published using [Netlify](https://netlify.com). Whenever
-changes in this directory are pushed to `master`, the site will be re-built and
-re-deployed.
+Similar to the "remote" option this will run a full preview of the website, however all Netlify components are run
+locally using [Netlify Dev](https://www.netlify.com/products/dev/). This will load a preview significantly faster
+than deploying remotely as the content does not need to be uploaded to the Netlify CDN first.
+
+1) Run `make docs-serve-local` target. A URL to the preview will be given in the CLI console output.
+
+> WARNING: This option will render the content and works as a good option for local development. However, there are
+> some differences between what would be run locally and what gets deployed in "prod" on Netlify. This depends on
+> the version of the CLI tool and how in-sync that is with the actual Netlify infrastructure. A common issue is
+> with the redirects not working as expected locally, but working correctly on the "live" site in production.
+> When in doubt use the "remote" Netlify preview to verify behavior.
+
 
 ## Checking links
 
