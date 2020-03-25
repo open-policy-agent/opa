@@ -25,6 +25,13 @@ PREV_MAJOR_VER="-1"
 PREV_MINOR_VER="-1"
 for release in ${ALL_RELEASES}; do
     CUR_SEM_VER=${release#"v"}
+
+    # ignore any release candidate versions, for now if they
+    # are the "latest" they'll be documented under "edge"
+    if [[ "${CUR_SEM_VER}" == *"rc"* ]]; then
+      continue
+    fi
+
     SEMVER_REGEX='[^0-9]*\([0-9]*\)[.]\([0-9]*\)[.]\([0-9]*\)\([0-9A-Za-z-]*\)'
     CUR_MAJOR_VER=$(echo ${CUR_SEM_VER} | sed -e "s#${SEMVER_REGEX}#\1#")
     CUR_MINOR_VER=$(echo ${CUR_SEM_VER} | sed -e "s#${SEMVER_REGEX}#\2#")
@@ -68,7 +75,7 @@ function restore_tree {
 function cleanup {
     EXIT_CODE=$?
 
-    if [[ "${EXIT_CODE}" != "0" ]]; then 
+    if [[ "${EXIT_CODE}" != "0" ]]; then
         # on errors attempt to restore the starting tree state
         restore_tree
 
