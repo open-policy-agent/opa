@@ -127,6 +127,11 @@ func TestHTTPGetRequestTlsInsecureSkipVerify(t *testing.T) {
 			`p = x { http.send({"method": "get", "url": "%s", "force_json_decode": true}, x) }`, ts.URL)}, expected: &Error{Message: "x509: certificate signed by unknown authority"}},
 		{note: "http.send", rules: []string{fmt.Sprintf(
 			`p = x { http.send({"method": "get", "url": "%s", "force_json_decode": true, "tls_insecure_skip_verify": true}, x) }`, ts.URL)}, expected: resultObj.String()},
+		// This case verifies that `tls_insecure_skip_verify`
+		// is still applied, even if other TLS settings are
+		// present.
+		{note: "http.send", rules: []string{fmt.Sprintf(
+			`p = x { http.send({"method": "get", "url": "%s", "force_json_decode": true, "tls_insecure_skip_verify": true, "tls_use_system_certs": true,}, x) }`, ts.URL)}, expected: resultObj.String()},
 	}
 
 	data := loadSmallTestData()
