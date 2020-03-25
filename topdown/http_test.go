@@ -1092,6 +1092,42 @@ func TestHTTPSClient(t *testing.T) {
 		// run the test
 		runTopDownTestCase(t, data, "http.send", rule, expectedResult)
 	})
+
+	// Expect that setting the Host header causes TLS server validation
+	// to fail because the server sends a different certificate.
+	t.Run("Client Host is also ServerName", func(t *testing.T) {
+		url := s.URL + "/cert"
+		hostname := "notpresent"
+
+		expected := &Error{Code: BuiltinErr, Message: fmt.Sprintf(
+			"http.send: Get %s: x509: certificate is valid for localhost, not %s",
+			url, hostname)}
+
+		data := loadSmallTestData()
+		rule := []string{fmt.Sprintf(
+			`p = x { http.send({"method": "get", "url": "%s", "tls_ca_cert_file": "%s", "tls_client_cert_file": "%s", "tls_client_key_file": "%s", "headers": {"host": "%s"}}, x) }`, url, localCaFile, localClientCertFile, localClientKeyFile, hostname)}
+
+		// run the test
+		runTopDownTestCase(t, data, "http.send", rule, expected)
+	})
+
+	// Expect that setting `tls_server_name` causes TLS server validation
+	// to fail because the server sends a different certificate.
+	t.Run("Client can set ServerName", func(t *testing.T) {
+		url := s.URL + "/cert"
+		hostname := "notpresent"
+
+		expected := &Error{Code: BuiltinErr, Message: fmt.Sprintf(
+			"http.send: Get %s: x509: certificate is valid for localhost, not %s",
+			url, hostname)}
+
+		data := loadSmallTestData()
+		rule := []string{fmt.Sprintf(
+			`p = x { http.send({"method": "get", "url": "%s", "tls_ca_cert_file": "%s", "tls_client_cert_file": "%s", "tls_client_key_file": "%s", "tls_server_name": "%s"}, x) }`, url, localCaFile, localClientCertFile, localClientKeyFile, hostname)}
+
+		// run the test
+		runTopDownTestCase(t, data, "http.send", rule, expected)
+	})
 }
 
 func TestHTTPSNoClientCerts(t *testing.T) {
