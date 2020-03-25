@@ -200,9 +200,21 @@ a {
     box-shadow: 2px 2px 5px rgba(51, 51, 51, 0.23);
 }
 
-
 .btn-primary:hover {
     background: linear-gradient(#46ccd9, #49a1e2);
+}
+
+.btn-playground {
+    padding: 5px 20px;
+}
+
+.btn-playground a {
+    font-size: 18px;
+}
+
+.launch-playground-icon {
+    height: 20px;
+    vertical-align: sub;
 }
 
 .styraText {
@@ -1834,6 +1846,11 @@ h4 {
         padding: 0;
         margin-left: 10px;
         margin-right: 10px;
+        margin-bottom: 15px;
+    }
+
+    .tab-content {
+        background-color: #fff;
     }
 }
 
