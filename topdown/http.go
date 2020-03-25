@@ -272,15 +272,16 @@ func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) 
 		}
 	}
 
+	isTLS := false
 	client := &http.Client{
 		Timeout: timeout,
 	}
 
 	if tlsInsecureSkipVerify {
-		client.Transport = &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: tlsInsecureSkipVerify},
-		}
+		isTLS = true
+		tlsConfig.InsecureSkipVerify = tlsInsecureSkipVerify
 	}
+
 	if tlsClientCertFile != "" && tlsClientKeyFile != "" {
 		clientCertFromFile, err := tls.LoadX509KeyPair(tlsClientCertFile, tlsClientKeyFile)
 		if err != nil {
@@ -297,7 +298,6 @@ func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) 
 		clientCerts = append(clientCerts, clientCertFromEnv)
 	}
 
-	isTLS := false
 	if len(clientCerts) > 0 {
 		isTLS = true
 		tlsConfig.Certificates = append(tlsConfig.Certificates, clientCerts...)
@@ -337,6 +337,7 @@ func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) 
 	if err != nil {
 		return nil, err
 	}
+
 	req = req.WithContext(bctx.Context)
 
 	// Add custom headers
@@ -348,6 +349,14 @@ func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) 
 		if _, hasUA := customHeaders["User-Agent"]; !hasUA {
 			req.Header.Add("User-Agent", version.UserAgent)
 		}
+	}
+
+	// If the Host header was set, make sure that the TLS server name
+	// matches it. This ensures that TLS sessions get routed based on
+	// the requested hostname only if it is different to the address in
+	// the URL.
+	if host := req.Header.Get(http.CanonicalHeaderKey("Host")); host != "" {
+		tlsConfig.ServerName = host
 	}
 
 	// execute the http request
