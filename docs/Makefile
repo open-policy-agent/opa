@@ -1,5 +1,11 @@
 DEPLOY_PRIME_URL ?= "http://localhost:8888"
 
+######################################################
+#
+# Development targets
+#
+######################################################
+
 .PHONY: clean
 clean:
 	rm -rf ${CURDIR}/website/data/releases.yaml
@@ -11,33 +17,36 @@ clean:
 generate:
 	$(CURDIR)/website/scripts/load-docs.sh
 
-.PHONY: setup
-setup:
+# The website has some npm dependencies saved in ./website/node_modules
+# As well as dependencies required for the "live-blocks".
+# Use this target to update them as needed.
+.PHONY: install-deps
+install-deps: live-blocks-install-deps
 	npm install
 
-.PHONY: hugo-serve
-hugo-serve:
-	hugo \
-		server \
-		--source $(CURDIR)/website \
-		--contentDir generated \
-		--buildDrafts \
-		--buildFuture
+# The live-blocks-% pattern target will shim to the
+# npm scripts in ./website/scripts/live-blocks
+.PHONY: live-blocks-%
+live-blocks-%:
+	cd $(CURDIR)/website/scripts/live-blocks && npm run --silent $*
 
-.PHONY: serve
-serve: production-build
+.PHONY: serve-local
+serve-local: production-build
 	# must be run from root of repo for
 	# the netlify.toml config to work
 	cd $(CURDIR)/.. && netlify dev --offline
 
-.PHONY: docker-serve
-docker-serve:
-	docker run --rm -it \
-		-v $(CURDIR)/:/src \
-		-p 1313:1313 \
-		klakegg/hugo:0.55.5-ext server \
-			--source /src/website \
-			--contentDir generated
+.PHONY: serve-remote
+serve-remote: production-build
+	# must be run from root of repo for
+	# the netlify.toml config to work
+	cd $(CURDIR)/.. && netlify deploy
+
+######################################################
+#
+# CI targets
+#
+######################################################
 
 .PHONY: hugo-production-build
 hugo-production-build:
@@ -60,9 +69,3 @@ preview-build:
 		--buildFuture \
 		--ignoreCache
 	make live-blocks-inject
-
-# The live-blocks-% pattern target will shim to the
-# npm scripts in ./website/scripts/live-blocks
-.PHONY: live-blocks-%
-live-blocks-%:
-	cd $(CURDIR)/website/scripts/live-blocks && npm run --silent $*
