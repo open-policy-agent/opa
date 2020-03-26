@@ -45,6 +45,7 @@ func (r *Report) String() string {
 // analyzeQuery holds the result of analyzing the query
 // Expressions -> time complexity of each expression in the rule body
 // Missing     -> unhandled expression
+// Complexity  -> runtime complexity of query
 // relation    -> whether the expression is a relation or not
 //                An expression is a relation if the reference it contains
 //                has first occurrence of a variable. eg. p[x]
@@ -52,7 +53,6 @@ func (r *Report) String() string {
 // count       -> count complexity of each variable in query
 // size        -> size complexity of each variable in query
 // binding     -> map of variable to the value assigned to it
-// complexity  -> runtime complexity of query
 type analyzeQuery struct {
 	Query       string   `json:"query"`
 	Expressions []*Time  `json:"expressions,omitempty"`
@@ -453,6 +453,21 @@ func (c *Calculator) analyzeExprEquality(v ast.Var, t *ast.Term, a *analyzeQuery
 			if ok {
 				a.size[v] = a.size[y]
 			}
+
+			arr, ok := x.(ast.Array)
+			if ok {
+				unifyArrayVar(arr, v, a, a)
+			}
+
+			set, ok := x.(ast.Set)
+			if ok {
+				unifySetVar(set, v, a, a)
+			}
+
+			obj, ok := x.(ast.Object)
+			if ok {
+				unifyObjVar(obj, v, a, a)
+			}
 		}
 	case ast.Ref:
 		if len(c.compiler.GetRulesDynamic(x)) != 0 {
@@ -597,8 +612,7 @@ func (c *Calculator) analyzeExprBaseRef(r ast.Ref, a *analyzeQuery, idx int) {
 	})
 
 	if relation {
-		ref := rewriteRefInTermsOfBaseDoc(r, a)
-		a.Expressions[idx] = &Time{R: ref.GroundPrefix()}
+		a.Expressions[idx] = getTimeInTermsOfBaseDoc(r, a)
 		a.relation[idx] = true
 	}
 }
@@ -743,7 +757,7 @@ func (c *Calculator) analyzeExprUserDefinedFunctions(e *ast.Expr, a *analyzeQuer
 	return nil
 }
 
-// unify unifies the arguments at the call-site and the function declaration
+// unify unifies the arguments at the call-site and the function definition
 func (c *Calculator) unify(e *ast.Expr, r *ast.Rule, a *analyzeQuery) *analyzeQuery {
 
 	operands := e.Operands()
@@ -790,15 +804,43 @@ func unifyTerms(e *ast.Expr, a, b *ast.Term, aCurr, aNew *analyzeQuery) {
 			aNew.time[y] = aCurr.time[x]
 			aNew.size[y] = aCurr.size[x]
 			aNew.count[y] = aCurr.count[x]
-		case ast.Array, ast.Set, ast.Object:
-			aCurr.Missing = append(aCurr.Missing, e.String())
+		case ast.Array:
+			bindVal := aCurr.binding.Get(x)
+			if bindVal != nil {
+				if arr, ok := bindVal.(ast.Array); ok {
+					if len(arr) != len(y) {
+						aCurr.Missing = append(aCurr.Missing, e.String())
+					}
+					unifySlice(e, arr, y, aCurr, aNew)
+				}
+			}
+		case ast.Set:
+			bindVal := aCurr.binding.Get(x)
+			if bindVal != nil {
+				if set, ok := bindVal.(ast.Set); ok {
+					if set.Len() != y.Len() {
+						aCurr.Missing = append(aCurr.Missing, e.String())
+					}
+					unifySlice(e, set.Slice(), y.Slice(), aCurr, aNew)
+				}
+			}
+		case ast.Object:
+			bindVal := aCurr.binding.Get(x)
+			if bindVal != nil {
+				if obj, ok := bindVal.(ast.Object); ok {
+					if obj.Len() != y.Len() {
+						aCurr.Missing = append(aCurr.Missing, e.String())
+					}
+					unifySlice(e, obj.Keys(), y.Keys(), aCurr, aNew)
+				}
+			}
 		}
 	case ast.Array:
 		switch y := b.Value.(type) {
 		case ast.Null, ast.Boolean, ast.Number, ast.String:
 			aCurr.Missing = append(aCurr.Missing, e.String())
 		case ast.Var:
-			aCurr.Missing = append(aCurr.Missing, e.String())
+			unifyArrayVar(x, y, aCurr, aNew)
 		case ast.Array:
 			if len(x) != len(y) {
 				aCurr.Missing = append(aCurr.Missing, e.String())
@@ -810,7 +852,7 @@ func unifyTerms(e *ast.Expr, a, b *ast.Term, aCurr, aNew *analyzeQuery) {
 		case ast.Null, ast.Boolean, ast.Number, ast.String:
 			aCurr.Missing = append(aCurr.Missing, e.String())
 		case ast.Var:
-			aCurr.Missing = append(aCurr.Missing, e.String())
+			unifySetVar(x, y, aCurr, aNew)
 		case ast.Set:
 			if x.Len() != y.Len() {
 				aCurr.Missing = append(aCurr.Missing, e.String())
@@ -822,12 +864,63 @@ func unifyTerms(e *ast.Expr, a, b *ast.Term, aCurr, aNew *analyzeQuery) {
 		case ast.Null, ast.Boolean, ast.Number, ast.String:
 			aCurr.Missing = append(aCurr.Missing, e.String())
 		case ast.Var:
-			aCurr.Missing = append(aCurr.Missing, e.String())
+			unifyObjVar(x, y, aCurr, aNew)
 		case ast.Object:
 			if x.Len() != y.Len() {
 				aCurr.Missing = append(aCurr.Missing, e.String())
 			}
 			unifySlice(e, x.Keys(), y.Keys(), aCurr, aNew)
+		}
+	}
+	return
+}
+
+// unifyArrayVar unifies an array argument at the call-site with a variable
+// at the function definition. The size complexity of the variable
+// is the sum of the size complexity of the array's terms
+func unifyArrayVar(a ast.Array, v ast.Var, aCurr, aNew *analyzeQuery) {
+	aNew.time[v] = nil
+	aNew.size[v] = &size{}
+	aNew.count[v] = nil
+	addVarBinding(v, a, aNew)
+
+	for _, e := range a {
+		if av, ok := e.Value.(ast.Var); ok {
+			aNew.size[v].sum = append(aNew.size[v].sum, *aCurr.size[av])
+		}
+	}
+	return
+}
+
+// unifySetVar unifies a set argument at the call-site with a variable
+// at the function definition. The size complexity of the variable
+// is the sum of the size complexity of the set's terms
+func unifySetVar(s ast.Set, v ast.Var, aCurr, aNew *analyzeQuery) {
+	aNew.time[v] = nil
+	aNew.size[v] = &size{}
+	aNew.count[v] = nil
+	addVarBinding(v, s, aNew)
+
+	s.Foreach(func(x *ast.Term) {
+		if sv, ok := x.Value.(ast.Var); ok {
+			aNew.size[v].sum = append(aNew.size[v].sum, *aCurr.size[sv])
+		}
+	})
+	return
+}
+
+// unifyObjVar unifies an object argument at the call-site with a variable
+// at the function definition. The size complexity of the variable
+// is the sum of the size complexity of the object's keys
+func unifyObjVar(o ast.Object, v ast.Var, aCurr, aNew *analyzeQuery) {
+	aNew.time[v] = nil
+	aNew.size[v] = &size{}
+	aNew.count[v] = nil
+	addVarBinding(v, o, aNew)
+
+	for _, e := range o.Keys() {
+		if av, ok := e.Value.(ast.Var); ok {
+			aNew.size[v].sum = append(aNew.size[v].sum, *aCurr.size[av])
 		}
 	}
 	return
@@ -913,7 +1006,6 @@ func setComplexityVarVirtualRef(v ast.Var, a *analyzeQuery, sizeComplexitySum []
 }
 
 func setComplexityVarBaseRef(v ast.Var, r ast.Ref, a *analyzeQuery, isRelation bool) {
-	ref := rewriteRefInTermsOfBaseDoc(r, a)
 
 	// time complexity
 	a.time[v] = nil
@@ -922,11 +1014,11 @@ func setComplexityVarBaseRef(v ast.Var, r ast.Ref, a *analyzeQuery, isRelation b
 	a.count[v] = nil
 
 	if isRelation {
-		a.count[v] = &count{r: ref}
+		a.count[v] = getCountInTermsOfBaseDoc(r, a)
 	}
 
 	// size complexity
-	a.size[v] = &size{r: ref}
+	a.size[v] = getSizeInTermsOfBaseDoc(r, a)
 }
 
 func setComplexityVarComprehension(v ast.Var, s *size, a *analyzeQuery) {
@@ -1031,21 +1123,44 @@ func getCountComplexityPartialRule(v ast.Var, a *analyzeQuery, seen map[ast.Var]
 	return nil
 }
 
-func rewriteRefInTermsOfBaseDoc(r ast.Ref, a *analyzeQuery) ast.Ref {
+func getTimeInTermsOfBaseDoc(r ast.Ref, a *analyzeQuery) *Time {
 	if len(r) == 0 {
-		return r
+		return nil
 	}
 
-	result := r.GroundPrefix()
+	s := getSizeInTermsOfBaseDoc(r, a)
+	t := s.sizeToTime()
+	return &t
+}
+
+func getCountInTermsOfBaseDoc(r ast.Ref, a *analyzeQuery) *count {
+	if len(r) == 0 {
+		return nil
+	}
+
+	s := getSizeInTermsOfBaseDoc(r, a)
+	return &count{
+		r: s.sizeToRef(),
+	}
+}
+
+func getSizeInTermsOfBaseDoc(r ast.Ref, a *analyzeQuery) *size {
+	if len(r) == 0 {
+		return nil
+	}
 
 	switch x := r[0].Value.(type) {
 	case ast.Var:
-		if isRootDocument(x) {
-			return result
+		if isRootDocument(x) || a.size[x] == nil {
+			return &size{r: r.GroundPrefix()}
 		}
-		return rewriteRefInTermsOfBaseDoc(a.size[x].sizeToRef(), a)
+
+		if len(a.size[x].r) != 0 {
+			return getSizeInTermsOfBaseDoc(a.size[x].r, a)
+		}
+		return a.size[x]
 	}
-	return result
+	return &size{r: r.GroundPrefix()}
 }
 
 func encloseString(s string) bool {

@@ -375,6 +375,14 @@ func TestRuntimeComplexityUserFunctions(t *testing.T) {
 			t[_]
 		}
 
+		var_arg {
+			x := input.foo
+			y := input.bar
+			z := [x, y]
+			t := get_blah(z)
+			t[_]
+		}
+
 		get_blah([a,b]) = x {
 			x = a
 			x[_] = 1
@@ -412,6 +420,10 @@ O(input.request.foo)`
 Complexity Results for query "data.example.array_arg":
 O(input.foo)`
 
+	expectedVarArg := `
+Complexity Results for query "data.example.var_arg":
+O(input.foo)`
+
 	tests := map[string]struct {
 		compiler *ast.Compiler
 		query    string
@@ -420,6 +432,74 @@ O(input.foo)`
 		"foo":       {compiler: compiler, query: "data.example.foo == true", want: expectedFoo},
 		"deny":      {compiler: compiler, query: "data.example.deny", want: expectedDeny},
 		"array_arg": {compiler: compiler, query: "data.example.array_arg", want: expectedArrayArg},
+		"var_arg":   {compiler: compiler, query: "data.example.var_arg", want: expectedVarArg},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			report, err := getReport(tc.compiler, tc.query)
+			if err != nil {
+				t.Fatalf("Unexpected error %v", err.Error())
+			}
+
+			if report.String() != tc.want {
+				t.Fatalf("Expected %v but got %v", tc.want, report.String())
+			}
+		})
+	}
+}
+
+func TestRuntimeComplexityUserFunctionsWithVarArg(t *testing.T) {
+	module := `
+		package example
+
+		array_arg {
+			x := input.foo
+			y := input.bar
+			t := foo([x,y])
+			t[_]
+		}
+
+		var_arg  = t {
+			x := input.foo
+			y := input.bar
+			z := [x, y]
+			t := foo(z)
+			t[_]
+		}
+
+		foo(arr) = x {
+			x = arr[0]
+			x[_] = 1
+		}
+
+		my_name = 7 {
+			x := var_arg[_]
+			y := var_arg[_]
+		}`
+
+	compiler := getCompiler(module)
+
+	expectedArrayArg := `
+Complexity Results for query "data.example.array_arg":
+O(input.foo + input.bar)`
+
+	expectedVarArg := `
+Complexity Results for query "data.example.var_arg":
+O(input.foo + input.bar)`
+
+	expectedMyName := `
+Complexity Results for query "data.example.my_name":
+O([[input.foo + input.bar] * [input.foo + input.bar]])`
+
+	tests := map[string]struct {
+		compiler *ast.Compiler
+		query    string
+		want     string
+	}{
+		"array_arg": {compiler: compiler, query: "data.example.array_arg", want: expectedArrayArg},
+		"var_arg":   {compiler: compiler, query: "data.example.var_arg", want: expectedVarArg},
+		"my_name":   {compiler: compiler, query: "data.example.my_name", want: expectedMyName},
 	}
 
 	for name, tc := range tests {
@@ -468,52 +548,6 @@ O(input.foo)`
 		"base_ref_gnd":     {compiler: compiler, query: "input.foo", want: expectedBaseRefGnd},
 		"base_ref_non_gnd": {compiler: compiler, query: "input.foo[_]", want: expectedBaseRefNonGnd},
 		"foo":              {compiler: compiler, query: "data.example.foo", want: expectedFoo},
-	}
-
-	for name, tc := range tests {
-		t.Run(name, func(t *testing.T) {
-			report, err := getReport(tc.compiler, tc.query)
-			if err != nil {
-				t.Fatalf("Unexpected error %v", err.Error())
-			}
-
-			if report.String() != tc.want {
-				t.Fatalf("Expected %v but got %v", tc.want, report.String())
-			}
-		})
-	}
-}
-
-func TestRuntimeComplexityMissing(t *testing.T) {
-	module := `
-		package example
-
-		var_arg {
-			x := input.foo
-			y := input.bar
-			z := [x, y]
-			t := get_blah(z)
-			t[_]
-		}
-
-		get_blah([a,b]) = x {
-			x = a
-			x[_] = 1
-		}`
-
-	compiler := getCompiler(module)
-
-	expectedVarArg := `
-Complexity Results for query "data.example.var_arg":
-Missing:
-data.example.get_blah(__local2__, __local6__)`
-
-	tests := map[string]struct {
-		compiler *ast.Compiler
-		query    string
-		want     string
-	}{
-		"var_arg": {compiler: compiler, query: "data.example.var_arg", want: expectedVarArg},
 	}
 
 	for name, tc := range tests {
