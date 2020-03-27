@@ -795,3 +795,56 @@ func ExampleRego_custom_function_caching() {
 	// x: 8717895732742165505
 	// y: 8717895732742165505
 }
+
+func ExampleRego_custom_function_global() {
+
+	decl := &rego.Function{
+		Name: "trim_and_split",
+		Decl: types.NewFunction(
+			types.Args(types.S, types.S), // two string inputs
+			types.NewArray(nil, types.S), // variable-length string array output
+		),
+	}
+
+	impl := func(_ rego.BuiltinContext, a, b *ast.Term) (*ast.Term, error) {
+
+		str, ok1 := a.Value.(ast.String)
+		delim, ok2 := b.Value.(ast.String)
+
+		// The function is undefined for non-string inputs. Built-in
+		// functions should only return errors in unrecoverable cases.
+		if !ok1 || !ok2 {
+			return nil, nil
+		}
+
+		result := strings.Split(strings.Trim(string(str), string(delim)), string(delim))
+
+		arr := make(ast.Array, len(result))
+		for i := range result {
+			arr[i] = ast.StringTerm(result[i])
+		}
+
+		return ast.NewTerm(arr), nil
+	}
+
+	// The rego package exports helper functions for different arities and a
+	// special version of the function that accepts a dynamic number.
+	rego.RegisterBuiltin2(decl, impl)
+
+	r := rego.New(
+		// An example query that uses a custom function.
+		rego.Query(`x = trim_and_split("/foo/bar/baz/", "/")`),
+	)
+
+	rs, err := r.Eval(context.Background())
+	if err != nil {
+		// handle error
+	}
+
+	fmt.Println(rs[0].Bindings["x"])
+
+	// Output:
+	//
+	// [foo bar baz]
+
+}
