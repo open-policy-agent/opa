@@ -678,14 +678,13 @@ func TestVoidBuiltins(t *testing.T) {
 	for _, tc := range tests {
 		body := MustParseBody(tc.query)
 		checker := newTypeChecker()
-		_, err := checker.CheckBody(newTestEnv(nil), body)
-		if err != nil && !tc.wantErr {
-			t.Fatal(err)
-		} else if err == nil && tc.wantErr {
+		_, errs := checker.CheckBody(newTestEnv(nil), body)
+		if len(errs) != 0 && !tc.wantErr {
+			t.Fatal(errs)
+		} else if len(errs) == 0 && tc.wantErr {
 			t.Fatal("Expected error")
 		}
 	}
-
 }
 
 func TestCheckRefErrUnsupported(t *testing.T) {
@@ -964,6 +963,88 @@ func TestFunctionTypeInferenceUnappliedWithObjectVarKey(t *testing.T) {
 
 	if types.Compare(tpe, exp) != 0 {
 		t.Fatalf("Expected %v but got %v", exp, tpe)
+	}
+}
+
+func TestCheckValidErrors(t *testing.T) {
+
+	module := MustParseModule(`
+		package test
+
+		p {
+			concat("", 1)  # type error
+		}
+
+		q {
+			r(1)
+		}
+
+		r(x) = x`)
+
+	module2 := MustParseModule(`
+		package test
+
+		b {
+			a(1)		# call erroneous function
+		}
+
+		a(x) {
+			max("foo")  # max requires an array
+		}
+
+		m {
+			1 / "foo"	# type error
+		}
+
+		n {
+			m			# call erroneous rule
+		}`)
+
+	module3 := MustParseModule(`
+		package test
+
+		x := {"a" : 1}
+
+		y {
+			z
+		}
+
+		z {
+			x[1] == 1	# undefined reference error
+		}`)
+
+	tests := map[string]struct {
+		module *Module
+		numErr int
+		query  []string
+	}{
+		"single_type_error":         {module: module, numErr: 1, query: []string{`data.test.p`}},
+		"multiple_type_error":       {module: module2, numErr: 2, query: []string{`data.test.a`, `data.test.m`}},
+		"undefined_reference_error": {module: module3, numErr: 1, query: []string{`data.test.z`}},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			c := NewCompiler()
+			c.Compile(map[string]*Module{"test": tc.module})
+
+			if !c.Failed() {
+				t.Errorf("Expected error but got success")
+			}
+
+			if len(c.Errors) != tc.numErr {
+				t.Fatalf("Expected %v error(s) but got: %v", tc.numErr, c.Errors)
+			}
+
+			// check type of the rule/function that contains an error
+			for _, q := range tc.query {
+				tpe := c.TypeEnv.Get(MustParseRef(q))
+
+				if types.Compare(tpe, types.NewAny()) != 0 {
+					t.Fatalf("Expected Any type but got %v", tpe)
+				}
+			}
+		})
 	}
 }
 
