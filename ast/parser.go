@@ -572,10 +572,9 @@ func (p *Parser) parseWith() []*With {
 
 	for {
 
-		// NOTE(tsandall): location is not being set correctly on with
-		// statements. need special test case for this.
-
-		var with With
+		with := With{
+			Location: p.s.Loc(),
+		}
 		p.scan()
 
 		if p.s.tok != tokens.Ident {
@@ -604,6 +603,8 @@ func (p *Parser) parseWith() []*With {
 		if with.Value = p.parseTermRelation(); with.Value == nil {
 			return nil
 		}
+
+		with.Location.Text = p.s.Text(with.Location.Offset, p.s.lastEnd)
 
 		withs = append(withs, &with)
 

@@ -542,6 +542,100 @@ func TestExprWith(t *testing.T) {
 	})
 }
 
+func TestExprWithLocation(t *testing.T) {
+	cases := []struct {
+		note     string
+		input    string
+		expected []*Location
+	}{
+		{
+			note:  "base",
+			input: "a with b as c",
+			expected: []*Location{
+				{
+					Row:    1,
+					Col:    3,
+					Offset: 2,
+					Text:   []byte("with b as c"),
+				},
+			},
+		},
+		{
+			note:  "with line break",
+			input: "a with b\nas c",
+			expected: []*Location{
+				{
+					Row:    1,
+					Col:    3,
+					Offset: 2,
+					Text:   []byte("with b\nas c"),
+				},
+			},
+		},
+		{
+			note:  "multiple withs on single line",
+			input: "a with b as c with d as e",
+			expected: []*Location{
+				{
+					Row:    1,
+					Col:    3,
+					Offset: 2,
+					Text:   []byte("with b as c"),
+				},
+				{
+					Row:    1,
+					Col:    15,
+					Offset: 14,
+					Text:   []byte("with d as e"),
+				},
+			},
+		},
+		{
+			note:  "multiple withs on multiple line",
+			input: "a with b as c\n\t\twith d as e",
+			expected: []*Location{
+				{
+					Row:    1,
+					Col:    3,
+					Offset: 2,
+					Text:   []byte("with b as c"),
+				},
+				{
+					Row:    2,
+					Col:    3,
+					Offset: 16,
+					Text:   []byte("with d as e"),
+				},
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			parsed, err := ParseStatement(tc.input)
+			if err != nil {
+				t.Errorf("Unexpected error on %s: %s", tc.input, err)
+				return
+			}
+
+			body := parsed.(Body)
+			if len(body) != 1 {
+				t.Errorf("Parser returned multiple expressions: %v", body)
+				return
+			}
+			expr := body[0]
+			if len(expr.With) != len(tc.expected) {
+				t.Fatalf("Expected %d with statements, got %d", len(expr.With), len(tc.expected))
+			}
+			for i, with := range expr.With {
+				if !with.Location.Equal(tc.expected[i]) {
+					t.Errorf("Expected location %+v for '%v' but got %+v ", *(tc.expected[i]), with.String(), *with.Location)
+				}
+			}
+		})
+	}
+}
+
 func TestSomeDeclExpr(t *testing.T) {
 
 	assertParseOneExpr(t, "one", "some x", &Expr{
