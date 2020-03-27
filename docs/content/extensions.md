@@ -8,15 +8,20 @@ OPA can be extended with custom built-in functions and plugins that
 implement functionality like support for new protocols.
 
 > Support for Go plugins was deprecated in OPA v0.14.0. If you want to customize
-> the OPA daemon we recommend you build OPA from source.
+> the OPA runtime we recommend you build OPA from source.
 
 This page explains how to customize and extend OPA in different ways.
 
 ## Custom Built-in Functions in Go
 
-Read this section if you want to extend OPA with custom built-in functions and
-you are using the `github.com/open-policy-agent/opa/rego` package to execute
-policies inside of software written in Go.
+Read this section if you want to extend OPA with custom built-in functions.
+
+> This section assumes you are embedding OPA as a library and executing policies
+> via the `github.com/open-policy-agent/opa/rego` package. If you are NOT embedding OPA
+> as a library and instead want to customize the OPA runtime, read this section
+> anyway because it provides useful information on implementing built-in functions.
+> For a complete example that shows how to add custom built-in functions to the
+> OPA runtime, see the [Adding Built-in Functions to the OPA Runtime](#adding-built-in-functions-to-the-opa-runtime) appendix.
 
 OPA supports built-in functions for simple operations like string manipulation
 and arithmetic as well as more complex operations like JWT verification and
@@ -169,9 +174,10 @@ The implementation is careful to use the context passed to the built-in function
 when executing the HTTP request. See the appendix at the end of this page for
 the complete example.
 
-## Custom Plugins for OPA Daemon
+## Custom Plugins for OPA Runtime
 
-Read this section if you want to customize or extend the OPA daemon.
+Read this section if you want to customize or extend the OPA runtime/executable
+with custom behaviour.
 
 OPA defines a plugin interface that allows you to customize certain behaviour
 like decision logging or add new behaviour like different query APIs. To
@@ -332,6 +338,25 @@ The source code for this example can be found
   Logger](../management/#decision-logs) for details) the `Event` received by the
   demo plugin will potentially be different than the example documented.
 
+## Setting the OPA Runtime Version
+
+The OPA runtime version is set statically at build-time. The following global variables
+are exported by the `github.com/open-policy-agent/opa/version` package and can be
+set at build-time:
+
+| Name | Description |
+| --- | --- |
+| `Version` | Human-readable/semantic version of the OPA runtime. |
+| `Vcs` | Git SHA that the OPA runtime was built from. |
+| `Timestamp` | Date/time when the OPA runtime was built. |
+| `Hostname` | Hostname of the system where the OPA runtime was built. |
+
+These values can be set on the command-line when building OPA from source:
+
+```
+go build -o opa++ -ldflags "-X github.com/open-policy-agent/opa/version.Version=MY_VERSION" main.go
+```
+
 ## Appendix
 
 ### Custom Built-in Function in Go
@@ -405,6 +430,73 @@ func main() {
 	} else {
 		bs, _ := json.MarshalIndent(rs[0].Expressions[0].Value, "", "  ")
 		fmt.Println(string(bs))
+	}
+}
+```
+
+### Adding Built-in Functions to the OPA Runtime
+
+```golang
+package main
+
+import (
+	"fmt"
+	"net/http"
+	"os"
+
+	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/cmd"
+	"github.com/open-policy-agent/opa/rego"
+	"github.com/open-policy-agent/opa/types"
+
+)
+
+func main() {
+
+	rego.RegisterBuiltin2(
+		&rego.Function{
+			Name:    "github.repo",
+			Decl:    types.NewFunction(types.Args(types.S, types.S), types.A),
+			Memoize: true,
+		},
+		func(bctx rego.BuiltinContext, a, b *ast.Term) (*ast.Term, error) {
+
+			var org, repo string
+
+			if err := ast.As(a.Value, &org); err != nil {
+				return nil, err
+			} else if ast.As(b.Value, &repo); err != nil {
+				return nil, err
+			}
+
+			req, err := http.NewRequest("GET", fmt.Sprintf("https://api.github.com/repos/%v/%v", org, repo), nil)
+			if err != nil {
+				return nil, err
+			}
+
+			resp, err := http.DefaultClient.Do(req.WithContext(bctx.Context))
+			if err != nil {
+				return nil, err
+			}
+
+			defer resp.Body.Close()
+
+			if resp.StatusCode != http.StatusOK {
+				return nil, fmt.Errorf(resp.Status)
+			}
+
+			v, err := ast.ValueFromReader(resp.Body)
+			if err != nil {
+				return nil, err
+			}
+
+			return ast.NewTerm(v), nil
+		},
+	)
+
+	if err := cmd.RootCommand.Execute(); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
 	}
 }
 ```
