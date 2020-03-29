@@ -222,6 +222,8 @@ func (r *REPL) OneShot(ctx context.Context, line string) error {
 				return r.cmdShow(cmd.args)
 			case "unset":
 				return r.cmdUnset(ctx, cmd.args)
+			case "unset-package":
+				return r.cmdUnsetPackage(ctx, cmd.args)
 			case "pretty":
 				return r.cmdFormat("pretty")
 			case "pretty-limit":
@@ -537,6 +539,26 @@ func (r *REPL) cmdUnset(ctx context.Context, args []string) error {
 	return nil
 }
 
+func (r *REPL) cmdUnsetPackage(ctx context.Context, args []string) error {
+	if len(args) != 1 {
+		return newBadArgsErr("unset-package <var>: expects exactly one argument")
+	}
+
+	pkg, err := ast.ParsePackage(fmt.Sprintf("package %s", args[0]))
+	if err != nil {
+		return newBadArgsErr("argument must identify a package")
+	}
+
+	unset, err := r.unsetPackage(ctx, pkg)
+	if err != nil {
+		return err
+	} else if !unset {
+		fmt.Fprintln(r.output, "warning: no matching package")
+	}
+
+	return nil
+}
+
 func (r *REPL) unsetRule(ctx context.Context, name ast.Var) (bool, error) {
 	if r.currentModuleID == "" {
 		return false, nil
@@ -560,6 +582,23 @@ func (r *REPL) unsetRule(ctx context.Context, name ast.Var) (bool, error) {
 	err := r.recompile(ctx, cpy)
 	if err != nil {
 		return false, err
+	}
+
+	return true, nil
+}
+
+func (r *REPL) unsetPackage(ctx context.Context, pkg *ast.Package) (bool, error) {
+	path := fmt.Sprintf("%v", pkg.Path)
+	_, ok := r.modules[path]
+	if ok {
+		delete(r.modules, path)
+	} else {
+		return false, nil
+	}
+
+	// Change back to default module if current one is being removed
+	if r.currentModuleID == path {
+		r.currentModuleID = ""
 	}
 
 	return true, nil
@@ -1130,6 +1169,7 @@ var builtin = [...]commandDesc{
 	{"show", []string{""}, "show active module definition"},
 	{"show debug", []string{""}, "show REPL settings"},
 	{"unset", []string{"<var>"}, "unset rules in currently active module"},
+	{"unset-package", []string{"<var>"}, "unset packages in currently active module"},
 	{"json", []string{}, "set output format to JSON"},
 	{"pretty", []string{}, "set output format to pretty"},
 	{"pretty-limit", []string{}, "set pretty value output limit"},

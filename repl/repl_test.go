@@ -2063,6 +2063,42 @@ func TestTruncatePrettyOutput(t *testing.T) {
 	}
 }
 
+func TestUnsetPackage(t *testing.T) {
+	ctx := context.Background()
+	store := inmem.New()
+	var buffer bytes.Buffer
+	repl := newRepl(store, &buffer)
+
+	repl.OneShot(ctx, "package a")
+	if err := repl.OneShot(ctx, `unset-package 5`); err == nil {
+		t.Fatalf("Expected package-unset error for bad package but got: %v", buffer.String())
+	}
+
+	buffer.Reset()
+
+	repl.OneShot(ctx, "package a")
+	repl.OneShot(ctx, "unset-package b")
+	if buffer.String() != "warning: no matching package\n" {
+		t.Fatalf("Expected unset-package warning no matching package but got: %v", buffer.String())
+	}
+
+	buffer.Reset()
+
+	repl.OneShot(ctx, `package a`)
+	if err := repl.OneShot(ctx, `unset-package b`); err != nil {
+		t.Fatalf("Expected unset-package to succeed for input: %v", err)
+	}
+
+	buffer.Reset()
+
+	repl.OneShot(ctx, "package a")
+	repl.OneShot(ctx, "unset-package a")
+	repl.OneShot(ctx, "show")
+	if buffer.String() != "no rules defined\n" {
+		t.Fatalf("Expected unset-package to return to default but got: %v", buffer.String())
+	}
+}
+
 func assertREPLText(t *testing.T, buf bytes.Buffer, expected string) {
 	t.Helper()
 	result := buf.String()
