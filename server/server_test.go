@@ -2391,14 +2391,60 @@ func TestPoliciesPutV1Noop(t *testing.T) {
 
 func TestPoliciesListV1(t *testing.T) {
 	f := newFixture(t)
-	put := newReqV1(http.MethodPut, "/policies/1", testMod)
+	putPolicy(t, f, testMod)
+
+	expected := []types.PolicyV1{
+		newPolicy("1", testMod),
+	}
+
+	assertListPolicy(t, f, expected)
+}
+
+func TestPoliciesListV1AfterPartialEval(t *testing.T) {
+	f := newFixture(t)
+	putPolicy(t, f, testMod)
+
+	expected := []types.PolicyV1{
+		newPolicy("1", testMod),
+	}
+
+	assertListPolicy(t, f, expected)
+
+	eval := newReqV1("POST", "/data?partial", "{}")
+	f.server.Handler.ServeHTTP(f.recorder, eval)
+
+	if f.recorder.Code != 200 {
+		t.Fatalf("Expected success but got %v", f.recorder)
+	}
+	f.reset()
+
+	eval = newReqV1("POST", "/data/a/b?partial", "{}")
+	f.server.Handler.ServeHTTP(f.recorder, eval)
+
+	if f.recorder.Code != 200 {
+		t.Fatalf("Expected success but got %v", f.recorder)
+	}
+	f.reset()
+
+	// Doesn't matter what the results of eval w/ partial were
+	// We do expect that the partially evaluated policy is _not_ in the listed policies
+	assertListPolicy(t, f, expected)
+}
+
+func putPolicy(t *testing.T, f *fixture, mod string) {
+	t.Helper()
+	put := newReqV1(http.MethodPut, "/policies/1", mod)
 	f.server.Handler.ServeHTTP(f.recorder, put)
 	if f.recorder.Code != 200 {
 		t.Fatalf("Expected success but got %v", f.recorder)
 	}
 	f.reset()
-	list := newReqV1(http.MethodGet, "/policies", "")
+}
 
+func assertListPolicy(t *testing.T, f *fixture, expected []types.PolicyV1) {
+	t.Helper()
+
+	list := newReqV1(http.MethodGet, "/policies", "")
 	f.server.Handler.ServeHTTP(f.recorder, list)
 
 	if f.recorder.Code != 200 {
@@ -2410,20 +2456,19 @@ func TestPoliciesListV1(t *testing.T) {
 
 	err := util.NewJSONDecoder(f.recorder.Body).Decode(&response)
 	if err != nil {
-		t.Fatalf("Expected policy list but got error: %v", err)
+		t.Fatalf("Expected policy list but got error: %v with response body:\n\n%v\n", err, f.recorder)
 	}
 
-	expected := []types.PolicyV1{
-		newPolicy("1", testMod),
-	}
 	if len(expected) != len(response.Result) {
 		t.Fatalf("Expected %d policies but got: %v", len(expected), response.Result)
 	}
 	for i := range expected {
 		if !expected[i].Equal(response.Result[i]) {
-			t.Fatalf("Expected policies to be equal. Expected:\n\n%v\n\nGot:\n\n%v\n", expected, response.Result)
+			t.Fatalf("Expected policies to be equal. Expected:\n\n%v\n\nGot:\n\n%+v\n", expected, response.Result)
 		}
 	}
+
+	f.reset()
 }
 
 func TestPoliciesGetV1(t *testing.T) {

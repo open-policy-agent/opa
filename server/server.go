@@ -1577,7 +1577,14 @@ func (s *Server) v1PoliciesList(w http.ResponseWriter, r *http.Request) {
 	policies := []types.PolicyV1{}
 	c := s.getCompiler()
 
-	for id, mod := range c.Modules {
+	// Only return policies from the store, the compiler
+	// may contain additional partially compiled modules.
+	ids, err := s.store.ListPolicies(ctx, txn)
+	if err != nil {
+		writer.ErrorAuto(w, err)
+		return
+	}
+	for _, id := range ids {
 		bs, err := s.store.GetPolicy(ctx, txn, id)
 		if err != nil {
 			writer.ErrorAuto(w, err)
@@ -1586,7 +1593,7 @@ func (s *Server) v1PoliciesList(w http.ResponseWriter, r *http.Request) {
 		policy := types.PolicyV1{
 			ID:  id,
 			Raw: string(bs),
-			AST: mod,
+			AST: c.Modules[id],
 		}
 		policies = append(policies, policy)
 	}
