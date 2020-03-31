@@ -954,6 +954,47 @@ func TestPartialResultWithInput(t *testing.T) {
 	assertEval(t, r2, "[[true]]")
 }
 
+func TestPartialResultWithNamespace(t *testing.T) {
+	mod := `
+	package test
+	p {
+		true
+	}
+	`
+	c := ast.NewCompiler()
+	r := New(
+		Query("data.test.p"),
+		Module("test.rego", mod),
+		PartialNamespace("test_ns1"),
+		Compiler(c),
+	)
+
+	ctx := context.Background()
+	pr, err := r.PartialResult(ctx)
+
+	if err != nil {
+		t.Fatalf("unexpected error from Rego.PartialResult(): %s", err.Error())
+	}
+
+	expectedQuery := "data.test_ns1.__result__"
+	if pr.body.String() != expectedQuery {
+		t.Fatalf("Expected partial result query %s got %s", expectedQuery, pr.body)
+	}
+
+	r2 := pr.Rego()
+
+	assertEval(t, r2, "[[true]]")
+
+	if len(c.Modules) != 2 {
+		t.Fatalf("Expected two modules on the compiler, got: %v", c.Modules)
+	}
+
+	expectedModuleID := "__partialresult__test_ns1__"
+	if _, ok := c.Modules[expectedModuleID]; !ok {
+		t.Fatalf("Expected to find module %s in compiler Modules, got: %v", expectedModuleID, c.Modules)
+	}
+}
+
 func TestPreparedPartialResultWithTracer(t *testing.T) {
 	mod := `
 	package test

@@ -1705,9 +1705,10 @@ func (r *Rego) partialResult(ctx context.Context, pCfg *PrepareConfig) (PartialR
 	}
 
 	// Update compiler with partial evaluation output.
-	r.compiler.Modules["__partialresult__"] = module
+	id := fmt.Sprintf("__partialresult__%s__", ectx.partialNamespace)
+	r.compiler.Modules[id] = module
 	for i, module := range pq.Support {
-		r.compiler.Modules[fmt.Sprintf("__partialsupport%d__", i)] = module
+		r.compiler.Modules[fmt.Sprintf("__partialsupport__%s__%d__", ectx.partialNamespace, i)] = module
 	}
 
 	r.metrics.Timer(metrics.RegoModuleCompile).Start()
