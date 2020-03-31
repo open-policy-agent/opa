@@ -358,7 +358,7 @@ This section provides a detailed explanation of the admission control flow
 introduced in the [Introduction](../kubernetes-introduction) page.
 
 It starts with someone (or something) running `kubectl` (or sending a request to
-the API server.) For example, a user might run `kubkectl create -f pod.yaml`:
+the API server.) For example, a user might run `kubectl create -f pod.yaml`:
 
 **pod.yaml**:
 
