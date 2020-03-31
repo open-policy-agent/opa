@@ -1634,7 +1634,13 @@ func (r *Rego) partialResult(ctx context.Context, pCfg *PrepareConfig) (PartialR
 	}
 
 	// Construct module for queries.
-	module := ast.MustParseModule("package " + ectx.partialNamespace)
+	id := fmt.Sprintf("__partialresult__%s__", ectx.partialNamespace)
+
+	module, err := ast.ParseModule(id, "package "+ectx.partialNamespace)
+	if err != nil {
+		return PartialResult{}, fmt.Errorf("bad partial namespace")
+	}
+
 	module.Rules = make([]*ast.Rule, len(pq.Queries))
 	for i, body := range pq.Queries {
 		module.Rules[i] = &ast.Rule{
@@ -1645,7 +1651,6 @@ func (r *Rego) partialResult(ctx context.Context, pCfg *PrepareConfig) (PartialR
 	}
 
 	// Update compiler with partial evaluation output.
-	id := fmt.Sprintf("__partialresult__%s__", ectx.partialNamespace)
 	r.compiler.Modules[id] = module
 	for i, module := range pq.Support {
 		r.compiler.Modules[fmt.Sprintf("__partialsupport__%s__%d__", ectx.partialNamespace, i)] = module
@@ -1688,13 +1693,6 @@ func (r *Rego) partial(ctx context.Context, ectx *EvalContext) (*PartialQueries,
 	} else {
 		// Use input document as unknown if caller has not specified any.
 		unknowns = []*ast.Term{ast.NewTerm(ast.InputRootRef)}
-	}
-
-	// Check partial namespace to ensure it's valid.
-	if term, err := ast.ParseTerm(ectx.partialNamespace); err != nil {
-		return nil, err
-	} else if _, ok := term.Value.(ast.Var); !ok {
-		return nil, fmt.Errorf("bad partial namespace")
 	}
 
 	q := topdown.NewQuery(ectx.compiledQuery.query).

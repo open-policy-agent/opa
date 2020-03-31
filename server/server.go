@@ -1291,7 +1291,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 	pqID += urlPath
 	preparedQuery, ok := s.getCachedPreparedEvalQuery(pqID, m)
 	if !ok {
-		rego, err := s.makeRego(ctx, partial, txn, input, stringPathToDataRef(urlPath).String(), m, includeInstrumentation, buf, opts)
+		rego, err := s.makeRego(ctx, partial, txn, input, urlPath, m, includeInstrumentation, buf, opts)
 
 		if err != nil {
 			_ = logger.Log(ctx, txn, decisionID, r.RemoteAddr, urlPath, "", goInput, nil, err, m)
@@ -2036,33 +2036,41 @@ func (s *Server) getCompiler() *ast.Compiler {
 	return s.manager.GetCompiler()
 }
 
-func (s *Server) makeRego(ctx context.Context, partial bool, txn storage.Transaction, input ast.Value, path string, m metrics.Metrics, instrument bool, tracer topdown.Tracer, opts []func(*rego.Rego)) (*rego.Rego, error) {
+func (s *Server) makeRego(ctx context.Context, partial bool, txn storage.Transaction, input ast.Value, urlPath string, m metrics.Metrics, instrument bool, tracer topdown.Tracer, opts []func(*rego.Rego)) (*rego.Rego, error) {
+	queryPath := stringPathToDataRef(urlPath).String()
+
+	opts = append(
+		opts,
+		rego.Transaction(txn),
+		rego.Query(queryPath),
+		rego.ParsedInput(input),
+		rego.Metrics(m),
+		rego.Tracer(tracer),
+		rego.Instrument(instrument),
+		rego.Runtime(s.runtime),
+		rego.UnsafeBuiltins(unsafeBuiltinsMap),
+	)
 
 	if partial {
+		// pick a namespace for the query (path), doesn't really matter what it is
+		// as long as it is unique for each path.
+		namespace := fmt.Sprintf("partial[`%s`]", urlPath)
 		s.mtx.Lock()
 		defer s.mtx.Unlock()
-		pr, ok := s.partials[path]
+		pr, ok := s.partials[queryPath]
 		if !ok {
-			opts = append(opts, rego.Transaction(txn), rego.Query(path), rego.Metrics(m), rego.Instrument(instrument), rego.Runtime(s.runtime))
+			opts = append(opts, rego.PartialNamespace(namespace))
 			r := rego.New(opts...)
 			var err error
 			pr, err = r.PartialResult(ctx)
 			if err != nil {
 				return nil, err
 			}
-			s.partials[path] = pr
-		}
-		opts := []func(*rego.Rego){
-			rego.ParsedInput(input),
-			rego.Transaction(txn),
-			rego.Metrics(m),
-			rego.Instrument(instrument),
-			rego.Tracer(tracer),
+			s.partials[queryPath] = pr
 		}
 		return pr.Rego(opts...), nil
 	}
 
-	opts = append(opts, rego.Transaction(txn), rego.Query(path), rego.ParsedInput(input), rego.Metrics(m), rego.Tracer(tracer), rego.Instrument(instrument), rego.Runtime(s.runtime), rego.UnsafeBuiltins(unsafeBuiltinsMap))
 	return rego.New(opts...), nil
 }
 
