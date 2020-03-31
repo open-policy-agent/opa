@@ -976,6 +976,7 @@ func getSavePairs(x *ast.Term, b *bindings, result []savePair) []savePair {
 
 func (e *eval) saveExpr(expr *ast.Expr, b *bindings, iter unifyIterator) error {
 	expr.With = e.query[e.index].With
+	expr.Location = e.query[e.index].Location
 	e.saveStack.Push(expr, b, b)
 	e.traceSave(expr)
 	err := iter()
@@ -987,6 +988,7 @@ func (e *eval) saveUnify(a, b *ast.Term, b1, b2 *bindings, iter unifyIterator) e
 	e.instr.startTimer(partialOpSaveUnify)
 	expr := ast.Equality.Expr(a, b)
 	expr.With = e.query[e.index].With
+	expr.Location = e.query[e.index].Location
 	pops := 0
 	if pairs := getSavePairs(a, b1, nil); len(pairs) > 0 {
 		pops += len(pairs)
@@ -1017,6 +1019,7 @@ func (e *eval) saveUnify(a, b *ast.Term, b1, b2 *bindings, iter unifyIterator) e
 func (e *eval) saveCall(declArgsLen int, terms []*ast.Term, iter unifyIterator) error {
 	expr := ast.NewExpr(terms)
 	expr.With = e.query[e.index].With
+	expr.Location = e.query[e.index].Location
 
 	// If call-site includes output value then partial eval must add vars in output
 	// position to the save set.
