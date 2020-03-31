@@ -106,10 +106,6 @@ func formatFile(filename string, info os.FileInfo, err error) error {
 		return newError("failed to parse Rego source file: %v", err)
 	}
 
-	if bytes.Equal(formatted, contents) {
-		return nil
-	}
-
 	var out io.Writer = os.Stdout
 	if fmtParams.list {
 		fmt.Fprintln(out, filename)
@@ -158,15 +154,15 @@ func formatStdin(r io.Reader, w io.Writer) error {
 		return err
 	}
 
-	if !bytes.Equal(formatted, contents) {
-		_, err := w.Write(formatted)
-		return err
-	}
-
-	return nil
+	_, err = w.Write(formatted)
+	return err
 }
 
 func doDiff(old, new []byte) (stdout, stderr bytes.Buffer, err error) {
+	if bytes.Equal(old, new) {
+		return stdout, stderr, nil
+	}
+
 	o, err := ioutil.TempFile("", ".opafmt")
 	if err != nil {
 		return stdout, stderr, err
