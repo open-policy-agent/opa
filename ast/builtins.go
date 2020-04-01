@@ -161,6 +161,7 @@ var DefaultBuiltins = [...]*Builtin{
 	Date,
 	Clock,
 	Weekday,
+	AddDate,
 
 	// Crypto
 	CryptoX509ParseCertificates,
@@ -1410,6 +1411,20 @@ var Weekday = &Builtin{
 			),
 		),
 		types.S,
+	),
+}
+
+// AddDate returns the nanoseconds since epoch after adding years, months and days to nanoseconds.
+var AddDate = &Builtin{
+	Name: "time.add_date",
+	Decl: types.NewFunction(
+		types.Args(
+			types.N,
+			types.N,
+			types.N,
+			types.N,
+		),
+		types.N,
 	),
 }
 

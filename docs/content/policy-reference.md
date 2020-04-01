@@ -513,13 +513,14 @@ result_valid_hs256 := io.jwt.verify_hs256(result_hs256, "foo")
 
 | Built-in | Description |
 | -------- | ----------- |
-| <span class="opa-keep-it-together">``output := time.now_ns()``</span> | ``output`` is ``number`` representing the current time since epoch in nanoseconds. |
-| <span class="opa-keep-it-together">``output := time.parse_ns(layout, value)``</span> | ``output`` is ``number`` representing the time ``value`` in nanoseconds since epoch. See the [Go `time` package documentation](https://golang.org/pkg/time/#Parse) for more details on ``layout``. |
-| <span class="opa-keep-it-together">``output := time.parse_rfc3339_ns(value)``</span> | ``output`` is ``number`` representing the time ``value`` in nanoseconds since epoch. |
-| <span class="opa-keep-it-together">``output := time.parse_duration_ns(duration)``</span> | ``output`` is ``number`` representing the duration ``duration`` in nanoseconds. See the [Go `time` package documentation](https://golang.org/pkg/time/#ParseDuration) for more details on ``duration``. |
+| <span class="opa-keep-it-together">``output := time.now_ns()``</span> | ``output`` is a ``number`` representing the current time since epoch in nanoseconds. |
+| <span class="opa-keep-it-together">``output := time.parse_ns(layout, value)``</span> | ``output`` is a ``number`` representing the time ``value`` in nanoseconds since epoch. See the [Go `time` package documentation](https://golang.org/pkg/time/#Parse) for more details on ``layout``. |
+| <span class="opa-keep-it-together">``output := time.parse_rfc3339_ns(value)``</span> | ``output`` is a ``number`` representing the time ``value`` in nanoseconds since epoch. |
+| <span class="opa-keep-it-together">``output := time.parse_duration_ns(duration)``</span> | ``output`` is a ``number`` representing the duration ``duration`` in nanoseconds. See the [Go `time` package documentation](https://golang.org/pkg/time/#ParseDuration) for more details on ``duration``. |
 | <span class="opa-keep-it-together">``output := time.date(ns)``<br/>``output := time.date([ns, tz])``</span> | ``output`` is of the form ``[year, month, day]``, which includes the ``year``, ``month`` (0-12), and ``day`` (0-31) as ``number``s representing the date from the nanoseconds since epoch (``ns``) in the timezone (``tz``), if supplied, or as UTC.|
 | <span class="opa-keep-it-together">``output := time.clock(ns)``<br/>``output := time.clock([ns, tz])``</span> | ``output`` is of the form ``[hour, minute, second]``, which outputs the ``hour``, ``minute`` (0-59), and ``second`` (0-59) as ``number``s representing the time of day for the nanoseconds since epoch (``ns``) in the timezone (``tz``), if supplied, or as UTC. |
 | <span class="opa-keep-it-together">``day := time.weekday(ns)``<br/>``day := time.weekday([ns, tz])``</span> | outputs the ``day`` as ``string`` representing the day of the week for the nanoseconds since epoch (``ns``) in the timezone (``tz``), if supplied, or as UTC. |
+| <span class="opa-keep-it-together">``output := time.add_date(ns, years, months, days)``</span> | ``output`` is a ``number`` representing the time since epoch in nanoseconds after adding the ``years``, ``months`` and ``days`` to ``ns``. See the [Go `time` package documentation](https://golang.org/pkg/time/#Time.AddDate) for more details on ``add_date``. |
 
 > Multiple calls to the `time.now_ns` built-in function within a single policy
 evaluation query will always return the same value.
