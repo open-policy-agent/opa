@@ -7,10 +7,18 @@ package topdown
 import (
 	"fmt"
 	"io"
+	"path/filepath"
 	"strings"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/internal/lcss"
 	"github.com/open-policy-agent/opa/topdown/builtins"
+)
+
+const (
+	minLocationWidth      = 5 // len("query")
+	maxIdealLocationWidth = 64
+	locationPadding       = 4
 )
 
 // Op defines the types of tracing events.
@@ -162,10 +170,16 @@ func PrettyTrace(w io.Writer, trace []*Event) {
 // PrettyTraceWithLocation prints the trace to the writer and includes location information
 func PrettyTraceWithLocation(w io.Writer, trace []*Event) {
 	depths := depths{}
+
+	filePathAliases, longest := getShortenedFileNames(trace)
+
+	// Always include some padding between the trace and location
+	locationWidth := longest + locationPadding
+
 	for _, event := range trace {
 		depth := depths.GetOrSet(event.QueryID, event.ParentID)
-		location := formatLocation(event)
-		fmt.Fprintln(w, fmt.Sprintf("%v %v", location, formatEvent(event, depth)))
+		location := formatLocation(event, filePathAliases)
+		fmt.Fprintf(w, "%-*s %s\n", locationWidth, location, formatEvent(event, depth))
 	}
 }
 
@@ -206,21 +220,106 @@ func formatEventSpaces(event *Event, depth int) int {
 	return depth + 1
 }
 
-func formatLocation(event *Event) string {
+// getShortenedFileNames will return a map of file paths to shortened aliases
+// that were found in the trace. It also returns the longest location expected
+func getShortenedFileNames(trace []*Event) (map[string]string, int) {
+	// Get a deduplicated list of all file paths
+	// and the longest file path size
+	fpAliases := map[string]string{}
+	var canShorten [][]byte
+	longestLocation := 0
+	for _, event := range trace {
+		if event.Location != nil {
+			if event.Location.File != "" {
+				// length of "<name>:<row>"
+				curLen := len(event.Location.File) + numDigits10(event.Location.Row) + 1
+				if curLen > longestLocation {
+					longestLocation = curLen
+				}
+
+				if _, ok := fpAliases[event.Location.File]; ok {
+					continue
+				}
+
+				// Only try and shorten the middle parts of paths, ex: bundle1/.../a/b/policy.rego
+				path := filepath.Dir(event.Location.File)
+				path = strings.TrimPrefix(path, string(filepath.Separator))
+				firstSlash := strings.IndexRune(path, filepath.Separator)
+				if firstSlash > 0 {
+					path = path[firstSlash+1:]
+				}
+				canShorten = append(canShorten, []byte(path))
+
+				// Default to just alias their full path
+				fpAliases[event.Location.File] = event.Location.File
+			} else {
+				// length of "<min width>:<row>"
+				curLen := minLocationWidth + numDigits10(event.Location.Row) + 1
+				if curLen > longestLocation {
+					longestLocation = curLen
+				}
+			}
+		}
+	}
+
+	if len(canShorten) > 0 && longestLocation > maxIdealLocationWidth {
+		// Find the longest common path segment..
+		var lcs string
+		if len(canShorten) > 1 {
+			lcs = string(lcss.LongestCommonSubstring(canShorten...))
+		} else {
+			lcs = string(canShorten[0])
+		}
+
+		// Don't just swap in the full LCSS, trim it down to be the least amount of
+		// characters to reach our "ideal" width boundary giving as much
+		// detail as possible without going too long.
+		diff := maxIdealLocationWidth - (longestLocation - len(lcs) + 3)
+		if diff > 0 {
+			if diff > len(lcs) {
+				lcs = ""
+			} else {
+				// Favor data on the right hand side of the path
+				lcs = lcs[:len(lcs)-diff]
+			}
+		}
+
+		// Swap in "..." for the longest common path, but if it makes things better
+		if len(lcs) > 3 {
+			for path := range fpAliases {
+				fpAliases[path] = strings.Replace(path, lcs, "...", 1)
+			}
+
+			// Drop the overall length down to match our substitution
+			longestLocation = longestLocation - (len(lcs) - 3)
+		}
+	}
+
+	return fpAliases, longestLocation
+}
+
+func numDigits10(n int) int {
+	if n < 10 {
+		return 1
+	}
+	return numDigits10(n/10) + 1
+}
+
+func formatLocation(event *Event, fileAliases map[string]string) string {
 	if event.Op == NoteOp {
-		return fmt.Sprintf("%-19v", "note")
+		return fmt.Sprintf("%v", "note")
 	}
 
 	location := event.Location
 	if location == nil {
-		return fmt.Sprintf("%-19v", "")
+		return ""
 	}
 
 	if location.File == "" {
-		return fmt.Sprintf("%-19v", fmt.Sprintf("%.15v:%v", "query", location.Row))
+		return fmt.Sprintf("query:%v", location.Row)
 	}
 
-	return fmt.Sprintf("%-19v", fmt.Sprintf("%.15v:%v", location.File, location.Row))
+	return fmt.Sprintf("%v:%v", fileAliases[location.File], location.Row)
 }
 
 // depths is a helper for computing the depth of an event. Events within the
