@@ -3,7 +3,8 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.19.0-rc1
+
 
 ### New Parser
 
@@ -95,6 +96,21 @@ ParseStatementNestedObjects/1x10-16     1.66M ± 0%     0.00M ± 0%  -99.99%  (p
 ParseStatementNestedObjects/5x5-16      8.16M ± 0%     0.07M ± 0%  -99.13%  (p=0.008 n=5+5)
 ParseBasicABACModule-16                 36.5k ± 0%      0.7k ± 0%  -98.09%  (p=0.008 n=5+5)
 ```
+
+### Fixes
+
+- ast: Add rules/functions that contain errors to the type env ([#2155](https://github.com/open-policy-agent/opa/issues/2155))
+
+### Miscellaneous
+
+- project: Add support for release candidate version tags
+- rego: Improve support for registering custom built-ins
+- repl: Add unset-package command ([#2140](https://github.com/open-policy-agent/opa/issues/2140))
+- misc: Add sublime text syntax file
+- misc: Add link to the Emacs mode for Rego on the website
+- topdown: Add http.send support for setting the TLS server name
+- topdown: Fix lost `tls_insecure_skip_verify` setting
+- topdown: Add net.cidr_contains_matches built-in function
 
 ## 0.18.0
 
