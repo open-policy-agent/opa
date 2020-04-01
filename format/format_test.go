@@ -105,6 +105,161 @@ func TestFormatSource(t *testing.T) {
 	}
 }
 
+func TestFormatAST(t *testing.T) {
+	cases := []struct {
+		note     string
+		toFmt    interface{}
+		expected string
+	}{
+		{
+			note:     "var",
+			toFmt:    ast.Var(`foo`),
+			expected: "foo",
+		},
+		{
+			note: "string",
+			toFmt: &ast.Term{
+				Value:    ast.String("foo"),
+				Location: &ast.Location{Text: []byte(`"foo"`)},
+			},
+			expected: `"foo"`,
+		},
+		{
+			note:     "var wildcard",
+			toFmt:    ast.Var(`$12`),
+			expected: "_",
+		},
+		{
+			note: "string with wildcard prefix",
+			toFmt: &ast.Term{
+				Value:    ast.String("$01"),
+				Location: &ast.Location{Text: []byte(`"$01"`)},
+			},
+			expected: `"$01"`,
+		},
+		{
+			note:     "ref var only",
+			toFmt:    ast.MustParseRef(`data.foo`),
+			expected: "data.foo",
+		},
+		{
+			note:     "ref multi vars",
+			toFmt:    ast.MustParseRef(`data.foo.bar.baz`),
+			expected: "data.foo.bar.baz",
+		},
+		{
+			note:     "ref with string",
+			toFmt:    ast.MustParseRef(`data["foo"]`),
+			expected: `data.foo`,
+		},
+		{
+			note:     "ref multi string",
+			toFmt:    ast.MustParseRef(`data["foo"]["bar"]["baz"]`),
+			expected: `data.foo.bar.baz`,
+		},
+		{
+			note:     "ref with string needs brackets",
+			toFmt:    ast.MustParseRef(`data["foo my-var\nbar"]`),
+			expected: `data["foo my-var\nbar"]`,
+		},
+		{
+			note:     "ref multi string needs brackets",
+			toFmt:    ast.MustParseRef(`data["foo my-var"]["bar"]["almost.baz"]`),
+			expected: `data["foo my-var"].bar["almost.baz"]`,
+		},
+		{
+			note:     "ref var wildcard",
+			toFmt:    ast.MustParseRef(`data.foo[_]`),
+			expected: "data.foo[_]",
+		},
+		{
+			note:     "ref var wildcard",
+			toFmt:    ast.MustParseRef(`foo[_]`),
+			expected: "foo[_]",
+		},
+		{
+			note:     "ref string with wildcard prefix",
+			toFmt:    ast.MustParseRef(`foo["$01"]`),
+			expected: `foo["$01"]`,
+		},
+		{
+			note:     "nested ref var wildcard",
+			toFmt:    ast.MustParseRef(`foo[bar[baz[_]]]`),
+			expected: "foo[bar[baz[_]]]",
+		},
+		{
+			note:     "ref mixed",
+			toFmt:    ast.MustParseRef(`foo["bar"].baz[_]["bar-2"].qux`),
+			expected: `foo.bar.baz[_]["bar-2"].qux`,
+		},
+		{
+			note:     "ref empty",
+			toFmt:    ast.Ref{},
+			expected: ``,
+		},
+		{
+			note:     "ref nil",
+			toFmt:    ast.Ref(nil),
+			expected: ``,
+		},
+		{
+			note: "body shared wildcard",
+			toFmt: ast.Body{
+				&ast.Expr{
+					Index: 0,
+					Terms: []*ast.Term{
+						ast.RefTerm(ast.VarTerm("eq")),
+						ast.RefTerm(ast.VarTerm("input"), ast.StringTerm("arr"), ast.VarTerm("$01"), ast.StringTerm("some key"), ast.VarTerm("$02")),
+						ast.VarTerm("bar"),
+					},
+				},
+				&ast.Expr{
+					Index: 1,
+					Location: &ast.Location{
+						Row: 2,
+						Col: 1,
+					},
+					Terms: []*ast.Term{
+						ast.RefTerm(ast.VarTerm("eq")),
+						ast.RefTerm(ast.VarTerm("input"), ast.StringTerm("arr"), ast.VarTerm("$01"), ast.StringTerm("bar")),
+						ast.VarTerm("qux"),
+					},
+				},
+				&ast.Expr{
+					Index: 1,
+					Location: &ast.Location{
+						Row: 2,
+						Col: 1,
+					},
+					Terms: []*ast.Term{
+						ast.RefTerm(ast.VarTerm("eq")),
+						ast.RefTerm(ast.VarTerm("foo"), ast.VarTerm("$03"), ast.VarTerm("$01"), ast.StringTerm("bar")),
+						ast.RefTerm(ast.VarTerm("bar"), ast.VarTerm("$03"), ast.VarTerm("$04"), ast.VarTerm("$01"), ast.StringTerm("bar")),
+					},
+				},
+			},
+			expected: `input.arr[__wildcard0__]["some key"][_] = bar
+input.arr[__wildcard0__].bar = qux
+foo[__wildcard1__][__wildcard0__].bar = bar[__wildcard1__][_][__wildcard0__].bar
+`,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			bs, err := Ast(tc.toFmt)
+			if err != nil {
+				t.Fatalf("Unexpected error: %s", err)
+			}
+			expected := strings.TrimSpace(tc.expected)
+			actual := strings.TrimSpace(string(bs))
+			if actual != expected {
+				t.Fatalf("Expected:\n\n%s\n\nGot:\n\n%s\n\n", expected, actual)
+			}
+		})
+	}
+}
+
 func differsAt(a, b []byte) (int, int) {
 	if bytes.Equal(a, b) {
 		return 0, 0

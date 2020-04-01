@@ -8,7 +8,9 @@ package format
 import (
 	"bytes"
 	"fmt"
+	"regexp"
 	"sort"
+	"strings"
 
 	"github.com/open-policy-agent/opa/ast"
 )
@@ -44,19 +46,39 @@ func MustAst(x interface{}) []byte {
 // encountered, a default location will be set on the AST node.
 func Ast(x interface{}) (formatted []byte, err error) {
 
+	wildcards := map[string]struct{}{}
+	wildcardNames := map[string]string{}
+	wildcardCounter := 0
+
+	// Preprocess the AST. Set any required defaults and calculate
+	// values required for printing the formatted output.
 	ast.WalkNodes(x, func(x ast.Node) bool {
-		if b, ok := x.(ast.Body); ok {
-			if len(b) == 0 {
+		switch n := x.(type) {
+		case ast.Body:
+			if len(n) == 0 {
 				return false
 			}
+		case *ast.Term:
+			if v, ok := n.Value.(ast.Var); ok {
+				if v.IsWildcard() {
+					str := string(v)
+					if _, seen := wildcards[str]; !seen {
+						wildcards[str] = struct{}{}
+					} else if !strings.HasPrefix(wildcardNames[str], "__wildcard") {
+						wildcardNames[str] = fmt.Sprintf("__wildcard%d__", wildcardCounter)
+						wildcardCounter++
+					}
+				}
+			}
 		}
+
 		if x.Loc() == nil {
 			x.SetLoc(defaultLocation(x))
 		}
 		return false
 	})
 
-	w := &writer{indent: "\t"}
+	w := &writer{indent: "\t", wildcardNames: wildcardNames}
 	switch x := x.(type) {
 	case *ast.Module:
 		w.writeModule(x)
@@ -101,11 +123,12 @@ func defaultLocation(x ast.Node) *ast.Location {
 type writer struct {
 	buf bytes.Buffer
 
-	indent    string
-	level     int
-	inline    bool
-	beforeEnd *ast.Comment
-	delay     bool
+	indent        string
+	level         int
+	inline        bool
+	beforeEnd     *ast.Comment
+	delay         bool
+	wildcardNames map[string]string
 }
 
 func (w *writer) writeModule(module *ast.Module) {
@@ -418,7 +441,7 @@ func (w *writer) writeTermParens(parens bool, term *ast.Term, comments []*ast.Co
 
 	switch x := term.Value.(type) {
 	case ast.Ref:
-		w.write(x.String())
+		w.writeRef(x)
 	case ast.Object:
 		comments = w.writeObject(x, term.Location, comments)
 	case ast.Array:
@@ -439,6 +462,8 @@ func (w *writer) writeTermParens(parens bool, term *ast.Term, comments []*ast.Co
 		} else {
 			w.write(x.String())
 		}
+	case ast.Var:
+		w.write(w.formatVar(x))
 	case ast.Call:
 		comments = w.writeCall(parens, x, term.Location, comments)
 	case fmt.Stringer:
@@ -449,6 +474,48 @@ func (w *writer) writeTermParens(parens bool, term *ast.Term, comments []*ast.Co
 		w.startLine()
 	}
 	return comments
+}
+
+func (w *writer) writeRef(x ast.Ref) {
+	if len(x) > 0 {
+		w.write(x[0].Value.String())
+		path := x[1:]
+		for _, p := range path {
+			switch p := p.Value.(type) {
+			case ast.String:
+				w.writeRefStringPath(p)
+			case ast.Var:
+				w.writeBracketed(w.formatVar(p))
+			default:
+				w.writeBracketed(p.String())
+			}
+		}
+	}
+}
+
+func (w *writer) writeBracketed(str string) {
+	w.write("[" + str + "]")
+}
+
+var varRegexp = regexp.MustCompile("^[[:alpha:]_][[:alpha:][:digit:]_]*$")
+
+func (w *writer) writeRefStringPath(s ast.String) {
+	str := string(s)
+	if varRegexp.MatchString(str) && !ast.IsKeyword(str) {
+		w.write("." + str)
+	} else {
+		w.writeBracketed(s.String())
+	}
+}
+
+func (w *writer) formatVar(v ast.Var) string {
+	if v.IsWildcard() {
+		if generatedName, ok := w.wildcardNames[string(v)]; ok {
+			return generatedName
+		}
+		return ast.Wildcard.String()
+	}
+	return v.String()
 }
 
 func (w *writer) writeCall(parens bool, x ast.Call, loc *ast.Location, comments []*ast.Comment) []*ast.Comment {
