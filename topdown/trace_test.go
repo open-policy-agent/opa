@@ -7,12 +7,15 @@ package topdown
 import (
 	"bytes"
 	"context"
+	"fmt"
+	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
+	"github.com/open-policy-agent/opa/util"
 )
 
 func TestEventEqual(t *testing.T) {
@@ -168,49 +171,49 @@ func TestPrettyTraceWithLocation(t *testing.T) {
 		panic(err)
 	}
 
-	expected := `query:1             Enter data.test.p = _
-query:1             | Eval data.test.p = _
-query:1             | Index data.test.p = _ (matched 1 rule)
-query:3             | Enter data.test.p
-query:3             | | Eval data.test.q[x]
-query:3             | | Index data.test.q[x] (matched 1 rule)
-query:4             | | Enter data.test.q
-query:4             | | | Eval x = data.a[_]
-query:4             | | | Exit data.test.q
-query:3             | | Eval plus(x, 1, n)
-query:3             | | Exit data.test.p
-query:1             | Exit data.test.p = _
-query:1             Redo data.test.p = _
-query:1             | Redo data.test.p = _
-query:3             | Redo data.test.p
-query:3             | | Redo plus(x, 1, n)
-query:3             | | Redo data.test.q[x]
-query:4             | | Redo data.test.q
-query:4             | | | Redo x = data.a[_]
-query:4             | | | Exit data.test.q
-query:3             | | Eval plus(x, 1, n)
-query:3             | | Exit data.test.p
-query:3             | Redo data.test.p
-query:3             | | Redo plus(x, 1, n)
-query:3             | | Redo data.test.q[x]
-query:4             | | Redo data.test.q
-query:4             | | | Redo x = data.a[_]
-query:4             | | | Exit data.test.q
-query:3             | | Eval plus(x, 1, n)
-query:3             | | Exit data.test.p
-query:3             | Redo data.test.p
-query:3             | | Redo plus(x, 1, n)
-query:3             | | Redo data.test.q[x]
-query:4             | | Redo data.test.q
-query:4             | | | Redo x = data.a[_]
-query:4             | | | Exit data.test.q
-query:3             | | Eval plus(x, 1, n)
-query:3             | | Exit data.test.p
-query:3             | Redo data.test.p
-query:3             | | Redo plus(x, 1, n)
-query:3             | | Redo data.test.q[x]
-query:4             | | Redo data.test.q
-query:4             | | | Redo x = data.a[_]
+	expected := `query:1     Enter data.test.p = _
+query:1     | Eval data.test.p = _
+query:1     | Index data.test.p = _ (matched 1 rule)
+query:3     | Enter data.test.p
+query:3     | | Eval data.test.q[x]
+query:3     | | Index data.test.q[x] (matched 1 rule)
+query:4     | | Enter data.test.q
+query:4     | | | Eval x = data.a[_]
+query:4     | | | Exit data.test.q
+query:3     | | Eval plus(x, 1, n)
+query:3     | | Exit data.test.p
+query:1     | Exit data.test.p = _
+query:1     Redo data.test.p = _
+query:1     | Redo data.test.p = _
+query:3     | Redo data.test.p
+query:3     | | Redo plus(x, 1, n)
+query:3     | | Redo data.test.q[x]
+query:4     | | Redo data.test.q
+query:4     | | | Redo x = data.a[_]
+query:4     | | | Exit data.test.q
+query:3     | | Eval plus(x, 1, n)
+query:3     | | Exit data.test.p
+query:3     | Redo data.test.p
+query:3     | | Redo plus(x, 1, n)
+query:3     | | Redo data.test.q[x]
+query:4     | | Redo data.test.q
+query:4     | | | Redo x = data.a[_]
+query:4     | | | Exit data.test.q
+query:3     | | Eval plus(x, 1, n)
+query:3     | | Exit data.test.p
+query:3     | Redo data.test.p
+query:3     | | Redo plus(x, 1, n)
+query:3     | | Redo data.test.q[x]
+query:4     | | Redo data.test.q
+query:4     | | | Redo x = data.a[_]
+query:4     | | | Exit data.test.q
+query:3     | | Eval plus(x, 1, n)
+query:3     | | Exit data.test.p
+query:3     | Redo data.test.p
+query:3     | | Redo plus(x, 1, n)
+query:3     | | Redo data.test.q[x]
+query:4     | | Redo data.test.q
+query:4     | | | Redo x = data.a[_]
 `
 
 	a := strings.Split(expected, "\n")
@@ -233,6 +236,296 @@ query:4             | | | Redo x = data.a[_]
 		t.Fatalf("Extra lines in trace:\n%v", strings.Join(b[min:], "\n"))
 	} else if len(b) < len(a) {
 		t.Fatalf("Missing lines in trace:\n%v", strings.Join(a[min:], "\n"))
+	}
+}
+
+func TestPrettyTraceWithLocationTruncatedPaths(t *testing.T) {
+	ctx := context.Background()
+
+	compiler := ast.MustCompileModules(map[string]string{
+		"authz_bundle/com/foo/bar/baz/qux/acme/corp/internal/authz/policies/abac/v1/beta/policy.rego": `
+		package test
+		
+		import data.utils.q
+
+		p = true { q[x]; plus(x, 1, n) }
+		`,
+		"authz_bundle/com/foo/bar/baz/qux/acme/corp/internal/authz/policies/utils/utils.rego": `
+		package utils
+
+		q[x] { x = data.a[_] }
+		`,
+	})
+	data := loadSmallTestData()
+	store := inmem.NewFromObject(data)
+	txn := storage.NewTransactionOrDie(ctx, store)
+	defer store.Abort(ctx, txn)
+
+	tracer := NewBufferTracer()
+	query := NewQuery(ast.MustParseBody("data.test.p = _")).
+		WithCompiler(compiler).
+		WithStore(store).
+		WithTransaction(txn).
+		WithTracer(tracer)
+
+	_, err := query.Run(ctx)
+	if err != nil {
+		panic(err)
+	}
+
+	expected := `query:1                                                              Enter data.test.p = _
+query:1                                                              | Eval data.test.p = _
+query:1                                                              | Index data.test.p = _ (matched 1 rule)
+authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:6     | Enter data.test.p
+authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:6     | | Eval data.utils.q[x]
+authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:6     | | Index data.utils.q[x] (matched 1 rule)
+authz_bundle/...ternal/authz/policies/utils/utils.rego:4             | | Enter data.utils.q
+authz_bundle/...ternal/authz/policies/utils/utils.rego:4             | | | Eval x = data.a[_]
+authz_bundle/...ternal/authz/policies/utils/utils.rego:4             | | | Exit data.utils.q
+authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:6     | | Eval plus(x, 1, n)
+authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:6     | | Exit data.test.p
+query:1                                                              | Exit data.test.p = _
+query:1                                                              Redo data.test.p = _
+query:1                                                              | Redo data.test.p = _
+authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:6     | Redo data.test.p
+authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:6     | | Redo plus(x, 1, n)
+authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:6     | | Redo data.utils.q[x]
+authz_bundle/...ternal/authz/policies/utils/utils.rego:4             | | Redo data.utils.q
+authz_bundle/...ternal/authz/policies/utils/utils.rego:4             | | | Redo x = data.a[_]
+authz_bundle/...ternal/authz/policies/utils/utils.rego:4             | | | Exit data.utils.q
+authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:6     | | Eval plus(x, 1, n)
+authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:6     | | Exit data.test.p
+authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:6     | Redo data.test.p
+authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:6     | | Redo plus(x, 1, n)
+authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:6     | | Redo data.utils.q[x]
+authz_bundle/...ternal/authz/policies/utils/utils.rego:4             | | Redo data.utils.q
+authz_bundle/...ternal/authz/policies/utils/utils.rego:4             | | | Redo x = data.a[_]
+authz_bundle/...ternal/authz/policies/utils/utils.rego:4             | | | Exit data.utils.q
+authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:6     | | Eval plus(x, 1, n)
+authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:6     | | Exit data.test.p
+authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:6     | Redo data.test.p
+authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:6     | | Redo plus(x, 1, n)
+authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:6     | | Redo data.utils.q[x]
+authz_bundle/...ternal/authz/policies/utils/utils.rego:4             | | Redo data.utils.q
+authz_bundle/...ternal/authz/policies/utils/utils.rego:4             | | | Redo x = data.a[_]
+authz_bundle/...ternal/authz/policies/utils/utils.rego:4             | | | Exit data.utils.q
+authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:6     | | Eval plus(x, 1, n)
+authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:6     | | Exit data.test.p
+authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:6     | Redo data.test.p
+authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:6     | | Redo plus(x, 1, n)
+authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:6     | | Redo data.utils.q[x]
+authz_bundle/...ternal/authz/policies/utils/utils.rego:4             | | Redo data.utils.q
+authz_bundle/...ternal/authz/policies/utils/utils.rego:4             | | | Redo x = data.a[_]
+`
+
+	a := strings.Split(expected, "\n")
+	var buf bytes.Buffer
+	PrettyTraceWithLocation(&buf, *tracer)
+	b := strings.Split(buf.String(), "\n")
+
+	min := len(a)
+	if min > len(b) {
+		min = len(b)
+	}
+
+	for i := 0; i < min; i++ {
+		if a[i] != b[i] {
+			t.Errorf("Line %v in trace is incorrect. Expected %v but got: %v", i+1, a[i], b[i])
+		}
+	}
+
+	if len(a) < len(b) {
+		t.Fatalf("Extra lines in trace:\n%v", strings.Join(b[min:], "\n"))
+	} else if len(b) < len(a) {
+		t.Fatalf("Missing lines in trace:\n%v", strings.Join(a[min:], "\n"))
+	}
+}
+
+func TestPrettyTracePartialWithLocationTruncatedPaths(t *testing.T) {
+	ctx := context.Background()
+
+	compiler := ast.MustCompileModules(map[string]string{
+		"authz_bundle/com/foo/bar/baz/qux/acme/corp/internal/authz/policies/rbac/v1/beta/policy.rego": `
+		package example_rbac
+
+		default allow = false
+		
+		allow {
+		    data.utils.user_has_role[role_name]
+		
+		    data.utils.role_has_permission[role_name]
+		}
+		
+		`,
+		"authz_bundle/com/foo/bar/baz/qux/acme/corp/internal/authz/policies/utils/user.rego": `
+		package utils
+
+		user_has_role[role_name] {
+		    role_binding = data.bindings[_]
+		    role_binding.role = role_name
+		    role_binding.user = input.subject.user
+		}
+		
+		role_has_permission[role_name] {
+		    role = data.roles[_]
+		    role.name = role_name
+		    role.operation = input.action.operation
+		    role.resource = input.action.resource
+		}
+		`,
+	})
+
+	var data map[string]interface{}
+	err := util.UnmarshalJSON([]byte(`{
+    "roles": [
+        {
+            "operation": "read",
+            "resource": "widgets",
+            "name": "widget-reader"
+        },
+        {
+            "operation": "write",
+            "resource": "widgets",
+            "name": "widget-writer"
+        }
+    ],
+    "bindings": [
+        {
+            "user": "inspector-alice",
+            "role": "widget-reader"
+        },
+        {
+            "user": "maker-bob",
+            "role": "widget-writer"
+        }
+    ]
+	}`), &data)
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+
+	store := inmem.NewFromObject(data)
+	txn := storage.NewTransactionOrDie(ctx, store)
+	defer store.Abort(ctx, txn)
+
+	tracer := NewBufferTracer()
+	query := NewQuery(ast.MustParseBody("data.example_rbac.allow")).
+		WithCompiler(compiler).
+		WithStore(store).
+		WithTransaction(txn).
+		WithUnknowns([]*ast.Term{ast.MustParseTerm("input")}).
+		WithTracer(tracer)
+
+	_, _, err = query.PartialRun(ctx)
+	if err != nil {
+		panic(err)
+	}
+
+	expected := `query:1                                                              Enter data.example_rbac.allow
+query:1                                                              | Eval data.example_rbac.allow
+query:1                                                              | Index data.example_rbac.allow (matched 1 rule)
+authz_bundle/...ternal/authz/policies/rbac/v1/beta/policy.rego:6     | Enter data.example_rbac.allow
+authz_bundle/...ternal/authz/policies/rbac/v1/beta/policy.rego:7     | | Eval data.utils.user_has_role[role_name]
+authz_bundle/...ternal/authz/policies/rbac/v1/beta/policy.rego:7     | | Index data.utils.user_has_role[role_name] (matched 1 rule)
+authz_bundle/...ternal/authz/policies/utils/user.rego:4              | | Enter data.utils.user_has_role
+authz_bundle/...ternal/authz/policies/utils/user.rego:5              | | | Eval role_binding = data.bindings[_]
+authz_bundle/...ternal/authz/policies/utils/user.rego:6              | | | Eval role_binding.role = role_name
+authz_bundle/...ternal/authz/policies/utils/user.rego:7              | | | Eval role_binding.user = input.subject.user
+authz_bundle/...ternal/authz/policies/utils/user.rego:7              | | | Save "inspector-alice" = input.subject.user
+authz_bundle/...ternal/authz/policies/utils/user.rego:4              | | | Exit data.utils.user_has_role
+authz_bundle/...ternal/authz/policies/rbac/v1/beta/policy.rego:9     | | Eval data.utils.role_has_permission[role_name]
+authz_bundle/...ternal/authz/policies/rbac/v1/beta/policy.rego:9     | | Index data.utils.role_has_permission[role_name] (matched 1 rule)
+authz_bundle/...ternal/authz/policies/utils/user.rego:10             | | Enter data.utils.role_has_permission
+authz_bundle/...ternal/authz/policies/utils/user.rego:11             | | | Eval role = data.roles[_]
+authz_bundle/...ternal/authz/policies/utils/user.rego:12             | | | Eval role.name = role_name
+authz_bundle/...ternal/authz/policies/utils/user.rego:13             | | | Eval role.operation = input.action.operation
+authz_bundle/...ternal/authz/policies/utils/user.rego:13             | | | Save "read" = input.action.operation
+authz_bundle/...ternal/authz/policies/utils/user.rego:14             | | | Eval role.resource = input.action.resource
+authz_bundle/...ternal/authz/policies/utils/user.rego:14             | | | Save "widgets" = input.action.resource
+authz_bundle/...ternal/authz/policies/utils/user.rego:10             | | | Exit data.utils.role_has_permission
+authz_bundle/...ternal/authz/policies/rbac/v1/beta/policy.rego:6     | | Exit data.example_rbac.allow
+authz_bundle/...ternal/authz/policies/rbac/v1/beta/policy.rego:6     | Redo data.example_rbac.allow
+authz_bundle/...ternal/authz/policies/rbac/v1/beta/policy.rego:9     | | Redo data.utils.role_has_permission[role_name]
+authz_bundle/...ternal/authz/policies/utils/user.rego:10             | | Redo data.utils.role_has_permission
+authz_bundle/...ternal/authz/policies/utils/user.rego:14             | | | Redo role.resource = input.action.resource
+authz_bundle/...ternal/authz/policies/utils/user.rego:13             | | | Redo role.operation = input.action.operation
+authz_bundle/...ternal/authz/policies/utils/user.rego:12             | | | Redo role.name = role_name
+authz_bundle/...ternal/authz/policies/utils/user.rego:11             | | | Redo role = data.roles[_]
+authz_bundle/...ternal/authz/policies/utils/user.rego:12             | | | Eval role.name = role_name
+authz_bundle/...ternal/authz/policies/utils/user.rego:12             | | | Fail role.name = role_name
+authz_bundle/...ternal/authz/policies/utils/user.rego:11             | | | Redo role = data.roles[_]
+authz_bundle/...ternal/authz/policies/rbac/v1/beta/policy.rego:7     | | Redo data.utils.user_has_role[role_name]
+authz_bundle/...ternal/authz/policies/utils/user.rego:4              | | Redo data.utils.user_has_role
+authz_bundle/...ternal/authz/policies/utils/user.rego:7              | | | Redo role_binding.user = input.subject.user
+authz_bundle/...ternal/authz/policies/utils/user.rego:6              | | | Redo role_binding.role = role_name
+authz_bundle/...ternal/authz/policies/utils/user.rego:5              | | | Redo role_binding = data.bindings[_]
+authz_bundle/...ternal/authz/policies/utils/user.rego:6              | | | Eval role_binding.role = role_name
+authz_bundle/...ternal/authz/policies/utils/user.rego:7              | | | Eval role_binding.user = input.subject.user
+authz_bundle/...ternal/authz/policies/utils/user.rego:7              | | | Save "maker-bob" = input.subject.user
+authz_bundle/...ternal/authz/policies/utils/user.rego:4              | | | Exit data.utils.user_has_role
+authz_bundle/...ternal/authz/policies/rbac/v1/beta/policy.rego:9     | | Eval data.utils.role_has_permission[role_name]
+authz_bundle/...ternal/authz/policies/rbac/v1/beta/policy.rego:9     | | Index data.utils.role_has_permission[role_name] (matched 1 rule)
+authz_bundle/...ternal/authz/policies/utils/user.rego:10             | | Enter data.utils.role_has_permission
+authz_bundle/...ternal/authz/policies/utils/user.rego:11             | | | Eval role = data.roles[_]
+authz_bundle/...ternal/authz/policies/utils/user.rego:12             | | | Eval role.name = role_name
+authz_bundle/...ternal/authz/policies/utils/user.rego:12             | | | Fail role.name = role_name
+authz_bundle/...ternal/authz/policies/utils/user.rego:11             | | | Redo role = data.roles[_]
+authz_bundle/...ternal/authz/policies/utils/user.rego:12             | | | Eval role.name = role_name
+authz_bundle/...ternal/authz/policies/utils/user.rego:13             | | | Eval role.operation = input.action.operation
+authz_bundle/...ternal/authz/policies/utils/user.rego:13             | | | Save "write" = input.action.operation
+authz_bundle/...ternal/authz/policies/utils/user.rego:14             | | | Eval role.resource = input.action.resource
+authz_bundle/...ternal/authz/policies/utils/user.rego:14             | | | Save "widgets" = input.action.resource
+authz_bundle/...ternal/authz/policies/utils/user.rego:10             | | | Exit data.utils.role_has_permission
+authz_bundle/...ternal/authz/policies/rbac/v1/beta/policy.rego:6     | | Exit data.example_rbac.allow
+authz_bundle/...ternal/authz/policies/rbac/v1/beta/policy.rego:6     | Redo data.example_rbac.allow
+authz_bundle/...ternal/authz/policies/rbac/v1/beta/policy.rego:9     | | Redo data.utils.role_has_permission[role_name]
+authz_bundle/...ternal/authz/policies/utils/user.rego:10             | | Redo data.utils.role_has_permission
+authz_bundle/...ternal/authz/policies/utils/user.rego:14             | | | Redo role.resource = input.action.resource
+authz_bundle/...ternal/authz/policies/utils/user.rego:13             | | | Redo role.operation = input.action.operation
+authz_bundle/...ternal/authz/policies/utils/user.rego:12             | | | Redo role.name = role_name
+authz_bundle/...ternal/authz/policies/utils/user.rego:11             | | | Redo role = data.roles[_]
+authz_bundle/...ternal/authz/policies/rbac/v1/beta/policy.rego:7     | | Redo data.utils.user_has_role[role_name]
+authz_bundle/...ternal/authz/policies/utils/user.rego:4              | | Redo data.utils.user_has_role
+authz_bundle/...ternal/authz/policies/utils/user.rego:7              | | | Redo role_binding.user = input.subject.user
+authz_bundle/...ternal/authz/policies/utils/user.rego:6              | | | Redo role_binding.role = role_name
+authz_bundle/...ternal/authz/policies/utils/user.rego:5              | | | Redo role_binding = data.bindings[_]
+authz_bundle/...ternal/authz/policies/rbac/v1/beta/policy.rego:4     | Enter data.example_rbac.allow
+authz_bundle/...ternal/authz/policies/rbac/v1/beta/policy.rego:4     | | Eval true
+authz_bundle/...ternal/authz/policies/rbac/v1/beta/policy.rego:4     | | Exit data.example_rbac.allow
+authz_bundle/...ternal/authz/policies/rbac/v1/beta/policy.rego:4     | Redo data.example_rbac.allow
+authz_bundle/...ternal/authz/policies/rbac/v1/beta/policy.rego:4     | | Redo true
+query:1                                                              | Save data.partial.example_rbac.allow = _
+query:1                                                              | Save _
+query:1                                                              | Exit data.example_rbac.allow
+query:1                                                              Redo data.example_rbac.allow
+query:1                                                              | Fail data.example_rbac.allow
+`
+
+	a := strings.Split(expected, "\n")
+	var buf bytes.Buffer
+	PrettyTraceWithLocation(&buf, *tracer)
+	b := strings.Split(buf.String(), "\n")
+
+	min := len(a)
+	if min > len(b) {
+		min = len(b)
+	}
+
+	for i := 0; i < min; i++ {
+		if a[i] != b[i] {
+			t.Errorf("Line %v in trace is incorrect. Expected %v but got: %v", i+1, a[i], b[i])
+		}
+	}
+
+	if len(a) < len(b) {
+		t.Errorf("Extra lines in trace:\n%v", strings.Join(b[min:], "\n"))
+	} else if len(b) < len(a) {
+		t.Errorf("Missing lines in trace:\n%v", strings.Join(a[min:], "\n"))
+	}
+
+	if t.Failed() {
+		fmt.Println("Trace output:")
+		fmt.Println(buf.String())
 	}
 }
 
@@ -374,69 +667,69 @@ func TestTraceNoteWithLocation(t *testing.T) {
 		panic(err)
 	}
 
-	expected := `query:1             Enter data.test.p = _
-query:1             | Eval data.test.p = _
-query:1             | Index data.test.p = _ (matched 1 rule)
-query:3             | Enter data.test.p
-query:3             | | Eval data.test.q[x]
-query:3             | | Index data.test.q[x] (matched 1 rule)
-query:4             | | Enter data.test.q
-query:4             | | | Eval x = data.a[_]
-query:4             | | | Exit data.test.q
-query:3             | | Eval plus(x, 1, n)
-query:3             | | Eval sprintf("n= %v", [n], __local0__)
-query:3             | | Eval trace(__local0__)
-note                | | Note "n= 2"
-query:3             | | Exit data.test.p
-query:1             | Exit data.test.p = _
-query:1             Redo data.test.p = _
-query:1             | Redo data.test.p = _
-query:3             | Redo data.test.p
-query:3             | | Redo trace(__local0__)
-query:3             | | Redo sprintf("n= %v", [n], __local0__)
-query:3             | | Redo plus(x, 1, n)
-query:3             | | Redo data.test.q[x]
-query:4             | | Redo data.test.q
-query:4             | | | Redo x = data.a[_]
-query:4             | | | Exit data.test.q
-query:3             | | Eval plus(x, 1, n)
-query:3             | | Eval sprintf("n= %v", [n], __local0__)
-query:3             | | Eval trace(__local0__)
-note                | | Note "n= 3"
-query:3             | | Exit data.test.p
-query:3             | Redo data.test.p
-query:3             | | Redo trace(__local0__)
-query:3             | | Redo sprintf("n= %v", [n], __local0__)
-query:3             | | Redo plus(x, 1, n)
-query:3             | | Redo data.test.q[x]
-query:4             | | Redo data.test.q
-query:4             | | | Redo x = data.a[_]
-query:4             | | | Exit data.test.q
-query:3             | | Eval plus(x, 1, n)
-query:3             | | Eval sprintf("n= %v", [n], __local0__)
-query:3             | | Eval trace(__local0__)
-note                | | Note "n= 4"
-query:3             | | Exit data.test.p
-query:3             | Redo data.test.p
-query:3             | | Redo trace(__local0__)
-query:3             | | Redo sprintf("n= %v", [n], __local0__)
-query:3             | | Redo plus(x, 1, n)
-query:3             | | Redo data.test.q[x]
-query:4             | | Redo data.test.q
-query:4             | | | Redo x = data.a[_]
-query:4             | | | Exit data.test.q
-query:3             | | Eval plus(x, 1, n)
-query:3             | | Eval sprintf("n= %v", [n], __local0__)
-query:3             | | Eval trace(__local0__)
-note                | | Note "n= 5"
-query:3             | | Exit data.test.p
-query:3             | Redo data.test.p
-query:3             | | Redo trace(__local0__)
-query:3             | | Redo sprintf("n= %v", [n], __local0__)
-query:3             | | Redo plus(x, 1, n)
-query:3             | | Redo data.test.q[x]
-query:4             | | Redo data.test.q
-query:4             | | | Redo x = data.a[_]
+	expected := `query:1     Enter data.test.p = _
+query:1     | Eval data.test.p = _
+query:1     | Index data.test.p = _ (matched 1 rule)
+query:3     | Enter data.test.p
+query:3     | | Eval data.test.q[x]
+query:3     | | Index data.test.q[x] (matched 1 rule)
+query:4     | | Enter data.test.q
+query:4     | | | Eval x = data.a[_]
+query:4     | | | Exit data.test.q
+query:3     | | Eval plus(x, 1, n)
+query:3     | | Eval sprintf("n= %v", [n], __local0__)
+query:3     | | Eval trace(__local0__)
+note        | | Note "n= 2"
+query:3     | | Exit data.test.p
+query:1     | Exit data.test.p = _
+query:1     Redo data.test.p = _
+query:1     | Redo data.test.p = _
+query:3     | Redo data.test.p
+query:3     | | Redo trace(__local0__)
+query:3     | | Redo sprintf("n= %v", [n], __local0__)
+query:3     | | Redo plus(x, 1, n)
+query:3     | | Redo data.test.q[x]
+query:4     | | Redo data.test.q
+query:4     | | | Redo x = data.a[_]
+query:4     | | | Exit data.test.q
+query:3     | | Eval plus(x, 1, n)
+query:3     | | Eval sprintf("n= %v", [n], __local0__)
+query:3     | | Eval trace(__local0__)
+note        | | Note "n= 3"
+query:3     | | Exit data.test.p
+query:3     | Redo data.test.p
+query:3     | | Redo trace(__local0__)
+query:3     | | Redo sprintf("n= %v", [n], __local0__)
+query:3     | | Redo plus(x, 1, n)
+query:3     | | Redo data.test.q[x]
+query:4     | | Redo data.test.q
+query:4     | | | Redo x = data.a[_]
+query:4     | | | Exit data.test.q
+query:3     | | Eval plus(x, 1, n)
+query:3     | | Eval sprintf("n= %v", [n], __local0__)
+query:3     | | Eval trace(__local0__)
+note        | | Note "n= 4"
+query:3     | | Exit data.test.p
+query:3     | Redo data.test.p
+query:3     | | Redo trace(__local0__)
+query:3     | | Redo sprintf("n= %v", [n], __local0__)
+query:3     | | Redo plus(x, 1, n)
+query:3     | | Redo data.test.q[x]
+query:4     | | Redo data.test.q
+query:4     | | | Redo x = data.a[_]
+query:4     | | | Exit data.test.q
+query:3     | | Eval plus(x, 1, n)
+query:3     | | Eval sprintf("n= %v", [n], __local0__)
+query:3     | | Eval trace(__local0__)
+note        | | Note "n= 5"
+query:3     | | Exit data.test.p
+query:3     | Redo data.test.p
+query:3     | | Redo trace(__local0__)
+query:3     | | Redo sprintf("n= %v", [n], __local0__)
+query:3     | | Redo plus(x, 1, n)
+query:3     | | Redo data.test.q[x]
+query:4     | | Redo data.test.q
+query:4     | | | Redo x = data.a[_]
 `
 
 	a := strings.Split(expected, "\n")
@@ -563,5 +856,157 @@ func TestTraceRewrittenVarsIssue2022(t *testing.T) {
 		t.Fatal("expected node to have been copied")
 	} else if !output.Node.(*ast.Expr).Equal(ast.NewExpr(ast.VarTerm("bar"))) {
 		t.Fatal("expected copy to contain rewritten var")
+	}
+}
+
+func TestShortTraceFileNames(t *testing.T) {
+	longFilePath1 := "/really/long/file/path/longer/than/most/would/really/ever/be/policy.rego"
+	longFilePath1Similar := "/really/long/file/path/longer/than/most/policy.rego"
+	longFilePath2 := "GfjEjnMA6coNiPoMoRMVk7KeorGeRmjRkIYUsWtr564SQ7yDo4Yss2SoN8PMoe0TOfVaNFd1HQbC9NhK.rego"
+	longFilePath3 := "RqS50uWAOxqqHmzdKVM3OCVsZDb12FJikUYHhz9pNqMWx3wjeQBKY3UYXsJXzYGOzuYZbidag5SfKVdk.rego"
+
+	cases := []struct {
+		note            string
+		trace           []*Event
+		expectedNames   map[string]string
+		expectedLongest int
+	}{
+		{
+			note:            "empty trace",
+			trace:           nil,
+			expectedNames:   map[string]string{},
+			expectedLongest: 0,
+		},
+		{
+			note: "no locations",
+			trace: []*Event{
+				{Op: EnterOp, Node: ast.MustParseBody("true")},
+				{Op: EvalOp, Node: ast.MustParseBody("true")},
+			},
+			expectedNames:   map[string]string{},
+			expectedLongest: 0,
+		},
+		{
+			note: "no file names",
+			trace: []*Event{
+				{Location: ast.NewLocation([]byte("foo1"), "", 1, 1)},
+				{Location: ast.NewLocation([]byte("foo2"), "", 2, 1)},
+				{Location: ast.NewLocation([]byte("foo100"), "", 100, 1)},
+				{Location: ast.NewLocation([]byte("foo3"), "", 3, 1)},
+				{Location: ast.NewLocation([]byte("foo4"), "", 4, 1)},
+			},
+			expectedNames:   map[string]string{},
+			expectedLongest: minLocationWidth + len(":100"),
+		},
+		{
+			note: "single file name not shortened",
+			trace: []*Event{
+				{Location: ast.NewLocation([]byte("foo1"), "policy.rego", 1, 1)},
+			},
+			expectedNames: map[string]string{
+				"policy.rego": "policy.rego",
+			},
+			expectedLongest: len("policy.rego:1"),
+		},
+		{
+			note: "single file name not shortened different rows",
+			trace: []*Event{
+				{Location: ast.NewLocation([]byte("foo1"), "policy.rego", 1, 1)},
+				{Location: ast.NewLocation([]byte("foo1234"), "policy.rego", 1234, 1)},
+				{Location: ast.NewLocation([]byte("foo12"), "policy.rego", 12, 1)},
+				{Location: ast.NewLocation([]byte("foo123"), "policy.rego", 123, 1)},
+			},
+			expectedNames: map[string]string{
+				"policy.rego": "policy.rego",
+			},
+			expectedLongest: len("policy.rego:1234"),
+		},
+		{
+			note: "multiple files name not shortened",
+			trace: []*Event{
+				{Location: ast.NewLocation([]byte("a1"), "a.rego", 1, 1)},
+				{Location: ast.NewLocation([]byte("a1234"), "a.rego", 1234, 1)},
+				{Location: ast.NewLocation([]byte("x1"), "x.rego", 12, 1)},
+				{Location: ast.NewLocation([]byte("foo123"), "policy.rego", 123, 1)},
+			},
+			expectedNames: map[string]string{
+				"a.rego":      "a.rego",
+				"x.rego":      "x.rego",
+				"policy.rego": "policy.rego",
+			},
+			expectedLongest: len("policy.rego:123"),
+		},
+		{
+			note: "single file name shortened",
+			trace: []*Event{
+				{Location: ast.NewLocation([]byte("foo1"), longFilePath1, 1, 1)},
+			},
+			expectedNames: map[string]string{
+				longFilePath1: "/really/...h/longer/than/most/would/really/ever/be/policy.rego",
+			},
+			expectedLongest: maxIdealLocationWidth,
+		},
+		{
+			note: "single file name shortened different rows",
+			trace: []*Event{
+				{Location: ast.NewLocation([]byte("foo1"), longFilePath1, 1, 1)},
+				{Location: ast.NewLocation([]byte("foo1234"), longFilePath1, 1234, 1)},
+				{Location: ast.NewLocation([]byte("foo123"), longFilePath1, 123, 1)},
+				{Location: ast.NewLocation([]byte("foo12"), longFilePath1, 12, 1)},
+			},
+			expectedNames: map[string]string{
+				longFilePath1: "/really/...onger/than/most/would/really/ever/be/policy.rego",
+			},
+			expectedLongest: maxIdealLocationWidth,
+		},
+		{
+			note: "multiple files name shortened different rows",
+			trace: []*Event{
+				{Location: ast.NewLocation([]byte("similar1"), longFilePath1Similar, 1, 1)},
+				{Location: ast.NewLocation([]byte("foo1234"), longFilePath1, 1234, 1)},
+				{Location: ast.NewLocation([]byte("similar12"), longFilePath1Similar, 12, 1)},
+				{Location: ast.NewLocation([]byte("foo123"), longFilePath1, 123, 1)},
+			},
+			expectedNames: map[string]string{
+				longFilePath1:        "/really/...onger/than/most/would/really/ever/be/policy.rego",
+				longFilePath1Similar: "/really/...onger/than/most/policy.rego",
+			},
+			expectedLongest: maxIdealLocationWidth,
+		},
+		{
+			note: "multiple files name cannot be shortened",
+			trace: []*Event{
+				{Location: ast.NewLocation([]byte("foo1"), longFilePath2, 1, 1)},
+				{Location: ast.NewLocation([]byte("foo1234"), longFilePath3, 1234, 1)},
+			},
+			expectedNames: map[string]string{
+				longFilePath2: longFilePath2,
+				longFilePath3: longFilePath3,
+			},
+			expectedLongest: len(longFilePath3 + ":1234"),
+		},
+		{
+			note: "single file name shortened no leading slash",
+			trace: []*Event{
+				{Location: ast.NewLocation([]byte("foo1"), longFilePath1[1:], 1, 1)},
+			},
+			expectedNames: map[string]string{
+				longFilePath1[1:]: "really/...th/longer/than/most/would/really/ever/be/policy.rego",
+			},
+			expectedLongest: maxIdealLocationWidth,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			actualNames, actualLongest := getShortenedFileNames(tc.trace)
+			if actualLongest != tc.expectedLongest {
+				t.Errorf("Expected longest location to be %d, got %d", tc.expectedLongest, actualLongest)
+			}
+
+			if !reflect.DeepEqual(actualNames, tc.expectedNames) {
+				t.Errorf("Expected %+v got %+v", tc.expectedNames, actualNames)
+			}
+		})
 	}
 }
