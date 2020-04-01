@@ -1546,6 +1546,12 @@ func TestTopDownTime(t *testing.T) {
 
 	runTopDownTestCase(t, data, "weekday too big", []string{`
 		p = weekday { weekday := time.weekday(1582977600*1000*1000*1000*1000) }`}, &Error{Code: BuiltinErr, Message: "timestamp too big"})
+
+	runTopDownTestCase(t, data, "add_date year month day", []string{`
+		p = ns { ns := time.add_date(1585852421593912000, 3, 9, 12) }`}, "1705257221593912000")
+
+	runTopDownTestCase(t, data, "add_date negative values", []string{`
+		p = ns { ns := time.add_date(1585852421593912000, -1, -1, -1) }`}, "1551465221593912000")
 }
 
 func TestTopDownWalkBuiltin(t *testing.T) {

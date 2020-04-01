@@ -114,6 +114,31 @@ func builtinWeekday(a ast.Value) (ast.Value, error) {
 	return ast.String(weekday), nil
 }
 
+func builtinAddDate(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	t, err := tzTime(operands[0].Value)
+	if err != nil {
+		return err
+	}
+
+	years, err := builtins.IntOperand(operands[1].Value, 2)
+	if err != nil {
+		return err
+	}
+
+	months, err := builtins.IntOperand(operands[2].Value, 3)
+	if err != nil {
+		return err
+	}
+
+	days, err := builtins.IntOperand(operands[3].Value, 4)
+	if err != nil {
+		return err
+	}
+
+	result := t.AddDate(years, months, days)
+	return iter(ast.NewTerm(ast.Number(int64ToJSONNumber(result.UnixNano()))))
+}
+
 func tzTime(a ast.Value) (t time.Time, err error) {
 	var nVal ast.Value
 	loc := time.UTC
@@ -198,6 +223,7 @@ func init() {
 	RegisterFunctionalBuiltin1(ast.Date.Name, builtinDate)
 	RegisterFunctionalBuiltin1(ast.Clock.Name, builtinClock)
 	RegisterFunctionalBuiltin1(ast.Weekday.Name, builtinWeekday)
+	RegisterBuiltinFunc(ast.AddDate.Name, builtinAddDate)
 	tzCacheMutex = &sync.Mutex{}
 	tzCache = make(map[string]*time.Location)
 }
