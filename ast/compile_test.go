@@ -1971,6 +1971,32 @@ func TestRewriteDeclaredVars(t *testing.T) {
 			`,
 		},
 		{
+			note: "rewrite call with root document ref as arg",
+			module: `
+				package test
+
+				p {
+					f(input, "bar")
+				}
+
+				f(x,y) {
+					x[y]
+				}
+				`,
+			exp: `
+				package test
+
+				p = true {
+					__local2__ = input;
+					data.test.f(__local2__, "bar")
+				}
+
+				 f(__local0__, __local1__) = true {
+					__local0__[__local1__]
+				}
+			`,
+		},
+		{
 			note: "redeclare err",
 			module: `
 				package test
@@ -2198,6 +2224,8 @@ func TestCompilerRewriteDynamicTerms(t *testing.T) {
 		{`eq_with { [str] = [1] with input as 1 }`, `__local0__ = data.test.str with input as 1; [__local0__] = [1] with input as 1`},
 		{`term_with { [[str]] with input as 1 }`, `__local0__ = data.test.str with input as 1; [[__local0__]] with input as 1`},
 		{`call_with { count(str) with input as 1 }`, `__local0__ = data.test.str with input as 1; count(__local0__) with input as 1`},
+		{`call_func { f(input, "foo") } f(x,y) { x[y] }`, `__local2__ = input; data.test.f(__local2__, "foo")`},
+		{`call_func2 { f(input.foo, "foo") } f(x,y) { x[y] }`, `__local2__ = input.foo; data.test.f(__local2__, "foo")`},
 	}
 
 	for _, tc := range tests {
