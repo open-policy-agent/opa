@@ -7,21 +7,20 @@ package topdown
 import (
 	"bytes"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
-	"net/url"
-	"strconv"
-
-	"github.com/open-policy-agent/opa/internal/version"
-
 	"net/http"
+	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/internal/version"
 	"github.com/open-policy-agent/opa/topdown/builtins"
 )
 
@@ -38,12 +37,15 @@ var allowedKeyNames = [...]string{
 	"headers",
 	"raw_body",
 	"tls_use_system_certs",
+	"tls_ca_cert",
 	"tls_ca_cert_file",
 	"tls_ca_cert_env_variable",
-	"tls_client_cert_env_variable",
-	"tls_client_key_env_variable",
+	"tls_client_cert",
 	"tls_client_cert_file",
+	"tls_client_cert_env_variable",
+	"tls_client_key",
 	"tls_client_key_file",
+	"tls_client_key_env_variable",
 	"tls_insecure_skip_verify",
 	"tls_server_name",
 	"timeout",
@@ -150,12 +152,23 @@ func canonicalizeHeaders(headers map[string]interface{}) map[string]interface{} 
 func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) {
 	var url string
 	var method string
-	var tlsCaCertEnvVar []byte
+
+	// Additional CA certificates loading options.
+	var tlsCaCert []byte
+	var tlsCaCertEnvVar string
 	var tlsCaCertFile string
-	var tlsClientKeyEnvVar []byte
-	var tlsClientCertEnvVar []byte
+
+	// Client TLS certificate and key options. Each input source
+	// comes in a matched pair.
+	var tlsClientCert []byte
+	var tlsClientKey []byte
+
+	var tlsClientCertEnvVar string
+	var tlsClientKeyEnvVar string
+
 	var tlsClientCertFile string
 	var tlsClientKeyFile string
+
 	var tlsServerName string
 	var body *bytes.Buffer
 	var rawBody *bytes.Buffer
@@ -163,7 +176,6 @@ func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) 
 	var forceJSONDecode bool
 	var tlsUseSystemCerts bool
 	var tlsConfig tls.Config
-	var clientCerts []tls.Certificate
 	var customHeaders map[string]interface{}
 	var tlsInsecureSkipVerify bool
 	var timeout = defaultHTTPRequestTimeout
@@ -215,27 +227,33 @@ func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) 
 			if err != nil {
 				return nil, err
 			}
+		case "tls_ca_cert":
+			tlsCaCert = []byte(obj.Get(val).String())
+			tlsCaCert = bytes.Trim(tlsCaCert, "\"")
 		case "tls_ca_cert_file":
 			tlsCaCertFile = obj.Get(val).String()
 			tlsCaCertFile = strings.Trim(tlsCaCertFile, "\"")
 		case "tls_ca_cert_env_variable":
-			caCertEnv := obj.Get(val).String()
-			caCertEnv = strings.Trim(caCertEnv, "\"")
-			tlsCaCertEnvVar = []byte(os.Getenv(caCertEnv))
-		case "tls_client_cert_env_variable":
-			clientCertEnv := obj.Get(val).String()
-			clientCertEnv = strings.Trim(clientCertEnv, "\"")
-			tlsClientCertEnvVar = []byte(os.Getenv(clientCertEnv))
-		case "tls_client_key_env_variable":
-			clientKeyEnv := obj.Get(val).String()
-			clientKeyEnv = strings.Trim(clientKeyEnv, "\"")
-			tlsClientKeyEnvVar = []byte(os.Getenv(clientKeyEnv))
+			tlsCaCertEnvVar = obj.Get(val).String()
+			tlsCaCertEnvVar = strings.Trim(tlsCaCertEnvVar, "\"")
+		case "tls_client_cert":
+			tlsClientCert = []byte(obj.Get(val).String())
+			tlsClientCert = bytes.Trim(tlsClientCert, "\"")
 		case "tls_client_cert_file":
 			tlsClientCertFile = obj.Get(val).String()
 			tlsClientCertFile = strings.Trim(tlsClientCertFile, "\"")
+		case "tls_client_cert_env_variable":
+			tlsClientCertEnvVar = obj.Get(val).String()
+			tlsClientCertEnvVar = strings.Trim(tlsClientCertEnvVar, "\"")
+		case "tls_client_key":
+			tlsClientKey = []byte(obj.Get(val).String())
+			tlsClientKey = bytes.Trim(tlsClientKey, "\"")
 		case "tls_client_key_file":
 			tlsClientKeyFile = obj.Get(val).String()
 			tlsClientKeyFile = strings.Trim(tlsClientKeyFile, "\"")
+		case "tls_client_key_env_variable":
+			tlsClientKeyEnvVar = obj.Get(val).String()
+			tlsClientKeyEnvVar = strings.Trim(tlsClientKeyEnvVar, "\"")
 		case "tls_server_name":
 			tlsServerName = obj.Get(val).String()
 			tlsServerName = strings.Trim(tlsServerName, "\"")
@@ -275,34 +293,82 @@ func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) 
 		tlsConfig.InsecureSkipVerify = tlsInsecureSkipVerify
 	}
 
+	if len(tlsClientCert) > 0 && len(tlsClientKey) > 0 {
+		tlsClientCert = bytes.Replace(tlsClientCert, []byte("\\n"), []byte("\n"), -1)
+		tlsClientKey = bytes.Replace(tlsClientKey, []byte("\\n"), []byte("\n"), -1)
+		cert, err := tls.X509KeyPair(tlsClientCert, tlsClientKey)
+		if err != nil {
+			return nil, err
+		}
+
+		isTLS = true
+		tlsConfig.Certificates = append(tlsConfig.Certificates, cert)
+	}
+
 	if tlsClientCertFile != "" && tlsClientKeyFile != "" {
-		clientCertFromFile, err := tls.LoadX509KeyPair(tlsClientCertFile, tlsClientKeyFile)
+		cert, err := tls.LoadX509KeyPair(tlsClientCertFile, tlsClientKeyFile)
 		if err != nil {
 			return nil, err
 		}
-		clientCerts = append(clientCerts, clientCertFromFile)
-	}
 
-	if len(tlsClientCertEnvVar) > 0 && len(tlsClientKeyEnvVar) > 0 {
-		clientCertFromEnv, err := tls.X509KeyPair(tlsClientCertEnvVar, tlsClientKeyEnvVar)
-		if err != nil {
-			return nil, err
-		}
-		clientCerts = append(clientCerts, clientCertFromEnv)
-	}
-
-	if len(clientCerts) > 0 {
 		isTLS = true
-		tlsConfig.Certificates = append(tlsConfig.Certificates, clientCerts...)
+		tlsConfig.Certificates = append(tlsConfig.Certificates, cert)
 	}
 
-	if tlsUseSystemCerts || len(tlsCaCertFile) > 0 || len(tlsCaCertEnvVar) > 0 {
+	if tlsClientCertEnvVar != "" && tlsClientKeyEnvVar != "" {
+		cert, err := tls.X509KeyPair(
+			[]byte(os.Getenv(tlsClientCertEnvVar)),
+			[]byte(os.Getenv(tlsClientKeyEnvVar)))
+		if err != nil {
+			return nil, fmt.Errorf("cannot extract public/private key pair from envvars %q, %q: %w",
+				tlsClientCertEnvVar, tlsClientKeyEnvVar, err)
+		}
+
 		isTLS = true
-		connRootCAs, err := createRootCAs(tlsCaCertFile, tlsCaCertEnvVar, tlsUseSystemCerts)
+		tlsConfig.Certificates = append(tlsConfig.Certificates, cert)
+	}
+
+	// Check the system certificates config first so that we
+	// load additional certificated into the correct pool.
+	if tlsUseSystemCerts {
+		pool, err := x509.SystemCertPool()
 		if err != nil {
 			return nil, err
 		}
-		tlsConfig.RootCAs = connRootCAs
+
+		isTLS = true
+		tlsConfig.RootCAs = pool
+	}
+
+	if len(tlsCaCert) != 0 {
+		tlsCaCert = bytes.Replace(tlsCaCert, []byte("\\n"), []byte("\n"), -1)
+		pool, err := addCACertsFromBytes(tlsConfig.RootCAs, []byte(tlsCaCert))
+		if err != nil {
+			return nil, err
+		}
+
+		isTLS = true
+		tlsConfig.RootCAs = pool
+	}
+
+	if tlsCaCertFile != "" {
+		pool, err := addCACertsFromFile(tlsConfig.RootCAs, tlsCaCertFile)
+		if err != nil {
+			return nil, err
+		}
+
+		isTLS = true
+		tlsConfig.RootCAs = pool
+	}
+
+	if tlsCaCertEnvVar != "" {
+		pool, err := addCACertsFromEnv(tlsConfig.RootCAs, tlsCaCertEnvVar)
+		if err != nil {
+			return nil, err
+		}
+
+		isTLS = true
+		tlsConfig.RootCAs = pool
 	}
 
 	if isTLS {
