@@ -1017,6 +1017,44 @@ func TestHTTPSClient(t *testing.T) {
 		runTopDownTestCase(t, data, "http.send", rules, resultObj.String())
 	})
 
+	t.Run("HTTPS Get with Inline Cert", func(t *testing.T) {
+		// expected result
+		expectedResult := map[string]interface{}{
+			"status":      "200 OK",
+			"status_code": http.StatusOK,
+			"body":        nil,
+			"raw_body":    "",
+		}
+
+		resultObj, err := ast.InterfaceToValue(expectedResult)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		ca, err := ioutil.ReadFile(localCaFile)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		cert, err := ioutil.ReadFile(localClientCertFile)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		key, err := ioutil.ReadFile(localClientKeyFile)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		data := loadSmallTestData()
+		rule := []string{fmt.Sprintf(
+			"p = x { http.send({`method`: `get`, `url`: `%s`, `tls_ca_cert`: `%s`, `tls_client_cert`: `%s`, `tls_client_key`: `%s`}, x) }",
+			s.URL, ca, cert, key)}
+
+		// run the test
+		runTopDownTestCase(t, data, "http.send", rule, resultObj.String())
+	})
+
 	t.Run("HTTPS Get with File Cert", func(t *testing.T) {
 		// expected result
 		expectedResult := map[string]interface{}{
@@ -1228,6 +1266,55 @@ func TestHTTPSNoClientCerts(t *testing.T) {
 	}
 	s.StartTLS()
 	defer s.Close()
+
+	t.Run("HTTPS Get with Broken CA Cert w/ File", func(t *testing.T) {
+		// `tls_ca_cert_file` is valid, but `tls_ca_cert` is not, so we
+		// expect and error building the TLS context.
+		expectedResult := &Error{Code: BuiltinErr, Message: "could not append certificates"}
+
+		data := loadSmallTestData()
+		rule := []string{fmt.Sprintf(
+			"p = x { http.send({`method`: `get`, `url`: `%s`, `tls_ca_cert`: `%s`, `tls_ca_cert_file`: `%s`}, x) }", s.URL, "xxx", localCaFile)}
+
+		runTopDownTestCase(t, data, "http.send", rule, expectedResult)
+	})
+
+	t.Run("HTTPS Get with Broken CA Cert w/ Env", func(t *testing.T) {
+		// `tls_ca_cert_env_variable` is valid, but `tls_ca_cert` is not, so we
+		// expect and error building the TLS context.
+		expectedResult := &Error{Code: BuiltinErr, Message: "could not append certificates"}
+
+		data := loadSmallTestData()
+		rule := []string{fmt.Sprintf(
+			"p = x { http.send({`method`: `get`, `url`: `%s`, `tls_ca_cert`: `%s`, `tls_ca_cert_env_variable`: `CLIENT_CA_ENV`}, x) }", s.URL, "xxx")}
+
+		runTopDownTestCase(t, data, "http.send", rule, expectedResult)
+	})
+
+	t.Run("HTTPS Get with Inline CA Cert", func(t *testing.T) {
+		expectedResult := map[string]interface{}{
+			"status":      "200 OK",
+			"status_code": http.StatusOK,
+			"body":        nil,
+			"raw_body":    "",
+		}
+
+		resultObj, err := ast.InterfaceToValue(expectedResult)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		ca, err := ioutil.ReadFile(localCaFile)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		data := loadSmallTestData()
+		rule := []string{fmt.Sprintf(
+			"p = x { http.send({`method`: `get`, `url`: `%s`, `tls_ca_cert`: `%s`}, x) }", s.URL, ca)}
+
+		runTopDownTestCase(t, data, "http.send", rule, resultObj.String())
+	})
 
 	t.Run("HTTPS Get with CA Cert File", func(t *testing.T) {
 		// expected result

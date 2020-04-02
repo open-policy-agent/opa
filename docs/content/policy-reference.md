@@ -565,13 +565,16 @@ The `request` object parameter may contain the following fields:
 | `headers` | no | `object` | HTTP headers to include in the request (e.g,. `{"X-Opa": "rules"}`). |
 | `enable_redirect` | no | `boolean` | Follow HTTP redirects. Default: `false`. |
 | `force_json_decode` | no | `boolean` | Decode the HTTP response message body as JSON even if the `Content-Type` header is missing. Default: `false`. |
-| `tls_use_system_certs` | no | `boolean` | Use system certificate pool. |
+| `tls_use_system_certs` | no | `boolean` | Use the system certificate pool. Default: `false`. |
+| `tls_ca_cert` | no | `string` | String containing a root certificate in PEM encoded format. |
 | `tls_ca_cert_file` | no | `string` | Path to file containing a root certificate in PEM encoded format. |
 | `tls_ca_cert_env_variable` | no | `string` | Environment variable containing a root certificate in PEM encoded format. |
-| `tls_client_cert_env_variable` | no | `string` | Environment variable containing a client certificate in PEM encoded format. |
-| `tls_client_key_env_variable` | no | `string` | Environment variable containing a client key in PEM encoded format. |
+| `tls_client_cert` | no | `string` | String containing a client certificate in PEM encoded format. |
 | `tls_client_cert_file` | no | `string` | Path to file containing a client certificate in PEM encoded format. |
-| `tls_client_key_file` | no | `string` | Path to file containing a key  in PEM encoded format. |
+| `tls_client_cert_env_variable` | no | `string` | Environment variable containing a client certificate in PEM encoded format. |
+| `tls_client_key` | no | `string` | String containing a key in PEM encoded format. |
+| `tls_client_key_file` | no | `string` | Path to file containing a key in PEM encoded format. |
+| `tls_client_key_env_variable` | no | `string` | Environment variable containing a client key in PEM encoded format. |
 | `timeout` | no | `string` or `number` | Timeout for the HTTP request with a default of 5 seconds (`5s`). Numbers provided are in nanoseconds. Strings must be a valid duration string where a duration string is a possibly signed sequence of decimal numbers, each with optional fraction and a unit suffix, such as "300ms", "-1.5h" or "2h45m". Valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h". A zero timeout means no timeout.|
 | `tls_insecure_skip_verify` | no | `bool` | Allows for skipping TLS verification when calling a network endpoint. Not recommended for production. |
 | `tls_server_name` | no | `string` | Sets the hostname that is sent in the client Server Name Indication and that be will be used for server certificate validation. If this is not set, the value of the `Host` header (if present) will be used. If neither are set, the host name from the requested URL is used. |
@@ -580,10 +583,11 @@ If the `Host` header is included in `headers`, its value will be used as the `Ho
 
 When sending HTTPS requests with client certificates at least one the following combinations must be included
 
+ * ``tls_client_cert`` and ``tls_client_key``
  * ``tls_client_cert_file`` and ``tls_client_key_file``
  * ``tls_client_cert_env_variable`` and ``tls_client_key_env_variable``
 
-> The user must also provide a trusted root CA through tls_ca_cert_file or tls_ca_cert_env_variable. Alternatively the user could set tls_use_system_certs to ``true`` and the system certificate pool will be used.
+> To validate TLS server certificates, the user must also provide trusted root CA certificates through the ``tls_ca_cert``, ``tls_ca_cert_file`` and ``tls_ca_cert_env_variable`` fields. If the ``tls_use_system_certs`` field is ``true``, the system certificate pool will be used as well as any additional CA certificates.
 
 The `response` object parameter will contain the following fields:
 
