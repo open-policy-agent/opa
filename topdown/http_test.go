@@ -1100,8 +1100,7 @@ func TestHTTPSClient(t *testing.T) {
 		hostname := "notpresent"
 
 		expected := &Error{Code: BuiltinErr, Message: fmt.Sprintf(
-			"http.send: Get %s: x509: certificate is valid for localhost, not %s",
-			url, hostname)}
+			"x509: certificate is valid for localhost, not %s", hostname)}
 
 		data := loadSmallTestData()
 		rule := []string{fmt.Sprintf(
@@ -1118,8 +1117,7 @@ func TestHTTPSClient(t *testing.T) {
 		hostname := "notpresent"
 
 		expected := &Error{Code: BuiltinErr, Message: fmt.Sprintf(
-			"http.send: Get %s: x509: certificate is valid for localhost, not %s",
-			url, hostname)}
+			"x509: certificate is valid for localhost, not %s", hostname)}
 
 		data := loadSmallTestData()
 		rule := []string{fmt.Sprintf(
