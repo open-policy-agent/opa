@@ -3476,6 +3476,53 @@ func TestServerReloadTrigger(t *testing.T) {
 	}
 }
 
+func TestServerClearsCompilerConflictCheck(t *testing.T) {
+	f := newFixture(t)
+	store := f.server.store
+	ctx := context.Background()
+
+	// Make a new transaction
+	params := storage.WriteParams
+	params.Context = storage.NewContext()
+	txn := storage.NewTransactionOrDie(ctx, store, params)
+
+	// Fresh compiler we will swap on the manager
+	c := ast.NewCompiler()
+
+	// Add the policy we want to use
+	c.Compile(map[string]*ast.Module{"test": ast.MustParseModule("package test\np=1")})
+	if len(c.Errors) > 0 {
+		t.Fatalf("Unexpected compile errors: %v", c.Errors)
+	}
+
+	// Add in a "bad" conflict check
+	c = c.WithPathConflictsCheck(func(_ []string) (bool, error) {
+		t.Fatal("Conflict check should not have been called")
+		return false, nil
+	})
+
+	// Set the compiler on the transaction context and commit to trigger listeners
+	plugins.SetCompilerOnContext(params.Context, c)
+
+	if err := store.UpsertPolicy(ctx, txn, "test", []byte("package test\np = 1")); err != nil {
+		panic(err)
+	}
+	if err := store.Commit(ctx, txn); err != nil {
+		panic(err)
+	}
+
+	// internal helpers should now give the new compiler back
+	if f.server.getCompiler() != c {
+		t.Fatalf("Expected to get the updated compiler")
+	}
+
+	// If we request for partial evaluation it will end up using the compiler set from the manager. Ensure it
+	// is using a correct conflict checker.
+	if err := f.v1(http.MethodGet, "/data/test?partial", "", 200, `{"result": {"p": 1}}`); err != nil {
+		t.Fatalf("Unexpected error from server: %v", err)
+	}
+}
+
 type queryBindingErrStore struct {
 	storage.WritesNotSupported
 	storage.PolicyNotSupported

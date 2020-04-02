@@ -1434,7 +1434,7 @@ func (r *Rego) compileModules(ctx context.Context, txn storage.Transaction, m me
 			Ctx:          ctx,
 			Store:        r.store,
 			Txn:          txn,
-			Compiler:     r.compiler.WithPathConflictsCheck(storage.NonEmpty(ctx, r.store, txn)),
+			Compiler:     r.compilerForTxn(ctx, r.store, txn),
 			Metrics:      m,
 			Bundles:      r.bundles,
 			ExtraModules: r.parsedModules,
@@ -1651,7 +1651,7 @@ func (r *Rego) partialResult(ctx context.Context, pCfg *PrepareConfig) (PartialR
 	}
 
 	r.metrics.Timer(metrics.RegoModuleCompile).Start()
-	r.compiler.Compile(r.compiler.Modules)
+	r.compilerForTxn(ctx, r.store, r.txn).Compile(r.compiler.Modules)
 	r.metrics.Timer(metrics.RegoModuleCompile).Stop()
 
 	if r.compiler.Failed() {
@@ -1886,6 +1886,12 @@ func (r *Rego) getTxn(ctx context.Context) (storage.Transaction, transactionClos
 	}
 
 	return txn, closer, nil
+}
+
+func (r *Rego) compilerForTxn(ctx context.Context, store storage.Store, txn storage.Transaction) *ast.Compiler {
+	// Update the compiler to have a valid path conflict check
+	// for the current context and transaction.
+	return r.compiler.WithPathConflictsCheck(storage.NonEmpty(ctx, store, txn))
 }
 
 func isTermVar(v ast.Var) bool {
