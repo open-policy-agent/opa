@@ -1035,6 +1035,38 @@ func TestPreparedPartialResultWithTracer(t *testing.T) {
 	}
 }
 
+func TestPartialResultSetsValidConflictChecker(t *testing.T) {
+	mod := `
+	package test
+	p {
+		true
+	}
+	`
+
+	c := ast.NewCompiler().WithPathConflictsCheck(func(_ []string) (bool, error) {
+		t.Fatal("Conflict check should not have been called")
+		return false, nil
+	})
+
+	r := New(
+		Query("data.test.p"),
+		Module("test.rego", mod),
+		PartialNamespace("test_ns1"),
+		Compiler(c),
+	)
+
+	ctx := context.Background()
+	pr, err := r.PartialResult(ctx)
+
+	if err != nil {
+		t.Fatalf("unexpected error from Rego.PartialResult(): %s", err.Error())
+	}
+
+	r2 := pr.Rego()
+
+	assertEval(t, r2, "[[true]]")
+}
+
 func TestMissingLocation(t *testing.T) {
 
 	// Create a query programmatically and evaluate it. The Location information
