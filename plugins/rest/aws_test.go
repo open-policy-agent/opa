@@ -27,13 +27,15 @@ type metadataPayload struct {
 func assertEq(expected string, actual string, t *testing.T) {
 	t.Helper()
 	if actual != expected {
-		t.Error("expected error: ", expected, " but got: ", actual)
+		t.Error("expected: ", expected, " but got: ", actual)
 	}
 }
 
 func assertErr(expected string, actual error, t *testing.T) {
 	t.Helper()
-	assertEq(expected, actual.Error(), t)
+	if !strings.Contains(actual.Error(), expected) {
+		t.Errorf("Expected error to contain %s, got: %s", expected, actual.Error())
+	}
 }
 
 func TestEnvironmentCredentialService(t *testing.T) {
@@ -85,7 +87,7 @@ func TestMetadataCredentialService(t *testing.T) {
 		RegionName:      "us-east-1",
 		credServicePath: "this is not a URL"} // malformed
 	_, err := cs.credentials()
-	assertErr("Get this%20is%20not%20a%20URLmy_iam_role: unsupported protocol scheme \"\"", err, t)
+	assertErr("unsupported protocol scheme \"\"", err, t)
 
 	// wrong path: no role set but no ECS URI in environment
 	os.Unsetenv(ecsRelativePathEnvVar)
