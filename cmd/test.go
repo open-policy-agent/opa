@@ -11,14 +11,14 @@ import (
 	"time"
 
 	"github.com/open-policy-agent/opa/storage/inmem"
+	"github.com/open-policy-agent/opa/topdown/lineage"
 
 	"github.com/open-policy-agent/opa/bundle"
 
+	"github.com/spf13/cobra"
+
 	"github.com/open-policy-agent/opa/internal/runtime"
 	"github.com/open-policy-agent/opa/storage"
-	"github.com/open-policy-agent/opa/topdown/lineage"
-
-	"github.com/spf13/cobra"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/cover"
@@ -32,7 +32,7 @@ const (
 	testJSONOutput   = "json"
 )
 
-var testParams = struct {
+type testCommandParams struct {
 	verbose      bool
 	explain      *util.EnumFlag
 	errLimit     int
@@ -47,10 +47,16 @@ var testParams = struct {
 	benchMem     bool
 	runRegex     string
 	count        int
-}{
-	outputFormat: util.NewEnumFlag(testPrettyOutput, []string{testPrettyOutput, testJSONOutput, benchmarkGoBenchOutput}),
-	explain:      newExplainFlag([]string{explainModeFails, explainModeFull, explainModeNotes}),
 }
+
+func newTestCommandParams() *testCommandParams {
+	return &testCommandParams{
+		outputFormat: util.NewEnumFlag(testPrettyOutput, []string{testPrettyOutput, testJSONOutput, benchmarkGoBenchOutput}),
+		explain:      newExplainFlag([]string{explainModeFails, explainModeFull, explainModeNotes}),
+	}
+}
+
+var testParams = newTestCommandParams()
 
 var testCommand = &cobra.Command{
 	Use:   "test <path> [path [...]]",
@@ -274,12 +280,7 @@ func runTests(ctx context.Context, txn storage.Transaction, runner *tester.Runne
 			if !tr.Pass() {
 				exitCode = 2
 			}
-			switch testParams.explain.String() {
-			case explainModeNotes:
-				tr.Trace = lineage.Notes(tr.Trace)
-			case explainModeFails:
-				tr.Trace = lineage.Fails(tr.Trace)
-			}
+			tr.Trace = filterTrace(testParams, tr.Trace)
 			dup <- tr
 		}
 	}()
@@ -295,6 +296,34 @@ func runTests(ctx context.Context, txn storage.Transaction, runner *tester.Runne
 	}
 
 	return exitCode
+}
+
+func filterTrace(params *testCommandParams, trace []*topdown.Event) []*topdown.Event {
+	ops := map[topdown.Op]struct{}{}
+	mode := params.explain.String()
+
+	if mode == explainModeFull {
+		// Don't bother filtering anything
+		return trace
+	}
+
+	// If an explain mode was specified, filter based
+	// on the mode. If no explain mode was specified,
+	// default to show both notes and fail events
+	showDefault := !params.explain.IsSet() && params.verbose
+
+	if mode == explainModeNotes || showDefault {
+		ops[topdown.NoteOp] = struct{}{}
+	}
+
+	if mode == explainModeFails || showDefault {
+		ops[topdown.FailOp] = struct{}{}
+	}
+
+	return lineage.Filter(trace, func(event *topdown.Event) bool {
+		_, relevant := ops[event.Op]
+		return relevant
+	})
 }
 
 func init() {

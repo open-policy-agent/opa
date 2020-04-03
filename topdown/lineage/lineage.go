@@ -11,7 +11,7 @@ import (
 // Notes returns a filtered trace that contains Note events and context to
 // understand where the Note was emitted.
 func Notes(trace []*topdown.Event) []*topdown.Event {
-	return filter(trace, func(event *topdown.Event) bool {
+	return Filter(trace, func(event *topdown.Event) bool {
 		return event.Op == topdown.NoteOp
 	})
 }
@@ -19,12 +19,15 @@ func Notes(trace []*topdown.Event) []*topdown.Event {
 // Fails returns a filtered trace that contains Fail events and context to
 // understand where the Fail occurred.
 func Fails(trace []*topdown.Event) []*topdown.Event {
-	return filter(trace, func(event *topdown.Event) bool {
+	return Filter(trace, func(event *topdown.Event) bool {
 		return event.Op == topdown.FailOp
 	})
 }
 
-func filter(trace []*topdown.Event, filter func(*topdown.Event) bool) (result []*topdown.Event) {
+// Filter will filter a given trace using the specified filter function. The
+// filtering function should return true for events that should be kept, false
+// for events that should be filtered out.
+func Filter(trace []*topdown.Event, filter func(*topdown.Event) bool) (result []*topdown.Event) {
 
 	qids := map[uint64]*topdown.Event{}
 
