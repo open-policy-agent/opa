@@ -116,6 +116,12 @@ The optional "gobench" output format conforms to the Go Benchmark Data Format.
 		if len(args) == 0 {
 			return fmt.Errorf("specify at least one file")
 		}
+
+		// If an --explain flag was set, turn on verbose output
+		if testParams.explain.IsSet() {
+			testParams.verbose = true
+		}
+
 		return nil
 	},
 
