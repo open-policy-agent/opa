@@ -397,11 +397,21 @@ func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) 
 		json.NewDecoder(&buf).Decode(&resultBody)
 	}
 
+	respHeaders := map[string]interface{}{}
+	for headerName, values := range resp.Header {
+		var respValues []interface{}
+		for _, v := range values {
+			respValues = append(respValues, v)
+		}
+		respHeaders[headerName] = respValues
+	}
+
 	result := make(map[string]interface{})
 	result["status"] = resp.Status
 	result["status_code"] = resp.StatusCode
 	result["body"] = resultBody
 	result["raw_body"] = string(resultRawBody)
+	result["headers"] = respHeaders
 
 	resultObj, err := ast.InterfaceToValue(result)
 	if err != nil {
