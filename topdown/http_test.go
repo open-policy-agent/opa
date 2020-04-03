@@ -44,6 +44,8 @@ func TestHTTPGetRequest(t *testing.T) {
 
 	// test server
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		headers := w.Header()
+		headers["test-header"] = []string{"test-value"}
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(people)
 	}))
@@ -60,6 +62,11 @@ func TestHTTPGetRequest(t *testing.T) {
 	body = append(body, bodyMap)
 	expectedResult["body"] = body
 	expectedResult["raw_body"] = "[{\"id\":\"1\",\"firstname\":\"John\"}]\n"
+	expectedResult["headers"] = map[string]interface{}{
+		"Content-Length": []interface{}{"32"},
+		"Content-Type":   []interface{}{"text/plain; charset=utf-8"},
+		"Test-Header":    []interface{}{"test-value"},
+	}
 
 	resultObj, err := ast.InterfaceToValue(expectedResult)
 	if err != nil {
@@ -73,15 +80,15 @@ func TestHTTPGetRequest(t *testing.T) {
 		expected interface{}
 	}{
 		{"http.send", []string{fmt.Sprintf(
-			`p = x { http.send({"method": "get", "url": "%s", "force_json_decode": true}, x) }`, ts.URL)}, resultObj.String()},
-		{"http.send", []string{fmt.Sprintf(
-			`p = x { http.send({"method": "get", "url": "%s", "force_json_decode": true, "tls_insecure_skip_verify": true}, x) }`, ts.URL)}, resultObj.String()},
+			`p = x { http.send({"method": "get", "url": "%s", "force_json_decode": true}, resp); x := clean_headers(resp) }`, ts.URL)}, resultObj.String()},
+		{"http.send skip verify no HTTPS", []string{fmt.Sprintf(
+			`p = x { http.send({"method": "get", "url": "%s", "force_json_decode": true, "tls_insecure_skip_verify": true}, resp); x := clean_headers(resp) }`, ts.URL)}, resultObj.String()},
 	}
 
 	data := loadSmallTestData()
 
 	for _, tc := range tests {
-		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
+		runTopDownTestCase(t, data, tc.note, append(tc.rules, httpSendHelperRules...), tc.expected)
 	}
 }
 
@@ -110,6 +117,10 @@ func TestHTTPGetRequestTlsInsecureSkipVerify(t *testing.T) {
 	body = append(body, bodyMap)
 	expectedResult["body"] = body
 	expectedResult["raw_body"] = "[{\"id\":\"1\",\"firstname\":\"John\"}]\n"
+	expectedResult["headers"] = map[string]interface{}{
+		"Content-Length": []interface{}{"32"},
+		"Content-Type":   []interface{}{"text/plain; charset=utf-8"},
+	}
 
 	resultObj, err := ast.InterfaceToValue(expectedResult)
 	if err != nil {
@@ -126,18 +137,18 @@ func TestHTTPGetRequestTlsInsecureSkipVerify(t *testing.T) {
 		{note: "http.send", rules: []string{fmt.Sprintf(
 			`p = x { http.send({"method": "get", "url": "%s", "force_json_decode": true}, x) }`, ts.URL)}, expected: &Error{Message: "x509: certificate signed by unknown authority"}},
 		{note: "http.send", rules: []string{fmt.Sprintf(
-			`p = x { http.send({"method": "get", "url": "%s", "force_json_decode": true, "tls_insecure_skip_verify": true}, x) }`, ts.URL)}, expected: resultObj.String()},
+			`p = x { http.send({"method": "get", "url": "%s", "force_json_decode": true, "tls_insecure_skip_verify": true}, resp); x := clean_headers(resp) }`, ts.URL)}, expected: resultObj.String()},
 		// This case verifies that `tls_insecure_skip_verify`
 		// is still applied, even if other TLS settings are
 		// present.
 		{note: "http.send", rules: []string{fmt.Sprintf(
-			`p = x { http.send({"method": "get", "url": "%s", "force_json_decode": true, "tls_insecure_skip_verify": true, "tls_use_system_certs": true,}, x) }`, ts.URL)}, expected: resultObj.String()},
+			`p = x { http.send({"method": "get", "url": "%s", "force_json_decode": true, "tls_insecure_skip_verify": true, "tls_use_system_certs": true,}, resp); x := clean_headers(resp) }`, ts.URL)}, expected: resultObj.String()},
 	}
 
 	data := loadSmallTestData()
 
 	for _, tc := range tests {
-		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
+		runTopDownTestCase(t, data, tc.note, append(tc.rules, httpSendHelperRules...), tc.expected)
 	}
 }
 
@@ -157,6 +168,10 @@ func TestHTTPEnableJSONDecode(t *testing.T) {
 	expectedResult["status_code"] = http.StatusOK
 	expectedResult["body"] = nil
 	expectedResult["raw_body"] = "*Hello World®"
+	expectedResult["headers"] = map[string]interface{}{
+		"Content-Length": []interface{}{"14"},
+		"Content-Type":   []interface{}{"text/plain; charset=utf-8"},
+	}
 
 	resultObj, err := ast.InterfaceToValue(expectedResult)
 	if err != nil {
@@ -170,13 +185,13 @@ func TestHTTPEnableJSONDecode(t *testing.T) {
 		expected interface{}
 	}{
 		{"http.send", []string{fmt.Sprintf(
-			`p = x { http.send({"method": "get", "url": "%s", "force_json_decode": true}, x) }`, ts.URL)}, resultObj.String()},
+			`p = x { http.send({"method": "get", "url": "%s", "force_json_decode": true}, resp); x := clean_headers(resp) }`, ts.URL)}, resultObj.String()},
 	}
 
 	data := loadSmallTestData()
 
 	for _, tc := range tests {
-		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
+		runTopDownTestCase(t, data, tc.note, append(tc.rules, httpSendHelperRules...), tc.expected)
 	}
 }
 
@@ -193,8 +208,8 @@ func echoCustomHeaders(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-// TestHTTPCustomHeaders adds custom headers to request
-func TestHTTPCustomHeaders(t *testing.T) {
+// TestHTTPSendCustomRequestHeaders adds custom headers to request
+func TestHTTPSendCustomRequestHeaders(t *testing.T) {
 
 	// test server
 	ts := httptest.NewServer(http.HandlerFunc(echoCustomHeaders))
@@ -234,15 +249,15 @@ func TestHTTPCustomHeaders(t *testing.T) {
 		expected interface{}
 	}{
 		{"http.send custom headers", []string{fmt.Sprintf(
-			`p = x { http.send({"method": "get", "url": "%s", "headers": {"X-Foo": "ISO-8859-1,utf-8;q=0.7,*;q=0.7", "X-Opa": "server"}}, x) }`, ts.URL)}, s},
+			`p = x { http.send({"method": "get", "url": "%s", "headers": {"X-Foo": "ISO-8859-1,utf-8;q=0.7,*;q=0.7", "X-Opa": "server"}}, resp); x := remove_headers(resp) }`, ts.URL)}, s},
 		{"http.send custom UA", []string{fmt.Sprintf(
-			`p = x { http.send({"method": "get", "url": "%s", "headers": {"User-Agent": "AuthZPolicy/0.0.1", "X-Opa": "server"}}, x) }`, ts.URL)}, s2},
+			`p = x { http.send({"method": "get", "url": "%s", "headers": {"User-Agent": "AuthZPolicy/0.0.1", "X-Opa": "server"}}, resp); x := remove_headers(resp) }`, ts.URL)}, s2},
 	}
 
 	data := loadSmallTestData()
 
 	for _, tc := range tests {
-		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
+		runTopDownTestCase(t, data, tc.note, append(tc.rules, httpSendHelperRules...), tc.expected)
 	}
 }
 
@@ -262,6 +277,10 @@ func TestHTTPHostHeader(t *testing.T) {
 		"status_code": http.StatusOK,
 		"body":        t.Name(),
 		"raw_body":    fmt.Sprintf("\"%s\"\n", t.Name()),
+		"headers": map[string]interface{}{
+			"Content-Length": []interface{}{"21"},
+			"Content-Type":   []interface{}{"application/json"},
+		},
 	})
 	if err != nil {
 		panic(err)
@@ -273,9 +292,9 @@ func TestHTTPHostHeader(t *testing.T) {
 		runTopDownTestCase(t,
 			data,
 			fmt.Sprintf("http.send custom Host header %q", h),
-			[]string{fmt.Sprintf(
-				`p = x { http.send({ "method": "get", "url": "%s", "headers": {"%s": "%s"}}, x) }`, ts.URL, h, t.Name()),
-			},
+			append(httpSendHelperRules, fmt.Sprintf(
+				`p = x { http.send({ "method": "get", "url": "%s", "headers": {"%s": "%s"}}, resp); x := clean_headers(resp) }`, ts.URL, h, t.Name()),
+			),
 			string(expectedResult))
 	}
 }
@@ -300,9 +319,10 @@ func TestHTTPPostRequest(t *testing.T) {
 	defer ts.Close()
 
 	tests := []struct {
-		note     string
-		params   string
-		expected interface{}
+		note        string
+		params      string
+		respHeaders string
+		expected    interface{}
 	}{
 
 		{
@@ -316,7 +336,8 @@ func TestHTTPPostRequest(t *testing.T) {
 				"status": "200 OK",
 				"status_code": 200,
 				"body": {"id": "2", "firstname": "Joe"},
-				"raw_body": "{\"firstname\":\"Joe\",\"id\":\"2\"}"
+				"raw_body": "{\"firstname\":\"Joe\",\"id\":\"2\"}",
+				"headers": {"Content-Type": ["application/json"], "Content-Length": ["28"]}
 			}`,
 		},
 		{
@@ -330,7 +351,8 @@ func TestHTTPPostRequest(t *testing.T) {
 				"status": "200 OK",
 				"status_code": 200,
 				"body": null,
-				"raw_body": "username=foobar&password=baz"
+				"raw_body": "username=foobar&password=baz",
+				"headers": {"Content-Type": ["application/x-www-form-encoded"], "Content-Length": ["28"]}
 			}`,
 		},
 		{
@@ -345,7 +367,8 @@ func TestHTTPPostRequest(t *testing.T) {
 				"status": "200 OK",
 				"status_code": 200,
 				"body": null,
-				"raw_body": "username=foobar&password=baz"
+				"raw_body": "username=foobar&password=baz",
+				"headers": {"Content-Type": ["application/x-www-form-encoded"], "Content-Length": ["28"]}
 			}`,
 		},
 		{
@@ -368,9 +391,10 @@ func TestHTTPPostRequest(t *testing.T) {
 		term := ast.MustParseTerm(tc.params)
 		term.Value.(ast.Object).Insert(ast.StringTerm("url"), ast.StringTerm(ts.URL))
 
-		rules := []string{
-			fmt.Sprintf(`p = x { http.send(%s, x) }`, term),
-		}
+		rules := append(
+			httpSendHelperRules,
+			fmt.Sprintf(`p = x { http.send(%s, resp); x := clean_headers(resp) }`, term),
+		)
 
 		runTopDownTestCase(t, data, tc.note, rules, tc.expected)
 	}
@@ -424,6 +448,10 @@ func TestHTTDeleteRequest(t *testing.T) {
 	body = append(body, bodyMap)
 	expectedResult["body"] = body
 	expectedResult["raw_body"] = "[{\"id\":\"1\",\"firstname\":\"John\"}]\n"
+	expectedResult["headers"] = map[string]interface{}{
+		"Content-Length": []interface{}{"32"},
+		"Content-Type":   []interface{}{"application/json"},
+	}
 
 	resultObj, err := ast.InterfaceToValue(expectedResult)
 	if err != nil {
@@ -442,13 +470,13 @@ func TestHTTDeleteRequest(t *testing.T) {
 		expected interface{}
 	}{
 		{"http.send", []string{fmt.Sprintf(
-			`p = x { http.send({"method": "delete", "url": "%s", "body": %s}, x) }`, ts.URL, b)}, resultObj.String()},
+			`p = x { http.send({"method": "delete", "url": "%s", "body": %s}, resp); x := clean_headers(resp) }`, ts.URL, b)}, resultObj.String()},
 	}
 
 	data := loadSmallTestData()
 
 	for _, tc := range tests {
-		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
+		runTopDownTestCase(t, data, tc.note, append(tc.rules, httpSendHelperRules...), tc.expected)
 	}
 }
 
@@ -502,7 +530,7 @@ func TestHTTPSendTimeout(t *testing.T) {
 	}{
 		{
 			note:     "no timeout",
-			rule:     `p = x { http.send({"method": "get", "url": "%URL%" }, x) }`,
+			rule:     `p = x { http.send({"method": "get", "url": "%URL%" }, resp); x := remove_headers(resp) }`,
 			expected: `{"body": null, "raw_body": "hello", "status": "200 OK", "status_code": 200}`,
 		},
 		{
@@ -511,7 +539,7 @@ func TestHTTPSendTimeout(t *testing.T) {
 			evalTimeout:    1 * time.Minute,
 			serverDelay:    5 * time.Second,
 			defaultTimeout: 500 * time.Millisecond,
-			expected:       &Error{Code: BuiltinErr, Message: "http.send: Get %URL%: request timed out"},
+			expected:       &Error{Code: BuiltinErr, Message: "request timed out"},
 		},
 		{
 			note:           "eval timeout",
@@ -519,7 +547,7 @@ func TestHTTPSendTimeout(t *testing.T) {
 			evalTimeout:    500 * time.Millisecond,
 			serverDelay:    5 * time.Second,
 			defaultTimeout: 1 * time.Minute,
-			expected:       &Error{Code: BuiltinErr, Message: "http.send: Get %URL%: context deadline exceeded"},
+			expected:       &Error{Code: BuiltinErr, Message: "context deadline exceeded"},
 		},
 		{
 			note:           "param timeout less than default",
@@ -527,7 +555,7 @@ func TestHTTPSendTimeout(t *testing.T) {
 			evalTimeout:    1 * time.Minute,
 			serverDelay:    5 * time.Second,
 			defaultTimeout: 1 * time.Minute,
-			expected:       &Error{Code: BuiltinErr, Message: "http.send: Get %URL%: request timed out"},
+			expected:       &Error{Code: BuiltinErr, Message: "request timed out"},
 		},
 		{
 			note:           "param timeout greater than default",
@@ -535,7 +563,7 @@ func TestHTTPSendTimeout(t *testing.T) {
 			evalTimeout:    1 * time.Minute,
 			serverDelay:    5 * time.Second,
 			defaultTimeout: 1 * time.Millisecond,
-			expected:       &Error{Code: BuiltinErr, Message: "http.send: Get %URL%: request timed out"},
+			expected:       &Error{Code: BuiltinErr, Message: "request timed out"},
 		},
 		{
 			note:           "eval timeout less than param",
@@ -543,7 +571,7 @@ func TestHTTPSendTimeout(t *testing.T) {
 			evalTimeout:    500 * time.Millisecond,
 			serverDelay:    5 * time.Second,
 			defaultTimeout: 1 * time.Minute,
-			expected:       &Error{Code: BuiltinErr, Message: "http.send: Get %URL%: context deadline exceeded"},
+			expected:       &Error{Code: BuiltinErr, Message: "context deadline exceeded"},
 		},
 	}
 
@@ -567,7 +595,7 @@ func TestHTTPSendTimeout(t *testing.T) {
 			e.Message = strings.ReplaceAll(e.Message, "%URL%", ts.URL)
 		}
 
-		runTopDownTestCaseWithContext(ctx, t, map[string]interface{}{}, tc.note, []string{rule}, nil, tc.input, tc.expected)
+		runTopDownTestCaseWithContext(ctx, t, map[string]interface{}{}, tc.note, append(httpSendHelperRules, rule), nil, tc.input, tc.expected)
 
 		// Put back the default (may not have changed)
 		defaultHTTPRequestTimeout = originalDefaultTimeout
@@ -683,6 +711,11 @@ func TestHTTPRedirectDisable(t *testing.T) {
 	expectedResult["raw_body"] = "<a href=\"/test\">Moved Permanently</a>.\n\n"
 	expectedResult["status"] = "301 Moved Permanently"
 	expectedResult["status_code"] = http.StatusMovedPermanently
+	expectedResult["headers"] = map[string]interface{}{
+		"Content-Length": []interface{}{"40"},
+		"Content-Type":   []interface{}{"text/html; charset=utf-8"},
+		"Location":       []interface{}{"/test"},
+	}
 
 	resultObj, err := ast.InterfaceToValue(expectedResult)
 	if err != nil {
@@ -690,11 +723,13 @@ func TestHTTPRedirectDisable(t *testing.T) {
 	}
 
 	data := loadSmallTestData()
-	rule := []string{fmt.Sprintf(
-		`p = x { http.send({"method": "get", "url": "%s"}, x) }`, baseURL)}
+	rules := append(
+		httpSendHelperRules,
+		fmt.Sprintf(`p = x { http.send({"method": "get", "url": "%s"}, resp); x := clean_headers(resp) }`, baseURL),
+	)
 
 	// run the test
-	runTopDownTestCase(t, data, "http.send", rule, resultObj.String())
+	runTopDownTestCase(t, data, "http.send", rules, resultObj.String())
 
 }
 
@@ -711,6 +746,9 @@ func TestHTTPRedirectEnable(t *testing.T) {
 	expectedResult["status_code"] = http.StatusOK
 	expectedResult["body"] = nil
 	expectedResult["raw_body"] = ""
+	expectedResult["headers"] = map[string]interface{}{
+		"Content-Length": []interface{}{"0"},
+	}
 
 	resultObj, err := ast.InterfaceToValue(expectedResult)
 	if err != nil {
@@ -718,11 +756,13 @@ func TestHTTPRedirectEnable(t *testing.T) {
 	}
 
 	data := loadSmallTestData()
-	rule := []string{fmt.Sprintf(
-		`p = x { http.send({"method": "get", "url": "%s", "enable_redirect": true}, x) }`, baseURL)}
+	rules := append(
+		httpSendHelperRules,
+		fmt.Sprintf(`p = x { http.send({"method": "get", "url": "%s", "enable_redirect": true}, resp); x := clean_headers(resp) }`, baseURL),
+	)
 
 	// run the test
-	runTopDownTestCase(t, data, "http.send", rule, resultObj.String())
+	runTopDownTestCase(t, data, "http.send", rules, resultObj.String())
 }
 
 func TestHTTPSendCaching(t *testing.T) {
@@ -958,6 +998,10 @@ func TestHTTPSClient(t *testing.T) {
 			"raw_body":    "{\"CommonName\":\"my-ca\"}",
 		}
 		expectedResult["body"] = bodyMap
+		expectedResult["headers"] = map[string]interface{}{
+			"Content-Length": []interface{}{"22"},
+			"Content-Type":   []interface{}{"application/json"},
+		}
 
 		resultObj, err := ast.InterfaceToValue(expectedResult)
 		if err != nil {
@@ -965,11 +1009,12 @@ func TestHTTPSClient(t *testing.T) {
 		}
 
 		data := loadSmallTestData()
-		rule := []string{fmt.Sprintf(
-			`p = x { http.send({"method": "get", "url": "%s", "tls_ca_cert_file": "%s", "tls_client_cert_file": "%s", "tls_client_key_file": "%s"}, x) }`, s.URL+"/cert", localCaFile, localClientCertFile, localClientKeyFile)}
-
+		rules := append(
+			httpSendHelperRules,
+			fmt.Sprintf(`p = x { http.send({"method": "get", "url": "%s", "tls_ca_cert_file": "%s", "tls_client_cert_file": "%s", "tls_client_key_file": "%s"}, resp); x := clean_headers(resp) }`, s.URL+"/cert", localCaFile, localClientCertFile, localClientKeyFile),
+		)
 		// run the test
-		runTopDownTestCase(t, data, "http.send", rule, resultObj.String())
+		runTopDownTestCase(t, data, "http.send", rules, resultObj.String())
 	})
 
 	t.Run("HTTPS Get with File Cert", func(t *testing.T) {
@@ -979,6 +1024,9 @@ func TestHTTPSClient(t *testing.T) {
 			"status_code": http.StatusOK,
 			"body":        nil,
 			"raw_body":    "",
+			"headers": map[string]interface{}{
+				"Content-Length": []interface{}{"0"},
+			},
 		}
 
 		resultObj, err := ast.InterfaceToValue(expectedResult)
@@ -987,11 +1035,13 @@ func TestHTTPSClient(t *testing.T) {
 		}
 
 		data := loadSmallTestData()
-		rule := []string{fmt.Sprintf(
-			`p = x { http.send({"method": "get", "url": "%s", "tls_ca_cert_file": "%s", "tls_client_cert_file": "%s", "tls_client_key_file": "%s"}, x) }`, s.URL, localCaFile, localClientCertFile, localClientKeyFile)}
+		rules := append(
+			httpSendHelperRules,
+			fmt.Sprintf(`p = x { http.send({"method": "get", "url": "%s", "tls_ca_cert_file": "%s", "tls_client_cert_file": "%s", "tls_client_key_file": "%s"}, resp); x := clean_headers(resp) }`, s.URL, localCaFile, localClientCertFile, localClientKeyFile),
+		)
 
 		// run the test
-		runTopDownTestCase(t, data, "http.send", rule, resultObj.String())
+		runTopDownTestCase(t, data, "http.send", rules, resultObj.String())
 	})
 
 	t.Run("HTTPS Get with Env Cert", func(t *testing.T) {
@@ -1001,6 +1051,9 @@ func TestHTTPSClient(t *testing.T) {
 			"status_code": http.StatusOK,
 			"body":        nil,
 			"raw_body":    "",
+			"headers": map[string]interface{}{
+				"Content-Length": []interface{}{"0"},
+			},
 		}
 
 		resultObj, err := ast.InterfaceToValue(expectedResult)
@@ -1009,11 +1062,13 @@ func TestHTTPSClient(t *testing.T) {
 		}
 
 		data := loadSmallTestData()
-		rule := []string{fmt.Sprintf(
-			`p = x { http.send({"method": "get", "url": "%s", "tls_ca_cert_env_variable": "CLIENT_CA_ENV", "tls_client_cert_env_variable": "CLIENT_CERT_ENV", "tls_client_key_env_variable": "CLIENT_KEY_ENV"}, x) }`, s.URL)}
+		rules := append(
+			httpSendHelperRules,
+			fmt.Sprintf(`p = x { http.send({"method": "get", "url": "%s", "tls_ca_cert_env_variable": "CLIENT_CA_ENV", "tls_client_cert_env_variable": "CLIENT_CERT_ENV", "tls_client_key_env_variable": "CLIENT_KEY_ENV"}, resp); x := clean_headers(resp) }`, s.URL),
+		)
 
 		// run the test
-		runTopDownTestCase(t, data, "http.send", rule, resultObj.String())
+		runTopDownTestCase(t, data, "http.send", rules, resultObj.String())
 	})
 
 	t.Run("HTTPS Get with Env and File Cert", func(t *testing.T) {
@@ -1023,6 +1078,9 @@ func TestHTTPSClient(t *testing.T) {
 			"status_code": http.StatusOK,
 			"body":        nil,
 			"raw_body":    "",
+			"headers": map[string]interface{}{
+				"Content-Length": []interface{}{"0"},
+			},
 		}
 
 		resultObj, err := ast.InterfaceToValue(expectedResult)
@@ -1031,11 +1089,13 @@ func TestHTTPSClient(t *testing.T) {
 		}
 
 		data := loadSmallTestData()
-		rule := []string{fmt.Sprintf(
-			`p = x { http.send({"method": "get", "url": "%s", "tls_ca_cert_env_variable": "CLIENT_CA_ENV", "tls_client_cert_env_variable": "CLIENT_CERT_ENV", "tls_client_key_env_variable": "CLIENT_KEY_ENV", "tls_ca_cert_file": "%s", "tls_client_cert_file": "%s", "tls_client_key_file": "%s"}, x) }`, s.URL, localCaFile, localClientCertFile, localClientKeyFile)}
+		rules := append(
+			httpSendHelperRules,
+			fmt.Sprintf(`p = x { http.send({"method": "get", "url": "%s", "tls_ca_cert_env_variable": "CLIENT_CA_ENV", "tls_client_cert_env_variable": "CLIENT_CERT_ENV", "tls_client_key_env_variable": "CLIENT_KEY_ENV", "tls_ca_cert_file": "%s", "tls_client_cert_file": "%s", "tls_client_key_file": "%s"}, resp); x := clean_headers(resp) }`, s.URL, localCaFile, localClientCertFile, localClientKeyFile),
+		)
 
 		// run the test
-		runTopDownTestCase(t, data, "http.send", rule, resultObj.String())
+		runTopDownTestCase(t, data, "http.send", rules, resultObj.String())
 	})
 
 	t.Run("HTTPS Get with System Certs, Env and File Cert", func(t *testing.T) {
@@ -1045,6 +1105,9 @@ func TestHTTPSClient(t *testing.T) {
 			"status_code": http.StatusOK,
 			"body":        nil,
 			"raw_body":    "",
+			"headers": map[string]interface{}{
+				"Content-Length": []interface{}{"0"},
+			},
 		}
 
 		resultObj, err := ast.InterfaceToValue(expectedResult)
@@ -1053,11 +1116,13 @@ func TestHTTPSClient(t *testing.T) {
 		}
 
 		data := loadSmallTestData()
-		rule := []string{fmt.Sprintf(
-			`p = x { http.send({"method": "get", "url": "%s", "tls_use_system_certs": true, "tls_ca_cert_env_variable": "CLIENT_CA_ENV", "tls_client_cert_env_variable": "CLIENT_CERT_ENV", "tls_client_key_env_variable": "CLIENT_KEY_ENV", "tls_ca_cert_file": "%s", "tls_client_cert_file": "%s", "tls_client_key_file": "%s"}, x) }`, s.URL, localCaFile, localClientCertFile, localClientKeyFile)}
+		rules := append(
+			httpSendHelperRules,
+			fmt.Sprintf(`p = x { http.send({"method": "get", "url": "%s", "tls_use_system_certs": true, "tls_ca_cert_env_variable": "CLIENT_CA_ENV", "tls_client_cert_env_variable": "CLIENT_CERT_ENV", "tls_client_key_env_variable": "CLIENT_KEY_ENV", "tls_ca_cert_file": "%s", "tls_client_cert_file": "%s", "tls_client_key_file": "%s"}, resp); x := clean_headers(resp) }`, s.URL, localCaFile, localClientCertFile, localClientKeyFile),
+		)
 
 		// run the test
-		runTopDownTestCase(t, data, "http.send", rule, resultObj.String())
+		runTopDownTestCase(t, data, "http.send", rules, resultObj.String())
 	})
 
 	t.Run("Negative Test: No Root Ca", func(t *testing.T) {
@@ -1171,6 +1236,9 @@ func TestHTTPSNoClientCerts(t *testing.T) {
 			"status_code": http.StatusOK,
 			"body":        nil,
 			"raw_body":    "",
+			"headers": map[string]interface{}{
+				"Content-Length": []interface{}{"0"},
+			},
 		}
 
 		resultObj, err := ast.InterfaceToValue(expectedResult)
@@ -1179,11 +1247,13 @@ func TestHTTPSNoClientCerts(t *testing.T) {
 		}
 
 		data := loadSmallTestData()
-		rule := []string{fmt.Sprintf(
-			`p = x { http.send({"method": "get", "url": "%s", "tls_ca_cert_file": "%s"}, x) }`, s.URL, localCaFile)}
+		rules := append(
+			httpSendHelperRules,
+			fmt.Sprintf(`p = x { http.send({"method": "get", "url": "%s", "tls_ca_cert_file": "%s"}, resp); x := clean_headers(resp) }`, s.URL, localCaFile),
+		)
 
 		// run the test
-		runTopDownTestCase(t, data, "http.send", rule, resultObj.String())
+		runTopDownTestCase(t, data, "http.send", rules, resultObj.String())
 	})
 
 	t.Run("HTTPS Get with CA Cert ENV", func(t *testing.T) {
@@ -1193,6 +1263,9 @@ func TestHTTPSNoClientCerts(t *testing.T) {
 			"status_code": http.StatusOK,
 			"body":        nil,
 			"raw_body":    "",
+			"headers": map[string]interface{}{
+				"Content-Length": []interface{}{"0"},
+			},
 		}
 
 		resultObj, err := ast.InterfaceToValue(expectedResult)
@@ -1201,11 +1274,13 @@ func TestHTTPSNoClientCerts(t *testing.T) {
 		}
 
 		data := loadSmallTestData()
-		rule := []string{fmt.Sprintf(
-			`p = x { http.send({"method": "get", "url": "%s", "tls_ca_cert_env_variable": "CLIENT_CA_ENV"}, x) }`, s.URL)}
+		rules := append(
+			httpSendHelperRules,
+			fmt.Sprintf(`p = x { http.send({"method": "get", "url": "%s", "tls_ca_cert_env_variable": "CLIENT_CA_ENV"}, resp); x := clean_headers(resp) }`, s.URL),
+		)
 
 		// run the test
-		runTopDownTestCase(t, data, "http.send", rule, resultObj.String())
+		runTopDownTestCase(t, data, "http.send", rules, resultObj.String())
 	})
 
 	t.Run("HTTPS Get with System CA Cert Pool", func(t *testing.T) {
@@ -1215,6 +1290,9 @@ func TestHTTPSNoClientCerts(t *testing.T) {
 			"status_code": http.StatusOK,
 			"body":        nil,
 			"raw_body":    "",
+			"headers": map[string]interface{}{
+				"Content-Length": []interface{}{"0"},
+			},
 		}
 
 		resultObj, err := ast.InterfaceToValue(expectedResult)
@@ -1223,11 +1301,13 @@ func TestHTTPSNoClientCerts(t *testing.T) {
 		}
 
 		data := loadSmallTestData()
-		rule := []string{fmt.Sprintf(
-			`p = x { http.send({"method": "get", "url": "%s", "tls_ca_cert_env_variable": "CLIENT_CA_ENV"}, x) }`, s.URL)}
+		rules := append(
+			httpSendHelperRules,
+			fmt.Sprintf(`p = x { http.send({"method": "get", "url": "%s", "tls_ca_cert_env_variable": "CLIENT_CA_ENV"}, resp); x := clean_headers(resp) }`, s.URL),
+		)
 
 		// run the test
-		runTopDownTestCase(t, data, "http.send", rule, resultObj.String())
+		runTopDownTestCase(t, data, "http.send", rules, resultObj.String())
 	})
 
 	t.Run("HTTPS Get with System Certs, Env and File Cert", func(t *testing.T) {
@@ -1237,6 +1317,9 @@ func TestHTTPSNoClientCerts(t *testing.T) {
 			"status_code": http.StatusOK,
 			"body":        nil,
 			"raw_body":    "",
+			"headers": map[string]interface{}{
+				"Content-Length": []interface{}{"0"},
+			},
 		}
 
 		resultObj, err := ast.InterfaceToValue(expectedResult)
@@ -1245,11 +1328,13 @@ func TestHTTPSNoClientCerts(t *testing.T) {
 		}
 
 		data := loadSmallTestData()
-		rule := []string{fmt.Sprintf(
-			`p = x { http.send({"method": "get", "url": "%s", "tls_use_system_certs": true, "tls_ca_cert_env_variable": "CLIENT_CA_ENV", "tls_ca_cert_file": "%s"}, x) }`, s.URL, localCaFile)}
+		rules := append(
+			httpSendHelperRules,
+			fmt.Sprintf(`p = x { http.send({"method": "get", "url": "%s", "tls_use_system_certs": true, "tls_ca_cert_env_variable": "CLIENT_CA_ENV", "tls_ca_cert_file": "%s"}, resp); x := clean_headers(resp) }`, s.URL, localCaFile),
+		)
 
 		// run the test
-		runTopDownTestCase(t, data, "http.send", rule, resultObj.String())
+		runTopDownTestCase(t, data, "http.send", rules, resultObj.String())
 	})
 
 	t.Run("Negative Test: System Certs do not include local rootCA", func(t *testing.T) {
@@ -1262,4 +1347,13 @@ func TestHTTPSNoClientCerts(t *testing.T) {
 		// run the test
 		runTopDownTestCase(t, data, "http.send", rule, expectedResult)
 	})
+}
+
+var httpSendHelperRules = []string{
+	`clean_headers(resp) = cleaned {
+		cleaned = json.remove(resp, ["headers/Date"])
+	}`,
+	`remove_headers(resp) = no_headers {
+		no_headers = object.remove(resp, ["headers"])
+	}`,
 }
