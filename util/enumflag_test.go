@@ -17,12 +17,20 @@ func TestEnumFlag(t *testing.T) {
 		t.Fatalf("Expected default value to be foo but got: %v", flag.String())
 	}
 
+	if flag.IsSet() {
+		t.Fatalf("Expected IsSet() to be false")
+	}
+
 	if err := flag.Set("bar"); err != nil {
 		t.Fatalf("Unexpected error on set: %v", err)
 	}
 
 	if flag.String() != "bar" {
 		t.Fatalf("Expected value to be bar but got: %v", flag.String())
+	}
+
+	if !flag.IsSet() {
+		t.Fatalf("Expected IsSet() to be true")
 	}
 
 	if !strings.Contains(flag.Type(), "foo,bar,baz") {
