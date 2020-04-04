@@ -667,6 +667,11 @@ net.cidr_contains_matches({["1.1.0.0/16", "foo"], "1.1.2.0/24"}, {"x": "1.1.1.12
 ```live:netcidrcontainsmatches/sets_and_objects:output:merge_down
 ```
 
+### UUID
+| Built-in | Description |
+| ------- |-------------|
+| <span class="opa-keep-it-together">``output := uuid.rfc4122(str)``</span> | ``output`` is ``string`` representing a version 4 uuid. For any given str the output will be consistent throughout a query evaluation. |
+
 ### Rego
 | Built-in | Description |
 | ------- |-------------|

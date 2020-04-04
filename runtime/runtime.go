@@ -27,6 +27,7 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/internal/prometheus"
 	"github.com/open-policy-agent/opa/internal/runtime"
+	"github.com/open-policy-agent/opa/internal/uuid"
 	storedversion "github.com/open-policy-agent/opa/internal/version"
 	"github.com/open-policy-agent/opa/loader"
 	"github.com/open-policy-agent/opa/metrics"
@@ -659,26 +660,15 @@ func errorLogger(attrs map[string]interface{}, f string, a ...interface{}) {
 }
 
 func generateInstanceID() (string, error) {
-	return uuid4()
+	return uuid.New(rand.Reader)
 }
 
 func generateDecisionID() string {
-	id, err := uuid4()
+	id, err := uuid.New(rand.Reader)
 	if err != nil {
 		return ""
 	}
 	return id
-}
-
-func uuid4() (string, error) {
-	bs := make([]byte, 16)
-	n, err := io.ReadFull(rand.Reader, bs)
-	if n != len(bs) || err != nil {
-		return "", err
-	}
-	bs[8] = bs[8]&^0xc0 | 0x80
-	bs[6] = bs[6]&^0xf0 | 0x40
-	return fmt.Sprintf("%x-%x-%x-%x-%x", bs[0:4], bs[4:6], bs[6:8], bs[8:10], bs[10:]), nil
 }
 
 func init() {
