@@ -5,6 +5,7 @@ go 1.12
 require (
 	github.com/OneOfOne/xxhash v1.2.7
 	github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973 // indirect
+	github.com/cpuguy83/go-md2man v1.0.10 // indirect
 	github.com/fsnotify/fsnotify v1.4.7 // indirect
 	github.com/ghodss/yaml v0.0.0-20180820084758-c7ce16629ff4
 	github.com/gobwas/glob v0.2.3
