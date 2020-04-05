@@ -306,7 +306,7 @@ integrations:
     tutorials:
       - https://www.openpolicyagent.org/docs/ssh-and-sudo-authorization.html
     code:
-      - https://github.com/open-policy-agent/contrib/tree/master/pam_authz
+      - https://github.com/open-policy-agent/contrib/tree/master/pam_opa
     inventors:
       - styra
 
