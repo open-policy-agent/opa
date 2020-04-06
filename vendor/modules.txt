@@ -2,6 +2,8 @@
 github.com/OneOfOne/xxhash
 # github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973
 github.com/beorn7/perks/quantile
+# github.com/cpuguy83/go-md2man v1.0.10
+github.com/cpuguy83/go-md2man/md2man
 # github.com/ghodss/yaml v0.0.0-20180820084758-c7ce16629ff4
 github.com/ghodss/yaml
 # github.com/gobwas/glob v0.2.3
@@ -48,11 +50,14 @@ github.com/prometheus/procfs/nfs
 github.com/prometheus/procfs/xfs
 # github.com/rcrowley/go-metrics v0.0.0-20181016184325-3113b8401b8a
 github.com/rcrowley/go-metrics
+# github.com/russross/blackfriday v1.5.2
+github.com/russross/blackfriday
 # github.com/sirupsen/logrus v1.4.1
 github.com/sirupsen/logrus
 github.com/sirupsen/logrus/hooks/test
 # github.com/spf13/cobra v0.0.0-20181021141114-fe5e611709b0
 github.com/spf13/cobra
+github.com/spf13/cobra/doc
 # github.com/spf13/pflag v0.0.0-20181024212040-082b515c9490
 github.com/spf13/pflag
 # github.com/yashtewari/glob-intersection v0.0.0-20180916065949-5c77d914dd0b
