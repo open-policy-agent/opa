@@ -27,3 +27,6 @@ policies
 
 # Local Netlify folder
 .netlify
+
+# man pages
+man
