@@ -111,6 +111,10 @@ clean: wasm-lib-clean
 docs-%:
 	$(MAKE) -C docs $*
 
+.PHONY: man
+man:
+	./build/gen-man.sh man
+
 ######################################################
 #
 # Wasm targets
