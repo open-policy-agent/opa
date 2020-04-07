@@ -76,6 +76,20 @@ type dirLoader struct {
 // NewDirectoryLoader returns a basic DirectoryLoader implementation
 // that will load files from a given root directory path.
 func NewDirectoryLoader(root string) DirectoryLoader {
+
+	if len(root) > 1 {
+		// Normalize relative directories, ex "./src/bundle" -> "src/bundle"
+		// We don't need an absolute path, but this makes the joined/trimmed
+		// paths more uniform.
+		if root[0] == '.' && root[1] == filepath.Separator {
+			if len(root) == 2 {
+				root = root[:1] // "./" -> "."
+			} else {
+				root = root[2:] // remove leading "./"
+			}
+		}
+	}
+
 	d := dirLoader{
 		root: root,
 	}
