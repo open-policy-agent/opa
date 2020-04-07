@@ -30,37 +30,38 @@ func (f *queryIDFactory) Next() uint64 {
 }
 
 type eval struct {
-	ctx             context.Context
-	seed            io.Reader
-	queryID         uint64
-	queryIDFact     *queryIDFactory
-	parent          *eval
-	caller          *eval
-	cancel          Cancel
-	query           ast.Body
-	queryCompiler   ast.QueryCompiler
-	index           int
-	indexing        bool
-	bindings        *bindings
-	store           storage.Store
-	baseCache       *baseCache
-	txn             storage.Transaction
-	compiler        *ast.Compiler
-	input           *ast.Term
-	data            *ast.Term
-	targetStack     *refStack
-	tracers         []Tracer
-	instr           *Instrumentation
-	builtins        map[string]*Builtin
-	builtinCache    builtins.Cache
-	virtualCache    *virtualCache
-	saveSet         *saveSet
-	saveStack       *saveStack
-	saveSupport     *saveSupport
-	saveNamespace   *ast.Term
-	disableInlining [][]ast.Ref
-	genvarprefix    string
-	runtime         *ast.Term
+	ctx                context.Context
+	seed               io.Reader
+	queryID            uint64
+	queryIDFact        *queryIDFactory
+	parent             *eval
+	caller             *eval
+	cancel             Cancel
+	query              ast.Body
+	queryCompiler      ast.QueryCompiler
+	index              int
+	indexing           bool
+	bindings           *bindings
+	store              storage.Store
+	baseCache          *baseCache
+	txn                storage.Transaction
+	compiler           *ast.Compiler
+	input              *ast.Term
+	data               *ast.Term
+	targetStack        *refStack
+	tracers            []Tracer
+	instr              *Instrumentation
+	builtins           map[string]*Builtin
+	builtinCache       builtins.Cache
+	virtualCache       *virtualCache
+	comprehensionCache *comprehensionCache
+	saveSet            *saveSet
+	saveStack          *saveStack
+	saveSupport        *saveSupport
+	saveNamespace      *ast.Term
+	disableInlining    [][]ast.Ref
+	genvarprefix       string
+	runtime            *ast.Term
 }
 
 func (e *eval) Run(iter evalIterator) error {
@@ -384,7 +385,6 @@ func (e *eval) evalWith(iter evalIterator) error {
 	}
 
 	input, err := mergeTermWithValues(e.input, pairsInput)
-
 	if err != nil {
 		return &Error{
 			Code:     ConflictErr,
@@ -432,6 +432,7 @@ func (e *eval) evalWithPush(input *ast.Term, data *ast.Term, targets []ast.Ref, 
 		e.data = data
 	}
 
+	e.comprehensionCache.Push()
 	e.virtualCache.Push()
 	e.targetStack.Push(targets)
 	e.disableInlining = append(e.disableInlining, disable)
@@ -443,6 +444,7 @@ func (e *eval) evalWithPop(input *ast.Term, data *ast.Term) {
 	e.disableInlining = e.disableInlining[:len(e.disableInlining)-1]
 	e.targetStack.Pop()
 	e.virtualCache.Pop()
+	e.comprehensionCache.Pop()
 	e.data = data
 	e.input = input
 }
@@ -850,6 +852,14 @@ func (e *eval) biunifyComprehension(a, b *ast.Term, b1, b2 *bindings, swap bool,
 		return e.biunifyComprehensionPartial(a, b, b1, b2, swap, iter)
 	}
 
+	value, err := e.buildComprehensionCache(a)
+
+	if err != nil {
+		return err
+	} else if value != nil {
+		return e.biunify(value, b, b1, b2, iter)
+	}
+
 	switch a := a.Value.(type) {
 	case *ast.ArrayComprehension:
 		return e.biunifyComprehensionArray(a, b, b1, b2, iter)
@@ -859,7 +869,106 @@ func (e *eval) biunifyComprehension(a, b *ast.Term, b1, b2 *bindings, swap bool,
 		return e.biunifyComprehensionObject(a, b, b1, b2, iter)
 	}
 
-	return fmt.Errorf("illegal comprehension %T", a)
+	return internalErr(e.query[e.index].Location, "illegal comprehension type")
+}
+
+func (e *eval) buildComprehensionCache(a *ast.Term) (*ast.Term, error) {
+
+	index := e.comprehensionIndex(a)
+	if index == nil {
+		e.instr.counterIncr(evalOpComprehensionCacheSkip)
+		return nil, nil
+	}
+
+	cache, ok := e.comprehensionCache.Elem(a)
+	if !ok {
+		var err error
+		switch x := a.Value.(type) {
+		case *ast.ArrayComprehension:
+			cache, err = e.buildComprehensionCacheArray(x, index.Keys)
+		case *ast.SetComprehension:
+			cache, err = e.buildComprehensionCacheSet(x, index.Keys)
+		case *ast.ObjectComprehension:
+			cache, err = e.buildComprehensionCacheObject(x, index.Keys)
+		default:
+			err = internalErr(e.query[e.index].Location, "illegal comprehension type")
+		}
+		if err != nil {
+			return nil, err
+		}
+		e.comprehensionCache.Set(a, cache)
+		e.instr.counterIncr(evalOpComprehensionCacheBuild)
+	} else {
+		e.instr.counterIncr(evalOpComprehensionCacheHit)
+	}
+
+	values := make([]*ast.Term, len(index.Keys))
+
+	for i := range index.Keys {
+		values[i] = e.bindings.Plug(index.Keys[i])
+	}
+
+	return cache.Get(values), nil
+}
+
+func (e *eval) buildComprehensionCacheArray(x *ast.ArrayComprehension, keys []*ast.Term) (*comprehensionCacheElem, error) {
+	child := e.child(x.Body)
+	node := newComprehensionCacheElem()
+	return node, child.Run(func(child *eval) error {
+		values := make([]*ast.Term, len(keys))
+		for i := range keys {
+			values[i] = child.bindings.Plug(keys[i])
+		}
+		head := child.bindings.Plug(x.Term)
+		cached := node.Get(values)
+		if cached != nil {
+			cached.Value = append(cached.Value.(ast.Array), head)
+		} else {
+			node.Put(values, ast.ArrayTerm(head))
+		}
+		return nil
+	})
+}
+
+func (e *eval) buildComprehensionCacheSet(x *ast.SetComprehension, keys []*ast.Term) (*comprehensionCacheElem, error) {
+	child := e.closure(x.Body)
+	node := newComprehensionCacheElem()
+	return node, child.Run(func(child *eval) error {
+		values := make([]*ast.Term, len(keys))
+		for i := range keys {
+			values[i] = child.bindings.Plug(keys[i])
+		}
+		head := child.bindings.Plug(x.Term)
+		cached := node.Get(values)
+		if cached != nil {
+			set := cached.Value.(ast.Set)
+			set.Add(head)
+		} else {
+			node.Put(values, ast.SetTerm(head))
+		}
+		return nil
+	})
+}
+
+func (e *eval) buildComprehensionCacheObject(x *ast.ObjectComprehension, keys []*ast.Term) (*comprehensionCacheElem, error) {
+	child := e.closure(x.Body)
+	node := newComprehensionCacheElem()
+	return node, child.Run(func(child *eval) error {
+		values := make([]*ast.Term, len(keys))
+		for i := range keys {
+			values[i] = child.bindings.Plug(keys[i])
+		}
+		headKey := child.bindings.Plug(x.Key)
+		headValue := child.bindings.Plug(x.Value)
+		cached := node.Get(values)
+		if cached != nil {
+			obj := cached.Value.(ast.Object)
+			obj.Insert(headKey, headValue)
+		} else {
+			node.Put(values, ast.ObjectTerm(ast.Item(headKey, headValue)))
+		}
+		return nil
+	})
 }
 
 func (e *eval) biunifyComprehensionPartial(a, b *ast.Term, b1, b2 *bindings, swap bool, iter unifyIterator) error {
@@ -2225,6 +2334,13 @@ func (e evalTerm) save(iter unifyIterator) error {
 	}
 
 	return e.e.biunify(ast.NewTerm(ref), e.rterm, e.termbindings, e.rbindings, iter)
+}
+
+func (e *eval) comprehensionIndex(term *ast.Term) *ast.ComprehensionIndex {
+	if e.queryCompiler != nil {
+		return e.queryCompiler.ComprehensionIndex(term)
+	}
+	return e.compiler.ComprehensionIndex(term)
 }
 
 func applyCopyPropagation(p *copypropagation.CopyPropagator, instr *Instrumentation, body ast.Body) ast.Body {

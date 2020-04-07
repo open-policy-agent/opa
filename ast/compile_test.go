@@ -3377,6 +3377,225 @@ func TestCompilerWithStageAfterWithMetrics(t *testing.T) {
 	}
 }
 
+func TestCompilerBuildComprehensionIndexKeySet(t *testing.T) {
+
+	tests := []struct {
+		note     string
+		module   string
+		atRow    int
+		wantTerm string
+		wantKeys string
+	}{
+		{
+			note: "example: invert object",
+			module: `
+				package test
+
+				p {
+					value = input[i]
+					keys = [j | value = input[j]]
+				}
+			`,
+			atRow:    6,
+			wantTerm: `[j | value = input[j]]`,
+			wantKeys: `[value]`,
+		},
+		{
+			note: "example: multiple keys from body",
+			module: `
+				package test
+
+				p {
+					v1 = input[i].v1
+					v2 = input[i].v2
+					keys = [j | v1 = input[j].v1; v2 = input[j].v2]
+				}
+			`,
+			atRow:    7,
+			wantTerm: `[j | v1 = input[j].v1; v2 = input[j].v2]`,
+			wantKeys: `[v1, v2]`,
+		},
+		{
+			note: "example: nested comprehensions are supported",
+			module: `
+				package test
+
+				p = {x: ys |
+					x = input[i]
+					ys = {y | x = input[y]}
+				}
+			`,
+			atRow:    6,
+			wantTerm: `{y | x = input[y]}`,
+			wantKeys: `[x]`,
+		},
+		{
+			note: "skip: lone comprehensions",
+			module: `
+				package test
+
+				p {
+					[v | input[i] = v]  # skip because no assignment
+				}`,
+		},
+		{
+			note: "skip: due to with modifier",
+			module: `
+				package test
+
+				p {
+					v = input[i]
+					ks = [j | input[j] = v] with data.x as 1  # skip because of with modifier
+				}`,
+		},
+		{
+			note: "skip: due to negation",
+			module: `
+				package test
+
+				p {
+					v = input[i]
+					a = []
+					not a = [j | input[j] = v] # skip due to negation
+				}`,
+		},
+		{
+			note: "skip: due to lack of comprehension",
+			module: `
+				package test
+
+				p {
+					v = input[i]
+				}`,
+		},
+		{
+			note: "skip: due to unsafe comprehension body",
+			module: `
+				package test
+
+				f(x) {
+					v = input[i]
+					ys = [y | y = x[j]]  # x is not safe
+				}`,
+		},
+		{
+			note: "skip: due to no candidates",
+			module: `
+				package test
+
+				p {
+					ys = [y | y = input[j]]
+				}`,
+		},
+		{
+			note: "skip: avoid increasing runtime (func arg)",
+			module: `
+				package test
+
+				f(x) {
+					y = input[x]
+					ys = [y | y = input[x]]
+				}`,
+		},
+		{
+			note: "skip: avoid increasing runtime (head key)",
+			module: `
+				package test
+
+				p[x] {
+					y = input[x]
+					ys = [y | y = input[x]]
+				}`,
+		},
+		{
+			note: "skip: avoid increasing runtime (walk)",
+			module: `
+				package test
+
+				p[x] {
+					y = input.bar[x]
+					ys = [y | a = input.foo; walk(a, [x, y])]
+				}`,
+		},
+		{
+			note: "bypass: use intermediate var to skip regression check",
+			module: `
+				package test
+
+				p[x] {
+					y = input[x]
+					ys = [y | y = input[z]; z = x]
+				}`,
+			atRow:    6,
+			wantTerm: ` [y | y = input[z]; z = x]`,
+			wantKeys: `[x, y]`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+
+			m := metrics.New()
+			compiler := NewCompiler().WithMetrics(m)
+			compiler.Compile(map[string]*Module{"test.rego": MustParseModule(tc.module)})
+			if compiler.Failed() {
+				t.Fatal(compiler.Errors)
+			}
+
+			n := m.Counter(compileStageComprehensionIndexBuild).Value().(uint64)
+
+			if tc.atRow == 0 {
+				if n > 0 || len(compiler.comprehensionIndices) > 0 {
+					t.Fatal("expected no indices to be built. got:", compiler.comprehensionIndices)
+				}
+				return
+			}
+
+			if n != 1 {
+				t.Fatal("expected counter to be incremented")
+			}
+
+			var comprehension *Term
+
+			WalkTerms(compiler.Modules["test.rego"], func(x *Term) bool {
+				if !IsComprehension(x.Value) {
+					return true
+				}
+				if x.Location.Row != tc.atRow {
+					return false
+				} else if comprehension != nil {
+					t.Fatal("expected at most one comprehension per line in test module")
+				}
+				comprehension = x
+				return false
+			})
+
+			if comprehension == nil {
+				t.Fatal("expected comprehension at line:", tc.atRow)
+			}
+
+			result := compiler.ComprehensionIndex(comprehension)
+
+			if result == nil {
+				t.Fatal("expected result")
+			}
+
+			expTerm := MustParseTerm(tc.wantTerm)
+
+			if !result.Term.Equal(expTerm) {
+				t.Fatalf("expected term to be %v but got: %v", expTerm, result.Term)
+			}
+
+			expKeys := MustParseTerm(tc.wantKeys).Value.(Array)
+
+			if Array(result.Keys).Compare(expKeys) != 0 {
+				t.Fatalf("expected keys to be %v but got: %v", expKeys, result.Keys)
+			}
+
+		})
+	}
+}
+
 func TestQueryCompiler(t *testing.T) {
 	tests := []struct {
 		note     string

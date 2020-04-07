@@ -2385,6 +2385,25 @@ func TestTopDownWithKeyword(t *testing.T) {
 			setl[x] { data.foo[x] }`},
 			rules: []string{`p = true { data.ex.setl[1] with data.foo as {1} }`},
 		},
+		{
+			// NOTE(tsandall): This case assumes that partial sets are not memoized.
+			// If we change that, it'll be harder to test that the comprehension
+			// cache is invalidated.
+			note: "invalidate comprehension cache",
+			exp:  `[[{"b": ["a", "c"]}], [{"b": ["a"]}]]`,
+			modules: []string{`package ex
+				s[x] {
+					x = {v: ks |
+						v = input[i]
+						ks = {k | v = input[k]}
+					}
+				}
+			`},
+			rules: []string{`p = [x, y] {
+				x = data.ex.s with input as {"a": "b", "c": "b"}
+				y = data.ex.s with input as {"a": "b"}
+			}`},
+		},
 	}
 
 	for _, tc := range tests {
