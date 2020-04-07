@@ -130,6 +130,10 @@ func (p *Profiler) Trace(event *topdown.Event) {
 }
 
 func (p *Profiler) processExpr(expr *ast.Expr, eventType topdown.Op) {
+	if expr.Location == nil {
+		// add fake location to group expressions without a location
+		expr.Location = ast.NewLocation([]byte("???"), "", 0, 0)
+	}
 
 	// set the active timer on the first expression
 	if p.activeTimer.IsZero() {
