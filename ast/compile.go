@@ -90,13 +90,14 @@ type Compiler struct {
 		metricName string
 		f          func()
 	}
-	maxErrs           int
-	sorted            []string // list of sorted module names
-	pathExists        func([]string) (bool, error)
-	after             map[string][]CompilerStageDefinition
-	metrics           metrics.Metrics
-	builtins          map[string]*Builtin
-	unsafeBuiltinsMap map[string]struct{}
+	maxErrs              int
+	sorted               []string // list of sorted module names
+	pathExists           func([]string) (bool, error)
+	after                map[string][]CompilerStageDefinition
+	metrics              metrics.Metrics
+	builtins             map[string]*Builtin
+	unsafeBuiltinsMap    map[string]struct{}
+	comprehensionIndices map[*Term]*ComprehensionIndex
 }
 
 // CompilerStage defines the interface for stages in the compiler.
@@ -187,6 +188,10 @@ type QueryCompiler interface {
 	// parsed query. For example, given the query "input := 1" the rewritten
 	// query would be "__local0__ = 1". The mapping would then be {__local0__: input}.
 	RewrittenVars() map[Var]Var
+
+	// ComprehensionIndex returns an index data structure for the given comprehension
+	// term. If no index is found, returns nil.
+	ComprehensionIndex(term *Term) *ComprehensionIndex
 }
 
 // QueryCompilerStage defines the interface for stages in the query compiler.
@@ -214,9 +219,10 @@ func NewCompiler() *Compiler {
 		}, func(x util.T) int {
 			return x.(Ref).Hash()
 		}),
-		maxErrs:           CompileErrorLimitDefault,
-		after:             map[string][]CompilerStageDefinition{},
-		unsafeBuiltinsMap: map[string]struct{}{},
+		maxErrs:              CompileErrorLimitDefault,
+		after:                map[string][]CompilerStageDefinition{},
+		unsafeBuiltinsMap:    map[string]struct{}{},
+		comprehensionIndices: map[*Term]*ComprehensionIndex{},
 	}
 
 	c.ModuleTree = NewModuleTree(nil)
@@ -261,6 +267,7 @@ func NewCompiler() *Compiler {
 		{"CheckTypes", "compile_stage_check_types", c.checkTypes},
 		{"CheckUnsafeBuiltins", "compile_state_check_unsafe_builtins", c.checkUnsafeBuiltins},
 		{"BuildRuleIndices", "compile_stage_rebuild_indices", c.buildRuleIndices},
+		{"BuildComprehensionIndices", "compile_stage_rebuild_comprehension_indices", c.buildComprehensionIndices},
 	}
 
 	return c
@@ -348,6 +355,13 @@ func (c *Compiler) Compile(modules map[string]*Module) {
 // Failed returns true if a compilation error has been encountered.
 func (c *Compiler) Failed() bool {
 	return len(c.Errors) > 0
+}
+
+// ComprehensionIndex returns a data structure specifying how to index comprehension
+// results so that callers do not have to recompute the comprehension more than once.
+// If no index is found, returns nil.
+func (c *Compiler) ComprehensionIndex(term *Term) *ComprehensionIndex {
+	return c.comprehensionIndices[term]
 }
 
 // GetArity returns the number of args a function referred to by ref takes. If
@@ -610,7 +624,13 @@ func (c *Compiler) WithModuleLoader(f ModuleLoader) *Compiler {
 	return c
 }
 
-// buildRuleIndices constructs indices for rules.
+func (c *Compiler) counterAdd(name string, n uint64) {
+	if c.metrics == nil {
+		return
+	}
+	c.metrics.Counter(name).Add(n)
+}
+
 func (c *Compiler) buildRuleIndices() {
 
 	c.RuleTree.DepthFirst(func(node *TreeNode) bool {
@@ -626,6 +646,18 @@ func (c *Compiler) buildRuleIndices() {
 		return false
 	})
 
+}
+
+func (c *Compiler) buildComprehensionIndices() {
+	for _, name := range c.sorted {
+		WalkRules(c.Modules[name], func(r *Rule) bool {
+			candidates := r.Head.Args.Vars()
+			candidates.Update(ReservedVars)
+			n := buildComprehensionIndices(c.GetArity, candidates, r.Body, c.comprehensionIndices)
+			c.counterAdd(compileStageComprehensionIndexBuild, n)
+			return false
+		})
+	}
 }
 
 // checkRecursion ensures that there are no recursive definitions, i.e., there are
@@ -1250,19 +1282,21 @@ func (c *Compiler) setGraph() {
 }
 
 type queryCompiler struct {
-	compiler       *Compiler
-	qctx           *QueryContext
-	typeEnv        *TypeEnv
-	rewritten      map[Var]Var
-	after          map[string][]QueryCompilerStageDefinition
-	unsafeBuiltins map[string]struct{}
+	compiler             *Compiler
+	qctx                 *QueryContext
+	typeEnv              *TypeEnv
+	rewritten            map[Var]Var
+	after                map[string][]QueryCompilerStageDefinition
+	unsafeBuiltins       map[string]struct{}
+	comprehensionIndices map[*Term]*ComprehensionIndex
 }
 
 func newQueryCompiler(compiler *Compiler) QueryCompiler {
 	qc := &queryCompiler{
-		compiler: compiler,
-		qctx:     nil,
-		after:    map[string][]QueryCompilerStageDefinition{},
+		compiler:             compiler,
+		qctx:                 nil,
+		after:                map[string][]QueryCompilerStageDefinition{},
+		comprehensionIndices: map[*Term]*ComprehensionIndex{},
 	}
 	return qc
 }
@@ -1284,6 +1318,15 @@ func (qc *queryCompiler) WithUnsafeBuiltins(unsafe map[string]struct{}) QueryCom
 
 func (qc *queryCompiler) RewrittenVars() map[Var]Var {
 	return qc.rewritten
+}
+
+func (qc *queryCompiler) ComprehensionIndex(term *Term) *ComprehensionIndex {
+	if result, ok := qc.comprehensionIndices[term]; ok {
+		return result
+	} else if result, ok := qc.compiler.comprehensionIndices[term]; ok {
+		return result
+	}
+	return nil
 }
 
 func (qc *queryCompiler) runStage(metricName string, qctx *QueryContext, query Body, s func(*QueryContext, Body) (Body, error)) (Body, error) {
@@ -1321,6 +1364,7 @@ func (qc *queryCompiler) Compile(query Body) (Body, error) {
 		{"RewriteDynamicTerms", "query_compile_stage_rewrite_dynamic_terms", qc.rewriteDynamicTerms},
 		{"CheckTypes", "query_compile_stage_check_types", qc.checkTypes},
 		{"CheckUnsafeBuiltins", "query_compile_stage_check_unsafe_builtins", qc.checkUnsafeBuiltins},
+		{"BuildComprehensionIndex", "query_compile_stage_build_comprehension_index", qc.buildComprehensionIndices},
 	}
 
 	qctx := qc.qctx.Copy()
@@ -1460,6 +1504,189 @@ func (qc *queryCompiler) rewriteWithModifiers(qctx *QueryContext, body Body) (Bo
 		return nil, Errors{err}
 	}
 	return body, nil
+}
+
+func (qc *queryCompiler) buildComprehensionIndices(qctx *QueryContext, body Body) (Body, error) {
+	// NOTE(tsandall): The query compiler does not have a metrics object so we
+	// cannot record index metrics currently.
+	_ = buildComprehensionIndices(qc.compiler.GetArity, ReservedVars, body, qc.comprehensionIndices)
+	return body, nil
+}
+
+// ComprehensionIndex specifies how the comprehension term can be indexed. The keys
+// tell the evaluator what variables to use for indexing. In the future, the index
+// could be expanded with more information that would allow the evaluator to index
+// a larger fragment of comprehensions (e.g., by closing over variables in the outer
+// query.)
+type ComprehensionIndex struct {
+	Term *Term
+	Keys []*Term
+}
+
+func (ci *ComprehensionIndex) String() string {
+	if ci == nil {
+		return ""
+	}
+	return fmt.Sprintf("<keys: %v>", Array(ci.Keys))
+}
+
+func buildComprehensionIndices(arity func(Ref) int, candidates VarSet, node interface{}, result map[*Term]*ComprehensionIndex) (n uint64) {
+	WalkBodies(node, func(b Body) bool {
+		cpy := candidates.Copy()
+		for _, expr := range b {
+			if index := getComprehensionIndex(arity, cpy, expr); index != nil {
+				result[index.Term] = index
+				n++
+			}
+			// Any variables appearing in the expressions leading up to the comprehension
+			// are fair-game to be used as index keys.
+			cpy.Update(expr.Vars(VarVisitorParams{SkipClosures: true, SkipRefCallHead: true}))
+		}
+		return false
+	})
+	return n
+}
+
+func getComprehensionIndex(arity func(Ref) int, candidates VarSet, expr *Expr) *ComprehensionIndex {
+
+	// Ignore everything except <var> = <comprehension> expressions. Extract
+	// the comprehension term from the expression.
+	if !expr.IsEquality() || expr.Negated || len(expr.With) > 0 {
+		return nil
+	}
+
+	var term *Term
+
+	lhs, rhs := expr.Operand(0), expr.Operand(1)
+
+	if _, ok := lhs.Value.(Var); ok && IsComprehension(rhs.Value) {
+		term = rhs
+	} else if _, ok := rhs.Value.(Var); ok && IsComprehension(lhs.Value) {
+		term = lhs
+	}
+
+	if term == nil {
+		return nil
+	}
+
+	// Ignore comprehensions that contain expressions that close over variables
+	// in the outer body if those variables are not also output variables in the
+	// comprehension body. In other words, ignore comprehensions that we cannot
+	// safely evaluate without bindings from the outer body. For example:
+	//
+	// 	x = [1]
+	//	[true | data.y[z] = x]     # safe to evaluate w/o outer body
+	//	[true | data.y[z] = x[0]]  # NOT safe to evaluate because 'x' would be unsafe.
+	//
+	// By identifying output variables in the body we also know what to index on by
+	// intersecting with candidate variables from the outer query.
+	//
+	// For example:
+	//
+	//	x = data.foo[_]
+	//	_ = [y | data.bar[y] = x]      # index on 'x'
+	//
+	// This query goes from O(data.foo*data.bar) to O(data.foo+data.bar).
+	var body Body
+
+	switch x := term.Value.(type) {
+	case *ArrayComprehension:
+		body = x.Body
+	case *SetComprehension:
+		body = x.Body
+	case *ObjectComprehension:
+		body = x.Body
+	}
+
+	outputs := outputVarsForBody(body, arity, ReservedVars)
+	unsafe := body.Vars(safetyCheckVarVisitorParams).Diff(outputs).Diff(ReservedVars)
+	if len(unsafe) > 0 {
+		return nil
+	}
+
+	// Similarly, ignore comprehensions that contain references with output variables
+	// that intersect with the candidates. Indexing these comprehensions could worsen
+	// performance.
+	vis := newComprehensionIndexRegressionCheckVisitor(candidates)
+	vis.Walk(body)
+	if vis.worse {
+		return nil
+	}
+
+	indexVars := candidates.Intersect(outputs)
+	if len(indexVars) == 0 {
+		return nil
+	}
+
+	// Make a sorted set of variable names that will serve as the index key set.
+	// Sort to ensure deterministic indexing. In future this could be relaxed
+	// if we can decide that one ordering is better than another.
+	result := make([]*Term, 0, len(indexVars))
+
+	for v := range indexVars {
+		result = append(result, NewTerm(v))
+	}
+
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Value.Compare(result[j].Value) < 0
+	})
+
+	return &ComprehensionIndex{Term: term, Keys: result}
+}
+
+type comprehensionIndexRegressionCheckVisitor struct {
+	candidates VarSet
+	seen       VarSet
+	worse      bool
+}
+
+// TOOD(tsandall): Improve this so that users can either supply this list explicitly
+// or the information is maintained on the built-in function declaration. What we really
+// need to know is whether the built-in function allows callers to push down output
+// values or not. It's unlikely that anything outside of OPA does this today so this
+// solution is fine for now.
+var comprehensionIndexBlacklist = map[string]int{
+	WalkBuiltin.Name: len(WalkBuiltin.Decl.Args()),
+}
+
+func newComprehensionIndexRegressionCheckVisitor(candidates VarSet) *comprehensionIndexRegressionCheckVisitor {
+	return &comprehensionIndexRegressionCheckVisitor{
+		candidates: candidates,
+		seen:       NewVarSet(),
+	}
+}
+
+func (vis *comprehensionIndexRegressionCheckVisitor) Walk(x interface{}) {
+	NewGenericVisitor(vis.visit).Walk(x)
+}
+
+func (vis *comprehensionIndexRegressionCheckVisitor) visit(x interface{}) bool {
+	if !vis.worse {
+		switch x := x.(type) {
+		case *Expr:
+			operands := x.Operands()
+			if pos := comprehensionIndexBlacklist[x.Operator().String()]; pos > 0 && pos < len(operands) {
+				vis.assertEmptyIntersection(operands[pos].Vars())
+			}
+		case Ref:
+			vis.assertEmptyIntersection(x.OutputVars())
+		case Var:
+			vis.seen.Add(x)
+		// Always skip comprehensions. We do not have to visit their bodies here.
+		case *ArrayComprehension, *SetComprehension, *ObjectComprehension:
+			return true
+		}
+	}
+	return vis.worse
+}
+
+func (vis *comprehensionIndexRegressionCheckVisitor) assertEmptyIntersection(vs VarSet) {
+	for v := range vs {
+		if vis.candidates.Contains(v) && !vis.seen.Contains(v) {
+			vis.worse = true
+			return
+		}
+	}
 }
 
 // ModuleTreeNode represents a node in the module tree. The module
