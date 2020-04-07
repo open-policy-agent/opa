@@ -3,6 +3,7 @@ title: Policy Performance
 kind: documentation
 weight: 3
 ---
+
 ## High Performance Policy Decisions
 
 For low-latency/high-performance use-cases, e.g. microservice API authorization, policy evaluation has a budget on the order of 1 millisecond.  Not all use cases require that kind of performance, and OPA is powerful enough that you can write expressive policies that take longer than 1 millisecond to evaluate.  But for high-performance use cases, there is a fragment of the policy language that has been engineered to evaluate quickly.  Even as the size of the policies grow, the performance for this fragment can be nearly constant-time.
@@ -130,6 +131,140 @@ For `glob.match(pattern, delimiter, match)` statements to be indexed the pattern
 | `glob.match("foo:*:bar", [":"], input.x)` | yes | n/a |
 | `glob.match("foo:**:bar", [":"], input.x)` | no | pattern contains `**` |
 | `glob.match("foo:*:bar", [":"], input.x[i])` | no | match contains variable(s) |
+
+### Comprehension Indexing
+
+Rego does not support mutation. As a result, certain operations like "group by" require
+use of comprehensions to aggregate values. To avoid O(n^2) runtime complexity in
+queries/rules that perform group-by, OPA may compute and memoize the entire collection
+produced by comprehensions at once. This ensures that runtime complexity is O(n) where
+n is the size of the collection that group-by/aggregation is being performed on.
+
+For example, suppose the policy must check if the number of ports exposed on an interface
+exceeds some threshold (e.g., any interface may expose up to 100 ports.) The policy is given
+the port->interface mapping as a JSON array under `input`:
+
+```json
+{
+  "exposed": [
+    {
+      "interface": "eth0",
+      "port": 8080,
+    },
+    {
+      "interface": "eth0",
+      "port": 8081,
+    },
+    {
+      "interface": "eth1",
+      "port": 443,
+    },
+    {
+      "interface": "lo1",
+      "port": 5000,
+    }
+  ]
+}
+```
+
+In this case, the policy must count the number of ports exposed on each interface. To do this,
+the policy must first aggregate/group the ports by the interface name. Conceptually,
+the policy should generate a document like this:
+
+```json
+{
+  "exposed_ports_by_interface": {
+    "eth0": [8080, 8081],
+    "eth1": [443],
+    "lo1": [5000]
+  }
+}
+```
+
+Since multiple ports could be exposed on a single interface, the policy must use a comprehension to
+aggregate the port values by the interface names. To implement this logic in Rego, we would write:
+
+```rego
+some i
+intf := input.exposed[i].interface
+ports := [port | some j; input.exposed[j].interface == intf; port := input.exposed[j].port]
+```
+
+Without comprehension indexing, this query would be O(n^2) where n is the size of `input.exposed`.
+However, with comprehension indexing, the query remains O(n) because OPA only computes the comprehension
+_once_. In this case, the comprehension is evaluated and all possible values of `ports` are computed
+at once. These values are indexed by the assignments of `intf`.
+
+To implement the policy above we could write:
+
+```rego
+deny[msg] {
+  some i
+  count(exposed_ports_by_interface[i]) > 100
+  msg := sprintf("interface '%v' exposes too many ports", [i])
+}
+
+exposed_ports_by_interface := {intf: ports |
+  some i
+  intf := input.exposed[i].interface
+  ports := [port |
+    some j
+    input.exposed[j].interface == intf
+    port := input.exposed[j].port
+  ]
+}
+```
+
+Indices can be built for comprehensions (nested or not) that generate collections (i.e., arrays, sets, or objects)
+based on variables in an outer query. In the example above:
+
+* `intf` is the variable in the outer query.
+* `[port | some j; input.exposed[j].interface == intf; port := input.exposed[j].port]` is the comprehension.
+* `ports` is the variable the collection is assigned to.
+
+In order to be indexed, comprehensions must meet the following conditions:
+
+1. The comprehension appears in an assignment or unification statement.
+1. The expression containing the comprehension does not include a `with` statement.
+1. The expression containing the comprehension is not negated.
+1. The comprehension body is safe when considered independent from the outer query.
+1. The comprehension body closes over at least one variable in the outer query and none of these variables appear as outputs in references or `walk()` calls.
+
+The following examples show cases that are NOT indexed:
+
+```rego
+not_indexed_because_missing_assignment {
+  x := input[_]
+  [y | some y; x == input[y]]
+}
+
+not_indexed_because_includes_with {
+  x := input[_]
+  ys := [y | some y; x := input[y]] with input as {}
+}
+
+not_indexed_because_negated {
+  x := input[_]
+  not data.arr = [y | some y; x := input[y]]
+}
+
+not_indexed_because_safety {
+  obj := input.foo.bar
+  x := obj[_]
+  ys := [y | some y; x == obj[y]]
+}
+
+not_indexed_because_no_closure {
+  ys := [y | x := input[y]]
+}
+
+not_indexed_because_reference_operand_closure {
+  x := input[y].x
+  ys := [y | x == input[y].z[_]]
+}
+```
+
+> The 4th and 5th restrictions may be relaxed in the future.
 
 ### Profiling
 
