@@ -619,3 +619,51 @@ func genWalkBenchmarkData(n int) map[string]interface{} {
 		"arr": sl,
 	}
 }
+
+func BenchmarkComprehensionIndexing(b *testing.B) {
+	ctx := context.Background()
+	sizes := []int{10, 100, 1000}
+	for _, n := range sizes {
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			data := genComprehensionIndexingData(n)
+			store := inmem.NewFromObject(data)
+			compiler := ast.MustCompileModules(map[string]string{
+				"test.rego": `
+				package test
+
+				p {
+					v := data.items[_]
+					ks := [k | some k; v == data.items[k]]
+				}
+			`,
+			})
+			query, err := compiler.QueryCompiler().Compile(ast.MustParseBody(`data.test.p = true`))
+			if err != nil {
+				b.Fatal(err)
+			}
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				err = storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
+					q := NewQuery(query).WithStore(store).WithCompiler(compiler).WithTransaction(txn)
+					rs, err := q.Run(ctx)
+					if err != nil || len(rs) != 1 {
+						b.Fatal("Unexpected result:", rs, "err:", err)
+					}
+					return nil
+				})
+				if err != nil {
+					b.Fatal(err)
+				}
+
+			}
+		})
+	}
+}
+
+func genComprehensionIndexingData(n int) map[string]interface{} {
+	items := map[string]interface{}{}
+	for i := 0; i < n; i++ {
+		items[fmt.Sprint(i)] = fmt.Sprint(i)
+	}
+	return map[string]interface{}{"items": items}
+}
