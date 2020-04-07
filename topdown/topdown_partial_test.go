@@ -480,6 +480,19 @@ func TestTopDownPartialEval(t *testing.T) {
 			wantQueries: []string{`x = [true | input.x = 1]`},
 		},
 		{
+			note:  "comprehensions: saved (with namespacing)",
+			query: "data.test.p = x; data.test.p = y",
+			modules: []string{
+				`package test
+
+				p = c {
+					a = input
+					c = [1 | b = a[0]]
+				}
+			`},
+			wantQueries: []string{`x = [1 | b1 = input[0]]; y = [1 | b2 = input[0]]`},
+		},
+		{
 			note:        "comprehensions: closure",
 			query:       `i = 1; xs = [x | x = data.foo[i]]`,
 			wantQueries: []string{`i = 1; xs = ["b"]`},

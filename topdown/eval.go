@@ -860,6 +860,7 @@ func (e *eval) biunifyComprehension(a, b *ast.Term, b1, b2 *bindings, swap bool,
 }
 
 func (e *eval) biunifyComprehensionPartial(a, b *ast.Term, b1, b2 *bindings, swap bool, iter unifyIterator) error {
+	cpyA := a.Copy()
 
 	// Capture bindings available to the comprehension. We will add expressions
 	// to the comprehension body that ensure the comprehension body is safe.
@@ -880,7 +881,7 @@ func (e *eval) biunifyComprehensionPartial(a, b *ast.Term, b1, b2 *bindings, swa
 	// queries returned by partial evaluation.
 	var body *ast.Body
 
-	switch a := a.Value.(type) {
+	switch a := cpyA.Value.(type) {
 	case *ast.ArrayComprehension:
 		body = &a.Body
 	case *ast.SetComprehension:
@@ -895,16 +896,16 @@ func (e *eval) biunifyComprehensionPartial(a, b *ast.Term, b1, b2 *bindings, swa
 		body.Append(e)
 	}
 
-	b1.Namespace(a, e.caller.bindings)
+	b1.Namespace(cpyA, e.caller.bindings)
 
 	// The other term might need to be plugged so include the bindings. The
 	// bindings for the comprehension term are saved (for compatibility) but
 	// the eventual plug operation on the comprehension will be a no-op.
 	if !swap {
-		return e.saveUnify(a, b, b1, b2, iter)
+		return e.saveUnify(cpyA, b, b1, b2, iter)
 	}
 
-	return e.saveUnify(b, a, b2, b1, iter)
+	return e.saveUnify(b, cpyA, b2, b1, iter)
 }
 
 func (e *eval) biunifyComprehensionArray(x *ast.ArrayComprehension, b *ast.Term, b1, b2 *bindings, iter unifyIterator) error {
