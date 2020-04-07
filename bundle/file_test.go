@@ -106,3 +106,67 @@ func testLoader(t *testing.T, loader DirectoryLoader, expectedFiles map[string]s
 		t.Fatalf("Expected to read %d files, read %d", len(expectedFiles), fileCount)
 	}
 }
+
+func TestNewDirectoryLoaderNormalizedRoot(t *testing.T) {
+	cases := []struct {
+		note     string
+		root     string
+		expected string
+	}{
+		{
+			note:     "abs",
+			root:     "/a/b/c",
+			expected: "/a/b/c",
+		},
+		{
+			note:     "trailing slash",
+			root:     "/a/b/c/",
+			expected: "/a/b/c/",
+		},
+		{
+			note:     "empty",
+			root:     "",
+			expected: "",
+		},
+		{
+			note:     "single abs",
+			root:     "/",
+			expected: "/",
+		},
+		{
+			note:     "single relative",
+			root:     "foo",
+			expected: "foo",
+		},
+		{
+			note:     "single relative dot",
+			root:     ".",
+			expected: ".",
+		},
+		{
+			note:     "single relative dot slash",
+			root:     "./",
+			expected: ".",
+		},
+		{
+			note:     "relative leading dot slash",
+			root:     "./a/b/c",
+			expected: "a/b/c",
+		},
+		{
+			note:     "relative",
+			root:     "a/b/c",
+			expected: "a/b/c",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			l := NewDirectoryLoader(tc.root)
+			actual := l.(*dirLoader).root
+			if actual != tc.expected {
+				t.Fatalf("Expected root %s got %s", tc.expected, actual)
+			}
+		})
+	}
+}
