@@ -216,7 +216,7 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 		return false
 	})
 
-	p := copypropagation.New(livevars)
+	p := copypropagation.New(livevars).WithCompiler(q.compiler)
 
 	err = e.Run(func(e *eval) error {
 

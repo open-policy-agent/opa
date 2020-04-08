@@ -463,7 +463,7 @@ func (e *eval) evalNotPartial(iter evalIterator) error {
 	// Run partial evaluation, plugging the result and applying copy propagation to
 	// each result. Since the result may require support, push a new query onto the
 	// save stack to avoid mutating the current save query.
-	p := copypropagation.New(unknowns).WithEnsureNonEmptyBody(true)
+	p := copypropagation.New(unknowns).WithEnsureNonEmptyBody(true).WithCompiler(e.compiler)
 	var savedQueries []ast.Body
 	e.saveStack.PushQuery(nil)
 
@@ -1822,7 +1822,7 @@ func (e evalVirtualPartial) partialEvalSupportRule(iter unifyIterator, rule *ast
 		}
 
 		head := ast.NewHead(rule.Head.Name, key, value)
-		p := copypropagation.New(head.Vars()).WithEnsureNonEmptyBody(true)
+		p := copypropagation.New(head.Vars()).WithEnsureNonEmptyBody(true).WithCompiler(e.e.compiler)
 
 		e.e.saveSupport.Insert(path, &ast.Rule{
 			Head:    head,
@@ -2057,7 +2057,7 @@ func (e evalVirtualComplete) partialEvalSupportRule(iter unifyIterator, rule *as
 		plugged := current.Plug(e.e.caller.bindings)
 
 		head := ast.NewHead(rule.Head.Name, nil, child.bindings.PlugNamespaced(rule.Head.Value, e.e.caller.bindings))
-		p := copypropagation.New(head.Vars()).WithEnsureNonEmptyBody(true)
+		p := copypropagation.New(head.Vars()).WithEnsureNonEmptyBody(true).WithCompiler(e.e.compiler)
 
 		e.e.saveSupport.Insert(path, &ast.Rule{
 			Head:    head,

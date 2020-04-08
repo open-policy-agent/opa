@@ -1207,6 +1207,41 @@ func TestTopDownPartialEval(t *testing.T) {
 			},
 		},
 		{
+			note:  "copy propagation: negation safety needs extra expr",
+			query: `data.test.p = true`,
+			modules: []string{
+				`package test
+
+				p {
+				  x = data.y[c]
+				  x.z = 1
+				  not x.z = 2
+				}
+				`,
+			},
+			unknowns: []string{`data.y`},
+			wantQueries: []string{
+				`data.y[c1].z = 1; not x1.z = 2; x1 = data.y[c1]`,
+			},
+		},
+		{
+			note:  "copy propagation: negation safety no extra expr",
+			query: `data.test.p = true`,
+			modules: []string{
+				`package test
+
+				p {
+				  x = data.y[c]
+				  not x.z = 2
+				}
+				`,
+			},
+			unknowns: []string{`data.y`},
+			wantQueries: []string{
+				`not x1.z = 2; x1 = data.y[c1]`,
+			},
+		},
+		{
 			note:  "copy propagation: rewrite object key (bug 1177)",
 			query: `data.test.p = true`,
 			modules: []string{
