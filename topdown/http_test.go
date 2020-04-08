@@ -378,7 +378,7 @@ func TestHTTPPostRequest(t *testing.T) {
 				"headers": {"Content-Type": "application/x-www-form-encoded"},
 				"raw_body": {"bar": "bar"}
 			}`,
-			expected: &Error{Code: BuiltinErr, Message: "raw_body must be a string"},
+			expected: &Error{Code: BuiltinErr, Message: "\"raw_body\" must be a string"},
 		},
 	}
 
@@ -1024,6 +1024,9 @@ func TestHTTPSClient(t *testing.T) {
 			"status_code": http.StatusOK,
 			"body":        nil,
 			"raw_body":    "",
+			"headers": map[string]interface{}{
+				"Content-Length": []interface{}{"0"},
+			},
 		}
 
 		resultObj, err := ast.InterfaceToValue(expectedResult)
@@ -1047,12 +1050,15 @@ func TestHTTPSClient(t *testing.T) {
 		}
 
 		data := loadSmallTestData()
-		rule := []string{fmt.Sprintf(
-			"p = x { http.send({`method`: `get`, `url`: `%s`, `tls_ca_cert`: `%s`, `tls_client_cert`: `%s`, `tls_client_key`: `%s`}, x) }",
-			s.URL, ca, cert, key)}
+		rules := append(
+			httpSendHelperRules,
+			fmt.Sprintf(
+				"p = x { http.send({`method`: `get`, `url`: `%s`, `tls_ca_cert`: `%s`, `tls_client_cert`: `%s`, `tls_client_key`: `%s`}, resp); x := clean_headers(resp) }",
+				s.URL, ca, cert, key),
+		)
 
 		// run the test
-		runTopDownTestCase(t, data, "http.send", rule, resultObj.String())
+		runTopDownTestCase(t, data, "http.send", rules, resultObj.String())
 	})
 
 	t.Run("HTTPS Get with File Cert", func(t *testing.T) {
@@ -1297,6 +1303,9 @@ func TestHTTPSNoClientCerts(t *testing.T) {
 			"status_code": http.StatusOK,
 			"body":        nil,
 			"raw_body":    "",
+			"headers": map[string]interface{}{
+				"Content-Length": []interface{}{"0"},
+			},
 		}
 
 		resultObj, err := ast.InterfaceToValue(expectedResult)
@@ -1310,10 +1319,12 @@ func TestHTTPSNoClientCerts(t *testing.T) {
 		}
 
 		data := loadSmallTestData()
-		rule := []string{fmt.Sprintf(
-			"p = x { http.send({`method`: `get`, `url`: `%s`, `tls_ca_cert`: `%s`}, x) }", s.URL, ca)}
+		rules := append(
+			httpSendHelperRules,
+			fmt.Sprintf("p = x { http.send({`method`: `get`, `url`: `%s`, `tls_ca_cert`: `%s`}, resp); x := clean_headers(resp) }", s.URL, ca),
+		)
 
-		runTopDownTestCase(t, data, "http.send", rule, resultObj.String())
+		runTopDownTestCase(t, data, "http.send", rules, resultObj.String())
 	})
 
 	t.Run("HTTPS Get with CA Cert File", func(t *testing.T) {
