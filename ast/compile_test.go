@@ -63,9 +63,10 @@ func TestOutputVarsForNode(t *testing.T) {
 			exp:   `set()`,
 		},
 		{
-			note:  "built-ins",
-			query: `count([1,2,3], x)`,
-			exp:   "{x}",
+			note:    "built-ins",
+			query:   `count([1,2,3], x)`,
+			exp:     "{x}",
+			arities: map[string]int{"count": 1},
 		},
 		{
 			note:  "built-ins - input args",
@@ -201,7 +202,7 @@ func TestOutputVarsForNode(t *testing.T) {
 
 			vs := NewSet()
 
-			for v := range outputVarsForBody(body, BuiltinMap, arity, safe) {
+			for v := range outputVarsForBody(body, arity, safe) {
 				vs.Add(NewTerm(v))
 			}
 

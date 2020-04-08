@@ -30,6 +30,7 @@ type CopyPropagator struct {
 	livevars           ast.VarSet // vars that must be preserved in the resulting query
 	sorted             []ast.Var  // sorted copy of vars to ensure deterministic result
 	ensureNonEmptyBody bool
+	compiler           *ast.Compiler
 }
 
 // New returns a new CopyPropagator that optimizes queries while preserving vars
@@ -54,8 +55,17 @@ func (p *CopyPropagator) WithEnsureNonEmptyBody(yes bool) *CopyPropagator {
 	return p
 }
 
+// WithCompiler configures the compiler to read from while processing the query. This
+// should be the same compiler used to compile the original policy.
+func (p *CopyPropagator) WithCompiler(c *ast.Compiler) *CopyPropagator {
+	p.compiler = c
+	return p
+}
+
 // Apply executes the copy propagation optimization and returns a new query.
-func (p *CopyPropagator) Apply(query ast.Body) (result ast.Body) {
+func (p *CopyPropagator) Apply(query ast.Body) ast.Body {
+
+	result := ast.NewBody()
 
 	uf, ok := makeDisjointSets(p.livevars, query)
 	if !ok {
@@ -126,16 +136,40 @@ func (p *CopyPropagator) Apply(query ast.Body) (result ast.Body) {
 	}
 
 	// Run post-processing step on query to ensure that all killed exprs are
-	// accounted for. If an expr is killed but the binding is never used, the query
-	// must still include the expr. For example, given the query 'input.x = a' and
-	// an empty livevar set, the result must include the ref input.x otherwise the
-	// query could be satisfied without input.x being defined. When exprs are
-	// killed we initialize the binding counter to zero and then increment it each
-	// time the binding is substituted. if the binding was never substituted it
-	// means the binding value must be added back into the query.
+	// accounted for. There are several cases we look for:
+	//
+	// * If an expr is killed but the binding is never used, the query
+	//   must still include the expr. For example, given the query 'input.x = a' and
+	//   an empty livevar set, the result must include the ref input.x otherwise the
+	//   query could be satisfied without input.x being defined.
+	//
+	// * If an expr is killed that provided safety to vars which are not
+	//   otherwise being made safe by the current result.
+	//
+	// For any of these cases we re-add the removed equality expression
+	// to the current result.
+
+	// Consider livevars and output from the current result safe
+	safe := p.livevars.Copy()
+	safe.Update(ast.OutputVarsFromBody(p.compiler, result, safe))
+
+	// Any other vars in the result are considered unsafe
+	unsafe := result.Vars(ast.VarVisitorParams{}).Diff(safe)
+
 	for _, b := range sortbindings(removedEqs) {
-		if !containedIn(b.v, result) {
-			result.Append(ast.Equality.Expr(ast.NewTerm(b.k), ast.NewTerm(b.v)))
+		removedEq := ast.Equality.Expr(ast.NewTerm(b.k), ast.NewTerm(b.v))
+
+		providesSafety := false
+		outputVars := ast.OutputVarsFromExpr(p.compiler, removedEq, safe)
+		diff := unsafe.Diff(outputVars)
+		if len(diff) < len(unsafe) {
+			unsafe = diff
+			providesSafety = true
+		}
+
+		if providesSafety || !containedIn(b.v, result) {
+			result.Append(removedEq)
+			safe.Update(outputVars)
 		}
 	}
 
