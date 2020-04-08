@@ -185,15 +185,38 @@ func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) 
 		if err != nil {
 			return nil, err
 		}
+
 		key = key.(string)
+
+		var strVal string
+
+		if s, ok := obj.Get(val).Value.(ast.String); ok {
+			strVal = string(s)
+		} else {
+			// Most parameters are strings, so consolidate the type checking.
+			switch key {
+			case "method",
+				"url",
+				"raw_body",
+				"tls_ca_cert",
+				"tls_ca_cert_file",
+				"tls_ca_cert_env_variable",
+				"tls_client_cert",
+				"tls_client_cert_file",
+				"tls_client_cert_env_variable",
+				"tls_client_key",
+				"tls_client_key_file",
+				"tls_client_key_env_variable",
+				"tls_server_name":
+				return nil, fmt.Errorf("%q must be a string", key)
+			}
+		}
 
 		switch key {
 		case "method":
-			method = obj.Get(val).String()
-			method = strings.ToUpper(strings.Trim(method, "\""))
+			method = strings.ToUpper(strings.Trim(strVal, "\""))
 		case "url":
-			url = obj.Get(val).String()
-			url = strings.Trim(url, "\"")
+			url = strings.Trim(strVal, "\"")
 		case "enable_redirect":
 			enableRedirect, err = strconv.ParseBool(obj.Get(val).String())
 			if err != nil {
@@ -217,46 +240,32 @@ func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) 
 			}
 			body = bytes.NewBuffer(bodyValBytes)
 		case "raw_body":
-			s, ok := obj.Get(val).Value.(ast.String)
-			if !ok {
-				return nil, fmt.Errorf("raw_body must be a string")
-			}
-			rawBody = bytes.NewBuffer([]byte(s))
+			rawBody = bytes.NewBuffer([]byte(strVal))
 		case "tls_use_system_certs":
 			tlsUseSystemCerts, err = strconv.ParseBool(obj.Get(val).String())
 			if err != nil {
 				return nil, err
 			}
 		case "tls_ca_cert":
-			tlsCaCert = []byte(obj.Get(val).String())
-			tlsCaCert = bytes.Trim(tlsCaCert, "\"")
+			tlsCaCert = bytes.Trim([]byte(strVal), "\"")
 		case "tls_ca_cert_file":
-			tlsCaCertFile = obj.Get(val).String()
-			tlsCaCertFile = strings.Trim(tlsCaCertFile, "\"")
+			tlsCaCertFile = strings.Trim(strVal, "\"")
 		case "tls_ca_cert_env_variable":
-			tlsCaCertEnvVar = obj.Get(val).String()
-			tlsCaCertEnvVar = strings.Trim(tlsCaCertEnvVar, "\"")
+			tlsCaCertEnvVar = strings.Trim(strVal, "\"")
 		case "tls_client_cert":
-			tlsClientCert = []byte(obj.Get(val).String())
-			tlsClientCert = bytes.Trim(tlsClientCert, "\"")
+			tlsClientCert = bytes.Trim([]byte(strVal), "\"")
 		case "tls_client_cert_file":
-			tlsClientCertFile = obj.Get(val).String()
-			tlsClientCertFile = strings.Trim(tlsClientCertFile, "\"")
+			tlsClientCertFile = strings.Trim(strVal, "\"")
 		case "tls_client_cert_env_variable":
-			tlsClientCertEnvVar = obj.Get(val).String()
-			tlsClientCertEnvVar = strings.Trim(tlsClientCertEnvVar, "\"")
+			tlsClientCertEnvVar = strings.Trim(strVal, "\"")
 		case "tls_client_key":
-			tlsClientKey = []byte(obj.Get(val).String())
-			tlsClientKey = bytes.Trim(tlsClientKey, "\"")
+			tlsClientKey = bytes.Trim([]byte(strVal), "\"")
 		case "tls_client_key_file":
-			tlsClientKeyFile = obj.Get(val).String()
-			tlsClientKeyFile = strings.Trim(tlsClientKeyFile, "\"")
+			tlsClientKeyFile = strings.Trim(strVal, "\"")
 		case "tls_client_key_env_variable":
-			tlsClientKeyEnvVar = obj.Get(val).String()
-			tlsClientKeyEnvVar = strings.Trim(tlsClientKeyEnvVar, "\"")
+			tlsClientKeyEnvVar = strings.Trim(strVal, "\"")
 		case "tls_server_name":
-			tlsServerName = obj.Get(val).String()
-			tlsServerName = strings.Trim(tlsServerName, "\"")
+			tlsServerName = strings.Trim(strVal, "\"")
 		case "headers":
 			headersVal := obj.Get(val).Value
 			headersValInterface, err := ast.JSON(headersVal)
@@ -294,8 +303,6 @@ func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) 
 	}
 
 	if len(tlsClientCert) > 0 && len(tlsClientKey) > 0 {
-		tlsClientCert = bytes.Replace(tlsClientCert, []byte("\\n"), []byte("\n"), -1)
-		tlsClientKey = bytes.Replace(tlsClientKey, []byte("\\n"), []byte("\n"), -1)
 		cert, err := tls.X509KeyPair(tlsClientCert, tlsClientKey)
 		if err != nil {
 			return nil, err
