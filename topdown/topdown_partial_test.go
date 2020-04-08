@@ -223,7 +223,7 @@ func TestTopDownPartialEval(t *testing.T) {
 				`,
 			},
 			wantQueries: []string{
-				`y.bar = 1; z1 = input.foo[y]`,
+				`y.bar = 1; input.foo[y]`,
 			},
 		},
 		{
@@ -775,7 +775,7 @@ func TestTopDownPartialEval(t *testing.T) {
 				p { q = x }
 				q[1] { time.now_ns() == 1579276766010057000 }`, // full extent, must save caller because time.now_ns() should not be partially evaluated
 			},
-			wantQueries: []string{"x1 = data.test.q"},
+			wantQueries: []string{"data.test.q"},
 		},
 		{
 			note:  "support: default trivial",
@@ -1188,7 +1188,7 @@ func TestTopDownPartialEval(t *testing.T) {
 			wantQueries: []string{`not input.x = 1`},
 		},
 		{
-			note:  "copy propagation: negation safety",
+			note:  "copy propagation: negation safety call needs extra expr",
 			query: `data.test.p = true`,
 			modules: []string{
 				`package test
@@ -1203,7 +1203,42 @@ func TestTopDownPartialEval(t *testing.T) {
 				}`,
 			},
 			wantQueries: []string{
-				"not input.y = x1; x1 = input.x[i1]",
+				"not input.y = input.x[i1]; input.x[i1]",
+			},
+		},
+		{
+			note:  "copy propagation: negation safety no extra expr",
+			query: `data.test.p = true`,
+			modules: []string{
+				`package test
+
+				p {
+				  x = data.y[c]
+				  x.z = 1
+				  not x.z = 2
+				}
+				`,
+			},
+			unknowns: []string{`data.y`},
+			wantQueries: []string{
+				`data.y[c1].z = 1; not data.y[c1].z = 2`,
+			},
+		},
+		{
+			note:  "copy propagation: negation safety needs extra expr",
+			query: `data.test.p = true`,
+			modules: []string{
+				`package test
+
+				p {
+				  x = data.y[c]
+				  not x.z = 2
+				}
+				`,
+			},
+			unknowns: []string{`data.y`},
+			wantQueries: []string{
+				`not data.y[c1].z = 2; data.y[c1]`,
 			},
 		},
 		{

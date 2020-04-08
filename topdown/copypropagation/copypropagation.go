@@ -128,13 +128,17 @@ func (p *CopyPropagator) Apply(query ast.Body) (result ast.Body) {
 	// accounted for. If an expr is killed but the binding is never used, the query
 	// must still include the expr. For example, given the query 'input.x = a' and
 	// an empty livevar set, the result must include the ref input.x otherwise the
-	// query could be satisfied without input.x being defined. When exprs are
-	// killed we initialize the binding counter to zero and then increment it each
-	// time the binding is substituted. if the binding was never substituted it
-	// means the binding value must be added back into the query.
+	// query could be satisfied without input.x being defined. If the binding was
+	// never substituted it means the binding value must be added back into the query.
 	for _, b := range sortbindings(bindings) {
-		if !b.containedIn(result) {
-			result.Append(ast.Equality.Expr(ast.NewTerm(b.k), ast.NewTerm(b.v)))
+		if !safelyContainedIn(b.v, result) {
+			// If the binding key appears in the result we need an equality, otherwise
+			// only append the value by itself.
+			if containedIn(b.k, result) {
+				result.Append(ast.Equality.Expr(ast.NewTerm(b.k), ast.NewTerm(b.v)))
+			} else {
+				result.Append(ast.NewExpr(ast.NewTerm(b.v)))
+			}
 		}
 	}
 
@@ -206,9 +210,7 @@ func (t bindingPlugTransform) plugBindingsVar(pctx *plugContext, v ast.Var) (res
 	// Apply binding list to substitute remaining vars.
 	if v, ok := result.(ast.Var); ok {
 		if b, ok := pctx.bindings[v]; ok {
-			if !pctx.negated || b.v.IsGround() {
-				result = b.v
-			}
+			result = b.v
 		}
 	}
 
@@ -229,9 +231,7 @@ func (t bindingPlugTransform) plugBindingsRef(pctx *plugContext, v ast.Ref) ast.
 	//
 	// Invariant: ref heads can only be replaced by refs (not calls).
 	if b, ok := pctx.bindings[v[0].Value.(ast.Var)]; ok {
-		if !pctx.negated || b.v.IsGround() {
-			result = b.v.(ast.Ref).Concat(v[1:])
-		}
+		result = b.v.(ast.Ref).Concat(v[1:])
 	}
 
 	return result
@@ -304,11 +304,25 @@ func newbinding(k ast.Var, v ast.Value) *binding {
 	return &binding{k: k, v: v}
 }
 
-func (b *binding) containedIn(query ast.Body) bool {
+func safelyContainedIn(value ast.Value, query ast.Body) bool {
+	for _, expr := range query {
+
+		if expr.Negated && !expr.IsGround() {
+			continue
+		}
+
+		if containedIn(value, expr) {
+			return true
+		}
+	}
+	return false
+}
+
+func containedIn(value ast.Value, x interface{}) bool {
 	var stop bool
-	switch v := b.v.(type) {
+	switch v := value.(type) {
 	case ast.Ref:
-		ast.WalkRefs(query, func(other ast.Ref) bool {
+		ast.WalkRefs(x, func(other ast.Ref) bool {
 			if stop || other.HasPrefix(v) {
 				stop = true
 				return stop
@@ -316,7 +330,7 @@ func (b *binding) containedIn(query ast.Body) bool {
 			return false
 		})
 	default:
-		ast.WalkTerms(query, func(other *ast.Term) bool {
+		ast.WalkTerms(x, func(other *ast.Term) bool {
 			if stop || other.Value.Compare(v) == 0 {
 				stop = true
 				return stop
