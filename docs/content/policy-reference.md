@@ -706,15 +706,15 @@ package         = "package" ref
 import          = "import" package [ "as" var ]
 policy          = { rule }
 rule            = [ "default" ] rule-head { rule-body }
-rule-head       = var [ "(" rule-args ")" ] [ "[" term "]" ] [ ( ":=" / "=" ) term ]
+rule-head       = var [ "(" rule-args ")" ] [ "[" term "]" ] [ ( ":=" | "=" ) term ]
 rule-args       = term { "," term }
-rule-body       = [ else [ = term ] ] "{" query "}"
-query           = literal { ";" | [\r\n] literal }
+rule-body       = [ "else" [ = term ] ] "{" query "}"
+query           = literal { ( ";" | ( [CR] LF ) ) literal }
 literal         = ( some-decl | expr | "not" expr ) { with-modifier }
 with-modifier   = "with" term "as" term
 some-decl       = "some" var { "," var }
 expr            = term | expr-call | expr-infix
-expr-call       = var [ "." var ] "(" [ term { , term } ] ")"
+expr-call       = var [ "." var ] "(" [ term { "," term } ] ")"
 expr-infix      = [ term "=" ] term infix-operator term
 term            = ref | var | scalar | array | object | set | array-compr | object-compr | set-compr
 array-compr     = "[" term "|" rule-body "]"
@@ -755,4 +755,6 @@ NULL   JSON null
 CHAR   Unicode character
 ALPHA  ASCII characters A-Z and a-z
 DIGIT  ASCII characters 0-9
+CR     Carriage Return
+LF     Line Feed
 ```
