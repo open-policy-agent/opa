@@ -1842,7 +1842,7 @@ func (vs unsafeVars) Slice() (result []unsafePair) {
 // contains a mapping of expressions to unsafe variables in those expressions.
 func reorderBodyForSafety(builtins map[string]*Builtin, arity func(Ref) int, globals VarSet, body Body) (Body, unsafeVars) {
 
-	body, unsafe := reorderBodyForClosures(builtins, arity, globals, body)
+	body, unsafe := reorderBodyForClosures(arity, globals, body)
 	if len(unsafe) != 0 {
 		return nil, unsafe
 	}
@@ -1868,7 +1868,7 @@ func reorderBodyForSafety(builtins map[string]*Builtin, arity func(Ref) int, glo
 				continue
 			}
 
-			safe.Update(outputVarsForExpr(e, builtins, arity, safe))
+			safe.Update(outputVarsForExpr(e, arity, safe))
 
 			for v := range unsafe[e] {
 				if safe.Contains(v) {
@@ -1989,7 +1989,7 @@ func (vis *bodySafetyVisitor) checkSetComprehensionSafety(sc *SetComprehension) 
 // reorderBodyForClosures returns a copy of the body ordered such that
 // expressions (such as array comprehensions) that close over variables are ordered
 // after other expressions that contain the same variable in an output position.
-func reorderBodyForClosures(builtins map[string]*Builtin, arity func(Ref) int, globals VarSet, body Body) (Body, unsafeVars) {
+func reorderBodyForClosures(arity func(Ref) int, globals VarSet, body Body) (Body, unsafeVars) {
 
 	reordered := Body{}
 	unsafe := unsafeVars{}
@@ -2015,7 +2015,7 @@ func reorderBodyForClosures(builtins map[string]*Builtin, arity func(Ref) int, g
 			// contained in the output position of an expression in the reordered
 			// body. These vars are considered unsafe.
 			cv := vs.Intersect(body.Vars(safetyCheckVarVisitorParams)).Diff(globals)
-			uv := cv.Diff(outputVarsForBody(reordered, builtins, arity, globals))
+			uv := cv.Diff(outputVarsForBody(reordered, arity, globals))
 
 			if len(uv) == 0 {
 				reordered = append(reordered, e)
@@ -2033,15 +2033,29 @@ func reorderBodyForClosures(builtins map[string]*Builtin, arity func(Ref) int, g
 	return reordered, unsafe
 }
 
-func outputVarsForBody(body Body, builtins map[string]*Builtin, getArity func(Ref) int, safe VarSet) VarSet {
+// OutputVarsFromBody returns all variables which are the "output" for
+// the given body. For safety checks this means that they would be
+// made safe by the body.
+func OutputVarsFromBody(c *Compiler, body Body, safe VarSet) VarSet {
+	return outputVarsForBody(body, c.GetArity, safe)
+}
+
+func outputVarsForBody(body Body, getArity func(Ref) int, safe VarSet) VarSet {
 	o := safe.Copy()
 	for _, e := range body {
-		o.Update(outputVarsForExpr(e, builtins, getArity, o))
+		o.Update(outputVarsForExpr(e, getArity, o))
 	}
 	return o.Diff(safe)
 }
 
-func outputVarsForExpr(expr *Expr, builtins map[string]*Builtin, getArity func(Ref) int, safe VarSet) VarSet {
+// OutputVarsFromExpr returns all variables which are the "output" for
+// the given expression. For safety checks this means that they would be
+// made safe by the expr.
+func OutputVarsFromExpr(c *Compiler, expr *Expr, safe VarSet) VarSet {
+	return outputVarsForExpr(expr, c.GetArity, safe)
+}
+
+func outputVarsForExpr(expr *Expr, getArity func(Ref) int, safe VarSet) VarSet {
 
 	// Negated expressions must be safe.
 	if expr.Negated {
@@ -2076,15 +2090,9 @@ func outputVarsForExpr(expr *Expr, builtins map[string]*Builtin, getArity func(R
 			return VarSet{}
 		}
 
-		var arity int
-		name := operator.String()
-
-		if b := builtins[name]; b != nil {
-			arity = len(b.Decl.Args())
-		} else {
-			if arity = getArity(operator); arity < 0 {
-				return VarSet{}
-			}
+		arity := getArity(operator)
+		if arity < 0 {
+			return VarSet{}
 		}
 
 		return outputVarsForExprCall(expr, arity, safe, terms)
