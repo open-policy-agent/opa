@@ -338,12 +338,6 @@ func sortbindings(bindings map[ast.Var]*binding) []*binding {
 	return sorted
 }
 
-type unionFind struct {
-	roots   map[ast.Var]*unionFindRoot
-	parents map[ast.Var]ast.Var
-	rank    rankFunc
-}
-
 // makeDisjointSets builds the union-find structure for the query. The structure
 // is built by processing all of the equality exprs in the query. Sets represent
 // vars that must be equal to each other. In addition to vars, each set can have
@@ -383,86 +377,6 @@ func makeDisjointSets(livevars ast.VarSet, query ast.Body) (*unionFind, bool) {
 	}
 
 	return uf, true
-}
-
-type rankFunc func(*unionFindRoot, *unionFindRoot) (*unionFindRoot, *unionFindRoot)
-
-func newUnionFind(rank rankFunc) *unionFind {
-	return &unionFind{
-		roots:   map[ast.Var]*unionFindRoot{},
-		parents: map[ast.Var]ast.Var{},
-		rank:    rank,
-	}
-}
-
-func (uf *unionFind) MakeSet(v ast.Var) *unionFindRoot {
-
-	root, ok := uf.Find(v)
-	if ok {
-		return root
-	}
-
-	root = newUnionFindRoot(v)
-	uf.parents[v] = v
-	uf.roots[v] = root
-	return uf.roots[v]
-}
-
-func (uf *unionFind) Find(v ast.Var) (*unionFindRoot, bool) {
-
-	parent, ok := uf.parents[v]
-	if !ok {
-		return nil, false
-	}
-
-	if parent == v {
-		return uf.roots[v], true
-	}
-
-	return uf.Find(parent)
-}
-
-func (uf *unionFind) Merge(a, b ast.Var) (*unionFindRoot, bool) {
-
-	r1 := uf.MakeSet(a)
-	r2 := uf.MakeSet(b)
-
-	if r1 != r2 {
-
-		r1, r2 = uf.rank(r1, r2)
-
-		uf.parents[r2.key] = r1.key
-		delete(uf.roots, r2.key)
-
-		// Sets can have at most one constant value associated with them. When
-		// unioning, we must preserve this invariant. If a set has two constants,
-		// there will be no way to prove the query.
-		if r1.constant != nil && r2.constant != nil && !r1.constant.Equal(r2.constant) {
-			return nil, false
-		} else if r1.constant == nil {
-			r1.constant = r2.constant
-		}
-	}
-
-	return r1, true
-}
-
-type unionFindRoot struct {
-	key      ast.Var
-	constant *ast.Term
-}
-
-func newUnionFindRoot(key ast.Var) *unionFindRoot {
-	return &unionFindRoot{
-		key: key,
-	}
-}
-
-func (r *unionFindRoot) Value() ast.Value {
-	if r.constant != nil {
-		return r.constant.Value
-	}
-	return r.key
 }
 
 func isNoop(expr *ast.Expr) bool {
