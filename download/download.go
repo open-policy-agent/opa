@@ -73,6 +73,11 @@ func (d *Downloader) WithLogAttrs(attrs [][2]string) *Downloader {
 	return d
 }
 
+// ClearCache resets the etag value on the downloader
+func (d *Downloader) ClearCache() {
+	d.etag = ""
+}
+
 // Start tells the Downloader to begin downloading bundles.
 func (d *Downloader) Start(ctx context.Context) {
 	go d.loop()
@@ -125,11 +130,11 @@ func (d *Downloader) oneShot(ctx context.Context) error {
 	m := metrics.New()
 	b, etag, err := d.download(ctx, m)
 
+	d.etag = etag
+
 	if d.f != nil {
 		d.f(ctx, Update{ETag: etag, Bundle: b, Error: err, Metrics: m})
 	}
-
-	d.etag = etag
 
 	return err
 }

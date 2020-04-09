@@ -134,6 +134,7 @@ func (c *Discovery) processUpdate(ctx context.Context, u download.Update) {
 	if u.Error != nil {
 		c.logError("Discovery download failed: %v", u.Error)
 		c.status.SetError(u.Error)
+		c.downloader.ClearCache()
 		return
 	}
 
@@ -143,6 +144,7 @@ func (c *Discovery) processUpdate(ctx context.Context, u download.Update) {
 		if err := c.reconfigure(ctx, u); err != nil {
 			c.logError("Discovery reconfiguration error occurred: %v", err)
 			c.status.SetError(err)
+			c.downloader.ClearCache()
 			return
 		}
 
