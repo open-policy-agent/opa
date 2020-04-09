@@ -70,7 +70,7 @@ func (p *CopyPropagator) Apply(query ast.Body) (result ast.Body) {
 		if v, ok := x[0].Value.(ast.Var); ok {
 			if root, ok := uf.Find(v); ok {
 				root.constant = nil
-				headvars.Add(root.key)
+				headvars.Add(root.key.(ast.Var))
 			} else {
 				headvars.Add(v)
 			}
@@ -78,7 +78,7 @@ func (p *CopyPropagator) Apply(query ast.Body) (result ast.Body) {
 		return false
 	})
 
-	bindings := map[ast.Var]*binding{}
+	bindings := map[ast.Value]*binding{}
 
 	for _, expr := range query {
 
@@ -220,7 +220,7 @@ func (t bindingPlugTransform) plugBindingsVar(pctx *plugContext, v ast.Var) (res
 func (t bindingPlugTransform) plugBindingsRef(pctx *plugContext, v ast.Ref) ast.Ref {
 
 	// Apply union-find to remove redundant variables from input.
-	if root, ok := pctx.uf.Find(v[0].Value.(ast.Var)); ok {
+	if root, ok := pctx.uf.Find(v[0].Value); ok {
 		v[0].Value = root.Value()
 	}
 
@@ -289,14 +289,14 @@ func (p *CopyPropagator) updateBindingsEqAsymmetric(a, b *ast.Term) (ast.Var, as
 }
 
 type plugContext struct {
-	bindings map[ast.Var]*binding
+	bindings map[ast.Value]*binding
 	uf       *unionFind
 	headvars ast.VarSet
 	negated  bool
 }
 
 type binding struct {
-	k ast.Var
+	k ast.Value
 	v ast.Value
 }
 
@@ -341,7 +341,7 @@ func containedIn(value ast.Value, x interface{}) bool {
 	return stop
 }
 
-func sortbindings(bindings map[ast.Var]*binding) []*binding {
+func sortbindings(bindings map[ast.Value]*binding) []*binding {
 	sorted := make([]*binding, 0, len(bindings))
 	for _, b := range bindings {
 		sorted = append(sorted, b)
@@ -360,7 +360,7 @@ func sortbindings(bindings map[ast.Var]*binding) []*binding {
 // false.
 func makeDisjointSets(livevars ast.VarSet, query ast.Body) (*unionFind, bool) {
 	uf := newUnionFind(func(r1, r2 *unionFindRoot) (*unionFindRoot, *unionFindRoot) {
-		if livevars.Contains(r1.key) {
+		if v, ok := r1.key.(ast.Var); ok && livevars.Contains(v) {
 			return r1, r2
 		}
 		return r2, r1
