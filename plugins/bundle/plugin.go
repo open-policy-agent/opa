@@ -291,6 +291,7 @@ func (p *Plugin) process(ctx context.Context, name string, u download.Update) {
 	if u.Error != nil {
 		p.logError(name, "Bundle download failed: %v", u.Error)
 		p.status[name].SetError(u.Error)
+		p.downloaders[name].ClearCache()
 		return
 	}
 
@@ -305,6 +306,7 @@ func (p *Plugin) process(ctx context.Context, name string, u download.Update) {
 		if err := p.activate(ctx, name, u.Bundle); err != nil {
 			p.logError(name, "Bundle activation failed: %v", err)
 			p.status[name].SetError(err)
+			p.downloaders[name].ClearCache()
 			return
 		}
 

@@ -214,9 +214,13 @@ and data from multiple sources, you can implement your bundle service
 to generate bundles that are scoped to a subset of OPA's policy and
 data cache.
 
-> We recommend that whenever possible, you implement policy and data
+> 🚨 We recommend that whenever possible, you implement policy and data
 > aggregation centrally, however, in some cases that's not possible
-> (e.g., due to latency requirements.)
+> (e.g., due to latency requirements.).
+> When using multiple sources there are **no** ordering guarantees for which bundle loads first and
+  takes over some root. If multiple bundles conflict, but are loaded at different
+  times, OPA may go into an error state. It is highly recommended to use
+  the health check and include bundle state: [Monitoring OPA](../monitoring#health-checks)
 
 To scope bundles to a subset of OPA's policy and data cache, include
 a top-level `roots` key in the bundle that defines the roots of the
@@ -252,11 +256,6 @@ When OPA loads scoped bundles, it validates that:
 
 If bundle validation fails, OPA will report the validation error via
 the Status API.
-
-> **Warning!** There are *no* ordering guarantees for which bundle loads first and
-  takes over some root. If multiple bundles conflict, but are loaded at different
-  times, OPA may go into an error state. It is highly recommended to use
-  the health check and include bundle state: [Monitoring OPA](#health-checks)
 
 ### Debugging Your Bundles
 
