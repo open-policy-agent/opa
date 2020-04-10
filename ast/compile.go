@@ -2178,12 +2178,18 @@ func outputVarsForExprCall(expr *Expr, arity func(Ref) int, safe VarSet, terms [
 
 func outputVarsForExprRefs(expr *Expr, safe VarSet) VarSet {
 	output := VarSet{}
-	WalkRefs(expr, func(r Ref) bool {
-		if safe.Contains(r[0].Value.(Var)) {
-			output.Update(r.OutputVars())
-			return false
+	WalkTerms(expr, func(x *Term) bool {
+		switch r := x.Value.(type) {
+		case *SetComprehension, *ArrayComprehension, *ObjectComprehension:
+			return true
+		case Ref:
+			if safe.Contains(r[0].Value.(Var)) {
+				output.Update(r.OutputVars())
+				return false
+			}
+			return true
 		}
-		return true
+		return false
 	})
 	return output
 }
