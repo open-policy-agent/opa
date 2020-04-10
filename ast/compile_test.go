@@ -18,6 +18,203 @@ import (
 	"github.com/open-policy-agent/opa/util/test"
 )
 
+func TestOutputVarsForNode(t *testing.T) {
+
+	tests := []struct {
+		note      string
+		query     string
+		arities   map[string]int
+		extraSafe string
+		exp       string
+	}{
+		{
+			note:  "single var",
+			query: "x",
+			exp:   "set()",
+		},
+		{
+			note:  "trivial eq",
+			query: "x = 1",
+			exp:   "{x}",
+		},
+		{
+			note:  "negation",
+			query: "not x = 1",
+			exp:   "set()",
+		},
+		{
+			note:  "embedded array",
+			query: "[x, [1]] = [1, [y]]",
+			exp:   "{x, y}",
+		},
+		{
+			note:  "embedded sets",
+			query: "{x, [1]} = {1, [y]}",
+			exp:   "set()",
+		},
+		{
+			note:  "embedded object values",
+			query: `{"foo": x, "bar": {"baz": 1}} = {"foo": 1, "bar": {"baz": y}}`,
+			exp:   "{x, y}",
+		},
+		{
+			note:  "object keys are like sets",
+			query: `{"foo": x} = {y: 1}`,
+			exp:   `set()`,
+		},
+		{
+			note:  "built-ins",
+			query: `count([1,2,3], x)`,
+			exp:   "{x}",
+		},
+		{
+			note:  "built-ins - input args",
+			query: `count(x)`,
+			exp:   "set()",
+		},
+		{
+			note:    "functions - no arity",
+			query:   `f(1,x)`,
+			arities: map[string]int{},
+			exp:     "set()",
+		},
+		{
+			note:    "functions",
+			query:   `f(1,x)`,
+			arities: map[string]int{"f": 1},
+			exp:     "{x}",
+		},
+		{
+			note:    "functions - input args",
+			query:   `f(1,x)`,
+			arities: map[string]int{"f": 2},
+			exp:     "set()",
+		},
+		{
+			note:    "functions - embedded refs",
+			query:   `f(data.p[x], y)`,
+			arities: map[string]int{"f": 1},
+			exp:     `{x, y}`,
+		},
+		{
+			note:    "functions - skip ref head",
+			query:   `f(x[1])`,
+			arities: map[string]int{"f": 1},
+			exp:     `set()`,
+		},
+		{
+			note:    "functions - skip sets",
+			query:   `f(1, {x})`,
+			arities: map[string]int{"f": 1},
+			exp:     `set()`,
+		},
+		{
+			note:    "functions - skip object keys",
+			query:   `f(1, {x: 1})`,
+			arities: map[string]int{"f": 1},
+			exp:     `set()`,
+		},
+		{
+			note:    "functions - skip closures",
+			query:   `f(1, {x | x = 1})`,
+			arities: map[string]int{"f": 1},
+			exp:     `set()`,
+		},
+		{
+			note:    "functions - unsafe input",
+			query:   `f(x, y)`,
+			arities: map[string]int{"f": 1},
+			exp:     `set()`,
+		},
+		{
+			note:  "with keyword",
+			query: "1 with input as y",
+			exp:   "set()",
+		},
+		{
+			note:  "with keyword - unsafe",
+			query: "x = 1 with input as y",
+			exp:   "set()",
+		},
+		{
+			note:      "with keyword - safe",
+			query:     "x = 1 with input as y",
+			extraSafe: "{y}",
+			exp:       "{x}",
+		},
+		{
+			note:  "ref operand",
+			query: "data.p[x]",
+			exp:   "{x}",
+		},
+		{
+			note:  "ref operand - unsafe head",
+			query: "p[x]",
+			exp:   "set()",
+		},
+		{
+			note:  "ref operand - negation",
+			query: "not data.p[x]",
+			exp:   "set()",
+		},
+		{
+			note:  "ref operand - nested",
+			query: "data.p[data.q[x]]",
+			exp:   "{x}",
+		},
+		{
+			note:  "comprehension",
+			query: "[x | x = 1]",
+			exp:   "set()",
+		},
+		{
+			note:  "comprehension containing safe ref",
+			query: "[x | data.p[x]]",
+			exp:   "set()",
+		},
+		{
+			note:  "accumulate on exprs",
+			query: "x = 1; y = x; z = y",
+			exp:   "{x, y, z}",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+
+			body := MustParseBody(tc.query)
+			arity := func(r Ref) int {
+				a, ok := tc.arities[r.String()]
+				if !ok {
+					return -1
+				}
+				return a
+			}
+
+			safe := ReservedVars.Copy()
+
+			if tc.extraSafe != "" {
+				MustParseTerm(tc.extraSafe).Value.(Set).Foreach(func(x *Term) {
+					safe.Add(x.Value.(Var))
+				})
+			}
+
+			vs := NewSet()
+
+			for v := range outputVarsForBody(body, BuiltinMap, arity, safe) {
+				vs.Add(NewTerm(v))
+			}
+
+			exp := MustParseTerm(tc.exp)
+
+			if exp.Value.Compare(vs) != 0 {
+				t.Fatalf("Expected %v but got %v", exp, vs)
+			}
+		})
+	}
+
+}
+
 func TestModuleTree(t *testing.T) {
 
 	mods := getCompilerTestModules()
@@ -939,32 +1136,32 @@ func TestCompilerRewriteExprTerms(t *testing.T) {
 			note: "base",
 			module: `
 				package test
-		
+
 				p { x = a + b * y }
-		
+
 				q[[data.test.f(x)]] { x = 1 }
-		
+
 				r = [data.test.f(x)] { x = 1 }
-		
+
 				f(x) = data.test.g(x)
-		
+
 				pi = 3 + .14
-		
+
 				with_value { 1 with input as f(1) }
 			`,
 			expected: `
 				package test
-		
+
 				p { mul(b, y, __local1__); plus(a, __local1__, __local2__); eq(x, __local2__) }
-		
+
 				q[[__local3__]] { x = 1; data.test.f(x, __local3__) }
-		
+
 				r = [__local4__] { x = 1; data.test.f(x, __local4__) }
-		
+
 				f(__local0__) = __local5__ { true; data.test.g(__local0__, __local5__) }
-		
+
 				pi = __local6__ { true; plus(3, 0.14, __local6__) }
-		
+
 				with_value { data.test.f(1, __local7__); 1 with input as __local7__ }
 			`,
 		},
@@ -972,7 +1169,7 @@ func TestCompilerRewriteExprTerms(t *testing.T) {
 			note: "builtin calls in head",
 			module: `
 				package test
-		
+
 				f(1+1) = 7
 			`,
 			expected: Errors{&Error{Message: "rule arguments cannot contain calls"}},
@@ -981,7 +1178,7 @@ func TestCompilerRewriteExprTerms(t *testing.T) {
 			note: "builtin calls in head",
 			module: `
 				package test
-		
+
 				f(object.get(x)) { object := {"a": 1}; object.a == x }
 			`,
 			expected: Errors{&Error{Message: "rule arguments cannot contain calls"}},
