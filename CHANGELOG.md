@@ -5,6 +5,13 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Backwards Compatibility
+
+* The `github.com/open-policy-agent/opa/metrics#Counter` interface has been extended
+to require an `Add(uint64)` function. This change only affects users that have implemented
+their own version of the `github.com/open-policy-agent/opa/metrics#Metrics` interface
+(which is the factory for counters.)
+
 ## 0.19.1
 
 ### Fixes
@@ -127,6 +134,7 @@ ParseBasicABACModule-16                 36.5k ± 0%      0.7k ± 0%  -98.09%  (p
 - topdown: Improve pretty trace location details ([#2143](https://github.com/open-policy-agent/opa/issues/2143))
 - topdown: Include HTTP response headers in `http.send` output ([#2238](https://github.com/open-policy-agent/opa/issues/2238))
 - [Multiple](https://github.com/open-policy-agent/opa/commit/3eeb09c3e83749aff31e15bdfff5d82f3224c102) [important](https://github.com/open-policy-agent/opa/commit/29d8fbbef6facc96d03be3e07473d12e38acd843) [improvements](https://github.com/open-policy-agent/opa/commit/c5c85795aaa3701763f98d16308c5944f05f3da4) [to `http.send()`](https://github.com/open-policy-agent/opa/commit/ce92d19f655efffd6bda26006a2f4898cbdb69ed) [thanks to](https://github.com/open-policy-agent/opa/commit/351a7313df35e8de9e9474fd56a1a905cd51e0c1)  @jpeach
+
 ### Miscellaneous
 
 - [Added `man` target in the Makefile for `man` page generation!](https://github.com/open-policy-agent/opa/commit/4c81aa75c05e4dd69408b9c879be40f9f4369a2c) (thanks to @olivierlemasle)
@@ -134,10 +142,6 @@ ParseBasicABACModule-16                 36.5k ± 0%      0.7k ± 0%  -98.09%  (p
 - [Added link to Emacs mode for Rego](https://github.com/psibi/rego-mode) (thanks to @psibi)
 - [Added net.cidr_contains_matches built-in function](https://github.com/open-policy-agent/opa/pull/2221/commits/6ae4ed9e6578ffb272604a79b1ef9a944cda7782)
 - [Improved support for registering custom built-in functions](https://github.com/open-policy-agent/opa/blob/84b61c647a0d76e62043d6f52510411e8b00d2f0/docs/content/extensions.md)
-
-
-### Miscellaneous
-
 
 ## 0.18.0
 
