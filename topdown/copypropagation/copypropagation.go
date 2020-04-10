@@ -63,8 +63,9 @@ func (p *CopyPropagator) Apply(query ast.Body) (result ast.Body) {
 	}
 
 	// Compute set of vars that appear in the head of refs in the query. If a var
-	// is dereferenced, we cannot plug it with a constant value so the constant on
-	// the union-find root must be unset (e.g., [1][0] is not legal.)
+	// is dereferenced, we can plug it with a constant value, but it is not always
+	// optimal to do so.
+	// TODO: Improve the algorithm for when we should plug constants/calls/etc
 	headvars := ast.NewVarSet()
 	ast.WalkRefs(query, func(x ast.Ref) bool {
 		if v, ok := x[0].Value.(ast.Var); ok {
@@ -78,15 +79,15 @@ func (p *CopyPropagator) Apply(query ast.Body) (result ast.Body) {
 		return false
 	})
 
-	bindings := map[ast.Value]*binding{}
+	removedEqs := ast.NewValueMap()
 
 	for _, expr := range query {
 
 		pctx := &plugContext{
-			bindings: bindings,
-			uf:       uf,
-			negated:  expr.Negated,
-			headvars: headvars,
+			removedEqs: removedEqs,
+			uf:         uf,
+			negated:    expr.Negated,
+			headvars:   headvars,
 		}
 
 		if expr, keep := p.plugBindings(pctx, expr); keep {
@@ -104,7 +105,7 @@ func (p *CopyPropagator) Apply(query ast.Body) (result ast.Body) {
 	// from being added to the result. For example:
 	//
 	// - Given the following result: <empty>
-	// - Given the following bindings: x/input.x and y/input
+	// - Given the following removed equalities: "x = input.x" and "y = input"
 	// - Given the following liveset: {x}
 	//
 	// If this step were to run AFTER the following step, the output would be:
@@ -116,8 +117,8 @@ func (p *CopyPropagator) Apply(query ast.Body) (result ast.Body) {
 		if root, ok := uf.Find(v); ok {
 			if root.constant != nil {
 				result.Append(ast.Equality.Expr(ast.NewTerm(v), root.constant))
-			} else if b, ok := bindings[root.key]; ok {
-				result.Append(ast.Equality.Expr(ast.NewTerm(v), ast.NewTerm(b.v)))
+			} else if b := removedEqs.Get(root.key); b != nil {
+				result.Append(ast.Equality.Expr(ast.NewTerm(v), ast.NewTerm(b)))
 			} else if root.key != v {
 				result.Append(ast.Equality.Expr(ast.NewTerm(v), ast.NewTerm(root.key)))
 			}
@@ -132,8 +133,8 @@ func (p *CopyPropagator) Apply(query ast.Body) (result ast.Body) {
 	// killed we initialize the binding counter to zero and then increment it each
 	// time the binding is substituted. if the binding was never substituted it
 	// means the binding value must be added back into the query.
-	for _, b := range sortbindings(bindings) {
-		if !b.containedIn(result) {
+	for _, b := range sortbindings(removedEqs) {
+		if !containedIn(b.v, result) {
 			result.Append(ast.Equality.Expr(ast.NewTerm(b.k), ast.NewTerm(b.v)))
 		}
 	}
@@ -154,7 +155,7 @@ func (p *CopyPropagator) plugBindings(pctx *plugContext, expr *ast.Expr) (*ast.E
 	if term, ok := expr.Terms.(*ast.Term); ok {
 		if v, ok := term.Value.(ast.Var); ok {
 			if root, ok := pctx.uf.Find(v); ok {
-				if _, ok := pctx.bindings[root.key]; ok {
+				if b := pctx.removedEqs.Get(root.key); b != nil {
 					return nil, false
 				}
 			}
@@ -205,9 +206,9 @@ func (t bindingPlugTransform) plugBindingsVar(pctx *plugContext, v ast.Var) (res
 
 	// Apply binding list to substitute remaining vars.
 	if v, ok := result.(ast.Var); ok {
-		if b, ok := pctx.bindings[v]; ok {
-			if !pctx.negated || b.v.IsGround() {
-				result = b.v
+		if b := pctx.removedEqs.Get(v); b != nil {
+			if !pctx.negated || b.IsGround() {
+				result = b
 			}
 		}
 	}
@@ -226,11 +227,16 @@ func (t bindingPlugTransform) plugBindingsRef(pctx *plugContext, v ast.Ref) ast.
 
 	// Refs require special handling. If the head of the ref was killed, then
 	// the rest of the ref must be concatenated with the new base.
-	//
-	// Invariant: ref heads can only be replaced by refs (not calls).
-	if b, ok := pctx.bindings[v[0].Value.(ast.Var)]; ok {
-		if !pctx.negated || b.v.IsGround() {
-			result = b.v.(ast.Ref).Concat(v[1:])
+	if b := pctx.removedEqs.Get(v[0].Value); b != nil {
+		if !pctx.negated || b.IsGround() {
+			var base ast.Ref
+			switch x := b.(type) {
+			case ast.Ref:
+				base = x
+			default:
+				base = ast.Ref{ast.NewTerm(x)}
+			}
+			result = base.Concat(v[1:])
 		}
 	}
 
@@ -251,7 +257,7 @@ func (p *CopyPropagator) updateBindings(pctx *plugContext, expr *ast.Expr) bool 
 		k, v, keep := p.updateBindingsEq(a, b)
 		if !keep {
 			if v != nil {
-				pctx.bindings[k] = newbinding(k, v)
+				pctx.removedEqs.Put(k, v)
 			}
 			return false
 		}
@@ -259,7 +265,7 @@ func (p *CopyPropagator) updateBindings(pctx *plugContext, expr *ast.Expr) bool 
 		terms := expr.Terms.([]*ast.Term)
 		output := terms[len(terms)-1]
 		if k, ok := output.Value.(ast.Var); ok && !p.livevars.Contains(k) && !pctx.headvars.Contains(k) {
-			pctx.bindings[k] = newbinding(k, ast.CallTerm(terms[:len(terms)-1]...).Value)
+			pctx.removedEqs.Put(k, ast.CallTerm(terms[:len(terms)-1]...).Value)
 			return false
 		}
 	}
@@ -289,10 +295,10 @@ func (p *CopyPropagator) updateBindingsEqAsymmetric(a, b *ast.Term) (ast.Var, as
 }
 
 type plugContext struct {
-	bindings map[ast.Value]*binding
-	uf       *unionFind
-	headvars ast.VarSet
-	negated  bool
+	removedEqs *ast.ValueMap
+	uf         *unionFind
+	headvars   ast.VarSet
+	negated    bool
 }
 
 type binding struct {
@@ -300,15 +306,11 @@ type binding struct {
 	v ast.Value
 }
 
-func newbinding(k ast.Var, v ast.Value) *binding {
-	return &binding{k: k, v: v}
-}
-
-func (b *binding) containedIn(query ast.Body) bool {
+func containedIn(value ast.Value, x interface{}) bool {
 	var stop bool
-	switch v := b.v.(type) {
+	switch v := value.(type) {
 	case ast.Ref:
-		ast.WalkRefs(query, func(other ast.Ref) bool {
+		ast.WalkRefs(x, func(other ast.Ref) bool {
 			if stop || other.HasPrefix(v) {
 				stop = true
 				return stop
@@ -316,7 +318,7 @@ func (b *binding) containedIn(query ast.Body) bool {
 			return false
 		})
 	default:
-		ast.WalkTerms(query, func(other *ast.Term) bool {
+		ast.WalkTerms(x, func(other *ast.Term) bool {
 			if stop || other.Value.Compare(v) == 0 {
 				stop = true
 				return stop
@@ -327,11 +329,12 @@ func (b *binding) containedIn(query ast.Body) bool {
 	return stop
 }
 
-func sortbindings(bindings map[ast.Value]*binding) []*binding {
-	sorted := make([]*binding, 0, len(bindings))
-	for _, b := range bindings {
-		sorted = append(sorted, b)
-	}
+func sortbindings(bindings *ast.ValueMap) []*binding {
+	sorted := make([]*binding, 0, bindings.Len())
+	bindings.Iter(func(k ast.Value, v ast.Value) bool {
+		sorted = append(sorted, &binding{k, v})
+		return false
+	})
 	sort.Slice(sorted, func(i, j int) bool {
 		return sorted[i].k.Compare(sorted[j].k) < 0
 	})
