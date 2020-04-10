@@ -690,6 +690,20 @@ integrations:
         link: https://www.youtube.com/watch?v=jrrW855xL3s
 
 
+  sysdig-image-scanner:
+    title: Kubernetes Sysdig Image Scanner Admission Controller
+    description: Sysdig’s OPA Image Scanner combines Sysdig Secure image scanner with OPA policy-based rego language to evaluate the scan results and the admission context, providing great flexibility on the admission decision.
+    software:
+      - kubernetes
+      - sysdigsecure
+    labels:
+      category: containers
+      layer: orchestration
+    code:
+      - https://github.com/sysdiglabs/opa-image-scanner
+    inventors:
+      - sysdig
+
 organizations:
   styra:
     name: Styra
@@ -772,6 +786,9 @@ organizations:
   yelp:
     name: Yelp
     link: https://www.yelp.com/
+  sysdig:
+    name: Sysdig
+    link: https://sysdig.com/
 
 software:
   kubernetes:
@@ -855,4 +872,7 @@ software:
   jenkins:
     name: Jenkins
     link: https://jenkins.io/
+  sysdigsecure:
+    name: Sysdig Secure
+    link: https://sysdig.com/products/kubernetes-security/
 
