@@ -1752,6 +1752,23 @@ func TestTopDownPartialEval(t *testing.T) {
 			query:       `not input with data.x as 1; data.x = 1`,
 			wantQueries: []string{},
 		},
+		{
+			note:  "multiple removed eqs",
+			query: "data.test.p",
+			modules: []string{`
+				package test
+
+				p = x { 
+					a = input.foo1
+					b = input.foo2
+					c = input.foo3
+					d = input.foo4
+					e = input.foo5
+					x = true
+				}`,
+			},
+			wantQueries: []string{"a1 = input.foo1; b1 = input.foo2; c1 = input.foo3; d1 = input.foo4; e1 = input.foo5"},
+		},
 	}
 
 	ctx := context.Background()
