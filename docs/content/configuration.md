@@ -232,12 +232,13 @@ itself to the service.
 #### Bearer token
 
 OPA will authenticate using the specified bearer token and schema; to enable bearer token
-authentication, the token must be specified. The schema is optional and will default to `Bearer`
+authentication, either the token or the path to the token must be specified. The schema is optional and will default to `Bearer`
 if unspecified.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `services[_].credentials.bearer.token` | `string` | Yes | Enables token-based authentication and supplies the bearer token to authenticate with. |
+| `services[_].credentials.bearer.token_path` | `string` | Yes | Enables token-based authentication and supplies the path to the bearer token to authenticate with. |
 | `services[_].credentials.bearer.scheme` | `string` | No | Bearer token scheme to specify. |
 
 #### Client TLS certificate

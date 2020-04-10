@@ -261,6 +261,121 @@ func TestBearerTokenCustomScheme(t *testing.T) {
 	testBearerToken(t, "Acmecorp-Token", "secret")
 }
 
+func TestBearerTokenPath(t *testing.T) {
+	ts := testServer{
+		t:                  t,
+		expBearerScheme:    "",
+		expBearerToken:     "secret",
+		expBearerTokenPath: true,
+	}
+	ts.start()
+	defer ts.stop()
+
+	files := map[string]string{
+		"token.txt": "secret",
+	}
+
+	test.WithTempFS(files, func(path string) {
+		tokenPath := filepath.Join(path, "token.txt")
+
+		client := newTestBearerClient(t, &ts, tokenPath)
+
+		ctx := context.Background()
+		if _, err := client.Do(ctx, "GET", "test"); err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+
+		// Stop server and update the token
+		ts.stop()
+		ts.expBearerToken = "newsecret"
+		ts.start()
+
+		// check client cannot access the server
+		client = newTestBearerClient(t, &ts, tokenPath)
+
+		if resp, err := client.Do(ctx, "GET", "test"); err == nil {
+			bodyBytes, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+
+			if resp.StatusCode != http.StatusUnauthorized {
+				t.Fatalf("Expected http status %v but got %v", http.StatusUnauthorized, resp.StatusCode)
+			}
+
+			expectedErrMsg := "Expected bearer token \"newsecret\", got authorization header \"Bearer secret\""
+
+			if string(bodyBytes) != expectedErrMsg {
+				t.Fatalf("Expected error message %v but got %v", expectedErrMsg, string(bodyBytes))
+			}
+		} else {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+
+		// Update the token file and try again
+		if err := ioutil.WriteFile(filepath.Join(path, "token.txt"), []byte("newsecret"), 0644); err != nil {
+			t.Fatalf("Unexpected error: %s", err)
+		}
+
+		if _, err := client.Do(ctx, "GET", "test"); err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+	})
+}
+
+func TestBearerTokenInvalidConfig(t *testing.T) {
+	ts := testServer{
+		t:               t,
+		expBearerScheme: "",
+		expBearerToken:  "secret",
+	}
+	ts.start()
+	defer ts.stop()
+
+	config := fmt.Sprintf(`{
+		"name": "foo",
+		"url": %q,
+		"credentials": {
+			"bearer": {
+				"token_path": "%s",
+				"token": "%s"
+			}
+		}
+	}`, ts.server.URL, "token.txt", "secret")
+	client, err := New([]byte(config))
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	ctx := context.Background()
+
+	_, err = client.Do(ctx, "GET", "test")
+
+	if err == nil {
+		t.Fatalf("Expected error but got nil")
+	}
+
+	if !strings.HasPrefix(err.Error(), "invalid config") {
+		t.Fatalf("Unexpected error message %v\n", err)
+	}
+}
+
+func newTestBearerClient(t *testing.T, ts *testServer, tokenPath string) *Client {
+	config := fmt.Sprintf(`{
+			"name": "foo",
+			"url": %q,
+			"credentials": {
+				"bearer": {
+					"token_path": %q
+				}
+			}
+		}`, ts.server.URL, tokenPath)
+	client, err := New([]byte(config))
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	return &client
+}
+
 func TestClientCert(t *testing.T) {
 	ts := testServer{
 		t:                t,
@@ -331,17 +446,18 @@ func newTestClient(t *testing.T, ts *testServer, certPath string, keypath string
 }
 
 type testServer struct {
-	t                *testing.T
-	server           *httptest.Server
-	expPath          string
-	expMethod        string
-	expBearerToken   string
-	expBearerScheme  string
-	tls              bool
-	clientCertPem    []byte
-	clientCertKey    []byte
-	expectClientCert bool
-	serverCertPool   *x509.CertPool
+	t                  *testing.T
+	server             *httptest.Server
+	expPath            string
+	expMethod          string
+	expBearerToken     string
+	expBearerScheme    string
+	expBearerTokenPath bool
+	tls                bool
+	clientCertPem      []byte
+	clientCertKey      []byte
+	expectClientCert   bool
+	serverCertPool     *x509.CertPool
 }
 
 func (t *testServer) handle(w http.ResponseWriter, r *http.Request) {
@@ -357,10 +473,22 @@ func (t *testServer) handle(w http.ResponseWriter, r *http.Request) {
 	if len(r.Header["Authorization"]) > 0 {
 		auth := r.Header["Authorization"][0]
 		if t.expBearerScheme != "" && !strings.HasPrefix(auth, t.expBearerScheme) {
-			t.t.Fatalf("Expected bearer scheme %q, got authorization header %q", t.expBearerScheme, auth)
+			errMsg := fmt.Sprintf("Expected bearer scheme %q, got authorization header %q", t.expBearerScheme, auth)
+			if t.expBearerTokenPath {
+				w.WriteHeader(http.StatusUnauthorized)
+				w.Write([]byte(errMsg))
+				return
+			}
+			t.t.Fatalf(errMsg)
 		}
 		if t.expBearerToken != "" && !strings.HasSuffix(auth, t.expBearerToken) {
-			t.t.Fatalf("Expected bearer token %q, got authorization header %q", t.expBearerToken, auth)
+			errMsg := fmt.Sprintf("Expected bearer token %q, got authorization header %q", t.expBearerToken, auth)
+			if t.expBearerTokenPath {
+				w.WriteHeader(http.StatusUnauthorized)
+				w.Write([]byte(errMsg))
+				return
+			}
+			t.t.Fatalf(errMsg)
 		}
 	}
 	if t.expectClientCert {
