@@ -15,6 +15,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -83,8 +84,9 @@ func (ap *defaultAuthPlugin) Prepare(req *http.Request) error {
 
 // bearerAuthPlugin represents authentication via a bearer token in the HTTP Authorization header
 type bearerAuthPlugin struct {
-	Scheme string `json:"scheme,omitempty"`
-	Token  string `json:"token"`
+	Token     string `json:"token"`
+	TokenPath string `json:"token_path"`
+	Scheme    string `json:"scheme,omitempty"`
 }
 
 func (ap *bearerAuthPlugin) NewClient(c Config) (*http.Client, error) {
@@ -92,14 +94,30 @@ func (ap *bearerAuthPlugin) NewClient(c Config) (*http.Client, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	if ap.Token != "" && ap.TokenPath != "" {
+		return nil, errors.New("invalid config: specify a value for either the \"token\" or \"token_path\" field")
+	}
+
 	if ap.Scheme == "" {
 		ap.Scheme = "Bearer"
 	}
+
 	return defaultRoundTripperClient(t), nil
 }
 
 func (ap *bearerAuthPlugin) Prepare(req *http.Request) error {
-	req.Header.Add("Authorization", fmt.Sprintf("%v %v", ap.Scheme, ap.Token))
+	token := ap.Token
+
+	if ap.TokenPath != "" {
+		bytes, err := ioutil.ReadFile(ap.TokenPath)
+		if err != nil {
+			return err
+		}
+		token = strings.TrimSpace(string(bytes))
+	}
+
+	req.Header.Add("Authorization", fmt.Sprintf("%v %v", ap.Scheme, token))
 	return nil
 }
 
