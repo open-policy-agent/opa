@@ -2033,15 +2033,15 @@ func reorderBodyForClosures(builtins map[string]*Builtin, arity func(Ref) int, g
 	return reordered, unsafe
 }
 
-func outputVarsForBody(body Body, builtins map[string]*Builtin, arity func(Ref) int, safe VarSet) VarSet {
+func outputVarsForBody(body Body, builtins map[string]*Builtin, getArity func(Ref) int, safe VarSet) VarSet {
 	o := safe.Copy()
 	for _, e := range body {
-		o.Update(outputVarsForExpr(e, builtins, arity, o))
+		o.Update(outputVarsForExpr(e, builtins, getArity, o))
 	}
 	return o.Diff(safe)
 }
 
-func outputVarsForExpr(expr *Expr, builtins map[string]*Builtin, arity func(Ref) int, safe VarSet) VarSet {
+func outputVarsForExpr(expr *Expr, builtins map[string]*Builtin, getArity func(Ref) int, safe VarSet) VarSet {
 
 	// Negated expressions must be safe.
 	if expr.Negated {
@@ -2063,89 +2063,54 @@ func outputVarsForExpr(expr *Expr, builtins map[string]*Builtin, arity func(Ref)
 		}
 	}
 
-	if !expr.IsCall() {
-		return outputVarsForExprRefs(expr, safe)
-	}
-
-	terms := expr.Terms.([]*Term)
-	name := terms[0].String()
-
-	if b := builtins[name]; b != nil {
-		if b.Name == Equality.Name {
+	switch terms := expr.Terms.(type) {
+	case *Term:
+		return outputVarsForTerms(expr, safe)
+	case []*Term:
+		if expr.IsEquality() {
 			return outputVarsForExprEq(expr, safe)
 		}
-		return outputVarsForExprBuiltin(expr, b, safe)
-	}
 
-	return outputVarsForExprCall(expr, arity, safe, terms)
-}
-
-func outputVarsForExprBuiltin(expr *Expr, b *Builtin, safe VarSet) VarSet {
-
-	output := outputVarsForExprRefs(expr, safe)
-	terms := expr.Terms.([]*Term)
-
-	// Check that all input terms are safe.
-	for i, t := range terms[1:] {
-		if b.IsTargetPos(i) {
-			continue
-		}
-		vis := NewVarVisitor().WithParams(VarVisitorParams{
-			SkipClosures:   true,
-			SkipSets:       true,
-			SkipObjectKeys: true,
-			SkipRefHead:    true,
-		})
-		vis.Walk(t)
-		unsafe := vis.Vars().Diff(output).Diff(safe)
-		if len(unsafe) > 0 {
+		operator, ok := terms[0].Value.(Ref)
+		if !ok {
 			return VarSet{}
 		}
-	}
 
-	// Add vars in target positions to result.
-	for i, t := range terms[1:] {
-		if b.IsTargetPos(i) {
-			vis := NewVarVisitor().WithParams(VarVisitorParams{
-				SkipRefHead:    true,
-				SkipSets:       true,
-				SkipObjectKeys: true,
-				SkipClosures:   true,
-			})
-			vis.Walk(t)
-			output.Update(vis.vars)
+		var arity int
+		name := operator.String()
+
+		if b := builtins[name]; b != nil {
+			arity = len(b.Decl.Args())
+		} else {
+			if arity = getArity(operator); arity < 0 {
+				return VarSet{}
+			}
 		}
-	}
 
-	return output
+		return outputVarsForExprCall(expr, arity, safe, terms)
+	default:
+		panic("illegal expression")
+	}
 }
 
 func outputVarsForExprEq(expr *Expr, safe VarSet) VarSet {
+
 	if !validEqAssignArgCount(expr) {
 		return safe
 	}
-	output := outputVarsForExprRefs(expr, safe)
+
+	output := outputVarsForTerms(expr, safe)
 	output.Update(safe)
 	output.Update(Unify(output, expr.Operand(0), expr.Operand(1)))
+
 	return output.Diff(safe)
 }
 
-func outputVarsForExprCall(expr *Expr, arity func(Ref) int, safe VarSet, terms []*Term) VarSet {
+func outputVarsForExprCall(expr *Expr, arity int, safe VarSet, terms []*Term) VarSet {
 
-	output := outputVarsForExprRefs(expr, safe)
+	output := outputVarsForTerms(expr, safe)
 
-	ref, ok := terms[0].Value.(Ref)
-	if !ok {
-		return VarSet{}
-	}
-
-	numArgs := arity(ref)
-	if numArgs == -1 {
-		return VarSet{}
-	}
-
-	numInputTerms := numArgs + 1
-
+	numInputTerms := arity + 1
 	if numInputTerms >= len(terms) {
 		return output
 	}
@@ -2176,7 +2141,7 @@ func outputVarsForExprCall(expr *Expr, arity func(Ref) int, safe VarSet, terms [
 	return output
 }
 
-func outputVarsForExprRefs(expr *Expr, safe VarSet) VarSet {
+func outputVarsForTerms(expr *Expr, safe VarSet) VarSet {
 	output := VarSet{}
 	WalkTerms(expr, func(x *Term) bool {
 		switch r := x.Value.(type) {
