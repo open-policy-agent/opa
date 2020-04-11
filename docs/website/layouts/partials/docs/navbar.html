@@ -7,7 +7,7 @@
 {{ $slack     := $social.slack }}
 {{ $docsHome  := .CurrentSection }}
 {{ $allDocs   := where site.RegularPages "Section" "docs" }}
-{{ $docs       := where $allDocs ".Params.kind" "eq" "core" }}
+{{ $docs       := where $allDocs ".Params.kind" "eq" "documentation" }}
 {{ $kubernetes := where $allDocs ".Params.kind" "eq" "kubernetes" }}
 {{ $tutorials  := where $allDocs ".Params.kind" "eq" "tutorial" }}
 {{ $operations := where $allDocs ".Params.kind" "eq" "operations" }}
@@ -30,7 +30,7 @@
   <div class="navbar-menu is-hidden-tablet" id="mobile-menu">
     <div class="navbar-start">
       <span class="navbar-item is-size-5 has-text-weight-light is-uppercase">
-        Documentation
+        Core Docs
       </span>
 
       <a class="navbar-item" href="{{ $docsHome.URL }}">
