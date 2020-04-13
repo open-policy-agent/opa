@@ -232,7 +232,9 @@ itself to the service.
 #### Bearer token
 
 OPA will authenticate using the specified bearer token and schema; to enable bearer token
-authentication, either the token or the path to the token must be specified. The schema is optional and will default to `Bearer`
+authentication, either the token or the path to the token must be specified. If the latter is provided, on each request OPA will re-read the token from the file and use that token for authentication.
+
+The schema is optional and will default to `Bearer`
 if unspecified.
 
 | Field | Type | Required | Description |
