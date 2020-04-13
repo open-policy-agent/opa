@@ -3,14 +3,11 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
-
-## 0.19.0-rc1
-
+## 0.19.0
 
 ### New Parser
 
-The next minor release includes a new parser implementation that resolves a number
+This release includes a new parser implementation that resolves a number
 of existing issues with the old parser. As part of implementing the new parser
 a small number of backwards incompatible changes have been made.
 
@@ -99,20 +96,40 @@ ParseStatementNestedObjects/5x5-16      8.16M ± 0%     0.07M ± 0%  -99.13%  (p
 ParseBasicABACModule-16                 36.5k ± 0%      0.7k ± 0%  -98.09%  (p=0.008 n=5+5)
 ```
 
-### Fixes
+### Fixes and Enhancements
 
 - ast: Add rules/functions that contain errors to the type env ([#2155](https://github.com/open-policy-agent/opa/issues/2155))
+- ast: Fix panic when rule args contain call expressions ([#2081](https://github.com/open-policy-agent/opa/issues/2081))
+- ast: Fix bug in term rewritten when 'input' is passed as an argument ([#2084](https://github.com/open-policy-agent/opa/issues/2084))
+- bundle: Remove extra root name in bundle file ids ([#2117](https://github.com/open-policy-agent/opa/issues/2117))
+- cmd/fmt: Fix to always write formatted file to stdout ([#2235](https://github.com/open-policy-agent/opa/issues/2235))
+- cmd/test: --explain now turns on verbose output ([#2069](https://github.com/open-policy-agent/opa/issues/2069))
+- cmd/test: Default `-v` traces show notes and fails ([#2068](https://github.com/open-policy-agent/opa/issues/2068))
+- docs/website: Fix mobile docs nav menu ([#2074](https://github.com/open-policy-agent/opa/issues/2074))
+- format: Print var if wildcard is used multiple times ([#2053](https://github.com/open-policy-agent/opa/issues/2053))
+- plugins/bundle: Update the downloader's e-tag based on bundle activation ([#2220](https://github.com/open-policy-agent/opa/issues/2220))
+- plugins: Add support to specify bearer token path (which enables token refresh) ([#2241](https://github.com/open-policy-agent/opa/issues/2241))
+- profiler: Fix panic when location is missing by grouping expressions missing a location ([#2134](https://github.com/open-policy-agent/opa/issues/2134))
+- rego: Avoid re-using transactions in compiler ([#2197](https://github.com/open-policy-agent/opa/issues/2197))
+- repl: Add unset-package command ([#2140](https://github.com/open-policy-agent/opa/issues/2140))
+- server: Do not return partial modules /v1/policies output ([#2036](https://github.com/open-policy-agent/opa/issues/2036))
+- server: Specify partial evaluation namespace to avoid conflicts ([#2247](https://github.com/open-policy-agent/opa/issues/2247))
+- topdown: Add time.add_date builtin ([#1990](https://github.com/open-policy-agent/opa/issues/1990))
+- topdown: Fix partial evaluation to save comprehensions correctly ([#2243](https://github.com/open-policy-agent/opa/issues/2243))
+- topdown: Improve pretty trace location details ([#2143](https://github.com/open-policy-agent/opa/issues/2143))
+- topdown: Include HTTP response headers in `http.send` output ([#2238](https://github.com/open-policy-agent/opa/issues/2238))
+- [Multiple](https://github.com/open-policy-agent/opa/commit/3eeb09c3e83749aff31e15bdfff5d82f3224c102) [important](https://github.com/open-policy-agent/opa/commit/29d8fbbef6facc96d03be3e07473d12e38acd843) [improvements](https://github.com/open-policy-agent/opa/commit/c5c85795aaa3701763f98d16308c5944f05f3da4) [to `http.send()`](https://github.com/open-policy-agent/opa/commit/ce92d19f655efffd6bda26006a2f4898cbdb69ed) [thanks to](https://github.com/open-policy-agent/opa/commit/351a7313df35e8de9e9474fd56a1a905cd51e0c1)  @jpeach
+### Miscellaneous
+
+- [Added `man` target in the Makefile for `man` page generation!](https://github.com/open-policy-agent/opa/commit/4c81aa75c05e4dd69408b9c879be40f9f4369a2c) (thanks to @olivierlemasle)
+- [Added Sublime Text syntax file](https://github.com/open-policy-agent/opa/blob/master/misc/syntax/sublime/rego.sublime-syntax)
+- [Added link to Emacs mode for Rego](https://github.com/psibi/rego-mode) (thanks to @psibi)
+- [Added net.cidr_contains_matches built-in function](https://github.com/open-policy-agent/opa/pull/2221/commits/6ae4ed9e6578ffb272604a79b1ef9a944cda7782)
+- [Improved support for registering custom built-in functions](https://github.com/open-policy-agent/opa/blob/84b61c647a0d76e62043d6f52510411e8b00d2f0/docs/content/extensions.md)
+
 
 ### Miscellaneous
 
-- project: Add support for release candidate version tags
-- rego: Improve support for registering custom built-ins
-- repl: Add unset-package command ([#2140](https://github.com/open-policy-agent/opa/issues/2140))
-- misc: Add sublime text syntax file
-- misc: Add link to the Emacs mode for Rego on the website
-- topdown: Add http.send support for setting the TLS server name
-- topdown: Fix lost `tls_insecure_skip_verify` setting
-- topdown: Add net.cidr_contains_matches built-in function
 
 ## 0.18.0
 
