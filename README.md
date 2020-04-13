@@ -36,7 +36,7 @@ OPA is hosted by the [Cloud Native Computing Foundation](https://cncf.io) (CNCF)
 * Use [GitHub Issues](https://github.com/open-policy-agent/opa/issues) to request features or file bugs.
 * Join bi-weekly meetings every other Tuesday at 10:00 (Pacific Timezone):
     * [Meeting Notes](https://docs.google.com/document/d/1v6l2gmkRKAn5UIg3V2QdeeCcXMElxsNzEzDkVlWDVg8/edit?usp=sharing)
-    * [Google Hangouts](https://meet.google.com/mkq-wdrh-ydw)
+    * [Zoom](https://zoom.us/j/97827947600)
     * [Calendar Invite](https://calendar.google.com/event?action=TEMPLATE&tmeid=MnRvb2M4amtldXBuZ2E1azY0MTJndjh0ODRfMjAxODA5MThUMTcwMDAwWiBzdHlyYS5jb21fY28zOXVzc3VobnE2amUzN2l2dHQyYmNiZGdAZw&tmsrc=styra.com_co39ussuhnq6je37ivtt2bcbdg%40group.calendar.google.com&scp=ALL)
 
 ## How does OPA work?
