@@ -3,7 +3,11 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.19.1
+
+### Fixes
+
+- cmd/fmt: Only list files if there were changes ([#2295](https://github.com/open-policy-agent/opa/issues/2295))
 
 ## 0.19.0
 
