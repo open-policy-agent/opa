@@ -18,19 +18,19 @@ Maintainers should indicate their yes/no vote on that issue or PR, and after a s
 
 ## Changes in Maintainership
 
-New maintainers are proposed by an existing maintainer and are elected by a 2/3 majority organization vote.
+New maintainers are proposed by an existing maintainer and are elected by a 2/3 majority organization vote from other maintainers with the relevant area(s) of expertise.
 
 Maintainer status expires after 1 year but a request to self-renew can be made within 1 month of expiry.
 
 Maintainers can be removed by a 2/3 majority organization vote.
 
-## Approving PRs
-
-PRs may be merged after receiving at least two organization votes.
-
 ## Github Project Administration
 
-Maintainers will be added to the GitHub organization and added to the GitHub opa-maintainers team, and made a GitHub maintainer of that team.
+The MAINTAINERS.md file in this repository contains a set of OPA project maintainers and their area(s) of expertise. Maintainers will be added to the GitHub organization and added to the GitHub team(s) associated with repositories or areas of expertise that they maintain (e.g., `opa-maintainers`, `gatekeeper-maintainers`, etc.)
+
+## Conflict Resolution for Technical Decisions
+
+If a technical decision cannot be reached due to a dispute between two or more maintainers, an organization vote will be held by the maintainers with the relevant area(s) of expertise following the rules described above.
 
 ## Changes in Governance
 
@@ -38,6 +38,6 @@ All changes in Governance require a 2/3 majority organization vote.
 
 ## Other Changes
 
-Unless specified above, all other changes to the project require a 2/3 majority organization vote.
+Unless specified above, all other changes to the project require a 2/3 majority organization vote from maintainers with relevant area(s) of expertise.
 
-Additionally, any maintainer may request that any change require a 2/3 majority organization vote.
+Additionally, any maintainer may request that any change require a 2/3 majority organization vote from maintainers with relevant area(s) of expertise.
