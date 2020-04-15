@@ -68,9 +68,7 @@ else = 2 {
 	# bar
 
 	true
-}
-
-else = 3 {
+} else = 3 {
 	# baz
 
 	false
