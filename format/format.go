@@ -214,7 +214,10 @@ func (w *writer) writeRule(rule *ast.Rule, isElse bool, comments []*ast.Comment)
 		return comments
 	}
 
-	w.startLine()
+	if !isElse {
+		w.startLine()
+	}
+
 	if rule.Default {
 		w.write("default ")
 	}
@@ -252,7 +255,11 @@ func (w *writer) writeRule(rule *ast.Rule, isElse bool, comments []*ast.Comment)
 	w.startLine()
 	w.write("}")
 	if rule.Else != nil {
-		w.blankLine()
+		if len(comments) > 0 && comments[0].Location.Row-rule.Else.Head.Location.Row < 0 {
+			w.blankLine()
+		} else {
+			w.write(" ")
+		}
 		rule.Else.Head.Name = ast.Var("else")
 		rule.Else.Head.Args = nil
 		comments = w.insertComments(comments, rule.Else.Head.Location)
