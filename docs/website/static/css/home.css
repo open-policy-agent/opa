@@ -535,6 +535,13 @@ h3 {
     line-height: 22px;
 }
 
+.nav-pills .nav-link:hover {
+    background-color: #dedfe0;
+    color: #333;
+    padding: 20px;
+    line-height: 22px;
+}
+
 .nav-tabs .nav-item.show .nav-link, .nav-tabs .nav-link.active {
     color: #fff !important;
     font-size: 18px !important;
