@@ -16,7 +16,7 @@ OPA as a server.
 You can enable metric collection from OPA with the following `prometheus.yml` config:
 
 ```yaml
-global_config:
+global:
   scrape_interval: 15s
 scrape_configs:
   - job_name: "opa"
