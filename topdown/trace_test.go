@@ -245,7 +245,7 @@ func TestPrettyTraceWithLocationTruncatedPaths(t *testing.T) {
 	compiler := ast.MustCompileModules(map[string]string{
 		"authz_bundle/com/foo/bar/baz/qux/acme/corp/internal/authz/policies/abac/v1/beta/policy.rego": `
 		package test
-		
+
 		import data.utils.q
 
 		p = true { q[x]; plus(x, 1, n) }
@@ -349,13 +349,13 @@ func TestPrettyTracePartialWithLocationTruncatedPaths(t *testing.T) {
 		package example_rbac
 
 		default allow = false
-		
+
 		allow {
 		    data.utils.user_has_role[role_name]
-		
+
 		    data.utils.role_has_permission[role_name]
 		}
-		
+
 		`,
 		"authz_bundle/com/foo/bar/baz/qux/acme/corp/internal/authz/policies/utils/user.rego": `
 		package utils
@@ -365,7 +365,7 @@ func TestPrettyTracePartialWithLocationTruncatedPaths(t *testing.T) {
 		    role_binding.role = role_name
 		    role_binding.user = input.subject.user
 		}
-		
+
 		role_has_permission[role_name] {
 		    role = data.roles[_]
 		    role.name = role_name
@@ -679,7 +679,7 @@ query:4     | | | Exit data.test.q
 query:3     | | Eval plus(x, 1, n)
 query:3     | | Eval sprintf("n= %v", [n], __local0__)
 query:3     | | Eval trace(__local0__)
-note        | | Note "n= 2"
+query:3     | | Note "n= 2"
 query:3     | | Exit data.test.p
 query:1     | Exit data.test.p = _
 query:1     Redo data.test.p = _
@@ -695,7 +695,7 @@ query:4     | | | Exit data.test.q
 query:3     | | Eval plus(x, 1, n)
 query:3     | | Eval sprintf("n= %v", [n], __local0__)
 query:3     | | Eval trace(__local0__)
-note        | | Note "n= 3"
+query:3     | | Note "n= 3"
 query:3     | | Exit data.test.p
 query:3     | Redo data.test.p
 query:3     | | Redo trace(__local0__)
@@ -708,7 +708,7 @@ query:4     | | | Exit data.test.q
 query:3     | | Eval plus(x, 1, n)
 query:3     | | Eval sprintf("n= %v", [n], __local0__)
 query:3     | | Eval trace(__local0__)
-note        | | Note "n= 4"
+query:3     | | Note "n= 4"
 query:3     | | Exit data.test.p
 query:3     | Redo data.test.p
 query:3     | | Redo trace(__local0__)
@@ -721,7 +721,7 @@ query:4     | | | Exit data.test.q
 query:3     | | Eval plus(x, 1, n)
 query:3     | | Eval sprintf("n= %v", [n], __local0__)
 query:3     | | Eval trace(__local0__)
-note        | | Note "n= 5"
+query:3     | | Note "n= 5"
 query:3     | | Exit data.test.p
 query:3     | Redo data.test.p
 query:3     | | Redo trace(__local0__)
