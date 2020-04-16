@@ -520,7 +520,31 @@ This gives clear feedback that the evaluations have slowed down considerably by 
 > repeat the benchmarks a number of times (5-10 is usually enough). The tool requires several data points else the `p`
 > value will not show meaningful changes and the `delta` will be `~`.
 
-### Key Takeaways
+## Resource Utilization
+
+Policy evaluation is typically CPU-bound unless the policies have to pull additional
+data on-the-fly using built-in functions like `http.send()` (in which case evaluation
+likely becomes I/O-bound.) Policy evaluation is currently single-threaded. If you
+are embedding OPA as a library, it is your responsibility to dispatch concurrent queries
+to different Goroutines/threads. If you are running the OPA server, it will parallelize
+concurrent requests and use as many cores as possible. You can limit the number of
+cores that OPA can consume by starting OPA with the [`GOMAXPROCS`](https://golang.org/pkg/runtime)
+environment variable.
+
+Memory usage scales with the size of the policy (i.e., Rego) and data (e.g., JSON) that you
+load into OPA. Raw JSON data loaded into OPA uses approximately 20x more memory compared to the
+same data stored in a compact, serialized format (e.g., on disk). This increased
+memory usage is due to the need to load the JSON data into Go data structures like maps,
+slices, and strings so that it can be evaluated. For example, if you load 8MB worth of
+JSON data representing 100,000 permission objects specifying subject/action/resource triplets,
+OPA would consume approximately 160MB of RAM.
+
+Memory usage also scales linearly with the number of rules loaded into OPA. For example,
+loading 10,000 rules that implement an ACL-style authorization policy consumes approximately
+130MB of RAM while 100,000 rules implementing the same policy (but with 10x more tuples to check)
+consumes approximately 1.1GB of RAM.
+
+## Key Takeaways
 
 For high-performance use cases:
 
