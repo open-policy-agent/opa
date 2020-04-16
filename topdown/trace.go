@@ -306,9 +306,6 @@ func numDigits10(n int) int {
 }
 
 func formatLocation(event *Event, fileAliases map[string]string) string {
-	if event.Op == NoteOp {
-		return fmt.Sprintf("%v", "note")
-	}
 
 	location := event.Location
 	if location == nil {
@@ -350,6 +347,7 @@ func builtinTrace(bctx BuiltinContext, args []*ast.Term, iter func(*ast.Term) er
 
 	evt := &Event{
 		Op:       NoteOp,
+		Location: bctx.Location,
 		QueryID:  bctx.QueryID,
 		ParentID: bctx.ParentID,
 		Message:  string(str),

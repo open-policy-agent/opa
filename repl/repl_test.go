@@ -2032,10 +2032,10 @@ func TestEvalNotes(t *testing.T) {
 	repl.OneShot(ctx, "p")
 	expected := strings.TrimSpace(`query:1     Enter data.repl.p = _
 query:1     | Enter data.repl.p
-note        | | Note "x = 2"
+query:1     | | Note "x = 2"
 query:1     Redo data.repl.p = _
 query:1     | Redo data.repl.p
-note        | | Note "x = 3"
+query:1     | | Note "x = 3"
 true`)
 	expected += "\n"
 	if expected != buffer.String() {
