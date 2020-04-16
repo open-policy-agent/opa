@@ -559,13 +559,38 @@ func ExampleRego_Partial() {
 	// Query #2: "GET" = input.method; input.path = ["reviews", user3]; user3 = input.user
 }
 
+func ExampleRego_Eval_trace_simple() {
+
+	ctx := context.Background()
+
+	// Create very simple query that binds a single variable and enables tracing.
+	r := rego.New(
+		rego.Query("x = 1"),
+		rego.Trace(true),
+	)
+
+	// Run evaluation.
+	r.Eval(ctx)
+
+	// Inspect results.
+	rego.PrintTraceWithLocation(os.Stdout, r)
+
+	// Output:
+	//
+	// query:1     Enter x = 1
+	// query:1     | Eval x = 1
+	// query:1     | Exit x = 1
+	// query:1     Redo x = 1
+	// query:1     | Redo x = 1
+}
+
 func ExampleRego_Eval_tracer() {
 
 	ctx := context.Background()
 
 	buf := topdown.NewBufferTracer()
 
-	// Create very simple query that binds a single variable, and enables tracing.
+	// Create very simple query that binds a single variable and provides a tracer.
 	rego := rego.New(
 		rego.Query("x = 1"),
 		rego.Tracer(buf),
@@ -575,15 +600,15 @@ func ExampleRego_Eval_tracer() {
 	rego.Eval(ctx)
 
 	// Inspect results.
-	topdown.PrettyTrace(os.Stdout, *buf)
+	topdown.PrettyTraceWithLocation(os.Stdout, *buf)
 
 	// Output:
 	//
-	// Enter x = 1
-	// | Eval x = 1
-	// | Exit x = 1
-	// Redo x = 1
-	// | Redo x = 1
+	// query:1     Enter x = 1
+	// query:1     | Eval x = 1
+	// query:1     | Exit x = 1
+	// query:1     Redo x = 1
+	// query:1     | Redo x = 1
 }
 
 func ExampleRego_PrepareForEval() {

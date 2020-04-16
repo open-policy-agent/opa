@@ -881,6 +881,15 @@ func PrintTrace(w io.Writer, r *Rego) {
 	topdown.PrettyTrace(w, *r.tracebuf)
 }
 
+// PrintTraceWithLocation is a helper function to write a human-readable version of the
+// trace to the writer w.
+func PrintTraceWithLocation(w io.Writer, r *Rego) {
+	if r == nil || r.tracebuf == nil {
+		return
+	}
+	topdown.PrettyTraceWithLocation(w, *r.tracebuf)
+}
+
 // UnsafeBuiltins sets the built-in functions to treat as unsafe and not allow.
 // This option is ignored for module compilation if the caller supplies the
 // compiler. This option is always honored for query compilation. Provide an
