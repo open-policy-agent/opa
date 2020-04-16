@@ -70,7 +70,7 @@ If the '--bundle' option is specified the paths will be treated as policy bundle
 and loaded following standard bundle conventions. The path can be a compressed archive
 file or a directory which will be treated as a bundle. Without the '--bundle' flag OPA
 will recursively load ALL *.rego, *.json, and *.yaml files for evaluating the test cases.
-	
+
 Example policy (example/authz.rego):
 
 	package authz
@@ -329,6 +329,7 @@ func filterTrace(params *testCommandParams, trace []*topdown.Event) []*topdown.E
 func init() {
 	testCommand.Flags().BoolVarP(&testParams.verbose, "verbose", "v", false, "set verbose reporting mode")
 	testCommand.Flags().BoolVarP(&testParams.failureLine, "show-failure-line", "l", false, "show test failure line")
+	testCommand.Flags().MarkDeprecated("show-failure-line", "use -v instead")
 	testCommand.Flags().DurationVarP(&testParams.timeout, "timeout", "t", time.Second*5, "set test timeout")
 	testCommand.Flags().VarP(testParams.outputFormat, "format", "f", "set output format")
 	testCommand.Flags().BoolVarP(&testParams.coverage, "coverage", "c", false, "report coverage (overrides debug tracing)")
