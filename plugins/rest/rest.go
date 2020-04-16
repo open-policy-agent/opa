@@ -148,6 +148,11 @@ func (c Client) WithBytes(body []byte) Client {
 	return c
 }
 
+// Equal returns true if this client is equal to the other.
+func (c Client) Equal(other Client) bool {
+	return reflect.DeepEqual(c.config, other.config)
+}
+
 // Do executes a request using the client.
 func (c Client) Do(ctx context.Context, method, path string) (*http.Response, error) {
 
