@@ -14,10 +14,12 @@ import (
 )
 
 func getFakeTraceEvents() []*topdown.Event {
+	node := ast.MustParseExpr("true = false")
 	return []*topdown.Event{
 		{
 			Op:       topdown.FailOp,
-			Node:     ast.MustParseExpr("true = false"),
+			Node:     node,
+			Location: node.Loc(),
 			QueryID:  0,
 			ParentID: 0,
 		},
@@ -63,7 +65,7 @@ func TestPrettyReporterVerbose(t *testing.T) {
 --------------------------------------------------------------------------------
 data.foo.bar.test_corge: FAIL (0s)
 
-  | Fail true = false
+  query:1     | Fail true = false
 
 SUMMARY
 --------------------------------------------------------------------------------
@@ -193,11 +195,15 @@ func TestJSONReporter(t *testing.T) {
 			  }
 			]
 		  },
+		  "Location": {
+			"row": 1,
+			"col": 1,
+			"file": ""
+		  },
 		  "QueryID": 0,
 		  "ParentID": 0,
 		  "Locals": null,
           "LocalMetadata": null,
-		  "Location": null,
 		  "Message": ""
 		}
 	  ]
@@ -233,11 +239,15 @@ func TestJSONReporter(t *testing.T) {
 			  }
 			]
 		  },
+		  "Location": {
+			"row": 1,
+			"col": 1,
+			"file": ""
+		  },
 		  "QueryID": 0,
 		  "ParentID": 0,
 		  "Locals": null,
 		  "LocalMetadata": null,
-		  "Location": null,
 		  "Message": ""
 		}
 	  ]
@@ -273,11 +283,15 @@ func TestJSONReporter(t *testing.T) {
 			  }
 			]
 		  },
+		  "Location": {
+			"row": 1,
+			"col": 1,
+			"file": ""
+		  },
 		  "QueryID": 0,
 		  "ParentID": 0,
 		  "Locals": null,
 		  "LocalMetadata": null,
-		  "Location": null,
 		  "Message": ""
 		}
 	  ]  }

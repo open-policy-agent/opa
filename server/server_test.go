@@ -1797,8 +1797,12 @@ func TestDataGetExplainFull(t *testing.T) {
 		t.Fatalf("Unexpected JSON decode error: %v", err)
 	}
 
-	exp := []interface{}{`Enter data.x = _`, `| Eval data.x = _`, `| Exit data.x = _`, `Redo data.x = _`, `| Redo data.x = _`}
-
+	exp := []interface{}{
+		`query:1     Enter data.x = _`,
+		`query:1     | Eval data.x = _`,
+		`query:1     | Exit data.x = _`,
+		`query:1     Redo data.x = _`,
+		`query:1     | Redo data.x = _`}
 	actual := util.MustUnmarshalJSON(result.Explanation).([]interface{})
 	if !reflect.DeepEqual(actual, exp) {
 		t.Fatalf(`Expected pretty explanation to be %v, got %v`, exp, actual)
