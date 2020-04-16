@@ -72,10 +72,14 @@ with `make check`.
     git commit -s
     git push origin somefeature
     ```
+   
+   > Make sure to use a [good commit message](../../CONTRIBUTING.md#commit-messages)
 
-1. Submit a Pull Request via https://github.com/\<GITHUB USERNAME>/opa. You
-   should be prompted to with a "Compare and Pull Request" button that
-   mentions your branch.
+1. Submit a Pull Request from your fork. See the official [GitHub Documentation](https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/creating-a-pull-request-from-a-fork)
+   for instructions to create the request.
+   
+    > Hint: You should be prompted to with a "Compare and Pull Request" button
+      that mentions your new branch on [https://github.com/open-policy-agent/opa](https://github.com/open-policy-agent/opa)
 
 1. Once your Pull Request has been reviewed and signed off please squash your
    commits. If you have a specific reason to leave multiple commits in the
@@ -131,16 +135,6 @@ More details on the pattern: [https://github.com/go-modules-by-example/index/blo
 
 Update these the same way as any other Go package. Ensure that any build script
 only uses `go run ./vendor/<tool pkg>` to force using the correct version.
-
-## Rego
-
-If you need to modify the Rego syntax you must update ast/rego.peg. Both `make
-build` and `make test` will re-generate the parser but if you want to test the
-parser generation explicitly you can run `make generate`.
-
-If you are modifying the Rego syntax you must commit the parser source file
-(ast/parser.go) that `make generate` produces when you are done. The generated
-code is kept in the repository so that commands such as `go get` work.
 
 ## Go
 
