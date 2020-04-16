@@ -264,7 +264,7 @@ func newRawTraceV1(trace []*topdown.Event) (TraceV1, error) {
 
 func newPrettyTraceV1(trace []*topdown.Event) (TraceV1, error) {
 	var buf bytes.Buffer
-	topdown.PrettyTrace(&buf, trace)
+	topdown.PrettyTraceWithLocation(&buf, trace)
 
 	str := strings.Trim(buf.String(), "\n")
 	b, err := json.Marshal(strings.Split(str, "\n"))
