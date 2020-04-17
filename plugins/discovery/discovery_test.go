@@ -120,7 +120,7 @@ func TestProcessBundle(t *testing.T) {
 		}
 	`)
 
-	ps, err := processBundle(ctx, manager, nil, initialBundle, "data.config", "default", nil)
+	_, ps, err := processBundle(ctx, manager, nil, initialBundle, "data.config", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -139,7 +139,7 @@ func TestProcessBundle(t *testing.T) {
 		}
 	`)
 
-	ps, err = processBundle(ctx, manager, nil, updatedBundle, "data.config", "default", nil)
+	_, ps, err = processBundle(ctx, manager, nil, updatedBundle, "data.config", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -156,7 +156,7 @@ func TestProcessBundle(t *testing.T) {
 		}
 	`)
 
-	_, err = processBundle(ctx, manager, nil, updatedBundle, "data.config", "default", nil)
+	_, _, err = processBundle(ctx, manager, nil, updatedBundle, "data.config", nil)
 	if err == nil {
 		t.Fatal("Expected error but got success")
 	}
@@ -272,189 +272,6 @@ func TestReconfigure(t *testing.T) {
 		t.Errorf("Expected one plugin start and one reconfig but got %v", testPlugin)
 	}
 
-}
-
-func TestReconfigureWithUpdates(t *testing.T) {
-
-	ctx := context.Background()
-
-	manager, err := plugins.New([]byte(`{
-		"labels": {"x": "y"},
-		"services": {
-			"localhost": {
-				"url": "http://localhost:9999"
-			}
-		},
-		"discovery": {"name": "config"},
-	}`), "test-id", inmem.New())
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	disco, err := New(manager)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	initialBundle := makeDataBundle(1, `
-		{
-			"config": {
-				"bundle": {"name": "test1"},
-				"status": {},
-				"decision_logs": {}
-			}
-		}
-	`)
-
-	err = disco.reconfigure(ctx, download.Update{Bundle: initialBundle})
-	if err != nil {
-		t.Fatalf("Unexpected error %v", err)
-	}
-
-	// update the discovery configuration
-	updatedBundle := makeDataBundle(2, `
-		{
-			"config": {
-				"discovery": {
-					"name": "config",
-					"decision": "/foo/bar"
-				}
-			}
-		}
-	`)
-
-	err = disco.reconfigure(ctx, download.Update{Bundle: updatedBundle})
-	if err == nil {
-		t.Fatal("Expected error but got nil")
-	}
-
-	expectedErrMsg := "updates to the discovery configuration are not allowed"
-	if err.Error() != expectedErrMsg {
-		t.Fatalf("Expected error message: %v but got: %v", expectedErrMsg, err.Error())
-	}
-
-	// update the discovery service
-	updatedBundle = makeDataBundle(3, `
-		{
-			"config": {
-				"services": {
-					"localhost": {
-						"url": "http://localhost:9999",
-						"credentials": {"bearer": {"token": "blah"}}
-					}
-				}
-			}
-		}
-	`)
-
-	err = disco.reconfigure(ctx, download.Update{Bundle: updatedBundle})
-	if err == nil {
-		t.Fatal("Expected error but got nil")
-	}
-
-	expectedErrMsg = "updates to the discovery service are not allowed"
-	if err.Error() != expectedErrMsg {
-		t.Fatalf("Expected error message: %v but got: %v", expectedErrMsg, err.Error())
-	}
-
-	// add a new service and a new bundle
-	updatedBundle = makeDataBundle(4, `
-		{
-			"config": {
-				"services": {
-					"acmecorp": {
-						"url": "http://localhost:8181"
-					}
-				},
-				"bundles": {
-					"authz": {
-						"service": "acmecorp"
-					}
-				}
-			}
-
-		}
-	`)
-
-	err = disco.reconfigure(ctx, download.Update{Bundle: updatedBundle})
-	if err != nil {
-		t.Fatalf("Unexpected error %v", err)
-	}
-
-	if len(disco.manager.Services()) != 2 {
-		t.Fatalf("Expected two services but got %v\n", len(disco.manager.Services()))
-	}
-
-	bPlugin := bundle.Lookup(disco.manager)
-	config := bPlugin.Config()
-	expected := "acmecorp"
-	if config.Bundles["authz"].Service != expected {
-		t.Fatalf("Expected service %v for bundle authz but got %v", expected, config.Bundles["authz"].Service)
-	}
-
-	// update existing bundle's config and add a new bundle
-	updatedBundle = makeDataBundle(5, `
-		{
-			"config": {
-				"bundles": {
-					"authz": {
-						"service": "localhost",
-						"resource": "foo/bar"
-					},
-					"main": {
-						"resource": "baz/bar"
-					}
-				}
-			}
-		}
-	`)
-
-	err = disco.reconfigure(ctx, download.Update{Bundle: updatedBundle})
-	if err != nil {
-		t.Fatalf("Unexpected error %v", err)
-	}
-
-	bPlugin = bundle.Lookup(disco.manager)
-	config = bPlugin.Config()
-	expectedSvc := "localhost"
-	if config.Bundles["authz"].Service != expectedSvc {
-		t.Fatalf("Expected service %v for bundle authz but got %v", expectedSvc, config.Bundles["authz"].Service)
-	}
-
-	expectedRes := "foo/bar"
-	if config.Bundles["authz"].Resource != expectedRes {
-		t.Fatalf("Expected resource %v for bundle authz but got %v", expectedRes, config.Bundles["authz"].Resource)
-	}
-
-	expectedSvcs := map[string]bool{"localhost": true, "acmecorp": true}
-	if _, ok := expectedSvcs[config.Bundles["authz"].Service]; !ok {
-		t.Fatalf("Expected service for bundle main to be one of [%v, %v] but got %v", "localhost", "acmecorp", config.Bundles["authz"].Service)
-	}
-
-	// update existing (non-discovery)service's config
-	updatedBundle = makeDataBundle(6, `
-		{
-			"config": {
-				"services": {
-					"acmecorp": {
-						"url": "http://localhost:8181",
-						"credentials": {"bearer": {"token": "blah"}}
-						}
-				},
-				"bundles": {
-					"authz": {
-						"service": "localhost",
-						"resource": "foo/bar"
-					}
-				}
-			}
-		}
-	`)
-
-	err = disco.reconfigure(ctx, download.Update{Bundle: updatedBundle})
-	if err != nil {
-		t.Fatalf("Unexpected error %v", err)
-	}
 }
 
 type testServer struct {
