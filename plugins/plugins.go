@@ -7,17 +7,16 @@ package plugins
 
 import (
 	"context"
-	"encoding/json"
 	"sync"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/config"
+	cfg "github.com/open-policy-agent/opa/internal/config"
 	initload "github.com/open-policy-agent/opa/internal/runtime/init"
 	"github.com/open-policy-agent/opa/loader"
 	"github.com/open-policy-agent/opa/plugins/rest"
 	"github.com/open-policy-agent/opa/storage"
-	"github.com/open-policy-agent/opa/util"
 )
 
 // Factory defines the interface OPA uses to instantiate your plugin.
@@ -201,7 +200,7 @@ func New(raw []byte, id string, store storage.Store, opts ...func(*Manager)) (*M
 		return nil, err
 	}
 
-	services, err := parseServicesConfig(parsedConfig.Services)
+	services, err := cfg.ParseServicesConfig(parsedConfig.Services)
 	if err != nil {
 		return nil, err
 	}
@@ -381,7 +380,7 @@ func (m *Manager) Stop(ctx context.Context) {
 
 // Reconfigure updates the configuration on the manager.
 func (m *Manager) Reconfigure(config *config.Config) error {
-	services, err := parseServicesConfig(config.Services)
+	services, err := cfg.ParseServicesConfig(config.Services)
 	if err != nil {
 		return err
 	}
@@ -519,39 +518,4 @@ func (m *Manager) Services() []string {
 		s = append(s, name)
 	}
 	return s
-}
-
-// parseServicesConfig returns a set of named service clients. The service
-// clients can be specified either as an array or as a map. Some systems (e.g.,
-// Helm) do not have proper support for configuration values nested under
-// arrays, so just support both here.
-func parseServicesConfig(raw json.RawMessage) (map[string]rest.Client, error) {
-
-	services := map[string]rest.Client{}
-
-	var arr []json.RawMessage
-	var obj map[string]json.RawMessage
-
-	if err := util.Unmarshal(raw, &arr); err == nil {
-		for _, s := range arr {
-			client, err := rest.New(s)
-			if err != nil {
-				return nil, err
-			}
-			services[client.Service()] = client
-		}
-	} else if util.Unmarshal(raw, &obj) == nil {
-		for k := range obj {
-			client, err := rest.New(obj[k], rest.Name(k))
-			if err != nil {
-				return nil, err
-			}
-			services[client.Service()] = client
-		}
-	} else {
-		// Return error from array decode as that is the default format.
-		return nil, err
-	}
-
-	return services, nil
 }
