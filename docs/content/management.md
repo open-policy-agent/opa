@@ -944,6 +944,8 @@ configuration labels or environment variables.
 
 ### Limitations
 
-The discovery feature cannot be used to dynamically modify `services`, `labels`
-and `discovery`. This means that these configuration settings should be included
-in the bootup configuration file provided to OPA.
+In practice, discovery services do not change frequently. These configuration sections are treated as
+immutable to avoid accidental configuration errors rendering OPA unable to discover a new configuration.
+If the discovered configuration changes the `discovery` or `labels` sections,
+those changes are ignored. If the discovered configuration changes the discovery service,
+an error will be logged.
