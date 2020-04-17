@@ -46,6 +46,7 @@ build_release() {
     GOOS=linux GOARCH=amd64 make build
     GOOS=windows GOARCH=amd64 make build
     mv opa_windows_amd64 opa_windows_amd64.exe
+    build_distro_packages
     mv opa_*_* $OUTPUT_DIR
 }
 
@@ -54,6 +55,17 @@ clone_repo() {
     cd /go/src/github.com/open-policy-agent/opa
     if [ -n "$VERSION" ]; then
         git checkout v${VERSION}
+    fi
+}
+
+build_distro_packages() {
+    if [ -f build/gen-deb.sh ]; then
+        make man
+        # If VERSION is not set, set it to `make version`
+        VERSION=${VERSION:-`make version`} make deb
+        mv opa_*.* $OUTPUT_DIR
+    else
+        echo "Skip building distro packages. Could not find gen-deb.sh."
     fi
 }
 
