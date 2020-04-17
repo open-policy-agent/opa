@@ -42,6 +42,11 @@ type Config struct {
 	} `json:"credentials"`
 }
 
+// Equal returns true if this client config is equal to the other.
+func (c *Config) Equal(other *Config) bool {
+	return reflect.DeepEqual(c, other)
+}
+
 func (c *Config) authPlugin() (HTTPAuthPlugin, error) {
 	// reflection avoids need for this code to change as auth plugins are added
 	s := reflect.ValueOf(c.Credentials)
@@ -117,6 +122,11 @@ func New(config []byte, opts ...func(*Client)) (Client, error) {
 // Service returns the name of the service this Client is configured for.
 func (c Client) Service() string {
 	return c.config.Name
+}
+
+// Config returns this Client's configuration
+func (c Client) Config() *Config {
+	return &c.config
 }
 
 // WithHeader returns a shallow copy of the client with a header to include the
