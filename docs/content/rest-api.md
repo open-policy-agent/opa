@@ -710,7 +710,7 @@ Content-Type: application/json
 
 ## Data API
 
-The Data API exposes endpoints for reading and writing documents in OPA. For an introduction to the different types of documents in OPA see [How Does OPA Work?](../#how-does-opa-work).
+The Data API exposes endpoints for reading and writing documents in OPA. For an explanation to the different types of documents in OPA see [How Does OPA Work?](../philosophy#how-does-opa-work)
 
 ### Get a Document
 
