@@ -174,11 +174,20 @@ func (c *Discovery) processUpdate(ctx context.Context, u download.Update) {
 
 func (c *Discovery) reconfigure(ctx context.Context, u download.Update) error {
 
-	ps, err := processBundle(ctx, c.manager, c.factories, u.Bundle, c.config.query, c.config.service, c.metrics)
+	config, ps, err := processBundle(ctx, c.manager, c.factories, u.Bundle, c.config.query, c.metrics)
 	if err != nil {
 		return err
 	}
 
+	if err := c.manager.Reconfigure(config); err != nil {
+		return err
+	}
+
+	// TODO(tsandall): we don't currently support changes to discovery
+	// configuration. These changes are risky because errors would be
+	// unrecoverable (without keeping track of changes and rolling back...)
+
+	// TODO(tsandall): add protection against discovery -service- changing.
 	for _, p := range ps.Start {
 		if err := p.Start(ctx); err != nil {
 			return err
@@ -211,30 +220,15 @@ func (c *Discovery) logrusFields() logrus.Fields {
 	}
 }
 
-func processBundle(ctx context.Context, manager *plugins.Manager, factories map[string]plugins.Factory, b *bundleApi.Bundle, query, service string, m metrics.Metrics) (*pluginSet, error) {
+func processBundle(ctx context.Context, manager *plugins.Manager, factories map[string]plugins.Factory, b *bundleApi.Bundle, query string, m metrics.Metrics) (*config.Config, *pluginSet, error) {
 
 	config, err := evaluateBundle(ctx, manager.ID, manager.Info, b, query)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	// check for updates to the discovery configuration
-	if config.Discovery != nil {
-		return nil, fmt.Errorf("updates to the discovery configuration are not allowed")
-	}
-
-	client := manager.Client(service)
-
-	if err := manager.Reconfigure(config); err != nil {
-		return nil, err
-	}
-
-	// check for updates to the discovery service
-	if !client.Equal(manager.Client(service)) {
-		return nil, fmt.Errorf("updates to the discovery service are not allowed")
-	}
-
-	return getPluginSet(factories, manager, config, m)
+	ps, err := getPluginSet(factories, manager, config, m)
+	return config, ps, err
 }
 
 func evaluateBundle(ctx context.Context, id string, info *ast.Term, b *bundleApi.Bundle, query string) (*config.Config, error) {
