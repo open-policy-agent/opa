@@ -659,7 +659,7 @@ b
 
 ## Rules
 
-Rules define the content of [Virtual Documents](../#rules-and-virtual-documents) in
+Rules define the content of [Virtual Documents](../philosophy#how-does-opa-work) in
 OPA. When OPA evaluates a rule, we say OPA *generates* the content of the
 document that is defined by the rule.
 
@@ -956,7 +956,7 @@ s(5, 3)
 
 ## Negation
 
-To generate the content of a [Virtual Document](../#rules-and-virtual-documents), OPA attempts to bind variables in the body of the rule such that all expressions in the rule evaluate to True.
+To generate the content of a [Virtual Document](../philosophy#how-does-opa-work), OPA attempts to bind variables in the body of the rule such that all expressions in the rule evaluate to True.
 
 This generates the correct result when the expressions represent assertions about what states should exist in the data stored in OPA. In some cases, you want to express that certain states *should not* exist in the data stored in OPA. In these cases, negation must be used.
 
@@ -1151,7 +1151,7 @@ Import statements declare dependencies that modules have on documents defined ou
 
 All modules contain implicit statements which import the `data` and `input` documents.
 
-Modules use the same syntax to declare dependencies on [Base Documents](../#base-documents) and [Virtual Documents](../#rules-and-virtual-documents).
+Modules use the same syntax to declare dependencies on [Base and Virtual Documents](../philosophy#how-does-opa-work).
 
 ```live:import_data:module:read_only
 package opa.examples
