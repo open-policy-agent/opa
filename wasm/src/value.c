@@ -5,6 +5,10 @@
 #define OPA_ARRAY_INITIAL_CAP (10)
 #define OPA_OBJECT_MIN_BUCKETS (8)
 #define OPA_OBJECT_LOAD_FACTOR (0.7)
+#define OPA_SET_MIN_BUCKETS (8)
+#define OPA_SET_LOAD_FACTOR (0.7)
+
+opa_array_t *__opa_set_values(opa_set_t *set);
 
 int opa_value_type(opa_value *node)
 {
@@ -137,23 +141,52 @@ opa_value *opa_value_iter_object(opa_object_t *obj, opa_value *prev)
     return NULL;
 }
 
+opa_set_elem_t *__opa_set_next_bucket(opa_set_t *set, size_t i)
+{
+    for (; i < set->n; i++) {
+        opa_set_elem_t *elem = set->buckets[i];
+        if (elem != NULL) {
+            return elem;
+        }
+    }
+
+    return NULL;
+}
+
+opa_set_elem_t *__opa_set_get_bucket_elem(opa_set_elem_t *bucket, opa_value *v) {
+    for (opa_set_elem_t *curr = bucket; curr != NULL; curr = curr->next)
+    {
+        if (opa_value_compare(curr->v, v) == 0)
+        {
+            return curr;
+        }
+    }
+
+    return NULL;
+}
+
 opa_value *opa_value_iter_set(opa_set_t *set, opa_value *prev)
 {
     if (prev == NULL)
     {
-        if (set->head == NULL)
-        {
-            return NULL;
+        opa_set_elem_t *first = __opa_set_next_bucket(set, 0);
+        if (first != NULL) {
+            return first->v;
         }
 
-        return set->head->v;
+        return NULL;
     }
 
-    opa_set_elem_t *elem = opa_set_get(set, prev);
+    size_t i = opa_value_hash(prev) % set->n;
+    opa_set_elem_t *elem = __opa_set_get_bucket_elem(set->buckets[i], prev);
+    opa_set_elem_t *next = elem->next;
+    if (next != NULL) {
+        return next->v;
+    }
 
-    if (elem != NULL && elem->next != NULL)
-    {
-        return elem->next->v;
+    next = __opa_set_next_bucket(set, i+1);
+    if (next != NULL) {
+            return next->v;
     }
 
     return NULL;
@@ -220,12 +253,7 @@ size_t opa_value_length_object(opa_object_t *obj)
 
 size_t opa_value_length_set(opa_set_t *set)
 {
-    size_t i = 0;
-    for (opa_set_elem_t *elem = set->head; elem != NULL; elem = elem->next)
-    {
-        i++;
-    }
-    return i;
+    return set->len;
 }
 
 size_t opa_value_length_array(opa_array_t *arr)
@@ -405,33 +433,26 @@ finish:
 
 int opa_value_compare_set(opa_set_t *a, opa_set_t *b)
 {
-    opa_set_elem_t *elem1 = a->head;
-    opa_set_elem_t *elem2 = b->head;
+    opa_array_t *va = __opa_set_values(a);
+    opa_array_t *vb = __opa_set_values(b);
 
-    while (elem1 != NULL && elem2 != NULL)
+    for (size_t i = 0; i < va->len && i < vb->len; i++)
     {
-        int cmp = opa_value_compare(elem1->v, elem2->v);
+        int cmp = opa_value_compare(opa_value_get_array_native(va, i), opa_value_get_array_native(vb, i));
 
         if (cmp != 0)
         {
             return cmp;
         }
-
-        elem1 = elem1->next;
-        elem2 = elem2->next;
     }
 
-    if (elem1 == NULL)
-    {
-        if (elem2 == NULL)
-        {
-            return 0;
-        }
-
+    if (va->len < vb->len) {
         return -1;
+    } else if (va->len > vb->len) {
+        return 1;
     }
 
-    return 1;
+    return 0;
 }
 
 int opa_value_compare(opa_value *a, opa_value *b)
@@ -568,7 +589,18 @@ size_t opa_object_hash(opa_object_t *o) {
 
 size_t opa_set_hash(opa_set_t *o) {
     size_t hash = 0;
-    // TODO
+
+    for (int i = 0; i < o->n; i++)
+    {
+        opa_set_elem_t *elem = o->buckets[i];
+
+        while (elem != NULL)
+        {
+            hash += opa_value_hash(elem->v);
+            elem = elem->next;
+        }
+    }
+
     return hash;
 }
 
@@ -983,12 +1015,24 @@ opa_value *opa_object()
     return __opa_object_with_buckets(OPA_OBJECT_MIN_BUCKETS);
 }
 
-opa_value *opa_set()
+opa_value *__opa_set_with_buckets(size_t buckets)
 {
     opa_set_t *ret = (opa_set_t *)opa_malloc(sizeof(opa_set_t));
     ret->hdr.type = OPA_SET;
-    ret->head = NULL;
+    ret->buckets = (opa_set_elem_t **)opa_malloc(sizeof(opa_set_elem_t *) * buckets);
+    ret->n = buckets;
+    ret->len = 0;
+
+    for (size_t i = 0; i < buckets; i++) {
+        ret->buckets[i] = NULL;
+    }
+
     return &ret->hdr;
+}
+
+opa_value *opa_set()
+{
+    return __opa_set_with_buckets(OPA_SET_MIN_BUCKETS);
 }
 
 void opa_value_boolean_set(opa_value *v, int b)
@@ -1180,26 +1224,54 @@ opa_object_elem_t *opa_object_get(opa_object_t *obj, opa_value *key)
     return NULL;
 }
 
-void opa_set_free(opa_set_t *set)
+void __opa_set_buckets_free(opa_set_t *set)
 {
-    opa_set_elem_t *prev = NULL;
-
-    for (opa_set_elem_t *curr = set->head; curr != NULL; curr = curr->next)
+    for (int i = 0; i < set->n; i++)
     {
+        opa_set_elem_t *prev = NULL;
+
+        for (opa_set_elem_t *curr = set->buckets[i]; curr != NULL; curr = curr->next)
+        {
+            if (prev != NULL)
+            {
+                opa_free(prev);
+            }
+
+            prev = curr;
+        }
+
         if (prev != NULL)
         {
             opa_free(prev);
         }
-
-        prev = curr;
     }
 
-    if (prev != NULL)
-    {
-        opa_free(prev);
-    }
+    opa_free(set->buckets);
+}
 
+void opa_set_free(opa_set_t *set)
+{
+    __opa_set_buckets_free(set);
     opa_free(set);
+}
+
+opa_array_t *__opa_set_values(opa_set_t *set)
+{
+    opa_array_t *values = opa_cast_array(opa_array_with_cap(opa_value_length_set(set)));
+
+    for (int i = 0; i < set->n; i++)
+    {
+        opa_set_elem_t *elem = set->buckets[i];
+
+        while (elem != NULL)
+        {
+            opa_array_append(values, elem->v);
+            elem = elem->next;
+        }
+    }
+
+    opa_array_sort(values, opa_value_compare);
+    return values;
 }
 
 opa_set_elem_t *__opa_set_elem_alloc(opa_value *v)
@@ -1210,54 +1282,68 @@ opa_set_elem_t *__opa_set_elem_alloc(opa_value *v)
     return elem;
 }
 
+void __opa_set_grow(opa_set_t *set, size_t n) {
+    if (n <= (set->n * OPA_SET_LOAD_FACTOR))
+    {
+        return;
+    }
+
+    opa_set_t *dst = opa_cast_set(__opa_set_with_buckets(set->n * 2));
+
+    for (int i = 0; i < set->n; i++)
+    {
+        opa_set_elem_t *elem = set->buckets[i];
+
+        while (elem != NULL)
+        {
+            opa_set_add(dst, elem->v);
+            elem = elem->next;
+        }
+    }
+
+    __opa_set_buckets_free(set);
+    set->buckets = dst->buckets;
+    set->n = dst->n;
+}
+
 void opa_set_add(opa_set_t *set, opa_value *v)
 {
-    opa_set_elem_t *prev = NULL;
-    opa_set_elem_t *curr = NULL;
+    size_t hash = opa_value_hash(v);
 
-    for (curr = set->head; curr != NULL; curr = curr->next)
+    for (opa_set_elem_t *curr = set->buckets[hash % set->n]; curr != NULL; curr = curr->next)
     {
-        int cmp = opa_value_compare(curr->v, v);
-
-        if (cmp == 0)
+        if (opa_value_compare(curr->v, v) == 0)
         {
             return;
         }
-        else if (cmp > 0)
-        {
+    }
+
+    __opa_set_grow(set, set->len+1);
+
+    size_t i = hash % set->n;
+    opa_set_elem_t **prev = &set->buckets[i];
+    opa_set_elem_t *curr = set->buckets[i];
+
+    while (1) {
+        if (curr == NULL || opa_value_compare(v, curr->v) < 0) {
+            opa_set_elem_t *new = __opa_set_elem_alloc(v);
+            *prev = new;
+            new->next = curr;
             break;
         }
 
-        prev = curr;
+        prev = &curr->next;
+        curr = curr->next;
     }
 
-    opa_set_elem_t *added = __opa_set_elem_alloc(v);
-
-    if (prev != NULL)
-    {
-        prev->next = added;
-    }
-    else
-    {
-        set->head = added;
-    }
-
-    added->next = curr;
-}
-
-opa_set_elem_t *opa_set_iter(opa_set_t *set, opa_set_elem_t *prev)
-{
-    if (prev == NULL)
-    {
-        return set->head;
-    }
-
-    return prev->next;
+    set->len++;
 }
 
 opa_set_elem_t *opa_set_get(opa_set_t *set, opa_value *v)
 {
-    for (opa_set_elem_t *curr = set->head; curr != NULL; curr = curr->next)
+    size_t hash = opa_value_hash(v) % set->n;
+
+    for (opa_set_elem_t *curr = set->buckets[hash]; curr != NULL; curr = curr->next)
     {
         if (opa_value_compare(curr->v, v) == 0)
         {

@@ -108,12 +108,12 @@ cases:
       input.foo[x] = y with input.foo.bar as 1 with input.foo.baz as 2
     want_result: [
       {
-        'x': 'bar',
-        'y': 1,
-      },
-      {
         'x': 'baz',
         'y': 2,
+      },
+      {
+        'x': 'bar',
+        'y': 1,
       },
     ]
   - note: shadow rules
