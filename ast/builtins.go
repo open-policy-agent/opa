@@ -211,8 +211,8 @@ var DefaultBuiltins = [...]*Builtin{
 	// Units
 	UnitsParseBytes,
 
-	// Uuid
-	UUID,
+	// UUIDs
+	UUIDRFC4122,
 }
 
 // BuiltinMap provides a convenient mapping of built-in names to
@@ -990,8 +990,8 @@ var UnitsParseBytes = &Builtin{
  * Type
  */
 
-// UUID returns a version 4 uuid string
-var UUID = &Builtin{
+// UUIDRFC4122 returns a version 4 UUID string.
+var UUIDRFC4122 = &Builtin{
 	Name: "uuid.rfc4122",
 	Decl: types.NewFunction(
 		types.Args(types.S),

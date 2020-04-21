@@ -13,11 +13,9 @@ import (
 
 type uuidCachingKey string
 
-func builtinUUID(bctx BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
-	var cachingKey = uuidCachingKey("UUID-" + args[0].Value.String())
-
+func builtinUUIDRFC4122(bctx BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
+	var cachingKey = uuidCachingKey(args[0].Value.String())
 	id, ok := bctx.Cache.Get(cachingKey)
-
 	var uuidv4 *ast.Term
 
 	if !ok {
@@ -39,5 +37,5 @@ func builtinUUID(bctx BuiltinContext, args []*ast.Term, iter func(*ast.Term) err
 }
 
 func init() {
-	RegisterBuiltinFunc(ast.UUID.Name, builtinUUID)
+	RegisterBuiltinFunc(ast.UUIDRFC4122.Name, builtinUUIDRFC4122)
 }
