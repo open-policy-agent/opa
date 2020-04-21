@@ -766,18 +766,7 @@ func TestHTTPRedirectEnable(t *testing.T) {
 }
 
 func TestHTTPSendCaching(t *testing.T) {
-	// test server
-	nextResponse := "{}"
-	var requests []*http.Request
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		requests = append(requests, r)
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(nextResponse))
-	}))
-	defer ts.Close()
-
 	// expected result
-
 	var body []interface{}
 	bodyMap := map[string]string{"id": "1", "firstname": "John"}
 	body = append(body, bodyMap)
@@ -876,16 +865,25 @@ func TestHTTPSendCaching(t *testing.T) {
 	data := loadSmallTestData()
 
 	for _, tc := range tests {
-		nextResponse = tc.response
-		requests = nil
-		runTopDownTestCase(t, data, tc.note, []string{strings.ReplaceAll(tc.ruleTemplate, "%URL%", ts.URL)}, tc.response)
+		t.Run(tc.note, func(t *testing.T) {
 
-		// Note: The runTopDownTestCase ends up evaluating twice (once with and once without partial
-		// eval first), so expect 2x the total request count the test case specified.
-		actualCount := len(requests) / 2
-		if actualCount != tc.expectedReqCount {
-			t.Fatalf("Expected to only get %d requests, got %d", tc.expectedReqCount, actualCount)
-		}
+			var requests []*http.Request
+			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				requests = append(requests, r)
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(tc.response))
+			}))
+			defer ts.Close()
+
+			runTopDownTestCase(t, data, tc.note, []string{strings.ReplaceAll(tc.ruleTemplate, "%URL%", ts.URL)}, tc.response)
+
+			// Note: The runTopDownTestCase ends up evaluating twice (once with and once without partial
+			// eval first), so expect 2x the total request count the test case specified.
+			actualCount := len(requests) / 2
+			if actualCount != tc.expectedReqCount {
+				t.Fatalf("Expected to get %d requests, got %d", tc.expectedReqCount, actualCount)
+			}
+		})
 	}
 }
 
