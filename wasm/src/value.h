@@ -95,7 +95,9 @@ struct opa_set_elem_t
 typedef struct
 {
     opa_value hdr;
-    opa_set_elem_t *head;
+    opa_set_elem_t **buckets;
+    size_t n;
+    size_t len;
 } opa_set_t;
 
 typedef int (*opa_compare_fn)(opa_value *, opa_value *t);
@@ -153,6 +155,5 @@ opa_object_elem_t *opa_object_get(opa_object_t *obj, opa_value *key);
 void opa_set_free(opa_set_t *set);
 void opa_set_add(opa_set_t *set, opa_value *v);
 opa_set_elem_t *opa_set_get(opa_set_t *set, opa_value *v);
-opa_set_elem_t *opa_set_iter(opa_set_t *set, opa_set_elem_t *prev);
 
 #endif

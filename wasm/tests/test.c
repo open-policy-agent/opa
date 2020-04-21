@@ -648,6 +648,39 @@ void test_opa_set_add_and_get()
     }
 }
 
+void test_opa_set_growth()
+{
+    opa_set_t *set = opa_cast_set(opa_set());
+    opa_set_add(set, opa_string_terminated("a"));
+    opa_set_add(set, opa_string_terminated("b"));
+    opa_set_add(set, opa_string_terminated("c"));
+    opa_set_add(set, opa_string_terminated("d"));
+    opa_set_add(set, opa_string_terminated("e"));
+    opa_set_add(set, opa_string_terminated("e"));
+
+    if (set->len != 5)
+    {
+        test_fatal("set is missing elements")
+    }
+
+    if (set->n != 8)
+    {
+        test_fatal("set capacity did double")
+    }
+
+    opa_set_add(set, opa_string_terminated("f"));
+
+    if (set->len != 6)
+    {
+        test_fatal("set is missing elements")
+    }
+
+    if (set->n != 16)
+    {
+        test_fatal("set capacity did not double")
+    }
+}
+
 void test_opa_value_iter_object()
 {
     opa_object_t *obj = fixture_object1();
