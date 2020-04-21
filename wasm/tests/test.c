@@ -580,6 +580,39 @@ void test_opa_object_insert()
     }
 }
 
+void test_opa_object_growth()
+{
+    opa_object_t *obj = opa_cast_object(opa_object());
+    opa_object_insert(obj, opa_string_terminated("a"), opa_string_terminated("1"));
+    opa_object_insert(obj, opa_string_terminated("b"), opa_string_terminated("2"));
+    opa_object_insert(obj, opa_string_terminated("c"), opa_string_terminated("3"));
+    opa_object_insert(obj, opa_string_terminated("d"), opa_string_terminated("4"));
+    opa_object_insert(obj, opa_string_terminated("e"), opa_string_terminated("5"));
+    opa_object_insert(obj, opa_string_terminated("e"), opa_string_terminated("5'"));
+
+    if (obj->len != 5)
+    {
+        test_fatal("object is missing key-value pairs")
+    }
+
+    if (obj->n != 8)
+    {
+        test_fatal("object capacity did double")
+    }
+
+    opa_object_insert(obj, opa_string_terminated("f"), opa_string_terminated("6"));
+
+    if (obj->len != 6)
+    {
+        test_fatal("object is missing key-value pairs")
+    }
+
+    if (obj->n != 16)
+    {
+        test_fatal("object capacity did not double")
+    }
+}
+
 void test_opa_set_add_and_get()
 {
     opa_set_t *set = fixture_set1();
@@ -623,8 +656,8 @@ void test_opa_value_iter_object()
     opa_value *k2 = opa_value_iter(&obj->hdr, k1);
     opa_value *k3 = opa_value_iter(&obj->hdr, k2);
 
-    opa_value *exp1 = opa_string_terminated("a");
-    opa_value *exp2 = opa_string_terminated("b");
+    opa_value *exp1 = opa_string_terminated("b");
+    opa_value *exp2 = opa_string_terminated("a");
     opa_value *exp3 = NULL;
 
     if (opa_value_compare(k1, exp1) != 0)
