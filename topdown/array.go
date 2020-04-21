@@ -49,24 +49,23 @@ func builtinArraySlice(a, i, j ast.Value) (ast.Value, error) {
 		return nil, err
 	}
 
-	// Return empty array if bounds cannot be clamped sensibly.
-	if (startIndex >= stopIndex) || (startIndex <= 0 && stopIndex <= 0) {
-		return arr[0:0], nil
-	}
-
-	// Clamp bounds to avoid out-of-range errors.
-	if startIndex < 0 {
-		startIndex = 0
-	}
-
-	if stopIndex > len(arr) {
+	// Clamp stopIndex to avoid out-of-range errors. If negative, clamp to zero.
+	// Otherwise, clamp to length of array.
+	if stopIndex < 0 {
+		stopIndex = 0
+	} else if stopIndex > len(arr) {
 		stopIndex = len(arr)
 	}
 
-	arrb := arr[startIndex:stopIndex]
+	// Clamp startIndex to avoid out-of-range errors. If negative, clamp to zero.
+	// Otherwise, clamp to stopIndex to avoid to avoid cases like arr[1:0].
+	if startIndex < 0 {
+		startIndex = 0
+	} else if startIndex > stopIndex {
+		startIndex = stopIndex
+	}
 
-	return arrb, nil
-
+	return arr[startIndex:stopIndex], nil
 }
 
 func init() {

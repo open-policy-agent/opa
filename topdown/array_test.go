@@ -25,6 +25,8 @@ func TestTopDownArray(t *testing.T) {
 		{"slice: stopIndex < startIndex", []string{`p = x { x = array.slice([1,2,3,4,5], 4, 1) }`}, "[]"},
 		{"slice: clamp startIndex", []string{`p = x { x = array.slice([1,2,3,4,5], -1, 2) }`}, `[1,2]`},
 		{"slice: clamp stopIndex", []string{`p = x {x = array.slice([1,2,3,4,5], 3, 6) }`}, `[4,5]`},
+		{"slice: clamp both out of range", []string{"p = x { x = array.slice([], 1000, 2000) }"}, `[]`},
+		{"slice: clamp both out of range non-empty", []string{"p = x { x = array.slice([1,2,3], 1000, 2000) }"}, `[]`},
 	}
 
 	data := loadSmallTestData()
