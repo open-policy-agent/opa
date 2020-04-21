@@ -79,7 +79,9 @@ struct opa_object_elem_t
 typedef struct
 {
     opa_value hdr;
-    opa_object_elem_t *head;
+    opa_object_elem_t **buckets;
+    size_t n;
+    size_t len;
 } opa_object_t;
 
 typedef struct opa_set_elem_t opa_set_elem_t;
@@ -107,6 +109,7 @@ typedef int (*opa_compare_fn)(opa_value *, opa_value *t);
 
 int opa_value_type(opa_value *node);
 int opa_value_compare(opa_value *a, opa_value *b);
+size_t opa_value_hash(opa_value *node);
 opa_value *opa_value_get(opa_value *node, opa_value *key);
 opa_value *opa_value_iter(opa_value *node, opa_value *prev);
 size_t opa_value_length(opa_value *node);
@@ -127,6 +130,7 @@ opa_value *opa_array();
 opa_value *opa_array_with_cap(size_t cap);
 opa_value *opa_array_with_elems(opa_array_elem_t *elems, size_t len, size_t cap);
 opa_value *opa_object();
+opa_value *opa_object_with_cap(size_t cap);
 opa_value *opa_set();
 
 void opa_value_boolean_set(opa_value *v, int b);
@@ -145,7 +149,6 @@ void opa_object_free(opa_object_t *obj);
 opa_array_t *opa_object_keys(opa_object_t *obj);
 void opa_object_insert(opa_object_t *obj, opa_value *k, opa_value *v);
 opa_object_elem_t *opa_object_get(opa_object_t *obj, opa_value *key);
-opa_object_elem_t *opa_object_iter(opa_object_t *obj, opa_object_elem_t *prev);
 
 void opa_set_free(opa_set_t *set);
 void opa_set_add(opa_set_t *set, opa_value *v);
