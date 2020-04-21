@@ -15,33 +15,54 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/open-policy-agent/opa/metrics"
-
 	"github.com/open-policy-agent/opa/ast"
-
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/download"
+	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/storage"
 )
 
+// DownloaderFactory defines an interface for instantiating downloaders.
+type DownloaderFactory interface {
+	// TODO(tsandall): In the future, we will need to support a validation interface
+	// so that factory can validate the bundle configuration in advance.
+	New(name string, source *Source) download.Interface
+}
+
+type defaultDownloaderFactory struct {
+	manager *plugins.Manager
+}
+
+func (df defaultDownloaderFactory) New(name string, source *Source) download.Interface {
+	return download.New(source.Config, df.manager.Client(source.Service), source.Resource)
+}
+
 // Plugin implements bundle activation.
 type Plugin struct {
-	config        Config
-	manager       *plugins.Manager                         // plugin manager for storage and service clients
-	status        map[string]*Status                       // current status for each bundle
-	etags         map[string]string                        // etag on last successful activation
-	listeners     map[interface{}]func(Status)             // listeners to send status updates to
-	bulkListeners map[interface{}]func(map[string]*Status) // listeners to send aggregated status updates to
-	downloaders   map[string]*download.Downloader
-	mtx           sync.Mutex
-	cfgMtx        sync.Mutex
-	legacyConfig  bool
-	ready         bool
+	config            Config
+	manager           *plugins.Manager                         // plugin manager for storage and service clients
+	status            map[string]*Status                       // current status for each bundle
+	etags             map[string]string                        // etag on last successful activation
+	listeners         map[interface{}]func(Status)             // listeners to send status updates to
+	bulkListeners     map[interface{}]func(map[string]*Status) // listeners to send aggregated status updates to
+	downloaderFactory DownloaderFactory
+	downloaders       map[string]download.Interface
+	mtx               sync.Mutex
+	cfgMtx            sync.Mutex
+	legacyConfig      bool
+	ready             bool
+}
+
+// WithDownloaderFactory defines an option that sets the downloader factory on the plugin.
+func WithDownloaderFactory(df DownloaderFactory) func(*Plugin) {
+	return func(p *Plugin) {
+		p.downloaderFactory = df
+	}
 }
 
 // New returns a new Plugin with the given config.
-func New(parsedConfig *Config, manager *plugins.Manager) *Plugin {
+func New(parsedConfig *Config, manager *plugins.Manager, opts ...func(*Plugin)) *Plugin {
 	initialStatus := map[string]*Status{}
 	for name := range parsedConfig.Bundles {
 		initialStatus[name] = &Status{
@@ -53,12 +74,26 @@ func New(parsedConfig *Config, manager *plugins.Manager) *Plugin {
 		manager:     manager,
 		config:      *parsedConfig,
 		status:      initialStatus,
-		downloaders: make(map[string]*download.Downloader),
+		downloaders: make(map[string]download.Interface),
 		etags:       make(map[string]string),
 		ready:       false,
 	}
 
+	for _, opt := range opts {
+		opt(p)
+	}
+
+	// Initialize the downloader factory if the caller did not provide one. The bundle
+	// plugin did not previously abstract the downloader instantiation so old callers
+	// will not be supplying a factory yet.
+	if p.downloaderFactory == nil {
+		p.downloaderFactory = defaultDownloaderFactory{
+			manager: manager,
+		}
+	}
+
 	manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateNotReady})
+
 	return p
 }
 
@@ -245,12 +280,11 @@ func (p *Plugin) initDownloaders() {
 	}
 }
 
-func (p *Plugin) newDownloader(name string, source *Source) *download.Downloader {
-	conf := source.Config
-	client := p.manager.Client(source.Service)
-	path := source.Resource
-	return download.New(conf, client, path).WithCallback(func(ctx context.Context, u download.Update) {
-		// wrap the callback to include the name of the bundle that was updated
+func (p *Plugin) newDownloader(name string, source *Source) download.Interface {
+
+	d := p.downloaderFactory.New(name, source)
+
+	return d.WithCallback(func(ctx context.Context, u download.Update) {
 		p.oneShot(ctx, name, u)
 	})
 }

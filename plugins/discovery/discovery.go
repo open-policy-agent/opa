@@ -37,9 +37,9 @@ type Discovery struct {
 	manager    *plugins.Manager
 	config     *Config
 	factories  map[string]plugins.Factory
-	downloader *download.Downloader // discovery bundle downloader
-	status     *bundle.Status       // discovery status
-	etag       string               // discovery bundle etag for caching purposes
+	downloader download.Interface // discovery bundle downloader
+	status     *bundle.Status     // discovery status
+	etag       string             // discovery bundle etag for caching purposes
 	metrics    metrics.Metrics
 	readyOnce  sync.Once
 }

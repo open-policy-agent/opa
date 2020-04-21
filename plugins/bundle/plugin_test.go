@@ -323,7 +323,7 @@ func TestPluginOneShotActivationConflictingRoots(t *testing.T) {
 func TestPluginOneShotActivationPrefixMatchingRoots(t *testing.T) {
 	ctx := context.Background()
 	manager := getTestManager()
-	plugin := Plugin{manager: manager, status: map[string]*Status{}, etags: map[string]string{}, downloaders: map[string]*download.Downloader{}}
+	plugin := Plugin{manager: manager, status: map[string]*Status{}, etags: map[string]string{}, downloaders: map[string]download.Interface{}}
 	bundleNames := []string{"test-bundle1", "test-bundle2"}
 
 	for _, name := range bundleNames {
@@ -467,7 +467,7 @@ func validateStatus(t *testing.T, actual Status, expected string, expectStatusEr
 func TestPluginListenerErrorClearedOn304(t *testing.T) {
 	ctx := context.Background()
 	manager := getTestManager()
-	plugin := Plugin{manager: manager, status: map[string]*Status{}, etags: map[string]string{}, downloaders: map[string]*download.Downloader{}}
+	plugin := Plugin{manager: manager, status: map[string]*Status{}, etags: map[string]string{}, downloaders: map[string]download.Interface{}}
 	bundleName := "test-bundle"
 	plugin.status[bundleName] = &Status{Name: bundleName}
 	plugin.downloaders[bundleName] = download.New(download.Config{}, plugin.manager.Client(""), bundleName)
@@ -514,7 +514,7 @@ func TestPluginListenerErrorClearedOn304(t *testing.T) {
 func TestPluginBulkListener(t *testing.T) {
 	ctx := context.Background()
 	manager := getTestManager()
-	plugin := Plugin{manager: manager, status: map[string]*Status{}, etags: map[string]string{}, downloaders: map[string]*download.Downloader{}}
+	plugin := Plugin{manager: manager, status: map[string]*Status{}, etags: map[string]string{}, downloaders: map[string]download.Interface{}}
 	bundleNames := []string{
 		"b1",
 		"b2",
@@ -687,7 +687,7 @@ func TestPluginBulkListener(t *testing.T) {
 func TestPluginBulkListenerStatusCopyOnly(t *testing.T) {
 	ctx := context.Background()
 	manager := getTestManager()
-	plugin := Plugin{manager: manager, status: map[string]*Status{}, etags: map[string]string{}, downloaders: map[string]*download.Downloader{}}
+	plugin := Plugin{manager: manager, status: map[string]*Status{}, etags: map[string]string{}, downloaders: map[string]download.Interface{}}
 	bundleNames := []string{
 		"b1",
 		"b2",
@@ -739,7 +739,7 @@ func TestPluginActivateScopedBundle(t *testing.T) {
 
 	ctx := context.Background()
 	manager := getTestManager()
-	plugin := Plugin{manager: manager, status: map[string]*Status{}, etags: map[string]string{}, downloaders: map[string]*download.Downloader{}}
+	plugin := Plugin{manager: manager, status: map[string]*Status{}, etags: map[string]string{}, downloaders: map[string]download.Interface{}}
 	bundleName := "test-bundle"
 	plugin.status[bundleName] = &Status{Name: bundleName}
 	plugin.downloaders[bundleName] = download.New(download.Config{}, plugin.manager.Client(""), bundleName)
@@ -857,7 +857,7 @@ func TestPluginSetCompilerOnContext(t *testing.T) {
 
 	ctx := context.Background()
 	manager := getTestManager()
-	plugin := Plugin{manager: manager, status: map[string]*Status{}, etags: map[string]string{}, downloaders: map[string]*download.Downloader{}}
+	plugin := Plugin{manager: manager, status: map[string]*Status{}, etags: map[string]string{}, downloaders: map[string]download.Interface{}}
 	bundleName := "test-bundle"
 	plugin.status[bundleName] = &Status{Name: bundleName}
 	plugin.downloaders[bundleName] = download.New(download.Config{}, plugin.manager.Client(""), bundleName)
@@ -1117,7 +1117,7 @@ func TestPluginRequestVsDownloadTimestamp(t *testing.T) {
 
 	ctx := context.Background()
 	manager := getTestManager()
-	plugin := Plugin{manager: manager, status: map[string]*Status{}, etags: map[string]string{}, downloaders: map[string]*download.Downloader{}}
+	plugin := Plugin{manager: manager, status: map[string]*Status{}, etags: map[string]string{}, downloaders: map[string]download.Interface{}}
 	bundleName := "test-bundle"
 	plugin.status[bundleName] = &Status{Name: bundleName}
 	plugin.downloaders[bundleName] = download.New(download.Config{}, plugin.manager.Client(""), bundleName)
@@ -1161,7 +1161,7 @@ func TestUpgradeLegacyBundleToMuiltiBundleSameBundle(t *testing.T) {
 
 	ctx := context.Background()
 	manager := getTestManager()
-	plugin := Plugin{manager: manager, status: map[string]*Status{}, etags: map[string]string{}, downloaders: map[string]*download.Downloader{}}
+	plugin := Plugin{manager: manager, status: map[string]*Status{}, etags: map[string]string{}, downloaders: map[string]download.Interface{}}
 	bundleName := "test-bundle"
 	plugin.status[bundleName] = &Status{Name: bundleName}
 	plugin.downloaders[bundleName] = download.New(download.Config{}, plugin.manager.Client(""), bundleName)
@@ -1251,12 +1251,9 @@ func TestUpgradeLegacyBundleToMuiltiBundleSameBundle(t *testing.T) {
 func TestUpgradeLegacyBundleToMuiltiBundleNewBundles(t *testing.T) {
 	ctx := context.Background()
 	manager := getTestManager()
-	plugin := Plugin{
-		manager:     manager,
-		status:      map[string]*Status{},
-		etags:       map[string]string{},
-		downloaders: map[string]*download.Downloader{},
-	}
+
+	plugin := New(&Config{}, manager)
+
 	bundleName := "test-bundle"
 	plugin.status[bundleName] = &Status{Name: bundleName}
 	plugin.downloaders[bundleName] = download.New(download.Config{}, plugin.manager.Client(""), bundleName)
@@ -1381,6 +1378,78 @@ func TestUpgradeLegacyBundleToMuiltiBundleNewBundles(t *testing.T) {
 
 	if !plugin.config.IsMultiBundle() {
 		t.Fatalf("Expected plugin to be in multi bundle config mode")
+	}
+}
+
+type customDownloaderFactory struct {
+	ds []*customDownloader
+}
+
+func (df *customDownloaderFactory) New(name string, source *Source) download.Interface {
+	df.ds = append(df.ds, &customDownloader{})
+	return df.ds[len(df.ds)-1]
+}
+
+type customDownloader struct {
+	f []func(context.Context, download.Update)
+}
+
+func (d *customDownloader) WithCallback(f func(context.Context, download.Update)) download.Interface {
+	d.f = append(d.f, f)
+	return d
+}
+
+func (d *customDownloader) WithLogConfig(cfg download.LogConfig) download.Interface {
+	return d
+}
+
+func (d *customDownloader) ClearCache()           {}
+func (d *customDownloader) Start(context.Context) {}
+func (d *customDownloader) Stop(context.Context)  {}
+
+func TestCustomDownloader(t *testing.T) {
+
+	cfg, err := ParseBundlesConfig([]byte(`{
+		"test": {
+			"service": "inmem"
+		}
+		}`), []string{"inmem"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	manager := getTestManager()
+
+	// Pass downloader factory when creating the plugin.
+	df := &customDownloaderFactory{}
+	p := New(cfg, manager, WithDownloaderFactory(df))
+	ctx := context.Background()
+	p.Start(ctx)
+
+	// Check that downloader was made correctly.
+	if len(df.ds) != 1 {
+		t.Fatal("expected exactly one downloader")
+	} else if len(df.ds[0].f) != 1 {
+		t.Fatal("expected exactly one callback")
+	}
+
+	// Send an update and verify that it activates.
+	m := bundle.Manifest{}
+	m.Init()
+	b := &bundle.Bundle{Data: map[string]interface{}{"foo": "bar"}, Manifest: m}
+
+	df.ds[0].f[0](ctx, download.Update{
+		Bundle: b,
+	})
+
+	// Use a new context to represent a different goroutine/caller performing the
+	// read.
+	ctx2 := context.Background()
+	result, err := storage.ReadOne(ctx2, manager.Store, storage.MustParsePath("/foo"))
+	if err != nil {
+		t.Fatal(err)
+	} else if !reflect.DeepEqual(result, "bar") {
+		t.Fatal(`expected "bar" but got:`, result)
 	}
 }
 

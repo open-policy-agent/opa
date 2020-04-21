@@ -43,7 +43,7 @@ func TestEtagCachingLifecycle(t *testing.T) {
 
 	ctx := context.Background()
 	fixture := newTestFixture(t)
-	fixture.d = New(Config{}, fixture.client, "/bundles/test/bundle1").WithCallback(fixture.oneShot)
+	fixture.d = New(Config{}, fixture.client, "/bundles/test/bundle1").WithCallback(fixture.oneShot).(*Downloader)
 	defer fixture.server.stop()
 
 	// check etag on the downloader is empty
