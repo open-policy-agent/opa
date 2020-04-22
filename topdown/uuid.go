@@ -1,12 +1,10 @@
-// Copyright 2017 The OPA Authors.  All rights reserved.
+// Copyright 2020 The OPA Authors.  All rights reserved.
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
 package topdown
 
 import (
-	"crypto/rand"
-
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/internal/uuid"
 )
@@ -14,26 +12,24 @@ import (
 type uuidCachingKey string
 
 func builtinUUIDRFC4122(bctx BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
-	var cachingKey = uuidCachingKey(args[0].Value.String())
-	id, ok := bctx.Cache.Get(cachingKey)
-	var uuidv4 *ast.Term
 
-	if !ok {
-		var err error
-		var newUUID string
+	var result *ast.Term
+	var key = uuidCachingKey(args[0].Value.String())
 
-		newUUID, err = uuid.New(rand.Reader)
+	if val, ok := bctx.Cache.Get(key); !ok {
+		s, err := uuid.New(bctx.Seed)
 		if err != nil {
 			return err
 		}
 
-		uuidv4 = ast.NewTerm(ast.String(newUUID))
-		bctx.Cache.Put(cachingKey, uuidv4)
+		result = ast.NewTerm(ast.String(s))
+		bctx.Cache.Put(key, result)
+
 	} else {
-		uuidv4 = id.(*ast.Term)
+		result = val.(*ast.Term)
 	}
 
-	return iter(uuidv4)
+	return iter(result)
 }
 
 func init() {
