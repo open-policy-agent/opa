@@ -7,6 +7,7 @@ package topdown
 import (
 	"context"
 	"fmt"
+	"io"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/topdown/builtins"
@@ -29,6 +30,7 @@ type (
 	// built-in functions.
 	BuiltinContext struct {
 		Context  context.Context // request context that was passed when query started
+		Seed     io.Reader       // randomization seed
 		Cancel   Cancel          // atomic value that signals evaluation to halt
 		Runtime  *ast.Term       // runtime information on the OPA instance
 		Cache    builtins.Cache  // built-in function state cache

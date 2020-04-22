@@ -225,6 +225,7 @@ var BuiltinMap map[string]*Builtin
 var IgnoreDuringPartialEval = []*Builtin{
 	NowNanos,
 	HTTPSend,
+	UUIDRFC4122,
 }
 
 /**
