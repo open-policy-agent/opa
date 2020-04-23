@@ -706,6 +706,14 @@ func (s *Server) registerHandler(router *mux.Router, version int, path string, m
 }
 
 func (s *Server) reload(ctx context.Context, txn storage.Transaction, event storage.TriggerEvent) {
+
+	// NOTE(tsandall): We currently rely on the storage txn to provide
+	// critical sections in the server.
+	//
+	// If you modify this function to change any other state on the server, you must
+	// review the other places in the server where that state is accessed to avoid data
+	// races--the state must be accessed _after_ a txn has been opened.
+
 	// reset some cached info
 	s.partials = map[string]rego.PartialResult{}
 	s.revisions = map[string]string{}
@@ -746,21 +754,20 @@ func (s *Server) migrateWatcher(txn storage.Transaction) {
 }
 
 func (s *Server) unversionedPost(w http.ResponseWriter, r *http.Request) {
-	s.v0QueryPath(w, r, s.defaultDecisionPath)
+	s.v0QueryPath(w, r, "", true)
 }
 
 func (s *Server) v0DataPost(w http.ResponseWriter, r *http.Request) {
-	s.v0QueryPath(w, r, mux.Vars(r)["path"])
+	s.v0QueryPath(w, r, mux.Vars(r)["path"], false)
 }
 
-func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, urlPath string) {
+func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, urlPath string, useDefaultDecisionPath bool) {
 	m := metrics.New()
 	m.Timer(metrics.ServerHandler).Start()
 
 	decisionID := s.generateDecisionID()
 
 	ctx := r.Context()
-	logger := s.getDecisionLogger()
 	input, err := readInputV0(r)
 	if err != nil {
 		writer.ErrorString(w, http.StatusBadRequest, types.CodeInvalidParameter, errors.Wrapf(err, "unexpected parse error for input"))
@@ -785,6 +792,12 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, urlPath str
 	}
 
 	defer s.store.Abort(ctx, txn)
+
+	if useDefaultDecisionPath {
+		urlPath = s.defaultDecisionPath
+	}
+
+	logger := s.getDecisionLogger()
 
 	pqID := "v0QueryPath::" + urlPath
 	preparedQuery, ok := s.getCachedPreparedEvalQuery(pqID, m)
@@ -1034,7 +1047,6 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	vars := mux.Vars(r)
 	urlPath := vars["path"]
-	logger := s.getDecisionLogger()
 
 	watch := getWatch(r.URL.Query()[types.ParamWatchV1])
 	if watch {
@@ -1082,6 +1094,8 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer s.store.Abort(ctx, txn)
+
+	logger := s.getDecisionLogger()
 
 	var buf *topdown.BufferTracer
 
@@ -1231,7 +1245,6 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	vars := mux.Vars(r)
 	urlPath := vars["path"]
-	logger := s.getDecisionLogger()
 
 	watch := getWatch(r.URL.Query()[types.ParamWatchV1])
 	if watch {
@@ -1272,6 +1285,8 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer s.store.Abort(ctx, txn)
+
+	logger := s.getDecisionLogger()
 
 	opts := []func(*rego.Rego){
 		rego.Compiler(s.getCompiler()),
