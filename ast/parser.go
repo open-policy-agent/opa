@@ -327,6 +327,8 @@ func (p *Parser) parseRules() []*Rule {
 		}
 	}
 
+	rule.Location.Text = p.s.Text(rule.Location.Offset, p.s.lastEnd)
+
 	var rules []*Rule
 
 	rules = append(rules, &rule)
@@ -346,12 +348,18 @@ func (p *Parser) parseRules() []*Rule {
 		if next.Body = p.parseBody(tokens.RBrace); next.Body == nil {
 			return nil
 		}
+		p.scan()
 
+		loc.Text = p.s.Text(loc.Offset, p.s.lastEnd)
+		next.SetLoc(loc)
+
+		// Chained rule head's keep the original
+		// rule's head AST but have their location
+		// set to the rule body.
 		next.Head = rule.Head.Copy()
 		setLocRecursive(next.Head, loc)
-		next.SetLoc(loc)
+
 		rules = append(rules, &next)
-		p.scan()
 	}
 
 	return rules
@@ -361,69 +369,61 @@ func (p *Parser) parseElse(head *Head) *Rule {
 
 	var rule Rule
 	rule.SetLoc(p.s.Loc())
+
+	rule.Head = head.Copy()
+	rule.Head.SetLoc(p.s.Loc())
+
+	defer func() {
+		rule.Location.Text = p.s.Text(rule.Location.Offset, p.s.lastEnd)
+	}()
+
 	p.scan()
 
 	switch p.s.tok {
 	case tokens.LBrace:
-		p.scan()
-
-		if rule.Body = p.parseBody(tokens.RBrace); rule.Body == nil {
-			return nil
-		}
-
-		p.scan()
-
-		if p.s.tok == tokens.Else {
-			if rule.Else = p.parseElse(head); rule.Else == nil {
-				return nil
-			}
-		}
-		rule.Head = head.Copy()
 		rule.Head.Value = BooleanTerm(true)
-		setLocRecursive(rule.Head, rule.Location)
-		return &rule
-
 	case tokens.Unify:
 		p.scan()
-		rule.Head = head.Copy()
 		rule.Head.Value = p.parseTermRelation()
-		setLocRecursive(rule.Head, rule.Location)
-
 		if rule.Head.Value == nil {
 			return nil
 		}
-
-		if p.s.tok != tokens.LBrace {
-			rule.Body = NewBody(NewExpr(BooleanTerm(true)))
-			setLocRecursive(rule.Body, rule.Location)
-			return &rule
-		}
-
-		p.scan()
-
-		if rule.Body = p.parseBody(tokens.RBrace); rule.Body == nil {
-			return nil
-		}
-
-		p.scan()
-
-		if p.s.tok == tokens.Else {
-			if rule.Else = p.parseElse(head); rule.Else == nil {
-				return nil
-			}
-		}
-
-		return &rule
+		rule.Head.Location.Text = p.s.Text(rule.Head.Location.Offset, p.s.lastEnd)
 	default:
 		p.illegal("expected else value term or rule body")
 		return nil
 	}
+
+	if p.s.tok != tokens.LBrace {
+		rule.Body = NewBody(NewExpr(BooleanTerm(true)))
+		setLocRecursive(rule.Body, rule.Location)
+		return &rule
+	}
+
+	p.scan()
+
+	if rule.Body = p.parseBody(tokens.RBrace); rule.Body == nil {
+		return nil
+	}
+
+	p.scan()
+
+	if p.s.tok == tokens.Else {
+		if rule.Else = p.parseElse(head); rule.Else == nil {
+			return nil
+		}
+	}
+	return &rule
 }
 
 func (p *Parser) parseHead(defaultRule bool) *Head {
 
 	var head Head
 	head.SetLoc(p.s.Loc())
+
+	defer func() {
+		head.Location.Text = p.s.Text(head.Location.Offset, p.s.lastEnd)
+	}()
 
 	if term := p.parseVar(); term != nil {
 		if v, ok := term.Value.(Var); ok {
