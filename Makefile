@@ -70,7 +70,7 @@ go-build: generate
 
 .PHONY: go-test
 go-test: generate
-	$(GO) test ./...
+	$(GO) test -tags=slow ./...
 
 .PHONY: perf
 perf: generate
