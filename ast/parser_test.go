@@ -2199,7 +2199,7 @@ func TestNamespacedBuiltins(t *testing.T) {
 	}
 }
 
-func TestRuleHeadLocationSetRecursively(t *testing.T) {
+func TestRuleHeadLocation(t *testing.T) {
 
 	const input = `package pkg
 
@@ -2218,22 +2218,120 @@ f(x) {
 
 	module := MustParseModule(input)
 
-	for _, row := range [][2]int{
-		{module.Rules[0].Location.Row, 3},
-		{module.Rules[1].Location.Row, 5},
-		{module.Rules[1].Head.Location.Row, 5},
-		{module.Rules[1].Head.Key.Location.Row, 5},
-		{module.Rules[2].Head.Location.Row, 9},
-		{module.Rules[2].Location.Row, 9},
-		{module.Rules[2].Head.Location.Row, 9},
-		{module.Rules[2].Head.Args[0].Location.Row, 9},
-		{module.Rules[2].Else.Location.Row, 11},
-		{module.Rules[2].Else.Head.Location.Row, 11},
-		{module.Rules[2].Else.Head.Args[0].Location.Row, 11},
+	for _, tc := range []struct {
+		note         string
+		location     *Location
+		expectedRow  int
+		expectedText string
+	}{
+		{
+			note:        "partial rule",
+			location:    module.Rules[0].Location,
+			expectedRow: 3,
+			expectedText: `
+p[x] {
+	x = "hi"
+}
+			`,
+		},
+		{
+			note:         "partial rule head",
+			location:     module.Rules[0].Head.Location,
+			expectedRow:  3,
+			expectedText: `p[x]`,
+		},
+		{
+			note:         "partial rule head key",
+			location:     module.Rules[0].Head.Key.Location,
+			expectedRow:  3,
+			expectedText: `x`,
+		},
+		{
+			note:        "chained rule",
+			location:    module.Rules[1].Location,
+			expectedRow: 5,
+			expectedText: `
+{
+	x = "bye"
+}
+			`,
+		},
+		{
+			note:        "chained rule head",
+			location:    module.Rules[1].Head.Location,
+			expectedRow: 5,
+			expectedText: `
+{
+	x = "bye"
+}
+			`,
+		},
+		{
+			note:        "chained rule head key",
+			location:    module.Rules[1].Head.Key.Location,
+			expectedRow: 5,
+			expectedText: `
+{
+	x = "bye"
+}
+			`,
+		},
+		{
+			note:        "rule with args",
+			location:    module.Rules[2].Location,
+			expectedRow: 9,
+			expectedText: `
+f(x) {
+	false
+} else = false {
+	true
+}
+			`,
+		},
+		{
+			note:         "rule with args head",
+			location:     module.Rules[2].Head.Location,
+			expectedRow:  9,
+			expectedText: `f(x)`,
+		},
+		{
+			note:         "rule with args head arg 0",
+			location:     module.Rules[2].Head.Args[0].Location,
+			expectedRow:  9,
+			expectedText: `x`,
+		},
+		{
+			note:        "else with args",
+			location:    module.Rules[2].Else.Location,
+			expectedRow: 11,
+			expectedText: `
+else = false {
+	true
+}
+			`,
+		},
+		{
+			note:         "else with args head",
+			location:     module.Rules[2].Else.Head.Location,
+			expectedRow:  11,
+			expectedText: `else = false`,
+		},
+		{
+			note:         "else with args head arg 0",
+			location:     module.Rules[2].Else.Head.Args[0].Location,
+			expectedRow:  9,
+			expectedText: `x`,
+		},
 	} {
-		if row[0] != row[1] {
-			t.Fatalf("Expected %d but got %d", row[1], row[0])
-		}
+		t.Run(tc.note, func(t *testing.T) {
+			if tc.location.Row != tc.expectedRow {
+				t.Errorf("Expected %d but got %d", tc.expectedRow, tc.location.Row)
+			}
+			exp := strings.TrimSpace(tc.expectedText)
+			if string(tc.location.Text) != exp {
+				t.Errorf("Expected text:\n%s\n\ngot:\n%s\n\n", exp, tc.location.Text)
+			}
+		})
 	}
 }
 
@@ -2331,6 +2429,183 @@ func TestParserText(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestRuleText(t *testing.T) {
+	input := ` package test
+	
+r[x] = y {
+	x = input.a
+	x = "foo"
+} {
+	x = input.b
+	x = "bar"
+} {
+	x = input.c
+	x = "baz"
+}
+	
+r[x] = y {
+	x = input.d
+	x = "qux"
+}
+`
+
+	mod := MustParseModule(input)
+	rules := mod.Rules
+
+	if len(rules) != 4 {
+		t.Fatalf("Expected 4 rules, got %d", len(rules))
+	}
+
+	expectedRuleText := []string{
+		`
+r[x] = y {
+	x = input.a
+	x = "foo"
+}
+		`,
+		`
+{
+	x = input.b
+	x = "bar"
+}
+		`,
+		`
+{
+	x = input.c
+	x = "baz"
+}
+		`,
+		`
+r[x] = y {
+	x = input.d
+	x = "qux"
+}
+		`,
+	}
+
+	assertLocationText(t, strings.TrimSpace(expectedRuleText[0]), rules[0].Location)
+	assertLocationText(t, "r[x] = y", rules[0].Head.Location)
+	assertLocationText(t, "y", rules[0].Head.Value.Location)
+
+	// Chained rules recursively set text on heads to be the full rule
+	for i := 1; i < len(expectedRuleText)-1; i++ {
+		text := strings.TrimSpace(expectedRuleText[i])
+		assertLocationText(t, text, rules[i].Location)
+		assertLocationText(t, text, rules[i].Head.Location)
+		assertLocationText(t, text, rules[i].Head.Value.Location)
+	}
+
+	assertLocationText(t, strings.TrimSpace(expectedRuleText[3]), rules[3].Location)
+	assertLocationText(t, "r[x] = y", rules[3].Head.Location)
+	assertLocationText(t, "y", rules[3].Head.Value.Location)
+}
+
+func TestRuleElseText(t *testing.T) {
+	input := `
+r1 = x {
+	a == "foo"
+} else = y {
+	b == "bar"
+}
+
+else {
+	c == "baz"
+}
+
+else = {
+	"k1": 1,
+	"k2": 2
+} {
+	true
+}
+`
+
+	rule := MustParseRule(input)
+	assertLocationText(t, strings.TrimSpace(input), rule.Location)
+	assertLocationText(t, "r1 = x", rule.Head.Location)
+	assertLocationText(t, "x", rule.Head.Value.Location)
+
+	curElse := rule.Else
+	if curElse == nil {
+		t.Fatalf("Expected an else block, got nil")
+	}
+	assertLocationText(t, strings.TrimSpace(`
+else = y {
+	b == "bar"
+}
+
+else {
+	c == "baz"
+}
+
+else = {
+	"k1": 1,
+	"k2": 2
+} {
+	true
+}
+	`), curElse.Location)
+	assertLocationText(t, "else = y", curElse.Head.Location)
+	assertLocationText(t, "y", curElse.Head.Value.Location)
+
+	curElse = curElse.Else
+	if curElse == nil {
+		t.Fatalf("Expected an else block, got nil")
+	}
+	assertLocationText(t, strings.TrimSpace(`
+else {
+	c == "baz"
+}
+
+else = {
+	"k1": 1,
+	"k2": 2
+} {
+	true
+}
+	`), curElse.Location)
+	assertLocationText(t, "else", curElse.Head.Location)
+	if curElse.Head.Value.Location != nil {
+		t.Errorf("Expected a nil location")
+	}
+
+	curElse = curElse.Else
+	if curElse == nil {
+		t.Fatalf("Expected an else block, got nil")
+	}
+	assertLocationText(t, strings.TrimSpace(`
+else = {
+	"k1": 1,
+	"k2": 2
+} {
+	true
+}
+	`), curElse.Location)
+	assertLocationText(t, strings.TrimSpace(`
+else = {
+	"k1": 1,
+	"k2": 2
+}
+	`), curElse.Head.Location)
+	assertLocationText(t, strings.TrimSpace(`
+{
+	"k1": 1,
+	"k2": 2
+}
+	`), curElse.Head.Value.Location)
+}
+
+func assertLocationText(t *testing.T, expected string, actual *Location) {
+	t.Helper()
+	if actual == nil || actual.Text == nil {
+		t.Errorf("Expected a non nil location and text")
+		return
+	}
+	if string(actual.Text) != expected {
+		t.Errorf("Unexpected Location text, got:\n%s\n\nExpected:\n%s\n\n", actual.Text, expected)
 	}
 }
 

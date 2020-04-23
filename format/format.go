@@ -263,6 +263,11 @@ func (w *writer) writeRule(rule *ast.Rule, isElse bool, comments []*ast.Comment)
 		rule.Else.Head.Name = ast.Var("else")
 		rule.Else.Head.Args = nil
 		comments = w.insertComments(comments, rule.Else.Head.Location)
+
+		// For backwards compatibility adjust the rule head value location
+		if rule.Else.Head.Value != nil {
+			rule.Else.Head.Value.Location = rule.Else.Head.Location
+		}
 		comments = w.writeRule(rule.Else, true, comments)
 	}
 	return comments
