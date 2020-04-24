@@ -17,7 +17,7 @@ func TestUUIDRFC4122SeedingAndCaching(t *testing.T) {
 
 	query := `uuid.rfc4122("x",x); uuid.rfc4122("y", y); uuid.rfc4122("x",x2)`
 
-	q := NewQuery(ast.MustParseBody(query)).WithSeed(rand.New(rand.NewSource(0)))
+	q := NewQuery(ast.MustParseBody(query)).WithSeed(rand.New(rand.NewSource(0))).WithCompiler(ast.NewCompiler())
 
 	ctx := context.Background()
 
@@ -56,7 +56,7 @@ func TestUUIDRFC4122SeedError(t *testing.T) {
 
 	query := `uuid.rfc4122("x",x)`
 
-	q := NewQuery(ast.MustParseBody(query)).WithSeed(fakeSeedErrorReader{})
+	q := NewQuery(ast.MustParseBody(query)).WithSeed(fakeSeedErrorReader{}).WithCompiler(ast.NewCompiler())
 
 	_, err := q.Run(context.Background())
 
@@ -70,7 +70,7 @@ func TestUUIDRFC4122SavingDuringPartialEval(t *testing.T) {
 
 	query := `foo = "x"; uuid.rfc4122(foo,x)`
 
-	q := NewQuery(ast.MustParseBody(query)).WithSeed(rand.New(rand.NewSource(0)))
+	q := NewQuery(ast.MustParseBody(query)).WithSeed(rand.New(rand.NewSource(0))).WithCompiler(ast.NewCompiler())
 
 	queries, modules, err := q.PartialRun(context.Background())
 	if err != nil {
