@@ -255,22 +255,67 @@ func (w *writer) writeRule(rule *ast.Rule, isElse bool, comments []*ast.Comment)
 	w.startLine()
 	w.write("}")
 	if rule.Else != nil {
-		if len(comments) > 0 && comments[0].Location.Row-rule.Else.Head.Location.Row < 0 {
-			w.blankLine()
-		} else {
-			w.write(" ")
-		}
-		rule.Else.Head.Name = ast.Var("else")
-		rule.Else.Head.Args = nil
-		comments = w.insertComments(comments, rule.Else.Head.Location)
-
-		// For backwards compatibility adjust the rule head value location
-		if rule.Else.Head.Value != nil {
-			rule.Else.Head.Value.Location = rule.Else.Head.Location
-		}
-		comments = w.writeRule(rule.Else, true, comments)
+		comments = w.writeElse(rule, comments)
 	}
 	return comments
+}
+
+func (w *writer) writeElse(rule *ast.Rule, comments []*ast.Comment) []*ast.Comment {
+	// If there was nothing else on the line before the "else" starts
+	// then preserve this style of else block, otherwise it will be
+	// started as an "inline" else eg:
+	//
+	//     p {
+	//     	...
+	//     }
+	//
+	//     else {
+	//     	...
+	//     }
+	//
+	// versus
+	//
+	//     p {
+	// 	    ...
+	//     } else {
+	//     	...
+	//     }
+	//
+	// Note: This doesn't use the `close` as it currently isn't accurate for all
+	// types of values. Checking the actual line text is the most consistent approach.
+	wasInline := false
+	ruleLines := bytes.Split(rule.Location.Text, []byte("\n"))
+	relativeElseRow := rule.Else.Location.Row - rule.Location.Row
+	if relativeElseRow > 0 && relativeElseRow < len(ruleLines) {
+		elseLine := ruleLines[relativeElseRow]
+		if !bytes.HasPrefix(bytes.TrimSpace(elseLine), []byte("else")) {
+			wasInline = true
+		}
+	}
+
+	// If there are any comments between the closing brace of the previous rule and the start
+	// of the else block we will always insert a new blank line between them.
+	hasCommentAbove := len(comments) > 0 && comments[0].Location.Row-rule.Else.Head.Location.Row < 0 || w.beforeEnd != nil
+
+	if !hasCommentAbove && wasInline {
+		w.write(" ")
+	} else {
+		w.blankLine()
+		w.startLine()
+	}
+
+	rule.Else.Head.Name = ast.Var("else")
+	rule.Else.Head.Args = nil
+	comments = w.insertComments(comments, rule.Else.Head.Location)
+
+	// For backwards compatibility adjust the rule head value location
+	// TODO: Refactor the logic for inserting comments, or special
+	// case comments in a rule head value so this can be removed
+	if rule.Else.Head.Value != nil {
+		rule.Else.Head.Value.Location = rule.Else.Head.Location
+	}
+
+	return w.writeRule(rule.Else, true, comments)
 }
 
 func (w *writer) writeHead(head *ast.Head, isDefault bool, isExpandedConst bool, comments []*ast.Comment) []*ast.Comment {

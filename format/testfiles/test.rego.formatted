@@ -61,7 +61,9 @@ fn(x) = y {
 
 fn_else(x) = 1 {
 	true
-} else = 2 { # foo
+} # foo
+
+else = 2 {
 	# bar
 
 	true

@@ -1,5 +1,6 @@
 package foo
 
+# Compact else cases
 authorize = "allow" {
     input.user == "superuser"
 } else = "deny" {
@@ -7,7 +8,21 @@ authorize = "allow" {
     input.source_network == "external"
 }
 
-# base case for p
+# Newline separated else blocks
+q = x {
+    foo == "bar"
+}
+
+else = y {
+    foo == "baz"
+}
+
+else = z {
+    foo == "qux"
+}
+
+
+# Mixed compact and newline separated
 p = x {
     foo == "bar"
 } # some special case
@@ -17,4 +32,8 @@ else = y {
     bar == "foo"
 } else = z {
     bar == "bar"
+}
+
+else {
+    bar == "baz"
 }
