@@ -55,12 +55,17 @@ $(WASM_OBJ_DIR)/value.wasm: src/value.c
 $(WASM_OBJ_DIR)/context.wasm: src/context.c
 	@$(CC) $(CFLAGS) -c $^ -o $@
 
-$(WASM_OBJ_DIR)/opa.wasm: $(WASM_OBJ_DIR)/malloc.wasm \
-		$(WASM_OBJ_DIR)/value.wasm \
+$(WASM_OBJ_DIR)/unicode.wasm: src/unicode.c
+	@$(CC) $(CFLAGS) -c $^ -o $@
+
+$(WASM_OBJ_DIR)/opa.wasm: \
+		$(WASM_OBJ_DIR)/context.wasm \
+		$(WASM_OBJ_DIR)/json.wasm \
+		$(WASM_OBJ_DIR)/malloc.wasm \
 		$(WASM_OBJ_DIR)/printf.wasm \
 		$(WASM_OBJ_DIR)/string.wasm \
-		$(WASM_OBJ_DIR)/context.wasm \
-		$(WASM_OBJ_DIR)/json.wasm
+		$(WASM_OBJ_DIR)/unicode.wasm \
+		$(WASM_OBJ_DIR)/value.wasm
 	@wasm-ld-8 \
 			--allow-undefined-file=src/undefined.symbols \
 			--import-memory \
@@ -73,13 +78,15 @@ $(WASM_OBJ_DIR)/opa.wasm: $(WASM_OBJ_DIR)/malloc.wasm \
 $(WASM_OBJ_DIR)/test.wasm: tests/test.c
 	@$(CC) $(CFLAGS) -I src -c $^ -o $@
 
-$(WASM_OBJ_DIR)/opa-test.wasm: $(WASM_OBJ_DIR)/test.wasm \
+$(WASM_OBJ_DIR)/opa-test.wasm: \
+		$(WASM_OBJ_DIR)/context.wasm \
+		$(WASM_OBJ_DIR)/json.wasm \
 		$(WASM_OBJ_DIR)/malloc.wasm \
-		$(WASM_OBJ_DIR)/value.wasm \
 		$(WASM_OBJ_DIR)/printf.wasm \
 		$(WASM_OBJ_DIR)/string.wasm \
-		$(WASM_OBJ_DIR)/context.wasm \
-		$(WASM_OBJ_DIR)/json.wasm
+		$(WASM_OBJ_DIR)/test.wasm \
+		$(WASM_OBJ_DIR)/unicode.wasm \
+		$(WASM_OBJ_DIR)/value.wasm
 	@cat src/undefined.symbols tests/undefined.symbols > _obj/undefined.symbols
 	@wasm-ld-8 \
 			--allow-undefined-file=_obj/undefined.symbols \

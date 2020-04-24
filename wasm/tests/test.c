@@ -350,6 +350,16 @@ void test_opa_json_parse_scalar()
     test("strings: escaped line feed", parse_crunch("\"a\\nb\"", opa_string_terminated("a\nb")));
     test("strings: escaped carriage return", parse_crunch("\"a\\rb\"", opa_string_terminated("a\rb")));
     test("strings: escaped tab", parse_crunch("\"a\\tb\"", opa_string_terminated("a\tb")));
+    test("strings: utf-8 2 bytes", parse_crunch("\"\xc2\xa2\"", opa_string_terminated("\xc2\xa2")));
+    test("strings: utf-8 3 bytes", parse_crunch("\"\xe0\xb8\x81\"", opa_string_terminated("\xe0\xb8\x81")));
+    test("strings: utf-8 3 bytes", parse_crunch("\"\xe2\x82\xac\"", opa_string_terminated("\xe2\x82\xac")));
+    test("strings: utf-8 3 bytes", parse_crunch("\"\xed\x9e\xb0\"", opa_string_terminated("\xed\x9e\xb0")));
+    test("strings: utf-8 3 bytes", parse_crunch("\"\xef\xa4\x80\"", opa_string_terminated("\xef\xa4\x80")));
+    test("strings: utf-8 4 bytes", parse_crunch("\"\xf0\x90\x8d\x88\"", opa_string_terminated("\xf0\x90\x8d\x88")));
+    test("strings: utf-8 4 bytes", parse_crunch("\"\xf3\xa0\x80\x81\"", opa_string_terminated("\xf3\xa0\x80\x81")));
+    test("strings: utf-8 4 bytes", parse_crunch("\"\xf4\x80\x80\x80\"", opa_string_terminated("\xf4\x80\x80\x80")));
+    test("strings: utf-16 no surrogate pair", parse_crunch("\" \\u20AC \"", opa_string_terminated(" \xe2\x82\xac ")));
+    test("strings: utf-16 surrogate pair", parse_crunch("\" \\ud801\\udc37 \"", opa_string_terminated(" \xf0\x90\x90\xb7 ")));
     test("integers", parse_crunch("0", opa_number_int(0)));
     test("integers", parse_crunch("123456789", opa_number_int(123456789)));
     test("signed integers", parse_crunch("-0", opa_number_int(0)));
@@ -357,6 +367,18 @@ void test_opa_json_parse_scalar()
     test("floats", parse_crunch("16.7", opa_number_float(16.7)));
     test("signed floats", parse_crunch("-16.7", opa_number_float(-16.7)));
     test("exponents", parse_crunch("6e7", opa_number_float(6e7)));
+}
+
+void test_opa_json_max_str_len()
+{
+    test("max str len: a char", opa_json_max_string_len("a", 1) == 1);
+    test("max str len: chars", opa_json_max_string_len("ab", 2) == 2);
+    test("max str len: single char escape", opa_json_max_string_len("ab\nd", 4) == 4);
+    test("max str len: 2 byte utf-8", opa_json_max_string_len("\xc2\xa2", 2) == 2);
+    test("max str len: 3 byte utf-8", opa_json_max_string_len("\xe0\xb8\x81", 3) == 3);
+    test("max str len: 4 byte utf-8", opa_json_max_string_len("\xf0\x90\x8d\x88", 4) == 4);
+    test("max str len: utf-16 no surrogate pair", opa_json_max_string_len(" \\u20AC ", 8) == 6);
+    test("max str len: utf-16 surrogate pair", opa_json_max_string_len(" \\ud801\\udc37 ", 14) == 6);
 }
 
 opa_array_t *fixture_array1()
@@ -865,6 +887,7 @@ void test_opa_json_dump()
     test("false", opa_strcmp(opa_json_dump(opa_boolean(0)), "false") == 0);
     test("true", opa_strcmp(opa_json_dump(opa_boolean(1)), "true") == 0);
     test("strings", opa_strcmp(opa_json_dump(opa_string_terminated("hello\"world")), "\"hello\\\"world\"") == 0);
+    test("strings utf-8", opa_strcmp(opa_json_dump(opa_string_terminated("\xed\xba\xad")), "\"\xed\xba\xad\"") == 0);
     test("numbers", opa_strcmp(opa_json_dump(opa_number_int(127)), "127") == 0);
 
     // NOTE(tsandall): the string representation is lossy. We should store
