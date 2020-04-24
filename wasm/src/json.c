@@ -3,6 +3,7 @@
 #include "json.h"
 #include "malloc.h"
 #include "printf.h"
+#include "unicode.h"
 
 static opa_value *opa_json_parse_token(opa_json_lex *ctx, int token);
 
@@ -154,7 +155,7 @@ int opa_json_lex_read_string(opa_json_lex *ctx)
             goto err;
         }
 
-        char b = *ctx->curr;
+        unsigned char b = *ctx->curr;
 
         switch (b)
         {
@@ -197,9 +198,14 @@ int opa_json_lex_read_string(opa_json_lex *ctx)
             goto out;
 
         default:
-            if (b < ' ' || b > '~')
-            {
+            if (b < ' ') {
                 goto err;
+            }
+
+            if (b > '~')
+            {
+                // Revert to slow path to validate UTF-8 encoding.
+                escaped = 1;
             }
             ctx->curr++;
             break;
@@ -278,13 +284,8 @@ void opa_json_lex_init(const char *input, size_t len, opa_json_lex *ctx)
     ctx->buf_end = NULL;
 }
 
-opa_value *opa_json_parse_string(int token, const char *buf, int len)
+size_t opa_json_max_string_len(const char *buf, size_t len)
 {
-    if (token == OPA_JSON_TOKEN_STRING)
-    {
-        return opa_string(buf, len);
-    }
-
     // The lexer will catch invalid escaping, e.g., if the last char in the
     // buffer is reverse solidus this will be caught ahead-of-time.
     int skip = 0;
@@ -293,19 +294,74 @@ opa_value *opa_json_parse_string(int token, const char *buf, int len)
     {
         if (buf[i] == '\\')
         {
-            skip++;
-            i++;
+            int codepoint;
+
+            codepoint = opa_unicode_decode_unit(buf, i, len);
+            if (codepoint == -1) {
+                // If not a codepoint \uXXXX, must be a single
+                // character escaping.
+                skip++;
+                i++;
+                continue;
+            }
+
+            i += 5;
+
+            // Assume each UTF-16 encoded character to take full 4
+            // bytes when encoded as UTF-8.  However, if encoded as a
+            // surrogate pair, it's split to two 2 bytes.
+            if (!opa_unicode_surrogate(codepoint)) {
+                skip += 2;
+                continue;
+            }
+
+            skip += 4;
         }
     }
 
-    char *cpy = (char *)opa_malloc(len-skip);
+    return len - skip;
+}
+
+opa_value *opa_json_parse_string(int token, const char *buf, int len)
+{
+    if (token == OPA_JSON_TOKEN_STRING)
+    {
+        return opa_string(buf, len);
+    }
+
+    int max_len = opa_json_max_string_len(buf, len);
+    char *cpy = (char *)opa_malloc(max_len);
     char *out = cpy;
 
     for (int i = 0; i < len;)
     {
-        if (buf[i] != '\\')
+        unsigned char c = buf[i];
+
+        if (c != '\\')
         {
-            *out++ = buf[i++];
+            if (c < ' ' || c == '"')
+            {
+                opa_abort("illegal unescaped character");
+            }
+
+            if (c < 0x80)
+            {
+                *out++ = c;
+                i++;
+            } else {
+                int n;
+                int cp = opa_unicode_decode_utf8(buf, i, len, &n);
+                if (cp == -1)
+                {
+                    opa_abort("illegal utf-8");
+                }
+
+                i += n;
+
+                n = opa_unicode_encode_utf8(cp, out);
+                out += n;
+            }
+
             continue;
         }
 
@@ -340,7 +396,33 @@ opa_value *opa_json_parse_string(int token, const char *buf, int len)
                 i += 2;
                 break;
             case 'u':
-                opa_abort("not implemented: UTF-16 parsing");
+                {
+                    // JSON encodes unicode characters as UTF-16 that
+                    // have either a single or two code units.  If two
+                    // code units, the character is represented as a
+                    // pair of UTF-16 surrogates.  Surrogates don't
+                    // overlap with characters that can be encoded as
+                    // a single value.
+                    int u = opa_unicode_decode_unit(buf, i, len);
+                    if (u == -1) {
+                        opa_abort("illegal string escape character");
+                    }
+
+                    i += 6;
+
+                    if (opa_unicode_surrogate(u)) {
+                        int v = opa_unicode_decode_unit(buf, i, len);
+                        if (v == -1) {
+                            opa_abort("illegal string escape character");
+                        }
+
+                        u = opa_unicode_decode_surrogate(u, v);
+                        i += 6;
+                    }
+
+                    out += opa_unicode_encode_utf8(u, out);
+                    break;
+                }
             default:
                 // this is unreachable.
                 opa_abort("illegal string escape character");
@@ -609,17 +691,52 @@ int opa_json_writer_emit_string(opa_json_writer *w, opa_string_t *s)
 
     for (size_t i = 0; i < s->len; i++)
     {
-        if (s->v[i] == '"')
-        {
-            rc = opa_json_writer_emit_char(w, '\\');
+        // Encode any character below 32 (space) with \u00XX, unless
+        // \n, \r or \t.  including and above character 32, escape if
+        // \ or ". Anything else is expected to be valid UTF-8.
 
+        unsigned char c = s->v[i];
+        if (c >= ' ' && c != '\\' && c != '"')
+        {
+            rc = opa_json_writer_emit_char(w, c);
+            if (rc != 0)
+            {
+                return rc;
+            }
+
+            continue;
+        }
+
+        rc = opa_json_writer_emit_char(w, '\\');
+        if (rc != 0)
+        {
+            return rc;
+        }
+
+        if (c == '\\' || c == '"') {
+            rc = opa_json_writer_emit_char(w, c);
+        } else if (c == '\n') {
+            rc = opa_json_writer_emit_char(w, 'n');
+        } else if (c == '\r') {
+            rc = opa_json_writer_emit_char(w, 'r');
+        } else if (c == '\t') {
+            rc = opa_json_writer_emit_char(w, 't');
+        } else {
+            rc = opa_json_writer_emit_chars(w, "u00", 3);
+            if (rc != 0)
+            {
+                return rc;
+            }
+
+            char buf[3];
+            snprintf(buf, 3, "%02x", c);
+
+            rc = opa_json_writer_emit_chars(w, buf, 2);
             if (rc != 0)
             {
                 return rc;
             }
         }
-
-        rc = opa_json_writer_emit_char(w, s->v[i]);
 
         if (rc != 0)
         {
