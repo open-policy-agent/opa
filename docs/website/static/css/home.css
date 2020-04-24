@@ -183,6 +183,18 @@ a {
     text-decoration: none;
 }
 
+.more-link {
+    margin-top: 5px;
+    width: 175px;
+    padding: .5% 1.5% !important;
+    font-size: 18px;
+}
+
+.more-link:hover {
+    /* #287880 #3499a2 */
+    background: linear-gradient( #28767d, #285c82);
+    border-color: #285c82;
+}
 
 .tohide {
     display: none;
