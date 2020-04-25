@@ -166,10 +166,6 @@ type Runtime struct {
 	Store   storage.Store
 	Manager *plugins.Manager
 
-	// TODO(tsandall): remove this field since it's available on the manager
-	// and doesn't have to duplicated here or on the server.
-	info *ast.Term // runtime information provided to evaluation engine
-
 	server  *server.Server
 	metrics *prometheus.Provider
 }
@@ -223,7 +219,6 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		Store:   manager.Store,
 		Params:  params,
 		Manager: manager,
-		info:    info,
 		metrics: metrics,
 	}
 
@@ -271,7 +266,7 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 		WithAuthorization(rt.Params.Authorization).
 		WithDecisionIDFactory(rt.decisionIDFactory).
 		WithDecisionLoggerWithErr(rt.decisionLogger).
-		WithRuntime(rt.info).
+		WithRuntime(rt.Manager.Info).
 		WithMetrics(rt.metrics).
 		Init(ctx)
 
@@ -338,7 +333,7 @@ func (rt *Runtime) StartREPL(ctx context.Context) {
 	defer rt.Manager.Stop(ctx)
 
 	banner := rt.getBanner()
-	repl := repl.New(rt.Store, rt.Params.HistoryPath, rt.Params.Output, rt.Params.OutputFormat, rt.Params.ErrorLimit, banner).WithRuntime(rt.info)
+	repl := repl.New(rt.Store, rt.Params.HistoryPath, rt.Params.Output, rt.Params.OutputFormat, rt.Params.ErrorLimit, banner).WithRuntime(rt.Manager.Info)
 
 	if rt.Params.Watch {
 		if err := rt.startWatcher(ctx, rt.Params.Paths, onReloadPrinter(rt.Params.Output)); err != nil {
