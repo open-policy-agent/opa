@@ -261,20 +261,24 @@ func (m *Manager) RegisterCompilerTrigger(f func(txn storage.Transaction)) {
 
 // Start starts the manager.
 func (m *Manager) Start(ctx context.Context) error {
+
 	if m == nil {
 		return nil
 	}
 
-	err := storage.Txn(ctx, m.Store, storage.TransactionParams{}, func(txn storage.Transaction) error {
-		compiler, err := loadCompilerFromStore(ctx, m.Store, txn)
+	if err := storage.Txn(ctx, m.Store, storage.WriteParams, func(txn storage.Transaction) error {
+
+		c, err := loadCompilerFromStore(ctx, m.Store, txn)
 		if err != nil {
 			return err
 		}
-		m.setCompiler(compiler)
-		return nil
-	})
 
-	if err != nil {
+		m.setCompiler(c)
+
+		_, err = m.Store.Register(ctx, txn, storage.TriggerConfig{OnCommit: m.onCommit})
+		return err
+
+	}); err != nil {
 		return err
 	}
 
@@ -295,12 +299,7 @@ func (m *Manager) Start(ctx context.Context) error {
 		}
 	}
 
-	config := storage.TriggerConfig{OnCommit: m.onCommit}
-
-	return storage.Txn(ctx, m.Store, storage.WriteParams, func(txn storage.Transaction) error {
-		_, err := m.Store.Register(ctx, txn, config)
-		return err
-	})
+	return nil
 }
 
 // Stop stops the manager, stopping all the plugins registered with it
@@ -402,6 +401,7 @@ func (m *Manager) copyPluginStatus() map[string]*Status {
 }
 
 func (m *Manager) onCommit(ctx context.Context, txn storage.Transaction, event storage.TriggerEvent) {
+
 	if event.PolicyChanged() {
 
 		var compiler *ast.Compiler
