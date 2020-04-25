@@ -11,7 +11,10 @@ import (
 	"sync"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/config"
+	initload "github.com/open-policy-agent/opa/internal/runtime/init"
+	"github.com/open-policy-agent/opa/loader"
 	"github.com/open-policy-agent/opa/plugins/rest"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/util"
@@ -129,6 +132,10 @@ type Manager struct {
 	mtx                   sync.Mutex
 	pluginStatus          map[string]*Status
 	pluginStatusListeners map[string]StatusListener
+	initBundles           map[string]*bundle.Bundle
+	initFiles             loader.Result
+	maxErrors             int
+	initialized           bool
 }
 
 type managerContextKey string
@@ -165,6 +172,27 @@ func Info(term *ast.Term) func(*Manager) {
 	}
 }
 
+// InitBundles provides the initial set of bundles to load.
+func InitBundles(b map[string]*bundle.Bundle) func(*Manager) {
+	return func(m *Manager) {
+		m.initBundles = b
+	}
+}
+
+// InitFiles provides the initial set of other data/policy files to load.
+func InitFiles(f loader.Result) func(*Manager) {
+	return func(m *Manager) {
+		m.initFiles = f
+	}
+}
+
+// MaxErrors sets the error limit for the manager's shared compiler.
+func MaxErrors(n int) func(*Manager) {
+	return func(m *Manager) {
+		m.maxErrors = n
+	}
+}
+
 // New creates a new Manager using config.
 func New(raw []byte, id string, store storage.Store, opts ...func(*Manager)) (*Manager, error) {
 
@@ -185,6 +213,7 @@ func New(raw []byte, id string, store storage.Store, opts ...func(*Manager)) (*M
 		services:              services,
 		pluginStatus:          map[string]*Status{},
 		pluginStatusListeners: map[string]StatusListener{},
+		maxErrors:             -1,
 	}
 
 	for _, f := range opts {
@@ -192,6 +221,46 @@ func New(raw []byte, id string, store storage.Store, opts ...func(*Manager)) (*M
 	}
 
 	return m, nil
+}
+
+// Init returns an error if the manager could not initialize itself. Init() should
+// be called before Start(). Init() is idempotent.
+func (m *Manager) Init(ctx context.Context) error {
+
+	if m.initialized {
+		return nil
+	}
+
+	params := storage.TransactionParams{
+		Write:   true,
+		Context: storage.NewContext(),
+	}
+
+	err := storage.Txn(ctx, m.Store, params, func(txn storage.Transaction) error {
+
+		result, err := initload.InsertAndCompile(ctx, initload.InsertAndCompileOptions{
+			Store:     m.Store,
+			Txn:       txn,
+			Files:     m.initFiles,
+			Bundles:   m.initBundles,
+			MaxErrors: m.maxErrors,
+		})
+
+		if err != nil {
+			return err
+		}
+
+		SetCompilerOnContext(params.Context, result.Compiler)
+		_, err = m.Store.Register(ctx, txn, storage.TriggerConfig{OnCommit: m.onCommit})
+		return err
+	})
+
+	if err != nil {
+		return err
+	}
+
+	m.initialized = true
+	return nil
 }
 
 // Labels returns the set of labels from the configuration.
@@ -259,27 +328,17 @@ func (m *Manager) RegisterCompilerTrigger(f func(txn storage.Transaction)) {
 	m.registeredTriggers = append(m.registeredTriggers, f)
 }
 
-// Start starts the manager.
+// Start starts the manager. Init() should be called once before Start().
 func (m *Manager) Start(ctx context.Context) error {
 
 	if m == nil {
 		return nil
 	}
 
-	if err := storage.Txn(ctx, m.Store, storage.WriteParams, func(txn storage.Transaction) error {
-
-		c, err := loadCompilerFromStore(ctx, m.Store, txn)
-		if err != nil {
+	if !m.initialized {
+		if err := m.Init(ctx); err != nil {
 			return err
 		}
-
-		m.setCompiler(c)
-
-		_, err = m.Store.Register(ctx, txn, storage.TriggerConfig{OnCommit: m.onCommit})
-		return err
-
-	}); err != nil {
-		return err
 	}
 
 	var toStart []Plugin
@@ -402,20 +461,18 @@ func (m *Manager) copyPluginStatus() map[string]*Status {
 
 func (m *Manager) onCommit(ctx context.Context, txn storage.Transaction, event storage.TriggerEvent) {
 
-	if event.PolicyChanged() {
+	compiler := GetCompilerOnContext(event.Context)
 
-		var compiler *ast.Compiler
+	// If the context does not contain the compiler fallback to loading the
+	// compiler from the store. Currently the bundle plugin sets the
+	// compiler on the context but the server does not (nor would users
+	// implementing their own policy loading.)
+	if compiler == nil && event.PolicyChanged() {
+		compiler, _ = loadCompilerFromStore(ctx, m.Store, txn)
+	}
 
-		// If the context does not contain the compiler fallback to loading the
-		// compiler from the store. Currently the bundle plugin sets the
-		// compiler on the context but the server does not (nor would users
-		// implementing their own policy loading.)
-		if compiler = GetCompilerOnContext(event.Context); compiler == nil {
-			compiler, _ = loadCompilerFromStore(ctx, m.Store, txn)
-		}
-
+	if compiler != nil {
 		m.setCompiler(compiler)
-
 		for _, f := range m.registeredTriggers {
 			f(txn)
 		}
