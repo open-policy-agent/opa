@@ -3582,11 +3582,10 @@ type queryBindingErrStore struct {
 	storage.WritesNotSupported
 	storage.PolicyNotSupported
 	storage.IndexingNotSupported
-	count int
 }
 
 func (s *queryBindingErrStore) Read(ctx context.Context, txn storage.Transaction, path storage.Path) (interface{}, error) {
-	return nil, fmt.Errorf("unknown error")
+	return nil, fmt.Errorf("expected error")
 }
 
 func (*queryBindingErrStore) ListPolicies(ctx context.Context, txn storage.Transaction) ([]string, error) {
@@ -3622,10 +3621,6 @@ func TestQueryBindingIterationError(t *testing.T) {
 		panic(err)
 	}
 
-	if err := m.Start(ctx); err != nil {
-		panic(err)
-	}
-
 	server, err := New().WithStore(mock).WithManager(m).WithAddresses([]string{":8182"}).Init(ctx)
 	if err != nil {
 		panic(err)
@@ -3643,6 +3638,16 @@ func TestQueryBindingIterationError(t *testing.T) {
 
 	if f.recorder.Code != 500 {
 		t.Fatalf("Expected 500 error due to unknown storage error but got: %v", f.recorder)
+	}
+
+	var resultErr types.ErrorV1
+
+	if jsonErr := json.NewDecoder(f.recorder.Body).Decode(&resultErr); jsonErr != nil {
+		t.Fatal(jsonErr)
+	}
+
+	if resultErr.Code != types.CodeInternal || resultErr.Message != "expected error" {
+		t.Fatal("unexpected response:", resultErr)
 	}
 }
 
