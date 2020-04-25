@@ -265,6 +265,8 @@ If specifying `environment_credentials`, OPA will expect to find environment var
 for `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` and `AWS_REGION`, in accordance with the
 convention used by the [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html).
 
+Please note that if you are using temporary IAM credentials (e.g. assumed IAM role credentials) you have to provide additional `AWS_SESSION_TOKEN` or `AWS_SECURITY_TOKEN` environment variable.
+
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `services[_].credentials.s3_signing.environment_credentials` | `{}` | Yes | Enables AWS signing using environment variables to source the configuration and credentials |
