@@ -18,8 +18,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/open-policy-agent/opa/bundle"
-
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/fsnotify.v1"
@@ -27,8 +25,8 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/internal/prometheus"
 	"github.com/open-policy-agent/opa/internal/runtime"
+	initload "github.com/open-policy-agent/opa/internal/runtime/init"
 	"github.com/open-policy-agent/opa/internal/uuid"
-	storedversion "github.com/open-policy-agent/opa/internal/version"
 	"github.com/open-policy-agent/opa/loader"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/plugins"
@@ -176,7 +174,8 @@ type Runtime struct {
 	metrics *prometheus.Provider
 }
 
-// NewRuntime returns a new Runtime object initialized with params.
+// NewRuntime returns a new Runtime object initialized with params. Clients must
+// call StartServer() or StartREPL() to start the runtime in either mode.
 func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 
 	if params.ID == "" {
@@ -187,55 +186,28 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		}
 	}
 
-	loaded, err := loadPaths(params.Paths, params.Filter, params.BundleMode)
+	config, err := loadConfig(params)
+	if err != nil {
+		return nil, errors.Wrap(err, "config error")
+	}
+
+	loaded, err := initload.LoadPaths(params.Paths, params.Filter, params.BundleMode)
 	if err != nil {
 		return nil, errors.Wrap(err, "load error")
 	}
 
-	// TOOD(tsandall): All of this storage setup could be done by the plugin manager.
-	// This would avoid the need to parse and recompile modules provided on startup.
-	store := inmem.New()
-
-	txn, err := store.NewTransaction(ctx, storage.WriteParams)
+	info, err := runtime.Term(runtime.Params{Config: config})
 	if err != nil {
 		return nil, err
 	}
 
-	if len(loaded.Documents) > 0 {
-		if err := store.Write(ctx, txn, storage.AddOp, storage.Path{}, loaded.Documents); err != nil {
-			return nil, errors.Wrap(err, "storage error")
-		}
-	}
-
-	if err := compileAndStoreInputs(ctx, store, txn, loaded, params.ErrorLimit); err != nil {
-		store.Abort(ctx, txn)
-		return nil, errors.Wrap(err, "compile error")
-	}
-
-	// Write the version *after* any data loaded from files or bundles to
-	// avoid it being deleted.
-	if err := storedversion.Write(ctx, store, txn); err != nil {
-		store.Abort(ctx, txn)
-		return nil, errors.Wrap(err, "storage error")
-	}
-
-	if err := store.Commit(ctx, txn); err != nil {
-		return nil, errors.Wrap(err, "storage error")
-	}
-
-	bs, err := loadConfig(params)
+	manager, err := plugins.New(config, params.ID, inmem.New(), plugins.Info(info), plugins.InitBundles(loaded.Bundles), plugins.InitFiles(loaded.Files), plugins.MaxErrors(params.ErrorLimit))
 	if err != nil {
 		return nil, errors.Wrap(err, "config error")
 	}
 
-	info, err := runtime.Term(runtime.Params{Config: bs})
-	if err != nil {
-		return nil, err
-	}
-
-	manager, err := plugins.New(bs, params.ID, store, plugins.Info(info))
-	if err != nil {
-		return nil, errors.Wrap(err, "config error")
+	if err := manager.Init(ctx); err != nil {
+		return nil, errors.Wrap(err, "initialization error")
 	}
 
 	metrics := prometheus.New(metrics.New(), errorLogger)
@@ -248,7 +220,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 	manager.Register("discovery", disco)
 
 	rt := &Runtime{
-		Store:   store,
+		Store:   manager.Store,
 		Params:  params,
 		Manager: manager,
 		info:    info,
@@ -432,7 +404,7 @@ func (rt *Runtime) readWatcher(ctx context.Context, watcher *fsnotify.Watcher, p
 
 func (rt *Runtime) processWatcherUpdate(ctx context.Context, paths []string, removed string) error {
 
-	loaded, err := loadPaths(paths, rt.Params.Filter, rt.Params.BundleMode)
+	loaded, err := initload.LoadPaths(paths, rt.Params.Filter, rt.Params.BundleMode)
 	if err != nil {
 		return err
 	}
@@ -440,11 +412,6 @@ func (rt *Runtime) processWatcherUpdate(ctx context.Context, paths []string, rem
 	removed = loader.CleanPath(removed)
 
 	return storage.Txn(ctx, rt.Store, storage.WriteParams, func(txn storage.Transaction) error {
-		if len(loaded.Documents) > 0 {
-			if err := rt.Store.Write(ctx, txn, storage.AddOp, storage.Path{}, loaded.Documents); err != nil {
-				return err
-			}
-		}
 
 		if !rt.Params.BundleMode {
 			ids, err := rt.Store.ListPolicies(ctx, txn)
@@ -456,7 +423,7 @@ func (rt *Runtime) processWatcherUpdate(ctx context.Context, paths []string, rem
 					if err := rt.Store.DeletePolicy(ctx, txn, id); err != nil {
 						return err
 					}
-				} else if _, exists := loaded.Modules[id]; !exists {
+				} else if _, exists := loaded.Files.Modules[id]; !exists {
 					// This branch get hit in two cases.
 					// 1. Another piece of code has access to the store and inserts
 					//    a policy out-of-band.
@@ -470,7 +437,7 @@ func (rt *Runtime) processWatcherUpdate(ctx context.Context, paths []string, rem
 					if err != nil {
 						return err
 					}
-					loaded.Modules[id] = &loader.RegoFile{
+					loaded.Files.Modules[id] = &loader.RegoFile{
 						Name:   id,
 						Raw:    bs,
 						Parsed: module,
@@ -478,12 +445,15 @@ func (rt *Runtime) processWatcherUpdate(ctx context.Context, paths []string, rem
 				}
 			}
 		}
-		if err := compileAndStoreInputs(ctx, rt.Store, txn, loaded, -1); err != nil {
-			return err
-		}
 
-		// re-add the version as it might have been overwritten from loading data files
-		if err := storedversion.Write(ctx, rt.Store, txn); err != nil {
+		_, err := initload.InsertAndCompile(ctx, initload.InsertAndCompileOptions{
+			Store:     rt.Store,
+			Txn:       txn,
+			Files:     loaded.Files,
+			Bundles:   loaded.Bundles,
+			MaxErrors: -1,
+		})
+		if err != nil {
 			return err
 		}
 
@@ -509,71 +479,6 @@ func (rt *Runtime) gracefulServerShutdown(s *server.Server) error {
 		return err
 	}
 	logrus.Info("Server shutdown.")
-	return nil
-}
-
-type loadResult struct {
-	loader.Result
-	Bundles map[string]*bundle.Bundle
-}
-
-func loadPaths(paths []string, filter loader.Filter, asBundle bool) (*loadResult, error) {
-	result := &loadResult{}
-	var err error
-
-	if asBundle {
-		result.Bundles = make(map[string]*bundle.Bundle, len(paths))
-		for _, path := range paths {
-			result.Bundles[path], err = loader.NewFileLoader().AsBundle(path)
-			if err != nil {
-				return nil, err
-			}
-		}
-	} else {
-		loaded, err := loader.NewFileLoader().Filtered(paths, filter)
-		if err != nil {
-			return nil, err
-		}
-		result.Modules = loaded.Modules
-		result.Documents = loaded.Documents
-	}
-
-	return result, nil
-}
-
-func compileAndStoreInputs(ctx context.Context, store storage.Store, txn storage.Transaction, loaded *loadResult, errorLimit int) error {
-
-	policies := make(map[string]*ast.Module, len(loaded.Modules))
-
-	for id, parsed := range loaded.Modules {
-		policies[id] = parsed.Parsed
-	}
-
-	c := ast.NewCompiler().SetErrorLimit(errorLimit).WithPathConflictsCheck(storage.NonEmpty(ctx, store, txn))
-
-	opts := &bundle.ActivateOpts{
-		Ctx:          ctx,
-		Store:        store,
-		Txn:          txn,
-		Compiler:     c,
-		Metrics:      metrics.New(),
-		Bundles:      loaded.Bundles,
-		ExtraModules: policies,
-	}
-
-	err := bundle.Activate(opts)
-	if err != nil {
-		return err
-	}
-
-	// Policies in bundles will have already been added to the store, but
-	// modules loaded outside of bundles will need to be added manually.
-	for id, parsed := range loaded.Modules {
-		if err := store.UpsertPolicy(ctx, txn, id, parsed.Raw); err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 

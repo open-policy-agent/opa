@@ -6,9 +6,11 @@ package plugins
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"testing"
 
+	"github.com/open-policy-agent/opa/internal/storage/mock"
 	"github.com/open-policy-agent/opa/storage/inmem"
 )
 
@@ -114,3 +116,92 @@ func (p *testPlugin) Stop(ctx context.Context) {
 func (p *testPlugin) Reconfigure(ctx context.Context, config interface{}) {
 	p.m.UpdatePluginStatus("p1", &Status{State: StateNotReady})
 }
+
+func TestPluginManagerLazyInitBeforePluginStart(t *testing.T) {
+
+	m, err := New([]byte(`{"plugins": {"someplugin": {"enabled": true}}}`), "test", inmem.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	mock := &mockForInitStartOrdering{Manager: m}
+
+	m.Register("someplugin", mock)
+
+	if err := m.Start(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+
+	if !mock.Started {
+		t.Fatal("expected plugin to be started")
+	}
+
+}
+
+func TestPluginManagerInitBeforePluginStart(t *testing.T) {
+
+	m, err := New([]byte(`{"plugins": {"someplugin": {}}}`), "test", inmem.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := m.Init(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+
+	mock := &mockForInitStartOrdering{Manager: m}
+
+	m.Register("someplugin", mock)
+
+	if err := m.Start(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+
+	if !mock.Started {
+		t.Fatal("expected plugin to be started")
+	}
+
+}
+
+func TestPluginManagerInitIdempotence(t *testing.T) {
+
+	mockStore := mock.New()
+
+	m, err := New([]byte(`{"plugins": {"someplugin": {}}}`), "test", mockStore)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx := context.Background()
+
+	if err := m.Init(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	exp := len(mockStore.Transactions)
+
+	if err := m.Init(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(mockStore.Transactions) != exp {
+		t.Fatal("expected num txns to be:", exp, "but got:", len(mockStore.Transactions))
+	}
+
+}
+
+type mockForInitStartOrdering struct {
+	Manager *Manager
+	Started bool
+}
+
+func (m *mockForInitStartOrdering) Start(ctx context.Context) error {
+	m.Started = true
+	if m.Manager.initialized {
+		return nil
+	}
+	return fmt.Errorf("expected manager to be initialized")
+}
+
+func (m *mockForInitStartOrdering) Stop(ctx context.Context)                            { return }
+func (m *mockForInitStartOrdering) Reconfigure(ctx context.Context, config interface{}) { return }
