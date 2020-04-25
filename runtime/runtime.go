@@ -191,6 +191,8 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		return nil, errors.Wrap(err, "load error")
 	}
 
+	// TOOD(tsandall): All of this storage setup could be done by the plugin manager.
+	// This would avoid the need to parse and recompile modules provided on startup.
 	store := inmem.New()
 
 	txn, err := store.NewTransaction(ctx, storage.WriteParams)
