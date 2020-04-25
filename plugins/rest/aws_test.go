@@ -42,6 +42,8 @@ func TestEnvironmentCredentialService(t *testing.T) {
 	os.Setenv("AWS_ACCESS_KEY_ID", "")
 	os.Setenv("AWS_SECRET_ACCESS_KEY", "")
 	os.Setenv("AWS_REGION", "")
+	os.Setenv("AWS_SECURITY_TOKEN", "")
+	os.Setenv("AWS_SESSION_TOKEN", "")
 
 	cs := &awsEnvironmentCredentialService{}
 
@@ -59,20 +61,36 @@ func TestEnvironmentCredentialService(t *testing.T) {
 
 	os.Setenv("AWS_REGION", "us-east-1")
 
-	// happy path: all required environment is present
-	envCreds, err = cs.credentials()
-	if err != nil {
-		t.Error("unexpected error: " + err.Error())
+	expectedCreds := awsCredentials{
+		AccessKey:    "MYAWSACCESSKEYGOESHERE",
+		SecretKey:    "MYAWSSECRETACCESSKEYGOESHERE",
+		RegionName:   "us-east-1",
+		SessionToken: ""}
+
+	testCases := []struct {
+		tokenEnv   string
+		tokenValue string
+	}{
+		// happy path: all required environment is present
+		{"", ""},
+		// happy path: all required environment is present including security token
+		{"AWS_SECURITY_TOKEN", "MYSECURITYTOKENGOESHERE"},
+		// happy path: all required environment is present including session token that is preferred over security token
+		{"AWS_SESSION_TOKEN", "MYSESSIONTOKENGOESHERE"},
 	}
 
-	expectedCreds := awsCredentials{
-		AccessKey:     "MYAWSACCESSKEYGOESHERE",
-		SecretKey:     "MYAWSSECRETACCESSKEYGOESHERE",
-		RegionName:    "us-east-1",
-		SecurityToken: ""}
+	for _, testCase := range testCases {
+		os.Setenv(testCase.tokenEnv, testCase.tokenValue)
+		expectedCreds.SessionToken = testCase.tokenValue
 
-	if envCreds != expectedCreds {
-		t.Error("expected: ", expectedCreds, " but got: ", envCreds)
+		envCreds, err = cs.credentials()
+		if err != nil {
+			t.Error("unexpected error: " + err.Error())
+		}
+
+		if envCreds != expectedCreds {
+			t.Error("expected: ", expectedCreds, " but got: ", envCreds)
+		}
 	}
 }
 
@@ -143,7 +161,7 @@ func TestMetadataCredentialService(t *testing.T) {
 	assertEq(creds.AccessKey, ts.payload.AccessKeyID, t)
 	assertEq(creds.SecretKey, ts.payload.SecretAccessKey, t)
 	assertEq(creds.RegionName, cs.RegionName, t)
-	assertEq(creds.SecurityToken, ts.payload.Token, t)
+	assertEq(creds.SessionToken, ts.payload.Token, t)
 
 	// happy path: verify credentials are cached based on expiry
 	ts.payload.AccessKeyID = "ICHANGEDTHISBUTWEWONTSEEIT"
@@ -152,7 +170,7 @@ func TestMetadataCredentialService(t *testing.T) {
 	assertEq(creds.AccessKey, "MYAWSACCESSKEYGOESHERE", t) // the original value
 	assertEq(creds.SecretKey, ts.payload.SecretAccessKey, t)
 	assertEq(creds.RegionName, cs.RegionName, t)
-	assertEq(creds.SecurityToken, ts.payload.Token, t)
+	assertEq(creds.SessionToken, ts.payload.Token, t)
 
 	// happy path: with refresh
 	// first time through
@@ -172,7 +190,7 @@ func TestMetadataCredentialService(t *testing.T) {
 	assertEq(creds.AccessKey, ts.payload.AccessKeyID, t)
 	assertEq(creds.SecretKey, ts.payload.SecretAccessKey, t)
 	assertEq(creds.RegionName, cs.RegionName, t)
-	assertEq(creds.SecurityToken, ts.payload.Token, t)
+	assertEq(creds.SessionToken, ts.payload.Token, t)
 
 	// second time through, with changes
 	ts.payload.AccessKeyID = "ICHANGEDTHISANDWEWILLSEEIT"
@@ -181,16 +199,16 @@ func TestMetadataCredentialService(t *testing.T) {
 	assertEq(creds.AccessKey, ts.payload.AccessKeyID, t) // the new value
 	assertEq(creds.SecretKey, ts.payload.SecretAccessKey, t)
 	assertEq(creds.RegionName, cs.RegionName, t)
-	assertEq(creds.SecurityToken, ts.payload.Token, t)
+	assertEq(creds.SessionToken, ts.payload.Token, t)
 }
 
 type testCredentialService struct{}
 
 func (cs *testCredentialService) credentials() (awsCredentials, error) {
 	return awsCredentials{AccessKey: "MYAWSACCESSKEYGOESHERE",
-		SecretKey:     "MYAWSSECRETACCESSKEYGOESHERE",
-		RegionName:    "us-east-1",
-		SecurityToken: "MYAWSSECURITYTOKENGOESHERE"}, nil
+		SecretKey:    "MYAWSSECRETACCESSKEYGOESHERE",
+		RegionName:   "us-east-1",
+		SessionToken: "MYAWSSECURITYTOKENGOESHERE"}, nil
 }
 
 func TestV4Signing(t *testing.T) {
