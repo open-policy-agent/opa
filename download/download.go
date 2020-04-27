@@ -34,11 +34,10 @@ type LogConfig struct {
 
 // Interface can be implemented to download via arbitrary transports/formats.
 type Interface interface {
-	WithLogConfig(LogConfig) Interface                    // set log configuration parameters
-	WithCallback(func(context.Context, Update)) Interface // set the callback to invoke when download occurs
-	ClearCache()                                          // reset any caches on the downloader instance
-	Start(context.Context)                                // start the downloader
-	Stop(context.Context)                                 // stop the downloader
+	WithLogConfig(LogConfig) Interface                          // set log configuration parameters
+	WithCallback(func(context.Context, Update) error) Interface // set the callback to invoke when download occurs
+	Start(context.Context)                                      // start the downloader
+	Stop(context.Context)                                       // stop the downloader
 }
 
 // Update contains the result of a download. If an error occurred, the Error
@@ -56,13 +55,13 @@ type Update struct {
 // updates from the remote HTTP endpoint that the client is configured to
 // connect to.
 type Downloader struct {
-	config    Config                        // downloader configuration for tuning polling and other downloader behaviour
-	client    rest.Client                   // HTTP client to use for bundle downloading
-	path      string                        // path to use in bundle download request
-	stop      chan chan struct{}            // used to signal plugin to stop running
-	f         func(context.Context, Update) // callback function invoked when download updates occur
-	logConfig LogConfig                     // logging params for this downloader instance
-	etag      string                        // HTTP Etag for caching purposes
+	config    Config                              // downloader configuration for tuning polling and other downloader behaviour
+	client    rest.Client                         // HTTP client to use for bundle downloading
+	path      string                              // path to use in bundle download request
+	stop      chan chan struct{}                  // used to signal plugin to stop running
+	f         func(context.Context, Update) error // callback function invoked when download updates occur
+	logConfig LogConfig                           // logging params for this downloader instance
+	etag      string                              // HTTP Etag for caching purposes
 }
 
 // New returns a new Downloader that can be started.
@@ -76,19 +75,15 @@ func New(config Config, client rest.Client, path string) *Downloader {
 }
 
 // WithCallback registers a function f to be called when download updates occur.
-func (d *Downloader) WithCallback(f func(context.Context, Update)) Interface {
+func (d *Downloader) WithCallback(f func(context.Context, Update) error) Interface {
 	d.f = f
 	return d
 }
 
+// WithLogConfig sets logging options to use in the downloader.
 func (d *Downloader) WithLogConfig(cfg LogConfig) Interface {
 	d.logConfig = cfg
 	return d
-}
-
-// ClearCache resets the etag value on the downloader
-func (d *Downloader) ClearCache() {
-	d.etag = ""
 }
 
 // Start tells the Downloader to begin downloading bundles.
@@ -141,15 +136,19 @@ func (d *Downloader) loop() {
 
 func (d *Downloader) oneShot(ctx context.Context) error {
 	m := metrics.New()
-	b, etag, err := d.download(ctx, m)
+	b, etag, downloadErr := d.download(ctx, m)
 
-	d.etag = etag
+	var callbackErr error
 
 	if d.f != nil {
-		d.f(ctx, Update{ETag: etag, Bundle: b, Error: err, Metrics: m})
+		callbackErr = d.f(ctx, Update{ETag: etag, Bundle: b, Error: downloadErr, Metrics: m})
 	}
 
-	return err
+	if downloadErr == nil && callbackErr == nil {
+		d.etag = etag
+	}
+
+	return downloadErr
 }
 
 func (d *Downloader) download(ctx context.Context, m metrics.Metrics) (*bundle.Bundle, string, error) {
@@ -175,10 +174,8 @@ func (d *Downloader) download(ctx context.Context, m metrics.Metrics) (*bundle.B
 			}
 			return &b, resp.Header.Get("ETag"), nil
 		}
-
 		d.logDebug("Server replied with empty body.")
 		return nil, "", nil
-
 	case http.StatusNotModified:
 		return nil, resp.Header.Get("ETag"), nil
 	case http.StatusNotFound:

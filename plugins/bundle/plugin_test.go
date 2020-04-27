@@ -1391,10 +1391,10 @@ func (df *customDownloaderFactory) New(name string, source *Source) download.Int
 }
 
 type customDownloader struct {
-	f []func(context.Context, download.Update)
+	f []func(context.Context, download.Update) error
 }
 
-func (d *customDownloader) WithCallback(f func(context.Context, download.Update)) download.Interface {
+func (d *customDownloader) WithCallback(f func(context.Context, download.Update) error) download.Interface {
 	d.f = append(d.f, f)
 	return d
 }
@@ -1403,7 +1403,6 @@ func (d *customDownloader) WithLogConfig(cfg download.LogConfig) download.Interf
 	return d
 }
 
-func (d *customDownloader) ClearCache()           {}
 func (d *customDownloader) Start(context.Context) {}
 func (d *customDownloader) Stop(context.Context)  {}
 
@@ -1438,9 +1437,13 @@ func TestCustomDownloader(t *testing.T) {
 	m.Init()
 	b := &bundle.Bundle{Data: map[string]interface{}{"foo": "bar"}, Manifest: m}
 
-	df.ds[0].f[0](ctx, download.Update{
+	err = df.ds[0].f[0](ctx, download.Update{
 		Bundle: b,
 	})
+
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Use a new context to represent a different goroutine/caller performing the
 	// read.

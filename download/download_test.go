@@ -30,8 +30,9 @@ func TestStartStop(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	d := New(config, fixture.client, "/bundles/test/bundle1").WithCallback(func(context.Context, Update) {
+	d := New(config, fixture.client, "/bundles/test/bundle1").WithCallback(func(context.Context, Update) error {
 		called <- struct{}{}
+		return nil
 	})
 
 	d.Start(ctx)
@@ -62,14 +63,14 @@ func TestEtagCachingLifecycle(t *testing.T) {
 		t.Fatalf("Expected downloader ETag %v but got %v", fixture.server.expEtag, fixture.d.etag)
 	}
 
-	// simulate downloader error and check etag is cleared
+	// simulate downloader error and check etag is same as before.
 	fixture.server.expCode = 500
 	err = fixture.d.oneShot(ctx)
 	if err == nil {
 		t.Fatal("Expected error but got nil")
 	} else if len(fixture.updates) != 2 {
 		t.Fatal("expected update")
-	} else if fixture.d.etag != "" {
+	} else if fixture.d.etag != "some etag value" {
 		t.Fatalf("Expected empty downloader ETag but got %v", fixture.d.etag)
 	}
 
@@ -85,7 +86,7 @@ func TestEtagCachingLifecycle(t *testing.T) {
 		t.Fatalf("Expected downloader ETag %v but got %v", fixture.server.expEtag, fixture.d.etag)
 	}
 
-	// simulate bundle activation error and check etag is cleared
+	// simulate bundle activation error and check etag is same as before.
 	fixture.mockBundleActivationError = true
 	fixture.server.expEtag = "some newer etag value"
 	err = fixture.d.oneShot(ctx)
@@ -93,7 +94,7 @@ func TestEtagCachingLifecycle(t *testing.T) {
 		t.Fatal("Unexpected:", err)
 	} else if len(fixture.updates) != 4 {
 		t.Fatal("expected update")
-	} else if fixture.d.etag != "" {
+	} else if fixture.d.etag != "some new etag value" {
 		t.Fatalf("Expected empty downloader ETag but got %v", fixture.d.etag)
 	}
 }
@@ -202,21 +203,21 @@ func newTestFixture(t *testing.T) testFixture {
 	}
 }
 
-func (t *testFixture) oneShot(ctx context.Context, u Update) {
+func (t *testFixture) oneShot(ctx context.Context, u Update) error {
 
 	t.updates = append(t.updates, u)
 
 	if u.Error != nil {
-		t.d.ClearCache()
-		return
+		return nil
 	}
 
 	if u.Bundle != nil {
 		if t.mockBundleActivationError {
-			t.d.ClearCache()
-			return
+			return fmt.Errorf("some internal bundle activation error")
 		}
 	}
+
+	return nil
 }
 
 type testServer struct {

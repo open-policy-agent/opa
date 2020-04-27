@@ -284,16 +284,17 @@ func (p *Plugin) newDownloader(name string, source *Source) download.Interface {
 
 	d := p.downloaderFactory.New(name, source)
 
-	return d.WithCallback(func(ctx context.Context, u download.Update) {
-		p.oneShot(ctx, name, u)
+	return d.WithCallback(func(ctx context.Context, u download.Update) error {
+		return p.oneShot(ctx, name, u)
 	})
+
 }
 
-func (p *Plugin) oneShot(ctx context.Context, name string, u download.Update) {
+func (p *Plugin) oneShot(ctx context.Context, name string, u download.Update) error {
 	p.mtx.Lock()
 	defer p.mtx.Unlock()
 
-	p.process(ctx, name, u)
+	err := p.process(ctx, name, u)
 
 	for _, listener := range p.listeners {
 		listener(*p.status[name])
@@ -310,9 +311,11 @@ func (p *Plugin) oneShot(ctx context.Context, name string, u download.Update) {
 		}
 		listener(statusCpy)
 	}
+
+	return err
 }
 
-func (p *Plugin) process(ctx context.Context, name string, u download.Update) {
+func (p *Plugin) process(ctx context.Context, name string, u download.Update) error {
 
 	if u.Metrics != nil {
 		p.status[name].Metrics = u.Metrics
@@ -325,8 +328,7 @@ func (p *Plugin) process(ctx context.Context, name string, u download.Update) {
 	if u.Error != nil {
 		p.logError(name, "Bundle download failed: %v", u.Error)
 		p.status[name].SetError(u.Error)
-		p.downloaders[name].ClearCache()
-		return
+		return nil
 	}
 
 	p.status[name].LastSuccessfulRequest = p.status[name].LastRequest
@@ -340,8 +342,7 @@ func (p *Plugin) process(ctx context.Context, name string, u download.Update) {
 		if err := p.activate(ctx, name, u.Bundle); err != nil {
 			p.logError(name, "Bundle activation failed: %v", err)
 			p.status[name].SetError(err)
-			p.downloaders[name].ClearCache()
-			return
+			return err
 		}
 
 		p.status[name].SetError(nil)
@@ -369,14 +370,15 @@ func (p *Plugin) process(ctx context.Context, name string, u download.Update) {
 			}
 
 		}
-		return
+		return nil
 	}
 
 	if etag, ok := p.etags[name]; ok && u.ETag == etag {
 		p.logDebug(name, "Bundle download skipped, server replied with not modified.")
 		p.status[name].SetError(nil)
-		return
 	}
+
+	return nil
 }
 
 func (p *Plugin) activate(ctx context.Context, name string, b *bundle.Bundle) error {

@@ -120,22 +120,23 @@ func (c *Discovery) Reconfigure(_ context.Context, _ interface{}) {
 
 }
 
-func (c *Discovery) oneShot(ctx context.Context, u download.Update) {
+func (c *Discovery) oneShot(ctx context.Context, u download.Update) error {
 
-	c.processUpdate(ctx, u)
+	err := c.processUpdate(ctx, u)
 
 	if p := status.Lookup(c.manager); p != nil {
 		p.UpdateDiscoveryStatus(*c.status)
 	}
+
+	return err
 }
 
-func (c *Discovery) processUpdate(ctx context.Context, u download.Update) {
+func (c *Discovery) processUpdate(ctx context.Context, u download.Update) error {
 
 	if u.Error != nil {
 		c.logError("Discovery download failed: %v", u.Error)
 		c.status.SetError(u.Error)
-		c.downloader.ClearCache()
-		return
+		return nil
 	}
 
 	if u.Bundle != nil {
@@ -144,8 +145,7 @@ func (c *Discovery) processUpdate(ctx context.Context, u download.Update) {
 		if err := c.reconfigure(ctx, u); err != nil {
 			c.logError("Discovery reconfiguration error occurred: %v", err)
 			c.status.SetError(err)
-			c.downloader.ClearCache()
-			return
+			return err
 		}
 
 		c.status.SetError(nil)
@@ -162,14 +162,15 @@ func (c *Discovery) processUpdate(ctx context.Context, u download.Update) {
 			c.logInfo("Discovery update processed successfully.")
 		}
 		c.etag = u.ETag
-		return
+		return nil
 	}
 
 	if u.ETag == c.etag {
 		c.logDebug("Discovery update skipped, server replied with not modified.")
 		c.status.SetError(nil)
-		return
 	}
+
+	return nil
 }
 
 func (c *Discovery) reconfigure(ctx context.Context, u download.Update) error {
