@@ -1399,10 +1399,6 @@ func (d *customDownloader) WithCallback(f func(context.Context, download.Update)
 	return d
 }
 
-func (d *customDownloader) WithLogConfig(cfg download.LogConfig) download.Interface {
-	return d
-}
-
 func (d *customDownloader) Start(context.Context) {}
 func (d *customDownloader) Stop(context.Context)  {}
 

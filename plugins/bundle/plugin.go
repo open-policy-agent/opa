@@ -34,7 +34,7 @@ type defaultDownloaderFactory struct {
 	manager *plugins.Manager
 }
 
-func (df defaultDownloaderFactory) New(name string, source *Source) download.Interface {
+func (df defaultDownloaderFactory) New(_ string, source *Source) download.Interface {
 	return download.New(source.Config, df.manager.Client(source.Service), source.Resource)
 }
 
@@ -280,14 +280,14 @@ func (p *Plugin) initDownloaders() {
 	}
 }
 
-func (p *Plugin) newDownloader(name string, source *Source) download.Interface {
+func (p *Plugin) newDownloader(bundleName string, source *Source) download.Interface {
 
-	d := p.downloaderFactory.New(name, source)
+	d := p.downloaderFactory.New(bundleName, source).
+		WithCallback(func(ctx context.Context, u download.Update) error {
+			return p.oneShot(ctx, bundleName, u)
+		})
 
-	return d.WithCallback(func(ctx context.Context, u download.Update) error {
-		return p.oneShot(ctx, name, u)
-	})
-
+	return d
 }
 
 func (p *Plugin) oneShot(ctx context.Context, name string, u download.Update) error {

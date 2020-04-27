@@ -26,15 +26,8 @@ const (
 	minRetryDelay = time.Millisecond * 100
 )
 
-// LogConfig defines a set of configuration parameters for downloader logging
-// calls.
-type LogConfig struct {
-	Attributes [][2]string
-}
-
 // Interface can be implemented to download via arbitrary transports/formats.
 type Interface interface {
-	WithLogConfig(LogConfig) Interface                          // set log configuration parameters
 	WithCallback(func(context.Context, Update) error) Interface // set the callback to invoke when download occurs
 	Start(context.Context)                                      // start the downloader
 	Stop(context.Context)                                       // stop the downloader
@@ -55,13 +48,12 @@ type Update struct {
 // updates from the remote HTTP endpoint that the client is configured to
 // connect to.
 type Downloader struct {
-	config    Config                              // downloader configuration for tuning polling and other downloader behaviour
-	client    rest.Client                         // HTTP client to use for bundle downloading
-	path      string                              // path to use in bundle download request
-	stop      chan chan struct{}                  // used to signal plugin to stop running
-	f         func(context.Context, Update) error // callback function invoked when download updates occur
-	logConfig LogConfig                           // logging params for this downloader instance
-	etag      string                              // HTTP Etag for caching purposes
+	config Config                              // downloader configuration for tuning polling and other downloader behaviour
+	client rest.Client                         // HTTP client to use for bundle downloading
+	path   string                              // path to use in bundle download request
+	stop   chan chan struct{}                  // used to signal plugin to stop running
+	f      func(context.Context, Update) error // callback function invoked when download updates occur
+	etag   string                              // HTTP Etag for caching purposes
 }
 
 // New returns a new Downloader that can be started.
@@ -77,12 +69,6 @@ func New(config Config, client rest.Client, path string) *Downloader {
 // WithCallback registers a function f to be called when download updates occur.
 func (d *Downloader) WithCallback(f func(context.Context, Update) error) Interface {
 	d.f = f
-	return d
-}
-
-// WithLogConfig sets logging options to use in the downloader.
-func (d *Downloader) WithLogConfig(cfg LogConfig) Interface {
-	d.logConfig = cfg
 	return d
 }
 
@@ -188,21 +174,13 @@ func (d *Downloader) download(ctx context.Context, m metrics.Metrics) (*bundle.B
 }
 
 func (d *Downloader) logError(fmt string, a ...interface{}) {
-	logrus.WithFields(d.logrusFields()).Errorf(fmt, a...)
+	logrus.Errorf(fmt, a...)
 }
 
 func (d *Downloader) logInfo(fmt string, a ...interface{}) {
-	logrus.WithFields(d.logrusFields()).Infof(fmt, a...)
+	logrus.Infof(fmt, a...)
 }
 
 func (d *Downloader) logDebug(fmt string, a ...interface{}) {
-	logrus.WithFields(d.logrusFields()).Debugf(fmt, a...)
-}
-
-func (d *Downloader) logrusFields() logrus.Fields {
-	flds := logrus.Fields{}
-	for i := range d.logConfig.Attributes {
-		flds[d.logConfig.Attributes[i][0]] = flds[d.logConfig.Attributes[i][1]]
-	}
-	return flds
+	logrus.Debugf(fmt, a...)
 }
