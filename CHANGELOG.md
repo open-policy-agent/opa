@@ -12,6 +12,12 @@ to require an `Add(uint64)` function. This change only affects users that have i
 their own version of the `github.com/open-policy-agent/opa/metrics#Metrics` interface
 (which is the factory for counters.)
 
+## 0.19.2
+
+### Fixes
+
+- plugins: Fix race between manager and plugin startup ([#2343](https://github.com/open-policy-agent/opa/issues/2343))
+
 ## 0.19.1
 
 ### Fixes
