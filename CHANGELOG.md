@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
+## 0.19.2
+
+### Fixes
+
+- plugins: Fix race between manager and plugin startup ([#2343](https://github.com/open-policy-agent/opa/issues/2343))
+
 ## 0.19.1
 
 ### Fixes
