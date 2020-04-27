@@ -13,6 +13,20 @@ import (
 	"github.com/open-policy-agent/opa/util"
 )
 
+func TestInvalidJSONInput(t *testing.T) {
+	cases := [][]byte{
+		[]byte("{ \"k\": 1 }\n{}}"),
+		[]byte("{ \"k\": 1 }\n!!!}"),
+	}
+	for _, tc := range cases {
+		var x interface{}
+		err := util.UnmarshalJSON(tc, &x)
+		if err == nil {
+			t.Errorf("should be an error")
+		}
+	}
+}
+
 func TestRoundTrip(t *testing.T) {
 	cases := []interface{}{
 		nil,

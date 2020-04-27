@@ -369,6 +369,7 @@ func TestTopDownJWTEncodeSignHeaderErrors(t *testing.T) {
 		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
 	}
 }
+
 func TestTopDownJWTEncodeSignRaw(t *testing.T) {
 
 	const examplePayload = `{"iss":"joe",` + "\r\n" + ` "exp":1300819380,` + "\r\n" + ` "http://example.com/is_root":true}`
@@ -414,7 +415,7 @@ func TestTopDownJWTEncodeSignRaw(t *testing.T) {
 			"`" + "" + "`",
 			"`" + symmetricKey + "`",
 
-			`"eyJ0eXAiOiJ0ZXh0L3BsYWluIiwNCiAiYWxnIjoiSFMyNTYifQ..sXoGQMWwM-SmX495-htA7kndgbkwz1PnqsDeY275gnI""`,
+			`"eyJ0eXAiOiJ0ZXh0L3BsYWluIiwNCiAiYWxnIjoiSFMyNTYifQ..sXoGQMWwM-SmX495-htA7kndgbkwz1PnqsDeY275gnI"`,
 			"",
 		},
 		{
@@ -423,7 +424,7 @@ func TestTopDownJWTEncodeSignRaw(t *testing.T) {
 			"`" + "e" + "`",
 			"`" + symmetricKey + "`",
 
-			`"eyJ0eXAiOiJ0ZXh0L3BsYWluIiwNCiAiYWxnIjoiSFMyNTYifQ.ZQ.oO8Vnc4Jv7-J231a1bEcQrgXfKbNW-kEvVY7BP1v5rM""`,
+			`"eyJ0eXAiOiJ0ZXh0L3BsYWluIiwNCiAiYWxnIjoiSFMyNTYifQ.ZQ.oO8Vnc4Jv7-J231a1bEcQrgXfKbNW-kEvVY7BP1v5rM"`,
 			"",
 		},
 		{
