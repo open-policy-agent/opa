@@ -1,4 +1,4 @@
-#include "std.h"
+#include <string.h>
 
 #define WASM_PAGE_SIZE (65536)
 

@@ -1,5 +1,6 @@
 #include "unicode.h"
-#include "printf.h"
+
+#include <stdio.h>
 
 // Tests whether the code point is an utf-16 surrogate (encoded
 // representation of low or high bits).

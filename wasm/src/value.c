@@ -1,5 +1,5 @@
 #include "malloc.h"
-#include "string.h"
+#include "str.h"
 #include "value.h"
 
 #define OPA_ARRAY_INITIAL_CAP (10)

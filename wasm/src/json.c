@@ -1,8 +1,9 @@
-#include "string.h"
+#include <stdio.h>
+
+#include "str.h"
 #include "value.h"
 #include "json.h"
 #include "malloc.h"
-#include "printf.h"
 #include "unicode.h"
 
 static opa_value *opa_json_parse_token(opa_json_lex *ctx, int token);
