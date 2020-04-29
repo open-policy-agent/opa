@@ -1,7 +1,7 @@
-#ifndef OPA_STRING_H
-#define OPA_STRING_H
+#ifndef OPA_STR_H
+#define OPA_STR_H
 
-#include "std.h"
+#include <stdint.h>
 
 size_t opa_strlen(const char *s);
 double opa_strntod(const char *s, int len);
