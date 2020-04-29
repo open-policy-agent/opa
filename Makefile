@@ -4,8 +4,11 @@
 
 VERSION := 0.20.0-dev
 
+CGO_ENABLED ?= 0
+
 # Force modules on and to use the vendor directory.
-GO := GO111MODULE=on GOFLAGS=-mod=vendor go
+GO := CGO_ENABLED=$(CGO_ENABLED) GO111MODULE=on GOFLAGS=-mod=vendor go
+
 GOVERSION := $(shell cat ./.go-version)
 GOARCH := $(shell go env GOARCH)
 GOOS := $(shell go env GOOS)
