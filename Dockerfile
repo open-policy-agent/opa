@@ -2,9 +2,9 @@
 # Use of this source code is governed by an Apache2
 # license that can be found in the LICENSE file.
 
-ARG VARIANT
+ARG BASE
 
-FROM gcr.io/distroless/base${VARIANT}
+FROM ${BASE}
 
 # Any non-zero number will do, and unfortunately a named user will not, as k8s
 # pod securityContext runAsNonRoot can't resolve the user ID:
