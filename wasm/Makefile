@@ -12,7 +12,9 @@ CFLAGS := \
 	-nostdinc \
 	-nodefaultlibs \
 	--target=wasm32-unknown-unknown-wasm \
-	-I src/lib
+	-I src/lib \
+	-I src/libmpdec \
+	-DCONFIG_32 -DANSI
 
 .PHONY: all
 all: build test
@@ -59,6 +61,9 @@ $(WASM_OBJ_DIR)/value.wasm: src/value.c
 $(WASM_OBJ_DIR)/lib-%.wasm: src/lib/%.c
 	@$(CC) $(CFLAGS) -c $^ -o $@
 
+$(WASM_OBJ_DIR)/libmpdec-%.wasm: src/libmpdec/%.c
+	@$(CC) $(CFLAGS) -c $^ -o $@
+
 $(WASM_OBJ_DIR)/opa.wasm: \
 		$(WASM_OBJ_DIR)/context.wasm \
 		$(WASM_OBJ_DIR)/json.wasm \
@@ -70,6 +75,20 @@ $(WASM_OBJ_DIR)/opa.wasm: \
 		$(WASM_OBJ_DIR)/lib-stdio.wasm \
 		$(WASM_OBJ_DIR)/lib-stdlib.wasm \
 		$(WASM_OBJ_DIR)/lib-string.wasm \
+		$(WASM_OBJ_DIR)/libmpdec-basearith.wasm \
+		$(WASM_OBJ_DIR)/libmpdec-constants.wasm \
+		$(WASM_OBJ_DIR)/libmpdec-context.wasm \
+		$(WASM_OBJ_DIR)/libmpdec-convolute.wasm \
+		$(WASM_OBJ_DIR)/libmpdec-crt.wasm \
+		$(WASM_OBJ_DIR)/libmpdec-difradix2.wasm \
+		$(WASM_OBJ_DIR)/libmpdec-fnt.wasm \
+		$(WASM_OBJ_DIR)/libmpdec-fourstep.wasm \
+		$(WASM_OBJ_DIR)/libmpdec-io.wasm \
+		$(WASM_OBJ_DIR)/libmpdec-memory.wasm \
+		$(WASM_OBJ_DIR)/libmpdec-mpdecimal.wasm \
+		$(WASM_OBJ_DIR)/libmpdec-numbertheory.wasm \
+		$(WASM_OBJ_DIR)/libmpdec-sixstep.wasm \
+		$(WASM_OBJ_DIR)/libmpdec-transpose.wasm \
 		$(WASM_OBJ_DIR)/malloc.wasm \
 		$(WASM_OBJ_DIR)/str.wasm \
 		$(WASM_OBJ_DIR)/unicode.wasm \
@@ -97,6 +116,20 @@ $(WASM_OBJ_DIR)/opa-test.wasm: \
 		$(WASM_OBJ_DIR)/lib-stdio.wasm \
 		$(WASM_OBJ_DIR)/lib-stdlib.wasm \
 		$(WASM_OBJ_DIR)/lib-string.wasm \
+		$(WASM_OBJ_DIR)/libmpdec-basearith.wasm \
+		$(WASM_OBJ_DIR)/libmpdec-constants.wasm \
+		$(WASM_OBJ_DIR)/libmpdec-context.wasm \
+		$(WASM_OBJ_DIR)/libmpdec-convolute.wasm \
+		$(WASM_OBJ_DIR)/libmpdec-crt.wasm \
+		$(WASM_OBJ_DIR)/libmpdec-difradix2.wasm \
+		$(WASM_OBJ_DIR)/libmpdec-fnt.wasm \
+		$(WASM_OBJ_DIR)/libmpdec-fourstep.wasm \
+		$(WASM_OBJ_DIR)/libmpdec-io.wasm \
+		$(WASM_OBJ_DIR)/libmpdec-memory.wasm \
+		$(WASM_OBJ_DIR)/libmpdec-mpdecimal.wasm \
+		$(WASM_OBJ_DIR)/libmpdec-numbertheory.wasm \
+		$(WASM_OBJ_DIR)/libmpdec-sixstep.wasm \
+		$(WASM_OBJ_DIR)/libmpdec-transpose.wasm \
 		$(WASM_OBJ_DIR)/malloc.wasm \
 		$(WASM_OBJ_DIR)/str.wasm \
 		$(WASM_OBJ_DIR)/test.wasm \
