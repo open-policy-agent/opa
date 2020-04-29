@@ -1,43 +1,63 @@
 # Project Governance
 
-This document defines project governance for the project.
+This document defines the governance process for the open-policy-agent GitHub organization.
+
+The MAINTAINERS.md file in this repository contains the list of OPA project maintainers and their "area of expertise". An area of expertise is defined as a set of repositories or repository subtrees.
 
 ## Voting
 
-The project employs "organization voting" to ensure no single organization can dominate the project.
+Maintainers use "organizational voting" to approve changes so that no single organization can dominate an area of expertise.
 
-Individuals not associated with or employed by a company or organization are allowed one organization vote.
+* "Organizations relevant to a change" are all those organizations with an area of expertise that covers the change.
 
-Each company or organization (regardless of the number of maintainers associated with or employed by that company/organization) receives one organization vote.
+* "Organizations with an area of expertise" are those organizations for which there is a maintainer from that organization with that area of expertise.
 
-In other words, if two maintainers are employed by Company X, two by Company Y, two by Company Z, and one maintainer is an un-affiliated individual, a total of four "organization votes" are possible; one for X, one for Y, one for Z, and one for the un-affiliated individual.
+* Individuals not associated with or employed by a company or organization are allowed one organization vote.
 
-Any maintainer from an organization may cast the vote for that organization.
+* Each company or organization (regardless of the number of maintainers associated with or employed by that company/organization) receives one organization vote.  Any maintainer from an organization may cast the vote for that organization.
 
-Maintainers should indicate their yes/no vote on that issue or PR, and after a suitable period of time, the votes will be tallied and the outcome noted.
+For example, consider the following scenario.
 
-## Changes in Maintainership
+* Two maintainers are employed by Company X, two by Company Y, two by Company Z, and one maintainer is an unaffiliated individual
 
-New maintainers are proposed by an existing maintainer and are elected by a 2/3 majority organization vote from other maintainers with the relevant area(s) of expertise.
+* Area of expertise E covers the repository R
+
+* One maintainer from Company X, two from Company Y, and the un-affiliated individual all have expertise E
+
+For any change requiring a vote to repository R, three "organization votes" are possible: one for X, one for Y, and one for the un-affiliated individual.
+
+Unless specified otherwise, a vote passes when greater than fifty percent of the organization votes are in favour.
+
+## Code Changes
+
+All code changes should go through the Pull Request (PR) process. PRs should only be merged after receiving approval (via GitHub) from at least one other member of the GitHub team associated with the area(s) of expertise.
+
+We do not vote formally on every code change, but we do expect that every code change merged has the same community support as if the change were approved by a formal vote. When a merge occurs without sufficient community support, the change should be reverted until the dispute is resolved through discussion. Any team member who feels that a technical decision cannot be reached can call for a formal vote following the rules outlined above in either the PR or a separate issue.
+
+## Non-code Changes
+
+Changes that are not PRs will be voted on through GitHub issues.  Maintainers should indicate their yes/no vote on that GitHub issue, and after a suitable period of time, the votes will be tallied and the outcome noted.
+
+The following changes, while governed by the language above, require additional clarification.
+
+### Changes in Maintainership
+
+New maintainers for an area of expertise are proposed by an existing maintainer for that area of expertise and are elected by a 2/3 majority of the organizations with that area of expertise.
 
 Maintainer status expires after 1 year but a request to self-renew can be made within 1 month of expiry.
 
-Maintainers can be removed by a 2/3 majority organization vote.
+Maintainers for an area of expertise can be removed by a 2/3 majority of the organizations with that area of expertise.
 
-## Github Project Administration
+### Changes in Governance
 
-The MAINTAINERS.md file in this repository contains a set of OPA project maintainers and their area(s) of expertise. Maintainers will be added to the GitHub organization and added to the GitHub team(s) associated with repositories or areas of expertise that they maintain (e.g., `opa-maintainers`, `gatekeeper-maintainers`, etc.)
+All changes in Governance require a 2/3 majority organization vote from all areas of expertise.
 
-## Conflict Resolution for Technical Decisions
+### New Repositories
 
-If a technical decision cannot be reached due to a dispute between two or more maintainers, an organization vote will be held by the maintainers with the relevant area(s) of expertise following the rules described above.
+New repositories require a 2/3 majority organization vote from all areas of expertise.
 
-## Changes in Governance
+## GitHub Project Administration
 
-All changes in Governance require a 2/3 majority organization vote.
+Maintainers for an area of expertise belong to the associated GitHub team(s) (e.g., `opa-maintainers`, `gatekeeper-maintainers`, etc.) so that GitHub permissions reasonably follow this governance model.
 
-## Other Changes
-
-Unless specified above, all other changes to the project require a 2/3 majority organization vote from maintainers with relevant area(s) of expertise.
-
-Additionally, any maintainer may request that any change require a 2/3 majority organization vote from maintainers with relevant area(s) of expertise.
+Individuals may be added to that repository's GitHub team but need not be added to the MAINTAINERS.md file. This provision enables new subprojects and contributors to be onboarded without immediately creating new maintainers.
