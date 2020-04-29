@@ -394,6 +394,8 @@ func (p *Parser) parseElse(head *Head) *Rule {
 		}
 
 		if p.s.tok != tokens.LBrace {
+			rule.Body = NewBody(NewExpr(BooleanTerm(true)))
+			setLocRecursive(rule.Body, rule.Location)
 			return &rule
 		}
 
