@@ -131,7 +131,7 @@ This approach is very similar to the bundle approach except it updates the data 
 
 OPA has experimental capabilities for reaching out to external servers during evaluation.  This functionality handles those cases where there is too much data to synchronize into OPA, JWTs are ineffective, or policy requires information that must be as up to date as possible.
 
-That functionality is implemented as [OPA builtins](https://www.openpolicyagent.org/docs/).  Check the docs for the latest instructions.
+That functionality is implemented as [OPA builtins](https://www.openpolicyagent.org/docs/latest/policy-reference/#http).  Check the docs for the latest instructions.
 
 ### Current limitations
 * Unit test framework does not allow you to mock out the results of builtin functions; however, you can create a helper function that runs the builtin and mock that out.
