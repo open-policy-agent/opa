@@ -1334,7 +1334,7 @@ func TestRuleElseKeyword(t *testing.T) {
 	} else {
 		x != 150
 	}
-	
+
 	_ {
 		x > 0
 	} else {
@@ -1342,6 +1342,14 @@ func TestRuleElseKeyword(t *testing.T) {
 	} else {
 		x > -100
 	}
+
+	nobody = 1 {
+		false
+	} else = 7
+
+	nobody_f(x) = 1 {
+		false
+	} else = 7
 	`
 
 	parsed, err := ParseModule("", mod)
@@ -1430,6 +1438,36 @@ func TestRuleElseKeyword(t *testing.T) {
 						},
 						Body: MustParseBody(`x > -100`),
 					},
+				},
+			},
+			{
+				Head: &Head{
+					Name:  Var("nobody"),
+					Value: IntNumberTerm(1),
+				},
+				Body: MustParseBody("false"),
+				Else: &Rule{
+					Head: &Head{
+						Name:  Var("nobody"),
+						Value: IntNumberTerm(7),
+					},
+					Body: MustParseBody("true"),
+				},
+			},
+			{
+				Head: &Head{
+					Name:  Var("nobody_f"),
+					Args:  Args{VarTerm("x")},
+					Value: IntNumberTerm(1),
+				},
+				Body: MustParseBody("false"),
+				Else: &Rule{
+					Head: &Head{
+						Name:  Var("nobody_f"),
+						Args:  Args{VarTerm("x")},
+						Value: IntNumberTerm(7),
+					},
+					Body: MustParseBody("true"),
 				},
 			},
 		},
