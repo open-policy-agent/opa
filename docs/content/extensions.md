@@ -5,12 +5,8 @@ weight: 70
 ---
 
 OPA can be extended with custom built-in functions and plugins that
-implement functionality like support for new protocols.
-
-> Support for Go plugins was deprecated in OPA v0.14.0. If you want to customize
-> the OPA runtime we recommend you build OPA from source.
-
-This page explains how to customize and extend OPA in different ways.
+implement functionality like support for new protocols. This page explains how
+to customize and extend OPA in different ways.
 
 ## Custom Built-in Functions in Go
 
