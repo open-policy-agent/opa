@@ -212,9 +212,9 @@ build-windows:
 
 .PHONY: image-quick
 image-quick:
-	$(DOCKER) build -t $(IMAGE):$(VERSION) .
-	$(DOCKER) build -t $(IMAGE):$(VERSION)-debug --build-arg VARIANT=:debug .
-	$(DOCKER) build -t $(IMAGE):$(VERSION)-rootless --build-arg USER=1000 .
+	$(DOCKER) build -t $(IMAGE):$(VERSION) --build-arg BASE=scratch .
+	$(DOCKER) build -t $(IMAGE):$(VERSION)-debug --build-arg BASE=gcr.io/distroless/base:debug .
+	$(DOCKER) build -t $(IMAGE):$(VERSION)-rootless --build-arg USER=1000 --build-arg BASE=scratch .
 
 .PHONY: push
 push:
