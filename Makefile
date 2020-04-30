@@ -185,7 +185,11 @@ travis-go:
 		-w /src \
 		-e GOCACHE=/src/.go/cache \
 		golang:$(GOVERSION) \
-		make build-linux build-windows build-darwin go-test perf check
+		make build-linux build-windows build-darwin go-test perf travis-check
+
+.PHONY: travis-check
+travis-check: check
+	./build/check-working-copy.sh
 
 # The travis-wasm target exists because we do not want to run the generate
 # target outside of Docker. This step duplicates the the wasm-rego-test target
