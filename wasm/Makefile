@@ -40,6 +40,9 @@ test:
 hack:
 	@$(DOCKER) run -it --rm -v $(CURDIR):/src $(WASM_BUILDER_IMAGE)
 
+$(WASM_OBJ_DIR)/arithmetic.wasm: src/arithmetic.c
+	@$(CC) $(CFLAGS) -c $^ -o $@
+
 $(WASM_OBJ_DIR)/context.wasm: src/context.c
 	@$(CC) $(CFLAGS) -c $^ -o $@
 
@@ -47,6 +50,9 @@ $(WASM_OBJ_DIR)/json.wasm: src/json.c
 	@$(CC) $(CFLAGS) -c $^ -o $@
 
 $(WASM_OBJ_DIR)/malloc.wasm: src/malloc.c
+	@$(CC) $(CFLAGS) -c $^ -o $@
+
+$(WASM_OBJ_DIR)/set.wasm: src/set.c
 	@$(CC) $(CFLAGS) -c $^ -o $@
 
 $(WASM_OBJ_DIR)/str.wasm: src/str.c
@@ -65,6 +71,7 @@ $(WASM_OBJ_DIR)/libmpdec-%.wasm: src/libmpdec/%.c
 	@$(CC) $(CFLAGS) -c $^ -o $@
 
 $(WASM_OBJ_DIR)/opa.wasm: \
+		$(WASM_OBJ_DIR)/arithmetic.wasm \
 		$(WASM_OBJ_DIR)/context.wasm \
 		$(WASM_OBJ_DIR)/json.wasm \
 		$(WASM_OBJ_DIR)/lib-ctype.wasm \
@@ -91,6 +98,7 @@ $(WASM_OBJ_DIR)/opa.wasm: \
 		$(WASM_OBJ_DIR)/libmpdec-transpose.wasm \
 		$(WASM_OBJ_DIR)/malloc.wasm \
 		$(WASM_OBJ_DIR)/str.wasm \
+		$(WASM_OBJ_DIR)/set.wasm \
 		$(WASM_OBJ_DIR)/unicode.wasm \
 		$(WASM_OBJ_DIR)/value.wasm
 	@wasm-ld-8 \
@@ -106,6 +114,7 @@ $(WASM_OBJ_DIR)/test.wasm: tests/test.c
 	@$(CC) $(CFLAGS) -I src -c $^ -o $@
 
 $(WASM_OBJ_DIR)/opa-test.wasm: \
+		$(WASM_OBJ_DIR)/arithmetic.wasm \
 		$(WASM_OBJ_DIR)/context.wasm \
 		$(WASM_OBJ_DIR)/json.wasm \
 		$(WASM_OBJ_DIR)/lib-ctype.wasm \
@@ -132,6 +141,7 @@ $(WASM_OBJ_DIR)/opa-test.wasm: \
 		$(WASM_OBJ_DIR)/libmpdec-transpose.wasm \
 		$(WASM_OBJ_DIR)/malloc.wasm \
 		$(WASM_OBJ_DIR)/str.wasm \
+		$(WASM_OBJ_DIR)/set.wasm \
 		$(WASM_OBJ_DIR)/test.wasm \
 		$(WASM_OBJ_DIR)/unicode.wasm \
 		$(WASM_OBJ_DIR)/value.wasm
