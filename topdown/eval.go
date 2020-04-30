@@ -61,6 +61,7 @@ type eval struct {
 	saveNamespace      *ast.Term
 	disableInlining    [][]ast.Ref
 	genvarprefix       string
+	genvarid           int
 	runtime            *ast.Term
 }
 
@@ -2325,15 +2326,21 @@ func (e evalTerm) get(plugged *ast.Term) (*ast.Term, *bindings) {
 
 func (e evalTerm) save(iter unifyIterator) error {
 
-	suffix := e.ref[e.pos:]
-	ref := make(ast.Ref, len(suffix)+1)
-	ref[0] = e.term
+	v := e.e.generateVar(fmt.Sprintf("ref_%d", e.e.genvarid))
+	e.e.genvarid++
 
-	for i := 0; i < len(suffix); i++ {
-		ref[i+1] = suffix[i]
-	}
+	return e.e.biunify(e.term, v, e.termbindings, e.bindings, func() error {
 
-	return e.e.biunify(ast.NewTerm(ref), e.rterm, e.termbindings, e.rbindings, iter)
+		suffix := e.ref[e.pos:]
+		ref := make(ast.Ref, len(suffix)+1)
+		ref[0] = v
+		for i := 0; i < len(suffix); i++ {
+			ref[i+1] = suffix[i]
+		}
+
+		return e.e.biunify(ast.NewTerm(ref), e.rterm, e.bindings, e.rbindings, iter)
+	})
+
 }
 
 func (e *eval) comprehensionIndex(term *ast.Term) *ast.ComprehensionIndex {

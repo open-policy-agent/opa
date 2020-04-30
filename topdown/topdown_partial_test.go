@@ -211,6 +211,45 @@ func TestTopDownPartialEval(t *testing.T) {
 			},
 		},
 		{
+			note:  "reference: complete: suffix",
+			query: "data.test.p = true",
+			modules: []string{
+				`package test
+
+				p {
+					a = 1
+					q[a]
+				}
+
+				q = a {
+					a = input
+				}`,
+			},
+			wantQueries: []string{`input[1]`},
+		},
+		{
+			note:  "reference: complete: suffix: ensure unique var",
+			query: "data.test.p = true",
+			modules: []string{
+				`package test
+
+				p {
+					a = 1
+					b = 2
+					q[a] = r[b]
+				}
+
+				q = a {
+					a = input.a
+				}
+
+				r = b {
+					b = input.b
+				}`,
+			},
+			wantQueries: []string{`input.b[2] = input.a[1]`},
+		},
+		{
 			note:  "reference: head: from query",
 			query: "data.test.p[y] = 1",
 			modules: []string{
@@ -538,7 +577,7 @@ func TestTopDownPartialEval(t *testing.T) {
 			query: "data.test.p = true",
 			modules: []string{
 				`package test
-				
+
 				p { q[x] = y with input as 1 }
 				q[y] { x = 1; y = x }
 				q[2]`,
@@ -548,7 +587,7 @@ func TestTopDownPartialEval(t *testing.T) {
 			},
 			wantSupport: []string{
 				`package partial.test
-				
+
 				q[1]
 				q[2]`,
 			},
@@ -558,7 +597,7 @@ func TestTopDownPartialEval(t *testing.T) {
 			query: `data.test.p = true`,
 			modules: []string{
 				`package test
-				
+
 				p { q = true with input as 1 }
 				q { r[x] = input }
 				r[1]
@@ -569,7 +608,7 @@ func TestTopDownPartialEval(t *testing.T) {
 			},
 			wantSupport: []string{
 				`package partial.test
-				
+
 				q { 1 = input }
 				q { 2 = input }`,
 			},
@@ -579,7 +618,7 @@ func TestTopDownPartialEval(t *testing.T) {
 			query: "data.test.p = true",
 			modules: []string{
 				`package test
-				
+
 				p { input.x = z; [z] = x; q with data.foo as x }
 				q { data.foo = [1] }`,
 			},
@@ -590,14 +629,14 @@ func TestTopDownPartialEval(t *testing.T) {
 			query: "data.test.p = true",
 			modules: []string{
 				`package test
-				
+
 				p { q[1] = 1 with input as 1 }
 				q[x] { x = 1 }`,
 			},
 			wantQueries: []string{`data.partial.test.q[1] = 1 with input as 1`},
 			wantSupport: []string{
 				`package partial.test
-				
+
 				q[1]`,
 			},
 		},
@@ -606,14 +645,14 @@ func TestTopDownPartialEval(t *testing.T) {
 			query: "data.test.p = true",
 			modules: []string{
 				`package test
-				
+
 				p { q[x] = 1 with input as 1 }
 				q[x] { x = 1 }`,
 			},
 			wantQueries: []string{`data.partial.test.q[x1] = 1 with input as 1`},
 			wantSupport: []string{
 				`package partial.test
-				
+
 				q[1]`,
 			},
 		},
@@ -752,7 +791,7 @@ func TestTopDownPartialEval(t *testing.T) {
 			query: "data.test.p = true",
 			modules: []string{
 				`package test
-				
+
 				p { input = z; [z] = x; f(x, true) }
 				f(x) { x > 1 } else = false { x < 0 }`,
 			},
@@ -1048,7 +1087,7 @@ func TestTopDownPartialEval(t *testing.T) {
 			wantQueries: []string{
 				// copy propagation cannot remove the intermediate variable currently because
 				// sort(input.x, y) is not killed (since y is ultimately used as a ref head.)
-				`sort(input.x, x1); x1[0] > 1`,
+				`sort(input.x, x_ref_0); x_ref_0[0] > 1`,
 			},
 		},
 		{
@@ -1610,9 +1649,9 @@ func TestTopDownPartialEval(t *testing.T) {
 			query: "data.test.p = true",
 			modules: []string{
 				`package test
-				
+
 				p { input = z; [z] = x; not q[x] }
-				
+
 				q[[1]]
 				q[[2]]`,
 			},
@@ -1793,7 +1832,7 @@ func TestTopDownPartialEval(t *testing.T) {
 			modules: []string{`
 				package test
 
-				p = x { 
+				p = x {
 					a = input.foo1
 					b = input.foo2
 					c = input.foo3
