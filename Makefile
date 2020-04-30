@@ -168,7 +168,7 @@ wasm-lib-clean:
 
 .PHONY: wasm-rego-testgen-install
 wasm-rego-testgen-install:
-	$(GO) install -i ./test/wasm/cmd/wasm-rego-testgen
+	$(GO) install ./test/wasm/cmd/wasm-rego-testgen
 
 ######################################################
 #
