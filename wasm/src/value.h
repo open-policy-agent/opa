@@ -1,6 +1,8 @@
 #ifndef OPA_VALUE_H
 #define OPA_VALUE_H
 
+#include <stdint.h>
+
 #include "std.h"
 
 #define OPA_NULL (1)

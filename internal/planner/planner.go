@@ -17,6 +17,21 @@ import (
 type planiter func() error
 type binaryiter func(ir.Local, ir.Local) error
 
+type wasmBuiltin struct {
+	*ast.Builtin
+	WasmFunction string
+}
+
+// internalBuiltins are the built-in functions implemented in wasm.
+var internalBuiltins = map[string]wasmBuiltin{
+	ast.Plus.Name:     wasmBuiltin{ast.Plus, "opa_arithmetic_plus"},
+	ast.Minus.Name:    wasmBuiltin{ast.Minus, "opa_arithmetic_minus"},
+	ast.Multiply.Name: wasmBuiltin{ast.Multiply, "opa_arithmetic_multiply"},
+	ast.Divide.Name:   wasmBuiltin{ast.Divide, "opa_arithmetic_divide"},
+	ast.Abs.Name:      wasmBuiltin{ast.Abs, "opa_arithmetic_abs"},
+	ast.Rem.Name:      wasmBuiltin{ast.Rem, "opa_arithmetic_rem"},
+}
+
 // Planner implements a query planner for Rego queries.
 type Planner struct {
 	policy    *ir.Policy              // result of planning
@@ -691,6 +706,9 @@ func (p *Planner) planExprCall(e *ast.Expr, iter planiter) error {
 				p.vars.GetOrEmpty(ast.InputRootDocument.Value.(ast.Var)),
 				p.vars.GetOrEmpty(ast.DefaultRootDocument.Value.(ast.Var)),
 			}
+		} else if decl, ok := internalBuiltins[operator]; ok {
+			arity = len(decl.Decl.Args())
+			name = decl.WasmFunction
 		} else if decl, ok := p.decls[operator]; ok {
 			arity = len(decl.Decl.Args())
 			name = operator

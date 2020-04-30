@@ -107,10 +107,6 @@ function dumpJSON(mod, memory, addr) {
     return JSON.parse(s);
 }
 
-function builtinPlus(a, b) {
-    return a+b;
-}
-
 function builtinCustomTest(a) {
     return a+1;
 }
@@ -120,7 +116,6 @@ function builtinCustomTestImpure() {
 }
 
 const builtinFuncs = {
-    plus: builtinPlus,
     custom_builtin_test: builtinCustomTest,
     custom_builtin_test_impure: builtinCustomTestImpure,
 }

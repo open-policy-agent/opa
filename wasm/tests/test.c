@@ -1,6 +1,7 @@
 #include "str.h"
 #include "json.h"
 #include "malloc.h"
+#include "arithmetic.h"
 
 void opa_test_fail(const char *note, const char *func, const char *file, int line);
 void opa_test_pass(const char *note, const char *func);
@@ -933,4 +934,53 @@ void test_opa_json_dump()
     opa_array_append(opa_cast_array(terminators), opa_null());
 
     test("bool/null terminators", opa_strcmp(opa_json_dump(terminators), "[true,false,null]") == 0);
+}
+
+void test_arithmetic_abs(void)
+{
+    long long i = 0;
+
+    test("arithmetic/abs +1", opa_number_try_int(opa_cast_number(opa_arith_abs(opa_number_int(1))), &i) == 0 && i == 1);
+    test("arithmetic/abs -1", opa_number_try_int(opa_cast_number(opa_arith_abs(opa_number_int(-1))), &i) == 0 && i == 1);
+    test("arithmetic/abs 1.5 (float)", opa_number_as_float(opa_cast_number(opa_arith_abs(opa_number_float(1.5)))) == 1.5);
+    test("arithmetic/abs -1.5 (float)", opa_number_as_float(opa_cast_number(opa_arith_abs(opa_number_float(-1.5)))) == 1.5);
+    test("arithmetic/abs 1.5 (ref)", opa_number_as_float(opa_cast_number(opa_arith_abs(opa_number_ref("1.5", 3)))) == 1.5);
+    test("arithmetic/abs -1.5 (ref)", opa_number_as_float(opa_cast_number(opa_arith_abs(opa_number_ref("-1.5", 4)))) == 1.5);
+}
+
+void test_arithmetic_round(void)
+{
+    long long i = 0;
+
+    test("arithmetic/round 1", opa_number_try_int(opa_cast_number(opa_arith_round(opa_number_int(1))), &i) == 0 && i == 1);
+    test("arithmetic/round -1", opa_number_try_int(opa_cast_number(opa_arith_round(opa_number_int(-1))), &i) == 0 && i == -1);
+    test("arithmetic/round 1.4 (float)", opa_number_as_float(opa_cast_number(opa_arith_round(opa_number_float(1.4)))) == 1);
+    test("arithmetic/round -1.4 (float)", opa_number_as_float(opa_cast_number(opa_arith_round(opa_number_float(-1.4)))) == -1);
+    test("arithmetic/round 1.5 (float)", opa_number_as_float(opa_cast_number(opa_arith_round(opa_number_float(1.5)))) == 2);
+    test("arithmetic/round -1.5 (float)", opa_number_as_float(opa_cast_number(opa_arith_round(opa_number_float(-1.5)))) == -2);
+}
+
+void test_arithmetic_plus_minus(void)
+{
+    test("arithmetic/plus 1+2", opa_number_as_float(opa_cast_number(opa_arith_plus(opa_number_float(1), opa_number_float(2)))) == 3);
+    test("arithmetic/minus 3-2", opa_number_as_float(opa_cast_number(opa_arith_minus(opa_number_float(3), opa_number_float(2)))) == 1);
+
+    opa_set_t *s1 = opa_cast_set(opa_set());
+    opa_set_add(s1, opa_number_int(0));
+    opa_set_add(s1, opa_number_int(1));
+    opa_set_add(s1, opa_number_int(2));
+
+    opa_set_t *s2 = opa_cast_set(opa_set());
+    opa_set_add(s2, opa_number_int(0));
+    opa_set_add(s2, opa_number_int(2));
+
+    opa_set_t *s3 = opa_cast_set(opa_arith_minus(&s1->hdr, &s2->hdr));
+    test("arithmetic/minus set", s3->len == 1 && opa_set_get(s3, opa_number_int(1)) != NULL);
+}
+
+void test_arithmetic_multiply_divide_remainder(void)
+{
+    test("arithmetic/multiply 3*2", opa_number_as_float(opa_cast_number(opa_arith_multiply(opa_number_float(3), opa_number_float(2)))) == 6);
+    test("arithmetic/divide 3/2", opa_number_as_float(opa_cast_number(opa_arith_divide(opa_number_float(3), opa_number_float(2)))) == 1.5);
+    test("arithmetic/remainder 5 % 2", opa_number_as_float(opa_cast_number(opa_arith_rem(opa_number_float(5), opa_number_float(2)))) == 1);
 }
