@@ -15,6 +15,9 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
+
+	"github.com/open-policy-agent/opa/version"
 
 	"github.com/peterh/liner"
 
@@ -57,6 +60,8 @@ type REPL struct {
 	undefinedDisabled bool
 	errLimit          int
 	prettyLimit       int
+	report            [][2]string
+	mtx               sync.Mutex
 }
 
 type explainMode string
@@ -283,6 +288,19 @@ func (r *REPL) WithRuntime(term *ast.Term) *REPL {
 	return r
 }
 
+// SetOPAVersionReport sets the information about the latest OPA release.
+func (r *REPL) SetOPAVersionReport(report [][2]string) {
+	r.mtx.Lock()
+	defer r.mtx.Unlock()
+	r.report = report
+}
+
+func (r *REPL) getOPAVersionReport() [][2]string {
+	r.mtx.Lock()
+	defer r.mtx.Unlock()
+	return r.report
+}
+
 func (r *REPL) complete(line string) []string {
 	c := []string{}
 	set := map[string]struct{}{}
@@ -381,7 +399,7 @@ func (r *REPL) cmdPrettyLimit(s []string) error {
 
 func (r *REPL) cmdHelp(args []string) error {
 	if len(args) == 0 {
-		printHelp(r.output, r.initPrompt)
+		printHelp(r.output, r.initPrompt, r.report)
 	} else {
 		if desc, ok := topics[args[0]]; ok {
 			return desc.fn(r.output)
@@ -1258,9 +1276,12 @@ func isGlobalInModule(compiler *ast.Compiler, module *ast.Module, term *ast.Term
 	return len(node.Values) > 0
 }
 
-func printHelp(output io.Writer, initPrompt string) {
+func printHelp(output io.Writer, initPrompt string, report [][2]string) {
 	printHelpExamples(output, initPrompt)
 	printHelpCommands(output)
+	if len(report) != 0 {
+		printOPAReleaseInfo(output, report)
+	}
 }
 
 func printHelpExamples(output io.Writer, promptSymbol string) {
@@ -1330,6 +1351,30 @@ func printHelpCommands(output io.Writer) {
 
 	for key, desc := range topics {
 		fmt.Fprintf(output, f, "help "+key, desc.comment)
+	}
+
+	fmt.Fprintln(output, "")
+}
+
+func printOPAReleaseInfo(output io.Writer, report [][2]string) {
+
+	fmt.Fprintln(output, "Version Info")
+	fmt.Fprintln(output, "============")
+	fmt.Fprintln(output)
+
+	maxLen := 0
+
+	for _, pair := range report {
+		if len(pair[0]) > maxLen {
+			maxLen = len(pair[0])
+		}
+	}
+
+	fmtStr := fmt.Sprintf("%%-%dv : %%v\n", maxLen)
+
+	fmt.Fprintf(output, fmtStr, "Current Version", version.Version)
+	for _, pair := range report {
+		fmt.Fprintf(output, fmtStr, pair[0], pair[1])
 	}
 
 	fmt.Fprintln(output, "")

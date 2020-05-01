@@ -7,7 +7,10 @@ package runtime
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"io/ioutil"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path"
 	"reflect"
@@ -15,10 +18,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/open-policy-agent/opa/internal/report"
+
+	"github.com/sirupsen/logrus"
+
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/util/test"
+	"github.com/open-policy-agent/opa/version"
 )
 
 func TestWatchPaths(t *testing.T) {
@@ -233,4 +241,118 @@ func testRuntimeProcessWatchEventPolicyError(t *testing.T, asBundle bool) {
 		}
 
 	})
+}
+
+func TestCheckOPAUpdateBadURL(t *testing.T) {
+	testCheckOPAUpdate(t, "http://foo:8112", nil)
+}
+
+func TestCheckOPAUpdateWithNewUpdate(t *testing.T) {
+	exp := &report.DataResponse{Latest: report.ReleaseDetails{
+		Download:      "https://openpolicyagent.org/downloads/v100.0.0/opa_darwin_amd64",
+		ReleaseNotes:  "https://github.com/open-policy-agent/opa/releases/tag/v100.0.0",
+		LatestRelease: "v100.0.0",
+	}}
+
+	// test server
+	baseURL, teardown := getTestServer(exp, http.StatusOK)
+	defer teardown()
+
+	testCheckOPAUpdate(t, baseURL, exp)
+}
+
+func TestCheckOPAUpdateLoopBadURL(t *testing.T) {
+	testCheckOPAUpdateLoop(t, "http://foo:8112", "Unable to send OPA version report")
+}
+
+func TestCheckOPAUpdateLoopNoUpdate(t *testing.T) {
+	exp := &report.DataResponse{Latest: report.ReleaseDetails{
+		OPAUpToDate: true,
+	}}
+
+	// test server
+	baseURL, teardown := getTestServer(exp, http.StatusOK)
+	defer teardown()
+
+	version.Version = "v0.20.0"
+	testCheckOPAUpdateLoop(t, baseURL, "OPA is up to date.")
+}
+
+func TestCheckOPAUpdateLoopWithNewUpdate(t *testing.T) {
+	exp := &report.DataResponse{Latest: report.ReleaseDetails{
+		Download:      "https://openpolicyagent.org/downloads/v100.0.0/opa_darwin_amd64",
+		ReleaseNotes:  "https://github.com/open-policy-agent/opa/releases/tag/v100.0.0",
+		LatestRelease: "v100.0.0",
+		OPAUpToDate:   false,
+	}}
+
+	// test server
+	baseURL, teardown := getTestServer(exp, http.StatusOK)
+	defer teardown()
+
+	version.Version = "v0.20.0"
+	testCheckOPAUpdateLoop(t, baseURL, "OPA is out of date.")
+}
+
+func getTestServer(update interface{}, statusCode int) (baseURL string, teardownFn func()) {
+	mux := http.NewServeMux()
+	ts := httptest.NewServer(mux)
+
+	mux.HandleFunc("/v1/version", func(w http.ResponseWriter, req *http.Request) {
+		w.WriteHeader(statusCode)
+		bs, _ := json.Marshal(update)
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(bs)
+	})
+	return ts.URL, ts.Close
+}
+
+func testCheckOPAUpdate(t *testing.T, url string, expected *report.DataResponse) {
+	t.Helper()
+	os.Setenv("OPA_TELEMETRY_SERVICE_URL", url)
+
+	ctx := context.Background()
+	rt := getTestRuntime(ctx, t)
+	result := rt.checkOPAUpdate(ctx)
+
+	if !reflect.DeepEqual(result, expected) {
+		t.Fatalf("Expected output:\"%v\" but got: \"%v\"", expected, result)
+	}
+}
+
+func testCheckOPAUpdateLoop(t *testing.T, url, expected string) {
+	t.Helper()
+	os.Setenv("OPA_TELEMETRY_SERVICE_URL", url)
+
+	ctx := context.Background()
+	rt := getTestRuntime(ctx, t)
+	var stdout bytes.Buffer
+	rt.Params.Output = &stdout
+
+	logrus.SetOutput(rt.Params.Output)
+	logrus.SetLevel(logrus.DebugLevel)
+
+	done := make(chan struct{})
+	go func() {
+		d := time.Duration(int64(time.Millisecond) * 1)
+		rt.checkOPAUpdateLoop(ctx, d, done)
+	}()
+	time.Sleep(2 * time.Millisecond)
+	done <- struct{}{}
+
+	if !strings.Contains(stdout.String(), expected) {
+		t.Fatalf("Expected output to contain: \"%v\" but got \"%v\"", expected, stdout.String())
+	}
+}
+
+func getTestRuntime(ctx context.Context, t *testing.T) *Runtime {
+	t.Helper()
+
+	params := NewParams()
+	params.EnableVersionCheck = true
+	rt, err := NewRuntime(ctx, params)
+	if err != nil {
+		t.Fatalf("Unexpected error %v", err)
+	}
+	return rt
 }
