@@ -32,6 +32,7 @@ type runCmdParams struct {
 	tlsCACertFile     string
 	ignore            []string
 	serverMode        bool
+	skipVersionCheck  bool
 	authentication    *util.EnumFlag
 	authorization     *util.EnumFlag
 	logLevel          *util.EnumFlag
@@ -138,6 +139,7 @@ File paths can be specified as URLs to resolve ambiguity in paths containing col
 	addConfigOverrides(runCommand.Flags(), &cmdParams.rt.ConfigOverrides)
 	addConfigOverrideFiles(runCommand.Flags(), &cmdParams.rt.ConfigOverrideFiles)
 	addBundleModeFlag(runCommand.Flags(), &cmdParams.rt.BundleMode, false)
+	runCommand.Flags().BoolVar(&cmdParams.skipVersionCheck, "skip-version-check", false, "disables anonymous version reporting (see: https://openpolicyagent.org/docs/latest/privacy)")
 	addIgnoreFlag(runCommand.Flags(), &cmdParams.ignore)
 
 	usageTemplate := `Usage:
@@ -190,6 +192,8 @@ func initRuntime(ctx context.Context, params runCmdParams, args []string) *runti
 	params.rt.Filter = loaderFilter{
 		Ignore: params.ignore,
 	}.Apply
+
+	params.rt.EnableVersionCheck = !params.skipVersionCheck
 
 	rt, err := runtime.NewRuntime(ctx, params.rt)
 	if err != nil {
