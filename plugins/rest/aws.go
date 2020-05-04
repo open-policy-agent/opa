@@ -29,17 +29,19 @@ const (
 	ecsRelativePathEnvVar     = "AWS_CONTAINER_CREDENTIALS_RELATIVE_URI"
 
 	// ref. https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html
-	accessKeyEnvVar = "AWS_ACCESS_KEY_ID"
-	secretKeyEnvVar = "AWS_SECRET_ACCESS_KEY"
-	awsRegionEnvVar = "AWS_REGION"
+	accessKeyEnvVar     = "AWS_ACCESS_KEY_ID"
+	secretKeyEnvVar     = "AWS_SECRET_ACCESS_KEY"
+	securityTokenEnvVar = "AWS_SECURITY_TOKEN"
+	sessionTokenEnvVar  = "AWS_SESSION_TOKEN"
+	awsRegionEnvVar     = "AWS_REGION"
 )
 
 // awsCredentials represents the credentials obtained from an AWS credential provider
 type awsCredentials struct {
-	AccessKey     string
-	SecretKey     string
-	RegionName    string
-	SecurityToken string
+	AccessKey    string
+	SecretKey    string
+	RegionName   string
+	SessionToken string
 }
 
 // awsCredentialService represents the interface for AWS credential providers
@@ -64,7 +66,15 @@ func (cs *awsEnvironmentCredentialService) credentials() (awsCredentials, error)
 	if creds.RegionName == "" {
 		return creds, errors.New("no " + awsRegionEnvVar + " set in environment")
 	}
-	creds.SecurityToken = "" // not applicable to this credential provider
+	// SessionToken is required if using temporaty ENV credentials from assumed IAM role
+	// Missing SessionToken results with 403 s3 error.
+	creds.SessionToken = os.Getenv(sessionTokenEnvVar)
+	if creds.SessionToken == "" {
+		// In case of missing SessionToken try to get SecurityToken
+		// AWS switched to use SessionToken, but SecurityToken was left for backward compatibility
+		creds.SessionToken = os.Getenv(securityTokenEnvVar)
+	}
+
 	return creds, nil
 }
 
@@ -162,7 +172,7 @@ func (cs *awsMetadataCredentialService) refreshFromService() error {
 	cs.expiration = payload.Expiration
 	cs.creds.AccessKey = payload.AccessKeyID
 	cs.creds.SecretKey = payload.SecretAccessKey
-	cs.creds.SecurityToken = payload.Token
+	cs.creds.SessionToken = payload.Token
 	cs.creds.RegionName = cs.RegionName
 
 	return nil
@@ -227,8 +237,8 @@ func signV4(req *http.Request, credService awsCredentialService, theTime time.Ti
 
 	// the security token header is necessary for ephemeral credentials, e.g. from
 	// the EC2 metadata service
-	if creds.SecurityToken != "" {
-		awsHeaders["x-amz-security-token"] = creds.SecurityToken
+	if creds.SessionToken != "" {
+		awsHeaders["x-amz-security-token"] = creds.SessionToken
 	}
 
 	// ref. https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-auth-using-authorization-header.html
