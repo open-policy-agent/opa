@@ -455,6 +455,25 @@ curl: (35) error:14094412:SSL routines:ssl3_read_bytes:sslv3 alert bad certifica
 
 As you can see, TLS-based authentication disallows these request completely.
 
+## Secure Health and Monitoring
+
+Often OPA is deployed locally to the host where the client resides (side-car or
+similar model). In these deployments it is ideal to only expose the API via
+`localhost` to prevent any remote clients from reaching OPA at all. The downside
+to this approach is that it blocks remote monitoring systems that require access
+to `/health` or `/metrics`.
+
+The solution is to configure OPA with a separate diagnostic listener by
+providing the `--diagnostic-addr` flag, for example:
+
+```
+$ opa run \
+  -s \
+  --addr localhost:8181 \
+  --diagnostic-addr :8282
+```
+The configuration above would expose only `/health` and `/metrics` API's on port
+`8282` while keeping the normal REST API bound to `localhost:8181`
 
 ## Hardened Configuration Example
 
