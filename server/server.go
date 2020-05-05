@@ -86,10 +86,12 @@ var unsafeBuiltinsMap = map[string]struct{}{ast.HTTPSend.Name: struct{}{}}
 
 // Server represents an instance of OPA running in server mode.
 type Server struct {
-	Handler http.Handler
+	Handler           http.Handler
+	DiagnosticHandler http.Handler
 
 	router              *mux.Router
 	addrs               []string
+	diagAddrs           []string
 	insecureAddr        string
 	authentication      AuthenticationScheme
 	authorization       AuthorizationScheme
@@ -132,26 +134,9 @@ func New() *Server {
 
 // Init initializes the server. This function MUST be called before Loop.
 func (s *Server) Init(ctx context.Context) (*Server, error) {
-	s.initRouter()
-
-	// Add authorization handler. This must come BEFORE authentication handler
-	// so that the latter can run first.
-	switch s.authorization {
-	case AuthorizationBasic:
-		s.Handler = authorizer.NewBasic(
-			s.Handler,
-			s.getCompiler,
-			s.store,
-			authorizer.Runtime(s.runtime),
-			authorizer.Decision(s.manager.Config.DefaultAuthorizationDecisionRef))
-	}
-
-	switch s.authentication {
-	case AuthenticationToken:
-		s.Handler = identifier.NewTokenBased(s.Handler)
-	case AuthenticationTLS:
-		s.Handler = identifier.NewTLSBased(s.Handler)
-	}
+	s.initRouters()
+	s.Handler = s.initHandlerAuth(s.Handler)
+	s.DiagnosticHandler = s.initHandlerAuth(s.DiagnosticHandler)
 
 	txn, err := s.store.NewTransaction(ctx, storage.WriteParams)
 	if err != nil {
@@ -221,6 +206,13 @@ func (s *Server) Shutdown(ctx context.Context) error {
 // WithAddresses sets the listening addresses that the server will bind to.
 func (s *Server) WithAddresses(addrs []string) *Server {
 	s.addrs = addrs
+	return s
+}
+
+// WithDiagnosticAddresses sets the listening addresses that the server will
+// bind to and *only* serve read-only diagnostic API's.
+func (s *Server) WithDiagnosticAddresses(addrs []string) *Server {
+	s.diagAddrs = addrs
 	return s
 }
 
@@ -323,28 +315,24 @@ func (s *Server) WithRouter(router *mux.Router) *Server {
 // Listeners returns functions that listen and serve connections.
 func (s *Server) Listeners() ([]Loop, error) {
 	loops := []Loop{}
-	for _, addr := range s.addrs {
-		parsedURL, err := parseURL(addr, s.cert != nil)
-		if err != nil {
-			return nil, err
+
+	handlerBindings := map[httpListenerType]struct {
+		addrs   []string
+		handler http.Handler
+	}{
+		defaultListenerType:    {s.addrs, s.Handler},
+		diagnosticListenerType: {s.diagAddrs, s.DiagnosticHandler},
+	}
+
+	for t, binding := range handlerBindings {
+		for _, addr := range binding.addrs {
+			loop, listener, err := s.getListener(addr, binding.handler, t)
+			if err != nil {
+				return nil, err
+			}
+			s.httpListeners = append(s.httpListeners, listener)
+			loops = append(loops, loop)
 		}
-		var loop Loop
-		var listener httpListener
-		switch parsedURL.Scheme {
-		case "unix":
-			loop, listener, err = s.getListenerForUNIXSocket(parsedURL)
-		case "http":
-			loop, listener, err = s.getListenerForHTTPServer(parsedURL)
-		case "https":
-			loop, listener, err = s.getListenerForHTTPSServer(parsedURL)
-		default:
-			err = fmt.Errorf("invalid url scheme %q", parsedURL.Scheme)
-		}
-		if err != nil {
-			return nil, err
-		}
-		s.httpListeners = append(s.httpListeners, listener)
-		loops = append(loops, loop)
 	}
 
 	if s.insecureAddr != "" {
@@ -352,7 +340,7 @@ func (s *Server) Listeners() ([]Loop, error) {
 		if err != nil {
 			return nil, err
 		}
-		loop, httpListener, err := s.getListenerForHTTPServer(parsedURL)
+		loop, httpListener, err := s.getListenerForHTTPServer(parsedURL, s.Handler, defaultListenerType)
 		if err != nil {
 			return nil, err
 		}
@@ -364,12 +352,23 @@ func (s *Server) Listeners() ([]Loop, error) {
 }
 
 // Addrs returns a list of addresses that the server is listening on.
-// if the server hasn't been started it will not return an address.
+// If the server hasn't been started it will not return an address.
 func (s *Server) Addrs() []string {
+	return s.addrsForType(defaultListenerType)
+}
+
+// DiagnosticAddrs returns a list of addresses that the server is listening on
+// for the read-only diagnostic API's (eg /health, /metrics, etc)
+// If the server hasn't been started it will not return an address.
+func (s *Server) DiagnosticAddrs() []string {
+	return s.addrsForType(diagnosticListenerType)
+}
+
+func (s *Server) addrsForType(t httpListenerType) []string {
 	var addrs []string
 	for _, l := range s.httpListeners {
 		a := l.Addr()
-		if a != "" {
+		if a != "" && l.Type() == t {
 			addrs = append(addrs, a)
 		}
 	}
@@ -390,27 +389,36 @@ func (ln tcpKeepAliveListener) Accept() (net.Conn, error) {
 	return tc, nil
 }
 
+type httpListenerType int
+
+const (
+	defaultListenerType httpListenerType = iota
+	diagnosticListenerType
+)
+
 type httpListener interface {
 	Addr() string
 	ListenAndServe() error
 	ListenAndServeTLS(certFile, keyFile string) error
 	Shutdown(ctx context.Context) error
+	Type() httpListenerType
 }
 
 // baseHTTPListener is just a wrapper around http.Server
 type baseHTTPListener struct {
 	s *http.Server
 	l net.Listener
+	t httpListenerType
 }
 
 var _ httpListener = (*baseHTTPListener)(nil)
 
-func newHTTPListener(srvr *http.Server) httpListener {
-	return &baseHTTPListener{srvr, nil}
+func newHTTPListener(srvr *http.Server, t httpListenerType) httpListener {
+	return &baseHTTPListener{s: srvr, t: t}
 }
 
-func newHTTPUnixSocketListener(srvr *http.Server, l net.Listener) httpListener {
-	return &baseHTTPListener{srvr, l}
+func newHTTPUnixSocketListener(srvr *http.Server, l net.Listener, t httpListenerType) httpListener {
+	return &baseHTTPListener{s: srvr, l: l, t: t}
 }
 
 func (b *baseHTTPListener) ListenAndServe() error {
@@ -457,18 +465,44 @@ func (b *baseHTTPListener) Shutdown(ctx context.Context) error {
 	return b.s.Shutdown(ctx)
 }
 
-func (s *Server) getListenerForHTTPServer(u *url.URL) (Loop, httpListener, error) {
-	httpServer := http.Server{
-		Addr:    u.Host,
-		Handler: s.Handler,
+func (b *baseHTTPListener) Type() httpListenerType {
+	return b.t
+}
+
+func (s *Server) getListener(addr string, h http.Handler, t httpListenerType) (Loop, httpListener, error) {
+	parsedURL, err := parseURL(addr, s.cert != nil)
+	if err != nil {
+		return nil, nil, err
 	}
 
-	l := newHTTPListener(&httpServer)
+	var loop Loop
+	var listener httpListener
+	switch parsedURL.Scheme {
+	case "unix":
+		loop, listener, err = s.getListenerForUNIXSocket(parsedURL, h, t)
+	case "http":
+		loop, listener, err = s.getListenerForHTTPServer(parsedURL, h, t)
+	case "https":
+		loop, listener, err = s.getListenerForHTTPSServer(parsedURL, h, t)
+	default:
+		err = fmt.Errorf("invalid url scheme %q", parsedURL.Scheme)
+	}
+
+	return loop, listener, err
+}
+
+func (s *Server) getListenerForHTTPServer(u *url.URL, h http.Handler, t httpListenerType) (Loop, httpListener, error) {
+	httpServer := http.Server{
+		Addr:    u.Host,
+		Handler: h,
+	}
+
+	l := newHTTPListener(&httpServer, t)
 
 	return l.ListenAndServe, l, nil
 }
 
-func (s *Server) getListenerForHTTPSServer(u *url.URL) (Loop, httpListener, error) {
+func (s *Server) getListenerForHTTPSServer(u *url.URL, h http.Handler, t httpListenerType) (Loop, httpListener, error) {
 
 	if s.cert == nil {
 		return nil, nil, fmt.Errorf("TLS certificate required but not supplied")
@@ -476,7 +510,7 @@ func (s *Server) getListenerForHTTPSServer(u *url.URL) (Loop, httpListener, erro
 
 	httpsServer := http.Server{
 		Addr:    u.Host,
-		Handler: s.Handler,
+		Handler: h,
 		TLSConfig: &tls.Config{
 			Certificates: []tls.Certificate{*s.cert},
 			ClientCAs:    s.certPool,
@@ -486,101 +520,137 @@ func (s *Server) getListenerForHTTPSServer(u *url.URL) (Loop, httpListener, erro
 		httpsServer.TLSConfig.ClientAuth = tls.RequireAndVerifyClientCert
 	}
 
-	l := newHTTPListener(&httpsServer)
+	l := newHTTPListener(&httpsServer, t)
 
 	httpsLoop := func() error { return l.ListenAndServeTLS("", "") }
 
 	return httpsLoop, l, nil
 }
 
-func (s *Server) getListenerForUNIXSocket(u *url.URL) (Loop, httpListener, error) {
+func (s *Server) getListenerForUNIXSocket(u *url.URL, h http.Handler, t httpListenerType) (Loop, httpListener, error) {
 	socketPath := u.Host + u.Path
 
 	// Remove domain socket file in case it already exists.
 	os.Remove(socketPath)
 
-	domainSocketServer := http.Server{Handler: s.Handler}
+	domainSocketServer := http.Server{Handler: h}
 	unixListener, err := net.Listen("unix", socketPath)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	l := newHTTPUnixSocketListener(&domainSocketServer, unixListener)
+	l := newHTTPUnixSocketListener(&domainSocketServer, unixListener, t)
 
 	domainSocketLoop := func() error { return domainSocketServer.Serve(unixListener) }
 	return domainSocketLoop, l, nil
 }
 
-func (s *Server) initRouter() {
-	router := s.router
-
-	if router == nil {
-		router = mux.NewRouter()
+func (s *Server) initHandlerAuth(handler http.Handler) http.Handler {
+	// Add authorization handler. This must come BEFORE authentication handler
+	// so that the latter can run first.
+	switch s.authorization {
+	case AuthorizationBasic:
+		handler = authorizer.NewBasic(
+			handler,
+			s.getCompiler,
+			s.store,
+			authorizer.Runtime(s.runtime),
+			authorizer.Decision(s.manager.Config.DefaultAuthorizationDecisionRef))
 	}
 
-	router.UseEncodedPath()
-	router.StrictSlash(true)
-	if s.metrics != nil {
-		s.metrics.RegisterEndpoints(func(path, method string, handler http.Handler) {
-			router.Handle(path, handler).Methods(method)
-		})
+	switch s.authentication {
+	case AuthenticationToken:
+		handler = identifier.NewTokenBased(handler)
+	case AuthenticationTLS:
+		handler = identifier.NewTLSBased(handler)
 	}
-	router.Handle("/health", s.instrumentHandler(http.HandlerFunc(s.unversionedGetHealth), PromHandlerHealth)).Methods(http.MethodGet)
+
+	return handler
+}
+
+func (s *Server) initRouters() {
+	mainRouter := s.router
+	if mainRouter == nil {
+		mainRouter = mux.NewRouter()
+	}
+
+	diagRouter := mux.NewRouter()
+
+	// All routers get the same base configuration *and* diagnostic API's
+	for _, router := range []*mux.Router{mainRouter, diagRouter} {
+		router.StrictSlash(true)
+		router.UseEncodedPath()
+		router.StrictSlash(true)
+
+		if s.metrics != nil {
+			s.metrics.RegisterEndpoints(func(path, method string, handler http.Handler) {
+				router.Handle(path, handler).Methods(method)
+			})
+		}
+
+		router.Handle("/health", s.instrumentHandler(s.unversionedGetHealth, PromHandlerHealth)).Methods(http.MethodGet)
+	}
+
 	if s.pprofEnabled {
-		router.HandleFunc("/debug/pprof/", pprof.Index)
-		router.Handle("/debug/pprof/allocs", pprof.Handler("allocs"))
-		router.Handle("/debug/pprof/block", pprof.Handler("block"))
-		router.Handle("/debug/pprof/heap", pprof.Handler("heap"))
-		router.Handle("/debug/pprof/mutex", pprof.Handler("mutex"))
-		router.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
-		router.HandleFunc("/debug/pprof/profile", pprof.Profile)
-		router.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
-		router.HandleFunc("/debug/pprof/trace", pprof.Trace)
+		mainRouter.HandleFunc("/debug/pprof/", pprof.Index)
+		mainRouter.Handle("/debug/pprof/allocs", pprof.Handler("allocs"))
+		mainRouter.Handle("/debug/pprof/block", pprof.Handler("block"))
+		mainRouter.Handle("/debug/pprof/heap", pprof.Handler("heap"))
+		mainRouter.Handle("/debug/pprof/mutex", pprof.Handler("mutex"))
+		mainRouter.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+		mainRouter.HandleFunc("/debug/pprof/profile", pprof.Profile)
+		mainRouter.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+		mainRouter.HandleFunc("/debug/pprof/trace", pprof.Trace)
 	}
-	s.registerHandler(router, 0, "/data/{path:.+}", http.MethodPost, s.instrumentHandler(s.v0DataPost, PromHandlerV0Data))
-	s.registerHandler(router, 0, "/data", http.MethodPost, s.instrumentHandler(s.v0DataPost, PromHandlerV0Data))
-	s.registerHandler(router, 1, "/data/{path:.+}", http.MethodDelete, s.instrumentHandler(s.v1DataDelete, PromHandlerV1Data))
-	s.registerHandler(router, 1, "/data/{path:.+}", http.MethodPut, s.instrumentHandler(s.v1DataPut, PromHandlerV1Data))
-	s.registerHandler(router, 1, "/data", http.MethodPut, s.instrumentHandler(s.v1DataPut, PromHandlerV1Data))
-	s.registerHandler(router, 1, "/data/{path:.+}", http.MethodGet, s.instrumentHandler(s.v1DataGet, PromHandlerV1Data))
-	s.registerHandler(router, 1, "/data", http.MethodGet, s.instrumentHandler(s.v1DataGet, PromHandlerV1Data))
-	s.registerHandler(router, 1, "/data/{path:.+}", http.MethodPatch, s.instrumentHandler(s.v1DataPatch, PromHandlerV1Data))
-	s.registerHandler(router, 1, "/data", http.MethodPatch, s.instrumentHandler(s.v1DataPatch, PromHandlerV1Data))
-	s.registerHandler(router, 1, "/data/{path:.+}", http.MethodPost, s.instrumentHandler(s.v1DataPost, PromHandlerV1Data))
-	s.registerHandler(router, 1, "/data", http.MethodPost, s.instrumentHandler(s.v1DataPost, PromHandlerV1Data))
-	s.registerHandler(router, 1, "/policies", http.MethodGet, s.instrumentHandler(s.v1PoliciesList, PromHandlerV1Policies))
-	s.registerHandler(router, 1, "/policies/{path:.+}", http.MethodDelete, s.instrumentHandler(s.v1PoliciesDelete, PromHandlerV1Policies))
-	s.registerHandler(router, 1, "/policies/{path:.+}", http.MethodGet, s.instrumentHandler(s.v1PoliciesGet, PromHandlerV1Policies))
-	s.registerHandler(router, 1, "/policies/{path:.+}", http.MethodPut, s.instrumentHandler(s.v1PoliciesPut, PromHandlerV1Policies))
-	s.registerHandler(router, 1, "/query", http.MethodGet, s.instrumentHandler(s.v1QueryGet, PromHandlerV1Query))
-	s.registerHandler(router, 1, "/query", http.MethodPost, s.instrumentHandler(s.v1QueryPost, PromHandlerV1Query))
-	s.registerHandler(router, 1, "/compile", http.MethodPost, s.instrumentHandler(s.v1CompilePost, PromHandlerV1Compile))
-	router.Handle("/", s.instrumentHandler(http.HandlerFunc(s.unversionedPost), PromHandlerIndex)).Methods(http.MethodPost)
-	router.Handle("/", s.instrumentHandler(http.HandlerFunc(s.indexGet), PromHandlerIndex)).Methods(http.MethodGet)
+
+	// Only the main mainRouter gets the OPA API's (data, policies, query, etc)
+	s.registerHandler(mainRouter, 0, "/data/{path:.+}", http.MethodPost, s.instrumentHandler(s.v0DataPost, PromHandlerV0Data))
+	s.registerHandler(mainRouter, 0, "/data", http.MethodPost, s.instrumentHandler(s.v0DataPost, PromHandlerV0Data))
+	s.registerHandler(mainRouter, 1, "/data/{path:.+}", http.MethodDelete, s.instrumentHandler(s.v1DataDelete, PromHandlerV1Data))
+	s.registerHandler(mainRouter, 1, "/data/{path:.+}", http.MethodPut, s.instrumentHandler(s.v1DataPut, PromHandlerV1Data))
+	s.registerHandler(mainRouter, 1, "/data", http.MethodPut, s.instrumentHandler(s.v1DataPut, PromHandlerV1Data))
+	s.registerHandler(mainRouter, 1, "/data/{path:.+}", http.MethodGet, s.instrumentHandler(s.v1DataGet, PromHandlerV1Data))
+	s.registerHandler(mainRouter, 1, "/data", http.MethodGet, s.instrumentHandler(s.v1DataGet, PromHandlerV1Data))
+	s.registerHandler(mainRouter, 1, "/data/{path:.+}", http.MethodPatch, s.instrumentHandler(s.v1DataPatch, PromHandlerV1Data))
+	s.registerHandler(mainRouter, 1, "/data", http.MethodPatch, s.instrumentHandler(s.v1DataPatch, PromHandlerV1Data))
+	s.registerHandler(mainRouter, 1, "/data/{path:.+}", http.MethodPost, s.instrumentHandler(s.v1DataPost, PromHandlerV1Data))
+	s.registerHandler(mainRouter, 1, "/data", http.MethodPost, s.instrumentHandler(s.v1DataPost, PromHandlerV1Data))
+	s.registerHandler(mainRouter, 1, "/policies", http.MethodGet, s.instrumentHandler(s.v1PoliciesList, PromHandlerV1Policies))
+	s.registerHandler(mainRouter, 1, "/policies/{path:.+}", http.MethodDelete, s.instrumentHandler(s.v1PoliciesDelete, PromHandlerV1Policies))
+	s.registerHandler(mainRouter, 1, "/policies/{path:.+}", http.MethodGet, s.instrumentHandler(s.v1PoliciesGet, PromHandlerV1Policies))
+	s.registerHandler(mainRouter, 1, "/policies/{path:.+}", http.MethodPut, s.instrumentHandler(s.v1PoliciesPut, PromHandlerV1Policies))
+	s.registerHandler(mainRouter, 1, "/query", http.MethodGet, s.instrumentHandler(s.v1QueryGet, PromHandlerV1Query))
+	s.registerHandler(mainRouter, 1, "/query", http.MethodPost, s.instrumentHandler(s.v1QueryPost, PromHandlerV1Query))
+	s.registerHandler(mainRouter, 1, "/compile", http.MethodPost, s.instrumentHandler(s.v1CompilePost, PromHandlerV1Compile))
+	mainRouter.Handle("/", s.instrumentHandler(s.unversionedPost, PromHandlerIndex)).Methods(http.MethodPost)
+	mainRouter.Handle("/", s.instrumentHandler(s.indexGet, PromHandlerIndex)).Methods(http.MethodGet)
+
 	// These are catch all handlers that respond 405 for resources that exist but the method is not allowed
-	router.Handle("/v0/data/{path:.*}", s.instrumentHandler(writer.HTTPStatus(405), PromHandlerCatch)).Methods(http.MethodGet, http.MethodHead,
+	mainRouter.Handle("/v0/data/{path:.*}", s.instrumentHandler(writer.HTTPStatus(405), PromHandlerCatch)).Methods(http.MethodGet, http.MethodHead,
 		http.MethodConnect, http.MethodDelete, http.MethodOptions, http.MethodPatch, http.MethodPut, http.MethodTrace)
-	router.Handle("/v0/data", s.instrumentHandler(writer.HTTPStatus(405), PromHandlerCatch)).Methods(http.MethodGet, http.MethodHead,
+	mainRouter.Handle("/v0/data", s.instrumentHandler(writer.HTTPStatus(405), PromHandlerCatch)).Methods(http.MethodGet, http.MethodHead,
 		http.MethodConnect, http.MethodDelete, http.MethodOptions, http.MethodPatch, http.MethodPut,
 		http.MethodTrace)
 	// v1 Data catch all
-	router.Handle("/v1/data/{path:.*}", s.instrumentHandler(writer.HTTPStatus(405), PromHandlerCatch)).Methods(http.MethodHead,
+	mainRouter.Handle("/v1/data/{path:.*}", s.instrumentHandler(writer.HTTPStatus(405), PromHandlerCatch)).Methods(http.MethodHead,
 		http.MethodConnect, http.MethodOptions, http.MethodTrace)
-	router.Handle("/v1/data", s.instrumentHandler(writer.HTTPStatus(405), PromHandlerCatch)).Methods(http.MethodHead,
+	mainRouter.Handle("/v1/data", s.instrumentHandler(writer.HTTPStatus(405), PromHandlerCatch)).Methods(http.MethodHead,
 		http.MethodConnect, http.MethodDelete, http.MethodOptions, http.MethodTrace)
 	// Policies catch all
-	router.Handle("/v1/policies", s.instrumentHandler(writer.HTTPStatus(405), PromHandlerCatch)).Methods(http.MethodHead,
+	mainRouter.Handle("/v1/policies", s.instrumentHandler(writer.HTTPStatus(405), PromHandlerCatch)).Methods(http.MethodHead,
 		http.MethodConnect, http.MethodDelete, http.MethodOptions, http.MethodTrace, http.MethodPost, http.MethodPut,
 		http.MethodPatch)
 	// Policies (/policies/{path.+} catch all
-	router.Handle("/v1/policies/{path:.*}", s.instrumentHandler(writer.HTTPStatus(405), PromHandlerCatch)).Methods(http.MethodHead,
+	mainRouter.Handle("/v1/policies/{path:.*}", s.instrumentHandler(writer.HTTPStatus(405), PromHandlerCatch)).Methods(http.MethodHead,
 		http.MethodConnect, http.MethodOptions, http.MethodTrace, http.MethodPost)
 	// Query catch all
-	router.Handle("/v1/query/{path:.*}", s.instrumentHandler(writer.HTTPStatus(405), PromHandlerCatch)).Methods(http.MethodHead,
+	mainRouter.Handle("/v1/query/{path:.*}", s.instrumentHandler(writer.HTTPStatus(405), PromHandlerCatch)).Methods(http.MethodHead,
 		http.MethodConnect, http.MethodDelete, http.MethodOptions, http.MethodTrace, http.MethodPost, http.MethodPut, http.MethodPatch)
-	router.Handle("/v1/query", s.instrumentHandler(writer.HTTPStatus(405), PromHandlerCatch)).Methods(http.MethodHead,
+	mainRouter.Handle("/v1/query", s.instrumentHandler(writer.HTTPStatus(405), PromHandlerCatch)).Methods(http.MethodHead,
 		http.MethodConnect, http.MethodDelete, http.MethodOptions, http.MethodTrace, http.MethodPut, http.MethodPatch)
-	s.Handler = router
+
+	s.Handler = mainRouter
+	s.DiagnosticHandler = diagRouter
 }
 
 func (s *Server) instrumentHandler(handler func(http.ResponseWriter, *http.Request), label string) http.Handler {

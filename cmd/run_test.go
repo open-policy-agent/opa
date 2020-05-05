@@ -14,7 +14,8 @@ import (
 
 func TestRunServerBase(t *testing.T) {
 	params := newRunParams()
-	params.rt = e2e.NewAPIServerTestParams()
+	params.rt.Addrs = &[]string{":0"}
+	params.rt.DiagnosticAddrs = &[]string{}
 	params.serverMode = true
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -22,14 +23,62 @@ func TestRunServerBase(t *testing.T) {
 
 	testRuntime := e2e.WrapRuntime(ctx, cancel, rt)
 
-	go startRuntime(ctx, rt, true)
+	done := make(chan bool)
+	go func() {
+		startRuntime(ctx, rt, true)
+		done <- true
+	}()
 
 	err := testRuntime.WaitForServer()
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
 
-	err = testRuntime.UploadData(bytes.NewBufferString(`{"x": 1}`))
+	validateBasicServe(t, testRuntime)
+
+	cancel()
+	<-done
+}
+
+func TestRunServerWithDiagnosticAddr(t *testing.T) {
+	params := newRunParams()
+	params.rt.Addrs = &[]string{":0"}
+	params.rt.DiagnosticAddrs = &[]string{":0"}
+	ctx, cancel := context.WithCancel(context.Background())
+
+	rt := initRuntime(ctx, params, nil)
+
+	testRuntime := e2e.WrapRuntime(ctx, cancel, rt)
+
+	done := make(chan bool)
+	go func() {
+		startRuntime(ctx, rt, true)
+		done <- true
+	}()
+
+	err := testRuntime.WaitForServer()
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+
+	validateBasicServe(t, testRuntime)
+
+	diagURL, err := testRuntime.AddrToURL(rt.DiagnosticAddrs()[0])
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+	if err := testRuntime.HealthCheck(diagURL); err != nil {
+		t.Error(err)
+	}
+
+	cancel()
+	<-done
+}
+
+func validateBasicServe(t *testing.T, runtime *e2e.TestRuntime) {
+	t.Helper()
+
+	err := runtime.UploadData(bytes.NewBufferString(`{"x": 1}`))
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
@@ -37,7 +86,7 @@ func TestRunServerBase(t *testing.T) {
 	resp := struct {
 		Result int `json:"result"`
 	}{}
-	err = testRuntime.GetDataWithInputTyped("x", nil, &resp)
+	err = runtime.GetDataWithInputTyped("x", nil, &resp)
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}

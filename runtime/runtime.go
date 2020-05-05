@@ -64,6 +64,10 @@ type Params struct {
 	// Addrs are the listening addresses that the OPA server will bind to.
 	Addrs *[]string
 
+	// DiagnosticAddrs are the listening addresses that the OPA server will bind to
+	// for read-only diagnostic API's (/health, /metrics, etc)
+	DiagnosticAddrs *[]string
+
 	// InsecureAddr is the listening address that the OPA server will bind to
 	// in addition to Addr if TLS is enabled.
 	InsecureAddr string
@@ -238,11 +242,20 @@ func (rt *Runtime) StartServer(ctx context.Context) {
 // will block until either: an error occurs, the context is canceled, or
 // a SIGTERM or SIGKILL signal is sent.
 func (rt *Runtime) Serve(ctx context.Context) error {
+	if rt.Params.Addrs == nil {
+		return fmt.Errorf("at least one address must be configured in runtime parameters")
+	}
+
+	if rt.Params.DiagnosticAddrs == nil {
+		rt.Params.DiagnosticAddrs = &[]string{}
+	}
+
 	setupLogging(rt.Params.Logging)
 
 	logrus.WithFields(logrus.Fields{
-		"addrs":         *rt.Params.Addrs,
-		"insecure_addr": rt.Params.InsecureAddr,
+		"addrs":            *rt.Params.Addrs,
+		"diagnostic-addrs": *rt.Params.DiagnosticAddrs,
+		"insecure_addr":    rt.Params.InsecureAddr,
 	}).Info("Initializing server.")
 
 	if err := rt.Manager.Start(ctx); err != nil {
@@ -253,7 +266,7 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 	defer rt.Manager.Stop(ctx)
 
 	var err error
-	rt.server, err = server.New().
+	rt.server = server.New().
 		WithStore(rt.Store).
 		WithManager(rt.Manager).
 		WithCompilerErrorLimit(rt.Params.ErrorLimit).
@@ -267,9 +280,13 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 		WithDecisionIDFactory(rt.decisionIDFactory).
 		WithDecisionLoggerWithErr(rt.decisionLogger).
 		WithRuntime(rt.Manager.Info).
-		WithMetrics(rt.metrics).
-		Init(ctx)
+		WithMetrics(rt.metrics)
 
+	if rt.Params.DiagnosticAddrs != nil {
+		rt.server = rt.server.WithDiagnosticAddresses(*rt.Params.DiagnosticAddrs)
+	}
+
+	rt.server, err = rt.server.Init(ctx)
 	if err != nil {
 		logrus.WithField("err", err).Error("Unable to initialize server.")
 		return err
@@ -283,6 +300,7 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 	}
 
 	rt.server.Handler = NewLoggingHandler(rt.server.Handler)
+	rt.server.DiagnosticHandler = NewLoggingHandler(rt.server.DiagnosticHandler)
 
 	loops, err := rt.server.Listeners()
 	if err != nil {
@@ -320,6 +338,17 @@ func (rt *Runtime) Addrs() []string {
 	}
 
 	return rt.server.Addrs()
+}
+
+// DiagnosticAddrs returns a list of diagnostic addresses that the runtime is
+// listening on (when in server mode). Returns an empty list if it hasn't
+// started listening.
+func (rt *Runtime) DiagnosticAddrs() []string {
+	if rt.server == nil {
+		return nil
+	}
+
+	return rt.server.DiagnosticAddrs()
 }
 
 // StartREPL starts the runtime in REPL mode. This function will block the calling goroutine.

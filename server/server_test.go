@@ -54,23 +54,15 @@ type trw struct {
 }
 
 func TestUnversionedGetHealth(t *testing.T) {
-
 	f := newFixture(t)
-
 	req := newReqUnversioned(http.MethodGet, "/health", "")
-	if err := f.executeRequest(req, 200, `{}`); err != nil {
-		t.Fatalf("Unexpected error while health check: %v", err)
-	}
+	validateDiagnosticRequest(t, f, req, 200, `{}`)
 }
 
 func TestUnversionedGetHealthBundleNoBundleSet(t *testing.T) {
-
 	f := newFixture(t)
-
 	req := newReqUnversioned(http.MethodGet, "/health?bundles=true", "")
-	if err := f.executeRequest(req, 200, `{}`); err != nil {
-		t.Fatalf("Unexpected error while health check: %v", err)
-	}
+	validateDiagnosticRequest(t, f, req, 200, `{}`)
 }
 
 func TestUnversionedGetHealthCheckOnlyBundlePlugin(t *testing.T) {
@@ -83,18 +75,14 @@ func TestUnversionedGetHealthCheckOnlyBundlePlugin(t *testing.T) {
 
 	// The bundle hasn't been activated yet, expect the health check to fail
 	req := newReqUnversioned(http.MethodGet, "/health?bundles=true", "")
-	if err := f.executeRequest(req, 500, `{}`); err != nil {
-		t.Fatal(err)
-	}
+	validateDiagnosticRequest(t, f, req, 500, `{}`)
 
 	// Set the bundle to be activated.
 	f.server.manager.UpdatePluginStatus("bundle", &plugins.Status{State: plugins.StateOK})
 
 	// The heath check should now respond as healthy
 	req = newReqUnversioned(http.MethodGet, "/health?bundles=true", "")
-	if err := f.executeRequest(req, 200, `{}`); err != nil {
-		t.Fatal(err)
-	}
+	validateDiagnosticRequest(t, f, req, 200, `{}`)
 }
 
 func TestUnversionedGetHealthCheckDiscoveryWithBundle(t *testing.T) {
@@ -106,9 +94,7 @@ func TestUnversionedGetHealthCheckDiscoveryWithBundle(t *testing.T) {
 
 	// The discovery bundle hasn't been activated yet, expect the health check to fail
 	req := newReqUnversioned(http.MethodGet, "/health?bundles=true", "")
-	if err := f.executeRequest(req, 500, `{}`); err != nil {
-		t.Fatal(err)
-	}
+	validateDiagnosticRequest(t, f, req, 500, `{}`)
 
 	// Set the bundle to be not ready (plugin configured and created, but hasn't activated all bundles yet).
 	f.server.manager.UpdatePluginStatus("discovery", &plugins.Status{State: plugins.StateOK})
@@ -116,18 +102,14 @@ func TestUnversionedGetHealthCheckDiscoveryWithBundle(t *testing.T) {
 
 	// The discovery bundle is OK, but the newly configured bundle hasn't been activated yet, expect the health check to fail
 	req = newReqUnversioned(http.MethodGet, "/health?bundles=true", "")
-	if err := f.executeRequest(req, 500, `{}`); err != nil {
-		t.Fatal(err)
-	}
+	validateDiagnosticRequest(t, f, req, 500, `{}`)
 
 	// Set the bundle to be activated.
 	f.server.manager.UpdatePluginStatus("bundle", &plugins.Status{State: plugins.StateOK})
 
 	// The heath check should now respond as healthy
 	req = newReqUnversioned(http.MethodGet, "/health?bundles=true", "")
-	if err := f.executeRequest(req, 200, `{}`); err != nil {
-		t.Fatal(err)
-	}
+	validateDiagnosticRequest(t, f, req, 200, `{}`)
 }
 
 func TestUnversionedGetHealthCheckBundleActivationSingleLegacy(t *testing.T) {
@@ -140,9 +122,7 @@ func TestUnversionedGetHealthCheckBundleActivationSingleLegacy(t *testing.T) {
 
 	// The server doesn't know about any bundles, so return a healthy status
 	req := newReqUnversioned(http.MethodGet, "/health?bundle=true", "")
-	if err := f.executeRequest(req, 200, `{}`); err != nil {
-		t.Fatal(err)
-	}
+	validateDiagnosticRequest(t, f, req, 200, `{}`)
 
 	err := storage.Txn(ctx, f.server.store, storage.WriteParams, func(txn storage.Transaction) error {
 		return bundle.LegacyWriteManifestToStore(ctx, f.server.store, txn, bundle.Manifest{
@@ -156,9 +136,7 @@ func TestUnversionedGetHealthCheckBundleActivationSingleLegacy(t *testing.T) {
 
 	// The heath check still respond as healthy with a legacy bundle found in storage
 	req = newReqUnversioned(http.MethodGet, "/health?bundle=true", "")
-	if err := f.executeRequest(req, 200, `{}`); err != nil {
-		t.Fatal(err)
-	}
+	validateDiagnosticRequest(t, f, req, 200, `{}`)
 }
 
 func TestBundlesReady(t *testing.T) {
@@ -367,9 +345,7 @@ func TestUnversionedGetHealthCheckDiscoveryWithPlugins(t *testing.T) {
 			}
 
 			req := newReqUnversioned(http.MethodGet, "/health?plugins", "")
-			if err := f.executeRequest(req, tc.exp, `{}`); err != nil {
-				t.Fatal(err)
-			}
+			validateDiagnosticRequest(t, f, req, tc.exp, `{}`)
 		})
 	}
 }
@@ -449,9 +425,7 @@ func TestUnversionedGetHealthCheckBundleAndPlugins(t *testing.T) {
 			}
 
 			req := newReqUnversioned(http.MethodGet, "/health?plugins&bundles", "")
-			if err := f.executeRequest(req, tc.exp, `{}`); err != nil {
-				t.Fatal(err)
-			}
+			validateDiagnosticRequest(t, f, req, tc.exp, `{}`)
 		})
 	}
 }
@@ -3447,35 +3421,25 @@ func TestAuthorization(t *testing.T) {
 		panic(err)
 	}
 
-	recorder := httptest.NewRecorder()
-
 	// Test that bob can do stuff.
-	req1, err := http.NewRequest(http.MethodGet, "http://localhost:8182/v1/data/foo", nil)
+	req1, err := http.NewRequest(http.MethodGet, "http://localhost:8182/health", nil)
 	if err != nil {
 		panic(err)
 	}
 
 	req1 = identifier.SetIdentity(req1, "bob")
-	server.Handler.ServeHTTP(recorder, req1)
 
-	if recorder.Code != http.StatusOK {
-		t.Fatalf("Expected success but got: %v", recorder)
-	}
-
-	recorder = httptest.NewRecorder()
+	validateAuthorizedRequest(t, server, req1, http.StatusOK)
 
 	// Test that alice can't do stuff.
-	req2, err := http.NewRequest(http.MethodGet, "http://localhost:8182/v1/data/foo", nil)
+	req2, err := http.NewRequest(http.MethodGet, "http://localhost:8182/health", nil)
 	if err != nil {
 		panic(err)
 	}
 
 	req2 = identifier.SetIdentity(req2, "alice")
-	server.Handler.ServeHTTP(recorder, req2)
 
-	if recorder.Code != http.StatusUnauthorized {
-		t.Fatalf("Expected unauthorized but got: %v", recorder)
-	}
+	validateAuthorizedRequest(t, server, req2, http.StatusUnauthorized)
 
 	// Reverse the policy.
 	update := identifier.SetIdentity(newReqV1(http.MethodPut, "/policies/test", `
@@ -3490,24 +3454,38 @@ func TestAuthorization(t *testing.T) {
 		}
 	`), "bob")
 
-	recorder = httptest.NewRecorder()
+	recorder := httptest.NewRecorder()
 	server.Handler.ServeHTTP(recorder, update)
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("Expected policy update to succeed but got: %v", recorder)
 	}
 
 	// Try alice again.
-	recorder = httptest.NewRecorder()
 	server.Handler.ServeHTTP(recorder, req2)
-	if recorder.Code != http.StatusOK {
-		t.Fatalf("Expected OK but got: %v", recorder)
-	}
+	validateAuthorizedRequest(t, server, req2, http.StatusOK)
 
 	// Try bob again.
-	recorder = httptest.NewRecorder()
 	server.Handler.ServeHTTP(recorder, req1)
-	if recorder.Code != http.StatusUnauthorized {
-		t.Fatalf("Expected 401 but got: %v", recorder)
+	validateAuthorizedRequest(t, server, req1, http.StatusUnauthorized)
+}
+
+func validateAuthorizedRequest(t *testing.T, s *Server, req *http.Request, exp int) {
+	t.Helper()
+
+	r := httptest.NewRecorder()
+
+	// First check the main router
+	s.Handler.ServeHTTP(r, req)
+	if r.Code != exp {
+		t.Fatalf("(Default Handler) Expected %v but got: %v", exp, r)
+	}
+
+	r = httptest.NewRecorder()
+
+	// Ensure that auth happens for the diagnostic handler as well
+	s.DiagnosticHandler.ServeHTTP(r, req)
+	if r.Code != exp {
+		t.Fatalf("(Diagnostic Handler) Expected %v but got: %v", exp, r)
 	}
 }
 
@@ -3680,7 +3658,7 @@ func newFixture(t *testing.T, opts ...func(*Server)) *fixture {
 	}
 
 	server := New().
-		WithAddresses([]string{":8182"}).
+		WithAddresses([]string{"localhost:8182"}).
 		WithStore(store).
 		WithManager(m)
 	for _, opt := range opts {
@@ -3718,18 +3696,26 @@ func (f *fixture) v1TestRequests(trs []tr) error {
 }
 
 func (f *fixture) v1(method string, path string, body string, code int, resp string) error {
-	req := newReqV1(method, path, body)
-	return f.executeRequest(req, code, resp)
+	// All v1 API's should 404 for the diagnostic handler
+	if err := f.executeDiagnosticRequest(newReqV1(method, path, body), 404, ""); err != nil {
+		return err
+	}
+
+	return f.executeRequest(newReqV1(method, path, body), code, resp)
 }
 
 func (f *fixture) v0(method string, path string, body string, code int, resp string) error {
-	req := newReqV0(method, path, body)
-	return f.executeRequest(req, code, resp)
+	// All v0 API's should 404 for the diagnostic handler
+	if err := f.executeDiagnosticRequest(newReqV0(method, path, body), 404, ""); err != nil {
+		return err
+	}
+
+	return f.executeRequest(newReqV0(method, path, body), code, resp)
 }
 
-func (f *fixture) executeRequest(req *http.Request, code int, resp string) error {
+func (f *fixture) executeRequestForHandler(h http.Handler, req *http.Request, code int, resp string) error {
 	f.reset()
-	f.server.Handler.ServeHTTP(f.recorder, req)
+	h.ServeHTTP(f.recorder, req)
 	if f.recorder.Code != code {
 		return fmt.Errorf("Expected code %v from %v %v but got: %+v", code, req.Method, req.URL, f.recorder)
 	}
@@ -3757,6 +3743,14 @@ func (f *fixture) executeRequest(req *http.Request, code int, resp string) error
 	return nil
 }
 
+func (f *fixture) executeRequest(req *http.Request, code int, resp string) error {
+	return f.executeRequestForHandler(f.server.Handler, req, code, resp)
+}
+
+func (f *fixture) executeDiagnosticRequest(req *http.Request, code int, resp string) error {
+	return f.executeRequestForHandler(f.server.DiagnosticHandler, req, code, resp)
+}
+
 func (f *fixture) reset() {
 	f.recorder = httptest.NewRecorder()
 }
@@ -3777,6 +3771,17 @@ func executeRequestsv0(t *testing.T, reqs []tr) {
 		if err := f.v0(req.method, req.path, req.body, req.code, req.resp); err != nil {
 			t.Errorf("Unexpected response on request %d: %v", i+1, err)
 		}
+	}
+}
+
+func validateDiagnosticRequest(t *testing.T, f *fixture, req *http.Request, code int, resp string) {
+	t.Helper()
+	// diagnostic requests need to be available on both the normal handler and diagnostic handler
+	if err := f.executeRequest(req, code, resp); err != nil {
+		t.Errorf("Unexpected error for request %v: %s", req, err)
+	}
+	if err := f.executeDiagnosticRequest(req, code, resp); err != nil {
+		t.Errorf("Unexpected error for request %v: %s", req, err)
 	}
 }
 
@@ -4041,7 +4046,9 @@ func newClient(t *testing.T, pool *x509.CertPool, clientKeyPair ...string) *http
 }
 
 func TestShutdown(t *testing.T) {
-	f := newFixture(t)
+	f := newFixture(t, func(s *Server) {
+		s.WithDiagnosticAddresses([]string{":8443"})
+	})
 	loops, err := f.server.Listeners()
 	if err != nil {
 		t.Errorf("unexpected error: %s", err.Error())
@@ -4063,13 +4070,15 @@ func TestShutdown(t *testing.T) {
 }
 
 func TestShutdownError(t *testing.T) {
-	f := newFixture(t)
+	f := newFixture(t, func(s *Server) {
+		s.WithDiagnosticAddresses([]string{":8443"})
+	})
 
 	errMsg := "failed to shutdown"
 
 	// Add a mock httpListener to the server
 	m := &mockHTTPListener{
-		ShutdownHook: func() error {
+		shutdownHook: func() error {
 			return errors.New(errMsg)
 		},
 	}
@@ -4086,7 +4095,9 @@ func TestShutdownError(t *testing.T) {
 }
 
 func TestShutdownMultipleErrors(t *testing.T) {
-	f := newFixture(t)
+	f := newFixture(t, func(s *Server) {
+		s.WithDiagnosticAddresses([]string{":8443"})
+	})
 
 	shutdownErrs := []error{errors.New("err1"), nil, errors.New("err3")}
 
@@ -4095,7 +4106,7 @@ func TestShutdownMultipleErrors(t *testing.T) {
 		m := &mockHTTPListener{}
 		if err != nil {
 			retVal := errors.New(err.Error())
-			m.ShutdownHook = func() error {
+			m.shutdownHook = func() error {
 				return retVal
 			}
 		}
@@ -4135,7 +4146,7 @@ func TestAddrsWithEmptyListenAddr(t *testing.T) {
 
 func TestAddrsWithListenAddr(t *testing.T) {
 	s := New()
-	s.httpListeners = []httpListener{&mockHTTPListener{Addrs: ":8181"}}
+	s.httpListeners = []httpListener{&mockHTTPListener{addrs: ":8181"}}
 	a := s.Addrs()
 	if len(a) != 1 || a[0] != ":8181" {
 		t.Errorf("expected only an ':8181' address, got: %+v", a)
@@ -4149,7 +4160,7 @@ func TestAddrsWithMixedListenerAddr(t *testing.T) {
 
 	s.httpListeners = []httpListener{}
 	for _, addr := range addrs {
-		s.httpListeners = append(s.httpListeners, &mockHTTPListener{Addrs: addr})
+		s.httpListeners = append(s.httpListeners, &mockHTTPListener{addrs: addr, t: defaultListenerType})
 	}
 
 	a := s.Addrs()
@@ -4171,17 +4182,171 @@ func TestAddrsWithMixedListenerAddr(t *testing.T) {
 	}
 }
 
+func TestDiagnosticAddrsNoListeners(t *testing.T) {
+	s := New()
+	a := s.DiagnosticAddrs()
+	if len(a) != 0 {
+		t.Errorf("expected an empty list of addresses, got: %+v", a)
+	}
+}
+
+func TestDiagnosticAddrsWithEmptyListenAddr(t *testing.T) {
+	s := New()
+	s.httpListeners = []httpListener{&mockHTTPListener{t: diagnosticListenerType}}
+	a := s.DiagnosticAddrs()
+	if len(a) != 0 {
+		t.Errorf("expected an empty list of addresses, got: %+v", a)
+	}
+}
+
+func TestDiagnosticAddrsWithListenAddr(t *testing.T) {
+	s := New()
+	s.httpListeners = []httpListener{&mockHTTPListener{addrs: ":8181", t: diagnosticListenerType}}
+	a := s.DiagnosticAddrs()
+	if len(a) != 1 || a[0] != ":8181" {
+		t.Errorf("expected only an ':8181' address, got: %+v", a)
+	}
+}
+
+func TestDiagnosticAddrsWithMixedListenerAddr(t *testing.T) {
+	s := New()
+	addrs := []string{":8181", "", "unix:///var/tmp/foo.sock"}
+	expected := []string{":8181", "unix:///var/tmp/foo.sock"}
+
+	s.httpListeners = []httpListener{}
+	for _, addr := range addrs {
+		s.httpListeners = append(s.httpListeners, &mockHTTPListener{addrs: addr, t: diagnosticListenerType})
+	}
+
+	a := s.DiagnosticAddrs()
+	if len(a) != 2 {
+		t.Errorf("expected 2 addresses, got: %+v", a)
+	}
+
+	for _, expectedAddr := range expected {
+		found := false
+		for _, actualAddr := range a {
+			if expectedAddr == actualAddr {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("expected %q in address list, got: %+v", expectedAddr, a)
+		}
+	}
+}
+
+func TestMixedAddrTypes(t *testing.T) {
+	s := New()
+
+	s.httpListeners = []httpListener{}
+
+	addrs := map[string]struct{}{"localhost:8181": {}, "localhost:1234": {}, "unix:///var/tmp/foo.sock": {}}
+	for addr := range addrs {
+		s.httpListeners = append(s.httpListeners, &mockHTTPListener{addrs: addr, t: defaultListenerType})
+	}
+
+	diagAddrs := map[string]struct{}{":8181": {}, "https://127.0.0.1": {}}
+	for addr := range diagAddrs {
+		s.httpListeners = append(s.httpListeners, &mockHTTPListener{addrs: addr, t: diagnosticListenerType})
+	}
+
+	actualAddrs := s.Addrs()
+	if len(actualAddrs) != len(addrs) {
+		t.Errorf("expected %d addresses, got: %+v", len(addrs), actualAddrs)
+	}
+
+	for _, addr := range actualAddrs {
+		if _, ok := addrs[addr]; !ok {
+			t.Errorf("Unexpected address %v", addr)
+		}
+	}
+
+	actualDiagAddrs := s.DiagnosticAddrs()
+	if len(actualDiagAddrs) != len(diagAddrs) {
+		t.Errorf("expected %d addresses, got: %+v", len(diagAddrs), actualDiagAddrs)
+	}
+
+	for _, addr := range actualDiagAddrs {
+		if _, ok := diagAddrs[addr]; !ok {
+			t.Errorf("Unexpected diagnostic address %v", addr)
+		}
+	}
+}
+
+func TestDiagnosticRoutes(t *testing.T) {
+	cases := []struct {
+		path      string
+		should404 bool
+	}{
+		{"/health", false},
+		{"/metrics", false},
+		{"/debug/pprof/", true},
+		{"/v0/data", true},
+		{"/v0/data/foo", true},
+		{"/v1/data/", true},
+		{"/v1/data/foo", true},
+		{"/v1/policies", true},
+		{"/v1/policies/foo", true},
+		{"/v1/query", true},
+		{"/v1/compile", true},
+		{"/", true},
+	}
+
+	f := newFixture(t, func(s *Server) {
+		s.WithPprofEnabled(true)
+		s.WithMetrics(new(mockMetricsProvider))
+	})
+
+	for _, tc := range cases {
+		t.Run(tc.path, func(t *testing.T) {
+			req, err := http.NewRequest("GET", tc.path, nil)
+			if err != nil {
+				t.Fatalf("Unexpected error: %s", err)
+			}
+			code := http.StatusOK
+			if tc.should404 {
+				code = http.StatusNotFound
+			}
+			f.reset()
+			f.server.DiagnosticHandler.ServeHTTP(f.recorder, req)
+			if f.recorder.Code != code {
+				t.Errorf("Expected code %v from %v %v but got: %+v", code, req.Method, req.URL, f.recorder)
+			}
+		})
+	}
+
+}
+
+type mockHTTPHandler struct{}
+
+func (m *mockHTTPHandler) ServeHTTP(w http.ResponseWriter, _ *http.Request) {
+	w.WriteHeader(http.StatusOK)
+}
+
+type mockMetricsProvider struct{}
+
+func (m *mockMetricsProvider) RegisterEndpoints(registrar func(path, method string, handler http.Handler)) {
+	registrar("/metrics", "GET", new(mockHTTPHandler))
+}
+
+func (m *mockMetricsProvider) InstrumentHandler(handler http.Handler, label string) http.Handler {
+	return handler
+}
+
 type listenerHook func() error
 
 type mockHTTPListener struct {
-	ShutdownHook listenerHook
-	Addrs        string
+	shutdownHook listenerHook
+	addrs        string
+	t            httpListenerType
 }
 
 var _ httpListener = (*mockHTTPListener)(nil)
 
 func (m mockHTTPListener) Addr() string {
-	return m.Addrs
+	return m.addrs
 }
 
 func (m mockHTTPListener) ListenAndServe() error {
@@ -4194,8 +4359,12 @@ func (m mockHTTPListener) ListenAndServeTLS(certFile, keyFile string) error {
 
 func (m mockHTTPListener) Shutdown(ctx context.Context) error {
 	var err error
-	if m.ShutdownHook != nil {
-		err = m.ShutdownHook()
+	if m.shutdownHook != nil {
+		err = m.shutdownHook()
 	}
 	return err
+}
+
+func (m mockHTTPListener) Type() httpListenerType {
+	return m.t
 }
