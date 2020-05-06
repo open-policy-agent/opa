@@ -24,12 +24,13 @@ type wasmBuiltin struct {
 
 // internalBuiltins are the built-in functions implemented in wasm.
 var internalBuiltins = map[string]wasmBuiltin{
-	ast.Plus.Name:     wasmBuiltin{ast.Plus, "opa_arithmetic_plus"},
-	ast.Minus.Name:    wasmBuiltin{ast.Minus, "opa_arithmetic_minus"},
-	ast.Multiply.Name: wasmBuiltin{ast.Multiply, "opa_arithmetic_multiply"},
-	ast.Divide.Name:   wasmBuiltin{ast.Divide, "opa_arithmetic_divide"},
-	ast.Abs.Name:      wasmBuiltin{ast.Abs, "opa_arithmetic_abs"},
-	ast.Rem.Name:      wasmBuiltin{ast.Rem, "opa_arithmetic_rem"},
+	ast.Plus.Name:     wasmBuiltin{ast.Plus, "opa_arith_plus"},
+	ast.Minus.Name:    wasmBuiltin{ast.Minus, "opa_arith_minus"},
+	ast.Multiply.Name: wasmBuiltin{ast.Multiply, "opa_arith_multiply"},
+	ast.Divide.Name:   wasmBuiltin{ast.Divide, "opa_arith_divide"},
+	ast.Abs.Name:      wasmBuiltin{ast.Abs, "opa_arith_abs"},
+	ast.Round.Name:    wasmBuiltin{ast.Abs, "opa_arith_round"},
+	ast.Rem.Name:      wasmBuiltin{ast.Rem, "opa_arith_rem"},
 }
 
 // Planner implements a query planner for Rego queries.
