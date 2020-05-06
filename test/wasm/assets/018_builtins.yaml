@@ -1,7 +1,25 @@
 cases:
-  - note: registered built-in
+  - note: abs built-in
+    query: abs(-1,x)
+    want_result: [{'x': 1}]
+  - note: round built-in
+    query: round(1.4,x)
+    want_result: [{'x': 1}]
+  - note: plus built-in
     query: plus(1,1,x)
     want_result: [{'x': 2}]
+  - note: minus built-in
+    query: minus(1,1,x)
+    want_result: [{'x': 0}]
+  - note: multiply built-in
+    query: mul(2,3,x)
+    want_result: [{'x': 6}]
+  - note: divide built-in
+    query: div(6,3,x)
+    want_result: [{'x': 2}]
+  - note: remainder built-in
+    query: rem(4,3,x)
+    want_result: [{'x': 1}]
   - note: custom built-in
     query: x = custom_builtin_test(100)
     want_result: [{'x': 101}]
