@@ -9,12 +9,22 @@ import (
 	"compress/gzip"
 	"encoding/json"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/pkg/errors"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/internal/file/archive"
 )
+
+func TestManifestAddroot(t *testing.T) {
+	var m Manifest
+	m.AddRoot("x/y")
+	m.AddRoot("y/z")
+	m.rootSet().Equal(stringSet{"x/y": struct{}{}, "y/z": struct{}{}})
+}
 
 func TestRead(t *testing.T) {
 	testReadBundle(t, "")
@@ -35,7 +45,7 @@ func testReadBundle(t *testing.T, baseDir string) {
 	}
 
 	buf := archive.MustWriteTarGz(files)
-	loader := NewTarballLoader(buf)
+	loader := NewTarballLoaderWithBaseURL(buf, baseDir)
 	br := NewCustomReader(loader).WithBaseDir(baseDir)
 
 	bundle, err := br.Read()
@@ -68,6 +78,7 @@ func testReadBundle(t *testing.T, baseDir string) {
 		},
 		Modules: []ModuleFile{
 			{
+				URL:    modulePath,
 				Path:   modulePath,
 				Parsed: ast.MustParseModule(module),
 				Raw:    []byte(module),
@@ -160,7 +171,7 @@ func TestReadRootValidation(t *testing.T) {
 			files: [][2]string{
 				{"/.manifest", `{"revision": "abcd", "roots": ["a/b", "a"]}`},
 			},
-			err: "manifest has overlapped roots: a/b and a",
+			err: "manifest has overlapped roots: 'a/b' and 'a'",
 		},
 		{
 			note: "edge: overlapped partial segment",
@@ -205,6 +216,84 @@ func TestReadRootValidation(t *testing.T) {
 		})
 	}
 
+}
+
+func TestRootPathsContain(t *testing.T) {
+	tests := []struct {
+		note  string
+		roots []string
+		path  string
+		want  bool
+	}{
+		{
+			note:  "empty contains empty",
+			roots: []string{""},
+			path:  "",
+			want:  true,
+		},
+		{
+			note:  "empty contains non-empty",
+			roots: []string{""},
+			path:  "foo/bar",
+			want:  true,
+		},
+		{
+			note:  "single prefix",
+			roots: []string{"foo"},
+			path:  "foo/bar",
+			want:  true,
+		},
+		{
+			note:  "single prefix no match",
+			roots: []string{"bar"},
+			path:  "foo/bar",
+			want:  false,
+		},
+		{
+			note:  "multiple prefix",
+			roots: []string{"baz", "foo"},
+			path:  "foo/bar",
+			want:  true,
+		},
+		{
+			note:  "multiple prefix no match",
+			roots: []string{"baz", "qux"},
+			path:  "foo/bar",
+			want:  false,
+		},
+		{
+			note:  "single exact",
+			roots: []string{"foo/bar"},
+			path:  "foo/bar",
+			want:  true,
+		},
+		{
+			note:  "single exact no match",
+			roots: []string{"foo/ba"},
+			path:  "foo/bar",
+			want:  false,
+		},
+		{
+			note:  "multiple exact",
+			roots: []string{"baz/bar", "foo/bar"},
+			path:  "foo/bar",
+			want:  true,
+		},
+		{
+			note:  "root too long",
+			roots: []string{"foo/bar/"},
+			path:  "foo/bar",
+			want:  false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			if RootPathsContain(tc.roots, tc.path) != tc.want {
+				t.Fatalf("expected %v contains %v to be %v", tc.roots, tc.path, tc.want)
+			}
+		})
+	}
 }
 
 func TestReadErrorBadGzip(t *testing.T) {
@@ -253,7 +342,7 @@ func TestReadErrorBadContents(t *testing.T) {
 
 }
 
-func TestRoundtrip(t *testing.T) {
+func TestRoundtripDeprecatedWrite(t *testing.T) {
 
 	bundle := Bundle{
 		Data: map[string]interface{}{
@@ -265,6 +354,7 @@ func TestRoundtrip(t *testing.T) {
 		},
 		Modules: []ModuleFile{
 			{
+				URL:    "/foo/corge/corge.rego",
 				Path:   "/foo/corge/corge.rego",
 				Parsed: ast.MustParseModule(`package foo.corge`),
 				Raw:    []byte(`package foo.corge`),
@@ -291,6 +381,109 @@ func TestRoundtrip(t *testing.T) {
 		t.Fatal("Exp:", bundle, "\n\nGot:", bundle2)
 	}
 
+}
+
+func TestRoundtrip(t *testing.T) {
+
+	bundle := Bundle{
+		Data: map[string]interface{}{
+			"foo": map[string]interface{}{
+				"bar": []interface{}{json.Number("1"), json.Number("2"), json.Number("3")},
+				"baz": true,
+				"qux": "hello",
+			},
+		},
+		Modules: []ModuleFile{
+			{
+				URL:    "/foo/corge/corge.rego",
+				Path:   "/foo/corge/corge.rego",
+				Parsed: ast.MustParseModule(`package foo.corge`),
+				Raw:    []byte("package foo.corge\n"),
+			},
+		},
+		Wasm: []byte("modules-compiled-as-wasm-binary"),
+		Manifest: Manifest{
+			Revision: "quickbrownfaux",
+		},
+	}
+
+	var buf bytes.Buffer
+
+	if err := NewWriter(&buf).Write(bundle); err != nil {
+		t.Fatal("Unexpected error:", err)
+	}
+
+	bundle2, err := NewReader(&buf).Read()
+	if err != nil {
+		t.Fatal("Unexpected error:", err)
+	}
+
+	if !bundle2.Equal(bundle) {
+		t.Fatal("Exp:", bundle, "\n\nGot:", bundle2)
+	}
+
+}
+
+func TestWriterUsePath(t *testing.T) {
+
+	bundle := Bundle{
+		Data: map[string]interface{}{},
+		Modules: []ModuleFile{
+			{
+				URL:    "/url.rego",
+				Path:   "/path.rego",
+				Parsed: ast.MustParseModule(`package x`),
+				Raw:    []byte("package x\n"),
+			},
+		},
+		Manifest: Manifest{Revision: "quickbrownfaux"},
+	}
+
+	var buf bytes.Buffer
+
+	if err := NewWriter(&buf).UseModulePath(true).Write(bundle); err != nil {
+		t.Fatal("Unexpected error:", err)
+	}
+
+	bundle2, err := NewReader(&buf).Read()
+	if err != nil {
+		t.Fatal("Unexpected error:", err)
+	}
+
+	if bundle2.Modules[0].URL != "/path.rego" || bundle2.Modules[0].Path != "/path.rego" {
+		t.Fatal("expected module path to be used but got:", bundle2.Modules[0])
+	}
+}
+
+func TestWriterUseURL(t *testing.T) {
+
+	bundle := Bundle{
+		Data: map[string]interface{}{},
+		Modules: []ModuleFile{
+			{
+				URL:    "/url.rego",
+				Path:   "/path.rego",
+				Parsed: ast.MustParseModule(`package x`),
+				Raw:    []byte("package x\n"),
+			},
+		},
+		Manifest: Manifest{Revision: "quickbrownfaux"},
+	}
+
+	var buf bytes.Buffer
+
+	if err := NewWriter(&buf).UseModulePath(false).Write(bundle); err != nil {
+		t.Fatal("Unexpected error:", err)
+	}
+
+	bundle2, err := NewReader(&buf).Read()
+	if err != nil {
+		t.Fatal("Unexpected error:", err)
+	}
+
+	if bundle2.Modules[0].URL != "/url.rego" || bundle2.Modules[0].Path != "/url.rego" {
+		t.Fatal("expected module path to be used but got:", bundle2.Modules[0])
+	}
 }
 
 func TestRootPathsOverlap(t *testing.T) {
@@ -389,6 +582,211 @@ func TestParsedModules(t *testing.T) {
 				if mod == nil {
 					t.Fatalf("Expected module to be non-nil")
 				}
+			}
+		})
+	}
+}
+
+func TestMergeCorruptManifest(t *testing.T) {
+	_, err := Merge([]*Bundle{
+		&Bundle{},
+		&Bundle{},
+	})
+	if err == nil || err.Error() != "bundle manifest not initialized" {
+		t.Fatal("unexpected error:", err)
+	}
+}
+
+func TestMerge(t *testing.T) {
+
+	cases := []struct {
+		note       string
+		bundles    []*Bundle
+		wantBundle *Bundle
+		wantErr    error
+	}{
+		{
+			note:    "empty list",
+			wantErr: errors.New("expected at least one bundle"),
+		},
+		{
+			note: "no op",
+			bundles: []*Bundle{
+				&Bundle{
+					Manifest: Manifest{
+						Revision: "abcdef",
+					},
+					Modules: []ModuleFile{
+						{
+							Path:   "x.rego",
+							Parsed: ast.MustParseModule(`package foo`),
+							Raw:    []byte("package foo"),
+						},
+					},
+				},
+			},
+			wantBundle: &Bundle{
+				Manifest: Manifest{
+					Revision: "abcdef",
+					Roots:    &[]string{""},
+				},
+				Modules: []ModuleFile{
+					{
+						Path:   "x.rego",
+						Parsed: ast.MustParseModule(`package foo`),
+						Raw:    []byte("package foo"),
+					},
+				},
+			},
+		},
+		{
+			note: "wasm merge error",
+			bundles: []*Bundle{
+				{
+					Wasm: []byte("not really wasm, but good enough"),
+				},
+				{
+					Wasm: []byte("not really wasm, but good enough"),
+				},
+			},
+			wantErr: errors.New("wasm bundles cannot be merged"),
+		},
+		{
+			note: "merge policy",
+			bundles: []*Bundle{
+				{
+					Manifest: Manifest{
+						Roots: &[]string{
+							"foo",
+						},
+					},
+					Modules: []ModuleFile{
+						{
+							URL:    "foo/bar.rego",
+							Parsed: ast.MustParseModule(`package foo`),
+							Raw:    []byte("package foo"),
+						},
+					},
+				},
+				{
+					Manifest: Manifest{
+						Roots: &[]string{
+							"baz",
+						},
+					},
+					Modules: []ModuleFile{
+						{
+							URL:    "baz/qux.rego",
+							Parsed: ast.MustParseModule(`package baz`),
+							Raw:    []byte("package baz"),
+						},
+					},
+				},
+			},
+			wantBundle: &Bundle{
+				Manifest: Manifest{
+					Roots: &[]string{
+						"foo",
+						"baz",
+					},
+				},
+				Modules: []ModuleFile{
+					{
+						URL:    "foo/bar.rego",
+						Parsed: ast.MustParseModule(`package foo`),
+						Raw:    []byte("package foo"),
+					},
+					{
+						URL:    "baz/qux.rego",
+						Parsed: ast.MustParseModule(`package baz`),
+						Raw:    []byte("package baz"),
+					},
+				},
+			},
+		},
+		{
+			note: "merge data",
+			bundles: []*Bundle{
+				{
+					Manifest: Manifest{
+						Roots: &[]string{
+							"foo/bar",
+						},
+					},
+					Data: map[string]interface{}{
+						"foo": map[string]interface{}{
+							"bar": "val1",
+						},
+					},
+				},
+				{
+					Manifest: Manifest{
+						Roots: &[]string{
+							"baz",
+						},
+					},
+					Data: map[string]interface{}{
+						"baz": "val2",
+					},
+				},
+			},
+			wantBundle: &Bundle{
+				Manifest: Manifest{
+					Roots: &[]string{
+						"foo/bar",
+						"baz",
+					},
+				},
+				Data: map[string]interface{}{
+					"foo": map[string]interface{}{
+						"bar": "val1",
+					},
+					"baz": "val2",
+				},
+			},
+		},
+		{
+			note: "conflicting roots",
+			bundles: []*Bundle{
+				{
+					Manifest: Manifest{
+						Roots: &[]string{
+							"foo/bar",
+						},
+					},
+				},
+				{
+					Manifest: Manifest{
+						Roots: &[]string{
+							"foo",
+						},
+					},
+				},
+			},
+			wantErr: errors.New("manifest has overlapped roots: 'foo/bar' and 'foo'"),
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			for i := range tc.bundles {
+				if err := tc.bundles[i].Manifest.validateAndInjectDefaults(*tc.bundles[i]); err != nil {
+					panic(err)
+				}
+			}
+			b, err := Merge(tc.bundles)
+			if tc.wantErr != nil {
+				if err == nil {
+					t.Fatal("expected error")
+				} else if err.Error() != tc.wantErr.Error() {
+					t.Fatalf("expected error %q but got: %q", tc.wantErr, err)
+				}
+			} else if err != nil {
+				t.Fatal("unexpected error:", err)
+			} else if !b.Equal(*tc.wantBundle) {
+				t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", tc.wantBundle, b)
+			} else if !reflect.DeepEqual(b.Manifest, tc.wantBundle.Manifest) {
+				t.Fatalf("Expected manifest:\n\n%v\n\nGot manifest:\n\n%v", tc.wantBundle.Manifest, b.Manifest)
 			}
 		})
 	}

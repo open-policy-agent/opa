@@ -7,6 +7,7 @@ package loader
 import (
 	"bytes"
 	"os"
+	"path"
 	"path/filepath"
 	"reflect"
 	"sort"
@@ -340,30 +341,33 @@ func TestAsBundleWithFile(t *testing.T) {
 
 	mod := "package b.c\np=1"
 
-	b := &bundle.Bundle{
-		Manifest: bundle.Manifest{
-			Roots:    &[]string{"a", "b/c"},
-			Revision: "123",
-		},
-		Data: map[string]interface{}{
-			"a": map[string]interface{}{
-				"b": []int{4, 5, 6},
-			},
-		},
-		Modules: []bundle.ModuleFile{
-			{
-				Path:   "/policy.rego",
-				Raw:    []byte(mod),
-				Parsed: ast.MustParseModule(mod),
-			},
-		},
-	}
-
 	test.WithTempFS(files, func(rootDir string) {
-		path := filepath.Join(rootDir, "bundle.tar.gz")
-		f, err := os.Create(path)
+
+		bundleFile := filepath.Join(rootDir, "bundle.tar.gz")
+
+		f, err := os.Create(bundleFile)
 		if err != nil {
 			t.Fatalf("Unexpected error: %s", err)
+		}
+
+		b := &bundle.Bundle{
+			Manifest: bundle.Manifest{
+				Roots:    &[]string{"a", "b/c"},
+				Revision: "123",
+			},
+			Data: map[string]interface{}{
+				"a": map[string]interface{}{
+					"b": []int{4, 5, 6},
+				},
+			},
+			Modules: []bundle.ModuleFile{
+				{
+					URL:    path.Join(bundleFile, "policy.rego"),
+					Path:   "/policy.rego",
+					Raw:    []byte(mod),
+					Parsed: ast.MustParseModule(mod),
+				},
+			},
 		}
 
 		err = bundle.Write(f, *b)
@@ -372,7 +376,7 @@ func TestAsBundleWithFile(t *testing.T) {
 			t.Fatalf("Unexpected error: %s", err)
 		}
 
-		actual, err := NewFileLoader().AsBundle(path)
+		actual, err := NewFileLoader().AsBundle(bundleFile)
 		if err != nil {
 			t.Fatalf("Unexpected error: %s", err)
 		}

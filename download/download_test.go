@@ -23,19 +23,28 @@ func TestStartStop(t *testing.T) {
 	ctx := context.Background()
 	fixture := newTestFixture(t)
 
-	called := make(chan struct{})
+	updates := make(chan *Update)
 
 	config := Config{}
 	if err := config.ValidateAndInjectDefaults(); err != nil {
 		t.Fatal(err)
 	}
 
-	d := New(config, fixture.client, "/bundles/test/bundle1").WithCallback(func(context.Context, Update) {
-		called <- struct{}{}
+	d := New(config, fixture.client, "/bundles/test/bundle1").WithCallback(func(_ context.Context, u Update) {
+		updates <- &u
 	})
 
 	d.Start(ctx)
-	_ = <-called
+	u1 := <-updates
+
+	if u1.Bundle == nil || len(u1.Bundle.Modules) == 0 {
+		t.Fatal("expected bundle with at least one module but got:", u1)
+	}
+
+	if !strings.HasSuffix(u1.Bundle.Modules[0].URL, u1.Bundle.Modules[0].Path) {
+		t.Fatalf("expected URL to have path as suffix but got %v and %v", u1.Bundle.Modules[0].URL, u1.Bundle.Modules[0].Path)
+	}
+
 	d.Stop(ctx)
 }
 

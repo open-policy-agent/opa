@@ -85,7 +85,6 @@ type FileLoader interface {
 	All(paths []string) (*Result, error)
 	Filtered(paths []string, filter Filter) (*Result, error)
 	AsBundle(path string) (*bundle.Bundle, error)
-
 	WithMetrics(m metrics.Metrics) FileLoader
 }
 
@@ -163,7 +162,7 @@ func (fl fileLoader) AsBundle(path string) (*bundle.Bundle, error) {
 		if err != nil {
 			return nil, err
 		}
-		bundleLoader = bundle.NewTarballLoader(fh)
+		bundleLoader = bundle.NewTarballLoaderWithBaseURL(fh, path)
 	}
 
 	br := bundle.NewCustomReader(bundleLoader).WithMetrics(fl.metrics)
@@ -394,7 +393,7 @@ func loadKnownTypes(path string, bs []byte, m metrics.Metrics) (interface{}, err
 		return loadYAML(path, bs, m)
 	default:
 		if strings.HasSuffix(path, ".tar.gz") {
-			r, err := loadBundleFile(bs, m)
+			r, err := loadBundleFile(path, bs, m)
 			if err != nil {
 				err = errors.Wrap(err, fmt.Sprintf("bundle %s", path))
 			}
@@ -420,8 +419,8 @@ func loadFileForAnyType(path string, bs []byte, m metrics.Metrics) (interface{},
 	return nil, unrecognizedFile(path)
 }
 
-func loadBundleFile(bs []byte, m metrics.Metrics) (bundle.Bundle, error) {
-	tl := bundle.NewTarballLoader(bytes.NewBuffer(bs))
+func loadBundleFile(path string, bs []byte, m metrics.Metrics) (bundle.Bundle, error) {
+	tl := bundle.NewTarballLoaderWithBaseURL(bytes.NewBuffer(bs), path)
 	br := bundle.NewCustomReader(tl).WithMetrics(m).IncludeManifestInData(true)
 	return br.Read()
 }
