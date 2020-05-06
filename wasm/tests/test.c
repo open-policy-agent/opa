@@ -2,6 +2,7 @@
 #include "json.h"
 #include "malloc.h"
 #include "arithmetic.h"
+#include "array.h"
 #include "set.h"
 
 void opa_test_fail(const char *note, const char *func, const char *file, int line);
@@ -1026,4 +1027,29 @@ void test_sets_intersection_union(void)
          opa_set_get(r, opa_number_int(0)) != NULL &&
          opa_set_get(r, opa_number_int(1)) != NULL &&
          opa_set_get(r, opa_number_int(2)) != NULL);
+}
+
+void test_array(void)
+{
+    opa_array_t *arr1 = opa_cast_array(opa_array());
+    opa_array_append(arr1, opa_number_int(0));
+    opa_array_append(arr1, opa_number_int(1));
+
+    opa_array_t *arr2 = opa_cast_array(opa_array());
+    opa_array_append(arr2, opa_number_int(2));
+    opa_array_append(arr2, opa_number_int(3));
+
+    opa_array_t *r = opa_cast_array(opa_array_concat(&arr1->hdr, &arr2->hdr));
+
+    test("array_concat", r->len == 4 &&
+         opa_value_compare(r->elems[0].v, opa_number_int(0)) == 0 &&
+         opa_value_compare(r->elems[1].v, opa_number_int(1)) == 0 &&
+         opa_value_compare(r->elems[2].v, opa_number_int(2)) == 0 &&
+         opa_value_compare(r->elems[3].v, opa_number_int(3)) == 0);
+
+    r = opa_cast_array(opa_array_slice(&r->hdr, opa_number_int(1), opa_number_int(3)));
+
+    test("array_slice", r->len == 2 &&
+         opa_value_compare(r->elems[0].v, opa_number_int(1)) == 0 &&
+         opa_value_compare(r->elems[1].v, opa_number_int(2)) == 0);
 }

@@ -31,6 +31,8 @@ var internalBuiltins = map[string]wasmBuiltin{
 	ast.Abs.Name:          wasmBuiltin{ast.Abs, "opa_arith_abs"},
 	ast.Round.Name:        wasmBuiltin{ast.Abs, "opa_arith_round"},
 	ast.Rem.Name:          wasmBuiltin{ast.Rem, "opa_arith_rem"},
+	ast.ArrayConcat.Name:  wasmBuiltin{ast.ArrayConcat, "opa_array_concat"},
+	ast.ArraySlice.Name:   wasmBuiltin{ast.ArraySlice, "opa_array_slice"},
 	ast.SetDiff.Name:      wasmBuiltin{ast.SetDiff, "opa_set_diff"},
 	ast.And.Name:          wasmBuiltin{ast.And, "opa_set_intersection"},
 	ast.Or.Name:           wasmBuiltin{ast.Or, "opa_set_union"},
