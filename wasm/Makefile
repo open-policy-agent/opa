@@ -43,6 +43,9 @@ hack:
 $(WASM_OBJ_DIR)/arithmetic.wasm: src/arithmetic.c
 	@$(CC) $(CFLAGS) -c $^ -o $@
 
+$(WASM_OBJ_DIR)/array.wasm: src/array.c
+	@$(CC) $(CFLAGS) -c $^ -o $@
+
 $(WASM_OBJ_DIR)/context.wasm: src/context.c
 	@$(CC) $(CFLAGS) -c $^ -o $@
 
@@ -72,6 +75,7 @@ $(WASM_OBJ_DIR)/libmpdec-%.wasm: src/libmpdec/%.c
 
 $(WASM_OBJ_DIR)/opa.wasm: \
 		$(WASM_OBJ_DIR)/arithmetic.wasm \
+		$(WASM_OBJ_DIR)/array.wasm \
 		$(WASM_OBJ_DIR)/context.wasm \
 		$(WASM_OBJ_DIR)/json.wasm \
 		$(WASM_OBJ_DIR)/lib-ctype.wasm \
@@ -115,6 +119,7 @@ $(WASM_OBJ_DIR)/test.wasm: tests/test.c
 
 $(WASM_OBJ_DIR)/opa-test.wasm: \
 		$(WASM_OBJ_DIR)/arithmetic.wasm \
+		$(WASM_OBJ_DIR)/array.wasm \
 		$(WASM_OBJ_DIR)/context.wasm \
 		$(WASM_OBJ_DIR)/json.wasm \
 		$(WASM_OBJ_DIR)/lib-ctype.wasm \

@@ -20,6 +20,12 @@ cases:
   - note: remainder built-in
     query: rem(4,3,x)
     want_result: [{'x': 1}]
+  - note: array concat built-in
+    query: array.concat([0],[1],x)
+    want_result: [{'x': [0,1]}]
+  - note: array slice built-in
+    query: array.slice([0,1,2,4],1,3,x)
+    want_result: [{'x': [1,2]}]
   - note: set diff built-in
     query: set_diff({0,1},{0},x)
     want_result: [{'x': [1]}]
