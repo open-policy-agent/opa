@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/open-policy-agent/opa/internal/file/archive"
@@ -52,10 +53,10 @@ func TestTarballLoader(t *testing.T) {
 			t.Fatalf("Unexpected error: %s", err)
 		}
 
-		loader := NewTarballLoader(f)
+		loader := NewTarballLoaderWithBaseURL(f, tarballFile)
 		defer f.Close()
 
-		testLoader(t, loader, archiveFiles)
+		testLoader(t, loader, tarballFile, archiveFiles)
 
 	})
 
@@ -65,11 +66,11 @@ func TestDirectoryLoader(t *testing.T) {
 	test.WithTempFS(archiveFiles, func(rootDir string) {
 		loader := NewDirectoryLoader(rootDir)
 
-		testLoader(t, loader, archiveFiles)
+		testLoader(t, loader, rootDir, archiveFiles)
 	})
 }
 
-func testLoader(t *testing.T, loader DirectoryLoader, expectedFiles map[string]string) {
+func testLoader(t *testing.T, loader DirectoryLoader, baseURL string, expectedFiles map[string]string) {
 	t.Helper()
 
 	fileCount := 0
@@ -79,6 +80,11 @@ func testLoader(t *testing.T, loader DirectoryLoader, expectedFiles map[string]s
 			t.Fatalf("Unexpected error: %s", err)
 		} else if err == io.EOF {
 			break
+		}
+
+		expPath := strings.TrimPrefix(f.URL(), baseURL)
+		if f.Path() != expPath {
+			t.Fatalf("Expected path to be %v but got %v", expPath, f.Path())
 		}
 
 		var buf bytes.Buffer
