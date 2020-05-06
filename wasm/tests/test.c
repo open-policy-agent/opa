@@ -2,6 +2,7 @@
 #include "json.h"
 #include "malloc.h"
 #include "arithmetic.h"
+#include "set.h"
 
 void opa_test_fail(const char *note, const char *func, const char *file, int line);
 void opa_test_pass(const char *note, const char *func);
@@ -969,4 +970,60 @@ void test_arithmetic(void)
     test("multiply 3*2", opa_number_as_float(opa_cast_number(opa_arith_multiply(opa_number_float(3), opa_number_float(2)))) == 6);
     test("divide 3/2", opa_number_as_float(opa_cast_number(opa_arith_divide(opa_number_float(3), opa_number_float(2)))) == 1.5);
     test("remainder 5 % 2", opa_number_as_float(opa_cast_number(opa_arith_rem(opa_number_float(5), opa_number_float(2)))) == 1);
+}
+
+void test_set_diff(void)
+{
+    // test_arithmetic covers the diff.
+}
+
+void test_set_intersection_union(void)
+{
+    opa_set_t *s1 = opa_cast_set(opa_set());
+    opa_set_add(s1, opa_number_int(0));
+    opa_set_add(s1, opa_number_int(1));
+    opa_set_add(s1, opa_number_int(2));
+
+    opa_set_t *s2 = opa_cast_set(opa_set());
+    opa_set_add(s2, opa_number_int(0));
+    opa_set_add(s2, opa_number_int(1));
+
+    opa_set_t *r = opa_cast_set(opa_set_intersection(&s1->hdr, &s2->hdr));
+    test("set/intersection", r->len == 2 && opa_set_get(r, opa_number_int(0)) != NULL && opa_set_get(r, opa_number_int(1)) != NULL);
+
+    r = opa_cast_set(opa_set_union(&s1->hdr, &s2->hdr));
+    test("set/union", r->len == 3 &&
+         opa_set_get(r, opa_number_int(0)) != NULL &&
+         opa_set_get(r, opa_number_int(1)) != NULL &&
+         opa_set_get(r, opa_number_int(2)) != NULL);
+}
+
+
+void test_sets_intersection_union(void)
+{
+    opa_set_t *s1 = opa_cast_set(opa_set());
+    opa_set_add(s1, opa_number_int(0));
+    opa_set_add(s1, opa_number_int(1));
+    opa_set_add(s1, opa_number_int(2));
+
+    opa_set_t *s2 = opa_cast_set(opa_set());
+    opa_set_add(s2, opa_number_int(0));
+    opa_set_add(s2, opa_number_int(1));
+
+    opa_set_t *s3 = opa_cast_set(opa_set());
+    opa_set_add(s3, opa_number_int(0));
+
+    opa_set_t *sets = opa_cast_set(opa_set());
+    opa_set_add(sets, &s1->hdr);
+    opa_set_add(sets, &s2->hdr);
+    opa_set_add(sets, &s3->hdr);
+
+    opa_set_t *r = opa_cast_set(opa_sets_intersection(&sets->hdr));
+    test("sets/intersection", r->len == 1 && opa_set_get(r, opa_number_int(0)) != NULL);
+
+    r = opa_cast_set(opa_sets_union(&sets->hdr));
+    test("sets/union", r->len == 3 &&
+         opa_set_get(r, opa_number_int(0)) != NULL &&
+         opa_set_get(r, opa_number_int(1)) != NULL &&
+         opa_set_get(r, opa_number_int(2)) != NULL);
 }
