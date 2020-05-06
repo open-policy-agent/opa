@@ -24,13 +24,18 @@ type wasmBuiltin struct {
 
 // internalBuiltins are the built-in functions implemented in wasm.
 var internalBuiltins = map[string]wasmBuiltin{
-	ast.Plus.Name:     wasmBuiltin{ast.Plus, "opa_arith_plus"},
-	ast.Minus.Name:    wasmBuiltin{ast.Minus, "opa_arith_minus"},
-	ast.Multiply.Name: wasmBuiltin{ast.Multiply, "opa_arith_multiply"},
-	ast.Divide.Name:   wasmBuiltin{ast.Divide, "opa_arith_divide"},
-	ast.Abs.Name:      wasmBuiltin{ast.Abs, "opa_arith_abs"},
-	ast.Round.Name:    wasmBuiltin{ast.Abs, "opa_arith_round"},
-	ast.Rem.Name:      wasmBuiltin{ast.Rem, "opa_arith_rem"},
+	ast.Plus.Name:         wasmBuiltin{ast.Plus, "opa_arith_plus"},
+	ast.Minus.Name:        wasmBuiltin{ast.Minus, "opa_arith_minus"},
+	ast.Multiply.Name:     wasmBuiltin{ast.Multiply, "opa_arith_multiply"},
+	ast.Divide.Name:       wasmBuiltin{ast.Divide, "opa_arith_divide"},
+	ast.Abs.Name:          wasmBuiltin{ast.Abs, "opa_arith_abs"},
+	ast.Round.Name:        wasmBuiltin{ast.Abs, "opa_arith_round"},
+	ast.Rem.Name:          wasmBuiltin{ast.Rem, "opa_arith_rem"},
+	ast.SetDiff.Name:      wasmBuiltin{ast.SetDiff, "opa_set_diff"},
+	ast.And.Name:          wasmBuiltin{ast.And, "opa_set_intersection"},
+	ast.Or.Name:           wasmBuiltin{ast.Or, "opa_set_union"},
+	ast.Intersection.Name: wasmBuiltin{ast.Intersection, "opa_sets_intersection"},
+	ast.Union.Name:        wasmBuiltin{ast.Union, "opa_sets_union"},
 }
 
 // Planner implements a query planner for Rego queries.

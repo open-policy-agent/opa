@@ -20,6 +20,21 @@ cases:
   - note: remainder built-in
     query: rem(4,3,x)
     want_result: [{'x': 1}]
+  - note: set diff built-in
+    query: set_diff({0,1},{0},x)
+    want_result: [{'x': [1]}]
+  - note: and built-in
+    query: and({0,1},{0},x)
+    want_result: [{'x': [0]}]
+  - note: or built-in
+    query: or({0,1},{0},x)
+    want_result: [{'x': [1,0]}]
+  - note: intersection built-in
+    query: intersection({{0,1},{0}},x)
+    want_result: [{'x': [0]}]
+  - note: union built-in
+    query: union({{0,1},{0}},x)
+    want_result: [{'x': [1,0]}]
   - note: custom built-in
     query: x = custom_builtin_test(100)
     want_result: [{'x': 101}]

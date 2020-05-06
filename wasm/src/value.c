@@ -1035,6 +1035,18 @@ opa_value *opa_set()
     return __opa_set_with_buckets(OPA_SET_MIN_BUCKETS);
 }
 
+opa_value *opa_set_with_cap(size_t n)
+{
+    size_t buckets = OPA_SET_MIN_BUCKETS;
+
+    while (n > (buckets * OPA_SET_LOAD_FACTOR))
+    {
+        buckets *= 2;
+    }
+
+    return __opa_set_with_buckets(buckets);
+}
+
 void opa_value_boolean_set(opa_value *v, int b)
 {
     opa_boolean_t *ret = opa_cast_boolean(v);
