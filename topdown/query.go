@@ -218,13 +218,14 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 		saveSupport:        newSaveSupport(),
 		saveNamespace:      ast.StringTerm(q.partialNamespace),
 		skipSaveNamespace:  q.skipSaveNamespace,
+		inliningControl:    &inliningControl{},
 		genvarprefix:       q.genvarprefix,
 		runtime:            q.runtime,
 		indexing:           q.indexing,
 	}
 
 	if len(q.disableInlining) > 0 {
-		e.disableInlining = [][]ast.Ref{q.disableInlining}
+		e.inliningControl.PushDisable(q.disableInlining, false)
 	}
 
 	e.caller = e

@@ -59,8 +59,8 @@ type eval struct {
 	saveStack          *saveStack
 	saveSupport        *saveSupport
 	saveNamespace      *ast.Term
-	disableInlining    [][]ast.Ref
 	skipSaveNamespace  bool
+	inliningControl    *inliningControl
 	genvarprefix       string
 	genvarid           int
 	runtime            *ast.Term
@@ -134,7 +134,7 @@ func (e *eval) unknown(x interface{}, b *bindings) bool {
 		x = ast.NewTerm(v)
 	}
 
-	return saveRequired(e.compiler, e.saveSet, b, x, false)
+	return saveRequired(e.compiler, e.inliningControl, true, e.saveSet, b, x, false)
 }
 
 func (e *eval) traceEnter(x ast.Node) {
@@ -437,13 +437,13 @@ func (e *eval) evalWithPush(input *ast.Term, data *ast.Term, targets []ast.Ref, 
 	e.comprehensionCache.Push()
 	e.virtualCache.Push()
 	e.targetStack.Push(targets)
-	e.disableInlining = append(e.disableInlining, disable)
+	e.inliningControl.PushDisable(disable, true)
 
 	return oldInput, oldData
 }
 
 func (e *eval) evalWithPop(input *ast.Term, data *ast.Term) {
-	e.disableInlining = e.disableInlining[:len(e.disableInlining)-1]
+	e.inliningControl.PopDisable()
 	e.targetStack.Pop()
 	e.virtualCache.Pop()
 	e.comprehensionCache.Pop()
@@ -1215,7 +1215,7 @@ func (e *eval) getRules(ref ast.Ref) (*ast.IndexResult, error) {
 func (e *eval) Resolve(ref ast.Ref) (ast.Value, error) {
 	e.instr.startTimer(evalOpResolve)
 
-	if e.saveSet.Contains(ast.NewTerm(ref), nil) {
+	if e.inliningControl.Disabled(ref, true) || e.saveSet.Contains(ast.NewTerm(ref), nil) {
 		e.instr.stopTimer(evalOpResolve)
 		return nil, ast.UnknownValueErr{}
 	}
@@ -1527,8 +1527,12 @@ func (e evalTree) finish(iter unifyIterator) error {
 
 	// During partial evaluation it may not be possible to compute the value
 	// for this reference if it refers to a virtual document so save the entire
-	// expression. See "save: full extent" test case for an example.
-	if e.node != nil && e.e.unknown(e.ref, e.e.bindings) {
+	// expression. See "save: full extent" test case for an example. We also
+	// need to account for the inlining controls here to prevent base documents
+	// from being inlined when they should not be.
+	save := e.e.unknown(e.ref, e.e.bindings)
+
+	if save {
 		return e.e.saveUnify(ast.NewTerm(e.plugged), e.rterm, e.bindings, e.rbindings, iter)
 	}
 
@@ -1574,6 +1578,11 @@ func (e evalTree) next(iter unifyIterator, plugged *ast.Term) error {
 }
 
 func (e evalTree) enumerate(iter unifyIterator) error {
+
+	if e.e.inliningControl.Disabled(e.plugged[:e.pos], true) {
+		return e.e.saveUnify(ast.NewTerm(e.plugged), e.rterm, e.bindings, e.rbindings, iter)
+	}
+
 	doc, err := e.e.Resolve(e.plugged[:e.pos])
 	if err != nil {
 		return err
@@ -1809,9 +1818,7 @@ func (e evalVirtualPartial) eval(iter unifyIterator) error {
 		}
 	}
 
-	generateSupport := anyRefSetContainsPrefix(e.e.disableInlining, e.plugged[:e.pos+1])
-
-	if generateSupport {
+	if e.e.inliningControl.Disabled(e.plugged[:e.pos+1], false) {
 		return e.partialEvalSupport(iter)
 	}
 
@@ -2023,9 +2030,7 @@ func (e evalVirtualComplete) eval(iter unifyIterator) error {
 		generateSupport = !ast.IsConstant(rterm.Value) || e.ir.Default.Head.Value.Equal(rterm)
 	}
 
-	generateSupport = generateSupport || anyRefSetContainsPrefix(e.e.disableInlining, e.plugged[:e.pos+1])
-
-	if generateSupport {
+	if generateSupport || e.e.inliningControl.Disabled(e.plugged[:e.pos+1], false) {
 		return e.partialEvalSupport(iter)
 	}
 
@@ -2499,17 +2504,6 @@ func mergeObjects(objA, objB ast.Object) (result ast.Object, ok bool) {
 		}
 	})
 	return result, true
-}
-
-func anyRefSetContainsPrefix(s [][]ast.Ref, prefix ast.Ref) bool {
-	for _, refs := range s {
-		for _, ref := range refs {
-			if ref.HasPrefix(prefix) {
-				return true
-			}
-		}
-	}
-	return false
 }
 
 func refContainsNonScalar(ref ast.Ref) bool {
