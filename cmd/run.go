@@ -90,6 +90,20 @@ Non-bundle data file and directory paths can be prefixed with the desired
 destination in the data document with the following syntax:
 
 	<dotted-path>:<file-path>
+		
+To set a data file as the input document in the interactive shell use the
+"repl.input" path prefix with the input file:
+	
+	repl.input:<file-path>
+
+Example:
+
+	opa run repl.input:input.json
+
+Which will load the "input.json" file at path "data.repl.input".
+
+Use the "help input" command in the interactive shell to see more options.
+		
 
 File paths can be specified as URLs to resolve ambiguity in paths containing colons:
 
