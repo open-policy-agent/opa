@@ -1775,7 +1775,8 @@ func (r *Rego) partial(ctx context.Context, ectx *EvalContext) (*PartialQueries,
 		WithUnknowns(unknowns).
 		WithDisableInlining(ectx.disableInlining).
 		WithRuntime(r.runtime).
-		WithIndexing(ectx.indexing)
+		WithIndexing(ectx.indexing).
+		WithPartialNamespace(ectx.partialNamespace)
 
 	for i := range ectx.tracers {
 		q = q.WithTracer(ectx.tracers[i])

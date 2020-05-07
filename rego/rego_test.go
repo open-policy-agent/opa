@@ -896,6 +896,44 @@ func TestPrepareAndPartial(t *testing.T) {
 	}
 }
 
+func TestPartialNamespace(t *testing.T) {
+
+	r := New(
+		PartialNamespace("foo"),
+		Query("data.test.p = x"),
+		Module("test.rego", `
+			package test
+
+			default p = false
+
+			p { input.x = 1 }
+		`),
+	)
+
+	pq, err := r.Partial(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expQuery := ast.MustParseBody(`data.foo.test.p = x`)
+
+	if len(pq.Queries) != 1 || !pq.Queries[0].Equal(expQuery) {
+		t.Fatalf("Expected exactly one query %v but got: %v", expQuery, pq.Queries)
+	}
+
+	expSupport := ast.MustParseModule(`
+		package foo.test
+
+		p { input.x = 1 }
+
+		default p = false
+	`)
+
+	if len(pq.Support) != 1 || !pq.Support[0].Equal(expSupport) {
+		t.Fatalf("Expected exactly one support:\n\n%v\n\nGot:\n\n%v", expSupport, pq.Support[0])
+	}
+}
+
 func TestPrepareAndCompile(t *testing.T) {
 	module := `
 	package test
