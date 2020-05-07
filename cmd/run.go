@@ -90,10 +90,10 @@ Non-bundle data file and directory paths can be prefixed with the desired
 destination in the data document with the following syntax:
 
 	<dotted-path>:<file-path>
-		
+
 To set a data file as the input document in the interactive shell use the
 "repl.input" path prefix with the input file:
-	
+
 	repl.input:<file-path>
 
 Example:
@@ -103,7 +103,7 @@ Example:
 Which will load the "input.json" file at path "data.repl.input".
 
 Use the "help input" command in the interactive shell to see more options.
-		
+
 
 File paths can be specified as URLs to resolve ambiguity in paths containing colons:
 
@@ -116,7 +116,7 @@ File paths can be specified as URLs to resolve ambiguity in paths containing col
 		},
 	}
 
-	runCommand.Flags().StringVarP(&cmdParams.rt.ConfigFile, "config-file", "c", "", "set path of configuration file")
+	addConfigFileFlag(runCommand.Flags(), &cmdParams.rt.ConfigFile)
 	runCommand.Flags().BoolVarP(&cmdParams.serverMode, "server", "s", false, "start the runtime in server mode")
 	runCommand.Flags().StringVarP(&cmdParams.rt.HistoryPath, "history", "H", historyPath(), "set path of history file")
 	cmdParams.rt.Addrs = runCommand.Flags().StringSliceP("addr", "a", []string{defaultAddr}, "set listening address of the server (e.g., [ip]:<port> for TCP, unix://<path> for UNIX domain socket)")
@@ -135,9 +135,9 @@ File paths can be specified as URLs to resolve ambiguity in paths containing col
 	runCommand.Flags().VarP(cmdParams.logLevel, "log-level", "l", "set log level")
 	runCommand.Flags().VarP(cmdParams.logFormat, "log-format", "", "set log format")
 	runCommand.Flags().IntVar(&cmdParams.rt.GracefulShutdownPeriod, "shutdown-grace-period", 10, "set the time (in seconds) that the server will wait to gracefully shut down")
-	runCommand.Flags().StringArrayVar(&cmdParams.rt.ConfigOverrides, "set", []string{}, "override config values on the command line (use commas to specify multiple values)")
-	runCommand.Flags().StringArrayVar(&cmdParams.rt.ConfigOverrideFiles, "set-file", []string{}, "override config values with files on the command line (use commas to specify multiple values)")
-	runCommand.Flags().BoolVarP(&cmdParams.rt.BundleMode, "bundle", "b", false, "load paths as bundle files or root directories")
+	addConfigOverrides(runCommand.Flags(), &cmdParams.rt.ConfigOverrides)
+	addConfigOverrideFiles(runCommand.Flags(), &cmdParams.rt.ConfigOverrideFiles)
+	addBundleModeFlag(runCommand.Flags(), &cmdParams.rt.BundleMode, false)
 	addIgnoreFlag(runCommand.Flags(), &cmdParams.ignore)
 
 	usageTemplate := `Usage:
