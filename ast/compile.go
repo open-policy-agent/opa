@@ -1824,6 +1824,7 @@ func (n *TreeNode) DepthFirst(f func(node *TreeNode) bool) {
 // Graph represents the graph of dependencies between rules.
 type Graph struct {
 	adj    map[util.T]map[util.T]struct{}
+	radj   map[util.T]map[util.T]struct{}
 	nodes  map[util.T]struct{}
 	sorted []util.T
 }
@@ -1834,6 +1835,7 @@ func NewGraph(modules map[string]*Module, list func(Ref) []*Rule) *Graph {
 
 	graph := &Graph{
 		adj:    map[util.T]map[util.T]struct{}{},
+		radj:   map[util.T]map[util.T]struct{}{},
 		nodes:  map[util.T]struct{}{},
 		sorted: nil,
 	}
@@ -1879,6 +1881,11 @@ func (g *Graph) Dependencies(x util.T) map[util.T]struct{} {
 	return g.adj[x]
 }
 
+// Dependents returns the set of rules that depend on x.
+func (g *Graph) Dependents(x util.T) map[util.T]struct{} {
+	return g.radj[x]
+}
+
 // Sort returns a slice of rules sorted by dependencies. If a cycle is found,
 // ok is set to false.
 func (g *Graph) Sort() (sorted []util.T, ok bool) {
@@ -1920,6 +1927,14 @@ func (g *Graph) addDependency(u util.T, v util.T) {
 	}
 
 	edges[v] = struct{}{}
+
+	edges, ok = g.radj[v]
+	if !ok {
+		edges = map[util.T]struct{}{}
+		g.radj[v] = edges
+	}
+
+	edges[u] = struct{}{}
 }
 
 func (g *Graph) addNode(n util.T) {

@@ -2575,6 +2575,7 @@ func TestCompilerSetGraph(t *testing.T) {
 	q := mod1.Rules[1]
 	mod2 := c.Modules["mod2"]
 	r := mod2.Rules[0]
+	mod5 := c.Modules["mod5"]
 
 	edges := map[util.T]struct{}{
 		q: {},
@@ -2583,6 +2584,31 @@ func TestCompilerSetGraph(t *testing.T) {
 
 	if !reflect.DeepEqual(edges, c.Graph.Dependencies(p)) {
 		t.Fatalf("Expected dependencies for p to be q and r but got: %v", c.Graph.Dependencies(p))
+	}
+
+	// NOTE(tsandall): this is the correct result but it's chosen arbitrarily for the test.
+	expDependents := []struct {
+		x    *Rule
+		want map[util.T]struct{}
+	}{
+		{
+			x:    p,
+			want: nil,
+		},
+		{
+			x:    q,
+			want: map[util.T]struct{}{p: struct{}{}, mod5.Rules[1]: struct{}{}, mod5.Rules[3]: struct{}{}, mod5.Rules[5]: struct{}{}},
+		},
+		{
+			x:    r,
+			want: map[util.T]struct{}{p: struct{}{}},
+		},
+	}
+
+	for _, exp := range expDependents {
+		if !reflect.DeepEqual(exp.want, c.Graph.Dependents(exp.x)) {
+			t.Fatalf("Expected dependents for %v to be %v but got: %v", exp.x, exp.want, c.Graph.Dependents(exp.x))
+		}
 	}
 
 	sorted, ok := c.Graph.Sort()
