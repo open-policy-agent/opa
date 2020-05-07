@@ -146,9 +146,17 @@ var DefaultBuiltins = [...]*Builtin{
 	// Tokens
 	JWTDecode,
 	JWTVerifyRS256,
+	JWTVerifyRS384,
+	JWTVerifyRS512,
 	JWTVerifyPS256,
+	JWTVerifyPS384,
+	JWTVerifyPS512,
 	JWTVerifyES256,
+	JWTVerifyES384,
+	JWTVerifyES512,
 	JWTVerifyHS256,
+	JWTVerifyHS384,
+	JWTVerifyHS512,
 	JWTDecodeVerify,
 	JWTEncodeSignRaw,
 	JWTEncodeSign,
@@ -1266,9 +1274,57 @@ var JWTVerifyRS256 = &Builtin{
 	),
 }
 
+// JWTVerifyRS384 verifies if a RS384 JWT signature is valid or not.
+var JWTVerifyRS384 = &Builtin{
+	Name: "io.jwt.verify_rs384",
+	Decl: types.NewFunction(
+		types.Args(
+			types.S,
+			types.S,
+		),
+		types.B,
+	),
+}
+
+// JWTVerifyRS512 verifies if a RS512 JWT signature is valid or not.
+var JWTVerifyRS512 = &Builtin{
+	Name: "io.jwt.verify_rs512",
+	Decl: types.NewFunction(
+		types.Args(
+			types.S,
+			types.S,
+		),
+		types.B,
+	),
+}
+
 // JWTVerifyPS256 verifies if a PS256 JWT signature is valid or not.
 var JWTVerifyPS256 = &Builtin{
 	Name: "io.jwt.verify_ps256",
+	Decl: types.NewFunction(
+		types.Args(
+			types.S,
+			types.S,
+		),
+		types.B,
+	),
+}
+
+// JWTVerifyPS384 verifies if a PS384 JWT signature is valid or not.
+var JWTVerifyPS384 = &Builtin{
+	Name: "io.jwt.verify_ps384",
+	Decl: types.NewFunction(
+		types.Args(
+			types.S,
+			types.S,
+		),
+		types.B,
+	),
+}
+
+// JWTVerifyPS512 verifies if a PS512 JWT signature is valid or not.
+var JWTVerifyPS512 = &Builtin{
+	Name: "io.jwt.verify_ps512",
 	Decl: types.NewFunction(
 		types.Args(
 			types.S,
@@ -1290,9 +1346,57 @@ var JWTVerifyES256 = &Builtin{
 	),
 }
 
+// JWTVerifyES384 verifies if a ES384 JWT signature is valid or not.
+var JWTVerifyES384 = &Builtin{
+	Name: "io.jwt.verify_es384",
+	Decl: types.NewFunction(
+		types.Args(
+			types.S,
+			types.S,
+		),
+		types.B,
+	),
+}
+
+// JWTVerifyES512 verifies if a ES512 JWT signature is valid or not.
+var JWTVerifyES512 = &Builtin{
+	Name: "io.jwt.verify_es512",
+	Decl: types.NewFunction(
+		types.Args(
+			types.S,
+			types.S,
+		),
+		types.B,
+	),
+}
+
 // JWTVerifyHS256 verifies if a HS256 (secret) JWT signature is valid or not.
 var JWTVerifyHS256 = &Builtin{
 	Name: "io.jwt.verify_hs256",
+	Decl: types.NewFunction(
+		types.Args(
+			types.S,
+			types.S,
+		),
+		types.B,
+	),
+}
+
+// JWTVerifyHS384 verifies if a HS384 (secret) JWT signature is valid or not.
+var JWTVerifyHS384 = &Builtin{
+	Name: "io.jwt.verify_hs384",
+	Decl: types.NewFunction(
+		types.Args(
+			types.S,
+			types.S,
+		),
+		types.B,
+	),
+}
+
+// JWTVerifyHS512 verifies if a HS512 (secret) JWT signature is valid or not.
+var JWTVerifyHS512 = &Builtin{
+	Name: "io.jwt.verify_hs512",
 	Decl: types.NewFunction(
 		types.Args(
 			types.S,
