@@ -2,13 +2,18 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-package runtime
+package config
 
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
+
+	"github.com/ghodss/yaml"
+
+	"github.com/open-policy-agent/opa/util/test"
 )
 
 func setTestEnvVar(t *testing.T, name, value string) string {
@@ -285,5 +290,151 @@ func TestMergeValuesNoSrcOrDest(t *testing.T) {
 
 	if !reflect.DeepEqual(actual, expected) {
 		t.Errorf("merged map does not match expected:\n\nExpected: %+v\nActual: %+v", expected, actual)
+	}
+}
+
+func TestLoadConfigWithParamOverride(t *testing.T) {
+	fs := map[string]string{"/some/config.yaml": `
+services:
+  acmecorp:
+    url: https://example.com/control-plane-api/v1
+
+discovery:
+  name: /example/discovery
+  prefix: configuration
+`}
+
+	test.WithTempFS(fs, func(rootDir string) {
+		configFile := filepath.Join(rootDir, "/some/config.yaml")
+		configOverrides := []string{"services.acmecorp.credentials.bearer.token=bGFza2RqZmxha3NkamZsa2Fqc2Rsa2ZqYWtsc2RqZmtramRmYWxkc2tm"}
+
+		configBytes, err := Load(configFile, configOverrides, nil)
+		if err != nil {
+			t.Errorf("unexpected error loading config: " + err.Error())
+		}
+
+		config := map[string]interface{}{}
+		err = yaml.Unmarshal(configBytes, &config)
+		if err != nil {
+			t.Errorf("unexpected error unmarshalling config")
+		}
+
+		expected := map[string]interface{}{
+			"services": map[string]interface{}{
+				"acmecorp": map[string]interface{}{
+					"url": "https://example.com/control-plane-api/v1",
+					"credentials": map[string]interface{}{
+						"bearer": map[string]interface{}{
+							"token": "bGFza2RqZmxha3NkamZsa2Fqc2Rsa2ZqYWtsc2RqZmtramRmYWxkc2tm",
+						},
+					},
+				},
+			},
+			"discovery": map[string]interface{}{
+				"name":   "/example/discovery",
+				"prefix": "configuration",
+			},
+		}
+
+		if !reflect.DeepEqual(config, expected) {
+			t.Errorf("config does not match expected:\n\nExpected: %+v\nActual: %+v", expected, config)
+		}
+	})
+}
+
+func TestLoadConfigWithFileOverride(t *testing.T) {
+	fs := map[string]string{
+		"/some/config.yaml": `
+services:
+  acmecorp:
+    url: https://example.com/control-plane-api/v1
+    credentials:
+      bearer:
+        token: "XXXXXXXXXX"
+
+discovery:
+  name: /example/discovery
+  prefix: configuration
+`,
+		"/some/secret.txt": "bGFza2RqZmxha3NkamZsa2Fqc2Rsa2ZqYWtsc2RqZmtramRmYWxkc2tm",
+	}
+
+	test.WithTempFS(fs, func(rootDir string) {
+		configFile := filepath.Join(rootDir, "/some/config.yaml")
+		secretFile := filepath.Join(rootDir, "/some/secret.txt")
+		overrideFiles := []string{fmt.Sprintf("services.acmecorp.credentials.bearer.token=%s", secretFile)}
+
+		configBytes, err := Load(configFile, nil, overrideFiles)
+		if err != nil {
+			t.Errorf("unexpected error loading config: " + err.Error())
+		}
+
+		config := map[string]interface{}{}
+		err = yaml.Unmarshal(configBytes, &config)
+		if err != nil {
+			t.Errorf("unexpected error unmarshalling config")
+		}
+
+		expected := map[string]interface{}{
+			"services": map[string]interface{}{
+				"acmecorp": map[string]interface{}{
+					"url": "https://example.com/control-plane-api/v1",
+					"credentials": map[string]interface{}{
+						"bearer": map[string]interface{}{
+							"token": "bGFza2RqZmxha3NkamZsa2Fqc2Rsa2ZqYWtsc2RqZmtramRmYWxkc2tm",
+						},
+					},
+				},
+			},
+			"discovery": map[string]interface{}{
+				"name":   "/example/discovery",
+				"prefix": "configuration",
+			},
+		}
+
+		if !reflect.DeepEqual(config, expected) {
+			t.Errorf("config does not match expected:\n\nExpected: %+v\nActual: %+v", expected, config)
+		}
+	})
+}
+
+func TestLoadConfigWithParamOverrideNoConfigFile(t *testing.T) {
+	configOverrides := []string{
+		"services.acmecorp.url=https://example.com/control-plane-api/v1",
+		"services.acmecorp.credentials.bearer.token=bGFza2RqZmxha3NkamZsa2Fqc2Rsa2ZqYWtsc2RqZmtramRmYWxkc2tm",
+		"discovery.name=/example/discovery",
+		"discovery.prefix=configuration",
+	}
+
+	configBytes, err := Load("", configOverrides, nil)
+	if err != nil {
+		t.Errorf("unexpected error loading config: " + err.Error())
+	}
+
+	config := map[string]interface{}{}
+	err = yaml.Unmarshal(configBytes, &config)
+	if err != nil {
+		t.Errorf("unexpected error unmarshalling config")
+	}
+
+	expected := map[string]interface{}{
+		"services": map[string]interface{}{
+			"acmecorp": map[string]interface{}{
+				"url": "https://example.com/control-plane-api/v1",
+				"credentials": map[string]interface{}{
+					"bearer": map[string]interface{}{
+						"token": "bGFza2RqZmxha3NkamZsa2Fqc2Rsa2ZqYWtsc2RqZmtramRmYWxkc2tm",
+					},
+				},
+			},
+		},
+		"discovery": map[string]interface{}{
+			"name":   "/example/discovery",
+			"prefix": "configuration",
+		},
+	}
+
+	if !reflect.DeepEqual(config, expected) {
+		t.Errorf("config does not match expected:\n\nExpected: %+v\nActual: %+v", expected, config)
 	}
 }
