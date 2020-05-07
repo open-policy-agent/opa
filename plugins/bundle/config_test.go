@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"testing"
 
-	"gopkg.in/yaml.v2"
+	"github.com/ghodss/yaml"
 )
 
 func TestConfigValidation(t *testing.T) {
