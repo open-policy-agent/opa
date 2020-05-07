@@ -93,7 +93,7 @@ destination in the data document with the following syntax:
 		
 To set a data file as the input document in the REPL prefix the file path:
 		
-		opa run repl.input:input.json
+	opa run repl.input:input.json
 
 File paths can be specified as URLs to resolve ambiguity in paths containing colons:
 
