@@ -41,6 +41,30 @@ cases:
   - note: union built-in
     query: union({{0,1},{0}},x)
     want_result: [{'x': [1,0]}]
+  - note: is_number built-in
+    query: is_number(1,x)
+    want_result: [{'x': true}]
+  - note: is_string built-in
+    query: is_string("a",x)
+    want_result: [{'x': true}]
+  - note: is_boolean built-in
+    query: is_boolean(true,x)
+    want_result: [{'x': true}]
+  - note: is_array built-in
+    query: is_array([],x)
+    want_result: [{'x': true}]
+  - note: is_set built-in
+    query: is_set({"a"},x)
+    want_result: [{'x': true}]
+  - note: is_object built-in
+    query: is_object({},x)
+    want_result: [{'x': true}]
+  - note: is_null built-in
+    query: is_null(null,x)
+    want_result: [{'x': true}]
+  - note: type_name built-in
+    query: type_name(1,x)
+    want_result: [{'x': "number"}]
   - note: custom built-in
     query: x = custom_builtin_test(100)
     want_result: [{'x': 101}]

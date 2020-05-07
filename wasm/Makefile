@@ -61,6 +61,9 @@ $(WASM_OBJ_DIR)/set.wasm: src/set.c
 $(WASM_OBJ_DIR)/str.wasm: src/str.c
 	@$(CC) $(CFLAGS) -c $^ -o $@
 
+$(WASM_OBJ_DIR)/types.wasm: src/types.c
+	@$(CC) $(CFLAGS) -c $^ -o $@
+
 $(WASM_OBJ_DIR)/unicode.wasm: src/unicode.c
 	@$(CC) $(CFLAGS) -c $^ -o $@
 
@@ -103,6 +106,7 @@ $(WASM_OBJ_DIR)/opa.wasm: \
 		$(WASM_OBJ_DIR)/malloc.wasm \
 		$(WASM_OBJ_DIR)/str.wasm \
 		$(WASM_OBJ_DIR)/set.wasm \
+		$(WASM_OBJ_DIR)/types.wasm \
 		$(WASM_OBJ_DIR)/unicode.wasm \
 		$(WASM_OBJ_DIR)/value.wasm
 	@wasm-ld-8 \
@@ -148,6 +152,7 @@ $(WASM_OBJ_DIR)/opa-test.wasm: \
 		$(WASM_OBJ_DIR)/str.wasm \
 		$(WASM_OBJ_DIR)/set.wasm \
 		$(WASM_OBJ_DIR)/test.wasm \
+		$(WASM_OBJ_DIR)/types.wasm \
 		$(WASM_OBJ_DIR)/unicode.wasm \
 		$(WASM_OBJ_DIR)/value.wasm
 	@cat src/undefined.symbols tests/undefined.symbols > _obj/undefined.symbols

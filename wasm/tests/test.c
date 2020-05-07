@@ -4,6 +4,7 @@
 #include "arithmetic.h"
 #include "array.h"
 #include "set.h"
+#include "types.h"
 
 void opa_test_fail(const char *note, const char *func, const char *file, int line);
 void opa_test_pass(const char *note, const char *func);
@@ -1052,4 +1053,30 @@ void test_array(void)
     test("array_slice", r->len == 2 &&
          opa_value_compare(r->elems[0].v, opa_number_int(1)) == 0 &&
          opa_value_compare(r->elems[1].v, opa_number_int(2)) == 0);
+}
+
+void test_types(void)
+{
+    test("is_number", opa_value_compare(opa_types_is_number(opa_number_int(0)), opa_boolean(true)) == 0);
+    test("is_number", opa_types_is_number(opa_null()) == NULL);
+    test("is_string", opa_value_compare(opa_types_is_string(opa_string("a", 1)), opa_boolean(true)) == 0);
+    test("is_string", opa_types_is_string(opa_null()) == NULL);
+    test("is_boolean", opa_value_compare(opa_types_is_boolean(opa_boolean(true)), opa_boolean(true)) == 0);
+    test("is_boolean", opa_types_is_boolean(opa_null()) == NULL);
+    test("is_array", opa_value_compare(opa_types_is_array(opa_array()), opa_boolean(true)) == 0);
+    test("is_array", opa_types_is_array(opa_null()) == NULL);
+    test("is_set", opa_value_compare(opa_types_is_set(opa_set()), opa_boolean(true)) == 0);
+    test("is_set", opa_types_is_set(opa_null()) == NULL);
+    test("is_object", opa_value_compare(opa_types_is_object(opa_object()), opa_boolean(true)) == 0);
+    test("is_object", opa_types_is_object(opa_null()) == NULL);
+    test("is_null", opa_value_compare(opa_types_is_null(opa_null()), opa_boolean(true)) == 0);
+    test("is_null", opa_types_is_null(opa_number_int(0)) == NULL);
+
+    test("name/null", opa_value_compare(opa_types_name(opa_null()), opa_string("null", 4)) == 0);
+    test("name/boolean", opa_value_compare(opa_types_name(opa_boolean(true)), opa_string("boolean", 7)) == 0);
+    test("name/number", opa_value_compare(opa_types_name(opa_number_int(0)), opa_string("number", 6)) == 0);
+    test("name/string", opa_value_compare(opa_types_name(opa_string("a", 1)), opa_string("string", 6)) == 0);
+    test("name/array", opa_value_compare(opa_types_name(opa_array()), opa_string("array", 5)) == 0);
+    test("name/object", opa_value_compare(opa_types_name(opa_object()), opa_string("object", 6)) == 0);
+    test("name/set", opa_value_compare(opa_types_name(opa_set()), opa_string("set", 3)) == 0);
 }
