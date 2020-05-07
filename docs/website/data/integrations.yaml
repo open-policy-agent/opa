@@ -719,6 +719,19 @@ integrations:
     code:
       - https://github.com/pomerium/pomerium
 
+  coredns-authz:
+    title: CoreDNS Authorization
+    description: CoreDNS is a cloud-native DNS server written in Go.  OPA can be used as a plugin to filter queries and responses.
+    labels:
+      layer: network
+      category: dns
+    software:
+      - coredns
+    code:
+      - https://github.com/coredns/policy
+    inventors:
+      - infoblox
+
 organizations:
   styra:
     name: Styra
@@ -807,6 +820,9 @@ organizations:
   wada-ama:
     name: World Anti-Doping Agency
     link: https://www.wada-ama.org
+  infoblox:
+    name: InfoBlox
+    link: https://www.infoblox.com/
 
 software:
   kubernetes:
@@ -898,4 +914,4 @@ software:
     link: https://www.pomerium.io/
   coredns:
     name: CoreDNS
-    link: https://github.com/coredns
+    link: https://coredns.io/
