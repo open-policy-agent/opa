@@ -81,6 +81,18 @@ func NewTestRuntime(params runtime.Params) (*TestRuntime, error) {
 	}, nil
 }
 
+// WrapRuntime creates a new TestRuntime by wrapping an existing runtime
+func WrapRuntime(ctx context.Context, cancel context.CancelFunc, rt *runtime.Runtime) *TestRuntime {
+	return &TestRuntime{
+		Params:  rt.Params,
+		Runtime: rt,
+		Ctx:     ctx,
+		Cancel:  cancel,
+		Client:  &http.Client{},
+		urlMtx:  new(sync.Mutex),
+	}
+}
+
 // RunAPIServerTests will start the OPA runtime serving with a given
 // configuration. This is essentially a wrapper for `m.Run()` that
 // handles starting and stopping the local API server. The return
@@ -168,7 +180,7 @@ func (t *TestRuntime) runTests(m *testing.M, suppressLogs bool) int {
 	}
 
 	// wait for the server to be ready
-	err := t.waitForServer()
+	err := t.WaitForServer()
 	if err != nil {
 		return 1
 	}
@@ -189,7 +201,8 @@ func (t *TestRuntime) runTests(m *testing.M, suppressLogs bool) int {
 	return errc
 }
 
-func (t *TestRuntime) waitForServer() error {
+// WaitForServer will block until the server is running and passes a health check.
+func (t *TestRuntime) WaitForServer() error {
 	delay := time.Duration(100) * time.Millisecond
 	retries := 100 // 10 seconds before we give up
 	for i := 0; i < retries; i++ {

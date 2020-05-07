@@ -25,31 +25,31 @@ const (
 	defaultHistoryFile = ".opa_history" // default filename for shell history
 )
 
+type runCmdParams struct {
+	rt                runtime.Params
+	tlsCertFile       string
+	tlsPrivateKeyFile string
+	tlsCACertFile     string
+	ignore            []string
+	serverMode        bool
+	authentication    *util.EnumFlag
+	authorization     *util.EnumFlag
+	logLevel          *util.EnumFlag
+	logFormat         *util.EnumFlag
+}
+
+func newRunParams() runCmdParams {
+	return runCmdParams{
+		rt:             runtime.NewParams(),
+		authentication: util.NewEnumFlag("off", []string{"token", "tls", "off"}),
+		authorization:  util.NewEnumFlag("off", []string{"basic", "off"}),
+		logLevel:       util.NewEnumFlag("info", []string{"debug", "info", "error"}),
+		logFormat:      util.NewEnumFlag("json", []string{"text", "json", "json-pretty"}),
+	}
+}
+
 func init() {
-
-	var serverMode bool
-	var tlsCertFile, tlsPrivateKeyFile, tlsCACertFile string
-	var ignore []string
-
-	authentication := util.NewEnumFlag("off", []string{"token", "tls", "off"})
-
-	authenticationSchemes := map[string]server.AuthenticationScheme{
-		"token": server.AuthenticationToken,
-		"tls":   server.AuthenticationTLS,
-		"off":   server.AuthenticationOff,
-	}
-
-	authorization := util.NewEnumFlag("off", []string{"basic", "off"})
-
-	authorizationScheme := map[string]server.AuthorizationScheme{
-		"basic": server.AuthorizationBasic,
-		"off":   server.AuthorizationOff,
-	}
-
-	logLevel := util.NewEnumFlag("info", []string{"debug", "info", "error"})
-	logFormat := util.NewEnumFlag("json", []string{"text", "json", "json-pretty"})
-
-	params := runtime.NewParams()
+	cmdParams := newRunParams()
 
 	runCommand := &cobra.Command{
 		Use:   "run",
@@ -110,72 +110,34 @@ File paths can be specified as URLs to resolve ambiguity in paths containing col
 	$ opa run file:///c:/path/to/data.json
 `,
 		Run: func(cmd *cobra.Command, args []string) {
-
-			cert, err := loadCertificate(tlsCertFile, tlsPrivateKeyFile)
-			if err != nil {
-				fmt.Println("error:", err)
-				os.Exit(1)
-			}
-
-			if tlsCACertFile != "" {
-				pool, err := loadCertPool(tlsCACertFile)
-				if err != nil {
-					fmt.Println("error:", err)
-					os.Exit(1)
-				}
-				params.CertPool = pool
-			}
-
-			params.Authentication = authenticationSchemes[authentication.String()]
-			params.Authorization = authorizationScheme[authorization.String()]
-			params.Certificate = cert
-			params.Logging = runtime.LoggingConfig{
-				Level:  logLevel.String(),
-				Format: logFormat.String(),
-			}
-			params.Paths = args
-			params.Filter = loaderFilter{
-				Ignore: ignore,
-			}.Apply
-
 			ctx := context.Background()
-
-			rt, err := runtime.NewRuntime(ctx, params)
-			if err != nil {
-				fmt.Fprintln(os.Stderr, "error:", err)
-				os.Exit(1)
-			}
-
-			if serverMode {
-				rt.StartServer(ctx)
-			} else {
-				rt.StartREPL(ctx)
-			}
+			rt := initRuntime(ctx, cmdParams, args)
+			startRuntime(ctx, rt, cmdParams.serverMode)
 		},
 	}
 
-	runCommand.Flags().StringVarP(&params.ConfigFile, "config-file", "c", "", "set path of configuration file")
-	runCommand.Flags().BoolVarP(&serverMode, "server", "s", false, "start the runtime in server mode")
-	runCommand.Flags().StringVarP(&params.HistoryPath, "history", "H", historyPath(), "set path of history file")
-	params.Addrs = runCommand.Flags().StringSliceP("addr", "a", []string{defaultAddr}, "set listening address of the server (e.g., [ip]:<port> for TCP, unix://<path> for UNIX domain socket)")
-	runCommand.Flags().StringVarP(&params.InsecureAddr, "insecure-addr", "", "", "set insecure listening address of the server")
+	runCommand.Flags().StringVarP(&cmdParams.rt.ConfigFile, "config-file", "c", "", "set path of configuration file")
+	runCommand.Flags().BoolVarP(&cmdParams.serverMode, "server", "s", false, "start the runtime in server mode")
+	runCommand.Flags().StringVarP(&cmdParams.rt.HistoryPath, "history", "H", historyPath(), "set path of history file")
+	cmdParams.rt.Addrs = runCommand.Flags().StringSliceP("addr", "a", []string{defaultAddr}, "set listening address of the server (e.g., [ip]:<port> for TCP, unix://<path> for UNIX domain socket)")
+	runCommand.Flags().StringVarP(&cmdParams.rt.InsecureAddr, "insecure-addr", "", "", "set insecure listening address of the server")
 	runCommand.Flags().MarkDeprecated("insecure-addr", "use --addr instead")
-	runCommand.Flags().StringVarP(&params.OutputFormat, "format", "f", "pretty", "set shell output format, i.e, pretty, json")
-	runCommand.Flags().BoolVarP(&params.Watch, "watch", "w", false, "watch command line files for changes")
-	addMaxErrorsFlag(runCommand.Flags(), &params.ErrorLimit)
-	runCommand.Flags().BoolVarP(&params.PprofEnabled, "pprof", "", false, "enables pprof endpoints")
-	runCommand.Flags().StringVarP(&tlsCertFile, "tls-cert-file", "", "", "set path of TLS certificate file")
-	runCommand.Flags().StringVarP(&tlsPrivateKeyFile, "tls-private-key-file", "", "", "set path of TLS private key file")
-	runCommand.Flags().StringVarP(&tlsCACertFile, "tls-ca-cert-file", "", "", "set path of TLS CA cert file")
-	runCommand.Flags().VarP(authentication, "authentication", "", "set authentication scheme")
-	runCommand.Flags().VarP(authorization, "authorization", "", "set authorization scheme")
-	runCommand.Flags().VarP(logLevel, "log-level", "l", "set log level")
-	runCommand.Flags().VarP(logFormat, "log-format", "", "set log format")
-	runCommand.Flags().IntVar(&params.GracefulShutdownPeriod, "shutdown-grace-period", 10, "set the time (in seconds) that the server will wait to gracefully shut down")
-	runCommand.Flags().StringArrayVar(&params.ConfigOverrides, "set", []string{}, "override config values on the command line (use commas to specify multiple values)")
-	runCommand.Flags().StringArrayVar(&params.ConfigOverrideFiles, "set-file", []string{}, "override config values with files on the command line (use commas to specify multiple values)")
-	runCommand.Flags().BoolVarP(&params.BundleMode, "bundle", "b", false, "load paths as bundle files or root directories")
-	addIgnoreFlag(runCommand.Flags(), &ignore)
+	runCommand.Flags().StringVarP(&cmdParams.rt.OutputFormat, "format", "f", "pretty", "set shell output format, i.e, pretty, json")
+	runCommand.Flags().BoolVarP(&cmdParams.rt.Watch, "watch", "w", false, "watch command line files for changes")
+	addMaxErrorsFlag(runCommand.Flags(), &cmdParams.rt.ErrorLimit)
+	runCommand.Flags().BoolVarP(&cmdParams.rt.PprofEnabled, "pprof", "", false, "enables pprof endpoints")
+	runCommand.Flags().StringVarP(&cmdParams.tlsCertFile, "tls-cert-file", "", "", "set path of TLS certificate file")
+	runCommand.Flags().StringVarP(&cmdParams.tlsPrivateKeyFile, "tls-private-key-file", "", "", "set path of TLS private key file")
+	runCommand.Flags().StringVarP(&cmdParams.tlsCACertFile, "tls-ca-cert-file", "", "", "set path of TLS CA cert file")
+	runCommand.Flags().VarP(cmdParams.authentication, "authentication", "", "set authentication scheme")
+	runCommand.Flags().VarP(cmdParams.authorization, "authorization", "", "set authorization scheme")
+	runCommand.Flags().VarP(cmdParams.logLevel, "log-level", "l", "set log level")
+	runCommand.Flags().VarP(cmdParams.logFormat, "log-format", "", "set log format")
+	runCommand.Flags().IntVar(&cmdParams.rt.GracefulShutdownPeriod, "shutdown-grace-period", 10, "set the time (in seconds) that the server will wait to gracefully shut down")
+	runCommand.Flags().StringArrayVar(&cmdParams.rt.ConfigOverrides, "set", []string{}, "override config values on the command line (use commas to specify multiple values)")
+	runCommand.Flags().StringArrayVar(&cmdParams.rt.ConfigOverrideFiles, "set-file", []string{}, "override config values with files on the command line (use commas to specify multiple values)")
+	runCommand.Flags().BoolVarP(&cmdParams.rt.BundleMode, "bundle", "b", false, "load paths as bundle files or root directories")
+	addIgnoreFlag(runCommand.Flags(), &cmdParams.ignore)
 
 	usageTemplate := `Usage:
   {{.UseLine}} [files]
@@ -187,6 +149,62 @@ Flags:
 	runCommand.SetUsageTemplate(usageTemplate)
 
 	RootCommand.AddCommand(runCommand)
+}
+
+func initRuntime(ctx context.Context, params runCmdParams, args []string) *runtime.Runtime {
+	authenticationSchemes := map[string]server.AuthenticationScheme{
+		"token": server.AuthenticationToken,
+		"tls":   server.AuthenticationTLS,
+		"off":   server.AuthenticationOff,
+	}
+
+	authorizationScheme := map[string]server.AuthorizationScheme{
+		"basic": server.AuthorizationBasic,
+		"off":   server.AuthorizationOff,
+	}
+
+	cert, err := loadCertificate(params.tlsCertFile, params.tlsPrivateKeyFile)
+	if err != nil {
+		fmt.Println("error:", err)
+		os.Exit(1)
+	}
+
+	if params.tlsCACertFile != "" {
+		pool, err := loadCertPool(params.tlsCACertFile)
+		if err != nil {
+			fmt.Println("error:", err)
+			os.Exit(1)
+		}
+		params.rt.CertPool = pool
+	}
+
+	params.rt.Authentication = authenticationSchemes[params.authentication.String()]
+	params.rt.Authorization = authorizationScheme[params.authorization.String()]
+	params.rt.Certificate = cert
+	params.rt.Logging = runtime.LoggingConfig{
+		Level:  params.logLevel.String(),
+		Format: params.logFormat.String(),
+	}
+	params.rt.Paths = args
+	params.rt.Filter = loaderFilter{
+		Ignore: params.ignore,
+	}.Apply
+
+	rt, err := runtime.NewRuntime(ctx, params.rt)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "error:", err)
+		os.Exit(1)
+	}
+
+	return rt
+}
+
+func startRuntime(ctx context.Context, rt *runtime.Runtime, serverMode bool) {
+	if serverMode {
+		rt.StartServer(ctx)
+	} else {
+		rt.StartREPL(ctx)
+	}
 }
 
 func historyPath() string {
