@@ -1,6 +1,8 @@
 #ifndef OPA_VALUE_H
 #define OPA_VALUE_H
 
+#include <stdint.h>
+
 #include "std.h"
 
 #define OPA_NULL (1)
@@ -132,8 +134,8 @@ opa_value *opa_array();
 opa_value *opa_array_with_cap(size_t cap);
 opa_value *opa_array_with_elems(opa_array_elem_t *elems, size_t len, size_t cap);
 opa_value *opa_object();
-opa_value *opa_object_with_cap(size_t cap);
 opa_value *opa_set();
+opa_value *opa_set_with_cap(size_t cap);
 
 void opa_value_boolean_set(opa_value *v, int b);
 void opa_value_number_set_int(opa_value *v, long long i);

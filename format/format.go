@@ -535,7 +535,7 @@ func (w *writer) writeTermParens(parens bool, term *ast.Term, comments []*ast.Co
 
 func (w *writer) writeRef(x ast.Ref) {
 	if len(x) > 0 {
-		w.write(x[0].Value.String())
+		w.writeTerm(x[0], nil)
 		path := x[1:]
 		for _, p := range path {
 			switch p := p.Value.(type) {

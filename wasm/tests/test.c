@@ -1,6 +1,9 @@
-#include "string.h"
+#include "str.h"
 #include "json.h"
 #include "malloc.h"
+#include "arithmetic.h"
+#include "array.h"
+#include "set.h"
 
 void opa_test_fail(const char *note, const char *func, const char *file, int line);
 void opa_test_pass(const char *note, const char *func);
@@ -933,4 +936,120 @@ void test_opa_json_dump()
     opa_array_append(opa_cast_array(terminators), opa_null());
 
     test("bool/null terminators", opa_strcmp(opa_json_dump(terminators), "[true,false,null]") == 0);
+}
+
+void test_arithmetic(void)
+{
+    long long i = 0;
+
+    test("abs +1", opa_number_try_int(opa_cast_number(opa_arith_abs(opa_number_int(1))), &i) == 0 && i == 1);
+    test("abs -1", opa_number_try_int(opa_cast_number(opa_arith_abs(opa_number_int(-1))), &i) == 0 && i == 1);
+    test("abs 1.5 (float)", opa_number_as_float(opa_cast_number(opa_arith_abs(opa_number_float(1.5)))) == 1.5);
+    test("abs -1.5 (float)", opa_number_as_float(opa_cast_number(opa_arith_abs(opa_number_float(-1.5)))) == 1.5);
+    test("abs 1.5 (ref)", opa_number_as_float(opa_cast_number(opa_arith_abs(opa_number_ref("1.5", 3)))) == 1.5);
+    test("abs -1.5 (ref)", opa_number_as_float(opa_cast_number(opa_arith_abs(opa_number_ref("-1.5", 4)))) == 1.5);
+    test("round 1", opa_number_try_int(opa_cast_number(opa_arith_round(opa_number_int(1))), &i) == 0 && i == 1);
+    test("round -1", opa_number_try_int(opa_cast_number(opa_arith_round(opa_number_int(-1))), &i) == 0 && i == -1);
+    test("round 1.4 (float)", opa_number_as_float(opa_cast_number(opa_arith_round(opa_number_float(1.4)))) == 1);
+    test("round -1.4 (float)", opa_number_as_float(opa_cast_number(opa_arith_round(opa_number_float(-1.4)))) == -1);
+    test("round 1.5 (float)", opa_number_as_float(opa_cast_number(opa_arith_round(opa_number_float(1.5)))) == 2);
+    test("round -1.5 (float)", opa_number_as_float(opa_cast_number(opa_arith_round(opa_number_float(-1.5)))) == -2);
+    test("plus 1+2", opa_number_as_float(opa_cast_number(opa_arith_plus(opa_number_float(1), opa_number_float(2)))) == 3);
+    test("minus 3-2", opa_number_as_float(opa_cast_number(opa_arith_minus(opa_number_float(3), opa_number_float(2)))) == 1);
+
+    opa_set_t *s1 = opa_cast_set(opa_set());
+    opa_set_add(s1, opa_number_int(0));
+    opa_set_add(s1, opa_number_int(1));
+    opa_set_add(s1, opa_number_int(2));
+
+    opa_set_t *s2 = opa_cast_set(opa_set());
+    opa_set_add(s2, opa_number_int(0));
+    opa_set_add(s2, opa_number_int(2));
+
+    opa_set_t *s3 = opa_cast_set(opa_arith_minus(&s1->hdr, &s2->hdr));
+    test("minus set", s3->len == 1 && opa_set_get(s3, opa_number_int(1)) != NULL);
+    test("multiply 3*2", opa_number_as_float(opa_cast_number(opa_arith_multiply(opa_number_float(3), opa_number_float(2)))) == 6);
+    test("divide 3/2", opa_number_as_float(opa_cast_number(opa_arith_divide(opa_number_float(3), opa_number_float(2)))) == 1.5);
+    test("remainder 5 % 2", opa_number_as_float(opa_cast_number(opa_arith_rem(opa_number_float(5), opa_number_float(2)))) == 1);
+}
+
+void test_set_diff(void)
+{
+    // test_arithmetic covers the diff.
+}
+
+void test_set_intersection_union(void)
+{
+    opa_set_t *s1 = opa_cast_set(opa_set());
+    opa_set_add(s1, opa_number_int(0));
+    opa_set_add(s1, opa_number_int(1));
+    opa_set_add(s1, opa_number_int(2));
+
+    opa_set_t *s2 = opa_cast_set(opa_set());
+    opa_set_add(s2, opa_number_int(0));
+    opa_set_add(s2, opa_number_int(1));
+
+    opa_set_t *r = opa_cast_set(opa_set_intersection(&s1->hdr, &s2->hdr));
+    test("set/intersection", r->len == 2 && opa_set_get(r, opa_number_int(0)) != NULL && opa_set_get(r, opa_number_int(1)) != NULL);
+
+    r = opa_cast_set(opa_set_union(&s1->hdr, &s2->hdr));
+    test("set/union", r->len == 3 &&
+         opa_set_get(r, opa_number_int(0)) != NULL &&
+         opa_set_get(r, opa_number_int(1)) != NULL &&
+         opa_set_get(r, opa_number_int(2)) != NULL);
+}
+
+
+void test_sets_intersection_union(void)
+{
+    opa_set_t *s1 = opa_cast_set(opa_set());
+    opa_set_add(s1, opa_number_int(0));
+    opa_set_add(s1, opa_number_int(1));
+    opa_set_add(s1, opa_number_int(2));
+
+    opa_set_t *s2 = opa_cast_set(opa_set());
+    opa_set_add(s2, opa_number_int(0));
+    opa_set_add(s2, opa_number_int(1));
+
+    opa_set_t *s3 = opa_cast_set(opa_set());
+    opa_set_add(s3, opa_number_int(0));
+
+    opa_set_t *sets = opa_cast_set(opa_set());
+    opa_set_add(sets, &s1->hdr);
+    opa_set_add(sets, &s2->hdr);
+    opa_set_add(sets, &s3->hdr);
+
+    opa_set_t *r = opa_cast_set(opa_sets_intersection(&sets->hdr));
+    test("sets/intersection", r->len == 1 && opa_set_get(r, opa_number_int(0)) != NULL);
+
+    r = opa_cast_set(opa_sets_union(&sets->hdr));
+    test("sets/union", r->len == 3 &&
+         opa_set_get(r, opa_number_int(0)) != NULL &&
+         opa_set_get(r, opa_number_int(1)) != NULL &&
+         opa_set_get(r, opa_number_int(2)) != NULL);
+}
+
+void test_array(void)
+{
+    opa_array_t *arr1 = opa_cast_array(opa_array());
+    opa_array_append(arr1, opa_number_int(0));
+    opa_array_append(arr1, opa_number_int(1));
+
+    opa_array_t *arr2 = opa_cast_array(opa_array());
+    opa_array_append(arr2, opa_number_int(2));
+    opa_array_append(arr2, opa_number_int(3));
+
+    opa_array_t *r = opa_cast_array(opa_array_concat(&arr1->hdr, &arr2->hdr));
+
+    test("array_concat", r->len == 4 &&
+         opa_value_compare(r->elems[0].v, opa_number_int(0)) == 0 &&
+         opa_value_compare(r->elems[1].v, opa_number_int(1)) == 0 &&
+         opa_value_compare(r->elems[2].v, opa_number_int(2)) == 0 &&
+         opa_value_compare(r->elems[3].v, opa_number_int(3)) == 0);
+
+    r = opa_cast_array(opa_array_slice(&r->hdr, opa_number_int(1), opa_number_int(3)));
+
+    test("array_slice", r->len == 2 &&
+         opa_value_compare(r->elems[0].v, opa_number_int(1)) == 0 &&
+         opa_value_compare(r->elems[1].v, opa_number_int(2)) == 0);
 }

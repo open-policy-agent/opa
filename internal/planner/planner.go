@@ -17,6 +17,29 @@ import (
 type planiter func() error
 type binaryiter func(ir.Local, ir.Local) error
 
+type wasmBuiltin struct {
+	*ast.Builtin
+	WasmFunction string
+}
+
+// internalBuiltins are the built-in functions implemented in wasm.
+var internalBuiltins = map[string]wasmBuiltin{
+	ast.Plus.Name:         wasmBuiltin{ast.Plus, "opa_arith_plus"},
+	ast.Minus.Name:        wasmBuiltin{ast.Minus, "opa_arith_minus"},
+	ast.Multiply.Name:     wasmBuiltin{ast.Multiply, "opa_arith_multiply"},
+	ast.Divide.Name:       wasmBuiltin{ast.Divide, "opa_arith_divide"},
+	ast.Abs.Name:          wasmBuiltin{ast.Abs, "opa_arith_abs"},
+	ast.Round.Name:        wasmBuiltin{ast.Abs, "opa_arith_round"},
+	ast.Rem.Name:          wasmBuiltin{ast.Rem, "opa_arith_rem"},
+	ast.ArrayConcat.Name:  wasmBuiltin{ast.ArrayConcat, "opa_array_concat"},
+	ast.ArraySlice.Name:   wasmBuiltin{ast.ArraySlice, "opa_array_slice"},
+	ast.SetDiff.Name:      wasmBuiltin{ast.SetDiff, "opa_set_diff"},
+	ast.And.Name:          wasmBuiltin{ast.And, "opa_set_intersection"},
+	ast.Or.Name:           wasmBuiltin{ast.Or, "opa_set_union"},
+	ast.Intersection.Name: wasmBuiltin{ast.Intersection, "opa_sets_intersection"},
+	ast.Union.Name:        wasmBuiltin{ast.Union, "opa_sets_union"},
+}
+
 // Planner implements a query planner for Rego queries.
 type Planner struct {
 	policy    *ir.Policy              // result of planning
@@ -691,6 +714,9 @@ func (p *Planner) planExprCall(e *ast.Expr, iter planiter) error {
 				p.vars.GetOrEmpty(ast.InputRootDocument.Value.(ast.Var)),
 				p.vars.GetOrEmpty(ast.DefaultRootDocument.Value.(ast.Var)),
 			}
+		} else if decl, ok := internalBuiltins[operator]; ok {
+			arity = len(decl.Decl.Args())
+			name = decl.WasmFunction
 		} else if decl, ok := p.decls[operator]; ok {
 			arity = len(decl.Decl.Args())
 			name = operator

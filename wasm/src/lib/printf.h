@@ -36,7 +36,7 @@
 extern "C" {
 #endif
 
-#include "std.h"
+#include <stdio.h>
 
 /**
  * Tiny snprintf/vsnprintf implementation

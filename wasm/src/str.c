@@ -1,4 +1,4 @@
-#include "std.h"
+#include "string.h"
 
 size_t opa_strlen(const char *s)
 {
