@@ -29,6 +29,9 @@
               <div class="is-6">
                 Showcase of OPA integrations, use-cases, and related projects.
               </div>
+              <div class="is-6">
+                Ordered by the amount of content.
+              </div>
             </div>
             <div class="container">
               <div class="navbar-menu">
@@ -47,9 +50,33 @@
           </nav>
           {{ $scratch := newScratch }}
           {{ range $name, $integration := $.Site.Data.integrations.integrations }}
-            {{ $scratch.Add "integration-names" (slice $name) }}
+            <!-- using $scratch.tutorials so that IFs can modify -->
+            {{ $scratch.Set "tutorials" 0 }}
+            {{ if isset $integration "tutorials" }}
+              {{ $scratch.Set "tutorials" (len (index $integration "tutorials")) }}
+            {{ end }}
+
+            {{ $scratch.Set "videos" 0 }}
+            {{ if isset $integration "videos" }}
+              {{ $scratch.Set "videos" (len (index $integration "videos")) }}
+            {{ end }}
+
+            {{ $scratch.Set "blogs" 0 }}
+            {{ if isset $integration "blogs" }}
+              {{ $scratch.Set "blogs" (len (index $integration "blogs")) }}
+            {{ end }}
+
+            {{ $scratch.Set "code" 0 }}
+            {{ if isset $integration "code" }}
+              {{ $scratch.Set "code" (len (index $integration "code")) }}
+            {{ end }}
+
+            {{ $rank := (add ($scratch.Get "tutorials") (add ($scratch.Get "videos") (add ($scratch.Get "blogs") ($scratch.Get "code")))) }}
+            {{ $scratch.Add "integration-names" (slice (dict "name" $name "rank" $rank)) }}
           {{ end }}
-          {{ range $name := (sort ($scratch.Get "integration-names")) }}
+          {{ range $integrations := (sort ($scratch.Get "integration-names") "rank" "desc") }}
+          {{ $name := (index $integrations "name") }}
+          {{ $rank := (index $integrations "rank") }}
           {{ $integration := (index $.Site.Data.integrations.integrations $name) }}
           <div class="integration-item" onclick="openModal('{{ $name }}-detail-modal')">
             <div class="card">
