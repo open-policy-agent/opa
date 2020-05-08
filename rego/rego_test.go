@@ -1548,6 +1548,29 @@ func TestRegoCustomBuiltinPartialPropagate(t *testing.T) {
 
 }
 
+func TestSkipPartialNamespaceOption(t *testing.T) {
+	r := New(Query("data.test.p"), Module("example.rego", `
+		package test
+
+		default p = false
+
+		p = true { input }
+	`), SkipPartialNamespace(true))
+
+	pq, err := r.Partial(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(pq.Queries) != 1 || !pq.Queries[0].Equal(ast.MustParseBody("data.test.p")) {
+		t.Fatal("expected exactly one query and for reference to not have been rewritten but got:", pq.Queries)
+	}
+
+	if len(pq.Support) != 1 || !pq.Support[0].Package.Equal(ast.MustParsePackage("package test")) {
+		t.Fatal("expected exactly one support and for package to be same as input but got:", pq.Support)
+	}
+}
+
 func TestPrepareWithEmptyModule(t *testing.T) {
 	_, err := New(
 		Query("d"),

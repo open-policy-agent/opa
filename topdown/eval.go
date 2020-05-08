@@ -60,6 +60,7 @@ type eval struct {
 	saveSupport        *saveSupport
 	saveNamespace      *ast.Term
 	disableInlining    [][]ast.Ref
+	skipSaveNamespace  bool
 	genvarprefix       string
 	genvarid           int
 	runtime            *ast.Term
@@ -1898,7 +1899,7 @@ func (e evalVirtualPartial) evalOneRule(iter unifyIterator, rule *ast.Rule, cach
 
 func (e evalVirtualPartial) partialEvalSupport(iter unifyIterator) error {
 
-	path := e.plugged[:e.pos+1].Insert(e.e.saveNamespace, 1)
+	path, term := e.e.savePackagePathAndTerm(e.plugged[:e.pos+1], e.ref)
 
 	if !e.e.saveSupport.Exists(path) {
 		for i := range e.ir.Rules {
@@ -1909,8 +1910,7 @@ func (e evalVirtualPartial) partialEvalSupport(iter unifyIterator) error {
 		}
 	}
 
-	rewritten := ast.NewTerm(e.ref.Insert(e.e.saveNamespace, 1))
-	return e.e.saveUnify(rewritten, e.rterm, e.bindings, e.rbindings, iter)
+	return e.e.saveUnify(term, e.rterm, e.bindings, e.rbindings, iter)
 }
 
 func (e evalVirtualPartial) partialEvalSupportRule(iter unifyIterator, rule *ast.Rule, path ast.Ref) error {
@@ -2135,7 +2135,7 @@ func (e evalVirtualComplete) partialEval(iter unifyIterator) error {
 
 func (e evalVirtualComplete) partialEvalSupport(iter unifyIterator) error {
 
-	path := e.plugged[:e.pos+1].Insert(e.e.saveNamespace, 1)
+	path, term := e.e.savePackagePathAndTerm(e.plugged[:e.pos+1], e.ref)
 
 	if !e.e.saveSupport.Exists(path) {
 
@@ -2154,8 +2154,7 @@ func (e evalVirtualComplete) partialEvalSupport(iter unifyIterator) error {
 		}
 	}
 
-	rewritten := ast.NewTerm(e.ref.Insert(e.e.saveNamespace, 1))
-	return e.e.saveUnify(rewritten, e.rterm, e.bindings, e.rbindings, iter)
+	return e.e.saveUnify(term, e.rterm, e.bindings, e.rbindings, iter)
 }
 
 func (e evalVirtualComplete) partialEvalSupportRule(iter unifyIterator, rule *ast.Rule, path ast.Ref) error {
@@ -2350,6 +2349,15 @@ func (e *eval) comprehensionIndex(term *ast.Term) *ast.ComprehensionIndex {
 		return e.queryCompiler.ComprehensionIndex(term)
 	}
 	return e.compiler.ComprehensionIndex(term)
+}
+
+func (e *eval) savePackagePathAndTerm(plugged, ref ast.Ref) (ast.Ref, *ast.Term) {
+
+	if e.skipSaveNamespace {
+		return plugged, ast.NewTerm(ref)
+	}
+
+	return plugged.Insert(e.saveNamespace, 1), ast.NewTerm(ref.Insert(e.saveNamespace, 1))
 }
 
 func applyCopyPropagation(p *copypropagation.CopyPropagator, instr *Instrumentation, body ast.Body) ast.Body {
