@@ -992,31 +992,27 @@ func builtinJWTDecodeVerify(a ast.Value, b ast.Value) (v ast.Value, err error) {
 	}
 	// RFC7159 4.1.4 exp
 	if exp := payload.Get(jwtExpKey); exp != nil {
-		var expVal int64
-		if expVal, err = strconv.ParseInt(string(exp.Value.(ast.Number)), 10, 64); err != nil {
-			err = fmt.Errorf("parsing 'exp' JWT claim: %v", err)
-			return
-		}
 		if constraints.time < 0 {
 			constraints.time = time.Now().UnixNano()
 		}
-		// constraints.time is in nanoseconds but expVal is in seconds
-		if constraints.time/1000000000 >= expVal {
+
+		// constraints.time is in nanoseconds but exp Value is in seconds
+		compareTime := ast.Number(strconv.FormatFloat(float64(constraints.time)/1000000000, 'g', -1, 64))
+
+		if ast.Compare(compareTime, exp.Value.(ast.Number)) != -1 {
 			return arr, nil
 		}
 	}
 	// RFC7159 4.1.5 nbf
 	if nbf := payload.Get(jwtNbfKey); nbf != nil {
-		var nbfVal int64
-		if nbfVal, err = strconv.ParseInt(string(nbf.Value.(ast.Number)), 10, 64); err != nil {
-			err = fmt.Errorf("parsing 'nbf' JWT claim: %v", err)
-			return
-		}
 		if constraints.time < 0 {
 			constraints.time = time.Now().UnixNano()
 		}
-		// constraints.time is in nanoseconds but nbfVal is in seconds
-		if constraints.time/1000000000 < nbfVal {
+
+		// constraints.time is in nanoseconds but nbf Value is in seconds
+		compareTime := ast.Number(strconv.FormatFloat(float64(constraints.time)/1000000000, 'g', -1, 64))
+
+		if ast.Compare(compareTime, nbf.Value.(ast.Number)) == -1 {
 			return arr, nil
 		}
 	}
