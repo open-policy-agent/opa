@@ -1264,6 +1264,24 @@ func TestTopDownPartialEval(t *testing.T) {
 			},
 		},
 		{
+			note:  "copy propagation: negation safety needs extra expr - no live var overlap",
+			query: `data.test.p = true`,
+			modules: []string{
+				`package test
+
+				p {
+				  x = input.y[c]
+				  x.z = 1
+				  not x.z = 2
+				}
+				`,
+			},
+			unknowns: []string{`input.y`},
+			wantQueries: []string{
+				`input.y[c1].z = 1; not x1.z = 2; x1 = input.y[c1]`,
+			},
+		},
+		{
 			note:  "copy propagation: negation safety no extra expr",
 			query: `data.test.p = true`,
 			modules: []string{
