@@ -95,6 +95,13 @@ production users that have added themselves (in alphabetical order):
   etc. SAP/Infrabox is used in production within SAP and has several
   external users.
 
+* [T-Mobile](https://www.t-mobile.com) uses OPA as a core component for their
+  [MagTape](https://github.com/tmobile/magtape/) project that enforces best 
+  practices and secure configurations across their fleet of Kubernetes 
+  clusters (more info in [this blog post](https://opensource.t-mobile.com/blog/posts/rolling-out-the-magenta-tape/)). 
+  T-Mobile also leverages OPA to enforce authorization workflows within their 
+  Corporate Delivery Platform (CI/CD).
+
 * [Tremolo Security](https://www.tremolosecurity.com/) uses OPA at a
   London-based financial services company to inject annotations and
   volume mount parameters into Kubernetes Pods so that workloads can
