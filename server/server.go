@@ -1008,7 +1008,7 @@ func (s *Server) unversionedGetHealth(w http.ResponseWriter, r *http.Request) {
 		// Ensure that all plugins (if requested to be included in the result) have an OK status.
 		hasErr := false
 		for _, status := range pluginStatuses {
-			if status.State != plugins.StateOK {
+			if status != nil && status.State != plugins.StateOK {
 				hasErr = true
 				break
 			}
