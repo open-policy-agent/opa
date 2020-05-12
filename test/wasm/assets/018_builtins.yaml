@@ -65,6 +65,24 @@ cases:
   - note: type_name built-in
     query: type_name(1,x)
     want_result: [{'x': "number"}]
+  - note: bits.or built-in
+    query: bits.or(1,2,x)
+    want_result: [{'x': 3}]
+  - note: bits.and built-in
+    query: bits.and(5,3,x)
+    want_result: [{'x': 1}]
+  - note: bits.negate built-in
+    query: bits.negate(1,x)
+    want_result: [{'x': -2}]
+  - note: bits.xor built-in
+    query: bits.xor(1,1,x)
+    want_result: [{'x': 0}]
+  - note: bits.lsh built-in
+    query: bits.lsh(1,1,x)
+    want_result: [{'x': 2}]
+  - note: bits.rsh built-in
+    query: bits.rsh(2,1,x)
+    want_result: [{'x': 1}]
   - note: custom built-in
     query: x = custom_builtin_test(100)
     want_result: [{'x': 101}]
