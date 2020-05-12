@@ -326,13 +326,19 @@ func TestUnversionedGetHealthCheckDiscoveryWithPlugins(t *testing.T) {
 			},
 			exp: 500,
 		},
-
 		{
 			note: "all plugins ready - recovery",
 			statusUpdates: map[string]*plugins.Status{
 				"p1": {State: plugins.StateOK},
 				"p2": {State: plugins.StateOK},
 				"p3": {State: plugins.StateOK},
+			},
+			exp: 200,
+		},
+		{
+			note: "nil plugin status",
+			statusUpdates: map[string]*plugins.Status{
+				"p1": nil,
 			},
 			exp: 200,
 		},
