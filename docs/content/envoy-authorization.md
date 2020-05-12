@@ -4,17 +4,31 @@ kind: tutorial
 weight: 8
 ---
 
-[Envoy](https://www.envoyproxy.io/docs/envoy/v1.10.0/intro/what_is_envoy) is a L7 proxy and communication bus designed for large modern service oriented architectures. Envoy (v1.7.0+) supports an [External Authorization filter](https://www.envoyproxy.io/docs/envoy/v1.10.0/intro/arch_overview/ext_authz_filter.html) which calls an authorization service to check if the incoming request is authorized or not.
+[Envoy](https://www.envoyproxy.io/docs/envoy/v1.10.0/intro/what_is_envoy) is a
+L7 proxy and communication bus designed for large modern service oriented
+architectures. Envoy (v1.7.0+) supports an [External Authorization
+filter](https://www.envoyproxy.io/docs/envoy/v1.10.0/intro/arch_overview/ext_authz_filter.html)
+which calls an authorization service to check if the incoming request is
+authorized or not.
 
-This feature makes it possible to delegate authorization decisions to an external service and also makes the request context available to the service which can then be used to make an informed decision about the fate of the incoming request received by Envoy.
+This feature makes it possible to delegate authorization decisions to an
+external service and also makes the request context available to the service
+which can then be used to make an informed decision about the fate of the
+incoming request received by Envoy.
 
 ## Goals
 
-The tutorial shows how Envoy’s External authorization filter can be used with OPA as an authorization service to enforce security policies over API requests received by Envoy. The tutorial also covers examples of authoring custom policies over the HTTP request body.
+The tutorial shows how Envoy’s External authorization filter can be used with
+OPA as an authorization service to enforce security policies over API requests
+received by Envoy. The tutorial also covers examples of authoring custom
+policies over the HTTP request body.
 
 ## Prerequisites
 
-This tutorial requires Kubernetes 1.14 or later. To run the tutorial locally, we recommend using [minikube](https://kubernetes.io/docs/getting-started-guides/minikube) in version `v1.0+` with Kubernetes 1.14 (which is the default).
+This tutorial requires Kubernetes 1.14 or later. To run the tutorial locally, we
+recommend using
+[minikube](https://kubernetes.io/docs/getting-started-guides/minikube) in
+version `v1.0+` with Kubernetes 1.14 (which is the default).
 
 ## Steps
 
@@ -26,7 +40,8 @@ minikube start
 
 ### 2. Create ConfigMap containing configuration for Envoy
 
-The Envoy configuration below defines an external authorization filter `envoy.ext_authz` for a gRPC authorization server.
+The Envoy configuration below defines an external authorization filter
+`envoy.ext_authz` for a gRPC authorization server.
 
 Save the configuration as **envoy.yaml**:
 
@@ -100,12 +115,14 @@ kubectl create configmap proxy-config --from-file envoy.yaml
 
 ### 3. Define a OPA policy
 
-The following OPA policy restricts access to the `/people` endpoint exposed by our sample app:
+The following OPA policy restricts access to the `/people` endpoint exposed by
+our sample app:
 
 * Alice is granted a **guest** role and can perform a `GET` request to `/people`.
 * Bob is granted an **admin** role and can perform a `GET` and `POST` request to `/people`.
 
-The policy also restricts an `admin` user, in this case `bob` from creating an employee with the same `firstname` as himself.
+The policy also restricts an `admin` user, in this case `bob` from creating an
+employee with the same `firstname` as himself.
 
 **policy.rego**
 
@@ -158,8 +175,9 @@ Store the policy in Kubernetes as a Secret.
 kubectl create secret generic opa-policy --from-file policy.rego
 ```
 
-In the next step, OPA is configured to query for the `data.envoy.authz.allow` decision. If the response is `true` the operation is
-allowed, otherwise the operation is denied. Sample input received by OPA is shown below:
+In the next step, OPA is configured to query for the `data.envoy.authz.allow`
+decision. If the response is `true` the operation is allowed, otherwise the
+operation is denied. Sample input received by OPA is shown below:
 
 ```live:example:query:hidden
 data.envoy.authz.allow
@@ -195,9 +213,15 @@ An example of the complete input received by OPA can be seen [here](https://gith
 
 ### 4. Create App Deployment with OPA and Envoy sidecars
 
-Our deployment contains a sample Go app which provides information about employees in a company. It exposes a `/people` endpoint to `get` and `create` employees. More information can on the app be found [here](https://github.com/ashutosh-narkar/go-test-server).
+Our deployment contains a sample Go app which provides information about
+employees in a company. It exposes a `/people` endpoint to `get` and `create`
+employees. More information can on the app be found
+[here](https://github.com/ashutosh-narkar/go-test-server).
 
-OPA is started with a configuration that sets the listening address of Envoy External Authorization gRPC server and specifies the name of the policy decision to query. More information on the configuration options can be found [here](https://github.com/open-policy-agent/opa-istio-plugin#configuration).
+OPA is started with a configuration that sets the listening address of Envoy
+External Authorization gRPC server and specifies the name of the policy decision
+to query. More information on the configuration options can be found
+[here](https://github.com/open-policy-agent/opa-istio-plugin#configuration).
 
 Save the deployment as **deployment.yaml**:
 
@@ -220,8 +244,13 @@ spec:
     spec:
       initContainers:
         - name: proxy-init
-          image: openpolicyagent/proxy_init:v2
-          args: ["-p", "8000", "-u", "1111"]
+          image: openpolicyagent/proxy_init:v5
+          # Configure the iptables bootstrap script to redirect traffic to the
+          # Envoy proxy on port 8000, specify that Envoy will be running as user
+          # 1111, and that we want to exclude port 8282 from the proxy for the
+          # OPA health checks. These values must match up with the configuration
+          # defined below for the "envoy" and "opa" containers.
+          args: ["-p", "8000", "-u", "1111", "-w", "8282"]
           securityContext:
             capabilities:
               add:
@@ -256,13 +285,29 @@ spec:
             mountPath: /policy
             name: opa-policy
           args:
-          - "run" 
+          - "run"
           - "--server"
+          - "--addr=localhost:8181"
+          - "--diagnostic-addr=0.0.0.0:8282"
           - "--set=plugins.envoy_ext_authz_grpc.addr=:9191"
           - "--set=plugins.envoy_ext_authz_grpc.query=data.envoy.authz.allow"
           - "--set=decision_logs.console=true"
           - "--ignore=.*"
           - "/policy/policy.rego"
+          livenessProbe:
+            httpGet:
+              path: /health?plugins
+              scheme: HTTP
+              port: 8282
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /health?plugins
+              scheme: HTTP
+              port: 8282
+            initialDelaySeconds: 5
+            periodSeconds: 5
       volumes:
         - name: proxy-config
           configMap:
@@ -276,7 +321,10 @@ spec:
 kubectl apply -f deployment.yaml
 ```
 
-> The `proxy-init` container installs iptables rules to redirect all container traffic through the Envoy proxy sidecar. More information can be found [here](https://github.com/open-policy-agent/contrib/tree/master/envoy_iptables).
+> The `proxy-init` container installs iptables rules to redirect all container
+  traffic through the Envoy proxy sidecar. More information can be found
+  [here](https://github.com/open-policy-agent/contrib/tree/master/envoy_iptables).
+
 
 ### 5. Create a Service to expose HTTP server
 
@@ -334,8 +382,15 @@ curl -i  -H "Authorization: Bearer "$BOB_TOKEN"" -d '{"firstname":"Bob", "lastna
 
 Congratulations for finishing the tutorial !
 
-This tutorial showed how to use OPA as an External authorization service to enforce custom policies by leveraging Envoy’s External authorization filter.
+This tutorial showed how to use OPA as an External authorization service to
+enforce custom policies by leveraging Envoy’s External authorization filter.
 
-This tutorial also showed a sample OPA policy that returns a `boolean` decision to indicate whether a request should be allowed or not.
+This tutorial also showed a sample OPA policy that returns a `boolean` decision
+to indicate whether a request should be allowed or not.
 
-Envoy's external authorization filter allows optional response headers and body to be sent to the downstream client or upstream. An example of a rule that returns an object that not only indicates if a request is allowed or not but also provides optional response headers, body and HTTP status that can be sent to the downstream client or upstream can be seen [here](https://github.com/open-policy-agent/opa-istio-plugin#example-policy-with-object-response).
+Envoy's external authorization filter allows optional response headers and body
+to be sent to the downstream client or upstream. An example of a rule that
+returns an object that not only indicates if a request is allowed or not but
+also provides optional response headers, body and HTTP status that can be sent
+to the downstream client or upstream can be seen
+[here](https://github.com/open-policy-agent/opa-istio-plugin#example-policy-with-object-response).
