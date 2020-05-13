@@ -792,6 +792,39 @@ Note that the opa executable will need access to the timezone files in the envir
 | Built-in | Description |
 | --- | --- |
 | <span class="opa-keep-it-together">``walk(x, [path, value])``</span> | ``walk`` is a relation that produces ``path`` and ``value`` pairs for documents under ``x``. ``path`` is ``array`` representing a pointer to ``value`` in ``x``.  Queries can use ``walk`` to traverse documents nested under ``x`` (recursively). |
+| <span class="opa-keep-it-together">``output := graph.reachable(graph, initial)``</span> | ``output`` is the set of vertices [reachable](https://en.wikipedia.org/wiki/Reachability) from the ``initial`` vertices in the directed ``graph``.  ``initial`` is a set or array of vertices, and ``graph`` is an object containing a set or array of neighboring vertices. |
+
+A common class of recursive rules can be reduced to a graph reachability
+problem, so `graph.reachable` is useful for more than just graph analysis.
+This usually requires some pre- and postprocessing.  The following example
+shows you how to "flatten" a hierarchy of access permissions.
+
+```live:graph/reachable/example:module
+package graph_reachable_example
+
+org_chart_data = {
+  "ceo": {},
+  "human_resources": {"owner": "ceo", "access": ["salaries", "complaints"]},
+  "staffing": {"owner": "human_resources", "access": ["interviews"]},
+  "internships": {"owner": "staffing", "access": ["blog"]}
+}
+
+org_chart_graph[entity_name] = edges {
+  org_chart_data[entity_name]
+  edges := {neighbor | org_chart_data[neighbor].owner == entity_name}
+}
+
+org_chart_permissions[entity_name] = access {
+  org_chart_data[entity_name]
+  reachable := graph.reachable(org_chart_graph, {entity_name})
+  access := {item | reachable[k]; item := org_chart_data[k].access[_]}
+}
+```
+```live:graph/reachable/example:query
+org_chart_permissions[entity_name]
+```
+```live:graph/reachable/example:output
+```
 
 ### HTTP
 
