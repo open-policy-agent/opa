@@ -179,6 +179,7 @@ var DefaultBuiltins = [...]*Builtin{
 
 	// Graphs
 	WalkBuiltin,
+	ReachableBuiltin,
 
 	// Sort
 	Sort,
@@ -1610,6 +1611,26 @@ var WalkBuiltin = &Builtin{
 			},
 			nil,
 		),
+	),
+}
+
+// ReachableBuiltin computes the set of reachable nodes in the graph from a set
+// of starting nodes.
+var ReachableBuiltin = &Builtin{
+	Name: "graph.reachable",
+	Decl: types.NewFunction(
+		types.Args(
+			types.NewObject(
+				nil,
+				types.NewDynamicProperty(
+					types.A,
+					types.NewAny(
+						types.NewSet(types.A),
+						types.NewArray(nil, types.A)),
+				)),
+			types.NewAny(types.NewSet(types.A), types.NewArray(nil, types.A)),
+		),
+		types.NewSet(types.A),
 	),
 }
 

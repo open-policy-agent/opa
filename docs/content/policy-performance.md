@@ -1,7 +1,7 @@
 ---
 title: Policy Performance
 kind: documentation
-weight: 3
+weight: 5
 ---
 
 ## High Performance Policy Decisions
