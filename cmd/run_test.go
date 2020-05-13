@@ -13,10 +13,7 @@ import (
 )
 
 func TestRunServerBase(t *testing.T) {
-	params := newRunParams()
-	params.rt.Addrs = &[]string{":0"}
-	params.rt.DiagnosticAddrs = &[]string{}
-	params.serverMode = true
+	params := newTestRunParams()
 	ctx, cancel := context.WithCancel(context.Background())
 
 	rt := initRuntime(ctx, params, nil)
@@ -25,7 +22,10 @@ func TestRunServerBase(t *testing.T) {
 
 	done := make(chan bool)
 	go func() {
-		startRuntime(ctx, rt, true)
+		err := rt.Serve(ctx)
+		if err != nil {
+			t.Errorf("Unexpected error: %s", err)
+		}
 		done <- true
 	}()
 
@@ -41,8 +41,7 @@ func TestRunServerBase(t *testing.T) {
 }
 
 func TestRunServerWithDiagnosticAddr(t *testing.T) {
-	params := newRunParams()
-	params.rt.Addrs = &[]string{":0"}
+	params := newTestRunParams()
 	params.rt.DiagnosticAddrs = &[]string{":0"}
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -52,7 +51,10 @@ func TestRunServerWithDiagnosticAddr(t *testing.T) {
 
 	done := make(chan bool)
 	go func() {
-		startRuntime(ctx, rt, true)
+		err := rt.Serve(ctx)
+		if err != nil {
+			t.Errorf("Unexpected error: %s", err)
+		}
 		done <- true
 	}()
 
@@ -73,6 +75,15 @@ func TestRunServerWithDiagnosticAddr(t *testing.T) {
 
 	cancel()
 	<-done
+}
+
+func newTestRunParams() runCmdParams {
+	params := newRunParams()
+	params.rt.GracefulShutdownPeriod = 1
+	params.rt.Addrs = &[]string{":0"}
+	params.rt.DiagnosticAddrs = &[]string{}
+	params.serverMode = true
+	return params
 }
 
 func validateBasicServe(t *testing.T, runtime *e2e.TestRuntime) {
