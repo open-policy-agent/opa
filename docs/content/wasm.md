@@ -29,21 +29,23 @@ implemented in the host environment (e.g., JavaScript).
 
 # Compiling Policies
 
-You can compile Rego policies into Wasm modules using the:
+You can compile Rego policies into Wasm modules using the `opa build` subcommand.
 
-* `opa build` CLI
-* [github.com/open-policy-agent/opa/rego package in Golang](https://godoc.org/github.com/open-policy-agent/opa/rego#Rego.Compile)
-
-For example, the `opa build` command below compiles the `example.rego` file with
-the query `data.example.allow = true` and writes the output to `policy.wasm`.
-See `opa build --help` for more details.
+For example, the `opa build` command below compiles the `example.rego` file into a
+Wasm module and packages it into an OPA bundle. The `wasm` target requires exactly
+one entrypoint (specified by `-e`).
 
 ```bash
-opa build -d example.rego -o policy.wasm 'data.example.allow = true'
+opa build -t wasm -e example/allow example.rego
 ```
 
-> Note: The query must be specified at compile-time and cannot be changed
-> without recompiling the binary!
+> For more information on `opa build` run `opa build --help`.
+
+You can also compile Rego policies into Wasm modules from Go using the lower-level
+[rego](https://godoc.org/github.com/open-policy-agent/opa/rego#Rego.Compile) API
+that produces raw Wasm executables and the higher-level [compile]() API that
+produces OPA bundle files. The [compile](https://godoc.org/github.com/open-policy-agent/opa/compile#Compiler.Build)
+API is recommended.
 
 # Using Compiled Policies
 
