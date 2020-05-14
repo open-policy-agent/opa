@@ -24,6 +24,22 @@ func TestNumBytes(t *testing.T) {
 			{"10 KiB mixed case", `10Kib`, 10 * ki},
 			{"200 megabytes as mb", `200mb`, 200 * mb},
 			{"300 GiB", `300GiB`, 300 * gi},
+			{"100 kilobytes as k", `100k`, 100 * kb},
+			{"100 kilobytes as kb", `100kb`, 100 * kb},
+			{"100 kibibytes as ki", `100ki`, 100 * ki},
+			{"100 kibibytes as kib", `100kib`, 100 * ki},
+			{"100 megabytes as m", `100m`, 100 * mb},
+			{"100 megabytes as mb", `100mb`, 100 * mb},
+			{"100 mebibytes as mi", `100mi`, 100 * mi},
+			{"100 mebibytes as mib", `100mib`, 100 * mi},
+			{"100 gigabytes as g", `100g`, 100 * gb},
+			{"100 gigabytes as gb", `100gb`, 100 * gb},
+			{"100 gibibytes as gi", `100gi`, 100 * gi},
+			{"100 gibibytes as gib", `100gib`, 100 * gi},
+			{"100 terabytes as t", `100t`, 100 * tb},
+			{"100 terabytes as tb", `100tb`, 100 * tb},
+			{"100 tebibytes as ti", `100ti`, 100 * ti},
+			{"100 tebibytes as tib", `100tib`, 100 * ti},
 		}
 
 		for _, tc := range tests {
@@ -43,6 +59,9 @@ func TestNumBytes(t *testing.T) {
 			{"1024", "1KiB", "=="},
 			{"2MiB", "2097152", "=="},
 			{"3MiB", "3MB", ">"},
+			{"2MiB", "2Mi", "=="},
+			{"4Mi", "4M", ">"},
+			{"128Gi", "137438953472", "=="},
 		}
 
 		for _, tc := range tests {
@@ -60,8 +79,6 @@ func TestNumBytes(t *testing.T) {
 			{"10.25", errIntConv},
 			{"0.00", errIntConv},
 			{"100.1GB", errIntConv},
-			{"8g", errUnitNotRecognized("g")},
-			{"8m", errUnitNotRecognized("m")},
 			{"100 kb", errIncludesSpaces},
 			{" 327MiB ", errIncludesSpaces},
 		}
