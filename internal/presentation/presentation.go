@@ -487,15 +487,13 @@ func generateTableBindings(writer io.Writer, keys []resultKey, rs rego.ResultSet
 func printPrettyRow(table *tablewriter.Table, keys []resultKey, result rego.Result, prettyLimit int) {
 	buf := []string{}
 	for _, k := range keys {
-		v, ok := k.selectVarValue(result)
-		if ok {
-			js, err := json.Marshal(v)
-			if err != nil {
-				buf = append(buf, err.Error())
-			} else {
-				s := checkStrLimit(string(js), prettyLimit)
-				buf = append(buf, s)
-			}
+		v := k.selectVarValue(result)
+		js, err := json.Marshal(v)
+		if err != nil {
+			buf = append(buf, err.Error())
+		} else {
+			s := checkStrLimit(string(js), prettyLimit)
+			buf = append(buf, s)
 		}
 	}
 	table.Append(buf)
@@ -570,15 +568,11 @@ func (rk resultKey) string() string {
 	return rk.exprText
 }
 
-func (rk resultKey) selectVarValue(result rego.Result) (interface{}, bool) {
+func (rk resultKey) selectVarValue(result rego.Result) interface{} {
 	if rk.varName != "" {
-		return result.Bindings[rk.varName], true
+		return result.Bindings[rk.varName]
 	}
-	val := result.Expressions[rk.exprIndex].Value
-	if _, ok := val.(bool); ok {
-		return nil, false
-	}
-	return val, true
+	return result.Expressions[rk.exprIndex].Value
 }
 
 func generateResultKeys(rs rego.ResultSet) []resultKey {
@@ -591,7 +585,7 @@ func generateResultKeys(rs rego.ResultSet) []resultKey {
 		}
 
 		for i, expr := range rs[0].Expressions {
-			if _, ok := expr.Value.(bool); !ok {
+			if _, ok := expr.Value.(bool); !ok || len(rs[0].Bindings) == 0 {
 				keys = append(keys, resultKey{
 					exprIndex: i,
 					exprText:  expr.Text,
