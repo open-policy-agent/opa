@@ -907,6 +907,44 @@ func TestEvalConstantRule(t *testing.T) {
 	}
 }
 
+func TestEvalBooleanFlags(t *testing.T) {
+	ctx := context.Background()
+	store := newTestStore()
+	var buffer bytes.Buffer
+	repl := newRepl(store, &buffer)
+	repl.OneShot(ctx, "flags = [true, true]")
+	repl.OneShot(ctx, "flags[_]")
+	expected := strings.TrimSpace(`
+Rule 'flags' defined in package repl. Type 'show' to see rules.
++----------+
+| flags[_] |
++----------+
+| true     |
+| true     |
++----------+`)
+	result := strings.TrimSpace(buffer.String())
+	if result != expected {
+		t.Errorf("Expected a single column with boolean output but got:\n%v", result)
+	}
+	buffer.Reset()
+
+	repl.OneShot(ctx, `flags2 = [true, "x", 1]`)
+	repl.OneShot(ctx, "flags2[_]")
+	expected = strings.TrimSpace(`
+Rule 'flags2' defined in package repl. Type 'show' to see rules.
++-----------+
+| flags2[_] |
++-----------+
+| true      |
+| "x"       |
+| 1         |
++-----------+`)
+	result = strings.TrimSpace(buffer.String())
+	if result != expected {
+		t.Errorf("Expected a single column with boolean output but got:\n%v", result)
+	}
+}
+
 func TestEvalConstantRuleDefaultRootDoc(t *testing.T) {
 	ctx := context.Background()
 	store := newTestStore()
