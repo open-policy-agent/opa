@@ -859,6 +859,8 @@ func (e *eval) biunifyComprehension(a, b *ast.Term, b1, b2 *bindings, swap bool,
 		return err
 	} else if value != nil {
 		return e.biunify(value, b, b1, b2, iter)
+	} else {
+		e.instr.counterIncr(evalOpComprehensionCacheMiss)
 	}
 
 	switch a := a.Value.(type) {
@@ -932,7 +934,7 @@ func (e *eval) buildComprehensionCacheArray(x *ast.ArrayComprehension, keys []*a
 }
 
 func (e *eval) buildComprehensionCacheSet(x *ast.SetComprehension, keys []*ast.Term) (*comprehensionCacheElem, error) {
-	child := e.closure(x.Body)
+	child := e.child(x.Body)
 	node := newComprehensionCacheElem()
 	return node, child.Run(func(child *eval) error {
 		values := make([]*ast.Term, len(keys))
@@ -952,7 +954,7 @@ func (e *eval) buildComprehensionCacheSet(x *ast.SetComprehension, keys []*ast.T
 }
 
 func (e *eval) buildComprehensionCacheObject(x *ast.ObjectComprehension, keys []*ast.Term) (*comprehensionCacheElem, error) {
-	child := e.closure(x.Body)
+	child := e.child(x.Body)
 	node := newComprehensionCacheElem()
 	return node, child.Run(func(child *eval) error {
 		values := make([]*ast.Term, len(keys))

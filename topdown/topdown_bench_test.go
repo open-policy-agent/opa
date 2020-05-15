@@ -13,6 +13,7 @@ import (
 	"text/template"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/util"
@@ -622,41 +623,84 @@ func genWalkBenchmarkData(n int) map[string]interface{} {
 
 func BenchmarkComprehensionIndexing(b *testing.B) {
 	ctx := context.Background()
-	sizes := []int{10, 100, 1000}
-	for _, n := range sizes {
-		b.Run(fmt.Sprint(n), func(b *testing.B) {
-			data := genComprehensionIndexingData(n)
-			store := inmem.NewFromObject(data)
-			compiler := ast.MustCompileModules(map[string]string{
-				"test.rego": `
+	cases := []struct {
+		note   string
+		module string
+		query  string
+	}{
+		{
+			note: "arrays",
+			module: `
 				package test
 
-				p {
+				bench_array {
 					v := data.items[_]
 					ks := [k | some k; v == data.items[k]]
 				}
 			`,
-			})
-			query, err := compiler.QueryCompiler().Compile(ast.MustParseBody(`data.test.p = true`))
-			if err != nil {
-				b.Fatal(err)
-			}
-			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
-				err = storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
-					q := NewQuery(query).WithStore(store).WithCompiler(compiler).WithTransaction(txn)
-					rs, err := q.Run(ctx)
-					if err != nil || len(rs) != 1 {
-						b.Fatal("Unexpected result:", rs, "err:", err)
-					}
-					return nil
+			query: `data.test.bench_array = true`,
+		},
+		{
+			note: "sets",
+			module: `
+				package test
+
+				bench_set {
+					v := data.items[_]
+					ks := {k | some k; v == data.items[k]}
+				}
+			`,
+			query: `data.test.bench_set = true`,
+		},
+		{
+			note: "objects",
+			module: `
+				package test
+
+				bench_object {
+					v := data.items[_]
+					ks := {k: 1 | some k; v == data.items[k]}
+				}
+			`,
+			query: `data.test.bench_object = true`,
+		},
+	}
+
+	sizes := []int{10, 100, 1000}
+	for _, tc := range cases {
+		for _, n := range sizes {
+			b.Run(fmt.Sprintf("%v_%v", tc.note, n), func(b *testing.B) {
+				data := genComprehensionIndexingData(n)
+				store := inmem.NewFromObject(data)
+				compiler := ast.MustCompileModules(map[string]string{
+					"test.rego": tc.module,
 				})
+				query, err := compiler.QueryCompiler().Compile(ast.MustParseBody(tc.query))
 				if err != nil {
 					b.Fatal(err)
 				}
+				b.ResetTimer()
+				for i := 0; i < b.N; i++ {
+					err = storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
+						m := metrics.New()
+						instr := NewInstrumentation(m)
+						q := NewQuery(query).WithStore(store).WithCompiler(compiler).WithTransaction(txn).WithInstrumentation(instr)
+						rs, err := q.Run(ctx)
+						if m.Counter(evalOpComprehensionCacheMiss).Value().(uint64) > 0 {
+							b.Fatal("expected zero cache misses")
+						}
+						if err != nil || len(rs) != 1 {
+							b.Fatal("Unexpected result:", rs, "err:", err)
+						}
+						return nil
+					})
+					if err != nil {
+						b.Fatal(err)
+					}
 
-			}
-		})
+				}
+			})
+		}
 	}
 }
 
