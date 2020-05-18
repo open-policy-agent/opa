@@ -1818,12 +1818,12 @@ func TestLocation(t *testing.T) {
 func TestRuleFromBody(t *testing.T) {
 	testModule := `package a.b.c
 
-pi = 3.14159 { true }
+pi = 3.14159
 p[x] { x = 1 }
-greeting = "hello" { true }
-cores = [{0: 1}, {1: 2}] { true }
-wrapper = cores[0][1] { true }
-pi = [3, 1, 4, x, y, z] { true }
+greeting = "hello"
+cores = [{0: 1}, {1: 2}]
+wrapper = cores[0][1]
+pi = [3, 1, 4, x, y, z]
 foo["bar"] = "buz"
 foo["9"] = "10"
 foo.buz = "bar"
@@ -1860,10 +1860,35 @@ d1 := 1234
 		},
 	})
 
+	// Verify the rule and rule and rule head col/loc values
+	module, err := ParseModule("test.rego", testModule)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for i := range module.Rules {
+		col := module.Rules[i].Location.Col
+		if col != 1 {
+			t.Fatalf("expected rule %v column to be 1 but got %v", module.Rules[i].Head.Name, col)
+		}
+		row := module.Rules[i].Location.Row
+		if row != 3+i { // 'pi' rule stats on row 3
+			t.Fatalf("expected rule %v row to be %v but got %v", module.Rules[i].Head.Name, 3+i, row)
+		}
+		col = module.Rules[i].Head.Location.Col
+		if col != 1 {
+			t.Fatalf("expected rule head %v column to be 1 but got %v", module.Rules[i].Head.Name, col)
+		}
+		row = module.Rules[i].Head.Location.Row
+		if row != 3+i { // 'pi' rule stats on row 3
+			t.Fatalf("expected rule head %v row to be %v but got %v", module.Rules[i].Head.Name, 3+i, row)
+		}
+	}
+
 	mockModule := `package ex
 
-input = {"foo": 1} { true }
-data = {"bar": 2} { true }`
+input = {"foo": 1}
+data = {"bar": 2}`
 
 	assertParseModule(t, "rule name: input/data", mockModule, &Module{
 		Package: MustParsePackage(`package ex`),
@@ -2434,7 +2459,7 @@ func TestParserText(t *testing.T) {
 
 func TestRuleText(t *testing.T) {
 	input := ` package test
-	
+
 r[x] = y {
 	x = input.a
 	x = "foo"
@@ -2445,7 +2470,7 @@ r[x] = y {
 	x = input.c
 	x = "baz"
 }
-	
+
 r[x] = y {
 	x = input.d
 	x = "qux"
