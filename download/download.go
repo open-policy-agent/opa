@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
+	"path"
 	"time"
 
 	"github.com/pkg/errors"
@@ -156,7 +157,10 @@ func (d *Downloader) download(ctx context.Context, m metrics.Metrics) (*bundle.B
 			d.logDebug("Download in progress.")
 			m.Timer(metrics.RegoLoadBundles).Start()
 			defer m.Timer(metrics.RegoLoadBundles).Stop()
-			b, err := bundle.NewReader(resp.Body).WithMetrics(m).Read()
+			baseURL := path.Join(d.client.Config().URL, d.path)
+			loader := bundle.NewTarballLoaderWithBaseURL(resp.Body, baseURL)
+			reader := bundle.NewCustomReader(loader).WithMetrics(m)
+			b, err := reader.Read()
 			if err != nil {
 				return nil, "", err
 			}

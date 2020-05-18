@@ -12,7 +12,6 @@ import (
 	"math/rand"
 	"net/http"
 	"reflect"
-	"strings"
 	"sync"
 	"time"
 
@@ -20,6 +19,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/internal/ref"
 	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/plugins/rest"
 	"github.com/open-policy-agent/opa/rego"
@@ -170,17 +170,12 @@ func (c *Config) validateAndInjectDefaults(services []string, plugins []string) 
 	}
 
 	var err error
-	c.maskDecisionRef, err = parsePathToRef(*c.MaskDecision)
+	c.maskDecisionRef, err = ref.ParseDataPath(*c.MaskDecision)
 	if err != nil {
 		return errors.Wrap(err, "invalid mask_decision in decision_logs")
 	}
 
 	return nil
-}
-
-func parsePathToRef(s string) (ast.Ref, error) {
-	s = strings.Replace(strings.Trim(s, "/"), "/", ".", -1)
-	return ast.ParseRef("data." + s)
 }
 
 // Plugin implements decision log buffering and uploading.

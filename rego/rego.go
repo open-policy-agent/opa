@@ -13,20 +13,18 @@ import (
 	"io"
 	"strings"
 
-	"github.com/open-policy-agent/opa/loader"
-	"github.com/open-policy-agent/opa/types"
-
-	"github.com/open-policy-agent/opa/bundle"
-
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/internal/compiler/wasm"
 	"github.com/open-policy-agent/opa/internal/ir"
 	"github.com/open-policy-agent/opa/internal/planner"
 	"github.com/open-policy-agent/opa/internal/wasm/encoding"
+	"github.com/open-policy-agent/opa/loader"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/topdown"
+	"github.com/open-policy-agent/opa/types"
 	"github.com/open-policy-agent/opa/util"
 )
 
@@ -425,41 +423,42 @@ type loadPaths struct {
 
 // Rego constructs a query and can be evaluated to obtain results.
 type Rego struct {
-	query            string
-	parsedQuery      ast.Body
-	compiledQueries  map[queryType]compiledQuery
-	pkg              string
-	parsedPackage    *ast.Package
-	imports          []string
-	parsedImports    []*ast.Import
-	rawInput         *interface{}
-	parsedInput      ast.Value
-	unknowns         []string
-	parsedUnknowns   []*ast.Term
-	disableInlining  []string
-	partialNamespace string
-	modules          []rawModule
-	parsedModules    map[string]*ast.Module
-	compiler         *ast.Compiler
-	store            storage.Store
-	ownStore         bool
-	txn              storage.Transaction
-	metrics          metrics.Metrics
-	tracers          []topdown.Tracer
-	tracebuf         *topdown.BufferTracer
-	trace            bool
-	instrumentation  *topdown.Instrumentation
-	instrument       bool
-	capture          map[*ast.Expr]ast.Var // map exprs to generated capture vars
-	termVarID        int
-	dump             io.Writer
-	runtime          *ast.Term
-	builtinDecls     map[string]*ast.Builtin
-	builtinFuncs     map[string]*topdown.Builtin
-	unsafeBuiltins   map[string]struct{}
-	loadPaths        loadPaths
-	bundlePaths      []string
-	bundles          map[string]*bundle.Bundle
+	query                string
+	parsedQuery          ast.Body
+	compiledQueries      map[queryType]compiledQuery
+	pkg                  string
+	parsedPackage        *ast.Package
+	imports              []string
+	parsedImports        []*ast.Import
+	rawInput             *interface{}
+	parsedInput          ast.Value
+	unknowns             []string
+	parsedUnknowns       []*ast.Term
+	disableInlining      []string
+	skipPartialNamespace bool
+	partialNamespace     string
+	modules              []rawModule
+	parsedModules        map[string]*ast.Module
+	compiler             *ast.Compiler
+	store                storage.Store
+	ownStore             bool
+	txn                  storage.Transaction
+	metrics              metrics.Metrics
+	tracers              []topdown.Tracer
+	tracebuf             *topdown.BufferTracer
+	trace                bool
+	instrumentation      *topdown.Instrumentation
+	instrument           bool
+	capture              map[*ast.Expr]ast.Var // map exprs to generated capture vars
+	termVarID            int
+	dump                 io.Writer
+	runtime              *ast.Term
+	builtinDecls         map[string]*ast.Builtin
+	builtinFuncs         map[string]*topdown.Builtin
+	unsafeBuiltins       map[string]struct{}
+	loadPaths            loadPaths
+	bundlePaths          []string
+	bundles              map[string]*bundle.Bundle
 }
 
 // Function represents a built-in function that is callable in Rego.
@@ -736,6 +735,14 @@ func ParsedUnknowns(unknowns []*ast.Term) func(r *Rego) {
 func DisableInlining(paths []string) func(r *Rego) {
 	return func(r *Rego) {
 		r.disableInlining = paths
+	}
+}
+
+// SkipPartialNamespace disables namespacing of partial evalution results for support
+// rules generated from policy. Synthetic support rules are still namespaced.
+func SkipPartialNamespace(yes bool) func(r *Rego) {
+	return func(r *Rego) {
+		r.skipPartialNamespace = true
 	}
 }
 
@@ -1775,7 +1782,9 @@ func (r *Rego) partial(ctx context.Context, ectx *EvalContext) (*PartialQueries,
 		WithUnknowns(unknowns).
 		WithDisableInlining(ectx.disableInlining).
 		WithRuntime(r.runtime).
-		WithIndexing(ectx.indexing)
+		WithIndexing(ectx.indexing).
+		WithPartialNamespace(ectx.partialNamespace).
+		WithSkipPartialNamespace(r.skipPartialNamespace)
 
 	for i := range ectx.tracers {
 		q = q.WithTracer(ectx.tracers[i])

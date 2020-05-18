@@ -896,6 +896,44 @@ func TestPrepareAndPartial(t *testing.T) {
 	}
 }
 
+func TestPartialNamespace(t *testing.T) {
+
+	r := New(
+		PartialNamespace("foo"),
+		Query("data.test.p = x"),
+		Module("test.rego", `
+			package test
+
+			default p = false
+
+			p { input.x = 1 }
+		`),
+	)
+
+	pq, err := r.Partial(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expQuery := ast.MustParseBody(`data.foo.test.p = x`)
+
+	if len(pq.Queries) != 1 || !pq.Queries[0].Equal(expQuery) {
+		t.Fatalf("Expected exactly one query %v but got: %v", expQuery, pq.Queries)
+	}
+
+	expSupport := ast.MustParseModule(`
+		package foo.test
+
+		p { input.x = 1 }
+
+		default p = false
+	`)
+
+	if len(pq.Support) != 1 || !pq.Support[0].Equal(expSupport) {
+		t.Fatalf("Expected exactly one support:\n\n%v\n\nGot:\n\n%v", expSupport, pq.Support[0])
+	}
+}
+
 func TestPrepareAndCompile(t *testing.T) {
 	module := `
 	package test
@@ -1508,6 +1546,29 @@ func TestRegoCustomBuiltinPartialPropagate(t *testing.T) {
 	}
 	assertResultSet(t, rs, `[[true]]`)
 
+}
+
+func TestSkipPartialNamespaceOption(t *testing.T) {
+	r := New(Query("data.test.p"), Module("example.rego", `
+		package test
+
+		default p = false
+
+		p = true { input }
+	`), SkipPartialNamespace(true))
+
+	pq, err := r.Partial(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(pq.Queries) != 1 || !pq.Queries[0].Equal(ast.MustParseBody("data.test.p")) {
+		t.Fatal("expected exactly one query and for reference to not have been rewritten but got:", pq.Queries)
+	}
+
+	if len(pq.Support) != 1 || !pq.Support[0].Package.Equal(ast.MustParsePackage("package test")) {
+		t.Fatal("expected exactly one support and for package to be same as input but got:", pq.Support)
+	}
 }
 
 func TestPrepareWithEmptyModule(t *testing.T) {

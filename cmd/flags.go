@@ -13,6 +13,18 @@ import (
 	"github.com/open-policy-agent/opa/util"
 )
 
+func addConfigFileFlag(fs *pflag.FlagSet, file *string) {
+	fs.StringVarP(file, "config-file", "c", "", "set path of configuration file")
+}
+
+func addConfigOverrides(fs *pflag.FlagSet, overrides *[]string) {
+	fs.StringArrayVar(overrides, "set", []string{}, "override config values on the command line (use commas to specify multiple values)")
+}
+
+func addConfigOverrideFiles(fs *pflag.FlagSet, overrides *[]string) {
+	fs.StringArrayVar(overrides, "set-file", []string{}, "override config values with files on the command line (use commas to specify multiple values)")
+}
+
 func addFailFlag(fs *pflag.FlagSet, fail *bool, value bool) {
 	fs.BoolVarP(fail, "fail", "", value, "exits with non-zero exit code on undefined/empty result and errors")
 }
@@ -23,6 +35,10 @@ func addDataFlag(fs *pflag.FlagSet, paths *repeatedStringFlag) {
 
 func addBundleFlag(fs *pflag.FlagSet, paths *repeatedStringFlag) {
 	fs.VarP(paths, "bundle", "b", "set bundle file(s) or directory path(s)")
+}
+
+func addBundleModeFlag(fs *pflag.FlagSet, bundle *bool, value bool) {
+	fs.BoolVarP(bundle, "bundle", "b", value, "load paths as bundle files or root directories")
 }
 
 func addInputFlag(fs *pflag.FlagSet, inputPath *string) {

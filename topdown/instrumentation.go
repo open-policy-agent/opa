@@ -18,6 +18,7 @@ const (
 	evalOpComprehensionCacheSkip  = "eval_op_comprehension_cache_skip"
 	evalOpComprehensionCacheBuild = "eval_op_comprehension_cache_build"
 	evalOpComprehensionCacheHit   = "eval_op_comprehension_cache_hit"
+	evalOpComprehensionCacheMiss  = "eval_op_comprehension_cache_miss"
 	partialOpSaveUnify            = "partial_op_save_unify"
 	partialOpSaveSetContains      = "partial_op_save_set_contains"
 	partialOpSaveSetContainsRec   = "partial_op_save_set_contains_rec"

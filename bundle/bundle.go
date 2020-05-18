@@ -17,6 +17,8 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/open-policy-agent/opa/format"
+
 	"github.com/open-policy-agent/opa/internal/file/archive"
 	"github.com/open-policy-agent/opa/internal/merge"
 	"github.com/open-policy-agent/opa/metrics"
@@ -62,6 +64,66 @@ func (m *Manifest) Init() {
 	}
 }
 
+// AddRoot adds r to the roots of m. This function is idempotent.
+func (m *Manifest) AddRoot(r string) {
+	m.Init()
+	if !RootPathsContain(*m.Roots, r) {
+		*m.Roots = append(*m.Roots, r)
+	}
+}
+
+// Equal returns true if m is semantically equivalent to other.
+func (m Manifest) Equal(other Manifest) bool {
+
+	// This is safe since both are passed by value.
+	m.Init()
+	other.Init()
+
+	if m.Revision != other.Revision {
+		return false
+	}
+
+	return m.rootSet().Equal(other.rootSet())
+}
+
+// Copy returns a deep copy of the manifest.
+func (m Manifest) Copy() Manifest {
+	m.Init()
+	roots := make([]string, len(*m.Roots))
+	copy(roots, *m.Roots)
+	m.Roots = &roots
+	return m
+}
+
+func (m Manifest) String() string {
+	m.Init()
+	return fmt.Sprintf("<revision: %q, roots: %v>", m.Revision, *m.Roots)
+}
+
+func (m Manifest) rootSet() stringSet {
+	rs := map[string]struct{}{}
+
+	for _, r := range *m.Roots {
+		rs[r] = struct{}{}
+	}
+
+	return stringSet(rs)
+}
+
+type stringSet map[string]struct{}
+
+func (ss stringSet) Equal(other stringSet) bool {
+	if len(ss) != len(other) {
+		return false
+	}
+	for k := range other {
+		if _, ok := ss[k]; !ok {
+			return false
+		}
+	}
+	return true
+}
+
 func (m *Manifest) validateAndInjectDefaults(b Bundle) error {
 
 	m.Init()
@@ -77,7 +139,7 @@ func (m *Manifest) validateAndInjectDefaults(b Bundle) error {
 	for i := 0; i < len(roots)-1; i++ {
 		for j := i + 1; j < len(roots); j++ {
 			if RootPathsOverlap(roots[i], roots[j]) {
-				return fmt.Errorf("manifest has overlapped roots: %v and %v", roots[i], roots[j])
+				return fmt.Errorf("manifest has overlapped roots: '%v' and '%v'", roots[i], roots[j])
 			}
 		}
 	}
@@ -119,6 +181,7 @@ func (m *Manifest) validateAndInjectDefaults(b Bundle) error {
 
 // ModuleFile represents a single module contained a bundle.
 type ModuleFile struct {
+	URL    string
 	Path   string
 	Raw    []byte
 	Parsed *ast.Module
@@ -132,7 +195,7 @@ type Reader struct {
 	baseDir               string
 }
 
-// NewReader returns a new Reader which is configured for reading tarballs.
+// NewReader is deprecated. Use NewCustomReader instead.
 func NewReader(r io.Reader) *Reader {
 	return NewCustomReader(NewTarballLoader(r))
 }
@@ -205,6 +268,7 @@ func (r *Reader) Read() (Bundle, error) {
 			}
 
 			mf := ModuleFile{
+				URL:    f.URL(),
 				Path:   fullPath,
 				Raw:    buf.Bytes(),
 				Parsed: module,
@@ -271,7 +335,7 @@ func (r *Reader) Read() (Bundle, error) {
 
 		// For backwards compatibility always write to the old unnamed manifest path
 		// This will *not* be correct if >1 bundle is in use...
-		if err := bundle.insert(legacyManifestStoragePath, metadata); err != nil {
+		if err := bundle.insertData(legacyManifestStoragePath, metadata); err != nil {
 			return bundle, errors.Wrapf(err, "bundle load failed on %v", legacyRevisionStoragePath)
 		}
 	}
@@ -286,9 +350,45 @@ func (r *Reader) fullPath(path string) string {
 	return path
 }
 
-// Write serializes the Bundle and writes it to w.
+// Write is deprecated. Use NewWriter instead.
 func Write(w io.Writer, bundle Bundle) error {
-	gw := gzip.NewWriter(w)
+	return NewWriter(w).
+		UseModulePath(true).
+		DisableFormat(true).
+		Write(bundle)
+}
+
+// Writer implements bundle serialization.
+type Writer struct {
+	usePath       bool
+	disableFormat bool
+	w             io.Writer
+}
+
+// NewWriter returns a bundle writer that writes to w.
+func NewWriter(w io.Writer) *Writer {
+	return &Writer{
+		w: w,
+	}
+}
+
+// UseModulePath configures the writer to use the module file path instead of the
+// module file URL during serialization. This is for backwards compatibility.
+func (w *Writer) UseModulePath(yes bool) *Writer {
+	w.usePath = yes
+	return w
+}
+
+// DisableFormat configures the writer to just write out raw bytes instead
+// of formatting modules before serialization.
+func (w *Writer) DisableFormat(yes bool) *Writer {
+	w.disableFormat = yes
+	return w
+}
+
+// Write writes the bundle to the writer's output stream.
+func (w *Writer) Write(bundle Bundle) error {
+	gw := gzip.NewWriter(w.w)
 	tw := tar.NewWriter(gw)
 
 	var buf bytes.Buffer
@@ -302,7 +402,31 @@ func Write(w io.Writer, bundle Bundle) error {
 	}
 
 	for _, module := range bundle.Modules {
-		if err := archive.WriteFile(tw, module.Path, module.Raw); err != nil {
+		path := module.URL
+		if w.usePath {
+			path = module.Path
+		}
+
+		doFormat := !w.disableFormat
+		bs := module.Raw
+		if bs == nil {
+			var err error
+			bs, err = format.Ast(module.Parsed)
+			if err != nil {
+				return err
+			}
+			doFormat = false // do not reformat
+		}
+
+		if doFormat {
+			var err error
+			bs, err = format.Source(path, module.Raw)
+			if err != nil {
+				return err
+			}
+		}
+
+		if err := archive.WriteFile(tw, path, bs); err != nil {
 			return err
 		}
 	}
@@ -364,6 +488,9 @@ func (b Bundle) Equal(other Bundle) bool {
 		return false
 	}
 	for i := range b.Modules {
+		if b.Modules[i].URL != other.Modules[i].URL {
+			return false
+		}
 		if b.Modules[i].Path != other.Modules[i].Path {
 			return false
 		}
@@ -381,7 +508,35 @@ func (b Bundle) Equal(other Bundle) bool {
 	return bytes.Equal(b.Wasm, other.Wasm)
 }
 
-func (b *Bundle) insert(key []string, value interface{}) error {
+// Copy returns a deep copy of the bundle.
+func (b Bundle) Copy() Bundle {
+
+	// Copy data.
+	var x interface{} = b.Data
+
+	if err := util.RoundTrip(&x); err != nil {
+		panic(err)
+	}
+
+	if x != nil {
+		b.Data = x.(map[string]interface{})
+	}
+
+	// Copy modules.
+	for i := range b.Modules {
+		bs := make([]byte, len(b.Modules[i].Raw))
+		copy(bs, b.Modules[i].Raw)
+		b.Modules[i].Raw = bs
+		b.Modules[i].Parsed = b.Modules[i].Parsed.Copy()
+	}
+
+	// Copy manifest.
+	b.Manifest = b.Manifest.Copy()
+
+	return b
+}
+
+func (b *Bundle) insertData(key []string, value interface{}) error {
 	// Build an object with the full structure for the value
 	obj, err := mktree(key, value)
 	if err != nil {
@@ -397,6 +552,41 @@ func (b *Bundle) insert(key []string, value interface{}) error {
 	b.Data = merged
 
 	return nil
+}
+
+func (b *Bundle) readData(key []string) *interface{} {
+
+	if len(key) == 0 {
+		if len(b.Data) == 0 {
+			return nil
+		}
+		var result interface{} = b.Data
+		return &result
+	}
+
+	node := b.Data
+
+	for i := 0; i < len(key)-1; i++ {
+
+		child, ok := node[key[i]]
+		if !ok {
+			return nil
+		}
+
+		childObj, ok := child.(map[string]interface{})
+		if !ok {
+			return nil
+		}
+
+		node = childObj
+	}
+
+	child, ok := node[key[len(key)-1]]
+	if !ok {
+		return nil
+	}
+
+	return &child
 }
 
 func mktree(path []string, value interface{}) (map[string]interface{}, error) {
@@ -420,24 +610,97 @@ func mktree(path []string, value interface{}) (map[string]interface{}, error) {
 	return dir, nil
 }
 
-// RootPathsOverlap takes in two bundle root paths and returns
-// true if they overlap.
-func RootPathsOverlap(pathA string, pathB string) bool {
+// Merge accepts a set of bundles and merges them into a single result bundle. If there are
+// any conflicts during the merge (e.g., with roots) an error is returned. The result bundle
+// will have an empty revision except in the special case where a single bundle is provided
+// (and in that case the bundle is just returned unmodified.) Merge currently returns an error
+// if multiple bundles are provided and any of those bundles contain wasm modules (because
+// wasm module merging is not implemented.)
+func Merge(bundles []*Bundle) (*Bundle, error) {
 
-	// Special case for empty prefixes, they always overlap
-	if pathA == "" || pathB == "" {
+	if len(bundles) == 0 {
+		return nil, errors.New("expected at least one bundle")
+	}
+
+	if len(bundles) == 1 {
+		return bundles[0], nil
+	}
+
+	var roots []string
+	var result Bundle
+
+	for _, b := range bundles {
+
+		if b.Manifest.Roots == nil {
+			return nil, errors.New("bundle manifest not initialized")
+		}
+
+		roots = append(roots, *b.Manifest.Roots...)
+
+		if len(b.Wasm) > 0 {
+			return nil, errors.New("wasm bundles cannot be merged")
+		}
+
+		result.Modules = append(result.Modules, b.Modules...)
+
+		for _, root := range *b.Manifest.Roots {
+			key := strings.Split(root, "/")
+			if val := b.readData(key); val != nil {
+				if err := result.insertData(key, *val); err != nil {
+					return nil, err
+				}
+			}
+		}
+	}
+
+	result.Manifest.Roots = &roots
+
+	if err := result.Manifest.validateAndInjectDefaults(result); err != nil {
+		return nil, err
+	}
+
+	return &result, nil
+}
+
+// RootPathsOverlap takes in two bundle root paths and returns true if they overlap.
+func RootPathsOverlap(pathA string, pathB string) bool {
+	a := rootPathSegments(pathA)
+	b := rootPathSegments(pathB)
+	return rootContains(a, b) || rootContains(b, a)
+}
+
+// RootPathsContain takes a set of bundle root paths and returns true if the path is contained.
+func RootPathsContain(roots []string, path string) bool {
+	segments := rootPathSegments(path)
+	for i := range roots {
+		if rootContains(rootPathSegments(roots[i]), segments) {
+			return true
+		}
+	}
+	return false
+}
+
+func rootPathSegments(path string) []string {
+	return strings.Split(path, "/")
+}
+
+func rootContains(root []string, other []string) bool {
+
+	// A single segment, empty string root always contains the other.
+	if len(root) == 1 && root[0] == "" {
 		return true
 	}
 
-	aParts := strings.Split(pathA, "/")
-	bParts := strings.Split(pathB, "/")
+	if len(root) > len(other) {
+		return false
+	}
 
-	for i := 0; i < len(aParts) && i < len(bParts); i++ {
-		if aParts[i] != bParts[i] {
-			// Found diverging path segments, no overlap
+	for j := range root {
+		if root[j] != other[j] {
 			return false
 		}
 	}
+
 	return true
 }
 
@@ -453,10 +716,9 @@ func insertValue(b *Bundle, path string, value interface{}) error {
 	if dirpath != "" {
 		key = strings.Split(dirpath, "/")
 	}
-	if err := b.insert(key, value); err != nil {
+	if err := b.insertData(key, value); err != nil {
 		return errors.Wrapf(err, "bundle load failed on %v", path)
 	}
-
 	return nil
 }
 

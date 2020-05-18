@@ -23,6 +23,7 @@ import (
 	"gopkg.in/fsnotify.v1"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/internal/config"
 	"github.com/open-policy-agent/opa/internal/prometheus"
 	"github.com/open-policy-agent/opa/internal/runtime"
 	initload "github.com/open-policy-agent/opa/internal/runtime/init"
@@ -186,7 +187,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		}
 	}
 
-	config, err := loadConfig(params)
+	config, err := config.Load(params.ConfigFile, params.ConfigOverrides, params.ConfigOverrideFiles)
 	if err != nil {
 		return nil, errors.Wrap(err, "config error")
 	}

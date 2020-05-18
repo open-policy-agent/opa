@@ -22,24 +22,25 @@ type QueryResult map[ast.Var]*ast.Term
 
 // Query provides a configurable interface for performing query evaluation.
 type Query struct {
-	seed             io.Reader
-	cancel           Cancel
-	query            ast.Body
-	queryCompiler    ast.QueryCompiler
-	compiler         *ast.Compiler
-	store            storage.Store
-	txn              storage.Transaction
-	input            *ast.Term
-	tracers          []Tracer
-	unknowns         []*ast.Term
-	partialNamespace string
-	metrics          metrics.Metrics
-	instr            *Instrumentation
-	disableInlining  []ast.Ref
-	genvarprefix     string
-	runtime          *ast.Term
-	builtins         map[string]*Builtin
-	indexing         bool
+	seed              io.Reader
+	cancel            Cancel
+	query             ast.Body
+	queryCompiler     ast.QueryCompiler
+	compiler          *ast.Compiler
+	store             storage.Store
+	txn               storage.Transaction
+	input             *ast.Term
+	tracers           []Tracer
+	unknowns          []*ast.Term
+	partialNamespace  string
+	skipSaveNamespace bool
+	metrics           metrics.Metrics
+	instr             *Instrumentation
+	disableInlining   []ast.Ref
+	genvarprefix      string
+	runtime           *ast.Term
+	builtins          map[string]*Builtin
+	indexing          bool
 }
 
 // Builtin represents a built-in function that queries can call.
@@ -131,6 +132,13 @@ func (q *Query) WithPartialNamespace(ns string) *Query {
 	return q
 }
 
+// WithSkipPartialNamespace disables namespacing of saved support rules that are generated
+// from the original policy (rules which are completely syntethic are still namespaced.)
+func (q *Query) WithSkipPartialNamespace(yes bool) *Query {
+	q.skipSaveNamespace = yes
+	return q
+}
+
 // WithDisableInlining adds a set of paths to the query that should be excluded from
 // inlining. Inlining during partial evaluation can be expensive in some cases
 // (e.g., when a cross-product is computed.) Disabling inlining avoids expensive
@@ -209,13 +217,15 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 		saveStack:          newSaveStack(),
 		saveSupport:        newSaveSupport(),
 		saveNamespace:      ast.StringTerm(q.partialNamespace),
+		skipSaveNamespace:  q.skipSaveNamespace,
+		inliningControl:    &inliningControl{},
 		genvarprefix:       q.genvarprefix,
 		runtime:            q.runtime,
 		indexing:           q.indexing,
 	}
 
 	if len(q.disableInlining) > 0 {
-		e.disableInlining = [][]ast.Ref{q.disableInlining}
+		e.inliningControl.PushDisable(q.disableInlining, false)
 	}
 
 	e.caller = e

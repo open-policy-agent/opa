@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -15,14 +16,16 @@ import (
 // Descriptor contains information about a file and
 // can be used to read the file contents.
 type Descriptor struct {
+	url       string
 	path      string
 	reader    io.Reader
 	closer    io.Closer
 	closeOnce *sync.Once
 }
 
-func newDescriptor(path string, reader io.Reader) *Descriptor {
+func newDescriptor(url, path string, reader io.Reader) *Descriptor {
 	return &Descriptor{
+		url:    url,
 		path:   path,
 		reader: reader,
 	}
@@ -37,6 +40,11 @@ func (d *Descriptor) withCloser(closer io.Closer) *Descriptor {
 // Path returns the path of the file.
 func (d *Descriptor) Path() string {
 	return d.path
+}
+
+// URL returns the url of the file.
+func (d *Descriptor) URL() string {
+	return d.url
 }
 
 // Read will read all the contents from the file the Descriptor refers to
@@ -132,20 +140,31 @@ func (d *dirLoader) NextFile() (*Descriptor, error) {
 		cleanedPath = "/" + cleanedPath
 	}
 
-	f := newDescriptor(cleanedPath, fh).withCloser(fh)
+	f := newDescriptor(path.Join(d.root, cleanedPath), cleanedPath, fh).withCloser(fh)
 	return f, nil
 }
 
 type tarballLoader struct {
-	r  io.Reader
-	tr *tar.Reader
+	baseURL string
+	r       io.Reader
+	tr      *tar.Reader
 }
 
-// NewTarballLoader returns a new DirectoryLoader that reads
-// files out of a gzipped tar archive.
+// NewTarballLoader is deprecated. Use NewTarballLoaderWithBaseURL instead.
 func NewTarballLoader(r io.Reader) DirectoryLoader {
 	l := tarballLoader{
 		r: r,
+	}
+	return &l
+}
+
+// NewTarballLoaderWithBaseURL returns a new DirectoryLoader that reads
+// files out of a gzipped tar archive. The file URLs will be prefixed
+// with the baseURL.
+func NewTarballLoaderWithBaseURL(r io.Reader, baseURL string) DirectoryLoader {
+	l := tarballLoader{
+		baseURL: strings.TrimSuffix(baseURL, "/"),
+		r:       r,
 	}
 	return &l
 }
@@ -173,7 +192,7 @@ func (t *tarballLoader) NextFile() (*Descriptor, error) {
 		// Keep iterating on the archive until we find a normal file
 		if header.Typeflag == tar.TypeReg {
 			// no need to close this descriptor after reading
-			f := newDescriptor(header.Name, t.tr)
+			f := newDescriptor(path.Join(t.baseURL, header.Name), header.Name, t.tr)
 			return f, nil
 		}
 	}

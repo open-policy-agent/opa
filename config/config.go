@@ -7,12 +7,11 @@ package config
 
 import (
 	"encoding/json"
-	"strings"
-
-	"github.com/open-policy-agent/opa/version"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/internal/ref"
 	"github.com/open-policy-agent/opa/util"
+	"github.com/open-policy-agent/opa/version"
 )
 
 // Config represents the configuration file that OPA can be started with.
@@ -46,15 +45,15 @@ func (c Config) PluginsEnabled() bool {
 
 // DefaultDecisionRef returns the default decision as a reference.
 func (c Config) DefaultDecisionRef() ast.Ref {
-	ref, _ := parsePathToRef(*c.DefaultDecision)
-	return ref
+	r, _ := ref.ParseDataPath(*c.DefaultDecision)
+	return r
 }
 
 // DefaultAuthorizationDecisionRef returns the default authorization decision
 // as a reference.
 func (c Config) DefaultAuthorizationDecisionRef() ast.Ref {
-	ref, _ := parsePathToRef(*c.DefaultAuthorizationDecision)
-	return ref
+	r, _ := ref.ParseDataPath(*c.DefaultAuthorizationDecision)
+	return r
 }
 
 func (c *Config) validateAndInjectDefaults(id string) error {
@@ -64,7 +63,7 @@ func (c *Config) validateAndInjectDefaults(id string) error {
 		c.DefaultDecision = &s
 	}
 
-	_, err := parsePathToRef(*c.DefaultDecision)
+	_, err := ref.ParseDataPath(*c.DefaultDecision)
 	if err != nil {
 		return err
 	}
@@ -74,7 +73,7 @@ func (c *Config) validateAndInjectDefaults(id string) error {
 		c.DefaultAuthorizationDecision = &s
 	}
 
-	_, err = parsePathToRef(*c.DefaultAuthorizationDecision)
+	_, err = ref.ParseDataPath(*c.DefaultAuthorizationDecision)
 	if err != nil {
 		return err
 	}
@@ -87,11 +86,6 @@ func (c *Config) validateAndInjectDefaults(id string) error {
 	c.Labels["version"] = version.Version
 
 	return nil
-}
-
-func parsePathToRef(s string) (ast.Ref, error) {
-	s = strings.Replace(strings.Trim(s, "/"), "/", ".", -1)
-	return ast.ParseRef("data." + s)
 }
 
 const (

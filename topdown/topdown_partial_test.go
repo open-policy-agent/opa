@@ -1264,6 +1264,24 @@ func TestTopDownPartialEval(t *testing.T) {
 			},
 		},
 		{
+			note:  "copy propagation: negation safety needs extra expr - no live var overlap",
+			query: `data.test.p = true`,
+			modules: []string{
+				`package test
+
+				p {
+				  x = input.y[c]
+				  x.z = 1
+				  not x.z = 2
+				}
+				`,
+			},
+			unknowns: []string{`input.y`},
+			wantQueries: []string{
+				`input.y[c1].z = 1; not x1.z = 2; x1 = input.y[c1]`,
+			},
+		},
+		{
 			note:  "copy propagation: negation safety no extra expr",
 			query: `data.test.p = true`,
 			modules: []string{
@@ -1797,6 +1815,108 @@ func TestTopDownPartialEval(t *testing.T) {
 
 				p = y1 { y1 = input; not y1 = 1 }`,
 			},
+		},
+		{
+			note:  "disable inlining: disable on prefix",
+			query: "data.test.foo.p = true",
+			modules: []string{
+				`package test.foo
+
+				p {
+					data.test.bar.q[input.x]
+				}`,
+
+				`package test.bar
+
+				q[x] { data.test.baz.r[x] }`,
+
+				`package test.baz
+
+				r[1]
+				r[2]`,
+			},
+			disableInlining: []string{"data.test.bar"},
+			wantQueries:     []string{`data.partial.test.bar.q[input.x]`},
+			wantSupport: []string{
+				`package partial.test.bar
+
+				q[1]
+				q[2]`,
+			},
+		},
+		{
+			note:  "disable inlining: base document enumeration",
+			query: "data.test.p = true",
+			modules: []string{
+				`package test
+
+				p { k = "foo"; m = "bar"; data.base[k][x][m] = 1 }`,
+			},
+			disableInlining: []string{"data.base"},
+			wantQueries:     []string{"data.base.foo[x1].bar = 1"},
+		},
+		{
+			note:  "disable inlining: base document extent",
+			query: "data.test.p = true",
+			modules: []string{
+				`package test
+
+				p { k = "bar"; data.base.foo[k].baz = 1 }`,
+			},
+			disableInlining: []string{"data.base"},
+			wantQueries:     []string{"data.base.foo.bar.baz = 1"},
+		},
+		{
+			note:  "disable inlining: negation treats as unknown",
+			query: "data.test.p = true",
+			modules: []string{
+				`package test
+
+				p { not q }
+
+				q { r }
+
+				r = false`,
+			},
+			disableInlining: []string{"data.test.r"},
+			wantQueries:     []string{"not data.partial.test.r"},
+			wantSupport: []string{
+				`package partial.test
+
+				r = false`,
+			},
+		},
+		{
+			note:  "disable inlining: comprehension treats as unknown",
+			query: "data.test.p = [1]",
+			modules: []string{
+				`package test
+
+				p = x { x = [1 | q] }
+
+				q { r }
+
+				r = true`,
+			},
+			disableInlining: []string{"data.test.r"},
+			wantQueries:     []string{"[1] = [1 | data.test.q]"},
+		},
+		{
+			note:  "disable inlining: partial rule full extent treats as unknown",
+			query: "data.test.p = true",
+			modules: []string{
+				`package test
+
+				p { q = {1,2,3} }
+
+				q[1]
+				q[2]
+				q[3] { r }
+
+				r = true`,
+			},
+			disableInlining: []string{"data.test.r"},
+			wantQueries:     []string{"data.test.q = {1, 2, 3}"},
 		},
 		{
 			note:  "comprehensions: ref heads (with namespacing)",

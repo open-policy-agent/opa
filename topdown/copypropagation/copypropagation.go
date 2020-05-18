@@ -149,12 +149,11 @@ func (p *CopyPropagator) Apply(query ast.Body) ast.Body {
 	// For any of these cases we re-add the removed equality expression
 	// to the current result.
 
-	// Consider livevars and output from the current result safe
-	safe := p.livevars.Copy()
+	// Invariant: Live vars are bound (above) and reserved vars are implicitly ground.
+	safe := ast.ReservedVars.Copy()
+	safe.Update(p.livevars)
 	safe.Update(ast.OutputVarsFromBody(p.compiler, result, safe))
-
-	// Any other vars in the result are considered unsafe
-	unsafe := result.Vars(ast.VarVisitorParams{}).Diff(safe)
+	unsafe := result.Vars(ast.SafetyCheckVisitorParams).Diff(safe)
 
 	for _, b := range sortbindings(removedEqs) {
 		removedEq := ast.Equality.Expr(ast.NewTerm(b.k), ast.NewTerm(b.v))
@@ -171,6 +170,12 @@ func (p *CopyPropagator) Apply(query ast.Body) ast.Body {
 			result.Append(removedEq)
 			safe.Update(outputVars)
 		}
+	}
+
+	if len(unsafe) > 0 {
+		// NOTE(tsandall): This should be impossible but if it does occur, throw
+		// away the result rather than generating unsafe output.
+		return query
 	}
 
 	if p.ensureNonEmptyBody && len(result) == 0 {

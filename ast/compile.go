@@ -809,7 +809,10 @@ func (c *Compiler) checkBodySafety(safe VarSet, m *Module, b Body) Body {
 	return reordered
 }
 
-var safetyCheckVarVisitorParams = VarVisitorParams{
+// SafetyCheckVisitorParams defines the AST visitor parameters to use for collecting
+// variables during the safety check. This has to be exported because it's relied on
+// by the copy propagation implementation in topdown.
+var SafetyCheckVisitorParams = VarVisitorParams{
 	SkipRefCallHead: true,
 	SkipClosures:    true,
 }
@@ -821,7 +824,7 @@ func (c *Compiler) checkSafetyRuleHeads() {
 	for _, name := range c.sorted {
 		m := c.Modules[name]
 		WalkRules(m, func(r *Rule) bool {
-			safe := r.Body.Vars(safetyCheckVarVisitorParams)
+			safe := r.Body.Vars(SafetyCheckVisitorParams)
 			safe.Update(r.Head.Args.Vars())
 			unsafe := r.Head.Vars().Diff(safe)
 			for v := range unsafe {
@@ -1599,7 +1602,7 @@ func getComprehensionIndex(arity func(Ref) int, candidates VarSet, expr *Expr) *
 	}
 
 	outputs := outputVarsForBody(body, arity, ReservedVars)
-	unsafe := body.Vars(safetyCheckVarVisitorParams).Diff(outputs).Diff(ReservedVars)
+	unsafe := body.Vars(SafetyCheckVisitorParams).Diff(outputs).Diff(ReservedVars)
 	if len(unsafe) > 0 {
 		return nil
 	}
@@ -1824,6 +1827,7 @@ func (n *TreeNode) DepthFirst(f func(node *TreeNode) bool) {
 // Graph represents the graph of dependencies between rules.
 type Graph struct {
 	adj    map[util.T]map[util.T]struct{}
+	radj   map[util.T]map[util.T]struct{}
 	nodes  map[util.T]struct{}
 	sorted []util.T
 }
@@ -1834,6 +1838,7 @@ func NewGraph(modules map[string]*Module, list func(Ref) []*Rule) *Graph {
 
 	graph := &Graph{
 		adj:    map[util.T]map[util.T]struct{}{},
+		radj:   map[util.T]map[util.T]struct{}{},
 		nodes:  map[util.T]struct{}{},
 		sorted: nil,
 	}
@@ -1879,6 +1884,11 @@ func (g *Graph) Dependencies(x util.T) map[util.T]struct{} {
 	return g.adj[x]
 }
 
+// Dependents returns the set of rules that depend on x.
+func (g *Graph) Dependents(x util.T) map[util.T]struct{} {
+	return g.radj[x]
+}
+
 // Sort returns a slice of rules sorted by dependencies. If a cycle is found,
 // ok is set to false.
 func (g *Graph) Sort() (sorted []util.T, ok bool) {
@@ -1920,6 +1930,14 @@ func (g *Graph) addDependency(u util.T, v util.T) {
 	}
 
 	edges[v] = struct{}{}
+
+	edges, ok = g.radj[v]
+	if !ok {
+		edges = map[util.T]struct{}{}
+		g.radj[v] = edges
+	}
+
+	edges[u] = struct{}{}
 }
 
 func (g *Graph) addNode(n util.T) {
@@ -2078,7 +2096,7 @@ func reorderBodyForSafety(builtins map[string]*Builtin, arity func(Ref) int, glo
 	safe := VarSet{}
 
 	for _, e := range body {
-		for v := range e.Vars(safetyCheckVarVisitorParams) {
+		for v := range e.Vars(SafetyCheckVisitorParams) {
 			if globals.Contains(v) {
 				safe.Add(v)
 			} else {
@@ -2120,7 +2138,7 @@ func reorderBodyForSafety(builtins map[string]*Builtin, arity func(Ref) int, glo
 	g := globals.Copy()
 	for i, e := range reordered {
 		if i > 0 {
-			g.Update(reordered[i-1].Vars(safetyCheckVarVisitorParams))
+			g.Update(reordered[i-1].Vars(SafetyCheckVisitorParams))
 		}
 		vis := &bodySafetyVisitor{
 			builtins: builtins,
@@ -2182,7 +2200,7 @@ func (vis *bodySafetyVisitor) Visit(x interface{}) bool {
 
 // Check term for safety. This is analogous to the rule head safety check.
 func (vis *bodySafetyVisitor) checkComprehensionSafety(tv VarSet, body Body) Body {
-	bv := body.Vars(safetyCheckVarVisitorParams)
+	bv := body.Vars(SafetyCheckVisitorParams)
 	bv.Update(vis.globals)
 	uv := tv.Diff(bv)
 	for v := range uv {
@@ -2241,7 +2259,7 @@ func reorderBodyForClosures(arity func(Ref) int, globals VarSet, body Body) (Bod
 			// Compute vars that are closed over from the body but not yet
 			// contained in the output position of an expression in the reordered
 			// body. These vars are considered unsafe.
-			cv := vs.Intersect(body.Vars(safetyCheckVarVisitorParams)).Diff(globals)
+			cv := vs.Intersect(body.Vars(SafetyCheckVisitorParams)).Diff(globals)
 			uv := cv.Diff(outputVarsForBody(reordered, arity, globals))
 
 			if len(uv) == 0 {
