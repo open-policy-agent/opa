@@ -243,16 +243,14 @@ func NewCompiler() *Compiler {
 		// load additional modules. If any stages run before resolution, they
 		// need to be re-run after resolution.
 		{"ResolveRefs", "compile_stage_resolve_refs", c.resolveAllRefs},
-
+		{"SetModuleTree", "compile_stage_set_module_tree", c.setModuleTree},
+		{"SetRuleTree", "compile_stage_set_rule_tree", c.setRuleTree},
 		// The local variable generator must be initialized after references are
 		// resolved and the dynamic module loader has run but before subsequent
 		// stages that need to generate variables.
 		{"InitLocalVarGen", "compile_stage_init_local_var_gen", c.initLocalVarGen},
-
 		{"RewriteLocalVars", "compile_stage_rewrite_local_vars", c.rewriteLocalVars},
 		{"RewriteExprTerms", "compile_stage_rewrite_expr_terms", c.rewriteExprTerms},
-		{"SetModuleTree", "compile_stage_set_module_tree", c.setModuleTree},
-		{"SetRuleTree", "compile_stage_set_rule_tree", c.setRuleTree},
 		{"SetGraph", "compile_stage_set_graph", c.setGraph},
 		{"RewriteComprehensionTerms", "compile_stage_rewrite_comprehension_terms", c.rewriteComprehensionTerms},
 		{"RewriteRefsInHead", "compile_stage_rewrite_refs_in_head", c.rewriteRefsInHead},
