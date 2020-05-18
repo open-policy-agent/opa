@@ -956,7 +956,7 @@ p = true { false }`
                   "location": {
                     "file": "testmod",
                     "row": 2,
-                    "col": 5
+                    "col": 1
                   }
                 }
               ]
@@ -3762,6 +3762,7 @@ func (f *fixture) reset() {
 }
 
 func executeRequests(t *testing.T, reqs []tr) {
+	t.Helper()
 	f := newFixture(t)
 	for i, req := range reqs {
 		if err := f.v1(req.method, req.path, req.body, req.code, req.resp); err != nil {
@@ -3772,6 +3773,7 @@ func executeRequests(t *testing.T, reqs []tr) {
 
 // Runs through an array of test cases against the v0 REST API tree
 func executeRequestsv0(t *testing.T, reqs []tr) {
+	t.Helper()
 	f := newFixture(t)
 	for i, req := range reqs {
 		if err := f.v0(req.method, req.path, req.body, req.code, req.resp); err != nil {

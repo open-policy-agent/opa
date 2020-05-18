@@ -167,6 +167,8 @@ func ParseRuleFromExpr(module *Module, expr *Expr) (*Rule, error) {
 		rule, err := ParseCompleteDocRuleFromAssignmentExpr(module, lhs, rhs)
 
 		if err == nil {
+			rule.Location = expr.Location
+			rule.Head.Location = expr.Location
 			return rule, nil
 		} else if _, ok := lhs.Value.(Call); ok {
 			return nil, errFunctionAssignOperator
@@ -178,20 +180,7 @@ func ParseRuleFromExpr(module *Module, expr *Expr) (*Rule, error) {
 	}
 
 	if expr.IsEquality() {
-
-		lhs, rhs := expr.Operand(0), expr.Operand(1)
-		rule, err := ParseCompleteDocRuleFromEqExpr(module, lhs, rhs)
-
-		if err == nil {
-			return rule, nil
-		}
-
-		rule, err = ParseRuleFromCallEqExpr(module, lhs, rhs)
-		if err == nil {
-			return rule, nil
-		}
-
-		return ParsePartialObjectDocRuleFromEqExpr(module, lhs, rhs)
+		return parseCompleteRuleFromEq(module, expr)
 	}
 
 	if _, ok := BuiltinMap[expr.Operator().String()]; ok {
@@ -199,6 +188,33 @@ func ParseRuleFromExpr(module *Module, expr *Expr) (*Rule, error) {
 	}
 
 	return ParseRuleFromCallExpr(module, expr.Terms.([]*Term))
+}
+
+func parseCompleteRuleFromEq(module *Module, expr *Expr) (rule *Rule, err error) {
+
+	// ensure the rule location is set to the expr location
+	// the helper functions called below try to set the location based
+	// on the terms they've been provided but that is not as accurate.
+	defer func() {
+		if rule != nil {
+			rule.Location = expr.Location
+			rule.Head.Location = expr.Location
+		}
+	}()
+
+	lhs, rhs := expr.Operand(0), expr.Operand(1)
+	rule, err = ParseCompleteDocRuleFromEqExpr(module, lhs, rhs)
+
+	if err == nil {
+		return rule, nil
+	}
+
+	rule, err = ParseRuleFromCallEqExpr(module, lhs, rhs)
+	if err == nil {
+		return rule, nil
+	}
+
+	return ParsePartialObjectDocRuleFromEqExpr(module, lhs, rhs)
 }
 
 // ParseCompleteDocRuleFromAssignmentExpr returns a rule if the expression can
@@ -231,9 +247,9 @@ func ParseCompleteDocRuleFromEqExpr(module *Module, lhs, rhs *Term) (*Rule, erro
 	}
 
 	rule := &Rule{
-		Location: rhs.Location,
+		Location: lhs.Location,
 		Head: &Head{
-			Location: rhs.Location,
+			Location: lhs.Location,
 			Name:     name,
 			Value:    rhs,
 		},
