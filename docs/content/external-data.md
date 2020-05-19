@@ -127,16 +127,16 @@ The entirety of the external data source is stored in memory, which can obviousl
 This approach is very similar to the bundle approach except it updates the data stored in OPA with deltas instead of an entire snapshot at a time.  Because the data is updated as deltas, this approach is well-suited for data that changes frequently.  It assumes the data can fit entirely in memory and so is well-suited to small and medium-sized data sets.
 
 
-## Option 5: Pull Data during Evaluation (Experimental)
+## Option 5: Pull Data during Evaluation
 
-OPA has experimental capabilities for reaching out to external servers during evaluation.  This functionality handles those cases where there is too much data to synchronize into OPA, JWTs are ineffective, or policy requires information that must be as up to date as possible.
+OPA is capable for reaching out to external servers during evaluation.  This functionality handles those cases where there is too much data to synchronize into OPA, JWTs are ineffective, or policy requires information that must be as up to date as possible.
 
 That functionality is implemented as [OPA builtins](https://www.openpolicyagent.org/docs/latest/policy-reference/#http).  Check the docs for the latest instructions.
 
 ### Current limitations
-* Unit test framework does not allow you to mock out the results of builtin functions; however, you can create a helper function that runs the builtin and mock that out.
-* Credentials needed for the external service can either be hardcoded into policy or pulled from the environment.
 
+* Unit test framework does not allow you to mock out the results of builtin functions; however, you can create a helper _rule_ that runs the built-in and mock that out.
+* Credentials needed for the external service can either be hardcoded into policy or pulled from the environment.
 
 ### Flow
 
@@ -169,7 +169,7 @@ The downside to pulling data on demand is reduced performance and availability b
 | Input | High | Coupling between service and OPA | Local, dynamic |
 | Bundle | High | Updates to policy/data at the same time.  Size an issue. | Static, medium |
 | Push | High | Control data refresh rate.  Size an issue. | Dynamic, medium |
-| Evaluation Pull (experimental) | Dependent on network | Perfectly up to date.  No size limit. | Dynamic or large |
+| Evaluation Pull | Dependent on network | Perfectly up to date.  No size limit. | Dynamic or large |
 
 
 
