@@ -67,7 +67,7 @@ on your system:
 
 Running the website locally requires installing the [Hugo](https://gohugo.io) static
 site generator. The required version of Hugo is listed in the
-[`netlify.toml`](./netlify.toml) configuration file (see the `HUGO_VERSION` variable).
+[`netlify.toml`](../netlify.toml) configuration file (see the `HUGO_VERSION` variable).
 
 Installation instructions for Hugo can be found in the [official
 documentation](https://gohugo.io/getting-started/installing/).
