@@ -66,8 +66,8 @@ type Event struct {
 	Location      *ast.Location           // The location of the Node this event relates to.
 	QueryID       uint64                  // Identifies the query this event belongs to.
 	ParentID      uint64                  // Identifies the parent query this event belongs to.
-	Locals        *ast.ValueMap           // Contains local variable bindings from the query context.
-	LocalMetadata map[ast.Var]VarMetadata // Contains metadata for the local variable bindings.
+	Locals        *ast.ValueMap           // Contains local variable bindings from the query context. Nil if variables were not included in the trace event.
+	LocalMetadata map[ast.Var]VarMetadata // Contains metadata for the local variable bindings. Nil if variables were not included in the trace event.
 	Message       string                  // Contains message for Note events.
 }
 
@@ -136,6 +136,17 @@ type Tracer interface {
 	Trace(*Event)
 }
 
+// CustomTracer defines a Tracer which has some customized configuration
+type CustomTracer interface {
+	Tracer
+	Config() TraceConfig
+}
+
+// TraceConfig defines some common configuration for Tracer implementations
+type TraceConfig struct {
+	PlugLocalVars bool // Indicate whether to plug local variable bindings before calling into the tracer.
+}
+
 // BufferTracer implements the Tracer interface by simply buffering all events
 // received.
 type BufferTracer []*Event
@@ -156,6 +167,11 @@ func (b *BufferTracer) Enabled() bool {
 // Trace adds the event to the buffer.
 func (b *BufferTracer) Trace(evt *Event) {
 	*b = append(*b, evt)
+}
+
+// Config returns the Tracers standard configuration
+func (b *BufferTracer) Config() TraceConfig {
+	return TraceConfig{PlugLocalVars: true}
 }
 
 // PrettyTrace pretty prints the trace to the writer.

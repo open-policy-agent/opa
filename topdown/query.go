@@ -31,6 +31,7 @@ type Query struct {
 	txn               storage.Transaction
 	input             *ast.Term
 	tracers           []Tracer
+	plugTraceVars     bool
 	unknowns          []*ast.Term
 	partialNamespace  string
 	skipSaveNamespace bool
@@ -100,6 +101,19 @@ func (q *Query) WithInput(input *ast.Term) *Query {
 // WithTracer adds a query tracer to use during evaluation. This is optional.
 func (q *Query) WithTracer(tracer Tracer) *Query {
 	q.tracers = append(q.tracers, tracer)
+
+	// If *any* of the tracers require local variable metadata we need to
+	// enabled plugging local trace variables.
+	if tc, ok := tracer.(CustomTracer); ok {
+		conf := tc.Config()
+		if conf.PlugLocalVars {
+			q.plugTraceVars = true
+		}
+	} else {
+		// For backwards compatibility enable var plugging for trace events.
+		q.plugTraceVars = true
+	}
+
 	return q
 }
 
@@ -208,6 +222,7 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 		txn:                q.txn,
 		input:              q.input,
 		tracers:            q.tracers,
+		plugTraceVars:      q.plugTraceVars,
 		instr:              q.instr,
 		builtins:           q.builtins,
 		builtinCache:       builtins.Cache{},
@@ -311,6 +326,7 @@ func (q *Query) Iter(ctx context.Context, iter func(QueryResult) error) error {
 		txn:                q.txn,
 		input:              q.input,
 		tracers:            q.tracers,
+		plugTraceVars:      q.plugTraceVars,
 		instr:              q.instr,
 		builtins:           q.builtins,
 		builtinCache:       builtins.Cache{},
