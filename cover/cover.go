@@ -31,6 +31,13 @@ func (c *Cover) Enabled() bool {
 	return true
 }
 
+// Config returns the standard Tracer configuration for the Cover tracer
+func (c *Cover) Config() topdown.TraceConfig {
+	return topdown.TraceConfig{
+		PlugLocalVars: false, // Event variable metadata is not required for the Coverage report
+	}
+}
+
 // Report returns a coverage Report for the given modules.
 func (c *Cover) Report(modules map[string]*ast.Module) (report Report) {
 	report.Files = map[string]*FileReport{}
