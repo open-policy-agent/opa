@@ -38,6 +38,13 @@ func (p *Profiler) Enabled() bool {
 	return true
 }
 
+// Config returns the standard Tracer configuration for the profiler
+func (p *Profiler) Config() topdown.TraceConfig {
+	return topdown.TraceConfig{
+		PlugLocalVars: false, // Event variable metadata is not required for the Profiler
+	}
+}
+
 // ReportByFile returns a profiler report for expressions grouped by the
 // file name. For each file the results are sorted by increasing row number.
 func (p *Profiler) ReportByFile() (report Report) {
