@@ -172,7 +172,7 @@ opa_value *opa_bits_shiftleft(opa_value *a, opa_value *b)
     mpd_t *r = mpd_qnew();
     uint32_t status = 0;
 
-    mpd_qshiftn(r, x, n, mpd_ctx(), &status);
+    mpd_qshiftn(r, x, n, mpd_max_ctx(), &status);
     mpd_del(x);
 
     if (status)

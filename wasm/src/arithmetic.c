@@ -17,7 +17,7 @@ opa_value *opa_arith_abs(opa_value *v)
     mpd_t *r = mpd_qnew();
     uint32_t status = 0;
 
-    mpd_qabs(r, n, mpd_ctx(), &status);
+    mpd_qabs(r, n, mpd_max_ctx(), &status);
     mpd_del(n);
 
     if (status != 0)
@@ -39,7 +39,7 @@ opa_value *opa_arith_round(opa_value *v)
     mpd_t *r = mpd_qnew();
     uint32_t status = 0;
 
-    mpd_qround_to_int(r, n, mpd_ctx(), &status);
+    mpd_qround_to_int(r, n, mpd_max_ctx(), &status);
     mpd_del(n);
 
     if (status != 0)
@@ -64,10 +64,11 @@ opa_value *opa_arith_plus(opa_value *a, opa_value *b)
     mpd_t *r = mpd_qnew();
     uint32_t status = 0;
 
-    mpd_qadd(r, x, y, mpd_ctx(), &status);
+    mpd_qadd(r, x, y, mpd_max_ctx(), &status);
     mpd_del(x);
     mpd_del(y);
 
+    status &= ~(MPD_Rounded | MPD_Inexact);
     if (status != 0)
     {
         opa_abort("opa_arith_plus: invalid number");
@@ -85,10 +86,11 @@ opa_value *opa_arith_minus(opa_value *a, opa_value *b)
         mpd_t *r = mpd_qnew();
         uint32_t status = 0;
 
-        mpd_qsub(r, x, y, mpd_ctx(), &status);
+        mpd_qsub(r, x, y, mpd_max_ctx(), &status);
         mpd_del(x);
         mpd_del(y);
 
+        status &= ~(MPD_Rounded | MPD_Inexact);
         if (status != 0)
         {
             opa_abort("opa_arith_minus: invalid number");
@@ -117,10 +119,11 @@ opa_value *opa_arith_multiply(opa_value *a, opa_value *b)
     mpd_t *r = mpd_qnew();
     uint32_t status = 0;
 
-    mpd_qmul(r, x, y, mpd_ctx(), &status);
+    mpd_qmul(r, x, y, mpd_max_ctx(), &status);
     mpd_del(x);
     mpd_del(y);
 
+    status &= ~(MPD_Rounded | MPD_Inexact);
     if (status != 0)
     {
         opa_abort("opa_arith_multiply: invalid number");
@@ -143,7 +146,8 @@ opa_value *opa_arith_divide(opa_value *a, opa_value *b)
     mpd_t *r = mpd_qnew();
     uint32_t status = 0;
 
-    mpd_qdiv(r, x, y, mpd_ctx(), &status);
+    // Use the default context to enforce rounding, similar to golang.
+    mpd_qdiv(r, x, y, mpd_default_ctx(), &status);
     mpd_del(x);
     mpd_del(y);
 
@@ -152,6 +156,7 @@ opa_value *opa_arith_divide(opa_value *a, opa_value *b)
         opa_abort("opa_arith_divide: divide by zero"); // TODO: Report error instead.
     }
 
+    status &= ~(MPD_Rounded | MPD_Inexact);
     if (status != 0)
     {
         opa_abort("opa_arith_divide: invalid number");
@@ -174,7 +179,7 @@ opa_value *opa_arith_rem(opa_value *a, opa_value *b)
     mpd_t *r = mpd_qnew();
     uint32_t status = 0;
 
-    mpd_qrem(r, x, y, mpd_ctx(), &status);
+    mpd_qrem(r, x, y, mpd_max_ctx(), &status);
     mpd_del(x);
     mpd_del(y);
 
