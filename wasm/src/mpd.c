@@ -4,20 +4,24 @@
 #include "value.h"
 
 static int initialized;
-static mpd_context_t ctx;
+static mpd_context_t default_ctx;
+static mpd_context_t max_ctx;
 static mpd_t *one;
 
 static void init(void)
 {
     if (!initialized)
     {
-        mpd_maxcontext(&ctx);
-        ctx.traps = 0;
+        mpd_defaultcontext(&default_ctx);
+        default_ctx.traps = 0;
+
+        mpd_maxcontext(&max_ctx);
+        max_ctx.traps = 0;
 
         one = mpd_qnew();
 
         uint32_t status = 0;
-        mpd_qset_i32(one, 1, &ctx, &status);
+        mpd_qset_i32(one, 1, &max_ctx, &status);
         if (status)
         {
             opa_abort("mpd: init");
@@ -27,10 +31,16 @@ static void init(void)
     }
 }
 
-mpd_context_t *mpd_ctx(void)
+mpd_context_t *mpd_default_ctx(void)
 {
     init();
-    return &ctx;
+    return &default_ctx;
+}
+
+mpd_context_t *mpd_max_ctx(void)
+{
+    init();
+    return &max_ctx;
 }
 
 static mpd_t *mpd_one(void)
@@ -69,7 +79,7 @@ mpd_t *opa_number_to_bf(opa_value *v)
             }
 
             r = mpd_qnew();
-            mpd_qset_string(r, buf, mpd_ctx(), &status);
+            mpd_qset_string(r, buf, mpd_default_ctx(), &status);
         }
         break;
 
@@ -81,7 +91,7 @@ mpd_t *opa_number_to_bf(opa_value *v)
         char *s = malloc(n->v.ref.len+1);
         memcpy(s, n->v.ref.s, n->v.ref.len);
         s[n->v.ref.len] = 0;
-        mpd_qset_string(r, s, mpd_ctx(), &status);
+        mpd_qset_string(r, s, mpd_max_ctx(), &status);
         if (status != 0)
         {
             opa_abort("opa_number_to_bf: invalid number");
@@ -95,7 +105,7 @@ mpd_t *opa_number_to_bf(opa_value *v)
 
         if (n->v.i >= INT32_MIN && n->v.i <= INT32_MAX)
         {
-            mpd_qset_i32(r, (int32_t)n->v.i, mpd_ctx(), &status);
+            mpd_qset_i32(r, (int32_t)n->v.i, mpd_default_ctx(), &status);
         } else {
             char buf[32]; // PRINTF_NTOA_BUFFER_SIZE
             if (snprintf(buf, sizeof(buf), "%d", n->v.i) == sizeof(buf))
@@ -104,7 +114,7 @@ mpd_t *opa_number_to_bf(opa_value *v)
             }
 
             r = mpd_qnew();
-            mpd_qset_string(r, buf, mpd_ctx(), &status);
+            mpd_qset_string(r, buf, mpd_default_ctx(), &status);
         }
         break;
 
@@ -152,7 +162,7 @@ mpd_t *opa_bf_to_bf_bits(mpd_t *v)
     mpd_t *i = mpd_qnew();
     uint32_t status = 0;
 
-    mpd_qround_to_intx(i, v, mpd_ctx(), &status);
+    mpd_qround_to_intx(i, v, mpd_max_ctx(), &status);
     if (status)
     {
         opa_abort("opa_bits: bits conversion");
@@ -179,7 +189,7 @@ mpd_t *opa_bf_to_bf_bits(mpd_t *v)
         sign = MPD_NEG;
 
         v = mpd_qnew();
-        mpd_qabs(v, i, mpd_ctx(), &status);
+        mpd_qabs(v, i, mpd_max_ctx(), &status);
         if (status)
         {
             opa_abort("opa_bits: bits conversion");
@@ -200,7 +210,7 @@ mpd_t *opa_bf_to_bf_bits(mpd_t *v)
     mpd_del(i);
 
     mpd_t *bits = mpd_qnew();
-    mpd_qimport_u16(bits, rdata, digits, sign, 10, mpd_ctx(), &status);
+    mpd_qimport_u16(bits, rdata, digits, sign, 10, mpd_max_ctx(), &status);
     if (status)
     {
         opa_abort("opa_bits: bits conversion");
@@ -224,7 +234,7 @@ mpd_t *opa_bf_bits_to_bf(mpd_t *v)
     if (mpd_sign(v))
     {
         mpd_t *abs = mpd_qnew();
-        mpd_qabs(abs, v, mpd_ctx(), &status);
+        mpd_qabs(abs, v, mpd_max_ctx(), &status);
         if (status)
         {
             opa_abort("opa_bits: bits conversion");
@@ -247,7 +257,7 @@ mpd_t *opa_bf_bits_to_bf(mpd_t *v)
     mpd_del(v);
 
     mpd_t *i = mpd_qnew();
-    mpd_qimport_u16(i, rdata, digits, sign, 2, mpd_ctx(), &status);
+    mpd_qimport_u16(i, rdata, digits, sign, 2, mpd_max_ctx(), &status);
     if (status)
     {
         opa_abort("opa_bits: bits conversion");
@@ -268,7 +278,7 @@ mpd_t *qabs(mpd_t* v)
     mpd_t *a = mpd_qnew();
     uint32_t status = 0;
 
-    mpd_qabs(a, v, mpd_ctx(), &status);
+    mpd_qabs(a, v, mpd_max_ctx(), &status);
     if (status)
     {
         opa_abort("opa_bits: abs conversion");
@@ -288,7 +298,7 @@ mpd_t *qadd_one(mpd_t* v)
     mpd_t *r = mpd_qnew();
     uint32_t status = 0;
 
-    mpd_qadd(r, v, mpd_one(), mpd_ctx(), &status);
+    mpd_qadd(r, v, mpd_one(), mpd_max_ctx(), &status);
     if (status)
     {
         opa_abort("opa_bits: add one");
@@ -308,7 +318,7 @@ mpd_t *qsub_one(mpd_t* v)
     mpd_t *r = mpd_qnew();
     uint32_t status = 0;
 
-    mpd_qsub(r, v, mpd_one(), mpd_ctx(), &status);
+    mpd_qsub(r, v, mpd_one(), mpd_max_ctx(), &status);
     if (status)
     {
         opa_abort("opa_bits: minus one");
@@ -332,7 +342,7 @@ mpd_t* qand(mpd_t *x, mpd_t *y)
     mpd_t *r = mpd_qnew();
     uint32_t status = 0;
 
-    mpd_qand(r, x, y, mpd_ctx(), &status);
+    mpd_qand(r, x, y, mpd_max_ctx(), &status);
     mpd_del(x);
     mpd_del(y);
 
@@ -374,7 +384,7 @@ mpd_t* qand_not(mpd_t *x, mpd_t *y)
     }
 
     mpd_t *mask = mpd_qnew();
-    mpd_qimport_u16(mask, rdata, rlen, MPD_POS, 10, mpd_ctx(), &status);
+    mpd_qimport_u16(mask, rdata, rlen, MPD_POS, 10, mpd_max_ctx(), &status);
     if (status)
     {
         opa_abort("opa_bits: bits conversion");
@@ -383,7 +393,7 @@ mpd_t* qand_not(mpd_t *x, mpd_t *y)
     free(rdata);
 
     mpd_t *ny = mpd_qnew();
-    mpd_qxor(ny, y, mask, mpd_ctx(), &status);
+    mpd_qxor(ny, y, mask, mpd_max_ctx(), &status);
     if (status)
     {
         opa_abort("opa_bits_negate");
@@ -393,7 +403,7 @@ mpd_t* qand_not(mpd_t *x, mpd_t *y)
     mpd_del(mask);
 
     mpd_t *r = mpd_qnew();
-    mpd_qand(r, x, ny, mpd_ctx(), &status);
+    mpd_qand(r, x, ny, mpd_max_ctx(), &status);
     mpd_del(x);
     mpd_del(ny);
 
@@ -419,7 +429,7 @@ mpd_t* qor(mpd_t *x, mpd_t *y)
     mpd_t *r = mpd_qnew();
     uint32_t status = 0;
 
-    mpd_qor(r, x, y, mpd_ctx(), &status);
+    mpd_qor(r, x, y, mpd_max_ctx(), &status);
     mpd_del(x);
     mpd_del(y);
 
@@ -445,7 +455,7 @@ mpd_t* qxor(mpd_t *x, mpd_t *y)
     mpd_t *r = mpd_qnew();
     uint32_t status = 0;
 
-    mpd_qxor(r, x, y, mpd_ctx(), &status);
+    mpd_qxor(r, x, y, mpd_max_ctx(), &status);
     mpd_del(x);
     mpd_del(y);
 
@@ -468,7 +478,7 @@ mpd_t* qneg(mpd_t *x)
     mpd_t *r = mpd_qnew();
     uint32_t status = 0;
 
-    mpd_qminus(r, x, mpd_ctx(), &status);
+    mpd_qminus(r, x, mpd_max_ctx(), &status);
     mpd_del(x);
 
     if (status)

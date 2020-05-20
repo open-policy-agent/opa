@@ -15,8 +15,8 @@ cases:
     query: mul(2,3,x)
     want_result: [{'x': 6}]
   - note: divide built-in
-    query: div(6,3,x)
-    want_result: [{'x': 2}]
+    query: div(2,3,x)
+    want_result: [{'x': 0.6666666666666666}]
   - note: remainder built-in
     query: rem(4,3,x)
     want_result: [{'x': 1}]

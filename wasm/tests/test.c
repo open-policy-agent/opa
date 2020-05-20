@@ -1115,7 +1115,7 @@ static opa_value *number(const char *s)
 
     uint32_t status = 0;
     mpd_t *r = mpd_qnew();
-    mpd_qimport_u16(r, &rdata[0], digits, sign, 16, mpd_ctx(), &status);
+    mpd_qimport_u16(r, &rdata[0], digits, sign, 16, mpd_max_ctx(), &status);
     return opa_bf_to_number(r);
 }
 
