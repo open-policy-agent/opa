@@ -76,27 +76,27 @@
 #elif defined(CONFIG_32)
 
   /* number-theory.c */
-  const mpd_uint_t mpd_moduli[3]  = {2113929217UL, 2013265921UL, 1811939329UL};
-  const mpd_uint_t mpd_roots[3]   = {5UL, 31UL, 13UL};
+  mpd_uint_t mpd_moduli[3]  = {2113929217UL, 2013265921UL, 1811939329UL};
+  mpd_uint_t mpd_roots[3]   = {5UL, 31UL, 13UL};
 
   /* PentiumPro modular multiplication: These constants have to be loaded as
    * 80 bit long doubles, which are not supported by certain compilers. */
-  const uint32_t mpd_invmoduli[3][3] = {
+  uint32_t mpd_invmoduli[3][3] = {
     {4293885170U, 2181570688U, 16352U},  /* ((long double) 1 / 2113929217UL) */
     {1698898177U, 2290649223U, 16352U},  /* ((long double) 1 / 2013265921UL) */
     {2716021846U, 2545165803U, 16352U}   /* ((long double) 1 / 1811939329UL) */
   };
 
-  const float MPD_TWO63 = 9223372036854775808.0; /* 2^63 */
+  float MPD_TWO63 = 9223372036854775808.0; /* 2^63 */
 
   /* crt.c */
-  const mpd_uint_t INV_P1_MOD_P2   = 2013265901UL;
-  const mpd_uint_t INV_P1P2_MOD_P3 = 54UL;
-  const mpd_uint_t LH_P1P2 = 4127195137UL;  /* (P1*P2) % 2^32 */
-  const mpd_uint_t UH_P1P2 = 990904320UL;   /* (P1*P2) / 2^32 */
+  mpd_uint_t INV_P1_MOD_P2   = 2013265901UL;
+  mpd_uint_t INV_P1P2_MOD_P3 = 54UL;
+  mpd_uint_t LH_P1P2 = 4127195137UL;  /* (P1*P2) % 2^32 */
+  mpd_uint_t UH_P1P2 = 990904320UL;   /* (P1*P2) / 2^32 */
 
   /* transpose.c */
-  const mpd_size_t mpd_bits[32] = {
+  mpd_size_t mpd_bits[32] = {
     1, 2, 4, 8, 16, 32, 64, 128, 256, 512,  1024,  2048, 4096, 8192, 16384,
     32768, 65536, 131072, 262144, 524288, 1048576, 2097152, 4194304, 8388608,
     16777216, 33554432, 67108864, 134217728, 268435456, 536870912, 1073741824,
@@ -104,7 +104,7 @@
   };
 
   /* mpdecimal.c */
-  const mpd_uint_t mpd_pow10[MPD_RDIGITS+1] = {
+  mpd_uint_t mpd_pow10[MPD_RDIGITS+1] = {
     1,10,100,1000,10000,100000,1000000,10000000,100000000,1000000000
   };
 
