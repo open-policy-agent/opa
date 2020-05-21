@@ -3,7 +3,11 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.20.2
+
+### Fixes
+
+- format: Fix panic with else blocks and comments ([#2420](https://github.com/open-policy-agent/opa/issues/2420))
 
 ## 0.20.1
 
