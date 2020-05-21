@@ -308,6 +308,12 @@ func (w *writer) writeElse(rule *ast.Rule, comments []*ast.Comment) []*ast.Comme
 	rule.Else.Head.Args = nil
 	comments = w.insertComments(comments, rule.Else.Head.Location)
 
+	if hasCommentAbove && !wasInline {
+		// The comments would have ended the line, be sure to start one again
+		// before writing the rest of the "else" rule.
+		w.startLine()
+	}
+
 	// For backwards compatibility adjust the rule head value location
 	// TODO: Refactor the logic for inserting comments, or special
 	// case comments in a rule head value so this can be removed
@@ -1005,9 +1011,6 @@ func dedupComments(comments []*ast.Comment) []*ast.Comment {
 
 // startLine begins a line with the current indentation level.
 func (w *writer) startLine() {
-	if w.inline {
-		panic("currently in a line")
-	}
 	w.inline = true
 	for i := 0; i < w.level; i++ {
 		w.write(w.indent)
@@ -1016,9 +1019,6 @@ func (w *writer) startLine() {
 
 // endLine ends a line with a newline.
 func (w *writer) endLine() {
-	if !w.inline {
-		panic("not in a line")
-	}
 	w.inline = false
 	if w.beforeEnd != nil && !w.delay {
 		w.write(" " + w.beforeEnd.String())
