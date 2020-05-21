@@ -3,7 +3,11 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.20.1
+
+This release fixes an issue in the Docker image build. The
+default ca-certificates were not being included becasue the Docker
+image is FROM scratch now.
 
 ## 0.20.0
 
