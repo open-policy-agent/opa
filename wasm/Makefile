@@ -40,6 +40,9 @@ test:
 hack:
 	@$(DOCKER) run -it --rm -v $(CURDIR):/src $(WASM_BUILDER_IMAGE)
 
+$(WASM_OBJ_DIR)/aggregates.wasm: src/aggregates.c
+	@$(CC) $(CFLAGS) -c $^ -o $@
+
 $(WASM_OBJ_DIR)/arithmetic.wasm: src/arithmetic.c
 	@$(CC) $(CFLAGS) -c $^ -o $@
 
@@ -83,6 +86,7 @@ $(WASM_OBJ_DIR)/libmpdec-%.wasm: src/libmpdec/%.c
 	@$(CC) $(CFLAGS) -c $^ -o $@
 
 $(WASM_OBJ_DIR)/opa.wasm: \
+		$(WASM_OBJ_DIR)/aggregates.wasm \
 		$(WASM_OBJ_DIR)/arithmetic.wasm \
 		$(WASM_OBJ_DIR)/array.wasm \
 		$(WASM_OBJ_DIR)/bits-builtins.wasm \
@@ -130,6 +134,7 @@ $(WASM_OBJ_DIR)/test.wasm: tests/test.c
 	@$(CC) $(CFLAGS) -I src -c $^ -o $@
 
 $(WASM_OBJ_DIR)/opa-test.wasm: \
+		$(WASM_OBJ_DIR)/aggregates.wasm \
 		$(WASM_OBJ_DIR)/arithmetic.wasm \
 		$(WASM_OBJ_DIR)/array.wasm \
 		$(WASM_OBJ_DIR)/bits-builtins.wasm \

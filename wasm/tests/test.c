@@ -1,13 +1,14 @@
 #include <ctype.h>
 
-#include "str.h"
-#include "json.h"
-#include "malloc.h"
+#include "aggregates.h"
 #include "arithmetic.h"
 #include "array.h"
 #include "bits-builtins.h"
+#include "json.h"
+#include "malloc.h"
 #include "mpd.h"
 #include "set.h"
+#include "str.h"
 #include "types.h"
 
 void opa_test_fail(const char *note, const char *func, const char *file, int line);
@@ -1281,4 +1282,85 @@ void test_bits(void)
                                               opa_bits_shiftleft(opa_number_ref(tests4[i].input, strlen(tests4[i].input)),
                                                                  opa_number_int(tests4[i].shift))) == 0);
      };
+}
+
+void test_aggregates(void)
+{
+    opa_array_t *arr = opa_cast_array(opa_array());
+    opa_array_append(arr, opa_number_int(2));
+    opa_array_append(arr, opa_number_int(1));
+    opa_array_append(arr, opa_number_int(4));
+
+    opa_array_t *arr_sorted = opa_cast_array(opa_array());
+    opa_array_append(arr_sorted, opa_number_int(1));
+    opa_array_append(arr_sorted, opa_number_int(2));
+    opa_array_append(arr_sorted, opa_number_int(4));
+
+    opa_object_t *obj = opa_cast_object(opa_object());
+    opa_object_insert(obj, opa_string_terminated("b"), opa_number_int(2));
+    opa_object_insert(obj, opa_string_terminated("a"), opa_number_int(1));
+    opa_object_insert(obj, opa_string_terminated("c"), opa_number_int(4));
+
+    opa_set_t *set = opa_cast_set(opa_set());
+    opa_set_add(set, opa_number_int(2));
+    opa_set_add(set, opa_number_int(1));
+    opa_set_add(set, opa_number_int(4));
+
+    test("count/string", opa_value_compare(opa_agg_count(opa_string("foo", 3)), opa_number_int(3)) == 0);
+    test("count/array", opa_value_compare(opa_agg_count(&arr->hdr), opa_number_int(3)) == 0);
+    test("count/object", opa_value_compare(opa_agg_count(&obj->hdr), opa_number_int(3)) == 0);
+    test("count/set", opa_value_compare(opa_agg_count(&set->hdr), opa_number_int(3)) == 0);
+
+    test("sum/array", opa_value_compare(opa_agg_sum(&arr->hdr), opa_number_int(7)) == 0);
+    test("sum/set", opa_value_compare(opa_agg_sum(&set->hdr), opa_number_int(7)) == 0);
+
+    test("product/array", opa_value_compare(opa_agg_product(&arr->hdr), opa_number_int(8)) == 0);
+    test("product/set", opa_value_compare(opa_agg_product(&set->hdr), opa_number_int(8)) == 0);
+
+    test("max/array", opa_value_compare(opa_agg_max(&arr->hdr), opa_number_int(4)) == 0);
+    test("max/set", opa_value_compare(opa_agg_max(&set->hdr), opa_number_int(4)) == 0);
+
+    test("min/array", opa_value_compare(opa_agg_min(&arr->hdr), opa_number_int(1)) == 0);
+    test("min/set", opa_value_compare(opa_agg_min(&set->hdr), opa_number_int(1)) == 0);
+
+    test("sort/array", opa_value_compare(opa_agg_sort(&arr->hdr), &arr_sorted->hdr) == 0);
+    test("sort/set", opa_value_compare(opa_agg_sort(&set->hdr), &arr_sorted->hdr) == 0);
+
+    opa_array_t *arr_trues = opa_cast_array(opa_array());
+    opa_array_append(arr_trues, opa_boolean(TRUE));
+    opa_array_append(arr_trues, opa_boolean(TRUE));
+
+    opa_array_t *arr_mixed = opa_cast_array(opa_array());
+    opa_array_append(arr_mixed, opa_boolean(TRUE));
+    opa_array_append(arr_mixed, opa_boolean(FALSE));
+
+    opa_array_t *arr_falses = opa_cast_array(opa_array());
+    opa_array_append(arr_falses, opa_boolean(FALSE));
+    opa_array_append(arr_falses, opa_boolean(FALSE));
+
+    test("all/array trues", opa_value_compare(opa_agg_all(&arr_trues->hdr), opa_boolean(TRUE)) == 0);
+    test("all/array mixed", opa_value_compare(opa_agg_all(&arr_mixed->hdr), opa_boolean(FALSE)) == 0);
+    test("all/array falses", opa_value_compare(opa_agg_all(&arr_falses->hdr), opa_boolean(FALSE)) == 0);
+    test("any/array trues", opa_value_compare(opa_agg_any(&arr_trues->hdr), opa_boolean(TRUE)) == 0);
+    test("any/array mixed", opa_value_compare(opa_agg_any(&arr_mixed->hdr), opa_boolean(TRUE)) == 0);
+    test("any/array falses", opa_value_compare(opa_agg_any(&arr_falses->hdr), opa_boolean(FALSE)) == 0);
+
+    opa_set_t *set_trues = opa_cast_set(opa_set());
+    opa_set_add(set_trues, opa_boolean(TRUE));
+    opa_set_add(set_trues, opa_boolean(TRUE));
+
+    opa_set_t *set_mixed = opa_cast_set(opa_set());
+    opa_set_add(set_mixed, opa_boolean(TRUE));
+    opa_set_add(set_mixed, opa_boolean(FALSE));
+
+    opa_set_t *set_falses = opa_cast_set(opa_set());
+    opa_set_add(set_falses, opa_boolean(FALSE));
+    opa_set_add(set_falses, opa_boolean(FALSE));
+
+    test("all/set trues", opa_value_compare(opa_agg_all(&set_trues->hdr), opa_boolean(TRUE)) == 0);
+    test("all/set mixed", opa_value_compare(opa_agg_all(&set_mixed->hdr), opa_boolean(FALSE)) == 0);
+    test("all/set falses", opa_value_compare(opa_agg_all(&set_falses->hdr), opa_boolean(FALSE)) == 0);
+    test("any/set trues", opa_value_compare(opa_agg_any(&set_trues->hdr), opa_boolean(TRUE)) == 0);
+    test("any/set mixed", opa_value_compare(opa_agg_any(&set_mixed->hdr), opa_boolean(TRUE)) == 0);
+    test("any/set falses", opa_value_compare(opa_agg_any(&set_falses->hdr), opa_boolean(FALSE)) == 0);
 }

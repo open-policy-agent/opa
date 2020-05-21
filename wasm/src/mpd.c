@@ -131,7 +131,7 @@ mpd_t *opa_number_to_bf(opa_value *v)
     return r;
 }
 
-opa_value *opa_bf_to_number(mpd_t* n)
+opa_value *opa_bf_to_number(mpd_t *n)
 {
     if (n == NULL)
     {
@@ -268,7 +268,7 @@ mpd_t *opa_bf_bits_to_bf(mpd_t *v)
     return i;
 }
 
-mpd_t *qabs(mpd_t* v)
+mpd_t *qabs(mpd_t *v)
 {
     if (v == NULL)
     {
@@ -288,7 +288,7 @@ mpd_t *qabs(mpd_t* v)
     return a;
 }
 
-mpd_t *qadd_one(mpd_t* v)
+mpd_t *qadd_one(mpd_t *v)
 {
     if (v == NULL)
     {
@@ -308,7 +308,28 @@ mpd_t *qadd_one(mpd_t* v)
     return r;
 }
 
-mpd_t *qsub_one(mpd_t* v)
+mpd_t *qadd(mpd_t *a, mpd_t *b)
+{
+    if (a == NULL || b == NULL)
+    {
+        return NULL;
+    }
+
+    mpd_t *r = mpd_qnew();
+    uint32_t status = 0;
+
+    mpd_qadd(r, a, b, mpd_max_ctx(), &status);
+    if (status)
+    {
+        opa_abort("opa_bits: add");
+    }
+
+    mpd_del(a);
+    mpd_del(b);
+    return r;
+}
+
+mpd_t *qsub_one(mpd_t *v)
 {
     if (v == NULL)
     {
@@ -328,7 +349,28 @@ mpd_t *qsub_one(mpd_t* v)
     return r;
 }
 
-mpd_t* qand(mpd_t *x, mpd_t *y)
+mpd_t *qmul(mpd_t *a, mpd_t *b)
+{
+    if (a == NULL || b == NULL)
+    {
+        return NULL;
+    }
+
+    mpd_t *r = mpd_qnew();
+    uint32_t status = 0;
+
+    mpd_qmul(r, a, b, mpd_max_ctx(), &status);
+    if (status)
+    {
+        opa_abort("opa_bits: mul");
+    }
+
+    mpd_del(a);
+    mpd_del(b);
+    return r;
+}
+
+mpd_t *qand(mpd_t *x, mpd_t *y)
 {
     x = opa_bf_to_bf_bits(x);
     y = opa_bf_to_bf_bits(y);
@@ -354,7 +396,7 @@ mpd_t* qand(mpd_t *x, mpd_t *y)
     return opa_bf_bits_to_bf(r);
 }
 
-mpd_t* qand_not(mpd_t *x, mpd_t *y)
+mpd_t *qand_not(mpd_t *x, mpd_t *y)
 {
     x = opa_bf_to_bf_bits(x);
     y = opa_bf_to_bf_bits(y);
@@ -415,7 +457,7 @@ mpd_t* qand_not(mpd_t *x, mpd_t *y)
     return opa_bf_bits_to_bf(r);
 }
 
-mpd_t* qor(mpd_t *x, mpd_t *y)
+mpd_t *qor(mpd_t *x, mpd_t *y)
 {
     x = opa_bf_to_bf_bits(x);
     y = opa_bf_to_bf_bits(y);
@@ -441,7 +483,7 @@ mpd_t* qor(mpd_t *x, mpd_t *y)
     return opa_bf_bits_to_bf(r);
 }
 
-mpd_t* qxor(mpd_t *x, mpd_t *y)
+mpd_t *qxor(mpd_t *x, mpd_t *y)
 {
     x = opa_bf_to_bf_bits(x);
     y = opa_bf_to_bf_bits(y);
@@ -467,7 +509,7 @@ mpd_t* qxor(mpd_t *x, mpd_t *y)
     return opa_bf_bits_to_bf(r);
 }
 
-mpd_t* qneg(mpd_t *x)
+mpd_t *qneg(mpd_t *x)
 {
     x = opa_bf_to_bf_bits(x);
     if (x == NULL)
