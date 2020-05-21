@@ -9,6 +9,8 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 - format: Fix panic with else blocks and comments ([#2420](https://github.com/open-policy-agent/opa/issues/2420))
 
+## Unreleased
+
 ## 0.20.1
 
 This release fixes an issue in the Docker image build. The
