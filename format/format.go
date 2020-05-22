@@ -550,7 +550,9 @@ func (w *writer) writeRef(x ast.Ref) {
 			case ast.Var:
 				w.writeBracketed(w.formatVar(p))
 			default:
-				w.writeBracketed(p.String())
+				w.write("[")
+				w.writeTerm(ast.NewTerm(p), nil)
+				w.write("]")
 			}
 		}
 	}
