@@ -483,152 +483,305 @@ func TestPluginReconfigure(t *testing.T) {
 }
 
 func TestPluginMasking(t *testing.T) {
+	tests := []struct {
+		note        string
+		rawPolicy   []byte
+		expErased   []string
+		expMasked   []string
+		errManager  error
+		expErr      error
+		input       interface{}
+		expected    interface{}
+		reconfigure bool
+	}{
+		{
+			note: "simple erase (with body true)",
+			rawPolicy: []byte(`
+				package system.log
+				mask["/input/password"] {
+					input.input.is_sensitive
+				}`),
+			expErased: []string{"/input/password"},
+			input: map[string]interface{}{
+				"is_sensitive": true,
+				"password":     "secret",
+			},
+			expected: map[string]interface{}{
+				"is_sensitive": true,
+			},
+		},
+		{
+			note: "simple erase (with body true, plugin reconfigured)",
+			rawPolicy: []byte(`
+				package system.log
+				mask["/input/password"] {
+					input.input.is_sensitive
+				}`),
+			expErased: []string{"/input/password"},
+			input: map[string]interface{}{
+				"is_sensitive": true,
+				"password":     "secret",
+			},
+			expected: map[string]interface{}{
+				"is_sensitive": true,
+			},
+			reconfigure: true,
+		},
+		{
+			note: "simple upsert (with body true)",
+			rawPolicy: []byte(`
+				package system.log
+				mask[{"op": "upsert", "path": "/input/password", "value": x}] {
+					input.input.password
+					x := "**REDACTED**"
+				}`),
+			expMasked: []string{"/input/password"},
+			input: map[string]interface{}{
+				"is_sensitive": true,
+				"password":     "mySecretPassword",
+			},
+			expected: map[string]interface{}{
+				"is_sensitive": true,
+				"password":     "**REDACTED**",
+			},
+		},
+		{
+			note: "remove even with value set in rule body",
+			rawPolicy: []byte(`
+				package system.log
+				mask[{"op": "remove", "path": "/input/password", "value": x}] {
+					input.input.password
+					x := "**REDACTED**"
+				}`),
+			expErased: []string{"/input/password"},
+			input: map[string]interface{}{
+				"is_sensitive": true,
+				"password":     "mySecretPassword",
+			},
+			expected: map[string]interface{}{
+				"is_sensitive": true,
+			},
+		},
+		{
+			note: "remove when value not defined",
+			rawPolicy: []byte(`
+				package system.log
+				mask[{"op": "remove", "path": "/input/password"}] {
+					input.input.password
+				}`),
+			expErased: []string{"/input/password"},
+			input: map[string]interface{}{
+				"is_sensitive": true,
+				"password":     "mySecretPassword",
+			},
+			expected: map[string]interface{}{
+				"is_sensitive": true,
+			},
+		},
+		{
+			note: "remove when value not defined in rule body",
+			rawPolicy: []byte(`
+				package system.log
+				mask[{"op": "remove", "path": "/input/password", "value": x}] {
+					input.input.password
+				}`),
+			errManager: fmt.Errorf("1 error occurred: test.rego:3: rego_unsafe_var_error: var x is unsafe"),
+		},
+		{
+			note: "simple erase - no match",
+			rawPolicy: []byte(`
+				package system.log
+				mask["/input/password"] {
+					input.input.is_sensitive
+				}`),
+			input: map[string]interface{}{
+				"is_not_sensitive": true,
+				"password":         "secret",
+			},
+			expected: map[string]interface{}{
+				"is_not_sensitive": true,
+				"password":         "secret",
+			},
+		},
+		{
+			note: "complex upsert - object key",
+			rawPolicy: []byte(`
+				package system.log
+				mask[{"op": "upsert", "path": "/input/foo", "value": x}] {
+					input.input.foo
+					x := [
+						{"nabs": 1}
+					]
+				}`),
+			input: map[string]interface{}{
+				"bar": 1,
+				"foo": []map[string]interface{}{{"baz": 1}},
+			},
+			// Due to ast.JSON() parsing as part of rego.eval, internal mapped
+			// types from mask rule valuations (for numbers) will be json.Number.
+			// This affects explicitly providing the expected interface{} value.
+			//
+			// See TestMaksRuleErase where tests are written to confirm json marshalled
+			// output is as expected.
+			expected: map[string]interface{}{
+				"bar": 1,
+				"foo": []interface{}{map[string]interface{}{"nabs": json.Number("1")}},
+			},
+		},
+		{
+			note: "upsert failure: unsupported type []map[string]interface{}",
+			rawPolicy: []byte(`
+				package system.log
+				mask[{"op": "upsert", "path": "/input/foo/boo", "value": x}] {
+					x := [
+						{"nabs": 1}
+					]
+				}`),
+			input: map[string]interface{}{
+				"bar": json.Number("1"),
+				"foo": []map[string]interface{}{{"baz": json.Number("1")}},
+			},
+			expected: map[string]interface{}{
+				"bar": json.Number("1"),
+				"foo": []map[string]interface{}{{"baz": json.Number("1")}},
+			},
+		},
+		{
+			note: "mixed mode - complex #1",
+			rawPolicy: []byte(`
+				package system.log
 
-	// Setup masking fixture. Populate store with simple masking policy.
-	ctx := context.Background()
-	store := inmem.New()
+				mask["/input/password"] {
+					input.input.is_sensitive
+				}
 
-	err := storage.Txn(ctx, store, storage.WriteParams, func(txn storage.Transaction) error {
-		if err := store.UpsertPolicy(ctx, txn, "test.rego", []byte(`
-			package system.log
-			mask["/input/password"] {
-				input.input.is_sensitive
+				# invalidate JWT signature
+				mask[{"op": "upsert", "path": "/input/jwt", "value": x}]  {
+					input.input.jwt
+
+					# split jwt string
+					parts := split(input.input.jwt, ".")
+
+					# make sure we have 3 parts
+					count(parts) == 3
+
+					# replace signature
+					new := array.concat(array.slice(parts, 0, 2), [base64url.encode("**REDACTED**")])
+					x = concat(".", new)
+
+				}
+
+				mask[{"op": "upsert", "path": "/input/foo", "value": x}] {
+					input.input.foo
+					x := [
+						{"changed": 1}
+					]
+				}`),
+			input: map[string]interface{}{
+				"is_sensitive": true,
+				"jwt":          "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.cThIIoDvwdueQB468K5xDc5633seEFoqwxjF_xSJyQQ",
+				"bar":          1,
+				"foo":          []map[string]interface{}{{"baz": 1}},
+				"password":     "mySecretPassword",
+			},
+			expected: map[string]interface{}{
+				"is_sensitive": true,
+				"jwt":          "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.KipSRURBQ1RFRCoq",
+				"bar":          1,
+				"foo":          []interface{}{map[string]interface{}{"changed": json.Number("1")}},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			// Setup masking fixture. Populate store with simple masking policy.
+			ctx := context.Background()
+			store := inmem.New()
+
+			err := storage.Txn(ctx, store, storage.WriteParams, func(txn storage.Transaction) error {
+				if err := store.UpsertPolicy(ctx, txn, "test.rego", tc.rawPolicy); err != nil {
+					return err
+				}
+				return nil
+			})
+			if err != nil {
+				t.Fatal(err)
 			}
-		`)); err != nil {
-			return err
-		}
-		return nil
-	})
-	if err != nil {
-		t.Fatal(err)
+
+			// Create and start manager. Start is required so that stored policies
+			// get compiled and made available to the plugin.
+			manager, err := plugins.New(nil, "test", store)
+			if err != nil {
+				t.Fatal(err)
+			} else if err := manager.Start(ctx); err != nil {
+				if tc.errManager != nil {
+					if tc.errManager.Error() != err.Error() {
+						t.Fatalf("expected error %s, but got %s", tc.errManager.Error(), err.Error())
+					}
+				}
+			}
+
+			// Instantiate the plugin.
+			cfg := &Config{Service: "svc"}
+			cfg.validateAndInjectDefaults([]string{"svc"}, nil)
+			plugin := New(cfg, manager)
+
+			if err := plugin.Start(ctx); err != nil {
+				t.Fatal(err)
+			}
+
+			event := &EventV1{
+				Input: &tc.input,
+			}
+
+			if err := plugin.maskEvent(ctx, nil, event); err != nil {
+				t.Fatal(err)
+			}
+
+			if !reflect.DeepEqual(tc.expected, *event.Input) {
+				t.Fatalf("Expected %#+v but got %#+v:", tc.expected, *event.Input)
+			}
+
+			if len(tc.expErased) > 0 {
+				if !reflect.DeepEqual(tc.expErased, event.Erased) {
+					t.Fatalf("Expected erased %v set but got %v", tc.expErased, event.Erased)
+				}
+			}
+
+			if len(tc.expMasked) > 0 {
+				if !reflect.DeepEqual(tc.expMasked, event.Masked) {
+					t.Fatalf("Expected masked %v set but got %v", tc.expMasked, event.Masked)
+				}
+			}
+
+			// if reconfigure in test is on
+			if tc.reconfigure {
+				// Reconfigure and ensure that mask is invalidated.
+				maskDecision := "dead/beef"
+				newConfig := &Config{Service: "svc", MaskDecision: &maskDecision}
+				if err := newConfig.validateAndInjectDefaults([]string{"svc"}, nil); err != nil {
+					t.Fatal(err)
+				}
+
+				plugin.Reconfigure(ctx, newConfig)
+
+				event = &EventV1{
+					Input: &tc.input,
+				}
+
+				if err := plugin.maskEvent(ctx, nil, event); err != nil {
+					t.Fatal(err)
+				}
+
+				if !reflect.DeepEqual(*event.Input, tc.input) {
+					t.Fatalf("Expected %v but got modified input %v", tc.input, event.Input)
+				}
+
+			}
+
+		})
 	}
-
-	// Create and start manager. Start is required so that stored policies
-	// get compiled and made available to the plugin.
-	manager, err := plugins.New(nil, "test", store)
-	if err != nil {
-		t.Fatal(err)
-	} else if err := manager.Start(ctx); err != nil {
-		t.Fatal(err)
-	}
-
-	// Instantiate the plugin.
-	cfg := &Config{Service: "svc"}
-	cfg.validateAndInjectDefaults([]string{"svc"}, nil)
-	plugin := New(cfg, manager)
-
-	if err := plugin.Start(ctx); err != nil {
-		t.Fatal(err)
-	}
-
-	// Test input that requires masking.
-	var input interface{} = map[string]interface{}{
-		"is_sensitive": true,
-		"password":     "secret",
-	}
-	event := &EventV1{
-		Input: &input,
-	}
-	if err := plugin.maskEvent(ctx, nil, event); err != nil {
-		t.Fatal(err)
-	}
-
-	var exp interface{} = map[string]interface{}{
-		"is_sensitive": true,
-	}
-
-	if !reflect.DeepEqual(exp, *event.Input) {
-		t.Fatalf("Expected %v but got %v:", exp, *event.Input)
-	}
-
-	expErased := []string{"/input/password"}
-
-	if !reflect.DeepEqual(expErased, event.Erased) {
-		t.Fatalf("Expected %v but got %v:", expErased, event.Erased)
-	}
-
-	// Test input that DOES NOT require masking.
-	input = map[string]interface{}{
-		"password": "secret", // is_sensitive not set.
-	}
-
-	event = &EventV1{
-		Input: &input,
-	}
-
-	if err := plugin.maskEvent(ctx, nil, event); err != nil {
-		t.Fatal(err)
-	}
-
-	exp = map[string]interface{}{
-		"password": "secret",
-	}
-
-	if !reflect.DeepEqual(exp, *event.Input) {
-		t.Fatalf("Expected %v but got %v:", exp, *event.Input)
-	}
-
-	if len(event.Erased) != 0 {
-		t.Fatalf("Expected empty set but got %v", event.Erased)
-	}
-
-	// Update policy to mask all of input and exercise.
-	err = storage.Txn(ctx, store, storage.WriteParams, func(txn storage.Transaction) error {
-		if err := store.UpsertPolicy(ctx, txn, "test.rego", []byte(`
-			package system.log
-			mask["/input"]
-		`)); err != nil {
-			return err
-		}
-		return nil
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	event = &EventV1{
-		Input: &input,
-	}
-
-	if err := plugin.maskEvent(ctx, nil, event); err != nil {
-		t.Fatal(err)
-	}
-
-	if event.Input != nil {
-		t.Fatalf("Expected input to be nil but got: %v", *event.Input)
-	}
-
-	// Reconfigure and ensure that mask is invalidated.
-	maskDecision := "dead/beef"
-	newConfig := &Config{Service: "svc", MaskDecision: &maskDecision}
-	if err := newConfig.validateAndInjectDefaults([]string{"svc"}, nil); err != nil {
-		t.Fatal(err)
-	}
-
-	plugin.Reconfigure(ctx, newConfig)
-
-	input = map[string]interface{}{
-		"password":     "secret",
-		"is_sensitive": true,
-	}
-
-	event = &EventV1{
-		Input: &input,
-	}
-
-	if err := plugin.maskEvent(ctx, nil, event); err != nil {
-		t.Fatal(err)
-	}
-
-	exp = map[string]interface{}{
-		"password":     "secret",
-		"is_sensitive": true,
-	}
-
-	if !reflect.DeepEqual(exp, input) {
-		t.Fatalf("Expected %v but got modified input %v", exp, input)
-	}
-
 }
 
 const largeEvent = `{

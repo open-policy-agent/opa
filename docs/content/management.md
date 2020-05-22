@@ -269,7 +269,6 @@ opa run bundle.tar.gz
 
 ## Decision Logs
 
-
 OPA can periodically report decision logs to remote HTTP servers. The decision
 logs contain events that describe policy queries. Each event includes the policy
 that was queried, the input to the query, bundle metadata, and other information
@@ -340,7 +339,7 @@ Decision log updates contain the following fields:
 | `[_].timestamp` | `string` | RFC3999 timestamp of policy decision. |
 | `[_].metrics` | `object` | Key-value pairs of [performance metrics](../rest-api#performance-metrics). |
 | `[_].erased` | `array[string]` | Set of JSON Pointers specifying fields in the event that were erased. |
-
+| `[_].masked` | `array[string]` | Set of JSON Pointers specifying fields in the event that were masked. |
 
 ### Local Decision Logs
 
@@ -355,12 +354,11 @@ decision_logs:
 This will dump all decision through the OPA logging system at the `info` level. See
 [Configuration Reference](../configuration) for more details.
 
-
 ### Masking Sensitive Data
 
 Policy queries may contain sensitive information in the `input` document that
-must be removed before decision logs are uploaded to the remote API (e.g.,
-usernames, passwords, etc.) Similarly, parts of the policy decision itself may
+must be removed or modified before decision logs are uploaded to the remote API
+(e.g., usernames, passwords, etc.) Similarly, parts of the policy decision itself may
 be considered sensitive.
 
 By default, OPA queries the `data.system.log.mask` path prior to encoding and
@@ -368,7 +366,7 @@ uploading decision logs or calling custom decision log plugins.
 
 OPA provides the decision log event as input to the policy query and expects
 the query to return a set of JSON Pointers that refer to fields in the decision
-log event to erase.
+log event to either **erase** or **modify**.
 
 For example, assume OPA is queried with the following `input` document:
 
@@ -380,7 +378,7 @@ For example, assume OPA is queried with the following `input` document:
 }
 ```
 
-To remove the `password` field from decision log events related to "user"
+To **remove** the `password` field from decision log events related to "user"
 resources, supply the following policy to OPA:
 
 ```ruby
@@ -425,6 +423,73 @@ There are a few restrictions on the JSON Pointers that OPA will erase:
   above would be undefined. Undefined pointers are ignored.
 * Pointers must refer to object keys. Pointers to array elements will be treated
   as undefined. For example `/input/emails/0/value` is allowed but `/input/emails/0` is not.
+
+In order to **modify** the contents of an input field, the **mask** rule may utilize the following format.
+
+* `"op"` -- The operation to apply when masking. All operations are done at the
+  path specified.  Valid options include:
+    |  op | Description  |
+    |-----|--------------|
+    |  `"remove"` | The `"path"` specified will be removed from the resulting log message. The `"value"` mask field is ignored for `"remove"` operations.  |
+    |  `"upsert"` | The `"value"` will be set at the specified `"path"`. If the field exists it is overwritten, if it does not exist it will be added to the resulting log message.  |
+
+* `"path"` -- A JSON pointer path to the field to perform the operation on.
+
+Optional Fields:
+
+* `"value"` -- Only required for `"upsert"` operations. 
+
+> This is processed for every decision being logged, so be mindful of
+  performance when performing complex operations in the mask body, eg. crypto
+  operations
+
+```ruby
+package system.log
+
+mask[{"op": "upsert", "path": "/input/password", "value": x}] {
+  # conditionally upsert password if it existed in the orginal event
+  input.input.password
+  x := "**REDACTED**"
+}
+```
+
+To always **upsert** a value, even if it didn't exist in the original event,
+the following rule format can be used.
+
+```ruby
+package system.log
+
+# always upsert, no conditions in rule body
+mask[{"op": "upsert", "path": "/input/password", "value": x}] {
+  x := "**REDACTED**"
+}
+```
+
+The result of this mask operation on the decision log event produces
+the following output. Notice that the **mask** event field exists
+to track **remove** vs **upsert** mask operations.
+
+```json
+{
+  "decision_id": "b4638167-7fcb-4bc7-9e80-31f5f87cb738",
+  "erased": [
+    "/input/ssn"
+  ],
+  "masked": [
+    "/input/password"
+  ],
+  "input": {
+    "name": "bob",
+    "resource": "user",
+    "password": "**REDACTED**"
+  },
+------------------------- 8< -------------------------
+  "path": "system/main",
+  "requested_by": "127.0.0.1:36412",
+  "result": true,
+  "timestamp": "2019-06-03T20:07:16.939402185Z"
+}
+```
 
 ## Status
 
