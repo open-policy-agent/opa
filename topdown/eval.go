@@ -49,7 +49,8 @@ type eval struct {
 	input              *ast.Term
 	data               *ast.Term
 	targetStack        *refStack
-	tracers            []Tracer
+	tracers            []QueryTracer
+	traceEnabled       bool
 	plugTraceVars      bool
 	instr              *Instrumentation
 	builtins           map[string]*Builtin
@@ -168,7 +169,7 @@ func (e *eval) traceIndex(x ast.Node, msg string) {
 
 func (e *eval) traceEvent(op Op, x ast.Node, msg string) {
 
-	if !traceIsEnabled(e.tracers) {
+	if !e.traceEnabled {
 		return
 	}
 
@@ -177,7 +178,7 @@ func (e *eval) traceEvent(op Op, x ast.Node, msg string) {
 		parentID = e.parent.queryID
 	}
 
-	evt := &Event{
+	evt := Event{
 		QueryID:  e.queryID,
 		ParentID: parentID,
 		Op:       op,
@@ -224,9 +225,7 @@ func (e *eval) traceEvent(op Op, x ast.Node, msg string) {
 	}
 
 	for i := range e.tracers {
-		if e.tracers[i].Enabled() {
-			e.tracers[i].Trace(evt)
-		}
+		e.tracers[i].TraceEvent(evt)
 	}
 }
 
@@ -604,15 +603,16 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 	}
 
 	bctx := BuiltinContext{
-		Context:  e.ctx,
-		Seed:     e.seed,
-		Cancel:   e.cancel,
-		Runtime:  e.runtime,
-		Cache:    e.builtinCache,
-		Location: e.query[e.index].Location,
-		Tracers:  e.tracers,
-		QueryID:  e.queryID,
-		ParentID: parentID,
+		Context:      e.ctx,
+		Seed:         e.seed,
+		Cancel:       e.cancel,
+		Runtime:      e.runtime,
+		Cache:        e.builtinCache,
+		Location:     e.query[e.index].Location,
+		QueryTracers: e.tracers,
+		TraceEnabled: e.traceEnabled,
+		QueryID:      e.queryID,
+		ParentID:     parentID,
 	}
 
 	eval := evalBuiltin{

@@ -5,6 +5,17 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Backwards Compatibility
+
+* `topdown.Tracer` has been deprecated in favor of a newer interface
+  `topdown.QueryTracer`.  
+* All tracers (regardless of interface implementation) will now only be checked
+  for being enabled at the beginning of query evaluation rather than on a
+  per-event basis.
+* `topdown.BuiltinContext#Tracers` has been deprecated in favor of
+  `topdown.BuiltinContext#QueryTracers`. The older `Tracers` field will be `nil`
+  starting this release, and eventually removed.
+
 ## 0.20.5
 
 ### Fixes
