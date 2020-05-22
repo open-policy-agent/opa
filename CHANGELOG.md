@@ -5,6 +5,12 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+## 0.20.4
+
+### Fixes
+
+- format: Refactor wildcard names to rewrite early ([#2430](https://github.com/open-policy-agent/opa/issues/2430))
+
 ## 0.20.3
 
 ### Fixes
