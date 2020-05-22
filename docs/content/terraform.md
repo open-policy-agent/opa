@@ -858,7 +858,7 @@ This should return one of the two resources. The security group created by the m
 
 ```shell
 [
-"No security groups should be using HTTP , module.http_sg.aws_security_group.this_name_prefix[0] does"
+"No security groups should be using HTTP. Resource in violation: module.http_sg.aws_security_group.this_name_prefix[0]"
 ]
 ```
 
