@@ -1012,7 +1012,7 @@ func TestShortTraceFileNames(t *testing.T) {
 }
 
 func TestBufferTracerTraceConfig(t *testing.T) {
-	ct := CustomTracer(NewBufferTracer())
+	ct := QueryTracer(NewBufferTracer())
 	conf := ct.Config()
 
 	expected := TraceConfig{

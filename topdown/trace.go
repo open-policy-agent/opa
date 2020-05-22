@@ -131,14 +131,18 @@ func (evt *Event) equalNodes(other *Event) bool {
 }
 
 // Tracer defines the interface for tracing in the top-down evaluation engine.
+// Deprecated: Use QueryTracer instead.
 type Tracer interface {
 	Enabled() bool
 	Trace(*Event)
 }
 
-// CustomTracer defines a Tracer which has some customized configuration
-type CustomTracer interface {
-	Tracer
+// QueryTracer defines the interface for tracing in the top-down evaluation engine.
+// The implementation can provide additional configuration to modify the tracing
+// behavior for query evaluations.
+type QueryTracer interface {
+	Enabled() bool
+	TraceEvent(Event)
 	Config() TraceConfig
 }
 
@@ -147,8 +151,31 @@ type TraceConfig struct {
 	PlugLocalVars bool // Indicate whether to plug local variable bindings before calling into the tracer.
 }
 
-// BufferTracer implements the Tracer interface by simply buffering all events
-// received.
+// legacyTracer Implements the QueryTracer interface by wrapping an older Tracer instance.
+type legacyTracer struct {
+	t Tracer
+}
+
+func (l *legacyTracer) Enabled() bool {
+	return l.t.Enabled()
+}
+
+func (l *legacyTracer) Config() TraceConfig {
+	return TraceConfig{
+		PlugLocalVars: true, // For backwards compatibility old tracers will plug local variables
+	}
+}
+
+func (l *legacyTracer) TraceEvent(evt Event) {
+	l.t.Trace(&evt)
+}
+
+func wrapLegacyTracer(tracer Tracer) QueryTracer {
+	return &legacyTracer{t: tracer}
+}
+
+// BufferTracer implements the Tracer and QueryTracer interface by
+// simply buffering all events received.
 type BufferTracer []*Event
 
 // NewBufferTracer returns a new BufferTracer.
@@ -165,8 +192,14 @@ func (b *BufferTracer) Enabled() bool {
 }
 
 // Trace adds the event to the buffer.
+// Deprecated: Use TraceEvent instead.
 func (b *BufferTracer) Trace(evt *Event) {
 	*b = append(*b, evt)
+}
+
+// TraceEvent adds the event to the buffer.
+func (b *BufferTracer) TraceEvent(evt Event) {
+	*b = append(*b, &evt)
 }
 
 // Config returns the Tracers standard configuration
@@ -357,11 +390,11 @@ func builtinTrace(bctx BuiltinContext, args []*ast.Term, iter func(*ast.Term) er
 		return handleBuiltinErr(ast.Trace.Name, bctx.Location, err)
 	}
 
-	if !traceIsEnabled(bctx.Tracers) {
+	if !bctx.TraceEnabled {
 		return iter(ast.BooleanTerm(true))
 	}
 
-	evt := &Event{
+	evt := Event{
 		Op:       NoteOp,
 		Location: bctx.Location,
 		QueryID:  bctx.QueryID,
@@ -369,20 +402,11 @@ func builtinTrace(bctx BuiltinContext, args []*ast.Term, iter func(*ast.Term) er
 		Message:  string(str),
 	}
 
-	for i := range bctx.Tracers {
-		bctx.Tracers[i].Trace(evt)
+	for i := range bctx.QueryTracers {
+		bctx.QueryTracers[i].TraceEvent(evt)
 	}
 
 	return iter(ast.BooleanTerm(true))
-}
-
-func traceIsEnabled(tracers []Tracer) bool {
-	for i := range tracers {
-		if tracers[i].Enabled() {
-			return true
-		}
-	}
-	return false
 }
 
 func rewrite(event *Event) *Event {
