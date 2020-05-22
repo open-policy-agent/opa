@@ -46,6 +46,7 @@ type EventV1 struct {
 	Input       *interface{}            `json:"input,omitempty"`
 	Result      *interface{}            `json:"result,omitempty"`
 	Erased      []string                `json:"erased,omitempty"`
+	Masked      []string                `json:"masked,omitempty"`
 	Error       error                   `json:"error,omitempty"`
 	RequestedBy string                  `json:"requested_by"`
 	Timestamp   time.Time               `json:"timestamp"`
@@ -518,13 +519,16 @@ func (p *Plugin) maskEvent(ctx context.Context, txn storage.Transaction, event *
 		return nil
 	}
 
-	ptrs, err := resultValueToPtrs(rs[0].Expressions[0].Value)
+	mRules, err := resultValueToMaskRules(rs[0].Expressions[0].Value)
 	if err != nil {
 		return err
 	}
 
-	for _, ptr := range ptrs {
-		ptr.Erase(event)
+	for _, mRule := range mRules {
+		err := mRule.Mask(event)
+		if err != nil {
+			p.logError("mask rule skipped: %s: %s", mRule.String(), err.Error())
+		}
 	}
 
 	return nil
