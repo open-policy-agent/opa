@@ -273,6 +273,21 @@ __wildcard0__[x]`,
 			expected: `__wildcard0__
 a[__wildcard0__[x]]`,
 		},
+		{
+			note: "body shared wildcard - nested ref array",
+			toFmt: ast.Body{
+				&ast.Expr{
+					Index: 0,
+					Terms: ast.VarTerm("$x"),
+				},
+				&ast.Expr{
+					Index: 1,
+					Terms: ast.RefTerm(ast.VarTerm("a"), ast.RefTerm(ast.VarTerm("$x"), ast.VarTerm("x"), ast.ArrayTerm(ast.VarTerm("y"), ast.VarTerm("z")))),
+				},
+			},
+			expected: `__wildcard0__
+a[__wildcard0__[x][[y, z]]]`,
+		},
 	}
 
 	for _, tc := range cases {
