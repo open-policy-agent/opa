@@ -12,8 +12,11 @@ FROM ${BASE}
 # not specified.
 ARG USER=0
 
+ARG OS=linux
+ARG ARCH=amd64
+
 MAINTAINER Torin Sandall <torinsandall@gmail.com>
-COPY opa_linux_amd64 /opa
+COPY opa_${OS}_${ARCH} /opa
 USER ${USER}
 ENTRYPOINT ["/opa"]
 CMD ["run"]
