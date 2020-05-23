@@ -57,7 +57,7 @@ generate: wasm-lib-build
 build: go-build
 
 .PHONY: image
-image: build-linux
+image: build-linux-amd64 build-linux-armv6 
 	@$(MAKE) image-quick
 
 .PHONY: install
@@ -185,7 +185,7 @@ travis-go:
 		-w /src \
 		-e GOCACHE=/src/.go/cache \
 		golang:$(GOVERSION) \
-		make build-linux build-windows build-darwin go-test perf travis-check
+		make build-linux-amd64 build-linux-armv6 build-windows build-darwin go-test perf travis-check
 
 .PHONY: travis-check
 travis-check: check
@@ -201,9 +201,14 @@ travis-wasm: wasm-lib-test
 .PHONY: travis
 travis: travis-go travis-wasm
 
-.PHONY: build-linux
-build-linux:
-	@$(MAKE) build GOOS=linux
+.PHONY: build-linux-amd64
+build-linux-amd64:
+	@$(MAKE) build GOOS=linux GOARCH=amd64
+
+.PHONY: build-linux-armv6
+build-linux-armv6:
+	@$(MAKE) build GOOS=linux GOARCH=arm
+	mv opa_linux_arm opa_linux_armv6
 
 .PHONY: build-darwin
 build-darwin:
@@ -216,45 +221,65 @@ build-windows:
 
 .PHONY: image-quick
 image-quick:
-	$(DOCKER) build -t $(IMAGE):$(VERSION) --build-arg BASE=scratch .
-	$(DOCKER) build -t $(IMAGE):$(VERSION)-debug --build-arg BASE=gcr.io/distroless/base:debug .
-	$(DOCKER) build -t $(IMAGE):$(VERSION)-rootless --build-arg USER=1000 --build-arg BASE=scratch .
+	$(DOCKER) buildx build -t $(IMAGE):$(VERSION)-linux-amd64 --platform linux/amd64 --build-arg BASE=scratch .
+	$(DOCKER) buildx build -t $(IMAGE):$(VERSION)-linux-armv6 --platform linux/arm/v6 --build-arg BASE=scratch --build-arg ARCH=armv6 .
+
+	$(DOCKER) buildx build -t $(IMAGE):$(VERSION)-debug-linux-amd64 --platform linux/amd64 --build-arg BASE=gcr.io/distroless/base:debug .
+	$(DOCKER) buildx build -t $(IMAGE):$(VERSION)-debug-linux-armv6 --platform linux/arm/v6 --build-arg BASE=gcr.io/distroless/base:debug --build-arg ARCH=armv6 .
+
+	$(DOCKER) buildx build -t $(IMAGE):$(VERSION)-rootless-linux-amd64 --build-arg USER=1000 --build-arg BASE=scratch .
+	$(DOCKER) buildx build -t $(IMAGE):$(VERSION)-rootless-linux-armv6 --build-arg USER=1000 --build-arg BASE=scratch --build-arg ARCH=armv6 .
 
 .PHONY: push
 push:
-	$(DOCKER) push $(IMAGE):$(VERSION)
-	$(DOCKER) push $(IMAGE):$(VERSION)-debug
-	$(DOCKER) push $(IMAGE):$(VERSION)-rootless
+	$(DOCKER) push $(IMAGE):$(VERSION)-linux-amd64
+	$(DOCKER) push $(IMAGE):$(VERSION)-linux-armv6
+
+	$(DOCKER) manifest create --amend $(IMAGE):$(VERSION) $(IMAGE):$(VERSION)-linux-amd64 $(IMAGE):$(VERSION)-linux-armv6
+	$(DOCKER) manifest push --purge $(IMAGE):$(VERSION)
+
+	$(DOCKER) push $(IMAGE):$(VERSION)-debug-linux-amd64
+	$(DOCKER) push $(IMAGE):$(VERSION)-debug-linux-armv6
+
+	$(DOCKER) manifest create --amend $(IMAGE):$(VERSION)-debug $(IMAGE):$(VERSION)-debug-linux-amd64 $(IMAGE):$(VERSION)-debug-linux-armv6
+	$(DOCKER) manifest push --purge $(IMAGE):$(VERSION)-debug
+
+	$(DOCKER) push $(IMAGE):$(VERSION)-rootless-linux-amd64
+	$(DOCKER) push $(IMAGE):$(VERSION)-rootless-linux-armv6
+
+	$(DOCKER) manifest create --amend $(IMAGE):$(VERSION)-rootless $(IMAGE):$(VERSION)-rootless-linux-amd64 $(IMAGE):$(VERSION)-rootless-linux-armv6
+	$(DOCKER) manifest push --purge $(IMAGE):$(VERSION)-rootless
 
 .PHONY: tag-latest
 tag-latest:
-	$(DOCKER) tag $(IMAGE):$(VERSION) $(IMAGE):latest
-	$(DOCKER) tag $(IMAGE):$(VERSION)-debug $(IMAGE):latest-debug
-	$(DOCKER) tag $(IMAGE):$(VERSION)-rootless $(IMAGE):latest-rootless
+	$(DOCKER) manifest create --amend $(IMAGE):latest $(IMAGE):$(VERSION)-linux-amd64 $(IMAGE):$(VERSION)-linux-armv6
+	$(DOCKER) manifest create --amend $(IMAGE):latest-debug $(IMAGE):$(VERSION)-debug-linux-amd64 $(IMAGE):$(VERSION)-debug-linux-armv6
+	$(DOCKER) manifest create --amend $(IMAGE):latest-rootless $(IMAGE):$(VERSION)-rootless-linux-amd64 $(IMAGE):$(VERSION)-rootless-linux-armv6
 
 .PHONY: push-latest
 push-latest:
-	$(DOCKER) push $(IMAGE):latest
-	$(DOCKER) push $(IMAGE):latest-debug
-	$(DOCKER) push $(IMAGE):latest-rootless
+	$(DOCKER) manifest push --purge $(IMAGE):latest
+	$(DOCKER) manifest push --purge $(IMAGE):latest-debug
+	$(DOCKER) manifest push --purge $(IMAGE):latest-rootless
 
 .PHONY: push-binary-edge
 push-binary-edge:
 	aws s3 cp opa_darwin_$(GOARCH) s3://opa-releases/edge/opa_darwin_$(GOARCH)
 	aws s3 cp opa_windows_$(GOARCH).exe s3://opa-releases/edge/opa_windows_$(GOARCH).exe
 	aws s3 cp opa_linux_$(GOARCH) s3://opa-releases/edge/opa_linux_$(GOARCH)
+	aws s3 cp opa_linux_armv6 s3://opa-releases/edge/opa_linux_armv6
 
 .PHONY: tag-edge
 tag-edge:
-	$(DOCKER) tag $(IMAGE):$(VERSION) $(IMAGE):edge
-	$(DOCKER) tag $(IMAGE):$(VERSION)-debug $(IMAGE):edge-debug
-	$(DOCKER) tag $(IMAGE):$(VERSION)-rootless $(IMAGE):edge-rootless
+	$(DOCKER) manifest create --amend $(IMAGE):edge $(IMAGE):$(VERSION)-linux-amd64 $(IMAGE):$(VERSION)-linux-armv6
+	$(DOCKER) manifest create --amend $(IMAGE):edge-debug $(IMAGE):$(VERSION)-debug-linux-amd64 $(IMAGE):$(VERSION)-debug-linux-armv6
+	$(DOCKER) manifest create --amend $(IMAGE):edge-rootless $(IMAGE):$(VERSION)-rootless-linux-amd64 $(IMAGE):$(VERSION)-rootless-linux-armv6
 
 .PHONY: push-edge
 push-edge:
-	$(DOCKER) push $(IMAGE):edge
-	$(DOCKER) push $(IMAGE):edge-debug
-	$(DOCKER) push $(IMAGE):edge-rootless
+	$(DOCKER) manifest push --purge $(IMAGE):edge
+	$(DOCKER) manifest push --purge $(IMAGE):edge-debug
+	$(DOCKER) manifest push --purge $(IMAGE):edge-rootless
 
 .PHONY: docker-login
 docker-login:
