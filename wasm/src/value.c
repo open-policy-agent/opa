@@ -1,4 +1,7 @@
+#include <mpdecimal.h>
+
 #include "malloc.h"
+#include "mpd.h"
 #include "str.h"
 #include "value.h"
 
@@ -313,10 +316,28 @@ int opa_value_compare_number(opa_number_t *a, opa_number_t *b)
         return 0;
     }
 
-    double da = opa_number_as_float(a);
-    double db = opa_number_as_float(b);
+    if (a->repr == OPA_NUMBER_REPR_FLOAT && b->repr == OPA_NUMBER_REPR_FLOAT)
+    {
+        double da = opa_number_as_float(a);
+        double db = opa_number_as_float(b);
 
-    return opa_value_compare_float(da, db);
+        return opa_value_compare_float(da, db);
+    }
+
+    mpd_t *ba = opa_number_to_bf(&a->hdr);
+    mpd_t *bb = opa_number_to_bf(&b->hdr);
+
+    uint32_t status = 0;
+    int c = mpd_qcmp(ba, bb, &status);
+    if (status)
+    {
+        opa_abort("opa_value_compare_number");
+    }
+
+    mpd_del(ba);
+    mpd_del(bb);
+
+    return c;
 }
 
 int opa_value_compare_string(opa_string_t *a, opa_string_t *b)

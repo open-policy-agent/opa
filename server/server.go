@@ -2151,12 +2151,15 @@ func (s *Server) makeRego(ctx context.Context, partial bool, txn storage.Transac
 		defer s.mtx.Unlock()
 		pr, ok := s.partials[queryPath]
 		if !ok {
-			opts = append(opts, rego.PartialNamespace(namespace))
-			r := rego.New(opts...)
+			peopts := append(opts, rego.PartialNamespace(namespace))
+			r := rego.New(peopts...)
 			var err error
 			pr, err = r.PartialResult(ctx)
 			if err != nil {
-				return nil, err
+				if !rego.IsPartialEvaluationNotEffectiveErr(err) {
+					return nil, err
+				}
+				return rego.New(opts...), nil
 			}
 			s.partials[queryPath] = pr
 		}

@@ -28,6 +28,8 @@ This tutorial requires
 (This tutorial *should* also work with the [latest version of Terraform](https://www.terraform.io/downloads.html), but 
 it is untested.  Contributions welcome!)
 
+# Getting Started
+
 ## Steps
 
 ### 1. Create and save a Terraform plan
@@ -666,7 +668,6 @@ curl localhost:8181/v0/data/terraform/analysis/authz -d @tfplan.json
 curl localhost:8181/v0/data/terraform/analysis/authz -d @tfplan_large.json
 ```
 
-
 ## Wrap Up
 
 Congratulations for finishing the tutorial!
@@ -681,3 +682,194 @@ Keep in mind that it's up to you to decide how to use OPA's Terraform tests and 
 * Add it as part of your Terraform wrapper to implement unit tests on Terraform plans
 * Use it to automatically approve run-of-the-mill Terraform changes to reduce the burden of peer-review
 * Embed it into your deployment system to catch problems that arise when applying Terraform to production after applying it to staging
+
+If you'd like to explore an additional example that uses terraform modules please continue below.
+
+# Working with Modules
+
+## Module Steps
+
+### 1. Create and save Terraform module plan 
+
+Create a new Terraform file that includes a
+security group and security group from a module.  (This example uses the module from https://github.com/terraform-aws-modules/terraform-aws-security-group)
+
+```shell
+cat >main.tf <<EOF
+provider "aws" {
+  region = "us-east-1"
+}
+
+data "aws_vpc" "default" {
+  default = true
+}
+
+module "http_sg" {
+  source = "git::https://github.com/terraform-aws-modules/terraform-aws-security-group.git?ref=v3.10.0"
+
+  name        = "http-sg"
+  description = "Security group with HTTP ports open for everybody (IPv4 CIDR), egress ports are all world open"
+  vpc_id      = data.aws_vpc.default.id
+
+  ingress_cidr_blocks = ["0.0.0.0/0"]
+}
+
+
+resource "aws_security_group" "allow_tls" {
+  name        = "allow_tls"
+  description = "Allow TLS inbound traffic"
+  vpc_id      = data.aws_vpc.default.id
+
+  ingress {
+    description = "TLS from VPC"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["10.0.0.0/8"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "allow_tls"
+  }
+}
+EOF
+```
+
+Then initialize Terraform and ask it to calculate what changes it will make and store the output in `tfplan.binary`.
+
+```shell
+terraform init
+terraform plan --out tfplan.binary
+```
+
+### 2. Convert the new Terraform plan into JSON
+
+Use the Terraform show command to produce the json representation of the terraform plan
+
+```shell
+terraform show -json tfplan.binary > tfplan2.json
+```
+
+### 3. Write the OPA policy to collect resources
+
+The policy evaluates if a security group is valid based on the contents of it's description:
+
+* Resources can be specified under the root module or in child modules
+* We want to evaluate against the combined group of these resources
+* This example is scoped to the planned changes section of the json representation
+
+The policy uses the walk keyword to explore the json structure, and uses conditions to filter for the specific paths where resources would be found.
+
+**terraform_module.rego**:
+
+```shell
+package terraform.module
+
+deny[msg] {
+  desc := resources[r].values.description
+  contains(desc, "HTTP")
+  msg = sprintf("No security groups should be using HTTP. Resource in violation: %v",[r.address])
+}
+
+resources := { r |
+  some path, value
+    
+  # Walk over the JSON tree and check if the node we are
+  # currently on is a module (either root or child) resources
+  # value.
+  walk(input.planned_values, [path, value])
+
+  # Look for resources in the current value based on path
+  rs := module_resources(path, value)
+
+  # Aggregate them into `resources`
+  r := rs[_]
+}
+
+# Variant to match root_module resources
+module_resources(path, value) = rs {
+
+  # Expect something like:
+  #     
+  #     {
+  #     	"root_module": {
+  #         	"resources": [...],
+  #             ...
+  #         }
+  #         ...
+  #     }
+  #
+  # Where the path is [..., "root_module", "resources"]
+
+  reverse_index(path, 1) == "resources"
+  reverse_index(path, 2) == "root_module"
+  rs := value
+}
+
+# Variant to match child_modules resources
+module_resources(path, value) = rs {
+
+  # Expect something like:
+  #     
+  #     {
+  #     	...
+  #         "child_modules": [
+  #         	{
+  #             	"resources": [...],
+  #                 ...
+  #             },
+  #             ...
+  #         ]
+  #         ...
+  #     }
+  #
+  # Where the path is [..., "child_modules", 0, "resources"]
+  # Note that there will always be an index int between `child_modules`
+  # and `resources`. We know that walk will only visit each one once,
+  # so we shouldn't need to keep track of what the index is.
+
+  reverse_index(path, 1) == "resources"
+  reverse_index(path, 3) == "child_modules"
+  rs := value
+}
+
+reverse_index(path, idx) = value {
+	value := path[count(path) - idx]
+}
+```
+
+### 4. Evaluate the OPA policy on the Terraform module plan
+
+To evaluate the policy against that plan, you hand OPA the policy, the Terraform plan as input, and
+ask it to evaluate `data.terraform.module.deny`.
+
+```shell
+opa eval --format pretty --data terraform_module.rego --input tfplan2.json "data.terraform.module.deny"
+```
+
+This should return one of the two resources. The security group created by the module uses HTTP in its description and therefore fails the evaluation.
+
+```shell
+[
+"No security groups should be using HTTP. Resource in violation: module.http_sg.aws_security_group.this_name_prefix[0]"
+]
+```
+
+## Module Wrap Up
+
+Congratulations for finishing the tutorial!
+
+You learned OPA can be used to determine if a proposed configuration is authorized.
+
+Additional use cases might include:
+
+* Ensuring all resources have tags before they are created
+* Making sure naming standards for resources are followed
+* Security or operational requirements

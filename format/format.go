@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"regexp"
 	"sort"
-	"strings"
 
 	"github.com/open-policy-agent/opa/ast"
 )
@@ -46,7 +45,7 @@ func MustAst(x interface{}) []byte {
 // encountered, a default location will be set on the AST node.
 func Ast(x interface{}) (formatted []byte, err error) {
 
-	wildcards := map[string]struct{}{}
+	wildcards := map[string]*ast.Term{}
 	wildcardNames := map[string]string{}
 	wildcardCounter := 0
 
@@ -63,10 +62,24 @@ func Ast(x interface{}) (formatted []byte, err error) {
 				if v.IsWildcard() {
 					str := string(v)
 					if _, seen := wildcards[str]; !seen {
-						wildcards[str] = struct{}{}
-					} else if !strings.HasPrefix(wildcardNames[str], "__wildcard") {
-						wildcardNames[str] = fmt.Sprintf("__wildcard%d__", wildcardCounter)
-						wildcardCounter++
+						// Keep a reference to the wildcard term so we can, if
+						// needed, rewrite it later
+						wildcards[str] = n
+					} else {
+						// On the second time we have seen the wildcard generate
+						// a name for it
+						newName, ok := wildcardNames[str]
+						if !ok {
+							newName = fmt.Sprintf("__wildcard%d__", wildcardCounter)
+							wildcardNames[str] = newName
+							wildcardCounter++
+
+							// Rewrite the first one that was "seen"
+							wildcards[str].Value = ast.Var(newName)
+						}
+
+						// Rewrite the current wildcard with its generated name
+						n.Value = ast.Var(newName)
 					}
 				}
 			}
@@ -307,6 +320,12 @@ func (w *writer) writeElse(rule *ast.Rule, comments []*ast.Comment) []*ast.Comme
 	rule.Else.Head.Name = ast.Var("else")
 	rule.Else.Head.Args = nil
 	comments = w.insertComments(comments, rule.Else.Head.Location)
+
+	if hasCommentAbove && !wasInline {
+		// The comments would have ended the line, be sure to start one again
+		// before writing the rest of the "else" rule.
+		w.startLine()
+	}
 
 	// For backwards compatibility adjust the rule head value location
 	// TODO: Refactor the logic for inserting comments, or special
@@ -567,9 +586,6 @@ func (w *writer) writeRefStringPath(s ast.String) {
 
 func (w *writer) formatVar(v ast.Var) string {
 	if v.IsWildcard() {
-		if generatedName, ok := w.wildcardNames[string(v)]; ok {
-			return generatedName
-		}
 		return ast.Wildcard.String()
 	}
 	return v.String()
@@ -1005,9 +1021,6 @@ func dedupComments(comments []*ast.Comment) []*ast.Comment {
 
 // startLine begins a line with the current indentation level.
 func (w *writer) startLine() {
-	if w.inline {
-		panic("currently in a line")
-	}
 	w.inline = true
 	for i := 0; i < w.level; i++ {
 		w.write(w.indent)
@@ -1016,9 +1029,6 @@ func (w *writer) startLine() {
 
 // endLine ends a line with a newline.
 func (w *writer) endLine() {
-	if !w.inline {
-		panic("not in a line")
-	}
 	w.inline = false
 	if w.beforeEnd != nil && !w.delay {
 		w.write(" " + w.beforeEnd.String())

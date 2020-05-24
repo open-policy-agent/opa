@@ -4,6 +4,8 @@
 
 ARG BASE
 
+FROM gcr.io/distroless/base as certs
+
 FROM ${BASE}
 
 # Any non-zero number will do, and unfortunately a named user will not, as k8s
@@ -16,7 +18,10 @@ ARG OS=linux
 ARG ARCH=amd64
 
 MAINTAINER Torin Sandall <torinsandall@gmail.com>
+
+COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY opa_${OS}_${ARCH} /opa
+
 USER ${USER}
 ENTRYPOINT ["/opa"]
 CMD ["run"]

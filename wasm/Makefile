@@ -46,6 +46,9 @@ $(WASM_OBJ_DIR)/arithmetic.wasm: src/arithmetic.c
 $(WASM_OBJ_DIR)/array.wasm: src/array.c
 	@$(CC) $(CFLAGS) -c $^ -o $@
 
+$(WASM_OBJ_DIR)/bits-builtins.wasm: src/bits-builtins.c
+	@$(CC) $(CFLAGS) -c $^ -o $@
+
 $(WASM_OBJ_DIR)/context.wasm: src/context.c
 	@$(CC) $(CFLAGS) -c $^ -o $@
 
@@ -53,6 +56,9 @@ $(WASM_OBJ_DIR)/json.wasm: src/json.c
 	@$(CC) $(CFLAGS) -c $^ -o $@
 
 $(WASM_OBJ_DIR)/malloc.wasm: src/malloc.c
+	@$(CC) $(CFLAGS) -c $^ -o $@
+
+$(WASM_OBJ_DIR)/mpd.wasm: src/mpd.c
 	@$(CC) $(CFLAGS) -c $^ -o $@
 
 $(WASM_OBJ_DIR)/set.wasm: src/set.c
@@ -79,6 +85,7 @@ $(WASM_OBJ_DIR)/libmpdec-%.wasm: src/libmpdec/%.c
 $(WASM_OBJ_DIR)/opa.wasm: \
 		$(WASM_OBJ_DIR)/arithmetic.wasm \
 		$(WASM_OBJ_DIR)/array.wasm \
+		$(WASM_OBJ_DIR)/bits-builtins.wasm \
 		$(WASM_OBJ_DIR)/context.wasm \
 		$(WASM_OBJ_DIR)/json.wasm \
 		$(WASM_OBJ_DIR)/lib-ctype.wasm \
@@ -104,6 +111,7 @@ $(WASM_OBJ_DIR)/opa.wasm: \
 		$(WASM_OBJ_DIR)/libmpdec-sixstep.wasm \
 		$(WASM_OBJ_DIR)/libmpdec-transpose.wasm \
 		$(WASM_OBJ_DIR)/malloc.wasm \
+		$(WASM_OBJ_DIR)/mpd.wasm \
 		$(WASM_OBJ_DIR)/str.wasm \
 		$(WASM_OBJ_DIR)/set.wasm \
 		$(WASM_OBJ_DIR)/types.wasm \
@@ -124,6 +132,7 @@ $(WASM_OBJ_DIR)/test.wasm: tests/test.c
 $(WASM_OBJ_DIR)/opa-test.wasm: \
 		$(WASM_OBJ_DIR)/arithmetic.wasm \
 		$(WASM_OBJ_DIR)/array.wasm \
+		$(WASM_OBJ_DIR)/bits-builtins.wasm \
 		$(WASM_OBJ_DIR)/context.wasm \
 		$(WASM_OBJ_DIR)/json.wasm \
 		$(WASM_OBJ_DIR)/lib-ctype.wasm \
@@ -149,6 +158,7 @@ $(WASM_OBJ_DIR)/opa-test.wasm: \
 		$(WASM_OBJ_DIR)/libmpdec-sixstep.wasm \
 		$(WASM_OBJ_DIR)/libmpdec-transpose.wasm \
 		$(WASM_OBJ_DIR)/malloc.wasm \
+		$(WASM_OBJ_DIR)/mpd.wasm \
 		$(WASM_OBJ_DIR)/str.wasm \
 		$(WASM_OBJ_DIR)/set.wasm \
 		$(WASM_OBJ_DIR)/test.wasm \

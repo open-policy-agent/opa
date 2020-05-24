@@ -258,6 +258,36 @@ foo[__wildcard1__][__wildcard0__].bar = bar[__wildcard1__][_][__wildcard0__].bar
 			expected: `__wildcard0__
 __wildcard0__[x]`,
 		},
+		{
+			note: "body shared wildcard - nested ref",
+			toFmt: ast.Body{
+				&ast.Expr{
+					Index: 0,
+					Terms: ast.VarTerm("$x"),
+				},
+				&ast.Expr{
+					Index: 1,
+					Terms: ast.RefTerm(ast.VarTerm("a"), ast.RefTerm(ast.VarTerm("$x"), ast.VarTerm("x"))),
+				},
+			},
+			expected: `__wildcard0__
+a[__wildcard0__[x]]`,
+		},
+		{
+			note: "body shared wildcard - nested ref array",
+			toFmt: ast.Body{
+				&ast.Expr{
+					Index: 0,
+					Terms: ast.VarTerm("$x"),
+				},
+				&ast.Expr{
+					Index: 1,
+					Terms: ast.RefTerm(ast.VarTerm("a"), ast.RefTerm(ast.VarTerm("$x"), ast.VarTerm("x"), ast.ArrayTerm(ast.VarTerm("y"), ast.VarTerm("z")))),
+				},
+			},
+			expected: `__wildcard0__
+a[__wildcard0__[x][[y, z]]]`,
+		},
 	}
 
 	for _, tc := range cases {
