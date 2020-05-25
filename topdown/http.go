@@ -467,7 +467,9 @@ func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) 
 	// an error will not be returned. Instead the "body" field
 	// in the result will be null.
 	if isContentTypeJSON(resp.Header) || forceJSONDecode {
-		json.NewDecoder(&buf).Decode(&resultBody)
+		if err := json.NewDecoder(&buf).Decode(&resultBody); err != nil {
+			return nil, err
+		}
 	}
 
 	respHeaders := map[string]interface{}{}
