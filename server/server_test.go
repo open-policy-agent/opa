@@ -1064,6 +1064,27 @@ p = true { false }`
 			{http.MethodPut, "/data/x", `1`, 204, ""},
 			{http.MethodPost, "/data/testmod/p?partial", "", 200, `{"result": true}`},
 		}},
+		{"partial ineffective fallback to normal", []tr{
+			{http.MethodPut, "/policies/test", testMod7, 200, ""},
+			{http.MethodPost, "/data?partial", "", 200, `{
+				"result": {
+					"testmod": {
+					"p": false,
+					"q": [],
+					"r": []
+					}
+				}
+			}`},
+			{http.MethodPost, "/data", "", 200, `{
+				"result": {
+					"testmod": {
+					"p": false,
+					"q": [],
+					"r": []
+					}
+				}
+			}`},
+		}},
 		{"evaluation conflict", []tr{
 			{http.MethodPut, "/policies/test", testMod4, 200, ""},
 			{http.MethodPost, "/data/testmod/p", "", 500, `{

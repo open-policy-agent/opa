@@ -1548,6 +1548,25 @@ func TestRegoCustomBuiltinPartialPropagate(t *testing.T) {
 
 }
 
+func TestRegoPartialResultRecursiveRefs(t *testing.T) {
+
+	r := New(Query("data"), Module("test.rego", `package foo.bar
+
+	default p = false
+
+	p { input.x = 1 }`))
+
+	_, err := r.PartialResult(context.Background())
+	if err == nil {
+		t.Fatal("expected error")
+	}
+
+	if !IsPartialEvaluationNotEffectiveErr(err) {
+		t.Fatal("expected ineffective partial eval error")
+	}
+
+}
+
 func TestSkipPartialNamespaceOption(t *testing.T) {
 	r := New(Query("data.test.p"), Module("example.rego", `
 		package test

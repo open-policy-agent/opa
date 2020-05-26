@@ -5,6 +5,25 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+## 0.20.4
+
+### Fixes
+
+- format: Refactor wildcard names to rewrite early ([#2430](https://github.com/open-policy-agent/opa/issues/2430))
+
+## 0.20.3
+
+### Fixes
+
+- docs/content small output correction on terraform page ([#1772](https://github.com/open-policy-agent/opa/issues/1772))
+- format: Fix wildcards in nested refs
+
+## 0.20.2
+
+### Fixes
+
+- format: Fix panic with else blocks and comments ([#2420](https://github.com/open-policy-agent/opa/issues/2420))
+
 ## 0.20.1
 
 This release fixes an issue in the Docker image build. The

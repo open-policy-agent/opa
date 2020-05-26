@@ -65,20 +65,20 @@ MPD_PRAGMA(MPD_HIDE_SYMBOLS_START)
 #endif
 
 /* PentiumPro (or later) gcc inline asm */
-extern const float MPD_TWO63;
-extern const uint32_t mpd_invmoduli[3][3];
+extern float MPD_TWO63;
+extern uint32_t mpd_invmoduli[3][3];
 
 enum {P1, P2, P3};
 
-extern const mpd_uint_t mpd_moduli[];
-extern const mpd_uint_t mpd_roots[];
-extern const mpd_size_t mpd_bits[];
-extern const mpd_uint_t mpd_pow10[];
+extern mpd_uint_t mpd_moduli[];
+extern mpd_uint_t mpd_roots[];
+extern mpd_size_t mpd_bits[];
+extern mpd_uint_t mpd_pow10[];
 
-extern const mpd_uint_t INV_P1_MOD_P2;
-extern const mpd_uint_t INV_P1P2_MOD_P3;
-extern const mpd_uint_t LH_P1P2;
-extern const mpd_uint_t UH_P1P2;
+extern mpd_uint_t INV_P1_MOD_P2;
+extern mpd_uint_t INV_P1P2_MOD_P3;
+extern mpd_uint_t LH_P1P2;
+extern mpd_uint_t UH_P1P2;
 
 
 MPD_PRAGMA(MPD_HIDE_SYMBOLS_END) /* restore previous scope rules */
