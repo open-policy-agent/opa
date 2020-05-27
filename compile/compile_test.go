@@ -523,9 +523,9 @@ func TestOptimizerOutput(t *testing.T) {
 				"optimized/test.rego": `
 					package test
 
-					p = result { 1 = input.x; result = true }
-					p = result { 2 = input.x; result = true }
-					p = result { 3 = input.x; result = true }
+					p = __result__ { 1 = input.x; __result__ = true }
+					p = __result__ { 2 = input.x; __result__ = true }
+					p = __result__ { 3 = input.x; __result__ = true }
 				`,
 				"test.rego": `
 					package test
@@ -589,12 +589,12 @@ func TestOptimizerOutput(t *testing.T) {
 				"optimized/test.rego": `
 					package test
 
-					p = result { 1 = input.x; result = true }
+					p = __result__ { 1 = input.x; __result__ = true }
 				`,
 				"optimized/test.1.rego": `
 					package test
 
-					r = result { 1 = input.x; result = true }
+					r = __result__ { 1 = input.x; __result__ = true }
 				`,
 				"test.rego": `
 					package test
@@ -617,7 +617,7 @@ func TestOptimizerOutput(t *testing.T) {
 				"optimized/test.rego": `
 					package test
 
-					foo = result { result = {"bar": {"p": true}} }`,
+					foo = __result__ { __result__ = {"bar": {"p": true}} }`,
 			},
 		},
 		{
@@ -647,7 +647,7 @@ func TestOptimizerOutput(t *testing.T) {
 				"optimized/test.1.rego": `
 					package test
 
-					p = result { data.test.q[input.x]; result = true }
+					p = __result__ { data.test.q[input.x]; __result__ = true }
 				`,
 				"optimized/test.rego": `
 					package test
@@ -679,8 +679,8 @@ func TestOptimizerOutput(t *testing.T) {
 			wantModules: map[string]string{
 				"optimized/partial/0/0.rego": `
 					package test["foo bar"]
-					p = result { 1 = input.x; result = true }
-					p = result { 2 = input.x; result = true }
+					p = __result__ { 1 = input.x; __result__ = true }
+					p = __result__ { 2 = input.x; __result__ = true }
 				`,
 				"x.rego": `
 					package test["foo bar"]
@@ -719,7 +719,7 @@ func TestOptimizerOutput(t *testing.T) {
 				"optimized/test.rego": `
 					package test
 
-					p = result { not data.partial.__not1_0__; result = true }
+					p = __result__ { not data.partial.__not1_0__; __result__ = true }
 				`,
 				"test.rego": `
 					package test
