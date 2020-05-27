@@ -300,7 +300,7 @@ func (c *Compiler) compileWasm(ctx context.Context) error {
 	}
 
 	store := inmem.NewFromObject(c.bundle.Data)
-	resultSym := ast.VarTerm(ast.WildcardPrefix + "result")
+	resultSym := ast.VarTerm(ast.WildcardPrefix + "__result__")
 
 	cr, err := rego.New(
 		rego.ParsedQuery(ast.NewBody(ast.Equality.Expr(resultSym, c.entrypointrefs[0]))),
@@ -377,7 +377,7 @@ func (o *optimizer) Do(ctx context.Context) error {
 	}
 
 	store := inmem.NewFromObject(data)
-	resultsym := ast.VarTerm(o.resultsymprefix + "result")
+	resultsym := ast.VarTerm(o.resultsymprefix + "__result__")
 	usedFilenames := map[string]int{}
 
 	// NOTE(tsandall): the entrypoints are optimized in order so that the optimization
