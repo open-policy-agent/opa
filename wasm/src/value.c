@@ -1112,16 +1112,16 @@ void opa_array_sort(opa_array_t *arr, opa_compare_fn cmp_fn)
 {
     for (size_t i = 1; i < arr->len; i++)
     {
-        opa_array_elem_t elem = arr->elems[i];
+        opa_value *elem = arr->elems[i].v;
         size_t j = i - 1;
 
-        while (j >= 0 && cmp_fn(arr->elems[j].v, elem.v) > 0)
+        while (j >= 0 && cmp_fn(arr->elems[j].v, elem) > 0)
         {
-            arr->elems[j + 1] = arr->elems[j];
+            arr->elems[j + 1].v = arr->elems[j].v;
             j = j - 1;
         }
 
-        arr->elems[j + 1] = elem;
+        arr->elems[j + 1].v = elem;
     }
 }
 

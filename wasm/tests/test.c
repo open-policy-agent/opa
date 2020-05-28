@@ -522,8 +522,15 @@ void test_opa_array_sort()
 
     opa_array_sort(arr, opa_value_compare);
 
-    opa_value *res = &arr->hdr;
+    // iterate through the array to verify both the indices and values.
+
+    opa_value *res = opa_array();
     opa_value *exp = &fixture_array1()->hdr;
+
+    for (opa_value *prev = NULL, *curr = NULL; (curr = opa_value_iter(&arr->hdr, prev)) != NULL; prev = curr)
+    {
+        opa_array_append(opa_cast_array(res), opa_value_get(&arr->hdr, curr));
+    }
 
     if (opa_value_compare(res, exp) != 0)
     {
