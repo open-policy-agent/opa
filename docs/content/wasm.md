@@ -110,6 +110,7 @@ Policy modules require the following function imports at instantiation-time:
 | Namespace | Name | Params | Result | Description |
 | --- | --- | --- | --- | --- |
 | `env` | `opa_abort` | `(addr)` | `void` | Called if an internal error occurs. The `addr` refers to a null-terminated string in the shared memory buffer. |
+| `env` | `opa_println` | `(addr)` | `void` | Called to emit a message from the policy evaluation. The `addr` refers to a null-terminated string in the shared memory buffer. |
 | `env` | `opa_builtin0` | <span class="opa-keep-it-together">`(builtin_id, ctx)`</span> | `addr` | Called to dispatch the built-in function identified by the `builtin_id`. The `ctx` parameter reserved for future use. The result `addr` must refer to a value in the shared-memory buffer. The function accepts 0 arguments. |
 | `env` | `opa_builtin1` | <span class="opa-keep-it-together">`(builtin_id, ctx, _1)`</span> | `addr` | Same as previous except the function accepts 1 argument. |
 | `env` | `opa_builtin2` | <span class="opa-keep-it-together">`(builtin_id, ctx, _1, _2)`</span> | `addr` | Same as previous except the function accepts 2 arguments. |
