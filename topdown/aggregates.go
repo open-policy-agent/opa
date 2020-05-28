@@ -159,18 +159,21 @@ func builtinAll(a ast.Value) (ast.Value, error) {
 	case ast.Set:
 		res := true
 		match := ast.BooleanTerm(true)
-		val.Foreach(func(term *ast.Term) {
-			if !term.Equal(match) {
+		val.Until(func(term *ast.Term) bool {
+			if !match.Equal(term) {
 				res = false
+				return true
 			}
+			return false
 		})
 		return ast.Boolean(res), nil
 	case ast.Array:
 		res := true
 		match := ast.BooleanTerm(true)
 		for _, term := range val {
-			if !term.Equal(match) {
+			if !match.Equal(term) {
 				res = false
+				break
 			}
 		}
 		return ast.Boolean(res), nil
@@ -182,20 +185,15 @@ func builtinAll(a ast.Value) (ast.Value, error) {
 func builtinAny(a ast.Value) (ast.Value, error) {
 	switch val := a.(type) {
 	case ast.Set:
-		res := false
-		match := ast.BooleanTerm(true)
-		val.Foreach(func(term *ast.Term) {
-			if term.Equal(match) {
-				res = true
-			}
-		})
+		res := val.Len() > 0 && val.Contains(ast.BooleanTerm(true))
 		return ast.Boolean(res), nil
 	case ast.Array:
 		res := false
 		match := ast.BooleanTerm(true)
 		for _, term := range val {
-			if term.Equal(match) {
+			if match.Equal(term) {
 				res = true
+				break
 			}
 		}
 		return ast.Boolean(res), nil
