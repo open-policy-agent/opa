@@ -34,6 +34,8 @@ const (
 	TargetWasm = "wasm"
 )
 
+const wasmResultVar = ast.Var("result")
+
 var validTargets = map[string]struct{}{
 	TargetRego: struct{}{},
 	TargetWasm: struct{}{},
@@ -300,7 +302,7 @@ func (c *Compiler) compileWasm(ctx context.Context) error {
 	}
 
 	store := inmem.NewFromObject(c.bundle.Data)
-	resultSym := ast.VarTerm(ast.WildcardPrefix + "__result__")
+	resultSym := ast.NewTerm(wasmResultVar)
 
 	cr, err := rego.New(
 		rego.ParsedQuery(ast.NewBody(ast.Equality.Expr(resultSym, c.entrypointrefs[0]))),
