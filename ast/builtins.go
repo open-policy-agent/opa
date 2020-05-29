@@ -176,6 +176,7 @@ var DefaultBuiltins = [...]*Builtin{
 	CryptoMd5,
 	CryptoSha1,
 	CryptoSha256,
+	CryptoX509ParseCertificateRequest,
 
 	// Graphs
 	WalkBuiltin,
@@ -1563,6 +1564,16 @@ var CryptoX509ParseCertificates = &Builtin{
 	Decl: types.NewFunction(
 		types.Args(types.S),
 		types.NewArray(nil, types.NewObject(nil, types.NewDynamicProperty(types.S, types.A))),
+	),
+}
+
+// CryptoX509ParseCertificateRequest returns a PKCS #10 certificate signing
+// request from the given PEM-encoded PKCS#10 certificate signing request.
+var CryptoX509ParseCertificateRequest = &Builtin{
+	Name: "crypto.x509.parse_certificate_request",
+	Decl: types.NewFunction(
+		types.Args(types.S),
+		types.NewObject(nil, types.NewDynamicProperty(types.S, types.A)),
 	),
 }
 

@@ -124,3 +124,63 @@ func TestCryptoSha256(t *testing.T) {
 	}
 
 }
+
+func TestCryptoX509ParseCertificateRequest(t *testing.T) {
+	rule := `
+		p = x {
+    	x := crypto.x509.parse_certificate_request(cert)
+		}
+	`
+
+	tests := []struct {
+		note     string
+		cert     string
+		rule     string
+		expected interface{}
+	}{
+		{
+			note:     "valid base64 PEM encoded certificate",
+			cert:     `LS0tLS1CRUdJTiBDRVJUSUZJQ0FURSBSRVFVRVNULS0tLS0KTUlJQllUQ0NBUWdDQVFBd01ERXVNQ3dHQTFVRUF4TWxiWGt0Y0c5a0xtMTVMVzVoYldWemNHRmpaUzV3YjJRdQpZMngxYzNSbGNpNXNiMk5oYkRCWk1CTUdCeXFHU000OUFnRUdDQ3FHU000OUF3RUhBMElBQk1DYzN6eE9TYkN2Ck9NYitoajh2MW9aU2tPdHhLMXphdmVXck9ZVVJ5WTJOUU8wZFBmN2JuRkNZSEhKRFBwMUJTSDFwK2xXMS83MjYKdU5qTUNFdnRPdGlnZGpCMEJna3Foa2lHOXcwQkNRNHhaekJsTUdNR0ExVWRFUVJjTUZxQ0pXMTVMWE4yWXk1dAplUzF1WVcxbGMzQmhZMlV1YzNaakxtTnNkWE4wWlhJdWJHOWpZV3lDSlcxNUxYQnZaQzV0ZVMxdVlXMWxjM0JoClkyVXVjRzlrTG1Oc2RYTjBaWEl1Ykc5allXeUhCTUFBQWhpSEJBb0FJZ0l3Q2dZSUtvWkl6ajBFQXdJRFJ3QXcKUkFJZ1o5RXNFNTlaZG9PWSs4Mm9Cc1Q1bUd3a2p6WDBqdFJqci9OazIzVVBqcUlDSUVXVk56T2wzSCtqZTA2MwpWRXhTQ080ZzBUSHNiTGhidXVFc1NCYS9VUVBXCi0tLS0tRU5EIENFUlRJRklDQVRFIFJFUVVFU1QtLS0tLQ==`,
+			rule:     rule,
+			expected: `{"Attributes":[{"Type":[1,2,840,113549,1,9,14],"Value":[[{"Type":[2,5,29,17],"Value":"MFqCJW15LXN2Yy5teS1uYW1lc3BhY2Uuc3ZjLmNsdXN0ZXIubG9jYWyCJW15LXBvZC5teS1uYW1lc3BhY2UucG9kLmNsdXN0ZXIubG9jYWyHBMAAAhiHBAoAIgI="}]]}],"DNSNames":["my-svc.my-namespace.svc.cluster.local","my-pod.my-namespace.pod.cluster.local"],"EmailAddresses":null,"Extensions":[{"Critical":false,"Id":[2,5,29,17],"Value":"MFqCJW15LXN2Yy5teS1uYW1lc3BhY2Uuc3ZjLmNsdXN0ZXIubG9jYWyCJW15LXBvZC5teS1uYW1lc3BhY2UucG9kLmNsdXN0ZXIubG9jYWyHBMAAAhiHBAoAIgI="}],"ExtraExtensions":null,"IPAddresses":["192.0.2.24","10.0.34.2"],"PublicKey":{"Curve":{"B":41058363725152142129326129780047268409114441015993725554835256314039467401291,"BitSize":256,"Gx":48439561293906451759052585252797914202762949526041747995844080717082404635286,"Gy":36134250956749795798585127919587881956611106672985015071877198253568414405109,"N":115792089210356248762697446949407573529996955224135760342422259061068512044369,"Name":"P-256","P":115792089210356248762697446949407573530086143415290314195533631308867097853951},"X":87121235785369381977155560510693052819781295827853218437619145832055783918989,"Y":29366966885721994211102509301276799147874820413529896705575441176811887475416},"PublicKeyAlgorithm":3,"Raw":"MIIBYTCCAQgCAQAwMDEuMCwGA1UEAxMlbXktcG9kLm15LW5hbWVzcGFjZS5wb2QuY2x1c3Rlci5sb2NhbDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABMCc3zxOSbCvOMb+hj8v1oZSkOtxK1zaveWrOYURyY2NQO0dPf7bnFCYHHJDPp1BSH1p+lW1/726uNjMCEvtOtigdjB0BgkqhkiG9w0BCQ4xZzBlMGMGA1UdEQRcMFqCJW15LXN2Yy5teS1uYW1lc3BhY2Uuc3ZjLmNsdXN0ZXIubG9jYWyCJW15LXBvZC5teS1uYW1lc3BhY2UucG9kLmNsdXN0ZXIubG9jYWyHBMAAAhiHBAoAIgIwCgYIKoZIzj0EAwIDRwAwRAIgZ9EsE59ZdoOY+82oBsT5mGwkjzX0jtRjr/Nk23UPjqICIEWVNzOl3H+je063VExSCO4g0THsbLhbuuEsSBa/UQPW","RawSubject":"MDAxLjAsBgNVBAMTJW15LXBvZC5teS1uYW1lc3BhY2UucG9kLmNsdXN0ZXIubG9jYWw=","RawSubjectPublicKeyInfo":"MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEwJzfPE5JsK84xv6GPy/WhlKQ63ErXNq95as5hRHJjY1A7R09/tucUJgcckM+nUFIfWn6VbX/vbq42MwIS+062A==","RawTBSCertificateRequest":"MIIBCAIBADAwMS4wLAYDVQQDEyVteS1wb2QubXktbmFtZXNwYWNlLnBvZC5jbHVzdGVyLmxvY2FsMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEwJzfPE5JsK84xv6GPy/WhlKQ63ErXNq95as5hRHJjY1A7R09/tucUJgcckM+nUFIfWn6VbX/vbq42MwIS+062KB2MHQGCSqGSIb3DQEJDjFnMGUwYwYDVR0RBFwwWoIlbXktc3ZjLm15LW5hbWVzcGFjZS5zdmMuY2x1c3Rlci5sb2NhbIIlbXktcG9kLm15LW5hbWVzcGFjZS5wb2QuY2x1c3Rlci5sb2NhbIcEwAACGIcECgAiAg==","Signature":"MEQCIGfRLBOfWXaDmPvNqAbE+ZhsJI819I7UY6/zZNt1D46iAiBFlTczpdx/o3tOt1RMUgjuINEx7Gy4W7rhLEgWv1ED1g==","SignatureAlgorithm":10,"Subject":{"CommonName":"my-pod.my-namespace.pod.cluster.local","Country":null,"ExtraNames":null,"Locality":null,"Names":[{"Type":[2,5,4,3],"Value":"my-pod.my-namespace.pod.cluster.local"}],"Organization":null,"OrganizationalUnit":null,"PostalCode":null,"Province":null,"SerialNumber":"","StreetAddress":null},"URIs":null,"Version":0}`,
+		},
+		{
+			note: "non bas64 encoded; but PEM encoded certificate",
+			cert: `-----BEGIN CERTIFICATE REQUEST-----
+MIIBYTCCAQgCAQAwMDEuMCwGA1UEAxMlbXktcG9kLm15LW5hbWVzcGFjZS5wb2Qu
+Y2x1c3Rlci5sb2NhbDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABMCc3zxOSbCv
+OMb+hj8v1oZSkOtxK1zaveWrOYURyY2NQO0dPf7bnFCYHHJDPp1BSH1p+lW1/726
+uNjMCEvtOtigdjB0BgkqhkiG9w0BCQ4xZzBlMGMGA1UdEQRcMFqCJW15LXN2Yy5t
+eS1uYW1lc3BhY2Uuc3ZjLmNsdXN0ZXIubG9jYWyCJW15LXBvZC5teS1uYW1lc3Bh
+Y2UucG9kLmNsdXN0ZXIubG9jYWyHBMAAAhiHBAoAIgIwCgYIKoZIzj0EAwIDRwAw
+RAIgZ9EsE59ZdoOY+82oBsT5mGwkjzX0jtRjr/Nk23UPjqICIEWVNzOl3H+je063
+VExSCO4g0THsbLhbuuEsSBa/UQPW
+-----END CERTIFICATE REQUEST-----`,
+			rule:     rule,
+			expected: &Error{Code: BuiltinErr, Message: "illegal base64 data at input byte 0"},
+		},
+		{
+			note:     "error when object input is passed",
+			cert:     `{"foo": 1}`,
+			rule:     rule,
+			expected: &Error{Code: BuiltinErr, Message: "illegal base64 data at input byte 0"},
+		},
+		{
+			note:     "valid base64 encoded; invalid PEM certificate",
+			cert:     `LS0tLS1CRUdJTiBDRVJUSUZJQ0FURSBSRVFVRVNULS0tLS0=`,
+			rule:     rule,
+			expected: &Error{Code: BuiltinErr, Message: "invalid PEM-encoded certificate signing request"},
+		},
+	}
+
+	data := loadSmallTestData()
+
+	for _, tc := range tests {
+		rules := []string{
+			fmt.Sprintf("cert = %q { true }", tc.cert),
+			tc.rule,
+		}
+		runTopDownTestCase(t, data, tc.note, rules, tc.expected)
+	}
+
+}
