@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
+## 0.20.5
+
+### Fixes
+
+- compile: Change name of result var for wasm binary ([#2441](https://github.com/open-policy-agent/opa/issues/2441))
+- format: Deep copy inputs to avoid mutating the caller's copy ([#2439](https://github.com/open-policy-agent/opa/issues/2439))
+
+### Miscellaneous
+
+- docs: Add `opa_println` to wasm required imports
+
 ## 0.20.4
 
 ### Fixes
