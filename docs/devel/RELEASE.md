@@ -142,7 +142,23 @@ Cherry pick the changes from master or other branches onto the bugfix branch:
 git cherry-pick -x <commit-id>
 ```
 
-Update the `VERSION` variable in the Makefile (e.g., edit and set to `0.14.1`).
+> Using `-x` helps to keep track of where the commit came from originally
+
+Update the `VERSION` variable in the Makefile and CHANGELOG, same workflow as a normal release.
+
+```bash
+make release-patch VERSION=0.14.1 > ~/release.patch
+```
+
+Apply the patch to the working copy and preview the changes:
+
+```bash
+patch -p1 < ~/dev.patch
+git diff
+```
+
+> The generated CHANGELOG will likely need some manual adjustments for bug fix releases!
+
 Commit this change:
 
 ```bash
@@ -162,7 +178,7 @@ Once the Pull Request has been merged you can tag the release at the commit
 created above. Once the tag is pushed to `open-policy-agent/opa`, CI jobs will
 automatically build and publish the Docker images and website updates.
 
-The last step is to build the release binaries and publish them to the [GitHub
+Next build the release binaries and publish them to the [GitHub
 releases](https://github.com/open-policy-agent/opa/releases) page along with
 updating the CHANGELOG.md file on master.
 
@@ -172,3 +188,7 @@ make release VERSION=0.14.1
 
 > The release binaries are located under `_release/<version>` in your working
 > copy.
+
+Last step is to copy the CHANGELOG snippet for the version to `master`. Create
+a new PR with the version information added below the `Unreleased` section. Remove
+any `Unreleased` notes if they were included in the bugfix release.
