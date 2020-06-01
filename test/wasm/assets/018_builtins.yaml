@@ -83,6 +83,30 @@ cases:
   - note: bits.rsh built-in
     query: bits.rsh(2,1,x)
     want_result: [{'x': 1}]
+  - note: count built-in
+    query: count([1,2,3],x)
+    want_result: [{'x': 3}]
+  - note: sum built-in
+    query: sum([1,2,3],x)
+    want_result: [{'x': 6}]
+  - note: product built-in
+    query: product([1,2,3],x)
+    want_result: [{'x': 6}]
+  - note: max built-in
+    query: max([1,2,3],x)
+    want_result: [{'x': 3}]
+  - note: min built-in
+    query: min([3,2,1],x)
+    want_result: [{'x': 1}]
+  - note: sort built-in
+    query: sort(["1","3","2"],x)
+    want_result: [{'x': ["1","2","3"]}]
+  - note: all built-in
+    query: all([true,true],x)
+    want_result: [{'x': true}]
+  - note: any built-in
+    query: any([false,true],x)
+    want_result: [{'x': true}]
   - note: custom built-in
     query: x = custom_builtin_test(100)
     want_result: [{'x': 101}]

@@ -33,13 +33,39 @@ You can compile Rego policies into Wasm modules using the `opa build` subcommand
 
 For example, the `opa build` command below compiles the `example.rego` file into a
 Wasm module and packages it into an OPA bundle. The `wasm` target requires exactly
-one entrypoint (specified by `-e`).
+one entrypoint rule (specified by `-e`).
 
 ```bash
 opa build -t wasm -e example/allow example.rego
 ```
 
+The output of a Wasm module built this way contain the `result` of evaluating the
+entrypoint rule. For example:
+```json
+[
+  {
+    "result": <value of data.example.allow>
+  }
+]
+```
+
+The output of policy evaluation is a set of variable assignments. The variable
+assignments specify values that satisfy the expressions in the policy query
+(i.e., if the variables in the query are replaced with the values from the
+assignments, all of the expressions in the query would be defined and not
+false.)
+
+When policies are compiled into Wasm, the user provides the path of the policy
+decision that should be exposed by the Wasm module. The policy decision is
+assigned to a variable named `result`. The policy decision can be ANY JSON value
+(boolean, string, object, etc.) but there will be at-most-one assignment. This
+means that callers should first check if the set of variable assignments is
+empty (indicating an undefined policy decision) otherwise they should select the
+`"result"` key out of the variable assignment set.
+
 > For more information on `opa build` run `opa build --help`.
+
+## Advanced Compiling Options
 
 You can also compile Rego policies into Wasm modules from Go using the lower-level
 [rego](https://godoc.org/github.com/open-policy-agent/opa/rego#Rego.Compile) API
@@ -110,6 +136,7 @@ Policy modules require the following function imports at instantiation-time:
 | Namespace | Name | Params | Result | Description |
 | --- | --- | --- | --- | --- |
 | `env` | `opa_abort` | `(addr)` | `void` | Called if an internal error occurs. The `addr` refers to a null-terminated string in the shared memory buffer. |
+| `env` | `opa_println` | `(addr)` | `void` | Called to emit a message from the policy evaluation. The `addr` refers to a null-terminated string in the shared memory buffer. |
 | `env` | `opa_builtin0` | <span class="opa-keep-it-together">`(builtin_id, ctx)`</span> | `addr` | Called to dispatch the built-in function identified by the `builtin_id`. The `ctx` parameter reserved for future use. The result `addr` must refer to a value in the shared-memory buffer. The function accepts 0 arguments. |
 | `env` | `opa_builtin1` | <span class="opa-keep-it-together">`(builtin_id, ctx, _1)`</span> | `addr` | Same as previous except the function accepts 1 argument. |
 | `env` | `opa_builtin2` | <span class="opa-keep-it-together">`(builtin_id, ctx, _1, _2)`</span> | `addr` | Same as previous except the function accepts 2 arguments. |

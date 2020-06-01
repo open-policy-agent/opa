@@ -52,6 +52,14 @@ var internalBuiltins = map[string]wasmBuiltin{
 	ast.BitsXOr.Name:         wasmBuiltin{ast.BitsXOr, "opa_bits_xor"},
 	ast.BitsShiftLeft.Name:   wasmBuiltin{ast.BitsShiftLeft, "opa_bits_shiftleft"},
 	ast.BitsShiftRight.Name:  wasmBuiltin{ast.BitsShiftRight, "opa_bits_shiftright"},
+	ast.Count.Name:           wasmBuiltin{ast.Count, "opa_agg_count"},
+	ast.Sum.Name:             wasmBuiltin{ast.Sum, "opa_agg_sum"},
+	ast.Product.Name:         wasmBuiltin{ast.Product, "opa_agg_product"},
+	ast.Max.Name:             wasmBuiltin{ast.Max, "opa_agg_max"},
+	ast.Min.Name:             wasmBuiltin{ast.Min, "opa_agg_min"},
+	ast.Sort.Name:            wasmBuiltin{ast.Sort, "opa_agg_sort"},
+	ast.All.Name:             wasmBuiltin{ast.All, "opa_agg_all"},
+	ast.Any.Name:             wasmBuiltin{ast.Any, "opa_agg_any"},
 }
 
 // Planner implements a query planner for Rego queries.
