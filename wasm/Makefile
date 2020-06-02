@@ -7,6 +7,8 @@ WASM_OBJ_DIR := _obj
 
 CFLAGS := \
 	-O3 \
+	-MD \
+	-MP \
 	-nostdinc \
 	-nodefaultlibs \
 	--target=wasm32-unknown-unknown-wasm \
@@ -48,31 +50,35 @@ LIB_SRCS := $(wildcard src/lib/*.c)
 LIB_MPDEC_SRCS := $(wildcard src/libmpdec/*.c)
 TEST_SRCS := $(wildcard tests/*.c)
 
+-include $(patsubst %.c,$(WASM_OBJ_DIR)/%.d,$(SRCS))
+-include $(patsubst %.c,$(WASM_OBJ_DIR)/%.d,$(LIB_SRCS))
+-include $(patsubst %.c,$(WASM_OBJ_DIR)/%.d,$(LIB_MPDEC_SRCS))
+-include $(patsubst %.c,$(WASM_OBJ_DIR)/%.d,$(TEST_SRCS))
+
 OBJS := $(patsubst %.c, $(WASM_OBJ_DIR)/%.wasm, $(SRCS))
 LIB_OBJS := $(patsubst %.c, $(WASM_OBJ_DIR)/%.wasm, $(LIB_SRCS))
 LIB_MPDEC_OBJS := $(patsubst %.c, $(WASM_OBJ_DIR)/%.wasm, $(LIB_MPDEC_SRCS))
 TEST_OBJS := $(patsubst %.c, $(WASM_OBJ_DIR)/%.wasm, $(TEST_SRCS))
 
 $(OBJS): $(WASM_OBJ_DIR)/src/%.wasm: src/%.c
-	@$(CC) $(CFLAGS) -c $^ -o $@
+	$(CC) $(CFLAGS) -c -o $@ $<
 
 $(LIB_OBJS): $(WASM_OBJ_DIR)/src/lib/%.wasm: src/lib/%.c
-	@$(CC) $(CFLAGS) -c $^ -o $@
+	$(CC) $(CFLAGS) -c -o $@ $<
 
 $(LIB_MPDEC_OBJS): $(WASM_OBJ_DIR)/src/libmpdec/%.wasm: src/libmpdec/%.c
-	@$(CC) $(CFLAGS) -c $^ -o $@
+	$(CC) $(CFLAGS) -c -o $@ $<
 
 $(TEST_OBJS): $(WASM_OBJ_DIR)/tests/%.wasm: tests/%.c
-	@$(CC) $(CFLAGS) -I src -c $^ -o $@
+	$(CC) $(CFLAGS) -I src -c -o $@ $<
 
 $(WASM_OBJ_DIR)/opa.wasm: $(OBJS) $(LIB_OBJS) $(LIB_MPDEC_OBJS)
-	@wasm-ld-8 \
+	wasm-ld-8 \
 			--allow-undefined-file=src/undefined.symbols \
 			--import-memory \
 			--no-entry \
 			--export-all \
-			$^ \
-			-o $@
+			-o $@ $^
 	@wasm2wat $(WASM_OBJ_DIR)/opa.wasm > $(WASM_OBJ_DIR)/opa.wast
 
 $(WASM_OBJ_DIR)/opa-test.wasm: $(OBJS) $(LIB_OBJS) $(LIB_MPDEC_OBJS) $(TEST_OBJS)
@@ -82,5 +88,4 @@ $(WASM_OBJ_DIR)/opa-test.wasm: $(OBJS) $(LIB_OBJS) $(LIB_MPDEC_OBJS) $(TEST_OBJS
 			--import-memory \
 			--no-entry \
 			--export-all \
-			$^ \
-			-o $@
+			-o $@ $^
