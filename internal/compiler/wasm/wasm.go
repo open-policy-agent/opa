@@ -200,7 +200,12 @@ func (c *Compiler) initModule() error {
 // The strings are indexed for lookups in later stages.
 func (c *Compiler) compileStrings() error {
 
-	c.stringOffset = 2048
+	var err error
+	c.stringOffset, err = getLowestFreeDataSegmentOffset(c.module)
+	if err != nil {
+		return err
+	}
+
 	c.stringAddrs = make([]uint32, len(c.policy.Static.Strings))
 	var buf bytes.Buffer
 
@@ -1010,4 +1015,29 @@ func (c *Compiler) appendInstrs(instrs []instruction.Instruction) {
 	for _, instr := range instrs {
 		c.appendInstr(instr)
 	}
+}
+
+func getLowestFreeDataSegmentOffset(m *module.Module) (int32, error) {
+
+	var offset int32
+
+	for i := range m.Data.Segments {
+
+		if len(m.Data.Segments[i].Offset.Instrs) != 1 {
+			return 0, errors.New("bad data segment offset instructions")
+		}
+
+		instr, ok := m.Data.Segments[i].Offset.Instrs[0].(instruction.I32Const)
+		if !ok {
+			return 0, errors.New("bad data segment offset expr")
+		}
+
+		// NOTE(tsandall): assume memory up to but not including addr is taken.
+		addr := instr.Value + int32(len(m.Data.Segments[i].Init))
+		if addr > offset {
+			offset = addr
+		}
+	}
+
+	return offset, nil
 }
