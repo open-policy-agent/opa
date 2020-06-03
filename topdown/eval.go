@@ -809,7 +809,6 @@ func (e *eval) biunifyRef(a, b *ast.Term, b1, b2 *bindings, iter unifyIterator) 
 
 	if ref[0].Equal(ast.DefaultRootDocument) {
 		node := e.compiler.RuleTree.Child(ref[0].Value)
-
 		eval := evalTree{
 			e:         e,
 			ref:       ref,
@@ -1806,7 +1805,7 @@ func (e evalVirtualPartial) eval(iter unifyIterator) error {
 
 	var cacheKey ast.Ref
 
-	if e.ir.Kind == ast.PartialObjectDoc {
+	if !e.e.unknown(e.ref[:e.pos+1], e.bindings) && e.ir.Kind == ast.PartialObjectDoc {
 		plugged := e.bindings.Plug(e.ref[e.pos+1])
 
 		if plugged.IsGround() {
