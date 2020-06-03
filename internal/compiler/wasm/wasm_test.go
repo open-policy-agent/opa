@@ -9,6 +9,8 @@ import (
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/internal/planner"
+	"github.com/open-policy-agent/opa/internal/wasm/instruction"
+	"github.com/open-policy-agent/opa/internal/wasm/module"
 )
 
 func TestCompilerHelloWorld(t *testing.T) {
@@ -25,5 +27,65 @@ func TestCompilerHelloWorld(t *testing.T) {
 	_, err = c.Compile()
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestCompilerBadDataSegment(t *testing.T) {
+
+	result, err := getLowestFreeDataSegmentOffset(&module.Module{})
+	if err != nil || result != 0 {
+		t.Fatal("expected zero but got:", result, "err:", err)
+	}
+
+	_, err = getLowestFreeDataSegmentOffset(&module.Module{Data: module.DataSection{
+		Segments: []module.DataSegment{
+			module.DataSegment{
+				Offset: module.Expr{
+					Instrs: []instruction.Instruction{},
+				},
+			},
+		},
+	}})
+	if err == nil || err.Error() != "bad data segment offset instructions" {
+		t.Fatal("unexpected err:", err)
+	}
+
+	_, err = getLowestFreeDataSegmentOffset(&module.Module{Data: module.DataSection{
+		Segments: []module.DataSegment{
+			module.DataSegment{
+				Offset: module.Expr{
+					Instrs: []instruction.Instruction{
+						instruction.I64Const{Value: 100},
+					},
+				},
+			},
+		},
+	}})
+	if err == nil || err.Error() != "bad data segment offset expr" {
+		t.Fatal("unexpected err:", err)
+	}
+
+	result, err = getLowestFreeDataSegmentOffset(&module.Module{Data: module.DataSection{
+		Segments: []module.DataSegment{
+			module.DataSegment{
+				Init: []byte("foo"),
+				Offset: module.Expr{
+					Instrs: []instruction.Instruction{
+						instruction.I32Const{Value: 106},
+					},
+				},
+			},
+			module.DataSegment{
+				Init: []byte("bar"),
+				Offset: module.Expr{
+					Instrs: []instruction.Instruction{
+						instruction.I32Const{Value: 100},
+					},
+				},
+			},
+		},
+	}})
+	if err != nil || result != 109 {
+		t.Fatal("expected 106 but got:", result, "err:", err)
 	}
 }
