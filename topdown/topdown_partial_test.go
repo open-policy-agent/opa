@@ -1963,6 +1963,32 @@ func TestTopDownPartialEval(t *testing.T) {
 			},
 			wantQueries: []string{"a1 = input.foo1; b1 = input.foo2; c1 = input.foo3; d1 = input.foo4; e1 = input.foo5"},
 		},
+		{
+			note:  "partial object rules not memoized",
+			query: "data.test.p",
+			modules: []string{`
+				package test
+
+				p { q.foo }
+				p { q.foo }
+
+				q[x] = 1 { input[x] }`,
+			},
+			wantQueries: []string{`input.foo`, `input.foo`},
+		},
+		{
+			note:  "partial set rules not memoized",
+			query: "data.test.p",
+			modules: []string{`
+				package test
+
+				p { q.foo }
+				p { q.foo }
+
+				q[x] { input[x] }`,
+			},
+			wantQueries: []string{`input.foo`, `input.foo`},
+		},
 	}
 
 	ctx := context.Background()
