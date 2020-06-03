@@ -420,14 +420,18 @@ func (o *optimizer) Do(ctx context.Context) error {
 			pq.Support = append(pq.Support, module)
 		}
 
-		for j, module := range pq.Support {
-			fileName := o.getSupportModuleFilename(usedFilenames, module, i, j)
-			o.bundle.Modules = o.merge(o.bundle.Modules, bundle.ModuleFile{
+		modules := make([]bundle.ModuleFile, len(pq.Support))
+
+		for j := range pq.Support {
+			fileName := o.getSupportModuleFilename(usedFilenames, pq.Support[j], i, j)
+			modules[j] = bundle.ModuleFile{
 				URL:    fileName,
 				Path:   fileName,
-				Parsed: module,
-			})
+				Parsed: pq.Support[j],
+			}
 		}
+
+		o.bundle.Modules = o.merge(o.bundle.Modules, modules)
 	}
 
 	sort.Slice(o.bundle.Modules, func(i, j int) bool {
@@ -519,32 +523,69 @@ func (o *optimizer) getSupportForEntrypoint(queries []ast.Body, e *ast.Term, res
 	return module
 }
 
-func (o *optimizer) merge(dst []bundle.ModuleFile, src bundle.ModuleFile) (result []bundle.ModuleFile) {
+// merge combines two sets of modules and returns the result. The rules from modules
+// in 'b' override rules from modules in 'a'. If all rules in a module in 'a' are overridden
+// by rules in modules in 'b' then the module from 'a' is discarded.
+func (o *optimizer) merge(a, b []bundle.ModuleFile) []bundle.ModuleFile {
 
-	// NOTE(tsandlal): replace with trie if this becomes a bottleneck.
+	prefixes := ast.NewSet()
 
-	for i := range dst {
-		var keep []*ast.Rule
-		for _, old := range dst[i].Parsed.Rules {
-			var discard bool
-			for _, new := range src.Parsed.Rules {
-				if old.Path().HasPrefix(new.Path()) {
-					discard = true
-					break
-				}
-			}
-			if !discard {
-				keep = append(keep, old)
+	for i := range b {
+		// NOTE(tsandall): use a set to memoize the prefix add operation--it's only
+		// needed once per rule set and constructing the path for every rule in the
+		// module could expensive for PE output (which can contain hundreds of thousands
+		// of rules.)
+		seen := ast.NewVarSet()
+		for _, rule := range b[i].Parsed.Rules {
+			if _, ok := seen[rule.Head.Name]; !ok {
+				prefixes.Add(ast.NewTerm(rule.Path()))
+				seen.Add(rule.Head.Name)
 			}
 		}
-		if len(keep) > 0 {
-			dst[i].Parsed.Rules = keep
-			dst[i].Raw = nil
-			result = append(result, dst[i])
-		}
+
 	}
 
-	return append(result, src)
+	for i := range a {
+
+		var keep []*ast.Rule
+
+		// NOTE(tsandall): same as above--memoize keep/discard decision. If multiple
+		// entrypoints are provided the dst module may contain a large number of rules.
+		seen := ast.NewVarSet()
+		discard := ast.NewVarSet()
+
+		for _, rule := range a[i].Parsed.Rules {
+
+			if _, ok := discard[rule.Head.Name]; ok {
+				continue
+			} else if _, ok := seen[rule.Head.Name]; ok {
+				keep = append(keep, rule)
+				continue
+			}
+
+			path := rule.Path()
+			overlap := prefixes.Until(func(x *ast.Term) bool {
+				ref := x.Value.(ast.Ref)
+				return path.HasPrefix(ref)
+			})
+
+			if overlap {
+				discard.Add(rule.Head.Name)
+			} else {
+				seen.Add(rule.Head.Name)
+				keep = append(keep, rule)
+			}
+		}
+
+		if len(keep) > 0 {
+			a[i].Parsed.Rules = keep
+			a[i].Raw = nil
+			b = append(b, a[i])
+		}
+
+	}
+
+	return b
 }
 
 func (o *optimizer) getSupportModuleFilename(used map[string]int, module *ast.Module, entrypointIndex int, supportIndex int) string {
