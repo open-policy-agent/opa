@@ -12,4 +12,6 @@ unsigned int opa_heap_top_get(void);
 void opa_heap_ptr_set(unsigned int);
 void opa_heap_top_set(unsigned int);
 
+size_t opa_heap_free_blocks(void);
+
 #endif

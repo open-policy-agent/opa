@@ -979,7 +979,10 @@ void __opa_array_grow(opa_array_t *arr)
         elems[i] = arr->elems[i];
     }
 
-    opa_free(arr->elems);
+    if (arr->elems != NULL)
+    {
+        opa_free(arr->elems);
+    }
     arr->elems = elems;
 }
 
