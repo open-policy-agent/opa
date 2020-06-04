@@ -1796,42 +1796,42 @@ type evalVirtualPartial struct {
 
 func (e evalVirtualPartial) eval(iter unifyIterator) error {
 
+	unknown := e.e.unknown(e.ref[:e.pos+1], e.bindings)
+
 	if len(e.ref) == e.pos+1 {
-		// During partial evaluation, it may not be possible to produce a value
-		// for this reference so save the entire expression. See "save: full
-		// extent: partial object" test case for an example.
-		if e.e.unknown(e.ref, e.bindings) {
-			return e.e.saveUnify(ast.NewTerm(e.ref), e.rterm, e.bindings, e.rbindings, iter)
+		if unknown {
+			return e.partialEvalSupport(iter)
 		}
 		return e.evalAllRules(iter, e.ir.Rules)
 	}
 
-	var cacheKey ast.Ref
-
-	if !e.e.unknown(e.ref[:e.pos+1], e.bindings) && e.ir.Kind == ast.PartialObjectDoc {
-		plugged := e.bindings.Plug(e.ref[e.pos+1])
-
-		if plugged.IsGround() {
-			path := e.plugged[:e.pos+2]
-			path[len(path)-1] = plugged
-			cached := e.e.virtualCache.Get(path)
-
-			if cached != nil {
-				e.e.instr.counterIncr(evalOpVirtualCacheHit)
-				return e.evalTerm(iter, cached, e.bindings)
-			}
-
-			e.e.instr.counterIncr(evalOpVirtualCacheMiss)
-			cacheKey = path
-		}
-	}
-
-	if e.e.inliningControl.Disabled(e.plugged[:e.pos+1], false) {
+	if (unknown && e.e.inliningControl.shallow) || e.e.inliningControl.Disabled(e.ref[:e.pos+1], false) {
 		return e.partialEvalSupport(iter)
 	}
 
+	return e.evalEachRule(iter, e.ir.Rules)
+}
+
+func (e evalVirtualPartial) evalEachRule(iter unifyIterator, rules []*ast.Rule) error {
+
+	if e.e.unknown(e.ref[e.pos+1], e.bindings) {
+		for _, rule := range e.ir.Rules {
+			if err := e.evalOneRulePostUnify(iter, rule); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	key, hit, err := e.evalCache(iter)
+	if err != nil {
+		return err
+	} else if hit {
+		return nil
+	}
+
 	for _, rule := range e.ir.Rules {
-		if err := e.evalOneRule(iter, rule, cacheKey); err != nil {
+		if err := e.evalOneRulePreUnify(iter, rule, key); err != nil {
 			return err
 		}
 	}
@@ -1867,7 +1867,7 @@ func (e evalVirtualPartial) evalAllRules(iter unifyIterator, rules []*ast.Rule) 
 	return e.e.biunify(result, e.rterm, e.bindings, e.bindings, iter)
 }
 
-func (e evalVirtualPartial) evalOneRule(iter unifyIterator, rule *ast.Rule, cacheKey ast.Ref) error {
+func (e evalVirtualPartial) evalOneRulePreUnify(iter unifyIterator, rule *ast.Rule, cacheKey ast.Ref) error {
 
 	key := e.ref[e.pos+1]
 	child := e.e.child(rule.Body)
@@ -1905,10 +1905,56 @@ func (e evalVirtualPartial) evalOneRule(iter unifyIterator, rule *ast.Rule, cach
 		return err
 	}
 
+	// TODO(tsandall): why are we tracing here? this looks wrong.
 	if !defined {
 		child.traceFail(rule)
 	}
 
+	return nil
+}
+
+func (e evalVirtualPartial) evalOneRulePostUnify(iter unifyIterator, rule *ast.Rule) error {
+
+	key := e.ref[e.pos+1]
+	child := e.e.child(rule.Body)
+
+	child.traceEnter(rule)
+	var defined bool
+
+	err := child.eval(func(child *eval) error {
+		defined = true
+		return e.e.biunify(rule.Head.Key, key, child.bindings, e.bindings, func() error {
+			return e.evalOneRuleContinue(iter, rule, child)
+		})
+	})
+
+	if err != nil {
+		return err
+	}
+
+	if !defined {
+		child.traceFail(rule)
+	}
+
+	return nil
+}
+
+func (e evalVirtualPartial) evalOneRuleContinue(iter unifyIterator, rule *ast.Rule, child *eval) error {
+
+	child.traceExit(rule)
+
+	term := rule.Head.Value
+	if term == nil {
+		term = rule.Head.Key
+	}
+
+	term, termbindings := child.bindings.apply(term)
+	err := e.evalTerm(iter, term, termbindings)
+	if err != nil {
+		return err
+	}
+
+	child.traceRedo(rule)
 	return nil
 }
 
@@ -1982,6 +2028,36 @@ func (e evalVirtualPartial) evalTerm(iter unifyIterator, term *ast.Term, termbin
 	return eval.eval(iter)
 }
 
+func (e evalVirtualPartial) evalCache(iter unifyIterator) (ast.Ref, bool, error) {
+
+	if e.e.unknown(e.ref[:e.pos+1], e.bindings) {
+		return nil, false, nil
+	}
+
+	var cacheKey ast.Ref
+
+	if e.ir.Kind == ast.PartialObjectDoc {
+
+		plugged := e.bindings.Plug(e.ref[e.pos+1])
+
+		if plugged.IsGround() {
+			path := e.plugged[:e.pos+2]
+			path[len(path)-1] = plugged
+			cached := e.e.virtualCache.Get(path)
+
+			if cached != nil {
+				e.e.instr.counterIncr(evalOpVirtualCacheHit)
+				return nil, true, e.evalTerm(iter, cached, e.bindings)
+			}
+
+			e.e.instr.counterIncr(evalOpVirtualCacheMiss)
+			cacheKey = path
+		}
+	}
+
+	return cacheKey, false, nil
+}
+
 func (e evalVirtualPartial) reduce(head *ast.Head, b *bindings, result *ast.Term) (*ast.Term, error) {
 
 	switch v := result.Value.(type) {
@@ -2038,7 +2114,7 @@ func (e evalVirtualComplete) eval(iter unifyIterator) error {
 		generateSupport = !ast.IsConstant(rterm.Value) || e.ir.Default.Head.Value.Equal(rterm)
 	}
 
-	if generateSupport || e.e.inliningControl.Disabled(e.plugged[:e.pos+1], false) {
+	if generateSupport || e.e.inliningControl.shallow || e.e.inliningControl.Disabled(e.plugged[:e.pos+1], false) {
 		return e.partialEvalSupport(iter)
 	}
 

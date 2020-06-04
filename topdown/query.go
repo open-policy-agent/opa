@@ -38,6 +38,7 @@ type Query struct {
 	metrics           metrics.Metrics
 	instr             *Instrumentation
 	disableInlining   []ast.Ref
+	shallowInlining   bool
 	genvarprefix      string
 	runtime           *ast.Term
 	builtins          map[string]*Builtin
@@ -172,6 +173,14 @@ func (q *Query) WithDisableInlining(paths []ast.Ref) *Query {
 	return q
 }
 
+// WithShallowInlining disables aggressive inlining performed during partial evaluation.
+// When shallow inlining is enabled rules that depend (transitively) on unknowns are not inlined.
+// Only rules/values that are completely known will be inlined.
+func (q *Query) WithShallowInlining(yes bool) *Query {
+	q.shallowInlining = yes
+	return q
+}
+
 // WithRuntime sets the runtime data to execute the query with. The runtime data
 // can be returned by the `opa.runtime` built-in function.
 func (q *Query) WithRuntime(runtime *ast.Term) *Query {
@@ -244,10 +253,12 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 		saveSupport:        newSaveSupport(),
 		saveNamespace:      ast.StringTerm(q.partialNamespace),
 		skipSaveNamespace:  q.skipSaveNamespace,
-		inliningControl:    &inliningControl{},
-		genvarprefix:       q.genvarprefix,
-		runtime:            q.runtime,
-		indexing:           q.indexing,
+		inliningControl: &inliningControl{
+			shallow: q.shallowInlining,
+		},
+		genvarprefix: q.genvarprefix,
+		runtime:      q.runtime,
+		indexing:     q.indexing,
 	}
 
 	if len(q.disableInlining) > 0 {

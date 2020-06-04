@@ -384,6 +384,7 @@ func ignoreDuringPartial(bi *ast.Builtin) bool {
 }
 
 type inliningControl struct {
+	shallow bool
 	disable []disableInliningFrame
 }
 
