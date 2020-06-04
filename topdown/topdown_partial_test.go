@@ -24,6 +24,7 @@ func TestTopDownPartialEval(t *testing.T) {
 		note            string
 		unknowns        []string
 		disableInlining []string
+		shallow         bool
 		query           string
 		modules         []string
 		data            string
@@ -685,27 +686,37 @@ func TestTopDownPartialEval(t *testing.T) {
 			},
 		},
 		{
-			note:  "save: full extent: partial set",
+			note:  "automatic shallow inlining: full extent: partial set",
 			query: "data.test.p = x",
 			modules: []string{
 				`package test
 				p[x] { input.x = x }
 				p[x] { input.y = x }`,
 			},
-			wantQueries: []string{`data.test.p = x`},
+			wantQueries: []string{`data.partial.test.p = x`},
+			wantSupport: []string{`
+				package partial.test
+				p[x1] { input.y = x1 }
+				p[x2] { input.x = x2 }
+			`},
 		},
 		{
-			note:  "save: full extent: partial object",
+			note:  "automatic shallow inlining: full extent: partial object",
 			query: "data.test.p = x",
 			modules: []string{
 				`package test
 				p[x] = y { x = input.x; y = input.y }
 				p[x] = y { x = input.z; y = input.a }`,
 			},
-			wantQueries: []string{`data.test.p = x`},
+			wantQueries: []string{`data.partial.test.p = x`},
+			wantSupport: []string{`
+				package partial.test
+				p[x1] = y1 { x1 = input.z; y1 = input.a }
+				p[x2] = y2 { x2 = input.x; y2 = input.y }
+			`},
 		},
 		{
-			note:  "save: full extent: iteration",
+			note:  "automatic shallow inlining: full extent: iteration",
 			query: "data.test[x] = y",
 			modules: []string{
 				`package test
@@ -714,10 +725,15 @@ func TestTopDownPartialEval(t *testing.T) {
 				r = x { x = input.x }`,
 			},
 			wantQueries: []string{
-				`data.test.s = y; x = "s"`,
-				`data.test.p = y; x = "p"`,
+				`data.partial.test.s = y; x = "s"`,
+				`data.partial.test.p = y; x = "p"`,
 				`y = input.x; x = "r"`,
 			},
+			wantSupport: []string{`
+				package partial.test
+				p[x1] = y1 { x1 = input.x; y1 = input.y }
+				s[x3] { x3 = input.x }
+			`},
 		},
 		{
 			note:  "save: set embedded",
@@ -758,9 +774,15 @@ func TestTopDownPartialEval(t *testing.T) {
 			modules: []string{
 				`package test
 				p[1]
-				p[2] { true with data.foo as 1 }`,
+				p[2] { 1 with data.foo as 1 }`,
 			},
-			wantQueries: []string{`data.test.p = {1,2}`}, // can't evaluate full extent of `p` because it depends on with statements that will be saved.
+			wantQueries: []string{`data.partial.test.p = {1,2}`}, // can't evaluate full extent of `p` because it depends on with statements that will be saved.
+			wantSupport: []string{`
+				package partial.test
+
+				p[1] { true }
+				p[2] { true }   # note: the expression containing 'with' gets partially evaluated because it does not depend on unknowns
+			`},
 		},
 		{
 			note:  "else: no unknown dependencies",
@@ -814,7 +836,11 @@ func TestTopDownPartialEval(t *testing.T) {
 				p { q = x }
 				q[1] { time.now_ns() == 1579276766010057000 }`, // full extent, must save caller because time.now_ns() should not be partially evaluated
 			},
-			wantQueries: []string{"x1 = data.test.q"},
+			wantQueries: []string{"x1 = data.partial.test.q"},
+			wantSupport: []string{`
+				package partial.test
+				q[1] { time.now_ns(1579276766010057000) }
+			`},
 		},
 		{
 			note:  "support: default trivial",
@@ -1916,7 +1942,47 @@ func TestTopDownPartialEval(t *testing.T) {
 				r = true`,
 			},
 			disableInlining: []string{"data.test.r"},
-			wantQueries:     []string{"data.test.q = {1, 2, 3}"},
+			wantQueries:     []string{"data.partial.test.q = {1, 2, 3}"},
+			wantSupport: []string{`
+				package partial.test
+
+				q[1]
+				q[2]
+				q[3] { data.partial.test.r }
+				r = true
+			`},
+		},
+		{
+			note:  "shallow inlining: complete rules",
+			query: "data.test.p = true",
+			modules: []string{
+				`
+					package test
+
+					p {
+						q = 1
+					}
+
+					q = x {
+						r  # 'r' should be inlined completely
+						y = input.x
+						x = y
+					}
+
+					r { s }
+
+					s = true
+				`,
+			},
+			shallow:     true,
+			wantQueries: []string{"data.partial.test.p = true"},
+			wantSupport: []string{
+				`package partial.test
+
+				q = x2 { x2 = input.x }
+				p { data.partial.test.q = 1 }
+				`,
+			},
 		},
 		{
 			note:  "comprehensions: ref heads (with namespacing)",
@@ -2030,7 +2096,8 @@ func TestTopDownPartialEval(t *testing.T) {
 				WithInput(f.input).
 				WithTracer(&buf).
 				WithUnknowns(unknowns).
-				WithDisableInlining(disableInlining)
+				WithDisableInlining(disableInlining).
+				WithShallowInlining(tc.shallow)
 
 			// Set genvarprefix so that tests can refer to vars in generated
 			// expressions.
