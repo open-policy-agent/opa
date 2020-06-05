@@ -1630,7 +1630,7 @@ func (e evalTree) enumerate(iter unifyIterator) error {
 		return nil
 	}
 
-	for k := range e.node.Children {
+	for _, k := range e.node.Sorted {
 		key := ast.NewTerm(k)
 		if err := e.e.biunify(key, e.ref[e.pos], e.bindings, e.bindings, func() error {
 			return e.next(iter, key)
@@ -1679,7 +1679,10 @@ func (e evalTree) leaves(plugged ast.Ref, node *ast.TreeNode) (ast.Object, error
 
 	result := ast.NewObject()
 
-	for _, child := range node.Children {
+	for _, k := range node.Sorted {
+
+		child := node.Children[k]
+
 		if child.Hide {
 			continue
 		}
