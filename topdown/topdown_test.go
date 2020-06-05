@@ -2920,14 +2920,20 @@ func loadSmallTestData() map[string]interface{} {
 }
 
 func runTopDownTestCase(t *testing.T, data map[string]interface{}, note string, rules []string, expected interface{}) {
+	t.Helper()
+
 	runTopDownTestCaseWithContext(context.Background(), t, data, note, rules, nil, "", expected)
 }
 
 func runTopDownTestCaseWithModules(t *testing.T, data map[string]interface{}, note string, rules []string, modules []string, input string, expected interface{}) {
+	t.Helper()
+
 	runTopDownTestCaseWithContext(context.Background(), t, data, note, rules, modules, input, expected)
 }
 
 func runTopDownTestCaseWithContext(ctx context.Context, t *testing.T, data map[string]interface{}, note string, rules []string, modules []string, input string, expected interface{}) {
+	t.Helper()
+
 	imports := []string{}
 	for k := range data {
 		imports = append(imports, "data."+k)
@@ -2949,10 +2955,13 @@ func runTopDownTestCaseWithContext(ctx context.Context, t *testing.T, data map[s
 }
 
 func assertTopDownWithPath(t *testing.T, compiler *ast.Compiler, store storage.Store, note string, path []string, input string, expected interface{}) {
+	t.Helper()
+
 	assertTopDownWithPathAndContext(context.Background(), t, compiler, store, note, path, input, expected)
 }
 
 func assertTopDownWithPathAndContext(ctx context.Context, t *testing.T, compiler *ast.Compiler, store storage.Store, note string, path []string, input string, expected interface{}) {
+	t.Helper()
 
 	var inputTerm *ast.Term
 
@@ -3003,6 +3012,7 @@ func assertTopDownWithPathAndContext(ctx context.Context, t *testing.T, compiler
 	}
 
 	testutil.Subtest(t, note, func(t *testing.T) {
+		t.Helper()
 
 		switch e := expected.(type) {
 		case *Error, error:
@@ -3063,6 +3073,7 @@ func assertTopDownWithPathAndContext(ctx context.Context, t *testing.T, compiler
 }
 
 func runTopDownPartialTestCase(ctx context.Context, t *testing.T, compiler *ast.Compiler, store storage.Store, txn storage.Transaction, input *ast.Term, output *ast.Term, body ast.Body, requiresSort bool, expected interface{}) {
+	t.Helper()
 
 	partialQuery := NewQuery(body).
 		WithCompiler(compiler).
