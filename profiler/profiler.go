@@ -123,7 +123,13 @@ func (p *Profiler) ReportTopNResults(numResults int, criteria []string) []ExprSt
 }
 
 // Trace updates the profiler state.
+// Deprecated: Use TraceEvent instead.
 func (p *Profiler) Trace(event *topdown.Event) {
+	p.TraceEvent(*event)
+}
+
+// TraceEvent updates the coverage state.
+func (p *Profiler) TraceEvent(event topdown.Event) {
 	switch event.Op {
 	case topdown.EvalOp:
 		if expr, ok := event.Node.(*ast.Expr); ok && expr != nil {
