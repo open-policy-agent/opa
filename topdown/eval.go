@@ -1175,10 +1175,16 @@ func (e *eval) saveCall(declArgsLen int, terms []*ast.Term, iter unifyIterator) 
 
 func (e *eval) saveInlinedNegatedExprs(exprs []*ast.Expr, iter unifyIterator) error {
 
-	// This function does not include with statements on the exprs because
-	// they will have already been saved and therefore had their any relevant
-	// with statements set.
+	with := make([]*ast.With, len(e.query[e.index].With))
+
+	for i := range e.query[e.index].With {
+		cpy := e.query[e.index].With[i].Copy()
+		cpy.Value = e.bindings.PlugNamespaced(cpy.Value, e.caller.bindings)
+		with[i] = cpy
+	}
+
 	for _, expr := range exprs {
+		expr.With = with
 		e.saveStack.Push(expr, nil, nil)
 		e.traceSave(expr)
 	}

@@ -2058,7 +2058,34 @@ func TestTopDownPartialEval(t *testing.T) {
 			note:        "negation: save inline negated with",
 			query:       `not input with data.x as 2; data.x = 1`,
 			data:        `{"x": 1}`,
-			wantQueries: []string{"not input"},
+			wantQueries: []string{"not input with data.x as 2"},
+		},
+		{
+			note:  "negation: save negated expr using plugged with value",
+			query: "data.test.p = true",
+			modules: []string{`
+				package test
+
+				p {
+					x = 1
+					not q with input.x as x
+				}
+
+				q {
+					r[input.x]
+				}
+
+				r[1]
+				r[2]
+			`},
+			disableInlining: []string{"data.test.q"},
+			wantQueries:     []string{"not data.partial.test.q with input.x as 1"},
+			wantSupport: []string{`
+				package partial.test
+
+				q { 1 = input.x }
+				q { 2 = input.x }
+			`},
 		},
 		{
 			note:        "negation: save inline negated with (undefined)",
