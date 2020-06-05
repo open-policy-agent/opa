@@ -447,6 +447,7 @@ type Rego struct {
 	unknowns             []string
 	parsedUnknowns       []*ast.Term
 	disableInlining      []string
+	shallowInlining      bool
 	skipPartialNamespace bool
 	partialNamespace     string
 	modules              []rawModule
@@ -747,6 +748,14 @@ func ParsedUnknowns(unknowns []*ast.Term) func(r *Rego) {
 func DisableInlining(paths []string) func(r *Rego) {
 	return func(r *Rego) {
 		r.disableInlining = paths
+	}
+}
+
+// ShallowInlining prevents rules that depend on unknown values from being inlined.
+// Rules that only depend on known values are inlined.
+func ShallowInlining(yes bool) func(r *Rego) {
+	return func(r *Rego) {
+		r.shallowInlining = yes
 	}
 }
 
@@ -1800,7 +1809,8 @@ func (r *Rego) partial(ctx context.Context, ectx *EvalContext) (*PartialQueries,
 		WithRuntime(r.runtime).
 		WithIndexing(ectx.indexing).
 		WithPartialNamespace(ectx.partialNamespace).
-		WithSkipPartialNamespace(r.skipPartialNamespace)
+		WithSkipPartialNamespace(r.skipPartialNamespace).
+		WithShallowInlining(r.shallowInlining)
 
 	for i := range ectx.tracers {
 		q = q.WithTracer(ectx.tracers[i])

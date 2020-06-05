@@ -1590,6 +1590,42 @@ func TestSkipPartialNamespaceOption(t *testing.T) {
 	}
 }
 
+func TestShallowInliningOption(t *testing.T) {
+	r := New(Query("data.test.p = true"), Module("example.rego", `
+		package test
+
+		p {
+			q = true
+		}
+
+		q {
+			input.x = r
+		}
+
+		r = 7
+	`), ShallowInlining(true))
+
+	pq, err := r.Partial(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(pq.Queries) != 1 || !pq.Queries[0].Equal(ast.MustParseBody("data.partial.test.p = true")) {
+		t.Fatal("expected exactly one query and ref to be rewritten but got:", pq.Queries)
+	}
+
+	exp := ast.MustParseModule(`
+		package partial.test
+
+		q { 7 = input.x }
+		p { data.partial.test.q = true }
+	`)
+
+	if len(pq.Support) != 1 || !pq.Support[0].Equal(exp) {
+		t.Fatal("expected module:", exp, "\n\ngot module:", pq.Support[0])
+	}
+}
+
 func TestPrepareWithEmptyModule(t *testing.T) {
 	_, err := New(
 		Query("d"),

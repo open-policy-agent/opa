@@ -115,8 +115,7 @@ func (c *Compiler) WithEntrypoints(e ...string) *Compiler {
 
 // WithOptimizationLevel sets the optimization level on the compiler. By default
 // optimizations are disabled. Higher levels apply more aggressive optimizations
-// but can take longer. Currently only two levels are supported: 0 (disabled) and
-// 1 (enabled).
+// but can take longer.
 func (c *Compiler) WithOptimizationLevel(n int) *Compiler {
 	c.optimizationLevel = n
 	return c
@@ -277,7 +276,8 @@ func (c *Compiler) optimize(ctx context.Context) error {
 
 	o := newOptimizer(c.bundle).
 		WithEntrypoints(c.entrypointrefs).
-		WithDebug(c.debug)
+		WithDebug(c.debug).
+		WithShallowInlining(c.optimizationLevel <= 1)
 
 	err := o.Do(ctx)
 	if err != nil {
@@ -334,6 +334,7 @@ type optimizer struct {
 	nsprefix        string
 	resultsymprefix string
 	outputprefix    string
+	shallow         bool
 	debug           *debugEvents
 }
 
@@ -356,13 +357,12 @@ func (o *optimizer) WithEntrypoints(es []*ast.Term) *optimizer {
 	return o
 }
 
-func (o *optimizer) Do(ctx context.Context) error {
+func (o *optimizer) WithShallowInlining(yes bool) *optimizer {
+	o.shallow = yes
+	return o
+}
 
-	// TODO(tsandall): implement optimization levels. These will just be params on partial evaluation for now.
-	//
-	// Level 1: PE w/ constant folding. Only inline rules that are completely known.
-	// Level 2: L1 except inlining of rules with unknowns.
-	// Level 3: L2 except aggressive inlining using negation and copy propagation optimizations.
+func (o *optimizer) Do(ctx context.Context) error {
 
 	// NOTE(tsandall): if there are multiple entrypoints, copy the bundle because
 	// if any of the optimization steps fail, we do not want to leave the caller's
@@ -399,6 +399,7 @@ func (o *optimizer) Do(ctx context.Context) error {
 			rego.ParsedQuery(ast.NewBody(ast.Equality.Expr(resultsym, e))),
 			rego.PartialNamespace(o.nsprefix),
 			rego.DisableInlining(o.findRequiredDocuments(e)),
+			rego.ShallowInlining(o.shallow),
 			rego.SkipPartialNamespace(true),
 			rego.Compiler(o.compiler),
 			rego.Store(store),

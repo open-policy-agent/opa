@@ -268,12 +268,14 @@ func TestCompilerError(t *testing.T) {
 	})
 }
 
-func TestCompilerOptimization(t *testing.T) {
+func TestCompilerOptimizationL1(t *testing.T) {
+
 	files := map[string]string{
 		"test.rego": `
 			package test
 			default p = false
-			p { input.x = data.foo }`,
+			p { q }
+			q { input.x = data.foo }`,
 		"data.json": `
 			{"foo": 1}`,
 	}
@@ -290,15 +292,82 @@ func TestCompilerOptimization(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		exp := ast.MustParseModule(`
+		optimizedExp := ast.MustParseModule(`
 			package test
 
-			p { input.x = 1}
+			q { input.x = 1 }
+			p { data.test.q = X; X }
 			default p = false
 		`)
 
-		if len(compiler.bundle.Modules) != 1 || !compiler.bundle.Modules[0].Parsed.Equal(exp) {
-			t.Fatalf("expected one module but got: %v", compiler.bundle.Modules)
+		// NOTE(tsandall): PE generates vars with wildcard prefix. Instead of
+		// constructing the AST manually, just rewrite to the expected value
+		// here. If this becomes a common pattern, we could refactor (e.g.,
+		// allow caller to control var prefix, split into a reusable function,
+		// etc.)
+		ast.TransformVars(optimizedExp, func(x ast.Var) (ast.Value, error) {
+			if x == ast.Var("X") {
+				return ast.Var("$_term_1_01"), nil
+			}
+			return x, nil
+		})
+
+		if len(compiler.bundle.Modules) != 1 {
+			t.Fatalf("expected 1 module but got: %v", compiler.bundle.Modules)
+		}
+
+		if !compiler.bundle.Modules[0].Parsed.Equal(optimizedExp) {
+			t.Fatalf("expected optimized module to be:\n\n%v\n\ngot:\n\n%v", optimizedExp, compiler.bundle.Modules[0])
+		}
+	})
+}
+
+func TestCompilerOptimizationL2(t *testing.T) {
+
+	files := map[string]string{
+		"test.rego": `
+			package test
+			default p = false
+			p { q }
+			q { input.x = data.foo }`,
+		"data.json": `
+			{"foo": 1}`,
+	}
+
+	test.WithTempFS(files, func(root string) {
+
+		compiler := New().
+			WithPaths(root).
+			WithOptimizationLevel(2).
+			WithEntrypoints("test/p")
+
+		err := compiler.Build(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		prunedExp := ast.MustParseModule(`
+			package test
+
+			q { input.x = data.foo }`)
+
+		optimizedExp := ast.MustParseModule(`
+			package test
+
+			p { input.x = 1 }
+			default p = false
+		`)
+
+		if len(compiler.bundle.Modules) != 2 {
+			t.Fatalf("expected two modules but got: %v", compiler.bundle.Modules)
+		}
+
+		if !compiler.bundle.Modules[0].Parsed.Equal(prunedExp) {
+			t.Fatalf("expected pruned module to be:\n\n%v\n\ngot:\n\n%v", prunedExp, compiler.bundle.Modules[0])
+		}
+
+		if !compiler.bundle.Modules[1].Parsed.Equal(optimizedExp) {
+			t.Fatalf("expected optimized module to be:\n\n%v\n\ngot:\n\n%v", optimizedExp, compiler.bundle.Modules[1])
 		}
 	})
 }
