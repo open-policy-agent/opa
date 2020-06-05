@@ -256,8 +256,13 @@ func (i *refindices) Sorted() []Ref {
 			return false
 		})
 
-		sort.Slice(i.sorted, func(i, j int) bool {
-			return counts[i] > counts[j]
+		sort.Slice(i.sorted, func(a, b int) bool {
+			if counts[a] > counts[b] {
+				return true
+			} else if counts[b] > counts[a] {
+				return false
+			}
+			return i.sorted[a][0].Loc().Compare(i.sorted[b][0].Loc()) < 0
 		})
 	}
 
