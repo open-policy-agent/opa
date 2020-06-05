@@ -306,7 +306,11 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 			body.Append(bindingExprs[i])
 		}
 
-		partials = append(partials, applyCopyPropagation(p, e.instr, body))
+		if !q.shallowInlining {
+			body = applyCopyPropagation(p, e.instr, body)
+		}
+
+		partials = append(partials, body)
 		return nil
 	})
 
