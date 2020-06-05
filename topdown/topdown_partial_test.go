@@ -1979,7 +1979,7 @@ func TestTopDownPartialEval(t *testing.T) {
 			wantSupport: []string{
 				`package partial.test
 
-				q = x2 { x2 = input.x }
+				q = x2 { y2 = input.x; x2 = y2 }
 				p { data.partial.test.q = 1 }
 				`,
 			},

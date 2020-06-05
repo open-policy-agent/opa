@@ -471,18 +471,26 @@ func (e *eval) evalNotPartial(iter evalIterator) error {
 	// dependencies of the negation.
 	unknowns := e.saveSet.Vars(e.caller.bindings)
 
-	// Run partial evaluation, plugging the result and applying copy propagation to
-	// each result. Since the result may require support, push a new query onto the
-	// save stack to avoid mutating the current save query.
-	p := copypropagation.New(unknowns).WithEnsureNonEmptyBody(true).WithCompiler(e.compiler)
+	// Run partial evaluation. Since the result may require support, push a new
+	// query onto the save stack to avoid mutating the current save query. If
+	// shallow inlining is not enabled, run copy propagation to further simplify
+	// the result.
+	var cp *copypropagation.CopyPropagator
+
+	if !e.inliningControl.shallow {
+		cp = copypropagation.New(unknowns).WithEnsureNonEmptyBody(true).WithCompiler(e.compiler)
+	}
+
 	var savedQueries []ast.Body
 	e.saveStack.PushQuery(nil)
 
 	child.eval(func(*eval) error {
 		query := e.saveStack.Peek()
 		plugged := query.Plug(e.caller.bindings)
-		result := applyCopyPropagation(p, e.instr, plugged)
-		savedQueries = append(savedQueries, result)
+		if cp != nil {
+			plugged = applyCopyPropagation(cp, e.instr, plugged)
+		}
+		savedQueries = append(savedQueries, plugged)
 		return nil
 	})
 
@@ -1998,11 +2006,17 @@ func (e evalVirtualPartial) partialEvalSupportRule(iter unifyIterator, rule *ast
 		}
 
 		head := ast.NewHead(rule.Head.Name, key, value)
-		p := copypropagation.New(head.Vars()).WithEnsureNonEmptyBody(true).WithCompiler(e.e.compiler)
+
+		if !e.e.inliningControl.shallow {
+			cp := copypropagation.New(head.Vars()).
+				WithEnsureNonEmptyBody(true).
+				WithCompiler(e.e.compiler)
+			plugged = applyCopyPropagation(cp, e.e.instr, plugged)
+		}
 
 		e.e.saveSupport.Insert(path, &ast.Rule{
 			Head:    head,
-			Body:    p.Apply(plugged),
+			Body:    plugged,
 			Default: rule.Default,
 		})
 
@@ -2260,11 +2274,17 @@ func (e evalVirtualComplete) partialEvalSupportRule(iter unifyIterator, rule *as
 		plugged := current.Plug(e.e.caller.bindings)
 
 		head := ast.NewHead(rule.Head.Name, nil, child.bindings.PlugNamespaced(rule.Head.Value, e.e.caller.bindings))
-		p := copypropagation.New(head.Vars()).WithEnsureNonEmptyBody(true).WithCompiler(e.e.compiler)
+
+		if !e.e.inliningControl.shallow {
+			cp := copypropagation.New(head.Vars()).
+				WithEnsureNonEmptyBody(true).
+				WithCompiler(e.e.compiler)
+			plugged = applyCopyPropagation(cp, e.e.instr, plugged)
+		}
 
 		e.e.saveSupport.Insert(path, &ast.Rule{
 			Head:    head,
-			Body:    applyCopyPropagation(p, e.e.instr, plugged),
+			Body:    plugged,
 			Default: rule.Default,
 		})
 
