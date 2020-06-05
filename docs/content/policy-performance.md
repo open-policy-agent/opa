@@ -679,6 +679,39 @@ loading 10,000 rules that implement an ACL-style authorization policy consumes a
 130MB of RAM while 100,000 rules implementing the same policy (but with 10x more tuples to check)
 consumes approximately 1.1GB of RAM.
 
+## Optimization Levels
+
+The `--optimize` (or `-O`) flag on the `opa build` command controls how bundles are optimized.
+
+> Optimization applies partial evaluation to precompute _known_ values in the policy. The goal of
+partial evaluation is to convert non-linear-time policies into linear-time policies.
+
+By specifying the `--optimize` flag, users can control how much time and resources are spent
+attempting to optimize the bundle. Generally, higher optimization levels require more time
+and resources. Currently, OPA supports three optimization levels. The exact optimizations applied
+in each level may change over time.
+
+### -O=0 (default)
+
+By default optimizations are disabled.
+
+### -O=1 (recommended)
+
+Policies are partially evaluated. Rules that do not depend on unknowns are evaluated and the
+virtual documents they produce are inlined into call sites. If a virtual virtual is required at
+evaluation time (e.g., because it is targetted by a `with` statement), then it will not be inlined.
+
+Rules that DO NOT depend on unknowns are also partially evaluated however the virtual documents
+they produce ARE NOT inlined into call sites. The output policy should be structurally similar
+to the input policy.
+
+### -O=2 (aggressive)
+
+Same as `-O=1` except virtual documents produced by rules that depend on unknowns may be inlined
+into call sites. In addition, more aggressive inlining is applied within rules. This includes
+[copy propagation](https://en.wikipedia.org/wiki/Copy_propagation) and inlining of certain negated
+statements that would otherwise generate support rules.
+
 ## Key Takeaways
 
 For high-performance use cases:
