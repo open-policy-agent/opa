@@ -140,7 +140,7 @@ p {
 }
 
 func TestCoverTraceConfig(t *testing.T) {
-	ct := topdown.CustomTracer(New())
+	ct := topdown.QueryTracer(New())
 	conf := ct.Config()
 
 	expected := topdown.TraceConfig{
