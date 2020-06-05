@@ -10,5 +10,6 @@ import "testing"
 
 // Subtest executes a sub-test f under test t.
 func Subtest(t *testing.T, name string, f func(*testing.T)) {
+	t.Helper()
 	t.Run(name, f)
 }
