@@ -100,7 +100,13 @@ func (c *Cover) Report(modules map[string]*ast.Module) (report Report) {
 }
 
 // Trace updates the coverage state.
+// Deprecated: Use TraceEvent instead.
 func (c *Cover) Trace(event *topdown.Event) {
+	c.TraceEvent(*event)
+}
+
+// TraceEvent updates the coverage state.
+func (c *Cover) TraceEvent(event topdown.Event) {
 	switch event.Op {
 	case topdown.ExitOp:
 		if rule, ok := event.Node.(*ast.Rule); ok {
