@@ -300,6 +300,19 @@ s[2] { true }`,
 	if !isVirtual(tree, MustParseRef("data.a.b.empty")) {
 		t.Fatal("Expected data.a.b.empty to be virtual")
 	}
+
+	abc := tree.Children[Var("data")].Children[String("a")].Children[String("b")].Children[String("c")]
+	exp := []Value{String("p"), String("q"), String("r"), String("s"), String("z")}
+
+	if len(abc.Sorted) != len(exp) {
+		t.Fatal("expected", exp, "but got", abc)
+	}
+
+	for i := range exp {
+		if exp[i].Compare(abc.Sorted[i]) != 0 {
+			t.Fatal("expected", exp, "but got", abc)
+		}
+	}
 }
 
 func TestCompilerEmpty(t *testing.T) {
