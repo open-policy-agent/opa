@@ -58,8 +58,6 @@ func runAuthzBenchmark(b *testing.B, mode InputMode, numPaths int) {
 		b.Fatalf("Unexpected error(s): %v", compiler.Errors)
 	}
 
-	b.ResetTimer()
-
 	r := rego.New(
 		rego.Compiler(compiler),
 		rego.Store(store),
@@ -73,13 +71,20 @@ func runAuthzBenchmark(b *testing.B, mode InputMode, numPaths int) {
 		b.Fatalf("Unexpected error(s): %v", err)
 	}
 
-	for i := 0; i < b.N; i++ {
-		input, expected := GenerateInput(profile, mode)
+	input, expected := GenerateInput(profile, mode)
 
-		rs, err := pq.Eval(ctx, rego.EvalInput(input))
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		b.StartTimer()
+		rs, err := pq.Eval(
+			ctx,
+			rego.EvalInput(input),
+		)
 		if err != nil {
 			b.Fatalf("Unexpected error(s): %v", err)
 		}
+		b.StopTimer()
 
 		if len(rs) != 1 || util.Compare(rs[0].Expressions[0].Value, expected) != 0 {
 			b.Fatalf("Unexpected result: %v", rs)
