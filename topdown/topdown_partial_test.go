@@ -1953,6 +1953,21 @@ func TestTopDownPartialEval(t *testing.T) {
 			`},
 		},
 		{
+			note:  "disable inlining: ref prefix",
+			query: "data.test.p = true",
+			modules: []string{
+				`package test
+
+				p {
+					q[input.x]
+				}
+
+				q = {a | data.base[a]}`,
+			},
+			disableInlining: []string{"data.base.foo.bar"},
+			wantQueries:     []string{`x_ref_01 = {a2 | data.base[a2]; x_term_2_02 = true}; x_ref_01[input.x]`},
+		},
+		{
 			note:  "shallow inlining: complete rules",
 			query: "data.test.p = true",
 			modules: []string{
