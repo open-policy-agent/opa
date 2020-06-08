@@ -49,6 +49,89 @@ void test_opa_malloc()
     }
 }
 
+void test_opa_free()
+{
+
+    // check the heap shrinks with a single malloc and free.
+
+    size_t blocks = opa_heap_free_blocks();
+    unsigned int base = opa_heap_ptr_get();
+    opa_free(opa_malloc(0));
+
+    test("heap ptr", base == opa_heap_ptr_get());
+    test("free blocks", blocks == 0 && opa_heap_free_blocks() == 0);
+
+    // check the double malloc, followed with frees in identical order
+    // results in eventual heap shrinking.
+
+    void *p1 = opa_malloc(0);
+    void *p2 = opa_malloc(0);
+    unsigned int high = opa_heap_ptr_get();
+    test("free blocks", opa_heap_free_blocks() == 0);
+
+    opa_free(p1);
+    test("free blocks", opa_heap_free_blocks() == 1);
+    test("heap ptr", high == opa_heap_ptr_get());
+
+    opa_free(p2);
+    test("free blocks", opa_heap_free_blocks() == 0);
+    test("heap ptr", base == opa_heap_ptr_get());
+
+    // check the double malloc, followed with frees in reverse order
+    // results in gradual heap shrinking.
+
+    p1 = opa_malloc(0);
+    p2 = opa_malloc(0);
+    high = opa_heap_ptr_get();
+    test("free blocks", opa_heap_free_blocks() == 0);
+
+    opa_free(p2);
+    test("free blocks", opa_heap_free_blocks() == 0);
+    test("heap ptr", high > opa_heap_ptr_get());
+
+    opa_free(p1);
+    test("free blocks", opa_heap_free_blocks() == 0);
+    test("heap ptr", base == opa_heap_ptr_get());
+
+    // check the free re-use (without splitting).
+
+    p1 = opa_malloc(1);
+    p2 = opa_malloc(1);
+    high = opa_heap_ptr_get();
+
+    opa_free(p1);
+    test("free blocks", opa_heap_free_blocks() == 1);
+
+    p1 = opa_malloc(1);
+    test("free blocks", opa_heap_free_blocks() == 0);
+    test("heap ptr", high == opa_heap_ptr_get());
+
+    opa_free(p2);
+    opa_free(p1);
+    test("free blocks", opa_heap_free_blocks() == 0);
+    test("heap ptr", base == opa_heap_ptr_get());
+
+    // check the free re-use (with splitting).
+
+    p1 = opa_malloc(64);
+    p2 = opa_malloc(64);
+    high = opa_heap_ptr_get();
+
+    opa_free(p1);
+    test("free blocks", opa_heap_free_blocks() == 1);
+
+    p1 = opa_malloc(1);
+    test("free blocks", opa_heap_free_blocks() == 1);
+    test("heap ptr", high == opa_heap_ptr_get());
+
+    opa_free(p2);
+    test("free blocks", opa_heap_free_blocks() == 0);
+
+    opa_free(p1);
+    test("free blocks", opa_heap_free_blocks() == 0);
+    test("heap ptr", base == opa_heap_ptr_get());
+}
+
 void test_opa_strlen()
 {
     test("empty", opa_strlen("") == 0);
