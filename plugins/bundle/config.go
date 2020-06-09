@@ -9,6 +9,8 @@ import (
 	"path"
 	"strings"
 
+	"github.com/open-policy-agent/opa/bundle"
+
 	"github.com/open-policy-agent/opa/download"
 	"github.com/open-policy-agent/opa/util"
 )
@@ -28,7 +30,7 @@ func ParseConfig(config []byte, services []string) (*Config, error) {
 		return nil, err
 	}
 
-	if err := parsedConfig.validateAndInjectDefaults(services); err != nil {
+	if err := parsedConfig.validateAndInjectDefaults(services, nil); err != nil {
 		return nil, err
 	}
 
@@ -39,6 +41,7 @@ func ParseConfig(config []byte, services []string) (*Config, error) {
 			Config:   parsedConfig.Config,
 			Service:  parsedConfig.Service,
 			Resource: parsedConfig.generateLegacyResourcePath(),
+			Signing:  nil,
 		},
 	}
 
@@ -49,13 +52,41 @@ func ParseConfig(config []byte, services []string) (*Config, error) {
 // the defined `bundles`. This expects a map of bundle names to resource
 // configurations.
 func ParseBundlesConfig(config []byte, services []string) (*Config, error) {
-	if config == nil {
+	return NewConfigBuilder().WithBytes(config).WithServices(services).Parse()
+}
+
+// NewConfigBuilder returns a new ConfigBuilder to build and parse the bundle config
+func NewConfigBuilder() *ConfigBuilder {
+	return &ConfigBuilder{}
+}
+
+// WithBytes sets the raw bundle config
+func (b *ConfigBuilder) WithBytes(config []byte) *ConfigBuilder {
+	b.raw = config
+	return b
+}
+
+// WithServices sets the services that implement control plane APIs
+func (b *ConfigBuilder) WithServices(services []string) *ConfigBuilder {
+	b.services = services
+	return b
+}
+
+// WithKeyConfigs sets the public keys to verify a signed bundle
+func (b *ConfigBuilder) WithKeyConfigs(keys map[string]*bundle.KeyConfig) *ConfigBuilder {
+	b.keys = keys
+	return b
+}
+
+// Parse validates the config and injects default values for the defined `bundles`.
+func (b *ConfigBuilder) Parse() (*Config, error) {
+	if b.raw == nil {
 		return nil, nil
 	}
 
 	var bundleConfigs map[string]*Source
 
-	if err := util.Unmarshal(config, &bundleConfigs); err != nil {
+	if err := util.Unmarshal(b.raw, &bundleConfigs); err != nil {
 		return nil, err
 	}
 
@@ -67,12 +98,19 @@ func ParseBundlesConfig(config []byte, services []string) (*Config, error) {
 		}
 	}
 
-	err := c.validateAndInjectDefaults(services)
+	err := c.validateAndInjectDefaults(b.services, b.keys)
 	if err != nil {
 		return nil, err
 	}
 
 	return &c, nil
+}
+
+// ConfigBuilder assists in the construction of the plugin configuration.
+type ConfigBuilder struct {
+	raw      []byte
+	services []string
+	keys     map[string]*bundle.KeyConfig
 }
 
 // Config represents the configuration of the plugin.
@@ -94,8 +132,9 @@ type Config struct {
 type Source struct {
 	download.Config
 
-	Service  string `json:"service"`
-	Resource string `json:"resource"`
+	Service  string                     `json:"service"`
+	Resource string                     `json:"resource"`
+	Signing  *bundle.VerificationConfig `json:"signing"`
 }
 
 // IsMultiBundle returns whether or not the config is the newer multi-bundle
@@ -106,7 +145,7 @@ func (c *Config) IsMultiBundle() bool {
 	return c.Name == ""
 }
 
-func (c *Config) validateAndInjectDefaults(services []string) error {
+func (c *Config) validateAndInjectDefaults(services []string, keys map[string]*bundle.KeyConfig) error {
 	if c.Bundles == nil {
 		return c.validateAndInjectDefaultsLegacy(services)
 	}
@@ -117,6 +156,18 @@ func (c *Config) validateAndInjectDefaults(services []string) error {
 		}
 
 		var err error
+
+		if source.Signing != nil {
+			err = source.Signing.ValidateAndInjectDefaults(keys)
+			if err != nil {
+				return fmt.Errorf("invalid configuration for bundle %q: %s", name, err.Error())
+			}
+		} else {
+			if len(keys) > 0 {
+				source.Signing = bundle.NewVerificationConfig(keys, "", "", nil)
+			}
+		}
+
 		source.Service, err = c.getServiceFromList(source.Service, services)
 		if err == nil {
 			err = source.Config.ValidateAndInjectDefaults()

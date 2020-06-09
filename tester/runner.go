@@ -520,7 +520,7 @@ func Load(args []string, filter loader.Filter) (map[string]*ast.Module, storage.
 func LoadBundles(args []string, filter loader.Filter) (map[string]*bundle.Bundle, error) {
 	bundles := map[string]*bundle.Bundle{}
 	for _, bundleDir := range args {
-		b, err := loader.NewFileLoader().AsBundle(bundleDir)
+		b, err := loader.NewFileLoader().WithSkipBundleVerification(true).AsBundle(bundleDir)
 		if err != nil {
 			return nil, fmt.Errorf("unable to load bundle %s: %s", bundleDir, err)
 		}

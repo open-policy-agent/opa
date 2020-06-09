@@ -41,6 +41,9 @@ bundles:
     polling:
       min_delay_seconds: 60
       max_delay_seconds: 120
+    signing:
+      keyid: global_key
+      scope: write
 
 decision_logs:
   service: acmecorp
@@ -52,6 +55,12 @@ status:
   service: acmecorp
 
 default_decision: /http/example/authz/allow
+
+keys:
+  global_key:
+    algorithm: RS256
+    key: <PEM_encoded_public_key>
+    scope: read
 ```
 
 #### Environment Variable Substitution
@@ -318,10 +327,46 @@ services:
 | `default_authorization_decision` | `string` | No (default: `/system/authz/allow`) | Set path of default authorization decision for OPA's API. |
 | `plugins` | `object` | No (default: `{}`) | Location for custom plugin configuration. See [Plugins](../plugins) for details. |
 
+### Keys
+
+Keys is a dictionary mapping the key name to the actual key and optionally the algorithm and scope.
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `keys[_].key` | `string` | Yes | Actual key to use for bundle signature verification. |
+| `keys[_].algorithm` | `string` | No (default: `RS256`) | Name of the signing algorithm. |
+| `keys[_].scope` | `string` | No | Scope to use for bundle signature verification. |
+
+> Note: If the `scope` is provided in a bundle's `signing` configuration (ie. `bundles[_].signing.scope`),
+> it takes precedence over `keys[_].scope`.
+
+The following signing algorithms are supported:
+
+| Name | Description |
+| --- | --- |
+| `ES256` | ECDSA using P-256 and SHA-256 |
+| `ES384` | ECDSA using P-384 and SHA-384 |
+| `ES512` | ECDSA using P-521 and SHA-512 |
+| `HS256` | HMAC using SHA-256 |
+| `HS384` | HMAC using SHA-384 |
+| `HS512` | HMAC using SHA-512 |
+| `PS256` | RSASSA-PSS using SHA256 and MGF1-SHA256 |
+| `PS384` | RSASSA-PSS using SHA384 and MGF1-SHA384 |
+| `PS512` | RSASSA-PSS using SHA512 and MGF1-SHA512 |
+| `RS256` | RSASSA-PKCS-v1.5 using SHA-256 |
+| `RS384` | RSASSA-PKCS-v1.5 using SHA-384 |
+| `RS512` | RSASSA-PKCS-v1.5 using SHA-512 |
+
 ### Bundles
 
 Bundles are defined with a key that is the `name` of the bundle. This `name` is used in the status API, decision logs,
 server provenance, etc.
+
+Each bundle can be configured to verify a bundle signature using the `keyid` and `scope` fields. The `keyid` is the name of
+one of the keys listed under the [keys](#keys) entry.
+
+Signature verification fails if the `bundles[_].signing` field is configured on a bundle but no `.signatures.json` file is
+included in the actual bundle gzipped tarball.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -329,6 +374,10 @@ server provenance, etc.
 | `bundles[_].service` | `string` | Yes | Name of service to use to contact remote server. |
 | `bundles[_].polling.min_delay_seconds` | `int64` | No (default: `60`) | Minimum amount of time to wait between bundle downloads. |
 | `bundles[_].polling.max_delay_seconds` | `int64` | No (default: `120`) | Maximum amount of time to wait between bundle downloads. |
+| `bundles[_].signing.keyid` | `string` | No | Name of the key to use for bundle signature verification. |
+| `bundles[_].signing.scope` | `string` | No | Scope to use for bundle signature verification. |
+| `bundles[_].signing.exclude_files` | `array` | No | Files in the bundle to exclude during verification. |
+
 
 ### Bundle (Deprecated)
 
@@ -370,8 +419,11 @@ server provenance, etc.
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `discovery.name` | `string` | Yes | Name of the discovery configuration to download. |
-| `discovery.resource` | `string` | No (default: `/bundles/<name>` | Resource path to use to download bundle from configured service. |
+| `discovery.resource` | `string` | No (default: `/bundles/<name>`) | Resource path to use to download bundle from configured service. |
 | `discovery.prefix` | `string` | No (default: `bundles`) | Deprecated: Use `resource` instead. Path prefix to use to download configuration from remote server. |
 | `discovery.decision` | `string` | No (default: value of `discovery.name` configuration field) | Name of the OPA query that will be used to calculate the configuration |
 | `discovery.polling.min_delay_seconds` | `int64` | No (default: `60`) | Minimum amount of time to wait between configuration downloads. |
 | `discovery.polling.max_delay_seconds` | `int64` | No (default: `120`) | Maximum amount of time to wait between configuration downloads. |
+| `discovery.signing.keyid` | `string` | No | Name of the key to use for bundle signature verification. |
+| `discovery.signing.scope` | `string` | No | Scope to use for bundle signature verification. |
+| `discovery.signing.exclude_files` | `array` | No | Files in the bundle to exclude during verification. |

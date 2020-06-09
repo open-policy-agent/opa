@@ -91,3 +91,29 @@ func TestBuildErrorDoesNotWriteFile(t *testing.T) {
 		}
 	})
 }
+
+func TestBuildErrorVerifyNonBundle(t *testing.T) {
+
+	files := map[string]string{
+		"test.rego": `
+			package test
+			p { p }
+		`,
+	}
+
+	test.WithTempFS(files, func(root string) {
+		params := newBuildParams()
+		params.outputFile = path.Join(root, "bundle.tar.gz")
+		params.pubKey = "secret"
+
+		err := dobuild(params, []string{root})
+		if err == nil {
+			t.Fatal("expected error but got nil")
+		}
+
+		exp := "enable bundle mode (ie. --bundle) to verify or sign bundle files or directories"
+		if err.Error() != exp {
+			t.Fatalf("expected error message %v but got %v", exp, err.Error())
+		}
+	})
+}

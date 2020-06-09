@@ -25,9 +25,9 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/internal/jwx/jwk"
+	"github.com/open-policy-agent/opa/internal/jwx/jws"
 	"github.com/open-policy-agent/opa/topdown/builtins"
-	"github.com/open-policy-agent/opa/topdown/internal/jwx/jwk"
-	"github.com/open-policy-agent/opa/topdown/internal/jwx/jws"
 )
 
 var (
