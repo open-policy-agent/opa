@@ -107,7 +107,7 @@ func dofindDefinition(params findDefinitionParams, stdin io.Reader, stdout io.Wr
 		if len(params.bundlePaths.v) > 1 {
 			return errors.New("not implemented: multiple bundle paths")
 		}
-		b, err = loader.NewFileLoader().AsBundle(params.bundlePaths.v[0])
+		b, err = loader.NewFileLoader().WithSkipBundleVerification(true).AsBundle(params.bundlePaths.v[0])
 		if err != nil {
 			return err
 		}

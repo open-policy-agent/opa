@@ -9,6 +9,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -31,21 +32,58 @@ import (
 
 // Common file extensions and file names.
 const (
-	RegoExt      = ".rego"
-	WasmFile     = "/policy.wasm"
-	manifestExt  = ".manifest"
-	dataFile     = "data.json"
-	yamlDataFile = "data.yaml"
+	RegoExt           = ".rego"
+	WasmFile          = "/policy.wasm"
+	ManifestExt       = ".manifest"
+	SignaturesFile    = "signatures.json"
+	dataFile          = "data.json"
+	yamlDataFile      = "data.yaml"
+	defaultHashingAlg = "SHA-256"
+	BundleLimitBytes  = (1024 * 1024 * 1024) + 1 // limit bundle reads to 1GB to protect against gzip bombs
 )
-
-const bundleLimitBytes = (1024 * 1024 * 1024) + 1 // limit bundle reads to 1GB to protect against gzip bombs
 
 // Bundle represents a loaded bundle. The bundle can contain data and policies.
 type Bundle struct {
-	Manifest Manifest
-	Data     map[string]interface{}
-	Modules  []ModuleFile
-	Wasm     []byte
+	Signatures SignaturesConfig
+	Manifest   Manifest
+	Data       map[string]interface{}
+	Modules    []ModuleFile
+	Wasm       []byte
+}
+
+// SignaturesConfig represents an array of JWTs that encapsulate the signatures for the bundle.
+type SignaturesConfig struct {
+	Signatures []string `json:"signatures,omitempty"`
+}
+
+// isEmpty returns if the SignaturesConfig is empty.
+func (s SignaturesConfig) isEmpty() bool {
+	return reflect.DeepEqual(s, SignaturesConfig{})
+}
+
+// DecodedSignature represents the decoded JWT payload.
+type DecodedSignature struct {
+	Files    []FileInfo `json:"files"`
+	KeyID    string     `json:"keyid"`
+	Scope    string     `json:"scope"`
+	IssuedAt int64      `json:"iat"`
+	Issuer   string     `json:"iss"`
+}
+
+// FileInfo contains the hashing algorithm used, resulting digest etc.
+type FileInfo struct {
+	Name      string `json:"name"`
+	Hash      string `json:"hash"`
+	Algorithm string `json:"algorithm"`
+}
+
+// NewFile returns a new FileInfo.
+func NewFile(name, hash, alg string) FileInfo {
+	return FileInfo{
+		Name:      name,
+		Hash:      hash,
+		Algorithm: alg,
+	}
 }
 
 // Manifest represents the manifest from a bundle. The manifest may contain
@@ -193,6 +231,9 @@ type Reader struct {
 	includeManifestInData bool
 	metrics               metrics.Metrics
 	baseDir               string
+	verificationConfig    *VerificationConfig
+	skipVerify            bool
+	files                 map[string]FileInfo // files in the bundle signature payload
 }
 
 // NewReader is deprecated. Use NewCustomReader instead.
@@ -206,6 +247,7 @@ func NewCustomReader(loader DirectoryLoader) *Reader {
 	nr := Reader{
 		loader:  loader,
 		metrics: metrics.New(),
+		files:   make(map[string]FileInfo),
 	}
 	return &nr
 }
@@ -230,29 +272,64 @@ func (r *Reader) WithBaseDir(dir string) *Reader {
 	return r
 }
 
+// WithBundleVerificationConfig sets the key configuration used to verify a signed bundle
+func (r *Reader) WithBundleVerificationConfig(config *VerificationConfig) *Reader {
+	r.verificationConfig = config
+	return r
+}
+
+// WithSkipBundleVerification skips verification of a signed bundle
+func (r *Reader) WithSkipBundleVerification(skipVerify bool) *Reader {
+	r.skipVerify = skipVerify
+	return r
+}
+
 // Read returns a new Bundle loaded from the reader.
 func (r *Reader) Read() (Bundle, error) {
 
 	var bundle Bundle
+	var descriptors []*Descriptor
+	var err error
 
 	bundle.Data = map[string]interface{}{}
 
-	for {
-		f, err := r.loader.NextFile()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return bundle, errors.Wrap(err, "bundle read failed")
-		}
+	bundle.Signatures, descriptors, err = listSignaturesAndDescriptors(r.loader, r.skipVerify)
+	if err != nil {
+		return bundle, err
+	}
 
+	err = r.checkSignaturesAndDescriptors(bundle.Signatures)
+	if err != nil {
+		return bundle, err
+	}
+
+	for _, f := range descriptors {
 		var buf bytes.Buffer
-		n, err := f.Read(&buf, bundleLimitBytes)
+		n, err := f.Read(&buf, BundleLimitBytes)
 		f.Close() // always close, even on error
+
 		if err != nil && err != io.EOF {
 			return bundle, err
-		} else if err == nil && n >= bundleLimitBytes {
-			return bundle, fmt.Errorf("bundle exceeded max size (%v bytes)", bundleLimitBytes-1)
+		} else if err == nil && n >= BundleLimitBytes {
+			return bundle, fmt.Errorf("bundle exceeded max size (%v bytes)", BundleLimitBytes-1)
+		}
+
+		// verify the file content
+		if !bundle.Signatures.isEmpty() {
+			path := f.Path()
+			if r.baseDir != "" {
+				path = f.URL()
+			}
+			path = strings.TrimPrefix(path, "/")
+
+			// check if the file is to be excluded from bundle verification
+			if r.isFileExcluded(path) {
+				delete(r.files, path)
+			} else {
+				if err = r.verifyBundleFile(path, buf); err != nil {
+					return bundle, err
+				}
+			}
 		}
 
 		// Normalize the paths to use `/` separators
@@ -309,11 +386,20 @@ func (r *Reader) Read() (Bundle, error) {
 				return bundle, err
 			}
 
-		} else if strings.HasSuffix(path, manifestExt) {
+		} else if strings.HasSuffix(path, ManifestExt) {
 			if err := util.NewJSONDecoder(&buf).Decode(&bundle.Manifest); err != nil {
 				return bundle, errors.Wrap(err, "bundle load failed on manifest decode")
 			}
 		}
+	}
+
+	// check if the bundle signatures specify any files that weren't found in the bundle
+	if len(r.files) != 0 {
+		extra := []string{}
+		for k := range r.files {
+			extra = append(extra, k)
+		}
+		return bundle, fmt.Errorf("file(s) %v specified in bundle signatures but not found in the target bundle", extra)
 	}
 
 	if err := bundle.Manifest.validateAndInjectDefaults(bundle); err != nil {
@@ -343,6 +429,48 @@ func (r *Reader) Read() (Bundle, error) {
 	return bundle, nil
 }
 
+func (r *Reader) isFileExcluded(path string) bool {
+	for _, e := range r.verificationConfig.Exclude {
+		match, _ := filepath.Match(e, path)
+		if match {
+			return true
+		}
+	}
+	return false
+}
+
+func (r *Reader) checkSignaturesAndDescriptors(signatures SignaturesConfig) error {
+	if r.skipVerify {
+		return nil
+	}
+
+	if signatures.isEmpty() && r.verificationConfig != nil {
+		return fmt.Errorf("bundle missing .signatures.json file")
+	}
+
+	if !signatures.isEmpty() {
+		if r.verificationConfig == nil {
+			return fmt.Errorf("verification key not provided")
+		}
+
+		// verify the JWT signatures included in the `.signatures.json` file
+		if err := r.verifyBundleSignature(signatures); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (r *Reader) verifyBundleSignature(sc SignaturesConfig) error {
+	var err error
+	r.files, err = VerifyBundleSignature(sc, r.verificationConfig)
+	return err
+}
+
+func (r *Reader) verifyBundleFile(path string, data bytes.Buffer) error {
+	return VerifyBundleFile(path, data, r.files)
+}
+
 func (r *Reader) fullPath(path string) string {
 	if r.baseDir != "" {
 		path = filepath.Join(r.baseDir, path)
@@ -363,6 +491,7 @@ type Writer struct {
 	usePath       bool
 	disableFormat bool
 	w             io.Writer
+	signingConfig *SigningConfig
 }
 
 // NewWriter returns a bundle writer that writes to w.
@@ -407,26 +536,7 @@ func (w *Writer) Write(bundle Bundle) error {
 			path = module.Path
 		}
 
-		doFormat := !w.disableFormat
-		bs := module.Raw
-		if bs == nil {
-			var err error
-			bs, err = format.Ast(module.Parsed)
-			if err != nil {
-				return err
-			}
-			doFormat = false // do not reformat
-		}
-
-		if doFormat {
-			var err error
-			bs, err = format.Source(path, module.Raw)
-			if err != nil {
-				return err
-			}
-		}
-
-		if err := archive.WriteFile(tw, path, bs); err != nil {
+		if err := archive.WriteFile(tw, path, module.Raw); err != nil {
 			return err
 		}
 	}
@@ -436,6 +546,10 @@ func (w *Writer) Write(bundle Bundle) error {
 	}
 
 	if err := writeManifest(tw, bundle); err != nil {
+		return err
+	}
+
+	if err := writeSignatures(tw, bundle); err != nil {
 		return err
 	}
 
@@ -462,7 +576,118 @@ func writeManifest(tw *tar.Writer, bundle Bundle) error {
 		return err
 	}
 
-	return archive.WriteFile(tw, manifestExt, buf.Bytes())
+	return archive.WriteFile(tw, ManifestExt, buf.Bytes())
+}
+
+func writeSignatures(tw *tar.Writer, bundle Bundle) error {
+
+	if bundle.Signatures.isEmpty() {
+		return nil
+	}
+
+	bs, err := json.MarshalIndent(bundle.Signatures, "", " ")
+	if err != nil {
+		return err
+	}
+
+	return archive.WriteFile(tw, fmt.Sprintf(".%v", SignaturesFile), bs)
+}
+
+func hashBundleFiles(hash SignatureHasher, data map[string]interface{}, manifest Manifest, wasm []byte) ([]FileInfo, error) {
+
+	files := []FileInfo{}
+
+	bytes, err := hash.HashFile(data)
+	if err != nil {
+		return files, err
+	}
+	files = append(files, NewFile(strings.TrimPrefix("data.json", "/"), hex.EncodeToString(bytes), defaultHashingAlg))
+
+	if len(wasm) != 0 {
+		bytes, err := hash.HashFile(wasm)
+		if err != nil {
+			return files, err
+		}
+		files = append(files, NewFile(strings.TrimPrefix(WasmFile, "/"), hex.EncodeToString(bytes), defaultHashingAlg))
+	}
+
+	bytes, err = hash.HashFile(manifest)
+	if err != nil {
+		return files, err
+	}
+	files = append(files, NewFile(strings.TrimPrefix(ManifestExt, "/"), hex.EncodeToString(bytes), defaultHashingAlg))
+
+	return files, err
+}
+
+// FormatModules formats Rego modules
+func (b *Bundle) FormatModules(useModulePath bool) error {
+	var err error
+
+	for i, module := range b.Modules {
+		if module.Raw == nil {
+			module.Raw, err = format.Ast(module.Parsed)
+			if err != nil {
+				return err
+			}
+		} else {
+			path := module.URL
+			if useModulePath {
+				path = module.Path
+			}
+
+			module.Raw, err = format.Source(path, module.Raw)
+			if err != nil {
+				return err
+			}
+		}
+		b.Modules[i].Raw = module.Raw
+	}
+	return nil
+}
+
+// GenerateSignature generates the signature for the given bundle.
+func (b *Bundle) GenerateSignature(signingConfig *SigningConfig, keyID string, useModulePath bool) error {
+
+	hash, err := NewSignatureHasher(HashingAlgorithm(defaultHashingAlg))
+	if err != nil {
+		return err
+	}
+
+	files := []FileInfo{}
+
+	for _, module := range b.Modules {
+		bytes, err := hash.HashFile(module.Raw)
+		if err != nil {
+			return err
+		}
+
+		path := module.URL
+		if useModulePath {
+			path = module.Path
+		}
+		files = append(files, NewFile(strings.TrimPrefix(path, "/"), hex.EncodeToString(bytes), defaultHashingAlg))
+	}
+
+	result, err := hashBundleFiles(hash, b.Data, b.Manifest, b.Wasm)
+	if err != nil {
+		return err
+	}
+	files = append(files, result...)
+
+	// generate signed token
+	token, err := GenerateSignedToken(files, signingConfig, keyID)
+	if err != nil {
+		return err
+	}
+
+	if b.Signatures.isEmpty() {
+		b.Signatures = SignaturesConfig{}
+	}
+
+	b.Signatures.Signatures = []string{string(token)}
+
+	return nil
 }
 
 // ParsedModules returns a map of parsed modules with names that are
@@ -484,6 +709,7 @@ func (b Bundle) Equal(other Bundle) bool {
 	if !reflect.DeepEqual(b.Data, other.Data) {
 		return false
 	}
+
 	if len(b.Modules) != len(other.Modules) {
 		return false
 	}
@@ -752,4 +978,45 @@ func modulePathWithPrefix(bundleName string, modulePath string) string {
 	}
 
 	return filepath.Join(prefix, modulePath)
+}
+
+// IsStructuredDoc checks if the file name equals a structured file extension ex. ".json"
+func IsStructuredDoc(name string) bool {
+	return filepath.Base(name) == dataFile || filepath.Base(name) == yamlDataFile ||
+		filepath.Base(name) == SignaturesFile || filepath.Base(name) == ManifestExt
+}
+
+func listSignaturesAndDescriptors(loader DirectoryLoader, skipVerify bool) (SignaturesConfig, []*Descriptor, error) {
+	descriptors := []*Descriptor{}
+	var signatures SignaturesConfig
+
+	for {
+		f, err := loader.NextFile()
+		if err == io.EOF {
+			break
+		}
+
+		if err != nil {
+			return signatures, nil, errors.Wrap(err, "bundle read failed")
+		}
+
+		// check for the signatures file
+		if !skipVerify && strings.HasSuffix(f.Path(), SignaturesFile) {
+			var buf bytes.Buffer
+			n, err := f.Read(&buf, BundleLimitBytes)
+			f.Close() // always close, even on error
+			if err != nil && err != io.EOF {
+				return signatures, nil, err
+			} else if err == nil && n >= BundleLimitBytes {
+				return signatures, nil, fmt.Errorf("bundle exceeded max size (%v bytes)", BundleLimitBytes-1)
+			}
+
+			if err := util.NewJSONDecoder(&buf).Decode(&signatures); err != nil {
+				return signatures, nil, errors.Wrap(err, "bundle load failed on signatures decode")
+			}
+		} else if !strings.HasSuffix(f.Path(), SignaturesFile) {
+			descriptors = append(descriptors, f)
+		}
+	}
+	return signatures, descriptors, nil
 }

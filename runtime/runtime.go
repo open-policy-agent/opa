@@ -20,6 +20,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/open-policy-agent/opa/bundle"
+
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/fsnotify.v1"
@@ -161,6 +163,12 @@ type Params struct {
 	// EnableVersionCheck flag controls whether OPA will report its version to an external service.
 	// If this flag is true, OPA will report its version to the external service
 	EnableVersionCheck bool
+
+	// BundleVerificationConfig sets the key configuration used to verify a signed bundle
+	BundleVerificationConfig *bundle.VerificationConfig
+
+	// SkipBundleVerification flag controls whether OPA will verify a signed bundle
+	SkipBundleVerification bool
 }
 
 // LoggingConfig stores the configuration for OPA's logging behaviour.
@@ -217,7 +225,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		}
 	}
 
-	loaded, err := initload.LoadPaths(params.Paths, params.Filter, params.BundleMode)
+	loaded, err := initload.LoadPaths(params.Paths, params.Filter, params.BundleMode, params.BundleVerificationConfig, params.SkipBundleVerification)
 	if err != nil {
 		return nil, errors.Wrap(err, "load error")
 	}
@@ -512,7 +520,7 @@ func (rt *Runtime) readWatcher(ctx context.Context, watcher *fsnotify.Watcher, p
 
 func (rt *Runtime) processWatcherUpdate(ctx context.Context, paths []string, removed string) error {
 
-	loaded, err := initload.LoadPaths(paths, rt.Params.Filter, rt.Params.BundleMode)
+	loaded, err := initload.LoadPaths(paths, rt.Params.Filter, rt.Params.BundleMode, nil, true)
 	if err != nil {
 		return err
 	}

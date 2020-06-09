@@ -14,10 +14,10 @@ import (
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/internal/jwx/jwk"
+	"github.com/open-policy-agent/opa/internal/jwx/jws"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
-	"github.com/open-policy-agent/opa/topdown/internal/jwx/jwk"
-	"github.com/open-policy-agent/opa/topdown/internal/jwx/jws"
 )
 
 func TestParseTokenConstraints(t *testing.T) {

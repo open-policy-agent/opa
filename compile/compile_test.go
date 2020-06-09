@@ -134,6 +134,11 @@ func TestCompilerLoadAsBundleSuccess(t *testing.T) {
 			panic(err)
 		}
 
+		err = exp.FormatModules(false)
+		if err != nil {
+			t.Fatal(err)
+		}
+
 		if !compiler.bundle.Equal(*exp) {
 			t.Fatalf("expected %v but got %v", exp, compiler.bundle)
 		}
@@ -206,6 +211,11 @@ func TestCompilerLoadFilesystem(t *testing.T) {
 		exp, err := loader.NewFileLoader().AsBundle(root)
 		if err != nil {
 			panic(err)
+		}
+
+		err = exp.FormatModules(false)
+		if err != nil {
+			t.Fatal(err)
 		}
 
 		if !compiler.bundle.Equal(*exp) {

@@ -26,17 +26,23 @@ const (
 )
 
 type runCmdParams struct {
-	rt                runtime.Params
-	tlsCertFile       string
-	tlsPrivateKeyFile string
-	tlsCACertFile     string
-	ignore            []string
-	serverMode        bool
-	skipVersionCheck  bool
-	authentication    *util.EnumFlag
-	authorization     *util.EnumFlag
-	logLevel          *util.EnumFlag
-	logFormat         *util.EnumFlag
+	rt                 runtime.Params
+	tlsCertFile        string
+	tlsPrivateKeyFile  string
+	tlsCACertFile      string
+	ignore             []string
+	serverMode         bool
+	skipVersionCheck   bool
+	authentication     *util.EnumFlag
+	authorization      *util.EnumFlag
+	logLevel           *util.EnumFlag
+	logFormat          *util.EnumFlag
+	algorithm          string
+	scope              string
+	pubKey             string
+	pubKeyID           string
+	skipBundleVerify   bool
+	excludeVerifyFiles []string
 }
 
 func newRunParams() runCmdParams {
@@ -109,10 +115,49 @@ Use the "help input" command in the interactive shell to see more options.
 File paths can be specified as URLs to resolve ambiguity in paths containing colons:
 
 	$ opa run file:///c:/path/to/data.json
+
+The 'run' command can also verify the signature of a signed bundle.
+A signed bundle is a normal OPA bundle that includes a file
+named ".signatures.json". For more information on signed bundles
+see https://www.openpolicyagent.org/docs/latest/management/#signing.
+
+The key to verify the signature of signed bundle can be provided
+using the --verification-key flag. For example, for RSA family of algorithms,
+the command expects a PEM file containing the public key.
+For HMAC family of algorithms (eg. HS256), the secret can be provided
+using the --verification-key flag.
+
+The --verification-key-id flag can be used to optionally specify a name for the
+key provided using the --verification-key flag.
+
+The --signing-alg flag can be used to specify the signing algorithm.
+The 'run' command uses RS256 (by default) as the signing algorithm.
+
+The --scope flag can be used to specify the scope to use for
+bundle signature verification.
+
+Example:
+
+	$ opa run --verification-key secret --signing-alg HS256 --bundle bundle.tar.gz
+
+The 'run' command will read the bundle "bundle.tar.gz", check the
+".signatures.json" file and perform verification using the provided key.
+An error will be generated if "bundle.tar.gz" does not contain a ".signatures.json" file.
+For more information on the bundle verification process see
+https://www.openpolicyagent.org/docs/latest/management/#signature-verification.
+
+The 'run' command can ONLY be used with the --bundle flag to verify signatures
+for existing bundle files or directories following the bundle structure.
+
+To skip bundle verification, use the --skip-verify flag.
 `,
 		Run: func(cmd *cobra.Command, args []string) {
 			ctx := context.Background()
-			rt := initRuntime(ctx, cmdParams, args)
+			rt, err := initRuntime(ctx, cmdParams, args)
+			if err != nil {
+				fmt.Println("error:", err)
+				os.Exit(1)
+			}
 			startRuntime(ctx, rt, cmdParams.serverMode)
 		},
 	}
@@ -142,6 +187,14 @@ File paths can be specified as URLs to resolve ambiguity in paths containing col
 	runCommand.Flags().BoolVar(&cmdParams.skipVersionCheck, "skip-version-check", false, "disables anonymous version reporting (see: https://openpolicyagent.org/docs/latest/privacy)")
 	addIgnoreFlag(runCommand.Flags(), &cmdParams.ignore)
 
+	// bundle verification config
+	addVerificationKeyFlag(runCommand.Flags(), &cmdParams.pubKey)
+	addVerificationKeyIDFlag(runCommand.Flags(), &cmdParams.pubKeyID, defaultPublicKeyID)
+	addSigningAlgFlag(runCommand.Flags(), &cmdParams.algorithm, defaultTokenSigningAlg)
+	addBundleVerificationScopeFlag(runCommand.Flags(), &cmdParams.scope)
+	addBundleVerificationSkipFlag(runCommand.Flags(), &cmdParams.skipBundleVerify, false)
+	addBundleVerificationExcludeFilesFlag(runCommand.Flags(), &cmdParams.excludeVerifyFiles)
+
 	usageTemplate := `Usage:
   {{.UseLine}} [files]
 
@@ -154,7 +207,7 @@ Flags:
 	RootCommand.AddCommand(runCommand)
 }
 
-func initRuntime(ctx context.Context, params runCmdParams, args []string) *runtime.Runtime {
+func initRuntime(ctx context.Context, params runCmdParams, args []string) (*runtime.Runtime, error) {
 	authenticationSchemes := map[string]server.AuthenticationScheme{
 		"token": server.AuthenticationToken,
 		"tls":   server.AuthenticationTLS,
@@ -168,15 +221,13 @@ func initRuntime(ctx context.Context, params runCmdParams, args []string) *runti
 
 	cert, err := loadCertificate(params.tlsCertFile, params.tlsPrivateKeyFile)
 	if err != nil {
-		fmt.Println("error:", err)
-		os.Exit(1)
+		return nil, err
 	}
 
 	if params.tlsCACertFile != "" {
 		pool, err := loadCertPool(params.tlsCACertFile)
 		if err != nil {
-			fmt.Println("error:", err)
-			os.Exit(1)
+			return nil, err
 		}
 		params.rt.CertPool = pool
 	}
@@ -195,13 +246,20 @@ func initRuntime(ctx context.Context, params runCmdParams, args []string) *runti
 
 	params.rt.EnableVersionCheck = !params.skipVersionCheck
 
-	rt, err := runtime.NewRuntime(ctx, params.rt)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "error:", err)
-		os.Exit(1)
+	params.rt.SkipBundleVerification = params.skipBundleVerify
+
+	params.rt.BundleVerificationConfig = buildVerificationConfig(params.pubKey, params.pubKeyID, params.algorithm, params.scope, params.excludeVerifyFiles)
+
+	if params.rt.BundleVerificationConfig != nil && !params.rt.BundleMode {
+		return nil, fmt.Errorf("enable bundle mode (ie. --bundle) to verify bundle files or directories")
 	}
 
-	return rt
+	rt, err := runtime.NewRuntime(ctx, params.rt)
+	if err != nil {
+		return nil, err
+	}
+
+	return rt, nil
 }
 
 func startRuntime(ctx context.Context, rt *runtime.Runtime, serverMode bool) {

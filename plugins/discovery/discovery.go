@@ -71,7 +71,8 @@ func New(manager *plugins.Manager, opts ...func(*Discovery)) (*Discovery, error)
 		f(result)
 	}
 
-	config, err := ParseConfig(manager.Config.Discovery, manager.Services())
+	config, err := NewConfigBuilder().WithBytes(manager.Config.Discovery).WithServices(manager.Services()).
+		WithKeyConfigs(manager.PublicKeys()).Parse()
 
 	if err != nil {
 		return nil, err
@@ -87,7 +88,8 @@ func New(manager *plugins.Manager, opts ...func(*Discovery)) (*Discovery, error)
 	}
 
 	result.config = config
-	result.downloader = download.New(config.Config, manager.Client(config.service), config.path).WithCallback(result.oneShot)
+	result.downloader = download.New(config.Config, manager.Client(config.service), config.path).WithCallback(result.oneShot).
+		WithBundleVerificationConfig(config.Signing)
 	result.status = &bundle.Status{
 		Name: *config.Name,
 	}
@@ -175,7 +177,7 @@ func (c *Discovery) processUpdate(ctx context.Context, u download.Update) {
 
 func (c *Discovery) reconfigure(ctx context.Context, u download.Update) error {
 
-	ps, err := processBundle(ctx, c.manager, c.factories, u.Bundle, c.config.query, c.config.service, c.metrics)
+	ps, err := c.processBundle(ctx, u.Bundle)
 	if err != nil {
 		return err
 	}
@@ -212,9 +214,9 @@ func (c *Discovery) logrusFields() logrus.Fields {
 	}
 }
 
-func processBundle(ctx context.Context, manager *plugins.Manager, factories map[string]plugins.Factory, b *bundleApi.Bundle, query, service string, m metrics.Metrics) (*pluginSet, error) {
+func (c *Discovery) processBundle(ctx context.Context, b *bundleApi.Bundle) (*pluginSet, error) {
 
-	config, err := evaluateBundle(ctx, manager.ID, manager.Info, b, query)
+	config, err := evaluateBundle(ctx, c.manager.ID, c.manager.Info, b, c.config.query)
 	if err != nil {
 		return nil, err
 	}
@@ -229,18 +231,32 @@ func processBundle(ctx context.Context, manager *plugins.Manager, factories map[
 		return nil, err
 	}
 
-	if client, ok := services[service]; ok {
-		dClient := manager.Client(service)
+	if client, ok := services[c.config.service]; ok {
+		dClient := c.manager.Client(c.config.service)
 		if !client.Config().Equal(dClient.Config()) {
 			return nil, fmt.Errorf("updates to the discovery service are not allowed")
 		}
 	}
 
-	if err := manager.Reconfigure(config); err != nil {
+	// check for updates to the keys provided in the boot config
+	keys, err := bundleApi.ParseKeysConfig(config.Keys)
+	if err != nil {
 		return nil, err
 	}
 
-	return getPluginSet(factories, manager, config, m)
+	for key, kc := range keys {
+		if curr, ok := c.config.Signing.PublicKeys[key]; ok {
+			if !curr.Equal(kc) {
+				return nil, fmt.Errorf("updates to keys specified in the boot configuration are not allowed")
+			}
+		}
+	}
+
+	if err := c.manager.Reconfigure(config); err != nil {
+		return nil, err
+	}
+
+	return getPluginSet(c.factories, c.manager, config, c.metrics)
 }
 
 func evaluateBundle(ctx context.Context, id string, info *ast.Term, b *bundleApi.Bundle, query string) (*config.Config, error) {
@@ -329,7 +345,8 @@ func getPluginSet(factories map[string]plugins.Factory, manager *plugins.Manager
 		return nil, err
 	}
 	if bundleConfig == nil {
-		bundleConfig, err = bundle.ParseBundlesConfig(config.Bundles, manager.Services())
+		bundleConfig, err = bundle.NewConfigBuilder().WithBytes(config.Bundles).WithServices(manager.Services()).
+			WithKeyConfigs(manager.PublicKeys()).Parse()
 		if err != nil {
 			return nil, err
 		}

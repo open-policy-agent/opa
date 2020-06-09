@@ -7,6 +7,8 @@ package discovery
 import (
 	"fmt"
 	"testing"
+
+	"github.com/open-policy-agent/opa/bundle"
 )
 
 func TestConfigValidation(t *testing.T) {
@@ -50,11 +52,22 @@ func TestConfigValidation(t *testing.T) {
 			services: []string{"service1"},
 			wantErr:  false,
 		},
+		{
+			input:    `{"name": "a/b/c", "decision": "query", "signing": {"keyid": "foo", "scope": "write"}}}`,
+			services: []string{"s1"},
+			wantErr:  false,
+		},
+		{
+			input:    `{"name": "a/b/c", "decision": "query", "signing": {"keyid": "bar", "scope": "write"}}}`,
+			services: []string{"s1"},
+			wantErr:  true,
+		},
 	}
 
+	keys := map[string]*bundle.KeyConfig{"foo": {Key: "secret"}}
 	for i, test := range tests {
 		t.Run(fmt.Sprintf("TestConfigValidation_case_%d", i), func(t *testing.T) {
-			_, err := ParseConfig([]byte(test.input), test.services)
+			_, err := NewConfigBuilder().WithBytes([]byte(test.input)).WithServices(test.services).WithKeyConfigs(keys).Parse()
 			if err != nil && !test.wantErr {
 				t.Fail()
 			}
@@ -82,7 +95,7 @@ func TestConfigDecision(t *testing.T) {
 
 	for i, test := range tests {
 		t.Run(fmt.Sprintf("TestConfigDecision_case_%d", i), func(t *testing.T) {
-			c, err := ParseConfig([]byte(test.input), []string{"service1"})
+			c, err := NewConfigBuilder().WithBytes([]byte(test.input)).WithServices([]string{"service1"}).Parse()
 			if err != nil {
 				t.Fatal("unexpected error while parsing config")
 			}
@@ -114,7 +127,7 @@ func TestConfigService(t *testing.T) {
 
 	for i, test := range tests {
 		t.Run(fmt.Sprintf("TestConfigService_case_%d", i), func(t *testing.T) {
-			c, err := ParseConfig([]byte(test.input), test.services)
+			c, err := NewConfigBuilder().WithBytes([]byte(test.input)).WithServices(test.services).Parse()
 			if err != nil {
 				t.Fatal("unexpected error while parsing config")
 			}
@@ -151,7 +164,7 @@ func TestConfigPath(t *testing.T) {
 
 	for i, test := range tests {
 		t.Run(fmt.Sprintf("TestConfigDecision_case_%d", i), func(t *testing.T) {
-			c, err := ParseConfig([]byte(test.input), []string{"service1"})
+			c, err := NewConfigBuilder().WithBytes([]byte(test.input)).WithServices([]string{"service1"}).Parse()
 			if err != nil {
 				t.Fatal("unexpected error while parsing config")
 			}

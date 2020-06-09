@@ -24,6 +24,7 @@ type Config struct {
 	DecisionLogs                 json.RawMessage            `json:"decision_logs"`
 	Status                       json.RawMessage            `json:"status"`
 	Plugins                      map[string]json.RawMessage `json:"plugins"`
+	Keys                         json.RawMessage            `json:"keys"`
 	DefaultDecision              *string                    `json:"default_decision"`
 	DefaultAuthorizationDecision *string                    `json:"default_authorization_decision"`
 }
