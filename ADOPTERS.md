@@ -94,6 +94,11 @@ production users that have added themselves (in alphabetical order):
   has enabled Plex to have a consistent means of policy enforcement,
   no matter the environment.
 
+* [Splash]([https://splashthat.com) uses OPA to handle fine-grained authorization
+  across its entire platform, implemented as both a sidecar in Kubernetes and a separate 
+  container on bare instances. Policies and datasets are recompiled and updated based 
+  on changes to users' roles and permissions.
+  
 * [SAP/InfraBox](https://github.com/SAP/Infrabox) integrates OPA to
   implement authorization over HTTP API resources. OPA policies
   evaluate user and permission data replicated from Postgres to make
