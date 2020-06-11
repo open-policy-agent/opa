@@ -400,6 +400,18 @@ func (errs Errors) Error() string {
 	return strings.Join(buf, "\n")
 }
 
+var errPartialEvaluationNotEffective = errors.New("partial evaluation not effective")
+
+// IsPartialEvaluationNotEffectiveErr returns true if err is an error returned by
+// this package to indicate that partial evaluation was ineffective.
+func IsPartialEvaluationNotEffectiveErr(err error) bool {
+	errs, ok := err.(Errors)
+	if !ok {
+		return false
+	}
+	return len(errs) == 1 && errs[0] == errPartialEvaluationNotEffective
+}
+
 type compiledQuery struct {
 	query    ast.Body
 	compiler ast.QueryCompiler
@@ -1719,10 +1731,14 @@ func (r *Rego) partialResult(ctx context.Context, pCfg *PrepareConfig) (PartialR
 
 	module.Rules = make([]*ast.Rule, len(pq.Queries))
 	for i, body := range pq.Queries {
-		module.Rules[i] = &ast.Rule{
+		rule := &ast.Rule{
 			Head:   ast.NewHead(ast.Var("__result__"), nil, ast.Wildcard),
 			Body:   body,
 			Module: module,
+		}
+		module.Rules[i] = rule
+		if checkPartialResultForRecursiveRefs(body, rule.Path()) {
+			return PartialResult{}, Errors{errPartialEvaluationNotEffective}
 		}
 	}
 
@@ -1969,6 +1985,19 @@ func (r *Rego) compilerForTxn(ctx context.Context, store storage.Store, txn stor
 	// Update the compiler to have a valid path conflict check
 	// for the current context and transaction.
 	return r.compiler.WithPathConflictsCheck(storage.NonEmpty(ctx, store, txn))
+}
+
+func checkPartialResultForRecursiveRefs(body ast.Body, path ast.Ref) bool {
+	var stop bool
+	ast.WalkRefs(body, func(x ast.Ref) bool {
+		if !stop {
+			if path.HasPrefix(x) {
+				stop = true
+			}
+		}
+		return stop
+	})
+	return stop
 }
 
 func isTermVar(v ast.Var) bool {

@@ -1010,3 +1010,16 @@ func TestShortTraceFileNames(t *testing.T) {
 		})
 	}
 }
+
+func TestBufferTracerTraceConfig(t *testing.T) {
+	ct := QueryTracer(NewBufferTracer())
+	conf := ct.Config()
+
+	expected := TraceConfig{
+		PlugLocalVars: true,
+	}
+
+	if !reflect.DeepEqual(expected, conf) {
+		t.Fatalf("Expected config: %+v, got %+v", expected, conf)
+	}
+}

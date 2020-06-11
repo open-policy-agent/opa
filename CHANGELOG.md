@@ -3,13 +3,48 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
+## Unreleased
+
+### Backwards Compatibility
+
+* `topdown.Tracer` has been deprecated in favor of a newer interface
+  `topdown.QueryTracer`.  
+* All tracers (regardless of interface implementation) will now only be checked
+  for being enabled at the beginning of query evaluation rather than on a
+  per-event basis.
+* `topdown.BuiltinContext#Tracers` has been deprecated in favor of
+  `topdown.BuiltinContext#QueryTracers`. The older `Tracers` field will be `nil`
+  starting this release, and eventually removed.
+
+## 0.20.5
+
+### Fixes
+
+- compile: Change name of result var for wasm binary ([#2441](https://github.com/open-policy-agent/opa/issues/2441))
+- format: Deep copy inputs to avoid mutating the caller's copy ([#2439](https://github.com/open-policy-agent/opa/issues/2439))
+
+### Miscellaneous
+
+- docs: Add `opa_println` to wasm required imports
+
+## 0.20.4
+
+### Fixes
+
+- format: Refactor wildcard names to rewrite early ([#2430](https://github.com/open-policy-agent/opa/issues/2430))
+
+## 0.20.3
+
+### Fixes
+
+- docs/content small output correction on terraform page ([#1772](https://github.com/open-policy-agent/opa/issues/1772))
+- format: Fix wildcards in nested refs
+
 ## 0.20.2
 
 ### Fixes
 
 - format: Fix panic with else blocks and comments ([#2420](https://github.com/open-policy-agent/opa/issues/2420))
-
-## Unreleased
 
 ## 0.20.1
 

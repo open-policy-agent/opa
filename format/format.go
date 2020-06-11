@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"regexp"
 	"sort"
-	"strings"
 
 	"github.com/open-policy-agent/opa/ast"
 )
@@ -41,14 +40,16 @@ func MustAst(x interface{}) []byte {
 }
 
 // Ast formats a Rego AST element. If the passed value is not a valid AST
-// element, Ast returns nil and an error. Ast relies on all AST elements having
-// non-nil Location values. If an AST element with a nil Location value is
-// encountered, a default location will be set on the AST node.
+// element, Ast returns nil and an error. If AST nodes are missing locations
+// an arbitrary location will be used.
 func Ast(x interface{}) (formatted []byte, err error) {
 
-	wildcards := map[string]struct{}{}
-	wildcardNames := map[string]string{}
-	wildcardCounter := 0
+	// The node has to be deep copied because it may be mutated below. Alternatively,
+	// we could avoid the copy by checking if mtuation will occur first. For now,
+	// since format is not latency sensitive, just deep copy in all cases.
+	x = ast.Copy(x)
+
+	wildcards := map[ast.Var]*ast.Term{}
 
 	// Preprocess the AST. Set any required defaults and calculate
 	// values required for printing the formatted output.
@@ -59,26 +60,15 @@ func Ast(x interface{}) (formatted []byte, err error) {
 				return false
 			}
 		case *ast.Term:
-			if v, ok := n.Value.(ast.Var); ok {
-				if v.IsWildcard() {
-					str := string(v)
-					if _, seen := wildcards[str]; !seen {
-						wildcards[str] = struct{}{}
-					} else if !strings.HasPrefix(wildcardNames[str], "__wildcard") {
-						wildcardNames[str] = fmt.Sprintf("__wildcard%d__", wildcardCounter)
-						wildcardCounter++
-					}
-				}
-			}
+			unmangleWildcardVar(wildcards, n)
 		}
-
 		if x.Loc() == nil {
 			x.SetLoc(defaultLocation(x))
 		}
 		return false
 	})
 
-	w := &writer{indent: "\t", wildcardNames: wildcardNames}
+	w := &writer{indent: "\t"}
 	switch x := x.(type) {
 	case *ast.Module:
 		w.writeModule(x)
@@ -107,6 +97,34 @@ func Ast(x interface{}) (formatted []byte, err error) {
 	}
 
 	return squashTrailingNewlines(w.buf.Bytes()), nil
+}
+
+func unmangleWildcardVar(wildcards map[ast.Var]*ast.Term, n *ast.Term) {
+
+	v, ok := n.Value.(ast.Var)
+	if !ok || !v.IsWildcard() {
+		return
+	}
+
+	first, ok := wildcards[v]
+	if !ok {
+		wildcards[v] = n
+		return
+	}
+
+	w := v[len(ast.WildcardPrefix):]
+
+	// Prepend an underscore to ensure the variable will parse.
+	if len(w) == 0 || w[0] != '_' {
+		w = "_" + w
+	}
+
+	if first != nil {
+		first.Value = w
+		wildcards[v] = nil
+	}
+
+	n.Value = w
 }
 
 func squashTrailingNewlines(bs []byte) []byte {
@@ -573,9 +591,6 @@ func (w *writer) writeRefStringPath(s ast.String) {
 
 func (w *writer) formatVar(v ast.Var) string {
 	if v.IsWildcard() {
-		if generatedName, ok := w.wildcardNames[string(v)]; ok {
-			return generatedName
-		}
 		return ast.Wildcard.String()
 	}
 	return v.String()

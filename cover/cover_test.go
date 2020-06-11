@@ -8,10 +8,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/rego"
+	"github.com/open-policy-agent/opa/topdown"
 )
 
 func TestCover(t *testing.T) {
@@ -134,5 +136,18 @@ p {
 			t.Fatal(err)
 		}
 		fmt.Println(string(bs))
+	}
+}
+
+func TestCoverTraceConfig(t *testing.T) {
+	ct := topdown.QueryTracer(New())
+	conf := ct.Config()
+
+	expected := topdown.TraceConfig{
+		PlugLocalVars: false,
+	}
+
+	if !reflect.DeepEqual(expected, conf) {
+		t.Fatalf("Expected config: %+v, got %+v", expected, conf)
 	}
 }

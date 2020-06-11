@@ -7,6 +7,7 @@ package profiler
 import (
 	"context"
 	_ "encoding/json"
+	"reflect"
 	"testing"
 	"time"
 
@@ -477,5 +478,18 @@ allowed_operations = [
 			t.Fatalf("Index %v: Expected location %v but got %v", idx, expectedLocation[idx], string(actualExprStat.Location.Text))
 		}
 
+	}
+}
+
+func TestProfilerTraceConfig(t *testing.T) {
+	ct := topdown.QueryTracer(New())
+	conf := ct.Config()
+
+	expected := topdown.TraceConfig{
+		PlugLocalVars: false,
+	}
+
+	if !reflect.DeepEqual(expected, conf) {
+		t.Fatalf("Expected config: %+v, got %+v", expected, conf)
 	}
 }

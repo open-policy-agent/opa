@@ -12,6 +12,12 @@ production users that have added themselves (in alphabetical order):
   (e.g., platform, service, etc.) and distributed via S3. Custom log infrastructure
   consumes decision logs. For more information see this talk from [OPA Summit 2019](https://www.youtube.com/watch?v=nvRTO8xjmrg).
 
+* [Bisnode](https://www.bisnode.com) uses OPA for a wide range of use cases,
+  including microservice authorization, fine grained kubernetes authorization,
+  validating and mutating admission control and CI/CD pipeline testing. Built
+  and maintains some OPA related tools and libraries, primarily to help
+  integrate OPA in the Java/JVM ecosystem, [see `github.com/Bisnode`](https://github.com/Bisnode).
+
 * [bol.com](https://www.bol.com/) uses OPA for a mix of
   validating and mutating admission control use cases in their
   Kubernetes clusters. Use cases include patching image pull secrets,

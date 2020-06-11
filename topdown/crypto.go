@@ -10,6 +10,7 @@ import (
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -65,11 +66,40 @@ func builtinCryptoSha256(a ast.Value) (ast.Value, error) {
 	return hashHelper(a, func(s ast.String) string { return fmt.Sprintf("%x", sha256.Sum256([]byte(s))) })
 }
 
+func builtinCryptoX509ParseCertificateRequest(a ast.Value) (ast.Value, error) {
+	str, err := builtinBase64Decode(a)
+	if err != nil {
+		return nil, err
+	}
+
+	p, _ := pem.Decode([]byte(str.(ast.String)))
+	if p == nil || p.Type != "CERTIFICATE REQUEST" {
+		return nil, fmt.Errorf("invalid PEM-encoded certificate signing request")
+	}
+
+	csr, err := x509.ParseCertificateRequest(p.Bytes)
+	if err != nil {
+		return nil, err
+	}
+
+	bs, err := json.Marshal(csr)
+	if err != nil {
+		return nil, err
+	}
+
+	var x interface{}
+	if err := util.UnmarshalJSON(bs, &x); err != nil {
+		return nil, err
+	}
+	return ast.InterfaceToValue(x)
+}
+
 func init() {
 	RegisterFunctionalBuiltin1(ast.CryptoX509ParseCertificates.Name, builtinCryptoX509ParseCertificates)
 	RegisterFunctionalBuiltin1(ast.CryptoMd5.Name, builtinCryptoMd5)
 	RegisterFunctionalBuiltin1(ast.CryptoSha1.Name, builtinCryptoSha1)
 	RegisterFunctionalBuiltin1(ast.CryptoSha256.Name, builtinCryptoSha256)
+	RegisterFunctionalBuiltin1(ast.CryptoX509ParseCertificateRequest.Name, builtinCryptoX509ParseCertificateRequest)
 }
 
 // addCACertsFromFile adds CA certificates from filePath into the given pool.

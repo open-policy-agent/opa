@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/open-policy-agent/opa/ast/location"
 	"github.com/open-policy-agent/opa/util"
 )
 
@@ -511,6 +512,24 @@ func TestSomeDeclString(t *testing.T) {
 
 	if result != expected {
 		t.Fatalf("Expected %v but got %v", expected, result)
+	}
+}
+
+func TestCommentCopy(t *testing.T) {
+	comment := &Comment{
+		Text:     []byte("foo bar baz"),
+		Location: &location.Location{}, // location must be set for comment equality
+	}
+
+	cpy := comment.Copy()
+	if !cpy.Equal(comment) {
+		t.Fatal("expected copy to be equal")
+	}
+
+	comment.Text[1] = '0'
+
+	if cpy.Equal(comment) {
+		t.Fatal("expected copy to be unmodified")
 	}
 }
 

@@ -46,6 +46,20 @@ var internalBuiltins = map[string]wasmBuiltin{
 	ast.IsObject.Name:        wasmBuiltin{ast.IsObject, "opa_types_is_object"},
 	ast.IsNull.Name:          wasmBuiltin{ast.IsNull, "opa_types_is_null"},
 	ast.TypeNameBuiltin.Name: wasmBuiltin{ast.TypeNameBuiltin, "opa_types_name"},
+	ast.BitsOr.Name:          wasmBuiltin{ast.BitsOr, "opa_bits_or"},
+	ast.BitsAnd.Name:         wasmBuiltin{ast.BitsAnd, "opa_bits_and"},
+	ast.BitsNegate.Name:      wasmBuiltin{ast.BitsNegate, "opa_bits_negate"},
+	ast.BitsXOr.Name:         wasmBuiltin{ast.BitsXOr, "opa_bits_xor"},
+	ast.BitsShiftLeft.Name:   wasmBuiltin{ast.BitsShiftLeft, "opa_bits_shiftleft"},
+	ast.BitsShiftRight.Name:  wasmBuiltin{ast.BitsShiftRight, "opa_bits_shiftright"},
+	ast.Count.Name:           wasmBuiltin{ast.Count, "opa_agg_count"},
+	ast.Sum.Name:             wasmBuiltin{ast.Sum, "opa_agg_sum"},
+	ast.Product.Name:         wasmBuiltin{ast.Product, "opa_agg_product"},
+	ast.Max.Name:             wasmBuiltin{ast.Max, "opa_agg_max"},
+	ast.Min.Name:             wasmBuiltin{ast.Min, "opa_agg_min"},
+	ast.Sort.Name:            wasmBuiltin{ast.Sort, "opa_agg_sort"},
+	ast.All.Name:             wasmBuiltin{ast.All, "opa_agg_all"},
+	ast.Any.Name:             wasmBuiltin{ast.Any, "opa_agg_any"},
 }
 
 // Planner implements a query planner for Rego queries.

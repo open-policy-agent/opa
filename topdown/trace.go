@@ -66,8 +66,8 @@ type Event struct {
 	Location      *ast.Location           // The location of the Node this event relates to.
 	QueryID       uint64                  // Identifies the query this event belongs to.
 	ParentID      uint64                  // Identifies the parent query this event belongs to.
-	Locals        *ast.ValueMap           // Contains local variable bindings from the query context.
-	LocalMetadata map[ast.Var]VarMetadata // Contains metadata for the local variable bindings.
+	Locals        *ast.ValueMap           // Contains local variable bindings from the query context. Nil if variables were not included in the trace event.
+	LocalMetadata map[ast.Var]VarMetadata // Contains metadata for the local variable bindings. Nil if variables were not included in the trace event.
 	Message       string                  // Contains message for Note events.
 }
 
@@ -131,13 +131,51 @@ func (evt *Event) equalNodes(other *Event) bool {
 }
 
 // Tracer defines the interface for tracing in the top-down evaluation engine.
+// Deprecated: Use QueryTracer instead.
 type Tracer interface {
 	Enabled() bool
 	Trace(*Event)
 }
 
-// BufferTracer implements the Tracer interface by simply buffering all events
-// received.
+// QueryTracer defines the interface for tracing in the top-down evaluation engine.
+// The implementation can provide additional configuration to modify the tracing
+// behavior for query evaluations.
+type QueryTracer interface {
+	Enabled() bool
+	TraceEvent(Event)
+	Config() TraceConfig
+}
+
+// TraceConfig defines some common configuration for Tracer implementations
+type TraceConfig struct {
+	PlugLocalVars bool // Indicate whether to plug local variable bindings before calling into the tracer.
+}
+
+// legacyTracer Implements the QueryTracer interface by wrapping an older Tracer instance.
+type legacyTracer struct {
+	t Tracer
+}
+
+func (l *legacyTracer) Enabled() bool {
+	return l.t.Enabled()
+}
+
+func (l *legacyTracer) Config() TraceConfig {
+	return TraceConfig{
+		PlugLocalVars: true, // For backwards compatibility old tracers will plug local variables
+	}
+}
+
+func (l *legacyTracer) TraceEvent(evt Event) {
+	l.t.Trace(&evt)
+}
+
+func wrapLegacyTracer(tracer Tracer) QueryTracer {
+	return &legacyTracer{t: tracer}
+}
+
+// BufferTracer implements the Tracer and QueryTracer interface by
+// simply buffering all events received.
 type BufferTracer []*Event
 
 // NewBufferTracer returns a new BufferTracer.
@@ -154,8 +192,19 @@ func (b *BufferTracer) Enabled() bool {
 }
 
 // Trace adds the event to the buffer.
+// Deprecated: Use TraceEvent instead.
 func (b *BufferTracer) Trace(evt *Event) {
 	*b = append(*b, evt)
+}
+
+// TraceEvent adds the event to the buffer.
+func (b *BufferTracer) TraceEvent(evt Event) {
+	*b = append(*b, &evt)
+}
+
+// Config returns the Tracers standard configuration
+func (b *BufferTracer) Config() TraceConfig {
+	return TraceConfig{PlugLocalVars: true}
 }
 
 // PrettyTrace pretty prints the trace to the writer.
@@ -341,11 +390,11 @@ func builtinTrace(bctx BuiltinContext, args []*ast.Term, iter func(*ast.Term) er
 		return handleBuiltinErr(ast.Trace.Name, bctx.Location, err)
 	}
 
-	if !traceIsEnabled(bctx.Tracers) {
+	if !bctx.TraceEnabled {
 		return iter(ast.BooleanTerm(true))
 	}
 
-	evt := &Event{
+	evt := Event{
 		Op:       NoteOp,
 		Location: bctx.Location,
 		QueryID:  bctx.QueryID,
@@ -353,20 +402,11 @@ func builtinTrace(bctx BuiltinContext, args []*ast.Term, iter func(*ast.Term) er
 		Message:  string(str),
 	}
 
-	for i := range bctx.Tracers {
-		bctx.Tracers[i].Trace(evt)
+	for i := range bctx.QueryTracers {
+		bctx.QueryTracers[i].TraceEvent(evt)
 	}
 
 	return iter(ast.BooleanTerm(true))
-}
-
-func traceIsEnabled(tracers []Tracer) bool {
-	for i := range tracers {
-		if tracers[i].Enabled() {
-			return true
-		}
-	}
-	return false
 }
 
 func rewrite(event *Event) *Event {

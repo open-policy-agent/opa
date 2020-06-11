@@ -159,7 +159,7 @@ The following diagram illustrates the base and virtual document model described 
 hypothetical policy that renders authorization decisions (named `data.acme.allow`) based on:
 
 * API request information pushed synchronously located under `input`.
-* Entitlements data pulled asynchronously and located under `date.entitlements`.
+* Entitlements data pulled asynchronously and located under `data.entitlements`.
 * Resource data pulled synchronously during policy evaluation using the `http.send` built-in function.
 
 The entitlements and resource information is _abstracted_ by rules that generate

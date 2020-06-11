@@ -238,9 +238,9 @@ func TestFormatAST(t *testing.T) {
 					},
 				},
 			},
-			expected: `input.arr[__wildcard0__]["some key"][_] = bar
-input.arr[__wildcard0__].bar = qux
-foo[__wildcard1__][__wildcard0__].bar = bar[__wildcard1__][_][__wildcard0__].bar
+			expected: `input.arr[_01]["some key"][_] = bar
+input.arr[_01].bar = qux
+foo[_03][_01].bar = bar[_03][_][_01].bar
 `,
 		},
 		{
@@ -252,11 +252,41 @@ foo[__wildcard1__][__wildcard0__].bar = bar[__wildcard1__][_][__wildcard0__].bar
 				},
 				&ast.Expr{
 					Index: 1,
-					Terms: ast.RefTerm(ast.VarTerm("$x"), ast.VarTerm("x")),
+					Terms: ast.RefTerm(ast.VarTerm("$x"), ast.VarTerm("y")),
 				},
 			},
-			expected: `__wildcard0__
-__wildcard0__[x]`,
+			expected: `_x
+_x[y]`,
+		},
+		{
+			note: "body shared wildcard - nested ref",
+			toFmt: ast.Body{
+				&ast.Expr{
+					Index: 0,
+					Terms: ast.VarTerm("$x"),
+				},
+				&ast.Expr{
+					Index: 1,
+					Terms: ast.RefTerm(ast.VarTerm("a"), ast.RefTerm(ast.VarTerm("$x"), ast.VarTerm("y"))),
+				},
+			},
+			expected: `_x
+a[_x[y]]`,
+		},
+		{
+			note: "body shared wildcard - nested ref array",
+			toFmt: ast.Body{
+				&ast.Expr{
+					Index: 0,
+					Terms: ast.VarTerm("$x"),
+				},
+				&ast.Expr{
+					Index: 1,
+					Terms: ast.RefTerm(ast.VarTerm("a"), ast.RefTerm(ast.VarTerm("$x"), ast.VarTerm("y"), ast.ArrayTerm(ast.VarTerm("z"), ast.VarTerm("w")))),
+				},
+			},
+			expected: `_x
+a[_x[y][[z, w]]]`,
 		},
 	}
 
@@ -273,6 +303,32 @@ __wildcard0__[x]`,
 			}
 		})
 	}
+}
+
+func TestFormatDeepCopy(t *testing.T) {
+
+	original := ast.Body{
+		&ast.Expr{
+			Index: 0,
+			Terms: ast.VarTerm("$x"),
+		},
+		&ast.Expr{
+			Index: 1,
+			Terms: ast.RefTerm(ast.VarTerm("$x"), ast.VarTerm("y")),
+		},
+	}
+
+	cpy := original.Copy()
+
+	_, err := Ast(original)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !cpy.Equal(original) {
+		t.Fatal("expected original to be unmodified")
+	}
+
 }
 
 func differsAt(a, b []byte) (int, int) {

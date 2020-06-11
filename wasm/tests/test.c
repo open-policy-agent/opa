@@ -1,9 +1,14 @@
-#include "str.h"
-#include "json.h"
-#include "malloc.h"
+#include <ctype.h>
+
+#include "aggregates.h"
 #include "arithmetic.h"
 #include "array.h"
+#include "bits-builtins.h"
+#include "json.h"
+#include "malloc.h"
+#include "mpd.h"
 #include "set.h"
+#include "str.h"
 #include "types.h"
 
 void opa_test_fail(const char *note, const char *func, const char *file, int line);
@@ -42,6 +47,89 @@ void test_opa_malloc()
             buf[x] = x % 255;
         }
     }
+}
+
+void test_opa_free()
+{
+
+    // check the heap shrinks with a single malloc and free.
+
+    size_t blocks = opa_heap_free_blocks();
+    unsigned int base = opa_heap_ptr_get();
+    opa_free(opa_malloc(0));
+
+    test("heap ptr", base == opa_heap_ptr_get());
+    test("free blocks", blocks == 0 && opa_heap_free_blocks() == 0);
+
+    // check the double malloc, followed with frees in identical order
+    // results in eventual heap shrinking.
+
+    void *p1 = opa_malloc(0);
+    void *p2 = opa_malloc(0);
+    unsigned int high = opa_heap_ptr_get();
+    test("free blocks", opa_heap_free_blocks() == 0);
+
+    opa_free(p1);
+    test("free blocks", opa_heap_free_blocks() == 1);
+    test("heap ptr", high == opa_heap_ptr_get());
+
+    opa_free(p2);
+    test("free blocks", opa_heap_free_blocks() == 0);
+    test("heap ptr", base == opa_heap_ptr_get());
+
+    // check the double malloc, followed with frees in reverse order
+    // results in gradual heap shrinking.
+
+    p1 = opa_malloc(0);
+    p2 = opa_malloc(0);
+    high = opa_heap_ptr_get();
+    test("free blocks", opa_heap_free_blocks() == 0);
+
+    opa_free(p2);
+    test("free blocks", opa_heap_free_blocks() == 0);
+    test("heap ptr", high > opa_heap_ptr_get());
+
+    opa_free(p1);
+    test("free blocks", opa_heap_free_blocks() == 0);
+    test("heap ptr", base == opa_heap_ptr_get());
+
+    // check the free re-use (without splitting).
+
+    p1 = opa_malloc(1);
+    p2 = opa_malloc(1);
+    high = opa_heap_ptr_get();
+
+    opa_free(p1);
+    test("free blocks", opa_heap_free_blocks() == 1);
+
+    p1 = opa_malloc(1);
+    test("free blocks", opa_heap_free_blocks() == 0);
+    test("heap ptr", high == opa_heap_ptr_get());
+
+    opa_free(p2);
+    opa_free(p1);
+    test("free blocks", opa_heap_free_blocks() == 0);
+    test("heap ptr", base == opa_heap_ptr_get());
+
+    // check the free re-use (with splitting).
+
+    p1 = opa_malloc(64);
+    p2 = opa_malloc(64);
+    high = opa_heap_ptr_get();
+
+    opa_free(p1);
+    test("free blocks", opa_heap_free_blocks() == 1);
+
+    p1 = opa_malloc(1);
+    test("free blocks", opa_heap_free_blocks() == 1);
+    test("heap ptr", high == opa_heap_ptr_get());
+
+    opa_free(p2);
+    test("free blocks", opa_heap_free_blocks() == 0);
+
+    opa_free(p1);
+    test("free blocks", opa_heap_free_blocks() == 0);
+    test("heap ptr", base == opa_heap_ptr_get());
 }
 
 void test_opa_strlen()
@@ -518,8 +606,15 @@ void test_opa_array_sort()
 
     opa_array_sort(arr, opa_value_compare);
 
-    opa_value *res = &arr->hdr;
+    // iterate through the array to verify both the indices and values.
+
+    opa_value *res = opa_array();
     opa_value *exp = &fixture_array1()->hdr;
+
+    for (opa_value *prev = NULL, *curr = NULL; (curr = opa_value_iter(&arr->hdr, prev)) != NULL; prev = curr)
+    {
+        opa_array_append(opa_cast_array(res), opa_value_get(&arr->hdr, curr));
+    }
 
     if (opa_value_compare(res, exp) != 0)
     {
@@ -1079,4 +1174,276 @@ void test_types(void)
     test("name/array", opa_value_compare(opa_types_name(opa_array()), opa_string("array", 5)) == 0);
     test("name/object", opa_value_compare(opa_types_name(opa_object()), opa_string("object", 6)) == 0);
     test("name/set", opa_value_compare(opa_types_name(opa_set()), opa_string("set", 3)) == 0);
+}
+
+static opa_value *number(const char *s)
+{
+    size_t n = strlen(s);
+    uint8_t sign = MPD_POS;
+    size_t pos = 2;
+
+    if (s[0] == '-')
+    {
+        sign = MPD_NEG;
+        pos = 3;
+    }
+
+    int digits = n - pos;
+    uint16_t rdata[digits];
+
+    for (int i = 0; i < digits; i++)
+    {
+        int c = s[pos+i] & 0xff;
+        if (isdigit(c))
+        {
+            c -= '0';
+        } else if (isalpha(c)) {
+            c -= isupper(c) ? 'A' - 10 : 'a' - 10;
+        }
+
+        rdata[digits - i - 1] = c;
+    }
+
+    uint32_t status = 0;
+    mpd_t *r = mpd_qnew();
+    mpd_qimport_u16(r, &rdata[0], digits, sign, 16, mpd_max_ctx(), &status);
+    return opa_bf_to_number(r);
+}
+
+void test_bits(void)
+{
+    // tests from https://golang.org/src/math/big/int_test.go L1193
+
+    struct and_or_xor_test
+    {
+        const char *x;
+        const char *y;
+        const char *and;
+        const char *or;
+        const char *xor;
+    };
+
+    struct and_or_xor_test tests1[] = {
+        {"0x00", "0x00", "0x00", "0x00", "0x00"},
+        {"0x00", "0x01", "0x00", "0x01", "0x01"},
+        {"0x01", "0x00", "0x00", "0x01", "0x01"},
+        {"-0x01", "0x00", "0x00", "-0x01", "-0x01"},
+        {"-0xaf", "-0x50", "-0xf0", "-0x0f", "0xe1"},
+        {"0x00", "-0x01", "0x00", "-0x01", "-0x01"},
+        {"0x01", "0x01", "0x01", "0x01", "0x00"},
+        {"-0x01", "-0x01", "-0x01", "-0x01", "0x00"},
+        {"0x07", "0x08", "0x00", "0x0f", "0x0f"},
+        {"0x05", "0x0f", "0x05", "0x0f", "0x0a"},
+        {"0xff", "-0x0a", "0xf6", "-0x01", "-0xf7"},
+        {"0x013ff6", "0x9a4e", "0x1a46", "0x01bffe", "0x01a5b8"},
+        {"-0x013ff6", "0x9a4e", "0x800a", "-0x0125b2", "-0x01a5bc"},
+        {"-0x013ff6", "-0x9a4e", "-0x01bffe", "-0x1a46", "0x01a5b8"},
+        {
+            "0x1000009dc6e3d9822cba04129bcbe3401",
+            "0xb9bd7d543685789d57cb918e833af352559021483cdb05cc21fd",
+            "0x1000001186210100001000009048c2001",
+            "0xb9bd7d543685789d57cb918e8bfeff7fddb2ebe87dfbbdfe35fd",
+            "0xb9bd7d543685789d57ca918e8ae69d6fcdb2eae87df2b97215fc",
+            },
+        {
+            "0x1000009dc6e3d9822cba04129bcbe3401",
+            "-0xb9bd7d543685789d57cb918e833af352559021483cdb05cc21fd",
+            "0x8c40c2d8822caa04120b8321401",
+            "-0xb9bd7d543685789d57ca918e82229142459020483cd2014001fd",
+            "-0xb9bd7d543685789d57ca918e8ae69d6fcdb2eae87df2b97215fe",
+        },
+        {
+            "-0x1000009dc6e3d9822cba04129bcbe3401",
+            "-0xb9bd7d543685789d57cb918e833af352559021483cdb05cc21fd",
+            "-0xb9bd7d543685789d57cb918e8bfeff7fddb2ebe87dfbbdfe35fd",
+            "-0x1000001186210100001000009048c2001",
+            "0xb9bd7d543685789d57ca918e8ae69d6fcdb2eae87df2b97215fc",
+        },
+    };
+
+    for (int i = 0; i < sizeof(tests1)/sizeof(tests1[0]); i++) {
+        test("and", opa_value_compare(number(tests1[i].and), opa_bits_and(number(tests1[i].x), number(tests1[i].y))) == 0);
+        test("or", opa_value_compare(number(tests1[i].or), opa_bits_or(number(tests1[i].x), number(tests1[i].y))) == 0);
+        test("xor", opa_value_compare(number(tests1[i].xor), opa_bits_xor(number(tests1[i].x), number(tests1[i].y))) == 0);
+    }
+
+    // tests from https://golang.org/src/math/big/int_test.go L1496
+
+    struct negate_test
+    {
+        const char *input;
+        const char *output;
+    };
+
+    struct negate_test tests2[] = {
+        {"0", "-1"},
+        {"1", "-2"},
+        {"7", "-8"},
+        {"0", "-1"},
+        {"-81910", "81909"},
+        {
+            "298472983472983471903246121093472394872319615612417471234712061",
+            "-298472983472983471903246121093472394872319615612417471234712062",
+        },
+     };
+
+     for (int i = 0; i < sizeof(tests2)/sizeof(tests2[0]); i++) {
+         test("negate", opa_value_compare(opa_number_ref(tests2[i].output, strlen(tests2[i].output)),
+                                          opa_bits_negate(opa_number_ref(tests2[i].input, strlen(tests2[i].input)))) == 0);
+         test("negate", opa_value_compare(opa_number_ref(tests2[i].input, strlen(tests2[i].input)),
+                                          opa_bits_negate(opa_number_ref(tests2[i].output, strlen(tests2[i].output)))) == 0);
+     }
+
+     // tests from https://golang.org/src/math/big/int_test.go L883
+
+     struct shift_test
+     {
+         const char *input;
+         int shift;
+         const char *output;
+     };
+
+     struct shift_test tests3[] = {
+         {"0", 0, "0"},
+         {"-0", 0, "0"},
+         {"0", 1, "0"},
+         {"0", 2, "0"},
+         {"1", 0, "1"},
+         {"1", 1, "0"},
+         {"1", 2, "0"},
+         {"2", 0, "2"},
+         {"2", 1, "1"},
+         {"-1", 0, "-1"},
+         {"-1", 1, "-1"},
+         {"-1", 10, "-1"},
+         {"-100", 2, "-25"},
+         {"-100", 3, "-13"},
+         {"-100", 100, "-1"},
+         {"4294967296", 0, "4294967296"},
+         {"4294967296", 1, "2147483648"},
+         {"4294967296", 2, "1073741824"},
+         {"18446744073709551616", 0, "18446744073709551616"},
+         {"18446744073709551616", 1, "9223372036854775808"},
+         {"18446744073709551616", 2, "4611686018427387904"},
+         {"18446744073709551616", 64, "1"},
+         {"340282366920938463463374607431768211456", 64, "18446744073709551616"},
+         {"340282366920938463463374607431768211456", 128, "1"},
+     };
+
+     for (int i = 0; i < sizeof(tests3)/sizeof(tests3[0]); i++) {
+         test("right shift", opa_value_compare(opa_number_ref(tests3[i].output, strlen(tests3[i].output)),
+                                               opa_bits_shiftright(opa_number_ref(tests3[i].input, strlen(tests3[i].input)),
+                                                                   opa_number_int(tests3[i].shift))) == 0);
+     };
+
+     // tests from https://golang.org/src/math/big/int_test.go L940
+
+     struct shift_test tests4[] = {
+         {"0", 0, "0"},
+         {"0", 1, "0"},
+         {"0", 2, "0"},
+         {"1", 0, "1"},
+         {"1", 1, "2"},
+         {"1", 2, "4"},
+         {"2", 0, "2"},
+         {"2", 1, "4"},
+         {"2", 2, "8"},
+         {"-87", 1, "-174"},
+         {"4294967296", 0, "4294967296"},
+         {"4294967296", 1, "8589934592"},
+         {"4294967296", 2, "17179869184"},
+         {"18446744073709551616", 0, "18446744073709551616"},
+         {"9223372036854775808", 1, "18446744073709551616"},
+         {"4611686018427387904", 2, "18446744073709551616"},
+         {"1", 64, "18446744073709551616"},
+         {"18446744073709551616", 64, "340282366920938463463374607431768211456"},
+         {"1", 128, "340282366920938463463374607431768211456"},
+     };
+
+     for (int i = 0; i < sizeof(tests4)/sizeof(tests4[0]); i++) {
+         test("left shift", opa_value_compare(opa_number_ref(tests4[i].output, strlen(tests4[i].output)),
+                                              opa_bits_shiftleft(opa_number_ref(tests4[i].input, strlen(tests4[i].input)),
+                                                                 opa_number_int(tests4[i].shift))) == 0);
+     };
+}
+
+void test_aggregates(void)
+{
+    opa_array_t *arr = opa_cast_array(opa_array());
+    opa_array_append(arr, opa_number_int(2));
+    opa_array_append(arr, opa_number_int(1));
+    opa_array_append(arr, opa_number_int(4));
+
+    opa_array_t *arr_sorted = opa_cast_array(opa_array());
+    opa_array_append(arr_sorted, opa_number_int(1));
+    opa_array_append(arr_sorted, opa_number_int(2));
+    opa_array_append(arr_sorted, opa_number_int(4));
+
+    opa_object_t *obj = opa_cast_object(opa_object());
+    opa_object_insert(obj, opa_string_terminated("b"), opa_number_int(2));
+    opa_object_insert(obj, opa_string_terminated("a"), opa_number_int(1));
+    opa_object_insert(obj, opa_string_terminated("c"), opa_number_int(4));
+
+    opa_set_t *set = opa_cast_set(opa_set());
+    opa_set_add(set, opa_number_int(2));
+    opa_set_add(set, opa_number_int(1));
+    opa_set_add(set, opa_number_int(4));
+
+    test("count/string", opa_value_compare(opa_agg_count(opa_string("foo", 3)), opa_number_int(3)) == 0);
+    test("count/array", opa_value_compare(opa_agg_count(&arr->hdr), opa_number_int(3)) == 0);
+    test("count/object", opa_value_compare(opa_agg_count(&obj->hdr), opa_number_int(3)) == 0);
+    test("count/set", opa_value_compare(opa_agg_count(&set->hdr), opa_number_int(3)) == 0);
+
+    test("sum/array", opa_value_compare(opa_agg_sum(&arr->hdr), opa_number_int(7)) == 0);
+    test("sum/set", opa_value_compare(opa_agg_sum(&set->hdr), opa_number_int(7)) == 0);
+
+    test("product/array", opa_value_compare(opa_agg_product(&arr->hdr), opa_number_int(8)) == 0);
+    test("product/set", opa_value_compare(opa_agg_product(&set->hdr), opa_number_int(8)) == 0);
+
+    test("max/array", opa_value_compare(opa_agg_max(&arr->hdr), opa_number_int(4)) == 0);
+    test("max/set", opa_value_compare(opa_agg_max(&set->hdr), opa_number_int(4)) == 0);
+
+    test("min/array", opa_value_compare(opa_agg_min(&arr->hdr), opa_number_int(1)) == 0);
+    test("min/set", opa_value_compare(opa_agg_min(&set->hdr), opa_number_int(1)) == 0);
+
+    test("sort/array", opa_value_compare(opa_agg_sort(&arr->hdr), &arr_sorted->hdr) == 0);
+    test("sort/set", opa_value_compare(opa_agg_sort(&set->hdr), &arr_sorted->hdr) == 0);
+
+    opa_array_t *arr_trues = opa_cast_array(opa_array());
+    opa_array_append(arr_trues, opa_boolean(TRUE));
+    opa_array_append(arr_trues, opa_boolean(TRUE));
+
+    opa_array_t *arr_mixed = opa_cast_array(opa_array());
+    opa_array_append(arr_mixed, opa_boolean(TRUE));
+    opa_array_append(arr_mixed, opa_boolean(FALSE));
+
+    opa_array_t *arr_falses = opa_cast_array(opa_array());
+    opa_array_append(arr_falses, opa_boolean(FALSE));
+    opa_array_append(arr_falses, opa_boolean(FALSE));
+
+    test("all/array trues", opa_value_compare(opa_agg_all(&arr_trues->hdr), opa_boolean(TRUE)) == 0);
+    test("all/array mixed", opa_value_compare(opa_agg_all(&arr_mixed->hdr), opa_boolean(FALSE)) == 0);
+    test("all/array falses", opa_value_compare(opa_agg_all(&arr_falses->hdr), opa_boolean(FALSE)) == 0);
+    test("any/array trues", opa_value_compare(opa_agg_any(&arr_trues->hdr), opa_boolean(TRUE)) == 0);
+    test("any/array mixed", opa_value_compare(opa_agg_any(&arr_mixed->hdr), opa_boolean(TRUE)) == 0);
+    test("any/array falses", opa_value_compare(opa_agg_any(&arr_falses->hdr), opa_boolean(FALSE)) == 0);
+
+    opa_set_t *set_trues = opa_cast_set(opa_set());
+    opa_set_add(set_trues, opa_boolean(TRUE));
+    opa_set_add(set_trues, opa_boolean(TRUE));
+
+    opa_set_t *set_mixed = opa_cast_set(opa_set());
+    opa_set_add(set_mixed, opa_boolean(TRUE));
+    opa_set_add(set_mixed, opa_boolean(FALSE));
+
+    opa_set_t *set_falses = opa_cast_set(opa_set());
+    opa_set_add(set_falses, opa_boolean(FALSE));
+    opa_set_add(set_falses, opa_boolean(FALSE));
+
+    test("all/set trues", opa_value_compare(opa_agg_all(&set_trues->hdr), opa_boolean(TRUE)) == 0);
+    test("all/set mixed", opa_value_compare(opa_agg_all(&set_mixed->hdr), opa_boolean(FALSE)) == 0);
+    test("all/set falses", opa_value_compare(opa_agg_all(&set_falses->hdr), opa_boolean(FALSE)) == 0);
+    test("any/set trues", opa_value_compare(opa_agg_any(&set_trues->hdr), opa_boolean(TRUE)) == 0);
+    test("any/set mixed", opa_value_compare(opa_agg_any(&set_mixed->hdr), opa_boolean(TRUE)) == 0);
+    test("any/set falses", opa_value_compare(opa_agg_any(&set_falses->hdr), opa_boolean(FALSE)) == 0);
 }

@@ -30,7 +30,8 @@ type Query struct {
 	store             storage.Store
 	txn               storage.Transaction
 	input             *ast.Term
-	tracers           []Tracer
+	tracers           []QueryTracer
+	plugTraceVars     bool
 	unknowns          []*ast.Term
 	partialNamespace  string
 	skipSaveNamespace bool
@@ -98,8 +99,31 @@ func (q *Query) WithInput(input *ast.Term) *Query {
 }
 
 // WithTracer adds a query tracer to use during evaluation. This is optional.
+// Deprecated: Use WithQueryTracer instead.
 func (q *Query) WithTracer(tracer Tracer) *Query {
+	qt, ok := tracer.(QueryTracer)
+	if !ok {
+		qt = wrapLegacyTracer(tracer)
+	}
+	return q.WithQueryTracer(qt)
+}
+
+// WithQueryTracer adds a query tracer to use during evaluation. This is optional.
+// Disabled QueryTracers will be ignored.
+func (q *Query) WithQueryTracer(tracer QueryTracer) *Query {
+	if !tracer.Enabled() {
+		return q
+	}
+
 	q.tracers = append(q.tracers, tracer)
+
+	// If *any* of the tracers require local variable metadata we need to
+	// enabled plugging local trace variables.
+	conf := tracer.Config()
+	if conf.PlugLocalVars {
+		q.plugTraceVars = true
+	}
+
 	return q
 }
 
@@ -208,6 +232,8 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 		txn:                q.txn,
 		input:              q.input,
 		tracers:            q.tracers,
+		traceEnabled:       len(q.tracers) > 0,
+		plugTraceVars:      q.plugTraceVars,
 		instr:              q.instr,
 		builtins:           q.builtins,
 		builtinCache:       builtins.Cache{},
@@ -311,6 +337,8 @@ func (q *Query) Iter(ctx context.Context, iter func(QueryResult) error) error {
 		txn:                q.txn,
 		input:              q.input,
 		tracers:            q.tracers,
+		traceEnabled:       len(q.tracers) > 0,
+		plugTraceVars:      q.plugTraceVars,
 		instr:              q.instr,
 		builtins:           q.builtins,
 		builtinCache:       builtins.Cache{},
