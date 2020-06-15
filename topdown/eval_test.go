@@ -123,3 +123,79 @@ func TestRefContainsNonScalar(t *testing.T) {
 	}
 
 }
+
+func TestContainsNestedRefOrCall(t *testing.T) {
+
+	tests := []struct {
+		note  string
+		input string
+		want  bool
+	}{
+		{
+			note:  "single term - negative",
+			input: "p[x]",
+			want:  false,
+		},
+		{
+			note:  "single term - positive ref",
+			input: "p[q[x]]",
+			want:  true,
+		},
+		{
+			note:  "single term - positive composite ref",
+			input: "[q[x]]",
+			want:  true,
+		},
+		{
+			note:  "single term - positive composite call",
+			input: "[f(x)]",
+			want:  true,
+		},
+		{
+			note:  "call expr - negative",
+			input: "f(x)",
+			want:  false,
+		},
+		{
+			note:  "call expr - positive ref",
+			input: "f(p[x])",
+			want:  true,
+		},
+		{
+			note:  "call expr - positive call",
+			input: "f(g(x))",
+			want:  true,
+		},
+		{
+			note:  "call expr - positive composite",
+			input: "f([g(x)])",
+			want:  true,
+		},
+		{
+			note:  "unify expr - negative",
+			input: "p[x] = q[y]",
+			want:  false,
+		},
+		{
+			note:  "unify expr - positive ref",
+			input: "p[x] = q[r[y]]",
+			want:  true,
+		},
+		{
+			note:  "unify expr - positive call",
+			input: "f(x) = g(h(y))",
+			want:  true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			vis := newNestedCheckVisitor()
+			expr := ast.MustParseExpr(tc.input)
+			result := containsNestedRefOrCall(vis, expr)
+			if result != tc.want {
+				t.Fatal("Expected", tc.want, "but got", result)
+			}
+		})
+	}
+}
