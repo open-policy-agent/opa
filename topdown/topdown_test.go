@@ -1106,6 +1106,7 @@ func TestTopDownArithmetic(t *testing.T) {
 		{"arity 1 ref dest (2)", []string{`p = true { not abs(-5, a[3]) }`}, "true"},
 		{"arity 2 ref dest", []string{`p = true { a[2] = 1 + 2 }`}, "true"},
 		{"arity 2 ref dest (2)", []string{`p = true { not a[2] = 2 + 3 }`}, "true"},
+		{"bug 2469 - precision", []string{"p = true { 49649733057 + 1 == 49649733058 }"}, "true"},
 	}
 
 	data := loadSmallTestData()

@@ -20,6 +20,7 @@ func TestTopDownAggregates(t *testing.T) {
 		{"sum set", []string{`p = x { sum({1, 2, 3, 4}, x) }`}, "10"},
 		{"sum virtual", []string{`p[x] { sum([y | q[y]], x) }`, `q[x] { a[_] = x }`}, "[10]"},
 		{"sum virtual set", []string{`p = x { sum(q, x) }`, `q[x] { a[_] = x }`}, "10"},
+		{"bug 2469 - precision", []string{"p = true { sum([49649733057, 1]) == 49649733058 }"}, "true"},
 		{"product", []string{"p { product([1,2,3,4], 24) }"}, "true"},
 		{"product set", []string{`p = x { product({1, 2, 3, 4}, x) }`}, "24"},
 		{"max", []string{`p[x] { max([1, 2, 3, 4], x) }`}, "[4]"},
