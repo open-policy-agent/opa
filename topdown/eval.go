@@ -2500,10 +2500,21 @@ func plugSlice(xs []*ast.Term, b *bindings) []*ast.Term {
 func canInlineNegation(safe ast.VarSet, queries []ast.Body) bool {
 
 	size := 1
+	vis := newNestedCheckVisitor()
 
 	for _, query := range queries {
 		size *= len(query)
 		for _, expr := range query {
+			if containsNestedRefOrCall(vis, expr) {
+				// Expressions containing nested refs or calls cannot be trivially negated
+				// because the semantics would change. For example, the complement of `not f(input.x)`
+				// is _not_ `f(input.x)`--it is `not input.x` OR `f(input.x)`.
+				//
+				// NOTE(tsandall): Since this would require the complement function to undo the
+				// copy propagation optimization, just bail out here. If this becomes a problem
+				// in the future, we can handle more cases.
+				return false
+			}
 			if !expr.Negated {
 				// Positive expressions containing variables cannot be trivially negated
 				// because they become unsafe (e.g., "x = 1" negated is "not x = 1" making x
@@ -2529,6 +2540,68 @@ func canInlineNegation(safe ast.VarSet, queries []ast.Body) bool {
 	}
 
 	return true
+}
+
+type nestedCheckVisitor struct {
+	vis   *ast.GenericVisitor
+	found bool
+}
+
+func newNestedCheckVisitor() *nestedCheckVisitor {
+	v := &nestedCheckVisitor{}
+	v.vis = ast.NewGenericVisitor(v.visit)
+	return v
+}
+
+func (v *nestedCheckVisitor) visit(x interface{}) bool {
+	switch x.(type) {
+	case ast.Ref, ast.Call:
+		v.found = true
+	}
+	return v.found
+}
+
+func containsNestedRefOrCall(vis *nestedCheckVisitor, expr *ast.Expr) bool {
+
+	if expr.IsEquality() {
+		for _, term := range expr.Operands() {
+			if containsNestedRefOrCallInTerm(vis, term) {
+				return true
+			}
+		}
+		return false
+	}
+
+	if expr.IsCall() {
+		for _, term := range expr.Operands() {
+			vis.vis.Walk(term)
+			if vis.found {
+				return true
+			}
+		}
+		return false
+	}
+
+	return containsNestedRefOrCallInTerm(vis, expr.Terms.(*ast.Term))
+}
+
+func containsNestedRefOrCallInTerm(vis *nestedCheckVisitor, term *ast.Term) bool {
+	switch v := term.Value.(type) {
+	case ast.Ref:
+		for i := 1; i < len(v); i++ {
+			vis.vis.Walk(v[i])
+			if vis.found {
+				return true
+			}
+		}
+		return false
+	default:
+		vis.vis.Walk(v)
+		if vis.found {
+			return true
+		}
+		return false
+	}
 }
 
 func complementedCartesianProduct(queries []ast.Body, idx int, curr ast.Body, iter func(ast.Body) error) error {

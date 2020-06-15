@@ -1362,7 +1362,14 @@ func TestTopDownPartialEval(t *testing.T) {
 				q { ((input.x + 7) / input.y) > 100 }`,
 			},
 			wantQueries: []string{
-				`not ((input.x + 7) / input.y) > 100`,
+				`not data.partial.__not1_0__`,
+			},
+			wantSupport: []string{
+				`package partial
+
+				__not1_0__ {
+					((input.x + 7) / input.y) > 100
+				}`,
 			},
 		},
 		{
@@ -1375,7 +1382,14 @@ func TestTopDownPartialEval(t *testing.T) {
 				q { a = input.x + 7; b = a / input.y; b > 100 }`,
 			},
 			wantQueries: []string{
-				`not ((input.x + 7) / input.y) > 100`,
+				`not data.partial.__not1_0__`,
+			},
+			wantSupport: []string{
+				`package partial
+
+				__not1_0__ {
+					((input.x + 7) / input.y) > 100
+				}`,
 			},
 		},
 		{
@@ -1481,7 +1495,14 @@ func TestTopDownPartialEval(t *testing.T) {
 				}`,
 			},
 			wantQueries: []string{
-				`input = x; not count(x) != 3`,
+				`input = x; not data.partial.__not0_1__(x)`,
+			},
+			wantSupport: []string{
+				`package partial
+
+				__not0_1__(x) {
+					count(x) != 3
+				}`,
 			},
 		},
 		{
@@ -1499,7 +1520,12 @@ func TestTopDownPartialEval(t *testing.T) {
 				}`,
 			},
 			wantQueries: []string{
-				`not count(input) > 3`,
+				`not data.partial.__not1_1__(input)`,
+			},
+			wantSupport: []string{
+				`package partial
+
+				__not1_1__(x1) { count(x1) > 3 }`,
 			},
 		},
 		{
@@ -1520,7 +1546,14 @@ func TestTopDownPartialEval(t *testing.T) {
 				}`,
 			},
 			wantQueries: []string{
-				`not sum([input.y, 1]) > 3`,
+				`not data.partial.__not1_3__(input.y)`,
+			},
+			wantSupport: []string{
+				`package partial
+
+				__not1_3__(z1) {
+					sum([z1, 1]) > 3
+				}`,
 			},
 		},
 		{
@@ -1583,7 +1616,12 @@ func TestTopDownPartialEval(t *testing.T) {
 				}
 			`},
 			wantQueries: []string{
-				`input[i1].a = "foo"; input[i1].b < 7`,
+				`input[i1].a = "foo"; data.partial.__not3_1__(input[i1])`,
+			},
+			wantSupport: []string{
+				`package partial
+
+				__not3_1__(__local0__3) { __local0__3.b < 7 }`,
 			},
 		},
 		{
