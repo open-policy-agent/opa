@@ -54,7 +54,7 @@ func runSchedulerBenchmark(b *testing.B, nodes int, pods int) {
 			b.Fatal("unexpected query result:", rs)
 		}
 		for n, w := range ws {
-			if fmt.Sprint(w) != "5.01388889" {
+			if fmt.Sprint(w) != "5.0138888888888888886" {
 				b.Fatalf("unexpected weight for: %v: %v\n\nDumping all weights:\n\n%v\n", n, w, rs)
 			}
 		}
