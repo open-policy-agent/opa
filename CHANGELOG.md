@@ -3,12 +3,34 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.21.0
+
+### Features
+
+* Decision log masks can now mutate decision log events. Previously, the masks could only erase data in the events. With this change, users can implement masks that obfuscate or add information to the decision log events before they are emitted. Thanks to @dkiser for implementing this feature [#2379](https://github.com/open-policy-agent/opa/issues/2379))!
+
+* This release contains a new built-in function for parsing X.509 Certificate Signing Requests (`crypto.x509.parse_certificate_request`). Thanks to @vivekbagade for implementing this feature [#2402](https://github.com/open-policy-agent/opa/issues/2402)!
+
+* This release adds support for aggregation and bit arithmetic operations for WebAssembly compiled policies. These functions no longer have to be provided by the host environment.
+
+### Fixes
+
+- cmd: Fix bug in --disable-inlining option parsing ([#2196](https://github.com/open-policy-agent/opa/issues/2196)) authored by @[Syn3rman](https://github.com/Syn3rman)
+- docs: Improve terraform example to incorporate `child_modules` ([#1772](https://github.com/open-policy-agent/opa/issues/1772))
+- server: Fix panic caused by compiler misuse with bundles ([#2197](https://github.com/open-policy-agent/opa/issues/2197))
+- topdown: Fix incorrect memoization during partial evaluation ([#2455](https://github.com/open-policy-agent/opa/issues/2455))
+- topdown: Fix loss of precision in arithmetic and aggregate builtins ([#2469](https://github.com/open-policy-agent/opa/issues/2469))
+
+### Miscellaneous
+
+* Thanks to @Syn3rman for implementing an improvement to our release process to automatically tag external contributors ([#2323](https://github.com/open-policy-agent/opa/issues/2323))!
+
+* The coverage and profiling tracers no longer require variable values from the evaluator. This change improves perfomance significantly when coverage or profiling is enabled and policies inspect large data sets. Benchmarks show anywhere from 0.5x to over 30x speedup depending on the policy.
 
 ### Backwards Compatibility
 
 * `topdown.Tracer` has been deprecated in favor of a newer interface
-  `topdown.QueryTracer`.  
+  `topdown.QueryTracer`.
 * All tracers (regardless of interface implementation) will now only be checked
   for being enabled at the beginning of query evaluation rather than on a
   per-event basis.
