@@ -909,12 +909,12 @@ func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, input ast.V
 
 	if r.explain != explainOff {
 		tracebuf = topdown.NewBufferTracer()
-		args = append(args, rego.Tracer(tracebuf))
+		args = append(args, rego.QueryTracer(tracebuf))
 	}
 
 	if r.profiler {
 		prof = profiler.New()
-		args = append(args, rego.Tracer(prof))
+		args = append(args, rego.QueryTracer(prof))
 	}
 
 	eval := rego.New(args...)
@@ -966,7 +966,7 @@ func (r *REPL) evalPartial(ctx context.Context, compiler *ast.Compiler, input as
 		rego.ParsedQuery(body),
 		rego.ParsedInput(input),
 		rego.Metrics(r.metrics),
-		rego.Tracer(buf),
+		rego.QueryTracer(buf),
 		rego.Instrument(r.instrument),
 		rego.ParsedUnknowns(r.unknowns),
 		rego.Runtime(r.runtime),

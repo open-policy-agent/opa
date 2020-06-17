@@ -57,7 +57,7 @@ p {
 	eval := rego.New(
 		rego.Module("test.rego", module),
 		rego.Query("data.test.foo"),
-		rego.Tracer(cover),
+		rego.QueryTracer(cover),
 	)
 
 	ctx := context.Background()

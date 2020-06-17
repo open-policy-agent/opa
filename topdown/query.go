@@ -104,7 +104,7 @@ func (q *Query) WithInput(input *ast.Term) *Query {
 func (q *Query) WithTracer(tracer Tracer) *Query {
 	qt, ok := tracer.(QueryTracer)
 	if !ok {
-		qt = wrapLegacyTracer(tracer)
+		qt = WrapLegacyTracer(tracer)
 	}
 	return q.WithQueryTracer(qt)
 }

@@ -189,7 +189,7 @@ func opaTest(args []string) int {
 	}
 
 	var cov *cover.Cover
-	var coverTracer topdown.Tracer
+	var coverTracer topdown.QueryTracer
 
 	if testParams.coverage {
 		if testParams.benchmark {
@@ -204,7 +204,7 @@ func opaTest(args []string) int {
 		SetCompiler(compiler).
 		SetStore(store).
 		EnableTracing(testParams.verbose).
-		SetCoverageTracer(coverTracer).
+		SetCoverageQueryTracer(coverTracer).
 		EnableFailureLine(testParams.failureLine).
 		SetRuntime(info).
 		SetModules(modules).
