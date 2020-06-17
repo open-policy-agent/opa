@@ -23,7 +23,7 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	os.Exit(testRuntime.RunAPIServerTests(m))
+	os.Exit(testRuntime.RunTests(m))
 }
 
 func TestMetricsEndpoint(t *testing.T) {
