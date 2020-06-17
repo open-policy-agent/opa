@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/cover"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/tester"
 	"github.com/open-policy-agent/opa/topdown"
@@ -90,11 +91,23 @@ func TestRunner_EnableFailureLine(t *testing.T) {
 }
 
 func TestRun(t *testing.T) {
-	testRun(t, false)
+	testRun(t, testRunConfig{})
 }
 
 func TestRunBenchmark(t *testing.T) {
-	testRun(t, true)
+	testRun(t, testRunConfig{bench: true})
+}
+
+func TestRunWithCoverage(t *testing.T) {
+	cov := cover.New()
+	modules := testRun(t, testRunConfig{coverTracer: cov})
+	report := cov.Report(modules)
+	if len(report.Files) != len(modules) {
+		t.Errorf("Expected %d files in coverage report, got %d", len(modules), len(report.Files))
+	}
+	if report.Coverage == 0 {
+		t.Error("Expected test coverage")
+	}
 }
 
 type expectedTestResult struct {
@@ -102,9 +115,15 @@ type expectedTestResult struct {
 	wantFail bool
 }
 
+type testRunConfig struct {
+	bench       bool
+	filter      string
+	coverTracer topdown.QueryTracer
+}
+
 type expectedTestResults map[[2]string]expectedTestResult
 
-func testRun(t *testing.T, bench bool) {
+func testRun(t *testing.T, conf testRunConfig) map[string]*ast.Module {
 	files := map[string]string{
 		"/a.rego": `package foo
 			allow { true }
@@ -137,13 +156,16 @@ func testRun(t *testing.T, bench bool) {
 		{"data.bar", "test_duplicate"}:     {false, false},
 	}
 
+	var modules map[string]*ast.Module
 	test.WithTempFS(files, func(d string) {
-		rs := doTestRunWithTmpDir(t, d, bench, "")
-		validateTestResults(t, tests, rs, bench)
+		var rs []*tester.Result
+		rs, modules = doTestRunWithTmpDir(t, d, conf)
+		validateTestResults(t, tests, rs, conf)
 	})
+	return modules
 }
 
-func doTestRunWithTmpDir(t *testing.T, dir string, bench bool, regex string) []*tester.Result {
+func doTestRunWithTmpDir(t *testing.T, dir string, conf testRunConfig) ([]*tester.Result, map[string]*ast.Module) {
 	t.Helper()
 
 	ctx := context.Background()
@@ -157,10 +179,15 @@ func doTestRunWithTmpDir(t *testing.T, dir string, bench bool, regex string) []*
 	txn := storage.NewTransactionOrDie(ctx, store)
 	defer store.Abort(ctx, txn)
 
-	runner := tester.NewRunner().SetStore(store).SetModules(modules).Filter(regex).SetTimeout(60 * time.Second)
+	runner := tester.NewRunner().
+		SetStore(store).
+		SetModules(modules).
+		Filter(conf.filter).
+		SetTimeout(60 * time.Second).
+		SetCoverageQueryTracer(conf.coverTracer)
 
 	var ch chan *tester.Result
-	if bench {
+	if conf.bench {
 		ch, err = runner.RunBenchmarks(ctx, txn, tester.BenchmarkOptions{})
 	} else {
 		ch, err = runner.RunTests(ctx, txn)
@@ -173,10 +200,10 @@ func doTestRunWithTmpDir(t *testing.T, dir string, bench bool, regex string) []*
 		rs = append(rs, r)
 	}
 
-	return rs
+	return rs, modules
 }
 
-func validateTestResults(t *testing.T, tests expectedTestResults, rs []*tester.Result, bench bool) {
+func validateTestResults(t *testing.T, tests expectedTestResults, rs []*tester.Result, conf testRunConfig) {
 	t.Helper()
 	seen := map[[2]string]struct{}{}
 	for i := range rs {
@@ -189,9 +216,9 @@ func validateTestResults(t *testing.T, tests expectedTestResults, rs []*tester.R
 			t.Errorf("Expected %+v for %v but got: %v", exp, k, rs[i])
 		} else {
 			// Test passed
-			if bench && rs[i].BenchmarkResult == nil {
+			if conf.bench && rs[i].BenchmarkResult == nil {
 				t.Errorf("Expected BenchmarkResult for test %v, got nil", k)
-			} else if !bench && rs[i].BenchmarkResult != nil {
+			} else if !conf.bench && rs[i].BenchmarkResult != nil {
 				t.Errorf("Unexpected BenchmarkResult for test %v, expected nil", k)
 			}
 		}
@@ -320,8 +347,9 @@ func TestRunWithFilterRegex(t *testing.T) {
 
 		for _, tc := range cases {
 			t.Run(tc.note, func(t *testing.T) {
-				rs := doTestRunWithTmpDir(t, d, false, tc.regex)
-				validateTestResults(t, tc.tests, rs, false)
+				conf := testRunConfig{filter: tc.regex}
+				rs, _ := doTestRunWithTmpDir(t, d, conf)
+				validateTestResults(t, tc.tests, rs, conf)
 			})
 		}
 	})

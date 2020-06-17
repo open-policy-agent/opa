@@ -18,6 +18,13 @@ failure via the status API and error logging. For more information see https://o
 Thanks to @ashish246 who co-designed the feature and provided valuable input to the development process with his
 proof-of-concept [#1757](https://github.com/open-policy-agent/opa/issues/1757).
 
+### Backwards Compatibility
+
+* The `rego.Tracer` and `rego.EvalTracer` API's have been deprecated in favor of
+  the newer `rego.QueryTracer` and `rego.EvalQueryTracer` API.
+* The `tester.Runner#SetCoverageTracer` API has been deprecated in favor of the
+  newer `test.Runner#SetCoverageQueryTracer` API.
+
 ## 0.21.1
 
 This release fixes [#2497](https://github.com/open-policy-agent/opa/issues/2497) where the comprehension indexing optimization produced incorrect results for nested comprehensions that close over variables in the outer scope. This issue only affects policies containing nested comprehensions that are recognized by the indexer (which is a relatively small percentage).

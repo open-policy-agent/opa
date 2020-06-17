@@ -45,7 +45,7 @@ func BenchmarkProfilerBigLocalVar(b *testing.B) {
 
 				for i := 0; i < b.N; i++ {
 					b.StartTimer()
-					_, err = pq.Eval(ctx, rego.EvalTracer(profiler))
+					_, err = pq.Eval(ctx, rego.EvalQueryTracer(profiler))
 					b.StopTimer()
 
 					if err != nil {

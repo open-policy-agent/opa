@@ -410,7 +410,7 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 
 	if params.explain != nil && params.explain.String() != explainModeOff {
 		tracer = topdown.NewBufferTracer()
-		evalArgs = append(evalArgs, rego.EvalTracer(tracer))
+		evalArgs = append(evalArgs, rego.EvalQueryTracer(tracer))
 	}
 
 	if params.disableIndexing {
@@ -434,7 +434,7 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 	var p *profiler.Profiler
 	if params.profile {
 		p = profiler.New()
-		evalArgs = append(evalArgs, rego.EvalTracer(p))
+		evalArgs = append(evalArgs, rego.EvalQueryTracer(p))
 	}
 
 	if params.partial {
@@ -447,7 +447,7 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 
 	if params.coverage {
 		c = cover.New()
-		evalArgs = append(evalArgs, rego.EvalTracer(c))
+		evalArgs = append(evalArgs, rego.EvalQueryTracer(c))
 	}
 
 	eval := rego.New(regoArgs...)

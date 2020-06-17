@@ -593,7 +593,7 @@ func ExampleRego_Eval_tracer() {
 	// Create very simple query that binds a single variable and provides a tracer.
 	rego := rego.New(
 		rego.Query("x = 1"),
-		rego.Tracer(buf),
+		rego.QueryTracer(buf),
 	)
 
 	// Run evaluation.

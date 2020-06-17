@@ -53,7 +53,7 @@ baz {
 	eval := rego.New(
 		rego.Module("test.rego", module),
 		rego.Query("data.test.foo"),
-		rego.Tracer(profiler),
+		rego.QueryTracer(profiler),
 	)
 
 	ctx := context.Background()
@@ -125,7 +125,7 @@ func TestProfileCheckExprDuration(t *testing.T) {
 	eval := rego.New(
 		rego.Module("test.rego", module),
 		rego.Query("data.test.foo"),
-		rego.Tracer(profiler),
+		rego.QueryTracer(profiler),
 	)
 
 	ctx := context.Background()
@@ -192,7 +192,7 @@ baz {
 	eval := rego.New(
 		rego.Module("test.rego", module),
 		rego.Query("data.test.foo"),
-		rego.Tracer(profiler),
+		rego.QueryTracer(profiler),
 	)
 
 	ctx := context.Background()
@@ -246,7 +246,7 @@ baz {
 	eval := rego.New(
 		rego.Module("test.rego", module),
 		rego.Query("data.test.foo"),
-		rego.Tracer(profiler),
+		rego.QueryTracer(profiler),
 	)
 
 	ctx := context.Background()
@@ -307,7 +307,7 @@ baz {
 	eval := rego.New(
 		rego.Module("test.rego", module),
 		rego.Query("data.test.foo"),
-		rego.Tracer(profiler),
+		rego.QueryTracer(profiler),
 	)
 
 	ctx := context.Background()
@@ -374,7 +374,7 @@ baz {
 	eval := rego.New(
 		rego.Module("test.rego", module),
 		rego.Query("data.test.foo"),
-		rego.Tracer(profiler),
+		rego.QueryTracer(profiler),
 	)
 
 	ctx := context.Background()
@@ -444,7 +444,7 @@ allowed_operations = [
 		t.Fatal(err)
 	}
 
-	_, err = pq.Eval(ctx, rego.EvalTracer(profiler))
+	_, err = pq.Eval(ctx, rego.EvalQueryTracer(profiler))
 	if err != nil {
 		t.Fatal(err)
 	}
