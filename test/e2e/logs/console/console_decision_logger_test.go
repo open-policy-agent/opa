@@ -2,7 +2,7 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-package logs
+package console
 
 import (
 	"encoding/json"
@@ -34,10 +34,10 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	os.Exit(testRuntime.RunAPIServerTests(m))
+	os.Exit(testRuntime.RunTests(m))
 }
 
-func TestDecisionLogWithInput(t *testing.T) {
+func TestConsoleDecisionLogWithInput(t *testing.T) {
 
 	// Setup a test hook on the global logrus logger (what
 	// the console decision logger uses)
