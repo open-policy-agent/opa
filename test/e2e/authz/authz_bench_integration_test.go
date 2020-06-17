@@ -31,7 +31,7 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	errc := testRuntime.RunAPIServerBenchmarks(m)
+	errc := testRuntime.RunTests(m)
 	os.Exit(errc)
 }
 

@@ -99,8 +99,9 @@ func WrapRuntime(ctx context.Context, cancel context.CancelFunc, rt *runtime.Run
 // handles starting and stopping the local API server. The return
 // value is what should be used as the code in `os.Exit` in the
 // `TestMain` function.
+// Deprecated: Use RunTests instead
 func (t *TestRuntime) RunAPIServerTests(m *testing.M) int {
-	return t.runTests(m, false)
+	return t.runTests(m, true)
 }
 
 // RunAPIServerBenchmarks will start the OPA runtime and do
@@ -108,7 +109,17 @@ func (t *TestRuntime) RunAPIServerTests(m *testing.M) int {
 // will suppress logging output on stdout to prevent the tests
 // from being overly verbose. If log output is desired set
 // the `test.v` flag.
+// Deprecated: Use RunTests instead
 func (t *TestRuntime) RunAPIServerBenchmarks(m *testing.M) int {
+	return t.runTests(m, !testing.Verbose())
+}
+
+// RunTests will start the OPA runtime serving with a given
+// configuration. This is essentially a wrapper for `m.Run()` that
+// handles starting and stopping the local API server. The return
+// value is what should be used as the code in `os.Exit` in the
+// `TestMain` function.
+func (t *TestRuntime) RunTests(m *testing.M) int {
 	return t.runTests(m, !testing.Verbose())
 }
 
