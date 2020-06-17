@@ -688,7 +688,7 @@ func (s *Server) execQuery(ctx context.Context, r *http.Request, txn storage.Tra
 		rego.ParsedInput(input),
 		rego.Metrics(m),
 		rego.Instrument(includeInstrumentation),
-		rego.Tracer(buf),
+		rego.QueryTracer(buf),
 		rego.Runtime(s.runtime),
 		rego.UnsafeBuiltins(unsafeBuiltinsMap),
 	)
@@ -1069,7 +1069,7 @@ func (s *Server) v1CompilePost(w http.ResponseWriter, r *http.Request) {
 		rego.ParsedQuery(request.Query),
 		rego.ParsedInput(request.Input),
 		rego.ParsedUnknowns(request.Unknowns),
-		rego.Tracer(buf),
+		rego.QueryTracer(buf),
 		rego.Instrument(includeInstrumentation),
 		rego.Metrics(m),
 		rego.Runtime(s.runtime),
@@ -1183,7 +1183,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 			rego.ParsedInput(input),
 			rego.Query(stringPathToDataRef(urlPath).String()),
 			rego.Metrics(m),
-			rego.Tracer(buf),
+			rego.QueryTracer(buf),
 			rego.Instrument(includeInstrumentation),
 			rego.Runtime(s.runtime),
 			rego.UnsafeBuiltins(unsafeBuiltinsMap),
@@ -1204,7 +1204,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 		rego.EvalTransaction(txn),
 		rego.EvalParsedInput(input),
 		rego.EvalMetrics(m),
-		rego.EvalTracer(buf),
+		rego.EvalQueryTracer(buf),
 	)
 
 	m.Timer(metrics.ServerHandler).Stop()
@@ -1399,7 +1399,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 		rego.EvalTransaction(txn),
 		rego.EvalParsedInput(input),
 		rego.EvalMetrics(m),
-		rego.EvalTracer(buf),
+		rego.EvalQueryTracer(buf),
 	)
 
 	m.Timer(metrics.ServerHandler).Stop()
@@ -2128,7 +2128,7 @@ func (s *Server) getCompiler() *ast.Compiler {
 	return s.manager.GetCompiler()
 }
 
-func (s *Server) makeRego(ctx context.Context, partial bool, txn storage.Transaction, input ast.Value, urlPath string, m metrics.Metrics, instrument bool, tracer topdown.Tracer, opts []func(*rego.Rego)) (*rego.Rego, error) {
+func (s *Server) makeRego(ctx context.Context, partial bool, txn storage.Transaction, input ast.Value, urlPath string, m metrics.Metrics, instrument bool, tracer topdown.QueryTracer, opts []func(*rego.Rego)) (*rego.Rego, error) {
 	queryPath := stringPathToDataRef(urlPath).String()
 
 	opts = append(
@@ -2137,7 +2137,7 @@ func (s *Server) makeRego(ctx context.Context, partial bool, txn storage.Transac
 		rego.Query(queryPath),
 		rego.ParsedInput(input),
 		rego.Metrics(m),
-		rego.Tracer(tracer),
+		rego.QueryTracer(tracer),
 		rego.Instrument(instrument),
 		rego.Runtime(s.runtime),
 		rego.UnsafeBuiltins(unsafeBuiltinsMap),

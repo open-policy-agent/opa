@@ -180,7 +180,7 @@ func failTrace(t *testing.T) []*topdown.Event {
 	_, err := rego.New(
 		rego.Module("test.rego", mod),
 		rego.Trace(true),
-		rego.Tracer(tracer),
+		rego.QueryTracer(tracer),
 		rego.Query("data.testing.test_p"),
 	).Eval(context.Background())
 

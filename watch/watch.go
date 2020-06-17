@@ -256,7 +256,7 @@ func (h *Handle) deliver() {
 				rego.Store(h.watcher.store),
 				rego.Query(h.query),
 				rego.Metrics(m),
-				rego.Tracer(t),
+				rego.QueryTracer(t),
 				rego.Instrument(h.instrument),
 				rego.Runtime(h.runtime),
 			)

@@ -170,7 +170,9 @@ func (l *legacyTracer) TraceEvent(evt Event) {
 	l.t.Trace(&evt)
 }
 
-func wrapLegacyTracer(tracer Tracer) QueryTracer {
+// WrapLegacyTracer will create a new QueryTracer which wraps an
+// older Tracer instance.
+func WrapLegacyTracer(tracer Tracer) QueryTracer {
 	return &legacyTracer{t: tracer}
 }
 

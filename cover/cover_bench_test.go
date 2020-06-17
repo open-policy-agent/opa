@@ -45,7 +45,7 @@ func BenchmarkCoverBigLocalVar(b *testing.B) {
 
 				for i := 0; i < b.N; i++ {
 					b.StartTimer()
-					_, err = pq.Eval(ctx, rego.EvalTracer(cover))
+					_, err = pq.Eval(ctx, rego.EvalQueryTracer(cover))
 					b.StopTimer()
 
 					if err != nil {

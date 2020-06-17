@@ -103,7 +103,7 @@ type BenchmarkOptions struct {
 type Runner struct {
 	compiler    *ast.Compiler
 	store       storage.Store
-	cover       topdown.Tracer
+	cover       topdown.QueryTracer
 	trace       bool
 	runtime     *ast.Term
 	failureLine bool
@@ -133,11 +133,27 @@ func (r *Runner) SetStore(store storage.Store) *Runner {
 }
 
 // SetCoverageTracer sets the tracer to use to compute coverage.
+// Deprecated: Use SetCoverageQueryTracer instead.
 func (r *Runner) SetCoverageTracer(tracer topdown.Tracer) *Runner {
-	r.cover = tracer
-	if r.cover != nil {
-		r.trace = false
+	if tracer == nil {
+		return r
 	}
+	if qt, ok := tracer.(topdown.QueryTracer); ok {
+		r.cover = qt
+	} else {
+		r.cover = topdown.WrapLegacyTracer(tracer)
+	}
+	r.trace = false
+	return r
+}
+
+// SetCoverageQueryTracer sets the tracer to use to compute coverage.
+func (r *Runner) SetCoverageQueryTracer(tracer topdown.QueryTracer) *Runner {
+	if tracer == nil {
+		return r
+	}
+	r.cover = tracer
+	r.trace = false
 	return r
 }
 
@@ -362,7 +378,7 @@ func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.
 
 	var bufferTracer *topdown.BufferTracer
 	var bufFailureLineTracer *topdown.BufferTracer
-	var tracer topdown.Tracer
+	var tracer topdown.QueryTracer
 
 	if r.cover != nil {
 		tracer = r.cover
@@ -379,7 +395,7 @@ func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.
 		rego.Transaction(txn),
 		rego.Compiler(r.compiler),
 		rego.Query(rule.Path().String()),
-		rego.Tracer(tracer),
+		rego.QueryTracer(tracer),
 		rego.Runtime(r.runtime),
 	)
 

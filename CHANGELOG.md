@@ -5,6 +5,14 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+
+### Backwards Compatibility
+
+* The `rego.Tracer` and `rego.EvalTracer` API's have been deprecated in favor of
+  the newer `rego.QueryTracer` and `rego.EvalQueryTracer` API.
+* The `tester.Runner#SetCoverageTracer` API has been deprecated in favor of the
+  newer `test.Runner#SetCoverageQueryTracer` API.
+
 ## 0.21.0
 
 ### Features

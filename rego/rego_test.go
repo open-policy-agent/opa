@@ -465,6 +465,34 @@ func TestPreparedRegoTracerNoPropagate(t *testing.T) {
 	}
 }
 
+func TestPreparedRegoQueryTracerNoPropagate(t *testing.T) {
+	tracer := topdown.NewBufferTracer()
+	mod := `
+	package test
+
+	p = {
+		input.x == 10
+	}
+	`
+	pq, err := New(
+		Query("data"),
+		Module("foo.rego", mod),
+		QueryTracer(tracer),
+		Input(map[string]interface{}{"x": 10})).PrepareForEval(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error %s", err)
+	}
+
+	_, err = pq.Eval(context.Background()) // no EvalQueryTracer option
+	if err != nil {
+		t.Fatalf("unexpected error %s", err)
+	}
+
+	if len(*tracer) > 0 {
+		t.Fatal("expected 0 traces to be collected")
+	}
+}
+
 func TestRegoDisableIndexing(t *testing.T) {
 	tracer := topdown.NewBufferTracer()
 	mod := `
@@ -488,7 +516,7 @@ func TestRegoDisableIndexing(t *testing.T) {
 
 	_, err = pq.Eval(
 		context.Background(),
-		EvalTracer(tracer),
+		EvalQueryTracer(tracer),
 		EvalRuleIndexing(false),
 		EvalInput(map[string]interface{}{"x": 10}),
 	)
@@ -1055,6 +1083,46 @@ func TestPreparedPartialResultWithTracer(t *testing.T) {
 	}
 
 	pqs, err := pq.Partial(ctx, EvalTracer(tracer))
+	if err != nil {
+		t.Fatalf("unexpected error from PreparedEvalQuery.Partial(): %s", err.Error())
+	}
+
+	expectedQuery := "input.x = 1"
+	if len(pqs.Queries) != 1 {
+		t.Errorf("expected 1 query but found %d: %+v", len(pqs.Queries), pqs)
+	}
+	if pqs.Queries[0].String() != expectedQuery {
+		t.Errorf("unexpected query in result, expected='%s' found='%s'",
+			expectedQuery, pqs.Queries[0].String())
+	}
+
+	if len(*tracer) == 0 {
+		t.Errorf("Expected buffer tracer to contain > 0 traces")
+	}
+}
+
+func TestPreparedPartialResultWithQueryTracer(t *testing.T) {
+	mod := `
+	package test
+	default p = false
+	p {
+		input.x = 1
+	}
+	`
+	r := New(
+		Query("data.test.p == true"),
+		Module("test.rego", mod),
+	)
+
+	tracer := topdown.NewBufferTracer()
+
+	ctx := context.Background()
+	pq, err := r.PrepareForPartial(ctx)
+	if err != nil {
+		t.Fatalf("unexpected error from Rego.PrepareForPartial(): %s", err.Error())
+	}
+
+	pqs, err := pq.Partial(ctx, EvalQueryTracer(tracer))
 	if err != nil {
 		t.Fatalf("unexpected error from PreparedEvalQuery.Partial(): %s", err.Error())
 	}
