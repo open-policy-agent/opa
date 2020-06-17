@@ -291,20 +291,30 @@ func (t *TestRuntime) GetDataWithInput(path string, input interface{}) ([]byte, 
 		path = "data/" + path
 	}
 
-	resp, err := http.Post(t.URL()+"/v1/"+path, "application/json", bytes.NewReader(inputPayload))
+	resp, err := t.GetDataWithRawInput(t.URL()+"/v1/"+path, bytes.NewReader(inputPayload))
 	if err != nil {
-		return nil, fmt.Errorf("Unexpected error: %s", err)
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("Unexpected response status: %d %s", resp.StatusCode, resp.Status)
+		return nil, err
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := ioutil.ReadAll(resp)
 	if err != nil {
-		return nil, fmt.Errorf("Unexpected error reading response body: %s", err)
+		return nil, fmt.Errorf("unexpected error reading response body: %s", err)
 	}
 
 	return body, nil
+}
+
+// GetDataWithRawInput will use the v1 data API and POST with the given input. The returned
+// value is the full response body.
+func (t *TestRuntime) GetDataWithRawInput(url string, input io.Reader) (io.Reader, error) {
+	resp, err := http.Post(url, "application/json", input)
+	if err != nil {
+		return nil, fmt.Errorf("unexpected error: %s", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected response status: %d %s", resp.StatusCode, resp.Status)
+	}
+	return resp.Body, nil
 }
 
 // GetDataWithInputTyped returns an unmarshalled response from GetDataWithInput.
