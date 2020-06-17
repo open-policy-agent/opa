@@ -243,25 +243,28 @@ func runVirtualDocsBenchmark(b *testing.B, numTotalRules, numHitRules int) {
 		b.Fatalf("Unexpected compiler error: %v", compiler.Errors)
 	}
 
-	query := NewQuery(ast.MustParseBody("data.a.b.c.allow = x")).
-		WithCompiler(compiler).
-		WithStore(store).
-		WithTransaction(txn).
-		WithInput(input)
+	body := ast.MustParseBody("data.a.b.c.allow = x")
 
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		func() {
-			rs, err := query.Run(ctx)
-			if err != nil {
-				b.Fatalf("Unexpected topdown query error: %v", err)
-			}
-			if len(rs) != 1 || !rs[0][ast.Var("x")].Equal(ast.BooleanTerm(true)) {
-				b.Fatalf("Unexpecfted undefined/extra/bad result: %v", rs)
-			}
-		}()
+		b.StopTimer()
 
+		query := NewQuery(body).
+			WithCompiler(compiler).
+			WithStore(store).
+			WithTransaction(txn).
+			WithInput(input)
+
+		b.StartTimer()
+
+		rs, err := query.Run(ctx)
+		if err != nil {
+			b.Fatalf("Unexpected topdown query error: %v", err)
+		}
+		if len(rs) != 1 || !rs[0][ast.Var("x")].Equal(ast.BooleanTerm(true)) {
+			b.Fatalf("Unexpecfted undefined/extra/bad result: %v", rs)
+		}
 	}
 }
 
