@@ -51,11 +51,21 @@ type EventV1 struct {
 	RequestedBy string                  `json:"requested_by"`
 	Timestamp   time.Time               `json:"timestamp"`
 	Metrics     map[string]interface{}  `json:"metrics,omitempty"`
+	RuleStats   []RuleStatsV1           `json:"rule_stats,omitempty"`
 }
 
 // BundleInfoV1 describes a bundle associated with a decision log event.
 type BundleInfoV1 struct {
 	Revision string `json:"revision,omitempty"`
+}
+
+// RuleStatsV1 provides the event summary for a particular rule.
+type RuleStatsV1 struct {
+	Path       string        `json:"path"`
+	Location   *ast.Location `json:"location,omitempty"`
+	EnterCount uint64        `json:"enter_count"`
+	ExitCount  uint64        `json:"exit_count"`
+	FailCount  uint64        `json:"fail_count"`
 }
 
 const (
@@ -290,6 +300,26 @@ func (p *Plugin) Log(ctx context.Context, decision *server.Info) error {
 
 	if decision.Error != nil {
 		event.Error = decision.Error
+	}
+
+	if decision.RuleTracer != nil {
+		ruleStats := make([]RuleStatsV1, len(decision.RuleTracer.Counts()))
+		i := 0
+		for node, counts := range decision.RuleTracer.Counts() {
+			if rule, ok := node.(*ast.Rule); ok {
+				ruleStats[i] = RuleStatsV1{
+					Path:       rule.Path().String(),
+					Location:   rule.Loc(),
+					EnterCount: counts.Enters(),
+					ExitCount:  counts.Exits(),
+					FailCount:  counts.Fails(),
+				}
+			}
+		}
+
+		if len(ruleStats) > 0 {
+			event.RuleStats = ruleStats
+		}
 	}
 
 	err := p.maskEvent(ctx, decision.Txn, &event)

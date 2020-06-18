@@ -38,6 +38,7 @@ type Info struct {
 	Error      error
 	Metrics    metrics.Metrics
 	Trace      []*topdown.Event
+	RuleTracer *topdown.RuleTracer
 }
 
 // BundleInfo contains information describing a bundle.

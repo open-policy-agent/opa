@@ -317,7 +317,42 @@ represents a policy decision returned by OPA.
     },
     "result": "true",
     "requested_by": "[::1]:59943",
-    "timestamp": "2018-01-01T00:00:00.000000Z"
+    "timestamp": "2018-01-01T00:00:00.000000Z",
+    "rule_stats": [
+        {
+          "path": "data.http.authz.allow",
+          "enter_count": 1,
+          "exit_count": 1,
+          "fail_count": 0,
+          "location": {
+            "file": "authz.rego",
+            "col": 2,
+            "row": 6
+          }
+        },
+        {
+          "path": "data.http.authz.resource_owner",
+          "enter_count": 1,
+          "exit_count": 0,
+          "fail_count": 1,
+          "location": {
+            "file": "utils.rego",
+            "col": 2,
+            "row": 5
+          }
+        },
+        {
+          "path": "data.http.authz.is_admin",
+          "enter_count": 1,
+          "exit_count": 1,
+          "fail_count": 0,
+          "location": {
+            "file": "utils.rego",
+            "col": 2,
+            "row": 27
+          }
+        }
+      ]
   }
 ]
 ```
@@ -340,6 +375,15 @@ Decision log updates contain the following fields:
 | `[_].metrics` | `object` | Key-value pairs of [performance metrics](../rest-api#performance-metrics). |
 | `[_].erased` | `array[string]` | Set of JSON Pointers specifying fields in the event that were erased. |
 | `[_].masked` | `array[string]` | Set of JSON Pointers specifying fields in the event that were masked. |
+| `[_].rule_stats` | `array` | An array of rule level statistics from the evaluation. There will be an entry in the array for each rule encountered while evaluating the query. Ordering is arbitrary. |
+| `[_].rule_stats[_].path` | `string` | The virtual document path for the rule. |
+| `[_].rule_stats[_].enter_count` | `number` | Number of times the rule was entered in evaluation. (`ENTER` trace event) |
+| `[_].rule_stats[_].exit_count` | `number` | Number of times the rule was exited when the rule body evaluates to true. (`EXIT` trace event) |
+| `[_].rule_stats[_].fail_count` | `number` | Number of times the rule was exited when the rule body evaluates to false/undefined. (`FAIL` trace event) |
+| `[_].rule_stats[_].location` | `object` | Location information for the Rego source of the rule. |
+| `[_].rule_stats[_].location.file` | `string` | Rego policy file name or ID. |
+| `[_].rule_stats[_].location.col` | `number` | Column in Rego policy source file. |
+| `[_].rule_stats[_].location.row` | `number` | Row in Rego policy source file. |
 
 ### Local Decision Logs
 

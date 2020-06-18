@@ -8,10 +8,16 @@ import (
 	"encoding/json"
 	"flag"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/sirupsen/logrus"
+
+	"github.com/open-policy-agent/opa/util"
+
+	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/plugins/logs"
 
 	"github.com/sirupsen/logrus/hooks/test"
 
@@ -85,7 +91,7 @@ func TestConsoleDecisionLogWithInput(t *testing.T) {
 	// Check for some important fields
 	expectedFields := map[string]*struct {
 		found bool
-		match func(*testing.T, string)
+		match func(*testing.T, interface{})
 	}{
 		"labels":      {},
 		"decision_id": {},
@@ -93,9 +99,25 @@ func TestConsoleDecisionLogWithInput(t *testing.T) {
 		"input":       {},
 		"result":      {},
 		"timestamp":   {},
-		"type": {match: func(t *testing.T, actual string) {
-			if actual != "openpolicyagent.org/decision_logs" {
+		"type": {match: func(t *testing.T, actual interface{}) {
+			if actual.(string) != "openpolicyagent.org/decision_logs" {
 				t.Fatalf("Expected field 'type' to be 'openpolicyagent.org/decision_logs'")
+			}
+		}},
+		"rule_stats": {match: func(t *testing.T, actual interface{}) {
+			expectedStats := []logs.RuleStatsV1{{
+				Path:       "data.test.allow",
+				Location:   ast.NewLocation(nil, t.Name(), 6, 2),
+				EnterCount: 1,
+				ExitCount:  1,
+				FailCount:  0,
+			}}
+
+			var expected interface{} = expectedStats
+			util.RoundTrip(&expected)
+
+			if !reflect.DeepEqual(expected, actual) {
+				t.Fatalf("\nExpected: %+v\nGot: %+v", expected, actual)
 			}
 		}},
 	}
@@ -113,8 +135,8 @@ func TestConsoleDecisionLogWithInput(t *testing.T) {
 	// Ensure expected fields exist
 	for fieldName, rawField := range entry.Data {
 		if fd, ok := expectedFields[fieldName]; ok {
-			if fieldValue, ok := rawField.(string); ok && fd.match != nil {
-				fd.match(t, fieldValue)
+			if fd.match != nil {
+				fd.match(t, rawField)
 			}
 			fd.found = true
 		}
