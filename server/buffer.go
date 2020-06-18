@@ -40,7 +40,7 @@ type Info struct {
 	Trace      []*topdown.Event
 }
 
-// BundleInfo contains information describing a bundle
+// BundleInfo contains information describing a bundle.
 type BundleInfo struct {
 	Revision string
 }
