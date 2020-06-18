@@ -2,8 +2,10 @@ package logs
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
+	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
@@ -169,6 +171,54 @@ func BenchmarkMaskingNop(b *testing.B) {
 		}
 	}
 
+}
+
+func BenchmarkMaskingRuleCountsNop(b *testing.B) {
+	numRules := []int{1, 10, 100, 1000}
+
+	ctx := context.Background()
+	store := inmem.New()
+
+	manager, err := plugins.New(nil, "test", store)
+	if err != nil {
+		b.Fatal(err)
+	} else if err := manager.Start(ctx); err != nil {
+		b.Fatal(err)
+	}
+
+	cfg := &Config{Service: "svc"}
+	cfg.validateAndInjectDefaults([]string{"svc"}, nil)
+	plugin := New(cfg, manager)
+
+	for _, ruleCount := range numRules {
+
+		b.Run(fmt.Sprintf("%dRules", ruleCount), func(b *testing.B) {
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				b.StopTimer()
+				var event EventV1
+				if err := util.UnmarshalJSON([]byte(largeEvent), &event); err != nil {
+					b.Fatal(err)
+				}
+
+				for j := 0; j < ruleCount; j++ {
+					event.RuleStats = append(event.RuleStats, RuleStatsV1{
+						Path:       fmt.Sprintf("data.foo.bar.testrule%d", j),
+						Location:   ast.NewLocation(nil, "", j+1, 0),
+						EnterCount: 1,
+						ExitCount:  1,
+						FailCount:  0,
+					})
+				}
+
+				b.StartTimer()
+
+				if err := plugin.maskEvent(ctx, nil, &event); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
 }
 
 func BenchmarkMaskingErase(b *testing.B) {

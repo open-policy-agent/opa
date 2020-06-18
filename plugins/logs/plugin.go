@@ -12,6 +12,7 @@ import (
 	"math/rand"
 	"net/http"
 	"reflect"
+	"strings"
 	"sync"
 	"time"
 
@@ -52,11 +53,22 @@ type EventV1 struct {
 	Timestamp   time.Time               `json:"timestamp"`
 	Metrics     map[string]interface{}  `json:"metrics,omitempty"`
 	RuleStats   []RuleStatsV1           `json:"rule_stats,omitempty"`
+
+	inputAST ast.Value
 }
 
 // BundleInfoV1 describes a bundle associated with a decision log event.
 type BundleInfoV1 struct {
 	Revision string `json:"revision,omitempty"`
+}
+
+// AST returns the BundleInfoV1 as an AST value
+func (b *BundleInfoV1) AST() ast.Value {
+	result := ast.NewObject()
+	if len(b.Revision) > 0 {
+		result.Insert(ast.StringTerm("revision"), ast.StringTerm(b.Revision))
+	}
+	return result
 }
 
 // RuleStatsV1 provides the event summary for a particular rule.
@@ -66,6 +78,155 @@ type RuleStatsV1 struct {
 	EnterCount uint64        `json:"enter_count"`
 	ExitCount  uint64        `json:"exit_count"`
 	FailCount  uint64        `json:"fail_count"`
+}
+
+// Key ast.Term values for the AST representation of the RuleStatsV1
+var pathKey = ast.StringTerm("path")
+var entersKey = ast.StringTerm("enters")
+var exitsKey = ast.StringTerm("exits")
+var failsKey = ast.StringTerm("fails")
+var locationKey = ast.StringTerm("location")
+var fileKey = ast.StringTerm("file")
+var rowKey = ast.StringTerm("row")
+var colKey = ast.StringTerm("col")
+
+// AST returns a RuleStatsV1 object representation in Rego ast types
+func (r *RuleStatsV1) AST() ast.Value {
+	result := ast.NewObject()
+	result.Insert(pathKey, ast.StringTerm(r.Path))
+	result.Insert(entersKey, ast.UIntNumberTerm(r.EnterCount))
+	result.Insert(exitsKey, ast.UIntNumberTerm(r.ExitCount))
+	result.Insert(failsKey, ast.UIntNumberTerm(r.FailCount))
+
+	if r.Location != nil {
+		locationObj := ast.NewObject()
+		locationObj.Insert(fileKey, ast.StringTerm(r.Location.File))
+		locationObj.Insert(rowKey, ast.IntNumberTerm(r.Location.Row))
+		locationObj.Insert(colKey, ast.IntNumberTerm(r.Location.Col))
+		result.Insert(locationKey, ast.NewTerm(locationObj))
+	}
+
+	return result
+}
+
+// Key ast.Term values for the Rego AST representation of the EventV1
+var labelsKey = ast.StringTerm("labels")
+var decisionIDKey = ast.StringTerm("decision_id")
+var revisionKey = ast.StringTerm("revision")
+var bundlesKey = ast.StringTerm("bundles")
+var queryKey = ast.StringTerm("query")
+var inputKey = ast.StringTerm("input")
+var resultKey = ast.StringTerm("result")
+var erasedKey = ast.StringTerm("erased")
+var errorKey = ast.StringTerm("error")
+var requestedByKey = ast.StringTerm("requested_by")
+var timestampKey = ast.StringTerm("timestamp")
+var metricsKey = ast.StringTerm("metrics")
+
+// AST returns the Rego AST representation for a given EventV1 object.
+// This avoids having to round trip through JSON while applying a decision log
+// mask policy to the event.
+// Note: "rule_stats" are omitted from the resulting ast.Object.
+func (e *EventV1) AST() (ast.Value, error) {
+	var err error
+	event := ast.NewObject()
+
+	if e.Labels != nil {
+		labelsObj := ast.NewObject()
+		for k, v := range e.Labels {
+			labelsObj.Insert(ast.StringTerm(k), ast.StringTerm(v))
+		}
+		event.Insert(labelsKey, ast.NewTerm(labelsObj))
+	} else {
+		event.Insert(labelsKey, ast.NullTerm())
+	}
+
+	event.Insert(decisionIDKey, ast.StringTerm(e.DecisionID))
+
+	if len(e.Revision) > 0 {
+		event.Insert(revisionKey, ast.StringTerm(e.Revision))
+	}
+
+	if len(e.Bundles) > 0 {
+		bundlesObj := ast.NewObject()
+		for k, v := range e.Bundles {
+			bundlesObj.Insert(ast.StringTerm(k), ast.NewTerm(v.AST()))
+		}
+		event.Insert(bundlesKey, ast.NewTerm(bundlesObj))
+	}
+
+	if len(e.Path) > 0 {
+		event.Insert(pathKey, ast.StringTerm(e.Path))
+	}
+
+	if len(e.Query) > 0 {
+		event.Insert(queryKey, ast.StringTerm(e.Query))
+	}
+
+	if e.Input != nil {
+		if e.inputAST == nil {
+			e.inputAST, err = roundtripJSONToAST(e.Input)
+			if err != nil {
+				return nil, err
+			}
+		}
+		event.Insert(inputKey, ast.NewTerm(e.inputAST))
+	}
+
+	if e.Result != nil {
+		results, err := roundtripJSONToAST(e.Result)
+		if err != nil {
+			return nil, err
+		}
+		event.Insert(resultKey, ast.NewTerm(results))
+	}
+
+	if len(e.Erased) > 0 {
+		erased, err := ast.InterfaceToValue(e.Erased)
+		if err != nil {
+			return nil, err
+		}
+		event.Insert(erasedKey, ast.NewTerm(erased))
+	}
+
+	if e.Error != nil {
+		evalErr, err := roundtripJSONToAST(e.Error)
+		if err != nil {
+			return nil, err
+		}
+		event.Insert(errorKey, ast.NewTerm(evalErr))
+	}
+
+	event.Insert(requestedByKey, ast.StringTerm(e.RequestedBy))
+
+	// Use the timestamp JSON marshaller to ensure the format is the same as
+	// round tripping through JSON.
+	timeBytes, err := e.Timestamp.MarshalJSON()
+	if err != nil {
+		return nil, err
+	}
+	event.Insert(timestampKey, ast.StringTerm(strings.Trim(string(timeBytes), "\"")))
+
+	if e.Metrics != nil {
+		m, err := ast.InterfaceToValue(e.Metrics)
+		if err != nil {
+			return nil, err
+		}
+		event.Insert(metricsKey, ast.NewTerm(m))
+	}
+
+	return event, nil
+}
+
+func roundtripJSONToAST(x interface{}) (ast.Value, error) {
+	rawPtr := util.Reference(x)
+	// roundtrip through json: this turns slices (e.g. []string, []bool) into
+	// []interface{}, the only array type ast.InterfaceToValue can work with
+	if err := util.RoundTrip(rawPtr); err != nil {
+		return nil, err
+	}
+
+	return ast.InterfaceToValue(*rawPtr)
 }
 
 const (
@@ -292,6 +453,7 @@ func (p *Plugin) Log(ctx context.Context, decision *server.Info) error {
 		Result:      decision.Results,
 		RequestedBy: decision.RemoteAddr,
 		Timestamp:   decision.Timestamp,
+		inputAST:    decision.InputAST,
 	}
 
 	if decision.Metrics != nil {
@@ -537,9 +699,14 @@ func (p *Plugin) maskEvent(ctx context.Context, txn storage.Transaction, event *
 		return err
 	}
 
+	input, err := event.AST()
+	if err != nil {
+		return err
+	}
+
 	rs, err := p.mask.Eval(
 		ctx,
-		rego.EvalInput(event),
+		rego.EvalParsedInput(input),
 		rego.EvalTransaction(txn),
 	)
 
