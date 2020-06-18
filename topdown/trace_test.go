@@ -54,29 +54,7 @@ func TestEventEqual(t *testing.T) {
 }
 
 func TestPrettyTrace(t *testing.T) {
-	module := `package test
-
-	p = true { q[x]; plus(x, 1, n) }
-	q[x] { x = data.a[_] }`
-
-	ctx := context.Background()
-	compiler := compileModules([]string{module})
-	data := loadSmallTestData()
-	store := inmem.NewFromObject(data)
-	txn := storage.NewTransactionOrDie(ctx, store)
-	defer store.Abort(ctx, txn)
-
-	tracer := NewBufferTracer()
-	query := NewQuery(ast.MustParseBody("data.test.p = _")).
-		WithCompiler(compiler).
-		WithStore(store).
-		WithTransaction(txn).
-		WithTracer(tracer)
-
-	_, err := query.Run(ctx)
-	if err != nil {
-		panic(err)
-	}
+	tracer := generateTrace(t)
 
 	expected := `Enter data.test.p = _
 | Eval data.test.p = _
@@ -147,29 +125,7 @@ Redo data.test.p = _
 }
 
 func TestPrettyTraceWithLocation(t *testing.T) {
-	module := `package test
-
-	p = true { q[x]; plus(x, 1, n) }
-	q[x] { x = data.a[_] }`
-
-	ctx := context.Background()
-	compiler := compileModules([]string{module})
-	data := loadSmallTestData()
-	store := inmem.NewFromObject(data)
-	txn := storage.NewTransactionOrDie(ctx, store)
-	defer store.Abort(ctx, txn)
-
-	tracer := NewBufferTracer()
-	query := NewQuery(ast.MustParseBody("data.test.p = _")).
-		WithCompiler(compiler).
-		WithStore(store).
-		WithTransaction(txn).
-		WithTracer(tracer)
-
-	_, err := query.Run(ctx)
-	if err != nil {
-		panic(err)
-	}
+	tracer := generateTrace(t)
 
 	expected := `query:1     Enter data.test.p = _
 query:1     | Eval data.test.p = _
@@ -237,6 +193,35 @@ query:4     | | | Redo x = data.a[_]
 	} else if len(b) < len(a) {
 		t.Fatalf("Missing lines in trace:\n%v", strings.Join(a[min:], "\n"))
 	}
+}
+
+func generateTrace(t *testing.T) *BufferTracer {
+	t.Helper()
+	module := `package test
+
+	p = true { q[x]; plus(x, 1, n) }
+	q[x] { x = data.a[_] }`
+
+	ctx := context.Background()
+	compiler := compileModules([]string{module})
+	data := loadSmallTestData()
+	store := inmem.NewFromObject(data)
+	txn := storage.NewTransactionOrDie(ctx, store)
+	defer store.Abort(ctx, txn)
+
+	tracer := NewBufferTracer()
+	query := NewQuery(ast.MustParseBody("data.test.p = _")).
+		WithCompiler(compiler).
+		WithStore(store).
+		WithTransaction(txn).
+		WithTracer(tracer)
+
+	_, err := query.Run(ctx)
+	if err != nil {
+		panic(err)
+	}
+
+	return tracer
 }
 
 func TestPrettyTraceWithLocationTruncatedPaths(t *testing.T) {
@@ -1012,11 +997,181 @@ func TestShortTraceFileNames(t *testing.T) {
 }
 
 func TestBufferTracerTraceConfig(t *testing.T) {
-	ct := QueryTracer(NewBufferTracer())
-	conf := ct.Config()
+	qt := QueryTracer(NewBufferTracer())
+	conf := qt.Config()
 
 	expected := TraceConfig{
 		PlugLocalVars: true,
+	}
+
+	if !reflect.DeepEqual(expected, conf) {
+		t.Fatalf("Expected config: %+v, got %+v", expected, conf)
+	}
+}
+
+func TestRuleTracerTraceEvent(t *testing.T) {
+	r0 := ast.MustParseRule("p { q }")
+	r1 := ast.MustParseRule("q { r }")
+	r2 := ast.MustParseRule("r { s }")
+	r3 := ast.MustParseRule("s { t }")
+	r4 := ast.MustParseRule("t { true }")
+
+	cases := []struct {
+		note     string
+		events   []Event
+		expected map[ast.Node]RuleCounts
+	}{
+		{
+			note:     "no events",
+			events:   []Event{},
+			expected: map[ast.Node]RuleCounts{},
+		},
+		{
+			note: "non rule nodes",
+			events: []Event{
+				{Node: ast.MustParseExpr("x = 1")},
+				{Node: ast.MustParseTerm("data.a.b.c")},
+			},
+			expected: map[ast.Node]RuleCounts{},
+		},
+		{
+			note: "single event exit",
+			events: []Event{
+				{Node: r0, Op: ExitOp},
+			},
+			expected: map[ast.Node]RuleCounts{
+				r0: {1, 0, 0},
+			},
+		},
+		{
+			note: "single event enter",
+			events: []Event{
+				{Node: r0, Op: EnterOp},
+			},
+			expected: map[ast.Node]RuleCounts{
+				r0: {0, 1, 0},
+			},
+		},
+		{
+			note: "single event fail",
+			events: []Event{
+				{Node: r0, Op: FailOp},
+			},
+			expected: map[ast.Node]RuleCounts{
+				r0: {0, 0, 1},
+			},
+		},
+		{
+			note: "increment single rule event exit",
+			events: []Event{
+				{Node: r0, Op: ExitOp},
+				{Node: r0, Op: ExitOp},
+			},
+			expected: map[ast.Node]RuleCounts{
+				r0: {2, 0, 0},
+			},
+		},
+		{
+			note: "increment single rule event enter",
+			events: []Event{
+				{Node: r0, Op: EnterOp},
+				{Node: r0, Op: EnterOp},
+			},
+			expected: map[ast.Node]RuleCounts{
+				r0: {0, 2, 0},
+			},
+		},
+		{
+			note: "increment single rule event fail",
+			events: []Event{
+				{Node: r0, Op: FailOp},
+				{Node: r0, Op: FailOp},
+			},
+			expected: map[ast.Node]RuleCounts{
+				r0: {0, 0, 2},
+			},
+		},
+		{
+			note: "single rule mixed types",
+			events: []Event{
+				{Node: r0, Op: EnterOp},
+				{Node: r0, Op: FailOp},
+				{Node: r0, Op: EnterOp},
+				{Node: r0, Op: ExitOp},
+				{Node: r0, Op: EnterOp},
+				{Node: r0, Op: ExitOp},
+				{Node: r0, Op: EnterOp},
+				{Node: r0, Op: FailOp},
+			},
+			expected: map[ast.Node]RuleCounts{
+				r0: {2, 4, 2},
+			},
+		},
+		{
+			note: "multiple rules mixed types",
+			events: []Event{
+				{Node: r0, Op: EnterOp},
+				{Node: r1, Op: EnterOp},
+				{Node: r2, Op: EnterOp},
+				{Node: r3, Op: EnterOp},
+				{Node: r4, Op: EnterOp},
+				{Node: r4, Op: FailOp},
+				{Node: r3, Op: ExitOp},
+				{Node: r2, Op: ExitOp},
+				{Node: r1, Op: ExitOp},
+				{Node: r0, Op: FailOp},
+			},
+			expected: map[ast.Node]RuleCounts{
+				r0: {0, 1, 1},
+				r1: {1, 1, 0},
+				r2: {1, 1, 0},
+				r3: {1, 1, 0},
+				r4: {0, 1, 1},
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			rt := NewRuleTracer()
+			for _, event := range tc.events {
+				rt.TraceEvent(event)
+			}
+			if !reflect.DeepEqual(tc.expected, rt.Counts()) {
+				t.Errorf("\nExpected: %v\nGot: %v", tc.expected, rt.Counts())
+			}
+		})
+	}
+}
+
+func TestRuleTracerRealTrace(t *testing.T) {
+	rt := NewRuleTracer()
+	for _, event := range *generateTrace(t) {
+		rt.TraceEvent(*event)
+	}
+
+	expected := map[string]RuleCounts{
+		"data.test.p": {4, 1, 0},
+		"data.test.q": {4, 1, 0},
+	}
+
+	for node, count := range rt.Counts() {
+		path := node.(*ast.Rule).Path().String()
+		expectedCount, ok := expected[path]
+		if !ok {
+			t.Errorf("Unexpected rule path found: %s", path)
+		} else if expectedCount != count {
+			t.Errorf("Path %s, expected: %v, got %v", path, expectedCount, count)
+		}
+	}
+}
+
+func TestRuleTracerConfig(t *testing.T) {
+	qt := QueryTracer(NewRuleTracer())
+	conf := qt.Config()
+
+	expected := TraceConfig{
+		PlugLocalVars: false,
 	}
 
 	if !reflect.DeepEqual(expected, conf) {

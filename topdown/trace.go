@@ -209,6 +209,91 @@ func (b *BufferTracer) Config() TraceConfig {
 	return TraceConfig{PlugLocalVars: true}
 }
 
+// RuleTracer implements a QueryTracer filtering for ast.Rule nodes and counting
+// the event types.
+type RuleTracer struct {
+	counts map[ast.Node]RuleCounts
+}
+
+// NewRuleTracer creates a new RuleTracer instance.
+func NewRuleTracer() *RuleTracer {
+	rt := &RuleTracer{
+		counts: map[ast.Node]RuleCounts{},
+	}
+	return rt
+}
+
+// Counts returns the current count of rule events handled.
+func (r *RuleTracer) Counts() map[ast.Node]RuleCounts {
+	return r.counts
+}
+
+// Enabled will always return true for the RuleTracer.
+func (r *RuleTracer) Enabled() bool {
+	return true
+}
+
+// RuleCounts stores rule counters for the RuleTracer.
+type RuleCounts [3]uint64 // 3 counts per rule (enter, exit, fail)
+
+const (
+	exitCountOffset = iota
+	enterCountOffset
+	failCountOffset
+)
+
+// Enters returns the current count of "enter" events.
+func (r *RuleCounts) Enters() uint64 {
+	return r[enterCountOffset]
+}
+
+// Exits returns the current count of "exit" events.
+func (r *RuleCounts) Exits() uint64 {
+	return r[exitCountOffset]
+}
+
+// Fails returns the current count of "fail" events.
+func (r *RuleCounts) Fails() uint64 {
+	return r[failCountOffset]
+}
+
+func (r *RuleTracer) increment(node ast.Node, offset int) {
+	counts, ok := r.counts[node]
+	if !ok {
+		counts = RuleCounts{}
+	}
+	counts[offset]++
+
+	r.counts[node] = counts
+}
+
+// TraceEvent will filter for Rule events, and then increment the enter, exit,
+// and fail counters.
+func (r *RuleTracer) TraceEvent(evt Event) {
+
+	// Filter for rule events
+	// TODO: For explanations of a decision, index events might also be interesting?
+	if _, ok := evt.Node.(*ast.Rule); !ok {
+		return
+	}
+
+	switch evt.Op {
+	case ExitOp:
+		r.increment(evt.Node, exitCountOffset)
+	case EnterOp:
+		r.increment(evt.Node, enterCountOffset)
+	case FailOp:
+		r.increment(evt.Node, failCountOffset)
+	}
+}
+
+// Config returns the RuleTracer's TraceConfig.
+func (r *RuleTracer) Config() TraceConfig {
+	return TraceConfig{
+		PlugLocalVars: false, // Variable metadata is not required
+	}
+}
+
 // PrettyTrace pretty prints the trace to the writer.
 func PrettyTrace(w io.Writer, trace []*Event) {
 	depths := depths{}

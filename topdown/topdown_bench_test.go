@@ -254,7 +254,8 @@ func runVirtualDocsBenchmark(b *testing.B, numTotalRules, numHitRules int) {
 			WithCompiler(compiler).
 			WithStore(store).
 			WithTransaction(txn).
-			WithInput(input)
+			WithInput(input).
+			WithQueryTracer(NewRuleTracer())
 
 		b.StartTimer()
 
