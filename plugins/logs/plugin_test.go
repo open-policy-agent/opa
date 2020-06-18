@@ -19,9 +19,12 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/plugins"
+	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/server"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
+	"github.com/open-policy-agent/opa/topdown"
+	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/version"
 )
 
@@ -893,6 +896,166 @@ func TestParseConfigDefaultServiceWithNoServiceOrConsole(t *testing.T) {
 
 	if err == nil {
 		t.Errorf("Expected an error but err==nil")
+	}
+}
+
+func TestEventV1ToAST(t *testing.T) {
+	input := `{"foo": [{"bar": 1, "baz": {"2": 3.3333333, "4": null}}]}`
+	var goInput interface{} = string(util.MustMarshalJSON(input))
+	astInput, err := roundtripJSONToAST(goInput)
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+
+	var result interface{} = map[string]interface{}{
+		"x": true,
+	}
+
+	var bigEvent EventV1
+	if err := util.UnmarshalJSON([]byte(largeEvent), &bigEvent); err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+
+	cases := []struct {
+		note  string
+		event EventV1
+	}{
+		{
+			note:  "empty event",
+			event: EventV1{},
+		},
+		{
+			note: "basic event no result",
+			event: EventV1{
+				Labels:      map[string]string{"foo": "1", "bar": "2"},
+				DecisionID:  "1234567890",
+				Path:        "/http/authz/allow",
+				RequestedBy: "[::1]:59943",
+				Timestamp:   time.Now(),
+			},
+		},
+		{
+			note: "event with error",
+			event: EventV1{
+				Labels:     map[string]string{},
+				DecisionID: "1234567890",
+				Path:       "/system/main",
+				Error: rego.Errors{&topdown.Error{
+					Code:     topdown.BuiltinErr,
+					Message:  "Some error happened somewhere",
+					Location: ast.NewLocation([]byte("myfunc(x)"), "policy.rego", 22, 17),
+				}},
+				RequestedBy: "[::1]:59943",
+				Timestamp:   time.Now(),
+			},
+		},
+		{
+			note: "event with input and result",
+			event: EventV1{
+				Labels:      map[string]string{"foo": "1", "bar": "2"},
+				DecisionID:  "1234567890",
+				Input:       &goInput,
+				Path:        "/http/authz/allow",
+				RequestedBy: "[::1]:59943",
+				Result:      &result,
+				Timestamp:   time.Now(),
+				inputAST:    astInput,
+			},
+		},
+		{
+			note: "event without ast input",
+			event: EventV1{
+				Labels:      map[string]string{"foo": "1", "bar": "2"},
+				DecisionID:  "1234567890",
+				Input:       &goInput,
+				Path:        "/http/authz/allow",
+				RequestedBy: "[::1]:59943",
+				Result:      &result,
+				Timestamp:   time.Now(),
+			},
+		},
+		{
+			note: "event with bundles",
+			event: EventV1{
+				Labels:     map[string]string{"foo": "1", "bar": "2"},
+				DecisionID: "1234567890",
+				Bundles: map[string]BundleInfoV1{
+					"b1": {"revision7"},
+					"b2": {"0"},
+					"b3": {},
+				},
+				Input:       &goInput,
+				Path:        "/http/authz/allow",
+				RequestedBy: "[::1]:59943",
+				Result:      &result,
+				Timestamp:   time.Now(),
+				inputAST:    astInput,
+			},
+		},
+		{
+			note: "event with erased",
+			event: EventV1{
+				Erased:     []string{"input/password", "result/secret"},
+				Labels:     map[string]string{"foo": "1", "bar": "2"},
+				DecisionID: "1234567890",
+				Bundles: map[string]BundleInfoV1{
+					"b1": {"revision7"},
+					"b2": {"0"},
+					"b3": {},
+				},
+				Input:       &goInput,
+				Path:        "/http/authz/allow",
+				RequestedBy: "[::1]:59943",
+				Result:      &result,
+				Timestamp:   time.Now(),
+				inputAST:    astInput,
+			},
+		},
+		{
+			note: "event with masked",
+			event: EventV1{
+				Masked:     []string{"input/password", "result/secret"},
+				Labels:     map[string]string{"foo": "1", "bar": "2"},
+				DecisionID: "1234567890",
+				Bundles: map[string]BundleInfoV1{
+					"b1": {"revision7"},
+					"b2": {"0"},
+					"b3": {},
+				},
+				Input:       &goInput,
+				Path:        "/http/authz/allow",
+				RequestedBy: "[::1]:59943",
+				Result:      &result,
+				Timestamp:   time.Now(),
+				inputAST:    astInput,
+			},
+		},
+		{
+			note:  "big event",
+			event: bigEvent,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+
+			// Ensure that the custom AST() function gives the same
+			// result as round tripping through JSON
+
+			expected, err := roundtripJSONToAST(tc.event)
+			if err != nil {
+				t.Fatalf("Unexpected error: %s", err)
+			}
+			actual, err := tc.event.AST()
+			if err != nil {
+				t.Fatalf("Unexpected error: %s", err)
+			}
+
+			if expected.Compare(actual) != 0 {
+				t.Fatalf("\nExpected:\n%s\n\nGot:\n%s\n\n", expected, actual)
+			}
+
+		})
 	}
 }
 
