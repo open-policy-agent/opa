@@ -69,6 +69,7 @@ func TestInterfaceToValue(t *testing.T) {
 		{float64(100), "100"},
 		{int(100), "100"},
 		{map[string]string{"foo": "bar"}, `{"foo": "bar"}`},
+		{uint64(100), "100"},
 	}
 
 	for _, tc := range tests {
@@ -412,6 +413,7 @@ func TestTermString(t *testing.T) {
 	assertToString(t, Number("4"), "4")
 	assertToString(t, Number("42.1"), "42.1")
 	assertToString(t, Number("6e7"), "6e7")
+	assertToString(t, UIntNumberTerm(uint64(1)).Value, "1")
 	assertToString(t, String("foo"), "\"foo\"")
 	assertToString(t, String("\"foo\""), "\"\\\"foo\\\"\"")
 	assertToString(t, String("foo bar"), "\"foo bar\"")
