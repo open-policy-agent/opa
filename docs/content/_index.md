@@ -1033,7 +1033,6 @@ If you have more questions about how to write policies in Rego check out:
 
 * The [Policy Reference](policy-reference) page for reference documentation on built-in functions.
 * The [Policy Language](policy-language) page for complete descriptions of all language features.
-* The [Policy Cheatsheet](policy-cheatsheet) page for a listing of common patterns.
 
 If you want to try OPA for a specific use case check out:
 
