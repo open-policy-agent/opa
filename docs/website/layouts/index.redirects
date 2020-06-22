@@ -19,6 +19,9 @@
 /docs/latest/discovery/                             /docs/latest/management/#discovery      301!
 /docs/latest/kubernetes-admission-control/          /docs/latest/kubernetes-tutorial/       301!
 
+# v0.21.0 re-org
+/docs/latest/policy-cheatsheet/                     /docs/latest/policy-reference/          301!
+
 {{- range $docRedirects }}
 /docs/{{ . }}     /docs/latest/{{ . }}      301!
 
