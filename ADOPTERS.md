@@ -49,6 +49,15 @@ production users that have added themselves (in alphabetical order):
   Kubernetes clusters that host a mix of production and test
   workloads.
 
+* [ControlPlane](https://control-plane.io) uses OPA to enforce enterprise-friendly
+  policy for safe adoption of Kubernetes, Istio, and cloud services. OPA policies
+  are validated and tested individually and en masse with unit tests and conftest.
+  This enables developers to validate local changes against production policies,
+  minimise engineering feedback loops, and reduce CI cycle time. Policies are
+  tested as "SDLC guardrails", then re-validated at deployment time by a range of
+  OPA-based admission controllers, covering single-tenant environments and hard
+  multi-tenancy configurations.
+
 * [Fugue](https://fugue.co) is a cloud security SaaS that uses OPA to
   classify compliance violations and security risks in AWS and Azure
   accounts and generate compliance reports and notifications.
