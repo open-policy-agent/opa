@@ -179,6 +179,28 @@ parameterized with different options like the query, policy module(s), data
 store, etc.
 
 ```go
+
+module := `
+package example.authz
+
+default allow = false
+
+allow {
+    some id
+    input.method = "GET"
+    input.path = ["salary", id]
+    input.subject.user = id
+}
+
+allow {
+    is_admin
+}
+
+is_admin {
+    input.subject.groups[_] = "admin"
+}
+`
+
 query, err := rego.New(
     rego.Query("x = data.example.authz.allow"),
     rego.Module("example.rego", module),
@@ -202,7 +224,8 @@ input := map[string]interface{}{
     },
 }
 
-results, err := query.Eval(context.Context, rego.EvalInput(input))
+ctx := context.TODO()
+results, err := query.Eval(ctx, rego.EvalInput(input))
 ```
 
 The `rego.PreparedEvalQuery#Eval` function returns a _result set_ that contains
@@ -221,6 +244,7 @@ if err != nil {
     // Handle unexpected result type.
 } else {
     // Handle result/decision.
+    // fmt.Printf("%+v", results) => [{Expressions:[true] Bindings:map[x:true]}]
 }
 ```
 
