@@ -697,13 +697,14 @@ By default optimizations are disabled.
 
 ### -O=1 (recommended)
 
-Policies are partially evaluated. Rules that do not depend on unknowns are evaluated and the
-virtual documents they produce are inlined into call sites. If a virtual virtual is required at
-evaluation time (e.g., because it is targetted by a `with` statement), then it will not be inlined.
+Policies are partially evaluated. Rules that DO NOT depend on unknowns (directly or indirectly) are
+evaluated and the virtual documents they produce are inlined into call sites. Virtual documents that
+are required at evaluation time are not inlined. For example, if a base or virtual document is
+targetted by a `with` statement in the policy, the document will not be inlined.
 
-Rules that DO NOT depend on unknowns are also partially evaluated however the virtual documents
-they produce ARE NOT inlined into call sites. The output policy should be structurally similar
-to the input policy.
+Rules that depend on unknowns (directly or indirectly) are also partially evaluated however the
+virtual documents they produce ARE NOT inlined into call sites. The output policy should be structurally
+similar to the input policy.
 
 ### -O=2 (aggressive)
 
