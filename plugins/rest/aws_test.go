@@ -103,7 +103,8 @@ func TestMetadataCredentialService(t *testing.T) {
 	cs := awsMetadataCredentialService{
 		RoleName:        "my_iam_role",
 		RegionName:      "us-east-1",
-		credServicePath: "this is not a URL"} // malformed
+		credServicePath: "this is not a URL", // malformed
+		tokenPath:       ts.server.URL + "/latest/api/token"}
 	_, err := cs.credentials()
 	assertErr("unsupported protocol scheme \"\"", err, t)
 
@@ -118,17 +119,37 @@ func TestMetadataCredentialService(t *testing.T) {
 	cs = awsMetadataCredentialService{
 		RoleName:        "not_my_iam_role", // not present
 		RegionName:      "us-east-1",
-		credServicePath: ts.server.URL + "/latest/meta-data/iam/security-credentials/"}
+		credServicePath: ts.server.URL + "/latest/meta-data/iam/security-credentials/",
+		tokenPath:       ts.server.URL + "/latest/api/token"}
 	_, err = cs.credentials()
-	assertErr("metadata service HTTP request failed: 404 Not Found", err, t)
+	assertErr("metadata HTTP request returned unexpected status: 404 Not Found", err, t)
 
 	// wrong path: malformed JSON body
 	cs = awsMetadataCredentialService{
 		RoleName:        "my_bad_iam_role", // not good
 		RegionName:      "us-east-1",
-		credServicePath: ts.server.URL + "/latest/meta-data/iam/security-credentials/"}
+		credServicePath: ts.server.URL + "/latest/meta-data/iam/security-credentials/",
+		tokenPath:       ts.server.URL + "/latest/api/token"}
 	_, err = cs.credentials()
 	assertErr("failed to parse credential response from metadata service: invalid character 'T' looking for beginning of value", err, t)
+
+	// wrong path: token service error
+	cs = awsMetadataCredentialService{
+		RoleName:        "my_iam_role",
+		RegionName:      "us-east-1",
+		credServicePath: ts.server.URL + "/latest/meta-data/iam/security-credentials/",
+		tokenPath:       ts.server.URL + "/latest/api/missing_token"} // will 404
+	_, err = cs.credentials()
+	assertErr("metadata token HTTP request returned unexpected status: 404 Not Found", err, t)
+
+	// wrong path: token service returns bad token
+	cs = awsMetadataCredentialService{
+		RoleName:        "my_iam_role",
+		RegionName:      "us-east-1",
+		credServicePath: ts.server.URL + "/latest/meta-data/iam/security-credentials/",
+		tokenPath:       ts.server.URL + "/latest/api/bad_token"} // not good
+	_, err = cs.credentials()
+	assertErr("metadata HTTP request returned unexpected status: 401 Unauthorized", err, t)
 
 	// wrong path: bad result code from EC2 metadata service
 	ts.payload = metadataPayload{
@@ -140,7 +161,8 @@ func TestMetadataCredentialService(t *testing.T) {
 	cs = awsMetadataCredentialService{
 		RoleName:        "my_iam_role",
 		RegionName:      "us-east-1",
-		credServicePath: ts.server.URL + "/latest/meta-data/iam/security-credentials/"}
+		credServicePath: ts.server.URL + "/latest/meta-data/iam/security-credentials/",
+		tokenPath:       ts.server.URL + "/latest/api/token"}
 	_, err = cs.credentials()
 	assertErr("metadata service query did not succeed: Failure", err, t)
 
@@ -154,7 +176,8 @@ func TestMetadataCredentialService(t *testing.T) {
 	cs = awsMetadataCredentialService{
 		RoleName:        "my_iam_role",
 		RegionName:      "us-east-1",
-		credServicePath: ts.server.URL + "/latest/meta-data/iam/security-credentials/"}
+		credServicePath: ts.server.URL + "/latest/meta-data/iam/security-credentials/",
+		tokenPath:       ts.server.URL + "/latest/api/token"}
 	var creds awsCredentials
 	creds, err = cs.credentials()
 
@@ -177,7 +200,8 @@ func TestMetadataCredentialService(t *testing.T) {
 	cs = awsMetadataCredentialService{
 		RoleName:        "my_iam_role",
 		RegionName:      "us-east-1",
-		credServicePath: ts.server.URL + "/latest/meta-data/iam/security-credentials/"}
+		credServicePath: ts.server.URL + "/latest/meta-data/iam/security-credentials/",
+		tokenPath:       ts.server.URL + "/latest/api/token"}
 	ts.payload = metadataPayload{
 		AccessKeyID:     "MYAWSACCESSKEYGOESHERE",
 		SecretAccessKey: "MYAWSSECRETACCESSKEYGOESHERE",
@@ -220,17 +244,19 @@ func TestV4Signing(t *testing.T) {
 	cs := &awsMetadataCredentialService{
 		RoleName:        "not_my_iam_role", // not present
 		RegionName:      "us-east-1",
-		credServicePath: ts.server.URL + "/latest/meta-data/iam/security-credentials/"}
+		credServicePath: ts.server.URL + "/latest/meta-data/iam/security-credentials/",
+		tokenPath:       ts.server.URL + "/latest/api/token"}
 	req, _ := http.NewRequest("GET", "https://mybucket.s3.amazonaws.com/bundle.tar.gz", strings.NewReader(""))
 	err := signV4(req, cs, time.Unix(1556129697, 0))
 
-	assertErr("error getting AWS credentials: metadata service HTTP request failed: 404 Not Found", err, t)
+	assertErr("error getting AWS credentials: metadata HTTP request returned unexpected status: 404 Not Found", err, t)
 
 	// happy path: sign correctly
 	cs = &awsMetadataCredentialService{
 		RoleName:        "my_iam_role", // not present
 		RegionName:      "us-east-1",
-		credServicePath: ts.server.URL + "/latest/meta-data/iam/security-credentials/"}
+		credServicePath: ts.server.URL + "/latest/meta-data/iam/security-credentials/",
+		tokenPath:       ts.server.URL + "/latest/api/token"}
 	ts.payload = metadataPayload{
 		AccessKeyID:     "MYAWSACCESSKEYGOESHERE",
 		SecretAccessKey: "MYAWSSECRETACCESSKEYGOESHERE",
@@ -268,15 +294,38 @@ type credTestServer struct {
 func (t *credTestServer) handle(w http.ResponseWriter, r *http.Request) {
 	goodPath := "/latest/meta-data/iam/security-credentials/my_iam_role"
 	badPath := "/latest/meta-data/iam/security-credentials/my_bad_iam_role"
+
+	goodTokenPath := "/latest/api/token"
+	badTokenPath := "/latest/api/bad_token"
+
+	tokenValue := "THIS_IS_A_GOOD_TOKEN"
 	jsonBytes, _ := json.Marshal(t.payload)
 
-	if r.URL.Path == goodPath {
+	switch r.URL.Path {
+	case goodTokenPath:
+		// a valid token
 		w.WriteHeader(200)
-		w.Write(jsonBytes)
-	} else if r.URL.Path == badPath {
+		w.Write([]byte(tokenValue))
+	case badTokenPath:
+		// an invalid token
+		w.WriteHeader(200)
+		w.Write([]byte("THIS_IS_A_BAD_TOKEN"))
+	case goodPath:
+		// validate token...
+		if r.Header.Get("X-aws-ec2-metadata-token") == tokenValue {
+			// a metadata response that's well-formed
+			w.WriteHeader(200)
+			w.Write(jsonBytes)
+		} else {
+			// an unauthorized response
+			w.WriteHeader(401)
+		}
+	case badPath:
+		// a metadata response that's not well-formed
 		w.WriteHeader(200)
 		w.Write([]byte("This isn't a JSON payload"))
-	} else {
+	default:
+		// something else that we won't be able to find
 		w.WriteHeader(404)
 	}
 }
