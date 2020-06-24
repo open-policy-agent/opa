@@ -231,6 +231,18 @@ func BenchmarkVirtualDocs1000x10(b *testing.B) {
 	runVirtualDocsBenchmark(b, 1000, 10)
 }
 
+func BenchmarkVirtualDocs100x100(b *testing.B) {
+	runVirtualDocsBenchmark(b, 100, 100)
+}
+
+func BenchmarkVirtualDocs1000x100(b *testing.B) {
+	runVirtualDocsBenchmark(b, 1000, 100)
+}
+
+func BenchmarkVirtualDocs1000x1000(b *testing.B) {
+	runVirtualDocsBenchmark(b, 1000, 1000)
+}
+
 func runVirtualDocsBenchmark(b *testing.B, numTotalRules, numHitRules int) {
 
 	mod, input := generateVirtualDocsBenchmarkData(numTotalRules, numHitRules)
