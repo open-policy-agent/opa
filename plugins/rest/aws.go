@@ -24,6 +24,9 @@ const (
 	// ref. https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html
 	ec2DefaultCredServicePath = "http://169.254.169.254/latest/meta-data/iam/security-credentials/"
 
+	// ref. https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/configuring-instance-metadata-service.html
+	ec2DefaultTokenPath = "http://169.254.169.254/latest/api/token"
+
 	// ref. https://docs.aws.amazon.com/AmazonECS/latest/userguide/task-iam-roles.html
 	ecsDefaultCredServicePath = "http://169.254.170.2"
 	ecsRelativePathEnvVar     = "AWS_CONTAINER_CREDENTIALS_RELATIVE_URI"
@@ -85,6 +88,7 @@ type awsMetadataCredentialService struct {
 	creds           awsCredentials
 	expiration      time.Time
 	credServicePath string
+	tokenPath       string
 }
 
 func (cs *awsMetadataCredentialService) urlForMetadataService() (string, error) {
@@ -99,13 +103,28 @@ func (cs *awsMetadataCredentialService) urlForMetadataService() (string, error) 
 	}
 	// otherwise, check environment to see if it looks like we're in an ECS
 	// container (with implied role association)
-	ecsRelativePath, isECS := os.LookupEnv(ecsRelativePathEnvVar)
-	if isECS {
-		return ecsDefaultCredServicePath + ecsRelativePath, nil
+	if isECS() {
+		return ecsDefaultCredServicePath + os.Getenv(ecsRelativePathEnvVar), nil
 	}
 	// if there's no role name and we don't appear to have a path to the
 	// ECS container service, then the configuration is invalid
 	return "", errors.New("metadata endpoint cannot be determined from settings and environment")
+}
+
+func (cs *awsMetadataCredentialService) tokenRequest() (*http.Request, error) {
+	tokenURL := ec2DefaultTokenPath
+	if cs.tokenPath != "" {
+		// override for testing
+		tokenURL = cs.tokenPath
+	}
+	req, err := http.NewRequest(http.MethodPut, tokenURL, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// we are going to use the token in the immediate future, so a long TTL is not necessary
+	req.Header.Set("X-aws-ec2-metadata-token-ttl-seconds", "60")
+	return req, nil
 }
 
 func (cs *awsMetadataCredentialService) refreshFromService() error {
@@ -132,27 +151,31 @@ func (cs *awsMetadataCredentialService) refreshFromService() error {
 		return err
 	}
 
-	resp, err := http.Get(metaDataURL)
+	// construct an HTTP client with a reasonably short timeout
+	client := &http.Client{Timeout: time.Second * 10}
+	req, err := http.NewRequest(http.MethodGet, metaDataURL, nil)
 	if err != nil {
-		// some kind of catastrophe talking to the EC2 metadata service
-		return err
-	}
-	defer resp.Body.Close()
-
-	logrus.WithFields(logrus.Fields{
-		"url":     metaDataURL,
-		"status":  resp.Status,
-		"headers": resp.Header,
-	}).Debug("Received response from metadata service.")
-
-	if resp.StatusCode != 200 {
-		// most probably a 404 due to a role that's not available; but cover all the bases
-		return errors.New("metadata service HTTP request failed: " + resp.Status)
+		return errors.New("unable to construct metadata HTTP request: " + err.Error())
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
+	// if in the EC2 environment, we will use IMDSv2, which requires a session cookie from a
+	// PUT request on the token endpoint before it will give the credentials, this provides
+	// protection from SSRF attacks
+	if !isECS() {
+		tokenReq, err := cs.tokenRequest()
+		if err != nil {
+			return errors.New("unable to construct metadata token HTTP request: " + err.Error())
+		}
+		body, err := doMetaDataRequestWithClient(tokenReq, client, "metadata token")
+		if err != nil {
+			return err
+		}
+		// token is the body of response; add to header of metadata request
+		req.Header.Set("X-aws-ec2-metadata-token", string(body))
+	}
+
+	body, err := doMetaDataRequestWithClient(req, client, "metadata")
 	if err != nil {
-		// deal with problems reading the body, whatever that might be
 		return err
 	}
 
@@ -184,6 +207,40 @@ func (cs *awsMetadataCredentialService) credentials() (awsCredentials, error) {
 		return cs.creds, err
 	}
 	return cs.creds, nil
+}
+
+func isECS() bool {
+	// the special relative path URI is set by the container agent in the ECS environment only
+	_, isECS := os.LookupEnv(ecsRelativePathEnvVar)
+	return isECS
+}
+
+func doMetaDataRequestWithClient(req *http.Request, client *http.Client, desc string) ([]byte, error) {
+	// convenience function to get the body of an AWS EC2 metadata service request with
+	// appropriate error-handling boilerplate and logging for this special case
+	resp, err := client.Do(req)
+	if err != nil {
+		// some kind of catastrophe talking to the EC2 service
+		return nil, errors.New(desc + " HTTP request failed: " + err.Error())
+	}
+	defer resp.Body.Close()
+
+	logrus.WithFields(logrus.Fields{
+		"url":     req.URL.String(),
+		"status":  resp.Status,
+		"headers": resp.Header,
+	}).Debug("Received response from " + desc + " service.")
+
+	if resp.StatusCode != 200 {
+		// could be 404 for role that's not available, but cover all the bases
+		return nil, errors.New(desc + " HTTP request returned unexpected status: " + resp.Status)
+	}
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		// deal with problems reading the body, whatever those might be
+		return nil, errors.New(desc + " HTTP response body could not be read: " + err.Error())
+	}
+	return body, nil
 }
 
 func sha256MAC(message []byte, key []byte) []byte {
