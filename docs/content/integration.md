@@ -9,14 +9,30 @@ OPA exposes domain-agnostic APIs that your service can call to manage and
 enforce policies. Read this page if you want to integrate an application,
 service, or tool with OPA.
 
+When integrating with OPA there are two interfaces to consider:
+
+* **Evaluation**: OPA's interface for asking for policy decisions.  Integrating OPA is primarily focused on integrating an application, service, or tool with OPA's policy evaluation interface.  This integration results in policy decisions being decoupled from that application, service, or tool.
+* **Management**: OPA's interface for deploying policies, understanding status, uploading logs, and so on.  This integration is typically the same across all OPA instances, regardless what software the evaluation interface is integrated with.  Distributing policy, retrieving status, and storing logs in the same way across all OPAs provides a unified management plane for policy across many different software systems.
+
+This page focuses predominantly on different ways to integrate with OPA's policy evaluation interface and how they compare.  For more information about the management interface:
+
+- See the [Bundle API](../management/#bundles) for distributing policy and data to OPA.
+- See the [Status API](../management/#status) for collecting status reports on bundle activation and agent health.
+- See the [Decision Log API](../management/#decision-logs) for collecting a log of policy decisions made by agents.
+- See the [Health API](../rest-api#health-api) for checking agent deployment readiness and health.
+- See the [Prometheus API endpoint](../management/#prometheus) to obtain insight into performance and errors.
+
+
 ## Evaluating Policies
 
-OPA supports different APIs for evaluating policies.
+OPA supports different ways to evaluate policies.
 
 * The [REST API](../rest-api) returns decisions as JSON over HTTP.
 * The [Go API (GoDoc)](https://godoc.org/github.com/open-policy-agent/opa/rego) returns
   decisions as simple Go types (`bool`, `string`, `map[string]interface{}`,
   etc.)
+* [WebAssembly](../wasm) compiles Rego policies into WASM instructions so they can be embedded and evaluated by any WebAssembly runtime
+
 
 ### Integrating with the REST API
 
@@ -258,15 +274,23 @@ Policies can be evaluated as compiled Wasm binaries.
 
 See [OPA Wasm docs](../wasm) for more details.
 
-## Managing OPA
 
-OPA supports a set of management APIs for distributing policies and collecting
-telemetry information on OPA deployments.
+## Comparison
 
-- See the [Bundle API](../management/#bundles) for distributing policy and data to OPA.
-- See the [Status API](../management/#status) for collecting status reports on bundle activation and agent health.
-- See the [Decision Log API](../management/#decision-logs) for collecting a log of policy decisions made by agents.
-- See the [Health API](../rest-api#health-api) for checking agent deployment readiness and health.
+A comparison of the different integration choices are summarized below.
 
-OPA also exports a [Prometheus API endpoint](../management/#prometheus) that can be scraped to obtain
-insight into performance and errors.
+| Dimension | REST API | Go Lib | WASM (WIP) |
+| --------- | -------- | ------ | ---------- |
+| Evaluation | Fast | Faster | Fastest |
+| Language | Any | Only Go | Any with WASM |
+| Operations | Update just OPA | Update entire service | Update service rarely |
+| Security | Must secure API | Enable only what is needed | Enable only what is needed |
+
+
+Integrating OPA via the REST API is the most common, at the time of writing.  OPA is most often deployed either as a sidecar or less commonly as an external service.  Operationally this makes it easy to upgrade OPA and to configure it to use its management services (bundles, status, decision logs, etc.).  Because it is a separate process it requires monitoring and logging (though this happens automatically for any sidecar-aware environment like Kubernetes).  OPA's configuration and APIs must be secured according to the [security guide](../security).
+
+Integrating OPA via the Go API only works for Go software.  Updates to OPA require re-vendoring and re-deploying the software.  Evaluation has less overhead than the REST API because all the communication happens in the same operating-system process.  All of the management functionality (bundles, decision logs, etc.) must be either enabled or implemented.  Security concerns are limited to those management features that are enabled or implemented.
+
+Integrating via WASM is still a work-in-progress.  But once it is finished, WASM policies will be embeddable in any programming language that has a WASM runtime.  Evaluation will have less overhead than the REST API (because it is evaluated in the same operating-system process) and should outperform the Go API (because the policies have been compiled to a lower-level instruction set).  Each programming language will need its own SDKs (also a WIP) that implement the management functionality and the evaluation interface. Typically new OPA language features will not require updating the service since neither the WASM runtime nor the SDKs will be impacted.  Updating the SDKs will require re-deploying the service.  Security will be analogous to the Go API integration: it is mainly the management functionality that presents security risks.
+
+
