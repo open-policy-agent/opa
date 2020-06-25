@@ -716,6 +716,16 @@ func TestTopDownPartialEval(t *testing.T) {
 			`},
 		},
 		{
+			note:  "automatic shallow inlining: full extent: no solutions",
+			query: "data.test.p = x",
+			modules: []string{
+				`package test
+
+				p[1] { input = 1; false }`,
+			},
+			wantQueries: []string{`x = set()`},
+		},
+		{
 			note:  "automatic shallow inlining: full extent: iteration",
 			query: "data.test[x] = y",
 			modules: []string{

@@ -1976,27 +1976,39 @@ func (e evalVirtualPartial) partialEvalSupport(iter unifyIterator) error {
 
 	path, term := e.e.savePackagePathAndTerm(e.plugged[:e.pos+1], e.ref)
 
-	if !e.e.saveSupport.Exists(path) {
+	var defined bool
+
+	if e.e.saveSupport.Exists(path) {
+		defined = true
+	} else {
 		for i := range e.ir.Rules {
-			err := e.partialEvalSupportRule(iter, e.ir.Rules[i], path)
+			ok, err := e.partialEvalSupportRule(iter, e.ir.Rules[i], path)
 			if err != nil {
 				return err
+			} else if ok {
+				defined = true
 			}
 		}
+	}
+
+	if !defined {
+		term = e.empty
 	}
 
 	return e.e.saveUnify(term, e.rterm, e.bindings, e.rbindings, iter)
 }
 
-func (e evalVirtualPartial) partialEvalSupportRule(iter unifyIterator, rule *ast.Rule, path ast.Ref) error {
+func (e evalVirtualPartial) partialEvalSupportRule(iter unifyIterator, rule *ast.Rule, path ast.Ref) (bool, error) {
 
 	child := e.e.child(rule.Body)
 	child.traceEnter(rule)
 
 	e.e.saveStack.PushQuery(nil)
+	var defined bool
 
 	err := child.eval(func(child *eval) error {
 		child.traceExit(rule)
+		defined = true
 
 		current := e.e.saveStack.PopQuery()
 		plugged := current.Plug(e.e.caller.bindings)
@@ -2031,7 +2043,7 @@ func (e evalVirtualPartial) partialEvalSupportRule(iter unifyIterator, rule *ast
 		return nil
 	})
 	e.e.saveStack.PopQuery()
-	return err
+	return defined, err
 }
 
 func (e evalVirtualPartial) evalTerm(iter unifyIterator, term *ast.Term, termbindings *bindings) error {
