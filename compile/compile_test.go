@@ -775,20 +775,20 @@ func TestOptimizerOutput(t *testing.T) {
 				"optimized/partial.rego": `
 					package partial
 
-					__not1_0__ = true { 1 = input.a; 1 = input.b }
-					__not1_0__ = true { 1 = input.a; 2 = input.b }
-					__not1_0__ = true { 1 = input.a; 3 = input.b }
-					__not1_0__ = true { 2 = input.a; 1 = input.b }
-					__not1_0__ = true { 2 = input.a; 2 = input.b }
-					__not1_0__ = true { 2 = input.a; 3 = input.b }
-					__not1_0__ = true { 3 = input.a; 1 = input.b }
-					__not1_0__ = true { 3 = input.a; 2 = input.b }
-					__not1_0__ = true { 3 = input.a; 3 = input.b }
+					__not1_0_2__ = true { 1 = input.a; 1 = input.b }
+					__not1_0_2__ = true { 1 = input.a; 2 = input.b }
+					__not1_0_2__ = true { 1 = input.a; 3 = input.b }
+					__not1_0_2__ = true { 2 = input.a; 1 = input.b }
+					__not1_0_2__ = true { 2 = input.a; 2 = input.b }
+					__not1_0_2__ = true { 2 = input.a; 3 = input.b }
+					__not1_0_2__ = true { 3 = input.a; 1 = input.b }
+					__not1_0_2__ = true { 3 = input.a; 2 = input.b }
+					__not1_0_2__ = true { 3 = input.a; 3 = input.b }
 				`,
 				"optimized/test.rego": `
 					package test
 
-					p = __result__ { not data.partial.__not1_0__; __result__ = true }
+					p = __result__ { not data.partial.__not1_0_2__; __result__ = true }
 				`,
 				"test.rego": `
 					package test
