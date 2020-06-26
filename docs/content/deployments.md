@@ -316,3 +316,55 @@ variables.
 ## CPU and Memory Requirements
 
 For more information see the [Resource Utilization section on the Policy Performance page](../policy-performance#resource-utilization).
+
+## Operational Readiness and Failure Modes
+
+Depending on how you deploy OPA, it may or may not have policies available as soon as it starts up.  If OPA starts making decisions without any policies, it will return `undefined` as an answer to all policy queries.  This can be problematic because even though OPA returns a response, it has not actually returned the decision dictated by policy.
+
+For example, without loading any policies into OPA whatsoever, a policy query will return the answer `undefined`, which via the HTTP API is represented as an empty JSON object `{}`.
+
+```
+$ opa run -s
+$ curl localhost:8181/v1/data/foo/bar
+{}
+```
+
+In contrast, when policies are loaded, OPA is operationally ready for policy queries, and the answer is defined, the answer is a JSON object of the form `{"result": ...}`
+```
+$ opa run foo.rego -s
+$ curl localhost:8181/v1/data/foo/bar
+{"result": 7}
+```
+
+However, it is possible that even though policies have been loaded the policy response is still `undefined` because the policy makes no decision for the given inputs.
+```
+$ opa run foo.rego -s
+$ curl localhost:8181/v1/data/baz
+{}
+```
+
+Just because OPA has returned an answer for a policy query, that does not indicate that it was operationally ready for that query.  Moreover, the operational readiness of OPA cannot be ascertained from the query response, as illustrated above.  Two issues must therefore be addressed: how to know when OPA is operationally ready for policy queries and how to make a decision before OPA is ready.
+
+### Ensuring Operational Readiness
+The relevance of the discussion above depends on how you have chosen to deploy policies into OPA.
+
+If you deploy policies to OPA on disk (e.g. volume mounting into the OPA container on Kubernetes), then OPA will only start answering policy queries once all the policies are successfully loaded.  In this case, it is impossible for OPA to answer policy queries before it has loaded policy, so the discussion above is a non-issue.
+
+On the other hand, if you use the [Bundle service](../management/#bundles) OPA will start up without any policies and immediately start downloading a bundle.  But even before the bundle has successfully downloaded, OPA will answer policy queries if asked (which is in every case except the bootstrap case the right thing to do).  For this reason, OPA provides a `/health` [API](../rest-api/#health-api) that verifies that the server is operational and optionally that a bundle has been successfully activated.  As long as no policy queries are routed to OPA until the `/health` API verifies that OPA is operational.  The recommendation is to ensure the `/health` API indicates that OPA is operational before routing policy queries to it.
+
+Finally, you might choose to push policies into OPA via its [REST API](../rest-api/#create-or-update-a-policy).  In this case, there is no way for OPA to know whether it has a complete policy set, and so the decision as to when to route policy queries to OPA must be handled by whatever software is pushing policies into OPA.
+
+### Making Decisions before OPA is Ready
+
+The mechanisms discussed above ensure that OPA is not asked to answer policy queries before it is ready to do so.  But from the perspective of the software needing decisions, until OPA is operational, the software must make a decision on its own.  Typically there are two choices:
+
+* fail-open: if OPA does not provide a decision, then treat the decision as allowed.
+* fail-closed: if OPA does not provide a decision, then treat the decision as denied.
+
+The choices are more varied if the policy is not making an allow/deny decision, but often there is some analog to fail-open and fail-closed.  The key observation is that this logic is entirely the responsibility of the software asking OPA for a policy decision.  Despite the fact that what to do when OPA is unavailable is technically a policy question, it is one that we cannot rely on OPA to answer.  The right logic can depend on many factors including the likelihood of OPA not making a decision and the cost of allowing or denying a request incorrectly.
+
+In Kubernetes admission control, for example, the Kubernetes admin can choose whether to fail-open or fail-closed, leaving the decision up to the user.  And often this is the correct way to build an integration because it is unlikely that there is a universal solution.  For example, running an OPA-integration in a development environment might require fail-open, but running exactly the same integration in a production environment might require fail-closed.
+
+
+
+
