@@ -237,10 +237,13 @@ data:
       "response": response,
     }
 
-    default response = {"allowed": true}
+    default uid = ""
+
+    uid = input.request.uid
 
     response = {
         "allowed": false,
+        "uid": uid,
         "status": {
             "reason": reason,
         },
@@ -248,6 +251,7 @@ data:
         reason = concat(", ", admission.deny)
         reason != ""
     }
+    else = {"allowed": true, "uid": uid}
 ```
 
 ```bash
