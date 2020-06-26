@@ -398,3 +398,52 @@ runtime.env
 # the env variable PROD_CERTIFICATE
 runtime.env.PROD_CERTIFICATE
 ```
+
+## How do I Write Policies Securely?
+
+Depending on the use case and the integration with OPA that you are using, the style of policy you choose can impact your overall security posture.  Below we show three styles of authoring policy and compare them.
+
+**Default allow**.  This style of policy allows every request by default.  The rules you write dictate which requests should be rejected.
+
+```rego
+# entry point is 'deny'
+default deny = false
+deny { ... }
+deny { ... }
+```
+If you assume all of the rules you write are correct, then you know that every rejection the policy produces should truly be rejected.  However, there could be requests that are allowed that you may not truly want allowed, but you simply neglected to write the rule for.  For operations, this is often a useful style of policy authoring because it allows you to incrementally tighten the controls for a system from wherever that system starts.  For security, this style is less appropriate because it allows unknown bad actions to occur.
+
+**Default deny**.  This style of policy rejects every request by default.  The rules you write dictate which requests should be allowed.
+
+```rego
+# entry point is 'allow'
+default allow = false
+allow { ... }
+allow { ... }
+```
+
+If you assume your rules are correct, the only requests that are accepted are known to be safe.  Any statements you leave out reject requests that in actuality are safe but which you did not know were safe.  For operations, these policies are less suitable for incrementally improving the policy posture of a system because the initial policy must explicitly allow all of the behaviors that are necessary for the system to operate correctly.  For security, these policies ensure that any request that is allowed is known to be safe (because there is a rule saying it is safe).
+
+**Default allow with deny override**.  This style of policy rejects every request by default.  You write  rules that dictate which requests should be allowed, and optionally you write other rules that dictate which of those allowed requests should be rejected.
+
+```rego
+# entry point is 'authz'
+default authz = false
+authz {
+  allow
+  not deny
+}
+allow { ... }
+deny { ... }
+```
+
+This hybrid approach to policy authoring combines the two previous styles.  These policies allow relatively coarse grained parts of the request space and then carve out of each part what should actually be denied.  Any deny statements that you forget lead to security problems; any allow statements you forget lead to operational problems.  But since this approach allows you to implement either of the other two, it is a common pattern across use cases.
+
+**Non-boolean policies**. The examples above focus on policies with boolean decisions.  Policies that make non-boolean decisions typically have similar tradeoffs.  Are you enumerating the conditions under which requests are permitted (e.g. the list of clusters to which an app SHOULD be deployed) or are you enumerating the conditions under which requests are prohibited (e.g. the list of clusters to which an app SHOULD NOT be deployed).  While the details differ, the concepts are often similar.
+
+
+
+
+
+
+
