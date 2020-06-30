@@ -84,7 +84,7 @@ If you executed this code you the output would be:
 
 The example above highlights a few important points.
 
-* The `rego` package includes variants of `rego.Function1` for passing accepting
+* The `rego` package includes variants of `rego.Function1` for accepting
   different numbers of operands (e.g., `rego.Function2`, `rego.Function3`, etc.)
 * The `rego.Function#Name` struct field specifies the operator that queries can
   refer to.
