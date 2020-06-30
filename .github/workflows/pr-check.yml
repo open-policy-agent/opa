@@ -1,0 +1,24 @@
+name: OPA PR Check
+on: pull_request
+jobs:
+  # Golang build and tests workflow.
+  # Note: The build uses Docker so do *not* setup Golang on the runner vm.
+  # TODO: Split into separate build, test, perf, and check targets to lower overall runtime of PR checks.
+  go:
+    name: Go
+    runs-on: ubuntu-18.04
+    steps:
+    - name: Check out code into the Go module directory
+      uses: actions/checkout@v2
+    - name: Build and Test Golang
+      run: make travis-go
+
+  # WebAssembly build and tests workflow, can run independent of other workflows.
+  wasm:
+    name: WASM
+    runs-on: ubuntu-18.04
+    steps:
+    - name: Check out code
+      uses: actions/checkout@v2
+    - name: Build and Test WASM
+      run: make travis-wasm
