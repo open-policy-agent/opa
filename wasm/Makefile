@@ -29,16 +29,16 @@ builder: Dockerfile
 
 .PHONY: build
 build:
-	@$(DOCKER) run -it --rm -v $(CURDIR):/src $(WASM_BUILDER_IMAGE) make $(WASM_OBJ_DIR)/opa.wasm
+	@$(DOCKER) run --rm -v $(CURDIR):/src $(WASM_BUILDER_IMAGE) make $(WASM_OBJ_DIR)/opa.wasm
 
 .PHONY: test
 test:
-	@$(DOCKER) run -it --rm -v $(CURDIR):/src $(WASM_BUILDER_IMAGE) make $(WASM_OBJ_DIR)/opa-test.wasm
-	@$(DOCKER) run -it --rm -e VERBOSE=$(VERBOSE) -v $(CURDIR):/src -w /src node:8 node test.js $(WASM_OBJ_DIR)/opa-test.wasm
+	@$(DOCKER) run --rm -v $(CURDIR):/src $(WASM_BUILDER_IMAGE) make $(WASM_OBJ_DIR)/opa-test.wasm
+	@$(DOCKER) run --rm -e VERBOSE=$(VERBOSE) -v $(CURDIR):/src -w /src node:8 node test.js $(WASM_OBJ_DIR)/opa-test.wasm
 
 .PHONY: hack
 hack:
-	@$(DOCKER) run -it --rm -v $(CURDIR):/src $(WASM_BUILDER_IMAGE)
+	@$(DOCKER) run --rm -v $(CURDIR):/src $(WASM_BUILDER_IMAGE)
 
 $(shell mkdir -p $(WASM_OBJ_DIR)/src/lib)
 $(shell mkdir -p $(WASM_OBJ_DIR)/src/libmpdec)
