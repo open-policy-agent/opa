@@ -21,6 +21,8 @@ BIN := opa_$(GOOS)_$(GOARCH)
 REPOSITORY := openpolicyagent
 IMAGE := $(REPOSITORY)/opa
 
+OPA_S3_RELEASE_BUCKET ?= opa-releases
+
 BUILD_COMMIT := $(shell ./build/get-build-commit.sh)
 BUILD_TIMESTAMP := $(shell ./build/get-build-timestamp.sh)
 BUILD_HOSTNAME := $(shell ./build/get-build-hostname.sh)
@@ -32,8 +34,6 @@ LDFLAGS := "-X github.com/open-policy-agent/opa/version.Version=$(VERSION) \
 	-X github.com/open-policy-agent/opa/version.Timestamp=$(BUILD_TIMESTAMP) \
 	-X github.com/open-policy-agent/opa/version.Hostname=$(BUILD_HOSTNAME)"
 
-GO15VENDOREXPERIMENT := 1
-export GO15VENDOREXPERIMENT
 
 ######################################################
 #
@@ -240,9 +240,9 @@ push-latest:
 
 .PHONY: push-binary-edge
 push-binary-edge:
-	aws s3 cp opa_darwin_$(GOARCH) s3://opa-releases/edge/opa_darwin_$(GOARCH)
-	aws s3 cp opa_windows_$(GOARCH).exe s3://opa-releases/edge/opa_windows_$(GOARCH).exe
-	aws s3 cp opa_linux_$(GOARCH) s3://opa-releases/edge/opa_linux_$(GOARCH)
+	aws s3 cp opa_darwin_$(GOARCH) s3://$(OPA_S3_RELEASE_BUCKET)/edge/opa_darwin_$(GOARCH)
+	aws s3 cp opa_windows_$(GOARCH).exe s3://$(OPA_S3_RELEASE_BUCKET)/edge/opa_windows_$(GOARCH).exe
+	aws s3 cp opa_linux_$(GOARCH) s3://$(OPA_S3_RELEASE_BUCKET)/edge/opa_linux_$(GOARCH)
 
 .PHONY: tag-edge
 tag-edge:
@@ -258,7 +258,7 @@ push-edge:
 
 .PHONY: docker-login
 docker-login:
-	@$(DOCKER) login -u ${DOCKER_USER} -p ${DOCKER_PASSWORD}
+	echo ${DOCKER_PASSWORD} | @$(DOCKER) login -u ${DOCKER_USER} --password-stdin
 
 .PHONY: push-image
 push-image: docker-login image-quick push

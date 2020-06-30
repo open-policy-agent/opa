@@ -1,5 +1,7 @@
 name: OPA PR Check
+
 on: pull_request
+
 jobs:
   # Golang build and tests workflow.
   # Note: The build uses Docker so do *not* setup Golang on the runner vm.
