@@ -258,7 +258,8 @@ push-edge:
 
 .PHONY: docker-login
 docker-login:
-	echo ${DOCKER_PASSWORD} | @$(DOCKER) login -u ${DOCKER_USER} --password-stdin
+	@echo "Docker Login..."
+	@echo ${DOCKER_PASSWORD} | $(DOCKER) login -u ${DOCKER_USER} --password-stdin
 
 .PHONY: push-image
 push-image: docker-login image-quick push
