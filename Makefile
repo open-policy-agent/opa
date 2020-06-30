@@ -18,8 +18,8 @@ DOCKER := docker
 
 BIN := opa_$(GOOS)_$(GOARCH)
 
-REPOSITORY := openpolicyagent
-IMAGE := $(REPOSITORY)/opa
+IMAGE_ORG ?= openpolicyagent
+IMAGE := $(IMAGE_ORG)/opa
 
 OPA_S3_RELEASE_BUCKET ?= opa-releases
 

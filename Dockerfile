@@ -16,6 +16,10 @@ ARG USER=0
 
 MAINTAINER Torin Sandall <torinsandall@gmail.com>
 COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+
+# Hack.. https://github.com/moby/moby/issues/37965
+RUN true
+
 COPY opa_linux_amd64 /opa
 USER ${USER}
 ENTRYPOINT ["/opa"]

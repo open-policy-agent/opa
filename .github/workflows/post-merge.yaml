@@ -13,12 +13,14 @@ env:
 
 jobs:
   deploy:
-    name: Deploy Edge
+    name: Build and Deploy Edge
     runs-on: ubuntu-18.04
     steps:
       - name: Check out code into the Go module directory
         uses: actions/checkout@v2
-      - name: Build and Deploy OPA Edge
+      - name: Build and Test Golang
+        run: make travis-go
+      - name: Deploy OPA Edge
         # TODO: Remove s3 bucket override
         #run: make deploy-travis
-        run: make deploy-travis OPA_S3_RELEASE_BUCKET=test-opa-releases
+        run: make deploy-travis OPA_S3_RELEASE_BUCKET=test-opa-releases IMAGE_ORG=patrickeast
