@@ -1,6 +1,10 @@
 name: OPA PR Check
 
-on: pull_request
+on:
+  pull_request:
+    branch: *
+  push:
+    branch: master
 
 jobs:
   # Golang build and tests workflow.
