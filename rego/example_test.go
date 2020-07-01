@@ -465,7 +465,7 @@ func ExampleRego_PartialResult() {
 		rego.Store(store),
 	)
 
-	pr, err := r.PartialEval(ctx)
+	pr, err := r.PartialResult(ctx)
 	if err != nil {
 		// Handle error.
 	}
