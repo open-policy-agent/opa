@@ -174,7 +174,7 @@ func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) 
 	var rawBody *bytes.Buffer
 	var enableRedirect bool
 	var forceJSONDecode bool
-	var tlsUseSystemCerts bool
+	var tlsUseSystemCerts *bool
 	var tlsConfig tls.Config
 	var customHeaders map[string]interface{}
 	var tlsInsecureSkipVerify bool
@@ -242,10 +242,12 @@ func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) 
 		case "raw_body":
 			rawBody = bytes.NewBuffer([]byte(strVal))
 		case "tls_use_system_certs":
-			tlsUseSystemCerts, err = strconv.ParseBool(obj.Get(val).String())
+			var tlsUseSystemCertsVal bool
+			tlsUseSystemCertsVal, err = strconv.ParseBool(obj.Get(val).String())
 			if err != nil {
 				return nil, err
 			}
+			tlsUseSystemCerts = &tlsUseSystemCertsVal
 		case "tls_ca_cert":
 			tlsCaCert = bytes.Trim([]byte(strVal), "\"")
 		case "tls_ca_cert_file":
@@ -292,6 +294,7 @@ func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) 
 		}
 	}
 
+	defaultSystemCerts := true
 	isTLS := false
 	client := &http.Client{
 		Timeout: timeout,
@@ -337,14 +340,18 @@ func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) 
 
 	// Check the system certificates config first so that we
 	// load additional certificated into the correct pool.
-	if tlsUseSystemCerts {
+	if tlsUseSystemCerts != nil && *tlsUseSystemCerts {
 		pool, err := x509.SystemCertPool()
 		if err != nil {
 			return nil, err
 		}
-
+		defaultSystemCerts = false
 		isTLS = true
 		tlsConfig.RootCAs = pool
+	}
+
+	if tlsUseSystemCerts != nil && !*tlsUseSystemCerts {
+		defaultSystemCerts = false
 	}
 
 	if len(tlsCaCert) != 0 {
@@ -353,7 +360,7 @@ func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) 
 		if err != nil {
 			return nil, err
 		}
-
+		defaultSystemCerts = false
 		isTLS = true
 		tlsConfig.RootCAs = pool
 	}
@@ -363,7 +370,7 @@ func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) 
 		if err != nil {
 			return nil, err
 		}
-
+		defaultSystemCerts = false
 		isTLS = true
 		tlsConfig.RootCAs = pool
 	}
@@ -373,8 +380,16 @@ func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) 
 		if err != nil {
 			return nil, err
 		}
-
+		defaultSystemCerts = false
 		isTLS = true
+		tlsConfig.RootCAs = pool
+	}
+
+	if defaultSystemCerts {
+		pool, err := x509.SystemCertPool()
+		if err != nil {
+			return nil, err
+		}
 		tlsConfig.RootCAs = pool
 	}
 
