@@ -866,7 +866,7 @@ When sending HTTPS requests with client certificates at least one the following 
  * ``tls_client_cert_file`` and ``tls_client_key_file``
  * ``tls_client_cert_env_variable`` and ``tls_client_key_env_variable``
 
-> To validate TLS server certificates, the user must also provide trusted root CA certificates through the ``tls_ca_cert``, ``tls_ca_cert_file`` and ``tls_ca_cert_env_variable`` fields. If the ``tls_use_system_certs`` field is ``true``, the system certificate pool will be used as well as any additional CA certificates.
+> To validate TLS server certificates, the user must also provide trusted root CA certificates through the ``tls_ca_cert``, ``tls_ca_cert_file`` and ``tls_ca_cert_env_variable`` fields. If no certificates are proivded, the system certificate pool will be used by default, unless the ``tls_use_system_certs`` field is explicitly set to ``false``. If CA certificates are provided and the ``tls_use_system_certs`` field is explicitly set to ``true``, the system certificate pool will be used as well as any additional CA certificates. 
 
 The `response` object parameter will contain the following fields:
 
