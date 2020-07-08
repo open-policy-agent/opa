@@ -48,7 +48,7 @@ LDFLAGS := "-X github.com/open-policy-agent/opa/version.Version=$(VERSION) \
 #
 ######################################################
 
-# If you update the 'all' target make sure the 'travis' target is consistent.
+# If you update the 'all' target make sure the 'ci-release-test' target is consistent.
 .PHONY: all
 all: build test perf check
 
@@ -187,7 +187,7 @@ wasm-rego-testgen-install:
 #
 ######################################################
 
-TRAVIS_GOLANG_DOCKER_MAKE := $(DOCKER) run \
+CI_GOLANG_DOCKER_MAKE := $(DOCKER) run \
 	$(DOCKER_FLAGS) \
 	-u $(shell id -u):$(shell id -g) \
 	-v $(PWD):/src \
@@ -196,23 +196,23 @@ TRAVIS_GOLANG_DOCKER_MAKE := $(DOCKER) run \
 	golang:$(GOVERSION) \
 	make
 
-.PHONY: travis-go-%
-travis-go-%:
-	$(TRAVIS_GOLANG_DOCKER_MAKE) $*
+.PHONY: ci-go-%
+ci-go-%:
+	$(CI_GOLANG_DOCKER_MAKE) $*
 
-.PHONY: travis-release-test
-travis-release-test:
-	$(TRAVIS_GOLANG_DOCKER_MAKE)
+.PHONY: ci-release-test
+ci-release-test:
+	$(CI_GOLANG_DOCKER_MAKE) test perf check
 
-.PHONY: travis-check-working-copy
-travis-check-working-copy: generate
+.PHONY: ci-check-working-copy
+ci-check-working-copy: generate
 	./build/check-working-copy.sh
 
-# The travis-wasm target exists because we do not want to run the generate
+# The ci-wasm target exists because we do not want to run the generate
 # target outside of Docker. This step duplicates the the wasm-rego-test target
 # above.
-.PHONY: travis-wasm
-travis-wasm: wasm-lib-test
+.PHONY: ci-wasm
+ci-wasm: wasm-lib-test
 	GOVERSION=$(GOVERSION) ./build/run-wasm-rego-tests.sh
 
 .PHONY: build-linux
@@ -300,16 +300,16 @@ docker-login:
 .PHONY: push-image
 push-image: docker-login image-quick push
 
-.PHONY: deploy-travis
-deploy-travis: push-image tag-edge push-edge push-binary-edge
+.PHONY: deploy-ci
+deploy-ci: push-image tag-edge push-edge push-binary-edge
 
-.PHONY: release-travis
+.PHONY: release-ci
 # Don't tag and push "latest" image tags if the version is a release candidate or a bugfix branch
 # where the changes don't exist in master
 ifneq (,$(or $(findstring rc,$(VERSION)), $(findstring release-,$(shell git branch --contains HEAD))))
-release-travis: push-image
+release-ci: push-image
 else
-release-travis: push-image tag-latest push-latest
+release-ci: push-image tag-latest push-latest
 endif
 
 .PHONY: netlify-prod

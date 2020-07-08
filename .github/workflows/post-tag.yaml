@@ -18,7 +18,7 @@ jobs:
         run: echo ::set-env name=TAG_NAME::"${GITHUB_REF##*/}"
 
       - name: Test
-        run: make travis-release-test
+        run: make ci-release-test
         timeout-minutes: 60
 
       - name: Build Release Binaries
@@ -29,7 +29,7 @@ jobs:
           DOCKER_USER: ${{ secrets.DOCKER_USER }}
           DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
           DOCKER_IMAGE: ${{ secrets.DOCKER_IMAGE }}
-        run: make release-travis
+        run: make release-ci
 
       - name: Create or Update Release
         env:
