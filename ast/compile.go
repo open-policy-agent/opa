@@ -1601,6 +1601,7 @@ func getComprehensionIndex(arity func(Ref) int, candidates VarSet, expr *Expr) *
 
 	outputs := outputVarsForBody(body, arity, ReservedVars)
 	unsafe := body.Vars(SafetyCheckVisitorParams).Diff(outputs).Diff(ReservedVars)
+
 	if len(unsafe) > 0 {
 		return nil
 	}
@@ -1608,20 +1609,30 @@ func getComprehensionIndex(arity func(Ref) int, candidates VarSet, expr *Expr) *
 	// Similarly, ignore comprehensions that contain references with output variables
 	// that intersect with the candidates. Indexing these comprehensions could worsen
 	// performance.
-	vis := newComprehensionIndexRegressionCheckVisitor(candidates)
-	vis.Walk(body)
-	if vis.worse {
+	regressionVis := newComprehensionIndexRegressionCheckVisitor(candidates)
+	regressionVis.Walk(body)
+	if regressionVis.worse {
 		return nil
 	}
 
-	indexVars := candidates.Intersect(outputs)
-	if len(indexVars) == 0 {
+	// Check if any nested comprehensions close over candidates. If any intersection is found
+	// the comprehension cannot be cached because it would require closing over the candidates
+	// which the evaluator does not support today.
+	nestedVis := newComprehensionIndexNestedCandidateVisitor(candidates)
+	nestedVis.Walk(body)
+	if nestedVis.found {
 		return nil
 	}
 
 	// Make a sorted set of variable names that will serve as the index key set.
 	// Sort to ensure deterministic indexing. In future this could be relaxed
-	// if we can decide that one ordering is better than another.
+	// if we can decide that one ordering is better than another. If the set is
+	// empty, there is no indexing to do.
+	indexVars := candidates.Intersect(outputs)
+	if len(indexVars) == 0 {
+		return nil
+	}
+
 	result := make([]*Term, 0, len(indexVars))
 
 	for v := range indexVars {
@@ -1688,6 +1699,38 @@ func (vis *comprehensionIndexRegressionCheckVisitor) assertEmptyIntersection(vs 
 			return
 		}
 	}
+}
+
+type comprehensionIndexNestedCandidateVisitor struct {
+	candidates VarSet
+	nested     bool
+	found      bool
+}
+
+func newComprehensionIndexNestedCandidateVisitor(candidates VarSet) *comprehensionIndexNestedCandidateVisitor {
+	return &comprehensionIndexNestedCandidateVisitor{
+		candidates: candidates,
+	}
+}
+
+func (vis *comprehensionIndexNestedCandidateVisitor) Walk(x interface{}) {
+	NewGenericVisitor(vis.visit).Walk(x)
+}
+
+func (vis *comprehensionIndexNestedCandidateVisitor) visit(x interface{}) bool {
+
+	if vis.found {
+		return true
+	}
+
+	if v, ok := x.(Value); ok && IsComprehension(v) {
+		varVis := NewVarVisitor().WithParams(VarVisitorParams{SkipRefHead: true})
+		varVis.Walk(v)
+		vis.found = len(varVis.Vars().Intersect(vis.candidates)) > 0
+		return true
+	}
+
+	return false
 }
 
 // ModuleTreeNode represents a node in the module tree. The module
