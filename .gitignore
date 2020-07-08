@@ -5,7 +5,7 @@
 *~
 
 # build artifacts
-coverage
+coverage.txt
 opa_*
 .Dockerfile_*
 _release
@@ -16,6 +16,7 @@ policy.wasm
 .npm
 .gitbook
 .go
+release-notes.md
 
 # ci artifacts
 fuzzit

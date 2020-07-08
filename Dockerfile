@@ -16,7 +16,13 @@ ARG USER=0
 
 MAINTAINER Torin Sandall <torinsandall@gmail.com>
 COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
-COPY opa_linux_amd64 /opa
+
+# Hack.. https://github.com/moby/moby/issues/37965
+# _Something_ needs to be between the two COPY steps.
 USER ${USER}
+
+ARG BIN_DIR=.
+COPY ${BIN_DIR}/opa_linux_amd64 /opa
+
 ENTRYPOINT ["/opa"]
 CMD ["run"]
