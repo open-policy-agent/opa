@@ -3,7 +3,7 @@ name: PR Check
 on: [pull_request]
 
 jobs:
-  # All jobs essentially re-create the `travis-release-build` make target, but are split
+  # All jobs essentially re-create the `ci-release-test` make target, but are split
   # up for parallel runners for faster PR feedback and a nicer UX.
 
   go-build:
@@ -14,7 +14,7 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Build Golang
-        run: make travis-go-build-all-platforms
+        run: make ci-go-build-all-platforms
         timeout-minutes: 30
 
   go-test:
@@ -25,7 +25,7 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Unit Test Golang
-        run: make travis-go-test-coverage
+        run: make ci-go-test-coverage
         timeout-minutes: 30
 
       - name: Codecov Upload
@@ -42,7 +42,7 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Benchmark Test Golang
-        run: make travis-go-perf
+        run: make ci-go-perf
         timeout-minutes: 30
 
   go-lint:
@@ -53,7 +53,7 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Golang Style and Lint Check
-        run: make travis-go-check
+        run: make ci-go-check
         timeout-minutes: 30
 
   wasm:
@@ -64,7 +64,7 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Build and Test WASM
-        run: make travis-wasm
+        run: make ci-wasm
         timeout-minutes: 15
 
   check-generated:
@@ -75,5 +75,5 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Check Working Copy
-        run: make travis-check-working-copy
+        run: make ci-check-working-copy
         timeout-minutes: 15
