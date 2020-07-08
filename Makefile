@@ -274,9 +274,6 @@ else
 release-travis: push-image tag-latest push-latest
 endif
 
-.PHONY: release-bugfix-travis
-release-bugfix-travis: deploy-travis
-
 .PHONY: netlify-prod
 netlify-prod: clean docs-clean build docs-generate docs-production-build
 
