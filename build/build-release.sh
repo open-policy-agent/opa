@@ -42,11 +42,7 @@ elif [ -z "$SOURCE_URL" ]; then
 fi
 
 build_release() {
-    GOOS=darwin GOARCH=amd64 make build
-    GOOS=linux GOARCH=amd64 make build
-    GOOS=windows GOARCH=amd64 make build
-    mv opa_windows_amd64 opa_windows_amd64.exe
-    mv opa_*_* $OUTPUT_DIR
+    make build-all-platforms RELEASE_DIR="${OUTPUT_DIR}"
 }
 
 clone_repo() {
@@ -60,7 +56,6 @@ clone_repo() {
 main() {
     clone_repo
     build_release
-    make test
 }
 
 main

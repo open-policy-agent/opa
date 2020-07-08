@@ -1,0 +1,38 @@
+name: Post Tag
+
+on:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  build:
+    name: Push Latest Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: Set TAG_NAME in Environment
+        # Subsequent jobs will be have the computed tag name
+        run: echo ::set-env name=TAG_NAME::"${GITHUB_REF##*/}"
+
+      - name: Test
+        run: make travis-release-test
+        timeout-minutes: 60
+
+      - name: Build Release Binaries
+        run: make release
+
+      - name: Build and Deploy OPA Docker Images
+        env:
+          DOCKER_USER: ${{ secrets.DOCKER_USER }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+          DOCKER_IMAGE: ${{ secrets.DOCKER_IMAGE }}
+        run: make release-travis
+
+      - name: Create or Update Release
+        env:
+          # Required for the `hub` CLI
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./build/github-release.sh --asset-dir=./_release/${TAG_NAME#v}/ --tag=${TAG_NAME}
