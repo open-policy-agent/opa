@@ -228,7 +228,7 @@ In order to be indexed, comprehensions must meet the following conditions:
 1. The expression containing the comprehension does not include a `with` statement.
 1. The expression containing the comprehension is not negated.
 1. The comprehension body is safe when considered independent from the outer query.
-1. The comprehension body closes over at least one variable in the outer query and none of these variables appear as outputs in references or `walk()` calls.
+1. The comprehension body closes over at least one variable in the outer query and none of these variables appear as outputs in references or `walk()` calls or inside nested comprehensions.
 
 The following examples show cases that are NOT indexed:
 
@@ -261,6 +261,14 @@ not_indexed_because_no_closure {
 not_indexed_because_reference_operand_closure {
   x := input[y].x
   ys := [y | x == input[y].z[_]]
+}
+
+not_indexed_because_nested_closure {
+  x = 1
+  y = 2
+  _ = [i |
+    x == input.foo[i]
+    _ = [j | y == input.bar[j]]]
 }
 ```
 
