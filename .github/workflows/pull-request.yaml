@@ -1,0 +1,79 @@
+name: PR Check
+
+on: [pull_request]
+
+jobs:
+  # All jobs essentially re-create the `travis-release-build` make target, but are split
+  # up for parallel runners for faster PR feedback and a nicer UX.
+
+  go-build:
+    name: Go Build
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: Build Golang
+        run: make travis-go-build-all-platforms
+        timeout-minutes: 30
+
+  go-test:
+    name: Go Test
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: Unit Test Golang
+        run: make travis-go-test-coverage
+        timeout-minutes: 30
+
+      - name: Codecov Upload
+        uses: codecov/codecov-action@v1
+        with:
+          tags: unittests
+          file: ./coverage.txt
+
+  go-perf:
+    name: Go Perf
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: Benchmark Test Golang
+        run: make travis-go-perf
+        timeout-minutes: 30
+
+  go-lint:
+    name: Go Lint
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: Golang Style and Lint Check
+        run: make travis-go-check
+        timeout-minutes: 30
+
+  wasm:
+    name: WASM
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: Build and Test WASM
+        run: make travis-wasm
+        timeout-minutes: 15
+
+  check-generated:
+    name: Check Generated
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: Check Working Copy
+        run: make travis-check-working-copy
+        timeout-minutes: 15
