@@ -1,5 +1,11 @@
 DOCKER := docker
 
+ifeq ($(shell tty > /dev/null && echo 1 || echo 0), 1)
+DOCKER_FLAGS := --rm -it
+else
+DOCKER_FLAGS := --rm
+endif
+
 WASM_BUILDER_REPOSITORY := openpolicyagent/opa-wasm-builder
 WASM_BUILDER_VERSION := 1.0
 WASM_BUILDER_IMAGE := $(WASM_BUILDER_REPOSITORY):$(WASM_BUILDER_VERSION)
@@ -29,16 +35,16 @@ builder: Dockerfile
 
 .PHONY: build
 build:
-	@$(DOCKER) run -it --rm -v $(CURDIR):/src $(WASM_BUILDER_IMAGE) make $(WASM_OBJ_DIR)/opa.wasm
+	@$(DOCKER) run $(DOCKER_FLAGS) -v $(CURDIR):/src $(WASM_BUILDER_IMAGE) make $(WASM_OBJ_DIR)/opa.wasm
 
 .PHONY: test
 test:
-	@$(DOCKER) run -it --rm -v $(CURDIR):/src $(WASM_BUILDER_IMAGE) make $(WASM_OBJ_DIR)/opa-test.wasm
-	@$(DOCKER) run -it --rm -e VERBOSE=$(VERBOSE) -v $(CURDIR):/src -w /src node:8 node test.js $(WASM_OBJ_DIR)/opa-test.wasm
+	@$(DOCKER) run $(DOCKER_FLAGS) -v $(CURDIR):/src $(WASM_BUILDER_IMAGE) make $(WASM_OBJ_DIR)/opa-test.wasm
+	@$(DOCKER) run $(DOCKER_FLAGS) -e VERBOSE=$(VERBOSE) -v $(CURDIR):/src -w /src node:8 node test.js $(WASM_OBJ_DIR)/opa-test.wasm
 
 .PHONY: hack
 hack:
-	@$(DOCKER) run -it --rm -v $(CURDIR):/src $(WASM_BUILDER_IMAGE)
+	@$(DOCKER) run $(DOCKER_FLAGS) -v $(CURDIR):/src $(WASM_BUILDER_IMAGE)
 
 $(shell mkdir -p $(WASM_OBJ_DIR)/src/lib)
 $(shell mkdir -p $(WASM_OBJ_DIR)/src/libmpdec)
