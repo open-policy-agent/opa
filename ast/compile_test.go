@@ -3527,6 +3527,21 @@ func TestCompilerBuildComprehensionIndexKeySet(t *testing.T) {
 				}`,
 		},
 		{
+			note: "skip: due to nested comprehension containing candidate",
+			module: `
+				package test
+
+				p {
+					x = input[i]                # 'x' is a candidate
+					y = 2                       # 'y' is a candidate
+					z = [1 |
+						x = data.foo[j]             # 'x' is an index key
+						t = [1 | data.bar[k] = y]   # 'y' disqualifies indexing because it is nested inside a comprehension
+					]
+				}
+			`,
+		},
+		{
 			note: "skip: avoid increasing runtime (func arg)",
 			module: `
 				package test
