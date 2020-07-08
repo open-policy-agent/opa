@@ -120,6 +120,9 @@ var DefaultBuiltins = [...]*Builtin{
 	TrimSpace,
 	Sprintf,
 
+	// Numbers
+	NumbersRange,
+
 	// Encoding
 	JSONMarshal,
 	JSONUnmarshal,
@@ -983,6 +986,26 @@ var Sprintf = &Builtin{
 		types.S,
 	),
 }
+
+/**
+ * Numbers
+ */
+
+// NumbersRange returns an array of numbers in the given inclusive range.
+var NumbersRange = &Builtin{
+	Name: "numbers.range",
+	Decl: types.NewFunction(
+		types.Args(
+			types.N,
+			types.N,
+		),
+		types.NewArray(nil, types.N),
+	),
+}
+
+/**
+ * Units
+ */
 
 // UnitsParseBytes converts strings like 10GB, 5K, 4mb, and the like into an
 // integer number of bytes.
