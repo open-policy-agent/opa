@@ -7,7 +7,7 @@ DOCKER_FLAGS := --rm
 endif
 
 WASM_BUILDER_REPOSITORY := openpolicyagent/opa-wasm-builder
-WASM_BUILDER_VERSION := 1.0
+WASM_BUILDER_VERSION := 1.1
 WASM_BUILDER_IMAGE := $(WASM_BUILDER_REPOSITORY):$(WASM_BUILDER_VERSION)
 WASM_OBJ_DIR := _obj
 
@@ -79,7 +79,7 @@ $(TEST_OBJS): $(WASM_OBJ_DIR)/tests/%.wasm: tests/%.c
 	$(CC) $(CFLAGS) -I src -c -o $@ $<
 
 $(WASM_OBJ_DIR)/opa.wasm: $(OBJS) $(LIB_OBJS) $(LIB_MPDEC_OBJS)
-	wasm-ld-8 \
+	wasm-ld-10 \
 			--allow-undefined-file=src/undefined.symbols \
 			--import-memory \
 			--no-entry \
@@ -89,7 +89,7 @@ $(WASM_OBJ_DIR)/opa.wasm: $(OBJS) $(LIB_OBJS) $(LIB_MPDEC_OBJS)
 
 $(WASM_OBJ_DIR)/opa-test.wasm: $(OBJS) $(LIB_OBJS) $(LIB_MPDEC_OBJS) $(TEST_OBJS)
 	@cat src/undefined.symbols tests/undefined.symbols > _obj/undefined.symbols
-	@wasm-ld-8 \
+	@wasm-ld-10 \
 			--allow-undefined-file=_obj/undefined.symbols \
 			--import-memory \
 			--no-entry \
