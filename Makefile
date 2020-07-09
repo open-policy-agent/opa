@@ -151,7 +151,7 @@ wasm-test: wasm-lib-test wasm-rego-test
 .PHONY: wasm-lib-build
 wasm-lib-build:
 ifeq ($(DOCKER_INSTALLED), 1)
-	@$(MAKE) -C wasm build
+	@$(MAKE) -C wasm ensure-builder build
 	cp wasm/_obj/opa.wasm internal/compiler/wasm/opa/opa.wasm
 else
 	@echo "Docker not installed. Skipping OPA-WASM library build."
@@ -160,7 +160,7 @@ endif
 .PHONY: wasm-lib-test
 wasm-lib-test:
 ifeq ($(DOCKER_INSTALLED), 1)
-	@$(MAKE) -C wasm test
+	@$(MAKE) -C wasm ensure-builder test
 else
 	@echo "Docker not installed. Skipping OPA-WASM library test."
 endif
@@ -299,6 +299,10 @@ docker-login:
 
 .PHONY: push-image
 push-image: docker-login image-quick push
+
+.PHONY: push-wasm-builder-image
+push-wasm-builder-image: docker-login
+	$(MAKE) -C wasm builder push-builder
 
 .PHONY: deploy-ci
 deploy-ci: push-image tag-edge push-edge push-binary-edge

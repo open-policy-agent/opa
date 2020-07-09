@@ -6,9 +6,9 @@ else
 DOCKER_FLAGS := --rm
 endif
 
-WASM_BUILDER_REPOSITORY := openpolicyagent/opa-wasm-builder
+DOCKER_WASM_BUILDER_IMAGE ?= openpolicyagent/opa-wasm-builder
 WASM_BUILDER_VERSION := 1.1
-WASM_BUILDER_IMAGE := $(WASM_BUILDER_REPOSITORY):$(WASM_BUILDER_VERSION)
+WASM_BUILDER_IMAGE := $(DOCKER_WASM_BUILDER_IMAGE):$(WASM_BUILDER_VERSION)
 WASM_OBJ_DIR := _obj
 
 CFLAGS := \
@@ -31,7 +31,15 @@ clean:
 
 .PHONY: builder
 builder: Dockerfile
-	@$(DOCKER) build -t $(WASM_BUILDER_IMAGE) -f Dockerfile .
+	$(DOCKER) build -t $(WASM_BUILDER_IMAGE) -f Dockerfile .
+
+.PHONY: ensure-builder
+ensure-builder:
+	@$(DOCKER) inspect $(WASM_BUILDER_IMAGE) > /dev/null || $(DOCKER) pull $(WASM_BUILDER_IMAGE) || $(MAKE) builder
+
+.PHONY: push-builder
+push-builder:
+	$(DOCKER) push $(WASM_BUILDER_IMAGE)
 
 .PHONY: build
 build:
