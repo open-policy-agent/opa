@@ -107,6 +107,60 @@ cases:
   - note: any built-in
     query: any([false,true],x)
     want_result: [{'x': true}]
+  - note: concat built-in
+    query: concat(",",["a","b"],x)
+    want_result: [{'x': "a,b"}]
+  - note: contains built-in
+    query: contains("abc","b",x)
+    want_result: [{'x': true}]
+  - note: endswith built-in
+    query: endswith("abc","c",x)
+    want_result: [{'x': true}]
+  - note: format_int built-in
+    query: format_int(10,16,x)
+    want_result: [{'x': "a"}]
+  - note: indexof built-in
+    query: indexof("abc","b",x)
+    want_result: [{'x': 1}]
+  - note: lower built-in
+    query: lower("A",x)
+    want_result: [{'x': "a"}]
+  - note: replace built-in
+    query: replace("abc","b","d",x)
+    want_result: [{'x': "adc"}]
+  - note: replace_n built-in
+    query: strings.replace_n({"b":"d"},"abc",x)
+    want_result: [{'x': "adc"}]
+  - note: split built-in
+    query: split("a,b",",",x)
+    want_result: [{'x': ["a","b"]}]
+  - note: startswith built-in
+    query: startswith("abc","a",x)
+    want_result: [{'x': true}]
+  - note: substring built-in
+    query: substring("abcd",1,2,x)
+    want_result: [{'x': "bc"}]
+  - note: trim built-in
+    query: trim("abc","ac",x)
+    want_result: [{'x': "b"}]
+  - note: trim_left built-in
+    query: trim_left("abc","ba",x)
+    want_result: [{'x': "c"}]
+  - note: trim_prefix built-in
+    query: trim_prefix("abc","ab",x)
+    want_result: [{'x': "c"}]
+  - note: trim_right built-in
+    query: trim_right("abc","cb",x)
+    want_result: [{'x': "a"}]
+  - note: trim_suffix built-in
+    query: trim_suffix("abc","bc",x)
+    want_result: [{'x': "a"}]
+  - note: trim_space built-in
+    query: trim_space(" abc ",x)
+    want_result: [{'x': "abc"}]
+  - note: upper built-in
+    query: upper("a",x)
+    want_result: [{'x': "A"}]
   - note: custom built-in
     query: x = custom_builtin_test(100)
     want_result: [{'x': 101}]
