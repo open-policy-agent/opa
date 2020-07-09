@@ -10,6 +10,7 @@ mpd_context_t *mpd_max_ctx(void);
 void opa_mpd_del(mpd_t *v);
 mpd_t *opa_number_to_bf(opa_value *v);
 opa_value *opa_bf_to_number(mpd_t *n);
+opa_value *opa_bf_to_number_no_free (mpd_t *n);
 mpd_t *qabs(mpd_t *v);
 mpd_t *qadd_one(mpd_t *v);
 mpd_t *qadd(mpd_t *a, mpd_t *b);
