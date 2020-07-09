@@ -6,6 +6,24 @@ on:
       - master
 
 jobs:
+  code-coverage:
+    name: Update Go Test Coverage
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: Unit Test Golang
+        run: make ci-go-test-coverage
+        timeout-minutes: 30
+
+      - name: Codecov Upload
+        uses: codecov/codecov-action@v1
+        with:
+          flags: unittests
+          file: ./coverage.txt
+          fail_ci_if_error: false
+
   deploy-edge:
     name: Push Edge Release
     runs-on: ubuntu-18.04
