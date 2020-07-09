@@ -47,3 +47,17 @@ jobs:
           DOCKER_IMAGE: ${{ secrets.DOCKER_IMAGE }}
           S3_RELEASE_BUCKET: ${{ secrets.S3_RELEASE_BUCKET }}
         run: make deploy-ci
+
+  deploy-wasm-builder:
+    name: Deploy WASM Builder
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: Build and Push opa-wasm-builder
+        env:
+          DOCKER_USER: ${{ secrets.DOCKER_USER }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+          DOCKER_WASM_BUILDER_IMAGE: ${{ secrets.DOCKER_WASM_BUILDER_IMAGE }}
+        run: make push-wasm-builder-image
