@@ -70,7 +70,7 @@ static void init(void)
     if (!initialized)
     {
         heap_ptr = (unsigned int)&__heap_base;
-        heap_top = __builtin_wasm_grow_memory(0) * WASM_PAGE_SIZE;
+        heap_top = __builtin_wasm_memory_grow(0, 0) * WASM_PAGE_SIZE;
         init_free();
         initialized = 1;
     }
@@ -145,7 +145,7 @@ void *opa_malloc(size_t size)
     if (heap_ptr >= heap_top)
     {
         unsigned int pages = (block_size / WASM_PAGE_SIZE) + 1;
-        __builtin_wasm_grow_memory(pages);
+        __builtin_wasm_memory_grow(0, pages);
         heap_top += (pages * WASM_PAGE_SIZE);
     }
 
