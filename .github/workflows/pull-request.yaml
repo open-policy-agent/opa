@@ -31,8 +31,9 @@ jobs:
       - name: Codecov Upload
         uses: codecov/codecov-action@v1
         with:
-          tags: unittests
+          flags: unittests
           file: ./coverage.txt
+          fail_ci_if_error: false
 
   go-perf:
     name: Go Perf
