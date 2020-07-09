@@ -143,6 +143,7 @@ opa_value *opa_bf_to_number(mpd_t *n)
 
     if (status == 0)
     {
+        mpd_del(n);
         return opa_number_int(i);
     }
 
