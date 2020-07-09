@@ -131,6 +131,7 @@ mpd_t *opa_number_to_bf(opa_value *v)
     return r;
 }
 
+/* converts a bignum n to an ast value and frees the bignum n. */
 opa_value *opa_bf_to_number(mpd_t *n)
 {
     if (n == NULL)
@@ -151,6 +152,27 @@ opa_value *opa_bf_to_number(mpd_t *n)
     mpd_del(n);
     return opa_number_ref(s, opa_strlen(s));
 }
+
+/* converts a bignum n to an ast value without freeing the bignum n. */
+opa_value *opa_bf_to_number_no_free(mpd_t *n)
+{
+    if (n == NULL)
+    {
+        return NULL;
+    }
+
+    uint32_t status = 0;
+    int32_t i = mpd_qget_i32(n, &status);
+
+    if (status == 0)
+    {
+        return opa_number_int(i);
+    }
+
+    char *s = mpd_to_sci(n, 0);
+    return opa_number_ref(s, opa_strlen(s));
+}
+
 
 /* converts an big number to a bigint with base of 10 and digits of 0 and 1. */
 mpd_t *opa_bf_to_bf_bits(mpd_t *v)
