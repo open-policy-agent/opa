@@ -13,3 +13,15 @@ jobs:
 
       - name: Test with Race Detector
         run: CGO_ENABLED=1 make ci-go-race-detector
+
+  fuzzit:
+    name: Fuzzit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: Run Fuzzit
+        run: make docker-run-fuzzit
+        env:
+          FUZZIT_API_KEY: ${{ secrets.FUZZIT_API_KEY }}
