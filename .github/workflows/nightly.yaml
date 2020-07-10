@@ -1,0 +1,15 @@
+name: Nightly
+on:
+  schedule:
+    - cron:  '0 8 * * *'  # Daily, at 8:00 UTC
+
+jobs:
+  race-detector:
+    name: Go Race Detector
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: Test with Race Detector
+        run: CGO_ENABLED=1 make ci-go-race-detector
