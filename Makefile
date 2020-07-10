@@ -29,6 +29,8 @@ DOCKER_IMAGE ?= openpolicyagent/opa
 
 S3_RELEASE_BUCKET ?= opa-releases
 
+FUZZ_TIME ?= 3600  # 1hr
+
 BUILD_COMMIT := $(shell ./build/get-build-commit.sh)
 BUILD_TIMESTAMP := $(shell ./build/get-build-timestamp.sh)
 BUILD_HOSTNAME := $(shell ./build/get-build-hostname.sh)
@@ -117,6 +119,10 @@ fmt:
 clean: wasm-lib-clean
 	rm -f opa_*_*
 
+.PHONY: fuzz
+fuzz:
+	$(MAKE) -C ./build/fuzzer all
+
 ######################################################
 #
 # Documentation targets
@@ -197,7 +203,8 @@ CI_GOLANG_DOCKER_MAKE := $(DOCKER) run \
 	-v $(PWD):/src \
 	-w /src \
 	-e GOCACHE=/src/.go/cache \
-	-e CGO_ENABLED=$(CGO_ENABLED) \
+	-e CGO_ENABLED \
+	-e FUZZ_TIME \
 	golang:$(GOVERSION) \
 	make
 
@@ -326,6 +333,10 @@ netlify-prod: clean docs-clean build docs-generate docs-production-build
 
 .PHONY: netlify-preview
 netlify-preview: clean docs-clean build docs-live-blocks-install-deps docs-live-blocks-test docs-generate docs-preview-build
+
+.PHONY: check-fuzz
+check-fuzz:
+	./build/check-fuzz.sh $(FUZZ_TIME)
 
 ######################################################
 #
