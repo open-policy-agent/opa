@@ -327,6 +327,29 @@ netlify-prod: clean docs-clean build docs-generate docs-production-build
 .PHONY: netlify-preview
 netlify-preview: clean docs-clean build docs-live-blocks-install-deps docs-live-blocks-test docs-generate docs-preview-build
 
+.PHONY: fuzzer
+fuzzer:
+	docker build \
+		-f Dockerfile.fuzzit \
+		-t openpolicyagent/fuzzer:$(BUILD_COMMIT) \
+		--build-arg GOVERSION=$(GOVERSION) \
+		.
+
+.PHONY: docker-fuzzit-local-regression
+docker-fuzzit-local-regression: fuzzer
+	docker run \
+		-v /var/run/docker.sock:/var/run/docker.sock \
+		openpolicyagent/fuzzer:$(BUILD_COMMIT) \
+		./fuzzit create job --type "local-regression" opa/ast ast-fuzzer
+
+.PHONY: docker-fuzzit-fuzzing
+docker-fuzzit-fuzzing: fuzzer
+	@docker run \
+		-v /var/run/docker.sock:/var/run/docker.sock \
+		-e FUZZIT_API_KEY=$(FUZZIT_API_KEY) \
+		openpolicyagent/fuzzer:$(BUILD_COMMIT) \
+		./fuzzit create job --type "fuzzing" opa/ast ast-fuzzer
+
 ######################################################
 #
 # Release targets
