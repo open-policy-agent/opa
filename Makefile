@@ -82,6 +82,10 @@ go-build: generate
 go-test: generate
 	$(GO) test -tags=slow ./...
 
+.PHONY: race-detector
+race-detector: generate
+	$(GO) test -tags=slow -race -vet=off ./...
+
 .PHONY: test-coverage
 test-coverage:
 	$(GO) test -tags=slow -coverprofile=coverage.txt -covermode=atomic ./...
@@ -193,6 +197,7 @@ CI_GOLANG_DOCKER_MAKE := $(DOCKER) run \
 	-v $(PWD):/src \
 	-w /src \
 	-e GOCACHE=/src/.go/cache \
+	-e CGO_ENABLED=$(CGO_ENABLED) \
 	golang:$(GOVERSION) \
 	make
 
