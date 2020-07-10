@@ -13,3 +13,19 @@ jobs:
 
       - name: Test with Race Detector
         run: CGO_ENABLED=1 make ci-go-race-detector
+
+  fuzzer:
+    name: Go Fuzzer
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: Run go-fuzz
+        run: make ci-go-check-fuzz
+
+      - name: Upload Workdir
+        uses: actions/upload-artifact@v2
+        with:
+          name: workdir
+          path: ./build/fuzzer/workdir
