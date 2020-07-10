@@ -119,19 +119,28 @@ standard GitHub fork workflow. See [OPA Dev Instructions](DEVELOPMENT.md)
 
 # Bugfix Release Process
 
+The following steps assume a remote named `upstream` exists that references the OPA source
+repository. As needed, add an `upstream` remote for the repository:
+
+```
+git remote add upstream git@github.com:open-policy-agent/opa.git
+git fetch --tags upstream
+```
+
 If this is the first bugfix for the release, create the release branch from the
-release tag:
+release tag and push to the source repository.
 
 ```bash
 git checkout -b release-0.14 v0.14.0
+git push upstream release-0.14
 ```
 
-Otherwise, checkout the release branch and rebase on upstream:
+Otherwise, checkout the release branch and sync with `upstream` (as needed):
 
 ```bash
 git fetch upstream
 git checkout release-0.14
-git rebase upstream/release-0.14
+git reset --hard upstream/release-0.14
 ```
 
 Cherry pick the changes from master or other branches onto the bugfix branch:
@@ -155,37 +164,22 @@ patch -p1 < ~/dev.patch
 git diff
 ```
 
-> The generated CHANGELOG will likely need some manual adjustments for bug fix releases!
+> The generated CHANGELOG will likely need some manual adjustments for bugfix releases!
 
-Commit this change:
+Commit this change and push to fork:
 
 ```bash
 git commit -s -a -m 'Prepare v0.14.1 release'
-```
-
-Push the release branch to your fork and open a Pull Request against the
-upstream release branch. Be careful to open the Pull Request against the correct
-upstream release branch. **DO NOT** open/merge the Pull Request into master or
-other release branches:
-
-```bash
 git push origin release-0.14
 ```
 
-Once the Pull Request has been merged you can tag the release at the commit
-created above. Once the tag is pushed to `open-policy-agent/opa`, CI jobs will
-automatically build and publish the Docker images and website updates.
+Open a Pull Request against the upstream release branch. Be careful to open the 
+Pull Request against the correct upstream release branch. **DO NOT** open/merge
+the Pull Request into master or other release branches:
 
-Next build the release binaries and publish them to the [GitHub
-releases](https://github.com/open-policy-agent/opa/releases) page along with
-updating the CHANGELOG.md file on master.
-
-```
-make release VERSION=0.14.1
-```
-
-> The release binaries are located under `_release/<version>` in your working
-> copy.
+Once the Pull Request has merged fetch the latest changes and tag the commit to
+prepare for publishing. Use the same instructions as defined above in normal
+release [publishing](#publishing) guide (being careful to tag the appropriate commit).
 
 Last step is to copy the CHANGELOG snippet for the version to `master`. Create
 a new PR with the version information added below the `Unreleased` section. Remove
