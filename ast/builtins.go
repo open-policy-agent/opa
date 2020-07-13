@@ -226,6 +226,10 @@ var DefaultBuiltins = [...]*Builtin{
 
 	// UUIDs
 	UUIDRFC4122,
+
+	//SemVers
+	SemVerIsValid,
+	SemVerCompare,
 }
 
 // BuiltinMap provides a convenient mapping of built-in names to
@@ -2064,6 +2068,32 @@ var ObjectGet = &Builtin{
 			types.A,
 		),
 		types.A,
+	),
+}
+
+// SemVerIsValid validiates a the term is a valid SemVer as a string, returns
+// false for all other input
+var SemVerIsValid = &Builtin{
+	Name: "semver.is_valid",
+	Decl: types.NewFunction(
+		types.Args(
+			types.A,
+		),
+		types.B,
+	),
+}
+
+// SemVerCompare compares valid SemVer formatted version strings. Given two
+// version strings, if A < B returns -1, if A > B returns 1. If A == B, returns
+// 0
+var SemVerCompare = &Builtin{
+	Name: "semver.compare",
+	Decl: types.NewFunction(
+		types.Args(
+			types.S,
+			types.S,
+		),
+		types.N,
 	),
 }
 
