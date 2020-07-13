@@ -39,7 +39,7 @@ management APIs that enable:
 * Dynamic agent configuration (Discovery)
 
 By configuring and implementing these management APIs you can unify control and
-visiblity over OPAs in your environments. OPA does not provide a control plane
+visibility over OPAs in your environments. OPA does not provide a control plane
 service out-of-the-box today.
 
 <!--- source: https://docs.google.com/drawings/d/1-08mHgUN5oy2phLJ6MOr7j3e0iguxg_X__3VH321iLc/edit?usp=sharing --->
