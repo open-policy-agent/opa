@@ -31,5 +31,5 @@ require (
 	golang.org/x/lint v0.0.0-20181023182221-1baf3a9d7d67
 	golang.org/x/tools v0.0.0-20190920225731-5eefd052ad72
 	gopkg.in/fsnotify.v1 v1.4.7
-	gopkg.in/yaml.v2 v2.2.1 // indirect
+	gopkg.in/yaml.v2 v2.2.1
 )
