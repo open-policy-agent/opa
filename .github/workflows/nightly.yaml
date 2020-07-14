@@ -36,6 +36,7 @@ jobs:
         run: make ci-go-check-fuzz
 
       - name: Upload Workdir
+        if: ${{ failure() }}
         uses: actions/upload-artifact@v2
         with:
           name: workdir
