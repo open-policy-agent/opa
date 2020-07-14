@@ -362,7 +362,7 @@ func (e *eval) evalWith(iter evalIterator) error {
 		// have no affect.)
 		for _, with := range expr.With {
 			if e.saveSet.ContainsRecursive(with.Value, e.bindings) {
-				return e.saveExpr(expr, e.bindings, func() error {
+				return e.saveExprMarkUnknowns(expr, e.bindings, func() error {
 					return e.next(iter)
 				})
 			}
@@ -1082,28 +1082,6 @@ func (e *eval) biunifyComprehensionObject(x *ast.ObjectComprehension, b *ast.Ter
 	return e.biunify(ast.NewTerm(result), b, b1, b2, iter)
 }
 
-type savePair struct {
-	term *ast.Term
-	b    *bindings
-}
-
-func getSavePairs(x *ast.Term, b *bindings, result []savePair) []savePair {
-	if _, ok := x.Value.(ast.Var); ok {
-		result = append(result, savePair{x, b})
-		return result
-	}
-	vis := ast.NewVarVisitor().WithParams(ast.VarVisitorParams{
-		SkipClosures: true,
-		SkipRefHead:  true,
-	})
-	vis.Walk(x)
-	for v := range vis.Vars() {
-		y, next := b.apply(ast.NewTerm(v))
-		result = getSavePairs(y, next, result)
-	}
-	return result
-}
-
 func (e *eval) saveExpr(expr *ast.Expr, b *bindings, iter unifyIterator) error {
 	expr.With = e.query[e.index].With
 	expr.Location = e.query[e.index].Location
@@ -1114,20 +1092,44 @@ func (e *eval) saveExpr(expr *ast.Expr, b *bindings, iter unifyIterator) error {
 	return err
 }
 
+func (e *eval) saveExprMarkUnknowns(expr *ast.Expr, b *bindings, iter unifyIterator) error {
+	expr.With = e.query[e.index].With
+	expr.Location = e.query[e.index].Location
+	declArgsLen, err := e.getDeclArgsLen(expr)
+	if err != nil {
+		return err
+	}
+	var pops int
+	if pairs := getSavePairsFromExpr(declArgsLen, expr, b, nil); len(pairs) > 0 {
+		pops += len(pairs)
+		for _, p := range pairs {
+			e.saveSet.Push([]*ast.Term{p.term}, p.b)
+		}
+	}
+	e.saveStack.Push(expr, b, b)
+	e.traceSave(expr)
+	err = iter()
+	e.saveStack.Pop()
+	for i := 0; i < pops; i++ {
+		e.saveSet.Pop()
+	}
+	return err
+}
+
 func (e *eval) saveUnify(a, b *ast.Term, b1, b2 *bindings, iter unifyIterator) error {
 	e.instr.startTimer(partialOpSaveUnify)
 	expr := ast.Equality.Expr(a, b)
 	expr.With = e.query[e.index].With
 	expr.Location = e.query[e.index].Location
 	pops := 0
-	if pairs := getSavePairs(a, b1, nil); len(pairs) > 0 {
+	if pairs := getSavePairsFromTerm(a, b1, nil); len(pairs) > 0 {
 		pops += len(pairs)
 		for _, p := range pairs {
 			e.saveSet.Push([]*ast.Term{p.term}, p.b)
 		}
 
 	}
-	if pairs := getSavePairs(b, b2, nil); len(pairs) > 0 {
+	if pairs := getSavePairsFromTerm(b, b2, nil); len(pairs) > 0 {
 		pops += len(pairs)
 		for _, p := range pairs {
 			e.saveSet.Push([]*ast.Term{p.term}, p.b)
@@ -1155,7 +1157,7 @@ func (e *eval) saveCall(declArgsLen int, terms []*ast.Term, iter unifyIterator) 
 	// position to the save set.
 	pops := 0
 	if declArgsLen == len(terms)-2 {
-		if pairs := getSavePairs(terms[len(terms)-1], e.bindings, nil); len(pairs) > 0 {
+		if pairs := getSavePairsFromTerm(terms[len(terms)-1], e.bindings, nil); len(pairs) > 0 {
 			pops += len(pairs)
 			for _, p := range pairs {
 				e.saveSet.Push([]*ast.Term{p.term}, p.b)
@@ -1368,6 +1370,29 @@ func (e *eval) rewrittenVar(v ast.Var) (ast.Var, bool) {
 		}
 	}
 	return v, false
+}
+
+func (e *eval) getDeclArgsLen(x *ast.Expr) (int, error) {
+
+	if !x.IsCall() {
+		return -1, nil
+	}
+
+	operator := x.Operator()
+	bi, _, ok := e.builtinFunc(operator.String())
+
+	if ok {
+		return len(bi.Decl.Args()), nil
+	}
+
+	ir, err := e.getRules(operator)
+	if err != nil {
+		return -1, err
+	} else if ir == nil || ir.Empty() {
+		return -1, nil
+	}
+
+	return len(ir.Rules[0].Head.Args), nil
 }
 
 type evalBuiltin struct {
@@ -2485,6 +2510,43 @@ func (e *eval) savePackagePathAndTerm(plugged, ref ast.Ref) (ast.Ref, *ast.Term)
 	}
 
 	return plugged.Insert(e.saveNamespace, 1), ast.NewTerm(ref.Insert(e.saveNamespace, 1))
+}
+
+type savePair struct {
+	term *ast.Term
+	b    *bindings
+}
+
+func getSavePairsFromExpr(declArgsLen int, x *ast.Expr, b *bindings, result []savePair) []savePair {
+	switch terms := x.Terms.(type) {
+	case *ast.Term:
+		return getSavePairsFromTerm(terms, b, result)
+	case []*ast.Term:
+		if x.IsEquality() {
+			return getSavePairsFromTerm(terms[2], b, getSavePairsFromTerm(terms[1], b, result))
+		}
+		if declArgsLen == len(terms)-2 {
+			return getSavePairsFromTerm(terms[len(terms)-1], b, result)
+		}
+	}
+	return result
+}
+
+func getSavePairsFromTerm(x *ast.Term, b *bindings, result []savePair) []savePair {
+	if _, ok := x.Value.(ast.Var); ok {
+		result = append(result, savePair{x, b})
+		return result
+	}
+	vis := ast.NewVarVisitor().WithParams(ast.VarVisitorParams{
+		SkipClosures: true,
+		SkipRefHead:  true,
+	})
+	vis.Walk(x)
+	for v := range vis.Vars() {
+		y, next := b.apply(ast.NewTerm(v))
+		result = getSavePairsFromTerm(y, next, result)
+	}
+	return result
 }
 
 func applyCopyPropagation(p *copypropagation.CopyPropagator, instr *Instrumentation, body ast.Body) ast.Body {

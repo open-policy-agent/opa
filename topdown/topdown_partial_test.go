@@ -626,6 +626,49 @@ func TestTopDownPartialEval(t *testing.T) {
 			wantQueries: []string{"data.test.q with data.foo as [input.x]"},
 		},
 		{
+			note:  "with: unknown value propagates to outputs (eq)",
+			query: "data.test.p = z",
+			modules: []string{
+				`package test
+
+				q = 1 { input.foo = 1 }
+				p = y { x = q with data.bar as input.bar; plus(x, 1, y) }`,
+			},
+			wantQueries: []string{"x1 = data.test.q with data.bar as input.bar; plus(x1, 1, z)"},
+		},
+		{
+			note:  "with: unknown value propagates to outputs (ref)",
+			query: "data.test.p = z",
+			modules: []string{
+				`package test
+
+				q[1] { input.foo = 1 }
+				p = y { q[x] with data.bar as input.bar; plus(x, 1, y) }`,
+			},
+			wantQueries: []string{"data.test.q[x1] with data.bar as input.bar; plus(x1, 1, z)"},
+		},
+		{
+			note:  "with: unknown value propagates to outputs (call)",
+			query: "data.test.p = z",
+			modules: []string{
+				`package test
+
+				f(t) = 1 { input.foo = t }
+				p = y { f(1, x) with data.bar as input.bar; plus(x, 1, y) }`,
+			},
+			wantQueries: []string{"data.test.f(1, x1) with data.bar as input.bar; plus(x1, 1, z)"},
+		},
+		{
+			note:  "with: unknown value propagates to outputs (built-in)",
+			query: "data.test.p = z",
+			modules: []string{
+				`package test
+
+				p = y { time.now_ns(x) with data.bar as input.bar; plus(x, 1, y) }`,
+			},
+			wantQueries: []string{"time.now_ns(x1) with data.bar as input.bar; plus(x1, 1, z)"},
+		},
+		{
 			note:  "with: ground prefix disabled",
 			query: "data.test.p = true",
 			modules: []string{
