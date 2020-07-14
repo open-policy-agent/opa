@@ -163,7 +163,7 @@ OPA will need to have them configured to be able to run the full CI workflow.
 | DOCKER_WASM_BUILDER_IMAGE | Full docker image name (with org) to tag and publish WASM builder images. |
 | DOCKER_USER | Docker username for uploading release images. Will be used with `docker login` |
 | DOCKER_PASSWORD | Docker password or API token for the configured `DOCKER_USER`. Will be used with `docker login` |
-
+| SLACK_NOTIFICATION_WEBHOOK | Slack webhook for sending notifications. Optional -- If not provided the notification steps are skipped. |
 
 ## Periodic Workflows
 
