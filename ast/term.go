@@ -1199,9 +1199,10 @@ func (s *set) String() string {
 		return "set()"
 	}
 	buf := []string{}
-	s.Foreach(func(x *Term) {
+	sorted := s.Sorted()
+	for _, x := range sorted {
 		buf = append(buf, fmt.Sprint(x))
-	})
+	}
 	return "{" + strings.Join(buf, ", ") + "}"
 }
 
@@ -1806,9 +1807,11 @@ func (obj object) Len() int {
 
 func (obj object) String() string {
 	var buf []string
-	obj.Foreach(func(k, v *Term) {
+	sorted := termSliceSorted(obj.Keys())
+	for _, k := range sorted {
+		v := obj.Get(k)
 		buf = append(buf, fmt.Sprintf("%s: %s", k, v))
-	})
+	}
 	return "{" + strings.Join(buf, ", ") + "}"
 }
 
@@ -2207,6 +2210,15 @@ func (c Call) String() string {
 		args[i-1] = c[i].String()
 	}
 	return fmt.Sprintf("%v(%v)", c[0], strings.Join(args, ", "))
+}
+
+func termSliceSorted(a []*Term) []*Term {
+	b := make([]*Term, len(a))
+	for i := range b {
+		b[i] = a[i]
+	}
+	sort.Sort(termSlice(b))
+	return b
 }
 
 func termSliceCopy(a []*Term) []*Term {
