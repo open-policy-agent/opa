@@ -59,7 +59,7 @@ func checkModules(args []string) int {
 
 	if checkParams.bundleMode {
 		for _, path := range args {
-			b, err := loader.NewFileLoader().AsBundle(path)
+			b, err := loader.NewFileLoader().WithSkipBundleVerification(true).AsBundle(path)
 			if err != nil {
 				outputErrors(err)
 				return 1

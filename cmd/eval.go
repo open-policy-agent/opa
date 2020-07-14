@@ -387,6 +387,9 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 		}
 	}
 
+	// skip bundle verification
+	regoArgs = append(regoArgs, rego.SkipBundleVerification(true))
+
 	inputBytes, err := readInputBytes(params)
 	if err != nil {
 		return nil, err

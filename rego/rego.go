@@ -435,43 +435,44 @@ type loadPaths struct {
 
 // Rego constructs a query and can be evaluated to obtain results.
 type Rego struct {
-	query                string
-	parsedQuery          ast.Body
-	compiledQueries      map[queryType]compiledQuery
-	pkg                  string
-	parsedPackage        *ast.Package
-	imports              []string
-	parsedImports        []*ast.Import
-	rawInput             *interface{}
-	parsedInput          ast.Value
-	unknowns             []string
-	parsedUnknowns       []*ast.Term
-	disableInlining      []string
-	shallowInlining      bool
-	skipPartialNamespace bool
-	partialNamespace     string
-	modules              []rawModule
-	parsedModules        map[string]*ast.Module
-	compiler             *ast.Compiler
-	store                storage.Store
-	ownStore             bool
-	txn                  storage.Transaction
-	metrics              metrics.Metrics
-	tracers              []topdown.Tracer
-	tracebuf             *topdown.BufferTracer
-	trace                bool
-	instrumentation      *topdown.Instrumentation
-	instrument           bool
-	capture              map[*ast.Expr]ast.Var // map exprs to generated capture vars
-	termVarID            int
-	dump                 io.Writer
-	runtime              *ast.Term
-	builtinDecls         map[string]*ast.Builtin
-	builtinFuncs         map[string]*topdown.Builtin
-	unsafeBuiltins       map[string]struct{}
-	loadPaths            loadPaths
-	bundlePaths          []string
-	bundles              map[string]*bundle.Bundle
+	query                  string
+	parsedQuery            ast.Body
+	compiledQueries        map[queryType]compiledQuery
+	pkg                    string
+	parsedPackage          *ast.Package
+	imports                []string
+	parsedImports          []*ast.Import
+	rawInput               *interface{}
+	parsedInput            ast.Value
+	unknowns               []string
+	parsedUnknowns         []*ast.Term
+	disableInlining        []string
+	shallowInlining        bool
+	skipPartialNamespace   bool
+	partialNamespace       string
+	modules                []rawModule
+	parsedModules          map[string]*ast.Module
+	compiler               *ast.Compiler
+	store                  storage.Store
+	ownStore               bool
+	txn                    storage.Transaction
+	metrics                metrics.Metrics
+	tracers                []topdown.Tracer
+	tracebuf               *topdown.BufferTracer
+	trace                  bool
+	instrumentation        *topdown.Instrumentation
+	instrument             bool
+	capture                map[*ast.Expr]ast.Var // map exprs to generated capture vars
+	termVarID              int
+	dump                   io.Writer
+	runtime                *ast.Term
+	builtinDecls           map[string]*ast.Builtin
+	builtinFuncs           map[string]*topdown.Builtin
+	unsafeBuiltins         map[string]struct{}
+	loadPaths              loadPaths
+	bundlePaths            []string
+	bundles                map[string]*bundle.Bundle
+	skipBundleVerification bool
 }
 
 // Function represents a built-in function that is callable in Rego.
@@ -925,6 +926,13 @@ func PrintTraceWithLocation(w io.Writer, r *Rego) {
 func UnsafeBuiltins(unsafeBuiltins map[string]struct{}) func(r *Rego) {
 	return func(r *Rego) {
 		r.unsafeBuiltins = unsafeBuiltins
+	}
+}
+
+// SkipBundleVerification skips verification of a signed bundle.
+func SkipBundleVerification(yes bool) func(r *Rego) {
+	return func(r *Rego) {
+		r.skipBundleVerification = yes
 	}
 }
 
@@ -1468,7 +1476,7 @@ func (r *Rego) loadBundles(ctx context.Context, txn storage.Transaction, m metri
 	defer m.Timer(metrics.RegoLoadBundles).Stop()
 
 	for _, path := range r.bundlePaths {
-		bndl, err := loader.NewFileLoader().WithMetrics(m).AsBundle(path)
+		bndl, err := loader.NewFileLoader().WithMetrics(m).WithSkipBundleVerification(r.skipBundleVerification).AsBundle(path)
 		if err != nil {
 			return fmt.Errorf("loading error: %s", err)
 		}

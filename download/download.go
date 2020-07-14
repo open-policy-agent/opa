@@ -49,6 +49,7 @@ type Downloader struct {
 	f        func(context.Context, Update) // callback function invoked when download updates occur
 	logAttrs [][2]string                   // optional attributes to include in log messages
 	etag     string                        // HTTP Etag for caching purposes
+	bvc      *bundle.VerificationConfig
 }
 
 // New returns a new Downloader that can be started.
@@ -71,6 +72,12 @@ func (d *Downloader) WithCallback(f func(context.Context, Update)) *Downloader {
 // log messages emitted by the downloader.
 func (d *Downloader) WithLogAttrs(attrs [][2]string) *Downloader {
 	d.logAttrs = attrs
+	return d
+}
+
+// WithBundleVerificationConfig sets the key configuration used to verify a signed bundle
+func (d *Downloader) WithBundleVerificationConfig(config *bundle.VerificationConfig) *Downloader {
+	d.bvc = config
 	return d
 }
 
@@ -159,7 +166,7 @@ func (d *Downloader) download(ctx context.Context, m metrics.Metrics) (*bundle.B
 			defer m.Timer(metrics.RegoLoadBundles).Stop()
 			baseURL := path.Join(d.client.Config().URL, d.path)
 			loader := bundle.NewTarballLoaderWithBaseURL(resp.Body, baseURL)
-			reader := bundle.NewCustomReader(loader).WithMetrics(m)
+			reader := bundle.NewCustomReader(loader).WithMetrics(m).WithBundleVerificationConfig(d.bvc)
 			b, err := reader.Read()
 			if err != nil {
 				return nil, "", err

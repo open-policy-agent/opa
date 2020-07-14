@@ -126,6 +126,7 @@ type Manager struct {
 	compiler              *ast.Compiler
 	compilerMux           sync.RWMutex
 	services              map[string]rest.Client
+	keys                  map[string]*bundle.KeyConfig
 	plugins               []namedplugin
 	registeredTriggers    []func(txn storage.Transaction)
 	mtx                   sync.Mutex
@@ -205,10 +206,16 @@ func New(raw []byte, id string, store storage.Store, opts ...func(*Manager)) (*M
 		return nil, err
 	}
 
+	keys, err := bundle.ParseKeysConfig(parsedConfig.Keys)
+	if err != nil {
+		return nil, err
+	}
+
 	m := &Manager{
 		Store:                 store,
 		Config:                parsedConfig,
 		ID:                    id,
+		keys:                  keys,
 		services:              services,
 		pluginStatus:          map[string]*Status{},
 		pluginStatusListeners: map[string]StatusListener{},
@@ -384,12 +391,22 @@ func (m *Manager) Reconfigure(config *config.Config) error {
 	if err != nil {
 		return err
 	}
+
+	keys, err := bundle.ParseKeysConfig(config.Keys)
+	if err != nil {
+		return err
+	}
+
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
 	config.Labels = m.Config.Labels // don't overwrite labels
 	m.Config = config
 	for name, client := range services {
 		m.services[name] = client
+	}
+
+	for name, key := range keys {
+		m.keys[name] = key
 	}
 	return nil
 }
@@ -500,6 +517,13 @@ func loadCompilerFromStore(ctx context.Context, store storage.Store, txn storage
 	compiler := ast.NewCompiler()
 	compiler.Compile(modules)
 	return compiler, nil
+}
+
+// PublicKeys returns a public keys that can be used for verifying signed bundles.
+func (m *Manager) PublicKeys() map[string]*bundle.KeyConfig {
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
+	return m.keys
 }
 
 // Client returns a client for communicating with a remote service.

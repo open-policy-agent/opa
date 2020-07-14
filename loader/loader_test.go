@@ -6,6 +6,7 @@ package loader
 
 import (
 	"bytes"
+	"io"
 	"os"
 	"path"
 	"path/filepath"
@@ -149,6 +150,108 @@ func TestLoadDirRecursive(t *testing.T) {
 		}
 		if !mod2.Equal(expectedMod2) {
 			t.Fatalf("Expected:\n%v\n\nGot:\n%v", expectedMod2, mod2)
+		}
+	})
+}
+
+func TestFilteredPaths(t *testing.T) {
+	files := map[string]string{
+		"/a/data1.json": `{"a": [1,2,3]}`,
+		"/a/e.rego":     `package q`,
+		"/b/data2.yaml": `{"aaa": {"bbb": 1}}`,
+		"/b/data3.yaml": `{"aaa": {"ccc": 2}}`,
+		"/b/d/x.json":   "null",
+		"/b/d/e.rego":   `package p`,
+		"/b/d/ignore":   `deadbeef`,
+		"/foo":          `{"zzz": "b"}`,
+	}
+
+	test.WithTempFS(files, func(rootDir string) {
+
+		paths := []string{}
+		paths = append(paths, filepath.Join(rootDir, "a"))
+		paths = append(paths, filepath.Join(rootDir, "b"))
+		paths = append(paths, filepath.Join(rootDir, "foo"))
+
+		result, err := FilteredPaths(paths, nil)
+		if err != nil {
+			t.Fatalf("Unexpected error: %s", err)
+		}
+
+		if len(result) != len(files) {
+			t.Fatalf("Expected %v files across directories but got %v", len(files), len(result))
+		}
+	})
+}
+
+func TestGetBundleDirectoryLoader(t *testing.T) {
+	files := map[string]string{
+		"bundle.tar.gz": "",
+	}
+
+	mod := "package b.c\np=1"
+
+	test.WithTempFS(files, func(rootDir string) {
+
+		bundleFile := filepath.Join(rootDir, "bundle.tar.gz")
+
+		f, err := os.Create(bundleFile)
+		if err != nil {
+			t.Fatalf("Unexpected error: %s", err)
+		}
+
+		b := &bundle.Bundle{
+			Manifest: bundle.Manifest{
+				Roots:    &[]string{"a", "b/c"},
+				Revision: "123",
+			},
+			Data: map[string]interface{}{
+				"a": map[string]interface{}{
+					"b": []int{4, 5, 6},
+				},
+			},
+			Modules: []bundle.ModuleFile{
+				{
+					URL:    path.Join(bundleFile, "policy.rego"),
+					Path:   "/policy.rego",
+					Raw:    []byte(mod),
+					Parsed: ast.MustParseModule(mod),
+				},
+			},
+		}
+
+		err = bundle.Write(f, *b)
+		f.Close()
+		if err != nil {
+			t.Fatalf("Unexpected error: %s", err)
+		}
+
+		bl, isDir, err := GetBundleDirectoryLoader(bundleFile)
+		if err != nil {
+			t.Fatalf("Unexpected error: %s", err)
+		}
+
+		if isDir {
+			t.Fatal("Expected bundle to be gzipped tarball but got directory")
+		}
+
+		// check files
+		result := []string{}
+		for {
+			f, err := bl.NextFile()
+			if err == io.EOF {
+				break
+			}
+
+			if err != nil {
+				t.Fatalf("Unexpected error: %s", err)
+			}
+
+			result = append(result, f.Path())
+		}
+
+		if len(result) != 3 {
+			t.Fatalf("Expected 3 files in the bundle but got %v", len(result))
 		}
 	})
 }

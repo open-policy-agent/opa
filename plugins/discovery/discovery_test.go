@@ -104,7 +104,8 @@ func TestProcessBundle(t *testing.T) {
 			"default": {
 				"url": "http://localhost:8181"
 			}
-		}
+		},
+		"discovery": {"name": "config"}
 	}`), "test-id", inmem.New())
 	if err != nil {
 		t.Fatal(err)
@@ -120,7 +121,12 @@ func TestProcessBundle(t *testing.T) {
 		}
 	`)
 
-	ps, err := processBundle(ctx, manager, nil, initialBundle, "data.config", "default", nil)
+	disco, err := New(manager)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ps, err := disco.processBundle(ctx, initialBundle)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -139,7 +145,7 @@ func TestProcessBundle(t *testing.T) {
 		}
 	`)
 
-	ps, err = processBundle(ctx, manager, nil, updatedBundle, "data.config", "default", nil)
+	ps, err = disco.processBundle(ctx, updatedBundle)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -156,7 +162,7 @@ func TestProcessBundle(t *testing.T) {
 		}
 	`)
 
-	_, err = processBundle(ctx, manager, nil, updatedBundle, "data.config", "default", nil)
+	_, err = disco.processBundle(ctx, updatedBundle)
 	if err == nil {
 		t.Fatal("Expected error but got success")
 	}
@@ -286,6 +292,17 @@ func TestReconfigureWithUpdates(t *testing.T) {
 			}
 		},
 		"discovery": {"name": "config"},
+		"keys": {
+			"global_key": {
+				"key": "secret",
+				"algorithm": "HS256",
+				"scope": "read"
+			},
+			"local_key": {
+				"key": "some_private_key",
+				"scope": "write"
+			}
+		}
 	}`), "test-id", inmem.New())
 	if err != nil {
 		t.Fatal(err)
@@ -493,6 +510,132 @@ func TestReconfigureWithUpdates(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unexpected error %v", err)
 	}
+
+	// add a new key
+	updatedBundle = makeDataBundle(9, `
+		{
+			"config": {
+				"keys": {
+					"new_global_key": {
+						"key": "secret",
+						"algorithm": "HS256",
+						"scope": "read"
+					}
+				}
+			}
+		}
+	`)
+
+	err = disco.reconfigure(ctx, download.Update{Bundle: updatedBundle})
+	if err != nil {
+		t.Fatalf("Unexpected error %v", err)
+	}
+
+	// update a key in the boot config
+	updatedBundle = makeDataBundle(10, `
+		{
+			"config": {
+				"keys": {
+					"global_key": {
+						"key": "new_secret",
+						"algorithm": "HS256",
+						"scope": "read"
+					}
+				}
+			}
+		}
+	`)
+
+	err = disco.reconfigure(ctx, download.Update{Bundle: updatedBundle})
+	if err == nil {
+		t.Fatal("Expected error but got nil")
+	}
+
+	errMsg := "updates to keys specified in the boot configuration are not allowed"
+	if err.Error() != errMsg {
+		t.Fatalf("Expected error message: %v but got: %v", errMsg, err.Error())
+	}
+
+	// no config change for a key in the boot config
+	updatedBundle = makeDataBundle(11, `
+		{
+			"config": {
+				"keys": {
+					"global_key": {
+						"key": "secret",
+						"algorithm": "HS256",
+						"scope": "read"
+					}
+				}
+			}
+		}
+	`)
+
+	err = disco.reconfigure(ctx, download.Update{Bundle: updatedBundle})
+	if err != nil {
+		t.Fatalf("Unexpected error %v", err)
+	}
+
+	// update a key not in the boot config
+	updatedBundle = makeDataBundle(12, `
+		{
+			"config": {
+				"keys": {
+					"new_global_key": {
+						"key": "secret",
+						"algorithm": "HS256",
+						"scope": "write"
+					}
+				}
+			}
+		}
+	`)
+
+	err = disco.reconfigure(ctx, download.Update{Bundle: updatedBundle})
+	if err != nil {
+		t.Fatalf("Unexpected error %v", err)
+	}
+}
+
+func TestProcessBundleWithSigning(t *testing.T) {
+
+	ctx := context.Background()
+
+	manager, err := plugins.New([]byte(`{
+		"labels": {"x": "y"},
+		"services": {
+			"localhost": {
+				"url": "http://localhost:9999"
+			}
+		},
+		"discovery": {"name": "config", "signing": {"keyid": "my_global_key"}},
+		"keys": {"my_global_key": {"algorithm": "HS256", "key": "secret"}},
+	}`), "test-id", inmem.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	disco, err := New(manager)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	initialBundle := makeDataBundle(1, `
+		{
+			"config": {
+				"bundle": {"name": "test1"},
+				"status": {},
+				"decision_logs": {},
+				"keys": {"my_local_key": {"algorithm": "HS256", "key": "new_secret"}}
+			}
+		}
+	`)
+
+	_, err = disco.processBundle(ctx, initialBundle)
+	if err != nil {
+		t.Fatalf("Unexpected error %v", err)
+	}
+
 }
 
 type testServer struct {

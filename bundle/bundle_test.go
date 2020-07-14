@@ -8,6 +8,8 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
+	"fmt"
+
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -125,6 +127,273 @@ func TestReadWithManifestInData(t *testing.T) {
 	}
 }
 
+func TestReadWithSignaturesSkipVerify(t *testing.T) {
+	signedBadTokenHS256 := `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmaWxlcyI6W3sibmFtZSI6Ii5tYW5pZmVzdCIsImhhc2giOiI2MDdhMmMzOGExNDQxZGI1OGQyY2I4Nzk4MmM0MmFhOTFhNDM0MmVmNDIyYTZiNTQyZWRkZWJlZWY2ZjA0MTJmIiwiYWxnb3JpdGhtIjoiU0hBLTI1NiJ9LHsibmFtZSI6ImEvYi9jL2RhdGEuanNvbiIsImhhc2giOiI0MmNmZTY3NjhiNTdiYjVmNzUwM2MxNjVjMjhkZDA3YWM1YjgxMzU1NGViYzg1MGYyY2MzNTg0M2U3MTM3YjFkIiwiYWxnb3JpdGhtIjoiU0hBLTI1NiJ9LHsibmFtZSI6Imh0dHAvcG9saWN5L3BvbGljeS5yZWdvIiwiaGFzaCI6ImE2MTVlZWFlZTIxZGU1MTc5ZGUwODBkZThjMzA1MmM4ZGE5MDExMzg0MDZiYTcxYzM4YzAzMjg0NWY3ZDU0ZjQiLCJhbGdvcml0aG0iOiJTSEEtMjU2In1dLCJpYXQiOjE1OTIyNDgwMjcsImlzcyI6IkpXVFNlcnZpY2UiLCJrZXlpZCI6ImZvbyIsInNjb3BlIjoid3JpdGUifQ.sQTuw9tBp6DvvQG-MXSxTzJA3hSnKYxjX5fnxiR22JA`
+
+	files := [][2]string{
+		{"/.manifest", `{"revision": "quickbrownfaux"}`},
+		{"/.signatures.json", fmt.Sprintf(`{"signatures": ["%v"]}`, signedBadTokenHS256)},
+		{"/a/b/c/data.json", "[1,2,3]"},
+		{"/http/policy/policy.rego", `package example`},
+	}
+
+	vc := NewVerificationConfig(map[string]*KeyConfig{"foo": {Key: "secret", Algorithm: "HS256"}}, "", "write", nil)
+
+	buf := archive.MustWriteTarGz(files)
+
+	loader := NewTarballLoaderWithBaseURL(buf, "/foo/bar")
+	reader := NewCustomReader(loader).WithBaseDir("/foo/bar").WithBundleVerificationConfig(vc).WithSkipBundleVerification(true)
+	_, err := reader.Read()
+	if err != nil {
+		t.Fatalf("Unexpected error %v", err)
+	}
+}
+
+func TestReadWithSignatures(t *testing.T) {
+
+	signedTokenHS256 := `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmaWxlcyI6W3sibmFtZSI6Ii5tYW5pZmVzdCIsImhhc2giOiI1MDdhMmMzOGExNDQxZGI1OGQyY2I4Nzk4MmM0MmFhOTFhNDM0MmVmNDIyYTZiNTQyZWRkZWJlZWY2ZjA0MTJmIiwiYWxnb3JpdGhtIjoiU0hBLTI1NiJ9LHsibmFtZSI6ImEvYi9jL2RhdGEuanNvbiIsImhhc2giOiI0MmNmZTY3NjhiNTdiYjVmNzUwM2MxNjVjMjhkZDA3YWM1YjgxMzU1NGViYzg1MGYyY2MzNTg0M2U3MTM3YjFkIiwiYWxnb3JpdGhtIjoiU0hBLTI1NiJ9LHsibmFtZSI6Imh0dHAvcG9saWN5L3BvbGljeS5yZWdvIiwiaGFzaCI6ImE2MTVlZWFlZTIxZGU1MTc5ZGUwODBkZThjMzA1MmM4ZGE5MDExMzg0MDZiYTcxYzM4YzAzMjg0NWY3ZDU0ZjQiLCJhbGdvcml0aG0iOiJTSEEtMjU2In1dLCJpYXQiOjE1OTIyNDgwMjcsImlzcyI6IkpXVFNlcnZpY2UiLCJrZXlpZCI6ImZvbyIsInNjb3BlIjoid3JpdGUifQ.dQ-ojK0xW3RtnGwT29lVevZIXEMXqVKMazSKlAGIdII`
+	otherSignedTokenHS256 := `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmaWxlcyI6W3sibmFtZSI6ImEvYi9jL2RhdGEuanNvbiIsImhhc2giOiJmOWNhYzA3MTQ3MDVkMjBkMWEyMDg4MDE4NWNkZWQ2ZTBmNmQwNDA2NjJkMmViYjA5NjFkM2Q5ZjMxN2Q4YWNiIn1dLCJpYXQiOjE1OTIyNDgwMjcsImlzcyI6IkpXVFNlcnZpY2UiLCJrZXlpZCI6ImZvbyIsInNjb3BlIjoid3JpdGUifQ.0CiL8qnOShUsMrmQCTPJUeB6dvMOhhgx1uNdhRP84lA`
+
+	tests := map[string]struct {
+		files   [][2]string
+		vc      *VerificationConfig
+		wantErr bool
+		err     error
+	}{
+		"no_signature_verification_config": {
+			[][2]string{{"/.signatures.json", `{"signatures": []}`}},
+			nil,
+			true, fmt.Errorf("verification key not provided"),
+		},
+		"no_signatures_file": {
+			[][2]string{{"/.manifest", `{"revision": "quickbrownfaux"}`}},
+			NewVerificationConfig(map[string]*KeyConfig{}, "", "", nil),
+			true, fmt.Errorf("bundle missing .signatures.json file"),
+		},
+		"no_signatures": {
+			[][2]string{{"/.signatures.json", `{"signatures": []}`}},
+			NewVerificationConfig(map[string]*KeyConfig{}, "", "", nil),
+			true, fmt.Errorf(".signatures.json: missing JWT (expected exactly one)"),
+		},
+		"digest_mismatch": {
+			[][2]string{
+				{"/.signatures.json", fmt.Sprintf(`{"signatures": ["%v"]}`, signedTokenHS256)},
+				{"/a/b/c/data.json", "[1,2,3]"},
+				{"/.manifest", `{"revision": "quickbrownfaux"}`},
+			},
+			NewVerificationConfig(map[string]*KeyConfig{"foo": {Key: "secret", Algorithm: "HS256"}}, "", "write", nil),
+			true, fmt.Errorf("a/b/c/data.json: digest mismatch (want: 42cfe6768b57bb5f7503c165c28dd07ac5b813554ebc850f2cc35843e7137b1d, got: a615eeaee21de5179de080de8c3052c8da901138406ba71c38c032845f7d54f4)"),
+		},
+		"no_hashing_alg": {
+			[][2]string{
+				{"/.signatures.json", fmt.Sprintf(`{"signatures": ["%v"]}`, otherSignedTokenHS256)},
+				{"/a/b/c/data.json", "[1,2,3]"},
+			},
+			NewVerificationConfig(map[string]*KeyConfig{"foo": {Key: "secret", Algorithm: "HS256"}}, "", "write", nil),
+			true, fmt.Errorf("no hashing algorithm provided for file a/b/c/data.json"),
+		},
+		"exclude_files": {
+			[][2]string{
+				{"/.signatures.json", fmt.Sprintf(`{"signatures": ["%v"]}`, signedTokenHS256)},
+				{"/.manifest", `{"revision": "quickbrownfaux"}`},
+				{"/a/b/c/data.json", "[1,2,3]"},
+				{"/http/policy/policy.rego", `package example`},
+			},
+			NewVerificationConfig(map[string]*KeyConfig{"foo": {Key: "secret", Algorithm: "HS256"}}, "", "write", []string{".*", "a/b/c/data.json", "http/policy/policy.rego"}),
+			false, nil,
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+
+			buf := archive.MustWriteTarGz(tc.files)
+			reader := NewReader(buf).WithBundleVerificationConfig(tc.vc)
+			_, err := reader.Read()
+
+			if tc.wantErr {
+				if err == nil {
+					t.Fatal("Expected error but got nil")
+				}
+
+				if tc.err != nil && tc.err.Error() != err.Error() {
+					t.Fatalf("Expected error message %v but got %v", tc.err.Error(), err.Error())
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("Unexpected error %v", err)
+				}
+			}
+		})
+	}
+}
+
+func TestReadWithSignaturesWithBaseDir(t *testing.T) {
+	signedTokenHS256 := `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmaWxlcyI6W3sibmFtZSI6ImZvby9iYXIvLm1hbmlmZXN0IiwiaGFzaCI6IjUwN2EyYzM4YTE0NDFkYjU4ZDJjYjg3OTgyYzQyYWE5MWE0MzQyZWY0MjJhNmI1NDJlZGRlYmVlZjZmMDQxMmYiLCJhbGdvcml0aG0iOiJTSEEtMjU2In0seyJuYW1lIjoiZm9vL2Jhci9hL2IvYy9kYXRhLmpzb24iLCJoYXNoIjoiYTYxNWVlYWVlMjFkZTUxNzlkZTA4MGRlOGMzMDUyYzhkYTkwMTEzODQwNmJhNzFjMzhjMDMyODQ1ZjdkNTRmNCIsImFsZ29yaXRobSI6IlNIQS0yNTYifSx7Im5hbWUiOiJmb28vYmFyL2h0dHAvcG9saWN5L3BvbGljeS5yZWdvIiwiaGFzaCI6ImY2NjQ0NjFlMzAzYjM3YzIwYzVlMGJlMjkwMDg4MTY3OGNkZjhlODYwYWE0MzNhNWExNGQ0OTRiYTNjNjY2NDkiLCJhbGdvcml0aG0iOiJTSEEtMjU2In1dLCJpYXQiOjE1OTIyNDgwMjcsImlzcyI6IkpXVFNlcnZpY2UiLCJrZXlpZCI6ImZvbyIsInNjb3BlIjoid3JpdGUifQ.OKnnl06TeW8PYB9xzLzZiFWQXu6i0Lns2xJjQ3da3X0`
+
+	files := [][2]string{
+		{"/.manifest", `{"revision": "quickbrownfaux"}`},
+		{"/.signatures.json", fmt.Sprintf(`{"signatures": ["%v"]}`, signedTokenHS256)},
+		{"/a/b/c/data.json", "[1,2,3]"},
+		{"/http/policy/policy.rego", `package example`},
+	}
+
+	vc := NewVerificationConfig(map[string]*KeyConfig{"foo": {Key: "secret", Algorithm: "HS256"}}, "", "write", nil)
+
+	buf := archive.MustWriteTarGz(files)
+
+	loader := NewTarballLoaderWithBaseURL(buf, "/foo/bar")
+	reader := NewCustomReader(loader).WithBaseDir("/foo/bar").WithBundleVerificationConfig(vc)
+	_, err := reader.Read()
+	if err != nil {
+		t.Fatalf("Unexpected error %v", err)
+	}
+}
+
+func TestReadWithSignaturesExtraFiles(t *testing.T) {
+	signedTokenHS256 := `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmaWxlcyI6W3sibmFtZSI6Ii5tYW5pZmVzdCIsImhhc2giOiI1MDdhMmMzOGExNDQxZGI1OGQyY2I4Nzk4MmM0MmFhOTFhNDM0MmVmNDIyYTZiNTQyZWRkZWJlZWY2ZjA0MTJmIiwiYWxnb3JpdGhtIjoiU0hBLTI1NiJ9LHsibmFtZSI6ImEvYi9jL2RhdGEuanNvbiIsImhhc2giOiI0MmNmZTY3NjhiNTdiYjVmNzUwM2MxNjVjMjhkZDA3YWM1YjgxMzU1NGViYzg1MGYyY2MzNTg0M2U3MTM3YjFkIiwiYWxnb3JpdGhtIjoiU0hBLTI1NiJ9LHsibmFtZSI6Imh0dHAvcG9saWN5L3BvbGljeS5yZWdvIiwiaGFzaCI6ImE2MTVlZWFlZTIxZGU1MTc5ZGUwODBkZThjMzA1MmM4ZGE5MDExMzg0MDZiYTcxYzM4YzAzMjg0NWY3ZDU0ZjQiLCJhbGdvcml0aG0iOiJTSEEtMjU2In1dLCJpYXQiOjE1OTIyNDgwMjcsImlzcyI6IkpXVFNlcnZpY2UiLCJrZXlpZCI6ImZvbyIsInNjb3BlIjoid3JpdGUifQ.dQ-ojK0xW3RtnGwT29lVevZIXEMXqVKMazSKlAGIdII`
+
+	files := [][2]string{
+		{"/.manifest", `{"revision": "quickbrownfaux"}`},
+		{"/.signatures.json", fmt.Sprintf(`{"signatures": ["%v"]}`, signedTokenHS256)},
+	}
+
+	vc := NewVerificationConfig(map[string]*KeyConfig{"foo": {Key: "secret", Algorithm: "HS256"}}, "", "write", nil)
+
+	buf := archive.MustWriteTarGz(files)
+	reader := NewReader(buf).WithBundleVerificationConfig(vc)
+	_, err := reader.Read()
+	if err == nil {
+		t.Fatal("Expected error but got nil")
+	}
+
+	expected := []string{
+		"file(s) [a/b/c/data.json http/policy/policy.rego] specified in bundle signatures but not found in the target bundle",
+		"file(s) [http/policy/policy.rego a/b/c/data.json] specified in bundle signatures but not found in the target bundle",
+	}
+
+	var found bool
+	if err.Error() == expected[0] || err.Error() == expected[1] {
+		found = true
+	}
+
+	if !found {
+		t.Fatalf("Expected error message to be one of %v but got %v", expected, err.Error())
+	}
+}
+
+func TestVerifyBundleFileHash(t *testing.T) {
+	// add files to the bundle and reader
+	// compare the hash the for target files
+	files := [][2]string{
+		{"/.manifest", `{"revision": "quickbrownfaux"}`},
+		{"/a/b/c/data.json", "[1,2,3]"},
+		{"/a/b/d/data.json", "true"},
+		{"/a/b/y/data.yaml", `foo: 1`},
+		{"/example/example.rego", `package example`},
+		{"/policy.wasm", `modules-compiled-as-wasm-binary`},
+		{"/data.json", `{"x": {"y": true}, "a": {"b": {"z": true}}}}`},
+	}
+
+	buf := archive.MustWriteTarGz(files)
+	reader := NewReader(buf)
+	reader.files = map[string]FileInfo{}
+
+	expDigests := make([]string, len(files))
+	expDigests[0] = "a005c38a509dc2d5a7407b9494efb2ad"
+	expDigests[1] = "60f7b5dc86ded48785436192a08dbfd04894d7f1b417c4f8d3714679a7f78cb3c833f16a8559a1cf1f32968747dc1d95ef34826263dacf125ded8f5c374be4c0"
+	expDigests[2] = "b326b5062b2f0e69046810717534cb09"
+	expDigests[3] = "20f27a640a233e6524fe7d138898583cd43475724806feb26be7f214e1d10b29edf6a0d3cb08f82107a45686b61b8fdabab6406cf4e70efe134f42238dbd70ab"
+	expDigests[4] = "ceecc199d432a4eeae305914ea4816cb"
+	expDigests[5] = "4f73765168fd8b5c294b739436da312cc5e979faf09f67bf576d36ea79a4f79c70cbb3c33d06ff65f531a9f42abd0a8f4daacc554cb521837e876dc28f56ce89"
+	expDigests[6] = "36669864a622563256817033b1fc53db"
+
+	// populate the files on the reader
+	// this simulates the files seen by the reader after
+	// decoding the signatures in the "signatures.json" file
+	for i, f := range files {
+		file := FileInfo{
+			Name: f[0],
+			Hash: expDigests[i],
+		}
+
+		if i%2 == 0 {
+			file.Algorithm = MD5.String()
+		} else {
+			file.Algorithm = SHA512.String()
+		}
+
+		reader.files[f[0]] = file
+	}
+
+	for _, f := range files {
+		buf := bytes.NewBufferString(f[1])
+		err := reader.verifyBundleFile(f[0], *buf)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// check there are no files left on the reader
+	if len(reader.files) != 0 {
+		t.Fatalf("Expected no files on the reader but got %v", len(reader.files))
+	}
+}
+
+func TestIsFileExcluded(t *testing.T) {
+	cases := []struct {
+		note    string
+		file    string
+		pattern []string
+		exp     bool
+	}{
+		{
+			note:    "exact",
+			file:    "data.json",
+			pattern: []string{"data.json"},
+			exp:     true,
+		},
+		{
+			note:    "hidden",
+			file:    ".manifest",
+			pattern: []string{".*"},
+			exp:     true,
+		},
+		{
+			note:    "no_match",
+			file:    "data.json",
+			pattern: []string{".*"},
+			exp:     false,
+		},
+		{
+			note:    "dir_match",
+			file:    "/a/b/data.json",
+			pattern: []string{"/a/b/*"},
+			exp:     true,
+		},
+		{
+			note:    "dir_no_match",
+			file:    "/a/b/c/data.json",
+			pattern: []string{"/a/b/*"},
+			exp:     false,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+
+			buf := archive.MustWriteTarGz([][2]string{})
+			vc := NewVerificationConfig(map[string]*KeyConfig{}, "", "", tc.pattern)
+			reader := NewReader(buf).WithBundleVerificationConfig(vc)
+			actual := reader.isFileExcluded(tc.file)
+
+			if actual != tc.exp {
+				t.Fatalf("Expected file exclude result for %v %v but got %v", tc.file, tc.exp, actual)
+			}
+		})
+	}
+}
+
 func TestReadRootValidation(t *testing.T) {
 	cases := []struct {
 		note  string
@@ -215,7 +484,6 @@ func TestReadRootValidation(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func TestRootPathsContain(t *testing.T) {
@@ -407,13 +675,19 @@ func TestRoundtrip(t *testing.T) {
 		},
 	}
 
+	if err := bundle.GenerateSignature(NewSigningConfig("secret", "HS256", ""), "foo", false); err != nil {
+		t.Fatal("Unexpected error:", err)
+	}
+
 	var buf bytes.Buffer
 
 	if err := NewWriter(&buf).Write(bundle); err != nil {
 		t.Fatal("Unexpected error:", err)
 	}
 
-	bundle2, err := NewReader(&buf).Read()
+	vc := NewVerificationConfig(map[string]*KeyConfig{"foo": {Key: "secret", Algorithm: "HS256"}}, "foo", "", nil)
+
+	bundle2, err := NewReader(&buf).WithBundleVerificationConfig(vc).Read()
 	if err != nil {
 		t.Fatal("Unexpected error:", err)
 	}
@@ -422,6 +696,9 @@ func TestRoundtrip(t *testing.T) {
 		t.Fatal("Exp:", bundle, "\n\nGot:", bundle2)
 	}
 
+	if !reflect.DeepEqual(bundle2.Signatures, bundle.Signatures) {
+		t.Fatal("Expected signatures to be same")
+	}
 }
 
 func TestWriterUsePath(t *testing.T) {
@@ -452,6 +729,168 @@ func TestWriterUsePath(t *testing.T) {
 
 	if bundle2.Modules[0].URL != "/path.rego" || bundle2.Modules[0].Path != "/path.rego" {
 		t.Fatal("expected module path to be used but got:", bundle2.Modules[0])
+	}
+}
+
+func TestGenerateSignature(t *testing.T) {
+	signatures := SignaturesConfig{Signatures: []string{"some_token"}}
+
+	bundle := Bundle{
+		Data: map[string]interface{}{
+			"foo": map[string]interface{}{
+				"bar": []interface{}{json.Number("1"), json.Number("2"), json.Number("3")},
+				"baz": true,
+				"qux": "hello",
+			},
+		},
+		Modules: []ModuleFile{
+			{
+				URL:    "/foo/corge/corge.rego",
+				Path:   "/foo/corge/corge.rego",
+				Parsed: ast.MustParseModule(`package foo.corge`),
+				Raw:    []byte("package foo.corge\n"),
+			},
+		},
+		Wasm: []byte("modules-compiled-as-wasm-binary"),
+		Manifest: Manifest{
+			Revision: "quickbrownfaux",
+		},
+		Signatures: signatures,
+	}
+
+	sc := NewSigningConfig("secret", "HS256", "")
+
+	err := bundle.GenerateSignature(sc, "", false)
+	if err != nil {
+		t.Fatal("Unexpected error:", err)
+	}
+
+	if reflect.DeepEqual(signatures, bundle.Signatures) {
+		t.Fatal("Expected signatures to be different")
+	}
+
+	current := bundle.Signatures
+	err = bundle.GenerateSignature(sc, "", false)
+	if err != nil {
+		t.Fatal("Unexpected error:", err)
+	}
+
+	if !reflect.DeepEqual(current, bundle.Signatures) {
+		t.Fatal("Expected signatures to be same")
+	}
+}
+
+func TestFormatModulesRaw(t *testing.T) {
+
+	bundle1 := Bundle{
+		Modules: []ModuleFile{
+			{
+				URL:    "/foo/corge/corge.rego",
+				Path:   "/foo/corge/corge.rego",
+				Parsed: ast.MustParseModule(`package foo.corge`),
+				Raw:    []byte("package foo.corge\n"),
+			},
+		},
+	}
+
+	bundle2 := Bundle{
+		Modules: []ModuleFile{
+			{
+				URL:    "/foo/corge/corge.rego",
+				Path:   "/foo/corge/corge.rego",
+				Parsed: ast.MustParseModule(`package foo.corge`),
+				Raw:    []byte("package foo.corge"),
+			},
+		},
+	}
+
+	tests := map[string]struct {
+		bundle Bundle
+		exp    bool
+	}{
+		"equal":     {bundle: bundle1, exp: true},
+		"not_equal": {bundle: bundle2, exp: false},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+
+			orig := tc.bundle.Modules[0].Raw
+			err := tc.bundle.FormatModules(false)
+			if err != nil {
+				t.Fatal("Unexpected error:", err)
+			}
+
+			actual := bytes.Equal(orig, tc.bundle.Modules[0].Raw)
+			if actual != tc.exp {
+				t.Fatalf("Expected result %v but got %v", tc.exp, actual)
+			}
+		})
+	}
+}
+
+func TestFormatModulesParsed(t *testing.T) {
+
+	bundle := Bundle{
+		Modules: []ModuleFile{
+			{
+				URL:    "/foo/corge/corge.rego",
+				Path:   "/foo/corge/corge.rego",
+				Parsed: ast.MustParseModule(`package foo.corge`),
+				Raw:    nil,
+			},
+		},
+	}
+
+	tests := map[string]struct {
+		bundle Bundle
+	}{
+		"parsed": {bundle: bundle},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+
+			err := tc.bundle.FormatModules(false)
+			if err != nil {
+				t.Fatal("Unexpected error:", err)
+			}
+
+			exp := []byte("package foo.corge\n")
+			if !bytes.Equal(tc.bundle.Modules[0].Raw, exp) {
+				t.Fatalf("Expected raw policy %v but got %v", exp, tc.bundle.Modules[0].Raw)
+			}
+		})
+	}
+}
+
+func TestHashBundleFiles(t *testing.T) {
+	h, _ := NewSignatureHasher(SHA256)
+
+	tests := map[string]struct {
+		data     map[string]interface{}
+		manifest Manifest
+		wasm     []byte
+		exp      int
+	}{
+		"no_content":                 {map[string]interface{}{}, Manifest{}, []byte{}, 2},
+		"data":                       {map[string]interface{}{"foo": "bar"}, Manifest{}, []byte{}, 2},
+		"data_and_manifest":          {map[string]interface{}{"foo": "bar"}, Manifest{Revision: "quickbrownfaux"}, []byte{}, 2},
+		"data_and_manifest_and_wasm": {map[string]interface{}{"foo": "bar"}, Manifest{Revision: "quickbrownfaux"}, []byte("modules-compiled-as-wasm-binary"), 3},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+
+			f, err := hashBundleFiles(h, tc.data, tc.manifest, tc.wasm)
+			if err != nil {
+				t.Fatal("Unexpected error:", err)
+			}
+
+			if len(f) != tc.exp {
+				t.Fatalf("Expected %v file(s) to be added to the signature but got %v", tc.exp, len(f))
+			}
+		})
 	}
 }
 

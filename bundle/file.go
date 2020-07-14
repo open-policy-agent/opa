@@ -2,6 +2,7 @@ package bundle
 
 import (
 	"archive/tar"
+	"bytes"
 	"compress/gzip"
 	"io"
 	"os"
@@ -136,6 +137,10 @@ func (d *dirLoader) NextFile() (*Descriptor, error) {
 
 	// Trim off the root directory and return path as if chrooted
 	cleanedPath := strings.TrimPrefix(fileName, d.root)
+	if d.root == "." && filepath.Base(fileName) == ManifestExt {
+		cleanedPath = fileName
+	}
+
 	if !strings.HasPrefix(cleanedPath, "/") {
 		cleanedPath = "/" + cleanedPath
 	}
@@ -148,6 +153,13 @@ type tarballLoader struct {
 	baseURL string
 	r       io.Reader
 	tr      *tar.Reader
+	files   []file
+	idx     int
+}
+
+type file struct {
+	name   string
+	reader io.Reader
 }
 
 // NewTarballLoader is deprecated. Use NewTarballLoaderWithBaseURL instead.
@@ -181,19 +193,43 @@ func (t *tarballLoader) NextFile() (*Descriptor, error) {
 		t.tr = tar.NewReader(gr)
 	}
 
-	for {
-		header, err := t.tr.Next()
-		// Eventually we will get an io.EOF error when finished
-		// iterating through the archive
-		if err != nil {
-			return nil, err
-		}
+	if t.files == nil {
+		t.files = []file{}
 
-		// Keep iterating on the archive until we find a normal file
-		if header.Typeflag == tar.TypeReg {
-			// no need to close this descriptor after reading
-			f := newDescriptor(path.Join(t.baseURL, header.Name), header.Name, t.tr)
-			return f, nil
+		for {
+			header, err := t.tr.Next()
+			if err == io.EOF {
+				break
+			}
+
+			if err != nil {
+				return nil, err
+			}
+
+			// Keep iterating on the archive until we find a normal file
+			if header.Typeflag == tar.TypeReg {
+				f := file{name: header.Name}
+
+				var buf bytes.Buffer
+				if _, err := io.Copy(&buf, t.tr); err != nil {
+					return nil, errors.Wrapf(err, "failed to copy file %s", header.Name)
+				}
+
+				f.reader = &buf
+
+				t.files = append(t.files, f)
+			}
 		}
 	}
+
+	// If done reading files then just return io.EOF
+	// errors for each NextFile() call
+	if t.idx >= len(t.files) {
+		return nil, io.EOF
+	}
+
+	f := t.files[t.idx]
+	t.idx++
+
+	return newDescriptor(path.Join(t.baseURL, f.name), f.name, f.reader), nil
 }
