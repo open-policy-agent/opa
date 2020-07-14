@@ -159,11 +159,8 @@ func getCertPool(tlsUseSystemCerts *bool, tlsCaCert []byte, tlsCaCertFile string
 	var useSysCerts = (tlsUseSystemCerts != nil && *tlsUseSystemCerts) ||
 		(!otherCertsSpecified && tlsUseSystemCerts == nil)
 
-<<<<<<< HEAD
 	var pool *x509.CertPool
-=======
-	var pool *x509.CertPool = nil
->>>>>>> 9fc1e3a535a605f30c45a2b2fd9a56dc6ff808e2
+
 	if useSysCerts {
 		syspool, err := x509.SystemCertPool()
 		if err != nil {
