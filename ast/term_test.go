@@ -425,10 +425,14 @@ func TestTermString(t *testing.T) {
 	assertToString(t, ArrayTerm().Value, "[]")
 	assertToString(t, ObjectTerm().Value, "{}")
 	assertToString(t, SetTerm().Value, "set()")
-	assertToString(t, ArrayTerm(ObjectTerm(Item(VarTerm("foo"), ArrayTerm(RefTerm(VarTerm("bar"), VarTerm("i"))))), StringTerm("foo"), SetTerm(BooleanTerm(true), NullTerm()), FloatNumberTerm(42.1)).Value, "[{foo: [bar[i]]}, \"foo\", {true, null}, 42.1]")
+	assertToString(t, ArrayTerm(ObjectTerm(Item(VarTerm("foo"), ArrayTerm(RefTerm(VarTerm("bar"), VarTerm("i"))))), StringTerm("foo"), SetTerm(BooleanTerm(true), NullTerm()), FloatNumberTerm(42.1)).Value, "[{foo: [bar[i]]}, \"foo\", {null, true}, 42.1]")
 	assertToString(t, ArrayComprehensionTerm(ArrayTerm(VarTerm("x")), NewBody(&Expr{Terms: RefTerm(VarTerm("a"), VarTerm("i"))})).Value, `[[x] | a[i]]`)
 	assertToString(t, ObjectComprehensionTerm(VarTerm("y"), ArrayTerm(VarTerm("x")), NewBody(&Expr{Terms: RefTerm(VarTerm("a"), VarTerm("i"))})).Value, `{y: [x] | a[i]}`)
 	assertToString(t, SetComprehensionTerm(ArrayTerm(VarTerm("x")), NewBody(&Expr{Terms: RefTerm(VarTerm("a"), VarTerm("i"))})).Value, `{[x] | a[i]}`)
+
+	// ensure that objects and sets have deterministic String() results
+	assertToString(t, SetTerm(VarTerm("y"), VarTerm("x")).Value, "{x, y}")
+	assertToString(t, ObjectTerm([2]*Term{VarTerm("y"), VarTerm("b")}, [2]*Term{VarTerm("x"), VarTerm("a")}).Value, "{x: a, y: b}")
 }
 
 func TestRefHasPrefix(t *testing.T) {
