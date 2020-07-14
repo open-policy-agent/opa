@@ -149,12 +149,51 @@ func canonicalizeHeaders(headers map[string]interface{}) map[string]interface{} 
 	return canonicalized
 }
 
-//useSystemCerts returns whether or not system certs should be added to the cert pool,
-//defaulting to true unless otherwise specified, or not specified and other certs are
-//supplied
-func useSystemCerts(tlsUseSystemCerts *bool, tlsCaCert []byte, tlsCaCertFile string, tlsCaCertEnvVar string) bool {
+//getCertPool returns a cert pool with the given cert file, env var
+//and speicfication for using the system certs (which defaults to true if none)
+//other supplied. Returns the configured cert pool or nil if adding to the pool errors
+func getCertPool(tlsUseSystemCerts *bool, tlsCaCert []byte, tlsCaCertFile string,
+	tlsCaCertEnvVar string) (*x509.CertPool, error) {
+
 	var otherCertsSpecified = len(tlsCaCert) != 0 || tlsCaCertFile != "" || tlsCaCertEnvVar != ""
-	return (tlsUseSystemCerts != nil && *tlsUseSystemCerts) || (!otherCertsSpecified && tlsUseSystemCerts == nil)
+	var useSysCerts = (tlsUseSystemCerts != nil && *tlsUseSystemCerts) ||
+		(!otherCertsSpecified && tlsUseSystemCerts == nil)
+
+	var pool *x509.CertPool = nil
+	if useSysCerts {
+		syspool, err := x509.SystemCertPool()
+		if err != nil {
+			return nil, err
+		}
+		pool = syspool
+	}
+
+	if len(tlsCaCert) != 0 {
+		tlsCaCert = bytes.Replace(tlsCaCert, []byte("\\n"), []byte("\n"), -1)
+		capool, err := addCACertsFromBytes(pool, []byte(tlsCaCert))
+		if err != nil {
+			return nil, err
+		}
+		pool = capool
+	}
+
+	if tlsCaCertFile != "" {
+		capool, err := addCACertsFromFile(pool, tlsCaCertFile)
+		if err != nil {
+			return nil, err
+		}
+		pool = capool
+	}
+
+	if tlsCaCertEnvVar != "" {
+		capool, err := addCACertsFromEnv(pool, tlsCaCertEnvVar)
+		if err != nil {
+			return nil, err
+		}
+		pool = capool
+	}
+
+	return pool, nil
 }
 
 func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) {
@@ -347,41 +386,15 @@ func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) 
 
 	// Check the system certificates config first so that we
 	// load additional certificated into the correct pool.
-	if useSystemCerts(tlsUseSystemCerts, tlsCaCert, tlsCaCertFile, tlsCaCertEnvVar) {
-		pool, err := x509.SystemCertPool()
-		if err != nil {
-			return nil, err
-		}
-		isTLS = true
-		tlsConfig.RootCAs = pool
+	pool, err := getCertPool(tlsUseSystemCerts, tlsCaCert, tlsCaCertFile, tlsCaCertEnvVar)
+
+	if err != nil {
+		return nil, err
 	}
 
-	if len(tlsCaCert) != 0 {
-		tlsCaCert = bytes.Replace(tlsCaCert, []byte("\\n"), []byte("\n"), -1)
-		pool, err := addCACertsFromBytes(tlsConfig.RootCAs, []byte(tlsCaCert))
-		if err != nil {
-			return nil, err
-		}
-		isTLS = true
+	if pool != nil {
 		tlsConfig.RootCAs = pool
-	}
-
-	if tlsCaCertFile != "" {
-		pool, err := addCACertsFromFile(tlsConfig.RootCAs, tlsCaCertFile)
-		if err != nil {
-			return nil, err
-		}
 		isTLS = true
-		tlsConfig.RootCAs = pool
-	}
-
-	if tlsCaCertEnvVar != "" {
-		pool, err := addCACertsFromEnv(tlsConfig.RootCAs, tlsCaCertEnvVar)
-		if err != nil {
-			return nil, err
-		}
-		isTLS = true
-		tlsConfig.RootCAs = pool
 	}
 
 	if isTLS {
