@@ -22,64 +22,6 @@ type wasmBuiltin struct {
 	WasmFunction string
 }
 
-// internalBuiltins are the built-in functions implemented in wasm.
-var internalBuiltins = map[string]wasmBuiltin{
-	ast.Plus.Name:            wasmBuiltin{ast.Plus, "opa_arith_plus"},
-	ast.Minus.Name:           wasmBuiltin{ast.Minus, "opa_arith_minus"},
-	ast.Multiply.Name:        wasmBuiltin{ast.Multiply, "opa_arith_multiply"},
-	ast.Divide.Name:          wasmBuiltin{ast.Divide, "opa_arith_divide"},
-	ast.Abs.Name:             wasmBuiltin{ast.Abs, "opa_arith_abs"},
-	ast.Round.Name:           wasmBuiltin{ast.Abs, "opa_arith_round"},
-	ast.Rem.Name:             wasmBuiltin{ast.Rem, "opa_arith_rem"},
-	ast.ArrayConcat.Name:     wasmBuiltin{ast.ArrayConcat, "opa_array_concat"},
-	ast.ArraySlice.Name:      wasmBuiltin{ast.ArraySlice, "opa_array_slice"},
-	ast.SetDiff.Name:         wasmBuiltin{ast.SetDiff, "opa_set_diff"},
-	ast.And.Name:             wasmBuiltin{ast.And, "opa_set_intersection"},
-	ast.Or.Name:              wasmBuiltin{ast.Or, "opa_set_union"},
-	ast.Intersection.Name:    wasmBuiltin{ast.Intersection, "opa_sets_intersection"},
-	ast.Union.Name:           wasmBuiltin{ast.Union, "opa_sets_union"},
-	ast.IsNumber.Name:        wasmBuiltin{ast.IsNumber, "opa_types_is_number"},
-	ast.IsString.Name:        wasmBuiltin{ast.IsString, "opa_types_is_string"},
-	ast.IsBoolean.Name:       wasmBuiltin{ast.IsBoolean, "opa_types_is_boolean"},
-	ast.IsArray.Name:         wasmBuiltin{ast.IsArray, "opa_types_is_array"},
-	ast.IsSet.Name:           wasmBuiltin{ast.IsSet, "opa_types_is_set"},
-	ast.IsObject.Name:        wasmBuiltin{ast.IsObject, "opa_types_is_object"},
-	ast.IsNull.Name:          wasmBuiltin{ast.IsNull, "opa_types_is_null"},
-	ast.TypeNameBuiltin.Name: wasmBuiltin{ast.TypeNameBuiltin, "opa_types_name"},
-	ast.BitsOr.Name:          wasmBuiltin{ast.BitsOr, "opa_bits_or"},
-	ast.BitsAnd.Name:         wasmBuiltin{ast.BitsAnd, "opa_bits_and"},
-	ast.BitsNegate.Name:      wasmBuiltin{ast.BitsNegate, "opa_bits_negate"},
-	ast.BitsXOr.Name:         wasmBuiltin{ast.BitsXOr, "opa_bits_xor"},
-	ast.BitsShiftLeft.Name:   wasmBuiltin{ast.BitsShiftLeft, "opa_bits_shiftleft"},
-	ast.BitsShiftRight.Name:  wasmBuiltin{ast.BitsShiftRight, "opa_bits_shiftright"},
-	ast.Count.Name:           wasmBuiltin{ast.Count, "opa_agg_count"},
-	ast.Sum.Name:             wasmBuiltin{ast.Sum, "opa_agg_sum"},
-	ast.Product.Name:         wasmBuiltin{ast.Product, "opa_agg_product"},
-	ast.Max.Name:             wasmBuiltin{ast.Max, "opa_agg_max"},
-	ast.Min.Name:             wasmBuiltin{ast.Min, "opa_agg_min"},
-	ast.Sort.Name:            wasmBuiltin{ast.Sort, "opa_agg_sort"},
-	ast.All.Name:             wasmBuiltin{ast.All, "opa_agg_all"},
-	ast.Any.Name:             wasmBuiltin{ast.Any, "opa_agg_any"},
-	ast.Concat.Name:          wasmBuiltin{ast.Concat, "opa_strings_concat"},
-	ast.FormatInt.Name:       wasmBuiltin{ast.FormatInt, "opa_strings_format_int"},
-	ast.IndexOf.Name:         wasmBuiltin{ast.IndexOf, "opa_strings_indexof"},
-	ast.Substring.Name:       wasmBuiltin{ast.Substring, "opa_strings_substring"},
-	ast.Lower.Name:           wasmBuiltin{ast.Lower, "opa_strings_lower"},
-	ast.Upper.Name:           wasmBuiltin{ast.Upper, "opa_strings_upper"},
-	ast.Contains.Name:        wasmBuiltin{ast.Contains, "opa_strings_contains"},
-	ast.StartsWith.Name:      wasmBuiltin{ast.StartsWith, "opa_strings_startswith"},
-	ast.EndsWith.Name:        wasmBuiltin{ast.EndsWith, "opa_strings_endswith"},
-	ast.Split.Name:           wasmBuiltin{ast.Split, "opa_strings_split"},
-	ast.Replace.Name:         wasmBuiltin{ast.Replace, "opa_strings_replace"},
-	ast.ReplaceN.Name:        wasmBuiltin{ast.ReplaceN, "opa_strings_replace_n"},
-	ast.Trim.Name:            wasmBuiltin{ast.Trim, "opa_strings_trim"},
-	ast.TrimLeft.Name:        wasmBuiltin{ast.TrimLeft, "opa_strings_trim_left"},
-	ast.TrimPrefix.Name:      wasmBuiltin{ast.TrimPrefix, "opa_strings_trim_prefix"},
-	ast.TrimRight.Name:       wasmBuiltin{ast.TrimRight, "opa_strings_trim_right"},
-	ast.TrimSuffix.Name:      wasmBuiltin{ast.TrimSuffix, "opa_strings_trim_suffix"},
-	ast.TrimSpace.Name:       wasmBuiltin{ast.TrimSpace, "opa_strings_trim_space"},
-}
-
 // Planner implements a query planner for Rego queries.
 type Planner struct {
 	policy    *ir.Policy              // result of planning
@@ -754,9 +696,6 @@ func (p *Planner) planExprCall(e *ast.Expr, iter planiter) error {
 				p.vars.GetOrEmpty(ast.InputRootDocument.Value.(ast.Var)),
 				p.vars.GetOrEmpty(ast.DefaultRootDocument.Value.(ast.Var)),
 			}
-		} else if decl, ok := internalBuiltins[operator]; ok {
-			arity = len(decl.Decl.Args())
-			name = decl.WasmFunction
 		} else if decl, ok := p.decls[operator]; ok {
 			arity = len(decl.Decl.Args())
 			name = operator

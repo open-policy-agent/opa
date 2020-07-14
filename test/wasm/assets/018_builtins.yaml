@@ -161,6 +161,9 @@ cases:
   - note: upper built-in
     query: upper("a",x)
     want_result: [{'x': "A"}]
+  - note: numbers.range built-in
+    query: numbers.range(10, 12, x)
+    want_result: [{'x': [10, 11, 12]}]
   - note: custom built-in
     query: x = custom_builtin_test(100)
     want_result: [{'x': 101}]

@@ -7,6 +7,7 @@
 #include "json.h"
 #include "malloc.h"
 #include "mpd.h"
+#include "numbers.h"
 #include "set.h"
 #include "str.h"
 #include "strings.h"
@@ -1671,4 +1672,28 @@ void test_strings(void)
     test("upper/AbCd", opa_value_compare(opa_strings_upper(opa_string_terminated("AbCd")), opa_string_terminated("ABCD")) == 0);
     test("upper/utf-8", opa_value_compare(opa_strings_upper(opa_string_terminated("\xc4\x81")), opa_string_terminated("\xc4\x80")) == 0);
     test("upper/utf-8", opa_value_compare(opa_strings_upper(opa_string_terminated("\xc6\x80")), opa_string_terminated("\xc9\x83")) == 0);
+}
+
+void test_numbers_range(void)
+{
+    opa_value *a = opa_number_int(10);
+    opa_value *b = opa_number_int(12);
+
+    opa_value *exp = opa_array();
+    opa_array_t *arr = opa_cast_array(exp);
+    opa_array_append(arr, opa_number_int(10));
+    opa_array_append(arr, opa_number_int(11));
+    opa_array_append(arr, opa_number_int(12));
+
+    test("number.range/ascending", opa_value_compare(opa_numbers_range(a, b), exp) == 0);
+
+    opa_value *reversed = opa_array();
+    arr = opa_cast_array(reversed);
+    opa_array_append(arr, opa_number_int(12));
+    opa_array_append(arr, opa_number_int(11));
+    opa_array_append(arr, opa_number_int(10));
+
+    test("numbers.range/descending", opa_value_compare(opa_numbers_range(b, a), reversed) == 0);
+    test("numbers.range/bad operand", opa_numbers_range(opa_string_terminated("foo"), opa_number_int(10)) == NULL);
+    test("numbers.range/bad operand", opa_numbers_range(opa_number_int(10), opa_string_terminated("foo")) == NULL);
 }
