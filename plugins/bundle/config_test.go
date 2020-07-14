@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/open-policy-agent/opa/bundle"
+
 	"github.com/ghodss/yaml"
 )
 
@@ -37,6 +39,10 @@ func TestConfigValidation(t *testing.T) {
 			input:   `{"name": "a/b/c", "service": "service2", "prefix": "/"}`,
 			wantErr: false,
 		},
+		{
+			input:   `{"name": "a/b/c", "service": "service2", "prefix": "/"}`,
+			wantErr: false,
+		},
 	}
 
 	for i, test := range tests {
@@ -54,7 +60,11 @@ func TestConfigValidation(t *testing.T) {
 
 func TestConfigValid(t *testing.T) {
 
-	in := `{"name": "a/b/c", "service": "service2", "prefix": "mybundle"}`
+	in := `{
+			"name": "a/b/c",
+			"service": "service2",
+			"prefix": "mybundle",
+	}`
 
 	config, err := ParseConfig([]byte(in), []string{"service1", "service2"})
 	if err != nil {
@@ -199,11 +209,23 @@ func TestParseAndValidateBundlesConfig(t *testing.T) {
 			services:  []string{"s1"},
 			wantError: true,
 		},
+		{
+			conf:      `{"b1":{"service": "s1", "signing": {"keyid": "foo", "scope": "write"}}}`,
+			services:  []string{"s1"},
+			wantError: false,
+		},
+		{
+			conf:      `{"b1":{"service": "s1", "signing": {"keyid": "bar", "scope": "write"}}}`,
+			services:  []string{"s1"},
+			wantError: true,
+		},
 	}
 
+	keys := map[string]*bundle.KeyConfig{"foo": {Key: "secret"}}
 	for i := range tests {
 		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
-			_, err := ParseBundlesConfig([]byte(tests[i].conf), tests[i].services)
+			_, err := NewConfigBuilder().WithBytes([]byte(tests[i].conf)).WithServices(tests[i].services).
+				WithKeyConfigs(keys).Parse()
 			if err != nil && !tests[i].wantError {
 				t.Fatalf("Unexpected error: %s", err)
 			}
@@ -211,6 +233,63 @@ func TestParseAndValidateBundlesConfig(t *testing.T) {
 				t.Fatalf("Expected an error but didn't get one")
 			}
 		})
+	}
+}
+
+func TestParseBundlesConfigWithSigning(t *testing.T) {
+	conf := []byte(`
+bundle.tar.gz:
+  service: s1
+b2:
+  service: s1
+  resource: /b2/path/
+b3:
+  service: s3
+  resource: /some/longer/path/bundle.tar.gz
+`)
+	services := []string{"s1", "s3"}
+	parsedConfig, err := NewConfigBuilder().WithBytes(conf).WithServices(services).Parse()
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+
+	if parsedConfig.Name != "" {
+		t.Fatalf("Expected config `Name` to be empty, actual: %s", parsedConfig.Name)
+	}
+
+	if len(parsedConfig.Bundles) != 3 {
+		t.Fatalf("Expected 3 bundles in parsed config, got: %+v", parsedConfig.Bundles)
+	}
+
+	expectedSources := map[string]struct {
+		service  string
+		resource string
+	}{
+		"bundle.tar.gz": {
+			service:  "s1",
+			resource: "bundles/bundle.tar.gz",
+		},
+		"b2": {
+			service:  "s1",
+			resource: "/b2/path/",
+		},
+		"b3": {
+			service:  "s3",
+			resource: "/some/longer/path/bundle.tar.gz",
+		},
+	}
+
+	for name, expected := range expectedSources {
+		actual, ok := parsedConfig.Bundles[name]
+		if !ok {
+			t.Fatalf("Expected to have bundle with name %s configured, actual: %+v", name, parsedConfig.Bundles)
+		}
+		if expected.resource != actual.Resource {
+			t.Errorf("Expected resource '%s', found '%s'", expected.resource, actual.Resource)
+		}
+		if expected.service != actual.Service {
+			t.Errorf("Expected service '%s', found '%s'", expected.service, actual.Service)
+		}
 	}
 }
 

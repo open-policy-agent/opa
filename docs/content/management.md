@@ -100,6 +100,9 @@ bundles:
     polling:
       min_delay_seconds: 10
       max_delay_seconds: 20
+    signing:
+      keyid: my_global_key
+      scope: read
 ```
 
 Using this configuration, OPA will fetch bundles from
@@ -121,6 +124,9 @@ Bundle names can have any valid YAML characters in them, including `/`. This can
 be useful when relying on default `resource` behavior with a name like
 `authz/bundle.tar.gz` which results in a `resource` of
 `bundles/authz/bundle.tar.gz`.
+
+The optional `bundles[_].signing` field can be used to specify the `keyid` and `scope` that should be used
+for verifying the signature of the bundle. See [this](#bundle-signature) section for details.
 
 See the following section for details on the bundle file format.
 
@@ -266,6 +272,143 @@ you intended and that they are structured correctly. For example:
 ```bash
 opa run bundle.tar.gz
 ```
+
+### Signing
+
+To ensure the integrity of policies (ie. the policies are coming from a trusted source), policy bundles may be
+digitally signed so that industry-standard cryptographic primitives can verify their authenticity.
+
+OPA supports digital signatures for policy bundles. Specifically, a signed bundle is a normal OPA bundle that includes
+a file named `.signatures.json` that dictates which files should be included in the bundle, what their SHA hashes are,
+and of course is cryptographically secure.
+
+When OPA receives a new bundle, it checks that it has been properly signed using a (public) key that OPA has been
+configured with out-of-band.  Only if that verification succeeds does OPA activate the new bundle; otherwise, OPA
+continues using its existing bundle and reports an activation failure via the status API and error logging.
+
+ > ⚠️ `opa run` performs bundle signature verification only when the `-b`/`--bundle` flag is given
+> or when Bundle downloading is enabled. Sub-commands primarily used in development and debug environments
+> (such as `opa eval`, `opa test`, etc.) DO NOT verify bundle signatures at this point in time.
+
+#### Signature Format
+
+Recall that a [policy bundle](#bundle-file-format) is a gzipped tarball that contains policies and data. A signed bundle
+differs from a normal bundle in that it has a `.signatures.json` file as well.
+
+```bash
+$ tar tzf bundle.tar.gz
+.manifest
+.signatures.json
+roles
+roles/bindings
+roles/bindings/data.json
+```
+
+The signatures file is a JSON file with an array of JSON Web Tokens (JWTs) that encapsulate the signatures for the bundle.
+Currently, you will be limited to one signature, as shown below. In the future, we may add support to include multiple
+signatures to sign different files within the bundle.
+
+```json
+{
+  "signatures": [ "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmaWxlcyI6W3sibmFtZSI6Ii5tYW5pZmVzdCIsImhhc2giOiJjMjEzMTU0NGM3MTZhMjVhNWUzMWY1MDQzMDBmNTI0MGU4MjM1Y2FkYjlhNTdmMGJkMWI2ZjRiZDc0YjI2NjEyIiwiYWxnb3JpdGhtIjoiU0hBMjU2In0seyJuYW1lIjoicm9sZXMvYmluZGluZ3MvZGF0YS5qc29uIiwiaGFzaCI6IjQyY2ZlNjc2OGI1N2JiNWY3NTAzYzE2NWMyOGRkMDdhYzViODEzNTU0ZWJjODUwZjJjYzM1ODQzZTcxMzdiMWQifV0sImlhdCI6MTU5MjI0ODAyNywiaXNzIjoiSldUU2VydmljZSIsImtleWlkIjoibXlQdWJsaWNLZXkiLCJzY29wZSI6IndyaXRlIn0.ZjtUgXC6USwmhv4XP9gFH6MzZwpZrGpAL_2sTK1P-mg"]
+}
+```
+
+The JWT when decoded has a JSON payload of the following form:
+
+```json
+{
+  "files": [
+    {
+      "name": ".manifest",
+      "hash": "c2131544c716a25a5e31f504300f5240e8235cadb9a57f0bd1b6f4bd74b26612",
+      "algorithm": "SHA-256"
+    },
+    {
+      "name": "roles/bindings/data.json",
+      "hash": "42cfe6768b57bb5f7503c165c28dd07ac5b813554ebc850f2cc35843e7137b1d"
+    }
+  ],
+  "iat": 1592248027,
+  "iss": "JWTService",
+  "keyid": "my_public_key",
+  "scope": "write"
+}
+```
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `files[_].name` | `string` | Yes | Path of a file in the bundle. |
+| `files[_].hash` | `string` | Yes | Output of the hashing algorithm applied to the file. |
+| `files[_].algorithm` | `string` | Yes | Name of the hashing algorithm. |
+| `keyid` | `string` | No | Name of the key to use for JWT signature verification. |
+| `scope` | `string` | No | Represents the fragment of signings. |
+| `iat` | `string` | No | Time of signature creation since epoch in seconds. For informational purposes only. |
+| `iss` | `string` | No | Identifies the issuer of the JWT. For informational purposes only. |
+
+> Note: OPA will first look for the `keyid` on the command-line. If the `keyid` is empty, OPA will look for it in it's
+> configuration. If `keyid` is still empty, OPA will finally look for it in the JWT payload.
+
+The following hashing algorithms are supported:
+
+    MD5
+    SHA-1
+    SHA-224
+    SHA-256
+    SHA-384
+    SHA-512
+    SHA-512-224
+    SHA-512-256
+
+To calculate the digest for unstructured files (ie. all files except JSON or YAML files), apply the hash
+function to the byte stream of the file.
+
+For structured files, read the byte stream and parse into a JSON structure; then recursively order the fields of all
+objects alphabetically and then apply the hash function to the result to compute the hash. This ensures
+that the digital signature is independent of whitespace and other non-semantic JSON features.
+
+To generate a `.signatures.json` file for policy and data files that will be part of a bundle, see the `opa sign` command.
+
+#### Signature Verification
+
+When OPA receives a policy bundle that doesn't include the `.signatures.json` file and the bundle is not configured to
+use a signature, OPA does not perform signature verification and activates the bundle just as it always has.
+
+If the actual bundle contains the `.signatures.json` file but the bundle is not configured to use a signature, verification fails.
+
+| `.signatures.json` exists | bundle configured to verify signature | verification performed | result |
+| --- | --- | --- | --- |
+| `no` | `no` | `no` | `NA` |
+| `no` | `yes` | `yes` | `fail` |
+| `yes` | `no` | `yes` | `fail` |
+| `yes` | `yes` | `yes` | `depends on the verification steps described below` |
+
+When OPA receives a signed bundle it opens the `.signatures.json` file, grabs the JWT and performs the following steps:
+
+* Verify the JWT signature with the appropriate public key
+
+* Verify that the JWT payload and target directory specify the same set of files
+
+* Verify the content of each file by checking the hash recorded in the JWT payload is the same as the hash generated
+for that file
+
+OPA activates the new bundle only if all the verification steps succeed; otherwise, it continues using its existing bundle
+and reports an activation failure via the status API and error logging.
+
+The signature verification process uses each of the fields in the JWT payload as follows:
+
+* `files`: This list of files must match exactly the files in the bundle, and for each file the hash of the file must match
+
+* `keyid`: If supplied, dictates which key (and algorithm) to use for verification. The actual key is supplied via
+OPA out-of-band
+
+* `scope`: If supplied, must match exactly the value provided out-of-band to OPA
+
+* `iat`: unused for verification
+
+* `iss`: unused for verification
+
+
 
 ## Decision Logs
 
@@ -737,7 +880,6 @@ This will dump all status updates through the OPA logging system at the `info` l
 
 ## Discovery
 
-
 OPA can be configured to download bundles of policy and data, report status, and
 upload decision logs to remote endpoints. The discovery feature helps you
 centrally manage the OPA configuration for these features. You should use the
@@ -796,6 +938,9 @@ discovery:
   name: example
   resource: /configuration/example/discovery.tar.gz
   service: acmecorp
+  signing:
+    keyid: my_global_key
+    scope: read
 ```
 
 Using the boot configuration above, OPA will fetch discovery bundles from:
@@ -812,6 +957,10 @@ endpoint. If only one service is defined, there is no need to set `discovery.ser
 
 > The `discovery.prefix` configuration option is still available but has been
   deprecated in favor of `discovery.resource`. It will eventually be removed.
+
+> The optional `discovery.signing` field can be used to specify the `keyid` and `scope` that should be used
+> for verifying the signature of the discovery bundle. See [this](#discovery-bundle-signature) section for details.
+
 
 OPA generates it's subsequent configuration by querying the Rego and JSON files
 contained inside the discovery bundle. The query is defined by the
@@ -1014,3 +1163,14 @@ immutable to avoid accidental configuration errors rendering OPA unable to disco
 If the discovered configuration changes the `discovery` or `labels` sections,
 those changes are ignored. If the discovered configuration changes the discovery service,
 an error will be logged.
+
+### Discovery Bundle Signature
+
+Like regular bundles, if the discovery bundle contains a `.signatures.json` file, OPA will verify the discovery
+bundle before activating it. The format of the `.signatures.json` file and the verification steps are same as that for
+regular bundles. Since the discovered configuration ignores changes to the `discovery` section, any key used for
+signature verification of a discovery bundle **CANNOT** be modified via discovery.
+
+> 🚨 We recommend that if you are using discovery you should be signing the discovery bundles because those bundles
+> include the keys used to verify the non-discovery bundles. However, OPA does not enforce that recommendation. You may use
+> unsigned discovery bundles that themselves require non-discovery bundles to be signed.

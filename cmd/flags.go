@@ -85,6 +85,38 @@ func addIgnoreFlag(fs *pflag.FlagSet, ignoreNames *[]string) {
 	fs.StringSliceVarP(ignoreNames, "ignore", "", []string{}, "set file and directory names to ignore during loading (e.g., '.*' excludes hidden files)")
 }
 
+func addSigningAlgFlag(fs *pflag.FlagSet, alg *string, value string) {
+	fs.StringVarP(alg, "signing-alg", "", value, "name of the signing algorithm")
+}
+
+func addClaimsFileFlag(fs *pflag.FlagSet, file *string) {
+	fs.StringVarP(file, "claims-file", "", "", "set path of JSON file containing optional claims (see: https://openpolicyagent.org/docs/latest/management/#bundle-signature-format)")
+}
+
+func addSigningKeyFlag(fs *pflag.FlagSet, key *string) {
+	fs.StringVarP(key, "signing-key", "", "", "set the secret (HMAC) or path of the PEM file containing the private key (RSA and ECDSA)")
+}
+
+func addVerificationKeyFlag(fs *pflag.FlagSet, key *string) {
+	fs.StringVarP(key, "verification-key", "", "", "set the secret (HMAC) or path of the PEM file containing the public key (RSA and ECDSA)")
+}
+
+func addVerificationKeyIDFlag(fs *pflag.FlagSet, keyID *string, value string) {
+	fs.StringVarP(keyID, "verification-key-id", "", value, "name assigned to the verification key used for bundle verification")
+}
+
+func addBundleVerificationScopeFlag(fs *pflag.FlagSet, scope *string) {
+	fs.StringVarP(scope, "scope", "", "", "scope to use for bundle signature verification")
+}
+
+func addBundleVerificationSkipFlag(fs *pflag.FlagSet, skip *bool, value bool) {
+	fs.BoolVarP(skip, "skip-verify", "", value, "disables bundle signature verification")
+}
+
+func addBundleVerificationExcludeFilesFlag(fs *pflag.FlagSet, excludeNames *[]string) {
+	fs.StringSliceVarP(excludeNames, "exclude-files-verify", "", []string{}, "set file names to exclude during bundle verification")
+}
+
 const (
 	explainModeOff   = "off"
 	explainModeFull  = "full"

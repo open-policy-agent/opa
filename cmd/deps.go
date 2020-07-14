@@ -90,7 +90,7 @@ func deps(args []string, params depsCommandParams) error {
 
 	if len(params.bundlePaths.v) > 0 {
 		for _, path := range params.bundlePaths.v {
-			b, err := loader.NewFileLoader().AsBundle(path)
+			b, err := loader.NewFileLoader().WithSkipBundleVerification(true).AsBundle(path)
 			if err != nil {
 				return err
 			}

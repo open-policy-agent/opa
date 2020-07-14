@@ -7,6 +7,8 @@ package init
 
 import (
 	"context"
+	"path/filepath"
+	"strings"
 
 	"github.com/pkg/errors"
 
@@ -89,9 +91,27 @@ type LoadPathsResult struct {
 	Files   loader.Result
 }
 
+// WalkPathsResult contains the output loading a set of paths.
+type WalkPathsResult struct {
+	BundlesLoader   []BundleLoader
+	FileDescriptors []*Descriptor
+}
+
+// BundleLoader contains information about files in a bundle
+type BundleLoader struct {
+	DirectoryLoader bundle.DirectoryLoader
+	IsDir           bool
+}
+
+// Descriptor contains information about a file
+type Descriptor struct {
+	Root string
+	Path string
+}
+
 // LoadPaths reads data and policy from the given paths and returns a set of bundles or
 // raw loader file results.
-func LoadPaths(paths []string, filter loader.Filter, asBundle bool) (*LoadPathsResult, error) {
+func LoadPaths(paths []string, filter loader.Filter, asBundle bool, bvc *bundle.VerificationConfig, skipVerify bool) (*LoadPathsResult, error) {
 
 	var result LoadPathsResult
 	var err error
@@ -99,7 +119,8 @@ func LoadPaths(paths []string, filter loader.Filter, asBundle bool) (*LoadPathsR
 	if asBundle {
 		result.Bundles = make(map[string]*bundle.Bundle, len(paths))
 		for _, path := range paths {
-			result.Bundles[path], err = loader.NewFileLoader().AsBundle(path)
+			result.Bundles[path], err = loader.NewFileLoader().WithBundleVerificationConfig(bvc).
+				WithSkipBundleVerification(skipVerify).AsBundle(path)
 			if err != nil {
 				return nil, err
 			}
@@ -113,6 +134,56 @@ func LoadPaths(paths []string, filter loader.Filter, asBundle bool) (*LoadPathsR
 	}
 
 	result.Files = *files
+
+	return &result, nil
+}
+
+// WalkPaths reads data and policy from the given paths and returns a set of bundle directory loaders
+// or descriptors that contain information about files.
+func WalkPaths(paths []string, filter loader.Filter, asBundle bool) (*WalkPathsResult, error) {
+
+	var result WalkPathsResult
+
+	if asBundle {
+		result.BundlesLoader = make([]BundleLoader, len(paths))
+		for i, path := range paths {
+			bundleLoader, isDir, err := loader.GetBundleDirectoryLoader(path)
+			if err != nil {
+				return nil, err
+			}
+
+			result.BundlesLoader[i] = BundleLoader{
+				DirectoryLoader: bundleLoader,
+				IsDir:           isDir,
+			}
+		}
+		return &result, nil
+	}
+
+	result.FileDescriptors = []*Descriptor{}
+	for _, path := range paths {
+		filePaths, err := loader.FilteredPaths([]string{path}, filter)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, fp := range filePaths {
+			// Trim off the root directory and return path as if chrooted
+			cleanedPath := strings.TrimPrefix(fp, path)
+			if path == "." && filepath.Base(fp) == bundle.ManifestExt {
+				cleanedPath = fp
+			}
+
+			if !strings.HasPrefix(cleanedPath, "/") {
+				cleanedPath = "/" + cleanedPath
+			}
+
+			result.FileDescriptors = append(result.FileDescriptors, &Descriptor{
+				Root: path,
+				Path: cleanedPath,
+			})
+		}
+	}
 
 	return &result, nil
 }

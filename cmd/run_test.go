@@ -16,7 +16,10 @@ func TestRunServerBase(t *testing.T) {
 	params := newTestRunParams()
 	ctx, cancel := context.WithCancel(context.Background())
 
-	rt := initRuntime(ctx, params, nil)
+	rt, err := initRuntime(ctx, params, nil)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
 	testRuntime := e2e.WrapRuntime(ctx, cancel, rt)
 
@@ -29,7 +32,7 @@ func TestRunServerBase(t *testing.T) {
 		done <- true
 	}()
 
-	err := testRuntime.WaitForServer()
+	err = testRuntime.WaitForServer()
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
@@ -45,7 +48,10 @@ func TestRunServerWithDiagnosticAddr(t *testing.T) {
 	params.rt.DiagnosticAddrs = &[]string{":0"}
 	ctx, cancel := context.WithCancel(context.Background())
 
-	rt := initRuntime(ctx, params, nil)
+	rt, err := initRuntime(ctx, params, nil)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
 	testRuntime := e2e.WrapRuntime(ctx, cancel, rt)
 
@@ -58,7 +64,7 @@ func TestRunServerWithDiagnosticAddr(t *testing.T) {
 		done <- true
 	}()
 
-	err := testRuntime.WaitForServer()
+	err = testRuntime.WaitForServer()
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
@@ -75,6 +81,23 @@ func TestRunServerWithDiagnosticAddr(t *testing.T) {
 
 	cancel()
 	<-done
+}
+
+func TestInitRuntimeVerifyNonBundle(t *testing.T) {
+
+	params := newTestRunParams()
+	params.pubKey = "secret"
+	params.serverMode = false
+
+	_, err := initRuntime(context.Background(), params, nil)
+	if err == nil {
+		t.Fatal("Expected error but got nil")
+	}
+
+	exp := "enable bundle mode (ie. --bundle) to verify bundle files or directories"
+	if err.Error() != exp {
+		t.Fatalf("expected error message %v but got %v", exp, err.Error())
+	}
 }
 
 func newTestRunParams() runCmdParams {

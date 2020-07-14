@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/open-policy-agent/opa/bundle"
+
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/download"
 	"github.com/open-policy-agent/opa/util"
@@ -15,38 +17,90 @@ import (
 
 // Config represents the configuration for the discovery feature.
 type Config struct {
-	download.Config         // bundle downloader configuration
-	Name            *string `json:"name"`               // name of the discovery bundle
-	Prefix          *string `json:"prefix,omitempty"`   // Deprecated: use `Resource` instead.
-	Decision        *string `json:"decision"`           // the name of the query to run on the bundle to get the config
-	Service         string  `json:"service"`            // the name of the service used to download discovery bundle from
-	Resource        *string `json:"resource,omitempty"` // the resource path which will be downloaded from the service
+	download.Config                            // bundle downloader configuration
+	Name            *string                    `json:"name"`               // name of the discovery bundle
+	Prefix          *string                    `json:"prefix,omitempty"`   // Deprecated: use `Resource` instead.
+	Decision        *string                    `json:"decision"`           // the name of the query to run on the bundle to get the config
+	Service         string                     `json:"service"`            // the name of the service used to download discovery bundle from
+	Resource        *string                    `json:"resource,omitempty"` // the resource path which will be downloaded from the service
+	Signing         *bundle.VerificationConfig `json:"signing,omitempty"`  // configuration used to verify a signed bundle
 
 	service string
 	path    string
 	query   string
 }
 
-// ParseConfig returns a valid Config object with defaults injected.
-func ParseConfig(bs []byte, services []string) (*Config, error) {
+// ConfigBuilder assists in the construction of the plugin configuration.
+type ConfigBuilder struct {
+	raw      []byte
+	services []string
+	keys     map[string]*bundle.KeyConfig
+}
 
-	if bs == nil {
+// NewConfigBuilder returns a new ConfigBuilder to build and parse the discovery config
+func NewConfigBuilder() *ConfigBuilder {
+	return &ConfigBuilder{}
+}
+
+// WithBytes sets the raw discovery config
+func (b *ConfigBuilder) WithBytes(config []byte) *ConfigBuilder {
+	b.raw = config
+	return b
+}
+
+// WithServices sets the services that implement control plane APIs
+func (b *ConfigBuilder) WithServices(services []string) *ConfigBuilder {
+	b.services = services
+	return b
+}
+
+// WithKeyConfigs sets the public keys to verify a signed bundle
+func (b *ConfigBuilder) WithKeyConfigs(keys map[string]*bundle.KeyConfig) *ConfigBuilder {
+	b.keys = keys
+	return b
+}
+
+// Parse returns a valid Config object with defaults injected.
+func (b *ConfigBuilder) Parse() (*Config, error) {
+	if b.raw == nil {
 		return nil, nil
 	}
 
 	var result Config
 
-	if err := util.Unmarshal(bs, &result); err != nil {
+	if err := util.Unmarshal(b.raw, &result); err != nil {
 		return nil, err
 	}
 
-	return &result, result.validateAndInjectDefaults(services)
+	return &result, result.validateAndInjectDefaults(b.services, b.keys)
 }
 
-func (c *Config) validateAndInjectDefaults(services []string) error {
+// ParseConfig returns a valid Config object with defaults injected.
+func ParseConfig(bs []byte, services []string) (*Config, error) {
+	return NewConfigBuilder().WithBytes(bs).WithServices(services).Parse()
+}
+
+func (c *Config) validateAndInjectDefaults(services []string, keys map[string]*bundle.KeyConfig) error {
 
 	if c.Name == nil {
 		return fmt.Errorf("missing required discovery.name field")
+	}
+
+	// make a copy of the keys map
+	copy := map[string]*bundle.KeyConfig{}
+	for key, kc := range keys {
+		copy[key] = kc
+	}
+
+	if c.Signing != nil {
+		err := c.Signing.ValidateAndInjectDefaults(copy)
+		if err != nil {
+			return fmt.Errorf("invalid configuration for discovery service %q: %s", *c.Name, err.Error())
+		}
+	} else {
+		if len(keys) > 0 {
+			c.Signing = bundle.NewVerificationConfig(copy, "", "", nil)
+		}
 	}
 
 	if c.Resource != nil {
@@ -62,7 +116,7 @@ func (c *Config) validateAndInjectDefaults(services []string) error {
 
 	service, err := c.getServiceFromList(c.Service, services)
 	if err != nil {
-		return fmt.Errorf("invalid configuration for decision service: %s", err.Error())
+		return fmt.Errorf("invalid configuration for discovery service: %s", err.Error())
 	}
 
 	c.service = service

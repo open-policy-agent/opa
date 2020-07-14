@@ -6,7 +6,10 @@ package init
 
 import (
 	"context"
+	"io"
+	"path"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/open-policy-agent/opa/storage"
@@ -115,7 +118,7 @@ p = true { 1 = 2 }`
 
 				err := storage.Txn(ctx, store, storage.WriteParams, func(txn storage.Transaction) error {
 
-					loaded, err := LoadPaths(paths, nil, tc.asBundle)
+					loaded, err := LoadPaths(paths, nil, tc.asBundle, nil, true)
 					if err != nil {
 						return err
 					}
@@ -176,4 +179,75 @@ p = true { 1 = 2 }`
 			})
 		})
 	}
+}
+
+func TestWalkPaths(t *testing.T) {
+	files := map[string]string{
+		"/bundle1/a/data.json":   `{"foo": "bar1", "x": {"y": {"z": [1]}}}`,
+		"/bundle1/a/policy.rego": `package example.foo`,
+		"/bundle1/a/.manifest":   `{"roots": ["a"]}`,
+		"/bundle2/b/data.json":   `{"foo": "bar2"}`,
+		"/bundle2/b/policy.rego": `package authz`,
+		"/bundle2/b/.manifest":   `{"roots": ["b"]}`,
+	}
+
+	test.WithTempFS(files, func(rootDir string) {
+
+		paths := []string{}
+		paths = append(paths, filepath.Join(rootDir, "bundle1"))
+		paths = append(paths, filepath.Join(rootDir, "bundle2"))
+
+		// bundle mode
+		loaded, err := WalkPaths(paths, nil, true)
+		if err != nil {
+			t.Fatalf("Unexpected error: %s", err)
+		}
+
+		if len(loaded.BundlesLoader) != len(paths) {
+			t.Fatalf("Expected %v bundle loaders but got %v", len(paths), len(loaded.BundlesLoader))
+		}
+
+		// check files
+		result := []string{}
+		for _, bl := range loaded.BundlesLoader {
+			for {
+				f, err := bl.DirectoryLoader.NextFile()
+				if err == io.EOF {
+					break
+				}
+
+				if err != nil {
+					t.Fatalf("Unexpected error: %s", err)
+				}
+
+				result = append(result, f.Path())
+
+				if _, ok := files[strings.TrimPrefix(f.URL(), rootDir)]; !ok {
+					t.Fatalf("unexpected file %v", f.Path())
+				}
+			}
+		}
+
+		if len(result) != len(files) {
+			t.Fatalf("Expected %v files across bundles but got %v", len(files), len(result))
+		}
+
+		// non-bundle mode
+		loaded, err = WalkPaths(paths, nil, false)
+		if err != nil {
+			t.Fatalf("Unexpected error: %s", err)
+		}
+
+		if len(loaded.FileDescriptors) != len(files) {
+			t.Fatalf("Expected %v files across directories but got %v", len(files), len(loaded.FileDescriptors))
+		}
+
+		for _, d := range loaded.FileDescriptors {
+			path := path.Join(d.Root, d.Path)
+			path = strings.TrimPrefix(path, rootDir)
+			if _, ok := files[path]; !ok {
+				t.Fatalf("unexpected file %v", path)
+			}
+		}
+	})
 }

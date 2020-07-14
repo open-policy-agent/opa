@@ -5,6 +5,19 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Features
+
+#### Bundle Signing
+
+OPA now support digital signatures for policy bundles. Specifically, a signed bundle is a normal OPA bundle that
+includes a file named ".signatures.json" that dictates which files should be included in the bundle, what their SHA
+hashes are, and of course is cryptographically secure. When OPA receives a new bundle, it checks that it has been
+properly signed using a (public) key that OPA has been configured with out-of-band. Only if that verification succeeds
+does OPA activate the new bundle; otherwise, OPA continues using its existing bundle and reports an activation
+failure via the status API and error logging. For more information see https://openpolicyagent.org/docs/latest/management/#signing.
+Thanks to @ashish246 who co-designed the feature and provided valuable input to the development process with his
+proof-of-concept [#1757](https://github.com/open-policy-agent/opa/issues/1757).
+
 ## 0.21.1
 
 This release fixes [#2497](https://github.com/open-policy-agent/opa/issues/2497) where the comprehension indexing optimization produced incorrect results for nested comprehensions that close over variables in the outer scope. This issue only affects policies containing nested comprehensions that are recognized by the indexer (which is a relatively small percentage).

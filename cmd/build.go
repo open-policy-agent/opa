@@ -12,21 +12,32 @@ import (
 	"os"
 	"strings"
 
+	"github.com/open-policy-agent/opa/bundle"
+
 	"github.com/spf13/cobra"
 
 	"github.com/open-policy-agent/opa/compile"
 	"github.com/open-policy-agent/opa/util"
 )
 
+const defaultPublicKeyID = "default"
+
 type buildParams struct {
-	target            *util.EnumFlag
-	bundleMode        bool
-	optimizationLevel int
-	entrypoints       repeatedStringFlag
-	outputFile        string
-	revision          string
-	ignore            []string
-	debug             bool
+	target             *util.EnumFlag
+	bundleMode         bool
+	optimizationLevel  int
+	entrypoints        repeatedStringFlag
+	outputFile         string
+	revision           string
+	ignore             []string
+	debug              bool
+	algorithm          string
+	key                string
+	scope              string
+	pubKey             string
+	pubKeyID           string
+	claimsFile         string
+	excludeVerifyFiles []string
 }
 
 func newBuildParams() buildParams {
@@ -96,7 +107,52 @@ The 'build' command supports targets (specified by -t):
 
 The -e flag tells the 'build' command which documents will be queried by the software
 asking for policy decisions, so that it can focus optimization efforts and ensure
-that document is not eliminated by the optimizer.`,
+that document is not eliminated by the optimizer.
+
+The 'build' command can be used to verify the signature of a signed bundle and
+also to generate a signature for the output bundle the command creates.
+
+If the directory path(s) provided to the 'build' command contain a ".signatures.json" file,
+it will attempt to verify the signatures included in that file. The bundle files
+or directory path(s) to verify must be specified using --bundle.
+
+For more information on the bundle verification process see
+https://www.openpolicyagent.org/docs/latest/management/#signature-verification.
+
+Example:
+
+	$ opa build --verification-key /path/to/public_key.pem --signing-key /path/to/private_key.pem --bundle foo
+
+Where foo has the following structure:
+
+	foo/
+	  |
+	  +-- bar/
+	  |     |
+	  |     +-- data.json
+	  |
+	  +-- policy.rego
+	  |
+	  +-- .manifest
+	  |
+	  +-- .signatures.json
+
+
+The 'build' command will verify the signatures using the public key provided by the --verification-key flag.
+The default signing algorithm is RS256 and the --signing-alg flag can be used to specify
+a different one. The --verification-key-id and --scope flags can be used to specify the name for the key
+provided using the --verification-key flag and scope to use for bundle signature verification respectively.
+
+If the verification succeeds, the 'build' command will write out an updated ".signatures.json" file
+to the output bundle. It will use the key specified by the --signing-key flag to sign
+the token in the ".signatures.json" file.
+
+To include additional claims in the payload use the --claims-file flag to provide a JSON file
+containing optional claims.
+
+For more information on the format of the ".signatures.json" file
+see https://www.openpolicyagent.org/docs/latest/management/#bundle-signature.
+`,
 		PreRunE: func(Cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
 				return fmt.Errorf("expected at least one path")
@@ -117,14 +173,37 @@ that document is not eliminated by the optimizer.`,
 	buildCommand.Flags().VarP(&buildParams.entrypoints, "entrypoint", "e", "set slash separated entrypoint path")
 	buildCommand.Flags().StringVarP(&buildParams.revision, "revision", "r", "", "set output bundle revision")
 	buildCommand.Flags().StringVarP(&buildParams.outputFile, "output", "o", "bundle.tar.gz", "set the output filename")
+
 	addBundleModeFlag(buildCommand.Flags(), &buildParams.bundleMode, false)
 	addIgnoreFlag(buildCommand.Flags(), &buildParams.ignore)
+
+	// bundle verification config
+	addVerificationKeyFlag(buildCommand.Flags(), &buildParams.pubKey)
+	addVerificationKeyIDFlag(buildCommand.Flags(), &buildParams.pubKeyID, defaultPublicKeyID)
+	addSigningAlgFlag(buildCommand.Flags(), &buildParams.algorithm, defaultTokenSigningAlg)
+	addBundleVerificationScopeFlag(buildCommand.Flags(), &buildParams.scope)
+	addBundleVerificationExcludeFilesFlag(buildCommand.Flags(), &buildParams.excludeVerifyFiles)
+
+	// bundle signing config
+	addSigningKeyFlag(buildCommand.Flags(), &buildParams.key)
+	addClaimsFileFlag(buildCommand.Flags(), &buildParams.claimsFile)
+
 	RootCommand.AddCommand(buildCommand)
 }
 
 func dobuild(params buildParams, args []string) error {
 
 	buf := bytes.NewBuffer(nil)
+
+	// generate the bundle verification and signing config
+	bvc := buildVerificationConfig(params.pubKey, params.pubKeyID, params.algorithm, params.scope, params.excludeVerifyFiles)
+	bsc := buildSigningConfig(params.key, params.algorithm, params.claimsFile)
+
+	if bvc != nil || bsc != nil {
+		if !params.bundleMode {
+			return fmt.Errorf("enable bundle mode (ie. --bundle) to verify or sign bundle files or directories")
+		}
+	}
 
 	compiler := compile.New().
 		WithTarget(params.target.String()).
@@ -134,7 +213,13 @@ func dobuild(params buildParams, args []string) error {
 		WithEntrypoints(params.entrypoints.v...).
 		WithPaths(args...).
 		WithFilter(buildCommandLoaderFilter(params.bundleMode, params.ignore)).
-		WithRevision(params.revision)
+		WithRevision(params.revision).
+		WithBundleVerificationConfig(bvc).
+		WithBundleSigningConfig(bsc)
+
+	if params.claimsFile == "" {
+		compiler = compiler.WithBundleVerificationKeyID(params.pubKeyID)
+	}
 
 	err := compiler.Build(context.Background())
 
@@ -168,6 +253,23 @@ func buildCommandLoaderFilter(bundleMode bool, ignore []string) func(string, os.
 		}
 		return loaderFilter{Ignore: ignore}.Apply(abspath, info, depth)
 	}
+}
+
+func buildVerificationConfig(pubKey, pubKeyID, alg, scope string, excludeFiles []string) *bundle.VerificationConfig {
+	if pubKey == "" {
+		return nil
+	}
+
+	keyConfig := bundle.NewKeyConfig(pubKey, alg, scope)
+	return bundle.NewVerificationConfig(map[string]*bundle.KeyConfig{pubKeyID: keyConfig}, pubKeyID, scope, excludeFiles)
+}
+
+func buildSigningConfig(key, alg, claimsFile string) *bundle.SigningConfig {
+	if key == "" {
+		return nil
+	}
+
+	return bundle.NewSigningConfig(key, alg, claimsFile)
 }
 
 func printdebug(w io.Writer, debug []compile.Debug) {
