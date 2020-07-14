@@ -1,0 +1,1 @@
+p = x { sprintf("hi %v", [2e308], x) }

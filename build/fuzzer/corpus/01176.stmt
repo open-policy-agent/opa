@@ -1,0 +1,1 @@
+p = x { json.unmarshal(data.a[0], x) }

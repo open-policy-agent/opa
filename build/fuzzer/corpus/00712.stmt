@@ -1,0 +1,1 @@
+p = [[x,y] | fixture.s[[x, y]]]

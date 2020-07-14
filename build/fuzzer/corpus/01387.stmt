@@ -1,0 +1,1 @@
+{"cert": "%s", "time": now}

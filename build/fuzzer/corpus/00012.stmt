@@ -1,0 +1,1 @@
+github.com/open-policy-agent/opa/storage/inmem

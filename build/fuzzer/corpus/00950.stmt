@@ -1,0 +1,1 @@
+p = x { is_number(false, x) }

@@ -1,0 +1,1 @@
+p = fixture.r[[fixture.foo[fixture.o.foo], 3]]

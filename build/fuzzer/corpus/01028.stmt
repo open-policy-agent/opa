@@ -1,0 +1,1 @@
+p = true { re_match("][", "foo[\"bar\"]") }

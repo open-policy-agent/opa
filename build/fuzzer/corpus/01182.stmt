@@ -1,0 +1,1 @@
+p { yaml.unmarshal("[1,2,3", _) } 

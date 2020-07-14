@@ -1,0 +1,1 @@
+p[x] { obj = {"a": {"x": 1, "y": 2}, "b": obj_ref_missing_key, "c": {"x": 2, "y": 2}}; obj[_] = {"x": x, "y": 2}}

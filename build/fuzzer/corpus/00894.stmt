@@ -1,0 +1,1 @@
+default p = {x | a[_] = x}

@@ -1,0 +1,1 @@
+p[x] { v = c[i][j]; x = v[k]; x = true }

@@ -1,0 +1,1 @@
+p = x { type_name({"foo": yy | yy = 1}, x) }

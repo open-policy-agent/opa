@@ -1,0 +1,1 @@
+p = y { yaml.marshal([{"foo": {1,2,3}}], x); yaml.unmarshal(x, y) }

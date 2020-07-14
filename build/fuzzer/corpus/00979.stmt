@@ -1,0 +1,1 @@
+p = [x, y] { is_array([1,2,3], x); is_array(["a", "b"], y) }

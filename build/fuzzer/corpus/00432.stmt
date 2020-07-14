@@ -1,0 +1,1 @@
+q[k] = v { k = y; y = x; x = "a"; v = "foo" }

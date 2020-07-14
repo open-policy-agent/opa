@@ -1,0 +1,1 @@
+p = x { type_name(100, x) }

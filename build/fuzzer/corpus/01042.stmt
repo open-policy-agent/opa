@@ -1,0 +1,1 @@
+p = true { regex.globs_match("a.a.[0-9]+z", ".b.b2359825792*594823z") }

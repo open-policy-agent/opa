@@ -1,0 +1,1 @@
+p = true { not concat("", ["b", "a", "r"], c[0].x[2]) }

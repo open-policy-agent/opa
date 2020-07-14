@@ -1,0 +1,1 @@
+operand 2 must be one of {2, 8, 10, 16}

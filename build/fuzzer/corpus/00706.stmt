@@ -1,0 +1,1 @@
+p = [x | fixture.r[{"foo": x}]]

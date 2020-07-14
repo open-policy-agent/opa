@@ -1,0 +1,1 @@
+p = [v,w] { regex.split("z+", "pizza", [v,w]) }

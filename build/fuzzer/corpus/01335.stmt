@@ -1,0 +1,1 @@
+p = x { io.jwt.verify_hs256("%s", "%s", x) }

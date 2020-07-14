@@ -1,0 +1,1 @@
+["large", "small", "medium"]

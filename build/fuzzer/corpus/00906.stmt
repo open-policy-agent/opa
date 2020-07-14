@@ -1,0 +1,1 @@
+p[z] { a[i] = x; y = i / x; round(y, z) }

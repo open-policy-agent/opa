@@ -1,0 +1,1 @@
+p = true { regex.globs_match("pqrs]", "[a-b]+") }

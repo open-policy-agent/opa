@@ -1,0 +1,1 @@
+p = x { concat("/", ["", "foo", "bar", "0", "baz"], x) }

@@ -1,0 +1,1 @@
+p[i] { xs = {s: x | x = a[_]; format_int(x, 10, s)}; y = xs[i]; y > 1 }

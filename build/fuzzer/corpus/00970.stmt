@@ -1,0 +1,1 @@
+p = x { is_boolean(null, x) }

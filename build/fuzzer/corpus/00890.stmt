@@ -1,0 +1,1 @@
+default p = {x: k | d[k][_] = x}

@@ -1,0 +1,1 @@
+p = true { not q.v0 }
