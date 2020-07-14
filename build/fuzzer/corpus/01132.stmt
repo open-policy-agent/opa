@@ -1,0 +1,1 @@
+p = [x,y] { split("foo.bar.baz", ".", [x,"bar",y]) }

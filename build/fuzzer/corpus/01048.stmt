@@ -1,0 +1,1 @@
+p[x] { regex.globs_match("b.*", d.e[x]) }

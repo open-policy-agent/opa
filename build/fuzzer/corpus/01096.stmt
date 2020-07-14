@@ -1,0 +1,1 @@
+p = x { indexof("abcdefgh", "cde", x) }

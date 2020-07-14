@@ -1,0 +1,1 @@
+p = [v,w,x,y] { regex.split("a", "banana", [v,w,x,y]) }

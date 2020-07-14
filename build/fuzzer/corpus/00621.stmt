@@ -1,0 +1,1 @@
+p = true { a[three.deadbeef] = x }

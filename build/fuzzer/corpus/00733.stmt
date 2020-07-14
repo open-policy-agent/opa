@@ -1,0 +1,1 @@
+p = fixture.r[{"foo": "baz"}]

@@ -1,0 +1,1 @@
+p = x { is_string(null, x) }

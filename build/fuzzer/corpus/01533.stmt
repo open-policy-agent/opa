@@ -1,0 +1,1 @@
+p[[k,x]] { walk(q, [k, x]); contains(k[1], "oo") }

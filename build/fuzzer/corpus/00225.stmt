@@ -1,0 +1,1 @@
+p[x] { [true, false, x] = c[i][j] }

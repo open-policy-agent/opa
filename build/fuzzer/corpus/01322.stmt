@@ -1,0 +1,1 @@
+p = x { io.jwt.verify_%s("%s", "%s", x) }

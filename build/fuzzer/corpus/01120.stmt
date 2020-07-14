@@ -1,0 +1,1 @@
+p = true { endswith("abcdefgh", "fg") }

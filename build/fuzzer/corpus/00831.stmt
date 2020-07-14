@@ -1,0 +1,1 @@
+p[i] { xs = {"a": {s: x | x = a[_]; format_int(x, 10, s)}}; xs.a[i] > 1 }

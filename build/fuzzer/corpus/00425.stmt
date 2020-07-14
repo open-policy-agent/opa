@@ -1,0 +1,1 @@
+p = true { q.bar[1].alice[0] = 1 }

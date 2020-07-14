@@ -1,0 +1,1 @@
+q[k] = v { k = "a"; v = data.a }

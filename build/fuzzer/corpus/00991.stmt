@@ -1,0 +1,1 @@
+p = x { is_object({"foo": yy | yy = 1}, x) }

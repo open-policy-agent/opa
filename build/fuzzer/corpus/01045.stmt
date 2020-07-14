@@ -1,0 +1,1 @@
+p = true { regex.globs_match("[a-z]+", "[0-9]*") }

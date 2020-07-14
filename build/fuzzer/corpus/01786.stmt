@@ -1,0 +1,1 @@
+virtual_doc_exact_value

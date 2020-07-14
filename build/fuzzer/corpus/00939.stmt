@@ -1,0 +1,1 @@
+p = true { not to_number("-1", a[2]) }

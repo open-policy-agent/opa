@@ -1,0 +1,1 @@
+p[x] {arr = [true, 1]; arr[_] = x; is_number(x) }

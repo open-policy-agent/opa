@@ -1,0 +1,1 @@
+Expected non-empty metrics

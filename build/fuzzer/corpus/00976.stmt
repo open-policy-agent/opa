@@ -1,0 +1,1 @@
+p[x] {arr = [false, 1, "Hey"]; arr[_] = x; is_boolean(x) }

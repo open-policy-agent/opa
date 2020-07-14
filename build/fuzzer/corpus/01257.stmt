@@ -1,0 +1,1 @@
+encoded JWT had no period separators

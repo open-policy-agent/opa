@@ -1,0 +1,1 @@
+p = x { substring("abcdefgh", 2, 3, x) }

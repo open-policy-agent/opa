@@ -1,0 +1,1 @@
+p = [x, y, z] { io.jwt.decode("%s", [x, y, z]) }

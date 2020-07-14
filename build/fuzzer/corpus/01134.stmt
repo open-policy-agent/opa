@@ -1,0 +1,1 @@
+p = x { replace("", "hi", "bye", x) }

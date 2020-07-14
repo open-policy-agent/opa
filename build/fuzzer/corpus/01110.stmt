@@ -1,0 +1,1 @@
+p = true { contains("abcdefgh", "ac") }

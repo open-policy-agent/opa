@@ -1,0 +1,1 @@
+p = x { trim("...foo.bar", ".", x) }

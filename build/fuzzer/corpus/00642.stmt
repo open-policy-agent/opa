@@ -1,0 +1,1 @@
+q[k] = v { o = {"hello": 1, "goodbye": 3, "deadbeef": 1000}; o[k] = v }

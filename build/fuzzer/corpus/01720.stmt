@@ -1,0 +1,1 @@
+function output conflict multiple

@@ -1,0 +1,1 @@
+p = x { json.unmarshal("[{\"foo\":[1,2,3]}]", x) }

@@ -1,0 +1,1 @@
+p = true { d.e = ["bar", "baz"] }

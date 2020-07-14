@@ -1,0 +1,1 @@
+p = x { json.marshal([{"foo": {1,2,3}}], x) }

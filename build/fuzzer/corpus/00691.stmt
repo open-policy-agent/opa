@@ -1,0 +1,1 @@
+p = true { somevar = [1, 2, 3]; somevar[i] = 2 }

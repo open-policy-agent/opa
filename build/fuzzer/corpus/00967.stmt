@@ -1,0 +1,1 @@
+p = [x, y] { is_boolean(true, x); is_boolean(false, y) }

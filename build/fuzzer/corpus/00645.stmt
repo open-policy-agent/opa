@@ -1,0 +1,1 @@
+q[k] = v { strings[k] = v }

@@ -1,0 +1,1 @@
+p = x { urlquery.encode_object({"a": ["b+1","c+2"]}, x) }

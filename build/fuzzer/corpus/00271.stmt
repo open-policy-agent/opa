@@ -1,0 +1,1 @@
+p[x] { arr = [[1, 2], data.arr_ref, [2, 2]]; arr[_] = [x, 2] }

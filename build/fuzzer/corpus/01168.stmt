@@ -1,0 +1,1 @@
+p = x { sprintf("hi %v", [["there", 5, 3.14]], x) }

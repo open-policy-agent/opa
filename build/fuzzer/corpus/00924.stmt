@@ -1,0 +1,1 @@
+p = true { not abs(-5, a[3]) }

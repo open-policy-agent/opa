@@ -1,0 +1,1 @@
+p = x { replace("foo...bar", "..", ",,", x) }
