@@ -14,6 +14,17 @@ jobs:
       - name: Test with Race Detector
         run: CGO_ENABLED=1 make ci-go-race-detector
 
+      - name: Slack Notification
+        uses: rtCamp/action-slack-notify@v2.1.0
+        if: ${{ failure() && secrets.SLACK_NOTIFICATION_WEBHOOK != "" }}
+        env:
+          SLACK_COLOR: '#FF0000'
+          SLACK_ICON_EMOJI: ':x:'
+          SLACK_MESSAGE: 'OPA Race Detector Test Failure!'
+          SLACK_USERNAME: Github Actions
+          SLACK_WEBHOOK: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }}
+          SLACK_FOOTER: 'Github Action Slack Notification'
+
   fuzzer:
     name: Go Fuzzer
     runs-on: ubuntu-latest
@@ -29,3 +40,14 @@ jobs:
         with:
           name: workdir
           path: ./build/fuzzer/workdir
+
+      - name: Slack Notification
+        uses: rtCamp/action-slack-notify@v2.1.0
+        if: ${{ failure() && secrets.SLACK_NOTIFICATION_WEBHOOK != "" }}
+        env:
+          SLACK_COLOR: '#FF0000'
+          SLACK_ICON_EMOJI: ':x:'
+          SLACK_MESSAGE: 'OPA Fuzzer Test Failure!'
+          SLACK_USERNAME: Github Actions
+          SLACK_WEBHOOK: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }}
+          SLACK_FOOTER: 'Github Action Slack Notification'
