@@ -406,9 +406,11 @@ type httpListener interface {
 
 // baseHTTPListener is just a wrapper around http.Server
 type baseHTTPListener struct {
-	s *http.Server
-	l net.Listener
-	t httpListenerType
+	s       *http.Server
+	l       net.Listener
+	t       httpListenerType
+	addr    string
+	addrMtx sync.RWMutex
 }
 
 var _ httpListener = (*baseHTTPListener)(nil)
@@ -432,16 +434,23 @@ func (b *baseHTTPListener) ListenAndServe() error {
 		return err
 	}
 
+	b.initAddr()
+
 	return b.s.Serve(tcpKeepAliveListener{b.l.(*net.TCPListener)})
 }
 
-func (b *baseHTTPListener) Addr() string {
-	if b.l != nil {
-		if addr := b.l.(*net.TCPListener).Addr(); addr != nil {
-			return addr.String()
-		}
+func (b *baseHTTPListener) initAddr() {
+	b.addrMtx.Lock()
+	if addr := b.l.(*net.TCPListener).Addr(); addr != nil {
+		b.addr = addr.String()
 	}
-	return ""
+	b.addrMtx.Unlock()
+}
+
+func (b *baseHTTPListener) Addr() string {
+	b.addrMtx.Lock()
+	defer b.addrMtx.Unlock()
+	return b.addr
 }
 
 func (b *baseHTTPListener) ListenAndServeTLS(certFile, keyFile string) error {
@@ -455,6 +464,8 @@ func (b *baseHTTPListener) ListenAndServeTLS(certFile, keyFile string) error {
 	if err != nil {
 		return err
 	}
+
+	b.initAddr()
 
 	defer b.l.Close()
 
