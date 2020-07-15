@@ -196,7 +196,9 @@ type Runtime struct {
 	metrics  *prometheus.Provider
 	reporter *report.Reporter
 
-	done chan struct{}
+	serverInitialized bool
+	serverInitMtx     sync.RWMutex
+	done              chan struct{}
 }
 
 // NewRuntime returns a new Runtime object initialized with params. Clients must
@@ -254,11 +256,12 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 	manager.Register("discovery", disco)
 
 	rt := &Runtime{
-		Store:    manager.Store,
-		Params:   params,
-		Manager:  manager,
-		metrics:  metrics,
-		reporter: reporter,
+		Store:             manager.Store,
+		Params:            params,
+		Manager:           manager,
+		metrics:           metrics,
+		reporter:          reporter,
+		serverInitialized: false,
 	}
 
 	return rt, nil
@@ -365,6 +368,10 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 	signalc := make(chan os.Signal)
 	signal.Notify(signalc, syscall.SIGINT, syscall.SIGTERM)
 
+	rt.serverInitMtx.Lock()
+	rt.serverInitialized = true
+	rt.serverInitMtx.Unlock()
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -380,7 +387,10 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 // Addrs returns a list of addresses that the runtime is listening on (when
 // in server mode). Returns an empty list if it hasn't started listening.
 func (rt *Runtime) Addrs() []string {
-	if rt.server == nil {
+	rt.serverInitMtx.RLock()
+	defer rt.serverInitMtx.RUnlock()
+
+	if !rt.serverInitialized {
 		return nil
 	}
 
