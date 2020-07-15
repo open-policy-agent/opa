@@ -314,7 +314,7 @@ push-image: docker-login image-quick push
 
 .PHONY: push-wasm-builder-image
 push-wasm-builder-image: docker-login
-	$(MAKE) -C wasm builder push-builder
+	$(MAKE) -C wasm push-builder
 
 .PHONY: deploy-ci
 deploy-ci: push-image tag-edge push-edge push-binary-edge
