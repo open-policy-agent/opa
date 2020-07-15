@@ -39,7 +39,7 @@ ensure-builder:
 
 .PHONY: push-builder
 push-builder:
-	$(DOCKER) push $(WASM_BUILDER_IMAGE)
+	$(DOCKER) pull $(WASM_BUILDER_IMAGE) || ($(MAKE) builder && $(DOCKER) push $(WASM_BUILDER_IMAGE))
 
 .PHONY: build
 build:
