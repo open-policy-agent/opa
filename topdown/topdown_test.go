@@ -1275,6 +1275,7 @@ func TestTopDownRegexMatch(t *testing.T) {
 
 		{"re_match: raw", []string{fmt.Sprintf(`p = true { re_match(%s, "foo[1]") }`, "`^[a-z]+\\[[0-9]+\\]$`")}, "true"},
 		{"re_match: raw: undefined", []string{fmt.Sprintf(`p = true { re_match(%s, "foo[\"bar\"]") }`, "`^[a-z]+\\[[0-9]+\\]$`")}, ""},
+		{"regex.match", []string{`p = true { regex.match("^[a-z]+\\[[0-9]+\\]$", "foo[1]") }`}, "true"},
 	}
 
 	data := loadSmallTestData()

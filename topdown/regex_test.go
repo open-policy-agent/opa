@@ -1,6 +1,36 @@
 package topdown
 
-import "testing"
+import (
+	"encoding/json"
+	"testing"
+)
+
+func TestRegexIsValid(t *testing.T) {
+	tests := []struct {
+		note     string
+		rules    []string
+		expected interface{}
+	}{
+		{
+			note:     "bad operand type",
+			rules:    []string{"p = x { regex.is_valid(data.num, x) }"},
+			expected: "false",
+		},
+		{
+			note:     "bad pattern",
+			rules:    []string{"p = x { regex.is_valid(`++`, x) }"},
+			expected: "false",
+		},
+		{
+			note:     "good pattern",
+			rules:    []string{"p = x { regex.is_valid(`.+`, x) }"},
+			expected: "true",
+		},
+	}
+	for _, tc := range tests {
+		runTopDownTestCase(t, map[string]interface{}{"num": json.Number("10")}, tc.note, tc.rules, tc.expected)
+	}
+}
 
 func TestRegexMatchTemplate(t *testing.T) {
 	tests := []struct {
