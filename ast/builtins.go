@@ -89,6 +89,7 @@ var DefaultBuiltins = [...]*Builtin{
 	// Regular Expressions
 	RegexIsValid,
 	RegexMatch,
+	RegexMatchDeprecated,
 	RegexSplit,
 	GlobsMatch,
 	RegexTemplateMatch,
@@ -669,7 +670,7 @@ var ToNumber = &Builtin{
 // RegexMatch takes two strings and evaluates to true if the string in the second
 // position matches the pattern in the first position.
 var RegexMatch = &Builtin{
-	Name: "re_match",
+	Name: "regex.match",
 	Decl: types.NewFunction(
 		types.Args(
 			types.S,
@@ -1136,6 +1137,20 @@ var JSONRemove = &Builtin{
 					),
 				),
 			),
+		),
+		types.A,
+	),
+}
+
+// ObjectGet returns takes an object and returns a value under its key if
+// present, otherwise it returns the default.
+var ObjectGet = &Builtin{
+	Name: "object.get",
+	Decl: types.NewFunction(
+		types.Args(
+			types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)),
+			types.A,
+			types.A,
 		),
 		types.A,
 	),
@@ -1983,6 +1998,36 @@ var netCidrContainsMatchesOperandType = types.NewAny(
 )
 
 /**
+ * Semantic Versions
+ */
+
+// SemVerIsValid validiates a the term is a valid SemVer as a string, returns
+// false for all other input
+var SemVerIsValid = &Builtin{
+	Name: "semver.is_valid",
+	Decl: types.NewFunction(
+		types.Args(
+			types.A,
+		),
+		types.B,
+	),
+}
+
+// SemVerCompare compares valid SemVer formatted version strings. Given two
+// version strings, if A < B returns -1, if A > B returns 1. If A == B, returns
+// 0
+var SemVerCompare = &Builtin{
+	Name: "semver.compare",
+	Decl: types.NewFunction(
+		types.Args(
+			types.S,
+			types.S,
+		),
+		types.N,
+	),
+}
+
+/**
  * Deprecated built-ins.
  */
 
@@ -2069,43 +2114,15 @@ var CastObject = &Builtin{
 	),
 }
 
-// ObjectGet returns takes an object and returns a value under its key if
-// present, otherwise it returns the default.
-var ObjectGet = &Builtin{
-	Name: "object.get",
+// RegexMatchDeprecated declares `re_match` which has been deprecated. Use `regex.match` instead.
+var RegexMatchDeprecated = &Builtin{
+	Name: "re_match",
 	Decl: types.NewFunction(
 		types.Args(
-			types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)),
-			types.A,
-			types.A,
-		),
-		types.A,
-	),
-}
-
-// SemVerIsValid validiates a the term is a valid SemVer as a string, returns
-// false for all other input
-var SemVerIsValid = &Builtin{
-	Name: "semver.is_valid",
-	Decl: types.NewFunction(
-		types.Args(
-			types.A,
+			types.S,
+			types.S,
 		),
 		types.B,
-	),
-}
-
-// SemVerCompare compares valid SemVer formatted version strings. Given two
-// version strings, if A < B returns -1, if A > B returns 1. If A == B, returns
-// 0
-var SemVerCompare = &Builtin{
-	Name: "semver.compare",
-	Decl: types.NewFunction(
-		types.Args(
-			types.S,
-			types.S,
-		),
-		types.N,
 	),
 }
 
