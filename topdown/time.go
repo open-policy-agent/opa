@@ -16,26 +16,11 @@ import (
 	"github.com/open-policy-agent/opa/topdown/builtins"
 )
 
-type nowKeyID string
-
-var nowKey = nowKeyID("time.now_ns")
 var tzCache map[string]*time.Location
 var tzCacheMutex *sync.Mutex
 
 func builtinTimeNowNanos(bctx BuiltinContext, _ []*ast.Term, iter func(*ast.Term) error) error {
-
-	exist, ok := bctx.Cache.Get(nowKey)
-	var now *ast.Term
-
-	if !ok {
-		curr := time.Now()
-		now = ast.NewTerm(ast.Number(int64ToJSONNumber(curr.UnixNano())))
-		bctx.Cache.Put(nowKey, now)
-	} else {
-		now = exist.(*ast.Term)
-	}
-
-	return iter(now)
+	return iter(bctx.Time)
 }
 
 func builtinTimeParseNanos(a, b ast.Value) (ast.Value, error) {
