@@ -209,6 +209,7 @@ func init() {
 	regexpCache = map[string]*regexp.Regexp{}
 	RegisterBuiltinFunc(ast.RegexIsValid.Name, builtinRegexIsValid)
 	RegisterFunctionalBuiltin2(ast.RegexMatch.Name, builtinRegexMatch)
+	RegisterFunctionalBuiltin2(ast.RegexMatchDeprecated.Name, builtinRegexMatch)
 	RegisterFunctionalBuiltin2(ast.RegexSplit.Name, builtinRegexSplit)
 	RegisterFunctionalBuiltin2(ast.GlobsMatch.Name, builtinGlobsMatch)
 	RegisterFunctionalBuiltin4(ast.RegexTemplateMatch.Name, builtinRegexMatchTemplate)
