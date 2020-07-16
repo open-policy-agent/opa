@@ -952,6 +952,12 @@ net.cidr_contains_matches({["1.1.0.0/16", "foo"], "1.1.2.0/24"}, {"x": "1.1.1.12
 | ------- |-------------|
 | <span class="opa-keep-it-together">``output := uuid.rfc4122(str)``</span> | ``output`` is ``string`` representing a version 4 uuid. For any given str the output will be consistent throughout a query evaluation. |
 
+### Semantic Versions
+| Built-in | Description |
+| ------- |-------------|
+| <span class="opa-keep-it-together">``output := semver.is_valid(str)``</span> | ``output`` is a ``boolean``. ``true`` means the input is a valid SemVer string (e.g. "1.0.0"). ``false`` is returned for invalid version strings and non-string input. |
+| <span class="opa-keep-it-together">``output := semver.compare(str, str)``</span> | ``output`` is a ``number``. ``-1`` means the version in the first operand is less than the second. ``1`` means the version in the first operand is greater than the second. ``0`` means the versions are equal. Only valid SemVer strings are accepted e.g. ``1.2.3`` or ``0.1.0`` |
+
 ### Rego
 | Built-in | Description |
 | ------- |-------------|
