@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"io"
 	"sort"
+	"time"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/metrics"
@@ -23,6 +24,7 @@ type QueryResult map[ast.Var]*ast.Term
 // Query provides a configurable interface for performing query evaluation.
 type Query struct {
 	seed              io.Reader
+	time              time.Time
 	cancel            Cancel
 	query             ast.Body
 	queryCompiler     ast.QueryCompiler
@@ -209,6 +211,12 @@ func (q *Query) WithSeed(r io.Reader) *Query {
 	return q
 }
 
+// WithTime sets the time that will be returned by the time.now_ns() built-in function.
+func (q *Query) WithTime(x time.Time) *Query {
+	q.time = x
+	return q
+}
+
 // PartialRun executes partial evaluation on the query with respect to unknown
 // values. Partial evaluation attempts to evaluate as much of the query as
 // possible without requiring values for the unknowns set on the query. The
@@ -223,11 +231,15 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 	if q.seed == nil {
 		q.seed = rand.Reader
 	}
+	if !q.time.IsZero() {
+		q.time = time.Now()
+	}
 	f := &queryIDFactory{}
 	b := newBindings(0, q.instr)
 	e := &eval{
 		ctx:                ctx,
 		seed:               q.seed,
+		time:               ast.NumberTerm(int64ToJSONNumber(q.time.UnixNano())),
 		cancel:             q.cancel,
 		query:              q.query,
 		queryCompiler:      q.queryCompiler,
@@ -335,10 +347,14 @@ func (q *Query) Iter(ctx context.Context, iter func(QueryResult) error) error {
 	if q.seed == nil {
 		q.seed = rand.Reader
 	}
+	if q.time.IsZero() {
+		q.time = time.Now()
+	}
 	f := &queryIDFactory{}
 	e := &eval{
 		ctx:                ctx,
 		seed:               q.seed,
+		time:               ast.NumberTerm(int64ToJSONNumber(q.time.UnixNano())),
 		cancel:             q.cancel,
 		query:              q.query,
 		queryCompiler:      q.queryCompiler,

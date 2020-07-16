@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"log"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -1704,4 +1705,44 @@ func TestPrepareWithEmptyModule(t *testing.T) {
 	if err == nil || err.Error() != expected {
 		t.Fatalf("Expected error %s, got %s", expected, err)
 	}
+}
+
+func TestTimeSeedingOptions(t *testing.T) {
+
+	ctx := context.Background()
+	clock := time.Now()
+
+	// Check expected time is returned.
+	rs, err := New(Query("time.now_ns(x)"), Time(clock)).Eval(ctx)
+	if err != nil {
+		t.Fatal(err)
+	} else if len(rs) != 1 || !reflect.DeepEqual(rs[0].Bindings["x"], int64ToJSONNumber(clock.UnixNano())) {
+		t.Fatal("unexpected wall clock value")
+	}
+
+	// Check that time is not propagated to prepared query.
+	eval, err := New(Query("time.now_ns(x)"), Time(clock)).PrepareForEval(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rs2, err := eval.Eval(ctx)
+	if err != nil {
+		t.Fatal(err)
+	} else if len(rs2) != 1 || reflect.DeepEqual(rs[0].Bindings["x"], rs2[0].Bindings["x"]) {
+		t.Fatal("expected new wall clock value")
+	}
+
+	// Check that prepared query returns provided time.
+	rs3, err := eval.Eval(ctx, EvalTime(clock))
+	if err != nil {
+		t.Fatal(err)
+	} else if len(rs2) != 1 || !reflect.DeepEqual(rs[0].Bindings["x"], rs3[0].Bindings["x"]) {
+		t.Fatal("expected old wall clock value")
+	}
+
+}
+
+func int64ToJSONNumber(i int64) json.Number {
+	return json.Number(strconv.FormatInt(i, 10))
 }
