@@ -9,7 +9,7 @@ import (
 	"regexp"
 	"sync"
 
-	"github.com/yashtewari/glob-intersection"
+	gintersect "github.com/yashtewari/glob-intersection"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/topdown/builtins"
@@ -17,6 +17,21 @@ import (
 
 var regexpCacheLock = sync.Mutex{}
 var regexpCache map[string]*regexp.Regexp
+
+func builtinRegexIsValid(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+
+	s, err := builtins.StringOperand(operands[0].Value, 1)
+	if err != nil {
+		return iter(ast.BooleanTerm(false))
+	}
+
+	_, err = regexp.Compile(string(s))
+	if err != nil {
+		return iter(ast.BooleanTerm(false))
+	}
+
+	return iter(ast.BooleanTerm(true))
+}
 
 func builtinRegexMatch(a, b ast.Value) (ast.Value, error) {
 	s1, err := builtins.StringOperand(a, 1)
@@ -192,6 +207,7 @@ func builtinRegexFindAllStringSubmatch(a, b, c ast.Value) (ast.Value, error) {
 
 func init() {
 	regexpCache = map[string]*regexp.Regexp{}
+	RegisterBuiltinFunc(ast.RegexIsValid.Name, builtinRegexIsValid)
 	RegisterFunctionalBuiltin2(ast.RegexMatch.Name, builtinRegexMatch)
 	RegisterFunctionalBuiltin2(ast.RegexSplit.Name, builtinRegexSplit)
 	RegisterFunctionalBuiltin2(ast.GlobsMatch.Name, builtinGlobsMatch)

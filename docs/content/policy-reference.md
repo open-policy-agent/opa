@@ -362,6 +362,7 @@ complex types.
 | Built-in | Description |
 | ------- |-------------|
 | <span class="opa-keep-it-together">``re_match(pattern, value)``</span> | true if the ``value`` matches the regex ``pattern`` |
+| <span class="opa-keep-it-together">``output := regex.is_valid(pattern)``</span> | ``output`` is a ``boolean`` that indicates if ``pattern` is a valid regex pattern. The detailed syntax for regex patterns is defined by https://github.com/google/re2/wiki/Syntax. |
 | <span class="opa-keep-it-together">``output := regex.split(pattern, string)``</span> | ``output`` is ``array[string]`` representing elements of ``string`` separated by ``pattern`` |
 | <span class="opa-keep-it-together">``regex.globs_match(glob1, glob2)``</span> | true if the intersection of regex-style globs ``glob1`` and ``glob2`` matches a non-empty set of non-empty strings. The set of regex symbols is limited for this builtin: only ``.``, ``*``, ``+``, ``[``, ``-``, ``]`` and ``\`` are treated as special symbols. |
 | <span class="opa-keep-it-normal">``output := regex.template_match(pattern, string, delimiter_start, delimiter_end)``</span> | ``output`` is true if ``string`` matches ``pattern``. ``pattern`` is a string containing ``0..n`` regular expressions delimited by ``delimiter_start`` and ``delimiter_end``. Example ``regex.template_match("urn:foo:{.*}", "urn:foo:bar:baz", "{", "}")`` returns ``true``. |

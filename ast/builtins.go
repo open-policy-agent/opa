@@ -87,6 +87,7 @@ var DefaultBuiltins = [...]*Builtin{
 	CastArray,
 
 	// Regular Expressions
+	RegexIsValid,
 	RegexMatch,
 	RegexSplit,
 	GlobsMatch,
@@ -672,6 +673,17 @@ var RegexMatch = &Builtin{
 	Decl: types.NewFunction(
 		types.Args(
 			types.S,
+			types.S,
+		),
+		types.B,
+	),
+}
+
+// RegexIsValid returns true if the regex pattern string is valid, otherwise false.
+var RegexIsValid = &Builtin{
+	Name: "regex.is_valid",
+	Decl: types.NewFunction(
+		types.Args(
 			types.S,
 		),
 		types.B,
