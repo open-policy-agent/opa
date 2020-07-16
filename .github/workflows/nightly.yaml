@@ -1,7 +1,9 @@
 name: Nightly
 on:
+  workflow_dispatch: {}   # Allow for manual triggers
   schedule:
     - cron:  '0 8 * * *'  # Daily, at 8:00 UTC
+
 
 jobs:
   race-detector:
@@ -15,15 +17,13 @@ jobs:
         run: CGO_ENABLED=1 make ci-go-race-detector
 
       - name: Slack Notification
-        uses: rtCamp/action-slack-notify@v2.1.0
-        if: ${{ failure() && secrets.SLACK_NOTIFICATION_WEBHOOK != "" }}
+        uses: 8398a7/action-slack@v3
         env:
-          SLACK_COLOR: '#FF0000'
-          SLACK_ICON_EMOJI: ':x:'
-          SLACK_MESSAGE: 'OPA Race Detector Test Failure!'
-          SLACK_USERNAME: Github Actions
-          SLACK_WEBHOOK: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }}
-          SLACK_FOOTER: 'Github Action Slack Notification'
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }}
+        if: ${{ failure() && env.SLACK_WEBHOOK_URL }}
+        with:
+          status: ${{ job.status }}
+          fields: repo,workflow
 
   fuzzer:
     name: Go Fuzzer
@@ -43,12 +43,11 @@ jobs:
           path: ./build/fuzzer/workdir
 
       - name: Slack Notification
-        uses: rtCamp/action-slack-notify@v2.1.0
-        if: ${{ failure() && secrets.SLACK_NOTIFICATION_WEBHOOK != "" }}
+        uses: 8398a7/action-slack@v3
         env:
-          SLACK_COLOR: '#FF0000'
-          SLACK_ICON_EMOJI: ':x:'
-          SLACK_MESSAGE: 'OPA Fuzzer Test Failure!'
-          SLACK_USERNAME: Github Actions
-          SLACK_WEBHOOK: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }}
-          SLACK_FOOTER: 'Github Action Slack Notification'
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }}
+        if: ${{ failure() && env.SLACK_WEBHOOK_URL }}
+        with:
+          status: ${{ job.status }}
+          fields: repo,workflow
+
