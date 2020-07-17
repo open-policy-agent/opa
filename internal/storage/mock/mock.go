@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
 )
@@ -169,11 +168,6 @@ func (s *Store) UpsertPolicy(ctx context.Context, txn storage.Transaction, name 
 // DeletePolicy just shims the call to the underlying inmem store
 func (s *Store) DeletePolicy(ctx context.Context, txn storage.Transaction, name string) error {
 	return s.inmem.DeletePolicy(ctx, getRealTxn(txn), name)
-}
-
-// Build just shims the call to the underlying inmem store
-func (s *Store) Build(ctx context.Context, txn storage.Transaction, ref ast.Ref) (storage.Index, error) {
-	return s.inmem.Build(ctx, getRealTxn(txn), ref)
 }
 
 // NewTransaction will create a new transaction on the underlying inmem store
