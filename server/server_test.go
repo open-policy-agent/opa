@@ -3586,7 +3586,6 @@ func TestServerClearsCompilerConflictCheck(t *testing.T) {
 type queryBindingErrStore struct {
 	storage.WritesNotSupported
 	storage.PolicyNotSupported
-	storage.IndexingNotSupported
 }
 
 func (s *queryBindingErrStore) Read(ctx context.Context, txn storage.Transaction, path storage.Path) (interface{}, error) {

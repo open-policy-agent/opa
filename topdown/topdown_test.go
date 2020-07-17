@@ -2719,7 +2719,6 @@ type contextPropagationStore struct {
 	storage.WritesNotSupported
 	storage.TriggersNotSupported
 	storage.PolicyNotSupported
-	storage.IndexingNotSupported
 	calls []interface{}
 }
 
