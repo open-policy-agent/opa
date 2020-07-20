@@ -367,6 +367,30 @@ func TestTermIsGround(t *testing.T) {
 
 }
 
+func TestObjectRemainsGround(t *testing.T) {
+	tests := []struct {
+		key    string
+		value  string
+		ground bool
+	}{
+		{`"a"`, `"value1"`, true},
+		{`"b"`, `"value2"`, true},
+		{`"a"`, `x`, false},
+		{`"a"`, `"value1"`, true},
+		{`"b"`, `y`, false},
+		{`"c"`, `value3`, false},
+	}
+
+	obj := NewObject()
+
+	for i, tc := range tests {
+		obj.Insert(MustParseTerm(tc.key), MustParseTerm(tc.value))
+		if obj.IsGround() != tc.ground {
+			t.Errorf("Unexpected object is ground (test case %d)", i)
+		}
+	}
+}
+
 func TestIsConstant(t *testing.T) {
 	tests := []struct {
 		term     string

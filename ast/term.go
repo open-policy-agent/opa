@@ -1534,7 +1534,8 @@ func ObjectTerm(o ...[2]*Term) *Term {
 type object struct {
 	elems  map[int]*objectElem
 	keys   []*Term
-	ground bool
+	ground int // number of key and value grounds. Counting is
+	// required to support insert's key-value replace.
 }
 
 func newobject(n int) *object {
@@ -1545,7 +1546,7 @@ func newobject(n int) *object {
 	return &object{
 		elems:  make(map[int]*objectElem, n),
 		keys:   keys,
-		ground: true,
+		ground: 0,
 	}
 }
 
@@ -1641,7 +1642,7 @@ func (obj *object) Hash() int {
 
 // IsGround returns true if all of the Object key/value pairs are ground.
 func (obj *object) IsGround() bool {
-	return obj.ground
+	return obj.ground == 2*len(obj.keys)
 }
 
 // Copy returns a deep copy of obj.
@@ -1922,6 +1923,17 @@ func (obj *object) insert(k, v *Term) {
 
 	for curr := head; curr != nil; curr = curr.next {
 		if equal(curr.key.Value) {
+			// The ground bit of the value may change in
+			// replace, hence adjust the counter per old
+			// and new value.
+
+			if curr.value.IsGround() {
+				obj.ground--
+			}
+			if v.IsGround() {
+				obj.ground++
+			}
+
 			curr.value = v
 			return
 		}
@@ -1932,7 +1944,13 @@ func (obj *object) insert(k, v *Term) {
 		next:  head,
 	}
 	obj.keys = append(obj.keys, k)
-	obj.ground = obj.ground && k.IsGround() && v.IsGround()
+
+	if k.IsGround() {
+		obj.ground++
+	}
+	if v.IsGround() {
+		obj.ground++
+	}
 }
 
 func filterObject(o Value, filter Value) (Value, error) {
