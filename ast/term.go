@@ -1532,17 +1532,21 @@ func ObjectTerm(o ...[2]*Term) *Term {
 type object struct {
 	elems  map[int]*objectElem
 	keys   []*Term
+	values []*objectElem
 	ground bool
 }
 
 func newobject(n int) *object {
 	var keys []*Term
+	var values []*objectElem
 	if n > 0 {
 		keys = make([]*Term, 0, n)
+		values = make([]*objectElem, 0, n)
 	}
 	return &object{
 		elems:  make(map[int]*objectElem, n),
 		keys:   keys,
+		values: values,
 		ground: true,
 	}
 }
@@ -1675,13 +1679,8 @@ func (obj *object) Intersect(other Object) [][3]*Term {
 // Iter calls the function f for each key-value pair in the object. If f
 // returns an error, iteration stops and the error is returned.
 func (obj *object) Iter(f func(*Term, *Term) error) error {
-	for i := range obj.keys {
-		k := obj.keys[i]
-		node := obj.get(k)
-		if node == nil {
-			panic("corrupt object")
-		}
-		if err := f(k, node.value); err != nil {
+	for i := 0; i < len(obj.keys) && i < len(obj.values); i++ {
+		if err := f(obj.keys[i], obj.values[i].value); err != nil {
 			return err
 		}
 	}
@@ -1735,9 +1734,8 @@ func (obj *object) Keys() []*Term {
 // MarshalJSON returns JSON encoded bytes representing obj.
 func (obj *object) MarshalJSON() ([]byte, error) {
 	sl := make([][2]*Term, obj.Len())
-	for i := range obj.keys {
-		k := obj.keys[i]
-		sl[i] = Item(k, obj.get(k).value)
+	for i := 0; i < len(obj.keys) && i < len(obj.values); i++ {
+		sl[i] = Item(obj.keys[i], obj.values[i].value)
 	}
 	return json.Marshal(sl)
 }
@@ -1923,12 +1921,16 @@ func (obj *object) insert(k, v *Term) {
 			return
 		}
 	}
-	obj.elems[hash] = &objectElem{
+
+	elem := &objectElem{
 		key:   k,
 		value: v,
 		next:  head,
 	}
+	obj.elems[hash] = elem
+
 	obj.keys = append(obj.keys, k)
+	obj.values = append(obj.values, elem)
 	obj.ground = obj.ground && k.IsGround() && v.IsGround()
 }
 
