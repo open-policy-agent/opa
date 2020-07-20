@@ -1919,6 +1919,7 @@ func (obj *object) insert(k, v *Term) {
 	for curr := head; curr != nil; curr = curr.next {
 		if equal(curr.key.Value) {
 			curr.value = v
+			obj.ground = obj.ground && k.IsGround() && v.IsGround()
 			return
 		}
 	}
