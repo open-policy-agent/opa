@@ -1228,9 +1228,7 @@ func (s *set) Compare(other Value) int {
 		return 1
 	}
 	t := other.(*set)
-	sort.Sort(termSlice(s.keys))
-	sort.Sort(termSlice(t.keys))
-	return termSliceCompare(s.keys, t.keys)
+	return termSliceCompare(termSliceSorted(s.keys), termSliceSorted(t.keys))
 }
 
 // Find returns the set or dereferences the element itself.
@@ -1573,12 +1571,10 @@ func (obj *object) Compare(other Value) int {
 	}
 	a := obj
 	b := other.(*object)
-	keysA := a.Keys()
-	keysB := b.Keys()
-	sort.Sort(termSlice(keysA))
-	sort.Sort(termSlice(keysB))
+	keysA := termSliceSorted(a.Keys())
+	keysB := termSliceSorted(b.Keys())
 	minLen := a.Len()
-	if b.Len() < a.Len() {
+	if b.Len() < minLen {
 		minLen = b.Len()
 	}
 	for i := 0; i < minLen; i++ {

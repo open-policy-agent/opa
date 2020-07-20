@@ -103,12 +103,12 @@ func TestNetCIDRContainsMatches(t *testing.T) {
 		},
 		{
 			note:     "sets of strings",
-			rules:    []string{`p = x { x := net.cidr_contains_matches({"1.1.2.0/24", "1.1.1.0/24"}, {"1.1.1.1", "1.1.2.1"}) }`},
+			rules:    []string{`p = x { x := net.cidr_contains_matches({"1.1.1.0/24", "1.1.2.0/24"}, {"1.1.1.1", "1.1.2.1"}) }`},
 			expected: `[["1.1.1.0/24", "1.1.1.1"], ["1.1.2.0/24", "1.1.2.1"]]`,
 		},
 		{
 			note:     "sets of tuples",
-			rules:    []string{`p = x { x := net.cidr_contains_matches({["1.1.2.0/24", "foo"], ["1.1.1.0/24", "bar"]}, {["1.1.1.1", "baz"], ["1.1.2.1", "qux"]}) }`},
+			rules:    []string{`p = x { x := net.cidr_contains_matches({["1.1.1.0/24", "bar"], ["1.1.2.0/24", "foo"]}, {["1.1.1.1", "baz"], ["1.1.2.1", "qux"]}) }`},
 			expected: `[[["1.1.1.0/24", "bar"], ["1.1.1.1", "baz"]], [["1.1.2.0/24", "foo"], ["1.1.2.1", "qux"]]]`,
 		},
 		{
