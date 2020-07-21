@@ -379,10 +379,13 @@ func (t Any) Contains(other Type) bool {
 
 // MarshalJSON returns the JSON encoding of t.
 func (t Any) MarshalJSON() ([]byte, error) {
-	return json.Marshal(map[string]interface{}{
+	data := map[string]interface{}{
 		"type": t.typeMarker(),
-		"of":   []Type(t),
-	})
+	}
+	if len(t) != 0 {
+		data["of"] = []Type(t)
+	}
+	return json.Marshal(data)
 }
 
 // Merge return a new Any type that is the superset of t and other.
@@ -486,6 +489,23 @@ func (t *Function) MarshalJSON() ([]byte, error) {
 		repr["result"] = t.result
 	}
 	return json.Marshal(repr)
+}
+
+// UnmarshalJSON decodes the JSON serialized function declaration.
+func (t *Function) UnmarshalJSON(bs []byte) error {
+
+	tpe, err := Unmarshal(bs)
+	if err != nil {
+		return err
+	}
+
+	f, ok := tpe.(*Function)
+	if !ok {
+		return fmt.Errorf("invalid type")
+	}
+
+	*t = *f
+	return nil
 }
 
 // Union returns a new function represnting the union of t and other. Functions

@@ -382,3 +382,34 @@ func TestMarshalJSON(t *testing.T) {
 	}
 
 }
+
+func TestRoundtripJSON(t *testing.T) {
+	tpe := NewFunction([]Type{
+		NewArray([]Type{S, NewNull()}, N),
+		NewObject(
+			[]*StaticProperty{
+				NewStaticProperty("foo", B),
+			},
+			NewDynamicProperty(S, NewSet(N))),
+		NewObject(
+			[]*StaticProperty{
+				NewStaticProperty("bar", N),
+			},
+			nil,
+		),
+	}, NewAny(S, N))
+
+	bs, err := json.Marshal(tpe)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := Unmarshal(bs)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if Compare(result, tpe) != 0 {
+		t.Fatalf("Got: %v\n\nExpected: %v", result, tpe)
+	}
+}
