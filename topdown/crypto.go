@@ -21,13 +21,43 @@ import (
 )
 
 func builtinCryptoX509ParseCertificates(a ast.Value) (ast.Value, error) {
-
+	// all data must be base64, regardless of contents
 	str, err := builtinBase64Decode(a)
 	if err != nil {
 		return nil, err
 	}
 
-	certs, err := x509.ParseCertificates([]byte(str.(ast.String)))
+	// default to using []byte from the decoded string as DER data
+	bytes := []byte(str.(ast.String))
+
+	// attempt to decode input string as PEM data
+	p, rest := pem.Decode([]byte(str.(ast.String)))
+	if p != nil && p.Type != "CERTIFICATE" {
+		return nil, fmt.Errorf("PEM data contains '%s', expected CERTIFICATE", p.Type)
+	}
+	if p != nil {
+		// if PEM decoded as a valid certificate, use its data as the DER input
+		bytes = p.Bytes
+	}
+
+	// check for more certificates in the chain
+	if p != nil && len(rest) > 0 {
+		var p *pem.Block
+		for {
+			p, rest = pem.Decode(rest)
+			if p == nil {
+				// finish when no more PEM data is read
+				break
+			}
+			// reject any data that isn't exclusively certificates
+			if p != nil && p.Type != "CERTIFICATE" {
+				return nil, fmt.Errorf("PEM data contains '%s', expected CERTIFICATE", p.Type)
+			}
+			bytes = append(bytes, p.Bytes...)
+		}
+	}
+
+	certs, err := x509.ParseCertificates(bytes)
 	if err != nil {
 		return nil, err
 	}
@@ -67,17 +97,24 @@ func builtinCryptoSha256(a ast.Value) (ast.Value, error) {
 }
 
 func builtinCryptoX509ParseCertificateRequest(a ast.Value) (ast.Value, error) {
+	// all data must be base64, regardless of contents
 	str, err := builtinBase64Decode(a)
 	if err != nil {
 		return nil, err
 	}
 
+	// default to a byte slice from the decoded string
+	bytes := []byte(str.(ast.String))
+
 	p, _ := pem.Decode([]byte(str.(ast.String)))
-	if p == nil || p.Type != "CERTIFICATE REQUEST" {
+	if p != nil && p.Type != "CERTIFICATE REQUEST" {
 		return nil, fmt.Errorf("invalid PEM-encoded certificate signing request")
 	}
+	if p != nil {
+		bytes = p.Bytes
+	}
 
-	csr, err := x509.ParseCertificateRequest(p.Bytes)
+	csr, err := x509.ParseCertificateRequest(bytes)
 	if err != nil {
 		return nil, err
 	}
