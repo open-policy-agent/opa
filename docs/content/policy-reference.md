@@ -784,8 +784,8 @@ Note that the opa executable will need access to the timezone files in the envir
 
 | Built-in | Description |
 | -------- | ----------- |
-| <span class="opa-keep-it-together">``output := crypto.x509.parse_certificates(string)``</span> | ``output`` is an array of X.509 certificates represented as JSON objects. |
-| <span class="opa-keep-it-together">``output := crypto.x509.parse_certificate_request(csr)``</span> | ``csr`` is a base64 PEM encoded string and ``output`` is a X.509 PKCS #10 certificate represented as JSON object. |
+| <span class="opa-keep-it-together">``output := crypto.x509.parse_certificates(certs)``</span> | ``certs`` is base64 encoded DER or PEM data containing one or more certificates. ``output`` is an array of X.509 certificates represented as JSON objects. |
+| <span class="opa-keep-it-together">``output := crypto.x509.parse_certificate_request(csr)``</span> | ``csr`` is a base64 string containing either a PEM encoded or DER CSR.``output`` is an X.509 CSR represented as a JSON object. |
 | <span class="opa-keep-it-together">``output := crypto.md5(string)``</span> | ``output`` is ``string`` md5 hashed. |
 | <span class="opa-keep-it-together">``output := crypto.sha1(string)``</span> | ``output`` is ``string`` sha1 hashed. |
 | <span class="opa-keep-it-together">``output := crypto.sha256(string)``</span> | ``output`` is ``string`` sha256 hashed. |
