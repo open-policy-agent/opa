@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
@@ -81,6 +82,7 @@ type preparedQuery struct {
 // time. Any other options will need to be set on a new Rego object.
 type EvalContext struct {
 	hasInput         bool
+	time             time.Time
 	rawInput         *interface{}
 	parsedInput      ast.Value
 	metrics          metrics.Metrics
@@ -193,6 +195,14 @@ func EvalParsedUnknowns(unknowns []*ast.Term) EvalOption {
 func EvalRuleIndexing(enabled bool) EvalOption {
 	return func(e *EvalContext) {
 		e.indexing = enabled
+	}
+}
+
+// EvalTime sets the wall clock time to use during policy evaluation.
+// time.now_ns() calls will return this value.
+func EvalTime(x time.Time) EvalOption {
+	return func(e *EvalContext) {
+		e.time = x
 	}
 }
 
@@ -476,6 +486,7 @@ type Rego struct {
 	termVarID              int
 	dump                   io.Writer
 	runtime                *ast.Term
+	time                   time.Time
 	builtinDecls           map[string]*ast.Builtin
 	builtinFuncs           map[string]*topdown.Builtin
 	unsafeBuiltins         map[string]struct{}
@@ -921,6 +932,15 @@ func Runtime(term *ast.Term) func(r *Rego) {
 	}
 }
 
+// Time sets the wall clock time to use during policy evaluation. Prepared queries
+// do not inherit this parameter. Use EvalTime to set the wall clock time when
+// executing a prepared query.
+func Time(x time.Time) func(r *Rego) {
+	return func(r *Rego) {
+		r.time = x
+	}
+}
+
 // PrintTrace is a helper function to write a human-readable version of the
 // trace to the writer w.
 func PrintTrace(w io.Writer, r *Rego) {
@@ -1025,6 +1045,7 @@ func (r *Rego) Eval(ctx context.Context) (ResultSet, error) {
 		EvalTransaction(r.txn),
 		EvalMetrics(r.metrics),
 		EvalInstrument(r.instrument),
+		EvalTime(r.time),
 	}
 
 	for _, qt := range r.queryTracers {
@@ -1652,6 +1673,10 @@ func (r *Rego) eval(ctx context.Context, ectx *EvalContext) (ResultSet, error) {
 		WithRuntime(r.runtime).
 		WithIndexing(ectx.indexing)
 
+	if !ectx.time.IsZero() {
+		q = q.WithTime(ectx.time)
+	}
+
 	for i := range ectx.queryTracers {
 		q = q.WithQueryTracer(ectx.queryTracers[i])
 	}
@@ -1839,6 +1864,10 @@ func (r *Rego) partial(ctx context.Context, ectx *EvalContext) (*PartialQueries,
 		WithPartialNamespace(ectx.partialNamespace).
 		WithSkipPartialNamespace(r.skipPartialNamespace).
 		WithShallowInlining(r.shallowInlining)
+
+	if !ectx.time.IsZero() {
+		q = q.WithTime(ectx.time)
+	}
 
 	for i := range ectx.queryTracers {
 		q = q.WithQueryTracer(ectx.queryTracers[i])

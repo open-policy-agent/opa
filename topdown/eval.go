@@ -32,6 +32,7 @@ func (f *queryIDFactory) Next() uint64 {
 type eval struct {
 	ctx                context.Context
 	seed               io.Reader
+	time               *ast.Term
 	queryID            uint64
 	queryIDFact        *queryIDFactory
 	parent             *eval
@@ -613,6 +614,7 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 	bctx := BuiltinContext{
 		Context:      e.ctx,
 		Seed:         e.seed,
+		Time:         e.time,
 		Cancel:       e.cancel,
 		Runtime:      e.runtime,
 		Cache:        e.builtinCache,
