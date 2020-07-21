@@ -24,8 +24,8 @@ func TestNewReportDefaultURL(t *testing.T) {
 	}
 
 	actual := reporter.client.Config().URL
-	if actual != defaultExternalServiceURL {
-		t.Fatalf("Expected server URL %v but got %v", defaultExternalServiceURL, actual)
+	if actual != ExternalServiceURL {
+		t.Fatalf("Expected server URL %v but got %v", ExternalServiceURL, actual)
 	}
 }
 

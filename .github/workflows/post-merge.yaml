@@ -36,6 +36,8 @@ jobs:
         timeout-minutes: 60
 
       - name: Build Release Binaries
+        env:
+          TELEMETRY_URL: ${{ secrets.TELEMETRY_URL }}
         run: make release-local
 
       - name: Deploy OPA Edge
