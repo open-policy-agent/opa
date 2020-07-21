@@ -9,11 +9,13 @@ import (
 	"crypto/sha1"
 	"crypto/sha256"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strings"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/topdown/builtins"
@@ -21,17 +23,25 @@ import (
 )
 
 func builtinCryptoX509ParseCertificates(a ast.Value) (ast.Value, error) {
-	// all data must be base64, regardless of contents
-	str, err := builtinBase64Decode(a)
+
+	input, err := builtins.StringOperand(a, 1)
 	if err != nil {
 		return nil, err
 	}
 
-	// default to using []byte from the decoded string as DER data
-	bytes := []byte(str.(ast.String))
+	// data to be passed to x509.ParseCertificates
+	bytes := []byte(input)
 
-	// attempt to decode input string as PEM data
-	p, rest := pem.Decode([]byte(str.(ast.String)))
+	// if the input is not a PEM string, attempt to decode b64
+	if str := string(input); !strings.HasPrefix(str, "-----BEGIN CERTIFICATE-----") {
+		bytes, err = base64.StdEncoding.DecodeString(str)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// attempt to decode input as PEM data
+	p, rest := pem.Decode(bytes)
 	if p != nil && p.Type != "CERTIFICATE" {
 		return nil, fmt.Errorf("PEM data contains '%s', expected CERTIFICATE", p.Type)
 	}
@@ -76,37 +86,25 @@ func builtinCryptoX509ParseCertificates(a ast.Value) (ast.Value, error) {
 	return ast.InterfaceToValue(x)
 }
 
-func hashHelper(a ast.Value, h func(ast.String) string) (ast.Value, error) {
-	s, err := builtins.StringOperand(a, 1)
-	if err != nil {
-		return nil, err
-	}
-	return ast.String(h(s)), nil
-}
-
-func builtinCryptoMd5(a ast.Value) (ast.Value, error) {
-	return hashHelper(a, func(s ast.String) string { return fmt.Sprintf("%x", md5.Sum([]byte(s))) })
-}
-
-func builtinCryptoSha1(a ast.Value) (ast.Value, error) {
-	return hashHelper(a, func(s ast.String) string { return fmt.Sprintf("%x", sha1.Sum([]byte(s))) })
-}
-
-func builtinCryptoSha256(a ast.Value) (ast.Value, error) {
-	return hashHelper(a, func(s ast.String) string { return fmt.Sprintf("%x", sha256.Sum256([]byte(s))) })
-}
-
 func builtinCryptoX509ParseCertificateRequest(a ast.Value) (ast.Value, error) {
-	// all data must be base64, regardless of contents
-	str, err := builtinBase64Decode(a)
+
+	input, err := builtins.StringOperand(a, 1)
 	if err != nil {
 		return nil, err
 	}
 
-	// default to a byte slice from the decoded string
-	bytes := []byte(str.(ast.String))
+	// data to be passed to x509.ParseCertificateRequest
+	bytes := []byte(input)
 
-	p, _ := pem.Decode([]byte(str.(ast.String)))
+	// if the input is not a PEM string, attempt to decode b64
+	if str := string(input); !strings.HasPrefix(str, "-----BEGIN CERTIFICATE REQUEST-----") {
+		bytes, err = base64.StdEncoding.DecodeString(str)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	p, _ := pem.Decode(bytes)
 	if p != nil && p.Type != "CERTIFICATE REQUEST" {
 		return nil, fmt.Errorf("invalid PEM-encoded certificate signing request")
 	}
@@ -129,6 +127,26 @@ func builtinCryptoX509ParseCertificateRequest(a ast.Value) (ast.Value, error) {
 		return nil, err
 	}
 	return ast.InterfaceToValue(x)
+}
+
+func hashHelper(a ast.Value, h func(ast.String) string) (ast.Value, error) {
+	s, err := builtins.StringOperand(a, 1)
+	if err != nil {
+		return nil, err
+	}
+	return ast.String(h(s)), nil
+}
+
+func builtinCryptoMd5(a ast.Value) (ast.Value, error) {
+	return hashHelper(a, func(s ast.String) string { return fmt.Sprintf("%x", md5.Sum([]byte(s))) })
+}
+
+func builtinCryptoSha1(a ast.Value) (ast.Value, error) {
+	return hashHelper(a, func(s ast.String) string { return fmt.Sprintf("%x", sha1.Sum([]byte(s))) })
+}
+
+func builtinCryptoSha256(a ast.Value) (ast.Value, error) {
+	return hashHelper(a, func(s ast.String) string { return fmt.Sprintf("%x", sha256.Sum256([]byte(s))) })
 }
 
 func init() {
