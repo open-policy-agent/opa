@@ -19,4 +19,4 @@ func main() {
 }
 
 // WASM base binary generation:
-//go:generate build/gen-opa-wasm.sh internal/cmd/genopawasm/main.go -o internal/compiler/wasm/opa/opa.go internal/compiler/wasm/opa/opa.wasm
+//go:generate build/gen-run-go.sh internal/cmd/genopawasm/main.go -o internal/compiler/wasm/opa/opa.go internal/compiler/wasm/opa/opa.wasm
