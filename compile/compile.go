@@ -44,6 +44,7 @@ var validTargets = map[string]struct{}{
 
 // Compiler implements bundle compilation and linking.
 type Compiler struct {
+	capabilities      *ast.Capabilities          // the capabilities that compiled policies may require
 	bundle            *bundle.Bundle             // the bundle that the compiler operates on
 	revision          *string                    // the revision to set on the output bundle
 	asBundle          bool                       // whether to assume bundle layout on file loading or not
@@ -168,6 +169,12 @@ func (c *Compiler) WithBundleVerificationKeyID(keyID string) *Compiler {
 	return c
 }
 
+// WithCapabilities sets the capabilities to use while checking policies.
+func (c *Compiler) WithCapabilities(capabilities *ast.Capabilities) *Compiler {
+	c.capabilities = capabilities
+	return c
+}
+
 // Build compiles and links the input files and outputs a bundle to the writer.
 func (c *Compiler) Build(ctx context.Context) error {
 
@@ -207,6 +214,10 @@ func (c *Compiler) Build(ctx context.Context) error {
 }
 
 func (c *Compiler) init() error {
+
+	if c.capabilities == nil {
+		c.capabilities = ast.CapabilitiesForThisVersion()
+	}
 
 	if _, ok := validTargets[c.target]; !ok {
 		return fmt.Errorf("invalid target %q", c.target)
@@ -304,11 +315,11 @@ func (c *Compiler) optimize(ctx context.Context) error {
 
 	if c.optimizationLevel <= 0 {
 		var err error
-		c.compiler, err = compile(c.bundle)
+		c.compiler, err = compile(c.capabilities, c.bundle)
 		return err
 	}
 
-	o := newOptimizer(c.bundle).
+	o := newOptimizer(c.capabilities, c.bundle).
 		WithEntrypoints(c.entrypointrefs).
 		WithDebug(c.debug).
 		WithShallowInlining(c.optimizationLevel <= 1)
@@ -329,7 +340,7 @@ func (c *Compiler) compileWasm(ctx context.Context) error {
 	// AST compiler will not be set because the default target does not require it.
 	if c.compiler == nil {
 		var err error
-		c.compiler, err = compile(c.bundle)
+		c.compiler, err = compile(c.capabilities, c.bundle)
 		if err != nil {
 			return err
 		}
@@ -362,6 +373,7 @@ func (err undefinedEntrypointErr) Error() string {
 }
 
 type optimizer struct {
+	capabilities    *ast.Capabilities
 	bundle          *bundle.Bundle
 	compiler        *ast.Compiler
 	entrypoints     []*ast.Term
@@ -372,8 +384,9 @@ type optimizer struct {
 	debug           *debugEvents
 }
 
-func newOptimizer(b *bundle.Bundle) *optimizer {
+func newOptimizer(c *ast.Capabilities, b *bundle.Bundle) *optimizer {
 	return &optimizer{
+		capabilities:    c,
 		bundle:          b,
 		nsprefix:        "partial",
 		resultsymprefix: ast.WildcardPrefix,
@@ -424,7 +437,7 @@ func (o *optimizer) Do(ctx context.Context) error {
 	for i, e := range o.entrypoints {
 
 		var err error
-		o.compiler, err = compile(o.bundle)
+		o.compiler, err = compile(o.capabilities, o.bundle)
 		if err != nil {
 			return err
 		}
@@ -642,7 +655,7 @@ func (o *optimizer) getSupportModuleFilename(used map[string]int, module *ast.Mo
 
 var safePathPattern = regexp.MustCompile(`^[\w-_/]+$`)
 
-func compile(b *bundle.Bundle) (*ast.Compiler, error) {
+func compile(c *ast.Capabilities, b *bundle.Bundle) (*ast.Compiler, error) {
 
 	modules := map[string]*ast.Module{}
 
@@ -650,14 +663,14 @@ func compile(b *bundle.Bundle) (*ast.Compiler, error) {
 		modules[mf.URL] = mf.Parsed
 	}
 
-	c := ast.NewCompiler()
-	c.Compile(modules)
+	compiler := ast.NewCompiler().WithCapabilities(c)
+	compiler.Compile(modules)
 
-	if c.Failed() {
-		return nil, c.Errors
+	if compiler.Failed() {
+		return nil, compiler.Errors
 	}
 
-	return c, nil
+	return compiler, nil
 }
 
 func transitiveDependents(compiler *ast.Compiler, rule *ast.Rule, deps map[*ast.Rule]struct{}) {

@@ -856,7 +856,7 @@ func getOptimizer(modules map[string]string, data string, entries []string) *opt
 		entrypoints[i] = ast.MustParseTerm(entries[i])
 	}
 
-	o := newOptimizer(b).
+	o := newOptimizer(ast.CapabilitiesForThisVersion(), b).
 		WithEntrypoints(entrypoints)
 
 	o.resultsymprefix = ""
