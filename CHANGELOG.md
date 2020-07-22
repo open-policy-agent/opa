@@ -5,6 +5,34 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Capabilities
+
+OPA now supports a _capabilities_ check on policies. The check allows callers to restrict the built-in functions that policies may depend on. If the policies passed to OPA require built-ins not listed in the capabilities structure, an error is returned. The capabilities check is currently supported by the `check` and `build` sub-commands and can be accessed programmatically on the `ast.Compiler` structure. The repository also includes a set of capabilities files for previous versions of OPA under the `capabilities/` directory.
+
+For example, given the following policy:
+
+```rego
+package example
+
+deny["missing semantic version"] {
+  not valid_semantic_version_tag
+}
+
+valid_semantic_version_tag {
+  semver.is_valid(input.version)
+}
+```
+
+We can check whether it is compatible with different versions of OPA:
+
+```bash
+# OK!
+$ opa build ./policies/example.rego --capabilities ./capabilities/v0.22.0.json
+
+# ERROR!
+$ opa build ./policies/example.rego --capabilities ./capabilities/v0.21.1.json
+```
+
 ## 0.22.0
 
 ### Bundle Signing
