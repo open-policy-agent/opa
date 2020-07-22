@@ -2129,10 +2129,10 @@ var RegexMatchDeprecated = &Builtin{
 // Builtin represents a built-in function supported by OPA. Every built-in
 // function is uniquely identified by a name.
 type Builtin struct {
-	Name     string          // Unique name of built-in function, e.g., <name>(arg1,arg2,...,argN)
-	Infix    string          // Unique name of infix operator. Default should be unset.
-	Decl     *types.Function // Built-in function type declaration.
-	Relation bool            // Indicates if the built-in acts as a relation.
+	Name     string          `json:"name"`               // Unique name of built-in function, e.g., <name>(arg1,arg2,...,argN)
+	Decl     *types.Function `json:"decl"`               // Built-in function type declaration.
+	Infix    string          `json:"infix,omitempty"`    // Unique name of infix operator. Default should be unset.
+	Relation bool            `json:"relation,omitempty"` // Indicates if the built-in acts as a relation.
 }
 
 // Expr creates a new expression for the built-in with the given operands.
