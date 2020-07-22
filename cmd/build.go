@@ -23,6 +23,7 @@ import (
 const defaultPublicKeyID = "default"
 
 type buildParams struct {
+	capabilities       *capabilitiesFlag
 	target             *util.EnumFlag
 	bundleMode         bool
 	optimizationLevel  int
@@ -42,6 +43,7 @@ type buildParams struct {
 
 func newBuildParams() buildParams {
 	var buildParams buildParams
+	buildParams.capabilities = newcapabilitiesFlag()
 	buildParams.target = util.NewEnumFlag(compile.TargetRego, []string{compile.TargetRego, compile.TargetWasm})
 	return buildParams
 }
@@ -83,6 +85,8 @@ Inside another terminal in the same directory, serve the bundle via HTTP:
 
 For more information on bundles see https://www.openpolicyagent.org/docs/latest/management.
 
+## Common Flags
+
 When -b is specified the 'build' command assumes paths refer to existing bundle files
 or directories following the bundle structure. If multiple bundles are provided, their
 contents are merged. If there are any merge conflicts (e.g., due to conflicting bundle
@@ -108,6 +112,8 @@ The 'build' command supports targets (specified by -t):
 The -e flag tells the 'build' command which documents will be queried by the software
 asking for policy decisions, so that it can focus optimization efforts and ensure
 that document is not eliminated by the optimizer.
+
+## Signing
 
 The 'build' command can be used to verify the signature of a signed bundle and
 also to generate a signature for the output bundle the command creates.
@@ -152,6 +158,43 @@ containing optional claims.
 
 For more information on the format of the ".signatures.json" file
 see https://www.openpolicyagent.org/docs/latest/management/#bundle-signature.
+
+## Capabilities
+
+The 'build' command can validate policies against a configurable set of OPA capabilities.
+The capabilities define the built-in functions and other language features that policies
+may depend on. For example, the following capabilities file only permits the policy to
+depend on the "plus" built-in function ('+'):
+
+	{
+		"builtins": [
+			{
+				"name": "plus",
+				"infix": "+",
+				"decl": {
+					"type": "function",
+					"args": [
+						{
+							"type": "number"
+						},
+						{
+							"type": "number"
+						}
+					],
+					"result": {
+						"type": "number"
+					}
+				}
+			}
+		]
+	}
+
+Capablities can be used to validate policies against a specific version of OPA.
+The OPA repository contains a set of capabilities files for each OPA release. For example,
+the following command builds a directory of policies ('./policies') and validates them
+against OPA v0.22.0:
+
+	opa build ./policies --capabilities $OPA_SRC/capabilities/v0.22.0.json
 `,
 		PreRunE: func(Cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
@@ -176,6 +219,7 @@ see https://www.openpolicyagent.org/docs/latest/management/#bundle-signature.
 
 	addBundleModeFlag(buildCommand.Flags(), &buildParams.bundleMode, false)
 	addIgnoreFlag(buildCommand.Flags(), &buildParams.ignore)
+	addCapabilitiesFlag(buildCommand.Flags(), buildParams.capabilities)
 
 	// bundle verification config
 	addVerificationKeyFlag(buildCommand.Flags(), &buildParams.pubKey)
@@ -206,6 +250,7 @@ func dobuild(params buildParams, args []string) error {
 	}
 
 	compiler := compile.New().
+		WithCapabilities(params.capabilities.C).
 		WithTarget(params.target.String()).
 		WithAsBundle(params.bundleMode).
 		WithOptimizationLevel(params.optimizationLevel).

@@ -18,14 +18,16 @@ import (
 )
 
 var checkParams = struct {
-	format     *util.EnumFlag
-	errLimit   int
-	ignore     []string
-	bundleMode bool
+	format       *util.EnumFlag
+	errLimit     int
+	ignore       []string
+	bundleMode   bool
+	capabilities *capabilitiesFlag
 }{
 	format: util.NewEnumFlag(checkFormatPretty, []string{
 		checkFormatPretty, checkFormatJSON,
 	}),
+	capabilities: newcapabilitiesFlag(),
 }
 
 const (
@@ -84,7 +86,9 @@ func checkModules(args []string) int {
 		}
 	}
 
-	compiler := ast.NewCompiler().SetErrorLimit(checkParams.errLimit)
+	compiler := ast.NewCompiler().
+		SetErrorLimit(checkParams.errLimit).
+		WithCapabilities(checkParams.capabilities.C)
 
 	compiler.Compile(modules)
 
@@ -124,5 +128,6 @@ func init() {
 	addIgnoreFlag(checkCommand.Flags(), &checkParams.ignore)
 	checkCommand.Flags().VarP(checkParams.format, "format", "f", "set output format")
 	addBundleModeFlag(checkCommand.Flags(), &checkParams.bundleMode, false)
+	addCapabilitiesFlag(checkCommand.Flags(), checkParams.capabilities)
 	RootCommand.AddCommand(checkCommand)
 }
