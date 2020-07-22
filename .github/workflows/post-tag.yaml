@@ -27,10 +27,13 @@ jobs:
         run: make release
 
       - name: Build and Deploy OPA Docker Images
+        id: build-and-deploy
         env:
           DOCKER_USER: ${{ secrets.DOCKER_USER }}
           DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
           DOCKER_IMAGE: ${{ secrets.DOCKER_IMAGE }}
+        # Only run if required secrets are provided
+        if: ${{ env.DOCKER_USER && env.DOCKER_PASSWORD }}
         run: make release-ci
 
       - name: Create or Update Release
