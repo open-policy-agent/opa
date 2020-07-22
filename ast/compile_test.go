@@ -3928,6 +3928,8 @@ func getCompilerWithParsedModules(mods map[string]string) *Compiler {
 // normal compile run is performed.
 func compileStages(c *Compiler, upto func()) {
 
+	c.init()
+
 	for name := range c.Modules {
 		c.sorted = append(c.sorted, name)
 	}
@@ -4086,6 +4088,41 @@ func runQueryCompilerTest(t *testing.T, note, q, pkg string, imports []string, e
 			}
 		}
 	})
+}
+
+func TestCompilerCapabilitiesExtendedWithCustomBuiltins(t *testing.T) {
+
+	compiler := NewCompiler().WithCapabilities(&Capabilities{
+		Builtins: []*Builtin{
+			{
+				Name: "foo",
+				Decl: types.NewFunction([]types.Type{types.N}, types.B),
+			},
+		},
+	}).WithBuiltins(map[string]*Builtin{
+		"bar": &Builtin{
+			Name: "bar",
+			Decl: types.NewFunction([]types.Type{types.N}, types.B),
+		},
+	})
+
+	module1 := MustParseModule(`package test
+
+	p { foo(1); bar(2) }`)
+	module2 := MustParseModule(`package test
+
+	p { plus(1,2,x) }`)
+
+	compiler.Compile(map[string]*Module{"x": module1})
+	if compiler.Failed() {
+		t.Fatal("unexpected error:", compiler.Errors)
+	}
+
+	compiler.Compile(map[string]*Module{"x": module2})
+	if !compiler.Failed() {
+		t.Fatal("expected error but got success")
+	}
+
 }
 
 func TestCompilerWithUnsafeBuiltins(t *testing.T) {
