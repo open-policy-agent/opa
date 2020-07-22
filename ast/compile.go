@@ -95,9 +95,12 @@ type Compiler struct {
 	pathExists           func([]string) (bool, error)
 	after                map[string][]CompilerStageDefinition
 	metrics              metrics.Metrics
-	builtins             map[string]*Builtin
-	unsafeBuiltinsMap    map[string]struct{}
-	comprehensionIndices map[*Term]*ComprehensionIndex
+	capabilities         *Capabilities                 // user-supplied capabilities
+	builtins             map[string]*Builtin           // universe of built-in functions
+	customBuiltins       map[string]*Builtin           // user-supplied custom built-in functions (deprecated: use capabilities)
+	unsafeBuiltinsMap    map[string]struct{}           // user-supplied set of unsafe built-ins functions to block (deprecated: use capabilities)
+	comprehensionIndices map[*Term]*ComprehensionIndex // comprehension key index
+	initialized          bool                          // indicates if init() has been called
 }
 
 // CompilerStage defines the interface for stages in the compiler.
@@ -228,12 +231,6 @@ func NewCompiler() *Compiler {
 	c.ModuleTree = NewModuleTree(nil)
 	c.RuleTree = NewRuleTree(c.ModuleTree)
 
-	// Initialize the compiler with the statically compiled built-in functions.
-	// If the caller customizes the compiler, a copy will be made.
-	c.builtins = BuiltinMap
-	checker := newTypeChecker()
-	c.TypeEnv = checker.checkLanguageBuiltins(nil, c.builtins)
-
 	c.stages = []struct {
 		name       string
 		metricName string
@@ -300,26 +297,27 @@ func (c *Compiler) WithMetrics(metrics metrics.Metrics) *Compiler {
 	return c
 }
 
-// WithBuiltins adds a set of custom built-in functions to the compiler.
-func (c *Compiler) WithBuiltins(builtins map[string]*Builtin) *Compiler {
-	if len(builtins) == 0 {
-		return c
-	}
-	cpy := make(map[string]*Builtin, len(c.builtins)+len(builtins))
-	for k, v := range c.builtins {
-		cpy[k] = v
-	}
-	for k, v := range builtins {
-		cpy[k] = v
-	}
-	c.builtins = cpy
-	// Build type env for custom functions and wrap existing one.
-	checker := newTypeChecker()
-	c.TypeEnv = checker.checkLanguageBuiltins(c.TypeEnv, builtins)
+// WithCapabilities sets capabilities to enable during compilation. Capabilities allow the caller
+// to specify the set of built-in functions available to the policy. In the future, capabilities
+// may be able to restrict access to other language features. Capabilities allow callers to check
+// if policies are compatible with a particular version of OPA. If policies are a compiled for a
+// specific version of OPA, there is no guarantee that _this_ version of OPA can evaluate them
+// successfully.
+func (c *Compiler) WithCapabilities(capabilities *Capabilities) *Compiler {
+	c.capabilities = capabilities
 	return c
 }
 
-// WithUnsafeBuiltins will add all built-ins in the map to the "blacklist".
+// WithBuiltins is deprecated. Use WithCapabilities instead.
+func (c *Compiler) WithBuiltins(builtins map[string]*Builtin) *Compiler {
+	c.customBuiltins = make(map[string]*Builtin)
+	for k, v := range builtins {
+		c.customBuiltins[k] = v
+	}
+	return c
+}
+
+// WithUnsafeBuiltins is deprecated. Use WithCapabilities instead.
 func (c *Compiler) WithUnsafeBuiltins(unsafeBuiltins map[string]struct{}) *Compiler {
 	for name := range unsafeBuiltins {
 		c.unsafeBuiltinsMap[name] = struct{}{}
@@ -329,6 +327,7 @@ func (c *Compiler) WithUnsafeBuiltins(unsafeBuiltins map[string]struct{}) *Compi
 
 // QueryCompiler returns a new QueryCompiler object.
 func (c *Compiler) QueryCompiler() QueryCompiler {
+	c.init()
 	return newQueryCompiler(c)
 }
 
@@ -337,6 +336,8 @@ func (c *Compiler) QueryCompiler() QueryCompiler {
 // compiler. If the compilation process fails for any reason, the compiler will
 // contain a slice of errors.
 func (c *Compiler) Compile(modules map[string]*Module) {
+
+	c.init()
 
 	c.Modules = make(map[string]*Module, len(modules))
 
@@ -874,6 +875,7 @@ func (c *Compiler) runStageAfter(metricName string, s CompilerStage) *Error {
 }
 
 func (c *Compiler) compile() {
+
 	defer func() {
 		if r := recover(); r != nil && r != errLimitReached {
 			panic(r)
@@ -892,6 +894,31 @@ func (c *Compiler) compile() {
 			}
 		}
 	}
+}
+
+func (c *Compiler) init() {
+
+	if c.initialized {
+		return
+	}
+
+	if c.capabilities == nil {
+		c.capabilities = CapabilitiesForThisVersion()
+	}
+
+	c.builtins = make(map[string]*Builtin, len(c.capabilities.Builtins)+len(c.customBuiltins))
+
+	for _, bi := range c.capabilities.Builtins {
+		c.builtins[bi.Name] = bi
+	}
+
+	for name, bi := range c.customBuiltins {
+		c.builtins[name] = bi
+	}
+
+	tc := newTypeChecker()
+	c.TypeEnv = tc.checkLanguageBuiltins(nil, c.builtins)
+	c.initialized = true
 }
 
 func (c *Compiler) err(err *Error) {
