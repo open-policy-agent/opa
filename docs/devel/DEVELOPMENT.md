@@ -149,20 +149,19 @@ files in the root of this repository:
 OPA uses Github Actions defined in the [.github/workflows](../../.github/workflows)
 directory.
 
-## Required Secrets
+## Github Action Secrets
 
-The following secrets are assumed to be configured for the Repository. Any fork of
-OPA will need to have them configured to be able to run the full CI workflow.
+The following secrets are used by the Github Action workflows:
 
 | Name | Description |
 |------|-------------|
-| S3_RELEASE_BUCKET | AWS S3 Bucket name to upload `edge` release binaries to. |
-| AWS_ACCESS_KEY_ID | AWS credentials required to upload to the configured `S3_RELEASE_BUCKET`. |
-| AWS_SECRET_ACCESS_KEY | AWS credentials required to upload to the configured `S3_RELEASE_BUCKET`. |
-| DOCKER_IMAGE | Full docker image name (with org) to tag and publish OPA images. |
-| DOCKER_WASM_BUILDER_IMAGE | Full docker image name (with org) to tag and publish WASM builder images. |
-| DOCKER_USER | Docker username for uploading release images. Will be used with `docker login` |
-| DOCKER_PASSWORD | Docker password or API token for the configured `DOCKER_USER`. Will be used with `docker login` |
+| S3_RELEASE_BUCKET | AWS S3 Bucket name to upload `edge` release binaries to. Optional -- If not provided the release upload steps are skipped. |
+| AWS_ACCESS_KEY_ID | AWS credentials required to upload to the configured `S3_RELEASE_BUCKET`. Optional -- If not provided the release upload steps are skipped. |
+| AWS_SECRET_ACCESS_KEY | AWS credentials required to upload to the configured `S3_RELEASE_BUCKET`. Optional -- If not provided the release upload steps are skipped. |
+| DOCKER_IMAGE | Full docker image name (with org) to tag and publish OPA images. Optional -- If not provided the image defaults to `openpolicyagent/opa`. |
+| DOCKER_WASM_BUILDER_IMAGE | Full docker image name (with org) to tag and publish WASM builder images. Optional -- If not provided the image defaults to `openpolicyagent/opa-wasm-builder`. |
+| DOCKER_USER | Docker username for uploading release images. Will be used with `docker login`. Optional -- If not provided the image push steps are skipped. |
+| DOCKER_PASSWORD | Docker password or API token for the configured `DOCKER_USER`. Will be used with `docker login`. Optional -- If not provided the image push steps are skipped. |
 | SLACK_NOTIFICATION_WEBHOOK | Slack webhook for sending notifications. Optional -- If not provided the notification steps are skipped. |
 | TELEMETRY_URL | URL to inject at build-time for OPA version reporting. Optional -- If not provided the default value in OPA's source is used. |
 
