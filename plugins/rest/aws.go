@@ -286,11 +286,11 @@ func signV4(req *http.Request, credService awsCredentialService, theTime time.Ti
 	dateNow := now.Format("20060102")
 	iso8601Now := now.Format("20060102T150405Z")
 
-	// certain mandatory headers for V4 signing
 	awsHeaders := map[string]string{
-		"host":                 req.URL.Hostname(),
+		"host":                 req.URL.Host,
 		"x-amz-content-sha256": bodyHexHash,
-		"x-amz-date":           iso8601Now}
+		"x-amz-date":           iso8601Now,
+	}
 
 	// the security token header is necessary for ephemeral credentials, e.g. from
 	// the EC2 metadata service

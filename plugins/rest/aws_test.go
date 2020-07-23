@@ -282,6 +282,41 @@ func TestV4Signing(t *testing.T) {
 	assertEq(req.Header.Get("X-Amz-Security-Token"), "MYAWSSECURITYTOKENGOESHERE", t)
 }
 
+func TestV4SigningCustomPort(t *testing.T) {
+	ts := credTestServer{}
+	ts.start()
+	defer ts.stop()
+
+	cs := &awsMetadataCredentialService{
+		RoleName:        "my_iam_role", // not present
+		RegionName:      "us-east-1",
+		credServicePath: ts.server.URL + "/latest/meta-data/iam/security-credentials/",
+		tokenPath:       ts.server.URL + "/latest/api/token"}
+	ts.payload = metadataPayload{
+		AccessKeyID:     "MYAWSACCESSKEYGOESHERE",
+		SecretAccessKey: "MYAWSSECRETACCESSKEYGOESHERE",
+		Code:            "Success",
+		Token:           "MYAWSSECURITYTOKENGOESHERE",
+		Expiration:      time.Now().UTC().Add(time.Minute * 2)}
+	req, _ := http.NewRequest("GET", "https://custom.s3.server:9000/bundle.tar.gz", strings.NewReader(""))
+	err := signV4(req, cs, time.Unix(1556129697, 0))
+
+	if err != nil {
+		t.Error("unexpected error during signing")
+	}
+
+	// expect mandatory headers
+	assertEq(req.Header.Get("Host"), "custom.s3.server:9000", t)
+	assertEq(req.Header.Get("Authorization"),
+		"AWS4-HMAC-SHA256 Credential=MYAWSACCESSKEYGOESHERE/20190424/us-east-1/s3/aws4_request,"+
+			"SignedHeaders=host;x-amz-content-sha256;x-amz-date;x-amz-security-token,"+
+			"Signature=765b67c6b136f99d9b769171c9939fc444021f7d17e4fbe6e1ab8b1926713c2b", t)
+	assertEq(req.Header.Get("X-Amz-Content-Sha256"),
+		"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", t)
+	assertEq(req.Header.Get("X-Amz-Date"), "20190424T181457Z", t)
+	assertEq(req.Header.Get("X-Amz-Security-Token"), "MYAWSSECURITYTOKENGOESHERE", t)
+}
+
 // simulate EC2 metadata service
 type credTestServer struct {
 	t         *testing.T

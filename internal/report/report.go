@@ -20,9 +20,16 @@ import (
 	"github.com/open-policy-agent/opa/version"
 )
 
-const (
-	defaultExternalServiceURL = "https://telemetry.openpolicyagent.org"
-)
+// ExternalServiceURL is the base HTTP URL for a telemetry service.
+// If not otherwise specified it will use the hard coded default.
+//
+// Override at build time via:
+//
+//    -ldflags "-X github.com/open-policy-agent/opa/internal/report.ExternalServiceURL=<url>"
+//
+// This will be overridden if the OPA_TELEMETRY_SERVICE_URL environment variable
+// is provided.
+var ExternalServiceURL = "https://telemetry.openpolicyagent.org"
 
 // Reporter reports the version of the running OPA instance to an external service
 type Reporter struct {
@@ -53,7 +60,7 @@ func New(id string) (*Reporter, error) {
 
 	url := os.Getenv("OPA_TELEMETRY_SERVICE_URL")
 	if url == "" {
-		url = defaultExternalServiceURL
+		url = ExternalServiceURL
 	}
 
 	restConfig := []byte(fmt.Sprintf(`{

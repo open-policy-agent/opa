@@ -164,6 +164,7 @@ OPA will need to have them configured to be able to run the full CI workflow.
 | DOCKER_USER | Docker username for uploading release images. Will be used with `docker login` |
 | DOCKER_PASSWORD | Docker password or API token for the configured `DOCKER_USER`. Will be used with `docker login` |
 | SLACK_NOTIFICATION_WEBHOOK | Slack webhook for sending notifications. Optional -- If not provided the notification steps are skipped. |
+| TELEMETRY_URL | URL to inject at build-time for OPA version reporting. Optional -- If not provided the default value in OPA's source is used. |
 
 ## Periodic Workflows
 

@@ -25,11 +25,11 @@ DOCKER := docker
 
 BIN := opa_$(GOOS)_$(GOARCH)
 
+# Optional external configuration useful for forks of OPA
 DOCKER_IMAGE ?= openpolicyagent/opa
-
 S3_RELEASE_BUCKET ?= opa-releases
-
 FUZZ_TIME ?= 3600  # 1hr
+TELEMETRY_URL ?= ""
 
 BUILD_COMMIT := $(shell ./build/get-build-commit.sh)
 BUILD_TIMESTAMP := $(shell ./build/get-build-timestamp.sh)
@@ -39,10 +39,16 @@ RELEASE_BUILD_IMAGE := golang:$(GOVERSION)
 
 RELEASE_DIR ?= _release/$(VERSION)
 
-LDFLAGS := "-X github.com/open-policy-agent/opa/version.Version=$(VERSION) \
+ifneq (,$(TELEMETRY_URL))
+TELEMETRY_FLAG := -X github.com/open-policy-agent/opa/internal/report.ExternalServiceURL=$(TELEMETRY_URL)
+endif
+
+LDFLAGS := "$(TELEMETRY_FLAG) \
+	-X github.com/open-policy-agent/opa/version.Version=$(VERSION) \
 	-X github.com/open-policy-agent/opa/version.Vcs=$(BUILD_COMMIT) \
 	-X github.com/open-policy-agent/opa/version.Timestamp=$(BUILD_TIMESTAMP) \
 	-X github.com/open-policy-agent/opa/version.Hostname=$(BUILD_HOSTNAME)"
+
 
 ######################################################
 #
@@ -203,8 +209,9 @@ CI_GOLANG_DOCKER_MAKE := $(DOCKER) run \
 	-v $(PWD):/src \
 	-w /src \
 	-e GOCACHE=/src/.go/cache \
-	-e CGO_ENABLED \
-	-e FUZZ_TIME \
+	-e CGO_ENABLED=$(CGO_ENABLED) \
+	-e FUZZ_TIME=$(FUZZ_TIME) \
+	-e TELEMETRY_URL=$(TELEMETRY_URL) \
 	golang:$(GOVERSION) \
 	make
 
@@ -349,6 +356,7 @@ release:
 	$(DOCKER) run $(DOCKER_FLAGS) \
 		-v $(PWD)/$(RELEASE_DIR):/$(RELEASE_DIR) \
 		-v $(PWD):/_src \
+		-e TELEMETRY_URL=$(TELEMETRY_URL) \
 		$(RELEASE_BUILD_IMAGE) \
 		/_src/build/build-release.sh --version=$(VERSION) --output-dir=/$(RELEASE_DIR) --source-url=/_src
 
@@ -357,6 +365,7 @@ release-local:
 	$(DOCKER) run $(DOCKER_FLAGS) \
 		-v $(PWD)/$(RELEASE_DIR):/$(RELEASE_DIR) \
 		-v $(PWD):/_src \
+		-e TELEMETRY_URL=$(TELEMETRY_URL) \
 		$(RELEASE_BUILD_IMAGE) \
 		/_src/build/build-release.sh --output-dir=/$(RELEASE_DIR) --source-url=/_src
 
