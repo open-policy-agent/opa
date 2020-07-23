@@ -29,7 +29,7 @@ BIN := opa_$(GOOS)_$(GOARCH)
 DOCKER_IMAGE ?= openpolicyagent/opa
 S3_RELEASE_BUCKET ?= opa-releases
 FUZZ_TIME ?= 3600  # 1hr
-TELEMETRY_URL ?= ""
+TELEMETRY_URL ?= #Default empty
 
 BUILD_COMMIT := $(shell ./build/get-build-commit.sh)
 BUILD_TIMESTAMP := $(shell ./build/get-build-timestamp.sh)
