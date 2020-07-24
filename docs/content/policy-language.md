@@ -308,6 +308,38 @@ d := {"a": a, "x": [b, c]}
 
 By defining composite values in terms of variables and references, rules can define abstractions over raw data and other rules.
 
+### Objects
+
+Objects are unordered key-value collections. In Rego, any value type can be
+used as an object key. For example, the following assignment maps port **numbers**
+to a list of IP addresses (represented as strings).
+
+```live:eg/objects:module:merge_down
+ips_by_port := {
+    80: ["1.1.1.1", "1.1.1.2"],
+    443: ["2.2.2.1"],
+}
+```
+```live:eg/objects/lookup:query:merge_down
+ips_by_port[80]
+```
+```live:eg/objects/lookup:output:merge_down
+```
+```live:eg/objects/iteration:query:merge_down
+some port; ips_by_port[port][_] == "2.2.2.1"
+```
+```live:eg/objects/iteration:output
+```
+
+When Rego values are converted to JSON non-string object keys are marshalled
+as strings (because JSON does not support non-string object keys).
+
+```live:eg/objects/marshal:query:merge_down
+ips_by_port
+```
+```live:eg/objects/marshal:output
+```
+
 ### Sets
 
 In addition to arrays and objects, Rego supports set values. Sets are unordered
