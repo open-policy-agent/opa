@@ -1055,7 +1055,7 @@ func (p *Parser) parseArray() (term *Term) {
 	case tokens.Comma:
 		p.scan()
 		if terms := p.parseTermList(tokens.RBrack, []*Term{head}); terms != nil {
-			return NewTerm(Array(terms))
+			return NewTerm(NewArray(terms...))
 		}
 		return nil
 	case tokens.Or:
@@ -1074,7 +1074,7 @@ func (p *Parser) parseArray() (term *Term) {
 	default:
 		p.restore(s)
 		if terms := p.parseTermList(tokens.RBrack, nil); terms != nil {
-			return NewTerm(Array(terms))
+			return NewTerm(NewArray(terms...))
 		}
 		return nil
 	}

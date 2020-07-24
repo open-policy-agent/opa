@@ -398,9 +398,9 @@ func TestVarVisitor(t *testing.T) {
 		stmt := MustParseStatement(tc.stmt)
 
 		expected := NewVarSet()
-		for _, x := range MustParseTerm(tc.expected).Value.(Array) {
+		MustParseTerm(tc.expected).Value.(Array).Foreach(func(x *Term) {
 			expected.Add(x.Value.(Var))
-		}
+		})
 
 		vis := NewVarVisitor().WithParams(tc.params)
 		vis.Walk(stmt)

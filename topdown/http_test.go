@@ -562,7 +562,7 @@ func TestParseTimeout(t *testing.T) {
 		},
 		{
 			note:     "invalid value type array",
-			raw:      &ast.Array{},
+			raw:      ast.NewArray(),
 			expected: builtins.NewOperandErr(1, "'timeout' must be one of {string, number} but got array"),
 		},
 		{

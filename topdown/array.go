@@ -20,17 +20,20 @@ func builtinArrayConcat(a, b ast.Value) (ast.Value, error) {
 		return nil, err
 	}
 
-	arrC := make(ast.Array, 0, len(arrA)+len(arrB))
+	arrC := make([]*ast.Term, arrA.Len()+arrB.Len())
 
-	for _, elemA := range arrA {
-		arrC = append(arrC, elemA)
-	}
+	i := 0
+	arrA.Foreach(func(elemA *ast.Term) {
+		arrC[i] = elemA
+		i++
+	})
 
-	for _, elemB := range arrB {
-		arrC = append(arrC, elemB)
-	}
+	arrB.Foreach(func(elemB *ast.Term) {
+		arrC[i] = elemB
+		i++
+	})
 
-	return arrC, nil
+	return ast.NewArray(arrC...), nil
 }
 
 func builtinArraySlice(a, i, j ast.Value) (ast.Value, error) {
@@ -53,8 +56,8 @@ func builtinArraySlice(a, i, j ast.Value) (ast.Value, error) {
 	// Otherwise, clamp to length of array.
 	if stopIndex < 0 {
 		stopIndex = 0
-	} else if stopIndex > len(arr) {
-		stopIndex = len(arr)
+	} else if stopIndex > arr.Len() {
+		stopIndex = arr.Len()
 	}
 
 	// Clamp startIndex to avoid out-of-range errors. If negative, clamp to zero.
@@ -65,7 +68,7 @@ func builtinArraySlice(a, i, j ast.Value) (ast.Value, error) {
 		startIndex = stopIndex
 	}
 
-	return arr[startIndex:stopIndex], nil
+	return arr.Slice(startIndex, stopIndex), nil
 }
 
 func init() {

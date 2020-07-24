@@ -89,9 +89,9 @@ func (u *unifier) unify(a *Term, b *Term) {
 		case Ref, *ArrayComprehension, *ObjectComprehension, *SetComprehension:
 			u.markAllSafe(a)
 		case Array:
-			if len(a) == len(b) {
-				for i := range a {
-					u.unify(a[i], b[i])
+			if a.Len() == b.Len() {
+				for i := 0; i < a.Len(); i++ {
+					u.unify(a.Elem(i), b.Elem(i))
 				}
 			}
 		}

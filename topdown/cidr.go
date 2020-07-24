@@ -119,10 +119,10 @@ func getCIDRMatchTerm(a *ast.Term) (*ast.Term, error) {
 	case ast.String:
 		return a, nil
 	case ast.Array:
-		if len(v) == 0 {
+		if v.Len() == 0 {
 			return nil, errNetCIDRContainsMatchElementType
 		}
-		return v[0], nil
+		return v.Elem(0), nil
 	default:
 		return nil, errNetCIDRContainsMatchElementType
 	}
@@ -133,8 +133,8 @@ func evalNetCIDRContainsMatchesOperand(operand int, a *ast.Term, iter func(cidr,
 	case ast.String:
 		return iter(a, a)
 	case ast.Array:
-		for i := range v {
-			cidr, err := getCIDRMatchTerm(v[i])
+		for i := 0; i < v.Len(); i++ {
+			cidr, err := getCIDRMatchTerm(v.Elem(i))
 			if err != nil {
 				return fmt.Errorf("operand %v: %v", operand, err)
 			}

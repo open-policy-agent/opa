@@ -111,12 +111,13 @@ func builtinJWTDecode(a ast.Value) (ast.Value, error) {
 	}
 	sign := hex.EncodeToString([]byte(s.(ast.String)))
 
-	arr := make(ast.Array, 3)
-	arr[0] = ast.NewTerm(token.decodedHeader)
-	arr[1] = ast.NewTerm(payload)
-	arr[2] = ast.StringTerm(sign)
+	arr := []*ast.Term{
+		ast.NewTerm(token.decodedHeader),
+		ast.NewTerm(payload),
+		ast.StringTerm(sign),
+	}
 
-	return arr, nil
+	return ast.NewArray(arr...), nil
 }
 
 // Implements RS256 JWT signature verification
@@ -624,8 +625,8 @@ func (constraints *tokenConstraints) validAudience(aud ast.Value) (valid bool) {
 	}
 	var a ast.Array
 	if a, ok = aud.(ast.Array); ok {
-		for _, t := range a {
-			if s, ok = t.Value.(ast.String); ok {
+		for i := 0; i < a.Len(); i++ {
+			if s, ok = a.Elem(i).Value.(ast.String); ok {
 				if string(s) == constraints.aud {
 					return true
 				}
@@ -770,9 +771,9 @@ func tokenHeaderCrit(header *tokenHeader, value ast.Value) (err error) {
 		return
 	}
 	header.crit = map[string]bool{}
-	for _, t := range v {
+	for i := 0; i < v.Len(); i++ {
 		var tv ast.String
-		if tv, ok = t.Value.(ast.String); !ok {
+		if tv, ok = v.Elem(i).Value.(ast.String); !ok {
 			err = fmt.Errorf("crit: must be a list of strings")
 			return
 		}
@@ -907,10 +908,11 @@ func builtinJWTDecodeVerify(a ast.Value, b ast.Value) (v ast.Value, err error) {
 	// was not met.
 	//
 	// Decoding errors etc are returned as errors.
-	arr := make(ast.Array, 3)
-	arr[0] = ast.BooleanTerm(false) // by default, not verified
-	arr[1] = ast.NewTerm(ast.NewObject())
-	arr[2] = ast.NewTerm(ast.NewObject())
+	arr := []*ast.Term{
+		ast.BooleanTerm(false), // by default, not verified
+		ast.NewTerm(ast.NewObject()),
+		ast.NewTerm(ast.NewObject()),
+	}
 	var constraints tokenConstraints
 	if constraints, err = parseTokenConstraints(b); err != nil {
 		return
@@ -935,11 +937,11 @@ func builtinJWTDecodeVerify(a ast.Value, b ast.Value) (v ast.Value, err error) {
 			return
 		}
 		if !header.valid() {
-			return arr, nil
+			return ast.NewArray(arr...), nil
 		}
 		// Check constraints that impact signature verification.
 		if constraints.alg != "" && constraints.alg != header.alg {
-			return arr, nil
+			return ast.NewArray(arr...), nil
 		}
 		// RFC7159 7.2 #7 verify the signature
 		var signature string
@@ -948,7 +950,7 @@ func builtinJWTDecodeVerify(a ast.Value, b ast.Value) (v ast.Value, err error) {
 		}
 		if err = constraints.verify(header.kid, header.alg, token.header, token.payload, signature); err != nil {
 			if err == errSignatureNotVerified {
-				return arr, nil
+				return ast.NewArray(arr...), nil
 			}
 			return
 		}
@@ -976,18 +978,18 @@ func builtinJWTDecodeVerify(a ast.Value, b ast.Value) (v ast.Value, err error) {
 		if iss := payload.Get(jwtIssKey); iss != nil {
 			issVal := string(iss.Value.(ast.String))
 			if constraints.iss != issVal {
-				return arr, nil
+				return ast.NewArray(arr...), nil
 			}
 		}
 	}
 	// RFC7159 4.1.3 aud
 	if aud := payload.Get(jwtAudKey); aud != nil {
 		if !constraints.validAudience(aud.Value) {
-			return arr, nil
+			return ast.NewArray(arr...), nil
 		}
 	} else {
 		if constraints.aud != "" {
-			return arr, nil
+			return ast.NewArray(arr...), nil
 		}
 	}
 	// RFC7159 4.1.4 exp
@@ -1000,7 +1002,7 @@ func builtinJWTDecodeVerify(a ast.Value, b ast.Value) (v ast.Value, err error) {
 		compareTime := ast.Number(strconv.FormatFloat(float64(constraints.time)/1000000000, 'g', -1, 64))
 
 		if ast.Compare(compareTime, exp.Value.(ast.Number)) != -1 {
-			return arr, nil
+			return ast.NewArray(arr...), nil
 		}
 	}
 	// RFC7159 4.1.5 nbf
@@ -1013,14 +1015,14 @@ func builtinJWTDecodeVerify(a ast.Value, b ast.Value) (v ast.Value, err error) {
 		compareTime := ast.Number(strconv.FormatFloat(float64(constraints.time)/1000000000, 'g', -1, 64))
 
 		if ast.Compare(compareTime, nbf.Value.(ast.Number)) == -1 {
-			return arr, nil
+			return ast.NewArray(arr...), nil
 		}
 	}
 	// Format the result
 	arr[0] = ast.BooleanTerm(true)
 	arr[1] = ast.NewTerm(token.decodedHeader)
 	arr[2] = ast.NewTerm(payload)
-	return arr, nil
+	return ast.NewArray(arr...), nil
 }
 
 // -- Utilities --

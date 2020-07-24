@@ -48,9 +48,9 @@ func TestUnify(t *testing.T) {
 
 		expr := MustParseBody(tc.expr)[0]
 		safe := VarSet{}
-		for _, x := range MustParseTerm(tc.safe).Value.(Array) {
+		MustParseTerm(tc.safe).Value.(Array).Foreach(func(x *Term) {
 			safe.Add(x.Value.(Var))
-		}
+		})
 
 		terms := expr.Terms.([]*Term)
 		if !expr.IsEquality() {
@@ -65,9 +65,9 @@ func TestUnify(t *testing.T) {
 		}
 
 		expected := VarSet{}
-		for _, x := range MustParseTerm(tc.expected).Value.(Array) {
+		MustParseTerm(tc.expected).Value.(Array).Foreach(func(x *Term) {
 			expected.Add(x.Value.(Var))
-		}
+		})
 
 		missing := expected.Diff(result)
 		extra := result.Diff(expected)

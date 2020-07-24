@@ -43,9 +43,9 @@ func (env *TypeEnv) Get(x interface{}) types.Type {
 
 	// Composites.
 	case Array:
-		static := make([]types.Type, len(x))
+		static := make([]types.Type, x.Len())
 		for i := range static {
-			tpe := env.Get(x[i].Value)
+			tpe := env.Get(x.Elem(i).Value)
 			static[i] = tpe
 		}
 

@@ -94,11 +94,11 @@ func builtinRegexSplit(a, b ast.Value) (ast.Value, error) {
 	}
 
 	elems := re.Split(string(s2), -1)
-	arr := make(ast.Array, len(elems))
-	for i := range arr {
+	arr := make([]*ast.Term, len(elems))
+	for i := range elems {
 		arr[i] = ast.StringTerm(elems[i])
 	}
-	return arr, nil
+	return ast.NewArray(arr...), nil
 }
 
 func getRegexp(pat string) (*regexp.Regexp, error) {
@@ -166,11 +166,11 @@ func builtinRegexFind(a, b, c ast.Value) (ast.Value, error) {
 	}
 
 	elems := re.FindAllString(string(s2), n)
-	arr := make(ast.Array, len(elems))
-	for i := range arr {
+	arr := make([]*ast.Term, len(elems))
+	for i := range elems {
 		arr[i] = ast.StringTerm(elems[i])
 	}
-	return arr, nil
+	return ast.NewArray(arr...), nil
 }
 
 func builtinRegexFindAllStringSubmatch(a, b, c ast.Value) (ast.Value, error) {
@@ -193,16 +193,16 @@ func builtinRegexFindAllStringSubmatch(a, b, c ast.Value) (ast.Value, error) {
 	}
 	matches := re.FindAllStringSubmatch(string(s2), n)
 
-	outer := make(ast.Array, len(matches))
-	for i := range outer {
-		inner := make(ast.Array, len(matches[i]))
-		for j := range inner {
+	outer := make([]*ast.Term, len(matches))
+	for i := range matches {
+		inner := make([]*ast.Term, len(matches[i]))
+		for j := range matches[i] {
 			inner[j] = ast.StringTerm(matches[i][j])
 		}
-		outer[i] = ast.ArrayTerm(inner...)
+		outer[i] = ast.NewTerm(ast.NewArray(inner...))
 	}
 
-	return outer, nil
+	return ast.NewArray(outer...), nil
 }
 
 func init() {

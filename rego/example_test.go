@@ -759,12 +759,12 @@ func ExampleRego_custom_functional_builtin() {
 
 				result := strings.Split(strings.Trim(string(str), string(delim)), string(delim))
 
-				arr := make(ast.Array, len(result))
+				arr := make([]*ast.Term, len(result))
 				for i := range result {
 					arr[i] = ast.StringTerm(result[i])
 				}
 
-				return ast.NewTerm(arr), nil
+				return ast.ArrayTerm(arr...), nil
 			},
 		),
 	)
@@ -844,12 +844,12 @@ func ExampleRego_custom_function_global() {
 
 		result := strings.Split(strings.Trim(string(str), string(delim)), string(delim))
 
-		arr := make(ast.Array, len(result))
+		arr := make([]*ast.Term, len(result))
 		for i := range result {
 			arr[i] = ast.StringTerm(result[i])
 		}
 
-		return ast.NewTerm(arr), nil
+		return ast.ArrayTerm(arr...), nil
 	}
 
 	// The rego package exports helper functions for different arities and a

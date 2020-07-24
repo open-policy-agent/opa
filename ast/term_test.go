@@ -130,7 +130,11 @@ func TestObjectSetOperations(t *testing.T) {
 	}
 
 	r2 := a.Intersect(b)
-	if len(r2) != 1 || !termSliceEqual(r2[0][:], MustParseTerm(`["c", "d", "q"]`).Value.(Array)) {
+	var expectedTerms []*Term
+	MustParseTerm(`["c", "d", "q"]`).Value.(Array).Foreach(func(t *Term) {
+		expectedTerms = append(expectedTerms, t)
+	})
+	if len(r2) != 1 || !termSliceEqual(r2[0][:], expectedTerms) {
 		t.Errorf(`Expected a.Intersect(b) to equal [["a", "d", "q"]] but got: %v`, r2)
 	}
 
@@ -790,6 +794,95 @@ func TestArrayOperations(t *testing.T) {
 		t.Errorf("Expected %v.get(%v) => %v but got: %v", arr, input, tc.expected, result)
 	}
 
+	// Iteration, append and slice tests
+
+	var results []*Term
+	tests := []struct {
+		note     string
+		input    string
+		expected []string
+		iterator func(arr Array)
+	}{
+		{
+			"for",
+			`[1, 2, 3, 4]`,
+			[]string{"1", "2", "3", "4"},
+			func(arr Array) {
+				for i := 0; i < arr.Len(); i++ {
+					results = append(results, arr.Elem(i))
+				}
+			},
+		},
+		{
+			"foreach",
+			"[1, 2, 3, 4]",
+			[]string{"1", "2", "3", "4"},
+			func(arr Array) {
+				arr.Foreach(func(v *Term) {
+					results = append(results, v)
+				})
+			},
+		},
+		{
+			"until",
+			"[1, 2, 3, 4]",
+			[]string{"1"},
+			func(arr Array) {
+				arr.Until(func(v *Term) bool {
+					results = append(results, v)
+					return len(results) == 1
+				})
+			},
+		},
+		{
+			"append",
+			"[1, 2]",
+			[]string{"1", "2", "3"},
+			func(arr Array) {
+				arr.Append(MustParseTerm("3")).Foreach(func(v *Term) {
+					results = append(results, v)
+				})
+			},
+		},
+		{
+			"slice",
+			"[1, 2, 3, 4]",
+			[]string{"3", "4"},
+			func(arr Array) {
+				arr.Slice(2, 4).Foreach(func(v *Term) {
+					results = append(results, v)
+				})
+			},
+		},
+		{
+			"slice",
+			"[1, 2, 3, 4]",
+			[]string{"3", "4"},
+			func(arr Array) {
+				arr.Slice(2, -1).Foreach(func(v *Term) {
+					results = append(results, v)
+				})
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			arr := MustParseTerm(tc.input).Value.(Array)
+
+			var expected []*Term
+			for _, e := range tc.expected {
+				expected = append(expected, MustParseTerm(e))
+			}
+
+			results = nil
+			tc.iterator(arr)
+
+			if !termSliceEqual(results, expected) {
+				t.Errorf("Expected iteration to return %v but got %v", expected, results)
+			}
+		})
+	}
 }
 
 func TestValueToInterface(t *testing.T) {

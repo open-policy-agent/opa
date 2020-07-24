@@ -633,9 +633,9 @@ func (w *writer) writeArray(arr ast.Array, loc *ast.Location, comments []*ast.Co
 	defer w.write("]")
 
 	var s []interface{}
-	for _, t := range arr {
+	arr.Foreach(func(t *ast.Term) {
 		s = append(s, t)
-	}
+	})
 	return w.writeIterable(s, loc, closingLoc(0, 0, '[', ']', loc), comments, w.listWriter())
 }
 

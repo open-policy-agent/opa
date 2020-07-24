@@ -152,7 +152,7 @@ func ObjectOperand(x ast.Value, pos int) (ast.Object, error) {
 func ArrayOperand(x ast.Value, pos int) (ast.Array, error) {
 	a, ok := x.(ast.Array)
 	if !ok {
-		return nil, NewOperandTypeErr(pos, x, "array")
+		return ast.NewArray(), NewOperandTypeErr(pos, x, "array")
 	}
 	return a, nil
 }
@@ -195,8 +195,9 @@ func StringSliceOperand(x ast.Value, pos int) ([]string, error) {
 		return nil, err
 	}
 
-	var f = make([]string, len(a))
-	for k, b := range a {
+	var f = make([]string, a.Len())
+	for k := 0; k < a.Len(); k++ {
+		b := a.Elem(k)
 		c, ok := b.Value.(ast.String)
 		if !ok {
 			return nil, NewOperandElementErr(pos, x, b.Value, "[]string")
@@ -216,8 +217,9 @@ func RuneSliceOperand(x ast.Value, pos int) ([]rune, error) {
 		return nil, err
 	}
 
-	var f = make([]rune, len(a))
-	for k, b := range a {
+	var f = make([]rune, a.Len())
+	for k := 0; k < a.Len(); k++ {
+		b := a.Elem(k)
 		c, ok := b.Value.(ast.String)
 		if !ok {
 			return nil, NewOperandElementErr(pos, x, b.Value, "string")

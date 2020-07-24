@@ -69,15 +69,15 @@ func InterfaceToValue(x interface{}) (Value, error) {
 	case string:
 		return String(x), nil
 	case []interface{}:
-		r := make(Array, 0, len(x))
-		for _, e := range x {
+		r := make([]*Term, len(x))
+		for i, e := range x {
 			e, err := InterfaceToValue(e)
 			if err != nil {
 				return nil, err
 			}
-			r = append(r, &Term{Value: e})
+			r[i] = &Term{Value: e}
 		}
-		return r, nil
+		return NewArray(r...), nil
 	case map[string]interface{}:
 		r := newobject(len(x))
 		for k, v := range x {
@@ -170,8 +170,8 @@ func ValueToInterface(v Value, resolver Resolver) (interface{}, error) {
 		return string(v), nil
 	case Array:
 		buf := []interface{}{}
-		for _, x := range v {
-			x1, err := ValueToInterface(x.Value, resolver)
+		for i := 0; i < v.Len(); i++ {
+			x1, err := ValueToInterface(v.Elem(i).Value, resolver)
 			if err != nil {
 				return nil, err
 			}
@@ -1036,16 +1036,24 @@ type QueryIterator func(map[Var]Value, Value) error
 // Array represents an array as defined by the language. Arrays are similar to the
 // same types as defined by JSON with the exception that they can contain Vars
 // and References.
-type Array []*Term
+type Array struct {
+	elems []*Term
+}
 
 // ArrayTerm creates a new Term with an Array value.
 func ArrayTerm(a ...*Term) *Term {
-	return &Term{Value: Array(a)}
+	return &Term{Value: Array{a}}
+}
+
+// NewArray creates an Array with the terms provided. The array will
+// use the provided term slice.
+func NewArray(a ...*Term) Array {
+	return Array{a}
 }
 
 // Copy returns a deep copy of arr.
 func (arr Array) Copy() Array {
-	return termSliceCopy(arr)
+	return Array{termSliceCopy(arr.elems)}
 }
 
 // Equal returns true if arr is equal to other.
@@ -1072,10 +1080,10 @@ func (arr Array) Find(path Ref) (Value, error) {
 	if !ok {
 		return nil, errFindNotFound
 	}
-	if i < 0 || i >= len(arr) {
+	if i < 0 || i >= arr.Len() {
 		return nil, errFindNotFound
 	}
-	return arr[i].Value.Find(path[1:])
+	return arr.Elem(i).Value.Find(path[1:])
 }
 
 // Get returns the element at pos or nil if not possible.
@@ -1090,8 +1098,8 @@ func (arr Array) Get(pos *Term) *Term {
 		return nil
 	}
 
-	if i >= 0 && i < len(arr) {
-		return arr[i]
+	if i >= 0 && i < len(arr.elems) {
+		return arr.elems[i]
 	}
 
 	return nil
@@ -1099,38 +1107,101 @@ func (arr Array) Get(pos *Term) *Term {
 
 // Sorted returns a new Array that contains the sorted elements of arr.
 func (arr Array) Sorted() Array {
-	cpy := make(Array, len(arr))
+	cpy := make([]*Term, len(arr.elems))
 	for i := range cpy {
-		cpy[i] = arr[i]
+		cpy[i] = arr.elems[i]
 	}
 	sort.Sort(termSlice(cpy))
-	return cpy
+	return NewArray(cpy...)
 }
 
 // Hash returns the hash code for the Value.
 func (arr Array) Hash() int {
-	return termSliceHash(arr)
+	return termSliceHash(arr.elems)
 }
 
 // IsGround returns true if all of the Array elements are ground.
 func (arr Array) IsGround() bool {
-	return termSliceIsGround(arr)
+	return termSliceIsGround(arr.elems)
 }
 
 // MarshalJSON returns JSON encoded bytes representing arr.
 func (arr Array) MarshalJSON() ([]byte, error) {
-	if len(arr) == 0 {
+	if len(arr.elems) == 0 {
 		return json.Marshal([]interface{}{})
 	}
-	return json.Marshal([]*Term(arr))
+	return json.Marshal(arr.elems)
 }
 
 func (arr Array) String() string {
 	var buf []string
-	for _, e := range arr {
+	for _, e := range arr.elems {
 		buf = append(buf, e.String())
 	}
 	return "[" + strings.Join(buf, ", ") + "]"
+}
+
+// Len returns the number of elements in the array.
+func (arr Array) Len() int {
+	return len(arr.elems)
+}
+
+// Elem returns the element i of arr.
+func (arr Array) Elem(i int) *Term {
+	return arr.elems[i]
+}
+
+// set sets the element i of arr.
+func (arr Array) set(i int, v *Term) {
+	arr.elems[i] = v
+}
+
+// Slice returns a slice of arr starting from i index to j. -1
+// indicates the end of the array. The returned value array is not a
+// copy and any modifications to either of arrays may be reflected to
+// the other.
+func (arr Array) Slice(i, j int) Array {
+	if j == -1 {
+		return Array{elems: arr.elems[i:]}
+	}
+
+	return Array{elems: arr.elems[i:j]}
+}
+
+// Iter calls f on each element in arr. If f returns an error,
+// iteration stops and the return value is the error.
+func (arr Array) Iter(f func(*Term) error) error {
+	for i := range arr.elems {
+		if err := f(arr.elems[i]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// Until calls f on each element in arr. If f returns true, iteration stops.
+func (arr Array) Until(f func(*Term) bool) bool {
+	err := arr.Iter(func(t *Term) error {
+		if f(t) {
+			return errStop
+		}
+		return nil
+	})
+	return err != nil
+}
+
+// Foreach calls f on each element in arr.
+func (arr Array) Foreach(f func(*Term)) {
+	arr.Iter(func(t *Term) error {
+		f(t)
+		return nil
+	})
+}
+
+// Append appends a term to arr, returning the appended array.
+func (arr Array) Append(v *Term) Array {
+	arr.elems = append(arr.elems, v)
+	return arr
 }
 
 // Set represents a set as defined by the language.
@@ -1216,9 +1287,9 @@ func (s *set) String() string {
 	}
 	buf := []string{}
 	sorted := s.Sorted()
-	for _, x := range sorted {
+	sorted.Foreach(func(x *Term) {
 		buf = append(buf, fmt.Sprint(x))
-	}
+	})
 	return "{" + strings.Join(buf, ", ") + "}"
 }
 
@@ -1382,12 +1453,12 @@ func (s *set) MarshalJSON() ([]byte, error) {
 
 // Sorted returns an Array that contains the sorted elements of s.
 func (s *set) Sorted() Array {
-	cpy := make(Array, len(s.keys))
-	for i := range cpy {
+	cpy := make([]*Term, len(s.keys))
+	for i := range s.keys {
 		cpy[i] = s.keys[i]
 	}
 	sort.Sort(termSlice(cpy))
-	return cpy
+	return NewArray(cpy...)
 }
 
 // Slice returns a slice of terms contained in the set.
@@ -1972,15 +2043,15 @@ func filterObject(o Value, filter Value) (Value, error) {
 	case String, Number, Boolean, Null:
 		return o, nil
 	case Array:
-		var values Array
-		for i, t := range v {
+		values := NewArray()
+		for i := 0; i < v.Len(); i++ {
 			subFilter := filteredObj.Get(StringTerm(strconv.Itoa(i)))
 			if subFilter != nil {
-				filteredValue, err := filterObject(t.Value, subFilter.Value)
+				filteredValue, err := filterObject(v.Elem(i).Value, subFilter.Value)
 				if err != nil {
 					return nil, err
 				}
-				values = append(values, NewTerm(filteredValue))
+				values = values.Append(NewTerm(filteredValue))
 			}
 		}
 		return values, nil
@@ -2451,7 +2522,7 @@ func unmarshalValue(d map[string]interface{}) (Value, error) {
 		}
 	case "array":
 		if s, err := unmarshalTermSliceValue(d); err == nil {
-			return Array(s), nil
+			return NewArray(s...), nil
 		}
 	case "set":
 		if s, err := unmarshalTermSliceValue(d); err == nil {

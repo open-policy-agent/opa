@@ -25,16 +25,16 @@ func builtinNumbersRange(_ BuiltinContext, operands []*ast.Term, iter func(*ast.
 		return err
 	}
 
-	var result ast.Array
+	result := ast.NewArray()
 	cmp := x.Cmp(y)
 
 	if cmp <= 0 {
 		for i := new(big.Int).Set(x); i.Cmp(y) <= 0; i = i.Add(i, one) {
-			result = append(result, ast.NewTerm(builtins.IntToNumber(i)))
+			result = result.Append(ast.NewTerm(builtins.IntToNumber(i)))
 		}
 	} else {
 		for i := new(big.Int).Set(x); i.Cmp(y) >= 0; i = i.Sub(i, one) {
-			result = append(result, ast.NewTerm(builtins.IntToNumber(i)))
+			result = result.Append(ast.NewTerm(builtins.IntToNumber(i)))
 		}
 	}
 

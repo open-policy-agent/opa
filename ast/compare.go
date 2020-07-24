@@ -129,7 +129,7 @@ func Compare(a, b interface{}) int {
 		return termSliceCompare(a, b)
 	case Array:
 		b := b.(Array)
-		return termSliceCompare(a, b)
+		return termSliceCompare(a.elems, b.elems)
 	case Object:
 		b := b.(Object)
 		return a.Compare(b)

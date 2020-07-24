@@ -777,7 +777,7 @@ func (p *Planner) planUnify(a, b *ast.Term, iter planiter) error {
 				return p.planUnifyLocalArray(p.ltarget, va, iter)
 			})
 		case ast.Array:
-			if len(va) == len(vb) {
+			if va.Len() == vb.Len() {
 				return p.planUnifyArraysRec(va, vb, 0, iter)
 			}
 			return nil
@@ -866,7 +866,7 @@ func (p *Planner) planUnifyLocalArray(a ir.Local, b ast.Array, iter planiter) er
 	})
 
 	p.appendStmt(&ir.MakeNumberIntStmt{
-		Value:  int64(len(b)),
+		Value:  int64(b.Len()),
 		Target: blen,
 	})
 
@@ -887,7 +887,7 @@ func (p *Planner) planUnifyLocalArray(a ir.Local, b ast.Array, iter planiter) er
 }
 
 func (p *Planner) planUnifyLocalArrayRec(a ir.Local, index int, b ast.Array, lkey, lval ir.Local, iter planiter) error {
-	if len(b) == index {
+	if b.Len() == index {
 		return iter()
 	}
 
@@ -902,7 +902,7 @@ func (p *Planner) planUnifyLocalArrayRec(a ir.Local, index int, b ast.Array, lke
 		Target: lval,
 	})
 
-	return p.planUnifyLocal(lval, b[index], func() error {
+	return p.planUnifyLocal(lval, b.Elem(index), func() error {
 		return p.planUnifyLocalArrayRec(a, index+1, b, lkey, lval, iter)
 	})
 }
@@ -960,10 +960,10 @@ func (p *Planner) planUnifyLocalObjectRec(a ir.Local, index int, keys []*ast.Ter
 }
 
 func (p *Planner) planUnifyArraysRec(a, b ast.Array, index int, iter planiter) error {
-	if index == len(a) {
+	if index == a.Len() {
 		return iter()
 	}
-	return p.planUnify(a[index], b[index], func() error {
+	return p.planUnify(a.Elem(index), b.Elem(index), func() error {
 		return p.planUnifyArraysRec(a, b, index+1, iter)
 	})
 }
@@ -1122,7 +1122,7 @@ func (p *Planner) planArray(arr ast.Array, iter planiter) error {
 	larr := p.newLocal()
 
 	p.appendStmt(&ir.MakeArrayStmt{
-		Capacity: int32(len(arr)),
+		Capacity: int32(arr.Len()),
 		Target:   larr,
 	})
 
@@ -1130,12 +1130,12 @@ func (p *Planner) planArray(arr ast.Array, iter planiter) error {
 }
 
 func (p *Planner) planArrayRec(arr ast.Array, index int, larr ir.Local, iter planiter) error {
-	if index == len(arr) {
+	if index == arr.Len() {
 		p.ltarget = larr
 		return iter()
 	}
 
-	return p.planTerm(arr[index], func() error {
+	return p.planTerm(arr.Elem(index), func() error {
 
 		p.appendStmt(&ir.ArrayAppendStmt{
 			Value: p.ltarget,
