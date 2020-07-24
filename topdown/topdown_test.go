@@ -46,6 +46,7 @@ func TestTopDownCompleteDoc(t *testing.T) {
 		{`object/nested composites: {"a": [1], "b": [2], "c": [3]}`,
 			`p = {"a": [1], "b": [2], "c": [3]} { true }`,
 			`{"a": [1], "b": [2], "c": [3]}`},
+		{"object/non-string key:", `p = {1: 2, {3: 4}: 5} { true }`, `{"1": 2, "{\"3\":4}": 5}`},
 		{"set/nested: {{1,2},{2,3}}", `p = {{1, 2}, {2, 3}} { true }`, "[[1,2], [2,3]]"},
 		{"vars", `p = {"a": [x, y]} { x = 1; y = 2 }`, `{"a": [1,2]}`},
 		{"vars conflict", `p = {"a": [x, y]} { xs = [1, 2]; ys = [1, 2]; x = xs[_]; y = ys[_] }`,
@@ -189,6 +190,7 @@ func TestTopDownPartialObjectDoc(t *testing.T) {
 			"c": [3, {"v2": 4}]
 		}`},
 		{"same key/value pair", `p[k] = 1 { ks = ["a", "b", "c", "a"]; ks[_] = k }`, `{"a":1,"b":1,"c":1}`},
+		{"non-string key", `p[k] = 1 { ks = [1,{},null]; ks[_] = k }`, `{"1": 1, "{}": 1, "null": 1}`},
 	}
 
 	data := loadSmallTestData()
@@ -451,6 +453,7 @@ func TestTopDownVirtualDocs(t *testing.T) {
 		{"input: object dereference ground 2", []string{`p[v] { x = "a"; q[x][y] = v }`, `q[k] = v { k = "a"; v = data.a }`}, "[1,2,3,4]"},
 		{"input: object defererence non-ground", []string{`p = true { q[0][x][y] = false }`, `q[i] = x { x = c[i] }`}, "true"},
 		{"input: object ground var key", []string{`p[y] { x = "b"; q[x] = y }`, `q[k] = v { x = {"a": 1, "b": 2}; x[k] = v }`}, "[2]"},
+		{"input: object non-string key", []string{`p[y] { x = 1; q[x] = y }`, `q[k] = v { x = {2: 1, 1: 3}; x[k] = v }`}, "[3]"},
 		{"input: variable binding substitution", []string{
 			`p[x] = y { r[z] = y; q[x] = z }`,
 			`r[k] = v { x = {"a": 1, "b": 2, "c": 3, "d": 4}; x[k] = v }`,
@@ -465,6 +468,7 @@ func TestTopDownVirtualDocs(t *testing.T) {
 		{"output: set dereference deep", []string{`p[y] { q[i][j][k][x] = y }`, `q[{{[1], [2]}, {[3], [4]}}] { true }`}, "[1,2,3,4]"},
 		{"output: set falsy values", []string{`p[x] { q[x] }`, `q = {0, "", false, null, [], {}, set()} { true }`}, `[0, "", null, [], {}, []]`},
 		{"output: object key", []string{`p[x] { q[x] = 4 }`, `q[i] = x { a[i] = x }`}, "[3]"},
+		{"output: object non-string key", []string{`p[x] { q[x] = 1 }`, `q[k] = 1 { a[_] = k; k < 3 }`}, "[1,2]"},
 		{"output: object value", []string{`p[x] = y { q[x] = y }`, `q[k] = v { b[k] = v }`}, `{"v1": "hello", "v2": "goodbye"}`},
 		{"output: object embedded", []string{`p[k] = v { {k: [q[k]]} = {k: [v]} }`, `q[x] = y { b[x] = y }`}, `{"v1": "hello", "v2": "goodbye"}`},
 		{"output: object dereference ground", []string{`p[i] { q[i].x[1] = false }`, `q[i] = x { x = c[i] }`}, "[0]"},
@@ -1031,6 +1035,7 @@ func TestTopDownComprehensions(t *testing.T) {
 		}, "[1,2,3,4]"},
 
 		{"object simple", []string{`p[i] { xs = {s: x | x = a[_]; format_int(x, 10, s)}; y = xs[i]; y > 1 }`}, `["2","3","4"]`},
+		{"object non-string key", []string{`p[x] { xs = {k: 1 | a[_] = k}; xs[x]}`}, `[1,2,3,4]`},
 		{"object nested", []string{`p = r { r = {x: y | z = {i: q | i = b[q]}; x = z[y]}}`}, `{"v1": "hello", "v2": "goodbye"}`},
 		{"object embedded array", []string{`p[i] { xs = [{s: x | x = a[_]; format_int(x, 10, s)}]; xs[0][i] > 1 }`}, `["2","3","4"]`},
 		{"object embedded object", []string{`p[i] { xs = {"a": {s: x | x = a[_]; format_int(x, 10, s)}}; xs.a[i] > 1 }`}, `["2","3","4"]`},

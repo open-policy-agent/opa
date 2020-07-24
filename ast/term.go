@@ -185,15 +185,20 @@ func ValueToInterface(v Value, resolver Resolver) (interface{}, error) {
 			if err != nil {
 				return err
 			}
-			asStr, stringKey := ki.(string)
-			if !stringKey {
-				return fmt.Errorf("object value has non-string key (%T)", ki)
+			var str string
+			var ok bool
+			if str, ok = ki.(string); !ok {
+				var buf bytes.Buffer
+				if err := json.NewEncoder(&buf).Encode(ki); err != nil {
+					return err
+				}
+				str = strings.TrimSpace(buf.String())
 			}
 			vi, err := ValueToInterface(v.Value, resolver)
 			if err != nil {
 				return err
 			}
-			buf[asStr] = vi
+			buf[str] = vi
 			return nil
 		})
 		if err != nil {
