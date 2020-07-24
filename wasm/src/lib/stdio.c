@@ -13,50 +13,20 @@ FILE *stdout = &_stdout;
 
 int fprintf(FILE *stream, const char * format, ...)
 {
-    if (stream != stderr && stream != stdout)
-    {
-        opa_abort("fprintf: only stdout and stderr allowed");
-    }
-
-    char buf[256];
-    va_list arg;
-
-    va_start(arg, format);
-    vsnprintf_(buf, 256, format, arg); // TODO: Remove character limit and extra \n.
-    opa_println(buf);
+    opa_abort("fprintf: not implemented");
     return 0;
 }
 
 size_t fwrite(const void *ptr, size_t size, size_t nmemb, FILE *stream)
 {
-    if (stream != stderr && stream != stdout)
-    {
-        opa_abort("fwrite: only stdout and stderr allowed");
-    }
-
-    const char *s = ptr;
-
-    for (size_t i = 0; i < size; )
-    {
-        char buf[80];
-        i += snprintf(buf, sizeof(buf), "%s", &s[i]);
-        opa_println(buf); // TODO: Remove the extra \n.
-    }
-
-    return size;
+    opa_abort("fwrite: not implemented");
+    return 0;
 }
 
 int fputc(int c, FILE *stream)
 {
-    if (stream != stderr && stream != stdout)
-    {
-        opa_abort("fputc: only stdout and stderr allowed");
-    }
-
-    char buf[2];
-    snprintf(buf, sizeof(buf), "%c", c);
-    opa_println(buf); // TODO: Remove the extra \n.
-    return c;
+    opa_abort("fputc: not implemented");
+    return 0;
 }
 
 int fputs(const char *s, FILE *stream)
