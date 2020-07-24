@@ -200,10 +200,12 @@ func Transform(t Transformer, x interface{}) (interface{}, error) {
 			return k, v, nil
 		})
 	case Array:
-		for i := range y {
-			if y[i], err = transformTerm(t, y[i]); err != nil {
+		for i := 0; i < y.Len(); i++ {
+			v, err := transformTerm(t, y.Elem(i))
+			if err != nil {
 				return nil, err
 			}
+			y.set(i, v)
 		}
 		return y, nil
 	case Set:

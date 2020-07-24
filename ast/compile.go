@@ -1555,7 +1555,7 @@ func (ci *ComprehensionIndex) String() string {
 	if ci == nil {
 		return ""
 	}
-	return fmt.Sprintf("<keys: %v>", Array(ci.Keys))
+	return fmt.Sprintf("<keys: %v>", NewArray(ci.Keys...))
 }
 
 func buildComprehensionIndices(arity func(Ref) int, candidates VarSet, node interface{}, result map[*Term]*ComprehensionIndex) (n uint64) {
@@ -2719,7 +2719,7 @@ func resolveRefsInTerm(globals map[Var]Ref, ignore *declaredVarStack, term *Term
 		return &cpy
 	case Array:
 		cpy := *term
-		cpy.Value = Array(resolveRefsInTermSlice(globals, ignore, v))
+		cpy.Value = NewArray(resolveRefsInTermArray(globals, ignore, v)...)
 		return &cpy
 	case Call:
 		cpy := *term
@@ -2763,6 +2763,14 @@ func resolveRefsInTerm(globals map[Var]Ref, ignore *declaredVarStack, term *Term
 	default:
 		return term
 	}
+}
+
+func resolveRefsInTermArray(globals map[Var]Ref, ignore *declaredVarStack, terms Array) []*Term {
+	cpy := make([]*Term, terms.Len())
+	for i := 0; i < terms.Len(); i++ {
+		cpy[i] = resolveRefsInTerm(globals, ignore, terms.Elem(i))
+	}
+	return cpy
 }
 
 func resolveRefsInTermSlice(globals map[Var]Ref, ignore *declaredVarStack, terms []*Term) []*Term {
@@ -2976,8 +2984,10 @@ func rewriteDynamicsOne(original *Expr, f *equalityFactory, term *Term, result B
 		result.Append(generated)
 		return result, result[len(result)-1].Operand(0)
 	case Array:
-		for i := 0; i < len(v); i++ {
-			result, v[i] = rewriteDynamicsOne(original, f, v[i], result)
+		for i := 0; i < v.Len(); i++ {
+			var t *Term
+			result, t = rewriteDynamicsOne(original, f, v.Elem(i), result)
+			v.set(i, t)
 		}
 		return result, term
 	case Object:
@@ -3099,7 +3109,7 @@ func expandExprTerm(gen *localVarGenerator, term *Term) (support []*Expr, output
 	case Ref:
 		support = expandExprRef(gen, v)
 	case Array:
-		support = expandExprTermSlice(gen, v)
+		support = expandExprTermArray(gen, v)
 	case Object:
 		cpy, _ := v.Map(func(k, v *Term) (*Term, *Term, error) {
 			extras1, expandedKey := expandExprTerm(gen, k)
@@ -3169,6 +3179,15 @@ func expandExprRef(gen *localVarGenerator, v []*Term) (support []*Expr) {
 		assignToLocal := f.Generate(subject)
 		support = append(support, assignToLocal)
 		v[0] = assignToLocal.Operand(0)
+	}
+	return
+}
+
+func expandExprTermArray(gen *localVarGenerator, arr Array) (support []*Expr) {
+	for i := 0; i < arr.Len(); i++ {
+		extras, v := expandExprTerm(gen, arr.Elem(i))
+		arr.set(i, v)
+		support = append(support, extras...)
 	}
 	return
 }

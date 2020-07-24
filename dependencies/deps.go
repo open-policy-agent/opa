@@ -33,12 +33,12 @@ func All(x interface{}) (resolved []ast.Ref, err error) {
 			vars := ast.NewVarVisitor()
 			vars.Walk(x)
 
-			var arr ast.Array
+			arr := ast.NewArray()
 			for v := range vars.Vars() {
 				if v.IsWildcard() {
 					continue
 				}
-				arr = append(arr, ast.NewTerm(v))
+				arr = arr.Append(ast.NewTerm(v))
 			}
 
 			// The analysis will discard variables that are not used in

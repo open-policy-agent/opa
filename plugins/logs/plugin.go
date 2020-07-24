@@ -147,19 +147,19 @@ func (e *EventV1) AST() (ast.Value, error) {
 	}
 
 	if len(e.Erased) > 0 {
-		erased := make(ast.Array, len(e.Erased))
+		erased := make([]*ast.Term, len(e.Erased))
 		for i, v := range e.Erased {
 			erased[i] = ast.StringTerm(v)
 		}
-		event.Insert(erasedKey, ast.NewTerm(erased))
+		event.Insert(erasedKey, ast.NewTerm(ast.NewArray(erased...)))
 	}
 
 	if len(e.Masked) > 0 {
-		masked := make(ast.Array, len(e.Masked))
+		masked := make([]*ast.Term, len(e.Masked))
 		for i, v := range e.Masked {
 			masked[i] = ast.StringTerm(v)
 		}
-		event.Insert(maskedKey, ast.NewTerm(masked))
+		event.Insert(maskedKey, ast.NewTerm(ast.NewArray(masked...)))
 	}
 
 	if e.Error != nil {

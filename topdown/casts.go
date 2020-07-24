@@ -38,13 +38,13 @@ func builtinToArray(a ast.Value) (ast.Value, error) {
 	case ast.Array:
 		return val, nil
 	case ast.Set:
-		arr := make(ast.Array, val.Len())
+		arr := make([]*ast.Term, val.Len())
 		i := 0
 		val.Foreach(func(term *ast.Term) {
 			arr[i] = term
 			i++
 		})
-		return arr, nil
+		return ast.NewArray(arr...), nil
 	default:
 		return nil, builtins.NewOperandTypeErr(1, a, "array", "set")
 	}
@@ -54,7 +54,11 @@ func builtinToArray(a ast.Value) (ast.Value, error) {
 func builtinToSet(a ast.Value) (ast.Value, error) {
 	switch val := a.(type) {
 	case ast.Array:
-		return ast.NewSet(val...), nil
+		s := ast.NewSet()
+		val.Foreach(func(v *ast.Term) {
+			s.Add(v)
+		})
+		return s, nil
 	case ast.Set:
 		return val, nil
 	default:

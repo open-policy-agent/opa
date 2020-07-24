@@ -686,17 +686,17 @@ func (e *eval) biunify(a, b *ast.Term, b1, b2 *bindings, iter unifyIterator) err
 }
 
 func (e *eval) biunifyArrays(a, b ast.Array, b1, b2 *bindings, iter unifyIterator) error {
-	if len(a) != len(b) {
+	if a.Len() != b.Len() {
 		return nil
 	}
 	return e.biunifyArraysRec(a, b, b1, b2, iter, 0)
 }
 
 func (e *eval) biunifyArraysRec(a, b ast.Array, b1, b2 *bindings, iter unifyIterator, idx int) error {
-	if idx == len(a) {
+	if idx == a.Len() {
 		return iter()
 	}
-	return e.biunify(a[idx], b[idx], b1, b2, func() error {
+	return e.biunify(a.Elem(idx), b.Elem(idx), b1, b2, func() error {
 		return e.biunifyArraysRec(a, b, b1, b2, iter, idx+1)
 	})
 }
@@ -941,7 +941,7 @@ func (e *eval) buildComprehensionCacheArray(x *ast.ArrayComprehension, keys []*a
 		head := child.bindings.Plug(x.Term)
 		cached := node.Get(values)
 		if cached != nil {
-			cached.Value = append(cached.Value.(ast.Array), head)
+			cached.Value = cached.Value.(ast.Array).Append(head)
 		} else {
 			node.Put(values, ast.ArrayTerm(head))
 		}
@@ -1040,10 +1040,10 @@ func (e *eval) biunifyComprehensionPartial(a, b *ast.Term, b1, b2 *bindings, swa
 }
 
 func (e *eval) biunifyComprehensionArray(x *ast.ArrayComprehension, b *ast.Term, b1, b2 *bindings, iter unifyIterator) error {
-	result := ast.Array{}
+	result := ast.NewArray()
 	child := e.closure(x.Body)
 	err := child.Run(func(child *eval) error {
-		result = append(result, child.bindings.Plug(x.Term))
+		result = result.Append(child.bindings.Plug(x.Term))
 		return nil
 	})
 	if err != nil {
@@ -1490,7 +1490,7 @@ func (e evalFunc) evalOneRule(iter unifyIterator, rule *ast.Rule, prev *ast.Term
 
 	child := e.e.child(rule.Body)
 
-	args := make(ast.Array, len(e.terms)-1)
+	args := make([]*ast.Term, len(e.terms)-1)
 
 	for i := range rule.Head.Args {
 		args[i] = rule.Head.Args[i]
@@ -1504,7 +1504,7 @@ func (e evalFunc) evalOneRule(iter unifyIterator, rule *ast.Rule, prev *ast.Term
 
 	child.traceEnter(rule)
 
-	err := child.biunifyArrays(e.terms[1:], args, e.e.bindings, child.bindings, func() error {
+	err := child.biunifyArrays(ast.NewArray(e.terms[1:]...), ast.NewArray(args...), e.e.bindings, child.bindings, func() error {
 		return child.eval(func(child *eval) error {
 			child.traceExit(rule)
 			result = child.bindings.Plug(rule.Head.Value)
@@ -1637,7 +1637,7 @@ func (e evalTree) enumerate(iter unifyIterator) error {
 	if doc != nil {
 		switch doc := doc.(type) {
 		case ast.Array:
-			for i := range doc {
+			for i := 0; i < doc.Len(); i++ {
 				k := ast.IntNumberTerm(i)
 				err := e.e.biunify(k, e.ref[e.pos], e.bindings, e.bindings, func() error {
 					return e.next(iter, k)
@@ -2403,7 +2403,7 @@ func (e evalTerm) enumerate(iter unifyIterator) error {
 
 	switch v := e.term.Value.(type) {
 	case ast.Array:
-		for i := range v {
+		for i := 0; i < v.Len(); i++ {
 			k := ast.IntNumberTerm(i)
 			err := e.e.biunify(k, e.ref[e.pos], e.bindings, e.bindings, func() error {
 				return e.next(iter, k)

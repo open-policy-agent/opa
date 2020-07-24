@@ -14,9 +14,7 @@ func foreachVertex(collection *ast.Term, f func(*ast.Term)) {
 	case ast.Set:
 		v.Foreach(f)
 	case ast.Array:
-		for _, t := range v {
-			f(t)
-		}
+		v.Foreach(f)
 	}
 }
 

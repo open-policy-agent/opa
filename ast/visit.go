@@ -112,9 +112,9 @@ func walk(v Visitor, x interface{}) {
 			Walk(w, vv)
 		})
 	case Array:
-		for _, t := range x {
+		x.Foreach(func(t *Term) {
 			Walk(w, t)
-		}
+		})
 	case Set:
 		x.Foreach(func(t *Term) {
 			Walk(w, t)
@@ -340,9 +340,9 @@ func (vis *GenericVisitor) Walk(x interface{}) {
 			vis.Walk(x.Get(k))
 		}
 	case Array:
-		for _, t := range x {
+		x.Foreach(func(t *Term) {
 			vis.Walk(t)
-		}
+		})
 	case Set:
 		for _, t := range x.Slice() {
 			vis.Walk(t)
@@ -458,9 +458,9 @@ func (vis *BeforeAfterVisitor) Walk(x interface{}) {
 			vis.Walk(x.Get(k))
 		}
 	case Array:
-		for _, t := range x {
+		x.Foreach(func(t *Term) {
 			vis.Walk(t)
-		}
+		})
 	case Set:
 		for _, t := range x.Slice() {
 			vis.Walk(t)
@@ -661,9 +661,9 @@ func (vis *VarVisitor) Walk(x interface{}) {
 			vis.Walk(x.Get(k))
 		}
 	case Array:
-		for _, t := range x {
+		x.Foreach(func(t *Term) {
 			vis.Walk(t)
-		}
+		})
 	case Set:
 		for _, t := range x.Slice() {
 			vis.Walk(t)
