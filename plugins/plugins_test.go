@@ -12,6 +12,7 @@ import (
 
 	"github.com/open-policy-agent/opa/internal/storage/mock"
 	"github.com/open-policy-agent/opa/storage/inmem"
+	"github.com/open-policy-agent/opa/topdown/cache"
 )
 
 func TestManagerPluginStatusListener(t *testing.T) {
@@ -188,6 +189,27 @@ func TestPluginManagerInitIdempotence(t *testing.T) {
 		t.Fatal("expected num txns to be:", exp, "but got:", len(mockStore.Transactions))
 	}
 
+}
+
+func TestManagerWithCachingConfig(t *testing.T) {
+	m, err := New([]byte(`{"caching": {"inter_query_builtin_cache": {"max_size_bytes": 100}}}`), "test", inmem.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected, _ := cache.ParseCachingConfig(nil)
+	limit := int64(100)
+	expected.InterQueryBuiltinCache.MaxSizeBytes = &limit
+
+	if !reflect.DeepEqual(m.InterQueryBuiltinCacheConfig(), expected) {
+		t.Fatalf("want %+v got %+v", expected, m.interQueryBuiltinCacheConfig)
+	}
+
+	// config error
+	_, err = New([]byte(`{"caching": {"inter_query_builtin_cache": {"max_size_bytes": "100"}}}`), "test", inmem.New())
+	if err == nil {
+		t.Fatal("expected error but got nil")
+	}
 }
 
 type mockForInitStartOrdering struct {

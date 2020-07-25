@@ -859,6 +859,7 @@ The `request` object parameter may contain the following fields:
 | `timeout` | no | `string` or `number` | Timeout for the HTTP request with a default of 5 seconds (`5s`). Numbers provided are in nanoseconds. Strings must be a valid duration string where a duration string is a possibly signed sequence of decimal numbers, each with optional fraction and a unit suffix, such as "300ms", "-1.5h" or "2h45m". Valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h". A zero timeout means no timeout.|
 | `tls_insecure_skip_verify` | no | `bool` | Allows for skipping TLS verification when calling a network endpoint. Not recommended for production. |
 | `tls_server_name` | no | `string` | Sets the hostname that is sent in the client Server Name Indication and that be will be used for server certificate validation. If this is not set, the value of the `Host` header (if present) will be used. If neither are set, the host name from the requested URL is used. |
+| `cache` | no | `boolean` | Cache HTTP response across OPA queries. Default: `false`. |
 
 If the `Host` header is included in `headers`, its value will be used as the `Host` header of the request. The `url` parameter will continue to specify the server to connect to.
 
@@ -879,6 +880,17 @@ The `response` object parameter will contain the following fields:
 | `body` | `any` | Any JSON value. If the HTTP response message body was not deserialized from JSON, this field is set to `null`. |
 | `raw_body` | `string` | The entire raw HTTP response message body represented as a string. |
 | `headers` | `object` | An object containing the response headers. The values will be an array of strings, repeated headers are grouped under the same keys with all values in the array. |
+
+If the `cache` field in the `request` object is `true`, `http.send` will return a cached response after it checks its freshness and validity.
+
+`http.send` uses the `Cache-Control` and `Expires` response headers to check the freshness of the cached response.
+Specifically if the [max-age](https://tools.ietf.org/html/rfc7234#section-5.2.2.8) `Cache-Control` directive is set, `http.send`
+will use it to determine if the cached response is fresh or not. If `max-age` is not set, the `Expires` header will be used instead.
+
+If the cached response is stale, `http.send` uses the `Etag` and `Last-Modified` response headers to check with the server if the
+cached response is in fact still fresh. If the server responds with a `200` (`OK`) response, `http.send` will update the cache
+with the new response. On a `304` (`Not Modified`) server response, `http.send` will update the headers in cached response with
+their corresponding values in the `304` response.
 
 The table below shows examples of calling `http.send`:
 

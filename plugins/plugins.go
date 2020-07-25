@@ -17,6 +17,7 @@ import (
 	"github.com/open-policy-agent/opa/loader"
 	"github.com/open-policy-agent/opa/plugins/rest"
 	"github.com/open-policy-agent/opa/storage"
+	"github.com/open-policy-agent/opa/topdown/cache"
 )
 
 // Factory defines the interface OPA uses to instantiate your plugin.
@@ -123,19 +124,20 @@ type Manager struct {
 	Info   *ast.Term
 	ID     string
 
-	compiler              *ast.Compiler
-	compilerMux           sync.RWMutex
-	services              map[string]rest.Client
-	keys                  map[string]*bundle.KeyConfig
-	plugins               []namedplugin
-	registeredTriggers    []func(txn storage.Transaction)
-	mtx                   sync.Mutex
-	pluginStatus          map[string]*Status
-	pluginStatusListeners map[string]StatusListener
-	initBundles           map[string]*bundle.Bundle
-	initFiles             loader.Result
-	maxErrors             int
-	initialized           bool
+	compiler                     *ast.Compiler
+	compilerMux                  sync.RWMutex
+	services                     map[string]rest.Client
+	keys                         map[string]*bundle.KeyConfig
+	plugins                      []namedplugin
+	registeredTriggers           []func(txn storage.Transaction)
+	mtx                          sync.Mutex
+	pluginStatus                 map[string]*Status
+	pluginStatusListeners        map[string]StatusListener
+	initBundles                  map[string]*bundle.Bundle
+	initFiles                    loader.Result
+	maxErrors                    int
+	initialized                  bool
+	interQueryBuiltinCacheConfig *cache.Config
 }
 
 type managerContextKey string
@@ -211,15 +213,21 @@ func New(raw []byte, id string, store storage.Store, opts ...func(*Manager)) (*M
 		return nil, err
 	}
 
+	interQueryBuiltinCacheConfig, err := cache.ParseCachingConfig(parsedConfig.Caching)
+	if err != nil {
+		return nil, err
+	}
+
 	m := &Manager{
-		Store:                 store,
-		Config:                parsedConfig,
-		ID:                    id,
-		keys:                  keys,
-		services:              services,
-		pluginStatus:          map[string]*Status{},
-		pluginStatusListeners: map[string]StatusListener{},
-		maxErrors:             -1,
+		Store:                        store,
+		Config:                       parsedConfig,
+		ID:                           id,
+		keys:                         keys,
+		services:                     services,
+		pluginStatus:                 map[string]*Status{},
+		pluginStatusListeners:        map[string]StatusListener{},
+		maxErrors:                    -1,
+		interQueryBuiltinCacheConfig: interQueryBuiltinCacheConfig,
 	}
 
 	for _, f := range opts {
@@ -274,6 +282,13 @@ func (m *Manager) Labels() map[string]string {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
 	return m.Config.Labels
+}
+
+// InterQueryBuiltinCacheConfig returns the configuration for the inter-query cache.
+func (m *Manager) InterQueryBuiltinCacheConfig() *cache.Config {
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
+	return m.interQueryBuiltinCacheConfig
 }
 
 // Register adds a plugin to the manager. When the manager is started, all of

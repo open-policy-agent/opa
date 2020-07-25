@@ -25,6 +25,7 @@ import (
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/topdown"
+	"github.com/open-policy-agent/opa/topdown/cache"
 	"github.com/open-policy-agent/opa/types"
 	"github.com/open-policy-agent/opa/util"
 )
@@ -81,21 +82,22 @@ type preparedQuery struct {
 // EvalContext defines the set of options allowed to be set at evaluation
 // time. Any other options will need to be set on a new Rego object.
 type EvalContext struct {
-	hasInput         bool
-	time             time.Time
-	rawInput         *interface{}
-	parsedInput      ast.Value
-	metrics          metrics.Metrics
-	txn              storage.Transaction
-	instrument       bool
-	instrumentation  *topdown.Instrumentation
-	partialNamespace string
-	queryTracers     []topdown.QueryTracer
-	compiledQuery    compiledQuery
-	unknowns         []string
-	disableInlining  []ast.Ref
-	parsedUnknowns   []*ast.Term
-	indexing         bool
+	hasInput               bool
+	time                   time.Time
+	rawInput               *interface{}
+	parsedInput            ast.Value
+	metrics                metrics.Metrics
+	txn                    storage.Transaction
+	instrument             bool
+	instrumentation        *topdown.Instrumentation
+	partialNamespace       string
+	queryTracers           []topdown.QueryTracer
+	compiledQuery          compiledQuery
+	unknowns               []string
+	disableInlining        []ast.Ref
+	parsedUnknowns         []*ast.Term
+	indexing               bool
+	interQueryBuiltinCache cache.InterQueryCache
 }
 
 // EvalOption defines a function to set an option on an EvalConfig
@@ -203,6 +205,14 @@ func EvalRuleIndexing(enabled bool) EvalOption {
 func EvalTime(x time.Time) EvalOption {
 	return func(e *EvalContext) {
 		e.time = x
+	}
+}
+
+// EvalInterQueryBuiltinCache sets the inter-query cache that built-in functions can utilize
+// during evaluation.
+func EvalInterQueryBuiltinCache(c cache.InterQueryCache) EvalOption {
+	return func(e *EvalContext) {
+		e.interQueryBuiltinCache = c
 	}
 }
 
@@ -494,6 +504,7 @@ type Rego struct {
 	bundlePaths            []string
 	bundles                map[string]*bundle.Bundle
 	skipBundleVerification bool
+	interQueryBuiltinCache cache.InterQueryCache
 }
 
 // Function represents a built-in function that is callable in Rego.
@@ -976,6 +987,14 @@ func SkipBundleVerification(yes bool) func(r *Rego) {
 	}
 }
 
+// InterQueryBuiltinCache sets the inter-query cache that built-in functions can utilize
+// during evaluation.
+func InterQueryBuiltinCache(c cache.InterQueryCache) func(r *Rego) {
+	return func(r *Rego) {
+		r.interQueryBuiltinCache = c
+	}
+}
+
 // New returns a new Rego object.
 func New(options ...func(r *Rego)) *Rego {
 
@@ -1046,6 +1065,7 @@ func (r *Rego) Eval(ctx context.Context) (ResultSet, error) {
 		EvalMetrics(r.metrics),
 		EvalInstrument(r.instrument),
 		EvalTime(r.time),
+		EvalInterQueryBuiltinCache(r.interQueryBuiltinCache),
 	}
 
 	for _, qt := range r.queryTracers {
@@ -1113,6 +1133,7 @@ func (r *Rego) Partial(ctx context.Context) (*PartialQueries, error) {
 		EvalTransaction(r.txn),
 		EvalMetrics(r.metrics),
 		EvalInstrument(r.instrument),
+		EvalInterQueryBuiltinCache(r.interQueryBuiltinCache),
 	}
 
 	for _, t := range r.queryTracers {
@@ -1671,7 +1692,8 @@ func (r *Rego) eval(ctx context.Context, ectx *EvalContext) (ResultSet, error) {
 		WithMetrics(ectx.metrics).
 		WithInstrumentation(ectx.instrumentation).
 		WithRuntime(r.runtime).
-		WithIndexing(ectx.indexing)
+		WithIndexing(ectx.indexing).
+		WithInterQueryBuiltinCache(ectx.interQueryBuiltinCache)
 
 	if !ectx.time.IsZero() {
 		q = q.WithTime(ectx.time)
@@ -1863,7 +1885,8 @@ func (r *Rego) partial(ctx context.Context, ectx *EvalContext) (*PartialQueries,
 		WithIndexing(ectx.indexing).
 		WithPartialNamespace(ectx.partialNamespace).
 		WithSkipPartialNamespace(r.skipPartialNamespace).
-		WithShallowInlining(r.shallowInlining)
+		WithShallowInlining(r.shallowInlining).
+		WithInterQueryBuiltinCache(ectx.interQueryBuiltinCache)
 
 	if !ectx.time.IsZero() {
 		q = q.WithTime(ectx.time)

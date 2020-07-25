@@ -8,6 +8,8 @@ import (
 	"context"
 	"encoding/json"
 	"log"
+	"net/http"
+	"net/http/httptest"
 	"reflect"
 	"strconv"
 	"strings"
@@ -21,6 +23,7 @@ import (
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/topdown"
+	iCache "github.com/open-policy-agent/opa/topdown/cache"
 	"github.com/open-policy-agent/opa/types"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/util/test"
@@ -1704,6 +1707,46 @@ func TestPrepareWithEmptyModule(t *testing.T) {
 	expected := "1 error occurred: example.rego:0: rego_parse_error: empty module"
 	if err == nil || err.Error() != expected {
 		t.Fatalf("Expected error %s, got %s", expected, err)
+	}
+}
+
+func TestEvalWithInterQueryCache(t *testing.T) {
+	query := `http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true})`
+	newHeaders := map[string][]string{"Cache-Control": {"max-age=290304000, public"}}
+
+	var requests []*http.Request
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests = append(requests, r)
+		headers := w.Header()
+
+		for k, v := range newHeaders {
+			headers[k] = v
+		}
+
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"x": 1}`))
+	}))
+	defer ts.Close()
+
+	// add an inter-query cache
+	config, _ := iCache.ParseCachingConfig(nil)
+	interQueryCache := iCache.NewInterQueryCache(config)
+
+	ctx := context.Background()
+	_, err := New(Query(strings.ReplaceAll(query, "%URL%", ts.URL)), InterQueryBuiltinCache(interQueryCache)).Eval(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// eval again with same query
+	// this request should be served by the cache
+	_, err = New(Query(strings.ReplaceAll(query, "%URL%", ts.URL)), InterQueryBuiltinCache(interQueryCache)).Eval(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(requests) != 1 {
+		t.Fatal("Expected server to be called only once")
 	}
 }
 

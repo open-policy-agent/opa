@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math"
 	"net/http"
 	"net/url"
 	"os"
@@ -49,6 +50,7 @@ var allowedKeyNames = [...]string{
 	"tls_insecure_skip_verify",
 	"tls_server_name",
 	"timeout",
+	"cache",
 }
 var allowedKeys = ast.NewSet()
 
@@ -67,17 +69,28 @@ func builtinHTTPSend(bctx BuiltinContext, args []*ast.Term, iter func(*ast.Term)
 		return handleBuiltinErr(ast.HTTPSend.Name, bctx.Location, err)
 	}
 
+	reqExecutor, err := newHTTPRequestExecutor(bctx, req)
+	if err != nil {
+		return handleHTTPSendErr(bctx, err)
+	}
+
 	// check if cache already has a response for this query
-	resp := checkHTTPSendCache(bctx, req)
+	resp, err := reqExecutor.CheckCache()
+	if err != nil {
+		return handleHTTPSendErr(bctx, err)
+	}
+
 	if resp == nil {
-		var err error
-		resp, err = executeHTTPRequest(bctx, req)
+		httpResp, err := reqExecutor.ExecuteHTTPRequest()
 		if err != nil {
 			return handleHTTPSendErr(bctx, err)
 		}
 
 		// add result to cache
-		insertIntoHTTPSendCache(bctx, req, resp)
+		resp, err = reqExecutor.InsertIntoCache(httpResp)
+		if err != nil {
+			return handleHTTPSendErr(bctx, err)
+		}
 	}
 
 	return iter(ast.NewTerm(resp))
@@ -149,7 +162,7 @@ func canonicalizeHeaders(headers map[string]interface{}) map[string]interface{} 
 	return canonicalized
 }
 
-func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) {
+func createHTTPRequest(bctx BuiltinContext, obj ast.Object) (*http.Request, *http.Client, error) {
 	var url string
 	var method string
 
@@ -173,7 +186,6 @@ func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) 
 	var body *bytes.Buffer
 	var rawBody *bytes.Buffer
 	var enableRedirect bool
-	var forceJSONDecode bool
 	var tlsUseSystemCerts bool
 	var tlsConfig tls.Config
 	var customHeaders map[string]interface{}
@@ -183,7 +195,7 @@ func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) 
 	for _, val := range obj.Keys() {
 		key, err := ast.JSON(val.Value)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
 		key = key.(string)
@@ -208,7 +220,7 @@ func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) 
 				"tls_client_key_file",
 				"tls_client_key_env_variable",
 				"tls_server_name":
-				return nil, fmt.Errorf("%q must be a string", key)
+				return nil, nil, fmt.Errorf("%q must be a string", key)
 			}
 		}
 
@@ -220,23 +232,18 @@ func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) 
 		case "enable_redirect":
 			enableRedirect, err = strconv.ParseBool(obj.Get(val).String())
 			if err != nil {
-				return nil, err
-			}
-		case "force_json_decode":
-			forceJSONDecode, err = strconv.ParseBool(obj.Get(val).String())
-			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 		case "body":
 			bodyVal := obj.Get(val).Value
 			bodyValInterface, err := ast.JSON(bodyVal)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 
 			bodyValBytes, err := json.Marshal(bodyValInterface)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 			body = bytes.NewBuffer(bodyValBytes)
 		case "raw_body":
@@ -244,7 +251,7 @@ func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) 
 		case "tls_use_system_certs":
 			tlsUseSystemCerts, err = strconv.ParseBool(obj.Get(val).String())
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 		case "tls_ca_cert":
 			tlsCaCert = bytes.Trim([]byte(strVal), "\"")
@@ -270,25 +277,26 @@ func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) 
 			headersVal := obj.Get(val).Value
 			headersValInterface, err := ast.JSON(headersVal)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 			var ok bool
 			customHeaders, ok = headersValInterface.(map[string]interface{})
 			if !ok {
-				return nil, fmt.Errorf("invalid type for headers key")
+				return nil, nil, fmt.Errorf("invalid type for headers key")
 			}
 		case "tls_insecure_skip_verify":
 			tlsInsecureSkipVerify, err = strconv.ParseBool(obj.Get(val).String())
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 		case "timeout":
 			timeout, err = parseTimeout(obj.Get(val).Value)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
+		case "cache", "force_json_decode": // no-op
 		default:
-			return nil, fmt.Errorf("invalid parameter %q", key)
+			return nil, nil, fmt.Errorf("invalid parameter %q", key)
 		}
 	}
 
@@ -305,7 +313,7 @@ func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) 
 	if len(tlsClientCert) > 0 && len(tlsClientKey) > 0 {
 		cert, err := tls.X509KeyPair(tlsClientCert, tlsClientKey)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
 		isTLS = true
@@ -315,7 +323,7 @@ func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) 
 	if tlsClientCertFile != "" && tlsClientKeyFile != "" {
 		cert, err := tls.LoadX509KeyPair(tlsClientCertFile, tlsClientKeyFile)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
 		isTLS = true
@@ -327,7 +335,7 @@ func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) 
 			[]byte(os.Getenv(tlsClientCertEnvVar)),
 			[]byte(os.Getenv(tlsClientKeyEnvVar)))
 		if err != nil {
-			return nil, fmt.Errorf("cannot extract public/private key pair from envvars %q, %q: %w",
+			return nil, nil, fmt.Errorf("cannot extract public/private key pair from envvars %q, %q: %w",
 				tlsClientCertEnvVar, tlsClientKeyEnvVar, err)
 		}
 
@@ -340,7 +348,7 @@ func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) 
 	if tlsUseSystemCerts {
 		pool, err := x509.SystemCertPool()
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
 		isTLS = true
@@ -351,7 +359,7 @@ func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) 
 		tlsCaCert = bytes.Replace(tlsCaCert, []byte("\\n"), []byte("\n"), -1)
 		pool, err := addCACertsFromBytes(tlsConfig.RootCAs, []byte(tlsCaCert))
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
 		isTLS = true
@@ -361,7 +369,7 @@ func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) 
 	if tlsCaCertFile != "" {
 		pool, err := addCACertsFromFile(tlsConfig.RootCAs, tlsCaCertFile)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
 		isTLS = true
@@ -371,7 +379,7 @@ func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) 
 	if tlsCaCertEnvVar != "" {
 		pool, err := addCACertsFromEnv(tlsConfig.RootCAs, tlsCaCertEnvVar)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
 		isTLS = true
@@ -401,7 +409,7 @@ func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) 
 	// the request is cancelled if evaluation is cancelled.
 	req, err := http.NewRequest(method, url, body)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	req = req.WithContext(bctx.Context)
@@ -413,7 +421,7 @@ func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) 
 		for k, v := range customHeaders {
 			header, ok := v.(string)
 			if !ok {
-				return nil, fmt.Errorf("invalid type for headers value %q", v)
+				return nil, nil, fmt.Errorf("invalid type for headers value %q", v)
 			}
 
 			req.Header.Add(k, header)
@@ -444,54 +452,16 @@ func executeHTTPRequest(bctx BuiltinContext, obj ast.Object) (ast.Value, error) 
 		tlsConfig.ServerName = tlsServerName
 	}
 
-	// execute the http request
+	return req, client, nil
+}
+
+func executeHTTPRequest(req *http.Request, client *http.Client) (*http.Response, error) {
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}
 
-	defer resp.Body.Close()
-
-	// format the http result
-	var resultBody interface{}
-	var resultRawBody []byte
-
-	var buf bytes.Buffer
-	tee := io.TeeReader(resp.Body, &buf)
-	resultRawBody, err = ioutil.ReadAll(tee)
-	if err != nil {
-		return nil, err
-	}
-
-	// If the response body cannot be JSON decoded,
-	// an error will not be returned. Instead the "body" field
-	// in the result will be null.
-	if isContentTypeJSON(resp.Header) || forceJSONDecode {
-		json.NewDecoder(&buf).Decode(&resultBody)
-	}
-
-	respHeaders := map[string]interface{}{}
-	for headerName, values := range resp.Header {
-		var respValues []interface{}
-		for _, v := range values {
-			respValues = append(respValues, v)
-		}
-		respHeaders[headerName] = respValues
-	}
-
-	result := make(map[string]interface{})
-	result["status"] = resp.Status
-	result["status_code"] = resp.StatusCode
-	result["body"] = resultBody
-	result["raw_body"] = string(resultRawBody)
-	result["headers"] = respHeaders
-
-	resultObj, err := ast.InterfaceToValue(result)
-	if err != nil {
-		return nil, err
-	}
-
-	return resultObj, nil
+	return resp, nil
 }
 
 func isContentTypeJSON(header http.Header) bool {
@@ -535,6 +505,88 @@ func insertIntoHTTPSendCache(bctx BuiltinContext, key ast.Object, value ast.Valu
 	requestCache.Put(key, value)
 }
 
+// checkHTTPSendInterQueryCache checks for the given key's value in the inter-query cache
+func checkHTTPSendInterQueryCache(bctx BuiltinContext, key ast.Object, req *http.Request, client *http.Client, forceJSONDecode bool) (ast.Value, error) {
+	requestCache := bctx.InterQueryBuiltinCache
+
+	value, found := requestCache.Get(key)
+	if !found {
+		return nil, nil
+	}
+
+	cachedResp, ok := value.(*interQueryCacheValue)
+	if !ok {
+		return nil, nil
+	}
+
+	// check the freshness of the cached response
+	if isCachedResponseFresh(bctx, cachedResp) {
+		return cachedResp.value, nil
+	}
+
+	// check with the server if the stale response is still up-to-date.
+	// If server returns a new response (ie. status_code=200), update the cache with the new response
+	// If server returns an unmodified response (ie. status_code=304), update the headers for the existing response
+	result, modified, err := revalidateCachedResponse(req, client, cachedResp)
+	requestCache.Delete(key)
+	if err != nil || result == nil {
+		return nil, err
+	}
+
+	defer result.Body.Close()
+
+	var newValue ast.Value
+	var size int
+
+	if !modified {
+		// update the headers in the cached response with their corresponding values from the 304 (Not Modified) response
+		cachedRespObj := cachedResp.value.(ast.Object)
+		existingHeaders := cachedRespObj.Get(ast.StringTerm("headers"))
+		existingHeadersObj := existingHeaders.Value.(ast.Object)
+
+		newHeaders := getResponseHeaders(result.Header)
+		for k, v := range newHeaders {
+			valueAST, err := ast.InterfaceToValue(v)
+			if err != nil {
+				return nil, err
+			}
+			existingHeadersObj.Insert(ast.StringTerm(k), ast.NewTerm(valueAST))
+		}
+
+		cachedRespObj.Insert(ast.StringTerm("headers"), ast.NewTerm(existingHeadersObj))
+		newValue = cachedRespObj
+		size = cachedResp.size
+	} else {
+		newValue, size, err = formatHTTPResponseToAST(result, forceJSONDecode)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	err = insertIntoHTTPSendInterQueryCache(bctx, key, newValue, result, size)
+	if err != nil {
+		return nil, err
+	}
+	return newValue, nil
+}
+
+// insertIntoHTTPSendInterQueryCache inserts given key and value in the inter-query cache
+func insertIntoHTTPSendInterQueryCache(bctx BuiltinContext, key, value ast.Value, resp *http.Response, size int) error {
+	if resp == nil || !canStore(resp.Header) {
+		return nil
+	}
+
+	requestCache := bctx.InterQueryBuiltinCache
+
+	pcv, err := newInterQueryCacheValue(resp, value, size)
+	if err != nil {
+		return err
+	}
+
+	requestCache.Insert(key, pcv)
+	return nil
+}
+
 func createAllowedKeys() {
 	for _, element := range allowedKeyNames {
 		allowedKeys.Add(ast.StringTerm(element))
@@ -567,4 +619,395 @@ func parseTimeout(timeoutVal ast.Value) (time.Duration, error) {
 	default:
 		return timeout, builtins.NewOperandErr(1, "'timeout' must be one of {string, number} but got %s", ast.TypeName(t))
 	}
+}
+
+func getBoolValFromReqObj(req ast.Object, key *ast.Term) (bool, error) {
+	var b ast.Boolean
+	var ok bool
+	if v := req.Get(key); v != nil {
+		if b, ok = v.Value.(ast.Boolean); !ok {
+			return false, fmt.Errorf("invalid value for %v field", key.String())
+		}
+	}
+	return bool(b), nil
+}
+
+type interQueryCacheValue struct {
+	value        ast.Value         // http response
+	size         int               // size of response body
+	date         time.Time         // origination date and time of response
+	cacheControl map[string]string // response cache-control header
+	maxAge       deltaSeconds      // max-age cache control directive
+	expires      time.Time         // date/time after which the response is considered stale
+	etag         string            // identifier for a specific version of the response
+	lastModified string            // date and time response was last modified as per origin server
+}
+
+// deltaSeconds specifies a non-negative integer, representing
+// time in seconds: http://tools.ietf.org/html/rfc7234#section-1.2.1
+type deltaSeconds int32
+
+func newInterQueryCacheValue(resp *http.Response, value ast.Value, size int) (*interQueryCacheValue, error) {
+	cv := interQueryCacheValue{value: value, size: size, maxAge: -1}
+
+	err := parseResponseAndInjectHeaders(resp, &cv)
+	if err != nil {
+		return nil, err
+	}
+	return &cv, nil
+}
+
+func (c interQueryCacheValue) SizeInBytes() int64 {
+	return int64(c.size)
+}
+
+func parseResponseAndInjectHeaders(resp *http.Response, pcv *interQueryCacheValue) error {
+	var err error
+
+	pcv.date, err = getResponseHeaderDate(resp.Header)
+	if err != nil {
+		return err
+	}
+
+	pcv.cacheControl = parseCacheControlHeader(resp.Header)
+	pcv.maxAge, err = parseMaxAgeCacheDirective(pcv.cacheControl)
+	if err != nil {
+		return err
+	}
+
+	pcv.expires, err = getResponseHeaderExpires(resp.Header)
+	if err != nil {
+		return err
+	}
+
+	pcv.etag = resp.Header.Get("etag")
+
+	pcv.lastModified = resp.Header.Get("last-modified")
+
+	return nil
+}
+
+func revalidateCachedResponse(req *http.Request, client *http.Client, resp *interQueryCacheValue) (*http.Response, bool, error) {
+	etag := resp.etag
+	lastModified := resp.lastModified
+
+	if etag == "" && lastModified == "" {
+		return nil, false, nil
+	}
+
+	cloneReq := req.Clone(req.Context())
+
+	if etag != "" {
+		cloneReq.Header.Set("if-none-match", etag)
+	}
+
+	if lastModified != "" {
+		cloneReq.Header.Set("if-modified-since", lastModified)
+	}
+
+	response, err := client.Do(cloneReq)
+	if err != nil {
+		return nil, false, err
+	}
+
+	switch response.StatusCode {
+	case http.StatusOK:
+		return response, true, nil
+
+	case http.StatusNotModified:
+		return response, false, nil
+	}
+
+	return nil, false, nil
+}
+
+func canStore(headers http.Header) bool {
+	ccHeaders := parseCacheControlHeader(headers)
+
+	// Check "no-store" cache directive
+	// The "no-store" response directive indicates that a cache MUST NOT
+	// store any part of either the immediate request or response.
+	if _, ok := ccHeaders["no-store"]; ok {
+		return false
+	}
+	return true
+}
+
+func isCachedResponseFresh(bctx BuiltinContext, resp *interQueryCacheValue) bool {
+	if resp.date.IsZero() {
+		return false
+	}
+
+	currentTime := getCurrentTime(bctx)
+	if currentTime.IsZero() {
+		return false
+	}
+
+	currentAge := currentTime.Sub(resp.date)
+
+	// Check "max-age" cache directive.
+	// The "max-age" response directive indicates that the response is to be
+	// considered stale after its age is greater than the specified number
+	// of seconds.
+	if resp.maxAge != -1 {
+		maxAgeDur := time.Second * time.Duration(resp.maxAge)
+		if maxAgeDur > currentAge {
+			return true
+		}
+	} else {
+		// Check "Expires" header.
+		// Note: "max-age" if set, takes precedence over "Expires"
+		if resp.expires.Sub(resp.date) > currentAge {
+			return true
+		}
+	}
+	return false
+}
+
+func getCurrentTime(bctx BuiltinContext) time.Time {
+	var current time.Time
+
+	value, err := ast.JSON(bctx.Time.Value)
+	if err != nil {
+		return current
+	}
+
+	valueNum, ok := value.(json.Number)
+	if !ok {
+		return current
+	}
+
+	valueNumInt, err := valueNum.Int64()
+	if err != nil {
+		return current
+	}
+
+	current = time.Unix(0, valueNumInt).UTC()
+	return current
+}
+
+func parseCacheControlHeader(headers http.Header) map[string]string {
+	ccDirectives := map[string]string{}
+	ccHeader := headers.Get("cache-control")
+
+	for _, part := range strings.Split(ccHeader, ",") {
+		part = strings.Trim(part, " ")
+		if part == "" {
+			continue
+		}
+		if strings.ContainsRune(part, '=') {
+			items := strings.Split(part, "=")
+			if len(items) != 2 {
+				continue
+			}
+			ccDirectives[strings.Trim(items[0], " ")] = strings.Trim(items[1], ",")
+		} else {
+			ccDirectives[part] = ""
+		}
+	}
+
+	return ccDirectives
+}
+
+func getResponseHeaderDate(headers http.Header) (date time.Time, err error) {
+	dateHeader := headers.Get("date")
+	if dateHeader == "" {
+		err = fmt.Errorf("no date header")
+		return
+	}
+	return time.Parse(time.RFC1123, dateHeader)
+}
+
+func getResponseHeaderExpires(headers http.Header) (date time.Time, err error) {
+	expiresHeader := headers.Get("expires")
+	if expiresHeader == "" {
+		return
+	}
+	return time.Parse(time.RFC1123, expiresHeader)
+}
+
+// parseMaxAgeCacheDirective parses the max-age directive expressed in delta-seconds as per
+// https://tools.ietf.org/html/rfc7234#section-1.2.1
+func parseMaxAgeCacheDirective(cc map[string]string) (deltaSeconds, error) {
+	maxAge, ok := cc["max-age"]
+	if !ok {
+		return deltaSeconds(-1), nil
+	}
+
+	val, err := strconv.ParseUint(maxAge, 10, 32)
+	if err != nil {
+		if numError, ok := err.(*strconv.NumError); ok {
+			if numError.Err == strconv.ErrRange {
+				return deltaSeconds(math.MaxInt32), nil
+			}
+		}
+		return deltaSeconds(-1), err
+	}
+
+	if val > math.MaxInt32 {
+		return deltaSeconds(math.MaxInt32), nil
+	}
+	return deltaSeconds(val), nil
+}
+
+func formatHTTPResponseToAST(resp *http.Response, forceJSONDecode bool) (ast.Value, int, error) {
+
+	var resultBody interface{}
+	var resultRawBody []byte
+
+	var buf bytes.Buffer
+	tee := io.TeeReader(resp.Body, &buf)
+	resultRawBody, err := ioutil.ReadAll(tee)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// If the response body cannot be JSON decoded,
+	// an error will not be returned. Instead the "body" field
+	// in the result will be null.
+	if isContentTypeJSON(resp.Header) || forceJSONDecode {
+		json.NewDecoder(&buf).Decode(&resultBody)
+	}
+
+	result := make(map[string]interface{})
+	result["status"] = resp.Status
+	result["status_code"] = resp.StatusCode
+	result["body"] = resultBody
+	result["raw_body"] = string(resultRawBody)
+	result["headers"] = getResponseHeaders(resp.Header)
+
+	resultObj, err := ast.InterfaceToValue(result)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return resultObj, len(resultRawBody), nil
+}
+
+func getResponseHeaders(headers http.Header) map[string]interface{} {
+	respHeaders := map[string]interface{}{}
+	for headerName, values := range headers {
+		var respValues []interface{}
+		for _, v := range values {
+			respValues = append(respValues, v)
+		}
+		respHeaders[strings.ToLower(headerName)] = respValues
+	}
+	return respHeaders
+}
+
+// httpRequestExecutor defines an interface for the http send cache
+type httpRequestExecutor interface {
+	CheckCache() (ast.Value, error)
+	InsertIntoCache(value *http.Response) (ast.Value, error)
+	ExecuteHTTPRequest() (*http.Response, error)
+}
+
+// newHTTPRequestExecutor returns a new HTTP request executor that wraps either an inter-query or
+// intra-query cache implementation
+func newHTTPRequestExecutor(bctx BuiltinContext, key ast.Object) (httpRequestExecutor, error) {
+	useInterQueryCache, err := getBoolValFromReqObj(key, ast.StringTerm("cache"))
+	if err != nil {
+		return nil, handleHTTPSendErr(bctx, err)
+	}
+
+	if useInterQueryCache && bctx.InterQueryBuiltinCache != nil {
+		return newInterQueryCache(bctx, key)
+	}
+	return newIntraQueryCache(bctx, key)
+}
+
+type interQueryCache struct {
+	bctx            BuiltinContext
+	key             ast.Object
+	httpReq         *http.Request
+	httpClient      *http.Client
+	forceJSONDecode bool
+}
+
+func newInterQueryCache(bctx BuiltinContext, key ast.Object) (*interQueryCache, error) {
+	return &interQueryCache{bctx: bctx, key: key}, nil
+}
+
+// CheckCache checks the cache for the value of the key set on this object
+func (c *interQueryCache) CheckCache() (ast.Value, error) {
+	var err error
+
+	c.httpReq, c.httpClient, err = createHTTPRequest(c.bctx, c.key)
+	if err != nil {
+		return nil, handleHTTPSendErr(c.bctx, err)
+	}
+
+	c.forceJSONDecode, err = getBoolValFromReqObj(c.key, ast.StringTerm("force_json_decode"))
+	if err != nil {
+		return nil, handleHTTPSendErr(c.bctx, err)
+	}
+
+	resp, err := checkHTTPSendInterQueryCache(c.bctx, c.key, c.httpReq, c.httpClient, c.forceJSONDecode)
+
+	// fallback to the intra-query cache if response not found in the inter-query cache or inter-query cache look-up results
+	// in an error
+	if resp == nil || err != nil {
+		return checkHTTPSendCache(c.bctx, c.key), nil
+	}
+	return resp, err
+}
+
+// InsertIntoCache inserts the key set on this object into the cache with the given value
+func (c *interQueryCache) InsertIntoCache(value *http.Response) (ast.Value, error) {
+	result, size, err := formatHTTPResponseToAST(value, c.forceJSONDecode)
+	if err != nil {
+		return nil, handleHTTPSendErr(c.bctx, err)
+	}
+
+	// fallback to the intra-query cache if error encountered while inserting response in inter-query cache
+	err = insertIntoHTTPSendInterQueryCache(c.bctx, c.key, result, value, size)
+	if err != nil {
+		insertIntoHTTPSendCache(c.bctx, c.key, result)
+	}
+	return result, nil
+}
+
+// ExecuteHTTPRequest executes a HTTP request
+func (c *interQueryCache) ExecuteHTTPRequest() (*http.Response, error) {
+	return executeHTTPRequest(c.httpReq, c.httpClient)
+}
+
+type intraQueryCache struct {
+	bctx BuiltinContext
+	key  ast.Object
+}
+
+func newIntraQueryCache(bctx BuiltinContext, key ast.Object) (*intraQueryCache, error) {
+	return &intraQueryCache{bctx: bctx, key: key}, nil
+}
+
+// CheckCache checks the cache for the value of the key set on this object
+func (c *intraQueryCache) CheckCache() (ast.Value, error) {
+	return checkHTTPSendCache(c.bctx, c.key), nil
+}
+
+// InsertIntoCache inserts the key set on this object into the cache with the given value
+func (c *intraQueryCache) InsertIntoCache(value *http.Response) (ast.Value, error) {
+	forceJSONDecode, err := getBoolValFromReqObj(c.key, ast.StringTerm("force_json_decode"))
+	if err != nil {
+		return nil, handleHTTPSendErr(c.bctx, err)
+	}
+
+	result, _, err := formatHTTPResponseToAST(value, forceJSONDecode)
+	if err != nil {
+		return nil, handleHTTPSendErr(c.bctx, err)
+	}
+
+	insertIntoHTTPSendCache(c.bctx, c.key, result)
+	return result, nil
+}
+
+// ExecuteHTTPRequest executes a HTTP request
+func (c *intraQueryCache) ExecuteHTTPRequest() (*http.Response, error) {
+	httpReq, httpClient, err := createHTTPRequest(c.bctx, c.key)
+	if err != nil {
+		return nil, handleHTTPSendErr(c.bctx, err)
+	}
+	return executeHTTPRequest(httpReq, httpClient)
 }

@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/open-policy-agent/opa/topdown/cache"
+
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/topdown/builtins"
@@ -30,43 +32,44 @@ func (f *queryIDFactory) Next() uint64 {
 }
 
 type eval struct {
-	ctx                context.Context
-	seed               io.Reader
-	time               *ast.Term
-	queryID            uint64
-	queryIDFact        *queryIDFactory
-	parent             *eval
-	caller             *eval
-	cancel             Cancel
-	query              ast.Body
-	queryCompiler      ast.QueryCompiler
-	index              int
-	indexing           bool
-	bindings           *bindings
-	store              storage.Store
-	baseCache          *baseCache
-	txn                storage.Transaction
-	compiler           *ast.Compiler
-	input              *ast.Term
-	data               *ast.Term
-	targetStack        *refStack
-	tracers            []QueryTracer
-	traceEnabled       bool
-	plugTraceVars      bool
-	instr              *Instrumentation
-	builtins           map[string]*Builtin
-	builtinCache       builtins.Cache
-	virtualCache       *virtualCache
-	comprehensionCache *comprehensionCache
-	saveSet            *saveSet
-	saveStack          *saveStack
-	saveSupport        *saveSupport
-	saveNamespace      *ast.Term
-	skipSaveNamespace  bool
-	inliningControl    *inliningControl
-	genvarprefix       string
-	genvarid           int
-	runtime            *ast.Term
+	ctx                    context.Context
+	seed                   io.Reader
+	time                   *ast.Term
+	queryID                uint64
+	queryIDFact            *queryIDFactory
+	parent                 *eval
+	caller                 *eval
+	cancel                 Cancel
+	query                  ast.Body
+	queryCompiler          ast.QueryCompiler
+	index                  int
+	indexing               bool
+	bindings               *bindings
+	store                  storage.Store
+	baseCache              *baseCache
+	txn                    storage.Transaction
+	compiler               *ast.Compiler
+	input                  *ast.Term
+	data                   *ast.Term
+	targetStack            *refStack
+	tracers                []QueryTracer
+	traceEnabled           bool
+	plugTraceVars          bool
+	instr                  *Instrumentation
+	builtins               map[string]*Builtin
+	builtinCache           builtins.Cache
+	virtualCache           *virtualCache
+	comprehensionCache     *comprehensionCache
+	interQueryBuiltinCache cache.InterQueryCache
+	saveSet                *saveSet
+	saveStack              *saveStack
+	saveSupport            *saveSupport
+	saveNamespace          *ast.Term
+	skipSaveNamespace      bool
+	inliningControl        *inliningControl
+	genvarprefix           string
+	genvarid               int
+	runtime                *ast.Term
 }
 
 func (e *eval) Run(iter evalIterator) error {
@@ -617,17 +620,18 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 	}
 
 	bctx := BuiltinContext{
-		Context:      e.ctx,
-		Seed:         e.seed,
-		Time:         e.time,
-		Cancel:       e.cancel,
-		Runtime:      e.runtime,
-		Cache:        e.builtinCache,
-		Location:     e.query[e.index].Location,
-		QueryTracers: e.tracers,
-		TraceEnabled: e.traceEnabled,
-		QueryID:      e.queryID,
-		ParentID:     parentID,
+		Context:                e.ctx,
+		Seed:                   e.seed,
+		Time:                   e.time,
+		Cancel:                 e.cancel,
+		Runtime:                e.runtime,
+		Cache:                  e.builtinCache,
+		InterQueryBuiltinCache: e.interQueryBuiltinCache,
+		Location:               e.query[e.index].Location,
+		QueryTracers:           e.tracers,
+		TraceEnabled:           e.traceEnabled,
+		QueryID:                e.queryID,
+		ParentID:               parentID,
 	}
 
 	eval := evalBuiltin{
