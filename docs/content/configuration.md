@@ -61,6 +61,10 @@ keys:
     algorithm: RS256
     key: <PEM_encoded_public_key>
     scope: read
+
+caching:
+  inter_query_builtin_cache:
+    max_size_bytes: 10000000
 ```
 
 #### Environment Variable Substitution
@@ -356,6 +360,14 @@ The following signing algorithms are supported:
 | `RS256` | RSASSA-PKCS-v1.5 using SHA-256 |
 | `RS384` | RSASSA-PKCS-v1.5 using SHA-384 |
 | `RS512` | RSASSA-PKCS-v1.5 using SHA-512 |
+
+### Caching
+
+Caching represents the configuration of the inter-query cache that built-in functions can utilize.
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `caching.inter_query_builtin_cache.max_size_bytes` | `int64` | No | Inter-query cache size limit in bytes. OPA will drop old items from the cache if this limit is exceeded. By default, no limit is set. |
 
 ### Bundles
 

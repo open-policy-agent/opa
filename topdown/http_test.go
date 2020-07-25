@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -61,9 +62,9 @@ func TestHTTPGetRequest(t *testing.T) {
 	expectedResult["body"] = body
 	expectedResult["raw_body"] = "[{\"id\":\"1\",\"firstname\":\"John\"}]\n"
 	expectedResult["headers"] = map[string]interface{}{
-		"Content-Length": []interface{}{"32"},
-		"Content-Type":   []interface{}{"text/plain; charset=utf-8"},
-		"Test-Header":    []interface{}{"test-value"},
+		"content-length": []interface{}{"32"},
+		"content-type":   []interface{}{"text/plain; charset=utf-8"},
+		"test-header":    []interface{}{"test-value"},
 	}
 
 	resultObj, err := ast.InterfaceToValue(expectedResult)
@@ -116,8 +117,8 @@ func TestHTTPGetRequestTlsInsecureSkipVerify(t *testing.T) {
 	expectedResult["body"] = body
 	expectedResult["raw_body"] = "[{\"id\":\"1\",\"firstname\":\"John\"}]\n"
 	expectedResult["headers"] = map[string]interface{}{
-		"Content-Length": []interface{}{"32"},
-		"Content-Type":   []interface{}{"text/plain; charset=utf-8"},
+		"content-length": []interface{}{"32"},
+		"content-type":   []interface{}{"text/plain; charset=utf-8"},
 	}
 
 	resultObj, err := ast.InterfaceToValue(expectedResult)
@@ -167,8 +168,8 @@ func TestHTTPEnableJSONDecode(t *testing.T) {
 	expectedResult["body"] = nil
 	expectedResult["raw_body"] = "*Hello World®"
 	expectedResult["headers"] = map[string]interface{}{
-		"Content-Length": []interface{}{"14"},
-		"Content-Type":   []interface{}{"text/plain; charset=utf-8"},
+		"content-length": []interface{}{"14"},
+		"content-type":   []interface{}{"text/plain; charset=utf-8"},
 	}
 
 	resultObj, err := ast.InterfaceToValue(expectedResult)
@@ -276,8 +277,8 @@ func TestHTTPHostHeader(t *testing.T) {
 		"body":        t.Name(),
 		"raw_body":    fmt.Sprintf("\"%s\"\n", t.Name()),
 		"headers": map[string]interface{}{
-			"Content-Length": []interface{}{"21"},
-			"Content-Type":   []interface{}{"application/json"},
+			"content-length": []interface{}{"21"},
+			"content-type":   []interface{}{"application/json"},
 		},
 	})
 	if err != nil {
@@ -335,14 +336,14 @@ func TestHTTPPostRequest(t *testing.T) {
 				"status_code": 200,
 				"body": {"id": "2", "firstname": "Joe"},
 				"raw_body": "{\"firstname\":\"Joe\",\"id\":\"2\"}",
-				"headers": {"Content-Type": ["application/json"], "Content-Length": ["28"]}
+				"headers": {"content-type": ["application/json"], "content-length": ["28"]}
 			}`,
 		},
 		{
 			note: "raw_body",
 			params: `{
 				"method": "post",
-				"headers": {"Content-Type": "application/x-www-form-encoded"},
+				"headers": {"content-type": "application/x-www-form-encoded"},
 				"raw_body": "username=foobar&password=baz"
 			}`,
 			expected: `{
@@ -350,14 +351,14 @@ func TestHTTPPostRequest(t *testing.T) {
 				"status_code": 200,
 				"body": null,
 				"raw_body": "username=foobar&password=baz",
-				"headers": {"Content-Type": ["application/x-www-form-encoded"], "Content-Length": ["28"]}
+				"headers": {"content-type": ["application/x-www-form-encoded"], "content-length": ["28"]}
 			}`,
 		},
 		{
 			note: "raw_body overrides body",
 			params: `{
 				"method": "post",
-				"headers": {"Content-Type": "application/x-www-form-encoded"},
+				"headers": {"content-type": "application/x-www-form-encoded"},
 				"body": {"foo": 1},
 				"raw_body": "username=foobar&password=baz"
 			}`,
@@ -366,14 +367,14 @@ func TestHTTPPostRequest(t *testing.T) {
 				"status_code": 200,
 				"body": null,
 				"raw_body": "username=foobar&password=baz",
-				"headers": {"Content-Type": ["application/x-www-form-encoded"], "Content-Length": ["28"]}
+				"headers": {"content-type": ["application/x-www-form-encoded"], "content-length": ["28"]}
 			}`,
 		},
 		{
 			note: "raw_body bad type",
 			params: `{
 				"method": "post",
-				"headers": {"Content-Type": "application/x-www-form-encoded"},
+				"headers": {"content-type": "application/x-www-form-encoded"},
 				"raw_body": {"bar": "bar"}
 			}`,
 			expected: &Error{Code: BuiltinErr, Message: "\"raw_body\" must be a string"},
@@ -447,8 +448,8 @@ func TestHTTDeleteRequest(t *testing.T) {
 	expectedResult["body"] = body
 	expectedResult["raw_body"] = "[{\"id\":\"1\",\"firstname\":\"John\"}]\n"
 	expectedResult["headers"] = map[string]interface{}{
-		"Content-Length": []interface{}{"32"},
-		"Content-Type":   []interface{}{"application/json"},
+		"content-length": []interface{}{"32"},
+		"content-type":   []interface{}{"application/json"},
 	}
 
 	resultObj, err := ast.InterfaceToValue(expectedResult)
@@ -606,9 +607,9 @@ func TestHTTPRedirectDisable(t *testing.T) {
 	expectedResult["status"] = "301 Moved Permanently"
 	expectedResult["status_code"] = http.StatusMovedPermanently
 	expectedResult["headers"] = map[string]interface{}{
-		"Content-Length": []interface{}{"40"},
-		"Content-Type":   []interface{}{"text/html; charset=utf-8"},
-		"Location":       []interface{}{"/test"},
+		"content-length": []interface{}{"40"},
+		"content-type":   []interface{}{"text/html; charset=utf-8"},
+		"location":       []interface{}{"/test"},
 	}
 
 	resultObj, err := ast.InterfaceToValue(expectedResult)
@@ -641,7 +642,7 @@ func TestHTTPRedirectEnable(t *testing.T) {
 	expectedResult["body"] = nil
 	expectedResult["raw_body"] = ""
 	expectedResult["headers"] = map[string]interface{}{
-		"Content-Length": []interface{}{"0"},
+		"content-length": []interface{}{"0"},
 	}
 
 	resultObj, err := ast.InterfaceToValue(expectedResult)
@@ -781,6 +782,507 @@ func TestHTTPSendCaching(t *testing.T) {
 	}
 }
 
+func TestHTTPSendInterQueryCaching(t *testing.T) {
+	tests := []struct {
+		note             string
+		ruleTemplate     string
+		headers          map[string][]string
+		body             string
+		response         string
+		expectedReqCount int
+	}{
+		{
+			note:             "http.send GET single",
+			ruleTemplate:     `p = x { http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true}, r); x = r.body }`,
+			headers:          map[string][]string{"Cache-Control": {"max-age=290304000, public"}},
+			response:         `{"x": 1}`,
+			expectedReqCount: 1,
+		},
+		{
+			note: "http.send GET cache hit (max_age_response_fresh)",
+			ruleTemplate: `p = x {
+									r1 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true})
+									r2 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true})  # cached and fresh
+									r3 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true})  # cached and fresh
+									r1 == r2
+									r2 == r3
+									x = r1.body
+								}`,
+			headers:          map[string][]string{"Cache-Control": {"max-age=290304000, public"}},
+			response:         `{"x": 1}`,
+			expectedReqCount: 1,
+		},
+		{
+			note: "http.send GET cache hit (expires_header_response_fresh)",
+			ruleTemplate: `p = x {
+									r1 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true})
+									r2 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true})  # cached and fresh
+									r3 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true})  # cached and fresh
+									r1 == r2
+									r2 == r3
+									x = r1.body
+								}`,
+			headers:          map[string][]string{"Expires": {"Wed, 31 Dec 2115 07:28:00 GMT"}},
+			response:         `{"x": 1}`,
+			expectedReqCount: 1,
+		},
+		{
+			note: "http.send GET no-store cache",
+			ruleTemplate: `p = x {
+									r1 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true})
+									r2 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true})  # not cached
+									r3 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true})  # not cached
+									r1 == r2
+									r2 == r3
+									x = r1.body
+								}`,
+			headers:          map[string][]string{"Cache-Control": {"no-store"}},
+			response:         `{"x": 1}`,
+			expectedReqCount: 3,
+		},
+		{
+			note: "http.send GET (response_stale_revalidate_with_etag)",
+			ruleTemplate: `p = x {
+									r1 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true})
+									r2 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true}) # stale
+									r3 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true}) # stale
+									r1 == r2
+									r2 == r3
+									x = r1.body
+								}`,
+			headers:          map[string][]string{"Cache-Control": {"max-age=0, public"}, "Etag": {"1234"}},
+			response:         `{"x": 1}`,
+			expectedReqCount: 3,
+		},
+		{
+			note: "http.send GET (response_stale_revalidate_with_last_modified)",
+			ruleTemplate: `p = x {
+									r1 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true})
+									r2 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true}) # stale
+									r3 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true}) # stale
+									r1 == r2
+									r2 == r3
+									x = r1.body
+								}`,
+			headers:          map[string][]string{"Cache-Control": {"max-age=0, public"}, "Last-Modified": {"Wed, 31 Dec 2115 07:28:00 GMT"}},
+			response:         `{"x": 1}`,
+			expectedReqCount: 3,
+		},
+	}
+
+	data := loadSmallTestData()
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+
+			var requests []*http.Request
+			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				requests = append(requests, r)
+				headers := w.Header()
+
+				for k, v := range tc.headers {
+					headers[k] = v
+				}
+
+				etag := w.Header().Get("etag")
+				lm := w.Header().Get("last-modified")
+
+				if etag != "" {
+					if r.Header.Get("if-none-match") == etag {
+						w.WriteHeader(http.StatusNotModified)
+					}
+				} else if lm != "" {
+					if r.Header.Get("if-modified-since") == lm {
+						w.WriteHeader(http.StatusNotModified)
+					}
+				} else {
+					w.WriteHeader(http.StatusOK)
+				}
+				w.Write([]byte(tc.response))
+			}))
+			defer ts.Close()
+
+			runTopDownTestCase(t, data, tc.note, []string{strings.ReplaceAll(tc.ruleTemplate, "%URL%", ts.URL)}, tc.response)
+
+			// Note: The runTopDownTestCase ends up evaluating twice (once with and once without partial
+			// eval first), so expect 2x the total request count the test case specified.
+			actualCount := len(requests) / 2
+			if actualCount != tc.expectedReqCount {
+				t.Fatalf("Expected to get %d requests, got %d", tc.expectedReqCount, actualCount)
+			}
+		})
+	}
+}
+
+func TestHTTPSendInterQueryCachingModifiedResp(t *testing.T) {
+	tests := []struct {
+		note             string
+		ruleTemplate     string
+		headers          map[string][]string
+		body             string
+		response         string
+		expectedReqCount int
+	}{
+		{
+			note: "http.send GET (response_stale_revalidate_with_etag)",
+			ruleTemplate: `p = x {
+									r1 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true})
+									r2 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true}) # stale
+									r3 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true}) # cached and fresh
+									r1 == r2
+									r2 == r3
+									x = r1.body
+								}`,
+			headers:          map[string][]string{"Cache-Control": {"max-age=0, public"}, "Etag": {"1234"}, "location": {"/test"}},
+			response:         `{"x": 1}`,
+			expectedReqCount: 2,
+		},
+		{
+			note: "http.send GET (response_stale_revalidate_with_no_etag)",
+			ruleTemplate: `p = x {
+									r1 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true})
+									r2 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true}) # stale
+									r1 == r2
+									x = r1.body
+								}`,
+			headers:          map[string][]string{"Cache-Control": {"max-age=0, public"}},
+			response:         `{"x": 1}`,
+			expectedReqCount: 2,
+		},
+	}
+
+	data := loadSmallTestData()
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+
+			var requests []*http.Request
+			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				requests = append(requests, r)
+				headers := w.Header()
+
+				for k, v := range tc.headers {
+					headers[k] = v
+				}
+
+				etag := w.Header().Get("etag")
+
+				if r.Header.Get("if-none-match") != "" {
+					if r.Header.Get("if-none-match") == etag {
+						// add new headers and update existing header value
+						headers["Cache-Control"] = []string{"max-age=290304000, public"}
+						headers["foo"] = []string{"bar"}
+						w.WriteHeader(http.StatusNotModified)
+					}
+				} else {
+					w.WriteHeader(http.StatusOK)
+				}
+				w.Write([]byte(tc.response))
+			}))
+			defer ts.Close()
+
+			runTopDownTestCase(t, data, tc.note, []string{strings.ReplaceAll(tc.ruleTemplate, "%URL%", ts.URL)}, tc.response)
+
+			// Note: The runTopDownTestCase ends up evaluating twice (once with and once without partial
+			// eval first), so expect 2x the total request count the test case specified.
+			actualCount := len(requests) / 2
+			if actualCount != tc.expectedReqCount {
+				t.Fatalf("Expected to get %d requests, got %d", tc.expectedReqCount, actualCount)
+			}
+		})
+	}
+}
+
+func TestHTTPSendInterQueryCachingNewResp(t *testing.T) {
+	tests := []struct {
+		note             string
+		ruleTemplate     string
+		headers          map[string][]string
+		body             string
+		response         string
+		expectedReqCount int
+	}{
+		{
+			note: "http.send GET (response_stale_revalidate_with_etag)",
+			ruleTemplate: `p = x {
+									r1 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true})
+									r2 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true}) # stale
+									r3 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true}) # cached and fresh
+									x = r1.body
+								}`,
+			headers:          map[string][]string{"Cache-Control": {"max-age=0, public"}, "Etag": {"1234"}, "location": {"/test"}},
+			response:         `{"x": 1}`,
+			expectedReqCount: 2,
+		},
+	}
+
+	data := loadSmallTestData()
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+
+			var requests []*http.Request
+			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				requests = append(requests, r)
+				headers := w.Header()
+
+				for k, v := range tc.headers {
+					headers[k] = v
+				}
+
+				etag := w.Header().Get("etag")
+
+				if r.Header.Get("if-none-match") != "" {
+					if r.Header.Get("if-none-match") == etag {
+						headers["Cache-Control"] = []string{"max-age=290304000, public"}
+					}
+				}
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(tc.response))
+			}))
+			defer ts.Close()
+
+			runTopDownTestCase(t, data, tc.note, []string{strings.ReplaceAll(tc.ruleTemplate, "%URL%", ts.URL)}, tc.response)
+
+			// Note: The runTopDownTestCase ends up evaluating twice (once with and once without partial
+			// eval first), so expect 2x the total request count the test case specified.
+			actualCount := len(requests) / 2
+			if actualCount != tc.expectedReqCount {
+				t.Fatalf("Expected to get %d requests, got %d", tc.expectedReqCount, actualCount)
+			}
+		})
+	}
+}
+
+func TestInsertIntoHTTPSendInterQueryCacheError(t *testing.T) {
+	tests := []struct {
+		note             string
+		ruleTemplate     string
+		headers          map[string][]string
+		body             string
+		response         string
+		expectedReqCount int
+	}{
+		{
+			note: "http.send GET (bad_expires_header_value)",
+			ruleTemplate: `p = x {
+									r1 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true}) # fallback to normal cache
+									r2 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true}) # retrieved from normal cache
+									r1 == r2
+									x = r1.body
+								}`,
+			headers:          map[string][]string{"Cache-Control": {"max-age=0, public"}, "Expires": {"Wed, 32 Dec 2115 07:28:00 GMT"}},
+			response:         `{"x": 1}`,
+			expectedReqCount: 1,
+		},
+		{
+			note: "http.send GET (bad_date_header_value)",
+			ruleTemplate: `p = x {
+									r1 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true}) # fallback to normal cache
+									r2 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true}) # retrieved from normal cache
+									r1 == r2
+									x = r1.body
+								}`,
+			headers:          map[string][]string{"Cache-Control": {"max-age=0, public"}, "Date": {"Wed, 32 Dec 2115 07:28:00 GMT"}},
+			response:         `{"x": 1}`,
+			expectedReqCount: 1,
+		},
+		{
+			note: "http.send GET (bad_cache_control_header_value)",
+			ruleTemplate: `p = x {
+									r1 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true}) # fallback to normal cache
+									r2 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true}) # retrieved from normal cache
+									r1 == r2
+									x = r1.body
+								}`,
+			headers:          map[string][]string{"Cache-Control": {"max-age=\"foo\", public"}},
+			response:         `{"x": 1}`,
+			expectedReqCount: 1,
+		},
+	}
+
+	data := loadSmallTestData()
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+
+			var requests []*http.Request
+			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				requests = append(requests, r)
+				headers := w.Header()
+
+				for k, v := range tc.headers {
+					headers[k] = v
+				}
+
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(tc.response))
+			}))
+			defer ts.Close()
+
+			runTopDownTestCase(t, data, tc.note, []string{strings.ReplaceAll(tc.ruleTemplate, "%URL%", ts.URL)}, tc.response)
+
+			// Note: The runTopDownTestCase ends up evaluating twice (once with and once without partial
+			// eval first), so expect 2x the total request count the test case specified.
+			actualCount := len(requests) / 2
+			if actualCount != tc.expectedReqCount {
+				t.Fatalf("Expected to get %d requests, got %d", tc.expectedReqCount, actualCount)
+			}
+		})
+	}
+}
+
+func TestGetResponseHeaderDateEmpty(t *testing.T) {
+	_, err := getResponseHeaderDate(http.Header{"Date": {""}})
+	if err == nil {
+		t.Fatal("Expected error but got nil")
+	}
+
+	expected := "no date header"
+	if err.Error() != expected {
+		t.Fatalf("Expected error message %v but got %v", expected, err.Error())
+	}
+}
+
+func TestParseMaxAgeCacheDirective(t *testing.T) {
+	tests := []struct {
+		note      string
+		input     map[string]string
+		expected  deltaSeconds
+		wantError bool
+		err       error
+	}{
+		{
+			note:      "max age not set",
+			input:     nil,
+			expected:  deltaSeconds(-1),
+			wantError: false,
+			err:       nil,
+		},
+		{
+			note:      "max age out of range",
+			input:     map[string]string{"max-age": "214748364888"},
+			expected:  deltaSeconds(math.MaxInt32),
+			wantError: false,
+			err:       nil,
+		},
+		{
+			note:      "max age greater than MaxInt32",
+			input:     map[string]string{"max-age": "2147483648"},
+			expected:  deltaSeconds(math.MaxInt32),
+			wantError: false,
+			err:       nil,
+		},
+		{
+			note:      "max age less than MaxInt32",
+			input:     map[string]string{"max-age": "21"},
+			expected:  deltaSeconds(21),
+			wantError: false,
+			err:       nil,
+		},
+		{
+			note:      "max age bad format",
+			input:     map[string]string{"max-age": "21,21"},
+			expected:  deltaSeconds(-1),
+			wantError: true,
+			err:       fmt.Errorf("strconv.ParseUint: parsing \"21,21\": invalid syntax"),
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+
+			actual, err := parseMaxAgeCacheDirective(tc.input)
+			if tc.wantError {
+				if err == nil {
+					t.Fatal("Expected error but got nil")
+				}
+
+				if tc.err != nil && tc.err.Error() != err.Error() {
+					t.Fatalf("Expected error message %v but got %v", tc.err.Error(), err.Error())
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("Unexpected error %v", err)
+				}
+			}
+
+			if actual != tc.expected {
+				t.Fatalf("Expected value for max-age %v but got %v", tc.expected, actual)
+			}
+
+		})
+	}
+}
+
+func TestGetBoolValFromReqObj(t *testing.T) {
+	validInput := ast.MustParseTerm(`{"cache": true}`)
+	validInputObj := validInput.Value.(ast.Object)
+
+	invalidInput := ast.MustParseTerm(`{"cache": "true"}`)
+	invalidInputObj := invalidInput.Value.(ast.Object)
+
+	tests := []struct {
+		note      string
+		input     ast.Object
+		key       *ast.Term
+		expected  bool
+		wantError bool
+		err       error
+	}{
+		{
+			note:      "valid input",
+			input:     validInputObj,
+			key:       ast.StringTerm("cache"),
+			expected:  true,
+			wantError: false,
+			err:       nil,
+		},
+		{
+			note:      "invalid input",
+			input:     invalidInputObj,
+			key:       ast.StringTerm("cache"),
+			expected:  false,
+			wantError: true,
+			err:       fmt.Errorf("invalid value for \"cache\" field"),
+		},
+		{
+			note:      "non existent key",
+			input:     validInputObj,
+			key:       ast.StringTerm("foo"),
+			expected:  false,
+			wantError: false,
+			err:       nil,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+
+			actual, err := getBoolValFromReqObj(tc.input, tc.key)
+			if tc.wantError {
+				if err == nil {
+					t.Fatal("Expected error but got nil")
+				}
+
+				if tc.err != nil && tc.err.Error() != err.Error() {
+					t.Fatalf("Expected error message %v but got %v", tc.err.Error(), err.Error())
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("Unexpected error %v", err)
+				}
+			}
+
+			if actual != tc.expected {
+				t.Fatalf("Expected value for key %v is %v but got %v", tc.key, tc.expected, actual)
+			}
+
+		})
+	}
+
+}
+
 func getTestServer() (baseURL string, teardownFn func()) {
 	mux := http.NewServeMux()
 	ts := httptest.NewServer(mux)
@@ -891,8 +1393,8 @@ func TestHTTPSClient(t *testing.T) {
 		}
 		expectedResult["body"] = bodyMap
 		expectedResult["headers"] = map[string]interface{}{
-			"Content-Length": []interface{}{"22"},
-			"Content-Type":   []interface{}{"application/json"},
+			"content-length": []interface{}{"22"},
+			"content-type":   []interface{}{"application/json"},
 		}
 
 		resultObj, err := ast.InterfaceToValue(expectedResult)
@@ -917,7 +1419,7 @@ func TestHTTPSClient(t *testing.T) {
 			"body":        nil,
 			"raw_body":    "",
 			"headers": map[string]interface{}{
-				"Content-Length": []interface{}{"0"},
+				"content-length": []interface{}{"0"},
 			},
 		}
 
@@ -961,7 +1463,7 @@ func TestHTTPSClient(t *testing.T) {
 			"body":        nil,
 			"raw_body":    "",
 			"headers": map[string]interface{}{
-				"Content-Length": []interface{}{"0"},
+				"content-length": []interface{}{"0"},
 			},
 		}
 
@@ -988,7 +1490,7 @@ func TestHTTPSClient(t *testing.T) {
 			"body":        nil,
 			"raw_body":    "",
 			"headers": map[string]interface{}{
-				"Content-Length": []interface{}{"0"},
+				"content-length": []interface{}{"0"},
 			},
 		}
 
@@ -1015,7 +1517,7 @@ func TestHTTPSClient(t *testing.T) {
 			"body":        nil,
 			"raw_body":    "",
 			"headers": map[string]interface{}{
-				"Content-Length": []interface{}{"0"},
+				"content-length": []interface{}{"0"},
 			},
 		}
 
@@ -1042,7 +1544,7 @@ func TestHTTPSClient(t *testing.T) {
 			"body":        nil,
 			"raw_body":    "",
 			"headers": map[string]interface{}{
-				"Content-Length": []interface{}{"0"},
+				"content-length": []interface{}{"0"},
 			},
 		}
 
@@ -1196,7 +1698,7 @@ func TestHTTPSNoClientCerts(t *testing.T) {
 			"body":        nil,
 			"raw_body":    "",
 			"headers": map[string]interface{}{
-				"Content-Length": []interface{}{"0"},
+				"content-length": []interface{}{"0"},
 			},
 		}
 
@@ -1227,7 +1729,7 @@ func TestHTTPSNoClientCerts(t *testing.T) {
 			"body":        nil,
 			"raw_body":    "",
 			"headers": map[string]interface{}{
-				"Content-Length": []interface{}{"0"},
+				"content-length": []interface{}{"0"},
 			},
 		}
 
@@ -1254,7 +1756,7 @@ func TestHTTPSNoClientCerts(t *testing.T) {
 			"body":        nil,
 			"raw_body":    "",
 			"headers": map[string]interface{}{
-				"Content-Length": []interface{}{"0"},
+				"content-length": []interface{}{"0"},
 			},
 		}
 
@@ -1281,7 +1783,7 @@ func TestHTTPSNoClientCerts(t *testing.T) {
 			"body":        nil,
 			"raw_body":    "",
 			"headers": map[string]interface{}{
-				"Content-Length": []interface{}{"0"},
+				"content-length": []interface{}{"0"},
 			},
 		}
 
@@ -1308,7 +1810,7 @@ func TestHTTPSNoClientCerts(t *testing.T) {
 			"body":        nil,
 			"raw_body":    "",
 			"headers": map[string]interface{}{
-				"Content-Length": []interface{}{"0"},
+				"content-length": []interface{}{"0"},
 			},
 		}
 
@@ -1341,7 +1843,7 @@ func TestHTTPSNoClientCerts(t *testing.T) {
 
 var httpSendHelperRules = []string{
 	`clean_headers(resp) = cleaned {
-		cleaned = json.remove(resp, ["headers/Date"])
+		cleaned = json.remove(resp, ["headers/date"])
 	}`,
 	`remove_headers(resp) = no_headers {
 		no_headers = object.remove(resp, ["headers"])

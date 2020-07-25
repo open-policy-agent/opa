@@ -18,6 +18,8 @@ import (
 	"testing"
 	"time"
 
+	iCache "github.com/open-policy-agent/opa/topdown/cache"
+
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
@@ -3004,11 +3006,16 @@ func assertTopDownWithPathAndContext(ctx context.Context, t *testing.T, compiler
 		dump(note, compiler.Modules, data, path, inputTerm, expected, requiresSort)
 	}
 
+	// add an inter-query cache
+	config, _ := iCache.ParseCachingConfig(nil)
+	interQueryCache := iCache.NewInterQueryCache(config)
+
 	query := NewQuery(body).
 		WithCompiler(compiler).
 		WithStore(store).
 		WithTransaction(txn).
-		WithInput(inputTerm)
+		WithInput(inputTerm).
+		WithInterQueryBuiltinCache(interQueryCache)
 
 	var tracer BufferTracer
 
@@ -3080,11 +3087,16 @@ func assertTopDownWithPathAndContext(ctx context.Context, t *testing.T, compiler
 func runTopDownPartialTestCase(ctx context.Context, t *testing.T, compiler *ast.Compiler, store storage.Store, txn storage.Transaction, input *ast.Term, output *ast.Term, body ast.Body, requiresSort bool, expected interface{}) {
 	t.Helper()
 
+	// add an inter-query cache
+	config, _ := iCache.ParseCachingConfig(nil)
+	interQueryCache := iCache.NewInterQueryCache(config)
+
 	partialQuery := NewQuery(body).
 		WithCompiler(compiler).
 		WithStore(store).
 		WithUnknowns([]*ast.Term{ast.MustParseTerm("input")}).
-		WithTransaction(txn)
+		WithTransaction(txn).
+		WithInterQueryBuiltinCache(interQueryCache)
 
 	partials, support, err := partialQuery.PartialRun(ctx)
 
@@ -3116,7 +3128,8 @@ func runTopDownPartialTestCase(ctx context.Context, t *testing.T, compiler *ast.
 		WithCompiler(compiler).
 		WithStore(store).
 		WithTransaction(txn).
-		WithInput(input)
+		WithInput(input).
+		WithInterQueryBuiltinCache(interQueryCache)
 
 	qrs, err := query.Run(ctx)
 	if err != nil {

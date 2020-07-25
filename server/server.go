@@ -28,6 +28,8 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 
+	iCache "github.com/open-policy-agent/opa/topdown/cache"
+
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/metrics"
@@ -89,31 +91,32 @@ type Server struct {
 	Handler           http.Handler
 	DiagnosticHandler http.Handler
 
-	router              *mux.Router
-	addrs               []string
-	diagAddrs           []string
-	insecureAddr        string
-	authentication      AuthenticationScheme
-	authorization       AuthorizationScheme
-	cert                *tls.Certificate
-	certPool            *x509.CertPool
-	mtx                 sync.RWMutex
-	partials            map[string]rego.PartialResult
-	preparedEvalQueries *cache
-	store               storage.Store
-	manager             *plugins.Manager
-	watcher             *watch.Watcher
-	decisionIDFactory   func() string
-	revisions           map[string]string
-	legacyRevision      string
-	buffer              Buffer
-	logger              func(context.Context, *Info) error
-	errLimit            int
-	pprofEnabled        bool
-	runtime             *ast.Term
-	httpListeners       []httpListener
-	metrics             Metrics
-	defaultDecisionPath string
+	router                 *mux.Router
+	addrs                  []string
+	diagAddrs              []string
+	insecureAddr           string
+	authentication         AuthenticationScheme
+	authorization          AuthorizationScheme
+	cert                   *tls.Certificate
+	certPool               *x509.CertPool
+	mtx                    sync.RWMutex
+	partials               map[string]rego.PartialResult
+	preparedEvalQueries    *cache
+	store                  storage.Store
+	manager                *plugins.Manager
+	watcher                *watch.Watcher
+	decisionIDFactory      func() string
+	revisions              map[string]string
+	legacyRevision         string
+	buffer                 Buffer
+	logger                 func(context.Context, *Info) error
+	errLimit               int
+	pprofEnabled           bool
+	runtime                *ast.Term
+	httpListeners          []httpListener
+	metrics                Metrics
+	defaultDecisionPath    string
+	interQueryBuiltinCache iCache.InterQueryCache
 }
 
 // Metrics defines the interface that the server requires for recording HTTP
@@ -170,6 +173,8 @@ func (s *Server) Init(ctx context.Context) (*Server, error) {
 	}
 
 	s.defaultDecisionPath = s.generateDefaultDecisionPath()
+
+	s.interQueryBuiltinCache = iCache.NewInterQueryCache(s.manager.InterQueryBuiltinCacheConfig())
 
 	return s, s.store.Commit(ctx, txn)
 }
@@ -702,6 +707,7 @@ func (s *Server) execQuery(ctx context.Context, r *http.Request, txn storage.Tra
 		rego.QueryTracer(buf),
 		rego.Runtime(s.runtime),
 		rego.UnsafeBuiltins(unsafeBuiltinsMap),
+		rego.InterQueryBuiltinCache(s.interQueryBuiltinCache),
 	)
 
 	output, err := rego.Eval(ctx)
@@ -1083,6 +1089,7 @@ func (s *Server) v1CompilePost(w http.ResponseWriter, r *http.Request) {
 		rego.Metrics(m),
 		rego.Runtime(s.runtime),
 		rego.UnsafeBuiltins(unsafeBuiltinsMap),
+		rego.InterQueryBuiltinCache(s.interQueryBuiltinCache),
 	)
 
 	pq, err := eval.Partial(ctx)
@@ -1214,6 +1221,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 		rego.EvalParsedInput(input),
 		rego.EvalMetrics(m),
 		rego.EvalQueryTracer(buf),
+		rego.EvalInterQueryBuiltinCache(s.interQueryBuiltinCache),
 	)
 
 	m.Timer(metrics.ServerHandler).Stop()
@@ -1409,6 +1417,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 		rego.EvalParsedInput(input),
 		rego.EvalMetrics(m),
 		rego.EvalQueryTracer(buf),
+		rego.EvalInterQueryBuiltinCache(s.interQueryBuiltinCache),
 	)
 
 	m.Timer(metrics.ServerHandler).Stop()

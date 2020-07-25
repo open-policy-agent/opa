@@ -27,6 +27,7 @@ type Config struct {
 	Keys                         json.RawMessage            `json:"keys"`
 	DefaultDecision              *string                    `json:"default_decision"`
 	DefaultAuthorizationDecision *string                    `json:"default_authorization_decision"`
+	Caching                      json.RawMessage            `json:"caching"`
 }
 
 // ParseConfig returns a valid Config object with defaults injected. The id
