@@ -623,8 +623,8 @@ func (constraints *tokenConstraints) validAudience(aud ast.Value) (valid bool) {
 	if s, ok = aud.(ast.String); ok {
 		return string(s) == constraints.aud
 	}
-	var a ast.Array
-	if a, ok = aud.(ast.Array); ok {
+	var a *ast.Array
+	if a, ok = aud.(*ast.Array); ok {
 		for i := 0; i < a.Len(); i++ {
 			if s, ok = a.Elem(i).Value.(ast.String); ok {
 				if string(s) == constraints.aud {
@@ -765,8 +765,8 @@ var tokenHeaderTypes = map[string]tokenHeaderHandler{
 // tokenHeaderCrit handles the 'crit' header parameter
 func tokenHeaderCrit(header *tokenHeader, value ast.Value) (err error) {
 	var ok bool
-	var v ast.Array
-	if v, ok = value.(ast.Array); !ok {
+	var v *ast.Array
+	if v, ok = value.(*ast.Array); !ok {
 		err = fmt.Errorf("crit: must be a list")
 		return
 	}

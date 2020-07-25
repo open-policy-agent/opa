@@ -118,7 +118,7 @@ func getCIDRMatchTerm(a *ast.Term) (*ast.Term, error) {
 	switch v := a.Value.(type) {
 	case ast.String:
 		return a, nil
-	case ast.Array:
+	case *ast.Array:
 		if v.Len() == 0 {
 			return nil, errNetCIDRContainsMatchElementType
 		}
@@ -132,7 +132,7 @@ func evalNetCIDRContainsMatchesOperand(operand int, a *ast.Term, iter func(cidr,
 	switch v := a.Value.(type) {
 	case ast.String:
 		return iter(a, a)
-	case ast.Array:
+	case *ast.Array:
 		for i := 0; i < v.Len(); i++ {
 			cidr, err := getCIDRMatchTerm(v.Elem(i))
 			if err != nil {

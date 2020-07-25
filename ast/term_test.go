@@ -131,7 +131,7 @@ func TestObjectSetOperations(t *testing.T) {
 
 	r2 := a.Intersect(b)
 	var expectedTerms []*Term
-	MustParseTerm(`["c", "d", "q"]`).Value.(Array).Foreach(func(t *Term) {
+	MustParseTerm(`["c", "d", "q"]`).Value.(*Array).Foreach(func(t *Term) {
 		expectedTerms = append(expectedTerms, t)
 	})
 	if len(r2) != 1 || !termSliceEqual(r2[0][:], expectedTerms) {
@@ -762,7 +762,7 @@ func TestSetCopy(t *testing.T) {
 
 func TestArrayOperations(t *testing.T) {
 
-	arr := MustParseTerm(`[1,2,3,4]`).Value.(Array)
+	arr := MustParseTerm(`[1,2,3,4]`).Value.(*Array)
 
 	getTests := []struct {
 		input    string
@@ -801,13 +801,13 @@ func TestArrayOperations(t *testing.T) {
 		note     string
 		input    string
 		expected []string
-		iterator func(arr Array)
+		iterator func(arr *Array)
 	}{
 		{
 			"for",
 			`[1, 2, 3, 4]`,
 			[]string{"1", "2", "3", "4"},
-			func(arr Array) {
+			func(arr *Array) {
 				for i := 0; i < arr.Len(); i++ {
 					results = append(results, arr.Elem(i))
 				}
@@ -817,7 +817,7 @@ func TestArrayOperations(t *testing.T) {
 			"foreach",
 			"[1, 2, 3, 4]",
 			[]string{"1", "2", "3", "4"},
-			func(arr Array) {
+			func(arr *Array) {
 				arr.Foreach(func(v *Term) {
 					results = append(results, v)
 				})
@@ -827,7 +827,7 @@ func TestArrayOperations(t *testing.T) {
 			"until",
 			"[1, 2, 3, 4]",
 			[]string{"1"},
-			func(arr Array) {
+			func(arr *Array) {
 				arr.Until(func(v *Term) bool {
 					results = append(results, v)
 					return len(results) == 1
@@ -838,7 +838,7 @@ func TestArrayOperations(t *testing.T) {
 			"append",
 			"[1, 2]",
 			[]string{"1", "2", "3"},
-			func(arr Array) {
+			func(arr *Array) {
 				arr.Append(MustParseTerm("3")).Foreach(func(v *Term) {
 					results = append(results, v)
 				})
@@ -848,7 +848,7 @@ func TestArrayOperations(t *testing.T) {
 			"slice",
 			"[1, 2, 3, 4]",
 			[]string{"3", "4"},
-			func(arr Array) {
+			func(arr *Array) {
 				arr.Slice(2, 4).Foreach(func(v *Term) {
 					results = append(results, v)
 				})
@@ -858,7 +858,7 @@ func TestArrayOperations(t *testing.T) {
 			"slice",
 			"[1, 2, 3, 4]",
 			[]string{"3", "4"},
-			func(arr Array) {
+			func(arr *Array) {
 				arr.Slice(2, -1).Foreach(func(v *Term) {
 					results = append(results, v)
 				})
@@ -868,7 +868,7 @@ func TestArrayOperations(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			arr := MustParseTerm(tc.input).Value.(Array)
+			arr := MustParseTerm(tc.input).Value.(*Array)
 
 			var expected []*Term
 			for _, e := range tc.expected {

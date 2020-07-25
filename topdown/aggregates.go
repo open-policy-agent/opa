@@ -13,7 +13,7 @@ import (
 
 func builtinCount(a ast.Value) (ast.Value, error) {
 	switch a := a.(type) {
-	case ast.Array:
+	case *ast.Array:
 		return ast.IntNumberTerm(a.Len()).Value, nil
 	case ast.Object:
 		return ast.IntNumberTerm(a.Len()).Value, nil
@@ -27,7 +27,7 @@ func builtinCount(a ast.Value) (ast.Value, error) {
 
 func builtinSum(a ast.Value) (ast.Value, error) {
 	switch a := a.(type) {
-	case ast.Array:
+	case *ast.Array:
 		sum := big.NewFloat(0)
 		err := a.Iter(func(x *ast.Term) error {
 			n, ok := x.Value.(ast.Number)
@@ -55,7 +55,7 @@ func builtinSum(a ast.Value) (ast.Value, error) {
 
 func builtinProduct(a ast.Value) (ast.Value, error) {
 	switch a := a.(type) {
-	case ast.Array:
+	case *ast.Array:
 		product := big.NewFloat(1)
 		err := a.Iter(func(x *ast.Term) error {
 			n, ok := x.Value.(ast.Number)
@@ -83,7 +83,7 @@ func builtinProduct(a ast.Value) (ast.Value, error) {
 
 func builtinMax(a ast.Value) (ast.Value, error) {
 	switch a := a.(type) {
-	case ast.Array:
+	case *ast.Array:
 		if a.Len() == 0 {
 			return nil, BuiltinEmpty{}
 		}
@@ -112,7 +112,7 @@ func builtinMax(a ast.Value) (ast.Value, error) {
 
 func builtinMin(a ast.Value) (ast.Value, error) {
 	switch a := a.(type) {
-	case ast.Array:
+	case *ast.Array:
 		if a.Len() == 0 {
 			return nil, BuiltinEmpty{}
 		}
@@ -148,7 +148,7 @@ func builtinMin(a ast.Value) (ast.Value, error) {
 
 func builtinSort(a ast.Value) (ast.Value, error) {
 	switch a := a.(type) {
-	case ast.Array:
+	case *ast.Array:
 		return a.Sorted(), nil
 	case ast.Set:
 		return a.Sorted(), nil
@@ -169,7 +169,7 @@ func builtinAll(a ast.Value) (ast.Value, error) {
 			return false
 		})
 		return ast.Boolean(res), nil
-	case ast.Array:
+	case *ast.Array:
 		res := true
 		match := ast.BooleanTerm(true)
 		val.Until(func(term *ast.Term) bool {
@@ -190,7 +190,7 @@ func builtinAny(a ast.Value) (ast.Value, error) {
 	case ast.Set:
 		res := val.Len() > 0 && val.Contains(ast.BooleanTerm(true))
 		return ast.Boolean(res), nil
-	case ast.Array:
+	case *ast.Array:
 		res := false
 		match := ast.BooleanTerm(true)
 		val.Until(func(term *ast.Term) bool {

@@ -35,7 +35,7 @@ func builtinToNumber(a ast.Value) (ast.Value, error) {
 // Deprecated in v0.13.0.
 func builtinToArray(a ast.Value) (ast.Value, error) {
 	switch val := a.(type) {
-	case ast.Array:
+	case *ast.Array:
 		return val, nil
 	case ast.Set:
 		arr := make([]*ast.Term, val.Len())
@@ -53,7 +53,7 @@ func builtinToArray(a ast.Value) (ast.Value, error) {
 // Deprecated in v0.13.0.
 func builtinToSet(a ast.Value) (ast.Value, error) {
 	switch val := a.(type) {
-	case ast.Array:
+	case *ast.Array:
 		s := ast.NewSet()
 		val.Foreach(func(v *ast.Term) {
 			s.Add(v)

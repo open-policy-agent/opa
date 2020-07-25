@@ -13,7 +13,7 @@ func foreachVertex(collection *ast.Term, f func(*ast.Term)) {
 	switch v := collection.Value.(type) {
 	case ast.Set:
 		v.Foreach(f)
-	case ast.Array:
+	case *ast.Array:
 		v.Foreach(f)
 	}
 }

@@ -42,7 +42,7 @@ func (env *TypeEnv) Get(x interface{}) types.Type {
 		return types.NewString()
 
 	// Composites.
-	case Array:
+	case *Array:
 		static := make([]types.Type, x.Len())
 		for i := range static {
 			tpe := env.Get(x.Elem(i).Value)
@@ -319,7 +319,7 @@ func selectRef(tpe types.Type, ref Ref) types.Type {
 	head, tail := ref[0], ref[1:]
 
 	switch head.Value.(type) {
-	case Var, Ref, Array, Object, Set:
+	case Var, Ref, *Array, Object, Set:
 		return selectRef(types.Values(tpe), tail)
 	default:
 		return selectRef(selectConstant(tpe, head), tail)

@@ -954,7 +954,7 @@ func (p *Parser) parseRef(head *Term, offset int) (term *Term) {
 	}()
 
 	switch h := head.Value.(type) {
-	case Var, Array, Object, Set, *ArrayComprehension, *ObjectComprehension, *SetComprehension, Call:
+	case Var, *Array, Object, Set, *ArrayComprehension, *ObjectComprehension, *SetComprehension, Call:
 		// ok
 	default:
 		p.errorf(loc, "illegal ref (head cannot be %v)", TypeName(h))

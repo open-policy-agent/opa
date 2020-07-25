@@ -129,7 +129,7 @@ func tzTime(a ast.Value) (t time.Time, err error) {
 	loc := time.UTC
 
 	switch va := a.(type) {
-	case ast.Array:
+	case *ast.Array:
 		if va.Len() == 0 {
 			return time.Time{}, builtins.NewOperandTypeErr(1, a, "either number (ns) or [number (ns), string (tz)]")
 		}
