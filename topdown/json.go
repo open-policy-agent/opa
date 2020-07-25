@@ -93,7 +93,7 @@ func jsonRemove(a *ast.Term, b *ast.Term) (*ast.Term, error) {
 			return nil, err
 		}
 		return ast.NewTerm(newSet), nil
-	case ast.Array:
+	case *ast.Array:
 		// When indexes are removed we shift left to close empty spots in the array
 		// as per the JSON patch spec.
 		newArray := ast.NewArray()
@@ -143,7 +143,7 @@ func getJSONPaths(operand ast.Value) ([]ast.Ref, error) {
 	var paths []ast.Ref
 
 	switch v := operand.(type) {
-	case ast.Array:
+	case *ast.Array:
 		for i := 0; i < v.Len(); i++ {
 			filter, err := parsePath(v.Elem(i))
 			if err != nil {
@@ -181,7 +181,7 @@ func parsePath(path *ast.Term) (ast.Ref, error) {
 			part = strings.ReplaceAll(strings.ReplaceAll(part, "~1", "/"), "~0", "~")
 			pathSegments = append(pathSegments, ast.StringTerm(part))
 		}
-	case ast.Array:
+	case *ast.Array:
 		p.Foreach(func(term *ast.Term) {
 			pathSegments = append(pathSegments, term)
 		})

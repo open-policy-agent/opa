@@ -525,7 +525,7 @@ func (w *writer) writeTermParens(parens bool, term *ast.Term, comments []*ast.Co
 		w.writeRef(x)
 	case ast.Object:
 		comments = w.writeObject(x, term.Location, comments)
-	case ast.Array:
+	case *ast.Array:
 		comments = w.writeArray(x, term.Location, comments)
 	case ast.Set:
 		comments = w.writeSet(x, term.Location, comments)
@@ -628,7 +628,7 @@ func (w *writer) writeObject(obj ast.Object, loc *ast.Location, comments []*ast.
 	return w.writeIterable(s, loc, closingLoc(0, 0, '{', '}', loc), comments, w.objectWriter())
 }
 
-func (w *writer) writeArray(arr ast.Array, loc *ast.Location, comments []*ast.Comment) []*ast.Comment {
+func (w *writer) writeArray(arr *ast.Array, loc *ast.Location, comments []*ast.Comment) []*ast.Comment {
 	w.write("[")
 	defer w.write("]")
 

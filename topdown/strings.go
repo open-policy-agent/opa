@@ -55,7 +55,7 @@ func builtinConcat(a, b ast.Value) (ast.Value, error) {
 	strs := []string{}
 
 	switch b := b.(type) {
-	case ast.Array:
+	case *ast.Array:
 		err := b.Iter(func(x *ast.Term) error {
 			s, ok := x.Value.(ast.String)
 			if !ok {
@@ -347,7 +347,7 @@ func builtinSprintf(a, b ast.Value) (ast.Value, error) {
 		return nil, err
 	}
 
-	astArr, ok := b.(ast.Array)
+	astArr, ok := b.(*ast.Array)
 	if !ok {
 		return nil, builtins.NewOperandTypeErr(2, b, "array")
 	}

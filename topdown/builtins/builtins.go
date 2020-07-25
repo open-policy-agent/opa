@@ -149,8 +149,8 @@ func ObjectOperand(x ast.Value, pos int) (ast.Object, error) {
 
 // ArrayOperand converts x to an array. If the cast fails, a descriptive
 // error is returned.
-func ArrayOperand(x ast.Value, pos int) (ast.Array, error) {
-	a, ok := x.(ast.Array)
+func ArrayOperand(x ast.Value, pos int) (*ast.Array, error) {
+	a, ok := x.(*ast.Array)
 	if !ok {
 		return ast.NewArray(), NewOperandTypeErr(pos, x, "array")
 	}

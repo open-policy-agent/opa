@@ -398,7 +398,7 @@ func TestVarVisitor(t *testing.T) {
 		stmt := MustParseStatement(tc.stmt)
 
 		expected := NewVarSet()
-		MustParseTerm(tc.expected).Value.(Array).Foreach(func(x *Term) {
+		MustParseTerm(tc.expected).Value.(*Array).Foreach(func(x *Term) {
 			expected.Add(x.Value.(Var))
 		})
 

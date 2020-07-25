@@ -665,11 +665,11 @@ func (e *eval) biunify(a, b *ast.Term, b1, b2 *bindings, iter unifyIterator) err
 		case ast.Var, ast.String, ast.Ref:
 			return e.biunifyValues(a, b, b1, b2, iter)
 		}
-	case ast.Array:
+	case *ast.Array:
 		switch vB := b.Value.(type) {
 		case ast.Var, ast.Ref, *ast.ArrayComprehension:
 			return e.biunifyValues(a, b, b1, b2, iter)
-		case ast.Array:
+		case *ast.Array:
 			return e.biunifyArrays(vA, vB, b1, b2, iter)
 		}
 	case ast.Object:
@@ -685,14 +685,14 @@ func (e *eval) biunify(a, b *ast.Term, b1, b2 *bindings, iter unifyIterator) err
 	return nil
 }
 
-func (e *eval) biunifyArrays(a, b ast.Array, b1, b2 *bindings, iter unifyIterator) error {
+func (e *eval) biunifyArrays(a, b *ast.Array, b1, b2 *bindings, iter unifyIterator) error {
 	if a.Len() != b.Len() {
 		return nil
 	}
 	return e.biunifyArraysRec(a, b, b1, b2, iter, 0)
 }
 
-func (e *eval) biunifyArraysRec(a, b ast.Array, b1, b2 *bindings, iter unifyIterator, idx int) error {
+func (e *eval) biunifyArraysRec(a, b *ast.Array, b1, b2 *bindings, iter unifyIterator, idx int) error {
 	if idx == a.Len() {
 		return iter()
 	}
@@ -941,7 +941,7 @@ func (e *eval) buildComprehensionCacheArray(x *ast.ArrayComprehension, keys []*a
 		head := child.bindings.Plug(x.Term)
 		cached := node.Get(values)
 		if cached != nil {
-			cached.Value = cached.Value.(ast.Array).Append(head)
+			cached.Value = cached.Value.(*ast.Array).Append(head)
 		} else {
 			node.Put(values, ast.ArrayTerm(head))
 		}
@@ -1636,7 +1636,7 @@ func (e evalTree) enumerate(iter unifyIterator) error {
 
 	if doc != nil {
 		switch doc := doc.(type) {
-		case ast.Array:
+		case *ast.Array:
 			for i := 0; i < doc.Len(); i++ {
 				k := ast.IntNumberTerm(i)
 				err := e.e.biunify(k, e.ref[e.pos], e.bindings, e.bindings, func() error {
@@ -2402,7 +2402,7 @@ func (e evalTerm) next(iter unifyIterator, plugged *ast.Term) error {
 func (e evalTerm) enumerate(iter unifyIterator) error {
 
 	switch v := e.term.Value.(type) {
-	case ast.Array:
+	case *ast.Array:
 		for i := 0; i < v.Len(); i++ {
 			k := ast.IntNumberTerm(i)
 			err := e.e.biunify(k, e.ref[e.pos], e.bindings, e.bindings, func() error {
@@ -2470,7 +2470,7 @@ func (e evalTerm) get(plugged *ast.Term) (*ast.Term, *bindings) {
 				return t, b
 			}
 		}
-	case ast.Array:
+	case *ast.Array:
 		term := v.Get(plugged)
 		if term != nil {
 			return e.termbindings.apply(term)

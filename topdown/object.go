@@ -94,7 +94,7 @@ func getObjectKeysParam(arrayOrSet ast.Value) (ast.Set, error) {
 	keys := ast.NewSet()
 
 	switch v := arrayOrSet.(type) {
-	case ast.Array:
+	case *ast.Array:
 		_ = v.Iter(func(f *ast.Term) error {
 			keys.Add(f)
 			return nil

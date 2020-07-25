@@ -11,24 +11,27 @@ import (
 func evalWalk(bctx BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
 	input := args[0]
 	filter := getOutputPath(args)
-	var path ast.Array
-	return walk(filter, path, input, iter)
+	return walk(filter, nil, input, iter)
 }
 
-func walk(filter, path ast.Array, input *ast.Term, iter func(*ast.Term) error) error {
+func walk(filter, path *ast.Array, input *ast.Term, iter func(*ast.Term) error) error {
 
-	if filter.Len() == 0 {
+	if filter == nil || filter.Len() == 0 {
+		if path == nil {
+			path = ast.NewArray()
+		}
+
 		if err := iter(ast.ArrayTerm(ast.NewTerm(path), input)); err != nil {
 			return err
 		}
 	}
 
-	if filter.Len() > 0 {
+	if filter != nil && filter.Len() > 0 {
 		key := filter.Elem(0)
 		filter = filter.Slice(1, -1)
 		if key.IsGround() {
 			if term := input.Get(key); term != nil {
-				path = path.Append(key)
+				path = pathAppend(path, key)
 				return walk(filter, path, term, iter)
 			}
 			return nil
@@ -36,9 +39,9 @@ func walk(filter, path ast.Array, input *ast.Term, iter func(*ast.Term) error) e
 	}
 
 	switch v := input.Value.(type) {
-	case ast.Array:
+	case *ast.Array:
 		for i := 0; i < v.Len(); i++ {
-			path = path.Append(ast.IntNumberTerm(i))
+			path = pathAppend(path, ast.IntNumberTerm(i))
 			if err := walk(filter, path, v.Elem(i), iter); err != nil {
 				return err
 			}
@@ -46,7 +49,7 @@ func walk(filter, path ast.Array, input *ast.Term, iter func(*ast.Term) error) e
 		}
 	case ast.Object:
 		return v.Iter(func(k, v *ast.Term) error {
-			path = path.Append(k)
+			path = pathAppend(path, k)
 			if err := walk(filter, path, v, iter); err != nil {
 				return err
 			}
@@ -55,7 +58,7 @@ func walk(filter, path ast.Array, input *ast.Term, iter func(*ast.Term) error) e
 		})
 	case ast.Set:
 		return v.Iter(func(elem *ast.Term) error {
-			path = path.Append(elem)
+			path = pathAppend(path, elem)
 			if err := walk(filter, path, elem, iter); err != nil {
 				return err
 			}
@@ -67,17 +70,25 @@ func walk(filter, path ast.Array, input *ast.Term, iter func(*ast.Term) error) e
 	return nil
 }
 
-func getOutputPath(args []*ast.Term) ast.Array {
+func pathAppend(path *ast.Array, key *ast.Term) *ast.Array {
+	if path == nil {
+		return ast.NewArray(key)
+	}
+
+	return path.Append(key)
+}
+
+func getOutputPath(args []*ast.Term) *ast.Array {
 	if len(args) == 2 {
-		if arr, ok := args[1].Value.(ast.Array); ok {
+		if arr, ok := args[1].Value.(*ast.Array); ok {
 			if arr.Len() == 2 {
-				if path, ok := arr.Elem(0).Value.(ast.Array); ok {
+				if path, ok := arr.Elem(0).Value.(*ast.Array); ok {
 					return path
 				}
 			}
 		}
 	}
-	return ast.NewArray()
+	return nil
 }
 
 func init() {

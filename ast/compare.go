@@ -127,8 +127,8 @@ func Compare(a, b interface{}) int {
 	case Ref:
 		b := b.(Ref)
 		return termSliceCompare(a, b)
-	case Array:
-		b := b.(Array)
+	case *Array:
+		b := b.(*Array)
 		return termSliceCompare(a.elems, b.elems)
 	case Object:
 		b := b.(Object)
@@ -214,7 +214,7 @@ func sortOrder(x interface{}) int {
 		return 4
 	case Ref:
 		return 5
-	case Array:
+	case *Array:
 		return 6
 	case Object:
 		return 7
