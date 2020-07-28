@@ -2622,9 +2622,9 @@ func resolveRefsInRule(globals map[Var]Ref, rule *Rule) error {
 
 		// Object keys cannot be pattern matched so only walk values.
 		case Object:
-			for _, k := range x.Keys() {
-				vis.Walk(x.Get(k))
-			}
+			x.Foreach(func(k, v *Term) {
+				vis.Walk(v)
+			})
 
 		// Skip terms that could contain vars that cannot be pattern matched.
 		case Set, *ArrayComprehension, *SetComprehension, *ObjectComprehension, Call:
@@ -2992,12 +2992,11 @@ func rewriteDynamicsOne(original *Expr, f *equalityFactory, term *Term, result B
 		return result, term
 	case Object:
 		cpy := NewObject()
-		for _, key := range v.Keys() {
-			value := v.Get(key)
+		v.Foreach(func(key, value *Term) {
 			result, key = rewriteDynamicsOne(original, f, key, result)
 			result, value = rewriteDynamicsOne(original, f, value, result)
 			cpy.Insert(key, value)
-		}
+		})
 		return result, NewTerm(cpy).SetLocation(term.Location)
 	case Set:
 		cpy := NewSet()
