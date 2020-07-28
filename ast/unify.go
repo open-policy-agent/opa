@@ -73,7 +73,7 @@ func (u *unifier) unify(a *Term, b *Term) {
 		switch b := b.Value.(type) {
 		case Var:
 			u.markSafe(b)
-		case Object:
+		case *object:
 			u.markAllSafe(b)
 		}
 	case *SetComprehension:
@@ -96,13 +96,13 @@ func (u *unifier) unify(a *Term, b *Term) {
 			}
 		}
 
-	case Object:
+	case *object:
 		switch b := b.Value.(type) {
 		case Var:
 			u.unifyAll(b, a)
 		case Ref:
 			u.markAllSafe(a)
-		case Object:
+		case *object:
 			if a.Len() == b.Len() {
 				a.Iter(func(k, v *Term) error {
 					if v2 := b.Get(k); v2 != nil {

@@ -328,7 +328,7 @@ func unify2(env *TypeEnv, a *Term, typeA types.Type, b *Term, typeB types.Type) 
 	switch a.Value.(type) {
 	case *Array:
 		return unify2Array(env, a, typeA, b, typeB)
-	case Object:
+	case *object:
 		return unify2Object(env, a, typeA, b, typeB)
 	case Var:
 		switch b.Value.(type) {
@@ -336,7 +336,7 @@ func unify2(env *TypeEnv, a *Term, typeA types.Type, b *Term, typeB types.Type) 
 			return unify1(env, a, types.A, false) && unify1(env, b, env.Get(a), false)
 		case *Array:
 			return unify2Array(env, b, typeB, a, typeA)
-		case Object:
+		case *object:
 			return unify2Object(env, b, typeB, a, typeA)
 		}
 	}
@@ -365,7 +365,7 @@ func unify2Array(env *TypeEnv, a *Term, typeA types.Type, b *Term, typeB types.T
 func unify2Object(env *TypeEnv, a *Term, typeA types.Type, b *Term, typeB types.Type) bool {
 	obj := a.Value.(Object)
 	switch bv := b.Value.(type) {
-	case Object:
+	case *object:
 		cv := obj.Intersect(bv)
 		if obj.Len() == bv.Len() && bv.Len() == len(cv) {
 			for i := range cv {
@@ -401,7 +401,7 @@ func unify1(env *TypeEnv, term *Term, tpe types.Type, union bool) bool {
 			return unifies
 		}
 		return false
-	case Object:
+	case *object:
 		switch tpe := tpe.(type) {
 		case *types.Object:
 			return unify1Object(env, v, tpe, union)

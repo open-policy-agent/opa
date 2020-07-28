@@ -1177,7 +1177,7 @@ func (c *Compiler) rewriteLocalVars() {
 				}
 
 				switch v := term.Value.(type) {
-				case Object:
+				case *object:
 					// Make a copy of the object because the keys may be mutated.
 					cpy, _ := v.Map(func(k, v *Term) (*Term, *Term, error) {
 						if vark, ok := k.Value.(Var); ok {
@@ -1252,7 +1252,7 @@ func (vis *ruleArgLocalRewriter) Visit(x interface{}) Visitor {
 		}
 		t.Value = gv
 		return nil
-	case Object:
+	case *object:
 		if cpy, err := v.Map(func(k, v *Term) (*Term, *Term, error) {
 			vcpy := v.Copy()
 			Walk(vis, vcpy)
@@ -2621,7 +2621,7 @@ func resolveRefsInRule(globals map[Var]Ref, rule *Rule) error {
 			vars.Add(x)
 
 		// Object keys cannot be pattern matched so only walk values.
-		case Object:
+		case *object:
 			x.Foreach(func(k, v *Term) {
 				vis.Walk(v)
 			})
@@ -2709,7 +2709,7 @@ func resolveRefsInTerm(globals map[Var]Ref, ignore *declaredVarStack, term *Term
 		cpy := *term
 		cpy.Value = fqn
 		return &cpy
-	case Object:
+	case *object:
 		cpy := *term
 		cpy.Value, _ = v.Map(func(k, v *Term) (*Term, *Term, error) {
 			k = resolveRefsInTerm(globals, ignore, k)
@@ -2990,7 +2990,7 @@ func rewriteDynamicsOne(original *Expr, f *equalityFactory, term *Term, result B
 			v.set(i, t)
 		}
 		return result, term
-	case Object:
+	case *object:
 		cpy := NewObject()
 		v.Foreach(func(key, value *Term) {
 			result, key = rewriteDynamicsOne(original, f, key, result)
@@ -3109,7 +3109,7 @@ func expandExprTerm(gen *localVarGenerator, term *Term) (support []*Expr, output
 		support = expandExprRef(gen, v)
 	case *Array:
 		support = expandExprTermArray(gen, v)
-	case Object:
+	case *object:
 		cpy, _ := v.Map(func(k, v *Term) (*Term, *Term, error) {
 			extras1, expandedKey := expandExprTerm(gen, k)
 			extras2, expandedValue := expandExprTerm(gen, v)
@@ -3439,7 +3439,7 @@ func rewriteDeclaredAssignment(g *localVarGenerator, stack *localDeclaredVars, e
 			return true
 		case *Array:
 			return false
-		case Object:
+		case *object:
 			v.Foreach(func(_, v *Term) {
 				WalkTerms(v, vis)
 			})
@@ -3487,7 +3487,7 @@ func rewriteDeclaredVarsInTerm(g *localVarGenerator, stack *localDeclaredVars, t
 			return true, errs
 		}
 		return false, errs
-	case Object:
+	case *object:
 		cpy, _ := v.Map(func(k, v *Term) (*Term, *Term, error) {
 			kcpy := k.Copy()
 			errs = rewriteDeclaredVarsInTermRecursive(g, stack, kcpy, errs)
