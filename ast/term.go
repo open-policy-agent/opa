@@ -1592,6 +1592,7 @@ type Object interface {
 	MergeWith(other Object, conflictResolver func(v1, v2 *Term) (*Term, bool)) (Object, bool)
 	Filter(filter Object) (Object, error)
 	Keys() []*Term
+	Elem(i int) (*Term, *Term)
 }
 
 // NewObject creates a new Object with t.
@@ -1610,15 +1611,15 @@ func ObjectTerm(o ...[2]*Term) *Term {
 
 type object struct {
 	elems  map[int]*objectElem
-	keys   []*Term
+	keys   objectElemSlice
 	ground int // number of key and value grounds. Counting is
 	// required to support insert's key-value replace.
 }
 
 func newobject(n int) *object {
-	var keys []*Term
+	var keys objectElemSlice
 	if n > 0 {
-		keys = make([]*Term, 0, n)
+		keys = make(objectElemSlice, 0, n)
 	}
 	return &object{
 		elems:  make(map[int]*objectElem, n),
@@ -1632,6 +1633,12 @@ type objectElem struct {
 	value *Term
 	next  *objectElem
 }
+
+type objectElemSlice []*objectElem
+
+func (s objectElemSlice) Less(i, j int) bool { return Compare(s[i].key.Value, s[j].key.Value) < 0 }
+func (s objectElemSlice) Swap(i, j int)      { x := s[i]; s[i] = s[j]; s[j] = x }
+func (s objectElemSlice) Len() int           { return len(s) }
 
 // Item is a helper for constructing an tuple containing two Terms
 // representing a key/value pair in an Object.
@@ -1651,33 +1658,32 @@ func (obj *object) Compare(other Value) int {
 	}
 	a := obj
 	b := other.(*object)
-	keysA := a.Keys()
-	keysB := b.Keys()
-	sort.Sort(termSlice(keysA))
-	sort.Sort(termSlice(keysB))
-	minLen := a.Len()
-	if b.Len() < a.Len() {
-		minLen = b.Len()
+	// TODO: Ideally Compare would be immutable; the following sorts happen in place.
+	sort.Sort(a.keys)
+	sort.Sort(b.keys)
+	minLen := len(a.keys)
+	if len(b.keys) < len(a.keys) {
+		minLen = len(b.keys)
 	}
 	for i := 0; i < minLen; i++ {
-		keysCmp := Compare(keysA[i], keysB[i])
+		keysCmp := Compare(a.keys[i].key, b.keys[i].key)
 		if keysCmp < 0 {
 			return -1
 		}
 		if keysCmp > 0 {
 			return 1
 		}
-		valA := a.Get(keysA[i])
-		valB := b.Get(keysB[i])
+		valA := a.keys[i].value
+		valB := b.keys[i].value
 		valCmp := Compare(valA, valB)
 		if valCmp != 0 {
 			return valCmp
 		}
 	}
-	if a.Len() < b.Len() {
+	if len(a.keys) < len(b.keys) {
 		return -1
 	}
-	if b.Len() < a.Len() {
+	if len(b.keys) < len(a.keys) {
 		return 1
 	}
 	return 0
@@ -1757,13 +1763,8 @@ func (obj *object) Intersect(other Object) [][3]*Term {
 // Iter calls the function f for each key-value pair in the object. If f
 // returns an error, iteration stops and the error is returned.
 func (obj *object) Iter(f func(*Term, *Term) error) error {
-	for i := range obj.keys {
-		k := obj.keys[i]
-		node := obj.get(k)
-		if node == nil {
-			panic("corrupt object")
-		}
-		if err := f(k, node.value); err != nil {
+	for _, node := range obj.keys {
+		if err := f(node.key, node.value); err != nil {
 			return err
 		}
 	}
@@ -1811,15 +1812,24 @@ func (obj *object) Map(f func(*Term, *Term) (*Term, *Term, error)) (Object, erro
 
 // Keys returns the keys of obj.
 func (obj *object) Keys() []*Term {
-	return obj.keys
+	keys := make([]*Term, len(obj.keys))
+
+	for i, elem := range obj.keys {
+		keys[i] = elem.key
+	}
+
+	return keys
+}
+
+func (obj *object) Elem(i int) (*Term, *Term) {
+	return obj.keys[i].key, obj.keys[i].value
 }
 
 // MarshalJSON returns JSON encoded bytes representing obj.
 func (obj *object) MarshalJSON() ([]byte, error) {
 	sl := make([][2]*Term, obj.Len())
-	for i := range obj.keys {
-		k := obj.keys[i]
-		sl[i] = Item(k, obj.get(k).value)
+	for i, node := range obj.keys {
+		sl[i] = Item(node.key, node.value)
 	}
 	return json.Marshal(sl)
 }
@@ -1896,10 +1906,9 @@ func (obj object) Len() int {
 
 func (obj object) String() string {
 	var buf []string
-	sorted := termSliceSorted(obj.Keys())
-	for _, k := range sorted {
-		v := obj.Get(k)
-		buf = append(buf, fmt.Sprintf("%s: %s", k, v))
+	sorted := objectElemSliceSorted(obj.keys)
+	for _, elem := range sorted {
+		buf = append(buf, fmt.Sprintf("%s: %s", elem.key, elem.value))
 	}
 	return "{" + strings.Join(buf, ", ") + "}"
 }
@@ -2015,12 +2024,13 @@ func (obj *object) insert(k, v *Term) {
 			return
 		}
 	}
-	obj.elems[hash] = &objectElem{
+	elem := &objectElem{
 		key:   k,
 		value: v,
 		next:  head,
 	}
-	obj.keys = append(obj.keys, k)
+	obj.elems[hash] = elem
+	obj.keys = append(obj.keys, elem)
 
 	if k.IsGround() {
 		obj.ground++
@@ -2318,12 +2328,12 @@ func (c Call) String() string {
 	return fmt.Sprintf("%v(%v)", c[0], strings.Join(args, ", "))
 }
 
-func termSliceSorted(a []*Term) []*Term {
-	b := make([]*Term, len(a))
+func objectElemSliceSorted(a objectElemSlice) objectElemSlice {
+	b := make(objectElemSlice, len(a))
 	for i := range b {
 		b[i] = a[i]
 	}
-	sort.Sort(termSlice(b))
+	sort.Sort(b)
 	return b
 }
 
