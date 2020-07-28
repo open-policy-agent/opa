@@ -106,7 +106,7 @@ func walk(v Visitor, x interface{}) {
 		for _, t := range x {
 			Walk(w, t)
 		}
-	case Object:
+	case *object:
 		x.Foreach(func(k, vv *Term) {
 			Walk(w, k)
 			Walk(w, vv)
@@ -334,7 +334,7 @@ func (vis *GenericVisitor) Walk(x interface{}) {
 		for _, t := range x {
 			vis.Walk(t)
 		}
-	case Object:
+	case *object:
 		x.Foreach(func(k, v *Term) {
 			vis.Walk(k)
 			vis.Walk(x.Get(k))
@@ -452,7 +452,7 @@ func (vis *BeforeAfterVisitor) Walk(x interface{}) {
 		for _, t := range x {
 			vis.Walk(t)
 		}
-	case Object:
+	case *object:
 		x.Foreach(func(k, v *Term) {
 			vis.Walk(k)
 			vis.Walk(x.Get(k))
@@ -655,7 +655,7 @@ func (vis *VarVisitor) Walk(x interface{}) {
 		for _, t := range x {
 			vis.Walk(t)
 		}
-	case Object:
+	case *object:
 		x.Foreach(func(k, v *Term) {
 			vis.Walk(k)
 			vis.Walk(x.Get(k))

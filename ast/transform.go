@@ -187,7 +187,7 @@ func Transform(t Transformer, x interface{}) (interface{}, error) {
 			}
 		}
 		return y, nil
-	case Object:
+	case *object:
 		return y.Map(func(k, v *Term) (*Term, *Term, error) {
 			k, err := transformTerm(t, k)
 			if err != nil {

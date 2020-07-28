@@ -130,8 +130,8 @@ func Compare(a, b interface{}) int {
 	case *Array:
 		b := b.(*Array)
 		return termSliceCompare(a.elems, b.elems)
-	case Object:
-		b := b.(Object)
+	case *object:
+		b := b.(*object)
 		return a.Compare(b)
 	case Set:
 		b := b.(Set)

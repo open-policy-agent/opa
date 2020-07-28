@@ -178,8 +178,8 @@ func ValueToInterface(v Value, resolver Resolver) (interface{}, error) {
 			buf = append(buf, x1)
 		}
 		return buf, nil
-	case Object:
-		buf := map[string]interface{}{}
+	case *object:
+		buf := make(map[string]interface{}, v.Len())
 		err := v.Iter(func(k, v *Term) error {
 			ki, err := ValueToInterface(k.Value, resolver)
 			if err != nil {
@@ -293,7 +293,7 @@ func (term *Term) Copy() *Term {
 		cpy.Value = v.Copy()
 	case Set:
 		cpy.Value = v.Copy()
-	case Object:
+	case *object:
 		cpy.Value = v.Copy()
 	case *ArrayComprehension:
 		cpy.Value = v.Copy()
@@ -346,7 +346,7 @@ func (term *Term) Get(name *Term) *Term {
 	switch v := term.Value.(type) {
 	case *Array:
 		return v.Get(name)
-	case Object:
+	case *object:
 		return v.Get(name)
 	case Set:
 		if v.Contains(name) {
@@ -1593,6 +1593,7 @@ type Object interface {
 	Filter(filter Object) (Object, error)
 	Keys() []*Term
 	Elem(i int) (*Term, *Term)
+	get(k *Term) *objectElem // To prevent external implementations
 }
 
 // NewObject creates a new Object with t.
@@ -2045,7 +2046,7 @@ func filterObject(o Value, filter Value) (Value, error) {
 		return o, nil
 	}
 
-	filteredObj, ok := filter.(Object)
+	filteredObj, ok := filter.(*object)
 	if !ok {
 		return nil, fmt.Errorf("invalid filter value %q, expected an object", filter)
 	}
@@ -2079,7 +2080,7 @@ func filterObject(o Value, filter Value) (Value, error) {
 			return nil
 		})
 		return values, err
-	case Object:
+	case *object:
 		values := NewObject()
 
 		iterObj := v
