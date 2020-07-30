@@ -717,3 +717,15 @@ func mustListPaths(path string, recurse bool) (paths []string) {
 	}
 	return paths
 }
+
+func TestDirs(t *testing.T) {
+	paths := []string{
+		"/foo/bar.json", "/foo/bar/baz.json", "/foo.json",
+	}
+
+	e := []string{"/", "/foo", "/foo/bar"}
+	sorted := Dirs(paths)
+	if !reflect.DeepEqual(sorted, e) {
+		t.Errorf("got: %q wanted: %q", sorted, e)
+	}
+}

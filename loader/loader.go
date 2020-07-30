@@ -11,6 +11,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/ghodss/yaml"
@@ -300,6 +301,25 @@ func Paths(path string, recurse bool) (paths []string, err error) {
 		return nil
 	})
 	return paths, err
+}
+
+// Dirs resolves filepaths to directories. It will return a list of unique
+// directories.
+func Dirs(paths []string) []string {
+	unique := map[string]struct{}{}
+
+	for _, path := range paths {
+		// TODO: /dir/dir will register top level directory /dir
+		dir := filepath.Dir(path)
+		unique[dir] = struct{}{}
+	}
+
+	var u []string
+	for k := range unique {
+		u = append(u, k)
+	}
+	sort.Strings(u)
+	return u
 }
 
 // SplitPrefix returns a tuple specifying the document prefix and the file

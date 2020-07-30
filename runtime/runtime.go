@@ -528,9 +528,13 @@ func (rt *Runtime) readWatcher(ctx context.Context, watcher *fsnotify.Watcher, p
 	for {
 		select {
 		case evt := <-watcher.Events:
+
 			removalMask := (fsnotify.Remove | fsnotify.Rename)
 			mask := (fsnotify.Create | fsnotify.Write | removalMask)
 			if (evt.Op & mask) != 0 {
+				logrus.WithFields(logrus.Fields{
+					"event": evt.String(),
+				}).Debugf("registered file event")
 				t0 := time.Now()
 				removed := ""
 				if (evt.Op & removalMask) != 0 {
@@ -656,6 +660,7 @@ func getWatcher(rootPaths []string) (*fsnotify.Watcher, error) {
 	}
 
 	for _, path := range watchPaths {
+		logrus.WithField("path", path).Debug("watching path")
 		if err := watcher.Add(path); err != nil {
 			return nil, err
 		}
@@ -675,7 +680,7 @@ func getWatchPaths(rootPaths []string) ([]string, error) {
 			return nil, err
 		}
 
-		paths = append(paths, result...)
+		paths = append(paths, loader.Dirs(result)...)
 	}
 
 	return paths, nil
