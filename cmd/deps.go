@@ -57,8 +57,8 @@ func init() {
 	}
 
 	depsCommand.Flags().VarP(params.format, "format", "f", "set output format")
-	depsCommand.Flags().VarP(&params.dataPaths, "data", "d", "set data file(s) or directory path(s)")
-	depsCommand.Flags().VarP(&params.bundlePaths, "bundle", "b", "set bundle file(s) or directory path(s)")
+	depsCommand.Flags().VarP(&params.dataPaths, "data", "d", "set policy or data file(s). This flag can be repeated.")
+	depsCommand.Flags().VarP(&params.bundlePaths, "bundle", "b", "set bundle file(s) or directory path(s). This flag can be repeated.")
 	addIgnoreFlag(depsCommand.Flags(), &params.ignore)
 
 	RootCommand.AddCommand(depsCommand)
