@@ -108,7 +108,7 @@ function dumpJSON(mod, memory, addr) {
 }
 
 function builtinCustomTest(a) {
-    return a+1;
+    return a + 1;
 }
 
 function builtinCustomTestImpure() {
@@ -128,7 +128,7 @@ function builtinCall(policy, func) {
     const impl = builtinFuncs[policy.builtins[func]];
 
     if (impl === undefined) {
-        throw {message: "not implemented: built-in " + func + ": " + policy.builtins[func]}
+        throw { message: "not implemented: built-in " + func + ": " + policy.builtins[func] }
     }
 
     var argArray = Array.prototype.slice.apply(arguments);
@@ -148,7 +148,7 @@ async function instantiate(bytes, memory, data) {
 
     const addr2string = stringDecoder(memory);
 
-    let policy = {memory: memory};
+    let policy = { memory: memory };
 
     policy.module = await WebAssembly.instantiate(bytes, {
         env: {
@@ -159,19 +159,19 @@ async function instantiate(bytes, memory, data) {
             opa_println: function (addr) {
                 console.log(addr2string(addr));
             },
-            opa_builtin0: function(func, ctx) {
+            opa_builtin0: function (func, ctx) {
                 return builtinCall(policy, func);
             },
-            opa_builtin1: function(func, ctx, v1) {
+            opa_builtin1: function (func, ctx, v1) {
                 return builtinCall(policy, func, v1);
             },
-            opa_builtin2: function(func, ctx, v1, v2) {
+            opa_builtin2: function (func, ctx, v1, v2) {
                 return builtinCall(policy, func, v1, v2);
             },
-            opa_builtin3: function(func, ctx, v1, v2, v3) {
+            opa_builtin3: function (func, ctx, v1, v2, v3) {
                 return builtinCall(policy, func, v1, v2, v3);
             },
-            opa_builtin4: function(func, ctx, v1, v2, v3, v4) {
+            opa_builtin4: function (func, ctx, v1, v2, v3, v4) {
                 return builtinCall(policy, func, v1, v2, v3, v4);
             },
         },
@@ -186,7 +186,6 @@ async function instantiate(bytes, memory, data) {
 
     policy.dataAddr = loadJSON(policy.module, policy.memory, data || {});
     policy.heapPtr = policy.module.instance.exports.opa_heap_ptr_get();
-    policy.heapTop = policy.module.instance.exports.opa_heap_top_get();
 
     return policy;
 }
@@ -194,7 +193,6 @@ async function instantiate(bytes, memory, data) {
 function evaluate(policy, input) {
 
     policy.module.instance.exports.opa_heap_ptr_set(policy.heapPtr);
-    policy.module.instance.exports.opa_heap_top_set(policy.heapTop);
 
     const inputAddr = loadJSON(policy.module, policy.memory, input);
     const ctxAddr = policy.module.instance.exports.opa_eval_ctx_new();

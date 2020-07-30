@@ -121,8 +121,6 @@ The primary exported functions for interacting with policy modules are:
 | <span class="opa-keep-it-together">`str_addr opa_json_dump(value_addr)`</span> | Dumps the value referred to by `value_addr` to a null-terminated JSON serialized string and returns the address of the start of the string. |
 | <span class="opa-keep-it-together">`void opa_heap_ptr_set(addr)`</span> | Set the heap pointer for the next evaluation. |
 | <span class="opa-keep-it-together">`addr opa_heap_ptr_get(void)`</span> | Get the current heap pointer. |
-| <span class="opa-keep-it-together">`void opa_heap_top_set(addr)`</span> | Set the heap top for the next evaluation. |
-| <span class="opa-keep-it-together">`addr opa_heap_top_get(void)`</span> | Get the current heap top. |
 
 The addresses passed and returned by the policy modules are 32-bit integer
 offsets into the shared memory region. The `value_addr` parameters and return
@@ -216,11 +214,10 @@ is done by loading a JSON string into the shared memory buffer. Use `opa_malloc`
 and `opa_json_parse` followed by `opa_eval_ctx_set_data` to set the address on
 the evaluation context.
 
-After loading the external data use the `opa_heap_ptr_get` and
-`opa_heap_top_get` exported methods to save the current point in the heap before
-evaluation. After evaluation these should be reset by calling `opa_heap_ptr_set`
-and `opa_heap_top_set` to ensure that evaluation restarts back at the saved data
-and re-uses heap space. This is particularly important if re-evaluating many
+After loading the external data use the `opa_heap_ptr_get` exported method to save
+the current point in the heap before evaluation. After evaluation this should be
+reset by calling `opa_heap_ptr_set` to ensure that evaluation restarts back at the
+saved data and re-uses heap space. This is particularly important if re-evaluating many
 times with the same data.
 
 #### Results
