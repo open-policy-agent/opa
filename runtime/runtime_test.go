@@ -13,6 +13,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -36,7 +37,7 @@ func TestWatchPaths(t *testing.T) {
 	}
 
 	expected := []string{
-		"/foo", "/foo/bar", "/foo/bar/baz.json",
+		".", "/foo", "/foo/bar",
 	}
 
 	test.WithTempFS(fs, func(rootDir string) {
@@ -46,10 +47,10 @@ func TestWatchPaths(t *testing.T) {
 		}
 		result := []string{}
 		for _, path := range paths {
-			result = append(result, strings.TrimPrefix(path, rootDir))
+			result = append(result, filepath.Clean(strings.TrimPrefix(path, rootDir)))
 		}
 		if !reflect.DeepEqual(expected, result) {
-			t.Fatalf("Expected %v but got: %v", expected, result)
+			t.Fatalf("Expected %q but got: %q", expected, result)
 		}
 	})
 }
