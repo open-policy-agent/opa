@@ -302,6 +302,25 @@ func Paths(path string, recurse bool) (paths []string, err error) {
 	return paths, err
 }
 
+// Dirs converts all filepaths to directories to use in the file watcher.
+// Some types of events will not register on the files themselves, so
+// watch the directory to prevent this problem
+func Dirs(paths []string) []string {
+	unique := map[string]struct{}{}
+
+	for _, path := range paths {
+		// TODO: /dir/dir will register top level directory /dir
+		dir := filepath.Dir(path)
+		unique[dir] = struct{}{}
+	}
+
+	var u []string
+	for k := range unique {
+		u = append(u, k)
+	}
+	return u
+}
+
 // SplitPrefix returns a tuple specifying the document prefix and the file
 // path.
 func SplitPrefix(path string) ([]string, string) {
