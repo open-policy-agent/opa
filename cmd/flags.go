@@ -31,11 +31,11 @@ func addFailFlag(fs *pflag.FlagSet, fail *bool, value bool) {
 }
 
 func addDataFlag(fs *pflag.FlagSet, paths *repeatedStringFlag) {
-	fs.VarP(paths, "data", "d", "set data file(s) or directory path(s)")
+	fs.VarP(paths, "data", "d", "set policy or data file(s). This flag can be repeated.")
 }
 
 func addBundleFlag(fs *pflag.FlagSet, paths *repeatedStringFlag) {
-	fs.VarP(paths, "bundle", "b", "set bundle file(s) or directory path(s)")
+	fs.VarP(paths, "bundle", "b", "set bundle file(s) or directory path(s). This flag can be repeated.")
 }
 
 func addBundleModeFlag(fs *pflag.FlagSet, bundle *bool, value bool) {
@@ -47,7 +47,7 @@ func addInputFlag(fs *pflag.FlagSet, inputPath *string) {
 }
 
 func addImportFlag(fs *pflag.FlagSet, imports *repeatedStringFlag) {
-	fs.VarP(imports, "import", "", "set query import(s)")
+	fs.VarP(imports, "import", "", "set query import(s). This flag can be repeated.")
 }
 
 func addPackageFlag(fs *pflag.FlagSet, pkg *string) {
