@@ -1035,13 +1035,13 @@ type QueryIterator func(map[Var]Value, Value) error
 
 // ArrayTerm creates a new Term with an Array value.
 func ArrayTerm(a ...*Term) *Term {
-	return &Term{Value: &Array{a}}
+	return &Term{Value: &Array{a, 0}}
 }
 
 // NewArray creates an Array with the terms provided. The array will
 // use the provided term slice.
 func NewArray(a ...*Term) *Array {
-	return &Array{a}
+	return &Array{a, 0}
 }
 
 // Array represents an array as defined by the language. Arrays are similar to the
@@ -1049,11 +1049,12 @@ func NewArray(a ...*Term) *Array {
 // and References.
 type Array struct {
 	elems []*Term
+	hash  int
 }
 
 // Copy returns a deep copy of arr.
 func (arr *Array) Copy() *Array {
-	return &Array{termSliceCopy(arr.elems)}
+	return &Array{termSliceCopy(arr.elems), arr.hash}
 }
 
 // Equal returns true if arr is equal to other.
@@ -1112,12 +1113,18 @@ func (arr *Array) Sorted() *Array {
 		cpy[i] = arr.elems[i]
 	}
 	sort.Sort(termSlice(cpy))
-	return NewArray(cpy...)
+	a := NewArray(cpy...)
+	a.hash = arr.hash
+	return a
 }
 
 // Hash returns the hash code for the Value.
 func (arr *Array) Hash() int {
-	return termSliceHash(arr.elems)
+	if arr.hash == 0 {
+		arr.hash = termSliceHash(arr.elems)
+	}
+
+	return arr.hash
 }
 
 // IsGround returns true if all of the Array elements are ground.
@@ -1154,6 +1161,7 @@ func (arr *Array) Elem(i int) *Term {
 // set sets the element i of arr.
 func (arr *Array) set(i int, v *Term) {
 	arr.elems[i] = v
+	arr.hash = 0
 }
 
 // Slice returns a slice of arr starting from i index to j. -1
@@ -1202,6 +1210,7 @@ func (arr *Array) Foreach(f func(*Term)) {
 func (arr *Array) Append(v *Term) *Array {
 	cpy := *arr
 	cpy.elems = append(arr.elems, v)
+	cpy.hash = 0
 	return &cpy
 }
 
@@ -1241,6 +1250,7 @@ func newset(n int) *set {
 	return &set{
 		elems: make(map[int]*Term, n),
 		keys:  keys,
+		hash:  0,
 	}
 }
 
@@ -1255,6 +1265,7 @@ func SetTerm(t ...*Term) *Term {
 type set struct {
 	elems map[int]*Term
 	keys  []*Term
+	hash  int
 }
 
 // Copy returns a deep copy of s.
@@ -1263,6 +1274,7 @@ func (s *set) Copy() Set {
 	s.Foreach(func(x *Term) {
 		cpy.Add(x.Copy())
 	})
+	cpy.hash = s.hash
 	return cpy
 }
 
@@ -1275,11 +1287,12 @@ func (s *set) IsGround() bool {
 
 // Hash returns a hash code for s.
 func (s *set) Hash() int {
-	var hash int
-	s.Foreach(func(x *Term) {
-		hash += x.Hash()
-	})
-	return hash
+	if s.hash == 0 {
+		s.Foreach(func(x *Term) {
+			s.hash += x.Hash()
+		})
+	}
+	return s.hash
 }
 
 func (s *set) String() string {
@@ -1520,6 +1533,7 @@ func (s *set) insert(x *Term) {
 
 	s.elems[hash] = x
 	s.keys = append(s.keys, x)
+	s.hash = 0
 }
 
 func (s *set) get(x *Term) *Term {
@@ -1615,6 +1629,7 @@ type object struct {
 	keys   objectElemSlice
 	ground int // number of key and value grounds. Counting is
 	// required to support insert's key-value replace.
+	hash int
 }
 
 func newobject(n int) *object {
@@ -1626,6 +1641,7 @@ func newobject(n int) *object {
 		elems:  make(map[int]*objectElem, n),
 		keys:   keys,
 		ground: 0,
+		hash:   0,
 	}
 }
 
@@ -1716,12 +1732,15 @@ func (obj *object) Get(k *Term) *Term {
 
 // Hash returns the hash code for the Value.
 func (obj *object) Hash() int {
-	var hash int
-	obj.Foreach(func(k, v *Term) {
-		hash += k.Value.Hash()
-		hash += v.Value.Hash()
-	})
-	return hash
+	if obj.hash == 0 {
+		for h, curr := range obj.elems {
+			for ; curr != nil; curr = curr.next {
+				obj.hash += h
+				obj.hash += curr.value.Hash()
+			}
+		}
+	}
+	return obj.hash
 }
 
 // IsGround returns true if all of the Object key/value pairs are ground.
@@ -1734,6 +1753,7 @@ func (obj *object) Copy() Object {
 	cpy, _ := obj.Map(func(k, v *Term) (*Term, *Term, error) {
 		return k.Copy(), v.Copy(), nil
 	})
+	cpy.(*object).hash = obj.hash
 	return cpy
 }
 
@@ -2022,6 +2042,7 @@ func (obj *object) insert(k, v *Term) {
 			}
 
 			curr.value = v
+			obj.hash = 0
 			return
 		}
 	}
@@ -2032,6 +2053,7 @@ func (obj *object) insert(k, v *Term) {
 	}
 	obj.elems[hash] = elem
 	obj.keys = append(obj.keys, elem)
+	obj.hash = 0
 
 	if k.IsGround() {
 		obj.ground++
