@@ -2,7 +2,7 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-package runtime_test
+package runtime
 
 import (
 	"context"
@@ -10,9 +10,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/open-policy-agent/opa/plugins"
-	"github.com/open-policy-agent/opa/runtime"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/util/test"
 )
@@ -60,7 +60,7 @@ func (f Factory) New(_ *plugins.Manager, config interface{}) plugins.Plugin {
 
 func TestRegisterPlugin(t *testing.T) {
 
-	params := runtime.NewParams()
+	params := NewParams()
 
 	fs := map[string]string{
 		"/config.yaml": `{"plugins": {"test": {}}}`,
@@ -68,11 +68,11 @@ func TestRegisterPlugin(t *testing.T) {
 
 	test.WithTempFS(fs, func(testDirRoot string) {
 
-		runtime.RegisterPlugin("test", Factory{})
+		RegisterPlugin("test", Factory{})
 
 		params.ConfigFile = filepath.Join(testDirRoot, "/config.yaml")
 
-		rt, err := runtime.NewRuntime(context.Background(), params)
+		rt, err := NewRuntime(context.Background(), params)
 		if err != nil {
 			t.Fatalf(err.Error())
 		}
@@ -92,7 +92,7 @@ func TestRegisterPlugin(t *testing.T) {
 
 func TestRegisterPluginNotStartedWithoutConfig(t *testing.T) {
 
-	params := runtime.NewParams()
+	params := NewParams()
 
 	fs := map[string]string{
 		"/config.yaml": `{"plugins": {}}`,
@@ -100,11 +100,11 @@ func TestRegisterPluginNotStartedWithoutConfig(t *testing.T) {
 
 	test.WithTempFS(fs, func(testDirRoot string) {
 
-		runtime.RegisterPlugin("test", Factory{})
+		RegisterPlugin("test", Factory{})
 
 		params.ConfigFile = filepath.Join(testDirRoot, "/config.yaml")
 
-		rt, err := runtime.NewRuntime(context.Background(), params)
+		rt, err := NewRuntime(context.Background(), params)
 		if err != nil {
 			t.Fatalf(err.Error())
 		}
@@ -124,7 +124,7 @@ func TestRegisterPluginNotStartedWithoutConfig(t *testing.T) {
 
 func TestRegisterPluginBadBootConfig(t *testing.T) {
 
-	params := runtime.NewParams()
+	params := NewParams()
 
 	fs := map[string]string{
 		"/config.yaml": `{"plugins": {"test": {"configerr": true}}}`,
@@ -132,15 +132,64 @@ func TestRegisterPluginBadBootConfig(t *testing.T) {
 
 	test.WithTempFS(fs, func(testDirRoot string) {
 
-		runtime.RegisterPlugin("test", Factory{})
+		RegisterPlugin("test", Factory{})
 
 		params.ConfigFile = filepath.Join(testDirRoot, "/config.yaml")
 
-		_, err := runtime.NewRuntime(context.Background(), params)
+		_, err := NewRuntime(context.Background(), params)
 		if err == nil || !strings.Contains(err.Error(), "config error: test") {
 			t.Fatal("expected config error but got:", err)
 		}
 
 	})
 
+}
+
+func TestWaitPluginsReady(t *testing.T) {
+	fs := map[string]string{
+		"/config.yaml": `{"plugins": {"test": {}}}`,
+	}
+
+	test.WithTempFS(fs, func(testDirRoot string) {
+
+		RegisterPlugin("test", Factory{})
+
+		params := NewParams()
+		params.ConfigFile = filepath.Join(testDirRoot, "/config.yaml")
+
+		rt, err := NewRuntime(context.Background(), params)
+		if err != nil {
+			t.Fatalf(err.Error())
+		}
+
+		if err := rt.Manager.Start(context.Background()); err != nil {
+			t.Fatalf("Unable to initialize plugins: %v", err.Error())
+		}
+
+		rt.Manager.UpdatePluginStatus("test", &plugins.Status{
+			State: plugins.StateNotReady,
+		})
+
+		go func() {
+			time.Sleep(2 * time.Millisecond)
+			rt.Manager.UpdatePluginStatus("test", &plugins.Status{
+				State: plugins.StateOK,
+			})
+			rt.Manager.UpdatePluginStatus("discovery", &plugins.Status{
+				State: plugins.StateOK,
+			})
+		}()
+
+		if err := rt.waitPluginsReady(1*time.Millisecond, 0); err != nil {
+			t.Fatalf("Expected no error when no timeout: %v", err)
+		}
+
+		if err := rt.waitPluginsReady(1*time.Millisecond, 1*time.Millisecond); err == nil {
+			t.Fatal("Expected timeout error")
+		}
+
+		if err := rt.waitPluginsReady(1*time.Millisecond, 3*time.Millisecond); err != nil {
+			t.Fatal(err)
+		}
+	})
 }
