@@ -164,6 +164,7 @@ To skip bundle verification, use the --skip-verify flag.
 
 	addConfigFileFlag(runCommand.Flags(), &cmdParams.rt.ConfigFile)
 	runCommand.Flags().BoolVarP(&cmdParams.serverMode, "server", "s", false, "start the runtime in server mode")
+	runCommand.Flags().IntVar(&cmdParams.rt.ReadyTimeout, "ready-timeout", 0, "wait (in seconds) for configured plugins before starting server (value <= 0 disables ready check)")
 	runCommand.Flags().StringVarP(&cmdParams.rt.HistoryPath, "history", "H", historyPath(), "set path of history file")
 	cmdParams.rt.Addrs = runCommand.Flags().StringSliceP("addr", "a", []string{defaultAddr}, "set listening address of the server (e.g., [ip]:<port> for TCP, unix://<path> for UNIX domain socket)")
 	cmdParams.rt.DiagnosticAddrs = runCommand.Flags().StringSlice("diagnostic-addr", []string{}, "set read-only diagnostic listening address of the server for /health and /metric APIs (e.g., [ip]:<port> for TCP, unix://<path> for UNIX domain socket)")

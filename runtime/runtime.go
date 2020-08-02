@@ -42,6 +42,7 @@ import (
 	"github.com/open-policy-agent/opa/server"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
+	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/version"
 )
 
@@ -169,6 +170,11 @@ type Params struct {
 
 	// SkipBundleVerification flag controls whether OPA will verify a signed bundle
 	SkipBundleVerification bool
+
+	// ReadyTimeout flag controls if and for how long OPA server will wait (in seconds) for
+	// configured bundles and plugins to be activated/ready before listening for traffic.
+	// A value of 0 or less means no wait is exercised.
+	ReadyTimeout int
 }
 
 // LoggingConfig stores the configuration for OPA's logging behaviour.
@@ -352,6 +358,13 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 	rt.server.Handler = NewLoggingHandler(rt.server.Handler)
 	rt.server.DiagnosticHandler = NewLoggingHandler(rt.server.DiagnosticHandler)
 
+	if err := rt.waitPluginsReady(
+		100*time.Millisecond,
+		time.Second*time.Duration(rt.Params.ReadyTimeout)); err != nil {
+		logrus.WithField("err", err).Error("Failed to wait for plugins activation.")
+		return err
+	}
+
 	loops, err := rt.server.Listeners()
 	if err != nil {
 		logrus.WithField("err", err).Error("Unable to create listeners.")
@@ -371,6 +384,8 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 	rt.serverInitMtx.Lock()
 	rt.serverInitialized = true
 	rt.serverInitMtx.Unlock()
+
+	logrus.Debug("Server initialized.")
 
 	for {
 		select {
@@ -606,6 +621,26 @@ func (rt *Runtime) gracefulServerShutdown(s *server.Server) error {
 	}
 	logrus.Info("Server shutdown.")
 	return nil
+}
+
+func (rt *Runtime) waitPluginsReady(checkInterval, timeout time.Duration) error {
+	if timeout <= 0 {
+		return nil
+	}
+
+	// check readiness of all plugins
+	pluginsReady := func() bool {
+		for _, status := range rt.Manager.PluginStatus() {
+			if status != nil && status.State != plugins.StateOK {
+				return false
+			}
+		}
+		return true
+	}
+
+	logrus.Debugf("Waiting for plugins activation (%v).", timeout)
+
+	return util.WaitFunc(pluginsReady, checkInterval, timeout)
 }
 
 func getWatcher(rootPaths []string) (*fsnotify.Watcher, error) {
