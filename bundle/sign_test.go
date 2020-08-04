@@ -97,7 +97,6 @@ func TestGenerateSignedTokenWithClaims(t *testing.T) {
 
 	test.WithTempFS(map[string]string{}, func(rootDir string) {
 		claims := make(map[string]interface{})
-		claims["keyid"] = "foo"
 		claims["scope"] = "read"
 
 		claimBytes, err := json.Marshal(claims)
@@ -111,8 +110,10 @@ func TestGenerateSignedTokenWithClaims(t *testing.T) {
 			t.Fatalf("Unexpected error: %s", err)
 		}
 
+		keyid := "foo"
+
 		sc := NewSigningConfig("secret", "HS256", filepath.Join(rootDir, "claims.json"))
-		token, err := GenerateSignedToken(input, sc, "")
+		token, err := GenerateSignedToken(input, sc, keyid)
 		if err != nil {
 			t.Fatalf("Unexpected error %v", err)
 		}
@@ -123,10 +124,19 @@ func TestGenerateSignedTokenWithClaims(t *testing.T) {
 			t.Fatalf("Unexpected error %v", err)
 		}
 
+		// check the kid is in the header
+		m, err := jws.ParseString(token)
+		if err != nil {
+			t.Fatalf("Unexpected error %v", err)
+		}
+
+		if v, ok := m.GetSignatures()[0].ProtectedHeaders().Get(jws.KeyIDKey); !ok || v != keyid {
+			t.Errorf("key id not set")
+		}
 	})
 }
 
-func TestGeneratePayloadWithKeyID(t *testing.T) {
+func TestGeneratePayload(t *testing.T) {
 
 	files := [][2]string{
 		{"/.manifest", `{"revision": "quickbrownfaux"}`},
@@ -151,8 +161,7 @@ func TestGeneratePayloadWithKeyID(t *testing.T) {
 	}
 
 	payload := make(map[string]interface{})
-	err = util.UnmarshalJSON(bytes, &payload)
-	if err != nil {
+	if err := util.UnmarshalJSON(bytes, &payload); err != nil {
 		t.Fatalf("Unexpected error %v", err)
 	}
 

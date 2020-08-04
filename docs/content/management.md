@@ -314,7 +314,8 @@ signatures to sign different files within the bundle.
 }
 ```
 
-The JWT when decoded has a JSON payload of the following form:
+The JWT has the standard headers `alg` (for algorithm), `typ` (always JWT), and `kid` (for key id). It has a JSON payload of the
+following form:
 
 ```json
 {
@@ -331,7 +332,6 @@ The JWT when decoded has a JSON payload of the following form:
   ],
   "iat": 1592248027,
   "iss": "JWTService",
-  "keyid": "my_public_key",
   "scope": "write"
 }
 ```
@@ -341,13 +341,12 @@ The JWT when decoded has a JSON payload of the following form:
 | `files[_].name` | `string` | Yes | Path of a file in the bundle. |
 | `files[_].hash` | `string` | Yes | Output of the hashing algorithm applied to the file. |
 | `files[_].algorithm` | `string` | Yes | Name of the hashing algorithm. |
-| `keyid` | `string` | No | Name of the key to use for JWT signature verification. |
 | `scope` | `string` | No | Represents the fragment of signings. |
 | `iat` | `string` | No | Time of signature creation since epoch in seconds. For informational purposes only. |
 | `iss` | `string` | No | Identifies the issuer of the JWT. For informational purposes only. |
 
 > Note: OPA will first look for the `keyid` on the command-line. If the `keyid` is empty, OPA will look for it in it's
-> configuration. If `keyid` is still empty, OPA will finally look for it in the JWT payload.
+> configuration. If `keyid` is still empty, OPA will finally look for `kid` in the JWT header.
 
 The following hashing algorithms are supported:
 
@@ -395,18 +394,18 @@ for that file
 OPA activates the new bundle only if all the verification steps succeed; otherwise, it continues using its existing bundle
 and reports an activation failure via the status API and error logging.
 
-The signature verification process uses each of the fields in the JWT payload as follows:
+The signature verification process uses each of the fields in the JWT header and payload as follows:
 
-* `files`: This list of files must match exactly the files in the bundle, and for each file the hash of the file must match
+* `files`: This list of files in the payload must match exactly the files in the bundle, and for each file the hash of the file must match
 
-* `keyid`: If supplied, dictates which key (and algorithm) to use for verification. The actual key is supplied via
+* `kid`: If supplied in the header, dictates which key (and algorithm) to use for verification. The actual key is supplied via
 OPA out-of-band
 
-* `scope`: If supplied, must match exactly the value provided out-of-band to OPA
+* `scope`: If supplied in the payload, must match exactly the value provided out-of-band to OPA
 
-* `iat`: unused for verification
+* `iat`: unused for verification even if present in payload
 
-* `iss`: unused for verification
+* `iss`: unused for verification even if present in payload
 
 
 
