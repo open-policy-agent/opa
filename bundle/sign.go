@@ -21,13 +21,29 @@ func GenerateSignedToken(files []FileInfo, sc *SigningConfig, keyID string) (str
 		return "", err
 	}
 
-	privKey, err := sc.GetPrivateKey()
+	privateKey, err := sc.GetPrivateKey()
 	if err != nil {
 		return "", err
 	}
 
-	// generate signed token
-	token, err := jws.SignWithOption(payload, jwa.SignatureAlgorithm(sc.Algorithm), privKey)
+	var headers jws.StandardHeaders
+
+	if err := headers.Set(jws.AlgorithmKey, jwa.SignatureAlgorithm(sc.Algorithm)); err != nil {
+		return "", err
+	}
+
+	if keyID != "" {
+		if err := headers.Set(jws.KeyIDKey, keyID); err != nil {
+			return "", err
+		}
+	}
+
+	hdr, err := json.Marshal(headers)
+	if err != nil {
+		return "", err
+	}
+
+	token, err := jws.SignLiteral(payload, jwa.SignatureAlgorithm(sc.Algorithm), privateKey, hdr)
 	if err != nil {
 		return "", err
 	}
@@ -49,6 +65,7 @@ func generatePayload(files []FileInfo, sc *SigningConfig, keyID string) ([]byte,
 		}
 	} else {
 		if keyID != "" {
+			// keyid claim is deprecated but include it for backwards compatibility.
 			payload["keyid"] = keyID
 		}
 	}

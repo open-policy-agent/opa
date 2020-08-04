@@ -9,18 +9,21 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 
 	"github.com/open-policy-agent/opa/internal/jwx/jwa"
 	"github.com/open-policy-agent/opa/internal/jwx/jws"
 	"github.com/open-policy-agent/opa/internal/jwx/jws/verify"
 	"github.com/open-policy-agent/opa/util"
+
+	"github.com/pkg/errors"
 )
 
 // VerifyBundleSignature verifies the bundle signature using the given public keys or secret.
 // If a signature is verified, it keeps track of the files specified in the JWT payload
 func VerifyBundleSignature(sc SignaturesConfig, bvc *VerificationConfig) (map[string]FileInfo, error) {
-	files := map[string]FileInfo{}
+	files := make(map[string]FileInfo)
 
 	if len(sc.Signatures) == 0 {
 		return files, fmt.Errorf(".signatures.json: missing JWT (expected exactly one)")
@@ -31,68 +34,77 @@ func VerifyBundleSignature(sc SignaturesConfig, bvc *VerificationConfig) (map[st
 	}
 
 	for _, token := range sc.Signatures {
-
-		// decode JWT to check if the payload specifies the key to use for JWT signature verification
-		parts, err := jws.SplitCompact(token)
+		payload, err := verifyJWTSignature(token, bvc)
 		if err != nil {
 			return files, err
 		}
 
-		payload, err := base64.RawURLEncoding.DecodeString(parts[1])
-		if err != nil {
-			return files, err
-		}
-
-		var buf bytes.Buffer
-		buf.Write(payload)
-
-		var jpl DecodedSignature
-		if err := util.UnmarshalJSON(buf.Bytes(), &jpl); err != nil {
-			return files, err
-		}
-
-		// verify the JWT signature
-		err = verifyJWTSignature(token, jpl, bvc)
-		if err != nil {
-			return files, err
-		}
-
-		// build the map of file names to their info
-		for _, file := range jpl.Files {
+		for _, file := range payload.Files {
 			files[file.Name] = file
 		}
 	}
 	return files, nil
 }
 
-func verifyJWTSignature(token string, payload DecodedSignature, bvc *VerificationConfig) error {
+func verifyJWTSignature(token string, bvc *VerificationConfig) (*DecodedSignature, error) {
+	// decode JWT to check if the header specifies the key to use and/or if claims have the scope.
+
+	parts, err := jws.SplitCompact(token)
+	if err != nil {
+		return nil, err
+	}
+
+	var decodedHeader []byte
+	if decodedHeader, err = base64.RawURLEncoding.DecodeString(parts[0]); err != nil {
+		return nil, errors.Wrap(err, "failed to base64 decode JWT headers")
+	}
+
+	var hdr jws.StandardHeaders
+	if err := json.Unmarshal(decodedHeader, &hdr); err != nil {
+		return nil, errors.Wrap(err, "failed to parse JWT headers")
+	}
+
+	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return nil, err
+	}
+
+	var ds DecodedSignature
+	if err := json.Unmarshal(payload, &ds); err != nil {
+		return nil, err
+	}
+
 	// check for the id of the key to use for JWT signature verification
-	// first in the OPA config. If not found, then check the JWT payload
+	// first in the OPA config. If not found, then check the JWT kid.
 	keyID := bvc.KeyID
 	if keyID == "" {
-		keyID = payload.KeyID
+		keyID = hdr.KeyID
+	}
+	if keyID == "" {
+		// If header has no key id, check the deprecated key claim.
+		keyID = ds.KeyID
 	}
 
 	if keyID == "" {
-		return fmt.Errorf("verification key ID is empty")
+		return nil, fmt.Errorf("verification key ID is empty")
 	}
 
 	// now that we have the keyID, fetch the actual key
 	keyConfig, err := bvc.GetPublicKey(keyID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// verify JWT signature
 	alg := jwa.SignatureAlgorithm(keyConfig.Algorithm)
 	key, err := verify.GetSigningKey(keyConfig.Key, alg)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	_, err = jws.Verify([]byte(token), alg, key)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// verify the scope
@@ -101,10 +113,10 @@ func verifyJWTSignature(token string, payload DecodedSignature, bvc *Verificatio
 		scope = keyConfig.Scope
 	}
 
-	if payload.Scope != scope {
-		return fmt.Errorf("scope mismatch")
+	if ds.Scope != scope {
+		return nil, fmt.Errorf("scope mismatch")
 	}
-	return nil
+	return &ds, nil
 }
 
 // VerifyBundleFile verifies the hash of a file in the bundle matches to that provided in the bundle's signature

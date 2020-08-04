@@ -64,7 +64,7 @@ func (s SignaturesConfig) isEmpty() bool {
 // DecodedSignature represents the decoded JWT payload.
 type DecodedSignature struct {
 	Files    []FileInfo `json:"files"`
-	KeyID    string     `json:"keyid"`
+	KeyID    string     `json:"keyid"` // Deprecated, use kid in the JWT header instead.
 	Scope    string     `json:"scope"`
 	IssuedAt int64      `json:"iat"`
 	Issuer   string     `json:"iss"`
