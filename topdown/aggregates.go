@@ -13,8 +13,8 @@ import (
 
 func builtinCount(a ast.Value) (ast.Value, error) {
 	switch a := a.(type) {
-	case ast.Array:
-		return ast.IntNumberTerm(len(a)).Value, nil
+	case *ast.Array:
+		return ast.IntNumberTerm(a.Len()).Value, nil
 	case ast.Object:
 		return ast.IntNumberTerm(a.Len()).Value, nil
 	case ast.Set:
@@ -27,16 +27,17 @@ func builtinCount(a ast.Value) (ast.Value, error) {
 
 func builtinSum(a ast.Value) (ast.Value, error) {
 	switch a := a.(type) {
-	case ast.Array:
+	case *ast.Array:
 		sum := big.NewFloat(0)
-		for _, x := range a {
+		err := a.Iter(func(x *ast.Term) error {
 			n, ok := x.Value.(ast.Number)
 			if !ok {
-				return nil, builtins.NewOperandElementErr(1, a, x.Value, "number")
+				return builtins.NewOperandElementErr(1, a, x.Value, "number")
 			}
 			sum = new(big.Float).Add(sum, builtins.NumberToFloat(n))
-		}
-		return builtins.FloatToNumber(sum), nil
+			return nil
+		})
+		return builtins.FloatToNumber(sum), err
 	case ast.Set:
 		sum := big.NewFloat(0)
 		err := a.Iter(func(x *ast.Term) error {
@@ -54,16 +55,17 @@ func builtinSum(a ast.Value) (ast.Value, error) {
 
 func builtinProduct(a ast.Value) (ast.Value, error) {
 	switch a := a.(type) {
-	case ast.Array:
+	case *ast.Array:
 		product := big.NewFloat(1)
-		for _, x := range a {
+		err := a.Iter(func(x *ast.Term) error {
 			n, ok := x.Value.(ast.Number)
 			if !ok {
-				return nil, builtins.NewOperandElementErr(1, a, x.Value, "number")
+				return builtins.NewOperandElementErr(1, a, x.Value, "number")
 			}
 			product = new(big.Float).Mul(product, builtins.NumberToFloat(n))
-		}
-		return builtins.FloatToNumber(product), nil
+			return nil
+		})
+		return builtins.FloatToNumber(product), err
 	case ast.Set:
 		product := big.NewFloat(1)
 		err := a.Iter(func(x *ast.Term) error {
@@ -81,16 +83,16 @@ func builtinProduct(a ast.Value) (ast.Value, error) {
 
 func builtinMax(a ast.Value) (ast.Value, error) {
 	switch a := a.(type) {
-	case ast.Array:
-		if len(a) == 0 {
+	case *ast.Array:
+		if a.Len() == 0 {
 			return nil, BuiltinEmpty{}
 		}
 		var max = ast.Value(ast.Null{})
-		for i := range a {
-			if ast.Compare(max, a[i].Value) <= 0 {
-				max = a[i].Value
+		a.Foreach(func(x *ast.Term) {
+			if ast.Compare(max, x.Value) <= 0 {
+				max = x.Value
 			}
-		}
+		})
 		return max, nil
 	case ast.Set:
 		if a.Len() == 0 {
@@ -110,16 +112,16 @@ func builtinMax(a ast.Value) (ast.Value, error) {
 
 func builtinMin(a ast.Value) (ast.Value, error) {
 	switch a := a.(type) {
-	case ast.Array:
-		if len(a) == 0 {
+	case *ast.Array:
+		if a.Len() == 0 {
 			return nil, BuiltinEmpty{}
 		}
-		min := a[0].Value
-		for i := range a {
-			if ast.Compare(min, a[i].Value) >= 0 {
-				min = a[i].Value
+		min := a.Elem(0).Value
+		a.Foreach(func(x *ast.Term) {
+			if ast.Compare(min, x.Value) >= 0 {
+				min = x.Value
 			}
-		}
+		})
 		return min, nil
 	case ast.Set:
 		if a.Len() == 0 {
@@ -146,7 +148,7 @@ func builtinMin(a ast.Value) (ast.Value, error) {
 
 func builtinSort(a ast.Value) (ast.Value, error) {
 	switch a := a.(type) {
-	case ast.Array:
+	case *ast.Array:
 		return a.Sorted(), nil
 	case ast.Set:
 		return a.Sorted(), nil
@@ -167,15 +169,16 @@ func builtinAll(a ast.Value) (ast.Value, error) {
 			return false
 		})
 		return ast.Boolean(res), nil
-	case ast.Array:
+	case *ast.Array:
 		res := true
 		match := ast.BooleanTerm(true)
-		for _, term := range val {
+		val.Until(func(term *ast.Term) bool {
 			if !match.Equal(term) {
 				res = false
-				break
+				return true
 			}
-		}
+			return false
+		})
 		return ast.Boolean(res), nil
 	default:
 		return nil, builtins.NewOperandTypeErr(1, a, "array", "set")
@@ -187,15 +190,16 @@ func builtinAny(a ast.Value) (ast.Value, error) {
 	case ast.Set:
 		res := val.Len() > 0 && val.Contains(ast.BooleanTerm(true))
 		return ast.Boolean(res), nil
-	case ast.Array:
+	case *ast.Array:
 		res := false
 		match := ast.BooleanTerm(true)
-		for _, term := range val {
+		val.Until(func(term *ast.Term) bool {
 			if match.Equal(term) {
 				res = true
-				break
+				return true
 			}
-		}
+			return false
+		})
 		return ast.Boolean(res), nil
 	default:
 		return nil, builtins.NewOperandTypeErr(1, a, "array", "set")

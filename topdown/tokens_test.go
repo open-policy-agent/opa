@@ -129,7 +129,7 @@ OHoCIHmNX37JOqTcTzGn2u9+c8NlnvZ0uDvsd1BmKPaUmjmm
 	})
 	t.Run("IllFormed", func(t *testing.T) {
 		var err error
-		c := ast.Array{ast.StringTerm("alg")}
+		c := ast.NewArray(ast.StringTerm("alg"))
 		_, err = parseTokenConstraints(c)
 		if err == nil {
 			t.Fatalf("parseTokenConstraints: %v", err)

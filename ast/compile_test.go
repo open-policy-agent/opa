@@ -3640,9 +3640,9 @@ func TestCompilerBuildComprehensionIndexKeySet(t *testing.T) {
 				t.Fatalf("expected term to be %v but got: %v", expTerm, result.Term)
 			}
 
-			expKeys := MustParseTerm(tc.wantKeys).Value.(Array)
+			expKeys := MustParseTerm(tc.wantKeys).Value.(*Array)
 
-			if Array(result.Keys).Compare(expKeys) != 0 {
+			if NewArray(result.Keys...).Compare(expKeys) != 0 {
 				t.Fatalf("expected keys to be %v but got: %v", expKeys, result.Keys)
 			}
 

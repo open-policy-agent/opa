@@ -1591,12 +1591,12 @@ func TestRegoCustomBuiltinPartialPropagate(t *testing.T) {
 
 				result := strings.Split(strings.Trim(string(str), string(delim)), string(delim))
 
-				arr := make(ast.Array, len(result))
+				arr := make([]*ast.Term, len(result))
 				for i := range result {
 					arr[i] = ast.StringTerm(result[i])
 				}
 
-				return ast.NewTerm(arr), nil
+				return ast.ArrayTerm(arr...), nil
 			},
 		),
 	)

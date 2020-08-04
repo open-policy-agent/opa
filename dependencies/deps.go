@@ -16,7 +16,7 @@ import (
 func All(x interface{}) (resolved []ast.Ref, err error) {
 	var rawResolved []ast.Ref
 	switch x := x.(type) {
-	case *ast.Module, *ast.Package, *ast.Import, *ast.Rule, *ast.Head, ast.Body, *ast.Expr, *ast.With, *ast.Term, ast.Ref, ast.Object, ast.Array, ast.Set, *ast.ArrayComprehension:
+	case *ast.Module, *ast.Package, *ast.Import, *ast.Rule, *ast.Head, ast.Body, *ast.Expr, *ast.With, *ast.Term, ast.Ref, ast.Object, *ast.Array, ast.Set, *ast.ArrayComprehension:
 	default:
 		return nil, fmt.Errorf("not an ast element: %v", x)
 	}
@@ -25,7 +25,7 @@ func All(x interface{}) (resolved []ast.Ref, err error) {
 		switch x := x.(type) {
 		case *ast.Package, *ast.Import:
 			return true
-		case *ast.Module, *ast.Head, *ast.Expr, *ast.With, *ast.Term, ast.Object, ast.Array, *ast.Set, *ast.ArrayComprehension:
+		case *ast.Module, *ast.Head, *ast.Expr, *ast.With, *ast.Term, ast.Object, *ast.Array, *ast.Set, *ast.ArrayComprehension:
 		case *ast.Rule:
 			rawResolved = append(rawResolved, ruleDeps(x)...)
 			return true
@@ -33,12 +33,12 @@ func All(x interface{}) (resolved []ast.Ref, err error) {
 			vars := ast.NewVarVisitor()
 			vars.Walk(x)
 
-			var arr ast.Array
+			arr := ast.NewArray()
 			for v := range vars.Vars() {
 				if v.IsWildcard() {
 					continue
 				}
-				arr = append(arr, ast.NewTerm(v))
+				arr = arr.Append(ast.NewTerm(v))
 			}
 
 			// The analysis will discard variables that are not used in

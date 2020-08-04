@@ -326,7 +326,7 @@ func unify2(env *TypeEnv, a *Term, typeA types.Type, b *Term, typeB types.Type) 
 	}
 
 	switch a.Value.(type) {
-	case Array:
+	case *Array:
 		return unify2Array(env, a, typeA, b, typeB)
 	case Object:
 		return unify2Object(env, a, typeA, b, typeB)
@@ -334,7 +334,7 @@ func unify2(env *TypeEnv, a *Term, typeA types.Type, b *Term, typeB types.Type) 
 		switch b.Value.(type) {
 		case Var:
 			return unify1(env, a, types.A, false) && unify1(env, b, env.Get(a), false)
-		case Array:
+		case *Array:
 			return unify2Array(env, b, typeB, a, typeA)
 		case Object:
 			return unify2Object(env, b, typeB, a, typeA)
@@ -345,12 +345,12 @@ func unify2(env *TypeEnv, a *Term, typeA types.Type, b *Term, typeB types.Type) 
 }
 
 func unify2Array(env *TypeEnv, a *Term, typeA types.Type, b *Term, typeB types.Type) bool {
-	arr := a.Value.(Array)
+	arr := a.Value.(*Array)
 	switch bv := b.Value.(type) {
-	case Array:
-		if len(arr) == len(bv) {
-			for i := range arr {
-				if !unify2(env, arr[i], env.Get(arr[i]), bv[i], env.Get(bv[i])) {
+	case *Array:
+		if arr.Len() == bv.Len() {
+			for i := 0; i < arr.Len(); i++ {
+				if !unify2(env, arr.Elem(i), env.Get(arr.Elem(i)), bv.Elem(i), env.Get(bv.Elem(i))) {
 					return false
 				}
 			}
@@ -383,14 +383,14 @@ func unify2Object(env *TypeEnv, a *Term, typeA types.Type, b *Term, typeB types.
 
 func unify1(env *TypeEnv, term *Term, tpe types.Type, union bool) bool {
 	switch v := term.Value.(type) {
-	case Array:
+	case *Array:
 		switch tpe := tpe.(type) {
 		case *types.Array:
 			return unify1Array(env, v, tpe, union)
 		case types.Any:
 			if types.Compare(tpe, types.A) == 0 {
-				for i := range v {
-					unify1(env, v[i], types.A, true)
+				for i := 0; i < v.Len(); i++ {
+					unify1(env, v.Elem(i), types.A, true)
 				}
 				return true
 			}
@@ -458,12 +458,12 @@ func unify1(env *TypeEnv, term *Term, tpe types.Type, union bool) bool {
 	}
 }
 
-func unify1Array(env *TypeEnv, val Array, tpe *types.Array, union bool) bool {
-	if len(val) != tpe.Len() && tpe.Dynamic() == nil {
+func unify1Array(env *TypeEnv, val *Array, tpe *types.Array, union bool) bool {
+	if val.Len() != tpe.Len() && tpe.Dynamic() == nil {
 		return false
 	}
-	for i := range val {
-		if !unify1(env, val[i], tpe.Select(i), union) {
+	for i := 0; i < val.Len(); i++ {
+		if !unify1(env, val.Elem(i), tpe.Select(i), union) {
 			return false
 		}
 	}
@@ -668,7 +668,7 @@ func (rc *refChecker) checkRefLeaf(tpe types.Type, ref Ref, idx int) *Error {
 			}
 		}
 
-	case Array, Object, Set:
+	case *Array, Object, Set:
 		// Composite references operands may only be used with a set.
 		if !unifies(tpe, types.NewSet(types.A)) {
 			return newRefErrInvalid(ref[0].Location, rc.varRewriter(ref), idx, tpe, types.NewSet(types.A), nil)

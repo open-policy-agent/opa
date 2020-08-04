@@ -509,7 +509,7 @@ func (node *trieNode) insertValue(value Value) *trieNode {
 			node.scalars[value] = child
 		}
 		return child
-	case Array:
+	case *Array:
 		if node.array == nil {
 			node.array = newTrieNodeImpl()
 		}
@@ -519,25 +519,25 @@ func (node *trieNode) insertValue(value Value) *trieNode {
 	panic("illegal value")
 }
 
-func (node *trieNode) insertArray(arr Array) *trieNode {
+func (node *trieNode) insertArray(arr *Array) *trieNode {
 
-	if len(arr) == 0 {
+	if arr.Len() == 0 {
 		return node
 	}
 
-	switch head := arr[0].Value.(type) {
+	switch head := arr.Elem(0).Value.(type) {
 	case Var:
 		if node.any == nil {
 			node.any = newTrieNodeImpl()
 		}
-		return node.any.insertArray(arr[1:])
+		return node.any.insertArray(arr.Slice(1, -1))
 	case Null, Boolean, Number, String:
 		child, ok := node.scalars[head]
 		if !ok {
 			child = newTrieNodeImpl()
 			node.scalars[head] = child
 		}
-		return child.insertArray(arr[1:])
+		return child.insertArray(arr.Slice(1, -1))
 	}
 
 	panic("illegal value")
@@ -579,7 +579,7 @@ func (node *trieNode) traverse(resolver ValueResolver, tr *trieTraversalResult) 
 func (node *trieNode) traverseValue(resolver ValueResolver, tr *trieTraversalResult, value Value) error {
 
 	switch value := value.(type) {
-	case Array:
+	case *Array:
 		if node.array == nil {
 			return nil
 		}
@@ -596,20 +596,20 @@ func (node *trieNode) traverseValue(resolver ValueResolver, tr *trieTraversalRes
 	return nil
 }
 
-func (node *trieNode) traverseArray(resolver ValueResolver, tr *trieTraversalResult, arr Array) error {
+func (node *trieNode) traverseArray(resolver ValueResolver, tr *trieTraversalResult, arr *Array) error {
 
-	if len(arr) == 0 {
+	if arr.Len() == 0 {
 		return node.Traverse(resolver, tr)
 	}
 
-	head := arr[0].Value
+	head := arr.Elem(0).Value
 
 	if !IsScalar(head) {
 		return nil
 	}
 
 	if node.any != nil {
-		node.any.traverseArray(resolver, tr, arr[1:])
+		node.any.traverseArray(resolver, tr, arr.Slice(1, -1))
 	}
 
 	child, ok := node.scalars[head]
@@ -617,7 +617,7 @@ func (node *trieNode) traverseArray(resolver ValueResolver, tr *trieTraversalRes
 		return nil
 	}
 
-	return child.traverseArray(resolver, tr, arr[1:])
+	return child.traverseArray(resolver, tr, arr.Slice(1, -1))
 }
 
 func (node *trieNode) traverseUnknown(resolver ValueResolver, tr *trieTraversalResult) error {
@@ -685,7 +685,7 @@ func eqOperandsToRefAndValue(isVirtual func(Ref) bool, a, b *Term) (Ref, Value, 
 	switch b := b.Value.(type) {
 	case Null, Boolean, Number, String, Var:
 		return ref, b, true
-	case Array:
+	case *Array:
 		stop := false
 		first := true
 		vis := NewGenericVisitor(func(x interface{}) bool {
@@ -695,7 +695,7 @@ func eqOperandsToRefAndValue(isVirtual func(Ref) bool, a, b *Term) (Ref, Value, 
 			}
 			switch x.(type) {
 			// No nested structures or values that require evaluation (other than var).
-			case Array, Object, Set, *ArrayComprehension, *ObjectComprehension, *SetComprehension, Ref:
+			case *Array, Object, Set, *ArrayComprehension, *ObjectComprehension, *SetComprehension, Ref:
 				stop = true
 			}
 			return stop
@@ -711,17 +711,18 @@ func eqOperandsToRefAndValue(isVirtual func(Ref) bool, a, b *Term) (Ref, Value, 
 
 func globDelimiterToString(delim *Term) (string, bool) {
 
-	arr, ok := delim.Value.(Array)
+	arr, ok := delim.Value.(*Array)
 	if !ok {
 		return "", false
 	}
 
 	var result string
 
-	if len(arr) == 0 {
+	if arr.Len() == 0 {
 		result = "."
 	} else {
-		for _, term := range arr {
+		for i := 0; i < arr.Len(); i++ {
+			term := arr.Elem(i)
 			s, ok := term.Value.(String)
 			if !ok {
 				return "", false
@@ -741,11 +742,11 @@ func globPatternToArray(pattern *Term, delim string) *Term {
 	}
 
 	parts := splitStringEscaped(string(s), delim)
-	result := make(Array, len(parts))
+	arr := make([]*Term, len(parts))
 
 	for i := range parts {
 		if parts[i] == "*" {
-			result[i] = VarTerm("$globwildcard")
+			arr[i] = VarTerm("$globwildcard")
 		} else {
 			var escaped bool
 			for _, c := range parts[i] {
@@ -763,11 +764,11 @@ func globPatternToArray(pattern *Term, delim string) *Term {
 				}
 				escaped = false
 			}
-			result[i] = StringTerm(parts[i])
+			arr[i] = StringTerm(parts[i])
 		}
 	}
 
-	return NewTerm(result)
+	return NewTerm(NewArray(arr...))
 }
 
 // splits s on characters in delim except if delim characters have been escaped
@@ -794,10 +795,10 @@ func splitStringEscaped(s string, delim string) []string {
 	return result
 }
 
-func stringSliceToArray(s []string) (result Array) {
-	result = make(Array, len(s))
-	for i := range s {
-		result[i] = StringTerm(s[i])
+func stringSliceToArray(s []string) *Array {
+	arr := make([]*Term, len(s))
+	for i, v := range s {
+		arr[i] = StringTerm(v)
 	}
-	return
+	return NewArray(arr...)
 }
