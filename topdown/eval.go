@@ -1517,6 +1517,15 @@ func (e evalFunc) evalOneRule(iter unifyIterator, rule *ast.Rule, prev *ast.Term
 	err := child.biunifyArrays(ast.NewArray(e.terms[1:]...), ast.NewArray(args...), e.e.bindings, child.bindings, func() error {
 		return child.eval(func(child *eval) error {
 			child.traceExit(rule)
+
+			// Partial evaluation must save an expression that tests the output value if the output value
+			// was not captured to handle the case where the output value may be `false`.
+			if len(rule.Head.Args) == len(e.terms)-1 && e.e.saveSet.Contains(rule.Head.Value, child.bindings) {
+				err := e.e.saveExpr(ast.NewExpr(rule.Head.Value), child.bindings, iter)
+				child.traceRedo(rule)
+				return err
+			}
+
 			result = child.bindings.Plug(rule.Head.Value)
 
 			if len(rule.Head.Args) == len(e.terms)-1 {
