@@ -2124,6 +2124,29 @@ func TestTopDownPartialEval(t *testing.T) {
 			},
 		},
 		{
+			note:  "shallow inlining: function output checked",
+			query: "data.test.p = true",
+			modules: []string{`
+					package test
+
+					f(x) = y {
+						y = x == 1
+					}
+
+					p {
+						f(input)
+					}
+				`},
+			shallow:     true,
+			wantQueries: []string{"data.partial.test.p = true"},
+			wantSupport: []string{
+				`package partial.test
+
+				p = true { __local2__1 = input; __local2__1 = __local0__2; equal(__local0__2, 1, __local1__2); y2 = __local1__2; y2 }
+				`,
+			},
+		},
+		{
 			note:  "comprehensions: ref heads (with namespacing)",
 			query: "data.test.p = true; input.x = x",
 			modules: []string{ // include an unknown in the comprehension to force saving
