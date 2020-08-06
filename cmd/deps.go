@@ -20,10 +20,10 @@ import (
 )
 
 type depsCommandParams struct {
-	dataPaths   repeatedStringFlag
-	format      *util.EnumFlag
-	ignore      []string
-	bundlePaths repeatedStringFlag
+	dataPaths    repeatedStringFlag
+	outputFormat *util.EnumFlag
+	ignore       []string
+	bundlePaths  repeatedStringFlag
 }
 
 const (
@@ -35,7 +35,7 @@ func init() {
 
 	var params depsCommandParams
 
-	params.format = util.NewEnumFlag(depsFormatPretty, []string{
+	params.outputFormat = util.NewEnumFlag(depsFormatPretty, []string{
 		depsFormatPretty, depsFormatJSON,
 	})
 
@@ -56,10 +56,10 @@ func init() {
 		},
 	}
 
-	depsCommand.Flags().VarP(params.format, "format", "f", "set output format")
 	addIgnoreFlag(depsCommand.Flags(), &params.ignore)
 	addDataFlag(depsCommand.Flags(), &params.dataPaths)
 	addBundleFlag(depsCommand.Flags(), &params.bundlePaths)
+	addOutputFormat(depsCommand.Flags(), params.outputFormat)
 
 	RootCommand.AddCommand(depsCommand)
 }
@@ -123,7 +123,7 @@ func deps(args []string, params depsCommandParams) error {
 		Virtual: vrs,
 	}
 
-	switch params.format.String() {
+	switch params.outputFormat.String() {
 	case depsFormatJSON:
 		return presentation.JSON(os.Stdout, output)
 	default:
