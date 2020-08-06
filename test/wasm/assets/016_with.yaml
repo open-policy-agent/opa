@@ -230,3 +230,57 @@ cases:
     query: |
       input = x with input.foo as 1 with input.foo.bar as 2
     want_error: with target conflict
+  - note: with virtual doc iteration
+    query: |
+      x := data[i][j] with data.bar.p as 3 with data.bar.q as 4; y = data.bar.p; z = data.bar.q
+    modules:
+      - |
+        package foo
+        p = 0
+        q = 1
+        r = 2
+      - |
+        package bar
+        p = -1
+    data: {
+      'bar': {
+        'q': -2,
+      }
+    }
+    want_result: [
+      {
+        "i": "foo",
+        "j": "p",
+        "x": 0,
+        "y": -1,
+        "z": -2,
+      },
+      {
+        "i": "foo",
+        "j": "q",
+        "x": 1,
+        "y": -1,
+        "z": -2,
+      },
+      {
+        "i": "foo",
+        "j": "r",
+        "x": 2,
+        "y": -1,
+        "z": -2,
+      },
+      {
+        "i": "bar",
+        "j": "p",
+        "x": 3,
+        "y": -1,
+        "z": -2,
+      },
+      {
+        "i": "bar",
+        "j": "q",
+        "x": 4,
+        "y": -1,
+        "z": -2,
+      },
+    ]

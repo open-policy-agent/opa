@@ -537,8 +537,7 @@ func (p *Planner) planWith(e *ast.Expr, iter planiter) error {
 			}
 		}
 
-		return p.planWithRec(e, paths, locals, 0, func() error {
-
+		err := p.planWithRec(e, paths, locals, 0, func() error {
 			if len(dataRefs) > 0 {
 				p.funcs.Pop()
 				for i := len(dataRefs) - 1; i >= 0; i-- {
@@ -546,13 +545,34 @@ func (p *Planner) planWith(e *ast.Expr, iter planiter) error {
 				}
 			}
 
-			return p.planWithUndoRec(restore, 0, iter)
+			err := p.planWithUndoRec(restore, 0, func() error {
+
+				err := iter()
+
+				if len(dataRefs) > 0 {
+					p.funcs.Push(map[string]string{})
+					for _, ref := range dataRefs {
+						p.rules.Push(ref)
+					}
+				}
+				return err
+			})
+
+			return err
 		})
+
+		if len(dataRefs) > 0 {
+			p.funcs.Pop()
+			for i := len(dataRefs) - 1; i >= 0; i-- {
+				p.rules.Pop(dataRefs[i])
+			}
+		}
+		return err
+
 	})
 }
 
 func (p *Planner) planWithRec(e *ast.Expr, targets [][]int, values []ir.Local, index int, iter planiter) error {
-
 	if index >= len(e.With) {
 		return p.planExpr(e.NoWith(), iter)
 	}

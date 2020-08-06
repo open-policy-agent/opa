@@ -195,6 +195,17 @@ func TestPlannerHelloWorld(t *testing.T) {
 				q = 2`,
 			},
 		},
+		{
+			note:    "with keyword - virtual doc iteration",
+			queries: []string{`x = data[i][j] with data.bar as 1; y = "a"`},
+			modules: []string{
+				`package foo
+				
+				p = 0
+				q = 1
+				r = 2`,
+			},
+		},
 	}
 
 	for _, tc := range tests {
