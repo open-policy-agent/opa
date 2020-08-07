@@ -100,10 +100,10 @@ func (p *CopyPropagator) Apply(query ast.Body) ast.Body {
 			headvars:   headvars,
 		}
 
-		if expr, keep := p.plugBindings(pctx, expr); keep {
-			if p.updateBindings(pctx, expr) {
-				result.Append(expr)
-			}
+		expr = p.plugBindings(pctx, expr)
+
+		if p.updateBindings(pctx, expr) {
+			result.Append(expr)
 		}
 	}
 
@@ -187,19 +187,7 @@ func (p *CopyPropagator) Apply(query ast.Body) ast.Body {
 
 // plugBindings applies the binding list and union-find to x. This process
 // removes as many variables as possible.
-func (p *CopyPropagator) plugBindings(pctx *plugContext, expr *ast.Expr) (*ast.Expr, bool) {
-
-	// Kill single term expressions that are in the binding list. They will be
-	// re-added during post-processing if needed.
-	if term, ok := expr.Terms.(*ast.Term); ok {
-		if v, ok := term.Value.(ast.Var); ok {
-			if root, ok := pctx.uf.Find(v); ok {
-				if b := pctx.removedEqs.Get(root.key); b != nil {
-					return nil, false
-				}
-			}
-		}
-	}
+func (p *CopyPropagator) plugBindings(pctx *plugContext, expr *ast.Expr) *ast.Expr {
 
 	xform := bindingPlugTransform{
 		pctx: pctx,
@@ -215,7 +203,7 @@ func (p *CopyPropagator) plugBindings(pctx *plugContext, expr *ast.Expr) (*ast.E
 	if expr, ok := x.(*ast.Expr); !ok || err != nil {
 		panic("unreachable")
 	} else {
-		return expr, true
+		return expr
 	}
 }
 
