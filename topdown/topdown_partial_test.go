@@ -30,6 +30,7 @@ func TestTopDownPartialEval(t *testing.T) {
 		data            string
 		input           string
 		wantQueries     []string
+		wantQueryASTs   []ast.Body
 		wantSupport     []string
 		ignoreOrder     bool
 	}{
@@ -1394,6 +1395,31 @@ func TestTopDownPartialEval(t *testing.T) {
 			wantQueries: []string{`input.x = {input.y: 1}`},
 		},
 		{
+			note:  "copy propagation: single term test intact",
+			query: "data.test.p = true",
+			modules: []string{`
+				package test
+
+				p {
+					input = x
+					y = x == 1
+					y
+				}
+
+			`},
+			wantQueryASTs: []ast.Body{
+				ast.NewBody(
+					ast.NewExpr(
+						ast.CallTerm(
+							ast.NewTerm(ast.Equal.Ref()),
+							ast.NewTerm(ast.InputRootRef),
+							ast.IntNumberTerm(1),
+						),
+					),
+				),
+			},
+		},
+		{
 			note:  "save set vars are namespaced",
 			query: "input = x; data.test.f(1)",
 			modules: []string{
@@ -2301,9 +2327,15 @@ func TestTopDownPartialEval(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			expectedQueries := make([]ast.Body, len(tc.wantQueries))
-			for i := range tc.wantQueries {
-				expectedQueries[i] = ast.MustParseBody(tc.wantQueries[i])
+			var expectedQueries []ast.Body
+
+			if len(tc.wantQueryASTs) > 0 {
+				expectedQueries = tc.wantQueryASTs
+			} else {
+				expectedQueries = make([]ast.Body, len(tc.wantQueries))
+				for i := range tc.wantQueries {
+					expectedQueries[i] = ast.MustParseBody(tc.wantQueries[i])
+				}
 			}
 
 			queriesA, queriesB := bodySet(partials), bodySet(expectedQueries)
