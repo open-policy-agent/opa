@@ -205,7 +205,7 @@ With the input value above, the answer is:
 ```live:example:output
 ```
 
-An example of the complete input received by OPA can be seen [here](https://github.com/open-policy-agent/opa-istio-plugin#example-input).
+An example of the complete input received by OPA can be seen [here](https://github.com/open-policy-agent/opa-envoy-plugin#example-input).
 
 > In typical deployments the policy would either be built into the OPA container
 > image or it would fetched dynamically via the [Bundle
@@ -222,7 +222,7 @@ employees. More information can on the app be found
 OPA is started with a configuration that sets the listening address of Envoy
 External Authorization gRPC server and specifies the name of the policy decision
 to query. More information on the configuration options can be found
-[here](https://github.com/open-policy-agent/opa-istio-plugin#configuration).
+[here](https://github.com/open-policy-agent/opa-envoy-plugin#configuration).
 
 Save the deployment as **deployment.yaml**:
 
@@ -276,9 +276,9 @@ spec:
           - "--config-path"
           - "/config/envoy.yaml"
         - name: opa
-          # Note: openpolicyagent/opa:latest-istio is created by retagging
-          # the latest released image of OPA-Istio.
-          image: openpolicyagent/opa:{{< current_opa_istio_docker_version >}}
+          # Note: openpolicyagent/opa:latest-envoy is created by retagging
+          # the latest released image of OPA-Envoy.
+          image: openpolicyagent/opa:{{< current_opa_envoy_docker_version >}}
           securityContext:
             runAsUser: 1111
           volumeMounts:
@@ -394,4 +394,4 @@ to be sent to the downstream client or upstream. An example of a rule that
 returns an object that not only indicates if a request is allowed or not but
 also provides optional response headers, body and HTTP status that can be sent
 to the downstream client or upstream can be seen
-[here](https://github.com/open-policy-agent/opa-istio-plugin#example-policy-with-object-response).
+[here](https://github.com/open-policy-agent/opa-envoy-plugin#example-policy-with-object-response).
