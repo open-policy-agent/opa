@@ -413,7 +413,7 @@ const (
 
 	// ParamPartialV1 defines the name of the HTTP URL parameter that indicates
 	// the client wants the partial evaluation optimization to be used during
-	// query evaluation.
+	// query evaluation. This parameter is DEPRECATED.
 	ParamPartialV1 = "partial"
 
 	// ParamProvenanceV1 defines the name of the HTTP URL parameter that indicates
@@ -422,6 +422,7 @@ const (
 
 	// ParamWatchV1 defines the name of the HTTP URL parameter that indicates
 	// the client wants to set a watch on the current query or data reference.
+	// This parameter is DEPRECATED.
 	ParamWatchV1 = "watch"
 
 	// ParamBundleActivationV1 defines the name of the HTTP URL parameter that

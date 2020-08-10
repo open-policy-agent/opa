@@ -33,6 +33,12 @@ $ opa build ./policies/example.rego --capabilities ./capabilities/v0.22.0.json
 $ opa build ./policies/example.rego --capabilities ./capabilities/v0.21.1.json
 ```
 
+### Deprecations
+
+* The `watch` query parameter on the Data API has been deprecated. The query watch feature was unused and the lack of incremental evaluation would have introduced scalability issues for users. The feature will be removed in a future release.
+
+* The `partial` query parameter on the Data API has been deprecated. Note, this only applies to the `partial` query parameter that the Data API supports, not Partial Evaluation itself. The `partial` parameter allowed users to lazily trigger Partial Evaluation (for optimization purposes) during a policy query. While this is useful for kicking the tires in a development environment, putting optimization into the policy query path is not recommended. If users want to kick the tires with Partial Evaluation, we recommend running the `opa build` command.
+
 ## 0.22.0
 
 ### Bundle Signing
