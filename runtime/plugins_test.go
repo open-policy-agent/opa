@@ -171,7 +171,8 @@ func TestWaitPluginsReady(t *testing.T) {
 		})
 
 		go func() {
-			time.Sleep(2 * time.Millisecond)
+			time.Sleep(100 * time.Millisecond)
+
 			rt.Manager.UpdatePluginStatus("test", &plugins.Status{
 				State: plugins.StateOK,
 			})
@@ -188,7 +189,7 @@ func TestWaitPluginsReady(t *testing.T) {
 			t.Fatal("Expected timeout error")
 		}
 
-		if err := rt.waitPluginsReady(1*time.Millisecond, 3*time.Millisecond); err != nil {
+		if err := rt.waitPluginsReady(1*time.Millisecond, time.Second); err != nil {
 			t.Fatal(err)
 		}
 	})
