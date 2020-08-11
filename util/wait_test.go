@@ -23,10 +23,10 @@ func TestWaitFunc(t *testing.T) {
 		timeout    time.Duration
 		shouldFail bool
 	}{
-		{0, 1 * time.Millisecond, 3 * time.Millisecond, false},
-		{2 * time.Millisecond, 1 * time.Millisecond, 4 * time.Millisecond, false},
-		{3 * time.Millisecond, 1 * time.Millisecond, 2 * time.Millisecond, true},
-		{3 * time.Millisecond, 5 * time.Millisecond, 4 * time.Millisecond, true},
+		{0, 1 * time.Millisecond, 100 * time.Millisecond, false},
+		{1 * time.Millisecond, 1 * time.Millisecond, 100 * time.Millisecond, false},
+		{100 * time.Millisecond, 1 * time.Millisecond, 1 * time.Millisecond, true},
+		{100 * time.Millisecond, 1000 * time.Millisecond, 1 * time.Millisecond, true},
 	}
 
 	for _, c := range cases {
