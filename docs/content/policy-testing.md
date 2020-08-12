@@ -42,7 +42,7 @@ To test this policy, we will create a separate Rego file that contains test case
 
 **example_test.rego**:
 
-```live:example/test:module:read_only,openable
+```live:example/test:module:read_only
 package authz
 
 test_post_allowed {
@@ -251,7 +251,7 @@ Below is the Rego file to test the above policy.
 
 **authz_test.rego**:
 
-```live:with_keyword/tests:module:read_only,openable
+```live:with_keyword/tests:module:read_only
 package authz
 
 policies = [{"name": "test_policy"}]
