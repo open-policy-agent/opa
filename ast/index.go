@@ -186,12 +186,15 @@ func (r *ruleWalker) Do(x interface{}) trieWalker {
 	return r
 }
 
-type valueMapper func(Value) Value
+type valueMapper struct {
+	Key      string
+	MapValue func(Value) Value
+}
 
 type refindex struct {
 	Ref    Ref
 	Value  Value
-	Mapper func(Value) Value
+	Mapper *valueMapper
 }
 
 type refindices struct {
@@ -280,7 +283,7 @@ func (i *refindices) Value(rule *Rule, ref Ref) Value {
 	return nil
 }
 
-func (i *refindices) Mapper(rule *Rule, ref Ref) valueMapper {
+func (i *refindices) Mapper(rule *Rule, ref Ref) *valueMapper {
 	if index := i.index(rule, ref); index != nil {
 		return index.Mapper
 	}
@@ -320,11 +323,14 @@ func (i *refindices) updateGlobMatch(rule *Rule, expr *Expr) {
 					i.insert(rule, &refindex{
 						Ref:   other.Ref,
 						Value: arr.Value,
-						Mapper: func(v Value) Value {
-							if s, ok := v.(String); ok {
-								return stringSliceToArray(splitStringEscaped(string(s), delim))
-							}
-							return v
+						Mapper: &valueMapper{
+							Key: delim,
+							MapValue: func(v Value) Value {
+								if s, ok := v.(String); ok {
+									return stringSliceToArray(splitStringEscaped(string(s), delim))
+								}
+								return v
+							},
 						},
 					})
 				}
@@ -387,7 +393,7 @@ func (tr *trieTraversalResult) Add(node *ruleNode) {
 
 type trieNode struct {
 	ref       Ref
-	mapper    valueMapper
+	mappers   []*valueMapper
 	next      *trieNode
 	any       *trieNode
 	undefined *trieNode
@@ -425,8 +431,8 @@ func (node *trieNode) String() string {
 	if len(node.rules) > 0 {
 		flags = append(flags, fmt.Sprintf("%d rule(s)", len(node.rules)))
 	}
-	if node.mapper != nil {
-		flags = append(flags, "mapper")
+	if len(node.mappers) > 0 {
+		flags = append(flags, "mapper(s)")
 	}
 	return strings.Join(flags, " ")
 }
@@ -464,14 +470,16 @@ func (node *trieNode) Do(walker trieWalker) {
 	}
 }
 
-func (node *trieNode) Insert(ref Ref, value Value, mapper valueMapper) *trieNode {
+func (node *trieNode) Insert(ref Ref, value Value, mapper *valueMapper) *trieNode {
 
 	if node.next == nil {
 		node.next = newTrieNodeImpl()
 		node.next.ref = ref
 	}
 
-	node.next.mapper = mapper
+	if mapper != nil {
+		node.next.addMapper(mapper)
+	}
 
 	return node.next.insertValue(value)
 }
@@ -487,6 +495,15 @@ func (node *trieNode) Traverse(resolver ValueResolver, tr *trieTraversalResult) 
 	}
 
 	return node.next.traverse(resolver, tr)
+}
+
+func (node *trieNode) addMapper(mapper *valueMapper) {
+	for i := range node.mappers {
+		if node.mappers[i].Key == mapper.Key {
+			return
+		}
+	}
+	node.mappers = append(node.mappers, mapper)
 }
 
 func (node *trieNode) insertValue(value Value) *trieNode {
@@ -569,11 +586,17 @@ func (node *trieNode) traverse(resolver ValueResolver, tr *trieTraversalResult) 
 		node.any.Traverse(resolver, tr)
 	}
 
-	if node.mapper != nil {
-		v = node.mapper(v)
+	if len(node.mappers) == 0 {
+		return node.traverseValue(resolver, tr, v)
 	}
 
-	return node.traverseValue(resolver, tr, v)
+	for i := range node.mappers {
+		if err := node.traverseValue(resolver, tr, node.mappers[i].MapValue(v)); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (node *trieNode) traverseValue(resolver ValueResolver, tr *trieTraversalResult, value Value) error {
