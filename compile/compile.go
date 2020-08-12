@@ -21,6 +21,7 @@ import (
 	initload "github.com/open-policy-agent/opa/internal/runtime/init"
 	"github.com/open-policy-agent/opa/loader"
 	"github.com/open-policy-agent/opa/rego"
+	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
 )
 
@@ -428,6 +429,7 @@ func (o *optimizer) Do(ctx context.Context) error {
 	store := inmem.NewFromObject(data)
 	resultsym := ast.VarTerm(o.resultsymprefix + "__result__")
 	usedFilenames := map[string]int{}
+	var unknowns []*ast.Term
 
 	// NOTE(tsandall): the entrypoints are optimized in order so that the optimization
 	// of entrypoint[1] sees the optimization of entrypoint[0] and so on. This is needed
@@ -442,12 +444,17 @@ func (o *optimizer) Do(ctx context.Context) error {
 			return err
 		}
 
+		if unknowns == nil {
+			unknowns = o.findUnknowns()
+		}
+
 		r := rego.New(
 			rego.ParsedQuery(ast.NewBody(ast.Equality.Expr(resultsym, e))),
 			rego.PartialNamespace(o.nsprefix),
 			rego.DisableInlining(o.findRequiredDocuments(e)),
 			rego.ShallowInlining(o.shallow),
 			rego.SkipPartialNamespace(true),
+			rego.ParsedUnknowns(unknowns),
 			rego.Compiler(o.compiler),
 			rego.Store(store),
 		)
@@ -537,6 +544,35 @@ func (o *optimizer) findRequiredDocuments(ref *ast.Term) []string {
 	}
 
 	return result
+}
+
+func (o *optimizer) findUnknowns() []*ast.Term {
+
+	// Initialize set of refs representing the bundle roots.
+	refs := newRefSet(stringsToRefs(*o.bundle.Manifest.Roots)...)
+
+	// Initialize set of refs for the result (i.e., refs outside the bundle roots.)
+	unknowns := newRefSet(ast.InputRootRef)
+
+	// Find data references that are not prefixed by one of the roots.
+	for _, module := range o.compiler.Modules {
+		ast.WalkRefs(module, func(x ast.Ref) bool {
+			prefix := x.ConstantPrefix()
+			if !prefix.HasPrefix(ast.DefaultRootRef) {
+				return true
+			}
+			if !refs.ContainsPrefix(prefix) {
+				o.debug.Add(Debug{
+					Location: x[0].Location,
+					Message:  fmt.Sprintf("marking %v as unknown", prefix),
+				})
+				unknowns.AddPrefix(prefix)
+			}
+			return false
+		})
+	}
+
+	return unknowns.Sorted()
 }
 
 func (o *optimizer) getSupportForEntrypoint(queries []ast.Body, e *ast.Term, resultsym *ast.Term) *ast.Module {
@@ -696,4 +732,62 @@ func (ss orderedStringSet) Append(s ...string) orderedStringSet {
 		}
 	}
 	return ss
+}
+
+func stringsToRefs(x []string) []ast.Ref {
+	result := make([]ast.Ref, len(x))
+	for i := range result {
+		result[i] = storage.MustParsePath("/" + x[i]).Ref(ast.DefaultRootDocument)
+	}
+	return result
+}
+
+type refSet struct {
+	s []ast.Ref
+}
+
+func newRefSet(x ...ast.Ref) *refSet {
+	result := &refSet{}
+	for i := range x {
+		result.AddPrefix(x[i])
+	}
+	return result
+}
+
+// ContainsPrefix returns true if r is prefixed by any of the existing refs in the set.
+func (rs *refSet) ContainsPrefix(r ast.Ref) bool {
+	for i := range rs.s {
+		if r.HasPrefix(rs.s[i]) {
+			return true
+		}
+	}
+	return false
+}
+
+// AddPrefix inserts r into the set if r is not prefixed by any existing
+// refs in the set. If any existing refs are prefixed by r, those existing
+// refs are removed.
+func (rs *refSet) AddPrefix(r ast.Ref) {
+	if rs.ContainsPrefix(r) {
+		return
+	}
+	cpy := []ast.Ref{r}
+	for i := range rs.s {
+		if !rs.s[i].HasPrefix(r) {
+			cpy = append(cpy, rs.s[i])
+		}
+	}
+	rs.s = cpy
+}
+
+// Sorted returns a sorted slice of terms for refs in the set.
+func (rs *refSet) Sorted() []*ast.Term {
+	terms := make([]*ast.Term, len(rs.s))
+	for i := range rs.s {
+		terms[i] = ast.NewTerm(rs.s[i])
+	}
+	sort.Slice(terms, func(i, j int) bool {
+		return terms[i].Value.Compare(terms[j].Value) < 0
+	})
+	return terms
 }

@@ -714,6 +714,10 @@ Rules that depend on unknowns (directly or indirectly) are also partially evalua
 virtual documents they produce ARE NOT inlined into call sites. The output policy should be structurally
 similar to the input policy.
 
+The `opa build` automatically marks the `input` document as unknown. In addition to the `input` document,
+if `opa build` is invoked with the `-b`/`--bundle` flag, any `data` references NOT prefixed by the
+`.manifest` roots are also marked as unknown.
+
 ### -O=2 (aggressive)
 
 Same as `-O=1` except virtual documents produced by rules that depend on unknowns may be inlined

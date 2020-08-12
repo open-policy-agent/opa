@@ -509,7 +509,7 @@ func TestOptimizerNoops(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			o := getOptimizer(tc.modules, "", tc.entrypoints)
+			o := getOptimizer(tc.modules, "", tc.entrypoints, nil)
 			cpy := o.bundle.Copy()
 			err := o.Do(context.Background())
 			if err != nil {
@@ -560,7 +560,7 @@ func TestOptimizerErrors(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			o := getOptimizer(tc.modules, "", tc.entrypoints)
+			o := getOptimizer(tc.modules, "", tc.entrypoints, nil)
 			cpy := o.bundle.Copy()
 			got := o.Do(context.Background())
 			if got == nil || got.Error() != tc.wantErr.Error() {
@@ -808,12 +808,44 @@ func TestOptimizerOutput(t *testing.T) {
 				`,
 			},
 		},
+		{
+			note:        "infer unknowns from roots",
+			entrypoints: []string{"data.test.p"},
+			modules: map[string]string{
+				"test.rego": `
+					package test
+
+					p {
+						q[x]
+						data.external.users[x] == input.user
+					}
+
+					q["foo"]
+					q["bar"]
+				`,
+			},
+			roots: []string{"test"},
+			wantModules: map[string]string{
+				"optimized/test.rego": `
+					package test
+
+					p = __result__ { data.external.users.foo = input.user; __result__ = true }
+					p = __result__ { data.external.users.bar = input.user; __result__ = true }
+				`,
+				"test.rego": `
+					package test
+
+					q["foo"]
+					q["bar"]
+				`,
+			},
+		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
 
-			o := getOptimizer(tc.modules, tc.data, tc.entrypoints)
+			o := getOptimizer(tc.modules, tc.data, tc.entrypoints, tc.roots)
 			original := o.bundle.Copy()
 			err := o.Do(context.Background())
 			if err != nil {
@@ -823,6 +855,11 @@ func TestOptimizerOutput(t *testing.T) {
 			exp := &bundle.Bundle{
 				Modules: getModuleFiles(tc.wantModules, false),
 				Data:    original.Data, // data is not pruned at all today
+			}
+
+			if len(tc.roots) > 0 {
+				exp.Manifest.Roots = &tc.roots
+				exp.Manifest.AddRoot("partial") // optimizer will add this automatically
 			}
 
 			exp.Manifest.Revision = "" // optimizations must reset the revision.
@@ -838,7 +875,59 @@ func TestOptimizerOutput(t *testing.T) {
 	}
 }
 
-func getOptimizer(modules map[string]string, data string, entries []string) *optimizer {
+func TestRefSet(t *testing.T) {
+	rs := newRefSet(ast.MustParseRef("input"), ast.MustParseRef("data.foo.bar"))
+
+	expFound := []string{
+		"input",
+		"input.foo",
+		"data.foo.bar",
+		"data.foo.bar.baz",
+		"data.foo.bar[1]",
+	}
+
+	for _, exp := range expFound {
+		if !rs.ContainsPrefix(ast.MustParseRef(exp)) {
+			t.Fatal("expected to find:", exp)
+		}
+	}
+
+	expNotFound := []string{
+		"x.bar",
+		"data",
+		"data.bar",
+		"data.foo",
+	}
+
+	for _, exp := range expNotFound {
+		if rs.ContainsPrefix(ast.MustParseRef(exp)) {
+			t.Fatal("expected not to find:", exp)
+		}
+	}
+
+	rs.AddPrefix(ast.MustParseRef("data.foo"))
+
+	if !rs.ContainsPrefix(ast.MustParseRef("data.foo")) {
+		t.Fatal("expected to find data.foo after adding to set")
+	}
+
+	sorted := rs.Sorted()
+
+	if len(sorted) != 2 || !sorted[0].Equal(ast.MustParseTerm("data.foo")) || !sorted[1].Equal(ast.MustParseTerm("input")) {
+		t.Fatal("expected 2 prefixes (data.foo and input) but got:", sorted)
+	}
+
+	// The prefixes should not be affected (because data.foo already exists).
+	rs.AddPrefix(ast.MustParseRef("data.foo.qux"))
+	sorted = rs.Sorted()
+
+	if len(sorted) != 2 || !sorted[0].Equal(ast.MustParseTerm("data.foo")) || !sorted[1].Equal(ast.MustParseTerm("input")) {
+		t.Fatal("expected 2 prefixes (data.foo and input) but got:", sorted)
+	}
+
+}
+
+func getOptimizer(modules map[string]string, data string, entries []string, roots []string) *optimizer {
 
 	b := &bundle.Bundle{
 		Modules: getModuleFiles(modules, true),
@@ -846,6 +935,10 @@ func getOptimizer(modules map[string]string, data string, entries []string) *opt
 
 	if data != "" {
 		b.Data = util.MustUnmarshalJSON([]byte(data)).(map[string]interface{})
+	}
+
+	if len(roots) > 0 {
+		b.Manifest.Roots = &roots
 	}
 
 	b.Manifest.Init()
