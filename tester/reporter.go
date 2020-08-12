@@ -199,6 +199,66 @@ func (r JSONCoverageReporter) Report(ch chan *Result) error {
 	return encoder.Encode(report)
 }
 
+// PrettyCoverageReporter reports coverage as text.
+type PrettyCoverageReporter struct {
+	Cover     *cover.Cover
+	Modules   map[string]*ast.Module
+	Output    io.Writer
+	Threshold float64
+}
+
+// Report prints the test report to the reporter's output.
+func (r PrettyCoverageReporter) Report(ch chan *Result) error {
+	for tr := range ch {
+		if !tr.Pass() {
+			if tr.Error != nil {
+				return tr.Error
+			}
+			return errors.New(tr.String())
+		}
+	}
+	report := r.Cover.Report(r.Modules)
+	if report.Coverage < r.Threshold {
+		fmt.Fprintln(r.Output, "Missing coverage:")
+		for name, coverageReport := range report.Files {
+			if coverageReport.Coverage != 100 {
+				r.printCoverage(name, coverageReport.NotCovered)
+			}
+		}
+		return &cover.CoverageThresholdError{
+			Coverage:  report.Coverage,
+			Threshold: r.Threshold,
+		}
+	}
+	for name, coverageReport := range report.Files {
+		fmt.Fprintf(r.Output, "%v %v%%\n", name, coverageReport.Coverage)
+		r.hl()
+		fmt.Fprintln(r.Output, "Covered:")
+		r.printCoverage(name, coverageReport.Covered)
+		if len(coverageReport.NotCovered) != 0 {
+			fmt.Fprintln(r.Output, "Not covered:")
+			r.printCoverage(name, coverageReport.NotCovered)
+		}
+		fmt.Println()
+	}
+	return errors.New("")
+}
+
+// Prints the Coverage for a file as text
+func (r PrettyCoverageReporter) printCoverage(name string, ar []cover.Range) {
+	for _, cov := range ar {
+		if cov.Start.Row == cov.End.Row {
+			fmt.Fprintf(r.Output, "%v: %v\n", name, cov.Start.Row)
+		} else {
+			fmt.Fprintf(r.Output, "%v: %v-%v\n", name, cov.Start.Row, cov.End.Row)
+		}
+	}
+}
+
+func (r PrettyCoverageReporter) hl() {
+	fmt.Fprintln(r.Output, strings.Repeat("-", 80))
+}
+
 type indentingWriter struct {
 	w io.Writer
 }

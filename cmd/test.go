@@ -236,7 +236,7 @@ func opaTest(args []string) int {
 			}
 		}
 	} else {
-		reporter = tester.JSONCoverageReporter{
+		reporter = tester.PrettyCoverageReporter{
 			Cover:     cov,
 			Modules:   modules,
 			Output:    os.Stdout,
