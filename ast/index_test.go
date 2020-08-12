@@ -141,6 +141,35 @@ func TestBaseDocEqIndexing(t *testing.T) {
 		x = input.x
 		glob.match("dead:*:beef", [":"], x)
 	}
+
+	glob_match_mappers {
+		input.x = x
+		glob.match("foo:*", [":"], x)
+	}
+
+	glob_match_mappers {
+		input.x = x
+	}
+
+	glob_match_overlapped_mappers {
+		input.x = x
+		glob.match("foo:*", [":"], x)
+	}
+
+	glob_match_overlapped_mappers {
+		input.x = x
+		glob.match("foo/*", ["/"], x)
+	}
+
+	glob_match_disjoint_mappers {
+		input.x = x
+		glob.match("foo:*", [":"], x)
+	}
+
+	glob_match_disjoint_mappers {
+		input.x = x
+		glob.match("bar/*", ["/"], x)
+	}
 	`)
 
 	tests := []struct {
@@ -345,6 +374,60 @@ func TestBaseDocEqIndexing(t *testing.T) {
 				x = input.x
 				glob.match("foo:*:*", [":"], x)
 			}`},
+		},
+		{
+			note:    "glob.match - mapper and no mapper",
+			ruleset: "glob_match_mappers",
+			input:   `{"x": "foo:bar"}`,
+			expectedRS: []string{
+				`
+				glob_match_mappers {
+					input.x = x
+					glob.match("foo:*", [":"], x)
+				}
+			`,
+				`
+				glob_match_mappers {
+					input.x = x
+				}
+			`},
+		},
+		{
+			// NOTE(tsandall): The rule index returns both rules because the trie nodes
+			// store multiple mappers and will traverse each one. Since both mappers
+			// generate a trie structure of:
+			//
+			//		array
+			//		  scalar("foo")
+			//		    any
+			//
+			// The rules are added to the same leaf node. In the future, we could improve
+			// the indexer to distinguish the trie nodes using the delimiter but until
+			// then the indexer can just return extra rules.
+			note:    "glob.match - multiple overlapped mappers",
+			ruleset: "glob_match_overlapped_mappers",
+			input:   `{"x": "foo:bar"}`,
+			expectedRS: []string{
+				`
+				glob_match_overlapped_mappers {
+					input.x = x
+					glob.match("foo:*", [":"], x)
+				}
+				`, `
+				glob_match_overlapped_mappers {
+					input.x = x
+					glob.match("foo/*", ["/"], x)
+				}
+				`,
+			},
+		},
+		{
+			note:    "glob.match - multiple disjoint mappers",
+			ruleset: "glob_match_disjoint_mappers",
+			input:   `{"x": "foo:bar"}`,
+			expectedRS: []string{
+				`glob_match_disjoint_mappers { input.x = x; glob.match("foo:*", [":"], x) }`,
+			},
 		},
 		{
 			note:       "glob.match unexpected value type",
@@ -565,9 +648,9 @@ func TestSplitStringEscaped(t *testing.T) {
 func TestGetAllRules(t *testing.T) {
 	module := MustParseModule(`
 	package test
-	
+
 	default p = 42
-	
+
 	p {
 		input.x = "x1"
 		input.y = "y1"
@@ -578,7 +661,7 @@ func TestGetAllRules(t *testing.T) {
 	}
 
 	p {
-		input.z = "z1"      
+		input.z = "z1"
 	}
 	`)
 
