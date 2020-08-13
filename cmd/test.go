@@ -236,11 +236,21 @@ func opaTest(args []string) int {
 			}
 		}
 	} else {
-		reporter = tester.PrettyCoverageReporter{
-			Cover:     cov,
-			Modules:   modules,
-			Output:    os.Stdout,
-			Threshold: testParams.threshold,
+		if testParams.outputFormat.String() == "json" {
+			reporter = tester.JSONCoverageReporter{
+				Cover:     cov,
+				Modules:   modules,
+				Output:    os.Stdout,
+				Threshold: testParams.threshold,
+			}
+		} else {
+			reporter = tester.PrettyCoverageReporter{
+				Verbose:   testParams.verbose,
+				Cover:     cov,
+				Modules:   modules,
+				Output:    os.Stdout,
+				Threshold: testParams.threshold,
+			}
 		}
 	}
 

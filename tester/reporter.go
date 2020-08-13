@@ -201,6 +201,7 @@ func (r JSONCoverageReporter) Report(ch chan *Result) error {
 
 // PrettyCoverageReporter reports coverage as text.
 type PrettyCoverageReporter struct {
+	Verbose   bool
 	Cover     *cover.Cover
 	Modules   map[string]*ast.Module
 	Output    io.Writer
@@ -218,28 +219,39 @@ func (r PrettyCoverageReporter) Report(ch chan *Result) error {
 		}
 	}
 	report := r.Cover.Report(r.Modules)
-	if report.Coverage < r.Threshold {
+	if r.Verbose {
+		fmt.Fprintf(r.Output, "Got coverage %v%%\n\n", report.Coverage)
+		for name, coverageReport := range report.Files {
+			fmt.Fprintf(r.Output, "%v %v%%\n", name, coverageReport.Coverage)
+			r.hl()
+			fmt.Fprintln(r.Output, "Covered:")
+			r.printCoverage(name, coverageReport.Covered)
+			if len(coverageReport.NotCovered) > 0 {
+				fmt.Fprintln(r.Output, "Not covered:")
+				r.printCoverage(name, coverageReport.NotCovered)
+			}
+			fmt.Println()
+		}
+	} else {
+		if report.Coverage < r.Threshold {
+			fmt.Fprintln(r.Output, "Missing coverage:")
+			for name, coverageReport := range report.Files {
+				if coverageReport.Coverage != 100 {
+					r.printCoverage(name, coverageReport.NotCovered)
+				}
+			}
+			return &cover.CoverageThresholdError{
+				Coverage:  report.Coverage,
+				Threshold: r.Threshold,
+			}
+		}
+		fmt.Fprintf(r.Output, "Expected coverage %v%%, got %v%%\n", r.Threshold, report.Coverage)
 		fmt.Fprintln(r.Output, "Missing coverage:")
 		for name, coverageReport := range report.Files {
-			if coverageReport.Coverage != 100 {
+			if coverageReport.Coverage != 100{
 				r.printCoverage(name, coverageReport.NotCovered)
 			}
 		}
-		return &cover.CoverageThresholdError{
-			Coverage:  report.Coverage,
-			Threshold: r.Threshold,
-		}
-	}
-	for name, coverageReport := range report.Files {
-		fmt.Fprintf(r.Output, "%v %v%%\n", name, coverageReport.Coverage)
-		r.hl()
-		fmt.Fprintln(r.Output, "Covered:")
-		r.printCoverage(name, coverageReport.Covered)
-		if len(coverageReport.NotCovered) != 0 {
-			fmt.Fprintln(r.Output, "Not covered:")
-			r.printCoverage(name, coverageReport.NotCovered)
-		}
-		fmt.Println()
 	}
 	return errors.New("")
 }
