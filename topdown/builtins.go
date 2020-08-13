@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/topdown/cache"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -32,6 +33,7 @@ type (
 	// built-in functions.
 	BuiltinContext struct {
 		Context                context.Context       // request context that was passed when query started
+		Metrics                metrics.Metrics       // metrics registry for recording built-in specific metrics
 		Seed                   io.Reader             // randomization seed
 		Time                   *ast.Term             // wall clock time
 		Cancel                 Cancel                // atomic value that signals evaluation to halt

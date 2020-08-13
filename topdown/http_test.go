@@ -6,6 +6,7 @@ package topdown
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
@@ -22,6 +23,7 @@ import (
 	"time"
 
 	"github.com/open-policy-agent/opa/internal/version"
+	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/topdown/builtins"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -1839,6 +1841,28 @@ func TestHTTPSNoClientCerts(t *testing.T) {
 		// run the test
 		runTopDownTestCase(t, data, "http.send", rule, expectedResult)
 	})
+}
+
+func TestHTTPSendMetrics(t *testing.T) {
+
+	// run test server
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	defer ts.Close()
+
+	// Execute query and verify http.send latency shows up in metrics registry.
+	m := metrics.New()
+	q := NewQuery(ast.MustParseBody(fmt.Sprintf(`http.send({"method": "get", "url": %q})`, ts.URL))).WithMetrics(m)
+	_, err := q.Run(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if m.Timer(httpSendLatencyMetricKey).Int64() == 0 {
+		t.Fatal("expected non-zero value for http.send latency metric")
+	}
 }
 
 var httpSendHelperRules = []string{
