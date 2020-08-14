@@ -127,15 +127,16 @@ The entirety of the external data source is stored in memory, which can obviousl
 This approach is very similar to the bundle approach except it updates the data stored in OPA with deltas instead of an entire snapshot at a time.  Because the data is updated as deltas, this approach is well-suited for data that changes frequently.  It assumes the data can fit entirely in memory and so is well-suited to small and medium-sized data sets.
 
 
-## Option 5: Pull Data during Evaluation (Experimental)
+## Option 5: Pull Data during Evaluation
 
-OPA has experimental capabilities for reaching out to external servers during evaluation.  This functionality handles those cases where there is too much data to synchronize into OPA, JWTs are ineffective, or policy requires information that must be as up to date as possible.
+OPA includes functionality for reaching out to external servers during evaluation.  This functionality handles those cases where there is too much data to synchronize into OPA, JWTs are ineffective, or policy requires information that must be as up to date as possible.
 
-That functionality is implemented as [OPA builtins](https://www.openpolicyagent.org/docs/latest/policy-reference/#http).  Check the docs for the latest instructions.
+That functionality is implemented using built-in functions such as [`http.send`](https://www.openpolicyagent.org/docs/latest/policy-reference/#http).  Check the docs for the latest instructions.
 
 ### Current limitations
-* Unit test framework does not allow you to mock out the results of builtin functions; however, you can create a helper function that runs the builtin and mock that out.
+* Unit test framework does not allow you to mock out the results of builtin functions; however, you can create a helper rule that runs the builtin and mock that out.
 * Credentials needed for the external service can either be hardcoded into policy or pulled from the environment.
+* The built-in functions do not implement any retry logic. Communication errors currently cause policy evaluation to halt.
 
 
 ### Flow
@@ -159,7 +160,7 @@ Latency and availability of decision-making are dependent on the network.  This 
 ### Recommended usage: Highly Dynamic or Large-sized data
 If the data is too large to fit into memory, or it changes too frequently to cache it inside of OPA, the only real option is to fetch the data on demand.  The `input` approach fetches data on demand as well, but puts the burden on the OPA-enabled service to fetch the necessary data (and to know what data is necessary).
 
-The downside to pulling data on demand is reduced performance and availability because of the network, which can be mitigated via caching.  In the `input` case, caching is under the control of the OPA-enabled service and can therefore be tailored to fit the properties of the data.  At the time of writing OPA does not cache data it pulls in during evaluation, and even once it does that caching must be configurable to reflect the realities of the data.  It is crucial in this approach for the OPA-enabled service to handle the case when OPA returns no decision.
+The downside to pulling data on demand is reduced performance and availability because of the network, which can be mitigated via caching.  In the `input` case, caching is under the control of the OPA-enabled service and can therefore be tailored to fit the properties of the data.  In the `http.send` case, caching is largely under the control of the remote service that sets HTTP response headers to indicate how long the response can be cached for.  It is crucial in this approach for the OPA-enabled service to handle the case when OPA returns no decision.
 
 ## Summary
 
