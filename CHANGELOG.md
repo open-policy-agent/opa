@@ -80,6 +80,8 @@ This release includes a new built-in function to test if a string is a valid reg
 
 * The `ast.Array` type has been redefined a struct. Previously `ast.Array` was a type alias for `[]*ast.Term`. This change is backwards incompatible because slice operations can no longer be performed directly on values of type `ast.Array`. To accomodate, the `ast.Array` type now exports functions for the same operations. This change decouples callers from the underlying array implementation which opens up room for future optimizations.
 
+## Unreleased
+
 ## 0.22.0
 
 ### Bundle Signing
