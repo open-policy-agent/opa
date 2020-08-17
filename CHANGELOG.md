@@ -3,7 +3,11 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.23.0
+
+### `http.send` Caching
+
+The `http.send` built-in function now supports caching across policy queries. The `caching.inter_query_builtin_cache.max_size_bytes` configuration setting places a limit on the amount of memory that will be used for built-in function caching. By default, not limit is set. For `http.send`, cache duration is controlled by HTTP response headers. For more details see the [`http.send`](https://www.openpolicyagent.org/docs/latest/policy-reference/#http) documentation.
 
 ### Capabilities
 
@@ -33,11 +37,48 @@ $ opa build ./policies/example.rego --capabilities ./capabilities/v0.22.0.json
 $ opa build ./policies/example.rego --capabilities ./capabilities/v0.21.1.json
 ```
 
+### Built-in Functions
+
+This release includes a new built-in function to test if a string is a valid regular expression: `regex.is_valid`.
+
+### WebAssembly
+
+* Host environments no longer have to provide the `opa_println` function when instantiating compiled policy modules.
+* SDKs no longer have to set the heap top address during initialization.
+
+### Fixes
+
+- Add a new inter-query cache to cache responses across queries ([#1753](https://github.com/open-policy-agent/opa/issues/1753))
+- Fix `opa` CLI flags to match documentation ([#2586](https://github.com/open-policy-agent/opa/issues/2586)) authored by @[OmegaVVeapon](https://github.com/OmegaVVeapon)
+- Fix rule indexing when multiple glob.match mappers are required ([#2617](https://github.com/open-policy-agent/opa/issues/2617))
+- Fix AST to marshal non-string object keys ([#516](https://github.com/open-policy-agent/opa/issues/516))
+- Fix signature calculation to include port if necessary ([#2568](https://github.com/open-policy-agent/opa/issues/2568))
+- Fix partial evaluation to check function output for false values ([#2573](https://github.com/open-policy-agent/opa/issues/2573))
+
+### Miscellaneous
+
+- Add `http.send` latency to query metrics ([#2034](https://github.com/open-policy-agent/opa/issues/2034))
+- Add support for `opa build` unknowns under `data` ([#2581](https://github.com/open-policy-agent/opa/issues/2581))
+- Add support to wait for plugin readiness before starting server
+- Add parameter to set wall clock time during evaluation for replay purposes
+- Fix groundness bit on objects during update
+- Fix x509 built-in functions to parse PEM or DER inputs
+- Fix bundle signing and verification to use standard JWT key ID header
+- Optimize AST collections to cache hash values
+- Optimize object iteration to avoid hashing
+- Optimize evaluator by removing unnecessary term copying
+
 ### Deprecations
 
 * The `watch` query parameter on the Data API has been deprecated. The query watch feature was unused and the lack of incremental evaluation would have introduced scalability issues for users. The feature will be removed in a future release.
 
 * The `partial` query parameter on the Data API has been deprecated. Note, this only applies to the `partial` query parameter that the Data API supports, not Partial Evaluation itself. The `partial` parameter allowed users to lazily trigger Partial Evaluation (for optimization purposes) during a policy query. While this is useful for kicking the tires in a development environment, putting optimization into the policy query path is not recommended. If users want to kick the tires with Partial Evaluation, we recommend running the `opa build` command.
+
+### Backwards Compatibilty
+
+* The `storage.Indexing` interface has been removed. Storage indexing has not been supported since 0.5.12. It was time to remove the interface. Custom store implementations that may have included no-op implementations of the interface can be updated.
+
+* The `ast.Array` type has been redefined a struct. Previously `ast.Array` was a type alias for `[]*ast.Term`. This change is backwards incompatible because slice operations can no longer be performed directly on values of type `ast.Array`. To accomodate, the `ast.Array` type now exports functions for the same operations. This change decouples callers from the underlying array implementation which opens up room for future optimizations.
 
 ## 0.22.0
 
