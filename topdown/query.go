@@ -243,10 +243,14 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 	if !q.time.IsZero() {
 		q.time = time.Now()
 	}
+	if q.metrics == nil {
+		q.metrics = metrics.New()
+	}
 	f := &queryIDFactory{}
 	b := newBindings(0, q.instr)
 	e := &eval{
 		ctx:                    ctx,
+		metrics:                q.metrics,
 		seed:                   q.seed,
 		time:                   ast.NumberTerm(int64ToJSONNumber(q.time.UnixNano())),
 		cancel:                 q.cancel,
@@ -288,8 +292,8 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 	}
 
 	e.caller = e
-	q.startTimer(metrics.RegoPartialEval)
-	defer q.stopTimer(metrics.RegoPartialEval)
+	q.metrics.Timer(metrics.RegoPartialEval).Start()
+	defer q.metrics.Timer(metrics.RegoPartialEval).Stop()
 
 	livevars := ast.NewVarSet()
 
@@ -360,9 +364,13 @@ func (q *Query) Iter(ctx context.Context, iter func(QueryResult) error) error {
 	if q.time.IsZero() {
 		q.time = time.Now()
 	}
+	if q.metrics == nil {
+		q.metrics = metrics.New()
+	}
 	f := &queryIDFactory{}
 	e := &eval{
 		ctx:                    ctx,
+		metrics:                q.metrics,
 		seed:                   q.seed,
 		time:                   ast.NumberTerm(int64ToJSONNumber(q.time.UnixNano())),
 		cancel:                 q.cancel,
@@ -391,7 +399,7 @@ func (q *Query) Iter(ctx context.Context, iter func(QueryResult) error) error {
 		indexing:               q.indexing,
 	}
 	e.caller = e
-	q.startTimer(metrics.RegoQueryEval)
+	q.metrics.Timer(metrics.RegoQueryEval).Start()
 	err := e.Run(func(e *eval) error {
 		qr := QueryResult{}
 		e.bindings.Iter(nil, func(k, v *ast.Term) error {
@@ -400,18 +408,6 @@ func (q *Query) Iter(ctx context.Context, iter func(QueryResult) error) error {
 		})
 		return iter(qr)
 	})
-	q.stopTimer(metrics.RegoQueryEval)
+	q.metrics.Timer(metrics.RegoQueryEval).Stop()
 	return err
-}
-
-func (q *Query) startTimer(name string) {
-	if q.metrics != nil {
-		q.metrics.Timer(name).Start()
-	}
-}
-
-func (q *Query) stopTimer(name string) {
-	if q.metrics != nil {
-		q.metrics.Timer(name).Stop()
-	}
 }

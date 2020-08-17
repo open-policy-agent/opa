@@ -52,9 +52,12 @@ var allowedKeyNames = [...]string{
 	"timeout",
 	"cache",
 }
-var allowedKeys = ast.NewSet()
 
-var requiredKeys = ast.NewSet(ast.StringTerm("method"), ast.StringTerm("url"))
+var (
+	allowedKeys              = ast.NewSet()
+	requiredKeys             = ast.NewSet(ast.StringTerm("method"), ast.StringTerm("url"))
+	httpSendLatencyMetricKey = "rego_builtin_" + ast.HTTPSend.Name
+)
 
 type httpSendKey string
 
@@ -63,6 +66,8 @@ type httpSendKey string
 const httpSendBuiltinCacheKey httpSendKey = "HTTP_SEND_CACHE_KEY"
 
 func builtinHTTPSend(bctx BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
+
+	bctx.Metrics.Timer(httpSendLatencyMetricKey).Start()
 
 	req, err := validateHTTPRequestOperand(args[0], 1)
 	if err != nil {
@@ -92,6 +97,8 @@ func builtinHTTPSend(bctx BuiltinContext, args []*ast.Term, iter func(*ast.Term)
 			return handleHTTPSendErr(bctx, err)
 		}
 	}
+
+	bctx.Metrics.Timer(httpSendLatencyMetricKey).Stop()
 
 	return iter(ast.NewTerm(resp))
 }
