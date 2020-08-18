@@ -35,7 +35,7 @@ func defaultTLSConfig(c Config) (*tls.Config, error) {
 }
 
 // defaultRoundTripperClient is a reasonable set of defaults for HTTP auth plugins
-func defaultRoundTripperClient(t *tls.Config) *http.Client {
+func defaultRoundTripperClient(t *tls.Config, timeout int64) *http.Client {
 	// Ensure we use a http.Transport with proper settings: the zero values are not
 	// a good choice, as they cause leaking connections:
 	// https://github.com/golang/go/issues/19620
@@ -58,6 +58,7 @@ func defaultRoundTripperClient(t *tls.Config) *http.Client {
 		IdleConnTimeout:       90 * time.Second,
 		TLSHandshakeTimeout:   10 * time.Second,
 		ExpectContinueTimeout: 1 * time.Second,
+		ResponseHeaderTimeout: time.Duration(timeout) * time.Second,
 		TLSClientConfig:       t,
 	}
 
@@ -75,7 +76,7 @@ func (ap *defaultAuthPlugin) NewClient(c Config) (*http.Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	return defaultRoundTripperClient(t), nil
+	return defaultRoundTripperClient(t, *c.ResponseHeaderTimeoutSeconds), nil
 }
 
 func (ap *defaultAuthPlugin) Prepare(req *http.Request) error {
@@ -103,7 +104,7 @@ func (ap *bearerAuthPlugin) NewClient(c Config) (*http.Client, error) {
 		ap.Scheme = "Bearer"
 	}
 
-	return defaultRoundTripperClient(t), nil
+	return defaultRoundTripperClient(t, *c.ResponseHeaderTimeoutSeconds), nil
 }
 
 func (ap *bearerAuthPlugin) Prepare(req *http.Request) error {
@@ -192,7 +193,7 @@ func (ap *clientTLSAuthPlugin) NewClient(c Config) (*http.Client, error) {
 	}
 
 	tlsConfig.Certificates = []tls.Certificate{cert}
-	client := defaultRoundTripperClient(tlsConfig)
+	client := defaultRoundTripperClient(tlsConfig, *c.ResponseHeaderTimeoutSeconds)
 	return client, nil
 }
 
@@ -227,7 +228,7 @@ func (ap *awsSigningAuthPlugin) NewClient(c Config) (*http.Client, error) {
 			return nil, errors.New("at least aws_region must be specified for AWS metadata credential service")
 		}
 	}
-	return defaultRoundTripperClient(t), nil
+	return defaultRoundTripperClient(t, *c.ResponseHeaderTimeoutSeconds), nil
 }
 
 func (ap *awsSigningAuthPlugin) Prepare(req *http.Request) error {

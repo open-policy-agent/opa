@@ -194,13 +194,81 @@ func TestNew(t *testing.T) {
 		if err != nil && !tc.wantErr {
 			t.Fatalf("Unexpected error: %v", err)
 		}
+
+		if *client.config.ResponseHeaderTimeoutSeconds != defaultResponseHeaderTimeoutSeconds {
+			t.Fatalf("Expected default response header timeout but got %v seconds", *client.config.ResponseHeaderTimeoutSeconds)
+		}
+
 		results = append(results, client)
 	}
 
 	if results[3].config.Credentials.Bearer.Scheme != "Acmecorp-Token" {
 		t.Fatalf("Expected custom token but got: %v", results[3].config.Credentials.Bearer.Scheme)
 	}
+}
 
+func TestNewWithResponseHeaderTimeout(t *testing.T) {
+	input := `{
+				"name": "foo",
+				"url": "http://localhost",
+				"response_header_timeout_seconds": 20
+			}`
+
+	client, err := New([]byte(input))
+	if err != nil {
+		t.Fatal("Unexpected error")
+	}
+
+	if *client.config.ResponseHeaderTimeoutSeconds != 20 {
+		t.Fatalf("Expected response header timeout %v seconds but got %v seconds", 20, *client.config.ResponseHeaderTimeoutSeconds)
+	}
+}
+
+func TestDoWithResponseHeaderTimeout(t *testing.T) {
+	ctx := context.Background()
+
+	tests := map[string]struct {
+		d                     time.Duration
+		responseHeaderTimeout string
+		wantErr               bool
+		errMsg                string
+	}{
+		"response_headers_timeout_not_met": {1, "2", false, ""},
+		"response_headers_timeout_met":     {2, "1", true, "net/http: timeout awaiting response headers"},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+
+			baseURL, teardown := getTestServerWithTimeout(tc.d)
+			defer teardown()
+
+			config := fmt.Sprintf(`{
+				"name": "foo",
+				"url": %q,
+				"response_header_timeout_seconds": %v,
+			}`, baseURL, tc.responseHeaderTimeout)
+			client, err := New([]byte(config))
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+
+			_, err = client.Do(ctx, "GET", "/v1/test")
+			if tc.wantErr {
+				if err == nil {
+					t.Fatal("Expected error but got nil")
+				}
+
+				if !strings.Contains(err.Error(), tc.errMsg) {
+					t.Fatalf("Expected error %v but got %v", tc.errMsg, err.Error())
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("Unexpected error %v", err)
+				}
+			}
+		})
+	}
 }
 
 func TestValidUrl(t *testing.T) {
@@ -611,4 +679,15 @@ func createCert(template, parent *x509.Certificate, pub interface{}, parentPriv 
 	b := pem.Block{Type: "CERTIFICATE", Bytes: certDER}
 	certPEM = pem.EncodeToMemory(&b)
 	return
+}
+
+func getTestServerWithTimeout(d time.Duration) (baseURL string, teardownFn func()) {
+	mux := http.NewServeMux()
+	ts := httptest.NewServer(mux)
+
+	mux.HandleFunc("/v1/test", func(w http.ResponseWriter, req *http.Request) {
+		time.Sleep(d * time.Second)
+		w.WriteHeader(http.StatusOK)
+	})
+	return ts.URL, ts.Close
 }

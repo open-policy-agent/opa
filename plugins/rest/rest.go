@@ -22,6 +22,10 @@ import (
 	"github.com/open-policy-agent/opa/util"
 )
 
+const (
+	defaultResponseHeaderTimeoutSeconds = int64(10)
+)
+
 // An HTTPAuthPlugin represents a mechanism to construct and configure HTTP authentication for a REST service
 type HTTPAuthPlugin interface {
 	// implementations can assume NewClient will be called before Prepare
@@ -31,11 +35,12 @@ type HTTPAuthPlugin interface {
 
 // Config represents configuration for a REST client.
 type Config struct {
-	Name           string            `json:"name"`
-	URL            string            `json:"url"`
-	Headers        map[string]string `json:"headers"`
-	AllowInsureTLS bool              `json:"allow_insecure_tls,omitempty"`
-	Credentials    struct {
+	Name                         string            `json:"name"`
+	URL                          string            `json:"url"`
+	Headers                      map[string]string `json:"headers"`
+	AllowInsureTLS               bool              `json:"allow_insecure_tls,omitempty"`
+	ResponseHeaderTimeoutSeconds *int64            `json:"response_header_timeout_seconds,omitempty"`
+	Credentials                  struct {
 		Bearer    *bearerAuthPlugin     `json:"bearer,omitempty"`
 		ClientTLS *clientTLSAuthPlugin  `json:"client_tls,omitempty"`
 		S3Signing *awsSigningAuthPlugin `json:"s3_signing,omitempty"`
@@ -107,6 +112,12 @@ func New(config []byte, opts ...func(*Client)) (Client, error) {
 	}
 
 	parsedConfig.URL = strings.TrimRight(parsedConfig.URL, "/")
+
+	if parsedConfig.ResponseHeaderTimeoutSeconds == nil {
+		timeout := new(int64)
+		*timeout = defaultResponseHeaderTimeoutSeconds
+		parsedConfig.ResponseHeaderTimeoutSeconds = timeout
+	}
 
 	client := Client{
 		config: parsedConfig,
@@ -205,7 +216,10 @@ func (c Client) Do(ctx context.Context, method, path string) (*http.Response, er
 		req.Header.Add(key, value)
 	}
 
-	req = req.WithContext(ctx)
+	hCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	req = req.WithContext(hCtx)
 
 	err = c.config.authPrepare(req)
 	if err != nil {

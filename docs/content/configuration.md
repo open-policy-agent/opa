@@ -25,6 +25,7 @@ The file can be either JSON or YAML format.
 services:
   acmecorp:
     url: https://example.com/control-plane-api/v1
+    response_header_timeout_seconds: 5
     credentials:
       bearer:
         token: "bGFza2RqZmxha3NkamZsa2Fqc2Rsa2ZqYWtsc2RqZmtramRmYWxkc2tm"
@@ -236,6 +237,7 @@ multiple services.
 | --- | --- | --- | --- |
 | `services[_].name` | `string` | Yes | Unique name for the service. Referred to by plugins. |
 | `services[_].url` | `string` | Yes | Base URL to contact the service with. |
+| `services[_].response_header_timeout_seconds` | `int64` | No (default: 10) | Amount of time to wait for a server's response headers after fully writing the request. This time does not include the time to read the response body. |
 | `services[_].headers` | `object` | No | HTTP headers to include in requests to the service. |
 | `services[_].allow_insecure_tls` | `bool` | No | Allow insecure TLS. |
 
