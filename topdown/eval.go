@@ -56,6 +56,7 @@ type eval struct {
 	compiler               *ast.Compiler
 	input                  *ast.Term
 	data                   *ast.Term
+	external               *resolverTrie
 	targetStack            *refStack
 	tracers                []QueryTracer
 	traceEnabled           bool
@@ -1325,43 +1326,49 @@ func (e *eval) resolveReadFromStorage(ref ast.Ref, a ast.Value) (ast.Value, erro
 		return a, nil
 	}
 
-	path, err := storage.NewPathForRef(ref)
-	if err != nil {
-		if !storage.IsNotFound(err) {
-			return nil, err
-		}
-		return a, nil
-	}
+	v, err := e.external.Resolve(e.ctx, ref, e.input)
 
-	blob, err := e.store.Read(e.ctx, e.txn, path)
-	if err != nil {
-		if !storage.IsNotFound(err) {
-			return nil, err
-		}
-		return a, nil
-	}
-
-	if len(path) == 0 {
-		obj := blob.(map[string]interface{})
-		if len(obj) > 0 {
-			cpy := make(map[string]interface{}, len(obj)-1)
-			for k, v := range obj {
-				if string(ast.SystemDocumentKey) == k {
-					continue
-				}
-				cpy[k] = v
-			}
-			blob = cpy
-		}
-	}
-
-	v, err := ast.InterfaceToValue(blob)
 	if err != nil {
 		return nil, err
+	} else if v == nil {
+
+		path, err := storage.NewPathForRef(ref)
+		if err != nil {
+			if !storage.IsNotFound(err) {
+				return nil, err
+			}
+			return a, nil
+		}
+
+		blob, err := e.store.Read(e.ctx, e.txn, path)
+		if err != nil {
+			if !storage.IsNotFound(err) {
+				return nil, err
+			}
+			return a, nil
+		}
+
+		if len(path) == 0 {
+			obj := blob.(map[string]interface{})
+			if len(obj) > 0 {
+				cpy := make(map[string]interface{}, len(obj)-1)
+				for k, v := range obj {
+					if string(ast.SystemDocumentKey) == k {
+						continue
+					}
+					cpy[k] = v
+				}
+				blob = cpy
+			}
+		}
+
+		v, err = ast.InterfaceToValue(blob)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	e.baseCache.Put(ref, v)
-
 	if a == nil {
 		return v, nil
 	}
@@ -1370,6 +1377,7 @@ func (e *eval) resolveReadFromStorage(ref ast.Ref, a ast.Value) (ast.Value, erro
 	if !ok {
 		return nil, mergeConflictErr(ref[0].Location)
 	}
+
 	return merged, nil
 }
 
