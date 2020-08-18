@@ -288,8 +288,8 @@ func TestBuiltinObjectRemove(t *testing.T) {
 			note:     "error invalid object param type nil input",
 			object:   `input.x`,
 			keys:     `{"a"}`,
-			input:    `{"x": none}`,
-			expected: &Error{Code: TypeErr, Message: "object.remove: operand 1 must be object but got var"},
+			input:    `{"x": null}`,
+			expected: &Error{Code: TypeErr, Message: "object.remove: operand 1 must be object but got null"},
 		},
 		{
 			note:     "error invalid key param type string",
@@ -328,8 +328,8 @@ func TestBuiltinObjectRemove(t *testing.T) {
 			note:     "error invalid key param type nil input",
 			object:   `{"a": 1}`,
 			keys:     `input.x`,
-			input:    `{"x": none}`,
-			expected: &Error{Code: TypeErr, Message: "object.remove: operand 2 must be one of {object, string, array} but got var"},
+			input:    `{"x": null}`,
+			expected: &Error{Code: TypeErr, Message: "object.remove: operand 2 must be one of {object, string, array} but got null"},
 		},
 	}
 
@@ -468,8 +468,8 @@ func TestBuiltinObjectFilter(t *testing.T) {
 			note:     "error invalid object param type nil input",
 			object:   `input.x`,
 			filters:  `{"a"}`,
-			input:    `{"x": none}`,
-			expected: &Error{Code: TypeErr, Message: "object.filter: operand 1 must be object but got var"},
+			input:    `{"x": null}`,
+			expected: &Error{Code: TypeErr, Message: "object.filter: operand 1 must be object but got null"},
 		},
 		{
 			note:     "error invalid key param type string",
@@ -508,8 +508,8 @@ func TestBuiltinObjectFilter(t *testing.T) {
 			note:     "error invalid key param type nil input",
 			object:   `{"a": 1}`,
 			filters:  `input.x`,
-			input:    `{"x": none}`,
-			expected: &Error{Code: TypeErr, Message: "object.filter: operand 2 must be one of {object, string, array} but got var"},
+			input:    `{"x": null}`,
+			expected: &Error{Code: TypeErr, Message: "object.filter: operand 2 must be one of {object, string, array} but got null"},
 		},
 	}
 
