@@ -48,7 +48,8 @@ standard GitHub fork workflow. See [OPA Dev Instructions](DEVELOPMENT.md)
 1. Commit the changes and push to remote repository fork.
 
 	```
-	git commit -a -s -m "Prepare v<version> release"
+	git add .
+	git commit -s -m "Prepare v<version> release"
 	git push origin master
 	```
 
@@ -173,7 +174,7 @@ git commit -s -a -m 'Prepare v0.14.1 release'
 git push origin release-0.14
 ```
 
-Open a Pull Request against the upstream release branch. Be careful to open the 
+Open a Pull Request against the upstream release branch. Be careful to open the
 Pull Request against the correct upstream release branch. **DO NOT** open/merge
 the Pull Request into master or other release branches:
 
