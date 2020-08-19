@@ -38,7 +38,7 @@ with `make check`.
    into your account by clicking the "Fork" button.
 
 1. Clone the fork to your local machine.
-    
+
     ```bash
     # Note: With Go modules this repo can be in _any_ location,
     # and does not need to be in the GOSRC path.
@@ -72,12 +72,12 @@ with `make check`.
     git commit -s
     git push origin somefeature
     ```
-   
+
    > Make sure to use a [good commit message](../../CONTRIBUTING.md#commit-messages)
 
 1. Submit a Pull Request from your fork. See the official [GitHub Documentation](https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/creating-a-pull-request-from-a-fork)
    for instructions to create the request.
-   
+
     > Hint: You should be prompted to with a "Compare and Pull Request" button
       that mentions your new branch on [https://github.com/open-policy-agent/opa](https://github.com/open-policy-agent/opa)
 
@@ -86,6 +86,18 @@ with `make check`.
    Pull Request, please mention it in the discussion.
 
    > If you are not familiar with squashing commits, see [the following blog post for a good overview](http://gitready.com/advanced/2009/02/10/squashing-commits-with-rebase.html).
+
+## Built-in Functions
+
+[Built-in Functions](https://www.openpolicyagent.org/docs/latest/policy-reference/#built-in-functions)
+can be added inside the `topdown` package in this repository.
+
+Built-in functions may be upstreamed if they are generally useful and provide functionality that would be
+impractical to implement natively in Rego (e.g., CIDR arithmetic). Implementations should avoid thirdparty
+dependencies. If absolutely necessary, consider importing the code manually into the `internal` package.
+
+All built-in function implementations must include a test suite. See [topdown/testdata/cases/helloworld](https://github.com/open-policy-agent/opa/blob/master/topdown/testdata/cases/helloworld)
+in this repository for an example of how to implement tests for your built-in functions.
 
 ## Benchmarks
 
