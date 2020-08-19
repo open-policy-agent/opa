@@ -933,8 +933,8 @@ func TestTopDownIndirectReferences(t *testing.T) {
 		{"array", []string{`p[x] {[1, 2, 3][x]}`}, "[0, 1, 2]"},
 		{"call", []string{`p {split("foo.bar", ".")[0] == "foo"}`}, "true"},
 		{"multiple call", []string{`p[x] {split(split("foo.bar:qux", ".")[_], ":")[i] = x}`}, `["foo", "bar", "qux"]`},
-		{"user call", []string{`f(x) = [x] {true}`, `p[x] {x = f(1)[0]}`}, "[1]"},
-		{"user call in comprehension", []string{`f(x) = [x] {true}`, `p[x] {x = [y | y = f(1)][_][_]}`}, "[1]"},
+		{"user call", []string{`fn(x) = [x] {true}`, `p[x] {x = fn(1)[0]}`}, "[1]"},
+		{"user call in comprehension", []string{`fn(x) = [x] {true}`, `p[x] {x = [y | y = fn(1)][_][_]}`}, "[1]"},
 	}
 
 	data := loadSmallTestData()
@@ -1044,9 +1044,9 @@ func TestTopDownComprehensions(t *testing.T) {
 		{"object embedded set", []string{`p = xs { xs = {{s: x | x = a[_]; format_int(x, 10, s)}} }`}, `[{"1":1,"2":2,"3":3,"4":4}]`},
 		{"object closure", []string{`p[x] { y = 1; x = {"foo":y | y = 1} }`}, `[{"foo": 1}]`},
 		{"object dereference embedded", []string{
-			`a = [4] { true }`,
+			`arr = [4] { true }`,
 			`p[x] { q.a = x }`,
-			`q[k] = v { k = "a"; v = {"bar": y | i[_] = _; i = y; i = {"foo": z | z = a[_]}} }`,
+			`q[k] = v { k = "a"; v = {"bar": y | i[_] = _; i = y; i = {"foo": z | z = arr[_]}} }`,
 		}, `[{"bar": {"foo": 4}}]`},
 		{"object conflict", []string{
 			`p[x] { q.a = x }`,
@@ -2815,8 +2815,6 @@ func compileModules(input []string) *ast.Compiler {
 
 func compileRules(imports []string, input []string, modules []string) (*ast.Compiler, error) {
 
-	p := ast.Ref{ast.DefaultRootDocument}
-
 	is := []*ast.Import{}
 	for _, i := range imports {
 		is = append(is, &ast.Import{
@@ -2825,9 +2823,7 @@ func compileRules(imports []string, input []string, modules []string) (*ast.Comp
 	}
 
 	m := &ast.Module{
-		Package: &ast.Package{
-			Path: p,
-		},
+		Package: ast.MustParsePackage("package generated"),
 		Imports: is,
 	}
 
@@ -2958,7 +2954,7 @@ func runTopDownTestCaseWithContext(ctx context.Context, t *testing.T, data map[s
 
 	store := inmem.NewFromObject(data)
 
-	assertTopDownWithPathAndContext(ctx, t, compiler, store, note, []string{"p"}, input, expected)
+	assertTopDownWithPathAndContext(ctx, t, compiler, store, note, []string{"generated", "p"}, input, expected)
 }
 
 func assertTopDownWithPath(t *testing.T, compiler *ast.Compiler, store storage.Store, note string, path []string, input string, expected interface{}) {
