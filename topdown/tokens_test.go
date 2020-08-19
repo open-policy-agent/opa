@@ -519,7 +519,7 @@ func TestTopDownJWTEncodeSignES256(t *testing.T) {
 		return
 	}
 	store := inmem.New()
-	path := []string{"p"}
+	path := []string{"generated", "p"}
 	var inputTerm *ast.Term
 
 	ctx := context.Background()
@@ -643,7 +643,7 @@ func TestTopDownJWTEncodeSignES512(t *testing.T) {
 		return
 	}
 	store := inmem.New()
-	path := []string{"p"}
+	path := []string{"generated", "p"}
 	var inputTerm *ast.Term
 
 	ctx := context.Background()
