@@ -1,0 +1,15 @@
+cases:
+- data: {}
+  modules:
+  - |
+    package generated
+
+    p {
+      object.remove({"a": 1, [[7]]: 2}, {[[7]]}, __local1__)
+      __local0__ = __local1__
+      __local0__ = {"a": 1}
+    }
+  note: objectremovenonstringkey/non string root
+  query: data.generated.p = x
+  want_result:
+  - x: true

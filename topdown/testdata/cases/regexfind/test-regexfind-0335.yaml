@@ -1,0 +1,17 @@
+cases:
+- data: {}
+  modules:
+  - |
+    package generated
+
+    p[x] {
+      regex.find_n("a.", "paranormal", 2, __local0__)
+      x = __local0__
+    }
+  note: regexfind/finds specified number of match values
+  query: data.generated.p = x
+  sort_bindings: true
+  want_result:
+  - x:
+    - - ar
+      - an

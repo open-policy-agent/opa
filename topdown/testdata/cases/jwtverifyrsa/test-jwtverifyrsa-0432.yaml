@@ -1,0 +1,95 @@
+cases:
+- data:
+    a:
+    - 1
+    - 2
+    - 3
+    - 4
+    b:
+      v1: hello
+      v2: goodbye
+    c:
+    - x:
+      - true
+      - false
+      - foo
+      "y":
+      - null
+      - 3.14159
+      z:
+        p: true
+        q: false
+    d:
+      e:
+      - bar
+      - baz
+    f:
+    - xs:
+      - 1
+      ys:
+      - 2
+    - xs:
+      - 2
+      ys:
+      - 3
+    g:
+      a:
+      - 1
+      - 0
+      - 0
+      - 0
+      b:
+      - 0
+      - 2
+      - 0
+      - 0
+      c:
+      - 0
+      - 0
+      - 0
+      - 4
+    h:
+    - - 1
+      - 2
+      - 3
+    - - 2
+      - 3
+      - 4
+    l:
+    - a: bob
+      b: -1
+      c:
+      - 1
+      - 2
+      - 3
+      - 4
+    - a: alice
+      b: 1
+      c:
+      - 2
+      - 3
+      - 4
+      - 5
+      d: null
+    m: []
+    numbers:
+    - "1"
+    - "2"
+    - "3"
+    - "4"
+    strings:
+      bar: 2
+      baz: 3
+      foo: 1
+    three: 3
+  modules:
+  - |
+    package generated
+
+    p = x {
+      io.jwt.verify_es384("eyJhbGciOiJFUzM4NCJ9.eyJTY29wZXMiOlsiZm9vIiwiYmFyIl0sIm5iZiI6MTQ1MTYwNjQwMH0.w85PzWrIQbJBOROnah0pa8or2LsXWnj88bwG1R-zf5Mm20CaYGPKPTQEsU_y-dzaWyDV1Na7nfaGaH3Khcvj8yS-bidZ0OZVVFDk9oabX7ZYvAHo2pTAOfxc11TeOYSF", "-----BEGIN CERTIFICATE-----\nMIICDDCCAZOgAwIBAgIBIzAKBggqhkjOPQQDAzBWMQswCQYDVQQGEwJVUzEVMBMG\nA1UEBxMMUmVkd29vZCBDaXR5MQ4wDAYDVQQKEwVTdHlyYTEMMAoGA1UECxMDRGV2\nMRIwEAYDVQQDEwlsb2NhbGhvc3QwHhcNMjAwNTA3MDk0MzU1WhcNMjAwNTA3MTE0\nMzU1WjBWMQswCQYDVQQGEwJVUzEVMBMGA1UEBxMMUmVkd29vZCBDaXR5MQ4wDAYD\nVQQKEwVTdHlyYTEMMAoGA1UECxMDRGV2MRIwEAYDVQQDEwlsb2NhbGhvc3QwdjAQ\nBgcqhkjOPQIBBgUrgQQAIgNiAARjcwW7g9wx4ePsuwcVzDJCVo4f8I1C1X5US4B1\nrWN+5zFSJoGCKaPTXMDhAdS08D1G20AIRmA0AlVVXRxrZYZ+Y282O6s+EGsB5T1W\nMCnUFk2Sa+xZiGPApYz4zSGbNEqjNTAzMA4GA1UdDwEB/wQEAwIFoDATBgNVHSUE\nDDAKBggrBgEFBQcDATAMBgNVHRMBAf8EAjAAMAoGCCqGSM49BAMDA2cAMGQCMGSG\nVjx3DZP71ZGNDBw+AVdhNU3pgJW8kNpqjta3HFLb6pzqNOsfOn1ZeIWciEcyEgIw\nTGxli48W1AJ2s7Pw+3wOA6f9HAmczJPaiZ9CY038UiT8mk+pND5FEdqLhT/5lMEz\n-----END CERTIFICATE-----", x)
+    }
+  note: jwtverifyrsa/success-es384-cert
+  query: data.generated.p = x
+  want_result:
+  - x: true

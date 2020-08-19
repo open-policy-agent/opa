@@ -1,0 +1,95 @@
+cases:
+- data:
+    a:
+    - 1
+    - 2
+    - 3
+    - 4
+    b:
+      v1: hello
+      v2: goodbye
+    c:
+    - x:
+      - true
+      - false
+      - foo
+      "y":
+      - null
+      - 3.14159
+      z:
+        p: true
+        q: false
+    d:
+      e:
+      - bar
+      - baz
+    f:
+    - xs:
+      - 1
+      ys:
+      - 2
+    - xs:
+      - 2
+      ys:
+      - 3
+    g:
+      a:
+      - 1
+      - 0
+      - 0
+      - 0
+      b:
+      - 0
+      - 2
+      - 0
+      - 0
+      c:
+      - 0
+      - 0
+      - 0
+      - 4
+    h:
+    - - 1
+      - 2
+      - 3
+    - - 2
+      - 3
+      - 4
+    l:
+    - a: bob
+      b: -1
+      c:
+      - 1
+      - 2
+      - 3
+      - 4
+    - a: alice
+      b: 1
+      c:
+      - 2
+      - 3
+      - 4
+      - 5
+      d: null
+    m: []
+    numbers:
+    - "1"
+    - "2"
+    - "3"
+    - "4"
+    strings:
+      bar: 2
+      baz: 3
+      foo: 1
+    three: 3
+  modules:
+  - |
+    package generated
+
+    p = x {
+      io.jwt.verify_ps384("eyJhbGciOiJQUzM4NCJ9.eyJTY29wZXMiOlsiZm9vIiwiYmFyIl0sIm5iZiI6MTQ1MTYwNjQwMH0.EHPUvPr6uJOYqdza95WbM1SYD8atZHJEVRggpwOWnHGsjQBoEarJb8QgW7TY22OXwGw2HWluTiyT_MAz02NaHRzZv6AgrmxCLChMWkCHLwPxqjs0xSvVAMLzHHq2X2Bcujo9KORGudR7zKz8pOX5Mfnm7Z6OGtqPCPLaIdVJlddNsG6a571NOuVuDWbcg0omeRDANZpCZMJeAQN2M-4Q61ef6zcQHK1R-QqzBhw6HzMgqR1LRJ0xbrmD-L5o53JM3pV1e1juKNXVK3vWkDQRCQORFn1lyH5isfSsiiHW-x90sUC7TrU_cOji4MMmOCME6kkwxe57ZgpeXtdVTvldpw", "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA7clVh9hRPHFPC0XAKx+E\n8A4QThXJiRdvC670Tm3Gw2LGnuqxMG8tGkYEsY0xDIMhgY66AUpdtsDkgPd5MMeK\nbqX1xKm8MsJ/RYcigW/zl0EoJT5sK6Zs0LTyRswR53C/jz40YT36opsH+2SDygAI\nCM/TuqaRoRP8eAreOOI7YVCAWbhuXFF4YIjwUHSENyvPEIYFcHLn02ZDR4+Ikg34\nZVRQx1Y143dgf8hjg48r9E8goVdGATRozL+2BS1piBVBcyvuqjUsbuHMz7UZMn8G\nldhlvzwU+X/H3OnyoEGepOgSyuvqYtIj4eU1Is8h7arbnlg26yfsH3SYpUEvA/hB\nqwIDAQAB\n-----END PUBLIC KEY-----", x)
+    }
+  note: jwtverifyrsa/success-ps384-key
+  query: data.generated.p = x
+  want_result:
+  - x: true

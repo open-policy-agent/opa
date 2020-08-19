@@ -1,0 +1,17 @@
+cases:
+- data: {}
+  input_term: '{"x": ["a", 1, 2, 3]}'
+  modules:
+  - |
+    package generated
+
+    p = __local0__ {
+      __local2__ = input.x
+      json.remove({"a": {"b": {"c": 123}}}, __local2__, __local1__)
+      __local0__ = __local1__
+    }
+  note: jsonremove/error invalid paths type array with numbers
+  query: data.generated.p = x
+  want_error: 'json.remove: operand 2 must be one of {set, array} containing string
+    paths or array of path segments but got number'
+  want_error_code: eval_type_error

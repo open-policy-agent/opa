@@ -1,0 +1,15 @@
+cases:
+- data: {}
+  modules:
+  - |
+    package generated
+
+    p = __local0__ {
+      bits.rsh(7, -1, __local1__)
+      __local0__ = __local1__
+    }
+  note: bitsshiftright/rhs must be unsigned
+  query: data.generated.p = x
+  want_error: 'bits.rsh: operand 2 must be an unsigned integer number but got a negative
+    integer'
+  want_error_code: eval_type_error

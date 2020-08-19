@@ -1,0 +1,16 @@
+cases:
+- data: {}
+  modules:
+  - |
+    package generated
+
+    p[__local0__] {
+      bits.lsh(1, 3, __local1__)
+      __local0__ = __local1__
+    }
+  note: bitsshiftleft/basic shift-left
+  query: data.generated.p = x
+  sort_bindings: true
+  want_result:
+  - x:
+    - 8

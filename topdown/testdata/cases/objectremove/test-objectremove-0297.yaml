@@ -1,0 +1,17 @@
+cases:
+- data: {}
+  input_term: '{"x": null}'
+  modules:
+  - |
+    package generated
+
+    p = __local0__ {
+      __local2__ = input.x
+      object.remove({"a": 1}, __local2__, __local1__)
+      __local0__ = __local1__
+    }
+  note: objectremove/error invalid key param type nil input
+  query: data.generated.p = x
+  want_error: 'object.remove: operand 2 must be one of {object, string, array} but
+    got null'
+  want_error_code: eval_type_error

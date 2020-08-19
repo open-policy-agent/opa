@@ -1,0 +1,202 @@
+cases:
+- data:
+    topdown:
+      a:
+        b:
+          c:
+            x:
+            - 100
+            - 200
+            "y": false
+            z:
+              a: b
+      conflicts:
+        k: foo
+      g:
+        h:
+          k:
+          - 1
+          - 2
+          - 3
+      set:
+        u:
+        - 1
+        - 2
+        - 3
+        - 4
+  input_term: '{}'
+  modules:
+  - |
+    package enum_errors.caller
+
+    p[x] = y {
+      data.enum_errors.a[x] = y
+    }
+  - |
+    package enum_errors.a.b.c
+
+    p = x {
+      __local0__ = 1 / 0
+      x = __local0__
+    }
+  - |
+    package topdown.a.b.c.undefined1
+
+    p {
+      false
+    }
+
+    p {
+      false
+    }
+
+    q {
+      false
+    }
+  - |
+    package topdown
+
+    p[[x1, x2, x3, x4]] {
+      data.topdown.a.b[x1][x2][x3] = x4
+    }
+
+    q[[x1, x2, x3]] {
+      data.topdown.a.b[x1][x2][0] = x3
+    }
+
+    r[[x1, x2]] {
+      data.topdown.a.b[x1] = x2
+    }
+
+    s = __local1__ {
+      true
+      __local1__ = data.topdown.no
+    }
+
+    t = __local2__ {
+      true
+      __local2__ = data.topdown.a.b.c.undefined1
+    }
+
+    u = __local3__ {
+      true
+      __local3__ = data.topdown.missing.input.value
+    }
+
+    v = __local4__ {
+      true
+      __local4__ = data.topdown.g
+    }
+
+    w = __local5__ {
+      true
+      __local5__ = data.topdown.set
+    }
+
+    iterate_ground[x] {
+      data.topdown.virtual.constants[x] = 1
+    }
+  - |
+    package topdown.no.base.doc
+
+    p = true
+  - |
+    package topdown.a.b.c.empty
+  - |
+    package topdown.a.b.c.s
+
+    w = {"f": 10, "g": 9.9}
+  - |
+    package topdown.set
+
+    v[__local6__] {
+      true
+      __local6__ = data.topdown.set.u[_]
+    }
+  - |
+    package topdown.missing.input.value
+
+    p = __local7__ {
+      true
+      __local7__ = input.deadbeef
+    }
+  - |
+    package topdown.a.b.c
+
+    p = [1, 2]
+
+    q = [3, 4]
+
+    r["a"] = 1
+
+    r["b"] = 2
+  - |
+    package topdown.a.b.c.undefined2
+
+    p {
+      input.foo
+    }
+  - |
+    package topdown.virtual.constants
+
+    p = 1
+
+    q = 2
+
+    r = 1
+  - |
+    package topdown.conflicts
+
+    k = "bar"
+  - |
+    package topdown.g.h
+
+    p {
+      false
+    }
+  note: baseandvirtualdocs/base/virtual
+  query: data.topdown.p = x
+  sort_bindings: true
+  want_result:
+  - x:
+    - - c
+      - p
+      - 0
+      - 1
+    - - c
+      - p
+      - 1
+      - 2
+    - - c
+      - q
+      - 0
+      - 3
+    - - c
+      - q
+      - 1
+      - 4
+    - - c
+      - r
+      - a
+      - 1
+    - - c
+      - r
+      - b
+      - 2
+    - - c
+      - s
+      - w
+      - f: 10
+        g: 9.9
+    - - c
+      - x
+      - 0
+      - 100
+    - - c
+      - x
+      - 1
+      - 200
+    - - c
+      - z
+      - a
+      - b

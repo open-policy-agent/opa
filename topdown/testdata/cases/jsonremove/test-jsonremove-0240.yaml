@@ -1,0 +1,19 @@
+cases:
+- data: {}
+  modules:
+  - |
+    package generated
+
+    p = __local0__ {
+      json.remove({"a": [{"1": ["b", "c", "d"]}, {"x": "y"}]}, {"a/0/1/2"}, __local1__)
+      __local0__ = __local1__
+    }
+  note: jsonremove/object with number keys
+  query: data.generated.p = x
+  want_result:
+  - x:
+      a:
+      - "1":
+        - b
+        - c
+      - x: "y"
