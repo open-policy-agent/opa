@@ -296,10 +296,26 @@ async function test() {
 
                 const rs = dumpJSON(policy.module, policy.memory, result.addr);
 
-                try {
-                    assert.deepStrictEqual(rs, expResultSet, 'unexpected result set');
-                    state = PASS;
-                } catch (e) {
+                // Note: Resultset ordering does not matter.
+                if (rs.length === expResultSet.length) {
+                    let found = 0
+                    expResultSet.forEach(expResult => {
+                        for (let i = 0; i < rs.length; i++) {
+                            try {
+                                assert.deepStrictEqual(expResult, rs[i], "didn't match")
+                                found++
+                                break
+                            } catch (e) {
+                                // Ignore the error
+                            }
+                        }
+                    })
+                    if (expResultSet.length === found) {
+                        state = PASS;
+                    }
+                }
+
+                if (state !== PASS) {
                     msg = 'unexpected result';
                     extra = '\twant: ' + JSON.stringify(expResultSet) + '\n\tgot : ' + JSON.stringify(rs);
                 }
