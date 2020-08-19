@@ -751,6 +751,78 @@ func TestStatusUpdates(t *testing.T) {
 	}
 }
 
+func TestStatusUpdatesTimestamp(t *testing.T) {
+
+	ts := testServer{t: t}
+	ts.Start()
+	defer ts.Stop()
+
+	manager, err := plugins.New([]byte(fmt.Sprintf(`{
+			"labels": {"x": "y"},
+			"services": {
+				"localhost": {
+					"url": %q
+				}
+			},
+			"discovery": {"name": "config"},
+		}`, ts.server.URL)), "test-id", inmem.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	disco, err := New(manager)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx := context.Background()
+
+	// simulate HTTP 200 response from downloader
+	disco.oneShot(ctx, download.Update{ETag: "etag-1", Bundle: makeDataBundle(1, `{
+		"config": {
+			"status": {}
+		}
+	}`)})
+
+	if disco.status.LastSuccessfulDownload != disco.status.LastSuccessfulRequest || disco.status.LastSuccessfulDownload != disco.status.LastRequest {
+		t.Fatal("expected last successful request to be same as download and request")
+	}
+
+	if disco.status.LastSuccessfulActivation.IsZero() {
+		t.Fatal("expected last successful activation to be non-zero")
+	}
+
+	time.Sleep(time.Millisecond)
+
+	// simulate HTTP 304 response from downloader
+	disco.oneShot(ctx, download.Update{ETag: "etag-1", Bundle: nil})
+	if disco.status.LastSuccessfulDownload == disco.status.LastSuccessfulRequest || disco.status.LastSuccessfulDownload == disco.status.LastRequest {
+		t.Fatal("expected last successful download to differ from request and last request")
+	}
+
+	// simulate HTTP 200 response from downloader
+	disco.oneShot(ctx, download.Update{ETag: "etag-2", Bundle: makeDataBundle(2, `{
+		"config": {
+			"status": {}
+		}
+	}`)})
+
+	if disco.status.LastSuccessfulDownload != disco.status.LastSuccessfulRequest || disco.status.LastSuccessfulDownload != disco.status.LastRequest {
+		t.Fatal("expected last successful request to be same as download and request")
+	}
+
+	if disco.status.LastSuccessfulActivation.IsZero() {
+		t.Fatal("expected last successful activation to be non-zero")
+	}
+
+	// simulate error response from downloader
+	disco.oneShot(ctx, download.Update{Error: fmt.Errorf("unknown error")})
+
+	if disco.status.LastSuccessfulDownload != disco.status.LastSuccessfulRequest || disco.status.LastSuccessfulDownload == disco.status.LastRequest {
+		t.Fatal("expected last successful request to be same as download but different from request")
+	}
+}
+
 func makeDataBundle(n int, s string) *bundleApi.Bundle {
 	return &bundleApi.Bundle{
 		Manifest: bundleApi.Manifest{Revision: fmt.Sprintf("test-revision-%v", n)},
