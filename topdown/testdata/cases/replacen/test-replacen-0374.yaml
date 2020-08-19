@@ -1,0 +1,16 @@
+cases:
+- data: {}
+  modules:
+  - |
+    package generated
+
+    p[x] {
+      strings.replace_n({"<": "&lt;", ">": "&gt;"}, "This is <b>HTML</b>!", __local0__)
+      x = __local0__
+    }
+  note: replacen/replace multiple patterns
+  query: data.generated.p = x
+  sort_bindings: true
+  want_result:
+  - x:
+    - This is &lt;b&gt;HTML&lt;/b&gt;!

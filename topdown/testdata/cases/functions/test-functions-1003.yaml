@@ -1,0 +1,282 @@
+cases:
+- data:
+    a:
+    - 1
+    - 2
+    - 3
+    - 4
+    b:
+      v1: hello
+      v2: goodbye
+    c:
+    - x:
+      - true
+      - false
+      - foo
+      "y":
+      - null
+      - 3.14159
+      z:
+        p: true
+        q: false
+    d:
+      e:
+      - bar
+      - baz
+    f:
+    - xs:
+      - 1
+      ys:
+      - 2
+    - xs:
+      - 2
+      ys:
+      - 3
+    g:
+      a:
+      - 1
+      - 0
+      - 0
+      - 0
+      b:
+      - 0
+      - 2
+      - 0
+      - 0
+      c:
+      - 0
+      - 0
+      - 0
+      - 4
+    h:
+    - - 1
+      - 2
+      - 3
+    - - 2
+      - 3
+      - 4
+    l:
+    - a: bob
+      b: -1
+      c:
+      - 1
+      - 2
+      - 3
+      - 4
+    - a: alice
+      b: 1
+      c:
+      - 2
+      - 3
+      - 4
+      - 5
+      d: null
+    m: []
+    numbers:
+    - "1"
+    - "2"
+    - "3"
+    - "4"
+    strings:
+      bar: 2
+      baz: 3
+      foo: 1
+    three: 3
+  modules:
+  - |
+    package test.l1.l2
+
+    p = true
+
+    f(__local292__) = __local292__
+  - |
+    package test.omit_result
+
+    f(__local304__) = __local304__
+
+    p {
+      data.test.omit_result.f(1)
+    }
+  - |
+    package topdown_test_partial
+
+    __result__ = _result {
+      _result = "w do you do?"
+    }
+  - |
+    package ex
+
+    foo(__local210__) = y {
+      split(__local210__, "i", y)
+    }
+
+    bar[x] = y {
+      data.l[_].a = x
+      data.ex.foo(x, y)
+    }
+
+    chain0(__local211__) = y {
+      data.ex.foo(__local211__, y)
+    }
+
+    chain1(__local212__) = b {
+      data.ex.chain0(__local212__, b)
+    }
+
+    chain2 = d {
+      data.ex.chain1("fooibar", d)
+    }
+
+    cross(__local213__) = [a, b] {
+      split(__local213__, "i", y)
+      __local27__ = y[1]
+      data.ex.foo(__local27__, b)
+      __local28__ = y[2]
+      data.test.foo(__local28__, a)
+    }
+
+    falsy_func(__local214__) = false
+
+    falsy_func_else(__local215__) {
+      __local215__ = 1
+    }
+
+    else = false {
+      true
+    }
+
+    falsy_undefined {
+      data.ex.falsy_func(1)
+    }
+
+    falsy_negation {
+      not data.ex.falsy_func(1)
+    }
+
+    falsy_else_value = __local23__ {
+      true
+      data.ex.falsy_func_else(2, __local23__)
+    }
+
+    falsy_else_undefined {
+      data.ex.falsy_func_else(2)
+    }
+
+    falsy_else_negation {
+      not data.ex.falsy_func_else(2)
+    }
+
+    arrays([__local217__, __local218__]) = [a, b] {
+      data.ex.foo(__local217__, a)
+      data.ex.foo(__local218__, b)
+    }
+
+    arraysrule = y {
+      data.ex.arrays(["hih", "foo"], y)
+    }
+
+    objects({"foo": __local219__, "bar": __local220__}) = z {
+      data.ex.foo(__local219__, a)
+      data.test.foo(__local220__, b)
+      z = [a, b]
+    }
+
+    objectsrule = y {
+      data.ex.objects({"bar": "hi ho", "foo": "hih"}, y)
+    }
+
+    refoutput = y {
+      data.ex.foo("hih", z)
+      y = z[1]
+    }
+
+    void(__local221__) {
+      __local221__ = "foo"
+    }
+
+    voidGood {
+      not data.ex.void("bar", true)
+    }
+
+    voidBad {
+      data.ex.void("bar", true)
+    }
+
+    multi(1, __local222__) = y {
+      y = __local222__
+    }
+
+    multi(2, __local223__) = y {
+      __local24__ = 2 * __local223__
+      a = __local24__
+      __local25__ = a + 1
+      y = __local25__
+    }
+
+    multi(3, __local224__) = y {
+      __local26__ = __local224__ * 10
+      y = __local26__
+    }
+
+    multi("foo", __local225__) = y {
+      y = "bar"
+    }
+
+    multi1 = y {
+      data.ex.multi(1, 2, y)
+    }
+
+    multi2 = y {
+      data.ex.multi(2, 2, y)
+    }
+
+    multi3 = y {
+      data.ex.multi(3, 2, y)
+    }
+
+    multi4 = y {
+      data.ex.multi("foo", 2, y)
+    }
+
+    always_true_fn(__local226__) = true
+
+    always_true {
+      data.ex.always_true_fn(1)
+    }
+  - |
+    package test
+
+    foo(__local264__) = y {
+      trim(__local264__, "h o", y)
+    }
+
+    cross = y {
+      data.ex.cross("hi, my name is foo", y)
+    }
+
+    multi("foo", __local265__) = y {
+      y = __local265__
+    }
+
+    multi("bar", __local266__) = y {
+      y = "baz"
+    }
+
+    multi_cross_pkg = [y, z] {
+      data.test.multi("foo", "bar", y)
+      data.ex.multi(2, 1, z)
+    }
+  - |
+    package test
+
+    samepkg = y {
+      data.test.foo("how do you do?", y)
+    }
+  - |
+    package test.l1.l3
+
+    g(__local279__) = __local279__
+  note: functions/void good
+  query: data.ex.voidGood = x
+  want_result:
+  - x: true

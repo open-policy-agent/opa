@@ -1,0 +1,16 @@
+cases:
+- data: {}
+  input_term: '{"a": [1, 2, 3]}'
+  modules:
+  - |
+    package generated
+
+    p = __local0__ {
+      __local2__ = input.a
+      object.union(__local2__, {"b": 2}, __local1__)
+      __local0__ = __local1__
+    }
+  note: objectunion/error wrong lhs type input
+  query: data.generated.p = x
+  want_error: 'object.union: operand 1 must be object but got array'
+  want_error_code: eval_type_error

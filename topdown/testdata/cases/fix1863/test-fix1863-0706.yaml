@@ -1,0 +1,22 @@
+cases:
+- data: {}
+  modules:
+  - |
+    package a.b
+
+    # this module is empty
+  - |
+    package x
+
+    p = __local0__ { # p should be defined (an empty object)
+      true
+      __local0__ = data.a.b
+    }
+  note: fix1863/is defined
+  query: data = x
+  want_result:
+  - x:
+      a:
+        b: {}
+      x:
+        p: {}

@@ -1,0 +1,19 @@
+cases:
+- data: {}
+  modules:
+  - |
+    package generated
+
+    p[x] {
+      regex.find_all_string_submatch_n("[^aouiye]([aouiye])([^aouiye])?", "somestri", 1, __local0__)
+      x = __local0__
+    }
+  note: regexfindallstringsubmatch/multiple patterns, matches, and captures with specified
+    number of matches
+  query: data.generated.p = x
+  sort_bindings: true
+  want_result:
+  - x:
+    - - - som
+        - o
+        - m

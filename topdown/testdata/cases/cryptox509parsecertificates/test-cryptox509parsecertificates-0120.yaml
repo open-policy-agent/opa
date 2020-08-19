@@ -1,0 +1,101 @@
+cases:
+- data:
+    a:
+    - 1
+    - 2
+    - 3
+    - 4
+    b:
+      v1: hello
+      v2: goodbye
+    c:
+    - x:
+      - true
+      - false
+      - foo
+      "y":
+      - null
+      - 3.14159
+      z:
+        p: true
+        q: false
+    d:
+      e:
+      - bar
+      - baz
+    f:
+    - xs:
+      - 1
+      ys:
+      - 2
+    - xs:
+      - 2
+      ys:
+      - 3
+    g:
+      a:
+      - 1
+      - 0
+      - 0
+      - 0
+      b:
+      - 0
+      - 2
+      - 0
+      - 0
+      c:
+      - 0
+      - 0
+      - 0
+      - 4
+    h:
+    - - 1
+      - 2
+      - 3
+    - - 2
+      - 3
+      - 4
+    l:
+    - a: bob
+      b: -1
+      c:
+      - 1
+      - 2
+      - 3
+      - 4
+    - a: alice
+      b: 1
+      c:
+      - 2
+      - 3
+      - 4
+      - 5
+      d: null
+    m: []
+    numbers:
+    - "1"
+    - "2"
+    - "3"
+    - "4"
+    strings:
+      bar: 2
+      baz: 3
+      foo: 1
+    three: 3
+  modules:
+  - |
+    package generated
+
+    certs = "-----BEGIN CERTIFICATE-----\nMIIFdzCCBF+gAwIBAgISA3NriAEus/+cvflvhVQOW5zTMA0GCSqGSIb3DQEBCwUA\nMEoxCzAJBgNVBAYTAlVTMRYwFAYDVQQKEw1MZXQncyBFbmNyeXB0MSMwIQYDVQQD\nExpMZXQncyBFbmNyeXB0IEF1dGhvcml0eSBYMzAeFw0yMDA3MTAxNjAwMzBaFw0y\nMDEwMDgxNjAwMzBaMB4xHDAaBgNVBAMTE29wZW5wb2xpY3lhZ2VudC5vcmcwggEi\nMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQCyy8HZXVTJ2TSHXYnoL+CKYpo4\nwz1wowUcdt/XBgN08f37NxaNk+VAj8GD2s6zhoHLShyYS2PVosf7xumvyG914PLp\nIHO9WmCaZMqwEyvMM/VE9dBkKfaTo78BT6aXyJmnkjpeFmBOGs3uP5bUARj3Onnr\n7Aos9j45rgrytpelYTMlLi6jVtBv5RIZuMoJ15W252t8eIgsOq57ad0Bobeyy4Tu\nGhveP0V3vUJvI3ibqH5E9cWzI2f8UtoirUNf0J3tcng8JqSOuuzWDYWrRDAzQbJY\nqKzvVDcN+ptqV7GZ6JuqHhdwgDeqBOsveDbzAAyYSVPJjRWYea8MxlM7OXbtAgMB\nAAGjggKBMIICfTAOBgNVHQ8BAf8EBAMCBaAwHQYDVR0lBBYwFAYIKwYBBQUHAwEG\nCCsGAQUFBwMCMAwGA1UdEwEB/wQCMAAwHQYDVR0OBBYEFHDweb6KprSvWrw/vR6k\nwTVpudPtMB8GA1UdIwQYMBaAFKhKamMEfd265tE5t6ZFZe/zqOyhMG8GCCsGAQUF\nBwEBBGMwYTAuBggrBgEFBQcwAYYiaHR0cDovL29jc3AuaW50LXgzLmxldHNlbmNy\neXB0Lm9yZzAvBggrBgEFBQcwAoYjaHR0cDovL2NlcnQuaW50LXgzLmxldHNlbmNy\neXB0Lm9yZy8wNwYDVR0RBDAwLoITb3BlbnBvbGljeWFnZW50Lm9yZ4IXd3d3Lm9w\nZW5wb2xpY3lhZ2VudC5vcmcwTAYDVR0gBEUwQzAIBgZngQwBAgEwNwYLKwYBBAGC\n3xMBAQEwKDAmBggrBgEFBQcCARYaaHR0cDovL2Nwcy5sZXRzZW5jcnlwdC5vcmcw\nggEEBgorBgEEAdZ5AgQCBIH1BIHyAPAAdgBep3P531bA57U2SH3QSeAyepGaDISh\nEhKEGHWWgXFFWAAAAXM5q9vDAAAEAwBHMEUCIQCRHqgrtl07Y6TryfMmQN6TNKRV\nm1LTy9vI3Mh/krbSQQIgYgVAKwXRoPR+BN1pcJbJv3Aivbh6E7L987rMSEQk5VoA\ndgCyHgXMi6LNiiBOh2b5K7mKJSBna9r6cOeySVMt74uQXgAAAXM5q9uuAAAEAwBH\nMEUCIQDdruTutQ/UchckqYQ+2p9mutnrSnnQXa8xLA41YGzZHgIgXXETFbGfns2C\n7YJ8cDoYYAjmdzMg8k7hKXQGu/KsAb4wDQYJKoZIhvcNAQELBQADggEBAGk9p5yt\nOaDIPRPk5ImpH1f6f010mULWPV5Pjn6kzMHP9z5ndMz++1NOvHV4GVBCoeuKq1bp\nFCD+IgA9pcJAEXQ/u4GpmbAKUZzmfMIb89aRgnJp0mx9Y4BBd45ExUWs8w4cfgFZ\nyZUeHvWs1anpAcR2FIZpAVMQCaIgjOt2ddR1xv4acCw+mD/B9oKfGZEUgyIANvpB\nIDabggLSwFa9OKKXRBVRAafo7Oac21HQU7E3sXphaHZGfn2F27dD/qoqUcLqr4lC\nc7lNE0YGp6r+aPo9VLcH2V0lN4t+1VbVArwKznsNdcQnwKBetgqvZrgLg4+qjo4y\nuixJY38XU/b7baU=\n-----END CERTIFICATE-----"
+
+    p = __local2__ {
+      __local4__ = data.generated.certs
+      crypto.x509.parse_certificates(__local4__, __local3__)
+      __local0__ = __local3__
+      __local2__ = [__local1__ | __local1__ = __local0__[_].Subject.CommonName]
+    }
+  note: cryptox509parsecertificates/PEM, single cert, string
+  query: data.generated.p = x
+  want_result:
+  - x:
+    - openpolicyagent.org

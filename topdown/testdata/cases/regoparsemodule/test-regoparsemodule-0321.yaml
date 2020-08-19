@@ -1,0 +1,16 @@
+cases:
+- data:
+    err: package foo.
+    ok: "package foo.bar\n\n\t\timport data.a\n\n\t\tp { a = true }"
+  modules:
+  - |
+    package generated
+
+    p = x {
+      __local0__ = data.err
+      rego.parse_module("x.rego", __local0__, x)
+    }
+  note: regoparsemodule/error
+  query: data.generated.p = x
+  want_error: 'rego_parse_error: unexpected eof token: expected ident'
+  want_error_code: eval_builtin_error

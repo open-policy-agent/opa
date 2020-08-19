@@ -1,0 +1,95 @@
+cases:
+- data:
+    a:
+    - 1
+    - 2
+    - 3
+    - 4
+    b:
+      v1: hello
+      v2: goodbye
+    c:
+    - x:
+      - true
+      - false
+      - foo
+      "y":
+      - null
+      - 3.14159
+      z:
+        p: true
+        q: false
+    d:
+      e:
+      - bar
+      - baz
+    f:
+    - xs:
+      - 1
+      ys:
+      - 2
+    - xs:
+      - 2
+      ys:
+      - 3
+    g:
+      a:
+      - 1
+      - 0
+      - 0
+      - 0
+      b:
+      - 0
+      - 2
+      - 0
+      - 0
+      c:
+      - 0
+      - 0
+      - 0
+      - 4
+    h:
+    - - 1
+      - 2
+      - 3
+    - - 2
+      - 3
+      - 4
+    l:
+    - a: bob
+      b: -1
+      c:
+      - 1
+      - 2
+      - 3
+      - 4
+    - a: alice
+      b: 1
+      c:
+      - 2
+      - 3
+      - 4
+      - 5
+      d: null
+    m: []
+    numbers:
+    - "1"
+    - "2"
+    - "3"
+    - "4"
+    strings:
+      bar: 2
+      baz: 3
+      foo: 1
+    three: 3
+  modules:
+  - |
+    package generated
+
+    p = x {
+      io.jwt.verify_es512("eyJhbGciOiJFUzUxMiJ9.eyJTY29wZXMiOlsiZm9vIiwiYmFyIl0sIm5iZiI6MTQ1MTYwNjQwMH0.AYpssEoEqq9We9aKsnRykpECAVEOBRJJu8UgDzoL-F8fmB2LPxpS4Gl7D-9wAO5AJt4-9YSsgOb5FLc20MrZN30AAFYopZf75T1pEJQFrdDmOKT45abbrorcR7G_AHDbhBdDNM_R6GojYFg_HPxHndof745Yq5Tfw9PpJc-9kSyk6kqO", "-----BEGIN CERTIFICATE-----\nMIICWDCCAbmgAwIBAgIBAjAKBggqhkjOPQQDBDBWMQswCQYDVQQGEwJVUzEVMBMG\nA1UEBxMMUmVkd29vZCBDaXR5MQ4wDAYDVQQKEwVTdHlyYTEMMAoGA1UECxMDRGV2\nMRIwEAYDVQQDEwlsb2NhbGhvc3QwHhcNMjAwNTA3MTA1NDM3WhcNMjAwNTA3MTI1\nNDM3WjBWMQswCQYDVQQGEwJVUzEVMBMGA1UEBxMMUmVkd29vZCBDaXR5MQ4wDAYD\nVQQKEwVTdHlyYTEMMAoGA1UECxMDRGV2MRIwEAYDVQQDEwlsb2NhbGhvc3QwgZsw\nEAYHKoZIzj0CAQYFK4EEACMDgYYABAHLm3IMD/88vC/S1cCTyjrCjwHIGsjibFBw\nPBXt36YKCjUdS7jiJJR5YQVPypSv7gPaKKn1E8CqkfVdd3rrp1TocAEms4XvigtW\nZBZzffw9xyZCgmtQ2dTHsufi/5W/Yx8N3Uw+D2wl1LKcJraouo+qgamGfuou6WbA\noPEtdOg0+B4jF6M1MDMwDgYDVR0PAQH/BAQDAgWgMBMGA1UdJQQMMAoGCCsGAQUF\nBwMBMAwGA1UdEwEB/wQCMAAwCgYIKoZIzj0EAwQDgYwAMIGIAkIAzAAYDqMghX3S\n8UbS8s5TPAztJy9oNXFra5V8pPlUdNFc2ov2LN++scW46wCb/cJUyEc58sY7xFuK\nI5sCOkv95N8CQgFXmu354LZJ31zIovuUA8druOPe3TDnxMGwEEm2Lt43JNuhzNyP\nhJYh9/QKfe2AiwrLXEG4VVOIXdjq7vexl87evg==\n-----END CERTIFICATE-----", x)
+    }
+  note: jwtverifyrsa/success-es512-cert
+  query: data.generated.p = x
+  want_result:
+  - x: true

@@ -1,0 +1,102 @@
+cases:
+- data:
+    a:
+    - 1
+    - 2
+    - 3
+    - 4
+    b:
+      v1: hello
+      v2: goodbye
+    c:
+    - x:
+      - true
+      - false
+      - foo
+      "y":
+      - null
+      - 3.14159
+      z:
+        p: true
+        q: false
+    d:
+      e:
+      - bar
+      - baz
+    f:
+    - xs:
+      - 1
+      ys:
+      - 2
+    - xs:
+      - 2
+      ys:
+      - 3
+    g:
+      a:
+      - 1
+      - 0
+      - 0
+      - 0
+      b:
+      - 0
+      - 2
+      - 0
+      - 0
+      c:
+      - 0
+      - 0
+      - 0
+      - 4
+    h:
+    - - 1
+      - 2
+      - 3
+    - - 2
+      - 3
+      - 4
+    l:
+    - a: bob
+      b: -1
+      c:
+      - 1
+      - 2
+      - 3
+      - 4
+    - a: alice
+      b: 1
+      c:
+      - 2
+      - 3
+      - 4
+      - 5
+      d: null
+    m: []
+    numbers:
+    - "1"
+    - "2"
+    - "3"
+    - "4"
+    strings:
+      bar: 2
+      baz: 3
+      foo: 1
+    three: 3
+  modules:
+  - |
+    package generated
+
+    certs = "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"
+
+    p = __local2__ {
+      __local4__ = data.generated.certs
+      crypto.x509.parse_certificates(__local4__, __local3__)
+      __local0__ = __local3__
+      __local2__ = [__local1__ | __local1__ = __local0__[_].Subject.CommonName]
+    }
+  note: cryptox509parsecertificates/DER, chain, b64
+  query: data.generated.p = x
+  want_result:
+  - x:
+    - mail.google.com
+    - Thawte SGC CA

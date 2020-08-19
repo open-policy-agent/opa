@@ -1,0 +1,17 @@
+cases:
+- data:
+    err: package foo.
+    ok: "package foo.bar\n\n\t\timport data.a\n\n\t\tp { a = true }"
+  modules:
+  - |
+    package generated
+
+    p = x {
+      __local0__ = data.ok
+      rego.parse_module("x.rego", __local0__, module)
+      x = module["package"].path[1].value
+    }
+  note: regoparsemodule/ok
+  query: data.generated.p = x
+  want_result:
+  - x: foo

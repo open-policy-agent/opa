@@ -1,0 +1,95 @@
+cases:
+- data:
+    a:
+    - 1
+    - 2
+    - 3
+    - 4
+    b:
+      v1: hello
+      v2: goodbye
+    c:
+    - x:
+      - true
+      - false
+      - foo
+      "y":
+      - null
+      - 3.14159
+      z:
+        p: true
+        q: false
+    d:
+      e:
+      - bar
+      - baz
+    f:
+    - xs:
+      - 1
+      ys:
+      - 2
+    - xs:
+      - 2
+      ys:
+      - 3
+    g:
+      a:
+      - 1
+      - 0
+      - 0
+      - 0
+      b:
+      - 0
+      - 2
+      - 0
+      - 0
+      c:
+      - 0
+      - 0
+      - 0
+      - 4
+    h:
+    - - 1
+      - 2
+      - 3
+    - - 2
+      - 3
+      - 4
+    l:
+    - a: bob
+      b: -1
+      c:
+      - 1
+      - 2
+      - 3
+      - 4
+    - a: alice
+      b: 1
+      c:
+      - 2
+      - 3
+      - 4
+      - 5
+      d: null
+    m: []
+    numbers:
+    - "1"
+    - "2"
+    - "3"
+    - "4"
+    strings:
+      bar: 2
+      baz: 3
+      foo: 1
+    three: 3
+  modules:
+  - |
+    package generated
+
+    p = x {
+      io.jwt.verify_ps256("eyJ0eXAiOiAiSldUIiwgImFsZyI6ICJQUzI1NiJ9.eyJuYmYiOiAxNDQ0NDc4NDAwLCAiZm9vIjogImJhciJ9.i0F3MHWzOsBNLqjQzK1UVeQid9xPMowCoUsoM-C2BDxUY-FMKmCeJ1NJ4TGnS9HzFK1ftEvRnPT7EOxOkHPoCk1rz3feTFgtHtNzQqLM1IBTnz6aHHOrda_bKPHH9ZIYCRQUPXhpC90ivW_IJR-f7Z1WLrMXaJ71i1XteruENHrJJJDn0HedHG6N0VHugBHrak5k57cbE31utAdx83TEd8v2Y8wAkCJXKrdmTa-8419LNxW_yjkvoDD53n3X5CHhYkSymU77p0v6yWO38qDWeKJ-Fm_PrMAo72_rizDBj_yPa5LA3bT_EnsgZtC-sp8_SCDIH41bjiCGpRHhqgZmyw", `{"kty":"RSA","e":"AQAB","kid":"bf688c97-bf51-49ba-b9d3-115195bb0eb8","n":"uJApsyzFv-Y85M5JjezHvMDw_spgVCI7BqpYhnzK3xXw1dnkz1bWXGA9yF6AeADlE-1yc1ozrAURTnFSihIgj414i3MC2_0FkNcdAbnX7d9q9_jdCkHda4HER0zzXCaHlgnzoAz6edUU800-h0LleLnfgg4UST-0DFTCIGpfTbs7OPSy2WgT1vP6xbB45CUOJA7o0q6XE-hdhWWN0plrDiYD-0Y1SpOQYXmHhSmr-WVeKeoh5_0zeEVab6TQYec_16ByEyepaZB0g6WyGkFE6aG1NrpvDd24s_h7BAJg_S2mtu1lKWEqYjOgwzEl5XQQyXbpnq1USb12ArX16rZdew"}`, x)
+    }
+  note: jwtverifyrsa/success-ps256-jwk
+  query: data.generated.p = x
+  want_result:
+  - x: true

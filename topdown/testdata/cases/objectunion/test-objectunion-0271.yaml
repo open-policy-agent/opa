@@ -1,0 +1,16 @@
+cases:
+- data: {}
+  modules:
+  - |
+    package generated
+
+    p = __local0__ {
+      object.union({"a": 1}, {"b": 2}, __local1__)
+      __local0__ = __local1__
+    }
+  note: objectunion/base
+  query: data.generated.p = x
+  want_result:
+  - x:
+      a: 1
+      b: 2

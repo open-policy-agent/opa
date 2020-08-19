@@ -1,0 +1,15 @@
+cases:
+- data: {}
+  modules:
+  - |
+    package generated
+
+    p = x {
+      semver.compare("1.0.0", "1", __local0__)
+      x = __local0__
+    }
+  note: semvercompare/invalid version b
+  query: data.generated.p = x
+  want_error: 'semver.compare("1.0.0", "1"): eval_builtin_error: semver.compare: operand
+    2: string "1" is not a valid SemVer'
+  want_error_code: eval_builtin_error

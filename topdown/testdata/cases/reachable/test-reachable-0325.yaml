@@ -1,0 +1,23 @@
+cases:
+- data: {}
+  input_term: '{}'
+  modules:
+  - |
+    package generated
+
+    p = __local0__ {
+      graph.reachable({
+        "a": ["b"],
+        "b": ["c"],
+        "c": ["a"],
+      }, ["a"], __local1__)
+      sort(__local1__, __local2__)
+      __local0__ = __local2__
+    }
+  note: reachable/arrays
+  query: data.generated.p = x
+  want_result:
+  - x:
+    - a
+    - b
+    - c

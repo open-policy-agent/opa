@@ -1,0 +1,16 @@
+cases:
+- data: {}
+  input_term: '{"x": 123}'
+  modules:
+  - |
+    package generated
+
+    p = __local0__ {
+      __local2__ = input.x
+      object.filter(__local2__, {"a"}, __local1__)
+      __local0__ = __local1__
+    }
+  note: objectfilter/error invalid object param type number input
+  query: data.generated.p = x
+  want_error: 'object.filter: operand 1 must be object but got number'
+  want_error_code: eval_type_error

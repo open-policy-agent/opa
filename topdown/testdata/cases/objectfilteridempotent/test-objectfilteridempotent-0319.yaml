@@ -1,0 +1,20 @@
+cases:
+- data: {}
+  modules:
+  - |
+    package generated
+
+    p {
+      __local0__ = {"a": 1, "b": 2, "c": 3}
+      object.filter(__local0__, {"a"}, __local1__)
+      __local1__ = {"a": 1}
+      object.filter(__local0__, {"b"}, __local2__)
+      __local2__ = {"b": 2}
+      object.filter(__local0__, {"c"}, __local3__)
+      __local3__ = {"c": 3}
+      __local0__ = {"a": 1, "b": 2, "c": 3}
+    }
+  note: objectfilteridempotent/TestBuiltinObjectFilterIdempotent
+  query: data.generated.p = x
+  want_result:
+  - x: true

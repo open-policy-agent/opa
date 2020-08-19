@@ -1,0 +1,105 @@
+cases:
+- data:
+    a:
+    - 1
+    - 2
+    - 3
+    - 4
+    b:
+      v1: hello
+      v2: goodbye
+    c:
+    - x:
+      - true
+      - false
+      - foo
+      "y":
+      - null
+      - 3.14159
+      z:
+        p: true
+        q: false
+    d:
+      e:
+      - bar
+      - baz
+    f:
+    - xs:
+      - 1
+      ys:
+      - 2
+    - xs:
+      - 2
+      ys:
+      - 3
+    g:
+      a:
+      - 1
+      - 0
+      - 0
+      - 0
+      b:
+      - 0
+      - 2
+      - 0
+      - 0
+      c:
+      - 0
+      - 0
+      - 0
+      - 4
+    h:
+    - - 1
+      - 2
+      - 3
+    - - 2
+      - 3
+      - 4
+    l:
+    - a: bob
+      b: -1
+      c:
+      - 1
+      - 2
+      - 3
+      - 4
+    - a: alice
+      b: 1
+      c:
+      - 2
+      - 3
+      - 4
+      - 5
+      d: null
+    m: []
+    numbers:
+    - "1"
+    - "2"
+    - "3"
+    - "4"
+    strings:
+      bar: 2
+      baz: 3
+      foo: 1
+    three: 3
+  modules:
+  - |
+    package generated
+
+    p = [x, y, z] {
+      io.jwt.decode("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwIiwiaXNzIjoib3BhIiwiZXh0Ijp7ImFiYyI6IjEyMyIsImNiYSI6WzEwLCIxMCJdfX0.IIxF-uJ6i4K5Dj71xNLnUeqB9jmujl6ujTInhii1PxE", [x, y, z])
+    }
+  note: jwtbuiltins/complex-values
+  query: data.generated.p = x
+  want_result:
+  - x:
+    - alg: HS256
+      typ: JWT
+    - ext:
+        abc: "123"
+        cba:
+        - 10
+        - "10"
+      iss: opa
+      sub: "0"
+    - 208c45fae27a8b82b90e3ef5c4d2e751ea81f639ae8e5eae8d32278628b53f11
