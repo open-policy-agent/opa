@@ -90,10 +90,7 @@ cases:
       false
     }
 
-    default p = __local0__ {
-      true
-      __local0__ = [x | data.a[_] = x]
-    }
+    default p = [x | data.a[_] = x]
   note: defaultkeyword/array comprehension
   query: data.generated.p = x
   want_result:
