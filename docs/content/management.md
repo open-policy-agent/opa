@@ -834,6 +834,8 @@ Status updates contain the following fields:
 | `bundles[_].metrics` | `object` | Metrics from the last update of the bundle. |
 | `discovery.name` | `string` | Name of discovery bundle that the OPA instance is configured to download. |
 | `discovery.active_revision` | `string` | Opaque revision identifier of the last successful discovery activation. |
+| `discovery.last_request` | `string` | RFC3339 timestamp of last discovery bundle request. This timestamp should be >= to the successful request timestamp in normal operation. |
+| `discovery.last_successful_request` | `string` | RFC3339 timestamp of last successful discovery bundle request. This timestamp should be >= to the successful download timestamp in normal operation. |
 | `discovery.last_successful_download` | `string` | RFC3339 timestamp of last successful discovery bundle download. |
 | `discovery.last_successful_activation` | `string` | RFC3339 timestamp of last successful discovery bundle activation. |
 | `plugins` | `object` | A set of objects describing the state of configured plugins in OPA's runtime. |
