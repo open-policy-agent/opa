@@ -133,6 +133,7 @@ func (c *Discovery) oneShot(ctx context.Context, u download.Update) {
 }
 
 func (c *Discovery) processUpdate(ctx context.Context, u download.Update) {
+	c.status.SetRequest()
 
 	if u.Error != nil {
 		c.logError("Discovery download failed: %v", u.Error)
@@ -141,8 +142,10 @@ func (c *Discovery) processUpdate(ctx context.Context, u download.Update) {
 		return
 	}
 
+	c.status.LastSuccessfulRequest = c.status.LastRequest
+
 	if u.Bundle != nil {
-		c.status.SetDownloadSuccess()
+		c.status.LastSuccessfulDownload = c.status.LastSuccessfulRequest
 
 		if err := c.reconfigure(ctx, u); err != nil {
 			c.logError("Discovery reconfiguration error occurred: %v", err)
