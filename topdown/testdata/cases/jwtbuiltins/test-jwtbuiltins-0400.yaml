@@ -89,6 +89,15 @@ cases:
     p = [x, y, z] {
       io.jwt.decode("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiAiMCIsImlzcyI6ICJub3Qgb3BhIiwgImlzcyI6ICJhbHNvIG5vdCBvcGEiLCAiaXNzIjogIm9wYSJ9.XmVoLoHI3pxMtMO_WRONMSJzGUDP9pDjy8Jp0_tdRXY", [x, y, z])
     }
+  # The test below checks that payloads with duplicate keys
+  # in their encoding produce a token object that binds the key
+  # to the last occurring value, as per RFC 7519 Section 4.
+  # It tests a payload encoding that has 3 duplicates of the
+  # "iss" key, with the values "not opa", "also not opa" and
+  # "opa", in that order.
+  # Go's json.Unmarshal exhibits this behavior, but it is not
+  # documented, so this test is meant to catch that behavior
+  # if it changes.
   note: jwtbuiltins/duplicate-keys
   query: data.generated.p = x
   want_result:
