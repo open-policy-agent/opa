@@ -239,10 +239,10 @@ cases:
       data.ex.fn(100, false, z)
     }
 
-    fn(__local0__, __local1__) = "large" {
-      __local0__ > 100
+    fn(x, y) = "large" {
+      x > 100
     } else = "small" {
-      __local3__ = true
+      y = true
     } else = "medium" {
       true
     }

@@ -10,6 +10,5 @@ cases:
     }
   note: semvercompare/invalid version a
   query: data.generated.p = x
-  want_error: 'semver.compare("1", "1.0.0"): eval_builtin_error: semver.compare: operand
-    1: string "1" is not a valid SemVer'
+  want_error: 'semver.compare: operand 1: string "1" is not a valid SemVer'
   want_error_code: eval_builtin_error

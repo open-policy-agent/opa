@@ -90,10 +90,7 @@ cases:
       false
     }
 
-    default p = __local0__ {
-      true
-      __local0__ = {x: k | data.d[k][_] = x}
-    }
+    default p = {x: k | data.d[k][_] = x}
   note: defaultkeyword/object comprehension
   query: data.generated.p = x
   want_result:
