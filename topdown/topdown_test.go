@@ -5,18 +5,24 @@
 package topdown
 
 import (
+	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/open-policy-agent/opa/format"
+
+	"github.com/ghodss/yaml"
 
 	iCache "github.com/open-policy-agent/opa/topdown/cache"
 
@@ -3190,37 +3196,40 @@ func init() {
 var testID = 0
 var testIDMutex sync.Mutex
 
+func getTestNamespace() string {
+	programCounters := make([]uintptr, 20)
+	n := runtime.Callers(0, programCounters)
+	if n > 0 {
+		frames := runtime.CallersFrames(programCounters[:n])
+		for more := true; more; {
+			var f runtime.Frame
+			f, more = frames.Next()
+			if strings.HasPrefix(f.Function, "github.com/open-policy-agent/opa/topdown.Test") {
+				return strings.TrimPrefix(strings.ToLower(strings.TrimPrefix(strings.TrimPrefix(f.Function, "github.com/open-policy-agent/opa/topdown.Test"), "TopDown")), "builtin")
+			}
+		}
+	}
+	return ""
+}
+
 func dump(note string, modules map[string]*ast.Module, data interface{}, docpath []string, input *ast.Term, exp interface{}, requiresSort bool) {
 
-	// Replace topdown errors with simpler errors that are reported by compiled
-	// policies today.
-	var (
-		varAssignmentConflictErr = "var assignment conflict"
-		withConflictErr          = "with target conflict"
-		objectInsertConflictErr  = "object insert conflict"
+	moduleSet := []string{}
+	for _, module := range modules {
+		moduleSet = append(moduleSet, string(bytes.ReplaceAll(format.MustAst(module), []byte("\t"), []byte("  "))))
+	}
 
-		errMap = map[string]string{
-			"eval_conflict_error: complete rules must not produce multiple outputs":            varAssignmentConflictErr,
-			"eval_conflict_error: functions must not produce multiple outputs for same inputs": varAssignmentConflictErr,
-			"eval_conflict_error: object keys must be unique":                                  objectInsertConflictErr,
-			"eval_with_merge_error: real and replacement data could not be merged":             withConflictErr, // data conflict
-			"eval_conflict_error: conflicting documents":                                       withConflictErr, // input conflict
-		}
-	)
+	namespace := getTestNamespace()
 
 	test := map[string]interface{}{
-		"note":        note,
-		"data":        data,
-		"module_asts": modules,
-		"query":       strings.Join(append([]string{"data"}, docpath...), ".") + " = x",
+		"note":    namespace + "/" + note,
+		"data":    data,
+		"modules": moduleSet,
+		"query":   strings.Join(append([]string{"data"}, docpath...), ".") + " = x",
 	}
 
 	if input != nil {
-		var err error
-		test["input"], err = ast.JSON(input.Value)
-		if err != nil {
-			panic(err)
-		}
+		test["input_term"] = input.String()
 	}
 
 	switch e := exp.(type) {
@@ -3235,24 +3244,22 @@ func dump(note string, modules map[string]*ast.Module, data interface{}, docpath
 			rs = append(rs, map[string]interface{}{"x": exp})
 		}
 		test["want_result"] = rs
-	case error:
-		str := e.Error()
-		if replace, ok := errMap[str]; ok {
-			test["want_error"] = replace
-		} else {
-			test["want_error"] = str
+		if requiresSort {
+			test["sort_bindings"] = true
 		}
+	case error:
+		test["want_error_code"] = e.(*Error).Code
+		test["want_error"] = e.(*Error).Message
 	default:
-		test["skip"] = true
-		test["skip_reason"] = "test case not supported"
+		panic("Unexpected test expectation. Cowardly refusing to generate test cases.")
 	}
 
-	bs, err := json.MarshalIndent(map[string]interface{}{"cases": []interface{}{test}}, "", "  ")
+	bs, err := yaml.Marshal(map[string]interface{}{"cases": []interface{}{test}})
 	if err != nil {
 		panic(err)
 	}
 
-	dir := os.Getenv("OPA_DUMP_TEST")
+	dir := path.Join(os.Getenv("OPA_DUMP_TEST"), namespace)
 
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		panic(err)
@@ -3263,7 +3270,9 @@ func dump(note string, modules map[string]*ast.Module, data interface{}, docpath
 	c := testID
 	testIDMutex.Unlock()
 
-	if err := ioutil.WriteFile(filepath.Join(dir, fmt.Sprintf("test-%04d.json", c)), bs, 0644); err != nil {
+	filename := fmt.Sprintf("test-%v-%04d.yaml", namespace, c)
+
+	if err := ioutil.WriteFile(filepath.Join(dir, filename), bs, 0644); err != nil {
 		panic(err)
 	}
 
