@@ -2191,4 +2191,14 @@ And many other small improvements and fixes.
 - Introductions to policy, policy-enabling, and how OPA works
 - Language reference that serves as guide for new users
 - Tutorial that introduces users to the REPL
-- Tutorial that introduces users to policy-enabling with a Docker Authorization plugin
+
+## 0.23.1
+
+### Fixes
+
+- plugins/discovery: Set the last request and last successful request in discovery status ([#2630](https://github.com/open-policy-agent/opa/issues/2630)) 
+
+### Miscellaneous
+
+- plugins/rest: Add response header timeout for REST client
+
