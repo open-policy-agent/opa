@@ -20,8 +20,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
-	"github.com/open-policy-agent/opa/internal/testcases"
 	"github.com/open-policy-agent/opa/rego"
+	"github.com/open-policy-agent/opa/test/cases"
 	"github.com/open-policy-agent/opa/types"
 	"github.com/open-policy-agent/opa/util"
 )
@@ -38,11 +38,11 @@ type compiledTestCaseSet struct {
 }
 
 type compiledTestCase struct {
-	testcases.TestCase
+	cases.TestCase
 	WASM []byte `json:"wasm,omitempty"`
 }
 
-func compileTestCases(ctx context.Context, tests testcases.Set) (*compiledTestCaseSet, error) {
+func compileTestCases(ctx context.Context, tests cases.Set) (*compiledTestCaseSet, error) {
 	var result []compiledTestCase
 	for _, tc := range tests.Cases {
 
@@ -150,7 +150,7 @@ func run(params params) error {
 					return err
 				}
 
-				var tcs testcases.Set
+				var tcs cases.Set
 
 				if err := util.Unmarshal(bs, &tcs); err != nil {
 					return err

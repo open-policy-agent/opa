@@ -96,7 +96,7 @@ Built-in functions may be upstreamed if they are generally useful and provide fu
 impractical to implement natively in Rego (e.g., CIDR arithmetic). Implementations should avoid thirdparty
 dependencies. If absolutely necessary, consider importing the code manually into the `internal` package.
 
-All built-in function implementations must include a test suite. See [topdown/testdata/cases/helloworld](https://github.com/open-policy-agent/opa/blob/master/topdown/testdata/cases/helloworld)
+All built-in function implementations must include a test suite. See [test/cases/testdata/helloworld](https://github.com/open-policy-agent/opa/blob/master/test/cases/testdata/helloworld)
 in this repository for an example of how to implement tests for your built-in functions.
 
 ## Benchmarks
