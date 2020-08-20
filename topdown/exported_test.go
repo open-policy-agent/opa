@@ -11,23 +11,21 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/open-policy-agent/opa/storage"
-
-	"github.com/open-policy-agent/opa/storage/inmem"
-
 	"github.com/open-policy-agent/opa/ast"
-	"github.com/open-policy-agent/opa/internal/testcases"
+	"github.com/open-policy-agent/opa/storage"
+	"github.com/open-policy-agent/opa/storage/inmem"
+	"github.com/open-policy-agent/opa/test/cases"
 )
 
 func TestRego(t *testing.T) {
-	for _, tc := range testcases.MustLoadRecursive("testdata/cases").Sorted().Cases {
+	for _, tc := range cases.MustLoad("../test/cases/testdata").Sorted().Cases {
 		t.Run(tc.Note, func(t *testing.T) {
 			testRun(t, tc)
 		})
 	}
 }
 
-func testRun(t *testing.T, tc testcases.TestCase) {
+func testRun(t *testing.T, tc cases.TestCase) {
 
 	ctx := context.Background()
 

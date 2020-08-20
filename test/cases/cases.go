@@ -2,8 +2,8 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-// Package testcases contains utilities for evaluation test cases.
-package testcases
+// Package cases contains utilities for evaluation test cases.
+package cases
 
 import (
 	"io/ioutil"
@@ -45,9 +45,21 @@ type TestCase struct {
 	SortBindings  bool                      `json:"sort_bindings,omitempty"`   // indicates that binding values should be treated as sets
 }
 
-// LoadRecursive returns a map of test cases loaded from the specified directory path (recursively).
-// The map is keyed by the name of the file that contained the test cases.
-func LoadRecursive(dirpath string) (Set, error) {
+// Load returns a set of built-in test cases.
+func Load(path string) (Set, error) {
+	return loadRecursive(path)
+}
+
+// MustLoad returns a set of built-in test cases or panics if an error occurs.
+func MustLoad(path string) Set {
+	result, err := Load(path)
+	if err != nil {
+		panic(err)
+	}
+	return result
+}
+
+func loadRecursive(dirpath string) (Set, error) {
 
 	result := Set{}
 
@@ -80,13 +92,4 @@ func LoadRecursive(dirpath string) (Set, error) {
 	})
 
 	return result, err
-}
-
-// MustLoadRecursive is a wrapper around LoadRecursive for test purposes.
-func MustLoadRecursive(dirpath string) Set {
-	result, err := LoadRecursive(dirpath)
-	if err != nil {
-		panic(err)
-	}
-	return result
 }
