@@ -1,0 +1,14 @@
+cases:
+- data: {}
+  modules:
+  - |
+    package generated
+
+    p = __local0__ {
+      bits.and(7.2, 42, __local1__)
+      __local0__ = __local1__
+    }
+  note: bitsand/lhs (float) error
+  query: data.generated.p = x
+  want_error: 'bits.and: operand 1 must be integer number but got floating-point number'
+  want_error_code: eval_type_error

@@ -1,0 +1,100 @@
+cases:
+- data:
+    a:
+    - 1
+    - 2
+    - 3
+    - 4
+    b:
+      v1: hello
+      v2: goodbye
+    c:
+    - x:
+      - true
+      - false
+      - foo
+      "y":
+      - null
+      - 3.14159
+      z:
+        p: true
+        q: false
+    d:
+      e:
+      - bar
+      - baz
+    f:
+    - xs:
+      - 1
+      ys:
+      - 2
+    - xs:
+      - 2
+      ys:
+      - 3
+    g:
+      a:
+      - 1
+      - 0
+      - 0
+      - 0
+      b:
+      - 0
+      - 2
+      - 0
+      - 0
+      c:
+      - 0
+      - 0
+      - 0
+      - 4
+    h:
+    - - 1
+      - 2
+      - 3
+    - - 2
+      - 3
+      - 4
+    l:
+    - a: bob
+      b: -1
+      c:
+      - 1
+      - 2
+      - 3
+      - 4
+    - a: alice
+      b: 1
+      c:
+      - 2
+      - 3
+      - 4
+      - 5
+      d: null
+    m: []
+    numbers:
+    - "1"
+    - "2"
+    - "3"
+    - "4"
+    strings:
+      bar: 2
+      baz: 3
+      foo: 1
+    three: 3
+  modules:
+  - |
+    package generated
+
+    csr = "LS0tLS1CRUdJTiBDRVJUSUZJQ0FURSBSRVFVRVNULS0tLS0KTUlJQ21EQ0NBWUFDQVFBd1V6RUxNQWtHQTFVRUJoTUNWVk14RkRBU0JnTlZCQU1NQzJWNFlXMXdiR1V1WTI5dApNUW93Q0FZRFZRUUhEQUVnTVFvd0NBWURWUVFLREFFZ01Rb3dDQVlEVlFRSURBRWdNUW93Q0FZRFZRUUxEQUVnCk1JSUJJakFOQmdrcWhraUc5dzBCQVFFRkFBT0NBUThBTUlJQkNnS0NBUUVBMlpkaG1zaERBVTBYYnhnTk1GQWsKeEdWQnNjaHdWb2s5dXBBU2ZVWDA4VFlqMFZrV0VxNitmemdOdmRQSnd6Nm1lUDlnL01hRmhPYW91Nmh1UEhmbwpTVTlKN1FiTW56Uktsc0VJTzNodEM1QUt3OXYyZldVZGpCQS92Q1dZdXU1aUc1ZTdtUHNXWjd1cGxuVGZSekM4ClJLK0srWXJtNEQ4NHE1bHR5NEMzS2tRc0FjU0xQZk9MMXMvYjJyV21KR0FoV3NSa2doTVk2V3dza3VYWXRINTkKRzl5VURHUUhoalprcHFlZFY0OUM4c0NwMU8vWVpvU0hncDdHK0JiaFRta05CRzY3OFZHREplTnB3SG96dnRjVQpyQVNGRFJ4WnhPdTFHRzE3L1FiVW9SNVVkOTNwaUtaU0U2UHVDU2VCcy9UQmFJc3ZwUGtudVhkOXI4WGovbVd5CmtRSURBUUFCb0FBd0RRWUpLb1pJaHZjTkFRRUxCUUFEZ2dFQkFBeDJkaCtkMU1CaEwwaDJYZklxaDVEYy9lYWoKU0xadGFNTWlJY1h1cC96UTl2eENXSkZlSGYzczBJdXliMEhkMlZNZ1BSYU8ydWRkY2JZdFFlKzJnWUtrTzFMWApCdHdQcXcwWHAweUF2dDUxRzJvZmVCbCtFa0ptNjk3RlNtemg4eDJJZFFBSkMzWi9ROFdMVmh3NFg2WlVicnhqCjJnTjJmaVhjS0RKbGVkcUgxY2V4WVVvbnlLSDZubG4wbzQzUUtEOFlSZG9hNVFqb3Ixb0JkY3dSTTA0VDM4ak0KV1B3d2JZTjNrVE9Ea0tiaVFVVWxVeFZuNnFnZTlNTWt0c0lOWkc0eDY1QmIwaWxTdHExRWQwN2Y5NmVnbHNKaApZVE9VRnZpZDZVSkVEcEJzcjhyZFROSW1JQkhCdkkra1BHS2FqcW83Z0VNc3hFYkNkemFHUTNZZnNYWT0KLS0tLS1FTkQgQ0VSVElGSUNBVEUgUkVRVUVTVC0tLS0t"
+
+    p = __local1__ {
+      __local3__ = data.generated.csr
+      crypto.x509.parse_certificate_request(__local3__, __local2__)
+      __local0__ = __local2__
+      __local1__ = __local0__.Subject.CommonName
+    }
+  note: cryptox509parsecertificaterequest/PEM, b64
+  query: data.generated.p = x
+  want_result:
+  - x: example.com

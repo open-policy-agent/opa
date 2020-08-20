@@ -1,0 +1,117 @@
+cases:
+- data:
+    a:
+    - 1
+    - 2
+    - 3
+    - 4
+    b:
+      v1: hello
+      v2: goodbye
+    c:
+    - x:
+      - true
+      - false
+      - foo
+      "y":
+      - null
+      - 3.14159
+      z:
+        p: true
+        q: false
+    d:
+      e:
+      - bar
+      - baz
+    f:
+    - xs:
+      - 1
+      ys:
+      - 2
+    - xs:
+      - 2
+      ys:
+      - 3
+    g:
+      a:
+      - 1
+      - 0
+      - 0
+      - 0
+      b:
+      - 0
+      - 2
+      - 0
+      - 0
+      c:
+      - 0
+      - 0
+      - 0
+      - 4
+    h:
+    - - 1
+      - 2
+      - 3
+    - - 2
+      - 3
+      - 4
+    l:
+    - a: bob
+      b: -1
+      c:
+      - 1
+      - 2
+      - 3
+      - 4
+    - a: alice
+      b: 1
+      c:
+      - 2
+      - 3
+      - 4
+      - 5
+      d: null
+    m: []
+    numbers:
+    - "1"
+    - "2"
+    - "3"
+    - "4"
+    strings:
+      bar: 2
+      baz: 3
+      foo: 1
+    three: 3
+  modules:
+  - |
+    package generated
+
+    r = __local0__ {
+      true
+      __local0__ = data.test
+    }
+
+    q = x {
+      data.generated.r = x with data.test.a.c as 2
+    }
+
+    p = x {
+      data.generated.q = x with data.test.a.b as 1
+    }
+  - |
+    package test.a
+
+    d = 3
+  - |
+    package test
+
+    e = 4
+  note: withkeyword/with stack (data)
+  query: data.generated.p = x
+  want_result:
+  - x:
+      a:
+        b: 1
+        c: 2
+        d: 3
+      e: 4

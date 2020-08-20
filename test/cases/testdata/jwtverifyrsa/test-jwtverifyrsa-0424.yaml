@@ -1,0 +1,95 @@
+cases:
+- data:
+    a:
+    - 1
+    - 2
+    - 3
+    - 4
+    b:
+      v1: hello
+      v2: goodbye
+    c:
+    - x:
+      - true
+      - false
+      - foo
+      "y":
+      - null
+      - 3.14159
+      z:
+        p: true
+        q: false
+    d:
+      e:
+      - bar
+      - baz
+    f:
+    - xs:
+      - 1
+      ys:
+      - 2
+    - xs:
+      - 2
+      ys:
+      - 3
+    g:
+      a:
+      - 1
+      - 0
+      - 0
+      - 0
+      b:
+      - 0
+      - 2
+      - 0
+      - 0
+      c:
+      - 0
+      - 0
+      - 0
+      - 4
+    h:
+    - - 1
+      - 2
+      - 3
+    - - 2
+      - 3
+      - 4
+    l:
+    - a: bob
+      b: -1
+      c:
+      - 1
+      - 2
+      - 3
+      - 4
+    - a: alice
+      b: 1
+      c:
+      - 2
+      - 3
+      - 4
+      - 5
+      d: null
+    m: []
+    numbers:
+    - "1"
+    - "2"
+    - "3"
+    - "4"
+    strings:
+      bar: 2
+      baz: 3
+      foo: 1
+    three: 3
+  modules:
+  - |
+    package generated
+
+    p = x {
+      io.jwt.verify_ps384("eyJhbGciOiJQUzM4NCJ9.eyJTY29wZXMiOlsiZm9vIiwiYmFyIl0sIm5iZiI6MTQ1MTYwNjQwMH0.EHPUvPr6uJOYqdza95WbM1SYD8atZHJEVRggpwOWnHGsjQBoEarJb8QgW7TY22OXwGw2HWluTiyT_MAz02NaHRzZv6AgrmxCLChMWkCHLwPxqjs0xSvVAMLzHHq2X2Bcujo9KORGudR7zKz8pOX5Mfnm7Z6OGtqPCPLaIdVJlddNsG6a571NOuVuDWbcg0omeRDANZpCZMJeAQN2M-4Q61ef6zcQHK1R-QqzBhw6HzMgqR1LRJ0xbrmD-L5o53JM3pV1e1juKNXVK3vWkDQRCQORFn1lyH5isfSsiiHW-x90sUC7TrU_cOji4MMmOCME6kkwxe57ZgpeXtdVTvldpw", "-----BEGIN CERTIFICATE-----\nMIIDXDCCAkSgAwIBAgIBKjANBgkqhkiG9w0BAQsFADBWMQswCQYDVQQGEwJVUzEV\nMBMGA1UEBxMMUmVkd29vZCBDaXR5MQ4wDAYDVQQKEwVTdHlyYTEMMAoGA1UECxMD\nRGV2MRIwEAYDVQQDEwlsb2NhbGhvc3QwHhcNMjAwNTA3MDkxMjU2WhcNMjAwNTA3\nMTExMjU2WjBWMQswCQYDVQQGEwJVUzEVMBMGA1UEBxMMUmVkd29vZCBDaXR5MQ4w\nDAYDVQQKEwVTdHlyYTEMMAoGA1UECxMDRGV2MRIwEAYDVQQDEwlsb2NhbGhvc3Qw\nggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDtyVWH2FE8cU8LRcArH4Tw\nDhBOFcmJF28LrvRObcbDYsae6rEwby0aRgSxjTEMgyGBjroBSl22wOSA93kwx4pu\npfXEqbwywn9FhyKBb/OXQSglPmwrpmzQtPJGzBHncL+PPjRhPfqimwf7ZIPKAAgI\nz9O6ppGhE/x4Ct444jthUIBZuG5cUXhgiPBQdIQ3K88QhgVwcufTZkNHj4iSDfhl\nVFDHVjXjd2B/yGODjyv0TyChV0YBNGjMv7YFLWmIFUFzK+6qNSxu4czPtRkyfwaV\n2GW/PBT5f8fc6fKgQZ6k6BLK6+pi0iPh5TUizyHtqtueWDbrJ+wfdJilQS8D+EGr\nAgMBAAGjNTAzMA4GA1UdDwEB/wQEAwIFoDATBgNVHSUEDDAKBggrBgEFBQcDATAM\nBgNVHRMBAf8EAjAAMA0GCSqGSIb3DQEBCwUAA4IBAQBgVAM50/0aBTBxESYKIKN4\nE+qbV6aE0C+wYJLet0EWPTxwmFZamq5LNEO/D6xyoY5WHY60EyHRMs0agSB/ATBX\n5ULdEwh9G0NjxqivCcoddQ1fuVS2PrrqNL7VlRnYbTpd8/Dh4qnyl5FltlyZ/29L\ny7BWOwlcBlZdhsfH8svNX4PUxjRD+jmnczCDi7XSOKT8htKUV2ih1c9JrWpIhCi/\nHzEXkaAxNdhBNdIsLQMo3qq9fkSgNZQk9/ecJNPeuJ/UYyr5Xa4PxIWl4U+P7yuI\n+Q3FSPmUbiVsSGqMhh6V/DN8M+T5/KiSB47gFOfxc2/RR5aw4HkSp3WxwbT9njbE\n-----END CERTIFICATE-----", x)
+    }
+  note: jwtverifyrsa/success-ps384-cert
+  query: data.generated.p = x
+  want_result:
+  - x: true

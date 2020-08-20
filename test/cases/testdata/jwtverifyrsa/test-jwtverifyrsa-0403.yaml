@@ -1,0 +1,95 @@
+cases:
+- data:
+    a:
+    - 1
+    - 2
+    - 3
+    - 4
+    b:
+      v1: hello
+      v2: goodbye
+    c:
+    - x:
+      - true
+      - false
+      - foo
+      "y":
+      - null
+      - 3.14159
+      z:
+        p: true
+        q: false
+    d:
+      e:
+      - bar
+      - baz
+    f:
+    - xs:
+      - 1
+      ys:
+      - 2
+    - xs:
+      - 2
+      ys:
+      - 3
+    g:
+      a:
+      - 1
+      - 0
+      - 0
+      - 0
+      b:
+      - 0
+      - 2
+      - 0
+      - 0
+      c:
+      - 0
+      - 0
+      - 0
+      - 4
+    h:
+    - - 1
+      - 2
+      - 3
+    - - 2
+      - 3
+      - 4
+    l:
+    - a: bob
+      b: -1
+      c:
+      - 1
+      - 2
+      - 3
+      - 4
+    - a: alice
+      b: 1
+      c:
+      - 2
+      - 3
+      - 4
+      - 5
+      d: null
+    m: []
+    numbers:
+    - "1"
+    - "2"
+    - "3"
+    - "4"
+    strings:
+      bar: 2
+      baz: 3
+      foo: 1
+    three: 3
+  modules:
+  - |
+    package generated
+
+    p = x {
+      io.jwt.verify_rs256("eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJmb28iOiJiYXIiLCJuYmYiOjE0NDQ0Nzg0MDB9.N0-EVdv5pvUfZYFRzMGnsWpNLHgwMEgViPwpuLBEtt32682OgnOK-N4X-2gpQEjQIbUr0IFym8YsRQU9GZvqQP72Sd6yOQNGSNeE74DpUZCAjBa9SBIb1UlD2MxZB-e7YJiEyo7pZhimaqorXrgorlaXYGMvsCFWDYmBLzGaGYaGJyEpkZHzHb7ujsDrJJjdEtDV3kh13gTHzLPvqnoXuuxelXye_8LPIhvgDy52gT4shUEso71pJCMv_IqAR19ljVE17lJzoi6VhRn6ReNUE-yg4KfCO4Ypnuu-mcQr7XtmSYoWkX72L5UQ-EyWkoz-w0SYKoJTPzHkTL2thYStksVpeNkGuck25aUdtrQgmPbao0QOWBFlkg03e6mPCD2-aXOt1ofth9mZGjxWMHX-mUqHaNmaWM3WhRztJ73hWrmB1YOdYQtOEHejfvR_td5tqIw4W6ufRy2ScOypGQe7kNaUZxpgxZ1927ZGNiQgawIOAQwXOcFx1JNSEIeg55-cYJrHPxsXGOB9ZxW-qnswmFJp474iUVXjzGhLexJDXBwvKGs_O3JFjMsvyV9_hm7bnQU0vG_HgPYs5i9VOHRMujq1vFBcm52TFVOBGdWaGfb9RRdLLYvVkJLk0Poh19rsCWb7-Vc3mAaGGpvuk4Wv-PnGGNC-V-FQqIbijHDrn_g", `{"kty":"RSA","e":"AQAB","kid":"4db88b6b-cda9-4242-b79e-51346edc313c","n":"7nJwME0QNM6g0Ou9SyljlcIY4cnBcs8oWVHe74bJ7JTgYmDOk2CA14RE3wJNkUKERP_cRdesKDA_BToJXJUroYvhjXxUYn-i3wK5vOGRY9WUtTF9paIIpIV4USUOwDh3ufhA9K3tyh-ZVsqn80em0Lj2ME0EgScuk6u0_UYjjNvcmnQl-uDmghG8xBZh7TZW2-aceMwlb4LJIP36VRhgjKQGIxg2rW8ROXgJaFbNRCbiOUUqlq9SUZuhHo8TNOARXXxp9R4Fq7Cl7ZbwWtNPwAtM1y-Z-iyu_i91m0YLlU2XBOGLu9IA8IZjPlbCnk_SygpV9NNwTY9DSQ0QfXcPTGlsbFwzRzTlhH25wEl3j-2Ub9w_NX7Yo-j_Ei9eGZ8cq0bcvEwDeIo98HeNZWrLUUArayRYvh8zutOlzqehw8waFk9AxpfEp9oWekSz8gZw9OL773EhnglYxxjkPHNzk66CufLuTEf6uE9NLE5HnlQMbiqBFirIyAWGKyU3v2tphKvcogxmzzWA51p0GY0lGZvlLNt2NrJv2oGecyl3BLqHnBi-rGAosa_8XgfQT8RIk7YR_tDPDmPfaqSIc0po-NcHYEH82Yv-gfKSK--1fyssGCsSRJs8PFMuPGgv62fFrE_EHSsHJaNWojSYce_Trxm2RaHhw_8O4oKcfrbaRf8"}`, x)
+    }
+  note: jwtverifyrsa/success-jwk
+  query: data.generated.p = x
+  want_result:
+  - x: true

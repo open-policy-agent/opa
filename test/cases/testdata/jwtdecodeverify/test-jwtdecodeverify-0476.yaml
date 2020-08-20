@@ -1,0 +1,126 @@
+cases:
+- data:
+    a:
+    - 1
+    - 2
+    - 3
+    - 4
+    b:
+      v1: hello
+      v2: goodbye
+    c:
+    - x:
+      - true
+      - false
+      - foo
+      "y":
+      - null
+      - 3.14159
+      z:
+        p: true
+        q: false
+    d:
+      e:
+      - bar
+      - baz
+    f:
+    - xs:
+      - 1
+      ys:
+      - 2
+    - xs:
+      - 2
+      ys:
+      - 3
+    g:
+      a:
+      - 1
+      - 0
+      - 0
+      - 0
+      b:
+      - 0
+      - 2
+      - 0
+      - 0
+      c:
+      - 0
+      - 0
+      - 0
+      - 4
+    h:
+    - - 1
+      - 2
+      - 3
+    - - 2
+      - 3
+      - 4
+    l:
+    - a: bob
+      b: -1
+      c:
+      - 1
+      - 2
+      - 3
+      - 4
+    - a: alice
+      b: 1
+      c:
+      - 2
+      - 3
+      - 4
+      - 5
+      d: null
+    m: []
+    numbers:
+    - "1"
+    - "2"
+    - "3"
+    - "4"
+    strings:
+      bar: 2
+      baz: 3
+      foo: 1
+    three: 3
+  modules:
+  - |
+    package generated
+
+    p = [x, y, z] {
+      time.now_ns(now)
+      io.jwt.decode_verify("eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0.ZcLZbBKpPFFz8YGD2jEbXzwHT7DWtqRVk1PTV-cAWUV8jr6f2a--Fw9SFR3vSbrtFif06AQ3aWY7PMM2AuxDjiUVGjItmHRz0sJBEijcE2QVkDN7MNK3Kk1fsM_hbEXzNCzChZpEkTZnLy9ijkJJFD0j6lBat4lO5Zc_LC2lXUftV_hU2aW9mQ7pLSgJjItzRymivnN0g-WUDq5IPK_M8b3yPy_N9iByj8B2FO0sC3TuOrXWbrYrX4ve4bAaSqOFOXiL5Z5BJfmmtT--xKdWDGJxnei8lbv7in7t223fVsUpsH-zmybp529Fya37BsaIlcgLrl38ghvoqy2sHu2wAA", {
+        "cert": `{
+      "keys": [
+        {
+          "kty": "EC",
+          "use": "sig",
+          "crv": "P-256",
+          "kid": "k1",
+          "x": "9Qq5S5VqMQoH-FOI4atcH6V3bua03C-5ZMZMG1rszwA",
+          "y": "LLbFxWkGBEBrTm1GMYZJy1OXCH1KLweJMCgIEPIsibU",
+          "alg": "ES256"
+        },
+        {
+          "kty": "RSA",
+          "e": "AQAB",
+          "use": "enc",
+          "kid": "k2",
+          "alg": "RS256",
+          "n": "sGu-fYVE2nq2dPxJlqAMI0Z8G3FD0XcWDnD8mkfO1ddKRGuUQZmfj4gWeZGyIk3cnuoy7KJCEqa3daXc08QHuFZyfn0rH33t8_AFsvb0q0i7R2FK-Gdqs_E0-sGpYMsRJdZWfCioLkYjIHEuVnRbi3DEsWqe484rEGbKF60jNRgGC4b-8pz-E538ZkssWxcqHrYIj5bjGEU36onjS3M_yrTuNvzv_8wRioK4fbcwmGne9bDxu8LcoSReWpPn0CnUkWnfqroRcMJnC87ZuJagDW1ZWCmU3psdsVanmFFh0DP6z0fsA4h8G2n9-qp-LEKFaWwo3IWlOsIzU3MHdcEiGw"
+        }
+      ]
+    }`,
+        "time": 1574723450396363500,
+      }, [x, y, z])
+    }
+  note: jwtdecodeverify/multiple-keys-one-valid
+  query: data.generated.p = x
+  want_result:
+  - x:
+    - true
+    - alg: RS256
+      typ: JWT
+    - admin: true
+      iat: 1516239022
+      name: John Doe
+      sub: "1234567890"

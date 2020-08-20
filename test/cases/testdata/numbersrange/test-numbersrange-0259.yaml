@@ -1,0 +1,13 @@
+cases:
+- data: {}
+  modules:
+  - |
+    package generated
+
+    p {
+      numbers.range(49649733057, 49649733060, [49649733057, 49649733058, 49649733059, 49649733060])
+    }
+  note: numbersrange/precision
+  query: data.generated.p = x
+  want_result:
+  - x: true

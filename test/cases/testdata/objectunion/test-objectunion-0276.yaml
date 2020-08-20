@@ -1,0 +1,19 @@
+cases:
+- data: {}
+  modules:
+  - |
+    package generated
+
+    p = __local0__ {
+      object.union({"a": {"b": {"c": 1}}, "e": 1}, {"a": {"b": "foo", "b1": "bar"}, "d": 7, "e": 17}, __local1__)
+      __local0__ = __local1__
+    }
+  note: objectunion/conflict multiple
+  query: data.generated.p = x
+  want_result:
+  - x:
+      a:
+        b: foo
+        b1: bar
+      d: 7
+      e: 17

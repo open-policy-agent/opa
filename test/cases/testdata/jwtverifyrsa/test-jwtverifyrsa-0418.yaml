@@ -1,0 +1,95 @@
+cases:
+- data:
+    a:
+    - 1
+    - 2
+    - 3
+    - 4
+    b:
+      v1: hello
+      v2: goodbye
+    c:
+    - x:
+      - true
+      - false
+      - foo
+      "y":
+      - null
+      - 3.14159
+      z:
+        p: true
+        q: false
+    d:
+      e:
+      - bar
+      - baz
+    f:
+    - xs:
+      - 1
+      ys:
+      - 2
+    - xs:
+      - 2
+      ys:
+      - 3
+    g:
+      a:
+      - 1
+      - 0
+      - 0
+      - 0
+      b:
+      - 0
+      - 2
+      - 0
+      - 0
+      c:
+      - 0
+      - 0
+      - 0
+      - 4
+    h:
+    - - 1
+      - 2
+      - 3
+    - - 2
+      - 3
+      - 4
+    l:
+    - a: bob
+      b: -1
+      c:
+      - 1
+      - 2
+      - 3
+      - 4
+    - a: alice
+      b: 1
+      c:
+      - 2
+      - 3
+      - 4
+      - 5
+      d: null
+    m: []
+    numbers:
+    - "1"
+    - "2"
+    - "3"
+    - "4"
+    strings:
+      bar: 2
+      baz: 3
+      foo: 1
+    three: 3
+  modules:
+  - |
+    package generated
+
+    p = x {
+      io.jwt.verify_rs384("eyJhbGciOiJSUzM4NCJ9.eyJTY29wZXMiOlsiZm9vIiwiYmFyIl0sIm5iZiI6MTQ1MTYwNjQwMH0.b__y2zjqMoD7iWbHeQ0lNpnche3ph5-AwrIQICLMQQGtEz9WMBteHydkC5g01bm3TBX1d04Z5IEOsuK6btAtWma04c5NYqaUyNEUJKYCFoY02uH0jGdGfL6R5Kkv0lkNvN0s3Nex9jMaVVgqx8bcrOU0uRBFT67sXcm11LHaB9BwKFslolzHClxgXy5RIZb4OFk_7Yk7xTC6PcvEWkkGR9uXBhfDEig5WqdwOWPeulimvARDw14U35rzeh9xpGAPjBKeE-y20fXAk0cSF1H69C-Qa1jDQheYIrAJ6XMYGNZWuay5-smmeefe67eweEt1q-AD1NFepqkmZX382DGuYQ", `{"kty":"RSA","n":"3kZsoF_3zjlLuVpvdTxTaLBwxtQsxvWtYigY1HjIIvW110nFH2rT5rDZcW-erkotEV1LLyZmP8sZCCIUcmqcVuPY9onQDN0hhi9ZzmX_13aQx2LABRWdt-xxm_AzhJP6d8Qhb9LR_4kPpCz9-hDNfrZ-gX1F3SZ1cr5EitojDXkWOwOAzF-7Bl9_S17FSYgqJCAvBNEFBa0o76wJvXoyhLT6I8naOHN1VMS35hbsjF6A9235NSb-YtieUY7aJo4CuszQr4GM6bKYqHRwoZM5VF_MpNmKpQB1913SQPeC2gxNpDV4jkJxZFG_BrD-4ZhG8BrTFBEInvo34CqZcSePQQ","e":"AQAB"}`, x)
+    }
+  note: jwtverifyrsa/success-jwk
+  query: data.generated.p = x
+  want_result:
+  - x: true

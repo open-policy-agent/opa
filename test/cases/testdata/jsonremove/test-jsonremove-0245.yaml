@@ -1,0 +1,16 @@
+cases:
+- data: {}
+  input_term: '{"x": true}'
+  modules:
+  - |
+    package generated
+
+    p = __local0__ {
+      __local2__ = input.x
+      json.remove(__local2__, {"a/b/c"}, __local1__)
+      __local0__ = __local1__
+    }
+  note: jsonremove/error invalid target type boolean input
+  query: data.generated.p = x
+  want_error: 'json.remove: operand 1 must be object but got boolean'
+  want_error_code: eval_type_error

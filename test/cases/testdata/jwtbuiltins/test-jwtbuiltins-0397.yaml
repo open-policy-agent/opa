@@ -1,0 +1,100 @@
+cases:
+- data:
+    a:
+    - 1
+    - 2
+    - 3
+    - 4
+    b:
+      v1: hello
+      v2: goodbye
+    c:
+    - x:
+      - true
+      - false
+      - foo
+      "y":
+      - null
+      - 3.14159
+      z:
+        p: true
+        q: false
+    d:
+      e:
+      - bar
+      - baz
+    f:
+    - xs:
+      - 1
+      ys:
+      - 2
+    - xs:
+      - 2
+      ys:
+      - 3
+    g:
+      a:
+      - 1
+      - 0
+      - 0
+      - 0
+      b:
+      - 0
+      - 2
+      - 0
+      - 0
+      c:
+      - 0
+      - 0
+      - 0
+      - 4
+    h:
+    - - 1
+      - 2
+      - 3
+    - - 2
+      - 3
+      - 4
+    l:
+    - a: bob
+      b: -1
+      c:
+      - 1
+      - 2
+      - 3
+      - 4
+    - a: alice
+      b: 1
+      c:
+      - 2
+      - 3
+      - 4
+      - 5
+      d: null
+    m: []
+    numbers:
+    - "1"
+    - "2"
+    - "3"
+    - "4"
+    strings:
+      bar: 2
+      baz: 3
+      foo: 1
+    three: 3
+  modules:
+  - |
+    package generated
+
+    p = [x, y, z] {
+      io.jwt.decode("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImN0eSI6IkpXVCJ9.ImV5SmhiR2NpT2lKSVV6STFOaUlzSW5SNWNDSTZJa3BYVkNKOS5leUp6ZFdJaU9pSXdJaXdpYVhOeklqb2liM0JoSW4wLlhtVm9Mb0hJM3B4TXRNT19XUk9OTVNKekdVRFA5cERqeThKcDBfdGRSWFki.8W0qx4mLxslmZl7wEMUWBxH7tST3XsEuWXxesXqFnRI", [x, y, z])
+    }
+  note: jwtbuiltins/nested
+  query: data.generated.p = x
+  want_result:
+  - x:
+    - alg: HS256
+      typ: JWT
+    - iss: opa
+      sub: "0"
+    - 5e65682e81c8de9c4cb4c3bf59138d3122731940cff690e3cbc269d3fb5d4576

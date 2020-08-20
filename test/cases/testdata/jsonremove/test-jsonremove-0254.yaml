@@ -1,0 +1,17 @@
+cases:
+- data: {}
+  input_term: '{"x": ["a", {"x": 1}, {"y": 2}]}'
+  modules:
+  - |
+    package generated
+
+    p = __local0__ {
+      __local2__ = input.x
+      json.remove({"a": {"b": {"c": 123}}}, __local2__, __local1__)
+      __local0__ = __local1__
+    }
+  note: jsonremove/error invalid paths type array with objects
+  query: data.generated.p = x
+  want_error: 'json.remove: operand 2 must be one of {set, array} containing string
+    paths or array of path segments but got object'
+  want_error_code: eval_type_error

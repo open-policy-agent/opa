@@ -401,8 +401,7 @@ func TestHTTPPostRequest(t *testing.T) {
 	}
 }
 
-// TestHTTDeleteRequest deletes a person
-func TestHTTDeleteRequest(t *testing.T) {
+func TestHTTPDeleteRequest(t *testing.T) {
 
 	var people []Person
 

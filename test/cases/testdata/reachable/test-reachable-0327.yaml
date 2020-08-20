@@ -1,0 +1,18 @@
+cases:
+- data: {}
+  input_term: '{"graph": {"a": null}, "initial": ["a"]}'
+  modules:
+  - |
+    package generated
+
+    p = __local0__ {
+      __local2__ = input.graph
+      __local3__ = input.initial
+      graph.reachable(__local2__, __local3__, __local1__)
+      __local0__ = __local1__
+    }
+  note: reachable/malformed 2
+  query: data.generated.p = x
+  want_result:
+  - x:
+    - a

@@ -1,0 +1,16 @@
+cases:
+- data: {}
+  modules:
+  - |
+    package generated
+
+    p[x] {
+      strings.replace_n({"old1": "new1", "old2": "new2"}, "Everything is new1, new2", __local0__)
+      x = __local0__
+    }
+  note: replacen/find no patterns
+  query: data.generated.p = x
+  sort_bindings: true
+  want_result:
+  - x:
+    - Everything is new1, new2

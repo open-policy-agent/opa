@@ -1,0 +1,16 @@
+cases:
+- data: {}
+  input_term: '{"x": true}'
+  modules:
+  - |
+    package generated
+
+    p = __local0__ {
+      __local2__ = input.x
+      json.remove({"a": {"b": {"c": 123}}}, __local2__, __local1__)
+      __local0__ = __local1__
+    }
+  note: jsonremove/error invalid paths type boolean
+  query: data.generated.p = x
+  want_error: 'json.remove: operand 2 must be one of {set, array} but got boolean'
+  want_error_code: eval_type_error
