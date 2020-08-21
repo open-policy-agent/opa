@@ -822,6 +822,15 @@ func TypeOf(x interface{}) Type {
 		return S
 	case json.Number:
 		return N
+	case map[string]interface{}:
+		// The ast.ValueToInterface() function returns ast.Object values as map[string]interface{}
+		// so map[string]interface{} must be handled here because the type checker uses the value
+		// to interface conversion when inferring object types.
+		static := make([]*StaticProperty, 0, len(x))
+		for k, v := range x {
+			static = append(static, NewStaticProperty(k, TypeOf(v)))
+		}
+		return NewObject(static, nil)
 	case map[interface{}]interface{}:
 		static := make([]*StaticProperty, 0, len(x))
 		for k, v := range x {
