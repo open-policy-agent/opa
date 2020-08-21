@@ -298,6 +298,22 @@ func TestTypeOf(t *testing.T) {
 	}
 }
 
+func TestTypeOfMapOfString(t *testing.T) {
+	tpe := TypeOf(map[string]interface{}{
+		"foo": "bar",
+		"baz": "qux",
+	})
+
+	exp := NewObject([]*StaticProperty{
+		NewStaticProperty("foo", S),
+		NewStaticProperty("baz", S),
+	}, nil)
+
+	if Compare(exp, tpe) != 0 {
+		t.Fatalf("Expected %v but got: %v", exp, tpe)
+	}
+}
+
 func TestNil(t *testing.T) {
 
 	tpe := NewObject([]*StaticProperty{

@@ -110,6 +110,16 @@ func TestCheckInference(t *testing.T) {
 				nil,
 			),
 		}},
+		{"object-composite-ref-operand", `x = {{}: 1}; x[{}] = y`, map[Var]types.Type{
+			Var("x"): types.NewObject(
+				[]*types.StaticProperty{types.NewStaticProperty(
+					map[string]interface{}{},
+					types.N,
+				)},
+				nil,
+			),
+			Var("y"): types.N,
+		}},
 		{"sets", `x = {1, 2}; y = {{"foo", 1}, x}`, map[Var]types.Type{
 			Var("x"): types.NewSet(types.N),
 			Var("y"): types.NewSet(
@@ -795,12 +805,12 @@ func TestCheckRefErrInvalid(t *testing.T) {
 			oneOf: []Value{String("p"), String("q")},
 		},
 		{
-			note:  "composite ref into non-set",
+			note:  "composite ref operand",
 			query: `data.test.q[[1, 2]]`,
 			ref:   "data.test.q[[1, 2]]",
 			pos:   3,
-			have:  types.NewObject([]*types.StaticProperty{types.NewStaticProperty("bar", types.N), types.NewStaticProperty("foo", types.N)}, nil),
-			want:  types.NewSet(types.A),
+			have:  types.NewArray([]types.Type{types.N, types.N}, nil),
+			want:  types.S,
 		},
 		{
 			note:  "composite ref type error 1",
@@ -817,6 +827,14 @@ func TestCheckRefErrInvalid(t *testing.T) {
 			pos:   1,
 			have:  types.NewObject([]*types.StaticProperty{types.NewStaticProperty("a", types.S)}, nil),
 			want:  types.NewObject([]*types.StaticProperty{types.NewStaticProperty("a", types.N)}, nil),
+		},
+		{
+			note:  "composite ref type error 3 - array",
+			query: `a = [1,2,3]; a[{}] = b`,
+			ref:   `a[{}]`,
+			pos:   1,
+			have:  types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)),
+			want:  types.N,
 		},
 	}
 

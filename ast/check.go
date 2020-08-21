@@ -669,10 +669,6 @@ func (rc *refChecker) checkRefLeaf(tpe types.Type, ref Ref, idx int) *Error {
 		}
 
 	case *Array, Object, Set:
-		// Composite references operands may only be used with a set.
-		if !unifies(tpe, types.NewSet(types.A)) {
-			return newRefErrInvalid(ref[0].Location, rc.varRewriter(ref), idx, tpe, types.NewSet(types.A), nil)
-		}
 		if !unify1(rc.env, head, keys, false) {
 			return newRefErrInvalid(ref[0].Location, rc.varRewriter(ref), idx, rc.env.Get(head), keys, nil)
 		}
