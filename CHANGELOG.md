@@ -3,6 +3,18 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
+## Unreleased
+
+## 0.23.1
+
+### Fixes
+
+- plugins/discovery: Set the last request and last successful request in discovery status ([#2630](https://github.com/open-policy-agent/opa/issues/2630))
+
+### Miscellaneous
+
+- plugins/rest: Add response header timeout for REST client
+
 ## 0.23.0
 
 ### `http.send` Caching
@@ -79,8 +91,6 @@ This release includes a new built-in function to test if a string is a valid reg
 * The `storage.Indexing` interface has been removed. Storage indexing has not been supported since 0.5.12. It was time to remove the interface. Custom store implementations that may have included no-op implementations of the interface can be updated.
 
 * The `ast.Array` type has been redefined a struct. Previously `ast.Array` was a type alias for `[]*ast.Term`. This change is backwards incompatible because slice operations can no longer be performed directly on values of type `ast.Array`. To accomodate, the `ast.Array` type now exports functions for the same operations. This change decouples callers from the underlying array implementation which opens up room for future optimizations.
-
-## Unreleased
 
 ## 0.22.0
 
