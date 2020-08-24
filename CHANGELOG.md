@@ -3,6 +3,27 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
+
+## 0.23.2
+
+This release contains a fix for a regression in v0.23.1 around bundle downloading. The bug caused OPA to cancel bundle downloads prematurely. Users affected by this issue would see the following error message in the OPA logs:
+
+```
+[ERROR] Bundle download failed: bundle read failed: archive read failed: context canceled
+  plugin = "bundle"
+  name = <bundle name>
+```
+
+## 0.23.1
+
+### Fixes
+
+- plugins/discovery: Set the last request and last successful request in discovery status ([#2630](https://github.com/open-policy-agent/opa/issues/2630))
+
+### Miscellaneous
+
+- plugins/rest: Add response header timeout for REST client
+
 ## 0.23.0
 
 ### `http.send` Caching
@@ -2191,14 +2212,3 @@ And many other small improvements and fixes.
 - Introductions to policy, policy-enabling, and how OPA works
 - Language reference that serves as guide for new users
 - Tutorial that introduces users to the REPL
-
-## 0.23.1
-
-### Fixes
-
-- plugins/discovery: Set the last request and last successful request in discovery status ([#2630](https://github.com/open-policy-agent/opa/issues/2630)) 
-
-### Miscellaneous
-
-- plugins/rest: Add response header timeout for REST client
-
