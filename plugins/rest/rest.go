@@ -216,10 +216,7 @@ func (c Client) Do(ctx context.Context, method, path string) (*http.Response, er
 		req.Header.Add(key, value)
 	}
 
-	hCtx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	req = req.WithContext(hCtx)
+	req = req.WithContext(ctx)
 
 	err = c.config.authPrepare(req)
 	if err != nil {
