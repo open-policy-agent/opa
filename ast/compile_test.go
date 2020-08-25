@@ -1197,6 +1197,17 @@ func TestCompilerRewriteExprTerms(t *testing.T) {
 			`,
 			expected: Errors{&Error{Message: "rule arguments cannot contain calls"}},
 		},
+		{
+			note: "indirect ref in args",
+			module: `
+				package test
+
+				f([1][0]) { true }`,
+			expected: `
+				package test
+
+				f(__local0__[0]) { true; __local0__ = [1] }`,
+		},
 	}
 
 	for _, tc := range cases {
