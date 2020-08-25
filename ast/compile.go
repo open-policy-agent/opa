@@ -3033,6 +3033,13 @@ func rewriteDynamicsComprehensionBody(original *Expr, f *equalityFactory, body B
 }
 
 func rewriteExprTermsInHead(gen *localVarGenerator, rule *Rule) {
+	for i := range rule.Head.Args {
+		support, output := expandExprTerm(gen, rule.Head.Args[i])
+		for j := range support {
+			rule.Body.Append(support[j])
+		}
+		rule.Head.Args[i] = output
+	}
 	if rule.Head.Key != nil {
 		support, output := expandExprTerm(gen, rule.Head.Key)
 		for i := range support {
