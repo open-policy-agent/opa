@@ -445,6 +445,10 @@ func (p *Parser) parseHead(defaultRule bool) *Head {
 			}
 		}
 		p.scan()
+
+		if p.s.tok == tokens.LBrack {
+			return nil
+		}
 	}
 
 	if p.s.tok == tokens.LBrack {
