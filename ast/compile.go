@@ -1169,49 +1169,36 @@ func (c *Compiler) rewriteLocalVars() {
 			rule.Body = body
 
 			// Rewrite vars in head that refer to locally declared vars in the body.
-			vis := NewGenericVisitor(func(x interface{}) bool {
+			xform := rewriteHeadVarLocalTransform{declared: declared}
 
-				term, ok := x.(*Term)
-				if !ok {
-					return false
-				}
-
-				switch v := term.Value.(type) {
-				case *object:
-					// Make a copy of the object because the keys may be mutated.
-					cpy, _ := v.Map(func(k, v *Term) (*Term, *Term, error) {
-						if vark, ok := k.Value.(Var); ok {
-							if gv, ok := declared[vark]; ok {
-								k = k.Copy()
-								k.Value = gv
-							}
-						}
-						return k, v, nil
-					})
-					term.Value = cpy
-				case Var:
-					if gv, ok := declared[v]; ok {
-						term.Value = gv
-						return true
-					}
-				}
-
-				return false
-			})
-
-			vis.Walk(rule.Head.Args)
+			for i := range rule.Head.Args {
+				rule.Head.Args[i], _ = transformTerm(xform, rule.Head.Args[i])
+			}
 
 			if rule.Head.Key != nil {
-				vis.Walk(rule.Head.Key)
+				rule.Head.Key, _ = transformTerm(xform, rule.Head.Key)
 			}
 
 			if rule.Head.Value != nil {
-				vis.Walk(rule.Head.Value)
+				rule.Head.Value, _ = transformTerm(xform, rule.Head.Value)
 			}
 
 			return false
 		})
 	}
+}
+
+type rewriteHeadVarLocalTransform struct {
+	declared map[Var]Var
+}
+
+func (xform rewriteHeadVarLocalTransform) Transform(x interface{}) (interface{}, error) {
+	if v, ok := x.(Var); ok {
+		if gv, ok := xform.declared[v]; ok {
+			return gv, nil
+		}
+	}
+	return x, nil
 }
 
 func (c *Compiler) rewriteLocalArgVars(gen *localVarGenerator, stack *localDeclaredVars, rule *Rule) {

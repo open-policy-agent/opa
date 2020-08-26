@@ -1909,6 +1909,21 @@ func TestCompilerRewriteLocalAssignments(t *testing.T) {
 				Var("__local0__"): Var("x"),
 			},
 		},
+		{
+			module: `
+				package test
+
+				f(x) = {x[0]: 1} { true }
+			`,
+			exp: `
+				package test
+
+				f(__local0__) = {__local0__[0]: 1} { true }
+			`,
+			expRewrittenMap: map[Var]Var{
+				Var("__local0__"): Var("x"),
+			},
+		},
 	}
 
 	for i, tc := range tests {
