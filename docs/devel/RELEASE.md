@@ -182,6 +182,6 @@ Once the Pull Request has merged fetch the latest changes and tag the commit to
 prepare for publishing. Use the same instructions as defined above in normal
 release [publishing](#publishing) guide (being careful to tag the appropriate commit).
 
-Last step is to copy the CHANGELOG snippet for the version to `master`. Create
+Last step is to copy the CHANGELOG snippet and capabilities.json for the version to `master`. Create
 a new PR with the version information added below the `Unreleased` section. Remove
 any `Unreleased` notes if they were included in the bugfix release.
