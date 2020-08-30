@@ -158,6 +158,29 @@ func builtinURLQueryEncodeObject(a ast.Value) (ast.Value, error) {
 	return ast.String(query.Encode()), nil
 }
 
+func builtinURLQueryDecodeObject(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	query, err := builtins.StringOperand(operands[0].Value, 1)
+	if err != nil {
+		return err
+	}
+
+	queryParams, err := url.ParseQuery(string(query))
+	if err != nil {
+		return err
+	}
+
+	queryObject := ast.NewObject()
+	for k, v := range queryParams {
+		paramsArray := make([]*ast.Term, len(v))
+		for i, param := range v {
+			paramsArray[i] = ast.StringTerm(param)
+		}
+		queryObject.Insert(ast.StringTerm(k), ast.ArrayTerm(paramsArray...))
+	}
+
+	return iter(ast.NewTerm(queryObject))
+}
+
 func builtinYAMLMarshal(a ast.Value) (ast.Value, error) {
 
 	asJSON, err := ast.JSON(a)
@@ -212,6 +235,7 @@ func init() {
 	RegisterFunctionalBuiltin1(ast.URLQueryDecode.Name, builtinURLQueryDecode)
 	RegisterFunctionalBuiltin1(ast.URLQueryEncode.Name, builtinURLQueryEncode)
 	RegisterFunctionalBuiltin1(ast.URLQueryEncodeObject.Name, builtinURLQueryEncodeObject)
+	RegisterBuiltinFunc(ast.URLQueryDecodeObject.Name, builtinURLQueryDecodeObject)
 	RegisterFunctionalBuiltin1(ast.YAMLMarshal.Name, builtinYAMLMarshal)
 	RegisterFunctionalBuiltin1(ast.YAMLUnmarshal.Name, builtinYAMLUnmarshal)
 }
