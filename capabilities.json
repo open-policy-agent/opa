@@ -3044,6 +3044,31 @@
       }
     },
     {
+      "name": "urlquery.decode_object",
+      "decl": {
+        "args": [
+          {
+            "type": "string"
+          }
+        ],
+        "result": {
+          "dynamic": {
+            "key": {
+              "type": "string"
+            },
+            "value": {
+              "dynamic": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        },
+        "type": "function"
+      }
+    },
+    {
       "name": "urlquery.encode",
       "decl": {
         "args": [

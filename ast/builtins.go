@@ -135,6 +135,7 @@ var DefaultBuiltins = [...]*Builtin{
 	URLQueryDecode,
 	URLQueryEncode,
 	URLQueryEncodeObject,
+	URLQueryDecodeObject,
 	YAMLMarshal,
 	YAMLUnmarshal,
 
@@ -1280,6 +1281,17 @@ var URLQueryEncodeObject = &Builtin{
 						types.NewArray(nil, types.S),
 						types.NewSet(types.S))))),
 		types.S,
+	),
+}
+
+// URLQueryDecodeObject decodes the given URL query string into an object.
+var URLQueryDecodeObject = &Builtin{
+	Name: "urlquery.decode_object",
+	Decl: types.NewFunction(
+		types.Args(types.S),
+		types.NewObject(nil, types.NewDynamicProperty(
+			types.S,
+			types.NewArray(nil, types.S))),
 	),
 }
 
