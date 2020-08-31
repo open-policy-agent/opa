@@ -1962,6 +1962,14 @@ data = {"bar": 2}`
 	[][0]
 	`
 
+	callWithRuleKeyPartialSet := `
+	package a
+	f(x)[x] { true }`
+
+	callWithRuleKeyPartialObject := `
+	package a
+	f(x)[x] = x { true }`
+
 	assertParseModuleError(t, "multiple expressions", multipleExprs)
 	assertParseModuleError(t, "non-equality", nonEquality)
 	assertParseModuleError(t, "non-var name", nonVarName)
@@ -1977,6 +1985,8 @@ data = {"bar": 2}`
 	assertParseModuleError(t, "call in ref partial set", "package test\nf().x {}")
 	assertParseModuleError(t, "call in ref partial object", "package test\nf().x = y {}")
 	assertParseModuleError(t, "number in ref", "package a\n12[3]()=4")
+	assertParseModuleError(t, "rule with args and key", callWithRuleKeyPartialObject)
+	assertParseModuleError(t, "rule with args and key", callWithRuleKeyPartialSet)
 
 	if _, err := ParseRuleFromExpr(&Module{}, &Expr{
 		Terms: struct{}{},

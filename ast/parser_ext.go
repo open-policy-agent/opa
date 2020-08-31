@@ -268,11 +268,11 @@ func ParsePartialObjectDocRuleFromEqExpr(module *Module, lhs, rhs *Term) (*Rule,
 
 	ref, ok := lhs.Value.(Ref)
 	if !ok || len(ref) != 2 {
-		return nil, fmt.Errorf("%v cannot be used for rule name", TypeName(lhs.Value))
+		return nil, fmt.Errorf("%v cannot be used as rule name", TypeName(lhs.Value))
 	}
 
 	if _, ok := ref[0].Value.(Var); !ok {
-		return nil, fmt.Errorf("%vs cannot be used in rule head", TypeName(ref[0].Value))
+		return nil, fmt.Errorf("%vs cannot be used as rule name", TypeName(ref[0].Value))
 	}
 
 	name := ref[0].Value.(Var)
@@ -310,7 +310,7 @@ func ParsePartialSetDocRuleFromTerm(module *Module, term *Term) (*Rule, error) {
 
 	name, ok := ref[0].Value.(Var)
 	if !ok {
-		return nil, fmt.Errorf("%vs cannot be used in rule head", TypeName(ref[0].Value))
+		return nil, fmt.Errorf("%vs cannot be used as rule name", TypeName(ref[0].Value))
 	}
 
 	rule := &Rule{
