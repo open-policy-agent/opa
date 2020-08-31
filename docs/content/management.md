@@ -1056,7 +1056,7 @@ configure an OPA to download one of two bundles based on a label in the boot
 configuration. Let's say the label `region` indicates the region in which the
 OPA is running and it's value will decide the bundle to download.
 
-Below is a policy file which generates an OPA congfiguration.
+Below is a policy file which generates an OPA configuration.
 
 **example.rego**
 
