@@ -234,6 +234,9 @@ func (p *PrintlnLogger) Reconfigure(ctx context.Context, config interface{}) {
 	p.config = config.(Config)
 }
 
+
+// Log is called by the decision logger when a record (event) should be emitted. The logs.EventV1 fields
+// map 1:1 to those described in https://www.openpolicyagent.org/docs/latest/management/#decision-log-service-api.
 func (p *PrintlnLogger) Log(ctx context.Context, event logs.EventV1) error {
 	p.mtx.Lock()
 	defer p.mtx.Unlock()
