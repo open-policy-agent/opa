@@ -853,6 +853,9 @@ organizations:
   infoblox:
     name: InfoBlox
     link: https://www.infoblox.com/
+  scalr:
+    name: Scalr
+    link: https://www.scalr.com/
 
 software:
   kubernetes:
@@ -948,6 +951,3 @@ software:
   gluu:
     name: Gluu Gateway
     link: https://www.gluu.org/
-  scalr:
-    name: Scalr
-    link: https://www.scalr.com/
