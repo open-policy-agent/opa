@@ -744,6 +744,22 @@ integrations:
     code:
       - https://github.com/GluuFederation/gluu-gateway
 
+  pre-commit-hooks:
+    title: Pre-commit hooks
+    description: Pre-commit git hooks for OPA and Rego development
+    labels:
+      category: tooling
+      layer: cicd
+    software:
+      - git
+      - pre-commit
+    code:
+      - https://github.com/anderseknert/pre-commit-opa
+    blogs:
+      - https://www.eknert.com/tech/2020/08/31/pre-commit-hooks-for-opa
+    inventors:
+      - independent
+
 organizations:
   styra:
     name: Styra
@@ -835,6 +851,9 @@ organizations:
   infoblox:
     name: InfoBlox
     link: https://www.infoblox.com/
+  independent:
+    name: Independent developer
+    link: https://www.openpolicyagent.org
 
 software:
   kubernetes:
