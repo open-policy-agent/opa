@@ -758,7 +758,7 @@ integrations:
     code:
       - https://github.com/Scalr/sample-tf-opa-policies
     inventors:
-      - Scalr
+      - scalr
     blogs:
       - https://www.scalr.com/blog/opa-is-to-policy-automation-as-terraform-is-to-iac/
 
