@@ -760,6 +760,24 @@ integrations:
     inventors:
       - independent
 
+  scalr-iacp:
+    title: Scalr
+    description: Scalr allows teams to easily collaborate on Terraform through its pipeline that runs all Terraform operations, policy checks, and stores state. Scalr uses OPA to check the auto-generated Terraform JSON plan to ensure that it meets your organization standards prior to an apply.
+    labels:
+      category: Infrastructure as Code
+      layer: cicd
+    software:
+      - Terraform
+      - Scalr
+    tutorials:
+      - https://iacp.docs.scalr.com/en/latest/working-with-iacp/opa.html#creating-the-opa-policy
+    code:
+      - https://github.com/Scalr/sample-tf-opa-policies
+    inventors:
+      - scalr
+    blogs:
+      - https://www.scalr.com/blog/opa-is-to-policy-automation-as-terraform-is-to-iac/
+
 organizations:
   styra:
     name: Styra
@@ -854,6 +872,9 @@ organizations:
   independent:
     name: Independent developer
     link: https://www.openpolicyagent.org
+  scalr:
+    name: Scalr
+    link: https://www.scalr.com/
 
 software:
   kubernetes:
