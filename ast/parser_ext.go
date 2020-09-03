@@ -618,52 +618,6 @@ func parseModule(filename string, stmts []Statement, comments []*Comment) (*Modu
 	return nil, errs
 }
 
-func postProcess(filename string, stmts []Statement) error {
-
-	if err := mangleDataVars(stmts); err != nil {
-		return err
-	}
-
-	if err := mangleInputVars(stmts); err != nil {
-		return err
-	}
-
-	mangleWildcards(stmts)
-	mangleExprIndices(stmts)
-
-	return nil
-}
-
-func mangleDataVars(stmts []Statement) error {
-	for i := range stmts {
-		vt := newVarToRefTransformer(DefaultRootDocument.Value.(Var), DefaultRootRef.Copy())
-		stmt, err := Transform(vt, stmts[i])
-		if err != nil {
-			return err
-		}
-		stmts[i] = stmt.(Statement)
-	}
-	return nil
-}
-
-func mangleInputVars(stmts []Statement) error {
-	for i := range stmts {
-		vt := newVarToRefTransformer(InputRootDocument.Value.(Var), InputRootRef.Copy())
-		stmt, err := Transform(vt, stmts[i])
-		if err != nil {
-			return err
-		}
-		stmts[i] = stmt.(Statement)
-	}
-	return nil
-}
-
-func mangleExprIndices(stmts []Statement) {
-	for _, stmt := range stmts {
-		setExprIndices(stmt)
-	}
-}
-
 func setExprIndices(x interface{}) {
 	WalkBodies(x, func(b Body) bool {
 		for i, expr := range b {
@@ -673,73 +627,11 @@ func setExprIndices(x interface{}) {
 	})
 }
 
-func mangleWildcards(stmts []Statement) {
-	m := &wildcardMangler{}
-	for i := range stmts {
-		stmt, _ := Transform(m, stmts[i])
-		stmts[i] = stmt.(Statement)
-	}
-}
-
-type wildcardMangler struct {
-	c int
-}
-
-func (m *wildcardMangler) Transform(x interface{}) (interface{}, error) {
-	if term, ok := x.(Var); ok {
-		if term.Equal(Wildcard.Value) {
-			name := fmt.Sprintf("%s%d", WildcardPrefix, m.c)
-			m.c++
-			return Var(name), nil
-		}
-	}
-	return x, nil
-}
-
 func setRuleModule(rule *Rule, module *Module) {
 	rule.Module = module
 	if rule.Else != nil {
 		setRuleModule(rule.Else, module)
 	}
-}
-
-type varToRefTransformer struct {
-	orig   Var
-	target Ref
-	// skip set to true to avoid recursively processing the result of
-	// transformation.
-	skip bool
-}
-
-func newVarToRefTransformer(orig Var, target Ref) *varToRefTransformer {
-	return &varToRefTransformer{
-		orig:   orig,
-		target: target,
-		skip:   false,
-	}
-}
-
-func (vt *varToRefTransformer) Transform(x interface{}) (interface{}, error) {
-	if vt.skip {
-		vt.skip = false
-		return x, nil
-	}
-	switch x := x.(type) {
-	case *Head:
-		// The next AST node will be the rule name (which should not be
-		// transformed).
-		vt.skip = true
-	case Ref:
-		// The next AST node will be the ref head (which should not be
-		// transformed).
-		vt.skip = true
-	case Var:
-		if x.Equal(vt.orig) {
-			vt.skip = true
-			return vt.target, nil
-		}
-	}
-	return x, nil
 }
 
 // ParserErrorDetail holds additional details for parser errors.
