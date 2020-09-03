@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -263,8 +264,16 @@ func (t *TestRuntime) UploadPolicy(name string, policy io.Reader) error {
 
 // UploadData will upload the given data to the runtime via the v1 data API
 func (t *TestRuntime) UploadData(data io.Reader) error {
+	return t.UploadDataToPath("/", data)
+}
+
+// UploadDataToPath will upload the given data to the runtime via the v1 data API
+func (t *TestRuntime) UploadDataToPath(path string, data io.Reader) error {
 	client := &http.Client{}
-	req, err := http.NewRequest("PUT", t.URL()+"/v1/data", data)
+
+	urlPath := strings.TrimSuffix(filepath.Join("/v1/data"+path), "/")
+
+	req, err := http.NewRequest("PUT", t.URL()+urlPath, data)
 	if err != nil {
 		return fmt.Errorf("Unexpected error creating request: %s", err)
 	}

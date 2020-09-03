@@ -4,7 +4,7 @@
 
 VERSION := $(shell ./build/get-build-version.sh)
 
-CGO_ENABLED ?= 0
+CGO_ENABLED ?= 1
 
 # Force modules on and to use the vendor directory.
 GO := CGO_ENABLED=$(CGO_ENABLED) GO111MODULE=on GOFLAGS=-mod=vendor go

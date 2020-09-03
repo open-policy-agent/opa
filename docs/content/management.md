@@ -187,11 +187,11 @@ Bundle files may contain an optional `.manifest` file that stores bundle
 metadata. The file should contain a JSON serialized object, with the following
 fields:
 
-* If the bundle service is capable of serving different revisions of the same
+* `revision` - If the bundle service is capable of serving different revisions of the same
   bundle, the service should include a top-level `revision` field containing a
   `string` value that identifies the bundle revision.
 
-* If you expect to load additional data into OPA from outside the
+* `roots` - If you expect to load additional data into OPA from outside the
   bundle (e.g., via OPA's HTTP API) you should include a top-level
   `roots` field containing of path prefixes that declare the scope of
   the bundle. See the section below on managing data from multiple
@@ -199,15 +199,12 @@ fields:
   defaults to `[""]` which means that ALL data and policy must come
   from the bundle.
 
-* OPA will only load data files named `data.json` or `data.yaml` (which contain
-  JSON or YAML respectively). Other JSON and YAML files will be ignored.
-
-* The `*.rego` policy files must be valid [Modules](../policy-language/#modules)
-
-> YAML data loaded into OPA is converted to JSON. Since JSON is a subset of
-> YAML, you are not allowed to use binary or null keys in objects and boolean
-> and number keys are converted to strings. Also, YAML !!binary tags are not
-> supported.
+* `wasm` - A list of OPA WebAssembly (Wasm) module files in the bundle along with
+  metadata for how they should be evaluated. The following keys are supported:
+  * `entrypoint` - A string path defining what query path the wasm module is
+    built to evaluate. Once loaded any usage of this path in a query will use
+    the Wasm module to compute the value.
+  * `module` - A string path to the Wasm module relative to the root of the bundle.
 
 For example, this manifest specifies a revision (which happens to be a Git
 commit hash) and a set of roots for the bundle contents. In this case, the
@@ -220,6 +217,38 @@ manifest declares that it owns the roots `data.roles` and
   "roots": ["roles", "http/example/authz"]
 }
 ```
+
+Another example, this time showing a Wasm module configured for
+`data.http.example.authz.allow`:
+
+```json
+{
+  "revision": "7864d60dd78d748dbce54b569e939f5b0dc07486",
+  "roots": ["roles", "http/example/authz"],
+  "wasm": [
+    {
+      "entrypoint": "http/example/authz/allow",
+      "module": "path/to/policy.wasm"
+    }
+  ]
+}
+```
+
+__Some important details for bundle files:__
+
+* OPA will only load data files named `data.json` or `data.yaml` (which contain
+  JSON or YAML respectively). Other JSON and YAML files will be ignored.
+
+* The `*.rego` policy files must be valid [Modules](../policy-language/#modules)
+
+* OPA will only load Wasm modules named `policy.wasm`. Other WebAssembly binary
+  files will be ignored.
+
+> YAML data loaded into OPA is converted to JSON. Since JSON is a subset of
+> YAML, you are not allowed to use binary or null keys in objects and boolean
+> and number keys are converted to strings. Also, YAML !!binary tags are not
+> supported.
+
 
 ### Multiple Sources of Policy and Data
 

@@ -1,3 +1,7 @@
+// Copyright 2020 The OPA Authors.  All rights reserved.
+// Use of this source code is governed by an Apache2
+// license that can be found in the LICENSE file.
+
 package wasm
 
 import (
@@ -10,6 +14,8 @@ import (
 	"github.com/open-policy-agent/opa/resolver"
 )
 
+// New creates a new Resolver instance which is using the Wasm module
+// policy for the given entrypoint ref.
 func New(entrypoint ast.Ref, policy []byte, data interface{}) (*Resolver, error) {
 	o, err := opa.New().
 		WithPolicyBytes(policy).
@@ -24,15 +30,20 @@ func New(entrypoint ast.Ref, policy []byte, data interface{}) (*Resolver, error)
 	}, nil
 }
 
+// Resolver implements the resolver.Resolver interface
+// using Wasm modules to perform an evaluation.
 type Resolver struct {
 	Entrypoint ast.Ref
 	o          *opa.OPA
 }
 
+// Close shuts down the resolver.
 func (r *Resolver) Close() {
 	r.o.Close()
 }
 
+// Eval performs an evalution using the provided input and the Wasm module
+// associated with this Resolver instance.
 func (r *Resolver) Eval(ctx context.Context, input resolver.Input) (resolver.Result, error) {
 
 	var inp *interface{}
@@ -65,6 +76,7 @@ func (r *Resolver) Eval(ctx context.Context, input resolver.Input) (resolver.Res
 	return resolver.Result{Value: v}, nil
 }
 
+// SetData will update the external data for the Wasm instance.
 func (r *Resolver) SetData(data interface{}) error {
 	return r.o.SetData(data)
 }

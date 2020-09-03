@@ -15,7 +15,7 @@ import (
 )
 
 // Policy is a test rego policy for a token based authz system
-const Policy = `package restauthz
+const Policy = `package policy.restauthz
 
 import data.restauthz.tokens
 
@@ -30,7 +30,7 @@ allow {
 
 // AllowQuery is the test query that goes with the Policy
 // defined in this package
-const AllowQuery = "data.restauthz.allow"
+const AllowQuery = "data.policy.restauthz.allow"
 
 // DataSetProfile defines how the test data should be generated
 type DataSetProfile struct {

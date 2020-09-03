@@ -15,6 +15,7 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/format"
+	"github.com/open-policy-agent/opa/internal/ref"
 	"github.com/open-policy-agent/opa/loader"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/util/test"
@@ -58,7 +59,7 @@ func TestCompilerInitErrors(t *testing.T) {
 			want: errors.New("bundle optimizations require at least one entrypoint"),
 		},
 		{
-			note: "wasm compilation requires exactly one entrypoint",
+			note: "wasm compilation requires at least one entrypoint",
 			c:    New().WithTarget("wasm"),
 			want: errors.New("wasm compilation requires at least one entrypoint"),
 		},
@@ -424,10 +425,58 @@ func TestCompilerWasmTarget(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if len(compiler.bundle.Wasm) == 0 {
+		if len(compiler.bundle.WasmModules) == 0 {
 			t.Fatal("expected to find compiled wasm module")
 		}
 
+		ensureEntrypointRemoved(t, compiler.bundle, "test/p")
+	})
+}
+
+func TestCompilerWasmTargetMultipleEntrypoints(t *testing.T) {
+	files := map[string]string{
+		"test.rego": `package test
+
+		p = true`,
+		"policy.rego": `package policy
+		
+		authz = true`,
+		"mask.rego": `package system.log
+		
+		mask["/input/password"]`,
+	}
+
+	test.WithTempFS(files, func(root string) {
+
+		compiler := New().WithPaths(root).WithTarget("wasm").WithEntrypoints("test/p", "policy/authz")
+		err := compiler.Build(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if len(compiler.bundle.WasmModules) != 1 {
+			t.Fatalf("expected 1 Wasm modules, got: %d", len(compiler.bundle.WasmModules))
+		}
+
+		expManifest := bundle.Manifest{}
+		expManifest.Init()
+		expManifest.WasmResolvers = []bundle.WasmResolver{
+			{
+				Entrypoint: "test/p",
+				Module:     "/policy.wasm",
+			},
+			{
+				Entrypoint: "policy/authz",
+				Module:     "/policy.wasm",
+			},
+		}
+
+		if !compiler.bundle.Manifest.Equal(expManifest) {
+			t.Fatalf("\nExpected manifest: %+v\nGot: %+v\n", expManifest, compiler.bundle.Manifest)
+		}
+
+		ensureEntrypointRemoved(t, compiler.bundle, "test/p")
+		ensureEntrypointRemoved(t, compiler.bundle, "policy/authz")
 	})
 }
 
@@ -447,14 +496,31 @@ func TestCompilerWasmTargetLazyCompile(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if len(compiler.bundle.Wasm) == 0 {
+		if len(compiler.bundle.WasmModules) == 0 {
 			t.Fatal("expected to find compiled wasm module")
 		}
 
 		if _, exists := compiler.compiler.Modules["optimized/test.rego"]; !exists {
 			t.Fatal("expected to find optimized module on compiler")
 		}
+
+		ensureEntrypointRemoved(t, compiler.bundle, "test/p")
 	})
+}
+
+func ensureEntrypointRemoved(t *testing.T, b *bundle.Bundle, e string) {
+	t.Helper()
+	r, err := ref.ParseDataPath(e)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	for _, mf := range b.Modules {
+		for _, rule := range mf.Parsed.Rules {
+			if rule.Path().Equal(r) {
+				t.Errorf("expected entrypoint to be removed from rego all modules in bundle, found rule: %s in %s", rule.Path(), mf.Path)
+			}
+		}
+	}
 }
 
 func TestCompilerSetRevision(t *testing.T) {
@@ -507,11 +573,11 @@ func TestCompilerOutput(t *testing.T) {
 		}
 
 		if !exp.Equal(result) {
-			t.Fatalf("expected:\n\n%v\n\ngot:\n\n%v", *exp, result)
+			t.Fatalf("expected:\n\n%+v\n\ngot:\n\n%+v", *exp, result)
 		}
 
 		if !exp.Manifest.Equal(result.Manifest) {
-			t.Fatalf("expected:\n\n%v\n\ngot:\n\n%v", exp.Manifest, result.Manifest)
+			t.Fatalf("expected:\n\n%+v\n\ngot:\n\n%+v", exp.Manifest, result.Manifest)
 		}
 
 		// Check that the returned bundle is the expected.

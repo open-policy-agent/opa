@@ -302,7 +302,7 @@ func TestLoadBundle(t *testing.T) {
 		}
 
 		if !bytes.Equal(testBundle.Modules[0].Raw, loaded.Modules["/x.rego"].Raw) {
-			t.Fatalf("Expected %v but got: %v", string(testBundle.Modules[0].Raw), loaded.Modules["x.rego"].Raw)
+			t.Fatalf("Expected %v but got: %v", string(testBundle.Modules[0].Raw), loaded.Modules["/x.rego"].Raw)
 		}
 	})
 
@@ -358,7 +358,7 @@ func TestLoadBundleSubDir(t *testing.T) {
 		}
 
 		if !bytes.Equal(testBundle.Modules[0].Raw, loaded.Modules["/x.rego"].Raw) {
-			t.Fatalf("Expected %v but got: %v", string(testBundle.Modules[0].Raw), loaded.Modules["x.rego"].Raw)
+			t.Fatalf("Expected %v but got: %v", string(testBundle.Modules[0].Raw), loaded.Modules["/x.rego"].Raw)
 		}
 	})
 }
