@@ -2465,11 +2465,19 @@ func outputVarsForTerms(expr *Expr, safe VarSet) VarSet {
 		case *SetComprehension, *ArrayComprehension, *ObjectComprehension:
 			return true
 		case Ref:
-			if safe.Contains(r[0].Value.(Var)) {
-				output.Update(r.OutputVars())
-				return false
+			if v, ok := r[0].Value.(Var); ok {
+				if !safe.Contains(v) {
+					return true
+				}
+			} else {
+				for k := range r[0].Vars() {
+					if !safe.Contains(k) {
+						return true
+					}
+				}
 			}
-			return true
+			output.Update(r.OutputVars())
+			return false
 		}
 		return false
 	})

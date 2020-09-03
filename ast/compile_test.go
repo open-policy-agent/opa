@@ -178,6 +178,21 @@ func TestOutputVarsForNode(t *testing.T) {
 			query: "x = 1; y = x; z = y",
 			exp:   "{x, y, z}",
 		},
+		{
+			note:  "composite head",
+			query: "{1, 2}[1] = x",
+			exp:   `{x}`,
+		},
+		{
+			note:  "composite head",
+			query: "x = 1; {x, 2}[1] = y",
+			exp:   `{x, y}`,
+		},
+		{
+			note:  "composite head",
+			query: "{x, 2}[1] = y",
+			exp:   `set()`,
+		},
 	}
 
 	for _, tc := range tests {
