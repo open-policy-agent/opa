@@ -27,6 +27,18 @@ func (u *unifier) isSafe(x Var) bool {
 	return u.safe.Contains(x) || u.unified.Contains(x)
 }
 
+func (u *unifier) isHeadSafe(r Ref) bool {
+	if v, ok := r[0].Value.(Var); ok {
+		return u.isSafe(v)
+	}
+	for v := range r[0].Vars() {
+		if !u.isSafe(v) {
+			return false
+		}
+	}
+	return true
+}
+
 func (u *unifier) unify(a *Term, b *Term) {
 
 	switch a := a.Value.(type) {
@@ -45,7 +57,7 @@ func (u *unifier) unify(a *Term, b *Term) {
 		case *Array, Object:
 			u.unifyAll(a, b)
 		case Ref:
-			if u.isSafe(b[0].Value.(Var)) {
+			if u.isHeadSafe(b) {
 				u.markSafe(a)
 			}
 		default:
@@ -53,7 +65,7 @@ func (u *unifier) unify(a *Term, b *Term) {
 		}
 
 	case Ref:
-		if u.isSafe(a[0].Value.(Var)) {
+		if u.isHeadSafe(a) {
 			switch b := b.Value.(type) {
 			case Var:
 				u.markSafe(b)
