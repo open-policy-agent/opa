@@ -65,13 +65,33 @@ func TestReadWithSizeLimit(t *testing.T) {
 }
 
 func testReadBundle(t *testing.T, baseDir string) {
+	module := `package example`
+
+	modulePath := "/example/example.rego"
+	if baseDir != "" {
+		modulePath = filepath.Join(baseDir, modulePath)
+	}
+
+	legacyWasmModulePath := "/policy.wasm"
+	if baseDir != "" {
+		legacyWasmModulePath = filepath.Join(baseDir, legacyWasmModulePath)
+	}
+
+	wasmResolverPath := "/authz/allow/policy.wasm"
+	fullWasmResolverPath := wasmResolverPath
+	if baseDir != "" {
+		fullWasmResolverPath = filepath.Join(baseDir, wasmResolverPath)
+	}
+
 	files := [][2]string{
 		{"/a/b/c/data.json", "[1,2,3]"},
 		{"/a/b/d/data.json", "true"},
 		{"/a/b/y/data.yaml", `foo: 1`},
 		{"/example/example.rego", `package example`},
-		{"/policy.wasm", `modules-compiled-as-wasm-binary`},
+		{"/policy.wasm", `legacy-wasm-module`},
+		{wasmResolverPath, `wasm-module`},
 		{"/data.json", `{"x": {"y": true}, "a": {"b": {"z": true}}}}`},
+		{"/.manifest", fmt.Sprintf(`{"wasm":[{"entrypoint": "authz/allow", "module": "%s"}]}`, fullWasmResolverPath)},
 	}
 
 	buf := archive.MustWriteTarGz(files)
@@ -83,14 +103,17 @@ func testReadBundle(t *testing.T, baseDir string) {
 		t.Fatal(err)
 	}
 
-	module := `package example`
-
-	modulePath := "/example/example.rego"
-	if baseDir != "" {
-		modulePath = filepath.Join(baseDir, modulePath)
+	expManifest := Manifest{}
+	expManifest.Init()
+	expManifest.WasmResolvers = []WasmResolver{
+		{
+			Entrypoint: "authz/allow",
+			Module:     fullWasmResolverPath,
+		},
 	}
 
 	exp := Bundle{
+		Manifest: expManifest,
 		Data: map[string]interface{}{
 			"a": map[string]interface{}{
 				"b": map[string]interface{}{
@@ -114,11 +137,24 @@ func testReadBundle(t *testing.T, baseDir string) {
 				Raw:    []byte(module),
 			},
 		},
-		Wasm: []byte("modules-compiled-as-wasm-binary"),
+		Wasm: []byte(`legacy-wasm-module`),
+		WasmModules: []WasmModuleFile{
+			{
+				URL:  legacyWasmModulePath,
+				Path: legacyWasmModulePath,
+				Raw:  []byte(`legacy-wasm-module`),
+			},
+			{
+				URL:        fullWasmResolverPath,
+				Path:       fullWasmResolverPath,
+				Raw:        []byte("wasm-module"),
+				Entrypoint: ast.MustParseRef("data.authz.allow"),
+			},
+		},
 	}
 
 	if !exp.Equal(bundle) {
-		t.Fatal("\nExp:", exp, "\n\nGot:", bundle)
+		t.Fatalf("\nExp: %+v\nGot: %+v", exp, bundle)
 	}
 }
 
@@ -429,7 +465,7 @@ func TestReadRootValidation(t *testing.T) {
 		err   string
 	}{
 		{
-			note: "default: full extent",
+			note: "default full extent",
 			files: [][2]string{
 				{"/.manifest", `{"revision": "abcd"}`},
 				{"/data.json", `{"a": 1}`},
@@ -438,7 +474,7 @@ func TestReadRootValidation(t *testing.T) {
 			err: "",
 		},
 		{
-			note: "explicit: full extent",
+			note: "explicit full extent",
 			files: [][2]string{
 				{"/.manifest", `{"revision": "abcd", "roots": [""]}`},
 				{"/data.json", `{"a": 1}`},
@@ -447,7 +483,7 @@ func TestReadRootValidation(t *testing.T) {
 			err: "",
 		},
 		{
-			note: "implicit: prefixed",
+			note: "implicit prefixed",
 			files: [][2]string{
 				{"/.manifest", `{"revision": "abcd", "roots": ["a/b", "foo"]}`},
 				{"/data.json", `{"a": {"b": 1}}`},
@@ -456,7 +492,7 @@ func TestReadRootValidation(t *testing.T) {
 			err: "",
 		},
 		{
-			note: "err: empty",
+			note: "err empty",
 			files: [][2]string{
 				{"/.manifest", `{"revision": "abcd", "roots": []}`},
 				{"/x.rego", `package foo`},
@@ -464,21 +500,21 @@ func TestReadRootValidation(t *testing.T) {
 			err: "manifest roots [] do not permit 'package foo' in module '/x.rego'",
 		},
 		{
-			note: "err: overlapped",
+			note: "err overlapped",
 			files: [][2]string{
 				{"/.manifest", `{"revision": "abcd", "roots": ["a/b", "a"]}`},
 			},
 			err: "manifest has overlapped roots: 'a/b' and 'a'",
 		},
 		{
-			note: "edge: overlapped partial segment",
+			note: "edge overlapped partial segment",
 			files: [][2]string{
 				{"/.manifest", `{"revision": "abcd", "roots": ["a", "another_root"]}`},
 			},
 			err: "",
 		},
 		{
-			note: "err: package outside scope",
+			note: "err package outside scope",
 			files: [][2]string{
 				{"/.manifest", `{"revision": "abcd", "roots": ["a", "b", "c/d"]}`},
 				{"/a.rego", `package b.c`},
@@ -487,7 +523,7 @@ func TestReadRootValidation(t *testing.T) {
 			err: "manifest roots [a b c/d] do not permit 'package c.e' in module '/x.rego'",
 		},
 		{
-			note: "err: data outside scope",
+			note: "err data outside scope",
 			files: [][2]string{
 				{"/.manifest", `{"revision": "abcd", "roots": ["a", "b", "c/d"]}`},
 				{"/data.json", `{"a": 1}`},
@@ -674,7 +710,7 @@ func TestRoundtripDeprecatedWrite(t *testing.T) {
 	}
 
 	if !bundle2.Equal(bundle) {
-		t.Fatal("Exp:", bundle, "\n\nGot:", bundle2)
+		t.Fatalf("\nExp: %+v\nGot: %+v", bundle, bundle2)
 	}
 
 }
@@ -910,7 +946,7 @@ func TestHashBundleFiles(t *testing.T) {
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
 
-			f, err := hashBundleFiles(h, tc.data, tc.manifest, tc.wasm)
+			f, err := hashBundleFiles(h, &Bundle{Data: tc.data, Manifest: tc.manifest, Wasm: tc.wasm})
 			if err != nil {
 				t.Fatal("Unexpected error:", err)
 			}
@@ -1107,16 +1143,90 @@ func TestMerge(t *testing.T) {
 			},
 		},
 		{
-			note: "wasm merge error",
+			note: "wasm merge legacy error",
 			bundles: []*Bundle{
 				{
+					Manifest: Manifest{
+						Roots: &[]string{
+							"foo",
+						},
+					},
 					Wasm: []byte("not really wasm, but good enough"),
 				},
 				{
+					Manifest: Manifest{
+						Roots: &[]string{
+							"bar",
+						},
+					},
 					Wasm: []byte("not really wasm, but good enough"),
 				},
 			},
-			wantErr: errors.New("wasm bundles cannot be merged"),
+			wantBundle: &Bundle{
+				Manifest: Manifest{
+					Roots: &[]string{
+						"foo",
+						"bar",
+					},
+				},
+			},
+		},
+		{
+			note: "wasm merge ok",
+			bundles: []*Bundle{
+				{
+					Manifest: Manifest{
+						Roots: &[]string{
+							"logs",
+						},
+					},
+					WasmModules: []WasmModuleFile{
+						{
+							URL:        "logs/mask/policy.wasm",
+							Path:       "logs/mask/policy.wasm",
+							Entrypoint: ast.MustParseRef("system.log.mask"),
+							Raw:        []byte("not really wasm, but good enough"),
+						},
+					},
+				},
+				{
+					Manifest: Manifest{
+						Roots: &[]string{
+							"authz",
+						},
+					},
+					WasmModules: []WasmModuleFile{
+						{
+							URL:        "authz/allow/policy.wasm",
+							Path:       "authz/allow/policy.wasm",
+							Entrypoint: ast.MustParseRef("authz.allow"),
+							Raw:        []byte("not really wasm, but good enough"),
+						},
+					},
+				},
+			},
+			wantBundle: &Bundle{
+				Manifest: Manifest{
+					Roots: &[]string{
+						"logs",
+						"authz",
+					},
+				},
+				WasmModules: []WasmModuleFile{
+					{
+						URL:        "logs/mask/policy.wasm",
+						Path:       "logs/mask/policy.wasm",
+						Entrypoint: ast.MustParseRef("system.log.mask"),
+						Raw:        []byte("not really wasm, but good enough"),
+					},
+					{
+						URL:        "authz/allow/policy.wasm",
+						Path:       "authz/allow/policy.wasm",
+						Entrypoint: ast.MustParseRef("authz.allow"),
+						Raw:        []byte("not really wasm, but good enough"),
+					},
+				},
+			},
 		},
 		{
 			note: "merge policy",

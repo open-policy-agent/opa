@@ -236,6 +236,7 @@ func (q *Query) WithStrictBuiltinErrors(yes bool) *Query {
 	return q
 }
 
+// WithResolver configures an external resolver to use for the given ref.
 func (q *Query) WithResolver(ref ast.Ref, r resolver.Resolver) *Query {
 	q.external.Put(ref, r)
 	return q
