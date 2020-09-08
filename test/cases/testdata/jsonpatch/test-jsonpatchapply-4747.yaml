@@ -1,0 +1,73 @@
+cases:
+- note: jsonpatch/apply_noop_patch
+  query: data.jsonpatch.p = x
+  modules:
+    - |
+      package jsonpatch
+  
+      p = x {
+        x = jsonpatch.apply([],{})
+      }
+  want_result: [x: {}]
+- note: jsonpatch/apply_add_to_obj
+  query: data.jsonpatch.p = x
+  modules:
+  - |
+    package jsonpatch
+
+    p = x {
+      x = jsonpatch.apply(
+          [{"op": "add", "path": "/b", "value": 47}],
+          {"a": 1}
+      )
+    }
+  want_result: [x: {a: 1, b: 47}]
+- note: jsonpatch/apply_rm_from_arr
+  query: data.jsonpatch.p = x
+  modules:
+  - |
+    package jsonpatch
+
+    p = x {
+      x = jsonpatch.apply(
+          [{"op": "remove", "path": "/0"}],
+          [42, 4, 7]
+      )
+    }
+  want_result: [x: [4, 7]]
+- note: jsonpatch/apply_replace_and_test_nested_obj_with_ops_set
+  query: data.jsonpatch.p = x
+  modules:
+  - |
+    package jsonpatch
+
+    ops = {
+        {"op": "replace", "path": "/coffee/espresso", "value": {"ratio": "1:2"}},
+        {"op": "test", "path": "/coffee/espresso", "value": {"ratio": "1:2"}}
+    }
+
+    p = x {
+      x = jsonpatch.apply(ops, {"coffee": {"espresso": null}})
+    }
+  want_result: [x: {coffee: {espresso: {ratio: "1:2"}}}]
+- note: jsonpatch/apply_move_and_copy
+  query: data.jsonpatch.p = x
+  modules:
+  - |
+    package jsonpatch
+
+    ops = {
+        {"op": "move", "from": "/foo", "path": "/baz"},
+        {"op": "copy", "from": "/baz", "path": "/foo"}
+    }
+
+    p = x {
+      x = jsonpatch.apply(ops, {"foo": "bar", "baz": null})
+    }
+  want_result: [x: {foo: "bar", baz: "bar"}]
+- note: jsonpatch/apply_err_when_bad_path
+  query: 'jsonpatch.apply([{"op": "remove", "path": "bad"}], {"bad": "path"})'
+  want_error_code: eval_builtin_error
+- note: jsonpatch/apply_err_when_bad_patch
+  query: 'jsonpatch.apply([{"not": ["a", "jsonpatch", "doc"]}], {})'
+  want_error_code: eval_builtin_error

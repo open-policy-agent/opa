@@ -148,6 +148,7 @@ var DefaultBuiltins = [...]*Builtin{
 	// JSON Object Manipulation
 	JSONFilter,
 	JSONRemove,
+	JSONPatchApply,
 
 	// Tokens
 	JWTDecode,
@@ -1138,6 +1139,21 @@ var JSONRemove = &Builtin{
 					),
 				),
 			),
+		),
+		types.A,
+	),
+}
+
+// JSONPatchApply applies a JSON Patch document to a JSON document
+var JSONPatchApply = &Builtin{
+	Name: "jsonpatch.apply",
+	Decl: types.NewFunction(
+		types.Args(
+			types.NewAny(
+				types.NewArray(nil, types.NewObject(nil, types.NewDynamicProperty(types.S, types.A))),
+				types.NewSet(types.NewObject(nil, types.NewDynamicProperty(types.S, types.A))),
+			),
+			types.A,
 		),
 		types.A,
 	),

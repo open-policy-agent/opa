@@ -1496,6 +1496,53 @@
       }
     },
     {
+      "name": "jsonpatch.apply",
+      "decl": {
+        "args": [
+          {
+            "of": [
+              {
+                "dynamic": {
+                  "dynamic": {
+                    "key": {
+                      "type": "string"
+                    },
+                    "value": {
+                      "type": "any"
+                    }
+                  },
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "of": {
+                  "dynamic": {
+                    "key": {
+                      "type": "string"
+                    },
+                    "value": {
+                      "type": "any"
+                    }
+                  },
+                  "type": "object"
+                },
+                "type": "set"
+              }
+            ],
+            "type": "any"
+          },
+          {
+            "type": "any"
+          }
+        ],
+        "result": {
+          "type": "any"
+        },
+        "type": "function"
+      }
+    },
+    {
       "name": "lower",
       "decl": {
         "args": [

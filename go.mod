@@ -6,6 +6,7 @@ require (
 	github.com/OneOfOne/xxhash v1.2.7
 	github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973 // indirect
 	github.com/cpuguy83/go-md2man v1.0.10 // indirect
+	github.com/evanphx/json-patch v4.9.0+incompatible
 	github.com/fsnotify/fsnotify v1.4.7 // indirect
 	github.com/ghodss/yaml v0.0.0-20180820084758-c7ce16629ff4
 	github.com/gobwas/glob v0.2.3
@@ -31,5 +32,5 @@ require (
 	golang.org/x/lint v0.0.0-20181023182221-1baf3a9d7d67
 	golang.org/x/tools v0.0.0-20190920225731-5eefd052ad72
 	gopkg.in/fsnotify.v1 v1.4.7
-	gopkg.in/yaml.v2 v2.2.1
+	gopkg.in/yaml.v2 v2.2.1 // indirect
 )
