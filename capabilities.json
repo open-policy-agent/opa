@@ -1533,6 +1533,25 @@
             "type": "any"
           },
           {
+            "of": [
+              {
+                "dynamic": {
+                  "key": {
+                    "type": "string"
+                  },
+                  "value": {
+                    "type": "any"
+                  }
+                },
+                "type": "object"
+              },
+              {
+                "dynamic": {
+                  "type": "any"
+                },
+                "type": "array"
+              }
+            ],
             "type": "any"
           }
         ],

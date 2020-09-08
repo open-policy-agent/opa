@@ -6,6 +6,7 @@ package topdown
 
 import (
 	"encoding/json"
+	"strings"
 
 	jsonpatch "github.com/evanphx/json-patch"
 
@@ -14,17 +15,13 @@ import (
 )
 
 func builtinJSONPatchApply(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-	// Expect an arr/set of JSON Patch operations and a target object
+	// Expect an arr/set of JSON Patch operations and a target arr/object
 	ops, err := getPatchOps(operands[0].Value)
 	if err != nil {
 		return err
 	}
 
-	targetInterface, err := ast.JSON(operands[1].Value)
-	if err != nil {
-		return err
-	}
-	targetByteArr, err := json.Marshal(targetInterface)
+	target, err := getTargetDoc(operands[1].Value)
 	if err != nil {
 		return err
 	}
@@ -34,8 +31,12 @@ func builtinJSONPatchApply(_ BuiltinContext, operands []*ast.Term, iter func(*as
 		return err
 	}
 
-	result, err := patch.Apply(targetByteArr)
+	result, err := patch.Apply(target)
 	if err != nil {
+		// handle invalid "op" error more clearly
+		if strings.HasPrefix(err.Error(), "Unexpected kind: ") {
+			return builtins.NewOperandErr(1, "must contain valid JSON Patch operations")
+		}
 		return err
 	}
 
@@ -59,16 +60,31 @@ func getPatchOps(arrayOrSet ast.Value) ([]byte, error) {
 	switch v := arrayOrSet.(type) {
 	case *ast.Array, ast.Set:
 		out, err = ast.JSON(v)
+		if err != nil {
+			return nil, err
+		}
 	default:
 		return nil, builtins.NewOperandTypeErr(1, arrayOrSet, "set", "array")
 	}
 
-	opsByteArr, err := json.Marshal(out)
-	if err != nil {
-		return nil, err
+	return json.Marshal(out)
+}
+
+func getTargetDoc(arrayOrObj ast.Value) ([]byte, error) {
+	var out interface{}
+	var err error
+
+	switch v := arrayOrObj.(type) {
+	case *ast.Array, ast.Object:
+		out, err = ast.JSON(v)
+		if err != nil {
+			return nil, err
+		}
+	default:
+		return nil, builtins.NewOperandTypeErr(1, arrayOrObj, "array", "object")
 	}
 
-	return opsByteArr, nil
+	return json.Marshal(out)
 }
 
 func init() {

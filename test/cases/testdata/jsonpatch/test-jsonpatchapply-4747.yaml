@@ -70,4 +70,5 @@ cases:
   want_error_code: eval_builtin_error
 - note: jsonpatch/apply_err_when_bad_patch
   query: 'jsonpatch.apply([{"not": ["a", "jsonpatch", "doc"]}], {})'
-  want_error_code: eval_builtin_error
+  want_error_code: eval_type_error
+  want_error: 'jsonpatch.apply: operand 1 must contain valid JSON Patch operations'

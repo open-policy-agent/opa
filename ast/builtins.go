@@ -1153,7 +1153,10 @@ var JSONPatchApply = &Builtin{
 				types.NewArray(nil, types.NewObject(nil, types.NewDynamicProperty(types.S, types.A))),
 				types.NewSet(types.NewObject(nil, types.NewDynamicProperty(types.S, types.A))),
 			),
-			types.A,
+			types.NewAny(
+				types.NewObject(nil, types.NewDynamicProperty(types.S, types.A)),
+				types.NewArray(nil, types.A),
+			),
 		),
 		types.A,
 	),
