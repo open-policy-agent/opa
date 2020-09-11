@@ -196,6 +196,20 @@
       }
     },
     {
+      "name": "base64.is_valid",
+      "decl": {
+        "args": [
+          {
+            "type": "string"
+          }
+        ],
+        "result": {
+          "type": "boolean"
+        },
+        "type": "function"
+      }
+    },
+    {
       "name": "base64url.decode",
       "decl": {
         "args": [

@@ -130,6 +130,7 @@ var DefaultBuiltins = [...]*Builtin{
 	JSONUnmarshal,
 	Base64Encode,
 	Base64Decode,
+	Base64IsValid,
 	Base64UrlEncode,
 	Base64UrlDecode,
 	URLQueryDecode,
@@ -1228,6 +1229,15 @@ var Base64Decode = &Builtin{
 	Decl: types.NewFunction(
 		types.Args(types.S),
 		types.S,
+	),
+}
+
+// Base64IsValid verifies the input string is base64 encoded.
+var Base64IsValid = &Builtin{
+	Name: "base64.is_valid",
+	Decl: types.NewFunction(
+		types.Args(types.S),
+		types.B,
 	),
 }
 
