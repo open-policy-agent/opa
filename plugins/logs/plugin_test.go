@@ -29,8 +29,7 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	// call flag.Parse() here if TestMain uses flags
-	setVersion("XY.Z")
+	version.Version = "XY.Z"
 	os.Exit(m.Run())
 }
 
@@ -241,7 +240,7 @@ func TestPluginStartSameInput(t *testing.T) {
 		Labels: map[string]string{
 			"id":      "test-instance-id",
 			"app":     "example-app",
-			"version": getVersion(),
+			"version": version.Version,
 		},
 		Revision:    "399",
 		DecisionID:  "399",
@@ -313,7 +312,7 @@ func TestPluginStartChangingInputValues(t *testing.T) {
 		Labels: map[string]string{
 			"id":      "test-instance-id",
 			"app":     "example-app",
-			"version": getVersion(),
+			"version": version.Version,
 		},
 		Revision:    "399",
 		DecisionID:  "399",
@@ -374,7 +373,7 @@ func TestPluginStartChangingInputKeysAndValues(t *testing.T) {
 		Labels: map[string]string{
 			"id":      "test-instance-id",
 			"app":     "example-app",
-			"version": getVersion(),
+			"version": version.Version,
 		},
 		Revision:    "249",
 		DecisionID:  "249",
@@ -1117,16 +1116,6 @@ func generateInputMap(idx int) map[string]interface{} {
 	}
 	return result
 
-}
-
-func setVersion(opaVersion string) {
-	if version.Version == "" {
-		version.Version = opaVersion
-	}
-}
-
-func getVersion() string {
-	return version.Version
 }
 
 func getWellKnownMetrics() metrics.Metrics {

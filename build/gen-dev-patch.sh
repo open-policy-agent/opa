@@ -40,7 +40,7 @@ cd $OPA_DIR
 LAST_VERSION=$(git describe --abbrev=0 --tags | cut -c 2-)
 
 update_makefile() {
-    sed -i='' -e "s/^VERSION[ \t]*:=[ \t]*.\+$/VERSION := $VERSION-dev/" Makefile
+    sed -i='' -e "s/Version\s\+=\s\+\".\+\"$/Version = \"$VERSION-dev\"/" version/version.go
 }
 
 update_changelog() {

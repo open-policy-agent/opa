@@ -42,7 +42,7 @@ if [ -z "$LAST_VERSION" ]; then
 fi
 
 update_makefile() {
-    sed -i='' -e "s/^VERSION[ \t]*:=[ \t]*.\+$/VERSION := $VERSION/" Makefile
+    sed -i='' -e "s/Version\s\+=\s\+\".\+\"$/Version = \"$VERSION\"/" version/version.go
 }
 
 update_changelog() {
