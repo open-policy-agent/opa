@@ -2,7 +2,7 @@
 # Use of this source code is governed by an Apache2
 # license that can be found in the LICENSE file.
 
-VERSION := 0.24.0-dev
+VERSION := $(shell ./build/get-build-version.sh)
 
 CGO_ENABLED ?= 0
 

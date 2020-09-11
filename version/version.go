@@ -5,10 +5,12 @@
 // Package version contains version information that is set at build time.
 package version
 
-// Version information that is displayed by the "version" command and used to
+// Version is the canonical version of OPA.
+var Version = "0.24.0-dev"
+
+// Additional version information that is displayed by the "version" command and used to
 // identify the version of running instances of OPA.
 var (
-	Version   = ""
 	Vcs       = ""
 	Timestamp = ""
 	Hostname  = ""
