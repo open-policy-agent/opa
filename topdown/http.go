@@ -56,7 +56,7 @@ var allowedKeyNames = [...]string{
 var (
 	allowedKeys              = ast.NewSet()
 	requiredKeys             = ast.NewSet(ast.StringTerm("method"), ast.StringTerm("url"))
-	httpSendLatencyMetricKey = "rego_builtin_" + ast.HTTPSend.Name
+	httpSendLatencyMetricKey = "rego_builtin_" + strings.ReplaceAll(ast.HTTPSend.Name, ".", "_")
 )
 
 type httpSendKey string
