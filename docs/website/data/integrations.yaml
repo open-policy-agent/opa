@@ -761,7 +761,7 @@ integrations:
       - independent
 
   scalr-iacp:
-    title: Scalr
+    title: Scalr - Policy enforcement for Terraform
     description: Scalr allows teams to easily collaborate on Terraform through its pipeline that runs all Terraform operations, policy checks, and stores state. Scalr uses OPA to check the auto-generated Terraform JSON plan to ensure that it meets your organization standards prior to an apply.
     labels:
       category: Infrastructure as Code
