@@ -93,7 +93,7 @@ The example above highlights a few important points.
 * The function indicates it's undefined by returning `nil` for the first return
   argument.
 
-Let's look at another exmaple. Imagine you want to expose GitHub repository
+Let's look at another example. Imagine you want to expose GitHub repository
 metadata to your policices. One option is to implement a custom built-in
 function to fetch the data for specific repositories on-the-fly.
 
