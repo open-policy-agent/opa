@@ -858,7 +858,7 @@ case, the response will not contain a `result` property.
 
 The examples below assume the following policy:
 
-```live:input_exmaple:module:read_only
+```live:input_example:module:read_only
 package opa.examples
 
 import input.example.flag
