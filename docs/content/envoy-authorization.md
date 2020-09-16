@@ -38,6 +38,9 @@ version `v1.0+` with Kubernetes 1.14 (which is the default).
 minikube start
 ```
 
+For minikube on a mac, the use of the `hyperkit` driver is recommended.  Please start minikube with the command `minikube start --vm-driver=hyperkit`
+
+
 ### 2. Create ConfigMap containing configuration for Envoy
 
 The Envoy configuration below defines an external authorization filter
