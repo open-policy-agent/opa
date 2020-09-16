@@ -39,6 +39,7 @@ bundles:
   authz:
     service: acmecorp
     resource: bundles/http/example/authz.tar.gz
+    persist: true
     polling:
       min_delay_seconds: 60
       max_delay_seconds: 120
@@ -388,6 +389,7 @@ included in the actual bundle gzipped tarball.
 | `bundles[_].service` | `string` | Yes | Name of service to use to contact remote server. |
 | `bundles[_].polling.min_delay_seconds` | `int64` | No (default: `60`) | Minimum amount of time to wait between bundle downloads. |
 | `bundles[_].polling.max_delay_seconds` | `int64` | No (default: `120`) | Maximum amount of time to wait between bundle downloads. |
+| `bundles[_].persist` | `bool` | No | Persist activated bundles to disk. |
 | `bundles[_].signing.keyid` | `string` | No | Name of the key to use for bundle signature verification. |
 | `bundles[_].signing.scope` | `string` | No | Scope to use for bundle signature verification. |
 | `bundles[_].signing.exclude_files` | `array` | No | Files in the bundle to exclude during verification. |

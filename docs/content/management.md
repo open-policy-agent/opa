@@ -97,6 +97,7 @@ bundles:
   authz:
     service: acmecorp
     resource: somedir/bundle.tar.gz
+    persist: true
     polling:
       min_delay_seconds: 10
       max_delay_seconds: 20
@@ -124,6 +125,10 @@ Bundle names can have any valid YAML characters in them, including `/`. This can
 be useful when relying on default `resource` behavior with a name like
 `authz/bundle.tar.gz` which results in a `resource` of
 `bundles/authz/bundle.tar.gz`.
+
+OPA can optionally save and read bundles from disk based on the value of the `bundles[_].persist`
+field. If this field is set, OPA will persist activated bundles to disk and load bundles from disk too in scenarios such as
+OPA being unable to communicate with the bundle server.
 
 The optional `bundles[_].signing` field can be used to specify the `keyid` and `scope` that should be used
 for verifying the signature of the bundle. See [this](#bundle-signature) section for details.

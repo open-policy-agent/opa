@@ -9,8 +9,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"reflect"
 	"sort"
@@ -85,7 +87,206 @@ func TestPluginOneShot(t *testing.T) {
 	} else if !reflect.DeepEqual(data, expData) {
 		t.Fatalf("Bad data content. Exp:\n%v\n\nGot:\n\n%v", expData, data)
 	}
+}
 
+func TestPluginStart(t *testing.T) {
+
+	ctx := context.Background()
+	manager := getTestManager()
+	bundles := map[string]*Source{}
+
+	plugin := New(&Config{Bundles: bundles}, manager)
+	err := plugin.Start(ctx)
+	if err != nil {
+		t.Fatal("unexpected error:", err)
+	}
+}
+
+func TestPluginOneShotBundlePersistence(t *testing.T) {
+
+	ctx := context.Background()
+	manager := getTestManager()
+
+	dir, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatalf("unexpected error %v", err)
+	}
+
+	defer os.RemoveAll(dir)
+
+	bundleName := "test-bundle"
+	bundleSource := Source{
+		Persist: true,
+	}
+
+	bundles := map[string]*Source{}
+	bundles[bundleName] = &bundleSource
+
+	plugin := New(&Config{Bundles: bundles}, manager)
+
+	plugin.status[bundleName] = &Status{Name: bundleName, Metrics: metrics.New()}
+	plugin.downloaders[bundleName] = download.New(download.Config{}, plugin.manager.Client(""), bundleName)
+	plugin.bundlePersistPath = filepath.Join(dir, ".opa")
+
+	ensurePluginState(t, plugin, plugins.StateNotReady)
+
+	// simulate a bundle download error with no bundle on disk
+	plugin.oneShot(ctx, bundleName, download.Update{Error: fmt.Errorf("unknown error")})
+
+	if plugin.status[bundleName].Message == "" {
+		t.Fatal("expected error but got none")
+	}
+
+	ensurePluginState(t, plugin, plugins.StateNotReady)
+
+	// download a bundle and persist to disk. Then verify the bundle persisted to disk
+	module := "package foo\n\ncorge=1"
+
+	b := bundle.Bundle{
+		Manifest: bundle.Manifest{Revision: "quickbrownfaux"},
+		Data:     util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}}`)).(map[string]interface{}),
+		Modules: []bundle.ModuleFile{
+			bundle.ModuleFile{
+				URL:    "/foo/bar.rego",
+				Path:   "/foo/bar.rego",
+				Parsed: ast.MustParseModule(module),
+				Raw:    []byte(module),
+			},
+		},
+	}
+
+	b.Manifest.Init()
+
+	plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New()})
+
+	ensurePluginState(t, plugin, plugins.StateOK)
+
+	result, err := loadBundleFromDisk(plugin.bundlePersistPath, bundleName)
+	if err != nil {
+		t.Fatal("unexpected error:", err)
+	}
+
+	if !result.Equal(b) {
+		t.Fatal("expected the downloaded bundle to be equal to the one loaded from disk")
+	}
+
+	// simulate a bundle download error and verify that the bundle on disk is activated
+	plugin.oneShot(ctx, bundleName, download.Update{Error: fmt.Errorf("unknown error")})
+
+	ensurePluginState(t, plugin, plugins.StateOK)
+
+	txn := storage.NewTransactionOrDie(ctx, manager.Store)
+	defer manager.Store.Abort(ctx, txn)
+
+	ids, err := manager.Store.ListPolicies(ctx, txn)
+	if err != nil {
+		t.Fatal(err)
+	} else if len(ids) != 1 {
+		t.Fatal("Expected 1 policy")
+	}
+
+	bs, err := manager.Store.GetPolicy(ctx, txn, ids[0])
+	exp := []byte("package foo\n\ncorge=1")
+	if err != nil {
+		t.Fatal(err)
+	} else if !bytes.Equal(bs, exp) {
+		t.Fatalf("Bad policy content. Exp:\n%v\n\nGot:\n\n%v", string(exp), string(bs))
+	}
+
+	data, err := manager.Store.Read(ctx, txn, storage.Path{})
+	expData := util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}, "system": {"bundles": {"test-bundle": {"manifest": {"revision": "quickbrownfaux", "roots": [""]}}}}}`))
+	if err != nil {
+		t.Fatal(err)
+	} else if !reflect.DeepEqual(data, expData) {
+		t.Fatalf("Bad data content. Exp:\n%v\n\nGot:\n\n%v", expData, data)
+	}
+}
+
+func TestLoadAndActivateBundlesFromDisk(t *testing.T) {
+
+	ctx := context.Background()
+	manager := getTestManager()
+
+	dir, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatalf("unexpected error %v", err)
+	}
+
+	defer os.RemoveAll(dir)
+
+	bundleName := "test-bundle"
+	bundleSource := Source{
+		Persist: true,
+	}
+
+	bundleNameOther := "test-bundle-other"
+	bundleSourceOther := Source{}
+
+	bundles := map[string]*Source{}
+	bundles[bundleName] = &bundleSource
+	bundles[bundleNameOther] = &bundleSourceOther
+
+	plugin := New(&Config{Bundles: bundles}, manager)
+	plugin.bundlePersistPath = filepath.Join(dir, ".opa")
+
+	err = plugin.loadAndActivateBundlesFromDisk(ctx)
+	if err != nil {
+		t.Fatal("unexpected error:", err)
+	}
+
+	// persist a bundle to disk and then load it
+	module := "package foo\n\ncorge=1"
+
+	b := bundle.Bundle{
+		Manifest: bundle.Manifest{Revision: "quickbrownfaux"},
+		Data:     util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}}`)).(map[string]interface{}),
+		Modules: []bundle.ModuleFile{
+			bundle.ModuleFile{
+				URL:    "/foo/bar.rego",
+				Path:   "/foo/bar.rego",
+				Parsed: ast.MustParseModule(module),
+				Raw:    []byte(module),
+			},
+		},
+	}
+
+	b.Manifest.Init()
+
+	err = plugin.saveBundleToDisk(bundleName, &b)
+	if err != nil {
+		t.Fatalf("unexpected error %v", err)
+	}
+
+	err = plugin.loadAndActivateBundlesFromDisk(ctx)
+	if err != nil {
+		t.Fatal("unexpected error:", err)
+	}
+
+	txn := storage.NewTransactionOrDie(ctx, manager.Store)
+	defer manager.Store.Abort(ctx, txn)
+
+	ids, err := manager.Store.ListPolicies(ctx, txn)
+	if err != nil {
+		t.Fatal(err)
+	} else if len(ids) != 1 {
+		t.Fatal("Expected 1 policy")
+	}
+
+	bs, err := manager.Store.GetPolicy(ctx, txn, ids[0])
+	exp := []byte("package foo\n\ncorge=1")
+	if err != nil {
+		t.Fatal(err)
+	} else if !bytes.Equal(bs, exp) {
+		t.Fatalf("Bad policy content. Exp:\n%v\n\nGot:\n\n%v", string(exp), string(bs))
+	}
+
+	data, err := manager.Store.Read(ctx, txn, storage.Path{})
+	expData := util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}, "system": {"bundles": {"test-bundle": {"manifest": {"revision": "quickbrownfaux", "roots": [""]}}}}}`))
+	if err != nil {
+		t.Fatal(err)
+	} else if !reflect.DeepEqual(data, expData) {
+		t.Fatalf("Bad data content. Exp:\n%v\n\nGot:\n\n%v", expData, data)
+	}
 }
 
 func TestPluginOneShotCompileError(t *testing.T) {
@@ -1382,6 +1583,197 @@ func TestUpgradeLegacyBundleToMuiltiBundleNewBundles(t *testing.T) {
 	if !plugin.config.IsMultiBundle() {
 		t.Fatalf("Expected plugin to be in multi bundle config mode")
 	}
+}
+
+func TestSaveBundleToDiskNew(t *testing.T) {
+
+	manager := getTestManager()
+
+	dir, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatalf("unexpected error %v", err)
+	}
+
+	defer os.RemoveAll(dir)
+
+	bundles := map[string]*Source{}
+	plugin := New(&Config{Bundles: bundles}, manager)
+	plugin.bundlePersistPath = filepath.Join(dir, ".opa")
+
+	b := getTestBundle(t)
+
+	err = plugin.saveBundleToDisk("foo", &b)
+	if err != nil {
+		t.Fatalf("unexpected error %v", err)
+	}
+}
+
+func TestSaveBundleToDiskOverWrite(t *testing.T) {
+
+	manager := getTestManager()
+
+	// test to check existing bundle is replaced
+	dir, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatalf("unexpected error %v", err)
+	}
+
+	defer os.RemoveAll(dir)
+
+	bundles := map[string]*Source{}
+	plugin := New(&Config{Bundles: bundles}, manager)
+	plugin.bundlePersistPath = filepath.Join(dir, ".opa")
+
+	bundleName := "foo"
+	bundleDir := filepath.Join(plugin.bundlePersistPath, bundleName)
+
+	err = os.MkdirAll(bundleDir, os.ModePerm)
+	if err != nil {
+		t.Fatalf("unexpected error %v", err)
+	}
+
+	b2 := writeTestBundleToDisk(t, bundleDir)
+
+	module := "package a.a1\n\nbar=1"
+
+	newBundle := bundle.Bundle{
+		Manifest: bundle.Manifest{Revision: "quickbrownfaux", Roots: &[]string{"a/a1", "a/a2"}},
+		Data: map[string]interface{}{
+			"a": map[string]interface{}{
+				"a2": "foo",
+			},
+		},
+		Modules: []bundle.ModuleFile{
+			bundle.ModuleFile{
+				Path:   "bundle/id1",
+				Parsed: ast.MustParseModule(module),
+				Raw:    []byte(module),
+			},
+		},
+	}
+	newBundle.Manifest.Init()
+
+	err = plugin.saveBundleToDisk("foo", &newBundle)
+	if err != nil {
+		t.Fatalf("unexpected error %v", err)
+	}
+
+	actual, err := loadBundleFromDisk(plugin.bundlePersistPath, "foo")
+	if err != nil {
+		t.Fatalf("unexpected error %v", err)
+	}
+
+	if actual.Equal(b2) {
+		t.Fatal("expected existing bundle to be overwritten")
+	}
+}
+
+func TestSaveCurrentBundleToDisk(t *testing.T) {
+	b := getTestBundle(t)
+
+	srcDir, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatalf("unexpected error %v", err)
+	}
+
+	defer os.RemoveAll(srcDir)
+
+	err = saveCurrentBundleToDisk(srcDir, "bundle.tar.gz", &b)
+	if err != nil {
+		t.Fatalf("unexpected error %v", err)
+	}
+
+	if _, err := os.Stat(filepath.Join(srcDir, "bundle.tar.gz")); err != nil {
+		t.Fatalf("unexpected error %v", err)
+	}
+}
+
+func TestLoadBundleFromDisk(t *testing.T) {
+
+	// no bundle on disk
+	_, err := loadBundleFromDisk("foo", "bar")
+	if err != nil {
+		t.Fatalf("unexpected error %v", err)
+	}
+
+	// create a test bundle and load it from disk
+	dir, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatalf("unexpected error %v", err)
+	}
+
+	defer os.RemoveAll(dir)
+
+	bundleName := "foo"
+	bundleDir := filepath.Join(dir, bundleName)
+
+	err = os.MkdirAll(bundleDir, os.ModePerm)
+	if err != nil {
+		t.Fatalf("unexpected error %v", err)
+	}
+
+	b := writeTestBundleToDisk(t, bundleDir)
+
+	result, err := loadBundleFromDisk(dir, bundleName)
+	if err != nil {
+		t.Fatal("unexpected error:", err)
+	}
+
+	if !result.Equal(b) {
+		t.Fatal("expected the test bundle to be equal to the one loaded from disk")
+	}
+}
+
+func TestGetDefaultBundlePersistPath(t *testing.T) {
+	path, err := getDefaultBundlePersistPath()
+	if err != nil {
+		t.Fatalf("unexpected error %v", err)
+	}
+
+	if !strings.HasSuffix(path, ".opa") {
+		t.Fatal("expected default persist path to include '.opa' dir")
+	}
+}
+
+func writeTestBundleToDisk(t *testing.T, srcDir string) bundle.Bundle {
+	t.Helper()
+
+	b := getTestBundle(t)
+
+	var buf bytes.Buffer
+	if err := bundle.NewWriter(&buf).UseModulePath(true).Write(b); err != nil {
+		t.Fatalf("unexpected error %v", err)
+	}
+
+	if err := ioutil.WriteFile(filepath.Join(srcDir, "bundle.tar.gz"), buf.Bytes(), 0644); err != nil {
+		t.Fatalf("unexpected error %v", err)
+	}
+
+	return b
+}
+
+func getTestBundle(t *testing.T) bundle.Bundle {
+	t.Helper()
+
+	module := "package gork\np[x] { x = 1 }"
+
+	b := bundle.Bundle{
+		Manifest: bundle.Manifest{
+			Revision: "quickbrownfaux",
+		},
+		Data: map[string]interface{}{},
+		Modules: []bundle.ModuleFile{
+			{
+				Path:   "/foo.rego",
+				URL:    "/foo.rego",
+				Parsed: ast.MustParseModule(module),
+				Raw:    []byte(module),
+			},
+		},
+	}
+
+	b.Manifest.Init()
+	return b
 }
 
 func validateStoreState(ctx context.Context, t *testing.T, store storage.Store, root string, expData interface{}, expIds []string, expBundleName string, expBundleRev string) {

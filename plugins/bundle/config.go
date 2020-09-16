@@ -42,6 +42,7 @@ func ParseConfig(config []byte, services []string) (*Config, error) {
 			Service:  parsedConfig.Service,
 			Resource: parsedConfig.generateLegacyResourcePath(),
 			Signing:  nil,
+			Persist:  false,
 		},
 	}
 
@@ -135,6 +136,7 @@ type Source struct {
 	Service  string                     `json:"service"`
 	Resource string                     `json:"resource"`
 	Signing  *bundle.VerificationConfig `json:"signing"`
+	Persist  bool                       `json:"persist"`
 }
 
 // IsMultiBundle returns whether or not the config is the newer multi-bundle
