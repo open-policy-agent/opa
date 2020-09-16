@@ -6,9 +6,13 @@
 package bundle
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"io/ioutil"
+	"os"
+	"path/filepath"
 	"reflect"
 	"sync"
 	"time"
@@ -27,17 +31,18 @@ import (
 
 // Plugin implements bundle activation.
 type Plugin struct {
-	config        Config
-	manager       *plugins.Manager                         // plugin manager for storage and service clients
-	status        map[string]*Status                       // current status for each bundle
-	etags         map[string]string                        // etag on last successful activation
-	listeners     map[interface{}]func(Status)             // listeners to send status updates to
-	bulkListeners map[interface{}]func(map[string]*Status) // listeners to send aggregated status updates to
-	downloaders   map[string]*download.Downloader
-	mtx           sync.Mutex
-	cfgMtx        sync.Mutex
-	legacyConfig  bool
-	ready         bool
+	config            Config
+	manager           *plugins.Manager                         // plugin manager for storage and service clients
+	status            map[string]*Status                       // current status for each bundle
+	etags             map[string]string                        // etag on last successful activation
+	listeners         map[interface{}]func(Status)             // listeners to send status updates to
+	bulkListeners     map[interface{}]func(map[string]*Status) // listeners to send aggregated status updates to
+	downloaders       map[string]*download.Downloader
+	mtx               sync.Mutex
+	cfgMtx            sync.Mutex
+	legacyConfig      bool
+	ready             bool
+	bundlePersistPath string
 }
 
 // New returns a new Plugin with the given config.
@@ -79,6 +84,19 @@ func Lookup(manager *plugins.Manager) *Plugin {
 func (p *Plugin) Start(ctx context.Context) error {
 	p.mtx.Lock()
 	defer p.mtx.Unlock()
+
+	var err error
+
+	p.bundlePersistPath, err = getDefaultBundlePersistPath()
+	if err != nil {
+		return err
+	}
+
+	err = p.loadAndActivateBundlesFromDisk(ctx)
+	if err != nil {
+		return err
+	}
+
 	p.initDownloaders()
 	for name, dl := range p.downloaders {
 		p.logInfo(name, "Starting bundle downloader.")
@@ -245,6 +263,38 @@ func (p *Plugin) initDownloaders() {
 	}
 }
 
+func (p *Plugin) loadAndActivateBundlesFromDisk(ctx context.Context) error {
+	for name := range p.config.Bundles {
+		if p.persistBundle(name) {
+			b, err := loadBundleFromDisk(p.bundlePersistPath, name)
+			if err != nil {
+				p.logError(name, "Failed to load bundle from disk: %v", err)
+				return err
+			}
+
+			if b == nil {
+				return nil
+			}
+
+			p.status[name].Metrics = metrics.New()
+
+			err = p.activate(ctx, name, b)
+			if err != nil {
+				p.logError(name, "Bundle activation failed: %v", err)
+				return err
+			}
+
+			p.status[name].SetError(nil)
+			p.status[name].SetActivateSuccess(b.Manifest.Revision)
+
+			p.checkPluginReadiness()
+
+			p.logDebug(name, "Bundle loaded from disk and activated successfully.")
+		}
+	}
+	return nil
+}
+
 func (p *Plugin) newDownloader(name string, source *Source) *download.Downloader {
 	conf := source.Config
 	client := p.manager.Client(source.Service)
@@ -311,8 +361,22 @@ func (p *Plugin) process(ctx context.Context, name string, u download.Update) {
 			return
 		}
 
+		if p.persistBundle(name) {
+			p.logDebug(name, "Persisting bundle to disk in progress.")
+
+			err := p.saveBundleToDisk(name, u.Bundle)
+			if err != nil {
+				p.logError(name, "Persisting bundle to disk failed: %v", err)
+				p.status[name].SetError(err)
+				p.downloaders[name].ClearCache()
+				return
+			}
+			p.logDebug(name, "Bundle persisted to disk successfully at path %v.", filepath.Join(p.bundlePersistPath, name))
+		}
+
 		p.status[name].SetError(nil)
 		p.status[name].SetActivateSuccess(u.Bundle.Manifest.Revision)
+
 		if u.ETag != "" {
 			p.logInfo(name, "Bundle downloaded and activated successfully. Etag updated to %v.", u.ETag)
 		} else {
@@ -321,21 +385,7 @@ func (p *Plugin) process(ctx context.Context, name string, u download.Update) {
 		p.etags[name] = u.ETag
 
 		// If the plugin wasn't ready yet then check if we are now after activating this bundle.
-		if !p.ready {
-			readyNow := true // optimistically
-			for _, status := range p.status {
-				if len(status.Errors) > 0 || (status.LastSuccessfulActivation == time.Time{}) {
-					readyNow = false // Not ready yet, check again on next bundle activation.
-					break
-				}
-			}
-
-			if readyNow {
-				p.ready = true
-				p.manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateOK})
-			}
-
-		}
+		p.checkPluginReadiness()
 		return
 	}
 
@@ -343,6 +393,23 @@ func (p *Plugin) process(ctx context.Context, name string, u download.Update) {
 		p.logDebug(name, "Bundle download skipped, server replied with not modified.")
 		p.status[name].SetError(nil)
 		return
+	}
+}
+
+func (p *Plugin) checkPluginReadiness() {
+	if !p.ready {
+		readyNow := true // optimistically
+		for _, status := range p.status {
+			if len(status.Errors) > 0 || (status.LastSuccessfulActivation == time.Time{}) {
+				readyNow = false // Not ready yet, check again on next bundle activation.
+				break
+			}
+		}
+
+		if readyNow {
+			p.ready = true
+			p.manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateOK})
+		}
 	}
 }
 
@@ -385,6 +452,15 @@ func (p *Plugin) activate(ctx context.Context, name string, b *bundle.Bundle) er
 	return err
 }
 
+func (p *Plugin) persistBundle(name string) bool {
+	bundleSrc := p.config.Bundles[name]
+
+	if bundleSrc == nil {
+		return false
+	}
+	return bundleSrc.Persist
+}
+
 func (p *Plugin) logError(bundleName string, fmt string, a ...interface{}) {
 	logrus.WithFields(p.logrusFields(bundleName)).Errorf(fmt, a...)
 }
@@ -395,6 +471,10 @@ func (p *Plugin) logInfo(bundleName string, fmt string, a ...interface{}) {
 
 func (p *Plugin) logDebug(bundleName string, fmt string, a ...interface{}) {
 	logrus.WithFields(p.logrusFields(bundleName)).Debugf(fmt, a...)
+}
+
+func (p *Plugin) logWarn(bundleName string, fmt string, a ...interface{}) {
+	logrus.WithFields(p.logrusFields(bundleName)).Warnf(fmt, a...)
 }
 
 func (p *Plugin) logrusFields(bundleName string) logrus.Fields {
@@ -428,4 +508,80 @@ func (p *Plugin) configDelta(newConfig *Config) (map[string]*Source, map[string]
 	}
 
 	return newBundles, updatedBundles, deletedBundles
+}
+
+func (p *Plugin) saveBundleToDisk(name string, b *bundle.Bundle) error {
+
+	bundleDir := filepath.Join(p.bundlePersistPath, name)
+	tmpFile := filepath.Join(bundleDir, ".bundle.tar.gz.tmp")
+	bundleFile := filepath.Join(bundleDir, "bundle.tar.gz")
+
+	saveErr := saveCurrentBundleToDisk(bundleDir, ".bundle.tar.gz.tmp", b)
+	if saveErr != nil {
+		p.logWarn(name, "Failed to save new bundle to disk: %v", saveErr)
+
+		if err := os.Remove(tmpFile); err != nil {
+			p.logWarn(name, "Failed to remove temp file ('%s'): %v", tmpFile, err)
+		}
+
+		if _, err := os.Stat(bundleFile); err == nil {
+			p.logWarn(name, "Older version of activated bundle persisted, ignoring error")
+			return nil
+		}
+		return saveErr
+	}
+
+	return os.Rename(tmpFile, bundleFile)
+}
+
+func saveCurrentBundleToDisk(path, filename string, b *bundle.Bundle) error {
+	var buf bytes.Buffer
+
+	if err := bundle.NewWriter(&buf).UseModulePath(true).Write(*b); err != nil {
+		return err
+	}
+
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		err = os.MkdirAll(path, os.ModePerm)
+		if err != nil {
+			return err
+		}
+	}
+
+	if err := ioutil.WriteFile(filepath.Join(path, filename), buf.Bytes(), 0644); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func loadBundleFromDisk(path, name string) (*bundle.Bundle, error) {
+	bundlePath := filepath.Join(path, name, "bundle.tar.gz")
+
+	if _, err := os.Stat(bundlePath); err == nil {
+		f, err := os.Open(filepath.Join(bundlePath))
+		if err != nil {
+			return nil, err
+		}
+		defer f.Close()
+
+		b, err := bundle.NewReader(f).Read()
+		if err != nil {
+			return nil, err
+		}
+		return &b, nil
+
+	} else if os.IsNotExist(err) {
+		return nil, nil
+	} else {
+		return nil, err
+	}
+}
+
+func getDefaultBundlePersistPath() (string, error) {
+	pwd, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(pwd, ".opa"), nil
 }
