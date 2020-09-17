@@ -752,6 +752,19 @@ func isCachedResponseFresh(bctx BuiltinContext, resp *interQueryCacheValue) bool
 
 	currentAge := currentTime.Sub(resp.date)
 
+	// The time.Sub operation uses wall clock readings and
+	// not monotonic clock readings as the parsed version of the response time
+	// does not contain monotonic clock readings. This can result in negative durations.
+	// Another scenario where a negative duration can occur, is when a server sets the Date
+	// response header. As per https://tools.ietf.org/html/rfc7231#section-7.1.1.2,
+	// an origin server MUST NOT send a Date header field if it does not
+	// have a clock capable of providing a reasonable approximation of the
+	// current instance in Coordinated Universal Time.
+	// Hence, consider the cached response as stale if a negative duration is encountered.
+	if currentAge < 0 {
+		return false
+	}
+
 	// Check "max-age" cache directive.
 	// The "max-age" response directive indicates that the response is to be
 	// considered stale after its age is greater than the specified number
