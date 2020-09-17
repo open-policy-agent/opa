@@ -893,6 +893,12 @@ cached response is in fact still fresh. If the server responds with a `200` (`OK
 with the new response. On a `304` (`Not Modified`) server response, `http.send` will update the headers in cached response with
 their corresponding values in the `304` response.
 
+> `http.send` uses the `Date` response header to calculate the current age of the response by comparing it with the current time.
+> This value is used to determine the freshness of the cached response. As per https://tools.ietf.org/html/rfc7231#section-7.1.1.2,
+> an origin server MUST NOT send a `Date` header field if it does not have a clock capable of providing a reasonable
+> approximation of the current instance in Coordinated Universal Time. Hence, if `http.send` encounters a scenario where current
+> age of the response is represented as a negative duration, the cached response will be considered as stale.
+
 The table below shows examples of calling `http.send`:
 
 | Example |  Comments |

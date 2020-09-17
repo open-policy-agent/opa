@@ -869,6 +869,20 @@ func TestHTTPSendInterQueryCaching(t *testing.T) {
 			response:         `{"x": 1}`,
 			expectedReqCount: 3,
 		},
+		{
+			note: "http.send GET (response_age_negative_duration)",
+			ruleTemplate: `p = x {
+									r1 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true})
+									r2 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true}) # stale
+									r3 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true}) # stale
+									r1 == r2
+									r2 == r3
+									x = r1.body
+								}`,
+			headers:          map[string][]string{"Cache-Control": {"max-age=0, public"}, "Last-Modified": {"Wed, 31 Dec 2115 07:28:00 GMT"}, "Date": {"Wed, 31 Dec 2115 07:28:00 GMT"}},
+			response:         `{"x": 1}`,
+			expectedReqCount: 3,
+		},
 	}
 
 	data := loadSmallTestData()
@@ -1142,6 +1156,19 @@ func TestGetResponseHeaderDateEmpty(t *testing.T) {
 	expected := "no date header"
 	if err.Error() != expected {
 		t.Fatalf("Expected error message %v but got %v", expected, err.Error())
+	}
+}
+
+func TestIsCachedResponseFreshZeroTime(t *testing.T) {
+	zeroTime := new(time.Time)
+	result := isCachedResponseFresh(BuiltinContext{}, &interQueryCacheValue{date: *zeroTime})
+	if result {
+		t.Fatal("Expected stale cache response")
+	}
+
+	result = isCachedResponseFresh(BuiltinContext{Time: ast.NullTerm()}, &interQueryCacheValue{date: time.Now()})
+	if result {
+		t.Fatal("Expected stale cache response")
 	}
 }
 
@@ -1862,6 +1889,18 @@ func TestHTTPSendMetrics(t *testing.T) {
 	if m.Timer(httpSendLatencyMetricKey).Int64() == 0 {
 		t.Fatal("expected non-zero value for http.send latency metric")
 	}
+}
+
+func TestInitDefaults(t *testing.T) {
+	os.Setenv("HTTP_SEND_TIMEOUT", "300mss")
+	defer os.Unsetenv("HTTP_SEND_TIMEOUT")
+
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatal("expected function to panic")
+		}
+	}()
+	initDefaults()
 }
 
 var httpSendHelperRules = []string{
