@@ -776,6 +776,8 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 		{"call-vars-input", "p { f(x, x) } f(x) = x { true }", `{x,}`},
 		{"call-no-output", "p { f(x) } f(x) = x { true }", `{x,}`},
 		{"call-too-few", "p { f(1,x) } f(x,y) { true }", "{x,}"},
+		{"object-key-comprehension", "p { { {p|x}: 0 } }", "{x,}"},
+		{"set-value-comprehension", "p { {1, {p|x}} }", "{x,}"},
 	}
 
 	makeErrMsg := func(varName string) string {

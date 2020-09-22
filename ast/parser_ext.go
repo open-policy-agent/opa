@@ -430,15 +430,15 @@ func ParseBody(input string) (Body, error) {
 	for _, stmt := range stmts {
 		switch stmt := stmt.(type) {
 		case Body:
-			result = append(result, stmt...)
+			for i := range stmt {
+				result.Append(stmt[i])
+			}
 		case *Comment:
 			// skip
 		default:
 			return nil, fmt.Errorf("expected body but got %T", stmt)
 		}
 	}
-
-	setExprIndices(result)
 
 	return result, nil
 }
@@ -616,15 +616,6 @@ func parseModule(filename string, stmts []Statement, comments []*Comment) (*Modu
 	}
 
 	return nil, errs
-}
-
-func setExprIndices(x interface{}) {
-	WalkBodies(x, func(b Body) bool {
-		for i, expr := range b {
-			expr.Index = i
-		}
-		return false
-	})
 }
 
 func setRuleModule(rule *Rule, module *Module) {
