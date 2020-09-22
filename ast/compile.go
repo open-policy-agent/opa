@@ -2187,7 +2187,7 @@ func reorderBodyForSafety(builtins map[string]*Builtin, arity func(Ref) int, glo
 
 			if len(unsafe[e]) == 0 {
 				delete(unsafe, e)
-				reordered = append(reordered, e)
+				reordered.Append(e)
 			}
 		}
 
@@ -2204,24 +2204,20 @@ func reorderBodyForSafety(builtins map[string]*Builtin, arity func(Ref) int, glo
 		if i > 0 {
 			g.Update(reordered[i-1].Vars(SafetyCheckVisitorParams))
 		}
-		vis := &bodySafetyVisitor{
+		xform := &bodySafetyTransformer{
 			builtins: builtins,
 			arity:    arity,
 			current:  e,
 			globals:  g,
 			unsafe:   unsafe,
 		}
-		NewGenericVisitor(vis.Visit).Walk(e)
+		NewGenericVisitor(xform.Visit).Walk(e)
 	}
-
-	// Need to reset expression indices as re-ordering may have
-	// changed them.
-	setExprIndices(reordered)
 
 	return reordered, unsafe
 }
 
-type bodySafetyVisitor struct {
+type bodySafetyTransformer struct {
 	builtins map[string]*Builtin
 	arity    func(Ref) int
 	current  *Expr
@@ -2229,70 +2225,70 @@ type bodySafetyVisitor struct {
 	unsafe   unsafeVars
 }
 
-func (vis *bodySafetyVisitor) Visit(x interface{}) bool {
-	switch x := x.(type) {
-	case *Expr:
-		cpy := *vis
-		cpy.current = x
-
-		switch ts := x.Terms.(type) {
-		case *SomeDecl:
-			NewGenericVisitor(cpy.Visit).Walk(ts)
-		case []*Term:
-			for _, t := range ts {
-				NewGenericVisitor(cpy.Visit).Walk(t)
-			}
-		case *Term:
-			NewGenericVisitor(cpy.Visit).Walk(ts)
+func (xform *bodySafetyTransformer) Visit(x interface{}) bool {
+	if term, ok := x.(*Term); ok {
+		switch x := term.Value.(type) {
+		case *object:
+			cpy, _ := x.Map(func(k, v *Term) (*Term, *Term, error) {
+				kcpy := k.Copy()
+				NewGenericVisitor(xform.Visit).Walk(kcpy)
+				vcpy := v.Copy()
+				NewGenericVisitor(xform.Visit).Walk(vcpy)
+				return kcpy, vcpy, nil
+			})
+			term.Value = cpy
+			return true
+		case *set:
+			cpy, _ := x.Map(func(v *Term) (*Term, error) {
+				vcpy := v.Copy()
+				NewGenericVisitor(xform.Visit).Walk(vcpy)
+				return vcpy, nil
+			})
+			term.Value = cpy
+			return true
+		case *ArrayComprehension:
+			xform.reorderArrayComprehensionSafety(x)
+			return true
+		case *ObjectComprehension:
+			xform.reorderObjectComprehensionSafety(x)
+			return true
+		case *SetComprehension:
+			xform.reorderSetComprehensionSafety(x)
+			return true
 		}
-		for i := range x.With {
-			NewGenericVisitor(cpy.Visit).Walk(x.With[i])
-		}
-		return true
-	case *ArrayComprehension:
-		vis.checkArrayComprehensionSafety(x)
-		return true
-	case *ObjectComprehension:
-		vis.checkObjectComprehensionSafety(x)
-		return true
-	case *SetComprehension:
-		vis.checkSetComprehensionSafety(x)
-		return true
 	}
 	return false
 }
 
-// Check term for safety. This is analogous to the rule head safety check.
-func (vis *bodySafetyVisitor) checkComprehensionSafety(tv VarSet, body Body) Body {
+func (xform *bodySafetyTransformer) reorderComprehensionSafety(tv VarSet, body Body) Body {
 	bv := body.Vars(SafetyCheckVisitorParams)
-	bv.Update(vis.globals)
+	bv.Update(xform.globals)
 	uv := tv.Diff(bv)
 	for v := range uv {
-		vis.unsafe.Add(vis.current, v)
+		xform.unsafe.Add(xform.current, v)
 	}
 
-	// Check body for safety, reordering as necessary.
-	r, u := reorderBodyForSafety(vis.builtins, vis.arity, vis.globals, body)
+	r, u := reorderBodyForSafety(xform.builtins, xform.arity, xform.globals, body)
 	if len(u) == 0 {
 		return r
 	}
 
-	vis.unsafe.Update(u)
+	xform.unsafe.Update(u)
 	return body
 }
 
-func (vis *bodySafetyVisitor) checkArrayComprehensionSafety(ac *ArrayComprehension) {
-	ac.Body = vis.checkComprehensionSafety(ac.Term.Vars(), ac.Body)
+func (xform *bodySafetyTransformer) reorderArrayComprehensionSafety(ac *ArrayComprehension) {
+	ac.Body = xform.reorderComprehensionSafety(ac.Term.Vars(), ac.Body)
 }
 
-func (vis *bodySafetyVisitor) checkObjectComprehensionSafety(oc *ObjectComprehension) {
+func (xform *bodySafetyTransformer) reorderObjectComprehensionSafety(oc *ObjectComprehension) {
 	tv := oc.Key.Vars()
 	tv.Update(oc.Value.Vars())
-	oc.Body = vis.checkComprehensionSafety(tv, oc.Body)
+	oc.Body = xform.reorderComprehensionSafety(tv, oc.Body)
 }
 
-func (vis *bodySafetyVisitor) checkSetComprehensionSafety(sc *SetComprehension) {
-	sc.Body = vis.checkComprehensionSafety(sc.Term.Vars(), sc.Body)
+func (xform *bodySafetyTransformer) reorderSetComprehensionSafety(sc *SetComprehension) {
+	sc.Body = xform.reorderComprehensionSafety(sc.Term.Vars(), sc.Body)
 }
 
 // reorderBodyForClosures returns a copy of the body ordered such that
