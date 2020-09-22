@@ -4,10 +4,10 @@ kind: tutorial
 weight: 8
 ---
 
-[Envoy](https://www.envoyproxy.io/docs/envoy/v1.10.0/intro/what_is_envoy) is a
+[Envoy](https://www.envoyproxy.io/docs/envoy/v1.14.4/intro/what_is_envoy) is a
 L7 proxy and communication bus designed for large modern service oriented
 architectures. Envoy (v1.7.0+) supports an [External Authorization
-filter](https://www.envoyproxy.io/docs/envoy/v1.10.0/intro/arch_overview/ext_authz_filter.html)
+filter](https://www.envoyproxy.io/docs/envoy/v1.14.4/intro/arch_overview/security/ext_authz_filter)
 which calls an authorization service to check if the incoming request is
 authorized or not.
 
@@ -27,8 +27,8 @@ policies over the HTTP request body.
 
 This tutorial requires Kubernetes 1.14 or later. To run the tutorial locally, we
 recommend using
-[minikube](https://kubernetes.io/docs/getting-started-guides/minikube) in
-version `v1.0+` with Kubernetes 1.14 (which is the default).
+[minikube](https://minikube.sigs.k8s.io/docs/start/) in
+version `v1.0+` with Kubernetes 1.14+.
 
 ## Steps
 
@@ -264,7 +264,7 @@ spec:
           ports:
             - containerPort: 8080
         - name: envoy
-          image: envoyproxy/envoy:v1.10.0
+          image: envoyproxy/envoy:v1.14.4
           securityContext:
             runAsUser: 1111
           volumeMounts:
@@ -322,6 +322,15 @@ spec:
 kubectl apply -f deployment.yaml
 ```
 
+Check that the Pod shows `3/3` containers `READY` the `STATUS` as `Running`:
+
+```bash
+kubectl get pod
+
+NAME                           READY   STATUS    RESTARTS   AGE
+example-app-67c644b9cb-bbqgh   3/3     Running   0          8s
+```
+
 > The `proxy-init` container installs iptables rules to redirect all container
   traffic through the Envoy proxy sidecar. More information can be found
   [here](https://github.com/open-policy-agent/contrib/tree/master/envoy_iptables).
@@ -329,8 +338,25 @@ kubectl apply -f deployment.yaml
 
 ### 5. Create a Service to expose HTTP server
 
+In a second terminal, start a [minikube tunnel](https://minikube.sigs.k8s.io/docs/handbook/accessing/#using-minikube-tunnel) to allow for use of the `LoadBalancer` service type.
+
 ```bash
-kubectl expose deployment example-app --type=NodePort --name=example-app-service  --port=8080
+minikube tunnel
+```
+
+In the first terminal, create a `LoadBalancer` service for the deployment.
+
+```bash
+kubectl expose deployment example-app --type=LoadBalancer --name=example-app-service --port=8080
+```
+
+Check that the Service shows an `EXTERNAL-IP`:
+
+```bash
+kubectl get service example-app-service
+
+NAME                  TYPE           CLUSTER-IP      EXTERNAL-IP     PORT(S)          AGE
+example-app-service   LoadBalancer   10.109.64.199   10.109.64.199   8080:32170/TCP   5s
 ```
 
 Set the `SERVICE_URL` environment variable to the service's IP/port.
@@ -338,16 +364,15 @@ Set the `SERVICE_URL` environment variable to the service's IP/port.
 **minikube:**
 
 ```bash
-export SERVICE_PORT=$(kubectl get service example-app-service -o jsonpath='{.spec.ports[?(@.port==8080)].nodePort}')
-export SERVICE_HOST=$(minikube ip)
-export SERVICE_URL=$SERVICE_HOST:$SERVICE_PORT
+export SERVICE_HOST=$(kubectl get service example-app-service -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+export SERVICE_URL=$SERVICE_HOST:8080
 echo $SERVICE_URL
 ```
 
 **minikube (example):**
 
 ```bash
-192.168.99.113:31056
+10.109.64.199:8080
 ```
 
 ### 6. Exercise the OPA policy
@@ -362,21 +387,21 @@ export BOB_TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYWRtaW4iLCJzd
 Check that `Alice` can get employees **but cannot** create one.
 
 ```bash
-curl -i -H "Authorization: Bearer "$ALICE_TOKEN"" http://$SERVICE_URL/people
-curl -i -H "Authorization: Bearer "$ALICE_TOKEN"" -d '{"firstname":"Charlie", "lastname":"OPA"}' -H "Content-Type: application/json" -X POST http://$SERVICE_URL/people
+curl -i -H "Authorization: Bearer $ALICE_TOKEN" http://$SERVICE_URL/people
+curl -i -H "Authorization: Bearer $ALICE_TOKEN" -d '{"firstname":"Charlie", "lastname":"OPA"}' -H "Content-Type: application/json" -X POST http://$SERVICE_URL/people
 ```
 
 Check that `Bob` can get employees and also create one.
 
 ```bash
-curl -i -H "Authorization: Bearer "$BOB_TOKEN"" http://$SERVICE_URL/people
-curl -i -H "Authorization: Bearer "$BOB_TOKEN"" -d '{"firstname":"Charlie", "lastname":"Opa"}' -H "Content-Type: application/json" -X POST http://$SERVICE_URL/people
+curl -i -H "Authorization: Bearer $BOB_TOKEN" http://$SERVICE_URL/people
+curl -i -H "Authorization: Bearer $BOB_TOKEN" -d '{"firstname":"Charlie", "lastname":"Opa"}' -H "Content-Type: application/json" -X POST http://$SERVICE_URL/people
 ```
 
 Check that `Bob` **cannot** create an employee with the same firstname as himself.
 
 ```bash
-curl -i  -H "Authorization: Bearer "$BOB_TOKEN"" -d '{"firstname":"Bob", "lastname":"Rego"}' -H "Content-Type: application/json" -X POST http://$SERVICE_URL/people
+curl -i  -H "Authorization: Bearer $BOB_TOKEN" -d '{"firstname":"Bob", "lastname":"Rego"}' -H "Content-Type: application/json" -X POST http://$SERVICE_URL/people
 ```
 
 ## Wrap Up
