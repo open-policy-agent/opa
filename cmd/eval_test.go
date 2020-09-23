@@ -32,7 +32,7 @@ func TestEvalExitCode(t *testing.T) {
 	}{
 		{"defined result", "true=true", true, false},
 		{"undefined result", "true = false", false, false},
-		{"on error", "x = 1/0", false, true},
+		{"on error", `{k: v | k = ["a", "a"][_]; v = [0,1][_]}`, false, true},
 	}
 
 	var b bytes.Buffer
@@ -204,7 +204,7 @@ func TestEvalWithInvalidInputFile(t *testing.T) {
 
 func TestEvalReturnsRegoError(t *testing.T) {
 	buf := new(bytes.Buffer)
-	_, err := eval([]string{"1/0"}, newEvalCommandParams(), buf)
+	_, err := eval([]string{`{k: v | k = ["a", "a"][_]; v = [0,1][_]}`}, newEvalCommandParams(), buf)
 	if _, ok := err.(regoError); !ok {
 		t.Fatal("expected regoError but got:", err)
 	}

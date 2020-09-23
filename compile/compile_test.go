@@ -551,10 +551,10 @@ func TestOptimizerErrors(t *testing.T) {
 			modules: map[string]string{
 				"test.rego": `
 					package test
-					p { div(1, 0, x) }
+					p { {k: v | k = ["a", "a"][_]; v = [0, 1][_] } }
 				`,
 			},
-			wantErr: fmt.Errorf("test.rego:3: eval_builtin_error: div: divide by zero"),
+			wantErr: fmt.Errorf("test.rego:3: eval_conflict_error: object keys must be unique"),
 		},
 	}
 

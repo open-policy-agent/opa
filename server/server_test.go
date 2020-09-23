@@ -2378,9 +2378,10 @@ func TestDecisionLogging(t *testing.T) {
 			response: `{"result": [{"x": {}}]}`,
 		},
 		{
-			method:   "PUT",
-			path:     "/policies/test2",
-			body:     "package foo\np { 1/0 }",
+			method: "PUT",
+			path:   "/policies/test2",
+			body: `package foo
+			p { {k: v | k = ["a", "a"][_]; v = [1, 2][_]} }`,
 			response: `{}`,
 		},
 		{

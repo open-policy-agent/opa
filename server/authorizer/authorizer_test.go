@@ -39,12 +39,12 @@ func TestBasic(t *testing.T) {
 
         allow = allow_inner {
             not input.path[0] = "undefined" # testing undefined
-            not divide_by_zero              # testing eval errors
+            not conflict_error              # testing eval errors
         }
 
-        divide_by_zero {
-            input.path[0] = "divide_by_zero"
-            x = 1 / 0
+        conflict_error {
+			input.path[0] = "conflict_error"
+			{k: v | k = ["a", "a"][_]; [1, 2][v]}
         }
 
         default allow_inner = false
@@ -142,7 +142,7 @@ func TestBasic(t *testing.T) {
 		{"root (ok)", "token0", http.MethodGet, "", http.StatusOK, "", ""},
 		{"index.html (ok)", "token0", http.MethodGet, "/index.html", http.StatusOK, "", ""},
 		{"undefined", "token0", http.MethodGet, "/undefined", http.StatusInternalServerError, types.CodeInternal, types.MsgUnauthorizedUndefinedError},
-		{"evaluation error", "token0", http.MethodGet, "/divide_by_zero", http.StatusInternalServerError, types.CodeInternal, types.MsgEvaluationError},
+		{"evaluation error", "token0", http.MethodGet, "/conflict_error", http.StatusInternalServerError, types.CodeInternal, types.MsgEvaluationError},
 		{"ok", "token1", http.MethodGet, "/data/some/specific/document", http.StatusOK, "", ""},
 		{"ok (w/ query params)", "token1", http.MethodGet, "/data/some/specific/document?pretty=true", http.StatusOK, "", ""},
 		{"unauthorized method", "token1", http.MethodPut, "/data/some/specific/document", http.StatusUnauthorized, types.CodeUnauthorized, types.MsgUnauthorizedError},
