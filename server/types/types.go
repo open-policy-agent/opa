@@ -161,17 +161,6 @@ type QueryResponseV1 struct {
 	Result      AdhocQueryResultSetV1 `json:"result,omitempty"`
 }
 
-// WatchResponseV1 models a message in the response stream for a watch.
-type WatchResponseV1 struct {
-	Explanation TraceV1     `json:"explanation,omitempty"`
-	Metrics     MetricsV1   `json:"metrics,omitempty"`
-	Result      interface{} `json:"result,omitempty"`
-
-	// The Error needs to be in the response since we've hijacked the connection
-	// when writing WatchResponseV1 streams.
-	Error *ErrorV1 `json:"error,omitempty"`
-}
-
 // AdhocQueryResultSetV1 models the result of a Query API query.
 type AdhocQueryResultSetV1 []map[string]interface{}
 
@@ -419,11 +408,6 @@ const (
 	// ParamProvenanceV1 defines the name of the HTTP URL parameter that indicates
 	// the client wants build and version information in addition to the result.
 	ParamProvenanceV1 = "provenance"
-
-	// ParamWatchV1 defines the name of the HTTP URL parameter that indicates
-	// the client wants to set a watch on the current query or data reference.
-	// This parameter is DEPRECATED.
-	ParamWatchV1 = "watch"
 
 	// ParamBundleActivationV1 defines the name of the HTTP URL parameter that
 	// indicates the client wants to include bundle activation in the results
