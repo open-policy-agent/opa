@@ -5,6 +5,28 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Built-in Function Error Handling
+
+Previously, built-in function errors would cause policy evaluation to halt immediately. Going forward, by default, built-in function errors no longer halt evaluation. Instead, expressions are treated as false/undefined if any of the invoked built-in functions return errors.
+
+This change resolves a common issue people face when passing unsanitized input values to built-in functions. For example, prior to this change the expression `io.jwt.decode("GARBAGE")` would halt evaluation of the entire policy because the string is not a valid encoding of a JSON Web Token (JWT). If the expression was `io.jwt.decode(input.token)` and the user passed an invalid string value for `input.token` the same error would occur. With this change, the same expression is simply undefined, i.e., there is no result. This means policies can use negation to test for invalid values:
+
+```rego
+error["invalid JWT supplied as input"] {
+  not io.jwt.decode(input.token)
+}
+```
+
+If you require the old behaviour, enable "strict" built-in errors on the query:
+
+| Caller | Example |
+| --- | --- |
+| HTTP | `POST /v1/data/example/allow?strict-builtin-errors` |
+| Go (Library) | `rego.New(rego.Query("data.example.allow"), rego.StrictBuiltinErrors(true))` |
+| CLI | `opa eval --strict-builtin-errors 'data.example.allow'` |
+
+If you have implemented custom built-in functions and require policy evaluation to halt on error in those built-in functions, modify your built-in functions to return the [topdown.Halt](./topdown/errors.go) error type.
+
 ## 0.24.0
 
 This release contains a number of small enhancements and bug fixes.
