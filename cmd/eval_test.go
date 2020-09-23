@@ -281,6 +281,29 @@ func TestEvalWithBundleDuplicateFileNames(t *testing.T) {
 	})
 }
 
+func TestEvalWithStrictBuiltinErrors(t *testing.T) {
+	params := newEvalCommandParams()
+	params.strictBuiltinErrors = true
+
+	var buf bytes.Buffer
+	_, err := eval([]string{"1/0"}, params, &buf)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+
+	params.strictBuiltinErrors = false
+	buf.Reset()
+
+	_, err = eval([]string{"1/0"}, params, &buf)
+	if err != nil {
+		t.Fatal("unexpected error:", err)
+	}
+
+	if buf.String() != "{}\n" {
+		t.Fatal("expected undefined output but got:", buf.String())
+	}
+}
+
 func assertResultSet(t *testing.T, rs rego.ResultSet, expected string) {
 	t.Helper()
 	result := []interface{}{}

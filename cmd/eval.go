@@ -30,31 +30,32 @@ import (
 )
 
 type evalCommandParams struct {
-	coverage          bool
-	partial           bool
-	unknowns          []string
-	disableInlining   []string
-	shallowInlining   bool
-	disableIndexing   bool
-	dataPaths         repeatedStringFlag
-	inputPath         string
-	imports           repeatedStringFlag
-	pkg               string
-	stdin             bool
-	stdinInput        bool
-	explain           *util.EnumFlag
-	metrics           bool
-	instrument        bool
-	ignore            []string
-	outputFormat      *util.EnumFlag
-	profile           bool
-	profileTopResults bool
-	profileCriteria   repeatedStringFlag
-	profileLimit      intFlag
-	prettyLimit       intFlag
-	fail              bool
-	failDefined       bool
-	bundlePaths       repeatedStringFlag
+	coverage            bool
+	partial             bool
+	unknowns            []string
+	disableInlining     []string
+	shallowInlining     bool
+	disableIndexing     bool
+	strictBuiltinErrors bool
+	dataPaths           repeatedStringFlag
+	inputPath           string
+	imports             repeatedStringFlag
+	pkg                 string
+	stdin               bool
+	stdinInput          bool
+	explain             *util.EnumFlag
+	metrics             bool
+	instrument          bool
+	ignore              []string
+	outputFormat        *util.EnumFlag
+	profile             bool
+	profileTopResults   bool
+	profileCriteria     repeatedStringFlag
+	profileLimit        intFlag
+	prettyLimit         intFlag
+	fail                bool
+	failDefined         bool
+	bundlePaths         repeatedStringFlag
 }
 
 func newEvalCommandParams() evalCommandParams {
@@ -222,6 +223,7 @@ Set the output format with the --format flag.
 	evalCommand.Flags().StringArrayVarP(&params.disableInlining, "disable-inlining", "", []string{}, "set paths of documents to exclude from inlining")
 	evalCommand.Flags().BoolVarP(&params.shallowInlining, "shallow-inlining", "", false, "disable inlining of rules that depend on unknowns")
 	evalCommand.Flags().BoolVar(&params.disableIndexing, "disable-indexing", false, "disable indexing optimizations")
+	evalCommand.Flags().BoolVarP(&params.strictBuiltinErrors, "strict-builtin-errors", "", false, "treat built-in function errors as fatal")
 	evalCommand.Flags().BoolVarP(&params.instrument, "instrument", "", false, "enable query instrumentation metrics (implies --metrics)")
 	evalCommand.Flags().BoolVarP(&params.profile, "profile", "", false, "perform expression profiling")
 	evalCommand.Flags().VarP(&params.profileCriteria, "profile-sort", "", "set sort order of expression profiler results")
@@ -448,6 +450,10 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 	if params.coverage {
 		c = cover.New()
 		evalArgs = append(evalArgs, rego.EvalQueryTracer(c))
+	}
+
+	if params.strictBuiltinErrors {
+		regoArgs = append(regoArgs, rego.StrictBuiltinErrors(true))
 	}
 
 	eval := rego.New(regoArgs...)
