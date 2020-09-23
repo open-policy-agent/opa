@@ -38,12 +38,13 @@ type REPL struct {
 	store   storage.Store
 	runtime *ast.Term
 
-	modules         map[string]*ast.Module
-	currentModuleID string
-	buffer          []string
-	txn             storage.Transaction
-	metrics         metrics.Metrics
-	profiler        bool
+	modules             map[string]*ast.Module
+	currentModuleID     string
+	buffer              []string
+	txn                 storage.Transaction
+	metrics             metrics.Metrics
+	profiler            bool
+	strictBuiltinErrors bool
 
 	// TODO(tsandall): replace this state with rule definitions
 	// inside the default module.
@@ -249,6 +250,8 @@ func (r *REPL) OneShot(ctx context.Context, line string) error {
 				return r.cmdTypes()
 			case "unknown":
 				return r.cmdUnknown(cmd.args)
+			case "strict-builtin-errors":
+				return r.cmdStrictBuiltinErrors()
 			case "help":
 				return r.cmdHelp(cmd.args)
 			case "exit":
@@ -425,10 +428,11 @@ func (r *REPL) cmdShow(args []string) error {
 		return nil
 	} else if strings.Compare(args[0], "debug") == 0 {
 		debug := replDebugState{
-			Explain:    r.explain,
-			Metrics:    r.metricsEnabled(),
-			Instrument: r.instrument,
-			Profile:    r.profilerEnabled(),
+			Explain:             r.explain,
+			Metrics:             r.metricsEnabled(),
+			Instrument:          r.instrument,
+			Profile:             r.profilerEnabled(),
+			StrictBuiltinErrors: r.strictBuiltinErrors,
 		}
 		b, err := json.MarshalIndent(debug, "", "\t")
 		if err != nil {
@@ -442,10 +446,11 @@ func (r *REPL) cmdShow(args []string) error {
 }
 
 type replDebugState struct {
-	Explain    explainMode `json:"explain"`
-	Metrics    bool        `json:"metrics"`
-	Instrument bool        `json:"instrument"`
-	Profile    bool        `json:"profile"`
+	Explain             explainMode `json:"explain"`
+	Metrics             bool        `json:"metrics"`
+	Instrument          bool        `json:"instrument"`
+	Profile             bool        `json:"profile"`
+	StrictBuiltinErrors bool        `json:"strict-builtin-errors"`
 }
 
 func (r *REPL) cmdTrace(mode explainMode) error {
@@ -495,6 +500,11 @@ func (r *REPL) cmdProfile() error {
 	} else {
 		r.profiler = true
 	}
+	return nil
+}
+
+func (r *REPL) cmdStrictBuiltinErrors() error {
+	r.strictBuiltinErrors = !r.strictBuiltinErrors
 	return nil
 }
 
@@ -905,6 +915,7 @@ func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, input ast.V
 		rego.Metrics(r.metrics),
 		rego.Instrument(r.instrument),
 		rego.Runtime(r.runtime),
+		rego.StrictBuiltinErrors(r.strictBuiltinErrors),
 	}
 
 	if r.explain != explainOff {
@@ -970,6 +981,7 @@ func (r *REPL) evalPartial(ctx context.Context, compiler *ast.Compiler, input as
 		rego.Instrument(r.instrument),
 		rego.ParsedUnknowns(r.unknowns),
 		rego.Runtime(r.runtime),
+		rego.StrictBuiltinErrors(r.strictBuiltinErrors),
 	)
 
 	pq, err := eval.Partial(ctx)
@@ -1199,6 +1211,7 @@ var builtin = [...]commandDesc{
 	{"profile", []string{}, "toggle profiler and turns off trace"},
 	{"types", []string{}, "toggle type information"},
 	{"unknown", []string{"[ref-1 [ref-2 [...]]]"}, "toggle partial evaluation mode"},
+	{"strict-builtin-errors", []string{}, "toggle strict built-in error mode"},
 	{"dump", []string{"[path]"}, "dump raw data in storage"},
 	{"help", []string{"[topic]"}, "print this message"},
 	{"exit", []string{}, "exit out of shell (or ctrl+d)"},

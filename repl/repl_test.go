@@ -1987,6 +1987,33 @@ default allow = false
 	buffer.Reset()
 }
 
+func TestStrictBuiltinErrors(t *testing.T) {
+	ctx := context.Background()
+	store := newTestStore()
+	var buffer bytes.Buffer
+
+	repl := newRepl(store, &buffer)
+
+	repl.OneShot(ctx, "1/0")
+
+	result := buffer.String()
+
+	if !strings.Contains(result, "undefined") {
+		t.Fatal("expected undefined")
+	}
+
+	buffer.Reset()
+
+	repl.OneShot(ctx, "strict-builtin-errors")
+	repl.OneShot(ctx, "1/0")
+
+	result = buffer.String()
+
+	if !strings.Contains(result, "divide by zero") {
+		t.Fatal("expected divide by zero error")
+	}
+}
+
 func TestInstrument(t *testing.T) {
 	ctx := context.Background()
 	store := newTestStore()
