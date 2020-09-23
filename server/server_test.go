@@ -1126,6 +1126,47 @@ p = true { false }`
 			{http.MethodPatch, "/data/a%2Fb", `[{"op": "add", "path": "/e%2Ff", "value": 2}]`, 204, ""},
 			{http.MethodPost, "/data", "", 200, `{"result": {"a/b": {"c/d": 1, "e/f": 2}}}`},
 		}},
+		{"strict-builtin-errors", []tr{
+			{http.MethodPut, "/policies/test", `
+				package test
+
+				default p = false
+
+				p { 1/0 }
+			`, 200, ""},
+			{http.MethodGet, "/data/test/p", "", 200, `{"result": false}`},
+			{http.MethodGet, "/data/test/p?strict-builtin-errors", "", 500, `{
+				"code": "internal_error",
+				"message": "error(s) occurred while evaluating query",
+				"errors": [
+				  {
+					"code": "eval_builtin_error",
+					"message": "div: divide by zero",
+					"location": {
+					  "file": "test",
+					  "row": 6,
+					  "col": 9
+					}
+				  }
+				]
+			  }`},
+			{http.MethodPost, "/data/test/p", "", 200, `{"result": false}`},
+			{http.MethodPost, "/data/test/p?strict-builtin-errors", "", 500, `{
+				"code": "internal_error",
+				"message": "error(s) occurred while evaluating query",
+				"errors": [
+				  {
+					"code": "eval_builtin_error",
+					"message": "div: divide by zero",
+					"location": {
+					  "file": "test",
+					  "row": 6,
+					  "col": 9
+					}
+				  }
+				]
+			  }`},
+		}},
 	}
 
 	for _, tc := range tests {
