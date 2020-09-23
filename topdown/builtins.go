@@ -152,7 +152,7 @@ func handleBuiltinErr(name string, loc *ast.Location, err error) error {
 	switch err := err.(type) {
 	case BuiltinEmpty:
 		return nil
-	case *Error:
+	case *Error, Halt:
 		return err
 	case builtins.ErrOperand:
 		return &Error{

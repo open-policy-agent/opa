@@ -201,9 +201,11 @@ func builtinNetCIDRExpand(bctx BuiltinContext, operands []*ast.Term, iter func(*
 	for ip := ip.Mask(ipNet.Mask); ipNet.Contains(ip); incIP(ip) {
 
 		if bctx.Cancel != nil && bctx.Cancel.Cancelled() {
-			return &Error{
-				Code:    CancelErr,
-				Message: "net.cidr_expand: timed out before generating all IP addresses",
+			return Halt{
+				Err: &Error{
+					Code:    CancelErr,
+					Message: "net.cidr_expand: timed out before generating all IP addresses",
+				},
 			}
 		}
 

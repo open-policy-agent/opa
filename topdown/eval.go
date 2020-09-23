@@ -31,6 +31,10 @@ func (f *queryIDFactory) Next() uint64 {
 	return curr
 }
 
+type builtinErrors struct {
+	errs []error
+}
+
 type eval struct {
 	ctx                    context.Context
 	metrics                metrics.Metrics
@@ -71,6 +75,7 @@ type eval struct {
 	genvarprefix           string
 	genvarid               int
 	runtime                *ast.Term
+	builtinErrors          *builtinErrors
 }
 
 func (e *eval) Run(iter evalIterator) error {
@@ -1434,6 +1439,7 @@ func (e evalBuiltin) eval(iter unifyIterator) error {
 		e.e.instr.stopTimer(evalOpBuiltinCall)
 
 		var err error
+
 		if len(operands) == numDeclArgs {
 			if output.Value.Compare(ast.Boolean(false)) != 0 {
 				err = iter()
@@ -1441,9 +1447,23 @@ func (e evalBuiltin) eval(iter unifyIterator) error {
 		} else {
 			err = e.e.unify(e.terms[len(e.terms)-1], output, iter)
 		}
+
+		if err != nil {
+			err = Halt{Err: err}
+		}
+
 		e.e.instr.startTimer(evalOpBuiltinCall)
 		return err
 	})
+
+	if err != nil {
+		if h, ok := err.(Halt); !ok {
+			e.e.builtinErrors.errs = append(e.e.builtinErrors.errs, err)
+			err = nil
+		} else {
+			err = h.Err
+		}
+	}
 
 	e.e.instr.stopTimer(evalOpBuiltinCall)
 	return err
