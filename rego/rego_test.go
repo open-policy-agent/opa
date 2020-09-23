@@ -1750,6 +1750,25 @@ func TestEvalWithInterQueryCache(t *testing.T) {
 	}
 }
 
+func TestStrictBuiltinErrors(t *testing.T) {
+	_, err := New(Query("1/0"), StrictBuiltinErrors(true)).Eval(context.Background())
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	topdownErr, ok := err.(*topdown.Error)
+	if !ok {
+		t.Fatal("expected topdown error but got:", err)
+	}
+
+	if topdownErr.Code != topdown.BuiltinErr {
+		t.Fatal("expected builtin error code but got:", topdownErr.Code)
+	}
+
+	if topdownErr.Message != "div: divide by zero" {
+		t.Fatal("expected divide by zero error but got:", topdownErr.Message)
+	}
+}
+
 func TestTimeSeedingOptions(t *testing.T) {
 
 	ctx := context.Background()

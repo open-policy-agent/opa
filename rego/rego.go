@@ -505,6 +505,7 @@ type Rego struct {
 	bundles                map[string]*bundle.Bundle
 	skipBundleVerification bool
 	interQueryBuiltinCache cache.InterQueryCache
+	strictBuiltinErrors    bool
 }
 
 // Function represents a built-in function that is callable in Rego.
@@ -992,6 +993,13 @@ func SkipBundleVerification(yes bool) func(r *Rego) {
 func InterQueryBuiltinCache(c cache.InterQueryCache) func(r *Rego) {
 	return func(r *Rego) {
 		r.interQueryBuiltinCache = c
+	}
+}
+
+// StrictBuiltinErrors tells the evaluator to treat all built-in function errors as fatal errors.
+func StrictBuiltinErrors(yes bool) func(r *Rego) {
+	return func(r *Rego) {
+		r.strictBuiltinErrors = yes
 	}
 }
 
@@ -1693,7 +1701,8 @@ func (r *Rego) eval(ctx context.Context, ectx *EvalContext) (ResultSet, error) {
 		WithInstrumentation(ectx.instrumentation).
 		WithRuntime(r.runtime).
 		WithIndexing(ectx.indexing).
-		WithInterQueryBuiltinCache(ectx.interQueryBuiltinCache)
+		WithInterQueryBuiltinCache(ectx.interQueryBuiltinCache).
+		WithStrictBuiltinErrors(r.strictBuiltinErrors)
 
 	if !ectx.time.IsZero() {
 		q = q.WithTime(ectx.time)
@@ -1886,7 +1895,8 @@ func (r *Rego) partial(ctx context.Context, ectx *EvalContext) (*PartialQueries,
 		WithPartialNamespace(ectx.partialNamespace).
 		WithSkipPartialNamespace(r.skipPartialNamespace).
 		WithShallowInlining(r.shallowInlining).
-		WithInterQueryBuiltinCache(ectx.interQueryBuiltinCache)
+		WithInterQueryBuiltinCache(ectx.interQueryBuiltinCache).
+		WithStrictBuiltinErrors(r.strictBuiltinErrors)
 
 	if !ectx.time.IsZero() {
 		q = q.WithTime(ectx.time)
