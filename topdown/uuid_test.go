@@ -56,7 +56,7 @@ func TestUUIDRFC4122SeedError(t *testing.T) {
 
 	query := `uuid.rfc4122("x",x)`
 
-	q := NewQuery(ast.MustParseBody(query)).WithSeed(fakeSeedErrorReader{}).WithCompiler(ast.NewCompiler())
+	q := NewQuery(ast.MustParseBody(query)).WithSeed(fakeSeedErrorReader{}).WithCompiler(ast.NewCompiler()).WithStrictBuiltinErrors(true)
 
 	_, err := q.Run(context.Background())
 

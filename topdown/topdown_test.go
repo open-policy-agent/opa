@@ -490,12 +490,20 @@ func assertTopDownWithPathAndContext(ctx context.Context, t *testing.T, compiler
 	config, _ := iCache.ParseCachingConfig(nil)
 	interQueryCache := iCache.NewInterQueryCache(config)
 
+	var strictBuiltinErrors bool
+
+	switch expected.(type) {
+	case *Error, error:
+		strictBuiltinErrors = true
+	}
+
 	query := NewQuery(body).
 		WithCompiler(compiler).
 		WithStore(store).
 		WithTransaction(txn).
 		WithInput(inputTerm).
-		WithInterQueryBuiltinCache(interQueryCache)
+		WithInterQueryBuiltinCache(interQueryCache).
+		WithStrictBuiltinErrors(strictBuiltinErrors)
 
 	var tracer BufferTracer
 

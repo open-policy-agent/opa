@@ -64,6 +64,7 @@ func testRun(t *testing.T, tc cases.TestCase) {
 		WithStore(store).
 		WithTransaction(txn).
 		WithInput(input).
+		WithStrictBuiltinErrors(tc.WantError != nil || tc.WantErrorCode != nil).
 		Run(ctx)
 
 	if tc.WantError != nil {
@@ -129,6 +130,9 @@ func testAssertErrorCode(t *testing.T, wantErrorCode string, err error) {
 }
 
 func testAssertErrorText(t *testing.T, wantText string, err error) {
+	if err == nil {
+		t.Fatal("expected error but got success")
+	}
 	if !strings.Contains(err.Error(), wantText) {
 		t.Fatalf("expected topdown error text %q but got: %q", wantText, err.Error())
 	}
