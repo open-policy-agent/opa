@@ -1,0 +1,210 @@
+cases:
+  - note: netcidrmerge/cidr single subnet
+    modules:
+      - |
+        package test
+
+        p = x {
+              net.cidr_merge(["192.0.128.0/24"], x)
+        }
+    query: data.test.p = x
+    want_result:
+        - x:
+          - 192.0.128.0/24
+  - note: netcidrmerge/cidr duplicate
+    modules:
+      - |
+        package test
+
+        p = x {
+          net.cidr_merge(["192.0.128.0/24", "192.0.128.0/24"], x)
+        }
+    query: data.test.p = x
+    want_result:
+      - x:
+          - 192.0.128.0/24
+  - note: netcidrmerge/cidr IPv4 zero address
+    modules:
+      - |
+        package test
+
+        p = x {
+          net.cidr_merge(["192.0.128.0/24", "0.0.0.0/0"], x)
+        }
+    query: data.test.p = x
+    want_result:
+      - x:
+          - 0.0.0.0/0
+  - note: netcidrmerge/cidr merge subnets case 1
+    modules:
+      - |
+        package test
+
+        p = x {
+          net.cidr_merge(["192.0.128.0/24", "192.0.129.0/24"], x)
+        }
+    query: data.test.p = x
+    want_result:
+      - x:
+          - 192.0.128.0/23
+  - note: netcidrmerge/cidr merge subnets case 2
+    modules:
+      - |
+        package test
+
+        p = x {
+          net.cidr_merge(["192.0.2.112/30", "192.0.2.116/31", "192.0.2.118/31"], x)
+        }
+    query: data.test.p = x
+    want_result:
+      - x:
+          - 192.0.2.112/29
+  - note: netcidrmerge/cidr no overlap case 1
+    modules:
+      - |
+        package test
+
+        p = x {
+          net.cidr_merge(["192.0.129.0/24", "192.0.130.0/24"], x)
+        }
+    query: data.test.p = x
+    want_result:
+      - x:
+          - 192.0.129.0/24
+          - 192.0.130.0/24
+  - note: netcidrmerge/cidr no overlap case 2
+    modules:
+      - |
+        package test
+
+        p = x {
+          net.cidr_merge(["192.0.2.112/30", "192.0.2.116/32", "192.0.2.118/31"], x)
+        }
+    query: data.test.p = x
+    want_result:
+      - x:
+          - 192.0.2.112/30
+          - 192.0.2.116/32
+          - 192.0.2.118/31
+  - note: netcidrmerge/cidr mix case 1
+    modules:
+      - |
+        package test
+
+        p = x {
+          net.cidr_merge(["192.0.2.112/31", "192.0.2.116/31", "192.0.2.118/31"], x)
+        }
+    query: data.test.p = x
+    want_result:
+      - x:
+          - 192.0.2.112/31
+          - 192.0.2.116/30
+  - note: netcidrmerge/cidr mix case 2
+    modules:
+      - |
+        package test
+
+        p = x {
+          net.cidr_merge(["192.0.1.254/31", "192.0.2.0/28", "192.0.2.16/28", "192.0.2.32/28", "192.0.2.48/28", "192.0.2.64/28", "192.0.2.80/28", "192.0.2.96/28", "192.0.2.112/28", "192.0.2.128/28", "192.0.2.144/28", "192.0.2.160/28", "192.0.2.176/28", "192.0.2.192/28", "192.0.2.208/28", "192.0.2.224/28", "192.0.2.240/28", "192.0.3.0/28"], x)
+        }
+    query: data.test.p = x
+    want_result:
+      - x:
+          - 192.0.1.254/31
+          - 192.0.2.0/24
+          - 192.0.3.0/28
+  - note: netcidrmerge/cidr IPv6 zero address case 1
+    modules:
+      - |
+        package test
+
+        p = x {
+          net.cidr_merge(["::/0", "fe80::1/128"], x)
+        }
+    query: data.test.p = x
+    want_result:
+      - x:
+          - ::/0
+  - note: netcidrmerge/cidr IPv6 zero address case 2
+    modules:
+      - |
+        package test
+
+        p = x {
+          net.cidr_merge(["::/0", "::192.0.2.0/124", "ff00::101/128"], x)
+        }
+    query: data.test.p = x
+    want_result:
+      - x:
+          - ::/0
+  - note: netcidrmerge/cidr IPv4 and IPv6
+    modules:
+      - |
+        package test
+
+        p = x {
+          net.cidr_merge(["fe80::/120", "192.0.2.0/24", "192.0.3.0/24", "192.0.4.0/25", "192.0.4.128/25"], x)
+        }
+    query: data.test.p = x
+    want_result:
+      - x:
+          - 192.0.2.0/23
+          - 192.0.4.0/24
+          - fe80::/120
+  - note: netcidrmerge/cidr empty
+    modules:
+      - |
+        package test
+
+        p = x {
+          net.cidr_merge([], x)
+        }
+    query: data.test.p = x
+    want_result:
+      - x: []
+  - note: netcidrmerge/cidr merge ip and subnets
+    modules:
+      - |
+        package test
+
+        p = x {
+          net.cidr_merge(["192.0.2.112", "192.0.2.116/31", "192.0.2.118/31"], x)
+        }
+    query: data.test.p = x
+    want_result:
+      - x:
+          - 192.0.2.0/24
+  - note: netcidrmerge/cidr merge ip addresses
+    modules:
+      - |
+        package test
+
+        p = x {
+          net.cidr_merge(["192.0.128.0", "192.0.129.0"], x)
+        }
+    query: data.test.p = x
+    want_result:
+      - x:
+          - 192.0.128.0/23
+  - note: netcidrmerge/cidr merge subnets set
+    modules:
+      - |
+        package test
+
+        p = x {
+          net.cidr_merge({"192.0.2.112/30", "192.0.2.116/31", "192.0.2.118/31"}, x)
+        }
+    query: data.test.p = x
+    want_result:
+      - x:
+          - 192.0.2.112/29
+  - note: netcidrmerge/cidr invalid IP
+    modules:
+      - |
+        package test
+
+        p = x {
+          net.cidr_merge(["foo"], x)
+        }
+    query: data.test.p = x
+    want_error_code: eval_builtin_error

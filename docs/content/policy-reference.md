@@ -914,6 +914,7 @@ The table below shows examples of calling `http.send`:
 | <span class="opa-keep-it-together">``output := net.cidr_contains_matches(cidrs, cidrs_or_ips)``</span> | `output` is a `set` of tuples identifying matches where `cidrs_or_ips` are contained within `cidrs`. This function is similar to `net.cidr_contains` except it allows callers to pass collections of CIDRs or IPs as arguments and returns the matches (as opposed to a boolean result indicating a match between two CIDRs/IPs.) See below for examples. |
 | <span class="opa-keep-it-together">``net.cidr_intersects(cidr1, cidr2)``</span> | `output` is `true` if `cidr1` (e.g. `192.168.0.0/16`) overlaps with `cidr2` (e.g. `192.168.1.0/24`) and false otherwise. Supports both IPv4 and IPv6 notations.|
 | <span class="opa-keep-it-together">``net.cidr_expand(cidr)``</span> | `output` is the set of hosts in `cidr`  (e.g., `net.cidr_expand("192.168.0.0/30")` generates 4 hosts: `{"192.168.0.0", "192.168.0.1", "192.168.0.2", "192.168.0.3"}` |
+| <span class="opa-keep-it-together">``net.cidr_merge(cidrs_or_ips)``</span> | `output` is the smallest possible set of CIDRs obtained after merging the provided list of IP addresses and subnets in `cidrs_or_ips`  (e.g., `net.cidr_merge(["192.0.128.0/24", "192.0.129.0/24"])` generates `{"192.0.128.0/23"}`. This function merges adjacent subnets where possible, those contained within others and also removes any duplicates. Supports both IPv4 and IPv6 notations. |
 
 **`net.cidr_contains_matches` examples**
 
