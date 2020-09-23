@@ -1128,6 +1128,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1, true)
 	includeInstrumentation := getBoolParam(r.URL, types.ParamInstrumentV1, true)
 	provenance := getBoolParam(r.URL, types.ParamProvenanceV1, true)
+	strictBuiltinErrors := getBoolParam(r.URL, types.ParamStrictBuiltinErrors, true)
 
 	m.Timer(metrics.RegoInputParse).Start()
 
@@ -1172,7 +1173,11 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 		buf = topdown.NewBufferTracer()
 	}
 
-	pqID := "v1DataGet::" + urlPath
+	pqID := "v1DataGet::"
+	if strictBuiltinErrors {
+		pqID += "strict-builtin-errors::"
+	}
+	pqID += urlPath
 	preparedQuery, ok := s.getCachedPreparedEvalQuery(pqID, m)
 	if !ok {
 		rego := rego.New(
@@ -1186,6 +1191,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 			rego.Instrument(includeInstrumentation),
 			rego.Runtime(s.runtime),
 			rego.UnsafeBuiltins(unsafeBuiltinsMap),
+			rego.StrictBuiltinErrors(strictBuiltinErrors),
 		)
 
 		pq, err := rego.PrepareForEval(ctx)
@@ -1321,6 +1327,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 	includeInstrumentation := getBoolParam(r.URL, types.ParamInstrumentV1, true)
 	partial := getBoolParam(r.URL, types.ParamPartialV1, true)
 	provenance := getBoolParam(r.URL, types.ParamProvenanceV1, true)
+	strictBuiltinErrors := getBoolParam(r.URL, types.ParamStrictBuiltinErrors, true)
 
 	m.Timer(metrics.RegoInputParse).Start()
 
@@ -1354,6 +1361,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 	opts := []func(*rego.Rego){
 		rego.Compiler(s.getCompiler()),
 		rego.Store(s.store),
+		rego.StrictBuiltinErrors(strictBuiltinErrors),
 	}
 
 	var buf *topdown.BufferTracer
@@ -1365,6 +1373,9 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 	pqID := "v1DataPost::"
 	if partial {
 		pqID += "partial::"
+	}
+	if strictBuiltinErrors {
+		pqID += "strict-builtin-errors::"
 	}
 	pqID += urlPath
 	preparedQuery, ok := s.getCachedPreparedEvalQuery(pqID, m)

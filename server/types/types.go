@@ -424,6 +424,10 @@ const (
 	// indicates the client wants to include bundle status in the results
 	// of the health API.
 	ParamPluginsV1 = "plugins"
+
+	// ParamStrictBuiltinErrors names the HTTP URL parameter that indicates the client
+	// wants built-in function errors to be treated as fatal.
+	ParamStrictBuiltinErrors = "strict-builtin-errors"
 )
 
 // BadRequestErr represents an error condition raised if the caller passes
