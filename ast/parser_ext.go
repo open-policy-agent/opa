@@ -164,6 +164,10 @@ func ParseRuleFromExpr(module *Module, expr *Expr) (*Rule, error) {
 	if expr.IsAssignment() {
 
 		lhs, rhs := expr.Operand(0), expr.Operand(1)
+		if lhs == nil || rhs == nil {
+			return nil, errors.New("assignment requires two operands")
+		}
+
 		rule, err := ParseCompleteDocRuleFromAssignmentExpr(module, lhs, rhs)
 
 		if err == nil {
@@ -203,6 +207,10 @@ func parseCompleteRuleFromEq(module *Module, expr *Expr) (rule *Rule, err error)
 	}()
 
 	lhs, rhs := expr.Operand(0), expr.Operand(1)
+	if lhs == nil || rhs == nil {
+		return nil, errors.New("assignment requires two operands")
+	}
+
 	rule, err = ParseCompleteDocRuleFromEqExpr(module, lhs, rhs)
 
 	if err == nil {
