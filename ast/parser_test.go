@@ -1970,6 +1970,22 @@ data = {"bar": 2}`
 	package a
 	f(x)[x] = x { true }`
 
+	assignNoOperands := `
+	package a
+	assign()`
+
+	assignOneOperand := `
+	package a
+	assign(x)`
+
+	eqNoOperands := `
+	package a
+	eq()`
+
+	eqOneOperand := `
+	package a
+	eq(x)`
+
 	assertParseModuleError(t, "multiple expressions", multipleExprs)
 	assertParseModuleError(t, "non-equality", nonEquality)
 	assertParseModuleError(t, "non-var name", nonVarName)
@@ -1987,6 +2003,10 @@ data = {"bar": 2}`
 	assertParseModuleError(t, "number in ref", "package a\n12[3]()=4")
 	assertParseModuleError(t, "rule with args and key", callWithRuleKeyPartialObject)
 	assertParseModuleError(t, "rule with args and key", callWithRuleKeyPartialSet)
+	assertParseModuleError(t, "assign without operands", assignNoOperands)
+	assertParseModuleError(t, "assign with only one operand", assignOneOperand)
+	assertParseModuleError(t, "eq without operands", eqNoOperands)
+	assertParseModuleError(t, "eq with only one operand", eqOneOperand)
 
 	if _, err := ParseRuleFromExpr(&Module{}, &Expr{
 		Terms: struct{}{},
