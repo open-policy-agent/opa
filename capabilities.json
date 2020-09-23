@@ -1904,6 +1904,42 @@
       }
     },
     {
+      "name": "net.cidr_merge",
+      "decl": {
+        "args": [
+          {
+            "of": [
+              {
+                "dynamic": {
+                  "of": [
+                    {
+                      "type": "string"
+                    }
+                  ],
+                  "type": "any"
+                },
+                "type": "array"
+              },
+              {
+                "of": {
+                  "type": "string"
+                },
+                "type": "set"
+              }
+            ],
+            "type": "any"
+          }
+        ],
+        "result": {
+          "of": {
+            "type": "string"
+          },
+          "type": "set"
+        },
+        "type": "function"
+      }
+    },
+    {
       "name": "net.cidr_overlap",
       "decl": {
         "args": [

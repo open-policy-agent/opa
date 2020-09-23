@@ -220,6 +220,7 @@ var DefaultBuiltins = [...]*Builtin{
 	NetCIDRContains,
 	NetCIDRContainsMatches,
 	NetCIDRExpand,
+	NetCIDRMerge,
 
 	// Glob
 	GlobMatch,
@@ -1999,6 +2000,20 @@ var NetCIDRContainsMatches = &Builtin{
 		types.NewSet(types.NewArray([]types.Type{types.A, types.A}, nil)),
 	),
 }
+
+// NetCIDRMerge merges IP addresses and subnets into the smallest possible list of CIDRs.
+var NetCIDRMerge = &Builtin{
+	Name: "net.cidr_merge",
+	Decl: types.NewFunction(
+		types.Args(netCidrMergeOperandType),
+		types.NewSet(types.S),
+	),
+}
+
+var netCidrMergeOperandType = types.NewAny(
+	types.NewArray(nil, types.NewAny(types.S)),
+	types.NewSet(types.S),
+)
 
 var netCidrContainsMatchesOperandType = types.NewAny(
 	types.S,
