@@ -1941,6 +1941,40 @@ func TestCompilerRewriteLocalAssignments(t *testing.T) {
 				Var("__local0__"): Var("x"),
 			},
 		},
+		{
+			module: `
+				package test
+
+				f({{t | t := 0}: 1}) {
+					true
+				}
+			`,
+			exp: `
+				package test
+
+				f({{__local0__ | __local0__ = 0}: 1}) { true }
+			`,
+			expRewrittenMap: map[Var]Var{
+				Var("__local0__"): Var("t"),
+			},
+		},
+		{
+			module: `
+				package test
+
+				f({{t | t := 0}}) {
+					true
+				}
+			`,
+			exp: `
+				package test
+
+				f({{__local0__ | __local0__ = 0}}) { true }
+			`,
+			expRewrittenMap: map[Var]Var{
+				Var("__local0__"): Var("t"),
+			},
+		},
 	}
 
 	for i, tc := range tests {
@@ -2007,6 +2041,8 @@ func TestRewriteLocalVarDeclarationErrors(t *testing.T) {
 	arg_redeclared(arg1) {
 		arg1 := 1
 	}
+
+	arg_nested_redeclared({{arg_nested| arg_nested := 1; arg_nested := 2}}) { true }
 	`)
 
 	compileStages(c, c.rewriteLocalVars)
@@ -2017,6 +2053,7 @@ func TestRewriteLocalVarDeclarationErrors(t *testing.T) {
 		"var input referenced above",
 		"var nested assigned above",
 		"arg arg1 redeclared",
+		"var arg_nested assigned above",
 		"cannot assign vars inside negated expression",
 		"cannot assign to ref",
 		"cannot assign to arraycomprehension",
