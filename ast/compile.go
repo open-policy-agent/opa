@@ -1102,8 +1102,6 @@ func (c *Compiler) rewriteLocalVars() {
 
 		WalkRules(mod, func(rule *Rule) bool {
 
-			var errs Errors
-
 			// Rewrite assignments contained in head of rule. Assignments can
 			// occur in rule head if they're inside a comprehension. Note,
 			// assigned vars in comprehensions in the head will be rewritten
@@ -1114,29 +1112,14 @@ func (c *Compiler) rewriteLocalVars() {
 			// This behaviour is consistent scoping inside the body. For example:
 			//
 			// p = xs { x := 2; xs = [x | x := 1] } becomes p = xs { __local0__ = 2; xs = [__local1__ | __local1__ = 1] }
-			WalkTerms(rule.Head, func(term *Term) bool {
-				stop := false
-				stack := newLocalDeclaredVars()
-				switch v := term.Value.(type) {
-				case *ArrayComprehension:
-					errs = rewriteDeclaredVarsInArrayComprehension(gen, stack, v, errs)
-					stop = true
-				case *SetComprehension:
-					errs = rewriteDeclaredVarsInSetComprehension(gen, stack, v, errs)
-					stop = true
-				case *ObjectComprehension:
-					errs = rewriteDeclaredVarsInObjectComprehension(gen, stack, v, errs)
-					stop = true
-				}
+			nestedXform := &rewriteNestedHeadVarLocalTransform{
+				gen:           gen,
+				RewrittenVars: c.RewrittenVars,
+			}
 
-				for k, v := range stack.rewritten {
-					c.RewrittenVars[k] = v
-				}
+			NewGenericVisitor(nestedXform.Visit).Walk(rule.Head)
 
-				return stop
-			})
-
-			for _, err := range errs {
+			for _, err := range nestedXform.errs {
 				c.err(err)
 			}
 
@@ -1169,23 +1152,76 @@ func (c *Compiler) rewriteLocalVars() {
 			rule.Body = body
 
 			// Rewrite vars in head that refer to locally declared vars in the body.
-			xform := rewriteHeadVarLocalTransform{declared: declared}
+			localXform := rewriteHeadVarLocalTransform{declared: declared}
 
 			for i := range rule.Head.Args {
-				rule.Head.Args[i], _ = transformTerm(xform, rule.Head.Args[i])
+				rule.Head.Args[i], _ = transformTerm(localXform, rule.Head.Args[i])
 			}
 
 			if rule.Head.Key != nil {
-				rule.Head.Key, _ = transformTerm(xform, rule.Head.Key)
+				rule.Head.Key, _ = transformTerm(localXform, rule.Head.Key)
 			}
 
 			if rule.Head.Value != nil {
-				rule.Head.Value, _ = transformTerm(xform, rule.Head.Value)
+				rule.Head.Value, _ = transformTerm(localXform, rule.Head.Value)
 			}
 
 			return false
 		})
 	}
+}
+
+type rewriteNestedHeadVarLocalTransform struct {
+	gen           *localVarGenerator
+	errs          Errors
+	RewrittenVars map[Var]Var
+}
+
+func (xform *rewriteNestedHeadVarLocalTransform) Visit(x interface{}) bool {
+
+	if term, ok := x.(*Term); ok {
+
+		stop := false
+		stack := newLocalDeclaredVars()
+
+		switch x := term.Value.(type) {
+		case *object:
+			cpy, _ := x.Map(func(k, v *Term) (*Term, *Term, error) {
+				kcpy := k.Copy()
+				NewGenericVisitor(xform.Visit).Walk(kcpy)
+				vcpy := v.Copy()
+				NewGenericVisitor(xform.Visit).Walk(vcpy)
+				return kcpy, vcpy, nil
+			})
+			term.Value = cpy
+			stop = true
+		case *set:
+			cpy, _ := x.Map(func(v *Term) (*Term, error) {
+				vcpy := v.Copy()
+				NewGenericVisitor(xform.Visit).Walk(vcpy)
+				return vcpy, nil
+			})
+			term.Value = cpy
+			stop = true
+		case *ArrayComprehension:
+			xform.errs = rewriteDeclaredVarsInArrayComprehension(xform.gen, stack, x, xform.errs)
+			stop = true
+		case *SetComprehension:
+			xform.errs = rewriteDeclaredVarsInSetComprehension(xform.gen, stack, x, xform.errs)
+			stop = true
+		case *ObjectComprehension:
+			xform.errs = rewriteDeclaredVarsInObjectComprehension(xform.gen, stack, x, xform.errs)
+			stop = true
+		}
+
+		for k, v := range stack.rewritten {
+			xform.RewrittenVars[k] = v
+		}
+
+		return stop
+	}
+
+	return false
 }
 
 type rewriteHeadVarLocalTransform struct {
