@@ -585,17 +585,18 @@ func (p *Plugin) oneShot(ctx context.Context) (ok bool, err error) {
 	}
 
 	for bs := oldBuffer.Pop(); bs != nil; bs = oldBuffer.Pop() {
-		err := uploadChunk(ctx, p.manager.Client(p.config.Service), p.config.PartitionName, bs)
+		if err == nil {
+			err = uploadChunk(ctx, p.manager.Client(p.config.Service), p.config.PartitionName, bs)
+		}
 		if err != nil {
 			// requeue the chunk
 			p.mtx.Lock()
 			p.bufferChunk(p.buffer, bs)
 			p.mtx.Unlock()
-			return false, err
 		}
 	}
 
-	return true, nil
+	return err == nil, err
 }
 
 func (p *Plugin) reconfigure(config interface{}) {
