@@ -37,6 +37,8 @@ type testPlugin struct {
 	events []EventV1
 }
 
+type testPluginCustomizer func(c *Config)
+
 func (p *testPlugin) Start(context.Context) error {
 	return nil
 }
@@ -437,6 +439,53 @@ func TestPluginRequeue(t *testing.T) {
 	}
 }
 
+func logServerInfo(id string, input interface{}, result interface{}) *server.Info {
+	return &server.Info{
+		DecisionID: id,
+		Path:       "data.foo.bar",
+		Input:      &input,
+		Results:    &result,
+		RemoteAddr: "test",
+		Timestamp:  time.Now().UTC(),
+	}
+}
+
+func TestPluginRequeBufferPreserved(t *testing.T) {
+	ctx := context.Background()
+
+	fixture := newTestFixture(t, func(c *Config) {
+		limit := int64(300)
+		c.Reporting.UploadSizeLimitBytes = &limit
+	})
+	defer fixture.server.stop()
+
+	fixture.server.ch = make(chan []EventV1, 3)
+
+	var input interface{} = map[string]interface{}{"method": "GET"}
+	var result1 interface{} = false
+
+	_ = fixture.plugin.Log(ctx, logServerInfo("abc", input, result1))
+	_ = fixture.plugin.Log(ctx, logServerInfo("def", input, result1))
+	_ = fixture.plugin.Log(ctx, logServerInfo("ghi", input, result1))
+
+	bufLen := fixture.plugin.buffer.Len()
+	if bufLen < 2 {
+		t.Fatal("Expected buffer length of at least 2")
+	}
+
+	fixture.server.expCode = 500
+	_, err := fixture.plugin.oneShot(ctx)
+	if err == nil {
+		t.Fatal("Expected error")
+	}
+
+	_ = <-fixture.server.ch
+
+	if fixture.plugin.buffer.Len() < bufLen {
+		t.Fatal("Expected buffer to be preserved")
+	}
+}
+
 func TestPluginReconfigure(t *testing.T) {
 
 	ctx := context.Background()
@@ -791,7 +840,7 @@ type testFixture struct {
 	server  *testServer
 }
 
-func newTestFixture(t *testing.T) testFixture {
+func newTestFixture(t *testing.T, options ...testPluginCustomizer) testFixture {
 
 	ts := testServer{
 		t:       t,
@@ -822,11 +871,10 @@ func newTestFixture(t *testing.T) testFixture {
 		t.Fatal(err)
 	}
 
-	pluginConfig := []byte(fmt.Sprintf(`{
-			"service": "example",
-		}`))
-
-	config, _ := ParseConfig([]byte(pluginConfig), manager.Services(), nil)
+	config, _ := ParseConfig([]byte(`{"service": "example"}`), manager.Services(), nil)
+	for _, option := range options {
+		option(config)
+	}
 
 	if s, ok := manager.PluginStatus()[Name]; ok {
 		t.Fatalf("Unexpected status found in plugin manager for %s: %+v", Name, s)
