@@ -6,6 +6,8 @@ package rest
 
 import (
 	"encoding/json"
+	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -95,7 +97,7 @@ func TestEnvironmentCredentialService(t *testing.T) {
 }
 
 func TestMetadataCredentialService(t *testing.T) {
-	ts := credTestServer{}
+	ts := ec2CredTestServer{}
 	ts.start()
 	defer ts.stop()
 
@@ -236,7 +238,7 @@ func (cs *testCredentialService) credentials() (awsCredentials, error) {
 }
 
 func TestV4Signing(t *testing.T) {
-	ts := credTestServer{}
+	ts := ec2CredTestServer{}
 	ts.start()
 	defer ts.stop()
 
@@ -283,7 +285,7 @@ func TestV4Signing(t *testing.T) {
 }
 
 func TestV4SigningCustomPort(t *testing.T) {
-	ts := credTestServer{}
+	ts := ec2CredTestServer{}
 	ts.start()
 	defer ts.stop()
 
@@ -318,7 +320,7 @@ func TestV4SigningCustomPort(t *testing.T) {
 }
 
 // simulate EC2 metadata service
-type credTestServer struct {
+type ec2CredTestServer struct {
 	t         *testing.T
 	server    *httptest.Server
 	expPath   string
@@ -326,7 +328,7 @@ type credTestServer struct {
 	payload   metadataPayload // must set before use
 }
 
-func (t *credTestServer) handle(w http.ResponseWriter, r *http.Request) {
+func (t *ec2CredTestServer) handle(w http.ResponseWriter, r *http.Request) {
 	goodPath := "/latest/meta-data/iam/security-credentials/my_iam_role"
 	badPath := "/latest/meta-data/iam/security-credentials/my_bad_iam_role"
 
@@ -365,10 +367,180 @@ func (t *credTestServer) handle(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (t *credTestServer) start() {
+func (t *ec2CredTestServer) start() {
 	t.server = httptest.NewServer(http.HandlerFunc(t.handle))
 }
 
-func (t *credTestServer) stop() {
+func (t *ec2CredTestServer) stop() {
+	t.server.Close()
+}
+
+func TestWebIdentityCredentialService(t *testing.T) {
+	testAccessKey := "ASgeIAIOSFODNN7EXAMPLE"
+	ts := stsTestServer{
+		t:         t,
+		accessKey: testAccessKey,
+	}
+	ts.start()
+	defer ts.stop()
+	cs := awsWebIdentityCredentialService{
+		stsURL: ts.server.URL,
+	}
+
+	goodTokenFile, err := ioutil.TempFile(os.TempDir(), "opa-aws-test-")
+	if err != nil {
+		t.Errorf("Error while creating token file: %s", err)
+		return
+	}
+	defer os.Remove(goodTokenFile.Name())
+	goodTokenFile.WriteString("good-token")
+	goodTokenFile.Close()
+
+	badTokenFile, err := ioutil.TempFile(os.TempDir(), "opa-aws-test-")
+	if err != nil {
+		t.Errorf("Error while creating token file: %s", err)
+		return
+	}
+	defer os.Remove(badTokenFile.Name())
+	badTokenFile.WriteString("bad-token")
+	badTokenFile.Close()
+
+	// wrong path: no AWS_ROLE_ARN set
+	err = cs.populateFromEnv()
+	assertErr("no AWS_ROLE_ARN set in environment", err, t)
+	os.Setenv("AWS_ROLE_ARN", "role:arn")
+
+	// wrong path: no AWS_WEB_IDENTITY_TOKEN_FILE set
+	err = cs.populateFromEnv()
+	assertErr("no AWS_WEB_IDENTITY_TOKEN_FILE set in environment", err, t)
+	os.Setenv("AWS_WEB_IDENTITY_TOKEN_FILE", "/nonsense")
+
+	// happy path: both env vars set
+	err = cs.populateFromEnv()
+	if err != nil {
+		t.Errorf("Error while getting env vars: %s", err)
+		return
+	}
+
+	// wrong path: refresh with invalid web token file
+	err = cs.refreshFromService()
+	assertErr("unable to read web token for sts HTTP request: open /nonsense: no such file or directory", err, t)
+
+	// wrong path: refresh with "bad token"
+	os.Setenv("AWS_WEB_IDENTITY_TOKEN_FILE", badTokenFile.Name())
+	_ = cs.populateFromEnv()
+	err = cs.refreshFromService()
+	assertErr("STS HTTP request returned unexpected status: 401 Unauthorized", err, t)
+
+	// happy path: refresh with "good token"
+	os.Setenv("AWS_WEB_IDENTITY_TOKEN_FILE", goodTokenFile.Name())
+	_ = cs.populateFromEnv()
+	err = cs.refreshFromService()
+	if err != nil {
+		t.Fatalf("Unexpected err: %s", err)
+	}
+
+	// happy path: refresh and get credentials
+	creds, _ := cs.credentials()
+	assertEq(creds.AccessKey, testAccessKey, t)
+
+	// happy path: refresh with session and get credentials
+	cs.expiration = time.Now()
+	cs.SessionName = "TEST_SESSION"
+	creds, _ = cs.credentials()
+	assertEq(creds.AccessKey, testAccessKey, t)
+
+	// happy path: don't refresh, but get credentials
+	ts.accessKey = "OTHERKEY"
+	creds, _ = cs.credentials()
+	assertEq(creds.AccessKey, testAccessKey, t)
+
+	// happy/wrong path: refresh with "bad token" but return previous credentials
+	os.Setenv("AWS_WEB_IDENTITY_TOKEN_FILE", badTokenFile.Name())
+	_ = cs.populateFromEnv()
+	cs.expiration = time.Now()
+	creds, err = cs.credentials()
+	assertEq(creds.AccessKey, testAccessKey, t)
+	assertErr("STS HTTP request returned unexpected status: 401 Unauthorized", err, t)
+
+	// wrong path: refresh with "bad token" but return previous credentials
+	os.Setenv("AWS_WEB_IDENTITY_TOKEN_FILE", goodTokenFile.Name())
+	os.Setenv("AWS_ROLE_ARN", "BrokenRole")
+	_ = cs.populateFromEnv()
+	cs.expiration = time.Now()
+	creds, err = cs.credentials()
+	assertErr("failed to parse credential response from STS service: EOF", err, t)
+}
+
+func TestStsPath(t *testing.T) {
+	cs := awsWebIdentityCredentialService{}
+
+	assertEq(cs.stsPath(), stsDefaultPath, t)
+
+	cs.RegionName = "us-east-2"
+	assertEq(cs.stsPath(), "https://sts.us-east-2.amazonaws.com", t)
+
+	cs.stsURL = "http://test.com"
+	assertEq(cs.stsPath(), "http://test.com", t)
+}
+
+// simulate EC2 metadata service
+type stsTestServer struct {
+	t         *testing.T
+	server    *httptest.Server
+	accessKey string
+}
+
+func (t *stsTestServer) handle(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/" || r.URL.Query().Get("Action") != "AssumeRoleWithWebIdentity" {
+		w.WriteHeader(404)
+		return
+	}
+
+	if r.URL.Query().Get("RoleArn") == "BrokenRole" {
+		w.WriteHeader(200)
+		w.Write([]byte("{}"))
+		return
+	}
+
+	token := r.URL.Query().Get("WebIdentityToken")
+	if token != "good-token" {
+		w.WriteHeader(401)
+		return
+	}
+	w.WriteHeader(200)
+
+	sessionName := r.URL.Query().Get("RoleSessionName")
+
+	// Taken from STS docs: https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRoleWithWebIdentity.html
+	xmlResponse := `<AssumeRoleWithWebIdentityResponse xmlns="https://sts.amazonaws.com/doc/2011-06-15/">
+	<AssumeRoleWithWebIdentityResult>
+	  <SubjectFromWebIdentityToken>amzn1.account.AF6RHO7KZU5XRVQJGXK6HB56KR2A</SubjectFromWebIdentityToken>
+	  <Audience>client.5498841531868486423.1548@apps.example.com</Audience>
+	  <AssumedRoleUser>
+		<Arn>arn:aws:sts::123456789012:assumed-role/FederatedWebIdentityRole/%[1]s</Arn>
+		<AssumedRoleId>AROACLKWSDQRAOEXAMPLE:%[1]s</AssumedRoleId>
+	  </AssumedRoleUser>
+	  <Credentials>
+		<SessionToken>AQoDYXdzEE0a8ANXXXXXXXXNO1ewxE5TijQyp+IEXAMPLE</SessionToken>
+		<SecretAccessKey>wJalrXUtnFEMI/K7MDENG/bPxRfiCYzEXAMPLEKEY</SecretAccessKey>
+		<Expiration>%s</Expiration>
+		<AccessKeyId>%s</AccessKeyId>
+	  </Credentials>
+	  <Provider>www.amazon.com</Provider>
+	</AssumeRoleWithWebIdentityResult>
+	<ResponseMetadata>
+	  <RequestId>ad4156e9-bce1-11e2-82e6-6b6efEXAMPLE</RequestId>
+	</ResponseMetadata>
+  </AssumeRoleWithWebIdentityResponse>`
+
+	w.Write([]byte(fmt.Sprintf(xmlResponse, sessionName, time.Now().Add(time.Hour).Format(time.RFC3339), t.accessKey)))
+}
+
+func (t *stsTestServer) start() {
+	t.server = httptest.NewServer(http.HandlerFunc(t.handle))
+}
+
+func (t *stsTestServer) stop() {
 	t.server.Close()
 }

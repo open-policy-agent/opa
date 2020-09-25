@@ -289,6 +289,7 @@ OPA will authenticate with an [AWS4 HMAC](https://docs.aws.amazon.com/AmazonS3/l
 necessary credentials are available; exactly one must be specified to use the AWS signature
 authentication method.
 
+##### Using Static Environment Credentials
 If specifying `environment_credentials`, OPA will expect to find environment variables
 for `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` and `AWS_REGION`, in accordance with the
 convention used by the [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html).
@@ -299,6 +300,7 @@ Please note that if you are using temporary IAM credentials (e.g. assumed IAM ro
 | --- | --- | --- | --- |
 | `services[_].credentials.s3_signing.environment_credentials` | `{}` | Yes | Enables AWS signing using environment variables to source the configuration and credentials |
 
+##### Using EC2 Metadata Credentials
 If specifying `metadata_credentials`, OPA will use the AWS metadata services for [EC2](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html)
 or [ECS](https://docs.aws.amazon.com/AmazonECS/latest/userguide/task-iam-roles.html)
 to obtain the necessary credentials when running within a supported virtual machine/container.
@@ -315,8 +317,16 @@ there is no route to the EC2 metadata service from inside the container or if th
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `services[_].credentials.s3_signing.metadata_credentials.aws_region` | `string` | Yes | The AWS region to use for the AWS signing service credential method |
+| `services[_].credentials.s3_signing.metadata_credentials.aws_region` | `string` | No | The AWS region to use for the AWS signing service credential method. If unset, the `AWS_REGION` environment variable must be set |
 | `services[_].credentials.s3_signing.metadata_credentials.iam_role` | `string` | No | The IAM role to use for the AWS signing service credential method |
+
+##### Using EKS IAM Roles for Service Account (Web Identity) Credentials
+If specifying `web_identity_credentials`, OPA will expect to find environment variables for `AWS_ROLE_ARN` and `AWS_WEB_IDENTITY_TOKEN_FILE`, in accordance with the convention used by the [AWS EKS IAM Roles for Service Accounts](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts-technical-overview.html#pod-configuration).
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `services[_].credentials.s3_signing.web_identity_credentials.aws_region` | `string` | Yes | The AWS region to use for the sts regional endpoint. Uses the global endpoint by default |
+| `services[_].credentials.s3_signing.web_identity_credentials.session_name` | `string` | No | The session name used to identify the assumed role session. Default: `open-policy-agent` |
 
 > Services can be defined as an array or object. When defined as an object, the
 > object keys override the `services[_].name` fields.

@@ -293,11 +293,15 @@ func (ap *clientTLSAuthPlugin) Prepare(req *http.Request) error {
 type awsSigningAuthPlugin struct {
 	AWSEnvironmentCredentials *awsEnvironmentCredentialService `json:"environment_credentials,omitempty"`
 	AWSMetadataCredentials    *awsMetadataCredentialService    `json:"metadata_credentials,omitempty"`
+	AWSWebIdentityCredentials *awsWebIdentityCredentialService `json:"web_identity_credentials,omitempty"`
 }
 
 func (ap *awsSigningAuthPlugin) awsCredentialService() awsCredentialService {
 	if ap.AWSEnvironmentCredentials != nil {
 		return ap.AWSEnvironmentCredentials
+	}
+	if ap.AWSWebIdentityCredentials != nil {
+		return ap.AWSWebIdentityCredentials
 	}
 	return ap.AWSMetadataCredentials
 }
@@ -307,13 +311,24 @@ func (ap *awsSigningAuthPlugin) NewClient(c Config) (*http.Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	if (ap.AWSEnvironmentCredentials == nil && ap.AWSMetadataCredentials == nil) ||
-		(ap.AWSEnvironmentCredentials != nil && ap.AWSMetadataCredentials != nil) {
+
+	if ap.AWSEnvironmentCredentials == nil && ap.AWSWebIdentityCredentials == nil && ap.AWSMetadataCredentials == nil {
+		return nil, errors.New("a AWS credential service must be specified when S3 signing is enabled")
+	}
+
+	if (ap.AWSEnvironmentCredentials != nil && ap.AWSMetadataCredentials != nil) ||
+		(ap.AWSEnvironmentCredentials != nil && ap.AWSWebIdentityCredentials != nil) ||
+		(ap.AWSWebIdentityCredentials != nil && ap.AWSMetadataCredentials != nil) {
 		return nil, errors.New("exactly one AWS credential service must be specified when S3 signing is enabled")
 	}
 	if ap.AWSMetadataCredentials != nil {
 		if ap.AWSMetadataCredentials.RegionName == "" {
 			return nil, errors.New("at least aws_region must be specified for AWS metadata credential service")
+		}
+	}
+	if ap.AWSWebIdentityCredentials != nil {
+		if err := ap.AWSWebIdentityCredentials.populateFromEnv(); err != nil {
+			return nil, err
 		}
 	}
 	return defaultRoundTripperClient(t, *c.ResponseHeaderTimeoutSeconds), nil
