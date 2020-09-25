@@ -27,7 +27,6 @@ import (
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/util/test"
-	"github.com/open-policy-agent/opa/version"
 )
 
 func TestWatchPaths(t *testing.T) {
@@ -275,7 +274,6 @@ func TestCheckOPAUpdateLoopNoUpdate(t *testing.T) {
 	baseURL, teardown := getTestServer(exp, http.StatusOK)
 	defer teardown()
 
-	version.Version = "v0.20.0"
 	testCheckOPAUpdateLoop(t, baseURL, "OPA is up to date.")
 }
 
@@ -291,7 +289,6 @@ func TestCheckOPAUpdateLoopWithNewUpdate(t *testing.T) {
 	baseURL, teardown := getTestServer(exp, http.StatusOK)
 	defer teardown()
 
-	version.Version = "v0.20.0"
 	testCheckOPAUpdateLoop(t, baseURL, "OPA is out of date.")
 }
 
