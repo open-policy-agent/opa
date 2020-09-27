@@ -15,6 +15,7 @@ evaluation, policy coverage, and more.
 | --- | --- |
 | Atom | [https://github.com/open-policy-agent/opa/tree/master/misc/syntax/atom](https://github.com/open-policy-agent/opa/tree/master/misc/syntax/atom) |
 | Emacs | [https://github.com/psibi/rego-mode](https://github.com/psibi/rego-mode) |
+| IntelliJ IDEA | [https://github.com/vgramer/opa-idea-plugin](https://github.com/vgramer/opa-idea-plugin) |
 | Sublime Text | [https://github.com/open-policy-agent/opa/tree/master/misc/syntax/sublime](https://github.com/open-policy-agent/opa/tree/master/misc/syntax/sublime) |
 | TextMate | [https://github.com/open-policy-agent/opa/tree/master/misc/syntax/textmate](https://github.com/open-policy-agent/opa/tree/master/misc/syntax/textmate) |
 | Vim | [https://github.com/tsandall/vim-rego](https://github.com/tsandall/vim-rego) |
