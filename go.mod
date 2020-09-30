@@ -29,7 +29,9 @@ require (
 	github.com/spf13/pflag v0.0.0-20181024212040-082b515c9490
 	github.com/yashtewari/glob-intersection v0.0.0-20180916065949-5c77d914dd0b
 	golang.org/x/lint v0.0.0-20181023182221-1baf3a9d7d67
+	golang.org/x/net v0.0.0-20200927032502-5d4f70055728
+	golang.org/x/text v0.3.3 // indirect
 	golang.org/x/tools v0.0.0-20190920225731-5eefd052ad72
 	gopkg.in/fsnotify.v1 v1.4.7
-	gopkg.in/yaml.v2 v2.2.1
+	gopkg.in/yaml.v2 v2.2.1 // indirect
 )
