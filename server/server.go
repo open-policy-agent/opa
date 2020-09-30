@@ -26,8 +26,8 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
-
-	iCache "github.com/open-policy-agent/opa/topdown/cache"
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
@@ -41,6 +41,7 @@ import (
 	"github.com/open-policy-agent/opa/server/writer"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/topdown"
+	iCache "github.com/open-policy-agent/opa/topdown/cache"
 	"github.com/open-policy-agent/opa/topdown/lineage"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/version"
@@ -82,7 +83,7 @@ const (
 const pqMaxCacheSize = 100
 
 // map of unsafe builtins
-var unsafeBuiltinsMap = map[string]struct{}{ast.HTTPSend.Name: struct{}{}}
+var unsafeBuiltinsMap = map[string]struct{}{ast.HTTPSend.Name: {}}
 
 // Server represents an instance of OPA running in server mode.
 type Server struct {
@@ -93,6 +94,7 @@ type Server struct {
 	addrs                  []string
 	diagAddrs              []string
 	insecureAddr           string
+	h2cEnabled             bool
 	authentication         AuthenticationScheme
 	authorization          AuthorizationScheme
 	cert                   *tls.Certificate
@@ -132,7 +134,8 @@ func New() *Server {
 	return &s
 }
 
-// Init initializes the server. This function MUST be called before Loop.
+// Init initializes the server. This function MUST be called before starting any loops
+// from s.Listeners().
 func (s *Server) Init(ctx context.Context) (*Server, error) {
 	s.initRouters()
 	s.Handler = s.initHandlerAuth(s.Handler)
@@ -269,6 +272,12 @@ func (s *Server) WithCompilerErrorLimit(limit int) *Server {
 // WithPprofEnabled sets whether pprof endpoints are enabled
 func (s *Server) WithPprofEnabled(pprofEnabled bool) *Server {
 	s.pprofEnabled = pprofEnabled
+	return s
+}
+
+// WithH2CEnabled sets whether h2c ("HTTP/2 cleartext") is enabled for the http listener
+func (s *Server) WithH2CEnabled(enabled bool) *Server {
+	s.h2cEnabled = enabled
 	return s
 }
 
@@ -498,13 +507,16 @@ func (s *Server) getListener(addr string, h http.Handler, t httpListenerType) (L
 }
 
 func (s *Server) getListenerForHTTPServer(u *url.URL, h http.Handler, t httpListenerType) (Loop, httpListener, error) {
-	httpServer := http.Server{
+	if s.h2cEnabled {
+		h2s := &http2.Server{}
+		h = h2c.NewHandler(h, h2s)
+	}
+	h1s := http.Server{
 		Addr:    u.Host,
 		Handler: h,
 	}
 
-	l := newHTTPListener(&httpServer, t)
-
+	l := newHTTPListener(&h1s, t)
 	return l.ListenAndServe, l, nil
 }
 

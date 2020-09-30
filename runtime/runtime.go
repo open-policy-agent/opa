@@ -84,6 +84,10 @@ type Params struct {
 	// in addition to Addr if TLS is enabled.
 	InsecureAddr string
 
+	// H2CEnabled flag controls whether OPA will allow H2C (HTTP/2 cleartext) on
+	// HTTP listeners.
+	H2CEnabled bool
+
 	// Authentication is the type of authentication scheme to use.
 	Authentication server.AuthenticationScheme
 
@@ -317,6 +321,7 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 		WithPprofEnabled(rt.Params.PprofEnabled).
 		WithAddresses(*rt.Params.Addrs).
 		WithInsecureAddress(rt.Params.InsecureAddr).
+		WithH2CEnabled(rt.Params.H2CEnabled).
 		WithCertificate(rt.Params.Certificate).
 		WithCertPool(rt.Params.CertPool).
 		WithAuthentication(rt.Params.Authentication).
