@@ -144,7 +144,9 @@ type capabilitiesFlag struct {
 
 func newcapabilitiesFlag() *capabilitiesFlag {
 	return &capabilitiesFlag{
-		C: ast.CapabilitiesForThisVersion(),
+		// cannot call ast.CapabilitiesForThisVersion here because
+		// custom builtins cannot be registered by this point in execution
+		C: nil,
 	}
 }
 
