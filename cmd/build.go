@@ -12,6 +12,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
 
 	"github.com/spf13/cobra"
@@ -248,9 +249,17 @@ func dobuild(params buildParams, args []string) error {
 			return fmt.Errorf("enable bundle mode (ie. --bundle) to verify or sign bundle files or directories")
 		}
 	}
-
+	var capabilities *ast.Capabilities
+	// if capabilities are not provided as a cmd flag,
+	// then ast.CapabilitiesForThisVersion must be called
+	// within dobuild to ensure custom builtins are properly captured
+	if checkParams.capabilities.C != nil {
+		capabilities = checkParams.capabilities.C
+	} else {
+		capabilities = ast.CapabilitiesForThisVersion()
+	}
 	compiler := compile.New().
-		WithCapabilities(params.capabilities.C).
+		WithCapabilities(capabilities).
 		WithTarget(params.target.String()).
 		WithAsBundle(params.bundleMode).
 		WithOptimizationLevel(params.optimizationLevel).

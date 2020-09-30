@@ -85,10 +85,18 @@ func checkModules(args []string) int {
 			modules[m.Name] = m.Parsed
 		}
 	}
-
+	var capabilities *ast.Capabilities
+	// if capabilities are not provided as a cmd flag,
+	// then ast.CapabilitiesForThisVersion must be called
+	// within checkModules to ensure custom builtins are properly captured
+	if checkParams.capabilities.C != nil {
+		capabilities = checkParams.capabilities.C
+	} else {
+		capabilities = ast.CapabilitiesForThisVersion()
+	}
 	compiler := ast.NewCompiler().
 		SetErrorLimit(checkParams.errLimit).
-		WithCapabilities(checkParams.capabilities.C)
+		WithCapabilities(capabilities)
 
 	compiler.Compile(modules)
 
