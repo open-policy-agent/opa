@@ -9,7 +9,7 @@ Requirements:
 
 - Git
 - GitHub account (if you are contributing)
-- Go (version 1.13+ is supported though older versions are likely to work)
+- Go (version 1.14+ is supported though older versions are likely to work)
 - GNU Make
 
 ## Getting Started
