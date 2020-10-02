@@ -51,6 +51,8 @@ var allowedKeyNames = [...]string{
 	"tls_server_name",
 	"timeout",
 	"cache",
+	"force_cache",
+	"force_cache_duration_seconds",
 }
 
 var (
@@ -301,7 +303,7 @@ func createHTTPRequest(bctx BuiltinContext, obj ast.Object) (*http.Request, *htt
 			if err != nil {
 				return nil, nil, err
 			}
-		case "cache", "force_json_decode": // no-op
+		case "cache", "force_cache", "force_cache_duration_seconds", "force_json_decode": // no-op
 		default:
 			return nil, nil, fmt.Errorf("invalid parameter %q", key)
 		}
@@ -513,7 +515,7 @@ func insertIntoHTTPSendCache(bctx BuiltinContext, key ast.Object, value ast.Valu
 }
 
 // checkHTTPSendInterQueryCache checks for the given key's value in the inter-query cache
-func checkHTTPSendInterQueryCache(bctx BuiltinContext, key ast.Object, req *http.Request, client *http.Client, forceJSONDecode bool) (ast.Value, error) {
+func checkHTTPSendInterQueryCache(bctx BuiltinContext, key ast.Object, req *http.Request, client *http.Client, forceJSONDecode bool, cacheParams *forceCacheParams) (ast.Value, error) {
 	requestCache := bctx.InterQueryBuiltinCache
 
 	value, found := requestCache.Get(key)
@@ -527,7 +529,7 @@ func checkHTTPSendInterQueryCache(bctx BuiltinContext, key ast.Object, req *http
 	}
 
 	// check the freshness of the cached response
-	if isCachedResponseFresh(bctx, cachedResp) {
+	if isCachedResponseFresh(bctx, cachedResp, cacheParams) {
 		return cachedResp.value, nil
 	}
 
@@ -740,7 +742,7 @@ func canStore(headers http.Header) bool {
 	return true
 }
 
-func isCachedResponseFresh(bctx BuiltinContext, resp *interQueryCacheValue) bool {
+func isCachedResponseFresh(bctx BuiltinContext, resp *interQueryCacheValue, cacheParams *forceCacheParams) bool {
 	if resp.date.IsZero() {
 		return false
 	}
@@ -765,20 +767,28 @@ func isCachedResponseFresh(bctx BuiltinContext, resp *interQueryCacheValue) bool
 		return false
 	}
 
-	// Check "max-age" cache directive.
-	// The "max-age" response directive indicates that the response is to be
-	// considered stale after its age is greater than the specified number
-	// of seconds.
-	if resp.maxAge != -1 {
-		maxAgeDur := time.Second * time.Duration(resp.maxAge)
+	if cacheParams != nil {
+		// override the cache directives set by the server
+		maxAgeDur := time.Second * time.Duration(cacheParams.forceCacheDurationSeconds)
 		if maxAgeDur > currentAge {
 			return true
 		}
 	} else {
-		// Check "Expires" header.
-		// Note: "max-age" if set, takes precedence over "Expires"
-		if resp.expires.Sub(resp.date) > currentAge {
-			return true
+		// Check "max-age" cache directive.
+		// The "max-age" response directive indicates that the response is to be
+		// considered stale after its age is greater than the specified number
+		// of seconds.
+		if resp.maxAge != -1 {
+			maxAgeDur := time.Second * time.Duration(resp.maxAge)
+			if maxAgeDur > currentAge {
+				return true
+			}
+		} else {
+			// Check "Expires" header.
+			// Note: "max-age" if set, takes precedence over "Expires"
+			if resp.expires.Sub(resp.date) > currentAge {
+				return true
+			}
 		}
 	}
 	return false
@@ -926,27 +936,29 @@ type httpRequestExecutor interface {
 // newHTTPRequestExecutor returns a new HTTP request executor that wraps either an inter-query or
 // intra-query cache implementation
 func newHTTPRequestExecutor(bctx BuiltinContext, key ast.Object) (httpRequestExecutor, error) {
-	useInterQueryCache, err := getBoolValFromReqObj(key, ast.StringTerm("cache"))
+	useInterQueryCache, forceCache, err := useInterQueryCache(key)
 	if err != nil {
 		return nil, handleHTTPSendErr(bctx, err)
 	}
 
 	if useInterQueryCache && bctx.InterQueryBuiltinCache != nil {
-		return newInterQueryCache(bctx, key)
+		return newInterQueryCache(bctx, key, forceCache)
 	}
 	return newIntraQueryCache(bctx, key)
 }
 
 type interQueryCache struct {
-	bctx            BuiltinContext
-	key             ast.Object
-	httpReq         *http.Request
-	httpClient      *http.Client
-	forceJSONDecode bool
+	bctx             BuiltinContext
+	key              ast.Object
+	httpReq          *http.Request
+	httpClient       *http.Client
+	forceJSONDecode  bool
+	forceCache       bool
+	forceCacheParams *forceCacheParams
 }
 
-func newInterQueryCache(bctx BuiltinContext, key ast.Object) (*interQueryCache, error) {
-	return &interQueryCache{bctx: bctx, key: key}, nil
+func newInterQueryCache(bctx BuiltinContext, key ast.Object, forceCache bool) (*interQueryCache, error) {
+	return &interQueryCache{bctx: bctx, key: key, forceCache: forceCache}, nil
 }
 
 // CheckCache checks the cache for the value of the key set on this object
@@ -963,7 +975,14 @@ func (c *interQueryCache) CheckCache() (ast.Value, error) {
 		return nil, handleHTTPSendErr(c.bctx, err)
 	}
 
-	resp, err := checkHTTPSendInterQueryCache(c.bctx, c.key, c.httpReq, c.httpClient, c.forceJSONDecode)
+	if c.forceCache {
+		c.forceCacheParams, err = newForceCacheParams(c.key)
+		if err != nil {
+			return nil, handleHTTPSendErr(c.bctx, err)
+		}
+	}
+
+	resp, err := checkHTTPSendInterQueryCache(c.bctx, c.key, c.httpReq, c.httpClient, c.forceJSONDecode, c.forceCacheParams)
 
 	// fallback to the intra-query cache if response not found in the inter-query cache or inter-query cache look-up results
 	// in an error
@@ -1030,4 +1049,38 @@ func (c *intraQueryCache) ExecuteHTTPRequest() (*http.Response, error) {
 		return nil, handleHTTPSendErr(c.bctx, err)
 	}
 	return executeHTTPRequest(httpReq, httpClient)
+}
+
+func useInterQueryCache(req ast.Object) (bool, bool, error) {
+	value, err := getBoolValFromReqObj(req, ast.StringTerm("cache"))
+	if err != nil {
+		return false, false, err
+	}
+
+	valueForceCache, err := getBoolValFromReqObj(req, ast.StringTerm("force_cache"))
+	if err != nil {
+		return false, false, err
+	}
+
+	return value || valueForceCache, valueForceCache, nil
+}
+
+type forceCacheParams struct {
+	forceCacheDurationSeconds int32
+}
+
+func newForceCacheParams(req ast.Object) (*forceCacheParams, error) {
+	term := req.Get(ast.StringTerm("force_cache_duration_seconds"))
+	if term == nil {
+		return nil, fmt.Errorf("'force_cache' set but 'force_cache_duration_seconds' parameter is missing")
+	}
+
+	forceCacheDurationSeconds := term.String()
+
+	value, err := strconv.ParseInt(forceCacheDurationSeconds, 10, 32)
+	if err != nil {
+		return nil, err
+	}
+
+	return &forceCacheParams{forceCacheDurationSeconds: int32(value)}, nil
 }
