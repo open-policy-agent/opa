@@ -929,6 +929,76 @@ func TestHTTPSendInterQueryCaching(t *testing.T) {
 	}
 }
 
+func TestHTTPSendInterQueryForceCaching(t *testing.T) {
+	tests := []struct {
+		note             string
+		ruleTemplate     string
+		headers          map[string][]string
+		body             string
+		response         string
+		expectedReqCount int
+	}{
+		{
+			note: "http.send GET cache hit (force_cache_only)",
+			ruleTemplate: `p = x {
+									r1 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "force_cache": true, "force_cache_duration_seconds": 300})
+									r2 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "force_cache": true, "force_cache_duration_seconds": 300})  # cached and fresh
+									r3 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "force_cache": true, "force_cache_duration_seconds": 300})  # cached and fresh
+									r1 == r2
+									r2 == r3
+									x = r1.body
+								}`,
+			headers:          map[string][]string{"Expires": {"Wed, 31 Dec 2005 07:28:00 GMT"}},
+			response:         `{"x": 1}`,
+			expectedReqCount: 1,
+		},
+		{
+			note: "http.send GET cache hit (cache_param_override)",
+			ruleTemplate: `p = x {
+									r1 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true, "force_cache": true, "force_cache_duration_seconds": 300})
+									r2 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true, "force_cache": true, "force_cache_duration_seconds": 300})  # cached and fresh
+									r3 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true, "force_cache": true, "force_cache_duration_seconds": 300})  # cached and fresh
+									r1 == r2
+									r2 == r3
+									x = r1.body
+								}`,
+			headers:          map[string][]string{"Expires": {"Wed, 31 Dec 2005 07:28:00 GMT"}},
+			response:         `{"x": 1}`,
+			expectedReqCount: 1,
+		},
+	}
+
+	data := loadSmallTestData()
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+
+			var requests []*http.Request
+			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				requests = append(requests, r)
+				headers := w.Header()
+
+				for k, v := range tc.headers {
+					headers[k] = v
+				}
+
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(tc.response))
+			}))
+			defer ts.Close()
+
+			runTopDownTestCase(t, data, tc.note, []string{strings.ReplaceAll(tc.ruleTemplate, "%URL%", ts.URL)}, tc.response)
+
+			// Note: The runTopDownTestCase ends up evaluating twice (once with and once without partial
+			// eval first), so expect 2x the total request count the test case specified.
+			actualCount := len(requests) / 2
+			if actualCount != tc.expectedReqCount {
+				t.Fatalf("Expected to get %d requests, got %d", tc.expectedReqCount, actualCount)
+			}
+		})
+	}
+}
+
 func TestHTTPSendInterQueryCachingModifiedResp(t *testing.T) {
 	tests := []struct {
 		note             string
@@ -1161,12 +1231,12 @@ func TestGetResponseHeaderDateEmpty(t *testing.T) {
 
 func TestIsCachedResponseFreshZeroTime(t *testing.T) {
 	zeroTime := new(time.Time)
-	result := isCachedResponseFresh(BuiltinContext{}, &interQueryCacheValue{date: *zeroTime})
+	result := isCachedResponseFresh(BuiltinContext{}, &interQueryCacheValue{date: *zeroTime}, nil)
 	if result {
 		t.Fatal("Expected stale cache response")
 	}
 
-	result = isCachedResponseFresh(BuiltinContext{Time: ast.NullTerm()}, &interQueryCacheValue{date: time.Now()})
+	result = isCachedResponseFresh(BuiltinContext{Time: ast.NullTerm()}, &interQueryCacheValue{date: time.Now()}, nil)
 	if result {
 		t.Fatal("Expected stale cache response")
 	}
@@ -1243,6 +1313,70 @@ func TestParseMaxAgeCacheDirective(t *testing.T) {
 	}
 }
 
+func TestNewForceCacheParams(t *testing.T) {
+
+	tests := []struct {
+		note      string
+		input     ast.Object
+		expected  *forceCacheParams
+		wantError bool
+		err       error
+	}{
+		{
+			note:      "non existent key",
+			input:     ast.MustParseTerm(`{}`).Value.(ast.Object),
+			expected:  nil,
+			wantError: true,
+			err:       fmt.Errorf("'force_cache' set but 'force_cache_duration_seconds' parameter is missing"),
+		},
+		{
+			note:      "empty input",
+			input:     ast.MustParseTerm(`{"force_cache_duration_seconds": ""}`).Value.(ast.Object),
+			expected:  nil,
+			wantError: true,
+			err:       fmt.Errorf("strconv.ParseInt: parsing \"\\\"\\\"\": invalid syntax"),
+		},
+		{
+			note:      "invalid input",
+			input:     ast.MustParseTerm(`{"force_cache_duration_seconds": "foo"}`).Value.(ast.Object),
+			expected:  nil,
+			wantError: true,
+			err:       fmt.Errorf("strconv.ParseInt: parsing \"\\\"foo\\\"\": invalid syntax"),
+		},
+		{
+			note:      "valid input",
+			input:     ast.MustParseTerm(`{"force_cache_duration_seconds": 300}`).Value.(ast.Object),
+			expected:  &forceCacheParams{forceCacheDurationSeconds: int32(300)},
+			wantError: false,
+			err:       nil,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+
+			actual, err := newForceCacheParams(tc.input)
+			if tc.wantError {
+				if err == nil {
+					t.Fatal("Expected error but got nil")
+				}
+
+				if tc.err != nil && tc.err.Error() != err.Error() {
+					t.Fatalf("Expected error message %v but got %v", tc.err.Error(), err.Error())
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("Unexpected error %v", err)
+				}
+
+				if actual.forceCacheDurationSeconds != tc.expected.forceCacheDurationSeconds {
+					t.Fatalf("Expected force cache duration %v but got %v", tc.expected.forceCacheDurationSeconds, actual.forceCacheDurationSeconds)
+				}
+			}
+		})
+	}
+}
+
 func TestGetBoolValFromReqObj(t *testing.T) {
 	validInput := ast.MustParseTerm(`{"cache": true}`)
 	validInputObj := validInput.Value.(ast.Object)
@@ -1308,7 +1442,26 @@ func TestGetBoolValFromReqObj(t *testing.T) {
 
 		})
 	}
+}
 
+func TestInterQueryCheckCacheError(t *testing.T) {
+	input := ast.MustParseTerm(`{"force_cache": true}`)
+	inputObj := input.Value.(ast.Object)
+
+	cache, err := newInterQueryCache(BuiltinContext{Context: context.Background()}, inputObj, true)
+	if err != nil {
+		t.Fatalf("unexpected error %v", err)
+	}
+
+	_, err = cache.CheckCache()
+	if err == nil {
+		t.Fatal("expected error but got nil")
+	}
+
+	errMsg := "eval_builtin_error: http.send: 'force_cache' set but 'force_cache_duration_seconds' parameter is missing"
+	if err.Error() != errMsg {
+		t.Fatalf("Expected error message %v but got %v", errMsg, err.Error())
+	}
 }
 
 func getTestServer() (baseURL string, teardownFn func()) {

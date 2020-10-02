@@ -861,6 +861,8 @@ The `request` object parameter may contain the following fields:
 | `tls_insecure_skip_verify` | no | `bool` | Allows for skipping TLS verification when calling a network endpoint. Not recommended for production. |
 | `tls_server_name` | no | `string` | Sets the hostname that is sent in the client Server Name Indication and that be will be used for server certificate validation. If this is not set, the value of the `Host` header (if present) will be used. If neither are set, the host name from the requested URL is used. |
 | `cache` | no | `boolean` | Cache HTTP response across OPA queries. Default: `false`. |
+| `force_cache` | no | `boolean` | Cache HTTP response across OPA queries and override cache directives defined by the server. Default: `false`. |
+| `force_cache_duration_seconds` | no | `number` | If `force_cache` is set, this field specifies the duration in seconds for the freshness of a cached response. |
 
 If the `Host` header is included in `headers`, its value will be used as the `Host` header of the request. The `url` parameter will continue to specify the server to connect to.
 
@@ -892,6 +894,12 @@ If the cached response is stale, `http.send` uses the `Etag` and `Last-Modified`
 cached response is in fact still fresh. If the server responds with a `200` (`OK`) response, `http.send` will update the cache
 with the new response. On a `304` (`Not Modified`) server response, `http.send` will update the headers in cached response with
 their corresponding values in the `304` response.
+
+The `force_cache` field can be used to override the cache directives defined by the server. This field is used in
+conjunction with the `force_cache_duration_seconds` field. If `force_cache` is `true`, then `force_cache_duration_seconds`
+**must** be specified and `http.send` will use this value to check the freshness of the cached response.
+
+Also, if `force_cache` is `true`, it overrides the `cache` field.
 
 > `http.send` uses the `Date` response header to calculate the current age of the response by comparing it with the current time.
 > This value is used to determine the freshness of the cached response. As per https://tools.ietf.org/html/rfc7231#section-7.1.1.2,
