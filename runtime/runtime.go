@@ -247,7 +247,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		return nil, err
 	}
 
-	manager, err := plugins.New(config, params.ID, inmem.New(), plugins.Info(info), plugins.InitBundles(loaded.Bundles), plugins.InitFiles(loaded.Files), plugins.MaxErrors(params.ErrorLimit))
+	manager, err := plugins.New(config, params.ID, inmem.New(), plugins.Info(info), plugins.InitBundles(loaded.Bundles), plugins.InitFiles(loaded.Files), plugins.MaxErrors(params.ErrorLimit), plugins.GracefulShutdownPeriod(params.GracefulShutdownPeriod))
 	if err != nil {
 		return nil, errors.Wrap(err, "config error")
 	}

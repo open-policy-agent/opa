@@ -8,6 +8,7 @@ package plugins
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
@@ -138,6 +139,7 @@ type Manager struct {
 	maxErrors                    int
 	initialized                  bool
 	interQueryBuiltinCacheConfig *cache.Config
+	gracefulShutdownPeriod       int
 }
 
 type managerContextKey string
@@ -192,6 +194,13 @@ func InitFiles(f loader.Result) func(*Manager) {
 func MaxErrors(n int) func(*Manager) {
 	return func(m *Manager) {
 		m.maxErrors = n
+	}
+}
+
+// GracefulShutdownPeriod passes the configured graceful shutdown period to plugins
+func GracefulShutdownPeriod(gracefulShutdownPeriod int) func(*Manager) {
+	return func(m *Manager) {
+		m.gracefulShutdownPeriod = gracefulShutdownPeriod
 	}
 }
 
@@ -382,7 +391,8 @@ func (m *Manager) Start(ctx context.Context) error {
 	return nil
 }
 
-// Stop stops the manager, stopping all the plugins registered with it
+// Stop stops the manager, stopping all the plugins registered with it. Any plugin that needs to perform cleanup should
+// do so within the duration of the graceful shutdown period passed with the context as a timeout.
 func (m *Manager) Stop(ctx context.Context) {
 	var toStop []Plugin
 
@@ -395,6 +405,8 @@ func (m *Manager) Stop(ctx context.Context) {
 		}
 	}()
 
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(m.gracefulShutdownPeriod)*time.Second)
+	defer cancel()
 	for i := range toStop {
 		toStop[i].Stop(ctx)
 	}
