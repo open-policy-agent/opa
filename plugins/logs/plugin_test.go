@@ -486,6 +486,74 @@ func TestPluginRequeBufferPreserved(t *testing.T) {
 	}
 }
 
+func TestPluginGracefulShutdownFlushesDecisions(t *testing.T) {
+	ctx := context.Background()
+
+	fixture := newTestFixture(t)
+	defer fixture.server.stop()
+
+	fixture.server.ch = make(chan []EventV1, 8)
+
+	if err := fixture.plugin.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	var input interface{} = map[string]interface{}{"method": "GET"}
+	var result interface{} = false
+
+	logsSent := 200
+	for i := 0; i < logsSent; i++ {
+		input = generateInputMap(i)
+		_ = fixture.plugin.Log(ctx, logServerInfo("abc", input, result))
+	}
+
+	fixture.server.expCode = 200
+
+	timeoutCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	fixture.plugin.Stop(timeoutCtx)
+
+	close(fixture.server.ch)
+	logsReceived := 0
+	for element := range fixture.server.ch {
+		logsReceived += len(element)
+	}
+
+	if logsReceived != logsSent {
+		t.Fatalf("Expected %v, got %v", logsSent, logsReceived)
+	}
+}
+
+func TestPluginTerminatesImmediatelyAfterGracefulShutdownPeriod(t *testing.T) {
+	ctx := context.Background()
+
+	fixture := newTestFixture(t)
+	defer fixture.server.stop()
+
+	fixture.server.ch = make(chan []EventV1, 1)
+
+	if err := fixture.plugin.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	var input interface{} = map[string]interface{}{"method": "GET"}
+	var result interface{} = false
+
+	input = generateInputMap(0)
+	_ = fixture.plugin.Log(ctx, logServerInfo("abc", input, result))
+
+	fixture.server.expCode = 500
+
+	timeoutCtx, cancel := context.WithTimeout(ctx, 1*time.Millisecond)
+	defer cancel()
+
+	timeBefore := time.Now()
+	fixture.plugin.Stop(timeoutCtx)
+	if time.Since(timeBefore).Milliseconds() > 100 {
+		t.Fatal("Expected forceful shutdown to be instantaneous.")
+	}
+}
+
 func TestPluginReconfigure(t *testing.T) {
 
 	ctx := context.Background()
@@ -866,7 +934,7 @@ func newTestFixture(t *testing.T, options ...testPluginCustomizer) testFixture {
 				}
 			]}`, ts.server.URL))
 
-	manager, err := plugins.New(managerConfig, "test-instance-id", inmem.New())
+	manager, err := plugins.New(managerConfig, "test-instance-id", inmem.New(), plugins.GracefulShutdownPeriod(10))
 	if err != nil {
 		t.Fatal(err)
 	}
