@@ -6,14 +6,10 @@ package server
 
 import (
 	"context"
-	"crypto/tls"
-	"crypto/x509"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"reflect"
 	"sort"
 	"strings"
@@ -3095,128 +3091,6 @@ func mustUnmarshalTrace(t types.TraceV1) (trace types.TraceV1Raw) {
 		panic("not reached")
 	}
 	return trace
-}
-
-func TestAuthenticationTLS(t *testing.T) {
-	ctx := context.Background()
-	store := inmem.New()
-	m, err := plugins.New([]byte{}, "test", store)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if err := m.Start(ctx); err != nil {
-		t.Fatal(err)
-	}
-
-	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
-
-	authzPolicy := `package system.authz
-import input.identity
-default allow = false
-allow {
-	identity = "CN=my-client"
-}`
-
-	if err := store.UpsertPolicy(ctx, txn, "test", []byte(authzPolicy)); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := store.Commit(ctx, txn); err != nil {
-		t.Fatal(err)
-	}
-
-	caCertPEM, err := ioutil.ReadFile("testdata/ca.pem")
-	if err != nil {
-		t.Fatal(err)
-	}
-	pool := x509.NewCertPool()
-	if ok := pool.AppendCertsFromPEM(caCertPEM); !ok {
-		t.Fatal("failed to parse CA cert")
-	}
-	cert, err := tls.LoadX509KeyPair("testdata/server-cert.pem", "testdata/server-key.pem")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	server, err := New().
-		WithAddresses([]string{"https://127.0.0.1:8182"}).
-		WithStore(store).
-		WithManager(m).
-		WithCertificate(&cert).
-		WithCertPool(pool).
-		WithAuthentication(AuthenticationTLS).
-		WithAuthorization(AuthorizationBasic).
-		Init(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Replicating some of what happens in the server's HTTPS listener
-	s := httptest.NewUnstartedServer(server.Handler)
-	s.TLS = &tls.Config{
-		Certificates: []tls.Certificate{cert},
-		ClientAuth:   tls.RequireAndVerifyClientCert,
-		ClientCAs:    pool,
-	}
-	s.StartTLS()
-	defer s.Close()
-	endpoint := s.URL + "/v1/data/foo"
-
-	t.Run("happy path", func(t *testing.T) {
-		c := newClient(t, pool, "testdata/client-cert.pem", "testdata/client-key.pem")
-		resp, err := c.Get(endpoint)
-		if err != nil {
-			t.Fatalf("GET: %v", err)
-		}
-		defer resp.Body.Close()
-		if resp.StatusCode != http.StatusOK {
-			t.Errorf("expected status 200, got %s", resp.Status)
-		}
-	})
-
-	t.Run("authn successful, authz failed", func(t *testing.T) {
-		c := newClient(t, pool, "testdata/client-cert-2.pem", "testdata/client-key-2.pem")
-		resp, err := c.Get(endpoint)
-		if err != nil {
-			t.Fatalf("GET: %v", err)
-		}
-		defer resp.Body.Close()
-		if resp.StatusCode != http.StatusUnauthorized {
-			t.Errorf("expected status 401, got %s", resp.Status)
-		}
-	})
-
-	t.Run("client trusts server, but doesn't provide client cert", func(t *testing.T) {
-		c := newClient(t, pool)
-		_, err := c.Get(endpoint)
-		if _, ok := err.(*url.Error); !ok {
-			t.Errorf("expected *url.Error, got %T: %v", err, err)
-		}
-	})
-}
-
-func newClient(t *testing.T, pool *x509.CertPool, clientKeyPair ...string) *http.Client {
-	t.Helper()
-	c := *http.DefaultClient
-	// Note: zero-values in http.Transport are bad settings -- they let the client
-	// leak connections -- but it's good enough for these tests. Don't instantiate
-	// http.Transport without providing non-zero values in non-test code, please.
-	// See https://github.com/golang/go/issues/19620 for details.
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{
-			RootCAs: pool,
-		},
-	}
-	if len(clientKeyPair) == 2 {
-		clientCert, err := tls.LoadX509KeyPair(clientKeyPair[0], clientKeyPair[1])
-		if err != nil {
-			t.Fatalf("read test client cert/key: %v", err)
-		}
-		tr.TLSClientConfig.Certificates = []tls.Certificate{clientCert}
-	}
-	c.Transport = tr
-	return &c
 }
 
 func TestShutdown(t *testing.T) {
