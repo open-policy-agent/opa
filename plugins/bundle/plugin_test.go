@@ -1730,8 +1730,8 @@ func TestGetDefaultBundlePersistPath(t *testing.T) {
 		t.Fatalf("unexpected error %v", err)
 	}
 
-	if !strings.HasSuffix(path, ".opa") {
-		t.Fatal("expected default persist path to include '.opa' dir")
+	if !strings.HasSuffix(path, ".opa/bundles") {
+		t.Fatal("expected default persist path to end with '.opa/bundles' dir")
 	}
 }
 
