@@ -583,5 +583,5 @@ func getDefaultBundlePersistPath() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(pwd, ".opa"), nil
+	return filepath.Join(pwd, ".opa", "bundles"), nil
 }
