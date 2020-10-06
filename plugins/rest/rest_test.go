@@ -317,6 +317,82 @@ func TestNew(t *testing.T) {
 				awsWebIdentityTokenFileEnvVar: "TEST",
 			},
 		},
+		{
+			name: "ValidGCPMetadataIDTokenOptions",
+			input: `{
+				"name": "foo",
+				"url": "https://localhost",
+				"credentials": {
+					"gcp_metadata": {
+						"audience": "https://localhost"
+					}
+				}
+			}`,
+		},
+		{
+			name: "ValidGCPMetadataAccessTokenOptions",
+			input: `{
+				"name": "foo",
+				"url": "https://localhost",
+				"credentials": {
+					"gcp_metadata": {
+						"scopes": ["storage.read_only"]
+					}
+				}
+			}`,
+		},
+		{
+			name: "EmptyGCPMetadataOptions",
+			input: `{
+				"name": "foo",
+				"url": "http://localhost",
+				"credentials": {
+					"gcp_metadata": {
+					}
+				}
+			}`,
+			wantErr: true,
+		},
+		{
+			name: "EmptyGCPMetadataIDTokenAudienceOption",
+			input: `{
+				"name": "foo",
+				"url": "https://localhost",
+				"credentials": {
+					"gcp_metadata": {
+						"audience": ""
+					}
+				}
+			}`,
+			wantErr: true,
+		},
+		{
+			name: "EmptyGCPMetadataAccessTokenScopesOption",
+			input: `{
+				"name": "foo",
+				"url": "https://localhost",
+				"credentials": {
+					"gcp_metadata": {
+						"scopes": []
+					}
+				}
+			}`,
+			wantErr: true,
+		},
+		{
+			name: "InvalidGCPMetadataOptions",
+			input: `{
+				"name": "foo",
+				"url": "https://localhost",
+				"credentials": {
+					"gcp_metadata": {
+						"audience": "https://localhost",
+						"scopes": ["storage.read_only"]
+					}
+				}
+			}`,
+			wantErr: true,
+		},
 	}
 
 	var results []Client
