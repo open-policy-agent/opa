@@ -5,8 +5,15 @@
 // Package version contains version information that is set at build time.
 package version
 
+import (
+	"runtime"
+)
+
 // Version is the canonical version of OPA.
 var Version = "0.24.0-dev"
+
+// GoVersion is the version of Go this was built with
+var GoVersion = runtime.Version()
 
 // Additional version information that is displayed by the "version" command and used to
 // identify the version of running instances of OPA.
