@@ -473,7 +473,10 @@ $ opa run \
   --diagnostic-addr :8282
 ```
 The configuration above would expose only `/health` and `/metrics` API's on port
-`8282` while keeping the normal REST API bound to `localhost:8181`
+`8282` while keeping the normal REST API bound to `localhost:8181`.
+
+> When the diagnostic listener is enabled, the `/metrics` and `/health` APIs will
+> still be exposed on the normal listener.
 
 ## Hardened Configuration Example
 
