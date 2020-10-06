@@ -79,13 +79,15 @@ func setTestVersion() {
 	version.Vcs = "12345"
 	version.Timestamp = "2020-05-14T06:22:38Z"
 	version.Hostname = "foo"
+	version.GoVersion = "1.14.7"
 }
 
 func getTestVersion() string {
 	return "Version: v0.20.0\n" +
 		"Build Commit: 12345\n" +
 		"Build Timestamp: 2020-05-14T06:22:38Z\n" +
-		"Build Hostname: foo\n"
+		"Build Hostname: foo\n" +
+		"Go Version: 1.14.7\n"
 }
 
 func getTestServer(update interface{}, statusCode int) (baseURL string, teardownFn func()) {

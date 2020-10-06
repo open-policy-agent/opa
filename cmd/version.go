@@ -44,6 +44,7 @@ func generateCmdOutput(out io.Writer, check bool) {
 	fmt.Fprintln(out, "Build Commit: "+version.Vcs)
 	fmt.Fprintln(out, "Build Timestamp: "+version.Timestamp)
 	fmt.Fprintln(out, "Build Hostname: "+version.Hostname)
+	fmt.Fprintln(out, "Go Version: "+version.GoVersion)
 
 	if check {
 		err := checkOPAUpdate(out)
