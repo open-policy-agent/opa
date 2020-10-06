@@ -13,7 +13,7 @@ GOVERSION := $(shell cat ./.go-version)
 GOARCH := $(shell go env GOARCH)
 GOOS := $(shell go env GOOS)
 
-DOCKER_INSTALLED := $(shell hash docker 2>/dev/null && echo 1 || echo 0)
+DOCKER_RUNNING := $(shell docker ps >/dev/null 2>&1 && echo 1 || echo 0)
 
 ifeq ($(shell tty > /dev/null && echo 1 || echo 0), 1)
 DOCKER_FLAGS := --rm -it
@@ -166,27 +166,27 @@ wasm-test: wasm-lib-test wasm-rego-test
 
 .PHONY: wasm-lib-build
 wasm-lib-build:
-ifeq ($(DOCKER_INSTALLED), 1)
+ifeq ($(DOCKER_RUNNING), 1)
 	@$(MAKE) -C wasm ensure-builder build
 	cp wasm/_obj/opa.wasm internal/compiler/wasm/opa/opa.wasm
 else
-	@echo "Docker not installed. Skipping OPA-WASM library build."
+	@echo "Docker not installed or not running. Skipping OPA-WASM library build."
 endif
 
 .PHONY: wasm-lib-test
 wasm-lib-test:
-ifeq ($(DOCKER_INSTALLED), 1)
+ifeq ($(DOCKER_RUNNING), 1)
 	@$(MAKE) -C wasm ensure-builder test
 else
-	@echo "Docker not installed. Skipping OPA-WASM library test."
+	@echo "Docker not installed or not running. Skipping OPA-WASM library test."
 endif
 
 .PHONY: wasm-rego-test
 wasm-rego-test: generate
-ifeq ($(DOCKER_INSTALLED), 1)
+ifeq ($(DOCKER_RUNNING), 1)
 	GOVERSION=$(GOVERSION) ./build/run-wasm-rego-tests.sh
 else
-	@echo "Docker not installed. Skipping Rego-WASM test."
+	@echo "Docker not installed or not running. Skipping Rego-WASM test."
 endif
 
 .PHONY: wasm-lib-clean
