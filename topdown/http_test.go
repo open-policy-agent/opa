@@ -661,6 +661,96 @@ func TestHTTPRedirectEnable(t *testing.T) {
 	runTopDownTestCase(t, data, "http.send", rules, resultObj.String())
 }
 
+func TestHTTPSendRaiseError(t *testing.T) {
+
+	// test server
+	baseURL, teardown := getTestServer()
+	defer teardown()
+
+	networkErrObj := make(map[string]interface{})
+	networkErrObj["code"] = HTTPSendNetworkErr
+	networkErrObj["message"] = "Get \"foo://foo.com\": unsupported protocol scheme \"foo\""
+
+	networkErr, err := ast.InterfaceToValue(networkErrObj)
+	if err != nil {
+		panic(err)
+	}
+
+	internalErrObj := make(map[string]interface{})
+	internalErrObj["code"] = HTTPSendInternalErr
+	internalErrObj["message"] = fmt.Sprintf(`http.send({"method": "get", "url": "%s", "force_json_decode": true, "raise_error": false, "force_cache": true}): eval_builtin_error: http.send: 'force_cache' set but 'force_cache_duration_seconds' parameter is missing`, baseURL)
+
+	internalErr, err := ast.InterfaceToValue(internalErrObj)
+	if err != nil {
+		panic(err)
+	}
+
+	responseObj := make(map[string]interface{})
+	responseObj["status_code"] = 0
+	responseObj["error"] = internalErrObj
+
+	response, err := ast.InterfaceToValue(responseObj)
+	if err != nil {
+		panic(err)
+	}
+
+	tests := []struct {
+		note         string
+		ruleTemplate string
+		body         string
+		response     interface{}
+	}{
+		{
+			note: "http.send invalid url (don't raise error, check response body)",
+			ruleTemplate: `p = x {
+									r = http.send({"method": "get", "url": "%URL%.com", "force_json_decode": true, "raise_error": false})
+									x = r.body
+								}`,
+			response: ``,
+		},
+		{
+			note: "http.send invalid url (don't raise error, check response status code)",
+			ruleTemplate: `p = x {
+									r = http.send({"method": "get", "url": "%URL%.com", "force_json_decode": true, "raise_error": false})
+									x = r.status_code
+								}`,
+			response: `0`,
+		},
+		{
+			note: "http.send invalid url (don't raise error, network error)",
+			ruleTemplate: `p = x {
+									r = http.send({"method": "get", "url": "foo://foo.com", "force_json_decode": true, "raise_error": false})
+									x = r.error
+								}`,
+			response: networkErr.String(),
+		},
+		{
+			note: "http.send missing param (don't raise error, internal error)",
+			ruleTemplate: `p = x {
+									r = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "raise_error": false, "force_cache": true})
+									x = r.error
+								}`,
+			response: internalErr.String(),
+		},
+		{
+			note: "http.send missing param (don't raise error,  check response)",
+			ruleTemplate: `p = x {
+									r = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "raise_error": false, "force_cache": true})
+									x = r
+								}`,
+			response: response.String(),
+		},
+	}
+
+	data := loadSmallTestData()
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			runTopDownTestCase(t, data, tc.note, []string{strings.ReplaceAll(tc.ruleTemplate, "%URL%", baseURL)}, tc.response)
+		})
+	}
+}
+
 func TestHTTPSendCaching(t *testing.T) {
 	// expected result
 	var body []interface{}

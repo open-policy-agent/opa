@@ -863,6 +863,7 @@ The `request` object parameter may contain the following fields:
 | `cache` | no | `boolean` | Cache HTTP response across OPA queries. Default: `false`. |
 | `force_cache` | no | `boolean` | Cache HTTP response across OPA queries and override cache directives defined by the server. Default: `false`. |
 | `force_cache_duration_seconds` | no | `number` | If `force_cache` is set, this field specifies the duration in seconds for the freshness of a cached response. |
+| `raise_error` | no | `bool` | If `raise_error` is set, errors returned by `http.send` will halt policy evaluation. Default: `true`. |
 
 If the `Host` header is included in `headers`, its value will be used as the `Host` header of the request. The `url` parameter will continue to specify the server to connect to.
 
@@ -879,10 +880,16 @@ The `response` object parameter will contain the following fields:
 | Field | Type | Description |
 | --- | --- | --- |
 | `status` | `string` | HTTP status message (e.g., `"200 OK"`). |
-| `status_code` | `number` | HTTP status code (e.g., `200`). |
+| `status_code` | `number` | HTTP status code (e.g., `200`). If `raise_error` is `false`, this field will be set to `0` if `http.send` encounters an error. |
 | `body` | `any` | Any JSON value. If the HTTP response message body was not deserialized from JSON, this field is set to `null`. |
 | `raw_body` | `string` | The entire raw HTTP response message body represented as a string. |
 | `headers` | `object` | An object containing the response headers. The values will be an array of strings, repeated headers are grouped under the same keys with all values in the array. |
+| `error` | `object` | If `raise_error` is `false`, this field will represent the error encountered while running `http.send`. The `error` object contains a `message` key which holds the actual error message and a `code` key which represents if the error was caused due to a network issue or during policy evaluation. |
+
+By default, an error returned by `http.send` halts the policy evaluation. This behaviour can be altered such that
+instead of halting evaluation, if `http.send` encounters an error, it can return a `response` object with `status_code`
+set to `0` and `error` describing the actual error. This can be activated by setting the `raise_error` field
+in the `request` object to `false`.
 
 If the `cache` field in the `request` object is `true`, `http.send` will return a cached response after it checks its freshness and validity.
 
