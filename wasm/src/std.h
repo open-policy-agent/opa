@@ -31,4 +31,12 @@ void opa_println(const char *msg);
 #define bool    int
 #endif
 
+// OPA WASM API Error Codes
+#define OPA_ERR_OK 0
+#define OPA_ERR_INTERNAL 1
+#define OPA_ERR_INVALID_TYPE 2
+#define OPA_ERR_INVALID_PATH 3
+
+typedef int opa_errc;
+
 #endif

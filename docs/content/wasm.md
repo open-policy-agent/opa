@@ -121,11 +121,25 @@ The primary exported functions for interacting with policy modules are:
 | <span class="opa-keep-it-together">`str_addr opa_json_dump(value_addr)`</span> | Dumps the value referred to by `value_addr` to a null-terminated JSON serialized string and returns the address of the start of the string. |
 | <span class="opa-keep-it-together">`void opa_heap_ptr_set(addr)`</span> | Set the heap pointer for the next evaluation. |
 | <span class="opa-keep-it-together">`addr opa_heap_ptr_get(void)`</span> | Get the current heap pointer. |
+| <span class="opa-keep-it-together">`int32 opa_value_add_path(base_value_addr, path_value_addr, value_addr)`</span> | Add the value at the `value_addr` into the object referenced by `base_value_addr` at the given path. The `path_value_addr` must point to an array value with string keys (eg: `["a", "b", "c"]`). Existing values will be updated. On success the value at `value_addr` is no longer owned by the caller, it will be freed with the base value. The path must be freed by the caller after use. If an error occurs the base value will remain unchanged. Example: base object `{"a": {"b": 123}}`, path `["a", "x", "y"]`, and value `{"foo": "bar"}` will yield `{"a": {"b": 123, "x": {"y": {"foo": "bar"}}}}`. Returns an error code (see below). |
+| <span class="opa-keep-it-together">`int32 opa_value_remove_path(base_value_addr, path_value_addr)`</span> | Remove the value from the object referenced by `base_value_addr` at the given path. Values removed will be freed. The path must be freed by the caller after use. The `path_value_addr` must point to an array value with string keys (eg: `["a", "b", "c"]`). Returns an error code (see below). |
+
 
 The addresses passed and returned by the policy modules are 32-bit integer
 offsets into the shared memory region. The `value_addr` parameters and return
 values refer to OPA value data structures: `null`, `boolean`, `number`,
 `string`, `array`, `object`, and `set`.
+
+__Error codes:__
+
+OPA WASM Error codes are int32 values defined as:
+
+| Value | Name | Description |
+|-------|------|-------------|
+| 0 | OPA_ERR_OK | No error. |
+| 1 | OPA_ERR_INTERNAL | Unrecoverable internal error. |
+| 2 | OPA_ERR_INVALID_TYPE | Invalid value type was encountered. |
+| 3 | OPA_ERR_INVALID_PATH | Invalid object path reference. |
 
 #### Imports
 
@@ -213,6 +227,10 @@ External data can be loaded for use in evaluation. Similar to the `input` this
 is done by loading a JSON string into the shared memory buffer. Use `opa_malloc`
 and `opa_json_parse` followed by `opa_eval_ctx_set_data` to set the address on
 the evaluation context.
+
+Data can be updated by using the `opa_value_add_path` and `opa_value_remove_path`
+and providing the same value address as the base. Similarly, use `opa_malloc` and
+`opa_json_parse` for the updated value and creating the path.
 
 After loading the external data use the `opa_heap_ptr_get` exported method to save
 the current point in the heap before evaluation. After evaluation this should be

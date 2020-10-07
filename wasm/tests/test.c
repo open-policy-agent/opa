@@ -35,6 +35,24 @@ void opa_test_pass(const char *note, const char *func);
         opa_test_pass(note, __func__);                     \
     }
 
+#define FAIL_TEMPLATE_STR "%s: expected: '%s' actual: '%s'"
+#define FAIL_TEMPLATE_ERRC "%s: expected error: %d actual error: %d" 
+
+#define test_with_exp(note, expr, exp, actual, template)        \
+    if (expr)                                                   \
+    {                                                           \
+        opa_test_pass(note, __func__);                          \
+    }                                                           \
+    else                                                        \
+    {                                                           \
+        char msg[256];                                          \
+        snprintf(msg, 256, template, note, exp, actual);        \
+        opa_test_fail(msg, __func__, __FILE__, __LINE__);       \
+    }
+
+#define test_str_eq(note, exp, actual) test_with_exp(note, opa_strcmp(exp, actual) == 0, exp, actual, FAIL_TEMPLATE_STR)
+#define test_errc_eq(note, exp, actual) test_with_exp(note, exp == actual, exp, actual, FAIL_TEMPLATE_ERRC)
+
 void reset_heap()
 {
     // This will leak memory!!
@@ -1874,4 +1892,181 @@ void test_to_number(void)
     test("to_number/float", opa_value_compare(opa_to_number(opa_string_terminated("3.5")), opa_number_float(3.5)) == 0);
     test("to_number/bad string", opa_to_number(opa_string_terminated("deadbeef")) == NULL);
     test("to_number/bad value", opa_to_number(opa_array()) == NULL);
+}
+
+opa_value *__new_value_path(int sz, ...)
+{
+    va_list ap;
+    opa_value *path = opa_array();
+
+    va_start(ap, sz);
+
+    for (int i = 0; i < sz; i++)
+    {
+        const char* p = va_arg(ap, const char*);
+        opa_array_append(opa_cast_array(path), opa_string_terminated(p));
+    }
+
+    va_end(ap);
+
+    return path;
+}
+
+void test_opa_value_add_path(void) {
+    opa_value *data = opa_object();
+    opa_value *update = opa_object();
+    opa_value *path;
+    opa_errc rc;
+
+    opa_object_insert(opa_cast_object(update), opa_string_terminated("a"), opa_number_int(1));
+
+    rc = opa_value_add_path(data, opa_array(), update);
+    test_errc_eq("empty_path_rc", OPA_ERR_INVALID_PATH, rc);
+
+    // Setup base document
+    data = opa_object();
+    opa_object_insert(opa_cast_object(data), opa_string_terminated("b"), opa_number_int(2));
+    opa_object_insert(opa_cast_object(data), opa_string_terminated("c"), opa_number_int(3));
+    opa_object_insert(opa_cast_object(data), opa_string_terminated("d"), opa_number_int(4));
+
+    // Upsert into existing object path
+    update = opa_object();
+    opa_object_insert(opa_cast_object(update), opa_string_terminated("x"), opa_number_int(5));
+
+    path = __new_value_path(1, "b");
+    rc = opa_value_add_path(data, path, update);
+    test_errc_eq("overwrite_sub_path_rc", OPA_ERR_OK, rc);
+    test_str_eq("overwrite_sub_path", "{\"d\":4,\"c\":3,\"b\":{\"x\":5}}", opa_json_dump(data))
+
+    // Upsert w/ creating nested path
+    update = opa_object();
+    opa_object_insert(opa_cast_object(update), opa_string_terminated("foo"), opa_number_int(123));
+
+    path = __new_value_path(5, "b", "y", "z", "p", "q");
+    rc = opa_value_add_path(data, path, update);
+    test_errc_eq("mkdir_rc", OPA_ERR_OK, rc);
+    char *exp = "{\"d\":4,\"c\":3,\"b\":{\"y\":{\"z\":{\"p\":{\"q\":{\"foo\":123}}}},\"x\":5}}";
+    test_str_eq("mkdir", exp, opa_json_dump(data));
+
+    // NULL path
+    update = opa_object();
+    rc = opa_value_add_path(update, NULL, opa_object());
+    test_errc_eq("null_path_rc", OPA_ERR_INVALID_PATH, rc);
+    test_str_eq("null_path_unchanged", exp, opa_json_dump(data));
+
+    // non-array path types
+    rc = opa_value_add_path(update, opa_string_terminated("foo"), opa_object());
+    test_errc_eq("invalid_string_path_rc", OPA_ERR_INVALID_PATH, rc);
+    test_str_eq("invalid_string_path_unchanged", exp, opa_json_dump(data));
+
+    rc = opa_value_add_path(update, opa_number_int(1), opa_object());
+    test_errc_eq("invalid_number_path_rc", OPA_ERR_INVALID_PATH, rc);
+    test_str_eq("invalid_number_path_unchanged", exp, opa_json_dump(data));
+
+    rc = opa_value_add_path(update, opa_set(), opa_object());
+    test_errc_eq("invalid_set_path_rc", OPA_ERR_INVALID_PATH, rc);
+    test_str_eq("invalid_set_path_unchanged", exp, opa_json_dump(data));
+
+    // invalid nested object type
+    opa_value *base = opa_object();
+    opa_value *invalid_node = opa_set();
+    opa_set_add(opa_cast_set(invalid_node), opa_string_terminated("y"));
+    opa_object_insert(opa_cast_object(base), opa_string_terminated("x"), invalid_node);
+
+    exp = "{\"x\":[\"y\"]}";
+    path = __new_value_path(3, "x", "y", "z");
+
+    rc = opa_value_add_path(base, path, opa_object());
+    test_errc_eq("invalid_nested_object_in_path_rc", OPA_ERR_INVALID_TYPE, rc);
+    test_str_eq("invalid_nested_object_in_path_unchanged", exp, opa_json_dump(base));
+
+    // invalid nested object type leaf
+    base = opa_object();
+    opa_object_insert(opa_cast_object(base), opa_string_terminated("x"), opa_number_int(5));
+    exp = "{\"x\":5}";
+    path = __new_value_path(3, "x", "y", "z");
+
+    rc = opa_value_add_path(base, path, opa_object());
+    test_errc_eq("invalid_nested_object_at_path_end_rc", OPA_ERR_INVALID_TYPE, rc);
+    test_str_eq("invalid_nested_object_at_path_end_unchanged", exp, opa_json_dump(base));
+}
+
+void test_opa_object_delete(void)
+{
+    opa_value *data = opa_object();
+
+    opa_object_insert(opa_cast_object(data), opa_string_terminated("a"), opa_number_int(1));
+    opa_object_insert(opa_cast_object(data), opa_string_terminated("b"), opa_number_int(2));
+    opa_object_insert(opa_cast_object(data), opa_string_terminated("c"), opa_number_int(3));
+
+    opa_object_remove(opa_cast_object(data), opa_string_terminated("a"));
+    test_str_eq("remove_key", "{\"c\":3,\"b\":2}", opa_json_dump(data));
+
+    opa_object_remove(opa_cast_object(data), opa_string_terminated("bad key"));
+    test_str_eq("remove_unknown_key", "{\"c\":3,\"b\":2}", opa_json_dump(data));
+
+    opa_object_remove(opa_cast_object(data), opa_string_terminated("b"));
+    opa_object_remove(opa_cast_object(data), opa_string_terminated("c"));
+    test_str_eq("remove_all_keys", "{}", opa_json_dump(data));
+
+    opa_object_remove(opa_cast_object(data), opa_string_terminated("bad key"));
+    test_str_eq("remove_on_empty_obj", "{}", opa_json_dump(data));
+}
+
+void test_opa_value_remove_path(void)
+{
+    opa_value *path;
+    opa_errc rc;
+
+    char *raw = "{\"a\":{\"b\":{\"c\":{\"d\":123}}},\"x\":[1,{\"y\":{\"z\":{}}}]}";
+    opa_value *data = opa_json_parse(raw, strlen(raw));
+
+    path = opa_array();
+    rc = opa_value_remove_path(data, path);
+    test_errc_eq("empty_path", OPA_ERR_INVALID_PATH, rc);
+
+    // Reset back to full data doc
+    data = opa_json_parse(raw, strlen(raw));
+
+    path = __new_value_path(1, "foo");
+    rc = opa_value_remove_path(data, path);
+    test_errc_eq("path_doesnt_exist_rc", OPA_ERR_OK, rc);
+    test_str_eq("path_doesnt_exist", raw, opa_json_dump(data));
+
+    path = __new_value_path(3, "a", "b", "foo");
+    rc = opa_value_remove_path(data, path);
+    test_errc_eq("path_doesnt_exist_nested_rc", OPA_ERR_OK, rc);
+    test_str_eq("path_doesnt_exist_nested", raw, opa_json_dump(data));
+
+    path = __new_value_path(4, "a", "b", "c", "d");
+    rc = opa_value_remove_path(data, path);
+    test_errc_eq("leaf_rc", OPA_ERR_OK, rc);
+    test_str_eq("leaf", "{\"a\":{\"b\":{\"c\":{}}},\"x\":[1,{\"y\":{\"z\":{}}}]}", opa_json_dump(data));
+
+    path = __new_value_path(2, "a", "b");
+    rc = opa_value_remove_path(data, path);
+    test_errc_eq("branch_rc", OPA_ERR_OK, rc);
+    test_str_eq("branch", "{\"a\":{},\"x\":[1,{\"y\":{\"z\":{}}}]}", opa_json_dump(data));
+
+    path = __new_value_path(1, "a");
+    rc = opa_value_remove_path(data, path);
+    test_errc_eq("branch_root_rc", OPA_ERR_OK, rc);
+    test_str_eq("branch_root", "{\"x\":[1,{\"y\":{\"z\":{}}}]}", opa_json_dump(data));
+
+    path = __new_value_path(3, "x", "1", "y");
+    rc = opa_value_remove_path(data, path);
+    test_errc_eq("invalid_array_path_rc", OPA_ERR_OK, rc);
+    test_str_eq("invalid_array_path", "{\"x\":[1,{\"y\":{\"z\":{}}}]}", opa_json_dump(data));
+
+    path = opa_array();
+    opa_array_append(opa_cast_array(path), opa_string_terminated("x"));
+    opa_array_append(opa_cast_array(path), opa_number_int(1));
+    opa_array_append(opa_cast_array(path), opa_string_terminated("y"));
+    rc = opa_value_remove_path(data, path);
+    test_errc_eq("invalid_array_path_rc", OPA_ERR_INVALID_PATH, rc);
+    test_str_eq("array_index_path", "{\"x\":[1,{\"y\":{\"z\":{}}}]}", opa_json_dump(data));
+
+    rc = opa_value_remove_path(opa_object(), NULL);
+    test_errc_eq("null_path_rc", OPA_ERR_INVALID_PATH, rc);
+    test_str_eq("array_index_path", "{\"x\":[1,{\"y\":{\"z\":{}}}]}", opa_json_dump(data));
 }
