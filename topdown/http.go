@@ -53,6 +53,7 @@ var allowedKeyNames = [...]string{
 	"cache",
 	"force_cache",
 	"force_cache_duration_seconds",
+	"raise_error",
 }
 
 var (
@@ -63,46 +64,86 @@ var (
 
 type httpSendKey string
 
-// httpSendBuiltinCacheKey is the key in the builtin context cache that
-// points to the http.send() specific cache resides at.
-const httpSendBuiltinCacheKey httpSendKey = "HTTP_SEND_CACHE_KEY"
+const (
+	// httpSendBuiltinCacheKey is the key in the builtin context cache that
+	// points to the http.send() specific cache resides at.
+	httpSendBuiltinCacheKey httpSendKey = "HTTP_SEND_CACHE_KEY"
+
+	// HTTPSendInternalErr represents a runtime evaluation error.
+	HTTPSendInternalErr string = "eval_http_send_internal_error"
+
+	// HTTPSendNetworkErr represents a network error.
+	HTTPSendNetworkErr string = "eval_http_send_network_error"
+)
 
 func builtinHTTPSend(bctx BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
-
-	bctx.Metrics.Timer(httpSendLatencyMetricKey).Start()
-
 	req, err := validateHTTPRequestOperand(args[0], 1)
 	if err != nil {
 		return handleBuiltinErr(ast.HTTPSend.Name, bctx.Location, err)
 	}
 
+	raiseError, err := getRaiseErrorValue(req)
+	if err != nil {
+		return handleBuiltinErr(ast.HTTPSend.Name, bctx.Location, err)
+	}
+
+	result, err := getHTTPResponse(bctx, req)
+	if err != nil {
+		if raiseError {
+			return handleHTTPSendErr(bctx, err)
+		}
+
+		obj := ast.NewObject()
+		obj.Insert(ast.StringTerm("status_code"), ast.IntNumberTerm(0))
+
+		errObj := ast.NewObject()
+
+		switch err.(type) {
+		case *url.Error:
+			errObj.Insert(ast.StringTerm("code"), ast.StringTerm(HTTPSendNetworkErr))
+		default:
+			errObj.Insert(ast.StringTerm("code"), ast.StringTerm(HTTPSendInternalErr))
+		}
+
+		errObj.Insert(ast.StringTerm("message"), ast.StringTerm(err.Error()))
+		obj.Insert(ast.StringTerm("error"), ast.NewTerm(errObj))
+
+		result = ast.NewTerm(obj)
+	}
+	return iter(result)
+}
+
+func getHTTPResponse(bctx BuiltinContext, req ast.Object) (*ast.Term, error) {
+
+	bctx.Metrics.Timer(httpSendLatencyMetricKey).Start()
+
 	reqExecutor, err := newHTTPRequestExecutor(bctx, req)
 	if err != nil {
-		return handleHTTPSendErr(bctx, err)
+		return nil, err
 	}
 
 	// check if cache already has a response for this query
 	resp, err := reqExecutor.CheckCache()
 	if err != nil {
-		return handleHTTPSendErr(bctx, err)
+		return nil, err
 	}
 
 	if resp == nil {
 		httpResp, err := reqExecutor.ExecuteHTTPRequest()
 		if err != nil {
-			return handleHTTPSendErr(bctx, err)
+			return nil, err
 		}
 
 		// add result to cache
 		resp, err = reqExecutor.InsertIntoCache(httpResp)
 		if err != nil {
-			return handleHTTPSendErr(bctx, err)
+			return nil, err
 		}
 	}
 
 	bctx.Metrics.Timer(httpSendLatencyMetricKey).Stop()
 
-	return iter(ast.NewTerm(resp))
+	return ast.NewTerm(resp), nil
 }
 
 func init() {
@@ -303,7 +344,7 @@ func createHTTPRequest(bctx BuiltinContext, obj ast.Object) (*http.Request, *htt
 			if err != nil {
 				return nil, nil, err
 			}
-		case "cache", "force_cache", "force_cache_duration_seconds", "force_json_decode": // no-op
+		case "cache", "force_cache", "force_cache_duration_seconds", "force_json_decode", "raise_error": // no-op
 		default:
 			return nil, nil, fmt.Errorf("invalid parameter %q", key)
 		}
@@ -1080,4 +1121,15 @@ func newForceCacheParams(req ast.Object) (*forceCacheParams, error) {
 	}
 
 	return &forceCacheParams{forceCacheDurationSeconds: int32(value)}, nil
+}
+
+func getRaiseErrorValue(req ast.Object) (bool, error) {
+	result := ast.Boolean(true)
+	var ok bool
+	if v := req.Get(ast.StringTerm("raise_error")); v != nil {
+		if result, ok = v.Value.(ast.Boolean); !ok {
+			return false, fmt.Errorf("invalid value for raise_error field")
+		}
+	}
+	return bool(result), nil
 }
