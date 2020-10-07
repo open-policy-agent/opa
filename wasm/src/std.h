@@ -10,4 +10,16 @@
 void opa_abort(const char *msg);
 void opa_println(const char *msg);
 
+#ifdef DEBUG
+#include "printf.h"
+#define TRACE(...)                               \
+    do {                                         \
+        char __trace_buf[256];                   \
+        snprintf(__trace_buf, 256, __VA_ARGS__); \
+        opa_println(__trace_buf);                \
+    } while (0)
+#else
+#define TRACE(...)
+#endif
+
 #endif
