@@ -122,6 +122,8 @@ void opa_value_free(opa_value *node);
 opa_value *opa_value_merge(opa_value *a, opa_value *b);
 opa_value *opa_value_shallow_copy(opa_value *node);
 opa_value *opa_value_transitive_closure(opa_value *node);
+opa_errc opa_value_add_path(opa_value *data, opa_value *path, opa_value *v);
+opa_errc opa_value_remove_path(opa_value *data, opa_value *path);
 
 opa_value *opa_null();
 opa_value *opa_boolean(int v);
@@ -156,6 +158,7 @@ void opa_array_sort(opa_array_t *arr, opa_compare_fn cmp_fn);
 void opa_object_free(opa_object_t *obj);
 opa_array_t *opa_object_keys(opa_object_t *obj);
 void opa_object_insert(opa_object_t *obj, opa_value *k, opa_value *v);
+void opa_object_remove(opa_object_t *obj, opa_value *k);
 opa_object_elem_t *opa_object_get(opa_object_t *obj, opa_value *key);
 
 void opa_set_free(opa_set_t *set);

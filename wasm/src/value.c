@@ -1313,6 +1313,35 @@ static void __opa_object_insert_elem(opa_object_t *obj, opa_object_elem_t *new, 
     obj->len++;
 }
 
+void opa_object_remove(opa_object_t *obj, opa_value *k)
+{
+    size_t hash = opa_value_hash(k);
+
+    size_t i = hash % obj->n;
+    opa_object_elem_t **prev = &obj->buckets[i];
+    opa_object_elem_t *curr = obj->buckets[i];
+    while (curr != NULL)
+    {
+        if (opa_value_compare(curr->k, k) == 0)
+        {
+            *prev = curr->next;
+            obj->len--;
+
+            opa_value_free(curr->k);
+            opa_value_free(curr->v);
+            opa_free(curr);
+
+            // TODO: Consider shrinking the object size. For now it will remain
+            // with its current size.
+
+            return;
+        }
+        prev = &curr->next;
+        curr = curr->next;
+    }
+    return;  // Key wasn't found, consider it deleted.
+}
+
 opa_object_elem_t *opa_object_get(opa_object_t *obj, opa_value *key)
 {
     size_t hash = opa_value_hash(key) % obj->n;
@@ -1461,4 +1490,138 @@ opa_set_elem_t *opa_set_get(opa_set_t *set, opa_value *v)
     }
 
     return NULL;
+}
+
+// Validate that a path is non-null, an array value type,
+// has a length >0, and only contains strings.
+// Returns the size of the path, or -1 for an invalid path
+int _validate_json_path(opa_value *path)
+{
+    if (path == NULL || opa_value_type(path) != OPA_ARRAY)
+    {
+        return -1;
+    }
+
+    int path_len = opa_value_length(path);
+
+    if (path_len == 0)
+    {
+        return -1;
+    }
+
+    for (int i = 0; i < path_len-1; i++)
+    {
+        opa_value *v = opa_value_get_array_native(opa_cast_array(path), i);
+        switch (v->type)
+        {
+            case OPA_STRING:
+                continue;
+            default:
+                return -1;
+        }
+    }
+ 
+    return path_len;
+}
+
+// For the given `data` value set the provided value `v` at
+// the specified `path`. Requires objects for containers,
+// any portion of the path that is missing will be created.
+// The `path` must be an `opa_array_t` with at least one
+// element.
+//
+// Replaced objects will be freed.
+opa_errc opa_value_add_path(opa_value *data, opa_value *path, opa_value *v)
+{
+    int path_len = _validate_json_path(path);
+
+    if (path_len < 1)
+    {
+        return OPA_ERR_INVALID_PATH;
+    }
+
+    // Follow the path, creating objects as needed.
+    opa_array_t *p = opa_cast_array(path);
+    opa_value *curr = data;
+
+    for (int i = 0; i < path_len-1; i++)
+    {
+        opa_value *k = opa_value_get_array_native(p, i);
+
+        opa_value *next = opa_value_get(curr, k);
+
+        if (next == NULL)
+        {
+            switch (curr->type)
+            {
+                case OPA_OBJECT:
+                    next = opa_object();
+                    opa_object_insert(opa_cast_object(curr), k, next);
+                    break;
+                default:
+                    return OPA_ERR_INVALID_TYPE;
+            }
+        }
+
+        curr = next;
+    }
+
+    opa_value *k = opa_value_get_array_native(p, path_len-1);
+
+    opa_value *old = opa_value_get(curr, k);
+
+    switch (curr->type)
+    {
+        case OPA_OBJECT:
+            opa_object_insert(opa_cast_object(curr), k, v);
+            break;
+        default:
+            return OPA_ERR_INVALID_TYPE;
+    }
+
+    if (old != NULL)
+    {
+        opa_value_free(old);
+    }
+
+    return OPA_ERR_OK;
+}
+
+// For the given `data` object delete the entry specified by `path`.
+// The `path` must be an `opa_array_t` with at least one
+// element.
+//
+// Deleted values will be freed.
+opa_errc opa_value_remove_path(opa_value *data, opa_value *path)
+{ 
+    int path_len = _validate_json_path(path);
+
+    if (path_len < 1)
+    {
+        return OPA_ERR_INVALID_PATH;
+    }
+
+    // Follow the path into data
+    opa_array_t *p = opa_cast_array(path);
+    opa_value *curr = data;
+
+    for (int i = 0; i < path_len-1; i++)
+    {
+        opa_value *k = opa_value_get_array_native(p, i);
+
+        opa_value *next = opa_value_get(curr, k);
+
+        if (next == NULL)
+        {
+            // We were unable to follow the full
+            // path, consider the target deleted
+            return OPA_ERR_OK;
+        }
+
+       curr = next;
+    }
+
+    opa_object_remove(opa_cast_object(curr), opa_value_get_array_native(p, path_len-1));
+
+    return OPA_ERR_OK;
 }
