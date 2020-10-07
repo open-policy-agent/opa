@@ -31,6 +31,11 @@ useful if you need to interact with low-level WASM tooling like
 You must manually push the builder image if you make changes to it (run `make
 builder` to produce a new Docker image).
 
+### Debug Builds
+
+Set the `DEBUG` environment variable to `1` to enable generating binaries with
+debug symbols and a less aggressive optimization level. Eg: `DEBUG=1 make build`.
+
 ## Vendoring
 
 If you make changes to the library, run the `make generate` in the parent
