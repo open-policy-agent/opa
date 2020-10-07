@@ -11,6 +11,8 @@
 #define OPA_SET_MIN_BUCKETS (8)
 #define OPA_SET_LOAD_FACTOR (0.7)
 
+static opa_value *__opa_object_with_buckets(size_t buckets);
+static opa_value *__opa_set_with_buckets(size_t buckets);
 static opa_array_t *__opa_set_values(opa_set_t *set);
 static void __opa_object_insert_elem(opa_object_t *obj, opa_object_elem_t *new, size_t hash);
 static void __opa_set_add_elem(opa_set_t *set, opa_set_elem_t *new, size_t hash);
@@ -777,7 +779,7 @@ opa_value *opa_value_shallow_copy_array(opa_array_t *a)
 opa_value *opa_value_shallow_copy_object(opa_object_t *o)
 {
     opa_value *node = &o->hdr;
-    opa_object_t *cpy = opa_cast_object(opa_object());
+    opa_object_t *cpy = opa_cast_object(__opa_object_with_buckets(o->n));
     opa_value *prev = NULL;
     opa_value *curr = NULL;
 
@@ -794,7 +796,7 @@ opa_value *opa_value_shallow_copy_object(opa_object_t *o)
 opa_value *opa_value_shallow_copy_set(opa_set_t *s)
 {
     opa_value *node = &s->hdr;
-    opa_set_t *cpy = opa_cast_set(opa_set());
+    opa_set_t *cpy = opa_cast_set(__opa_set_with_buckets(s->n));
     opa_value *prev = NULL;
     opa_value *curr = NULL;
 
@@ -1021,7 +1023,7 @@ opa_value *opa_array_with_elems(opa_array_elem_t *elems, size_t len, size_t cap)
     return &ret->hdr;
 }
 
-opa_value *__opa_object_with_buckets(size_t buckets)
+static opa_value *__opa_object_with_buckets(size_t buckets)
 {
     opa_object_t *ret = (opa_object_t *)opa_malloc(sizeof(opa_object_t));
     ret->hdr.type = OPA_OBJECT;
@@ -1041,7 +1043,7 @@ opa_value *opa_object()
     return __opa_object_with_buckets(OPA_OBJECT_MIN_BUCKETS);
 }
 
-opa_value *__opa_set_with_buckets(size_t buckets)
+static opa_value *__opa_set_with_buckets(size_t buckets)
 {
     opa_set_t *ret = (opa_set_t *)opa_malloc(sizeof(opa_set_t));
     ret->hdr.type = OPA_SET;
