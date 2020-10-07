@@ -3,6 +3,8 @@
 
 #define WASM_PAGE_SIZE (65536)
 
+#define MIN_ALLOCATION_SZ 16
+
 static int initialized;
 static unsigned int heap_ptr;
 static unsigned int heap_top;
@@ -98,16 +100,11 @@ void opa_heap_top_set(unsigned int top)
     init_free();
 }
 
-void *opa_malloc(size_t size)
+void *__opa_malloc_reuse_free(size_t size)
 {
-    init();
-    HEAP_CHECK();
-
-    // Look for the first free block that is large enough. Split the found block if necessary.
-
     for (struct heap_block *b = heap_free_start.next; b != &heap_free_end; b = b->next)
     {
-        if (b->size > (sizeof(struct heap_block) + size))
+        if (b->size > (sizeof(struct heap_block) + size + MIN_ALLOCATION_SZ))
         {
             struct heap_block *remaining = (void *)(&b->data[0]) + size;
             remaining->size = b->size - (sizeof(struct heap_block) + size);
@@ -123,7 +120,7 @@ void *opa_malloc(size_t size)
             HEAP_CHECK();
 
             return b->data;
-        } else if (b->size == size)
+        } else if (b->size >= size)
         {
             b->prev->next = b->next;
             b->next->prev = b->prev;
@@ -131,13 +128,14 @@ void *opa_malloc(size_t size)
             b->next = NULL;
 
             HEAP_CHECK();
-
             return b->data;
         }
     }
+    return NULL;
+}
 
-    // Allocate a new block.
-
+void *__opa_malloc_new_allocation(size_t size)
+{
     unsigned int ptr = heap_ptr;
     size_t block_size = sizeof(struct heap_block) + size;
     heap_ptr += block_size;
@@ -155,6 +153,25 @@ void *opa_malloc(size_t size)
     b->next = NULL;
 
     return b->data;
+}
+
+void *opa_malloc(size_t size)
+{
+    init();
+    HEAP_CHECK();
+
+    if (size < MIN_ALLOCATION_SZ)
+        size = MIN_ALLOCATION_SZ;
+
+    // Look for the first free block that is large enough. Split the found block if necessary.
+    void *new = (void *)__opa_malloc_reuse_free(size);
+    if (new != NULL)
+    {
+        return new;
+    }
+
+    // Allocate a new block.
+    return __opa_malloc_new_allocation(size);
 }
 
 void opa_free(void *ptr)
