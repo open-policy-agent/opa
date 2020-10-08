@@ -41,9 +41,10 @@ type Config struct {
 	AllowInsureTLS               bool              `json:"allow_insecure_tls,omitempty"`
 	ResponseHeaderTimeoutSeconds *int64            `json:"response_header_timeout_seconds,omitempty"`
 	Credentials                  struct {
-		Bearer    *bearerAuthPlugin     `json:"bearer,omitempty"`
-		ClientTLS *clientTLSAuthPlugin  `json:"client_tls,omitempty"`
-		S3Signing *awsSigningAuthPlugin `json:"s3_signing,omitempty"`
+		Bearer    *bearerAuthPlugin                  `json:"bearer,omitempty"`
+		OAuth2    *oauth2ClientCredentialsAuthPlugin `json:"oauth2,omitempty"`
+		ClientTLS *clientTLSAuthPlugin               `json:"client_tls,omitempty"`
+		S3Signing *awsSigningAuthPlugin              `json:"s3_signing,omitempty"`
 	} `json:"credentials"`
 }
 
