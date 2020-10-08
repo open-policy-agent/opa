@@ -32,8 +32,17 @@ void opa_test_pass(const char *note, const char *func);
         opa_test_pass(note, __func__);                     \
     }
 
+void reset_heap()
+{
+    // This will leak memory!!
+    // TODO: How should we safely reset it if we don't know the original starting ptr?
+    opa_heap_ptr_set(opa_heap_top_get());
+}
+
 void test_opa_malloc()
 {
+    reset_heap();
+
     // NOTE(tsandall): These numbers are not particularly important. They're
     // sized to cause opa_malloc to call grow.memory. The tester initializes
     // memory with 2 pages so we allocate ~4 pages of memory here.
@@ -53,6 +62,8 @@ void test_opa_malloc()
 
 void test_opa_malloc_min_size()
 {
+    reset_heap();
+
     // Ensure that allocations less than the minimum size
     // are creating blocks large enough to be re-used by
     // the minimum size.
@@ -73,6 +84,8 @@ void test_opa_malloc_min_size()
 
 void test_opa_malloc_split_threshold_small_block()
 {
+    reset_heap();
+
     // Ensure that free blocks larger than the requested
     // allocation, but too small to leave a sufficiently
     // sized remainder, are left intact.
@@ -94,6 +107,8 @@ void test_opa_malloc_split_threshold_small_block()
 
 void test_opa_malloc_split_threshold_big_block()
 {
+    reset_heap();
+
     // Ensure that free blocks large enough to be split
     // are split up until they are too small.
     void *splittable = opa_malloc(100);
@@ -121,6 +136,8 @@ void test_opa_malloc_split_threshold_big_block()
 
 void test_opa_free()
 {
+    reset_heap();
+
 
     // check the heap shrinks with a single malloc and free.
 
