@@ -34,6 +34,7 @@ typedef struct
 {
     const char *s;
     size_t len;
+    unsigned char free; // if set 's' is not a reference and should be freed
 } opa_number_ref_t;
 
 typedef struct
@@ -127,6 +128,7 @@ opa_value *opa_number_size(size_t v);
 opa_value *opa_number_int(long long v);
 opa_value *opa_number_float(double v);
 opa_value *opa_number_ref(const char *s, size_t len);
+opa_value *opa_number_ref_allocated(const char *s, size_t len);
 opa_value *opa_string(const char *v, size_t len);
 opa_value *opa_string_terminated(const char *v);
 opa_value *opa_string_allocated(const char *v, size_t len);
@@ -142,6 +144,7 @@ void opa_value_number_set_int(opa_value *v, long long i);
 
 int opa_number_try_int(opa_number_t *n, long long *i);
 double opa_number_as_float(opa_number_t *n);
+void opa_number_free(opa_number_t *n);
 
 void opa_string_free(opa_string_t *s);
 
