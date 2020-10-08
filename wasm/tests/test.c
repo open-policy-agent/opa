@@ -762,6 +762,27 @@ void test_opa_json_parse_composites()
     test("object nested", parse_crunch("{\"a\": {\"c\": 1, \"d\": 2}, \"b\": {\"e\": 3, \"f\": 4}}", &fixture_object2()->hdr));
 }
 
+void test_opa_json_parse_memory_ownership()
+{
+    char s[] = "[1,\"a\"]";
+
+    opa_value *result = opa_json_parse(s, sizeof(s));
+
+    opa_value *exp = opa_array();
+    opa_array_t *arr = opa_cast_array(exp);
+    opa_array_append(arr, opa_number_int(1));
+    opa_array_append(arr, opa_string("a", 1));
+
+    test("expected value", opa_value_compare(result, exp) == 0);
+
+    for (int i = 0; i < sizeof(s); i++)
+    {
+        s[i] = 0;
+    }
+
+    test("expected value after overwriting buffer", opa_value_compare(result, exp) == 0);
+}
+
 void test_opa_object_insert()
 {
 

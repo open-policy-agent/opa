@@ -662,7 +662,7 @@ void opa_value_free(opa_value *node)
         opa_free(opa_cast_boolean(node));
         return;
     case OPA_NUMBER:
-        opa_free(opa_cast_number(node));
+        opa_number_free(opa_cast_number(node));
         return;
     case OPA_STRING:
         opa_string_free(opa_cast_string(node));
@@ -881,7 +881,32 @@ opa_value *opa_number_ref(const char *s, size_t len)
     ret->repr = OPA_NUMBER_REPR_REF;
     ret->v.ref.s = s;
     ret->v.ref.len = len;
+    ret->v.ref.free = 0;
     return &ret->hdr;
+}
+
+opa_value *opa_number_ref_allocated(const char *s, size_t len)
+{
+    opa_number_t *ret = (opa_number_t *)opa_malloc(sizeof(opa_number_t));
+    ret->hdr.type = OPA_NUMBER;
+    ret->repr = OPA_NUMBER_REPR_REF;
+    ret->v.ref.s = s;
+    ret->v.ref.len = len;
+    ret->v.ref.free = 1;
+    return &ret->hdr;
+}
+
+void opa_number_free(opa_number_t *n)
+{
+    if (n->repr == OPA_NUMBER_REPR_REF)
+    {
+        if (n->v.ref.free)
+        {
+            opa_free((void *)n->v.ref.s);
+        }
+    }
+
+    opa_free(n);
 }
 
 int opa_number_try_int(opa_number_t *n, long long *i)

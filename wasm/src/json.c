@@ -327,7 +327,14 @@ opa_value *opa_json_parse_string(int token, const char *buf, int len)
 {
     if (token == OPA_JSON_TOKEN_STRING)
     {
-        return opa_string(buf, len);
+        char *cpy = (char *)opa_malloc(len);
+
+        for (int i = 0; i < len; i++)
+        {
+            cpy[i] = buf[i];
+        }
+
+        return opa_string_allocated(cpy, len);
     }
 
     int max_len = opa_json_max_string_len(buf, len);
@@ -435,7 +442,14 @@ opa_value *opa_json_parse_string(int token, const char *buf, int len)
 
 opa_value *opa_json_parse_number(const char *buf, int len)
 {
-    return opa_number_ref(buf, len);
+    char *cpy = (char *)opa_malloc(len);
+
+    for (int i = 0; i < len; i++)
+    {
+        cpy[i] = buf[i];
+    }
+
+    return opa_number_ref_allocated(cpy, len);
 }
 
 opa_value *opa_json_parse_array(opa_json_lex *ctx)
