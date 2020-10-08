@@ -3,7 +3,7 @@
 
 #define WASM_PAGE_SIZE (65536)
 
-#define MIN_ALLOCATION_SZ 16
+#define ARRAY_SIZE(ARRAY) (sizeof(ARRAY) / sizeof((ARRAY)[0]))
 
 static int initialized;
 static unsigned int heap_ptr;
@@ -17,57 +17,83 @@ struct heap_block {
     unsigned char data[0];
 };
 
-// all the free blocks, ordered per their memory address.
-static struct heap_block heap_free_start;
-static struct heap_block heap_free_end;
+// free blocks, ordered per their memory address.
+struct heap_blocks {
+    bool fixed_size;
+    size_t size; // if fixed size, this indicates the block size.
+                 // if not fixed, this indicates the minimum block size.
+    struct heap_block start;
+    struct heap_block end;
+};
+
+// all the free blocks: fixed size blocks of 4, 8, 16 and 64 bytes and then one free
+// list for varying sized blocks of 128 bytes or more.
+static struct heap_blocks heap_free[5] = {
+    {true, 4},
+    {true, 8},
+    {true, 16},
+    {true, 64},
+    {false, 128},
+};
 
 #ifdef DEBUG
-#define HEAP_CHECK() heap_check(__FUNCTION__)
+#define HEAP_CHECK(blocks) heap_check(__FUNCTION__, blocks)
 #else
-#define HEAP_CHECK()
+#define HEAP_CHECK(blocks)
 #endif
 
 static void init_free()
 {
-    heap_free_start.size = 0;
-    heap_free_start.next = &heap_free_end;
-    heap_free_end.size = 0;
-    heap_free_end.prev = &heap_free_start;
+    for (int i = 0; i < ARRAY_SIZE(heap_free); i++) {
+        heap_free[i].start = (struct heap_block) { 0, NULL, &heap_free[i].end };
+        heap_free[i].end = (struct heap_block) { 0, &heap_free[i].start, NULL };
+    }
 }
 
-static void heap_check(const char *name)
+static void heap_check(const char *name, struct heap_blocks *blocks)
 {
-    for (struct heap_block *b = heap_free_start.next, *prev = &heap_free_start; b != &heap_free_end; prev = b, b = b->next) {
+    struct heap_block *start = &blocks->start;
+    struct heap_block *end = &blocks->end;
+
+    for (struct heap_block *b = start->next, *prev = start; b != end; prev = b, b = b->next) {
         if (prev == NULL || b == NULL || b->prev != prev) {
             opa_abort(name);
         }
     }
 
-    for (struct heap_block *b = heap_free_end.prev, *next = &heap_free_end; b != &heap_free_start; next = b, b = b->prev) {
+    for (struct heap_block *b = end->prev, *next = end; b != start; next = b, b = b->prev) {
         if (next == NULL || b == NULL || b->next != next) {
             opa_abort(name);
         }
     }
 }
 
-// try removing the last block from the free list and adjusting the heap pointer accordingly.
-static void compact_free()
+// try removing the last block(s) from the free list and adjusting the heap pointer accordingly.
+static void compact_free(struct heap_blocks *blocks)
 {
-    struct heap_block *last = heap_free_end.prev;
+    struct heap_block *start = &blocks->start;
+    struct heap_block *end = &blocks->end;
 
-    if (last == &heap_free_start)
+    while (1)
     {
-        return;
-    }
+        struct heap_block *last = end->prev;
 
-    if (((void *)(&last->data[0]) + last->size) == (void *)heap_ptr)
-    {
+        if (last == start)
+        {
+            break;
+        }
+
+        if (((void *)(&last->data[0]) + last->size) != (void *)heap_ptr)
+        {
+            break;
+        }
+
         heap_ptr -= sizeof(struct heap_block) + last->size;
-        last->prev->next = &heap_free_end;
-        heap_free_end.prev = last->prev;
+        last->prev->next = end;
+        end->prev = last->prev;
     }
 
-    HEAP_CHECK();
+    HEAP_CHECK(blocks);
 }
 
 static void init(void)
@@ -80,6 +106,9 @@ static void init(void)
         initialized = 1;
     }
 }
+
+static struct heap_block * __opa_malloc_reuse_fixed(struct heap_blocks *blocks);
+static struct heap_block * __opa_malloc_reuse_varying(struct heap_blocks *blocks, size_t size);
 
 unsigned int opa_heap_ptr_get(void)
 {
@@ -103,41 +132,21 @@ void opa_heap_top_set(unsigned int top)
     init_free();
 }
 
-void *__opa_malloc_reuse_free(size_t size)
-{
-    for (struct heap_block *b = heap_free_start.next; b != &heap_free_end; b = b->next)
-    {
-        if (b->size > (sizeof(struct heap_block) + size + MIN_ALLOCATION_SZ))
+// returns the free list applicable for the requested size.
+static struct heap_blocks * __opa_blocks(size_t size) {
+    for (int i = 0; i < ARRAY_SIZE(heap_free)-1; i++) {
+        struct heap_blocks *candidate = &heap_free[i];
+
+        if (size <= candidate->size)
         {
-            struct heap_block *remaining = (void *)(&b->data[0]) + size;
-            remaining->size = b->size - (sizeof(struct heap_block) + size);
-            remaining->prev = b->prev;
-            remaining->next = b->next;
-            remaining->prev->next = remaining;
-            remaining->next->prev = remaining;
-
-            b->size = size;
-            b->prev = NULL;
-            b->next = NULL;
-
-            HEAP_CHECK();
-
-            return b->data;
-        } else if (b->size >= size)
-        {
-            b->prev->next = b->next;
-            b->next->prev = b->prev;
-            b->prev = NULL;
-            b->next = NULL;
-
-            HEAP_CHECK();
-            return b->data;
+            return candidate;
         }
     }
-    return NULL;
+
+    return &heap_free[ARRAY_SIZE(heap_free)-1];
 }
 
-void *__opa_malloc_new_allocation(size_t size)
+static void *__opa_malloc_new_allocation(size_t size)
 {
     unsigned int ptr = heap_ptr;
     size_t block_size = sizeof(struct heap_block) + size;
@@ -161,66 +170,144 @@ void *__opa_malloc_new_allocation(size_t size)
 void *opa_malloc(size_t size)
 {
     init();
-    HEAP_CHECK();
-
-    if (size < MIN_ALLOCATION_SZ)
-        size = MIN_ALLOCATION_SZ;
 
     // Look for the first free block that is large enough. Split the found block if necessary.
-    void *new = (void *)__opa_malloc_reuse_free(size);
-    if (new != NULL)
+
+    struct heap_blocks *blocks = __opa_blocks(size);
+    HEAP_CHECK(blocks);
+
+    struct heap_block *b = blocks->fixed_size ?
+        __opa_malloc_reuse_fixed(blocks) : __opa_malloc_reuse_varying(blocks, size);
+    if (b != NULL)
     {
-        return new;
+        return b->data;
     }
 
     // Allocate a new block.
+
+    if (blocks->fixed_size)
+    {
+        size = blocks->size;
+    }
+
     return __opa_malloc_new_allocation(size);
+}
+
+// returns a free block from the list, if available.
+static struct heap_block * __opa_malloc_reuse_fixed(struct heap_blocks *blocks)
+{
+    struct heap_block *end = &blocks->end;
+    struct heap_block *b = blocks->start.next;
+
+    if (b != end)
+    {
+        b->prev->next = b->next;
+        b->next->prev = b->prev;
+        b->prev = NULL;
+        b->next = NULL;
+
+        HEAP_CHECK(blocks);
+
+        return b;
+    }
+
+    return NULL;
+}
+
+// finds a free block at least of given size, splitting the found block if the remaining block exceeds the minimum size.
+static struct heap_block * __opa_malloc_reuse_varying(struct heap_blocks *blocks, size_t size)
+{
+    struct heap_block *start = &blocks->start;
+    struct heap_block *end = &blocks->end;
+    size_t min_size = blocks->size;
+
+    for (struct heap_block *b = start->next; b != end; b = b->next)
+    {
+        if (b->size >= (sizeof(struct heap_block) + min_size + size))
+        {
+            struct heap_block *remaining = (void *)(&b->data[0]) + size;
+            remaining->size = b->size - (sizeof(struct heap_block) + size);
+            remaining->prev = b->prev;
+            remaining->next = b->next;
+            remaining->prev->next = remaining;
+            remaining->next->prev = remaining;
+
+            b->size = size;
+            b->prev = NULL;
+            b->next = NULL;
+
+            HEAP_CHECK(blocks);
+
+            return b;
+        } else if (b->size >= size)
+        {
+            b->prev->next = b->next;
+            b->next->prev = b->prev;
+            b->prev = NULL;
+            b->next = NULL;
+
+            HEAP_CHECK(blocks);
+
+            return b;
+        }
+    }
+    return NULL;
 }
 
 void opa_free(void *ptr)
 {
+    struct heap_block *block = ptr - sizeof(struct heap_block);
+
+#ifdef DEBUG
     if (ptr == NULL)
     {
         opa_abort("opa_free: null pointer");
     }
 
-    struct heap_block *block = ptr - sizeof(struct heap_block);
-    struct heap_block *prev = &heap_free_start;
-
     if (block->prev != NULL || block->next != NULL)
     {
         opa_abort("opa_free: double free");
     }
+#endif
 
-    HEAP_CHECK();
+    struct heap_blocks *blocks = __opa_blocks(block->size);
+    struct heap_block *start = &blocks->start;
+    struct heap_block *end = &blocks->end;
+    bool fixed_size = blocks->fixed_size;
+
+    HEAP_CHECK(blocks);
 
     // Find the free block available just before this block and try to
     // defragment, by trying to merge with this block with the found
     // block and the one after.
 
-    for (struct heap_block *b = prev->next; b < block && b != &heap_free_end; prev = b, b = b->next);
+    struct heap_block *prev = start;
+    for (struct heap_block *b = prev->next; b < block && b != end; prev = b, b = b->next);
 
-    struct heap_block *prev_end = (void *)(&prev->data[0]) + prev->size;
-    struct heap_block *block_end = (void *)(&block->data[0]) + block->size;
-
-    if (prev_end == block)
+    if (!fixed_size)
     {
-        prev->size += sizeof(struct heap_block) + block->size;
-        compact_free();
-        return;
-    }
+        struct heap_block *prev_end = (void *)(&prev->data[0]) + prev->size;
+        struct heap_block *block_end = (void *)(&block->data[0]) + block->size;
 
-    if (block_end == prev->next)
-    {
-        struct heap_block *next = prev->next;
-        block->prev = prev;
-        block->next = next->next;
-        block->size += sizeof(struct heap_block) + next->size;
+        if (prev_end == block)
+        {
+            prev->size += sizeof(struct heap_block) + block->size;
+            compact_free(blocks);
+            return;
+        }
 
-        prev->next = block;
-        block->next->prev = block;
-        compact_free();
-        return;
+        if (block_end == prev->next)
+        {
+            struct heap_block *next = prev->next;
+            block->prev = prev;
+            block->next = next->next;
+            block->size += sizeof(struct heap_block) + next->size;
+
+            prev->next = block;
+            block->next->prev = block;
+            compact_free(blocks);
+            return;
+        }
     }
 
     // List the block as free.
@@ -229,7 +316,7 @@ void opa_free(void *ptr)
     block->next = prev->next;
     prev->next = block;
     block->next->prev = block;
-    compact_free();
+    compact_free(blocks);
 }
 
 void *opa_realloc(void *ptr, size_t size)
@@ -249,15 +336,18 @@ size_t opa_heap_free_blocks(void)
 
     size_t blocks1 = 0, blocks2 = 0;
 
-    for (struct heap_block *b = heap_free_start.next; b != &heap_free_end; b = b->next, blocks1++);
-    for (struct heap_block *b = heap_free_end.prev; b != &heap_free_start; b = b->prev, blocks2++);
-
-    if (blocks1 != blocks2)
+    for (int i = 0; i < ARRAY_SIZE(heap_free); i++)
     {
-        opa_abort("opa_malloc: corrupted heap");
-    }
+        for (struct heap_block *b = heap_free[i].start.next; b != &heap_free[i].end; b = b->next, blocks1++);
+        for (struct heap_block *b = heap_free[i].end.prev; b != &heap_free[i].start; b = b->prev, blocks2++);
 
-    HEAP_CHECK();
+        if (blocks1 != blocks2)
+        {
+            opa_abort("opa_malloc: corrupted heap");
+        }
+
+        HEAP_CHECK(&heap_free[i]);
+    }
 
     return blocks1;
 }
