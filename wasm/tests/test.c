@@ -67,7 +67,7 @@ void test_opa_malloc_min_size()
     // Ensure that allocations less than the minimum size
     // are creating blocks large enough to be re-used by
     // the minimum size.
-    void *too_small = opa_malloc(4);
+    void *too_small = opa_malloc(2);
     test("allocated min block", too_small != NULL);
 
     void *barrier = opa_malloc(0);
@@ -76,7 +76,7 @@ void test_opa_malloc_min_size()
 
     test("new free block", opa_heap_free_blocks() == 1);
 
-    void *min_sized = opa_malloc(16);
+    void *min_sized = opa_malloc(4);
     test("reused block", opa_heap_free_blocks() == 0);
     opa_free(min_sized);
     opa_free(barrier);
@@ -89,10 +89,11 @@ void test_opa_malloc_split_threshold_small_block()
     // Ensure that free blocks larger than the requested
     // allocation, but too small to leave a sufficiently
     // sized remainder, are left intact.
-    void *too_small = opa_malloc(20);
+    size_t heap_block_size = 12;
+    void *too_small = opa_malloc(2 * 128 + heap_block_size - 1);
     test("allocated too_small block", too_small != NULL);
 
-    void *barrier = opa_malloc(0);
+    void *barrier = opa_malloc(256);
 
     opa_free(too_small);
 
@@ -100,7 +101,7 @@ void test_opa_malloc_split_threshold_small_block()
 
     // Expect the smaller allocation to use the bigger block
     // without splitting.
-    void *new = opa_malloc(8);
+    void *new = opa_malloc(128);
     test("unable to split block", opa_heap_free_blocks() == 0);
     opa_free(new);
 }
@@ -109,12 +110,14 @@ void test_opa_malloc_split_threshold_big_block()
 {
     reset_heap();
 
-    // Ensure that free blocks large enough to be split
-    // are split up until they are too small.
-    void *splittable = opa_malloc(100);
+    // Ensure that free blocks large enough to be split are split up
+    // until they are too small: have space almost to allocate three
+    // separate 128 blocks.
+    size_t heap_block_size = 12;
+    void *splittable = opa_malloc(3 * 128 + 2 * heap_block_size - 1);
     test("allocated splittable block", splittable != NULL);
 
-    void *barrier = opa_malloc(0);
+    void *barrier = opa_malloc(128);
 
     opa_free(splittable);
     test("new large free block", opa_heap_free_blocks() == 1);
@@ -123,8 +126,8 @@ void test_opa_malloc_split_threshold_big_block()
     // new allocations.
     unsigned int high = opa_heap_ptr_get();
 
-    void *split1 = opa_malloc(16);
-    void *split2 = opa_malloc(64);  // Too big to split remaining bytes, should take oversized block.
+    void *split1 = opa_malloc(128);
+    void *split2 = opa_malloc(128);  // Too big to split remaining bytes, should take oversized block.
 
     test("heap ptr", high == opa_heap_ptr_get());
     test("remaining free blocks", opa_heap_free_blocks() == 0);
@@ -200,14 +203,14 @@ void test_opa_free()
 
     // check the free re-use (with splitting).
 
-    p1 = opa_malloc(64);
-    p2 = opa_malloc(64);
+    p1 = opa_malloc(512);
+    p2 = opa_malloc(512);
     high = opa_heap_ptr_get();
 
     opa_free(p1);
     test("free blocks", opa_heap_free_blocks() == 1);
 
-    p1 = opa_malloc(1);
+    p1 = opa_malloc(128);
     test("free blocks", opa_heap_free_blocks() == 1);
     test("heap ptr", high == opa_heap_ptr_get());
 
