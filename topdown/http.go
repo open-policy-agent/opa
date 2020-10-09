@@ -936,13 +936,13 @@ type httpRequestExecutor interface {
 // newHTTPRequestExecutor returns a new HTTP request executor that wraps either an inter-query or
 // intra-query cache implementation
 func newHTTPRequestExecutor(bctx BuiltinContext, key ast.Object) (httpRequestExecutor, error) {
-	useInterQueryCache, forceCache, err := useInterQueryCache(key)
+	useInterQueryCache, forceCacheParams, err := useInterQueryCache(key)
 	if err != nil {
 		return nil, handleHTTPSendErr(bctx, err)
 	}
 
 	if useInterQueryCache && bctx.InterQueryBuiltinCache != nil {
-		return newInterQueryCache(bctx, key, forceCache)
+		return newInterQueryCache(bctx, key, forceCacheParams)
 	}
 	return newIntraQueryCache(bctx, key)
 }
@@ -953,12 +953,11 @@ type interQueryCache struct {
 	httpReq          *http.Request
 	httpClient       *http.Client
 	forceJSONDecode  bool
-	forceCache       bool
 	forceCacheParams *forceCacheParams
 }
 
-func newInterQueryCache(bctx BuiltinContext, key ast.Object, forceCache bool) (*interQueryCache, error) {
-	return &interQueryCache{bctx: bctx, key: key, forceCache: forceCache}, nil
+func newInterQueryCache(bctx BuiltinContext, key ast.Object, forceCacheParams *forceCacheParams) (*interQueryCache, error) {
+	return &interQueryCache{bctx: bctx, key: key, forceCacheParams: forceCacheParams}, nil
 }
 
 // CheckCache checks the cache for the value of the key set on this object
@@ -973,13 +972,6 @@ func (c *interQueryCache) CheckCache() (ast.Value, error) {
 	c.forceJSONDecode, err = getBoolValFromReqObj(c.key, ast.StringTerm("force_json_decode"))
 	if err != nil {
 		return nil, handleHTTPSendErr(c.bctx, err)
-	}
-
-	if c.forceCache {
-		c.forceCacheParams, err = newForceCacheParams(c.key)
-		if err != nil {
-			return nil, handleHTTPSendErr(c.bctx, err)
-		}
 	}
 
 	resp, err := checkHTTPSendInterQueryCache(c.bctx, c.key, c.httpReq, c.httpClient, c.forceJSONDecode, c.forceCacheParams)
@@ -1051,18 +1043,23 @@ func (c *intraQueryCache) ExecuteHTTPRequest() (*http.Response, error) {
 	return executeHTTPRequest(httpReq, httpClient)
 }
 
-func useInterQueryCache(req ast.Object) (bool, bool, error) {
+func useInterQueryCache(req ast.Object) (bool, *forceCacheParams, error) {
 	value, err := getBoolValFromReqObj(req, ast.StringTerm("cache"))
 	if err != nil {
-		return false, false, err
+		return false, nil, err
 	}
 
 	valueForceCache, err := getBoolValFromReqObj(req, ast.StringTerm("force_cache"))
 	if err != nil {
-		return false, false, err
+		return false, nil, err
 	}
 
-	return value || valueForceCache, valueForceCache, nil
+	if valueForceCache {
+		forceCacheParams, err := newForceCacheParams(req)
+		return true, forceCacheParams, err
+	}
+
+	return value, nil, nil
 }
 
 type forceCacheParams struct {
