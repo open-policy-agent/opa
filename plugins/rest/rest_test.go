@@ -192,7 +192,21 @@ func TestNew(t *testing.T) {
 	for _, tc := range tests {
 		client, err := New([]byte(tc.input))
 		if err != nil && !tc.wantErr {
+			t.Fatalf("Unexpected parse error: %v", err)
+		}
+		plugin, err := client.config.authPlugin()
+		if err != nil {
+			if tc.wantErr {
+				continue
+			}
 			t.Fatalf("Unexpected error: %v", err)
+		}
+
+		_, err = plugin.NewClient(client.config)
+		if err != nil && !tc.wantErr {
+			t.Fatalf("Unexpected error: %v", err)
+		} else if err == nil && tc.wantErr {
+			t.Fatalf("Excpected error for input %v", tc.input)
 		}
 
 		if *client.config.ResponseHeaderTimeoutSeconds != defaultResponseHeaderTimeoutSeconds {

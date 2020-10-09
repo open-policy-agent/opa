@@ -21,8 +21,11 @@ struct heap_block {
 static struct heap_block heap_free_start;
 static struct heap_block heap_free_end;
 
+#ifdef DEBUG
+#define HEAP_CHECK() heap_check(__FUNCTION__)
+#else
 #define HEAP_CHECK()
-//#define HEAP_CHECK() heap_check(__FUNCTION__)
+#endif
 
 static void init_free()
 {
