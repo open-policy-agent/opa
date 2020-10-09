@@ -1448,12 +1448,7 @@ func TestInterQueryCheckCacheError(t *testing.T) {
 	input := ast.MustParseTerm(`{"force_cache": true}`)
 	inputObj := input.Value.(ast.Object)
 
-	cache, err := newInterQueryCache(BuiltinContext{Context: context.Background()}, inputObj, true)
-	if err != nil {
-		t.Fatalf("unexpected error %v", err)
-	}
-
-	_, err = cache.CheckCache()
+	_, err := newHTTPRequestExecutor(BuiltinContext{Context: context.Background()}, inputObj)
 	if err == nil {
 		t.Fatal("expected error but got nil")
 	}
