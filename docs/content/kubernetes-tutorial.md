@@ -75,21 +75,26 @@ cat >server.conf <<EOF
 [req]
 req_extensions = v3_req
 distinguished_name = req_distinguished_name
+prompt = no
 [req_distinguished_name]
+CN = opa.opa.svc
 [ v3_req ]
 basicConstraints = CA:FALSE
 keyUsage = nonRepudiation, digitalSignature, keyEncipherment
 extendedKeyUsage = clientAuth, serverAuth
+subjectAltName = @alt_names
+[alt_names]
+DNS.1 = opa.opa.svc
 EOF
 ```
 
 ```bash
 openssl genrsa -out server.key 2048
-openssl req -new -key server.key -out server.csr -subj "/CN=opa.opa.svc" -config server.conf
+openssl req -new -key server.key -out server.csr -config server.conf
 openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out server.crt -days 100000 -extensions v3_req -extfile server.conf
 ```
 
-> Note: the Common Name value you give to openssl MUST match the name of the OPA service created below.
+> Note: the Common Name value and Subject Alternative Name you give to openssl MUST match the name of the OPA service created below.
 
 Create a Secret to store the TLS credentials for OPA:
 
