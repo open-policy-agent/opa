@@ -1177,6 +1177,24 @@ The `pi` document can be queried via the Data API:
 GET https://example.com/v1/data/opa/examples/pi HTTP/1.1
 ```
 
+Valid package names are variables or references that only contain string operands. For example, these are all valid package names:
+
+```
+package foo
+package foo.bar
+package foo.bar.baz
+package foo["bar.baz"].qux
+```
+
+These are invalid package names:
+
+```
+package 1foo        # not a variable
+package foo[1].bar  # contains non-string operand
+```
+
+For more details see the language [Grammar](../policy-reference/#Grammar).
+
 ### Imports
 
 Import statements declare dependencies that modules have on documents defined outside the package. By importing a document, the identifiers exported by that document can be referenced within the current module.
