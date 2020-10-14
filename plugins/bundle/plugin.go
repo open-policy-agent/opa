@@ -299,11 +299,14 @@ func (p *Plugin) newDownloader(name string, source *Source) *download.Downloader
 	conf := source.Config
 	client := p.manager.Client(source.Service)
 	path := source.Resource
-
-	return download.New(conf, client, path).WithCallback(func(ctx context.Context, u download.Update) {
+	callback := func(ctx context.Context, u download.Update) {
 		// wrap the callback to include the name of the bundle that was updated
 		p.oneShot(ctx, name, u)
-	}).WithBundleVerificationConfig(source.Signing)
+	}
+	return download.New(conf, client, path).
+		WithCallback(callback).
+		WithBundleVerificationConfig(source.Signing).
+		WithSizeLimitBytes(source.SizeLimitBytes)
 }
 
 func (p *Plugin) oneShot(ctx context.Context, name string, u download.Update) {

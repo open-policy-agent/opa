@@ -36,6 +36,34 @@ func TestReadWithBaseDir(t *testing.T) {
 	testReadBundle(t, "/foo/bar")
 }
 
+func TestReadWithSizeLimit(t *testing.T) {
+
+	buf := archive.MustWriteTarGz([][2]string{
+		{"data.json", `"foo"`},
+	})
+
+	loader := NewTarballLoaderWithBaseURL(buf, "")
+	br := NewCustomReader(loader).WithSizeLimitBytes(4)
+
+	_, err := br.Read()
+	if err == nil || err.Error() != "bundle file exceeded max size (4 bytes)" {
+		t.Fatal("expected error but got:", err)
+	}
+
+	buf = archive.MustWriteTarGz([][2]string{
+		{".signatures.json", `"foo"`},
+	})
+
+	loader = NewTarballLoaderWithBaseURL(buf, "")
+	br = NewCustomReader(loader).WithSizeLimitBytes(4)
+
+	_, err = br.Read()
+	if err == nil || err.Error() != "bundle signatures file exceeded max size (4 bytes)" {
+		t.Fatal("expected error but got:", err)
+	}
+
+}
+
 func testReadBundle(t *testing.T, baseDir string) {
 	files := [][2]string{
 		{"/a/b/c/data.json", "[1,2,3]"},

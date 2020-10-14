@@ -133,10 +133,11 @@ type Config struct {
 type Source struct {
 	download.Config
 
-	Service  string                     `json:"service"`
-	Resource string                     `json:"resource"`
-	Signing  *bundle.VerificationConfig `json:"signing"`
-	Persist  bool                       `json:"persist"`
+	Service        string                     `json:"service"`
+	Resource       string                     `json:"resource"`
+	Signing        *bundle.VerificationConfig `json:"signing"`
+	Persist        bool                       `json:"persist"`
+	SizeLimitBytes int64                      `json:"size_limit_bytes"`
 }
 
 // IsMultiBundle returns whether or not the config is the newer multi-bundle
@@ -176,6 +177,10 @@ func (c *Config) validateAndInjectDefaults(services []string, keys map[string]*b
 		}
 		if err != nil {
 			return fmt.Errorf("invalid configuration for bundle %q: %s", name, err.Error())
+		}
+
+		if source.SizeLimitBytes <= 0 {
+			source.SizeLimitBytes = bundle.DefaultSizeLimitBytes
 		}
 	}
 
