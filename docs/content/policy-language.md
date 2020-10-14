@@ -1193,7 +1193,7 @@ package 1foo        # not a variable
 package foo[1].bar  # contains non-string operand
 ```
 
-For more details see the language [Grammar](../policy-reference/#Grammar).
+For more details see the language [Grammar](../policy-reference/#grammar).
 
 ### Imports
 
