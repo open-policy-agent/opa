@@ -94,7 +94,7 @@ the ".signatures.json" file.
 The content of the ".signatures.json" file is shown below:
 
 	{
-	  "signatures": [ 
+	  "signatures": [
 		"eyJhbGciOiJSUzI1NiJ9.eyJmaWxlcyI6W3sibmFtZSI6Ii5tYW5pZmVzdCIsImhhc2giOiIxODc0NWRlNzJjMDFlODBjZDlmNTIwZjQxOGMwMDlhYzRkMmMzZDAyYjE3YTUwZTJkMDQyMTU4YmMzNTJhMzJkIiwiYWxnb3JpdGhtIjoiU0hBLTI1NiJ9LHsibmFtZSI6ImJhci9kYXRhLmpzb24iLCJoYXNoIjoiOTNhMjM5NzFhOTE0ZTVlYWNiZjBhOGQyNTE1NGNkYTMwOWMzYzFjNzJmYmI5OTE0ZDQ3YzYwZjNjYjY4MTU4OCIsImFsZ29yaXRobSI6IlNIQS0yNTYifSx7Im5hbWUiOiJwb2xpY3kucmVnbyIsImhhc2giOiJkMGYyNDJhYWUzNGRiNTRlZjU2NmJlYTRkNDVmY2YxOTcwMGM1ZDhmODdhOWRiOTMyZGZhZDZkMWYwZjI5MWFjIiwiYWxnb3JpdGhtIjoiU0hBLTI1NiJ9XX0.lNsmRqrmT1JI4Z_zpY6IzHRZQAU306PyOjZ6osquixPuTtdSBxgbsdKDcp7Civw3B77BgygVsvx4k3fYr8XCDKChm0uYKScrpFr9_yS6g5mVTQws3KZncZXCQHdupRFoqMS8vXAVgJr52C83AinYWABwH2RYq_B0ZPf_GDzaMgzpep9RlDNecGs57_4zlyxmP2ESU8kjfX8jAA6rYFKeGXJHMD-j4SassoYIzYRv9YkHx8F8Y2ae5Kd5M24Ql0kkvqc_4eO_T9s4nbQ4q5qGHGE-91ND1KVn2avcUyVVPc0-XCR7EH8HnHgCl0v1c7gX1RL7ET7NJbPzfmzQAzk0ZW0dEHI4KZnXSpqy8m-3zAc8kIARm2QwoNEWpy3MWiooPeZVSa9d5iw1aLrbyumfjBP0vCQEPes-Aa6PrARwd5jR9SacO5By0-4emzskvJYRZqbfJ9tXSXDMcAFOAm6kqRPJaj8AO4CyajTC_Lt32_0OLeXqYgNpt3HDqLqGjrb-8fVeQc-hKh0aES8XehQqXj4jMwfsTyj5alsXZm08LwzcFlfQZ7s1kUtmr0_BBNJYcdZUdlu6Qio3LFSRYXNuu6edAO1VH5GKqZISvE1uvDZb2E0Z-rtH-oPp1iSpfvsX47jKJ42LVpI6OahEBri44dzHOIwwm3CIuV8gFzOwR0k"
 	  ]
 	}
@@ -201,13 +201,13 @@ func readBundleFiles(loaders []initload.BundleLoader, h bundle.SignatureHasher) 
 			}
 
 			var buf bytes.Buffer
-			n, err := f.Read(&buf, bundle.BundleLimitBytes)
+			n, err := f.Read(&buf, bundle.DefaultSizeLimitBytes+1)
 			f.Close()
 
 			if err != nil && err != io.EOF {
 				return files, err
-			} else if err == nil && n >= bundle.BundleLimitBytes {
-				return files, fmt.Errorf("bundle exceeded max size (%v bytes)", bundle.BundleLimitBytes-1)
+			} else if err == nil && n >= bundle.DefaultSizeLimitBytes {
+				return files, fmt.Errorf("bundle file exceeded max size (%v bytes)", bundle.DefaultSizeLimitBytes)
 			}
 
 			path := f.Path()

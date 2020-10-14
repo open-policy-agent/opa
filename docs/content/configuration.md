@@ -405,6 +405,7 @@ included in the actual bundle gzipped tarball.
 | `bundles[_].signing.keyid` | `string` | No | Name of the key to use for bundle signature verification. |
 | `bundles[_].signing.scope` | `string` | No | Scope to use for bundle signature verification. |
 | `bundles[_].signing.exclude_files` | `array` | No | Files in the bundle to exclude during verification. |
+| `bundles[_].size_limit_bytes` | `int64` | No (default: `1073741824`) | Size limit for individual files contained in the bundle. |
 
 
 ### Bundle (Deprecated)

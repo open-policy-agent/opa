@@ -42,14 +42,15 @@ type Update struct {
 // updates from the remote HTTP endpoint that the client is configured to
 // connect to.
 type Downloader struct {
-	config   Config                        // downloader configuration for tuning polling and other downloader behaviour
-	client   rest.Client                   // HTTP client to use for bundle downloading
-	path     string                        // path to use in bundle download request
-	stop     chan chan struct{}            // used to signal plugin to stop running
-	f        func(context.Context, Update) // callback function invoked when download updates occur
-	logAttrs [][2]string                   // optional attributes to include in log messages
-	etag     string                        // HTTP Etag for caching purposes
-	bvc      *bundle.VerificationConfig
+	config         Config                        // downloader configuration for tuning polling and other downloader behaviour
+	client         rest.Client                   // HTTP client to use for bundle downloading
+	path           string                        // path to use in bundle download request
+	stop           chan chan struct{}            // used to signal plugin to stop running
+	f              func(context.Context, Update) // callback function invoked when download updates occur
+	logAttrs       [][2]string                   // optional attributes to include in log messages
+	etag           string                        // HTTP Etag for caching purposes
+	sizeLimitBytes *int64                        // max bundle file size in bytes (passed to reader)
+	bvc            *bundle.VerificationConfig
 }
 
 // New returns a new Downloader that can be started.
@@ -78,6 +79,12 @@ func (d *Downloader) WithLogAttrs(attrs [][2]string) *Downloader {
 // WithBundleVerificationConfig sets the key configuration used to verify a signed bundle
 func (d *Downloader) WithBundleVerificationConfig(config *bundle.VerificationConfig) *Downloader {
 	d.bvc = config
+	return d
+}
+
+// WithSizeLimitBytes sets the file size limit for bundles read by this downloader.
+func (d *Downloader) WithSizeLimitBytes(n int64) *Downloader {
+	d.sizeLimitBytes = &n
 	return d
 }
 
@@ -167,6 +174,9 @@ func (d *Downloader) download(ctx context.Context, m metrics.Metrics) (*bundle.B
 			baseURL := path.Join(d.client.Config().URL, d.path)
 			loader := bundle.NewTarballLoaderWithBaseURL(resp.Body, baseURL)
 			reader := bundle.NewCustomReader(loader).WithMetrics(m).WithBundleVerificationConfig(d.bvc)
+			if d.sizeLimitBytes != nil {
+				reader = reader.WithSizeLimitBytes(*d.sizeLimitBytes)
+			}
 			b, err := reader.Read()
 			if err != nil {
 				return nil, "", err

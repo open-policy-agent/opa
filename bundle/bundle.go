@@ -32,14 +32,14 @@ import (
 
 // Common file extensions and file names.
 const (
-	RegoExt           = ".rego"
-	WasmFile          = "/policy.wasm"
-	ManifestExt       = ".manifest"
-	SignaturesFile    = "signatures.json"
-	dataFile          = "data.json"
-	yamlDataFile      = "data.yaml"
-	defaultHashingAlg = "SHA-256"
-	BundleLimitBytes  = (1024 * 1024 * 1024) + 1 // limit bundle reads to 1GB to protect against gzip bombs
+	RegoExt               = ".rego"
+	WasmFile              = "/policy.wasm"
+	ManifestExt           = ".manifest"
+	SignaturesFile        = "signatures.json"
+	dataFile              = "data.json"
+	yamlDataFile          = "data.yaml"
+	defaultHashingAlg     = "SHA-256"
+	DefaultSizeLimitBytes = (1024 * 1024 * 1024) // limit bundle reads to 1GB to protect against gzip bombs
 )
 
 // Bundle represents a loaded bundle. The bundle can contain data and policies.
@@ -234,6 +234,7 @@ type Reader struct {
 	verificationConfig    *VerificationConfig
 	skipVerify            bool
 	files                 map[string]FileInfo // files in the bundle signature payload
+	sizeLimitBytes        int64
 }
 
 // NewReader is deprecated. Use NewCustomReader instead.
@@ -245,9 +246,10 @@ func NewReader(r io.Reader) *Reader {
 // specified DirectoryLoader.
 func NewCustomReader(loader DirectoryLoader) *Reader {
 	nr := Reader{
-		loader:  loader,
-		metrics: metrics.New(),
-		files:   make(map[string]FileInfo),
+		loader:         loader,
+		metrics:        metrics.New(),
+		files:          make(map[string]FileInfo),
+		sizeLimitBytes: DefaultSizeLimitBytes + 1,
 	}
 	return &nr
 }
@@ -284,6 +286,13 @@ func (r *Reader) WithSkipBundleVerification(skipVerify bool) *Reader {
 	return r
 }
 
+// WithSizeLimitBytes sets the size limit to apply to files in the bundle. If files are larger
+// than this, an error will be returned by the reader.
+func (r *Reader) WithSizeLimitBytes(n int64) *Reader {
+	r.sizeLimitBytes = n + 1
+	return r
+}
+
 // Read returns a new Bundle loaded from the reader.
 func (r *Reader) Read() (Bundle, error) {
 
@@ -293,7 +302,7 @@ func (r *Reader) Read() (Bundle, error) {
 
 	bundle.Data = map[string]interface{}{}
 
-	bundle.Signatures, descriptors, err = listSignaturesAndDescriptors(r.loader, r.skipVerify)
+	bundle.Signatures, descriptors, err = listSignaturesAndDescriptors(r.loader, r.skipVerify, r.sizeLimitBytes)
 	if err != nil {
 		return bundle, err
 	}
@@ -305,13 +314,13 @@ func (r *Reader) Read() (Bundle, error) {
 
 	for _, f := range descriptors {
 		var buf bytes.Buffer
-		n, err := f.Read(&buf, BundleLimitBytes)
+		n, err := f.Read(&buf, r.sizeLimitBytes)
 		f.Close() // always close, even on error
 
 		if err != nil && err != io.EOF {
 			return bundle, err
-		} else if err == nil && n >= BundleLimitBytes {
-			return bundle, fmt.Errorf("bundle exceeded max size (%v bytes)", BundleLimitBytes-1)
+		} else if err == nil && n >= r.sizeLimitBytes {
+			return bundle, fmt.Errorf("bundle file exceeded max size (%v bytes)", r.sizeLimitBytes-1)
 		}
 
 		// verify the file content
@@ -986,7 +995,7 @@ func IsStructuredDoc(name string) bool {
 		filepath.Base(name) == SignaturesFile || filepath.Base(name) == ManifestExt
 }
 
-func listSignaturesAndDescriptors(loader DirectoryLoader, skipVerify bool) (SignaturesConfig, []*Descriptor, error) {
+func listSignaturesAndDescriptors(loader DirectoryLoader, skipVerify bool, sizeLimitBytes int64) (SignaturesConfig, []*Descriptor, error) {
 	descriptors := []*Descriptor{}
 	var signatures SignaturesConfig
 
@@ -1003,12 +1012,12 @@ func listSignaturesAndDescriptors(loader DirectoryLoader, skipVerify bool) (Sign
 		// check for the signatures file
 		if !skipVerify && strings.HasSuffix(f.Path(), SignaturesFile) {
 			var buf bytes.Buffer
-			n, err := f.Read(&buf, BundleLimitBytes)
+			n, err := f.Read(&buf, sizeLimitBytes)
 			f.Close() // always close, even on error
 			if err != nil && err != io.EOF {
 				return signatures, nil, err
-			} else if err == nil && n >= BundleLimitBytes {
-				return signatures, nil, fmt.Errorf("bundle exceeded max size (%v bytes)", BundleLimitBytes-1)
+			} else if err == nil && n >= sizeLimitBytes {
+				return signatures, nil, fmt.Errorf("bundle signatures file exceeded max size (%v bytes)", sizeLimitBytes-1)
 			}
 
 			if err := util.NewJSONDecoder(&buf).Decode(&signatures); err != nil {
