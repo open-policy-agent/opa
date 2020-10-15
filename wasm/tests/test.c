@@ -4,6 +4,7 @@
 #include "arithmetic.h"
 #include "array.h"
 #include "bits-builtins.h"
+#include "conversions.h"
 #include "json.h"
 #include "malloc.h"
 #include "mpd.h"
@@ -1805,4 +1806,16 @@ void test_numbers_range(void)
     test("numbers.range/descending", opa_value_compare(opa_numbers_range(b, a), reversed) == 0);
     test("numbers.range/bad operand", opa_numbers_range(opa_string_terminated("foo"), opa_number_int(10)) == NULL);
     test("numbers.range/bad operand", opa_numbers_range(opa_number_int(10), opa_string_terminated("foo")) == NULL);
+}
+
+void test_to_number(void)
+{
+    test("to_number/null", opa_value_compare(opa_to_number(opa_null()), opa_number_int(0)) == 0);
+    test("to_number/false", opa_value_compare(opa_to_number(opa_boolean(0)), opa_number_int(0)) == 0);
+    test("to_number/true", opa_value_compare(opa_to_number(opa_boolean(1)), opa_number_int(1)) == 0);
+    test("to_number/nop", opa_value_compare(opa_to_number(opa_number_int(1)), opa_number_int(1)) == 0);
+    test("to_number/integer", opa_value_compare(opa_to_number(opa_string_terminated("10")), opa_number_int(10)) == 0);
+    test("to_number/float", opa_value_compare(opa_to_number(opa_string_terminated("3.5")), opa_number_float(3.5)) == 0);
+    test("to_number/bad string", opa_to_number(opa_string_terminated("deadbeef")) == NULL);
+    test("to_number/bad value", opa_to_number(opa_array()) == NULL);
 }
