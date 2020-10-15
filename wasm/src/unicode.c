@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <stdint.h>
+#include "std.h"
 
 // Tests whether the code point is an utf-16 surrogate (encoded
 // representation of low or high bits).

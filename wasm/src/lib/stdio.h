@@ -2,6 +2,7 @@
 #define OPA_STDIO_H
 
 #include <stdarg.h>
+#include <stddef.h>
 #include <stdint.h>
 
 struct _FILE;
