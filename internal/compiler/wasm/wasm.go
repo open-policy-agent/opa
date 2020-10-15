@@ -113,6 +113,7 @@ var builtinsFunctions = map[string]string{
 	ast.TrimSuffix.Name:      "opa_strings_trim_suffix",
 	ast.TrimSpace.Name:       "opa_strings_trim_space",
 	ast.NumbersRange.Name:    "opa_numbers_range",
+	ast.ToNumber.Name:        "opa_to_number",
 }
 
 var builtinDispatchers = [...]string{
