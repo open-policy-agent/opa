@@ -420,7 +420,7 @@ func (p *Plugin) flushDecisions(ctx context.Context, cancel context.CancelFunc) 
 	defer cancel()
 
 	go func(ctx context.Context, cancel context.CancelFunc) {
-		for {
+		for ctx.Err() == nil {
 			ok, err := p.oneShot(ctx)
 			if err != nil {
 				p.logError("%v.", err)
