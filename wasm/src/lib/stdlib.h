@@ -1,7 +1,7 @@
 #ifndef OPA_STDLIB_H
 #define OPA_STDLIB_H
 
-#include <stdint.h>
+#include <stddef.h>
 
 void abort(void);
 void *malloc(size_t size);

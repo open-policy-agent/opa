@@ -31,6 +31,8 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 #include "printf.h"
+#include "../std.h"
+#include <float.h>
 
 void *memset(void *s, int c, unsigned long n)
 {

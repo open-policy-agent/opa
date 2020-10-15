@@ -648,7 +648,7 @@ size_t opa_value_hash(opa_value *node) {
         return opa_set_hash(opa_cast_set(node));
     }
 
-    return NULL;
+    return 0;
 }
 
 void opa_value_free(opa_value *node)

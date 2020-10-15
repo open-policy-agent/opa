@@ -16,7 +16,6 @@ WASM_OBJ_DIR := _obj
 CFLAGS += \
 	-MD \
 	-MP \
-	-nostdinc \
 	-nodefaultlibs \
 	--target=wasm32-unknown-unknown-wasm \
 	-I src/lib \

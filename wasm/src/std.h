@@ -1,7 +1,7 @@
 #ifndef OPA_STD_H
 #define OPA_STD_H
 
-#define offsetof(st, member) (size_t)(&((st *)0)->member)
+#include <stddef.h>
 
 #define container_of(ptr, type, member) ({ \
     const typeof( ((type *)0)->member ) *__mptr = (ptr); \
@@ -20,6 +20,15 @@ void opa_println(const char *msg);
     } while (0)
 #else
 #define TRACE(...)
+#endif
+
+#define TRUE        (1)
+#define FALSE       (0)
+
+#ifndef __cplusplus
+#define true    (1)
+#define false   (0)
+#define bool    int
 #endif
 
 #endif
