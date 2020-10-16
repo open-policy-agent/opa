@@ -49,7 +49,7 @@ function report(passed, error, msg) {
 
 async function test(executable) {
 
-    const mem = new WebAssembly.Memory({ initial: 2 });
+    const mem = new WebAssembly.Memory({ initial: 3 });
     const addr2string = stringDecoder(mem);
 
     let cache = {};

@@ -197,7 +197,9 @@ static bool IsMatch(Prog* prog, Prog::Inst* ip) {
   for (;;) {
     switch (ip->opcode()) {
       default:
+#if 0
         LOG(DFATAL) << "Unexpected opcode in IsMatch: " << ip->opcode();
+#endif
         return false;
 
       case kInstAlt:
@@ -509,12 +511,14 @@ void Prog::ComputeByteMap() {
 
   builder.Build(bytemap_, &bytemap_range_);
 
+#if 0
   if (0) {  // For debugging, use trivial bytemap.
     LOG(ERROR) << "Using trivial bytemap.";
     for (int i = 0; i < 256; i++)
       bytemap_[i] = static_cast<uint8_t>(i);
     bytemap_range_ = 256;
   }
+#endif
 }
 
 // Prog::Flatten() implements a graph rewriting algorithm.
@@ -668,7 +672,9 @@ void Prog::MarkSuccessors(SparseArray<int>* rootmap,
     Inst* ip = inst(id);
     switch (ip->opcode()) {
       default:
+#if 0
         LOG(DFATAL) << "unhandled opcode: " << ip->opcode();
+#endif
         break;
 
       case kInstAltMatch:
@@ -728,7 +734,9 @@ void Prog::MarkDominator(int root, SparseArray<int>* rootmap,
     Inst* ip = inst(id);
     switch (ip->opcode()) {
       default:
+#if 0
         LOG(DFATAL) << "unhandled opcode: " << ip->opcode();
+#endif
         break;
 
       case kInstAltMatch:
@@ -795,7 +803,9 @@ void Prog::EmitList(int root, SparseArray<int>* rootmap,
     Inst* ip = inst(id);
     switch (ip->opcode()) {
       default:
+#if 0
         LOG(DFATAL) << "unhandled opcode: " << ip->opcode();
+#endif
         break;
 
       case kInstAltMatch:
