@@ -34,20 +34,6 @@
 #include "../std.h"
 #include <float.h>
 
-void *memset(void *s, int c, unsigned long n)
-{
-  unsigned char *p = (unsigned char *)s;
-
-  while(n > 0)
-  {
-    *p = c;
-    p++;
-    n--;
-  }
-
-  return s;
-}
-
 // define this globally (e.g. gcc -DPRINTF_INCLUDE_CONFIG_H ...) to include the
 // printf_config.h header file
 // default: undefined
