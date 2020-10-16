@@ -3,6 +3,10 @@
 
 #include <stddef.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define container_of(ptr, type, member) ({ \
     const typeof( ((type *)0)->member ) *__mptr = (ptr); \
     (type *)( (char *)__mptr - offsetof(type,member) ); })
@@ -38,5 +42,9 @@ void opa_println(const char *msg);
 #define OPA_ERR_INVALID_PATH 3
 
 typedef int opa_errc;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
