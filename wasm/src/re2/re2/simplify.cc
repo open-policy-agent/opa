@@ -94,7 +94,9 @@ bool Regexp::ComputeSimple() {
     case kRegexpRepeat:
       return false;
   }
+#if 0
   LOG(DFATAL) << "Case not handled in ComputeSimple: " << op_;
+#endif
   return false;
 }
 
@@ -221,8 +223,10 @@ Regexp* CoalesceWalker::Copy(Regexp* re) {
 
 Regexp* CoalesceWalker::ShortVisit(Regexp* re, Regexp* parent_arg) {
   // Should never be called: we use Walk(), not WalkExponential().
+#if 0
 #ifndef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
   LOG(DFATAL) << "CoalesceWalker::ShortVisit called";
+#endif
 #endif
   return re->Incref();
 }
@@ -371,7 +375,9 @@ void CoalesceWalker::DoCoalesce(Regexp** r1ptr, Regexp** r2ptr) {
       break;
 
     default:
+#if 0
       LOG(DFATAL) << "DoCoalesce failed: r1->op() is " << r1->op();
+#endif
       nre->Decref();
       return;
   }
@@ -432,7 +438,9 @@ void CoalesceWalker::DoCoalesce(Regexp** r1ptr, Regexp** r2ptr) {
     }
 
     default:
+#if 0
       LOG(DFATAL) << "DoCoalesce failed: r2->op() is " << r2->op();
+#endif
       nre->Decref();
       return;
   }
@@ -447,8 +455,10 @@ Regexp* SimplifyWalker::Copy(Regexp* re) {
 
 Regexp* SimplifyWalker::ShortVisit(Regexp* re, Regexp* parent_arg) {
   // Should never be called: we use Walk(), not WalkExponential().
+#if 0
 #ifndef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
   LOG(DFATAL) << "SimplifyWalker::ShortVisit called";
+#endif
 #endif
   return re->Incref();
 }
@@ -564,7 +574,9 @@ Regexp* SimplifyWalker::PostVisit(Regexp* re,
     }
   }
 
+#if 0
   LOG(ERROR) << "Simplify case not handled: " << re->op();
+#endif
   return re->Incref();
 }
 
@@ -641,7 +653,9 @@ Regexp* SimplifyWalker::SimplifyRepeat(Regexp* re, int min, int max,
   if (nre == NULL) {
     // Some degenerate case, like min > max, or min < max < 0.
     // This shouldn't happen, because the parser rejects such regexps.
+#if 0
     LOG(DFATAL) << "Malformed repeat " << re->ToString() << " " << min << " " << max;
+#endif
     return new Regexp(kRegexpNoMatch, f);
   }
 

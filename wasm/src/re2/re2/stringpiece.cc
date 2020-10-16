@@ -57,9 +57,11 @@ StringPiece::size_type StringPiece::rfind(char c, size_type pos) const {
   return npos;
 }
 
+#if 0
 std::ostream& operator<<(std::ostream& o, const StringPiece& p) {
   o.write(p.data(), p.size());
   return o;
 }
+#endif
 
 }  // namespace re2

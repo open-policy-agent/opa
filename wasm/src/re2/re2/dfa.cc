@@ -847,7 +847,9 @@ void DFA::AddToQueue(Workq* q, int id, uint32_t flag) {
     Prog::Inst* ip = prog_->inst(id);
     switch (ip->opcode()) {
       default:
+#if 0
         LOG(DFATAL) << "unhandled opcode: " << ip->opcode();
+#endif
         break;
 
       case kInstByteRange:  // just save these on the queue
@@ -936,7 +938,9 @@ void DFA::RunWorkqOnByte(Workq* oldq, Workq* newq,
     Prog::Inst* ip = prog_->inst(id);
     switch (ip->opcode()) {
       default:
+#if 0
         LOG(DFATAL) << "unhandled opcode: " << ip->opcode();
+#endif
         break;
 
       case kInstFail:        // never succeeds
@@ -1004,14 +1008,20 @@ DFA::State* DFA::RunStateOnByte(State* state, int c) {
       return FullMatchState;
     }
     if (state == DeadState) {
+#if 0
       LOG(DFATAL) << "DeadState in RunStateOnByte";
+#endif
       return NULL;
     }
     if (state == NULL) {
+#if 0
       LOG(DFATAL) << "NULL state in RunStateOnByte";
+#endif
       return NULL;
     }
+#if 0
     LOG(DFATAL) << "Unexpected special state in RunStateOnByte";
+#endif
     return NULL;
   }
 
@@ -1241,8 +1251,10 @@ DFA::State* DFA::StateSaver::Restore() {
     return special_;
   MutexLock l(&dfa_->mutex_);
   State* s = dfa_->CachedState(inst_, ninst_, flag_);
+#if 0
   if (s == NULL)
     LOG(DFATAL) << "StateSaver failed to restore state.";
+#endif
   return s;
 }
 
@@ -1432,7 +1444,9 @@ inline bool DFA::InlinedSearchLoop(SearchParams* params) {
         }
         ns = RunStateOnByteUnlocked(s, c);
         if (ns == NULL) {
+#if 0
           LOG(DFATAL) << "RunStateOnByteUnlocked failed after ResetCache";
+#endif
           params->failed = true;
           return false;
         }
@@ -1504,7 +1518,9 @@ inline bool DFA::InlinedSearchLoop(SearchParams* params) {
       }
       ns = RunStateOnByteUnlocked(s, lastbyte);
       if (ns == NULL) {
+#if 0
         LOG(DFATAL) << "RunStateOnByteUnlocked failed after Reset";
+#endif
         params->failed = true;
         return false;
       }
@@ -1621,7 +1637,9 @@ bool DFA::AnalyzeSearch(SearchParams* params) {
 
   // Sanity check: make sure that text lies within context.
   if (text.begin() < context.begin() || text.end() > context.end()) {
+#if 0
     LOG(DFATAL) << "context does not contain text";
+#endif
     params->start = DeadState;
     return true;
   }
@@ -1668,7 +1686,9 @@ bool DFA::AnalyzeSearch(SearchParams* params) {
   if (!AnalyzeSearchHelper(params, info, flags)) {
     ResetCache(params->cache_lock);
     if (!AnalyzeSearchHelper(params, info, flags)) {
+#if 0
       LOG(DFATAL) << "Failed to analyze start state.";
+#endif
       params->failed = true;
       return false;
     }

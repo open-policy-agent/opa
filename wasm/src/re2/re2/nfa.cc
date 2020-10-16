@@ -239,7 +239,9 @@ void NFA::AddToThreadq(Threadq* q, int id0, int c, const StringPiece& context,
     Prog::Inst* ip = prog_->inst(id);
     switch (ip->opcode()) {
     default:
+#if 0
       LOG(DFATAL) << "unhandled " << ip->opcode() << " in AddToThreadq";
+#endif
       break;
 
     case kInstFail:
@@ -351,7 +353,9 @@ int NFA::Step(Threadq* runq, Threadq* nextq, int c, const StringPiece& context,
     switch (ip->opcode()) {
       default:
         // Should only see the values handled below.
+#if 0
         LOG(DFATAL) << "Unhandled " << ip->opcode() << " in step";
+#endif
         break;
 
       case kInstByteRange:
@@ -457,7 +461,9 @@ bool NFA::Search(const StringPiece& text, const StringPiece& const_context,
 
   // Sanity check: make sure that text lies within context.
   if (text.begin() < context.begin() || text.end() > context.end()) {
+#if 0
     LOG(DFATAL) << "context does not contain text";
+#endif
     return false;
   }
 
@@ -472,7 +478,9 @@ bool NFA::Search(const StringPiece& text, const StringPiece& const_context,
   }
 
   if (nsubmatch < 0) {
+#if 0
     LOG(DFATAL) << "Bad args: nsubmatch=" << nsubmatch;
+#endif
     return false;
   }
 
@@ -540,7 +548,9 @@ bool NFA::Search(const StringPiece& text, const StringPiece& const_context,
         Prog::Inst* ip = prog_->inst(id);
         switch (ip->opcode()) {
           default:
+#if 0
             LOG(DFATAL) << "Unexpected opcode in short circuit: " << ip->opcode();
+#endif
             break;
 
           case kInstCapture:
@@ -671,7 +681,9 @@ void Prog::Fanout(SparseArray<int>* fanout) {
       Prog::Inst* ip = inst(id);
       switch (ip->opcode()) {
         default:
+#if 0
           LOG(DFATAL) << "unhandled " << ip->opcode() << " in Prog::Fanout()";
+#endif
           break;
 
         case kInstByteRange:

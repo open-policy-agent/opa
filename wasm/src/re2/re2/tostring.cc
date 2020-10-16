@@ -101,8 +101,10 @@ int ToStringWalker::PreVisit(Regexp* re, int parent_arg, bool* stop) {
 
     case kRegexpCapture:
       t_->append("(");
+#if 0
       if (re->cap() == 0)
         LOG(DFATAL) << "kRegexpCapture cap() == 0";
+#endif
       if (re->name()) {
         t_->append("?P<");
         t_->append(*re->name());
@@ -184,8 +186,10 @@ int ToStringWalker::PostVisit(Regexp* re, int parent_arg, int pre_arg,
       // at the end of their strings, so just remove the last one.
       if ((*t_)[t_->size()-1] == '|')
         t_->erase(t_->size()-1);
+#if 0
       else
         LOG(DFATAL) << "Bad final char: " << t_;
+#endif
       if (prec < PrecAlternate)
         t_->append(")");
       break;
