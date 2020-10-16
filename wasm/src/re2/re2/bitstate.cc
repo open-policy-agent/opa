@@ -108,9 +108,11 @@ void BitState::Push(int id, const char* p) {
   if (njob_ >= job_.size()) {
     GrowStack();
     if (njob_ >= job_.size()) {
+#if 0
       LOG(DFATAL) << "GrowStack() failed: "
                   << "njob_ = " << njob_ << ", "
                   << "job_.size() = " << job_.size();
+#endif
       return;
     }
   }
@@ -168,7 +170,9 @@ bool BitState::TrySearch(int id0, const char* p0) {
     Prog::Inst* ip = prog_->inst(id);
     switch (ip->opcode()) {
       default:
+#if 0
         LOG(DFATAL) << "Unexpected opcode: " << ip->opcode();
+#endif
         return false;
 
       case kInstFail:

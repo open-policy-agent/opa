@@ -10,8 +10,10 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+#if 0
 #include <ostream>
 #include <sstream>
+#endif
 
 #include "util/util.h"
 
@@ -54,6 +56,7 @@
 
 #define VLOG(x) if((x)>0){}else LOG_INFO.stream()
 
+#if 0
 class LogMessage {
  public:
   LogMessage(const char* file, int line)
@@ -104,6 +107,8 @@ class LogMessageFatal : public LogMessage {
 
 #ifdef _MSC_VER
 #pragma warning(pop)
+#endif
+
 #endif
 
 #endif  // UTIL_LOGGING_H_

@@ -216,7 +216,9 @@ bool Prog::SearchOnePass(const StringPiece& text,
                          Anchor anchor, MatchKind kind,
                          StringPiece* match, int nmatch) {
   if (anchor != kAnchored && kind != kFullMatch) {
+#if 0
     LOG(DFATAL) << "Cannot use SearchOnePass for unanchored matches.";
+#endif
     return false;
   }
 
@@ -444,7 +446,9 @@ bool Prog::IsOnePass() {
       Prog::Inst* ip = inst(id);
       switch (ip->opcode()) {
         default:
+#if 0
           LOG(DFATAL) << "unhandled opcode: " << ip->opcode();
+#endif
           break;
 
         case kInstAltMatch:
@@ -461,9 +465,11 @@ bool Prog::IsOnePass() {
           int nextindex = nodebyid[ip->out()];
           if (nextindex == -1) {
             if (nalloc >= maxnodes) {
+#if 0
               if (ExtraDebug)
                 LOG(ERROR) << StringPrintf(
                     "Not OnePass: hit node limit %d >= %d", nalloc, maxnodes);
+#endif
               goto fail;
             }
             nextindex = nalloc;
@@ -486,9 +492,11 @@ bool Prog::IsOnePass() {
             if ((act & kImpossible) == kImpossible) {
               node->action[b] = newact;
             } else if (act != newact) {
+#if 0
               if (ExtraDebug)
                 LOG(ERROR) << StringPrintf(
                     "Not OnePass: conflict on byte %#x at state %d", c, *it);
+#endif
               goto fail;
             }
           }
@@ -507,9 +515,11 @@ bool Prog::IsOnePass() {
               if ((act & kImpossible) == kImpossible) {
                 node->action[b] = newact;
               } else if (act != newact) {
+#if 0
                 if (ExtraDebug)
                   LOG(ERROR) << StringPrintf(
                       "Not OnePass: conflict on byte %#x at state %d", c, *it);
+#endif
                 goto fail;
               }
             }
@@ -548,9 +558,11 @@ bool Prog::IsOnePass() {
 
           // If already on work queue, (1) is violated: bail out.
           if (!AddQ(&workq, ip->out())) {
+#if 0
             if (ExtraDebug)
               LOG(ERROR) << StringPrintf(
                   "Not OnePass: multiple paths %d -> %d", *it, ip->out());
+#endif
             goto fail;
           }
           id = ip->out();
@@ -559,9 +571,11 @@ bool Prog::IsOnePass() {
         case kInstMatch:
           if (matched) {
             // (3) is violated
+#if 0
             if (ExtraDebug)
               LOG(ERROR) << StringPrintf(
                   "Not OnePass: multiple matches from %d", *it);
+#endif
             goto fail;
           }
           matched = true;
@@ -581,6 +595,7 @@ bool Prog::IsOnePass() {
     }
   }
 
+#if 0
   if (ExtraDebug) {  // For debugging, dump one-pass NFA to LOG(ERROR).
     LOG(ERROR) << "bytemap:\n" << DumpByteMap();
     LOG(ERROR) << "prog:\n" << Dump();
@@ -610,6 +625,7 @@ bool Prog::IsOnePass() {
     }
     LOG(ERROR) << "nodes:\n" << dump;
   }
+#endif
 
   dfa_mem_ -= nalloc*statesize;
   onepass_nodes_ = PODArray<uint8_t>(nalloc*statesize);

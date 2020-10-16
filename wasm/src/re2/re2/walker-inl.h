@@ -146,7 +146,9 @@ template<typename T> Regexp::Walker<T>::~Walker() {
 // Logs DFATAL if stack is not already clear.
 template<typename T> void Regexp::Walker<T>::Reset() {
   if (!stack_.empty()) {
+#if 0
     LOG(DFATAL) << "Stack not empty.";
+#endif
     while (!stack_.empty()) {
       delete[] stack_.top().child_args;
       stack_.pop();
@@ -159,7 +161,9 @@ template<typename T> T Regexp::Walker<T>::WalkInternal(Regexp* re, T top_arg,
   Reset();
 
   if (re == NULL) {
+#if 0
     LOG(DFATAL) << "Walk NULL";
+#endif
     return top_arg;
   }
 

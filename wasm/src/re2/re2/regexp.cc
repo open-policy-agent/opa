@@ -44,8 +44,10 @@ Regexp::Regexp(RegexpOp op, ParseFlags parse_flags)
 // that could cause arbitrarily deep recursion, so
 // required Decref() to have handled them for us.
 Regexp::~Regexp() {
+#if 0
   if (nsub_ > 0)
     LOG(DFATAL) << "Regexp not destroyed.";
+#endif
 
   switch (op_) {
     default:
@@ -143,8 +145,10 @@ void Regexp::Destroy() {
   while (stack != NULL) {
     Regexp* re = stack;
     stack = re->down_;
+#if 0
     if (re->ref_ != 0)
       LOG(DFATAL) << "Bad reference count " << re->ref_;
+#endif
     if (re->nsub_ > 0) {
       Regexp** subs = re->sub();
       for (int i = 0; i < re->nsub_; i++) {
@@ -405,7 +409,9 @@ static bool TopEqual(Regexp* a, Regexp* b) {
     }
   }
 
+#if 0
   LOG(DFATAL) << "Unexpected op in Regexp::Equal: " << a->op();
+#endif
   return 0;
 }
 
@@ -545,8 +551,10 @@ class NumCapturesWalker : public Regexp::Walker<Ignored> {
 
   virtual Ignored ShortVisit(Regexp* re, Ignored ignored) {
     // Should never be called: we use Walk(), not WalkExponential().
+#if 0
 #ifndef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
     LOG(DFATAL) << "NumCapturesWalker::ShortVisit called";
+#endif
 #endif
     return ignored;
   }
@@ -593,8 +601,10 @@ class NamedCapturesWalker : public Regexp::Walker<Ignored> {
 
   virtual Ignored ShortVisit(Regexp* re, Ignored ignored) {
     // Should never be called: we use Walk(), not WalkExponential().
+#if 0
 #ifndef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
     LOG(DFATAL) << "NamedCapturesWalker::ShortVisit called";
+#endif
 #endif
     return ignored;
   }
@@ -637,8 +647,10 @@ class CaptureNamesWalker : public Regexp::Walker<Ignored> {
 
   virtual Ignored ShortVisit(Regexp* re, Ignored ignored) {
     // Should never be called: we use Walk(), not WalkExponential().
+#if 0
 #ifndef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
     LOG(DFATAL) << "CaptureNamesWalker::ShortVisit called";
+#endif
 #endif
     return ignored;
   }

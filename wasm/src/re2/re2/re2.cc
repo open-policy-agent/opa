@@ -130,8 +130,10 @@ int RE2::Options::ParseFlags() const {
   int flags = Regexp::ClassNL;
   switch (encoding()) {
     default:
+#if 0
       if (log_errors())
         LOG(ERROR) << "Unknown encoding " << encoding();
+#endif
       break;
     case RE2::Options::EncodingUTF8:
       break;
@@ -201,10 +203,12 @@ void RE2::Init(const StringPiece& pattern, const Options& options) {
     static_cast<Regexp::ParseFlags>(options_.ParseFlags()),
     &status);
   if (entire_regexp_ == NULL) {
+#if 0
     if (options_.log_errors()) {
       LOG(ERROR) << "Error parsing '" << trunc(pattern_) << "': "
                  << status.Text();
     }
+#endif
     error_ = new std::string(status.Text());
     error_code_ = RegexpErrorToRE2(status.code());
     error_arg_ = std::string(status.error_arg());
@@ -222,8 +226,10 @@ void RE2::Init(const StringPiece& pattern, const Options& options) {
   // Prog has two DFAs but the reverse prog has one.
   prog_ = suffix_regexp_->CompileToProg(options_.max_mem()*2/3);
   if (prog_ == NULL) {
+#if 0
     if (options_.log_errors())
       LOG(ERROR) << "Error compiling '" << trunc(pattern_) << "'";
+#endif
     error_ = new std::string("pattern too large - compile failed");
     error_code_ = RE2::ErrorPatternTooLarge;
     return;
@@ -248,8 +254,10 @@ re2::Prog* RE2::ReverseProg() const {
     re->rprog_ =
         re->suffix_regexp_->CompileToReverseProg(re->options_.max_mem() / 3);
     if (re->rprog_ == NULL) {
+#if 0
       if (re->options_.log_errors())
         LOG(ERROR) << "Error reverse compiling '" << trunc(re->pattern_) << "'";
+#endif
       // We no longer touch error_ and error_code_ because failing to compile
       // the reverse Prog is not a showstopper: falling back to NFA execution
       // is fine. More importantly, an RE2 object is supposed to be logically
@@ -620,17 +628,21 @@ bool RE2::Match(const StringPiece& text,
                 StringPiece* submatch,
                 int nsubmatch) const {
   if (!ok()) {
+#if 0
     if (options_.log_errors())
       LOG(ERROR) << "Invalid RE2: " << *error_;
+#endif
     return false;
   }
 
   if (startpos > endpos || endpos > text.size()) {
+#if 0
     if (options_.log_errors())
       LOG(ERROR) << "RE2: invalid startpos, endpos pair. ["
                  << "startpos: " << startpos << ", "
                  << "endpos: " << endpos << ", "
                  << "text size: " << text.size() << "]";
+#endif
     return false;
   }
 
@@ -707,7 +719,9 @@ bool RE2::Match(const StringPiece& text,
   bool skipped_test = false;
   switch (re_anchor) {
     default:
+#if 0
       LOG(DFATAL) << "Unexpected re_anchor value: " << re_anchor;
+#endif
       return false;
 
     case UNANCHORED: {
@@ -724,12 +738,14 @@ bool RE2::Match(const StringPiece& text,
         if (!prog->SearchDFA(subtext, text, Prog::kAnchored,
                              Prog::kLongestMatch, matchp, &dfa_failed, NULL)) {
           if (dfa_failed) {
+#if 0
             if (options_.log_errors())
               LOG(ERROR) << "DFA out of memory: "
                          << "pattern length " << pattern_.size() << ", "
                          << "program size " << prog->size() << ", "
                          << "list count " << prog->list_count() << ", "
                          << "bytemap range " << prog->bytemap_range();
+#endif
             // Fall back to NFA below.
             skipped_test = true;
             break;
@@ -744,12 +760,14 @@ bool RE2::Match(const StringPiece& text,
       if (!prog_->SearchDFA(subtext, text, anchor, kind,
                             matchp, &dfa_failed, NULL)) {
         if (dfa_failed) {
+#if 0
           if (options_.log_errors())
             LOG(ERROR) << "DFA out of memory: "
                        << "pattern length " << pattern_.size() << ", "
                        << "program size " << prog_->size() << ", "
                        << "list count " << prog_->list_count() << ", "
                        << "bytemap range " << prog_->bytemap_range();
+#endif
           // Fall back to NFA below.
           skipped_test = true;
           break;
@@ -770,18 +788,22 @@ bool RE2::Match(const StringPiece& text,
       if (!prog->SearchDFA(match, text, Prog::kAnchored,
                            Prog::kLongestMatch, &match, &dfa_failed, NULL)) {
         if (dfa_failed) {
+#if 0
           if (options_.log_errors())
             LOG(ERROR) << "DFA out of memory: "
                        << "pattern length " << pattern_.size() << ", "
                        << "program size " << prog->size() << ", "
                        << "list count " << prog->list_count() << ", "
                        << "bytemap range " << prog->bytemap_range();
+#endif
           // Fall back to NFA below.
           skipped_test = true;
           break;
         }
+#if 0
         if (options_.log_errors())
           LOG(ERROR) << "SearchDFA inconsistency";
+#endif
         return false;
       }
       break;
@@ -812,12 +834,14 @@ bool RE2::Match(const StringPiece& text,
       if (!prog_->SearchDFA(subtext, text, anchor, kind,
                             &match, &dfa_failed, NULL)) {
         if (dfa_failed) {
+#if 0
           if (options_.log_errors())
             LOG(ERROR) << "DFA out of memory: "
                        << "pattern length " << pattern_.size() << ", "
                        << "program size " << prog_->size() << ", "
                        << "list count " << prog_->list_count() << ", "
                        << "bytemap range " << prog_->bytemap_range();
+#endif
           // Fall back to NFA below.
           skipped_test = true;
           break;
@@ -848,21 +872,27 @@ bool RE2::Match(const StringPiece& text,
 
     if (can_one_pass && anchor != Prog::kUnanchored) {
       if (!prog_->SearchOnePass(subtext1, text, anchor, kind, submatch, ncap)) {
+#if 0
         if (!skipped_test && options_.log_errors())
           LOG(ERROR) << "SearchOnePass inconsistency";
+#endif
         return false;
       }
     } else if (can_bit_state && subtext1.size() <= bit_state_text_max) {
       if (!prog_->SearchBitState(subtext1, text, anchor,
                                  kind, submatch, ncap)) {
+#if 0
         if (!skipped_test && options_.log_errors())
           LOG(ERROR) << "SearchBitState inconsistency";
+#endif
         return false;
       }
     } else {
       if (!prog_->SearchNFA(subtext1, text, anchor, kind, submatch, ncap)) {
+#if 0
         if (!skipped_test && options_.log_errors())
           LOG(ERROR) << "SearchNFA inconsistency";
+#endif
         return false;
       }
     }
@@ -886,8 +916,10 @@ bool RE2::DoMatch(const StringPiece& text,
                   const Arg* const* args,
                   int n) const {
   if (!ok()) {
+#if 0
     if (options_.log_errors())
       LOG(ERROR) << "Invalid RE2: " << *error_;
+#endif
     return false;
   }
 
@@ -1018,10 +1050,12 @@ bool RE2::Rewrite(std::string* out,
     if (isdigit(c)) {
       int n = (c - '0');
       if (n >= veclen) {
+#if 0
         if (options_.log_errors()) {
           LOG(ERROR) << "invalid substitution \\" << n
                      << " from " << veclen << " groups";
         }
+#endif
         return false;
       }
       StringPiece snip = vec[n];
@@ -1030,14 +1064,17 @@ bool RE2::Rewrite(std::string* out,
     } else if (c == '\\') {
       out->push_back('\\');
     } else {
+#if 0
       if (options_.log_errors())
         LOG(ERROR) << "invalid rewrite pattern: " << rewrite.data();
+#endif
       return false;
     }
   }
   return true;
 }
 
+#if 0
 /***** Parsers for various types *****/
 
 namespace re2_internal {
@@ -1290,6 +1327,7 @@ bool Parse(const char* str, size_t n, unsigned long long* dest, int radix) {
 }
 
 }  // namespace re2_internal
+#endif
 
 namespace hooks {
 
