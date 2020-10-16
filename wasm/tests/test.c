@@ -342,6 +342,42 @@ void test_opa_atof64()
     test("exponent", crunch_opa_atof64("6e7", 6e7, 0));
 }
 
+void test_memchr()
+{
+    char s[] = { 1, 2, 2, 3 };
+
+    test("memchr", memchr(s, 2, 1) == NULL);
+    test("memchr", memchr(s, 2, sizeof(s)) == &s[1]);
+    test("memchr", memchr(s, 4, sizeof(s)) == NULL);
+}
+
+void test_memcmp()
+{
+    char a[] = { 1, 2, 3, 4 }, b[] = { 1, 2, 3, 3 };
+
+    test("memcmp", memcmp(a, b, 3) == 0);
+    test("memcmp", memcmp(a, b, 4) == 1);
+    test("memcmp", memcmp(b, a, 4) == -1);
+}
+
+void test_memcpy()
+{
+    char dest[] = { 1, 2, 3, 4 }, src[] = { 9, 8, 7 };
+    char expected[] = { 9, 8, 3, 4 };
+    memcpy(dest, src, 2);
+
+    test("memcpy", memcmp(dest, expected, sizeof(expected)) == 0);
+}
+
+void test_memset()
+{
+    char s[] = { 9, 8, 7, 6 };
+    char expected[] = { 1, 1, 1, 6 };
+    memset(s, 1, 3);
+
+    test("memset", memcmp(s, expected, sizeof(expected)) == 0);
+}
+
 int lex_crunch(const char *s)
 {
     opa_json_lex ctx;

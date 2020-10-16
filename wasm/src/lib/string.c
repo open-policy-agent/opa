@@ -9,7 +9,7 @@ void *memchr(const void *src, int c, size_t n)
     while (n--)
     {
         if (*s == (unsigned char)c)
-	{
+        {
             return (void *)s;
         }
 
@@ -17,6 +17,30 @@ void *memchr(const void *src, int c, size_t n)
     }
 
     return NULL;
+}
+
+int memcmp(const void *s1, const void *s2, size_t n)
+{
+    const unsigned char *p1 = s1;
+    const unsigned char *p2 = s2;
+
+    if (p1 == p2)
+    {
+        return 0;
+    }
+
+    while (n--)
+    {
+        if (*p1 != *p2)
+        {
+            return *p1 - *p2;
+        }
+
+        p1++;
+        p2++;
+    }
+
+    return 0;
 }
 
 void *memcpy(void *dest, const void *src, size_t n)
@@ -51,6 +75,37 @@ void *memmove(void *dest, const void *src, size_t n)
     opa_free(t);
 
     return dest;
+}
+
+void *memset(void *s, int c, unsigned long n)
+{
+    unsigned char *p = (unsigned char *)s;
+
+    while (n--)
+    {
+        *p++ = c;
+    }
+
+    return s;
+}
+
+char *strchr(const char *s, int c)
+{
+    while (1)
+    {
+        if (*s == (char)c)
+        {
+            return (char *)s;
+        }
+        else if (*s == '\0')
+        {
+            break;
+        }
+
+        s++;
+    }
+
+    return NULL;
 }
 
 size_t strlen(const char *s)
