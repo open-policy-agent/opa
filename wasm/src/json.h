@@ -3,6 +3,10 @@
 
 #include "value.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct
 {
     const char *input;
@@ -38,5 +42,9 @@ const char *opa_json_dump(opa_value *v);
 const char *opa_value_dump(opa_value *v);
 
 size_t opa_json_max_string_len(const char *input, size_t len);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

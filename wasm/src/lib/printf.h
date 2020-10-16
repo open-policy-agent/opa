@@ -32,11 +32,11 @@
 #ifndef _PRINTF_H_
 #define _PRINTF_H_
 
+#include <stdio.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include <stdio.h>
 
 /**
  * Tiny snprintf/vsnprintf implementation
@@ -52,10 +52,8 @@ extern "C" {
 int  snprintf_(char* buffer, size_t count, const char* format, ...);
 int vsnprintf_(char* buffer, size_t count, const char* format, va_list va);
 
-
 #ifdef __cplusplus
 }
 #endif
-
 
 #endif  // _PRINTF_H_
