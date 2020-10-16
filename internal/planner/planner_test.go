@@ -200,11 +200,19 @@ func TestPlannerHelloWorld(t *testing.T) {
 			queries: []string{`x = data[i][j] with data.bar as 1; y = "a"`},
 			modules: []string{
 				`package foo
-				
+
 				p = 0
 				q = 1
 				r = 2`,
 			},
+		},
+		{
+			note:    "relation non-empty",
+			queries: []string{`walk(input)`},
+		},
+		{
+			note:    "relation unify",
+			queries: []string{`walk(input, [["foo", y], x])`},
 		},
 	}
 
@@ -218,7 +226,7 @@ func TestPlannerHelloWorld(t *testing.T) {
 			for i := range modules {
 				modules[i] = ast.MustParseModule(tc.modules[i])
 			}
-			planner := New().WithQueries(queries).WithModules(modules)
+			planner := New().WithQueries(queries).WithModules(modules).WithBuiltinDecls(ast.BuiltinMap)
 			policy, err := planner.Plan()
 			if err != nil {
 				t.Fatal(err)
