@@ -8,11 +8,11 @@ import (
 	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -39,30 +39,12 @@ func defaultRoundTripperClient(t *tls.Config, timeout int64) *http.Client {
 	// Ensure we use a http.Transport with proper settings: the zero values are not
 	// a good choice, as they cause leaking connections:
 	// https://github.com/golang/go/issues/19620
-	//
-	// Also, there's no simple way to copy the values from http.DefaultTransport,
-	// see https://github.com/golang/go/issues/26013. Hence, we copy the settings
-	// used in the golang sources,
-	// https://github.com/golang/go/blob/5fae09b7386de26db59a1184f62fc7b22ec7667b/src/net/http/transport.go#L42-L53
-	//   Copyright 2011 The Go Authors. All rights reserved.
-	//   Use of this source code is governed by a BSD-style
-	//   license that can be found in the LICENSE file.
-	var tr http.RoundTripper = &http.Transport{
-		Proxy: http.ProxyFromEnvironment,
-		DialContext: (&net.Dialer{
-			Timeout:   30 * time.Second,
-			KeepAlive: 30 * time.Second,
-			DualStack: true,
-		}).DialContext,
-		MaxIdleConns:          100,
-		IdleConnTimeout:       90 * time.Second,
-		TLSHandshakeTimeout:   10 * time.Second,
-		ExpectContinueTimeout: 1 * time.Second,
-		ResponseHeaderTimeout: time.Duration(timeout) * time.Second,
-		TLSClientConfig:       t,
-	}
 
 	// copy, we don't want to alter the default client's Transport
+	tr := http.DefaultTransport.(*http.Transport).Clone()
+	tr.ResponseHeaderTimeout = time.Duration(timeout) * time.Second
+	tr.TLSClientConfig = t
+
 	c := *http.DefaultClient
 	c.Transport = tr
 	return &c
@@ -122,6 +104,112 @@ func (ap *bearerAuthPlugin) Prepare(req *http.Request) error {
 	return nil
 }
 
+type tokenEndpointResponse struct {
+	AccessToken string `json:"access_token"`
+	TokenType   string `json:"token_type"`
+	ExpiresIn   int64  `json:"expires_in"`
+}
+
+// oauth2ClientCredentialsAuthPlugin represents authentication via a bearer token in the HTTP Authorization header
+// obtained through the OAuth2 client credentials flow
+type oauth2ClientCredentialsAuthPlugin struct {
+	TokenURL     string    `json:"token_url"`
+	ClientID     string    `json:"client_id"`
+	ClientSecret string    `json:"client_secret"`
+	Scopes       *[]string `json:"scopes,omitempty"`
+
+	tokenCache    *oauth2Token
+	tlsSkipVerify bool
+}
+
+type oauth2Token struct {
+	Token     string
+	ExpiresAt time.Time
+}
+
+func (ap *oauth2ClientCredentialsAuthPlugin) NewClient(c Config) (*http.Client, error) {
+	t, err := defaultTLSConfig(c)
+	if err != nil {
+		return nil, err
+	}
+
+	// Inherit skip verify from the "parent" settings. Should this be configurable on the credentials too?
+	ap.tlsSkipVerify = c.AllowInsureTLS
+
+	if !strings.HasPrefix(ap.TokenURL, "https://") {
+		return nil, errors.New("token_url required to use https scheme")
+	}
+	if ap.ClientID == "" || ap.ClientSecret == "" {
+		return nil, errors.New("client_id and client_secret required")
+	}
+	if ap.Scopes == nil {
+		ap.Scopes = &[]string{}
+	}
+
+	return defaultRoundTripperClient(t, *c.ResponseHeaderTimeoutSeconds), nil
+}
+
+// requestToken tries to obtain an access token using the client credentials flow
+// https://tools.ietf.org/html/rfc6749#section-4.4
+func (ap *oauth2ClientCredentialsAuthPlugin) requestToken() (*oauth2Token, error) {
+	body := url.Values{"grant_type": []string{"client_credentials"}}
+	if len(*ap.Scopes) > 0 {
+		body["scope"] = []string{strings.Join(*ap.Scopes, " ")}
+	}
+
+	r, err := http.NewRequest("POST", ap.TokenURL, strings.NewReader(body.Encode()))
+	if err != nil {
+		return nil, err
+	}
+	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	r.SetBasicAuth(ap.ClientID, ap.ClientSecret)
+
+	client := defaultRoundTripperClient(&tls.Config{InsecureSkipVerify: ap.tlsSkipVerify}, 10)
+	response, err := client.Do(r)
+	if err != nil {
+		return nil, err
+	}
+
+	bodyRaw, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	if response.StatusCode != 200 {
+		return nil, fmt.Errorf("error in response from OAuth2 token endpoint: %v", string(bodyRaw))
+	}
+
+	var tokenResponse tokenEndpointResponse
+	err = json.Unmarshal(bodyRaw, &tokenResponse)
+	if err != nil {
+		return nil, err
+	}
+
+	if strings.ToLower(tokenResponse.TokenType) != "bearer" {
+		return nil, errors.New("unknown token type returned from token endpoint")
+	}
+
+	return &oauth2Token{
+		Token:     strings.TrimSpace(tokenResponse.AccessToken),
+		ExpiresAt: time.Now().Add(time.Duration(tokenResponse.ExpiresIn) * time.Second),
+	}, nil
+}
+
+func (ap *oauth2ClientCredentialsAuthPlugin) Prepare(req *http.Request) error {
+	minTokenLifetime := float64(10)
+	if ap.tokenCache == nil || ap.tokenCache.ExpiresAt.Sub(time.Now()).Seconds() < minTokenLifetime {
+		logrus.Debugf("Requesting token from token_url %v", ap.TokenURL)
+		token, err := ap.requestToken()
+		if err != nil {
+			return err
+		}
+		ap.tokenCache = token
+	}
+
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %v", ap.tokenCache.Token))
+	return nil
+}
+
 // clientTLSAuthPlugin represents authentication via client certificate on a TLS connection
 type clientTLSAuthPlugin struct {
 	Cert                 string `json:"cert"`
@@ -155,7 +243,7 @@ func (ap *clientTLSAuthPlugin) NewClient(c Config) (*http.Client, error) {
 
 	if x509.IsEncryptedPEMBlock(block) {
 		if ap.PrivateKeyPassphrase == "" {
-			return nil, errors.New("client certificate passphrase is need, because the certificate is password encrypted")
+			return nil, errors.New("client certificate passphrase is needed, because the certificate is password encrypted")
 		}
 		block, err := x509.DecryptPEMBlock(block, []byte(ap.PrivateKeyPassphrase))
 		if err != nil {

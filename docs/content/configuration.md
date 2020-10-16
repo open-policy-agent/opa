@@ -271,6 +271,18 @@ private key is encrypted.
 | `services[_].credentials.client_tls.private_key` | `string` | Yes | The path to the private key of the client certificate. |
 | `services[_].credentials.client_tls.private_key_passphrase` | `string` | No | The passphrase to use for the private key. |
 
+#### OAuth2 client credentials
+
+OPA will authenticate using a bearer token obtained through the OAuth2 [client credentials](https://tools.ietf.org/html/rfc6749#section-4.4) flow.
+Following successful authentication at the token endpoint the returned token will be cached for subsequent requests for the duration of its lifetime. Note that as per the [OAuth2 standard](https://tools.ietf.org/html/rfc6749#section-2.3.1), only the HTTPS scheme is supported for the token endpoint URL.
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `services[_].credentials.oauth2.token_url` | `string` | Yes | URL pointing to the token endpoint at the OAuth2 authorization server. |
+| `services[_].credentials.oauth2.client_id` | `string` | Yes | The client ID to use for authentication. |
+| `services[_].credentials.oauth2.client_secret` | `string` | Yes | The client secret to use for authentication. |
+| `services[_].credentials.oauth2.scopes` | `[]string` | No | Optional list of scopes to request for the token. |
+
 #### AWS signature
 
 OPA will authenticate with an [AWS4 HMAC](https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-auth-using-authorization-header.html) signature. Two methods of obtaining the

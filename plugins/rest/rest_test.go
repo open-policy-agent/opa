@@ -11,6 +11,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/base64"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -20,6 +21,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -184,6 +186,85 @@ func TestNew(t *testing.T) {
 				}
 			}`,
 			wantErr: true,
+		},
+		{
+			input: `{
+				"name": "foo",
+				"url": "http://localhost",
+				"credentials": {
+					"oauth2": {
+						"token_url": ""
+					}
+				}
+			}`,
+			wantErr: true,
+		},
+		{
+			input: `{
+				"name": "foo",
+				"url": "http://localhost",
+				"credentials": {
+					"oauth2": {
+						"token_url": "http://localhost",
+						"client_id": "client_one",
+						"client_secret": "super_secret"
+					}
+				}
+			}`,
+			wantErr: true,
+		},
+		{
+			input: `{
+				"name": "foo",
+				"url": "http://localhost",
+				"credentials": {
+					"oauth2": {
+						"token_url": "https://localhost",
+						"client_id": ""
+					}
+				}
+			}`,
+			wantErr: true,
+		},
+		{
+			input: `{
+				"name": "foo",
+				"url": "http://localhost",
+				"credentials": {
+					"oauth2": {
+						"token_url": "https://localhost",
+						"client_id": "client_one"
+					}
+				}
+			}`,
+			wantErr: true,
+		},
+		{
+			input: `{
+				"name": "foo",
+				"url": "http://localhost",
+				"credentials": {
+					"oauth2": {
+						"token_url": "https://localhost",
+						"client_id": "client_one",
+						"client_secret": "super_secret"
+					}
+				}
+			}`,
+		},
+		{
+			input: `{
+				"name": "foo",
+				"url": "http://localhost",
+				"credentials": {
+					"oauth2": {
+						"token_url": "https://localhost",
+						"client_id": "client_one",
+						"client_secret": "super_secret",
+						"scopes": ["profile", "opa"]
+					}
+				}
+			}`,
 		},
 	}
 
@@ -508,6 +589,156 @@ func TestClientCert(t *testing.T) {
 	})
 }
 
+func TestClientCertPassword(t *testing.T) {
+	ts := testServer{
+		t:                  t,
+		tls:                true,
+		expectClientCert:   true,
+		clientCertPassword: "password",
+	}
+	ts.start()
+	defer ts.stop()
+
+	files := map[string]string{
+		"client.pem": string(ts.clientCertPem),
+		"client.key": string(ts.clientCertKey),
+	}
+
+	test.WithTempFS(files, func(path string) {
+		certPath := filepath.Join(path, "client.pem")
+		keyPath := filepath.Join(path, "client.key")
+
+		client := newTestClient(t, &ts, certPath, keyPath)
+
+		ctx := context.Background()
+		if _, err := client.Do(ctx, "GET", "test"); err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+	})
+}
+
+func TestOauth2ClientCredentials(t *testing.T) {
+	tests := []struct {
+		ts      *testServer
+		ots     *oauth2TestServer
+		options testPluginCustomizer
+		wantErr bool
+	}{
+		{
+			ts:  &testServer{t: t, expBearerToken: "token_1"},
+			ots: &oauth2TestServer{t: t},
+		},
+		{
+			ts:      &testServer{t: t, expBearerToken: "token_1"},
+			ots:     &oauth2TestServer{t: t, tokenType: "unknown"},
+			wantErr: true,
+		},
+		{
+			ts:  &testServer{t: t},
+			ots: &oauth2TestServer{t: t},
+			options: func(c *Config) {
+				c.Credentials.OAuth2.ClientSecret = "not_super_secret"
+			},
+			wantErr: true,
+		},
+		{
+			ts:  &testServer{t: t},
+			ots: &oauth2TestServer{t: t, expScope: &[]string{"read", "opa"}},
+			options: func(c *Config) {
+				c.Credentials.OAuth2.Scopes = &[]string{"read", "opa"}
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		func() {
+			tc.ts.start()
+			defer tc.ts.stop()
+			tc.ots.start()
+			defer tc.ots.stop()
+
+			if tc.options == nil {
+				tc.options = func(c *Config) {}
+			}
+
+			client := newOauth2TestClient(t, tc.ts, tc.ots, tc.options)
+			ctx := context.Background()
+			_, err := client.Do(ctx, "GET", "test")
+			if err != nil && !tc.wantErr {
+				t.Fatalf("Unexpected error: %v", err)
+			} else if err == nil && tc.wantErr {
+				t.Fatalf("Expected error: %v", err)
+			}
+		}()
+	}
+}
+
+func TestOauth2ClientCredentialsExpiringTokenIsRefreshed(t *testing.T) {
+	ts := testServer{
+		t:              t,
+		expBearerToken: "token_1",
+	}
+	ts.start()
+	ots := oauth2TestServer{
+		t: t,
+		// Issue tokens with a TTL below our considered minimum - this should force the client to fetch a new one the
+		// second time the credentials are used rather than reusing the token it has
+		tokenTTL: 9,
+	}
+	ots.start()
+	defer ots.stop()
+
+	client := newOauth2TestClient(t, &ts, &ots)
+	ctx := context.Background()
+	_, err := client.Do(ctx, "GET", "test")
+	if err != nil {
+		t.Fatalf("Unexpected error %v", err)
+	}
+
+	ts.stop()
+	ts = testServer{
+		t:              t,
+		expBearerToken: "token_2",
+	}
+	ts.start()
+	defer ts.stop()
+
+	client = newOauth2TestClient(t, &ts, &ots)
+	ctx = context.Background()
+	_, err = client.Do(ctx, "GET", "test")
+	if err != nil {
+		t.Fatalf("Unexpected error %v", err)
+	}
+}
+
+func TestOauth2ClientCredentialsNonExpiringTokenIsReused(t *testing.T) {
+	ts := testServer{
+		t:              t,
+		expBearerToken: "token_1",
+	}
+	ts.start()
+	defer ts.stop()
+
+	ots := oauth2TestServer{
+		t:        t,
+		tokenTTL: 300,
+	}
+	ots.start()
+	defer ots.stop()
+
+	client := newOauth2TestClient(t, &ts, &ots)
+	ctx := context.Background()
+	_, err := client.Do(ctx, "GET", "test")
+	if err != nil {
+		t.Fatalf("Unexpected error %v", err)
+	}
+
+	_, err = client.Do(ctx, "GET", "test")
+	if err != nil {
+		t.Fatalf("Unexpected error %v", err)
+	}
+}
+
 func newTestClient(t *testing.T, ts *testServer, certPath string, keypath string) *Client {
 	config := fmt.Sprintf(`{
 			"name": "foo",
@@ -524,8 +755,14 @@ func newTestClient(t *testing.T, ts *testServer, certPath string, keypath string
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
+	if ts.clientCertPassword != "" {
+		client.Config().Credentials.ClientTLS.PrivateKeyPassphrase = ts.clientCertPassword
+	}
+
 	return &client
 }
+
+type testPluginCustomizer func(c *Config)
 
 type testServer struct {
 	t                  *testing.T
@@ -538,8 +775,129 @@ type testServer struct {
 	tls                bool
 	clientCertPem      []byte
 	clientCertKey      []byte
+	clientCertPassword string
 	expectClientCert   bool
 	serverCertPool     *x509.CertPool
+}
+
+type oauth2TestServer struct {
+	t               *testing.T
+	server          *httptest.Server
+	expClientID     string
+	expClientSecret string
+	expScope        *[]string
+	tokenType       string
+	tokenTTL        int64
+	invocations     int32
+}
+
+func newOauth2TestClient(t *testing.T, ts *testServer, ots *oauth2TestServer, options ...testPluginCustomizer) *Client {
+	config := fmt.Sprintf(`{
+			"name": "foo",
+			"url": %q,
+			"allow_insecure_tls": true,
+			"credentials": {
+				"oauth2": {
+					"token_url": "%v/token",
+					"client_id": "client_one",
+					"client_secret": "super_secret"
+				}
+			}
+		}`, ts.server.URL, ots.server.URL)
+	client, err := New([]byte(config))
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	for _, option := range options {
+		option(client.Config())
+	}
+
+	return &client
+}
+
+func (t *oauth2TestServer) start() {
+	if t.tokenTTL == 0 {
+		t.tokenTTL = 3600
+	}
+	if t.expScope == nil {
+		t.expScope = &[]string{}
+	}
+	if t.tokenType == "" {
+		t.tokenType = "bearer"
+	}
+	t.expClientID = "client_one"
+	t.expClientSecret = "super_secret"
+
+	t.server = httptest.NewUnstartedServer(http.HandlerFunc(t.handle))
+
+	rootKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.t.Fatalf("generating random key: %v", err)
+	}
+	_, rootCertPem, err := createRootCert(rootKey)
+	if err != nil {
+		t.t.Fatalf("creating root cert: %v", err)
+	}
+
+	serverCertPool := x509.NewCertPool()
+	serverCertPool.AppendCertsFromPEM(rootCertPem)
+	t.server.TLS = &tls.Config{
+		RootCAs: serverCertPool,
+	}
+	t.server.StartTLS()
+}
+
+func (t *oauth2TestServer) stop() {
+	t.server.Close()
+}
+
+func (t *oauth2TestServer) handle(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		t.t.Fatalf("Expected method POST, got %v", r.Method)
+	}
+	if r.URL.Path != "/token" {
+		t.t.Fatalf("Expected path /token got %q", r.URL.Path)
+	}
+
+	if err := r.ParseForm(); err != nil {
+		t.t.Fatal(err)
+	}
+	if r.Form["grant_type"][0] != "client_credentials" {
+		t.t.Fatal("Expected grant_type=client_credentials")
+	}
+
+	if len(r.Form["scope"]) > 0 {
+		scope := strings.Split(r.Form["scope"][0], " ")
+		if !reflect.DeepEqual(*t.expScope, scope) {
+			t.t.Fatalf("Expected scope %v, got %v", *t.expScope, scope)
+		}
+	} else if t.expScope != nil && len(*t.expScope) > 0 {
+		t.t.Fatal("Expected scope to be provided")
+	}
+
+	authHeader := strings.TrimSpace(r.Header.Get("Authorization"))
+	split := strings.Split(authHeader, " ")
+	credentials := split[len(split)-1]
+
+	decoded, err := base64.StdEncoding.DecodeString(credentials)
+	if err != nil {
+		t.t.Fatal(err)
+	}
+
+	pair := strings.SplitN(string(decoded), ":", 2)
+	if len(pair) != 2 || pair[0] != t.expClientID || pair[1] != t.expClientSecret {
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(`{"error"": "invalid_client"}`))
+		return
+	}
+
+	t.invocations++
+	token := fmt.Sprintf("token_%v", t.invocations)
+
+	w.WriteHeader(http.StatusOK)
+	body := fmt.Sprintf(`{"token_type": "%v", "access_token": "%v", "expires_in": %v}`, t.tokenType, token, t.tokenTTL)
+	_, _ = w.Write([]byte(body))
 }
 
 func (t *testServer) handle(w http.ResponseWriter, r *http.Request) {
@@ -592,17 +950,7 @@ func (t *testServer) generateClientKeys() {
 	if err != nil {
 		t.t.Fatalf("generating random key: %v", err)
 	}
-
-	rootCertTmpl, err := certTemplate()
-	if err != nil {
-		t.t.Fatalf("creating cert template: %v", err)
-	}
-	rootCertTmpl.IsCA = true
-	rootCertTmpl.KeyUsage = x509.KeyUsageCertSign | x509.KeyUsageDigitalSignature
-	rootCertTmpl.ExtKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth}
-	rootCertTmpl.IPAddresses = []net.IP{net.ParseIP("127.0.0.1")}
-
-	rootCert, rootCertPEM, err := createCert(rootCertTmpl, rootCertTmpl, &rootKey.PublicKey, rootKey)
+	rootCert, rootCertPEM, err := createRootCert(rootKey)
 	if err != nil {
 		t.t.Fatalf("error creating cert: %v", err)
 	}
@@ -631,11 +979,21 @@ func (t *testServer) generateClientKeys() {
 		t.t.Fatalf("error creating cert: %v", err)
 	}
 
-	// encode and load the cert and private key for the client
-	t.clientCertKey = pem.EncodeToMemory(&pem.Block{
-		Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(clientKey),
-	})
+	var pemBlock *pem.Block
+	if t.clientCertPassword != "" {
+		pemBlock, err = x509.EncryptPEMBlock(rand.Reader, "RSA PRIVATE KEY", x509.MarshalPKCS1PrivateKey(clientKey),
+			[]byte(t.clientCertPassword), x509.PEMCipherAES128)
+		if err != nil {
+			t.t.Fatalf("error encrypting pem block: %v", err)
+		}
+	} else {
+		pemBlock = &pem.Block{
+			Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(clientKey),
+		}
+	}
 
+	// encode and load the cert and private key for the client
+	t.clientCertKey = pem.EncodeToMemory(pemBlock)
 }
 
 func (t *testServer) start() {
@@ -693,6 +1051,19 @@ func createCert(template, parent *x509.Certificate, pub interface{}, parentPriv 
 	b := pem.Block{Type: "CERTIFICATE", Bytes: certDER}
 	certPEM = pem.EncodeToMemory(&b)
 	return
+}
+
+func createRootCert(rootKey *rsa.PrivateKey) (cert *x509.Certificate, certPEM []byte, err error) {
+	rootCertTmpl, err := certTemplate()
+	if err != nil {
+		return nil, nil, err
+	}
+	rootCertTmpl.IsCA = true
+	rootCertTmpl.KeyUsage = x509.KeyUsageCertSign | x509.KeyUsageDigitalSignature
+	rootCertTmpl.ExtKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth}
+	rootCertTmpl.IPAddresses = []net.IP{net.ParseIP("127.0.0.1")}
+
+	return createCert(rootCertTmpl, rootCertTmpl, &rootKey.PublicKey, rootKey)
 }
 
 func getTestServerWithTimeout(d time.Duration) (baseURL string, teardownFn func()) {
