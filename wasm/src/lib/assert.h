@@ -3,6 +3,6 @@
 
 #include "../std.h"
 
-#define assert(expr) ((expr) ? 0 : opa_abort(#expr));
+#define assert(expr) ((expr) ? 0 : ({ opa_abort(#expr); 0; }));
 
 #endif
