@@ -832,6 +832,40 @@ opa_value *opa_value_shallow_copy(opa_value *node)
     return NULL;
 }
 
+static opa_value *__opa_tuple(opa_value *a, opa_value *b)
+{
+    opa_value *ret = opa_array_with_cap(2);
+    opa_array_t *tuple = opa_cast_array(ret);
+    opa_array_append(tuple, a);
+    opa_array_append(tuple, b);
+    return ret;
+}
+
+static void __opa_value_transitive_closure(opa_array_t *result, opa_array_t *path, opa_value *node)
+{
+    opa_array_append(result, __opa_tuple(&path->hdr, node));
+    opa_value *prev = NULL;
+    opa_value *curr = NULL;
+
+    while ((curr = opa_value_iter(node, prev)) != NULL)
+    {
+        opa_array_t *cpy = opa_cast_array(opa_value_shallow_copy_array(path));
+        opa_array_append(cpy, curr);
+        opa_value *child = opa_value_get(node, curr);
+        __opa_value_transitive_closure(result, cpy, child);
+        prev = curr;
+    }
+}
+
+opa_value *opa_value_transitive_closure(opa_value *v)
+{
+    opa_array_t *result = opa_cast_array(opa_array());
+    opa_array_t *path = opa_cast_array(opa_array());
+    __opa_value_transitive_closure(result, path, v);
+    return &result->hdr;
+}
+
+
 opa_value *opa_null()
 {
     opa_value *ret = (opa_value *)opa_malloc(sizeof(opa_value));

@@ -121,6 +121,7 @@ size_t opa_value_length(opa_value *node);
 void opa_value_free(opa_value *node);
 opa_value *opa_value_merge(opa_value *a, opa_value *b);
 opa_value *opa_value_shallow_copy(opa_value *node);
+opa_value *opa_value_transitive_closure(opa_value *node);
 
 opa_value *opa_null();
 opa_value *opa_boolean(int v);

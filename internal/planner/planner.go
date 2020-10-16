@@ -699,6 +699,7 @@ func (p *Planner) planExprCall(e *ast.Expr, iter planiter) error {
 		})
 	default:
 
+		var relation bool
 		var name string
 		var arity int
 		var args []ir.Local
@@ -717,6 +718,7 @@ func (p *Planner) planExprCall(e *ast.Expr, iter planiter) error {
 				p.vars.GetOrEmpty(ast.DefaultRootDocument.Value.(ast.Var)),
 			}
 		} else if decl, ok := p.decls[operator]; ok {
+			relation = decl.Relation
 			arity = len(decl.Decl.Args())
 			name = operator
 			p.externs[operator] = struct{}{}
@@ -726,47 +728,108 @@ func (p *Planner) planExprCall(e *ast.Expr, iter planiter) error {
 
 		operands := e.Operands()
 
-		if len(operands) == arity {
-			// rule: f(x) = x { ... }
-			// call: f(x) # result not captured
-			return p.planCallArgs(operands, 0, args, func(args []ir.Local) error {
-				p.ltarget = p.newLocal()
-				p.appendStmt(&ir.CallStmt{
-					Func:   name,
-					Args:   args,
-					Result: p.ltarget,
-				})
-
-				falsy := p.newLocal()
-
-				p.appendStmt(&ir.MakeBooleanStmt{
-					Value:  false,
-					Target: falsy,
-				})
-
-				p.appendStmt(&ir.NotEqualStmt{
-					A: p.ltarget,
-					B: falsy,
-				})
-
-				return iter()
-			})
-		} else if len(operands) == arity+1 {
-			// rule: f(x) = x { ... }
-			// call: f(x, 1)  # caller captures result
-			return p.planCallArgs(operands[:len(operands)-1], 0, args, func(args []ir.Local) error {
-				result := p.newLocal()
-				p.appendStmt(&ir.CallStmt{
-					Func:   name,
-					Args:   args,
-					Result: result,
-				})
-				return p.planUnifyLocal(result, operands[len(operands)-1], iter)
-			})
+		if len(operands) < arity || len(operands) > arity+1 {
+			return fmt.Errorf("illegal call: wrong number of operands: got %v, want %v)", len(operands), arity)
 		}
 
-		return fmt.Errorf("illegal call: wrong number of operands: got %v, want %v)", len(operands), arity)
+		if relation {
+			return p.planExprCallRelation(name, arity, operands, args, iter)
+		}
+
+		return p.planExprCallFunc(name, arity, operands, args, iter)
 	}
+}
+
+func (p *Planner) planExprCallRelation(name string, arity int, operands []*ast.Term, args []ir.Local, iter planiter) error {
+
+	if len(operands) == arity {
+		return p.planCallArgs(operands, 0, args, func(args []ir.Local) error {
+			p.ltarget = p.newLocal()
+			p.appendStmt(&ir.CallStmt{
+				Func:   name,
+				Args:   args,
+				Result: p.ltarget,
+			})
+
+			lsize := p.newLocal()
+
+			p.appendStmt(&ir.LenStmt{
+				Source: p.ltarget,
+				Target: lsize,
+			})
+
+			lzero := p.newLocal()
+
+			p.appendStmt(&ir.MakeNumberIntStmt{
+				Value:  0,
+				Target: lzero,
+			})
+
+			p.appendStmt(&ir.NotEqualStmt{
+				A: lsize,
+				B: lzero,
+			})
+
+			return iter()
+		})
+	}
+
+	return p.planCallArgs(operands[:len(operands)-1], 0, args, func(args []ir.Local) error {
+
+		p.ltarget = p.newLocal()
+
+		p.appendStmt(&ir.CallStmt{
+			Func:   name,
+			Args:   args,
+			Result: p.ltarget,
+		})
+
+		return p.planScanValues(operands[len(operands)-1], func(ir.Local) error {
+			return iter()
+		})
+	})
+}
+
+func (p *Planner) planExprCallFunc(name string, arity int, operands []*ast.Term, args []ir.Local, iter planiter) error {
+
+	if len(operands) == arity {
+		// definition: f(x) = x { ... }
+		// call: f(x) # result not captured
+		return p.planCallArgs(operands, 0, args, func(args []ir.Local) error {
+			p.ltarget = p.newLocal()
+			p.appendStmt(&ir.CallStmt{
+				Func:   name,
+				Args:   args,
+				Result: p.ltarget,
+			})
+
+			falsy := p.newLocal()
+
+			p.appendStmt(&ir.MakeBooleanStmt{
+				Value:  false,
+				Target: falsy,
+			})
+
+			p.appendStmt(&ir.NotEqualStmt{
+				A: p.ltarget,
+				B: falsy,
+			})
+
+			return iter()
+		})
+	}
+
+	// definition: f(x) = x { ... }
+	// call: f(x, 1)  # caller captures result
+	return p.planCallArgs(operands[:len(operands)-1], 0, args, func(args []ir.Local) error {
+		result := p.newLocal()
+		p.appendStmt(&ir.CallStmt{
+			Func:   name,
+			Args:   args,
+			Result: result,
+		})
+		return p.planUnifyLocal(result, operands[len(operands)-1], iter)
+	})
 }
 
 func (p *Planner) planCallArgs(terms []*ast.Term, idx int, args []ir.Local, iter func([]ir.Local) error) error {
@@ -1691,6 +1754,31 @@ func (p *Planner) planScan(key *ast.Term, iter scaniter) error {
 
 	return nil
 
+}
+
+func (p *Planner) planScanValues(val *ast.Term, iter scaniter) error {
+
+	scan := &ir.ScanStmt{
+		Source: p.ltarget,
+		Key:    p.newLocal(),
+		Value:  p.newLocal(),
+		Block:  &ir.Block{},
+	}
+
+	prev := p.curr
+	p.curr = scan.Block
+
+	if err := p.planUnifyLocal(scan.Value, val, func() error {
+		p.ltarget = scan.Value
+		return iter(scan.Value)
+	}); err != nil {
+		return err
+	}
+
+	p.curr = prev
+	p.appendStmt(scan)
+
+	return nil
 }
 
 // planSaveLocals returns a slice of locals holding temporary variables that

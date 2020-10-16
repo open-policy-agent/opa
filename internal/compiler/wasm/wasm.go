@@ -114,6 +114,7 @@ var builtinsFunctions = map[string]string{
 	ast.TrimSpace.Name:       "opa_strings_trim_space",
 	ast.NumbersRange.Name:    "opa_numbers_range",
 	ast.ToNumber.Name:        "opa_to_number",
+	ast.WalkBuiltin.Name:     "opa_value_transitive_closure",
 }
 
 var builtinDispatchers = [...]string{
