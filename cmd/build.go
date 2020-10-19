@@ -241,7 +241,11 @@ func dobuild(params buildParams, args []string) error {
 	buf := bytes.NewBuffer(nil)
 
 	// generate the bundle verification and signing config
-	bvc := buildVerificationConfig(params.pubKey, params.pubKeyID, params.algorithm, params.scope, params.excludeVerifyFiles)
+	bvc, err := buildVerificationConfig(params.pubKey, params.pubKeyID, params.algorithm, params.scope, params.excludeVerifyFiles)
+	if err != nil {
+		return err
+	}
+
 	bsc := buildSigningConfig(params.key, params.algorithm, params.claimsFile)
 
 	if bvc != nil || bsc != nil {
@@ -275,7 +279,7 @@ func dobuild(params buildParams, args []string) error {
 		compiler = compiler.WithBundleVerificationKeyID(params.pubKeyID)
 	}
 
-	err := compiler.Build(context.Background())
+	err = compiler.Build(context.Background())
 
 	if params.debug {
 		printdebug(os.Stderr, compiler.Debug())
@@ -309,13 +313,16 @@ func buildCommandLoaderFilter(bundleMode bool, ignore []string) func(string, os.
 	}
 }
 
-func buildVerificationConfig(pubKey, pubKeyID, alg, scope string, excludeFiles []string) *bundle.VerificationConfig {
+func buildVerificationConfig(pubKey, pubKeyID, alg, scope string, excludeFiles []string) (*bundle.VerificationConfig, error) {
 	if pubKey == "" {
-		return nil
+		return nil, nil
 	}
 
-	keyConfig := bundle.NewKeyConfig(pubKey, alg, scope)
-	return bundle.NewVerificationConfig(map[string]*bundle.KeyConfig{pubKeyID: keyConfig}, pubKeyID, scope, excludeFiles)
+	keyConfig, err := bundle.NewKeyConfig(pubKey, alg, scope)
+	if err != nil {
+		return nil, err
+	}
+	return bundle.NewVerificationConfig(map[string]*bundle.KeyConfig{pubKeyID: keyConfig}, pubKeyID, scope, excludeFiles), nil
 }
 
 func buildSigningConfig(key, alg, claimsFile string) *bundle.SigningConfig {

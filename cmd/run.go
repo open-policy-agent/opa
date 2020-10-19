@@ -250,7 +250,11 @@ func initRuntime(ctx context.Context, params runCmdParams, args []string) (*runt
 
 	params.rt.SkipBundleVerification = params.skipBundleVerify
 
-	params.rt.BundleVerificationConfig = buildVerificationConfig(params.pubKey, params.pubKeyID, params.algorithm, params.scope, params.excludeVerifyFiles)
+	bvc, err := buildVerificationConfig(params.pubKey, params.pubKeyID, params.algorithm, params.scope, params.excludeVerifyFiles)
+	if err != nil {
+		return nil, err
+	}
+	params.rt.BundleVerificationConfig = bvc
 
 	if params.rt.BundleVerificationConfig != nil && !params.rt.BundleMode {
 		return nil, fmt.Errorf("enable bundle mode (ie. --bundle) to verify bundle files or directories")
