@@ -93,3 +93,14 @@ cases:
   query: data.generated.p = x
   want_result:
   - x: cde
+- modules:
+  - |
+    package generated
+
+    p = x {
+      substring("åäö", 0, 2, x)
+    }
+  note: 'strings/substring: unicode'
+  query: data.generated.p = x
+  want_result:
+  - x: åä

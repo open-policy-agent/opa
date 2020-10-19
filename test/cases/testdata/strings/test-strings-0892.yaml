@@ -93,3 +93,14 @@ cases:
   query: data.generated.p = x
   want_error: negative offset
   want_error_code: eval_builtin_error
+- modules:
+  - |
+    package generated
+
+    p = x {
+      substring("åäö", -1, -1, x)
+    }
+  note: 'strings/substring: offset negative unicode'
+  query: data.generated.p = x
+  want_error: negative offset
+  want_error_code: eval_builtin_error
