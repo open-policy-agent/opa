@@ -1202,7 +1202,12 @@ func (t *testServer) start() {
 	t.server = httptest.NewServer(http.HandlerFunc(t.handle))
 }
 
+// stop the testServer. This should only be done at the end of a test!
 func (t *testServer) stop() {
+	// Drain any pending events to ensure the server can stop
+	for len(t.ch) > 0 {
+		<-t.ch
+	}
 	t.server.Close()
 }
 
