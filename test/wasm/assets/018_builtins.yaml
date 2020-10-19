@@ -137,6 +137,9 @@ cases:
   - note: net.cidr_intersects
     query: net.cidr_intersects("192.168.1.0/25", "192.168.1.64/25", x)
     want_result: [{'x': true}]
+  - note: glob.match built-in
+    query: glob.match("*:github:com", [":"], "api:github:com",x)
+    want_result: [{'x': true}]
   - note: json.marshal built-in
     query: json.marshal("string",x)
     want_result: [{'x': '"string"'}]
@@ -311,3 +314,12 @@ cases:
         "y": 4,
       }
     ]
+  - note: regex.is_valid built-in
+    query: 'regex.is_valid(".*", x)'
+    want_result: [{'x': true}]
+  - note: regex.is_valid built-in
+    query: 'regex.match("foo.*bar", "fooxbar", x)'
+    want_result: [{'x': true}]
+  - note: regex.find_all_string_submatch_n built-in
+    query: 'regex.find_all_string_submatch_n("a(x*)b(y|z)c", "-axxxbyc-", -1, x)'
+    want_result: [{'x': [["axxxbyc", "xxx", "y"]]}]

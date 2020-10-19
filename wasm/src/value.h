@@ -5,6 +5,10 @@
 
 #include "std.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define OPA_NULL (1)
 #define OPA_BOOLEAN (2)
 #define OPA_NUMBER (3)
@@ -164,5 +168,9 @@ opa_object_elem_t *opa_object_get(opa_object_t *obj, opa_value *key);
 void opa_set_free(opa_set_t *set);
 void opa_set_add(opa_set_t *set, opa_value *v);
 opa_set_elem_t *opa_set_get(opa_set_t *set, opa_value *v);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
