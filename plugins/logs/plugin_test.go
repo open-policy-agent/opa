@@ -549,9 +549,14 @@ func TestPluginTerminatesImmediatelyAfterGracefulShutdownPeriod(t *testing.T) {
 
 	timeBefore := time.Now()
 	fixture.plugin.Stop(timeoutCtx)
-	if time.Since(timeBefore).Milliseconds() > 100 {
+	after := time.Now()
+
+	close(fixture.server.ch)
+
+	if after.Sub(timeBefore).Milliseconds() > 100 {
 		t.Fatal("Expected forceful shutdown to be instantaneous.")
 	}
+
 }
 
 func TestPluginReconfigure(t *testing.T) {
