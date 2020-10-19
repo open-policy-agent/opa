@@ -3,6 +3,7 @@ package cmd
 import (
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -114,6 +115,25 @@ func TestBuildErrorVerifyNonBundle(t *testing.T) {
 		exp := "enable bundle mode (ie. --bundle) to verify or sign bundle files or directories"
 		if err.Error() != exp {
 			t.Fatalf("expected error message %v but got %v", exp, err.Error())
+		}
+	})
+}
+
+func TestBuildVerificationConfigError(t *testing.T) {
+	files := map[string]string{
+		"public.pem": "foo",
+	}
+
+	test.WithTempFS(files, func(rootDir string) {
+		// simulate error while reading file
+		err := os.Chmod(filepath.Join(rootDir, "public.pem"), 0111)
+		if err != nil {
+			t.Fatalf("Unexpected error %v", err)
+		}
+
+		_, err = buildVerificationConfig(filepath.Join(rootDir, "public.pem"), "default", "", "", nil)
+		if err == nil {
+			t.Fatal("Expected error but got nil")
 		}
 	})
 }

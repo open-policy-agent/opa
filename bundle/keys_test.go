@@ -7,6 +7,7 @@ package bundle
 import (
 	"crypto/rsa"
 	"fmt"
+	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
@@ -286,6 +287,67 @@ EXrJfkELSzO66/ZSjyyWEczXHLyr+Q719BsaGsxie117zSNF6B6UXiitjCr/qQ==
 	})
 }
 
+func TestNewKeyConfig(t *testing.T) {
+	publicKey := `-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA9KaakMv1XKKDaSch3PFR
+3a27oaHp1GNTTNqvb1ZaHZXp+wuhYDwc/MTE67x9GCifvQBWzEGorgTq7aisiOyl
+vKifwz6/wQ+62WHKG/sqKn2Xikp3P63aBIPlZcHbkyyRmL62yeyuzYoGvLEYel+m
+z5SiKGBwviSY0Th2L4e5sGJuk2HOut6emxDi+E2Fuuj5zokFJvIT6Urlq8f3h6+l
+GeR6HUOXqoYVf7ff126GP7dticTVBgibxkkuJFmpvQSW6xmxruT4k6iwjzbZHY7P
+ypZ/TdlnuGC1cOpAVyU7k32IJ9CRbt3nwEf5U54LRXLLQjFixWZHwKdDiMTF4ws0
++wIDAQAB
+-----END PUBLIC KEY-----`
+
+	files := map[string]string{
+		"public.pem": publicKey,
+	}
+
+	test.WithTempFS(files, func(rootDir string) {
+
+		kc, err := NewKeyConfig(filepath.Join(rootDir, "public.pem"), "RS256", "read")
+		if err != nil {
+			t.Fatalf("Unexpected error %v", err)
+		}
+
+		expected := &KeyConfig{
+			Key:       publicKey,
+			Algorithm: "RS256",
+			Scope:     "read",
+		}
+
+		if !reflect.DeepEqual(kc, expected) {
+			t.Fatalf("Expected key config %v but got %v", expected, kc)
+		}
+
+		// secret provided on command-line
+		kc, err = NewKeyConfig(publicKey, "HS256", "")
+		if err != nil {
+			t.Fatalf("Unexpected error %v", err)
+		}
+
+		expected = &KeyConfig{
+			Key:       publicKey,
+			Algorithm: "HS256",
+			Scope:     "",
+		}
+
+		if !reflect.DeepEqual(kc, expected) {
+			t.Fatalf("Expected key config %v but got %v", expected, kc)
+		}
+
+		// simulate error while reading file
+		err = os.Chmod(filepath.Join(rootDir, "public.pem"), 0111)
+		if err != nil {
+			t.Fatalf("Unexpected error %v", err)
+		}
+
+		_, err = NewKeyConfig(filepath.Join(rootDir, "public.pem"), "RS256", "read")
+		if err == nil {
+			t.Fatal("Expected error but got nil")
+		}
+	})
+}
+
 func TestGetClaimsErrors(t *testing.T) {
 	files := map[string]string{
 		"claims.json": `["foo", "read"]`,
@@ -320,13 +382,29 @@ func TestKeyConfigEqual(t *testing.T) {
 		exp bool
 	}{
 		"equal": {
-			NewKeyConfig("foo", "RS256", "read"),
-			NewKeyConfig("foo", "RS256", "read"),
+			&KeyConfig{
+				Key:       "foo",
+				Algorithm: "RS256",
+				Scope:     "read",
+			},
+			&KeyConfig{
+				Key:       "foo",
+				Algorithm: "RS256",
+				Scope:     "read",
+			},
 			true,
 		},
 		"not_equal": {
-			NewKeyConfig("foo", "RS256", "read"),
-			NewKeyConfig("foo", "RS256", "write"),
+			&KeyConfig{
+				Key:       "foo",
+				Algorithm: "RS256",
+				Scope:     "read",
+			},
+			&KeyConfig{
+				Key:       "foo",
+				Algorithm: "RS256",
+				Scope:     "write",
+			},
 			false,
 		},
 	}

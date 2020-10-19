@@ -79,12 +79,25 @@ type KeyConfig struct {
 }
 
 // NewKeyConfig return a new KeyConfig
-func NewKeyConfig(key, alg, scope string) *KeyConfig {
+func NewKeyConfig(key, alg, scope string) (*KeyConfig, error) {
+	var pubKey string
+	if _, err := os.Stat(key); err == nil {
+		bs, err := ioutil.ReadFile(key)
+		if err != nil {
+			return nil, err
+		}
+		pubKey = string(bs)
+	} else if os.IsNotExist(err) {
+		pubKey = key
+	} else {
+		return nil, err
+	}
+
 	return &KeyConfig{
-		Key:       key,
+		Key:       pubKey,
 		Algorithm: alg,
 		Scope:     scope,
-	}
+	}, nil
 }
 
 // ParseKeysConfig returns a map containing the public key and the signing algorithm
