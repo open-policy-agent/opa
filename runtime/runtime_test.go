@@ -67,12 +67,17 @@ func testRuntimeProcessWatchEvents(t *testing.T, asBundle bool) {
 
 	ctx := context.Background()
 	fs := map[string]string{
-		"/some/data.json": `{
+		"test/some/data.json": `{
 			"hello": "world"
 		}`,
 	}
 
 	test.WithTempFS(fs, func(rootDir string) {
+		// Prefix the directory intended to be watched with at least one
+		// directory to avoid permission issues on the local host. Otherwise we
+		// cannot always watch the tmp directory's parent.
+		rootDir = filepath.Join(rootDir, "test")
+
 		params := NewParams()
 		params.Paths = []string{rootDir}
 		params.BundleMode = asBundle
@@ -147,13 +152,18 @@ func testRuntimeProcessWatchEventPolicyError(t *testing.T, asBundle bool) {
 	ctx := context.Background()
 
 	fs := map[string]string{
-		"/x.rego": `package test
+		"test/x.rego": `package test
 
 		default x = 1
 		`,
 	}
 
 	test.WithTempFS(fs, func(rootDir string) {
+		// Prefix the directory intended to be watched with at least one
+		// directory to avoid permission issues on the local host. Otherwise we
+		// cannot always watch the tmp directory's parent.
+		rootDir = filepath.Join(rootDir, "test")
+
 		params := NewParams()
 		params.Paths = []string{rootDir}
 		params.BundleMode = asBundle
