@@ -7,52 +7,18 @@
 #include "cidr.h"
 #include "conversions.h"
 #include "encoding.h"
+#include "glob.h"
 #include "json.h"
 #include "malloc.h"
 #include "mpd.h"
 #include "numbers.h"
 #include "object.h"
+#include "regex.h"
 #include "set.h"
 #include "str.h"
 #include "strings.h"
+#include "test.h"
 #include "types.h"
-
-void opa_test_fail(const char *note, const char *func, const char *file, int line);
-void opa_test_pass(const char *note, const char *func);
-
-#define test_fatal(note)                                   \
-    {                                                      \
-        opa_test_fail(note, __func__, __FILE__, __LINE__); \
-        return;                                            \
-    }
-
-#define test(note, expr)                                   \
-    if (!(expr))                                           \
-    {                                                      \
-        opa_test_fail(note, __func__, __FILE__, __LINE__); \
-    }                                                      \
-    else                                                   \
-    {                                                      \
-        opa_test_pass(note, __func__);                     \
-    }
-
-#define FAIL_TEMPLATE_STR "%s: expected: '%s' actual: '%s'"
-#define FAIL_TEMPLATE_ERRC "%s: expected error: %d actual error: %d" 
-
-#define test_with_exp(note, expr, exp, actual, template)        \
-    if (expr)                                                   \
-    {                                                           \
-        opa_test_pass(note, __func__);                          \
-    }                                                           \
-    else                                                        \
-    {                                                           \
-        char msg[256];                                          \
-        snprintf(msg, 256, template, note, exp, actual);        \
-        opa_test_fail(msg, __func__, __FILE__, __LINE__);       \
-    }
-
-#define test_str_eq(note, exp, actual) test_with_exp(note, opa_strcmp(exp, actual) == 0, exp, actual, FAIL_TEMPLATE_STR)
-#define test_errc_eq(note, exp, actual) test_with_exp(note, exp == actual, exp, actual, FAIL_TEMPLATE_ERRC)
 
 void reset_heap()
 {
@@ -2171,4 +2137,183 @@ void test_opa_value_remove_path(void)
     rc = opa_value_remove_path(opa_object(), NULL);
     test_errc_eq("null_path_rc", OPA_ERR_INVALID_PATH, rc);
     test_str_eq("array_index_path", "{\"x\":[1,{\"y\":{\"z\":{}}}]}", opa_json_dump(data));
+}
+
+#define ARGS_N(...) ((int)(sizeof((int[]){ __VA_ARGS__ })/sizeof(int)))
+#define BUILD(N, ...) build(N, ARGS_N(__VA_ARGS__), __VA_ARGS__)
+
+typedef struct {
+    int length;
+    int *positions;
+} sequence;
+
+typedef struct {
+    int n;
+    sequence *sequences;
+} sequences;
+
+static sequences* build(int n, int args, ...)
+{
+    va_list valist;
+    va_start(valist, args);
+
+    sequences *s = malloc(sizeof(sequences));
+    s->n = n;
+    s->sequences = malloc(n * sizeof(sequence));
+
+    for (int i = 0; i < n; i++) {
+        int run_length = args / n;
+
+        int *positions = s->sequences[i].positions = malloc(sizeof(int) * run_length);
+        int j = 0;
+        for (; j < run_length; j++)
+        {
+            positions[j] = va_arg(valist, int);
+        }
+        s->sequences[i].length = j;
+    }
+
+    va_end(valist);
+    return s;
+}
+
+static void test_submatch_string(const char *s, sequence *seq, opa_value *result)
+{
+    for (int i = 0; i < seq->length; i += 2)
+    {
+        int start = seq->positions[i];
+        int end = seq->positions[i+1];
+
+        opa_string_t *match = opa_cast_string(opa_value_get(result, opa_number_int(i/2)));
+        test("regex/find_all_string_submatch", opa_strncmp(&s[start], match->v, end-start) == 0);
+    }
+}
+
+void test_regex(void)
+{
+    test("regex/is_valid", opa_value_compare(opa_regex_is_valid(opa_string_terminated(".*")), opa_boolean(1)) == 0);
+
+    typedef struct {
+        const char *pat;
+        const char *text;
+        sequences *sequences;
+    } testcase;
+
+    // golang find test cases from https://golang.org/src/regexp/find_test.go
+    testcase tests[] = {
+        {"", "", BUILD(1, 0, 0)},
+        {"^abcdefg", "abcdefg", BUILD(1, 0, 7)},
+        {"a+", "baaab", BUILD(1, 1, 4)},
+        {"abcd..", "abcdef", BUILD(1, 0, 6)},
+        {"a", "a", BUILD(1, 0, 1)},
+        {"x", "y", NULL},
+        {"b", "abc", BUILD(1, 1, 2)},
+        {".", "a", BUILD(1, 0, 1)},
+        {".*", "abcdef", BUILD(1, 0, 6)},
+        {"^a", "abcde", BUILD(1, 0, 1)},
+        {"^", "abcde", BUILD(1, 0, 0)},
+        {"$", "abcde", BUILD(1, 5, 5)},
+        {"^abcd$", "abcd", BUILD(1, 0, 4)},
+        {"^bcd'", "abcdef", NULL},
+        {"^abcd$", "abcde", NULL},
+        {"a+", "baaab", BUILD(1, 1, 4)},
+        {"a*", "baaab", BUILD(3, 0, 0, 1, 4, 5, 5)},
+        {"[a-z]+", "abcd", BUILD(1, 0, 4)},
+        {"[^a-z]+", "ab1234cd", BUILD(1, 2, 6)},
+        {"[a\\-\\]z]+", "az]-bcz", BUILD(2, 0, 4, 6, 7)},
+        {"[^\\n]+", "abcd\n", BUILD(1, 0, 4)},
+        {"[日本語]+", "日本語日本語", BUILD(1, 0, 18)},
+        {"日本語+", "日本語", BUILD(1, 0, 9)},
+        {"日本語+", "日本語語語語", BUILD(1, 0, 18)},
+        {"()", "", BUILD(1, 0, 0, 0, 0)},
+        {"(a)", "a", BUILD(1, 0, 1, 0, 1)},
+        {"(.)(.)", "日a", BUILD(1, 0, 4, 0, 3, 3, 4)},
+        {"(.*)", "", BUILD(1, 0, 0, 0, 0)},
+        {"(.*)", "abcd", BUILD(1, 0, 4, 0, 4)},
+        {"(..)(..)", "abcd", BUILD(1, 0, 4, 0, 2, 2, 4)},
+        {"(([^xyz]*)(d))", "abcd", BUILD(1, 0, 4, 0, 4, 0, 3, 3, 4)},
+        {"((a|b|c)*(d))", "abcd", BUILD(1, 0, 4, 0, 4, 2, 3, 3, 4)},
+        {"(((a|b|c)*)(d))", "abcd", BUILD(1, 0, 4, 0, 4, 0, 3, 2, 3, 3, 4)},
+        {"\\a\\f\\n\\r\\t\\v", "\a\f\n\r\t\v", BUILD(1, 0, 6)},
+        {"[\\a\\f\\n\\r\\t\\v]+", "\a\f\n\r\t\v", BUILD(1, 0, 6)},
+
+        {"a*(|(b))c*", "aacc", BUILD(1, 0, 4, 2, 2, -1, -1)},
+        {"(.*).*", "ab", BUILD(1, 0, 2, 0, 2)},
+        {"[.]", ".", BUILD(1, 0, 1)},
+        {"/$", "/abc/", BUILD(1, 4, 5)},
+        {"/$", "/abc", NULL},
+
+        // multiple matches
+        {".", "abc", BUILD(3, 0, 1, 1, 2, 2, 3)},
+        {"(.)", "abc", BUILD(3, 0, 1, 0, 1, 1, 2, 1, 2, 2, 3, 2, 3)},
+        {".(.)", "abcd", BUILD(2, 0, 2, 1, 2, 2, 4, 3, 4)},
+        {"ab*", "abbaab", BUILD(3, 0, 3, 3, 4, 4, 6)},
+        {"a(b*)", "abbaab", BUILD(3, 0, 3, 1, 3, 3, 4, 4, 4, 4, 6, 5, 6)},
+
+        // fixed bugs
+        {"ab$", "cab", BUILD(1, 1, 3)},
+        {"axxb$", "axxcb", NULL},
+        {"data", "daXY data", BUILD(1, 5, 9)},
+        {"da(.)a$", "daXY data", BUILD(1, 5, 9, 7, 8)},
+        {"zx+", "zzx", BUILD(1, 1, 3)},
+        {"ab$", "abcab", BUILD(1, 3, 5)},
+        {"(aa)*$", "a", BUILD(1, 1, 1, -1, -1)},
+        {"(?:.|(?:.a))", "", NULL},
+        {"(?:A(?:A|a))", "Aa", BUILD(1, 0, 2)},
+        {"(?:A|(?:A|a))", "a", BUILD(1, 0, 1)},
+        {"(a){0}", "", BUILD(1, 0, 0, -1, -1)},
+        {"(?-s)(?:(?:^).)", "\n", NULL},
+        {"(?s)(?:(?:^).)", "\n", BUILD(1, 0, 1)},
+        {"(?:(?:^).)", "\n", NULL},
+        {"\\b", "x", BUILD(2, 0, 0, 1, 1)},
+        {"\\b", "xx", BUILD(2, 0, 0, 2, 2)},
+        {"\\b", "x y", BUILD(4, 0, 0, 1, 1, 2, 2, 3, 3)},
+        {"\\b", "xx yy", BUILD(4, 0, 0, 2, 2, 3, 3, 5, 5)},
+        {"\\B", "x", NULL},
+        {"\\B", "xx", BUILD(1, 1, 1)},
+        {"\\B", "x y", NULL},
+        {"\\B", "xx yy", BUILD(2, 1, 1, 4, 4)},
+
+        // RE2 tests
+        {"[^\\S\\s]", "abcd", NULL},
+        {"[^\\S[:space:]]", "abcd", NULL},
+        {"[^\\D\\d]", "abcd", NULL},
+        {"[^\\D[:digit:]]", "abcd", NULL},
+        {"(?i)\\W", "x", NULL},
+        {"(?i)\\W", "k", NULL},
+        {"(?i)\\W", "s", NULL},
+
+        // long set of matches (longer than startSize)
+        {
+		".",
+		"qwertyuiopasdfghjklzxcvbnm1234567890",
+		BUILD(36, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10,
+              10, 11, 11, 12, 12, 13, 13, 14, 14, 15, 15, 16, 16, 17, 17, 18, 18, 19, 19, 20,
+              20, 21, 21, 22, 22, 23, 23, 24, 24, 25, 25, 26, 26, 27, 27, 28, 28, 29, 29, 30,
+              30, 31, 31, 32, 32, 33, 33, 34, 34, 35, 35, 36),
+        },
+    };
+
+    for (int i = 0; i < sizeof(tests) / sizeof(testcase); i++)
+    {
+        test("regex/match", opa_value_compare(opa_regex_match(opa_string_terminated(tests[i].pat), opa_string_terminated(tests[i].text)), opa_boolean(tests[i].sequences != NULL)) == 0);
+    }
+
+    for (int i = 0; i < sizeof(tests) / sizeof(testcase); i++)
+    {
+        opa_value *result = opa_regex_find_all_string_submatch(opa_string_terminated(tests[i].pat), opa_string_terminated(tests[i].text), opa_number_int(-1));
+        opa_array_t *arr = opa_cast_array(result);
+
+        if (tests[i].sequences == NULL)
+        {
+            test("regex/find_all_string_submatch (len)", arr->len == 0);
+            continue;
+        }
+
+        test("regex/find_all_string_submatch (len)", arr->len == tests[i].sequences->n);
+        for (int j = 0; j < tests[i].sequences->n; j++)
+        {
+            test_submatch_string(tests[i].text, &tests[i].sequences->sequences[j], opa_value_get(result, opa_number_int(j)));
+        }
+    }
 }
