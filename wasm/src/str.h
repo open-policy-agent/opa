@@ -8,7 +8,6 @@ extern "C" {
 #endif
 
 size_t opa_strlen(const char *s);
-double opa_strntod(const char *s, int len);
 int opa_strncmp(const char *a, const char *b, int num);
 int opa_strcmp(const char *a, const char *b);
 int opa_isdigit(char b);
