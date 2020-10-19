@@ -93,3 +93,14 @@ cases:
   query: data.generated.p = x
   want_result:
   - x: ""
+- modules:
+  - |
+    package generated
+
+    p = x {
+      substring("åäö", 3, -1, x)
+    }
+  note: 'strings/substring: offset too long unicode'
+  query: data.generated.p = x
+  want_result:
+  - x: ""
