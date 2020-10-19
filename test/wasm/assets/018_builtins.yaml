@@ -302,3 +302,12 @@ cases:
         "y": 4,
       }
     ]
+  - note: regex.is_valid built-in
+    query: 'regex.is_valid(".*", x)'
+    want_result: [{'x': true}]
+  - note: regex.is_valid built-in
+    query: 'regex.match("foo.*bar", "fooxbar", x)'
+    want_result: [{'x': true}]
+  - note: regex.find_all_string_submatch_n built-in
+    query: 'regex.find_all_string_submatch_n("a(x*)b(y|z)c", "-axxxbyc-", -1, x)'
+    want_result: [{'x': [["axxxbyc", "xxx", "y"]]}]
