@@ -10,6 +10,7 @@
 #include "malloc.h"
 #include "mpd.h"
 #include "numbers.h"
+#include "object.h"
 #include "set.h"
 #include "str.h"
 #include "strings.h"
@@ -1580,6 +1581,33 @@ void test_json(void)
 {
     test("json/marshal", opa_value_compare(opa_json_marshal(opa_string_terminated("string")), opa_string_terminated("\"string\"")) == 0);
     test("json/unmarshal", opa_value_compare(opa_json_unmarshal(opa_string_terminated("\"string\"")), opa_string_terminated("string")) == 0);
+}
+
+void test_object(void)
+{
+    opa_object_t *obj = opa_cast_object(opa_object());
+    opa_object_insert(obj, opa_string_terminated("a"), opa_number_int(1));
+    opa_object_insert(obj, opa_string_terminated("b"), opa_number_int(2));
+    opa_object_insert(obj, opa_string_terminated("c"), opa_number_int(3));
+
+    opa_object_t *obj_keys = opa_cast_object(opa_object());
+    opa_object_insert(obj_keys, opa_string_terminated("a"), opa_number_int(0));
+    opa_object_insert(obj_keys, opa_string_terminated("c"), opa_number_int(0));
+
+    opa_object_t *expected = opa_cast_object(opa_object());
+    opa_object_insert(expected, opa_string_terminated("a"), opa_number_int(1));
+    opa_object_insert(expected, opa_string_terminated("c"), opa_number_int(3));
+    test("object/filter (object keys)", opa_value_compare(opa_object_filter(&obj->hdr, &obj_keys->hdr), &expected->hdr) == 0);
+
+    opa_set_t *set_keys = opa_cast_set(opa_set());
+    opa_set_add(set_keys, opa_string_terminated("a"));
+    opa_set_add(set_keys, opa_string_terminated("c"));
+    test("object/filter (set keys)", opa_value_compare(opa_object_filter(&obj->hdr, &set_keys->hdr), &expected->hdr) == 0);
+
+    opa_array_t *arr_keys = opa_cast_array(opa_array());
+    opa_array_append(arr_keys, opa_string_terminated("a"));
+    opa_array_append(arr_keys, opa_string_terminated("c"));
+    test("object/filter (array keys)", opa_value_compare(opa_object_filter(&obj->hdr, &arr_keys->hdr), &expected->hdr) == 0);
 }
 
 void test_strings(void)
