@@ -38,6 +38,7 @@
 #include <string.h>
 #include <limits.h>
 
+#include "json.h"
 #include "value.h"
 
 static const unsigned char base64_table[65] =
@@ -285,4 +286,25 @@ opa_value *opa_base64_url_encode(opa_value *a)
     size_t len;
     char *enc = (char *)base64_url_encode((const unsigned char*)s->v, s->len, &len, 1);
     return enc == NULL ? NULL : opa_string_allocated(enc, len);
+}
+
+opa_value *opa_json_unmarshal(opa_value *a)
+{
+    if (opa_value_type(a) != OPA_STRING)
+    {
+        return NULL;
+    }
+
+    opa_string_t *s = opa_cast_string(a);
+    return opa_json_parse(s->v, s->len);
+}
+opa_value *opa_json_marshal(opa_value *a)
+{
+    const char *v = opa_json_dump(a);
+    if (v == NULL)
+    {
+        return NULL;
+    }
+
+    return opa_string_allocated(v, strlen(v));
 }

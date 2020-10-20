@@ -1576,6 +1576,12 @@ void test_base64(void)
     test("base64/url_decode", opa_value_compare(opa_base64_url_decode(opa_string_terminated("YWJjMTIzIT8kKiYoKSctPUB-")), opa_string_terminated("abc123!?$*&()'-=@~")) == 0);
 }
 
+void test_json(void)
+{
+    test("json/marshal", opa_value_compare(opa_json_marshal(opa_string_terminated("string")), opa_string_terminated("\"string\"")) == 0);
+    test("json/unmarshal", opa_value_compare(opa_json_unmarshal(opa_string_terminated("\"string\"")), opa_string_terminated("string")) == 0);
+}
+
 void test_strings(void)
 {
     opa_value *join = opa_string_terminated("--");
