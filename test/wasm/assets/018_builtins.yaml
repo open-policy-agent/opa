@@ -128,6 +128,9 @@ cases:
   - note: json.unmarshal built-in
     query: json.unmarshal("\"string\"",x)
     want_result: [{'x': "string"}]
+  - note: object.filter built-in
+    query: 'object.filter({"x": 0, "y": 1}, ["x"], x)'
+    want_result: [{'x': {'x': 0}}]
   - note: concat built-in
     query: concat(",",["a","b"],x)
     want_result: [{'x': "a,b"}]
