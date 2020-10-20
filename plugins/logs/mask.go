@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/open-policy-agent/opa/internal/deepcopy"
 	"github.com/open-policy-agent/opa/util"
 )
 
@@ -32,6 +33,12 @@ type maskRule struct {
 	escapedParts      []string
 	modifyFullObj     bool
 	failUndefinedPath bool
+}
+
+type maskRuleSet struct {
+	OnRuleError  func(*maskRule, error)
+	Rules        []*maskRule
+	resultCopied bool
 }
 
 func (r maskRule) String() string {
@@ -254,20 +261,20 @@ func (r maskRule) mkdirp(node map[string]interface{}, path []string, value inter
 	return nil
 }
 
-func resultValueToMaskRules(rv interface{}) ([]*maskRule, error) {
-
+func newMaskRuleSet(rv interface{}, onRuleError func(*maskRule, error)) (*maskRuleSet, error) {
 	bs, err := json.Marshal(rv)
 	if err != nil {
 		return nil, err
 	}
-
+	var mRuleSet = &maskRuleSet{
+		OnRuleError: onRuleError,
+	}
 	var rawRules []interface{}
 
 	if err := util.Unmarshal(bs, &rawRules); err != nil {
 		return nil, err
 	}
 
-	mRules := []*maskRule{}
 	for _, iface := range rawRules {
 
 		switch v := iface.(type) {
@@ -280,7 +287,7 @@ func resultValueToMaskRules(rv interface{}) ([]*maskRule, error) {
 				return nil, err
 			}
 
-			mRules = append(mRules, rule)
+			mRuleSet.Rules = append(mRuleSet.Rules, rule)
 
 		case map[string]interface{}:
 
@@ -307,12 +314,29 @@ func resultValueToMaskRules(rv interface{}) ([]*maskRule, error) {
 				return nil, err
 			}
 
-			mRules = append(mRules, rule)
+			mRuleSet.Rules = append(mRuleSet.Rules, rule)
 
 		default:
 			return nil, fmt.Errorf("invalid mask rule format encountered: %T", v)
 		}
 	}
 
-	return mRules, nil
+	return mRuleSet, nil
+}
+
+func (rs maskRuleSet) Mask(event *EventV1) {
+	for _, mRule := range rs.Rules {
+		// result must be deep copied if there are any mask rules
+		// targeting it, to avoid modifying the result sent
+		// to the consumer
+		if mRule.escapedParts[0] == "result" && event.Result != nil && !rs.resultCopied {
+			resultCopy := deepcopy.DeepCopy(*event.Result)
+			event.Result = &resultCopy
+			rs.resultCopied = true
+		}
+		err := mRule.Mask(event)
+		if err != nil {
+			rs.OnRuleError(mRule, err)
+		}
+	}
 }

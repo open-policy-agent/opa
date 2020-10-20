@@ -706,17 +706,17 @@ func (p *Plugin) maskEvent(ctx context.Context, txn storage.Transaction, event *
 		return nil
 	}
 
-	mRules, err := resultValueToMaskRules(rs[0].Expressions[0].Value)
+	mRuleSet, err := newMaskRuleSet(
+		rs[0].Expressions[0].Value,
+		func(mRule *maskRule, err error) {
+			p.logError("mask rule skipped: %s: %s", mRule.String(), err.Error())
+		},
+	)
 	if err != nil {
 		return err
 	}
 
-	for _, mRule := range mRules {
-		err := mRule.Mask(event)
-		if err != nil {
-			p.logError("mask rule skipped: %s: %s", mRule.String(), err.Error())
-		}
-	}
+	mRuleSet.Mask(event)
 
 	return nil
 }
