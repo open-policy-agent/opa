@@ -122,6 +122,12 @@ cases:
   - note: base64url.encode built-in
     query: base64url.encode("Hello",x)
     want_result: [{'x': "SGVsbG8="}]
+  - note: json.marshal built-in
+    query: json.marshal("string",x)
+    want_result: [{'x': '"string"'}]
+  - note: json.unmarshal built-in
+    query: json.unmarshal("\"string\"",x)
+    want_result: [{'x': "string"}]
   - note: concat built-in
     query: concat(",",["a","b"],x)
     want_result: [{'x': "a,b"}]

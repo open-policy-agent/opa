@@ -99,6 +99,8 @@ var builtinsFunctions = map[string]string{
 	ast.Base64Encode.Name:    "opa_base64_encode",
 	ast.Base64UrlEncode.Name: "opa_base64_url_encode",
 	ast.Base64UrlDecode.Name: "opa_base64_url_decode",
+	ast.JSONMarshal.Name:     "opa_json_marshal",
+	ast.JSONUnmarshal.Name:   "opa_json_unmarshal",
 	ast.Concat.Name:          "opa_strings_concat",
 	ast.FormatInt.Name:       "opa_strings_format_int",
 	ast.IndexOf.Name:         "opa_strings_indexof",
