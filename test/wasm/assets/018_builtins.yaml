@@ -107,6 +107,21 @@ cases:
   - note: any built-in
     query: any([false,true],x)
     want_result: [{'x': true}]
+  - note: base64.is_valid built-in
+    query: base64.is_valid("SGVsbG8=",x)
+    want_result: [{'x': true}]
+  - note: base64.decode built-in
+    query: base64.decode("SGVsbG8=",x)
+    want_result: [{'x': "Hello"}]
+  - note: base64.encode built-in
+    query: base64.encode("Hello",x)
+    want_result: [{'x': "SGVsbG8="}]
+  - note: base64url.decode built-in
+    query: base64url.decode("SGVsbG8=",x)
+    want_result: [{'x': "Hello"}]
+  - note: base64url.encode built-in
+    query: base64url.encode("Hello",x)
+    want_result: [{'x': "SGVsbG8="}]
   - note: concat built-in
     query: concat(",",["a","b"],x)
     want_result: [{'x': "a,b"}]
