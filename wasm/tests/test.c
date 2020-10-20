@@ -5,6 +5,7 @@
 #include "array.h"
 #include "bits-builtins.h"
 #include "conversions.h"
+#include "encoding.h"
 #include "json.h"
 #include "malloc.h"
 #include "mpd.h"
@@ -1558,6 +1559,21 @@ void test_aggregates(void)
     test("any/set trues", opa_value_compare(opa_agg_any(&set_trues->hdr), opa_boolean(TRUE)) == 0);
     test("any/set mixed", opa_value_compare(opa_agg_any(&set_mixed->hdr), opa_boolean(TRUE)) == 0);
     test("any/set falses", opa_value_compare(opa_agg_any(&set_falses->hdr), opa_boolean(FALSE)) == 0);
+}
+
+void test_base64(void)
+{
+    test("base64/is_valid", opa_value_compare(opa_base64_is_valid(opa_string_terminated("YWJjMTIzIT8kKiYoKSctPUB+")), opa_boolean(TRUE)) == 0);
+    test("base64/encode", opa_value_compare(opa_base64_encode(opa_string_terminated("abc123!?$*&()'-=@~")), opa_string_terminated("YWJjMTIzIT8kKiYoKSctPUB+")) == 0);
+    test("base64/encode", opa_value_compare(opa_base64_encode(opa_string_terminated("This is a long string that should not be split to many lines")),
+                                            opa_string_terminated("VGhpcyBpcyBhIGxvbmcgc3RyaW5nIHRoYXQgc2hvdWxkIG5vdCBiZSBzcGxpdCB0byBtYW55IGxpbmVz")) == 0);
+    test("base64/decode", opa_value_compare(opa_base64_decode(opa_string_terminated("YWJjMTIzIT8kKiYoKSctPUB+")), opa_string_terminated("abc123!?$*&()'-=@~")) == 0);
+    test("base64/decode", opa_value_compare(opa_base64_decode(opa_string_terminated("VGhpcyBpcyBhIGxvbmcgc3RyaW5nIHRoYXQgc2hvdWxkIG5vdCBiZSBzcGxpdCB0byBtYW55IGxpbmVz")),
+                                            opa_string_terminated("This is a long string that should not be split to many lines")) == 0);
+    test("base64/decode", opa_value_compare(opa_base64_decode(opa_string_terminated("VGhpcyBpcyBhIGxvbmcgc3RyaW5nIHRoYXQgY2FuIGJlIHBhcnNlZCBldmVuIGlmIHNwbGl0IHRv\nIG1hbnkgbGluZXM=")),
+                                            opa_string_terminated("This is a long string that can be parsed even if split to many lines")) == 0);
+    test("base64/url_encode", opa_value_compare(opa_base64_url_encode(opa_string_terminated("abc123!?$*&()'-=@~")), opa_string_terminated("YWJjMTIzIT8kKiYoKSctPUB-")) == 0);
+    test("base64/url_decode", opa_value_compare(opa_base64_url_decode(opa_string_terminated("YWJjMTIzIT8kKiYoKSctPUB-")), opa_string_terminated("abc123!?$*&()'-=@~")) == 0);
 }
 
 void test_strings(void)
