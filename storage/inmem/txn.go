@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"strconv"
 
+	"github.com/open-policy-agent/opa/internal/deepcopy"
 	"github.com/open-policy-agent/opa/storage"
 )
 
@@ -204,7 +205,7 @@ func (txn *transaction) Read(path storage.Path) (interface{}, error) {
 		return data, nil
 	}
 
-	cpy := deepCopy(data)
+	cpy := deepcopy.DeepCopy(data)
 
 	for _, update := range merge {
 		cpy = update.Relative(path).Apply(cpy)
@@ -386,25 +387,6 @@ func (u *update) Relative(path storage.Path) *update {
 	cpy := *u
 	cpy.path = cpy.path[len(path):]
 	return &cpy
-}
-
-func deepCopy(val interface{}) interface{} {
-	switch val := val.(type) {
-	case []interface{}:
-		cpy := make([]interface{}, len(val))
-		for i := range cpy {
-			cpy[i] = deepCopy(val[i])
-		}
-		return cpy
-	case map[string]interface{}:
-		cpy := make(map[string]interface{}, len(val))
-		for k := range val {
-			cpy[k] = deepCopy(val[k])
-		}
-		return cpy
-	default:
-		return val
-	}
 }
 
 func ptr(data interface{}, path storage.Path) (interface{}, error) {

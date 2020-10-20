@@ -586,21 +586,23 @@ func TestMaskRuleMask(t *testing.T) {
 	}
 }
 
-func TestResultValueToMaskRules(t *testing.T) {
-
+func TestNewMaskRuleSet(t *testing.T) {
 	tests := []struct {
-		note  string
-		value interface{}
-		exp   []maskRule
-		err   error
+		onRuleError func(*maskRule, error)
+		note        string
+		value       interface{}
+		exp         *maskRuleSet
+		err         error
 	}{
 		{
-			note:  "invalid format: not []interface{}",
-			value: map[string]int{"invalid": 1},
-			err:   fmt.Errorf("json: cannot unmarshal object into Go value of type []interface {}"),
+			onRuleError: func(mRule *maskRule, err error) {},
+			note:        "invalid format: not []interface{}",
+			value:       map[string]int{"invalid": 1},
+			err:         fmt.Errorf("json: cannot unmarshal object into Go value of type []interface {}"),
 		},
 		{
-			note: "invalid format: nested type not string or map[string]interface{}",
+			onRuleError: func(mRule *maskRule, err error) {},
+			note:        "invalid format: nested type not string or map[string]interface{}",
 			value: []interface{}{
 				[]int{1, 2},
 			},
@@ -611,11 +613,136 @@ func TestResultValueToMaskRules(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
 
-			_, err := resultValueToMaskRules(tc.value)
+			_, err := newMaskRuleSet(tc.value, func(mRule *maskRule, err error) {})
 
 			if err != nil {
 				if tc.err.Error() != err.Error() {
 					t.Fatalf("Expected: %s\nGot: %s", tc.err.Error(), err.Error())
+				}
+			}
+		})
+	}
+}
+
+func TestMaskRuleSetMask(t *testing.T) {
+
+	tests := []struct {
+		note   string
+		rules  []*maskRule
+		event  string
+		exp    string
+		expErr error
+	}{
+		{
+			note: "erase input",
+			rules: []*maskRule{
+				&maskRule{
+					OP:   maskOPRemove,
+					Path: "/input",
+				},
+			},
+			event: `{"input": {"a": 1}}`,
+			exp:   `{"erased": ["/input"]}`,
+		},
+		{
+			note: "erase result",
+			rules: []*maskRule{
+				&maskRule{
+					OP:   maskOPRemove,
+					Path: "/result",
+				},
+			},
+			event: `{"result": {"a": 1}}`,
+			exp:   `{"erased": ["/result"]}`,
+		},
+		{
+			note: "erase input and result nested",
+			rules: []*maskRule{
+				&maskRule{
+					OP:   maskOPRemove,
+					Path: "/input/a/b",
+				},
+				&maskRule{
+					OP:   maskOPRemove,
+					Path: "/result/c/d",
+				},
+			},
+			event: `{"input":{"a":{"b":"removeme","y":"stillhere"}},"result":{"c":{"d":"removeme","z":"stillhere"}}}`,
+			exp:   `{"input":{"a":{"y":"stillhere"}},"result":{"c":{"z":"stillhere"}},"erased":["/input/a/b", "/result/c/d"]}`,
+		},
+		{
+			note: "expected rule error",
+			rules: []*maskRule{
+				&maskRule{
+					OP:                maskOPRemove,
+					Path:              "/result",
+					failUndefinedPath: true,
+				},
+			},
+			event:  `{"input":"foo"}`,
+			exp:    `{"input":"foo"}`,
+			expErr: errMaskInvalidObject,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			ptr := &maskRuleSet{}
+			var ruleErr error
+			if tc.expErr != nil {
+				ptr.OnRuleError = func(mRule *maskRule, err error) {
+					ruleErr = err
+				}
+			} else {
+				ptr.OnRuleError = func(mRule *maskRule, err error) {
+					t.Fatalf(fmt.Sprintf("unexpected rule error, rule: %s, error: %s", mRule.String(), err.Error()))
+				}
+			}
+			for _, rule := range tc.rules {
+				var mRule *maskRule
+				var err error
+				if rule.failUndefinedPath {
+					mRule, err = newMaskRule(rule.Path, withOP(rule.OP), withValue(rule.Value), withFailUndefinedPath())
+				} else {
+					mRule, err = newMaskRule(rule.Path, withOP(rule.OP), withValue(rule.Value))
+				}
+				if err != nil {
+					panic(err)
+				}
+				ptr.Rules = append(ptr.Rules, mRule)
+			}
+
+			var exp EventV1
+			if err := util.UnmarshalJSON([]byte(tc.exp), &exp); err != nil {
+				panic(err)
+			}
+
+			var event EventV1
+			var origEvent EventV1
+			if err := util.UnmarshalJSON([]byte(tc.event), &event); err != nil {
+				panic(err)
+			}
+			origEvent = event
+
+			ptr.Mask(&event)
+
+			// compare via json marshall to map tc input types
+			bs1, _ := json.MarshalIndent(exp, "", "  ")
+			bs2, _ := json.MarshalIndent(event, "", "  ")
+			if !bytes.Equal(bs1, bs2) {
+				t.Fatalf("Expected: %s\nGot: %s", string(bs1), string(bs2))
+			}
+
+			if origEvent.Result != nil && reflect.DeepEqual(origEvent.Result, event.Result) {
+				t.Fatal("Expected event.Result to be deep copied during masking, so that the event's original Result is not modified")
+			}
+
+			if tc.expErr != nil {
+				if ruleErr == nil {
+					t.Fatalf("Expected: %s\nGot:%s", tc.expErr.Error(), "nil")
+				}
+				if tc.expErr != ruleErr {
+					t.Fatalf("Expected: %s\nGot:%s", tc.expErr.Error(), ruleErr.Error())
 				}
 			}
 		})
