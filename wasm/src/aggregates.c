@@ -1,12 +1,25 @@
 #include "aggregates.h"
 #include "mpd.h"
+#include "unicode.h"
 
 opa_value *opa_agg_count(opa_value *v)
 {
     switch (opa_value_type(v))
     {
-    case OPA_STRING:
-        return opa_number_int(opa_cast_string(v)->len);
+    case OPA_STRING: {
+        opa_string_t *s = opa_cast_string(v);
+        int units = 0;
+
+        for (int i = 0, len = 0; i < s->len; units++, i += len)
+        {
+            if (opa_unicode_decode_utf8(s->v, i, s->len, &len) == -1)
+            {
+                opa_abort("string: invalid unicode");
+            }
+        }
+
+        return opa_number_int(units);
+    }
     case OPA_ARRAY:
         return opa_number_int(opa_cast_array(v)->len);
     case OPA_OBJECT:

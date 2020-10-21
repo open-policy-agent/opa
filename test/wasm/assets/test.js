@@ -98,13 +98,12 @@ function dumpJSON(mod, memory, addr) {
     const buf = new Uint8Array(memory.buffer);
 
     // NOTE(tsandall): There must be a better way of doing this...
-    let s = '';
     let idx = rawAddr;
     while (buf[idx] != 0) {
-        s += String.fromCharCode(buf[idx++]);
+        idx++;
     }
 
-    return JSON.parse(s);
+    return JSON.parse(decodeURIComponent(escape(String.fromCharCode.apply(null, buf.slice(rawAddr, idx)))));
 }
 
 function builtinCustomTest(a) {

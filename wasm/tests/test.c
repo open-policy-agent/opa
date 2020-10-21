@@ -1504,6 +1504,7 @@ void test_aggregates(void)
     opa_set_add(set, opa_number_int(4));
 
     test("count/string", opa_value_compare(opa_agg_count(opa_string("foo", 3)), opa_number_int(3)) == 0);
+    test("count/unicode string", opa_value_compare(opa_agg_count(opa_string("\xC3\xA5\xC3\xA4\xC3\xB6", 6)), opa_number_int(3)) == 0);
     test("count/array", opa_value_compare(opa_agg_count(&arr->hdr), opa_number_int(3)) == 0);
     test("count/object", opa_value_compare(opa_agg_count(&obj->hdr), opa_number_int(3)) == 0);
     test("count/set", opa_value_compare(opa_agg_count(&set->hdr), opa_number_int(3)) == 0);
@@ -1698,6 +1699,7 @@ void test_strings(void)
     test("indexof/abaa", opa_value_compare(opa_strings_indexof(opa_string_terminated("ab"), opa_string_terminated("aa")), opa_number_int(-1)) == 0);
     test("indexof/abcbc", opa_value_compare(opa_strings_indexof(opa_string_terminated("abc"), opa_string_terminated("bc")), opa_number_int(1)) == 0);
     test("indexof/abcbd", opa_value_compare(opa_strings_indexof(opa_string_terminated("abc"), opa_string_terminated("bd")), opa_number_int(-1)) == 0);
+    test("indexof/unicode", opa_value_compare(opa_strings_indexof(opa_string_terminated("\xC3\xA5\xC3\xA4\xC3\xB6"), opa_string_terminated("\xC3\xB6")), opa_number_int(2)) == 0);
 
     test("replace/___", opa_value_compare(opa_strings_replace(opa_string_terminated(""), opa_string_terminated(""), opa_string_terminated("")), opa_string_terminated("")) == 0);
     test("replace/_ab", opa_value_compare(opa_strings_replace(opa_string_terminated(""), opa_string_terminated("a"), opa_string_terminated("b")), opa_string_terminated("")) == 0);
@@ -1769,6 +1771,10 @@ void test_strings(void)
     test("substring/abc10", opa_value_compare(opa_strings_substring(opa_string_terminated("abc"), opa_number_int(1), opa_number_int(0)), opa_string_terminated("")) == 0);
     test("substring/abc11", opa_value_compare(opa_strings_substring(opa_string_terminated("abc"), opa_number_int(1), opa_number_int(1)), opa_string_terminated("b")) == 0);
     test("substring/abc12", opa_value_compare(opa_strings_substring(opa_string_terminated("abc"), opa_number_int(1), opa_number_int(2)), opa_string_terminated("bc")) == 0);
+    test("substring/abc41", opa_value_compare(opa_strings_substring(opa_string_terminated("abc"), opa_number_int(4), opa_number_int(1)), opa_string_terminated("")) == 0);
+    test("substring/unicode", opa_value_compare(opa_strings_substring(opa_string_terminated("\xC3\xA5\xC3\xA4\xC3\xB6\x7A"), opa_number_int(1), opa_number_int(1)), opa_string_terminated("\xC3\xA4")) == 0);
+    test("substring/unicode", opa_value_compare(opa_strings_substring(opa_string_terminated("\xC3\xA5\xC3\xA4\xC3\xB6\x7A"), opa_number_int(1), opa_number_int(2)), opa_string_terminated("\xC3\xA4\xC3\xB6")) == 0);
+    test("substring/unicode", opa_value_compare(opa_strings_substring(opa_string_terminated("\xC3\xA5\xC3\xA4\xC3\xB6\x7A"), opa_number_int(2), opa_number_int(-1)), opa_string_terminated("\xC3\xB6\x7A")) == 0);
 
     test("trim/__", opa_value_compare(opa_strings_trim(opa_string_terminated(""), opa_string_terminated("")), opa_string_terminated("")) == 0);
     test("trim/abcba", opa_value_compare(opa_strings_trim(opa_string_terminated("abc"), opa_string_terminated("ba")), opa_string_terminated("c")) == 0);
