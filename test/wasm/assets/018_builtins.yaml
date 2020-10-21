@@ -86,6 +86,12 @@ cases:
   - note: count built-in
     query: count([1,2,3],x)
     want_result: [{'x': 3}]
+  - note: count built-in string
+    query: count("abc", x)
+    want_result: [{'x': 3}]
+  - note: count built-in string unicode
+    query: count("åäö", x)
+    want_result: [{'x': 3}]
   - note: sum built-in
     query: sum([1,2,3],x)
     want_result: [{'x': 6}]
@@ -134,11 +140,20 @@ cases:
   - note: concat built-in
     query: concat(",",["a","b"],x)
     want_result: [{'x': "a,b"}]
+  - note: concat built-in unicode
+    query: concat("ä",["å","ö"],x)
+    want_result: [{'x': "åäö"}]
   - note: contains built-in
     query: contains("abc","b",x)
     want_result: [{'x': true}]
+  - note: contains built-in unicode
+    query: contains("åäö","ä",x)
+    want_result: [{'x': true}]
   - note: endswith built-in
     query: endswith("abc","c",x)
+    want_result: [{'x': true}]
+  - note: endswith built-in unicode
+    query: endswith("åäö","ö",x)
     want_result: [{'x': true}]
   - note: format_int built-in
     query: format_int(10,16,x)
@@ -146,45 +161,87 @@ cases:
   - note: indexof built-in
     query: indexof("abc","b",x)
     want_result: [{'x': 1}]
+  - note: indexof built-in unicode
+    query: indexof("åäö","ä",x)
+    want_result: [{'x': 1}]
   - note: lower built-in
     query: lower("A",x)
     want_result: [{'x': "a"}]
+  - note: lower built-in unicode
+    query: lower("Å",x)
+    want_result: [{'x': "å"}]
   - note: replace built-in
     query: replace("abc","b","d",x)
     want_result: [{'x': "adc"}]
+  - note: replace built-in unicode
+    query: replace("åäö","å","ö",x)
+    want_result: [{'x': "öäö"}]
   - note: replace_n built-in
     query: strings.replace_n({"b":"d"},"abc",x)
     want_result: [{'x': "adc"}]
+  - note: replace_n built-in unicode
+    query: strings.replace_n({"b":"ö"},"abc",x)
+    want_result: [{'x': "aöc"}]
   - note: split built-in
     query: split("a,b",",",x)
+    want_result: [{'x': ["a","b"]}]
+  - note: split built-in unicode
+    query: split("aöb","ö",x)
     want_result: [{'x': ["a","b"]}]
   - note: startswith built-in
     query: startswith("abc","a",x)
     want_result: [{'x': true}]
+  - note: startswith built-in unicode
+    query: startswith("åäö","å",x)
+    want_result: [{'x': true}]
   - note: substring built-in
     query: substring("abcd",1,2,x)
     want_result: [{'x': "bc"}]
+  - note: substring built-in unicode
+    query: substring("åäö",1,2,x)
+    want_result: [ { 'x': "äö" } ]
   - note: trim built-in
     query: trim("abc","ac",x)
     want_result: [{'x': "b"}]
+  - note: trim built-in unicode
+    query: trim("åäö","åö",x)
+    want_result: [{'x': "ä"}]
   - note: trim_left built-in
     query: trim_left("abc","ba",x)
     want_result: [{'x': "c"}]
+  - note: trim_left built-in unicode
+    query: trim_left("åäö","äå",x)
+    want_result: [{'x': "ö"}]
   - note: trim_prefix built-in
     query: trim_prefix("abc","ab",x)
     want_result: [{'x': "c"}]
+  - note: trim_prefix built-in unicode
+    query: trim_prefix("åäö","åä",x)
+    want_result: [{'x': "ö"}]
   - note: trim_right built-in
     query: trim_right("abc","cb",x)
     want_result: [{'x': "a"}]
+  - note: trim_right built-in unicode
+    query: trim_right("åäö","öä",x)
+    want_result: [{'x': "å"}]
   - note: trim_suffix built-in
     query: trim_suffix("abc","bc",x)
     want_result: [{'x': "a"}]
+  - note: trim_suffix built-in unicode
+    query: trim_suffix("åäö","äö",x)
+    want_result: [{'x': "å"}]
   - note: trim_space built-in
     query: trim_space(" abc ",x)
     want_result: [{'x': "abc"}]
+  - note: trim_space built-in unicode
+    query: trim_space(" åäö ",x)
+    want_result: [{'x': "åäö"}]
   - note: upper built-in
     query: upper("a",x)
     want_result: [{'x': "A"}]
+  - note: upper built-in unicode
+    query: upper("å",x)
+    want_result: [{'x': "Å"}]
   - note: numbers.range built-in
     query: numbers.range(10, 12, x)
     want_result: [{'x': [10, 11, 12]}]
