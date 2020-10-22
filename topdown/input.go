@@ -18,13 +18,22 @@ func mergeTermWithValues(exist *ast.Term, pairs [][2]*ast.Term) (*ast.Term, erro
 	var result *ast.Term
 	var init bool
 
-	for _, pair := range pairs {
+	for i, pair := range pairs {
 
 		if err := ast.IsValidImportPath(pair[0].Value); err != nil {
 			return nil, errBadPath
 		}
 
 		target := pair[0].Value.(ast.Ref)
+
+		// Copy the value if subsequent pairs in the slice would modify it.
+		for j := i + 1; j < len(pairs); j++ {
+			other := pairs[j][0].Value.(ast.Ref)
+			if len(other) > len(target) && other.HasPrefix(target) {
+				pair[1] = pair[1].Copy()
+				break
+			}
+		}
 
 		if len(target) == 1 {
 			result = pair[1]
