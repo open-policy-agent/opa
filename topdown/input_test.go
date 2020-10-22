@@ -118,3 +118,29 @@ func TestMergeTermWithValues(t *testing.T) {
 		})
 	}
 }
+
+func TestMergeTermWithValuesInputsShouldBeImmutable(t *testing.T) {
+
+	initial := ast.MustParseTerm(`{"foo": 1}`)
+	expInitial := initial.Copy()
+	two := ast.MustParseTerm(`2`)
+
+	result, err := mergeTermWithValues(nil, [][2]*ast.Term{
+		{ast.MustParseTerm("input"), initial},
+		{ast.MustParseTerm("input.foo"), two},
+	})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	exp := ast.MustParseTerm(`{"foo": 2}`)
+
+	if !result.Equal(exp) {
+		t.Fatalf("expected %v but got %v", exp, result)
+	}
+
+	if !initial.Equal(expInitial) {
+		t.Fatalf("expected input value to be unchanged but got %v (expected: %v)", initial, expInitial)
+	}
+}
