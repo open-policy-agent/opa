@@ -450,8 +450,10 @@ The following table shows examples of how ``glob.match`` works:
 | <span class="opa-keep-it-together">``output := urlquery.decode_object(string)``</span> | ``output`` is ``object`` deserialized from a URL query parameter string |
 | <span class="opa-keep-it-together">``output := json.marshal(x)``</span> | ``output`` is ``x`` serialized to a JSON string |
 | <span class="opa-keep-it-together">``output := json.unmarshal(string)``</span> | ``output`` is ``string`` deserialized to a term from a JSON encoded string |
+| <span class="opa-keep-it-together">``output := json.is_valid(string)``</span> | ``output`` is a ``boolean`` that indicated whether ``string`` is a valid JSON document |
 | <span class="opa-keep-it-together">``output := yaml.marshal(x)``</span> | ``output`` is ``x`` serialized to a YAML string |
 | <span class="opa-keep-it-together">``output := yaml.unmarshal(string)``</span> | ``output`` is ``string`` deserialized to a term from YAML encoded string |
+| <span class="opa-keep-it-together">``output := yaml.is_valid(string)``</span> | ``output`` is a ``boolean`` that indicated whether ``string`` is a valid YAML document that can be decoded by `yaml.unmarshal` |
 
 ### Token Signing
 

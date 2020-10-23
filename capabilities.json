@@ -1421,6 +1421,20 @@
       }
     },
     {
+      "name": "json.is_valid",
+      "decl": {
+        "args": [
+          {
+            "type": "string"
+          }
+        ],
+        "result": {
+          "type": "boolean"
+        },
+        "type": "function"
+      }
+    },
+    {
       "name": "json.marshal",
       "decl": {
         "args": [
@@ -3210,6 +3224,20 @@
         "type": "function"
       },
       "relation": true
+    },
+    {
+      "name": "yaml.is_valid",
+      "decl": {
+        "args": [
+          {
+            "type": "string"
+          }
+        ],
+        "result": {
+          "type": "boolean"
+        },
+        "type": "function"
+      }
     },
     {
       "name": "yaml.marshal",
