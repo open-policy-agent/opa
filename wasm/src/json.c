@@ -226,6 +226,34 @@ err:
     return OPA_JSON_TOKEN_ERROR;
 }
 
+int opa_json_lex_read_empty_set(opa_json_lex *ctx)
+{
+    if (!ctx->set_literals_enabled)
+    {
+        return OPA_JSON_TOKEN_ERROR;
+    }
+
+    int token = opa_json_lex_read_atom(ctx, "set(", 4, OPA_JSON_TOKEN_EMPTY_SET);
+
+    if (token != OPA_JSON_TOKEN_EMPTY_SET)
+    {
+        return OPA_JSON_TOKEN_ERROR;
+    }
+
+    while (opa_isspace(*ctx->curr))
+    {
+        ctx->curr++;
+    }
+
+    if (*ctx->curr != ')')
+    {
+        return OPA_JSON_TOKEN_ERROR;
+    }
+
+    ctx->curr++;
+    return token;
+}
+
 int opa_json_lex_read(opa_json_lex *ctx)
 {
     while (!opa_json_lex_eof(ctx))
@@ -239,6 +267,8 @@ int opa_json_lex_read(opa_json_lex *ctx)
             return opa_json_lex_read_atom(ctx, "true", 4, OPA_JSON_TOKEN_TRUE);
         case 'f':
             return opa_json_lex_read_atom(ctx, "false", 5, OPA_JSON_TOKEN_FALSE);
+        case 's':
+            return opa_json_lex_read_empty_set(ctx);
         case '"':
             return opa_json_lex_read_string(ctx);
         case '{':
@@ -283,6 +313,7 @@ void opa_json_lex_init(const char *input, size_t len, opa_json_lex *ctx)
     ctx->curr = input;
     ctx->buf = NULL;
     ctx->buf_end = NULL;
+    ctx->set_literals_enabled = 0;
 }
 
 size_t opa_json_max_string_len(const char *buf, size_t len)
@@ -486,29 +517,79 @@ opa_value *opa_json_parse_array(opa_json_lex *ctx)
     }
 }
 
-opa_value *opa_json_parse_object(opa_json_lex *ctx)
+opa_value *opa_json_parse_set(opa_json_lex *ctx, opa_value *elem, int token)
 {
-    opa_value *ret = opa_object();
-    opa_object_t *obj = opa_cast_object(ret);
-    int sep = 0;
+    if (!ctx->set_literals_enabled)
+    {
+        return NULL;
+    }
+
+    opa_set_t *set = opa_cast_set(opa_set());
+    opa_set_add(set, elem);
+
+    if (token == OPA_JSON_TOKEN_OBJECT_END)
+    {
+        return &set->hdr;
+    }
+
+    token = opa_json_lex_read(ctx);
 
     while (1)
     {
-        int token = opa_json_lex_read(ctx);
+        elem = opa_json_parse_token(ctx, token);
+
+        if (elem == NULL)
+        {
+            return NULL;
+        }
+
+        opa_set_add(set, elem);
+        token = opa_json_lex_read(ctx);
 
         switch (token)
         {
-        case OPA_JSON_TOKEN_OBJECT_END:
-            return ret;
         case OPA_JSON_TOKEN_COMMA:
-            if (sep)
-            {
-                sep = 0;
-                continue;
-            }
+            token = opa_json_lex_read(ctx);
+            break;
+        case OPA_JSON_TOKEN_OBJECT_END:
+            return &set->hdr;
+        default:
+            return NULL;
         }
+    }
 
-        opa_value *key = opa_json_parse_token(ctx, token);
+    return NULL;
+}
+
+opa_value *opa_json_parse_object(opa_json_lex *ctx, opa_value *key)
+{
+    int token = opa_json_lex_read(ctx);
+    opa_value *val = opa_json_parse_token(ctx, token);
+
+    if (val == NULL)
+    {
+        return NULL;
+    }
+
+    opa_object_t *obj = opa_cast_object(opa_object());
+    opa_object_insert(obj, key, val);
+    token = opa_json_lex_read(ctx);
+
+    switch (token)
+    {
+    case OPA_JSON_TOKEN_OBJECT_END:
+        return &obj->hdr;
+    case OPA_JSON_TOKEN_COMMA:
+        break;
+    default:
+        return NULL;
+    }
+
+    token = opa_json_lex_read(ctx);
+
+    while (1)
+    {
+        key = opa_json_parse_token(ctx, token);
 
         if (key == NULL)
         {
@@ -523,16 +604,61 @@ opa_value *opa_json_parse_object(opa_json_lex *ctx)
         }
 
         token = opa_json_lex_read(ctx);
-        opa_value *value = opa_json_parse_token(ctx, token);
+        val = opa_json_parse_token(ctx, token);
 
-        if (value == NULL)
+        if (val == NULL)
         {
             return NULL;
         }
 
-        opa_object_insert(obj, key, value);
-        sep = 1;
+        opa_object_insert(obj, key, val);
+        token = opa_json_lex_read(ctx);
+
+        switch (token)
+        {
+        case OPA_JSON_TOKEN_OBJECT_END:
+            return &obj->hdr;
+        case OPA_JSON_TOKEN_COMMA:
+        {
+            token = opa_json_lex_read(ctx);
+            break;
+        }
+        default:
+            return NULL;
+        }
     }
+
+    return NULL;
+}
+
+opa_value *opa_json_parse_object_or_set(opa_json_lex *ctx)
+{
+    int token = opa_json_lex_read(ctx);
+
+    if (token == OPA_JSON_TOKEN_OBJECT_END)
+    {
+        return opa_object();
+    }
+
+    opa_value *head = opa_json_parse_token(ctx, token);
+
+    if (head == NULL)
+    {
+        return NULL;
+    }
+
+    token = opa_json_lex_read(ctx);
+
+    switch (token)
+    {
+    case OPA_JSON_TOKEN_OBJECT_END:
+    case OPA_JSON_TOKEN_COMMA:
+        return opa_json_parse_set(ctx, head, token);
+    case OPA_JSON_TOKEN_COLON:
+        return opa_json_parse_object(ctx, head);
+    }
+
+    return NULL;
 }
 
 opa_value *opa_json_parse_token(opa_json_lex *ctx, int token)
@@ -553,7 +679,9 @@ opa_value *opa_json_parse_token(opa_json_lex *ctx, int token)
     case OPA_JSON_TOKEN_ARRAY_START:
         return opa_json_parse_array(ctx);
     case OPA_JSON_TOKEN_OBJECT_START:
-        return opa_json_parse_object(ctx);
+        return opa_json_parse_object_or_set(ctx);
+    case OPA_JSON_TOKEN_EMPTY_SET:
+        return opa_set();
     default:
         return NULL;
     }
@@ -567,10 +695,20 @@ opa_value *opa_json_parse(const char *input, size_t len)
     return opa_json_parse_token(&ctx, token);
 }
 
+opa_value *opa_value_parse(const char *input, size_t len)
+{
+    opa_json_lex ctx;
+    opa_json_lex_init(input, len, &ctx);
+    ctx.set_literals_enabled = 1;
+    int token = opa_json_lex_read(&ctx);
+    return opa_json_parse_token(&ctx, token);
+}
+
 typedef struct {
     char *buf;
     char *next;
     size_t len;
+    int set_literals_enabled;
 } opa_json_writer;
 
 void opa_json_writer_init(opa_json_writer *w)
@@ -578,6 +716,7 @@ void opa_json_writer_init(opa_json_writer *w)
     w->buf = NULL;
     w->next = NULL;
     w->len = 0;
+    w->set_literals_enabled = 0;
 }
 
 size_t opa_json_writer_offset(opa_json_writer *w)
@@ -837,6 +976,17 @@ int opa_json_writer_emit_collection(opa_json_writer *w, opa_value *v, char open,
     return opa_json_writer_emit_char(w, close);
 }
 
+int opa_json_writer_emit_set_literal(opa_json_writer *w, opa_set_t *set)
+{
+    if (opa_value_length(&set->hdr) == 0)
+    {
+        const char empty_set[] = "set()";
+
+        return opa_json_writer_emit_chars(w, empty_set, sizeof(empty_set)-1);
+    }
+
+    return opa_json_writer_emit_collection(w, &set->hdr, '{', '}', opa_json_writer_emit_set_element);
+}
 
 int opa_json_writer_emit_value(opa_json_writer *w, opa_value *v)
 {
@@ -853,7 +1003,13 @@ int opa_json_writer_emit_value(opa_json_writer *w, opa_value *v)
     case OPA_ARRAY:
         return opa_json_writer_emit_collection(w, v, '[', ']', opa_json_writer_emit_array_element);
     case OPA_SET:
-        return opa_json_writer_emit_collection(w, v, '[', ']', opa_json_writer_emit_set_element);
+    {
+        if (!w->set_literals_enabled)
+        {
+            return opa_json_writer_emit_collection(w, v, '[', ']', opa_json_writer_emit_set_element);
+        }
+        return opa_json_writer_emit_set_literal(w, opa_cast_set(v));
+    }
     case OPA_OBJECT:
         return opa_json_writer_emit_collection(w, v, '{', '}', opa_json_writer_emit_object_element);
     }
@@ -861,30 +1017,41 @@ int opa_json_writer_emit_value(opa_json_writer *w, opa_value *v)
     return -2;
 }
 
+const char *opa_json_writer_write(opa_json_writer *w, opa_value *v)
+{
+    if (opa_json_writer_grow(w, 1024, 0) != 0)
+    {
+        goto errout;
+    }
+
+    if (opa_json_writer_emit_value(w, v) != 0)
+    {
+        goto errout;
+    }
+
+    if (opa_json_writer_emit_char(w, 0) != 0)
+    {
+        goto errout;
+    }
+
+    return w->buf;
+
+errout:
+    opa_free(w->buf);
+    return NULL;
+}
+
 const char *opa_json_dump(opa_value *v)
 {
     opa_json_writer w;
-
     opa_json_writer_init(&w);
+    return opa_json_writer_write(&w, v);
+}
 
-    if (opa_json_writer_grow(&w, 1024, 0) != 0)
-    {
-        goto errout;
-    }
-
-    if (opa_json_writer_emit_value(&w, v) != 0)
-    {
-        goto errout;
-    }
-
-    if (opa_json_writer_emit_char(&w, 0) != 0)
-    {
-        goto errout;
-    }
-
-    return w.buf;
-
-errout:
-    opa_free(w.buf);
-    return NULL;
+const char *opa_value_dump(opa_value *v)
+{
+    opa_json_writer w;
+    opa_json_writer_init(&w);
+    w.set_literals_enabled = 1;
+    return opa_json_writer_write(&w, v);
 }
