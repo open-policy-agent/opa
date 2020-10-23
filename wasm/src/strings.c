@@ -241,8 +241,23 @@ opa_value *opa_strings_indexof(opa_value *a, opa_value *b)
 
     opa_string_t *s = opa_cast_string(a);
     opa_string_t *substr = opa_cast_string(b);
+    int n = strings_indexof(s, 0, substr);
 
-    return opa_number_int(strings_indexof(s, 0, substr));
+    if (n < 0)
+    {
+        return opa_number_int(n);
+    }
+
+    int units = 0;
+    for (int i = 0, len = 0; i < n; units++, i += len)
+    {
+        if (opa_unicode_decode_utf8(s->v, i, s->len, &len) == -1)
+        {
+            opa_abort("string: invalid unicode");
+        }
+    }
+
+    return opa_number_int(units);
 }
 
 opa_value *opa_strings_replace(opa_value *a, opa_value *b, opa_value *c)
@@ -427,29 +442,52 @@ opa_value *opa_strings_substring(opa_value *a, opa_value *b, opa_value *c)
         return NULL;
     }
 
-    if (start >= base->len)
-    {
-        return opa_string_terminated("");
-    }
-
     if (start < 0)
     {
         return NULL;
     }
 
-    if (length < 0)
+    if (length == 0)
     {
-        length = base->len - start;
+        return opa_string_terminated("");
     }
 
-    if (base->len < (start + length))
+    size_t spos = base->len, epos = base->len;
+    for (int i = 0, units = 0, len = 0; i < base->len; units++, i += len)
     {
-        length = base->len - start;
+        if (units == start)
+        {
+            spos = i;
+        }
+
+        if (opa_unicode_decode_utf8(base->v, i, base->len, &len) == -1)
+        {
+            opa_abort("string: invalid unicode");
+        }
+
+        if (units < start)
+        {
+            // Start index not reached yet.
+            continue;
+        }
+
+        if (length < 0)
+        {
+            // Everything from start to end.
+            break;
+        }
+
+        if (length == (units - start))
+        {
+            epos = i;
+            break;
+        }
     }
 
-    char *str = opa_malloc(length + 1);
-    memcpy(str, &base->v[start], length + 1);
-    return opa_string_allocated(str, length);
+    char *str = opa_malloc(epos - spos + 1);
+    memcpy(str, &base->v[spos], epos - spos);
+    str[epos - spos] = 0;
+    return opa_string_allocated(str, epos - spos);
 }
 
 opa_value *opa_strings_trim(opa_value *a, opa_value *b)
