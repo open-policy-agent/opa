@@ -539,6 +539,16 @@ int parse_crunch(const char *s, opa_value *exp)
     return opa_value_compare(exp, ret) == 0;
 }
 
+int value_parse_crunch(const char *s, opa_value *exp)
+{
+    opa_value *ret = opa_value_parse(s, opa_strlen(s));
+    if (ret == NULL)
+    {
+        return 0;
+    }
+    return opa_value_compare(exp, ret) == 0;
+}
+
 void test_opa_json_parse_scalar()
 {
     test("null", parse_crunch("null", opa_null()));
@@ -784,6 +794,25 @@ void test_opa_json_parse_composites()
     test("empty object", parse_crunch("{}", empty_obj));
     test("object", parse_crunch("{\"a\": 1, \"b\": 2}", &fixture_object1()->hdr));
     test("object nested", parse_crunch("{\"a\": {\"c\": 1, \"d\": 2}, \"b\": {\"e\": 3, \"f\": 4}}", &fixture_object2()->hdr));
+}
+
+void test_opa_value_parse()
+{
+    opa_set_t *set = opa_cast_set(opa_set());
+    opa_set_add(set, opa_number_int(1));
+
+    test("set of one", value_parse_crunch("{1}", &set->hdr));
+    test("set of one - dupes", value_parse_crunch("{1,1}", &set->hdr));
+
+    opa_set_add(set, opa_number_int(2));
+    opa_set_add(set, opa_number_int(3));
+
+    test("set multiple", value_parse_crunch("{1,2,3}", &set->hdr));
+
+    opa_value *empty_set = opa_set();
+
+    test("empty", value_parse_crunch("set()", empty_set));
+    test("empty whitespace", value_parse_crunch("set(   )", empty_set));
 }
 
 void test_opa_json_parse_memory_ownership()
@@ -1164,6 +1193,19 @@ void test_opa_json_dump()
     opa_array_append(opa_cast_array(terminators), opa_null());
 
     test("bool/null terminators", opa_strcmp(opa_json_dump(terminators), "[true,false,null]") == 0);
+}
+
+void test_opa_value_dump()
+{
+    test("empty sets", opa_strcmp(opa_value_dump(opa_set()), "set()") == 0);
+
+    opa_set_t *set = opa_cast_set(opa_set());
+    opa_set_add(set, opa_number_int(1));
+
+    test("sets of one", opa_strcmp(opa_value_dump(&set->hdr), "{1}") == 0);
+
+    opa_set_add(set, opa_number_int(2));
+    test("sets", opa_strcmp(opa_value_dump(&set->hdr), "{1,2}") == 0);
 }
 
 void test_arithmetic(void)
