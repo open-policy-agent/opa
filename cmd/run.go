@@ -168,8 +168,6 @@ To skip bundle verification, use the --skip-verify flag.
 	runCommand.Flags().StringVarP(&cmdParams.rt.HistoryPath, "history", "H", historyPath(), "set path of history file")
 	cmdParams.rt.Addrs = runCommand.Flags().StringSliceP("addr", "a", []string{defaultAddr}, "set listening address of the server (e.g., [ip]:<port> for TCP, unix://<path> for UNIX domain socket)")
 	cmdParams.rt.DiagnosticAddrs = runCommand.Flags().StringSlice("diagnostic-addr", []string{}, "set read-only diagnostic listening address of the server for /health and /metric APIs (e.g., [ip]:<port> for TCP, unix://<path> for UNIX domain socket)")
-	runCommand.Flags().StringVarP(&cmdParams.rt.InsecureAddr, "insecure-addr", "", "", "set insecure listening address of the server")
-	runCommand.Flags().MarkDeprecated("insecure-addr", "use --addr instead")
 	runCommand.Flags().BoolVarP(&cmdParams.rt.H2CEnabled, "h2c", "", false, "enable H2C for HTTP listeners")
 	runCommand.Flags().StringVarP(&cmdParams.rt.OutputFormat, "format", "f", "pretty", "set shell output format, i.e, pretty, json")
 	runCommand.Flags().BoolVarP(&cmdParams.rt.Watch, "watch", "w", false, "watch command line files for changes")

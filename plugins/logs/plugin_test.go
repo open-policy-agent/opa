@@ -549,9 +549,14 @@ func TestPluginTerminatesImmediatelyAfterGracefulShutdownPeriod(t *testing.T) {
 
 	timeBefore := time.Now()
 	fixture.plugin.Stop(timeoutCtx)
-	if time.Since(timeBefore).Milliseconds() > 100 {
+	after := time.Now()
+
+	close(fixture.server.ch)
+
+	if after.Sub(timeBefore).Milliseconds() > 100 {
 		t.Fatal("Expected forceful shutdown to be instantaneous.")
 	}
+
 }
 
 func TestPluginReconfigure(t *testing.T) {
@@ -1202,7 +1207,12 @@ func (t *testServer) start() {
 	t.server = httptest.NewServer(http.HandlerFunc(t.handle))
 }
 
+// stop the testServer. This should only be done at the end of a test!
 func (t *testServer) stop() {
+	// Drain any pending events to ensure the server can stop
+	for len(t.ch) > 0 {
+		<-t.ch
+	}
 	t.server.Close()
 }
 

@@ -20,6 +20,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -33,10 +34,13 @@ import (
 func TestNew(t *testing.T) {
 
 	tests := []struct {
+		name    string
 		input   string
 		wantErr bool
+		env     map[string]string
 	}{
 		{
+			name: "BadScheme",
 			input: `{
 				"name": "foo",
 				"url": "bad scheme://authority",
@@ -44,12 +48,14 @@ func TestNew(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name: "ValidUrl",
 			input: `{
 				"name": "foo",
 				"url", "http://localhost/some/path",
 			}`,
 		},
 		{
+			name: "Token",
 			input: `{
 				"name": "foo",
 				"url": "http://localhost",
@@ -61,6 +67,7 @@ func TestNew(t *testing.T) {
 			}`,
 		},
 		{
+			name: "TokenWithScheme",
 			input: `{
 				"name": "foo",
 				"url": "http://localhost",
@@ -73,6 +80,7 @@ func TestNew(t *testing.T) {
 			}`,
 		},
 		{
+			name: "MissingTlsOptions",
 			input: `{
 				"name": "foo",
 				"url": "http://localhost",
@@ -83,6 +91,7 @@ func TestNew(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name: "IncompleteTlsOptions",
 			input: `{
 				"name": "foo",
 				"url": "http://localhost",
@@ -95,6 +104,7 @@ func TestNew(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name: "EmptyS3Options",
 			input: `{
 				"name": "foo",
 				"url": "http://localhost",
@@ -106,6 +116,7 @@ func TestNew(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name: "ValidS3EnvCreds",
 			input: `{
 				"name": "foo",
 				"url": "http://localhost",
@@ -117,6 +128,7 @@ func TestNew(t *testing.T) {
 			}`,
 		},
 		{
+			name: "ValidS3MetadataCredsWithRole",
 			input: `{
 				"name": "foo",
 				"url": "http://localhost",
@@ -131,6 +143,7 @@ func TestNew(t *testing.T) {
 			}`,
 		},
 		{
+			name: "ValidS3MetadataCreds",
 			input: `{
 				"name": "foo",
 				"url": "http://localhost",
@@ -144,6 +157,7 @@ func TestNew(t *testing.T) {
 			}`,
 		},
 		{
+			name: "MissingS3MetadataCredOptions",
 			input: `{
 				"name": "foo",
 				"url": "http://localhost",
@@ -156,6 +170,7 @@ func TestNew(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name: "TooManyS3CredOptions",
 			input: `{
 				"name": "foo",
 				"url": "http://localhost",
@@ -172,6 +187,7 @@ func TestNew(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name: "TooManyCredentialsOptions",
 			input: `{
 				"name": "foo",
 				"url": "http://localhost",
@@ -188,6 +204,7 @@ func TestNew(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name: "Oauth2NoTokenUrl",
 			input: `{
 				"name": "foo",
 				"url": "http://localhost",
@@ -195,11 +212,13 @@ func TestNew(t *testing.T) {
 					"oauth2": {
 						"token_url": ""
 					}
+
 				}
 			}`,
 			wantErr: true,
 		},
 		{
+			name: "Oauth2MissingScopes",
 			input: `{
 				"name": "foo",
 				"url": "http://localhost",
@@ -214,6 +233,7 @@ func TestNew(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name: "Oauth2MissingClientId",
 			input: `{
 				"name": "foo",
 				"url": "http://localhost",
@@ -227,6 +247,7 @@ func TestNew(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name: "Oauth2MissingSecret",
 			input: `{
 				"name": "foo",
 				"url": "http://localhost",
@@ -240,6 +261,7 @@ func TestNew(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name: "Oauth2Creds",
 			input: `{
 				"name": "foo",
 				"url": "http://localhost",
@@ -253,6 +275,7 @@ func TestNew(t *testing.T) {
 			}`,
 		},
 		{
+			name: "Oauth2GetCredScopes",
 			input: `{
 				"name": "foo",
 				"url": "http://localhost",
@@ -266,35 +289,76 @@ func TestNew(t *testing.T) {
 				}
 			}`,
 		},
+		{
+			name: "S3WebIdentityMissingEnvVars",
+			input: `{
+				"name": "foo",
+				"url": "http://localhost",
+				"credentials": {
+					"s3_signing": {
+						"web_identity_credentials": {}
+					},
+				}
+			}`,
+		},
+		{
+			name: "S3WebIdentityCreds",
+			input: `{
+				"name": "foo",
+				"url": "http://localhost",
+				"credentials": {
+					"s3_signing": {
+						"web_identity_credentials": {}
+					},
+				}
+			}`,
+			env: map[string]string{
+				awsRoleArnEnvVar:              "TEST",
+				awsWebIdentityTokenFileEnvVar: "TEST",
+			},
+		},
 	}
 
 	var results []Client
 
 	for _, tc := range tests {
-		client, err := New([]byte(tc.input))
-		if err != nil && !tc.wantErr {
-			t.Fatalf("Unexpected parse error: %v", err)
-		}
-		plugin, err := client.config.authPlugin()
-		if err != nil {
-			if tc.wantErr {
-				continue
+		t.Run(tc.name, func(t *testing.T) {
+			for key, val := range tc.env {
+				os.Setenv(key, val)
 			}
-			t.Fatalf("Unexpected error: %v", err)
-		}
 
-		_, err = plugin.NewClient(client.config)
-		if err != nil && !tc.wantErr {
-			t.Fatalf("Unexpected error: %v", err)
-		} else if err == nil && tc.wantErr {
-			t.Fatalf("Excpected error for input %v", tc.input)
-		}
+			defer func() {
+				for key := range tc.env {
+					os.Unsetenv(key)
+				}
+			}()
 
-		if *client.config.ResponseHeaderTimeoutSeconds != defaultResponseHeaderTimeoutSeconds {
-			t.Fatalf("Expected default response header timeout but got %v seconds", *client.config.ResponseHeaderTimeoutSeconds)
-		}
+			client, err := New([]byte(tc.input))
+			if err != nil && !tc.wantErr {
+				t.Fatalf("Unexpected error: %v", err)
+			}
 
-		results = append(results, client)
+			plugin, err := client.config.authPlugin()
+			if err != nil {
+				if tc.wantErr {
+					return
+				}
+				t.Fatalf("Unexpected error: %v", err)
+			}
+
+			_, err = plugin.NewClient(client.config)
+			if err != nil && !tc.wantErr {
+				t.Fatalf("Unexpected error: %v", err)
+			} else if err == nil && tc.wantErr {
+				t.Fatalf("Expected error for input %v", tc.input)
+			}
+
+			if *client.config.ResponseHeaderTimeoutSeconds != defaultResponseHeaderTimeoutSeconds {
+				t.Fatalf("Expected default response header timeout but got %v seconds", *client.config.ResponseHeaderTimeoutSeconds)
+			}
+
+			results = append(results, client)
+		})
 	}
 
 	if results[3].config.Credentials.Bearer.Scheme != "Acmecorp-Token" {

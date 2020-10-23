@@ -8,10 +8,12 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/json"
+	"encoding/xml"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
 	"sort"
 	"strings"
@@ -31,12 +33,18 @@ const (
 	ecsDefaultCredServicePath = "http://169.254.170.2"
 	ecsRelativePathEnvVar     = "AWS_CONTAINER_CREDENTIALS_RELATIVE_URI"
 
+	// ref. https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_enable-regions.html
+	stsDefaultPath = "https://sts.amazonaws.com"
+	stsRegionPath  = "https://sts.%s.amazonaws.com"
+
 	// ref. https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html
-	accessKeyEnvVar     = "AWS_ACCESS_KEY_ID"
-	secretKeyEnvVar     = "AWS_SECRET_ACCESS_KEY"
-	securityTokenEnvVar = "AWS_SECURITY_TOKEN"
-	sessionTokenEnvVar  = "AWS_SESSION_TOKEN"
-	awsRegionEnvVar     = "AWS_REGION"
+	accessKeyEnvVar               = "AWS_ACCESS_KEY_ID"
+	secretKeyEnvVar               = "AWS_SECRET_ACCESS_KEY"
+	securityTokenEnvVar           = "AWS_SECURITY_TOKEN"
+	sessionTokenEnvVar            = "AWS_SESSION_TOKEN"
+	awsRegionEnvVar               = "AWS_REGION"
+	awsRoleArnEnvVar              = "AWS_ROLE_ARN"
+	awsWebIdentityTokenFileEnvVar = "AWS_WEB_IDENTITY_TOKEN_FILE"
 )
 
 // awsCredentials represents the credentials obtained from an AWS credential provider
@@ -52,7 +60,7 @@ type awsCredentialService interface {
 	credentials() (awsCredentials, error)
 }
 
-// awsEnvironmentCredentialService represents an environment-variable credential provider for AWS
+// awsEnvironmentCredentialService represents an static environment-variable credential provider for AWS
 type awsEnvironmentCredentialService struct{}
 
 func (cs *awsEnvironmentCredentialService) credentials() (awsCredentials, error) {
@@ -202,6 +210,129 @@ func (cs *awsMetadataCredentialService) refreshFromService() error {
 }
 
 func (cs *awsMetadataCredentialService) credentials() (awsCredentials, error) {
+	err := cs.refreshFromService()
+	if err != nil {
+		return cs.creds, err
+	}
+	return cs.creds, nil
+}
+
+// awsWebIdentityCredentialService represents an STS WebIdentity credential services
+type awsWebIdentityCredentialService struct {
+	RoleArn              string
+	WebIdentityTokenFile string
+	RegionName           string `json:"aws_region"`
+	SessionName          string `json:"session_name"`
+	stsURL               string
+	creds                awsCredentials
+	expiration           time.Time
+}
+
+func (cs *awsWebIdentityCredentialService) populateFromEnv() error {
+	cs.RoleArn = os.Getenv(awsRoleArnEnvVar)
+	if cs.RoleArn == "" {
+		return errors.New("no " + awsRoleArnEnvVar + " set in environment")
+	}
+	cs.WebIdentityTokenFile = os.Getenv(awsWebIdentityTokenFileEnvVar)
+	if cs.WebIdentityTokenFile == "" {
+		return errors.New("no " + awsWebIdentityTokenFileEnvVar + " set in environment")
+	}
+
+	if cs.RegionName == "" {
+		if cs.RegionName = os.Getenv(awsRegionEnvVar); cs.RegionName == "" {
+			return errors.New("no " + awsRegionEnvVar + " set in environment or configuration")
+		}
+	}
+	return nil
+}
+
+func (cs *awsWebIdentityCredentialService) stsPath() string {
+	var stsPath string
+	switch {
+	case cs.stsURL != "":
+		stsPath = cs.stsURL
+	case cs.RegionName != "":
+		stsPath = fmt.Sprintf(stsRegionPath, strings.ToLower(cs.RegionName))
+	default:
+		stsPath = stsDefaultPath
+	}
+	return stsPath
+}
+
+func (cs *awsWebIdentityCredentialService) refreshFromService() error {
+	// define the expected JSON payload from the EC2 credential service
+	// ref. https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRoleWithWebIdentity.html
+	type responsePayload struct {
+		Result struct {
+			Credentials struct {
+				SessionToken    string
+				SecretAccessKey string
+				Expiration      time.Time
+				AccessKeyID     string `xml:"AccessKeyId"`
+			}
+		} `xml:"AssumeRoleWithWebIdentityResult"`
+	}
+
+	// short circuit if a reasonable amount of time until credential expiration remains
+	if time.Now().Add(time.Minute * 5).Before(cs.expiration) {
+		logrus.Debug("Credentials previously obtained from sts service still valid.")
+		return nil
+	}
+
+	logrus.Debugf("Obtaining credentials from sts for role %s.", cs.RoleArn)
+
+	var sessionName string
+	if cs.SessionName == "" {
+		sessionName = "open-policy-agent"
+	} else {
+		sessionName = cs.SessionName
+	}
+
+	tokenData, err := ioutil.ReadFile(cs.WebIdentityTokenFile)
+	if err != nil {
+		return errors.New("unable to read web token for sts HTTP request: " + err.Error())
+	}
+
+	token := string(tokenData)
+
+	queryVals := url.Values{
+		"Action":           []string{"AssumeRoleWithWebIdentity"},
+		"RoleSessionName":  []string{sessionName},
+		"RoleArn":          []string{cs.RoleArn},
+		"WebIdentityToken": []string{token},
+		"Version":          []string{"2011-06-15"},
+	}
+	stsRequestURL, _ := url.Parse(cs.stsPath())
+	stsRequestURL.RawQuery = queryVals.Encode()
+
+	// construct an HTTP client with a reasonably short timeout
+	client := &http.Client{Timeout: time.Second * 10}
+	req, err := http.NewRequest(http.MethodGet, stsRequestURL.String(), nil)
+	if err != nil {
+		return errors.New("unable to construct STS HTTP request: " + err.Error())
+	}
+
+	body, err := doMetaDataRequestWithClient(req, client, "STS")
+	if err != nil {
+		return err
+	}
+
+	var payload responsePayload
+	err = xml.Unmarshal(body, &payload)
+	if err != nil {
+		return errors.New("failed to parse credential response from STS service: " + err.Error())
+	}
+
+	cs.expiration = payload.Result.Credentials.Expiration
+	cs.creds.AccessKey = payload.Result.Credentials.AccessKeyID
+	cs.creds.SecretKey = payload.Result.Credentials.SecretAccessKey
+	cs.creds.SessionToken = payload.Result.Credentials.SessionToken
+	cs.creds.RegionName = cs.RegionName
+
+	return nil
+}
+
+func (cs *awsWebIdentityCredentialService) credentials() (awsCredentials, error) {
 	err := cs.refreshFromService()
 	if err != nil {
 		return cs.creds, err

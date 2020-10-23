@@ -20,7 +20,7 @@ func builtinCount(a ast.Value) (ast.Value, error) {
 	case ast.Set:
 		return ast.IntNumberTerm(a.Len()).Value, nil
 	case ast.String:
-		return ast.IntNumberTerm(len(a)).Value, nil
+		return ast.IntNumberTerm(len([]rune(a))).Value, nil
 	}
 	return nil, builtins.NewOperandTypeErr(1, a, "array", "object", "set")
 }

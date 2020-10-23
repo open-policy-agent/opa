@@ -80,10 +80,6 @@ type Params struct {
 	// for read-only diagnostic API's (/health, /metrics, etc)
 	DiagnosticAddrs *[]string
 
-	// InsecureAddr is the listening address that the OPA server will bind to
-	// in addition to Addr if TLS is enabled.
-	InsecureAddr string
-
 	// H2CEnabled flag controls whether OPA will allow H2C (HTTP/2 cleartext) on
 	// HTTP listeners.
 	H2CEnabled bool
@@ -303,7 +299,6 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 	logrus.WithFields(logrus.Fields{
 		"addrs":            *rt.Params.Addrs,
 		"diagnostic-addrs": *rt.Params.DiagnosticAddrs,
-		"insecure_addr":    rt.Params.InsecureAddr,
 	}).Info("Initializing server.")
 
 	if err := rt.Manager.Start(ctx); err != nil {
@@ -320,7 +315,6 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 		WithCompilerErrorLimit(rt.Params.ErrorLimit).
 		WithPprofEnabled(rt.Params.PprofEnabled).
 		WithAddresses(*rt.Params.Addrs).
-		WithInsecureAddress(rt.Params.InsecureAddr).
 		WithH2CEnabled(rt.Params.H2CEnabled).
 		WithCertificate(rt.Params.Certificate).
 		WithCertPool(rt.Params.CertPool).

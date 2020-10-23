@@ -93,7 +93,6 @@ type Server struct {
 	router                 *mux.Router
 	addrs                  []string
 	diagAddrs              []string
-	insecureAddr           string
 	h2cEnabled             bool
 	authentication         AuthenticationScheme
 	authorization          AuthorizationScheme
@@ -214,12 +213,6 @@ func (s *Server) WithDiagnosticAddresses(addrs []string) *Server {
 	return s
 }
 
-// WithInsecureAddress sets the listening address that the server will bind to.
-func (s *Server) WithInsecureAddress(addr string) *Server {
-	s.insecureAddr = addr
-	return s
-}
-
 // WithAuthentication sets authentication scheme to use on the server.
 func (s *Server) WithAuthentication(scheme AuthenticationScheme) *Server {
 	s.authentication = scheme
@@ -337,19 +330,6 @@ func (s *Server) Listeners() ([]Loop, error) {
 			s.httpListeners = append(s.httpListeners, listener)
 			loops = append(loops, loop)
 		}
-	}
-
-	if s.insecureAddr != "" {
-		parsedURL, err := parseURL(s.insecureAddr, false)
-		if err != nil {
-			return nil, err
-		}
-		loop, httpListener, err := s.getListenerForHTTPServer(parsedURL, s.Handler, defaultListenerType)
-		if err != nil {
-			return nil, err
-		}
-		s.httpListeners = append(s.httpListeners, httpListener)
-		loops = append(loops, loop)
 	}
 
 	return loops, nil
