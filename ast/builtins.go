@@ -128,6 +128,7 @@ var DefaultBuiltins = [...]*Builtin{
 	// Encoding
 	JSONMarshal,
 	JSONUnmarshal,
+	JSONIsValid,
 	Base64Encode,
 	Base64Decode,
 	Base64IsValid,
@@ -139,6 +140,7 @@ var DefaultBuiltins = [...]*Builtin{
 	URLQueryDecodeObject,
 	YAMLMarshal,
 	YAMLUnmarshal,
+	YAMLIsValid,
 
 	// Object Manipulation
 	ObjectUnion,
@@ -1075,6 +1077,15 @@ var JSONUnmarshal = &Builtin{
 	),
 }
 
+// JSONIsValid verifies the input string is a valid JSON document.
+var JSONIsValid = &Builtin{
+	Name: "json.is_valid",
+	Decl: types.NewFunction(
+		types.Args(types.S),
+		types.B,
+	),
+}
+
 // JSONFilter filters the JSON object
 var JSONFilter = &Builtin{
 	Name: "json.filter",
@@ -1321,6 +1332,15 @@ var YAMLUnmarshal = &Builtin{
 	Decl: types.NewFunction(
 		types.Args(types.S),
 		types.A,
+	),
+}
+
+// YAMLIsValid verifies the input string is a valid YAML document.
+var YAMLIsValid = &Builtin{
+	Name: "yaml.is_valid",
+	Decl: types.NewFunction(
+		types.Args(types.S),
+		types.B,
 	),
 }
 

@@ -50,6 +50,18 @@ func builtinJSONUnmarshal(a ast.Value) (ast.Value, error) {
 	return ast.InterfaceToValue(x)
 }
 
+func builtinJSONIsValid(a ast.Value) (ast.Value, error) {
+
+	str, err := builtins.StringOperand(a, 1)
+	if err != nil {
+		return nil, err
+	}
+
+	var x interface{}
+	err = util.UnmarshalJSON([]byte(str), &x)
+	return ast.Boolean(err == nil), nil
+}
+
 func builtinBase64Encode(a ast.Value) (ast.Value, error) {
 	str, err := builtins.StringOperand(a, 1)
 	if err != nil {
@@ -235,9 +247,21 @@ func builtinYAMLUnmarshal(a ast.Value) (ast.Value, error) {
 	return ast.InterfaceToValue(val)
 }
 
+func builtinYAMLIsValid(a ast.Value) (ast.Value, error) {
+	str, err := builtins.StringOperand(a, 1)
+	if err != nil {
+		return nil, err
+	}
+
+	var x interface{}
+	err = ghodss.Unmarshal([]byte(str), &x)
+	return ast.Boolean(err == nil), nil
+}
+
 func init() {
 	RegisterFunctionalBuiltin1(ast.JSONMarshal.Name, builtinJSONMarshal)
 	RegisterFunctionalBuiltin1(ast.JSONUnmarshal.Name, builtinJSONUnmarshal)
+	RegisterFunctionalBuiltin1(ast.JSONIsValid.Name, builtinJSONIsValid)
 	RegisterFunctionalBuiltin1(ast.Base64Encode.Name, builtinBase64Encode)
 	RegisterFunctionalBuiltin1(ast.Base64Decode.Name, builtinBase64Decode)
 	RegisterFunctionalBuiltin1(ast.Base64IsValid.Name, builtinBase64IsValid)
@@ -249,4 +273,5 @@ func init() {
 	RegisterBuiltinFunc(ast.URLQueryDecodeObject.Name, builtinURLQueryDecodeObject)
 	RegisterFunctionalBuiltin1(ast.YAMLMarshal.Name, builtinYAMLMarshal)
 	RegisterFunctionalBuiltin1(ast.YAMLUnmarshal.Name, builtinYAMLUnmarshal)
+	RegisterFunctionalBuiltin1(ast.YAMLIsValid.Name, builtinYAMLIsValid)
 }
