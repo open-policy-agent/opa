@@ -1,0 +1,23 @@
+cases:
+- modules:
+  - |
+    package generated
+
+    p = x {
+      count("abcde", x)
+    }
+  note: aggregates/count string
+  query: data.generated.p = x
+  want_result:
+  - x: 5
+- modules:
+  - |
+    package generated
+
+    p = x {
+      count("åäö", x)
+    }
+  note: aggregates/count string
+  query: data.generated.p = x
+  want_result:
+  - x: 3

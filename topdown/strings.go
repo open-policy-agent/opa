@@ -107,11 +107,12 @@ func builtinSubstring(a, b, c ast.Value) (ast.Value, error) {
 	if err != nil {
 		return nil, err
 	}
+	runes := []rune(base)
 
 	startIndex, err := builtins.IntOperand(b, 2)
 	if err != nil {
 		return nil, err
-	} else if startIndex >= len(base) {
+	} else if startIndex >= len(runes) {
 		return ast.String(""), nil
 	} else if startIndex < 0 {
 		return nil, fmt.Errorf("negative offset")
@@ -124,13 +125,13 @@ func builtinSubstring(a, b, c ast.Value) (ast.Value, error) {
 
 	var s ast.String
 	if length < 0 {
-		s = ast.String(base[startIndex:])
+		s = ast.String(runes[startIndex:])
 	} else {
 		upto := startIndex + length
-		if len(base) < upto {
-			upto = len(base)
+		if len(runes) < upto {
+			upto = len(runes)
 		}
-		s = ast.String(base[startIndex:upto])
+		s = ast.String(runes[startIndex:upto])
 	}
 
 	return s, nil
