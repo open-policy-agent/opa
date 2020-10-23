@@ -16,6 +16,9 @@ unsigned int opa_heap_top_get(void);
 void opa_heap_ptr_set(unsigned int);
 void opa_heap_top_set(unsigned int);
 
+void *opa_builtin_cache_get(size_t i);
+void opa_builtin_cache_set(size_t i, void *p);
+
 size_t opa_heap_free_blocks(void);
 
 #ifdef __cplusplus
