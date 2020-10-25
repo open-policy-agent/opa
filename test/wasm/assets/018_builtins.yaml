@@ -128,6 +128,15 @@ cases:
   - note: base64url.encode built-in
     query: base64url.encode("Hello",x)
     want_result: [{'x': "SGVsbG8="}]
+  - note: net.cidr_contains
+    query: net.cidr_contains("172.17.0.0/24", "172.17.0.0/16", x)
+    want_result: [{'x': false}]
+  - note: net.cidr_contains
+    query: net.cidr_overlap("172.17.0.0/16", "172.17.0.1", x)
+    want_result: [{'x': true}]
+  - note: net.cidr_intersects
+    query: net.cidr_intersects("192.168.1.0/25", "192.168.1.64/25", x)
+    want_result: [{'x': true}]
   - note: json.marshal built-in
     query: json.marshal("string",x)
     want_result: [{'x': '"string"'}]
