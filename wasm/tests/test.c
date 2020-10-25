@@ -4,6 +4,7 @@
 #include "arithmetic.h"
 #include "array.h"
 #include "bits-builtins.h"
+#include "cidr.h"
 #include "conversions.h"
 #include "encoding.h"
 #include "json.h"
@@ -1934,6 +1935,29 @@ void test_to_number(void)
     test("to_number/float", opa_value_compare(opa_to_number(opa_string_terminated("3.5")), opa_number_float(3.5)) == 0);
     test("to_number/bad string", opa_to_number(opa_string_terminated("deadbeef")) == NULL);
     test("to_number/bad value", opa_to_number(opa_array()) == NULL);
+}
+
+void test_cidr_contains(void)
+{
+    test("cidr/contains", opa_value_compare(opa_cidr_contains(opa_string_terminated("10.0.0.0/8"), opa_string_terminated("10.1.0.0/24")), opa_boolean(TRUE)) == 0);
+    test("cidr/contains", opa_value_compare(opa_cidr_contains(opa_string_terminated("172.17.0.0/24"), opa_string_terminated("172.17.0.0/16")), opa_boolean(FALSE)) == 0);
+    test("cidr/contains", opa_value_compare(opa_cidr_contains(opa_string_terminated("10.0.0.0/8"), opa_string_terminated("192.168.1.0/24")), opa_boolean(FALSE)) == 0);
+    test("cidr/contains", opa_value_compare(opa_cidr_contains(opa_string_terminated("10.0.0.0/8"), opa_string_terminated("10.1.1.1/32")), opa_boolean(TRUE)) == 0);
+    test("cidr/contains", opa_value_compare(opa_cidr_contains(opa_string_terminated("2001:4860:4860::8888/32"), opa_string_terminated("2001:4860:4860:1234::8888/40")), opa_boolean(TRUE)) == 0);
+    test("cidr/contains", opa_value_compare(opa_cidr_contains(opa_string_terminated("2001:4860:4860::8888/32"), opa_string_terminated("2001:4860:4860:1234:5678:1234:5678:8888/128")), opa_boolean(TRUE)) == 0);
+    test("cidr/contains", opa_value_compare(opa_cidr_contains(opa_string_terminated("2001:4860::/96"), opa_string_terminated("2001:4860::/32")), opa_boolean(FALSE)) == 0);
+    test("cidr/contains", opa_value_compare(opa_cidr_contains(opa_string_terminated("2001:4860::/32"), opa_string_terminated("fd1e:5bfe:8af3:9ddc::/64")), opa_boolean(FALSE)) == 0);
+    test("cidr/contains", opa_cidr_contains(opa_string_terminated("not-a-cidr"), opa_string_terminated("192.168.1.67")) == NULL);
+    test("cidr/contains", opa_cidr_contains(opa_string_terminated("192.168.1.0/28"), opa_string_terminated("not-a-cidr")) == NULL);
+    test("cidr/contains", opa_value_compare(opa_cidr_contains(opa_string_terminated("10.0.0.0/8"), opa_string_terminated("10.1.2.3")), opa_boolean(TRUE)) == 0);
+    test("cidr/contains", opa_value_compare(opa_cidr_contains(opa_string_terminated("10.0.0.0/8"), opa_string_terminated("192.168.1.1")), opa_boolean(FALSE)) == 0);
+
+    test("cidr/contains", opa_value_compare(opa_cidr_intersects(opa_string_terminated("192.168.1.0/25"), opa_string_terminated("192.168.1.64/25")), opa_boolean(TRUE)) == 0);
+    test("cidr/contains", opa_value_compare(opa_cidr_intersects(opa_string_terminated("192.168.1.0/24"), opa_string_terminated("192.168.2.0/24")), opa_boolean(FALSE)) == 0);
+    test("cidr/contains", opa_value_compare(opa_cidr_intersects(opa_string_terminated("fd1e:5bfe:8af3:9ddc::/64"), opa_string_terminated("fd1e:5bfe:8af3:9ddc:1111::/72")), opa_boolean(TRUE)) == 0);
+    test("cidr/contains", opa_value_compare(opa_cidr_intersects(opa_string_terminated("fd1e:5bfe:8af3:9ddc::/64"), opa_string_terminated("2001:4860:4860::8888/32")), opa_boolean(FALSE)) == 0);
+    test("cidr/contains", opa_cidr_intersects(opa_string_terminated("not-a-cidr"), opa_string_terminated("192.168.1.0/24")) == NULL);
+    test("cidr/contains", opa_cidr_intersects(opa_string_terminated("192.168.1.0/28"), opa_string_terminated("not-a-cidr")) == NULL);
 }
 
 opa_value *__new_value_path(int sz, ...)
