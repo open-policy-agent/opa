@@ -181,6 +181,7 @@ To skip bundle verification, use the --skip-verify flag.
 	runCommand.Flags().VarP(cmdParams.logLevel, "log-level", "l", "set log level")
 	runCommand.Flags().VarP(cmdParams.logFormat, "log-format", "", "set log format")
 	runCommand.Flags().IntVar(&cmdParams.rt.GracefulShutdownPeriod, "shutdown-grace-period", 10, "set the time (in seconds) that the server will wait to gracefully shut down")
+	runCommand.Flags().IntVar(&cmdParams.rt.ShutdownWaitPeriod, "shutdown-wait-period", 0, "set the time (in seconds) that the server will wait before initiating shutdown")
 	addConfigOverrides(runCommand.Flags(), &cmdParams.rt.ConfigOverrides)
 	addConfigOverrideFiles(runCommand.Flags(), &cmdParams.rt.ConfigOverrideFiles)
 	addBundleModeFlag(runCommand.Flags(), &cmdParams.rt.BundleMode, false)

@@ -161,6 +161,9 @@ type Params struct {
 	// server to shutdown gracefully.
 	GracefulShutdownPeriod int
 
+	// ShutdownWaitPeriod is the time (in seconds) to wait before initiating shutdown.
+	ShutdownWaitPeriod int
+
 	// EnableVersionCheck flag controls whether OPA will report its version to an external service.
 	// If this flag is true, OPA will report its version to the external service
 	EnableVersionCheck bool
@@ -614,6 +617,11 @@ func (rt *Runtime) getBanner() string {
 }
 
 func (rt *Runtime) gracefulServerShutdown(s *server.Server) error {
+	if rt.Params.ShutdownWaitPeriod > 0 {
+		logrus.Infof("Waiting %vs before initiating shutdown...", rt.Params.ShutdownWaitPeriod)
+		time.Sleep(time.Duration(rt.Params.ShutdownWaitPeriod) * time.Second)
+	}
+
 	logrus.Info("Shutting down...")
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(rt.Params.GracefulShutdownPeriod)*time.Second)
 	defer cancel()
