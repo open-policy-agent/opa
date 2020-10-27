@@ -1813,6 +1813,10 @@ void test_strings(void)
     test("split/ascii", opa_value_compare(opa_strings_split(opa_string_terminated("foo"), opa_string_terminated("")), &arr4->hdr) == 0);
     test("split/utf8", opa_value_compare(opa_strings_split(opa_string_terminated("f\xE2\x82\xACo"), opa_string_terminated("")), &arr5->hdr) == 0);
 
+    opa_array_t *arr6 = opa_cast_array(opa_array());
+    opa_array_append(arr6, opa_string_terminated(""));
+    test("split/empty", opa_value_compare(opa_strings_split(opa_string_terminated(""), opa_string_terminated(",")), &arr6->hdr) == 0);
+
     test("startswith/__", opa_value_compare(opa_strings_startswith(opa_string_terminated(""), opa_string_terminated("")), opa_boolean(TRUE)) == 0);
     test("startswith/_a", opa_value_compare(opa_strings_startswith(opa_string_terminated(""), opa_string_terminated("a")), opa_boolean(FALSE)) == 0);
     test("startswith/a_", opa_value_compare(opa_strings_startswith(opa_string_terminated("a"), opa_string_terminated("")), opa_boolean(TRUE)) == 0);

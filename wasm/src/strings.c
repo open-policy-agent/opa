@@ -376,7 +376,7 @@ opa_value *opa_strings_split(opa_value *a, opa_value *b)
     }
 
     int j = 0;
-    for (int i = 0; i <= (s->len - d->len); )
+    for (int i = 0; s->len >= d->len && i <= (s->len - d->len); )
     {
         if (opa_strncmp(&s->v[i], d->v, d->len) == 0)
         {
