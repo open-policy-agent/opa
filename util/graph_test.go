@@ -167,9 +167,9 @@ func TestDFSPath(t *testing.T) {
 	}
 
 	t3 := newTestTraversal(g)
-	p3 := DFSPath(t3, t3.Equals, 1, 0xdeadbeef)
+	p3 := DFSPath(t3, t3.Equals, 1, 0xadbeef)
 	if len(p3) != 0 {
-		t.Errorf("Expected DFS(1,0xdeadbeef to be empty but got: %v", p3)
+		t.Errorf("Expected DFS(1,0xadbeef to be empty but got: %v", p3)
 	}
 
 }
