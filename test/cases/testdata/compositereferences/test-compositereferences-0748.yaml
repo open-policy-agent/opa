@@ -32,6 +32,7 @@ cases:
     p1[[2, 2]]
   note: compositereferences/unify partial ground array
   query: data.test.p = x
+  sort_bindings: true
   want_result:
   - x:
     - 1

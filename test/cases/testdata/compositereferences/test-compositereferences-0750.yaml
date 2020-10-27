@@ -32,6 +32,7 @@ cases:
     }
   note: compositereferences/partial doc unify
   query: data.test.p = x
+  sort_bindings: true
   want_result:
   - x:
     - - 1
