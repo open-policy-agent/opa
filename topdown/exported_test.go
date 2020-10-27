@@ -25,6 +25,14 @@ func TestRego(t *testing.T) {
 	}
 }
 
+func TestOPARego(t *testing.T) {
+	for _, tc := range cases.MustLoad("testdata/cases").Sorted().Cases {
+		t.Run(tc.Note, func(t *testing.T) {
+			testRun(t, tc)
+		})
+	}
+}
+
 func testRun(t *testing.T, tc cases.TestCase) {
 
 	ctx := context.Background()
