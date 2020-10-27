@@ -9,7 +9,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"math/rand"
 	"os"
 	"strings"
 
@@ -785,16 +784,16 @@ func ExampleRego_custom_function_caching() {
 
 	type builtinCacheKey string
 
-	source := rand.NewSource(0)
+	i := 0
 
 	r := rego.New(
 		// An example query that uses a custom function.
-		rego.Query(`x = myrandom("foo"); y = myrandom("foo")`),
+		rego.Query(`x = mycounter("foo"); y = mycounter("foo")`),
 
 		// A custom function that uses caching.
 		rego.FunctionDyn(
 			&rego.Function{
-				Name:    "myrandom",
+				Name:    "mycounter",
 				Memoize: true,
 				Decl: types.NewFunction(
 					types.Args(types.S), // one string input
@@ -802,7 +801,8 @@ func ExampleRego_custom_function_caching() {
 				),
 			},
 			func(_ topdown.BuiltinContext, args []*ast.Term) (*ast.Term, error) {
-				return ast.IntNumberTerm(int(source.Int63())), nil
+				i++
+				return ast.IntNumberTerm(i), nil
 			},
 		),
 	)
@@ -817,8 +817,8 @@ func ExampleRego_custom_function_caching() {
 
 	// Output:
 	//
-	// x: 8717895732742165505
-	// y: 8717895732742165505
+	// x: 1
+	// y: 1
 }
 
 func ExampleRego_custom_function_global() {

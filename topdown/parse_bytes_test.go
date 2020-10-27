@@ -14,7 +14,7 @@ func TestNumBytes(t *testing.T) {
 	t.Run("SuccessfulParse", func(t *testing.T) {
 		tests := []struct {
 			note, rule string
-			expected   int
+			expected   int64
 		}{
 			{"zero", `0`, 0},
 			{"raw number", `12345`, 12345},
@@ -89,7 +89,7 @@ func TestNumBytes(t *testing.T) {
 	})
 }
 
-func runNumBytesParseTest(t *testing.T, note, rule string, expected int) {
+func runNumBytesParseTest(t *testing.T, note, rule string, expected int64) {
 	t.Helper()
 
 	num := parseIntFromString(t, rule)
@@ -139,7 +139,7 @@ func runExpectedFailureTest(t *testing.T, s string, expectedErr error) {
 	}
 }
 
-func parseIntFromString(t *testing.T, s string) int {
+func parseIntFromString(t *testing.T, s string) int64 {
 	sVal := ast.StringTerm(s).Value
 	val, err := builtinNumBytes(sVal)
 
@@ -148,7 +148,7 @@ func parseIntFromString(t *testing.T, s string) int {
 	}
 
 	i := val.(ast.Number)
-	num, ok := i.Int()
+	num, ok := i.Int64()
 	if !ok {
 		t.Fatalf("numbytes err: could not parse value %s into int", val.String())
 	}
