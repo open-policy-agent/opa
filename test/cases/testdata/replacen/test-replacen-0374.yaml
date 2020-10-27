@@ -14,3 +14,27 @@ cases:
   want_result:
   - x:
     - This is &lt;b&gt;HTML&lt;/b&gt;!
+- data: {}
+  modules:
+  - |
+    package test
+
+    p = strings.replace_n({"f": "x", "foo": "xxx"}, "foobar")
+  note: replacen/replace multiple patterns/overlapping
+  query: data.test.p = x
+  want_result:
+  - x: xoobar
+- data: {}
+  modules:
+  - |
+    package test
+
+    p = x {
+      x := strings.replace_n({ k: v | k := ["f", "foo"][i]; v := ["x", "xxx"][i]}, "foo")
+      y := strings.replace_n({ k: v | k := ["foo", "f"][i]; v := ["xxx", "x"][i]}, "foo")
+      x == y
+    }
+  note: replacen/replace multiple patterns/overlapping/insertion order does not matter
+  query: data.test.p = x
+  want_result:
+  - x: xoo
