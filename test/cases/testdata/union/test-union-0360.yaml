@@ -94,6 +94,7 @@ cases:
     }
   note: union/union_3_sets
   query: data.generated.p = x
+  sort_bindings: true
   want_result:
   - x:
     - 1

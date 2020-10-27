@@ -89,6 +89,7 @@ cases:
     p = {{1, 2}, {2, 3}}
   note: 'completedoc/set/nested: {{1,2},{2,3}}'
   query: data.generated.p = x
+  sort_bindings: true
   want_result:
   - x:
     - - 1

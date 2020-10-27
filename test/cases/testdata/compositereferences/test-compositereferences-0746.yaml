@@ -32,6 +32,7 @@ cases:
     }
   note: compositereferences/unify array
   query: data.test.p = x
+  sort_bindings: true
   want_result:
   - x:
     - 2

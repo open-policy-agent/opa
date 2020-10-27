@@ -32,6 +32,7 @@ cases:
     p1[[2, 2]]
   note: compositereferences/complete doc unify
   query: data.test.p = x
+  sort_bindings: true
   want_result:
   - x:
     - - 1
