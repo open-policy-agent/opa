@@ -6,9 +6,33 @@ on:
       - master
 
 jobs:
+  generate:
+    name: Sync Generated Code
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: Generate
+        run: make clean generate
+
+      - name: Commit & Push
+        shell: bash
+        run: |
+          # See https://github.com/actions/checkout#push-a-commit-using-the-built-in-token
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+
+          if ./build/commit-wasm-bins.sh; then
+            git push
+          else
+            echo "No generated changes to push!"
+          fi
+
   code-coverage:
     name: Update Go Test Coverage
     runs-on: ubuntu-18.04
+    needs: generate
     steps:
       - name: Check out code
         uses: actions/checkout@v2
@@ -27,6 +51,7 @@ jobs:
   deploy-edge:
     name: Push Edge Release
     runs-on: ubuntu-18.04
+    needs: generate
     steps:
       - name: Check out code
         uses: actions/checkout@v2
@@ -55,6 +80,7 @@ jobs:
   deploy-wasm-builder:
     name: Deploy WASM Builder
     runs-on: ubuntu-18.04
+    needs: generate
     steps:
       - name: Check out code
         uses: actions/checkout@v2
