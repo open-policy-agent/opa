@@ -1,0 +1,32 @@
+#ifndef OPA_ATOMIC_H_
+#define OPA_ATOMIC_H_
+
+namespace std {
+
+enum {
+    memory_order_relaxed,
+    memory_order_acquire,
+    memory_order_release,
+};
+
+// this is a minimal, no-op implementation of std::atomic.
+template <typename T>
+class atomic {
+public:
+    atomic() : value(NULL) { }
+    atomic(T v) : value(v) { }
+
+    inline T load(int order) const {
+        return value;
+    }
+
+    inline void store(T v, int order) {
+        value = v;
+    }
+private:
+    T value;
+};
+
+}
+
+#endif // OPA_ATOMIC_H_

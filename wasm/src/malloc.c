@@ -9,6 +9,7 @@ static int initialized;
 static unsigned int heap_ptr;
 static unsigned int heap_top;
 extern unsigned char __heap_base; // set by lld
+static void *builtin_cache[8];
 
 struct heap_block {
     size_t size;
@@ -47,6 +48,11 @@ static void init_free()
     for (int i = 0; i < ARRAY_SIZE(heap_free); i++) {
         heap_free[i].start = (struct heap_block) { 0, NULL, &heap_free[i].end };
         heap_free[i].end = (struct heap_block) { 0, &heap_free[i].start, NULL };
+    }
+
+    for (int i = 0; i < ARRAY_SIZE(builtin_cache); i++)
+    {
+        builtin_cache[i] = NULL;
     }
 }
 
@@ -327,6 +333,26 @@ void *opa_realloc(void *ptr, size_t size)
     memcpy(p, ptr, block->size < size ? block->size : size);
     opa_free(ptr);
     return p;
+}
+
+static void **__opa_builtin_cache(size_t i)
+{
+    if (i >= ARRAY_SIZE(builtin_cache))
+    {
+        opa_abort("opa_malloc: illegal builtin cache index");
+    }
+
+    return &builtin_cache[i];
+}
+
+void *opa_builtin_cache_get(size_t i)
+{
+    return *__opa_builtin_cache(i);
+}
+
+void opa_builtin_cache_set(size_t i, void *p)
+{
+    *__opa_builtin_cache(i) = p;
 }
 
 // Count the number of free blocks. This is for testing only.
