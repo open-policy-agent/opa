@@ -775,7 +775,7 @@ func (p *Plugin) logEvent(event EventV1) error {
 	if err != nil {
 		return err
 	}
-	logrus.WithFields(fields).WithFields(logrus.Fields{
+	plugins.GetConsoleLogger().WithFields(fields).WithFields(logrus.Fields{
 		"type": "openpolicyagent.org/decision_logs",
 	}).Info("Decision Log")
 	return nil

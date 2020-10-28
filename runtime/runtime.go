@@ -703,16 +703,21 @@ func onReloadPrinter(output io.Writer) func(time.Duration, error) {
 }
 
 func setupLogging(config LoggingConfig) {
+	var formatter logrus.Formatter
 	switch config.Format {
 	case "text":
-		logrus.SetFormatter(&prettyFormatter{})
+		formatter = &prettyFormatter{}
 	case "json-pretty":
-		logrus.SetFormatter(&logrus.JSONFormatter{PrettyPrint: true})
+		formatter = &logrus.JSONFormatter{PrettyPrint: true}
 	case "json":
 		fallthrough
 	default:
-		logrus.SetFormatter(&logrus.JSONFormatter{})
+		formatter = &logrus.JSONFormatter{}
 	}
+	logrus.SetFormatter(formatter)
+	// While the plugin console logger logs independently of the configured --log-level,
+	// it should follow the configured --log-format
+	plugins.GetConsoleLogger().SetFormatter(formatter)
 
 	lvl := logrus.InfoLevel
 

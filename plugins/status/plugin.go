@@ -331,7 +331,7 @@ func (p *Plugin) logUpdate(update *UpdateRequestV1) error {
 	if err != nil {
 		return err
 	}
-	logrus.WithFields(fields).WithFields(logrus.Fields{
+	plugins.GetConsoleLogger().WithFields(fields).WithFields(logrus.Fields{
 		"type": "openpolicyagent.org/status",
 	}).Info("Status Log")
 	return nil

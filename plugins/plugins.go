@@ -10,6 +10,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/sirupsen/logrus"
+
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/config"
@@ -145,6 +147,14 @@ type Manager struct {
 type managerContextKey string
 
 const managerCompilerContextKey = managerContextKey("compiler")
+
+// Dedicated logger for plugins logging to console independently of configured --log-level
+var logrusConsole = logrus.New()
+
+// GetConsoleLogger return plugin console logger
+func GetConsoleLogger() *logrus.Logger {
+	return logrusConsole
+}
 
 // SetCompilerOnContext puts the compiler into the storage context. Calling this
 // function before committing updated policies to storage allows the manager to
