@@ -264,9 +264,9 @@ func (p *Plugin) initDownloaders() {
 }
 
 func (p *Plugin) loadAndActivateBundlesFromDisk(ctx context.Context) error {
-	for name := range p.config.Bundles {
+	for name, src := range p.config.Bundles {
 		if p.persistBundle(name) {
-			b, err := loadBundleFromDisk(p.bundlePersistPath, name)
+			b, err := loadBundleFromDisk(p.bundlePersistPath, name, src)
 			if err != nil {
 				p.logError(name, "Failed to load bundle from disk: %v", err)
 				return err
@@ -558,7 +558,7 @@ func saveCurrentBundleToDisk(path, filename string, b *bundle.Bundle) error {
 	return nil
 }
 
-func loadBundleFromDisk(path, name string) (*bundle.Bundle, error) {
+func loadBundleFromDisk(path, name string, src *Source) (*bundle.Bundle, error) {
 	bundlePath := filepath.Join(path, name, "bundle.tar.gz")
 
 	if _, err := os.Stat(bundlePath); err == nil {
@@ -568,12 +568,17 @@ func loadBundleFromDisk(path, name string) (*bundle.Bundle, error) {
 		}
 		defer f.Close()
 
-		b, err := bundle.NewReader(f).Read()
+		r := bundle.NewReader(f)
+
+		if src != nil {
+			r = r.WithBundleVerificationConfig(src.Signing)
+		}
+
+		b, err := r.Read()
 		if err != nil {
 			return nil, err
 		}
 		return &b, nil
-
 	} else if os.IsNotExist(err) {
 		return nil, nil
 	} else {

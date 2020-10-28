@@ -161,7 +161,7 @@ func TestPluginOneShotBundlePersistence(t *testing.T) {
 
 	ensurePluginState(t, plugin, plugins.StateOK)
 
-	result, err := loadBundleFromDisk(plugin.bundlePersistPath, bundleName)
+	result, err := loadBundleFromDisk(plugin.bundlePersistPath, bundleName, nil)
 	if err != nil {
 		t.Fatal("unexpected error:", err)
 	}
@@ -1632,7 +1632,7 @@ func TestSaveBundleToDiskOverWrite(t *testing.T) {
 		t.Fatalf("unexpected error %v", err)
 	}
 
-	b2 := writeTestBundleToDisk(t, bundleDir)
+	b2 := writeTestBundleToDisk(t, bundleDir, false)
 
 	module := "package a.a1\n\nbar=1"
 
@@ -1658,7 +1658,7 @@ func TestSaveBundleToDiskOverWrite(t *testing.T) {
 		t.Fatalf("unexpected error %v", err)
 	}
 
-	actual, err := loadBundleFromDisk(plugin.bundlePersistPath, "foo")
+	actual, err := loadBundleFromDisk(plugin.bundlePersistPath, "foo", nil)
 	if err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
@@ -1691,7 +1691,7 @@ func TestSaveCurrentBundleToDisk(t *testing.T) {
 func TestLoadBundleFromDisk(t *testing.T) {
 
 	// no bundle on disk
-	_, err := loadBundleFromDisk("foo", "bar")
+	_, err := loadBundleFromDisk("foo", "bar", nil)
 	if err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
@@ -1712,15 +1712,59 @@ func TestLoadBundleFromDisk(t *testing.T) {
 		t.Fatalf("unexpected error %v", err)
 	}
 
-	b := writeTestBundleToDisk(t, bundleDir)
+	b := writeTestBundleToDisk(t, bundleDir, false)
 
-	result, err := loadBundleFromDisk(dir, bundleName)
+	result, err := loadBundleFromDisk(dir, bundleName, nil)
 	if err != nil {
 		t.Fatal("unexpected error:", err)
 	}
 
 	if !result.Equal(b) {
 		t.Fatal("expected the test bundle to be equal to the one loaded from disk")
+	}
+}
+
+func TestLoadSignedBundleFromDisk(t *testing.T) {
+
+	// no bundle on disk
+	_, err := loadBundleFromDisk("foo", "bar", nil)
+	if err != nil {
+		t.Fatalf("unexpected error %v", err)
+	}
+
+	// create a test signed bundle and load it from disk
+	dir, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatalf("unexpected error %v", err)
+	}
+
+	defer os.RemoveAll(dir)
+
+	bundleName := "foo"
+	bundleDir := filepath.Join(dir, bundleName)
+
+	err = os.MkdirAll(bundleDir, os.ModePerm)
+	if err != nil {
+		t.Fatalf("unexpected error %v", err)
+	}
+
+	b := writeTestBundleToDisk(t, bundleDir, true)
+
+	src := Source{
+		Signing: bundle.NewVerificationConfig(map[string]*bundle.KeyConfig{"foo": {Key: "secret", Algorithm: "HS256"}}, "foo", "", nil),
+	}
+
+	result, err := loadBundleFromDisk(dir, bundleName, &src)
+	if err != nil {
+		t.Fatal("unexpected error:", err)
+	}
+
+	if !result.Equal(b) {
+		t.Fatal("expected the test bundle to be equal to the one loaded from disk")
+	}
+
+	if !reflect.DeepEqual(result.Signatures, b.Signatures) {
+		t.Fatal("Expected signatures to be same")
 	}
 }
 
@@ -1735,10 +1779,16 @@ func TestGetDefaultBundlePersistPath(t *testing.T) {
 	}
 }
 
-func writeTestBundleToDisk(t *testing.T, srcDir string) bundle.Bundle {
+func writeTestBundleToDisk(t *testing.T, srcDir string, signed bool) bundle.Bundle {
 	t.Helper()
 
-	b := getTestBundle(t)
+	var b bundle.Bundle
+
+	if signed {
+		b = getTestSignedBundle(t)
+	} else {
+		b = getTestBundle(t)
+	}
 
 	var buf bytes.Buffer
 	if err := bundle.NewWriter(&buf).UseModulePath(true).Write(b); err != nil {
@@ -1773,6 +1823,17 @@ func getTestBundle(t *testing.T) bundle.Bundle {
 	}
 
 	b.Manifest.Init()
+	return b
+}
+
+func getTestSignedBundle(t *testing.T) bundle.Bundle {
+	t.Helper()
+
+	b := getTestBundle(t)
+
+	if err := b.GenerateSignature(bundle.NewSigningConfig("secret", "HS256", ""), "foo", false); err != nil {
+		t.Fatal("Unexpected error:", err)
+	}
 	return b
 }
 
