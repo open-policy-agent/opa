@@ -16,8 +16,12 @@ import (
 func TestCompilerHelloWorld(t *testing.T) {
 
 	policy, err := planner.New().
-		WithQueries([]ast.Body{ast.MustParseBody(`input.foo = 1`)}).
-		Plan()
+		WithQueries([]planner.QuerySet{
+			{
+				Name:    "test",
+				Queries: []ast.Body{ast.MustParseBody(`input.foo = 1`)},
+			},
+		}).Plan()
 
 	if err != nil {
 		t.Fatal(err)

@@ -153,6 +153,8 @@ type Compiler struct {
 	builtinStringAddrs    map[int]uint32    // addresses of built-in string constants
 	externalFuncNameAddrs map[string]int32  // addresses of required built-in function names for listing
 	externalFuncs         map[string]int32  // required built-in function ids
+	entrypointNameAddrs   map[string]int32  // addresses of available entrypoint names for listing
+	entrypoints           map[string]int32  // available entrypoint ids
 	stringOffset          int32             // null-terminated string data base offset
 	stringAddrs           []uint32          // null-terminated string constant addresses
 	funcs                 map[string]uint32 // maps imported and exported function names to function indices
@@ -168,6 +170,7 @@ const (
 	errObjectInsertConflict
 	errObjectMergeConflict
 	errWithConflict
+	errIllegalEntrypoint
 )
 
 var errorMessages = [...]struct {
@@ -178,6 +181,7 @@ var errorMessages = [...]struct {
 	{errObjectInsertConflict, "object insert conflict"},
 	{errObjectMergeConflict, "object merge conflict"},
 	{errWithConflict, "with target conflict"},
+	{errIllegalEntrypoint, "internal: illegal entrypoint id"},
 }
 
 // New returns a new compiler object.
@@ -187,8 +191,9 @@ func New() *Compiler {
 		c.initModule,
 		c.compileStrings,
 		c.compileExternalFuncDecls,
+		c.compileEntrypointDecls,
 		c.compileFuncs,
-		c.compilePlan,
+		c.compilePlans,
 	}
 	return c
 }
@@ -270,6 +275,11 @@ func (c *Compiler) initModule() error {
 		Results: []types.ValueType{types.I32},
 	}, true)
 
+	c.emitFunctionDecl("entrypoints", module.FunctionType{
+		Params:  nil,
+		Results: []types.ValueType{types.I32},
+	}, true)
+
 	return nil
 }
 
@@ -302,6 +312,15 @@ func (c *Compiler) compileStrings() error {
 			buf.WriteByte(0)
 			c.externalFuncNameAddrs[decl.Name] = addr
 		}
+	}
+
+	c.entrypointNameAddrs = make(map[string]int32)
+
+	for _, plan := range c.policy.Plans.Plans {
+		addr := int32(buf.Len()) + int32(c.stringOffset)
+		buf.WriteString(plan.Name)
+		buf.WriteByte(0)
+		c.entrypointNameAddrs[plan.Name] = addr
 	}
 
 	c.builtinStringAddrs = make(map[int]uint32, len(errorMessages))
@@ -368,6 +387,43 @@ func (c *Compiler) compileExternalFuncDecls() error {
 	return c.emitFunction("builtins", c.code)
 }
 
+// compileEntrypointDecls generates a function that lists the entrypoints available
+// in the policy. The host environment can pick which entrypoint to invoke by setting
+// the entrypoint identifier (represented as an integer) on the evaluation context.
+func (c *Compiler) compileEntrypointDecls() error {
+
+	c.code = &module.CodeEntry{}
+	c.nextLocal = 0
+	c.locals = map[ir.Local]uint32{}
+
+	lobj := c.genLocal()
+
+	c.appendInstr(instruction.Call{Index: c.function(opaObject)})
+	c.appendInstr(instruction.SetLocal{Index: lobj})
+	c.entrypoints = make(map[string]int32)
+
+	for index, plan := range c.policy.Plans.Plans {
+		c.appendInstr(instruction.GetLocal{Index: lobj})
+		c.appendInstr(instruction.I32Const{Value: c.entrypointNameAddrs[plan.Name]})
+		c.appendInstr(instruction.Call{Index: c.function(opaStringTerminated)})
+		c.appendInstr(instruction.I64Const{Value: int64(index)})
+		c.appendInstr(instruction.Call{Index: c.function(opaNumberInt)})
+		c.appendInstr(instruction.Call{Index: c.function(opaObjectInsert)})
+		c.entrypoints[plan.Name] = int32(index)
+	}
+
+	c.appendInstr(instruction.GetLocal{Index: lobj})
+
+	c.code.Func.Locals = []module.LocalDeclaration{
+		{
+			Count: c.nextLocal,
+			Type:  types.I32,
+		},
+	}
+
+	return c.emitFunction("entrypoints", c.code)
+}
+
 // compileFuncs compiles the policy functions and emits them into the module.
 func (c *Compiler) compileFuncs() error {
 
@@ -380,9 +436,9 @@ func (c *Compiler) compileFuncs() error {
 	return nil
 }
 
-// compilePlan compiles the policy plan and emits the resulting function into
+// compilePlans compiles the policy plans and emits the resulting function into
 // the module.
-func (c *Compiler) compilePlan() error {
+func (c *Compiler) compilePlans() error {
 
 	c.code = &module.CodeEntry{}
 	c.nextLocal = 0
@@ -406,16 +462,53 @@ func (c *Compiler) compilePlan() error {
 	c.appendInstr(instruction.GetLocal{Index: c.lrs})
 	c.appendInstr(instruction.I32Store{Offset: 8, Align: 2})
 
-	for i := range c.policy.Plan.Blocks {
+	// Initialize the entrypoint id local.
+	leid := c.genLocal()
+	c.appendInstr(instruction.GetLocal{Index: c.lctx})
+	c.appendInstr(instruction.I32Load{Offset: 12, Align: 2})
+	c.appendInstr(instruction.SetLocal{Index: leid})
 
-		instrs, err := c.compileBlock(c.policy.Plan.Blocks[i])
-		if err != nil {
-			return errors.Wrapf(err, "block %d", i)
+	// Add each entrypoint to this block.
+	main := instruction.Block{}
+
+	for i, plan := range c.policy.Plans.Plans {
+
+		entrypoint := instruction.Block{
+			Instrs: []instruction.Instruction{
+				instruction.GetLocal{Index: leid},
+				instruction.I32Const{Value: int32(i)},
+				instruction.I32Ne{},
+				instruction.BrIf{Index: 0},
+			},
 		}
 
-		c.appendInstr(instruction.Block{Instrs: instrs})
+		for j, block := range plan.Blocks {
+
+			instrs, err := c.compileBlock(block)
+			if err != nil {
+				return errors.Wrapf(err, "plan %d block %d", i, j)
+			}
+
+			entrypoint.Instrs = append(entrypoint.Instrs, instruction.Block{
+				Instrs: instrs,
+			})
+		}
+
+		entrypoint.Instrs = append(entrypoint.Instrs, instruction.Br{Index: 1})
+		main.Instrs = append(main.Instrs, entrypoint)
 	}
 
+	// If none of the entrypoint blocks execute, call opa_abort() as this likely
+	// indicates inconsistency between the generated entrypoint identifiers in the
+	// eval() and entrypoint() functions (or the SDK invoked eval() with an invalid
+	// entrypoint ID which should not be possible.)
+	main.Instrs = append(main.Instrs,
+		instruction.I32Const{Value: c.builtinStringAddr(errIllegalEntrypoint)},
+		instruction.Call{Index: c.function(opaAbort)},
+		instruction.Unreachable{},
+	)
+
+	c.appendInstr(main)
 	c.appendInstr(instruction.I32Const{Value: int32(0)})
 
 	c.code.Func.Locals = []module.LocalDeclaration{
