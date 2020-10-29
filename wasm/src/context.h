@@ -8,11 +8,13 @@ typedef struct
     opa_value *input;
     opa_value *data;
     opa_value *result;
+    int entrypoint;
 } opa_eval_ctx_t;
 
 opa_eval_ctx_t *opa_eval_ctx_new();
 void opa_eval_ctx_set_input(opa_eval_ctx_t *ctx, opa_value *v);
 void opa_eval_ctx_set_data(opa_eval_ctx_t *ctx, opa_value *v);
+void opa_eval_ctx_set_entrypoint(opa_eval_ctx_t *ctx, int entrypoint);
 opa_value *opa_eval_ctx_get_result(opa_eval_ctx_t *ctx);
 
 opa_value *opa_builtin0(int, void *);

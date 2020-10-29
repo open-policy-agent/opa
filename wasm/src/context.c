@@ -7,6 +7,7 @@ opa_eval_ctx_t *opa_eval_ctx_new()
     ctx->input = NULL;
     ctx->data = NULL;
     ctx->result = NULL;
+    ctx->entrypoint = 0;
     return ctx;
 }
 
@@ -18,6 +19,11 @@ void opa_eval_ctx_set_input(opa_eval_ctx_t *ctx, opa_value *v)
 void opa_eval_ctx_set_data(opa_eval_ctx_t *ctx, opa_value *v)
 {
     ctx->data = v;
+}
+
+void opa_eval_ctx_set_entrypoint(opa_eval_ctx_t *ctx, int entrypoint)
+{
+    ctx->entrypoint = entrypoint;
 }
 
 opa_value *opa_eval_ctx_get_result(opa_eval_ctx_t *ctx)
