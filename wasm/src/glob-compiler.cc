@@ -120,6 +120,7 @@ std::string glob_translate(const char *glob, size_t n, const std::vector<std::st
     std::string error = glob_parse(l, &root);
     if (error != "")
     {
+        delete l;
         return error;
     }
 
@@ -147,6 +148,7 @@ std::string glob_translate(const char *glob, size_t n, const std::vector<std::st
 
     *re2 = root->re2(single_mark);
     delete(root);
+    delete(l);
     return "";
 }
 
