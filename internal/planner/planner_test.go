@@ -226,7 +226,12 @@ func TestPlannerHelloWorld(t *testing.T) {
 			for i := range modules {
 				modules[i] = ast.MustParseModule(tc.modules[i])
 			}
-			planner := New().WithQueries(queries).WithModules(modules).WithBuiltinDecls(ast.BuiltinMap)
+			planner := New().WithQueries([]QuerySet{
+				{
+					Name:    "test",
+					Queries: queries,
+				},
+			}).WithModules(modules).WithBuiltinDecls(ast.BuiltinMap)
 			policy, err := planner.Plan()
 			if err != nil {
 				t.Fatal(err)
@@ -234,5 +239,42 @@ func TestPlannerHelloWorld(t *testing.T) {
 			_ = policy
 			ir.Pretty(os.Stderr, policy)
 		})
+	}
+}
+
+func TestMultipleNamedQueries(t *testing.T) {
+
+	q1 := []ast.Body{
+		ast.MustParseBody(`a=1`),
+	}
+
+	q2 := []ast.Body{
+		ast.MustParseBody(`a=2`),
+	}
+
+	planner := New().WithQueries([]QuerySet{
+		{
+			Name:    "q1",
+			Queries: q1,
+		},
+		{
+			Name:    "q2",
+			Queries: q2,
+		},
+	})
+
+	policy, err := planner.Plan()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ir.Pretty(os.Stderr, policy)
+
+	// Sanity check to make sure two expected plans are emitted.
+	if len(policy.Plans.Plans) != 2 {
+		t.Fatal("expected two plans")
+	} else if policy.Plans.Plans[0].Name != "q1" || policy.Plans.Plans[1].Name != "q2" {
+		t.Fatal("expected to find plans for 'q1' and 'q2'")
 	}
 }
