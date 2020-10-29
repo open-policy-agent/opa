@@ -75,10 +75,11 @@ static void heap_check(const char *name, struct heap_blocks *blocks)
 }
 
 // try removing the last block(s) from the free list and adjusting the heap pointer accordingly.
-static void compact_free(struct heap_blocks *blocks)
+static bool compact_free(struct heap_blocks *blocks)
 {
     struct heap_block *start = &blocks->start;
     struct heap_block *end = &blocks->end;
+    unsigned int old_heap_ptr = heap_ptr;
 
     while (1)
     {
@@ -100,6 +101,7 @@ static void compact_free(struct heap_blocks *blocks)
     }
 
     HEAP_CHECK(blocks);
+    return old_heap_ptr != heap_ptr;
 }
 
 static void init(void)
@@ -353,6 +355,18 @@ void *opa_builtin_cache_get(size_t i)
 void opa_builtin_cache_set(size_t i, void *p)
 {
     *__opa_builtin_cache(i) = p;
+}
+
+// Compact all the free blocks. This is for testing only.
+void opa_heap_compact(void)
+{
+    for (bool progress = true; progress; )
+    {
+        progress = false;
+        for (int i = 0; i < ARRAY_SIZE(heap_free); i++) {
+            progress |= compact_free(&heap_free[i]);
+        }
+    }
 }
 
 // Count the number of free blocks. This is for testing only.
