@@ -1256,10 +1256,17 @@ func (r *Rego) Compile(ctx context.Context, opts ...CompileOption) (*CompileResu
 		decls[k] = v
 	}
 
+	const queryName = "eval" // NOTE(tsandall): the query name is arbitrary
+
 	policy, err := planner.New().
-		WithQueries(queries).
+		WithQueries([]planner.QuerySet{
+			{
+				Name:          queryName,
+				Queries:       queries,
+				RewrittenVars: r.compiledQueries[compileQueryType].compiler.RewrittenVars(),
+			},
+		}).
 		WithModules(modules).
-		WithRewrittenVars(r.compiledQueries[compileQueryType].compiler.RewrittenVars()).
 		WithBuiltinDecls(decls).
 		Plan()
 	if err != nil {
