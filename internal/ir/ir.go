@@ -16,7 +16,7 @@ type (
 	// Policy represents a planned policy query.
 	Policy struct {
 		Static *Static
-		Plan   *Plan
+		Plans  *Plans
 		Funcs  *Funcs
 	}
 
@@ -30,6 +30,11 @@ type (
 	// policy.
 	BuiltinFunc struct {
 		Name string
+	}
+
+	// Plans represents a collection of named query plans to expose in the policy.
+	Plans struct {
+		Plans []*Plan
 	}
 
 	// Funcs represents a collection of planned functions to include in the
@@ -52,6 +57,7 @@ type (
 	// Plan represents an ordered series of blocks to execute. Plan execution
 	// stops when a return statement is reached. Blocks are executed in-order.
 	Plan struct {
+		Name   string
 		Blocks []*Block
 	}
 
@@ -129,7 +135,7 @@ func (a *Func) String() string {
 }
 
 func (a *Plan) String() string {
-	return fmt.Sprintf("Plan (%d blocks)", len(a.Blocks))
+	return fmt.Sprintf("Plan %v (%d blocks)", a.Name, len(a.Blocks))
 }
 
 func (a *Block) String() string {
