@@ -1,6 +1,7 @@
 #include "glob-compiler.h"
 #include "glob-lexer.h"
 #include "glob-parser.h"
+#include "malloc.h"
 #include "test.h"
 #include "re2/re2.h"
 #include "std.h"
@@ -34,8 +35,10 @@ extern "C"
 void test_glob_lexer(void)
 {
 #define TEST(test_case, pattern, ...) {                                 \
-        lexer *l = new lexer(pattern, strlen(pattern));                 \
         token expected[] = {__VA_ARGS__};                               \
+        opa_heap_compact();                                             \
+        unsigned int allocated_before = opa_heap_ptr_get();             \
+        lexer *l = new lexer(pattern, strlen(pattern));                 \
         for (int i = 0; i < sizeof(expected)/sizeof(expected[0]); i++)  \
         {                                                               \
             token token(glob_lexer_token_eof, "", 0);                   \
@@ -43,6 +46,10 @@ void test_glob_lexer(void)
             test(test_case, token.kind == expected[i].kind &&           \
                  token.s == expected[i].s);                             \
         }                                                               \
+        delete l;                                                       \
+        opa_heap_compact();                                             \
+        unsigned int allocated_after = opa_heap_ptr_get();              \
+        test(test_case, allocated_before == allocated_after);           \
     }
 
     TEST("glob/lexer", "", {glob_lexer_token_eof, "", 0});
@@ -140,10 +147,19 @@ extern "C"
 void test_glob_parser(void)
 {
 #define TEST(test_case, pattern, expected) {                            \
+        opa_heap_compact();                                             \
+        unsigned int allocated_before = opa_heap_ptr_get();             \
+        node *e = expected;                                             \
         lexer *l = new lexer(pattern, strlen(pattern));                 \
         node *n = NULL;                                                 \
         std::string error = glob_parse(l, &n);                          \
-        test(test_case, expected->equal(n));                            \
+        test(test_case, e->equal(n));                                   \
+        delete n;                                                       \
+        delete l;                                                       \
+        delete e;                                                       \
+        opa_heap_compact();                                             \
+        unsigned int allocated_after = opa_heap_ptr_get();              \
+        test(test_case, allocated_before == allocated_after);           \
     }
 
     TEST("glob/parser", "abc", (new node(kind_pattern))->
@@ -202,7 +218,6 @@ void test_glob_parser(void)
                        insert(new node(kind_range, "a", "z", false)))->
                 insert((new node(kind_pattern))->
                        insert(new node(kind_list, "qwe", true)))));
-
 #undef TEST
 }
 

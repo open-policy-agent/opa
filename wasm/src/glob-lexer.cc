@@ -54,7 +54,7 @@ lexer::~lexer()
 {
     for (int i = 0; i < tokens.size(); i++)
     {
-        delete(tokens[i]);
+        delete tokens[i];
     }
 }
 
@@ -69,10 +69,13 @@ void lexer::next(token *out)
     if (!tokens.empty())
     {
         *out = *tokens[0];
+        delete tokens[0];
+
         for (int i = 1; i < tokens.size(); i++)
         {
             tokens[i - 1] = tokens[i];
         }
+
         tokens.pop_back();
         return;
     }
@@ -237,7 +240,8 @@ void lexer::fetch_range()
 
 void lexer::fetch_text(const int *breakers)
 {
-    opa_array_t *arr = opa_cast_array(opa_array());
+    typedef std::pair<const char *,size_t> str_offset;
+    std::vector<str_offset> arr;
     bool escaped = false;
     rune r("", 0, eof);
     const char *s;
@@ -251,7 +255,7 @@ void lexer::fetch_text(const int *breakers)
                 size_t n = static_cast<size_t>(r.s - s);
                 if (n > 0)
                 {
-                    opa_array_append(arr, opa_string(s, n));
+                    arr.push_back(str_offset(s, n));
                 }
 
                 s = r.s + 1;
@@ -274,29 +278,27 @@ void lexer::fetch_text(const int *breakers)
     size_t n = static_cast<size_t>(r.s - s);
     if (n > 0)
     {
-        opa_array_append(arr, opa_string(s, n));
+        arr.push_back(str_offset(s, n));
     }
 
-    if (arr->len == 0)
+    if (arr.empty())
     {
-        opa_free(arr);
         return;
     }
 
     n = 0;
-    for (int i = 0; i < arr->len; i++)
+    for (size_t i = 0; i < arr.size(); i++)
     {
-        n += opa_cast_string(arr->elems[i].v)->len;
+        n += arr[i].second;
     }
 
     char *v = static_cast<char *>(opa_malloc(n));
-    for (int i = 0, j = 0; i < arr->len; i++)
+    for (int i = 0, j = 0; i < arr.size(); i++)
     {
-        opa_string_t *s = opa_cast_string(arr->elems[i].v);
-        memcpy(&v[j], s->v, s->len);
-        j += s->len;
+        memcpy(&v[j], arr[i].first, arr[i].second);
+        j += arr[i].second;
     }
 
-    opa_free(arr);
     tokens.push_back(new token(glob_lexer_token_text, v, n));
+    opa_free(v);
 }

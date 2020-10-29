@@ -34,7 +34,7 @@ node::~node()
 {
     for (int i = 0; i < children.size(); i++)
     {
-        delete(children[i]);
+        delete children[i];
     }
 }
 
@@ -93,7 +93,7 @@ std::string glob_parse(lexer *lexer, node **output)
         s.parser(&s, lexer);
         if (s.error != "")
         {
-            delete(root);
+            delete root;
             return s.error;
         }
     }
