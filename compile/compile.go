@@ -9,7 +9,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"regexp"
 	"sort"
 
@@ -54,7 +53,7 @@ type Compiler struct {
 	entrypoints       orderedStringSet           // policy entrypoints required for optimization and certain targets
 	optimizationLevel int                        // how aggressive should optimization be
 	target            string                     // target type (wasm, rego, etc.)
-	output            io.Writer                  // output stream to write bundle to
+	output            *io.Writer                 // output stream to write bundle to
 	entrypointrefs    []*ast.Term                // validated entrypoints computed from default decision or manually supplied entrypoints
 	compiler          *ast.Compiler              // rego ast compiler used for semantic checks and rewriting
 	debug             *debugEvents               // debug information produced during build
@@ -89,7 +88,6 @@ func New() *Compiler {
 		asBundle:          false,
 		optimizationLevel: 0,
 		target:            TargetRego,
-		output:            ioutil.Discard,
 		debug:             &debugEvents{},
 	}
 }
@@ -135,7 +133,7 @@ func (c *Compiler) WithTarget(t string) *Compiler {
 
 // WithOutput sets the output stream to write the bundle to.
 func (c *Compiler) WithOutput(w io.Writer) *Compiler {
-	c.output = w
+	c.output = &w
 	return c
 }
 
@@ -211,7 +209,11 @@ func (c *Compiler) Build(ctx context.Context) error {
 		}
 	}
 
-	return bundle.NewWriter(c.output).Write(*c.bundle)
+	if c.output == nil {
+		return nil
+	}
+
+	return bundle.NewWriter(*c.output).Write(*c.bundle)
 }
 
 func (c *Compiler) init() error {
@@ -247,6 +249,12 @@ func (c *Compiler) init() error {
 	}
 
 	return nil
+}
+
+// Bundle returns the compiled bundle. This function can be called to retrieve the
+// output of the compiler (as an alternative to having the bundle written to a stream.)
+func (c *Compiler) Bundle() *bundle.Bundle {
+	return c.bundle
 }
 
 func (c *Compiler) initBundle() error {
