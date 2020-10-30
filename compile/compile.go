@@ -149,6 +149,14 @@ func (c *Compiler) WithFilter(filter loader.Filter) *Compiler {
 	return c
 }
 
+// WithBundle sets the input bundle to compile. This should be used as an
+// alternative to reading from paths. This function overrides any file
+// loading options.
+func (c *Compiler) WithBundle(b *bundle.Bundle) *Compiler {
+	c.bundle = b
+	return c
+}
+
 // WithBundleVerificationConfig sets the key configuration to use to verify a signed bundle
 func (c *Compiler) WithBundleVerificationConfig(config *bundle.VerificationConfig) *Compiler {
 	c.bvc = config
@@ -258,6 +266,11 @@ func (c *Compiler) Bundle() *bundle.Bundle {
 }
 
 func (c *Compiler) initBundle() error {
+
+	// If the bundle is already set, skip file loading.
+	if c.bundle != nil {
+		return nil
+	}
 
 	// TODO(tsandall): the metrics object should passed through here so we that
 	// we can track read and parse times.
