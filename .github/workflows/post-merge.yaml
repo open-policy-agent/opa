@@ -19,12 +19,26 @@ jobs:
       - name: Commit & Push
         shell: bash
         run: |
+          # Commit any changes and push as needed.
+
           # See https://github.com/actions/checkout#push-a-commit-using-the-built-in-token
-          git config user.name github-actions
-          git config user.email github-actions@github.com
+          AUTHOR=wasm-updater
+          git config user.name ${AUTHOR}
+          git config user.email ${AUTHOR}@github.com
+
+          # Prevent looping if the build was non-deterministic..
+          CAN_PUSH=1
+          if [[ "$(git log -1 --pretty=format:'%an')" == "${AUTHOR}" ]]; then
+              CAN_PUSH=0
+          fi
 
           if ./build/commit-wasm-bins.sh; then
-            git push
+            if [[ "${CAN_PUSH}" == "1" ]]; then
+              git push
+            else
+              echo "Previous commit was auto-generated -- Aborting!"
+              exit 1
+            fi
           else
             echo "No generated changes to push!"
           fi
