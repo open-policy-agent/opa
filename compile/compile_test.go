@@ -253,6 +253,32 @@ func TestCompilerLoadHonorsFilter(t *testing.T) {
 	})
 }
 
+func TestCompilerInputBundle(t *testing.T) {
+
+	b := &bundle.Bundle{
+		Modules: []bundle.ModuleFile{
+			bundle.ModuleFile{
+				URL:    "/foo.rego",
+				Path:   "/foo.rego",
+				Raw:    []byte("package test\np = 7"),
+				Parsed: ast.MustParseModule("package test\np = 7"),
+			},
+		},
+	}
+
+	compiler := New().WithBundle(b)
+
+	if err := compiler.Build(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+
+	exp := "package test\n\np = 7\n"
+
+	if exp != string(compiler.Bundle().Modules[0].Raw) {
+		t.Fatalf("expected module to have been formatted (output different than expected):\n\ngot: %v\n\nwant: %v", string(compiler.Bundle().Modules[0].Raw), exp)
+	}
+}
+
 func TestCompilerError(t *testing.T) {
 	files := map[string]string{
 		"test.rego": `
