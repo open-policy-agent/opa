@@ -11,6 +11,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/open-policy-agent/opa/plugins"
+	"github.com/open-policy-agent/opa/runtime"
+
 	"github.com/sirupsen/logrus"
 
 	"github.com/sirupsen/logrus/hooks/test"
@@ -27,6 +30,8 @@ func TestMain(m *testing.M) {
 	testServerParams.ConfigOverrides = []string{
 		"decision_logs.console=true",
 	}
+	// Ensure decisions are logged regardless of regular log level
+	testServerParams.Logging = runtime.LoggingConfig{Level: "error"}
 
 	var err error
 	testRuntime, err = e2e.NewTestRuntime(testServerParams)
@@ -39,9 +44,8 @@ func TestMain(m *testing.M) {
 
 func TestConsoleDecisionLogWithInput(t *testing.T) {
 
-	// Setup a test hook on the global logrus logger (what
-	// the console decision logger uses)
-	hook := test.NewGlobal()
+	// Setup a test hook on the console logger (what the console decision logger uses)
+	hook := test.NewLocal(plugins.GetConsoleLogger())
 
 	policy := `
 	package test
@@ -99,6 +103,7 @@ func TestConsoleDecisionLogWithInput(t *testing.T) {
 			}
 		}},
 	}
+
 	var entry *logrus.Entry
 	for _, e := range hook.AllEntries() {
 		if e.Message == "Decision Log" {
