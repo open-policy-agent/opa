@@ -1196,6 +1196,12 @@ void test_opa_json_dump()
     opa_array_append(opa_cast_array(terminators), opa_null());
 
     test("bool/null terminators", opa_strcmp(opa_json_dump(terminators), "[true,false,null]") == 0);
+
+    opa_value *non_string_keys = opa_object();
+    opa_array_t *arrk = opa_cast_array(opa_array());
+    opa_array_append(arrk, opa_number_int(1));
+    opa_object_insert(opa_cast_object(non_string_keys), &arrk->hdr, opa_number_int(1));
+    test_str_eq("objects/non string keys", opa_json_dump(non_string_keys), "{\"[1]\":1}");
 }
 
 void test_opa_value_dump()
@@ -1209,6 +1215,12 @@ void test_opa_value_dump()
 
     opa_set_add(set, opa_number_int(2));
     test("sets", opa_strcmp(opa_value_dump(&set->hdr), "{1,2}") == 0);
+
+    opa_value *non_string_keys = opa_object();
+    opa_array_t *arrk = opa_cast_array(opa_array());
+    opa_array_append(arrk, opa_number_int(1));
+    opa_object_insert(opa_cast_object(non_string_keys), &arrk->hdr, opa_number_int(1));
+    test_str_eq("objects/non string keys", opa_value_dump(non_string_keys), "{[1]:1}");
 }
 
 void test_arithmetic(void)

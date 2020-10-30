@@ -709,6 +709,7 @@ typedef struct {
     char *next;
     size_t len;
     int set_literals_enabled;
+    int non_string_object_keys_enabled;
 } opa_json_writer;
 
 void opa_json_writer_init(opa_json_writer *w)
@@ -717,6 +718,7 @@ void opa_json_writer_init(opa_json_writer *w)
     w->next = NULL;
     w->len = 0;
     w->set_literals_enabled = 0;
+    w->non_string_object_keys_enabled = 0;
 }
 
 size_t opa_json_writer_offset(opa_json_writer *w)
@@ -922,14 +924,36 @@ int opa_json_writer_emit_set_element(opa_json_writer *w, opa_value *coll, opa_va
 
 int opa_json_writer_emit_object_element(opa_json_writer *w, opa_value *coll, opa_value *k)
 {
-    int rc = opa_json_writer_emit_value(w, k);
-
-    if (rc != 0)
+    if (w->non_string_object_keys_enabled || opa_value_type(k) == OPA_STRING)
     {
-        return rc;
+        int rc = opa_json_writer_emit_value(w, k);
+
+        if (rc != 0)
+        {
+            return rc;
+        }
+    }
+    else
+    {
+        char *buf = opa_json_dump(k);
+
+        if (buf == NULL)
+        {
+            return -3;
+        }
+
+        opa_value *serialized = opa_string_terminated(buf);
+        int rc = opa_json_writer_emit_value(w, serialized);
+        opa_value_free(serialized);
+        opa_free(buf);
+
+        if (rc != 0)
+        {
+            return rc;
+        }
     }
 
-    rc = opa_json_writer_emit_char(w, ':');
+    int rc = opa_json_writer_emit_char(w, ':');
 
     if (rc != 0)
     {
@@ -1017,7 +1041,7 @@ int opa_json_writer_emit_value(opa_json_writer *w, opa_value *v)
     return -2;
 }
 
-const char *opa_json_writer_write(opa_json_writer *w, opa_value *v)
+char *opa_json_writer_write(opa_json_writer *w, opa_value *v)
 {
     if (opa_json_writer_grow(w, 1024, 0) != 0)
     {
@@ -1041,17 +1065,18 @@ errout:
     return NULL;
 }
 
-const char *opa_json_dump(opa_value *v)
+char *opa_json_dump(opa_value *v)
 {
     opa_json_writer w;
     opa_json_writer_init(&w);
     return opa_json_writer_write(&w, v);
 }
 
-const char *opa_value_dump(opa_value *v)
+char *opa_value_dump(opa_value *v)
 {
     opa_json_writer w;
     opa_json_writer_init(&w);
     w.set_literals_enabled = 1;
+    w.non_string_object_keys_enabled = 1;
     return opa_json_writer_write(&w, v);
 }
