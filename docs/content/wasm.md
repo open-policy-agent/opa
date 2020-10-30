@@ -32,7 +32,7 @@ implemented in the host environment (e.g., JavaScript).
 You can compile Rego policies into Wasm modules using the `opa build` subcommand.
 
 For example, the `opa build` command below compiles the `example.rego` file into a
-Wasm module and packages it into an OPA bundle. The `wasm` target requires exactly
+Wasm module and packages it into an OPA bundle. The `wasm` target requires at least
 one entrypoint rule (specified by `-e`).
 
 ```bash
@@ -112,9 +112,11 @@ The primary exported functions for interacting with policy modules are:
 | --- | --- |
 | <span class="opa-keep-it-together">`int32 eval(ctx_addr)`</span> | Evaluates the loaded policy with the provided evaluation context. The return value is reserved for future use. |
 | <span class="opa-keep-it-together">`value_addr builtins(void)`</span> | Returns the address of a mapping of built-in function names to numeric identifiers that are required by the policy. |
+| <span class="opa-keep-it-together">`value_addr entrypoints(void)`</span> | Returns the address of a mapping of entrypoints to numeric identifiers that can be selected when evaluating the policy. |
 | <span class="opa-keep-it-together">`ctx_addr opa_eval_ctx_new(void)`</span> | Returns the address of a newly allocated evaluation context. |
 | <span class="opa-keep-it-together">`void opa_eval_ctx_set_input(ctx_addr, value_addr)`</span> | Set the input value to use during evaluation. This must be called before each `eval()` call. If the input value is not set before evaluation, references to the `input` document result produce no results (i.e., they are undefined.) |
 | <span class="opa-keep-it-together">`void opa_eval_ctx_set_data(ctx_addr, value_addr)`</span>  | Set the data value to use during evalutaion. This should be called before each `eval()` call. If the data value is not set before evalutaion, references to base `data` documents produce no results (i.e., they are undefined.) |
+| <span class="opa-keep-it-together">`void opa_eval_ctx_set_entrypoint(ctx_addr, entrypoint_id)`</span>  | Set the entrypoint to evaluate. By default, entrypoint with id `0` is evaluated. |
 | <span class="opa-keep-it-together">`value_addr opa_eval_ctx_get_result(ctx_addr)`</span> | Get the result set produced by the evaluation process. |
 | <span class="opa-keep-it-together">`addr opa_malloc(int32 size)`</span> | Allocates size bytes in the shared memory and returns the starting address. |
 | <span class="opa-keep-it-together">`value_addr opa_json_parse(str_addr, size)`</span> | Parses the JSON serialized value starting at str_addr of size bytes and returns the address of the parsed value. The parsed value may refer to a null, boolean, number, string, array, or object value. |
@@ -239,6 +241,15 @@ the current point in the heap before evaluation. After evaluation this should be
 reset by calling `opa_heap_ptr_set` to ensure that evaluation restarts back at the
 saved data and re-uses heap space. This is particularly important if re-evaluating many
 times with the same data.
+
+#### Entrypoints
+
+The compiled policy may have one or more entrypoints. If no entrypoint is set
+on the evaluation context the default entrypoint (`0`) will be evaluated. SDKs
+can call `entrypoints()` after instantiating the module to retrieve the
+entrypoint name to entrypoint identifier mapping. SDKs can set the entrypoint to
+evaluate by calling `opa_eval_ctx_set_entrypoint` on the evaluation context. If
+an invalid entrypoint identifier is passed, the `eval` function will invoke `opa_abort`.
 
 #### Results
 
