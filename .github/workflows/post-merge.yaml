@@ -12,6 +12,8 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@v2
+        with:
+          token: ${{ secrets.GH_PUSH_TOKEN }}
 
       - name: Generate
         run: make clean generate
