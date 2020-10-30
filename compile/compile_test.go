@@ -60,7 +60,7 @@ func TestCompilerInitErrors(t *testing.T) {
 		{
 			note: "wasm compilation requires exactly one entrypoint",
 			c:    New().WithTarget("wasm"),
-			want: errors.New("wasm compilation requires exactly one entrypoint"),
+			want: errors.New("wasm compilation requires at least one entrypoint"),
 		},
 	}
 
@@ -412,12 +412,13 @@ func TestCompilerWasmTarget(t *testing.T) {
 	files := map[string]string{
 		"test.rego": `package test
 
-		p = true`,
+		p = 7
+		q = p+1`,
 	}
 
 	test.WithTempFS(files, func(root string) {
 
-		compiler := New().WithPaths(root).WithTarget("wasm").WithEntrypoints("test/p")
+		compiler := New().WithPaths(root).WithTarget("wasm").WithEntrypoints("test/p", "test/q")
 		err := compiler.Build(context.Background())
 		if err != nil {
 			t.Fatal(err)

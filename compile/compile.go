@@ -6,16 +6,21 @@
 package compile
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
 	"regexp"
 	"sort"
 
+	"github.com/open-policy-agent/opa/internal/wasm/encoding"
+
 	"github.com/pkg/errors"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
+	"github.com/open-policy-agent/opa/internal/compiler/wasm"
+	"github.com/open-policy-agent/opa/internal/planner"
 	"github.com/open-policy-agent/opa/internal/ref"
 	initload "github.com/open-policy-agent/opa/internal/runtime/init"
 	"github.com/open-policy-agent/opa/loader"
@@ -252,8 +257,8 @@ func (c *Compiler) init() error {
 		return errors.New("bundle optimizations require at least one entrypoint")
 	}
 
-	if c.target == TargetWasm && len(c.entrypointrefs) != 1 {
-		return errors.New("wasm compilation requires exactly one entrypoint")
+	if c.target == TargetWasm && len(c.entrypointrefs) == 0 {
+		return errors.New("wasm compilation requires at least one entrypoint")
 	}
 
 	return nil
@@ -368,20 +373,62 @@ func (c *Compiler) compileWasm(ctx context.Context) error {
 		}
 	}
 
-	store := inmem.NewFromObject(c.bundle.Data)
+	// Create query sets for each of the entrypoints.
 	resultSym := ast.NewTerm(wasmResultVar)
+	queries := make([]planner.QuerySet, len(c.entrypointrefs))
 
-	cr, err := rego.New(
-		rego.ParsedQuery(ast.NewBody(ast.Equality.Expr(resultSym, c.entrypointrefs[0]))),
-		rego.Compiler(c.compiler),
-		rego.Store(store),
-	).Compile(ctx)
+	for i := range c.entrypointrefs {
+
+		qc := c.compiler.QueryCompiler()
+		query := ast.NewBody(ast.Equality.Expr(resultSym, c.entrypointrefs[i]))
+		compiled, err := qc.Compile(query)
+
+		if err != nil {
+			return err
+		}
+
+		queries[i] = planner.QuerySet{
+			Name:          c.entrypoints[i],
+			Queries:       []ast.Body{compiled},
+			RewrittenVars: qc.RewrittenVars(),
+		}
+	}
+
+	// Prepare modules and builtins for the planner.
+	modules := []*ast.Module{}
+	for _, module := range c.compiler.Modules {
+		modules = append(modules, module)
+	}
+
+	builtins := make(map[string]*ast.Builtin, len(c.capabilities.Builtins))
+	for _, bi := range c.capabilities.Builtins {
+		builtins[bi.Name] = bi
+	}
+
+	// Plan the query sets.
+	policy, err := planner.New().
+		WithQueries(queries).
+		WithModules(modules).
+		WithBuiltinDecls(builtins).
+		Plan()
 
 	if err != nil {
 		return err
 	}
 
-	c.bundle.Wasm = cr.Bytes
+	// Compile the policy into a wasm binary.
+	m, err := wasm.New().WithPolicy(policy).Compile()
+	if err != nil {
+		return err
+	}
+
+	var buf bytes.Buffer
+
+	if err := encoding.WriteModule(&buf, m); err != nil {
+		return err
+	}
+
+	c.bundle.Wasm = buf.Bytes()
 
 	return nil
 }
