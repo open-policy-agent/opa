@@ -227,12 +227,8 @@ ci-release-test:
 ci-check-working-copy: generate
 	./build/check-working-copy.sh
 
-# The ci-wasm target exists because we do not want to run the generate
-# target outside of Docker. This step duplicates the the wasm-rego-test target
-# above.
 .PHONY: ci-wasm
-ci-wasm: wasm-lib-test
-	GOVERSION=$(GOVERSION) ./build/run-wasm-rego-tests.sh
+ci-wasm: wasm-test
 
 .PHONY: build-linux
 build-linux: ensure-release-dir
