@@ -467,6 +467,8 @@ func TestCompilerOutput(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+
+		// Check that the written bundle is expected.
 		result, err := bundle.NewReader(buf).Read()
 		if err != nil {
 			t.Fatal(err)
@@ -485,6 +487,16 @@ func TestCompilerOutput(t *testing.T) {
 			t.Fatalf("expected:\n\n%v\n\ngot:\n\n%v", exp.Manifest, result.Manifest)
 		}
 
+		// Check that the returned bundle is the expected.
+		compiled := compiler.Bundle()
+
+		if !exp.Equal(*compiled) {
+			t.Fatalf("expected:\n\n%v\n\ngot:\n\n%v", *exp, *compiled)
+		}
+
+		if !exp.Manifest.Equal(compiled.Manifest) {
+			t.Fatalf("expected:\n\n%v\n\ngot:\n\n%v", exp.Manifest, compiled.Manifest)
+		}
 	})
 }
 
