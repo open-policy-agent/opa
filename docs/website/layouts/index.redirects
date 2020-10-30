@@ -31,6 +31,9 @@
 /docs/{{ . }}.html /docs/latest/{{ . }}     301!
 {{- end }}
 
+# Gatekeeper redirect
+/gatekeeper             https://open-policy-agent.github.io/gatekeeper/website/docs/     301!
+
 # Download URLs
 /downloads/edge/*       https://opa-releases.s3.amazonaws.com/edge/:splat 200
 /downloads/latest/*     https://github.com/open-policy-agent/opa/releases/download/{{ $latest }}/:splat 200
