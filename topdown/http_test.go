@@ -1056,6 +1056,40 @@ func TestHTTPSendInterQueryForceCaching(t *testing.T) {
 			response:         `{"x": 1}`,
 			expectedReqCount: 1,
 		},
+		{
+			note: "http.send GET cache hit (force_cache_only_no_store_override)",
+			ruleTemplate: `p = x {
+									r1 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "force_cache": true, "force_cache_duration_seconds": 300})
+									r2 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "force_cache": true, "force_cache_duration_seconds": 300})  # cached and fresh
+									r3 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "force_cache": true, "force_cache_duration_seconds": 300})  # cached and fresh
+									r1 == r2
+									r2 == r3
+									x = r1.body
+								}`,
+			headers: map[string][]string{
+				"Expires":       {"Wed, 31 Dec 2005 07:28:00 GMT"},
+				"Cache-Control": {"no-store"},
+			},
+			response:         `{"x": 1}`,
+			expectedReqCount: 1,
+		},
+		{
+			note: "http.send GET cache hit (cache_param_override_no_store_override)",
+			ruleTemplate: `p = x {
+									r1 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true, "force_cache": true, "force_cache_duration_seconds": 300})
+									r2 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true, "force_cache": true, "force_cache_duration_seconds": 300})  # cached and fresh
+									r3 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true, "force_cache": true, "force_cache_duration_seconds": 300})  # cached and fresh
+									r1 == r2
+									r2 == r3
+									x = r1.body
+								}`,
+			headers: map[string][]string{
+				"Expires":       {"Wed, 31 Dec 2005 07:28:00 GMT"},
+				"Cache-Control": {"no-store", "no-cache", "max-age=0"},
+			},
+			response:         `{"x": 1}`,
+			expectedReqCount: 1,
+		},
 	}
 
 	data := loadSmallTestData()

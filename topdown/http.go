@@ -613,7 +613,7 @@ func checkHTTPSendInterQueryCache(bctx BuiltinContext, key ast.Object, req *http
 		}
 	}
 
-	err = insertIntoHTTPSendInterQueryCache(bctx, key, newValue, result, size)
+	err = insertIntoHTTPSendInterQueryCache(bctx, key, newValue, result, size, cacheParams != nil)
 	if err != nil {
 		return nil, err
 	}
@@ -621,8 +621,8 @@ func checkHTTPSendInterQueryCache(bctx BuiltinContext, key ast.Object, req *http
 }
 
 // insertIntoHTTPSendInterQueryCache inserts given key and value in the inter-query cache
-func insertIntoHTTPSendInterQueryCache(bctx BuiltinContext, key, value ast.Value, resp *http.Response, size int) error {
-	if resp == nil || !canStore(resp.Header) {
+func insertIntoHTTPSendInterQueryCache(bctx BuiltinContext, key, value ast.Value, resp *http.Response, size int, force bool) error {
+	if resp == nil || (!force && !canStore(resp.Header)) {
 		return nil
 	}
 
@@ -1017,7 +1017,7 @@ func (c *interQueryCache) CheckCache() (ast.Value, error) {
 
 	resp, err := checkHTTPSendInterQueryCache(c.bctx, c.key, c.httpReq, c.httpClient, c.forceJSONDecode, c.forceCacheParams)
 
-	// fallback to the intra-query cache if response not found in the inter-query cache or inter-query cache look-up results
+	// fallback to the http send cache if response not found in the inter-query cache or inter-query cache look-up results
 	// in an error
 	if resp == nil || err != nil {
 		return checkHTTPSendCache(c.bctx, c.key), nil
@@ -1032,8 +1032,8 @@ func (c *interQueryCache) InsertIntoCache(value *http.Response) (ast.Value, erro
 		return nil, handleHTTPSendErr(c.bctx, err)
 	}
 
-	// fallback to the intra-query cache if error encountered while inserting response in inter-query cache
-	err = insertIntoHTTPSendInterQueryCache(c.bctx, c.key, result, value, size)
+	// fallback to the http send cache if error encountered while inserting response in inter-query cache
+	err = insertIntoHTTPSendInterQueryCache(c.bctx, c.key, result, value, size, c.forceCacheParams != nil)
 	if err != nil {
 		insertIntoHTTPSendCache(c.bctx, c.key, result)
 	}
