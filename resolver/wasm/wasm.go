@@ -56,7 +56,7 @@ func (r *Resolver) Eval(ctx context.Context, input resolver.Input) (resolver.Res
 		inp = &x
 	}
 
-	out, err := r.o.Eval(ctx, inp)
+	out, err := r.o.Eval(ctx, 0, inp)
 	if err != nil {
 		return resolver.Result{}, err
 	}

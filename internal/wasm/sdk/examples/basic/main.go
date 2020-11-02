@@ -13,7 +13,7 @@ import (
 	"github.com/open-policy-agent/opa/internal/wasm/sdk/opa"
 )
 
-// main demonstrates the loading and executnig of OPA produced wasm
+// main demonstrates the loading and executing of OPA produced wasm
 // policy binary. To execute run 'go run main.go .' in the directory
 // of the main.go.
 func main() {
@@ -48,7 +48,20 @@ func main() {
 	}
 
 	ctx := context.Background()
-	result, err := rego.Eval(ctx, &input)
+
+	eps, err := rego.Entrypoints(ctx)
+	if err != nil {
+		fmt.Printf("error: %v\n", err)
+		return
+	}
+
+	entrypointID, ok := eps["example/allow"]
+	if !ok {
+		fmt.Println("error: Unable to find entrypoint 'example/allow'")
+		return
+	}
+
+	result, err := rego.Eval(ctx, entrypointID, &input)
 	if err != nil {
 		fmt.Printf("error: %v\n", err)
 		return
@@ -56,7 +69,7 @@ func main() {
 
 	fmt.Printf("Policy 1 result: %v\n", result)
 
-	resultBool, err := opa.EvalBool(ctx, rego, &input)
+	resultBool, err := opa.EvalBool(ctx, rego, entrypointID, &input)
 	if err != nil {
 		fmt.Printf("error: %v\n", err)
 		return
@@ -72,6 +85,19 @@ func main() {
 		return
 	}
 
+	// Get an updated entrypoint ID, they may have changed!
+	eps, err = rego.Entrypoints(ctx)
+	if err != nil {
+		fmt.Printf("error: %v\n", err)
+		return
+	}
+
+	entrypointID, ok = eps["example/allow"]
+	if !ok {
+		fmt.Println("error: Unable to find entrypoint 'example/allow'")
+		return
+	}
+
 	// Evaluate the new policy.
 
 	if err := rego.SetPolicy(policy); err != nil {
@@ -79,7 +105,7 @@ func main() {
 		return
 	}
 
-	result, err = rego.Eval(ctx, &input)
+	result, err = rego.Eval(ctx, entrypointID, &input)
 	if err != nil {
 		fmt.Printf("error: %v\n", err)
 		return
@@ -87,7 +113,7 @@ func main() {
 
 	fmt.Printf("Policy 2 result: %v\n", result)
 
-	resultBool, err = opa.EvalBool(ctx, rego, &input)
+	resultBool, err = opa.EvalBool(ctx, rego, entrypointID, &input)
 	if err != nil {
 		fmt.Printf("error: %v\n", err)
 		return

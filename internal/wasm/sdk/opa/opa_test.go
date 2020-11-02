@@ -9,6 +9,9 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/bundle"
+	"github.com/open-policy-agent/opa/compile"
 	"github.com/open-policy-agent/opa/internal/wasm/sdk/opa"
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/util"
@@ -137,7 +140,7 @@ func TestOPA(t *testing.T) {
 					}
 				}
 
-				result, err := opa.Eval(context.Background(), parseJSON(eval.Input))
+				result, err := opa.Eval(context.Background(), 0, parseJSON(eval.Input))
 				if err != nil {
 					t.Errorf(err.Error())
 				}
@@ -149,6 +152,69 @@ func TestOPA(t *testing.T) {
 
 			opa.Close()
 		})
+	}
+}
+
+func TestNamedEntrypoint(t *testing.T) {
+	module := `package test
+	
+	a = 7
+	b = a
+	`
+
+	ctx := context.Background()
+
+	compiler := compile.New().
+		WithTarget(compile.TargetWasm).
+		WithEntrypoints("test/a", "test/b").
+		WithBundle(&bundle.Bundle{
+			Modules: []bundle.ModuleFile{
+				{
+					Path:   "policy.rego",
+					URL:    "policy.rego",
+					Raw:    []byte(module),
+					Parsed: ast.MustParseModule(module),
+				},
+			},
+		})
+
+	err := compiler.Build(ctx)
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+
+	opa, _ := opa.New().
+		WithPolicyBytes(compiler.Bundle().WasmModules[0].Raw).
+		WithMemoryLimits(131070, 2*131070). // TODO: For some reason unlimited memory slows down the eval_ctx_new().
+		WithPoolSize(1).
+		Init()
+
+	eps, err := opa.Entrypoints(ctx)
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+
+	if len(eps) != 2 {
+		t.Fatalf("Expected 2 entrypoints, got: %+v", eps)
+	}
+
+	a, err := opa.Eval(ctx, eps["test/a"], nil)
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+
+	exp := `[{"result":7}]`
+	if !reflect.DeepEqual(*parseJSON(exp), a.Result) {
+		t.Fatalf("Expected result for 'test/a' to be %s, got: %s", exp, string(util.MustMarshalJSON(a.Result)))
+	}
+
+	b, err := opa.Eval(ctx, eps["test/b"], nil)
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+
+	if !reflect.DeepEqual(*parseJSON(exp), b.Result) {
+		t.Fatalf("Expected result for 'test/b' to be %s, got: %s", exp, string(util.MustMarshalJSON(b.Result)))
 	}
 }
 
@@ -167,7 +233,7 @@ func BenchmarkWasmRego(b *testing.B) {
 	var input interface{} = make(map[string]interface{})
 
 	for i := 0; i < b.N; i++ {
-		if _, err := opa.Eval(ctx, &input); err != nil {
+		if _, err := opa.Eval(ctx, 0, &input); err != nil {
 			panic(err)
 		}
 	}
