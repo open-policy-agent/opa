@@ -8,7 +8,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/open-policy-agent/golang-opa-wasm/opa"
+	"github.com/open-policy-agent/opa/internal/wasm/sdk/opa"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/resolver"
