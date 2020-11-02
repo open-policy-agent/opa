@@ -5,7 +5,7 @@
 // https://developers.google.com/open-source/licenses/bsd.
 
 // golint lints the Go source files named on its command line.
-package main // import "golang.org/x/lint/golint"
+package main
 
 import (
 	"flag"

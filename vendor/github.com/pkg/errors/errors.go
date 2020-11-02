@@ -82,7 +82,7 @@
 //
 //     if err, ok := err.(stackTracer); ok {
 //             for _, f := range err.StackTrace() {
-//                     fmt.Printf("%+s:%d", f)
+//                     fmt.Printf("%+s:%d\n", f, f)
 //             }
 //     }
 //
@@ -159,6 +159,9 @@ type withStack struct {
 
 func (w *withStack) Cause() error { return w.error }
 
+// Unwrap provides compatibility for Go 1.13 error chains.
+func (w *withStack) Unwrap() error { return w.error }
+
 func (w *withStack) Format(s fmt.State, verb rune) {
 	switch verb {
 	case 'v':
@@ -229,7 +232,7 @@ func WithMessagef(err error, format string, args ...interface{}) error {
 	}
 	return &withMessage{
 		cause: err,
-		msg: fmt.Sprintf(format, args...),
+		msg:   fmt.Sprintf(format, args...),
 	}
 }
 
@@ -240,6 +243,9 @@ type withMessage struct {
 
 func (w *withMessage) Error() string { return w.msg + ": " + w.cause.Error() }
 func (w *withMessage) Cause() error  { return w.cause }
+
+// Unwrap provides compatibility for Go 1.13 error chains.
+func (w *withMessage) Unwrap() error { return w.cause }
 
 func (w *withMessage) Format(s fmt.State, verb rune) {
 	switch verb {
