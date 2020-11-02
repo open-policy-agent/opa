@@ -30,6 +30,11 @@ type Result struct {
 	Result interface{}
 }
 
+// EntrypointID is used by Eval() to determine which compiled entrypoint should
+// be evaluated. Retrieve entrypoint to ID mapping for each instance of the
+// compiled policy.
+type EntrypointID int32
+
 // New constructs a new OPA SDK instance, ready to be configured with
 // With functions. If no policy is provided as a part of
 // configuration, policy (and data) needs to be set before invoking
@@ -135,7 +140,7 @@ func (o *OPA) setPolicyData(policy []byte, data []byte) error {
 // evaluation results. If no policy was configured at construction
 // time nor set after, the function returns ErrNotReady.  It returns
 // ErrInternal if any other error occurs.
-func (o *OPA) Eval(ctx context.Context, input *interface{}) (*Result, error) {
+func (o *OPA) Eval(ctx context.Context, entrypoint EntrypointID, input *interface{}) (*Result, error) {
 	if o.pool == nil {
 		return nil, ErrNotReady
 	}
@@ -147,7 +152,7 @@ func (o *OPA) Eval(ctx context.Context, input *interface{}) (*Result, error) {
 
 	defer o.pool.Release(instance)
 
-	result, err := instance.Eval(ctx, input)
+	result, err := instance.Eval(ctx, entrypoint, input)
 	if err != nil {
 		return nil, fmt.Errorf("%v: %w", err, ErrInternal)
 	}
@@ -169,12 +174,24 @@ func (o *OPA) Close() {
 	o.pool.Close()
 }
 
+// Entrypoints returns a mapping of entrypoint name to ID for use by Eval() and EvalBool().
+func (o *OPA) Entrypoints(ctx context.Context) (map[string]EntrypointID, error) {
+	instance, err := o.pool.Acquire(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	defer o.pool.Release(instance)
+
+	return instance.Entrypoints(), nil
+}
+
 // EvalBool evaluates the boolean policy with the given input. The
 // possible error values returned are as with Eval with addition of
 // ErrUndefined indicating an undefined policy decision and
 // ErrNonBoolean indicating a non-boolean policy decision.
-func EvalBool(ctx context.Context, o *OPA, input *interface{}) (bool, error) {
-	rs, err := o.Eval(ctx, input)
+func EvalBool(ctx context.Context, o *OPA, entrypoint EntrypointID, input *interface{}) (bool, error) {
+	rs, err := o.Eval(ctx, entrypoint, input)
 	if err != nil {
 		return false, err
 	}

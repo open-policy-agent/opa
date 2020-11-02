@@ -13,40 +13,43 @@ import (
 	"strconv"
 	"time"
 
+	wasm "github.com/wasmerio/go-ext-wasm/wasmer"
+
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/topdown"
 	"github.com/open-policy-agent/opa/topdown/builtins"
-	wasm "github.com/wasmerio/go-ext-wasm/wasmer"
 )
 
 type vm struct {
-	instance         *wasm.Instance // Pointer to avoid unintented destruction (triggering finalizers within).
-	policy           []byte
-	data             []byte
-	memory           *wasm.Memory
-	memoryMin        uint32
-	memoryMax        uint32
-	bctx             *topdown.BuiltinContext
-	builtins         map[int32]topdown.BuiltinFunc
-	builtinResult    *ast.Term
-	baseHeapPtr      int32
-	dataAddr         int32
-	evalHeapPtr      int32
-	evalHeapTop      int32
-	eval             func(...interface{}) (wasm.Value, error)
-	evalCtxGetResult func(...interface{}) (wasm.Value, error)
-	evalCtxNew       func(...interface{}) (wasm.Value, error)
-	evalCtxSetData   func(...interface{}) (wasm.Value, error)
-	evalCtxSetInput  func(...interface{}) (wasm.Value, error)
-	free             func(...interface{}) (wasm.Value, error)
-	heapPtrGet       func(...interface{}) (wasm.Value, error)
-	heapPtrSet       func(...interface{}) (wasm.Value, error)
-	heapTopGet       func(...interface{}) (wasm.Value, error)
-	heapTopSet       func(...interface{}) (wasm.Value, error)
-	jsonDump         func(...interface{}) (wasm.Value, error)
-	jsonParse        func(...interface{}) (wasm.Value, error)
-	malloc           func(...interface{}) (wasm.Value, error)
+	instance             *wasm.Instance // Pointer to avoid unintented destruction (triggering finalizers within).
+	policy               []byte
+	data                 []byte
+	memory               *wasm.Memory
+	memoryMin            uint32
+	memoryMax            uint32
+	bctx                 *topdown.BuiltinContext
+	builtins             map[int32]topdown.BuiltinFunc
+	builtinResult        *ast.Term
+	entrypointIDs        map[string]EntrypointID
+	baseHeapPtr          int32
+	dataAddr             int32
+	evalHeapPtr          int32
+	evalHeapTop          int32
+	eval                 func(...interface{}) (wasm.Value, error)
+	evalCtxGetResult     func(...interface{}) (wasm.Value, error)
+	evalCtxNew           func(...interface{}) (wasm.Value, error)
+	evalCtxSetData       func(...interface{}) (wasm.Value, error)
+	evalCtxSetInput      func(...interface{}) (wasm.Value, error)
+	evalCtxSetEntrypoint func(...interface{}) (wasm.Value, error)
+	free                 func(...interface{}) (wasm.Value, error)
+	heapPtrGet           func(...interface{}) (wasm.Value, error)
+	heapPtrSet           func(...interface{}) (wasm.Value, error)
+	heapTopGet           func(...interface{}) (wasm.Value, error)
+	heapTopSet           func(...interface{}) (wasm.Value, error)
+	jsonDump             func(...interface{}) (wasm.Value, error)
+	jsonParse            func(...interface{}) (wasm.Value, error)
+	malloc               func(...interface{}) (wasm.Value, error)
 }
 
 func newVM(policy []byte, data []byte, memoryMin, memoryMax uint32) (*vm, error) {
@@ -71,27 +74,29 @@ func newVM(policy []byte, data []byte, memoryMin, memoryMax uint32) (*vm, error)
 	}
 
 	v := &vm{
-		instance:         &i,
-		policy:           policy,
-		data:             data,
-		memory:           memory,
-		memoryMin:        memoryMin,
-		memoryMax:        memoryMax,
-		builtins:         make(map[int32]topdown.BuiltinFunc),
-		dataAddr:         0,
-		eval:             i.Exports["eval"],
-		evalCtxGetResult: i.Exports["opa_eval_ctx_get_result"],
-		evalCtxNew:       i.Exports["opa_eval_ctx_new"],
-		evalCtxSetData:   i.Exports["opa_eval_ctx_set_data"],
-		evalCtxSetInput:  i.Exports["opa_eval_ctx_set_input"],
-		free:             i.Exports["opa_free"],
-		heapPtrGet:       i.Exports["opa_heap_ptr_get"],
-		heapPtrSet:       i.Exports["opa_heap_ptr_set"],
-		heapTopGet:       i.Exports["opa_heap_top_get"],
-		heapTopSet:       i.Exports["opa_heap_top_set"],
-		jsonDump:         i.Exports["opa_json_dump"],
-		jsonParse:        i.Exports["opa_json_parse"],
-		malloc:           i.Exports["opa_malloc"],
+		instance:             &i,
+		policy:               policy,
+		data:                 data,
+		memory:               memory,
+		memoryMin:            memoryMin,
+		memoryMax:            memoryMax,
+		builtins:             make(map[int32]topdown.BuiltinFunc),
+		entrypointIDs:        make(map[string]EntrypointID),
+		dataAddr:             0,
+		eval:                 i.Exports["eval"],
+		evalCtxGetResult:     i.Exports["opa_eval_ctx_get_result"],
+		evalCtxNew:           i.Exports["opa_eval_ctx_new"],
+		evalCtxSetData:       i.Exports["opa_eval_ctx_set_data"],
+		evalCtxSetInput:      i.Exports["opa_eval_ctx_set_input"],
+		evalCtxSetEntrypoint: i.Exports["opa_eval_ctx_set_entrypoint"],
+		free:                 i.Exports["opa_free"],
+		heapPtrGet:           i.Exports["opa_heap_ptr_get"],
+		heapPtrSet:           i.Exports["opa_heap_ptr_set"],
+		heapTopGet:           i.Exports["opa_heap_top_get"],
+		heapTopSet:           i.Exports["opa_heap_top_set"],
+		jsonDump:             i.Exports["opa_json_dump"],
+		jsonParse:            i.Exports["opa_json_parse"],
+		malloc:               i.Exports["opa_malloc"],
 	}
 
 	// Initialize the heap.
@@ -143,10 +148,29 @@ func newVM(policy []byte, data []byte, memoryMin, memoryMax uint32) (*vm, error)
 		v.builtins[int32(n)] = f
 	}
 
+	// Extract the entrypoint ID's
+	val, err = i.Exports["entrypoints"]()
+	if err != nil {
+		return nil, err
+	}
+
+	epMap, err := v.fromRegoJSON(val.ToI32(), true)
+	if err != nil {
+		return nil, err
+	}
+
+	for ep, value := range epMap.(map[string]interface{}) {
+		id, err := value.(json.Number).Int64()
+		if err != nil {
+			return nil, err
+		}
+		v.entrypointIDs[ep] = EntrypointID(id)
+	}
+
 	return v, nil
 }
 
-func (i *vm) Eval(ctx context.Context, input *interface{}) (interface{}, error) {
+func (i *vm) Eval(ctx context.Context, entrypoint EntrypointID, input *interface{}) (interface{}, error) {
 	if err := i.setHeapState(i.evalHeapPtr); err != nil {
 		return nil, err
 	}
@@ -168,6 +192,11 @@ func (i *vm) Eval(ctx context.Context, input *interface{}) (interface{}, error) 
 		if _, err := i.evalCtxSetData(ctxAddr, i.dataAddr); err != nil {
 			return nil, err
 		}
+	}
+
+	_, err = i.evalCtxSetEntrypoint(ctxAddr, int32(entrypoint))
+	if err != nil {
+		return nil, err
 	}
 
 	if input != nil {
@@ -328,6 +357,11 @@ func (i *vm) Builtin(builtinID, ctx int32, args ...int32) int32 {
 	}
 
 	return addr
+}
+
+// Entrypoints returns a mapping of entrypoint name to ID for use by Eval().
+func (i *vm) Entrypoints() map[string]EntrypointID {
+	return i.entrypointIDs
 }
 
 func (i *vm) iter(result *ast.Term) error {

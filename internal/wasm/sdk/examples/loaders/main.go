@@ -21,12 +21,6 @@ var (
 	rego   *opa.OPA
 )
 
-// main loads a bundle either from a file or HTTP server.
-//
-// In the directory of the main.go, execute 'go run main.go
-// bundle.tgz' to load the accompanied bundle file. Similarly, execute
-// 'go run main.go http://url/to/bundle.tgz' to test the HTTP
-// downloading from a HTTP server.
 func main() {
 	if len(os.Args) < 2 {
 		fmt.Printf("provide URL or file\n")
@@ -55,7 +49,20 @@ func main() {
 	}
 
 	ctx := context.Background()
-	result, err := rego.Eval(ctx, &input)
+
+	eps, err := rego.Entrypoints(ctx)
+	if err != nil {
+		fmt.Printf("error: %v\n", err)
+		return
+	}
+
+	entrypointID, ok := eps["example/allow"]
+	if !ok {
+		fmt.Println("error: Unable to find entrypoint 'example/allow'")
+		return
+	}
+
+	result, err := rego.Eval(ctx, entrypointID, &input)
 	if err != nil {
 		fmt.Printf("error: %v\n", err)
 		return
