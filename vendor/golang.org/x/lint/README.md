@@ -9,6 +9,8 @@ Golint requires a
 
     go get -u golang.org/x/lint/golint
 
+To find out where `golint` was installed you can run `go list -f {{.Target}} golang.org/x/lint/golint`. For `golint` to be used globally add that directory to the `$PATH` environment setting.
+
 ## Usage
 
 Invoke `golint` with one or more filenames, directories, or packages named
@@ -76,7 +78,7 @@ Optionally, add this to your `~/.vimrc` to automatically run `golint` on `:w`
 
 Add this to your `.emacs` file:
 
-    (add-to-list 'load-path (concat (getenv "GOPATH")  "/src/github.com/golang/lint/misc/emacs"))
+    (add-to-list 'load-path (concat (getenv "GOPATH")  "/src/golang.org/x/lint/misc/emacs/"))
     (require 'golint)
 
 If you have multiple entries in your GOPATH, replace `$GOPATH` with the right value.
