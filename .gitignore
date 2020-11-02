@@ -11,6 +11,7 @@ opa_*
 _release
 wasm/_obj
 _test
+!*_test.go
 site.tar.gz
 policy.wasm
 .npm
