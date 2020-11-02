@@ -37,6 +37,55 @@ func TestBuildProducesBundle(t *testing.T) {
 	})
 }
 
+func TestBuildRespectsCapabilities(t *testing.T) {
+	capabilitiesJSON := `{
+    "builtins": [
+      {
+        "name": "is_foo",
+        "decl": {
+          "args": [
+            {
+              "type": "string"
+            }
+          ],
+          "result": {
+            "type": "boolean"
+          },
+          "type": "function"
+        }
+      }
+    ]
+  }`
+
+	files := map[string]string{
+		"capabilities.json": capabilitiesJSON,
+		"test.rego": `
+			package test
+			p { is_foo("bar") }
+		`,
+	}
+
+	test.WithTempFS(files, func(root string) {
+		caps := newcapabilitiesFlag()
+		if err := caps.Set(path.Join(root, "capabilities.json")); err != nil {
+			t.Fatal(err)
+		}
+		params := newBuildParams()
+		params.outputFile = path.Join(root, "bundle.tar.gz")
+		params.capabilities = caps
+
+		err := dobuild(params, []string{root})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		_, err = loader.NewFileLoader().AsBundle(params.outputFile)
+		if err != nil {
+			t.Fatal(err)
+		}
+	})
+}
+
 func TestBuildFilesystemModeIgnoresTarGz(t *testing.T) {
 
 	files := map[string]string{

@@ -257,8 +257,8 @@ func dobuild(params buildParams, args []string) error {
 	// if capabilities are not provided as a cmd flag,
 	// then ast.CapabilitiesForThisVersion must be called
 	// within dobuild to ensure custom builtins are properly captured
-	if checkParams.capabilities.C != nil {
-		capabilities = checkParams.capabilities.C
+	if params.capabilities.C != nil {
+		capabilities = params.capabilities.C
 	} else {
 		capabilities = ast.CapabilitiesForThisVersion()
 	}
