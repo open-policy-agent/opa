@@ -238,6 +238,20 @@
       }
     },
     {
+      "name": "base64url.encode_no_pad",
+      "decl": {
+        "args": [
+          {
+            "type": "string"
+          }
+        ],
+        "result": {
+          "type": "string"
+        },
+        "type": "function"
+      }
+    },
+    {
       "name": "bits.and",
       "decl": {
         "args": [
@@ -829,6 +843,34 @@
         "type": "function"
       },
       "infix": "\u003e="
+    },
+    {
+      "name": "hex.decode",
+      "decl": {
+        "args": [
+          {
+            "type": "string"
+          }
+        ],
+        "result": {
+          "type": "string"
+        },
+        "type": "function"
+      }
+    },
+    {
+      "name": "hex.encode",
+      "decl": {
+        "args": [
+          {
+            "type": "string"
+          }
+        ],
+        "result": {
+          "type": "string"
+        },
+        "type": "function"
+      }
     },
     {
       "name": "http.send",
