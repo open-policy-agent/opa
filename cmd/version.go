@@ -46,6 +46,16 @@ func generateCmdOutput(out io.Writer, check bool) {
 	fmt.Fprintln(out, "Build Hostname: "+version.Hostname)
 	fmt.Fprintln(out, "Go Version: "+version.GoVersion)
 
+	var wasmAvailable string
+
+	if version.WasmRuntimeAvailable {
+		wasmAvailable = "available"
+	} else {
+		wasmAvailable = "unavailable"
+	}
+
+	fmt.Fprintln(out, "WebAssembly: "+wasmAvailable)
+
 	if check {
 		err := checkOPAUpdate(out)
 		if err != nil {

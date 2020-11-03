@@ -10,23 +10,27 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"sort"
+	"strings"
 
 	"github.com/open-policy-agent/opa/internal/report"
-	"github.com/open-policy-agent/opa/version"
 
 	"testing"
 )
 
 func TestGenerateCmdOutputDisableCheckFlag(t *testing.T) {
 	var stdout bytes.Buffer
-	setTestVersion()
 
 	generateCmdOutput(&stdout, false)
 
-	expected := getTestVersion()
-	if stdout.String() != expected {
-		t.Fatalf("Expected output:%v but got %v", expected, stdout.String())
-	}
+	expectOutputKeys(t, stdout.String(), []string{
+		"Version",
+		"Build Commit",
+		"Build Timestamp",
+		"Build Hostname",
+		"Go Version",
+		"WebAssembly",
+	})
 }
 
 func TestGenerateCmdOutputWithCheckFlagNoError(t *testing.T) {
@@ -40,13 +44,23 @@ func TestGenerateCmdOutputWithCheckFlagNoError(t *testing.T) {
 	baseURL, teardown := getTestServer(exp, http.StatusOK)
 	defer teardown()
 
-	banner := "Latest Upstream Version: 100.0.0\n" +
-		"Download: https://openpolicyagent.org/downloads/v100.0.0/opa_darwin_amd64\n" +
-		"Release Notes: https://github.com/open-policy-agent/opa/releases/tag/v100.0.0\n"
+	os.Setenv("OPA_TELEMETRY_SERVICE_URL", baseURL)
 
-	expected := getTestVersion() + banner
+	var stdout bytes.Buffer
 
-	testGenerateCmdOutput(t, baseURL, expected)
+	generateCmdOutput(&stdout, true)
+
+	expectOutputKeys(t, stdout.String(), []string{
+		"Version",
+		"Build Commit",
+		"Build Timestamp",
+		"Build Hostname",
+		"Go Version",
+		"WebAssembly",
+		"Latest Upstream Version",
+		"Release Notes",
+		"Download",
+	})
 }
 
 func TestCheckOPAUpdateBadURL(t *testing.T) {
@@ -59,35 +73,27 @@ func TestCheckOPAUpdateBadURL(t *testing.T) {
 	}
 }
 
-func testGenerateCmdOutput(t *testing.T, url, expected string) {
+func expectOutputKeys(t *testing.T, stdout string, expectedKeys []string) {
 	t.Helper()
 
-	os.Setenv("OPA_TELEMETRY_SERVICE_URL", url)
+	var gotKeys []string
 
-	var stdout bytes.Buffer
-	setTestVersion()
-
-	generateCmdOutput(&stdout, true)
-
-	if stdout.String() != expected {
-		t.Fatalf("Expected output:\"%v\" but got \"%v\"", expected, stdout.String())
+	for _, line := range strings.Split(strings.Trim(stdout, "\n"), "\n") {
+		gotKeys = append(gotKeys, strings.Split(line, ":")[0])
 	}
-}
 
-func setTestVersion() {
-	version.Version = "v0.20.0"
-	version.Vcs = "12345"
-	version.Timestamp = "2020-05-14T06:22:38Z"
-	version.Hostname = "foo"
-	version.GoVersion = "1.14.7"
-}
+	sort.Strings(expectedKeys)
+	sort.Strings(gotKeys)
 
-func getTestVersion() string {
-	return "Version: v0.20.0\n" +
-		"Build Commit: 12345\n" +
-		"Build Timestamp: 2020-05-14T06:22:38Z\n" +
-		"Build Hostname: foo\n" +
-		"Go Version: 1.14.7\n"
+	if len(expectedKeys) != len(gotKeys) {
+		t.Fatalf("expected %v but got %v", expectedKeys, gotKeys)
+	}
+
+	for i := range expectedKeys {
+		if expectedKeys[i] != gotKeys[i] {
+			t.Fatalf("expected %v but got %v", expectedKeys, gotKeys)
+		}
+	}
 }
 
 func getTestServer(update interface{}, statusCode int) (baseURL string, teardownFn func()) {
