@@ -44,16 +44,6 @@ func TestCompilerInitErrors(t *testing.T) {
 			want: fmt.Errorf("invalid target \"deadbeef\""),
 		},
 		{
-			note: "entrypoint parse error",
-			c:    New().WithEntrypoints("foo%bar"),
-			want: fmt.Errorf("entrypoint foo%%bar not valid: use <package>/<rule>"),
-		},
-		{
-			note: "entrypoint too short error",
-			c:    New().WithEntrypoints("foo"),
-			want: fmt.Errorf("entrypoint foo too short: use <package>/<rule>"),
-		},
-		{
 			note: "optimizations require entrypoint",
 			c:    New().WithOptimizationLevel(1),
 			want: errors.New("bundle optimizations require at least one entrypoint"),

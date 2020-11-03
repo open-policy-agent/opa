@@ -247,10 +247,6 @@ func (c *Compiler) init() error {
 			return fmt.Errorf("entrypoint %v not valid: use <package>/<rule>", e)
 		}
 
-		if len(r) <= 2 {
-			return fmt.Errorf("entrypoint %v too short: use <package>/<rule>", e)
-		}
-
 		c.entrypointrefs = append(c.entrypointrefs, ast.NewTerm(r))
 	}
 
