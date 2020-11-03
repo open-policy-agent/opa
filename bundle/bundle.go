@@ -284,10 +284,10 @@ type ModuleFile struct {
 
 // WasmModuleFile represents a single wasm module contained in a bundle.
 type WasmModuleFile struct {
-	URL        string
-	Path       string
-	Entrypoint ast.Ref
-	Raw        []byte
+	URL         string
+	Path        string
+	Entrypoints []ast.Ref
+	Raw         []byte
 }
 
 // Reader contains the reader to load the bundle from.
@@ -427,11 +427,6 @@ func (r *Reader) Read() (Bundle, error) {
 			bundle.Modules = append(bundle.Modules, mf)
 
 		} else if filepath.Base(path) == WasmFile {
-			// For backwards compatibility
-			if path == "/"+WasmFile {
-				bundle.Wasm = buf.Bytes()
-			}
-
 			bundle.WasmModules = append(bundle.WasmModules, WasmModuleFile{
 				URL:  f.URL(),
 				Path: r.fullPath(path),
@@ -489,17 +484,19 @@ func (r *Reader) Read() (Bundle, error) {
 	}
 
 	// Inject the wasm module entrypoint refs into the WasmModuleFile structs
-	epMap := map[string]string{}
+	epMap := map[string][]string{}
 	for _, r := range bundle.Manifest.WasmResolvers {
-		epMap[r.Module] = r.Entrypoint
+		epMap[r.Module] = append(epMap[r.Module], r.Entrypoint)
 	}
 	for i := 0; i < len(bundle.WasmModules); i++ {
-		entrypoint := epMap[bundle.WasmModules[i].Path]
-		ref, err := ast.PtrRef(ast.DefaultRootDocument, entrypoint)
-		if err != nil {
-			return bundle, fmt.Errorf("failed to parse wasm module entrypoint '%s': %s", entrypoint, err)
+		entrypoints := epMap[bundle.WasmModules[i].Path]
+		for _, entrypoint := range entrypoints {
+			ref, err := ast.PtrRef(ast.DefaultRootDocument, entrypoint)
+			if err != nil {
+				return bundle, fmt.Errorf("failed to parse wasm module entrypoint '%s': %s", entrypoint, err)
+			}
+			bundle.WasmModules[i].Entrypoints = append(bundle.WasmModules[i].Entrypoints, ref)
 		}
-		bundle.WasmModules[i].Entrypoint = ref
 	}
 
 	if r.includeManifestInData {

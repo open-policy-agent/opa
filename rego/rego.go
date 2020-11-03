@@ -1660,7 +1660,9 @@ func (r *Rego) compileModules(ctx context.Context, txn storage.Transaction, m me
 		return err
 	}
 	for _, rslvr := range resolvers {
-		r.resolvers = append(r.resolvers, refResolver{rslvr.Entrypoint, rslvr})
+		for _, ep := range rslvr.Entrypoints() {
+			r.resolvers = append(r.resolvers, refResolver{ep, rslvr})
+		}
 	}
 
 	return nil

@@ -7,6 +7,7 @@ package wasm
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	"github.com/open-policy-agent/opa/internal/wasm/sdk/opa"
 
@@ -16,7 +17,7 @@ import (
 
 // New creates a new Resolver instance which is using the Wasm module
 // policy for the given entrypoint ref.
-func New(entrypoint ast.Ref, policy []byte, data interface{}) (*Resolver, error) {
+func New(entrypoints []ast.Ref, policy []byte, data interface{}) (*Resolver, error) {
 	o, err := opa.New().
 		WithPolicyBytes(policy).
 		WithDataJSON(data).
@@ -24,17 +25,49 @@ func New(entrypoint ast.Ref, policy []byte, data interface{}) (*Resolver, error)
 	if err != nil {
 		return nil, err
 	}
+
+	// Construct a quick lookup table of ref -> entrypoint ID
+	// for handling evaluations. Only the entrypoints provided
+	// by the caller will be constructed, this may be a subset
+	// of entrypoints available in the Wasm module, however
+	// only the configured ones will be used when Eval() is
+	// called.
+	entrypointRefToID := ast.NewValueMap()
+	epIDs, err := o.Entrypoints(context.Background())
+	if err != nil {
+		return nil, err
+	}
+	for path, id := range epIDs {
+		for _, ref := range entrypoints {
+			refPtr, err := ref.Ptr()
+			if err != nil {
+				return nil, err
+			}
+			if refPtr == path {
+				entrypointRefToID.Put(ref, ast.Number(strconv.Itoa(int(id))))
+			}
+		}
+	}
+
 	return &Resolver{
-		Entrypoint: entrypoint,
-		o:          o,
+		entrypoints:   entrypoints,
+		entrypointIDs: entrypointRefToID,
+		o:             o,
 	}, nil
 }
 
 // Resolver implements the resolver.Resolver interface
 // using Wasm modules to perform an evaluation.
 type Resolver struct {
-	Entrypoint ast.Ref
-	o          *opa.OPA
+	entrypoints   []ast.Ref
+	entrypointIDs *ast.ValueMap
+	o             *opa.OPA
+}
+
+// Entrypoints returns a list of entrypoints this resolver is configured to
+// perform evaluations on.
+func (r *Resolver) Entrypoints() []ast.Ref {
+	return r.entrypoints
 }
 
 // Close shuts down the resolver.
@@ -42,7 +75,7 @@ func (r *Resolver) Close() {
 	r.o.Close()
 }
 
-// Eval performs an evalution using the provided input and the Wasm module
+// Eval performs an evaluation using the provided input and the Wasm module
 // associated with this Resolver instance.
 func (r *Resolver) Eval(ctx context.Context, input resolver.Input) (resolver.Result, error) {
 
@@ -56,7 +89,22 @@ func (r *Resolver) Eval(ctx context.Context, input resolver.Input) (resolver.Res
 		inp = &x
 	}
 
-	out, err := r.o.Eval(ctx, 0, inp)
+	v := r.entrypointIDs.Get(input.Ref)
+	if v == nil {
+		return resolver.Result{}, fmt.Errorf("unknown entrypoint %s", input.Ref)
+	}
+
+	numValue, ok := v.(ast.Number)
+	if !ok {
+		return resolver.Result{}, fmt.Errorf("internal error: invalid entrypoint id %s", numValue)
+	}
+
+	epID, ok := numValue.Int()
+	if !ok {
+		return resolver.Result{}, fmt.Errorf("internal error: invalid entrypoint id %s", numValue)
+	}
+
+	out, err := r.o.Eval(ctx, opa.EntrypointID(epID), inp)
 	if err != nil {
 		return resolver.Result{}, err
 	}
@@ -68,7 +116,7 @@ func (r *Resolver) Eval(ctx context.Context, input resolver.Input) (resolver.Res
 		return resolver.Result{}, nil
 	}
 
-	v, err := ast.InterfaceToValue(*result)
+	v, err = ast.InterfaceToValue(*result)
 	if err != nil {
 		return resolver.Result{}, err
 	}

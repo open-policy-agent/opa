@@ -137,7 +137,6 @@ func testReadBundle(t *testing.T, baseDir string) {
 				Raw:    []byte(module),
 			},
 		},
-		Wasm: []byte(`legacy-wasm-module`),
 		WasmModules: []WasmModuleFile{
 			{
 				URL:  legacyWasmModulePath,
@@ -145,10 +144,10 @@ func testReadBundle(t *testing.T, baseDir string) {
 				Raw:  []byte(`legacy-wasm-module`),
 			},
 			{
-				URL:        fullWasmResolverPath,
-				Path:       fullWasmResolverPath,
-				Raw:        []byte("wasm-module"),
-				Entrypoint: ast.MustParseRef("data.authz.allow"),
+				URL:         fullWasmResolverPath,
+				Path:        fullWasmResolverPath,
+				Raw:         []byte("wasm-module"),
+				Entrypoints: []ast.Ref{ast.MustParseRef("data.authz.allow")},
 			},
 		},
 	}
@@ -692,7 +691,13 @@ func TestRoundtripDeprecatedWrite(t *testing.T) {
 				Raw:    []byte(`package foo.corge`),
 			},
 		},
-		Wasm: []byte("modules-compiled-as-wasm-binary"),
+		WasmModules: []WasmModuleFile{
+			{
+				Path: "/policy.wasm",
+				URL:  "/policy.wasm",
+				Raw:  []byte("modules-compiled-as-wasm-binary"),
+			},
+		},
 		Manifest: Manifest{
 			Revision: "quickbrownfaux",
 		},
@@ -733,7 +738,13 @@ func TestRoundtrip(t *testing.T) {
 				Raw:    []byte("package foo.corge\n"),
 			},
 		},
-		Wasm: []byte("modules-compiled-as-wasm-binary"),
+		WasmModules: []WasmModuleFile{
+			{
+				Path: "/policy.wasm",
+				URL:  "/policy.wasm",
+				Raw:  []byte("modules-compiled-as-wasm-binary"),
+			},
+		},
 		Manifest: Manifest{
 			Revision: "quickbrownfaux",
 		},
@@ -1182,10 +1193,10 @@ func TestMerge(t *testing.T) {
 					},
 					WasmModules: []WasmModuleFile{
 						{
-							URL:        "logs/mask/policy.wasm",
-							Path:       "logs/mask/policy.wasm",
-							Entrypoint: ast.MustParseRef("system.log.mask"),
-							Raw:        []byte("not really wasm, but good enough"),
+							URL:         "logs/mask/policy.wasm",
+							Path:        "logs/mask/policy.wasm",
+							Entrypoints: []ast.Ref{ast.MustParseRef("system.log.mask")},
+							Raw:         []byte("not really wasm, but good enough"),
 						},
 					},
 				},
@@ -1197,10 +1208,10 @@ func TestMerge(t *testing.T) {
 					},
 					WasmModules: []WasmModuleFile{
 						{
-							URL:        "authz/allow/policy.wasm",
-							Path:       "authz/allow/policy.wasm",
-							Entrypoint: ast.MustParseRef("authz.allow"),
-							Raw:        []byte("not really wasm, but good enough"),
+							URL:         "authz/allow/policy.wasm",
+							Path:        "authz/allow/policy.wasm",
+							Entrypoints: []ast.Ref{ast.MustParseRef("authz.allow")},
+							Raw:         []byte("not really wasm, but good enough"),
 						},
 					},
 				},
@@ -1214,16 +1225,16 @@ func TestMerge(t *testing.T) {
 				},
 				WasmModules: []WasmModuleFile{
 					{
-						URL:        "logs/mask/policy.wasm",
-						Path:       "logs/mask/policy.wasm",
-						Entrypoint: ast.MustParseRef("system.log.mask"),
-						Raw:        []byte("not really wasm, but good enough"),
+						URL:         "logs/mask/policy.wasm",
+						Path:        "logs/mask/policy.wasm",
+						Entrypoints: []ast.Ref{ast.MustParseRef("system.log.mask")},
+						Raw:         []byte("not really wasm, but good enough"),
 					},
 					{
-						URL:        "authz/allow/policy.wasm",
-						Path:       "authz/allow/policy.wasm",
-						Entrypoint: ast.MustParseRef("authz.allow"),
-						Raw:        []byte("not really wasm, but good enough"),
+						URL:         "authz/allow/policy.wasm",
+						Path:        "authz/allow/policy.wasm",
+						Entrypoints: []ast.Ref{ast.MustParseRef("authz.allow")},
+						Raw:         []byte("not really wasm, but good enough"),
 					},
 				},
 			},

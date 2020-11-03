@@ -692,7 +692,9 @@ func (s *Server) execQuery(ctx context.Context, r *http.Request, txn storage.Tra
 	}
 
 	for _, r := range s.manager.GetWasmResolvers() {
-		opts = append(opts, rego.Resolver(r.Entrypoint, r))
+		for _, entrypoint := range r.Entrypoints() {
+			opts = append(opts, rego.Resolver(entrypoint, r))
+		}
 	}
 
 	rego := rego.New(opts...)
@@ -893,7 +895,9 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, urlPath str
 	}
 
 	for _, r := range s.manager.GetWasmResolvers() {
-		evalOpts = append(evalOpts, rego.EvalResolver(r.Entrypoint, r))
+		for _, entrypoint := range r.Entrypoints() {
+			evalOpts = append(evalOpts, rego.EvalResolver(entrypoint, r))
+		}
 	}
 
 	rs, err := preparedQuery.Eval(
@@ -1207,7 +1211,9 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, r := range s.manager.GetWasmResolvers() {
-		evalOpts = append(evalOpts, rego.EvalResolver(r.Entrypoint, r))
+		for _, entrypoint := range r.Entrypoints() {
+			evalOpts = append(evalOpts, rego.EvalResolver(entrypoint, r))
+		}
 	}
 
 	rs, err := preparedQuery.Eval(
@@ -1409,7 +1415,9 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, r := range s.manager.GetWasmResolvers() {
-		evalOpts = append(evalOpts, rego.EvalResolver(r.Entrypoint, r))
+		for _, entrypoint := range r.Entrypoints() {
+			evalOpts = append(evalOpts, rego.EvalResolver(entrypoint, r))
+		}
 	}
 
 	rs, err := preparedQuery.Eval(

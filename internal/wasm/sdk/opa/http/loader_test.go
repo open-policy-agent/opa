@@ -16,7 +16,7 @@ import (
 	"github.com/open-policy-agent/opa/bundle"
 )
 
-func TestFileLoader(t *testing.T) {
+func TestHTTPLoader(t *testing.T) {
 	// Start loader, without having the HTTP content in place.
 
 	var pd testPolicyData

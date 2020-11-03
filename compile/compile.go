@@ -433,11 +433,11 @@ func (c *Compiler) compileWasm(ctx context.Context) error {
 
 	modulePath := bundle.WasmFile
 
-	c.bundle.WasmModules = append(c.bundle.WasmModules, bundle.WasmModuleFile{
+	c.bundle.WasmModules = []bundle.WasmModuleFile{{
 		URL:  modulePath,
 		Path: modulePath,
 		Raw:  buf.Bytes(),
-	})
+	}}
 
 	// Each entrypoint needs an entry in the manifest along with the
 	// original rule(s) removed from the remaining rego modules.
