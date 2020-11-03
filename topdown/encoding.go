@@ -7,6 +7,7 @@ package topdown
 import (
 	"bytes"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -98,6 +99,14 @@ func builtinBase64UrlEncode(a ast.Value) (ast.Value, error) {
 	}
 
 	return ast.String(base64.URLEncoding.EncodeToString([]byte(str))), nil
+}
+
+func builtinBase64UrlEncodeNoPad(a ast.Value) (ast.Value, error) {
+	str, err := builtins.StringOperand(a, 1)
+	if err != nil {
+		return nil, err
+	}
+	return ast.String(base64.RawURLEncoding.EncodeToString([]byte(str))), nil
 }
 
 func builtinBase64UrlDecode(a ast.Value) (ast.Value, error) {
@@ -258,6 +267,26 @@ func builtinYAMLIsValid(a ast.Value) (ast.Value, error) {
 	return ast.Boolean(err == nil), nil
 }
 
+func builtinHexEncode(a ast.Value) (ast.Value, error) {
+	str, err := builtins.StringOperand(a, 1)
+	if err != nil {
+		return nil, err
+	}
+	return ast.String(hex.EncodeToString([]byte(str))), nil
+}
+
+func builtinHexDecode(a ast.Value) (ast.Value, error) {
+	str, err := builtins.StringOperand(a, 1)
+	if err != nil {
+		return nil, err
+	}
+	val, err := hex.DecodeString(string(str))
+	if err != nil {
+		return nil, err
+	}
+	return ast.String(val), nil
+}
+
 func init() {
 	RegisterFunctionalBuiltin1(ast.JSONMarshal.Name, builtinJSONMarshal)
 	RegisterFunctionalBuiltin1(ast.JSONUnmarshal.Name, builtinJSONUnmarshal)
@@ -266,6 +295,7 @@ func init() {
 	RegisterFunctionalBuiltin1(ast.Base64Decode.Name, builtinBase64Decode)
 	RegisterFunctionalBuiltin1(ast.Base64IsValid.Name, builtinBase64IsValid)
 	RegisterFunctionalBuiltin1(ast.Base64UrlEncode.Name, builtinBase64UrlEncode)
+	RegisterFunctionalBuiltin1(ast.Base64UrlEncodeNoPad.Name, builtinBase64UrlEncodeNoPad)
 	RegisterFunctionalBuiltin1(ast.Base64UrlDecode.Name, builtinBase64UrlDecode)
 	RegisterFunctionalBuiltin1(ast.URLQueryDecode.Name, builtinURLQueryDecode)
 	RegisterFunctionalBuiltin1(ast.URLQueryEncode.Name, builtinURLQueryEncode)
@@ -274,4 +304,6 @@ func init() {
 	RegisterFunctionalBuiltin1(ast.YAMLMarshal.Name, builtinYAMLMarshal)
 	RegisterFunctionalBuiltin1(ast.YAMLUnmarshal.Name, builtinYAMLUnmarshal)
 	RegisterFunctionalBuiltin1(ast.YAMLIsValid.Name, builtinYAMLIsValid)
+	RegisterFunctionalBuiltin1(ast.HexEncode.Name, builtinHexEncode)
+	RegisterFunctionalBuiltin1(ast.HexDecode.Name, builtinHexDecode)
 }

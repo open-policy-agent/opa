@@ -133,6 +133,7 @@ var DefaultBuiltins = [...]*Builtin{
 	Base64Decode,
 	Base64IsValid,
 	Base64UrlEncode,
+	Base64UrlEncodeNoPad,
 	Base64UrlDecode,
 	URLQueryDecode,
 	URLQueryEncode,
@@ -141,6 +142,8 @@ var DefaultBuiltins = [...]*Builtin{
 	YAMLMarshal,
 	YAMLUnmarshal,
 	YAMLIsValid,
+	HexEncode,
+	HexDecode,
 
 	// Object Manipulation
 	ObjectUnion,
@@ -1262,6 +1265,15 @@ var Base64UrlEncode = &Builtin{
 	),
 }
 
+// Base64UrlEncodeNoPad serializes the input string into base64url encoding without padding.
+var Base64UrlEncodeNoPad = &Builtin{
+	Name: "base64url.encode_no_pad",
+	Decl: types.NewFunction(
+		types.Args(types.S),
+		types.S,
+	),
+}
+
 // Base64UrlDecode deserializes the base64url encoded input string.
 var Base64UrlDecode = &Builtin{
 	Name: "base64url.decode",
@@ -1341,6 +1353,24 @@ var YAMLIsValid = &Builtin{
 	Decl: types.NewFunction(
 		types.Args(types.S),
 		types.B,
+	),
+}
+
+// HexEncode serializes the input string into hex encoding.
+var HexEncode = &Builtin{
+	Name: "hex.encode",
+	Decl: types.NewFunction(
+		types.Args(types.S),
+		types.S,
+	),
+}
+
+// HexDecode deserializes the hex encoded input string.
+var HexDecode = &Builtin{
+	Name: "hex.decode",
+	Decl: types.NewFunction(
+		types.Args(types.S),
+		types.S,
 	),
 }
 
