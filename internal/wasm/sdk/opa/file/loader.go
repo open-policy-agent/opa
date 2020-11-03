@@ -127,22 +127,22 @@ func (l *Loader) Load(ctx context.Context) error {
 
 	// TODO: Cut the dependency to the OPA bundle package.
 
-	bundle, err := bundle.NewReader(f).Read()
+	b, err := bundle.NewReader(f).Read()
 	if err != nil {
 		return fmt.Errorf("%v: %w", err, opa.ErrInvalidBundle)
 	}
 
-	if bundle.Wasm == nil {
+	if len(b.WasmModules) == 0 {
 		return fmt.Errorf("missing wasm: %w", opa.ErrInvalidBundle)
 	}
 
 	var data *interface{}
-	if bundle.Data != nil {
-		var v interface{} = bundle.Data
+	if b.Data != nil {
+		var v interface{} = b.Data
 		data = &v
 	}
 
-	return l.pd.SetPolicyData(bundle.Wasm, data)
+	return l.pd.SetPolicyData(b.WasmModules[0].Raw, data)
 }
 
 // poller periodically downloads the bundle.

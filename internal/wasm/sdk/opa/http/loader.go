@@ -188,7 +188,7 @@ func (l *Loader) Load(ctx context.Context) error {
 		return fmt.Errorf("%v: %w", err, opa.ErrInvalidBundle)
 	}
 
-	if bundle.Wasm == nil {
+	if len(bundle.WasmModules) == 0 {
 		return opa.ErrInvalidBundle
 	}
 
@@ -198,7 +198,7 @@ func (l *Loader) Load(ctx context.Context) error {
 		data = &v
 	}
 
-	return l.pd.SetPolicyData(bundle.Wasm, data)
+	return l.pd.SetPolicyData(bundle.WasmModules[0].Raw, data)
 }
 
 // get executes HTTP GET.
