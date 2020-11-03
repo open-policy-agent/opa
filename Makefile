@@ -72,7 +72,7 @@ generate: wasm-lib-build
 build: go-build
 
 .PHONY: image
-image: build-linux
+image: build-docker
 	@$(MAKE) image-quick
 
 .PHONY: install
@@ -230,19 +230,23 @@ ci-check-working-copy: generate
 .PHONY: ci-wasm
 ci-wasm: wasm-test
 
+.PHONY: build-docker
+build-docker: ensure-release-dir
+	CGO_LDFLAGS="-Wl,-rpath -Wl,./$$ORIGIN" $(GO) build -o $(RELEASE_DIR)/opa_docker_$(GOARCH) -ldflags $(LDFLAGS)
+
 .PHONY: build-linux
 build-linux: ensure-release-dir
-	@$(MAKE) build GOOS=linux
+	@$(MAKE) build GOOS=linux CGO_ENABLED=0
 	mv opa_linux_$(GOARCH) $(RELEASE_DIR)/
 
 .PHONY: build-darwin
 build-darwin: ensure-release-dir
-	@$(MAKE) build GOOS=darwin
+	@$(MAKE) build GOOS=darwin CGO_ENABLED=0
 	mv opa_darwin_$(GOARCH) $(RELEASE_DIR)/
 
 .PHONY: build-windows
 build-windows: ensure-release-dir
-	@$(MAKE) build GOOS=windows
+	@$(MAKE) build GOOS=windows CGO_ENABLED=0
 	mv opa_windows_$(GOARCH) $(RELEASE_DIR)/opa_windows_$(GOARCH).exe
 
 .PHONY: ensure-release-dir
@@ -250,24 +254,24 @@ ensure-release-dir:
 	mkdir -p $(RELEASE_DIR)
 
 .PHONY: build-all-platforms
-build-all-platforms: build-linux build-darwin build-windows
+build-all-platforms: build-docker build-linux build-darwin build-windows
 
 .PHONY: image-quick
 image-quick:
 	$(DOCKER) build \
 		-t $(DOCKER_IMAGE):$(VERSION) \
-		--build-arg BASE=scratch \
+		--build-arg BASE=gcr.io/distroless/cc \
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		.
 	$(DOCKER) build \
 		-t $(DOCKER_IMAGE):$(VERSION)-debug \
-		--build-arg BASE=gcr.io/distroless/base:debug \
+		--build-arg BASE=gcr.io/distroless/cc:debug \
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		.
 	$(DOCKER) build \
 		-t $(DOCKER_IMAGE):$(VERSION)-rootless \
 		--build-arg USER=1000 \
-		--build-arg BASE=scratch \
+		--build-arg BASE=gcr.io/distroless/cc \
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		.
 
