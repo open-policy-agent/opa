@@ -53,6 +53,7 @@ type Compiler struct {
 	bundle            *bundle.Bundle             // the bundle that the compiler operates on
 	revision          *string                    // the revision to set on the output bundle
 	asBundle          bool                       // whether to assume bundle layout on file loading or not
+	withBundles       []*bundle.Bundle           // the bundles to load (instead of files)
 	filter            loader.Filter              // filter to apply to file loader
 	paths             []string                   // file paths to load. TODO(tsandall): add support for supplying readers for embedded users.
 	entrypoints       orderedStringSet           // policy entrypoints required for optimization and certain targets
@@ -271,6 +272,15 @@ func (c *Compiler) Bundle() *bundle.Bundle {
 }
 
 func (c *Compiler) initBundle() error {
+	if c.withBundles != nil {
+		result, err := bundle.Merge(c.withBundles)
+		if err != nil {
+			return fmt.Errorf("bundle merge failed: %v", err)
+		}
+
+		c.bundle = result
+		return nil
+	}
 
 	// If the bundle is already set, skip file loading.
 	if c.bundle != nil {
