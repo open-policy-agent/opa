@@ -50,6 +50,9 @@ func (t *resolverTrie) Resolve(ctx context.Context, ref ast.Ref, input *ast.Term
 			if err != nil {
 				return nil, err
 			}
+			if result.Value == nil {
+				return nil, nil
+			}
 			return result.Value.Find(ref[i+1:])
 		}
 	}
@@ -62,6 +65,9 @@ func (t *resolverTrie) mktree(ctx context.Context, in resolver.Input) (ast.Value
 		if err != nil {
 			return nil, err
 		}
+		if result.Value == nil {
+			return nil, nil
+		}
 		return result.Value, nil
 	}
 	obj := ast.NewObject()
@@ -70,7 +76,9 @@ func (t *resolverTrie) mktree(ctx context.Context, in resolver.Input) (ast.Value
 		if err != nil {
 			return nil, err
 		}
-		obj.Insert(ast.NewTerm(k), ast.NewTerm(v))
+		if v != nil {
+			obj.Insert(ast.NewTerm(k), ast.NewTerm(v))
+		}
 	}
 	return obj, nil
 }
