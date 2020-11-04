@@ -113,9 +113,10 @@ func BenchmarkRESTAuthzAllow100Paths(b *testing.B) {
 	runAuthzBenchmark(b, testAuthz.Allow, 100)
 }
 
-func BenchmarkRESTAuthzAllow1000Paths(b *testing.B) {
-	runAuthzBenchmark(b, testAuthz.Allow, 1000)
-}
+// TODO: Re-enable when performance issues have been addressed.
+// func BenchmarkRESTAuthzAllow1000Paths(b *testing.B) {
+// 	runAuthzBenchmark(b, testAuthz.Allow, 1000)
+// }
 
 func runAuthzBenchmark(b *testing.B, mode testAuthz.InputMode, numPaths int) {
 	// Generate test data and create a new bundle from it
