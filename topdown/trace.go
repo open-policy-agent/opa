@@ -50,6 +50,10 @@ const (
 	// IndexOp is emitted during an expression evaluation to represent lookup
 	// matches.
 	IndexOp Op = "Index"
+
+	// ExternalResolveOp is emitted when resolving a ref using an external
+	// Resolver.
+	ExternalResolveOp Op = "ExternalResolve"
 )
 
 // VarMetadata provides some user facing information about

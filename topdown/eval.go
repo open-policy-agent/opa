@@ -178,6 +178,10 @@ func (e *eval) traceIndex(x ast.Node, msg string) {
 	e.traceEvent(IndexOp, x, msg)
 }
 
+func (e *eval) traceExternalResolve(x ast.Node) {
+	e.traceEvent(ExternalResolveOp, x, "")
+}
+
 func (e *eval) traceEvent(op Op, x ast.Node, msg string) {
 
 	if !e.traceEnabled {
@@ -1330,7 +1334,9 @@ func (e *eval) resolveReadFromStorage(ref ast.Ref, a ast.Value) (ast.Value, erro
 
 	if err != nil {
 		return nil, err
-	} else if v == nil {
+	} else if v != nil {
+		e.traceExternalResolve(e.query[e.index])
+	} else {
 
 		path, err := storage.NewPathForRef(ref)
 		if err != nil {
