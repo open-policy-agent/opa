@@ -218,8 +218,10 @@ func (p *Planner) planRules(rules []*ast.Rule) (string, error) {
 			blocks = &stmt.Blocks
 		}
 
+		var prev *ast.Rule
+
 		// Unordered rules are treated as a special case of ordered rules.
-		for rule := rules[i]; rule != nil; rule = rule.Else {
+		for rule := rules[i]; rule != nil; prev, rule = rule, rule.Else {
 
 			// Setup planner for block.
 			p.lnext = lnext
@@ -231,6 +233,12 @@ func (p *Planner) planRules(rules []*ast.Rule) (string, error) {
 			curr := &ir.Block{}
 			*blocks = append(*blocks, curr)
 			p.curr = curr
+
+			if prev != nil {
+				// Ordered rules are handled by short circuiting execution. The
+				// plan will jump out to the extra block that was planned above.
+				p.appendStmt(&ir.IsUndefinedStmt{Source: fn.Return})
+			}
 
 			// Complete and partial rules are treated as special cases of
 			// functions. If there are args, the first step is a no-op.
@@ -277,13 +285,6 @@ func (p *Planner) planRules(rules []*ast.Rule) (string, error) {
 
 				if err != nil {
 					return err
-				}
-
-				// Ordered rules are handled by short circuiting execution. The
-				// plan will jump out to the extra block that was planned above.
-				if rule.Else != nil {
-					p.appendStmt(&ir.IsDefinedStmt{Source: fn.Return})
-					p.appendStmt(&ir.BreakStmt{Index: 1})
 				}
 
 				return nil
