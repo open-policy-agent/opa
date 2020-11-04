@@ -92,3 +92,21 @@ cases:
         else = 2 { false }
         else = 3 { true }
     want_defined: true
+  - note: short-circuit after failing
+    query: data.x.p = 1
+    modules:
+      - |
+        package x
+
+        # data.y[_] causes the planner to scan the virtual _and_ base document trees.
+        # The virtual document scan will succeed (because of the second module)
+        # but the base document scan will fail (because no base documents are loaded).
+        #
+        # This test ensures that the else keyword short-circuits as expected and does
+        # not evaluate the second block even though a failure has occurred.
+        p = x { x = data.y[_] }
+        else = 2 { true }
+      - |
+        package y
+        q = 1
+    want_defined: true
