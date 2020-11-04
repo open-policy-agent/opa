@@ -437,6 +437,10 @@ func (c *Compiler) compileWasm(ctx context.Context) error {
 
 	// Each entrypoint needs an entry in the manifest along with the
 	// original rule(s) removed from the remaining rego modules.
+
+	// For each package path keep a list of new imports. They are stored as a
+	// map to remove duplicates for each package.
+	requiredImports := map[string]map[string]*ast.Import{}
 	for i, entrypoint := range c.entrypointrefs {
 		entrypointPath := c.entrypoints[i]
 
@@ -451,8 +455,19 @@ func (c *Compiler) compileWasm(ctx context.Context) error {
 			// Drop any rules that match the entrypoint path.
 			var rules []*ast.Rule
 			for _, rule := range mf.Parsed.Rules {
-				if !rule.Path().Equal(entrypoint.Value) {
+				rulePath := rule.Path()
+				if !rulePath.Equal(entrypoint.Value) {
 					rules = append(rules, rule)
+				} else {
+					pkgPath := rule.Module.Package.Path.String()
+					newImport := &ast.Import{Path: ast.NewTerm(rulePath)}
+					if _, ok := requiredImports[pkgPath]; ok {
+						requiredImports[pkgPath][rulePath.String()] = newImport
+					} else {
+						requiredImports[pkgPath] = map[string]*ast.Import{
+							rulePath.String(): newImport,
+						}
+					}
 				}
 			}
 
@@ -466,6 +481,18 @@ func (c *Compiler) compileWasm(ctx context.Context) error {
 		}
 	}
 
+	// Any packages which had rules removed need an import injected for the
+	// removed rule to keep the policies valid.
+	for i := 0; i < len(c.bundle.Modules); i++ {
+		mf := &c.bundle.Modules[i]
+		pkgPath := mf.Parsed.Package.Path.String()
+		if imports, ok := requiredImports[pkgPath]; ok {
+			mf.Raw = nil
+			for _, newImport := range imports {
+				mf.Parsed.Imports = append(mf.Parsed.Imports, newImport)
+			}
+		}
+	}
 	return nil
 }
 
