@@ -1825,6 +1825,7 @@ func TestDataMetricsEval(t *testing.T) {
 		"timer_rego_query_compile_ns",
 		"timer_rego_query_eval_ns",
 		"timer_server_handler_ns",
+		"timer_rego_external_resolve_ns",
 	})
 
 	// Repeat previous request, expect to have hit the query cache
@@ -1834,6 +1835,7 @@ func TestDataMetricsEval(t *testing.T) {
 		"timer_rego_input_parse_ns",
 		"timer_rego_query_eval_ns",
 		"timer_server_handler_ns",
+		"timer_rego_external_resolve_ns",
 	})
 
 	// Make a request to evaluate `data` and use partial evaluation,
@@ -1848,6 +1850,7 @@ func TestDataMetricsEval(t *testing.T) {
 		"timer_rego_query_eval_ns",
 		"timer_rego_partial_eval_ns",
 		"timer_server_handler_ns",
+		"timer_rego_external_resolve_ns",
 	})
 
 	// Repeat previous partial eval request, this time it should

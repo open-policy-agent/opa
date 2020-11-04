@@ -80,6 +80,8 @@ func (r *Resolver) Close() {
 // Eval performs an evaluation using the provided input and the Wasm module
 // associated with this Resolver instance.
 func (r *Resolver) Eval(ctx context.Context, input resolver.Input) (resolver.Result, error) {
+	input.Metrics.Timer("wasm_resolver_eval").Start()
+	defer input.Metrics.Timer("wasm_resolver_eval").Stop()
 
 	var inp *interface{}
 
@@ -106,7 +108,12 @@ func (r *Resolver) Eval(ctx context.Context, input resolver.Input) (resolver.Res
 		return resolver.Result{}, fmt.Errorf("internal error: invalid entrypoint id %s", numValue)
 	}
 
-	out, err := r.o.Eval(ctx, opa.EntrypointID(epID), inp)
+	opts := opa.EvalOpts{
+		Input:      inp,
+		Entrypoint: opa.EntrypointID(epID),
+		Metrics:    input.Metrics,
+	}
+	out, err := r.o.Eval(ctx, opts)
 	if err != nil {
 		return resolver.Result{}, err
 	}

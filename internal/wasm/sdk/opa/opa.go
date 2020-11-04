@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"runtime"
 	"sync"
+
+	"github.com/open-policy-agent/opa/metrics"
 )
 
 // OPA executes WebAssembly compiled Rego policies.
@@ -136,23 +138,35 @@ func (o *OPA) setPolicyData(policy []byte, data []byte) error {
 	return nil
 }
 
+// EvalOpts define options for performing an evaluation
+type EvalOpts struct {
+	Entrypoint EntrypointID
+	Input      *interface{}
+	Metrics    metrics.Metrics
+}
+
 // Eval evaluates the policy with the given input, returning the
 // evaluation results. If no policy was configured at construction
 // time nor set after, the function returns ErrNotReady.  It returns
 // ErrInternal if any other error occurs.
-func (o *OPA) Eval(ctx context.Context, entrypoint EntrypointID, input *interface{}) (*Result, error) {
+func (o *OPA) Eval(ctx context.Context, opts EvalOpts) (*Result, error) {
 	if o.pool == nil {
 		return nil, ErrNotReady
 	}
 
-	instance, err := o.pool.Acquire(ctx)
+	m := opts.Metrics
+	if m == nil {
+		m = metrics.New()
+	}
+
+	instance, err := o.pool.Acquire(ctx, m)
 	if err != nil {
 		return nil, err
 	}
 
 	defer o.pool.Release(instance)
 
-	result, err := instance.Eval(ctx, entrypoint, input)
+	result, err := instance.Eval(ctx, opts.Entrypoint, opts.Input, m)
 	if err != nil {
 		return nil, fmt.Errorf("%v: %w", err, ErrInternal)
 	}
@@ -176,7 +190,7 @@ func (o *OPA) Close() {
 
 // Entrypoints returns a mapping of entrypoint name to ID for use by Eval() and EvalBool().
 func (o *OPA) Entrypoints(ctx context.Context) (map[string]EntrypointID, error) {
-	instance, err := o.pool.Acquire(ctx)
+	instance, err := o.pool.Acquire(ctx, metrics.New())
 	if err != nil {
 		return nil, err
 	}
@@ -190,8 +204,12 @@ func (o *OPA) Entrypoints(ctx context.Context) (map[string]EntrypointID, error) 
 // possible error values returned are as with Eval with addition of
 // ErrUndefined indicating an undefined policy decision and
 // ErrNonBoolean indicating a non-boolean policy decision.
+// Deprecated: Use Eval instead.
 func EvalBool(ctx context.Context, o *OPA, entrypoint EntrypointID, input *interface{}) (bool, error) {
-	rs, err := o.Eval(ctx, entrypoint, input)
+	rs, err := o.Eval(ctx, EvalOpts{
+		Entrypoint: entrypoint,
+		Input:      input,
+	})
 	if err != nil {
 		return false, err
 	}

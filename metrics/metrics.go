@@ -31,6 +31,7 @@ const (
 	RegoInputParse      = "rego_input_parse"
 	RegoLoadFiles       = "rego_load_files"
 	RegoLoadBundles     = "rego_load_bundles"
+	RegoExternalResolve = "rego_external_resolve"
 )
 
 // Info contains attributes describing the underlying metrics provider.

@@ -106,7 +106,7 @@ func TestOPA(t *testing.T) {
 			if len(data) == 0 {
 				data = nil
 			}
-			opa, err := opa.New().
+			instance, err := opa.New().
 				WithPolicyBytes(policy).
 				WithDataBytes(data).
 				WithMemoryLimits(131070, 0).
@@ -123,24 +123,24 @@ func TestOPA(t *testing.T) {
 				case eval.NewPolicy != "" && eval.NewData != "":
 					policy := compileRegoToWasm(eval.NewPolicy, test.Query)
 					data := parseJSON(eval.NewData)
-					if err := opa.SetPolicyData(policy, data); err != nil {
+					if err := instance.SetPolicyData(policy, data); err != nil {
 						t.Errorf(err.Error())
 					}
 
 				case eval.NewPolicy != "":
 					policy := compileRegoToWasm(eval.NewPolicy, test.Query)
-					if err := opa.SetPolicy(policy); err != nil {
+					if err := instance.SetPolicy(policy); err != nil {
 						t.Errorf(err.Error())
 					}
 
 				case eval.NewData != "":
 					data := parseJSON(eval.NewData)
-					if err := opa.SetData(*data); err != nil {
+					if err := instance.SetData(*data); err != nil {
 						t.Errorf(err.Error())
 					}
 				}
 
-				result, err := opa.Eval(context.Background(), 0, parseJSON(eval.Input))
+				result, err := instance.Eval(context.Background(), opa.EvalOpts{Input: parseJSON(eval.Input)})
 				if err != nil {
 					t.Errorf(err.Error())
 				}
@@ -150,7 +150,7 @@ func TestOPA(t *testing.T) {
 				}
 			}
 
-			opa.Close()
+			instance.Close()
 		})
 	}
 }
@@ -183,13 +183,13 @@ func TestNamedEntrypoint(t *testing.T) {
 		t.Fatalf("Unexpected error: %s", err)
 	}
 
-	opa, _ := opa.New().
+	instance, _ := opa.New().
 		WithPolicyBytes(compiler.Bundle().WasmModules[0].Raw).
 		WithMemoryLimits(131070, 2*131070). // TODO: For some reason unlimited memory slows down the eval_ctx_new().
 		WithPoolSize(1).
 		Init()
 
-	eps, err := opa.Entrypoints(ctx)
+	eps, err := instance.Entrypoints(ctx)
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
@@ -198,7 +198,7 @@ func TestNamedEntrypoint(t *testing.T) {
 		t.Fatalf("Expected 2 entrypoints, got: %+v", eps)
 	}
 
-	a, err := opa.Eval(ctx, eps["test/a"], nil)
+	a, err := instance.Eval(ctx, opa.EvalOpts{Entrypoint: eps["test/a"]})
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
@@ -208,7 +208,7 @@ func TestNamedEntrypoint(t *testing.T) {
 		t.Fatalf("Expected result for 'test/a' to be %s, got: %s", exp, string(util.MustMarshalJSON(a.Result)))
 	}
 
-	b, err := opa.Eval(ctx, eps["test/b"], nil)
+	b, err := instance.Eval(ctx, opa.EvalOpts{Entrypoint: eps["test/b"]})
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
@@ -220,7 +220,7 @@ func TestNamedEntrypoint(t *testing.T) {
 
 func BenchmarkWasmRego(b *testing.B) {
 	policy := compileRegoToWasm("a = true", "data.p.a = x")
-	opa, _ := opa.New().
+	instance, _ := opa.New().
 		WithPolicyBytes(policy).
 		WithMemoryLimits(131070, 2*131070). // TODO: For some reason unlimited memory slows down the eval_ctx_new().
 		WithPoolSize(1).
@@ -233,7 +233,7 @@ func BenchmarkWasmRego(b *testing.B) {
 	var input interface{} = make(map[string]interface{})
 
 	for i := 0; i < b.N; i++ {
-		if _, err := opa.Eval(ctx, 0, &input); err != nil {
+		if _, err := instance.Eval(ctx, opa.EvalOpts{Input: &input}); err != nil {
 			panic(err)
 		}
 	}
