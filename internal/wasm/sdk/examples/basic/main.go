@@ -61,7 +61,7 @@ func main() {
 		return
 	}
 
-	result, err := rego.Eval(ctx, entrypointID, &input)
+	result, err := rego.Eval(ctx, opa.EvalOpts{Entrypoint: entrypointID, Input: &input})
 	if err != nil {
 		fmt.Printf("error: %v\n", err)
 		return
@@ -105,7 +105,7 @@ func main() {
 		return
 	}
 
-	result, err = rego.Eval(ctx, entrypointID, &input)
+	result, err = rego.Eval(ctx, opa.EvalOpts{Entrypoint: entrypointID, Input: &input})
 	if err != nil {
 		fmt.Printf("error: %v\n", err)
 		return

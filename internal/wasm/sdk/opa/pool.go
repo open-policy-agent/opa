@@ -9,6 +9,8 @@ import (
 	"context"
 	"fmt"
 	"sync"
+
+	"github.com/open-policy-agent/opa/metrics"
 )
 
 // pool maintains a pool of WebAssemly VM instances.
@@ -46,7 +48,10 @@ func newPool(poolSize, memoryMinPages, memoryMaxPages uint32) *pool {
 // Acquire obtains a VM from the pool, waiting if all VMms are in use
 // and building one as necessary. Returns either ErrNotReady or
 // ErrInternal if an error.
-func (p *pool) Acquire(ctx context.Context) (*vm, error) {
+func (p *pool) Acquire(ctx context.Context, metrics metrics.Metrics) (*vm, error) {
+	metrics.Timer("opa_wasm_pool_acquire_vm").Start()
+	defer metrics.Timer("opa_wasm_pool_acquire_vm").Stop()
+
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
