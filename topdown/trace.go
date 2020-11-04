@@ -51,9 +51,9 @@ const (
 	// matches.
 	IndexOp Op = "Index"
 
-	// ExternalResolveOp is emitted when resolving a ref using an external
+	// WasmOp is emitted when resolving a ref using an external
 	// Resolver.
-	ExternalResolveOp Op = "ExternalResolve"
+	WasmOp Op = "Wasm"
 )
 
 // VarMetadata provides some user facing information about
@@ -73,6 +73,7 @@ type Event struct {
 	Locals        *ast.ValueMap           // Contains local variable bindings from the query context. Nil if variables were not included in the trace event.
 	LocalMetadata map[ast.Var]VarMetadata // Contains metadata for the local variable bindings. Nil if variables were not included in the trace event.
 	Message       string                  // Contains message for Note events.
+	Ref           *ast.Ref                // Identifies the subject ref for the event. Only applies to Index and Wasm operations.
 }
 
 // HasRule returns true if the Event contains an ast.Rule.
@@ -242,16 +243,26 @@ func formatEvent(event *Event, depth int) string {
 	padding := formatEventPadding(event, depth)
 	if event.Op == NoteOp {
 		return fmt.Sprintf("%v%v %q", padding, event.Op, event.Message)
-	} else if event.Message != "" {
-		return fmt.Sprintf("%v%v %v %v", padding, event.Op, event.Node, event.Message)
-	} else {
-		switch node := event.Node.(type) {
-		case *ast.Rule:
-			return fmt.Sprintf("%v%v %v", padding, event.Op, node.Path())
-		default:
-			return fmt.Sprintf("%v%v %v", padding, event.Op, rewrite(event).Node)
-		}
 	}
+
+	var details interface{}
+	if node, ok := event.Node.(*ast.Rule); ok {
+		details = node.Path()
+	} else if event.Ref != nil {
+		details = event.Ref
+	} else {
+		details = rewrite(event).Node
+	}
+
+	template := "%v%v %v"
+	opts := []interface{}{padding, event.Op, details}
+
+	if event.Message != "" {
+		template += " %v"
+		opts = append(opts, event.Message)
+	}
+
+	return fmt.Sprintf(template, opts...)
 }
 
 func formatEventPadding(event *Event, depth int) string {

@@ -171,42 +171,43 @@ func TestJSONReporter(t *testing.T) {
     "name": "test_baz",
     "duration": 0,
     "trace": [
-		{
-		  "Op": "Fail",
-		  "Node": {
-			"index": 0,
-			"terms": [
-			  {
-				"type": "ref",
-				"value": [
-				  {
-					"type": "var",
-					"value": "eq"
-				  }
-				]
-			  },
-			  {
-				"type": "boolean",
-				"value": true
-			  },
-			  {
-				"type": "boolean",
-				"value": false
-			  }
-			]
-		  },
-		  "Location": {
-			"row": 1,
-			"col": 1,
-			"file": ""
-		  },
-		  "QueryID": 0,
-		  "ParentID": 0,
-		  "Locals": null,
-          "LocalMetadata": null,
-		  "Message": ""
-		}
-	  ]
+      {
+        "Op": "Fail",
+        "Node": {
+          "index": 0,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "eq"
+                }
+              ]
+            },
+            {
+              "type": "boolean",
+              "value": true
+            },
+            {
+              "type": "boolean",
+              "value": false
+            }
+          ]
+        },
+        "Location": {
+          "file": "",
+          "row": 1,
+          "col": 1
+        },
+        "QueryID": 0,
+        "ParentID": 0,
+        "Locals": null,
+        "LocalMetadata": null,
+        "Message": "",
+        "Ref": null
+      }
+    ]
   },
   {
     "location": null,
@@ -215,42 +216,43 @@ func TestJSONReporter(t *testing.T) {
     "error": {},
     "duration": 0,
     "trace": [
-		{
-		  "Op": "Fail",
-		  "Node": {
-			"index": 0,
-			"terms": [
-			  {
-				"type": "ref",
-				"value": [
-				  {
-					"type": "var",
-					"value": "eq"
-				  }
-				]
-			  },
-			  {
-				"type": "boolean",
-				"value": true
-			  },
-			  {
-				"type": "boolean",
-				"value": false
-			  }
-			]
-		  },
-		  "Location": {
-			"row": 1,
-			"col": 1,
-			"file": ""
-		  },
-		  "QueryID": 0,
-		  "ParentID": 0,
-		  "Locals": null,
-		  "LocalMetadata": null,
-		  "Message": ""
-		}
-	  ]
+      {
+        "Op": "Fail",
+        "Node": {
+          "index": 0,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "eq"
+                }
+              ]
+            },
+            {
+              "type": "boolean",
+              "value": true
+            },
+            {
+              "type": "boolean",
+              "value": false
+            }
+          ]
+        },
+        "Location": {
+          "file": "",
+          "row": 1,
+          "col": 1
+        },
+        "QueryID": 0,
+        "ParentID": 0,
+        "Locals": null,
+        "LocalMetadata": null,
+        "Message": "",
+        "Ref": null
+      }
+    ]
   },
   {
     "location": null,
@@ -259,42 +261,44 @@ func TestJSONReporter(t *testing.T) {
     "fail": true,
     "duration": 0,
     "trace": [
-		{
-		  "Op": "Fail",
-		  "Node": {
-			"index": 0,
-			"terms": [
-			  {
-				"type": "ref",
-				"value": [
-				  {
-					"type": "var",
-					"value": "eq"
-				  }
-				]
-			  },
-			  {
-				"type": "boolean",
-				"value": true
-			  },
-			  {
-				"type": "boolean",
-				"value": false
-			  }
-			]
-		  },
-		  "Location": {
-			"row": 1,
-			"col": 1,
-			"file": ""
-		  },
-		  "QueryID": 0,
-		  "ParentID": 0,
-		  "Locals": null,
-		  "LocalMetadata": null,
-		  "Message": ""
-		}
-	  ]  }
+      {
+        "Op": "Fail",
+        "Node": {
+          "index": 0,
+          "terms": [
+            {
+              "type": "ref",
+              "value": [
+                {
+                  "type": "var",
+                  "value": "eq"
+                }
+              ]
+            },
+            {
+              "type": "boolean",
+              "value": true
+            },
+            {
+              "type": "boolean",
+              "value": false
+            }
+          ]
+        },
+        "Location": {
+          "file": "",
+          "row": 1,
+          "col": 1
+        },
+        "QueryID": 0,
+        "ParentID": 0,
+        "Locals": null,
+        "LocalMetadata": null,
+        "Message": "",
+        "Ref": null
+      }
+    ]
+  }
 ]
 `))
 

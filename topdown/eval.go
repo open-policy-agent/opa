@@ -151,38 +151,38 @@ func (e *eval) unknown(x interface{}, b *bindings) bool {
 }
 
 func (e *eval) traceEnter(x ast.Node) {
-	e.traceEvent(EnterOp, x, "")
+	e.traceEvent(EnterOp, x, "", nil)
 }
 
 func (e *eval) traceExit(x ast.Node) {
-	e.traceEvent(ExitOp, x, "")
+	e.traceEvent(ExitOp, x, "", nil)
 }
 
 func (e *eval) traceEval(x ast.Node) {
-	e.traceEvent(EvalOp, x, "")
+	e.traceEvent(EvalOp, x, "", nil)
 }
 
 func (e *eval) traceFail(x ast.Node) {
-	e.traceEvent(FailOp, x, "")
+	e.traceEvent(FailOp, x, "", nil)
 }
 
 func (e *eval) traceRedo(x ast.Node) {
-	e.traceEvent(RedoOp, x, "")
+	e.traceEvent(RedoOp, x, "", nil)
 }
 
 func (e *eval) traceSave(x ast.Node) {
-	e.traceEvent(SaveOp, x, "")
+	e.traceEvent(SaveOp, x, "", nil)
 }
 
-func (e *eval) traceIndex(x ast.Node, msg string) {
-	e.traceEvent(IndexOp, x, msg)
+func (e *eval) traceIndex(x ast.Node, msg string, target *ast.Ref) {
+	e.traceEvent(IndexOp, x, msg, target)
 }
 
-func (e *eval) traceExternalResolve(x ast.Node) {
-	e.traceEvent(ExternalResolveOp, x, "")
+func (e *eval) traceWasm(x ast.Node, target *ast.Ref) {
+	e.traceEvent(WasmOp, x, "", target)
 }
 
-func (e *eval) traceEvent(op Op, x ast.Node, msg string) {
+func (e *eval) traceEvent(op Op, x ast.Node, msg string, target *ast.Ref) {
 
 	if !e.traceEnabled {
 		return
@@ -200,6 +200,7 @@ func (e *eval) traceEvent(op Op, x ast.Node, msg string) {
 		Node:     x,
 		Location: x.Loc(),
 		Message:  msg,
+		Ref:      target,
 	}
 
 	// Skip plugging the local variables, unless any of the tracers
@@ -1253,7 +1254,7 @@ func (e *eval) getRules(ref ast.Ref) (*ast.IndexResult, error) {
 		b.WriteString(" rules)")
 		msg = b.String()
 	}
-	e.traceIndex(e.query[e.index], msg)
+	e.traceIndex(e.query[e.index], msg, &ref)
 	return result, err
 }
 
@@ -1330,13 +1331,11 @@ func (e *eval) resolveReadFromStorage(ref ast.Ref, a ast.Value) (ast.Value, erro
 		return a, nil
 	}
 
-	v, err := e.external.Resolve(e.ctx, ref, e.input)
+	v, err := e.external.Resolve(e, ref)
 
 	if err != nil {
 		return nil, err
-	} else if v != nil {
-		e.traceExternalResolve(e.query[e.index])
-	} else {
+	} else if v == nil {
 
 		path, err := storage.NewPathForRef(ref)
 		if err != nil {
