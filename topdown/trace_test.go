@@ -80,10 +80,10 @@ func TestPrettyTrace(t *testing.T) {
 
 	expected := `Enter data.test.p = _
 | Eval data.test.p = _
-| Index data.test.p = _ (matched 1 rule)
+| Index data.test.p (matched 1 rule)
 | Enter data.test.p
 | | Eval data.test.q[x]
-| | Index data.test.q[x] (matched 1 rule)
+| | Index data.test.q (matched 1 rule)
 | | Enter data.test.q
 | | | Eval x = data.a[_]
 | | | Exit data.test.q
@@ -173,10 +173,10 @@ func TestPrettyTraceWithLocation(t *testing.T) {
 
 	expected := `query:1     Enter data.test.p = _
 query:1     | Eval data.test.p = _
-query:1     | Index data.test.p = _ (matched 1 rule)
+query:1     | Index data.test.p (matched 1 rule)
 query:3     | Enter data.test.p
 query:3     | | Eval data.test.q[x]
-query:3     | | Index data.test.q[x] (matched 1 rule)
+query:3     | | Index data.test.q (matched 1 rule)
 query:4     | | Enter data.test.q
 query:4     | | | Eval x = data.a[_]
 query:4     | | | Exit data.test.q
@@ -275,10 +275,10 @@ func TestPrettyTraceWithLocationTruncatedPaths(t *testing.T) {
 
 	expected := `query:1                                                              Enter data.test.p = _
 query:1                                                              | Eval data.test.p = _
-query:1                                                              | Index data.test.p = _ (matched 1 rule)
+query:1                                                              | Index data.test.p (matched 1 rule)
 authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:6     | Enter data.test.p
 authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:6     | | Eval data.utils.q[x]
-authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:6     | | Index data.utils.q[x] (matched 1 rule)
+authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:6     | | Index data.utils.q (matched 1 rule)
 authz_bundle/...ternal/authz/policies/utils/utils.rego:4             | | Enter data.utils.q
 authz_bundle/...ternal/authz/policies/utils/utils.rego:4             | | | Eval x = data.a[_]
 authz_bundle/...ternal/authz/policies/utils/utils.rego:4             | | | Exit data.utils.q
@@ -426,7 +426,7 @@ query:1                                                              | Eval data
 query:1                                                              | Index data.example_rbac.allow (matched 1 rule)
 authz_bundle/...ternal/authz/policies/rbac/v1/beta/policy.rego:6     | Enter data.example_rbac.allow
 authz_bundle/...ternal/authz/policies/rbac/v1/beta/policy.rego:7     | | Eval data.utils.user_has_role[role_name]
-authz_bundle/...ternal/authz/policies/rbac/v1/beta/policy.rego:7     | | Index data.utils.user_has_role[role_name] (matched 1 rule)
+authz_bundle/...ternal/authz/policies/rbac/v1/beta/policy.rego:7     | | Index data.utils.user_has_role (matched 1 rule)
 authz_bundle/...ternal/authz/policies/utils/user.rego:4              | | Enter data.utils.user_has_role
 authz_bundle/...ternal/authz/policies/utils/user.rego:5              | | | Eval role_binding = data.bindings[_]
 authz_bundle/...ternal/authz/policies/utils/user.rego:6              | | | Eval role_binding.role = role_name
@@ -434,7 +434,7 @@ authz_bundle/...ternal/authz/policies/utils/user.rego:7              | | | Eval 
 authz_bundle/...ternal/authz/policies/utils/user.rego:7              | | | Save "inspector-alice" = input.subject.user
 authz_bundle/...ternal/authz/policies/utils/user.rego:4              | | | Exit data.utils.user_has_role
 authz_bundle/...ternal/authz/policies/rbac/v1/beta/policy.rego:9     | | Eval data.utils.role_has_permission[role_name]
-authz_bundle/...ternal/authz/policies/rbac/v1/beta/policy.rego:9     | | Index data.utils.role_has_permission[role_name] (matched 1 rule)
+authz_bundle/...ternal/authz/policies/rbac/v1/beta/policy.rego:9     | | Index data.utils.role_has_permission (matched 1 rule)
 authz_bundle/...ternal/authz/policies/utils/user.rego:10             | | Enter data.utils.role_has_permission
 authz_bundle/...ternal/authz/policies/utils/user.rego:11             | | | Eval role = data.roles[_]
 authz_bundle/...ternal/authz/policies/utils/user.rego:12             | | | Eval role.name = role_name
@@ -464,7 +464,7 @@ authz_bundle/...ternal/authz/policies/utils/user.rego:7              | | | Eval 
 authz_bundle/...ternal/authz/policies/utils/user.rego:7              | | | Save "maker-bob" = input.subject.user
 authz_bundle/...ternal/authz/policies/utils/user.rego:4              | | | Exit data.utils.user_has_role
 authz_bundle/...ternal/authz/policies/rbac/v1/beta/policy.rego:9     | | Eval data.utils.role_has_permission[role_name]
-authz_bundle/...ternal/authz/policies/rbac/v1/beta/policy.rego:9     | | Index data.utils.role_has_permission[role_name] (matched 1 rule)
+authz_bundle/...ternal/authz/policies/rbac/v1/beta/policy.rego:9     | | Index data.utils.role_has_permission (matched 1 rule)
 authz_bundle/...ternal/authz/policies/utils/user.rego:10             | | Enter data.utils.role_has_permission
 authz_bundle/...ternal/authz/policies/utils/user.rego:11             | | | Eval role = data.roles[_]
 authz_bundle/...ternal/authz/policies/utils/user.rego:12             | | | Eval role.name = role_name
@@ -556,10 +556,10 @@ func TestTraceNote(t *testing.T) {
 
 	expected := `Enter data.test.p = _
 | Eval data.test.p = _
-| Index data.test.p = _ (matched 1 rule)
+| Index data.test.p (matched 1 rule)
 | Enter data.test.p
 | | Eval data.test.q[x]
-| | Index data.test.q[x] (matched 1 rule)
+| | Index data.test.q (matched 1 rule)
 | | Enter data.test.q
 | | | Eval x = data.a[_]
 | | | Exit data.test.q
@@ -669,10 +669,10 @@ func TestTraceNoteWithLocation(t *testing.T) {
 
 	expected := `query:1     Enter data.test.p = _
 query:1     | Eval data.test.p = _
-query:1     | Index data.test.p = _ (matched 1 rule)
+query:1     | Index data.test.p (matched 1 rule)
 query:3     | Enter data.test.p
 query:3     | | Eval data.test.q[x]
-query:3     | | Index data.test.q[x] (matched 1 rule)
+query:3     | | Index data.test.q (matched 1 rule)
 query:4     | | Enter data.test.q
 query:4     | | | Eval x = data.a[_]
 query:4     | | | Exit data.test.q

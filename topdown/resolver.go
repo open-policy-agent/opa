@@ -5,8 +5,6 @@
 package topdown
 
 import (
-	"context"
-
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/resolver"
 )
@@ -33,10 +31,10 @@ func (t *resolverTrie) Put(ref ast.Ref, r resolver.Resolver) {
 	node.r = r
 }
 
-func (t *resolverTrie) Resolve(ctx context.Context, ref ast.Ref, input *ast.Term) (ast.Value, error) {
+func (t *resolverTrie) Resolve(e *eval, ref ast.Ref) (ast.Value, error) {
 	in := resolver.Input{
 		Ref:   ref,
-		Input: input,
+		Input: e.input,
 	}
 	node := t
 	for i, t := range ref {
@@ -46,7 +44,8 @@ func (t *resolverTrie) Resolve(ctx context.Context, ref ast.Ref, input *ast.Term
 		}
 		node = child
 		if node.r != nil {
-			result, err := node.r.Eval(ctx, in)
+			e.traceWasm(e.query[e.index], &in.Ref)
+			result, err := node.r.Eval(e.ctx, in)
 			if err != nil {
 				return nil, err
 			}
@@ -56,12 +55,13 @@ func (t *resolverTrie) Resolve(ctx context.Context, ref ast.Ref, input *ast.Term
 			return result.Value.Find(ref[i+1:])
 		}
 	}
-	return node.mktree(ctx, in)
+	return node.mktree(e, in)
 }
 
-func (t *resolverTrie) mktree(ctx context.Context, in resolver.Input) (ast.Value, error) {
+func (t *resolverTrie) mktree(e *eval, in resolver.Input) (ast.Value, error) {
 	if t.r != nil {
-		result, err := t.r.Eval(ctx, in)
+		e.traceWasm(e.query[e.index], &in.Ref)
+		result, err := t.r.Eval(e.ctx, in)
 		if err != nil {
 			return nil, err
 		}
@@ -72,7 +72,7 @@ func (t *resolverTrie) mktree(ctx context.Context, in resolver.Input) (ast.Value
 	}
 	obj := ast.NewObject()
 	for k, child := range t.children {
-		v, err := child.mktree(ctx, resolver.Input{Ref: append(in.Ref, ast.NewTerm(k)), Input: in.Input})
+		v, err := child.mktree(e, resolver.Input{Ref: append(in.Ref, ast.NewTerm(k)), Input: in.Input})
 		if err != nil {
 			return nil, err
 		}

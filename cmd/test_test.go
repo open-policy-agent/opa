@@ -83,10 +83,10 @@ func TestFilterTraceExplainFull(t *testing.T) {
 	p.explain.Set(explainModeFull)
 	expected := `Enter data.testing.test_p = _
 | Eval data.testing.test_p = _
-| Index data.testing.test_p = _ (matched 1 rule)
+| Index data.testing.test_p (matched 1 rule)
 | Enter data.testing.test_p
 | | Eval data.testing.p with data.x as "bar"
-| | Index data.testing.p with data.x as "bar" (matched 1 rule)
+| | Index data.testing.p (matched 1 rule)
 | | Enter data.testing.p
 | | | Eval data.testing.x
 | | | Index data.testing.x (matched 1 rule)
@@ -100,12 +100,12 @@ func TestFilterTraceExplainFull(t *testing.T) {
 | | | Eval trace("test test")
 | | | Note "test test"
 | | | Eval data.testing.q.foo
-| | | Index data.testing.q.foo (matched 1 rule)
+| | | Index data.testing.q (matched 1 rule)
 | | | Enter data.testing.q
 | | | | Eval trace("got this far")
 | | | | Note "got this far"
 | | | | Eval data.testing.r[x]
-| | | | Index data.testing.r[__local0__] (matched 1 rule)
+| | | | Index data.testing.r (matched 1 rule)
 | | | | Enter data.testing.r
 | | | | | Eval trace("got this far2")
 | | | | | Note "got this far2"
