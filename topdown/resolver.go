@@ -49,6 +49,9 @@ func (t *resolverTrie) Resolve(e *eval, ref ast.Ref) (ast.Value, error) {
 				Metrics: e.metrics,
 			}
 			e.traceWasm(e.query[e.index], &in.Ref)
+			if e.data != nil {
+				return nil, errInScopeWithStmt
+			}
 			result, err := node.r.Eval(e.ctx, in)
 			if err != nil {
 				return nil, err
@@ -73,6 +76,9 @@ func (t *resolverTrie) Resolve(e *eval, ref ast.Ref) (ast.Value, error) {
 func (t *resolverTrie) mktree(e *eval, in resolver.Input) (ast.Value, error) {
 	if t.r != nil {
 		e.traceWasm(e.query[e.index], &in.Ref)
+		if e.data != nil {
+			return nil, errInScopeWithStmt
+		}
 		result, err := t.r.Eval(e.ctx, in)
 		if err != nil {
 			return nil, err
@@ -93,4 +99,9 @@ func (t *resolverTrie) mktree(e *eval, in resolver.Input) (ast.Value, error) {
 		}
 	}
 	return obj, nil
+}
+
+var errInScopeWithStmt = &Error{
+	Code:    InternalErr,
+	Message: "wasm cannot be executed when 'with' statements are in-scope",
 }

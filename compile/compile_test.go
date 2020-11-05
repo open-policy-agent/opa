@@ -429,10 +429,10 @@ func TestCompilerWasmTargetMultipleEntrypoints(t *testing.T) {
 
 		p = true`,
 		"policy.rego": `package policy
-		
+
 		authz = true`,
 		"mask.rego": `package system.log
-		
+
 		mask["/input/password"]`,
 	}
 
@@ -467,6 +467,54 @@ func TestCompilerWasmTargetMultipleEntrypoints(t *testing.T) {
 
 		ensureEntrypointRemoved(t, compiler.bundle, "test/p")
 		ensureEntrypointRemoved(t, compiler.bundle, "policy/authz")
+	})
+}
+
+func TestCompilerWasmTargetEntrypointDependents(t *testing.T) {
+	files := map[string]string{
+		"test.rego": `package test
+
+		p { q }
+		q { r }
+		r = 1
+		s = 2`}
+
+	test.WithTempFS(files, func(root string) {
+
+		compiler := New().WithPaths(root).WithTarget("wasm").WithEntrypoints("test/r")
+		err := compiler.Build(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if len(compiler.bundle.WasmModules) != 1 {
+			t.Fatalf("expected 1 Wasm modules, got: %d", len(compiler.bundle.WasmModules))
+		}
+
+		expManifest := bundle.Manifest{}
+		expManifest.Init()
+		expManifest.WasmResolvers = []bundle.WasmResolver{
+			{
+				Entrypoint: "test/r",
+				Module:     "/policy.wasm",
+			},
+			{
+				Entrypoint: "test/p",
+				Module:     "/policy.wasm",
+			},
+			{
+				Entrypoint: "test/q",
+				Module:     "/policy.wasm",
+			},
+		}
+
+		if !compiler.bundle.Manifest.Equal(expManifest) {
+			t.Fatalf("\nExpected manifest: %+v\nGot: %+v\n", expManifest, compiler.bundle.Manifest)
+		}
+
+		ensureEntrypointRemoved(t, compiler.bundle, "test/p")
+		ensureEntrypointRemoved(t, compiler.bundle, "test/q")
+		ensureEntrypointRemoved(t, compiler.bundle, "test/r")
 	})
 }
 
