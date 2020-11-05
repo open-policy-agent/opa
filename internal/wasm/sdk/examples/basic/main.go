@@ -69,14 +69,6 @@ func main() {
 
 	fmt.Printf("Policy 1 result: %v\n", result)
 
-	resultBool, err := opa.EvalBool(ctx, rego, entrypointID, &input)
-	if err != nil {
-		fmt.Printf("error: %v\n", err)
-		return
-	}
-
-	fmt.Printf("Policy 1 boolean result: %v\n", resultBool)
-
 	// Update the policy on the fly.
 
 	policy, err = ioutil.ReadFile(path.Join(directory, "example-2.wasm"))
@@ -112,12 +104,4 @@ func main() {
 	}
 
 	fmt.Printf("Policy 2 result: %v\n", result)
-
-	resultBool, err = opa.EvalBool(ctx, rego, entrypointID, &input)
-	if err != nil {
-		fmt.Printf("error: %v\n", err)
-		return
-	}
-
-	fmt.Printf("Policy 2 boolean result: %v\n", resultBool)
 }
