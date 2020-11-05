@@ -164,7 +164,7 @@ func (o *OPA) Eval(ctx context.Context, opts EvalOpts) (*Result, error) {
 		return nil, err
 	}
 
-	defer o.pool.Release(instance)
+	defer o.pool.Release(instance, m)
 
 	result, err := instance.Eval(ctx, opts.Entrypoint, opts.Input, m)
 	if err != nil {
@@ -195,7 +195,7 @@ func (o *OPA) Entrypoints(ctx context.Context) (map[string]EntrypointID, error) 
 		return nil, err
 	}
 
-	defer o.pool.Release(instance)
+	defer o.pool.Release(instance, metrics.New())
 
 	return instance.Entrypoints(), nil
 }

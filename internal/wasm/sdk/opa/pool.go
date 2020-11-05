@@ -49,8 +49,8 @@ func newPool(poolSize, memoryMinPages, memoryMaxPages uint32) *pool {
 // and building one as necessary. Returns either ErrNotReady or
 // ErrInternal if an error.
 func (p *pool) Acquire(ctx context.Context, metrics metrics.Metrics) (*vm, error) {
-	metrics.Timer("opa_wasm_pool_acquire_vm").Start()
-	defer metrics.Timer("opa_wasm_pool_acquire_vm").Stop()
+	metrics.Timer("wasm_pool_acquire").Start()
+	defer metrics.Timer("wasm_pool_acquire").Stop()
 
 	select {
 	case <-ctx.Done():
@@ -89,7 +89,10 @@ func (p *pool) Acquire(ctx context.Context, metrics metrics.Metrics) (*vm, error
 }
 
 // Release releases the VM back to the pool.
-func (p *pool) Release(vm *vm) {
+func (p *pool) Release(vm *vm, metrics metrics.Metrics) {
+	metrics.Timer("wasm_pool_release").Start()
+	defer metrics.Timer("wasm_pool_release").Stop()
+
 	p.mutex.Lock()
 
 	// If the policy data setting is waiting for this one, don't release it back to the general consumption.
@@ -173,14 +176,14 @@ func (p *pool) setPolicyData(policy []byte, data []byte) error {
 		if err := vm.SetPolicyData(policy, data); err != nil {
 			// No guarantee about the VM state after an error; hence, remove.
 			p.remove(i)
-			p.Release(vm)
+			p.Release(vm, metrics.New())
 
 			// After the first successful activation, proceed through all the VMs, ignoring the remaining errors.
 			if activations == 0 {
 				return err
 			}
 		} else {
-			p.Release(vm)
+			p.Release(vm, metrics.New())
 		}
 
 		// Activate the policy and data, now that a single VM has been reset without errors.
