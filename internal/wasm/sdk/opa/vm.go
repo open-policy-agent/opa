@@ -49,6 +49,8 @@ type vm struct {
 	heapTopSet           func(...interface{}) (wasm.Value, error)
 	jsonDump             func(...interface{}) (wasm.Value, error)
 	jsonParse            func(...interface{}) (wasm.Value, error)
+	valueDump            func(...interface{}) (wasm.Value, error)
+	valueParse           func(...interface{}) (wasm.Value, error)
 	malloc               func(...interface{}) (wasm.Value, error)
 }
 
@@ -96,6 +98,8 @@ func newVM(policy []byte, data []byte, memoryMin, memoryMax uint32) (*vm, error)
 		heapTopSet:           i.Exports["opa_heap_top_set"],
 		jsonDump:             i.Exports["opa_json_dump"],
 		jsonParse:            i.Exports["opa_json_parse"],
+		valueDump:            i.Exports["opa_value_dump"],
+		valueParse:           i.Exports["opa_value_parse"],
 		malloc:               i.Exports["opa_malloc"],
 	}
 
@@ -170,7 +174,9 @@ func newVM(policy []byte, data []byte, memoryMin, memoryMax uint32) (*vm, error)
 	return v, nil
 }
 
-func (i *vm) Eval(ctx context.Context, entrypoint EntrypointID, input *interface{}, metrics metrics.Metrics) (interface{}, error) {
+// Eval performs an evaluation of the specified entrypoint, with any provided
+// input, and returns the resulting value dumped to a string.
+func (i *vm) Eval(ctx context.Context, entrypoint EntrypointID, input *interface{}, metrics metrics.Metrics) ([]byte, error) {
 	metrics.Timer("wasm_vm_eval").Start()
 	defer metrics.Timer("wasm_vm_eval").Stop()
 
@@ -247,12 +253,22 @@ func (i *vm) Eval(ctx context.Context, entrypoint EntrypointID, input *interface
 		return nil, err
 	}
 
-	result, err := i.fromRegoJSON(resultAddr.ToI32(), false)
+	serialized, err := i.valueDump(resultAddr)
+	if err != nil {
+		return nil, err
+	}
+
+	data := i.memory.Data()[serialized.ToI32():]
+	n := bytes.IndexByte(data, 0)
+	if n < 0 {
+		n = 0
+	}
+
 	metrics.Timer("wasm_vm_eval_prepare_result").Stop()
 
 	// Skip free'ing input and result JSON as the heap will be reset next round anyway.
 
-	return result, err
+	return data[0:n], err
 }
 
 func (i *vm) SetPolicyData(policy []byte, data []byte) error {
@@ -432,7 +448,7 @@ func (i *vm) toRegoJSON(v interface{}, free bool) (int32, error) {
 	p := pos.ToI32()
 	copy(i.memory.Data()[p:p+n], raw)
 
-	addr, err := i.jsonParse(p, n)
+	addr, err := i.valueParse(p, n)
 	if err != nil {
 		return 0, err
 	}

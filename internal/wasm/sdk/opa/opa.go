@@ -29,7 +29,7 @@ type OPA struct {
 
 // Result holds the evaluation result.
 type Result struct {
-	Result interface{}
+	Result []byte
 }
 
 // EntrypointID is used by Eval() to determine which compiled entrypoint should
@@ -198,41 +198,4 @@ func (o *OPA) Entrypoints(ctx context.Context) (map[string]EntrypointID, error) 
 	defer o.pool.Release(instance, metrics.New())
 
 	return instance.Entrypoints(), nil
-}
-
-// EvalBool evaluates the boolean policy with the given input. The
-// possible error values returned are as with Eval with addition of
-// ErrUndefined indicating an undefined policy decision and
-// ErrNonBoolean indicating a non-boolean policy decision.
-// Deprecated: Use Eval instead.
-func EvalBool(ctx context.Context, o *OPA, entrypoint EntrypointID, input *interface{}) (bool, error) {
-	rs, err := o.Eval(ctx, EvalOpts{
-		Entrypoint: entrypoint,
-		Input:      input,
-	})
-	if err != nil {
-		return false, err
-	}
-
-	r, ok := rs.Result.([]interface{})
-	if !ok || len(r) == 0 {
-		return false, ErrUndefined
-	}
-
-	m, ok := r[0].(map[string]interface{})
-	if !ok || len(m) != 1 {
-		return false, ErrNonBoolean
-	}
-
-	var b bool
-	for _, v := range m {
-		b, ok = v.(bool)
-		break
-	}
-
-	if !ok {
-		return false, ErrNonBoolean
-	}
-
-	return b, nil
 }

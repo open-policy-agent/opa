@@ -6,7 +6,6 @@ package opa_test
 import (
 	"context"
 	"fmt"
-	"reflect"
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -37,8 +36,8 @@ func TestOPA(t *testing.T) {
 			Policy:      `a = true`,
 			Query:       "data.p.a = x",
 			Evals: []Eval{
-				Eval{Result: `[{"x": true}]`},
-				Eval{Result: `[{"x": true}]`},
+				Eval{Result: `{{"x": true}}`},
+				Eval{Result: `{{"x": true}}`},
 			},
 		},
 		{
@@ -46,8 +45,8 @@ func TestOPA(t *testing.T) {
 			Policy:      `a = input`,
 			Query:       "data.p.a = x",
 			Evals: []Eval{
-				Eval{Input: "false", Result: `[{"x": false}]`},
-				Eval{Input: "true", Result: `[{"x": true}]`},
+				Eval{Input: "false", Result: `{{"x": false}}`},
+				Eval{Input: "true", Result: `{{"x": true}}`},
 			},
 		},
 		{
@@ -56,8 +55,8 @@ func TestOPA(t *testing.T) {
 			Query:       "data.p.a = x",
 			Data:        `{"q": false}`,
 			Evals: []Eval{
-				Eval{Result: `[{"x": false}]`},
-				Eval{NewData: `{"q": true}`, Result: `[{"x": true}]`},
+				Eval{Result: `{{"x": false}}`},
+				Eval{NewData: `{"q": true}`, Result: `{{"x": true}}`},
 			},
 		},
 		{
@@ -66,8 +65,8 @@ func TestOPA(t *testing.T) {
 			Query:       "data.p.a = x",
 			Data:        `{"q": false, "r": true}`,
 			Evals: []Eval{
-				Eval{Result: `[{"x": false}]`},
-				Eval{NewPolicy: `a = data.r`, Result: `[{"x": true}]`},
+				Eval{Result: `{{"x": false}}`},
+				Eval{NewPolicy: `a = data.r`, Result: `{{"x": true}}`},
 			},
 		},
 		{
@@ -76,8 +75,8 @@ func TestOPA(t *testing.T) {
 			Query:       "data.p.a = x",
 			Data:        `{"q": 0, "r": 1}`,
 			Evals: []Eval{
-				Eval{Result: `[{"x": 0}]`},
-				Eval{NewPolicy: `a = data.r`, NewData: `{"q": 2, "r": 3}`, Result: `[{"x": 3}]`},
+				Eval{Result: `{{"x": 0}}`},
+				Eval{NewPolicy: `a = data.r`, NewData: `{"q": 2, "r": 3}`, Result: `{{"x": 3}}`},
 			},
 		},
 		{
@@ -85,8 +84,8 @@ func TestOPA(t *testing.T) {
 			Policy:      `a = count(data.q) + sum(data.q)`,
 			Query:       "data.p.a = x",
 			Evals: []Eval{
-				Eval{NewData: `{"q": []}`, Result: `[{"x": 0}]`},
-				Eval{NewData: `{"q": [1, 2]}`, Result: `[{"x": 5}]`},
+				Eval{NewData: `{"q": []}`, Result: `{{"x": 0}}`},
+				Eval{NewData: `{"q": [1, 2]}`, Result: `{{"x": 5}}`},
 			},
 		},
 		{
@@ -94,7 +93,7 @@ func TestOPA(t *testing.T) {
 			Policy:      `a = true`,
 			Query:       "data.p.b = x",
 			Evals: []Eval{
-				Eval{Result: `[]`},
+				Eval{Result: `set()`},
 			},
 		},
 	}
@@ -140,13 +139,14 @@ func TestOPA(t *testing.T) {
 					}
 				}
 
-				result, err := instance.Eval(context.Background(), opa.EvalOpts{Input: parseJSON(eval.Input)})
+				r, err := instance.Eval(context.Background(), opa.EvalOpts{Input: parseJSON(eval.Input)})
 				if err != nil {
-					t.Errorf(err.Error())
+					t.Fatalf(err.Error())
 				}
 
-				if !reflect.DeepEqual(*parseJSON(eval.Result), result.Result) {
-					t.Errorf("Incorrect result: %v", result.Result)
+				expected := ast.MustParseTerm(eval.Result)
+				if !ast.MustParseTerm(string(r.Result)).Equal(expected) {
+					t.Errorf("\nExpected: %v\nGot: %v\n", expected, string(r.Result))
 				}
 			}
 
@@ -203,9 +203,10 @@ func TestNamedEntrypoint(t *testing.T) {
 		t.Fatalf("Unexpected error: %s", err)
 	}
 
-	exp := `[{"result":7}]`
-	if !reflect.DeepEqual(*parseJSON(exp), a.Result) {
-		t.Fatalf("Expected result for 'test/a' to be %s, got: %s", exp, string(util.MustMarshalJSON(a.Result)))
+	exp := ast.MustParseTerm(`{{"result":7}}`)
+	actual := ast.MustParseTerm(string(a.Result))
+	if !actual.Equal(exp) {
+		t.Fatalf("Expected result for 'test/a' to be %s, got: %s", exp, actual)
 	}
 
 	b, err := instance.Eval(ctx, opa.EvalOpts{Entrypoint: eps["test/b"]})
@@ -213,8 +214,9 @@ func TestNamedEntrypoint(t *testing.T) {
 		t.Fatalf("Unexpected error: %s", err)
 	}
 
-	if !reflect.DeepEqual(*parseJSON(exp), b.Result) {
-		t.Fatalf("Expected result for 'test/b' to be %s, got: %s", exp, string(util.MustMarshalJSON(b.Result)))
+	actual = ast.MustParseTerm(string(b.Result))
+	if !actual.Equal(exp) {
+		t.Fatalf("Expected result for 'test/b' to be %s, got: %s", exp, actual)
 	}
 }
 

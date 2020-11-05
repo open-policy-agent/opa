@@ -80,16 +80,6 @@ func (r *Resolver) Close() {
 // Eval performs an evaluation using the provided input and the Wasm module
 // associated with this Resolver instance.
 func (r *Resolver) Eval(ctx context.Context, input resolver.Input) (resolver.Result, error) {
-	var inp *interface{}
-
-	if input.Input != nil {
-		x, err := ast.JSON(input.Input.Value)
-		if err != nil {
-			return resolver.Result{}, err
-		}
-		inp = &x
-	}
-
 	v := r.entrypointIDs.Get(input.Ref)
 	if v == nil {
 		return resolver.Result{}, fmt.Errorf("unknown entrypoint %s", input.Ref)
@@ -105,8 +95,14 @@ func (r *Resolver) Eval(ctx context.Context, input resolver.Input) (resolver.Res
 		return resolver.Result{}, fmt.Errorf("internal error: invalid entrypoint id %s", numValue)
 	}
 
+	var in *interface{}
+	if input.Input != nil {
+		var str interface{} = []byte(input.Input.String())
+		in = &str
+	}
+
 	opts := opa.EvalOpts{
-		Input:      inp,
+		Input:      in,
 		Entrypoint: opa.EntrypointID(epID),
 		Metrics:    input.Metrics,
 	}
@@ -118,16 +114,9 @@ func (r *Resolver) Eval(ctx context.Context, input resolver.Input) (resolver.Res
 	result, err := getResult(out)
 	if err != nil {
 		return resolver.Result{}, err
-	} else if result == nil {
-		return resolver.Result{}, nil
 	}
 
-	v, err = ast.InterfaceToValue(*result)
-	if err != nil {
-		return resolver.Result{}, err
-	}
-
-	return resolver.Result{Value: v}, nil
+	return resolver.Result{Value: result}, nil
 }
 
 // SetData will update the external data for the Wasm instance.
@@ -135,26 +124,39 @@ func (r *Resolver) SetData(data interface{}) error {
 	return r.o.SetData(data)
 }
 
-func getResult(rs *opa.Result) (*interface{}, error) {
+func getResult(evalResult *opa.Result) (ast.Value, error) {
 
-	r, ok := rs.Result.([]interface{})
+	parsed, err := ast.ParseTerm(string(evalResult.Result))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse wasm result: %s", err)
+	}
+
+	resultSet, ok := parsed.Value.(ast.Set)
 	if !ok {
-		return nil, fmt.Errorf("illegal result set type")
-	}
-
-	if len(r) == 0 {
-		return nil, nil
-	}
-
-	m, ok := r[0].(map[string]interface{})
-	if !ok || len(m) != 1 {
 		return nil, fmt.Errorf("illegal result type")
 	}
 
-	result, ok := m["result"]
-	if !ok {
-		return nil, fmt.Errorf("missing value")
+	if resultSet.Len() == 0 {
+		return nil, nil
 	}
 
-	return &result, nil
+	if resultSet.Len() > 1 {
+		return nil, fmt.Errorf("illegal result type")
+	}
+
+	var obj ast.Object
+	err = resultSet.Iter(func(term *ast.Term) error {
+		obj, ok = term.Value.(ast.Object)
+		if !ok || obj.Len() != 1 {
+			return fmt.Errorf("illegal result type")
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	result := obj.Get(ast.StringTerm("result"))
+
+	return result.Value, nil
 }
