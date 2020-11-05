@@ -35,13 +35,6 @@ func (t *resolverTrie) Put(ref ast.Ref, r resolver.Resolver) {
 func (t *resolverTrie) Resolve(e *eval, ref ast.Ref) (ast.Value, error) {
 	e.metrics.Timer(metrics.RegoExternalResolve).Start()
 	defer e.metrics.Timer(metrics.RegoExternalResolve).Stop()
-
-	in := resolver.Input{
-		Ref:     ref,
-		Input:   e.input,
-		Metrics: e.metrics,
-	}
-
 	node := t
 	for i, t := range ref {
 		child, ok := node.children[t.Value]
@@ -50,6 +43,11 @@ func (t *resolverTrie) Resolve(e *eval, ref ast.Ref) (ast.Value, error) {
 		}
 		node = child
 		if node.r != nil {
+			in := resolver.Input{
+				Ref:     ref[:i+1],
+				Input:   e.input,
+				Metrics: e.metrics,
+			}
 			e.traceWasm(e.query[e.index], &in.Ref)
 			result, err := node.r.Eval(e.ctx, in)
 			if err != nil {
@@ -58,10 +56,18 @@ func (t *resolverTrie) Resolve(e *eval, ref ast.Ref) (ast.Value, error) {
 			if result.Value == nil {
 				return nil, nil
 			}
-			return result.Value.Find(ref[i+1:])
+			val, err := result.Value.Find(ref[i+1:])
+			if err != nil {
+				return nil, nil
+			}
+			return val, nil
 		}
 	}
-	return node.mktree(e, in)
+	return node.mktree(e, resolver.Input{
+		Ref:     ref,
+		Input:   e.input,
+		Metrics: e.metrics,
+	})
 }
 
 func (t *resolverTrie) mktree(e *eval, in resolver.Input) (ast.Value, error) {
