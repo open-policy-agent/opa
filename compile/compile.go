@@ -370,6 +370,32 @@ func (c *Compiler) compileWasm(ctx context.Context) error {
 		}
 	}
 
+	// Find transitive dependents of entrypoints and add them to the set to compile.
+	//
+	// NOTE(tsandall): We compile entrypoints because the evaluator does not support
+	// evaluation of wasm-compiled rules when 'with' statements are in-scope. Compiling
+	// out the dependents avoids the need to support that case for now.
+	deps := map[*ast.Rule]struct{}{}
+	for i := range c.entrypointrefs {
+		transitiveDocumentDependents(c.compiler, c.entrypointrefs[i], deps)
+	}
+
+	extras := ast.NewSet()
+	for rule := range deps {
+		extras.Add(ast.NewTerm(rule.Path()))
+	}
+
+	sorted := extras.Sorted()
+
+	for i := 0; i < sorted.Len(); i++ {
+		p, err := sorted.Elem(i).Value.(ast.Ref).Ptr()
+		if err != nil {
+			return err
+		}
+		c.entrypoints = append(c.entrypoints, p)
+		c.entrypointrefs = append(c.entrypointrefs, sorted.Elem(i))
+	}
+
 	// Create query sets for each of the entrypoints.
 	resultSym := ast.NewTerm(wasmResultVar)
 	queries := make([]planner.QuerySet, len(c.entrypointrefs))
@@ -641,9 +667,7 @@ func (o *optimizer) findRequiredDocuments(ref *ast.Term) []string {
 	keep := map[string]*ast.Location{}
 	deps := map[*ast.Rule]struct{}{}
 
-	for _, r := range o.compiler.GetRules(ref.Value.(ast.Ref)) {
-		transitiveDependents(o.compiler, r, deps)
-	}
+	transitiveDocumentDependents(o.compiler, ref, deps)
 
 	for rule := range deps {
 		ast.WalkExprs(rule, func(expr *ast.Expr) bool {
@@ -838,6 +862,12 @@ func compile(c *ast.Capabilities, b *bundle.Bundle) (*ast.Compiler, error) {
 	}
 
 	return compiler, nil
+}
+
+func transitiveDocumentDependents(compiler *ast.Compiler, ref *ast.Term, deps map[*ast.Rule]struct{}) {
+	for _, rule := range compiler.GetRules(ref.Value.(ast.Ref)) {
+		transitiveDependents(compiler, rule, deps)
+	}
 }
 
 func transitiveDependents(compiler *ast.Compiler, rule *ast.Rule, deps map[*ast.Rule]struct{}) {
