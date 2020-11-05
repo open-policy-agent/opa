@@ -44,7 +44,7 @@ type EntrypointID int32
 // initialized before invoking the Eval.
 func New() *OPA {
 	opa := &OPA{
-		memoryMinPages: 2,
+		memoryMinPages: 16,
 		memoryMaxPages: 0,
 		poolSize:       uint32(runtime.GOMAXPROCS(0)),
 		logError:       func(error) {},
