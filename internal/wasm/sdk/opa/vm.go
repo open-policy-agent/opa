@@ -171,12 +171,11 @@ func newVM(policy []byte, data []byte, memoryMin, memoryMax uint32) (*vm, error)
 }
 
 func (i *vm) Eval(ctx context.Context, entrypoint EntrypointID, input *interface{}, metrics metrics.Metrics) (interface{}, error) {
-	metrics.Timer("opa_wasm_vm_eval_total").Start()
-	defer metrics.Timer("opa_wasm_vm_eval_total").Stop()
+	metrics.Timer("wasm_vm_eval").Start()
+	defer metrics.Timer("wasm_vm_eval").Stop()
 
-	metrics.Timer("opa_wasm_vm_eval_set_heap_state").Start()
+	metrics.Timer("wasm_vm_eval_prepare_input").Start()
 	err := i.setHeapState(i.evalHeapPtr)
-	metrics.Timer("opa_wasm_vm_eval_set_heap_state").Stop()
 	if err != nil {
 		return nil, err
 	}
@@ -186,7 +185,7 @@ func (i *vm) Eval(ctx context.Context, entrypoint EntrypointID, input *interface
 	}()
 
 	// Parse the input JSON and activate it with the data.
-	metrics.Timer("opa_wasm_vm_eval_prepare_input").Start()
+
 	addr, err := i.evalCtxNew()
 	if err != nil {
 		return nil, err
@@ -215,10 +214,10 @@ func (i *vm) Eval(ctx context.Context, entrypoint EntrypointID, input *interface
 			return nil, err
 		}
 	}
-	metrics.Timer("opa_wasm_vm_eval_prepare_input").Stop()
+	metrics.Timer("wasm_vm_eval_prepare_input").Stop()
 
 	// Evaluate the policy.
-	metrics.Timer("opa_wasm_vm_eval").Start()
+	metrics.Timer("wasm_vm_eval_execute").Start()
 	func() {
 		defer func() {
 			if e := recover(); e != nil {
@@ -236,20 +235,20 @@ func (i *vm) Eval(ctx context.Context, entrypoint EntrypointID, input *interface
 		_, err = i.eval(ctxAddr)
 	}()
 
-	metrics.Timer("opa_wasm_vm_eval").Stop()
+	metrics.Timer("wasm_vm_eval_execute").Stop()
 
 	if err != nil {
 		return nil, err
 	}
 
-	metrics.Timer("opa_wasm_vm_eval_extract_result").Start()
+	metrics.Timer("wasm_vm_eval_prepare_result").Start()
 	resultAddr, err := i.evalCtxGetResult(ctxAddr)
 	if err != nil {
 		return nil, err
 	}
 
 	result, err := i.fromRegoJSON(resultAddr.ToI32(), false)
-	metrics.Timer("opa_wasm_vm_eval_extract_result").Stop()
+	metrics.Timer("wasm_vm_eval_prepare_result").Stop()
 
 	// Skip free'ing input and result JSON as the heap will be reset next round anyway.
 
