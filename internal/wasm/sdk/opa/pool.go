@@ -129,14 +129,22 @@ func (p *pool) SetPolicyData(policy []byte, data []byte) error {
 	p.mutex.Lock()
 
 	if !p.initialized {
-		vm, err := newVM(policy, data, p.memoryMinPages, p.memoryMaxPages)
+		var err error
+		for i := 0; i < len(p.available); i++ {
+			var vm *vm
+			vm, err = newVM(policy, data, p.memoryMinPages, p.memoryMaxPages)
+			if err == nil {
+				p.vms = append(p.vms, vm)
+				p.acquired = append(p.acquired, false)
+			} else {
+				err = fmt.Errorf("%v: %w", err, ErrInvalidPolicyOrData)
+				break
+			}
+		}
+
 		if err == nil {
 			p.initialized = true
-			p.vms = append(p.vms, vm)
-			p.acquired = append(p.acquired, false)
 			p.policy, p.data = policy, data
-		} else {
-			err = fmt.Errorf("%v: %w", err, ErrInvalidPolicyOrData)
 		}
 
 		p.mutex.Unlock()
