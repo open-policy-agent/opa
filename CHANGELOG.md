@@ -3,7 +3,9 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.25.0-rc1
+
+This release candidate contains two important changes.
 
 ### Built-in Function Error Handling
 
@@ -26,6 +28,10 @@ If you require the old behaviour, enable "strict" built-in errors on the query:
 | CLI | `opa eval --strict-builtin-errors 'data.example.allow'` |
 
 If you have implemented custom built-in functions and require policy evaluation to halt on error in those built-in functions, modify your built-in functions to return the [topdown.Halt](./topdown/errors.go) error type.
+
+### WebAssembly Runtime Support
+
+This release adds support for loading and executing WebAssembly compiled policies. A full description of the changes is pending.
 
 ## 0.24.0
 
