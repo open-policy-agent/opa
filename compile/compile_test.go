@@ -452,11 +452,11 @@ func TestCompilerWasmTargetMultipleEntrypoints(t *testing.T) {
 		expManifest.Init()
 		expManifest.WasmResolvers = []bundle.WasmResolver{
 			{
-				Entrypoint: "policy/authz",
+				Entrypoint: "test/p",
 				Module:     "/policy.wasm",
 			},
 			{
-				Entrypoint: "test/p",
+				Entrypoint: "policy/authz",
 				Module:     "/policy.wasm",
 			},
 		}
@@ -477,11 +477,12 @@ func TestCompilerWasmTargetEntrypointDependents(t *testing.T) {
 		p { q }
 		q { r }
 		r = 1
-		s = 2`}
+		s = 2
+		z { r }`}
 
 	test.WithTempFS(files, func(root string) {
 
-		compiler := New().WithPaths(root).WithTarget("wasm").WithEntrypoints("test/r")
+		compiler := New().WithPaths(root).WithTarget("wasm").WithEntrypoints("test/r", "test/z")
 		err := compiler.Build(context.Background())
 		if err != nil {
 			t.Fatal(err)
@@ -495,15 +496,19 @@ func TestCompilerWasmTargetEntrypointDependents(t *testing.T) {
 		expManifest.Init()
 		expManifest.WasmResolvers = []bundle.WasmResolver{
 			{
+				Entrypoint: "test/r",
+				Module:     "/policy.wasm",
+			},
+			{
+				Entrypoint: "test/z",
+				Module:     "/policy.wasm",
+			},
+			{
 				Entrypoint: "test/p",
 				Module:     "/policy.wasm",
 			},
 			{
 				Entrypoint: "test/q",
-				Module:     "/policy.wasm",
-			},
-			{
-				Entrypoint: "test/r",
 				Module:     "/policy.wasm",
 			},
 		}

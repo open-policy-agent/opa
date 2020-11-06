@@ -392,8 +392,11 @@ func (c *Compiler) compileWasm(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		c.entrypoints = append(c.entrypoints, p)
-		c.entrypointrefs = append(c.entrypointrefs, sorted.Elem(i))
+
+		if !c.entrypoints.Contains(p) {
+			c.entrypoints = append(c.entrypoints, p)
+			c.entrypointrefs = append(c.entrypointrefs, sorted.Elem(i))
+		}
 	}
 
 	// Create query sets for each of the entrypoints.
@@ -907,6 +910,15 @@ func (ss orderedStringSet) Append(s ...string) orderedStringSet {
 		}
 	}
 	return ss
+}
+
+func (ss orderedStringSet) Contains(s string) bool {
+	for _, other := range ss {
+		if s == other {
+			return true
+		}
+	}
+	return false
 }
 
 func stringsToRefs(x []string) []ast.Ref {
