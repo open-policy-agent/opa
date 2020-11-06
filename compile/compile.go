@@ -461,22 +461,31 @@ func (c *Compiler) compileWasm(ctx context.Context) error {
 		Raw:  buf.Bytes(),
 	}}
 
-	// Each entrypoint needs an entry in the manifest along with the
-	// original rule(s) removed from the remaining rego modules.
-
-	// For each package path keep a list of new imports. They are stored as a
-	// map to remove duplicates for each package.
-	requiredImports := map[string]map[string]*ast.Import{}
-	for i, entrypoint := range c.entrypointrefs {
+	// Each entrypoint needs an entry in the manifest
+	for i := range c.entrypointrefs {
 		entrypointPath := c.entrypoints[i]
 
 		c.bundle.Manifest.WasmResolvers = append(c.bundle.Manifest.WasmResolvers, bundle.WasmResolver{
 			Module:     "/" + strings.TrimLeft(modulePath, "/"),
 			Entrypoint: entrypointPath,
 		})
+	}
 
-		for i := 0; i < len(c.bundle.Modules); i++ {
-			mf := &c.bundle.Modules[i]
+	// Remove the entrypoints from remaining source rego files
+	return pruneBundleEntrypoints(c.bundle, c.entrypointrefs)
+}
+
+// pruneBundleEntrypoints will modify modules in the provided bundle to remove
+// rules matching the entrypoints along with injecting import statements to
+// preserve their ability to compile.
+func pruneBundleEntrypoints(b *bundle.Bundle, entrypointrefs []*ast.Term) error {
+
+	// For each package path keep a list of new imports to add.
+	requiredImports := map[string][]*ast.Import{}
+
+	for _, entrypoint := range entrypointrefs {
+		for i := 0; i < len(b.Modules); i++ {
+			mf := &b.Modules[i]
 
 			// Drop any rules that match the entrypoint path.
 			var rules []*ast.Rule
@@ -487,12 +496,16 @@ func (c *Compiler) compileWasm(ctx context.Context) error {
 				} else {
 					pkgPath := rule.Module.Package.Path.String()
 					newImport := &ast.Import{Path: ast.NewTerm(rulePath)}
-					if _, ok := requiredImports[pkgPath]; ok {
-						requiredImports[pkgPath][rulePath.String()] = newImport
-					} else {
-						requiredImports[pkgPath] = map[string]*ast.Import{
-							rulePath.String(): newImport,
+					shouldAdd := true
+					currentImports := requiredImports[pkgPath]
+					for _, imp := range currentImports {
+						if imp.Equal(newImport) {
+							shouldAdd = false
+							break
 						}
+					}
+					if shouldAdd {
+						requiredImports[pkgPath] = append(currentImports, newImport)
 					}
 				}
 			}
@@ -509,8 +522,8 @@ func (c *Compiler) compileWasm(ctx context.Context) error {
 
 	// Any packages which had rules removed need an import injected for the
 	// removed rule to keep the policies valid.
-	for i := 0; i < len(c.bundle.Modules); i++ {
-		mf := &c.bundle.Modules[i]
+	for i := 0; i < len(b.Modules); i++ {
+		mf := &b.Modules[i]
 		pkgPath := mf.Parsed.Package.Path.String()
 		if imports, ok := requiredImports[pkgPath]; ok {
 			mf.Raw = nil
@@ -519,6 +532,7 @@ func (c *Compiler) compileWasm(ctx context.Context) error {
 			}
 		}
 	}
+
 	return nil
 }
 

@@ -452,11 +452,11 @@ func TestCompilerWasmTargetMultipleEntrypoints(t *testing.T) {
 		expManifest.Init()
 		expManifest.WasmResolvers = []bundle.WasmResolver{
 			{
-				Entrypoint: "test/p",
+				Entrypoint: "policy/authz",
 				Module:     "/policy.wasm",
 			},
 			{
-				Entrypoint: "policy/authz",
+				Entrypoint: "test/p",
 				Module:     "/policy.wasm",
 			},
 		}
@@ -495,15 +495,15 @@ func TestCompilerWasmTargetEntrypointDependents(t *testing.T) {
 		expManifest.Init()
 		expManifest.WasmResolvers = []bundle.WasmResolver{
 			{
-				Entrypoint: "test/r",
-				Module:     "/policy.wasm",
-			},
-			{
 				Entrypoint: "test/p",
 				Module:     "/policy.wasm",
 			},
 			{
 				Entrypoint: "test/q",
+				Module:     "/policy.wasm",
+			},
+			{
+				Entrypoint: "test/r",
 				Module:     "/policy.wasm",
 			},
 		}
