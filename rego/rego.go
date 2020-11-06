@@ -1654,17 +1654,18 @@ func (r *Rego) compileModules(ctx context.Context, txn storage.Transaction, m me
 		}
 	}
 
-	// Ensure all configured resolvers from the store are loaded
-	resolvers, err := bundleUtils.LoadWasmResolversFromStore(ctx, r.store, txn, r.bundles)
-	if err != nil {
-		return err
-	}
-	for _, rslvr := range resolvers {
-		for _, ep := range rslvr.Entrypoints() {
-			r.resolvers = append(r.resolvers, refResolver{ep, rslvr})
+	// Ensure all configured resolvers from the store are loaded. Skip if any were explicitly provided.
+	if len(r.resolvers) == 0 {
+		resolvers, err := bundleUtils.LoadWasmResolversFromStore(ctx, r.store, txn, r.bundles)
+		if err != nil {
+			return err
+		}
+		for _, rslvr := range resolvers {
+			for _, ep := range rslvr.Entrypoints() {
+				r.resolvers = append(r.resolvers, refResolver{ep, rslvr})
+			}
 		}
 	}
-
 	return nil
 }
 
