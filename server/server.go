@@ -868,7 +868,7 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, urlPath str
 	if !ok {
 		path := stringPathToDataRef(urlPath)
 
-		rego := rego.New(
+		opts := []func(*rego.Rego){
 			rego.Compiler(s.getCompiler()),
 			rego.Store(s.store),
 			rego.Transaction(txn),
@@ -876,8 +876,17 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, urlPath str
 			rego.Metrics(m),
 			rego.Runtime(s.runtime),
 			rego.UnsafeBuiltins(unsafeBuiltinsMap),
-		)
-		pq, err := rego.PrepareForEval(ctx)
+		}
+
+		// Set resolvers on the base Rego object to avoid having them get
+		// re-initialized, and to propagate them to the prepared query.
+		for _, r := range s.manager.GetWasmResolvers() {
+			for _, entrypoint := range r.Entrypoints() {
+				opts = append(opts, rego.Resolver(entrypoint, r))
+			}
+		}
+
+		pq, err := rego.New(opts...).PrepareForEval(ctx)
 		if err != nil {
 			_ = logger.Log(ctx, txn, decisionID, r.RemoteAddr, urlPath, "", goInput, input, nil, err, m)
 			writer.ErrorAuto(w, err)
@@ -892,12 +901,6 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, urlPath str
 		rego.EvalParsedInput(input),
 		rego.EvalMetrics(m),
 		rego.EvalInterQueryBuiltinCache(s.interQueryBuiltinCache),
-	}
-
-	for _, r := range s.manager.GetWasmResolvers() {
-		for _, entrypoint := range r.Entrypoints() {
-			evalOpts = append(evalOpts, rego.EvalResolver(entrypoint, r))
-		}
 	}
 
 	rs, err := preparedQuery.Eval(
@@ -945,8 +948,19 @@ func (s *Server) getCachedPreparedEvalQuery(key string, m metrics.Metrics) (*reg
 
 func (s *Server) canEval(ctx context.Context) bool {
 	// Create very simple query that binds a single variable.
-	eval := rego.New(rego.Compiler(s.getCompiler()),
-		rego.Store(s.store), rego.Query("x = 1"))
+	opts := []func(*rego.Rego){
+		rego.Compiler(s.getCompiler()),
+		rego.Store(s.store),
+		rego.Query("x = 1"),
+	}
+
+	for _, r := range s.manager.GetWasmResolvers() {
+		for _, ep := range r.Entrypoints() {
+			opts = append(opts, rego.Resolver(ep, r))
+		}
+	}
+
+	eval := rego.New(opts...)
 	// Run evaluation.
 	rs, err := eval.Eval(ctx)
 	if err != nil {
@@ -1178,7 +1192,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 	pqID += urlPath
 	preparedQuery, ok := s.getCachedPreparedEvalQuery(pqID, m)
 	if !ok {
-		rego := rego.New(
+		opts := []func(*rego.Rego){
 			rego.Compiler(s.getCompiler()),
 			rego.Store(s.store),
 			rego.Transaction(txn),
@@ -1190,9 +1204,15 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 			rego.Runtime(s.runtime),
 			rego.UnsafeBuiltins(unsafeBuiltinsMap),
 			rego.StrictBuiltinErrors(strictBuiltinErrors),
-		)
+		}
 
-		pq, err := rego.PrepareForEval(ctx)
+		for _, r := range s.manager.GetWasmResolvers() {
+			for _, entrypoint := range r.Entrypoints() {
+				opts = append(opts, rego.Resolver(entrypoint, r))
+			}
+		}
+
+		pq, err := rego.New(opts...).PrepareForEval(ctx)
 		if err != nil {
 			_ = logger.Log(ctx, txn, decisionID, r.RemoteAddr, urlPath, "", goInput, input, nil, err, m)
 			writer.ErrorAuto(w, err)
@@ -1208,12 +1228,6 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 		rego.EvalMetrics(m),
 		rego.EvalQueryTracer(buf),
 		rego.EvalInterQueryBuiltinCache(s.interQueryBuiltinCache),
-	}
-
-	for _, r := range s.manager.GetWasmResolvers() {
-		for _, entrypoint := range r.Entrypoints() {
-			evalOpts = append(evalOpts, rego.EvalResolver(entrypoint, r))
-		}
 	}
 
 	rs, err := preparedQuery.Eval(
@@ -1388,6 +1402,14 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 			rego.StrictBuiltinErrors(strictBuiltinErrors),
 		}
 
+		// Set resolvers on the base Rego object to avoid having them get
+		// re-initialized, and to propagate them to the prepared query.
+		for _, r := range s.manager.GetWasmResolvers() {
+			for _, entrypoint := range r.Entrypoints() {
+				opts = append(opts, rego.Resolver(entrypoint, r))
+			}
+		}
+
 		rego, err := s.makeRego(ctx, partial, txn, input, urlPath, m, includeInstrumentation, buf, opts)
 
 		if err != nil {
@@ -1412,12 +1434,6 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 		rego.EvalMetrics(m),
 		rego.EvalQueryTracer(buf),
 		rego.EvalInterQueryBuiltinCache(s.interQueryBuiltinCache),
-	}
-
-	for _, r := range s.manager.GetWasmResolvers() {
-		for _, entrypoint := range r.Entrypoints() {
-			evalOpts = append(evalOpts, rego.EvalResolver(entrypoint, r))
-		}
 	}
 
 	rs, err := preparedQuery.Eval(
