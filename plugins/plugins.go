@@ -589,7 +589,7 @@ func (m *Manager) onCommit(ctx context.Context, txn storage.Transaction, event s
 			}
 			m.setWasmResolvers(resolvers)
 		} else {
-			err := m.updateWasmResolversData(ctx, txn)
+			err := m.updateWasmResolversData(event)
 			if err != nil {
 				panic(err)
 			}
@@ -633,19 +633,22 @@ func requiresWasmResolverReload(event storage.TriggerEvent) bool {
 	return false
 }
 
-func (m *Manager) updateWasmResolversData(ctx context.Context, txn storage.Transaction) error {
+func (m *Manager) updateWasmResolversData(event storage.TriggerEvent) error {
 	m.wasmResolversMtx.Lock()
 	defer m.wasmResolversMtx.Unlock()
 
-	if len(m.wasmResolvers) > 0 {
-		// Get a full snapshot of the current data to load into the wasm runtime
-		data, err := m.Store.Read(ctx, txn, storage.Path{})
-		if err != nil {
-			return fmt.Errorf("failed to read current store data for wasm runtime: %s", err)
-		}
+	if len(m.wasmResolvers) == 0 {
+		return nil
+	}
 
-		for _, resolver := range m.wasmResolvers {
-			err := resolver.SetData(data)
+	for _, resolver := range m.wasmResolvers {
+		for _, dataEvent := range event.Data {
+			var err error
+			if dataEvent.Removed {
+				err = resolver.RemoveDataPath(dataEvent.Path)
+			} else {
+				err = resolver.SetDataPath(dataEvent.Path, dataEvent.Data)
+			}
 			if err != nil {
 				return fmt.Errorf("failed to update wasm runtime data: %s", err)
 			}
