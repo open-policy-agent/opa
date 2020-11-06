@@ -20,7 +20,8 @@ type pool struct {
 	initialized    bool
 	closed         bool
 	policy         []byte
-	data           []byte
+	parsedData     []byte // Parsed parsedData memory segment, used to seed new VM's
+	parsedDataAddr int32  // Address for parsedData value root, used to seed new VM's
 	memoryMinPages uint32
 	memoryMaxPages uint32
 	vms            []*vm // All current VM instances, acquired or not.
@@ -72,10 +73,17 @@ func (p *pool) Acquire(ctx context.Context, metrics metrics.Metrics) (*vm, error
 		}
 	}
 
-	policy, data := p.policy, p.data
+	policy, parsedData, parsedDataAddr := p.policy, p.parsedData, p.parsedDataAddr
 
 	p.mutex.Unlock()
-	vm, err := newVM(policy, data, p.memoryMinPages, p.memoryMaxPages)
+	vm, err := newVM(vmOpts{
+		policy:         policy,
+		data:           nil,
+		parsedData:     parsedData,
+		parsedDataAddr: parsedDataAddr,
+		memoryMin:      p.memoryMinPages,
+		memoryMax:      p.memoryMaxPages,
+	})
 	p.mutex.Lock()
 
 	if err != nil {
@@ -120,7 +128,7 @@ func (p *pool) Release(vm *vm, metrics metrics.Metrics) {
 	vm.Close()
 }
 
-// Reset re-initializes the vms within the pool with the new policy
+// SetPolicyData re-initializes the vms within the pool with the new policy
 // and data. The re-initialization takes place atomically: all new vms
 // are constructed in advance before touching the pool.  Returns
 // either ErrNotReady, ErrInvalidPolicy or ErrInternal if an error
@@ -130,10 +138,24 @@ func (p *pool) SetPolicyData(policy []byte, data []byte) error {
 
 	if !p.initialized {
 		var err error
+		var parsedData []byte
+		var parsedDataAddr int32
 		for i := 0; i < len(p.available); i++ {
 			var vm *vm
-			vm, err = newVM(policy, data, p.memoryMinPages, p.memoryMaxPages)
+			vm, err = newVM(vmOpts{
+				policy:         policy,
+				data:           data,
+				parsedData:     parsedData,
+				parsedDataAddr: parsedDataAddr,
+				memoryMin:      p.memoryMinPages,
+				memoryMax:      p.memoryMaxPages,
+			})
+
 			if err == nil {
+				if parsedData == nil {
+					parsedDataAddr, parsedData = vm.cloneDataSegment()
+					p.memoryMinPages = pages(vm.memory.Length())
+				}
 				p.vms = append(p.vms, vm)
 				p.acquired = append(p.acquired, false)
 			} else {
@@ -144,7 +166,7 @@ func (p *pool) SetPolicyData(policy []byte, data []byte) error {
 
 		if err == nil {
 			p.initialized = true
-			p.policy, p.data = policy, data
+			p.policy, p.parsedData, p.parsedDataAddr = policy, parsedData, parsedDataAddr
 		}
 
 		p.mutex.Unlock()
@@ -156,7 +178,7 @@ func (p *pool) SetPolicyData(policy []byte, data []byte) error {
 		return ErrNotReady
 	}
 
-	currentPolicy, currentData := p.policy, p.data
+	currentPolicy, currentData := p.policy, p.parsedData
 	p.mutex.Unlock()
 
 	if bytes.Equal(policy, currentPolicy) && bytes.Equal(data, currentData) {
@@ -172,8 +194,10 @@ func (p *pool) SetPolicyData(policy []byte, data []byte) error {
 	return nil
 }
 
-// setPolicyData reinitializes the VMs one at a time.
-func (p *pool) setPolicyData(policy []byte, data []byte) error {
+func (p *pool) SetDataPath(path []string, value interface{}) error {
+	var patchedData []byte
+	var patchedDataAddr int32
+	var seedMemorySize uint32
 	for i, activations := 0, 0; true; i++ {
 		vm := p.wait(i)
 		if vm == nil {
@@ -181,7 +205,61 @@ func (p *pool) setPolicyData(policy []byte, data []byte) error {
 			return nil
 		}
 
-		if err := vm.SetPolicyData(policy, data); err != nil {
+		if err := vm.SetDataPath(path, value); err != nil {
+			p.remove(i)
+			p.Release(vm, metrics.New())
+			if activations == 0 {
+				return err
+			}
+		} else {
+			// Before releasing our first succesfully patched VM get a
+			// copy of its data memory segment to more quickly seed fresh
+			// vm's.
+			if patchedData == nil {
+				patchedDataAddr, patchedData = vm.cloneDataSegment()
+				seedMemorySize = vm.memory.Length()
+			}
+			p.Release(vm, metrics.New())
+		}
+
+		// Activate the policy and data, now that a single VM has been patched without errors.
+		if activations == 0 {
+			p.activate(p.policy, patchedData, patchedDataAddr, seedMemorySize)
+		}
+
+		activations++
+	}
+
+	return nil
+}
+
+func (p *pool) RemoveDataPath(path []string) error {
+
+	return nil
+}
+
+// setPolicyData reinitializes the VMs one at a time.
+func (p *pool) setPolicyData(policy []byte, data []byte) error {
+	var parsedData []byte
+	var parsedDataAddr int32
+	seedMemorySize := wasmPageSize * p.memoryMinPages
+	for i, activations := 0, 0; true; i++ {
+		vm := p.wait(i)
+		if vm == nil {
+			// All have been converted.
+			return nil
+		}
+
+		err := vm.SetPolicyData(vmOpts{
+			policy:         policy,
+			data:           data,
+			parsedData:     parsedData,
+			parsedDataAddr: parsedDataAddr,
+			memoryMin:      pages(seedMemorySize),
+			memoryMax:      p.memoryMaxPages,
+		})
+
+		if err != nil {
 			// No guarantee about the VM state after an error; hence, remove.
 			p.remove(i)
 			p.Release(vm, metrics.New())
@@ -191,13 +269,18 @@ func (p *pool) setPolicyData(policy []byte, data []byte) error {
 				return err
 			}
 		} else {
+			if parsedData == nil {
+				parsedDataAddr, parsedData = vm.cloneDataSegment()
+				seedMemorySize = vm.memory.Length()
+			}
+
 			p.Release(vm, metrics.New())
 		}
 
 		// Activate the policy and data, now that a single VM has been reset without errors.
 
 		if activations == 0 {
-			p.activate(policy, data)
+			p.activate(policy, parsedData, parsedDataAddr, seedMemorySize)
 		}
 
 		activations++
@@ -270,9 +353,9 @@ func (p *pool) remove(i int) {
 	p.acquired = p.acquired[0 : n-1]
 }
 
-func (p *pool) activate(policy []byte, data []byte) {
+func (p *pool) activate(policy []byte, data []byte, dataAddr int32, minMemorySize uint32) {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
-	p.policy, p.data = policy, data
+	p.policy, p.parsedData, p.parsedDataAddr, p.memoryMinPages = policy, data, dataAddr, pages(minMemorySize)
 }

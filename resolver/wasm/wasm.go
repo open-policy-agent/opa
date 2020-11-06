@@ -124,6 +124,16 @@ func (r *Resolver) SetData(data interface{}) error {
 	return r.o.SetData(data)
 }
 
+// SetDataPath will set the provided data on the wasm instance at the specified path.
+func (r *Resolver) SetDataPath(path []string, data interface{}) error {
+	return r.o.SetDataPath(path, data)
+}
+
+// RemoveDataPath will remove any data at the specified path.
+func (r *Resolver) RemoveDataPath(path []string) error {
+	return r.o.RemoveDataPath(path)
+}
+
 func getResult(evalResult *opa.Result) (ast.Value, error) {
 
 	parsed, err := ast.ParseTerm(string(evalResult.Result))

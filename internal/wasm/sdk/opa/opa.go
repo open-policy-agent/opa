@@ -91,6 +91,20 @@ func (o *OPA) SetData(v interface{}) error {
 	return o.setPolicyData(o.policy, raw)
 }
 
+// SetDataPath will update the current data on the VMs by setting the value at the
+// specified path. If an error occurs the instance is still in a valid state, however
+// the data will not have been modified.
+func (o *OPA) SetDataPath(path []string, value interface{}) error {
+	return o.pool.SetDataPath(path, value)
+}
+
+// RemoveDataPath will update the current data on the VMs by removing the value at the
+// specified path. If an error occurs the instance is still in a valid state, however
+// the data will not have been modified.
+func (o *OPA) RemoveDataPath(path []string) error {
+	return o.pool.RemoveDataPath(path)
+}
+
 // SetPolicy updates the policy for the subsequent Eval calls.
 // Returns either ErrNotReady, ErrInvalidPolicy or ErrInternal if an
 // error occurs.

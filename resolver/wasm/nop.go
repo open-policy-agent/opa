@@ -34,6 +34,16 @@ func (r *Resolver) SetData(data interface{}) error {
 	panic("unreachable")
 }
 
+// SetDataPath will set the provided data on the wasm instance at the specified path.
+func (r *Resolver) SetDataPath(path []string, data interface{}) error {
+	panic("unreachable")
+}
+
+// RemoveDataPath will remove any data at the specified path.
+func (r *Resolver) RemoveDataPath(path []string) error {
+	panic("unreachable")
+}
+
 func New(entrypoints []ast.Ref, policy []byte, data interface{}) (*Resolver, error) {
 	return nil, errors.New("WebAssembly runtime not supported in this build")
 }
