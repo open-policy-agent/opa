@@ -35,14 +35,12 @@ type vm struct {
 	baseHeapPtr          int32
 	dataAddr             int32
 	evalHeapPtr          int32
-	evalHeapTop          int32
 	eval                 func(...interface{}) (wasm.Value, error)
 	evalCtxGetResult     func(...interface{}) (wasm.Value, error)
 	evalCtxNew           func(...interface{}) (wasm.Value, error)
 	evalCtxSetData       func(...interface{}) (wasm.Value, error)
 	evalCtxSetInput      func(...interface{}) (wasm.Value, error)
 	evalCtxSetEntrypoint func(...interface{}) (wasm.Value, error)
-	free                 func(...interface{}) (wasm.Value, error)
 	heapPtrGet           func(...interface{}) (wasm.Value, error)
 	heapPtrSet           func(...interface{}) (wasm.Value, error)
 	heapTopGet           func(...interface{}) (wasm.Value, error)
@@ -52,10 +50,22 @@ type vm struct {
 	valueDump            func(...interface{}) (wasm.Value, error)
 	valueParse           func(...interface{}) (wasm.Value, error)
 	malloc               func(...interface{}) (wasm.Value, error)
+	free                 func(...interface{}) (wasm.Value, error)
+	valueAddPath         func(...interface{}) (wasm.Value, error)
+	valueRemovePath      func(...interface{}) (wasm.Value, error)
 }
 
-func newVM(policy []byte, data []byte, memoryMin, memoryMax uint32) (*vm, error) {
-	memory, err := wasm.NewMemory(memoryMin, memoryMax)
+type vmOpts struct {
+	policy         []byte
+	data           []byte
+	parsedData     []byte
+	parsedDataAddr int32
+	memoryMin      uint32
+	memoryMax      uint32
+}
+
+func newVM(opts vmOpts) (*vm, error) {
+	memory, err := wasm.NewMemory(opts.memoryMin, opts.memoryMax)
 	if err != nil {
 		return nil, err
 	}
@@ -70,18 +80,17 @@ func newVM(policy []byte, data []byte, memoryMin, memoryMax uint32) (*vm, error)
 		panic(err)
 	}
 
-	i, err := wasm.NewInstanceWithImports(policy, imports)
+	i, err := wasm.NewInstanceWithImports(opts.policy, imports)
 	if err != nil {
 		return nil, err
 	}
 
 	v := &vm{
 		instance:             &i,
-		policy:               policy,
-		data:                 data,
+		policy:               opts.policy,
 		memory:               memory,
-		memoryMin:            memoryMin,
-		memoryMax:            memoryMax,
+		memoryMin:            opts.memoryMin,
+		memoryMax:            opts.memoryMax,
 		builtins:             make(map[int32]topdown.BuiltinFunc),
 		entrypointIDs:        make(map[string]EntrypointID),
 		dataAddr:             0,
@@ -101,6 +110,8 @@ func newVM(policy []byte, data []byte, memoryMin, memoryMax uint32) (*vm, error)
 		valueDump:            i.Exports["opa_value_dump"],
 		valueParse:           i.Exports["opa_value_parse"],
 		malloc:               i.Exports["opa_malloc"],
+		valueAddPath:         i.Exports["opa_value_add_path"],
+		valueRemovePath:      i.Exports["opa_value_remove_path"],
 	}
 
 	// Initialize the heap.
@@ -113,8 +124,30 @@ func newVM(policy []byte, data []byte, memoryMin, memoryMax uint32) (*vm, error)
 		return nil, err
 	}
 
-	if data != nil {
-		if v.dataAddr, err = v.toRegoJSON(data, true); err != nil {
+	// Optimization for cloning a vm, if provided a parsed data memory buffer
+	// insert it directly into the new vm's buffer and set pointers accordingly.
+	// This only works because the placement is deterministic (eg, for a given policy
+	// the base heap pointer and parsed data layout will always be the same).
+	if opts.parsedData != nil {
+		if memory.Length()-uint32(v.baseHeapPtr) < uint32(len(opts.parsedData)) {
+			delta := uint32(len(opts.parsedData)) - (memory.Length() - uint32(v.baseHeapPtr))
+			err := memory.Grow(pages(delta))
+			if err != nil {
+				return nil, err
+			}
+		}
+		mem := memory.Data()
+		for src, dest := 0, v.baseHeapPtr; src < len(opts.parsedData); src, dest = src+1, dest+1 {
+			mem[dest] = opts.parsedData[src]
+		}
+		v.dataAddr = opts.parsedDataAddr
+		v.evalHeapPtr = v.baseHeapPtr + int32(len(opts.parsedData))
+		err := v.setHeapState(v.evalHeapPtr)
+		if err != nil {
+			return nil, err
+		}
+	} else if opts.data != nil {
+		if v.dataAddr, err = v.toRegoJSON(opts.data, true); err != nil {
 			return nil, err
 		}
 	}
@@ -271,11 +304,10 @@ func (i *vm) Eval(ctx context.Context, entrypoint EntrypointID, input *interface
 	return data[0:n], err
 }
 
-func (i *vm) SetPolicyData(policy []byte, data []byte) error {
-	if !bytes.Equal(policy, i.policy) {
+func (i *vm) SetPolicyData(opts vmOpts) error {
+	if !bytes.Equal(opts.policy, i.policy) {
 		// Swap the instance to a new one, with new policy.
-
-		n, err := newVM(policy, data, i.memoryMin, i.memoryMax)
+		n, err := newVM(opts)
 		if err != nil {
 			return err
 		}
@@ -286,7 +318,6 @@ func (i *vm) SetPolicyData(policy []byte, data []byte) error {
 		return nil
 	}
 
-	i.data = data
 	i.dataAddr = 0
 
 	var err error
@@ -294,8 +325,26 @@ func (i *vm) SetPolicyData(policy []byte, data []byte) error {
 		return err
 	}
 
-	if data != nil {
-		if i.dataAddr, err = i.toRegoJSON(data, true); err != nil {
+	if opts.parsedData != nil {
+		if i.memory.Length()-uint32(i.baseHeapPtr) < uint32(len(opts.parsedData)) {
+			delta := uint32(len(opts.parsedData)) - (i.memory.Length() - uint32(i.baseHeapPtr))
+			err := i.memory.Grow(pages(delta))
+			if err != nil {
+				return err
+			}
+		}
+		mem := i.memory.Data()
+		for src, dest := 0, i.baseHeapPtr; src < len(opts.parsedData); src, dest = src+1, dest+1 {
+			mem[dest] = opts.parsedData[src]
+		}
+		i.dataAddr = opts.parsedDataAddr
+		i.evalHeapPtr = i.baseHeapPtr + int32(len(opts.parsedData))
+		err := i.setHeapState(i.evalHeapPtr)
+		if err != nil {
+			return err
+		}
+	} else if opts.data != nil {
+		if i.dataAddr, err = i.toRegoJSON(opts.data, true); err != nil {
 			return err
 		}
 	}
@@ -391,6 +440,73 @@ func (i *vm) Entrypoints() map[string]EntrypointID {
 	return i.entrypointIDs
 }
 
+func (i *vm) SetDataPath(path []string, value interface{}) error {
+
+	// Reset the heap ptr before patching the vm to try and keep any
+	// new allocations safe from subsequent heap resets on eval.
+	err := i.setHeapState(i.evalHeapPtr)
+	if err != nil {
+		return err
+	}
+
+	valueAddr, err := i.toRegoJSON(value, true)
+	if err != nil {
+		return err
+	}
+
+	pathAddr, err := i.toRegoJSON(path, true)
+	if err != nil {
+		return err
+	}
+
+	result, err := i.valueAddPath(i.dataAddr, pathAddr, valueAddr)
+	if err != nil {
+		return err
+	}
+
+	// We don't need to free the value, assume it is "owned" as part of the
+	// overall data object now.
+	// We do need to free the path
+
+	_, err = i.free(pathAddr)
+	if err != nil {
+		return err
+	}
+
+	// Update the eval heap pointer to accommodate for any new allocations done
+	// while patching.
+	i.evalHeapPtr, err = i.getHeapState()
+	if err != nil {
+		return err
+	}
+
+	errc := result.ToI32()
+	if errc != 0 {
+		return fmt.Errorf("unable to set data value for path %v, err=%d", path, errc)
+	}
+
+	return nil
+}
+
+func (i *vm) RemoveDataPath(path []string) error {
+	pathAddr, err := i.toRegoJSON(path, true)
+	if err != nil {
+		return err
+	}
+
+	result, err := i.valueRemovePath(i.dataAddr, pathAddr)
+	if err != nil {
+		return err
+	}
+
+	errc := result.ToI32()
+	if errc != 0 {
+		return fmt.Errorf("unable to set data value for path %v, err=%d", path, errc)
+	}
+
+	return nil
+}
+
 func (i *vm) iter(result *ast.Term) error {
 	i.builtinResult = result
 	return nil
@@ -474,4 +590,13 @@ func (i *vm) getHeapState() (int32, error) {
 func (i *vm) setHeapState(ptr int32) error {
 	_, err := i.heapPtrSet(ptr)
 	return err
+}
+
+func (i *vm) cloneDataSegment() (int32, []byte) {
+	// The parsed data values sit between the base heap address and end
+	// at the eval heap pointer address.
+	srcData := i.memory.Data()[i.baseHeapPtr:i.evalHeapPtr]
+	patchedData := make([]byte, len(srcData))
+	copy(patchedData, srcData)
+	return i.dataAddr, patchedData
 }
