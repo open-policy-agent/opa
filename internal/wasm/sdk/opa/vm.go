@@ -550,6 +550,8 @@ func (i *vm) toRegoJSON(v interface{}, free bool) (int32, error) {
 	switch v := v.(type) {
 	case []byte:
 		raw = v
+	case *ast.Term:
+		raw = []byte(v.String())
 	case ast.Value:
 		raw = []byte(v.String())
 	default:
