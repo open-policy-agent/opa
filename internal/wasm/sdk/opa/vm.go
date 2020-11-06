@@ -546,8 +546,13 @@ func (i *vm) fromRegoJSON(addr int32, free bool) (interface{}, error) {
 
 // toRegoJSON converts go native JSON to Rego JSON.
 func (i *vm) toRegoJSON(v interface{}, free bool) (int32, error) {
-	raw, ok := v.([]byte)
-	if !ok {
+	var raw []byte
+	switch v := v.(type) {
+	case []byte:
+		raw = v
+	case ast.Value:
+		raw = []byte(v.String())
+	default:
 		var err error
 		raw, err = json.Marshal(v)
 		if err != nil {
