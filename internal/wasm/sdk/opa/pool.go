@@ -137,36 +137,24 @@ func (p *pool) SetPolicyData(policy []byte, data []byte) error {
 	p.mutex.Lock()
 
 	if !p.initialized {
-		var err error
-		var parsedData []byte
-		var parsedDataAddr int32
-		for i := 0; i < len(p.available); i++ {
-			var vm *vm
-			vm, err = newVM(vmOpts{
-				policy:         policy,
-				data:           data,
-				parsedData:     parsedData,
-				parsedDataAddr: parsedDataAddr,
-				memoryMin:      p.memoryMinPages,
-				memoryMax:      p.memoryMaxPages,
-			})
-
-			if err == nil {
-				if parsedData == nil {
-					parsedDataAddr, parsedData = vm.cloneDataSegment()
-					p.memoryMinPages = pages(vm.memory.Length())
-				}
-				p.vms = append(p.vms, vm)
-				p.acquired = append(p.acquired, false)
-			} else {
-				err = fmt.Errorf("%v: %w", err, ErrInvalidPolicyOrData)
-				break
-			}
-		}
+		vm, err := newVM(vmOpts{
+			policy:         policy,
+			data:           data,
+			parsedData:     nil,
+			parsedDataAddr: 0,
+			memoryMin:      p.memoryMinPages,
+			memoryMax:      p.memoryMaxPages,
+		})
 
 		if err == nil {
+			parsedDataAddr, parsedData := vm.cloneDataSegment()
+			p.memoryMinPages = pages(vm.memory.Length())
+			p.vms = append(p.vms, vm)
+			p.acquired = append(p.acquired, false)
 			p.initialized = true
 			p.policy, p.parsedData, p.parsedDataAddr = policy, parsedData, parsedDataAddr
+		} else {
+			err = fmt.Errorf("%v: %w", err, ErrInvalidPolicyOrData)
 		}
 
 		p.mutex.Unlock()
