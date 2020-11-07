@@ -5,7 +5,7 @@ go 1.12
 require (
 	github.com/OneOfOne/xxhash v1.2.8
 	github.com/cpuguy83/go-md2man v1.0.10 // indirect
-	github.com/fsnotify/fsnotify v1.4.9 // indirect
+	github.com/fsnotify/fsnotify v1.4.9
 	github.com/ghodss/yaml v1.0.0
 	github.com/gobwas/glob v0.2.3
 	github.com/golang/protobuf v1.4.3 // indirect
@@ -27,5 +27,4 @@ require (
 	golang.org/x/net v0.0.0-20200927032502-5d4f70055728
 	golang.org/x/text v0.3.3 // indirect
 	golang.org/x/tools v0.0.0-20201009032223-96877f285f7e
-	gopkg.in/fsnotify.v1 v1.4.7
 )

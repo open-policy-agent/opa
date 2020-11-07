@@ -22,9 +22,9 @@ import (
 
 	"github.com/open-policy-agent/opa/bundle"
 
+	"github.com/fsnotify/fsnotify"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"gopkg.in/fsnotify.v1"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/internal/config"
