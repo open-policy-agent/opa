@@ -3,7 +3,7 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## 0.25.0-rc2
+## 0.25.0-rc3
 
 This release candidate contains two important changes.
 
