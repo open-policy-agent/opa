@@ -38,11 +38,12 @@ func ParseConfig(config []byte, services []string) (*Config, error) {
 	// was configured with `bundles` in the newer format.
 	parsedConfig.Bundles = map[string]*Source{
 		parsedConfig.Name: {
-			Config:   parsedConfig.Config,
-			Service:  parsedConfig.Service,
-			Resource: parsedConfig.generateLegacyResourcePath(),
-			Signing:  nil,
-			Persist:  false,
+			Config:         parsedConfig.Config,
+			Service:        parsedConfig.Service,
+			Resource:       parsedConfig.generateLegacyResourcePath(),
+			Signing:        nil,
+			Persist:        false,
+			SizeLimitBytes: bundle.DefaultSizeLimitBytes,
 		},
 	}
 
