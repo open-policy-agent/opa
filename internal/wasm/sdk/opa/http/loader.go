@@ -142,7 +142,7 @@ func (l *Loader) poller() {
 
 		select {
 		case <-time.After(time.Duration(float64((l.maxDelay-l.minDelay))*rand.Float64()) + l.minDelay):
-		case <-l.closing:
+		case <-ctx.Done():
 			return
 		}
 	}
