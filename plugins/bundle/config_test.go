@@ -154,6 +154,10 @@ func TestLegacyDownloadPath(t *testing.T) {
 			if b.Resource != test.result {
 				t.Errorf("Expected resource %q on bundle with name %q, actual: %s", test.result, test.name, b.Resource)
 			}
+
+			if b.SizeLimitBytes != bundle.DefaultSizeLimitBytes {
+				t.Errorf("Expected bundle %q to have the default size limit configured", test.name)
+			}
 		})
 	}
 }
