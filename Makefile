@@ -94,7 +94,7 @@ go-build: generate
 
 .PHONY: go-test
 go-test: generate
-	$(GO) test -tags=slow ./...
+	$(GO) test $(GO_TAGS),slow ./...
 
 .PHONY: race-detector
 race-detector: generate
