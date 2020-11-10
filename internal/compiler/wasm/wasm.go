@@ -55,6 +55,11 @@ const (
 	opaValueMerge        = "opa_value_merge"
 	opaValueShallowCopy  = "opa_value_shallow_copy"
 	opaValueType         = "opa_value_type"
+	opaMemoizeInit       = "opa_memoize_init"
+	opaMemoizePush       = "opa_memoize_push"
+	opaMemoizePop        = "opa_memoize_pop"
+	opaMemoizeInsert     = "opa_memoize_insert"
+	opaMemoizeGet        = "opa_memoize_get"
 )
 
 var builtinsFunctions = map[string]string{
@@ -150,14 +155,15 @@ type Compiler struct {
 	module *module.Module    // output WASM module
 	code   *module.CodeEntry // output WASM code
 
-	builtinStringAddrs    map[int]uint32    // addresses of built-in string constants
-	externalFuncNameAddrs map[string]int32  // addresses of required built-in function names for listing
-	externalFuncs         map[string]int32  // required built-in function ids
-	entrypointNameAddrs   map[string]int32  // addresses of available entrypoint names for listing
-	entrypoints           map[string]int32  // available entrypoint ids
-	stringOffset          int32             // null-terminated string data base offset
-	stringAddrs           []uint32          // null-terminated string constant addresses
-	funcs                 map[string]uint32 // maps imported and exported function names to function indices
+	planfuncs             map[string]struct{} // names of functions inside the plan
+	builtinStringAddrs    map[int]uint32      // addresses of built-in string constants
+	externalFuncNameAddrs map[string]int32    // addresses of required built-in function names for listing
+	externalFuncs         map[string]int32    // required built-in function ids
+	entrypointNameAddrs   map[string]int32    // addresses of available entrypoint names for listing
+	entrypoints           map[string]int32    // available entrypoint ids
+	stringOffset          int32               // null-terminated string data base offset
+	stringAddrs           []uint32            // null-terminated string constant addresses
+	funcs                 map[string]uint32   // maps imported and exported function names to function indices
 
 	nextLocal uint32
 	locals    map[ir.Local]uint32
@@ -250,6 +256,8 @@ func (c *Compiler) initModule() error {
 		}
 	}
 
+	c.planfuncs = map[string]struct{}{}
+
 	for _, fn := range c.policy.Funcs.Funcs {
 
 		params := make([]types.ValueType, len(fn.Params))
@@ -263,6 +271,7 @@ func (c *Compiler) initModule() error {
 		}
 
 		c.emitFunctionDecl(fn.Name, tpe, false)
+		c.planfuncs[fn.Name] = struct{}{}
 	}
 
 	c.emitFunctionDecl("eval", module.FunctionType{
@@ -445,6 +454,9 @@ func (c *Compiler) compilePlans() error {
 	c.locals = map[ir.Local]uint32{}
 	c.lctx = c.genLocal()
 	c.lrs = c.genLocal()
+
+	// Initialize memoization.
+	c.appendInstr(instruction.Call{Index: c.function(opaMemoizeInit)})
 
 	// Initialize the input and data locals.
 	c.appendInstr(instruction.GetLocal{Index: c.lctx})
@@ -902,6 +914,7 @@ func (c *Compiler) compileWithStmt(with *ir.WithStmt, result *[]instruction.Inst
 
 	var instrs = *result
 	save := c.genLocal()
+	instrs = append(instrs, instruction.Call{Index: c.function(opaMemoizePush)})
 	instrs = append(instrs, instruction.GetLocal{Index: c.local(with.Local)})
 	instrs = append(instrs, instruction.SetLocal{Index: save})
 
@@ -926,6 +939,7 @@ func (c *Compiler) compileWithStmt(with *ir.WithStmt, result *[]instruction.Inst
 	instrs = append(instrs, instruction.Block{Instrs: nested})
 	instrs = append(instrs, instruction.GetLocal{Index: save})
 	instrs = append(instrs, instruction.SetLocal{Index: c.local(with.Local)})
+	instrs = append(instrs, instruction.Call{Index: c.function(opaMemoizePop)})
 	instrs = append(instrs, instruction.GetLocal{Index: undefined})
 	instrs = append(instrs, instruction.BrIf{Index: 0})
 
@@ -1068,18 +1082,47 @@ func (c *Compiler) compileCallStmt(stmt *ir.CallStmt, result *[]instruction.Inst
 }
 
 func (c *Compiler) compileInternalCall(stmt *ir.CallStmt, index uint32, result *[]instruction.Instruction) error {
-	instrs := *result
 
-	for _, arg := range stmt.Args {
-		instrs = append(instrs, instruction.GetLocal{Index: c.local(arg)})
+	var memoized bool
+
+	if _, ok := c.planfuncs[stmt.Func]; ok && len(stmt.Args) == 2 {
+		memoized = true
 	}
 
-	instrs = append(instrs, instruction.Call{Index: index})
-	instrs = append(instrs, instruction.SetLocal{Index: c.local(stmt.Result)})
-	instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Result)})
-	instrs = append(instrs, instruction.I32Eqz{})
-	instrs = append(instrs, instruction.BrIf{Index: 0})
-	*result = instrs
+	block := instruction.Block{}
+
+	// Check if call can be memoized.
+	if memoized {
+		block.Instrs = append(block.Instrs,
+			instruction.I32Const{Value: int32(index)},
+			instruction.Call{Index: c.function(opaMemoizeGet)},
+			instruction.SetLocal{Index: c.local(stmt.Result)},
+			instruction.GetLocal{Index: c.local(stmt.Result)},
+			instruction.BrIf{Index: 0})
+	}
+
+	// Prepare function args and call.
+	for _, arg := range stmt.Args {
+		block.Instrs = append(block.Instrs, instruction.GetLocal{Index: c.local(arg)})
+	}
+
+	block.Instrs = append(block.Instrs,
+		instruction.Call{Index: index},
+		instruction.SetLocal{Index: c.local(stmt.Result)},
+		instruction.GetLocal{Index: c.local(stmt.Result)},
+		instruction.I32Eqz{},
+		instruction.BrIf{Index: 1})
+
+	// Memoize the result.
+	if memoized {
+		block.Instrs = append(block.Instrs,
+			instruction.I32Const{Value: int32(index)},
+			instruction.GetLocal{Index: c.local(stmt.Result)},
+			instruction.Call{Index: c.function(opaMemoizeInsert)})
+	}
+
+	*result = append(*result, block)
+
 	return nil
 }
 

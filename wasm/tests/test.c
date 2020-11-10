@@ -10,6 +10,7 @@
 #include "glob.h"
 #include "json.h"
 #include "malloc.h"
+#include "memoize.h"
 #include "mpd.h"
 #include "numbers.h"
 #include "object.h"
@@ -208,6 +209,34 @@ void test_opa_free()
     opa_free(p1);
     test("free blocks", opa_heap_free_blocks() == 0);
     test("heap ptr", base == opa_heap_ptr_get());
+}
+
+void test_opa_memoize()
+{
+    opa_memoize_init();
+
+    opa_memoize_insert(100, opa_number_int(1));
+    opa_memoize_insert(200, opa_number_int(2));
+    opa_value *a = opa_memoize_get(100);
+    opa_value *b = opa_memoize_get(200);
+    opa_memoize_push();
+    opa_value *c = opa_memoize_get(100);
+    opa_value *d = opa_memoize_get(200);
+    opa_memoize_insert(100, opa_number_int(3));
+    opa_memoize_pop();
+    opa_value *e = opa_memoize_get(100);
+
+    opa_value *exp_a = opa_number_int(1);
+    opa_value *exp_b = opa_number_int(2);
+    opa_value *exp_c = NULL;
+    opa_value *exp_d = NULL;
+    opa_value *exp_e = opa_number_int(1);
+
+    test("insert-a", opa_value_compare(a, exp_a) == 0);
+    test("insert-b", opa_value_compare(b, exp_b) == 0);
+    test("get-a-after-push", opa_value_compare(c, exp_c) == 0);
+    test("get-b-after-push", opa_value_compare(d, exp_d) == 0);
+    test("get-a-after-pop", opa_value_compare(e, exp_e) == 0);
 }
 
 void test_opa_strlen()

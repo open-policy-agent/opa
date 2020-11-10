@@ -930,6 +930,13 @@ opa_value *opa_number_ref_allocated(const char *s, size_t len)
     return &ret->hdr;
 }
 
+void opa_number_init_int(opa_number_t *n, long long v)
+{
+    n->hdr.type = OPA_NUMBER;
+    n->repr = OPA_NUMBER_REPR_INT;
+    n->v.i = v;
+}
+
 void opa_number_free(opa_number_t *n)
 {
     if (n->repr == OPA_NUMBER_REPR_REF)
@@ -1520,7 +1527,7 @@ int _validate_json_path(opa_value *path)
                 return -1;
         }
     }
- 
+
     return path_len;
 }
 
@@ -1593,7 +1600,7 @@ opa_errc opa_value_add_path(opa_value *data, opa_value *path, opa_value *v)
 //
 // Deleted values will be freed.
 opa_errc opa_value_remove_path(opa_value *data, opa_value *path)
-{ 
+{
     int path_len = _validate_json_path(path);
 
     if (path_len < 1)

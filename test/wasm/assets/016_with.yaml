@@ -284,3 +284,27 @@ cases:
         "z": -2,
       },
     ]
+  - note: with invalidates memoization
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p = [x, y, z] {
+          x = q
+          y = q with input as 7
+          z = r with input as 8
+        }
+
+        default q = 6
+
+        q = input
+
+        r = [t, s]
+
+        s = q
+
+        t = x { x = q with input as 9 }
+    want_result: [
+      {"x": [6, 7, [9,8]]}
+    ]
