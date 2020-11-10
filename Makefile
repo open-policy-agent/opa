@@ -227,7 +227,7 @@ ci-go-%: generate
 	$(CI_GOLANG_DOCKER_MAKE) $*
 
 .PHONY: ci-release-test
-ci-release-test:
+ci-release-test: generate
 	$(CI_GOLANG_DOCKER_MAKE) test perf check
 
 .PHONY: ci-check-working-copy
