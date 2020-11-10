@@ -136,6 +136,7 @@ opa_value *opa_number_int(long long v);
 opa_value *opa_number_float(double v);
 opa_value *opa_number_ref(const char *s, size_t len);
 opa_value *opa_number_ref_allocated(const char *s, size_t len);
+void opa_number_init_int(opa_number_t *n, long long v);
 opa_value *opa_string(const char *v, size_t len);
 opa_value *opa_string_terminated(const char *v);
 opa_value *opa_string_allocated(const char *v, size_t len);
