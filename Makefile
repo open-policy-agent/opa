@@ -101,7 +101,7 @@ race-detector: generate
 	$(GO) test $(GO_TAGS),slow -race -vet=off ./...
 
 .PHONY: test-coverage
-test-coverage:
+test-coverage: generate
 	$(GO) test $(GO_TAGS),slow -coverprofile=coverage.txt -covermode=atomic ./...
 
 .PHONY: perf
@@ -223,7 +223,7 @@ CI_GOLANG_DOCKER_MAKE := $(DOCKER) run \
 	make
 
 .PHONY: ci-go-%
-ci-go-%:
+ci-go-%: generate
 	$(CI_GOLANG_DOCKER_MAKE) $*
 
 .PHONY: ci-release-test
