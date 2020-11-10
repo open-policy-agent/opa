@@ -222,6 +222,40 @@ func (p *pool) SetDataPath(path []string, value interface{}) error {
 }
 
 func (p *pool) RemoveDataPath(path []string) error {
+	var patchedData []byte
+	var patchedDataAddr int32
+	var seedMemorySize uint32
+	for i, activations := 0, 0; true; i++ {
+		vm := p.wait(i)
+		if vm == nil {
+			// All have been converted.
+			return nil
+		}
+
+		if err := vm.RemoveDataPath(path); err != nil {
+			p.remove(i)
+			p.Release(vm, metrics.New())
+			if activations == 0 {
+				return err
+			}
+		} else {
+			// Before releasing our first succesfully patched VM get a
+			// copy of its data memory segment to more quickly seed fresh
+			// vm's.
+			if patchedData == nil {
+				patchedDataAddr, patchedData = vm.cloneDataSegment()
+				seedMemorySize = vm.memory.Length()
+			}
+			p.Release(vm, metrics.New())
+		}
+
+		// Activate the policy and data, now that a single VM has been patched without errors.
+		if activations == 0 {
+			p.activate(p.policy, patchedData, patchedDataAddr, seedMemorySize)
+		}
+
+		activations++
+	}
 
 	return nil
 }
