@@ -868,6 +868,10 @@ func compile(c *ast.Capabilities, b *bundle.Bundle) (*ast.Compiler, error) {
 	modules := map[string]*ast.Module{}
 
 	for _, mf := range b.Modules {
+		if _, ok := modules[mf.URL]; ok {
+			return nil, fmt.Errorf("duplicate module URL: %s", mf.URL)
+		}
+
 		modules[mf.URL] = mf.Parsed
 	}
 

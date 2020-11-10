@@ -270,6 +270,34 @@ func TestCompilerInputBundle(t *testing.T) {
 	}
 }
 
+func TestCompilerInputInvalidBundle(t *testing.T) {
+
+	b := &bundle.Bundle{
+		Modules: []bundle.ModuleFile{
+			bundle.ModuleFile{
+				URL:    "/url",
+				Path:   "/foo.rego",
+				Raw:    []byte("package test\np = 0"),
+				Parsed: ast.MustParseModule("package test\np = 0"),
+			},
+			bundle.ModuleFile{
+				URL:    "/url",
+				Path:   "/bar.rego",
+				Raw:    []byte("package test\nq = 1"),
+				Parsed: ast.MustParseModule("package test\nq = 1"),
+			},
+		},
+	}
+
+	compiler := New().WithBundle(b)
+
+	if err := compiler.Build(context.Background()); err == nil {
+		t.Fatal("duplicate module URL not detected")
+	} else if err.Error() != "duplicate module URL: /url" {
+		t.Fatal(err)
+	}
+}
+
 func TestCompilerError(t *testing.T) {
 	files := map[string]string{
 		"test.rego": `
