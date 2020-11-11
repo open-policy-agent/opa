@@ -516,6 +516,7 @@ Decision log updates contain the following fields:
 | `[_].query` | `string` | Ad-hoc Rego query received by Query API. |
 | `[_].input` | `any` | Input data provided in the policy query. |
 | `[_].result` | `any` | Policy decision returned to the client, e.g., `true` or `false`. |
+| `[_].explanation` | `any` | Result of [decision explanation](../rest-api#explanations) |
 | `[_].requested_by` | `string` | Identifier for client that executed policy query, e.g., the client address. |
 | `[_].timestamp` | `string` | RFC3999 timestamp of policy decision. |
 | `[_].metrics` | `object` | Key-value pairs of [performance metrics](../rest-api#performance-metrics). |
@@ -534,6 +535,15 @@ decision_logs:
 
 This will dump all decision through the OPA logging system at the `info` level. See
 [Configuration Reference](../configuration) for more details.
+
+### Explanations
+
+Decision logs can optionally include any [explanations](../rest-api#explanations) that are requested during a query.
+
+```yaml
+decision_logs
+    include_explanation: true
+```
 
 ### Masking Sensitive Data
 

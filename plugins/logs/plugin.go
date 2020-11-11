@@ -49,6 +49,7 @@ type EventV1 struct {
 	Query       string                  `json:"query,omitempty"`
 	Input       *interface{}            `json:"input,omitempty"`
 	Result      *interface{}            `json:"result,omitempty"`
+	Explanation *interface{}            `json:"explanation,omitempty"`
 	Erased      []string                `json:"erased,omitempty"`
 	Masked      []string                `json:"masked,omitempty"`
 	Error       error                   `json:"error,omitempty"`
@@ -82,6 +83,7 @@ var pathKey = ast.StringTerm("path")
 var queryKey = ast.StringTerm("query")
 var inputKey = ast.StringTerm("input")
 var resultKey = ast.StringTerm("result")
+var explanationKey = ast.StringTerm("explanation")
 var erasedKey = ast.StringTerm("erased")
 var maskedKey = ast.StringTerm("masked")
 var errorKey = ast.StringTerm("error")
@@ -145,6 +147,14 @@ func (e *EventV1) AST() (ast.Value, error) {
 		}
 		event.Insert(resultKey, ast.NewTerm(results))
 	}
+
+  if e.Explanation != nil {
+    explanation, err := roundtripJSONToAST(e.Explanation)
+    if err != nil {
+      return nil, err
+    }
+    event.Insert(explanationKey, ast.NewTerm(explanation))
+  }
 
 	if len(e.Erased) > 0 {
 		erased := make([]*ast.Term, len(e.Erased))
@@ -228,6 +238,7 @@ type Config struct {
 	Reporting     ReportingConfig `json:"reporting"`
 	MaskDecision  *string         `json:"mask_decision"`
 	ConsoleLogs   bool            `json:"console"`
+  IncludeExplanation bool       `json:"include_explanation"`
 
 	maskDecisionRef ast.Ref
 }
@@ -471,6 +482,10 @@ func (p *Plugin) Log(ctx context.Context, decision *server.Info) error {
 	if decision.Error != nil {
 		event.Error = decision.Error
 	}
+
+  if decision.Explanation != nil && p.config.IncludeExplanation {
+    event.Explanation = decision.Explanation
+  }
 
 	err := p.maskEvent(ctx, decision.Txn, &event)
 	if err != nil {

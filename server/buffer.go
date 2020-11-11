@@ -37,6 +37,7 @@ type Info struct {
 	Input      *interface{}
 	InputAST   ast.Value
 	Results    *interface{}
+	Explanation *interface{}
 	Error      error
 	Metrics    metrics.Metrics
 	Trace      []*topdown.Event
