@@ -541,7 +541,7 @@ This will dump all decision through the OPA logging system at the `info` level. 
 Decision logs can optionally include any [explanations](../rest-api#explanations) that are requested during a query.
 
 ```yaml
-decision_logs
+decision_logs:
     include_explanation: true
 ```
 
