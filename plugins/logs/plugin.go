@@ -402,11 +402,8 @@ func (p *Plugin) Start(ctx context.Context) error {
 func (p *Plugin) Stop(ctx context.Context) {
 	p.logInfo("Stopping decision logger.")
 
-	gracefulDeadline, _ := ctx.Deadline()
-	gracefulShutdownPeriod := gracefulDeadline.Sub(time.Now())
-
-	if p.config.Service != "" && gracefulShutdownPeriod > 0 {
-		p.flushDecisions(context.WithTimeout(ctx, gracefulShutdownPeriod))
+	if _, ok := ctx.Deadline(); ok && p.config.Service != "" {
+		p.flushDecisions(ctx)
 	}
 
 	done := make(chan struct{})
@@ -415,30 +412,32 @@ func (p *Plugin) Stop(ctx context.Context) {
 	p.manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateNotReady})
 }
 
-func (p *Plugin) flushDecisions(ctx context.Context, cancel context.CancelFunc) {
+func (p *Plugin) flushDecisions(ctx context.Context) {
 	p.logInfo("Flushing decision logs.")
-	defer cancel()
 
-	go func(ctx context.Context, cancel context.CancelFunc) {
+	done := make(chan bool)
+
+	go func(ctx context.Context, done chan bool) {
 		for ctx.Err() == nil {
 			ok, err := p.oneShot(ctx)
 			if err != nil {
-				p.logError("%v.", err)
+				p.logError("Error flushing decisions: %s", err)
 			} else if ok {
-				cancel()
+				done <- true
+				break
 			}
 			// Wait some before retrying, but skip incrementing interval since we are shutting down
 			time.Sleep(1 * time.Second)
 		}
-	}(ctx, cancel)
+	}(ctx, done)
 
 	select {
+	case <-done:
+		p.logInfo("All decisions in buffer uploaded.")
 	case <-ctx.Done():
 		switch ctx.Err() {
-		case context.DeadlineExceeded:
-			p.logError("Graceful shutdown period ended with decisions possibly still in buffer.")
-		case context.Canceled:
-			p.logInfo("All decisions in buffer uploaded.")
+		case context.DeadlineExceeded, context.Canceled:
+			p.logError("Plugin stopped with decisions possibly still in buffer.")
 		}
 	}
 }
