@@ -121,6 +121,7 @@ var builtinsFunctions = map[string]string{
 	ast.StartsWith.Name:                 "opa_strings_startswith",
 	ast.EndsWith.Name:                   "opa_strings_endswith",
 	ast.Split.Name:                      "opa_strings_split",
+	ast.Sprintf.Name:                    "opa_strings_sprintf",
 	ast.Replace.Name:                    "opa_strings_replace",
 	ast.ReplaceN.Name:                   "opa_strings_replace_n",
 	ast.Trim.Name:                       "opa_strings_trim",
@@ -136,6 +137,12 @@ var builtinsFunctions = map[string]string{
 	ast.RegexMatch.Name:                 "opa_regex_match",
 	ast.RegexMatchDeprecated.Name:       "opa_regex_match",
 	ast.RegexFindAllStringSubmatch.Name: "opa_regex_find_all_string_submatch",
+}
+
+// builtinsPartial holds builtins are implemented only partially in wasm library;
+// they still require the SDK to provide the full implementation.
+var builtinsPartial = map[string]struct{}{
+	ast.Sprintf.Name: struct{}{},
 }
 
 var builtinDispatchers = [...]string{
@@ -315,7 +322,9 @@ func (c *Compiler) compileStrings() error {
 	c.externalFuncNameAddrs = make(map[string]int32)
 
 	for _, decl := range c.policy.Static.BuiltinFuncs {
-		if _, ok := builtinsFunctions[decl.Name]; !ok {
+		_, internal := builtinsFunctions[decl.Name]
+		_, partial := builtinsPartial[decl.Name]
+		if !internal || partial {
 			addr := int32(buf.Len()) + int32(c.stringOffset)
 			buf.WriteString(decl.Name)
 			buf.WriteByte(0)
@@ -373,7 +382,9 @@ func (c *Compiler) compileExternalFuncDecls() error {
 	c.externalFuncs = make(map[string]int32)
 
 	for index, decl := range c.policy.Static.BuiltinFuncs {
-		if _, ok := builtinsFunctions[decl.Name]; !ok {
+		_, internal := builtinsFunctions[decl.Name]
+		_, partial := builtinsPartial[decl.Name]
+		if !internal || partial {
 			c.appendInstr(instruction.GetLocal{Index: lobj})
 			c.appendInstr(instruction.I32Const{Value: c.externalFuncNameAddrs[decl.Name]})
 			c.appendInstr(instruction.Call{Index: c.function(opaStringTerminated)})
@@ -1068,16 +1079,25 @@ func (c *Compiler) compileCallStmt(stmt *ir.CallStmt, result *[]instruction.Inst
 		fn = name
 	}
 
-	if index, ok := c.funcs[fn]; ok {
-		return c.compileInternalCall(stmt, index, result)
+	if _, ok := builtinsPartial[stmt.Func]; !ok {
+		if index, ok := c.funcs[fn]; ok {
+			return c.compileInternalCall(stmt, index, result)
+		}
+
+		if id, ok := c.externalFuncs[fn]; ok {
+			return c.compileExternalCall(stmt, id, result)
+		}
+
+		c.errors = append(c.errors, fmt.Errorf("undefined function: %q", fn))
+		return nil
 	}
 
-	if id, ok := c.externalFuncs[fn]; ok {
-		return c.compileExternalCall(stmt, id, result)
+	index, internal := c.funcs[fn]
+	if id, ok := c.externalFuncs[stmt.Func]; internal && ok {
+		return c.compilePartialCall(stmt, index, id, result)
 	}
 
-	c.errors = append(c.errors, fmt.Errorf("undefined function: %q", fn))
-
+	c.errors = append(c.errors, fmt.Errorf("undefined function: %q", stmt.Func))
 	return nil
 }
 
@@ -1142,6 +1162,30 @@ func (c *Compiler) compileExternalCall(stmt *ir.CallStmt, id int32, result *[]in
 	}
 
 	instrs = append(instrs, instruction.Call{Index: c.funcs[builtinDispatchers[len(stmt.Args)]]})
+	instrs = append(instrs, instruction.SetLocal{Index: c.local(stmt.Result)})
+	instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Result)})
+	instrs = append(instrs, instruction.I32Eqz{})
+	instrs = append(instrs, instruction.BrIf{Index: 0})
+	*result = instrs
+	return nil
+}
+
+func (c *Compiler) compilePartialCall(stmt *ir.CallStmt, index uint32, id int32, result *[]instruction.Instruction) error {
+
+	if len(stmt.Args) >= len(builtinDispatchers) {
+		c.errors = append(c.errors, fmt.Errorf("too many built-in call arguments: %q", stmt.Func))
+		return nil
+	}
+
+	instrs := *result
+	instrs = append(instrs, instruction.I32Const{Value: id})
+	instrs = append(instrs, instruction.I32Const{Value: 0}) // unused context parameter
+
+	for _, arg := range stmt.Args {
+		instrs = append(instrs, instruction.GetLocal{Index: c.local(arg)})
+	}
+
+	instrs = append(instrs, instruction.Call{Index: index})
 	instrs = append(instrs, instruction.SetLocal{Index: c.local(stmt.Result)})
 	instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Result)})
 	instrs = append(instrs, instruction.I32Eqz{})

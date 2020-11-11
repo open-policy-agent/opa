@@ -1,3 +1,4 @@
+#include "context.h"
 #include "malloc.h"
 #include "mpd.h"
 #include "str.h"
@@ -402,6 +403,22 @@ opa_value *opa_strings_split(opa_value *a, opa_value *b)
     opa_array_append(arr, opa_string_allocated(str, s->len - j));
 
     return &arr->hdr;
+}
+
+opa_value *opa_strings_sprintf(int32_t id, void *ctx, opa_value *a, opa_value *b)
+{
+    if (opa_value_type(a) != OPA_STRING || opa_value_type(b) != OPA_ARRAY)
+    {
+        return NULL;
+    }
+
+    opa_string_t *s = opa_cast_string(a);
+    opa_array_t *arr = opa_cast_array(b);
+
+    // TODO: Implement basic sprintf support but revert to
+    // opa_builtin2, if not capable of the requested formatting.
+
+    return opa_builtin2(id, ctx, a, b);
 }
 
 opa_value *opa_strings_startswith(opa_value *a, opa_value *b)

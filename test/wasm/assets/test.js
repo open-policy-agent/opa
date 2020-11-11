@@ -114,9 +114,14 @@ function builtinCustomTestImpure() {
     return "foo";
 }
 
+function builtinNoopSprintf(a) {
+    return a;
+}
+
 const builtinFuncs = {
     custom_builtin_test: builtinCustomTest,
     custom_builtin_test_impure: builtinCustomTestImpure,
+    sprintf: builtinNoopSprintf,
 }
 
 // builtinCall dispatches the built-in function. Arguments are deserialized from
