@@ -1491,6 +1491,48 @@
       }
     },
     {
+      "name": "json.patch",
+      "decl": {
+        "args": [
+          {
+            "type": "any"
+          },
+          {
+            "dynamic": {
+              "dynamic": {
+                "key": {
+                  "type": "any"
+                },
+                "value": {
+                  "type": "any"
+                }
+              },
+              "static": [
+                {
+                  "key": "op",
+                  "value": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "key": "path",
+                  "value": {
+                    "type": "any"
+                  }
+                }
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          }
+        ],
+        "result": {
+          "type": "any"
+        },
+        "type": "function"
+      }
+    },
+    {
       "name": "json.remove",
       "decl": {
         "args": [

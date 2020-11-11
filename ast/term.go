@@ -1482,6 +1482,10 @@ func (s *set) Slice() []*Term {
 
 func (s *set) insert(x *Term) {
 	hash := x.Hash()
+	// This `equal` utility is duplicated and manually inlined a number of
+	// time in this file.  Inlining it avoids heap allocations, so it makes
+	// a big performance difference: some operations like lookup become twice
+	// as slow without it.
 	var equal func(v Value) bool
 
 	switch x := x.Value.(type) {
@@ -1538,6 +1542,10 @@ func (s *set) insert(x *Term) {
 
 func (s *set) get(x *Term) *Term {
 	hash := x.Hash()
+	// This `equal` utility is duplicated and manually inlined a number of
+	// time in this file.  Inlining it avoids heap allocations, so it makes
+	// a big performance difference: some operations like lookup become twice
+	// as slow without it.
 	var equal func(v Value) bool
 
 	switch x := x.Value.(type) {
@@ -1937,6 +1945,10 @@ func (obj object) String() string {
 func (obj *object) get(k *Term) *objectElem {
 	hash := k.Hash()
 
+	// This `equal` utility is duplicated and manually inlined a number of
+	// time in this file.  Inlining it avoids heap allocations, so it makes
+	// a big performance difference: some operations like lookup become twice
+	// as slow without it.
 	var equal func(v Value) bool
 
 	switch x := k.Value.(type) {
@@ -1988,6 +2000,10 @@ func (obj *object) get(k *Term) *objectElem {
 func (obj *object) insert(k, v *Term) {
 	hash := k.Hash()
 	head := obj.elems[hash]
+	// This `equal` utility is duplicated and manually inlined a number of
+	// time in this file.  Inlining it avoids heap allocations, so it makes
+	// a big performance difference: some operations like lookup become twice
+	// as slow without it.
 	var equal func(v Value) bool
 
 	switch x := k.Value.(type) {
