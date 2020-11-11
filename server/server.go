@@ -1264,7 +1264,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 				writer.ErrorAuto(w, err)
 			}
 		}
-    var x interface{} = result.Explanation
+		var x interface{} = result.Explanation
 		err = logger.Log(ctx, txn, decisionID, r.RemoteAddr, urlPath, "", goInput, input, nil, nil, m, &x)
 		if err != nil {
 			writer.ErrorAuto(w, err)
@@ -1280,7 +1280,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 		result.Explanation = s.getExplainResponse(explainMode, *buf, pretty)
 	}
 
-  var x interface{} = result.Explanation
+	var x interface{} = result.Explanation
 	err = logger.Log(ctx, txn, decisionID, r.RemoteAddr, urlPath, "", goInput, input, result.Result, nil, m, &x)
 	if err != nil {
 		writer.ErrorAuto(w, err)
@@ -1472,7 +1472,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 				writer.ErrorAuto(w, err)
 			}
 		}
-    var x interface{} = result.Explanation
+		var x interface{} = result.Explanation
 		err = logger.Log(ctx, txn, decisionID, r.RemoteAddr, urlPath, "", goInput, input, nil, nil, m, &x)
 		if err != nil {
 			writer.ErrorAuto(w, err)
@@ -1488,7 +1488,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 		result.Explanation = s.getExplainResponse(explainMode, *buf, pretty)
 	}
 
-  var x interface{} = result.Explanation
+	var x interface{} = result.Explanation
 	err = logger.Log(ctx, txn, decisionID, r.RemoteAddr, urlPath, "", goInput, input, result.Result, nil, m, &x)
 	if err != nil {
 		writer.ErrorAuto(w, err)
@@ -2531,20 +2531,20 @@ func (l decisionLogger) Log(ctx context.Context, txn storage.Transaction, decisi
 	}
 
 	info := &Info{
-		Txn:        txn,
-		Revision:   l.revision,
-		Bundles:    bundles,
-		Timestamp:  time.Now().UTC(),
-		DecisionID: decisionID,
-		RemoteAddr: remoteAddr,
-		Path:       path,
-		Query:      query,
-		Input:      goInput,
-		InputAST:   astInput,
-		Results:    goResults,
-    Explanation: explanation,
-		Error:      err,
-		Metrics:    m,
+		Txn:         txn,
+		Revision:    l.revision,
+		Bundles:     bundles,
+		Timestamp:   time.Now().UTC(),
+		DecisionID:  decisionID,
+		RemoteAddr:  remoteAddr,
+		Path:        path,
+		Query:       query,
+		Input:       goInput,
+		InputAST:    astInput,
+		Results:     goResults,
+		Explanation: explanation,
+		Error:       err,
+		Metrics:     m,
 	}
 
 	if l.logger != nil {

@@ -148,13 +148,13 @@ func (e *EventV1) AST() (ast.Value, error) {
 		event.Insert(resultKey, ast.NewTerm(results))
 	}
 
-  if e.Explanation != nil {
-    explanation, err := roundtripJSONToAST(e.Explanation)
-    if err != nil {
-      return nil, err
-    }
-    event.Insert(explanationKey, ast.NewTerm(explanation))
-  }
+	if e.Explanation != nil {
+		explanation, err := roundtripJSONToAST(e.Explanation)
+		if err != nil {
+			return nil, err
+		}
+		event.Insert(explanationKey, ast.NewTerm(explanation))
+	}
 
 	if len(e.Erased) > 0 {
 		erased := make([]*ast.Term, len(e.Erased))
@@ -232,13 +232,13 @@ type ReportingConfig struct {
 
 // Config represents the plugin configuration.
 type Config struct {
-	Plugin        *string         `json:"plugin"`
-	Service       string          `json:"service"`
-	PartitionName string          `json:"partition_name,omitempty"`
-	Reporting     ReportingConfig `json:"reporting"`
-	MaskDecision  *string         `json:"mask_decision"`
-	ConsoleLogs   bool            `json:"console"`
-  IncludeExplanation bool       `json:"include_explanation"`
+	Plugin             *string         `json:"plugin"`
+	Service            string          `json:"service"`
+	PartitionName      string          `json:"partition_name,omitempty"`
+	Reporting          ReportingConfig `json:"reporting"`
+	MaskDecision       *string         `json:"mask_decision"`
+	ConsoleLogs        bool            `json:"console"`
+	IncludeExplanation bool            `json:"include_explanation"`
 
 	maskDecisionRef ast.Ref
 }
@@ -483,9 +483,9 @@ func (p *Plugin) Log(ctx context.Context, decision *server.Info) error {
 		event.Error = decision.Error
 	}
 
-  if decision.Explanation != nil && p.config.IncludeExplanation {
-    event.Explanation = decision.Explanation
-  }
+	if decision.Explanation != nil && p.config.IncludeExplanation {
+		event.Explanation = decision.Explanation
+	}
 
 	err := p.maskEvent(ctx, decision.Txn, &event)
 	if err != nil {
