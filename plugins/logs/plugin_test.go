@@ -107,10 +107,6 @@ func TestPluginSingleBundle(t *testing.T) {
 	}
 }
 
-func TestPluginMultiBundle(t *testing.T) {
-
-}
-
 func TestPluginErrorNoResult(t *testing.T) {
 	ctx := context.Background()
 	manager, _ := plugins.New(nil, "test-instance-id", inmem.New())
