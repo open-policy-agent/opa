@@ -524,13 +524,14 @@ func TestPluginGracefulShutdownFlushesDecisions(t *testing.T) {
 	}
 }
 
-func TestPluginTerminatesImmediatelyAfterGracefulShutdownPeriod(t *testing.T) {
+func TestPluginTerminatesAfterGracefulShutdownPeriod(t *testing.T) {
 	ctx := context.Background()
 
 	fixture := newTestFixture(t)
 	defer fixture.server.stop()
 
 	fixture.server.ch = make(chan []EventV1, 1)
+	fixture.server.expCode = 500
 
 	if err := fixture.plugin.Start(ctx); err != nil {
 		t.Fatal(err)
@@ -542,15 +543,14 @@ func TestPluginTerminatesImmediatelyAfterGracefulShutdownPeriod(t *testing.T) {
 	input = generateInputMap(0)
 	_ = fixture.plugin.Log(ctx, logServerInfo("abc", input, result))
 
-	fixture.server.expCode = 500
-
-	timeoutCtx, cancel := context.WithTimeout(ctx, 1*time.Millisecond)
+	timeoutCtx, cancel := context.WithTimeout(ctx, 1*time.Nanosecond)
 	defer cancel()
 
-	timeBefore := time.Now()
 	fixture.plugin.Stop(timeoutCtx)
-	if time.Since(timeBefore).Milliseconds() > 100 {
-		t.Fatal("Expected forceful shutdown to be instantaneous.")
+
+	// Ensure the plugin was stopped without flushing its whole buffer
+	if fixture.plugin.buffer.Len() == 0 && fixture.plugin.enc.buf.Len() == 0 {
+		t.Errorf("Expected the plugin to still have buffered messages")
 	}
 }
 
