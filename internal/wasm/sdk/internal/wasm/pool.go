@@ -213,49 +213,9 @@ func (p *Pool) SetPolicyData(policy []byte, data []byte) error {
 func (p *Pool) SetDataPath(path []string, value interface{}) error {
 	p.dataMtx.Lock()
 	defer p.dataMtx.Unlock()
-
-	var patchedData []byte
-	var patchedDataAddr int32
-	var seedMemorySize uint32
-	for i, activations := 0, 0; true; {
-		vm := p.Wait(i)
-		if vm == nil {
-			// All have been converted.
-			return nil
-		}
-
-		if err := vm.SetDataPath(path, value); err != nil {
-			p.remove(i)
-			p.Release(vm, metrics.New())
-			if activations == 0 {
-				return err
-			}
-			// Note: Do not increment i when it has been removed! That index is
-			// replaced by the last VM in the list so we must re-run with the
-			// same index.
-		} else {
-			// Before releasing our first succesfully patched VM get a
-			// copy of its data memory segment to more quickly seed fresh
-			// vm's.
-			if patchedData == nil {
-				patchedDataAddr, patchedData = vm.cloneDataSegment()
-				seedMemorySize = vm.memory.Length()
-			}
-			p.Release(vm, metrics.New())
-
-			// Only increment on success
-			i++
-		}
-
-		// Activate the policy and data, now that a single VM has been patched without errors.
-		if activations == 0 {
-			p.activate(p.policy, patchedData, patchedDataAddr, seedMemorySize)
-		}
-
-		activations++
-	}
-
-	return nil
+	return p.updateVMs(func(vm *VM, opts vmOpts) error {
+		return vm.SetDataPath(path, value)
+	})
 }
 
 // RemoveDataPath will update the current data on the VMs by removing the value at the
@@ -264,70 +224,44 @@ func (p *Pool) SetDataPath(path []string, value interface{}) error {
 func (p *Pool) RemoveDataPath(path []string) error {
 	p.dataMtx.Lock()
 	defer p.dataMtx.Unlock()
-
-	var patchedData []byte
-	var patchedDataAddr int32
-	var seedMemorySize uint32
-	for i, activations := 0, 0; true; {
-		vm := p.Wait(i)
-		if vm == nil {
-			// All have been converted.
-			return nil
-		}
-
-		if err := vm.RemoveDataPath(path); err != nil {
-			p.remove(i)
-			p.Release(vm, metrics.New())
-			if activations == 0 {
-				return err
-			}
-			// Note: Do not increment i when it has been removed! That index is
-			// replaced by the last VM in the list so we must re-run with the
-			// same index.
-		} else {
-			// Before releasing our first succesfully patched VM get a
-			// copy of its data memory segment to more quickly seed fresh
-			// vm's.
-			if patchedData == nil {
-				patchedDataAddr, patchedData = vm.cloneDataSegment()
-				seedMemorySize = vm.memory.Length()
-			}
-			p.Release(vm, metrics.New())
-
-			// Only increment on success
-			i++
-		}
-
-		// Activate the policy and data, now that a single VM has been patched without errors.
-		if activations == 0 {
-			p.activate(p.policy, patchedData, patchedDataAddr, seedMemorySize)
-		}
-
-		activations++
-	}
-
-	return nil
+	return p.updateVMs(func(vm *VM, _ vmOpts) error {
+		return vm.RemoveDataPath(path)
+	})
 }
 
 // setPolicyData reinitializes the VMs one at a time.
 func (p *Pool) setPolicyData(policy []byte, data []byte) error {
+	return p.updateVMs(func(vm *VM, opts vmOpts) error {
+		opts.policy = policy
+		opts.data = data
+		return vm.SetPolicyData(opts)
+	})
+}
+
+// updateVMs Iterates over each VM, waiting for each to safely acquire them,
+// and applies the update function. If the first update succeeds any subsequent
+// failures will remove the VM and continue through the pool. Otherwise an error
+// will be returned.
+func (p *Pool) updateVMs(update func(vm *VM, opts vmOpts) error) error {
+	var policy []byte
 	var parsedData []byte
 	var parsedDataAddr int32
-	seedMemorySize := wasmPageSize * p.memoryMinPages
-	for i, activations := 0, 0; true; {
+	seedMemorySize := p.memoryMinPages
+	activated := false
+	i := 0
+	for {
 		vm := p.Wait(i)
 		if vm == nil {
-			// All have been converted.
+			// All have been updated or removed.
 			return nil
 		}
 
-		err := vm.SetPolicyData(vmOpts{
+		err := update(vm, vmOpts{
 			policy:         policy,
-			data:           data,
 			parsedData:     parsedData,
 			parsedDataAddr: parsedDataAddr,
-			memoryMin:      Pages(seedMemorySize),
-			memoryMax:      p.memoryMaxPages,
+			memoryMin:      seedMemorySize,
+			memoryMax:      p.memoryMaxPages, // The max pages cannot be changed while updating.
 		})
 
 		if err != nil {
@@ -336,16 +270,20 @@ func (p *Pool) setPolicyData(policy []byte, data []byte) error {
 			p.Release(vm, metrics.New())
 
 			// After the first successful activation, proceed through all the VMs, ignoring the remaining errors.
-			if activations == 0 {
+			if !activated {
 				return err
 			}
 			// Note: Do not increment i when it has been removed! That index is
 			// replaced by the last VM in the list so we must re-run with the
 			// same index.
 		} else {
-			if parsedData == nil {
+			if !activated {
+				// Activate the policy and data, now that a single VM has been reset without errors.
+				activated = true
+				policy = vm.policy
 				parsedDataAddr, parsedData = vm.cloneDataSegment()
-				seedMemorySize = vm.memory.Length()
+				seedMemorySize = Pages(vm.memory.Length())
+				p.activate(policy, parsedData, parsedDataAddr, seedMemorySize)
 			}
 
 			p.Release(vm, metrics.New())
@@ -353,17 +291,7 @@ func (p *Pool) setPolicyData(policy []byte, data []byte) error {
 			// Only increment on success
 			i++
 		}
-
-		// Activate the policy and data, now that a single VM has been reset without errors.
-
-		if activations == 0 {
-			p.activate(policy, parsedData, parsedDataAddr, seedMemorySize)
-		}
-
-		activations++
 	}
-
-	return nil
 }
 
 // Close waits for all the evaluations to finish and then releases the VMs.
@@ -431,9 +359,9 @@ func (p *Pool) remove(i int) {
 	p.acquired = p.acquired[0 : n-1]
 }
 
-func (p *Pool) activate(policy []byte, data []byte, dataAddr int32, minMemorySize uint32) {
+func (p *Pool) activate(policy []byte, data []byte, dataAddr int32, minMemoryPages uint32) {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
-	p.policy, p.parsedData, p.parsedDataAddr, p.memoryMinPages = policy, data, dataAddr, Pages(minMemorySize)
+	p.policy, p.parsedData, p.parsedDataAddr, p.memoryMinPages = policy, data, dataAddr, minMemoryPages
 }
