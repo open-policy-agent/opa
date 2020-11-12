@@ -2,6 +2,12 @@
 github.com/OneOfOne/xxhash
 # github.com/beorn7/perks v1.0.1
 github.com/beorn7/perks/quantile
+# github.com/bytecodealliance/wasmtime-go v0.21.0 => github.com/koponen-styra/wasmtime-go v0.21.0-patched
+github.com/bytecodealliance/wasmtime-go
+github.com/bytecodealliance/wasmtime-go/build/include
+github.com/bytecodealliance/wasmtime-go/build/linux-x86_64
+github.com/bytecodealliance/wasmtime-go/build/macos-x86_64
+github.com/bytecodealliance/wasmtime-go/build/windows-x86_64
 # github.com/cespare/xxhash/v2 v2.1.1
 github.com/cespare/xxhash/v2
 # github.com/cpuguy83/go-md2man v1.0.10
@@ -67,8 +73,6 @@ github.com/spf13/cobra
 github.com/spf13/cobra/doc
 # github.com/spf13/pflag v1.0.1
 github.com/spf13/pflag
-# github.com/wasmerio/go-ext-wasm v0.3.1
-github.com/wasmerio/go-ext-wasm/wasmer
 # github.com/yashtewari/glob-intersection v0.0.0-20180916065949-5c77d914dd0b
 github.com/yashtewari/glob-intersection
 # golang.org/x/lint v0.0.0-20200302205851-738671d3881b

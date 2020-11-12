@@ -4,6 +4,7 @@ go 1.12
 
 require (
 	github.com/OneOfOne/xxhash v1.2.8
+	github.com/bytecodealliance/wasmtime-go v0.21.0
 	github.com/cpuguy83/go-md2man v1.0.10 // indirect
 	github.com/fsnotify/fsnotify v1.4.9
 	github.com/ghodss/yaml v1.0.0
@@ -21,10 +22,11 @@ require (
 	github.com/sirupsen/logrus v1.6.0
 	github.com/spf13/cobra v0.0.3
 	github.com/spf13/pflag v1.0.1
-	github.com/wasmerio/go-ext-wasm v0.3.1
 	github.com/yashtewari/glob-intersection v0.0.0-20180916065949-5c77d914dd0b
 	golang.org/x/lint v0.0.0-20200302205851-738671d3881b
 	golang.org/x/net v0.0.0-20200927032502-5d4f70055728
 	golang.org/x/text v0.3.3 // indirect
 	golang.org/x/tools v0.0.0-20201009032223-96877f285f7e
 )
+
+replace github.com/bytecodealliance/wasmtime-go => github.com/koponen-styra/wasmtime-go v0.21.0-patched

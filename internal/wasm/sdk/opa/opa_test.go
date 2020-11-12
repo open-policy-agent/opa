@@ -81,11 +81,10 @@ func TestOPA(t *testing.T) {
 		},
 		{
 			Description: "Builtins",
-			Policy:      `a = count(data.q) + sum(data.q)`,
+			Policy:      `a = time.weekday(data.q)`, // builtin not implemented in wasm.
 			Query:       "data.p.a = x",
 			Evals: []Eval{
-				Eval{NewData: `{"q": []}`, Result: `{{"x": 0}}`},
-				Eval{NewData: `{"q": [1, 2]}`, Result: `{{"x": 5}}`},
+				Eval{NewData: `{"q": [0]}`, Result: `{{"x": "Thursday"}}`},
 			},
 		},
 		{
