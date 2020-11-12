@@ -4,6 +4,7 @@ go 1.12
 
 require (
 	github.com/OneOfOne/xxhash v1.2.8
+	github.com/bytecodealliance/wasmtime-go v0.23.0
 	github.com/cpuguy83/go-md2man v1.0.10 // indirect
 	github.com/fsnotify/fsnotify v1.4.9
 	github.com/ghodss/yaml v1.0.0
@@ -22,7 +23,6 @@ require (
 	github.com/spf13/cobra v0.0.3
 	github.com/spf13/pflag v1.0.1
 	github.com/stretchr/testify v1.4.0
-	github.com/wasmerio/go-ext-wasm v0.3.1
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415
 	github.com/yashtewari/glob-intersection v0.0.0-20180916065949-5c77d914dd0b
