@@ -2,7 +2,7 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-package opa
+package wasm
 
 import (
 	"bytes"
@@ -10,11 +10,12 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/open-policy-agent/opa/internal/wasm/sdk/opa/errors"
 	"github.com/open-policy-agent/opa/metrics"
 )
 
-// pool maintains a pool of WebAssemly VM instances.
-type pool struct {
+// Pool maintains a pool of WebAssemly VM instances.
+type Pool struct {
 	available      chan struct{}
 	mutex          sync.Mutex
 	initialized    bool
@@ -24,32 +25,52 @@ type pool struct {
 	parsedDataAddr int32  // Address for parsedData value root, used to seed new VM's
 	memoryMinPages uint32
 	memoryMaxPages uint32
-	vms            []*vm // All current VM instances, acquired or not.
+	vms            []*VM // All current VM instances, acquired or not.
 	acquired       []bool
-	pendingReinit  *vm
+	pendingReinit  *VM
 	blockedReinit  chan struct{}
 }
 
-// newPool constructs a new pool with the pool and VM configuration provided.
-func newPool(poolSize, memoryMinPages, memoryMaxPages uint32) *pool {
+// NewPool constructs a new pool with the pool and VM configuration provided.
+func NewPool(poolSize, memoryMinPages, memoryMaxPages uint32) *Pool {
 	available := make(chan struct{}, poolSize)
 	for i := uint32(0); i < poolSize; i++ {
 		available <- struct{}{}
 	}
 
-	return &pool{
+	return &Pool{
 		memoryMinPages: memoryMinPages,
 		memoryMaxPages: memoryMaxPages,
 		available:      available,
-		vms:            make([]*vm, 0),
+		vms:            make([]*VM, 0),
 		acquired:       make([]bool, 0),
 	}
+}
+
+// ParsedData returns a reference to the pools parsed external data used to
+// initialize new VM's.
+func (p *Pool) ParsedData() (int32, []byte) {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+	return p.parsedDataAddr, p.parsedData
+}
+
+// Policy returns the raw policy Wasm module used by VM's in the pool
+func (p *Pool) Policy() []byte {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+	return p.policy
+}
+
+// Size returns the current number of VM's in the pool
+func (p *Pool) Size() int {
+	return len(p.vms)
 }
 
 // Acquire obtains a VM from the pool, waiting if all VMms are in use
 // and building one as necessary. Returns either ErrNotReady or
 // ErrInternal if an error.
-func (p *pool) Acquire(ctx context.Context, metrics metrics.Metrics) (*vm, error) {
+func (p *Pool) Acquire(ctx context.Context, metrics metrics.Metrics) (*VM, error) {
 	metrics.Timer("wasm_pool_acquire").Start()
 	defer metrics.Timer("wasm_pool_acquire").Stop()
 
@@ -63,7 +84,7 @@ func (p *pool) Acquire(ctx context.Context, metrics metrics.Metrics) (*vm, error
 	defer p.mutex.Unlock()
 
 	if !p.initialized || p.closed {
-		return nil, ErrNotReady
+		return nil, errors.ErrNotReady
 	}
 
 	for i, vm := range p.vms {
@@ -88,7 +109,7 @@ func (p *pool) Acquire(ctx context.Context, metrics metrics.Metrics) (*vm, error
 
 	if err != nil {
 		p.available <- struct{}{}
-		return nil, fmt.Errorf("%v: %w", err, ErrInternal)
+		return nil, fmt.Errorf("%v: %w", err, errors.ErrInternal)
 	}
 
 	p.acquired = append(p.acquired, true)
@@ -97,7 +118,7 @@ func (p *pool) Acquire(ctx context.Context, metrics metrics.Metrics) (*vm, error
 }
 
 // Release releases the VM back to the pool.
-func (p *pool) Release(vm *vm, metrics metrics.Metrics) {
+func (p *Pool) Release(vm *VM, metrics metrics.Metrics) {
 	metrics.Timer("wasm_pool_release").Start()
 	defer metrics.Timer("wasm_pool_release").Stop()
 
@@ -133,7 +154,7 @@ func (p *pool) Release(vm *vm, metrics metrics.Metrics) {
 // are constructed in advance before touching the pool.  Returns
 // either ErrNotReady, ErrInvalidPolicy or ErrInternal if an error
 // occurs.
-func (p *pool) SetPolicyData(policy []byte, data []byte) error {
+func (p *Pool) SetPolicyData(policy []byte, data []byte) error {
 	p.mutex.Lock()
 
 	if !p.initialized {
@@ -148,13 +169,13 @@ func (p *pool) SetPolicyData(policy []byte, data []byte) error {
 
 		if err == nil {
 			parsedDataAddr, parsedData := vm.cloneDataSegment()
-			p.memoryMinPages = pages(vm.memory.Length())
+			p.memoryMinPages = Pages(vm.memory.Length())
 			p.vms = append(p.vms, vm)
 			p.acquired = append(p.acquired, false)
 			p.initialized = true
 			p.policy, p.parsedData, p.parsedDataAddr = policy, parsedData, parsedDataAddr
 		} else {
-			err = fmt.Errorf("%v: %w", err, ErrInvalidPolicyOrData)
+			err = fmt.Errorf("%v: %w", err, errors.ErrInvalidPolicyOrData)
 		}
 
 		p.mutex.Unlock()
@@ -163,7 +184,7 @@ func (p *pool) SetPolicyData(policy []byte, data []byte) error {
 
 	if p.closed {
 		p.mutex.Unlock()
-		return ErrNotReady
+		return errors.ErrNotReady
 	}
 
 	currentPolicy, currentData := p.policy, p.parsedData
@@ -176,18 +197,21 @@ func (p *pool) SetPolicyData(policy []byte, data []byte) error {
 
 	err := p.setPolicyData(policy, data)
 	if err != nil {
-		return fmt.Errorf("%v: %w", err, ErrInternal)
+		return fmt.Errorf("%v: %w", err, errors.ErrInternal)
 	}
 
 	return nil
 }
 
-func (p *pool) SetDataPath(path []string, value interface{}) error {
+// SetDataPath will update the current data on the VMs by setting the value at the
+// specified path. If an error occurs the instance is still in a valid state, however
+// the data will not have been modified.
+func (p *Pool) SetDataPath(path []string, value interface{}) error {
 	var patchedData []byte
 	var patchedDataAddr int32
 	var seedMemorySize uint32
 	for i, activations := 0, 0; true; i++ {
-		vm := p.wait(i)
+		vm := p.Wait(i)
 		if vm == nil {
 			// All have been converted.
 			return nil
@@ -221,12 +245,15 @@ func (p *pool) SetDataPath(path []string, value interface{}) error {
 	return nil
 }
 
-func (p *pool) RemoveDataPath(path []string) error {
+// RemoveDataPath will update the current data on the VMs by removing the value at the
+// specified path. If an error occurs the instance is still in a valid state, however
+// the data will not have been modified.
+func (p *Pool) RemoveDataPath(path []string) error {
 	var patchedData []byte
 	var patchedDataAddr int32
 	var seedMemorySize uint32
 	for i, activations := 0, 0; true; i++ {
-		vm := p.wait(i)
+		vm := p.Wait(i)
 		if vm == nil {
 			// All have been converted.
 			return nil
@@ -261,12 +288,12 @@ func (p *pool) RemoveDataPath(path []string) error {
 }
 
 // setPolicyData reinitializes the VMs one at a time.
-func (p *pool) setPolicyData(policy []byte, data []byte) error {
+func (p *Pool) setPolicyData(policy []byte, data []byte) error {
 	var parsedData []byte
 	var parsedDataAddr int32
 	seedMemorySize := wasmPageSize * p.memoryMinPages
 	for i, activations := 0, 0; true; i++ {
-		vm := p.wait(i)
+		vm := p.Wait(i)
 		if vm == nil {
 			// All have been converted.
 			return nil
@@ -277,7 +304,7 @@ func (p *pool) setPolicyData(policy []byte, data []byte) error {
 			data:           data,
 			parsedData:     parsedData,
 			parsedDataAddr: parsedDataAddr,
-			memoryMin:      pages(seedMemorySize),
+			memoryMin:      Pages(seedMemorySize),
 			memoryMax:      p.memoryMaxPages,
 		})
 
@@ -312,7 +339,7 @@ func (p *pool) setPolicyData(policy []byte, data []byte) error {
 }
 
 // Close waits for all the evaluations to finish and then releases the VMs.
-func (p *pool) Close() {
+func (p *Pool) Close() {
 	for range p.vms {
 		<-p.available
 	}
@@ -330,8 +357,8 @@ func (p *pool) Close() {
 	p.vms = nil
 }
 
-// wait steals the i'th VM instance. The VM has to be released afterwards.
-func (p *pool) wait(i int) *vm {
+// Wait steals the i'th VM instance. The VM has to be released afterwards.
+func (p *Pool) Wait(i int) *VM {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
@@ -362,7 +389,7 @@ func (p *pool) wait(i int) *vm {
 }
 
 // remove removes the i'th vm.
-func (p *pool) remove(i int) {
+func (p *Pool) remove(i int) {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
@@ -375,9 +402,9 @@ func (p *pool) remove(i int) {
 	p.acquired = p.acquired[0 : n-1]
 }
 
-func (p *pool) activate(policy []byte, data []byte, dataAddr int32, minMemorySize uint32) {
+func (p *Pool) activate(policy []byte, data []byte, dataAddr int32, minMemorySize uint32) {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
-	p.policy, p.parsedData, p.parsedDataAddr, p.memoryMinPages = policy, data, dataAddr, pages(minMemorySize)
+	p.policy, p.parsedData, p.parsedDataAddr, p.memoryMinPages = policy, data, dataAddr, Pages(minMemorySize)
 }
