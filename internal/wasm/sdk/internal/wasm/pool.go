@@ -18,6 +18,7 @@ import (
 type Pool struct {
 	available      chan struct{}
 	mutex          sync.Mutex
+	dataMtx        sync.Mutex
 	initialized    bool
 	closed         bool
 	policy         []byte
@@ -155,6 +156,9 @@ func (p *Pool) Release(vm *VM, metrics metrics.Metrics) {
 // either ErrNotReady, ErrInvalidPolicy or ErrInternal if an error
 // occurs.
 func (p *Pool) SetPolicyData(policy []byte, data []byte) error {
+	p.dataMtx.Lock()
+	defer p.dataMtx.Unlock()
+
 	p.mutex.Lock()
 
 	if !p.initialized {
@@ -207,6 +211,9 @@ func (p *Pool) SetPolicyData(policy []byte, data []byte) error {
 // specified path. If an error occurs the instance is still in a valid state, however
 // the data will not have been modified.
 func (p *Pool) SetDataPath(path []string, value interface{}) error {
+	p.dataMtx.Lock()
+	defer p.dataMtx.Unlock()
+
 	var patchedData []byte
 	var patchedDataAddr int32
 	var seedMemorySize uint32
@@ -249,6 +256,9 @@ func (p *Pool) SetDataPath(path []string, value interface{}) error {
 // specified path. If an error occurs the instance is still in a valid state, however
 // the data will not have been modified.
 func (p *Pool) RemoveDataPath(path []string) error {
+	p.dataMtx.Lock()
+	defer p.dataMtx.Unlock()
+
 	var patchedData []byte
 	var patchedDataAddr int32
 	var seedMemorySize uint32
