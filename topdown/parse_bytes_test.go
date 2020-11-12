@@ -74,6 +74,7 @@ func TestNumBytes(t *testing.T) {
 			rule        string
 			expectedErr error
 		}{
+			{"", errNoAmount},
 			{"GB", errNoAmount},
 			{"foo", errNoAmount},
 			{"10.25", errIntConv},

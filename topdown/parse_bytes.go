@@ -128,7 +128,7 @@ func extractNumAndUnit(s string) (string, string) {
 	}
 
 	firstRuneIsNum := func(s string) bool {
-		return isNum(rune(s[0]))
+		return len(s) > 0 && isNum(rune(s[0]))
 	}
 
 	firstNonNumIdx := getFirstNonNumIdx(s)
