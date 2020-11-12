@@ -70,6 +70,12 @@ func WriteModule(w io.Writer, module *module.Module) error {
 		return err
 	}
 
+	for _, custom := range module.Customs {
+		if err := writeCustomSection(w, custom); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -365,6 +371,24 @@ func writeDataSection(w io.Writer, s module.DataSection) error {
 		if err := writeByteVector(&buf, seg.Init); err != nil {
 			return err
 		}
+	}
+
+	return writeRawSection(w, &buf)
+}
+
+func writeCustomSection(w io.Writer, s module.CustomSection) error {
+
+	if err := writeByte(w, constant.CustomSectionID); err != nil {
+		return err
+	}
+
+	var buf bytes.Buffer
+	if err := writeByteVector(&buf, []byte(s.Name)); err != nil {
+		return err
+	}
+
+	if _, err := io.Copy(&buf, bytes.NewReader(s.Data)); err != nil {
+		return err
 	}
 
 	return writeRawSection(w, &buf)

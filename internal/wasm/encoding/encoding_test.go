@@ -71,6 +71,18 @@ func TestRoundtripOPA(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// When using a WASM module with or without debug, the custom sections differ.
+	// Both variants have 'name' and 'producers'.
+	customSections := map[string]int{}
+	for _, s := range module.Customs {
+		customSections[s.Name]++
+	}
+	if expected, actual := 1, customSections["name"]; expected != actual {
+		t.Errorf("expected %d 'name' custom sections, found %d", expected, actual)
+	}
+	if expected, actual := 1, customSections["producers"]; expected != actual {
+		t.Errorf("expected %d 'producers' custom sections, found %d", expected, actual)
+	}
 
 	// TODO(tsandall): when all instructions are handled by reader, add logic to
 	// check code section contents.

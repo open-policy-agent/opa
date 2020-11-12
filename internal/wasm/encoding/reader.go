@@ -9,6 +9,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"io/ioutil"
 
 	"github.com/pkg/errors"
 
@@ -142,8 +143,12 @@ func readSections(r io.Reader, m *module.Module) error {
 		bufr := bytes.NewReader(buf)
 
 		switch id {
-		case constant.CustomSectionID, constant.StartSectionID, constant.MemorySectionID:
+		case constant.StartSectionID, constant.MemorySectionID:
 			continue
+		case constant.CustomSectionID:
+			if err := readCustomSection(bufr, &m.Customs); err != nil {
+				return errors.Wrap(err, "custom section")
+			}
 		case constant.TypeSectionID:
 			if err := readTypeSection(bufr, &m.Type); err != nil {
 				return errors.Wrap(err, "type section")
@@ -184,6 +189,25 @@ func readSections(r io.Reader, m *module.Module) error {
 			return fmt.Errorf("illegal section id")
 		}
 	}
+}
+
+func readCustomSection(r io.Reader, s *[]module.CustomSection) error {
+
+	var name string
+	if err := readByteVectorString(r, &name); err != nil {
+		return err
+	}
+
+	buf, err := ioutil.ReadAll(r)
+	if err != nil {
+		return err
+	}
+
+	*s = append(*s, module.CustomSection{
+		Name: name,
+		Data: buf,
+	})
+	return nil
 }
 
 func readTypeSection(r io.Reader, s *module.TypeSection) error {
@@ -804,6 +828,6 @@ func readBlockValueType(r io.Reader, v *types.ValueType) error {
 
 func readByte(r io.Reader) (byte, error) {
 	buf := make([]byte, 1)
-	_, err := r.Read(buf)
+	_, err := io.ReadFull(r, buf)
 	return buf[0], err
 }

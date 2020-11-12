@@ -25,6 +25,7 @@ type (
 		Export   ExportSection
 		Code     RawCodeSection
 		Data     DataSection
+		Customs  []CustomSection
 	}
 
 	// TypeSection represents a WASM type section.
@@ -71,6 +72,12 @@ type (
 	// DataSection represents a WASM data section.
 	DataSection struct {
 		Segments []DataSegment
+	}
+
+	// CustomSection represents a WASM custom section.
+	CustomSection struct {
+		Name string
+		Data []byte
 	}
 
 	// FunctionType represents a WASM function type definition.
