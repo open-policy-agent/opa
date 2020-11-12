@@ -12,7 +12,11 @@ import (
 	"strconv"
 	"time"
 
-	wasm "github.com/wasmerio/go-ext-wasm/wasmer"
+	"github.com/bytecodealliance/wasmtime-go"
+	_ "github.com/bytecodealliance/wasmtime-go/build/include"        // to include the C headers.
+	_ "github.com/bytecodealliance/wasmtime-go/build/linux-x86_64"   // to include the static lib for linking.
+	_ "github.com/bytecodealliance/wasmtime-go/build/macos-x86_64"   // to include the static lib for linking.
+	_ "github.com/bytecodealliance/wasmtime-go/build/windows-x86_64" // to include the static lib for linking.
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/metrics"
@@ -22,10 +26,11 @@ import (
 
 // VM is a wrapper around a Wasm VM instance
 type VM struct {
-	instance             *wasm.Instance // Pointer to avoid unintented destruction (triggering finalizers within).
+	store                *wasmtime.Store
+	instance             *wasmtime.Instance // Pointer to avoid unintented destruction (triggering finalizers within).
 	policy               []byte
 	data                 []byte
-	memory               *wasm.Memory
+	memory               *wasmtime.Memory
 	memoryMin            uint32
 	memoryMax            uint32
 	bctx                 *topdown.BuiltinContext
@@ -35,22 +40,22 @@ type VM struct {
 	baseHeapPtr          int32
 	dataAddr             int32
 	evalHeapPtr          int32
-	eval                 func(...interface{}) (wasm.Value, error)
-	evalCtxGetResult     func(...interface{}) (wasm.Value, error)
-	evalCtxNew           func(...interface{}) (wasm.Value, error)
-	evalCtxSetData       func(...interface{}) (wasm.Value, error)
-	evalCtxSetInput      func(...interface{}) (wasm.Value, error)
-	evalCtxSetEntrypoint func(...interface{}) (wasm.Value, error)
-	heapPtrGet           func(...interface{}) (wasm.Value, error)
-	heapPtrSet           func(...interface{}) (wasm.Value, error)
-	jsonDump             func(...interface{}) (wasm.Value, error)
-	jsonParse            func(...interface{}) (wasm.Value, error)
-	valueDump            func(...interface{}) (wasm.Value, error)
-	valueParse           func(...interface{}) (wasm.Value, error)
-	malloc               func(...interface{}) (wasm.Value, error)
-	free                 func(...interface{}) (wasm.Value, error)
-	valueAddPath         func(...interface{}) (wasm.Value, error)
-	valueRemovePath      func(...interface{}) (wasm.Value, error)
+	eval                 func(int32) error
+	evalCtxGetResult     func(int32) (int32, error)
+	evalCtxNew           func() (int32, error)
+	evalCtxSetData       func(int32, int32) error
+	evalCtxSetInput      func(int32, int32) error
+	evalCtxSetEntrypoint func(int32, int32) error
+	heapPtrGet           func() (int32, error)
+	heapPtrSet           func(int32) error
+	jsonDump             func(int32) (int32, error)
+	jsonParse            func(int32, int32) (int32, error)
+	valueDump            func(int32) (int32, error)
+	valueParse           func(int32, int32) (int32, error)
+	malloc               func(int32) (int32, error)
+	free                 func(int32) error
+	valueAddPath         func(int32, int32, int32) (int32, error)
+	valueRemovePath      func(int32, int32) (int32, error)
 }
 
 type vmOpts struct {
@@ -63,52 +68,50 @@ type vmOpts struct {
 }
 
 func newVM(opts vmOpts) (*VM, error) {
-	memory, err := wasm.NewMemory(opts.memoryMin, opts.memoryMax)
+	v := &VM{}
+	store := wasmtime.NewStore(wasmtime.NewEngine())
+	memorytype := wasmtime.NewMemoryType(wasmtime.Limits{Min: opts.memoryMin, Max: opts.memoryMax})
+	memory := wasmtime.NewMemory(store, memorytype)
+	imports := []*wasmtime.Extern{
+		memory.AsExtern(),
+	}
+	imports = append(imports, opaFunctions(v, store)...)
+
+	module, err := wasmtime.NewModule(store.Engine, opts.policy)
 	if err != nil {
 		return nil, err
 	}
 
-	imports, err := opaFunctions(wasm.NewImports())
+	i, err := wasmtime.NewInstance(store, module, imports)
 	if err != nil {
 		return nil, err
 	}
 
-	imports, err = imports.AppendMemory("memory", memory)
-	if err != nil {
-		panic(err)
-	}
-
-	i, err := wasm.NewInstanceWithImports(opts.policy, imports)
-	if err != nil {
-		return nil, err
-	}
-
-	v := &VM{
-		instance:             &i,
-		policy:               opts.policy,
-		memory:               memory,
-		memoryMin:            opts.memoryMin,
-		memoryMax:            opts.memoryMax,
-		builtins:             make(map[int32]topdown.BuiltinFunc),
-		entrypointIDs:        make(map[string]int32),
-		dataAddr:             0,
-		eval:                 i.Exports["eval"],
-		evalCtxGetResult:     i.Exports["opa_eval_ctx_get_result"],
-		evalCtxNew:           i.Exports["opa_eval_ctx_new"],
-		evalCtxSetData:       i.Exports["opa_eval_ctx_set_data"],
-		evalCtxSetInput:      i.Exports["opa_eval_ctx_set_input"],
-		evalCtxSetEntrypoint: i.Exports["opa_eval_ctx_set_entrypoint"],
-		free:                 i.Exports["opa_free"],
-		heapPtrGet:           i.Exports["opa_heap_ptr_get"],
-		heapPtrSet:           i.Exports["opa_heap_ptr_set"],
-		jsonDump:             i.Exports["opa_json_dump"],
-		jsonParse:            i.Exports["opa_json_parse"],
-		valueDump:            i.Exports["opa_value_dump"],
-		valueParse:           i.Exports["opa_value_parse"],
-		malloc:               i.Exports["opa_malloc"],
-		valueAddPath:         i.Exports["opa_value_add_path"],
-		valueRemovePath:      i.Exports["opa_value_remove_path"],
-	}
+	v.store = store
+	v.instance = i
+	v.policy = opts.policy
+	v.memory = memory
+	v.memoryMin = opts.memoryMin
+	v.memoryMax = opts.memoryMax
+	v.builtins = make(map[int32]topdown.BuiltinFunc)
+	v.entrypointIDs = make(map[string]int32)
+	v.dataAddr = 0
+	v.eval = func(a int32) error { return callVoid(v, "eval", a) }
+	v.evalCtxGetResult = func(a int32) (int32, error) { return call(v, "opa_eval_ctx_get_result", a) }
+	v.evalCtxNew = func() (int32, error) { return call(v, "opa_eval_ctx_new") }
+	v.evalCtxSetData = func(a int32, b int32) error { return callVoid(v, "opa_eval_ctx_set_data", a, b) }
+	v.evalCtxSetInput = func(a int32, b int32) error { return callVoid(v, "opa_eval_ctx_set_input", a, b) }
+	v.evalCtxSetEntrypoint = func(a int32, b int32) error { return callVoid(v, "opa_eval_ctx_set_entrypoint", a, b) }
+	v.free = func(a int32) error { return callVoid(v, "opa_free", a) }
+	v.heapPtrGet = func() (int32, error) { return call(v, "opa_heap_ptr_get") }
+	v.heapPtrSet = func(a int32) error { return callVoid(v, "opa_heap_ptr_set", a) }
+	v.jsonDump = func(a int32) (int32, error) { return call(v, "opa_json_dump", a) }
+	v.jsonParse = func(a int32, b int32) (int32, error) { return call(v, "opa_json_parse", a, b) }
+	v.valueDump = func(a int32) (int32, error) { return call(v, "opa_value_dump", a) }
+	v.valueParse = func(a int32, b int32) (int32, error) { return call(v, "opa_value_parse", a, b) }
+	v.malloc = func(a int32) (int32, error) { return call(v, "opa_malloc", a) }
+	v.valueAddPath = func(a int32, b int32, c int32) (int32, error) { return call(v, "opa_value_add_path", a, b, c) }
+	v.valueRemovePath = func(a int32, b int32) (int32, error) { return call(v, "opa_value_remove_path", a, b) }
 
 	// Initialize the heap.
 
@@ -125,14 +128,11 @@ func newVM(opts vmOpts) (*VM, error) {
 	// This only works because the placement is deterministic (eg, for a given policy
 	// the base heap pointer and parsed data layout will always be the same).
 	if opts.parsedData != nil {
-		if memory.Length()-uint32(v.baseHeapPtr) < uint32(len(opts.parsedData)) {
-			delta := uint32(len(opts.parsedData)) - (memory.Length() - uint32(v.baseHeapPtr))
-			err := memory.Grow(Pages(delta))
-			if err != nil {
-				return nil, err
-			}
+		if uint32(memory.DataSize())-uint32(v.baseHeapPtr) < uint32(len(opts.parsedData)) {
+			delta := uint32(len(opts.parsedData)) - (uint32(memory.DataSize()) - uint32(v.baseHeapPtr))
+			memory.Grow(uint(Pages(delta))) // TODO: Check return value?
 		}
-		mem := memory.Data()
+		mem := memory.UnsafeData()
 		for src, dest := 0, v.baseHeapPtr; src < len(opts.parsedData); src, dest = src+1, dest+1 {
 			mem[dest] = opts.parsedData[src]
 		}
@@ -152,17 +152,14 @@ func newVM(opts vmOpts) (*VM, error) {
 		return nil, err
 	}
 
-	// For the opa builtin functions to access the instance.
-	i.SetContextData(v)
-
 	// Construct the builtin id to name mappings.
 
-	val, err := i.Exports["builtins"]()
+	val, err := i.GetExport("builtins").Func().Call()
 	if err != nil {
 		return nil, err
 	}
 
-	builtins, err := v.fromRegoJSON(val.ToI32(), true)
+	builtins, err := v.fromRegoJSON(val.(int32), true)
 	if err != nil {
 		return nil, err
 	}
@@ -182,12 +179,12 @@ func newVM(opts vmOpts) (*VM, error) {
 	}
 
 	// Extract the entrypoint ID's
-	val, err = i.Exports["entrypoints"]()
+	val, err = i.GetExport("entrypoints").Func().Call()
 	if err != nil {
 		return nil, err
 	}
 
-	epMap, err := v.fromRegoJSON(val.ToI32(), true)
+	epMap, err := v.fromRegoJSON(val.(int32), true)
 	if err != nil {
 		return nil, err
 	}
@@ -221,21 +218,18 @@ func (i *VM) Eval(ctx context.Context, entrypoint int32, input *interface{}, met
 
 	// Parse the input JSON and activate it with the data.
 
-	addr, err := i.evalCtxNew()
+	ctxAddr, err := i.evalCtxNew()
 	if err != nil {
 		return nil, err
 	}
 
-	ctxAddr := addr.ToI32()
-
 	if i.dataAddr != 0 {
-		if _, err := i.evalCtxSetData(ctxAddr, i.dataAddr); err != nil {
+		if err := i.evalCtxSetData(ctxAddr, i.dataAddr); err != nil {
 			return nil, err
 		}
 	}
 
-	_, err = i.evalCtxSetEntrypoint(ctxAddr, int32(entrypoint))
-	if err != nil {
+	if err := i.evalCtxSetEntrypoint(ctxAddr, int32(entrypoint)); err != nil {
 		return nil, err
 	}
 
@@ -245,7 +239,7 @@ func (i *VM) Eval(ctx context.Context, entrypoint int32, input *interface{}, met
 			return nil, err
 		}
 
-		if _, err := i.evalCtxSetInput(ctxAddr, inputAddr); err != nil {
+		if err := i.evalCtxSetInput(ctxAddr, inputAddr); err != nil {
 			return nil, err
 		}
 	}
@@ -270,7 +264,7 @@ func (i *VM) Eval(ctx context.Context, entrypoint int32, input *interface{}, met
 
 			}
 		}()
-		_, err = i.eval(ctxAddr)
+		err = i.eval(ctxAddr)
 	}()
 
 	metrics.Timer("wasm_vm_eval_execute").Stop()
@@ -290,7 +284,7 @@ func (i *VM) Eval(ctx context.Context, entrypoint int32, input *interface{}, met
 		return nil, err
 	}
 
-	data := i.memory.Data()[serialized.ToI32():]
+	data := i.memory.UnsafeData()[serialized:]
 	n := bytes.IndexByte(data, 0)
 	if n < 0 {
 		n = 0
@@ -313,8 +307,6 @@ func (i *VM) SetPolicyData(opts vmOpts) error {
 			return err
 		}
 
-		i.Close()
-
 		*i = *n
 		return nil
 	}
@@ -327,14 +319,11 @@ func (i *VM) SetPolicyData(opts vmOpts) error {
 	}
 
 	if opts.parsedData != nil {
-		if i.memory.Length()-uint32(i.baseHeapPtr) < uint32(len(opts.parsedData)) {
-			delta := uint32(len(opts.parsedData)) - (i.memory.Length() - uint32(i.baseHeapPtr))
-			err := i.memory.Grow(Pages(delta))
-			if err != nil {
-				return err
-			}
+		if uint32(i.memory.DataSize())-uint32(i.baseHeapPtr) < uint32(len(opts.parsedData)) {
+			delta := uint32(len(opts.parsedData)) - (uint32(i.memory.DataSize()) - uint32(i.baseHeapPtr))
+			i.memory.Grow(uint(Pages(delta))) // TODO: Check return value
 		}
-		mem := i.memory.Data()
+		mem := i.memory.UnsafeData()
 		for src, dest := 0, i.baseHeapPtr; src < len(opts.parsedData); src, dest = src+1, dest+1 {
 			mem[dest] = opts.parsedData[src]
 		}
@@ -357,12 +346,6 @@ func (i *VM) SetPolicyData(opts vmOpts) error {
 	return nil
 }
 
-// Close the VM instance.
-func (i *VM) Close() {
-	i.memory.Close()
-	i.instance.Close()
-}
-
 type abortError struct {
 	message string
 }
@@ -370,7 +353,7 @@ type abortError struct {
 // Abort is invoked by the policy if an internal error occurs during
 // the policy execution.
 func (i *VM) Abort(arg int32) {
-	data := i.memory.Data()[arg:]
+	data := i.memory.UnsafeData()[arg:]
 	n := bytes.IndexByte(data, 0)
 	if n == -1 {
 		panic("invalid abort argument")
@@ -381,7 +364,7 @@ func (i *VM) Abort(arg int32) {
 
 // Println is invoked if the policy WASM code calls opa_println().
 func (i *VM) Println(arg int32) {
-	data := i.memory.Data()[arg:]
+	data := i.memory.UnsafeData()[arg:]
 	n := bytes.IndexByte(data, 0)
 	if n == -1 {
 		panic("invalid opa_println argument")
@@ -478,8 +461,7 @@ func (i *VM) SetDataPath(path []string, value interface{}) error {
 	// overall data object now.
 	// We do need to free the path
 
-	_, err = i.free(pathAddr)
-	if err != nil {
+	if err := i.free(pathAddr); err != nil {
 		return err
 	}
 
@@ -490,7 +472,7 @@ func (i *VM) SetDataPath(path []string, value interface{}) error {
 		return err
 	}
 
-	errc := result.ToI32()
+	errc := result
 	if errc != 0 {
 		return fmt.Errorf("unable to set data value for path %v, err=%d", path, errc)
 	}
@@ -507,16 +489,15 @@ func (i *VM) RemoveDataPath(path []string) error {
 		return err
 	}
 
-	result, err := i.valueRemovePath(i.dataAddr, pathAddr)
+	errc, err := i.valueRemovePath(i.dataAddr, pathAddr)
 	if err != nil {
 		return err
 	}
 
-	if _, err := i.free(pathAddr); err != nil {
+	if err := i.free(pathAddr); err != nil {
 		return err
 	}
 
-	errc := result.ToI32()
 	if errc != 0 {
 		return fmt.Errorf("unable to set data value for path %v, err=%d", path, errc)
 	}
@@ -537,7 +518,7 @@ func (i *VM) fromRegoJSON(addr int32, free bool) (interface{}, error) {
 		return nil, err
 	}
 
-	data := i.memory.Data()[serialized.ToI32():]
+	data := i.memory.UnsafeData()[serialized:]
 	n := bytes.IndexByte(data, 0)
 	if n < 0 {
 		n = 0
@@ -554,7 +535,7 @@ func (i *VM) fromRegoJSON(addr int32, free bool) (interface{}, error) {
 	}
 
 	if free {
-		if _, err := i.free(serialized.ToI32()); err != nil {
+		if err := i.free(serialized); err != nil {
 			return nil, err
 		}
 	}
@@ -582,13 +563,12 @@ func (i *VM) toRegoJSON(v interface{}, free bool) (int32, error) {
 	}
 
 	n := int32(len(raw))
-	pos, err := i.malloc(n)
+	p, err := i.malloc(n)
 	if err != nil {
 		return 0, err
 	}
 
-	p := pos.ToI32()
-	copy(i.memory.Data()[p:p+n], raw)
+	copy(i.memory.UnsafeData()[p:p+n], raw)
 
 	addr, err := i.valueParse(p, n)
 	if err != nil {
@@ -596,12 +576,12 @@ func (i *VM) toRegoJSON(v interface{}, free bool) (int32, error) {
 	}
 
 	if free {
-		if _, err := i.free(p); err != nil {
+		if err := i.free(p); err != nil {
 			return 0, err
 		}
 	}
 
-	return addr.ToI32(), nil
+	return addr, nil
 }
 
 // fromRegoValue parses serialized opa values from the Wasm memory buffer into
@@ -612,7 +592,7 @@ func (i *VM) fromRegoValue(addr int32, free bool) (*ast.Term, error) {
 		return nil, err
 	}
 
-	data := i.memory.Data()[serialized.ToI32():]
+	data := i.memory.UnsafeData()[serialized:]
 	n := bytes.IndexByte(data, 0)
 	if n < 0 {
 		n = 0
@@ -620,38 +600,52 @@ func (i *VM) fromRegoValue(addr int32, free bool) (*ast.Term, error) {
 
 	// Parse the result into ast types.
 	result, err := ast.ParseTerm(string(data[0:n]))
-	if err != nil {
-		return nil, err
-	}
 
 	if free {
-		if _, err := i.free(serialized.ToI32()); err != nil {
+		if err := i.free(serialized); err != nil {
 			return nil, err
 		}
 	}
 
-	return result, nil
+	return result, err
 }
 
 func (i *VM) getHeapState() (int32, error) {
-	ptr, err := i.heapPtrGet()
-	if err != nil {
-		return 0, err
-	}
-
-	return ptr.ToI32(), nil
+	return i.heapPtrGet()
 }
 
 func (i *VM) setHeapState(ptr int32) error {
-	_, err := i.heapPtrSet(ptr)
-	return err
+	return i.heapPtrSet(ptr)
 }
 
 func (i *VM) cloneDataSegment() (int32, []byte) {
 	// The parsed data values sit between the base heap address and end
 	// at the eval heap pointer address.
-	srcData := i.memory.Data()[i.baseHeapPtr:i.evalHeapPtr]
+	srcData := i.memory.UnsafeData()[i.baseHeapPtr:i.evalHeapPtr]
 	patchedData := make([]byte, len(srcData))
 	copy(patchedData, srcData)
 	return i.dataAddr, patchedData
+}
+
+func call(vm *VM, name string, args ...int32) (int32, error) {
+	sl := make([]interface{}, len(args))
+	for i := range sl {
+		sl[i] = args[i]
+	}
+
+	x, err := vm.instance.GetExport(name).Func().Call(sl...)
+	if err != nil {
+		return 0, err
+	}
+	return x.(int32), nil
+}
+
+func callVoid(vm *VM, name string, args ...int32) error {
+	sl := make([]interface{}, len(args))
+	for i := range sl {
+		sl[i] = args[i]
+	}
+
+	_, err := vm.instance.GetExport(name).Func().Call(sl...)
+	return err
 }
