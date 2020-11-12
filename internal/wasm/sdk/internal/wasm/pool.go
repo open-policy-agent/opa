@@ -217,7 +217,7 @@ func (p *Pool) SetDataPath(path []string, value interface{}) error {
 	var patchedData []byte
 	var patchedDataAddr int32
 	var seedMemorySize uint32
-	for i, activations := 0, 0; true; i++ {
+	for i, activations := 0, 0; true; {
 		vm := p.Wait(i)
 		if vm == nil {
 			// All have been converted.
@@ -230,6 +230,9 @@ func (p *Pool) SetDataPath(path []string, value interface{}) error {
 			if activations == 0 {
 				return err
 			}
+			// Note: Do not increment i when it has been removed! That index is
+			// replaced by the last VM in the list so we must re-run with the
+			// same index.
 		} else {
 			// Before releasing our first succesfully patched VM get a
 			// copy of its data memory segment to more quickly seed fresh
@@ -239,6 +242,9 @@ func (p *Pool) SetDataPath(path []string, value interface{}) error {
 				seedMemorySize = vm.memory.Length()
 			}
 			p.Release(vm, metrics.New())
+
+			// Only increment on success
+			i++
 		}
 
 		// Activate the policy and data, now that a single VM has been patched without errors.
@@ -262,7 +268,7 @@ func (p *Pool) RemoveDataPath(path []string) error {
 	var patchedData []byte
 	var patchedDataAddr int32
 	var seedMemorySize uint32
-	for i, activations := 0, 0; true; i++ {
+	for i, activations := 0, 0; true; {
 		vm := p.Wait(i)
 		if vm == nil {
 			// All have been converted.
@@ -275,6 +281,9 @@ func (p *Pool) RemoveDataPath(path []string) error {
 			if activations == 0 {
 				return err
 			}
+			// Note: Do not increment i when it has been removed! That index is
+			// replaced by the last VM in the list so we must re-run with the
+			// same index.
 		} else {
 			// Before releasing our first succesfully patched VM get a
 			// copy of its data memory segment to more quickly seed fresh
@@ -284,6 +293,9 @@ func (p *Pool) RemoveDataPath(path []string) error {
 				seedMemorySize = vm.memory.Length()
 			}
 			p.Release(vm, metrics.New())
+
+			// Only increment on success
+			i++
 		}
 
 		// Activate the policy and data, now that a single VM has been patched without errors.
@@ -302,7 +314,7 @@ func (p *Pool) setPolicyData(policy []byte, data []byte) error {
 	var parsedData []byte
 	var parsedDataAddr int32
 	seedMemorySize := wasmPageSize * p.memoryMinPages
-	for i, activations := 0, 0; true; i++ {
+	for i, activations := 0, 0; true; {
 		vm := p.Wait(i)
 		if vm == nil {
 			// All have been converted.
@@ -327,6 +339,9 @@ func (p *Pool) setPolicyData(policy []byte, data []byte) error {
 			if activations == 0 {
 				return err
 			}
+			// Note: Do not increment i when it has been removed! That index is
+			// replaced by the last VM in the list so we must re-run with the
+			// same index.
 		} else {
 			if parsedData == nil {
 				parsedDataAddr, parsedData = vm.cloneDataSegment()
@@ -334,6 +349,9 @@ func (p *Pool) setPolicyData(policy []byte, data []byte) error {
 			}
 
 			p.Release(vm, metrics.New())
+
+			// Only increment on success
+			i++
 		}
 
 		// Activate the policy and data, now that a single VM has been reset without errors.
@@ -406,6 +424,7 @@ func (p *Pool) remove(i int) {
 	n := len(p.vms)
 	if n > 1 {
 		p.vms[i] = p.vms[n-1]
+		p.acquired[i] = p.acquired[n-1]
 	}
 
 	p.vms = p.vms[0 : n-1]
