@@ -12,12 +12,13 @@ import (
 	"time"
 
 	"github.com/open-policy-agent/opa/internal/wasm/sdk/opa"
-	"github.com/open-policy-agent/opa/internal/wasm/sdk/opa/file"
-	"github.com/open-policy-agent/opa/internal/wasm/sdk/opa/http"
+	opaLoader "github.com/open-policy-agent/opa/internal/wasm/sdk/opa/loader"
+	"github.com/open-policy-agent/opa/internal/wasm/sdk/opa/loader/file"
+	"github.com/open-policy-agent/opa/internal/wasm/sdk/opa/loader/http"
 )
 
 var (
-	loader opa.Loader
+	loader opaLoader.Loader
 	rego   *opa.OPA
 )
 
@@ -72,7 +73,8 @@ func main() {
 }
 
 func setup(u string, token string) error {
-	r, err := opa.New().Init()
+	var err error
+	rego, err = opa.New().Init()
 	if err != nil {
 		return err
 	}
@@ -82,11 +84,9 @@ func setup(u string, token string) error {
 		return err
 	}
 
-	var l opa.Loader
-
 	switch url.Scheme {
 	case "http", "https":
-		l, err = http.New(r).
+		loader, err = http.New(rego).
 			WithURL(url.String()).
 			WithPrepareRequest(func(req *gohttp.Request) error {
 				if token != "" {
@@ -97,7 +97,7 @@ func setup(u string, token string) error {
 			WithInterval(30*time.Second, 60*time.Second).
 			Init()
 	case "file", "":
-		l, err = file.New(r).
+		loader, err = file.New(rego).
 			WithFile(url.String()).
 			WithInterval(10 * time.Second).
 			Init()
@@ -107,15 +107,18 @@ func setup(u string, token string) error {
 		return err
 	}
 
-	if err := l.Start(context.Background()); err != nil {
+	if err := loader.Start(context.Background()); err != nil {
 		return err
 	}
 
-	rego, loader = r, l
 	return nil
 }
 
 func cleanup() {
-	loader.Close()
-	rego.Close()
+	if loader != nil {
+		loader.Close()
+	}
+	if rego != nil {
+		rego.Close()
+	}
 }

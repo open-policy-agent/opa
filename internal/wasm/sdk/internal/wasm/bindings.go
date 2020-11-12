@@ -2,7 +2,7 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-package opa
+package wasm
 
 // #include <stdlib.h>
 //
@@ -79,7 +79,7 @@ func opa_builtin4(ctx unsafe.Pointer, builtinID, context, arg0, arg1, arg2, arg3
 	return getVM(ctx).Builtin(builtinID, context, arg0, arg1, arg2, arg3)
 }
 
-func getVM(ctx unsafe.Pointer) *vm {
+func getVM(ctx unsafe.Pointer) *VM {
 	ictx := wasm.IntoInstanceContext(ctx)
-	return ictx.Data().(*vm)
+	return ictx.Data().(*VM)
 }

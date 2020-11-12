@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/open-policy-agent/opa/bundle"
+	"github.com/open-policy-agent/opa/internal/wasm/sdk/opa/errors"
 
 	"github.com/open-policy-agent/opa/internal/wasm/sdk/opa"
 )
@@ -82,7 +83,7 @@ func (l *Loader) Init() (*Loader, error) {
 	}
 
 	if l.url == "" {
-		return nil, fmt.Errorf("missing url: %w", opa.ErrInvalidConfig)
+		return nil, fmt.Errorf("missing url: %w", errors.ErrInvalidConfig)
 	}
 
 	l.initialized = true
@@ -93,7 +94,7 @@ func (l *Loader) Init() (*Loader, error) {
 // successful download.  If cancelled, will return context.Cancelled.
 func (l *Loader) Start(ctx context.Context) error {
 	if !l.initialized {
-		return opa.ErrNotReady
+		return errors.ErrNotReady
 	}
 
 	if err := l.download(ctx); err != nil {
@@ -177,7 +178,7 @@ func (l *Loader) download(ctx context.Context) error {
 // SetPolicyData of OPA returns.
 func (l *Loader) Load(ctx context.Context) error {
 	if !l.initialized {
-		return opa.ErrNotReady
+		return errors.ErrNotReady
 	}
 
 	l.mutex.Lock()
@@ -185,11 +186,11 @@ func (l *Loader) Load(ctx context.Context) error {
 
 	bundle, err := l.get(ctx, "")
 	if err != nil {
-		return fmt.Errorf("%v: %w", err, opa.ErrInvalidBundle)
+		return fmt.Errorf("%v: %w", err, errors.ErrInvalidBundle)
 	}
 
 	if len(bundle.WasmModules) == 0 {
-		return opa.ErrInvalidBundle
+		return errors.ErrInvalidBundle
 	}
 
 	var data *interface{}

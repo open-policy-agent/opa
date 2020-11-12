@@ -2,7 +2,7 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-package opa
+package wasm_test
 
 import (
 	"context"
@@ -11,6 +11,7 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/compile"
+	"github.com/open-policy-agent/opa/internal/wasm/sdk/internal/wasm"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/util"
 )
@@ -55,7 +56,7 @@ func TestPoolCopyParsedDataUpdateFull(t *testing.T) {
 	testPool := initPoolWithData(t, uint32(poolSize), module, "test/p", data)
 
 	updated := []byte(`{"a": {"x": 123, "y": "bar"}}`)
-	err := testPool.SetPolicyData(testPool.policy, updated)
+	err := testPool.SetPolicyData(testPool.Policy(), updated)
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
@@ -66,7 +67,7 @@ func TestPoolCopyParsedDataUpdateFull(t *testing.T) {
 	// Change it one more time, now that all VM's in the pool have been
 	// initialized and exercised at least once.
 	updated = []byte(`{"a": [1, 2, 3]}`)
-	err = testPool.SetPolicyData(testPool.policy, updated)
+	err = testPool.SetPolicyData(testPool.Policy(), updated)
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
@@ -135,9 +136,9 @@ func TestPoolCopyParsedDataUpdatePartial(t *testing.T) {
 	}
 }
 
-func ensurePoolResults(t *testing.T, testPool *pool, poolSize int, expected string) {
+func ensurePoolResults(t *testing.T, testPool *wasm.Pool, poolSize int, expected string) {
 	t.Helper()
-	var toRelease []*vm
+	var toRelease []*wasm.VM
 	for i := 0; i < poolSize; i++ {
 		vm, err := testPool.Acquire(context.Background(), metrics.New())
 		if err != nil {
@@ -159,7 +160,7 @@ func ensurePoolResults(t *testing.T, testPool *pool, poolSize int, expected stri
 	}
 }
 
-func initPoolWithData(t *testing.T, size uint32, module string, entrypoint string, data []byte) *pool {
+func initPoolWithData(t *testing.T, size uint32, module string, entrypoint string, data []byte) *wasm.Pool {
 	t.Helper()
 
 	ctx := context.Background()
@@ -183,26 +184,27 @@ func initPoolWithData(t *testing.T, size uint32, module string, entrypoint strin
 		t.Fatalf("Unexpected error: %s", err)
 	}
 
-	testPool := newPool(size, 16, 0)
+	testPool := wasm.NewPool(size, 16, 0)
 
 	err = testPool.SetPolicyData(compiler.Bundle().WasmModules[0].Raw, data)
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
 
-	if len(testPool.vms) != 1 {
+	if testPool.Size() != 1 {
 		t.Fatalf("Expected a single vm to be initialized with data")
 	}
 
-	if testPool.parsedDataAddr == 0 {
+	parsedDataAddr, parsedData := testPool.ParsedData()
+	if parsedDataAddr == 0 {
 		t.Fatalf("Expected parsedDataAddr to be non-nil")
 	}
 
-	if len(testPool.parsedData) == 0 {
+	if len(parsedData) == 0 {
 		t.Fatalf("Expected parsedData to be non-nil")
 	}
 
-	vm := testPool.wait(0)
+	vm := testPool.Wait(0)
 	if vm == nil {
 		t.Fatalf("Expected non-nil initial vm")
 	}

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/open-policy-agent/opa/bundle"
+	"github.com/open-policy-agent/opa/internal/wasm/sdk/opa/errors"
 
 	"github.com/open-policy-agent/opa/internal/wasm/sdk/opa"
 )
@@ -63,7 +64,7 @@ func (l *Loader) Init() (*Loader, error) {
 	}
 
 	if l.filename == "" {
-		return nil, fmt.Errorf("filename: %w", opa.ErrInvalidConfig)
+		return nil, fmt.Errorf("filename: %w", errors.ErrInvalidConfig)
 	}
 
 	l.initialized = true
@@ -74,7 +75,7 @@ func (l *Loader) Init() (*Loader, error) {
 // bundle loading fails.
 func (l *Loader) Start(ctx context.Context) error {
 	if !l.initialized {
-		return opa.ErrNotReady
+		return errors.ErrNotReady
 	}
 
 	if err := l.Load(ctx); err != nil {
@@ -112,7 +113,7 @@ func (l *Loader) Close() {
 // returns.
 func (l *Loader) Load(ctx context.Context) error {
 	if !l.initialized {
-		return opa.ErrNotReady
+		return errors.ErrNotReady
 	}
 
 	l.mutex.Lock()
@@ -120,7 +121,7 @@ func (l *Loader) Load(ctx context.Context) error {
 
 	f, err := os.Open(l.filename)
 	if err != nil {
-		return fmt.Errorf("%v: %w", err, opa.ErrInvalidBundle)
+		return fmt.Errorf("%v: %w", err, errors.ErrInvalidBundle)
 	}
 
 	defer f.Close()
@@ -129,11 +130,11 @@ func (l *Loader) Load(ctx context.Context) error {
 
 	b, err := bundle.NewReader(f).Read()
 	if err != nil {
-		return fmt.Errorf("%v: %w", err, opa.ErrInvalidBundle)
+		return fmt.Errorf("%v: %w", err, errors.ErrInvalidBundle)
 	}
 
 	if len(b.WasmModules) == 0 {
-		return fmt.Errorf("missing wasm: %w", opa.ErrInvalidBundle)
+		return fmt.Errorf("missing wasm: %w", errors.ErrInvalidBundle)
 	}
 
 	var data *interface{}
