@@ -46,6 +46,7 @@ type Config struct {
 		ClientTLS   *clientTLSAuthPlugin               `json:"client_tls,omitempty"`
 		S3Signing   *awsSigningAuthPlugin              `json:"s3_signing,omitempty"`
 		GCPMetadata *gcpMetadataAuthPlugin             `json:"gcp_metadata,omitempty"`
+		Plugin      *string                            `json:"plugin,omitempty"`
 	} `json:"credentials"`
 }
 
@@ -54,10 +55,16 @@ func (c *Config) Equal(other *Config) bool {
 	return reflect.DeepEqual(c, other)
 }
 
-func (c *Config) authPlugin() (HTTPAuthPlugin, error) {
+func (c *Config) authPlugin(authPluginLookup func(string) HTTPAuthPlugin) (HTTPAuthPlugin, error) {
+	var candidate HTTPAuthPlugin
+	if c.Credentials.Plugin != nil && authPluginLookup != nil {
+		candidate := authPluginLookup(*c.Credentials.Plugin)
+		if candidate != nil {
+			return candidate, nil
+		}
+	}
 	// reflection avoids need for this code to change as auth plugins are added
 	s := reflect.ValueOf(c.Credentials)
-	var candidate HTTPAuthPlugin
 	for i := 0; i < s.NumField(); i++ {
 		if s.Field(i).IsNil() {
 			continue
@@ -73,16 +80,16 @@ func (c *Config) authPlugin() (HTTPAuthPlugin, error) {
 	return candidate, nil
 }
 
-func (c *Config) authHTTPClient() (*http.Client, error) {
-	plugin, err := c.authPlugin()
+func (c *Config) authHTTPClient(authPluginLookup func(string) HTTPAuthPlugin) (*http.Client, error) {
+	plugin, err := c.authPlugin(authPluginLookup)
 	if err != nil {
 		return nil, err
 	}
 	return plugin.NewClient(*c)
 }
 
-func (c *Config) authPrepare(req *http.Request) error {
-	plugin, err := c.authPlugin()
+func (c *Config) authPrepare(req *http.Request, authPluginLookup func(string) HTTPAuthPlugin) error {
+	plugin, err := c.authPlugin(authPluginLookup)
 	if err != nil {
 		return err
 	}
@@ -92,16 +99,27 @@ func (c *Config) authPrepare(req *http.Request) error {
 // Client implements an HTTP/REST client for communicating with remote
 // services.
 type Client struct {
-	bytes   *[]byte
-	json    *interface{}
-	config  Config
-	headers map[string]string
+	bytes            *[]byte
+	json             *interface{}
+	config           Config
+	headers          map[string]string
+	authPluginLookup func(string) HTTPAuthPlugin
 }
 
 // Name returns an option that overrides the service name on the client.
 func Name(s string) func(*Client) {
 	return func(c *Client) {
 		c.config.Name = s
+	}
+}
+
+// AuthPluginLookup assigns a function to lookup an HTTPAuthPlugin to a new Client.
+// It's intended to be used when creating a Client using New(). Usually this is passed
+// the plugins.AuthPlugin func, which retrieves a registered HTTPAuthPlugin from the
+// plugin manager.
+func AuthPluginLookup(l func(string) HTTPAuthPlugin) func(*Client) {
+	return func(c *Client) {
+		c.authPluginLookup = l
 	}
 }
 
@@ -174,7 +192,7 @@ func (c Client) WithBytes(body []byte) Client {
 // Do executes a request using the client.
 func (c Client) Do(ctx context.Context, method, path string) (*http.Response, error) {
 
-	httpClient, err := c.config.authHTTPClient()
+	httpClient, err := c.config.authHTTPClient(c.authPluginLookup)
 	if err != nil {
 		return nil, err
 	}
@@ -220,7 +238,7 @@ func (c Client) Do(ctx context.Context, method, path string) (*http.Response, er
 
 	req = req.WithContext(ctx)
 
-	err = c.config.authPrepare(req)
+	err = c.config.authPrepare(req, c.authPluginLookup)
 	if err != nil {
 		return nil, err
 	}

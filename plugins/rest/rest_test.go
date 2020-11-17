@@ -393,6 +393,16 @@ func TestNew(t *testing.T) {
 			}`,
 			wantErr: true,
 		},
+		{
+			name: "Plugin",
+			input: `{
+				"name": "foo",
+				"url": "http://localhost",
+				"credentials": {
+					"plugin": "my_plugin"
+        }
+			}`,
+		},
 	}
 
 	var results []Client
@@ -409,12 +419,12 @@ func TestNew(t *testing.T) {
 				}
 			}()
 
-			client, err := New([]byte(tc.input))
+			client, err := New([]byte(tc.input), AuthPluginLookup(mockAuthPluginLookup))
 			if err != nil && !tc.wantErr {
 				t.Fatalf("Unexpected error: %v", err)
 			}
 
-			plugin, err := client.config.authPlugin()
+			plugin, err := client.config.authPlugin(mockAuthPluginLookup)
 			if err != nil {
 				if tc.wantErr {
 					return
@@ -1215,4 +1225,27 @@ func getTestServerWithTimeout(d time.Duration) (baseURL string, teardownFn func(
 		w.WriteHeader(http.StatusOK)
 	})
 	return ts.URL, ts.Close
+}
+
+func mockAuthPluginLookup(name string) HTTPAuthPlugin {
+	if name == "my_plugin" {
+		return &myPluginMock{}
+	}
+	return nil
+}
+
+type myPluginMock struct{}
+
+func (m *myPluginMock) NewClient(c Config) (*http.Client, error) {
+	tlsConfig, err := DefaultTLSConfig(c)
+	if err != nil {
+		return nil, err
+	}
+	return DefaultRoundTripperClient(
+		tlsConfig,
+		defaultResponseHeaderTimeoutSeconds,
+	), nil
+}
+func (*myPluginMock) Prepare(*http.Request) error {
+	return nil
 }

@@ -20,28 +20,34 @@ import (
 	"github.com/open-policy-agent/opa/util"
 )
 
+// ServiceOptions stores the options passed to ParseServicesConfig
+type ServiceOptions struct {
+	Raw        json.RawMessage
+	AuthPlugin func(string) rest.HTTPAuthPlugin
+}
+
 // ParseServicesConfig returns a set of named service clients. The service
 // clients can be specified either as an array or as a map. Some systems (e.g.,
 // Helm) do not have proper support for configuration values nested under
 // arrays, so just support both here.
-func ParseServicesConfig(raw json.RawMessage) (map[string]rest.Client, error) {
+func ParseServicesConfig(opts ServiceOptions) (map[string]rest.Client, error) {
 
 	services := map[string]rest.Client{}
 
 	var arr []json.RawMessage
 	var obj map[string]json.RawMessage
 
-	if err := util.Unmarshal(raw, &arr); err == nil {
+	if err := util.Unmarshal(opts.Raw, &arr); err == nil {
 		for _, s := range arr {
-			client, err := rest.New(s)
+			client, err := rest.New(s, rest.AuthPluginLookup(opts.AuthPlugin))
 			if err != nil {
 				return nil, err
 			}
 			services[client.Service()] = client
 		}
-	} else if util.Unmarshal(raw, &obj) == nil {
+	} else if util.Unmarshal(opts.Raw, &obj) == nil {
 		for k := range obj {
-			client, err := rest.New(obj[k], rest.Name(k))
+			client, err := rest.New(obj[k], rest.Name(k), rest.AuthPluginLookup(opts.AuthPlugin))
 			if err != nil {
 				return nil, err
 			}
@@ -55,7 +61,7 @@ func ParseServicesConfig(raw json.RawMessage) (map[string]rest.Client, error) {
 	return services, nil
 }
 
-// Load implements configuraiton file loading. The supplied config file will be
+// Load implements configuration file loading. The supplied config file will be
 // read from disk (if specified) and overrides will be applied. If no config file is
 // specified, the overrides can still be applied to an empty config.
 func Load(configFile string, overrides []string, overrideFiles []string) ([]byte, error) {

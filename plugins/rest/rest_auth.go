@@ -21,8 +21,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// defaultTLSConfig defines standard TLS configurations based on the Config
-func defaultTLSConfig(c Config) (*tls.Config, error) {
+// DefaultTLSConfig defines standard TLS configurations based on the Config
+func DefaultTLSConfig(c Config) (*tls.Config, error) {
 	t := &tls.Config{}
 	url, err := url.Parse(c.URL)
 	if err != nil {
@@ -34,8 +34,8 @@ func defaultTLSConfig(c Config) (*tls.Config, error) {
 	return t, nil
 }
 
-// defaultRoundTripperClient is a reasonable set of defaults for HTTP auth plugins
-func defaultRoundTripperClient(t *tls.Config, timeout int64) *http.Client {
+// DefaultRoundTripperClient is a reasonable set of defaults for HTTP auth plugins
+func DefaultRoundTripperClient(t *tls.Config, timeout int64) *http.Client {
 	// Ensure we use a http.Transport with proper settings: the zero values are not
 	// a good choice, as they cause leaking connections:
 	// https://github.com/golang/go/issues/19620
@@ -54,11 +54,11 @@ func defaultRoundTripperClient(t *tls.Config, timeout int64) *http.Client {
 type defaultAuthPlugin struct{}
 
 func (ap *defaultAuthPlugin) NewClient(c Config) (*http.Client, error) {
-	t, err := defaultTLSConfig(c)
+	t, err := DefaultTLSConfig(c)
 	if err != nil {
 		return nil, err
 	}
-	return defaultRoundTripperClient(t, *c.ResponseHeaderTimeoutSeconds), nil
+	return DefaultRoundTripperClient(t, *c.ResponseHeaderTimeoutSeconds), nil
 }
 
 func (ap *defaultAuthPlugin) Prepare(req *http.Request) error {
@@ -73,7 +73,7 @@ type bearerAuthPlugin struct {
 }
 
 func (ap *bearerAuthPlugin) NewClient(c Config) (*http.Client, error) {
-	t, err := defaultTLSConfig(c)
+	t, err := DefaultTLSConfig(c)
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +86,7 @@ func (ap *bearerAuthPlugin) NewClient(c Config) (*http.Client, error) {
 		ap.Scheme = "Bearer"
 	}
 
-	return defaultRoundTripperClient(t, *c.ResponseHeaderTimeoutSeconds), nil
+	return DefaultRoundTripperClient(t, *c.ResponseHeaderTimeoutSeconds), nil
 }
 
 func (ap *bearerAuthPlugin) Prepare(req *http.Request) error {
@@ -128,7 +128,7 @@ type oauth2Token struct {
 }
 
 func (ap *oauth2ClientCredentialsAuthPlugin) NewClient(c Config) (*http.Client, error) {
-	t, err := defaultTLSConfig(c)
+	t, err := DefaultTLSConfig(c)
 	if err != nil {
 		return nil, err
 	}
@@ -146,7 +146,7 @@ func (ap *oauth2ClientCredentialsAuthPlugin) NewClient(c Config) (*http.Client, 
 		ap.Scopes = &[]string{}
 	}
 
-	return defaultRoundTripperClient(t, *c.ResponseHeaderTimeoutSeconds), nil
+	return DefaultRoundTripperClient(t, *c.ResponseHeaderTimeoutSeconds), nil
 }
 
 // requestToken tries to obtain an access token using the client credentials flow
@@ -164,7 +164,7 @@ func (ap *oauth2ClientCredentialsAuthPlugin) requestToken() (*oauth2Token, error
 	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	r.SetBasicAuth(ap.ClientID, ap.ClientSecret)
 
-	client := defaultRoundTripperClient(&tls.Config{InsecureSkipVerify: ap.tlsSkipVerify}, 10)
+	client := DefaultRoundTripperClient(&tls.Config{InsecureSkipVerify: ap.tlsSkipVerify}, 10)
 	response, err := client.Do(r)
 	if err != nil {
 		return nil, err
@@ -218,7 +218,7 @@ type clientTLSAuthPlugin struct {
 }
 
 func (ap *clientTLSAuthPlugin) NewClient(c Config) (*http.Client, error) {
-	tlsConfig, err := defaultTLSConfig(c)
+	tlsConfig, err := DefaultTLSConfig(c)
 	if err != nil {
 		return nil, err
 	}
@@ -281,7 +281,7 @@ func (ap *clientTLSAuthPlugin) NewClient(c Config) (*http.Client, error) {
 	}
 
 	tlsConfig.Certificates = []tls.Certificate{cert}
-	client := defaultRoundTripperClient(tlsConfig, *c.ResponseHeaderTimeoutSeconds)
+	client := DefaultRoundTripperClient(tlsConfig, *c.ResponseHeaderTimeoutSeconds)
 	return client, nil
 }
 
@@ -307,7 +307,7 @@ func (ap *awsSigningAuthPlugin) awsCredentialService() awsCredentialService {
 }
 
 func (ap *awsSigningAuthPlugin) NewClient(c Config) (*http.Client, error) {
-	t, err := defaultTLSConfig(c)
+	t, err := DefaultTLSConfig(c)
 	if err != nil {
 		return nil, err
 	}
@@ -331,7 +331,7 @@ func (ap *awsSigningAuthPlugin) NewClient(c Config) (*http.Client, error) {
 			return nil, err
 		}
 	}
-	return defaultRoundTripperClient(t, *c.ResponseHeaderTimeoutSeconds), nil
+	return DefaultRoundTripperClient(t, *c.ResponseHeaderTimeoutSeconds), nil
 }
 
 func (ap *awsSigningAuthPlugin) Prepare(req *http.Request) error {
