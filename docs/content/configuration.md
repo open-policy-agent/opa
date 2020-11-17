@@ -406,6 +406,107 @@ bundles:
       max_delay_seconds: 120
 ```
 
+#### Custom Plugin
+
+If none of the existing credential options work for a service, OPA can authenticate using a custom plugin, enabling support for any authentication scheme.
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+|`services[_].credentials.plugin`|`string`|No|The name of the plugin to use for authentication|
+
+##### Example
+
+Using a custom plugin for service credentials:
+
+```yaml
+services:
+  my_service:
+    url: https://example.com/v1
+    credentials:
+      plugin: my_custom_auth
+plugins:
+  my_custom_auth:
+    foo: bar
+```
+
+```go
+
+package plugins
+
+import (
+	"github.com/open-policy-agent/opa/plugins"
+	"github.com/open-policy-agent/opa/plugins/rest"
+	"github.com/open-policy-agent/opa/runtime"
+	"github.com/open-policy-agent/opa/util"
+)
+
+type Config struct {
+	Foo string `json:"foo"`
+}
+
+type PluginFactory struct{}
+
+type Plugin struct {
+	manager  *plugins.Manager
+	config   Config
+	stop     chan chan struct{}
+	reconfig chan interface{}
+}
+
+func (p *PluginFactory) Validate(manager *plugins.Manager, config []byte) (interface{}, error) {
+	var parsedConfig Config
+	if err := util.Unmarshal(config, &parsedConfig); err != nil {
+		return nil, err
+	}
+	return &parsedConfig, nil
+}
+
+func (p *PluginFactory) New(manager *plugins.Manager, config interface{}) plugins.Plugin {
+	return &Plugin{
+		config:   *config.(*Config),
+		manager:  manager,
+		stop:     make(chan chan struct{}),
+		reconfig: make(chan interface{}),
+	}
+}
+
+func (p *Plugin) Start(ctx context.Context) error {
+	p.manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateOK})
+	return nil
+}
+
+func (p *Plugin) Stop(ctx context.Context) {
+	done := make(chan struct{})
+	p.stop <- done
+	_ = <-done
+	p.manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateNotReady})
+	return
+}
+
+func (p *Plugin) Reconfigure(ctx context.Context, config interface{}) {
+	p.reconfig <- config
+	return
+}
+
+func (p *Plugin) NewClient(c rest.Config) (*http.Client, error) {
+	t, err := rest.DefaultTLSConfig(c)
+	if err != nil {
+		return nil, err
+	}
+	return rest.DefaultRoundTripperClient(t, *c.ResponseHeaderTimeoutSeconds), nil
+}
+
+func (p *Plugin) Prepare(req *http.Request) error {
+	req.Header.Add("X-Custom-Auth-Protocol", "knock knock")
+	return nil
+}
+
+func init() {
+	runtime.RegisterPlugin("my_custom_auth", &PluginFactory{})
+}
+
+```
+
 ### Miscellaneous
 
 | Field | Type | Required | Description |

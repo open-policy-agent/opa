@@ -229,7 +229,11 @@ func (c *Discovery) processBundle(ctx context.Context, b *bundleApi.Bundle) (*pl
 	// unrecoverable (without keeping track of changes and rolling back...)
 
 	// check for updates to the discovery service
-	services, err := cfg.ParseServicesConfig(config.Services)
+	opts := cfg.ServiceOptions{
+		Raw:        config.Services,
+		AuthPlugin: c.manager.AuthPlugin,
+	}
+	services, err := cfg.ParseServicesConfig(opts)
 	if err != nil {
 		return nil, err
 	}

@@ -75,12 +75,12 @@ func (ap *gcpMetadataAuthPlugin) NewClient(c Config) (*http.Client, error) {
 		ap.IdentityTokenPath = defaultIdentityTokenPath
 	}
 
-	t, err := defaultTLSConfig(c)
+	t, err := DefaultTLSConfig(c)
 	if err != nil {
 		return nil, err
 	}
 
-	return defaultRoundTripperClient(t, *c.ResponseHeaderTimeoutSeconds), nil
+	return DefaultRoundTripperClient(t, *c.ResponseHeaderTimeoutSeconds), nil
 }
 
 func (ap *gcpMetadataAuthPlugin) Prepare(req *http.Request) error {
