@@ -15,7 +15,7 @@ jobs:
 
       - name: Set TAG_NAME in Environment
         # Subsequent jobs will be have the computed tag name
-        run: echo ::set-env name=TAG_NAME::"${GITHUB_REF##*/}"
+        run: echo "TAG_NAME=${GITHUB_REF##*/}" >> $GITHUB_ENV
 
       - name: Test
         run: make ci-release-test
