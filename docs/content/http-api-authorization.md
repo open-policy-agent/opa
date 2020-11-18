@@ -310,31 +310,31 @@ Let's try a few queries (note: you may need to escape the `?` characters in the 
 Check that `charlie` can't see `bob`'s salary.
 
 ```shell
-curl --user charlie:password localhost:5000/finance/salary/bob?token=$CHARLIE_TOKEN
+curl --user charlie:password "localhost:5000/finance/salary/bob?token=$CHARLIE_TOKEN"
 ```
 
 Check that `charlie` can't pretend to be `bob` to see `alice`'s salary.
 
 ```shell
-curl --user charlie:password localhost:5000/finance/salary/alice?token=$BOB_TOKEN
+curl --user charlie:password "localhost:5000/finance/salary/alice?token=$BOB_TOKEN"
 ```
 
 Check that `david` can see `betty`'s salary.
 
 ```shell
-curl --user david:password localhost:5000/finance/salary/betty?token=$DAVID_TOKEN
+curl --user david:password "localhost:5000/finance/salary/betty?token=$DAVID_TOKEN"
 ```
 
 Check that `bob` can see `alice`'s salary.
 
 ```shell
-curl --user bob:password localhost:5000/finance/salary/alice?token=$BOB_TOKEN
+curl --user bob:password "localhost:5000/finance/salary/alice?token=$BOB_TOKEN"
 ```
 
 Check that `alice` can see her own salary.
 
 ```shell
-curl --user alice:password localhost:5000/finance/salary/alice?token=$ALICE_TOKEN
+curl --user alice:password "localhost:5000/finance/salary/alice?token=$ALICE_TOKEN"
 ```
 
 ## Wrap Up
