@@ -2,7 +2,7 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-package opa
+package wasm
 
 import (
 	"bytes"
@@ -21,7 +21,8 @@ import (
 	"github.com/open-policy-agent/opa/topdown/builtins"
 )
 
-type vm struct {
+// VM is a wrapper around a Wasm VM instance
+type VM struct {
 	instance             *wasm.Instance // Pointer to avoid unintented destruction (triggering finalizers within).
 	policy               []byte
 	data                 []byte
@@ -31,7 +32,7 @@ type vm struct {
 	bctx                 *topdown.BuiltinContext
 	builtins             map[int32]topdown.BuiltinFunc
 	builtinResult        *ast.Term
-	entrypointIDs        map[string]EntrypointID
+	entrypointIDs        map[string]int32
 	baseHeapPtr          int32
 	dataAddr             int32
 	evalHeapPtr          int32
@@ -64,7 +65,7 @@ type vmOpts struct {
 	memoryMax      uint32
 }
 
-func newVM(opts vmOpts) (*vm, error) {
+func newVM(opts vmOpts) (*VM, error) {
 	memory, err := wasm.NewMemory(opts.memoryMin, opts.memoryMax)
 	if err != nil {
 		return nil, err
@@ -85,14 +86,14 @@ func newVM(opts vmOpts) (*vm, error) {
 		return nil, err
 	}
 
-	v := &vm{
+	v := &VM{
 		instance:             &i,
 		policy:               opts.policy,
 		memory:               memory,
 		memoryMin:            opts.memoryMin,
 		memoryMax:            opts.memoryMax,
 		builtins:             make(map[int32]topdown.BuiltinFunc),
-		entrypointIDs:        make(map[string]EntrypointID),
+		entrypointIDs:        make(map[string]int32),
 		dataAddr:             0,
 		eval:                 i.Exports["eval"],
 		evalCtxGetResult:     i.Exports["opa_eval_ctx_get_result"],
@@ -131,7 +132,7 @@ func newVM(opts vmOpts) (*vm, error) {
 	if opts.parsedData != nil {
 		if memory.Length()-uint32(v.baseHeapPtr) < uint32(len(opts.parsedData)) {
 			delta := uint32(len(opts.parsedData)) - (memory.Length() - uint32(v.baseHeapPtr))
-			err := memory.Grow(pages(delta))
+			err := memory.Grow(Pages(delta))
 			if err != nil {
 				return nil, err
 			}
@@ -201,7 +202,7 @@ func newVM(opts vmOpts) (*vm, error) {
 		if err != nil {
 			return nil, err
 		}
-		v.entrypointIDs[ep] = EntrypointID(id)
+		v.entrypointIDs[ep] = int32(id)
 	}
 
 	return v, nil
@@ -209,7 +210,7 @@ func newVM(opts vmOpts) (*vm, error) {
 
 // Eval performs an evaluation of the specified entrypoint, with any provided
 // input, and returns the resulting value dumped to a string.
-func (i *vm) Eval(ctx context.Context, entrypoint EntrypointID, input *interface{}, metrics metrics.Metrics) ([]byte, error) {
+func (i *VM) Eval(ctx context.Context, entrypoint int32, input *interface{}, metrics metrics.Metrics) ([]byte, error) {
 	metrics.Timer("wasm_vm_eval").Start()
 	defer metrics.Timer("wasm_vm_eval").Stop()
 
@@ -304,7 +305,9 @@ func (i *vm) Eval(ctx context.Context, entrypoint EntrypointID, input *interface
 	return data[0:n], err
 }
 
-func (i *vm) SetPolicyData(opts vmOpts) error {
+// SetPolicyData Will either update the VM's data or, if the policy changed,
+// re-initialize the VM.
+func (i *VM) SetPolicyData(opts vmOpts) error {
 	if !bytes.Equal(opts.policy, i.policy) {
 		// Swap the instance to a new one, with new policy.
 		n, err := newVM(opts)
@@ -328,7 +331,7 @@ func (i *vm) SetPolicyData(opts vmOpts) error {
 	if opts.parsedData != nil {
 		if i.memory.Length()-uint32(i.baseHeapPtr) < uint32(len(opts.parsedData)) {
 			delta := uint32(len(opts.parsedData)) - (i.memory.Length() - uint32(i.baseHeapPtr))
-			err := i.memory.Grow(pages(delta))
+			err := i.memory.Grow(Pages(delta))
 			if err != nil {
 				return err
 			}
@@ -356,7 +359,8 @@ func (i *vm) SetPolicyData(opts vmOpts) error {
 	return nil
 }
 
-func (i *vm) Close() {
+// Close the VM instance.
+func (i *VM) Close() {
 	i.memory.Close()
 	i.instance.Close()
 }
@@ -367,7 +371,7 @@ type abortError struct {
 
 // Abort is invoked by the policy if an internal error occurs during
 // the policy execution.
-func (i *vm) Abort(arg int32) {
+func (i *VM) Abort(arg int32) {
 	data := i.memory.Data()[arg:]
 	n := bytes.IndexByte(data, 0)
 	if n == -1 {
@@ -382,7 +386,7 @@ type builtinError struct {
 }
 
 // Builtin executes a builtin for the policy.
-func (i *vm) Builtin(builtinID, ctx int32, args ...int32) int32 {
+func (i *VM) Builtin(builtinID, ctx int32, args ...int32) int32 {
 
 	// TODO: Returning proper errors instead of panicing.
 	// TODO: To avoid growing the heap with every built-in call, recycle the JSON buffers since the free implementation is no-op.
@@ -436,11 +440,14 @@ func (i *vm) Builtin(builtinID, ctx int32, args ...int32) int32 {
 }
 
 // Entrypoints returns a mapping of entrypoint name to ID for use by Eval().
-func (i *vm) Entrypoints() map[string]EntrypointID {
+func (i *VM) Entrypoints() map[string]int32 {
 	return i.entrypointIDs
 }
 
-func (i *vm) SetDataPath(path []string, value interface{}) error {
+// SetDataPath will update the current data on the VM by setting the value at the
+// specified path. If an error occurs the instance is still in a valid state, however
+// the data will not have been modified.
+func (i *VM) SetDataPath(path []string, value interface{}) error {
 
 	// Reset the heap ptr before patching the vm to try and keep any
 	// new allocations safe from subsequent heap resets on eval.
@@ -488,7 +495,10 @@ func (i *vm) SetDataPath(path []string, value interface{}) error {
 	return nil
 }
 
-func (i *vm) RemoveDataPath(path []string) error {
+// RemoveDataPath will update the current data on the VM by removing the value at the
+// specified path. If an error occurs the instance is still in a valid state, however
+// the data will not have been modified.
+func (i *VM) RemoveDataPath(path []string) error {
 	pathAddr, err := i.toRegoJSON(path, true)
 	if err != nil {
 		return err
@@ -507,13 +517,13 @@ func (i *vm) RemoveDataPath(path []string) error {
 	return nil
 }
 
-func (i *vm) iter(result *ast.Term) error {
+func (i *VM) iter(result *ast.Term) error {
 	i.builtinResult = result
 	return nil
 }
 
 // fromRegoJSON converts Rego JSON to go native JSON.
-func (i *vm) fromRegoJSON(addr int32, free bool) (interface{}, error) {
+func (i *VM) fromRegoJSON(addr int32, free bool) (interface{}, error) {
 	serialized, err := i.jsonDump(addr)
 	if err != nil {
 		return nil, err
@@ -545,7 +555,7 @@ func (i *vm) fromRegoJSON(addr int32, free bool) (interface{}, error) {
 }
 
 // toRegoJSON converts go native JSON to Rego JSON.
-func (i *vm) toRegoJSON(v interface{}, free bool) (int32, error) {
+func (i *VM) toRegoJSON(v interface{}, free bool) (int32, error) {
 	var raw []byte
 	switch v := v.(type) {
 	case []byte:
@@ -585,7 +595,7 @@ func (i *vm) toRegoJSON(v interface{}, free bool) (int32, error) {
 	return addr.ToI32(), nil
 }
 
-func (i *vm) getHeapState() (int32, error) {
+func (i *VM) getHeapState() (int32, error) {
 	ptr, err := i.heapPtrGet()
 	if err != nil {
 		return 0, err
@@ -594,12 +604,12 @@ func (i *vm) getHeapState() (int32, error) {
 	return ptr.ToI32(), nil
 }
 
-func (i *vm) setHeapState(ptr int32) error {
+func (i *VM) setHeapState(ptr int32) error {
 	_, err := i.heapPtrSet(ptr)
 	return err
 }
 
-func (i *vm) cloneDataSegment() (int32, []byte) {
+func (i *VM) cloneDataSegment() (int32, []byte) {
 	// The parsed data values sit between the base heap address and end
 	// at the eval heap pointer address.
 	srcData := i.memory.Data()[i.baseHeapPtr:i.evalHeapPtr]

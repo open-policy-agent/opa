@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/open-policy-agent/opa/internal/wasm/sdk/opa"
+	"github.com/open-policy-agent/opa/internal/wasm/sdk/opa/errors"
 )
 
 // WithFile configures the file to load the bundle from.
@@ -26,7 +26,7 @@ func (l *Loader) WithInterval(interval time.Duration) *Loader {
 // WithErrorLogger configures an error logger invoked with all the errors.
 func (l *Loader) WithErrorLogger(logger func(error)) *Loader {
 	if logger == nil {
-		l.configErr = fmt.Errorf("logger: %w", opa.ErrInvalidConfig)
+		l.configErr = fmt.Errorf("logger: %w", errors.ErrInvalidConfig)
 		return l
 	}
 

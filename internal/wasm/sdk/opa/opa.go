@@ -11,6 +11,8 @@ import (
 	"runtime"
 	"sync"
 
+	"github.com/open-policy-agent/opa/internal/wasm/sdk/internal/wasm"
+	"github.com/open-policy-agent/opa/internal/wasm/sdk/opa/errors"
 	"github.com/open-policy-agent/opa/metrics"
 )
 
@@ -20,7 +22,7 @@ type OPA struct {
 	memoryMinPages uint32
 	memoryMaxPages uint32 // 0 means no limit.
 	poolSize       uint32
-	pool           *pool
+	pool           *wasm.Pool
 	mutex          sync.Mutex // To serialize access to SetPolicy, SetData and Close.
 	policy         []byte     // Current policy.
 	data           []byte     // Current data.
@@ -31,11 +33,6 @@ type OPA struct {
 type Result struct {
 	Result []byte
 }
-
-// EntrypointID is used by Eval() to determine which compiled entrypoint should
-// be evaluated. Retrieve entrypoint to ID mapping for each instance of the
-// compiled policy.
-type EntrypointID int32
 
 // New constructs a new OPA SDK instance, ready to be configured with
 // With functions. If no policy is provided as a part of
@@ -61,7 +58,7 @@ func (o *OPA) Init() (*OPA, error) {
 		return nil, o.configErr
 	}
 
-	o.pool = newPool(o.poolSize, o.memoryMinPages, o.memoryMaxPages)
+	o.pool = wasm.NewPool(o.poolSize, o.memoryMinPages, o.memoryMaxPages)
 
 	if len(o.policy) != 0 {
 		if err := o.pool.SetPolicyData(o.policy, o.data); err != nil {
@@ -77,12 +74,12 @@ func (o *OPA) Init() (*OPA, error) {
 // error occurs.
 func (o *OPA) SetData(v interface{}) error {
 	if o.pool == nil {
-		return ErrNotReady
+		return errors.ErrNotReady
 	}
 
 	raw, err := json.Marshal(v)
 	if err != nil {
-		return fmt.Errorf("%v: %w", err, ErrInvalidPolicyOrData)
+		return fmt.Errorf("%v: %w", err, errors.ErrInvalidPolicyOrData)
 	}
 
 	o.mutex.Lock()
@@ -110,7 +107,7 @@ func (o *OPA) RemoveDataPath(path []string) error {
 // error occurs.
 func (o *OPA) SetPolicy(p []byte) error {
 	if o.pool == nil {
-		return ErrNotReady
+		return errors.ErrNotReady
 	}
 
 	o.mutex.Lock()
@@ -124,7 +121,7 @@ func (o *OPA) SetPolicy(p []byte) error {
 // ErrInternal if an error occurs.
 func (o *OPA) SetPolicyData(policy []byte, data *interface{}) error {
 	if o.pool == nil {
-		return ErrNotReady
+		return errors.ErrNotReady
 	}
 
 	var raw []byte
@@ -132,7 +129,7 @@ func (o *OPA) SetPolicyData(policy []byte, data *interface{}) error {
 		var err error
 		raw, err = json.Marshal(*data)
 		if err != nil {
-			return fmt.Errorf("%v: %w", err, ErrInvalidPolicyOrData)
+			return fmt.Errorf("%v: %w", err, errors.ErrInvalidPolicyOrData)
 		}
 	}
 
@@ -154,7 +151,7 @@ func (o *OPA) setPolicyData(policy []byte, data []byte) error {
 
 // EvalOpts define options for performing an evaluation
 type EvalOpts struct {
-	Entrypoint EntrypointID
+	Entrypoint int32
 	Input      *interface{}
 	Metrics    metrics.Metrics
 }
@@ -165,7 +162,7 @@ type EvalOpts struct {
 // ErrInternal if any other error occurs.
 func (o *OPA) Eval(ctx context.Context, opts EvalOpts) (*Result, error) {
 	if o.pool == nil {
-		return nil, ErrNotReady
+		return nil, errors.ErrNotReady
 	}
 
 	m := opts.Metrics
@@ -182,7 +179,7 @@ func (o *OPA) Eval(ctx context.Context, opts EvalOpts) (*Result, error) {
 
 	result, err := instance.Eval(ctx, opts.Entrypoint, opts.Input, m)
 	if err != nil {
-		return nil, fmt.Errorf("%v: %w", err, ErrInternal)
+		return nil, fmt.Errorf("%v: %w", err, errors.ErrInternal)
 	}
 
 	return &Result{result}, nil
@@ -203,7 +200,7 @@ func (o *OPA) Close() {
 }
 
 // Entrypoints returns a mapping of entrypoint name to ID for use by Eval() and EvalBool().
-func (o *OPA) Entrypoints(ctx context.Context) (map[string]EntrypointID, error) {
+func (o *OPA) Entrypoints(ctx context.Context) (map[string]int32, error) {
 	instance, err := o.pool.Acquire(ctx, metrics.New())
 	if err != nil {
 		return nil, err
