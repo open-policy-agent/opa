@@ -503,6 +503,10 @@ func (i *VM) RemoveDataPath(path []string) error {
 		return err
 	}
 
+	if _, err := i.free(pathAddr); err != nil {
+		return err
+	}
+
 	errc := result.ToI32()
 	if errc != 0 {
 		return fmt.Errorf("unable to set data value for path %v, err=%d", path, errc)
