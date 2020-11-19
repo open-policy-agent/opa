@@ -232,6 +232,18 @@ func JSON(v Value) (interface{}, error) {
 	return ValueToInterface(v, illegalResolver{})
 }
 
+// MustJSON returns the JSON representation of v. The value must not contain any
+// refs or terms that require evaluation (e.g., vars, comprehensions, etc.) If
+// the conversion fails, this function will panic. This function is mostly for
+// test purposes.
+func MustJSON(v Value) interface{} {
+	r, err := JSON(v)
+	if err != nil {
+		panic(err)
+	}
+	return r
+}
+
 // MustInterfaceToValue converts a native Go value x to a Value. If the
 // conversion fails, this function will panic. This function is mostly for test
 // purposes.
