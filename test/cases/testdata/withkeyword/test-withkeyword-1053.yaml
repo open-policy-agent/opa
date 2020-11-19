@@ -101,6 +101,7 @@ cases:
     }
   note: withkeyword/invalidate comprehension cache
   query: data.generated.p = x
+  sort_bindings: true
   want_result:
   - x:
     - - b:
