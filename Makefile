@@ -9,6 +9,7 @@ WASMER_ENABLED ?= 1
 
 # Force modules on and to use the vendor directory.
 GO := CGO_ENABLED=$(CGO_ENABLED) GO111MODULE=on GOFLAGS=-mod=vendor go
+GO_TEST_TIMEOUT := -timeout 30m
 
 GO_TAGS := -tags=
 ifeq ($(WASMER_ENABLED),1)
@@ -64,7 +65,7 @@ LDFLAGS := "$(TELEMETRY_FLAG) \
 
 # If you update the 'all' target make sure the 'ci-release-test' target is consistent.
 .PHONY: all
-all: build test perf check
+all: build test perf wasm-sdk-e2e-test check
 
 .PHONY: version
 version:
@@ -106,7 +107,11 @@ test-coverage: generate
 
 .PHONY: perf
 perf: generate
-	$(GO) test $(GO_TAGS) -run=- -bench=. -benchmem ./...
+	$(GO) test $(GO_TAGS),slow $(GO_TEST_TIMEOUT) -run=- -bench=. -benchmem ./...
+
+.PHONY: wasm-sdk-e2e-test
+wasm-sdk-e2e-test: generate
+	$(GO) test $(GO_TAGS),slow,wasm_sdk_e2e $(GO_TEST_TIMEOUT) -v ./internal/wasm/sdk/test/e2e
 
 .PHONY: check
 check: check-fmt check-vet check-lint
@@ -228,7 +233,7 @@ ci-go-%: generate
 
 .PHONY: ci-release-test
 ci-release-test: generate
-	$(CI_GOLANG_DOCKER_MAKE) test perf check
+	$(CI_GOLANG_DOCKER_MAKE) test perf wasm-sdk-e2e-test check
 
 .PHONY: ci-check-working-copy
 ci-check-working-copy: generate
