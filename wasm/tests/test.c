@@ -2237,6 +2237,7 @@ static void test_submatch_string(const char *s, sequence *seq, opa_value *result
 void test_regex(void)
 {
     test("regex/is_valid", opa_value_compare(opa_regex_is_valid(opa_string_terminated(".*")), opa_boolean(1)) == 0);
+    test("regex/is_valid_non_string", opa_value_compare(opa_regex_is_valid(opa_number_int(123)), opa_boolean(0)) == 0);
 
     typedef struct {
         const char *pat;
