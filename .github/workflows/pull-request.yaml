@@ -78,3 +78,14 @@ jobs:
       - name: Check Working Copy
         run: make ci-check-working-copy
         timeout-minutes: 15
+
+  wasm-go-sdk-e2e:
+    name: OPA Wasm SDK e2e
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: Build and Test Wasm SDK
+        run: make ci-go-wasm-sdk-e2e-test
+        timeout-minutes: 30
