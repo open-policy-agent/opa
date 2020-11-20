@@ -13,7 +13,7 @@ opa_value *opa_regex_is_valid(opa_value *pattern)
 {
     if (opa_value_type(pattern) != OPA_STRING)
     {
-        return NULL;
+        return opa_boolean(false);
     }
 
     re2::RE2::Options options;

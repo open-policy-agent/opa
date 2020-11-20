@@ -1,6 +1,5 @@
 # Exception Format is <test name>: <reason>
 "baseandvirtualdocs/base/virtual: conflicts": "document merge conflict - https://github.com/open-policy-agent/opa/issues/2926"
-"regexisvalid/bad operand type": "issue with c impl of built-in - https://github.com/open-policy-agent/opa/issues/2925"
 "strings/concat: set": "test result order is not consistent - https://github.com/open-policy-agent/opa/issues/2924"
 "strings/format_int": "rounding error - https://github.com/open-policy-agent/opa/issues/2923"
 "strings/format_int: ref dest": "rounding error - https://github.com/open-policy-agent/opa/issues/2923"
