@@ -43,3 +43,6 @@ type HMACSigner struct {
 	alg  jwa.SignatureAlgorithm
 	sign hmacSignFunc
 }
+
+// NOOPSigner does not sign the payload
+type NOOPSigner struct{}

@@ -22,6 +22,8 @@ func New(alg jwa.SignatureAlgorithm) (Verifier, error) {
 		return newECDSA(alg)
 	case jwa.HS256, jwa.HS384, jwa.HS512:
 		return newHMAC(alg)
+	case jwa.NoSignature:
+		return newNOOPVerifier()
 	default:
 		return nil, errors.Errorf(`unsupported signature algorithm: %s`, alg)
 	}

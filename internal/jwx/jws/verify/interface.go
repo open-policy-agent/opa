@@ -37,3 +37,6 @@ type ECDSAVerifier struct {
 type HMACVerifier struct {
 	signer sign.Signer
 }
+
+// NOOPVerifier does not verify the signature
+type NOOPVerifier struct{}
