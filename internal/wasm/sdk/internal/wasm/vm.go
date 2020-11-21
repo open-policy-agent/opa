@@ -393,17 +393,11 @@ func (i *VM) Builtin(builtinID, ctx int32, args ...int32) int32 {
 
 	convertedArgs := make([]*ast.Term, len(args))
 	for j, arg := range args {
-		x, err := i.fromRegoJSON(arg, true)
+		x, err := i.fromRegoValue(arg, true)
 		if err != nil {
 			panic(builtinError{err: err})
 		}
-
-		y, err := ast.InterfaceToValue(x)
-		if err != nil {
-			panic(builtinError{err: err})
-		}
-
-		convertedArgs[j] = ast.NewTerm(y)
+		convertedArgs[j] = x
 	}
 
 	if i.bctx == nil {
@@ -522,7 +516,8 @@ func (i *VM) iter(result *ast.Term) error {
 	return nil
 }
 
-// fromRegoJSON converts Rego JSON to go native JSON.
+// fromRegoJSON parses serialized JSON from the Wasm memory buffer into
+// native go types.
 func (i *VM) fromRegoJSON(addr int32, free bool) (interface{}, error) {
 	serialized, err := i.jsonDump(addr)
 	if err != nil {
@@ -554,7 +549,8 @@ func (i *VM) fromRegoJSON(addr int32, free bool) (interface{}, error) {
 	return result, nil
 }
 
-// toRegoJSON converts go native JSON to Rego JSON.
+// toRegoJSON converts go native JSON to Rego JSON. If the value is
+// an AST type it will be dumped using its stringer.
 func (i *VM) toRegoJSON(v interface{}, free bool) (int32, error) {
 	var raw []byte
 	switch v := v.(type) {
@@ -593,6 +589,35 @@ func (i *VM) toRegoJSON(v interface{}, free bool) (int32, error) {
 	}
 
 	return addr.ToI32(), nil
+}
+
+// fromRegoValue parses serialized opa values from the Wasm memory buffer into
+// Rego AST types.
+func (i *VM) fromRegoValue(addr int32, free bool) (*ast.Term, error) {
+	serialized, err := i.valueDump(addr)
+	if err != nil {
+		return nil, err
+	}
+
+	data := i.memory.Data()[serialized.ToI32():]
+	n := bytes.IndexByte(data, 0)
+	if n < 0 {
+		n = 0
+	}
+
+	// Parse the result into ast types.
+	result, err := ast.ParseTerm(string(data[0:n]))
+	if err != nil {
+		return nil, err
+	}
+
+	if free {
+		if _, err := i.free(serialized.ToI32()); err != nil {
+			return nil, err
+		}
+	}
+
+	return result, nil
 }
 
 func (i *VM) getHeapState() (int32, error) {

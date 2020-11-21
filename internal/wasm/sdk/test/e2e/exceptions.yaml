@@ -1,8 +1,4 @@
 # Exception Format is <test name>: <reason>
-"objectget/integer key found": "non-string keys in external builtin - https://github.com/open-policy-agent/opa/issues/2928"
-"objectremovenonstringkey/non string root": "non-string keys in external builtin - https://github.com/open-policy-agent/opa/issues/2928"
-"netcidrcontainsmatches/sets of strings": "issue with calling built-in - https://github.com/open-policy-agent/opa/issues/2927"
-"netcidrcontainsmatches/sets of tuples": "issue with calling built-in - https://github.com/open-policy-agent/opa/issues/2927"
 "baseandvirtualdocs/base/virtual: conflicts": "document merge conflict - https://github.com/open-policy-agent/opa/issues/2926"
 "regexisvalid/bad operand type": "issue with c impl of built-in - https://github.com/open-policy-agent/opa/issues/2925"
 "strings/concat: set": "test result order is not consistent - https://github.com/open-policy-agent/opa/issues/2924"

@@ -92,6 +92,7 @@ cases:
     }
   note: netcidrcontainsmatches/sets of strings
   query: data.generated.p = x
+  sort_bindings: true
   want_result:
   - x:
     - - 1.1.1.0/24
