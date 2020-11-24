@@ -484,7 +484,6 @@ The following algorithms are supported:
 	HS256       "HS256" // HMAC using SHA-256
 	HS384       "HS384" // HMAC using SHA-384
 	HS512       "HS512" // HMAC using SHA-512
-	NoSignature "none"
 	PS256       "PS256" // RSASSA-PSS using SHA256 and MGF1-SHA256
 	PS384       "PS384" // RSASSA-PSS using SHA384 and MGF1-SHA384
 	PS512       "PS512" // RSASSA-PSS using SHA512 and MGF1-SHA512
