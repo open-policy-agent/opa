@@ -99,11 +99,6 @@ func TestWasmE2E(t *testing.T) {
 }
 
 func shouldSkip(t *testing.T, tc cases.TestCase) bool {
-	if tc.WantError != nil || tc.WantErrorCode != nil {
-		t.Log("Skipping test case: Error validation not supported")
-		return true
-	}
-
 	if reason, ok := exceptions[tc.Note]; ok {
 		t.Log("Skipping test case: " + reason)
 		return true
@@ -128,8 +123,17 @@ func assert(t *testing.T, tc cases.TestCase, result *opa.Result, err error) {
 		if err == nil {
 			t.Fatal("expected error")
 		}
-		t.Log("err:", err)
-		// TODO: implement more specific error checking
+
+		// TODO: implement more specific error checking, for now log results and skip the test
+		if tc.WantErrorCode != nil {
+			t.Logf("\nExpected Code: %s\nGot Err: %s\n", *tc.WantErrorCode, err)
+		}
+
+		if tc.WantError != nil {
+			t.Logf("\nExpected Err: %s\nGot Err: %s\n", *tc.WantError, err)
+		}
+
+		t.Skip("Skipping test case: Error validation not supported")
 	}
 }
 
