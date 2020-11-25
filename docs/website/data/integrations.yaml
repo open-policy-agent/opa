@@ -439,6 +439,7 @@ integrations:
       - javaspringsecurity
     code:
       - https://github.com/open-policy-agent/contrib/tree/master/spring_authz
+      - https://github.com/Bisnode/opa-spring-security
     tutorials:
       - https://github.com/open-policy-agent/contrib/blob/master/spring_authz/README.md
     inventors:

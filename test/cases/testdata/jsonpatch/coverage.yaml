@@ -1,0 +1,11 @@
+cases:
+# These tests cover mostly error scenarios.
+- note: jsonpatch/set
+  query: data.main.result = x
+  want_result: []
+  modules:
+  - |
+    package main
+    doc = [1, 2, 3]
+    patch = [{"op": "add", "path": "1.2", "value": "foo"}]
+    result = r {r = json.patch(doc, patch)}

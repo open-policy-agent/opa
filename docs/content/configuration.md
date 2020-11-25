@@ -347,6 +347,65 @@ services:
     url: https://s2/
 ```
 
+#### GCP Metadata Token
+
+OPA will authenticate with a GCP [access token](https://cloud.google.com/run/docs/securing/service-identity#access_tokens) or [identity token](https://cloud.google.com/run/docs/securing/service-identity) fetched from the [Compute Metadata Server](https://cloud.google.com/compute/docs/storing-retrieving-metadata). When one or more `scopes` is provided an access token is fetched. When a non-empty `audience` is provided an identity token is fetched. An audience or `scopes` array is required.
+
+When authenticating to native GCP services such as [Google Cloud Storage](https://cloud.google.com/storage) an access token should be used with the appropriate set of scopes required by the target resource. When authenticating to a third party application such as an application hosted on Google Cloud Run an identity token should be used.
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+|`services[_].credentials.gcp_metadata.audience`|`string`|No|The audience to use when fetching identity tokens.|
+|`services[_].credentials.gcp_metadata.endpoint`|`string`|No|The metadata endpoint to use.|
+|`services[_].credentials.gcp_metadata.scopes`|`array`|No|The set of scopes to use when fetching access token.|
+|`services[_].credentials.gcp_metadata.access_token_path`|`string`|No|The access token metadata path to use.|
+|`services[_].credentials.gcp_metadata.id_token_path`|`string`|No|The identity token metadata path to use.|
+
+##### Example
+
+Using a [Cloud Run](https://cloud.google.com/run) service as a bundle service backend.
+
+```yaml
+services:
+  cloudrun:
+    url: ${BUNDLE_SERVICE_URL}
+    response_header_timeout_seconds: 5
+    credentials:
+      gcp_metadata:
+        audience: ${BUNDLE_SERVICE_URL}
+
+bundles:
+  authz:
+    service: cloudrun
+    resource: bundles/http/example/authz.tar.gz
+    persist: true
+    polling:
+      min_delay_seconds: 60
+      max_delay_seconds: 120
+```
+
+Using [Google Cloud Storage](https://cloud.google.com/storage) as a bundle service backend.
+
+```yaml
+services:
+  gcs:
+    url: https://storage.googleapis.com/storage/v1/b/${BUCKET_NAME}/o
+    response_header_timeout_seconds: 5
+    credentials:
+      gcp_metadata:
+        scopes:
+          - "https://www.googleapis.com/auth/devstorage.read_only"
+
+bundles:
+  authz:
+    service: gcs
+    resource: 'bundle.tar.gz?alt=media'
+    persist: true
+    polling:
+      min_delay_seconds: 60
+      max_delay_seconds: 120
+```
+
 ### Miscellaneous
 
 | Field | Type | Required | Description |
