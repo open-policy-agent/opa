@@ -26,7 +26,7 @@ scrape_configs:
       - "localhost:8181"
 ```
 
-Attaching the descrption for the prometheus metrics collected:
+The Prometheus endpoint exports Go runtime metrics as well as HTTP request latency metrics for all handlers (e.g., `v1/data`).
 
 | Metric name | Metric type | Description |
 | --- | --- | --- |
