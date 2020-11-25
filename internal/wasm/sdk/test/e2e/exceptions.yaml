@@ -12,3 +12,5 @@
 "withkeyword/with base doc exact value": "with target conflict issue - https://github.com/open-policy-agent/opa/issues/2922"
 "withkeyword/with base doc any index": "with target conflict issue - https://github.com/open-policy-agent/opa/issues/2922"
 "withkeyword/undefined_1": "with target conflict issue - https://github.com/open-policy-agent/opa/issues/2922"
+"jsonpatch/set": "unexpected panic or evaluation error - https://github.com/open-policy-agent/opa/issues/2949"
+"jsonpatch/json_patch_tests": "unexpected panic or evaluation error - https://github.com/open-policy-agent/opa/issues/2949"
