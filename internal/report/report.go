@@ -78,7 +78,7 @@ func New(id string) (*Reporter, error) {
 
 // SendReport sends the version report to the external service
 func (r *Reporter) SendReport(ctx context.Context) (*DataResponse, error) {
-	rCtx, cancel := context.WithTimeout(ctx, 1*time.Second)
+	rCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	resp, err := r.client.WithJSON(r.body).Do(rCtx, "POST", "/v1/version")

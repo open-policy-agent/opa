@@ -448,6 +448,12 @@ kubectl create -f ingress-bad.yaml -n qa
 
 The second Ingress is rejected because its hostname does not match the whitelist in the `qa` namespace.
 
+It will report an error as follows:
+
+```
+Error from server (invalid ingress host "acmecorp.com"): error when creating "ingress-bad.yaml": admission webhook "validating-webhook.openpolicyagent.org" denied the request: invalid ingress host "acmecorp.com"
+```
+
 ### 6. Modify the policy and exercise the changes
 
 OPA allows you to modify policies on-the-fly without recompiling any of the services that offload policy decisions to it.
@@ -503,6 +509,12 @@ kubectl create -f staging-namespace.yaml
 
 ```bash
 kubectl create -f ingress-ok.yaml -n staging
+```
+
+The above command will report an error as follows:
+
+```
+Error from server (invalid ingress host "signin.acmecorp.com" (conflicts with production/ingress-ok)): error when creating "ingress-ok.yaml": admission webhook "validating-webhook.openpolicyagent.org" denied the request: invalid ingress host "signin.acmecorp.com" (conflicts with production/ingress-ok)
 ```
 
 ## Wrap Up

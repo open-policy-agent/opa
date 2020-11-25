@@ -103,7 +103,7 @@ func (r *Resolver) Eval(ctx context.Context, input resolver.Input) (resolver.Res
 
 	opts := opa.EvalOpts{
 		Input:      in,
-		Entrypoint: opa.EntrypointID(epID),
+		Entrypoint: int32(epID),
 		Metrics:    input.Metrics,
 	}
 	out, err := r.o.Eval(ctx, opts)
