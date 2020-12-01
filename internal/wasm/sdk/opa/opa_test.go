@@ -107,7 +107,7 @@ func TestOPA(t *testing.T) {
 			instance, err := opa.New().
 				WithPolicyBytes(policy).
 				WithDataBytes(data).
-				WithMemoryLimits(131070, 0).
+				WithMemoryLimits(131072, 0).
 				WithPoolSize(1). // Minimal pool size to test pooling.
 				Init()
 			if err != nil {
@@ -184,7 +184,7 @@ func TestNamedEntrypoint(t *testing.T) {
 
 	instance, _ := opa.New().
 		WithPolicyBytes(compiler.Bundle().WasmModules[0].Raw).
-		WithMemoryLimits(131070, 2*131070). // TODO: For some reason unlimited memory slows down the eval_ctx_new().
+		WithMemoryLimits(131072, 2*131072). // TODO: For some reason unlimited memory slows down the eval_ctx_new().
 		WithPoolSize(1).
 		Init()
 
@@ -223,7 +223,7 @@ func BenchmarkWasmRego(b *testing.B) {
 	policy := compileRegoToWasm("a = true", "data.p.a = x")
 	instance, _ := opa.New().
 		WithPolicyBytes(policy).
-		WithMemoryLimits(131070, 2*131070). // TODO: For some reason unlimited memory slows down the eval_ctx_new().
+		WithMemoryLimits(131072, 2*131072). // TODO: For some reason unlimited memory slows down the eval_ctx_new().
 		WithPoolSize(1).
 		Init()
 

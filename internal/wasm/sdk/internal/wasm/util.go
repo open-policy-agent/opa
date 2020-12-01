@@ -4,7 +4,7 @@
 
 package wasm
 
-const wasmPageSize = 65535
+const wasmPageSize = 65536
 
 // Pages converts a byte size to Pages, rounding up as necessary.
 func Pages(n uint32) uint32 {

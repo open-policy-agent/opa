@@ -129,10 +129,10 @@ func newVM(opts vmOpts) (*VM, error) {
 	// This only works because the placement is deterministic (eg, for a given policy
 	// the base heap pointer and parsed data layout will always be the same).
 	if opts.parsedData != nil {
-		if uint32(memory.DataSize())-uint32(v.baseHeapPtr) < uint32(len(opts.parsedData)) {
-			delta := uint32(len(opts.parsedData)) - (uint32(memory.DataSize()) - uint32(v.baseHeapPtr))
-			memory.Grow(uint(Pages(delta))) // TODO: Check return value?
+		if err := grow(memory, v.baseHeapPtr, len(opts.parsedData)); err != nil {
+			return nil, err
 		}
+
 		mem := memory.UnsafeData()
 		for src, dest := 0, v.baseHeapPtr; src < len(opts.parsedData); src, dest = src+1, dest+1 {
 			mem[dest] = opts.parsedData[src]
@@ -317,10 +317,10 @@ func (i *VM) SetPolicyData(opts vmOpts) error {
 	}
 
 	if opts.parsedData != nil {
-		if uint32(i.memory.DataSize())-uint32(i.baseHeapPtr) < uint32(len(opts.parsedData)) {
-			delta := uint32(len(opts.parsedData)) - (uint32(i.memory.DataSize()) - uint32(i.baseHeapPtr))
-			i.memory.Grow(uint(Pages(delta))) // TODO: Check return value
+		if err := grow(i.memory, i.baseHeapPtr, len(opts.parsedData)); err != nil {
+			return err
 		}
+
 		mem := i.memory.UnsafeData()
 		for src, dest := 0, i.baseHeapPtr; src < len(opts.parsedData); src, dest = src+1, dest+1 {
 			mem[dest] = opts.parsedData[src]
@@ -635,4 +635,15 @@ func callVoid(vm *VM, name string, args ...int32) error {
 
 	_, err := vm.instance.GetExport(name).Func().Call(sl...)
 	return err
+}
+
+func grow(memory *wasmtime.Memory, baseHeapPtr int32, n int) error {
+	if uint32(memory.DataSize())-uint32(baseHeapPtr) < uint32(n) {
+		delta := uint32(n) - (uint32(memory.DataSize()) - uint32(baseHeapPtr))
+		if !memory.Grow(uint(Pages(delta))) {
+			return fmt.Errorf("unable to grow memory")
+		}
+	}
+
+	return nil
 }
