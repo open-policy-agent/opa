@@ -19,6 +19,76 @@ import (
 	"github.com/open-policy-agent/opa/util"
 )
 
+func BenchmarkArrayIteration(b *testing.B) {
+	sizes := []int{10, 100, 1000, 10000}
+	for _, n := range sizes {
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			benchmarkIteration(b, getArrayIterationBenchmarkModule(n))
+		})
+	}
+}
+
+func BenchmarkSetIteration(b *testing.B) {
+	sizes := []int{10, 100, 1000, 10000}
+	for _, n := range sizes {
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			benchmarkIteration(b, getSetIterationBenchmarkModule(n))
+		})
+	}
+}
+
+func BenchmarkObjectIteration(b *testing.B) {
+	sizes := []int{10, 100, 1000, 10000}
+	for _, n := range sizes {
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			benchmarkIteration(b, getObjectIterationBenchmarkModule(n))
+		})
+	}
+}
+
+func benchmarkIteration(b *testing.B, module string) {
+	ctx := context.Background()
+	query := ast.MustParseBody("data.test.main")
+	compiler := ast.MustCompileModules(map[string]string{
+		"test.rego": module,
+	})
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+
+		q := NewQuery(query).WithCompiler(compiler)
+		_, err := q.Run(ctx)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func getArrayIterationBenchmarkModule(n int) string {
+	return fmt.Sprintf(`package test
+
+	fixture = [ x | x := numbers.range(1, %d)[_] ]
+
+	main { fixture[i] }`, n)
+}
+
+func getSetIterationBenchmarkModule(n int) string {
+	return fmt.Sprintf(`package test
+
+	fixture = { x | x := numbers.range(1, %d)[_] }
+
+	main { fixture[i] }`, n)
+}
+
+func getObjectIterationBenchmarkModule(n int) string {
+	return fmt.Sprintf(`package test
+
+	fixture = { x: x | x := numbers.range(1, %d)[_] }
+
+	main { fixture[i] }`, n)
+}
+
 func BenchmarkLargeJSON(b *testing.B) {
 	data := generateLargeJSONBenchmarkData()
 	ctx := context.Background()
