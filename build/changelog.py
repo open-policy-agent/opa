@@ -62,9 +62,10 @@ def is_maintainer(commit_message):
 
 def author_email(commit_message):
     match = re.search(r"<(.*@.*)>", commit_message)
-    author = match.group(1)
-    return str(author)
-
+    if match:
+        author = match.group(1)
+        return str(author)
+    return ""
 
 github_ids = {}
 def get_github_id(commit_message, commit_id, token):
