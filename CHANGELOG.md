@@ -3,6 +3,8 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
+## Unreleased
+
 ## 0.25.0
 
 This release contains a number of improvements and fixes. Importantly, this release includes a notable change to built-in function error handling. See the section below for details.
