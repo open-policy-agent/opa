@@ -160,7 +160,7 @@ spec:
   - name: https
     protocol: TCP
     port: 443
-    targetPort: 443
+    targetPort: 8443
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -187,13 +187,13 @@ spec:
         # authentication and authorization on the daemon. See the Security page for
         # details: https://www.openpolicyagent.org/docs/security.html.
         - name: opa
-          image: openpolicyagent/opa:{{< current_docker_version >}}
+          image: openpolicyagent/opa:{{< current_docker_version >}}-rootless
           args:
             - "run"
             - "--server"
             - "--tls-cert-file=/certs/tls.crt"
             - "--tls-private-key-file=/certs/tls.key"
-            - "--addr=0.0.0.0:443"
+            - "--addr=0.0.0.0:8443"
             - "--addr=http://127.0.0.1:8181"
             - "--log-format=json-pretty"
             - "--set=decision_logs.console=true"
@@ -205,14 +205,14 @@ spec:
             httpGet:
               path: /health?plugins&bundle
               scheme: HTTPS
-              port: 443
+              port: 8443
             initialDelaySeconds: 3
             periodSeconds: 5
           livenessProbe:
             httpGet:
               path: /health
               scheme: HTTPS
-              port: 443
+              port: 8443
             initialDelaySeconds: 3
             periodSeconds: 5
         - name: kube-mgmt
