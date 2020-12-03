@@ -3,20 +3,28 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.25.0
 
-## 0.25.0-rc4
-
-This release candidate contains two important changes.
+This release contains a number of improvements and fixes. Importantly, this release includes a notable change to built-in function error handling. See the section below for details.
 
 ### Built-in Function Error Handling
 
 Previously, built-in function errors would cause policy evaluation to halt immediately. Going forward, by default, built-in function errors no longer halt evaluation. Instead, expressions are treated as false/undefined if any of the invoked built-in functions return errors.
 
-This change resolves a common issue people face when passing unsanitized input values to built-in functions. For example, prior to this change the expression `io.jwt.decode("GARBAGE")` would halt evaluation of the entire policy because the string is not a valid encoding of a JSON Web Token (JWT). If the expression was `io.jwt.decode(input.token)` and the user passed an invalid string value for `input.token` the same error would occur. With this change, the same expression is simply undefined, i.e., there is no result. This means policies can use negation to test for invalid values:
+This change resolves a common issue people face when passing unsanitized input values to built-in functions. For example, prior to this change the expression `io.jwt.decode("GARBAGE")` would halt evaluation of the entire policy because the string is not a valid encoding of a JSON Web Token (JWT). If the expression was `io.jwt.decode(input.token)` and the user passed an invalid string value for `input.token` the same error would occur. With this change, the same expression is simply undefined, i.e., there is no result. This means policies can use negation to test for invalid values. For example:
 
 ```rego
-error["invalid JWT supplied as input"] {
+decision := {"allowed": allow, "denial_reason": reason}
+
+default allow = false
+
+allow {
+  io.jwt.verify_hs256(input.token, "secret")
+  [_, payload, _] := io.jwt.decode(input.token)
+  payload.role == "admin"
+}
+
+reason["invalid JWT supplied as input"] {
   not io.jwt.decode(input.token)
 }
 ```
@@ -31,9 +39,72 @@ If you require the old behaviour, enable "strict" built-in errors on the query:
 
 If you have implemented custom built-in functions and require policy evaluation to halt on error in those built-in functions, modify your built-in functions to return the [topdown.Halt](./topdown/errors.go) error type.
 
-### WebAssembly Runtime Support
+### Built-in Functions
 
-This release adds support for loading and executing WebAssembly compiled policies. A full description of the changes is pending.
+This release includes a few new built-in functions:
+
+- `base64url.encode_no_pad`, `hex.encode`, and `hex.decode` for dealing with encoded data ([#2849](https://github.com/open-policy-agent/opa/issues/2849)) authored by @[johanneslarsson](https://github.com/johanneslarsson)
+- `json.patch` for applying JSON patches to values inside of policies ([#2839](https://github.com/open-policy-agent/opa/issues/2839)) authored by @[jaspervdj-luminal](https://github.com/jaspervdj-luminal)
+- `json.is_valid` and `yaml.is_valid` for testing validity of encoded values (authored by @[jaspervdj-luminal](https://github.com/jaspervdj-luminal))
+
+There were also a few fixes to existing built-in functions:
+
+- Fix unicode handling in a few string-related functions ([#2799](https://github.com/open-policy-agent/opa/issues/2799)) authored by @[anderseknert](https://github.com/anderseknert)
+- Fix `http.send` to override `no-cache` HTTP header when `force_cache` specified ([#2841](https://github.com/open-policy-agent/opa/issues/2841)) authored by @[anderseknert](https://github.com/anderseknert)
+- Fix `strings.replace_n` to replace overlapping patterns deterministically ([#2822](https://github.com/open-policy-agent/opa/issues/2822))
+- Fix panic in `units.parse_bytes` when passed a zero-length string ([#2901](https://github.com/open-policy-agent/opa/issues/2901))
+
+### Miscellaneous
+
+This release adds new credential providers for management services:
+
+- GCP metadata server ([#2938](https://github.com/open-policy-agent/opa/pull/2938)) authored by @[kelseyhightower](https://github.com/kelseyhightower)
+- AWS Web Identity credentials ([#2462](https://github.com/open-policy-agent/opa/pull/2725)) authored by @[RichiCoder1](https://github.com/RichiCoder1)
+- OAuth2 ([#1205](https://github.com/open-policy-agent/opa/issues/1205)) authored by @[anderseknert](https://github.com/anderseknert)
+
+In addition the following server features were added:
+
+- Add shutdown wait period flag to `opa run` (`--shutdown-wait-period`) ([#2764](https://github.com/open-policy-agent/opa/issues/2764)) authored by @[bcarlsson](https://github.com/bcarlsson)
+- Add bundle file size limit configuration option (`bundles[_].size_limit_bytes`) to override default 1GiB limit ([#2781](https://github.com/open-policy-agent/opa/issues/2781))
+- Separate decision log and status message logs from access logs (which useful for running OPA at log level `error` while continuing to report decision and status log to console) ([#2733](https://github.com/open-policy-agent/opa/issues/2733)) authored by @[anderseknert](https://github.com/anderseknert)
+
+### Fixes
+
+- Fix panic caused by race condition in the decision logger ([#2835](https://github.com/open-policy-agent/opa/pull/2948)) authored by @[kubaj](https://github.com/kubaj)
+- Fix decision logger to flush on graceful shutdown ([#780](https://github.com/open-policy-agent/opa/issues/780)) authored by @[anderseknert](https://github.com/anderseknert)
+- Fix `--verification-key` handling to accept PEM files ([#2796](https://github.com/open-policy-agent/opa/issues/2796))
+- Fix `--capabilities` flag in `opa build` command ([#2848](https://github.com/open-policy-agent/opa/issues/2848)) authored by @[srenatus](https://github.com/srenatus)
+- Fix loading of **signed** persisted bundles ([#2824](https://github.com/open-policy-agent/opa/issues/2824))
+- Fix API response mutation caused by decision log masking ([#2752](https://github.com/open-policy-agent/opa/issues/2752)) authored by @[gshively11](https://github.com/gshively11)
+- Fix evaluator to prevent `with` statements from mutating original `input` document ([#2813](https://github.com/open-policy-agent/opa/issues/2813))
+- Fix set iteration runtime to be O(n) instead of O(n^2) ([#2966](https://github.com/open-policy-agent/opa/pull/2966))
+- Increased OPA version telemetry report timeout from 1 second to 5 seconds to deal with slow networks
+
+### Documentation
+
+- Improve docs to mention built-in function support in WebAssembly compiled policies
+- Improve docs around JWT HMAC encoding ([#2870](https://github.com/open-policy-agent/opa/issues/2870)) authored by @[anderseknert](https://github.com/anderseknert)
+- Improve HTTP authorization tutorial steps for zsh ([#2917](https://github.com/open-policy-agent/opa/issues/2917) authored by @[ClaudenirFreitas](https://github.com/ClaudenirFreitas))
+- Improve docs to describe meaning of Prometheus metrics
+- Remove mention of unsafe (and unsupported) "none" signature algorithm from JWT documentation
+
+### WebAssembly
+
+This release also includes a number of improvements to the Wasm support in OPA. Importantly, OPA now integrates a Wasm runtime that can be used to execute Wasm compiled policies. The runtime is integrated into the existing "topdown" evaluator so that specific portions of the policy can be compiled to Wasm as a performance optimization. When the evaluator executes a policy using the Wasm runtime it emits a special `Wasm` trace event. The Wasm runtime support in OPA is currently considered **experimental** and will be iterated on in coming releases.
+
+This release also extends the Wasm compiler in OPA to natively support the following built-in functions (in alphabetical order):
+
+* `base64.encode`, `base64.decode`, `base64url.encode`, and `base64url.decode`
+* `glob.match`
+* `json.marshal` and `json.unmarshal`
+* `net.cidr_contains`, `net.cidr_intersects`, and `net.cidr_overlap`
+* `regex.match`, `regex.is_valid`, and `regex.find_all_string_submatch_n`
+* `to_number`
+* `walk`
+
+### Backwards Compatibility
+
+- The `--insecure-addr` flag (which was deprecated in v0.10.0) has been removed completely ([#763](https://github.com/open-policy-agent/opa/issues/763))
 
 ## 0.24.0
 
