@@ -317,19 +317,24 @@ integrations:
     description: Apache Kafka is a high-performance distributed streaming platform deployed by thousands of companies.  OPA provides fine-grained, context-aware access control of which users can read/write which Kafka topics to enforce important requirements around confidentiality and integrity.
     software:
       - kafka
+      - strimzi
     labels:
       category: streaming
       layer: data
     tutorials:
       - https://www.openpolicyagent.org/docs/kafka-authorization.html
+    blogs:
+      - https://strimzi.io/blog/2020/08/05/using-open-policy-agent-with-strimzi-and-apache-kafka/
     code:
       - https://github.com/llofberg/kafka-authorizer-opa
       - https://github.com/open-policy-agent/contrib/tree/master/kafka_authorizer
       - https://github.com/Bisnode/opa-kafka-plugin
+      - https://github.com/strimzi/strimzi-kafka-operator
     inventors:
       - ticketmaster
       - styra
       - bisnode
+      - redhat
     videos:
       - title: "OPA at Scale: How Pinterest Manages Policy Distribution"
         speakers:
@@ -917,6 +922,9 @@ software:
   spinnaker:
     name: Spinnaker
     link: https://www.spinnaker.io/
+  strimzi:
+    name: Strimzi
+    link: https://strimzi.io/
   elasticsearch:
     name: Elastic Search
     link: https://www.elastic.co/
