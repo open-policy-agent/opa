@@ -191,7 +191,31 @@ policy:
     # characters following a hyphen are uppercase. The rest are lowercase.
     # If the header key contains space or invalid header field bytes,
     # no conversion is performed.
-    "headers": {"...": [...]}
+    "headers": {"...": [...]},
+
+    # Request message body if present for applicable APIs.
+    #
+    # Example Request:
+    #
+    #   POST v1/data HTTP/1.1
+    #   Content-Type: application/json
+    #
+    #   {"input": {"action": "trade", "stock": "ACME"}}
+    #
+    # Example input.body Value:
+    #
+    #   {"input": {"action": "trade", "stock": "ACME"}}
+    #
+    # Example body check:
+    #
+    #   input.body.input.stock == "ACME"
+    #
+    # The 'body' field is provided for the following APIs:
+    #
+    #   * POST v1/data
+    #   * POST v0/data
+    #   * POST /
+    "body": ...,
 }
 ```
 
