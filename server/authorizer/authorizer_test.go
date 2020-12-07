@@ -5,6 +5,7 @@
 package authorizer
 
 import (
+	"bytes"
 	"encoding/json"
 	"net/http"
 	"reflect"
@@ -251,7 +252,7 @@ func TestMakeInput(t *testing.T) {
 
 	req = identifier.SetIdentity(req, "bob")
 
-	result, err := makeInput(req)
+	req, result, err := makeInput(req)
 	if err != nil {
 		panic(err)
 	}
@@ -272,6 +273,126 @@ func TestMakeInput(t *testing.T) {
 
 	if !reflect.DeepEqual(util.MustMarshalJSON(expectedResult), util.MustMarshalJSON(result)) {
 		t.Fatalf("Expected %+v but got %+v", expectedResult, result)
+	}
+
+}
+
+func TestMakeInputWithBody(t *testing.T) {
+
+	reqs := []struct {
+		method                 string
+		path                   string
+		headers                map[string]string
+		body                   string
+		useYAML                bool
+		assertBodyExists       bool
+		assertBodyDoesNotExist bool
+	}{
+		{
+			method:           "POST",
+			path:             "/",
+			body:             `{"foo": "bar"}`,
+			assertBodyExists: true,
+		},
+		{
+			method:           "POST",
+			path:             "/",
+			body:             `foo: bar`,
+			useYAML:          true,
+			assertBodyExists: true,
+		},
+		{
+			method:           "POST",
+			path:             "/v0/data",
+			body:             `{"foo": "bar"}`,
+			assertBodyExists: true,
+		},
+		{
+			method:           "POST",
+			path:             "/v1/data",
+			body:             `{"foo": "bar"}`,
+			assertBodyExists: true,
+		},
+		{
+			method:                 "PUT",
+			path:                   "/v1/data",
+			body:                   `{"foo": "bar"}`,
+			assertBodyDoesNotExist: true,
+		},
+		{
+			method:                 "PATCH",
+			path:                   "/v1/data",
+			body:                   `{"foo": "bar"}`,
+			assertBodyDoesNotExist: true,
+		},
+		{
+			method:                 "GET",
+			path:                   "/v1/data",
+			assertBodyDoesNotExist: true,
+		},
+		{
+			method:                 "PUT",
+			path:                   "/v1/policies/test",
+			body:                   "package test\np = 7",
+			assertBodyDoesNotExist: true,
+		},
+	}
+
+	for _, tc := range reqs {
+
+		t.Run(tc.method+"_"+tc.path, func(t *testing.T) {
+
+			req, err := http.NewRequest(tc.method, "http://localhost:8181"+tc.path, bytes.NewBufferString(tc.body))
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if tc.useYAML {
+				req.Header.Set("Content-Type", "application/x-yaml")
+			}
+
+			req, input, err := makeInput(req)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if tc.assertBodyExists {
+
+				var want interface{}
+
+				if tc.useYAML {
+					if err := util.Unmarshal([]byte(tc.body), &want); err != nil {
+						t.Fatal(err)
+					}
+				} else {
+					want = util.MustUnmarshalJSON([]byte(tc.body))
+				}
+
+				body := input.(map[string]interface{})["body"]
+
+				if !reflect.DeepEqual(body, want) {
+					t.Fatalf("expected parsed bodies to be equal but got %v and want %v", body, want)
+				}
+
+				body, ok := GetBodyOnContext(req.Context())
+				if !ok || !reflect.DeepEqual(body, want) {
+					t.Fatalf("expected parsed body to be cached on context but got %v and want %v", body, want)
+				}
+			}
+
+			if tc.assertBodyDoesNotExist {
+				_, ok := input.(map[string]interface{})["body"]
+				if ok {
+					t.Fatal("expected no parsed body in input")
+				}
+				_, ok = GetBodyOnContext(req.Context())
+				if ok {
+					t.Fatal("expected no parsed body to be cached on context")
+				}
+			}
+
+		})
+
 	}
 
 }

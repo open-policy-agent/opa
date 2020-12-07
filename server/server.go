@@ -2313,14 +2313,22 @@ func getExplain(p []string, zero types.ExplainModeV1) types.ExplainModeV1 {
 }
 
 func readInputV0(r *http.Request) (ast.Value, error) {
+
+	parsed, ok := authorizer.GetBodyOnContext(r.Context())
+	if ok {
+		return ast.InterfaceToValue(parsed)
+	}
+
 	bs, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		return nil, err
 	}
+
 	bs = bytes.TrimSpace(bs)
 	if len(bs) == 0 {
 		return nil, nil
 	}
+
 	var x interface{}
 
 	if strings.Contains(r.Header.Get("Content-Type"), "yaml") {
@@ -2343,6 +2351,16 @@ func readInputGetV1(str string) (ast.Value, error) {
 }
 
 func readInputPostV1(r *http.Request) (ast.Value, error) {
+
+	parsed, ok := authorizer.GetBodyOnContext(r.Context())
+	if ok {
+		if obj, ok := parsed.(map[string]interface{}); ok {
+			if input, ok := obj["input"]; ok {
+				return ast.InterfaceToValue(input)
+			}
+		}
+		return nil, nil
+	}
 
 	bs, err := ioutil.ReadAll(r.Body)
 
