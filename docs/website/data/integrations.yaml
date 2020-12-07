@@ -464,6 +464,19 @@ integrations:
     inventors:
       - armory
 
+  java:
+    title: Authorization for Java
+    description: Integrations for interacting with OPA from Java
+    labels:
+      layer: network
+      category: application
+    software:
+      - java
+    code:
+      - https://github.com/Bisnode/opa-java-client
+    inventors:
+      - bisnode
+
   jenkins-job-authorization:
     title: Jenkins Job Trigger Policy Enforcement
     description: Jenkins automates software development processes.  OPA lets you control which people and which machines can run which Jenkins jobs.
@@ -916,6 +929,9 @@ software:
   azure:
     name: Microsoft Public Cloud
     link: http://azure.microsoft.com/
+  java:
+    name: Java
+    link: https://www.java.com/
   javaspringsecurity:
     name: Spring Security
     link: https://spring.io/projects/spring-security
