@@ -157,6 +157,17 @@ integrations:
     blogs:
       - https://engineering.etermax.com/api-authorization-with-kubernetes-traefik-and-open-policy-agent-23647fc384a1
 
+  nodejs-express:
+    title: NodeJS express
+    description: |
+      Express is a minimal and flexible Node.js web application framework that provides a robust set of features for web and mobile applications.
+      OPA can be used to implement authorization policies for APIs used in the express framework.
+    labels:
+      category: application
+      layer: network
+    code:
+      - https://github.com/build-security/opa-express-middleware
+
   gloo-api-gateway:
     title: Gloo API Gateway
     description: |
@@ -216,8 +227,8 @@ integrations:
   custom-library-microservice-authorization:
     title: Library-based Microservice Authorization
     description: Microservice authorization can be enforced through a network proxy like Envoy/Istio/Linkerd/...
-                 or can be enforced by modifying the microservice code to use a common library.  In both cases
-                 OPA makes the authorization decision that the network proxy or the library enforce.
+      or can be enforced by modifying the microservice code to use a common library.  In both cases
+      OPA makes the authorization decision that the network proxy or the library enforce.
     labels:
       category: servicemesh
       layer: library
@@ -894,6 +905,9 @@ organizations:
   scalr:
     name: Scalr
     link: https://www.scalr.com/
+  build-security:
+    name: build.security
+    link: https://build.security
 
 software:
   kubernetes:
@@ -995,3 +1009,6 @@ software:
   gluu:
     name: Gluu Gateway
     link: https://www.gluu.org/
+  nodejsexpress:
+    name: Node.JS express
+    link: https://expressjs.com/
