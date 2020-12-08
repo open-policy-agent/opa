@@ -12,10 +12,9 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"testing"
 
 	"github.com/open-policy-agent/opa/internal/report"
-
-	"testing"
 )
 
 func TestGenerateCmdOutputDisableCheckFlag(t *testing.T) {
