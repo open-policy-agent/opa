@@ -48,10 +48,10 @@ func TestManagerPluginStatusListener(t *testing.T) {
 	}
 
 	// Push an update to a plugin, ensure current status is reflected and listeners were called
-	m.UpdatePluginStatus("p1", &Status{State: StateOK})
+	m.UpdatePluginStatus("p1", &Status{State: StateOK, Message: "foo"})
 	currentStatus = m.PluginStatus()
-	if len(currentStatus) != 1 || currentStatus["p1"].State != StateOK {
-		t.Fatalf("Expected 1 statuses in current plugin status map with state OK, got: %+v", currentStatus)
+	if len(currentStatus) != 1 || currentStatus["p1"].State != StateOK || currentStatus["p1"].Message != "foo" {
+		t.Fatalf("Expected 1 statuses in current plugin status map with state OK and message 'foo', got: %+v", currentStatus)
 	}
 	if !reflect.DeepEqual(currentStatus, l1Status) || !reflect.DeepEqual(l1Status, l2Status) {
 		t.Fatalf("Unexpected status in updates:\n\n\texpecting: %+v\n\n\tgot: l1: %+v  l2: %+v\n", currentStatus, l1Status, l2Status)
@@ -66,7 +66,7 @@ func TestManagerPluginStatusListener(t *testing.T) {
 	// Send another update, ensure the status is ok and the remaining listener is still called
 	m.UpdatePluginStatus("p2", &Status{State: StateErr})
 	currentStatus = m.PluginStatus()
-	if len(currentStatus) != 2 || currentStatus["p1"].State != StateOK || currentStatus["p2"].State != StateErr {
+	if len(currentStatus) != 2 || currentStatus["p1"].State != StateOK || currentStatus["p1"].Message != "foo" || currentStatus["p2"].State != StateErr {
 		t.Fatalf("Unexpected current plugin status, got: %+v", currentStatus)
 	}
 	if !reflect.DeepEqual(currentStatus, l2Status) {
@@ -82,7 +82,7 @@ func TestManagerPluginStatusListener(t *testing.T) {
 	// Ensure updates can still be sent with no listeners
 	m.UpdatePluginStatus("p2", &Status{State: StateOK})
 	currentStatus = m.PluginStatus()
-	if len(currentStatus) != 2 || currentStatus["p1"].State != StateOK || currentStatus["p2"].State != StateOK {
+	if len(currentStatus) != 2 || currentStatus["p1"].State != StateOK || currentStatus["p1"].Message != "foo" || currentStatus["p2"].State != StateOK {
 		t.Fatalf("Unexpected current plugin status, got: %+v", currentStatus)
 	}
 }

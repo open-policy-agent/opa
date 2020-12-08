@@ -112,11 +112,17 @@ const (
 	// StateErr indicates that the Plugin is in an error state and should not
 	// be considered as functional.
 	StateErr State = "ERROR"
+
+	// StateWarn indicates the Plugin is operating, but in a potentially dangerous or
+	// degraded state. It may be used to indicate manual remediation is needed, or to
+	// alert admins of some other noteworthy state.
+	StateWarn State = "WARN"
 )
 
 // Status has a Plugin's current status plus an optional Message.
 type Status struct {
-	State State `json:"state"`
+	State   State  `json:"state"`
+	Message string `json:"message,omitempty"`
 }
 
 // StatusListener defines a handler to register for status updates.
@@ -569,7 +575,8 @@ func (m *Manager) copyPluginStatus() map[string]*Status {
 		var cpy *Status
 		if v != nil {
 			cpy = &Status{
-				State: v.State,
+				State:   v.State,
+				Message: v.Message,
 			}
 		}
 		statusCpy[k] = cpy
