@@ -5,6 +5,10 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+## 0.25.2
+
+This release extends the HTTP server authorizer (`--authorization=basic`) to supply the HTTP message body in the `input` document. See the [Authentication and Authorization](https://www.openpolicyagent.org/docs/edge/security/#authentication-and-authorization) section in the security documentation for details.
+
 ## 0.25.1
 
 This release contains a fix for running OPA under Docker with a non-default working directory ([#2974](https://github.com/open-policy-agent/opa/issues/2974)).

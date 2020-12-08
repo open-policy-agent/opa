@@ -6,6 +6,8 @@
 package authorizer
 
 import (
+	"context"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
@@ -16,6 +18,7 @@ import (
 	"github.com/open-policy-agent/opa/server/types"
 	"github.com/open-policy-agent/opa/server/writer"
 	"github.com/open-policy-agent/opa/storage"
+	"github.com/open-policy-agent/opa/util"
 )
 
 // Basic provides policy-based authorization over incoming requests.
@@ -59,7 +62,9 @@ func NewBasic(inner http.Handler, compiler func() *ast.Compiler, store storage.S
 
 func (h *Basic) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
-	input, err := makeInput(r)
+	// TODO(tsandall): Pass AST value as input instead of Go value to avoid unnecessary
+	// conversions.
+	r, input, err := makeInput(r)
 	if err != nil {
 		writer.ErrorString(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
 		return
@@ -97,14 +102,24 @@ func (h *Basic) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	writer.Error(w, http.StatusUnauthorized, types.NewErrorV1(types.CodeUnauthorized, types.MsgUnauthorizedError))
 }
 
-func makeInput(r *http.Request) (interface{}, error) {
+func makeInput(r *http.Request) (*http.Request, interface{}, error) {
+
 	path, err := parsePath(r.URL.Path)
 	if err != nil {
-		return nil, err
+		return r, nil, err
 	}
 
 	method := strings.ToUpper(r.Method)
 	query := r.URL.Query()
+
+	var rawBody []byte
+
+	if expectBody(r.Method, path) {
+		rawBody, err = readBody(r)
+		if err != nil {
+			return r, nil, err
+		}
+	}
 
 	input := map[string]interface{}{
 		"path":    path,
@@ -113,12 +128,66 @@ func makeInput(r *http.Request) (interface{}, error) {
 		"headers": r.Header,
 	}
 
+	if len(rawBody) > 0 {
+		var body interface{}
+		if expectYAML(r) {
+			if err := util.Unmarshal(rawBody, &body); err != nil {
+				return r, nil, err
+			}
+		} else if err := util.UnmarshalJSON(rawBody, &body); err != nil {
+			return r, nil, err
+		}
+
+		// We cache the parsed body on the context so the server does not have
+		// to parse the input document twice.
+		input["body"] = body
+		ctx := SetBodyOnContext(r.Context(), body)
+		r = r.WithContext(ctx)
+	}
+
 	identity, ok := identifier.Identity(r)
 	if ok {
 		input["identity"] = identity
 	}
 
-	return input, nil
+	return r, input, nil
+}
+
+var dataAPIVersions = map[string]bool{
+	"v0": true,
+	"v1": true,
+}
+
+func expectBody(method string, path []interface{}) bool {
+	if method == http.MethodPost {
+		if len(path) == 1 {
+			s := path[0].(string)
+			return s == ""
+		} else if len(path) >= 2 {
+			s1 := path[0].(string)
+			s2 := path[1].(string)
+			return dataAPIVersions[s1] && s2 == "data"
+		}
+	}
+	return false
+}
+
+func expectYAML(r *http.Request) bool {
+	// NOTE(tsandall): This check comes from the server's HTTP handler code. The docs
+	// are a bit more strict, but the authorizer should be consistent w/ the original
+	// server handler implementation.
+	return strings.Contains(r.Header.Get("Content-Type"), "yaml")
+}
+
+func readBody(r *http.Request) ([]byte, error) {
+
+	bs, err := ioutil.ReadAll(r.Body)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return bs, nil
 }
 
 func parsePath(path string) ([]interface{}, error) {
@@ -138,4 +207,30 @@ func parsePath(path string) ([]interface{}, error) {
 		sl[i] = parts[i]
 	}
 	return sl, nil
+}
+
+type authorizerCachedBody struct {
+	parsed interface{}
+}
+
+type authorizerCachedBodyKey string
+
+const ctxkey authorizerCachedBodyKey = "authorizerCachedBodyKey"
+
+// SetBodyOnContext adds the parsed input value to the context. This function is only
+// exposed for test purposes.
+func SetBodyOnContext(ctx context.Context, x interface{}) context.Context {
+	return context.WithValue(ctx, ctxkey, authorizerCachedBody{
+		parsed: x,
+	})
+}
+
+// GetBodyOnContext returns the parsed input from the request context if it exists.
+// The authorizer saves the parsed input on the context when it runs.
+func GetBodyOnContext(ctx context.Context) (interface{}, bool) {
+	input, ok := ctx.Value(ctxkey).(authorizerCachedBody)
+	if !ok {
+		return nil, false
+	}
+	return input.parsed, true
 }
