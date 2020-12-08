@@ -5,18 +5,15 @@
 package cmd
 
 import (
+	"context"
+	"crypto/rand"
 	"fmt"
-
 	"io"
 	"os"
 
 	"github.com/spf13/cobra"
 
 	"github.com/open-policy-agent/opa/internal/report"
-
-	"context"
-	"crypto/rand"
-
 	"github.com/open-policy-agent/opa/internal/uuid"
 	"github.com/open-policy-agent/opa/version"
 )
