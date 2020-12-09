@@ -246,11 +246,6 @@ func New(raw []byte, id string, store storage.Store, opts ...func(*Manager)) (*M
 		return nil, err
 	}
 
-	services, err := cfg.ParseServicesConfig(parsedConfig.Services)
-	if err != nil {
-		return nil, err
-	}
-
 	keys, err := bundle.ParseKeysConfig(parsedConfig.Keys)
 	if err != nil {
 		return nil, err
@@ -266,12 +261,22 @@ func New(raw []byte, id string, store storage.Store, opts ...func(*Manager)) (*M
 		Config:                       parsedConfig,
 		ID:                           id,
 		keys:                         keys,
-		services:                     services,
 		pluginStatus:                 map[string]*Status{},
 		pluginStatusListeners:        map[string]StatusListener{},
 		maxErrors:                    -1,
 		interQueryBuiltinCacheConfig: interQueryBuiltinCacheConfig,
 	}
+
+	serviceOpts := cfg.ServiceOptions{
+		Raw:        parsedConfig.Services,
+		AuthPlugin: m.AuthPlugin,
+	}
+	services, err := cfg.ParseServicesConfig(serviceOpts)
+	if err != nil {
+		return nil, err
+	}
+
+	m.services = services
 
 	for _, f := range opts {
 		f(m)
@@ -378,6 +383,18 @@ func (m *Manager) Plugin(name string) Plugin {
 	return nil
 }
 
+// AuthPlugin returns the HTTPAuthPlugin registered with name or nil if name is not found.
+func (m *Manager) AuthPlugin(name string) rest.HTTPAuthPlugin {
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
+	for i := range m.plugins {
+		if m.plugins[i].name == name {
+			return m.plugins[i].plugin.(rest.HTTPAuthPlugin)
+		}
+	}
+	return nil
+}
+
 // GetCompiler returns the manager's compiler.
 func (m *Manager) GetCompiler() *ast.Compiler {
 	m.compilerMux.RLock()
@@ -468,7 +485,11 @@ func (m *Manager) Stop(ctx context.Context) {
 
 // Reconfigure updates the configuration on the manager.
 func (m *Manager) Reconfigure(config *config.Config) error {
-	services, err := cfg.ParseServicesConfig(config.Services)
+	opts := cfg.ServiceOptions{
+		Raw:        config.Services,
+		AuthPlugin: m.AuthPlugin,
+	}
+	services, err := cfg.ParseServicesConfig(opts)
 	if err != nil {
 		return err
 	}

@@ -7,10 +7,12 @@ package plugins
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"reflect"
 	"testing"
 
 	"github.com/open-policy-agent/opa/internal/storage/mock"
+	"github.com/open-policy-agent/opa/plugins/rest"
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/topdown/cache"
 )
@@ -227,3 +229,54 @@ func (m *mockForInitStartOrdering) Start(ctx context.Context) error {
 
 func (m *mockForInitStartOrdering) Stop(ctx context.Context)                            { return }
 func (m *mockForInitStartOrdering) Reconfigure(ctx context.Context, config interface{}) { return }
+
+func TestPluginManagerAuthPlugin(t *testing.T) {
+	m, err := New([]byte(`{"plugins": {"someplugin": {}}}`), "test", inmem.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := m.Init(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+
+	mock := &myAuthPluginMock{}
+
+	m.Register("someplugin", mock)
+
+	authPlugin := m.AuthPlugin("someplugin")
+
+	if authPlugin == nil {
+		t.Fatal("expected to receive HTTPAuthPlugin")
+	}
+
+	switch authPlugin.(type) {
+	case *myAuthPluginMock:
+		return
+	default:
+		t.Fatal("expected HTTPAuthPlugin to be myAuthPluginMock")
+	}
+}
+
+type myAuthPluginMock struct{}
+
+func (m *myAuthPluginMock) NewClient(c rest.Config) (*http.Client, error) {
+	tlsConfig, err := rest.DefaultTLSConfig(c)
+	if err != nil {
+		return nil, err
+	}
+	return rest.DefaultRoundTripperClient(
+		tlsConfig,
+		10,
+	), nil
+}
+func (m *myAuthPluginMock) Prepare(req *http.Request) error {
+	return nil
+}
+func (m *myAuthPluginMock) Start(ctx context.Context) error {
+	return nil
+}
+func (m *myAuthPluginMock) Stop(ctx context.Context) {
+}
+func (m *myAuthPluginMock) Reconfigure(ctx context.Context, config interface{}) {
+}

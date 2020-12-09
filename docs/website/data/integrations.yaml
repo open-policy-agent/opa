@@ -157,6 +157,28 @@ integrations:
     blogs:
       - https://engineering.etermax.com/api-authorization-with-kubernetes-traefik-and-open-policy-agent-23647fc384a1
 
+  nodejs-express:
+    title: NodeJS express
+    description: |
+      Express is a minimal and flexible Node.js web application framework that provides a robust set of features for web and mobile applications.
+      OPA can be used to implement authorization policies for APIs used in the express framework.
+    labels:
+      category: application
+      layer: network
+    code:
+      - https://github.com/build-security/opa-express-middleware
+
+  asp-dotnet-core:
+    title: ASP.NET Core
+    description: |
+      Use ASP.NET Core to create web apps and services that are fast, secure, cross-platform, and cloud-based.
+      OPA can be used to implement authorization policies for APIs used in the ASP.NET Core framework.
+    labels:
+      category: application
+      layer: network
+    code:
+      - https://github.com/build-security/OPA-AspDotNetCore-Middleware
+
   gloo-api-gateway:
     title: Gloo API Gateway
     description: |
@@ -216,8 +238,8 @@ integrations:
   custom-library-microservice-authorization:
     title: Library-based Microservice Authorization
     description: Microservice authorization can be enforced through a network proxy like Envoy/Istio/Linkerd/...
-                 or can be enforced by modifying the microservice code to use a common library.  In both cases
-                 OPA makes the authorization decision that the network proxy or the library enforce.
+      or can be enforced by modifying the microservice code to use a common library.  In both cases
+      OPA makes the authorization decision that the network proxy or the library enforce.
     labels:
       category: servicemesh
       layer: library
@@ -317,19 +339,24 @@ integrations:
     description: Apache Kafka is a high-performance distributed streaming platform deployed by thousands of companies.  OPA provides fine-grained, context-aware access control of which users can read/write which Kafka topics to enforce important requirements around confidentiality and integrity.
     software:
       - kafka
+      - strimzi
     labels:
       category: streaming
       layer: data
     tutorials:
       - https://www.openpolicyagent.org/docs/kafka-authorization.html
+    blogs:
+      - https://strimzi.io/blog/2020/08/05/using-open-policy-agent-with-strimzi-and-apache-kafka/
     code:
       - https://github.com/llofberg/kafka-authorizer-opa
       - https://github.com/open-policy-agent/contrib/tree/master/kafka_authorizer
       - https://github.com/Bisnode/opa-kafka-plugin
+      - https://github.com/strimzi/strimzi-kafka-operator
     inventors:
       - ticketmaster
       - styra
       - bisnode
+      - redhat
     videos:
       - title: "OPA at Scale: How Pinterest Manages Policy Distribution"
         speakers:
@@ -458,6 +485,19 @@ integrations:
       - https://docs.armory.io/spinnaker/policy_engine/
     inventors:
       - armory
+
+  java:
+    title: Authorization for Java
+    description: Integrations for interacting with OPA from Java
+    labels:
+      layer: network
+      category: application
+    software:
+      - java
+    code:
+      - https://github.com/Bisnode/opa-java-client
+    inventors:
+      - bisnode
 
   jenkins-job-authorization:
     title: Jenkins Job Trigger Policy Enforcement
@@ -876,6 +916,9 @@ organizations:
   scalr:
     name: Scalr
     link: https://www.scalr.com/
+  build-security:
+    name: build.security
+    link: https://build.security
 
 software:
   kubernetes:
@@ -911,12 +954,18 @@ software:
   azure:
     name: Microsoft Public Cloud
     link: http://azure.microsoft.com/
+  java:
+    name: Java
+    link: https://www.java.com/
   javaspringsecurity:
     name: Spring Security
     link: https://spring.io/projects/spring-security
   spinnaker:
     name: Spinnaker
     link: https://www.spinnaker.io/
+  strimzi:
+    name: Strimzi
+    link: https://strimzi.io/
   elasticsearch:
     name: Elastic Search
     link: https://www.elastic.co/
@@ -971,3 +1020,9 @@ software:
   gluu:
     name: Gluu Gateway
     link: https://www.gluu.org/
+  nodejsexpress:
+    name: Node.JS express
+    link: https://expressjs.com/
+  aspdotnetcore:
+    name: ASP .NET core
+    link: https://docs.microsoft.com/en-us/aspnet/core/

@@ -12,7 +12,7 @@ function opa::check_vet() {
     rc=0
     exit_code=0
     for pkg in $(opa::go_packages); do
-        go vet -tags=opa_wasmer $pkg || rc=$?
+        go vet -tags=opa_wasm $pkg || rc=$?
         if [[ $rc != 0 ]]; then
             exit_code=1
         fi

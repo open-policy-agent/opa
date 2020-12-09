@@ -1260,9 +1260,10 @@ func newset(n int) *set {
 		keys = make([]*Term, 0, n)
 	}
 	return &set{
-		elems: make(map[int]*Term, n),
-		keys:  keys,
-		hash:  0,
+		elems:  make(map[int]*Term, n),
+		keys:   keys,
+		hash:   0,
+		ground: true,
 	}
 }
 
@@ -1275,9 +1276,10 @@ func SetTerm(t ...*Term) *Term {
 }
 
 type set struct {
-	elems map[int]*Term
-	keys  []*Term
-	hash  int
+	elems  map[int]*Term
+	keys   []*Term
+	hash   int
+	ground bool
 }
 
 // Copy returns a deep copy of s.
@@ -1287,14 +1289,13 @@ func (s *set) Copy() Set {
 		cpy.Add(x.Copy())
 	})
 	cpy.hash = s.hash
+	cpy.ground = s.ground
 	return cpy
 }
 
 // IsGround returns true if all terms in s are ground.
 func (s *set) IsGround() bool {
-	return !s.Until(func(x *Term) bool {
-		return !x.IsGround()
-	})
+	return s.ground
 }
 
 // Hash returns a hash code for s.
@@ -1550,6 +1551,7 @@ func (s *set) insert(x *Term) {
 	s.elems[hash] = x
 	s.keys = append(s.keys, x)
 	s.hash = 0
+	s.ground = s.ground && x.IsGround()
 }
 
 func (s *set) get(x *Term) *Term {

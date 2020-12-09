@@ -5,6 +5,7 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -23,6 +24,7 @@ import (
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/plugins"
 	pluginBundle "github.com/open-policy-agent/opa/plugins/bundle"
+	"github.com/open-policy-agent/opa/server/authorizer"
 	"github.com/open-policy-agent/opa/server/identifier"
 	"github.com/open-policy-agent/opa/server/types"
 	"github.com/open-policy-agent/opa/storage"
@@ -2782,6 +2784,32 @@ func TestAuthorization(t *testing.T) {
 	// Try bob again.
 	server.Handler.ServeHTTP(recorder, req1)
 	validateAuthorizedRequest(t, server, req1, http.StatusUnauthorized)
+
+	// Try to query for "data" as alice (allowed)
+	req3, err := http.NewRequest(http.MethodPost, "http://localhost:8182/v1/data", bytes.NewBufferString(`{"input": {"foo": "bar"}}`))
+	if err != nil {
+		panic(err)
+	}
+
+	req3 = identifier.SetIdentity(req3, "alice")
+	recorder = httptest.NewRecorder()
+	server.Handler.ServeHTTP(recorder, req3)
+	if recorder.Code != http.StatusOK {
+		t.Fatal("expected successful response for data")
+	}
+
+	// Try to query for "data" as bob (denied)
+	req4, err := http.NewRequest(http.MethodPost, "http://localhost:8182/v1/data", bytes.NewBufferString(`{"input": {"foo": "bar"}}`))
+	if err != nil {
+		panic(err)
+	}
+
+	req4 = identifier.SetIdentity(req4, "bob")
+	recorder = httptest.NewRecorder()
+	server.Handler.ServeHTTP(recorder, req4)
+	if recorder.Code != http.StatusUnauthorized {
+		t.Fatal("expected unauthorized response for data")
+	}
 }
 
 func validateAuthorizedRequest(t *testing.T, s *Server, req *http.Request, exp int) {
@@ -2801,6 +2829,48 @@ func validateAuthorizedRequest(t *testing.T, s *Server, req *http.Request, exp i
 	s.DiagnosticHandler.ServeHTTP(r, req)
 	if r.Code != exp {
 		t.Fatalf("(Diagnostic Handler) Expected %v but got: %v", exp, r)
+	}
+}
+
+func TestServerUsesAuthorizerParsedBody(t *testing.T) {
+
+	// Construct a request w/ a different message body (this should never happen.)
+	req, err := http.NewRequest(http.MethodPost, "http://localhost:8182/v1/data/test/echo", bytes.NewBufferString(`{"foo": "bad"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Set the authorizer's parsed input to the expected message body.
+	ctx := authorizer.SetBodyOnContext(req.Context(), map[string]interface{}{
+		"input": map[string]interface{}{
+			"foo": "good",
+		},
+	})
+
+	// Check that v1 reader function behaves correctly.
+	inp, err := readInputPostV1(req.WithContext(ctx))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	exp := ast.MustParseTerm(`{"foo": "good"}`)
+
+	if exp.Value.Compare(inp) != 0 {
+		t.Fatalf("expected %v but got %v", exp, inp)
+	}
+
+	// Check that v0 reader function behaves correctly.
+	ctx = authorizer.SetBodyOnContext(req.Context(), map[string]interface{}{
+		"foo": "good",
+	})
+
+	inp, err = readInputV0(req.WithContext(ctx))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if exp.Value.Compare(inp) != 0 {
+		t.Fatalf("expected %v but got %v", exp, inp)
 	}
 }
 
