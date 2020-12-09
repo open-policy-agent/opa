@@ -1,6 +1,6 @@
 #include "object.h"
 
-opa_value *opa_object_filter(opa_value *obj, opa_value *keys)
+opa_value *builtin_object_filter(opa_value *obj, opa_value *keys)
 {
     if (opa_value_type(obj) != OPA_OBJECT)
     {
@@ -37,4 +37,20 @@ opa_value *opa_object_filter(opa_value *obj, opa_value *keys)
     }
 
     return &r->hdr;
+}
+
+opa_value *builtin_object_get(opa_value *obj, opa_value *key, opa_value *value)
+{
+    if (opa_value_type(obj) != OPA_OBJECT)
+    {
+        return NULL;
+    }
+
+    opa_object_elem_t *elem = opa_object_get(opa_cast_object(obj), key);
+    if (elem != NULL)
+    {
+       return elem->v;
+    }
+
+    return value;
 }
