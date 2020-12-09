@@ -308,7 +308,7 @@ complex types.
 
 | Built-in | Description | Wasm Support |
 | ------- |-------------|---------------|
-| <span class="opa-keep-it-together">`value := object.get(object, key, default)`</span> | `value` is the value stored by the `object` at `key`. If no value is found, `default` is returned. | ``SDK-dependent`` |
+| <span class="opa-keep-it-together">`value := object.get(object, key, default)`</span> | `value` is the value stored by the `object` at `key`. If no value is found, `default` is returned. | ✅ |
 | <span class="opa-keep-it-together">`output := object.remove(object, keys)`</span> | `output` is a new object which is the result of removing the specified `keys` from `object`. `keys` must be either an array, object, or set of keys. | ``SDK-dependent`` |
 | <span class="opa-keep-it-together">`output := object.union(objectA, objectB)`</span> | `output` is a new object which is the result of an asymmetric recursive union of two objects where conflicts are resolved by choosing the key from the right-hand object (`objectB`). For example: `object.union({"a": 1, "b": 2, "c": {"d": 3}}, {"a": 7, "c": {"d": 4, "e": 5}})` will result in `{"a": 7, "b": 2, "c": {"d": 4, "e": 5}}`  | ``SDK-dependent`` |
 | <span class="opa-keep-it-together">`filtered := object.filter(object, keys)`</span> | `filtered` is a new object with the remaining data from `object` with only keys specified in `keys` which is an array, object, or set of keys. For example: `object.filter({"a": {"b": "x", "c": "y"}, "d": "z"}, ["a"])` will result in `{"a": {"b": "x", "c": "y"}}`). | ✅ |

@@ -3,6 +3,7 @@
 
 #include "value.h"
 
-opa_value *opa_object_filter(opa_value *obj, opa_value *keys);
+opa_value *builtin_object_filter(opa_value *obj, opa_value *keys);
+opa_value *builtin_object_get(opa_value *obj, opa_value *key, opa_value *value);
 
 #endif

@@ -1695,6 +1695,12 @@ void test_object(void)
     opa_object_insert(obj, opa_string_terminated("b"), opa_number_int(2));
     opa_object_insert(obj, opa_string_terminated("c"), opa_number_int(3));
 
+    test("object/get (key found)", opa_value_compare(builtin_object_get(&obj->hdr, opa_string_terminated("a"), opa_number_int(2)), opa_number_int(1)) == 0);
+    test("object/get (string key not found)", opa_value_compare(builtin_object_get(&obj->hdr, opa_string_terminated("d"), opa_number_int(2)), opa_number_int(2)) == 0);
+    test("object/get (integer key not found)", opa_value_compare(builtin_object_get(&obj->hdr, opa_number_int(1), opa_number_int(2)), opa_number_int(2)) == 0);
+    test("object/get (boolean default value)", opa_value_compare(builtin_object_get(&obj->hdr, opa_number_int(1), opa_boolean(TRUE)), opa_boolean(TRUE)) == 0);
+    test("object/get (non-object operand)", opa_value_compare(builtin_object_get(opa_string_terminated("a"), opa_number_int(1), opa_boolean(TRUE)), NULL) == 0);
+
     opa_object_t *obj_keys = opa_cast_object(opa_object());
     opa_object_insert(obj_keys, opa_string_terminated("a"), opa_number_int(0));
     opa_object_insert(obj_keys, opa_string_terminated("c"), opa_number_int(0));
@@ -1702,17 +1708,17 @@ void test_object(void)
     opa_object_t *expected = opa_cast_object(opa_object());
     opa_object_insert(expected, opa_string_terminated("a"), opa_number_int(1));
     opa_object_insert(expected, opa_string_terminated("c"), opa_number_int(3));
-    test("object/filter (object keys)", opa_value_compare(opa_object_filter(&obj->hdr, &obj_keys->hdr), &expected->hdr) == 0);
+    test("object/filter (object keys)", opa_value_compare(builtin_object_filter(&obj->hdr, &obj_keys->hdr), &expected->hdr) == 0);
 
     opa_set_t *set_keys = opa_cast_set(opa_set());
     opa_set_add(set_keys, opa_string_terminated("a"));
     opa_set_add(set_keys, opa_string_terminated("c"));
-    test("object/filter (set keys)", opa_value_compare(opa_object_filter(&obj->hdr, &set_keys->hdr), &expected->hdr) == 0);
+    test("object/filter (set keys)", opa_value_compare(builtin_object_filter(&obj->hdr, &set_keys->hdr), &expected->hdr) == 0);
 
     opa_array_t *arr_keys = opa_cast_array(opa_array());
     opa_array_append(arr_keys, opa_string_terminated("a"));
     opa_array_append(arr_keys, opa_string_terminated("c"));
-    test("object/filter (array keys)", opa_value_compare(opa_object_filter(&obj->hdr, &arr_keys->hdr), &expected->hdr) == 0);
+    test("object/filter (array keys)", opa_value_compare(builtin_object_filter(&obj->hdr, &arr_keys->hdr), &expected->hdr) == 0);
 }
 
 void test_strings(void)
