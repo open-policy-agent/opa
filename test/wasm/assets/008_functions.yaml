@@ -103,7 +103,7 @@ cases:
         package x
         f(x) = 1
         f(x) = 2
-    want_error: var assignment conflict
+    want_error: "module0.rego:3:1: var assignment conflict"
   - note: 'false result'
     query: data.test.p = x
     modules:

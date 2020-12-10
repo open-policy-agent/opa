@@ -30,6 +30,7 @@ func TestOPA(t *testing.T) {
 		Query       string
 		Data        string
 		Evals       []Eval
+		WantErr     string // "" means no error expected
 	}{
 		{
 			Description: "No input, no data, static policy",
@@ -39,6 +40,7 @@ func TestOPA(t *testing.T) {
 				Eval{Result: `{{"x": true}}`},
 				Eval{Result: `{{"x": true}}`},
 			},
+			WantErr: "",
 		},
 		{
 			Description: "Only input changing",
@@ -48,6 +50,7 @@ func TestOPA(t *testing.T) {
 				Eval{Input: "false", Result: `{{"x": false}}`},
 				Eval{Input: "true", Result: `{{"x": true}}`},
 			},
+			WantErr: "",
 		},
 		{
 			Description: "Only data changing",
@@ -58,6 +61,7 @@ func TestOPA(t *testing.T) {
 				Eval{Result: `{{"x": false}}`},
 				Eval{NewData: `{"q": true}`, Result: `{{"x": true}}`},
 			},
+			WantErr: "",
 		},
 		{
 			Description: "Only policy changing",
@@ -68,6 +72,7 @@ func TestOPA(t *testing.T) {
 				Eval{Result: `{{"x": false}}`},
 				Eval{NewPolicy: `a = data.r`, Result: `{{"x": true}}`},
 			},
+			WantErr: "",
 		},
 		{
 			Description: "Policy and data changing",
@@ -78,6 +83,7 @@ func TestOPA(t *testing.T) {
 				Eval{Result: `{{"x": 0}}`},
 				Eval{NewPolicy: `a = data.r`, NewData: `{"q": 2, "r": 3}`, Result: `{{"x": 3}}`},
 			},
+			WantErr: "",
 		},
 		{
 			Description: "Builtins",
@@ -87,6 +93,7 @@ func TestOPA(t *testing.T) {
 				Eval{NewData: `{"q": []}`, Result: `{{"x": 0}}`},
 				Eval{NewData: `{"q": [1, 2]}`, Result: `{{"x": 5}}`},
 			},
+			WantErr: "",
 		},
 		{
 			Description: "Undefined decision",
@@ -95,6 +102,45 @@ func TestOPA(t *testing.T) {
 			Evals: []Eval{
 				Eval{Result: `set()`},
 			},
+			WantErr: "",
+		},
+		{
+			Description: "Runtime error/object insert conflict",
+			Policy:      `a = { "a": y | y := [1, 2][_] }`,
+			Query:       "data.p.a.a = x",
+			Evals:       []Eval{{}},
+			WantErr:     "module.rego:2:5: object insert conflict: internal error",
+		},
+		{
+			Description: "Runtime error/var assignment conflict",
+			Policy: `a = "b" { input > 1 }
+a = "c" { input > 2 }`,
+			Query: "data.p.a = x",
+			Evals: []Eval{
+				{Input: "3"},
+			},
+			WantErr: "module.rego:3:1: var assignment conflict: internal error",
+		},
+		{
+			Description: "Runtime error/object merge conflict",
+			Policy:      `a = false`,
+			Query:       "data.p = x",
+			Data:        `{"p": {"a": true}}`,
+			Evals:       []Eval{{}},
+			WantErr:     "<query>:1:1: object merge conflict: internal error",
+		},
+		{
+			Description: "Runtime error/with target conflict in policy",
+			Policy:      `a = x { input = x with input.foo as 1 with input.foo.bar as 2 }`,
+			Query:       "data.p = x",
+			Evals:       []Eval{{}},
+			WantErr:     "module.rego:2:9: with target conflict: internal error",
+		},
+		{
+			Description: "Runtime error/with target conflict in query",
+			Query:       "input = x with input.foo as 1 with input.foo.bar as 2",
+			Evals:       []Eval{{}},
+			WantErr:     "<query>:1:1: with target conflict: internal error",
 		},
 		// NOTE(sr): The next two test cases were used to replicate issue
 		// https://github.com/open-policy-agent/opa/issues/2962 -- their raison d'être
@@ -184,7 +230,16 @@ func TestOPA(t *testing.T) {
 
 				r, err := instance.Eval(context.Background(), opa.EvalOpts{Input: parseJSON(eval.Input)})
 				if err != nil {
-					t.Fatalf(err.Error())
+					if test.WantErr == "" { // no error desired
+						t.Fatal(err.Error())
+					}
+					if expected, actual := test.WantErr, err.Error(); expected != actual {
+						t.Fatalf("expected error %q, got %q", expected, actual)
+					}
+					return
+				}
+				if test.WantErr != "" {
+					t.Fatalf("expected error %q, got nil", test.WantErr)
 				}
 
 				expected := ast.MustParseTerm(eval.Result)
