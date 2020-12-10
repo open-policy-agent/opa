@@ -166,6 +166,11 @@ pre-production (in alphabetical order):
 * [Cyral](https://www.cyral.com/) is a venture-funded data security
   company. Still in stealth mode but using OPA to manage and enforce
   fine-grained authorization policies.
+  
+* [build.security](https://build.security/) is a venture-funded cyber security
+  company, making it easy for developers to build role-based and attribute-based
+  access controls to their applications and services. build.security is leveraging
+  OPA and rego at their core technology.  
 
 * [ORY Keto](https://github.com/ory/keto) replaced their internal
   decision engine with OPA. By leveraging OPA, ORY Keto was able to
