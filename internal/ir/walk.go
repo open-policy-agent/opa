@@ -26,7 +26,9 @@ type walkerImpl struct {
 }
 
 func (w *walkerImpl) walk(x interface{}) {
-
+	if w.err != nil { // abort on error
+		return
+	}
 	if x == nil {
 		return
 	}
@@ -52,6 +54,9 @@ func (w *walkerImpl) walk(x interface{}) {
 			w.walk(s)
 		}
 		for _, f := range x.BuiltinFuncs {
+			w.walk(f)
+		}
+		for _, f := range x.Files {
 			w.walk(f)
 		}
 	case *Plans:

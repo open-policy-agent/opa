@@ -5,7 +5,9 @@
 package planner
 
 import (
+	"fmt"
 	"os"
+	"reflect"
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -19,13 +21,12 @@ func TestPlannerHelloWorld(t *testing.T) {
 	// test/wasm/ directory that are specified in YAML, compiled into Wasm, and
 	// executed inside of a node program. For the time being, the planner is
 	// simple enough that exhaustive unit testing is not as valuable as
-	// end-to-end testing. These tests provide a quick sanity check that the
+	// end-to-end testing. These tests provide a quick consistency check that the
 	// planner is not failing on simple inputs.
 	tests := []struct {
 		note    string
 		queries []string
 		modules []string
-		exp     ir.Policy
 	}{
 		{
 			note:    "empty",
@@ -151,6 +152,15 @@ func TestPlannerHelloWorld(t *testing.T) {
 			queries: []string{`{x | input[_] = x}`},
 		},
 		{
+			note:    "object comprehension in policy",
+			queries: []string{`data.test.a = x`},
+			modules: []string{`
+				package test
+
+				a = { "a": "b" |  1 > 0 }
+			`},
+		},
+		{
 			note:    "closure",
 			queries: []string{`a = [1]; {x | a[_] = x}`},
 		},
@@ -224,7 +234,12 @@ func TestPlannerHelloWorld(t *testing.T) {
 			}
 			modules := make([]*ast.Module, len(tc.modules))
 			for i := range modules {
-				modules[i] = ast.MustParseModule(tc.modules[i])
+				file := fmt.Sprintf("module-%d.rego", i)
+				m, err := ast.ParseModule(file, tc.modules[i])
+				if err != nil {
+					t.Fatal(err)
+				}
+				modules[i] = m
 			}
 			planner := New().WithQueries([]QuerySet{
 				{
@@ -236,8 +251,294 @@ func TestPlannerHelloWorld(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			_ = policy
-			ir.Pretty(os.Stderr, policy)
+			if testing.Verbose() {
+				ir.Pretty(os.Stderr, policy)
+			}
+		})
+	}
+}
+
+type cmpWalker struct {
+	needle interface{}
+	loc    string
+}
+
+func (*cmpWalker) Before(interface{}) {}
+func (*cmpWalker) After(interface{})  {}
+
+// Visit takes, for example,
+//     *ir.MakeStringStmt{Location: ir.Location{Index:0, Col:1, Row:1}},
+// and for the first MakeStringSlice it finds, extracts its location,
+// and compares it to the one passed was needle. Other fields of the
+// struct, such as Index and Target for ir.MakeStringStmt, are ignored.
+//
+// Caveat: If NO value of the desired type is found, there's no error
+// returned. This trap can be avoided by starting with a failing test,
+// and proceeding with caution. ;)
+func (f *cmpWalker) Visit(x interface{}) (ir.Visitor, error) {
+	if reflect.TypeOf(f.needle) == reflect.TypeOf(x) {
+		expLoc := f.loc
+		actLoc := getLocation(x)
+		if expLoc != actLoc {
+			return f, fmt.Errorf("unexpected location for %T:\nwant: %s\ngot:  %s", x, expLoc, actLoc)
+		}
+	}
+	return f, nil
+}
+
+func getLocation(x interface{}) string {
+	v := reflect.ValueOf(x).Elem().FieldByName("Location")
+	li := v.Interface()
+	file := v.FieldByName("file").String()
+	text := v.FieldByName("text").String()
+	if loc, ok := li.(ir.Location); ok {
+		return fmt.Sprintf("%s:%d:%d: %s", file, loc.Row, loc.Col, text)
+	}
+	return "unknown"
+}
+
+func findInPolicy(needle interface{}, loc string, p interface{}) error {
+	return ir.Walk(&cmpWalker{needle: needle, loc: loc}, p)
+}
+
+// Assert some selected statements' location mappings. Note that for debugging,
+// it's worthwhile to no use tabs in the multi-line strings, as they may be
+// counted differently in the editor vs. in code.
+func TestPlannerLocations(t *testing.T) {
+
+	funcs := func(p *ir.Policy) interface{} {
+		return p.Funcs
+	}
+
+	tests := []struct {
+		note    string
+		queries []string
+		modules []string
+		exps    map[ir.Stmt]string           // stmt -> expected location "file:row:col: text"
+		where   func(*ir.Policy) interface{} // where to start walking search for `exps`
+	}{
+		{
+			note:    "hello world",
+			queries: []string{"input.a = 1"},
+			exps: map[ir.Stmt]string{
+				&ir.MakeStringStmt{}: "<query>:1:1: input.a = 1",
+			},
+		},
+		{
+			note:    "complete rule reference",
+			queries: []string{"data.test.p = 10"},
+			modules: []string{`
+package test
+p = x {
+  1 > 0
+  x = 10
+  true
+}
+`},
+			exps: map[ir.Stmt]string{
+				&ir.CallStmt{}:          "<query>:1:1: data.test.p = 10",
+				&ir.AssignVarStmt{}:     "module-0.rego:5:3: x = 10",
+				&ir.AssignVarOnceStmt{}: "module-0.rego:3:1: p = x",
+				&ir.ReturnLocalStmt{}:   "module-0.rego:3:1: p = x",
+			},
+		},
+		{
+			note:    "partial set",
+			queries: []string{"data.test.p = {1,2}"},
+			modules: []string{`
+package test
+p[1]
+p[2]
+			`},
+			exps: map[ir.Stmt]string{
+				&ir.MakeSetStmt{}:     "module-0.rego:3:1: p[1]",
+				&ir.ReturnLocalStmt{}: "module-0.rego:3:1: p[1]",
+			},
+			where: funcs,
+		},
+		{
+			note:    "partial set with rule body",
+			queries: []string{"data.test.p = {1,2}"},
+			modules: []string{`
+package test
+p[1] {
+  1 > 2
+}
+			`},
+			exps: map[ir.Stmt]string{
+				&ir.GreaterThanStmt{}: "module-0.rego:4:3: 1 > 2",
+				&ir.SetAddStmt{}:      "module-0.rego:3:1: p[1]",
+			},
+			where: funcs,
+		},
+		{
+			note:    "partial object",
+			queries: []string{`data.test.p = {"a": 1, "b": 2}`},
+			modules: []string{`
+package test
+p["a"] = 1 {
+  false
+}
+			`},
+			exps: map[ir.Stmt]string{
+				&ir.MakeObjectStmt{}:       `module-0.rego:3:1: p["a"] = 1`,
+				&ir.ObjectInsertOnceStmt{}: `module-0.rego:3:1: p["a"] = 1`,
+			},
+			where: funcs,
+		},
+		{
+			note:    "default rule",
+			queries: []string{`data.test.p = x`},
+			modules: []string{`
+package test
+default p = {"foo": "bar"}
+p = x {
+  x := {"baz": "quz"}
+}
+			`},
+			exps: map[ir.Stmt]string{
+				&ir.IsUndefinedStmt{}:   `module-0.rego:3:9: p = {"foo": "bar"}`,
+				&ir.MakeObjectStmt{}:    `module-0.rego:3:9: p = {"foo": "bar"}`,
+				&ir.AssignVarOnceStmt{}: `module-0.rego:3:9: p = {"foo": "bar"}`,
+			},
+			where: func(p *ir.Policy) interface{} {
+				return p.Funcs.Funcs[0].Blocks[1] // default rule block
+			},
+		},
+		{
+			note:    "object comprehension in policy",
+			queries: []string{`data.test.a = x`},
+			modules: []string{
+				`package test
+a = { "a": "b" |
+  1 > 0
+}`},
+			exps: map[ir.Stmt]string{
+				&ir.GreaterThanStmt{}:      "module-0.rego:3:3: 1 > 0",
+				&ir.ObjectInsertOnceStmt{}: "module-0.rego:2:5: { \"a\": \"b\" |\n  1 > 0\n}",
+			},
+		},
+		{
+			note:    "array comprehension in policy",
+			queries: []string{`data.test.a = x`},
+			modules: []string{
+				`package test
+a = [ "a" |
+  1 > 0
+]`},
+			exps: map[ir.Stmt]string{
+				&ir.GreaterThanStmt{}: "module-0.rego:3:3: 1 > 0",
+				&ir.ArrayAppendStmt{}: "module-0.rego:2:5: [ \"a\" |\n  1 > 0\n]",
+			},
+		},
+		{
+			note:    "set comprehension in policy",
+			queries: []string{`data.test.a = x`},
+			modules: []string{
+				`package test
+a = { "a" |
+  1 > 0
+}`},
+			exps: map[ir.Stmt]string{
+				&ir.GreaterThanStmt{}: "module-0.rego:3:3: 1 > 0",
+				&ir.SetAddStmt{}:      "module-0.rego:2:5: { \"a\" |\n  1 > 0\n}",
+			},
+		},
+		{
+			note:    "set in policy",
+			queries: []string{`data.test.a = x`},
+			modules: []string{`package test
+a = { "a", 10 }`},
+			exps: map[ir.Stmt]string{
+				&ir.SetAddStmt{}: "module-0.rego:2:1: a = { \"a\", 10 }",
+			},
+		},
+		{
+			note:    "virtual extent",
+			queries: []string{`data`},
+			modules: []string{`package test
+p = 1
+q = 2 {
+  false
+}`},
+			exps: map[ir.Stmt]string{
+				&ir.CallStmt{}:         "<query>:1:1: data",
+				&ir.ObjectInsertStmt{}: "<query>:1:1: data",
+			},
+			where: func(p *ir.Policy) interface{} {
+				return p.Plans.Plans[0].Blocks[0].Stmts[4]
+			},
+		},
+		{
+			note:    "non-ground ref in query",
+			queries: []string{`data[y].a = x`},
+			modules: []string{`package test
+a = true`},
+			exps: map[ir.Stmt]string{
+				&ir.CallStmt{}:         "<query>:1:1: data[y].a = x",
+				&ir.MakeObjectStmt{}:   "<query>:1:1: data[y].a = x",
+				&ir.ObjectInsertStmt{}: "<query>:1:1: data[y].a = x",
+				&ir.ResultSetAdd{}:     "<query>:1:1: data[y].a = x",
+				&ir.DotStmt{}:          "<query>:1:1: data[y].a = x",
+			},
+			where: func(p *ir.Policy) interface{} {
+				return p.Plans.Plans[0]
+			},
+		},
+		{
+			note:    "non-ground ref in policy",
+			queries: []string{`data.test.a = x`},
+			modules: []string{`package test
+a {
+  data.test1[_].y = "z"
+}`},
+			exps: map[ir.Stmt]string{
+				&ir.CallStmt{}:         "<query>:1:1: data.test.a = x",
+				&ir.MakeObjectStmt{}:   "<query>:1:1: data.test.a = x",
+				&ir.ObjectInsertStmt{}: "<query>:1:1: data.test.a = x",
+				&ir.ResultSetAdd{}:     "<query>:1:1: data.test.a = x",
+				&ir.ScanStmt{}:         `module-0.rego:3:3: data.test1[_].y = "z"`,
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			queries := make([]ast.Body, len(tc.queries))
+			for i := range queries {
+				queries[i] = ast.MustParseBody(tc.queries[i])
+			}
+			modules := make([]*ast.Module, len(tc.modules))
+			for i := range modules {
+				file := fmt.Sprintf("module-%d.rego", i)
+				m, err := ast.ParseModule(file, tc.modules[i])
+				if err != nil {
+					t.Fatal(err)
+				}
+				modules[i] = m
+			}
+			planner := New().WithQueries([]QuerySet{
+				{
+					Name:    "test",
+					Queries: queries,
+				},
+			}).WithModules(modules).WithBuiltinDecls(ast.BuiltinMap)
+			policy, err := planner.Plan()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if testing.Verbose() {
+				ir.Pretty(os.Stderr, policy)
+			}
+			start := interface{}(policy)
+			if tc.where != nil {
+				start = tc.where(policy)
+			}
+			for exp, loc := range tc.exps {
+				if err := findInPolicy(exp, loc, start); err != nil {
+					t.Error(err)
+				}
+			}
 		})
 	}
 }
@@ -264,14 +565,15 @@ func TestMultipleNamedQueries(t *testing.T) {
 	})
 
 	policy, err := planner.Plan()
-
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	ir.Pretty(os.Stderr, policy)
+	if testing.Verbose() {
+		ir.Pretty(os.Stderr, policy)
+	}
 
-	// Sanity check to make sure two expected plans are emitted.
+	// Consistency check to make sure two expected plans are emitted.
 	if len(policy.Plans.Plans) != 2 {
 		t.Fatal("expected two plans")
 	} else if policy.Plans.Plans[0].Name != "q1" || policy.Plans.Plans[1].Name != "q2" {

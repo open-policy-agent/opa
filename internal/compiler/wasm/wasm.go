@@ -32,6 +32,7 @@ const (
 const (
 	opaFuncPrefix        = "opa_"
 	opaAbort             = "opa_abort"
+	opaRuntimeError      = "opa_runtime_error"
 	opaJSONParse         = "opa_json_parse"
 	opaNull              = "opa_null"
 	opaBoolean           = "opa_boolean"
@@ -164,6 +165,7 @@ type Compiler struct {
 	entrypoints           map[string]int32    // available entrypoint ids
 	stringOffset          int32               // null-terminated string data base offset
 	stringAddrs           []uint32            // null-terminated string constant addresses
+	fileAddrs             []uint32            // null-terminated string constant addresses, used for file names
 	funcs                 map[string]uint32   // maps imported and exported function names to function indices
 
 	nextLocal uint32
@@ -303,14 +305,26 @@ func (c *Compiler) compileStrings() error {
 		return err
 	}
 
-	c.stringAddrs = make([]uint32, len(c.policy.Static.Strings))
 	var buf bytes.Buffer
+
+	c.stringAddrs = make([]uint32, len(c.policy.Static.Strings))
 
 	for i, s := range c.policy.Static.Strings {
 		addr := uint32(buf.Len()) + uint32(c.stringOffset)
 		buf.WriteString(s.Value)
 		buf.WriteByte(0)
 		c.stringAddrs[i] = addr
+	}
+
+	// NOTE(sr): All files that have been consulted in planning are recorded,
+	// regardless of their potential in generating runtime errors.
+	c.fileAddrs = make([]uint32, len(c.policy.Static.Files))
+
+	for i, file := range c.policy.Static.Files {
+		addr := uint32(buf.Len()) + uint32(c.stringOffset)
+		buf.WriteString(file.Value)
+		buf.WriteByte(0)
+		c.fileAddrs[i] = addr
 	}
 
 	c.externalFuncNameAddrs = make(map[string]int32)
@@ -617,7 +631,7 @@ func (c *Compiler) compileBlock(block *ir.Block) ([]instruction.Instruction, err
 			instrs = append(instrs, instruction.Block{
 				Instrs: []instruction.Instruction{
 					instruction.Block{
-						Instrs: []instruction.Instruction{
+						Instrs: append([]instruction.Instruction{
 							instruction.GetLocal{Index: c.local(stmt.Target)},
 							instruction.I32Eqz{},
 							instruction.BrIf{Index: 0},
@@ -626,10 +640,8 @@ func (c *Compiler) compileBlock(block *ir.Block) ([]instruction.Instruction, err
 							instruction.Call{Index: c.function(opaValueCompare)},
 							instruction.I32Eqz{},
 							instruction.BrIf{Index: 1},
-							instruction.I32Const{Value: c.builtinStringAddr(errVarAssignConflict)},
-							instruction.Call{Index: c.function(opaAbort)},
-							instruction.Unreachable{},
 						},
+							c.runtimeErrorAbort(stmt.Location, errVarAssignConflict)...),
 					},
 					instruction.GetLocal{Index: c.local(stmt.Source)},
 					instruction.SetLocal{Index: c.local(stmt.Target)},
@@ -782,7 +794,7 @@ func (c *Compiler) compileBlock(block *ir.Block) ([]instruction.Instruction, err
 			instrs = append(instrs, instruction.Block{
 				Instrs: []instruction.Instruction{
 					instruction.Block{
-						Instrs: []instruction.Instruction{
+						Instrs: append([]instruction.Instruction{
 							instruction.GetLocal{Index: c.local(stmt.Object)},
 							instruction.GetLocal{Index: c.local(stmt.Key)},
 							instruction.Call{Index: c.function(opaValueGet)},
@@ -795,10 +807,7 @@ func (c *Compiler) compileBlock(block *ir.Block) ([]instruction.Instruction, err
 							instruction.Call{Index: c.function(opaValueCompare)},
 							instruction.I32Eqz{},
 							instruction.BrIf{Index: 1},
-							instruction.I32Const{Value: c.builtinStringAddr(errObjectInsertConflict)},
-							instruction.Call{Index: c.function(opaAbort)},
-							instruction.Unreachable{},
-						},
+						}, c.runtimeErrorAbort(stmt.Location, errObjectInsertConflict)...),
 					},
 					instruction.GetLocal{Index: c.local(stmt.Object)},
 					instruction.GetLocal{Index: c.local(stmt.Key)},
@@ -812,13 +821,10 @@ func (c *Compiler) compileBlock(block *ir.Block) ([]instruction.Instruction, err
 			instrs = append(instrs, instruction.Call{Index: c.function(opaValueMerge)})
 			instrs = append(instrs, instruction.SetLocal{Index: c.local(stmt.Target)})
 			instrs = append(instrs, instruction.Block{
-				Instrs: []instruction.Instruction{
+				Instrs: append([]instruction.Instruction{
 					instruction.GetLocal{Index: c.local(stmt.Target)},
 					instruction.BrIf{Index: 0},
-					instruction.I32Const{Value: c.builtinStringAddr(errObjectMergeConflict)},
-					instruction.Call{Index: c.function(opaAbort)},
-					instruction.Unreachable{},
-				},
+				}, c.runtimeErrorAbort(stmt.Location, errObjectMergeConflict)...),
 			})
 		case *ir.SetAddStmt:
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Set)})
@@ -923,7 +929,7 @@ func (c *Compiler) compileWithStmt(with *ir.WithStmt, result *[]instruction.Inst
 		instrs = append(instrs, instruction.GetLocal{Index: c.local(with.Value)})
 		instrs = append(instrs, instruction.SetLocal{Index: c.local(with.Local)})
 	} else {
-		instrs = c.compileUpsert(with.Local, with.Path, with.Value, instrs)
+		instrs = c.compileUpsert(with.Local, with.Path, with.Value, with.Location, instrs)
 	}
 
 	undefined := c.genLocal()
@@ -949,7 +955,7 @@ func (c *Compiler) compileWithStmt(with *ir.WithStmt, result *[]instruction.Inst
 	return nil
 }
 
-func (c *Compiler) compileUpsert(local ir.Local, path []int, value ir.Local, instrs []instruction.Instruction) []instruction.Instruction {
+func (c *Compiler) compileUpsert(local ir.Local, path []int, value ir.Local, loc ir.Location, instrs []instruction.Instruction) []instruction.Instruction {
 
 	lcopy := c.genLocal() // holds copy of local
 	instrs = append(instrs, instruction.GetLocal{Index: c.local(local)})
@@ -1007,15 +1013,14 @@ func (c *Compiler) compileUpsert(local ir.Local, path []int, value ir.Local, ins
 
 		// If the next node is not an object, generate a conflict error.
 		inner = append(inner, instruction.Block{
-			Instrs: []instruction.Instruction{
+			Instrs: append([]instruction.Instruction{
 				instruction.GetLocal{Index: ltemp},
 				instruction.Call{Index: c.function(opaValueType)},
 				instruction.I32Const{Value: opaTypeObject},
 				instruction.I32Eq{},
 				instruction.BrIf{Index: 0},
-				instruction.I32Const{Value: c.builtinStringAddr(errWithConflict)},
-				instruction.Call{Index: c.function(opaAbort)},
 			},
+				c.runtimeErrorAbort(loc, errWithConflict)...),
 		})
 
 		// Otherwise, shallow copy the next node node and insert into the copy
@@ -1210,6 +1215,10 @@ func (c *Compiler) builtinStringAddr(code int) int32 {
 	return int32(c.builtinStringAddrs[code])
 }
 
+func (c *Compiler) fileAddr(code int) int32 {
+	return int32(c.fileAddrs[code])
+}
+
 func (c *Compiler) local(l ir.Local) uint32 {
 	var u32 uint32
 	var exist bool
@@ -1264,4 +1273,20 @@ func getLowestFreeDataSegmentOffset(m *module.Module) (int32, error) {
 	}
 
 	return offset, nil
+}
+
+// runtimeErrorAbort uses the passed source location to build the
+// arguments for a call to opa_runtime_error(file, row, col, msg).
+// It returns the instructions that make up the function call with
+// arguments, followed by Unreachable.
+func (c *Compiler) runtimeErrorAbort(loc ir.Location, errType int) []instruction.Instruction {
+	index, row, col := loc.Index, loc.Row, loc.Col
+	return []instruction.Instruction{
+		instruction.I32Const{Value: c.fileAddr(index)},
+		instruction.I32Const{Value: int32(row)},
+		instruction.I32Const{Value: int32(col)},
+		instruction.I32Const{Value: c.builtinStringAddr(errType)},
+		instruction.Call{Index: c.function(opaRuntimeError)},
+		instruction.Unreachable{},
+	}
 }
