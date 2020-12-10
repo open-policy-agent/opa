@@ -378,7 +378,18 @@ func (i *VM) Abort(arg int32) {
 		panic("invalid abort argument")
 	}
 
-	panic(abortError{message: string(data[0:n])})
+	panic(abortError{message: string(data[:n])})
+}
+
+// Println is invoked if the policy WASM code calls opa_println().
+func (i *VM) Println(arg int32) {
+	data := i.memory.Data()[arg:]
+	n := bytes.IndexByte(data, 0)
+	if n == -1 {
+		panic("invalid opa_println argument")
+	}
+
+	fmt.Printf("opa_println(): %s\n", string(data[:n]))
 }
 
 type builtinError struct {

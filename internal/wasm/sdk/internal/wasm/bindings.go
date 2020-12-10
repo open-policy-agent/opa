@@ -6,6 +6,7 @@ package wasm
 
 // #include <stdlib.h>
 //
+// extern void opa_println(void *context, int32_t addr);
 // extern void opa_abort(void *context, int32_t addr);
 // extern int32_t opa_builtin0(void *context, int32_t builtin_id, int32_t ctx);
 // extern int32_t opa_builtin1(void *context, int32_t builtin_id, int32_t ctx, int32_t arg0);
@@ -21,7 +22,12 @@ import (
 )
 
 func opaFunctions(imports *wasm.Imports) (*wasm.Imports, error) {
-	imports, err := imports.AppendFunction("opa_abort", opa_abort, C.opa_abort)
+	imports, err := imports.AppendFunction("opa_println", opa_println, C.opa_println)
+	if err != nil {
+		return nil, err
+	}
+
+	imports, err = imports.AppendFunction("opa_abort", opa_abort, C.opa_abort)
 	if err != nil {
 		return nil, err
 	}
@@ -47,6 +53,11 @@ func opaFunctions(imports *wasm.Imports) (*wasm.Imports, error) {
 	}
 
 	return imports.AppendFunction("opa_builtin4", opa_builtin4, C.opa_builtin4)
+}
+
+//export opa_println
+func opa_println(ctx unsafe.Pointer, addr int32) {
+	getVM(ctx).Println(addr)
 }
 
 //export opa_abort
