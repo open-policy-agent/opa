@@ -96,6 +96,49 @@ func TestOPA(t *testing.T) {
 				Eval{Result: `set()`},
 			},
 		},
+		// NOTE(sr): The next two test cases were used to replicate issue
+		// https://github.com/open-policy-agent/opa/issues/2962 -- their raison d'être
+		// is thus questionable, but it might be good to keep them around a bit.
+		{
+			Description: "Only input changing, regex.match",
+			Policy: `
+			default hello = false
+			hello {
+				regex.match("^world$", input.message)
+			}`,
+			Query: "data.p.hello = x",
+			Evals: []Eval{
+				Eval{Input: `{"message": "xxxxxxx"}`, Result: `{{"x": false}}`},
+				Eval{Input: `{"message": "world"}`, Result: `{{"x": true}}`},
+			},
+		},
+		{
+			Description: "Only input changing, glob.match",
+			Policy: `
+			default hello = false
+			hello {
+				glob.match("world", [":"], input.message)
+			}`,
+			Query: "data.p.hello = x",
+			Evals: []Eval{
+				Eval{Input: `{"message": "xxxxxxx"}`, Result: `{{"x": false}}`},
+				Eval{Input: `{"message": "world"}`, Result: `{{"x": true}}`},
+			},
+		},
+		{
+			Description: "regex.match with pattern from input",
+			Query: `x = regex.match(input.re, "foo")`,
+			Evals: []Eval{
+				Eval{Input: `{"re": "^foo$"}`, Result: `{{"x": true}}`},
+			},
+		},
+		{
+			Description: "regex.find_all_string_submatch_n with pattern from input",
+			Query: `x = regex.find_all_string_submatch_n(input.re, "-axxxbyc-", -1)`,
+			Evals: []Eval{
+				Eval{Input: `{"re": "a(x*)b(y|z)c"}`, Result: `{{"x":[["axxxbyc","xxx","y"]]}}`},
+			},
+		},
 	}
 
 	for _, test := range tests {

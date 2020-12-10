@@ -81,7 +81,7 @@ opa_value *opa_glob_match(opa_value *pattern, opa_value *delimiters, opa_value *
     {
         re2 = i->second;
     } else {
-        std::string error = glob_translate(opa_cast_string(pattern)->v, opa_cast_string(pattern)->len, v, &re2);
+        std::string error = glob_translate(p->v, p->len, v, &re2);
         if (!error.empty())
         {
             return NULL;
