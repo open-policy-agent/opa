@@ -16,8 +16,9 @@ opa_value *opa_regex_is_valid(opa_value *pattern)
         return opa_boolean(false);
     }
 
+    std::string pat(opa_cast_string(pattern)->v, opa_cast_string(pattern)->len);
     re2::RE2::Options options;
-    re2::RE2 re(opa_cast_string(pattern)->v, options);
+    re2::RE2 re(pat, options);
     return opa_boolean(re.ok());
 }
 
@@ -67,15 +68,17 @@ opa_value *opa_regex_match(opa_value *pattern, opa_value *value)
     {
         return NULL;
     }
-
-    re2::RE2* re = compile(opa_cast_string(pattern)->v);
+    std::string pat(opa_cast_string(pattern)->v, opa_cast_string(pattern)->len);
+    re2::RE2* re = compile(pat.c_str());
     if (re == NULL)
     {
         // TODO: return an error.
         return NULL;
     }
 
-    bool match = re2::RE2::PartialMatch(opa_cast_string(value)->v, *re);
+    std::string v(opa_cast_string(value)->v, opa_cast_string(value)->len);
+    bool match = re2::RE2::PartialMatch(v, *re);
+
     reuse(re);
     return opa_boolean(match);
 }
@@ -93,7 +96,8 @@ opa_value *opa_regex_find_all_string_submatch(opa_value *pattern, opa_value *val
         return NULL;
     }
 
-    re2::RE2* re = compile(opa_cast_string(pattern)->v);
+    std::string pat(opa_cast_string(pattern)->v, opa_cast_string(pattern)->len);
+    re2::RE2* re = compile(pat.c_str());
     if (re == NULL)
     {
         // TODO: return an error.
