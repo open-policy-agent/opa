@@ -1796,6 +1796,8 @@ void test_strings(void)
     test("format_int/16_0", opa_value_compare(opa_strings_format_int(opa_number_float(0), opa_number_int(16)), opa_string_terminated("0")) == 0);
     test("format_int/16_1", opa_value_compare(opa_strings_format_int(opa_number_float(1), opa_number_int(16)), opa_string_terminated("1")) == 0);
     test("format_int/16_-1", opa_value_compare(opa_strings_format_int(opa_number_float(-1), opa_number_int(16)), opa_string_terminated("-1")) == 0);
+    test("format_int/16_15.5", opa_value_compare(opa_strings_format_int(opa_number_float(15.5), opa_number_int(16)), opa_string_terminated("f")) == 0);
+    test("format_int/16_-15.5", opa_value_compare(opa_strings_format_int(opa_number_float(-15.5), opa_number_int(16)), opa_string_terminated("-f")) == 0);
     test("format_int/16_16", opa_value_compare(opa_strings_format_int(opa_number_float(16), opa_number_int(16)), opa_string_terminated("10")) == 0);
     test("format_int/16_31", opa_value_compare(opa_strings_format_int(opa_number_float(31), opa_number_int(16)), opa_string_terminated("1f")) == 0);
 

@@ -1,9 +1,5 @@
 # Exception Format is <test name>: <reason>
 "baseandvirtualdocs/base/virtual: conflicts": "document merge conflict - https://github.com/open-policy-agent/opa/issues/2926"
-"strings/format_int": "rounding error - https://github.com/open-policy-agent/opa/issues/2923"
-"strings/format_int: ref dest": "rounding error - https://github.com/open-policy-agent/opa/issues/2923"
-"strings/format_int: ref dest (2)": "rounding error - https://github.com/open-policy-agent/opa/issues/2923"
-"strings/format_int: undefined": "rounding error - https://github.com/open-policy-agent/opa/issues/2923"
 "withkeyword/with virtual doc specific index": "with target conflict issue - https://github.com/open-policy-agent/opa/issues/2922"
 "withkeyword/with virtual doc not specific index": "with target conflict issue - https://github.com/open-policy-agent/opa/issues/2922"
 "withkeyword/with virtual doc exact value": "with target conflict issue - https://github.com/open-policy-agent/opa/issues/2922"
