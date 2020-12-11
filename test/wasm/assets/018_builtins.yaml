@@ -5,6 +5,12 @@ cases:
   - note: round built-in
     query: round(1.4,x)
     want_result: [{'x': 1}]
+  - note: round built-in ("halfs up")
+    query: round(1.5,x)
+    want_result: [{'x': 2}]
+  - note: round built-in ("halfs up not to even")
+    query: round(2.5,x)
+    want_result: [{'x': 3}]
   - note: plus built-in
     query: plus(1,1,x)
     want_result: [{'x': 2}]
