@@ -17,6 +17,7 @@ static void init(void)
 
         mpd_maxcontext(&max_ctx);
         max_ctx.traps = 0;
+        max_ctx.round = MPD_ROUND_HALF_UP; // .5 always rounded up
 
         one = mpd_qnew();
 

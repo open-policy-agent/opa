@@ -1268,6 +1268,8 @@ void test_arithmetic(void)
     test("round -1.4 (float)", opa_number_as_float(opa_cast_number(opa_arith_round(opa_number_float(-1.4)))) == -1);
     test("round 1.5 (float)", opa_number_as_float(opa_cast_number(opa_arith_round(opa_number_float(1.5)))) == 2);
     test("round -1.5 (float)", opa_number_as_float(opa_cast_number(opa_arith_round(opa_number_float(-1.5)))) == -2);
+    test("round 2.5 (float)", opa_number_as_float(opa_cast_number(opa_arith_round(opa_number_float(2.5)))) == 3);
+    test("round -2.5 (float)", opa_number_as_float(opa_cast_number(opa_arith_round(opa_number_float(-2.5)))) == -3);
     test("plus 1+2", opa_number_as_float(opa_cast_number(opa_arith_plus(opa_number_float(1), opa_number_float(2)))) == 3);
     test("minus 3-2", opa_number_as_float(opa_cast_number(opa_arith_minus(opa_number_float(3), opa_number_float(2)))) == 1);
 
