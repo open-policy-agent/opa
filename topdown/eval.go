@@ -800,21 +800,23 @@ func (e *eval) biunifyValues(a, b *ast.Term, b1, b2 *bindings, iter unifyIterato
 	_, varA := a.Value.(ast.Var)
 	_, varB := b.Value.(ast.Var)
 
+	var undo undo
+
 	if varA && varB {
 		if b1 == b2 && a.Equal(b) {
 			return iter()
 		}
-		undo := b1.bind(a, b, b2)
+		b1.bind(a, b, b2, &undo)
 		err := iter()
 		undo.Undo()
 		return err
 	} else if varA && !varB {
-		undo := b1.bind(a, b, b2)
+		b1.bind(a, b, b2, &undo)
 		err := iter()
 		undo.Undo()
 		return err
 	} else if varB && !varA {
-		undo := b2.bind(b, a, b1)
+		b2.bind(b, a, b1, &undo)
 		err := iter()
 		undo.Undo()
 		return err
