@@ -209,24 +209,26 @@ opa_value *opa_strings_format_int(opa_value *a, opa_value *b)
 
     mpd_t *i = mpd_qnew();
     uint32_t status = 0;
-
-    mpd_qround_to_intx(i, input, mpd_max_ctx(), &status);
-    if (status & ~MPD_Rounded)
+    mpd_qtrunc(i, input, mpd_max_ctx(), &status);
+    if (status != 0)
     {
-        opa_abort("strings: invalid rounding");
+        opa_abort("strings: truncate failed");
     }
 
-    opa_value *n = opa_bf_to_number(i);
-    opa_number_try_int(opa_cast_number(n), &v);
+    int32_t w = mpd_qget_i32(i, &status);
+    if (status != 0)
+    {
+        opa_abort("strings: get uint failed");
+    }
 
     char *str = opa_malloc(21); // enough for int_t (with sign).
 
-    if (v < 0)
+    if (w < 0)
     {
         str[0] = '-';
-        snprintf(&str[1], 21, format, -v);
+        snprintf(&str[1], 21, format, -w);
     } else {
-        snprintf(str, 21, format, v);
+        snprintf(str, 21, format, w);
     }
 
     return opa_string_allocated(str, opa_strlen(str));
