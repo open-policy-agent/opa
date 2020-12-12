@@ -326,6 +326,15 @@ cases:
         "y": 4,
       }
     ]
+  - note: graph.reachable empty
+    query: 'graph.reachable({}, {"a"}, x)'
+    want_result: [{'x': []}]
+  - note: graph.reachable cycle
+    query: 'x := sort(graph.reachable({"a": {"b"}, "b": {"c"}, "c": {"a"}}, {"a"}))'
+    want_result: [{'x': ["a", "b", "c"]}]
+  - note: graph.reachable components
+    query: 'x := sort(graph.reachable({"a": {"b", "c"}, "b": {"d"}, "c": {"d"}, "d": set(), "e": {"f"}, "f": {"e"}, "x": {"x"}}, {"b", "e"}))'
+    want_result: [{'x': ["b", "d", "e", "f"]}]
   - note: regex.is_valid built-in
     query: 'regex.is_valid(".*", x)'
     want_result: [{'x': true}]
