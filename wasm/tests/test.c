@@ -8,6 +8,7 @@
 #include "conversions.h"
 #include "encoding.h"
 #include "glob.h"
+#include "graphs.h"
 #include "json.h"
 #include "malloc.h"
 #include "memoize.h"
@@ -1721,6 +1722,111 @@ void test_object(void)
     opa_array_append(arr_keys, opa_string_terminated("a"));
     opa_array_append(arr_keys, opa_string_terminated("c"));
     test("object/filter (array keys)", opa_value_compare(builtin_object_filter(&obj->hdr, &arr_keys->hdr), &expected->hdr) == 0);
+}
+
+void test_builtin_graph_reachable(void)
+{
+
+    test("reachable/malformed graph", opa_value_compare(builtin_graph_reachable(opa_set(), opa_set()), opa_set()) == 0);
+
+    opa_object_t *graph1 = opa_cast_object(opa_object());
+    opa_set_t *initial1 = opa_cast_set(opa_set());
+    opa_set_add(initial1, opa_string_terminated("a"));
+
+    test("reachable/empty", opa_value_compare(builtin_graph_reachable(&graph1->hdr, &initial1->hdr), opa_set()) == 0);
+
+    // graph -> {"a": {"b"}, "b": {"c"}, "c": {"a"}}
+    opa_set_t *vertex1_1 = opa_cast_set(opa_set());
+    opa_set_add(vertex1_1, opa_string_terminated("b"));
+    opa_object_insert(graph1, opa_string_terminated("a"), &vertex1_1->hdr);
+
+    opa_set_t *vertex2_1 = opa_cast_set(opa_set());
+    opa_set_add(vertex2_1, opa_string_terminated("c"));
+    opa_object_insert(graph1, opa_string_terminated("b"), &vertex2_1->hdr);
+
+    opa_set_t *vertex3_1 = opa_cast_set(opa_set());
+    opa_set_add(vertex3_1, opa_string_terminated("a"));
+    opa_object_insert(graph1, opa_string_terminated("c"), &vertex3_1->hdr);
+
+    opa_set_t *expected1 = opa_cast_set(opa_set());
+    opa_set_add(expected1, opa_string_terminated("a"));
+    opa_set_add(expected1, opa_string_terminated("b"));
+    opa_set_add(expected1, opa_string_terminated("c"));
+
+    test("reachable/cycle", opa_value_compare(builtin_graph_reachable(&graph1->hdr, &initial1->hdr), &expected1->hdr) == 0);
+
+    // graph -> {"a": {"b", "c"}, "b": {"d"}, "c": {"d"}, "d": {}, "e": {"f"}, "f": {"e"}, "x": {"x"}}
+    opa_object_t *graph2 = opa_cast_object(opa_object());
+    opa_set_t *initial2 = opa_cast_set(opa_set());
+    opa_set_add(initial2, opa_string_terminated("b"));
+    opa_set_add(initial2, opa_string_terminated("e"));
+
+    opa_set_t *vertex1_2 = opa_cast_set(opa_set());
+    opa_set_add(vertex1_2, opa_string_terminated("b"));
+    opa_set_add(vertex1_2, opa_string_terminated("c"));
+    opa_object_insert(graph2, opa_string_terminated("a"), &vertex1_2->hdr);
+
+    opa_set_t *vertex2_2 = opa_cast_set(opa_set());
+    opa_set_add(vertex2_2, opa_string_terminated("d"));
+    opa_object_insert(graph2, opa_string_terminated("b"), &vertex2_2->hdr);
+    opa_object_insert(graph2, opa_string_terminated("c"), &vertex2_2->hdr);
+
+    opa_object_insert(graph2, opa_string_terminated("d"), opa_set());
+
+    opa_set_t *vertex3_2 = opa_cast_set(opa_set());
+    opa_set_add(vertex3_2, opa_string_terminated("f"));
+    opa_object_insert(graph2, opa_string_terminated("e"), &vertex3_2->hdr);
+
+    opa_set_t *vertex4_2 = opa_cast_set(opa_set());
+    opa_set_add(vertex4_2, opa_string_terminated("e"));
+    opa_object_insert(graph2, opa_string_terminated("f"), &vertex4_2->hdr);
+
+    opa_set_t *vertex5_2 = opa_cast_set(opa_set());
+    opa_set_add(vertex5_2, opa_string_terminated("x"));
+    opa_object_insert(graph2, opa_string_terminated("x"), &vertex5_2->hdr);
+
+    opa_set_t *expected2 = opa_cast_set(opa_set());
+    opa_set_add(expected2, opa_string_terminated("b"));
+    opa_set_add(expected2, opa_string_terminated("d"));
+    opa_set_add(expected2, opa_string_terminated("e"));
+    opa_set_add(expected2, opa_string_terminated("f"));
+
+    test("reachable/components", opa_value_compare(builtin_graph_reachable(&graph2->hdr, &initial2->hdr), &expected2->hdr) == 0);
+
+    // graph -> {"a": ["b"], "b": ["c"], "c": ["a"]}
+    opa_object_t *graph3 = opa_cast_object(opa_object());
+    opa_array_t *initial3 = opa_cast_array(opa_array());
+    opa_array_append(initial3, opa_string_terminated("a"));
+
+    opa_array_t *vertex1_3 = opa_cast_array(opa_array());
+    opa_array_append(vertex1_3, opa_string_terminated("b"));
+    opa_object_insert(graph3, opa_string_terminated("a"), &vertex1_3->hdr);
+
+    opa_array_t *vertex2_3 = opa_cast_array(opa_array());
+    opa_array_append(vertex2_3, opa_string_terminated("c"));
+    opa_object_insert(graph3, opa_string_terminated("b"), &vertex2_3->hdr);
+
+    opa_array_t *vertex3_3 = opa_cast_array(opa_array());
+    opa_array_append(vertex3_3, opa_string_terminated("a"));
+    opa_object_insert(graph3, opa_string_terminated("c"), &vertex3_3->hdr);
+
+    opa_set_t *expected3 = opa_cast_set(opa_set());
+    opa_set_add(expected3, opa_string_terminated("a"));
+    opa_set_add(expected3, opa_string_terminated("b"));
+    opa_set_add(expected3, opa_string_terminated("c"));
+
+    test("reachable/arrays", opa_value_compare(builtin_graph_reachable(&graph3->hdr, &initial3->hdr), &expected3->hdr) == 0);
+
+    test("reachable/malformed initial nodes", opa_value_compare(builtin_graph_reachable(&graph3->hdr, opa_string_terminated("foo")), opa_set()) == 0);
+
+    // graph -> {"a": null}
+    opa_object_t *graph4 = opa_cast_object(opa_object());
+    opa_object_insert(graph4, opa_string_terminated("a"), opa_null());
+
+    opa_set_t *expected4 = opa_cast_set(opa_set());
+    opa_set_add(expected4, opa_string_terminated("a"));
+
+    test("reachable/null edge", opa_value_compare(builtin_graph_reachable(&graph4->hdr, &initial3->hdr), &expected4->hdr) == 0);
 }
 
 void test_strings(void)
