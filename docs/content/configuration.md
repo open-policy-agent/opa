@@ -577,19 +577,6 @@ included in the actual bundle gzipped tarball.
 | `bundles[_].signing.exclude_files` | `array` | No | Files in the bundle to exclude during verification. |
 | `bundles[_].size_limit_bytes` | `int64` | No (default: `1073741824`) | Size limit for individual files contained in the bundle. |
 
-
-### Bundle (Deprecated)
-
->  Deprecated in favor of `bundles` (see above).
-
-| Field | Type | Required | Description |
-| --- | --- | --- | --- |
-| `bundle.name` | `string` | Yes | Name of the bundle to download. |
-| `bundle.prefix` | `string` | No (default: `bundles`) | Path prefix to use to download bundle from remote server. |
-| `bundle.service` | `string` | Yes | Name of service to use to contact remote server. |
-| `bundle.polling.min_delay_seconds` | `int64` | No (default: `60`) | Minimum amount of time to wait between bundle downloads. |
-| `bundle.polling.max_delay_seconds` | `int64` | No (default: `120`) | Maximum amount of time to wait between bundle downloads. |
-
 ### Status
 
 | Field | Type | Required | Description |
