@@ -115,6 +115,7 @@ func runAuthzBenchmark(b *testing.B, mode testAuthz.InputMode, numPaths int) {
 		if err != nil {
 			b.Fatalf("unexpected error reading response body: %s", err)
 		}
+		resp.Close()
 
 		parsedBody := struct {
 			Result bool `json:"result"`

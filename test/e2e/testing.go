@@ -309,16 +309,31 @@ func (t *TestRuntime) GetDataWithInput(path string, input interface{}) ([]byte, 
 	if err != nil {
 		return nil, fmt.Errorf("unexpected error reading response body: %s", err)
 	}
-
+	resp.Close()
 	return body, nil
 }
 
 // GetDataWithRawInput will use the v1 data API and POST with the given input. The returned
 // value is the full response body.
-func (t *TestRuntime) GetDataWithRawInput(url string, input io.Reader) (io.Reader, error) {
-	resp, err := http.Post(url, "application/json", input)
+func (t *TestRuntime) GetDataWithRawInput(url string, input io.Reader) (io.ReadCloser, error) {
+	return t.request("POST", url, input)
+}
+
+// GetData will use the v1 data API and GET without input. The returned value is the full
+// response body.
+func (t *TestRuntime) GetData(url string) (io.ReadCloser, error) {
+	return t.request("GET", url, nil)
+}
+
+func (t *TestRuntime) request(method, url string, input io.Reader) (io.ReadCloser, error) {
+	req, err := http.NewRequest(method, url, input)
 	if err != nil {
-		return nil, fmt.Errorf("unexpected error: %s", err)
+		return nil, fmt.Errorf("unexpected error: %w", err)
+	}
+	req.Header.Set("content-type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("unexpected error: %w", err)
 	}
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("unexpected response status: %d %s", resp.StatusCode, resp.Status)

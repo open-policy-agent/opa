@@ -1228,6 +1228,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 		rego.EvalMetrics(m),
 		rego.EvalQueryTracer(buf),
 		rego.EvalInterQueryBuiltinCache(s.interQueryBuiltinCache),
+		rego.EvalInstrument(includeInstrumentation),
 	}
 
 	rs, err := preparedQuery.Eval(
@@ -1434,6 +1435,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 		rego.EvalMetrics(m),
 		rego.EvalQueryTracer(buf),
 		rego.EvalInterQueryBuiltinCache(s.interQueryBuiltinCache),
+		rego.EvalInstrument(includeInstrumentation),
 	}
 
 	rs, err := preparedQuery.Eval(
