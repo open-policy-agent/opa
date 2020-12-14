@@ -173,14 +173,14 @@ a = "c" { input > 2 }`,
 		},
 		{
 			Description: "regex.match with pattern from input",
-			Query: `x = regex.match(input.re, "foo")`,
+			Query:       `x = regex.match(input.re, "foo")`,
 			Evals: []Eval{
 				Eval{Input: `{"re": "^foo$"}`, Result: `{{"x": true}}`},
 			},
 		},
 		{
 			Description: "regex.find_all_string_submatch_n with pattern from input",
-			Query: `x = regex.find_all_string_submatch_n(input.re, "-axxxbyc-", -1)`,
+			Query:       `x = regex.find_all_string_submatch_n(input.re, "-axxxbyc-", -1)`,
 			Evals: []Eval{
 				Eval{Input: `{"re": "a(x*)b(y|z)c"}`, Result: `{{"x":[["axxxbyc","xxx","y"]]}}`},
 			},
