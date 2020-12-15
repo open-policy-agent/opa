@@ -17,6 +17,41 @@ import (
 	"github.com/open-policy-agent/opa/topdown/cache"
 )
 
+func TestManagerCacheTriggers(t *testing.T) {
+	m, err := New([]byte{}, "test", inmem.New())
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+
+	l1Called := false
+	m.RegisterCacheTrigger(func(c *cache.Config) {
+		l1Called = true
+	})
+
+	if m.registeredCacheTriggers[0] == nil {
+		t.Fatal("First listener failed to register")
+	}
+
+	l2Called := false
+	m.RegisterCacheTrigger(func(c *cache.Config) {
+		l2Called = true
+	})
+
+	if m.registeredCacheTriggers[0] == nil || m.registeredCacheTriggers[1] == nil {
+		t.Fatal("Second listener failed to register")
+	}
+
+	if l1Called == true || l2Called == true {
+		t.Fatal("Listeners should not be called yet")
+	}
+
+	m.Reconfigure(m.Config)
+
+	if l1Called == false || l2Called == false {
+		t.Fatal("Listeners should hav been called")
+	}
+}
+
 func TestManagerPluginStatusListener(t *testing.T) {
 	m, err := New([]byte{}, "test", inmem.New())
 	if err != nil {
