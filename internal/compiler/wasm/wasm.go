@@ -179,7 +179,6 @@ const (
 	errVarAssignConflict int = iota
 	errObjectInsertConflict
 	errObjectMergeConflict
-	errWithConflict
 	errIllegalEntrypoint
 )
 
@@ -190,7 +189,6 @@ var errorMessages = [...]struct {
 	{errVarAssignConflict, "var assignment conflict"},
 	{errObjectInsertConflict, "object insert conflict"},
 	{errObjectMergeConflict, "object merge conflict"},
-	{errWithConflict, "with target conflict"},
 	{errIllegalEntrypoint, "internal: illegal entrypoint id"},
 }
 
@@ -1007,17 +1005,12 @@ func (c *Compiler) compileUpsert(local ir.Local, path []int, value ir.Local, loc
 		inner = append(inner, instruction.I32Eqz{})
 		inner = append(inner, instruction.BrIf{Index: uint32(i)})
 
-		// If the next node is not an object, generate a conflict error.
-		inner = append(inner, instruction.Block{
-			Instrs: append([]instruction.Instruction{
-				instruction.GetLocal{Index: ltemp},
-				instruction.Call{Index: c.function(opaValueType)},
-				instruction.I32Const{Value: opaTypeObject},
-				instruction.I32Eq{},
-				instruction.BrIf{Index: 0},
-			},
-				c.runtimeErrorAbort(loc, errWithConflict)...),
-		})
+		// If the next node is not an object, break.
+		inner = append(inner, instruction.GetLocal{Index: ltemp})
+		inner = append(inner, instruction.Call{Index: c.function(opaValueType)})
+		inner = append(inner, instruction.I32Const{Value: opaTypeObject})
+		inner = append(inner, instruction.I32Ne{})
+		inner = append(inner, instruction.BrIf{Index: uint32(i)})
 
 		// Otherwise, shallow copy the next node node and insert into the copy
 		// before continuing.
