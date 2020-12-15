@@ -168,6 +168,7 @@ func (s *Server) Init(ctx context.Context) (*Server, error) {
 	s.defaultDecisionPath = s.generateDefaultDecisionPath()
 
 	s.interQueryBuiltinCache = iCache.NewInterQueryCache(s.manager.InterQueryBuiltinCacheConfig())
+	s.manager.RegisterCacheTrigger(s.updateCacheConfig)
 
 	return s, s.store.Commit(ctx, txn)
 }
@@ -2222,6 +2223,10 @@ func isPathOwned(path, root []string) bool {
 		}
 	}
 	return true
+}
+
+func (s *Server) updateCacheConfig(cacheConfig *iCache.Config) {
+	s.interQueryBuiltinCache.UpdateConfig(cacheConfig)
 }
 
 // parsePatchPathEscaped returns a new path for the given escaped str.
