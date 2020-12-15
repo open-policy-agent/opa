@@ -130,6 +130,41 @@ func TestDelete(t *testing.T) {
 	}
 }
 
+func TestUpdateConfig(t *testing.T) {
+	config, err := ParseCachingConfig(nil)
+	if err != nil {
+		t.Fatalf("Unexpected error %v", err)
+	}
+	c := NewInterQueryCache(config)
+	actualC, ok := c.(*cache)
+	if !ok {
+		t.Fatal("Unexpected error converting InterQueryCache to cache struct")
+	}
+	if actualC.config != config {
+		t.Fatal("Cache config is different than expected")
+	}
+	actualC.UpdateConfig(nil)
+	if actualC.config != config {
+		t.Fatal("Cache config is different than expected after a nil update")
+	}
+	config2, err := ParseCachingConfig(nil)
+	actualC.UpdateConfig(config2)
+	if actualC.config != config2 {
+		t.Fatal("Cache config is different than expected after update")
+	}
+}
+
+func TestDefaultMaxSizeBytes(t *testing.T) {
+	c := NewInterQueryCache(nil)
+	actualC, ok := c.(*cache)
+	if !ok {
+		t.Fatal("Unexpected error converting InterQueryCache to cache struct")
+	}
+	if actualC.maxSizeBytes() != defaultMaxSizeBytes {
+		t.Fatal("Expected maxSizeBytes() to return default when config is nil")
+	}
+}
+
 type testInterQueryCacheValue struct {
 	value ast.Value
 	size  int

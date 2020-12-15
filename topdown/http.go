@@ -23,6 +23,7 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/internal/version"
 	"github.com/open-policy-agent/opa/topdown/builtins"
+	"github.com/open-policy-agent/opa/util"
 )
 
 const defaultHTTPRequestTimeoutEnv = "HTTP_SEND_TIMEOUT"
@@ -133,7 +134,7 @@ func getHTTPResponse(bctx BuiltinContext, req ast.Object) (*ast.Term, error) {
 		if err != nil {
 			return nil, err
 		}
-
+		defer util.Close(httpResp)
 		// add result to cache
 		resp, err = reqExecutor.InsertIntoCache(httpResp)
 		if err != nil {
@@ -767,7 +768,7 @@ func revalidateCachedResponse(req *http.Request, client *http.Client, resp *inte
 	case http.StatusNotModified:
 		return response, false, nil
 	}
-
+	util.Close(response)
 	return nil, false, nil
 }
 
