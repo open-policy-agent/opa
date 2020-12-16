@@ -18,15 +18,13 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/open-policy-agent/opa/format"
-
-	"github.com/open-policy-agent/opa/internal/file/archive"
-	"github.com/open-policy-agent/opa/internal/merge"
-	"github.com/open-policy-agent/opa/metrics"
-
 	"github.com/pkg/errors"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/format"
+	"github.com/open-policy-agent/opa/internal/file/archive"
+	"github.com/open-policy-agent/opa/internal/merge"
+	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/util"
 )
 

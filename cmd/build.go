@@ -12,11 +12,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/open-policy-agent/opa/ast"
-	"github.com/open-policy-agent/opa/bundle"
-
 	"github.com/spf13/cobra"
 
+	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/compile"
 	"github.com/open-policy-agent/opa/util"
 )

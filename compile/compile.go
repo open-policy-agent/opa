@@ -454,8 +454,6 @@ func (c *Compiler) compileWasm(ctx context.Context) error {
 		return err
 	}
 
-	c.bundle.Wasm = buf.Bytes()
-
 	modulePath := bundle.WasmFile
 
 	c.bundle.WasmModules = []bundle.WasmModuleFile{{
