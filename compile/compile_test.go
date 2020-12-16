@@ -447,6 +447,10 @@ func TestCompilerWasmTarget(t *testing.T) {
 			t.Fatal("expected to find compiled wasm module")
 		}
 
+		if len(compiler.bundle.Wasm) != 0 {
+			t.Error("expected NOT to find deprecated bundle `Wasm` value")
+		}
+
 		ensureEntrypointRemoved(t, compiler.bundle, "test/p")
 	})
 }
