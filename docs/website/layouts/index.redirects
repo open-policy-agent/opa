@@ -32,7 +32,7 @@
 {{- end }}
 
 # Gatekeeper redirect
-/gatekeeper/*           https://open-policy-agent.github.io/gatekeeper/website/docs/:splat     200
+/gatekeeper/*           https://sozercan.github.io/gatekeeper/website/:splat 200
 
 # Download URLs
 /downloads/edge/*       https://opa-releases.s3.amazonaws.com/edge/:splat 200
