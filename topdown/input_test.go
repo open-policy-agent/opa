@@ -45,13 +45,18 @@ func TestMergeTermWithValues(t *testing.T) {
 		},
 		{
 			note:     "conflicting value",
+			input:    [][2]string{{"input", "[1,2,3]"}, {"input.a", "true"}},
+			expected: `{"a": true}`,
+		},
+		{
+			note:     "conflicting value, nested trailing terms",
 			input:    [][2]string{{"input", "[1,2,3]"}, {"input.a.b", "true"}},
-			expected: errConflictingDoc,
+			expected: `{"a": {"b": true}}`,
 		},
 		{
 			note:     "conflicting merge",
 			input:    [][2]string{{`input.a.b`, `"c"`}, {`input.a.b.d`, `"d"`}},
-			expected: errConflictingDoc,
+			expected: `{"a": {"b": {"d": "d"}}}`,
 		},
 		{
 			note:     "ordered roots",

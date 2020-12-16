@@ -2781,7 +2781,9 @@ func merge(a, b ast.Value) (ast.Value, bool) {
 	if ok1 && ok2 {
 		return mergeObjects(aObj, bObj)
 	}
-	return nil, false
+
+	// nothing to merge, a wins
+	return a, true
 }
 
 // mergeObjects returns a new Object containing the non-overlapping keys of
