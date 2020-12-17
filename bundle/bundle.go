@@ -610,6 +610,7 @@ func (w *Writer) DisableFormat(yes bool) *Writer {
 func (w *Writer) Write(bundle Bundle) error {
 	gw := gzip.NewWriter(w.w)
 	tw := tar.NewWriter(gw)
+	aw := archive.New(tw)
 
 	var buf bytes.Buffer
 
@@ -617,7 +618,7 @@ func (w *Writer) Write(bundle Bundle) error {
 		return err
 	}
 
-	if err := archive.WriteFile(tw, "data.json", buf.Bytes()); err != nil {
+	if err := aw.WriteFile("data.json", buf.Bytes()); err != nil {
 		return err
 	}
 
@@ -627,20 +628,20 @@ func (w *Writer) Write(bundle Bundle) error {
 			path = module.Path
 		}
 
-		if err := archive.WriteFile(tw, path, module.Raw); err != nil {
+		if err := aw.WriteFile(path, module.Raw); err != nil {
 			return err
 		}
 	}
 
-	if err := w.writeWasm(tw, bundle); err != nil {
+	if err := w.writeWasm(aw, bundle); err != nil {
 		return err
 	}
 
-	if err := writeManifest(tw, bundle); err != nil {
+	if err := writeManifest(aw, bundle); err != nil {
 		return err
 	}
 
-	if err := writeSignatures(tw, bundle); err != nil {
+	if err := writeSignatures(aw, bundle); err != nil {
 		return err
 	}
 
@@ -651,21 +652,21 @@ func (w *Writer) Write(bundle Bundle) error {
 	return gw.Close()
 }
 
-func (w *Writer) writeWasm(tw *tar.Writer, bundle Bundle) error {
+func (w *Writer) writeWasm(aw *archive.Writer, bundle Bundle) error {
 	for _, wm := range bundle.WasmModules {
 		path := wm.URL
 		if w.usePath {
 			path = wm.Path
 		}
 
-		err := archive.WriteFile(tw, path, wm.Raw)
+		err := aw.WriteFile(path, wm.Raw)
 		if err != nil {
 			return err
 		}
 	}
 
 	if len(bundle.Wasm) > 0 {
-		err := archive.WriteFile(tw, "/"+WasmFile, bundle.Wasm)
+		err := aw.WriteFile("/"+WasmFile, bundle.Wasm)
 		if err != nil {
 			return err
 		}
@@ -674,7 +675,7 @@ func (w *Writer) writeWasm(tw *tar.Writer, bundle Bundle) error {
 	return nil
 }
 
-func writeManifest(tw *tar.Writer, bundle Bundle) error {
+func writeManifest(aw *archive.Writer, bundle Bundle) error {
 
 	var buf bytes.Buffer
 
@@ -682,10 +683,10 @@ func writeManifest(tw *tar.Writer, bundle Bundle) error {
 		return err
 	}
 
-	return archive.WriteFile(tw, ManifestExt, buf.Bytes())
+	return aw.WriteFile(ManifestExt, buf.Bytes())
 }
 
-func writeSignatures(tw *tar.Writer, bundle Bundle) error {
+func writeSignatures(aw *archive.Writer, bundle Bundle) error {
 
 	if bundle.Signatures.isEmpty() {
 		return nil
@@ -696,7 +697,7 @@ func writeSignatures(tw *tar.Writer, bundle Bundle) error {
 		return err
 	}
 
-	return archive.WriteFile(tw, fmt.Sprintf(".%v", SignaturesFile), bs)
+	return aw.WriteFile(fmt.Sprintf(".%v", SignaturesFile), bs)
 }
 
 func hashBundleFiles(hash SignatureHasher, b *Bundle) ([]FileInfo, error) {
