@@ -121,14 +121,6 @@ a = "c" { input > 2 }`,
 			},
 			WantErr: "module.rego:3:1: var assignment conflict: internal error",
 		},
-		{
-			Description: "Runtime error/object merge conflict",
-			Policy:      `a = false`,
-			Query:       "data.p = x",
-			Data:        `{"p": {"a": true}}`,
-			Evals:       []Eval{{}},
-			WantErr:     "<query>:1:1: object merge conflict: internal error",
-		},
 		// NOTE(sr): The next two test cases were used to replicate issue
 		// https://github.com/open-policy-agent/opa/issues/2962 -- their raison d'être
 		// is thus questionable, but it might be good to keep them around a bit.

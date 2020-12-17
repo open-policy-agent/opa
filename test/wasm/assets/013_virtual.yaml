@@ -171,7 +171,7 @@ cases:
     want_defined: false
   - note: merge conflict
     query: |
-      data.test
+      data.test == {"x": {"y": 1}}
     data:
       {
         "test": {
@@ -185,7 +185,7 @@ cases:
       package test
 
       x = []
-    want_error: "<query>:1:1: object merge conflict"
+    want_defined: true
   - note: merge iteration
     query: |
       data.test[x].foo == {"q": 1, "p": 3}; x == "a"
