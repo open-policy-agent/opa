@@ -1086,13 +1086,17 @@ void test_opa_value_iter_set()
     }
 }
 
-void test_opa_value_merge_fail()
+void test_opa_value_merge_scalars()
 {
-    opa_value *fail = opa_value_merge(opa_number_int(1), opa_string_terminated("foo"));
+    opa_value *result = opa_value_merge(opa_number_int(1), opa_string_terminated("foo"));
 
-    if (fail != NULL)
+    if (result == NULL)
     {
-        test_fatal("expected merge of two scalars to fail");
+        test_fatal("merge of two scalars failed");
+    }
+    else if (opa_value_compare(result, opa_number_int(1)) != 0)
+    {
+        test_fatal("scalar merge returned unexpected result");
     }
 }
 
