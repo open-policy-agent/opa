@@ -1298,6 +1298,8 @@ void test_arithmetic(void)
     test("multiply 3*2", opa_number_as_float(opa_cast_number(opa_arith_multiply(opa_number_float(3), opa_number_float(2)))) == 6);
     test("divide 3/2", opa_number_as_float(opa_cast_number(opa_arith_divide(opa_number_float(3), opa_number_float(2)))) == 1.5);
     test("remainder 5 % 2", opa_number_as_float(opa_cast_number(opa_arith_rem(opa_number_float(5), opa_number_float(2)))) == 1);
+    test("remainder 1.1 % 1", opa_arith_rem(opa_number_float(1.1), opa_number_float(1)) == NULL);
+    test("remainder 1 % 1.1", opa_arith_rem(opa_number_float(1), opa_number_float(1.1)) == NULL);
 }
 
 void test_set_diff(void)

@@ -213,7 +213,7 @@ opa_value *opa_arith_rem(opa_value *a, opa_value *b)
 {
     mpd_t *x = opa_number_to_bf(a);
     mpd_t *y = opa_number_to_bf(b);
-    if (x == NULL || y == NULL)
+    if (x == NULL || y == NULL || !mpd_isinteger(x) || !mpd_isinteger(y))
     {
         opa_mpd_del(x);
         opa_mpd_del(y);
