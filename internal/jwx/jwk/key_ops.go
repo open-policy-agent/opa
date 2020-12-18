@@ -30,13 +30,13 @@ var keyOps = map[string]struct{}{"sign": {}, "verify": {}, "encrypt": {}, "decry
 // KeyOperation constants
 const (
 	KeyOpSign       KeyOperation = "sign"       // (compute digital signature or MAC)
-	KeyOpVerify                  = "verify"     // (verify digital signature or MAC)
-	KeyOpEncrypt                 = "encrypt"    // (encrypt content)
-	KeyOpDecrypt                 = "decrypt"    // (decrypt content and validate decryption, if applicable)
-	KeyOpWrapKey                 = "wrapKey"    // (encrypt key)
-	KeyOpUnwrapKey               = "unwrapKey"  // (decrypt key and validate decryption, if applicable)
-	KeyOpDeriveKey               = "deriveKey"  // (derive key)
-	KeyOpDeriveBits              = "deriveBits" // (derive bits not to be used as a key)
+	KeyOpVerify     KeyOperation = "verify"     // (verify digital signature or MAC)
+	KeyOpEncrypt    KeyOperation = "encrypt"    // (encrypt content)
+	KeyOpDecrypt    KeyOperation = "decrypt"    // (decrypt content and validate decryption, if applicable)
+	KeyOpWrapKey    KeyOperation = "wrapKey"    // (encrypt key)
+	KeyOpUnwrapKey  KeyOperation = "unwrapKey"  // (decrypt key and validate decryption, if applicable)
+	KeyOpDeriveKey  KeyOperation = "deriveKey"  // (derive key)
+	KeyOpDeriveBits KeyOperation = "deriveBits" // (derive bits not to be used as a key)
 )
 
 // Accept determines if Key Operation is valid
