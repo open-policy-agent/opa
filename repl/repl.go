@@ -69,9 +69,9 @@ type explainMode string
 
 const (
 	explainOff   explainMode = "off"
-	explainFull              = "full"
-	explainNotes             = "notes"
-	explainFails             = "fails"
+	explainFull  explainMode = "full"
+	explainNotes explainMode = "notes"
+	explainFails explainMode = "fails"
 )
 
 const defaultPrettyLimit = 80
