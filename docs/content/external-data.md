@@ -136,7 +136,7 @@ That functionality is implemented using built-in functions such as [`http.send`]
 ### Current limitations
 * Unit test framework does not allow you to mock out the results of builtin functions; however, you can create a helper rule that runs the builtin and mock that out.
 * Credentials needed for the external service can either be hardcoded into policy or pulled from the environment.
-* The built-in functions do not implement any retry logic. Communication errors currently cause policy evaluation to halt.
+* The built-in functions do not implement any retry logic.
 
 
 ### Flow
@@ -170,7 +170,7 @@ The downside to pulling data on demand is reduced performance and availability b
 | Input | High | Coupling between service and OPA | Local, dynamic |
 | Bundle | High | Updates to policy/data at the same time.  Size an issue. | Static, medium |
 | Push | High | Control data refresh rate.  Size an issue. | Dynamic, medium |
-| Evaluation Pull (experimental) | Dependent on network | Perfectly up to date.  No size limit. | Dynamic or large |
+| Evaluation Pull | Dependent on network | Perfectly up to date.  No size limit. | Dynamic or large |
 
 
 
