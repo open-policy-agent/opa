@@ -129,19 +129,6 @@ a = "c" { input > 2 }`,
 			Evals:       []Eval{{}},
 			WantErr:     "<query>:1:1: object merge conflict: internal error",
 		},
-		{
-			Description: "Runtime error/with target conflict in policy",
-			Policy:      `a = x { input = x with input.foo as 1 with input.foo.bar as 2 }`,
-			Query:       "data.p = x",
-			Evals:       []Eval{{}},
-			WantErr:     "module.rego:2:9: with target conflict: internal error",
-		},
-		{
-			Description: "Runtime error/with target conflict in query",
-			Query:       "input = x with input.foo as 1 with input.foo.bar as 2",
-			Evals:       []Eval{{}},
-			WantErr:     "<query>:1:1: with target conflict: internal error",
-		},
 		// NOTE(sr): The next two test cases were used to replicate issue
 		// https://github.com/open-policy-agent/opa/issues/2962 -- their raison d'être
 		// is thus questionable, but it might be good to keep them around a bit.
@@ -173,14 +160,14 @@ a = "c" { input > 2 }`,
 		},
 		{
 			Description: "regex.match with pattern from input",
-			Query: `x = regex.match(input.re, "foo")`,
+			Query:       `x = regex.match(input.re, "foo")`,
 			Evals: []Eval{
 				Eval{Input: `{"re": "^foo$"}`, Result: `{{"x": true}}`},
 			},
 		},
 		{
 			Description: "regex.find_all_string_submatch_n with pattern from input",
-			Query: `x = regex.find_all_string_submatch_n(input.re, "-axxxbyc-", -1)`,
+			Query:       `x = regex.find_all_string_submatch_n(input.re, "-axxxbyc-", -1)`,
 			Evals: []Eval{
 				Eval{Input: `{"re": "a(x*)b(y|z)c"}`, Result: `{{"x":[["axxxbyc","xxx","y"]]}}`},
 			},

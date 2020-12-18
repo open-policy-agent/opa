@@ -1814,8 +1814,9 @@ func (obj *object) Iter(f func(*Term, *Term) error) error {
 	return nil
 }
 
-// Until calls f for each key-value pair in the object. If f returns true,
-// iteration stops.
+// Until calls f for each key-value pair in the object. If f returns
+// true, iteration stops and Until returns true. Otherwise, return
+// false.
 func (obj *object) Until(f func(*Term, *Term) bool) bool {
 	err := obj.Iter(func(k, v *Term) error {
 		if f(k, v) {

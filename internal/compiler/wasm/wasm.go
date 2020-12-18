@@ -179,7 +179,6 @@ const (
 	errVarAssignConflict int = iota
 	errObjectInsertConflict
 	errObjectMergeConflict
-	errWithConflict
 	errIllegalEntrypoint
 )
 
@@ -190,7 +189,6 @@ var errorMessages = [...]struct {
 	{errVarAssignConflict, "var assignment conflict"},
 	{errObjectInsertConflict, "object insert conflict"},
 	{errObjectMergeConflict, "object merge conflict"},
-	{errWithConflict, "with target conflict"},
 	{errIllegalEntrypoint, "internal: illegal entrypoint id"},
 }
 
@@ -672,8 +670,7 @@ func (c *Compiler) compileBlock(block *ir.Block) ([]instruction.Instruction, err
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Source)})
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Key)})
 			instrs = append(instrs, instruction.Call{Index: c.function(opaValueGet)})
-			instrs = append(instrs, instruction.SetLocal{Index: c.local(stmt.Target)})
-			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Target)})
+			instrs = append(instrs, instruction.TeeLocal{Index: c.local(stmt.Target)})
 			instrs = append(instrs, instruction.I32Eqz{})
 			instrs = append(instrs, instruction.BrIf{Index: 0})
 		case *ir.LenStmt:
@@ -799,8 +796,7 @@ func (c *Compiler) compileBlock(block *ir.Block) ([]instruction.Instruction, err
 							instruction.GetLocal{Index: c.local(stmt.Object)},
 							instruction.GetLocal{Index: c.local(stmt.Key)},
 							instruction.Call{Index: c.function(opaValueGet)},
-							instruction.SetLocal{Index: tmp},
-							instruction.GetLocal{Index: tmp},
+							instruction.TeeLocal{Index: tmp},
 							instruction.I32Eqz{},
 							instruction.BrIf{Index: 0},
 							instruction.GetLocal{Index: tmp},
@@ -867,8 +863,7 @@ func (c *Compiler) compileScanBlock(scan *ir.ScanStmt) ([]instruction.Instructio
 	instrs = append(instrs, instruction.Call{Index: c.function(opaValueIter)})
 
 	// Check for emptiness.
-	instrs = append(instrs, instruction.SetLocal{Index: c.local(scan.Key)})
-	instrs = append(instrs, instruction.GetLocal{Index: c.local(scan.Key)})
+	instrs = append(instrs, instruction.TeeLocal{Index: c.local(scan.Key)})
 	instrs = append(instrs, instruction.I32Eqz{})
 	instrs = append(instrs, instruction.BrIf{Index: 1})
 
@@ -971,14 +966,12 @@ func (c *Compiler) compileUpsert(local ir.Local, path []int, value ir.Local, loc
 				instruction.BrIf{Index: 0},
 				instruction.GetLocal{Index: lcopy},
 				instruction.Call{Index: c.function(opaValueShallowCopy)},
-				instruction.SetLocal{Index: lcopy},
-				instruction.GetLocal{Index: lcopy},
+				instruction.TeeLocal{Index: lcopy},
 				instruction.SetLocal{Index: c.local(local)},
 				instruction.Br{Index: 1},
 			}},
 			instruction.Call{Index: c.function(opaObject)},
-			instruction.SetLocal{Index: lcopy},
-			instruction.GetLocal{Index: lcopy},
+			instruction.TeeLocal{Index: lcopy},
 			instruction.SetLocal{Index: c.local(local)},
 		},
 	})
@@ -1012,17 +1005,12 @@ func (c *Compiler) compileUpsert(local ir.Local, path []int, value ir.Local, loc
 		inner = append(inner, instruction.I32Eqz{})
 		inner = append(inner, instruction.BrIf{Index: uint32(i)})
 
-		// If the next node is not an object, generate a conflict error.
-		inner = append(inner, instruction.Block{
-			Instrs: append([]instruction.Instruction{
-				instruction.GetLocal{Index: ltemp},
-				instruction.Call{Index: c.function(opaValueType)},
-				instruction.I32Const{Value: opaTypeObject},
-				instruction.I32Eq{},
-				instruction.BrIf{Index: 0},
-			},
-				c.runtimeErrorAbort(loc, errWithConflict)...),
-		})
+		// If the next node is not an object, break.
+		inner = append(inner, instruction.GetLocal{Index: ltemp})
+		inner = append(inner, instruction.Call{Index: c.function(opaValueType)})
+		inner = append(inner, instruction.I32Const{Value: opaTypeObject})
+		inner = append(inner, instruction.I32Ne{})
+		inner = append(inner, instruction.BrIf{Index: uint32(i)})
 
 		// Otherwise, shallow copy the next node node and insert into the copy
 		// before continuing.
@@ -1103,8 +1091,7 @@ func (c *Compiler) compileInternalCall(stmt *ir.CallStmt, index uint32, result *
 		block.Instrs = append(block.Instrs,
 			instruction.I32Const{Value: int32(index)},
 			instruction.Call{Index: c.function(opaMemoizeGet)},
-			instruction.SetLocal{Index: c.local(stmt.Result)},
-			instruction.GetLocal{Index: c.local(stmt.Result)},
+			instruction.TeeLocal{Index: c.local(stmt.Result)},
 			instruction.BrIf{Index: 0})
 	}
 
@@ -1115,8 +1102,7 @@ func (c *Compiler) compileInternalCall(stmt *ir.CallStmt, index uint32, result *
 
 	block.Instrs = append(block.Instrs,
 		instruction.Call{Index: index},
-		instruction.SetLocal{Index: c.local(stmt.Result)},
-		instruction.GetLocal{Index: c.local(stmt.Result)},
+		instruction.TeeLocal{Index: c.local(stmt.Result)},
 		instruction.I32Eqz{},
 		instruction.BrIf{Index: 1})
 
@@ -1149,8 +1135,7 @@ func (c *Compiler) compileExternalCall(stmt *ir.CallStmt, id int32, result *[]in
 	}
 
 	instrs = append(instrs, instruction.Call{Index: c.funcs[builtinDispatchers[len(stmt.Args)]]})
-	instrs = append(instrs, instruction.SetLocal{Index: c.local(stmt.Result)})
-	instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Result)})
+	instrs = append(instrs, instruction.TeeLocal{Index: c.local(stmt.Result)})
 	instrs = append(instrs, instruction.I32Eqz{})
 	instrs = append(instrs, instruction.BrIf{Index: 0})
 	*result = instrs

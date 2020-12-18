@@ -83,6 +83,10 @@ func testRun(t *testing.T, tc cases.TestCase) {
 		testAssertErrorCode(t, *tc.WantErrorCode, err)
 	}
 
+	if err != nil && tc.WantErrorCode == nil && tc.WantError == nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
 	if tc.WantResult != nil {
 		testAssertResultSet(t, *tc.WantResult, rs, tc.SortBindings)
 	}

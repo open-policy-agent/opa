@@ -620,14 +620,12 @@ func (p *Planner) planWithRec(e *ast.Expr, targets [][]int, values []ir.Local, i
 	target := e.With[index].Target.Value.(ast.Ref)
 	head := target[0].Value.(ast.Var)
 
-	stmt := &ir.WithStmt{
+	p.appendStmt(&ir.WithStmt{
 		Local: p.vars.GetOrEmpty(head),
 		Path:  targets[index],
 		Value: values[index],
 		Block: block,
-	}
-
-	p.appendStmt(stmt)
+	})
 
 	return nil
 }

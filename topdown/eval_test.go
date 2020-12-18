@@ -64,13 +64,53 @@ func TestMergeOverlappingKeys(t *testing.T) {
 
 }
 
-func TestMergeError(t *testing.T) {
-	realData := ast.MustParseTerm(`{"foo": "bar"}`).Value.(ast.Object)
-	mockData := ast.StringTerm("baz").Value
+func TestMergeWhenHittingNonObject(t *testing.T) {
+	cases := []struct {
+		note            string
+		real, mock, exp *ast.Term
+	}{
+		{
+			note: "real object, mock string",
+			real: ast.MustParseTerm(`{"foo": "bar"}`),
+			mock: ast.StringTerm("foo"),
+			exp:  ast.StringTerm("foo"),
+		},
+		{
+			note: "real string, mock object",
+			real: ast.StringTerm("foo"),
+			mock: ast.MustParseTerm(`{"foo": "bar"}`),
+			exp:  ast.MustParseTerm(`{"foo": "bar"}`),
+		},
+		{
+			note: "real object with string value, where mock has object-value",
+			real: ast.MustParseTerm(`{"foo": ["bar"], "quz": false}`),
+			mock: ast.MustParseTerm(`{"foo": {"bar": 123}}`),
+			exp:  ast.MustParseTerm(`{"foo": {"bar": 123}, "quz": false}`),
+		},
+		{
+			note: "real object with deeply-nested object value, where mock has number-value",
+			real: ast.MustParseTerm(`{"foo": {"bar": {"baz": "quz"}, "quz": true}}`),
+			mock: ast.MustParseTerm(`{"foo": {"bar": 10}}`),
+			exp:  ast.MustParseTerm(`{"foo": {"bar": 10, "quz": true}}`),
+		},
+		{
+			note: "real object with deeply-nested string value, where mock has object-value",
+			real: ast.MustParseTerm(`{"foo": {"bar": {"baz": "quz"}, "quz": true}}`),
+			mock: ast.MustParseTerm(`{"foo": {"bar": {"baz": {"foo": "bar"}}}}`),
+			exp:  ast.MustParseTerm(`{"foo": {"bar": {"baz": {"foo": "bar"}}, "quz": true}}`),
+		},
+	}
 
-	_, ok := merge(mockData, realData)
-	if ok {
-		t.Fatal("Expected error")
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			merged, ok := merge(tc.mock.Value, tc.real.Value)
+			if !ok {
+				t.Fatal("expected no error")
+			}
+			if tc.exp.Value.Compare(merged) != 0 {
+				t.Errorf("Expected %v but got %v", tc.exp, merged)
+			}
+		})
 	}
 }
 
