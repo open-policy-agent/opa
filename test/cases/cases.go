@@ -43,6 +43,7 @@ type TestCase struct {
 	WantErrorCode *string                   `json:"want_error_code,omitempty"` // expect query error code (overrides result)
 	WantError     *string                   `json:"want_error,omitempty"`      // expect query error message (overrides error code)
 	SortBindings  bool                      `json:"sort_bindings,omitempty"`   // indicates that binding values should be treated as sets
+	StrictError   bool                      `json:"strict_error,omitempty"`    // indicates that the error depends on strict builtin error mode
 }
 
 // Load returns a set of built-in test cases.

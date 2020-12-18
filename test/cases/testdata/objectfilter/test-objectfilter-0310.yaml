@@ -1,5 +1,5 @@
 cases:
-- data: {}
+- data:
   input_term: '{"x": false}'
   modules:
   - |
@@ -14,3 +14,4 @@ cases:
   query: data.generated.p = x
   want_error: 'object.filter: operand 1 must be object but got boolean'
   want_error_code: eval_type_error
+  strict_error: true

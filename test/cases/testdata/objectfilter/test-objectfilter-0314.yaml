@@ -1,5 +1,5 @@
 cases:
-- data: {}
+- data:
   input_term: '{"x": "foo"}'
   modules:
   - |
@@ -15,3 +15,4 @@ cases:
   want_error: 'object.filter: operand 2 must be one of {object, string, array} but
     got string'
   want_error_code: eval_type_error
+  strict_error: true

@@ -120,6 +120,10 @@ func assert(t *testing.T, tc cases.TestCase, result *opa.Result, err error) {
 		}
 		assertResultSet(t, *tc.WantResult, tc.SortBindings, result)
 	} else if tc.WantErrorCode != nil || tc.WantError != nil {
+		if tc.StrictError {
+			assertEmptyResultSet(t, result)
+			return
+		}
 		if err == nil {
 			t.Fatal("expected error")
 		}
@@ -156,6 +160,10 @@ func assertDefined(t *testing.T, want defined, result *opa.Result) {
 	if got != want {
 		t.Fatalf("expected %v but got %v", want, got)
 	}
+}
+
+func assertEmptyResultSet(t *testing.T, result *opa.Result) {
+	assertResultSet(t, []map[string]interface{}{}, false, result)
 }
 
 func assertResultSet(t *testing.T, want []map[string]interface{}, sortBindings bool, result *opa.Result) {
