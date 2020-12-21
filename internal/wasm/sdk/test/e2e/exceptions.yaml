@@ -11,3 +11,6 @@
 "cryptox509parsecertificates/invalid DER or PEM data, b64": "error handling for topdown builtins called from wasm"
 "cryptox509parsecertificates/invalid DER or PEM data, string": "error handling for topdown builtins called from wasm"
 "globsmatch/regex.globs_match: bad pattern err": "error handling for topdown builtins called from wasm"
+"hexbuiltins/hex_decode with invalid hex encoded string": "error handling for topdown builtins called from wasm"
+"invalidkeyerror/missing keys": "error handling for topdown builtins called from wasm"
+"invalidkeyerror/invalid keys": "error handling for topdown builtins called from wasm"

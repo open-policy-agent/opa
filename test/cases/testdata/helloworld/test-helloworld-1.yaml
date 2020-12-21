@@ -45,3 +45,7 @@ cases:
   query: 1 / 0
   want_error_code: eval_builtin_error
   want_error: 'div: divide by zero'
+  # `strict_error` indicates that the error is only returned when
+  # "strict builtin errors" are enabled. Otherwise, the test result
+  # is expected to be "undefined".
+  strict_error: true
