@@ -93,3 +93,4 @@ cases:
   query: data.generated.p = x
   want_error: type is JWT but payload is not JSON
   want_error_code: eval_builtin_error
+  strict_error: true

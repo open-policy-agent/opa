@@ -94,3 +94,4 @@ cases:
   want_error: 'JWT signature had invalid encoding: illegal base64 data at input byte
     15'
   want_error_code: eval_builtin_error
+  strict_error: true

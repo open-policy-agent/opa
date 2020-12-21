@@ -93,3 +93,4 @@ cases:
   query: data.generated.p = x
   want_error: extra data after a PEM certificate block
   want_error_code: eval_builtin_error
+  strict_error: true
