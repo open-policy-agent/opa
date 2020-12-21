@@ -36,3 +36,8 @@
 "jwtverifyrsa/failure-extra data after pem certificate block": "error handling for topdown builtins called from wasm"
 "jwtverifyrsa/failure-bad pem certificate": "error handling for topdown builtins called from wasm"
 "jwtverifyrsa/failure-bad jwk key": "error handling for topdown builtins called from wasm"
+"netcidrmerge/cidr invalid IP": "error handling for topdown builtins called from wasm"
+"netcidrexpand/cidr invalid mask": "error handling for topdown builtins called from wasm"
+"netcidrcontainsmatches/bad array": "error handling for topdown builtins called from wasm"
+"netcidrcontainsmatches/bad set": "error handling for topdown builtins called from wasm"
+"netcidrcontainsmatches/bad set tuple element": "error handling for topdown builtins called from wasm"
