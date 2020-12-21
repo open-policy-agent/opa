@@ -14,3 +14,4 @@ cases:
   query: data.generated.p = x
   want_error: 'json.remove: operand 1 must be object but got array'
   want_error_code: eval_type_error
+  strict_error: true
