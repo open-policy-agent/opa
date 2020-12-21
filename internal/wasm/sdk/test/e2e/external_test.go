@@ -27,7 +27,7 @@ import (
 	"github.com/open-policy-agent/opa/util"
 )
 
-var opaRootDir = "../../../../../"
+const opaRootDir = "../../../../../"
 var caseDir = flag.String("case-dir", filepath.Join(opaRootDir, "test/cases/testdata"), "set directory to load test cases from")
 var exceptionsFile = flag.String("exceptions", "./exceptions.yaml", "set file to load a list of test names to exclude")
 
