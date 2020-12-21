@@ -6,6 +6,7 @@
 package cases
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -76,12 +77,12 @@ func loadRecursive(dirpath string) (Set, error) {
 
 		bs, err := ioutil.ReadFile(path)
 		if err != nil {
-			return err
+			return fmt.Errorf("%s: %w", path, err)
 		}
 
 		var x Set
 		if err := util.Unmarshal(bs, &x); err != nil {
-			return err
+			return fmt.Errorf("%s: %w", path, err)
 		}
 
 		for i := range x.Cases {
