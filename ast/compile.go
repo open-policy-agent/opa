@@ -606,6 +606,14 @@ func (c *Compiler) RuleIndex(path Ref) RuleIndex {
 	return r.(RuleIndex)
 }
 
+// PassesTypeCheck determines whether the given body passes type checking
+func (c *Compiler) PassesTypeCheck(body Body) bool {
+	checker := newTypeChecker()
+	env := c.TypeEnv
+	_, errs := checker.CheckBody(env, body)
+	return len(errs) == 0
+}
+
 // ModuleLoader defines the interface that callers can implement to enable lazy
 // loading of modules during compilation.
 type ModuleLoader func(resolved map[string]*Module) (parsed map[string]*Module, err error)

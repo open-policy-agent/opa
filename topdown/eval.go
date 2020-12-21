@@ -503,6 +503,11 @@ func (e *eval) evalNotPartial(iter evalIterator) error {
 	child.eval(func(*eval) error {
 		query := e.saveStack.Peek()
 		plugged := query.Plug(e.caller.bindings)
+		// Skip this rule body if it fails to type-check.
+		// Type-checking failure means the rule body will never succeed.
+		if !e.compiler.PassesTypeCheck(plugged) {
+			return nil
+		}
 		if cp != nil {
 			plugged = applyCopyPropagation(cp, e.instr, plugged)
 		}
@@ -2095,32 +2100,34 @@ func (e evalVirtualPartial) partialEvalSupportRule(iter unifyIterator, rule *ast
 
 		current := e.e.saveStack.PopQuery()
 		plugged := current.Plug(e.e.caller.bindings)
+		// Skip this rule body if it fails to type-check.
+		// Type-checking failure means the rule body will never succeed.
+		if e.e.compiler.PassesTypeCheck(plugged) {
+			var key, value *ast.Term
 
-		var key, value *ast.Term
+			if rule.Head.Key != nil {
+				key = child.bindings.PlugNamespaced(rule.Head.Key, e.e.caller.bindings)
+			}
 
-		if rule.Head.Key != nil {
-			key = child.bindings.PlugNamespaced(rule.Head.Key, e.e.caller.bindings)
+			if rule.Head.Value != nil {
+				value = child.bindings.PlugNamespaced(rule.Head.Value, e.e.caller.bindings)
+			}
+
+			head := ast.NewHead(rule.Head.Name, key, value)
+
+			if !e.e.inliningControl.shallow {
+				cp := copypropagation.New(head.Vars()).
+					WithEnsureNonEmptyBody(true).
+					WithCompiler(e.e.compiler)
+				plugged = applyCopyPropagation(cp, e.e.instr, plugged)
+			}
+
+			e.e.saveSupport.Insert(path, &ast.Rule{
+				Head:    head,
+				Body:    plugged,
+				Default: rule.Default,
+			})
 		}
-
-		if rule.Head.Value != nil {
-			value = child.bindings.PlugNamespaced(rule.Head.Value, e.e.caller.bindings)
-		}
-
-		head := ast.NewHead(rule.Head.Name, key, value)
-
-		if !e.e.inliningControl.shallow {
-			cp := copypropagation.New(head.Vars()).
-				WithEnsureNonEmptyBody(true).
-				WithCompiler(e.e.compiler)
-			plugged = applyCopyPropagation(cp, e.e.instr, plugged)
-		}
-
-		e.e.saveSupport.Insert(path, &ast.Rule{
-			Head:    head,
-			Body:    plugged,
-			Default: rule.Default,
-		})
-
 		child.traceRedo(rule)
 		e.e.saveStack.PushQuery(current)
 		return nil
@@ -2373,22 +2380,24 @@ func (e evalVirtualComplete) partialEvalSupportRule(iter unifyIterator, rule *as
 
 		current := e.e.saveStack.PopQuery()
 		plugged := current.Plug(e.e.caller.bindings)
+		// Skip this rule body if it fails to type-check.
+		// Type-checking failure means the rule body will never succeed.
+		if e.e.compiler.PassesTypeCheck(plugged) {
+			head := ast.NewHead(rule.Head.Name, nil, child.bindings.PlugNamespaced(rule.Head.Value, e.e.caller.bindings))
 
-		head := ast.NewHead(rule.Head.Name, nil, child.bindings.PlugNamespaced(rule.Head.Value, e.e.caller.bindings))
+			if !e.e.inliningControl.shallow {
+				cp := copypropagation.New(head.Vars()).
+					WithEnsureNonEmptyBody(true).
+					WithCompiler(e.e.compiler)
+				plugged = applyCopyPropagation(cp, e.e.instr, plugged)
+			}
 
-		if !e.e.inliningControl.shallow {
-			cp := copypropagation.New(head.Vars()).
-				WithEnsureNonEmptyBody(true).
-				WithCompiler(e.e.compiler)
-			plugged = applyCopyPropagation(cp, e.e.instr, plugged)
+			e.e.saveSupport.Insert(path, &ast.Rule{
+				Head:    head,
+				Body:    plugged,
+				Default: rule.Default,
+			})
 		}
-
-		e.e.saveSupport.Insert(path, &ast.Rule{
-			Head:    head,
-			Body:    plugged,
-			Default: rule.Default,
-		})
-
 		child.traceRedo(rule)
 		e.e.saveStack.PushQuery(current)
 		return nil
