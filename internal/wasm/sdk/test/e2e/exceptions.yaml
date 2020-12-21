@@ -55,3 +55,8 @@
 "regoparsemodule/error": "error handling for topdown builtins called from wasm"
 "semvercompare/invalid version b": "error handling for topdown builtins called from wasm"
 "semvercompare/invalid version a": "error handling for topdown builtins called from wasm"
+"time/weekday too big": "error handling for topdown builtins called from wasm"
+"time/clock too big": "error handling for topdown builtins called from wasm"
+"time/date too big": "error handling for topdown builtins called from wasm"
+"toset/bad type": "error handling for topdown builtins called from wasm"
+"toarray/bad type": "error handling for topdown builtins called from wasm"
