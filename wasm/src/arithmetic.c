@@ -197,13 +197,13 @@ opa_value *opa_arith_divide(opa_value *a, opa_value *b)
 
     if (status & MPD_Division_by_zero)
     {
-        opa_abort("opa_arith_divide: divide by zero"); // TODO: Report error instead.
+        return NULL;
     }
 
     status &= ~(MPD_Rounded | MPD_Inexact);
     if (status != 0)
     {
-        opa_abort("opa_arith_divide: invalid number");
+        opa_abort("opa_arith_divide: invalid number"); // TODO(sr): when does this happen?
     }
 
     return opa_bf_to_number(r);
@@ -229,7 +229,7 @@ opa_value *opa_arith_rem(opa_value *a, opa_value *b)
 
     if (status)
     {
-        opa_abort("opa_arith_rem: non-integer remainder"); // TODO: Report error instead.
+        return NULL;
     }
 
     return opa_bf_to_number(r);

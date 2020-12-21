@@ -111,16 +111,19 @@ func assert(t *testing.T, tc cases.TestCase, result *opa.Result, err error) {
 	t.Helper()
 	if tc.WantDefined != nil {
 		if err != nil {
-			t.Fatal("unexpected error:", err)
+			t.Fatalf("unexpected error: %v", err)
 		}
 		assertDefined(t, defined(*tc.WantDefined), result)
 	} else if tc.WantResult != nil {
 		if err != nil {
-			t.Fatal("unexpected error:", err)
+			t.Fatalf("unexpected error: %v", err)
 		}
 		assertResultSet(t, *tc.WantResult, tc.SortBindings, result)
 	} else if tc.WantErrorCode != nil || tc.WantError != nil {
 		if tc.StrictError {
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
 			assertEmptyResultSet(t, result)
 			return
 		}
@@ -163,6 +166,9 @@ func assertDefined(t *testing.T, want defined, result *opa.Result) {
 }
 
 func assertEmptyResultSet(t *testing.T, result *opa.Result) {
+	if result == nil {
+		t.Fatal("unexpected nil result")
+	}
 	assertResultSet(t, []map[string]interface{}{}, false, result)
 }
 
