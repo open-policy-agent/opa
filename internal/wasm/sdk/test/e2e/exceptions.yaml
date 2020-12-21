@@ -60,3 +60,4 @@
 "time/date too big": "error handling for topdown builtins called from wasm"
 "toset/bad type": "error handling for topdown builtins called from wasm"
 "toarray/bad type": "error handling for topdown builtins called from wasm"
+"baseandvirtualdocs/enumerate virtual errors": "TODO: update test case to deal with result"
