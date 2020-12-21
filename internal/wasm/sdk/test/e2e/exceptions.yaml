@@ -53,3 +53,5 @@
 "objectremove/error invalid key param type number input": "error handling for topdown builtins called from wasm"
 "objectremove/error invalid key param type nil input": "error handling for topdown builtins called from wasm"
 "regoparsemodule/error": "error handling for topdown builtins called from wasm"
+"semvercompare/invalid version b": "error handling for topdown builtins called from wasm"
+"semvercompare/invalid version a": "error handling for topdown builtins called from wasm"
