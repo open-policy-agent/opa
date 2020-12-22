@@ -177,13 +177,23 @@ func (p *Planner) planRules(rules []*ast.Rule) (string, error) {
 
 	params := fn.Params[2:]
 
-	// Initialize return value for partial set/object rules. Complete docs do
-	// not require their return value to be initialized.
+	// Initialize return value for partial set/object rules. Complete document
+	// rules assign directly to `fn.Return`.
 	switch rules[0].Head.DocKind() {
 	case ast.PartialObjectDoc:
 		fn.Blocks = append(fn.Blocks, p.blockWithStmt(&ir.MakeObjectStmt{Target: fn.Return}))
 	case ast.PartialSetDoc:
 		fn.Blocks = append(fn.Blocks, p.blockWithStmt(&ir.MakeSetStmt{Target: fn.Return}))
+	}
+
+	// For complete document rules, allocate one local variable per rule:
+	// It is used to let ordered rules (else blocks) check if the previous
+	// rule body returned a value.
+	// TODO(sr): We could have one local and reuse it if we had a stmt to
+	// reset it to `I32Const{Value: 0}`.
+	lresults := make([]ir.Local, len(rules))
+	for i := range lresults {
+		lresults[i] = p.newLocal()
 	}
 
 	// At this point the locals for the params and return value have been
@@ -208,7 +218,7 @@ func (p *Planner) planRules(rules []*ast.Rule) (string, error) {
 		}
 
 		// Ordered rules are nested inside an additional block so that execution
-		// can short-circuit. For unordered rules blocks can be added directly
+		// can short-circuit. For unordered rules, blocks can be added directly
 		// to the function.
 		var blocks *[]*ir.Block
 
@@ -222,6 +232,7 @@ func (p *Planner) planRules(rules []*ast.Rule) (string, error) {
 		}
 
 		var prev *ast.Rule
+		lresult := lresults[i]
 
 		// Unordered rules are treated as a special case of ordered rules.
 		for rule := rules[i]; rule != nil; prev, rule = rule, rule.Else {
@@ -243,11 +254,11 @@ func (p *Planner) planRules(rules []*ast.Rule) (string, error) {
 			if prev != nil {
 				// Ordered rules are handled by short circuiting execution. The
 				// plan will jump out to the extra block that was planned above.
-				p.appendStmt(&ir.IsUndefinedStmt{Source: fn.Return})
+				p.appendStmt(&ir.IsUndefinedStmt{Source: lresult})
 			}
 
 			// Complete and partial rules are treated as special cases of
-			// functions. If there are args, the first step is a no-op.
+			// functions. If there are no args, the first step is a no-op.
 			err := p.planFuncParams(params, rule.Head.Args, 0, func() error {
 
 				// Run planner on the rule body.
@@ -257,8 +268,8 @@ func (p *Planner) planRules(rules []*ast.Rule) (string, error) {
 					switch rule.Head.DocKind() {
 					case ast.CompleteDoc:
 						return p.planTerm(rule.Head.Value, func() error {
-							p.appendStmt(&ir.AssignVarOnceStmt{
-								Target: fn.Return,
+							p.appendStmt(&ir.AssignVarStmt{
+								Target: lresult,
 								Source: p.ltarget,
 							})
 							return nil
@@ -299,6 +310,19 @@ func (p *Planner) planRules(rules []*ast.Rule) (string, error) {
 			if err != nil {
 				return "", err
 			}
+		}
+
+		// rule[i] and its else-rule(s), if present, are done
+		if rules[i].Head.DocKind() == ast.CompleteDoc {
+			end := &ir.Block{}
+			p.appendStmtToBlock(&ir.IsDefinedStmt{Source: lresult}, end)
+			p.appendStmtToBlock(
+				&ir.AssignVarOnceStmt{
+					Target: fn.Return,
+					Source: lresult,
+				},
+				end)
+			*blocks = append(*blocks, end)
 		}
 	}
 
