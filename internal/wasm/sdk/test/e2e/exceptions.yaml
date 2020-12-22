@@ -2,4 +2,3 @@
 "jsonpatch/set": "unexpected panic or evaluation error - https://github.com/open-policy-agent/opa/issues/2949"
 "jsonpatch/json_patch_tests": "unexpected panic or evaluation error - https://github.com/open-policy-agent/opa/issues/2949"
 "elsekeyword/conflict-2": "expected error missing - https://github.com/open-policy-agent/opa/issues/2954"
-"baseandvirtualdocs/enumerate virtual errors": "TODO: update test case to deal with result"
