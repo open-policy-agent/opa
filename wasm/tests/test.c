@@ -1724,6 +1724,209 @@ void test_object(void)
     test("object/filter (array keys)", opa_value_compare(builtin_object_filter(&obj->hdr, &arr_keys->hdr), &expected->hdr) == 0);
 }
 
+void test_object_remove(void)
+{
+    opa_object_t *o = opa_cast_object(opa_object());
+    opa_object_insert(o, opa_string_terminated("c"), opa_number_int(3));
+
+    // input -> {"a": 1, "b": {"c": 3}}
+    opa_object_t *obj1 = opa_cast_object(opa_object());
+    opa_object_insert(obj1, opa_string_terminated("a"), opa_number_int(1));
+    opa_object_insert(obj1, opa_string_terminated("b"), &o->hdr);
+
+    opa_set_t *set_keys1 = opa_cast_set(opa_set());
+    opa_set_add(set_keys1, opa_string_terminated("a"));
+
+    opa_object_t *expected1 = opa_cast_object(opa_object());
+    opa_object_insert(expected1, opa_string_terminated("b"), &o->hdr);
+    test("object/remove (base)", opa_value_compare(builtin_object_remove(&obj1->hdr, &set_keys1->hdr), &expected1->hdr) == 0);
+
+    // input -> {"a": 1, "b": {"c": 3}, "d": 4}
+    opa_object_t *obj2 = opa_cast_object(opa_object());
+    opa_object_insert(obj2, opa_string_terminated("a"), opa_number_int(1));
+    opa_object_insert(obj2, opa_string_terminated("b"), &o->hdr);
+    opa_object_insert(obj2, opa_string_terminated("d"), opa_number_int(4));
+
+    opa_set_t *set_keys2 = opa_cast_set(opa_set());
+    opa_set_add(set_keys2, opa_string_terminated("b"));
+    opa_set_add(set_keys2, opa_string_terminated("d"));
+
+    opa_object_t *expected2 = opa_cast_object(opa_object());
+    opa_object_insert(expected2, opa_string_terminated("a"), opa_number_int(1));
+    test("object/remove (multiple keys set)", opa_value_compare(builtin_object_remove(&obj2->hdr, &set_keys2->hdr), &expected2->hdr) == 0);
+
+    opa_array_t *arr_keys = opa_cast_array(opa_array());
+    opa_array_append(arr_keys, opa_string_terminated("b"));
+    opa_array_append(arr_keys, opa_string_terminated("d"));
+    test("object/remove (multiple keys array)", opa_value_compare(builtin_object_remove(&obj2->hdr, &arr_keys->hdr), &expected2->hdr) == 0);
+
+    opa_object_t *obj_keys = opa_cast_object(opa_object());
+    opa_object_insert(obj_keys, opa_string_terminated("b"), opa_number_int(1));
+    opa_object_insert(obj_keys, opa_string_terminated("d"), opa_string_terminated(""));
+    test("object/remove (multiple keys object)", opa_value_compare(builtin_object_remove(&obj2->hdr, &obj_keys->hdr), &expected2->hdr) == 0);
+
+    // input -> {"a": {"b": {"c": 3}}, "x": 123}
+    opa_object_t *o2 = opa_cast_object(opa_object());
+    opa_object_insert(o2, opa_string_terminated("b"), &o->hdr);
+
+    opa_object_t *obj3 = opa_cast_object(opa_object());
+    opa_object_insert(obj3, opa_string_terminated("a"), &o2->hdr);
+    opa_object_insert(obj3, opa_string_terminated("x"), opa_number_int(123));
+
+    opa_object_t *o_keys1 = opa_cast_object(opa_object());
+    opa_object_insert(o_keys1, opa_string_terminated("foo"), opa_string_terminated("bar"));
+
+    opa_object_t *o_keys2 = opa_cast_object(opa_object());
+    opa_object_insert(o_keys2, opa_string_terminated("b"), &o_keys1->hdr);
+
+    opa_object_t *obj_keys2 = opa_cast_object(opa_object());
+    opa_object_insert(obj_keys2, opa_string_terminated("a"), &o_keys2->hdr);
+
+    opa_object_t *expected3 = opa_cast_object(opa_object());
+    opa_object_insert(expected3, opa_string_terminated("x"), opa_number_int(123));
+    test("object/remove (multiple keys object nested)", opa_value_compare(builtin_object_remove(&obj3->hdr, &obj_keys2->hdr), &expected3->hdr) == 0);
+
+    test("object/remove (empty object)", opa_value_compare(builtin_object_remove(opa_object(), &obj_keys2->hdr), opa_object()) == 0);
+
+    test("object/remove (empty keys set)", opa_value_compare(builtin_object_remove(&obj3->hdr, opa_set()), &obj3->hdr) == 0);
+
+    test("object/remove (empty keys array)", opa_value_compare(builtin_object_remove(&obj3->hdr, opa_array()), &obj3->hdr) == 0);
+
+    test("object/remove (empty keys object)", opa_value_compare(builtin_object_remove(&obj3->hdr, opa_object()), &obj3->hdr) == 0);
+
+    test("object/remove (non-object first operand)", opa_value_compare(builtin_object_remove(opa_string_terminated("a"),  opa_object()), NULL) == 0);
+
+    opa_set_t *set_keys3 = opa_cast_set(opa_set());
+    opa_set_add(set_keys3, opa_string_terminated("foo"));
+    test("object/remove (key does not exist)", opa_value_compare(builtin_object_remove(&obj3->hdr, &set_keys3->hdr), &obj3->hdr) == 0);
+
+    test("object/remove (second operand not object/set/array)", opa_value_compare(builtin_object_remove(&obj3->hdr, opa_string_terminated("a")), &obj3->hdr) == 0);
+}
+
+void test_object_union(void)
+{
+    test("object/union (both empty)", opa_value_compare(builtin_object_union(opa_object(), opa_object()), opa_object()) == 0);
+
+    opa_object_t *obj1 = opa_cast_object(opa_object());
+    opa_object_insert(obj1, opa_string_terminated("a"), opa_number_int(1));
+    test("object/union (left empty)", opa_value_compare(builtin_object_union(opa_object(), &obj1->hdr), &obj1->hdr) == 0);
+
+    test("object/union (right empty)", opa_value_compare(builtin_object_union(&obj1->hdr, opa_object()), &obj1->hdr) == 0);
+
+    opa_object_t *obj2 = opa_cast_object(opa_object());
+    opa_object_insert(obj2, opa_string_terminated("b"), opa_number_int(2));
+
+    opa_object_t *expected1 = opa_cast_object(opa_object());
+    opa_object_insert(expected1, opa_string_terminated("a"), opa_number_int(1));
+    opa_object_insert(expected1, opa_string_terminated("b"), opa_number_int(2));
+
+    test("object/union (base)", opa_value_compare(builtin_object_union(&obj1->hdr, &obj2->hdr), &expected1->hdr) == 0);
+
+    opa_object_t *o = opa_cast_object(opa_object());
+    opa_object_insert(o, opa_string_terminated("c"), opa_number_int(3));
+    opa_object_t *o2 = opa_cast_object(opa_object());
+    opa_object_insert(o2, opa_string_terminated("b"), &o->hdr);
+    opa_object_t *obj3 = opa_cast_object(opa_object());
+    opa_object_insert(obj3, opa_string_terminated("a"), &o2->hdr);
+
+    opa_object_t *expected2 = opa_cast_object(opa_object());
+    opa_object_insert(expected2, opa_string_terminated("a"),&o2->hdr);
+    opa_object_insert(expected2, opa_string_terminated("b"), opa_number_int(2));
+
+    test("object/union (nested)", opa_value_compare(builtin_object_union(&obj3->hdr, &obj2->hdr), &expected2->hdr) == 0);
+    test("object/union (nested reverse)", opa_value_compare(builtin_object_union(&obj2->hdr, &obj3->hdr), &expected2->hdr) == 0);
+
+    opa_object_t *obj4 = opa_cast_object(opa_object());
+    opa_object_insert(obj4, opa_string_terminated("a"), opa_number_int(2));
+
+    test("object/union (conflict simple)", opa_value_compare(builtin_object_union(&obj1->hdr, &obj4->hdr), &obj4->hdr) == 0);
+
+    opa_object_insert(obj3, opa_string_terminated("d"), opa_number_int(7));
+
+    test("object/union (conflict nested and extra field)", opa_value_compare(builtin_object_union(&obj1->hdr, &obj3->hdr), &obj3->hdr) == 0);
+
+    // Operand 1 -> {"a": {"b": {"c": 1}}, "e": 1}
+    opa_object_t *o3 = opa_cast_object(opa_object());
+    opa_object_insert(o3, opa_string_terminated("c"), opa_number_int(1));
+    opa_object_t *o4 = opa_cast_object(opa_object());
+    opa_object_insert(o4, opa_string_terminated("b"), &o3->hdr);
+    opa_object_t *obj5 = opa_cast_object(opa_object());
+    opa_object_insert(obj5, opa_string_terminated("a"), &o4->hdr);
+    opa_object_insert(obj5, opa_string_terminated("e"), opa_number_int(1));
+
+    // Operand 2 -> {"a": {"b": "foo", "b1": "bar"}, "d": 7, "e": 17}
+    opa_object_t *o5 = opa_cast_object(opa_object());
+    opa_object_insert(o5, opa_string_terminated("b"), opa_string_terminated("foo"));
+    opa_object_insert(o5, opa_string_terminated("b1"), opa_string_terminated("bar"));
+    opa_object_t *obj6 = opa_cast_object(opa_object());
+    opa_object_insert(obj6, opa_string_terminated("a"), &o5->hdr);
+    opa_object_insert(obj6, opa_string_terminated("d"), opa_number_int(7));
+    opa_object_insert(obj6, opa_string_terminated("e"), opa_number_int(17));
+
+    // Expected -> {"a": {"b": "foo", "b1": "bar"}, "d": 7, "e": 17}
+    opa_object_t *o6 = opa_cast_object(opa_object());
+    opa_object_insert(o6, opa_string_terminated("b"), opa_string_terminated("foo"));
+    opa_object_insert(o6, opa_string_terminated("b1"), opa_string_terminated("bar"));
+    opa_object_t *expected3 = opa_cast_object(opa_object());
+    opa_object_insert(expected3, opa_string_terminated("a"), &o6->hdr);
+    opa_object_insert(expected3, opa_string_terminated("d"), opa_number_int(7));
+    opa_object_insert(expected3, opa_string_terminated("e"), opa_number_int(17));
+
+    test("object/union (conflict multiple-1)", opa_value_compare(builtin_object_union(&obj5->hdr, &obj6->hdr), &expected3->hdr) == 0);
+
+    // Operand 1 -> {"a": {"b": {"c": 1, "d": 2}}, "e": 1}
+    opa_object_t *o7 = opa_cast_object(opa_object());
+    opa_object_insert(o7, opa_string_terminated("c"), opa_number_int(1));
+    opa_object_insert(o7, opa_string_terminated("d"), opa_number_int(2));
+    opa_object_t *o8 = opa_cast_object(opa_object());
+    opa_object_insert(o8, opa_string_terminated("b"), &o7->hdr);
+    opa_object_t *obj7 = opa_cast_object(opa_object());
+    opa_object_insert(obj7, opa_string_terminated("a"), &o8->hdr);
+    opa_object_insert(obj7, opa_string_terminated("e"), opa_number_int(1));
+
+    // Operand 2 -> {"a": {"b": {"c": "foo"}, "b1": "bar"}, "d": 7, "e": 17}
+    opa_object_t *o9 = opa_cast_object(opa_object());
+    opa_object_insert(o9, opa_string_terminated("c"), opa_string_terminated("foo"));
+    opa_object_t *o10 = opa_cast_object(opa_object());
+    opa_object_insert(o10, opa_string_terminated("b"), &o9->hdr);
+    opa_object_insert(o10, opa_string_terminated("b1"), opa_string_terminated("bar"));
+    opa_object_t *obj8 = opa_cast_object(opa_object());
+    opa_object_insert(obj8, opa_string_terminated("a"), &o10->hdr);
+    opa_object_insert(obj8, opa_string_terminated("d"), opa_number_int(7));
+    opa_object_insert(obj8, opa_string_terminated("e"), opa_number_int(17));
+
+    // Expected -> {"a": {"b": {"c": "foo", "d": 2}, "b1": "bar"}, "d": 7, "e": 17}
+    opa_object_t *o11 = opa_cast_object(opa_object());
+    opa_object_insert(o11, opa_string_terminated("c"), opa_string_terminated("foo"));
+    opa_object_insert(o11, opa_string_terminated("d"), opa_number_int(2));
+    opa_object_t *o12 = opa_cast_object(opa_object());
+    opa_object_insert(o12, opa_string_terminated("b"), &o11->hdr);
+    opa_object_insert(o12, opa_string_terminated("b1"), opa_string_terminated("bar"));
+    opa_object_t *expected4 = opa_cast_object(opa_object());
+    opa_object_insert(expected4, opa_string_terminated("a"), &o12->hdr);
+    opa_object_insert(expected4, opa_string_terminated("d"), opa_number_int(7));
+    opa_object_insert(expected4, opa_string_terminated("e"), opa_number_int(17));
+
+    test("object/union (conflict multiple-2)", opa_value_compare(builtin_object_union(&obj7->hdr, &obj8->hdr), &expected4->hdr) == 0);
+
+    opa_object_t *obj9 = opa_cast_object(opa_object());
+    opa_object_insert(obj9, opa_string_terminated("a"), opa_string_terminated("foo"));
+    opa_object_insert(obj9, opa_string_terminated("b"), opa_string_terminated("bar"));
+
+    opa_object_t *obj10 = opa_cast_object(opa_object());
+    opa_object_insert(obj10, opa_string_terminated("a"), opa_string_terminated("baz"));
+
+    opa_object_t *expected5 = opa_cast_object(opa_object());
+    opa_object_insert(expected5, opa_string_terminated("a"), opa_string_terminated("baz"));
+    opa_object_insert(expected5, opa_string_terminated("b"), opa_string_terminated("bar"));
+
+    test("object/union (conflict multiple-3)", opa_value_compare(builtin_object_union(&obj9->hdr, &obj10->hdr), &expected5->hdr) == 0);
+
+    test("object/union (non-object first operand)", opa_value_compare(builtin_object_union(opa_string_terminated("a"),  opa_object()), NULL) == 0);
+
+    test("object/union (non-object second operand)", opa_value_compare(builtin_object_union(opa_object(), opa_string_terminated("a")), NULL) == 0);
+}
+
 void test_builtin_graph_reachable(void)
 {
 
