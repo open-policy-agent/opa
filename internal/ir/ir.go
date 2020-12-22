@@ -476,6 +476,11 @@ type WithStmt struct {
 	Location
 }
 
+// NopStmt adds a nop instruction. Useful during development and debugging only.
+type NopStmt struct {
+	Location
+}
+
 // ResultSetAdd adds a value into the result set returned by the query plan.
 type ResultSetAdd struct {
 	Value Local

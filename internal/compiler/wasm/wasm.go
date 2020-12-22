@@ -664,6 +664,8 @@ func (c *Compiler) compileBlock(block *ir.Block) ([]instruction.Instruction, err
 			if err := c.compileScan(stmt, &instrs); err != nil {
 				return nil, err
 			}
+		case *ir.NopStmt:
+			instrs = append(instrs, instruction.Nop{})
 		case *ir.NotStmt:
 			if err := c.compileNot(stmt, &instrs); err != nil {
 				return nil, err
