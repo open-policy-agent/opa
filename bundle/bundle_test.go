@@ -228,9 +228,14 @@ func TestReadWithSignatures(t *testing.T) {
 			nil,
 			true, fmt.Errorf("verification key not provided"),
 		},
-		"no_signatures_file": {
+		"no_signatures_file_no_keyid": {
 			[][2]string{{"/.manifest", `{"revision": "quickbrownfaux"}`}},
 			NewVerificationConfig(map[string]*KeyConfig{}, "", "", nil),
+			false, nil,
+		},
+		"no_signatures_file": {
+			[][2]string{{"/.manifest", `{"revision": "quickbrownfaux"}`}},
+			NewVerificationConfig(map[string]*KeyConfig{}, "somekey", "", nil),
 			true, fmt.Errorf("bundle missing .signatures.json file"),
 		},
 		"no_signatures": {
