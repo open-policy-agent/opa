@@ -64,6 +64,8 @@ func TestNumberTerms(t *testing.T) {
 		{"-.1", "-0.1"},
 		{"-0.0001", "-0.0001"},
 		{"1e1000", "1e1000"},
+		{"0e1", "0"},
+		{"-0.1", "-0.1"},
 	}
 
 	for _, tc := range tests {
@@ -137,6 +139,13 @@ func TestScalarTerms(t *testing.T) {
 	assertParseError(t, "non-number9", "{0e}")
 	assertParseError(t, "non-number9", "{0e.}")
 	assertParseError(t, "non-number10", "{0F}")
+	assertParseError(t, "non-number11", "{00}")
+	assertParseError(t, "non-number12", "{00.1}")
+	assertParseError(t, "non-number13", "{-00}")
+	assertParseError(t, "non-number14", "{-00.1}")
+	assertParseError(t, "non-number14", "{-00.01}")
+	assertParseError(t, "non-number15", "{00e1}")
+	assertParseError(t, "non-number16", "{-00e1}")
 	assertParseError(t, "number too big", "{7e3000000000}")
 }
 
