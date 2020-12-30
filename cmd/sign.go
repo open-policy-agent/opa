@@ -130,7 +130,7 @@ To include additional claims in the payload use the --claims-file flag to provid
 a JSON file containing optional claims.
 
 For more information on the format of the ".signatures.json" file see
-https://www.openpolicyagent.org/docs/latest/management/#bundle-signature.
+https://www.openpolicyagent.org/docs/latest/management/#signature-format.
 `,
 		PreRunE: func(Cmd *cobra.Command, args []string) error {
 			return validateSignParams(args, cmdParams)

@@ -136,7 +136,7 @@ the latest bundle is downloaded, activated, and persisted.
 > By default, bundles are persisted under the current working directory of the OPA process (e.g., `./.opa/bundles/<bundle-name>/bundle.tar.gz`).
 
 The optional `bundles[_].signing` field can be used to specify the `keyid` and `scope` that should be used
-for verifying the signature of the bundle. See [this](#bundle-signature) section for details.
+for verifying the signature of the bundle. See [this](#signing) section for details.
 
 See the following section for details on the bundle file format.
 
