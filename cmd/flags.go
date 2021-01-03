@@ -91,7 +91,7 @@ func addSigningAlgFlag(fs *pflag.FlagSet, alg *string, value string) {
 }
 
 func addClaimsFileFlag(fs *pflag.FlagSet, file *string) {
-	fs.StringVarP(file, "claims-file", "", "", "set path of JSON file containing optional claims (see:  https://openpolicyagent.org/docs/latest/management/#signature-format)")
+	fs.StringVarP(file, "claims-file", "", "", "set path of JSON file containing optional claims (see: https://openpolicyagent.org/docs/latest/management/#signature-format)")
 }
 
 func addSigningKeyFlag(fs *pflag.FlagSet, key *string) {
