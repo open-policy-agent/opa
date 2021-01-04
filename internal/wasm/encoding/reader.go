@@ -146,8 +146,18 @@ func readSections(r io.Reader, m *module.Module) error {
 		case constant.StartSectionID, constant.MemorySectionID:
 			continue
 		case constant.CustomSectionID:
-			if err := readCustomSection(bufr, &m.Customs); err != nil {
-				return errors.Wrap(err, "custom section")
+			var name string
+			if err := readByteVectorString(bufr, &name); err != nil {
+				return errors.Wrap(err, "read custom section type")
+			}
+			if name == "name" {
+				if err := readCustomNameSections(bufr, &m.Names); err != nil {
+					return errors.Wrap(err, "custom 'name' section")
+				}
+			} else {
+				if err := readCustomSection(bufr, name, &m.Customs); err != nil {
+					return errors.Wrap(err, "custom section")
+				}
 			}
 		case constant.TypeSectionID:
 			if err := readTypeSection(bufr, &m.Type); err != nil {
@@ -191,13 +201,7 @@ func readSections(r io.Reader, m *module.Module) error {
 	}
 }
 
-func readCustomSection(r io.Reader, s *[]module.CustomSection) error {
-
-	var name string
-	if err := readByteVectorString(r, &name); err != nil {
-		return err
-	}
-
+func readCustomSection(r io.Reader, name string, s *[]module.CustomSection) error {
 	buf, err := ioutil.ReadAll(r)
 	if err != nil {
 		return err
@@ -207,6 +211,99 @@ func readCustomSection(r io.Reader, s *[]module.CustomSection) error {
 		Name: name,
 		Data: buf,
 	})
+	return nil
+}
+
+func readCustomNameSections(r io.Reader, s *module.NameSection) error {
+	for {
+		id, err := readByte(r)
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return err
+		}
+		n, err := leb128.ReadVarUint32(r)
+		if err != nil {
+			return err
+		}
+		buf := make([]byte, n)
+		if _, err := io.ReadFull(r, buf); err != nil {
+			return err
+		}
+		bufr := bytes.NewReader(buf)
+		switch id {
+		case constant.NameSectionModuleType:
+			err = readNameSectionModule(bufr, s)
+		case constant.NameSectionFunctionsType:
+			err = readNameSectionFunctions(bufr, s)
+		case constant.NameSectionLocalsType:
+			err = readNameSectionLocals(bufr, s)
+		}
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func readNameSectionModule(r io.Reader, s *module.NameSection) error {
+	return readByteVectorString(r, &s.Module)
+}
+
+func readNameSectionFunctions(r io.Reader, s *module.NameSection) error {
+	nm, err := readNameMap(r)
+	if err != nil {
+		return err
+	}
+	s.Functions = nm
+	return nil
+}
+
+func readNameMap(r io.Reader) ([]module.NameMap, error) {
+	n, err := leb128.ReadVarUint32(r)
+	if err != nil {
+		return nil, err
+	}
+	nm := make([]module.NameMap, n)
+	for i := uint32(0); i < n; i++ {
+		var name string
+		id, err := leb128.ReadVarUint32(r)
+		if err != nil {
+			return nil, err
+		}
+
+		if err := readByteVectorString(r, &name); err != nil {
+			return nil, err
+		}
+		nm[i] = module.NameMap{Index: id, Name: name}
+	}
+	return nm, nil
+}
+
+func readNameSectionLocals(r io.Reader, s *module.NameSection) error {
+	n, err := leb128.ReadVarUint32(r) // length of vec(indirectnameassoc)
+	if err != nil {
+		return err
+	}
+	for i := uint32(0); i < n; i++ {
+		id, err := leb128.ReadVarUint32(r) // func index
+		if err != nil {
+			return err
+		}
+		nm, err := readNameMap(r)
+		if err != nil {
+			return err
+		}
+		for _, m := range nm {
+			s.Locals = append(s.Locals, module.LocalNameMap{
+				FuncIndex: id,
+				NameMap: module.NameMap{
+					Index: m.Index,
+					Name:  m.Name,
+				}})
+		}
+	}
 	return nil
 }
 

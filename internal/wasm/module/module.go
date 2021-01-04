@@ -26,6 +26,7 @@ type (
 		Code     RawCodeSection
 		Data     DataSection
 		Customs  []CustomSection
+		Names    NameSection
 	}
 
 	// TypeSection represents a WASM type section.
@@ -78,6 +79,26 @@ type (
 	CustomSection struct {
 		Name string
 		Data []byte
+	}
+
+	// NameSection represents the WASM custom section "name".
+	NameSection struct {
+		Module    string
+		Functions []NameMap
+		Locals    []LocalNameMap
+	}
+
+	// NameMap maps function or local arg indices to their names.
+	NameMap struct {
+		Index uint32
+		Name  string
+	}
+
+	// LocalNameMap maps function indices, and argument indices for the args
+	// of the indexed function to their names.
+	LocalNameMap struct {
+		FuncIndex uint32
+		NameMap
 	}
 
 	// FunctionType represents a WASM function type definition.
