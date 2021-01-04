@@ -157,7 +157,7 @@ To include additional claims in the payload use the --claims-file flag to provid
 containing optional claims.
 
 For more information on the format of the ".signatures.json" file
-see https://openpolicyagent.org/docs/latest/management/#signature-format.
+see https://www.openpolicyagent.org/docs/latest/management/#signature-format.
 
 ## Capabilities
 
