@@ -46,6 +46,8 @@ var DefaultBuiltins = [...]*Builtin{
 	Minus,
 	Multiply,
 	Divide,
+	Ceil,
+	Floor,
 	Round,
 	Abs,
 	Rem,
@@ -396,9 +398,27 @@ var Divide = &Builtin{
 	),
 }
 
-// Round rounds the number up to the nearest integer.
+// Round rounds the number to the nearest integer.
 var Round = &Builtin{
 	Name: "round",
+	Decl: types.NewFunction(
+		types.Args(types.N),
+		types.N,
+	),
+}
+
+// Ceil rounds the number up to the nearest integer.
+var Ceil = &Builtin{
+	Name: "ceil",
+	Decl: types.NewFunction(
+		types.Args(types.N),
+		types.N,
+	),
+}
+
+// Floor rounds the number down to the nearest integer.
+var Floor = &Builtin{
+	Name: "floor",
 	Decl: types.NewFunction(
 		types.Args(types.N),
 		types.N,
