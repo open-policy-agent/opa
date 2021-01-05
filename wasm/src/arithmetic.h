@@ -7,6 +7,8 @@
 
 opa_value *opa_arith_abs(opa_value *v);
 opa_value *opa_arith_round(opa_value *v);
+opa_value *opa_arith_ceil(opa_value *v);
+opa_value *opa_arith_floor(opa_value *v);
 opa_value *opa_arith_plus(opa_value *a, opa_value *b);
 opa_value *opa_arith_minus(opa_value *a, opa_value *b);
 opa_value *opa_arith_multiply(opa_value *a, opa_value *b);
