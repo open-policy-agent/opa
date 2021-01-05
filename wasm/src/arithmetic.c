@@ -50,6 +50,50 @@ opa_value *opa_arith_round(opa_value *v)
     return opa_bf_to_number(r);
 }
 
+opa_value *opa_arith_ceil(opa_value *v)
+{
+    mpd_t *n = opa_number_to_bf(v);
+    if (n == NULL)
+    {
+        return NULL;
+    }
+
+    mpd_t *r = mpd_qnew();
+    uint32_t status = 0;
+
+    mpd_qceil(r, n, mpd_max_ctx(), &status);
+    mpd_del(n);
+
+    if (status)
+    {
+        return NULL;
+    }
+
+    return opa_bf_to_number(r);
+}
+
+opa_value *opa_arith_floor(opa_value *v)
+{
+     mpd_t *n = opa_number_to_bf(v);
+    if (n == NULL)
+    {
+        return NULL;
+    }
+
+    mpd_t *r = mpd_qnew();
+    uint32_t status = 0;
+
+    mpd_qfloor(r, n, mpd_max_ctx(), &status);
+    mpd_del(n);
+
+    if (status)
+    {
+        return NULL;
+    }
+
+    return opa_bf_to_number(r);
+}
+
 opa_value *opa_arith_plus(opa_value *a, opa_value *b)
 {
     mpd_t *x = opa_number_to_bf(a);
