@@ -1994,9 +1994,15 @@ func (s *Server) checkPathScope(ctx context.Context, txn storage.Transaction, pa
 
 	spath := strings.Trim(path.String(), "/")
 
+	if spath == "" && len(bundleRoots) > 0 {
+		return types.BadRequestErr("can't write to document root with bundle roots configured")
+	}
+
+	spathParts := strings.Split(spath, "/")
+
 	for name, roots := range bundleRoots {
 		for _, root := range roots {
-			if strings.HasPrefix(spath, root) || strings.HasPrefix(root, spath) {
+			if isPathOwned(spathParts, strings.Split(root, "/")) {
 				return types.BadRequestErr(fmt.Sprintf("path %v is owned by bundle %q", spath, name))
 			}
 		}
@@ -2207,6 +2213,15 @@ func (s *Server) generateDefaultDecisionPath() string {
 	// Assume the path is safe to transition back to a url
 	p, _ := s.manager.Config.DefaultDecisionRef().Ptr()
 	return p
+}
+
+func isPathOwned(path, root []string) bool {
+	for i := 0; i < len(path) && i < len(root); i++ {
+		if path[i] != root[i] {
+			return false
+		}
+	}
+	return true
 }
 
 // parsePatchPathEscaped returns a new path for the given escaped str.

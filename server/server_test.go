@@ -1330,7 +1330,7 @@ func TestBundleScope(t *testing.T) {
 
 	if err := bundle.WriteManifestToStore(ctx, f.server.store, txn, "test-bundle", bundle.Manifest{
 		Revision: "AAAAA",
-		Roots:    &[]string{"a/b/c", "x/y"},
+		Roots:    &[]string{"a/b/c", "x/y", "foobar"},
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -1366,6 +1366,12 @@ func TestBundleScope(t *testing.T) {
 			resp:   `{"code": "invalid_parameter", "message": "path a/b/c/d is owned by bundle \"test-bundle\""}`,
 		},
 		{
+			method: "PUT",
+			path:   "/data/a/b/d",
+			body:   "1",
+			code:   http.StatusNoContent,
+		},
+		{
 			method: "PATCH",
 			path:   "/data/a",
 			body:   `[{"path": "/b/c", "op": "add", "value": 1}]`,
@@ -1396,6 +1402,19 @@ func TestBundleScope(t *testing.T) {
 			path:   "/data/foo/bar",
 			body:   "1",
 			code:   http.StatusNoContent,
+		},
+		{
+			method: "PUT",
+			path:   "/data/foo",
+			body:   "1",
+			code:   http.StatusNoContent,
+		},
+		{
+			method: "PUT",
+			path:   "/data",
+			body:   `{"a": "b"}`,
+			code:   http.StatusBadRequest,
+			resp:   `{"code": "invalid_parameter", "message": "can't write to document root with bundle roots configured"}`,
 		},
 	}
 
