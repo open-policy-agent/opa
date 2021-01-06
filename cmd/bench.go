@@ -6,7 +6,6 @@ package cmd
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -18,7 +17,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/open-policy-agent/opa/internal/presentation"
-
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/util"
@@ -64,7 +62,6 @@ Example with bundle and input data:
 
 	opa bench -b ./policy-bundle -i input.json 'data.authz.allow'
 
-
 To enable more detailed analysis use the --metrics and --benchmem flags.
 
 The optional "gobench" output format conforms to the Go Benchmark Data Format.
@@ -79,6 +76,8 @@ The optional "gobench" output format conforms to the Go Benchmark Data Format.
 	}
 
 	// Sub-set of the standard `opa eval ..` flags
+	addPartialFlag(benchCommand.Flags(), &params.partial, false)
+	addUnknownsFlag(benchCommand.Flags(), &params.unknowns, []string{"input"})
 	addFailFlag(benchCommand.Flags(), &params.fail, true)
 	addDataFlag(benchCommand.Flags(), &params.dataPaths)
 	addBundleFlag(benchCommand.Flags(), &params.bundlePaths)
@@ -99,7 +98,7 @@ The optional "gobench" output format conforms to the Go Benchmark Data Format.
 }
 
 type benchRunner interface {
-	run(ctx context.Context, ectx *evalContext, pq rego.PreparedEvalQuery, params benchmarkCommandParams) (testing.BenchmarkResult, error)
+	run(ctx context.Context, ectx *evalContext, params benchmarkCommandParams, f func(context.Context, ...rego.EvalOption) error) (testing.BenchmarkResult, error)
 }
 
 func benchMain(args []string, params benchmarkCommandParams, w io.Writer, r benchRunner) int {
@@ -110,17 +109,47 @@ func benchMain(args []string, params benchmarkCommandParams, w io.Writer, r benc
 	}
 
 	ctx := context.Background()
+	var benchFunc func(context.Context, ...rego.EvalOption) error
 
-	// Take the eval context and prepare anything else we possible can before benchmarking the evaluation
-	pq, err := ectx.r.PrepareForEval(ctx)
-	if err != nil {
-		renderBenchmarkError(params, err, w)
-		return 1
+	if !params.partial {
+		// Take the eval context and prepare anything else we possible can before benchmarking the evaluation
+		pq, err := ectx.r.PrepareForEval(ctx)
+		if err != nil {
+			renderBenchmarkError(params, err, w)
+			return 1
+		}
+
+		benchFunc = func(ctx context.Context, opts ...rego.EvalOption) error {
+			result, err := pq.Eval(ctx, opts...)
+			if err != nil {
+				return err
+			} else if len(result) == 0 && params.fail {
+				return fmt.Errorf("undefined result")
+			}
+			return nil
+		}
+	} else {
+		// As with normal evaluation, prepare as much as possible up front.
+		pq, err := ectx.r.PrepareForPartial(ctx)
+		if err != nil {
+			renderBenchmarkError(params, err, w)
+			return 1
+		}
+
+		benchFunc = func(ctx context.Context, opts ...rego.EvalOption) error {
+			result, err := pq.Partial(ctx, opts...)
+			if err != nil {
+				return err
+			} else if len(result.Queries) == 0 && params.fail {
+				return fmt.Errorf("undefined result")
+			}
+			return nil
+		}
 	}
 
 	// Run the benchmark as many times as specified, re-use the prepared objects for each
 	for i := 0; i < params.count; i++ {
-		br, err := r.run(ctx, ectx, pq, params)
+		br, err := r.run(ctx, ectx, params, benchFunc)
 		if err != nil {
 			renderBenchmarkError(params, err, w)
 			return 1
@@ -134,7 +163,7 @@ func benchMain(args []string, params benchmarkCommandParams, w io.Writer, r benc
 type goBenchRunner struct {
 }
 
-func (r *goBenchRunner) run(ctx context.Context, ectx *evalContext, pq rego.PreparedEvalQuery, params benchmarkCommandParams) (testing.BenchmarkResult, error) {
+func (r *goBenchRunner) run(ctx context.Context, ectx *evalContext, params benchmarkCommandParams, f func(context.Context, ...rego.EvalOption) error) (testing.BenchmarkResult, error) {
 
 	var hist metrics.Metrics
 	if params.metrics {
@@ -167,17 +196,12 @@ func (r *goBenchRunner) run(ctx context.Context, ectx *evalContext, pq rego.Prep
 			b.StartTimer()
 
 			// Perform the evaluation
-			rs, err := pq.Eval(ctx, ectx.evalArgs...)
+			err := f(ctx, ectx.evalArgs...)
 
 			// Stop the timer while processing the results
 			b.StopTimer()
 			if err != nil {
 				benchErr = err
-				b.FailNow()
-			}
-
-			if len(rs) == 0 && params.fail {
-				benchErr = errors.New("undefined result")
 				b.FailNow()
 			}
 
