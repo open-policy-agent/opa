@@ -83,14 +83,28 @@ func TestRunBenchmarkFailFast(t *testing.T) {
 // mockBenchRunner lets us test the bench CLI operations without having to wait ~10 seconds
 // while the actual benchmark runner does its thing.
 type mockBenchRunner struct {
-	onRun func(ctx context.Context, ectx *evalContext, pq rego.PreparedEvalQuery, params benchmarkCommandParams) (testing.BenchmarkResult, error)
+	onRun func(ctx context.Context, ectx *evalContext, params benchmarkCommandParams, f func(context.Context, ...rego.EvalOption) error) (testing.BenchmarkResult, error)
 }
 
-func (r *mockBenchRunner) run(ctx context.Context, ectx *evalContext, pq rego.PreparedEvalQuery, params benchmarkCommandParams) (testing.BenchmarkResult, error) {
+func (r *mockBenchRunner) run(ctx context.Context, ectx *evalContext, params benchmarkCommandParams, f func(context.Context, ...rego.EvalOption) error) (testing.BenchmarkResult, error) {
 	if r.onRun != nil {
-		return r.onRun(ctx, ectx, pq, params)
+		return r.onRun(ctx, ectx, params, f)
 	}
 	return testing.BenchmarkResult{}, nil
+}
+
+func TestBenchPartial(t *testing.T) {
+	params := testBenchParams()
+	params.partial = true
+	params.fail = true
+	args := []string{"input=1"}
+	var buf bytes.Buffer
+
+	rc := benchMain(args, params, &buf, &mockBenchRunner{})
+
+	if rc != 0 {
+		t.Fatalf("Unexpected return code %d, expected 0", rc)
+	}
 }
 
 func TestBenchMainErrPreparing(t *testing.T) {
@@ -111,7 +125,7 @@ func TestBenchMainErrRunningBenchmark(t *testing.T) {
 	var buf bytes.Buffer
 
 	mockRunner := &mockBenchRunner{}
-	mockRunner.onRun = func(ctx context.Context, ectx *evalContext, pq rego.PreparedEvalQuery, params benchmarkCommandParams) (testing.BenchmarkResult, error) {
+	mockRunner.onRun = func(ctx context.Context, ectx *evalContext, params benchmarkCommandParams, f func(context.Context, ...rego.EvalOption) error) (testing.BenchmarkResult, error) {
 		return testing.BenchmarkResult{}, errors.New("error error error")
 	}
 
@@ -131,7 +145,7 @@ func TestBenchMainWithCount(t *testing.T) {
 
 	params.count = 25
 	actualCount := 0
-	mockRunner.onRun = func(ctx context.Context, ectx *evalContext, pq rego.PreparedEvalQuery, params benchmarkCommandParams) (testing.BenchmarkResult, error) {
+	mockRunner.onRun = func(ctx context.Context, ectx *evalContext, params benchmarkCommandParams, f func(context.Context, ...rego.EvalOption) error) (testing.BenchmarkResult, error) {
 		actualCount++
 		return testing.BenchmarkResult{}, nil
 	}
@@ -156,7 +170,7 @@ func TestBenchMainWithNegativeCount(t *testing.T) {
 
 	params.count = -1
 	actualCount := 0
-	mockRunner.onRun = func(ctx context.Context, ectx *evalContext, pq rego.PreparedEvalQuery, params benchmarkCommandParams) (testing.BenchmarkResult, error) {
+	mockRunner.onRun = func(ctx context.Context, ectx *evalContext, params benchmarkCommandParams, f func(context.Context, ...rego.EvalOption) error) (testing.BenchmarkResult, error) {
 		actualCount++
 		return testing.BenchmarkResult{}, nil
 	}
@@ -178,7 +192,7 @@ func validateBenchMainPrep(t *testing.T, args []string, params benchmarkCommandP
 
 	mockRunner := &mockBenchRunner{}
 
-	mockRunner.onRun = func(ctx context.Context, ectx *evalContext, pq rego.PreparedEvalQuery, params benchmarkCommandParams) (testing.BenchmarkResult, error) {
+	mockRunner.onRun = func(ctx context.Context, ectx *evalContext, params benchmarkCommandParams, f func(context.Context, ...rego.EvalOption) error) (testing.BenchmarkResult, error) {
 
 		// cheat and use the ectx to evalute the query to ensure the input setup on it was valid
 		pq, err := ectx.r.PrepareForEval(ctx)

@@ -218,8 +218,6 @@ Set the output format with the --format flag.
 
 	// Eval specific flags
 	evalCommand.Flags().BoolVarP(&params.coverage, "coverage", "", false, "report coverage")
-	evalCommand.Flags().BoolVarP(&params.partial, "partial", "p", false, "perform partial evaluation")
-	evalCommand.Flags().StringArrayVarP(&params.unknowns, "unknowns", "u", []string{"input"}, "set paths to treat as unknown during partial evaluation")
 	evalCommand.Flags().StringArrayVarP(&params.disableInlining, "disable-inlining", "", []string{}, "set paths of documents to exclude from inlining")
 	evalCommand.Flags().BoolVarP(&params.shallowInlining, "shallow-inlining", "", false, "disable inlining of rules that depend on unknowns")
 	evalCommand.Flags().BoolVar(&params.disableIndexing, "disable-indexing", false, "disable indexing optimizations")
@@ -232,6 +230,8 @@ Set the output format with the --format flag.
 	evalCommand.Flags().BoolVarP(&params.failDefined, "fail-defined", "", false, "exits with non-zero exit code on defined/non-empty result and errors")
 
 	// Shared flags
+	addPartialFlag(evalCommand.Flags(), &params.partial, false)
+	addUnknownsFlag(evalCommand.Flags(), &params.unknowns, []string{"input"})
 	addFailFlag(evalCommand.Flags(), &params.fail, false)
 	addDataFlag(evalCommand.Flags(), &params.dataPaths)
 	addBundleFlag(evalCommand.Flags(), &params.bundlePaths)

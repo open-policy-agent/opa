@@ -122,6 +122,14 @@ func addCapabilitiesFlag(fs *pflag.FlagSet, f *capabilitiesFlag) {
 	fs.VarP(f, "capabilities", "", "set capabilities.json file path")
 }
 
+func addPartialFlag(fs *pflag.FlagSet, partial *bool, value bool) {
+	fs.BoolVarP(partial, "partial", "p", value, "perform partial evaluation")
+}
+
+func addUnknownsFlag(fs *pflag.FlagSet, unknowns *[]string, value []string) {
+	fs.StringArrayVarP(unknowns, "unknowns", "u", value, "set paths to treat as unknown during partial evaluation")
+}
+
 const (
 	explainModeOff   = "off"
 	explainModeFull  = "full"
