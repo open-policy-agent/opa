@@ -157,8 +157,8 @@ File & Bundle Loading
 ---------------------
 
 The --bundle flag will load data files and Rego files contained
-the bundle specified by the path. It can be either a compressed
-tar archive bundle file or a directory tree.
+in the bundle specified by the path. It can be either a
+compressed tar archive bundle file or a directory tree.
 
 	$ opa eval --bundle /some/path 'data'
 

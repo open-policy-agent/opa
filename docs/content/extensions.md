@@ -113,7 +113,7 @@ r := rego.New(
 )
 ```
 
-Built-in function names can included `.` characters. Consider namespacing your
+Built-in function names can include `.` characters. Consider namespacing your
 built-in functions to avoid collisions. This declaration indicates the function
 accepts two strings and returns a value of type `any`. The `any` type is the
 union of all types in Rego.
