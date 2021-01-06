@@ -88,7 +88,10 @@ func TestRoundtripOPA(t *testing.T) {
 	// Note(sr): We don't have this set by any other means, so manually set it, and
 	// check the write->read roundtrip at least.
 	module1.Names.Module = "foo"
-	module1.Names.Locals = []module.LocalNameMap{{FuncIndex: 1172, NameMap: module.NameMap{Index: 0, Name: "data"}}}
+	module1.Names.Locals = []module.LocalNameMap{{FuncIndex: 35, NameMap: module.NameMap{Index: 0, Name: "data"}}}
+	// Note(sr): This isn't a great choice, but it has the right signature: type[13] () -> nil
+	var start uint32 = 40 // func[40] sig=13 <__force_import_opa_builtins>
+	module1.Start.FuncIndex = &start
 
 	// TODO(tsandall): when all instructions are handled by reader, add logic to
 	// check code section contents.

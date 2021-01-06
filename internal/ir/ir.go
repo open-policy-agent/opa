@@ -53,6 +53,7 @@ type (
 		Params []Local
 		Return Local
 		Blocks []*Block // TODO(tsandall): should this be a plan?
+		Path   []string // optional: if non-nil, include in data function tree
 	}
 
 	// Plan represents an ordered series of blocks to execute. Plan execution
@@ -138,7 +139,7 @@ func (a *Funcs) String() string {
 }
 
 func (a *Func) String() string {
-	return fmt.Sprintf("%v (%d params: %v, %d blocks)", a.Name, len(a.Params), a.Params, len(a.Blocks))
+	return fmt.Sprintf("%v (%d params: %v, %d blocks, path: %v)", a.Name, len(a.Params), a.Params, len(a.Blocks), a.Path)
 }
 
 func (a *Plan) String() string {
@@ -168,6 +169,16 @@ type CallStmt struct {
 	Func   string
 	Args   []Local
 	Result Local
+
+	Location
+}
+
+// CallDynamicStmt represents an indirect (data) function call. The result should
+// be stored in the result local.
+type CallDynamicStmt struct {
+	Args   []Local
+	Result Local
+	Path   []Local
 
 	Location
 }

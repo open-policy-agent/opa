@@ -61,6 +61,8 @@ const (
 	opaMemoizePop        = "opa_memoize_pop"
 	opaMemoizeInsert     = "opa_memoize_insert"
 	opaMemoizeGet        = "opa_memoize_get"
+	opaMappingInit       = "opa_mapping_init"
+	opaMappingLookup     = "opa_mapping_lookup"
 )
 
 var builtinsFunctions = map[string]string{
@@ -441,13 +443,15 @@ func (c *Compiler) compileEntrypointDecls() error {
 
 // compileFuncs compiles the policy functions and emits them into the module.
 func (c *Compiler) compileFuncs() error {
-
 	for _, fn := range c.policy.Funcs.Funcs {
 		if err := c.compileFunc(fn); err != nil {
 			return errors.Wrapf(err, "func %v", fn.Name)
 		}
 	}
 
+	if err := c.emitMapping(); err != nil {
+		return errors.Wrap(err, "writing mapping")
+	}
 	return nil
 }
 
@@ -584,6 +588,86 @@ func (c *Compiler) compileFunc(fn *ir.Func) error {
 	return c.emitFunction(fn.Name, c.code)
 }
 
+func mapFunc(mapping ast.Object, fn *ir.Func, index int) (ast.Object, bool) {
+	curr := ast.NewObject()
+	curr.Insert(ast.StringTerm(fn.Path[len(fn.Path)-1]), ast.IntNumberTerm(index))
+	for i := len(fn.Path) - 2; i >= 0; i-- {
+		o := ast.NewObject()
+		o.Insert(ast.StringTerm(fn.Path[i]), ast.NewTerm(curr))
+		curr = o
+	}
+	return mapping.Merge(curr)
+}
+
+func (c *Compiler) emitMapping() error {
+	var indices []uint32
+	var ok bool
+	mapping := ast.NewObject()
+
+	// element segment offset for our mapped function entries
+	elemOffset, err := getLowestFreeElementSegmentOffset(c.module)
+	if err != nil {
+		return err
+	}
+
+	for i, fn := range c.policy.Funcs.Funcs {
+		indices = append(indices, c.funcs[fn.Name])
+		mapping, ok = mapFunc(mapping, fn, i+int(elemOffset))
+		if !ok {
+			return errors.New("mapping function failed")
+		}
+	}
+
+	// emit data segment for JSON blob encoding mapping
+	jsonMap := []byte(mapping.String())
+	dataOffset, err := getLowestFreeDataSegmentOffset(c.module)
+	if err != nil {
+		return err
+	}
+	c.module.Data.Segments = append(c.module.Data.Segments, module.DataSegment{
+		Index: 0,
+		Offset: module.Expr{
+			Instrs: []instruction.Instruction{
+				instruction.I32Const{
+					Value: dataOffset,
+				},
+			},
+		},
+		Init: jsonMap,
+	})
+
+	// write element segments for table entries
+	c.module.Element.Segments = append(c.module.Element.Segments, module.ElementSegment{
+		Index: 0,
+		Offset: module.Expr{
+			Instrs: []instruction.Instruction{
+				instruction.I32Const{
+					Value: elemOffset,
+				},
+			},
+		},
+		Indices: indices,
+	})
+
+	// adjust table limits
+	min := c.module.Table.Tables[0].Lim.Min + uint32(len(indices))
+	max := *c.module.Table.Tables[0].Lim.Max + uint32(len(indices))
+	c.module.Table.Tables[0].Lim.Min = min
+	c.module.Table.Tables[0].Lim.Max = &max
+
+	// create function that calls `void opa_mapping_initialize(const char *s, const int l)`
+	// with s being the offset of the data segment just written, and l its length
+	fName := "_initialize"
+	c.code = &module.CodeEntry{}
+	c.appendInstr(instruction.I32Const{Value: dataOffset})
+	c.appendInstr(instruction.I32Const{Value: int32(len(jsonMap))})
+	c.appendInstr(instruction.Call{Index: c.function(opaMappingInit)})
+	c.emitFunctionDecl(fName, module.FunctionType{}, false)
+	idx := c.function(fName)
+	c.module.Start.FuncIndex = &idx
+	return c.emitFunction(fName, c.code)
+}
+
 func (c *Compiler) compileBlock(block *ir.Block) ([]instruction.Instruction, error) {
 
 	var instrs []instruction.Instruction
@@ -609,6 +693,10 @@ func (c *Compiler) compileBlock(block *ir.Block) ([]instruction.Instruction, err
 			instrs = append(instrs, instruction.Br{Index: stmt.Index})
 		case *ir.CallStmt:
 			if err := c.compileCallStmt(stmt, &instrs); err != nil {
+				return nil, err
+			}
+		case *ir.CallDynamicStmt:
+			if err := c.compileCallDynamicStmt(stmt, &instrs); err != nil {
 				return nil, err
 			}
 		case *ir.WithStmt:
@@ -1046,6 +1134,64 @@ func (c *Compiler) compileUpsert(local ir.Local, path []int, value ir.Local, loc
 	return instrs
 }
 
+func (c *Compiler) compileCallDynamicStmt(stmt *ir.CallDynamicStmt, result *[]instruction.Instruction) error {
+	// NOTE(sr): Re: memoization
+	// Currently, only arity-2 functions are used with CallDynamicStmt
+	// so we could memoize. However, we don't know the func index to
+	// use with opa_memoize{get,insert} at runtime, from the mapping data.
+	// When looking up the function to invoke, at runtime, we only get
+	// the element index. We'd have to lookup the func index from that
+	// to memoize.
+
+	block := instruction.Block{}
+	larray := c.genLocal()
+	lidx := c.genLocal()
+
+	// init array:
+	block.Instrs = append(block.Instrs,
+		instruction.I32Const{Value: int32(len(stmt.Path))},
+		instruction.Call{Index: c.function(opaArrayWithCap)},
+		instruction.SetLocal{Index: larray},
+	)
+
+	// append to it:
+	for _, lv := range stmt.Path {
+		block.Instrs = append(block.Instrs,
+			instruction.GetLocal{Index: larray},
+			instruction.GetLocal{Index: c.local(lv)},
+			instruction.Call{Index: c.function(opaArrayAppend)},
+		)
+	}
+
+	// prep stack for later call_indirect
+	for _, arg := range stmt.Args {
+		block.Instrs = append(block.Instrs, instruction.GetLocal{Index: c.local(arg)})
+	}
+
+	tpe := module.FunctionType{
+		Params:  []types.ValueType{types.I32, types.I32}, // data, input
+		Results: []types.ValueType{types.I32},
+	}
+	typeIndex := c.emitFunctionType(tpe)
+
+	// call opa_lookup with the array
+	block.Instrs = append(block.Instrs,
+		instruction.GetLocal{Index: larray},
+		instruction.Call{Index: c.function(opaMappingLookup)}, // [arg0 arg1 larray] -> [arg0 arg1 tbl_idx]
+		instruction.TeeLocal{Index: lidx},
+		instruction.I32Eqz{},
+		instruction.BrIf{Index: 1},
+		instruction.GetLocal{Index: lidx},
+		instruction.CallIndirect{Index: typeIndex}, // [arg0 arg1 tbl_idx] -> [res]
+		instruction.TeeLocal{Index: c.local(stmt.Result)},
+		instruction.I32Eqz{},
+		instruction.BrIf{Index: 1},
+	)
+
+	*result = append(*result, block)
+	return nil
+}
+
 func (c *Compiler) compileCallStmt(stmt *ir.CallStmt, result *[]instruction.Instruction) error {
 
 	fn := stmt.Func
@@ -1262,6 +1408,28 @@ func getLowestFreeDataSegmentOffset(m *module.Module) (int32, error) {
 
 		// NOTE(tsandall): assume memory up to but not including addr is taken.
 		addr := instr.Value + int32(len(m.Data.Segments[i].Init))
+		if addr > offset {
+			offset = addr
+		}
+	}
+
+	return offset, nil
+}
+
+func getLowestFreeElementSegmentOffset(m *module.Module) (int32, error) {
+	var offset int32
+
+	for _, seg := range m.Element.Segments {
+		if len(seg.Offset.Instrs) != 1 {
+			return 0, errors.New("bad data segment offset instructions")
+		}
+
+		instr, ok := seg.Offset.Instrs[0].(instruction.I32Const)
+		if !ok {
+			return 0, errors.New("bad data segment offset expr")
+		}
+
+		addr := instr.Value + int32(len(seg.Indices))
 		if addr > offset {
 			offset = addr
 		}

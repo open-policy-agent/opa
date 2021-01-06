@@ -58,6 +58,10 @@ func WriteModule(w io.Writer, module *module.Module) error {
 		return err
 	}
 
+	if err := writeStartSection(w, module.Start); err != nil {
+		return err
+	}
+
 	if err := writeElementSection(w, module.Element); err != nil {
 		return err
 	}
@@ -110,6 +114,23 @@ func writeMagic(w io.Writer) error {
 
 func writeVersion(w io.Writer) error {
 	return binary.Write(w, binary.LittleEndian, constant.Version)
+}
+
+func writeStartSection(w io.Writer, s module.StartSection) error {
+
+	if s.FuncIndex == nil {
+		return nil
+	}
+
+	if err := writeByte(w, constant.StartSectionID); err != nil {
+		return err
+	}
+
+	var buf bytes.Buffer
+	if err := leb128.WriteVarUint32(&buf, *s.FuncIndex); err != nil {
+		return err
+	}
+	return writeRawSection(w, &buf)
 }
 
 func writeTypeSection(w io.Writer, s module.TypeSection) error {
@@ -594,6 +615,8 @@ func writeInstructions(w io.Writer, instrs []instruction.Instruction) error {
 			case float64:
 				u64 := math.Float64bits(arg)
 				err = binary.Write(w, binary.LittleEndian, u64)
+			case byte:
+				_, err = w.Write([]byte{arg})
 			default:
 				return fmt.Errorf("illegal immediate argument type on instruction %d", i)
 			}
