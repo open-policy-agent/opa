@@ -122,6 +122,10 @@ func addCapabilitiesFlag(fs *pflag.FlagSet, f *capabilitiesFlag) {
 	fs.VarP(f, "capabilities", "", "set capabilities.json file path")
 }
 
+func addSchemaFlag(fs *pflag.FlagSet, schemaPath *string) {
+	fs.StringVarP(schemaPath, "schema", "s", "", "set schema file path")
+}
+
 const (
 	explainModeOff   = "off"
 	explainModeFull  = "full"

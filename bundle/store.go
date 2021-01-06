@@ -234,6 +234,7 @@ type ActivateOpts struct {
 	ExtraModules map[string]*ast.Module // Optional
 
 	legacy bool
+	Schema interface{}
 }
 
 // Activate the bundle(s) by loading into the given Store. This will load policies, data, and record
@@ -322,7 +323,7 @@ func activateBundles(opts *ActivateOpts) error {
 		remainingAndExtra[name] = mod
 	}
 
-	err = writeModules(opts.Ctx, opts.Store, opts.Txn, opts.Compiler, opts.Metrics, opts.Bundles, remainingAndExtra, opts.legacy)
+	err = writeModules(opts.Ctx, opts.Store, opts.Txn, opts.Compiler, opts.Metrics, opts.Bundles, remainingAndExtra, opts.legacy, opts.Schema)
 	if err != nil {
 		return err
 	}
@@ -454,7 +455,7 @@ func writeData(ctx context.Context, store storage.Store, txn storage.Transaction
 	return nil
 }
 
-func writeModules(ctx context.Context, store storage.Store, txn storage.Transaction, compiler *ast.Compiler, m metrics.Metrics, bundles map[string]*Bundle, extraModules map[string]*ast.Module, legacy bool) error {
+func writeModules(ctx context.Context, store storage.Store, txn storage.Transaction, compiler *ast.Compiler, m metrics.Metrics, bundles map[string]*Bundle, extraModules map[string]*ast.Module, legacy bool, schema interface{}) error {
 
 	m.Timer(metrics.RegoModuleCompile).Start()
 	defer m.Timer(metrics.RegoModuleCompile).Stop()
@@ -484,9 +485,16 @@ func writeModules(ctx context.Context, store storage.Store, txn storage.Transact
 		}
 	}
 
-	if compiler.Compile(modules); compiler.Failed() {
-		return compiler.Errors
+	if schema != nil {
+		if compiler.CompileWithSchema(modules, schema); compiler.Failed() {
+			return compiler.Errors
+		}
+	} else {
+		if compiler.Compile(modules); compiler.Failed() {
+			return compiler.Errors
+		}
 	}
+
 	for bundleName, b := range bundles {
 		for _, mf := range b.Modules {
 			var path string
