@@ -414,7 +414,7 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 	if err != nil {
 		return nil, err
 	} else if schemaBytes != nil {
-		schema, err := util.CompileSchemas(schemaBytes, nil)
+		schema, err := ast.CompileSchemas(schemaBytes, nil)
 		if err != nil {
 			return nil, fmt.Errorf("compile failed: %s", err.Error())
 		}

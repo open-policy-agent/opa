@@ -190,6 +190,8 @@ type QueryCompiler interface {
 	// the named stage.
 	WithStageAfter(after string, stage QueryCompilerStageDefinition) QueryCompiler
 
+	WithSchema(schema interface{}) QueryCompiler
+
 	// RewrittenVars maps generated vars in the compiled query to vars from the
 	// parsed query. For example, given the query "input := 1" the rewritten
 	// query would be "__local0__ = 1". The mapping would then be {__local0__: input}.
@@ -328,16 +330,15 @@ func (c *Compiler) WithUnsafeBuiltins(unsafeBuiltins map[string]struct{}) *Compi
 	return c
 }
 
+func (c *Compiler) WithSchema(schema interface{}) *Compiler {
+	c.schema = schema
+	return c
+}
+
 // QueryCompiler returns a new QueryCompiler object.
 func (c *Compiler) QueryCompiler() QueryCompiler {
 	c.init()
 	return newQueryCompiler(c)
-}
-
-// QueryCompilerWithSchema runs the compilation process on the input modules.
-func (c *Compiler) QueryCompilerWithSchema(schema interface{}) QueryCompiler {
-	c.schema = schema
-	return c.QueryCompiler()
 }
 
 // Compile runs the compilation process on the input modules. The compiled
@@ -851,6 +852,39 @@ func (c *Compiler) checkSafetyRuleHeads() {
 	}
 }
 
+//CompileSchemas takes a jsonschema and compiles it.
+func CompileSchemas(byteSchema []byte, goSchema interface{}) (*gojsonschema.Schema, error) {
+	var refLoader gojsonschema.JSONLoader
+	sl := gojsonschema.NewSchemaLoader()
+
+	if byteSchema != nil {
+		refLoader = gojsonschema.NewBytesLoader(byteSchema)
+	} else if goSchema != nil {
+		refLoader = gojsonschema.NewGoLoader(goSchema)
+	} else {
+		return nil, fmt.Errorf("no schema as input to compile")
+	}
+	schemasCompiled, err := sl.Compile(refLoader)
+	if err != nil {
+		return nil, fmt.Errorf("unable to compile the schema due to: %s", err.Error())
+	}
+	return schemasCompiled, nil
+}
+
+// CompileAndParseSchema first compiles a schema and parses it into a Rego type
+func CompileAndParseSchema(schema interface{}) (*types.Object, error) {
+	compiledSchema, err := CompileSchemas(nil, schema)
+	if err != nil {
+		return &types.Object{}, err
+	}
+	staticProps, err := parseSchemaRecursive(compiledSchema.RootSchema)
+	if err != nil {
+		return &types.Object{}, err
+	}
+	return types.NewObject(staticProps, nil), nil
+}
+
+// ParseSchemaRecursive obtains an array of Rego static property from a schema interface
 func parseSchemaRecursive(schema interface{}) ([]*types.StaticProperty, error) {
 
 	subSchema, ok := schema.(*gojsonschema.SubSchema)
@@ -882,11 +916,15 @@ func parseSchemaRecursive(schema interface{}) ([]*types.StaticProperty, error) {
 						} else if iSchema.Types.IsTyped() && iSchema.Types.Contains(`integer`) {
 							typeAdd = types.N
 						} else if iSchema.Types.IsTyped() && iSchema.Types.Contains(`object`) {
-							props, err := parseSchemaRecursive(iSchema)
-							if err != nil {
-								return nil, fmt.Errorf("")
+							if iSchema.PropertiesChildren != nil && len(iSchema.PropertiesChildren) > 0 {
+								props, err := parseSchemaRecursive(iSchema)
+								if err != nil {
+									return nil, fmt.Errorf("unexpected schema type %v", iSchema)
+								}
+								typeAdd = types.NewObject(props, nil)
+							} else {
+								typeAdd = types.A
 							}
-							typeAdd = types.NewObject(props, nil)
 						}
 						newTypes = append(newTypes, typeAdd)
 					}
@@ -900,13 +938,16 @@ func parseSchemaRecursive(schema interface{}) ([]*types.StaticProperty, error) {
 			} else if pSchema.Types.IsTyped() && pSchema.Types.Contains(`integer`) {
 				value = types.N
 			} else if pSchema.Types.IsTyped() && pSchema.Types.Contains(`object`) {
-				props, err := parseSchemaRecursive(pSchema)
-				if err != nil {
-					return nil, fmt.Errorf("unexpected schema type %v", pSchema)
+				if pSchema.PropertiesChildren != nil && len(pSchema.PropertiesChildren) > 0 {
+					props, err := parseSchemaRecursive(pSchema)
+					if err != nil {
+						return nil, fmt.Errorf("unexpected schema type %v", pSchema)
+					}
+					value = types.NewObject(props, nil)
+				} else {
+					value = types.A
 				}
-				value = types.NewObject(props, nil)
 			}
-			fmt.Println("Child ones:", pSchema.Property)
 			staticProps = append(staticProps, types.NewStaticProperty(pSchema.Property, value))
 		}
 	}
@@ -1435,6 +1476,7 @@ type queryCompiler struct {
 	after                map[string][]QueryCompilerStageDefinition
 	unsafeBuiltins       map[string]struct{}
 	comprehensionIndices map[*Term]*ComprehensionIndex
+	schema               interface{}
 }
 
 func newQueryCompiler(compiler *Compiler) QueryCompiler {
@@ -1459,6 +1501,11 @@ func (qc *queryCompiler) WithStageAfter(after string, stage QueryCompilerStageDe
 
 func (qc *queryCompiler) WithUnsafeBuiltins(unsafe map[string]struct{}) QueryCompiler {
 	qc.unsafeBuiltins = unsafe
+	return qc
+}
+
+func (qc *queryCompiler) WithSchema(schema interface{}) QueryCompiler {
+	qc.schema = schema
 	return qc
 }
 
