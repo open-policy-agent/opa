@@ -56,6 +56,7 @@ type evalCommandParams struct {
 	fail                bool
 	failDefined         bool
 	bundlePaths         repeatedStringFlag
+	schemaPath          string
 }
 
 func newEvalCommandParams() evalCommandParams {
@@ -244,6 +245,7 @@ Set the output format with the --format flag.
 	addOutputFormat(evalCommand.Flags(), params.outputFormat)
 	addIgnoreFlag(evalCommand.Flags(), &params.ignore)
 	setExplainFlag(evalCommand.Flags(), params.explain)
+	addSchemaFlag(evalCommand.Flags(), &params.schemaPath)
 
 	RootCommand.AddCommand(evalCommand)
 }
@@ -408,6 +410,17 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 		regoArgs = append(regoArgs, rego.ParsedInput(inputValue))
 	}
 
+	schemaBytes, err := readSchemaBytes(params)
+	if err != nil {
+		return nil, err
+	} else if schemaBytes != nil {
+		schema, err := util.CompileSchemas(schemaBytes, nil)
+		if err != nil {
+			return nil, fmt.Errorf("compile failed: %s", err.Error())
+		}
+		regoArgs = append(regoArgs, rego.ParsedSchema(schema.RootSchema))
+	}
+
 	var tracer *topdown.BufferTracer
 
 	if params.explain != nil && params.explain.String() != explainModeOff {
@@ -493,6 +506,17 @@ func readInputBytes(params evalCommandParams) ([]byte, error) {
 		return ioutil.ReadAll(os.Stdin)
 	} else if params.inputPath != "" {
 		path, err := fileurl.Clean(params.inputPath)
+		if err != nil {
+			return nil, err
+		}
+		return ioutil.ReadFile(path)
+	}
+	return nil, nil
+}
+
+func readSchemaBytes(params evalCommandParams) ([]byte, error) {
+	if params.schemaPath != "" {
+		path, err := fileurl.Clean(params.schemaPath)
 		if err != nil {
 			return nil, err
 		}

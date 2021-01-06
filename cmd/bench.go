@@ -89,6 +89,7 @@ The optional "gobench" output format conforms to the Go Benchmark Data Format.
 	addMetricsFlag(benchCommand.Flags(), &params.metrics, true)
 	addOutputFormat(benchCommand.Flags(), params.outputFormat)
 	addIgnoreFlag(benchCommand.Flags(), &params.ignore)
+	addSchemaFlag(benchCommand.Flags(), &params.schemaPath)
 
 	// Shared benchmark flags
 	addCountFlag(benchCommand.Flags(), &params.count, "benchmark")

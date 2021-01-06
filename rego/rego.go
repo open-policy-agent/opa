@@ -101,6 +101,8 @@ type EvalContext struct {
 	indexing               bool
 	interQueryBuiltinCache cache.InterQueryCache
 	resolvers              []refResolver
+	hasSchema              bool
+	rawSchema              *interface{}
 }
 
 // EvalOption defines a function to set an option on an EvalConfig
@@ -119,6 +121,14 @@ func EvalParsedInput(input ast.Value) EvalOption {
 	return func(e *EvalContext) {
 		e.parsedInput = input
 		e.hasInput = true
+	}
+}
+
+// EvalSchema configures the schema for a Prepared Query's evaluation
+func EvalSchema(schema interface{}) EvalOption {
+	return func(e *EvalContext) {
+		e.rawSchema = &schema
+		e.hasSchema = true
 	}
 }
 
@@ -312,6 +322,12 @@ func (pq preparedQuery) newEvalContext(ctx context.Context, options []EvalOption
 		if err != nil {
 			return nil, finishFunc, err
 		}
+	}
+
+	// If we didn't get an schema specified in the Eval options
+	// then fall back to the Rego object's input fields.
+	if !ectx.hasSchema {
+		ectx.rawSchema = pq.r.rawSchema
 	}
 
 	return ectx, finishFunc, nil
@@ -518,6 +534,8 @@ type Rego struct {
 	interQueryBuiltinCache cache.InterQueryCache
 	strictBuiltinErrors    bool
 	resolvers              []refResolver
+	rawSchema              *interface{}
+	parsedSchema           interface{}
 }
 
 // Function represents a built-in function that is callable in Rego.
@@ -1022,6 +1040,12 @@ func Resolver(ref ast.Ref, r resolver.Resolver) func(r *Rego) {
 	}
 }
 
+func ParsedSchema(x interface{}) func(r *Rego) {
+	return func(r *Rego) {
+		r.parsedSchema = x
+	}
+}
+
 // New returns a new Rego object.
 func New(options ...func(r *Rego)) *Rego {
 
@@ -1458,6 +1482,11 @@ func (r *Rego) prepare(ctx context.Context, qType queryType, extras []extraStage
 		return err
 	}
 
+	r.parsedSchema, err = r.parseSchema()
+	if err != nil {
+		return err
+	}
+
 	err = r.loadFiles(ctx, r.txn, r.metrics)
 	if err != nil {
 		return err
@@ -1596,6 +1625,13 @@ func (r *Rego) parseInput() (ast.Value, error) {
 	return r.parseRawInput(r.rawInput, r.metrics)
 }
 
+func (r *Rego) parseSchema() (interface{}, error) {
+	if r.parsedSchema != nil {
+		return r.parsedSchema, nil
+	}
+	return nil, nil
+}
+
 func (r *Rego) parseRawInput(rawInput *interface{}, m metrics.Metrics) (ast.Value, error) {
 	var input ast.Value
 
@@ -1647,6 +1683,7 @@ func (r *Rego) compileModules(ctx context.Context, txn storage.Transaction, m me
 			Metrics:      m,
 			Bundles:      r.bundles,
 			ExtraModules: r.parsedModules,
+			Schema:       r.parsedSchema,
 		}
 		err := bundle.Activate(opts)
 		if err != nil {
@@ -1722,9 +1759,16 @@ func (r *Rego) compileQuery(query ast.Body, m metrics.Metrics, extras []extraSta
 		WithPackage(pkg).
 		WithImports(imports)
 
-	qc := r.compiler.QueryCompiler().
-		WithContext(qctx).
-		WithUnsafeBuiltins(r.unsafeBuiltins)
+	var qc ast.QueryCompiler
+	if r.parsedSchema != nil {
+		qc = r.compiler.QueryCompilerWithSchema(r.parsedSchema).
+			WithContext(qctx).
+			WithUnsafeBuiltins(r.unsafeBuiltins)
+	} else {
+		qc = r.compiler.QueryCompiler().
+			WithContext(qctx).
+			WithUnsafeBuiltins(r.unsafeBuiltins)
+	}
 
 	for _, extra := range extras {
 		qc = qc.WithStageAfter(extra.after, extra.stage)
@@ -1761,6 +1805,10 @@ func (r *Rego) eval(ctx context.Context, ectx *EvalContext) (ResultSet, error) {
 
 	if ectx.parsedInput != nil {
 		q = q.WithInput(ast.NewTerm(ectx.parsedInput))
+	}
+
+	if ectx.rawSchema != nil {
+		q = q.WithSchema(ectx.rawSchema)
 	}
 
 	for i := range ectx.resolvers {
@@ -1848,6 +1896,7 @@ func (r *Rego) partialResult(ctx context.Context, pCfg *PrepareConfig) (PartialR
 		instrumentation:  r.instrumentation,
 		indexing:         true,
 		resolvers:        r.resolvers,
+		rawSchema:        &r.parsedSchema,
 	}
 
 	disableInlining := r.disableInlining
@@ -1960,6 +2009,10 @@ func (r *Rego) partial(ctx context.Context, ectx *EvalContext) (*PartialQueries,
 
 	if ectx.parsedInput != nil {
 		q = q.WithInput(ast.NewTerm(ectx.parsedInput))
+	}
+
+	if ectx.rawSchema != nil {
+		q = q.WithSchema(ectx.rawSchema)
 	}
 
 	for i := range ectx.resolvers {
