@@ -203,6 +203,190 @@ func TestEvalWithInvalidInputFile(t *testing.T) {
 	}
 }
 
+func testEvalWithSchemaFile(t *testing.T, input string, query string, schema string) error {
+	files := map[string]string{
+		"input.json":  input,
+		"schema.json": schema,
+	}
+
+	var err error
+	test.WithTempFS(files, func(path string) {
+
+		params := newEvalCommandParams()
+		params.inputPath = filepath.Join(path, "input.json")
+		params.schemaPath = filepath.Join(path, "schema.json")
+
+		var buf bytes.Buffer
+		var defined bool
+		defined, err = eval([]string{query}, params, &buf)
+		if !defined || err != nil {
+			err = fmt.Errorf("Unexpected error or undefined from evaluation: %v", err)
+			return
+		}
+
+		var output presentation.Output
+
+		if err := util.NewJSONDecoder(&buf).Decode(&output); err != nil {
+			t.Fatal(err)
+		}
+
+		rs := output.Result
+		if len(rs) != 1 {
+			t.Fatalf("Expected exactly 1 result, actual: %s", rs)
+		}
+
+		r := rs[0].Expressions
+		if len(r) != 1 {
+			t.Fatalf("Expected exactly 1 expression in the result, actual: %s", r)
+		}
+
+		if string(util.MustMarshalJSON(r[0].Value)) != "true" {
+			t.Fatalf("Expected result value to be true")
+		}
+	})
+
+	return err
+}
+
+func testEvalWithInvalidSchemaFile(t *testing.T, input string, query string, schema string) error {
+	files := map[string]string{
+		"input.json":  input,
+		"schema.json": schema,
+	}
+
+	var err error
+	test.WithTempFS(files, func(path string) {
+
+		params := newEvalCommandParams()
+		params.inputPath = filepath.Join(path, "input.json")
+		params.schemaPath = filepath.Join(path, "schemaBad.json")
+
+		var buf bytes.Buffer
+		var defined bool
+		defined, err = eval([]string{query}, params, &buf)
+		if !defined || err != nil {
+			err = fmt.Errorf("Unexpected error or undefined from evaluation: %v", err)
+			return
+		}
+	})
+
+	return err
+}
+
+func TestEvalWithJSONSchemaFile(t *testing.T) {
+
+	input := `{
+		"foo": "a",
+		"b": [
+			{
+				"a": 1,
+				"b": [1, 2, 3],
+				"c": null
+			}
+		]
+}`
+
+	schema := `{
+		"$schema": "http://json-schema.org/draft-07/schema",
+		"$id": "http://example.com/example.json",
+		"type": "object",
+		"title": "The root schema",
+		"description": "The root schema comprises the entire JSON document.",
+		"required": [
+			"foo",
+			"b"
+		],
+		"properties": {
+			"foo": {
+				"$id": "#/properties/foo",
+				"type": "string",
+				"title": "The foo schema",
+				"description": "An explanation about the purpose of this instance."
+			},
+			"b": {
+				"$id": "#/properties/b",
+				"type": "array",
+				"title": "The b schema",
+				"description": "An explanation about the purpose of this instance.",
+				"additionalItems": false,
+				"items": {
+					"$id": "#/properties/b/items",
+					"type": "object",
+					"title": "The items schema",
+					"description": "An explanation about the purpose of this instance.",
+					"required": [
+						"a",
+						"b",
+						"c"
+					],
+					"properties": {
+						"a": {
+							"$id": "#/properties/b/items/properties/a",
+							"type": "integer",
+							"title": "The a schema",
+							"description": "An explanation about the purpose of this instance."
+						},
+						"b": {
+							"$id": "#/properties/b/items/properties/b",
+							"type": "array",
+							"title": "The b schema",
+							"description": "An explanation about the purpose of this instance.",
+							"additionalItems": false,
+							"items": {
+								"$id": "#/properties/b/items/properties/b/items",
+								"type": "integer",
+								"title": "The items schema",
+								"description": "An explanation about the purpose of this instance."
+							}
+						},
+						"c": {
+							"$id": "#/properties/b/items/properties/c",
+							"type": "null",
+							"title": "The c schema",
+							"description": "An explanation about the purpose of this instance."
+						}
+					},
+					"additionalProperties": false
+				}
+			}
+		},
+		"additionalProperties": false
+	}`
+
+	query := "input.b[0].a == 1"
+	err := testEvalWithSchemaFile(t, input, query, schema)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+}
+
+func TestEvalWithInvalidSchemaFile(t *testing.T) {
+
+	input := `{
+		"foo": "a",
+		"b": [
+			{
+				"a": 1,
+				"b": [1, 2, 3],
+				"c": null
+			}
+		]
+	}`
+
+	schema := `{badjson`
+
+	query := "input.b[0].a == 1"
+	err := testEvalWithSchemaFile(t, input, query, schema)
+	if err == nil {
+		t.Fatalf("expected error but err == nil")
+	}
+
+	err = testEvalWithInvalidSchemaFile(t, input, query, schema)
+	if err == nil {
+		t.Fatalf("expected error but err == nil")
+	}
+}
+
 func TestEvalReturnsRegoError(t *testing.T) {
 	buf := new(bytes.Buffer)
 	_, err := eval([]string{`{k: v | k = ["a", "a"][_]; v = [0,1][_]}`}, newEvalCommandParams(), buf)

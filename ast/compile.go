@@ -10,7 +10,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/open-policy-agent/opa/internal/gojsonschema"
 	"github.com/open-policy-agent/opa/metrics"
+	"github.com/open-policy-agent/opa/types"
 	"github.com/open-policy-agent/opa/util"
 )
 
@@ -101,6 +103,12 @@ type Compiler struct {
 	unsafeBuiltinsMap    map[string]struct{}           // user-supplied set of unsafe built-ins functions to block (deprecated: use capabilities)
 	comprehensionIndices map[*Term]*ComprehensionIndex // comprehension key index
 	initialized          bool                          // indicates if init() has been called
+	schemaSet            *SchemaSet
+}
+
+// SchemaSet holds a map from a path to a schema
+type SchemaSet struct {
+	ByPath map[string]interface{}
 }
 
 // CompilerStage defines the interface for stages in the compiler.
@@ -349,6 +357,12 @@ func (c *Compiler) Compile(modules map[string]*Module) {
 	sort.Strings(c.sorted)
 
 	c.compile()
+}
+
+// WithSchemas sets a schemaSet to the compiler
+func (c *Compiler) WithSchemas(schemas *SchemaSet) *Compiler {
+	c.schemaSet = schemas
+	return c
 }
 
 // Failed returns true if a compilation error has been encountered.
@@ -844,12 +858,114 @@ func (c *Compiler) checkSafetyRuleHeads() {
 	}
 }
 
+func compileSchema(goSchema interface{}) (*gojsonschema.Schema, error) {
+	var refLoader gojsonschema.JSONLoader
+	sl := gojsonschema.NewSchemaLoader()
+
+	if goSchema != nil {
+		refLoader = gojsonschema.NewGoLoader(goSchema)
+	} else {
+		return nil, fmt.Errorf("no schema as input to compile")
+	}
+	schemasCompiled, err := sl.Compile(refLoader)
+	if err != nil {
+		return nil, fmt.Errorf("unable to compile the schema due to: %w", err)
+	}
+	return schemasCompiled, nil
+}
+
+func parseSchema(schema interface{}) (types.Type, error) {
+	subSchema, ok := schema.(*gojsonschema.SubSchema)
+	if !ok {
+		return nil, fmt.Errorf("unexpected schema type %v", subSchema)
+	}
+
+	// Handle referenced schemas, returns directly when a $ref is found
+	if subSchema.RefSchema != nil {
+		return parseSchema(subSchema.RefSchema)
+	}
+
+	if subSchema.Types.IsTyped() {
+		if subSchema.Types.Contains("boolean") {
+			return types.B, nil
+
+		} else if subSchema.Types.Contains("string") {
+			return types.S, nil
+
+		} else if subSchema.Types.Contains("integer") {
+			return types.N, nil
+
+		} else if subSchema.Types.Contains("object") {
+			if subSchema.PropertiesChildren != nil && len(subSchema.PropertiesChildren) > 0 {
+				staticProps := make([]*types.StaticProperty, 0, len(subSchema.PropertiesChildren))
+				for _, pSchema := range subSchema.PropertiesChildren {
+					newtype, err := parseSchema(pSchema)
+					if err != nil {
+						return nil, fmt.Errorf("unexpected schema type %v: %w", pSchema, err)
+					}
+					staticProps = append(staticProps, types.NewStaticProperty(pSchema.Property, newtype))
+				}
+				return types.NewObject(staticProps, nil), nil
+			}
+			return types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)), nil
+
+		} else if subSchema.Types.Contains("array") {
+			if subSchema.ItemsChildren != nil && len(subSchema.ItemsChildren) > 0 {
+				newTypes := make([]types.Type, 0, len(subSchema.ItemsChildren))
+				for i := 0; i != len(subSchema.ItemsChildren); i++ {
+					iSchema := subSchema.ItemsChildren[i]
+					newtype, err := parseSchema(iSchema)
+					if err != nil {
+						return nil, fmt.Errorf("unexpected schema type %v", iSchema)
+					}
+					newTypes = append(newTypes, newtype)
+				}
+				return types.NewArray(newTypes, nil), nil
+			}
+			return types.NewArray(nil, types.A), nil
+		}
+	}
+	return types.A, nil
+}
+
+func setTypesWithSchema(schema interface{}) (types.Type, error) {
+	goJSONSchema, err := compileSchema(schema)
+	if err != nil {
+		return nil, fmt.Errorf("compile failed: %s", err.Error())
+	}
+
+	newtype, err := parseSchema(goJSONSchema.RootSchema)
+	if err != nil {
+		return nil, fmt.Errorf("error when type checking %v", err)
+	}
+
+	return newtype, nil
+}
+
+func (c *Compiler) setInputType() {
+	if c.schemaSet != nil {
+		if c.schemaSet.ByPath != nil {
+			schema := c.schemaSet.ByPath["input"]
+			if schema != nil {
+				newtype, err := setTypesWithSchema(schema)
+				if err != nil {
+					c.err(NewError(TypeErr, nil, err.Error()))
+				}
+				c.TypeEnv.tree.PutOne(VarTerm("input").Value, newtype)
+			}
+		}
+	}
+}
+
 // checkTypes runs the type checker on all rules. The type checker builds a
 // TypeEnv that is stored on the compiler.
 func (c *Compiler) checkTypes() {
 	// Recursion is caught in earlier step, so this cannot fail.
 	sorted, _ := c.Graph.Sort()
 	checker := newTypeChecker().WithVarRewriter(rewriteVarsInRef(c.RewrittenVars))
+
+	c.setInputType()
+
 	env, errs := checker.CheckTypes(c.TypeEnv, sorted)
 	for _, err := range errs {
 		c.err(err)
@@ -1535,10 +1651,14 @@ func (qc *queryCompiler) checkSafety(_ *QueryContext, body Body) (Body, error) {
 func (qc *queryCompiler) checkTypes(qctx *QueryContext, body Body) (Body, error) {
 	var errs Errors
 	checker := newTypeChecker().WithVarRewriter(rewriteVarsInRef(qc.rewritten, qc.compiler.RewrittenVars))
+
+	qc.compiler.setInputType()
+
 	qc.typeEnv, errs = checker.CheckBody(qc.compiler.TypeEnv, body)
 	if len(errs) > 0 {
 		return nil, errs
 	}
+
 	return body, nil
 }
 
