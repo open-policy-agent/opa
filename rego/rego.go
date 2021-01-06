@@ -1761,7 +1761,8 @@ func (r *Rego) compileQuery(query ast.Body, m metrics.Metrics, extras []extraSta
 
 	var qc ast.QueryCompiler
 	if r.parsedSchema != nil {
-		qc = r.compiler.QueryCompilerWithSchema(r.parsedSchema).
+		qc = r.compiler.QueryCompiler().
+			WithSchema(r.parsedSchema).
 			WithContext(qctx).
 			WithUnsafeBuiltins(r.unsafeBuiltins)
 	} else {

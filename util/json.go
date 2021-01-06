@@ -12,7 +12,6 @@ import (
 	"reflect"
 
 	"github.com/ghodss/yaml"
-	"github.com/open-policy-agent/opa/gojsonschema"
 )
 
 // UnmarshalJSON parses the JSON encoded data and stores the result in the value
@@ -111,23 +110,4 @@ func Unmarshal(bs []byte, v interface{}) error {
 		return err
 	}
 	return UnmarshalJSON(bs, v)
-}
-
-// CompileSchemas uses https://github.com/xeipuuv/gojsonschema compile function to compile json schemas
-func CompileSchemas(byteSchema []byte, goSchema interface{}) (*gojsonschema.Schema, error) {
-	var refLoader gojsonschema.JSONLoader
-	sl := gojsonschema.NewSchemaLoader()
-
-	if byteSchema != nil {
-		refLoader = gojsonschema.NewBytesLoader(byteSchema)
-	} else if goSchema != nil {
-		refLoader = gojsonschema.NewGoLoader(goSchema)
-	} else {
-		return nil, fmt.Errorf("no schema as input to compile")
-	}
-	schemasCompiled, err := sl.Compile(refLoader)
-	if err != nil {
-		return nil, fmt.Errorf("unable to compile the schema due to: %s", err.Error())
-	}
-	return schemasCompiled, nil
 }
