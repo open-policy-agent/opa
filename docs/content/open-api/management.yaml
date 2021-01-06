@@ -1,0 +1,177 @@
+# Needs review by SMEs
+openapi: 3.0.3
+info:
+  title: Open Policy Agent (OPA) REST API - Management APIs
+  description: |-
+      OPA exposes a set of APIs that enable unified, logically-centralized policy management. Use these APIs if you are interested in how to build OPA controls to enable policy distribution and collection of telemetry data such as decision logs.
+
+      These endpoints are not in OPA but called by OPA on some remote server. OPA posts logs and status updates to some central management component, if configured
+  version: 0.25.2
+  x-logo:
+    url: 'https://github.com/open-policy-agent/opa/blob/master/docs/website/static/img/logos/opa-horizontal-color.png?raw=true'
+    backgroundColor: '#FFFFFF'
+    altText: 'OPA logo'
+  contact:
+    name: The OPA team
+    url: 'https://github.com/open-policy-agent/opa'
+  license:
+    name: Apache 2.0
+    url: 'https://www.apache.org/licenses/LICENSE-2.0'
+externalDocs:
+  description: Management APIs
+  url: 'https://www.openpolicyagent.org/docs/latest/management/'
+paths:
+  '/{service_path}/{resource}':
+    get:
+      summary: Bundle service
+      description: |-
+        OPA expects the service to expose an API endpoint that serves bundles. The bundle API allows clients to download bundles at an arbitrary URL (in combination with `{service_path}`. 
+        For example, using the *[configuration](https://www.openpolicyagent.org/docs/latest/configuration/) example* below will fetch bundles from *https//example.com/service/v1/somedir/bundle.tar.gz*. The URL is constructed as follows:
+
+        ```
+        https://example.com/service/v1/somedir/bundle.tar.gz
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        services[0].url                resource
+        ```
+
+        ### Configuration example
+
+        ```yaml
+        services:
+          - name: acmecorp
+           url: https://example.com/service/v1
+           credentials:
+             bearer:
+               token: "bGFza2RqZmxha3NkamZsa2Fqc2Rsa2ZqYWtsc2RqZmtramRmYWxkc2tm"
+
+        bundles:
+         authz:
+          service: acmecorp
+          resource: somedir/bundle.tar.gz
+          persist: true
+          polling:
+            min_delay_seconds: 10
+            max_delay_seconds: 20
+          signing:
+            keyid: my_global_key
+            scope: read
+        ```
+      operationId: getServiceBundle
+      externalDocs:
+        description: Bundles
+        url: 'https://www.openpolicyagent.org/docs/latest/management/#bundles'
+      parameters:
+        - $ref: '#/components/parameters/servicePathParameter'
+        - $ref: '#/components/parameters/resourceParameter'
+      tags:
+        - Management API
+      responses:
+        '200':
+          $ref: '#/components/responses/successZipResponse'
+  '/logs/{partition_name}':
+    post:
+      summary: Decision log service
+      description: 'Updates will be sent to the specified location (`{partition_name}`)'
+      externalDocs:
+        description: Decision logs
+        url: 'https://www.openpolicyagent.org/docs/latest/management/#decision-logs'
+      operationId: postLogs
+      parameters:
+        - $ref: '#/components/parameters/partitionNameParameter'
+      tags:
+        - Management API
+      responses:
+        '200':
+          $ref: '#/components/responses/successZipResponse'
+        '404':
+          $ref: '#/components/responses/notFoundResponse'
+  /status:
+    post:
+      summary: Status service (send to /status)
+      description: Updates will be sent to */status*
+      externalDocs:
+        description: Status
+        url: 'https://www.openpolicyagent.org/docs/latest/management/#status'
+      operationId: postStatus
+      tags:
+        - Management API
+      responses:
+        '200':
+          $ref: '#/components/responses/successZipResponse'
+        '404':
+          $ref: '#/components/responses/notFoundResponse'
+  '/status/{partition_name}':
+    post:
+      summary: Status service
+      description: 'Updates will be sent to `{partition_name}`'
+      externalDocs:
+        description: Status
+        url: 'https://www.openpolicyagent.org/docs/latest/management/#status'
+      operationId: postStatuspartition
+      tags:
+        - Management API
+      parameters:
+        - $ref: '#/components/parameters/partitionNameParameter'
+      responses:
+        '200':
+          $ref: '#/components/responses/successZipResponse'
+        '404':
+          $ref: '#/components/responses/notFoundResponse'
+components:
+  parameters:
+    servicePathParameter:
+      name: service_path
+      in: path
+      description: The path to the required bundle
+      example: /service/v1
+      required: true
+      schema:
+        type: string
+    resourceParameter:
+      name: resource
+      description: The resource bundle (gzip tarball)
+      example: somedir/bundle.tar.gz
+      in: path
+      required: true
+      schema:
+        type: string
+    partitionNameParameter:
+      name: partition_name
+      description: A path segment used to route logs to different backends
+      in: path
+      required: true
+      schema:
+        type: string
+  responses:
+    successZipResponse:
+      description: Success. You will find a gzip file is in the response's message body
+      content:
+        application/gzip:
+          schema:
+            type: string
+            format: binary
+    notFoundResponse:
+      description: Not found (for example, a requested policy module or document does not exist)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/404'
+  schemas:
+    '404':
+      type: object
+      properties:
+        code:
+          description: The error code name
+          example: resource_not_found
+          type: string
+          minLength: 1
+        message:
+          description: The description of the error (including the name of any undefined policy module)
+          example: 'storage_not_found_error: policy id \"partial\"'
+          type: string
+          minLength: 1
+      required:
+        - code
+        - message
+  securitySchemes: {}
+security: []
