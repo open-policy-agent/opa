@@ -104,7 +104,7 @@ There are two options to use: `--set` and `--set-file`
 
 Both options take in a key=value format where the key is a selector for the yaml
 config structure, for example: `decision_logs.reporting.min_delay_seconds=300` is equivalent
-to JSON `{"decision_logs: {"reporting": {"min_delay_seconds: 300}}}`. Multiple values can be
+to JSON `{"decision_logs": {"reporting": {"min_delay_seconds": 300}}}`. Multiple values can be
 specified with comma separators (`key1=value,key2=value2,..`). Or with additional `--set`
 parameters.
 

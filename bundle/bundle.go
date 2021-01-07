@@ -535,7 +535,7 @@ func (r *Reader) checkSignaturesAndDescriptors(signatures SignaturesConfig) erro
 		return nil
 	}
 
-	if signatures.isEmpty() && r.verificationConfig != nil {
+	if signatures.isEmpty() && r.verificationConfig != nil && r.verificationConfig.KeyID != "" {
 		return fmt.Errorf("bundle missing .signatures.json file")
 	}
 

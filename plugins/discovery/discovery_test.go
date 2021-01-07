@@ -23,6 +23,7 @@ import (
 	"github.com/open-policy-agent/opa/plugins/bundle"
 	"github.com/open-policy-agent/opa/plugins/status"
 	"github.com/open-policy-agent/opa/storage/inmem"
+	"github.com/open-policy-agent/opa/topdown/cache"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/version"
 )
@@ -910,5 +911,74 @@ bundles:
 
 	if bp.Config().Bundles["bundle-new"].Service != "s1" {
 		t.Fatalf("Expected the bundle to be configured as bundles[0], got: %+v", bp.Config().Bundles)
+	}
+}
+
+func TestInterQueryBuiltinCacheConfigUpdate(t *testing.T) {
+	var config1 *cache.Config
+	var config2 *cache.Config
+	manager, err := plugins.New([]byte(`{
+		"discovery": {"name": "config"},
+		"services": {
+			"localhost": {
+				"url": "http://localhost:9999"
+			}
+		},
+  }`), "test-id", inmem.New())
+	manager.RegisterCacheTrigger(func(c *cache.Config) {
+		if config1 == nil {
+			config1 = c
+		} else if config2 == nil {
+			config2 = c
+		} else {
+			t.Fatal("Expected cache trigger to only be called twice")
+		}
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	testPlugin := &reconfigureTestPlugin{counts: map[string]int{}}
+	testFactory := testFactory{p: testPlugin}
+
+	disco, err := New(manager, Factories(map[string]plugins.Factory{"test_plugin": testFactory}))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx := context.Background()
+
+	initialBundle := makeDataBundle(1, `{
+    "config": {
+      "caching": {
+        "inter_query_builtin_cache": {
+          "max_size_bytes": 100
+        }
+      }
+    }
+  }`)
+
+	disco.oneShot(ctx, download.Update{Bundle: initialBundle})
+
+	// Verify interQueryBuiltinCacheConfig is triggered with initial config
+	if config1 == nil || *config1.InterQueryBuiltinCache.MaxSizeBytes != int64(100) {
+		t.Fatalf("Expected cache max size bytes to be 100 after initial discovery, got: %v", config1.InterQueryBuiltinCache.MaxSizeBytes)
+	}
+
+	// Verify interQueryBuiltinCache is reconfigured
+	updatedBundle := makeDataBundle(2, `{
+    "config": {
+      "caching": {
+        "inter_query_builtin_cache": {
+          "max_size_bytes": 200
+        }
+      }
+    }
+  }`)
+
+	disco.oneShot(ctx, download.Update{Bundle: updatedBundle})
+
+	if config2 == nil || *config2.InterQueryBuiltinCache.MaxSizeBytes != int64(200) {
+		t.Fatalf("Expected cache max size bytes to be 200 after discovery reconfigure, got: %v", config2.InterQueryBuiltinCache.MaxSizeBytes)
 	}
 }
