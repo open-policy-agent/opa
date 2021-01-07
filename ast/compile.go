@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/open-policy-agent/opa/gojsonschema"
+	"github.com/open-policy-agent/opa/internal/gojsonschema"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/types"
 	"github.com/open-policy-agent/opa/util"
