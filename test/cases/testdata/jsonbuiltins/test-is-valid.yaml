@@ -30,6 +30,7 @@ cases:
   input: {"foo": 1}
   want_error: operand 1 must be string but got number
   want_error_code: eval_type_error
+  strict_error: true
 
 - note: jsonbuiltins/yaml is_valid
   query: data.generated.p = x
@@ -66,3 +67,4 @@ cases:
   input: {"foo": 1}
   want_error: operand 1 must be string but got number
   want_error_code: eval_type_error
+  strict_error: true

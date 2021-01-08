@@ -8,7 +8,7 @@ opa_value *opa_bits_or(opa_value *a, opa_value *b)
 {
     mpd_t *x = opa_number_to_bf(a);
     mpd_t *y = opa_number_to_bf(b);
-    if (x == NULL || y == NULL)
+    if (x == NULL || y == NULL || !mpd_isinteger(x) || !mpd_isinteger(y))
     {
         opa_mpd_del(x);
         opa_mpd_del(y);
@@ -47,7 +47,7 @@ opa_value *opa_bits_and(opa_value *a, opa_value *b)
 {
     mpd_t *x = opa_number_to_bf(a);
     mpd_t *y = opa_number_to_bf(b);
-    if (x == NULL || y == NULL)
+    if (x == NULL || y == NULL || !mpd_isinteger(x) || !mpd_isinteger(y))
     {
         opa_mpd_del(x);
         opa_mpd_del(y);
@@ -85,7 +85,7 @@ opa_value *opa_bits_and(opa_value *a, opa_value *b)
 opa_value *opa_bits_negate(opa_value *a)
 {
     mpd_t *x = opa_number_to_bf(a);
-    if (x == NULL)
+    if (x == NULL || !mpd_isinteger(x))
     {
         return NULL;
     }
@@ -114,7 +114,7 @@ opa_value *opa_bits_xor(opa_value *a, opa_value *b)
 {
     mpd_t *x = opa_number_to_bf(a);
     mpd_t *y = opa_number_to_bf(b);
-    if (x == NULL || y == NULL)
+    if (x == NULL || y == NULL || !mpd_isinteger(x) || !mpd_isinteger(y))
     {
         opa_mpd_del(x);
         opa_mpd_del(y);
@@ -153,6 +153,7 @@ opa_value *opa_bits_shiftleft(opa_value *a, opa_value *b)
     mpd_t *x = opa_bf_to_bf_bits(opa_number_to_bf(a));
     if (x == NULL)
     {
+        opa_mpd_del(x);
         return NULL;
     }
 
@@ -186,7 +187,7 @@ opa_value *opa_bits_shiftleft(opa_value *a, opa_value *b)
 opa_value *opa_bits_shiftright(opa_value *a, opa_value *b)
 {
     mpd_t *x = opa_number_to_bf(a);
-    if (x == NULL)
+    if (x == NULL || !mpd_isinteger(x))
     {
         return NULL;
     }

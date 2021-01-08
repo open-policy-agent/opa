@@ -12,3 +12,4 @@ cases:
   query: data.generated.p = x
   want_error: 'bits.and: operand 1 must be integer number but got floating-point number'
   want_error_code: eval_type_error
+  strict_error: true

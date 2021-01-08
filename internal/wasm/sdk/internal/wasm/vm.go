@@ -266,6 +266,9 @@ func (i *VM) Eval(ctx context.Context, entrypoint int32, input *interface{}, met
 					err = errors.New(e.message)
 				case builtinError:
 					err = e.err
+					if _, ok := err.(topdown.Halt); !ok {
+						err = nil
+					}
 				default:
 					panic(e)
 				}

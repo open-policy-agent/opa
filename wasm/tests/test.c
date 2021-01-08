@@ -1297,7 +1297,11 @@ void test_arithmetic(void)
     test("minus set", s3->len == 1 && opa_set_get(s3, opa_number_int(1)) != NULL);
     test("multiply 3*2", opa_number_as_float(opa_cast_number(opa_arith_multiply(opa_number_float(3), opa_number_float(2)))) == 6);
     test("divide 3/2", opa_number_as_float(opa_cast_number(opa_arith_divide(opa_number_float(3), opa_number_float(2)))) == 1.5);
+    test("divide 3/0", opa_arith_divide(opa_number_float(3), opa_number_float(0)) == NULL);
     test("remainder 5 % 2", opa_number_as_float(opa_cast_number(opa_arith_rem(opa_number_float(5), opa_number_float(2)))) == 1);
+    test("remainder 1.1 % 1", opa_arith_rem(opa_number_float(1.1), opa_number_float(1)) == NULL);
+    test("remainder 1 % 1.1", opa_arith_rem(opa_number_float(1), opa_number_float(1.1)) == NULL);
+    test("remainder 1 % 0", opa_arith_rem(opa_number_float(1), opa_number_float(0)) == NULL);
 }
 
 void test_set_diff(void)
@@ -1810,7 +1814,7 @@ void test_object_remove(void)
     opa_set_add(set_keys3, opa_string_terminated("foo"));
     test("object/remove (key does not exist)", opa_value_compare(builtin_object_remove(&obj3->hdr, &set_keys3->hdr), &obj3->hdr) == 0);
 
-    test("object/remove (second operand not object/set/array)", opa_value_compare(builtin_object_remove(&obj3->hdr, opa_string_terminated("a")), &obj3->hdr) == 0);
+    test("object/remove (second operand not object/set/array)", opa_value_compare(builtin_object_remove(&obj3->hdr, opa_string_terminated("a")), NULL) == 0);
 }
 
 void test_object_union(void)

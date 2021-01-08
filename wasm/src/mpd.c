@@ -189,7 +189,8 @@ mpd_t *opa_bf_to_bf_bits(mpd_t *v)
     mpd_qround_to_intx(i, v, mpd_max_ctx(), &status);
     if (status)
     {
-        opa_abort("opa_bits: bits conversion");
+        mpd_del(i);
+        return NULL;
     }
 
     int c = mpd_qcmp(i, v, &status);

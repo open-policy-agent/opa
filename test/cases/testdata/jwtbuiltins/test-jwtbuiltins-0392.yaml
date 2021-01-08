@@ -93,3 +93,4 @@ cases:
   query: data.generated.p = x
   want_error: encoded JWT had no period separators
   want_error_code: eval_builtin_error
+  strict_error: true

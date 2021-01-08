@@ -94,3 +94,4 @@ cases:
   want_error: 'JWT payload had invalid encoding: illegal base64 data at input byte
     17'
   want_error_code: eval_builtin_error
+  strict_error: true

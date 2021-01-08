@@ -93,3 +93,4 @@ cases:
   query: data.generated.p = x
   want_error: encoded JWT must have 3 sections, found 2
   want_error_code: eval_builtin_error
+  strict_error: true

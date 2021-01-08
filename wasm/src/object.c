@@ -128,7 +128,10 @@ opa_value *builtin_object_get(opa_value *obj, opa_value *key, opa_value *value)
 
 opa_value *builtin_object_remove(opa_value *obj, opa_value *keys)
 {
-    if (opa_value_type(obj) != OPA_OBJECT)
+    if (opa_value_type(obj)  != OPA_OBJECT ||
+        (opa_value_type(keys) != OPA_OBJECT &&
+         opa_value_type(keys) != OPA_ARRAY &&
+         opa_value_type(keys) != OPA_SET))
     {
         return NULL;
     }

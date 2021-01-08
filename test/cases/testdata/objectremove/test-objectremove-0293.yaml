@@ -14,3 +14,4 @@ cases:
   query: data.generated.p = x
   want_error: 'object.remove: operand 1 must be object but got null'
   want_error_code: eval_type_error
+  strict_error: true
