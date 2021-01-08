@@ -872,95 +872,78 @@ func CompileSchemas(byteSchema []byte, goSchema interface{}) (*gojsonschema.Sche
 }
 
 // CompileAndParseSchema first compiles a schema and parses it into a Rego type
-func CompileAndParseSchema(schema interface{}) (*types.Object, error) {
+func CompileAndParseSchema(schema interface{}) (types.Type, error) {
 	compiledSchema, err := CompileSchemas(nil, schema)
 	if err != nil {
 		return &types.Object{}, err
 	}
-	staticProps, err := parseSchemaRecursive(compiledSchema.RootSchema)
+	newtype, err := parseSchema(compiledSchema.RootSchema)
 	if err != nil {
 		return &types.Object{}, err
 	}
-	return types.NewObject(staticProps, nil), nil
+	return newtype, nil
 }
 
-// ParseSchemaRecursive obtains an array of Rego static property from a schema interface
-func parseSchemaRecursive(schema interface{}) ([]*types.StaticProperty, error) {
-
+func parseSchema(schema interface{}) (types.Type, error) {
 	subSchema, ok := schema.(*gojsonschema.SubSchema)
 	if !ok {
 		return nil, fmt.Errorf("unexpected schema type %v", subSchema)
 	}
 
-	staticProps := make([]*types.StaticProperty, 0, len(subSchema.PropertiesChildren))
-
 	// Handle referenced schemas, returns directly when a $ref is found
 	if subSchema.RefSchema != nil {
-		return parseSchemaRecursive(subSchema.RefSchema)
+		return parseSchema(subSchema.RefSchema)
 	}
 
-	if subSchema.Types.IsTyped() && subSchema.Types.Contains(`object`) {
-		for _, pSchema := range subSchema.PropertiesChildren {
-			var value types.Type
+	if subSchema.Types.IsTyped() && subSchema.Types.Contains(`boolean`) {
+		return types.B, nil
 
-			if pSchema.Types.IsTyped() && pSchema.Types.Contains(`array`) {
-				if pSchema.ItemsChildren != nil && len(pSchema.ItemsChildren) > 0 {
-					newTypes := make([]types.Type, 0, len(pSchema.ItemsChildren))
-					for i := 0; i != len(pSchema.ItemsChildren); i++ {
-						var typeAdd types.Type
-						iSchema := pSchema.ItemsChildren[i]
-						if iSchema.Types.IsTyped() && iSchema.Types.Contains(`boolean`) {
-							typeAdd = types.B
-						} else if iSchema.Types.IsTyped() && iSchema.Types.Contains(`string`) {
-							typeAdd = types.S
-						} else if iSchema.Types.IsTyped() && iSchema.Types.Contains(`integer`) {
-							typeAdd = types.N
-						} else if iSchema.Types.IsTyped() && iSchema.Types.Contains(`object`) {
-							if iSchema.PropertiesChildren != nil && len(iSchema.PropertiesChildren) > 0 {
-								props, err := parseSchemaRecursive(iSchema)
-								if err != nil {
-									return nil, fmt.Errorf("unexpected schema type %v", iSchema)
-								}
-								typeAdd = types.NewObject(props, nil)
-							} else {
-								typeAdd = types.A
-							}
-						}
-						newTypes = append(newTypes, typeAdd)
-					}
-					value = types.NewArray(newTypes, nil)
-				}
-			} else if pSchema.Types.IsTyped() && pSchema.Types.Contains(`boolean`) {
-				value = types.B
-			} else if pSchema.Types.IsTyped() && pSchema.Types.Contains(`string`) {
-				value = types.S
+	} else if subSchema.Types.IsTyped() && subSchema.Types.Contains(`string`) {
+		return types.S, nil
 
-			} else if pSchema.Types.IsTyped() && pSchema.Types.Contains(`integer`) {
-				value = types.N
-			} else if pSchema.Types.IsTyped() && pSchema.Types.Contains(`object`) {
-				if pSchema.PropertiesChildren != nil && len(pSchema.PropertiesChildren) > 0 {
-					props, err := parseSchemaRecursive(pSchema)
-					if err != nil {
-						return nil, fmt.Errorf("unexpected schema type %v", pSchema)
-					}
-					value = types.NewObject(props, nil)
-				} else {
-					value = types.A
+	} else if subSchema.Types.IsTyped() && subSchema.Types.Contains(`integer`) {
+		return types.N, nil
+
+	} else if subSchema.Types.IsTyped() && subSchema.Types.Contains(`object`) {
+		if subSchema.PropertiesChildren != nil && len(subSchema.PropertiesChildren) > 0 {
+			staticProps := make([]*types.StaticProperty, 0, len(subSchema.PropertiesChildren))
+			for _, pSchema := range subSchema.PropertiesChildren {
+				newtype, err := parseSchema(pSchema)
+				if err != nil {
+					return nil, fmt.Errorf("unexpected schema type %v", pSchema)
 				}
+				staticProps = append(staticProps, types.NewStaticProperty(pSchema.Property, newtype))
 			}
-			staticProps = append(staticProps, types.NewStaticProperty(pSchema.Property, value))
+			return types.NewObject(staticProps, nil), nil
 		}
+		return types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)), nil
+
+	} else if subSchema.Types.IsTyped() && subSchema.Types.Contains(`array`) {
+		if subSchema.ItemsChildren != nil && len(subSchema.ItemsChildren) > 0 {
+			newTypes := make([]types.Type, 0, len(subSchema.ItemsChildren))
+			for i := 0; i != len(subSchema.ItemsChildren); i++ {
+				iSchema := subSchema.ItemsChildren[i]
+				newtype, err := parseSchema(iSchema)
+				if err != nil {
+					return nil, fmt.Errorf("unexpected schema type %v", iSchema)
+				}
+				newTypes = append(newTypes, newtype)
+			}
+			return types.NewArray(newTypes, nil), nil
+		}
+		return types.NewArray(nil, types.A), nil
+
 	}
 
-	return staticProps, nil
+	return types.A, nil
 }
 
 func (c *Compiler) setTypesWithSchema(schema interface{}) error { //NEW TYPE CHECKING FUNCTION
-	staticProps, err := parseSchemaRecursive(schema)
+	newtype, err := parseSchema(schema)
 	if err != nil {
 		return fmt.Errorf("error when type checking %v", err)
 	}
-	c.TypeEnv.tree.PutOne(VarTerm("input").Value, types.NewObject(staticProps, nil))
+	c.TypeEnv.tree.PutOne(VarTerm("input").Value, newtype)
 	return nil
 }
 
