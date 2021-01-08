@@ -778,6 +778,9 @@ func (c *Compiler) compileBlock(block *ir.Block) ([]instruction.Instruction, err
 			instrs = append(instrs, instruction.I32Const{Value: 0})
 			instrs = append(instrs, instruction.I32Ne{})
 			instrs = append(instrs, instruction.BrIf{Index: 0})
+		case *ir.ResetLocalStmt:
+			instrs = append(instrs, instruction.I32Const{Value: 0})
+			instrs = append(instrs, instruction.SetLocal{Index: c.local(stmt.Target)})
 		case *ir.IsDefinedStmt:
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Source)})
 			instrs = append(instrs, instruction.I32Eqz{})

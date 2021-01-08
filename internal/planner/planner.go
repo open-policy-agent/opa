@@ -186,15 +186,11 @@ func (p *Planner) planRules(rules []*ast.Rule) (string, error) {
 		fn.Blocks = append(fn.Blocks, p.blockWithStmt(&ir.MakeSetStmt{Target: fn.Return}))
 	}
 
-	// For complete document rules, allocate one local variable per rule:
+	// For complete document rules, allocate one local variable for output
+	// of the rule body + else branches.
 	// It is used to let ordered rules (else blocks) check if the previous
 	// rule body returned a value.
-	// TODO(sr): We could have one local and reuse it if we had a stmt to
-	// reset it to `I32Const{Value: 0}`.
-	lresults := make([]ir.Local, len(rules))
-	for i := range lresults {
-		lresults[i] = p.newLocal()
-	}
+	lresult := p.newLocal()
 
 	// At this point the locals for the params and return value have been
 	// allocated. This will be the first local that can be used in each block.
@@ -232,7 +228,6 @@ func (p *Planner) planRules(rules []*ast.Rule) (string, error) {
 		}
 
 		var prev *ast.Rule
-		lresult := lresults[i]
 
 		// Unordered rules are treated as a special case of ordered rules.
 		for rule := rules[i]; rule != nil; prev, rule = rule, rule.Else {
@@ -255,6 +250,9 @@ func (p *Planner) planRules(rules []*ast.Rule) (string, error) {
 				// Ordered rules are handled by short circuiting execution. The
 				// plan will jump out to the extra block that was planned above.
 				p.appendStmt(&ir.IsUndefinedStmt{Source: lresult})
+			} else {
+				// The first rule body resets the local, so it can be reused.
+				p.appendStmt(&ir.ResetLocalStmt{Target: lresult})
 			}
 
 			// Complete and partial rules are treated as special cases of
