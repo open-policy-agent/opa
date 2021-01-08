@@ -204,9 +204,16 @@ func assertErrorCode(t *testing.T, expected string, actual error) {
 	t.Helper()
 	switch expected {
 	case "eval_conflict_error":
-		exp := "var assignment conflict"
-		if !strings.Contains(actual.Error(), exp) {
-			t.Errorf("expected %q to contain %q", actual, exp)
+		exps := []string{"var assignment conflict", "object insert conflict"}
+		found := false
+		for _, exp := range exps {
+			if strings.Contains(actual.Error(), exp) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("expected %q to contain one of %v", actual, exps)
 		}
 	default:
 		t.Errorf("unmatched error: %v (expected %s)", actual, expected)
