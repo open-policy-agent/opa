@@ -26,21 +26,21 @@ package gojsonschema
 
 import "bytes"
 
-// JsonContext implements a persistent linked-list of strings
-type JsonContext struct {
+// JSONContext implements a persistent linked-list of strings
+type JSONContext struct {
 	head string
-	tail *JsonContext
+	tail *JSONContext
 }
 
-// NewJsonContext creates a new JsonContext
-func NewJsonContext(head string, tail *JsonContext) *JsonContext {
-	return &JsonContext{head, tail}
+// NewJSONContext creates a new JSONContext
+func NewJSONContext(head string, tail *JSONContext) *JSONContext {
+	return &JSONContext{head, tail}
 }
 
 // String displays the context in reverse.
 // This plays well with the data structure's persistent nature with
 // Cons and a json document's tree structure.
-func (c *JsonContext) String(del ...string) string {
+func (c *JSONContext) String(del ...string) string {
 	byteArr := make([]byte, 0, c.stringLen())
 	buf := bytes.NewBuffer(byteArr)
 	c.writeStringToBuffer(buf, del)
@@ -48,7 +48,7 @@ func (c *JsonContext) String(del ...string) string {
 	return buf.String()
 }
 
-func (c *JsonContext) stringLen() int {
+func (c *JSONContext) stringLen() int {
 	length := 0
 	if c.tail != nil {
 		length = c.tail.stringLen() + 1 // add 1 for "."
@@ -58,7 +58,7 @@ func (c *JsonContext) stringLen() int {
 	return length
 }
 
-func (c *JsonContext) writeStringToBuffer(buf *bytes.Buffer, del []string) {
+func (c *JSONContext) writeStringToBuffer(buf *bytes.Buffer, del []string) {
 	if c.tail != nil {
 		c.tail.writeStringToBuffer(buf, del)
 

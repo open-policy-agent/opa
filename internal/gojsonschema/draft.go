@@ -99,18 +99,18 @@ func parseSchemaURL(documentNode interface{}) (string, *Draft, error) {
 
 	m := documentNode.(map[string]interface{})
 
-	if existsMapKey(m, KEY_SCHEMA) {
-		if !isKind(m[KEY_SCHEMA], reflect.String) {
+	if existsMapKey(m, KeySchema) {
+		if !isKind(m[KeySchema], reflect.String) {
 			return "", nil, errors.New(formatErrorDescription(
 				Locale.MustBeOfType(),
 				ErrorDetails{
-					"key":  KEY_SCHEMA,
-					"type": TYPE_STRING,
+					"key":  KeySchema,
+					"type": TypeString,
 				},
 			))
 		}
 
-		schemaReference, err := gojsonreference.NewJsonReference(m[KEY_SCHEMA].(string))
+		schemaReference, err := gojsonreference.NewJsonReference(m[KeySchema].(string))
 
 		if err != nil {
 			return "", nil, err

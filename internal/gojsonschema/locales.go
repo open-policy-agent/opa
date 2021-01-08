@@ -172,8 +172,8 @@ type (
 		// Duplicated returns a format-string to format an error where types are duplicated
 		Duplicated() string
 
-		// HttpBadStatus returns a format-string for errors when loading a schema using HTTP
-		HttpBadStatus() string
+		// HTTPBadStatus returns a format-string for errors when loading a schema using HTTP
+		HTTPBadStatus() string
 
 		// ParseError returns a format-string for JSON parsing errors
 		ParseError() string
@@ -429,8 +429,8 @@ func (l DefaultLocale) Duplicated() string {
 	return `{{.type}} type is duplicated`
 }
 
-// HttpBadStatus returns a format-string for errors when loading a schema using HTTP
-func (l DefaultLocale) HttpBadStatus() string {
+// HTTPBadStatus returns a format-string for errors when loading a schema using HTTP
+func (l DefaultLocale) HTTPBadStatus() string {
 	return `Could not read schema from HTTP, response status is {{.status}}`
 }
 
@@ -458,15 +458,15 @@ func (l DefaultLocale) ConditionElse() string {
 
 // constants
 const (
-	STRING_NUMBER                     = "number"
-	STRING_ARRAY_OF_STRINGS           = "array of strings"
-	STRING_ARRAY_OF_SCHEMAS           = "array of schemas"
-	STRING_SCHEMA                     = "valid schema"
-	STRING_SCHEMA_OR_ARRAY_OF_STRINGS = "schema or array of strings"
-	STRING_PROPERTIES                 = "properties"
-	STRING_DEPENDENCY                 = "dependency"
-	STRING_PROPERTY                   = "property"
-	STRING_UNDEFINED                  = "undefined"
-	STRING_CONTEXT_ROOT               = "(root)"
-	STRING_ROOT_SCHEMA_PROPERTY       = "(root)"
+	StringNumber                 = "Number"
+	StringArrayOfStrings         = "Array Of Strings"
+	StringArrayOfSchemas         = "Array Of Schemas"
+	StringSchema                 = "Valid Schema"
+	StringSchemaOrArrayOfStrings = "Schema Or Array Of Strings"
+	StringProperties             = "Properties"
+	StringDependency             = "Dependency"
+	StringProperty               = "Property"
+	StringUndefined              = "Undefined"
+	StringContextRoot            = "(Root)"
+	StringRootSchemaProperty     = "(Root)"
 )
