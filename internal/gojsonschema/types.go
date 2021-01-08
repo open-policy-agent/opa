@@ -27,13 +27,13 @@ package gojsonschema
 
 // Type constants
 const (
-	TypeArray   = `Array`
-	TypeBoolean = `Boolean`
-	TypeInteger = `Integer`
-	TypeNumber  = `Number`
-	TypeNull    = `Null`
-	TypeObject  = `Object`
-	TypeString  = `String`
+	TypeArray   = `array`
+	TypeBoolean = `boolean`
+	TypeInteger = `integer`
+	TypeNumber  = `number`
+	TypeNull    = `null`
+	TypeObject  = `object`
+	TypeString  = `string`
 )
 
 // JSONTypes hosts the list of type that are supported in JSON
@@ -42,8 +42,7 @@ var JSONTypes []string
 // SchemaTypes Hosts The List Of Type That Are Supported In Schemas
 var SchemaTypes []string
 
-//Init initializes the two types
-func Init() {
+func init() {
 	JSONTypes = []string{
 		TypeArray,
 		TypeBoolean,
