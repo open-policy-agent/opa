@@ -182,7 +182,6 @@ type Compiler struct {
 const (
 	errVarAssignConflict int = iota
 	errObjectInsertConflict
-	errObjectMergeConflict
 	errIllegalEntrypoint
 )
 
@@ -192,7 +191,6 @@ var errorMessages = [...]struct {
 }{
 	{errVarAssignConflict, "var assignment conflict"},
 	{errObjectInsertConflict, "object insert conflict"},
-	{errObjectMergeConflict, "object merge conflict"},
 	{errIllegalEntrypoint, "internal: illegal entrypoint id"},
 }
 
@@ -821,12 +819,6 @@ func (c *Compiler) compileBlock(block *ir.Block) ([]instruction.Instruction, err
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.B)})
 			instrs = append(instrs, instruction.Call{Index: c.function(opaValueMerge)})
 			instrs = append(instrs, instruction.SetLocal{Index: c.local(stmt.Target)})
-			instrs = append(instrs, instruction.Block{
-				Instrs: append([]instruction.Instruction{
-					instruction.GetLocal{Index: c.local(stmt.Target)},
-					instruction.BrIf{Index: 0},
-				}, c.runtimeErrorAbort(stmt.Location, errObjectMergeConflict)...),
-			})
 		case *ir.SetAddStmt:
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Set)})
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Value)})
