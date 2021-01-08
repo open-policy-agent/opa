@@ -2,6 +2,7 @@
 #include "str.h"
 #include "conversions.h"
 
+OPA_BUILTIN
 opa_value *opa_to_number(opa_value *v)
 {
     switch (opa_value_type(v))

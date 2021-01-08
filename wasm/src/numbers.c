@@ -1,6 +1,8 @@
 #include "numbers.h"
 #include "mpd.h"
+#include "std.h"
 
+OPA_BUILTIN
 opa_value *opa_numbers_range(opa_value *v1, opa_value *v2)
 {
     mpd_t *i1 = NULL;

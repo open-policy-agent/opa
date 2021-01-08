@@ -1,6 +1,7 @@
 #include <stddef.h>
 #include <string.h>
 
+#include "std.h"
 #include "str.h"
 #include "value.h"
 
@@ -128,6 +129,7 @@ static bool contains(ip_net *a, ip_net *b)
     return TRUE;
 }
 
+OPA_BUILTIN
 opa_value *opa_cidr_contains(opa_value *a, opa_value *b)
 {
     if (opa_value_type(a) != OPA_STRING || opa_value_type(b) != OPA_STRING)
@@ -150,6 +152,7 @@ opa_value *opa_cidr_contains(opa_value *a, opa_value *b)
     return opa_boolean(contains(&ip_a, &ip_b) ? TRUE : FALSE);
 }
 
+OPA_BUILTIN
 opa_value *opa_cidr_intersects(opa_value *a, opa_value *b)
 {
     if (opa_value_type(a) != OPA_STRING || opa_value_type(b) != OPA_STRING)

@@ -34,6 +34,13 @@ void opa_println(const char *msg);
 #define bool    int
 #endif
 
+// Functions to be exported from the WASM module
+#define WASM_EXPORT(NAME) __attribute__((export_name(#NAME)))
+// functions that implement builtins
+#define OPA_BUILTIN __attribute__((used))
+// functions that may be called from the generated WASM code
+#define OPA_INTERNAL __attribute__((used))
+
 // OPA WASM API Error Codes
 #define OPA_ERR_OK 0
 #define OPA_ERR_INTERNAL 1
@@ -41,9 +48,9 @@ void opa_println(const char *msg);
 #define OPA_ERR_INVALID_PATH 3
 
 typedef int opa_errc;
-
 #ifdef __cplusplus
 }
 #endif
 
 #endif
+

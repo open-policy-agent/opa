@@ -1,4 +1,5 @@
 #include "graphs.h"
+#include "std.h"
 
 static void __builtin_graph_reachable(opa_value *edges, opa_array_t *queue, opa_set_t *reached)
 {
@@ -39,6 +40,7 @@ static void __builtin_graph_reachable(opa_value *edges, opa_array_t *queue, opa_
     }
 }
 
+OPA_BUILTIN
 opa_value *builtin_graph_reachable(opa_value *graph, opa_value *initial)
 {
 

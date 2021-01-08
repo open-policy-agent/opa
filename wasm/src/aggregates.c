@@ -1,7 +1,9 @@
 #include "aggregates.h"
 #include "mpd.h"
+#include "std.h"
 #include "unicode.h"
 
+OPA_BUILTIN
 opa_value *opa_agg_count(opa_value *v)
 {
     switch (opa_value_type(v))
@@ -44,6 +46,7 @@ static mpd_t *mpd_int(int v)
     return r;
 }
 
+OPA_BUILTIN
 opa_value *opa_agg_sum(opa_value *v)
 {
     switch (opa_value_type(v))
@@ -92,6 +95,7 @@ opa_value *opa_agg_sum(opa_value *v)
     }
 }
 
+OPA_BUILTIN
 opa_value *opa_agg_product(opa_value *v)
 {
     switch (opa_value_type(v))
@@ -140,6 +144,7 @@ opa_value *opa_agg_product(opa_value *v)
     }
 }
 
+OPA_BUILTIN
 opa_value *opa_agg_max(opa_value *v)
 {
     switch (opa_value_type(v))
@@ -186,6 +191,7 @@ opa_value *opa_agg_max(opa_value *v)
     }
 }
 
+OPA_BUILTIN
 opa_value *opa_agg_min(opa_value *v)
 {
     switch (opa_value_type(v))
@@ -232,6 +238,7 @@ opa_value *opa_agg_min(opa_value *v)
     }
 }
 
+OPA_BUILTIN
 opa_value *opa_agg_sort(opa_value *v)
 {
     switch (opa_value_type(v))
@@ -261,6 +268,7 @@ opa_value *opa_agg_sort(opa_value *v)
     }
 }
 
+OPA_BUILTIN
 opa_value *opa_agg_all(opa_value *v)
 {
     switch (opa_value_type(v))
@@ -299,6 +307,7 @@ opa_value *opa_agg_all(opa_value *v)
     }
 }
 
+OPA_BUILTIN
 opa_value *opa_agg_any(opa_value *v)
 {
     switch (opa_value_type(v))

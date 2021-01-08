@@ -1,10 +1,12 @@
 #include "malloc.h"
 #include "mpd.h"
+#include "std.h"
 #include "str.h"
 #include "string.h"
 #include "strings.h"
 #include "unicode.h"
 
+OPA_BUILTIN
 opa_value *opa_strings_concat(opa_value *a, opa_value *b)
 {
     if (opa_value_type(a) != OPA_STRING)
@@ -129,6 +131,7 @@ static int strings_indexof(opa_string_t *s, int pos, opa_string_t *substr)
     return -1;
 }
 
+OPA_BUILTIN
 opa_value *opa_strings_contains(opa_value *a, opa_value *b)
 {
     if (opa_value_type(a) != OPA_STRING || opa_value_type(b) != OPA_STRING)
@@ -142,6 +145,7 @@ opa_value *opa_strings_contains(opa_value *a, opa_value *b)
     return opa_boolean(strings_indexof(s, 0, substr) >= 0 ? TRUE : FALSE);
 }
 
+OPA_BUILTIN
 opa_value *opa_strings_endswith(opa_value *a, opa_value *b)
 {
     if (opa_value_type(a) != OPA_STRING || opa_value_type(b) != OPA_STRING)
@@ -168,6 +172,7 @@ opa_value *opa_strings_endswith(opa_value *a, opa_value *b)
     return opa_boolean(TRUE);
 }
 
+OPA_BUILTIN
 opa_value *opa_strings_format_int(opa_value *a, opa_value *b)
 {
     if (opa_value_type(a) != OPA_NUMBER || opa_value_type(b) != OPA_NUMBER)
@@ -234,6 +239,7 @@ opa_value *opa_strings_format_int(opa_value *a, opa_value *b)
     return opa_string_allocated(str, opa_strlen(str));
 }
 
+OPA_BUILTIN
 opa_value *opa_strings_indexof(opa_value *a, opa_value *b)
 {
     if (opa_value_type(a) != OPA_STRING || opa_value_type(b) != OPA_STRING)
@@ -262,6 +268,7 @@ opa_value *opa_strings_indexof(opa_value *a, opa_value *b)
     return opa_number_int(units);
 }
 
+OPA_BUILTIN
 opa_value *opa_strings_replace(opa_value *a, opa_value *b, opa_value *c)
 {
     if (opa_value_type(a) != OPA_STRING || opa_value_type(b) != OPA_STRING || opa_value_type(c) != OPA_STRING)
@@ -304,6 +311,7 @@ opa_value *opa_strings_replace(opa_value *a, opa_value *b, opa_value *c)
     return opa_string_allocated(r, j);
 }
 
+OPA_BUILTIN
 opa_value *opa_strings_replace_n(opa_value *a, opa_value *b)
 {
     if (opa_value_type(a) != OPA_OBJECT || opa_value_type(b) != OPA_STRING)
@@ -343,6 +351,7 @@ opa_value *opa_strings_replace_n(opa_value *a, opa_value *b)
     return result;
 }
 
+OPA_BUILTIN
 opa_value *opa_strings_split(opa_value *a, opa_value *b)
 {
     if (opa_value_type(a) != OPA_STRING || opa_value_type(b) != OPA_STRING)
@@ -406,6 +415,7 @@ opa_value *opa_strings_split(opa_value *a, opa_value *b)
     return &arr->hdr;
 }
 
+OPA_BUILTIN
 opa_value *opa_strings_startswith(opa_value *a, opa_value *b)
 {
     if (opa_value_type(a) != OPA_STRING || opa_value_type(b) != OPA_STRING)
@@ -424,6 +434,7 @@ opa_value *opa_strings_startswith(opa_value *a, opa_value *b)
     return opa_strncmp(s->v, prefix->v, prefix->len) == 0 ? opa_boolean(TRUE) : opa_boolean(FALSE);
 }
 
+OPA_BUILTIN
 opa_value *opa_strings_substring(opa_value *a, opa_value *b, opa_value *c)
 {
     if (opa_value_type(a) != OPA_STRING || opa_value_type(b) != OPA_NUMBER || opa_value_type(c) != OPA_NUMBER)
@@ -492,6 +503,7 @@ opa_value *opa_strings_substring(opa_value *a, opa_value *b, opa_value *c)
     return opa_string_allocated(str, epos - spos);
 }
 
+OPA_BUILTIN
 opa_value *opa_strings_trim(opa_value *a, opa_value *b)
 {
     if (opa_value_type(a) != OPA_STRING || opa_value_type(b) != OPA_STRING)
@@ -505,6 +517,7 @@ opa_value *opa_strings_trim(opa_value *a, opa_value *b)
     return r;
 }
 
+OPA_BUILTIN
 opa_value *opa_strings_trim_left(opa_value *a, opa_value *b)
 {
     if (opa_value_type(a) != OPA_STRING || opa_value_type(b) != OPA_STRING)
@@ -547,6 +560,7 @@ opa_value *opa_strings_trim_left(opa_value *a, opa_value *b)
     return opa_string_allocated(str, s->len - j);
 }
 
+OPA_BUILTIN
 opa_value *opa_strings_trim_prefix(opa_value *a, opa_value *b)
 {
     if (opa_value_type(a) != OPA_STRING || opa_value_type(b) != OPA_STRING)
@@ -569,6 +583,7 @@ opa_value *opa_strings_trim_prefix(opa_value *a, opa_value *b)
     return opa_string_allocated(str, len);
 }
 
+OPA_BUILTIN
 opa_value *opa_strings_trim_right(opa_value *a, opa_value *b)
 {
     if (opa_value_type(a) != OPA_STRING || opa_value_type(b) != OPA_STRING)
@@ -618,6 +633,7 @@ opa_value *opa_strings_trim_right(opa_value *a, opa_value *b)
     return opa_string_allocated(str, j);
 }
 
+OPA_BUILTIN
 opa_value *opa_strings_trim_suffix(opa_value *a, opa_value *b)
 {
     if (opa_value_type(a) != OPA_STRING || opa_value_type(b) != OPA_STRING)
@@ -688,6 +704,7 @@ static opa_value *trim_space(const char *s, int start, int end)
     return opa_string_allocated(str, end - start);
 }
 
+OPA_BUILTIN
 opa_value *opa_strings_trim_space(opa_value *a)
 {
     if (opa_value_type(a) != OPA_STRING)
@@ -733,6 +750,7 @@ opa_value *opa_strings_trim_space(opa_value *a)
     return opa_string_allocated(str, stop - start);
 }
 
+OPA_BUILTIN
 opa_value *opa_strings_lower(opa_value *a)
 {
     if (opa_value_type(a) != OPA_STRING)
@@ -807,6 +825,7 @@ opa_value *opa_strings_lower(opa_value *a)
     return opa_string_allocated(out, j);
 }
 
+OPA_BUILTIN
 opa_value *opa_strings_upper(opa_value *a)
 {
     if (opa_value_type(a) != OPA_STRING)
