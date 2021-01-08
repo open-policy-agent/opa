@@ -72,7 +72,7 @@ func testRun(t *testing.T, tc cases.TestCase) {
 		WithStore(store).
 		WithTransaction(txn).
 		WithInput(input).
-		WithStrictBuiltinErrors(tc.WantError != nil || tc.WantErrorCode != nil).
+		WithStrictBuiltinErrors(tc.StrictError).
 		Run(ctx)
 
 	if tc.WantError != nil {

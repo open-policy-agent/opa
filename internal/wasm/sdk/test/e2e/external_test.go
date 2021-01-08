@@ -27,7 +27,7 @@ import (
 	"github.com/open-policy-agent/opa/util"
 )
 
-var opaRootDir = "../../../../../"
+const opaRootDir = "../../../../../"
 var caseDir = flag.String("case-dir", filepath.Join(opaRootDir, "test/cases/testdata"), "set directory to load test cases from")
 var exceptionsFile = flag.String("exceptions", "./exceptions.yaml", "set file to load a list of test names to exclude")
 
@@ -111,15 +111,25 @@ func assert(t *testing.T, tc cases.TestCase, result *opa.Result, err error) {
 	t.Helper()
 	if tc.WantDefined != nil {
 		if err != nil {
-			t.Fatal("unexpected error:", err)
+			t.Fatalf("unexpected error: %v", err)
 		}
 		assertDefined(t, defined(*tc.WantDefined), result)
 	} else if tc.WantResult != nil {
 		if err != nil {
-			t.Fatal("unexpected error:", err)
+			t.Fatalf("unexpected error: %v", err)
 		}
 		assertResultSet(t, *tc.WantResult, tc.SortBindings, result)
 	} else if tc.WantErrorCode != nil || tc.WantError != nil {
+		// The WASM compiler does not support strict errors so if the error
+		// condition is only visible when strict errors are enabled, expect
+		// an empty/undefined result from evaluation
+		if tc.StrictError {
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			assertEmptyResultSet(t, result)
+			return
+		}
 		if err == nil {
 			t.Fatal("expected error")
 		}
@@ -156,6 +166,13 @@ func assertDefined(t *testing.T, want defined, result *opa.Result) {
 	if got != want {
 		t.Fatalf("expected %v but got %v", want, got)
 	}
+}
+
+func assertEmptyResultSet(t *testing.T, result *opa.Result) {
+	if result == nil {
+		t.Fatal("unexpected nil result")
+	}
+	assertResultSet(t, []map[string]interface{}{}, false, result)
 }
 
 func assertResultSet(t *testing.T, want []map[string]interface{}, sortBindings bool, result *opa.Result) {

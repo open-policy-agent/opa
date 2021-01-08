@@ -250,3 +250,4 @@ cases:
   query: data.ex.conflict_2 = x
   want_error: complete rules must not produce multiple outputs
   want_error_code: eval_conflict_error
+ #TODO(sr) strict_error: true

@@ -1,5 +1,5 @@
 cases:
-- data: {}
+- data:
   modules:
   - |
     package generated
@@ -12,3 +12,4 @@ cases:
   want_error: 'numbers.range: operand 2 must be integer number but got floating-point
     number'
   want_error_code: eval_type_error
+  strict_error: true

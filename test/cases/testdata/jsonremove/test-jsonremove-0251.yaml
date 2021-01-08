@@ -15,3 +15,4 @@ cases:
   want_error: 'json.remove: operand 2 must be one of {set, array} containing string
     paths or array of path segments but got number'
   want_error_code: eval_type_error
+  strict_error: true

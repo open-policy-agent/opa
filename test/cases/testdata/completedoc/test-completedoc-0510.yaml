@@ -96,3 +96,4 @@ cases:
   query: data.generated.p = x
   want_error: complete rules must not produce multiple outputs
   want_error_code: eval_conflict_error
+# TODO(sr): non-strict-mode error, skipped in WASM e2e

@@ -95,3 +95,4 @@ cases:
   query: data.generated.p = x
   want_error: 'array.concat: operand 1 must be array but got object'
   want_error_code: eval_type_error
+  strict_error: true
