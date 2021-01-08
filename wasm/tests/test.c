@@ -1814,7 +1814,7 @@ void test_object_remove(void)
     opa_set_add(set_keys3, opa_string_terminated("foo"));
     test("object/remove (key does not exist)", opa_value_compare(builtin_object_remove(&obj3->hdr, &set_keys3->hdr), &obj3->hdr) == 0);
 
-    test("object/remove (second operand not object/set/array)", opa_value_compare(builtin_object_remove(&obj3->hdr, opa_string_terminated("a")), &obj3->hdr) == 0);
+    test("object/remove (second operand not object/set/array)", opa_value_compare(builtin_object_remove(&obj3->hdr, opa_string_terminated("a")), NULL) == 0);
 }
 
 void test_object_union(void)
