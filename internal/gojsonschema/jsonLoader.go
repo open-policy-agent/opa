@@ -46,9 +46,9 @@ var osFS = osFileSystem(os.Open)
 
 // JSONLoader defines the JSON loader interface
 type JSONLoader interface {
-	JsonSource() interface{}
+	JSONSource() interface{}
 	LoadJSON() (interface{}, error)
-	JsonReference() (gojsonreference.JsonReference, error)
+	JSONReference() (gojsonreference.JsonReference, error)
 	LoaderFactory() JSONLoaderFactory
 }
 
@@ -99,12 +99,12 @@ type jsonReferenceLoader struct {
 	source string
 }
 
-func (l *jsonReferenceLoader) JsonSource() interface{} {
+func (l *jsonReferenceLoader) JSONSource() interface{} {
 	return l.source
 }
 
-func (l *jsonReferenceLoader) JsonReference() (gojsonreference.JsonReference, error) {
-	return gojsonreference.NewJsonReference(l.JsonSource().(string))
+func (l *jsonReferenceLoader) JSONReference() (gojsonreference.JsonReference, error) {
+	return gojsonreference.NewJsonReference(l.JSONSource().(string))
 }
 
 func (l *jsonReferenceLoader) LoaderFactory() JSONLoaderFactory {
@@ -133,7 +133,7 @@ func (l *jsonReferenceLoader) LoadJSON() (interface{}, error) {
 
 	var err error
 
-	reference, err := gojsonreference.NewJsonReference(l.JsonSource().(string))
+	reference, err := gojsonreference.NewJsonReference(l.JSONSource().(string))
 	if err != nil {
 		return nil, err
 	}
@@ -192,7 +192,7 @@ func (l *jsonReferenceLoader) loadFromHTTP(address string) (interface{}, error) 
 
 	// must return HTTP Status 200 OK
 	if resp.StatusCode != http.StatusOK {
-		return nil, errors.New(formatErrorDescription(Locale.HttpBadStatus(), ErrorDetails{"status": resp.Status}))
+		return nil, errors.New(formatErrorDescription(Locale.HTTPBadStatus(), ErrorDetails{"status": resp.Status}))
 	}
 
 	bodyBuff, err := ioutil.ReadAll(resp.Body)
@@ -225,11 +225,11 @@ type jsonStringLoader struct {
 	source string
 }
 
-func (l *jsonStringLoader) JsonSource() interface{} {
+func (l *jsonStringLoader) JSONSource() interface{} {
 	return l.source
 }
 
-func (l *jsonStringLoader) JsonReference() (gojsonreference.JsonReference, error) {
+func (l *jsonStringLoader) JSONReference() (gojsonreference.JsonReference, error) {
 	return gojsonreference.NewJsonReference("#")
 }
 
@@ -244,7 +244,7 @@ func NewStringLoader(source string) JSONLoader {
 
 func (l *jsonStringLoader) LoadJSON() (interface{}, error) {
 
-	return decodeJSONUsingNumber(strings.NewReader(l.JsonSource().(string)))
+	return decodeJSONUsingNumber(strings.NewReader(l.JSONSource().(string)))
 
 }
 
@@ -254,11 +254,11 @@ type jsonBytesLoader struct {
 	source []byte
 }
 
-func (l *jsonBytesLoader) JsonSource() interface{} {
+func (l *jsonBytesLoader) JSONSource() interface{} {
 	return l.source
 }
 
-func (l *jsonBytesLoader) JsonReference() (gojsonreference.JsonReference, error) {
+func (l *jsonBytesLoader) JSONReference() (gojsonreference.JsonReference, error) {
 	return gojsonreference.NewJsonReference("#")
 }
 
@@ -272,7 +272,7 @@ func NewBytesLoader(source []byte) JSONLoader {
 }
 
 func (l *jsonBytesLoader) LoadJSON() (interface{}, error) {
-	return decodeJSONUsingNumber(bytes.NewReader(l.JsonSource().([]byte)))
+	return decodeJSONUsingNumber(bytes.NewReader(l.JSONSource().([]byte)))
 }
 
 // JSON Go (types) loader
@@ -282,11 +282,11 @@ type jsonGoLoader struct {
 	source interface{}
 }
 
-func (l *jsonGoLoader) JsonSource() interface{} {
+func (l *jsonGoLoader) JSONSource() interface{} {
 	return l.source
 }
 
-func (l *jsonGoLoader) JsonReference() (gojsonreference.JsonReference, error) {
+func (l *jsonGoLoader) JSONReference() (gojsonreference.JsonReference, error) {
 	return gojsonreference.NewJsonReference("#")
 }
 
@@ -303,7 +303,7 @@ func (l *jsonGoLoader) LoadJSON() (interface{}, error) {
 
 	// convert it to a compliant JSON first to avoid types "mismatches"
 
-	jsonBytes, err := json.Marshal(l.JsonSource())
+	jsonBytes, err := json.Marshal(l.JSONSource())
 	if err != nil {
 		return nil, err
 	}
@@ -328,7 +328,7 @@ func NewWriterLoader(source io.Writer) (JSONLoader, io.Writer) {
 	return &jsonIOLoader{buf: buf}, io.MultiWriter(source, buf)
 }
 
-func (l *jsonIOLoader) JsonSource() interface{} {
+func (l *jsonIOLoader) JSONSource() interface{} {
 	return l.buf.String()
 }
 
@@ -336,7 +336,7 @@ func (l *jsonIOLoader) LoadJSON() (interface{}, error) {
 	return decodeJSONUsingNumber(l.buf)
 }
 
-func (l *jsonIOLoader) JsonReference() (gojsonreference.JsonReference, error) {
+func (l *jsonIOLoader) JSONReference() (gojsonreference.JsonReference, error) {
 	return gojsonreference.NewJsonReference("#")
 }
 
@@ -356,13 +356,13 @@ type jsonRawLoader struct {
 func NewRawLoader(source interface{}) JSONLoader {
 	return &jsonRawLoader{source: source}
 }
-func (l *jsonRawLoader) JsonSource() interface{} {
+func (l *jsonRawLoader) JSONSource() interface{} {
 	return l.source
 }
 func (l *jsonRawLoader) LoadJSON() (interface{}, error) {
 	return l.source, nil
 }
-func (l *jsonRawLoader) JsonReference() (gojsonreference.JsonReference, error) {
+func (l *jsonRawLoader) JSONReference() (gojsonreference.JsonReference, error) {
 	return gojsonreference.NewJsonReference("#")
 }
 func (l *jsonRawLoader) LoaderFactory() JSONLoaderFactory {

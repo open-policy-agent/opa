@@ -1040,6 +1040,7 @@ func Resolver(ref ast.Ref, r resolver.Resolver) func(r *Rego) {
 	}
 }
 
+// ParsedSchema sets the schema
 func ParsedSchema(x interface{}) func(r *Rego) {
 	return func(r *Rego) {
 		r.parsedSchema = x

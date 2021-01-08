@@ -88,9 +88,9 @@ func (p *schemaPool) parseReferencesRecursive(document interface{}, ref gojsonre
 	case map[string]interface{}:
 		localRef := &ref
 
-		keyID := KEY_ID_NEW
-		if existsMapKey(m, KEY_ID) {
-			keyID = KEY_ID
+		keyID := KeyIDNew
+		if existsMapKey(m, KeyID) {
+			keyID = KeyID
 		}
 		if existsMapKey(m, keyID) && isKind(m[keyID], reflect.String) {
 			jsonReference, err := gojsonreference.NewJsonReference(m[keyID].(string))
@@ -105,24 +105,24 @@ func (p *schemaPool) parseReferencesRecursive(document interface{}, ref gojsonre
 			}
 		}
 
-		if existsMapKey(m, KEY_REF) && isKind(m[KEY_REF], reflect.String) {
-			jsonReference, err := gojsonreference.NewJsonReference(m[KEY_REF].(string))
+		if existsMapKey(m, KeyRef) && isKind(m[KeyRef], reflect.String) {
+			jsonReference, err := gojsonreference.NewJsonReference(m[KeyRef].(string))
 			if err == nil {
 				absoluteRef, err := localRef.Inherits(jsonReference)
 				if err == nil {
-					m[KEY_REF] = absoluteRef.String()
+					m[KeyRef] = absoluteRef.String()
 				}
 			}
 		}
 
 		for k, v := range m {
 			// const and enums should be interpreted literally, so ignore them
-			if k == KEY_CONST || k == KEY_ENUM {
+			if k == KeyConst || k == KeyEnum {
 				continue
 			}
 			// Something like a property or a dependency is not a valid schema, as it might describe properties named "$ref", "$id" or "const", etc
 			// Therefore don't treat it like a schema.
-			if k == KEY_PROPERTIES || k == KEY_DEPENDENCIES || k == KEY_PATTERN_PROPERTIES {
+			if k == KeyProperties || k == KeyDependencies || k == KeyPatternProperties {
 				if child, ok := v.(map[string]interface{}); ok {
 					for _, v := range child {
 						p.parseReferencesRecursive(v, *localRef, draft)

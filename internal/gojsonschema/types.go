@@ -27,36 +27,37 @@ package gojsonschema
 
 // Type constants
 const (
-	TYPE_ARRAY   = `array`
-	TYPE_BOOLEAN = `boolean`
-	TYPE_INTEGER = `integer`
-	TYPE_NUMBER  = `number`
-	TYPE_NULL    = `null`
-	TYPE_OBJECT  = `object`
-	TYPE_STRING  = `string`
+	TypeArray   = `Array`
+	TypeBoolean = `Boolean`
+	TypeInteger = `Integer`
+	TypeNumber  = `Number`
+	TypeNull    = `Null`
+	TypeObject  = `Object`
+	TypeString  = `String`
 )
 
-// JSON_TYPES hosts the list of type that are supported in JSON
-var JSON_TYPES []string
+// JSONTypes hosts the list of type that are supported in JSON
+var JSONTypes []string
 
-// SCHEMA_TYPES hosts the list of type that are supported in schemas
-var SCHEMA_TYPES []string
+// SchemaTypes Hosts The List Of Type That Are Supported In Schemas
+var SchemaTypes []string
 
-func init() {
-	JSON_TYPES = []string{
-		TYPE_ARRAY,
-		TYPE_BOOLEAN,
-		TYPE_INTEGER,
-		TYPE_NUMBER,
-		TYPE_NULL,
-		TYPE_OBJECT,
-		TYPE_STRING}
+//Init initializes the two types
+func Init() {
+	JSONTypes = []string{
+		TypeArray,
+		TypeBoolean,
+		TypeInteger,
+		TypeNumber,
+		TypeNull,
+		TypeObject,
+		TypeString}
 
-	SCHEMA_TYPES = []string{
-		TYPE_ARRAY,
-		TYPE_BOOLEAN,
-		TYPE_INTEGER,
-		TYPE_NUMBER,
-		TYPE_OBJECT,
-		TYPE_STRING}
+	SchemaTypes = []string{
+		TypeArray,
+		TypeBoolean,
+		TypeInteger,
+		TypeNumber,
+		TypeObject,
+		TypeString}
 }

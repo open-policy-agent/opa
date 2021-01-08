@@ -17,7 +17,8 @@ type errorTemplate struct {
 
 type (
 
-	// FalseError. ErrorDetails: -
+	// FalseError indicates that -
+	// ErrorDetails: -
 	FalseError struct {
 		ResultErrorFields
 	}
@@ -210,7 +211,7 @@ type (
 )
 
 // newError takes a ResultError type and sets the type, context, description, details, value, and field
-func newError(err ResultError, context *JsonContext, value interface{}, locale locale, details ErrorDetails) {
+func newError(err ResultError, context *JSONContext, value interface{}, locale locale, details ErrorDetails) {
 	var t string
 	var d string
 	switch err.(type) {

@@ -164,11 +164,11 @@ func TestDraftCrossReferencing(t *testing.T) {
 	}
 }
 
-const not_map_interface = "not map interface"
+const notMapInterface = "not map interface"
 
 func TestParseSchemaURL_NotMap(t *testing.T) {
 	//GIVEN
-	sl := NewGoLoader(not_map_interface)
+	sl := NewGoLoader(notMapInterface)
 	//WHEN
 	_, err := NewSchema(sl)
 	//THEN

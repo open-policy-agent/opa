@@ -45,9 +45,9 @@ type (
 		// Type returns the error-type
 		Type() string
 		// SetContext sets the JSON-context for the error
-		SetContext(*JsonContext)
+		SetContext(*JSONContext)
 		// Context returns the JSON-context of the error
-		Context() *JsonContext
+		Context() *JSONContext
 		// SetDescription sets a description for the error
 		SetDescription(string)
 		// Description returns the description of the error
@@ -73,7 +73,7 @@ type (
 	// can be defined by just embedding this type
 	ResultErrorFields struct {
 		errorType         string       // A string with the type of error (i.e. invalid_type)
-		context           *JsonContext // Tree like notation of the part that failed the validation. ex (root).a.b ...
+		context           *JSONContext // Tree like notation of the part that failed the validation. ex (root).a.b ...
 		description       string       // A human readable error message
 		descriptionFormat string       // A format for human readable error message
 		value             interface{}  // Value given by the JSON file that is the source of the error
@@ -92,7 +92,7 @@ type (
 // Field returns the field name without the root context
 // i.e. firstName or person.firstName instead of (root).firstName or (root).person.firstName
 func (v *ResultErrorFields) Field() string {
-	return strings.TrimPrefix(v.context.String(), STRING_ROOT_SCHEMA_PROPERTY+".")
+	return strings.TrimPrefix(v.context.String(), StringRootSchemaProperty+".")
 }
 
 // SetType sets the error-type
@@ -106,12 +106,12 @@ func (v *ResultErrorFields) Type() string {
 }
 
 // SetContext sets the JSON-context for the error
-func (v *ResultErrorFields) SetContext(context *JsonContext) {
+func (v *ResultErrorFields) SetContext(context *JSONContext) {
 	v.context = context
 }
 
 // Context returns the JSON-context of the error
-func (v *ResultErrorFields) Context() *JsonContext {
+func (v *ResultErrorFields) Context() *JSONContext {
 	return v.context
 }
 
@@ -162,11 +162,11 @@ func (v ResultErrorFields) String() string {
 
 	// marshal the go value value to json
 	if v.value == nil {
-		valueString = TYPE_NULL
+		valueString = TypeNull
 	} else {
 		if vs, err := marshalToJSONString(v.value); err == nil {
 			if vs == nil {
-				valueString = TYPE_NULL
+				valueString = TypeNull
 			} else {
 				valueString = *vs
 			}
@@ -203,7 +203,7 @@ func (v *Result) AddError(err ResultError, details ErrorDetails) {
 	v.errors = append(v.errors, err)
 }
 
-func (v *Result) addInternalError(err ResultError, context *JsonContext, value interface{}, details ErrorDetails) {
+func (v *Result) addInternalError(err ResultError, context *JSONContext, value interface{}, details ErrorDetails) {
 	newError(err, context, value, Locale, details)
 	v.errors = append(v.errors, err)
 	v.score -= 2 // results in a net -1 when added to the +1 we get at the end of the validation function

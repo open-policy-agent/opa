@@ -146,7 +146,7 @@ func (sl *SchemaLoader) AddSchema(url string, loader JSONLoader) error {
 // Compile loads and compiles a schema
 func (sl *SchemaLoader) Compile(rootSchema JSONLoader) (*Schema, error) {
 
-	ref, err := rootSchema.JsonReference()
+	ref, err := rootSchema.JSONReference()
 
 	if err != nil {
 		return nil, err
