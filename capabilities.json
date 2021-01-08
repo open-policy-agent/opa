@@ -449,6 +449,20 @@
       }
     },
     {
+      "name": "ceil",
+      "decl": {
+        "args": [
+          {
+            "type": "number"
+          }
+        ],
+        "result": {
+          "type": "number"
+        },
+        "type": "function"
+      }
+    },
+    {
       "name": "concat",
       "decl": {
         "args": [
@@ -697,6 +711,20 @@
         "type": "function"
       },
       "infix": "=="
+    },
+    {
+      "name": "floor",
+      "decl": {
+        "args": [
+          {
+            "type": "number"
+          }
+        ],
+        "result": {
+          "type": "number"
+        },
+        "type": "function"
+      }
     },
     {
       "name": "format_int",
