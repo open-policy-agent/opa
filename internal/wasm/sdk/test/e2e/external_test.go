@@ -120,6 +120,9 @@ func assert(t *testing.T, tc cases.TestCase, result *opa.Result, err error) {
 		}
 		assertResultSet(t, *tc.WantResult, tc.SortBindings, result)
 	} else if tc.WantErrorCode != nil || tc.WantError != nil {
+		// The WASM compiler does not support strict errors so if the error
+		// condition is only visible when strict errors are enabled, expect
+		// an empty/undefined result from evaluation
 		if tc.StrictError {
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
