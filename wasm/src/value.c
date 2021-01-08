@@ -683,7 +683,7 @@ opa_value *opa_value_merge(opa_value *a, opa_value *b)
 {
     if (opa_value_type(a) != OPA_OBJECT || opa_value_type(b) != OPA_OBJECT)
     {
-        return NULL;
+        return a;
     }
 
     opa_object_t *obj = opa_cast_object(a);

@@ -1,5 +1,4 @@
 # Exception Format is <test name>: <reason>
-"baseandvirtualdocs/base/virtual: conflicts": "document merge conflict - https://github.com/open-policy-agent/opa/issues/2926"
 "jsonpatch/set": "unexpected panic or evaluation error - https://github.com/open-policy-agent/opa/issues/2949"
 "jsonpatch/json_patch_tests": "unexpected panic or evaluation error - https://github.com/open-policy-agent/opa/issues/2949"
 "arithmetic/remainder+error+floating": "expected error missing - https://github.com/open-policy-agent/opa/issues/2954"
