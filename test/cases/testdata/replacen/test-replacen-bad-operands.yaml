@@ -1,5 +1,5 @@
 cases:
-- data: {}
+- data:
   modules:
   - |
     package test
@@ -9,6 +9,7 @@ cases:
   query: data.test.p = x
   want_error: "strings.replace_n: operand 1 non-string key found in pattern object"
   want_error_code: eval_type_error
+  strict_error: true
 - data:
     pattern:
       f: 100
@@ -21,6 +22,7 @@ cases:
   query: data.test.p = x
   want_error: "strings.replace_n: operand 1 non-string value found in pattern object"
   want_error_code: eval_type_error
+  strict_error: true
 - data:
     string: 100
   modules:
@@ -32,3 +34,4 @@ cases:
   query: data.test.p = x
   want_error: "strings.replace_n: operand 2 must be string but got number"
   want_error_code: eval_type_error
+  strict_error: true

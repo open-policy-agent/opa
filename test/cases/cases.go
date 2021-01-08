@@ -6,6 +6,7 @@
 package cases
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -43,6 +44,7 @@ type TestCase struct {
 	WantErrorCode *string                   `json:"want_error_code,omitempty"` // expect query error code (overrides result)
 	WantError     *string                   `json:"want_error,omitempty"`      // expect query error message (overrides error code)
 	SortBindings  bool                      `json:"sort_bindings,omitempty"`   // indicates that binding values should be treated as sets
+	StrictError   bool                      `json:"strict_error,omitempty"`    // indicates that the error depends on strict builtin error mode
 }
 
 // Load returns a set of built-in test cases.
@@ -75,12 +77,12 @@ func loadRecursive(dirpath string) (Set, error) {
 
 		bs, err := ioutil.ReadFile(path)
 		if err != nil {
-			return err
+			return fmt.Errorf("%s: %w", path, err)
 		}
 
 		var x Set
 		if err := util.Unmarshal(bs, &x); err != nil {
-			return err
+			return fmt.Errorf("%s: %w", path, err)
 		}
 
 		for i := range x.Cases {

@@ -50,6 +50,50 @@ opa_value *opa_arith_round(opa_value *v)
     return opa_bf_to_number(r);
 }
 
+opa_value *opa_arith_ceil(opa_value *v)
+{
+    mpd_t *n = opa_number_to_bf(v);
+    if (n == NULL)
+    {
+        return NULL;
+    }
+
+    mpd_t *r = mpd_qnew();
+    uint32_t status = 0;
+
+    mpd_qceil(r, n, mpd_max_ctx(), &status);
+    mpd_del(n);
+
+    if (status)
+    {
+        return NULL;
+    }
+
+    return opa_bf_to_number(r);
+}
+
+opa_value *opa_arith_floor(opa_value *v)
+{
+     mpd_t *n = opa_number_to_bf(v);
+    if (n == NULL)
+    {
+        return NULL;
+    }
+
+    mpd_t *r = mpd_qnew();
+    uint32_t status = 0;
+
+    mpd_qfloor(r, n, mpd_max_ctx(), &status);
+    mpd_del(n);
+
+    if (status)
+    {
+        return NULL;
+    }
+
+    return opa_bf_to_number(r);
+}
+
 opa_value *opa_arith_plus(opa_value *a, opa_value *b)
 {
     mpd_t *x = opa_number_to_bf(a);
@@ -153,13 +197,13 @@ opa_value *opa_arith_divide(opa_value *a, opa_value *b)
 
     if (status & MPD_Division_by_zero)
     {
-        opa_abort("opa_arith_divide: divide by zero"); // TODO: Report error instead.
+        return NULL;
     }
 
     status &= ~(MPD_Rounded | MPD_Inexact);
     if (status != 0)
     {
-        opa_abort("opa_arith_divide: invalid number");
+        opa_abort("opa_arith_divide: invalid number"); // TODO(sr): when does this happen?
     }
 
     return opa_bf_to_number(r);
@@ -169,7 +213,7 @@ opa_value *opa_arith_rem(opa_value *a, opa_value *b)
 {
     mpd_t *x = opa_number_to_bf(a);
     mpd_t *y = opa_number_to_bf(b);
-    if (x == NULL || y == NULL)
+    if (x == NULL || y == NULL || !mpd_isinteger(x) || !mpd_isinteger(y))
     {
         opa_mpd_del(x);
         opa_mpd_del(y);
@@ -185,7 +229,7 @@ opa_value *opa_arith_rem(opa_value *a, opa_value *b)
 
     if (status)
     {
-        opa_abort("opa_arith_rem: non-integer remainder"); // TODO: Report error instead.
+        return NULL;
     }
 
     return opa_bf_to_number(r);
