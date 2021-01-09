@@ -244,20 +244,8 @@ func (c *Compiler) initModule() error {
 	}
 
 	c.funcs = make(map[string]uint32)
-	var funcidx uint32
-
-	for _, imp := range c.module.Import.Imports {
-		if imp.Descriptor.Kind() == module.FunctionImportType {
-			c.funcs[imp.Name] = funcidx
-			funcidx++
-		}
-	}
-
-	for i := range c.module.Export.Exports {
-		exp := &c.module.Export.Exports[i]
-		if exp.Descriptor.Type == module.FunctionExportType {
-			c.funcs[exp.Name] = exp.Descriptor.Index
-		}
+	for _, fn := range c.module.Names.Functions {
+		c.funcs[fn.Name] = fn.Index
 	}
 
 	c.planfuncs = map[string]struct{}{}
