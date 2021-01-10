@@ -65,7 +65,7 @@ type (
 	}
 
 	// RawCodeSection represents a WASM code section. The code section is left as a
-	// raw byte sequence. See CodeSection for the decoded version.
+	// raw byte sequence.
 	RawCodeSection struct {
 		Segments []RawCodeSegment
 	}
