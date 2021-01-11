@@ -683,6 +683,7 @@ void opa_value_free(opa_value *node)
     }
 }
 
+OPA_INTERNAL
 opa_value *opa_value_merge(opa_value *a, opa_value *b)
 {
     if (opa_value_type(a) != OPA_OBJECT || opa_value_type(b) != OPA_OBJECT)
@@ -1155,12 +1156,14 @@ opa_value *opa_set_with_cap(size_t n)
     return __opa_set_with_buckets(buckets);
 }
 
+OPA_INTERNAL
 void opa_value_boolean_set(opa_value *v, int b)
 {
     opa_boolean_t *ret = opa_cast_boolean(v);
     ret->v = b;
 }
 
+OPA_INTERNAL
 void opa_value_number_set_int(opa_value *v, long long i)
 {
 	opa_number_t *ret = opa_cast_number(v);
