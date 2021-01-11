@@ -866,19 +866,6 @@ func CompileSchemas(byteSchema []byte, goSchema interface{}) (*gojsonschema.Sche
 	return schemasCompiled, nil
 }
 
-// CompileAndParseSchema first compiles a schema and parses it into a Rego type
-func CompileAndParseSchema(schema interface{}) (types.Type, error) {
-	compiledSchema, err := CompileSchemas(nil, schema)
-	if err != nil {
-		return &types.Object{}, err
-	}
-	newtype, err := parseSchema(compiledSchema.RootSchema)
-	if err != nil {
-		return &types.Object{}, err
-	}
-	return newtype, nil
-}
-
 func parseSchema(schema interface{}) (types.Type, error) {
 	subSchema, ok := schema.(*gojsonschema.SubSchema)
 	if !ok {
