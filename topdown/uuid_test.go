@@ -69,8 +69,12 @@ func TestUUIDRFC4122SeedError(t *testing.T) {
 func TestUUIDRFC4122SavingDuringPartialEval(t *testing.T) {
 
 	query := `foo = "x"; uuid.rfc4122(foo,x)`
+	c := ast.NewCompiler().
+		WithCapabilities(&ast.Capabilities{Builtins: []*ast.Builtin{ast.UUIDRFC4122}})
+	// Must compile to initialize type environment after WithCapabilities
+	c.Compile(nil)
 
-	q := NewQuery(ast.MustParseBody(query)).WithSeed(rand.New(rand.NewSource(0))).WithCompiler(ast.NewCompiler())
+	q := NewQuery(ast.MustParseBody(query)).WithSeed(rand.New(rand.NewSource(0))).WithCompiler(c)
 
 	queries, modules, err := q.PartialRun(context.Background())
 	if err != nil {
