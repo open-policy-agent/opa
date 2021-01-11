@@ -248,8 +248,6 @@ func (c *Compiler) initModule() error {
 		c.funcs[fn.Name] = fn.Index
 	}
 
-	// TODO(sr) register builtin func dispatchers
-
 	c.planfuncs = map[string]struct{}{}
 
 	for _, fn := range c.policy.Funcs.Funcs {
