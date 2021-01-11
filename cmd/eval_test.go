@@ -334,7 +334,7 @@ func TestEvalWithJSONSchemaFile(t *testing.T) {
 	}
 }
 
-func testEvalWithSchemaAndInvalidQuery(t *testing.T) {
+func TestEvalWithInvalidSchemaFile(t *testing.T) {
 
 	input := `{
 		"foo": "a",
@@ -348,76 +348,22 @@ func testEvalWithSchemaAndInvalidQuery(t *testing.T) {
 }`
 
 	schema := `{
-		"$schema": "http://json-schema.org/draft-07/schema",
-		"$id": "http://example.com/example.json",
 		"type": "object",
-		"title": "The root schema",
 		"description": "The root schema comprises the entire JSON document.",
-		"required": [
-			"foo",
-			"b"
-		],
 		"properties": {
 			"foo": {
 				"$id": "#/properties/foo",
-				"type": "string",
+				"type": ,
 				"title": "The foo schema",
 				"description": "An explanation about the purpose of this instance."
-			},
-			"b": {
-				"$id": "#/properties/b",
-				"type": "array",
-				"title": "The b schema",
-				"description": "An explanation about the purpose of this instance.",
-				"additionalItems": false,
-				"items": {
-					"$id": "#/properties/b/items",
-					"type": "object",
-					"title": "The items schema",
-					"description": "An explanation about the purpose of this instance.",
-					"required": [
-						"a",
-						"b",
-						"c"
-					],
-					"properties": {
-						"a": {
-							"$id": "#/properties/b/items/properties/a",
-							"type": "integer",
-							"title": "The a schema",
-							"description": "An explanation about the purpose of this instance."
-						},
-						"b": {
-							"$id": "#/properties/b/items/properties/b",
-							"type": "array",
-							"title": "The b schema",
-							"description": "An explanation about the purpose of this instance.",
-							"additionalItems": false,
-							"items": {
-								"$id": "#/properties/b/items/properties/b/items",
-								"type": "integer",
-								"title": "The items schema",
-								"description": "An explanation about the purpose of this instance."
-							}
-						},
-						"c": {
-							"$id": "#/properties/b/items/properties/c",
-							"type": "null",
-							"title": "The c schema",
-							"description": "An explanation about the purpose of this instance."
-						}
-					},
-					"additionalProperties": false
-				}
 			}
 		},
-		"additionalProperties": false
-	}`
+	}` //schema has invalid syntax in "type" field
 
-	query := "input.b[0].blah.a == 1"
+	query := "input.b[0].a == 1"
 	err := testEvalWithSchemaFile(t, input, query, schema)
-	if _, ok := err.(regoError); !ok {
-		t.Fatal("expected regoError but got:", err)
+	if err == nil {
+		t.Fatalf("expected error but err == nil")
 	}
 }
 
