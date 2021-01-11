@@ -248,6 +248,8 @@ func (c *Compiler) initModule() error {
 		c.funcs[fn.Name] = fn.Index
 	}
 
+	// TODO(sr) register builtin func dispatchers
+
 	c.planfuncs = map[string]struct{}{}
 
 	for _, fn := range c.policy.Funcs.Funcs {
@@ -1123,7 +1125,7 @@ func (c *Compiler) compileExternalCall(stmt *ir.CallStmt, id int32, result *[]in
 		instrs = append(instrs, instruction.GetLocal{Index: c.local(arg)})
 	}
 
-	instrs = append(instrs, instruction.Call{Index: c.funcs[builtinDispatchers[len(stmt.Args)]]})
+	instrs = append(instrs, instruction.Call{Index: c.function(builtinDispatchers[len(stmt.Args)])})
 	instrs = append(instrs, instruction.TeeLocal{Index: c.local(stmt.Result)})
 	instrs = append(instrs, instruction.I32Eqz{})
 	instrs = append(instrs, instruction.BrIf{Index: 0})
