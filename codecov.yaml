@@ -2,3 +2,5 @@ comment: false
 coverage:
   status:
     project: off
+ignore:
+  - "internal/gojsonschema"  # ignore new gojsonschema repo and all its contents
