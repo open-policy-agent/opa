@@ -330,12 +330,6 @@ func (c *Compiler) WithUnsafeBuiltins(unsafeBuiltins map[string]struct{}) *Compi
 	return c
 }
 
-// WithSchema will set a schema interface and be used for type checking by compiler
-func (c *Compiler) WithSchema(schema interface{}) *Compiler {
-	c.schema = schema
-	return c
-}
-
 // QueryCompiler returns a new QueryCompiler object.
 func (c *Compiler) QueryCompiler() QueryCompiler {
 	c.init()

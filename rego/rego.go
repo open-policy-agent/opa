@@ -124,14 +124,6 @@ func EvalParsedInput(input ast.Value) EvalOption {
 	}
 }
 
-// EvalSchema configures the schema for a Prepared Query's evaluation
-func EvalSchema(schema interface{}) EvalOption {
-	return func(e *EvalContext) {
-		e.rawSchema = &schema
-		e.hasSchema = true
-	}
-}
-
 // EvalMetrics configures the metrics for a Prepared Query's evaluation
 func EvalMetrics(metric metrics.Metrics) EvalOption {
 	return func(e *EvalContext) {
