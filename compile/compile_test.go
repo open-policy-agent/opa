@@ -1020,6 +1020,137 @@ func TestOptimizerOutput(t *testing.T) {
 				`,
 			},
 		},
+		{
+			note:        "generate rules with type violations: complete doc",
+			entrypoints: []string{"data.test.p"},
+			modules: map[string]string{
+				"test.rego": `
+					package test
+
+					p {
+						x := split(input.a, ":")
+						f(x[0])
+					}
+
+					f(x) { x == null }
+					f(x) { startswith(x, "foo") }
+				`,
+			},
+			roots: []string{"test"},
+			wantModules: map[string]string{
+				"optimized/test.rego": `
+					package test
+
+					p = __result__ { split(input.a, ":", __local3__1); startswith(__local3__1[0], "foo"); __result__ = true }
+				`,
+				"test.rego": `
+					package test
+
+					f(x) { x == null }
+					f(x) { startswith(x, "foo") }
+				`,
+			},
+		},
+		{
+			note:        "generate rules with type violations: partial set",
+			entrypoints: []string{"data.test.p"},
+			modules: map[string]string{
+				"test.rego": `
+					package test
+
+					p[msg] {
+						x := split(input.a, ":")
+						f(x[0])
+						msg := "test string"
+					}
+
+					f(x) { x == null }
+					f(x) { startswith(x, "foo") }
+				`,
+			},
+			roots: []string{"test"},
+			wantModules: map[string]string{
+				"optimized/test.rego": `
+					package test
+
+					p["test string"] { split(input.a, ":", __local4__1); startswith(__local4__1[0], "foo") }
+				`,
+				"test.rego": `
+					package test
+
+					f(x) { x == null }
+					f(x) { startswith(x, "foo") }
+				`,
+			},
+		},
+		{
+			note:        "generate rules with type violations: partial object",
+			entrypoints: []string{"data.test.p"},
+			modules: map[string]string{
+				"test.rego": `
+					package test
+
+					p[k] = value  {
+						x := split(input.a, ":")
+						f(x[0])
+						k := "a"
+						value := 1
+					}
+
+					f(x) { x == null }
+					f(x) { startswith(x, "foo") }
+				`,
+			},
+			roots: []string{"test"},
+			wantModules: map[string]string{
+				"optimized/test.rego": `
+					package test
+
+					p["a"] = 1 { split(input.a, ":", __local5__1); startswith(__local5__1[0], "foo") }
+				`,
+				"test.rego": `
+					package test
+
+					f(x) { x == null }
+					f(x) { startswith(x, "foo") }
+				`,
+			},
+		},
+		{
+			note:        "generate rules with type violations: negation",
+			entrypoints: []string{"data.test.p"},
+			modules: map[string]string{
+				"test.rego": `
+					package test
+
+					p  { not q }
+					q {
+						x := split(input.a, ":")
+						f(x[0])
+					}
+					f(x) { x == null }
+					f(x) { startswith(x, "foo") }
+				`,
+			},
+			roots: []string{"test"},
+			wantModules: map[string]string{
+				"optimized/test.rego": `
+					package test
+
+					p = __result__ { not data.partial.__not1_0_2__; __result__ = true }
+				`,
+				"test.rego": `
+					package test
+					q = true { assign(x, split(input.a, ":")); f(x[0]) }
+					f(x) { x == null }
+					f(x) { startswith(x, "foo") }
+				`,
+				"optimized/partial.rego": `
+					package partial
+            		__not1_0_2__ = true { split(input.a, ":", __local3__3); startswith(__local3__3[0], "foo") }
+				`,
+			},
+		},
 	}
 
 	for _, tc := range tests {

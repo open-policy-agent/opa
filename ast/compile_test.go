@@ -4232,3 +4232,23 @@ deny {
 		t.Fatalf("Expected error for unsafe built-in but got %v", err)
 	}
 }
+
+func TestCompilerPassesTypeCheck(t *testing.T) {
+	c := NewCompiler().
+		WithCapabilities(&Capabilities{Builtins: []*Builtin{Split}})
+	// Must compile to initialize type environment after WithCapabilities
+	c.Compile(nil)
+	if c.PassesTypeCheck(MustParseBody(`a = input.a; split(a, ":", x); a0 = x[0]; a0 = null`)) {
+		t.Fatal("Did not successfully detect a type-checking violation")
+	}
+}
+
+func TestCompilerPassesTypeCheckNegative(t *testing.T) {
+	c := NewCompiler().
+		WithCapabilities(&Capabilities{Builtins: []*Builtin{Split, StartsWith}})
+	// Must compile to initialize type environment after WithCapabilities
+	c.Compile(nil)
+	if !c.PassesTypeCheck(MustParseBody(`a = input.a; split(a, ":", x); a0 = x[0]; startswith(a0, "foo", true)`)) {
+		t.Fatal("Incorrectly detected a type-checking violation")
+	}
+}

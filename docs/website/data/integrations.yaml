@@ -385,6 +385,19 @@ integrations:
     videos:
       - https://www.youtube.com/watch?v=9m4FymEvOqM&feature=share
 
+  clojure:
+    title: App authorization for Clojure
+    description: Authorization middleware for Ring based apps and other utilities for working with OPA in Clojure.
+    software:
+      - clojure
+    labels:
+      layer: network
+      category: application
+    code:
+      - https://github.com/anderseknert/clj-opa
+    inventors:
+      - styra
+
   minio:
     title: Minio API Authorization
     description: Minio is an open source, on-premise object database compatible with the Amazon S3 API.  This integration lets OPA enforce policies on Minio's API.
@@ -945,6 +958,9 @@ software:
   ceph:
     name: Ceph
     link: https://ceph.io/
+  clojure:
+    name: Clojure
+    link: https://clojure.org
   aws:
     name: Amazon Public Cloud
     link: https://aws.com
