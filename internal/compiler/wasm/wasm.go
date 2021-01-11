@@ -1226,7 +1226,11 @@ func (c *Compiler) genLocal() uint32 {
 }
 
 func (c *Compiler) function(name string) uint32 {
-	return c.funcs[name]
+	fidx, ok := c.funcs[name]
+	if !ok {
+		panic(fmt.Sprintf("function not found: %s", name))
+	}
+	return fidx
 }
 
 func (c *Compiler) appendInstr(instr instruction.Instruction) {
