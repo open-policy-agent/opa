@@ -4252,3 +4252,193 @@ func TestCompilerPassesTypeCheckNegative(t *testing.T) {
 		t.Fatal("Incorrectly detected a type-checking violation")
 	}
 }
+
+func testParseSchema(t *testing.T, schema, expectedType string) {
+	jsonSchema, err := CompileSchemas([]byte(schema), nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	newtype, err := parseSchema(jsonSchema.RootSchema)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	if newtype == nil {
+		t.Fatalf("parseSchema returned nil type")
+	}
+	if newtype.String() != expectedType {
+		t.Fatalf("parseSchema returned an incorrect type: %s", newtype.String())
+	}
+}
+
+func TestParseSchemaObject(t *testing.T) {
+	testParseSchema(t, objectSchema, "object<b: array<object<a: number, b: array<number>, c: any>>, foo: string>")
+}
+
+func TestParseSchemaUntypedField(t *testing.T) {
+	testParseSchema(t, untypedFieldObjectSchema, "object<foo: any>")
+}
+
+func TestParseSchemaNoChildren(t *testing.T) {
+	testParseSchema(t, noChildrenObjectSchema, "object[any: any]")
+}
+
+func TestParseSchemaArrayNoItems(t *testing.T) {
+	testParseSchema(t, arrayNoItemsSchema, "object<b: array[any]>")
+}
+
+func TestParseSchemaWithBooleanField(t *testing.T) {
+	testParseSchema(t, booleanSchema, "object<a: boolean>")
+}
+
+func TestCompileSchemaEmptySchema(t *testing.T) {
+	schema := ""
+	jsonSchema, _ := CompileSchemas([]byte(schema), nil)
+	if jsonSchema != nil {
+		t.Fatalf("Incorrect return from parseSchema with an empty schema")
+	}
+}
+
+func TestParseSchemaBadSchema(t *testing.T) {
+	jsonSchema, err := CompileSchemas([]byte(objectSchema), nil)
+	if err != nil {
+		t.Fatalf("Unable to compile schema")
+	}
+	newtype, err := parseSchema(jsonSchema) // Did not pass the subschema
+	if newtype != nil {
+		t.Fatalf("Incorrect return from parseSchema with a bad schema")
+	}
+}
+
+const objectSchema = `{
+	"$schema": "http://json-schema.org/draft-07/schema",
+	"$id": "http://example.com/example.json",
+	"type": "object",
+	"title": "The root schema",
+	"description": "The root schema comprises the entire JSON document.",
+	"required": [
+		"foo",
+		"b"
+	],
+	"properties": {
+		"foo": {
+			"$id": "#/properties/foo",
+			"type": "string",
+			"title": "The foo schema",
+			"description": "An explanation about the purpose of this instance."
+		},
+		"b": {
+			"$id": "#/properties/b",
+			"type": "array",
+			"title": "The b schema",
+			"description": "An explanation about the purpose of this instance.",
+			"additionalItems": false,
+			"items": {
+				"$id": "#/properties/b/items",
+				"type": "object",
+				"title": "The items schema",
+				"description": "An explanation about the purpose of this instance.",
+				"required": [
+					"a",
+					"b",
+					"c"
+				],
+				"properties": {
+					"a": {
+						"$id": "#/properties/b/items/properties/a",
+						"type": "integer",
+						"title": "The a schema",
+						"description": "An explanation about the purpose of this instance."
+					},
+					"b": {
+						"$id": "#/properties/b/items/properties/b",
+						"type": "array",
+						"title": "The b schema",
+						"description": "An explanation about the purpose of this instance.",
+						"additionalItems": false,
+						"items": {
+							"$id": "#/properties/b/items/properties/b/items",
+							"type": "integer",
+							"title": "The items schema",
+							"description": "An explanation about the purpose of this instance."
+						}
+					},
+					"c": {
+						"$id": "#/properties/b/items/properties/c",
+						"type": "null",
+						"title": "The c schema",
+						"description": "An explanation about the purpose of this instance."
+					}
+				},
+				"additionalProperties": false
+			}
+		}
+	},
+	"additionalProperties": false
+}`
+
+const arrayNoItemsSchema = `{
+	"$schema": "http://json-schema.org/draft-07/schema",
+	"$id": "http://example.com/example.json",
+	"type": "object",
+	"title": "The root schema",
+	"description": "The root schema comprises the entire JSON document.",
+	"required": [
+		"b"
+	],
+	"properties": {
+		"b": {
+			"$id": "#/properties/b",
+			"type": "array",
+			"title": "The b schema",
+			"description": "An explanation about the purpose of this instance.",
+			"additionalItems": true
+		}
+	},
+	"additionalProperties": false
+}`
+
+const noChildrenObjectSchema = `{
+	"$schema": "http://json-schema.org/draft-07/schema",
+	"$id": "http://example.com/example.json",
+	"type": "object",
+	"title": "The root schema",
+	"description": "The root schema comprises the entire JSON document.",
+	"additionalProperties": true
+}`
+
+const untypedFieldObjectSchema = `{
+	"$schema": "http://json-schema.org/draft-07/schema",
+	"$id": "http://example.com/example.json",
+	"type": "object",
+	"title": "The root schema",
+	"description": "The root schema comprises the entire JSON document.",
+	"required": [
+		"foo"
+	],
+	"properties": {
+		"foo": {
+			"$id": "#/properties/foo"
+		}
+	},
+	"additionalProperties": false
+}`
+
+const booleanSchema = `{
+	"$schema": "http://json-schema.org/draft-07/schema",
+	"$id": "http://example.com/example.json",
+	"type": "object",
+	"title": "The root schema",
+	"description": "The root schema comprises the entire JSON document.",
+	"required": [
+		"a"
+	],
+	"properties": {
+		"a": {
+			"$id": "#/properties/foo",
+			"type": "boolean",
+			"title": "The foo schema",
+			"description": "An explanation about the purpose of this instance."
+		}
+	},
+	"additionalProperties": false
+}`
