@@ -266,7 +266,7 @@ func (p *Planner) planRules(rules []*ast.Rule) (string, error) {
 					switch rule.Head.DocKind() {
 					case ast.CompleteDoc:
 						return p.planTerm(rule.Head.Value, func() error {
-							p.appendStmt(&ir.AssignVarStmt{
+							p.appendStmt(&ir.AssignVarOnceStmt{
 								Target: lresult,
 								Source: p.ltarget,
 							})

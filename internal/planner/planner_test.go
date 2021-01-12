@@ -260,6 +260,41 @@ func TestPlannerHelloWorld(t *testing.T) {
 				}`,
 			},
 		},
+		{
+			note:    "multiple function outputs (single)",
+			queries: []string{`data.p.r`},
+			modules: []string{
+				`package p
+
+				p(a) = y {
+				  y = a[_]
+				}
+
+				r = y {
+				  data.p.p([1, 2, 3], y)
+				}
+				`,
+			},
+		},
+		{
+			note:    "multiple function outputs (multiple)",
+			queries: []string{`data.p.r`},
+			modules: []string{
+				`package p
+
+				p(1, a) = y {
+					y = a
+				}
+				p(x, y) = z {
+					z = x
+				}
+
+				r = y {
+					data.p.p(1, 0, y)
+				}
+				`,
+			},
+		},
 	}
 
 	for _, tc := range tests {
