@@ -2,11 +2,23 @@
 
 A new feature allows Rego's type system to take into account the schemas for input documents. This adds precision to type checking and helps prevent errors when writing Rego code. It helps users by rejecting erroneous code statically and improving developer productivity. We adopt JSON Schema as the format for providing schemas.
 
-Rego's existing gradual type system is ideal for this feature, since it allows for a type to be only partially known statically. This accomodates the incompleteness found typically in schemas, such as for example, specifying a field to have an `object` type but without further description of its fields. Rego's type system checks what is known statically and leaves the rest to be checked dynamically. By integrating schemas, the type checker has more type information about certain variables statically and can give more precise and useful error reports.
+Rego's existing gradual type system is ideal for this feature, since it allows for a type to be only partially known statically. This accomodates the incompleteness found typically in schemas, such as for example, specifying a field to have an `object` type but without further description of its fields. By integrating schemas, the type checker has more type information about certain variables statically and can give more precise error reports.
 
+## Usage
 
+We added a new query argument to `opa eval` to support uploading of a single schema for the input document in JSON Schema format.
 
-Consider for example, the following Rego code, which assumes as input a Kubernetes admission review. For resources that are `Pod`s, it checks that the image name
+```
+-s, --schema string set schema file path
+```
+
+```
+opa eval data.envoy.authz.allow -i example/envoy/input.json -d example/envoy/policy.rego -s example/envoy/input-schema.json
+```
+
+## Example
+
+Consider the following Rego code, which assumes as input a Kubernetes admission review. For resources that are `Pod`s, it checks that the image name
 starts with a specific prefix.
 
 `pod.rego`
