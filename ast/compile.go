@@ -330,12 +330,6 @@ func (c *Compiler) WithUnsafeBuiltins(unsafeBuiltins map[string]struct{}) *Compi
 	return c
 }
 
-// WithSchema will set a schema interface and be used for type checking by compiler
-func (c *Compiler) WithSchema(schema interface{}) *Compiler {
-	c.schema = schema
-	return c
-}
-
 // QueryCompiler returns a new QueryCompiler object.
 func (c *Compiler) QueryCompiler() QueryCompiler {
 	c.init()
@@ -623,6 +617,14 @@ func (c *Compiler) RuleIndex(path Ref) RuleIndex {
 	return r.(RuleIndex)
 }
 
+// PassesTypeCheck determines whether the given body passes type checking
+func (c *Compiler) PassesTypeCheck(body Body) bool {
+	checker := newTypeChecker()
+	env := c.TypeEnv
+	_, errs := checker.CheckBody(env, body)
+	return len(errs) == 0
+}
+
 // ModuleLoader defines the interface that callers can implement to enable lazy
 // loading of modules during compilation.
 type ModuleLoader func(resolved map[string]*Module) (parsed map[string]*Module, err error)
@@ -870,19 +872,6 @@ func CompileSchemas(byteSchema []byte, goSchema interface{}) (*gojsonschema.Sche
 		return nil, fmt.Errorf("unable to compile the schema due to: %s", err.Error())
 	}
 	return schemasCompiled, nil
-}
-
-// CompileAndParseSchema first compiles a schema and parses it into a Rego type
-func CompileAndParseSchema(schema interface{}) (types.Type, error) {
-	compiledSchema, err := CompileSchemas(nil, schema)
-	if err != nil {
-		return &types.Object{}, err
-	}
-	newtype, err := parseSchema(compiledSchema.RootSchema)
-	if err != nil {
-		return &types.Object{}, err
-	}
-	return newtype, nil
 }
 
 func parseSchema(schema interface{}) (types.Type, error) {
