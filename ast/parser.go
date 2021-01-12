@@ -867,6 +867,14 @@ func (p *Parser) parseNumber() *Term {
 		}
 	}
 
+	// Check for multiple leading 0's, parsed by math/big.Float.Parse as decimal 0:
+	// https://golang.org/pkg/math/big/#Float.Parse
+	if ((len(prefix) != 0 && prefix[0] == '-') || len(prefix) == 0) &&
+		len(p.s.lit) > 1 && p.s.lit[0] == '0' && p.s.lit[1] == '0' {
+		p.illegal("expected number")
+		return nil
+	}
+
 	// Ensure that the number is valid
 	s := prefix + p.s.lit
 	f, ok := new(big.Float).SetString(s)
