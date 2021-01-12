@@ -12,9 +12,13 @@ We added a new query argument to `opa eval` to support uploading of a single sch
 -s, --schema string set schema file path
 ```
 
+Consider the envoy request schema provided at: https://github.com/aavarghese/opa-schema-examples/tree/main/envoy
+
 ```
 opa eval data.envoy.authz.allow -i example/envoy/input.json -d example/envoy/policy.rego -s example/envoy/input-schema.json
 ```
+
+![Schema Demo](https://github.com/aavarghese/opa/tree/typeChecking/docs/content/OPATypeChecking_PR#3053.mov)
 
 ## Example
 
