@@ -350,6 +350,12 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 			body.Append(bindingExprs[i])
 		}
 
+		// Skip this rule body if it fails to type-check.
+		// Type-checking failure means the rule body will never succeed.
+		if !e.compiler.PassesTypeCheck(body) {
+			return nil
+		}
+
 		if !q.shallowInlining {
 			body = applyCopyPropagation(p, e.instr, body)
 		}
