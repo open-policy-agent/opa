@@ -106,3 +106,16 @@ Consider the following input document:
   ```
 
   This indicates the error to the Rego developer right away, without having the need to observe the results of runs on actual data, thereby improving productivity.
+
+
+## Limitations
+
+Currently this feature admits schemas written in JSON Schema but does not support every feature available in this format. This is part of future work. 
+In particular the following features are not yet suported:
+- additional properties for objects
+- pattern properties for objects
+- additional items for arrays
+- contains for arrays
+- allOf, anyOf, oneOf, not
+- enum
+- if/then/else
