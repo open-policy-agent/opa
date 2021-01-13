@@ -7,6 +7,7 @@ package cmd
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"path/filepath"
 	"reflect"
@@ -465,4 +466,55 @@ func TestEvalDebugTraceJSONOutput(t *testing.T) {
 			t.Fatalf("Missing expected eval node in trace: %+v\nGot: %+v\n", expected, evals)
 		}
 	}
+}
+
+func TestResetExprLocations(t *testing.T) {
+
+	// Make sure no panic if passed nil.
+	resetExprLocations(nil)
+
+	// Run partial evaluation on this fake module and check results.
+	// The content of the module is not very important it just has to generate
+	// support and cases where the locaiton is unset. The default causes support
+	// and exprs with no location information.
+	pq, err := rego.New(rego.Query("data.test.p = x"), rego.Module("test.rego", `
+
+		package test
+
+		default p = false
+
+		p {
+			input.x = q[_]
+		}
+
+		q[1]
+		q[2]
+		`)).Partial(context.Background())
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	resetExprLocations(pq)
+
+	var exp int
+
+	vis := ast.NewGenericVisitor(func(x interface{}) bool {
+		if expr, ok := x.(*ast.Expr); ok {
+			if expr.Location.Row != exp {
+				t.Fatalf("Expected %v to have row %v but got %v", expr, exp, expr.Location.Row)
+			}
+			exp++
+		}
+		return false
+	})
+
+	for i := range pq.Queries {
+		vis.Walk(pq.Queries[i])
+	}
+
+	for i := range pq.Support {
+		vis.Walk(pq.Support[i])
+	}
+
 }
