@@ -70,6 +70,16 @@ func WriteModule(w io.Writer, module *module.Module) error {
 		return err
 	}
 
+	if err := writeNameSection(w, module.Names); err != nil {
+		return err
+	}
+
+	for _, custom := range module.Customs {
+		if err := writeCustomSection(w, custom); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -365,6 +375,111 @@ func writeDataSection(w io.Writer, s module.DataSection) error {
 		if err := writeByteVector(&buf, seg.Init); err != nil {
 			return err
 		}
+	}
+
+	return writeRawSection(w, &buf)
+}
+
+func writeNameSection(w io.Writer, s module.NameSection) error {
+	if s.Module == "" && len(s.Functions) == 0 && len(s.Locals) == 0 {
+		return nil
+	}
+
+	if err := writeByte(w, constant.CustomSectionID); err != nil {
+		return err
+	}
+
+	var buf bytes.Buffer
+	if err := writeByteVector(&buf, []byte(constant.NameSectionCustomID)); err != nil {
+		return err
+	}
+
+	// "module" subsection
+	if s.Module != "" {
+		if err := writeByte(&buf, constant.NameSectionModuleType); err != nil {
+			return err
+		}
+		var mbuf bytes.Buffer
+		if err := writeByteVector(&mbuf, []byte(s.Module)); err != nil {
+			return err
+		}
+		if err := writeRawSection(&buf, &mbuf); err != nil {
+			return err
+		}
+	}
+
+	// "functions" subsection
+	if len(s.Functions) != 0 {
+		if err := writeByte(&buf, constant.NameSectionFunctionsType); err != nil {
+			return err
+		}
+
+		var fbuf bytes.Buffer
+		if err := writeNameMap(&fbuf, s.Functions); err != nil {
+			return err
+		}
+		if err := writeRawSection(&buf, &fbuf); err != nil {
+			return err
+		}
+	}
+
+	// "locals" subsection
+	if len(s.Locals) != 0 {
+		if err := writeByte(&buf, constant.NameSectionLocalsType); err != nil {
+			return err
+		}
+		funs := map[uint32][]module.NameMap{}
+		for _, e := range s.Locals {
+			funs[e.FuncIndex] = append(funs[e.FuncIndex], module.NameMap{Index: e.Index, Name: e.Name})
+		}
+		var lbuf bytes.Buffer
+		if err := leb128.WriteVarUint32(&lbuf, uint32(len(funs))); err != nil {
+			return err
+		}
+		for fidx, e := range funs {
+			if err := leb128.WriteVarUint32(&lbuf, fidx); err != nil {
+				return err
+			}
+			if err := writeNameMap(&lbuf, e); err != nil {
+				return err
+			}
+		}
+		if err := writeRawSection(&buf, &lbuf); err != nil {
+			return err
+		}
+	}
+
+	return writeRawSection(w, &buf)
+}
+
+func writeNameMap(buf io.Writer, nm []module.NameMap) error {
+	if err := leb128.WriteVarUint32(buf, uint32(len(nm))); err != nil {
+		return err
+	}
+	for _, m := range nm {
+		if err := leb128.WriteVarUint32(buf, m.Index); err != nil {
+			return err
+		}
+		if err := writeByteVector(buf, []byte(m.Name)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func writeCustomSection(w io.Writer, s module.CustomSection) error {
+
+	if err := writeByte(w, constant.CustomSectionID); err != nil {
+		return err
+	}
+
+	var buf bytes.Buffer
+	if err := writeByteVector(&buf, []byte(s.Name)); err != nil {
+		return err
+	}
+
+	if _, err := io.Copy(&buf, bytes.NewReader(s.Data)); err != nil {
+		return err
 	}
 
 	return writeRawSection(w, &buf)
