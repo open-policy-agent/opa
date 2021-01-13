@@ -44,6 +44,10 @@ const (
 	// FailOp is emitted when an expression evaluates to false.
 	FailOp Op = "Fail"
 
+	// DuplicateOp is emitted when a query has produced a duplicate value. The search
+	// will stop at the point where the duplicate was emitted and backtrack.
+	DuplicateOp Op = "Duplicate"
+
 	// NoteOp is emitted when an expression invokes a tracing built-in function.
 	NoteOp Op = "Note"
 

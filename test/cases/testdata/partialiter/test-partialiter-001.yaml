@@ -1,0 +1,39 @@
+cases:
+- modules:
+  - |
+    package test
+
+    p := count([x | q[x]])
+
+    q[1]
+    q[1]
+    q[2]
+  note: partialiter/sets unique
+  query: data.test.p = x
+  want_result:
+  - x: 2
+- modules:
+  - |
+    package test
+
+    p := count([x | q[x]])
+
+    q[1] = 1
+    q[1] = 1
+    q[2] = 1
+  note: partialiter/objects unique
+  query: data.test.p = x
+  want_result:
+  - x: 2
+- modules:
+  - |
+    package test
+
+    p := count([x | q[x]])
+
+    q[1] = 1
+    q[1] = 2
+    q[2] = 1
+  note: partialiter/objects conflict
+  query: data.test.p = x
+  want_error_code: eval_conflict_error

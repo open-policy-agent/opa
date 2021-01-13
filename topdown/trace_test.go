@@ -529,6 +529,45 @@ query:1                                                              | Fail data
 	}
 }
 
+func TestTraceDuplicate(t *testing.T) {
+	module := `package test
+
+	p[1]
+	p[2]
+	p[1]
+	`
+
+	ctx := context.Background()
+	compiler := compileModules([]string{module})
+	data := loadSmallTestData()
+	store := inmem.NewFromObject(data)
+	txn := storage.NewTransactionOrDie(ctx, store)
+	defer store.Abort(ctx, txn)
+
+	tracer := NewBufferTracer()
+	query := NewQuery(ast.MustParseBody("data.test.p[x] = _")).
+		WithCompiler(compiler).
+		WithStore(store).
+		WithTransaction(txn).
+		WithTracer(tracer)
+
+	_, err := query.Run(ctx)
+	if err != nil {
+		panic(err)
+	}
+
+	n := 0
+	for _, event := range *tracer {
+		if event.Op == DuplicateOp {
+			n++
+		}
+	}
+
+	if n != 1 {
+		t.Fatalf("Expected one duplicate event but got %v", n)
+	}
+}
+
 func TestTraceNote(t *testing.T) {
 	module := `package test
 
