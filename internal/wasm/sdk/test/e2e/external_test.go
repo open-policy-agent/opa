@@ -131,19 +131,13 @@ func assert(t *testing.T, tc cases.TestCase, result *opa.Result, err error) {
 			return
 		}
 		if err == nil {
+			if result != nil {
+				t.Fatalf("expected error, got result %s", result.Result)
+			}
 			t.Fatal("expected error")
 		}
 
-		// TODO: implement more specific error checking, for now log results and skip the test
-		if tc.WantErrorCode != nil {
-			t.Logf("\nExpected Code: %s\nGot Err: %s\n", *tc.WantErrorCode, err)
-		}
-
-		if tc.WantError != nil {
-			t.Logf("\nExpected Err: %s\nGot Err: %s\n", *tc.WantError, err)
-		}
-
-		t.Skip("Skipping test case: Error validation not supported")
+		assertErrorCode(t, *tc.WantErrorCode, err)
 	}
 }
 
@@ -204,7 +198,26 @@ func assertResultSet(t *testing.T, want []map[string]interface{}, sortBindings b
 	if !a.Equal(b) {
 		t.Fatalf("expected %v but got %v", a, b)
 	}
+}
 
+func assertErrorCode(t *testing.T, expected string, actual error) {
+	t.Helper()
+	switch expected {
+	case "eval_conflict_error":
+		exps := []string{"var assignment conflict", "object insert conflict"}
+		found := false
+		for _, exp := range exps {
+			if strings.Contains(actual.Error(), exp) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("expected %q to contain one of %v", actual, exps)
+		}
+	default:
+		t.Errorf("unmatched error: %v (expected %s)", actual, expected)
+	}
 }
 
 func toAST(a interface{}) *ast.Term {

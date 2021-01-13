@@ -267,6 +267,13 @@ type AssignVarOnceStmt struct {
 	Location
 }
 
+// ResetLocalStmt resets a local variable to 0.
+type ResetLocalStmt struct {
+	Target Local
+
+	Location
+}
+
 // MakeStringStmt constructs a local variable that refers to a string constant.
 type MakeStringStmt struct {
 	Index  int
@@ -473,6 +480,11 @@ type WithStmt struct {
 	Value Local
 	Block *Block
 
+	Location
+}
+
+// NopStmt adds a nop instruction. Useful during development and debugging only.
+type NopStmt struct {
 	Location
 }
 
