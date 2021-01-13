@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/open-policy-agent/opa/keys"
+
 	"github.com/open-policy-agent/opa/bundle"
 
 	"github.com/ghodss/yaml"
@@ -225,7 +227,7 @@ func TestParseAndValidateBundlesConfig(t *testing.T) {
 		},
 	}
 
-	keys := map[string]*bundle.KeyConfig{"foo": {Key: "secret"}}
+	keys := map[string]*keys.Config{"foo": {Key: "secret"}}
 	for i := range tests {
 		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
 			_, err := NewConfigBuilder().WithBytes([]byte(tests[i].conf)).WithServices(tests[i].services).

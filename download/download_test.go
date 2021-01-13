@@ -16,6 +16,7 @@ import (
 	"testing"
 
 	"github.com/open-policy-agent/opa/bundle"
+	"github.com/open-policy-agent/opa/keys"
 	"github.com/open-policy-agent/opa/plugins/rest"
 )
 
@@ -198,7 +199,7 @@ func newTestFixture(t *testing.T) testFixture {
 		}
 	}`, ts.server.URL))
 
-	tc, err := rest.New(restConfig)
+	tc, err := rest.New(restConfig, map[string]*keys.Config{})
 
 	if err != nil {
 		t.Fatal(err)

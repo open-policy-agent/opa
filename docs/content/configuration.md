@@ -245,7 +245,7 @@ multiple services.
 Each service may optionally specify a credential mechanism by which OPA will authenticate
 itself to the service.
 
-#### Bearer token
+#### Bearer Token
 
 OPA will authenticate using the specified bearer token and schema; to enable bearer token
 authentication, either the token or the path to the token must be specified. If the latter is provided, on each request OPA will re-read the token from the file and use that token for authentication.
@@ -259,7 +259,7 @@ if unspecified.
 | `services[_].credentials.bearer.token_path` | `string` | Yes | Enables token-based authentication and supplies the path to the bearer token to authenticate with. |
 | `services[_].credentials.bearer.scheme` | `string` | No | Bearer token scheme to specify. |
 
-#### Client TLS certificate
+#### Client TLS Certificate
 
 OPA will present the specified TLS certificate to authenticate. The paths to the client certificate
 and the private key are required; the passphrase for the private key is only required if the
@@ -271,7 +271,7 @@ private key is encrypted.
 | `services[_].credentials.client_tls.private_key` | `string` | Yes | The path to the private key of the client certificate. |
 | `services[_].credentials.client_tls.private_key_passphrase` | `string` | No | The passphrase to use for the private key. |
 
-#### OAuth2 client credentials
+#### OAuth2 Client Credentials
 
 OPA will authenticate using a bearer token obtained through the OAuth2 [client credentials](https://tools.ietf.org/html/rfc6749#section-4.4) flow.
 Following successful authentication at the token endpoint the returned token will be cached for subsequent requests for the duration of its lifetime. Note that as per the [OAuth2 standard](https://tools.ietf.org/html/rfc6749#section-2.3.1), only the HTTPS scheme is supported for the token endpoint URL.
@@ -283,7 +283,104 @@ Following successful authentication at the token endpoint the returned token wil
 | `services[_].credentials.oauth2.client_secret` | `string` | Yes | The client secret to use for authentication. |
 | `services[_].credentials.oauth2.scopes` | `[]string` | No | Optional list of scopes to request for the token. |
 
-#### AWS signature
+#### OAuth2 Client Credentials JWT authentication
+
+OPA will authenticate using a bearer token obtained through the OAuth2 [client credentials](https://tools.ietf.org/html/rfc6749#section-4.4) flow.
+Rather than providing a client secret along with the request for an access token, the client [asserts](https://tools.ietf.org/html/rfc7521#section-4.2) its identity in the form of a signed JWT.
+Following successful authentication at the token endpoint the returned token will be cached for subsequent requests for the duration of its lifetime. Note that as per the [OAuth2 standard](https://tools.ietf.org/html/rfc6749#section-2.3.1), only the HTTPS scheme is supported for the token endpoint URL.
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `services[_].credentials.oauth2.token_url` | `string` | Yes | URL pointing to the token endpoint at the OAuth2 authorization server. |
+| `services[_].credentials.oauth2.grant_type` | `string` | No | Defaults to `client_credentials`. |
+| `services[_].credentials.oauth2.client_id` | `string` | No | The client ID to use for authentication. |
+| `services[_].credentials.oauth2.signing_key` | `string` | Yes | Reference to private key used for signing the JWT. |
+| `services[_].credentials.oauth2.additional_claims` | `map` | No | Map of claims to include in the JWT (see notes below) |
+| `services[_].credentials.oauth2.include_jti_claim` | `bool` | No | Include a uniquely generated `jti` claim in any issued JWT |
+| `services[_].credentials.oauth2.scopes` | `[]string` | No | Optional list of scopes to request for the token. |
+
+Two claims will always be included in the issued JWT: `iat` and `exp`. Any other claims will be populated from the `additional_claims` map.
+
+##### Example
+
+Using the client credentials grant type with JWT client authentication replacing client secret as the credential used at the token endpoint.
+
+```yaml
+services:
+  remote:
+    url: ${BUNDLE_SERVICE_URL}
+    credentials:
+      oauth2:
+        grant_type: client_credentials
+        client_id: opa-client
+        signing_key: jwt_signing_key # references the key in `keys` below
+        include_jti_claim: true
+        scopes:
+        - read
+        - write
+        additional_claims:
+          sub: opa-client
+          iss: opa-${POD_NAME}
+
+bundles:
+  authz:
+    service: remote
+    resource: bundles/http/example/authz.tar.gz
+
+keys:
+  jwt_signing_key:
+    algorithm: ES512
+    private_key: ${BUNDLE_SERVICE_SIGNING_KEY}
+```
+
+#### OAuth2 JWT Bearer Grant Type
+
+OPA will authenticate using a bearer token obtained through the OAuth2 [JWT authorization grant](https://tools.ietf.org/html/rfc7523#section-2.1) flow.
+Rather than providing a client secret along with the request for an access token, the client [asserts](https://tools.ietf.org/html/rfc7521#section-4.1) its identity in the form of a signed JWT.
+Following successful authentication at the token endpoint the returned token will be cached for subsequent requests for the duration of its lifetime. Note that as per the [OAuth2 standard](https://tools.ietf.org/html/rfc6749#section-2.3.1), only the HTTPS scheme is supported for the token endpoint URL.
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `services[_].credentials.oauth2.token_url` | `string` | Yes | URL pointing to the token endpoint at the OAuth2 authorization server. |
+| `services[_].credentials.oauth2.grant_type` | `string` | No | Must be set to `jwt_bearer` for JWT bearer grant type. Defaults to `client_credentials`. |
+| `services[_].credentials.oauth2.signing_key` | `string` | Yes | Reference to private key used for signing the JWT. |
+| `services[_].credentials.oauth2.additional_claims` | `map` | No | Map of claims to include in the JWT (see notes below) |
+| `services[_].credentials.oauth2.include_jti_claim` | `bool` | No | Include a uniquely generated `jti` claim in any issued JWT |
+| `services[_].credentials.oauth2.scopes` | `[]string` | No | Optional list of scopes to request for the token. |
+
+Two claims will always be included in the issued JWT: `iat` and `exp`. Any other claims will be populated from the `additional_claims` map.
+
+##### Example
+
+Using a [Google Cloud Storage](https://cloud.google.com/storage/) bucket as a bundle service backend from outside the
+cloud account (for access from inside the account, see the [GCP Metadata Token](#GCP Metadata Token) section).
+
+```yaml
+services:
+  gcp:
+    url: ${BUNDLE_SERVICE_URL}
+    credentials:
+      oauth2:
+        grant_type: jwt_bearer
+        signing_key: jwt_signing_key # references the key in `keys` below
+        scopes:
+        - https://www.googleapis.com/auth/devstorage.read_only
+        additional_claims:
+          aud: https://oauth2.googleapis.com/token
+          iss: opa-client@my-account.iam.gserviceaccount.com
+
+bundles:
+  authz:
+    service: gcp
+    resource: bundles/http/example/authz.tar.gz
+
+keys:
+  jwt_signing_key:
+    algorithm: RS256
+    private_key: ${BUNDLE_SERVICE_SIGNING_KEY}
+```
+
+#### AWS Signature
 
 OPA will authenticate with an [AWS4 HMAC](https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-auth-using-authorization-header.html) signature. Two methods of obtaining the
 necessary credentials are available; exactly one must be specified to use the AWS signature
@@ -522,7 +619,8 @@ Keys is a dictionary mapping the key name to the actual key and optionally the a
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `keys[_].key` | `string` | Yes | Actual key to use for bundle signature verification. |
+| `keys[_].key` | `string` | Yes (unless `private_key` provided) | PEM encoded public key to use for signature verification. |
+| `keys[_].private_key` | `string` | Yes (unless `key` provided`) | PEM encoded private key to use for signing. |
 | `keys[_].algorithm` | `string` | No (default: `RS256`) | Name of the signing algorithm. |
 | `keys[_].scope` | `string` | No | Scope to use for bundle signature verification. |
 

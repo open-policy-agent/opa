@@ -9,6 +9,8 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/open-policy-agent/opa/keys"
+
 	"github.com/open-policy-agent/opa/internal/file/archive"
 
 	"github.com/open-policy-agent/opa/bundle"
@@ -117,12 +119,12 @@ func TestBundleSignVerification(t *testing.T) {
 		buf := archive.MustWriteTarGz(filesInBundle)
 
 		// bundle verification config
-		kc := bundle.KeyConfig{
+		kc := keys.Config{
 			Key:       "mysecret",
 			Algorithm: "HS256",
 		}
 
-		bvc := bundle.NewVerificationConfig(map[string]*bundle.KeyConfig{"foo": &kc}, "foo", "", nil)
+		bvc := bundle.NewVerificationConfig(map[string]*keys.Config{"foo": &kc}, "foo", "", nil)
 		reader := bundle.NewReader(buf).WithBundleVerificationConfig(bvc).WithBaseDir(rootDir)
 
 		_, err = reader.Read()

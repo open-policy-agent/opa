@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/open-policy-agent/opa/bundle"
+	"github.com/open-policy-agent/opa/keys"
 )
 
 func TestConfigValidation(t *testing.T) {
@@ -64,7 +64,7 @@ func TestConfigValidation(t *testing.T) {
 		},
 	}
 
-	keys := map[string]*bundle.KeyConfig{"foo": {Key: "secret"}}
+	keys := map[string]*keys.Config{"foo": {Key: "secret"}}
 	for i, test := range tests {
 		t.Run(fmt.Sprintf("TestConfigValidation_case_%d", i), func(t *testing.T) {
 			_, err := NewConfigBuilder().WithBytes([]byte(test.input)).WithServices(test.services).WithKeyConfigs(keys).Parse()

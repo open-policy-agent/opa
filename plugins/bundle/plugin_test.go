@@ -20,6 +20,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/open-policy-agent/opa/keys"
+
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/config"
@@ -1751,7 +1753,7 @@ func TestLoadSignedBundleFromDisk(t *testing.T) {
 	b := writeTestBundleToDisk(t, bundleDir, true)
 
 	src := Source{
-		Signing: bundle.NewVerificationConfig(map[string]*bundle.KeyConfig{"foo": {Key: "secret", Algorithm: "HS256"}}, "foo", "", nil),
+		Signing: bundle.NewVerificationConfig(map[string]*keys.Config{"foo": {Key: "secret", Algorithm: "HS256"}}, "foo", "", nil),
 	}
 
 	result, err := loadBundleFromDisk(dir, bundleName, &src)

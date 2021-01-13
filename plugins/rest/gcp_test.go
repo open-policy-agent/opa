@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/open-policy-agent/opa/keys"
 )
 
 func TestGCPMetadataAuthPlugin(t *testing.T) {
@@ -31,7 +33,7 @@ func TestGCPMetadataAuthPlugin(t *testing.T) {
             }
         }
     }`, s.URL, ts.URL)
-	client, err := New([]byte(config))
+	client, err := New([]byte(config), map[string]*keys.Config{})
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}

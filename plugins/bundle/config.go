@@ -13,6 +13,7 @@ import (
 
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/download"
+	"github.com/open-policy-agent/opa/keys"
 	"github.com/open-policy-agent/opa/util"
 )
 
@@ -78,7 +79,7 @@ func (b *ConfigBuilder) WithServices(services []string) *ConfigBuilder {
 }
 
 // WithKeyConfigs sets the public keys to verify a signed bundle
-func (b *ConfigBuilder) WithKeyConfigs(keys map[string]*bundle.KeyConfig) *ConfigBuilder {
+func (b *ConfigBuilder) WithKeyConfigs(keys map[string]*keys.Config) *ConfigBuilder {
 	b.keys = keys
 	return b
 }
@@ -115,7 +116,7 @@ func (b *ConfigBuilder) Parse() (*Config, error) {
 type ConfigBuilder struct {
 	raw      []byte
 	services []string
-	keys     map[string]*bundle.KeyConfig
+	keys     map[string]*keys.Config
 }
 
 // Config represents the configuration of the plugin.
@@ -152,7 +153,7 @@ func (c *Config) IsMultiBundle() bool {
 	return c.Name == ""
 }
 
-func (c *Config) validateAndInjectDefaults(services []string, keys map[string]*bundle.KeyConfig) error {
+func (c *Config) validateAndInjectDefaults(services []string, keys map[string]*keys.Config) error {
 	if c.Bundles == nil {
 		return c.validateAndInjectDefaultsLegacy(services)
 	}

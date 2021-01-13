@@ -15,6 +15,8 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/open-policy-agent/opa/keys"
+
 	"github.com/open-policy-agent/opa/internal/version"
 
 	"github.com/sirupsen/logrus"
@@ -48,6 +50,8 @@ type Config struct {
 		GCPMetadata *gcpMetadataAuthPlugin             `json:"gcp_metadata,omitempty"`
 		Plugin      *string                            `json:"plugin,omitempty"`
 	} `json:"credentials"`
+
+	keys map[string]*keys.Config
 }
 
 // Equal returns true if this client config is equal to the other.
@@ -124,7 +128,7 @@ func AuthPluginLookup(l func(string) HTTPAuthPlugin) func(*Client) {
 }
 
 // New returns a new Client for config.
-func New(config []byte, opts ...func(*Client)) (Client, error) {
+func New(config []byte, keys map[string]*keys.Config, opts ...func(*Client)) (Client, error) {
 	var parsedConfig Config
 
 	if err := util.Unmarshal(config, &parsedConfig); err != nil {
@@ -138,6 +142,8 @@ func New(config []byte, opts ...func(*Client)) (Client, error) {
 		*timeout = defaultResponseHeaderTimeoutSeconds
 		parsedConfig.ResponseHeaderTimeoutSeconds = timeout
 	}
+
+	parsedConfig.keys = keys
 
 	client := Client{
 		config: parsedConfig,
