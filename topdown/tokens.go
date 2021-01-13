@@ -866,7 +866,7 @@ func commonBuiltinJWTEncodeSign(inputHeaders, jwsPayload, jwkSrc string) (v ast.
 	if err != nil {
 		return nil, err
 	}
-	return ast.String(jwsCompact[:]), nil
+	return ast.String(jwsCompact), nil
 
 }
 

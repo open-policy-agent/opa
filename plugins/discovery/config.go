@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/open-policy-agent/opa/keys"
+
 	"github.com/open-policy-agent/opa/bundle"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -34,7 +36,7 @@ type Config struct {
 type ConfigBuilder struct {
 	raw      []byte
 	services []string
-	keys     map[string]*bundle.KeyConfig
+	keys     map[string]*keys.Config
 }
 
 // NewConfigBuilder returns a new ConfigBuilder to build and parse the discovery config
@@ -55,7 +57,7 @@ func (b *ConfigBuilder) WithServices(services []string) *ConfigBuilder {
 }
 
 // WithKeyConfigs sets the public keys to verify a signed bundle
-func (b *ConfigBuilder) WithKeyConfigs(keys map[string]*bundle.KeyConfig) *ConfigBuilder {
+func (b *ConfigBuilder) WithKeyConfigs(keys map[string]*keys.Config) *ConfigBuilder {
 	b.keys = keys
 	return b
 }
@@ -80,15 +82,15 @@ func ParseConfig(bs []byte, services []string) (*Config, error) {
 	return NewConfigBuilder().WithBytes(bs).WithServices(services).Parse()
 }
 
-func (c *Config) validateAndInjectDefaults(services []string, keys map[string]*bundle.KeyConfig) error {
+func (c *Config) validateAndInjectDefaults(services []string, confKeys map[string]*keys.Config) error {
 
 	if c.Name == nil {
 		return fmt.Errorf("missing required discovery.name field")
 	}
 
 	// make a copy of the keys map
-	copy := map[string]*bundle.KeyConfig{}
-	for key, kc := range keys {
+	copy := map[string]*keys.Config{}
+	for key, kc := range confKeys {
 		copy[key] = kc
 	}
 
@@ -98,7 +100,7 @@ func (c *Config) validateAndInjectDefaults(services []string, keys map[string]*b
 			return fmt.Errorf("invalid configuration for discovery service %q: %s", *c.Name, err.Error())
 		}
 	} else {
-		if len(keys) > 0 {
+		if len(confKeys) > 0 {
 			c.Signing = bundle.NewVerificationConfig(copy, "", "", nil)
 		}
 	}

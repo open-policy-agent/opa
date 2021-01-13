@@ -12,6 +12,8 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/open-policy-agent/opa/keys"
+
 	"os"
 	"time"
 
@@ -67,7 +69,7 @@ func New(id string) (*Reporter, error) {
 		"url": %q,
 	}`, url))
 
-	client, err := rest.New(restConfig)
+	client, err := rest.New(restConfig, map[string]*keys.Config{})
 	if err != nil {
 		return nil, err
 	}

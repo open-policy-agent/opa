@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/open-policy-agent/opa/keys"
+
 	"github.com/sirupsen/logrus"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -141,7 +143,7 @@ type Manager struct {
 	wasmResolvers                []*wasm.Resolver
 	wasmResolversMtx             sync.RWMutex
 	services                     map[string]rest.Client
-	keys                         map[string]*bundle.KeyConfig
+	keys                         map[string]*keys.Config
 	plugins                      []namedplugin
 	registeredTriggers           []func(txn storage.Transaction)
 	mtx                          sync.Mutex
@@ -253,7 +255,7 @@ func New(raw []byte, id string, store storage.Store, opts ...func(*Manager)) (*M
 		return nil, err
 	}
 
-	keys, err := bundle.ParseKeysConfig(parsedConfig.Keys)
+	keys, err := keys.ParseKeysConfig(parsedConfig.Keys)
 	if err != nil {
 		return nil, err
 	}
@@ -277,6 +279,7 @@ func New(raw []byte, id string, store storage.Store, opts ...func(*Manager)) (*M
 	serviceOpts := cfg.ServiceOptions{
 		Raw:        parsedConfig.Services,
 		AuthPlugin: m.AuthPlugin,
+		Keys:       keys,
 	}
 	services, err := cfg.ParseServicesConfig(serviceOpts)
 	if err != nil {
@@ -496,12 +499,14 @@ func (m *Manager) Reconfigure(config *config.Config) error {
 		Raw:        config.Services,
 		AuthPlugin: m.AuthPlugin,
 	}
-	services, err := cfg.ParseServicesConfig(opts)
+
+	keys, err := keys.ParseKeysConfig(config.Keys)
 	if err != nil {
 		return err
 	}
+	opts.Keys = keys
 
-	keys, err := bundle.ParseKeysConfig(config.Keys)
+	services, err := cfg.ParseServicesConfig(opts)
 	if err != nil {
 		return err
 	}
@@ -698,7 +703,7 @@ func (m *Manager) updateWasmResolversData(event storage.TriggerEvent) error {
 }
 
 // PublicKeys returns a public keys that can be used for verifying signed bundles.
-func (m *Manager) PublicKeys() map[string]*bundle.KeyConfig {
+func (m *Manager) PublicKeys() map[string]*keys.Config {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
 	return m.keys

@@ -17,6 +17,7 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/compile"
+	"github.com/open-policy-agent/opa/keys"
 	"github.com/open-policy-agent/opa/util"
 )
 
@@ -317,11 +318,11 @@ func buildVerificationConfig(pubKey, pubKeyID, alg, scope string, excludeFiles [
 		return nil, nil
 	}
 
-	keyConfig, err := bundle.NewKeyConfig(pubKey, alg, scope)
+	keyConfig, err := keys.NewKeyConfig(pubKey, alg, scope)
 	if err != nil {
 		return nil, err
 	}
-	return bundle.NewVerificationConfig(map[string]*bundle.KeyConfig{pubKeyID: keyConfig}, pubKeyID, scope, excludeFiles), nil
+	return bundle.NewVerificationConfig(map[string]*keys.Config{pubKeyID: keyConfig}, pubKeyID, scope, excludeFiles), nil
 }
 
 func buildSigningConfig(key, alg, claimsFile string) *bundle.SigningConfig {

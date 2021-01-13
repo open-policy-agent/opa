@@ -5,6 +5,7 @@
 package rest
 
 import (
+	"crypto/rand"
 	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
@@ -17,6 +18,13 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/open-policy-agent/opa/internal/jwx/jwa"
+	"github.com/open-policy-agent/opa/internal/jwx/jws/sign"
+
+	"github.com/open-policy-agent/opa/internal/jwx/jws"
+	"github.com/open-policy-agent/opa/internal/uuid"
+	"github.com/open-policy-agent/opa/keys"
 
 	"github.com/sirupsen/logrus"
 )
@@ -113,18 +121,87 @@ type tokenEndpointResponse struct {
 // oauth2ClientCredentialsAuthPlugin represents authentication via a bearer token in the HTTP Authorization header
 // obtained through the OAuth2 client credentials flow
 type oauth2ClientCredentialsAuthPlugin struct {
-	TokenURL     string    `json:"token_url"`
-	ClientID     string    `json:"client_id"`
-	ClientSecret string    `json:"client_secret"`
-	Scopes       *[]string `json:"scopes,omitempty"`
+	GrantType    string                 `json:"grant_type"`
+	TokenURL     string                 `json:"token_url"`
+	ClientID     string                 `json:"client_id"`
+	ClientSecret string                 `json:"client_secret"`
+	SigningKeyID string                 `json:"signing_key"`
+	Claims       map[string]interface{} `json:"additional_claims"`
+	IncludeJti   bool                   `json:"include_jti_claim"`
+	Scopes       []string               `json:"scopes,omitempty"`
 
-	tokenCache    *oauth2Token
-	tlsSkipVerify bool
+	signingKey       *keys.Config
+	signingKeyParsed interface{}
+	tokenCache       *oauth2Token
+	tlsSkipVerify    bool
 }
 
 type oauth2Token struct {
 	Token     string
 	ExpiresAt time.Time
+}
+
+func (ap *oauth2ClientCredentialsAuthPlugin) createAuthJWT(claims map[string]interface{}, signingKey interface{}) (*string, error) {
+	now := time.Now()
+	baseClaims := map[string]interface{}{
+		"iat": now.Unix(),
+		"exp": now.Add(10 * time.Minute).Unix(),
+	}
+	if claims == nil {
+		claims = make(map[string]interface{})
+	}
+	for k, v := range baseClaims {
+		claims[k] = v
+	}
+
+	if len(ap.Scopes) > 0 {
+		claims["scope"] = strings.Join(ap.Scopes, " ")
+	}
+
+	if ap.IncludeJti {
+		jti, err := uuid.New(rand.Reader)
+		if err != nil {
+			return nil, err
+		}
+		claims["jti"] = jti
+	}
+
+	payload, err := json.Marshal(claims)
+	if err != nil {
+		return nil, err
+	}
+
+	jwsHeaders := []byte(fmt.Sprintf(`{"typ":"JWT","alg":"%v"}`, ap.signingKey.Algorithm))
+	jwsCompact, err := jws.SignLiteral(payload, jwa.SignatureAlgorithm(ap.signingKey.Algorithm), signingKey, jwsHeaders)
+	if err != nil {
+		return nil, err
+	}
+	jwt := string(jwsCompact)
+
+	return &jwt, nil
+}
+
+func (ap *oauth2ClientCredentialsAuthPlugin) parseSigningKey(c Config) (err error) {
+	if ap.SigningKeyID == "" {
+		return errors.New("signing_key required for jwt_bearer grant type")
+	}
+
+	if val, ok := c.keys[ap.SigningKeyID]; ok {
+		if val.PrivateKey == "" {
+			return errors.New("referenced signing_key does not include a private key")
+		}
+		ap.signingKey = val
+	} else {
+		return errors.New("signing_key refers to non-existent key")
+	}
+
+	alg := jwa.SignatureAlgorithm(ap.signingKey.Algorithm)
+	ap.signingKeyParsed, err = sign.GetSigningKey(ap.signingKey.PrivateKey, alg)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (ap *oauth2ClientCredentialsAuthPlugin) NewClient(c Config) (*http.Client, error) {
@@ -133,28 +210,69 @@ func (ap *oauth2ClientCredentialsAuthPlugin) NewClient(c Config) (*http.Client, 
 		return nil, err
 	}
 
+	if ap.GrantType == "" {
+		// Use client_credentials as default to not break existing config
+		ap.GrantType = "client_credentials"
+	} else if ap.GrantType != "client_credentials" && ap.GrantType != "jwt_bearer" {
+		return nil, errors.New("grant_type must be either client_credentials or jwt_bearer")
+	}
+
+	if ap.GrantType == "jwt_bearer" || (ap.GrantType == "client_credentials" && ap.SigningKeyID != "") {
+		if err = ap.parseSigningKey(c); err != nil {
+			return nil, err
+		}
+	}
+
 	// Inherit skip verify from the "parent" settings. Should this be configurable on the credentials too?
 	ap.tlsSkipVerify = c.AllowInsureTLS
 
 	if !strings.HasPrefix(ap.TokenURL, "https://") {
 		return nil, errors.New("token_url required to use https scheme")
 	}
-	if ap.ClientID == "" || ap.ClientSecret == "" {
-		return nil, errors.New("client_id and client_secret required")
-	}
-	if ap.Scopes == nil {
-		ap.Scopes = &[]string{}
+	if ap.GrantType == "client_credentials" {
+		if ap.ClientSecret != "" && ap.SigningKeyID != "" {
+			return nil, errors.New("can only use one of client_secret and signing_key for client_credentials")
+		}
+		if ap.SigningKeyID == "" && (ap.ClientID == "" || ap.ClientSecret == "") {
+			return nil, errors.New("client_id and client_secret required")
+		}
 	}
 
 	return DefaultRoundTripperClient(t, *c.ResponseHeaderTimeoutSeconds), nil
 }
 
-// requestToken tries to obtain an access token using the client credentials flow
+// requestToken tries to obtain an access token using either the client credentials flow
 // https://tools.ietf.org/html/rfc6749#section-4.4
+// or the JWT authorization grant
+// https://tools.ietf.org/html/rfc7523
 func (ap *oauth2ClientCredentialsAuthPlugin) requestToken() (*oauth2Token, error) {
-	body := url.Values{"grant_type": []string{"client_credentials"}}
-	if len(*ap.Scopes) > 0 {
-		body["scope"] = []string{strings.Join(*ap.Scopes, " ")}
+	body := url.Values{}
+	if ap.GrantType == "jwt_bearer" {
+		authJwt, err := ap.createAuthJWT(ap.Claims, ap.signingKeyParsed)
+		if err != nil {
+			return nil, err
+		}
+		body.Add("grant_type", "urn:ietf:params:oauth:grant-type:jwt-bearer")
+		body.Add("assertion", *authJwt)
+	} else {
+		body.Add("grant_type", "client_credentials")
+
+		if ap.SigningKeyID != "" {
+			authJwt, err := ap.createAuthJWT(ap.Claims, ap.signingKeyParsed)
+			if err != nil {
+				return nil, err
+			}
+			body.Add("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer")
+			body.Add("client_assertion", *authJwt)
+
+			if ap.ClientID != "" {
+				body.Add("client_id", ap.ClientID)
+			}
+		}
+	}
+
+	if len(ap.Scopes) > 0 {
+		body.Add("scope", strings.Join(ap.Scopes, " "))
 	}
 
 	r, err := http.NewRequest("POST", ap.TokenURL, strings.NewReader(body.Encode()))
@@ -162,7 +280,10 @@ func (ap *oauth2ClientCredentialsAuthPlugin) requestToken() (*oauth2Token, error
 		return nil, err
 	}
 	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	r.SetBasicAuth(ap.ClientID, ap.ClientSecret)
+
+	if ap.GrantType == "client_credentials" && ap.ClientSecret != "" {
+		r.SetBasicAuth(ap.ClientID, ap.ClientSecret)
+	}
 
 	client := DefaultRoundTripperClient(&tls.Config{InsecureSkipVerify: ap.tlsSkipVerify}, 10)
 	response, err := client.Do(r)
