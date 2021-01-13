@@ -162,6 +162,10 @@ func (e *eval) traceEval(x ast.Node) {
 	e.traceEvent(EvalOp, x, "", nil)
 }
 
+func (e *eval) traceDuplicate(x ast.Node) {
+	e.traceEvent(DuplicateOp, x, "", nil)
+}
+
 func (e *eval) traceFail(x ast.Node) {
 	e.traceEvent(FailOp, x, "", nil)
 }
@@ -1911,10 +1915,10 @@ func (e evalVirtualPartial) eval(iter unifyIterator) error {
 		return e.partialEvalSupport(iter)
 	}
 
-	return e.evalEachRule(iter, e.ir.Rules)
+	return e.evalEachRule(iter, e.ir.Rules, unknown)
 }
 
-func (e evalVirtualPartial) evalEachRule(iter unifyIterator, rules []*ast.Rule) error {
+func (e evalVirtualPartial) evalEachRule(iter unifyIterator, rules []*ast.Rule, unknown bool) error {
 
 	if e.e.unknown(e.ref[e.pos+1], e.bindings) {
 		for _, rule := range e.ir.Rules {
@@ -1932,8 +1936,10 @@ func (e evalVirtualPartial) evalEachRule(iter unifyIterator, rules []*ast.Rule) 
 		return nil
 	}
 
+	result := e.empty
+
 	for _, rule := range e.ir.Rules {
-		if err := e.evalOneRulePreUnify(iter, rule, key); err != nil {
+		if err := e.evalOneRulePreUnify(iter, rule, key, result, unknown); err != nil {
 			return err
 		}
 	}
@@ -1952,7 +1958,7 @@ func (e evalVirtualPartial) evalAllRules(iter unifyIterator, rules []*ast.Rule) 
 		err := child.eval(func(*eval) error {
 			child.traceExit(rule)
 			var err error
-			result, err = e.reduce(rule.Head, child.bindings, result)
+			result, _, err = e.reduce(rule.Head, child.bindings, result)
 			if err != nil {
 				return err
 			}
@@ -1969,7 +1975,7 @@ func (e evalVirtualPartial) evalAllRules(iter unifyIterator, rules []*ast.Rule) 
 	return e.e.biunify(result, e.rterm, e.bindings, e.bindings, iter)
 }
 
-func (e evalVirtualPartial) evalOneRulePreUnify(iter unifyIterator, rule *ast.Rule, cacheKey ast.Ref) error {
+func (e evalVirtualPartial) evalOneRulePreUnify(iter unifyIterator, rule *ast.Rule, cacheKey ast.Ref, result *ast.Term, unknown bool) error {
 
 	key := e.ref[e.pos+1]
 	child := e.e.child(rule.Body)
@@ -1980,7 +1986,6 @@ func (e evalVirtualPartial) evalOneRulePreUnify(iter unifyIterator, rule *ast.Ru
 	err := child.biunify(rule.Head.Key, key, child.bindings, e.bindings, func() error {
 		defined = true
 		return child.eval(func(child *eval) error {
-			child.traceExit(rule)
 
 			term := rule.Head.Value
 			if term == nil {
@@ -1992,6 +1997,23 @@ func (e evalVirtualPartial) evalOneRulePreUnify(iter unifyIterator, rule *ast.Ru
 				e.e.virtualCache.Put(cacheKey, result)
 			}
 
+			// NOTE(tsandall): if the rule set depends on any unknowns then do
+			// not perform the duplicate check because evaluation of the ruleset
+			// may not produce a definitive result. This is a bit strict--we
+			// could improve by skipping only when saves occur.
+			if !unknown {
+				var dup bool
+				var err error
+				result, dup, err = e.reduce(rule.Head, child.bindings, result)
+				if err != nil {
+					return err
+				} else if dup {
+					child.traceDuplicate(rule)
+					return nil
+				}
+			}
+
+			child.traceExit(rule)
 			term, termbindings := child.bindings.apply(term)
 			err := e.evalTerm(iter, term, termbindings)
 			if err != nil {
@@ -2180,23 +2202,28 @@ func (e evalVirtualPartial) evalCache(iter unifyIterator) (ast.Ref, bool, error)
 	return cacheKey, false, nil
 }
 
-func (e evalVirtualPartial) reduce(head *ast.Head, b *bindings, result *ast.Term) (*ast.Term, error) {
+func (e evalVirtualPartial) reduce(head *ast.Head, b *bindings, result *ast.Term) (*ast.Term, bool, error) {
+
+	var exists bool
+	key := b.Plug(head.Key)
 
 	switch v := result.Value.(type) {
 	case ast.Set:
-		v.Add(b.Plug(head.Key))
+		exists = v.Contains(key)
+		v.Add(key)
 	case ast.Object:
-		key := b.Plug(head.Key)
 		value := b.Plug(head.Value)
-		exist := v.Get(key)
-		if exist != nil && !exist.Equal(value) {
-			return nil, objectDocKeyConflictErr(head.Location)
+		if curr := v.Get(key); curr != nil {
+			if !curr.Equal(value) {
+				return nil, false, objectDocKeyConflictErr(head.Location)
+			}
+			exists = true
+		} else {
+			v.Insert(key, value)
 		}
-		v.Insert(key, value)
-		result.Value = v
 	}
 
-	return result, nil
+	return result, exists, nil
 }
 
 type evalVirtualComplete struct {
