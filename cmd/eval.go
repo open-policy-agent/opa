@@ -17,6 +17,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/ast/location"
 	"github.com/open-policy-agent/opa/cover"
 	fileurl "github.com/open-policy-agent/opa/internal/file/url"
 	pr "github.com/open-policy-agent/opa/internal/presentation"
@@ -275,6 +276,7 @@ func eval(args []string, params evalCommandParams, w io.Writer) (bool, error) {
 		if resultErr == nil {
 			parsedModules = pq.Modules()
 			result.Partial, resultErr = pq.Partial(ctx, ectx.evalArgs...)
+			resetExprLocations(result.Partial)
 		}
 	}
 
@@ -560,4 +562,43 @@ func (f *intFlag) Set(s string) error {
 
 func (f *intFlag) isFlagSet() bool {
 	return f.isSet
+}
+
+// resetExprLocations overwrites the row in the location info for every expression contained in pq.
+// The location on every expression is shallow copied to avoid mutating shared state. Overwriting
+// the rows ensures that the formatting package does not leave blank lines in between expressions (e.g.,
+// if expression 1 was saved on L10 and expression 2 was saved on L20 then the formatting package would
+// squash the blank lines.)
+func resetExprLocations(pq *rego.PartialQueries) {
+	if pq == nil {
+		return
+	}
+
+	vis := &astLocationResetVisitor{}
+
+	for i := range pq.Queries {
+		ast.NewGenericVisitor(vis.visit).Walk(pq.Queries[i])
+	}
+
+	for i := range pq.Support {
+		ast.NewGenericVisitor(vis.visit).Walk(pq.Support[i])
+	}
+}
+
+type astLocationResetVisitor struct {
+	n int
+}
+
+func (vis *astLocationResetVisitor) visit(x interface{}) bool {
+	if expr, ok := x.(*ast.Expr); ok {
+		if expr.Location != nil {
+			cpy := *expr.Location
+			cpy.Row = vis.n
+			expr.Location = &cpy
+		} else {
+			expr.Location = location.NewLocation(nil, "", vis.n, 1)
+		}
+		vis.n++
+	}
+	return false
 }
