@@ -224,6 +224,77 @@ func TestPlannerHelloWorld(t *testing.T) {
 			note:    "relation unify",
 			queries: []string{`walk(input, [["foo", y], x])`},
 		},
+		{
+			note:    "else conflict-1",
+			queries: []string{`data.p.q`},
+			modules: []string{
+				`package p
+
+				q {
+					false
+				}
+				else = true {
+					true
+				}
+				q = false
+				`,
+			},
+		},
+		{
+			note:    "else conflict-2",
+			queries: []string{`data.p.q`},
+			modules: []string{
+				`package p
+
+				q {
+					false
+				}
+				else = false {
+					true
+				}
+				q {
+					false
+				}
+				else = true {
+					true
+				}`,
+			},
+		},
+		{
+			note:    "multiple function outputs (single)",
+			queries: []string{`data.p.r`},
+			modules: []string{
+				`package p
+
+				p(a) = y {
+				  y = a[_]
+				}
+
+				r = y {
+				  data.p.p([1, 2, 3], y)
+				}
+				`,
+			},
+		},
+		{
+			note:    "multiple function outputs (multiple)",
+			queries: []string{`data.p.r`},
+			modules: []string{
+				`package p
+
+				p(1, a) = y {
+					y = a
+				}
+				p(x, y) = z {
+					z = x
+				}
+
+				r = y {
+					data.p.p(1, 0, y)
+				}
+				`,
+			},
+		},
 	}
 
 	for _, tc := range tests {
@@ -261,6 +332,7 @@ func TestPlannerHelloWorld(t *testing.T) {
 type cmpWalker struct {
 	needle interface{}
 	loc    string
+	found  bool // stop comparing after first found needle
 }
 
 func (*cmpWalker) Before(interface{}) {}
@@ -276,7 +348,8 @@ func (*cmpWalker) After(interface{})  {}
 // returned. This trap can be avoided by starting with a failing test,
 // and proceeding with caution. ;)
 func (f *cmpWalker) Visit(x interface{}) (ir.Visitor, error) {
-	if reflect.TypeOf(f.needle) == reflect.TypeOf(x) {
+	if !f.found && reflect.TypeOf(f.needle) == reflect.TypeOf(x) {
+		f.found = true
 		expLoc := f.loc
 		actLoc := getLocation(x)
 		if expLoc != actLoc {
@@ -402,7 +475,7 @@ p = x {
 				&ir.AssignVarOnceStmt{}: `module-0.rego:3:9: p = {"foo": "bar"}`,
 			},
 			where: func(p *ir.Policy) interface{} {
-				return p.Funcs.Funcs[0].Blocks[1] // default rule block
+				return p.Funcs.Funcs[0].Blocks[2] // default rule block
 			},
 		},
 		{

@@ -121,6 +121,39 @@ a = "c" { input > 2 }`,
 			},
 			WantErr: "module.rego:3:1: var assignment conflict: internal error",
 		},
+		{
+			Description: "Runtime error/else conflict-1",
+			Query:       `data.p.q`,
+			Policy: `
+				q {
+					false
+				}
+				else = true {
+					true
+				}
+				q = false`,
+			Evals:   []Eval{{}},
+			WantErr: "module.rego:9:5: var assignment conflict: internal error",
+		},
+		{
+			Description: "Runtime error/else conflict-2",
+			Query:       `data.p.q`,
+			Policy: `
+				q {
+					false
+				}
+				else = false {
+					true
+				}
+				q {
+					false
+				}
+				else = true {
+					true
+				}`,
+			Evals:   []Eval{{}},
+			WantErr: "module.rego:12:5: var assignment conflict: internal error",
+		},
 		// NOTE(sr): The next two test cases were used to replicate issue
 		// https://github.com/open-policy-agent/opa/issues/2962 -- their raison d'être
 		// is thus questionable, but it might be good to keep them around a bit.
