@@ -265,7 +265,7 @@ static struct heap_block * __opa_malloc_reuse_varying(struct heap_blocks *blocks
     return NULL;
 }
 
-WASM_EXPORT(opa_free) // TODO(sr): undocumented export
+WASM_EXPORT(opa_free)
 void opa_free(void *ptr)
 {
     struct heap_block *block = ptr - sizeof(struct heap_block);
