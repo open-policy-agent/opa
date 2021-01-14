@@ -118,6 +118,7 @@ static void init(void)
 static struct heap_block * __opa_malloc_reuse_fixed(struct heap_blocks *blocks);
 static struct heap_block * __opa_malloc_reuse_varying(struct heap_blocks *blocks, size_t size);
 
+WASM_EXPORT(opa_heap_ptr_get)
 unsigned int opa_heap_ptr_get(void)
 {
     return heap_ptr;
@@ -128,6 +129,7 @@ unsigned int opa_heap_top_get(void)
     return heap_top;
 }
 
+WASM_EXPORT(opa_heap_ptr_set)
 void opa_heap_ptr_set(unsigned int ptr)
 {
     heap_ptr = ptr;
@@ -175,6 +177,7 @@ static void *__opa_malloc_new_allocation(size_t size)
     return b->data;
 }
 
+WASM_EXPORT(opa_malloc)
 void *opa_malloc(size_t size)
 {
     init();
@@ -262,6 +265,7 @@ static struct heap_block * __opa_malloc_reuse_varying(struct heap_blocks *blocks
     return NULL;
 }
 
+WASM_EXPORT(opa_free)
 void opa_free(void *ptr)
 {
     struct heap_block *block = ptr - sizeof(struct heap_block);

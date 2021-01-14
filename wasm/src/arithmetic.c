@@ -3,9 +3,11 @@
 
 #include "mpd.h"
 #include "set.h"
+#include "std.h"
 #include "str.h"
 #include "value.h"
 
+OPA_BUILTIN
 opa_value *opa_arith_abs(opa_value *v)
 {
     mpd_t *n = opa_number_to_bf(v);
@@ -28,6 +30,7 @@ opa_value *opa_arith_abs(opa_value *v)
     return opa_bf_to_number(r);
 }
 
+OPA_BUILTIN
 opa_value *opa_arith_round(opa_value *v)
 {
     mpd_t *n = opa_number_to_bf(v);
@@ -50,6 +53,7 @@ opa_value *opa_arith_round(opa_value *v)
     return opa_bf_to_number(r);
 }
 
+OPA_BUILTIN
 opa_value *opa_arith_ceil(opa_value *v)
 {
     mpd_t *n = opa_number_to_bf(v);
@@ -72,6 +76,7 @@ opa_value *opa_arith_ceil(opa_value *v)
     return opa_bf_to_number(r);
 }
 
+OPA_BUILTIN
 opa_value *opa_arith_floor(opa_value *v)
 {
      mpd_t *n = opa_number_to_bf(v);
@@ -94,6 +99,7 @@ opa_value *opa_arith_floor(opa_value *v)
     return opa_bf_to_number(r);
 }
 
+OPA_BUILTIN
 opa_value *opa_arith_plus(opa_value *a, opa_value *b)
 {
     mpd_t *x = opa_number_to_bf(a);
@@ -121,6 +127,7 @@ opa_value *opa_arith_plus(opa_value *a, opa_value *b)
     return opa_bf_to_number(r);
 }
 
+OPA_BUILTIN
 opa_value *opa_arith_minus(opa_value *a, opa_value *b)
 {
     mpd_t *x = opa_number_to_bf(a);
@@ -149,6 +156,7 @@ opa_value *opa_arith_minus(opa_value *a, opa_value *b)
     return opa_set_diff(a, b);
 }
 
+OPA_BUILTIN
 opa_value *opa_arith_multiply(opa_value *a, opa_value *b)
 {
     mpd_t *x = opa_number_to_bf(a);
@@ -176,6 +184,7 @@ opa_value *opa_arith_multiply(opa_value *a, opa_value *b)
     return opa_bf_to_number(r);
 }
 
+OPA_BUILTIN
 opa_value *opa_arith_divide(opa_value *a, opa_value *b)
 {
     mpd_t *x = opa_number_to_bf(a);
@@ -209,6 +218,7 @@ opa_value *opa_arith_divide(opa_value *a, opa_value *b)
     return opa_bf_to_number(r);
 }
 
+OPA_BUILTIN
 opa_value *opa_arith_rem(opa_value *a, opa_value *b)
 {
     mpd_t *x = opa_number_to_bf(a);

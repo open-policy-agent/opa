@@ -2,8 +2,10 @@
 #include "malloc.h"
 #include "mpd.h"
 #include "printf.h"
+#include "std.h"
 #include "str.h"
 
+OPA_INTERNAL
 void opa_runtime_error(const char *loc, int row, int col, const char *msg)
 {
     char row_str[sizeof(row)*8+1];

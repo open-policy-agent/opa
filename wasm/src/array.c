@@ -1,5 +1,7 @@
+#include "std.h"
 #include "value.h"
 
+OPA_BUILTIN
 opa_value *opa_array_concat(opa_value *a, opa_value *b)
 {
     if (opa_value_type(a) != OPA_ARRAY || opa_value_type(b) != OPA_ARRAY)
@@ -24,6 +26,7 @@ opa_value *opa_array_concat(opa_value *a, opa_value *b)
     return &r->hdr;
 }
 
+OPA_BUILTIN
 opa_value *opa_array_slice(opa_value *a, opa_value *i, opa_value *j)
 {
     if (opa_value_type(a) != OPA_ARRAY || opa_value_type(i) != OPA_NUMBER || opa_value_type(j) != OPA_NUMBER)

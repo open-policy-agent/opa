@@ -1,5 +1,7 @@
 #include "set.h"
+#include "std.h"
 
+OPA_BUILTIN
 opa_value *opa_set_diff(opa_value *a, opa_value *b)
 {
     if (opa_value_type(a) != OPA_SET || opa_value_type(b) != OPA_SET)
@@ -28,6 +30,7 @@ opa_value *opa_set_diff(opa_value *a, opa_value *b)
 	return &r->hdr;
 }
 
+OPA_BUILTIN
 opa_value *opa_set_intersection(opa_value *a, opa_value *b)
 {
     if (opa_value_type(a) != OPA_SET || opa_value_type(b) != OPA_SET)
@@ -62,6 +65,7 @@ opa_value *opa_set_intersection(opa_value *a, opa_value *b)
     return &r->hdr;
 }
 
+OPA_BUILTIN
 opa_value *opa_sets_intersection(opa_value *v)
 {
     if (opa_value_type(v) != OPA_SET)
@@ -110,6 +114,7 @@ opa_value *opa_sets_intersection(opa_value *v)
     return r;
 }
 
+OPA_BUILTIN
 opa_value *opa_set_union(opa_value *a, opa_value *b)
 {
     if (opa_value_type(a) != OPA_SET || opa_value_type(b) != OPA_SET)
@@ -146,6 +151,7 @@ opa_value *opa_set_union(opa_value *a, opa_value *b)
 	return &r->hdr;
 }
 
+OPA_BUILTIN
 opa_value *opa_sets_union(opa_value *v)
 {
     if (opa_value_type(v) != OPA_SET)

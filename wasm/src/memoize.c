@@ -1,5 +1,6 @@
 #include "memoize.h"
 #include "malloc.h"
+#include "std.h"
 
 struct memoize {
     struct memoize  *prev;
@@ -16,16 +17,19 @@ struct memoize *opa_memoize_alloc(struct memoize *prev)
     return result;
 }
 
+OPA_INTERNAL
 void opa_memoize_init(void)
 {
     m = opa_memoize_alloc(NULL);
 }
 
+OPA_INTERNAL
 void opa_memoize_push(void)
 {
     m = opa_memoize_alloc(m);
 }
 
+OPA_INTERNAL
 void opa_memoize_pop(void)
 {
     // NOTE(tsandall): free() is not called because we assume the heap will be
@@ -33,6 +37,7 @@ void opa_memoize_pop(void)
     m = m->prev;
 }
 
+OPA_INTERNAL
 void opa_memoize_insert(int32_t index, opa_value *value)
 {
     // NOTE(tsandall): allocating a number is suboptimal but worst-case is ~1 per
@@ -41,6 +46,7 @@ void opa_memoize_insert(int32_t index, opa_value *value)
     opa_object_insert(m->table, key, value);
 }
 
+OPA_INTERNAL
 opa_value *opa_memoize_get(int32_t index)
 {
     opa_number_t key;

@@ -1,6 +1,7 @@
 #include "regex.h"
 #include "re2/re2.h"
 #include "malloc.h"
+#include "std.h"
 #include "str.h"
 #include "unicode.h"
 #include "util/utf.h"
@@ -9,6 +10,7 @@
 
 typedef std::unordered_map<std::string, re2::RE2*> re_cache;
 
+OPA_BUILTIN
 opa_value *opa_regex_is_valid(opa_value *pattern)
 {
     if (opa_value_type(pattern) != OPA_STRING)
@@ -62,6 +64,7 @@ static void reuse(re2::RE2 *re)
     cache()->insert(std::make_pair(re->pattern(), re));
 }
 
+OPA_BUILTIN
 opa_value *opa_regex_match(opa_value *pattern, opa_value *value)
 {
     if (opa_value_type(pattern) != OPA_STRING || opa_value_type(value) != OPA_STRING)
@@ -83,6 +86,7 @@ opa_value *opa_regex_match(opa_value *pattern, opa_value *value)
     return opa_boolean(match);
 }
 
+OPA_BUILTIN
 opa_value *opa_regex_find_all_string_submatch(opa_value *pattern, opa_value *value, opa_value *number)
 {
     if (opa_value_type(pattern) != OPA_STRING || opa_value_type(value) != OPA_STRING || opa_value_type(number) != OPA_NUMBER)

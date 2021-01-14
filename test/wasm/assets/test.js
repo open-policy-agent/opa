@@ -271,9 +271,10 @@ async function test() {
             const result = evaluate(policy, testCases[i].input);
 
             const expDefined = testCases[i].want_defined;
+            const rs = dumpJSON(policy.module, policy.memory, result.addr);
 
             if (expDefined !== undefined) {
-                const len = policy.module.instance.exports.opa_value_length(result.addr);
+                const len = rs.length
                 if (expDefined) {
                     if (len > 0) {
                         state = PASS;
@@ -292,8 +293,6 @@ async function test() {
             const expResultSet = testCases[i].want_result;
 
             if (expResultSet !== undefined) {
-
-                const rs = dumpJSON(policy.module, policy.memory, result.addr);
 
                 // Note: Resultset ordering does not matter.
                 if (rs.length === expResultSet.length) {

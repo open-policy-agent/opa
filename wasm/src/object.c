@@ -1,5 +1,5 @@
+#include "std.h"
 #include "object.h"
-
 
 static opa_value *__merge(opa_value *a, opa_value *b);
 static opa_value *__merge_with_overwrite(opa_value *a, opa_value *b);
@@ -71,6 +71,7 @@ static void __copy_object_elem(opa_object_t *result, opa_value *a, opa_value *b)
     }
 }
 
+OPA_BUILTIN
 opa_value *builtin_object_filter(opa_value *obj, opa_value *keys)
 {
     if (opa_value_type(obj) != OPA_OBJECT)
@@ -110,6 +111,7 @@ opa_value *builtin_object_filter(opa_value *obj, opa_value *keys)
     return &r->hdr;
 }
 
+OPA_BUILTIN
 opa_value *builtin_object_get(opa_value *obj, opa_value *key, opa_value *value)
 {
     if (opa_value_type(obj) != OPA_OBJECT)
@@ -126,6 +128,7 @@ opa_value *builtin_object_get(opa_value *obj, opa_value *key, opa_value *value)
     return value;
 }
 
+OPA_BUILTIN
 opa_value *builtin_object_remove(opa_value *obj, opa_value *keys)
 {
     if (opa_value_type(obj)  != OPA_OBJECT ||
@@ -172,6 +175,7 @@ opa_value *builtin_object_remove(opa_value *obj, opa_value *keys)
     return &r->hdr;
 }
 
+OPA_BUILTIN
 opa_value *builtin_object_union(opa_value *a, opa_value *b)
 {
     if (opa_value_type(a) != OPA_OBJECT)

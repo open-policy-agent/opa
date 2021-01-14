@@ -687,6 +687,8 @@ opa_value *opa_json_parse_token(opa_json_lex *ctx, int token)
     }
 }
 
+OPA_INTERNAL
+WASM_EXPORT(opa_json_parse)
 opa_value *opa_json_parse(const char *input, size_t len)
 {
     opa_json_lex ctx;
@@ -695,6 +697,8 @@ opa_value *opa_json_parse(const char *input, size_t len)
     return opa_json_parse_token(&ctx, token);
 }
 
+OPA_INTERNAL
+WASM_EXPORT(opa_value_parse)
 opa_value *opa_value_parse(const char *input, size_t len)
 {
     opa_json_lex ctx;
@@ -1065,6 +1069,7 @@ errout:
     return NULL;
 }
 
+WASM_EXPORT(opa_json_dump)
 char *opa_json_dump(opa_value *v)
 {
     opa_json_writer w;
@@ -1072,6 +1077,7 @@ char *opa_json_dump(opa_value *v)
     return opa_json_writer_write(&w, v);
 }
 
+WASM_EXPORT(opa_value_dump)
 char *opa_value_dump(opa_value *v)
 {
     opa_json_writer w;

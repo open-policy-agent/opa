@@ -217,6 +217,7 @@ static unsigned char * base64_url_decode(const unsigned char *src, size_t len,
 	return base64_gen_decode(src, len, out_len, base64_url_table);
 }
 
+OPA_BUILTIN
 opa_value *opa_base64_is_valid(opa_value *a)
 {
     if (opa_value_type(a) != OPA_STRING)
@@ -236,6 +237,7 @@ opa_value *opa_base64_is_valid(opa_value *a)
     return opa_boolean(TRUE);
 }
 
+OPA_BUILTIN
 opa_value *opa_base64_decode(opa_value *a)
 {
     if (opa_value_type(a) != OPA_STRING)
@@ -249,6 +251,7 @@ opa_value *opa_base64_decode(opa_value *a)
     return dec == NULL ? NULL : opa_string_allocated(dec, len);
 }
 
+OPA_BUILTIN
 opa_value *opa_base64_encode(opa_value *a)
 {
     if (opa_value_type(a) != OPA_STRING)
@@ -262,6 +265,7 @@ opa_value *opa_base64_encode(opa_value *a)
     return enc == NULL ? NULL : opa_string_allocated(enc, len);
 }
 
+OPA_BUILTIN
 opa_value *opa_base64_url_decode(opa_value *a)
 {
     if (opa_value_type(a) != OPA_STRING)
@@ -275,6 +279,7 @@ opa_value *opa_base64_url_decode(opa_value *a)
     return dec == NULL ? NULL : opa_string_allocated(dec, len);
 }
 
+OPA_BUILTIN
 opa_value *opa_base64_url_encode(opa_value *a)
 {
     if (opa_value_type(a) != OPA_STRING)
@@ -288,6 +293,7 @@ opa_value *opa_base64_url_encode(opa_value *a)
     return enc == NULL ? NULL : opa_string_allocated(enc, len);
 }
 
+OPA_BUILTIN
 opa_value *opa_json_unmarshal(opa_value *a)
 {
     if (opa_value_type(a) != OPA_STRING)
@@ -298,6 +304,8 @@ opa_value *opa_json_unmarshal(opa_value *a)
     opa_string_t *s = opa_cast_string(a);
     return opa_json_parse(s->v, s->len);
 }
+
+OPA_BUILTIN
 opa_value *opa_json_marshal(opa_value *a)
 {
     const char *v = opa_json_dump(a);

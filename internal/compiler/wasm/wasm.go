@@ -244,20 +244,8 @@ func (c *Compiler) initModule() error {
 	}
 
 	c.funcs = make(map[string]uint32)
-	var funcidx uint32
-
-	for _, imp := range c.module.Import.Imports {
-		if imp.Descriptor.Kind() == module.FunctionImportType {
-			c.funcs[imp.Name] = funcidx
-			funcidx++
-		}
-	}
-
-	for i := range c.module.Export.Exports {
-		exp := &c.module.Export.Exports[i]
-		if exp.Descriptor.Type == module.FunctionExportType {
-			c.funcs[exp.Name] = exp.Descriptor.Index
-		}
+	for _, fn := range c.module.Names.Functions {
+		c.funcs[fn.Name] = fn.Index
 	}
 
 	c.planfuncs = map[string]struct{}{}
@@ -1135,7 +1123,7 @@ func (c *Compiler) compileExternalCall(stmt *ir.CallStmt, id int32, result *[]in
 		instrs = append(instrs, instruction.GetLocal{Index: c.local(arg)})
 	}
 
-	instrs = append(instrs, instruction.Call{Index: c.funcs[builtinDispatchers[len(stmt.Args)]]})
+	instrs = append(instrs, instruction.Call{Index: c.function(builtinDispatchers[len(stmt.Args)])})
 	instrs = append(instrs, instruction.TeeLocal{Index: c.local(stmt.Result)})
 	instrs = append(instrs, instruction.I32Eqz{})
 	instrs = append(instrs, instruction.BrIf{Index: 0})
@@ -1238,7 +1226,11 @@ func (c *Compiler) genLocal() uint32 {
 }
 
 func (c *Compiler) function(name string) uint32 {
-	return c.funcs[name]
+	fidx, ok := c.funcs[name]
+	if !ok {
+		panic(fmt.Sprintf("function not found: %s", name))
+	}
+	return fidx
 }
 
 func (c *Compiler) appendInstr(instr instruction.Instruction) {

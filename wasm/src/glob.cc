@@ -5,6 +5,7 @@
 #include "glob-compiler.h"
 #include "malloc.h"
 #include "regex.h"
+#include "std.h"
 #include "value.h"
 
 struct cache_key {
@@ -49,6 +50,7 @@ static glob_cache* cache()
     return c;
 }
 
+OPA_BUILTIN
 opa_value *opa_glob_match(opa_value *pattern, opa_value *delimiters, opa_value *match)
 {
     if (opa_value_type(pattern) != OPA_STRING || opa_value_type(delimiters) != OPA_ARRAY || opa_value_type(match) != OPA_STRING)

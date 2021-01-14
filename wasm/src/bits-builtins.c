@@ -1,9 +1,11 @@
 #include "arithmetic.h"
 #include "bits.h"
 #include "mpd.h"
+#include "std.h"
 
 #define swap(x, y) { mpd_t *v = x; x = y; y = v; }
 
+OPA_BUILTIN
 opa_value *opa_bits_or(opa_value *a, opa_value *b)
 {
     mpd_t *x = opa_number_to_bf(a);
@@ -43,6 +45,7 @@ opa_value *opa_bits_or(opa_value *a, opa_value *b)
     return opa_bf_to_number(qneg(z));
 }
 
+OPA_BUILTIN
 opa_value *opa_bits_and(opa_value *a, opa_value *b)
 {
     mpd_t *x = opa_number_to_bf(a);
@@ -82,6 +85,7 @@ opa_value *opa_bits_and(opa_value *a, opa_value *b)
     return opa_bf_to_number(z);
 }
 
+OPA_BUILTIN
 opa_value *opa_bits_negate(opa_value *a)
 {
     mpd_t *x = opa_number_to_bf(a);
@@ -110,6 +114,7 @@ opa_value *opa_bits_negate(opa_value *a)
     return opa_bf_to_number(qneg(qadd_one(x)));
 }
 
+OPA_BUILTIN
 opa_value *opa_bits_xor(opa_value *a, opa_value *b)
 {
     mpd_t *x = opa_number_to_bf(a);
@@ -148,6 +153,7 @@ opa_value *opa_bits_xor(opa_value *a, opa_value *b)
     return opa_bf_to_number(qneg(z));
 }
 
+OPA_BUILTIN
 opa_value *opa_bits_shiftleft(opa_value *a, opa_value *b)
 {
     mpd_t *x = opa_bf_to_bf_bits(opa_number_to_bf(a));
@@ -184,6 +190,7 @@ opa_value *opa_bits_shiftleft(opa_value *a, opa_value *b)
     return opa_bf_to_number(opa_bf_bits_to_bf(r));
 }
 
+OPA_BUILTIN
 opa_value *opa_bits_shiftright(opa_value *a, opa_value *b)
 {
     mpd_t *x = opa_number_to_bf(a);
