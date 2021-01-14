@@ -173,6 +173,12 @@ cases:
   - note: object.union built-in
     query: 'object.union({"a": 1}, {"a": {"b": {"c": 1}}, "d": 7}, x)'
     want_result: [{'x': {"a": {"b": {"c": 1}}, "d": 7}}]
+  - note: json.remove built-in
+    query: 'json.remove({"a": {"b": {"c": 7, "d": 8}}, "e": 9}, {"a/b/c"}, x)'
+    want_result: [{'x': {"a": {"b": {"d": 8}}, "e": 9}}]
+  - note: json.remove built-in
+    query: 'json.remove({"a": {"b": {"c": 7, "d": 8}}, "e": 9}, {"a/b/c", "e"}, x)'
+    want_result: [{'x': {"a": {"b": {"d": 8}}}}]
   - note: concat built-in
     query: concat(",",["a","b"],x)
     want_result: [{'x': "a,b"}]
