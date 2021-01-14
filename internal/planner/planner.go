@@ -1597,12 +1597,12 @@ func (p *Planner) planRefData(virtual *ruletrie, base *baseptr, ref ast.Ref, ind
 		return p.planScan(ref[index], func(lkey ir.Local) error {
 			if lexclude != nil {
 				lignore := p.newLocal()
-				b := &ir.Block{}
-				p.appendStmtToBlock(&ir.DotStmt{
-					Source: *lexclude,
-					Key:    lkey,
-					Target: lignore,
-				}, b)
+				p.appendStmt(&ir.NotStmt{
+					Block: p.blockWithStmt(&ir.DotStmt{
+						Source: *lexclude,
+						Key:    lkey,
+						Target: lignore,
+					})})
 			}
 
 			// Assume that virtual sub trees have been visited already so
