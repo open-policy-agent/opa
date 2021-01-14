@@ -1941,6 +1941,309 @@ void test_object_union(void)
     test("object/union (non-object second operand)", opa_value_compare(builtin_object_union(opa_object(), opa_string_terminated("a")), NULL) == 0);
 }
 
+opa_object_t *json_remove_fixture_object1()
+{
+    opa_object_t *obj1 = opa_cast_object(opa_object());
+    opa_object_insert(obj1, opa_string_terminated("c"), opa_number_int(7));
+    opa_object_insert(obj1, opa_string_terminated("d"), opa_number_int(8));
+
+    opa_object_t *obj2 = opa_cast_object(opa_object());
+    opa_object_insert(obj2, opa_string_terminated("b"), &obj1->hdr);
+
+    opa_object_t *obj = opa_cast_object(opa_object());
+    opa_object_insert(obj, opa_string_terminated("a"), &obj2->hdr);
+    opa_object_insert(obj, opa_string_terminated("e"), opa_number_int(9));
+    return obj;
+}
+
+opa_object_t *json_remove_fixture_object2()
+{
+    opa_object_t *obj1 = opa_cast_object(opa_object());
+    opa_object_insert(obj1, opa_string_terminated("c"), opa_number_int(7));
+    opa_object_insert(obj1, opa_string_terminated("d"), opa_number_int(8));
+
+    opa_object_t *obj2 = opa_cast_object(opa_object());
+    opa_object_insert(obj2, opa_string_terminated("b"), &obj1->hdr);
+    opa_object_insert(obj2, opa_string_terminated("e"), opa_number_int(9));
+
+    opa_object_t *obj = opa_cast_object(opa_object());
+    opa_object_insert(obj, opa_string_terminated("a"), &obj2->hdr);
+
+    return obj;
+}
+
+opa_object_t *json_remove_fixture_object3()
+{
+    opa_object_t *obj1 = opa_cast_object(opa_object());
+    opa_object_insert(obj1, opa_string_terminated("b"), opa_number_int(7));
+
+    opa_object_t *obj = opa_cast_object(opa_object());
+    opa_object_insert(obj, opa_string_terminated("a"), &obj1->hdr);
+    opa_object_insert(obj, opa_string_terminated("c"), opa_number_int(1));
+
+    return obj;
+}
+
+opa_object_t *json_remove_fixture_object4()
+{
+    opa_object_t *obj1 = opa_cast_object(opa_object());
+    opa_object_insert(obj1, opa_string_terminated("b"), opa_number_int(7));
+    opa_object_insert(obj1, opa_string_terminated("c"), opa_number_int(8));
+
+    opa_object_t *obj2 = opa_cast_object(opa_object());
+    opa_object_insert(obj2, opa_string_terminated("d"), opa_number_int(9));
+
+    opa_array_t *arr1 = opa_cast_array(opa_array());
+    opa_array_append(arr1, &obj1->hdr);
+    opa_array_append(arr1, &obj2->hdr);
+
+    opa_object_t *obj = opa_cast_object(opa_object());
+    opa_object_insert(obj, opa_string_terminated("a"), &arr1->hdr);
+
+    return obj;
+}
+
+opa_object_t *json_remove_fixture_object5()
+{
+    opa_array_t *arr1 = opa_cast_array(opa_array());
+    opa_array_append(arr1, opa_string_terminated("b"));
+    opa_array_append(arr1, opa_string_terminated("c"));
+    opa_array_append(arr1, opa_string_terminated("d"));
+
+    opa_object_t *obj1 = opa_cast_object(opa_object());
+    opa_object_insert(obj1, opa_string_terminated("1"), &arr1->hdr);
+
+    opa_object_t *obj2 = opa_cast_object(opa_object());
+    opa_object_insert(obj2, opa_string_terminated("x"), opa_string_terminated("y"));
+
+    opa_array_t *arr2 = opa_cast_array(opa_array());
+    opa_array_append(arr2, &obj1->hdr);
+    opa_array_append(arr2, &obj2->hdr);
+
+    opa_object_t *obj = opa_cast_object(opa_object());
+    opa_object_insert(obj, opa_string_terminated("a"), &arr2->hdr);
+
+    return obj;
+}
+
+opa_object_t *json_remove_fixture_object6()
+{
+    opa_object_t *obj1 = opa_cast_object(opa_object());
+    opa_object_insert(obj1, opa_string_terminated("c"), opa_number_int(7));
+    opa_object_insert(obj1, opa_string_terminated("d"), opa_number_int(8));
+    opa_object_insert(obj1, opa_string_terminated("x"), opa_number_int(0));
+
+    opa_object_t *obj2 = opa_cast_object(opa_object());
+    opa_object_insert(obj2, opa_string_terminated("b"), &obj1->hdr);
+
+    opa_object_t *obj = opa_cast_object(opa_object());
+    opa_object_insert(obj, opa_string_terminated("a"), &obj2->hdr);
+    opa_object_insert(obj, opa_string_terminated("e"), opa_number_int(9));
+    return obj;
+}
+
+opa_object_t *json_remove_get_exp_object1()
+{
+    opa_array_t *arr1 = opa_cast_array(opa_array());
+    opa_array_append(arr1, opa_string_terminated("b"));
+    opa_array_append(arr1, opa_string_terminated("c"));
+
+    opa_object_t *obj1 = opa_cast_object(opa_object());
+    opa_object_insert(obj1, opa_string_terminated("1"), &arr1->hdr);
+
+    opa_object_t *obj2 = opa_cast_object(opa_object());
+    opa_object_insert(obj2, opa_string_terminated("x"), opa_string_terminated("y"));
+
+    opa_array_t *arr2 = opa_cast_array(opa_array());
+    opa_array_append(arr2, &obj1->hdr);
+    opa_array_append(arr2, &obj2->hdr);
+
+    opa_object_t *obj = opa_cast_object(opa_object());
+    opa_object_insert(obj, opa_string_terminated("a"), &arr2->hdr);
+
+    return obj;
+}
+
+opa_object_t *json_remove_get_exp_object2()
+{
+    opa_object_t *obj1 = opa_cast_object(opa_object());
+    opa_object_insert(obj1, opa_string_terminated("x"), opa_number_int(0));
+
+    opa_object_t *obj2 = opa_cast_object(opa_object());
+    opa_object_insert(obj2, opa_string_terminated("b"), &obj1->hdr);
+
+    opa_object_t *obj = opa_cast_object(opa_object());
+    opa_object_insert(obj, opa_string_terminated("a"), &obj2->hdr);
+    opa_object_insert(obj, opa_string_terminated("e"), opa_number_int(9));
+    return obj;
+}
+
+void test_json_remove(void)
+{
+    opa_object_t *obj1 = json_remove_fixture_object1();
+
+    opa_set_t *set_paths1 = opa_cast_set(opa_set());
+    opa_set_add(set_paths1, opa_string_terminated("a/b/c"));
+
+    opa_object_t *o1 = opa_cast_object(opa_object());
+    opa_object_insert(o1, opa_string_terminated("d"), opa_number_int(8));
+    opa_object_t *o2 = opa_cast_object(opa_object());
+    opa_object_insert(o2, opa_string_terminated("b"), &o1->hdr);
+
+    opa_object_t *expected1 = opa_cast_object(opa_object());
+    opa_object_insert(expected1, opa_string_terminated("a"), &o2->hdr);
+    opa_object_insert(expected1, opa_string_terminated("e"), opa_number_int(9));
+
+    test("jsonremove/base", opa_value_compare(builtin_json_remove(&obj1->hdr, &set_paths1->hdr), &expected1->hdr) == 0);
+
+    opa_set_add(set_paths1, opa_string_terminated("e"));
+
+    opa_object_t *expected2 = opa_cast_object(opa_object());
+    opa_object_insert(expected2, opa_string_terminated("a"), &o2->hdr);
+
+    test("jsonremove/multiple roots", opa_value_compare(builtin_json_remove(&obj1->hdr, &set_paths1->hdr), &expected2->hdr) == 0);
+
+    opa_array_t *array_paths1 = opa_cast_array(opa_array());
+    opa_array_append(array_paths1, opa_string_terminated("a/b/c"));
+    opa_array_append(array_paths1, opa_string_terminated("e"));
+
+    test("jsonremove/multiple roots array", opa_value_compare(builtin_json_remove(&obj1->hdr, &array_paths1->hdr), &expected2->hdr) == 0);
+
+    opa_object_t *obj2 = json_remove_fixture_object2();
+
+    opa_set_t *set_paths2 = opa_cast_set(opa_set());
+    opa_set_add(set_paths2, opa_string_terminated("a/b/c"));
+    opa_set_add(set_paths2, opa_string_terminated("a/e"));
+
+    test("jsonremove/shared roots", opa_value_compare(builtin_json_remove(&obj2->hdr, &set_paths2->hdr), &expected2->hdr) == 0);
+
+    opa_object_t *obj3 = json_remove_fixture_object3();
+    opa_set_t *set_paths3 = opa_cast_set(opa_set());
+    opa_set_add(set_paths3, opa_string_terminated("a"));
+    opa_set_add(set_paths3, opa_string_terminated("a/b"));
+
+    opa_object_t *expected3 = opa_cast_object(opa_object());
+    opa_object_insert(expected3, opa_string_terminated("c"), opa_number_int(1));
+
+    test("jsonremove/conflict", opa_value_compare(builtin_json_remove(&obj3->hdr, &set_paths3->hdr), &expected3->hdr) == 0);
+
+    opa_object_t *obj4 = opa_cast_object(opa_object());
+    opa_object_insert(obj4, opa_string_terminated("a"), opa_number_int(7));
+
+    test("jsonremove/empty list", opa_value_compare(builtin_json_remove(&obj4->hdr, opa_set()), &obj4->hdr) == 0);
+
+    test("jsonremove/empty object", opa_value_compare(builtin_json_remove(opa_object(), &set_paths3->hdr), opa_object()) == 0);
+
+    opa_object_t *obj5 = json_remove_fixture_object1();
+
+    opa_set_t *set_paths4 = opa_cast_set(opa_set());
+    opa_set_add(set_paths4, opa_string_terminated("a"));
+    opa_set_add(set_paths4, opa_string_terminated("e"));
+
+    test("jsonremove/delete all", opa_value_compare(builtin_json_remove(&obj5->hdr, &set_paths4->hdr), opa_object()) == 0);
+
+    opa_object_t *obj6 = json_remove_fixture_object4();
+
+    opa_set_t *set_paths5 = opa_cast_set(opa_set());
+    opa_set_add(set_paths5, opa_string_terminated("a/0/b"));
+    opa_set_add(set_paths5, opa_string_terminated("a/1"));
+
+    opa_object_t *o3 = opa_cast_object(opa_object());
+    opa_object_insert(o3, opa_string_terminated("c"), opa_number_int(8));
+    opa_array_t *a3 = opa_cast_array(opa_array());
+    opa_array_append(a3, &o3->hdr);
+    opa_object_t *expected4 = opa_cast_object(opa_object());
+    opa_object_insert(expected4, opa_string_terminated("a"), &a3->hdr);
+
+    test("jsonremove/arrays", opa_value_compare(builtin_json_remove(&obj6->hdr, &set_paths5->hdr), &expected4->hdr) == 0);
+
+    opa_object_t *obj7 = json_remove_fixture_object5();
+
+    opa_set_t *set_paths6 = opa_cast_set(opa_set());
+    opa_set_add(set_paths6, opa_string_terminated("a/0/1/2"));
+
+    opa_object_t *expected5 = json_remove_get_exp_object1();
+
+    test("jsonremove/object with number keys", opa_value_compare(builtin_json_remove(&obj7->hdr, &set_paths6->hdr), &expected5->hdr) == 0);
+
+    opa_object_t *obj8 = json_remove_fixture_object1();
+
+    opa_array_t *a4 = opa_cast_array(opa_array());
+    opa_array_append(a4, opa_string_terminated("a"));
+    opa_array_append(a4, opa_string_terminated("b"));
+    opa_array_append(a4, opa_string_terminated("c"));
+
+    opa_array_t *a5 = opa_cast_array(opa_array());
+    opa_array_append(a5, opa_string_terminated("e"));
+
+    opa_set_t *set_paths7 = opa_cast_set(opa_set());
+    opa_set_add(set_paths7, &a4->hdr);
+    opa_set_add(set_paths7, &a5->hdr);
+
+    test("jsonremove/arrays of roots", opa_value_compare(builtin_json_remove(&obj8->hdr, &set_paths7->hdr), &expected2->hdr) == 0);
+
+    opa_object_t *obj9 = json_remove_fixture_object6();
+
+    opa_set_t *set_paths8 = opa_cast_set(opa_set());
+    opa_set_add(set_paths8, opa_string_terminated("a/b/d"));
+    opa_set_add(set_paths8, &a4->hdr);
+
+    opa_object_t *expected6 = json_remove_get_exp_object2();
+
+    test("jsonremove/mixed root types", opa_value_compare(builtin_json_remove(&obj9->hdr, &set_paths8->hdr), &expected6->hdr) == 0);
+
+    test("jsonremove/error (invalid first operand - string)", opa_value_compare(builtin_json_remove(opa_string_terminated("a"),  opa_set()), NULL) == 0);
+
+    test("jsonremove/error (invalid first operand - number)", opa_value_compare(builtin_json_remove(opa_number_int(22),  opa_set()), NULL) == 0);
+
+    test("jsonremove/error (invalid first operand - boolean)", opa_value_compare(builtin_json_remove(opa_boolean(TRUE),  opa_set()), NULL) == 0);
+
+    test("jsonremove/error (invalid first operand - array)", opa_value_compare(builtin_json_remove(opa_array(),  opa_set()), NULL) == 0);
+
+    test("jsonremove/error (invalid second operand - string)", opa_value_compare(builtin_json_remove(opa_object(), opa_string_terminated("a")), NULL) == 0);
+
+    test("jsonremove/error (invalid second operand - number)", opa_value_compare(builtin_json_remove(opa_object(), opa_number_int(22)), NULL) == 0);
+
+    test("jsonremove/error (invalid second operand - boolean)", opa_value_compare(builtin_json_remove(opa_object(), opa_boolean(TRUE)), NULL) == 0);
+
+    test("jsonremove/error (invalid second operand - object)", opa_value_compare(builtin_json_remove(opa_object(), opa_object()), NULL) == 0);
+
+    opa_set_t *set_paths9 = opa_cast_set(opa_set());
+    opa_set_add(set_paths9, opa_number_int(1));
+    opa_set_add(set_paths9, opa_string_terminated("a"));
+
+    test("jsonremove/error invalid paths type set with numbers", opa_value_compare(builtin_json_remove(opa_object(), &set_paths9->hdr), NULL) == 0);
+
+    opa_set_t *set_paths10 = opa_cast_set(opa_set());
+    opa_set_add(set_paths10, opa_string_terminated("a"));
+    opa_set_add(set_paths10, &obj9->hdr);
+
+    test("jsonremove/error invalid paths type set with objects", opa_value_compare(builtin_json_remove(opa_object(), &set_paths10->hdr), NULL) == 0);
+
+    opa_array_t *array_paths2 = opa_cast_array(opa_array());
+    opa_array_append(array_paths2, opa_string_terminated("a"));
+    opa_array_append(array_paths2, opa_number_int(1));
+    opa_array_append(array_paths2, opa_number_int(2));
+
+    test("jsonremove/error invalid paths type array with numbers", opa_value_compare(builtin_json_remove(opa_object(), &array_paths2->hdr), NULL) == 0);
+
+    opa_array_t *array_paths3 = opa_cast_array(opa_array());
+    opa_array_append(array_paths3, opa_string_terminated("a"));
+    opa_array_append(array_paths3, opa_object());
+
+    test("jsonremove/error invalid paths type array with objects", opa_value_compare(builtin_json_remove(opa_object(), &array_paths3->hdr), NULL) == 0);
+
+    opa_set_t *set_paths11 = opa_cast_set(opa_set());
+    opa_set_add(set_paths11, opa_string_terminated("a/b"));
+    opa_set_add(set_paths11, opa_string_terminated("e"));
+
+    opa_object_t *expected7 = opa_cast_object(opa_object());
+    opa_object_insert(expected7, opa_string_terminated("a"), opa_object());
+
+    test("jsonremove/delete last in object", opa_value_compare(builtin_json_remove(&obj5->hdr, &set_paths11->hdr), &expected7->hdr) == 0);
+
+}
+
 void test_builtin_graph_reachable(void)
 {
 
