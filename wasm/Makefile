@@ -157,5 +157,4 @@ $(WASM_OBJ_DIR)/opa-test.wasm: $(OBJS) $(CPP_OBJS) $(LIB_OBJS) $(LIB_MPDEC_OBJS)
 			--allow-undefined-file=_obj/undefined.symbols \
 			--import-memory \
 			--no-entry \
-			--export-all \
 			-o $@ $^
