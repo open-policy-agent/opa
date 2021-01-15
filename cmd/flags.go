@@ -134,6 +134,10 @@ func addSchemaFlag(fs *pflag.FlagSet, schemaPath *string) {
 	fs.StringVarP(schemaPath, "schema", "s", "", "set schema file path")
 }
 
+func addTargetFlag(fs *pflag.FlagSet, target *util.EnumFlag) {
+	fs.VarP(target, "target", "t", "set the runtime to exercise")
+}
+
 const (
 	explainModeOff   = "off"
 	explainModeFull  = "full"

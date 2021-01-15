@@ -1712,6 +1712,105 @@ func TestPrepareWithEmptyModule(t *testing.T) {
 	}
 }
 
+func TestPrepareWithWasmTargetNotSupported(t *testing.T) {
+	files := map[string]string{
+		"x/x.rego":     "package x\np = data.x.b",
+		"x/data.json":  `{"b": "bar"}`,
+		"/policy.wasm": `modules-compiled-as-wasm-binary`,
+	}
+
+	test.WithTempFS(files, func(path string) {
+		ctx := context.Background()
+
+		_, err := New(
+			LoadBundle(path),
+			Query("data.x.p"),
+			Target("wasm"),
+		).PrepareForEval(ctx)
+
+		expected := "wasm target not supported"
+		if err == nil || err.Error() != expected {
+			t.Fatalf("Expected error %s, got %s", expected, err)
+		}
+	})
+}
+
+func TestPrepareAndEvalWithWasmTarget(t *testing.T) {
+	mod := `
+	package test
+	default p = false
+	p {
+		input.x == 1
+	}
+	`
+
+	ctx := context.Background()
+
+	pq, err := New(
+		Query("data.test.p = x"),
+		Target("wasm"),
+		Module("a.rego", mod),
+	).PrepareForEval(ctx)
+
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+
+	assertPreparedEvalQueryEval(t, pq, []EvalOption{
+		EvalInput(map[string]int{"x": 1}),
+	}, "[[true]]")
+
+	pq, err = New(
+		Query("a = [1,2]; x = a[i]"),
+		Target("wasm"),
+	).PrepareForEval(ctx)
+
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+
+	assertPreparedEvalQueryEval(t, pq, []EvalOption{}, "[[true, true]]")
+}
+
+func TestPrepareAndEvalWithWasmTargetModulesOnCompiler(t *testing.T) {
+	mod := `
+	package test
+	default p = false
+	p {
+		input.x == data.x.p
+	}
+	`
+
+	compiler := ast.NewCompiler()
+
+	compiler.Compile(map[string]*ast.Module{
+		"a.rego": ast.MustParseModule(mod),
+	})
+
+	if len(compiler.Errors) > 0 {
+		t.Fatalf("Unexpected compile errors: %s", compiler.Errors)
+	}
+
+	ctx := context.Background()
+
+	pq, err := New(
+		Compiler(compiler),
+		Query("data.test.p"),
+		Target("wasm"),
+		Store(inmem.NewFromObject(map[string]interface{}{
+			"x": map[string]interface{}{"p": 1},
+		})),
+	).PrepareForEval(ctx)
+
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+
+	assertPreparedEvalQueryEval(t, pq, []EvalOption{
+		EvalInput(map[string]int{"x": 1}),
+	}, "[[true]]")
+}
+
 func TestEvalWithInterQueryCache(t *testing.T) {
 	query := `http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true})`
 	newHeaders := map[string][]string{"Cache-Control": {"max-age=290304000, public"}}

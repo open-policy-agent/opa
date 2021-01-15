@@ -14,6 +14,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/open-policy-agent/opa/compile"
+
 	"github.com/spf13/cobra"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -58,6 +60,7 @@ type evalCommandParams struct {
 	failDefined         bool
 	bundlePaths         repeatedStringFlag
 	schemaPath          string
+	target              *util.EnumFlag
 }
 
 func newEvalCommandParams() evalCommandParams {
@@ -70,6 +73,7 @@ func newEvalCommandParams() evalCommandParams {
 			evalSourceOutput,
 		}),
 		explain: newExplainFlag([]string{explainModeOff, explainModeFull, explainModeNotes, explainModeFails}),
+		target:  util.NewEnumFlag(compile.TargetRego, []string{compile.TargetRego, compile.TargetWasm}),
 	}
 }
 
@@ -254,6 +258,7 @@ The -s/--schema flag provides a single JSON Schema used to validate references t
 	addIgnoreFlag(evalCommand.Flags(), &params.ignore)
 	setExplainFlag(evalCommand.Flags(), params.explain)
 	addSchemaFlag(evalCommand.Flags(), &params.schemaPath)
+	addTargetFlag(evalCommand.Flags(), params.target)
 
 	RootCommand.AddCommand(evalCommand)
 }
@@ -403,6 +408,8 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 	// skip bundle verification
 	regoArgs = append(regoArgs, rego.SkipBundleVerification(true))
 
+	regoArgs = append(regoArgs, rego.Target(params.target.String()))
+
 	inputBytes, err := readInputBytes(params)
 	if err != nil {
 		return nil, err
@@ -439,6 +446,10 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 	if params.explain != nil && params.explain.String() != explainModeOff {
 		tracer = topdown.NewBufferTracer()
 		evalArgs = append(evalArgs, rego.EvalQueryTracer(tracer))
+
+		if params.target.String() == compile.TargetWasm {
+			fmt.Fprintf(os.Stdout, "warning: explain mode \"%v\" is not supported with wasm target\n", params.explain.String())
+		}
 	}
 
 	if params.disableIndexing {
