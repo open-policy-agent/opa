@@ -121,6 +121,7 @@ type Runner struct {
 	modules     map[string]*ast.Module
 	bundles     map[string]*bundle.Bundle
 	filter      string
+	target      string // target type (wasm, rego, etc.)
 }
 
 // NewRunner returns a new runner.
@@ -213,6 +214,12 @@ func (r *Runner) SetBundles(bundles map[string]*bundle.Bundle) *Runner {
 // cases which match the filter will be run.
 func (r *Runner) Filter(regex string) *Runner {
 	r.filter = regex
+	return r
+}
+
+// Target sets the output target type to use.
+func (r *Runner) Target(target string) *Runner {
+	r.target = target
 	return r
 }
 
@@ -415,6 +422,7 @@ func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.
 		rego.Query(rule.Path().String()),
 		rego.QueryTracer(tracer),
 		rego.Runtime(r.runtime),
+		rego.Target(r.target),
 	)
 
 	t0 := time.Now()
@@ -466,6 +474,7 @@ func (r *Runner) runBenchmark(ctx context.Context, txn storage.Transaction, mod 
 			rego.Compiler(r.compiler),
 			rego.Query(rule.Path().String()),
 			rego.Runtime(r.runtime),
+			rego.Target(r.target),
 		).PrepareForEval(ctx)
 
 		if err != nil {

@@ -13,6 +13,8 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/open-policy-agent/opa/compile"
+
 	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
 
@@ -43,6 +45,7 @@ func newBenchmarkEvalParams() benchmarkCommandParams {
 				evalPrettyOutput,
 				benchmarkGoBenchOutput,
 			}),
+			target: util.NewEnumFlag(compile.TargetRego, []string{compile.TargetRego, compile.TargetWasm}),
 		},
 	}
 }
@@ -90,6 +93,7 @@ The optional "gobench" output format conforms to the Go Benchmark Data Format.
 	addOutputFormat(benchCommand.Flags(), params.outputFormat)
 	addIgnoreFlag(benchCommand.Flags(), &params.ignore)
 	addSchemaFlag(benchCommand.Flags(), &params.schemaPath)
+	addTargetFlag(benchCommand.Flags(), params.target)
 
 	// Shared benchmark flags
 	addCountFlag(benchCommand.Flags(), &params.count, "benchmark")

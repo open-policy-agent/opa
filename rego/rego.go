@@ -20,6 +20,7 @@ import (
 	"github.com/open-policy-agent/opa/internal/compiler/wasm"
 	"github.com/open-policy-agent/opa/internal/ir"
 	"github.com/open-policy-agent/opa/internal/planner"
+	"github.com/open-policy-agent/opa/internal/rego/opa"
 	"github.com/open-policy-agent/opa/internal/wasm/encoding"
 	"github.com/open-policy-agent/opa/loader"
 	"github.com/open-policy-agent/opa/metrics"
@@ -32,7 +33,12 @@ import (
 	"github.com/open-policy-agent/opa/util"
 )
 
-const defaultPartialNamespace = "partial"
+const (
+	defaultPartialNamespace = "partial"
+	targetWasm              = "wasm"
+)
+
+var wasmVarPrefix = "^"
 
 // CompileResult represents the result of compiling a Rego query, zero or more
 // Rego modules, and arbitrary contextual data into an executable.
@@ -519,6 +525,8 @@ type Rego struct {
 	strictBuiltinErrors    bool
 	resolvers              []refResolver
 	schemaSet              *ast.SchemaSet
+	target                 string // target type (wasm, rego, etc.)
+	opa                    *opa.OPA
 }
 
 // Function represents a built-in function that is callable in Rego.
@@ -1030,6 +1038,13 @@ func Schemas(x *ast.SchemaSet) func(r *Rego) {
 	}
 }
 
+// Target sets the runtime to exercise.
+func Target(t string) func(r *Rego) {
+	return func(r *Rego) {
+		r.target = t
+	}
+}
+
 // New returns a new Rego object.
 func New(options ...func(r *Rego)) *Rego {
 
@@ -1284,6 +1299,10 @@ func (r *Rego) Compile(ctx context.Context, opts ...CompileOption) (*CompileResu
 		queries = []ast.Body{r.compiledQueries[compileQueryType].query}
 	}
 
+	return r.compileWasm(modules, queries, compileQueryType)
+}
+
+func (r *Rego) compileWasm(modules []*ast.Module, queries []ast.Body, qType queryType) (*CompileResult, error) {
 	decls := make(map[string]*ast.Builtin, len(r.builtinDecls)+len(ast.BuiltinMap))
 
 	for k, v := range ast.BuiltinMap {
@@ -1301,7 +1320,7 @@ func (r *Rego) Compile(ctx context.Context, opts ...CompileOption) (*CompileResu
 			{
 				Name:          queryName,
 				Queries:       queries,
-				RewrittenVars: r.compiledQueries[compileQueryType].compiler.RewrittenVars(),
+				RewrittenVars: r.compiledQueries[qType].compiler.RewrittenVars(),
 			},
 		}).
 		WithModules(modules).
@@ -1416,6 +1435,37 @@ func (r *Rego) PrepareForEval(ctx context.Context, opts ...PrepareOption) (Prepa
 			},
 		},
 	})
+
+	if r.target == targetWasm {
+
+		if r.hasWasmModule() {
+			return PreparedEvalQuery{}, fmt.Errorf("wasm target not supported")
+		}
+
+		var modules []*ast.Module
+		for _, module := range r.compiler.Modules {
+			modules = append(modules, module)
+		}
+
+		queries := []ast.Body{r.compiledQueries[evalQueryType].query}
+
+		cr, err := r.compileWasm(modules, queries, evalQueryType)
+		if err != nil {
+			return PreparedEvalQuery{}, err
+		}
+
+		data, err := r.store.Read(ctx, r.txn, storage.Path{})
+		if err != nil {
+			return PreparedEvalQuery{}, err
+		}
+
+		o, err := opa.New().WithPolicyBytes(cr.Bytes).WithDataJSON(data).Init()
+		if err != nil {
+			return PreparedEvalQuery{}, err
+		}
+		r.opa = o
+	}
+
 	txnErr := txnClose(ctx, err) // Always call closer
 	if err != nil {
 		return PreparedEvalQuery{}, err
@@ -1463,6 +1513,7 @@ func (r *Rego) PrepareForPartial(ctx context.Context, opts ...PrepareOption) (Pr
 	if txnErr != nil {
 		return PreparedPartialQuery{}, txnErr
 	}
+
 	return PreparedPartialQuery{preparedQuery{r, pCfg}}, err
 }
 
@@ -1688,6 +1739,7 @@ func (r *Rego) compileModules(ctx context.Context, txn storage.Transaction, m me
 		if err != nil {
 			return err
 		}
+
 		for _, rslvr := range resolvers {
 			for _, ep := range rslvr.Entrypoints() {
 				r.resolvers = append(r.resolvers, refResolver{ep, rslvr})
@@ -1766,6 +1818,9 @@ func (r *Rego) compileQuery(query ast.Body, m metrics.Metrics, extras []extraSta
 }
 
 func (r *Rego) eval(ctx context.Context, ectx *EvalContext) (ResultSet, error) {
+	if r.opa != nil {
+		return r.evalWasm(ctx, ectx)
+	}
 
 	q := topdown.NewQuery(ectx.compiledQuery.query).
 		WithQueryCompiler(ectx.compiledQuery.compiler).
@@ -1805,36 +1860,11 @@ func (r *Rego) eval(ctx context.Context, ectx *EvalContext) (ResultSet, error) {
 		c.Cancel()
 	})
 
-	rewritten := ectx.compiledQuery.compiler.RewrittenVars()
 	var rs ResultSet
 	err := q.Iter(ctx, func(qr topdown.QueryResult) error {
-		result := newResult()
-		for k := range qr {
-			v, err := ast.JSON(qr[k].Value)
-			if err != nil {
-				return err
-			}
-			if rw, ok := rewritten[k]; ok {
-				k = rw
-			}
-			if isTermVar(k) || k.IsGenerated() || k.IsWildcard() {
-				continue
-			}
-			result.Bindings[string(k)] = v
-		}
-		for _, expr := range ectx.compiledQuery.query {
-			if expr.Generated {
-				continue
-			}
-			if k, ok := r.capture[expr]; ok {
-				v, err := ast.JSON(qr[k].Value)
-				if err != nil {
-					return err
-				}
-				result.Expressions = append(result.Expressions, newExpressionValue(expr, v))
-			} else {
-				result.Expressions = append(result.Expressions, newExpressionValue(expr, true))
-			}
+		result, err := r.generateResult(qr, ectx)
+		if err != nil {
+			return err
 		}
 		rs = append(rs, result)
 		return nil
@@ -1849,6 +1879,107 @@ func (r *Rego) eval(ctx context.Context, ectx *EvalContext) (ResultSet, error) {
 	}
 
 	return rs, nil
+}
+
+func (r *Rego) evalWasm(ctx context.Context, ectx *EvalContext) (ResultSet, error) {
+
+	var input *interface{}
+	if ectx.parsedInput != nil {
+		i, err := ast.JSON(ectx.parsedInput)
+		if err != nil {
+			return nil, err
+		}
+		input = &i
+	}
+
+	result, err := r.opa.Eval(ctx, opa.EvalOpts{Metrics: r.metrics, Input: input})
+	if err != nil {
+		return nil, err
+	}
+
+	parsed, err := ast.ParseTerm(string(result.Result))
+	if err != nil {
+		return nil, err
+	}
+
+	resultSet, ok := parsed.Value.(ast.Set)
+	if !ok {
+		return nil, fmt.Errorf("illegal result type")
+	}
+
+	if resultSet.Len() == 0 {
+		return nil, nil
+	}
+
+	qr := topdown.QueryResult{}
+	err = resultSet.Iter(func(term *ast.Term) error {
+		obj, ok := term.Value.(ast.Object)
+		if !ok {
+			return fmt.Errorf("illegal result type")
+		}
+
+		obj.Foreach(func(k, v *ast.Term) {
+			kvt := ast.VarTerm(string(k.Value.(ast.String)))
+			qr[kvt.Value.(ast.Var)] = v
+		})
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	res, err := r.generateResult(qr, ectx)
+	if err != nil {
+		return nil, err
+	}
+
+	rs := ResultSet{res}
+
+	if len(rs) == 0 {
+		return nil, nil
+	}
+
+	return rs, nil
+}
+
+func (r *Rego) generateResult(qr topdown.QueryResult, ectx *EvalContext) (Result, error) {
+
+	rewritten := ectx.compiledQuery.compiler.RewrittenVars()
+
+	result := newResult()
+	for k := range qr {
+		v, err := ast.JSON(qr[k].Value)
+		if err != nil {
+			return result, err
+		}
+
+		if rw, ok := rewritten[k]; ok {
+			k = rw
+		}
+		if isTermVar(k) || isTermWasmVar(k) || k.IsGenerated() || k.IsWildcard() {
+			continue
+		}
+		result.Bindings[string(k)] = v
+	}
+
+	for _, expr := range ectx.compiledQuery.query {
+		if expr.Generated {
+			continue
+		}
+
+		if k, ok := r.capture[expr]; ok {
+			v, err := ast.JSON(qr[k].Value)
+			if err != nil {
+				return result, err
+			}
+			result.Expressions = append(result.Expressions, newExpressionValue(expr, v))
+		} else {
+			result.Expressions = append(result.Expressions, newExpressionValue(expr, true))
+		}
+
+	}
+	return result, nil
 }
 
 func (r *Rego) partialResult(ctx context.Context, pCfg *PrepareConfig) (PartialResult, error) {
@@ -2104,11 +2235,24 @@ func (r *Rego) rewriteEqualsForPartialQueryCompile(_ ast.QueryCompiler, query as
 
 func (r *Rego) generateTermVar() *ast.Term {
 	r.termVarID++
+
+	if r.target == targetWasm {
+		return ast.VarTerm(wasmVarPrefix + fmt.Sprintf("term%v", r.termVarID))
+	}
 	return ast.VarTerm(ast.WildcardPrefix + fmt.Sprintf("term%v", r.termVarID))
 }
 
 func (r Rego) hasQuery() bool {
 	return len(r.query) != 0 || len(r.parsedQuery) != 0
+}
+
+func (r Rego) hasWasmModule() bool {
+	for _, b := range r.bundles {
+		if len(b.WasmModules) > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 type transactionCloser func(ctx context.Context, err error) error
@@ -2187,6 +2331,10 @@ func checkPartialResultForRecursiveRefs(body ast.Body, path ast.Ref) bool {
 
 func isTermVar(v ast.Var) bool {
 	return strings.HasPrefix(string(v), ast.WildcardPrefix+"term")
+}
+
+func isTermWasmVar(v ast.Var) bool {
+	return strings.HasPrefix(string(v), wasmVarPrefix+"term")
 }
 
 func waitForDone(ctx context.Context, exit chan struct{}, f func()) {

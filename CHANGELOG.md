@@ -56,6 +56,8 @@ This release contains a number of enhancements and bug fixes.
 
 ## Unreleased
 
+Previously, the `opa test` command used `t` as shorthand for the `timeout` flag. This change adds a new `target` flag to `opa eval`, `opa bench` and `opa test`([#2878](https://github.com/open-policy-agent/opa/issues/2878)). `t` is now a shorthand for the `target` flag and is no longer used for the `timeout` flag in `opa test`.
+
 ## 0.25.2
 
 This release extends the HTTP server authorizer (`--authorization=basic`) to supply the HTTP message body in the `input` document. See the [Authentication and Authorization](https://www.openpolicyagent.org/docs/edge/security/#authentication-and-authorization) section in the security documentation for details.

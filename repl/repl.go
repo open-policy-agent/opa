@@ -17,6 +17,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/open-policy-agent/opa/compile"
+
 	"github.com/open-policy-agent/opa/version"
 
 	"github.com/peterh/liner"
@@ -62,6 +64,7 @@ type REPL struct {
 	errLimit          int
 	prettyLimit       int
 	report            [][2]string
+	target            string // target type (wasm, rego, etc.)
 	mtx               sync.Mutex
 }
 
@@ -75,6 +78,8 @@ const (
 )
 
 const defaultPrettyLimit = 80
+
+var allowedTargets = map[string]bool{compile.TargetRego: true, compile.TargetWasm: true}
 
 const exitPromptMessage = "Do you want to exit ([y]/n)? "
 
@@ -93,6 +98,7 @@ func New(store storage.Store, historyPath string, output io.Writer, outputFormat
 		banner:       banner,
 		errLimit:     errLimit,
 		prettyLimit:  defaultPrettyLimit,
+		target:       compile.TargetRego,
 	}
 }
 
@@ -252,6 +258,8 @@ func (r *REPL) OneShot(ctx context.Context, line string) error {
 				return r.cmdUnknown(cmd.args)
 			case "strict-builtin-errors":
 				return r.cmdStrictBuiltinErrors()
+			case "target":
+				return r.cmdTarget(cmd.args)
 			case "help":
 				return r.cmdHelp(cmd.args)
 			case "exit":
@@ -388,6 +396,21 @@ func (r *REPL) cmdFormat(s string) error {
 	return nil
 }
 
+func (r *REPL) cmdTarget(t []string) error {
+	if len(t) != 1 {
+		return newBadArgsErr("target <mode>: expects exactly one argument")
+	}
+
+	if _, ok := allowedTargets[t[0]]; !ok {
+		return fmt.Errorf("invalid target \"%v\":must be one of {rego,wasm}", t[0])
+	}
+
+	r.target = t[0]
+
+	r.checkTraceSupported()
+	return nil
+}
+
 func (r *REPL) cmdPrettyLimit(s []string) error {
 	if len(s) != 1 {
 		return fmt.Errorf("usage: pretty-limit <n>")
@@ -459,7 +482,15 @@ func (r *REPL) cmdTrace(mode explainMode) error {
 	} else {
 		r.explain = mode
 	}
+
+	r.checkTraceSupported()
 	return nil
+}
+
+func (r *REPL) checkTraceSupported() {
+	if r.explain != explainOff && r.target == compile.TargetWasm {
+		fmt.Fprintf(r.output, "warning: trace mode \"%v\" is not supported with wasm target\n", r.explain)
+	}
 }
 
 func (r *REPL) metricsEnabled() bool {
@@ -916,6 +947,7 @@ func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, input ast.V
 		rego.Instrument(r.instrument),
 		rego.Runtime(r.runtime),
 		rego.StrictBuiltinErrors(r.strictBuiltinErrors),
+		rego.Target(r.target),
 	}
 
 	if r.explain != explainOff {
@@ -1214,6 +1246,7 @@ var builtin = [...]commandDesc{
 	{"strict-builtin-errors", []string{}, "toggle strict built-in error mode"},
 	{"dump", []string{"[path]"}, "dump raw data in storage"},
 	{"help", []string{"[topic]"}, "print this message"},
+	{"target", []string{"[mode]"}, "set the runtime to exercise {rego,wasm} (default rego)"},
 	{"exit", []string{}, "exit out of shell (or ctrl+d)"},
 	{"ctrl+l", []string{}, "clear the screen"},
 }
