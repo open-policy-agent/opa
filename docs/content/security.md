@@ -133,21 +133,36 @@ must be provided on startup. The authorization policy must be structured as foll
 # system.authz as follows:
 package system.authz
 
-default allow = false  # Reject requests by default.
+default response = { "allow" : false }  # Reject requests by default.
 
-allow {
+response = { "allow" : true } {
   # Logic to authorize request goes here.
 }
 ```
 
 When OPA receives a request, it executes a query against the document defined
-`data.system.authz.allow`. The implementation of the policy may span multiple
+`data.system.authz.response`. The implementation of the policy may span multiple
 packages however it is recommended that administrators keep the policy under the
 `system` namespace.
 
 If the document produced by the ``allow`` rule is ``true``, the request is
 processed normally. If the document is undefined or **not** ``true``, the
-request is rejected immediately.
+request is rejected immediately. Optionally a reason can be given for denied requests as follows.
+
+```live:system_ns:module:read_only
+# Deniying a request with reason
+package system.authz
+
+# Reject requests with a reason.
+default response = { 
+                      "allow" : false,
+                      "reason" : "Access Denied"
+                      }  
+
+response = { "allow" : true } {
+  # Logic to authorize request goes here.
+}
+```
 
 OPA provides the following `input` document when executing the authorization
 policy:
@@ -225,9 +240,9 @@ identity:
 ```live:system_authz_secret:module:read_only
 package system.authz
 
-default allow = false           # Reject requests by default.
+default response = { "allow" : false }           # Reject requests by default.
 
-allow {                         # Allow request if...
+response = { "allow" : true } {                         # Allow request if...
     "secret" == input.identity  # Identity is the secret root key.
 }
 ```
@@ -289,13 +304,13 @@ tokens = {
     }
 }
 
-default allow = false           # Reject requests by default.
+default response = { "allow" : false }           # Reject requests by default.
 
-allow {                         # Allow request if...
+response = { "allow" : true } {                  # Allow request if...
     input.identity == "secret"  # Identity is the secret root key.
 }
 
-allow {                        # Allow request if...
+response = { "allow" : true } {                        # Allow request if...
     tokens[input.identity]     # Identity exists in "tokens".
 }
 ```
@@ -332,15 +347,15 @@ tokens = {
     }
 }
 
-default allow = false               # Reject requests by default.
+default response = { "allow" : false }               # Reject requests by default.
 
-allow {                             # Allow request if...
+response = { "allow" : true } {                             # Allow request if...
     some right
     identity_rights[right]          # Rights for identity exist, and...
     right.path == "*"               # Right.path is '*'.
 }
 
-allow {                             # Allow request if...
+response = { "allow" : true } {                             # Allow request if...
     some right
     identity_rights[right]          # Rights for identity exist, and...
     right.path == input.path        # Right.path matches input.path.
@@ -415,9 +430,9 @@ client_cns = {
 	"my-client": true
 }
 
-default allow = false
+default response = { "allow" : false }
 
-allow {                                        # Allow request if
+response = { "allow" : true } {                                        # Allow request if
 	split(input.identity, "=", ["CN", cn]) # the cert subject is a CN, and
 	client_cns[cn]                         # the name is a known client.
 }
@@ -520,10 +535,10 @@ clients access to the default policy decision, i.e., `POST /`:
 package system.authz
 
 # Deny access by default.
-default allow = false
+default response = { "allow" : false }
 
 # Allow anonymous access to the default policy decision.
-allow {
+response = { "allow" : true } {
     input.method = "POST"
     input.path = [""]
 }

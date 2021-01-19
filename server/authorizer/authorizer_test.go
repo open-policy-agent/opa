@@ -59,6 +59,36 @@ func TestBasic(t *testing.T) {
             rights[_].access[_] = access_map[input.method]
         }
 
+		reason = "unauthorized method" {
+			not valid_method
+		}
+
+		reason = "unauthorized resource" {
+			not valid_path
+		}
+
+		reason = "unauthorized method & resource" {
+			not valid_method
+			not valid_path
+		}
+
+		response = {"allow": true} {
+			allow
+		}
+
+		response = {
+			"allow": false,
+			"reason": reason,
+		} {
+			not allow
+			not input.path[0] = "wrong_result_set"
+		}
+
+		response = {"allowed": true} {
+			input.path[0] = "wrong_result_set"
+		}
+
+
         valid_path {
             rights[_].path = "*"
         }
@@ -146,9 +176,10 @@ func TestBasic(t *testing.T) {
 		{"evaluation error", "token0", http.MethodGet, "/conflict_error", http.StatusInternalServerError, types.CodeInternal, types.MsgEvaluationError},
 		{"ok", "token1", http.MethodGet, "/data/some/specific/document", http.StatusOK, "", ""},
 		{"ok (w/ query params)", "token1", http.MethodGet, "/data/some/specific/document?pretty=true", http.StatusOK, "", ""},
-		{"unauthorized method", "token1", http.MethodPut, "/data/some/specific/document", http.StatusUnauthorized, types.CodeUnauthorized, types.MsgUnauthorizedError},
-		{"unauthorized path", "token2", http.MethodGet, "/data/some/doc/not/allowed", http.StatusUnauthorized, types.CodeUnauthorized, types.MsgUnauthorizedError},
-		{"unauthorized path (w/ query params)", "token2", http.MethodGet, "/data/some/doc/not/allowed?pretty=true", http.StatusUnauthorized, types.CodeUnauthorized, types.MsgUnauthorizedError},
+		{"unauthorized method", "token1", http.MethodPut, "/data/some/specific/document", http.StatusUnauthorized, types.CodeUnauthorized, "unauthorized method"},
+		{"unauthorized path", "token2", http.MethodGet, "/data/some/doc/not/allowed", http.StatusUnauthorized, types.CodeUnauthorized, "unauthorized resource"},
+		{"unauthorized path (w/ query params)", "token2", http.MethodGet, "/data/some/doc/not/allowed?pretty=true", http.StatusUnauthorized, types.CodeUnauthorized, "unauthorized resource"},
+		{"wrong result set format", "token2", http.MethodGet, "/wrong_result_set", http.StatusInternalServerError, types.CodeInternal, types.MsgUndefinedError},
 	}
 
 	for _, tc := range tests {
@@ -165,7 +196,7 @@ func TestBasic(t *testing.T) {
 			}
 
 			NewBasic(&mockHandler{}, compiler, store, Decision(func() ast.Ref {
-				return ast.MustParseRef("data.system.authz.allow")
+				return ast.MustParseRef("data.system.authz.response")
 			})).ServeHTTP(recorder, req)
 
 			if recorder.Code != tc.expectedStatus {
