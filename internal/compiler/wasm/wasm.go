@@ -144,6 +144,7 @@ var builtinsFunctions = map[string]string{
 	ast.RegexMatchDeprecated.Name:       "opa_regex_match",
 	ast.RegexFindAllStringSubmatch.Name: "opa_regex_find_all_string_submatch",
 	ast.JSONRemove.Name:                 "builtin_json_remove",
+	ast.JSONFilter.Name:                 "builtin_json_filter",
 }
 
 var builtinDispatchers = [...]string{
