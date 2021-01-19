@@ -7,6 +7,7 @@ package wasm
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
 
 	"github.com/pkg/errors"
@@ -63,6 +64,7 @@ const (
 	opaMemoizeGet        = "opa_memoize_get"
 	opaMappingInit       = "opa_mapping_init"
 	opaMappingLookup     = "opa_mapping_lookup"
+	elementToFunctionIdx = "opa_elem_to_func"
 )
 
 var builtinsFunctions = map[string]string{
@@ -443,6 +445,13 @@ func (c *Compiler) compileEntrypointDecls() error {
 
 // compileFuncs compiles the policy functions and emits them into the module.
 func (c *Compiler) compileFuncs() error {
+
+	tpe := module.FunctionType{
+		Params:  []types.ValueType{types.I32}, // elem index
+		Results: []types.ValueType{types.I32}, // func index
+	}
+	c.emitFunctionDecl(elementToFunctionIdx, tpe, false)
+
 	for _, fn := range c.policy.Funcs.Funcs {
 		if err := c.compileFunc(fn); err != nil {
 			return errors.Wrapf(err, "func %v", fn.Name)
@@ -654,6 +663,52 @@ func (c *Compiler) emitMapping() error {
 	max := *c.module.Table.Tables[0].Lim.Max + uint32(len(indices))
 	c.module.Table.Tables[0].Lim.Min = min
 	c.module.Table.Tables[0].Lim.Max = &max
+
+	// put elem index -> func index mapping into data, too
+	// NOTE(sr): we cannot lookup func tables from wasm code, I think,
+	// so we've got to put this in a reachable place: data.
+	indicesSlice := make([]byte, len(indices)*4)
+	for i, idx := range indices {
+		binary.LittleEndian.PutUint32(indicesSlice[i*4:], idx)
+	}
+	dataOffsetIdxMap, err := getLowestFreeDataSegmentOffset(c.module)
+	if err != nil {
+		return err
+	}
+	c.module.Data.Segments = append(c.module.Data.Segments, module.DataSegment{
+		Index: 0,
+		Offset: module.Expr{
+			Instrs: []instruction.Instruction{
+				instruction.I32Const{
+					Value: dataOffsetIdxMap,
+				},
+			},
+		},
+		Init: indicesSlice,
+	})
+
+	// Emit translation function: elem idx -> func idx (needed for memoization)
+	// Note: There's no error handling, all passed indices will be in the
+	// proper range; so far, these only come from what opa_mapping_lookup
+	// returns.
+
+	c.code = &module.CodeEntry{}
+	if len(indices) == 0 {
+		c.appendInstr(instruction.Unreachable{}) // this will never be called
+	} else {
+		c.appendInstr(instruction.GetLocal{Index: 0})
+		c.appendInstr(instruction.I32Const{Value: int32(elemOffset)})
+		c.appendInstr(instruction.I32Sub{})
+		c.appendInstr(instruction.I32Const{Value: 4})
+		c.appendInstr(instruction.I32Mul{})
+		c.appendInstr(instruction.I32Load{Offset: dataOffsetIdxMap, Align: 2})
+	}
+
+	// Note(sr): the function decl was emitted before, because it's needed to
+	// compile CallDynamicStmt.
+	if err := c.emitFunction(elementToFunctionIdx, c.code); err != nil {
+		return err
+	}
 
 	// create function that calls `void opa_mapping_initialize(const char *s, const int l)`
 	// with s being the offset of the data segment just written, and l its length
@@ -1137,11 +1192,9 @@ func (c *Compiler) compileUpsert(local ir.Local, path []int, value ir.Local, loc
 func (c *Compiler) compileCallDynamicStmt(stmt *ir.CallDynamicStmt, result *[]instruction.Instruction) error {
 	// NOTE(sr): Re: memoization
 	// Currently, only arity-2 functions are used with CallDynamicStmt
-	// so we could memoize. However, we don't know the func index to
-	// use with opa_memoize{get,insert} at runtime, from the mapping data.
-	// When looking up the function to invoke, at runtime, we only get
-	// the element index. We'd have to lookup the func index from that
-	// to memoize.
+	// so we can memoize them. To figure out the func index to use with
+	// opa_memoize{get,insert} at runtime, we're passing the elem index
+	// to elem_to_func, which returns the func index.
 
 	block := instruction.Block{}
 	larray := c.genLocal()
@@ -1174,18 +1227,34 @@ func (c *Compiler) compileCallDynamicStmt(stmt *ir.CallDynamicStmt, result *[]in
 	}
 	typeIndex := c.emitFunctionType(tpe)
 
-	// call opa_lookup with the array
+	fidx := c.genLocal()
+
 	block.Instrs = append(block.Instrs,
+		// lookup elem idx via larray path
 		instruction.GetLocal{Index: larray},
 		instruction.Call{Index: c.function(opaMappingLookup)}, // [arg0 arg1 larray] -> [arg0 arg1 tbl_idx]
 		instruction.TeeLocal{Index: lidx},
-		instruction.I32Eqz{},
+		instruction.I32Eqz{}, // mapping not found
 		instruction.BrIf{Index: 1},
+
+		// memoize lookup
+		instruction.GetLocal{Index: lidx},
+		instruction.Call{Index: c.function(elementToFunctionIdx)}, // [elem idx] -> [func idx]
+		instruction.TeeLocal{Index: fidx},
+		instruction.Call{Index: c.function(opaMemoizeGet)}, // [func idx] -> [memoized result]
+		instruction.TeeLocal{Index: c.local(stmt.Result)},
+		instruction.BrIf{Index: 0}, // use memoized result
+
 		instruction.GetLocal{Index: lidx},
 		instruction.CallIndirect{Index: typeIndex}, // [arg0 arg1 tbl_idx] -> [res]
 		instruction.TeeLocal{Index: c.local(stmt.Result)},
 		instruction.I32Eqz{},
 		instruction.BrIf{Index: 1},
+
+		// memoize result
+		instruction.GetLocal{Index: fidx},
+		instruction.GetLocal{Index: c.local(stmt.Result)},
+		instruction.Call{Index: c.function(opaMemoizeInsert)},
 	)
 
 	*result = append(*result, block)

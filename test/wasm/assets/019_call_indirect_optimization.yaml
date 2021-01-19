@@ -72,3 +72,16 @@ cases:
       - x: q
         a: bar
         z: 1
+  - note: memoization
+    query: |
+      x := "q"; z := data.foo[x]; w := data.foo[x]
+    modules:
+      - |
+        package foo
+        q = 1 {
+          custom_builtin_test_memoization() == 100
+        }
+    want_result:
+      - x: q
+        z: 1
+        w: 1

@@ -80,6 +80,13 @@ func compileTestCases(ctx context.Context, tests cases.Set) (*compiledTestCaseSe
 					types.N,
 				),
 			}),
+			rego.FunctionDecl(&rego.Function{
+				Name: "custom_builtin_test_memoization",
+				Decl: types.NewFunction(
+					[]types.Type{},
+					types.N,
+				),
+			}),
 		}
 
 		for idx, module := range tc.Modules {
