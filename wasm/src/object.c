@@ -8,6 +8,7 @@ opa_array_t *__get_json_paths(opa_value *a);
 opa_object_t *__paths_to_object(opa_value *a);
 opa_array_t *__parse_path(opa_value *a);
 opa_value *__json_remove(opa_value *a, opa_value *b);
+opa_value *__json_filter(opa_value *a, opa_value *b);
 
 opa_value *__merge(opa_value *a, opa_value *b)
 {
@@ -295,6 +296,101 @@ opa_value *__json_remove(opa_value *a, opa_value *b)
     return NULL;
 }
 
+opa_value *__json_filter(opa_value *a, opa_value *b)
+{
+
+    if (opa_value_compare(b, opa_null()) == 0)
+    {
+        return a;
+    }
+
+    if (opa_value_type(b) != OPA_OBJECT)
+    {
+        return NULL;
+    }
+
+    switch (opa_value_type(a))
+    {
+        case OPA_STRING:
+        case OPA_NUMBER:
+        case OPA_BOOLEAN:
+        case OPA_NULL:
+        {
+            return a;
+        }
+        case OPA_OBJECT:
+        {
+            opa_object_t *new_obj = opa_cast_object(opa_object());
+
+            opa_object_t *iter_obj = opa_cast_object(a);
+            opa_object_t *other = opa_cast_object(b);
+
+            if (iter_obj->len < other->len)
+            {
+                iter_obj = opa_cast_object(b);
+                other = opa_cast_object(a);
+            }
+
+            for (opa_value *key = opa_value_iter(&iter_obj->hdr, NULL); key != NULL; key = opa_value_iter(&iter_obj->hdr, key))
+            {
+
+                if (opa_value_get(&other->hdr, key) != NULL)
+                {
+                    opa_value *filtered_value = __json_filter(opa_value_get(a, key), opa_value_get(b, key));
+
+                    if (filtered_value != NULL)
+                    {
+                        opa_object_insert(new_obj, key, filtered_value);
+                    }
+                }
+            }
+            return &new_obj->hdr;
+        }
+        case OPA_SET:
+        {
+            opa_set_t *new_set = opa_cast_set(opa_set());
+            opa_set_t *set = opa_cast_set(a);
+
+            for (int i = 0; i < set->n; i++)
+            {
+                opa_set_elem_t *elem = set->buckets[i];
+
+                while (elem != NULL)
+                {
+                    opa_value *filtered_value = __json_filter(elem->v, opa_value_get(b, elem->v));
+
+                    if (filtered_value != NULL)
+                    {
+                        opa_set_add(new_set, filtered_value);
+                    }
+                    elem = elem->next;
+                }
+            }
+            return &new_set->hdr;
+        }
+        case OPA_ARRAY:
+        {
+            opa_array_t *new_array = opa_cast_array(opa_array());
+            opa_array_t *array = opa_cast_array(a);
+
+            for (int i = 0; i < array->len; i++)
+            {
+                opa_value *value = array->elems[i].v;
+
+                opa_value *filtered_value = __json_filter(value, opa_value_get(b, opa_strings_format_int(opa_number_int(i), opa_number_int(10))));
+
+                if (filtered_value != NULL)
+                {
+                    opa_array_append(new_array, filtered_value);
+                }
+            }
+            return &new_array->hdr;
+        }
+    }
+
+    return NULL;
+}
+
 OPA_BUILTIN
 opa_value *builtin_object_filter(opa_value *obj, opa_value *keys)
 {
@@ -440,6 +536,34 @@ opa_value *builtin_json_remove(opa_value *obj, opa_value *paths)
     opa_object_t *json_paths_obj = __paths_to_object(&json_paths->hdr);
 
     opa_value *r = __json_remove(obj, &json_paths_obj->hdr);
+
+    return r;
+}
+
+OPA_BUILTIN
+opa_value *builtin_json_filter(opa_value *obj, opa_value *paths)
+{
+    if (opa_value_type(obj) != OPA_OBJECT)
+    {
+        return NULL;
+    }
+
+    if (opa_value_type(paths) != OPA_ARRAY && opa_value_type(paths) != OPA_SET)
+    {
+        return NULL;
+    }
+
+    // Build a list of filter strings
+    opa_array_t *json_paths = __get_json_paths(paths);
+
+    if (json_paths == NULL)
+    {
+        return NULL;
+    }
+
+    opa_object_t *json_paths_obj = __paths_to_object(&json_paths->hdr);
+
+    opa_value *r = __json_filter(obj, &json_paths_obj->hdr);
 
     return r;
 }

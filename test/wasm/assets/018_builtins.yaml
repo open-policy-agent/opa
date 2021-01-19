@@ -179,6 +179,12 @@ cases:
   - note: json.remove built-in
     query: 'json.remove({"a": {"b": {"c": 7, "d": 8}}, "e": 9}, {"a/b/c", "e"}, x)'
     want_result: [{'x': {"a": {"b": {"d": 8}}}}]
+  - note: json.filter built-in
+    query: 'json.filter({"a": {"b": {"c": 7, "d": 8}}, "e": 9}, {"a/b/c"}, x)'
+    want_result: [{'x': {"a": {"b": {"c": 7}}}}]
+  - note: json.filter built-in
+    query: 'json.filter({"a": {"b": {"c": 7, "d": 8}}, "e": 9}, {["a", "b", "c"], ["e"]}, x)'
+    want_result: [{'x': {"a": {"b": {"c": 7}}, "e": 9}}]
   - note: concat built-in
     query: concat(",",["a","b"],x)
     want_result: [{'x': "a,b"}]
