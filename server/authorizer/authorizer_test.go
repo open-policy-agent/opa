@@ -41,6 +41,9 @@ func TestBasic(t *testing.T) {
         allow = allow_inner {
             not input.path[0] = "undefined" # testing undefined
             not conflict_error              # testing eval errors
+            not input.path[0] = "not_allowed_with_reason"
+			not	input.path[0] = "wrong_result_set"
+			not input.path[0] = "allowed_with_json_format"
         }
 
         conflict_error {
@@ -66,6 +69,35 @@ func TestBasic(t *testing.T) {
         valid_path {
             rights[_].path = input.path
         }
+
+		reason = "unauthorized method" {
+			not valid_method
+		}
+
+		reason = "unauthorized resource" {
+			not valid_path
+		}
+
+		reason = "unauthorized method & resource" {
+			not valid_method
+			not valid_path
+		}
+
+		allow = {
+			"allowed": false,
+			"reason": reason,
+		} {
+			not allow_inner
+			input.path[0] = "not_allowed_with_reason"
+		}
+
+        allow = { "allow": true } {
+			input.path[0] = "wrong_result_set"
+		}
+
+		allow = { "allowed": true } {
+			input.path[0] = "allowed_with_json_format"
+		}
 
         rights[right] {
             role = tokens[input.identity].roles[_]
@@ -149,6 +181,9 @@ func TestBasic(t *testing.T) {
 		{"unauthorized method", "token1", http.MethodPut, "/data/some/specific/document", http.StatusUnauthorized, types.CodeUnauthorized, types.MsgUnauthorizedError},
 		{"unauthorized path", "token2", http.MethodGet, "/data/some/doc/not/allowed", http.StatusUnauthorized, types.CodeUnauthorized, types.MsgUnauthorizedError},
 		{"unauthorized path (w/ query params)", "token2", http.MethodGet, "/data/some/doc/not/allowed?pretty=true", http.StatusUnauthorized, types.CodeUnauthorized, types.MsgUnauthorizedError},
+		{"unauthorized path with reason", "token2", http.MethodGet, "/not_allowed_with_reason", http.StatusUnauthorized, types.CodeUnauthorized, "unauthorized resource"},
+		{"wrong result set format", "token2", http.MethodGet, "/wrong_result_set", http.StatusInternalServerError, types.CodeInternal, types.MsgUndefinedError},
+		{"allowed with json result set format (ok)", "token1", http.MethodGet, "/allowed_with_json_format", http.StatusOK, "", ""},
 	}
 
 	for _, tc := range tests {
