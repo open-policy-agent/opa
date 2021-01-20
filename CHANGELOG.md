@@ -54,6 +54,8 @@ This release contains a number of enhancements and bug fixes.
 
 - OPA now logs warnings when it receives legacy `bundle` config sections instead of the `bundles` section introduced in v0.13.0.
 
+## Unreleased
+
 ## 0.25.2
 
 This release extends the HTTP server authorizer (`--authorization=basic`) to supply the HTTP message body in the `input` document. See the [Authentication and Authorization](https://www.openpolicyagent.org/docs/edge/security/#authentication-and-authorization) section in the security documentation for details.
