@@ -2731,9 +2731,9 @@ func TestAuthorization(t *testing.T) {
 
 		import input.identity
 
-		default response = { "allow" : false }
+		default allow = false
 
-		response = { "allow" : true }{
+		allow {
 			identity = "bob"
 		}
 		`
@@ -2783,9 +2783,9 @@ func TestAuthorization(t *testing.T) {
 
 		import input.identity
 
-		default response = { "allow" : false }
+		default allow = false
 
-		response = { "allow" : true }{
+		allow {
 			identity = "alice"
 		}
 	`), "bob")

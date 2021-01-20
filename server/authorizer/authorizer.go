@@ -90,25 +90,32 @@ func (h *Basic) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		writer.Error(w, http.StatusInternalServerError, types.NewErrorV1(types.CodeInternal, types.MsgUnauthorizedUndefinedError))
 		return
 	}
-	switch response := rs[0].Expressions[0].Value.(type) {
+
+	switch allowed := rs[0].Expressions[0].Value.(type) {
+	case bool:
+		if allowed {
+			h.inner.ServeHTTP(w, r)
+			return
+		}
 	case map[string]interface{}:
-		if allow, ok := response["allow"]; ok {
-			if allowed, ok := allow.(bool); ok && allowed {
+		if decision, ok := allowed["allowed"]; ok {
+			if allow, ok := decision.(bool); ok && allow {
 				h.inner.ServeHTTP(w, r)
 				return
 			}
-			if reason, ok := response["reason"]; ok {
+			if reason, ok := allowed["reason"]; ok {
 				message, ok := reason.(string)
 				if ok {
 					writer.Error(w, http.StatusUnauthorized, types.NewErrorV1(types.CodeUnauthorized, message))
 					return
 				}
 			}
-			writer.Error(w, http.StatusUnauthorized, types.NewErrorV1(types.CodeUnauthorized, types.MsgUnauthorizedError))
+		} else {
+			writer.Error(w, http.StatusInternalServerError, types.NewErrorV1(types.CodeInternal, types.MsgUndefinedError))
 			return
 		}
 	}
-	writer.Error(w, http.StatusInternalServerError, types.NewErrorV1(types.CodeInternal, types.MsgUndefinedError))
+	writer.Error(w, http.StatusUnauthorized, types.NewErrorV1(types.CodeUnauthorized, types.MsgUnauthorizedError))
 }
 
 func makeInput(r *http.Request) (*http.Request, interface{}, error) {

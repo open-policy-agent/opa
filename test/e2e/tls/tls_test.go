@@ -44,9 +44,8 @@ func TestMain(m *testing.M) {
 	// for the health endpoint is going to fail on server startup.
 	authzPolicy := []byte(`package system.authz
 import input.identity
-default response = { "allow" : false }
-response = { "allow" : true
-           }{
+default allow = false
+allow {
 	identity = "CN=my-client"
 }`)
 

@@ -92,5 +92,5 @@ func (c *Config) validateAndInjectDefaults(id string) error {
 
 const (
 	defaultDecisionPath              = "/system/main"
-	defaultAuthorizationDecisionPath = "/system/authz/response"
+	defaultAuthorizationDecisionPath = "/system/authz/allow"
 )
