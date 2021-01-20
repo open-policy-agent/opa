@@ -167,6 +167,8 @@ integrations:
       layer: network
     code:
       - https://github.com/build-security/opa-express-middleware
+    inventors:
+      - build.security      
 
   asp-dotnet-core:
     title: ASP.NET Core
@@ -178,6 +180,8 @@ integrations:
       layer: network
     code:
       - https://github.com/build-security/OPA-AspDotNetCore-Middleware
+    inventors:
+      - build.security         
 
   gloo-api-gateway:
     title: Gloo API Gateway
@@ -480,10 +484,12 @@ integrations:
     code:
       - https://github.com/open-policy-agent/contrib/tree/master/spring_authz
       - https://github.com/Bisnode/opa-spring-security
+      - https://github.com/build-security/opa-java-spring-client
     tutorials:
       - https://github.com/open-policy-agent/contrib/blob/master/spring_authz/README.md
     inventors:
       - styra
+      - build.security
 
   spinnaker-pipeline:
     title: Spinnaker Pipeline Policy Enforcment
@@ -929,7 +935,7 @@ organizations:
   scalr:
     name: Scalr
     link: https://www.scalr.com/
-  build-security:
+  build.security:
     name: build.security
     link: https://build.security
 
