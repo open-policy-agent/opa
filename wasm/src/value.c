@@ -1659,7 +1659,6 @@ opa_errc opa_value_remove_path(opa_value *data, opa_value *path)
 // Lookup path in the passed mapping object. Returns 0 if it can't
 // be found, or of there's no function index leaf when we've run out
 // of path pieces.
-// TODO(sr): reconsider ^^
 int opa_lookup(opa_value *mapping, opa_value *path) {
     int path_len = _validate_json_path(path);
     if (path_len < 1)

@@ -3232,8 +3232,8 @@ void test_opa_lookup(void)
     opa_object_insert(smaller_mapping, opa_string_terminated("foo"), &obj3->hdr);
 
     test("opa_lookup/hit", opa_lookup(&mock_mapping->hdr, &path1->hdr) == 1);
-    test("opa_lookup/miss", opa_lookup(empty_mapping, &path1->hdr) == -1);
-    test("opa_lookup/miss/less", opa_lookup(&smaller_mapping->hdr, &path1->hdr) == -1); // TODO(sr) will this be what we want?
+    test("opa_lookup/miss", opa_lookup(empty_mapping, &path1->hdr) == 0);
+    test("opa_lookup/miss/less", opa_lookup(&smaller_mapping->hdr, &path1->hdr) == 0);
 }
 
 void test_opa_mapping_init(void)
