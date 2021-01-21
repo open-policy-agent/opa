@@ -2060,14 +2060,19 @@ func (p *Planner) optimizeLookup(t *ruletrie, ref ast.Ref) ([][]*ast.Rule, []ir.
 		return dont()
 	}
 
-	// we're done with ref, check if there's only ruleset leaves; collect rules
 	for _, node := range nodes {
+		// we're done with ref, check if there's only ruleset leaves; collect rules
 		if index == len(ref)-1 {
 			if len(node.Children()) > 0 {
 				return dont()
 			}
 		}
-		res = append(res, node.Rules())
+		if rules := node.Rules(); len(rules) > 0 {
+			res = append(res, rules)
+		}
+	}
+	if len(res) == 0 {
+		return dont()
 	}
 
 	// If we've made it here, optimization is possible -- let's plan strings!

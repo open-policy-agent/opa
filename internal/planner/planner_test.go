@@ -893,6 +893,44 @@ func TestOptimizeLookup(t *testing.T) {
 			t.Fatalf("expected %d statements in stmts, got %d\n", exp, act)
 		}
 	})
+
+	t.Run("one leaf without rules", func(t *testing.T) {
+		r := newRuletrie()
+		val := r.LookupOrInsert(ref("foo.aaa.bar.q"))
+		val.rules = append(val.rules, &r0, &r1)
+		r.LookupOrInsert(ref("foo.bbb.bar.q"))
+
+		p := New()
+		p.vars.Put(ast.Var("x"), p.newLocal())
+
+		rulesets, _, _, index, opt := p.optimizeLookup(r, ast.MustParseRef("data.foo[x].bar.q"))
+		if exp, act := true, opt; exp != act {
+			t.Errorf("expected 'optimize' %v, got %v\n", exp, act)
+		}
+		if exp, act := 4, index; exp != act {
+			t.Errorf("expected 'index' %d, got %d\n", exp, act)
+		}
+		if exp, act := 1, len(rulesets); exp != act {
+			t.Fatalf("expected %d rulesets, got %d\n", exp, act)
+		}
+		if exp, act := 2, len(rulesets[0]); exp != act {
+			t.Errorf("expected %d rules in ruleset 0, got %d\n", exp, act)
+		}
+	})
+
+	t.Run("all leaves without rules", func(t *testing.T) {
+		r := newRuletrie()
+		r.LookupOrInsert(ref("foo.aaa.bar.q"))
+		r.LookupOrInsert(ref("foo.bbb.bar.q"))
+
+		p := New()
+		p.vars.Put(ast.Var("x"), p.newLocal())
+
+		_, _, _, _, opt := p.optimizeLookup(r, ast.MustParseRef("data.foo[x].bar.q"))
+		if exp, act := false, opt; exp != act {
+			t.Errorf("expected 'optimize' %v, got %v\n", exp, act)
+		}
+	})
 }
 
 func expectNoError(t *testing.T, err error) {
