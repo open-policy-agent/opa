@@ -47,6 +47,20 @@ type Planner struct {
 	ltarget ir.Local                // target variable of last planned statement
 	lnext   ir.Local                // next variable to use
 	loc     *location.Location      // location currently "being planned"
+	debugs  []Debug                 // debug information produced during planning
+}
+
+func (p *Planner) addDebug(info Debug) {
+	if info.Location == nil {
+		info.Location = p.loc
+	}
+	p.debugs = append(p.debugs, info)
+}
+
+// Debug contains debugging information produced by the build about optimizations and other operations.
+type Debug struct {
+	Location *location.Location
+	Message  string
 }
 
 // New returns a new Planner object.
@@ -68,6 +82,15 @@ func New() *Planner {
 		rules: newRuletrie(),
 		funcs: newFuncstack(),
 	}
+}
+
+// Debug returns a list of debug events produced by the planner.
+func (p *Planner) Debug() []Debug {
+	return p.debugs
+}
+
+func (p *Planner) debug(msg string) {
+	p.addDebug(Debug{Message: msg})
 }
 
 // WithBuiltinDecls tells the planner what built-in function may be available
@@ -1996,11 +2019,12 @@ func rewrittenVar(vars map[ast.Var]ast.Var, k ast.Var) ast.Var {
 // var actually matched_ -- so we don't know which subtree to evaluate
 // with the results.
 func (p *Planner) optimizeLookup(t *ruletrie, ref ast.Ref) ([][]*ast.Rule, []ir.Stmt, []ir.Local, int, bool) {
-	dont := func() ([][]*ast.Rule, []ir.Stmt, []ir.Local, int, bool) {
+	dont := func(format string, args ...interface{}) ([][]*ast.Rule, []ir.Stmt, []ir.Local, int, bool) {
+		p.debug(fmt.Sprintf("no optimization of %s: "+format, append([]interface{}{ref}, args...)...))
 		return nil, nil, nil, 0, false
 	}
 	if t == nil {
-		return dont()
+		return dont("trie is nil")
 	}
 
 	nodes := []*ruletrie{t}
@@ -2018,7 +2042,7 @@ func (p *Planner) optimizeLookup(t *ruletrie, ref ast.Ref) ([][]*ast.Rule, []ir.
 			// check if it's been "seen" before
 			_, ok := p.vars.Get(r)
 			if !ok {
-				return dont()
+				return dont("ref[%d] is unseen var: %v", i, r)
 			}
 			opt = true
 			// take all children, they might match
@@ -2037,7 +2061,7 @@ func (p *Planner) optimizeLookup(t *ruletrie, ref ast.Ref) ([][]*ast.Rule, []ir.
 				}
 			}
 		default:
-			return dont() // TODO(sr): think more about this
+			return dont("ref[%d] is type %T", i, r) // TODO(sr): think more about this
 		}
 
 		nodes = nextNodes
@@ -2057,14 +2081,14 @@ func (p *Planner) optimizeLookup(t *ruletrie, ref ast.Ref) ([][]*ast.Rule, []ir.
 	// if there hasn't been any var, we're not making things better by
 	// introducing CallDynamicStmt
 	if !opt {
-		return dont()
+		return dont("no vars at all")
 	}
 
 	for _, node := range nodes {
 		// we're done with ref, check if there's only ruleset leaves; collect rules
 		if index == len(ref)-1 {
 			if len(node.Children()) > 0 {
-				return dont()
+				return dont("unbalanced ruletrie")
 			}
 		}
 		if rules := node.Rules(); len(rules) > 0 {
@@ -2072,7 +2096,7 @@ func (p *Planner) optimizeLookup(t *ruletrie, ref ast.Ref) ([][]*ast.Rule, []ir.
 		}
 	}
 	if len(res) == 0 {
-		return dont()
+		return dont("no rule leaves")
 	}
 
 	// If we've made it here, optimization is possible -- let's plan strings!
@@ -2096,7 +2120,7 @@ func (p *Planner) optimizeLookup(t *ruletrie, ref ast.Ref) ([][]*ast.Rule, []ir.
 		case ast.Var:
 			lv, ok := p.vars.Get(r)
 			if !ok {
-				return dont()
+				return dont("ref[%d] not a seen var: %v", i, ref[i])
 			}
 			locals = append(locals, lv)
 		case ast.String:
