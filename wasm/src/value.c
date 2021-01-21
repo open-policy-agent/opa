@@ -1666,13 +1666,12 @@ int opa_lookup(opa_value *mapping, opa_value *path) {
         return 0;
     }
 
-    opa_array_t *p = opa_cast_array(path);
     opa_value *curr = mapping;
 
-    for (int i = 0; i < path_len; i++)
+    for (opa_value *idx = opa_value_iter(path, NULL); idx != NULL; idx = opa_value_iter(path, idx))
     {
-        opa_value *k = opa_value_get_array_native(p, i);
-        opa_value *next = opa_value_get(curr, k);
+        opa_value *key = opa_value_get(path, idx);
+        opa_value *next = opa_value_get(curr, key);
         if (next == NULL)
         {
             return 0;
