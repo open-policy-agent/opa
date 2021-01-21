@@ -197,6 +197,15 @@ a = "c" { input > 2 }`,
 				Eval{Input: `{"re": "a(x*)b(y|z)c"}`, Result: `{{"x":[["axxxbyc","xxx","y"]]}}`},
 			},
 		},
+		{
+			Description: "simplified",
+			Query:       `x := "q"; y := data.p[x]`,
+			Policy: `p = 1
+			q = 2`,
+			Evals: []Eval{
+				{Result: `{{"y": 2, "x": "q"}}`},
+			},
+		},
 	}
 
 	for _, test := range tests {

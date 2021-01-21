@@ -432,14 +432,16 @@ func (c *Compiler) compileWasm(ctx context.Context) error {
 	}
 
 	// Plan the query sets.
-	policy, err := planner.New().
+	p := planner.New().
 		WithQueries(queries).
 		WithModules(modules).
-		WithBuiltinDecls(builtins).
-		Plan()
-
+		WithBuiltinDecls(builtins)
+	policy, err := p.Plan()
 	if err != nil {
 		return err
+	}
+	for _, d := range p.Debug() {
+		c.debug.Add(Debug{Message: d.Message, Location: d.Location})
 	}
 
 	// Compile the policy into a wasm binary.

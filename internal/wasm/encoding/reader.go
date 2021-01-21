@@ -143,8 +143,12 @@ func readSections(r io.Reader, m *module.Module) error {
 		bufr := bytes.NewReader(buf)
 
 		switch id {
-		case constant.StartSectionID, constant.MemorySectionID:
-			continue
+		case constant.MemorySectionID:
+			continue // ignore
+		case constant.StartSectionID:
+			if err := readStartSection(bufr, &m.Start); err != nil {
+				return errors.Wrap(err, "start section")
+			}
 		case constant.CustomSectionID:
 			var name string
 			if err := readByteVectorString(bufr, &name); err != nil {
@@ -304,6 +308,15 @@ func readNameSectionLocals(r io.Reader, s *module.NameSection) error {
 				}})
 		}
 	}
+	return nil
+}
+
+func readStartSection(r io.Reader, s *module.StartSection) error {
+	idx, err := leb128.ReadVarUint32(r)
+	if err != nil {
+		return err
+	}
+	s.FuncIndex = &idx
 	return nil
 }
 
@@ -737,6 +750,11 @@ func readInstructions(r io.Reader, instrs *[]instruction.Instruction) error {
 			ret = append(ret, instruction.SetLocal{Index: leb128.MustReadVarUint32(r)})
 		case opcode.Call:
 			ret = append(ret, instruction.Call{Index: leb128.MustReadVarUint32(r)})
+		case opcode.CallIndirect:
+			ret = append(ret, instruction.CallIndirect{
+				Index:    leb128.MustReadVarUint32(r),
+				Reserved: mustReadByte(r),
+			})
 		case opcode.BrIf:
 			ret = append(ret, instruction.BrIf{Index: leb128.MustReadVarUint32(r)})
 		case opcode.Return:
@@ -766,6 +784,14 @@ func readInstructions(r io.Reader, instrs *[]instruction.Instruction) error {
 			return fmt.Errorf("illegal opcode 0x%x", b)
 		}
 	}
+}
+
+func mustReadByte(r io.Reader) byte {
+	b, err := readByte(r)
+	if err != nil {
+		panic(err)
+	}
+	return b
 }
 
 func readLimits(r io.Reader, l *module.Limit) error {

@@ -295,6 +295,28 @@ func TestPlannerHelloWorld(t *testing.T) {
 				`,
 			},
 		},
+		{
+			note:    "cross product with non-ground refs to packages (simplified)",
+			queries: []string{`x := "aaa"; y := "bbb"; z := "q"; w := data.foo[x].bar[y].baz[z]`},
+			modules: []string{`package foo.aaa.bar.bbb.baz
+p = 1
+q = 2`,
+				`package foo.ccc.bar.bbb.baz
+p = 10
+q = 20`,
+			},
+		},
+		{
+			note: `non-ground refs to packages (including "with")`,
+			// NOTE(sr): data.foo.bbb does not change the outcomes, but triggers
+			// a gen++ in p.funcs, leading to g1, g2 function being planned and
+			// referenced
+			queries: []string{`x := "aaa"; y := "bbb"; z := "q"; w := data.foo[x].bar[y].baz[z] with data.foo.bbb as true`},
+			modules: []string{`package foo.aaa.bar.bbb.baz
+p = 1
+q = 2`,
+			},
+		},
 	}
 
 	for _, tc := range tests {
@@ -573,6 +595,17 @@ a {
 				&ir.ScanStmt{}:         `module-0.rego:3:3: data.test1[_].y = "z"`,
 			},
 		},
+		{
+			note:    "CallDynamicStmt optimization",
+			queries: []string{`x := "a"; data.test[x] = y`},
+			modules: []string{`package test
+a {
+  true
+}`},
+			exps: map[ir.Stmt]string{
+				&ir.CallDynamicStmt{}: "<query>:1:11: data.test[x] = y",
+			},
+		},
 	}
 
 	for _, tc := range tests {
@@ -651,5 +684,258 @@ func TestMultipleNamedQueries(t *testing.T) {
 		t.Fatal("expected two plans")
 	} else if policy.Plans.Plans[0].Name != "q1" || policy.Plans.Plans[1].Name != "q2" {
 		t.Fatal("expected to find plans for 'q1' and 'q2'")
+	}
+}
+
+func ref(r string) ast.Ref {
+	return ast.MustParseRef("data." + r)[1:]
+}
+
+func TestOptimizeLookup(t *testing.T) {
+	r0, r1, r2 := ast.Rule{}, ast.Rule{}, ast.Rule{}
+
+	t.Run("seen variable (last), one ruleset", func(t *testing.T) {
+		r := newRuletrie()
+		val := r.LookupOrInsert(ref("foo.bar"))
+		val.rules = append(val.rules, &r0, &r1, &r2)
+
+		p := New()
+		l := p.newLocal()
+		p.vars.Put(ast.Var("x"), l)
+
+		rulesets, stmts, locals, index, opt := p.optimizeLookup(r, ast.MustParseRef("data.foo[x]"))
+		if exp, act := true, opt; exp != act {
+			t.Errorf("expected 'optimize' %v, got %v\n", exp, act)
+		}
+		if exp, act := 2, index; exp != act {
+			t.Errorf("expected 'index' %d, got %d\n", exp, act)
+		}
+		if exp, act := 1, len(rulesets); exp != act {
+			t.Fatalf("expected %d rulesets, got %d\n", exp, act)
+		}
+		if exp, act := 3, len(rulesets[0]); exp != act {
+			t.Errorf("expected %d rules, got %d\n", exp, act)
+		}
+		// 3 = g0 + foo + x
+		if exp, act := 3, len(locals); exp != act {
+			t.Fatalf("expected %d locals, got %d\n", exp, act)
+		}
+		if exp, act := l, locals[len(locals)-1]; exp != act {
+			t.Errorf("expected last local to be %v, got %v\n", exp, act)
+		}
+		if exp, act := 2, len(stmts); exp != act {
+			t.Fatalf("expected %d statements in stmts, got %d\n", exp, act)
+		}
+		for i, stmt := range stmts {
+			_, ok := stmt.(*ir.MakeStringStmt)
+			if !ok {
+				t.Fatalf("expected stmt[%d] to be *ir.MakeStringStmt, got %T\n", i, stmt)
+			}
+		}
+	})
+
+	t.Run("ref shorter than ruletrie depth", func(t *testing.T) {
+		r := newRuletrie()
+		val := r.LookupOrInsert(ref("foo.bar.baz"))
+		val.rules = append(val.rules, &r0, &r1, &r2)
+
+		p := New()
+		l := p.newLocal()
+		p.vars.Put(ast.Var("x"), l)
+
+		_, _, _, _, opt := p.optimizeLookup(r, ast.MustParseRef("data.foo[x]"))
+		if exp, act := false, opt; exp != act {
+			t.Errorf("expected 'optimize' %v, got %v\n", exp, act)
+		}
+	})
+
+	t.Run("seen variable (last), multiple rulesets", func(t *testing.T) {
+		r := newRuletrie()
+		val := r.LookupOrInsert(ref("foo.bar"))
+		val.rules = append(val.rules, &r0, &r1)
+		val = r.LookupOrInsert(ref("foo.baz"))
+		val.rules = append(val.rules, &r2)
+
+		p := New()
+		p.vars.Put(ast.Var("x"), p.newLocal())
+
+		rulesets, _, _, _, opt := p.optimizeLookup(r, ast.MustParseRef("data.foo[x]"))
+		if exp, act := true, opt; exp != act {
+			t.Errorf("expected 'optimize' %v, got %v\n", exp, act)
+		}
+		if exp, act := 2, len(rulesets); exp != act {
+			t.Fatalf("expected %d rulesets, got %d\n", exp, act)
+		}
+		if exp, act := 2, len(rulesets[0]); exp != act {
+			t.Errorf("expected %d rules in ruleset 0, got %d\n", exp, act)
+		}
+		if exp, act := 1, len(rulesets[1]); exp != act {
+			t.Errorf("expected %d rules in ruleset 1, got %d\n", exp, act)
+		}
+	})
+
+	t.Run("unseen variable (last)", func(t *testing.T) {
+		r := newRuletrie()
+		val := r.LookupOrInsert(ref("foo.bar"))
+		val.rules = append(val.rules, &r0, &r1, &r2)
+
+		p := New()
+
+		_, _, _, _, opt := p.optimizeLookup(r, ast.MustParseRef("data.foo[x]"))
+		if exp, act := false, opt; exp != act {
+			t.Errorf("expected 'optimize' %v, got %v\n", exp, act)
+		}
+	})
+
+	t.Run("all ground refs", func(t *testing.T) {
+		r := newRuletrie()
+		val := r.LookupOrInsert(ref("foo.bar.baz"))
+		val.rules = append(val.rules, &r0, &r1, &r2)
+
+		p := New()
+
+		_, _, _, _, opt := p.optimizeLookup(r, ast.MustParseRef("data.foo.bar.baz"))
+		if exp, act := false, opt; exp != act {
+			t.Errorf("expected 'optimize' %v, got %v\n", exp, act)
+		}
+	})
+
+	t.Run("multiple seen vars, one rule set", func(t *testing.T) {
+		r := newRuletrie()
+		val := r.LookupOrInsert(ref("foo.aaa.bar.bbb.q"))
+		val.rules = append(val.rules, &r0, &r1, &r2)
+
+		p := New()
+		lx, ly := p.newLocal(), p.newLocal()
+		p.vars.Put(ast.Var("x"), lx)
+		p.vars.Put(ast.Var("y"), ly)
+
+		rulesets, stmts, locals, index, opt := p.optimizeLookup(r, ast.MustParseRef("data.foo[x].bar[y].q"))
+		if exp, act := true, opt; exp != act {
+			t.Errorf("expected 'optimize' %v, got %v\n", exp, act)
+		}
+		if exp, act := 5, index; exp != act {
+			t.Errorf("expected 'index' %d, got %d\n", exp, act)
+		}
+		if exp, act := 1, len(rulesets); exp != act {
+			t.Fatalf("expected %d rulesets, got %d\n", exp, act)
+		}
+		if exp, act := 3, len(rulesets[0]); exp != act {
+			t.Errorf("expected %d rules in ruleset 0, got %d\n", exp, act)
+		}
+		// 6 = g0 + foo + x + bar + y + q
+		if exp, act := 6, len(locals); exp != act {
+			t.Fatalf("expected %d locals, got %d\n", exp, act)
+		}
+		// 4 = MakeStringStmt for "g0" + "foo" + "bar" + "q"
+		if exp, act := 4, len(stmts); exp != act {
+			t.Fatalf("expected %d statements in stmts, got %d\n", exp, act)
+		}
+	})
+
+	t.Run("one seen var, one unseen, one rule set", func(t *testing.T) {
+		r := newRuletrie()
+		val := r.LookupOrInsert(ref("foo.aaa.bar.bbb.q"))
+		val.rules = append(val.rules, &r0, &r1, &r2)
+
+		p := New()
+		p.vars.Put(ast.Var("x"), p.newLocal())
+
+		_, _, _, _, opt := p.optimizeLookup(r, ast.MustParseRef("data.foo[x].bar[y].q"))
+		if exp, act := false, opt; exp != act {
+			t.Errorf("expected 'optimize' %v, got %v\n", exp, act)
+		}
+	})
+
+	t.Run("one seen var, one rule set and children left", func(t *testing.T) {
+		r := newRuletrie()
+		val := r.LookupOrInsert(ref("foo.aaa.bar.bbb.q"))
+		val.rules = append(val.rules, &r0)
+		val = r.LookupOrInsert(ref("foo.ccc.bar"))
+		val.rules = append(val.rules, &r1, &r2)
+
+		p := New()
+		p.vars.Put(ast.Var("x"), p.newLocal())
+
+		_, _, _, _, opt := p.optimizeLookup(r, ast.MustParseRef("data.foo[x].bar"))
+		if exp, act := false, opt; exp != act {
+			t.Errorf("expected 'optimize' %v, got %v\n", exp, act)
+		}
+	})
+
+	t.Run("ref goes into the rules' result", func(t *testing.T) {
+		r := newRuletrie()
+		val := r.LookupOrInsert(ref("foo.aaa.bar.q"))
+		val.rules = append(val.rules, &r0, &r1, &r2)
+
+		p := New()
+		p.vars.Put(ast.Var("x"), p.newLocal())
+
+		rulesets, stmts, locals, index, opt := p.optimizeLookup(r, ast.MustParseRef("data.foo[x].bar.q.p.r"))
+		if exp, act := true, opt; exp != act {
+			t.Errorf("expected 'optimize' %v, got %v\n", exp, act)
+		}
+		if exp, act := 4, index; exp != act {
+			t.Errorf("expected 'index' %d, got %d\n", exp, act)
+		}
+		if exp, act := 1, len(rulesets); exp != act {
+			t.Fatalf("expected %d rulesets, got %d\n", exp, act)
+		}
+		if exp, act := 3, len(rulesets[0]); exp != act {
+			t.Errorf("expected %d rules in ruleset 0, got %d\n", exp, act)
+		}
+		// 5 = g0 + foo + x + bar + q
+		if exp, act := 5, len(locals); exp != act {
+			t.Fatalf("expected %d locals, got %d\n", exp, act)
+		}
+		// 4 = MakeStringStmt for "g0" + "foo" + "bar" + "q"
+		if exp, act := 4, len(stmts); exp != act {
+			t.Fatalf("expected %d statements in stmts, got %d\n", exp, act)
+		}
+	})
+
+	t.Run("one leaf without rules", func(t *testing.T) {
+		r := newRuletrie()
+		val := r.LookupOrInsert(ref("foo.aaa.bar.q"))
+		val.rules = append(val.rules, &r0, &r1)
+		r.LookupOrInsert(ref("foo.bbb.bar.q"))
+
+		p := New()
+		p.vars.Put(ast.Var("x"), p.newLocal())
+
+		rulesets, _, _, index, opt := p.optimizeLookup(r, ast.MustParseRef("data.foo[x].bar.q"))
+		if exp, act := true, opt; exp != act {
+			t.Errorf("expected 'optimize' %v, got %v\n", exp, act)
+		}
+		if exp, act := 4, index; exp != act {
+			t.Errorf("expected 'index' %d, got %d\n", exp, act)
+		}
+		if exp, act := 1, len(rulesets); exp != act {
+			t.Fatalf("expected %d rulesets, got %d\n", exp, act)
+		}
+		if exp, act := 2, len(rulesets[0]); exp != act {
+			t.Errorf("expected %d rules in ruleset 0, got %d\n", exp, act)
+		}
+	})
+
+	t.Run("all leaves without rules", func(t *testing.T) {
+		r := newRuletrie()
+		r.LookupOrInsert(ref("foo.aaa.bar.q"))
+		r.LookupOrInsert(ref("foo.bbb.bar.q"))
+
+		p := New()
+		p.vars.Put(ast.Var("x"), p.newLocal())
+
+		_, _, _, _, opt := p.optimizeLookup(r, ast.MustParseRef("data.foo[x].bar.q"))
+		if exp, act := false, opt; exp != act {
+			t.Errorf("expected 'optimize' %v, got %v\n", exp, act)
+		}
+	})
+}
+
+func expectNoError(t *testing.T, err error) {
+	t.Helper()
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
 	}
 }

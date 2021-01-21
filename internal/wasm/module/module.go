@@ -16,6 +16,7 @@ type (
 	// Module represents a WASM module.
 	Module struct {
 		Version  uint32
+		Start    StartSection
 		Type     TypeSection
 		Import   ImportSection
 		Function FunctionSection
@@ -27,6 +28,11 @@ type (
 		Data     DataSection
 		Customs  []CustomSection
 		Names    NameSection
+	}
+
+	// StartSection represents a WASM start section.
+	StartSection struct {
+		FuncIndex *uint32
 	}
 
 	// TypeSection represents a WASM type section.

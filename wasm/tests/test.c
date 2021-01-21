@@ -3209,3 +3209,40 @@ void test_regex()
         }
     }
 }
+
+void test_opa_lookup(void)
+{
+    opa_array_t *path1 = opa_cast_array(opa_array());
+    opa_array_append(path1, opa_string_terminated("foo"));
+    opa_array_append(path1, opa_string_terminated("bar"));
+    opa_array_append(path1, opa_string_terminated("baz"));
+
+    opa_object_t *mock_mapping = opa_cast_object(opa_object());
+    opa_object_t *obj1 = opa_cast_object(opa_object());
+    opa_object_insert(obj1, opa_string_terminated("baz"), opa_number_int(1));
+    opa_object_t *obj2 = opa_cast_object(opa_object());
+    opa_object_insert(obj2, opa_string_terminated("bar"), &obj1->hdr);
+    opa_object_insert(mock_mapping, opa_string_terminated("foo"), &obj2->hdr);
+
+    opa_value *empty_mapping = opa_object();
+
+    opa_object_t *smaller_mapping = opa_cast_object(opa_object());
+    opa_object_t *obj3 = opa_cast_object(opa_object());
+    opa_object_insert(obj3, opa_string_terminated("bar"), opa_number_int(2));
+    opa_object_insert(smaller_mapping, opa_string_terminated("foo"), &obj3->hdr);
+
+    test("opa_lookup/hit", opa_lookup(&mock_mapping->hdr, &path1->hdr) == 1);
+    test("opa_lookup/miss", opa_lookup(empty_mapping, &path1->hdr) == 0);
+    test("opa_lookup/miss/less", opa_lookup(&smaller_mapping->hdr, &path1->hdr) == 0);
+}
+
+void test_opa_mapping_init(void)
+{
+    opa_string_t *s = opa_cast_string(opa_string_terminated("{\"foo\": {\"bar\": 123}}"));
+    opa_mapping_init(s->v, s->len);
+
+    opa_array_t *path1 = opa_cast_array(opa_array());
+    opa_array_append(path1, opa_string_terminated("foo"));
+    opa_array_append(path1, opa_string_terminated("bar"));
+    test("opa_mapping_init/opa_lookup_works", opa_mapping_lookup(&path1->hdr) == 123);
+}

@@ -1,0 +1,87 @@
+cases:
+  - note: non_opt
+    query: |
+      z := data.foo.q
+    modules:
+      - |
+        package foo
+        q = 1
+    want_result:
+      - z: 1
+  - note: simplest
+    query: |
+      x := "q"; z := data.foo[x]
+    modules:
+      - |
+        package foo
+        q = 1
+    want_result:
+      - x: q
+        z: 1
+  - note: two packages, one irrelevant
+    query: |
+      x := "q"; z := data.foo[x]
+    modules:
+      - |
+        package foo
+        q = 1
+      - |
+        package bar
+        q = 2
+    want_result:
+      - x: q
+        z: 1
+  - note: more layers
+    query: |
+      x := "aaa"; u := "ccc"; z := "q"; w := data.foo[x].bar[u].baz[z]
+    modules:
+      - |
+        package foo.aaa.bar.ccc.baz
+        q = 1
+      - |
+        package foo.aaa.bar.ddd.baz
+        q = 2
+    want_result:
+      - x: aaa
+        u: ccc
+        w: 1
+        z: q
+  - note: leftover ref when optimization planned
+    query: |
+      x := "aaa"; z := "q"; w := data.foo[x].bar[z].foo.baz
+    modules:
+      - |
+        package foo.aaa.bar
+        q = {
+          "foo": {
+            "baz": 100
+          }
+        }
+    want_result:
+      - x: aaa
+        z: q
+        w: 100
+  - note: lookup involving 'with'
+    query: |
+      x := "q"; a := "bar"; z := data.foo[a][x] with data.foo.baz as 200
+    modules:
+      - |
+        package foo.bar
+        q = 1
+    want_result:
+      - x: q
+        a: bar
+        z: 1
+  - note: memoization
+    query: |
+      x := "q"; z := data.foo[x]; w := data.foo[x]
+    modules:
+      - |
+        package foo
+        q = 1 {
+          custom_builtin_test_memoization() == 100
+        }
+    want_result:
+      - x: q
+        z: 1
+        w: 1

@@ -47,6 +47,20 @@ type Planner struct {
 	ltarget ir.Local                // target variable of last planned statement
 	lnext   ir.Local                // next variable to use
 	loc     *location.Location      // location currently "being planned"
+	debugs  []Debug                 // debug information produced during planning
+}
+
+func (p *Planner) addDebug(info Debug) {
+	if info.Location == nil {
+		info.Location = p.loc
+	}
+	p.debugs = append(p.debugs, info)
+}
+
+// Debug contains debugging information produced by the build about optimizations and other operations.
+type Debug struct {
+	Location *location.Location
+	Message  string
 }
 
 // New returns a new Planner object.
@@ -68,6 +82,15 @@ func New() *Planner {
 		rules: newRuletrie(),
 		funcs: newFuncstack(),
 	}
+}
+
+// Debug returns a list of debug events produced by the planner.
+func (p *Planner) Debug() []Debug {
+	return p.debugs
+}
+
+func (p *Planner) debug(msg string) {
+	p.addDebug(Debug{Message: msg})
 }
 
 // WithBuiltinDecls tells the planner what built-in function may be available
@@ -137,7 +160,13 @@ func (p *Planner) buildFunctrie() error {
 
 func (p *Planner) planRules(rules []*ast.Rule) (string, error) {
 
-	path := rules[0].Path().String()
+	pathRef := rules[0].Path()
+	path := pathRef.String()
+
+	var pathPieces []string
+	for i := 1; /* skip `data` */ i < len(pathRef); i++ {
+		pathPieces = append(pathPieces, string(pathRef[i].Value.(ast.String)))
+	}
 
 	if funcName, ok := p.funcs.Get(path); ok {
 		return funcName, nil
@@ -168,6 +197,7 @@ func (p *Planner) planRules(rules []*ast.Rule) (string, error) {
 			p.newLocal(), // data document
 		},
 		Return: p.newLocal(),
+		Path:   append([]string{fmt.Sprintf("g%d", p.funcs.gen)}, pathPieces...),
 	}
 
 	// Initialize parameters for functions.
@@ -1471,7 +1501,7 @@ func (p *Planner) planRefRec(ref ast.Ref, index int, iter planiter) error {
 		})
 	}
 
-	return p.planScan(ref[index], func(lkey ir.Local) error {
+	return p.planScan(ref[index], func(ir.Local) error {
 		return p.planRefRec(ref, index+1, iter)
 	})
 }
@@ -1490,6 +1520,37 @@ func (p *Planner) planRefData(virtual *ruletrie, base *baseptr, ref ast.Ref, ind
 	// plan has to materialize the full extent of the referenced value.
 	if index >= len(ref) {
 		return p.planRefDataExtent(virtual, base, iter)
+	}
+
+	// On the first iteration, we check if this can be optimized using a
+	// CallDynamicStatement
+	// NOTE(sr): we do it on the first index because later on, the recursion
+	// on subtrees of virtual already lost parts of the path we've taken.
+	if index == 1 {
+		rulesets, stmts, locals, index, optimize := p.optimizeLookup(virtual, ref)
+		if optimize {
+			// plan rules
+			for _, rules := range rulesets {
+				if _, err := p.planRules(rules); err != nil {
+					return err
+				}
+			}
+			// plan MakeStringStmts needed for ground ref[j]
+			for _, stmt := range stmts {
+				p.appendStmt(stmt)
+			}
+
+			p.ltarget = p.newLocal()
+			p.appendStmt(&ir.CallDynamicStmt{
+				Args: []ir.Local{
+					p.vars.GetOrEmpty(ast.InputRootDocument.Value.(ast.Var)),
+					p.vars.GetOrEmpty(ast.DefaultRootDocument.Value.(ast.Var)),
+				},
+				Path:   locals,
+				Result: p.ltarget,
+			})
+			return p.planRefRec(ref, index+1, iter)
+		}
 	}
 
 	// If the reference operand is ground then either continue to the next
@@ -1940,4 +2001,146 @@ func rewrittenVar(vars map[ast.Var]ast.Var, k ast.Var) ast.Var {
 		return k
 	}
 	return rw
+}
+
+// optimizeLookup returns a set of rulesets and required statements planning
+// the locals (strings) needed with the used local variables, and the index
+// into ref's parth that is still to be planned; if the passed ref's vars
+// allow for optimization using CallDynamicStmt.
+//
+// It's possible iff
+// - all vars in ref have been seen
+// - all ground terms (strings) match some child key on their respective
+//   layer of the ruletrie
+// - there are no child trees left (only rulesets) if we're done checking
+//   ref
+//
+// The last condition is necessary because we don't deal with _which key a
+// var actually matched_ -- so we don't know which subtree to evaluate
+// with the results.
+func (p *Planner) optimizeLookup(t *ruletrie, ref ast.Ref) ([][]*ast.Rule, []ir.Stmt, []ir.Local, int, bool) {
+	dont := func(format string, args ...interface{}) ([][]*ast.Rule, []ir.Stmt, []ir.Local, int, bool) {
+		p.debug(fmt.Sprintf("no optimization of %s: "+format, append([]interface{}{ref}, args...)...))
+		return nil, nil, nil, 0, false
+	}
+	if t == nil {
+		return dont("trie is nil")
+	}
+
+	nodes := []*ruletrie{t}
+	opt := false
+	var index int
+
+	// ref[0] is data, ignore
+	for i := 1; i < len(ref); i++ {
+		index = i
+		r := ref[i]
+		var nextNodes []*ruletrie
+
+		switch r := r.Value.(type) {
+		case ast.Var:
+			// check if it's been "seen" before
+			_, ok := p.vars.Get(r)
+			if !ok {
+				return dont("ref[%d] is unseen var: %v", i, r)
+			}
+			opt = true
+			// take all children, they might match
+			for _, node := range nodes {
+				for _, child := range node.Children() {
+					if node := node.Get(child); node != nil {
+						nextNodes = append(nextNodes, node)
+					}
+				}
+			}
+		case ast.String:
+			// take matching children
+			for _, node := range nodes {
+				if node := node.Get(r); node != nil {
+					nextNodes = append(nextNodes, node)
+				}
+			}
+		default:
+			return dont("ref[%d] is type %T", i, r) // TODO(sr): think more about this
+		}
+
+		nodes = nextNodes
+
+		// if all nodes have 0 children, abort ref check and optimize
+		all := true
+		for _, node := range nodes {
+			all = all && len(node.Children()) == 0
+		}
+		if all {
+			break
+		}
+	}
+
+	var res [][]*ast.Rule
+
+	// if there hasn't been any var, we're not making things better by
+	// introducing CallDynamicStmt
+	if !opt {
+		return dont("no vars at all")
+	}
+
+	for _, node := range nodes {
+		// we're done with ref, check if there's only ruleset leaves; collect rules
+		if index == len(ref)-1 {
+			if len(node.Children()) > 0 {
+				return dont("unbalanced ruletrie")
+			}
+		}
+		if rules := node.Rules(); len(rules) > 0 {
+			res = append(res, rules)
+		}
+	}
+	if len(res) == 0 {
+		return dont("no rule leaves")
+	}
+
+	// If we've made it here, optimization is possible -- let's plan strings!
+	// NOTE(sr): this is a bit of a dirty side-effect; the code here assumes
+	// that the returned block and locals are going to be used. Technically,
+	// it might still be discarded, and we've planned a few strings we don't
+	// actually need.
+	var stmts []ir.Stmt
+	var locals []ir.Local
+
+	// plan generation
+	lvar := p.newLocal()
+	stmts = append(stmts, &ir.MakeStringStmt{
+		Index:  p.getStringConst(fmt.Sprintf("g%d", p.funcs.gen)),
+		Target: lvar,
+	})
+	locals = append(locals, lvar)
+
+	for i := 1; i <= index; i++ {
+		switch r := ref[i].Value.(type) {
+		case ast.Var:
+			lv, ok := p.vars.Get(r)
+			if !ok {
+				return dont("ref[%d] not a seen var: %v", i, ref[i])
+			}
+			locals = append(locals, lv)
+		case ast.String:
+			// plan string
+			lvar := p.newLocal()
+			stmts = append(stmts, &ir.MakeStringStmt{
+				Index:  p.getStringConst(string(r)),
+				Target: lvar,
+			})
+			locals = append(locals, lvar)
+		}
+	}
+
+	return res, stmts, locals, index, true
+}
+
+func (p *Planner) seenVar(ref *ast.Term) (bool, bool) {
+	if v, ok := ref.Value.(ast.Var); ok {
+		_, ok := p.vars.Get(v)
+		return true, ok
+	}
+	return false, false
 }

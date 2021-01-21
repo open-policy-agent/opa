@@ -170,6 +170,10 @@ void opa_set_free(opa_set_t *set);
 void opa_set_add(opa_set_t *set, opa_value *v);
 opa_set_elem_t *opa_set_get(opa_set_t *set, opa_value *v);
 
+int opa_lookup(opa_value *mapping, opa_value *path);
+int opa_mapping_lookup(opa_value *path);
+void opa_mapping_init(const char *s, const int l);
+
 #ifdef __cplusplus
 }
 #endif

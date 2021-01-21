@@ -9,7 +9,7 @@ import (
 	"github.com/open-policy-agent/opa/internal/wasm/types"
 )
 
-// Unreachable reprsents an unreachable opcode.
+// Unreachable represents a WASM unreachable instruction.
 type Unreachable struct {
 	NoImmediateArgs
 }
@@ -116,6 +116,22 @@ func (Call) Op() opcode.Opcode {
 // ImmediateArgs returns the function index.
 func (i Call) ImmediateArgs() []interface{} {
 	return []interface{}{i.Index}
+}
+
+// CallIndirect represents a WASM call_indirect instruction.
+type CallIndirect struct {
+	Index    uint32 // type index
+	Reserved byte   // zero for now
+}
+
+// Op returns the opcode of the instruction.
+func (CallIndirect) Op() opcode.Opcode {
+	return opcode.CallIndirect
+}
+
+// ImmediateArgs returns the function index.
+func (i CallIndirect) ImmediateArgs() []interface{} {
+	return []interface{}{i.Index, i.Reserved}
 }
 
 // Return represents a WASM return instruction.

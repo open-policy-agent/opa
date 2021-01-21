@@ -86,7 +86,7 @@ function loadJSON(mod, memory, value) {
     const parsedAddr = mod.instance.exports.opa_json_parse(rawAddr, str.length);
 
     if (parsedAddr == 0) {
-        throw "failed to parse json value"
+        throw "failed to parse json value";
     }
 
     return parsedAddr;
@@ -114,9 +114,20 @@ function builtinCustomTestImpure() {
     return "foo";
 }
 
+var run = false;
+
+function builtinCustomTestMemoization() {
+    if (run) {
+      throw "should have been memoized";
+    }
+    run = true
+    return 100;
+}
+
 const builtinFuncs = {
     custom_builtin_test: builtinCustomTest,
     custom_builtin_test_impure: builtinCustomTestImpure,
+    custom_builtin_test_memoization: builtinCustomTestMemoization,
 }
 
 // builtinCall dispatches the built-in function. Arguments are deserialized from

@@ -1,5 +1,6 @@
 #include <mpdecimal.h>
 
+#include "json.h"
 #include "malloc.h"
 #include "mpd.h"
 #include "str.h"
@@ -1653,4 +1654,55 @@ opa_errc opa_value_remove_path(opa_value *data, opa_value *path)
     opa_object_remove(opa_cast_object(curr), opa_value_get_array_native(p, path_len-1));
 
     return OPA_ERR_OK;
+}
+
+// Lookup path in the passed mapping object. Returns 0 if it can't
+// be found, or of there's no function index leaf when we've run out
+// of path pieces.
+int opa_lookup(opa_value *mapping, opa_value *path) {
+    int path_len = _validate_json_path(path);
+    if (path_len < 1)
+    {
+        return 0;
+    }
+
+    opa_value *curr = mapping;
+
+    for (opa_value *idx = opa_value_iter(path, NULL); idx != NULL; idx = opa_value_iter(path, idx))
+    {
+        opa_value *key = opa_value_get(path, idx);
+        opa_value *next = opa_value_get(curr, key);
+        if (next == NULL)
+        {
+            return 0;
+        }
+        curr = next;
+    }
+    if (curr->type == OPA_NUMBER) {
+        long long i;
+        if (opa_number_try_int(opa_cast_number(curr), &i) == 0) {
+            return i;
+        }
+    }
+    return 0;
+}
+
+// global variable used for storing the parsed mapping JSON
+static opa_value *mapping;
+
+// Called from the WASM-generated '_initialize' function with the
+// address of the mapping string and its length. Parses the JSON
+// string it expects, sets the *mapping variable accordingly.
+OPA_INTERNAL
+void opa_mapping_init(const char *s, const int l) {
+    if (mapping == NULL) {
+        mapping = opa_json_parse(s, l);
+    }
+}
+
+// Lookup mapped function index from global mapping (initialized by
+// opa_mapping_init).
+OPA_INTERNAL
+int opa_mapping_lookup(opa_value *path) {
+    return opa_lookup(mapping, path);
 }
