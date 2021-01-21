@@ -103,6 +103,14 @@ async function test(executable) {
         }
     }
 
+    // NOTE(sr): seenFuncs will not contain all tests run, but only those that
+    // actually call opa_test_{pass,fail}. However, if it's empty, something is
+    // definitely wrong.
+    if (Object.keys(seenFuncs).length == 0) {
+        console.log(red('ERROR'), "no tests executed");
+        process.exit(2);
+    }
+
     if (failedOrErrored > 0) {
         process.exit(1);
     }

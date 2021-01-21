@@ -31,8 +31,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+WASM_EXPORT(test_glob_lexer)
 extern "C"
-void test_glob_lexer(void)
+void test_glob_lexer()
 {
 #define TEST(test_case, pattern, ...) {                                 \
         token expected[] = {__VA_ARGS__};                               \
@@ -143,8 +144,9 @@ void test_glob_lexer(void)
 #undef TEST
 }
 
+WASM_EXPORT(test_glob_parser)
 extern "C"
-void test_glob_parser(void)
+void test_glob_parser()
 {
 #define TEST(test_case, pattern, expected) {                            \
         opa_heap_compact();                                             \
@@ -221,8 +223,9 @@ void test_glob_parser(void)
 #undef TEST
 }
 
+WASM_EXPORT(test_glob_translate)
 extern "C"
-void test_glob_translate(void)
+void test_glob_translate()
 {
 #define TEST(test_case, pattern, expected, ...) {                       \
         std::string re2;                                                \
