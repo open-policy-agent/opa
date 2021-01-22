@@ -38,8 +38,8 @@ func TestOPA(t *testing.T) {
 			Policy:      `a = true`,
 			Query:       "data.p.a = x",
 			Evals: []Eval{
-				Eval{Result: `{{"x": true}}`},
-				Eval{Result: `{{"x": true}}`},
+				{Result: `{{"x": true}}`},
+				{Result: `{{"x": true}}`},
 			},
 			WantErr: "",
 		},
@@ -48,8 +48,8 @@ func TestOPA(t *testing.T) {
 			Policy:      `a = input`,
 			Query:       "data.p.a = x",
 			Evals: []Eval{
-				Eval{Input: "false", Result: `{{"x": false}}`},
-				Eval{Input: "true", Result: `{{"x": true}}`},
+				{Input: "false", Result: `{{"x": false}}`},
+				{Input: "true", Result: `{{"x": true}}`},
 			},
 			WantErr: "",
 		},
@@ -59,8 +59,8 @@ func TestOPA(t *testing.T) {
 			Query:       "data.p.a = x",
 			Data:        `{"q": false}`,
 			Evals: []Eval{
-				Eval{Result: `{{"x": false}}`},
-				Eval{NewData: `{"q": true}`, Result: `{{"x": true}}`},
+				{Result: `{{"x": false}}`},
+				{NewData: `{"q": true}`, Result: `{{"x": true}}`},
 			},
 			WantErr: "",
 		},
@@ -70,8 +70,8 @@ func TestOPA(t *testing.T) {
 			Query:       "data.p.a = x",
 			Data:        `{"q": false, "r": true}`,
 			Evals: []Eval{
-				Eval{Result: `{{"x": false}}`},
-				Eval{NewPolicy: `a = data.r`, Result: `{{"x": true}}`},
+				{Result: `{{"x": false}}`},
+				{NewPolicy: `a = data.r`, Result: `{{"x": true}}`},
 			},
 			WantErr: "",
 		},
@@ -81,8 +81,8 @@ func TestOPA(t *testing.T) {
 			Query:       "data.p.a = x",
 			Data:        `{"q": 0, "r": 1}`,
 			Evals: []Eval{
-				Eval{Result: `{{"x": 0}}`},
-				Eval{NewPolicy: `a = data.r`, NewData: `{"q": 2, "r": 3}`, Result: `{{"x": 3}}`},
+				{Result: `{{"x": 0}}`},
+				{NewPolicy: `a = data.r`, NewData: `{"q": 2, "r": 3}`, Result: `{{"x": 3}}`},
 			},
 			WantErr: "",
 		},
@@ -91,8 +91,8 @@ func TestOPA(t *testing.T) {
 			Policy:      `a = count(data.q) + sum(data.q)`,
 			Query:       "data.p.a = x",
 			Evals: []Eval{
-				Eval{NewData: `{"q": []}`, Result: `{{"x": 0}}`},
-				Eval{NewData: `{"q": [1, 2]}`, Result: `{{"x": 5}}`},
+				{NewData: `{"q": []}`, Result: `{{"x": 0}}`},
+				{NewData: `{"q": [1, 2]}`, Result: `{{"x": 5}}`},
 			},
 			WantErr: "",
 		},
@@ -101,7 +101,7 @@ func TestOPA(t *testing.T) {
 			Policy:      `a = true`,
 			Query:       "data.p.b = x",
 			Evals: []Eval{
-				Eval{Result: `set()`},
+				{Result: `set()`},
 			},
 			WantErr: "",
 		},
@@ -167,8 +167,8 @@ a = "c" { input > 2 }`,
 			}`,
 			Query: "data.p.hello = x",
 			Evals: []Eval{
-				Eval{Input: `{"message": "xxxxxxx"}`, Result: `{{"x": false}}`},
-				Eval{Input: `{"message": "world"}`, Result: `{{"x": true}}`},
+				{Input: `{"message": "xxxxxxx"}`, Result: `{{"x": false}}`},
+				{Input: `{"message": "world"}`, Result: `{{"x": true}}`},
 			},
 		},
 		{
@@ -180,22 +180,22 @@ a = "c" { input > 2 }`,
 			}`,
 			Query: "data.p.hello = x",
 			Evals: []Eval{
-				Eval{Input: `{"message": "xxxxxxx"}`, Result: `{{"x": false}}`},
-				Eval{Input: `{"message": "world"}`, Result: `{{"x": true}}`},
+				{Input: `{"message": "xxxxxxx"}`, Result: `{{"x": false}}`},
+				{Input: `{"message": "world"}`, Result: `{{"x": true}}`},
 			},
 		},
 		{
 			Description: "regex.match with pattern from input",
 			Query:       `x = regex.match(input.re, "foo")`,
 			Evals: []Eval{
-				Eval{Input: `{"re": "^foo$"}`, Result: `{{"x": true}}`},
+				{Input: `{"re": "^foo$"}`, Result: `{{"x": true}}`},
 			},
 		},
 		{
 			Description: "regex.find_all_string_submatch_n with pattern from input",
 			Query:       `x = regex.find_all_string_submatch_n(input.re, "-axxxbyc-", -1)`,
 			Evals: []Eval{
-				Eval{Input: `{"re": "a(x*)b(y|z)c"}`, Result: `{{"x":[["axxxbyc","xxx","y"]]}}`},
+				{Input: `{"re": "a(x*)b(y|z)c"}`, Result: `{{"x":[["axxxbyc","xxx","y"]]}}`},
 			},
 		},
 		{
