@@ -1650,11 +1650,14 @@ func (p *Planner) planRefData(virtual *ruletrie, base *baseptr, ref ast.Ref, ind
 	}
 
 	p.ltarget = base.local
+	return p.planRefDataBaseScan(base.path, ref, index, lexclude, iter)
+}
 
-	// Perform a scan of the base documents starting from the location referred
-	// to by the data pointer. Use the set we built above to avoid revisiting
-	// sub trees.
-	return p.planRefRec(base.path, 0, func() error {
+// Perform a scan of the base documents starting from the location referred
+// to by the 'path' data pointer. Use the set (planned into 'lexclude') to
+// avoid revisiting sub trees.
+func (p *Planner) planRefDataBaseScan(path ast.Ref, ref ast.Ref, index int, lexclude *ir.Local, iter planiter) error {
+	return p.planRefRec(path, 0, func() error {
 		return p.planScan(ref[index], func(lkey ir.Local) error {
 			if lexclude != nil {
 				lignore := p.newLocal()
