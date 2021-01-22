@@ -359,23 +359,7 @@ func TestPrettyReporterVerboseBenchmark(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	exp := `FAILURES
---------------------------------------------------------------------------------
-data.foo.bar.test_corge: FAIL (0s)
-
-
-SUMMARY
---------------------------------------------------------------------------------
-data.foo.bar.test_baz	    1000	       123 ns/op
-data.foo.bar.test_qux: ERROR (0s)
-  some err
-data.foo.bar.test_corge: FAIL (0s)
---------------------------------------------------------------------------------
-PASS: 1/3
-FAIL: 1/3
-ERROR: 1/3
-`
-
+	exp := fixtureReporterVerboseBenchmark
 	if exp != buf.String() {
 		t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", exp, buf.String())
 	}
@@ -436,23 +420,7 @@ func TestPrettyReporterVerboseBenchmarkShowAllocations(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	exp := `FAILURES
---------------------------------------------------------------------------------
-data.foo.bar.test_corge: FAIL (0s)
-
-
-SUMMARY
---------------------------------------------------------------------------------
-data.foo.bar.test_baz	    1000	       123 ns/op	       123 timer_rego_query_eval_ns/op	      91 B/op	       0 allocs/op
-data.foo.bar.test_qux: ERROR (0s)
-  some err
-data.foo.bar.test_corge: FAIL (0s)
---------------------------------------------------------------------------------
-PASS: 1/3
-FAIL: 1/3
-ERROR: 1/3
-`
-
+	exp := fixtureReporterVerboseBenchmarkShowAllocations
 	if exp != buf.String() {
 		t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", exp, buf.String())
 	}
@@ -514,23 +482,7 @@ func TestPrettyReporterVerboseBenchmarkShowAllocationsGoBenchFormat(t *testing.T
 		t.Fatal(err)
 	}
 
-	exp := `FAILURES
---------------------------------------------------------------------------------
-data.foo.bar.test_corge: FAIL (0s)
-
-
-SUMMARY
---------------------------------------------------------------------------------
-BenchmarkDataFooBarTestBaz	    1000	       123 ns/op	       123 timer_rego_query_eval_ns/op	      91 B/op	       0 allocs/op
-data.foo.bar.test_qux: ERROR (0s)
-  some err
-data.foo.bar.test_corge: FAIL (0s)
---------------------------------------------------------------------------------
-PASS: 1/3
-FAIL: 1/3
-ERROR: 1/3
-`
-
+	exp := fixtureReporterVerboseBenchmarkShowAllocationsGoBenchFormat
 	if exp != buf.String() {
 		t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", exp, buf.String())
 	}
