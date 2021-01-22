@@ -6,6 +6,7 @@ package opa_test
 import (
 	"context"
 	"fmt"
+	"os"
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -382,6 +383,7 @@ func compileRegoToWasm(policy string, query string) []byte {
 	cr, err := rego.New(
 		rego.Query(query),
 		rego.Module("module.rego", module),
+		rego.Dump(os.Stderr),
 	).Compile(context.Background(), rego.CompilePartial(false))
 	if err != nil {
 		panic(err)

@@ -317,6 +317,11 @@ p = 1
 q = 2`,
 			},
 		},
+		{
+			note:    "cross product with non-ground refs to packages, 'no rules leaves' case",
+			queries: []string{`x := "aaa"; y := data.foo[x].bar.baz`},
+			modules: []string{`package foo.aaa.bar`, `package foo.bbb.bar`},
+		},
 	}
 
 	for _, tc := range tests {
@@ -346,6 +351,9 @@ q = 2`,
 			}
 			if testing.Verbose() {
 				ir.Pretty(os.Stderr, policy)
+				for _, d := range planner.Debug() {
+					fmt.Fprint(os.Stderr, d)
+				}
 			}
 		})
 	}
@@ -926,9 +934,12 @@ func TestOptimizeLookup(t *testing.T) {
 		p := New()
 		p.vars.Put(ast.Var("x"), p.newLocal())
 
-		_, _, _, _, opt := p.optimizeLookup(r, ast.MustParseRef("data.foo[x].bar.q"))
-		if exp, act := false, opt; exp != act {
+		rulesets, _, _, _, opt := p.optimizeLookup(r, ast.MustParseRef("data.foo[x].bar.q"))
+		if exp, act := true, opt; exp != act {
 			t.Errorf("expected 'optimize' %v, got %v\n", exp, act)
+		}
+		if exp, act := 0, len(rulesets); exp != act {
+			t.Fatalf("expected %d rulesets, got %d\n", exp, act)
 		}
 	})
 }

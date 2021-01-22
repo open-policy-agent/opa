@@ -1285,7 +1285,7 @@ func (r *Rego) Compile(ctx context.Context, opts ...CompileOption) (*CompileResu
 
 	const queryName = "eval" // NOTE(tsandall): the query name is arbitrary
 
-	policy, err := planner.New().
+	p := planner.New().
 		WithQueries([]planner.QuerySet{
 			{
 				Name:          queryName,
@@ -1294,8 +1294,8 @@ func (r *Rego) Compile(ctx context.Context, opts ...CompileOption) (*CompileResu
 			},
 		}).
 		WithModules(modules).
-		WithBuiltinDecls(decls).
-		Plan()
+		WithBuiltinDecls(decls)
+	policy, err := p.Plan()
 	if err != nil {
 		return nil, err
 	}
@@ -1305,6 +1305,11 @@ func (r *Rego) Compile(ctx context.Context, opts ...CompileOption) (*CompileResu
 		fmt.Fprintln(r.dump, "-----")
 		ir.Pretty(r.dump, policy)
 		fmt.Fprintln(r.dump)
+
+		fmt.Fprintln(r.dump, "planner debug:")
+		for _, d := range p.Debug() {
+			fmt.Fprintln(r.dump, d)
+		}
 	}
 
 	m, err := wasm.New().WithPolicy(policy).Compile()
