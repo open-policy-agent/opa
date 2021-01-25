@@ -89,3 +89,28 @@ jobs:
       - name: Build and Test Wasm SDK
         run: make ci-go-wasm-sdk-e2e-test
         timeout-minutes: 30
+
+  nodejs-wasm-example:
+    name: npm-opa-wasm
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: Build OPA
+        run: |
+          make ci-go-build-linux
+          ln -s _release/*/opa_linux_amd64 opa
+          echo $(pwd) >> $GITHUB_PATH
+
+      - name: Check out npm-opa-wasm
+        uses: actions/checkout@v2
+        with:
+          repository: open-policy-agent/npm-opa-wasm
+          path: npm-opa-wasm
+
+      - name: Run npm-opa-wasm nodejs-app examples
+        run: |
+          npm install
+          ./e2e.sh
+        working-directory: npm-opa-wasm
