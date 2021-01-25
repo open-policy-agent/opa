@@ -44,8 +44,6 @@ type VM struct {
 	evalCtxSetEntrypoint func(...interface{}) (wasm.Value, error)
 	heapPtrGet           func(...interface{}) (wasm.Value, error)
 	heapPtrSet           func(...interface{}) (wasm.Value, error)
-	heapTopGet           func(...interface{}) (wasm.Value, error)
-	heapTopSet           func(...interface{}) (wasm.Value, error)
 	jsonDump             func(...interface{}) (wasm.Value, error)
 	jsonParse            func(...interface{}) (wasm.Value, error)
 	valueDump            func(...interface{}) (wasm.Value, error)
@@ -104,8 +102,6 @@ func newVM(opts vmOpts) (*VM, error) {
 		free:                 i.Exports["opa_free"],
 		heapPtrGet:           i.Exports["opa_heap_ptr_get"],
 		heapPtrSet:           i.Exports["opa_heap_ptr_set"],
-		heapTopGet:           i.Exports["opa_heap_top_get"],
-		heapTopSet:           i.Exports["opa_heap_top_set"],
 		jsonDump:             i.Exports["opa_json_dump"],
 		jsonParse:            i.Exports["opa_json_parse"],
 		valueDump:            i.Exports["opa_value_dump"],
