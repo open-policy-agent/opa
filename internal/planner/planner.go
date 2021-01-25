@@ -1526,9 +1526,15 @@ func (p *Planner) planRefData(virtual *ruletrie, base *baseptr, ref ast.Ref, ind
 	// CallDynamicStatement
 	// NOTE(sr): we do it on the first index because later on, the recursion
 	// on subtrees of virtual already lost parts of the path we've taken.
-	if index == 1 {
+	if index == 1 && virtual != nil {
 		rulesets, stmts, locals, index, optimize := p.optimizeLookup(virtual, ref)
 		if optimize {
+			// If there are no rulesets in a situation that otherwise would
+			// allow for a call_indirect optimization, then there's nothing
+			// to do for this ref, except scanning the base document.
+			if len(rulesets) == 0 {
+				return p.planRefData(nil, base, ref, 1, iter) // ignore index returned by optimizeLookup
+			}
 			// plan rules
 			for _, rules := range rulesets {
 				if _, err := p.planRules(rules); err != nil {
@@ -1650,11 +1656,14 @@ func (p *Planner) planRefData(virtual *ruletrie, base *baseptr, ref ast.Ref, ind
 	}
 
 	p.ltarget = base.local
+	return p.planRefDataBaseScan(base.path, ref, index, lexclude, iter)
+}
 
-	// Perform a scan of the base documents starting from the location referred
-	// to by the data pointer. Use the set we built above to avoid revisiting
-	// sub trees.
-	return p.planRefRec(base.path, 0, func() error {
+// Perform a scan of the base documents starting from the location referred
+// to by the 'path' data pointer. Use the set (planned into 'lexclude') to
+// avoid revisiting sub trees.
+func (p *Planner) planRefDataBaseScan(path ast.Ref, ref ast.Ref, index int, lexclude *ir.Local, iter planiter) error {
+	return p.planRefRec(path, 0, func() error {
 		return p.planScan(ref[index], func(lkey ir.Local) error {
 			if lexclude != nil {
 				lignore := p.newLocal()
@@ -2072,6 +2081,7 @@ func (p *Planner) optimizeLookup(t *ruletrie, ref ast.Ref) ([][]*ast.Rule, []ir.
 			all = all && len(node.Children()) == 0
 		}
 		if all {
+			p.debug(fmt.Sprintf("ref %s: all nodes have 0 children, break", ref[0:index+1]))
 			break
 		}
 	}
@@ -2081,7 +2091,7 @@ func (p *Planner) optimizeLookup(t *ruletrie, ref ast.Ref) ([][]*ast.Rule, []ir.
 	// if there hasn't been any var, we're not making things better by
 	// introducing CallDynamicStmt
 	if !opt {
-		return dont("no vars at all")
+		return dont("no vars seen before trie descend encountered no children")
 	}
 
 	for _, node := range nodes {
@@ -2096,7 +2106,8 @@ func (p *Planner) optimizeLookup(t *ruletrie, ref ast.Ref) ([][]*ast.Rule, []ir.
 		}
 	}
 	if len(res) == 0 {
-		return dont("no rule leaves")
+		p.debug(fmt.Sprintf("ref %s: nothing to plan, no rule leaves", ref[0:index+1]))
+		return nil, nil, nil, index, true
 	}
 
 	// If we've made it here, optimization is possible -- let's plan strings!
