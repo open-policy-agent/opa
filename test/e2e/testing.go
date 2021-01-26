@@ -23,6 +23,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/open-policy-agent/opa/runtime"
+	"github.com/open-policy-agent/opa/server/types"
 	"github.com/open-policy-agent/opa/util"
 )
 
@@ -323,6 +324,30 @@ func (t *TestRuntime) GetDataWithRawInput(url string, input io.Reader) (io.ReadC
 // response body.
 func (t *TestRuntime) GetData(url string) (io.ReadCloser, error) {
 	return t.request("GET", url, nil)
+}
+
+// CompileRequestWitInstrumentation will use the v1 compile API and POST with the given request and instrumentation enabled.
+func (t *TestRuntime) CompileRequestWitInstrumentation(req types.CompileRequestV1) (*types.CompileResponseV1, error) {
+	inputPayload := util.MustMarshalJSON(req)
+
+	resp, err := t.request("POST", t.URL()+"/v1/compile?instrument", bytes.NewReader(inputPayload))
+	if err != nil {
+		return nil, err
+	}
+
+	body, err := ioutil.ReadAll(resp)
+	if err != nil {
+		return nil, fmt.Errorf("unexpected error reading response body: %s", err)
+	}
+	resp.Close()
+
+	var typedResp types.CompileResponseV1
+	err = json.Unmarshal(body, &typedResp)
+	if err != nil {
+		return nil, err
+	}
+
+	return &typedResp, nil
 }
 
 func (t *TestRuntime) request(method, url string, input io.Reader) (io.ReadCloser, error) {
