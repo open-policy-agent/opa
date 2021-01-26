@@ -196,7 +196,6 @@ func (p *Pool) SetPolicyData(policy []byte, data []byte) error {
 
 	if bytes.Equal(policy, currentPolicy) && bytes.Equal(data, currentData) {
 		return nil
-
 	}
 
 	err := p.setPolicyData(policy, data)
