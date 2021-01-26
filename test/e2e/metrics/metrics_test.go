@@ -189,7 +189,6 @@ func assertCompileInstrumentationMetricsInMap(t *testing.T, includeCompile bool,
 		"timer_query_compile_stage_rewrite_dynamic_terms_ns",
 		"timer_query_compile_stage_rewrite_expr_terms_ns",
 		"timer_query_compile_stage_rewrite_local_vars_ns",
-		// "timer_query_compile_stage_rewrite_to_capture_value_ns",
 		"timer_query_compile_stage_rewrite_with_values_ns",
 	}
 	for _, key := range expectedKeys {
