@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/open-policy-agent/opa/server/types"
 	"github.com/open-policy-agent/opa/test/e2e"
 )
 
@@ -103,7 +104,7 @@ func TestRequestWithInstrumentationV1DataAPI(t *testing.T) {
 		t.Fatalf("Unexpected response: %+v", resp)
 	}
 
-	assertInstrumentationMetricsInMap(t, true, resp.Metrics)
+	assertDataInstrumentationMetricsInMap(t, true, resp.Metrics)
 
 	// run another request, this should re-use the compiled query
 	var resp2 response
@@ -115,7 +116,7 @@ func TestRequestWithInstrumentationV1DataAPI(t *testing.T) {
 		t.Fatalf("Unexpected response: %+v", resp2)
 	}
 
-	assertInstrumentationMetricsInMap(t, false, resp2.Metrics)
+	assertDataInstrumentationMetricsInMap(t, false, resp2.Metrics)
 
 	// GET data endpoint
 	var resp3 response
@@ -127,7 +128,7 @@ func TestRequestWithInstrumentationV1DataAPI(t *testing.T) {
 		t.Fatalf("Unexpected response: %+v", resp3)
 	}
 
-	assertInstrumentationMetricsInMap(t, true, resp3.Metrics)
+	assertDataInstrumentationMetricsInMap(t, true, resp3.Metrics)
 
 	// 2nd GET data endpoint
 	var resp4 response
@@ -139,10 +140,68 @@ func TestRequestWithInstrumentationV1DataAPI(t *testing.T) {
 		t.Fatalf("Unexpected response: %+v", resp4)
 	}
 
-	assertInstrumentationMetricsInMap(t, false, resp4.Metrics)
+	assertDataInstrumentationMetricsInMap(t, false, resp4.Metrics)
 }
 
-func assertInstrumentationMetricsInMap(t *testing.T, includeCompile bool, metrics map[string]interface{}) {
+func TestRequestWithInstrumentationV1CompileAPI(t *testing.T) {
+
+	policy := `
+	package test
+	p {input.x >= data.y}
+	`
+
+	err := testRuntime.UploadPolicy(t.Name(), strings.NewReader(policy))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var i interface{}
+	i = "{\"x\": 4}"
+	req := types.CompileRequestV1{
+		Query:    "data.test.p == true",
+		Input:    &i,
+		Unknowns: &[]string{"data.y"},
+	}
+
+	resp, err := testRuntime.CompileRequestWitInstrumentation(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assertCompileInstrumentationMetricsInMap(t, true, resp.Metrics)
+}
+
+func assertCompileInstrumentationMetricsInMap(t *testing.T, includeCompile bool, metrics map[string]interface{}) {
+	expectedKeys := []string{
+		"histogram_eval_op_plug",
+		"timer_eval_op_plug_ns",
+		"timer_server_handler_ns",
+
+		"timer_rego_query_parse_ns",
+		"timer_rego_query_compile_ns",
+		"timer_query_compile_stage_build_comprehension_index_ns",
+		"timer_query_compile_stage_check_safety_ns",
+		"timer_query_compile_stage_check_types_ns",
+		"timer_query_compile_stage_check_undefined_funcs_ns",
+		"timer_query_compile_stage_check_unsafe_builtins_ns",
+		"timer_query_compile_stage_resolve_refs_ns",
+		"timer_query_compile_stage_rewrite_comprehension_terms_ns",
+		"timer_query_compile_stage_rewrite_dynamic_terms_ns",
+		"timer_query_compile_stage_rewrite_expr_terms_ns",
+		"timer_query_compile_stage_rewrite_local_vars_ns",
+		"timer_query_compile_stage_rewrite_with_values_ns",
+	}
+	for _, key := range expectedKeys {
+		if metrics[key] == nil {
+			t.Errorf("Expected to find key %q in metrics response", key)
+		}
+	}
+	if t.Failed() {
+		t.Logf("metrics response: %v\n", metrics)
+	}
+}
+
+func assertDataInstrumentationMetricsInMap(t *testing.T, includeCompile bool, metrics map[string]interface{}) {
 	expectedKeys := []string{
 		"counter_server_query_cache_hit",
 		"counter_eval_op_virtual_cache_miss",

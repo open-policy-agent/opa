@@ -1056,7 +1056,7 @@ func (s *Server) v1CompilePost(w http.ResponseWriter, r *http.Request) {
 	includeInstrumentation := getBoolParam(r.URL, types.ParamInstrumentV1, true)
 
 	m := metrics.New()
-
+	m.Timer(metrics.ServerHandler).Start()
 	m.Timer(metrics.RegoQueryParse).Start()
 
 	request, reqErr := readInputCompilePostV1(r.Body)
@@ -1105,6 +1105,8 @@ func (s *Server) v1CompilePost(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+
+	m.Timer(metrics.ServerHandler).Stop()
 
 	result := types.CompileResponseV1{}
 
