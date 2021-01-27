@@ -185,6 +185,7 @@ func TestRegoInputs(t *testing.T) {
 			r := New(
 				Query("input"),
 				Input(tc.input),
+				Schemas(nil),
 			)
 			assertEval(t, r, tc.expected)
 		})
@@ -1498,6 +1499,7 @@ func TestRegoEvalModulesOnCompiler(t *testing.T) {
 	pq, err := New(
 		Compiler(compiler),
 		Query("data.a.p"),
+		Schemas(nil),
 	).PrepareForEval(ctx)
 
 	if err != nil {
@@ -1807,4 +1809,57 @@ func TestTimeSeedingOptions(t *testing.T) {
 
 func int64ToJSONNumber(i int64) json.Number {
 	return json.Number(strconv.FormatInt(i, 10))
+}
+
+func TestPrepareAndCompileWithSchema(t *testing.T) {
+	module := `
+	package test
+	x = input.y
+	`
+
+	schemaBytes := `{
+		"$schema": "http://json-schema.org/draft-07/schema",
+		"$id": "http://example.com/example.json",
+		"type": "object",
+		"title": "The root schema",
+		"description": "The root schema comprises the entire JSON document.",
+		"required": [],
+		"properties": {
+			"y": {
+				"$id": "#/properties/y",
+				"type": "integer",
+				"title": "The y schema",
+				"description": "An explanation about the purpose of this instance."
+			}
+		},
+		"additionalProperties": false
+	}`
+
+	var schema interface{}
+	err := util.Unmarshal([]byte(schemaBytes), &schema)
+
+	r := New(
+		Query("data.test.x"),
+		Module("", module),
+		Package("foo"),
+		Schemas(&ast.SchemaSet{ByPath: map[string]interface{}{"input": schema}}),
+	)
+
+	ctx := context.Background()
+
+	pq, err := r.PrepareForEval(ctx)
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err.Error())
+	}
+
+	assertPreparedEvalQueryEval(t, pq, []EvalOption{
+		EvalInput(map[string]int{"y": 1}),
+	}, "[[1]]")
+
+	// Ensure that Compile still works after Prepare
+	// and its Eval has been called.
+	_, err = r.Compile(ctx)
+	if err != nil {
+		t.Errorf("Unexpected error when compiling: %s", err.Error())
+	}
 }

@@ -4,3 +4,5 @@ github_checks:
 coverage:
   status:
     project: off
+ignore:
+  - "internal/gojsonschema"  # ignore new gojsonschema repo and all its contents

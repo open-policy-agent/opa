@@ -518,6 +518,7 @@ type Rego struct {
 	interQueryBuiltinCache cache.InterQueryCache
 	strictBuiltinErrors    bool
 	resolvers              []refResolver
+	schemaSet              *ast.SchemaSet
 }
 
 // Function represents a built-in function that is callable in Rego.
@@ -1022,6 +1023,13 @@ func Resolver(ref ast.Ref, r resolver.Resolver) func(r *Rego) {
 	}
 }
 
+// Schemas sets the schemaSet
+func Schemas(x *ast.SchemaSet) func(r *Rego) {
+	return func(r *Rego) {
+		r.schemaSet = x
+	}
+}
+
 // New returns a new Rego object.
 func New(options ...func(r *Rego)) *Rego {
 
@@ -1042,6 +1050,9 @@ func New(options ...func(r *Rego)) *Rego {
 		r.compiler = ast.NewCompiler().
 			WithUnsafeBuiltins(r.unsafeBuiltins).
 			WithBuiltins(r.builtinDecls)
+		if r.schemaSet != nil {
+			r.compiler.WithSchemas(r.schemaSet)
+		}
 	}
 
 	if r.store == nil {
@@ -1463,6 +1474,11 @@ func (r *Rego) prepare(ctx context.Context, qType queryType, extras []extraStage
 		return err
 	}
 
+	r.schemaSet, err = r.schemas()
+	if err != nil {
+		return err
+	}
+
 	err = r.loadFiles(ctx, r.txn, r.metrics)
 	if err != nil {
 		return err
@@ -1601,6 +1617,13 @@ func (r *Rego) parseInput() (ast.Value, error) {
 	return r.parseRawInput(r.rawInput, r.metrics)
 }
 
+func (r *Rego) schemas() (*ast.SchemaSet, error) {
+	if r.schemaSet != nil {
+		return r.schemaSet, nil
+	}
+	return nil, nil
+}
+
 func (r *Rego) parseRawInput(rawInput *interface{}, m metrics.Metrics) (ast.Value, error) {
 	var input ast.Value
 
@@ -1727,7 +1750,8 @@ func (r *Rego) compileQuery(query ast.Body, m metrics.Metrics, extras []extraSta
 		WithPackage(pkg).
 		WithImports(imports)
 
-	qc := r.compiler.QueryCompiler().
+	var qc ast.QueryCompiler
+	qc = r.compiler.QueryCompiler().
 		WithContext(qctx).
 		WithUnsafeBuiltins(r.unsafeBuiltins)
 
