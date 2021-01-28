@@ -10,39 +10,51 @@ import (
 // document => planned function names. The structure supports Push and Pop
 // operations so that the planner can shadow planned functions when 'with'
 // statements are found.
+// The "gen" numbers indicate the "generations"; whenever a 'with' statement
+// is planned (a new map is `Push()`ed), it will jump to a previously unused
+// number.
 type funcstack struct {
-	stack []map[string]string
+	stack []taggedPairs
+	next  int
+}
+
+type taggedPairs struct {
+	pairs map[string]string
 	gen   int
 }
 
 func newFuncstack() *funcstack {
 	return &funcstack{
-		stack: []map[string]string{
-			map[string]string{},
-		},
-		gen: 0,
-	}
+		stack: []taggedPairs{{pairs: map[string]string{}, gen: 0}},
+		next:  1}
+}
+
+func (p funcstack) last() taggedPairs {
+	return p.stack[len(p.stack)-1]
 }
 
 func (p funcstack) Add(key, value string) {
-	p.stack[len(p.stack)-1][key] = value
+	p.last().pairs[key] = value
 }
 
 func (p funcstack) Get(key string) (string, bool) {
-	value, ok := p.stack[len(p.stack)-1][key]
+	value, ok := p.last().pairs[key]
 	return value, ok
 }
 
 func (p *funcstack) Push(funcs map[string]string) {
-	p.stack = append(p.stack, funcs)
-	p.gen++
+	p.stack = append(p.stack, taggedPairs{pairs: funcs, gen: p.next})
+	p.next++
 }
 
 func (p *funcstack) Pop() map[string]string {
-	last := p.stack[len(p.stack)-1]
+	last := p.last()
 	p.stack = p.stack[:len(p.stack)-1]
-	p.gen++
-	return last
+	return last.pairs
+}
+
+func (p funcstack) gen() int {
+	return p.last().gen
 }
 
 // ruletrie implements a simple trie structure for organizing rules that may be

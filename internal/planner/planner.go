@@ -191,13 +191,13 @@ func (p *Planner) planRules(rules []*ast.Rule) (string, error) {
 
 	// Create function definition for rules.
 	fn := &ir.Func{
-		Name: fmt.Sprintf("g%d.%s", p.funcs.gen, path),
+		Name: fmt.Sprintf("g%d.%s", p.funcs.gen(), path),
 		Params: []ir.Local{
 			p.newLocal(), // input document
 			p.newLocal(), // data document
 		},
 		Return: p.newLocal(),
-		Path:   append([]string{fmt.Sprintf("g%d", p.funcs.gen)}, pathPieces...),
+		Path:   append([]string{fmt.Sprintf("g%d", p.funcs.gen())}, pathPieces...),
 	}
 
 	// Initialize parameters for functions.
@@ -2121,7 +2121,7 @@ func (p *Planner) optimizeLookup(t *ruletrie, ref ast.Ref) ([][]*ast.Rule, []ir.
 	// plan generation
 	lvar := p.newLocal()
 	stmts = append(stmts, &ir.MakeStringStmt{
-		Index:  p.getStringConst(fmt.Sprintf("g%d", p.funcs.gen)),
+		Index:  p.getStringConst(fmt.Sprintf("g%d", p.funcs.gen())),
 		Target: lvar,
 	})
 	locals = append(locals, lvar)

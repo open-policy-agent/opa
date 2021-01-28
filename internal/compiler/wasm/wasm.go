@@ -623,7 +623,7 @@ func (c *Compiler) emitMapping() error {
 		indices = append(indices, c.funcs[fn.Name])
 		mapping, ok = mapFunc(mapping, fn, i+int(elemOffset))
 		if !ok {
-			return errors.New("mapping function failed")
+			return fmt.Errorf("mapping function %v failed", fn.Name)
 		}
 	}
 
