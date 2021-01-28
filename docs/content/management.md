@@ -532,7 +532,7 @@ decision_logs:
     console: true
 ```
 
-This will dump all decision through the OPA logging system at the `info` level. See
+This will dump all decisions to the console. See
 [Configuration Reference](../configuration) for more details.
 
 ### Masking Sensitive Data
@@ -911,7 +911,7 @@ This does not require any remote server. Example of minimal config to enable:
 status:
     console: true
 ```
-This will dump all status updates through the OPA logging system at the `info` level. See
+This will dump all status updates to the console. See
 [Configuration Reference](../configuration) for more details.
 
 > Warning: Status update messages are somewhat infrequent but can be very verbose! The
