@@ -681,7 +681,7 @@ included in the actual bundle gzipped tarball.
 | --- | --- | --- | --- |
 | `status.service` | `string` | Yes | Name of service to use to contact remote server. |
 | `status.partition_name` | `string` | No | Path segment to include in status updates. |
-| `status.console` | `boolean` | No (default: `false`) | Log the status updates locally at `info` level to the console. When enabled alongside a remote status update API the `service` must be configured, the default `service` selection will be disabled. |
+| `status.console` | `boolean` | No (default: `false`) | Log the status updates locally to the console. When enabled alongside a remote status update API the `service` must be configured, the default `service` selection will be disabled. |
 
 
 ### Decision Logs
@@ -696,7 +696,7 @@ included in the actual bundle gzipped tarball.
 | `decision_logs.reporting.max_delay_seconds` | `int64` | No (default: `600`) | Maximum amount of time to wait between uploads. |
 | `decision_logs.mask_decision` | `string` | No (default: `system/log/mask`) | Set path of masking decision. |
 | `decision_logs.plugin` | `string` | No | Use the named plugin for decision logging. If this field exists, the other configuration fields are not required. |
-| `decision_logs.console` | `boolean` | No (default: `false`) | Log the decisions locally at `info` level to the console. When enabled alongside a remote decision logging API the `service` must be configured, the default `service` selection will be disabled. |
+| `decision_logs.console` | `boolean` | No (default: `false`) | Log the decisions locally to the console. When enabled alongside a remote decision logging API the `service` must be configured, the default `service` selection will be disabled. |
 
 ### Discovery
 
