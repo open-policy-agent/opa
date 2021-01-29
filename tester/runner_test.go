@@ -113,6 +113,7 @@ func TestRunWithCoverage(t *testing.T) {
 type expectedTestResult struct {
 	wantErr  bool
 	wantFail bool
+	wantSkip bool
 }
 
 type testRunConfig struct {
@@ -139,6 +140,7 @@ func testRun(t *testing.T, conf testRunConfig) map[string]*ast.Module {
 			test_duplicate { false }
 			test_duplicate { true }
 			test_duplicate { true }
+			todo_test_skip { true }
 			`,
 		"/b_test.rego": `package bar
 
@@ -146,14 +148,15 @@ func testRun(t *testing.T, conf testRunConfig) map[string]*ast.Module {
 	}
 
 	tests := expectedTestResults{
-		{"data.foo", "test_pass"}:          {false, false},
-		{"data.foo", "test_fail"}:          {false, true},
-		{"data.foo", "test_fail_non_bool"}: {false, true},
-		{"data.foo", "test_duplicate"}:     {false, true},
-		{"data.foo", "test_duplicate#01"}:  {false, false},
-		{"data.foo", "test_duplicate#02"}:  {false, false},
-		{"data.foo", "test_err"}:           {true, false},
-		{"data.bar", "test_duplicate"}:     {false, false},
+		{"data.foo", "test_pass"}:          {false, false, false},
+		{"data.foo", "test_fail"}:          {false, true, false},
+		{"data.foo", "test_fail_non_bool"}: {false, true, false},
+		{"data.foo", "test_duplicate"}:     {false, true, false},
+		{"data.foo", "test_duplicate#01"}:  {false, false, false},
+		{"data.foo", "test_duplicate#02"}:  {false, false, false},
+		{"data.foo", "test_err"}:           {true, false, false},
+		{"data.foo", "todo_test_skip"}:     {false, false, true},
+		{"data.bar", "test_duplicate"}:     {false, false, false},
 	}
 
 	var modules map[string]*ast.Module
@@ -246,6 +249,8 @@ func TestRunWithFilterRegex(t *testing.T) {
 			test_duplicate { false }
 			test_duplicate { true }
 			test_duplicate { true }
+			todo_test_skip { true }
+			todo_test_skip_too { false }
 			`,
 		"/b_test.rego": `package bar
 
@@ -261,28 +266,32 @@ func TestRunWithFilterRegex(t *testing.T) {
 			note:  "all tests match",
 			regex: ".*",
 			tests: expectedTestResults{
-				{"data.foo", "test_pass"}:          {false, false},
-				{"data.foo", "test_fail"}:          {false, true},
-				{"data.foo", "test_fail_non_bool"}: {false, true},
-				{"data.foo", "test_duplicate"}:     {false, true},
-				{"data.foo", "test_duplicate#01"}:  {false, false},
-				{"data.foo", "test_duplicate#02"}:  {false, false},
-				{"data.foo", "test_err"}:           {true, false},
-				{"data.bar", "test_duplicate"}:     {false, false},
+				{"data.foo", "test_pass"}:          {false, false, false},
+				{"data.foo", "test_fail"}:          {false, true, false},
+				{"data.foo", "test_fail_non_bool"}: {false, true, false},
+				{"data.foo", "test_duplicate"}:     {false, true, false},
+				{"data.foo", "test_duplicate#01"}:  {false, false, false},
+				{"data.foo", "test_duplicate#02"}:  {false, false, false},
+				{"data.foo", "test_err"}:           {true, false, false},
+				{"data.foo", "todo_test_skip"}:     {false, false, true},
+				{"data.foo", "todo_test_skip_too"}: {false, false, true},
+				{"data.bar", "test_duplicate"}:     {false, false, false},
 			},
 		},
 		{
 			note:  "no filter",
 			regex: "",
 			tests: expectedTestResults{
-				{"data.foo", "test_pass"}:          {false, false},
-				{"data.foo", "test_fail"}:          {false, true},
-				{"data.foo", "test_fail_non_bool"}: {false, true},
-				{"data.foo", "test_duplicate"}:     {false, true},
-				{"data.foo", "test_duplicate#01"}:  {false, false},
-				{"data.foo", "test_duplicate#02"}:  {false, false},
-				{"data.foo", "test_err"}:           {true, false},
-				{"data.bar", "test_duplicate"}:     {false, false},
+				{"data.foo", "test_pass"}:          {false, false, false},
+				{"data.foo", "test_fail"}:          {false, true, false},
+				{"data.foo", "test_fail_non_bool"}: {false, true, false},
+				{"data.foo", "test_duplicate"}:     {false, true, false},
+				{"data.foo", "test_duplicate#01"}:  {false, false, false},
+				{"data.foo", "test_duplicate#02"}:  {false, false, false},
+				{"data.foo", "test_err"}:           {true, false, false},
+				{"data.foo", "todo_test_skip"}:     {false, false, true},
+				{"data.foo", "todo_test_skip_too"}: {false, false, true},
+				{"data.bar", "test_duplicate"}:     {false, false, false},
 			},
 		},
 		{
@@ -294,51 +303,58 @@ func TestRunWithFilterRegex(t *testing.T) {
 			note:  "single package name",
 			regex: "bar",
 			tests: expectedTestResults{
-				{"data.bar", "test_duplicate"}: {false, false},
+				{"data.bar", "test_duplicate"}: {false, false, false},
 			},
 		},
 		{
 			note:  "single package explicit",
 			regex: "data.bar.test_duplicate",
 			tests: expectedTestResults{
-				{"data.bar", "test_duplicate"}: {false, false},
+				{"data.bar", "test_duplicate"}: {false, false, false},
 			},
 		},
 		{
 			note:  "single test ",
 			regex: "test_pass",
 			tests: expectedTestResults{
-				{"data.foo", "test_pass"}: {false, false},
+				{"data.foo", "test_pass"}: {false, false, false},
 			},
 		},
 		{
 			note:  "single test explicit",
 			regex: "data.foo.test_pass",
 			tests: expectedTestResults{
-				{"data.foo", "test_pass"}: {false, false},
+				{"data.foo", "test_pass"}: {false, false, false},
+			},
+		},
+		{
+			note:  "single test skipped explicit",
+			regex: "data.foo.todo_test_skip_too",
+			tests: expectedTestResults{
+				{"data.foo", "todo_test_skip_too"}: {false, false, true},
 			},
 		},
 		{
 			note:  "wildcards",
 			regex: "^.*foo.*_fail.*$",
 			tests: expectedTestResults{
-				{"data.foo", "test_fail"}:          {false, true},
-				{"data.foo", "test_fail_non_bool"}: {false, true},
+				{"data.foo", "test_fail"}:          {false, true, false},
+				{"data.foo", "test_fail_non_bool"}: {false, true, false},
 			},
 		},
 		{
 			note:  "mixed",
 			regex: "(bar|data.foo.test_pass)",
 			tests: expectedTestResults{
-				{"data.foo", "test_pass"}:      {false, false},
-				{"data.bar", "test_duplicate"}: {false, false},
+				{"data.foo", "test_pass"}:      {false, false, false},
+				{"data.bar", "test_duplicate"}: {false, false, false},
 			},
 		},
 		{
 			note:  "case insensitive",
 			regex: "(?i)DATA.BAR",
 			tests: expectedTestResults{
-				{"data.bar", "test_duplicate"}: {false, false},
+				{"data.bar", "test_duplicate"}: {false, false, false},
 			},
 		},
 	}

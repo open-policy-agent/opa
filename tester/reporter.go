@@ -38,12 +38,14 @@ type PrettyReporter struct {
 func (r PrettyReporter) Report(ch chan *Result) error {
 
 	dirty := false
-	var pass, fail, errs int
+	var pass, fail, skip, errs int
 
 	var results, failures []*Result
 	for tr := range ch {
 		if tr.Pass() {
 			pass++
+		} else if tr.Skip {
+			skip++
 		} else if tr.Error != nil {
 			errs++
 		} else if tr.Fail {
@@ -98,7 +100,7 @@ func (r PrettyReporter) Report(ch chan *Result) error {
 		r.hl()
 	}
 
-	total := pass + fail + errs
+	total := pass + fail + skip + errs
 
 	if pass != 0 {
 		fmt.Fprintln(r.Output, "PASS:", fmt.Sprintf("%d/%d", pass, total))
@@ -106,6 +108,10 @@ func (r PrettyReporter) Report(ch chan *Result) error {
 
 	if fail != 0 {
 		fmt.Fprintln(r.Output, "FAIL:", fmt.Sprintf("%d/%d", fail, total))
+	}
+
+	if skip != 0 {
+		fmt.Fprintln(r.Output, "SKIPPED:", fmt.Sprintf("%d/%d", skip, total))
 	}
 
 	if errs != 0 {
