@@ -137,8 +137,9 @@ specify which of the discovered tests should be evaluated. The option supports
 
 If the test rule is undefined or generates a non-`true` value the test result
 is reported as `FAIL`. If the test encounters a runtime error (e.g., a divide
-by zero condition) the test result is marked as an `ERROR`. Otherwise, the
-test result is marked as `PASS`.
+by zero condition) the test result is marked as an `ERROR`. Tests prefixed with
+`todo_` will be reported as `SKIPPED`. Otherwise, the test result is marked as
+`PASS`.
 
 **pass_fail_error_test.rego**:
 
@@ -158,6 +159,11 @@ test_failure {
 # This test will error.
 test_error {
     1 / 0
+}
+
+# This test will be skipped.
+todo_test_missing_implementation {
+    allow with data.roles as ["not", "implemented"]
 }
 ```
 

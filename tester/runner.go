@@ -29,6 +29,9 @@ import (
 // TestPrefix declares the prefix for all test rules.
 const TestPrefix = "test_"
 
+// SkipTestPrefix declares the prefix for tests that should be skipped.
+const SkipTestPrefix = "todo_test_"
+
 // Run executes all test cases found under files in path.
 func Run(ctx context.Context, paths ...string) ([]*Result, error) {
 	return RunWithFilter(ctx, nil, paths...)
@@ -59,6 +62,7 @@ type Result struct {
 	Name            string                   `json:"name"`
 	Fail            bool                     `json:"fail,omitempty"`
 	Error           error                    `json:"error,omitempty"`
+	Skip            bool                     `json:"skip,omitempty"`
 	Duration        time.Duration            `json:"duration"`
 	Trace           []*topdown.Event         `json:"trace,omitempty"`
 	FailedAt        *ast.Expr                `json:"failed_at,omitempty"`
@@ -77,10 +81,13 @@ func newResult(loc *ast.Location, pkg, name string, duration time.Duration, trac
 
 // Pass returns true if the test case passed.
 func (r Result) Pass() bool {
-	return !r.Fail && r.Error == nil
+	return !r.Fail && !r.Skip && r.Error == nil
 }
 
 func (r *Result) String() string {
+	if r.Skip {
+		return fmt.Sprintf("%v.%v: %v", r.Package, r.Name, r.outcome())
+	}
 	return fmt.Sprintf("%v.%v: %v (%v)", r.Package, r.Name, r.outcome(), r.Duration)
 }
 
@@ -90,6 +97,9 @@ func (r *Result) outcome() string {
 	}
 	if r.Fail {
 		return "FAIL"
+	}
+	if r.Skip {
+		return "SKIPPED"
 	}
 	return "ERROR"
 }
@@ -340,7 +350,7 @@ func (r *Runner) shouldRun(rule *ast.Rule, testRegex *regexp.Regexp) bool {
 	ruleName := string(rule.Head.Name)
 
 	// All tests must have the right prefix
-	if !strings.HasPrefix(ruleName, TestPrefix) {
+	if !strings.HasPrefix(ruleName, TestPrefix) && !strings.HasPrefix(ruleName, SkipTestPrefix) {
 		return false
 	}
 
@@ -375,7 +385,6 @@ func rewriteDuplicateTestNames(compiler *ast.Compiler) *ast.Error {
 }
 
 func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.Module, rule *ast.Rule) (*Result, bool) {
-
 	var bufferTracer *topdown.BufferTracer
 	var bufFailureLineTracer *topdown.BufferTracer
 	var tracer topdown.QueryTracer
@@ -388,6 +397,15 @@ func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.
 	} else if r.failureLine {
 		bufFailureLineTracer = topdown.NewBufferTracer()
 		tracer = bufFailureLineTracer
+	}
+
+	ruleName := string(rule.Head.Name)
+
+	if strings.HasPrefix(ruleName, SkipTestPrefix) {
+		tr := newResult(rule.Loc(), mod.Package.Path.String(), ruleName, 0*time.Second, nil)
+		tr.Skip = true
+
+		return tr, false
 	}
 
 	rego := rego.New(
@@ -409,7 +427,7 @@ func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.
 		trace = *bufferTracer
 	}
 
-	tr := newResult(rule.Loc(), mod.Package.Path.String(), string(rule.Head.Name), dt, trace)
+	tr := newResult(rule.Loc(), mod.Package.Path.String(), ruleName, dt, trace)
 	var stop bool
 
 	if err != nil {

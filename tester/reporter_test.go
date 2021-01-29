@@ -49,6 +49,12 @@ func TestPrettyReporterVerbose(t *testing.T) {
 			Fail:    true,
 			Trace:   getFakeTraceEvents(),
 		},
+		{
+			Package: "data.foo.bar",
+			Name:    "todo_test_qux",
+			Skip:    true,
+			Trace:   nil,
+		},
 	}
 
 	r := PrettyReporter{
@@ -73,10 +79,12 @@ data.foo.bar.test_baz: PASS (0s)
 data.foo.bar.test_qux: ERROR (0s)
   some err
 data.foo.bar.test_corge: FAIL (0s)
+data.foo.bar.todo_test_qux: SKIPPED
 --------------------------------------------------------------------------------
-PASS: 1/3
-FAIL: 1/3
-ERROR: 1/3
+PASS: 1/4
+FAIL: 1/4
+SKIPPED: 1/4
+ERROR: 1/4
 `
 
 	if exp != buf.String() {
@@ -107,6 +115,12 @@ func TestPrettyReporter(t *testing.T) {
 			Fail:    true,
 			Trace:   getFakeTraceEvents(),
 		},
+		{
+			Package: "data.foo.bar",
+			Name:    "todo_test_qux",
+			Skip:    true,
+			Trace:   nil,
+		},
 	}
 
 	r := PrettyReporter{
@@ -121,10 +135,12 @@ func TestPrettyReporter(t *testing.T) {
 	exp := `data.foo.bar.test_qux: ERROR (0s)
   some err
 data.foo.bar.test_corge: FAIL (0s)
+data.foo.bar.todo_test_qux: SKIPPED
 --------------------------------------------------------------------------------
-PASS: 1/3
-FAIL: 1/3
-ERROR: 1/3
+PASS: 1/4
+FAIL: 1/4
+SKIPPED: 1/4
+ERROR: 1/4
 `
 
 	if exp != buf.String() {
@@ -151,6 +167,12 @@ func TestJSONReporter(t *testing.T) {
 			Name:    "test_corge",
 			Fail:    true,
 			Trace:   getFakeTraceEvents(),
+		},
+		{
+			Package: "data.foo.bar",
+			Name:    "todo_test_qux",
+			Skip:    true,
+			Trace:   nil,
 		},
 	}
 
@@ -298,6 +320,13 @@ func TestJSONReporter(t *testing.T) {
         "Ref": null
       }
     ]
+  },
+  {
+    "location": null,
+    "package": "data.foo.bar",
+    "name": "todo_test_qux",
+    "skip": true,
+    "duration": 0
   }
 ]
 `))
@@ -515,6 +544,11 @@ func TestJSONReporterBenchmark(t *testing.T) {
 			Name:    "test_corge",
 			Fail:    true,
 		},
+		{
+			Package: "data.foo.bar",
+			Name:    "todo_test_qux",
+			Skip:    true,
+		},
 	}
 
 	r := JSONReporter{
@@ -557,6 +591,13 @@ func TestJSONReporterBenchmark(t *testing.T) {
     "name": "test_corge",
     "fail": true,
     "duration": 0
+  },
+  {
+    "location":null,
+    "duration":0,
+    "name":"todo_test_qux",
+    "package":"data.foo.bar",
+    "skip":true
   }
 ]
 `))
