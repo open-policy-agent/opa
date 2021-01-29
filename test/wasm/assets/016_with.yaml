@@ -311,3 +311,19 @@ cases:
     want_result: [
       {"x": [6, 7, [9,8]]}
     ]
+  - note: with and call_indirect gens
+    query: x := "b"; z := data.test[x]
+    modules:
+      - |
+        package test
+
+        a {
+          true with data.one as 1
+        }
+
+        b {
+          true
+        }
+    want_result:
+    - x: b
+      z: true
