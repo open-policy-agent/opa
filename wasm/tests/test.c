@@ -246,6 +246,21 @@ void test_opa_memoize()
     test("get-a-after-pop", opa_value_compare(e, exp_e) == 0);
 }
 
+// NOTE(sr): These tests are run in order. If they weren't, every test that
+// depends on mpd's state being initialized would have to call `opa_mpd_init`
+// first. When the Wasm module is used, the `Start` function (`_initialize`,
+// emitted from the Wasm compiler) takes care of that.
+WASM_EXPORT(test_opa_mpd)
+void test_opa_mpd()
+{
+    // NOTE(sr): This call also initializes mpd_one, which is used under the
+    // hood for `qadd_one`.
+    opa_mpd_init();
+    opa_value *zero = opa_number_int(0);
+    opa_value *two = opa_bf_to_number(qadd_one(qadd_one(opa_number_to_bf(zero))));
+    test("0+1+1 is 2", opa_value_compare(opa_number_int(2), two) == 0);
+}
+
 WASM_EXPORT(test_opa_strlen)
 void test_opa_strlen()
 {
@@ -3210,6 +3225,7 @@ void test_regex()
     }
 }
 
+WASM_EXPORT(test_opa_lookup)
 void test_opa_lookup(void)
 {
     opa_array_t *path1 = opa_cast_array(opa_array());
@@ -3236,6 +3252,7 @@ void test_opa_lookup(void)
     test("opa_lookup/miss/less", opa_lookup(&smaller_mapping->hdr, &path1->hdr) == 0);
 }
 
+WASM_EXPORT(test_opa_mapping_init)
 void test_opa_mapping_init(void)
 {
     opa_string_t *s = opa_cast_string(opa_string_terminated("{\"foo\": {\"bar\": 123}}"));
