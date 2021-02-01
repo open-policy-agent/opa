@@ -7,6 +7,8 @@ package config
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/internal/ref"
@@ -28,6 +30,7 @@ type Config struct {
 	DefaultDecision              *string                    `json:"default_decision"`
 	DefaultAuthorizationDecision *string                    `json:"default_authorization_decision"`
 	Caching                      json.RawMessage            `json:"caching"`
+	PersistenceDirectory         *string                    `json:"persistence_directory"`
 }
 
 // ParseConfig returns a valid Config object with defaults injected. The id
@@ -88,6 +91,18 @@ func (c *Config) validateAndInjectDefaults(id string) error {
 	c.Labels["version"] = version.Version
 
 	return nil
+}
+
+// GetPersistenceDirectory returns the configured persistence directory, or $PWD/.opa if none is configured
+func (c Config) GetPersistenceDirectory() (string, error) {
+	if c.PersistenceDirectory == nil {
+		pwd, err := os.Getwd()
+		if err != nil {
+			return "", err
+		}
+		return filepath.Join(pwd, ".opa"), nil
+	}
+	return *c.PersistenceDirectory, nil
 }
 
 const (

@@ -6,6 +6,8 @@ package config
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -66,5 +68,33 @@ func TestConfigPluginsEnabled(t *testing.T) {
 				t.Errorf("Expected %t but got %t", test.expected, actual)
 			}
 		})
+	}
+}
+
+func TestPersistDirectory(t *testing.T) {
+	pwd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+
+	c := Config{}
+	persistDir, err := c.GetPersistenceDirectory()
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+
+	if persistDir != filepath.Join(pwd, ".opa") {
+		t.Errorf("expected persistDir to be %v, got %v", filepath.Join(pwd, ".opa"), persistDir)
+	}
+
+	dir := "/var/opa"
+	c.PersistenceDirectory = &dir
+	persistDir, err = c.GetPersistenceDirectory()
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+
+	if persistDir != dir {
+		t.Errorf("expected peristDir %v and dir %v to be equal", persistDir, dir)
 	}
 }
