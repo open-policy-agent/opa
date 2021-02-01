@@ -1610,6 +1610,37 @@ func TestSaveBundleToDiskNew(t *testing.T) {
 	}
 }
 
+func TestSaveBundleToDiskNewConfiguredPersistDir(t *testing.T) {
+	dir, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatalf("unexpected error %v", err)
+	}
+	defer os.RemoveAll(dir)
+
+	manager := getTestManager()
+	manager.Config.PersistenceDirectory = &dir
+	bundles := map[string]*Source{}
+	plugin := New(&Config{Bundles: bundles}, manager)
+
+	err = plugin.Start(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error %v", err)
+	}
+
+	b := getTestBundle(t)
+
+	err = plugin.saveBundleToDisk("foo", &b)
+	if err != nil {
+		t.Fatalf("unexpected error %v", err)
+	}
+
+	expectBundlePath := filepath.Join(dir, "bundles", "foo", "bundle.tar.gz")
+	_, err = os.Stat(expectBundlePath)
+	if err != nil {
+		t.Errorf("expected bundle persisted at path %v, %v", expectBundlePath, err)
+	}
+}
+
 func TestSaveBundleToDiskOverWrite(t *testing.T) {
 
 	manager := getTestManager()
@@ -1771,13 +1802,30 @@ func TestLoadSignedBundleFromDisk(t *testing.T) {
 }
 
 func TestGetDefaultBundlePersistPath(t *testing.T) {
-	path, err := getDefaultBundlePersistPath()
+	plugin := New(&Config{}, getTestManager())
+	path, err := plugin.getBundlePersistPath()
 	if err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
 
 	if !strings.HasSuffix(path, ".opa/bundles") {
 		t.Fatal("expected default persist path to end with '.opa/bundles' dir")
+	}
+}
+
+func TestConfiguredBundlePersistPath(t *testing.T) {
+	persistPath := "/var/opa"
+	manager := getTestManager()
+	manager.Config.PersistenceDirectory = &persistPath
+	plugin := New(&Config{}, manager)
+
+	path, err := plugin.getBundlePersistPath()
+	if err != nil {
+		t.Fatalf("unexpected error %v", err)
+	}
+
+	if path != "/var/opa/bundles" {
+		t.Errorf("expected configured persist path '/var/opa/bundles'")
 	}
 }
 

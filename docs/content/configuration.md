@@ -58,6 +58,8 @@ status:
 
 default_decision: /http/example/authz/allow
 
+persistence_directory: /var/opa
+
 keys:
   global_key:
     algorithm: RS256
@@ -611,6 +613,7 @@ func init() {
 | `labels` | `object` | Yes | Set of key-value pairs that uniquely identify the OPA instance. Labels are included when OPA uploads decision logs and status information. |
 | `default_decision` | `string` | No (default: `/system/main`) | Set path of default policy decision used to serve queries against OPA's base URL. |
 | `default_authorization_decision` | `string` | No (default: `/system/authz/allow`) | Set path of default authorization decision for OPA's API. |
+| `persistence_directory` | `string` | No (default `$PWD/.opa`) | Set directory to use for persistence with options like `bundles[_].persist`. |
 | `plugins` | `object` | No (default: `{}`) | Location for custom plugin configuration. See [Plugins](../plugins) for details. |
 
 ### Keys
