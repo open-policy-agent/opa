@@ -86,7 +86,7 @@ func (p *Plugin) Start(ctx context.Context) error {
 
 	var err error
 
-	p.bundlePersistPath, err = getDefaultBundlePersistPath()
+	p.bundlePersistPath, err = p.getBundlePersistPath()
 	if err != nil {
 		return err
 	}
@@ -593,10 +593,11 @@ func loadBundleFromDisk(path, name string, src *Source) (*bundle.Bundle, error) 
 	}
 }
 
-func getDefaultBundlePersistPath() (string, error) {
-	pwd, err := os.Getwd()
+func (p *Plugin) getBundlePersistPath() (string, error) {
+	persistDir, err := p.manager.Config.GetPersistenceDirectory()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(pwd, ".opa", "bundles"), nil
+
+	return filepath.Join(persistDir, "bundles"), nil
 }
