@@ -207,6 +207,15 @@ a = "c" { input > 2 }`,
 				{Result: `{{"y": 2, "x": "q"}}`},
 			},
 		},
+		{
+			Description: "mpd init problem (#3110)",
+			Query:       `data.p.main = x`,
+			Policy:      `main { numbers.range(1, 2)[_] == 2 }`,
+			Evals: []Eval{
+				{Result: `{{"x": true}}`},
+				{Result: `{{"x": true}}`},
+			},
+		},
 	}
 
 	for _, test := range tests {

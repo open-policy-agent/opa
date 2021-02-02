@@ -65,6 +65,7 @@ const (
 	opaMappingInit       = "opa_mapping_init"
 	opaMappingLookup     = "opa_mapping_lookup"
 	elementToFunctionIdx = "opa_elem_to_func"
+	opaMPDInit           = "opa_mpd_init"
 )
 
 var builtinsFunctions = map[string]string{
@@ -714,6 +715,7 @@ func (c *Compiler) emitMapping() error {
 	// with s being the offset of the data segment just written, and l its length
 	fName := "_initialize"
 	c.code = &module.CodeEntry{}
+	c.appendInstr(instruction.Call{Index: c.function(opaMPDInit)})
 	c.appendInstr(instruction.I32Const{Value: dataOffset})
 	c.appendInstr(instruction.I32Const{Value: int32(len(jsonMap))})
 	c.appendInstr(instruction.Call{Index: c.function(opaMappingInit)})

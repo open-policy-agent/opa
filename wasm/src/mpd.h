@@ -5,6 +5,7 @@
 
 typedef struct opa_value opa_value;
 
+void opa_mpd_init(void);
 mpd_context_t *mpd_default_ctx(void);
 mpd_context_t *mpd_max_ctx(void);
 void opa_mpd_del(mpd_t *v);
