@@ -8,7 +8,8 @@ static mpd_context_t default_ctx;
 static mpd_context_t max_ctx;
 static mpd_t *one;
 
-static void init(void)
+OPA_INTERNAL
+void opa_mpd_init(void)
 {
     if (!initialized)
     {
@@ -34,19 +35,16 @@ static void init(void)
 
 mpd_context_t *mpd_default_ctx(void)
 {
-    init();
     return &default_ctx;
 }
 
 mpd_context_t *mpd_max_ctx(void)
 {
-    init();
     return &max_ctx;
 }
 
 static mpd_t *mpd_one(void)
 {
-    init();
     return one;
 }
 

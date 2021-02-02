@@ -22,7 +22,7 @@
 #include "test.h"
 #include "types.h"
 
-void reset_heap()
+void reset_heap(void)
 {
     // This will leak memory!!
     // TODO: How should we safely reset it if we don't know the original starting ptr?
@@ -30,7 +30,7 @@ void reset_heap()
 }
 
 WASM_EXPORT(test_opa_malloc)
-void test_opa_malloc()
+void test_opa_malloc(void)
 {
     reset_heap();
 
@@ -52,7 +52,7 @@ void test_opa_malloc()
 }
 
 WASM_EXPORT(test_opa_malloc_min_size)
-void test_opa_malloc_min_size()
+void test_opa_malloc_min_size(void)
 {
     reset_heap();
 
@@ -75,7 +75,7 @@ void test_opa_malloc_min_size()
 }
 
 WASM_EXPORT(test_opa_malloc_split_threshold_small_block)
-void test_opa_malloc_split_threshold_small_block()
+void test_opa_malloc_split_threshold_small_block(void)
 {
     reset_heap();
 
@@ -100,7 +100,7 @@ void test_opa_malloc_split_threshold_small_block()
 }
 
 WASM_EXPORT(test_opa_malloc_split_threshold_big_block)
-void test_opa_malloc_split_threshold_big_block()
+void test_opa_malloc_split_threshold_big_block(void)
 {
     reset_heap();
 
@@ -132,7 +132,7 @@ void test_opa_malloc_split_threshold_big_block()
 }
 
 WASM_EXPORT(test_opa_free)
-void test_opa_free()
+void test_opa_free(void)
 {
     reset_heap();
 
@@ -218,7 +218,7 @@ void test_opa_free()
 }
 
 WASM_EXPORT(test_opa_memoize)
-void test_opa_memoize()
+void test_opa_memoize(void)
 {
     opa_memoize_init();
 
@@ -246,15 +246,30 @@ void test_opa_memoize()
     test("get-a-after-pop", opa_value_compare(e, exp_e) == 0);
 }
 
+// NOTE(sr): These tests are run in order. If they weren't, every test that
+// depends on mpd's state being initialized would have to call `opa_mpd_init`
+// first. When the Wasm module is used, the `Start` function (`_initialize`,
+// emitted from the Wasm compiler) takes care of that.
+WASM_EXPORT(test_opa_mpd)
+void test_opa_mpd(void)
+{
+    // NOTE(sr): This call also initializes mpd_one, which is used under the
+    // hood for `qadd_one`.
+    opa_mpd_init();
+    opa_value *zero = opa_number_int(0);
+    opa_value *two = opa_bf_to_number(qadd_one(qadd_one(opa_number_to_bf(zero))));
+    test("0+1+1 is 2", opa_value_compare(opa_number_int(2), two) == 0);
+}
+
 WASM_EXPORT(test_opa_strlen)
-void test_opa_strlen()
+void test_opa_strlen(void)
 {
     test("empty", opa_strlen("") == 0);
     test("non-empty", opa_strlen("1234") == 4);
 }
 
 WASM_EXPORT(test_opa_strncmp)
-void test_opa_strncmp()
+void test_opa_strncmp(void)
 {
     test("empty", opa_strncmp("", "", 0) == 0);
     test("equal", opa_strncmp("1234", "1234", 4) == 0);
@@ -263,7 +278,7 @@ void test_opa_strncmp()
 }
 
 WASM_EXPORT(test_opa_strcmp)
-void test_opa_strcmp()
+void test_opa_strcmp(void)
 {
     test("empty", opa_strcmp("", "") == 0);
     test("equal", opa_strcmp("abcd", "abcd") == 0);
@@ -274,7 +289,7 @@ void test_opa_strcmp()
 }
 
 WASM_EXPORT(test_opa_itoa)
-void test_opa_itoa()
+void test_opa_itoa(void)
 {
     char buf[sizeof(long long)*8+1];
 
@@ -315,7 +330,7 @@ int crunch_opa_atoi64(const char *str, long long exp, int exp_rc)
 }
 
 WASM_EXPORT(test_opa_atoi64)
-void test_opa_atoi64()
+void test_opa_atoi64(void)
 {
     test("integer", crunch_opa_atoi64("127", 127, 0));
     test("negative integer", crunch_opa_atoi64("-128", -128, 0));
@@ -337,7 +352,7 @@ int crunch_opa_atof64(const char *str, double exp, int exp_rc)
 }
 
 WASM_EXPORT(test_opa_atof64)
-void test_opa_atof64()
+void test_opa_atof64(void)
 {
     test("empty", crunch_opa_atof64("", 0, -1));
     test("bad integer", crunch_opa_atof64("1234-6", 0, -2));
@@ -351,7 +366,7 @@ void test_opa_atof64()
 }
 
 WASM_EXPORT(test_memchr)
-void test_memchr()
+void test_memchr(void)
 {
     char s[] = { 1, 2, 2, 3 };
 
@@ -361,7 +376,7 @@ void test_memchr()
 }
 
 WASM_EXPORT(test_memcmp)
-void test_memcmp()
+void test_memcmp(void)
 {
     char a[] = { 1, 2, 3, 4 }, b[] = { 1, 2, 3, 3 };
 
@@ -371,7 +386,7 @@ void test_memcmp()
 }
 
 WASM_EXPORT(test_memcpy)
-void test_memcpy()
+void test_memcpy(void)
 {
     char dest[] = { 1, 2, 3, 4 }, src[] = { 9, 8, 7 };
     char expected[] = { 9, 8, 3, 4 };
@@ -381,7 +396,7 @@ void test_memcpy()
 }
 
 WASM_EXPORT(test_memset)
-void test_memset()
+void test_memset(void)
 {
     char s[] = { 9, 8, 7, 6 };
     char expected[] = { 1, 1, 1, 6 };
@@ -398,7 +413,7 @@ int lex_crunch(const char *s)
 }
 
 WASM_EXPORT(test_opa_lex_tokens)
-void test_opa_lex_tokens()
+void test_opa_lex_tokens(void)
 {
     test("empty", lex_crunch("") == OPA_JSON_TOKEN_EOF);
     test("space", lex_crunch(" ") == OPA_JSON_TOKEN_EOF);
@@ -449,7 +464,7 @@ int lex_buffer_crunch(const char *s, const char *exp, int token)
 #define test_lex_buffer(note, s, exp, token) test(note, (lex_buffer_crunch(s, exp, token) == 0))
 
 WASM_EXPORT(test_opa_lex_buffer)
-void test_opa_lex_buffer()
+void test_opa_lex_buffer(void)
 {
     test_lex_buffer("zero", "0", "0", OPA_JSON_TOKEN_NUMBER);
     test_lex_buffer("signed zero", "-0", "-0", OPA_JSON_TOKEN_NUMBER);
@@ -474,7 +489,7 @@ void test_opa_lex_buffer()
 }
 
 WASM_EXPORT(test_opa_value_compare)
-void test_opa_value_compare()
+void test_opa_value_compare(void)
 {
     test("none", opa_value_compare(NULL, NULL) == 0);
     test("none/some", opa_value_compare(NULL, opa_null()) < 0);
@@ -602,7 +617,7 @@ int value_parse_crunch(const char *s, opa_value *exp)
 }
 
 WASM_EXPORT(test_opa_json_parse_scalar)
-void test_opa_json_parse_scalar()
+void test_opa_json_parse_scalar(void)
 {
     test("null", parse_crunch("null", opa_null()));
     test("true", parse_crunch("true", opa_boolean(TRUE)));
@@ -636,7 +651,7 @@ void test_opa_json_parse_scalar()
 }
 
 WASM_EXPORT(test_opa_json_max_str_len)
-void test_opa_json_max_str_len()
+void test_opa_json_max_str_len(void)
 {
     test("max str len: a char", opa_json_max_string_len("a", 1) == 1);
     test("max str len: chars", opa_json_max_string_len("ab", 2) == 2);
@@ -648,7 +663,7 @@ void test_opa_json_max_str_len()
     test("max str len: utf-16 surrogate pair", opa_json_max_string_len(" \\ud801\\udc37 ", 14) == 6);
 }
 
-opa_array_t *fixture_array1()
+opa_array_t *fixture_array1(void)
 {
     opa_array_t *arr = opa_cast_array(opa_array());
     opa_array_append(arr, opa_number_int(1));
@@ -658,7 +673,7 @@ opa_array_t *fixture_array1()
     return arr;
 }
 
-opa_array_t *fixture_array2()
+opa_array_t *fixture_array2(void)
 {
     opa_array_t *arr1 = opa_cast_array(opa_array());
     opa_array_append(arr1, opa_number_int(1));
@@ -679,7 +694,7 @@ opa_array_t *fixture_array2()
     return arr;
 }
 
-opa_object_t *fixture_object1()
+opa_object_t *fixture_object1(void)
 {
     opa_object_t *obj = opa_cast_object(opa_object());
     opa_object_insert(obj, opa_string_terminated("a"), opa_number_int(1));
@@ -687,7 +702,7 @@ opa_object_t *fixture_object1()
     return obj;
 }
 
-opa_object_t *fixture_object2()
+opa_object_t *fixture_object2(void)
 {
     opa_object_t *obj1 = opa_cast_object(opa_object());
     opa_object_insert(obj1, opa_string_terminated("c"), opa_number_int(1));
@@ -703,7 +718,7 @@ opa_object_t *fixture_object2()
     return obj;
 }
 
-opa_set_t *fixture_set1()
+opa_set_t *fixture_set1(void)
 {
     opa_set_t *set = opa_cast_set(opa_set());
     opa_set_add(set, opa_string_terminated("a"));
@@ -712,7 +727,7 @@ opa_set_t *fixture_set1()
 }
 
 WASM_EXPORT(test_opa_value_length)
-void test_opa_value_length()
+void test_opa_value_length(void)
 {
     opa_array_t *arr = fixture_array1();
     opa_object_t *obj = fixture_object1();
@@ -724,7 +739,7 @@ void test_opa_value_length()
 }
 
 WASM_EXPORT(test_opa_value_get_array)
-void test_opa_value_get_array()
+void test_opa_value_get_array(void)
 {
     opa_array_t *arr = fixture_array1();
 
@@ -773,7 +788,7 @@ void test_opa_value_get_array()
 }
 
 WASM_EXPORT(test_opa_array_sort)
-void test_opa_array_sort()
+void test_opa_array_sort(void)
 {
     opa_array_t *arr = opa_cast_array(opa_array());
 
@@ -801,7 +816,7 @@ void test_opa_array_sort()
 }
 
 WASM_EXPORT(test_opa_value_get_object)
-void test_opa_value_get_object()
+void test_opa_value_get_object(void)
 {
     opa_object_t *obj = fixture_object1();
 
@@ -839,7 +854,7 @@ void test_opa_value_get_object()
 }
 
 WASM_EXPORT(test_opa_json_parse_composites)
-void test_opa_json_parse_composites()
+void test_opa_json_parse_composites(void)
 {
 
     opa_value *empty_arr = opa_array();
@@ -856,7 +871,7 @@ void test_opa_json_parse_composites()
 }
 
 WASM_EXPORT(test_opa_value_parse)
-void test_opa_value_parse()
+void test_opa_value_parse(void)
 {
     opa_set_t *set = opa_cast_set(opa_set());
     opa_set_add(set, opa_number_int(1));
@@ -876,7 +891,7 @@ void test_opa_value_parse()
 }
 
 WASM_EXPORT(test_opa_json_parse_memory_ownership)
-void test_opa_json_parse_memory_ownership()
+void test_opa_json_parse_memory_ownership(void)
 {
     char s[] = "[1,\"a\"]";
 
@@ -898,7 +913,7 @@ void test_opa_json_parse_memory_ownership()
 }
 
 WASM_EXPORT(test_opa_object_insert)
-void test_opa_object_insert()
+void test_opa_object_insert(void)
 {
 
     opa_object_t *obj = opa_cast_object(opa_object());
@@ -925,7 +940,7 @@ void test_opa_object_insert()
 }
 
 WASM_EXPORT(test_opa_object_growth)
-void test_opa_object_growth()
+void test_opa_object_growth(void)
 {
     opa_object_t *obj = opa_cast_object(opa_object());
     opa_object_insert(obj, opa_string_terminated("a"), opa_string_terminated("1"));
@@ -959,7 +974,7 @@ void test_opa_object_growth()
 }
 
 WASM_EXPORT(test_opa_set_add_and_get)
-void test_opa_set_add_and_get()
+void test_opa_set_add_and_get(void)
 {
     opa_set_t *set = fixture_set1();
     opa_set_add(set, opa_string_terminated("a"));
@@ -995,7 +1010,7 @@ void test_opa_set_add_and_get()
 }
 
 WASM_EXPORT(test_opa_set_growth)
-void test_opa_set_growth()
+void test_opa_set_growth(void)
 {
     opa_set_t *set = opa_cast_set(opa_set());
     opa_set_add(set, opa_string_terminated("a"));
@@ -1029,7 +1044,7 @@ void test_opa_set_growth()
 }
 
 WASM_EXPORT(test_opa_value_iter_object)
-void test_opa_value_iter_object()
+void test_opa_value_iter_object(void)
 {
     opa_object_t *obj = fixture_object1();
 
@@ -1058,7 +1073,7 @@ void test_opa_value_iter_object()
 }
 
 WASM_EXPORT(test_opa_value_iter_array)
-void test_opa_value_iter_array()
+void test_opa_value_iter_array(void)
 {
     opa_array_t *arr = opa_cast_array(opa_array());
 
@@ -1090,7 +1105,7 @@ void test_opa_value_iter_array()
 }
 
 WASM_EXPORT(test_opa_value_iter_set)
-void test_opa_value_iter_set()
+void test_opa_value_iter_set(void)
 {
     opa_set_t *set = opa_cast_set(opa_set());
 
@@ -1122,7 +1137,7 @@ void test_opa_value_iter_set()
 }
 
 WASM_EXPORT(test_opa_value_merge_scalars)
-void test_opa_value_merge_scalars()
+void test_opa_value_merge_scalars(void)
 {
     opa_value *result = opa_value_merge(opa_number_int(1), opa_string_terminated("foo"));
 
@@ -1137,7 +1152,7 @@ void test_opa_value_merge_scalars()
 }
 
 WASM_EXPORT(test_opa_value_merge_simple)
-void test_opa_value_merge_simple()
+void test_opa_value_merge_simple(void)
 {
     opa_object_t *obj1 = opa_cast_object(opa_object());
     opa_object_t *obj2 = opa_cast_object(opa_object());
@@ -1163,7 +1178,7 @@ void test_opa_value_merge_simple()
 
 
 WASM_EXPORT(test_opa_value_merge_nested)
-void test_opa_value_merge_nested()
+void test_opa_value_merge_nested(void)
 {
     opa_object_t *obj1 = opa_cast_object(opa_object());
     opa_object_t *obj1a = opa_cast_object(opa_object());
@@ -1201,7 +1216,7 @@ void test_opa_value_merge_nested()
 }
 
 WASM_EXPORT(test_opa_value_shallow_copy)
-void test_opa_value_shallow_copy()
+void test_opa_value_shallow_copy(void)
 {
     // construct a value that has one of each type
     char str[] = "{\"a\": [1, true, null, 2.5]}";
@@ -1218,7 +1233,7 @@ void test_opa_value_shallow_copy()
 }
 
 WASM_EXPORT(test_opa_json_dump)
-void test_opa_json_dump()
+void test_opa_json_dump(void)
 {
     test("null", opa_strcmp(opa_json_dump(opa_null()), "null") == 0);
     test("false", opa_strcmp(opa_json_dump(opa_boolean(0)), "false") == 0);
@@ -1279,7 +1294,7 @@ void test_opa_json_dump()
 }
 
 WASM_EXPORT(test_opa_value_dump)
-void test_opa_value_dump()
+void test_opa_value_dump(void)
 {
     test("empty sets", opa_strcmp(opa_value_dump(opa_set()), "set()") == 0);
 
@@ -1299,7 +1314,7 @@ void test_opa_value_dump()
 }
 
 WASM_EXPORT(test_arithmetic)
-void test_arithmetic()
+void test_arithmetic(void)
 {
     long long i = 0;
 
@@ -1347,13 +1362,13 @@ void test_arithmetic()
 }
 
 WASM_EXPORT(test_set_diff)
-void test_set_diff()
+void test_set_diff(void)
 {
     // test_arithmetic covers the diff.
 }
 
 WASM_EXPORT(test_set_intersection_union)
-void test_set_intersection_union()
+void test_set_intersection_union(void)
 {
     opa_set_t *s1 = opa_cast_set(opa_set());
     opa_set_add(s1, opa_number_int(0));
@@ -1376,7 +1391,7 @@ void test_set_intersection_union()
 
 
 WASM_EXPORT(test_sets_intersection_union)
-void test_sets_intersection_union()
+void test_sets_intersection_union(void)
 {
     opa_set_t *s1 = opa_cast_set(opa_set());
     opa_set_add(s1, opa_number_int(0));
@@ -1406,7 +1421,7 @@ void test_sets_intersection_union()
 }
 
 WASM_EXPORT(test_array)
-void test_array()
+void test_array(void)
 {
     opa_array_t *arr1 = opa_cast_array(opa_array());
     opa_array_append(arr1, opa_number_int(0));
@@ -1432,7 +1447,7 @@ void test_array()
 }
 
 WASM_EXPORT(test_types)
-void test_types()
+void test_types(void)
 {
     test("is_number", opa_value_compare(opa_types_is_number(opa_number_int(0)), opa_boolean(true)) == 0);
     test("is_number", opa_types_is_number(opa_null()) == NULL);
@@ -1493,7 +1508,7 @@ static opa_value *number(const char *s)
 }
 
 WASM_EXPORT(test_bits)
-void test_bits()
+void test_bits(void)
 {
     // tests from https://golang.org/src/math/big/int_test.go L1193
 
@@ -1651,7 +1666,7 @@ void test_bits()
 }
 
 WASM_EXPORT(test_aggregates)
-void test_aggregates()
+void test_aggregates(void)
 {
     opa_array_t *arr = opa_cast_array(opa_array());
     opa_array_append(arr, opa_number_int(2));
@@ -1734,7 +1749,7 @@ void test_aggregates()
 }
 
 WASM_EXPORT(test_base64)
-void test_base64()
+void test_base64(void)
 {
     test("base64/is_valid", opa_value_compare(opa_base64_is_valid(opa_string_terminated("YWJjMTIzIT8kKiYoKSctPUB+")), opa_boolean(TRUE)) == 0);
     test("base64/encode", opa_value_compare(opa_base64_encode(opa_string_terminated("abc123!?$*&()'-=@~")), opa_string_terminated("YWJjMTIzIT8kKiYoKSctPUB+")) == 0);
@@ -1750,14 +1765,14 @@ void test_base64()
 }
 
 WASM_EXPORT(test_json)
-void test_json()
+void test_json(void)
 {
     test("json/marshal", opa_value_compare(opa_json_marshal(opa_string_terminated("string")), opa_string_terminated("\"string\"")) == 0);
     test("json/unmarshal", opa_value_compare(opa_json_unmarshal(opa_string_terminated("\"string\"")), opa_string_terminated("string")) == 0);
 }
 
 WASM_EXPORT(test_object)
-void test_object()
+void test_object(void)
 {
     opa_object_t *obj = opa_cast_object(opa_object());
     opa_object_insert(obj, opa_string_terminated("a"), opa_number_int(1));
@@ -1791,7 +1806,7 @@ void test_object()
 }
 
 WASM_EXPORT(test_object_remove)
-void test_object_remove()
+void test_object_remove(void)
 {
     opa_object_t *o = opa_cast_object(opa_object());
     opa_object_insert(o, opa_string_terminated("c"), opa_number_int(3));
@@ -1871,7 +1886,7 @@ void test_object_remove()
 }
 
 WASM_EXPORT(test_object_union)
-void test_object_union()
+void test_object_union(void)
 {
     test("object/union (both empty)", opa_value_compare(builtin_object_union(opa_object(), opa_object()), opa_object()) == 0);
 
@@ -1995,7 +2010,7 @@ void test_object_union()
     test("object/union (non-object second operand)", opa_value_compare(builtin_object_union(opa_object(), opa_string_terminated("a")), NULL) == 0);
 }
 
-opa_object_t *json_test_fixture_object1()
+opa_object_t *json_test_fixture_object1(void)
 {
     opa_object_t *obj1 = opa_cast_object(opa_object());
     opa_object_insert(obj1, opa_string_terminated("c"), opa_number_int(7));
@@ -2010,7 +2025,7 @@ opa_object_t *json_test_fixture_object1()
     return obj;
 }
 
-opa_object_t *json_test_fixture_object2()
+opa_object_t *json_test_fixture_object2(void)
 {
     opa_object_t *obj1 = opa_cast_object(opa_object());
     opa_object_insert(obj1, opa_string_terminated("c"), opa_number_int(7));
@@ -2026,7 +2041,7 @@ opa_object_t *json_test_fixture_object2()
     return obj;
 }
 
-opa_object_t *json_test_fixture_object3()
+opa_object_t *json_test_fixture_object3(void)
 {
     opa_object_t *obj1 = opa_cast_object(opa_object());
     opa_object_insert(obj1, opa_string_terminated("b"), opa_number_int(7));
@@ -2038,7 +2053,7 @@ opa_object_t *json_test_fixture_object3()
     return obj;
 }
 
-opa_object_t *json_test_fixture_object4()
+opa_object_t *json_test_fixture_object4(void)
 {
     opa_object_t *obj1 = opa_cast_object(opa_object());
     opa_object_insert(obj1, opa_string_terminated("b"), opa_number_int(7));
@@ -2057,7 +2072,7 @@ opa_object_t *json_test_fixture_object4()
     return obj;
 }
 
-opa_object_t *json_test_fixture_object5()
+opa_object_t *json_test_fixture_object5(void)
 {
     opa_array_t *arr1 = opa_cast_array(opa_array());
     opa_array_append(arr1, opa_string_terminated("b"));
@@ -2080,7 +2095,7 @@ opa_object_t *json_test_fixture_object5()
     return obj;
 }
 
-opa_object_t *json_test_fixture_object6()
+opa_object_t *json_test_fixture_object6(void)
 {
     opa_object_t *obj1 = opa_cast_object(opa_object());
     opa_object_insert(obj1, opa_string_terminated("c"), opa_number_int(7));
@@ -2096,7 +2111,7 @@ opa_object_t *json_test_fixture_object6()
     return obj;
 }
 
-opa_object_t *json_remove_get_exp_object1()
+opa_object_t *json_remove_get_exp_object1(void)
 {
     opa_array_t *arr1 = opa_cast_array(opa_array());
     opa_array_append(arr1, opa_string_terminated("b"));
@@ -2118,7 +2133,7 @@ opa_object_t *json_remove_get_exp_object1()
     return obj;
 }
 
-opa_object_t *json_remove_get_exp_object2()
+opa_object_t *json_remove_get_exp_object2(void)
 {
     opa_object_t *obj1 = opa_cast_object(opa_object());
     opa_object_insert(obj1, opa_string_terminated("x"), opa_number_int(0));
@@ -2133,7 +2148,7 @@ opa_object_t *json_remove_get_exp_object2()
 }
 
 WASM_EXPORT(test_json_remove)
-void test_json_remove()
+void test_json_remove(void)
 {
     opa_object_t *obj1 = json_test_fixture_object1();
 
@@ -2299,7 +2314,7 @@ void test_json_remove()
 }
 
 WASM_EXPORT(test_json_filter)
-void test_json_filter()
+void test_json_filter(void)
 {
     opa_object_t *obj1 = json_test_fixture_object1();
 
@@ -2446,7 +2461,7 @@ void test_json_filter()
 }
 
 WASM_EXPORT(test_builtin_graph_reachable)
-void test_builtin_graph_reachable()
+void test_builtin_graph_reachable(void)
 {
 
     test("reachable/malformed graph", opa_value_compare(builtin_graph_reachable(opa_set(), opa_set()), opa_set()) == 0);
@@ -2552,7 +2567,7 @@ void test_builtin_graph_reachable()
 }
 
 WASM_EXPORT(test_strings)
-void test_strings()
+void test_strings(void)
 {
     opa_value *join = opa_string_terminated("--");
 
@@ -2788,7 +2803,7 @@ void test_strings()
 }
 
 WASM_EXPORT(test_numbers_range)
-void test_numbers_range()
+void test_numbers_range(void)
 {
     opa_value *a = opa_number_int(10);
     opa_value *b = opa_number_int(12);
@@ -2813,7 +2828,7 @@ void test_numbers_range()
 }
 
 WASM_EXPORT(test_to_number)
-void test_to_number()
+void test_to_number(void)
 {
     test("to_number/null", opa_value_compare(opa_to_number(opa_null()), opa_number_int(0)) == 0);
     test("to_number/false", opa_value_compare(opa_to_number(opa_boolean(0)), opa_number_int(0)) == 0);
@@ -2826,7 +2841,7 @@ void test_to_number()
 }
 
 WASM_EXPORT(test_cidr_contains)
-void test_cidr_contains()
+void test_cidr_contains(void)
 {
     test("cidr/contains", opa_value_compare(opa_cidr_contains(opa_string_terminated("10.0.0.0/8"), opa_string_terminated("10.1.0.0/24")), opa_boolean(TRUE)) == 0);
     test("cidr/contains", opa_value_compare(opa_cidr_contains(opa_string_terminated("172.17.0.0/24"), opa_string_terminated("172.17.0.0/16")), opa_boolean(FALSE)) == 0);
@@ -2948,7 +2963,7 @@ void test_opa_value_add_path() {
 }
 
 WASM_EXPORT(test_opa_object_delete)
-void test_opa_object_delete()
+void test_opa_object_delete(void)
 {
     opa_value *data = opa_object();
 
@@ -2971,7 +2986,7 @@ void test_opa_object_delete()
 }
 
 WASM_EXPORT(test_opa_value_remove_path)
-void test_opa_value_remove_path()
+void test_opa_value_remove_path(void)
 {
     opa_value *path;
     opa_errc rc;
@@ -3080,7 +3095,7 @@ static void test_submatch_string(const char *s, sequence *seq, opa_value *result
 }
 
 WASM_EXPORT(test_regex)
-void test_regex()
+void test_regex(void)
 {
     test("regex/is_valid", opa_value_compare(opa_regex_is_valid(opa_string_terminated(".*")), opa_boolean(1)) == 0);
     test("regex/is_valid_non_string", opa_value_compare(opa_regex_is_valid(opa_number_int(123)), opa_boolean(0)) == 0);
@@ -3210,6 +3225,7 @@ void test_regex()
     }
 }
 
+WASM_EXPORT(test_opa_lookup)
 void test_opa_lookup(void)
 {
     opa_array_t *path1 = opa_cast_array(opa_array());
@@ -3236,6 +3252,7 @@ void test_opa_lookup(void)
     test("opa_lookup/miss/less", opa_lookup(&smaller_mapping->hdr, &path1->hdr) == 0);
 }
 
+WASM_EXPORT(test_opa_mapping_init)
 void test_opa_mapping_init(void)
 {
     opa_string_t *s = opa_cast_string(opa_string_terminated("{\"foo\": {\"bar\": 123}}"));
