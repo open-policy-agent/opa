@@ -353,45 +353,6 @@ func TestNamedEntrypoint(t *testing.T) {
 	}
 }
 
-func BenchmarkWasmRego(b *testing.B) {
-	policy := compileRegoToWasm("a = true", "data.p.a = x", dump)
-	instance, _ := opa.New().
-		WithPolicyBytes(policy).
-		WithMemoryLimits(131070, 2*131070). // TODO: For some reason unlimited memory slows down the eval_ctx_new().
-		WithPoolSize(1).
-		Init()
-
-	b.ReportAllocs()
-	b.ResetTimer()
-
-	ctx := context.Background()
-	var input interface{} = make(map[string]interface{})
-
-	for i := 0; i < b.N; i++ {
-		if _, err := instance.Eval(ctx, opa.EvalOpts{Input: &input}); err != nil {
-			panic(err)
-		}
-	}
-}
-
-func BenchmarkGoRego(b *testing.B) {
-	pq := compileRego(`package p
-
-a = true`, "data.p.a = x")
-
-	b.ReportAllocs()
-	b.ResetTimer()
-
-	ctx := context.Background()
-	input := make(map[string]interface{})
-
-	for i := 0; i < b.N; i++ {
-		if _, err := pq.Eval(ctx, rego.EvalInput(input)); err != nil {
-			panic(err)
-		}
-	}
-}
-
 // compileRegoToWasm is shared with the benchmarking functions in opa_bench_test.go;
 // those function use helpers shared with topdown_bench_test.go, and they all use
 // `package test` -- whereas the callers in this file don't provide the package at

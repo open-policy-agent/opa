@@ -7,8 +7,48 @@ import (
 
 	"github.com/open-policy-agent/opa/internal/wasm/sdk/internal/wasm"
 	"github.com/open-policy-agent/opa/internal/wasm/sdk/opa"
+	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/util/test"
 )
+
+func BenchmarkWasmRego(b *testing.B) {
+	policy := compileRegoToWasm("a = true", "data.p.a = x", false)
+	instance, _ := opa.New().
+		WithPolicyBytes(policy).
+		WithMemoryLimits(131070, 2*131070). // TODO: For some reason unlimited memory slows down the eval_ctx_new().
+		WithPoolSize(1).
+		Init()
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	ctx := context.Background()
+	var input interface{} = make(map[string]interface{})
+
+	for i := 0; i < b.N; i++ {
+		if _, err := instance.Eval(ctx, opa.EvalOpts{Input: &input}); err != nil {
+			panic(err)
+		}
+	}
+}
+
+func BenchmarkGoRego(b *testing.B) {
+	pq := compileRego(`package p
+
+a = true`, "data.p.a = x")
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	ctx := context.Background()
+	input := make(map[string]interface{})
+
+	for i := 0; i < b.N; i++ {
+		if _, err := pq.Eval(ctx, rego.EvalInput(input)); err != nil {
+			panic(err)
+		}
+	}
+}
 
 func BenchmarkWASMArrayIteration(b *testing.B) {
 	sizes := []int{10, 100, 1000, 10000}
