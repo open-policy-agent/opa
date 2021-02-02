@@ -18,9 +18,7 @@ import (
 	"fmt"
 	"hash"
 	"math/big"
-	"strconv"
 	"strings"
-	"time"
 
 	"github.com/pkg/errors"
 
@@ -464,7 +462,7 @@ type tokenConstraints struct {
 
 	// The time to validate against, or -1 if no constraint set.
 	// (If unset, the current time will be used.)
-	time int64
+	time float64
 }
 
 // tokenConstraintHandler is the handler type for JWT verification constraints.
@@ -505,19 +503,27 @@ func tokenConstraintCert(value ast.Value, constraints *tokenConstraints) error {
 
 // tokenConstraintTime handles the `time` constraint.
 func tokenConstraintTime(value ast.Value, constraints *tokenConstraints) error {
+	t, err := timeFromValue(value)
+	if err != nil {
+		return err
+	}
+	constraints.time = t
+	return nil
+}
+
+func timeFromValue(value ast.Value) (float64, error) {
 	time, ok := value.(ast.Number)
 	if !ok {
-		return fmt.Errorf("token time constraint: must be a number")
+		return 0, fmt.Errorf("token time constraint: must be a number")
 	}
-	timeFloat, err := strconv.ParseFloat(string(time), 64)
-	if err != nil {
-		return fmt.Errorf("token time constraint: %w", err)
+	timeFloat, ok := time.Float64()
+	if !ok {
+		return 0, fmt.Errorf("token time constraint: unvalid float64")
 	}
 	if timeFloat < 0 {
-		return fmt.Errorf("token time constraint: must not be negative")
+		return 0, fmt.Errorf("token time constraint: must not be negative")
 	}
-	constraints.time = int64(timeFloat)
-	return nil
+	return timeFloat, nil
 }
 
 // tokenConstraintString handles string constraints.
@@ -545,6 +551,13 @@ func parseTokenConstraints(o ast.Object, wallclock *ast.Term) (*tokenConstraints
 		return fmt.Errorf("unknown token validation constraint: %s", name)
 	}); err != nil {
 		return nil, err
+	}
+	if constraints.time == -1 { // no time provided in constraint object
+		t, err := timeFromValue(wallclock.Value)
+		if err != nil {
+			return nil, err
+		}
+		constraints.time = t
 	}
 	return &constraints, nil
 }
@@ -893,7 +906,7 @@ func builtinJWTDecodeVerify(bctx BuiltinContext, args []*ast.Term, iter func(*as
 		ast.NewTerm(ast.NewObject()),
 		ast.NewTerm(ast.NewObject()),
 	}
-	constraints, err := parseTokenConstraints(b)
+	constraints, err := parseTokenConstraints(b, bctx.Time)
 	if err != nil {
 		return err
 	}
@@ -975,26 +988,16 @@ func builtinJWTDecodeVerify(bctx BuiltinContext, args []*ast.Term, iter func(*as
 	}
 	// RFC7159 4.1.4 exp
 	if exp := payload.Get(jwtExpKey); exp != nil {
-		if constraints.time < 0 {
-			constraints.time = time.Now().UnixNano()
-		}
-
 		// constraints.time is in nanoseconds but exp Value is in seconds
-		compareTime := ast.Number(strconv.FormatFloat(float64(constraints.time)/1000000000, 'g', -1, 64))
-
+		compareTime := ast.FloatNumberTerm(float64(constraints.time) / 1000000000)
 		if ast.Compare(compareTime, exp.Value.(ast.Number)) != -1 {
 			return iter(ast.NewTerm(ast.NewArray(arr...)))
 		}
 	}
 	// RFC7159 4.1.5 nbf
 	if nbf := payload.Get(jwtNbfKey); nbf != nil {
-		if constraints.time < 0 {
-			constraints.time = time.Now().UnixNano()
-		}
-
 		// constraints.time is in nanoseconds but nbf Value is in seconds
-		compareTime := ast.Number(strconv.FormatFloat(float64(constraints.time)/1000000000, 'g', -1, 64))
-
+		compareTime := ast.FloatNumberTerm(float64(constraints.time) / 1000000000)
 		if ast.Compare(compareTime, nbf.Value.(ast.Number)) == -1 {
 			return iter(ast.NewTerm(ast.NewArray(arr...)))
 		}
