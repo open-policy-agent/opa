@@ -901,11 +901,11 @@ func builtinJWTDecodeVerify(bctx BuiltinContext, args []*ast.Term, iter func(*as
 		return err
 	}
 
-	arr := []*ast.Term{
-		ast.BooleanTerm(false), // by default, not verified
+	unverified := ast.ArrayTerm(
+		ast.BooleanTerm(false),
 		ast.NewTerm(ast.NewObject()),
 		ast.NewTerm(ast.NewObject()),
-	}
+	)
 	constraints, err := parseTokenConstraints(b, bctx.Time)
 	if err != nil {
 		return err
@@ -930,11 +930,11 @@ func builtinJWTDecodeVerify(bctx BuiltinContext, args []*ast.Term, iter func(*as
 			return err
 		}
 		if !header.valid() {
-			return iter(ast.NewTerm(ast.NewArray(arr...)))
+			return iter(unverified)
 		}
 		// Check constraints that impact signature verification.
 		if constraints.alg != "" && constraints.alg != header.alg {
-			return iter(ast.NewTerm(ast.NewArray(arr...)))
+			return iter(unverified)
 		}
 		// RFC7159 7.2 #7 verify the signature
 		signature, err := token.decodeSignature()
@@ -943,7 +943,7 @@ func builtinJWTDecodeVerify(bctx BuiltinContext, args []*ast.Term, iter func(*as
 		}
 		if err := constraints.verify(header.kid, header.alg, token.header, token.payload, signature); err != nil {
 			if err == errSignatureNotVerified {
-				return iter(ast.NewTerm(ast.NewArray(arr...)))
+				return iter(unverified)
 			}
 			return err
 		}
@@ -972,18 +972,18 @@ func builtinJWTDecodeVerify(bctx BuiltinContext, args []*ast.Term, iter func(*as
 		if iss := payload.Get(jwtIssKey); iss != nil {
 			issVal := string(iss.Value.(ast.String))
 			if constraints.iss != issVal {
-				return iter(ast.NewTerm(ast.NewArray(arr...)))
+				return iter(unverified)
 			}
 		}
 	}
 	// RFC7159 4.1.3 aud
 	if aud := payload.Get(jwtAudKey); aud != nil {
 		if !constraints.validAudience(aud.Value) {
-			return iter(ast.NewTerm(ast.NewArray(arr...)))
+			return iter(unverified)
 		}
 	} else {
 		if constraints.aud != "" {
-			return iter(ast.NewTerm(ast.NewArray(arr...)))
+			return iter(unverified)
 		}
 	}
 	// RFC7159 4.1.4 exp
@@ -991,7 +991,7 @@ func builtinJWTDecodeVerify(bctx BuiltinContext, args []*ast.Term, iter func(*as
 		// constraints.time is in nanoseconds but exp Value is in seconds
 		compareTime := ast.FloatNumberTerm(float64(constraints.time) / 1000000000)
 		if ast.Compare(compareTime, exp.Value.(ast.Number)) != -1 {
-			return iter(ast.NewTerm(ast.NewArray(arr...)))
+			return iter(unverified)
 		}
 	}
 	// RFC7159 4.1.5 nbf
@@ -999,14 +999,16 @@ func builtinJWTDecodeVerify(bctx BuiltinContext, args []*ast.Term, iter func(*as
 		// constraints.time is in nanoseconds but nbf Value is in seconds
 		compareTime := ast.FloatNumberTerm(float64(constraints.time) / 1000000000)
 		if ast.Compare(compareTime, nbf.Value.(ast.Number)) == -1 {
-			return iter(ast.NewTerm(ast.NewArray(arr...)))
+			return iter(unverified)
 		}
 	}
-	// Format the result
-	arr[0] = ast.BooleanTerm(true)
-	arr[1] = ast.NewTerm(token.decodedHeader)
-	arr[2] = ast.NewTerm(payload)
-	return iter(ast.NewTerm(ast.NewArray(arr...)))
+
+	verified := ast.ArrayTerm(
+		ast.BooleanTerm(true),
+		ast.NewTerm(token.decodedHeader),
+		ast.NewTerm(payload),
+	)
+	return iter(verified)
 }
 
 // -- Utilities --
