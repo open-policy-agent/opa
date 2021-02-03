@@ -2480,6 +2480,11 @@ func TestCompilerRewriteDoubleEq(t *testing.T) {
 			input: `p { x = 0; neq(true, x == 1) }`,
 			exp:   `x = 0; equal(x, 1, __local0__); neq(true, __local0__)`,
 		},
+		{
+			note:  "comprehension in object key",
+			input: `p { {{1 | 0 == 0}: 2} }`,
+			exp:   `{{1 | 0 = 0}: 2}`,
+		},
 	}
 	for _, tc := range tests {
 		test.Subtest(t, tc.note, func(t *testing.T) {

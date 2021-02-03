@@ -3045,15 +3045,16 @@ func rewriteComprehensionTerms(f *equalityFactory, node interface{}) (interface{
 func rewriteEquals(x interface{}) {
 	doubleEq := Equal.Ref()
 	unifyOp := Equality.Ref()
-	WalkExprs(x, func(x *Expr) bool {
-		if x.IsCall() {
+	t := NewGenericTransformer(func(x interface{}) (interface{}, error) {
+		if x, ok := x.(*Expr); ok && x.IsCall() {
 			operator := x.Operator()
 			if operator.Equal(doubleEq) && len(x.Operands()) == 2 {
 				x.SetOperator(NewTerm(unifyOp))
 			}
 		}
-		return false
+		return x, nil
 	})
+	Transform(t, x)
 }
 
 // rewriteDynamics will rewrite the body so that dynamic terms (i.e., refs and
