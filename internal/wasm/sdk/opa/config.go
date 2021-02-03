@@ -64,7 +64,7 @@ func (o *OPA) WithDataJSON(data interface{}) *OPA {
 // WithMemoryLimits configures the memory limits (in bytes) for a single policy
 // evaluation.
 func (o *OPA) WithMemoryLimits(min, max uint32) *OPA {
-	if min < 2*65535 {
+	if min < 2*wasm.PageSize {
 		o.configErr = fmt.Errorf("too low minimum memory limit: %w", errors.ErrInvalidConfig)
 		return o
 	}

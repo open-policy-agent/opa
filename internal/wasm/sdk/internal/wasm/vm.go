@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strconv"
 	"time"
@@ -259,7 +258,7 @@ func (i *VM) Eval(ctx context.Context, entrypoint int32, input *interface{}, met
 			if e := recover(); e != nil {
 				switch e := e.(type) {
 				case abortError:
-					err = errors.New(e.message)
+					err = fmt.Errorf(e.message)
 				case builtinError:
 					err = e.err
 					if _, ok := err.(topdown.Halt); !ok {

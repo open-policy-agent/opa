@@ -16,14 +16,14 @@ import (
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
-	"github.com/open-policy-agent/opa/util"
+	"github.com/open-policy-agent/opa/util/test"
 )
 
 func BenchmarkArrayIteration(b *testing.B) {
 	sizes := []int{10, 100, 1000, 10000}
 	for _, n := range sizes {
 		b.Run(fmt.Sprint(n), func(b *testing.B) {
-			benchmarkIteration(b, getArrayIterationBenchmarkModule(n))
+			benchmarkIteration(b, test.ArrayIterationBenchmarkModule(n))
 		})
 	}
 }
@@ -32,7 +32,7 @@ func BenchmarkSetIteration(b *testing.B) {
 	sizes := []int{10, 100, 1000, 10000}
 	for _, n := range sizes {
 		b.Run(fmt.Sprint(n), func(b *testing.B) {
-			benchmarkIteration(b, getSetIterationBenchmarkModule(n))
+			benchmarkIteration(b, test.SetIterationBenchmarkModule(n))
 		})
 	}
 }
@@ -41,7 +41,7 @@ func BenchmarkObjectIteration(b *testing.B) {
 	sizes := []int{10, 100, 1000, 10000}
 	for _, n := range sizes {
 		b.Run(fmt.Sprint(n), func(b *testing.B) {
-			benchmarkIteration(b, getObjectIterationBenchmarkModule(n))
+			benchmarkIteration(b, test.ObjectIterationBenchmarkModule(n))
 		})
 	}
 }
@@ -65,32 +65,8 @@ func benchmarkIteration(b *testing.B, module string) {
 	}
 }
 
-func getArrayIterationBenchmarkModule(n int) string {
-	return fmt.Sprintf(`package test
-
-	fixture = [ x | x := numbers.range(1, %d)[_] ]
-
-	main { fixture[i] }`, n)
-}
-
-func getSetIterationBenchmarkModule(n int) string {
-	return fmt.Sprintf(`package test
-
-	fixture = { x | x := numbers.range(1, %d)[_] }
-
-	main { fixture[i] }`, n)
-}
-
-func getObjectIterationBenchmarkModule(n int) string {
-	return fmt.Sprintf(`package test
-
-	fixture = { x: x | x := numbers.range(1, %d)[_] }
-
-	main { fixture[i] }`, n)
-}
-
 func BenchmarkLargeJSON(b *testing.B) {
-	data := generateLargeJSONBenchmarkData()
+	data := test.GenerateLargeJSONBenchmarkData()
 	ctx := context.Background()
 	store := inmem.NewFromObject(data)
 	compiler := ast.NewCompiler()
@@ -128,26 +104,6 @@ func BenchmarkLargeJSON(b *testing.B) {
 	}
 }
 
-func generateLargeJSONBenchmarkData() map[string]interface{} {
-
-	// create array of null values that can be iterated over
-	keys := make([]interface{}, 100)
-	for i := range keys {
-		keys[i] = nil
-	}
-
-	// create large JSON object value (100,000 entries is about 2MB on disk)
-	values := map[string]interface{}{}
-	for i := 0; i < 100*1000; i++ {
-		values[fmt.Sprintf("key%d", i)] = fmt.Sprintf("value%d", i)
-	}
-
-	return map[string]interface{}{
-		"keys":   keys,
-		"values": values,
-	}
-}
-
 func BenchmarkConcurrency1(b *testing.B) {
 	benchmarkConcurrency(b, getParams(1, 0))
 }
@@ -174,10 +130,10 @@ func BenchmarkConcurrency8Writers(b *testing.B) {
 
 func benchmarkConcurrency(b *testing.B, params []storage.TransactionParams) {
 
-	mod, data := generateConcurrencyBenchmarkData()
+	mod, data := test.GenerateConcurrencyBenchmarkData()
 	ctx := context.Background()
 	store := inmem.NewFromObject(data)
-	mods := map[string]*ast.Module{"module": mod}
+	mods := map[string]*ast.Module{"module": ast.MustParseModule(mod)}
 	compiler := ast.NewCompiler()
 
 	if compiler.Compile(mods); compiler.Failed() {
@@ -226,53 +182,6 @@ func getParams(nReaders, nWriters int) (sl []storage.TransactionParams) {
 	return sl
 }
 
-func generateConcurrencyBenchmarkData() (*ast.Module, map[string]interface{}) {
-	obj := util.MustUnmarshalJSON([]byte(`
-		{
-			"objs": [
-				{
-					"attr1": "get",
-					"path": "/foo/bar",
-					"user": "bob"
-				},
-				{
-					"attr1": "set",
-					"path": "/foo/bar/baz",
-					"user": "alice"
-				},
-				{
-					"attr1": "get",
-					"path": "/foo",
-					"groups": [
-						"admin",
-						"eng"
-					]
-				},
-				{
-					"path": "/foo/bar",
-					"user": "alice"
-				}
-			]
-		}
-		`))
-
-	mod := `package test
-
-	import data.objs
-
-	p {
-		objs[i].attr1 = "get"
-		objs[i].groups[j] = "eng"
-	}
-
-	p {
-		objs[i].user = "alice"
-	}
-	`
-
-	return ast.MustParseModule(mod), obj.(map[string]interface{})
-}
-
 func BenchmarkVirtualDocs1x1(b *testing.B) {
 	runVirtualDocsBenchmark(b, 1, 1)
 }
@@ -315,24 +224,25 @@ func BenchmarkVirtualDocs1000x1000(b *testing.B) {
 
 func runVirtualDocsBenchmark(b *testing.B, numTotalRules, numHitRules int) {
 
-	mod, input := generateVirtualDocsBenchmarkData(numTotalRules, numHitRules)
+	mod, inp := test.GenerateVirtualDocsBenchmarkData(numTotalRules, numHitRules)
 	ctx := context.Background()
 	compiler := ast.NewCompiler()
-	mods := map[string]*ast.Module{"module": mod}
+	mods := map[string]*ast.Module{"module": ast.MustParseModule(mod)}
+	input := ast.NewTerm(ast.MustInterfaceToValue(inp))
 	store := inmem.New()
 	txn := storage.NewTransactionOrDie(ctx, store)
 	if compiler.Compile(mods); compiler.Failed() {
 		b.Fatalf("Unexpected compiler error: %v", compiler.Errors)
 	}
 
-	body := ast.MustParseBody("data.a.b.c.allow = x")
+	query := ast.MustParseBody("data.a.b.c.allow = x")
 
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
 		b.StopTimer()
 
-		query := NewQuery(body).
+		query := NewQuery(query).
 			WithCompiler(compiler).
 			WithStore(store).
 			WithTransaction(txn).
@@ -345,82 +255,9 @@ func runVirtualDocsBenchmark(b *testing.B, numTotalRules, numHitRules int) {
 			b.Fatalf("Unexpected topdown query error: %v", err)
 		}
 		if len(rs) != 1 || !rs[0][ast.Var("x")].Equal(ast.BooleanTerm(true)) {
-			b.Fatalf("Unexpecfted undefined/extra/bad result: %v", rs)
+			b.Fatalf("Unexpected undefined/extra/bad result: %v", rs)
 		}
 	}
-}
-
-func generateVirtualDocsBenchmarkData(numTotalRules, numHitRules int) (*ast.Module, *ast.Term) {
-
-	hitRule := `
-	allow {
-		input.method = "POST"
-		input.path = ["accounts", account_id]
-		input.user_id = account_id
-	}
-	`
-
-	missRule := `
-	allow {
-		input.method = "GET"
-		input.path = ["salaries", account_id]
-		input.user_id = account_id
-	}
-	`
-
-	testModuleTmpl := `
-	package a.b.c
-
-	{{range .MissRules }}
-		{{ . }}
-	{{end}}
-
-	{{range .HitRules }}
-		{{ . }}
-	{{end}}
-	`
-
-	tmpl, err := template.New("Test").Parse(testModuleTmpl)
-	if err != nil {
-		panic(err)
-	}
-
-	var buf bytes.Buffer
-
-	var missRules []string
-
-	if numTotalRules > numHitRules {
-		missRules = make([]string, numTotalRules-numHitRules)
-		for i := range missRules {
-			missRules[i] = missRule
-		}
-	}
-
-	hitRules := make([]string, numHitRules)
-	for i := range hitRules {
-		hitRules[i] = hitRule
-	}
-
-	params := struct {
-		MissRules []string
-		HitRules  []string
-	}{
-		MissRules: missRules,
-		HitRules:  hitRules,
-	}
-
-	err = tmpl.Execute(&buf, params)
-	if err != nil {
-		panic(err)
-	}
-
-	input := ast.MustParseTerm(`{
-			"path": ["accounts", "alice"],
-			"method": "POST",
-			"user_id": "alice"
-		}`)
-
-	return ast.MustParseModule(buf.String()), input
 }
 
 func BenchmarkPartialEval(b *testing.B) {

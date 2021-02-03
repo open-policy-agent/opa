@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -16,6 +17,9 @@ import (
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/util"
 )
+
+// control dumping in this file
+const dump = true
 
 func TestOPA(t *testing.T) {
 	type Eval struct {
@@ -220,7 +224,7 @@ a = "c" { input > 2 }`,
 
 	for _, test := range tests {
 		t.Run(test.Description, func(t *testing.T) {
-			policy := compileRegoToWasm(test.Policy, test.Query)
+			policy := compileRegoToWasm(test.Policy, test.Query, dump)
 			data := []byte(test.Data)
 			if len(data) == 0 {
 				data = nil
@@ -240,14 +244,14 @@ a = "c" { input > 2 }`,
 			for _, eval := range test.Evals {
 				switch {
 				case eval.NewPolicy != "" && eval.NewData != "":
-					policy := compileRegoToWasm(eval.NewPolicy, test.Query)
+					policy := compileRegoToWasm(eval.NewPolicy, test.Query, dump)
 					data := parseJSON(eval.NewData)
 					if err := instance.SetPolicyData(policy, data); err != nil {
 						t.Errorf(err.Error())
 					}
 
 				case eval.NewPolicy != "":
-					policy := compileRegoToWasm(eval.NewPolicy, test.Query)
+					policy := compileRegoToWasm(eval.NewPolicy, test.Query, dump)
 					if err := instance.SetPolicy(policy); err != nil {
 						t.Errorf(err.Error())
 					}
@@ -349,51 +353,22 @@ func TestNamedEntrypoint(t *testing.T) {
 	}
 }
 
-func BenchmarkWasmRego(b *testing.B) {
-	policy := compileRegoToWasm("a = true", "data.p.a = x")
-	instance, _ := opa.New().
-		WithPolicyBytes(policy).
-		WithMemoryLimits(131070, 2*131070). // TODO: For some reason unlimited memory slows down the eval_ctx_new().
-		WithPoolSize(1).
-		Init()
-
-	b.ReportAllocs()
-	b.ResetTimer()
-
-	ctx := context.Background()
-	var input interface{} = make(map[string]interface{})
-
-	for i := 0; i < b.N; i++ {
-		if _, err := instance.Eval(ctx, opa.EvalOpts{Input: &input}); err != nil {
-			panic(err)
-		}
+// compileRegoToWasm is shared with the benchmarking functions in opa_bench_test.go;
+// those function use helpers shared with topdown_bench_test.go, and they all use
+// `package test` -- whereas the callers in this file don't provide the package at
+// all and assume it'll be `p`.
+func compileRegoToWasm(module string, query string, dump bool) []byte {
+	if !strings.HasPrefix(module, "package") {
+		module = fmt.Sprintf("package p\n%s", module)
 	}
-}
-
-func BenchmarkGoRego(b *testing.B) {
-	pq := compileRego(`package p
-
-a = true`, "data.p.a = x")
-
-	b.ReportAllocs()
-	b.ResetTimer()
-
-	input := make(map[string]interface{})
-
-	for i := 0; i < b.N; i++ {
-		if _, err := pq.Eval(context.Background(), rego.EvalInput(input)); err != nil {
-			panic(err)
-		}
-	}
-}
-
-func compileRegoToWasm(policy string, query string) []byte {
-	module := fmt.Sprintf("package p\n%s", policy)
-	cr, err := rego.New(
+	opts := []func(*rego.Rego){
 		rego.Query(query),
 		rego.Module("module.rego", module),
-		rego.Dump(os.Stderr),
-	).Compile(context.Background(), rego.CompilePartial(false))
+	}
+	if dump {
+		opts = append(opts, rego.Dump(os.Stderr))
+	}
+	cr, err := rego.New(opts...).Compile(context.Background(), rego.CompilePartial(false))
 	if err != nil {
 		panic(err)
 	}

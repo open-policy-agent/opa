@@ -1257,7 +1257,7 @@ func (r *Rego) Compile(ctx context.Context, opts ...CompileOption) (*CompileResu
 		}
 	} else {
 		var err error
-		// If creating a new transacation it should be closed before calling the
+		// If creating a new transaction it should be closed before calling the
 		// planner to avoid holding open the transaction longer than needed.
 		//
 		// TODO(tsandall): in future, planner could make use of store, in which
