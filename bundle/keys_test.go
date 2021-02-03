@@ -164,8 +164,38 @@ zTj3rbKGqKWYIxFHsQCY5+3bHZVQyXTwS+N+n1zetBd5Jhhf/lT6CWyuNyfh2M1Z
 EXrJfkELSzO66/ZSjyyWEczXHLyr+Q719BsaGsxie117zSNF6B6UXiitjCr/qQ==
 -----END RSA PRIVATE KEY-----`
 
+	pkcs8privateKey := `-----BEGIN PRIVATE KEY-----
+MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDa6aUuhBZnXWnm
+Cfy8ZIMchsnabGGatVW5LjEQnwHjREArZ49Y/THMcZdnhZ1cn5WuyRyCoUqXd9uv
+IOyMH2M2fFPwR1np4ylDpS+AIJbpGIHuqmcvBfMrD1ADn6HoNCwdARyziot+9js+
+A6brtDSbuw+kvTqsndF97rLvzBCxiM1vMGlQ91u6Qcwxrw6eydisRpzXRkSTeJB2
+rR54sVNbV8PY5/LVtjqF5VJ1ZzIgByU1gKuVz7ngX/CLSqM2O4C1mKAet3Ib1+Ws
+r9wc0b5EGx1kdKumtfqBSFc78ShuhV1URlbYxs8GpNOcD8szI5hRlLYhb4zq3Viz
+OxKjOKmBAgMBAAECggEBAK+DJCxnOo8lFgKZf0iMTZJRfwTgYGDpghE2N6Bb2+ea
+kNg773IpjgOcDwew2LmqORgppfIV3vgR4NBIVV8Cy0ij5ah/jFc5CZxyk+LmPhgk
+zgfMF25cFtovLLe7BNRm//dBLQHF0pG4WUcfJnVTxdoV4DT0glZjMdMFzfD0a23q
+BS+Eu68mItCy6Mll7ys+Z9F1+iTwMCVAxKi7/bavqa5tifhk+i9/9ioGBKo+gbHz
+fbOrWGrlfSn1eJX539ekVTA3TnWe+IMHjBSIYJcUtHFa5ngdnG2p0vFSVGwcoQPP
+1Sbd1A1qbe6lz25V+Km+QFvYMXC3WBSMykOeFFCweQECgYEA7iQzaU81VUruw3ZQ
+3tfbyu79hQZV9WNTJhMi8dlPU7BnAxtZeAXzYf0eTokquphq1KVdtie5IjVg7djO
+AaKIXCOB9GdL+l+wwbmgn0iHXbpVrWZCYXd+SC99xdUQs+m28pgt/IF1Dp78bv4G
+KFZSDUSmOj0i//AFm72r8aOYe5sCgYEA61RLXewT8eZU784BTVDXgpe4+l/bANFt
+jWv0oK7AofoHPZfo+K9cYxZcJazsHc2Cg4KHTeCI1VUAFujO//i1G22Lm5hUKyy3
+v7hWsjruBhUT5hQA7EXzGCaUSMGwD1UsJs3umC56nzr42cL2HRhrX+SWfMipHepy
+3y3NED6WxxMCgYAz3vi/0Hv6dxboxmW5FGWQn1vjVMz2ZUsgOPzclwv7W6okeBmV
+1h38Uwj97Ey9ViO268osuhxOQjg5toawvnlbMHTHCpT3FU7H86nz5/VsSgENgv+k
+gUWlbYrEw7MerSKnVtR1crFPnPu5JWWr9ZlrwG9Asj5kZyChmr/QI2U8TwKBgQDN
+BA/w0EYD/T1L+bXKrL5D6Hhfr/i0ur9tcHqbLgNmWdPLBjgRx3x+WrGGpSLDSBIH
+DkVgRFgROs8sJkCIYh0tuv7gXBIf1wJyBV+KQKqzI9PFIvI25S3GgX238P24LeSc
+HdZaQEvVwuOfmykc6fRJg3TTW2FyTZkr89Pt7gkffwKBgHGeJkFc6LFeHIwa3SbS
+qAVebnCAfNo9hHxz3xYA0PaCF3Kr1X9z4X2tF2Za7nWfVbfWViAncLrJgjnHRdrs
+f10hbJEuLFhD1c2dNjwqflANV5OanG1syqYqil5TgWm1AaRFj+PbRPk0FRfF9y+e
+tKaHBn4eyNlKjQaEn16ZxKJm
+-----END PRIVATE KEY-----`
+
 	files := map[string]string{
 		"private.pem": privateKey,
+		"pkcs8.pem":   pkcs8privateKey,
 	}
 
 	test.WithTempFS(files, func(rootDir string) {
@@ -178,6 +208,18 @@ EXrJfkELSzO66/ZSjyyWEczXHLyr+Q719BsaGsxie117zSNF6B6UXiitjCr/qQ==
 		}
 
 		_, ok := result.(*rsa.PrivateKey)
+		if !ok {
+			t.Fatalf("Expected key type *rsa.PrivateKey but got %T", result)
+		}
+
+		sc = NewSigningConfig(filepath.Join(rootDir, "pkcs8.pem"), "", "")
+
+		result, err = sc.GetPrivateKey()
+		if err != nil {
+			t.Fatalf("Unexpected error %v", err)
+		}
+
+		_, ok = result.(*rsa.PrivateKey)
 		if !ok {
 			t.Fatalf("Expected key type *rsa.PrivateKey but got %T", result)
 		}

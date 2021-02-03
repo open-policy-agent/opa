@@ -1123,7 +1123,47 @@ func TestOauth2JwtBearerGrantType(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unexpected error %v", err)
 	}
+}
 
+func TestOauth2JwtBearerGrantTypePKCS8EncodedPrivateKey(t *testing.T) {
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("Unexpected error %v", err)
+	}
+
+	privateKey, err := x509.MarshalPKCS8PrivateKey(key)
+	if err != nil {
+		t.Fatalf("Unexpected error %v", err)
+	}
+
+	keyPem := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: privateKey})
+	keys := map[string]*keys.Config{
+		"key1": {
+			PrivateKey: string(keyPem),
+			Algorithm:  "RS256",
+		},
+	}
+
+	ts := testServer{t: t, expBearerToken: "token_1"}
+	ts.start()
+	defer ts.stop()
+
+	ots := oauth2TestServer{
+		t:                t,
+		tokenTTL:         300,
+		expGrantType:     "urn:ietf:params:oauth:grant-type:jwt-bearer",
+		expScope:         &[]string{"scope1", "scope2"},
+		expJwtCredential: true,
+		expAlgorithm:     jwa.RS256,
+		verificationKey:  &key.PublicKey,
+	}
+	ots.start()
+	defer ots.stop()
+
+	client := newOauth2JwtBearerTestClient(t, keys, &ts, &ots, func(c *Config) {
+		c.Credentials.OAuth2.SigningKeyID = "key1"
+	})
+	ctx := context.Background()
 	_, err = client.Do(ctx, "GET", "test")
 	if err != nil {
 		t.Fatalf("Unexpected error %v", err)
