@@ -18,9 +18,7 @@ import (
 	"fmt"
 	"hash"
 	"math/big"
-	"strconv"
 	"strings"
-	"time"
 
 	"github.com/pkg/errors"
 
@@ -50,15 +48,17 @@ type JSONWebToken struct {
 }
 
 // decodeHeader populates the decodedHeader field.
-func (token *JSONWebToken) decodeHeader() (err error) {
-	var h ast.Value
-	if h, err = builtinBase64UrlDecode(ast.String(token.header)); err != nil {
-		return fmt.Errorf("JWT header had invalid encoding: %v", err)
+func (token *JSONWebToken) decodeHeader() error {
+	h, err := builtinBase64UrlDecode(ast.String(token.header))
+	if err != nil {
+		return fmt.Errorf("JWT header had invalid encoding: %w", err)
 	}
-	if token.decodedHeader, err = validateJWTHeader(string(h.(ast.String))); err != nil {
+	decodedHeader, err := validateJWTHeader(string(h.(ast.String)))
+	if err != nil {
 		return err
 	}
-	return
+	token.decodedHeader = decodedHeader
+	return nil
 }
 
 // Implements JWT decoding/validation based on RFC 7519 Section 7.2:
@@ -462,106 +462,108 @@ type tokenConstraints struct {
 
 	// The time to validate against, or -1 if no constraint set.
 	// (If unset, the current time will be used.)
-	time int64
+	time float64
 }
 
 // tokenConstraintHandler is the handler type for JWT verification constraints.
-type tokenConstraintHandler func(value ast.Value, parameters *tokenConstraints) (err error)
+type tokenConstraintHandler func(value ast.Value, parameters *tokenConstraints) error
 
 // tokenConstraintTypes maps known JWT verification constraints to handlers.
 var tokenConstraintTypes = map[string]tokenConstraintHandler{
 	"cert": tokenConstraintCert,
-	"secret": func(value ast.Value, constraints *tokenConstraints) (err error) {
+	"secret": func(value ast.Value, constraints *tokenConstraints) error {
 		return tokenConstraintString("secret", value, &constraints.secret)
 	},
-	"alg": func(value ast.Value, constraints *tokenConstraints) (err error) {
+	"alg": func(value ast.Value, constraints *tokenConstraints) error {
 		return tokenConstraintString("alg", value, &constraints.alg)
 	},
-	"iss": func(value ast.Value, constraints *tokenConstraints) (err error) {
+	"iss": func(value ast.Value, constraints *tokenConstraints) error {
 		return tokenConstraintString("iss", value, &constraints.iss)
 	},
-	"aud": func(value ast.Value, constraints *tokenConstraints) (err error) {
+	"aud": func(value ast.Value, constraints *tokenConstraints) error {
 		return tokenConstraintString("aud", value, &constraints.aud)
 	},
 	"time": tokenConstraintTime,
 }
 
 // tokenConstraintCert handles the `cert` constraint.
-func tokenConstraintCert(value ast.Value, constraints *tokenConstraints) (err error) {
-	var s ast.String
-	var ok bool
-	if s, ok = value.(ast.String); !ok {
+func tokenConstraintCert(value ast.Value, constraints *tokenConstraints) error {
+	s, ok := value.(ast.String)
+	if !ok {
 		return fmt.Errorf("cert constraint: must be a string")
 	}
 
-	constraints.keys, err = getKeyFromCertOrJWK(string(s))
-	return
+	keys, err := getKeyFromCertOrJWK(string(s))
+	if err != nil {
+		return err
+	}
+	constraints.keys = keys
+	return nil
 }
 
 // tokenConstraintTime handles the `time` constraint.
-func tokenConstraintTime(value ast.Value, constraints *tokenConstraints) (err error) {
-	var time ast.Number
-	var ok bool
-	if time, ok = value.(ast.Number); !ok {
-		err = fmt.Errorf("token time constraint: must be a number")
-		return
+func tokenConstraintTime(value ast.Value, constraints *tokenConstraints) error {
+	t, err := timeFromValue(value)
+	if err != nil {
+		return err
 	}
-	var timeFloat float64
-	if timeFloat, err = strconv.ParseFloat(string(time), 64); err != nil {
-		err = fmt.Errorf("token time constraint: %v", err)
-		return
+	constraints.time = t
+	return nil
+}
+
+func timeFromValue(value ast.Value) (float64, error) {
+	time, ok := value.(ast.Number)
+	if !ok {
+		return 0, fmt.Errorf("token time constraint: must be a number")
+	}
+	timeFloat, ok := time.Float64()
+	if !ok {
+		return 0, fmt.Errorf("token time constraint: unvalid float64")
 	}
 	if timeFloat < 0 {
-		err = fmt.Errorf("token time constraint: must not be negative")
-		return
+		return 0, fmt.Errorf("token time constraint: must not be negative")
 	}
-	constraints.time = int64(timeFloat)
-	return
+	return timeFloat, nil
 }
 
 // tokenConstraintString handles string constraints.
-func tokenConstraintString(name string, value ast.Value, where *string) (err error) {
-	var av ast.String
-	var ok bool
-	if av, ok = value.(ast.String); !ok {
-		err = fmt.Errorf("%s constraint: must be a string", name)
-		return
+func tokenConstraintString(name string, value ast.Value, where *string) error {
+	av, ok := value.(ast.String)
+	if !ok {
+		return fmt.Errorf("%s constraint: must be a string", name)
 	}
 	*where = string(av)
-	return
+	return nil
 }
 
 // parseTokenConstraints parses the constraints argument.
-func parseTokenConstraints(a ast.Value) (constraints tokenConstraints, err error) {
-	constraints.time = -1
-	var o ast.Object
-	var ok bool
-	if o, ok = a.(ast.Object); !ok {
-		err = fmt.Errorf("token constraints must be object")
-		return
+func parseTokenConstraints(o ast.Object, wallclock *ast.Term) (*tokenConstraints, error) {
+	constraints := tokenConstraints{
+		time: -1,
 	}
-	if err = o.Iter(func(k *ast.Term, v *ast.Term) (err error) {
-		var handler tokenConstraintHandler
-		var ok bool
+	if err := o.Iter(func(k *ast.Term, v *ast.Term) error {
 		name := string(k.Value.(ast.String))
-		if handler, ok = tokenConstraintTypes[name]; ok {
-			if err = handler(v.Value, &constraints); err != nil {
-				return
-			}
-		} else {
-			// Anything unknown is rejected.
-			err = fmt.Errorf("unknown token validation constraint: %s", name)
-			return
+		handler, ok := tokenConstraintTypes[name]
+		if ok {
+			return handler(v.Value, &constraints)
 		}
-		return
+		// Anything unknown is rejected.
+		return fmt.Errorf("unknown token validation constraint: %s", name)
 	}); err != nil {
-		return
+		return nil, err
 	}
-	return
+	if constraints.time == -1 { // no time provided in constraint object
+		t, err := timeFromValue(wallclock.Value)
+		if err != nil {
+			return nil, err
+		}
+		constraints.time = t
+	}
+	return &constraints, nil
 }
 
 // validate validates the constraints argument.
-func (constraints *tokenConstraints) validate() (err error) {
+func (constraints *tokenConstraints) validate() error {
 	keys := 0
 	if constraints.keys != nil {
 		keys++
@@ -570,14 +572,12 @@ func (constraints *tokenConstraints) validate() (err error) {
 		keys++
 	}
 	if keys > 1 {
-		err = fmt.Errorf("duplicate key constraints")
-		return
+		return fmt.Errorf("duplicate key constraints")
 	}
 	if keys < 1 {
-		err = fmt.Errorf("no key constraint")
-		return
+		return fmt.Errorf("no key constraint")
 	}
-	return
+	return nil
 }
 
 // verify verifies a JWT using the constraints and the algorithm from the header
@@ -587,9 +587,7 @@ func (constraints *tokenConstraints) verify(kid, alg, header, payload, signature
 	plaintext = append(plaintext, []byte(".")...)
 	plaintext = append(plaintext, payload...)
 	// Look up the algorithm
-	var ok bool
-	var a tokenAlgorithm
-	a, ok = tokenAlgorithms[alg]
+	a, ok := tokenAlgorithms[alg]
 	if !ok {
 		return fmt.Errorf("unknown JWS algorithm: %s", alg)
 	}
@@ -617,32 +615,27 @@ func (constraints *tokenConstraints) verify(kid, alg, header, payload, signature
 
 // validAudience checks the audience of the JWT.
 // It returns true if it meets the constraints and false otherwise.
-func (constraints *tokenConstraints) validAudience(aud ast.Value) (valid bool) {
-	var ok bool
-	var s ast.String
-	if s, ok = aud.(ast.String); ok {
+func (constraints *tokenConstraints) validAudience(aud ast.Value) bool {
+	s, ok := aud.(ast.String)
+	if ok {
 		return string(s) == constraints.aud
 	}
-	var a *ast.Array
-	if a, ok = aud.(*ast.Array); ok {
-		for i := 0; i < a.Len(); i++ {
-			if s, ok = a.Elem(i).Value.(ast.String); ok {
-				if string(s) == constraints.aud {
-					return true
-				}
-			} else {
-				// Ill-formed aud claim
-				return false
-			}
-		}
+	a, ok := aud.(*ast.Array)
+	if !ok {
+		return false
 	}
-	return false
+	return a.Until(func(elem *ast.Term) bool {
+		if s, ok := elem.Value.(ast.String); ok {
+			return string(s) == constraints.aud
+		}
+		return false
+	})
 }
 
 // JWT algorithms
 
-type tokenVerifyFunction func(key interface{}, hash crypto.Hash, payload []byte, signature []byte) (err error)
-type tokenVerifyAsymmetricFunction func(key interface{}, hash crypto.Hash, digest []byte, signature []byte) (err error)
+type tokenVerifyFunction func(key interface{}, hash crypto.Hash, payload []byte, signature []byte) error
+type tokenVerifyAsymmetricFunction func(key interface{}, hash crypto.Hash, digest []byte, signature []byte) error
 
 // jwtAlgorithm describes a JWS 'alg' value
 type tokenAlgorithm struct {
@@ -669,52 +662,52 @@ var tokenAlgorithms = map[string]tokenAlgorithm{
 // errSignatureNotVerified is returned when a signature cannot be verified.
 var errSignatureNotVerified = errors.New("signature not verified")
 
-func verifyHMAC(key interface{}, hash crypto.Hash, payload []byte, signature []byte) (err error) {
+func verifyHMAC(key interface{}, hash crypto.Hash, payload []byte, signature []byte) error {
 	macKey, ok := key.([]byte)
 	if !ok {
 		return fmt.Errorf("incorrect symmetric key type")
 	}
 	mac := hmac.New(hash.New, macKey)
-	if _, err = mac.Write([]byte(payload)); err != nil {
-		return
+	if _, err := mac.Write([]byte(payload)); err != nil {
+		return err
 	}
 	if !hmac.Equal(signature, mac.Sum([]byte{})) {
-		err = errSignatureNotVerified
+		return errSignatureNotVerified
 	}
-	return
+	return nil
 }
 
 func verifyAsymmetric(verify tokenVerifyAsymmetricFunction) tokenVerifyFunction {
-	return func(key interface{}, hash crypto.Hash, payload []byte, signature []byte) (err error) {
+	return func(key interface{}, hash crypto.Hash, payload []byte, signature []byte) error {
 		h := hash.New()
 		h.Write(payload)
 		return verify(key, hash, h.Sum([]byte{}), signature)
 	}
 }
 
-func verifyRSAPKCS(key interface{}, hash crypto.Hash, digest []byte, signature []byte) (err error) {
+func verifyRSAPKCS(key interface{}, hash crypto.Hash, digest []byte, signature []byte) error {
 	publicKeyRsa, ok := key.(*rsa.PublicKey)
 	if !ok {
 		return fmt.Errorf("incorrect public key type")
 	}
-	if err = rsa.VerifyPKCS1v15(publicKeyRsa, hash, digest, signature); err != nil {
-		err = errSignatureNotVerified
+	if err := rsa.VerifyPKCS1v15(publicKeyRsa, hash, digest, signature); err != nil {
+		return errSignatureNotVerified
 	}
-	return
+	return nil
 }
 
-func verifyRSAPSS(key interface{}, hash crypto.Hash, digest []byte, signature []byte) (err error) {
+func verifyRSAPSS(key interface{}, hash crypto.Hash, digest []byte, signature []byte) error {
 	publicKeyRsa, ok := key.(*rsa.PublicKey)
 	if !ok {
 		return fmt.Errorf("incorrect public key type")
 	}
-	if err = rsa.VerifyPSS(publicKeyRsa, hash, digest, signature, nil); err != nil {
-		err = errSignatureNotVerified
+	if err := rsa.VerifyPSS(publicKeyRsa, hash, digest, signature, nil); err != nil {
+		return errSignatureNotVerified
 	}
-	return
+	return nil
 }
 
-func verifyECDSA(key interface{}, hash crypto.Hash, digest []byte, signature []byte) (err error) {
+func verifyECDSA(key interface{}, hash crypto.Hash, digest []byte, signature []byte) error {
 	publicKeyEcdsa, ok := key.(*ecdsa.PublicKey)
 	if !ok {
 		return fmt.Errorf("incorrect public key type")
@@ -743,80 +736,73 @@ type tokenHeader struct {
 }
 
 // tokenHeaderHandler handles a JWT header parameters
-type tokenHeaderHandler func(header *tokenHeader, value ast.Value) (err error)
+type tokenHeaderHandler func(header *tokenHeader, value ast.Value) error
 
 // tokenHeaderTypes maps known JWT header parameters to handlers
 var tokenHeaderTypes = map[string]tokenHeaderHandler{
-	"alg": func(header *tokenHeader, value ast.Value) (err error) {
+	"alg": func(header *tokenHeader, value ast.Value) error {
 		return tokenHeaderString("alg", &header.alg, value)
 	},
-	"kid": func(header *tokenHeader, value ast.Value) (err error) {
+	"kid": func(header *tokenHeader, value ast.Value) error {
 		return tokenHeaderString("kid", &header.kid, value)
 	},
-	"typ": func(header *tokenHeader, value ast.Value) (err error) {
+	"typ": func(header *tokenHeader, value ast.Value) error {
 		return tokenHeaderString("typ", &header.typ, value)
 	},
-	"cty": func(header *tokenHeader, value ast.Value) (err error) {
+	"cty": func(header *tokenHeader, value ast.Value) error {
 		return tokenHeaderString("cty", &header.cty, value)
 	},
 	"crit": tokenHeaderCrit,
 }
 
 // tokenHeaderCrit handles the 'crit' header parameter
-func tokenHeaderCrit(header *tokenHeader, value ast.Value) (err error) {
-	var ok bool
-	var v *ast.Array
-	if v, ok = value.(*ast.Array); !ok {
-		err = fmt.Errorf("crit: must be a list")
-		return
+func tokenHeaderCrit(header *tokenHeader, value ast.Value) error {
+	v, ok := value.(*ast.Array)
+	if !ok {
+		return fmt.Errorf("crit: must be a list")
 	}
 	header.crit = map[string]bool{}
-	for i := 0; i < v.Len(); i++ {
-		var tv ast.String
-		if tv, ok = v.Elem(i).Value.(ast.String); !ok {
-			err = fmt.Errorf("crit: must be a list of strings")
-			return
+	v.Iter(func(elem *ast.Term) error {
+		tv, ok := elem.Value.(ast.String)
+		if !ok {
+			return fmt.Errorf("crit: must be a list of strings")
 		}
 		header.crit[string(tv)] = true
-	}
+		return nil
+	})
 	if len(header.crit) == 0 {
-		err = fmt.Errorf("crit: must be a nonempty list") // 'MUST NOT' use the empty list
-		return
+		return fmt.Errorf("crit: must be a nonempty list") // 'MUST NOT' use the empty list
 	}
-	return
+	return nil
 }
 
 // tokenHeaderString handles string-format JWT header parameters
-func tokenHeaderString(name string, where *string, value ast.Value) (err error) {
-	var ok bool
-	var v ast.String
-	if v, ok = value.(ast.String); !ok {
-		err = fmt.Errorf("%s: must be a string", name)
-		return
+func tokenHeaderString(name string, where *string, value ast.Value) error {
+	v, ok := value.(ast.String)
+	if !ok {
+		return fmt.Errorf("%s: must be a string", name)
 	}
 	*where = string(v)
-	return
+	return nil
 }
 
 // parseTokenHeader parses the JWT header.
-func parseTokenHeader(token *JSONWebToken) (header tokenHeader, err error) {
-	header.unknown = []string{}
-	if err = token.decodedHeader.Iter(func(k *ast.Term, v *ast.Term) (err error) {
-		ks := string(k.Value.(ast.String))
-		var ok bool
-		var handler tokenHeaderHandler
-		if handler, ok = tokenHeaderTypes[ks]; ok {
-			if err = handler(&header, v.Value); err != nil {
-				return
-			}
-		} else {
-			header.unknown = append(header.unknown, ks)
-		}
-		return
-	}); err != nil {
-		return
+func parseTokenHeader(token *JSONWebToken) (*tokenHeader, error) {
+	header := tokenHeader{
+		unknown: []string{},
 	}
-	return
+	if err := token.decodedHeader.Iter(func(k *ast.Term, v *ast.Term) error {
+		ks := string(k.Value.(ast.String))
+		handler, ok := tokenHeaderTypes[ks]
+		if !ok {
+			header.unknown = append(header.unknown, ks)
+			return nil
+		}
+		return handler(&header, v.Value)
+	}); err != nil {
+		return nil, err
+	}
+	return &header, nil
 }
 
 // validTokenHeader returns true if the JOSE header is valid, otherwise false.
@@ -834,7 +820,7 @@ func (header *tokenHeader) valid() bool {
 	return true
 }
 
-func commonBuiltinJWTEncodeSign(inputHeaders, jwsPayload, jwkSrc string) (v ast.Value, err error) {
+func commonBuiltinJWTEncodeSign(inputHeaders, jwsPayload, jwkSrc string) (ast.Value, error) {
 
 	keys, err := jwk.ParseString(jwkSrc)
 	if err != nil {
@@ -870,7 +856,7 @@ func commonBuiltinJWTEncodeSign(inputHeaders, jwsPayload, jwkSrc string) (v ast.
 
 }
 
-func builtinJWTEncodeSign(a ast.Value, b ast.Value, c ast.Value) (v ast.Value, err error) {
+func builtinJWTEncodeSign(a ast.Value, b ast.Value, c ast.Value) (ast.Value, error) {
 
 	jwkSrc := c.String()
 
@@ -882,7 +868,7 @@ func builtinJWTEncodeSign(a ast.Value, b ast.Value, c ast.Value) (v ast.Value, e
 
 }
 
-func builtinJWTEncodeSignRaw(a ast.Value, b ast.Value, c ast.Value) (v ast.Value, err error) {
+func builtinJWTEncodeSignRaw(a ast.Value, b ast.Value, c ast.Value) (ast.Value, error) {
 
 	jwkSrc, err := builtins.StringOperand(c, 1)
 	if err != nil {
@@ -900,7 +886,7 @@ func builtinJWTEncodeSignRaw(a ast.Value, b ast.Value, c ast.Value) (v ast.Value
 }
 
 // Implements full JWT decoding, validation and verification.
-func builtinJWTDecodeVerify(a ast.Value, b ast.Value) (v ast.Value, err error) {
+func builtinJWTDecodeVerify(bctx BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
 	// io.jwt.decode_verify(string, constraints, [valid, header, payload])
 	//
 	// If valid is true then the signature verifies and all constraints are met.
@@ -908,59 +894,67 @@ func builtinJWTDecodeVerify(a ast.Value, b ast.Value) (v ast.Value, err error) {
 	// was not met.
 	//
 	// Decoding errors etc are returned as errors.
-	arr := []*ast.Term{
-		ast.BooleanTerm(false), // by default, not verified
+	a := args[0].Value
+
+	b, err := builtins.ObjectOperand(args[1].Value, 2)
+	if err != nil {
+		return err
+	}
+
+	unverified := ast.ArrayTerm(
+		ast.BooleanTerm(false),
 		ast.NewTerm(ast.NewObject()),
 		ast.NewTerm(ast.NewObject()),
+	)
+	constraints, err := parseTokenConstraints(b, bctx.Time)
+	if err != nil {
+		return err
 	}
-	var constraints tokenConstraints
-	if constraints, err = parseTokenConstraints(b); err != nil {
-		return
-	}
-	if err = constraints.validate(); err != nil {
-		return
+	if err := constraints.validate(); err != nil {
+		return err
 	}
 	var token *JSONWebToken
 	var p ast.Value
 	for {
 		// RFC7519 7.2 #1-2 split into parts
 		if token, err = decodeJWT(a); err != nil {
-			return
+			return err
 		}
 		// RFC7519 7.2 #3, #4, #6
-		if err = token.decodeHeader(); err != nil {
-			return
+		if err := token.decodeHeader(); err != nil {
+			return err
 		}
 		// RFC7159 7.2 #5 (and RFC7159 5.2 #5) validate header fields
-		var header tokenHeader
-		if header, err = parseTokenHeader(token); err != nil {
-			return
+		header, err := parseTokenHeader(token)
+		if err != nil {
+			return err
 		}
 		if !header.valid() {
-			return ast.NewArray(arr...), nil
+			return iter(unverified)
 		}
 		// Check constraints that impact signature verification.
 		if constraints.alg != "" && constraints.alg != header.alg {
-			return ast.NewArray(arr...), nil
+			return iter(unverified)
 		}
 		// RFC7159 7.2 #7 verify the signature
-		var signature string
-		if signature, err = token.decodeSignature(); err != nil {
-			return
+		signature, err := token.decodeSignature()
+		if err != nil {
+			return err
 		}
-		if err = constraints.verify(header.kid, header.alg, token.header, token.payload, signature); err != nil {
+		if err := constraints.verify(header.kid, header.alg, token.header, token.payload, signature); err != nil {
 			if err == errSignatureNotVerified {
-				return ast.NewArray(arr...), nil
+				return iter(unverified)
 			}
-			return
+			return err
 		}
 		// RFC7159 7.2 #9-10 decode the payload
-		if p, err = builtinBase64UrlDecode(ast.String(token.payload)); err != nil {
-			return nil, fmt.Errorf("JWT payload had invalid encoding: %v", err)
+		p, err = builtinBase64UrlDecode(ast.String(token.payload))
+		if err != nil {
+			return fmt.Errorf("JWT payload had invalid encoding: %v", err)
 		}
 		// RFC7159 7.2 #8 and 5.2 cty
 		if strings.ToUpper(header.cty) == "JWT" {
-			// Nested JWT, go round again
+			// Nested JWT, go round again with payload as first argument
 			a = p
 			continue
 		} else {
@@ -968,9 +962,9 @@ func builtinJWTDecodeVerify(a ast.Value, b ast.Value) (v ast.Value, err error) {
 			break
 		}
 	}
-	var payload ast.Object
-	if payload, err = extractJSONObject(string(p.(ast.String))); err != nil {
-		return
+	payload, err := extractJSONObject(string(p.(ast.String)))
+	if err != nil {
+		return err
 	}
 	// Check registered claim names against constraints or environment
 	// RFC7159 4.1.1 iss
@@ -978,51 +972,43 @@ func builtinJWTDecodeVerify(a ast.Value, b ast.Value) (v ast.Value, err error) {
 		if iss := payload.Get(jwtIssKey); iss != nil {
 			issVal := string(iss.Value.(ast.String))
 			if constraints.iss != issVal {
-				return ast.NewArray(arr...), nil
+				return iter(unverified)
 			}
 		}
 	}
 	// RFC7159 4.1.3 aud
 	if aud := payload.Get(jwtAudKey); aud != nil {
 		if !constraints.validAudience(aud.Value) {
-			return ast.NewArray(arr...), nil
+			return iter(unverified)
 		}
 	} else {
 		if constraints.aud != "" {
-			return ast.NewArray(arr...), nil
+			return iter(unverified)
 		}
 	}
 	// RFC7159 4.1.4 exp
 	if exp := payload.Get(jwtExpKey); exp != nil {
-		if constraints.time < 0 {
-			constraints.time = time.Now().UnixNano()
-		}
-
 		// constraints.time is in nanoseconds but exp Value is in seconds
-		compareTime := ast.Number(strconv.FormatFloat(float64(constraints.time)/1000000000, 'g', -1, 64))
-
+		compareTime := ast.FloatNumberTerm(float64(constraints.time) / 1000000000)
 		if ast.Compare(compareTime, exp.Value.(ast.Number)) != -1 {
-			return ast.NewArray(arr...), nil
+			return iter(unverified)
 		}
 	}
 	// RFC7159 4.1.5 nbf
 	if nbf := payload.Get(jwtNbfKey); nbf != nil {
-		if constraints.time < 0 {
-			constraints.time = time.Now().UnixNano()
-		}
-
 		// constraints.time is in nanoseconds but nbf Value is in seconds
-		compareTime := ast.Number(strconv.FormatFloat(float64(constraints.time)/1000000000, 'g', -1, 64))
-
+		compareTime := ast.FloatNumberTerm(float64(constraints.time) / 1000000000)
 		if ast.Compare(compareTime, nbf.Value.(ast.Number)) == -1 {
-			return ast.NewArray(arr...), nil
+			return iter(unverified)
 		}
 	}
-	// Format the result
-	arr[0] = ast.BooleanTerm(true)
-	arr[1] = ast.NewTerm(token.decodedHeader)
-	arr[2] = ast.NewTerm(payload)
-	return ast.NewArray(arr...), nil
+
+	verified := ast.ArrayTerm(
+		ast.BooleanTerm(true),
+		ast.NewTerm(token.decodedHeader),
+		ast.NewTerm(payload),
+	)
+	return iter(verified)
 }
 
 // -- Utilities --
@@ -1101,7 +1087,7 @@ func extractJSONObject(s string) (ast.Object, error) {
 }
 
 // getInputSha returns the SHA checksum of the input
-func getInputSHA(input []byte, h func() hash.Hash) (hash []byte) {
+func getInputSHA(input []byte, h func() hash.Hash) []byte {
 	hasher := h()
 	hasher.Write(input)
 	return hasher.Sum(nil)
@@ -1121,7 +1107,7 @@ func init() {
 	RegisterBuiltinFunc(ast.JWTVerifyHS256.Name, builtinJWTVerifyHS256)
 	RegisterBuiltinFunc(ast.JWTVerifyHS384.Name, builtinJWTVerifyHS384)
 	RegisterBuiltinFunc(ast.JWTVerifyHS512.Name, builtinJWTVerifyHS512)
-	RegisterFunctionalBuiltin2(ast.JWTDecodeVerify.Name, builtinJWTDecodeVerify)
+	RegisterBuiltinFunc(ast.JWTDecodeVerify.Name, builtinJWTDecodeVerify)
 	RegisterFunctionalBuiltin3(ast.JWTEncodeSignRaw.Name, builtinJWTEncodeSignRaw)
 	RegisterFunctionalBuiltin3(ast.JWTEncodeSign.Name, builtinJWTEncodeSign)
 }

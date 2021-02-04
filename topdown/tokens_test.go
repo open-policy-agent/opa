@@ -11,6 +11,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/internal/jwx/jwk"
@@ -20,11 +21,10 @@ import (
 )
 
 func TestParseTokenConstraints(t *testing.T) {
+	wallclock := ast.NumberTerm(int64ToJSONNumber(time.Now().UnixNano()))
 	t.Run("Empty", func(t *testing.T) {
-		var constraints tokenConstraints
-		var err error
 		c := ast.NewObject()
-		constraints, err = parseTokenConstraints(c)
+		constraints, err := parseTokenConstraints(c, wallclock)
 		if err != nil {
 			t.Fatalf("parseTokenConstraints: %v", err)
 		}
@@ -36,11 +36,9 @@ func TestParseTokenConstraints(t *testing.T) {
 		}
 	})
 	t.Run("Alg", func(t *testing.T) {
-		var constraints tokenConstraints
-		var err error
 		c := ast.NewObject()
 		c.Insert(ast.StringTerm("alg"), ast.StringTerm("RS256"))
-		constraints, err = parseTokenConstraints(c)
+		constraints, err := parseTokenConstraints(c, wallclock)
 		if err != nil {
 			t.Fatalf("parseTokenConstraints: %v", err)
 		}
@@ -49,8 +47,6 @@ func TestParseTokenConstraints(t *testing.T) {
 		}
 	})
 	t.Run("Cert", func(t *testing.T) {
-		var constraints tokenConstraints
-		var err error
 		c := ast.NewObject()
 		c.Insert(ast.StringTerm("cert"), ast.StringTerm(`-----BEGIN CERTIFICATE-----
 MIIBcDCCARagAwIBAgIJAMZmuGSIfvgzMAoGCCqGSM49BAMCMBMxETAPBgNVBAMM
@@ -62,7 +58,7 @@ VR0jBBgwFoAUElRjSoVgKjUqY5AXz2o74cLzzS8wDwYDVR0TAQH/BAUwAwEB/zAK
 BggqhkjOPQQDAgNIADBFAiEA4yQ/88ZrUX68c6kOe9G11u8NUaUzd8pLOtkKhniN
 OHoCIHmNX37JOqTcTzGn2u9+c8NlnvZ0uDvsd1BmKPaUmjmm
 -----END CERTIFICATE-----`))
-		constraints, err = parseTokenConstraints(c)
+		constraints, err := parseTokenConstraints(c, wallclock)
 		if err != nil {
 			t.Fatalf("parseTokenConstraints: %v", err)
 		}
@@ -78,8 +74,6 @@ OHoCIHmNX37JOqTcTzGn2u9+c8NlnvZ0uDvsd1BmKPaUmjmm
 		}
 	})
 	t.Run("Cert Multi Key", func(t *testing.T) {
-		var constraints tokenConstraints
-		var err error
 		c := ast.NewObject()
 		c.Insert(ast.StringTerm("cert"), ast.StringTerm(`{
     "keys": [
@@ -103,7 +97,7 @@ OHoCIHmNX37JOqTcTzGn2u9+c8NlnvZ0uDvsd1BmKPaUmjmm
 	]
 }
 `))
-		constraints, err = parseTokenConstraints(c)
+		constraints, err := parseTokenConstraints(c, wallclock)
 		if err != nil {
 			t.Fatalf("parseTokenConstraints: %v", err)
 		}
@@ -117,19 +111,38 @@ OHoCIHmNX37JOqTcTzGn2u9+c8NlnvZ0uDvsd1BmKPaUmjmm
 			t.Errorf("expected size 256 found %d", rsaPubKey.Size())
 		}
 	})
-	t.Run("Unrecognized", func(t *testing.T) {
-		var err error
-		c := ast.NewObject()
-		c.Insert(ast.StringTerm("hatever"), ast.StringTerm("junk"))
-		_, err = parseTokenConstraints(c)
-		if err == nil {
-			t.Fatalf("parseTokenConstraints: %v", err)
-		}
+	t.Run("Time", func(t *testing.T) {
+		now := time.Now()
+		wallclock := ast.IntNumberTerm(int(now.UnixNano()))
+
+		t.Run("if provided, is parsed properly", func(t *testing.T) {
+			c := ast.NewObject()
+			c.Insert(ast.StringTerm("time"), wallclock)
+			constraints, err := parseTokenConstraints(c, ast.NumberTerm(json.Number("12134")))
+			if err != nil {
+				t.Fatalf("parseTokenConstraints: %v", err)
+			}
+			if exp, act := float64(now.UnixNano()), constraints.time; exp != act {
+				t.Errorf("expected time constraint to be %f, got %f", exp, act)
+			}
+		})
+
+		t.Run("unset, defaults to wallclock", func(t *testing.T) {
+			c := ast.NewObject() // 'time' constraint is unset
+			constraints, err := parseTokenConstraints(c, wallclock)
+			if err != nil {
+				t.Fatalf("parseTokenConstraints: %v", err)
+			}
+			if exp, act := float64(now.UnixNano()), constraints.time; exp != act {
+				t.Errorf("expected time constraint to be %f, got %f", exp, act)
+			}
+		})
 	})
-	t.Run("IllFormed", func(t *testing.T) {
-		var err error
-		c := ast.NewArray(ast.StringTerm("alg"))
-		_, err = parseTokenConstraints(c)
+
+	t.Run("Unrecognized", func(t *testing.T) {
+		c := ast.NewObject()
+		c.Insert(ast.StringTerm("whatever"), ast.StringTerm("junk"))
+		_, err := parseTokenConstraints(c, wallclock)
 		if err == nil {
 			t.Fatalf("parseTokenConstraints: %v", err)
 		}
@@ -141,24 +154,22 @@ func TestParseTokenHeader(t *testing.T) {
 		token := &JSONWebToken{
 			header: "",
 		}
-		var err error
-		if err = token.decodeHeader(); err == nil {
+		if err := token.decodeHeader(); err == nil {
 			t.Fatalf("token.decodeHeader: %v", err)
 		}
 		token.header = "###"
-		if err = token.decodeHeader(); err == nil {
+		if err := token.decodeHeader(); err == nil {
 			t.Fatalf("token.decodeHeader: %v", err)
 		}
 		token.header = base64.RawURLEncoding.EncodeToString([]byte(`{`))
-		if err = token.decodeHeader(); err == nil {
+		if err := token.decodeHeader(); err == nil {
 			t.Fatalf("token.decodeHeader: %v", err)
 		}
 		token.header = base64.RawURLEncoding.EncodeToString([]byte(`{}`))
-		if err = token.decodeHeader(); err != nil {
+		if err := token.decodeHeader(); err != nil {
 			t.Fatalf("token.decodeHeader: %v", err)
 		}
-		var header tokenHeader
-		header, err = parseTokenHeader(token)
+		header, err := parseTokenHeader(token)
 		if err != nil {
 			t.Fatalf("parseTokenHeader: %v", err)
 		}
@@ -170,12 +181,10 @@ func TestParseTokenHeader(t *testing.T) {
 		token := &JSONWebToken{
 			header: base64.RawURLEncoding.EncodeToString([]byte(`{"alg":"RS256"}`)),
 		}
-		var err error
-		if err = token.decodeHeader(); err != nil {
+		if err := token.decodeHeader(); err != nil {
 			t.Fatalf("token.decodeHeader: %v", err)
 		}
-		var header tokenHeader
-		header, err = parseTokenHeader(token)
+		header, err := parseTokenHeader(token)
 		if err != nil {
 			t.Fatalf("parseTokenHeader: %v", err)
 		}
