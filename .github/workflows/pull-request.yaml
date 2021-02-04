@@ -28,13 +28,6 @@ jobs:
         run: make ci-go-test-coverage
         timeout-minutes: 30
 
-      - name: Codecov Upload
-        uses: codecov/codecov-action@v1
-        with:
-          flags: unittests
-          file: ./coverage.txt
-          fail_ci_if_error: false
-
   go-perf:
     name: Go Perf
     runs-on: ubuntu-18.04

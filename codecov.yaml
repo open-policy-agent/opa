@@ -1,8 +1,0 @@
-comment: false
-github_checks:
-  annotations: false
-coverage:
-  status:
-    project: off
-ignore:
-  - "internal/gojsonschema"  # ignore new gojsonschema repo and all its contents
