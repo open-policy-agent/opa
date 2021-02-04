@@ -42,7 +42,7 @@ type Result struct {
 func New() *OPA {
 	opa := &OPA{
 		memoryMinPages: 16,
-		memoryMaxPages: 0xffffffff,
+		memoryMaxPages: 0x10000, // 4GB
 		poolSize:       uint32(runtime.GOMAXPROCS(0)),
 		logError:       func(error) {},
 	}
