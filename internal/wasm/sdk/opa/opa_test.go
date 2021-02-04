@@ -241,7 +241,6 @@ a = "c" { input > 2 }`,
 			instance, err := opa.New().
 				WithPolicyBytes(policy).
 				WithDataBytes(data).
-				WithMemoryLimits(131070, 0).
 				WithPoolSize(1). // Minimal pool size to test pooling.
 				Init()
 			if err != nil {
