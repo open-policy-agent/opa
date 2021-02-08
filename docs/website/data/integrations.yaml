@@ -146,6 +146,17 @@ integrations:
     code:
       - https://github.com/zotoio/sls-lambda-opa
 
+  antlr:
+    title: ANTLR Grammar
+    description: ANTLR4 grammar for Rego.
+    labels:
+      category: utilities
+      layer: rego
+    code:
+      - https://github.com/antlr/grammars-v4
+    inventors:
+      - independent
+
   traefik-api-gateway:
     title: Traefik API Gateway
     description: |
@@ -168,7 +179,7 @@ integrations:
     code:
       - https://github.com/build-security/opa-express-middleware
     inventors:
-      - build.security      
+      - build.security
 
   asp-dotnet-core:
     title: ASP.NET Core
@@ -181,7 +192,7 @@ integrations:
     code:
       - https://github.com/build-security/OPA-AspDotNetCore-Middleware
     inventors:
-      - build.security         
+      - build.security
 
   gloo-api-gateway:
     title: Gloo API Gateway
