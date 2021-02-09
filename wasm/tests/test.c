@@ -1151,6 +1151,17 @@ void test_opa_value_merge_scalars(void)
     }
 }
 
+WASM_EXPORT(test_opa_value_merge_first_operand_null)
+void test_opa_value_merge_first_operand_null(void)
+{
+    test_str_eq("second operand string returns string", "\"foo\"", opa_json_dump(opa_value_merge(NULL, opa_string_terminated("foo"))));
+    test_str_eq("second operand object returns object", "{}", opa_json_dump(opa_value_merge(NULL, opa_object())));
+    test_str_eq("second operand number returns number", "1", opa_json_dump(opa_value_merge(NULL, opa_number_int(1))));
+    test_str_eq("second operand array returns array", "[]", opa_json_dump(opa_value_merge(NULL, opa_array())));
+    test_str_eq("second operand set returns set", "set()", opa_value_dump(opa_value_merge(NULL, opa_set())));
+    test_str_eq("second operand null returns null", "null", opa_json_dump(opa_value_merge(NULL, opa_null())));
+}
+
 WASM_EXPORT(test_opa_value_merge_simple)
 void test_opa_value_merge_simple(void)
 {

@@ -158,11 +158,11 @@ async function instantiate(bytes, memory, data) {
 
     const addr2string = stringDecoder(memory);
 
-    let policy = { memory: memory };
+    let policy = { memory };
 
     policy.module = await WebAssembly.instantiate(bytes, {
         env: {
-            memory: memory,
+            memory,
             opa_abort: function (addr) {
                 throw { message: addr2string(addr) };
             },
@@ -194,7 +194,7 @@ async function instantiate(bytes, memory, data) {
         policy.builtins[builtins[key]] = key
     }
 
-    policy.dataAddr = loadJSON(policy.module, policy.memory, data || {});
+    policy.dataAddr = loadJSON(policy.module, policy.memory, data);
     policy.heapPtr = policy.module.instance.exports.opa_heap_ptr_get();
 
     return policy;
