@@ -448,7 +448,7 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 		evalArgs = append(evalArgs, rego.EvalQueryTracer(tracer))
 
 		if params.target.String() == compile.TargetWasm {
-			fmt.Fprintf(os.Stdout, "warning: explain mode \"%v\" is not supported with wasm target\n", params.explain.String())
+			fmt.Fprintf(os.Stderr, "warning: explain mode \"%v\" is not supported with wasm target\n", params.explain.String())
 		}
 	}
 
