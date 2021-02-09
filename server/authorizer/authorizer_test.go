@@ -38,17 +38,47 @@ func TestBasic(t *testing.T) {
 
         import data.system.tokens
 
-        allow = allow_inner {
-            not input.path[0] = "undefined" # testing undefined
-            not conflict_error              # testing eval errors
-            not input.path[0] = "not_allowed_with_reason"
-			not	input.path[0] = "wrong_result_set"
-			not input.path[0] = "allowed_with_json_format"
+        allow = resp {
+            not undefined_case
+        }
+
+        resp["allowed"] = allowed {
+            not undefined_case
+            not wrong_object
+        }
+
+        resp["reason"] = "custom reason" {
+            input.path = ["reason"]
+        }
+
+        resp["reason"] = 0 {
+            input.path = ["reason", "wrong_type"]
+        }
+
+        resp["foo"] = "bar" {
+            wrong_object
+        }
+
+        default allowed = false
+
+        allowed = allow_inner {
+            not undefined_case            # undefined
+            not wrong_object              # object response, wrong key
+            not input.path[0] = "reason"  # custom reason
+            not conflict_error            # eval errors
+        }
+
+        undefined_case {
+            input.path[0] = "undefined"
+        }
+
+        wrong_object {
+            input.path = ["reason", "wrong_object"]
         }
 
         conflict_error {
-			input.path[0] = "conflict_error"
-			{k: v | k = ["a", "a"][_]; [1, 2][v]}
+            input.path[0] = "conflict_error"
+            {k: v | k = ["a", "a"][_]; [1, 2][v]}
         }
 
         default allow_inner = false
@@ -69,35 +99,6 @@ func TestBasic(t *testing.T) {
         valid_path {
             rights[_].path = input.path
         }
-
-		reason = "unauthorized method" {
-			not valid_method
-		}
-
-		reason = "unauthorized resource" {
-			not valid_path
-		}
-
-		reason = "unauthorized method & resource" {
-			not valid_method
-			not valid_path
-		}
-
-		allow = {
-			"allowed": false,
-			"reason": reason,
-		} {
-			not allow_inner
-			input.path[0] = "not_allowed_with_reason"
-		}
-
-        allow = { "allow": true } {
-			input.path[0] = "wrong_result_set"
-		}
-
-		allow = { "allowed": true } {
-			input.path[0] = "allowed_with_json_format"
-		}
 
         rights[right] {
             role = tokens[input.identity].roles[_]
@@ -181,9 +182,9 @@ func TestBasic(t *testing.T) {
 		{"unauthorized method", "token1", http.MethodPut, "/data/some/specific/document", http.StatusUnauthorized, types.CodeUnauthorized, types.MsgUnauthorizedError},
 		{"unauthorized path", "token2", http.MethodGet, "/data/some/doc/not/allowed", http.StatusUnauthorized, types.CodeUnauthorized, types.MsgUnauthorizedError},
 		{"unauthorized path (w/ query params)", "token2", http.MethodGet, "/data/some/doc/not/allowed?pretty=true", http.StatusUnauthorized, types.CodeUnauthorized, types.MsgUnauthorizedError},
-		{"unauthorized path with reason", "token2", http.MethodGet, "/not_allowed_with_reason", http.StatusUnauthorized, types.CodeUnauthorized, "unauthorized resource"},
-		{"wrong result set format", "token2", http.MethodGet, "/wrong_result_set", http.StatusInternalServerError, types.CodeInternal, types.MsgUndefinedError},
-		{"allowed with json result set format (ok)", "token1", http.MethodGet, "/allowed_with_json_format", http.StatusOK, "", ""},
+		{"custom reason", "token2", http.MethodGet, "/reason", http.StatusUnauthorized, types.CodeUnauthorized, "custom reason"},
+		{"custom reason, wrong type", "token2", http.MethodGet, "/reason/wrong_type", http.StatusUnauthorized, types.CodeUnauthorized, types.MsgUnauthorizedError},
+		{"non-bool/obj response", "token2", http.MethodGet, "/reason/wrong_object", http.StatusInternalServerError, types.CodeInternal, types.MsgUndefinedError},
 	}
 
 	for _, tc := range tests {

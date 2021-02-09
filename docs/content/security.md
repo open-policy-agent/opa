@@ -133,14 +133,10 @@ must be provided on startup. The authorization policy must be structured as foll
 # system.authz as follows:
 package system.authz
 
-# Reject requests by default.
-default allow = {
-	"allowed": false,
-	"reason": "unauthorized resource access"
-}
+default allow = false  # Reject requests by default.
 
-allow = {"allowed": true} {
-	# Logic to authorize request goes here.
+allow {
+  # Logic to authorize request goes here.
 }
 ```
 
@@ -149,14 +145,15 @@ When OPA receives a request, it executes a query against the document defined
 packages however it is recommended that administrators keep the policy under the
 `system` namespace.
 
-If the object produced by the ``allow`` rule has ``allowed`` attribute set to ``true``, the request is
+If the document produced by the ``allow`` rule is ``true``, the request is
 processed normally. If the document is undefined or **not** ``true``, the
 request is rejected immediately.
 
 OPA provides the following `input` document when executing the authorization
 policy:
 
-```json
+<!-- TODO(sr): check if "jsonc" looks alright on netlify -->
+```jsonc
 {
     # Identity established by authentication scheme.
     # When Bearer tokens are used, the identity is
@@ -229,14 +226,10 @@ identity:
 ```live:system_authz_secret:module:read_only
 package system.authz
 
-# Reject requests by default.
-default allow = {
-	"allowed": false,
-	"reason": "unauthorized resource access",
-}
+default allow = false           # Reject requests by default.
 
-allow = {"allowed": true} {    # Allow request if...
-	"secret" == input.identity # Identity is the secret root key.
+allow {                         # Allow request if...
+    "secret" == input.identity  # Identity is the secret root key.
 }
 ```
 
@@ -257,7 +250,7 @@ Content-Type: application/json
 ```json
 {
   "code": "unauthorized",
-  "message": "unauthorized resource access"
+  "message": "request rejected by administrative policy"
 }
 ```
 
@@ -274,6 +267,28 @@ Response:
 ```http
 HTTP/1.1 200 OK
 Content-Type: application/json
+```
+
+Besides boolean responses, authorization policies can change the message included
+in the deny response. Do do that, policy decisions must yield an object response as
+follows:
+
+```live:system_authz_object_resp:module:read_only
+package system.authz
+
+default allow = {
+    "allowed": false,
+    "reason": "unauthorized resource access"
+}
+
+allow = { "allowed": true } {   # Allow request if...
+    "secret" == input.identity  # identity is the secret root key.
+}
+
+allow = { "allowed": false, "reason": reason } {
+    not input.identity
+    reason := "no identity provided"
+}
 ```
 
 ### Token-based Authentication Example
@@ -297,17 +312,13 @@ tokens = {
     }
 }
 
-# Reject requests by default.
-default allow = {
-	"allowed": false,
-	"reason": "unauthorized resource access",
-}           
+default allow = false           # Reject requests by default.
 
-allow = {"allowed": true} {     # Allow request if...
+allow {                         # Allow request if...
     input.identity == "secret"  # Identity is the secret root key.
 }
 
-allow = {"allowed": true} {    # Allow request if...
+allow {                        # Allow request if...
     tokens[input.identity]     # Identity exists in "tokens".
 }
 ```
@@ -344,19 +355,15 @@ tokens = {
     }
 }
 
-# Reject requests by default.
-default allow = {
-	"allowed": false,
-	"reason": "unauthorized resource access",
-}              
+default allow = false               # Reject requests by default.
 
-allow = {"allowed": true} {         # Allow request if...
+allow {                             # Allow request if...
     some right
     identity_rights[right]          # Rights for identity exist, and...
     right.path == "*"               # Right.path is '*'.
 }
 
-allow = {"allowed": true} {         # Allow request if...
+allow {                             # Allow request if...
     some right
     identity_rights[right]          # Rights for identity exist, and...
     right.path == input.path        # Right.path matches input.path.
@@ -431,12 +438,9 @@ client_cns = {
 	"my-client": true
 }
 
-default allow = {
-	"allowed": false,
-	"reason": "unauthorized resource access"
-}
+default allow = false
 
-allow = {"allowed": true}  {               # Allow request if
+allow {                                        # Allow request if
 	split(input.identity, "=", ["CN", cn]) # the cert subject is a CN, and
 	client_cns[cn]                         # the name is a known client.
 }
@@ -486,7 +490,7 @@ $ curl --key client-key-2.pem \
   https://127.0.0.1:8181/v1/data
 {
   "code": "unauthorized",
-  "message": "unauthorized resource access"
+  "message": "request rejected by administrative policy"
 }
 ```
 
@@ -539,13 +543,10 @@ clients access to the default policy decision, i.e., `POST /`:
 package system.authz
 
 # Deny access by default.
-default allow = {
-	"allowed": false,
-	"reason": "unauthorized resource access",
-}
+default allow = false
 
 # Allow anonymous access to the default policy decision.
-allow = {"allowed": true} {
+allow {
     input.method = "POST"
     input.path = [""]
 }
