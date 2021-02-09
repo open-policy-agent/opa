@@ -97,8 +97,24 @@ func (h *Basic) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			h.inner.ServeHTTP(w, r)
 			return
 		}
+	case map[string]interface{}:
+		if decision, ok := allowed["allowed"]; ok {
+			if allow, ok := decision.(bool); ok && allow {
+				h.inner.ServeHTTP(w, r)
+				return
+			}
+			if reason, ok := allowed["reason"]; ok {
+				message, ok := reason.(string)
+				if ok {
+					writer.Error(w, http.StatusUnauthorized, types.NewErrorV1(types.CodeUnauthorized, message))
+					return
+				}
+			}
+		} else {
+			writer.Error(w, http.StatusInternalServerError, types.NewErrorV1(types.CodeInternal, types.MsgUndefinedError))
+			return
+		}
 	}
-
 	writer.Error(w, http.StatusUnauthorized, types.NewErrorV1(types.CodeUnauthorized, types.MsgUnauthorizedError))
 }
 
