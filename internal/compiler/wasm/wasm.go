@@ -21,14 +21,10 @@ import (
 	"github.com/open-policy-agent/opa/internal/wasm/types"
 )
 
-// Record Wasm ABI version in exported global variable:
-//   opa_wasm_abi_version_{major}_{minor}_{patch}
-// Note: the version is encoded in the variable NAME, its content
-// isn't used.
+// Record Wasm ABI version in exported global variable
 const (
-	major = 0
-	minor = 0
-	patch = 0
+	opaWasmABIVersionVal = 0
+	opaWasmABIVersionVar = "opa_wasm_abi_version"
 )
 
 const (
@@ -266,12 +262,12 @@ func (c *Compiler) initModule() error {
 		Mutable: false,
 		Init: module.Expr{
 			Instrs: []instruction.Instruction{
-				instruction.I32Const{},
+				instruction.I32Const{Value: opaWasmABIVersionVal},
 			},
 		},
 	}
 	abiVersionExport := module.Export{
-		Name: fmt.Sprintf("opa_wasm_abi_version_%d_%d_%d", major, minor, patch),
+		Name: opaWasmABIVersionVar,
 		Descriptor: module.ExportDescriptor{
 			Type:  module.ExportDescriptorType(3), // index is index of a "global"
 			Index: uint32(len(c.module.Global.Globals)),
