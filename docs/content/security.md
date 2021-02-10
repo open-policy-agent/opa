@@ -152,7 +152,8 @@ request is rejected immediately.
 OPA provides the following `input` document when executing the authorization
 policy:
 
-```json
+<!-- TODO(sr): check if "jsonc" looks alright on netlify -->
+```jsonc
 {
     # Identity established by authentication scheme.
     # When Bearer tokens are used, the identity is
@@ -266,6 +267,28 @@ Response:
 ```http
 HTTP/1.1 200 OK
 Content-Type: application/json
+```
+
+Besides boolean responses, authorization policies can change the message included
+in the deny response. Do do that, policy decisions must yield an object response as
+follows:
+
+```live:system_authz_object_resp:module:read_only
+package system.authz
+
+default allow = {
+    "allowed": false,
+    "reason": "unauthorized resource access"
+}
+
+allow = { "allowed": true } {   # Allow request if...
+    "secret" == input.identity  # identity is the secret root key.
+}
+
+allow = { "allowed": false, "reason": reason } {
+    not input.identity
+    reason := "no identity provided"
+}
 ```
 
 ### Token-based Authentication Example
