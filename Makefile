@@ -244,7 +244,7 @@ ci-wasm: wasm-test
 
 .PHONY: build-docker
 build-docker: ensure-release-dir
-	CGO_LDFLAGS="-Wl,-rpath,/usr/lib/opa" $(GO) build $(GO_TAGS) -o $(RELEASE_DIR)/opa_docker_$(GOARCH) -ldflags $(LDFLAGS)
+	$(GO) build $(GO_TAGS) -o $(RELEASE_DIR)/opa_docker_$(GOARCH) -ldflags $(LDFLAGS)
 
 .PHONY: build-linux
 build-linux: ensure-release-dir
