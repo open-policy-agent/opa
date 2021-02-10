@@ -455,6 +455,27 @@ func TestCompilerWasmTarget(t *testing.T) {
 	})
 }
 
+func TestCompilerWasmTargetWithCapabilitiesMismatch(t *testing.T) {
+	files := map[string]string{
+		"test.rego": `package test
+
+		p = 7
+		q = p+1`,
+	}
+	caps := ast.CapabilitiesForThisVersion()
+	caps.WasmABIVersions = []int{0, 2}
+
+	test.WithTempFS(files, func(root string) {
+
+		compiler := New().WithPaths(root).WithTarget("wasm").WithEntrypoints("test/p", "test/q").
+			WithCapabilities(caps)
+		err := compiler.Build(context.Background())
+		if err == nil {
+			t.Fatal("expected err, got nil")
+		}
+	})
+}
+
 func TestCompilerWasmTargetMultipleEntrypoints(t *testing.T) {
 	files := map[string]string{
 		"test.rego": `package test

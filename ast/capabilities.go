@@ -14,14 +14,16 @@ import (
 // Capabilities defines a structure containing data that describes the capablilities
 // or features supported by a particular version of OPA.
 type Capabilities struct {
-	Builtins []*Builtin `json:"builtins"` // builtins is a set of built-in functions that are supported.
+	Builtins        []*Builtin `json:"builtins"` // builtins is a set of built-in functions that are supported.
+	WasmABIVersions []int      `json:"wasm_abi_versions"`
 }
 
 // CapabilitiesForThisVersion returns the capabilities of this version of OPA.
 func CapabilitiesForThisVersion() *Capabilities {
 
 	f := &Capabilities{
-		Builtins: []*Builtin{},
+		Builtins:        []*Builtin{},
+		WasmABIVersions: []int{1}, // TODO(sr): sort out where this lives, package `ast` isn't a good place
 	}
 
 	for _, bi := range Builtins {

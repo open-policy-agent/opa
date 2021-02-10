@@ -221,6 +221,12 @@ func New() *Compiler {
 	return c
 }
 
+// ABIVersion returns the Wasm ABI version this compiler
+// emits.
+func (*Compiler) ABIVersion() int {
+	return opaWasmABIVersionVal
+}
+
 // WithPolicy sets the policy to compile.
 func (c *Compiler) WithPolicy(p *ir.Policy) *Compiler {
 	c.policy = p
