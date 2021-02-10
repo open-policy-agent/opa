@@ -20,7 +20,6 @@ USER ${USER}
 
 ARG BIN_DIR=.
 COPY ${BIN_DIR}/opa_docker_amd64 /opa
-COPY ./vendor/github.com/wasmerio/go-ext-wasm/wasmer/libwasmer.so /usr/lib/opa/libwasmer.so
 
 ENTRYPOINT ["/opa"]
 CMD ["run"]
