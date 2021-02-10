@@ -23,7 +23,7 @@ import (
 
 // Record Wasm ABI version in exported global variable
 const (
-	opaWasmABIVersionVal = 0
+	opaWasmABIVersionVal = 1
 	opaWasmABIVersionVar = "opa_wasm_abi_version"
 )
 
