@@ -21,6 +21,16 @@ import (
 	"github.com/open-policy-agent/opa/internal/wasm/types"
 )
 
+// Record Wasm ABI version in exported global variable:
+//   opa_wasm_abi_version_{major}_{minor}_{patch}
+// Note: the version is encoded in the variable NAME, its content
+// isn't used.
+const (
+	major = 0
+	minor = 0
+	patch = 0
+)
+
 const (
 	opaTypeNull int32 = iota + 1
 	opaTypeBoolean
@@ -249,6 +259,26 @@ func (c *Compiler) initModule() error {
 	if err != nil {
 		return err
 	}
+
+	// add global for ABI version, export it
+	abiVersionGlobal := module.Global{
+		Type:    types.I32,
+		Mutable: false,
+		Init: module.Expr{
+			Instrs: []instruction.Instruction{
+				instruction.I32Const{},
+			},
+		},
+	}
+	abiVersionExport := module.Export{
+		Name: fmt.Sprintf("opa_wasm_abi_version_%d_%d_%d", major, minor, patch),
+		Descriptor: module.ExportDescriptor{
+			Type:  module.ExportDescriptorType(3), // index is index of a "global"
+			Index: uint32(len(c.module.Global.Globals)),
+		},
+	}
+	c.module.Global.Globals = append(c.module.Global.Globals, abiVersionGlobal)
+	c.module.Export.Exports = append(c.module.Export.Exports, abiVersionExport)
 
 	c.funcs = make(map[string]uint32)
 	for _, fn := range c.module.Names.Functions {
