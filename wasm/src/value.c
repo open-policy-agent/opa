@@ -687,6 +687,10 @@ void opa_value_free(opa_value *node)
 OPA_INTERNAL
 opa_value *opa_value_merge(opa_value *a, opa_value *b)
 {
+    if (a == NULL)
+    {
+        return b;
+    }
     if (opa_value_type(a) != OPA_OBJECT || opa_value_type(b) != OPA_OBJECT)
     {
         return a;

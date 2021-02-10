@@ -220,6 +220,15 @@ a = "c" { input > 2 }`,
 				{Result: `{{"x": true}}`},
 			},
 		},
+		{
+			Description: "Virtual extent, undefined data",
+			Policy: `package a.b
+			c = 3`,
+			Query: `data == {"a": {"b": {"c": 3 }}}`,
+			Evals: []Eval{
+				{Result: `{{}}`},
+			},
+		},
 	}
 
 	for _, test := range tests {
