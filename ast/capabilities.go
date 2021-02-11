@@ -8,6 +8,7 @@ import (
 	"io"
 	"sort"
 
+	"github.com/open-policy-agent/opa/internal/wasm/sdk/opa/capabilities"
 	"github.com/open-policy-agent/opa/util"
 )
 
@@ -23,7 +24,7 @@ func CapabilitiesForThisVersion() *Capabilities {
 
 	f := &Capabilities{
 		Builtins:        []*Builtin{},
-		WasmABIVersions: []int{1}, // TODO(sr): sort out where this lives, package `ast` isn't a good place
+		WasmABIVersions: capabilities.ABIVersions(),
 	}
 
 	for _, bi := range Builtins {
