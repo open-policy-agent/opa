@@ -104,6 +104,26 @@ of import functions. The memory buffer is a contiguous, mutable byte-array that
 allows you to pass data to the policy and receive output from the policy. The
 import functions are dependencies of the compiled policies.
 
+#### ABI Versions
+
+Wasm modules built using OPA 0.27.0 onwards contain a global variable named
+`opa_wasm_abi_version` that has a constant i32 value indicating the ABI version
+this module requires. Described below you find ABI version 1.
+
+Using tools like `wasm-objdump` (`wasm-objdump -x policy.wasm`), the ABI
+version can be found here:
+
+```
+Global[2]:
+ - global[0] i32 mutable=1 - init i32=121904
+ - global[1] i32 mutable=0 <opa_wasm_abi_version> - init i32=1
+Export[19]:
+[...]
+ - global[1] -> "opa_wasm_abi_version"
+```
+
+Note the `i32=1` of `global[1]`, exported by the name of `opa_wasm_abi_version`.
+
 #### Exports
 
 The primary exported functions for interacting with policy modules are:
