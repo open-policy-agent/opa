@@ -30,7 +30,6 @@ import (
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/util"
-	"github.com/open-policy-agent/opa/util/test"
 	"github.com/open-policy-agent/opa/version"
 )
 
@@ -531,7 +530,7 @@ func Test405StatusCodev1(t *testing.T) {
 		}},
 	}
 	for _, tc := range tests {
-		test.Subtest(t, tc.note, func(t *testing.T) {
+		t.Run(tc.note, func(t *testing.T) {
 			executeRequests(t, tc.reqs)
 		})
 	}
@@ -565,7 +564,7 @@ func Test405StatusCodev0(t *testing.T) {
 		}},
 	}
 	for _, tc := range tests {
-		test.Subtest(t, tc.note, func(t *testing.T) {
+		t.Run(tc.note, func(t *testing.T) {
 			executeRequestsv0(t, tc.reqs)
 		})
 	}
@@ -693,7 +692,7 @@ func TestCompileV1(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		test.Subtest(t, tc.note, func(t *testing.T) {
+		t.Run(tc.note, func(t *testing.T) {
 			executeRequests(t, tc.trs)
 		})
 	}
@@ -1172,7 +1171,7 @@ p = true { false }`
 	}
 
 	for _, tc := range tests {
-		test.Subtest(t, tc.note, func(t *testing.T) {
+		t.Run(tc.note, func(t *testing.T) {
 			executeRequests(t, tc.reqs)
 		})
 	}

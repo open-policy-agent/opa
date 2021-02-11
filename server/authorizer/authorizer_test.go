@@ -19,7 +19,6 @@ import (
 	"github.com/open-policy-agent/opa/server/types"
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/util"
-	"github.com/open-policy-agent/opa/util/test"
 )
 
 type mockHandler struct {
@@ -188,7 +187,7 @@ func TestBasic(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		test.Subtest(t, tc.note, func(t *testing.T) {
+		t.Run(tc.note, func(t *testing.T) {
 
 			recorder := httptest.NewRecorder()
 			req, err := http.NewRequest(tc.method, "http://localhost:8181"+tc.path, nil)
