@@ -15,7 +15,6 @@ import (
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/types"
 	"github.com/open-policy-agent/opa/util"
-	"github.com/open-policy-agent/opa/util/test"
 )
 
 func TestOutputVarsForNode(t *testing.T) {
@@ -536,7 +535,7 @@ func TestCompilerFunctions(t *testing.T) {
 		},
 	}
 	for _, tc := range tests {
-		test.Subtest(t, tc.note, func(t *testing.T) {
+		t.Run(tc.note, func(t *testing.T) {
 			var err error
 			modules := map[string]*Module{}
 			for i, module := range tc.modules {
@@ -666,7 +665,7 @@ func TestCompilerCheckSafetyBodyReordering(t *testing.T) {
 	}
 
 	for i, tc := range tests {
-		test.Subtest(t, tc.note, func(t *testing.T) {
+		t.Run(tc.note, func(t *testing.T) {
 			c := NewCompiler()
 			c.Modules = getCompilerTestModules()
 			c.Modules["reordering"] = MustParseModule(fmt.Sprintf(
@@ -785,7 +784,7 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		test.Subtest(t, tc.note, func(t *testing.T) {
+		t.Run(tc.note, func(t *testing.T) {
 
 			// Build slice of expected error messages.
 			expected := []string{}
@@ -2487,7 +2486,7 @@ func TestCompilerRewriteDoubleEq(t *testing.T) {
 		},
 	}
 	for _, tc := range tests {
-		test.Subtest(t, tc.note, func(t *testing.T) {
+		t.Run(tc.note, func(t *testing.T) {
 			c := NewCompiler()
 			c.Modules["test"] = MustParseModule("package test\n" + tc.input)
 			compileStages(c, c.rewriteEquals)
@@ -2538,7 +2537,7 @@ func TestCompilerRewriteDynamicTerms(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		test.Subtest(t, tc.input, func(t *testing.T) {
+		t.Run(tc.input, func(t *testing.T) {
 			c := NewCompiler()
 			module := fixture + tc.input
 			c.Modules["test"] = MustParseModule(module)
@@ -2609,7 +2608,7 @@ func TestCompilerRewriteWithValue(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		test.Subtest(t, tc.note, func(t *testing.T) {
+		t.Run(tc.note, func(t *testing.T) {
 			c := NewCompiler()
 			module := fixture + tc.input
 			c.Modules["test"] = MustParseModule(module)
@@ -3032,7 +3031,7 @@ p[2] { true }`,
 	}
 
 	for _, tc := range tests {
-		test.Subtest(t, tc.note, func(t *testing.T) {
+		t.Run(tc.note, func(t *testing.T) {
 			var ref Ref
 			switch r := tc.ref.(type) {
 			case string:
@@ -3095,7 +3094,7 @@ p[2] { true }`,
 	}
 
 	for _, tc := range tests {
-		test.Subtest(t, tc.note, func(t *testing.T) {
+		t.Run(tc.note, func(t *testing.T) {
 			var ref Ref
 			switch r := tc.ref.(type) {
 			case string:
@@ -3163,7 +3162,7 @@ q[3] { true }`,
 	}
 
 	for _, tc := range tests {
-		test.Subtest(t, tc.note, func(t *testing.T) {
+		t.Run(tc.note, func(t *testing.T) {
 			var ref Ref
 			switch r := tc.ref.(type) {
 			case string:
@@ -3218,7 +3217,7 @@ q["b"] = 2 { true }`,
 	}
 
 	for _, tc := range tests {
-		test.Subtest(t, tc.input, func(t *testing.T) {
+		t.Run(tc.input, func(t *testing.T) {
 			result := compiler.GetRules(MustParseRef(tc.input))
 
 			if len(result) != len(tc.expected) {
@@ -3274,7 +3273,7 @@ r3 = 3`,
 	}
 
 	for _, tc := range tests {
-		test.Subtest(t, tc.input, func(t *testing.T) {
+		t.Run(tc.input, func(t *testing.T) {
 			result := compiler.GetRulesDynamic(MustParseRef(tc.input))
 
 			if len(result) != len(tc.expected) {
@@ -4147,7 +4146,7 @@ func compilerErrsToStringSlice(errors []*Error) []string {
 }
 
 func runQueryCompilerTest(t *testing.T, note, q, pkg string, imports []string, expected interface{}) {
-	test.Subtest(t, note, func(t *testing.T) {
+	t.Run(note, func(t *testing.T) {
 		c := NewCompiler()
 		c.Compile(getCompilerTestModules())
 		assertNotFailed(t, c)
@@ -4198,7 +4197,7 @@ func TestCompilerCapabilitiesExtendedWithCustomBuiltins(t *testing.T) {
 			},
 		},
 	}).WithBuiltins(map[string]*Builtin{
-		"bar": &Builtin{
+		"bar": {
 			Name: "bar",
 			Decl: types.NewFunction([]types.Type{types.N}, types.B),
 		},

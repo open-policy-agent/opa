@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"github.com/open-policy-agent/opa/util"
-	"github.com/open-policy-agent/opa/util/test"
 )
 
 var dynamicPropertyAnyAny = NewDynamicProperty(A, A)
@@ -212,7 +211,7 @@ func TestSelect(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		test.Subtest(t, tc.note, func(t *testing.T) {
+		t.Run(tc.note, func(t *testing.T) {
 			result := Select(tc.a, tc.k)
 			if Compare(result, tc.expected) != 0 {
 				t.Fatalf("Expected Select(%v, %v) to be %v but got: %v", tc.a, tc.k, tc.expected, result)
@@ -240,7 +239,7 @@ func TestKeys(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		test.Subtest(t, tc.note, func(t *testing.T) {
+		t.Run(tc.note, func(t *testing.T) {
 			result := Keys(tc.tpe)
 			if Compare(result, tc.expected) != 0 {
 				t.Fatalf("Expected Keys(%v) to be %v but got: %v", tc.tpe, tc.expected, result)
@@ -269,7 +268,7 @@ func TestValues(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		test.Subtest(t, tc.note, func(t *testing.T) {
+		t.Run(tc.note, func(t *testing.T) {
 			result := Values(tc.tpe)
 			if Compare(result, tc.expected) != 0 {
 				t.Fatalf("Expected Keys(%v) to be %v but got: %v", tc.tpe, tc.expected, result)

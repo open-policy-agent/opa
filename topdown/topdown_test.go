@@ -31,7 +31,6 @@ import (
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/types"
 	"github.com/open-policy-agent/opa/util"
-	testutil "github.com/open-policy-agent/opa/util/test"
 )
 
 func TestTopDownQueryIDsUnique(t *testing.T) {
@@ -511,7 +510,7 @@ func assertTopDownWithPathAndContext(ctx context.Context, t *testing.T, compiler
 		query = query.WithTracer(&tracer)
 	}
 
-	testutil.Subtest(t, note, func(t *testing.T) {
+	t.Run(note, func(t *testing.T) {
 		t.Helper()
 
 		switch e := expected.(type) {
