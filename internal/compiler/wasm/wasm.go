@@ -275,7 +275,7 @@ func (c *Compiler) initModule() error {
 	abiVersionExport := module.Export{
 		Name: opaWasmABIVersionVar,
 		Descriptor: module.ExportDescriptor{
-			Type:  module.ExportDescriptorType(3), // index is index of a "global"
+			Type:  module.GlobalExportType,
 			Index: uint32(len(c.module.Global.Globals)),
 		},
 	}
