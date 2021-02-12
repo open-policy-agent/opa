@@ -15,7 +15,6 @@ import (
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/util"
-	"github.com/open-policy-agent/opa/util/test"
 )
 
 func TestTopDownPartialEval(t *testing.T) {
@@ -2377,7 +2376,7 @@ type fixture struct {
 
 func prepareTest(ctx context.Context, t *testing.T, params fixtureParams, f func(context.Context, *testing.T, fixture)) {
 
-	test.Subtest(t, params.note, func(t *testing.T) {
+	t.Run(params.note, func(t *testing.T) {
 
 		var store storage.Store
 

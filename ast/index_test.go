@@ -7,8 +7,6 @@ package ast
 import (
 	"fmt"
 	"testing"
-
-	"github.com/open-policy-agent/opa/util/test"
 )
 
 type testResolver struct {
@@ -438,7 +436,7 @@ func TestBaseDocEqIndexing(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		test.Subtest(t, tc.note, func(t *testing.T) {
+		t.Run(tc.note, func(t *testing.T) {
 
 			rules := []*Rule{}
 			for _, rule := range module.Rules {

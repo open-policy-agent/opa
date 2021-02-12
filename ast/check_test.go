@@ -13,7 +13,6 @@ import (
 
 	"github.com/open-policy-agent/opa/types"
 	"github.com/open-policy-agent/opa/util"
-	"github.com/open-policy-agent/opa/util/test"
 )
 
 func TestCheckInference(t *testing.T) {
@@ -284,7 +283,7 @@ func TestCheckInference(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		test.Subtest(t, tc.note, func(t *testing.T) {
+		t.Run(tc.note, func(t *testing.T) {
 			body := MustParseBody(tc.query)
 			checker := newTypeChecker()
 			env := checker.checkLanguageBuiltins(nil, BuiltinMap)
@@ -469,7 +468,7 @@ func TestCheckInferenceRules(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		test.Subtest(t, tc.note, func(t *testing.T) {
+		t.Run(tc.note, func(t *testing.T) {
 			var elems []util.T
 
 			// Convert test rules into rule slice for call.
@@ -598,7 +597,7 @@ func TestCheckMatchErrors(t *testing.T) {
 		{"any", `x = ["str", 1]; x[_] = null`},
 	}
 	for _, tc := range tests {
-		test.Subtest(t, tc.note, func(t *testing.T) {
+		t.Run(tc.note, func(t *testing.T) {
 			body := MustParseBody(tc.query)
 			checker := newTypeChecker()
 			_, err := checker.CheckBody(nil, body)
@@ -652,7 +651,7 @@ func TestCheckBuiltinErrors(t *testing.T) {
 	})
 
 	for _, tc := range tests {
-		test.Subtest(t, tc.note, func(t *testing.T) {
+		t.Run(tc.note, func(t *testing.T) {
 			body := MustParseBody(tc.query)
 			checker := newTypeChecker()
 			_, err := checker.CheckBody(env, body)
@@ -839,7 +838,7 @@ func TestCheckRefErrInvalid(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		test.Subtest(t, tc.note, func(t *testing.T) {
+		t.Run(tc.note, func(t *testing.T) {
 
 			_, errs := newTypeChecker().CheckBody(env, MustParseBody(tc.query))
 			if len(errs) != 1 {
