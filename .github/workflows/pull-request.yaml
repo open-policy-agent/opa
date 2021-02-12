@@ -102,8 +102,12 @@ jobs:
           repository: open-policy-agent/npm-opa-wasm
           path: npm-opa-wasm
 
+      # NOTE(sr): the opa binary built above doesn't have wasm enabled,
+      # so we override the capabilities for what the released binary
+      # provides.
       - name: Run npm-opa-wasm nodejs-app examples
         run: |
           npm install
+          sed -i 's/opa build/opa build --capabilities=..\/..\/..\/capabilities.json/' examples/nodejs-ts-app/package.json
           ./e2e.sh
         working-directory: npm-opa-wasm

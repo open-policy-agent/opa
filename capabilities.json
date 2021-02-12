@@ -3379,5 +3379,8 @@
         "type": "function"
       }
     }
+  ],
+  "wasm_abi_versions": [
+    1
   ]
 }

@@ -8,20 +8,23 @@ import (
 	"io"
 	"sort"
 
+	"github.com/open-policy-agent/opa/internal/wasm/sdk/opa/capabilities"
 	"github.com/open-policy-agent/opa/util"
 )
 
 // Capabilities defines a structure containing data that describes the capablilities
 // or features supported by a particular version of OPA.
 type Capabilities struct {
-	Builtins []*Builtin `json:"builtins"` // builtins is a set of built-in functions that are supported.
+	Builtins        []*Builtin `json:"builtins"` // builtins is a set of built-in functions that are supported.
+	WasmABIVersions []int      `json:"wasm_abi_versions"`
 }
 
 // CapabilitiesForThisVersion returns the capabilities of this version of OPA.
 func CapabilitiesForThisVersion() *Capabilities {
 
 	f := &Capabilities{
-		Builtins: []*Builtin{},
+		Builtins:        []*Builtin{},
+		WasmABIVersions: capabilities.ABIVersions(),
 	}
 
 	for _, bi := range Builtins {

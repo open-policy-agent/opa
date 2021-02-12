@@ -427,6 +427,13 @@ func TestCompilerOptimizationL2(t *testing.T) {
 	})
 }
 
+// NOTE(sr): we override this to not depend on build tags in tests
+func wasmABIVersions(vs ...int) *ast.Capabilities {
+	caps := ast.CapabilitiesForThisVersion()
+	caps.WasmABIVersions = vs
+	return caps
+}
+
 func TestCompilerWasmTarget(t *testing.T) {
 	files := map[string]string{
 		"test.rego": `package test
@@ -437,7 +444,8 @@ func TestCompilerWasmTarget(t *testing.T) {
 
 	test.WithTempFS(files, func(root string) {
 
-		compiler := New().WithPaths(root).WithTarget("wasm").WithEntrypoints("test/p", "test/q")
+		compiler := New().WithPaths(root).WithTarget("wasm").WithEntrypoints("test/p", "test/q").
+			WithCapabilities(wasmABIVersions(1))
 		err := compiler.Build(context.Background())
 		if err != nil {
 			t.Fatal(err)
@@ -452,6 +460,25 @@ func TestCompilerWasmTarget(t *testing.T) {
 		}
 
 		ensureEntrypointRemoved(t, compiler.bundle, "test/p")
+	})
+}
+
+func TestCompilerWasmTargetWithCapabilitiesMismatch(t *testing.T) {
+	files := map[string]string{
+		"test.rego": `package test
+
+		p = 7
+		q = p+1`,
+	}
+
+	test.WithTempFS(files, func(root string) {
+
+		compiler := New().WithPaths(root).WithTarget("wasm").WithEntrypoints("test/p", "test/q").
+			WithCapabilities(wasmABIVersions(0, 2))
+		err := compiler.Build(context.Background())
+		if err == nil {
+			t.Fatal("expected err, got nil")
+		}
 	})
 }
 
@@ -470,7 +497,8 @@ func TestCompilerWasmTargetMultipleEntrypoints(t *testing.T) {
 
 	test.WithTempFS(files, func(root string) {
 
-		compiler := New().WithPaths(root).WithTarget("wasm").WithEntrypoints("test/p", "policy/authz")
+		compiler := New().WithPaths(root).WithTarget("wasm").WithEntrypoints("test/p", "policy/authz").
+			WithCapabilities(wasmABIVersions(1))
 		err := compiler.Build(context.Background())
 		if err != nil {
 			t.Fatal(err)
@@ -514,7 +542,8 @@ func TestCompilerWasmTargetEntrypointDependents(t *testing.T) {
 
 	test.WithTempFS(files, func(root string) {
 
-		compiler := New().WithPaths(root).WithTarget("wasm").WithEntrypoints("test/r", "test/z")
+		compiler := New().WithPaths(root).WithTarget("wasm").WithEntrypoints("test/r", "test/z").
+			WithCapabilities(wasmABIVersions(1))
 		err := compiler.Build(context.Background())
 		if err != nil {
 			t.Fatal(err)
@@ -565,7 +594,8 @@ func TestCompilerWasmTargetLazyCompile(t *testing.T) {
 
 	test.WithTempFS(files, func(root string) {
 
-		compiler := New().WithPaths(root).WithTarget("wasm").WithEntrypoints("test/p").WithOptimizationLevel(1)
+		compiler := New().WithPaths(root).WithTarget("wasm").WithEntrypoints("test/p").WithOptimizationLevel(1).
+			WithCapabilities(wasmABIVersions(1))
 		err := compiler.Build(context.Background())
 		if err != nil {
 			t.Fatal(err)

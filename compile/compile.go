@@ -14,8 +14,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/open-policy-agent/opa/internal/wasm/encoding"
-
 	"github.com/pkg/errors"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -24,6 +22,7 @@ import (
 	"github.com/open-policy-agent/opa/internal/planner"
 	"github.com/open-policy-agent/opa/internal/ref"
 	initload "github.com/open-policy-agent/opa/internal/runtime/init"
+	"github.com/open-policy-agent/opa/internal/wasm/encoding"
 	"github.com/open-policy-agent/opa/loader"
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/storage"
@@ -44,8 +43,8 @@ const (
 const wasmResultVar = ast.Var("result")
 
 var validTargets = map[string]struct{}{
-	TargetRego: struct{}{},
-	TargetWasm: struct{}{},
+	TargetRego: {},
+	TargetWasm: {},
 }
 
 // Compiler implements bundle compilation and linking.
@@ -431,6 +430,21 @@ func (c *Compiler) compileWasm(ctx context.Context) error {
 		builtins[bi.Name] = bi
 	}
 
+	compiler := wasm.New()
+	found := false
+	for _, v := range c.capabilities.WasmABIVersions {
+		if v == compiler.ABIVersion() {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return fmt.Errorf("compiler ABI version not in capabilities (have %v, want %d)",
+			c.capabilities.WasmABIVersions,
+			compiler.ABIVersion(),
+		)
+	}
+
 	// Plan the query sets.
 	p := planner.New().
 		WithQueries(queries).
@@ -445,13 +459,12 @@ func (c *Compiler) compileWasm(ctx context.Context) error {
 	}
 
 	// Compile the policy into a wasm binary.
-	m, err := wasm.New().WithPolicy(policy).Compile()
+	m, err := compiler.WithPolicy(policy).Compile()
 	if err != nil {
 		return err
 	}
 
 	var buf bytes.Buffer
-
 	if err := encoding.WriteModule(&buf, m); err != nil {
 		return err
 	}

@@ -13,7 +13,7 @@ As described on [https://webassembly.org/](https://webassembly.org/)
 > compilation of high-level languages like C/C++/Rust, enabling deployment on
 > the web for client and server applications.
 
-# Overview
+## Overview
 
 OPA is able to compile Rego policies into executable Wasm modules that can be
 evaluated with different inputs and external data. This is *not* running the OPA
@@ -27,7 +27,7 @@ functions that are not, and probably won't be natively supported in Wasm (e.g.,
 `http.send`). Built-in functions that are not natively supported can be
 implemented in the host environment (e.g., JavaScript).
 
-# Compiling Policies
+## Compiling Policies
 
 You can compile Rego policies into Wasm modules using the `opa build` subcommand.
 
@@ -65,7 +65,7 @@ empty (indicating an undefined policy decision) otherwise they should select the
 
 > For more information on `opa build` run `opa build --help`.
 
-## Advanced Compiling Options
+### Advanced Compiling Options
 
 You can also compile Rego policies into Wasm modules from Go using the lower-level
 [rego](https://godoc.org/github.com/open-policy-agent/opa/rego#Rego.Compile) API
@@ -73,9 +73,9 @@ that produces raw Wasm executables and the higher-level [compile]() API that
 produces OPA bundle files. The [compile](https://godoc.org/github.com/open-policy-agent/opa/compile#Compiler.Build)
 API is recommended.
 
-# Using Compiled Policies
+## Using Compiled Policies
 
-## JavaScript SDK
+### JavaScript SDK
 
 There is a JavaScript SDK available that simplifies the process of loading and
 evaluating compiled policies. If you want to evaluate Rego policies inside
@@ -88,12 +88,12 @@ for more details.
 There is an example NodeJS application located
 [here](https://github.com/open-policy-agent/npm-opa-wasm/tree/master/examples/nodejs-app).
 
-## From Scratch
+### From Scratch
 
 If you want to integrate Wasm compiled policies into a language or runtime that
 does not have SDK support, read this section.
 
-### Instantiating the Wasm Module
+#### Instantiating the Wasm Module
 
 Before you can evaluate Wasm compiled policies you need to instantiate the Wasm
 module produced by the compilation process described earlier on this page.
@@ -103,6 +103,26 @@ that you are using. At a high-level you must provide a memory buffer and a set
 of import functions. The memory buffer is a contiguous, mutable byte-array that
 allows you to pass data to the policy and receive output from the policy. The
 import functions are dependencies of the compiled policies.
+
+#### ABI Versions
+
+Wasm modules built using OPA 0.27.0 onwards contain a global variable named
+`opa_wasm_abi_version` that has a constant i32 value indicating the ABI version
+this module requires. Described below you find ABI version 1.
+
+Using tools like `wasm-objdump` (`wasm-objdump -x policy.wasm`), the ABI
+version can be found here:
+
+```
+Global[2]:
+ - global[0] i32 mutable=1 - init i32=121904
+ - global[1] i32 mutable=0 <opa_wasm_abi_version> - init i32=1
+Export[19]:
+[...]
+ - global[1] -> "opa_wasm_abi_version"
+```
+
+Note the `i32=1` of `global[1]`, exported by the name of `opa_wasm_abi_version`.
 
 #### Exports
 
@@ -205,7 +225,7 @@ element:
 When the evaluation runs, the `opa_builtin1` callback would invoked with
 `builtin_id` set to `0`.
 
-### Evaluation
+#### Evaluation
 
 Once instantiated, the policy module is ready to be evaluated. Use the
 `opa_eval_ctx_new` exported function to create an evaluation context. Use the
