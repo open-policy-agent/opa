@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"reflect"
 	"sort"
 	"strings"
@@ -2308,6 +2309,48 @@ func TestPoliciesPathSlashes(t *testing.T) {
 	}
 	if err := f.v1(http.MethodGet, "/policies/a/b/c.rego", testMod, 200, ""); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
+	}
+}
+
+func TestPoliciesUrlEncoded(t *testing.T) {
+	const expectedPolicyID = "/a policy/another-component"
+	var urlEscapedPolicyID = url.PathEscape(expectedPolicyID)
+	f := newFixture(t)
+
+	// PUT policy with URL encoded ID
+	put := newReqV1(http.MethodPut, fmt.Sprintf("/policies/%s", urlEscapedPolicyID), testMod)
+	f.server.Handler.ServeHTTP(f.recorder, put)
+
+	if f.recorder.Code != 200 {
+		t.Fatalf("Expected success but got %v", f.recorder)
+	}
+
+	// end PUT policy with URL encoded ID
+	f.reset()
+	// GET policy with URL encoded ID
+
+	get := newReqV1(http.MethodGet, fmt.Sprintf("/policies/%s", urlEscapedPolicyID), "")
+	f.server.Handler.ServeHTTP(f.recorder, get)
+	if f.recorder.Code != 200 {
+		t.Fatalf("Expected success but got %v", f.recorder)
+	}
+	var getResponse types.PolicyGetResponseV1
+	if err := json.NewDecoder(f.recorder.Body).Decode(&getResponse); err != nil {
+		t.Fatalf("Unexpected unmarshal error: %v", err)
+	}
+
+	if getResponse.Result.ID != expectedPolicyID {
+		t.Fatalf(`Expected policy ID to be "%s" but got "%s"`, expectedPolicyID, getResponse.Result.ID)
+	}
+
+	// end GET policy with URL encoded ID
+	f.reset()
+	// DELETE policy with URL encoded ID
+
+	delete := newReqV1(http.MethodDelete, fmt.Sprintf("/policies/%s", urlEscapedPolicyID), "")
+	f.server.Handler.ServeHTTP(f.recorder, delete)
+	if f.recorder.Code != 200 {
+		t.Fatalf("Expected success but got %v", f.recorder)
 	}
 }
 
