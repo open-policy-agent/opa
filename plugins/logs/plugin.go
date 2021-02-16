@@ -16,12 +16,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/open-policy-agent/opa/sdk"
-
 	"github.com/pkg/errors"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/internal/ref"
+	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/plugins/rest"
 	"github.com/open-policy-agent/opa/rego"
@@ -335,7 +334,7 @@ type Plugin struct {
 	reconfig  chan reconfigure
 	mask      *rego.PreparedEvalQuery
 	maskMutex sync.Mutex
-	logger    sdk.Logger
+	logger    logging.Logger
 }
 
 type reconfigure struct {

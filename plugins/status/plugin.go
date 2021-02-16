@@ -12,11 +12,10 @@ import (
 	"net/http"
 	"reflect"
 
-	"github.com/open-policy-agent/opa/sdk"
-
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 
+	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/plugins/bundle"
@@ -49,7 +48,7 @@ type Plugin struct {
 	metrics            metrics.Metrics
 	lastPluginStatuses map[string]*plugins.Status
 	pluginStatusCh     chan map[string]*plugins.Status
-	logger             sdk.Logger
+	logger             logging.Logger
 }
 
 // Config contains configuration for the plugin.

@@ -215,9 +215,7 @@ func TestBundlesReady(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.note, func(t *testing.T) {
-			f := newFixture(t)
-
-			actual := f.server.bundlesReady(tc.status)
+			actual := BundlesReady(tc.status)
 			if actual != tc.ready {
 				t.Errorf("Expected %t got %t", tc.ready, actual)
 			}

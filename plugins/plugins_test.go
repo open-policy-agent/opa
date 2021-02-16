@@ -12,8 +12,8 @@ import (
 	"testing"
 
 	"github.com/open-policy-agent/opa/internal/storage/mock"
+	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/plugins/rest"
-	"github.com/open-policy-agent/opa/sdk"
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/topdown/cache"
 )
@@ -296,7 +296,7 @@ func TestPluginManagerAuthPlugin(t *testing.T) {
 
 func TestPluginManagerLogger(t *testing.T) {
 
-	logger := sdk.NewStandardLogger().WithFields(map[string]interface{}{"context": "myloggincontext"})
+	logger := logging.NewStandardLogger().WithFields(map[string]interface{}{"context": "myloggincontext"})
 
 	m, err := New([]byte(`{}`), "test", inmem.New(), Logger(logger))
 	if err != nil {

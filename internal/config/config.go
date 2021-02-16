@@ -13,13 +13,11 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/open-policy-agent/opa/sdk"
-
-	"github.com/open-policy-agent/opa/keys"
-
 	"github.com/ghodss/yaml"
 
 	"github.com/open-policy-agent/opa/internal/strvals"
+	"github.com/open-policy-agent/opa/keys"
+	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/plugins/rest"
 	"github.com/open-policy-agent/opa/util"
 )
@@ -29,7 +27,7 @@ type ServiceOptions struct {
 	Raw        json.RawMessage
 	AuthPlugin func(string) rest.HTTPAuthPlugin
 	Keys       map[string]*keys.Config
-	Logger     sdk.Logger
+	Logger     logging.Logger
 }
 
 // ParseServicesConfig returns a set of named service clients. The service

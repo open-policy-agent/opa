@@ -11,10 +11,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/open-policy-agent/opa/sdk"
-
-	"github.com/open-policy-agent/opa/keys"
-
 	"github.com/sirupsen/logrus"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -23,7 +19,9 @@ import (
 	bundleUtils "github.com/open-policy-agent/opa/internal/bundle"
 	cfg "github.com/open-policy-agent/opa/internal/config"
 	initload "github.com/open-policy-agent/opa/internal/runtime/init"
+	"github.com/open-policy-agent/opa/keys"
 	"github.com/open-policy-agent/opa/loader"
+	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/plugins/rest"
 	"github.com/open-policy-agent/opa/resolver/wasm"
 	"github.com/open-policy-agent/opa/storage"
@@ -158,7 +156,7 @@ type Manager struct {
 	interQueryBuiltinCacheConfig *cache.Config
 	gracefulShutdownPeriod       int
 	registeredCacheTriggers      []func(*cache.Config)
-	logger                       sdk.Logger
+	logger                       logging.Logger
 }
 
 type managerContextKey string
@@ -251,7 +249,7 @@ func GracefulShutdownPeriod(gracefulShutdownPeriod int) func(*Manager) {
 }
 
 // Logger configures the passed logger on the plugin manager (useful to configure default fields)
-func Logger(logger sdk.Logger) func(*Manager) {
+func Logger(logger logging.Logger) func(*Manager) {
 	return func(m *Manager) {
 		m.logger = logger
 	}
@@ -287,7 +285,7 @@ func New(raw []byte, id string, store storage.Store, opts ...func(*Manager)) (*M
 	}
 
 	if m.logger == nil {
-		m.logger = sdk.NewStandardLogger()
+		m.logger = logging.NewStandardLogger()
 	}
 
 	serviceOpts := cfg.ServiceOptions{
@@ -744,7 +742,7 @@ func (m *Manager) Services() []string {
 }
 
 // Logger gets the logger implementation associated with this plugin manager
-func (m *Manager) Logger() sdk.Logger {
+func (m *Manager) Logger() logging.Logger {
 	return m.logger
 }
 

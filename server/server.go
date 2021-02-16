@@ -995,7 +995,8 @@ func (s *Server) canEval(ctx context.Context) bool {
 	return false
 }
 
-func (s *Server) bundlesReady(pluginStatuses map[string]*plugins.Status) bool {
+// BundlesReady true if all configured bundles have been loaded
+func BundlesReady(pluginStatuses map[string]*plugins.Status) bool {
 
 	// Look for a discovery plugin first, if it exists and isn't ready
 	// then don't bother with the others.
@@ -1016,6 +1017,16 @@ func (s *Server) bundlesReady(pluginStatuses map[string]*plugins.Status) bool {
 	return true
 }
 
+// PluginsReady true if all configured plugins have been loaded
+func PluginsReady(pluginStatuses map[string]*plugins.Status) bool {
+	for _, status := range pluginStatuses {
+		if status != nil && status.State != plugins.StateOK {
+			return false
+		}
+	}
+	return true
+}
+
 func (s *Server) unversionedGetHealth(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	includeBundleStatus := getBoolParam(r.URL, types.ParamBundleActivationV1, true) ||
@@ -1033,7 +1044,7 @@ func (s *Server) unversionedGetHealth(w http.ResponseWriter, r *http.Request) {
 	// Ensure that bundles (if configured, and requested to be included in the result)
 	// have been activated successfully. This will include discovery bundles as well as
 	// normal bundles that are configured.
-	if includeBundleStatus && !s.bundlesReady(pluginStatuses) {
+	if includeBundleStatus && !BundlesReady(pluginStatuses) {
 		// For backwards compatibility we don't return a payload with statuses for the bundle endpoint
 		writeHealthResponse(w, errors.New("not all configured bundles have been activated"), struct{}{})
 		return
@@ -1041,14 +1052,7 @@ func (s *Server) unversionedGetHealth(w http.ResponseWriter, r *http.Request) {
 
 	if includePluginStatus {
 		// Ensure that all plugins (if requested to be included in the result) have an OK status.
-		hasErr := false
-		for _, status := range pluginStatuses {
-			if status != nil && status.State != plugins.StateOK {
-				hasErr = true
-				break
-			}
-		}
-		if hasErr {
+		if !PluginsReady(pluginStatuses) {
 			writeHealthResponse(w, errors.New("not all plugins in OK state"), struct{}{})
 			return
 		}
