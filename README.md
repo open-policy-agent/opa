@@ -4,7 +4,7 @@
 
 The Open Policy Agent (OPA) is an open source, general-purpose policy engine that enables unified, context-aware policy enforcement across the entire stack.
 
-OPA is hosted by the [Cloud Native Computing Foundation](https://cncf.io) (CNCF) as an incubating-level project. If you are an organization that wants to help shape the evolution of technologies that are container-packaged, dynamically-scheduled and microservices-oriented, consider joining the CNCF. For details read the CNCF [announcement](https://www.cncf.io/blog/2019/04/02/toc-votes-to-move-opa-into-cncf-incubator/).
+OPA is hosted by the [Cloud Native Computing Foundation](https://cncf.io) (CNCF) as a graduated project. If you are an organization that wants to help shape the evolution of technologies that are container-packaged, dynamically-scheduled and microservices-oriented, consider joining the CNCF. For details read the CNCF [announcement](https://www.cncf.io/announcements/2021/02/04/cloud-native-computing-foundation-announces-open-policy-agent-graduation/).
 
 ## Want to learn more about OPA?
 
