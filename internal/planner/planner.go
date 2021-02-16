@@ -608,11 +608,12 @@ func (p *Planner) planWith(e *ast.Expr, iter planiter) error {
 			restore[i] = [2]ir.Local{lorig, lsave}
 		}
 
-		// If any of the with statements targeted the data document we shadow
-		// the existing planned functions during expression planning. This
-		// causes the planner to re-plan any rules that may be required during
-		// planning of this expression (transitively).
-		if len(dataRefs) > 0 {
+		// If any of the `with` statements targeted the data document, overwriting
+		// parts of the ruletrie, we shadow the existing planned functions during
+		// expression planning. This causes the planner to re-plan any rules that
+		// may be required during planning of this expression (transitively).
+		shadowing := p.dataRefsShadowRuletrie(dataRefs)
+		if shadowing {
 			p.funcs.Push(map[string]string{})
 			for _, ref := range dataRefs {
 				p.rules.Push(ref)
@@ -620,7 +621,7 @@ func (p *Planner) planWith(e *ast.Expr, iter planiter) error {
 		}
 
 		err := p.planWithRec(e, paths, locals, 0, func() error {
-			if len(dataRefs) > 0 {
+			if shadowing {
 				p.funcs.Pop()
 				for i := len(dataRefs) - 1; i >= 0; i-- {
 					p.rules.Pop(dataRefs[i])
@@ -631,7 +632,7 @@ func (p *Planner) planWith(e *ast.Expr, iter planiter) error {
 
 				err := iter()
 
-				if len(dataRefs) > 0 {
+				if shadowing {
 					p.funcs.Push(map[string]string{})
 					for _, ref := range dataRefs {
 						p.rules.Push(ref)
@@ -643,7 +644,7 @@ func (p *Planner) planWith(e *ast.Expr, iter planiter) error {
 			return err
 		})
 
-		if len(dataRefs) > 0 {
+		if shadowing {
 			p.funcs.Pop()
 			for i := len(dataRefs) - 1; i >= 0; i-- {
 				p.rules.Pop(dataRefs[i])
@@ -707,6 +708,15 @@ func (p *Planner) planWithUndoRec(restore [][2]ir.Local, index int, iter planite
 	})
 
 	return nil
+}
+
+func (p *Planner) dataRefsShadowRuletrie(refs []ast.Ref) bool {
+	for _, ref := range refs {
+		if p.rules.Lookup(ref) != nil {
+			return true
+		}
+	}
+	return false
 }
 
 func (p *Planner) planExprTerm(e *ast.Expr, iter planiter) error {

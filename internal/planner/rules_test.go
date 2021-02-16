@@ -6,6 +6,8 @@ package planner
 
 import (
 	"testing"
+
+	"github.com/open-policy-agent/opa/ast"
 )
 
 func TestFuncstack(t *testing.T) {
@@ -73,5 +75,52 @@ func TestFuncstack(t *testing.T) {
 	fs.Push(map[string]string{}) // g0 -> g4
 	if exp, act := 4, fs.gen(); exp != act {
 		t.Errorf("expected fs gen to be %d, got %d", exp, act)
+	}
+}
+
+func TestDataRefsShadowRuletrie(t *testing.T) {
+	p := New()
+	rt := p.rules
+	rt.Insert(ast.MustParseRef(("data.foo.bar")))
+	rt.Insert(ast.MustParseRef(("data.foo.baz")))
+	rt.Insert(ast.MustParseRef(("data.foo.bar.quz")))
+
+	tests := []struct {
+		note string
+		refs []ast.Ref
+		exp  bool
+	}{
+		{
+			note: "no refs",
+			refs: nil,
+			exp:  false,
+		},
+		{
+			note: "data root node",
+			refs: []ast.Ref{ast.MustParseRef("data")},
+			exp:  true,
+		},
+		{
+			note: "one ref only, mismatch in first level",
+			refs: []ast.Ref{ast.MustParseRef("data.quz")},
+			exp:  false,
+		},
+		{
+			note: "two refs, matching 2nd",
+			refs: []ast.Ref{
+				ast.MustParseRef("data.quz"),
+				ast.MustParseRef("data.foo"),
+			},
+			exp: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			act := p.dataRefsShadowRuletrie(tc.refs)
+			if tc.exp != act {
+				t.Errorf("expected %v, got %v", tc.exp, act)
+			}
+		})
 	}
 }
