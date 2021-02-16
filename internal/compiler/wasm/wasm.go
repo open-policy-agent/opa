@@ -25,7 +25,7 @@ import (
 const (
 	opaWasmABIVersionVal      = 1
 	opaWasmABIVersionVar      = "opa_wasm_abi_version"
-	opaWasmABIMinorVersionVal = 0
+	opaWasmABIMinorVersionVal = 1
 	opaWasmABIMinorVersionVar = "opa_wasm_abi_minor_version"
 )
 
@@ -344,6 +344,14 @@ func (c *Compiler) initModule() error {
 		Params:  nil,
 		Results: []types.ValueType{types.I32},
 	}, true)
+
+	c.module.Export.Exports = append(c.module.Export.Exports, module.Export{
+		Name: "memory",
+		Descriptor: module.ExportDescriptor{
+			Type:  module.MemoryExportType,
+			Index: 0,
+		},
+	})
 
 	return nil
 }

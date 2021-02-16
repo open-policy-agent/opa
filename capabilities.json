@@ -3383,7 +3383,7 @@
   "wasm_abi_versions": [
     {
       "version": 1,
-      "minor_version": 0
+      "minor_version": 1
     }
   ]
 }
