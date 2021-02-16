@@ -9,8 +9,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strconv"
-	"time"
 
 	"github.com/bytecodealliance/wasmtime-go"
 	_ "github.com/bytecodealliance/wasmtime-go/build/include"        // to include the C headers.
@@ -21,11 +19,11 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/topdown"
-	"github.com/open-policy-agent/opa/topdown/builtins"
 )
 
 // VM is a wrapper around a Wasm VM instance
 type VM struct {
+	dispatcher           *builtinDispatcher
 	store                *wasmtime.Store
 	instance             *wasmtime.Instance // Pointer to avoid unintented destruction (triggering finalizers within).
 	policy               []byte
@@ -33,9 +31,6 @@ type VM struct {
 	memory               *wasmtime.Memory
 	memoryMin            uint32
 	memoryMax            uint32
-	bctx                 *topdown.BuiltinContext
-	builtins             map[int32]topdown.BuiltinFunc
-	builtinResult        *ast.Term
 	entrypointIDs        map[string]int32
 	baseHeapPtr          int32
 	dataAddr             int32
@@ -75,8 +70,9 @@ func newVM(opts vmOpts) (*VM, error) {
 	imports := []*wasmtime.Extern{
 		memory.AsExtern(),
 	}
-	imports = append(imports, opaFunctions(v, store)...)
 
+	v.dispatcher = newBuiltinDispatcher()
+	imports = append(imports, opaFunctions(v.dispatcher, store)...)
 	module, err := wasmtime.NewModule(store.Engine, opts.policy)
 	if err != nil {
 		return nil, err
@@ -93,7 +89,6 @@ func newVM(opts vmOpts) (*VM, error) {
 	v.memory = memory
 	v.memoryMin = opts.memoryMin
 	v.memoryMax = opts.memoryMax
-	v.builtins = make(map[int32]topdown.BuiltinFunc)
 	v.entrypointIDs = make(map[string]int32)
 	v.dataAddr = 0
 	v.eval = func(a int32) error { return callVoid(v, "eval", a) }
@@ -164,6 +159,8 @@ func newVM(opts vmOpts) (*VM, error) {
 		return nil, err
 	}
 
+	builtinMap := map[int32]topdown.BuiltinFunc{}
+
 	for name, id := range builtins.(map[string]interface{}) {
 		f := topdown.GetBuiltin(name)
 		if f == nil {
@@ -175,8 +172,10 @@ func newVM(opts vmOpts) (*VM, error) {
 			panic(err)
 		}
 
-		v.builtins[int32(n)] = f
+		builtinMap[int32(n)] = f
 	}
+
+	v.dispatcher.SetMap(builtinMap)
 
 	// Extract the entrypoint ID's
 	val, err = i.GetExport("entrypoints").Func().Call()
@@ -212,9 +211,7 @@ func (i *VM) Eval(ctx context.Context, entrypoint int32, input *interface{}, met
 		return nil, err
 	}
 
-	defer func() {
-		i.bctx = nil
-	}()
+	i.dispatcher.Reset(ctx)
 
 	// Parse the input JSON and activate it with the data.
 
@@ -350,18 +347,6 @@ type abortError struct {
 	message string
 }
 
-// Abort is invoked by the policy if an internal error occurs during
-// the policy execution.
-func (i *VM) Abort(arg int32) {
-	data := i.memory.UnsafeData()[arg:]
-	n := bytes.IndexByte(data, 0)
-	if n == -1 {
-		panic("invalid abort argument")
-	}
-
-	panic(abortError{message: string(data[:n])})
-}
-
 // Println is invoked if the policy WASM code calls opa_println().
 func (i *VM) Println(arg int32) {
 	data := i.memory.UnsafeData()[arg:]
@@ -375,54 +360,6 @@ func (i *VM) Println(arg int32) {
 
 type builtinError struct {
 	err error
-}
-
-// Builtin executes a builtin for the policy.
-func (i *VM) Builtin(builtinID, ctx int32, args ...int32) int32 {
-
-	// TODO: Returning proper errors instead of panicing.
-	// TODO: To avoid growing the heap with every built-in call, recycle the JSON buffers since the free implementation is no-op.
-
-	convertedArgs := make([]*ast.Term, len(args))
-	for j, arg := range args {
-		x, err := i.fromRegoValue(arg, true)
-		if err != nil {
-			panic(builtinError{err: err})
-		}
-		convertedArgs[j] = x
-	}
-
-	if i.bctx == nil {
-		i.bctx = &topdown.BuiltinContext{
-			Context:  context.Background(),
-			Cancel:   nil,
-			Runtime:  nil,
-			Time:     ast.NumberTerm(json.Number(strconv.FormatInt(time.Now().UnixNano(), 10))),
-			Metrics:  metrics.New(),
-			Cache:    make(builtins.Cache),
-			Location: nil,
-			Tracers:  nil,
-			QueryID:  0,
-			ParentID: 0,
-		}
-	}
-
-	err := i.builtins[builtinID](*i.bctx, convertedArgs, i.iter)
-	if err != nil {
-		panic(builtinError{err: err})
-	}
-
-	result, err := ast.JSON(i.builtinResult.Value)
-	if err != nil {
-		panic(builtinError{err: err})
-	}
-
-	addr, err := i.toRegoJSON(result, true)
-	if err != nil {
-		panic(builtinError{err: err})
-	}
-
-	return addr
 }
 
 // Entrypoints returns a mapping of entrypoint name to ID for use by Eval().
@@ -502,11 +439,6 @@ func (i *VM) RemoveDataPath(path []string) error {
 		return fmt.Errorf("unable to set data value for path %v, err=%d", path, errc)
 	}
 
-	return nil
-}
-
-func (i *VM) iter(result *ast.Term) error {
-	i.builtinResult = result
 	return nil
 }
 
