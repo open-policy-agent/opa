@@ -2,6 +2,7 @@
 {{ $allDocs    := where site.RegularPages "Section" "docs" }}
 {{ $docs       := where $allDocs ".Params.kind" "eq" "documentation" }}
 {{ $kubernetes := where $allDocs ".Params.kind" "eq" "kubernetes" }}
+{{ $envoy := where $allDocs ".Params.kind" "eq" "envoy" }}
 {{ $tutorials  := where $allDocs ".Params.kind" "eq" "tutorial" }}
 {{ $operations := where $allDocs ".Params.kind" "eq" "operations" }}
 {{ $misc := where $allDocs ".Params.kind" "eq" "misc" }}
@@ -33,6 +34,8 @@
 {{ end }}
 
 {{ partial "docs/sidenav-section.html" ( dict "ctx" . "sectionTitle" "Kubernetes" "section" $kubernetes "pageUrl" $pageUrl "version" $version ) }}
+
+{{ partial "docs/sidenav-section.html" ( dict "ctx" . "sectionTitle" "Envoy" "section" $envoy "pageUrl" $pageUrl "version" $version ) }}
 
 {{ partial "docs/sidenav-section.html" ( dict "ctx" . "sectionTitle" "Other Use Cases" "section" $tutorials "pageUrl" $pageUrl "version" $version ) }}
 

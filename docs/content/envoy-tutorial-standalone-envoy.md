@@ -1,22 +1,8 @@
 ---
-title: Envoy
-kind: tutorial
-weight: 8
+title: "Tutorial: Standalone Envoy"
+kind: envoy
+weight: 10
 ---
-
-[Envoy](https://www.envoyproxy.io/docs/envoy/v1.14.4/intro/what_is_envoy) is a
-L7 proxy and communication bus designed for large modern service oriented
-architectures. Envoy (v1.7.0+) supports an [External Authorization
-filter](https://www.envoyproxy.io/docs/envoy/v1.14.4/intro/arch_overview/security/ext_authz_filter)
-which calls an authorization service to check if the incoming request is
-authorized or not.
-
-This feature makes it possible to delegate authorization decisions to an
-external service and also makes the request context available to the service
-which can then be used to make an informed decision about the fate of the
-incoming request received by Envoy.
-
-## Goals
 
 The tutorial shows how Envoy’s External authorization filter can be used with
 OPA as an authorization service to enforce security policies over API requests
@@ -381,7 +367,7 @@ echo $SERVICE_URL
 
 **minikube (example):**
 
-```bash
+```
 10.109.64.199:8080
 ```
 
