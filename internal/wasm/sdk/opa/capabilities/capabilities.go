@@ -6,9 +6,10 @@
 
 package capabilities
 
-var wasmABIVersions = [...]int{1}
+const abiVersion = 1
+const abiMinorVersion = 0
 
 // ABIVersions returns the ABI versions that this SDK supports
-func ABIVersions() []int {
-	return wasmABIVersions[:]
+func ABIVersions() [][2]int {
+	return [][2]int{{abiVersion, abiMinorVersion}}
 }

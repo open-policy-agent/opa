@@ -432,8 +432,9 @@ func (c *Compiler) compileWasm(ctx context.Context) error {
 
 	compiler := wasm.New()
 	found := false
+	have := compiler.ABIVersion()
 	for _, v := range c.capabilities.WasmABIVersions {
-		if v == compiler.ABIVersion() {
+		if v.Version == have.Version && v.Minor <= have.Minor {
 			found = true
 			break
 		}

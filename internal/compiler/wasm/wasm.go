@@ -225,14 +225,11 @@ func New() *Compiler {
 
 // ABIVersion returns the Wasm ABI version this compiler
 // emits.
-func (*Compiler) ABIVersion() int {
-	return opaWasmABIVersionVal
-}
-
-// ABIMinorVersion returns the Wasm ABI mior version this
-// compiler emits.
-func (*Compiler) ABIMinorVersion() int {
-	return opaWasmABIMinorVersionVal
+func (*Compiler) ABIVersion() ast.WasmABIVersion {
+	return ast.WasmABIVersion{
+		Version: opaWasmABIVersionVal,
+		Minor:   opaWasmABIMinorVersionVal,
+	}
 }
 
 // WithPolicy sets the policy to compile.
