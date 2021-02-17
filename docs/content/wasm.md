@@ -110,16 +110,21 @@ Wasm modules built using OPA 0.27.0 onwards contain a global variable named
 `opa_wasm_abi_version` that has a constant i32 value indicating the ABI version
 this module requires. Described below you find ABI version 1.
 
+There's another i32 constant exported, `opa_wasm_abi_minor_version`, used
+to track backwards-compatible changes.
+
 Using tools like `wasm-objdump` (`wasm-objdump -x policy.wasm`), the ABI
 version can be found here:
 
 ```
-Global[2]:
+Global[3]:
  - global[0] i32 mutable=1 - init i32=121904
  - global[1] i32 mutable=0 <opa_wasm_abi_version> - init i32=1
+ - global[2] i32 mutable=0 <opa_wasm_abi_minor_version> - init i32=0
 Export[19]:
 [...]
  - global[1] -> "opa_wasm_abi_version"
+ - global[2] -> "opa_wasm_abi_minor_version"
 ```
 
 Note the `i32=1` of `global[1]`, exported by the name of `opa_wasm_abi_version`.
