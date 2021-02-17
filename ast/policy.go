@@ -180,12 +180,12 @@ type (
 
 	// Expr represents a single expression contained inside the body of a rule.
 	Expr struct {
-		Location  *Location   `json:"-"`
-		Generated bool        `json:"generated,omitempty"`
-		Index     int         `json:"index"`
-		Negated   bool        `json:"negated,omitempty"`
-		Terms     interface{} `json:"terms"`
 		With      []*With     `json:"with,omitempty"`
+		Terms     interface{} `json:"terms"`
+		Location  *Location   `json:"-"`
+		Index     int         `json:"index"`
+		Generated bool        `json:"generated,omitempty"`
+		Negated   bool        `json:"negated,omitempty"`
 	}
 
 	// SomeDecl represents a variable declaration statement. The symbols are variables.
