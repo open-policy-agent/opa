@@ -8,6 +8,6 @@ package capabilities
 
 // ABIVersions returns the supported Wasm ABI versions for this
 // build: none
-func ABIVersions() []int {
+func ABIVersions() [][2]int {
 	return nil
 }

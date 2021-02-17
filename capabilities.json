@@ -3381,6 +3381,9 @@
     }
   ],
   "wasm_abi_versions": [
-    1
+    {
+      "version": 1,
+      "minor_version": 0
+    }
   ]
 }

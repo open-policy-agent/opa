@@ -15,16 +15,23 @@ import (
 // Capabilities defines a structure containing data that describes the capablilities
 // or features supported by a particular version of OPA.
 type Capabilities struct {
-	Builtins        []*Builtin `json:"builtins"` // builtins is a set of built-in functions that are supported.
-	WasmABIVersions []int      `json:"wasm_abi_versions"`
+	Builtins        []*Builtin       `json:"builtins"` // builtins is a set of built-in functions that are supported.
+	WasmABIVersions []WasmABIVersion `json:"wasm_abi_versions"`
+}
+
+// WasmABIVersion captures the Wasm ABI version. Its `Minor` version is indicating
+// backwards-compatible changes.
+type WasmABIVersion struct {
+	Version int `json:"version"`
+	Minor   int `json:"minor_version"`
 }
 
 // CapabilitiesForThisVersion returns the capabilities of this version of OPA.
 func CapabilitiesForThisVersion() *Capabilities {
+	f := &Capabilities{}
 
-	f := &Capabilities{
-		Builtins:        []*Builtin{},
-		WasmABIVersions: capabilities.ABIVersions(),
+	for _, vers := range capabilities.ABIVersions() {
+		f.WasmABIVersions = append(f.WasmABIVersions, WasmABIVersion{Version: vers[0], Minor: vers[1]})
 	}
 
 	for _, bi := range Builtins {
