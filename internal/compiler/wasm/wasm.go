@@ -23,8 +23,10 @@ import (
 
 // Record Wasm ABI version in exported global variable
 const (
-	opaWasmABIVersionVal = 1
-	opaWasmABIVersionVar = "opa_wasm_abi_version"
+	opaWasmABIVersionVal      = 1
+	opaWasmABIVersionVar      = "opa_wasm_abi_version"
+	opaWasmABIMinorVersionVal = 0
+	opaWasmABIMinorVersionVar = "opa_wasm_abi_minor_version"
 )
 
 const (
@@ -227,6 +229,12 @@ func (*Compiler) ABIVersion() int {
 	return opaWasmABIVersionVal
 }
 
+// ABIMinorVersion returns the Wasm ABI mior version this
+// compiler emits.
+func (*Compiler) ABIMinorVersion() int {
+	return opaWasmABIMinorVersionVal
+}
+
 // WithPolicy sets the policy to compile.
 func (c *Compiler) WithPolicy(p *ir.Policy) *Compiler {
 	c.policy = p
@@ -262,25 +270,45 @@ func (c *Compiler) initModule() error {
 		return err
 	}
 
-	// add global for ABI version, export it
-	abiVersionGlobal := module.Global{
-		Type:    types.I32,
-		Mutable: false,
-		Init: module.Expr{
-			Instrs: []instruction.Instruction{
-				instruction.I32Const{Value: opaWasmABIVersionVal},
+	// add globals for ABI [minor] version, export them
+	abiVersionGlobals := []module.Global{
+		{
+			Type:    types.I32,
+			Mutable: false,
+			Init: module.Expr{
+				Instrs: []instruction.Instruction{
+					instruction.I32Const{Value: opaWasmABIVersionVal},
+				},
+			},
+		},
+		{
+			Type:    types.I32,
+			Mutable: false,
+			Init: module.Expr{
+				Instrs: []instruction.Instruction{
+					instruction.I32Const{Value: opaWasmABIMinorVersionVal},
+				},
 			},
 		},
 	}
-	abiVersionExport := module.Export{
-		Name: opaWasmABIVersionVar,
-		Descriptor: module.ExportDescriptor{
-			Type:  module.GlobalExportType,
-			Index: uint32(len(c.module.Global.Globals)),
+	abiVersionExports := []module.Export{
+		{
+			Name: opaWasmABIVersionVar,
+			Descriptor: module.ExportDescriptor{
+				Type:  module.GlobalExportType,
+				Index: uint32(len(c.module.Global.Globals)),
+			},
+		},
+		{
+			Name: opaWasmABIMinorVersionVar,
+			Descriptor: module.ExportDescriptor{
+				Type:  module.GlobalExportType,
+				Index: uint32(len(c.module.Global.Globals)) + 1,
+			},
 		},
 	}
-	c.module.Global.Globals = append(c.module.Global.Globals, abiVersionGlobal)
-	c.module.Export.Exports = append(c.module.Export.Exports, abiVersionExport)
+	c.module.Global.Globals = append(c.module.Global.Globals, abiVersionGlobals...)
+	c.module.Export.Exports = append(c.module.Export.Exports, abiVersionExports...)
 
 	c.funcs = make(map[string]uint32)
 	for _, fn := range c.module.Names.Functions {
