@@ -1,22 +1,22 @@
 [build]
 publish = "docs/website/public"
-command = "make netlify-prod"
+command = "make netlify-prod WASM_ENABLED=0 CGO_ENABLED=0"
 
 [build.environment]
 HUGO_VERSION = "0.55.5"
 
 [context.deploy-preview]
-command = "make netlify-preview"
+command = "make netlify-preview WASM_ENABLED=0 CGO_ENABLED=0"
 
 [context.branch-deploy]
-command = "make netlify-preview"
+command = "make netlify-preview WASM_ENABLED=0 CGO_ENABLED=0"
 
 [dev]
 # "netlify dev" will serve the static content using netlify locally
 # with all the redirects and other netlify specific rules in place.
 publish = "docs/website/public"
 
-# To run the netlify dev service with hugo dev server "live" behind 
+# To run the netlify dev service with hugo dev server "live" behind
 # it uncomment these lines:
 #command = "make docs-hugo-serve"
 #port = 1313
