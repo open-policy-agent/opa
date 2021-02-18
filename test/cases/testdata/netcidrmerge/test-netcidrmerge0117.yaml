@@ -81,6 +81,7 @@ cases:
           net.cidr_merge(["192.0.2.112/30", "192.0.2.116/32", "192.0.2.118/31"], x)
         }
     query: data.test.p = x
+    sort_bindings: true
     want_result:
       - x:
           - 192.0.2.112/30
@@ -146,6 +147,7 @@ cases:
           net.cidr_merge(["fe80::/120", "192.0.2.0/24", "192.0.3.0/24", "192.0.4.0/25", "192.0.4.128/25"], x)
         }
     query: data.test.p = x
+    sort_bindings: true
     want_result:
       - x:
           - 192.0.2.0/23
