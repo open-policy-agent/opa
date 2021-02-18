@@ -428,7 +428,7 @@ integrations:
       - styra
 
   terraform:
-    title: Terraform Authorization
+    title: Terraform Policy
     description: Terraform lets you describe the infrastructure you want and automatically creates, deletes, and modifies your existing infrastructure to match. OPA makes it possible to write policies that test the changes Terraform is about to make before it makes them.
     software:
       - terraform
@@ -443,9 +443,17 @@ integrations:
       - https://github.com/instrumenta/conftest/blob/master/README.md
     code:
       - https://github.com/instrumenta/conftest
+      - https://github.com/fugue/regula
+      - https://github.com/accurics/terrascan
+      - https://github.com/Checkmarx/kics
     policies:
       - https://github.com/open-policy-agent/library/tree/master/terraform
+      - https://github.com/accurics/terrascan/tree/master/pkg/policies/opa/rego
+      - https://github.com/Checkmarx/kics/tree/master/assets/queries/terraform
     inventors:
+      - fugue
+      - accurics
+      - checkmarx
       - medallia
       - styra
       - docker
@@ -949,6 +957,15 @@ organizations:
   build.security:
     name: build.security
     link: https://build.security
+  fugue:
+    name: Fugue
+    link: https://www.fugue.co
+  accurics:
+    name: Accurics
+    link: https://www.accurics.com/
+  checkmarx:
+    name: Checkmarx
+    link: https://www.checkmarx.com
 
 software:
   kubernetes:
