@@ -11,8 +11,9 @@ import (
 
 // TypeEnv contains type info for static analysis such as type checking.
 type TypeEnv struct {
-	tree *typeTreeNode
-	next *TypeEnv
+	tree      *typeTreeNode
+	next      *TypeEnv
+	schemaSet *SchemaSet
 }
 
 // NewTypeEnv returns an empty TypeEnv.
@@ -20,6 +21,29 @@ func NewTypeEnv() *TypeEnv {
 	return &TypeEnv{
 		tree: newTypeTree(),
 	}
+}
+
+// WithSchemas sets the user-provided schemas
+func (env *TypeEnv) WithSchemas(schemas *SchemaSet) *TypeEnv {
+	env.schemaSet = schemas
+	return env
+}
+
+// GetPrefix returns the shortest prefix of ref that exists in env
+func (env *TypeEnv) GetPrefix(ref Ref) (Ref, types.Type) {
+	if len(ref) == 1 {
+		t := env.Get(ref)
+		if t != nil {
+			return ref, t
+		}
+	}
+	for i := 1; i < len(ref); i++ {
+		t := env.Get(ref[:i])
+		if t != nil {
+			return ref[:i], t
+		}
+	}
+	return nil, nil
 }
 
 // Get returns the type of x.

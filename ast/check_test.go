@@ -1215,3 +1215,671 @@ func newTestEnv(rs []string) *TypeEnv {
 
 	return env
 }
+
+const inputSchema = `{
+	"$schema": "http://json-schema.org/draft-07/schema",
+	"$id": "http://example.com/example.json",
+	"type": "object",
+	"title": "The root schema",
+	"description": "The root schema comprises the entire JSON document.",
+	"default": {},
+	"examples": [
+		{
+			"user": "alice",
+			"operation": "write"
+		}
+	],
+	"required": [
+		"user",
+		"operation"
+	],
+	"properties": {
+		"user": {
+			"$id": "#/properties/user",
+			"type": "string",
+			"title": "The user schema",
+			"description": "An explanation about the purpose of this instance.",
+			"default": "",
+			"examples": [
+				"alice"
+			]
+		},
+		"operation": {
+			"$id": "#/properties/operation",
+			"type": "string",
+			"title": "The operation schema",
+			"description": "An explanation about the purpose of this instance.",
+			"default": "",
+			"examples": [
+				"write"
+			]
+		}
+	},
+	"additionalProperties": true
+}`
+
+const inputSchema2 = `{
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "$id": "http://example.com/example.json",
+    "type": "object",
+    "title": "The root schema",
+    "description": "The root schema comprises the entire JSON document.",
+    "default": {},
+    "examples": [
+        {
+            "operation": "read"
+        }
+    ],
+    "required": [
+        "operation"
+    ],
+    "properties": {
+        "operation": {
+            "$id": "#/properties/operation",
+            "type": "string",
+            "title": "The operation schema",
+            "description": "An explanation about the purpose of this instance.",
+            "default": "",
+            "examples": [
+                "read"
+            ]
+        }
+    },
+    "additionalProperties": true
+}`
+
+const dataSchema = `{
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "$id": "http://example.com/example.json",
+    "type": "object",
+    "title": "The root schema",
+    "description": "The root schema comprises the entire JSON document.",
+    "default": {},
+    "examples": [
+        {
+            "alice": [
+                "read",
+                "write"
+            ],
+            "bob": [
+                "read"
+            ]
+        }
+    ],
+    "required": [
+        "alice",
+        "bob"
+    ],
+    "properties": {
+        "alice": {
+            "$id": "#/properties/alice",
+            "type": "array",
+            "title": "The alice schema",
+            "description": "An explanation about the purpose of this instance.",
+            "default": [],
+            "examples": [
+                [
+                    "read",
+                    "write"
+                ]
+            ],
+            "additionalItems": false,
+            "items": {
+                "$id": "#/properties/alice/items",
+                "type": "string",
+                "title": "The items schema",
+                "description": "An explanation about the purpose of this instance.",
+                "default": "",
+                "examples": [
+                    [
+                        "read",
+                        "write"
+                    ]
+                ]
+            }
+        },
+        "bob": {
+            "$id": "#/properties/bob",
+            "type": "array",
+            "title": "The bob schema",
+            "description": "An explanation about the purpose of this instance.",
+            "default": [],
+            "examples": [
+                [
+                    "read"
+                ]
+            ],
+            "additionalItems": false,
+            "items": {
+                "$id": "#/properties/bob/items",
+                "type": "string",
+                "title": "The items schema",
+                "description": "An explanation about the purpose of this instance.",
+                "default": "",
+                "examples": [
+                    [
+                        "read"
+                    ]
+                ]
+            }
+        }
+    },
+    "additionalProperties": true
+}`
+
+func TestCheckAnnotationRules(t *testing.T) {
+
+	var ischema interface{}
+	_ = util.Unmarshal([]byte(inputSchema), &ischema)
+
+	var ischema2 interface{}
+	_ = util.Unmarshal([]byte(inputSchema2), &ischema2)
+
+	var dschema interface{}
+	_ = util.Unmarshal([]byte(dataSchema), &dschema)
+
+	module1 := `
+package policy
+
+import data.acl
+import input
+
+default allow = false
+
+# METADATA
+# scope: rule
+# schemas:
+#   - input: schema["input"]
+#   - data.acl: schema["acl-schema"]
+allow {
+		access = data.acl[input.user]
+		access[_] == input.operation
+}`
+
+	module2 := `
+package policy
+
+import data.acl
+import input
+
+default allow = false
+
+# METADATA
+# scope: rule
+# schemas:
+#   - input: schema["input"]
+#   - input: schema["whocan-input-schema"]
+#   - data.acl: schema["acl-schema"]
+whocan[user] {
+		access = acl[user]
+		access[_] == input.operation
+}`
+
+	module3 := `
+package policy
+
+import data.acl
+import input
+
+default allow = false
+
+# METADATA
+# scope: rule
+# schemas:
+#   - input: schema["input"]
+#   - input: schema["whocan-input-schema"]
+#   - data.acl: schema["acl-schema"]
+allow {
+	access = data.acl[input.user]
+	access[_] == input.operation
+}`
+
+	module4 := `
+package policy
+
+import data.acl
+import input
+
+default allow = false
+
+# METADATA
+# scope: rule
+# schemas:
+#   - input: schema["badpath"]
+whocan[user] {
+		access = acl[user]
+		access[_] == input.operation
+}`
+
+	module5 := `
+package policy
+
+import data.acl
+import input
+
+default allow = false
+
+# METADATA
+# scope: rule
+# schemas:
+#   - badref: schema["whocan-input-schema"]
+whocan[user] {
+		access = acl[user]
+		access[_] == input.operation
+}`
+
+	module6 := `
+package policy
+
+import data.acl
+import input
+
+default allow = false
+
+# METADATA
+# scope: rule
+# schemas:
+#   - data/acl: schema/acl-schema
+whocan[user] {
+		access = acl[user]
+		access[_] == input.operation
+}`
+
+	module7 := `
+package policy
+
+import data.acl
+import input
+
+default allow = false
+
+# METADATA
+# scope: rule
+# schemas:
+#   - input= schema["whocan-input-schema"]
+whocan[user] {
+		access = acl[user]
+		access[_] == input.operation
+}`
+
+	module8 := `
+package policy
+
+import data.acl
+import input
+
+default allow = false
+
+# METADATA
+# scope: rule
+# schemas:
+#   - input: schema["input"]
+#   - data.acl: schema["acl-schema"]
+#   - input.apple.orange: schema["input"]
+allow {
+		access = data.acl[input.user]
+		access[_] == input.operation
+		input.apple.banana
+}`
+
+	module9 := `
+package policy
+
+import data.acl
+import input
+
+default allow = false
+
+# METADATA
+# scope: rule
+# schemas:
+#   - input: schema["input"]
+#   - data.acl: schema["acl-schema"]
+#   - input.apple.orange: schema["input"]
+#   - input.apple.orange.banana: schema["acl-schema"]
+allow {
+		access = data.acl[input.user]
+		access[_] == input.operation
+		input.apple.orange.banana
+}`
+
+	module10 := `
+package policy
+
+import data.acl
+import input
+
+default allow = false
+
+# METADATA
+# scope: rule
+# schemas:
+#   - input: schema["input"]
+#   - input.apple.orange: schema["input"]
+#   - input.apple.orange.banana: schema["acl-schema"]
+allow {
+		access = data.acl[input.user]
+		access[_] == input.operation
+		input.apple.orange.banana.fruit
+}`
+
+	module11 := `
+package policy
+
+import data.acl
+import input
+
+default allow = false
+
+# METADATA
+# scope: rule
+# schemas:
+#   - input: schema["input"]
+#   - input.apple.orange: schema["input"]
+#   - input.apple.orange: schema["acl-schema"]
+allow {
+		access = data.acl[input.user]
+		access[_] == input.operation
+		input.apple.orange.bob
+		input.apple.orange.user
+}`
+
+	module12 := `
+package policy
+
+import data.acl
+import input
+
+default allow = false
+
+# METADATA
+# scope: rule
+# schemas:
+#   - input: schema["input"]
+#   - input: schema["acl-schema"]
+allow {
+		access = data.acl[input.user]
+}`
+
+	module13 := `
+package policy
+
+import data.acl
+import input
+
+default allow = false
+
+# METADATA
+# scope: rule
+# schemas:
+#   - input: schema["input"]
+#   - input.apple["orange"]: schema["input"]
+allow {
+		access = data.acl[input.user]
+		input.apple.orange.fruit
+}`
+
+	module14 := `
+package policy
+
+import data.acl
+import input
+
+# METADATA
+# scope: rule
+# schemas:
+#   - input.request.object: schema["acl-schema"]
+deny[msg] {
+	input.request.kind.kind == "Pod"
+	image := input.request.object.spec.typo.containers[_].image
+	not startswith(image, "hooli.com/")
+}`
+
+	module15 := `
+package policy
+
+import data.acl
+import input
+
+default allow = false
+
+# METADATA
+# scope: rule
+# schemas:
+#   -  data.acl: schema["acl-schema"]
+allow {
+		access = data.acl[input.user]
+		access[_] == input.operation
+		input.apple.orange.banana
+}`
+
+	module16 := `
+package policy
+
+import data.acl
+import input
+
+# METADATA
+# scope: rule
+# schemas:
+#   - data.acl: schema["acl-schema"]
+deny[msg] {
+	input.request.kind.kinds == "Pod"
+	image := input.request.object.spec.containers[_].image
+	not startswith(image, "hooli.com/")
+	data.blah
+}`
+
+	module17 := `
+package policy
+
+import data.acl
+import input
+
+default allow = false
+
+# METADATA
+# scope: rule
+# schemas:
+#   - input: schema["acl-schema"]
+allow {
+		input.alice
+}
+
+deny[msg] {
+	input.foo
+}`
+
+	module18 := `
+package policy
+
+import data.acl
+import input
+
+# METADATA
+# scope: rule
+# schemas:
+#   - input: schema["input"]
+#   - input.apple.banana: schema["input"]
+deny[msg] {
+	input.apple.banana
+}
+
+deny1[msg] {
+	input.apple.banana.foo
+}`
+
+	module19 := `
+package policy
+
+import data.acl
+import input
+
+default allow = false
+
+# METADATA
+# scope: rule
+# schemas:
+#   - data.acl: schema["acl-schema"]
+#   - data.acl.foo: schema["input"]
+allow {
+		access = data.acl[input.user]
+		access[_] == input.operation
+		input.apple.orange.banana
+		data.acl.foo.blah
+}`
+
+	module20 := `
+package policy
+
+import data.acl
+import input
+
+default allow = false
+
+# METADATA
+# scope: rule
+# schemas:
+#   - input: schema["input"]
+#   - data.acl: schema["acl-schema"]
+allow {
+		access = data.acl[input.user]
+		access[_] == input.operation
+		data.acl.foo
+}`
+
+	module21 := `
+package policy
+
+import data.acl
+import input
+
+default allow = false
+
+# METADATA
+# scope: rule
+# schemas:
+#   - input: schema["input"]
+#   - data.acl: schema["acl-schema"]
+allow {
+		access = data.acl[input.user]
+		access[_] == input.operation
+}
+
+# METADATA for whocan rule
+# scope: rule
+# schemas:
+#   - input: schema["whocan-input-schema"]
+#   - data.acl: schema["acl-schema"]
+whocan[user] {
+		access = acl[user]
+		access[_] == input.operation
+}`
+
+	module22 := `
+package policy
+
+import data.acl
+import input
+
+default allow = false
+
+# METADATA
+# scope: rule
+# schemas:
+#   - input: schema["input"]
+#   - data.acl: schema["acl-schema"]
+allow {
+		access = data.acl[input.user]
+		access[_] == input.operation
+		data.foo
+		data.acl.foo
+}
+
+# METADATA for whocan rule
+# scope: rule
+# schemas:
+#   - input: schema["whocan-input-schema"]
+#   - data.acl: schema["acl-schema"]
+whocan[user] {
+		access = acl[user]
+		access[_] == input.operation.foo
+
+}`
+
+	schemaSet := NewSchemaSet()
+	schemaSet.ByPath.Put(MustParseRef("schema.input"), ischema)
+	schemaSet.ByPath.Put(MustParseRef(`schema["whocan-input-schema"]`), ischema2)
+	schemaSet.ByPath.Put(MustParseRef(`schema["acl-schema"]`), dschema)
+
+	tests := map[string]struct {
+		module    string
+		schemaSet *SchemaSet
+		err       string
+	}{
+		"data and input annotations":                                                      {module: module1, schemaSet: schemaSet},
+		"correct data override":                                                           {module: module2, schemaSet: schemaSet},
+		"incorrect data override":                                                         {module: module3, schemaSet: schemaSet, err: "undefined ref: input.user"},
+		"schema not exist in annotation path":                                             {module: module4, schemaSet: schemaSet, err: "schema does not exist for given path in annotation"},
+		"non ref in annotation":                                                           {module: module5, schemaSet: schemaSet, err: "expected ref but got"},
+		"Ill-structured annotation with bad path":                                         {module: module6, schemaSet: schemaSet, err: "schema is not well formed in annotation"},
+		"Ill-structured (invalid) annotation":                                             {module: module7, schemaSet: schemaSet, err: "unable to unmarshall the metadata yaml in comment"},
+		"empty schema set":                                                                {module: module1, schemaSet: nil, err: "schemas need to be supplied for the annotation"},
+		"overriding ref with length greater than one and not existing":                    {module: module8, schemaSet: schemaSet, err: "undefined ref: input.apple.banana"},
+		"overriding ref with length greater than one and existing prefix":                 {module: module9, schemaSet: schemaSet},
+		"overriding ref with length greater than one and existing prefix with type error": {module: module10, schemaSet: schemaSet, err: "undefined ref: input.apple.orange.banana.fruit"},
+		"overriding ref with length greater than one and existing ref":                    {module: module11, schemaSet: schemaSet, err: "undefined ref: input.apple.orange.user"},
+		"overriding ref of size one":                                                      {module: module12, schemaSet: schemaSet, err: "undefined ref: input.user"},
+		"overriding annotation written with brackets":                                     {module: module13, schemaSet: schemaSet, err: "undefined ref: input.apple.orange.fruit"},
+		"overriding strict":                                                               {module: module14, schemaSet: schemaSet, err: "undefined ref: input.request.object.spec.typo"},
+		"data annotation but no input schema":                                             {module: module15, schemaSet: schemaSet},
+		"data schema annotation does not overly restrict data expression":                 {module: module16, schemaSet: schemaSet},
+		"correct defer annotation on another rule has no effect base case":                {module: module17, schemaSet: schemaSet},
+		"correct defer annotation on another rule has no effect":                          {module: module18, schemaSet: schemaSet},
+		"overriding ref with data prefix":                                                 {module: module19, schemaSet: schemaSet, err: "data.acl.foo.blah"},
+		"data annotation type error":                                                      {module: module20, schemaSet: schemaSet, err: "data.acl.foo"},
+		"more than one rule with metadata":                                                {module: module21, schemaSet: schemaSet},
+		"more than one rule with metadata with type error":                                {module: module22, schemaSet: schemaSet, err: "undefined ref"},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			mod, err := ParseModuleWithOpts("test.rego", tc.module, ParserOptions{
+				ProcessAnnotation: true,
+			})
+			if err != nil {
+				if !strings.Contains(err.Error(), tc.err) {
+					t.Fatalf("Unexpected parse module error when processing annotations: %v", err)
+				}
+				return
+			}
+
+			var elems []util.T
+			for _, rule := range mod.Rules {
+				elems = append(elems, rule)
+				for next := rule.Else; next != nil; next = next.Else {
+					next.Module = mod
+					elems = append(elems, next)
+				}
+			}
+
+			oldTypeEnv := newTypeChecker().checkLanguageBuiltins(nil, BuiltinMap).WithSchemas(tc.schemaSet)
+			typeenv, errors := newTypeChecker().CheckTypes(oldTypeEnv, elems)
+			if len(errors) > 0 {
+				for _, e := range errors {
+					if tc.err == "" || !strings.Contains(e.Error(), tc.err) {
+						t.Fatalf("Unexpected check rule error when processing annotations: %v", e)
+					}
+				}
+				return
+			} else if tc.err != "" {
+				t.Fatalf("Expected err: %v but no error from check types", tc.err)
+			}
+
+			if oldTypeEnv.tree.children != nil && typeenv.next.tree.children != nil && (typeenv.next.tree.children.Len() != oldTypeEnv.tree.children.Len()) {
+				t.Fatalf("Unexpected type env")
+			}
+
+		})
+	}
+}

@@ -1861,11 +1861,14 @@ func TestPrepareAndCompileWithSchema(t *testing.T) {
 	var schema interface{}
 	err := util.Unmarshal([]byte(schemaBytes), &schema)
 
+	schemaSet := ast.NewSchemaSet()
+	schemaSet.ByPath.Put(ast.InputRootRef, schema)
+
 	r := New(
 		Query("data.test.x"),
 		Module("", module),
 		Package("foo"),
-		Schemas(&ast.SchemaSet{ByPath: map[string]interface{}{"input": schema}}),
+		Schemas(schemaSet),
 	)
 
 	ctx := context.Background()

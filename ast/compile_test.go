@@ -868,7 +868,8 @@ func TestCompilerCheckTypesWithSchema(t *testing.T) {
 	if err != nil {
 		t.Fatal("Unexpected error:", err)
 	}
-	schemaSet := &SchemaSet{ByPath: map[string]interface{}{"input": schema}}
+	schemaSet := NewSchemaSet()
+	schemaSet.ByPath.Put(InputRootRef, schema)
 	c.WithSchemas(schemaSet)
 	compileStages(c, c.checkTypes)
 	assertNotFailed(t, c)
@@ -4433,7 +4434,8 @@ func TestParseSchemaWithSchemaBadSchema(t *testing.T) {
 
 func TestWithSchema(t *testing.T) {
 	c := NewCompiler()
-	schemaSet := &SchemaSet{ByPath: map[string]interface{}{"input": objectSchema}}
+	schemaSet := NewSchemaSet()
+	schemaSet.ByPath.Put(InputRootRef, objectSchema)
 	c.WithSchemas(schemaSet)
 	if c.schemaSet == nil {
 		t.Fatalf("WithSchema did not set the schema correctly in the compiler")
@@ -4586,7 +4588,7 @@ const refSchema = `
           "null"
         ]
 	  },
-	  
+
       "kind": {
         "description": "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds",
         "type": [
