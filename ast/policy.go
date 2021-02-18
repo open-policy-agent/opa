@@ -118,16 +118,40 @@ type (
 	// within a namespace (defined by the package) and optional
 	// dependencies on external documents (defined by imports).
 	Module struct {
-		Package  *Package   `json:"package"`
-		Imports  []*Import  `json:"imports,omitempty"`
-		Rules    []*Rule    `json:"rules,omitempty"`
-		Comments []*Comment `json:"comments,omitempty"`
+		Package    *Package      `json:"package"`
+		Imports    []*Import     `json:"imports,omitempty"`
+		Rules      []*Rule       `json:"rules,omitempty"`
+		Comments   []*Comment    `json:"comments,omitempty"`
+		Annotation []Annotations `json:"annotation,omitempty"`
 	}
 
 	// Comment contains the raw text from the comment in the definition.
 	Comment struct {
 		Text     []byte
 		Location *Location
+	}
+
+	// Annotations contains information extracted from metadata in comments
+	Annotations interface {
+		annotationMaker()
+
+		// NOTE(tsandall): these are temporary interfaces that are required to support copy operations.
+		// When we get rid of the rule pointers, these may not be needed.
+		copy(Node) Annotations
+		node() Node
+	}
+
+	// SchemaAnnotations contains information about schemas
+	SchemaAnnotations struct {
+		SchemaAnnotation []SchemaAnnotation `json:"schemaannotation"`
+		Scope            string             `json:"scope"`
+		Rule             *Rule              `json:"-"`
+	}
+
+	// SchemaAnnotation contains information about a schema
+	SchemaAnnotation struct {
+		Path   string `json:"path"`
+		Schema string `json:"schema"`
 	}
 
 	// Package represents the namespace of the documents produced
@@ -202,6 +226,18 @@ type (
 	}
 )
 
+func (s *SchemaAnnotations) copy(node Node) Annotations {
+	cpy := *s
+	cpy.Rule = node.(*Rule)
+	return &cpy
+}
+
+func (s *SchemaAnnotations) node() Node {
+	return s.Rule
+}
+
+func (*SchemaAnnotations) annotationMaker() {}
+
 // Compare returns an integer indicating whether mod is less than, equal to,
 // or greater than other.
 func (mod *Module) Compare(other *Module) int {
@@ -226,9 +262,28 @@ func (mod *Module) Compare(other *Module) int {
 func (mod *Module) Copy() *Module {
 	cpy := *mod
 	cpy.Rules = make([]*Rule, len(mod.Rules))
+
+	// NOTE(tsandall): only construct the map if annotations are present. This is a temporary
+	// workaround to deal with the lack of a stable index mapping annotations to rules.
+	var rules map[Node]Node
+	if len(mod.Annotation) > 0 {
+		rules = make(map[Node]Node, len(mod.Rules))
+	}
+
 	for i := range mod.Rules {
 		cpy.Rules[i] = mod.Rules[i].Copy()
+		cpy.Rules[i].Module = &cpy
+
+		if rules != nil {
+			rules[mod.Rules[i]] = cpy.Rules[i]
+		}
 	}
+
+	cpy.Annotation = make([]Annotations, len(mod.Annotation))
+	for i := range mod.Annotation {
+		cpy.Annotation[i] = mod.Annotation[i].copy(rules[mod.Annotation[i].node()])
+	}
+
 	cpy.Imports = make([]*Import, len(mod.Imports))
 	for i := range mod.Imports {
 		cpy.Imports[i] = mod.Imports[i].Copy()

@@ -9,6 +9,9 @@ import (
 	"fmt"
 	"io"
 	"math/big"
+	"strings"
+
+	"gopkg.in/yaml.v2"
 
 	"github.com/open-policy-agent/opa/ast/internal/scanner"
 	"github.com/open-policy-agent/opa/ast/internal/tokens"
@@ -52,13 +55,20 @@ func (s *state) Text(offset, end int) []byte {
 
 // Parser is used to parse Rego statements.
 type Parser struct {
-	r io.Reader
-	s *state
+	r  io.Reader
+	s  *state
+	po ParserOptions
+}
+
+// ParserOptions defines the options for parsing Rego statements.
+type ParserOptions struct {
+	ProcessAnnotation bool
 }
 
 // NewParser creates and initializes a Parser.
 func NewParser() *Parser {
-	p := &Parser{s: &state{}}
+	p := &Parser{s: &state{},
+		po: ParserOptions{}}
 	return p
 }
 
@@ -76,15 +86,82 @@ func (p *Parser) WithReader(r io.Reader) *Parser {
 	return p
 }
 
+// WithProcessAnnotation enables or disables the processing of
+// annotations by the Parser
+func (p *Parser) WithProcessAnnotation(processAnnotation bool) *Parser {
+	p.po.ProcessAnnotation = processAnnotation
+	return p
+}
+
+const metadata = "METADATA"
+const ruleScope = "rule"
+
+// Metadata is used to unmarshal the policy metadata information
+type Metadata struct {
+	Scope   string              `yaml:"scope"`
+	Schemas []map[string]string `yaml:"schemas"`
+}
+
+// getAnnotation returns annotations in the comment if any
+func (p *Parser) getAnnotation(rule *Rule, endYamlLine int) (Annotations, error) {
+	var metadataYaml []byte
+	var startYamlLine, currentYamlLine, prevYamlLine int
+	for i := 0; i < len(p.s.comments); i++ {
+		comment := p.s.comments[i]
+		currentYamlLine = comment.Location.Row
+		if currentYamlLine > endYamlLine { //comment comes after the rule - not relevant
+			break
+		}
+
+		if currentYamlLine != (prevYamlLine + 1) { //comment not part of the same block - not relevant
+			startYamlLine = 0
+			metadataYaml = nil
+		}
+
+		if strings.HasPrefix((strings.TrimSpace(string(comment.Text))), metadata) && comment.Location.Col == 1 { // found METADATA signalling start in a block comment
+			startYamlLine = currentYamlLine + 1
+			metadataYaml = make([]byte, 0)
+		}
+
+		if startYamlLine != 0 && currentYamlLine >= startYamlLine && currentYamlLine <= endYamlLine && comment.Location.Col == 1 { //build yaml content from block comment only
+			metadataYaml = append(metadataYaml, comment.Text...)
+			metadataYaml = append(metadataYaml, []byte("\n")...)
+		}
+		prevYamlLine = currentYamlLine
+	}
+
+	if prevYamlLine == endYamlLine && len(metadataYaml) > 0 {
+		metadata := &Metadata{}
+		err := yaml.Unmarshal(metadataYaml, metadata)
+		if err != nil {
+			return nil, fmt.Errorf("unable to unmarshall the metadata yaml in comment")
+		}
+
+		if metadata.Scope == ruleScope && metadata.Schemas != nil {
+			var sannot []SchemaAnnotation
+			for _, schemas := range metadata.Schemas {
+				for path, schema := range schemas {
+					sannot = append(sannot, SchemaAnnotation{Path: path, Schema: schema})
+				}
+			}
+			return &SchemaAnnotations{SchemaAnnotation: sannot,
+				Scope: ruleScope,
+				Rule:  rule}, nil
+		}
+	}
+	return nil, nil
+
+}
+
 // Parse will read the Rego source and parse statements and
 // comments as they are found. Any errors encountered while
 // parsing will be accumulated and returned as a list of Errors.
-func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
+func (p *Parser) Parse() ([]Statement, []*Comment, []Annotations, Errors) {
 
 	var err error
 	p.s.s, err = scanner.New(p.r)
 	if err != nil {
-		return nil, nil, Errors{
+		return nil, nil, nil, Errors{
 			&Error{
 				Code:     ParseErr,
 				Message:  err.Error(),
@@ -97,6 +174,7 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 	p.scan()
 
 	var stmts []Statement
+	var annotations []Annotations
 
 	// Read from the scanner until the last token is reached or no statements
 	// can be parsed. Attempt to parse package statements, import statements,
@@ -131,6 +209,17 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 		if rules := p.parseRules(); rules != nil {
 			for i := range rules {
 				stmts = append(stmts, rules[i])
+				// Append schema annotation to rule if there is one, and if processAnnotation option is on
+				if p.po.ProcessAnnotation {
+					ruleLoc := rules[i].Location.Row
+					annot, err := p.getAnnotation(rules[i], ruleLoc-1)
+					if err != nil {
+						p.error(rules[i].Location, err.Error())
+					}
+					if annot != nil {
+						annotations = append(annotations, annot)
+					}
+				}
 			}
 			continue
 		} else if len(p.s.errors) > 0 {
@@ -148,7 +237,7 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 		break
 	}
 
-	return stmts, p.s.comments, p.s.errors
+	return stmts, p.s.comments, annotations, p.s.errors
 }
 
 func (p *Parser) parsePackage() *Package {

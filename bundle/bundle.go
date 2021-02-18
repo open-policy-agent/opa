@@ -296,6 +296,7 @@ type Reader struct {
 	baseDir               string
 	verificationConfig    *VerificationConfig
 	skipVerify            bool
+	processAnnotations    bool
 	files                 map[string]FileInfo // files in the bundle signature payload
 	sizeLimitBytes        int64
 }
@@ -346,6 +347,12 @@ func (r *Reader) WithBundleVerificationConfig(config *VerificationConfig) *Reade
 // WithSkipBundleVerification skips verification of a signed bundle
 func (r *Reader) WithSkipBundleVerification(skipVerify bool) *Reader {
 	r.skipVerify = skipVerify
+	return r
+}
+
+// WithProcessAnnotations enables annotation processing during .rego file parsing.
+func (r *Reader) WithProcessAnnotations(yes bool) *Reader {
+	r.processAnnotations = yes
 	return r
 }
 
@@ -410,7 +417,7 @@ func (r *Reader) Read() (Bundle, error) {
 		if strings.HasSuffix(path, RegoExt) {
 			fullPath := r.fullPath(path)
 			r.metrics.Timer(metrics.RegoModuleParse).Start()
-			module, err := ast.ParseModule(fullPath, buf.String())
+			module, err := ast.ParseModuleWithOpts(fullPath, buf.String(), ast.ParserOptions{ProcessAnnotation: r.processAnnotations})
 			r.metrics.Timer(metrics.RegoModuleParse).Stop()
 			if err != nil {
 				return bundle, err

@@ -131,7 +131,7 @@ func addUnknownsFlag(fs *pflag.FlagSet, unknowns *[]string, value []string) {
 }
 
 func addSchemaFlag(fs *pflag.FlagSet, schemaPath *string) {
-	fs.StringVarP(schemaPath, "schema", "s", "", "set schema file path")
+	fs.StringVarP(schemaPath, "schema", "s", "", "set schema file path or directory path")
 }
 
 func addTargetFlag(fs *pflag.FlagSet, target *util.EnumFlag) {

@@ -1639,7 +1639,10 @@ func (r *Rego) loadFiles(ctx context.Context, txn storage.Transaction, m metrics
 	m.Timer(metrics.RegoLoadFiles).Start()
 	defer m.Timer(metrics.RegoLoadFiles).Stop()
 
-	result, err := loader.NewFileLoader().WithMetrics(m).Filtered(r.loadPaths.paths, r.loadPaths.filter)
+	result, err := loader.NewFileLoader().
+		WithMetrics(m).
+		WithProcessAnnotation(r.schemaSet != nil).
+		Filtered(r.loadPaths.paths, r.loadPaths.filter)
 	if err != nil {
 		return err
 	}
@@ -1665,7 +1668,11 @@ func (r *Rego) loadBundles(ctx context.Context, txn storage.Transaction, m metri
 	defer m.Timer(metrics.RegoLoadBundles).Stop()
 
 	for _, path := range r.bundlePaths {
-		bndl, err := loader.NewFileLoader().WithMetrics(m).WithSkipBundleVerification(r.skipBundleVerification).AsBundle(path)
+		bndl, err := loader.NewFileLoader().
+			WithMetrics(m).
+			WithProcessAnnotation(r.schemaSet != nil).
+			WithSkipBundleVerification(r.skipBundleVerification).
+			AsBundle(path)
 		if err != nil {
 			return fmt.Errorf("loading error: %s", err)
 		}
@@ -1815,8 +1822,7 @@ func (r *Rego) compileQuery(query ast.Body, m metrics.Metrics, extras []extraSta
 		WithPackage(pkg).
 		WithImports(imports)
 
-	var qc ast.QueryCompiler
-	qc = r.compiler.QueryCompiler().
+	qc := r.compiler.QueryCompiler().
 		WithContext(qctx).
 		WithUnsafeBuiltins(r.unsafeBuiltins)
 

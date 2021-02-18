@@ -89,6 +89,7 @@ type FileLoader interface {
 	WithMetrics(m metrics.Metrics) FileLoader
 	WithBundleVerificationConfig(*bundle.VerificationConfig) FileLoader
 	WithSkipBundleVerification(skipVerify bool) FileLoader
+	WithProcessAnnotation(processAnnotation bool) FileLoader
 }
 
 // NewFileLoader returns a new FileLoader instance.
@@ -107,11 +108,12 @@ type descriptor struct {
 }
 
 type fileLoader struct {
-	metrics     metrics.Metrics
-	bvc         *bundle.VerificationConfig
-	skipVerify  bool
-	descriptors []*descriptor
-	files       map[string]bundle.FileInfo
+	metrics           metrics.Metrics
+	bvc               *bundle.VerificationConfig
+	skipVerify        bool
+	descriptors       []*descriptor
+	files             map[string]bundle.FileInfo
+	processAnnotation bool
 }
 
 // WithMetrics provides the metrics instance to use while loading
@@ -132,6 +134,12 @@ func (fl *fileLoader) WithSkipBundleVerification(skipVerify bool) FileLoader {
 	return fl
 }
 
+// WithProcessAnnotation enables or disables processing of schema annotations on rules
+func (fl *fileLoader) WithProcessAnnotation(processAnnotation bool) FileLoader {
+	fl.processAnnotation = processAnnotation
+	return fl
+}
+
 // All returns a Result object loaded (recursively) from the specified paths.
 func (fl fileLoader) All(paths []string) (*Result, error) {
 	return fl.Filtered(paths, nil)
@@ -148,7 +156,7 @@ func (fl fileLoader) Filtered(paths []string, filter Filter) (*Result, error) {
 			return err
 		}
 
-		result, err := loadKnownTypes(path, bs, fl.metrics)
+		result, err := loadKnownTypes(path, bs, fl.metrics, fl.processAnnotation)
 		if err != nil {
 			if !isUnrecognizedFile(err) {
 				return err
@@ -175,8 +183,11 @@ func (fl fileLoader) AsBundle(path string) (*bundle.Bundle, error) {
 		return nil, err
 	}
 
-	br := bundle.NewCustomReader(bundleLoader).WithMetrics(fl.metrics).WithBundleVerificationConfig(fl.bvc).
-		WithSkipBundleVerification(fl.skipVerify)
+	br := bundle.NewCustomReader(bundleLoader).
+		WithMetrics(fl.metrics).
+		WithBundleVerificationConfig(fl.bvc).
+		WithSkipBundleVerification(fl.skipVerify).
+		WithProcessAnnotations(fl.processAnnotation)
 
 	// For bundle directories add the full path in front of module file names
 	// to simplify debugging.
@@ -456,12 +467,12 @@ func allRec(path string, filter Filter, errors *Errors, loaded *Result, depth in
 	}
 }
 
-func loadKnownTypes(path string, bs []byte, m metrics.Metrics) (interface{}, error) {
+func loadKnownTypes(path string, bs []byte, m metrics.Metrics, processAnnotation bool) (interface{}, error) {
 	switch filepath.Ext(path) {
 	case ".json":
 		return loadJSON(path, bs, m)
 	case ".rego":
-		return loadRego(path, bs, m)
+		return loadRego(path, bs, m, processAnnotation)
 	case ".yaml", ".yml":
 		return loadYAML(path, bs, m)
 	default:
@@ -498,9 +509,17 @@ func loadBundleFile(path string, bs []byte, m metrics.Metrics) (bundle.Bundle, e
 	return br.Read()
 }
 
-func loadRego(path string, bs []byte, m metrics.Metrics) (*RegoFile, error) {
+func loadRego(path string, bs []byte, m metrics.Metrics, parserOptions ...bool) (*RegoFile, error) {
 	m.Timer(metrics.RegoModuleParse).Start()
-	module, err := ast.ParseModule(path, string(bs))
+	var module *ast.Module
+	var err error
+	if len(parserOptions) == 1 {
+		module, err = ast.ParseModuleWithOpts(path, string(bs), ast.ParserOptions{
+			ProcessAnnotation: parserOptions[0],
+		})
+	} else {
+		module, err = ast.ParseModule(path, string(bs))
+	}
 	m.Timer(metrics.RegoModuleParse).Stop()
 	if err != nil {
 		return nil, err

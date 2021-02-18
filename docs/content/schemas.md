@@ -6,24 +6,53 @@ weight: 2
 
 ## Using schemas to enhance the Rego type checker
 
-You can provide an input schema to `opa eval` to improve static type checking and get more precise error reports as you develop Rego code.
-The `-s` flag can be used to upload a single schema for the input document in JSON Schema format.
+You can provide one or more input schema files and/or data schema files to `opa eval` to improve static type checking and get more precise error reports as you develop Rego code.
+
+The `-s` flag can be used to upload schemas for input and data documents in JSON Schema format. You can either load a single JSON schema file for the input document or directory of schema files. 
 
 ```
--s, --schema string set schema file path
+-s, --schema string set schema file path or directory path
 ```
+
+### Passing a single file with -s
+
+When a single file is passed, it is a schema file associated with the input document globally. This means that for all rules in all packages, the `input` has a type derived from that schema. There is no constraint on the name of the file, it could be anything.
 
 Example:
 ```
-opa eval data.envoy.authz.allow -i example/envoy/input.json -d example/envoy/policy.rego -s example/envoy/input-schema.json
+opa eval data.envoy.authz.allow -i opa-schema-examples/envoy/input.json -d opa-schema-examples/envoy/policy.rego -s opa-schema-examples/envoy/schemas/my-schema.json
 ```
-Samples provided at: https://github.com/aavarghese/opa-schema-examples/tree/main/envoy
+
+
+### Passing a directory with -s
+
+When a directory path is passed, annotations will be used in the code to indicate what expressions map to what schemas (see below).
+Both input schema files and data schema files can be provided in the same directory, with different names. The directory of schemas may have any sub-directories. Notice that when a directory is passed the input document does not have a schema associated with it globally. This must also
+be indicated via an annotation.
+
+
+Example:
+```
+opa eval data.kubernetes.admission -i opa-schema-examples/kubernetes/input.json -d opa-schema-examples/kubernetes/policy.rego -s opa-schema-examples/kubernetes/schemas
+
+```
+
+Schemas can also be provided for policy and data files loaded via `opa eval --bundle`
+
+
+Example:
+```
+opa eval data.kubernetes.admission -i opa-schema-examples/kubernetes/input.json -b opa-schema-examples/bundle.tar.gz -s opa-schema-examples/kubernetes/schemas
+
+```
+
+Samples provided at: https://github.com/aavarghese/opa-schema-examples/
 
 
 
-## Usage Scenario
+## Usage scenario with a single schema file
 
-Consider the following Rego code, which assumes as input a Kubernetes admission review. For resources that are `Pod`s, it checks that the image name
+Consider the following Rego code, which assumes as input a Kubernetes admission review. For resources that are Pods, it checks that the image name
 starts with a specific prefix.
 
 `pod.rego`
@@ -43,7 +72,7 @@ Notice that this code has a typo in it: `input.request.kind.kinds` is undefined 
 Consider the following input document:
 
 
-`admission-review.json`
+`input.json`
 ```
 {
     "kind": "AdmissionReview",
@@ -73,15 +102,15 @@ Consider the following input document:
   }
   ```
 
-  Clearly there are 2 image names that are in violation of the policy. However, when we evalute the erroneous Rego code against this input we obtain:
+  Clearly there are 2 image names that are in violation of the policy. However, when we evaluate the erroneous Rego code against this input we obtain:
   ```
-  % opa eval --format pretty -i admission-review.json -d pod.rego
-  $ []
+  % opa eval --format pretty -i opa-schema-examples/kubernetes/input.json -d opa-schema-examples/kubernetes/policy.rego
+  []
   ```
 
   The empty value returned is indistinguishable from a situation where the input did not violate the policy. This error is therefore causing the policy not to catch violating inputs appropriately.
 
-  If we fix the Rego code and change`input.request.kind.kinds` to `input.request.kind.kind`, then we obtain the expected result:
+  If we fix the Rego code and change `input.request.kind.kinds` to `input.request.kind.kind`, then we obtain the expected result:
   ```
   [
   "image 'nginx' comes from untrusted registry",
@@ -90,16 +119,16 @@ Consider the following input document:
   ```
 
   With this feature, it is possible to pass a schema to `opa eval`, written in JSON Schema. Consider the admission review schema provided at:
-  https://github.com/aavarghese/opa-schema-examples/blob/main/kubernetes/admission-schema.json
+  https://github.com/aavarghese/opa-schema-examples/blob/main/kubernetes/schemas/input.json
 
   We can pass this schema to the evaluator as follows:
   ```
-  % opa eval --format pretty -i admission-review.json -d pod.rego -s admission-schema.json
+  % opa eval --format pretty -i opa-schema-examples/kubernetes/input.json -d opa-schema-examples/kubernetes/policy.rego -s opa-schema-examples/kubernetes/schemas/input.json
   ```
 
   With the erroneous Rego code, we now obtain the following type error:
   ```
-  1 error occurred: ../../aavarghese/opa-schema-examples/kubernetes/pod.rego:5: rego_type_error: undefined ref: input.request.kind.kinds
+  1 error occurred: ../../aavarghese/opa-schema-examples/kubernetes/policy.rego:5: rego_type_error: undefined ref: input.request.kind.kinds
 	input.request.kind.kinds
 	                   ^
 	                   have: "kinds"
@@ -108,6 +137,220 @@ Consider the following input document:
 
   This indicates the error to the Rego developer right away, without having the need to observe the results of runs on actual data, thereby improving productivity.
 
+## Schema annotations
+
+When passing a directory of schemas to `opa eval`, schema annotations become handy to associate a Rego expression with a corresponding schema within a given scope:
+
+```
+# METADATA
+# scope: rule
+# schemas: 
+#   - <expression>:<path-to-schema>
+#   ...
+#   - <expression>:<path-to-schema>
+<ruleName> {
+  ...
+}
+```
+
+The annotation must be specified as a yaml within a comment block that **must** start with `# METADATA`. Next, it contains a `scope` field to indicate the scope of application of the annotation. The only scope currently supported is `rule`, meaning an annotation that applies within the scope of a rule. Also, every line in the comment block containing the annotation **must** start at Column 1 in the module/file, or otherwise, they will be ignored. Notice that the comment block containing the annotation **must** immediately precede the block defining the rule without any empty lines in between. 
+
+The `schemas` field specifies an array associating schemas to expressions. An expression is of the form `<input|data>.field1. ... .fieldN`.
+Note that we currently don't support aliasing, so the expression must start with either `input` or `data`.
+
+The type checker derives a Rego Object type for the schema and an appropriate entry is added to the type environment before type checking the rule. This entry is removed upon exit from the rule.
+
+Example:
+
+Consider the following Rego code which checks if an operation is allowed by a user, given an acl data document:
+
+```
+package policy
+
+import data.acl
+
+default allow = false
+
+# METADATA
+# scope: rule
+# schemas:
+#   - input: schema["input"]
+#   - data.acl: schema["acl-schema"]
+allow {
+        access = data.acl["alice"]
+        access[_] == input.operation
+}
+
+allow {
+        access = data.acl["bob"]
+        access[_] == input.operation
+}
+```
+
+Consider a directory named `mySchemasDir` with the following structure, provided via `opa eval --schema opa-schema-examples/mySchemasDir`
+
+```$ tree mySchemasDir/
+mySchemasDir/
+├── input.json
+└── acl-schema.json
+```
+
+For actual code samples, see: https://github.com/aavarghese/opa-schema-examples/acl
+
+In the first `allow` rule above, the input document has the schema `input.json`, and `data.acl` has the schema `acl-schema.json`. Note that we use the relative path inside the `mySchemasDir` directory to identify a schema, omit the `.json` suffix, and use the global variable `schema` to stand for the top-level of the directory.
+Schemas in annotations are proper Rego references. So `schema.input` is also valid, but `schema.acl-schema` is not.
+
+If we had the expression `data.acl.foo` in this rule, it would result in a type error because it is not allowed according to `acl-schema.json`.
+
+On the other hand, this annotation does not constrain other paths under `data`. What it says is that we know the type of `data.acl` statically, but not that of other paths. So for example, `data.foo` is not a type error and gets assigned the type `Any`.
+
+Note that the second `allow` rule doesn't have a METADATA comment block attached to it, and hence will not be type checked with any schemas.
+
+On a different note, schema annotations can also be added to policy files part of a bundle package loaded via `opa eval --bundle` alongwith the `--schema` parameter for type checking a set of `*.rego` policy files.
+
+
+### Schema overriding
+
+JSON Schemas are often incomplete specifications of the format of data. For example, a Kubernetes Admission Review resource has a field `object` which can contain any other Kubernetes resource. A schema for Admission Review has a generic type `object` for that field that has no further specification. To allow more precise type checking in such cases, we support overriding existing schemas. 
+
+Consider the following example:
+```
+package kubernetes.admission                                                
+
+# METADATA
+# scope: rule
+# schemas: 
+#   - input: schema["input"]
+#   - input.request.object: schema.kubernetes["pod"]
+deny[msg] {                                                              
+  input.request.kind.kind == "Pod"                                          
+  image := input.request.object.spec.containers[_].image                    
+  not startswith(image, "hooli.com/")                                       
+  msg := sprintf("image '%v' comes from untrusted registry", [image])       
+}
+```
+
+In this example, the `input` is associated with an Admission Review schema, and furthermore `input.request.object` is set to have the schema of a Kubernetes Pod. In effect, the second schema annotation overrides the first one. Overriding is a schema transformation feature and combines existing schemas. In this case, we are combining the Admission Review schema with that of a Pod. 
+
+Notice that the order of schema annotations matter for overriding to work correctly.
+
+Given a schema annotation, if a prefix of the path already has a type in the environment, then the annotation has the effect of merging and overriding the existing type with the type derived from the schema. In the example above, the prefix `input` already has a type in the type environment, so the second annotation overrides this existing type. Overriding affects the type of the longest prefix that already has a type. If no such prefix exists, the new path and type are added to the type environment for the scope of the rule.
+
+In general, consider the existing Rego type:
+
+```
+object{a: object{b: object{c: C, d: D, e: E}}}
+```
+If we override this type with the following type (derived from a schema annotation of the form `a.b.e: schema-for-E1`):
+
+```
+object{a: object{b: object{e: E1}}}
+```
+
+It results in the following type:
+
+```
+object{a: object{b: object{c: C, d: D, e: E1}}}
+```
+
+Notice that `b` still has its fields `c` and `d`, so overriding has a merging effect as well. Moreover, the type of expression `a.b.e` is now `E1` instead of `E`.
+
+
+
+
+
+We can also use overriding to add new paths to an existing type, so if we override the initial type with the following:
+
+```
+object{a: object{b: object{f: F}}}
+```
+
+we obtain the following type:
+
+```
+object{a: object{b: object{c: C, d: D, e: E, f: F}}}
+```
+
+
+
+We use schemas to enhance the type checking capability of OPA, and not to validate the input and data documents against desired schemas. This burden is still on the user and care must be taken when using overriding to ensure that the input and data provided are sensible and validated against the transformed schemas.
+
+
+### Multiple input schemas
+
+It is sometimes useful to have different input schemas for different rules in the same package. This can be achieved as illustrated by the following example:
+
+```
+package policy
+
+import data.acl
+
+default allow = false
+
+# METADATA
+# scope: rule
+# schemas:
+#  - input: schema["input"]
+#  - data.acl: schema["acl-schema"]
+allow {
+        access = data.acl[input.user]
+        access[_] == input.operation
+}
+
+# METADATA for whocan rule
+# scope: rule
+# schemas:
+#   - input: schema["whocan-input-schema"]
+#   - data.acl: schema["acl-schema"]
+whocan[user] {
+        access = acl[user]
+        access[_] == input.operation
+}
+```
+
+The directory that is passed to `opa eval` is the following:
+```$ tree mySchemasDir/
+mySchemasDir/
+├── input.json
+└── acl-schema.json
+└── whocan-input-schema.json
+```
+
+In this example, we associate the schema `input.json` with the input document in the rule `allow`, and the schema `whocan-input-schema.json`
+with the input document for the rule `whocan`. 
+
+### Translating schemas to Rego types and dynamicity
+
+Rego has a gradual type system meaning that types can be partially known statically. For example, an object could have certain fields whose types are known and others that are unknown statically. OPA type checks what it knows statically and leaves the unknown parts to be type checked at runtime. An OPA object type has two parts: the static part with the type information known statically, and a dynamic part, which can be nil (meaning everything is known statically) or non-nil and indicating what is unknown.
+
+When we derive a type from a schema, we try to match what is known and unknown in the schema. For example, an `object` that has no specified fields becomes the Rego type `Object{Any: Any}`. However, currently `additionalProperties` and `additionalItems` are ignored. When a schema is fully specified, we derive a type with its dynamic part set to nil, meaning that we take a strict interpretation in order to get the most out of static type checking. This is the case even if `additionalProperties` is set to `true` in the schema. In the future, we will take this feature into account when deriving Rego types.
+
+When overriding existing types, the dynamicity of the overridden prefix is preserved. 
+
+
+## Limitations
+
+Currently this feature admits schemas written in JSON Schema but does not support every feature available in this format. 
+In particular the following features are not yet supported:
+
+* additional properties for objects
+* pattern properties for objects
+* additional items for arrays
+* contains for arrays
+* allOf, anyOf, oneOf, not
+* enum
+* if/then/else
+
+A note of caution: overriding is a powerful capability that must be used carefully. For example, the user is allowed to write:
+
+```
+# METADATA
+# scope: rule
+# schema:
+#  - data: schema["some-schema"]
+```
+
+In this case, we are overriding the root of all documents to have some schema. Since all Rego code lives under `data` as virtual documents, this in practice renders all of them inaccessible (resulting in type errors). Similarly, assigning a schema to a package name is not a good idea and can cause problems. Care must also be taken when defining overrides so that the transformation of schemas is sensible and data can be validated against the transformed schema.
 
 ## References
 
@@ -117,15 +360,4 @@ This contains samples for Envoy, Kubernetes, and Terraform including correspondi
 
 For a reference on JSON Schema please see: http://json-schema.org/understanding-json-schema/reference/index.html
 
-## Limitations
-
-Currently this feature admits schemas written in JSON Schema but does not support every feature available in this format. This is part of future work. 
-In particular the following features are not yet suported:
-
-* additional properties for objects
-* pattern properties for objects
-* additional items for arrays
-* contains for arrays
-* allOf, anyOf, oneOf, not
-* enum
-* if/then/else
+For a tool that generates JSON Schema from JSON samples, please see: https://jsonschema.net/home

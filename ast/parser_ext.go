@@ -418,11 +418,18 @@ func ParseImports(input string) ([]*Import, error) {
 // For details on Module objects and their fields, see policy.go.
 // Empty input will return nil, nil.
 func ParseModule(filename, input string) (*Module, error) {
-	stmts, comments, err := ParseStatements(filename, input)
+	return ParseModuleWithOpts(filename, input, ParserOptions{})
+}
+
+// ParseModuleWithOpts returns a parsed Module object, and has an additional input ParserOptions
+// For details on Module objects and their fields, see policy.go.
+// Empty input will return nil, nil.
+func ParseModuleWithOpts(filename, input string, popts ParserOptions) (*Module, error) {
+	stmts, comments, annotations, err := ParseStatementsWithOpts(filename, input, popts)
 	if err != nil {
 		return nil, err
 	}
-	return parseModule(filename, stmts, comments)
+	return parseModule(filename, stmts, comments, annotations)
 }
 
 // ParseBody returns exactly one body.
@@ -567,7 +574,7 @@ func (a commentKey) Compare(other commentKey) int {
 // This is the default return value from the parser.
 func ParseStatements(filename, input string) ([]Statement, []*Comment, error) {
 
-	stmts, comment, errs := NewParser().WithFilename(filename).WithReader(bytes.NewBufferString(input)).Parse()
+	stmts, comment, _, errs := NewParser().WithFilename(filename).WithReader(bytes.NewBufferString(input)).Parse()
 
 	if len(errs) > 0 {
 		return nil, nil, errs
@@ -576,7 +583,25 @@ func ParseStatements(filename, input string) ([]Statement, []*Comment, error) {
 	return stmts, comment, nil
 }
 
-func parseModule(filename string, stmts []Statement, comments []*Comment) (*Module, error) {
+// ParseStatementsWithOpts returns a slice of parsed statements, and has an additional input ParserOptions
+// This is the default return value from the parser.
+func ParseStatementsWithOpts(filename, input string, popts ParserOptions) ([]Statement, []*Comment, []Annotations, error) {
+
+	parser := NewParser().WithFilename(filename).WithReader(bytes.NewBufferString(input))
+
+	if popts.ProcessAnnotation {
+		parser.WithProcessAnnotation(popts.ProcessAnnotation)
+	}
+	stmts, comment, annotations, errs := parser.Parse()
+
+	if len(errs) > 0 {
+		return nil, nil, nil, errs
+	}
+
+	return stmts, comment, annotations, nil
+}
+
+func parseModule(filename string, stmts []Statement, comments []*Comment, annotation []Annotations) (*Module, error) {
 
 	if len(stmts) == 0 {
 		return nil, NewError(ParseErr, &Location{File: filename}, "empty module")
@@ -591,7 +616,8 @@ func parseModule(filename string, stmts []Statement, comments []*Comment) (*Modu
 	}
 
 	mod := &Module{
-		Package: _package,
+		Package:    _package,
+		Annotation: annotation,
 	}
 
 	// The comments slice only holds comments that were not their own statements.
