@@ -146,8 +146,6 @@ func (p *Pool) Release(vm *VM, metrics metrics.Metrics) {
 
 	p.mutex.Unlock()
 	p.available <- struct{}{}
-
-	vm.Close()
 }
 
 // SetPolicyData re-initializes the vms within the pool with the new policy
@@ -173,7 +171,7 @@ func (p *Pool) SetPolicyData(policy []byte, data []byte) error {
 
 		if err == nil {
 			parsedDataAddr, parsedData := vm.cloneDataSegment()
-			p.memoryMinPages = Pages(vm.memory.Length())
+			p.memoryMinPages = Pages(uint32(vm.memory.DataSize()))
 			p.vms = append(p.vms, vm)
 			p.acquired = append(p.acquired, false)
 			p.initialized = true
@@ -281,7 +279,7 @@ func (p *Pool) updateVMs(update func(vm *VM, opts vmOpts) error) error {
 				activated = true
 				policy = vm.policy
 				parsedDataAddr, parsedData = vm.cloneDataSegment()
-				seedMemorySize = Pages(vm.memory.Length())
+				seedMemorySize = Pages(uint32(vm.memory.DataSize()))
 				p.activate(policy, parsedData, parsedDataAddr, seedMemorySize)
 			}
 
@@ -301,12 +299,6 @@ func (p *Pool) Close() {
 
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
-
-	for _, vm := range p.vms {
-		if vm != nil {
-			vm.Close()
-		}
-	}
 
 	p.closed = true
 	p.vms = nil

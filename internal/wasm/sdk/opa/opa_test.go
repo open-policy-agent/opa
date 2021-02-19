@@ -92,7 +92,7 @@ func TestOPA(t *testing.T) {
 		},
 		{
 			Description: "Builtins",
-			Policy:      `a = count(data.q) + sum(data.q)`,
+			Policy:      `a = count(data.q) + sum(data.q)`, // builtin not implemented in wasm.
 			Query:       "data.p.a = x",
 			Evals: []Eval{
 				{NewData: `{"q": []}`, Result: `{{"x": 0}}`},
@@ -241,7 +241,6 @@ a = "c" { input > 2 }`,
 			instance, err := opa.New().
 				WithPolicyBytes(policy).
 				WithDataBytes(data).
-				WithMemoryLimits(131070, 0).
 				WithPoolSize(1). // Minimal pool size to test pooling.
 				Init()
 			if err != nil {
@@ -299,7 +298,7 @@ a = "c" { input > 2 }`,
 
 func TestNamedEntrypoint(t *testing.T) {
 	module := `package test
-	
+
 	a = 7
 	b = a
 	`
