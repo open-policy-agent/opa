@@ -4,8 +4,7 @@ Thanks for your interest in contributing to the Open Policy Agent (OPA) project!
 
 # Where to start?
 
-If you have questions, comments, or requests feel free to post on the mailing list or
-create an issue on GitHub.
+If you have questions, comments, or requests please file an issue on GitHub.
 
 If you want to contribute code and you are new to the Go programming language, check out
 the [DEVELOPMENT.md](./docs/devel/DEVELOPMENT.md) reference for help getting started.
