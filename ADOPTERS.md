@@ -44,6 +44,12 @@ production users that have added themselves (in alphabetical order):
   and the code is Open Source, [see
   `github.com/chef/automate`](https://github.com/chef/automate/tree/master/components/authz-service).
 
+* [cluetec.de](https://cluetec.de) primarily uses OPA to enforce fine-grained authorization 
+  and data-filtering policies in its Spring-based microservices and multi-tenant SaaS. Policies
+  are mapped to tenant-specific domains and used to enrich the database queries without any code
+  modifications. OPA is also used to enforce admission control policies and RBAC in multi-tenant
+  Kubernetes clusters.
+ 
 * [Cloudflare](https://www.cloudflare.com/) uses OPA as a validating
   admission controller to prevent conflicting Ingresses in their
   Kubernetes clusters that host a mix of production and test
