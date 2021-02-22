@@ -687,7 +687,7 @@ func (c *Compiler) buildComprehensionIndices() {
 		WalkRules(c.Modules[name], func(r *Rule) bool {
 			candidates := r.Head.Args.Vars()
 			candidates.Update(ReservedVars)
-			n := buildComprehensionIndices(c.debug, c.GetArity, candidates, r.Body, c.comprehensionIndices)
+			n := buildComprehensionIndices(c.debug, c.GetArity, candidates, c.RewrittenVars, r.Body, c.comprehensionIndices)
 			c.counterAdd(compileStageComprehensionIndexBuild, n)
 			return false
 		})
@@ -1701,7 +1701,7 @@ func (qc *queryCompiler) rewriteWithModifiers(qctx *QueryContext, body Body) (Bo
 func (qc *queryCompiler) buildComprehensionIndices(qctx *QueryContext, body Body) (Body, error) {
 	// NOTE(tsandall): The query compiler does not have a metrics object so we
 	// cannot record index metrics currently.
-	_ = buildComprehensionIndices(qc.compiler.debug, qc.compiler.GetArity, ReservedVars, body, qc.comprehensionIndices)
+	_ = buildComprehensionIndices(qc.compiler.debug, qc.compiler.GetArity, ReservedVars, qc.RewrittenVars(), body, qc.comprehensionIndices)
 	return body, nil
 }
 
@@ -1722,12 +1722,12 @@ func (ci *ComprehensionIndex) String() string {
 	return fmt.Sprintf("<keys: %v>", NewArray(ci.Keys...))
 }
 
-func buildComprehensionIndices(dbg debug.Debug, arity func(Ref) int, candidates VarSet, node interface{}, result map[*Term]*ComprehensionIndex) uint64 {
+func buildComprehensionIndices(dbg debug.Debug, arity func(Ref) int, candidates VarSet, rwVars map[Var]Var, node interface{}, result map[*Term]*ComprehensionIndex) uint64 {
 	var n uint64
 	WalkBodies(node, func(b Body) bool {
 		cpy := candidates.Copy()
 		for _, expr := range b {
-			index := getComprehensionIndex(dbg, arity, cpy, expr)
+			index := getComprehensionIndex(dbg, arity, cpy, rwVars, expr)
 			if index != nil {
 				result[index.Term] = index
 				n++
@@ -1741,7 +1741,7 @@ func buildComprehensionIndices(dbg debug.Debug, arity func(Ref) int, candidates 
 	return n
 }
 
-func getComprehensionIndex(dbg debug.Debug, arity func(Ref) int, candidates VarSet, expr *Expr) *ComprehensionIndex {
+func getComprehensionIndex(dbg debug.Debug, arity func(Ref) int, candidates VarSet, rwVars map[Var]Var, expr *Expr) *ComprehensionIndex {
 
 	// Ignore everything except <var> = <comprehension> expressions. Extract
 	// the comprehension term from the expression.
@@ -1843,7 +1843,15 @@ func getComprehensionIndex(dbg debug.Debug, arity func(Ref) int, candidates VarS
 		return result[i].Value.Compare(result[j].Value) < 0
 	})
 
-	dbg.Printf("%s: comprehension index built with keys: %v", expr.Location, result)
+	debugRes := make([]*Term, len(result))
+	for i, r := range result {
+		if o, ok := rwVars[r.Value.(Var)]; ok {
+			debugRes[i] = NewTerm(o)
+		} else {
+			debugRes[i] = r
+		}
+	}
+	dbg.Printf("%s: comprehension index built with keys: %v", expr.Location, debugRes)
 	return &ComprehensionIndex{Term: term, Keys: result}
 }
 
