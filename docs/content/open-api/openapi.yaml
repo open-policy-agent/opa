@@ -3,7 +3,7 @@
 openapi: 3.0.3
 # servers:
 #  - url: 'http://localhost:8181'
-#    description: Docker
+#    description: Docker [GAZCONROY - You would normally have a bunch of these: live server, test server, Heroku server and so on. These are only  useful if you want to enable 'try it out' features (which is a bit problematic for quite a few OAS API calls]]
 tags:
   - name: Policy API
     description: 'Allows you to add, remove and modify policy modules. *Policy module identifiers are only used for management purposes. They are not used outside the Policy API.*'
@@ -25,6 +25,7 @@ info:
     - **[View the specification in *Redoc* (default)](index.html)**
     - **[View the specification in *Swagger UI*](swagger-ui.html)**
   version: 0.25.2
+  # [ANDERSEKNERT ...what is the best way of templating this...to make sure this is automatically kept up to date with each release.]
   x-logo:
     url: 'https://github.com/open-policy-agent/opa/blob/master/docs/website/static/img/logos/opa-horizontal-color.png?raw=true'
     backgroundColor: '#FFFFFF'
@@ -142,6 +143,7 @@ paths:
           	networks[m].public == true
         }        
         ```
+      # [ANDERSEKNERT Testing this but I can't get OPA to return 400 responses for any of these conditions. Will need to check whether this is true or if we should update the docs here.]
       operationId: putPolicyModule
       parameters:
         - $ref: '#/components/parameters/prettyParameter'
@@ -176,6 +178,7 @@ paths:
         '500':
           $ref: '#/components/responses/serverErrorResponse'
     delete:
+      # [ANDERSEKNERT Guess this have little effect on delete responses, but consistency won't hurt.]
       summary: Delete a policy module
       description: This API endpoint removes an existing policy module from the server
       operationId: deletePolicyModule
@@ -284,7 +287,7 @@ paths:
         - The query requires an input document and you do not provide it
         - You provided an input document but the query has already defined it.
  
-        If `path` indexes into an array, the server will attempt to convert the array index to an integer. If the path element cannot be converted to an integer, a bad request response (404) will be returned.
+        If `path` indexes into an array, the server will attempt to convert the array index to an integer. If the path element cannot be converted to an integer, a *not found* response (404) will be returned.
       operationId: getDocumentWithPath
       parameters:
         - $ref: '#/components/parameters/prettyParameter'
@@ -359,6 +362,7 @@ paths:
           ```
 
         The server will return a *not found* (404) response if */data/system/main* is undefined.
+      # [ANDERSEKNERT Would be great with an example query here too.]
       operationId: postSimpleQuery
       parameters:
         - $ref: '#/components/parameters/prettyParameter'
@@ -431,6 +435,7 @@ paths:
           $ref: '#/components/responses/serverErrorResponse'
         '501':
           description: Streaming not implemented
+        # [ANDERSEKNERT I don't think the server ever emits this so should be safe to remove, but will double check.]
   '/v1/compile':
     post:
       summary: Compile
@@ -466,9 +471,6 @@ paths:
             ]
         }
         ```
-        ### Decision logging
-
-        If decision logging is enabled in [configuration](https://www.openpolicyagent.org/docs/latest/configuration/), the **decision_id** field in the response contains a string that uniquely identifies the decision. The identifier will be included in the decision log event for this decision. Callers can use the identifier for correlation purposes.
         ### Partial evaluation
         In some cases, the result of partial valuation is a conclusive, unconditional answer. See [the guidance](https://www.openpolicyagent.org/docs/latest/rest-api/#unconditional-results-from-partial-evaluation) for details.
       externalDocs:
@@ -507,9 +509,10 @@ paths:
         - **500** - OPA service is *not* healthy. If `bundles` is true, at least one of configured bundles has not yet been activated. If `plugins` is true, at least one plugins is in a 'not OK' state.
 
         ---
-        **Note.**
+        **Note**
         This check is only for initial bundle activation. Subsequent downloads will not affect the health check.
-        Use `POST /status` for more fine-grained bundle status monitoring.
+
+        Use the **status** endpoint (in the (management API)[management.html]) for more fine-grained bundle status monitoring.
 
         ---
       externalDocs:
@@ -870,6 +873,7 @@ components:
           items:
             properties:
               id:
+                # [ANDERSEKNERT This should probably be something else]
                 description: The name of a policy module
                 example: example2
                 type: string
@@ -966,6 +970,7 @@ components:
         metrics:
           type: object
           properties:
+            # [GAZCONROY Some of these are from https://github.com/open-policy-agent/opa/blob/master/docs/content/rest-api.md#performance-metrics, two or three other metrics appear consistently in responses. The 'instrument=true only' responses are indicated in the 'description' field.]
             timer_rego_input_parse_ns:
               description: Time taken (in nanonseconds) to parse the input
               type: number
@@ -1073,13 +1078,7 @@ components:
             bundles:
               type: object
               description: A set of key-value pairs describing each bundle activated on the server.
-              properties:
-                authz:
-                  type: object
-                  properties:
-                    revision:
-                      type: string
-                      deprecated: true
+              additionalProperties: {}
     200Explanations:
       type: object
       properties:
@@ -1170,5 +1169,6 @@ components:
                             type: string
                           value:
                             type: string
+# [GAZCONROY In terms of the Open API Specification, this is the place you pop in the authentication methods for testing 'try it out' calls (see previous comment).]
   securitySchemes: {}
 security: []

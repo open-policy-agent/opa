@@ -1,12 +1,18 @@
 # Needs review by SMEs
 openapi: 3.0.3
 info:
-  title: Open Policy Agent (OPA) REST API - Management APIs
+  title: Open Policy Agent (OPA) Management APIs
   description: |-
       OPA exposes a set of APIs that enable unified, logically-centralized policy management. Use these APIs if you are interested in how to build OPA controls to enable policy distribution and collection of telemetry data such as decision logs.
 
       These endpoints are not in OPA but called by OPA on some remote server. OPA posts logs and status updates to some central management component, if configured
+
+      ### API specification viewing options
+
+      - **[View the specification in *Redoc* (default)](management.html)**
+      - **[View the specification in *Swagger UI*](management-swagger-ui.html)**
   version: 0.25.2
+  # [ANDERSEKNERT ...what is the best way of templating this...to make sure this is automatically kept up to date with each release.]
   x-logo:
     url: 'https://github.com/open-policy-agent/opa/blob/master/docs/website/static/img/logos/opa-horizontal-color.png?raw=true'
     backgroundColor: '#FFFFFF'
