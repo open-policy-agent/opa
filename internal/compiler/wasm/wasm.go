@@ -1265,11 +1265,17 @@ func (c *Compiler) compileCallDynamicStmt(stmt *ir.CallDynamicStmt, result *[]in
 
 	// append to it:
 	for _, lv := range stmt.Path {
-		block.Instrs = append(block.Instrs,
-			instruction.GetLocal{Index: larray},
-			instruction.GetLocal{Index: c.local(lv)},
-			instruction.Call{Index: c.function(opaArrayAppend)},
-		)
+		block.Instrs = append(block.Instrs, instruction.GetLocal{Index: larray})
+		if sIdx, ok := lv.(ir.StringIndex); ok {
+			block.Instrs = append(block.Instrs,
+				instruction.I32Const{Value: c.stringAddr(int(sIdx))},
+				instruction.Call{Index: c.function(opaStringTerminated)},
+			)
+		}
+		if loc, ok := lv.(ir.Local); ok {
+			block.Instrs = append(block.Instrs, instruction.GetLocal{Index: c.local(loc)})
+		}
+		block.Instrs = append(block.Instrs, instruction.Call{Index: c.function(opaArrayAppend)})
 	}
 
 	// prep stack for later call_indirect

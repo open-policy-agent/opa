@@ -712,7 +712,7 @@ func TestOptimizeLookup(t *testing.T) {
 		l := p.newLocal()
 		p.vars.Put(ast.Var("x"), l)
 
-		rulesets, stmts, locals, index, opt := p.optimizeLookup(r, ast.MustParseRef("data.foo[x]"))
+		rulesets, path, index, opt := p.optimizeLookup(r, ast.MustParseRef("data.foo[x]"))
 		if exp, act := true, opt; exp != act {
 			t.Errorf("expected 'optimize' %v, got %v\n", exp, act)
 		}
@@ -726,20 +726,15 @@ func TestOptimizeLookup(t *testing.T) {
 			t.Errorf("expected %d rules, got %d\n", exp, act)
 		}
 		// 3 = g0 + foo + x
-		if exp, act := 3, len(locals); exp != act {
-			t.Fatalf("expected %d locals, got %d\n", exp, act)
+		if exp, act := 3, len(path); exp != act {
+			t.Fatalf("expected path len %d, got %d\n", exp, act)
 		}
-		if exp, act := l, locals[len(locals)-1]; exp != act {
+		last, ok := path[len(path)-1].(ir.Local)
+		if exp, act := true, ok; exp != act {
+			t.Fatalf("expected last path pieces to be local, got %T\n", last)
+		}
+		if exp, act := l, last; exp != act {
 			t.Errorf("expected last local to be %v, got %v\n", exp, act)
-		}
-		if exp, act := 2, len(stmts); exp != act {
-			t.Fatalf("expected %d statements in stmts, got %d\n", exp, act)
-		}
-		for i, stmt := range stmts {
-			_, ok := stmt.(*ir.MakeStringStmt)
-			if !ok {
-				t.Fatalf("expected stmt[%d] to be *ir.MakeStringStmt, got %T\n", i, stmt)
-			}
 		}
 	})
 
@@ -752,7 +747,7 @@ func TestOptimizeLookup(t *testing.T) {
 		l := p.newLocal()
 		p.vars.Put(ast.Var("x"), l)
 
-		_, _, _, _, opt := p.optimizeLookup(r, ast.MustParseRef("data.foo[x]"))
+		_, _, _, opt := p.optimizeLookup(r, ast.MustParseRef("data.foo[x]"))
 		if exp, act := false, opt; exp != act {
 			t.Errorf("expected 'optimize' %v, got %v\n", exp, act)
 		}
@@ -768,7 +763,7 @@ func TestOptimizeLookup(t *testing.T) {
 		p := New()
 		p.vars.Put(ast.Var("x"), p.newLocal())
 
-		rulesets, _, _, _, opt := p.optimizeLookup(r, ast.MustParseRef("data.foo[x]"))
+		rulesets, _, _, opt := p.optimizeLookup(r, ast.MustParseRef("data.foo[x]"))
 		if exp, act := true, opt; exp != act {
 			t.Errorf("expected 'optimize' %v, got %v\n", exp, act)
 		}
@@ -790,7 +785,7 @@ func TestOptimizeLookup(t *testing.T) {
 
 		p := New()
 
-		_, _, _, _, opt := p.optimizeLookup(r, ast.MustParseRef("data.foo[x]"))
+		_, _, _, opt := p.optimizeLookup(r, ast.MustParseRef("data.foo[x]"))
 		if exp, act := false, opt; exp != act {
 			t.Errorf("expected 'optimize' %v, got %v\n", exp, act)
 		}
@@ -803,7 +798,7 @@ func TestOptimizeLookup(t *testing.T) {
 
 		p := New()
 
-		_, _, _, _, opt := p.optimizeLookup(r, ast.MustParseRef("data.foo.bar.baz"))
+		_, _, _, opt := p.optimizeLookup(r, ast.MustParseRef("data.foo.bar.baz"))
 		if exp, act := false, opt; exp != act {
 			t.Errorf("expected 'optimize' %v, got %v\n", exp, act)
 		}
@@ -819,7 +814,7 @@ func TestOptimizeLookup(t *testing.T) {
 		p.vars.Put(ast.Var("x"), lx)
 		p.vars.Put(ast.Var("y"), ly)
 
-		rulesets, stmts, locals, index, opt := p.optimizeLookup(r, ast.MustParseRef("data.foo[x].bar[y].q"))
+		rulesets, path, index, opt := p.optimizeLookup(r, ast.MustParseRef("data.foo[x].bar[y].q"))
 		if exp, act := true, opt; exp != act {
 			t.Errorf("expected 'optimize' %v, got %v\n", exp, act)
 		}
@@ -833,12 +828,8 @@ func TestOptimizeLookup(t *testing.T) {
 			t.Errorf("expected %d rules in ruleset 0, got %d\n", exp, act)
 		}
 		// 6 = g0 + foo + x + bar + y + q
-		if exp, act := 6, len(locals); exp != act {
-			t.Fatalf("expected %d locals, got %d\n", exp, act)
-		}
-		// 4 = MakeStringStmt for "g0" + "foo" + "bar" + "q"
-		if exp, act := 4, len(stmts); exp != act {
-			t.Fatalf("expected %d statements in stmts, got %d\n", exp, act)
+		if exp, act := 6, len(path); exp != act {
+			t.Fatalf("expected path len %d, got %d\n", exp, act)
 		}
 	})
 
@@ -850,7 +841,7 @@ func TestOptimizeLookup(t *testing.T) {
 		p := New()
 		p.vars.Put(ast.Var("x"), p.newLocal())
 
-		_, _, _, _, opt := p.optimizeLookup(r, ast.MustParseRef("data.foo[x].bar[y].q"))
+		_, _, _, opt := p.optimizeLookup(r, ast.MustParseRef("data.foo[x].bar[y].q"))
 		if exp, act := false, opt; exp != act {
 			t.Errorf("expected 'optimize' %v, got %v\n", exp, act)
 		}
@@ -866,7 +857,7 @@ func TestOptimizeLookup(t *testing.T) {
 		p := New()
 		p.vars.Put(ast.Var("x"), p.newLocal())
 
-		_, _, _, _, opt := p.optimizeLookup(r, ast.MustParseRef("data.foo[x].bar"))
+		_, _, _, opt := p.optimizeLookup(r, ast.MustParseRef("data.foo[x].bar"))
 		if exp, act := false, opt; exp != act {
 			t.Errorf("expected 'optimize' %v, got %v\n", exp, act)
 		}
@@ -880,7 +871,7 @@ func TestOptimizeLookup(t *testing.T) {
 		p := New()
 		p.vars.Put(ast.Var("x"), p.newLocal())
 
-		rulesets, stmts, locals, index, opt := p.optimizeLookup(r, ast.MustParseRef("data.foo[x].bar.q.p.r"))
+		rulesets, path, index, opt := p.optimizeLookup(r, ast.MustParseRef("data.foo[x].bar.q.p.r"))
 		if exp, act := true, opt; exp != act {
 			t.Errorf("expected 'optimize' %v, got %v\n", exp, act)
 		}
@@ -894,12 +885,8 @@ func TestOptimizeLookup(t *testing.T) {
 			t.Errorf("expected %d rules in ruleset 0, got %d\n", exp, act)
 		}
 		// 5 = g0 + foo + x + bar + q
-		if exp, act := 5, len(locals); exp != act {
-			t.Fatalf("expected %d locals, got %d\n", exp, act)
-		}
-		// 4 = MakeStringStmt for "g0" + "foo" + "bar" + "q"
-		if exp, act := 4, len(stmts); exp != act {
-			t.Fatalf("expected %d statements in stmts, got %d\n", exp, act)
+		if exp, act := 5, len(path); exp != act {
+			t.Fatalf("expected path len %d, got %d\n", exp, act)
 		}
 	})
 
@@ -912,7 +899,7 @@ func TestOptimizeLookup(t *testing.T) {
 		p := New()
 		p.vars.Put(ast.Var("x"), p.newLocal())
 
-		rulesets, _, _, index, opt := p.optimizeLookup(r, ast.MustParseRef("data.foo[x].bar.q"))
+		rulesets, _, index, opt := p.optimizeLookup(r, ast.MustParseRef("data.foo[x].bar.q"))
 		if exp, act := true, opt; exp != act {
 			t.Errorf("expected 'optimize' %v, got %v\n", exp, act)
 		}
@@ -935,7 +922,7 @@ func TestOptimizeLookup(t *testing.T) {
 		p := New()
 		p.vars.Put(ast.Var("x"), p.newLocal())
 
-		rulesets, _, _, _, opt := p.optimizeLookup(r, ast.MustParseRef("data.foo[x].bar.q"))
+		rulesets, _, _, opt := p.optimizeLookup(r, ast.MustParseRef("data.foo[x].bar.q"))
 		if exp, act := true, opt; exp != act {
 			t.Errorf("expected 'optimize' %v, got %v\n", exp, act)
 		}

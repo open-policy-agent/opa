@@ -1538,7 +1538,7 @@ func (p *Planner) planRefData(virtual *ruletrie, base *baseptr, ref ast.Ref, ind
 	// NOTE(sr): we do it on the first index because later on, the recursion
 	// on subtrees of virtual already lost parts of the path we've taken.
 	if index == 1 && virtual != nil {
-		rulesets, stmts, locals, index, optimize := p.optimizeLookup(virtual, ref)
+		rulesets, path, index, optimize := p.optimizeLookup(virtual, ref)
 		if optimize {
 			// If there are no rulesets in a situation that otherwise would
 			// allow for a call_indirect optimization, then there's nothing
@@ -1552,10 +1552,6 @@ func (p *Planner) planRefData(virtual *ruletrie, base *baseptr, ref ast.Ref, ind
 					return err
 				}
 			}
-			// plan MakeStringStmts needed for ground ref[j]
-			for _, stmt := range stmts {
-				p.appendStmt(stmt)
-			}
 
 			p.ltarget = p.newLocal()
 			p.appendStmt(&ir.CallDynamicStmt{
@@ -1563,7 +1559,7 @@ func (p *Planner) planRefData(virtual *ruletrie, base *baseptr, ref ast.Ref, ind
 					p.vars.GetOrEmpty(ast.InputRootDocument.Value.(ast.Var)),
 					p.vars.GetOrEmpty(ast.DefaultRootDocument.Value.(ast.Var)),
 				},
-				Path:   locals,
+				Path:   path,
 				Result: p.ltarget,
 			})
 			return p.planRefRec(ref, index+1, iter)
@@ -2038,9 +2034,9 @@ func rewrittenVar(vars map[ast.Var]ast.Var, k ast.Var) ast.Var {
 // The last condition is necessary because we don't deal with _which key a
 // var actually matched_ -- so we don't know which subtree to evaluate
 // with the results.
-func (p *Planner) optimizeLookup(t *ruletrie, ref ast.Ref) ([][]*ast.Rule, []ir.Stmt, []ir.Local, int, bool) {
-	dont := func() ([][]*ast.Rule, []ir.Stmt, []ir.Local, int, bool) {
-		return nil, nil, nil, 0, false
+func (p *Planner) optimizeLookup(t *ruletrie, ref ast.Ref) ([][]*ast.Rule, []ir.LocalOrStringConst, int, bool) {
+	dont := func() ([][]*ast.Rule, []ir.LocalOrStringConst, int, bool) {
+		return nil, nil, 0, false
 	}
 	if t == nil {
 		p.debugf("no optimization of %s: trie is nil", ref)
@@ -2122,24 +2118,13 @@ func (p *Planner) optimizeLookup(t *ruletrie, ref ast.Ref) ([][]*ast.Rule, []ir.
 	}
 	if len(res) == 0 {
 		p.debugf("ref %s: nothing to plan, no rule leaves", ref[0:index+1])
-		return nil, nil, nil, index, true
+		return nil, nil, index, true
 	}
 
-	// If we've made it here, optimization is possible -- let's plan strings!
-	// NOTE(sr): this is a bit of a dirty side-effect; the code here assumes
-	// that the returned block and locals are going to be used. Technically,
-	// it might still be discarded, and we've planned a few strings we don't
-	// actually need.
-	var stmts []ir.Stmt
-	var locals []ir.Local
+	var path []ir.LocalOrStringConst
 
 	// plan generation
-	lvar := p.newLocal()
-	stmts = append(stmts, &ir.MakeStringStmt{
-		Index:  p.getStringConst(fmt.Sprintf("g%d", p.funcs.gen())),
-		Target: lvar,
-	})
-	locals = append(locals, lvar)
+	path = append(path, ir.StringIndex(p.getStringConst(fmt.Sprintf("g%d", p.funcs.gen()))))
 
 	for i := 1; i <= index; i++ {
 		switch r := ref[i].Value.(type) {
@@ -2149,19 +2134,13 @@ func (p *Planner) optimizeLookup(t *ruletrie, ref ast.Ref) ([][]*ast.Rule, []ir.
 				p.debugf("no optimization of %s: ref[%d] not a seen var: %v", ref, i, ref[i])
 				return dont()
 			}
-			locals = append(locals, lv)
+			path = append(path, lv)
 		case ast.String:
-			// plan string
-			lvar := p.newLocal()
-			stmts = append(stmts, &ir.MakeStringStmt{
-				Index:  p.getStringConst(string(r)),
-				Target: lvar,
-			})
-			locals = append(locals, lvar)
+			path = append(path, ir.StringIndex(p.getStringConst(string(r))))
 		}
 	}
 
-	return res, stmts, locals, index, true
+	return res, path, index, true
 }
 
 func (p *Planner) seenVar(ref *ast.Term) (bool, bool) {

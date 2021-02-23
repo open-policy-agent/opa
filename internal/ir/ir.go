@@ -178,10 +178,22 @@ type CallStmt struct {
 type CallDynamicStmt struct {
 	Args   []Local
 	Result Local
-	Path   []Local
+	Path   []LocalOrStringConst
 
 	Location
 }
+
+// LocalOrStringConst is a tagged union of the two types, Local and StringIndex.
+// It's used with CallDynamicStmt.
+type LocalOrStringConst interface{ localOrString() }
+
+func (Local) localOrString() {}
+
+// StringIndex represents the index into the plan's list of constant strings
+// of a constant string.
+type StringIndex int
+
+func (StringIndex) localOrString() {}
 
 // BlockStmt represents a nested block. Nested blocks and break statements can
 // be used to short-circuit execution.
