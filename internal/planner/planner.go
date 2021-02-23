@@ -8,10 +8,12 @@ package planner
 import (
 	"errors"
 	"fmt"
+	"io"
 	"sort"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/ast/location"
+	"github.com/open-policy-agent/opa/internal/debug"
 	"github.com/open-policy-agent/opa/internal/ir"
 )
 
@@ -47,20 +49,19 @@ type Planner struct {
 	ltarget ir.Local                // target variable of last planned statement
 	lnext   ir.Local                // next variable to use
 	loc     *location.Location      // location currently "being planned"
-	debugs  []Debug                 // debug information produced during planning
+	debug   debug.Debug             // debug information produced during planning
 }
 
-func (p *Planner) addDebug(info Debug) {
-	if info.Location == nil {
-		info.Location = p.loc
+// debugf prepends the planner location. We're passing callstack depth 2 because
+// it should still log the file location of p.debugf.
+func (p *Planner) debugf(format string, args ...interface{}) {
+	var msg string
+	if p.loc != nil {
+		msg = fmt.Sprintf("%s: "+format, append([]interface{}{p.loc}, args...)...)
+	} else {
+		msg = fmt.Sprintf(format, args...)
 	}
-	p.debugs = append(p.debugs, info)
-}
-
-// Debug contains debugging information produced by the build about optimizations and other operations.
-type Debug struct {
-	Location *location.Location
-	Message  string
+	p.debug.Output(2, msg)
 }
 
 // New returns a new Planner object.
@@ -81,16 +82,8 @@ func New() *Planner {
 		}),
 		rules: newRuletrie(),
 		funcs: newFuncstack(),
+		debug: debug.Discard(),
 	}
-}
-
-// Debug returns a list of debug events produced by the planner.
-func (p *Planner) Debug() []Debug {
-	return p.debugs
-}
-
-func (p *Planner) debug(msg string) {
-	p.addDebug(Debug{Message: msg})
 }
 
 // WithBuiltinDecls tells the planner what built-in function may be available
@@ -111,6 +104,14 @@ func (p *Planner) WithQueries(queries []QuerySet) *Planner {
 // WithModules sets the module set that contains query dependencies.
 func (p *Planner) WithModules(modules []*ast.Module) *Planner {
 	p.modules = modules
+	return p
+}
+
+// WithDebug sets where debug messages are written to.
+func (p *Planner) WithDebug(sink io.Writer) *Planner {
+	if sink != nil {
+		p.debug = debug.New(sink)
+	}
 	return p
 }
 
@@ -2038,12 +2039,12 @@ func rewrittenVar(vars map[ast.Var]ast.Var, k ast.Var) ast.Var {
 // var actually matched_ -- so we don't know which subtree to evaluate
 // with the results.
 func (p *Planner) optimizeLookup(t *ruletrie, ref ast.Ref) ([][]*ast.Rule, []ir.Stmt, []ir.Local, int, bool) {
-	dont := func(format string, args ...interface{}) ([][]*ast.Rule, []ir.Stmt, []ir.Local, int, bool) {
-		p.debug(fmt.Sprintf("no optimization of %s: "+format, append([]interface{}{ref}, args...)...))
+	dont := func() ([][]*ast.Rule, []ir.Stmt, []ir.Local, int, bool) {
 		return nil, nil, nil, 0, false
 	}
 	if t == nil {
-		return dont("trie is nil")
+		p.debugf("no optimization of %s: trie is nil", ref)
+		return dont()
 	}
 
 	nodes := []*ruletrie{t}
@@ -2061,7 +2062,8 @@ func (p *Planner) optimizeLookup(t *ruletrie, ref ast.Ref) ([][]*ast.Rule, []ir.
 			// check if it's been "seen" before
 			_, ok := p.vars.Get(r)
 			if !ok {
-				return dont("ref[%d] is unseen var: %v", i, r)
+				p.debugf("no optimization of %s: ref[%d] is unseen var: %v", ref, i, r)
+				return dont()
 			}
 			opt = true
 			// take all children, they might match
@@ -2080,7 +2082,8 @@ func (p *Planner) optimizeLookup(t *ruletrie, ref ast.Ref) ([][]*ast.Rule, []ir.
 				}
 			}
 		default:
-			return dont("ref[%d] is type %T", i, r) // TODO(sr): think more about this
+			p.debugf("no optimization of %s: ref[%d] is type %T", ref, i, r) // TODO(sr): think more about this
+			return dont()
 		}
 
 		nodes = nextNodes
@@ -2091,7 +2094,7 @@ func (p *Planner) optimizeLookup(t *ruletrie, ref ast.Ref) ([][]*ast.Rule, []ir.
 			all = all && len(node.Children()) == 0
 		}
 		if all {
-			p.debug(fmt.Sprintf("ref %s: all nodes have 0 children, break", ref[0:index+1]))
+			p.debugf("ref %s: all nodes have 0 children, break", ref[0:index+1])
 			break
 		}
 	}
@@ -2101,14 +2104,16 @@ func (p *Planner) optimizeLookup(t *ruletrie, ref ast.Ref) ([][]*ast.Rule, []ir.
 	// if there hasn't been any var, we're not making things better by
 	// introducing CallDynamicStmt
 	if !opt {
-		return dont("no vars seen before trie descend encountered no children")
+		p.debugf("no optimization of %s: no vars seen before trie descend encountered no children", ref)
+		return dont()
 	}
 
 	for _, node := range nodes {
 		// we're done with ref, check if there's only ruleset leaves; collect rules
 		if index == len(ref)-1 {
 			if len(node.Children()) > 0 {
-				return dont("unbalanced ruletrie")
+				p.debugf("no optimization of %s: unbalanced ruletrie", ref)
+				return dont()
 			}
 		}
 		if rules := node.Rules(); len(rules) > 0 {
@@ -2116,7 +2121,7 @@ func (p *Planner) optimizeLookup(t *ruletrie, ref ast.Ref) ([][]*ast.Rule, []ir.
 		}
 	}
 	if len(res) == 0 {
-		p.debug(fmt.Sprintf("ref %s: nothing to plan, no rule leaves", ref[0:index+1]))
+		p.debugf("ref %s: nothing to plan, no rule leaves", ref[0:index+1])
 		return nil, nil, nil, index, true
 	}
 
@@ -2141,7 +2146,8 @@ func (p *Planner) optimizeLookup(t *ruletrie, ref ast.Ref) ([][]*ast.Rule, []ir.
 		case ast.Var:
 			lv, ok := p.vars.Get(r)
 			if !ok {
-				return dont("ref[%d] not a seen var: %v", i, ref[i])
+				p.debugf("no optimization of %s: ref[%d] not a seen var: %v", ref, i, ref[i])
+				return dont()
 			}
 			locals = append(locals, lv)
 		case ast.String:

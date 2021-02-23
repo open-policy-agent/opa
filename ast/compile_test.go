@@ -5,6 +5,7 @@
 package ast
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"reflect"
@@ -3516,11 +3517,12 @@ func TestCompilerWithStageAfterWithMetrics(t *testing.T) {
 func TestCompilerBuildComprehensionIndexKeySet(t *testing.T) {
 
 	tests := []struct {
-		note     string
-		module   string
-		atRow    int
-		wantTerm string
-		wantKeys string
+		note      string
+		module    string
+		atRow     int
+		wantTerm  string
+		wantKeys  string
+		wantDebug int
 	}{
 		{
 			note: "example: invert object",
@@ -3532,9 +3534,10 @@ func TestCompilerBuildComprehensionIndexKeySet(t *testing.T) {
 					keys = [j | value = input[j]]
 				}
 			`,
-			atRow:    6,
-			wantTerm: `[j | value = input[j]]`,
-			wantKeys: `[value]`,
+			atRow:     6,
+			wantTerm:  `[j | value = input[j]]`,
+			wantKeys:  `[value]`,
+			wantDebug: 1,
 		},
 		{
 			note: "example: multiple keys from body",
@@ -3547,9 +3550,10 @@ func TestCompilerBuildComprehensionIndexKeySet(t *testing.T) {
 					keys = [j | v1 = input[j].v1; v2 = input[j].v2]
 				}
 			`,
-			atRow:    7,
-			wantTerm: `[j | v1 = input[j].v1; v2 = input[j].v2]`,
-			wantKeys: `[v1, v2]`,
+			atRow:     7,
+			wantTerm:  `[j | v1 = input[j].v1; v2 = input[j].v2]`,
+			wantKeys:  `[v1, v2]`,
+			wantDebug: 1,
 		},
 		{
 			note: "example: nested comprehensions are supported",
@@ -3564,6 +3568,8 @@ func TestCompilerBuildComprehensionIndexKeySet(t *testing.T) {
 			atRow:    6,
 			wantTerm: `{y | x = input[y]}`,
 			wantKeys: `[x]`,
+			// there are still things going on here that'll be reported, besides successful indexing
+			wantDebug: 2,
 		},
 		{
 			note: "skip: lone comprehensions",
@@ -3573,6 +3579,7 @@ func TestCompilerBuildComprehensionIndexKeySet(t *testing.T) {
 				p {
 					[v | input[i] = v]  # skip because no assignment
 				}`,
+			wantDebug: 0,
 		},
 		{
 			note: "skip: due to with modifier",
@@ -3583,6 +3590,7 @@ func TestCompilerBuildComprehensionIndexKeySet(t *testing.T) {
 					v = input[i]
 					ks = [j | input[j] = v] with data.x as 1  # skip because of with modifier
 				}`,
+			wantDebug: 0,
 		},
 		{
 			note: "skip: due to negation",
@@ -3594,6 +3602,7 @@ func TestCompilerBuildComprehensionIndexKeySet(t *testing.T) {
 					a = []
 					not a = [j | input[j] = v] # skip due to negation
 				}`,
+			wantDebug: 0,
 		},
 		{
 			note: "skip: due to lack of comprehension",
@@ -3603,6 +3612,7 @@ func TestCompilerBuildComprehensionIndexKeySet(t *testing.T) {
 				p {
 					v = input[i]
 				}`,
+			wantDebug: 0, // nothing interesting to report here
 		},
 		{
 			note: "skip: due to unsafe comprehension body",
@@ -3613,6 +3623,7 @@ func TestCompilerBuildComprehensionIndexKeySet(t *testing.T) {
 					v = input[i]
 					ys = [y | y = x[j]]  # x is not safe
 				}`,
+			wantDebug: 1,
 		},
 		{
 			note: "skip: due to no candidates",
@@ -3622,6 +3633,7 @@ func TestCompilerBuildComprehensionIndexKeySet(t *testing.T) {
 				p {
 					ys = [y | y = input[j]]
 				}`,
+			wantDebug: 1,
 		},
 		{
 			note: "skip: due to nested comprehension containing candidate",
@@ -3637,6 +3649,7 @@ func TestCompilerBuildComprehensionIndexKeySet(t *testing.T) {
 					]
 				}
 			`,
+			wantDebug: 2,
 		},
 		{
 			note: "skip: avoid increasing runtime (func arg)",
@@ -3647,6 +3660,7 @@ func TestCompilerBuildComprehensionIndexKeySet(t *testing.T) {
 					y = input[x]
 					ys = [y | y = input[x]]
 				}`,
+			wantDebug: 1,
 		},
 		{
 			note: "skip: avoid increasing runtime (head key)",
@@ -3657,6 +3671,7 @@ func TestCompilerBuildComprehensionIndexKeySet(t *testing.T) {
 					y = input[x]
 					ys = [y | y = input[x]]
 				}`,
+			wantDebug: 1,
 		},
 		{
 			note: "skip: avoid increasing runtime (walk)",
@@ -3667,6 +3682,7 @@ func TestCompilerBuildComprehensionIndexKeySet(t *testing.T) {
 					y = input.bar[x]
 					ys = [y | a = input.foo; walk(a, [x, y])]
 				}`,
+			wantDebug: 1,
 		},
 		{
 			note: "bypass: use intermediate var to skip regression check",
@@ -3677,20 +3693,34 @@ func TestCompilerBuildComprehensionIndexKeySet(t *testing.T) {
 					y = input[x]
 					ys = [y | y = input[z]; z = x]
 				}`,
-			atRow:    6,
-			wantTerm: ` [y | y = input[z]; z = x]`,
-			wantKeys: `[x, y]`,
+			atRow:     6,
+			wantTerm:  ` [y | y = input[z]; z = x]`,
+			wantKeys:  `[x, y]`,
+			wantDebug: 1,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-
+			dbg := bytes.Buffer{}
 			m := metrics.New()
-			compiler := NewCompiler().WithMetrics(m)
-			compiler.Compile(map[string]*Module{"test.rego": MustParseModule(tc.module)})
+			compiler := NewCompiler().WithMetrics(m).WithDebug(&dbg)
+			mod, err := ParseModule("test.rego", tc.module)
+			if err != nil {
+				t.Fatal(err)
+			}
+			compiler.Compile(map[string]*Module{"test.rego": mod})
 			if compiler.Failed() {
 				t.Fatal(compiler.Errors)
+			}
+
+			messages := strings.Split(dbg.String(), "\n")
+			messages = messages[:len(messages)-1] // last one is an empty string
+			if exp, act := tc.wantDebug, len(messages); exp != act {
+				t.Errorf("expected %d debug messages, got %d", exp, act)
+				for i, m := range messages {
+					t.Logf("%d: %s\n", i, m)
+				}
 			}
 
 			n := m.Counter(compileStageComprehensionIndexBuild).Value().(uint64)
@@ -3707,7 +3737,6 @@ func TestCompilerBuildComprehensionIndexKeySet(t *testing.T) {
 			}
 
 			var comprehension *Term
-
 			WalkTerms(compiler.Modules["test.rego"], func(x *Term) bool {
 				if !IsComprehension(x.Value) {
 					return true
@@ -3720,29 +3749,24 @@ func TestCompilerBuildComprehensionIndexKeySet(t *testing.T) {
 				comprehension = x
 				return false
 			})
-
 			if comprehension == nil {
 				t.Fatal("expected comprehension at line:", tc.atRow)
 			}
 
 			result := compiler.ComprehensionIndex(comprehension)
-
 			if result == nil {
 				t.Fatal("expected result")
 			}
 
 			expTerm := MustParseTerm(tc.wantTerm)
-
 			if !result.Term.Equal(expTerm) {
 				t.Fatalf("expected term to be %v but got: %v", expTerm, result.Term)
 			}
 
 			expKeys := MustParseTerm(tc.wantKeys).Value.(*Array)
-
 			if NewArray(result.Keys...).Compare(expKeys) != 0 {
 				t.Fatalf("expected keys to be %v but got: %v", expKeys, result.Keys)
 			}
-
 		})
 	}
 }

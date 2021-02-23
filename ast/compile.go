@@ -6,10 +6,12 @@ package ast
 
 import (
 	"fmt"
+	"io"
 	"sort"
 	"strconv"
 	"strings"
 
+	"github.com/open-policy-agent/opa/internal/debug"
 	"github.com/open-policy-agent/opa/internal/gojsonschema"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/types"
@@ -104,6 +106,7 @@ type Compiler struct {
 	comprehensionIndices map[*Term]*ComprehensionIndex // comprehension key index
 	initialized          bool                          // indicates if init() has been called
 	schemaSet            *SchemaSet
+	debug                debug.Debug // emits debug information produced during compilation
 }
 
 // SchemaSet holds a map from a path to a schema
@@ -234,6 +237,7 @@ func NewCompiler() *Compiler {
 		after:                map[string][]CompilerStageDefinition{},
 		unsafeBuiltinsMap:    map[string]struct{}{},
 		comprehensionIndices: map[*Term]*ComprehensionIndex{},
+		debug:                debug.Discard(),
 	}
 
 	c.ModuleTree = NewModuleTree(nil)
@@ -313,6 +317,15 @@ func (c *Compiler) WithMetrics(metrics metrics.Metrics) *Compiler {
 // successfully.
 func (c *Compiler) WithCapabilities(capabilities *Capabilities) *Compiler {
 	c.capabilities = capabilities
+	return c
+}
+
+// WithDebug sets where debug messages are written to. Passing `nil` has no
+// effect.
+func (c *Compiler) WithDebug(sink io.Writer) *Compiler {
+	if sink != nil {
+		c.debug = debug.New(sink)
+	}
 	return c
 }
 
@@ -674,7 +687,7 @@ func (c *Compiler) buildComprehensionIndices() {
 		WalkRules(c.Modules[name], func(r *Rule) bool {
 			candidates := r.Head.Args.Vars()
 			candidates.Update(ReservedVars)
-			n := buildComprehensionIndices(c.GetArity, candidates, r.Body, c.comprehensionIndices)
+			n := buildComprehensionIndices(c.debug, c.GetArity, candidates, c.RewrittenVars, r.Body, c.comprehensionIndices)
 			c.counterAdd(compileStageComprehensionIndexBuild, n)
 			return false
 		})
@@ -1688,7 +1701,7 @@ func (qc *queryCompiler) rewriteWithModifiers(qctx *QueryContext, body Body) (Bo
 func (qc *queryCompiler) buildComprehensionIndices(qctx *QueryContext, body Body) (Body, error) {
 	// NOTE(tsandall): The query compiler does not have a metrics object so we
 	// cannot record index metrics currently.
-	_ = buildComprehensionIndices(qc.compiler.GetArity, ReservedVars, body, qc.comprehensionIndices)
+	_ = buildComprehensionIndices(qc.compiler.debug, qc.compiler.GetArity, ReservedVars, qc.RewrittenVars(), body, qc.comprehensionIndices)
 	return body, nil
 }
 
@@ -1709,11 +1722,13 @@ func (ci *ComprehensionIndex) String() string {
 	return fmt.Sprintf("<keys: %v>", NewArray(ci.Keys...))
 }
 
-func buildComprehensionIndices(arity func(Ref) int, candidates VarSet, node interface{}, result map[*Term]*ComprehensionIndex) (n uint64) {
+func buildComprehensionIndices(dbg debug.Debug, arity func(Ref) int, candidates VarSet, rwVars map[Var]Var, node interface{}, result map[*Term]*ComprehensionIndex) uint64 {
+	var n uint64
 	WalkBodies(node, func(b Body) bool {
 		cpy := candidates.Copy()
 		for _, expr := range b {
-			if index := getComprehensionIndex(arity, cpy, expr); index != nil {
+			index := getComprehensionIndex(dbg, arity, cpy, rwVars, expr)
+			if index != nil {
 				result[index.Term] = index
 				n++
 			}
@@ -1726,11 +1741,13 @@ func buildComprehensionIndices(arity func(Ref) int, candidates VarSet, node inte
 	return n
 }
 
-func getComprehensionIndex(arity func(Ref) int, candidates VarSet, expr *Expr) *ComprehensionIndex {
+func getComprehensionIndex(dbg debug.Debug, arity func(Ref) int, candidates VarSet, rwVars map[Var]Var, expr *Expr) *ComprehensionIndex {
 
 	// Ignore everything except <var> = <comprehension> expressions. Extract
 	// the comprehension term from the expression.
 	if !expr.IsEquality() || expr.Negated || len(expr.With) > 0 {
+		// No debug message, these are assumed to be known hinderances
+		// to comprehension indexing.
 		return nil
 	}
 
@@ -1745,6 +1762,7 @@ func getComprehensionIndex(arity func(Ref) int, candidates VarSet, expr *Expr) *
 	}
 
 	if term == nil {
+		// no debug for this, it's the ordinary "nothing to do here" case
 		return nil
 	}
 
@@ -1781,6 +1799,7 @@ func getComprehensionIndex(arity func(Ref) int, candidates VarSet, expr *Expr) *
 	unsafe := body.Vars(SafetyCheckVisitorParams).Diff(outputs).Diff(ReservedVars)
 
 	if len(unsafe) > 0 {
+		dbg.Printf("%s: unsafe vars: %v", expr.Location, unsafe)
 		return nil
 	}
 
@@ -1790,6 +1809,7 @@ func getComprehensionIndex(arity func(Ref) int, candidates VarSet, expr *Expr) *
 	regressionVis := newComprehensionIndexRegressionCheckVisitor(candidates)
 	regressionVis.Walk(body)
 	if regressionVis.worse {
+		dbg.Printf("%s: output vars intersect candidates", expr.Location)
 		return nil
 	}
 
@@ -1799,6 +1819,7 @@ func getComprehensionIndex(arity func(Ref) int, candidates VarSet, expr *Expr) *
 	nestedVis := newComprehensionIndexNestedCandidateVisitor(candidates)
 	nestedVis.Walk(body)
 	if nestedVis.found {
+		dbg.Printf("%s: nested comprehensions close over candidates", expr.Location)
 		return nil
 	}
 
@@ -1808,6 +1829,7 @@ func getComprehensionIndex(arity func(Ref) int, candidates VarSet, expr *Expr) *
 	// empty, there is no indexing to do.
 	indexVars := candidates.Intersect(outputs)
 	if len(indexVars) == 0 {
+		dbg.Printf("%s: no index vars", expr.Location)
 		return nil
 	}
 
@@ -1821,6 +1843,15 @@ func getComprehensionIndex(arity func(Ref) int, candidates VarSet, expr *Expr) *
 		return result[i].Value.Compare(result[j].Value) < 0
 	})
 
+	debugRes := make([]*Term, len(result))
+	for i, r := range result {
+		if o, ok := rwVars[r.Value.(Var)]; ok {
+			debugRes[i] = NewTerm(o)
+		} else {
+			debugRes[i] = r
+		}
+	}
+	dbg.Printf("%s: comprehension index built with keys: %v", expr.Location, debugRes)
 	return &ComprehensionIndex{Term: term, Keys: result}
 }
 

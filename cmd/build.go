@@ -275,16 +275,15 @@ func dobuild(params buildParams, args []string) error {
 		WithBundleVerificationConfig(bvc).
 		WithBundleSigningConfig(bsc)
 
+	if params.debug {
+		compiler = compiler.WithDebug(os.Stderr)
+	}
+
 	if params.claimsFile == "" {
 		compiler = compiler.WithBundleVerificationKeyID(params.pubKeyID)
 	}
 
 	err = compiler.Build(context.Background())
-
-	if params.debug {
-		printdebug(os.Stderr, compiler.Debug())
-	}
-
 	if err != nil {
 		return err
 	}
@@ -331,10 +330,4 @@ func buildSigningConfig(key, alg, claimsFile string) *bundle.SigningConfig {
 	}
 
 	return bundle.NewSigningConfig(key, alg, claimsFile)
-}
-
-func printdebug(w io.Writer, debug []compile.Debug) {
-	for i := range debug {
-		fmt.Fprintln(w, debug[i])
-	}
 }
