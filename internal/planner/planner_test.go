@@ -345,15 +345,16 @@ q = 2`,
 					Queries: queries,
 				},
 			}).WithModules(modules).WithBuiltinDecls(ast.BuiltinMap)
+
+			if testing.Verbose() {
+				planner = planner.WithDebug(os.Stderr)
+			}
 			policy, err := planner.Plan()
 			if err != nil {
 				t.Fatal(err)
 			}
 			if testing.Verbose() {
 				ir.Pretty(os.Stderr, policy)
-				for _, d := range planner.Debug() {
-					fmt.Fprint(os.Stderr, d)
-				}
 			}
 		})
 	}

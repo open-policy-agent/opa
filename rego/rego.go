@@ -1064,7 +1064,8 @@ func New(options ...func(r *Rego)) *Rego {
 	if r.compiler == nil {
 		r.compiler = ast.NewCompiler().
 			WithUnsafeBuiltins(r.unsafeBuiltins).
-			WithBuiltins(r.builtinDecls)
+			WithBuiltins(r.builtinDecls).
+			WithDebug(r.dump)
 		if r.schemaSet != nil {
 			r.compiler.WithSchemas(r.schemaSet)
 		}
@@ -1324,7 +1325,8 @@ func (r *Rego) compileWasm(modules []*ast.Module, queries []ast.Body, qType quer
 			},
 		}).
 		WithModules(modules).
-		WithBuiltinDecls(decls)
+		WithBuiltinDecls(decls).
+		WithDebug(r.dump)
 	policy, err := p.Plan()
 	if err != nil {
 		return nil, err
@@ -1335,11 +1337,6 @@ func (r *Rego) compileWasm(modules []*ast.Module, queries []ast.Body, qType quer
 		fmt.Fprintln(r.dump, "-----")
 		ir.Pretty(r.dump, policy)
 		fmt.Fprintln(r.dump)
-
-		fmt.Fprintln(r.dump, "planner debug:")
-		for _, d := range p.Debug() {
-			fmt.Fprintln(r.dump, d)
-		}
 	}
 
 	m, err := wasm.New().WithPolicy(policy).Compile()

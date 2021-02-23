@@ -17,18 +17,18 @@ import (
 type RuleIndex interface {
 
 	// Build tries to construct an index for the given rules. If the index was
-	// constructed, ok is true, otherwise false.
-	Build(rules []*Rule) (ok bool)
+	// constructed, it returns true, otherwise false.
+	Build(rules []*Rule) bool
 
 	// Lookup searches the index for rules that will match the provided
 	// resolver. If the resolver returns an error, it is returned via err.
-	Lookup(resolver ValueResolver) (result *IndexResult, err error)
+	Lookup(resolver ValueResolver) (*IndexResult, error)
 
 	// AllRules traverses the index and returns all rules that will match
 	// the provided resolver without any optimizations (effectively with
 	// indexing disabled). If the resolver returns an error, it is returned
 	// via err.
-	AllRules(resolver ValueResolver) (result *IndexResult, err error)
+	AllRules(resolver ValueResolver) (*IndexResult, error)
 }
 
 // IndexResult contains the result of an index lookup.
