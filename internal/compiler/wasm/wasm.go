@@ -7,6 +7,7 @@ package wasm
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
 	"io"
 
@@ -186,6 +187,7 @@ type Compiler struct {
 	entrypoints           map[string]int32  // available entrypoint ids
 	stringOffset          int32             // null-terminated string data base offset
 	stringAddrs           []uint32          // null-terminated string constant addresses
+	opaStringAddrs        []uint32          // addresses of interned opa_string_t
 	fileAddrs             []uint32          // null-terminated string constant addresses, used for file names
 	funcs                 map[string]uint32 // maps imported and exported function names to function indices
 
@@ -396,6 +398,24 @@ func (c *Compiler) compileStrings() error {
 		buf.WriteString(s.Value)
 		buf.WriteByte(0)
 		c.stringAddrs[i] = addr
+	}
+
+	// interned `opa_value*`` for these constant strings
+	c.opaStringAddrs = make([]uint32, len(c.policy.Static.Strings))
+	for i, s := range c.policy.Static.Strings {
+		c.opaStringAddrs[i] = uint32(buf.Len()) + uint32(c.stringOffset)
+		size := 12
+		b := make([]byte, size)
+		binary.LittleEndian.PutUint16(b[0:], uint16(opaTypeString))
+		binary.LittleEndian.PutUint32(b[4:], uint32(len(s.Value)))
+		binary.LittleEndian.PutUint32(b[8:], c.stringAddrs[i])
+		n, err := buf.Write(b)
+		if err != nil {
+			return fmt.Errorf("write interned strings: %w", err)
+		}
+		if n != size {
+			return fmt.Errorf("short write: %d (expected %d)", n, size)
+		}
 	}
 
 	// NOTE(sr): All files that have been consulted in planning are recorded,
@@ -943,8 +963,7 @@ func (c *Compiler) compileBlock(block *ir.Block) ([]instruction.Instruction, err
 			instrs = append(instrs, instruction.Call{Index: c.function(opaNumberRef)})
 			instrs = append(instrs, instruction.SetLocal{Index: c.local(stmt.Target)})
 		case *ir.MakeStringStmt:
-			instrs = append(instrs, instruction.I32Const{Value: c.stringAddr(stmt.Index)})
-			instrs = append(instrs, instruction.Call{Index: c.function(opaStringTerminated)})
+			instrs = append(instrs, instruction.I32Const{Value: c.opaStringAddr(stmt.Index)})
 			instrs = append(instrs, instruction.SetLocal{Index: c.local(stmt.Target)})
 		case *ir.MakeArrayStmt:
 			instrs = append(instrs, instruction.I32Const{Value: stmt.Capacity})
@@ -1177,8 +1196,7 @@ func (c *Compiler) compileUpsert(local ir.Local, path []int, value ir.Local, loc
 
 	for i := 0; i < len(path); i++ {
 		lpath[i] = c.genLocal()
-		instrs = append(instrs, instruction.I32Const{Value: c.stringAddr(path[i])})
-		instrs = append(instrs, instruction.Call{Index: c.function(opaStringTerminated)})
+		instrs = append(instrs, instruction.I32Const{Value: c.opaStringAddr(path[i])})
 		instrs = append(instrs, instruction.SetLocal{Index: lpath[i]})
 	}
 
@@ -1268,8 +1286,7 @@ func (c *Compiler) compileCallDynamicStmt(stmt *ir.CallDynamicStmt, result *[]in
 		block.Instrs = append(block.Instrs, instruction.GetLocal{Index: larray})
 		if sIdx, ok := lv.(ir.StringIndex); ok {
 			block.Instrs = append(block.Instrs,
-				instruction.I32Const{Value: c.stringAddr(int(sIdx))},
-				instruction.Call{Index: c.function(opaStringTerminated)},
+				instruction.I32Const{Value: c.opaStringAddr(int(sIdx))},
 			)
 		}
 		if loc, ok := lv.(ir.Local); ok {
@@ -1454,6 +1471,10 @@ func (c *Compiler) stringAddr(index int) int32 {
 
 func (c *Compiler) builtinStringAddr(code int) int32 {
 	return int32(c.builtinStringAddrs[code])
+}
+
+func (c *Compiler) opaStringAddr(index int) int32 {
+	return int32(c.opaStringAddrs[index])
 }
 
 func (c *Compiler) fileAddr(code int) int32 {
