@@ -441,7 +441,7 @@ func (c *Compiler) compileWasm(ctx context.Context) error {
 	}
 
 	// Compile the policy into a wasm binary.
-	m, err := compiler.WithPolicy(policy).Compile()
+	m, err := compiler.WithPolicy(policy).WithDebug(c.debug.Writer()).Compile()
 	if err != nil {
 		return err
 	}
