@@ -38,6 +38,8 @@ const (
 	opaTypeString
 	opaTypeArray
 	opaTypeObject
+	opaTypeSet
+	opaTypeStringInterned
 )
 
 const (
@@ -406,7 +408,7 @@ func (c *Compiler) compileStrings() error {
 		c.opaStringAddrs[i] = uint32(buf.Len()) + uint32(c.stringOffset)
 		size := 12
 		b := make([]byte, size)
-		binary.LittleEndian.PutUint16(b[0:], uint16(opaTypeString))
+		binary.LittleEndian.PutUint16(b[0:], uint16(opaTypeStringInterned))
 		binary.LittleEndian.PutUint32(b[4:], uint32(len(s.Value)))
 		binary.LittleEndian.PutUint32(b[8:], c.stringAddrs[i])
 		n, err := buf.Write(b)
