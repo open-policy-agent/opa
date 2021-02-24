@@ -158,10 +158,12 @@ func benchmarkConcurrency(b *testing.B, params []storage.TransactionParams) {
 						WithTransaction(txn)
 					rs, err := query.Run(ctx)
 					if err != nil {
-						b.Fatalf("Unexpected topdown query error: %v", err)
+						b.Errorf("Unexpected topdown query error: %v", err)
+						return
 					}
 					if len(rs) != 1 || !rs[0][ast.Var("x")].Equal(ast.BooleanTerm(true)) {
-						b.Fatalf("Unexpected undefined/extra/bad result: %v", rs)
+						b.Errorf("Unexpected undefined/extra/bad result: %v", rs)
+						return
 					}
 					store.Abort(ctx, txn)
 				}

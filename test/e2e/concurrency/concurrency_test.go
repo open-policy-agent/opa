@@ -48,10 +48,12 @@ func TestConcurrency(t *testing.T) {
 					Result bool `json:"result"`
 				}{}
 				if err := testRuntime.GetDataWithInputTyped("test/p", nil, &dr); err != nil {
-					t.Fatal(err)
+					t.Error(err)
+					return
 				}
 				if !dr.Result {
-					t.Fatalf("Unexpected response: %+v", dr)
+					t.Errorf("Unexpected response: %+v", dr)
+					return
 				}
 			}
 			wg.Done()
