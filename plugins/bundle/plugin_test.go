@@ -583,9 +583,14 @@ func TestPluginListener(t *testing.T) {
 	plugin.downloaders[bundleName] = download.New(download.Config{}, plugin.manager.Client(""), bundleName)
 	ch := make(chan Status)
 
-	plugin.Register("test", func(status Status) {
+	listenerName := "test"
+	plugin.Register(listenerName, func(status Status) {
 		ch <- status
 	})
+
+	if len(plugin.listeners) != 1 || plugin.listeners[listenerName] == nil {
+		t.Fatal("Listener not properly registered")
+	}
 
 	module := "package gork\np[x] { x = 1 }"
 
@@ -647,6 +652,11 @@ func TestPluginListener(t *testing.T) {
 
 	// Nothing should have changed in the update
 	validateStatus(t, s4, s3.ActiveRevision, false)
+
+	plugin.Unregister(listenerName)
+	if len(plugin.listeners) != 0 {
+		t.Fatal("Listener not properly unregistered")
+	}
 }
 
 func isErrStatus(s Status) bool {
@@ -729,9 +739,14 @@ func TestPluginBulkListener(t *testing.T) {
 	}
 	bulkChan := make(chan map[string]*Status)
 
-	plugin.RegisterBulkListener("bulk test", func(status map[string]*Status) {
+	listenerName := "bulk test"
+	plugin.RegisterBulkListener(listenerName, func(status map[string]*Status) {
 		bulkChan <- status
 	})
+
+	if len(plugin.bulkListeners) != 1 || plugin.bulkListeners[listenerName] == nil {
+		t.Fatal("Bulk listener not properly registered")
+	}
 
 	module := "package gork\np[x] { x = 1 }"
 
@@ -884,6 +899,11 @@ func TestPluginBulkListener(t *testing.T) {
 		if !reflect.DeepEqual(s, &Status{Name: name}) {
 			t.Errorf("Expected bundle %q to have an empty status, got: %+v", name, s5)
 		}
+	}
+
+	plugin.UnregisterBulkListener(listenerName)
+	if len(plugin.bulkListeners) != 0 {
+		t.Fatal("Bulk listener not properly unregistered")
 	}
 }
 
