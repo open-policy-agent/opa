@@ -227,7 +227,7 @@ func (p *Plugin) Unregister(name interface{}) {
 	p.mtx.Lock()
 	defer p.mtx.Unlock()
 
-	delete(p.bulkListeners, name)
+	delete(p.listeners, name)
 }
 
 // RegisterBulkListener registers a listener to receive bulk (aggregated) status updates. The name must be comparable.
