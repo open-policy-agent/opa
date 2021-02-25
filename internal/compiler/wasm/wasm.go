@@ -1007,7 +1007,7 @@ func (c *Compiler) compileBlock(block *ir.Block) ([]instruction.Instruction, err
 			instrs = append(instrs, instruction.Call{Index: c.function(opaArrayAppend)})
 		case *ir.ObjectInsertStmt:
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Object)})
-			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Key)})
+			instrs = append(instrs, c.instrFromLocalOrStringConst(stmt.Key))
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Value)})
 			instrs = append(instrs, instruction.Call{Index: c.function(opaObjectInsert)})
 		case *ir.ObjectInsertOnceStmt:
@@ -1285,16 +1285,11 @@ func (c *Compiler) compileCallDynamicStmt(stmt *ir.CallDynamicStmt, result *[]in
 
 	// append to it:
 	for _, lv := range stmt.Path {
-		block.Instrs = append(block.Instrs, instruction.GetLocal{Index: larray})
-		if sIdx, ok := lv.(ir.StringIndex); ok {
-			block.Instrs = append(block.Instrs,
-				instruction.I32Const{Value: c.opaStringAddr(int(sIdx))},
-			)
-		}
-		if loc, ok := lv.(ir.Local); ok {
-			block.Instrs = append(block.Instrs, instruction.GetLocal{Index: c.local(loc)})
-		}
-		block.Instrs = append(block.Instrs, instruction.Call{Index: c.function(opaArrayAppend)})
+		block.Instrs = append(block.Instrs,
+			instruction.GetLocal{Index: larray},
+			c.instrFromLocalOrStringConst(lv),
+			instruction.Call{Index: c.function(opaArrayAppend)},
+		)
 	}
 
 	// prep stack for later call_indirect
@@ -1587,4 +1582,14 @@ func (c *Compiler) storeFunc(name string, code *module.CodeEntry) error {
 	}
 	c.funcsCode = append(c.funcsCode, funcCode{name: name, code: code})
 	return nil
+}
+
+func (c *Compiler) instrFromLocalOrStringConst(lv ir.LocalOrStringConst) instruction.Instruction {
+	switch x := lv.(type) {
+	case ir.StringIndex:
+		return instruction.I32Const{Value: c.opaStringAddr(int(x))}
+	case ir.Local:
+		return instruction.GetLocal{Index: c.local(x)}
+	}
+	panic("unreachable")
 }

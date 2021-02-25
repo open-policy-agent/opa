@@ -455,7 +455,7 @@ type ArrayAppendStmt struct {
 // ObjectInsertStmt represents a dynamic insert operation of a
 // key/value pair into an object.
 type ObjectInsertStmt struct {
-	Key    Local
+	Key    LocalOrStringConst
 	Value  Local
 	Object Local
 

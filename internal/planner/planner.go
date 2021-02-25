@@ -429,19 +429,12 @@ func (p *Planner) planQueries() error {
 			qvs.Update(vs)
 		}
 
-		lvarnames := make(map[ast.Var]ir.Local, len(qvs))
+		lvarnames := make(map[ast.Var]ir.StringIndex, len(qvs))
 
 		for _, qv := range qvs.Sorted() {
 			qv = rewrittenVar(qs.RewrittenVars, qv)
 			if !qv.IsGenerated() && !qv.IsWildcard() {
-				// NOTE(sr): We have no location for these: they could appear in multiple
-				// queries, and we've lost track when building the ast.VarSet.
-				stmt := &ir.MakeStringStmt{
-					Index:  p.getStringConst(string(qv)),
-					Target: p.newLocal(),
-				}
-				p.appendStmt(stmt)
-				lvarnames[qv] = stmt.Target
+				lvarnames[qv] = ir.StringIndex(p.getStringConst(string(qv)))
 			}
 		}
 
@@ -1713,12 +1706,7 @@ func (p *Planner) planRefDataExtent(virtual *ruletrie, base *baseptr, iter plani
 				continue
 			}
 
-			lkey := p.newLocal()
-			idx := p.getStringConst(string(key.(ast.String)))
-			p.appendStmt(&ir.MakeStringStmt{
-				Index:  idx,
-				Target: lkey,
-			})
+			lkey := ir.StringIndex(p.getStringConst(string(key.(ast.String))))
 
 			rules := child.Rules()
 
