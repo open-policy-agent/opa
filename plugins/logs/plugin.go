@@ -419,15 +419,14 @@ func (p *Plugin) flushDecisions(ctx context.Context) {
 
 	go func(ctx context.Context, done chan bool) {
 		for ctx.Err() == nil {
-			ok, err := p.oneShot(ctx)
-			if err != nil {
+			if _, err := p.oneShot(ctx); err != nil {
 				p.logError("Error flushing decisions: %s", err)
-			} else if ok {
+				// Wait some before retrying, but skip incrementing interval since we are shutting down
+				time.Sleep(1 * time.Second)
+			} else {
 				done <- true
-				break
+				return
 			}
-			// Wait some before retrying, but skip incrementing interval since we are shutting down
-			time.Sleep(1 * time.Second)
 		}
 	}(ctx, done)
 

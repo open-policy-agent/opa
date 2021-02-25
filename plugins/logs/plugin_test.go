@@ -550,6 +550,25 @@ func TestPluginTerminatesAfterGracefulShutdownPeriod(t *testing.T) {
 	}
 }
 
+func TestPluginTerminatesAfterGracefulShutdownPeriodWithoutLogs(t *testing.T) {
+	ctx := context.Background()
+
+	fixture := newTestFixture(t)
+	defer fixture.server.stop()
+
+	if err := fixture.plugin.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	timeoutCtx, cancel := context.WithTimeout(ctx, time.Second)
+	defer cancel()
+
+	fixture.plugin.Stop(timeoutCtx)
+	if timeoutCtx.Err() != nil {
+		t.Fatal("Stop did not exit before context expiration")
+	}
+}
+
 func TestPluginReconfigure(t *testing.T) {
 
 	ctx := context.Background()
