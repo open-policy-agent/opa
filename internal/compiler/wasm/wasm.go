@@ -8,11 +8,13 @@ package wasm
 import (
 	"bytes"
 	"fmt"
+	"io"
 
 	"github.com/pkg/errors"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/internal/compiler/wasm/opa"
+	"github.com/open-policy-agent/opa/internal/debug"
 	"github.com/open-policy-agent/opa/internal/ir"
 	"github.com/open-policy-agent/opa/internal/wasm/encoding"
 	"github.com/open-policy-agent/opa/internal/wasm/instruction"
@@ -175,6 +177,8 @@ type Compiler struct {
 	module *module.Module    // output WASM module
 	code   *module.CodeEntry // output WASM code
 
+	funcsCode []funcCode // compile functions' code
+
 	builtinStringAddrs    map[int]uint32    // addresses of built-in string constants
 	externalFuncNameAddrs map[string]int32  // addresses of required built-in function names for listing
 	externalFuncs         map[string]int32  // required built-in function ids
@@ -189,6 +193,13 @@ type Compiler struct {
 	locals    map[ir.Local]uint32
 	lctx      uint32 // local pointing to eval context
 	lrs       uint32 // local pointing to result set
+
+	debug debug.Debug
+}
+
+type funcCode struct {
+	name string
+	code *module.CodeEntry
 }
 
 const (
@@ -208,7 +219,9 @@ var errorMessages = [...]struct {
 
 // New returns a new compiler object.
 func New() *Compiler {
-	c := &Compiler{}
+	c := &Compiler{
+		debug: debug.Discard(),
+	}
 	c.stages = []func() error{
 		c.initModule,
 		c.compileStrings,
@@ -216,6 +229,12 @@ func New() *Compiler {
 		c.compileEntrypointDecls,
 		c.compileFuncs,
 		c.compilePlans,
+
+		// final emissions
+		c.emitFuncs,
+
+		// global optimizations
+		c.optimizeBinaryen,
 	}
 	return c
 }
@@ -232,6 +251,14 @@ func (*Compiler) ABIVersion() ast.WasmABIVersion {
 // WithPolicy sets the policy to compile.
 func (c *Compiler) WithPolicy(p *ir.Policy) *Compiler {
 	c.policy = p
+	return c
+}
+
+// WithDebug sets the sink for debug logs emitted by the compiler.
+func (c *Compiler) WithDebug(sink io.Writer) *Compiler {
+	if sink != nil {
+		c.debug = debug.New(sink)
+	}
 	return c
 }
 
@@ -463,7 +490,7 @@ func (c *Compiler) compileExternalFuncDecls() error {
 		},
 	}
 
-	return c.emitFunction("builtins", c.code)
+	return c.storeFunc("builtins", c.code)
 }
 
 // compileEntrypointDecls generates a function that lists the entrypoints available
@@ -500,7 +527,7 @@ func (c *Compiler) compileEntrypointDecls() error {
 		},
 	}
 
-	return c.emitFunction("entrypoints", c.code)
+	return c.storeFunc("entrypoints", c.code)
 }
 
 // compileFuncs compiles the policy functions and emits them into the module.
@@ -570,7 +597,7 @@ func (c *Compiler) compilePlans() error {
 
 			instrs, err := c.compileBlock(block)
 			if err != nil {
-				return errors.Wrapf(err, "plan %d block %d", i, j)
+				return fmt.Errorf("plan %d block %d: %w", i, j, err)
 			}
 
 			entrypoint.Instrs = append(entrypoint.Instrs, instruction.Block{
@@ -601,7 +628,7 @@ func (c *Compiler) compilePlans() error {
 		},
 	}
 
-	return c.emitFunction("eval", c.code)
+	return c.storeFunc("eval", c.code)
 }
 
 func (c *Compiler) compileFunc(fn *ir.Func) error {
@@ -674,7 +701,7 @@ func (c *Compiler) compileFunc(fn *ir.Func) error {
 		params = append(params, types.I32)
 	}
 
-	return c.emitFunction(fn.Name, c.code)
+	return c.storeFunc(fn.Name, c.code)
 }
 
 func mapFunc(mapping ast.Object, fn *ir.Func, index int) (ast.Object, bool) {
@@ -755,7 +782,7 @@ func (c *Compiler) emitMapping() error {
 	c.emitFunctionDecl(fName, module.FunctionType{}, false)
 	idx := c.function(fName)
 	c.module.Start.FuncIndex = &idx
-	return c.emitFunction(fName, c.code)
+	return c.storeFunc(fName, c.code)
 }
 
 func (c *Compiler) compileBlock(block *ir.Block) ([]instruction.Instruction, error) {
@@ -1392,6 +1419,17 @@ func (c *Compiler) emitFunction(name string, entry *module.CodeEntry) error {
 	return nil
 }
 
+// emitFuncs writes the compiled (and optimized) functions' code into the
+// module
+func (c *Compiler) emitFuncs() error {
+	for _, fn := range c.funcsCode {
+		if err := c.emitFunction(fn.name, fn.code); err != nil {
+			return fmt.Errorf("write function %s: %w", fn.name, err)
+		}
+	}
+	return nil
+}
+
 func (c *Compiler) functionImportCount() int {
 	var count int
 
@@ -1510,4 +1548,14 @@ func (c *Compiler) runtimeErrorAbort(loc ir.Location, errType int) []instruction
 		instruction.I32Const{Value: c.builtinStringAddr(errType)},
 		instruction.Call{Index: c.function(opaRuntimeError)},
 	}
+}
+
+func (c *Compiler) storeFunc(name string, code *module.CodeEntry) error {
+	for _, fn := range c.funcsCode {
+		if fn.name == name {
+			return fmt.Errorf("duplicate function entry %s", name)
+		}
+	}
+	c.funcsCode = append(c.funcsCode, funcCode{name: name, code: code})
+	return nil
 }
