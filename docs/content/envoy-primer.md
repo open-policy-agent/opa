@@ -354,6 +354,55 @@ http_filters:
 ```
 </details>
 
+The `parsed_path` field in the input is generated from the `path` field in the HTTP request which is included in the
+Envoy External Authorization `CheckRequest` message type. This field provides the request path as a string array which
+can help policy authors perform pattern matching on the HTTP request path. The below sample policy allows anyone to
+access the path `/people`.
+
+```live:parsed_path_example:module:read_only
+package envoy.authz
+
+default allow = false
+
+allow {
+   input.parsed_path = ["people"]
+}
+```
+
+The `parsed_query` field in the input is also generated from the `path` field in the HTTP request. This field provides
+the HTTP URL query as a map of string array. The below sample policy allows anyone to access the path
+`/people?lang=en&id=1&id=2`.
+
+```live:parsed_query_example:module:read_only
+package envoy.authz
+
+default allow = false
+
+allow {
+   input.parsed_path = ["people"]
+   input.parsed_query.lang = ["en"]
+   input.parsed_query.id = ["1", "2"]
+}
+```
+
+The `parsed_body` field in the input is generated from the `body` field in the HTTP request which is included in the
+Envoy External Authorization `CheckRequest` message type. This field contains the deserialized JSON request body which
+can then be used in a policy as shown below.
+
+```live:parsed_body_example:module:read_only
+package envoy.authz
+
+default allow = false
+
+allow {
+   input.parsed_body.firstname == "Charlie"
+   input.parsed_body.lastname == "Opa"
+}
+```
+
+The `truncated_body` field in the input represents if the HTTP request body is truncated. The body is considered to be
+truncated, if the value of the `Content-Length` header exceeds the size of the request body.
+
 ## Example with JWT payload passed from Envoy
 
 Envoy can be configured to pass validated JWT payload data into the `ext_authz` filter with `metadata_context_namespaces`
