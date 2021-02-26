@@ -185,15 +185,20 @@ type CallDynamicStmt struct {
 
 // LocalOrConst is a tagged union of the two types, Local and StringIndex.
 // It's used with CallDynamicStmt.
-type LocalOrConst interface{ localOrString() }
+type LocalOrConst interface{ localOrConst() }
 
-func (Local) localOrString() {}
+func (Local) localOrConst() {}
 
 // StringIndex represents the index into the plan's list of constant strings
 // of a constant string.
 type StringIndex int
 
-func (StringIndex) localOrString() {}
+func (StringIndex) localOrConst() {}
+
+// Bool represents a constant boolean.
+type Bool bool
+
+func (Bool) localOrConst() {}
 
 // BlockStmt represents a nested block. Nested blocks and break statements can
 // be used to short-circuit execution.
@@ -298,7 +303,7 @@ type ResetLocalStmt struct {
 }
 
 // MakeStringStmt constructs a local variable that refers to a string constant.
-type MakeStringStmt struct {
+type MakeStringStmt struct { // TODO(sr): unused, remove
 	Index  int
 	Target Local
 
@@ -313,7 +318,7 @@ type MakeNullStmt struct {
 }
 
 // MakeBooleanStmt constructs a local variable that refers to a boolean value.
-type MakeBooleanStmt struct {
+type MakeBooleanStmt struct { // TODO(sr): unused, remove
 	Value  bool
 	Target Local
 

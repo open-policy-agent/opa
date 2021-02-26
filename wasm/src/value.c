@@ -21,10 +21,19 @@ static void __opa_set_add_elem(opa_set_t *set, opa_set_elem_t *new, size_t hash)
 OPA_INTERNAL
 int opa_value_type(opa_value *node)
 {
-    // For all intents and purposes, interned strings are strings.
+    // For all intents and purposes, interned strings are strings,
+    // interned booleans are booleans.
     // Only opa_value_free and opa_value_shallow_copy handle them
     // separately, by refering to node->type directly.
-    return (node->type == OPA_STRING_INTERNED) ? OPA_STRING : node->type;
+    switch (node->type)
+    {
+    case OPA_STRING_INTERNED:
+        return OPA_STRING;
+    case OPA_BOOLEAN_INTERNED:
+        return OPA_BOOLEAN;
+    default:
+        return node->type;
+    }
 }
 
 opa_value *opa_value_get_object(opa_object_t *obj, opa_value *key)
@@ -824,6 +833,7 @@ opa_value *opa_value_shallow_copy(opa_value *node)
     case OPA_SET:
         return opa_value_shallow_copy_set(opa_cast_set(node));
     case OPA_STRING_INTERNED:
+    case OPA_BOOLEAN_INTERNED:
         return node;
     }
 

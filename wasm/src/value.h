@@ -17,6 +17,7 @@ extern "C" {
 #define OPA_OBJECT (6)
 #define OPA_SET (7)
 #define OPA_STRING_INTERNED (8)
+#define OPA_BOOLEAN_INTERNED (9) // TODO(sr): make an "interned" bitmask?
 
 #define OPA_NUMBER_REPR_INT (1)
 #define OPA_NUMBER_REPR_FLOAT (2)

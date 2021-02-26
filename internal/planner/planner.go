@@ -715,14 +715,9 @@ func (p *Planner) dataRefsShadowRuletrie(refs []ast.Ref) bool {
 
 func (p *Planner) planExprTerm(e *ast.Expr, iter planiter) error {
 	return p.planTerm(e.Terms.(*ast.Term), func() error {
-		falsy := p.newLocal()
-		p.appendStmt(&ir.MakeBooleanStmt{
-			Value:  false,
-			Target: falsy,
-		})
 		p.appendStmt(&ir.NotEqualStmt{
 			A: p.ltarget,
-			B: falsy,
+			B: ir.Bool(false),
 		})
 		return iter()
 	})
@@ -889,16 +884,9 @@ func (p *Planner) planExprCallFunc(name string, arity int, operands []*ast.Term,
 				Result: ltarget,
 			})
 
-			falsy := p.newLocal()
-
-			p.appendStmt(&ir.MakeBooleanStmt{
-				Value:  false,
-				Target: falsy,
-			})
-
 			p.appendStmt(&ir.NotEqualStmt{
 				A: ltarget,
-				B: falsy,
+				B: ir.Bool(false),
 			})
 
 			return iter()
@@ -1213,15 +1201,7 @@ func (p *Planner) planNull(null ast.Null, iter planiter) error {
 
 func (p *Planner) planBoolean(b ast.Boolean, iter planiter) error {
 
-	target := p.newLocal()
-
-	p.appendStmt(&ir.MakeBooleanStmt{
-		Value:  bool(b),
-		Target: target,
-	})
-
-	p.ltarget = target
-
+	p.ltarget = ir.Bool(b)
 	return iter()
 }
 

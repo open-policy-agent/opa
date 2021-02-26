@@ -40,6 +40,7 @@ const (
 	opaTypeObject
 	opaTypeSet
 	opaTypeStringInterned
+	opaTypeBooleanInterned
 )
 
 const (
@@ -182,16 +183,17 @@ type Compiler struct {
 
 	funcsCode []funcCode // compile functions' code
 
-	builtinStringAddrs    map[int]uint32    // addresses of built-in string constants
-	externalFuncNameAddrs map[string]int32  // addresses of required built-in function names for listing
-	externalFuncs         map[string]int32  // required built-in function ids
-	entrypointNameAddrs   map[string]int32  // addresses of available entrypoint names for listing
-	entrypoints           map[string]int32  // available entrypoint ids
-	stringOffset          int32             // null-terminated string data base offset
-	stringAddrs           []uint32          // null-terminated string constant addresses
-	opaStringAddrs        []uint32          // addresses of interned opa_string_t
-	fileAddrs             []uint32          // null-terminated string constant addresses, used for file names
-	funcs                 map[string]uint32 // maps imported and exported function names to function indices
+	builtinStringAddrs    map[int]uint32     // addresses of built-in string constants
+	externalFuncNameAddrs map[string]int32   // addresses of required built-in function names for listing
+	externalFuncs         map[string]int32   // required built-in function ids
+	entrypointNameAddrs   map[string]int32   // addresses of available entrypoint names for listing
+	entrypoints           map[string]int32   // available entrypoint ids
+	stringOffset          int32              // null-terminated string data base offset
+	stringAddrs           []uint32           // null-terminated string constant addresses
+	opaStringAddrs        []uint32           // addresses of interned opa_string_t
+	opaBoolAddrs          map[ir.Bool]uint32 // addresses of interned opa_boolean_t
+	fileAddrs             []uint32           // null-terminated string constant addresses, used for file names
+	funcs                 map[string]uint32  // maps imported and exported function names to function indices
 
 	nextLocal uint32
 	locals    map[ir.Local]uint32
@@ -402,7 +404,26 @@ func (c *Compiler) compileStrings() error {
 		c.stringAddrs[i] = addr
 	}
 
-	// interned `opa_value*`` for these constant strings
+	// interned `opa_value*` for these true/false booleans
+	c.opaBoolAddrs = make(map[ir.Bool]uint32, 2)
+	for _, val := range []bool{true, false} {
+		opaBool := ir.Bool(val)
+		v := byte(0)
+		if val {
+			v = 1
+		}
+		c.opaBoolAddrs[opaBool] = uint32(buf.Len()) + uint32(c.stringOffset)
+		size := 2
+		n, err := buf.Write([]byte{byte(opaTypeBooleanInterned), v})
+		if err != nil {
+			return fmt.Errorf("write interned bools: %w", err)
+		}
+		if n != size {
+			return fmt.Errorf("short write: %d (expected %d)", n, size)
+		}
+	}
+
+	// interned `opa_value*` for these constant strings
 	c.opaStringAddrs = make([]uint32, len(c.policy.Static.Strings))
 	for i, s := range c.policy.Static.Strings {
 		c.opaStringAddrs[i] = uint32(buf.Len()) + uint32(c.stringOffset)
@@ -1484,6 +1505,10 @@ func (c *Compiler) opaStringAddr(index int) int32 {
 	return int32(c.opaStringAddrs[index])
 }
 
+func (c *Compiler) opaBoolAddr(b ir.Bool) int32 {
+	return int32(c.opaBoolAddrs[b])
+}
+
 func (c *Compiler) fileAddr(code int) int32 {
 	return int32(c.fileAddrs[code])
 }
@@ -1596,6 +1621,8 @@ func (c *Compiler) storeFunc(name string, code *module.CodeEntry) error {
 
 func (c *Compiler) instrRead(lv ir.LocalOrConst) instruction.Instruction {
 	switch x := lv.(type) {
+	case ir.Bool:
+		return instruction.I32Const{Value: c.opaBoolAddr(x)}
 	case ir.StringIndex:
 		return instruction.I32Const{Value: c.opaStringAddr(int(x))}
 	case ir.Local:
