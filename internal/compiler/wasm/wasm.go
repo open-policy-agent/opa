@@ -954,6 +954,7 @@ func (c *Compiler) compileBlock(block *ir.Block) ([]instruction.Instruction, err
 				// Booleans and strings would lead to the BrIf (since opa_value_get
 				// on them returns 0), so let's skip that.
 				instrs = append(instrs, instruction.Br{Index: 0})
+				break
 			}
 		case *ir.LenStmt:
 			instrs = append(instrs, c.instrRead(stmt.Source))
@@ -1047,16 +1048,22 @@ func (c *Compiler) compileBlock(block *ir.Block) ([]instruction.Instruction, err
 				instrs = append(instrs, instruction.Call{Index: c.function(opaValueType)})
 				instrs = append(instrs, instruction.I32Const{Value: opaTypeArray})
 				instrs = append(instrs, instruction.I32Ne{})
+				instrs = append(instrs, instruction.BrIf{Index: 0})
+			} else {
+				instrs = append(instrs, instruction.Br{Index: 0})
+				break
 			}
-			instrs = append(instrs, instruction.BrIf{Index: 0})
 		case *ir.IsObjectStmt:
 			if loc, ok := stmt.Source.(ir.Local); ok {
 				instrs = append(instrs, instruction.GetLocal{Index: c.local(loc)})
 				instrs = append(instrs, instruction.Call{Index: c.function(opaValueType)})
 				instrs = append(instrs, instruction.I32Const{Value: opaTypeObject})
 				instrs = append(instrs, instruction.I32Ne{})
+				instrs = append(instrs, instruction.BrIf{Index: 0})
+			} else {
+				instrs = append(instrs, instruction.Br{Index: 0})
+				break
 			}
-			instrs = append(instrs, instruction.BrIf{Index: 0})
 		case *ir.IsUndefinedStmt:
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Source)})
 			instrs = append(instrs, instruction.I32Const{Value: 0})
