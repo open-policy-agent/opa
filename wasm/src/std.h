@@ -1,6 +1,7 @@
 #ifndef OPA_STD_H
 #define OPA_STD_H
 
+#include <stdbool.h>
 #include <stddef.h>
 
 #ifdef __cplusplus
@@ -23,15 +24,6 @@ void opa_println(const char *msg);
     } while (0)
 #else
 #define TRACE(...)
-#endif
-
-#define TRUE        (1)
-#define FALSE       (0)
-
-#ifndef __cplusplus
-#define true    (1)
-#define false   (0)
-#define bool    int
 #endif
 
 // Functions to be exported from the WASM module

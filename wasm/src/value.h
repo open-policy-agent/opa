@@ -32,7 +32,7 @@ struct opa_value
 typedef struct
 {
     opa_value hdr;
-    int v;
+    bool v;
 } opa_boolean_t;
 
 typedef struct
@@ -131,7 +131,7 @@ opa_errc opa_value_add_path(opa_value *data, opa_value *path, opa_value *v);
 opa_errc opa_value_remove_path(opa_value *data, opa_value *path);
 
 opa_value *opa_null();
-opa_value *opa_boolean(int v);
+opa_value *opa_boolean(bool v);
 opa_value *opa_number_size(size_t v);
 opa_value *opa_number_int(long long v);
 opa_value *opa_number_float(double v);

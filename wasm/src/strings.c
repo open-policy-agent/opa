@@ -142,7 +142,7 @@ opa_value *opa_strings_contains(opa_value *a, opa_value *b)
     opa_string_t *s = opa_cast_string(a);
     opa_string_t *substr = opa_cast_string(b);
 
-    return opa_boolean(strings_indexof(s, 0, substr) >= 0 ? TRUE : FALSE);
+    return opa_boolean(strings_indexof(s, 0, substr) >= 0);
 }
 
 OPA_BUILTIN
@@ -158,18 +158,18 @@ opa_value *opa_strings_endswith(opa_value *a, opa_value *b)
 
     if (s->len < suffix->len)
     {
-        return opa_boolean(FALSE);
+        return opa_boolean(false);
     }
 
     for (int i = 0; i < suffix->len; i++)
     {
         if (s->v[s->len - suffix->len + i] != suffix->v[i])
         {
-            return opa_boolean(FALSE);
+            return opa_boolean(false);
         }
     }
 
-    return opa_boolean(TRUE);
+    return opa_boolean(true);
 }
 
 OPA_BUILTIN
@@ -428,10 +428,10 @@ opa_value *opa_strings_startswith(opa_value *a, opa_value *b)
 
     if (s->len < prefix->len)
     {
-        return opa_boolean(FALSE);
+        return opa_boolean(false);
     }
 
-    return opa_strncmp(s->v, prefix->v, prefix->len) == 0 ? opa_boolean(TRUE) : opa_boolean(FALSE);
+    return opa_boolean(opa_strncmp(s->v, prefix->v, prefix->len) == 0);
 }
 
 OPA_BUILTIN
@@ -759,7 +759,7 @@ opa_value *opa_strings_lower(opa_value *a)
     }
 
     opa_string_t *s = opa_cast_string(a);
-    int is_ascii = TRUE;
+    int is_ascii = true;
 
     for (int i = 0; i < s->len && is_ascii; i++)
     {
@@ -834,7 +834,7 @@ opa_value *opa_strings_upper(opa_value *a)
     }
 
     opa_string_t *s = opa_cast_string(a);
-    int is_ascii = TRUE;
+    int is_ascii = true;
 
     for (int i = 0; i < s->len && is_ascii; i++)
     {

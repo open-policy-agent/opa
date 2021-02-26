@@ -230,11 +230,11 @@ opa_value *opa_base64_is_valid(opa_value *a)
     unsigned char *dec = base64_decode((const unsigned char*)s->v, s->len, &len);
     if (dec == NULL)
     {
-        return opa_boolean(FALSE);
+        return opa_boolean(false);
     }
 
     free(dec);
-    return opa_boolean(TRUE);
+    return opa_boolean(true);
 }
 
 OPA_BUILTIN

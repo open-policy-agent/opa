@@ -34,7 +34,7 @@ static bool parse_ip(const char *src, int n, ip_net *dst)
         }
     }
 
-    return FALSE;
+    return false;
 }
 
 static bool parse_cidr(const char *src, size_t n, ip_net *dst)
@@ -51,21 +51,21 @@ static bool parse_cidr(const char *src, size_t n, ip_net *dst)
 
     if (slash == NULL)
     {
-        return FALSE;
+        return false;
     }
 
     const char *addr = src;
     const size_t len = slash - src;
     if (!parse_ip(addr, len, dst))
     {
-        return FALSE;
+        return false;
     }
 
     const char *mask = slash + 1;
     long long bits;
     if (opa_atoi64(mask, n - len - 1, &bits) == -1 || bits < 0 || bits > dst->len*8)
     {
-        return FALSE;
+        return false;
     }
 
     for (int i = 0; i < dst->len; i++)
@@ -85,7 +85,7 @@ static bool parse_cidr(const char *src, size_t n, ip_net *dst)
         dst->ip[i] &= dst->mask[i];
     }
 
-    return TRUE;
+    return true;
 }
 
 // returns true if a contains b.
@@ -93,7 +93,7 @@ static bool contains(ip_net *a, ip_net *b)
 {
     if (a->len != b->len)
     {
-        return FALSE;
+        return false;
     }
 
     for (int i = 0; i < a->len; i++)
@@ -112,7 +112,7 @@ static bool contains(ip_net *a, ip_net *b)
             //   ~b   | 00001111
             // a & ~b | 00001000
             //
-            return FALSE;
+            return false;
         }
 
         // Since b mask may be longer than a, use the a mask to ignore
@@ -122,11 +122,11 @@ static bool contains(ip_net *a, ip_net *b)
         // mask length.
         if (a->ip[i] != (b->ip[i] & a->mask[i]))
         {
-            return FALSE;
+            return false;
         }
     }
 
-    return TRUE;
+    return true;
 }
 
 OPA_BUILTIN
@@ -149,7 +149,7 @@ opa_value *opa_cidr_contains(opa_value *a, opa_value *b)
         return NULL;
     }
 
-    return opa_boolean(contains(&ip_a, &ip_b) ? TRUE : FALSE);
+    return opa_boolean(contains(&ip_a, &ip_b));
 }
 
 OPA_BUILTIN
@@ -167,7 +167,7 @@ opa_value *opa_cidr_intersects(opa_value *a, opa_value *b)
         return NULL;
     }
 
-    return opa_boolean(contains(&ip_a, &ip_b) || contains(&ip_b, &ip_a) ? TRUE : FALSE);
+    return opa_boolean(contains(&ip_a, &ip_b) || contains(&ip_b, &ip_a));
 }
 
 /*

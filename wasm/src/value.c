@@ -560,7 +560,7 @@ fnv1a32(size_t hash, const void *input, size_t len)
 }
 
 size_t opa_boolean_hash(opa_boolean_t *b) {
-    return b->v == FALSE ? 0 : 1;
+    return b->v ? 0 : 1;
 }
 
 size_t opa_number_hash(opa_number_t *n) {
@@ -874,7 +874,7 @@ opa_value *opa_null()
 }
 
 OPA_INTERNAL
-opa_value *opa_boolean(int v)
+opa_value *opa_boolean(bool v)
 {
     opa_boolean_t *ret = (opa_boolean_t *)opa_malloc(sizeof(opa_boolean_t));
     ret->hdr.type = OPA_BOOLEAN;
