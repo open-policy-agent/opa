@@ -25,7 +25,7 @@ type QuerySet struct {
 }
 
 type planiter func() error
-type binaryiter func(ir.Local, ir.Local) error
+type binaryiter func(ir.LocalOrConst, ir.LocalOrConst) error
 
 type wasmBuiltin struct {
 	*ast.Builtin
@@ -46,7 +46,7 @@ type Planner struct {
 	plan    *ir.Plan                // in-progress query plan
 	curr    *ir.Block               // in-progress query block
 	vars    *varstack               // in-scope variables
-	ltarget ir.Local                // target variable of last planned statement
+	ltarget ir.LocalOrConst         // target variable or constant of last planned statement
 	lnext   ir.Local                // next variable to use
 	loc     *location.Location      // location currently "being planned"
 	debug   debug.Debug             // debug information produced during planning
@@ -566,7 +566,7 @@ func (p *Planner) planWith(e *ast.Expr, iter planiter) error {
 		values[i] = e.With[i].Value
 	}
 
-	return p.planTermSlice(values, func(locals []ir.Local) error {
+	return p.planTermSlice(values, func(locals []ir.LocalOrConst) error {
 
 		paths := make([][]int, len(e.With))
 		saveVars := ast.NewVarSet()
@@ -649,7 +649,7 @@ func (p *Planner) planWith(e *ast.Expr, iter planiter) error {
 	})
 }
 
-func (p *Planner) planWithRec(e *ast.Expr, targets [][]int, values []ir.Local, index int, iter planiter) error {
+func (p *Planner) planWithRec(e *ast.Expr, targets [][]int, values []ir.LocalOrConst, index int, iter planiter) error {
 	if index >= len(e.With) {
 		return p.planExpr(e.NoWith(), iter)
 	}
@@ -734,7 +734,7 @@ func (p *Planner) planExprCall(e *ast.Expr, iter planiter) error {
 	case ast.Equality.Name:
 		return p.planUnify(e.Operand(0), e.Operand(1), iter)
 	case ast.Equal.Name:
-		return p.planBinaryExpr(e, func(a, b ir.Local) error {
+		return p.planBinaryExpr(e, func(a, b ir.LocalOrConst) error {
 			p.appendStmt(&ir.EqualStmt{
 				A: a,
 				B: b,
@@ -742,7 +742,7 @@ func (p *Planner) planExprCall(e *ast.Expr, iter planiter) error {
 			return iter()
 		})
 	case ast.LessThan.Name:
-		return p.planBinaryExpr(e, func(a, b ir.Local) error {
+		return p.planBinaryExpr(e, func(a, b ir.LocalOrConst) error {
 			p.appendStmt(&ir.LessThanStmt{
 				A: a,
 				B: b,
@@ -750,7 +750,7 @@ func (p *Planner) planExprCall(e *ast.Expr, iter planiter) error {
 			return iter()
 		})
 	case ast.LessThanEq.Name:
-		return p.planBinaryExpr(e, func(a, b ir.Local) error {
+		return p.planBinaryExpr(e, func(a, b ir.LocalOrConst) error {
 			p.appendStmt(&ir.LessThanEqualStmt{
 				A: a,
 				B: b,
@@ -758,7 +758,7 @@ func (p *Planner) planExprCall(e *ast.Expr, iter planiter) error {
 			return iter()
 		})
 	case ast.GreaterThan.Name:
-		return p.planBinaryExpr(e, func(a, b ir.Local) error {
+		return p.planBinaryExpr(e, func(a, b ir.LocalOrConst) error {
 			p.appendStmt(&ir.GreaterThanStmt{
 				A: a,
 				B: b,
@@ -766,7 +766,7 @@ func (p *Planner) planExprCall(e *ast.Expr, iter planiter) error {
 			return iter()
 		})
 	case ast.GreaterThanEq.Name:
-		return p.planBinaryExpr(e, func(a, b ir.Local) error {
+		return p.planBinaryExpr(e, func(a, b ir.LocalOrConst) error {
 			p.appendStmt(&ir.GreaterThanEqualStmt{
 				A: a,
 				B: b,
@@ -774,7 +774,7 @@ func (p *Planner) planExprCall(e *ast.Expr, iter planiter) error {
 			return iter()
 		})
 	case ast.NotEqual.Name:
-		return p.planBinaryExpr(e, func(a, b ir.Local) error {
+		return p.planBinaryExpr(e, func(a, b ir.LocalOrConst) error {
 			p.appendStmt(&ir.NotEqualStmt{
 				A: a,
 				B: b,
@@ -786,7 +786,7 @@ func (p *Planner) planExprCall(e *ast.Expr, iter planiter) error {
 		var relation bool
 		var name string
 		var arity int
-		var args []ir.Local
+		var args []ir.LocalOrConst
 
 		node := p.rules.Lookup(e.Operator())
 
@@ -797,7 +797,7 @@ func (p *Planner) planExprCall(e *ast.Expr, iter planiter) error {
 				return err
 			}
 			arity = node.Arity()
-			args = []ir.Local{
+			args = []ir.LocalOrConst{
 				p.vars.GetOrEmpty(ast.InputRootDocument.Value.(ast.Var)),
 				p.vars.GetOrEmpty(ast.DefaultRootDocument.Value.(ast.Var)),
 			}
@@ -824,21 +824,22 @@ func (p *Planner) planExprCall(e *ast.Expr, iter planiter) error {
 	}
 }
 
-func (p *Planner) planExprCallRelation(name string, arity int, operands []*ast.Term, args []ir.Local, iter planiter) error {
+func (p *Planner) planExprCallRelation(name string, arity int, operands []*ast.Term, args []ir.LocalOrConst, iter planiter) error {
 
 	if len(operands) == arity {
-		return p.planCallArgs(operands, 0, args, func(args []ir.Local) error {
+		return p.planCallArgs(operands, 0, args, func(args []ir.LocalOrConst) error {
 			p.ltarget = p.newLocal()
+			ltarget := p.ltarget.(ir.Local)
 			p.appendStmt(&ir.CallStmt{
 				Func:   name,
 				Args:   args,
-				Result: p.ltarget,
+				Result: ltarget,
 			})
 
 			lsize := p.newLocal()
 
 			p.appendStmt(&ir.LenStmt{
-				Source: p.ltarget,
+				Source: ltarget,
 				Target: lsize,
 			})
 
@@ -858,14 +859,14 @@ func (p *Planner) planExprCallRelation(name string, arity int, operands []*ast.T
 		})
 	}
 
-	return p.planCallArgs(operands[:len(operands)-1], 0, args, func(args []ir.Local) error {
+	return p.planCallArgs(operands[:len(operands)-1], 0, args, func(args []ir.LocalOrConst) error {
 
 		p.ltarget = p.newLocal()
 
 		p.appendStmt(&ir.CallStmt{
 			Func:   name,
 			Args:   args,
-			Result: p.ltarget,
+			Result: p.ltarget.(ir.Local),
 		})
 
 		return p.planScanValues(operands[len(operands)-1], func(ir.Local) error {
@@ -874,17 +875,18 @@ func (p *Planner) planExprCallRelation(name string, arity int, operands []*ast.T
 	})
 }
 
-func (p *Planner) planExprCallFunc(name string, arity int, operands []*ast.Term, args []ir.Local, iter planiter) error {
+func (p *Planner) planExprCallFunc(name string, arity int, operands []*ast.Term, args []ir.LocalOrConst, iter planiter) error {
 
 	if len(operands) == arity {
 		// definition: f(x) = y { ... }
 		// call: f(x) # result not captured
-		return p.planCallArgs(operands, 0, args, func(args []ir.Local) error {
+		return p.planCallArgs(operands, 0, args, func(args []ir.LocalOrConst) error {
 			p.ltarget = p.newLocal()
+			ltarget := p.ltarget.(ir.Local)
 			p.appendStmt(&ir.CallStmt{
 				Func:   name,
 				Args:   args,
-				Result: p.ltarget,
+				Result: ltarget,
 			})
 
 			falsy := p.newLocal()
@@ -895,7 +897,7 @@ func (p *Planner) planExprCallFunc(name string, arity int, operands []*ast.Term,
 			})
 
 			p.appendStmt(&ir.NotEqualStmt{
-				A: p.ltarget,
+				A: ltarget,
 				B: falsy,
 			})
 
@@ -905,7 +907,7 @@ func (p *Planner) planExprCallFunc(name string, arity int, operands []*ast.Term,
 
 	// definition: f(x) = y { ... }
 	// call: f(x, 1)  # caller captures result
-	return p.planCallArgs(operands[:len(operands)-1], 0, args, func(args []ir.Local) error {
+	return p.planCallArgs(operands[:len(operands)-1], 0, args, func(args []ir.LocalOrConst) error {
 		result := p.newLocal()
 		p.appendStmt(&ir.CallStmt{
 			Func:   name,
@@ -916,7 +918,7 @@ func (p *Planner) planExprCallFunc(name string, arity int, operands []*ast.Term,
 	})
 }
 
-func (p *Planner) planCallArgs(terms []*ast.Term, idx int, args []ir.Local, iter func([]ir.Local) error) error {
+func (p *Planner) planCallArgs(terms []*ast.Term, idx int, args []ir.LocalOrConst, iter func([]ir.LocalOrConst) error) error {
 	if idx >= len(terms) {
 		return iter(args)
 	}
@@ -985,7 +987,7 @@ func (p *Planner) planUnifyVar(a ast.Var, b *ast.Term, iter planiter) error {
 	})
 }
 
-func (p *Planner) planUnifyLocal(a ir.Local, b *ast.Term, iter planiter) error {
+func (p *Planner) planUnifyLocal(a ir.LocalOrConst, b *ast.Term, iter planiter) error {
 	switch vb := b.Value.(type) {
 	case ast.Null, ast.Boolean, ast.Number, ast.String, ast.Ref, ast.Set, *ast.SetComprehension, *ast.ArrayComprehension, *ast.ObjectComprehension:
 		return p.planTerm(b, func() error {
@@ -1019,7 +1021,7 @@ func (p *Planner) planUnifyLocal(a ir.Local, b *ast.Term, iter planiter) error {
 	return fmt.Errorf("not implemented: unifyLocal(%v, %v)", a, b)
 }
 
-func (p *Planner) planUnifyLocalArray(a ir.Local, b *ast.Array, iter planiter) error {
+func (p *Planner) planUnifyLocalArray(a ir.LocalOrConst, b *ast.Array, iter planiter) error {
 	p.appendStmt(&ir.IsArrayStmt{
 		Source: a,
 	})
@@ -1053,7 +1055,7 @@ func (p *Planner) planUnifyLocalArray(a ir.Local, b *ast.Array, iter planiter) e
 	return p.planUnifyLocalArrayRec(a, 0, b, lkey, lval, iter)
 }
 
-func (p *Planner) planUnifyLocalArrayRec(a ir.Local, index int, b *ast.Array, lkey, lval ir.Local, iter planiter) error {
+func (p *Planner) planUnifyLocalArrayRec(a ir.LocalOrConst, index int, b *ast.Array, lkey, lval ir.Local, iter planiter) error {
 	if b.Len() == index {
 		return iter()
 	}
@@ -1064,7 +1066,7 @@ func (p *Planner) planUnifyLocalArrayRec(a ir.Local, index int, b *ast.Array, lk
 	})
 
 	p.appendStmt(&ir.DotStmt{
-		Source: a,
+		Source: a.(ir.Local),
 		Key:    lkey,
 		Target: lval,
 	})
@@ -1074,7 +1076,7 @@ func (p *Planner) planUnifyLocalArrayRec(a ir.Local, index int, b *ast.Array, lk
 	})
 }
 
-func (p *Planner) planUnifyLocalObject(a ir.Local, b ast.Object, iter planiter) error {
+func (p *Planner) planUnifyLocalObject(a ir.LocalOrConst, b ast.Object, iter planiter) error {
 	p.appendStmt(&ir.IsObjectStmt{
 		Source: a,
 	})
@@ -1104,7 +1106,7 @@ func (p *Planner) planUnifyLocalObject(a ir.Local, b ast.Object, iter planiter) 
 	return p.planUnifyLocalObjectRec(a, 0, bkeys, b, lkey, lval, iter)
 }
 
-func (p *Planner) planUnifyLocalObjectRec(a ir.Local, index int, keys []*ast.Term, b ast.Object, lkey, lval ir.Local, iter planiter) error {
+func (p *Planner) planUnifyLocalObjectRec(a ir.LocalOrConst, index int, keys []*ast.Term, b ast.Object, lkey, lval ir.Local, iter planiter) error {
 
 	if index == len(keys) {
 		return iter()
@@ -1267,15 +1269,7 @@ func (p *Planner) planNumberInt(i int64, iter planiter) error {
 
 func (p *Planner) planString(str ast.String, iter planiter) error {
 
-	index := p.getStringConst(string(str))
-	target := p.newLocal()
-
-	p.appendStmt(&ir.MakeStringStmt{
-		Index:  index,
-		Target: target,
-	})
-
-	p.ltarget = target
+	p.ltarget = ir.StringIndex(p.getStringConst(string(str)))
 
 	return iter()
 }
@@ -1553,7 +1547,7 @@ func (p *Planner) planRefData(virtual *ruletrie, base *baseptr, ref ast.Ref, ind
 					p.vars.GetOrEmpty(ast.DefaultRootDocument.Value.(ast.Var)),
 				},
 				Path:   path,
-				Result: p.ltarget,
+				Result: p.ltarget.(ir.Local),
 			})
 			return p.planRefRec(ref, index+1, iter)
 		}
@@ -1581,11 +1575,11 @@ func (p *Planner) planRefData(virtual *ruletrie, base *baseptr, ref ast.Ref, ind
 
 			p.appendStmt(&ir.CallStmt{
 				Func: funcName,
-				Args: []ir.Local{
+				Args: []ir.LocalOrConst{
 					p.vars.GetOrEmpty(ast.InputRootDocument.Value.(ast.Var)),
 					p.vars.GetOrEmpty(ast.DefaultRootDocument.Value.(ast.Var)),
 				},
-				Result: p.ltarget,
+				Result: p.ltarget.(ir.Local),
 			})
 
 			return p.planRefRec(ref, index+1, iter)
@@ -1647,7 +1641,7 @@ func (p *Planner) planRefData(virtual *ruletrie, base *baseptr, ref ast.Ref, ind
 
 	if exclude.Len() > 0 {
 		if err := p.planSet(exclude, func() error {
-			v := p.ltarget
+			v := p.ltarget.(ir.Local)
 			lexclude = &v
 			return nil
 		}); err != nil {
@@ -1677,7 +1671,7 @@ func (p *Planner) planRefDataBaseScan(path ast.Ref, ref ast.Ref, index int, lexc
 
 			// Assume that virtual sub trees have been visited already so
 			// recurse without the virtual node.
-			return p.planRefData(nil, &baseptr{local: p.ltarget}, ref, index+1, iter)
+			return p.planRefData(nil, &baseptr{local: p.ltarget.(ir.Local)}, ref, index+1, iter)
 		})
 	})
 }
@@ -1738,7 +1732,7 @@ func (p *Planner) planRefDataExtent(virtual *ruletrie, base *baseptr, iter plani
 			b := &ir.Block{}
 			p.appendStmtToBlock(&ir.CallStmt{
 				Func: funcName,
-				Args: []ir.Local{
+				Args: []ir.LocalOrConst{
 					p.vars.GetOrEmpty(ast.InputRootDocument.Value.(ast.Var)),
 					p.vars.GetOrEmpty(ast.DefaultRootDocument.Value.(ast.Var)),
 				},
@@ -1771,10 +1765,10 @@ func (p *Planner) planRefDataExtent(virtual *ruletrie, base *baseptr, iter plani
 	err := p.planRefRec(base.path, 0, func() error {
 
 		if virtual == nil {
-			target = p.ltarget
+			target = p.ltarget.(ir.Local)
 		} else {
 			stmt := &ir.ObjectMergeStmt{
-				A:      p.ltarget,
+				A:      p.ltarget.(ir.Local),
 				B:      vtarget,
 				Target: target,
 			}
@@ -1841,7 +1835,7 @@ type scaniter func(ir.Local) error
 func (p *Planner) planScan(key *ast.Term, iter scaniter) error {
 
 	scan := &ir.ScanStmt{
-		Source: p.ltarget,
+		Source: p.ltarget.(ir.Local),
 		Key:    p.newLocal(),
 		Value:  p.newLocal(),
 		Block:  &ir.Block{},
@@ -1867,7 +1861,7 @@ func (p *Planner) planScan(key *ast.Term, iter scaniter) error {
 func (p *Planner) planScanValues(val *ast.Term, iter scaniter) error {
 
 	scan := &ir.ScanStmt{
-		Source: p.ltarget,
+		Source: p.ltarget.(ir.Local),
 		Key:    p.newLocal(),
 		Value:  p.newLocal(),
 		Block:  &ir.Block{},
@@ -1908,13 +1902,13 @@ func (p *Planner) planSaveLocals(vars ...ir.Local) []ir.Local {
 	return lsaved
 }
 
-type termsliceiter func([]ir.Local) error
+type termsliceiter func([]ir.LocalOrConst) error
 
 func (p *Planner) planTermSlice(terms []*ast.Term, iter termsliceiter) error {
-	return p.planTermSliceRec(terms, make([]ir.Local, len(terms)), 0, iter)
+	return p.planTermSliceRec(terms, make([]ir.LocalOrConst, len(terms)), 0, iter)
 }
 
-func (p *Planner) planTermSliceRec(terms []*ast.Term, locals []ir.Local, index int, iter termsliceiter) error {
+func (p *Planner) planTermSliceRec(terms []*ast.Term, locals []ir.LocalOrConst, index int, iter termsliceiter) error {
 	if index >= len(terms) {
 		return iter(locals)
 	}
@@ -2022,8 +2016,8 @@ func rewrittenVar(vars map[ast.Var]ast.Var, k ast.Var) ast.Var {
 // The last condition is necessary because we don't deal with _which key a
 // var actually matched_ -- so we don't know which subtree to evaluate
 // with the results.
-func (p *Planner) optimizeLookup(t *ruletrie, ref ast.Ref) ([][]*ast.Rule, []ir.LocalOrStringConst, int, bool) {
-	dont := func() ([][]*ast.Rule, []ir.LocalOrStringConst, int, bool) {
+func (p *Planner) optimizeLookup(t *ruletrie, ref ast.Ref) ([][]*ast.Rule, []ir.LocalOrConst, int, bool) {
+	dont := func() ([][]*ast.Rule, []ir.LocalOrConst, int, bool) {
 		return nil, nil, 0, false
 	}
 	if t == nil {
@@ -2109,7 +2103,7 @@ func (p *Planner) optimizeLookup(t *ruletrie, ref ast.Ref) ([][]*ast.Rule, []ir.
 		return nil, nil, index, true
 	}
 
-	var path []ir.LocalOrStringConst
+	var path []ir.LocalOrConst
 
 	// plan generation
 	path = append(path, ir.StringIndex(p.getStringConst(fmt.Sprintf("g%d", p.funcs.gen()))))
