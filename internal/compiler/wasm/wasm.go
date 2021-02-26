@@ -584,6 +584,10 @@ func (c *Compiler) compileFuncs() error {
 	if err := c.emitMapping(); err != nil {
 		return fmt.Errorf("writing mapping: %w", err)
 	}
+
+	if err := c.replaceBooleanFunc(); err != nil {
+		return fmt.Errorf("replacing opa_boolean: %w", err)
+	}
 	return nil
 }
 
@@ -826,6 +830,36 @@ func (c *Compiler) emitMapping() error {
 	idx := c.function(fName)
 	c.module.Start.FuncIndex = &idx
 	return c.storeFunc(fName, c.code)
+}
+
+// replaceBooleanFunc finds the `opa_boolean` code section, and replaces it with
+// a simpler function, that's returning one of the interned `opa_boolean_t`s
+// instead.
+// NOTE(sr): We're doing it in this crude way because LLVM 11 doesn't let us
+// differentiate that some unknown symbols (opa_abort, opa_builtin0, etc) should
+// be created as imports, and other should be ignored. So, we're having a stub
+// implementation in wasm/src/value.c that'll get replaced here.
+func (c *Compiler) replaceBooleanFunc() error {
+	c.code = &module.CodeEntry{}
+	c.appendInstr(instruction.I32Const{Value: int32(c.opaBoolAddrs[true])})
+	c.appendInstr(instruction.I32Const{Value: int32(c.opaBoolAddrs[false])})
+	c.appendInstr(instruction.GetLocal{Index: 0})
+	c.appendInstr(instruction.Select{})
+
+	// replace the code segment
+	var idx uint32
+	for _, fn := range c.module.Names.Functions {
+		if fn.Name == opaBoolean {
+			idx = fn.Index - uint32(c.functionImportCount())
+		}
+	}
+	var buf bytes.Buffer
+	if err := encoding.WriteCodeEntry(&buf, c.code); err != nil {
+		return err
+	}
+
+	c.module.Code.Segments[idx].Code = buf.Bytes()
+	return nil
 }
 
 func (c *Compiler) compileBlock(block *ir.Block) ([]instruction.Instruction, error) {

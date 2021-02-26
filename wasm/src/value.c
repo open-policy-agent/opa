@@ -883,13 +883,17 @@ opa_value *opa_null()
     return ret;
 }
 
-OPA_INTERNAL
-opa_value *opa_boolean(bool v)
+opa_value *opa_boolean_allocated(bool v)
 {
     opa_boolean_t *ret = (opa_boolean_t *)opa_malloc(sizeof(opa_boolean_t));
     ret->hdr.type = OPA_BOOLEAN;
     ret->v = v;
     return &ret->hdr;
+}
+
+opa_value *opa_boolean(bool v)
+{
+    return opa_boolean_allocated(v);
 }
 
 OPA_INTERNAL
