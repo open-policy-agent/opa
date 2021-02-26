@@ -915,8 +915,12 @@ func (c *Compiler) compileBlock(block *ir.Block) ([]instruction.Instruction, err
 				instrs = append(instrs, instruction.Call{Index: c.function(opaValueGet)})
 				instrs = append(instrs, instruction.TeeLocal{Index: c.local(stmt.Target)})
 				instrs = append(instrs, instruction.I32Eqz{})
+				instrs = append(instrs, instruction.BrIf{Index: 0})
+			} else {
+				// Booleans and strings would lead to the BrIf (since opa_value_get
+				// on them returns 0), so let's skip that.
+				instrs = append(instrs, instruction.Br{Index: 0})
 			}
-			instrs = append(instrs, instruction.BrIf{Index: 0})
 		case *ir.LenStmt:
 			instrs = append(instrs, c.instrRead(stmt.Source))
 			instrs = append(instrs, instruction.Call{Index: c.function(opaValueLength)})
@@ -958,12 +962,14 @@ func (c *Compiler) compileBlock(block *ir.Block) ([]instruction.Instruction, err
 			instrs = append(instrs, instruction.I32LtS{})
 			instrs = append(instrs, instruction.BrIf{Index: 0})
 		case *ir.NotEqualStmt:
-			if stmt.A != stmt.B {
-				instrs = append(instrs, c.instrRead(stmt.A))
-				instrs = append(instrs, c.instrRead(stmt.B))
-				instrs = append(instrs, instruction.Call{Index: c.function(opaValueCompare)})
-				instrs = append(instrs, instruction.I32Eqz{})
+			if stmt.A == stmt.B {
+				instrs = append(instrs, instruction.Br{Index: 0})
+				continue
 			}
+			instrs = append(instrs, c.instrRead(stmt.A))
+			instrs = append(instrs, c.instrRead(stmt.B))
+			instrs = append(instrs, instruction.Call{Index: c.function(opaValueCompare)})
+			instrs = append(instrs, instruction.I32Eqz{})
 			instrs = append(instrs, instruction.BrIf{Index: 0})
 		case *ir.MakeNullStmt:
 			instrs = append(instrs, instruction.Call{Index: c.function(opaNull)})
