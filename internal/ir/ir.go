@@ -302,24 +302,8 @@ type ResetLocalStmt struct {
 	Location
 }
 
-// MakeStringStmt constructs a local variable that refers to a string constant.
-type MakeStringStmt struct { // TODO(sr): unused, remove
-	Index  int
-	Target Local
-
-	Location
-}
-
 // MakeNullStmt constructs a local variable that refers to a null value.
 type MakeNullStmt struct {
-	Target Local
-
-	Location
-}
-
-// MakeBooleanStmt constructs a local variable that refers to a boolean value.
-type MakeBooleanStmt struct { // TODO(sr): unused, remove
-	Value  bool
 	Target Local
 
 	Location

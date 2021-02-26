@@ -370,10 +370,10 @@ func (*cmpWalker) Before(interface{}) {}
 func (*cmpWalker) After(interface{})  {}
 
 // Visit takes, for example,
-//     *ir.MakeStringStmt{Location: ir.Location{Index:0, Col:1, Row:1}},
-// and for the first MakeStringSlice it finds, extracts its location,
+//     *ir.MakeNullStmt{Location: ir.Location{Index:0, Col:1, Row:1}},
+// and for the first MakeNullStmt it finds, extracts its location,
 // and compares it to the one passed was needle. Other fields of the
-// struct, such as Index and Target for ir.MakeStringStmt, are ignored.
+// struct, such as Target for ir.MakeNullStmt, are ignored.
 //
 // Caveat: If NO value of the desired type is found, there's no error
 // returned. This trap can be avoided by starting with a failing test,
