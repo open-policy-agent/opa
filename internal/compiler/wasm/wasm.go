@@ -962,8 +962,18 @@ func (c *Compiler) compileBlock(block *ir.Block) ([]instruction.Instruction, err
 			instrs = append(instrs, instruction.I32LtS{})
 			instrs = append(instrs, instruction.BrIf{Index: 0})
 		case *ir.NotEqualStmt:
-			if stmt.A == stmt.B {
+			if stmt.A == stmt.B { // same local, same bool constant, or same string constant
 				instrs = append(instrs, instruction.Br{Index: 0})
+				continue
+			}
+			_, okA := stmt.A.(ir.Bool)
+			if _, okB := stmt.B.(ir.Bool); okA && okB {
+				// not equal (checked above), but both booleans => not equal
+				continue
+			}
+			_, okA = stmt.A.(ir.StringIndex)
+			if _, okB := stmt.B.(ir.StringIndex); okA && okB {
+				// not equal (checked above), but both strings => not equal
 				continue
 			}
 			instrs = append(instrs, c.instrRead(stmt.A))
