@@ -902,10 +902,12 @@ func (c *Compiler) compileBlock(block *ir.Block) ([]instruction.Instruction, err
 			instrs = append(instrs, instruction.Call{Index: c.function(opaNumberSize)})
 			instrs = append(instrs, instruction.SetLocal{Index: c.local(stmt.Target)})
 		case *ir.EqualStmt:
-			instrs = append(instrs, c.instrRead(stmt.A))
-			instrs = append(instrs, c.instrRead(stmt.B))
-			instrs = append(instrs, instruction.Call{Index: c.function(opaValueCompare)})
-			instrs = append(instrs, instruction.BrIf{Index: 0})
+			if stmt.A != stmt.B { // constants, or locals, being equal here can skip the check
+				instrs = append(instrs, c.instrRead(stmt.A))
+				instrs = append(instrs, c.instrRead(stmt.B))
+				instrs = append(instrs, instruction.Call{Index: c.function(opaValueCompare)})
+				instrs = append(instrs, instruction.BrIf{Index: 0})
+			}
 		case *ir.LessThanStmt:
 			instrs = append(instrs, c.instrRead(stmt.A))
 			instrs = append(instrs, c.instrRead(stmt.B))
@@ -935,10 +937,12 @@ func (c *Compiler) compileBlock(block *ir.Block) ([]instruction.Instruction, err
 			instrs = append(instrs, instruction.I32LtS{})
 			instrs = append(instrs, instruction.BrIf{Index: 0})
 		case *ir.NotEqualStmt:
-			instrs = append(instrs, c.instrRead(stmt.A))
-			instrs = append(instrs, c.instrRead(stmt.B))
-			instrs = append(instrs, instruction.Call{Index: c.function(opaValueCompare)})
-			instrs = append(instrs, instruction.I32Eqz{})
+			if stmt.A != stmt.B {
+				instrs = append(instrs, c.instrRead(stmt.A))
+				instrs = append(instrs, c.instrRead(stmt.B))
+				instrs = append(instrs, instruction.Call{Index: c.function(opaValueCompare)})
+				instrs = append(instrs, instruction.I32Eqz{})
+			}
 			instrs = append(instrs, instruction.BrIf{Index: 0})
 		case *ir.MakeNullStmt:
 			instrs = append(instrs, instruction.Call{Index: c.function(opaNull)})
