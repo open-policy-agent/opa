@@ -422,13 +422,6 @@ func TestPlannerLocations(t *testing.T) {
 		where   func(*ir.Policy) interface{} // where to start walking search for `exps`
 	}{
 		{
-			note:    "hello world",
-			queries: []string{"input.a = 1"},
-			exps: map[ir.Stmt]string{
-				&ir.MakeStringStmt{}: "<query>:1:1: input.a = 1",
-			},
-		},
-		{
 			note:    "complete rule reference",
 			queries: []string{"data.test.p = 10"},
 			modules: []string{`
