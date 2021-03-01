@@ -180,6 +180,7 @@ wasm-lib-build:
 ifeq ($(DOCKER_RUNNING), 1)
 	@$(MAKE) -C wasm ensure-builder build
 	cp wasm/_obj/opa.wasm internal/compiler/wasm/opa/opa.wasm
+	cp wasm/_obj/callgraph.csv internal/compiler/wasm/opa/callgraph.csv
 else
 	@echo "Docker not installed or not running. Skipping OPA-WASM library build."
 endif

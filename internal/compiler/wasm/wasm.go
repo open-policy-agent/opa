@@ -235,6 +235,9 @@ func New() *Compiler {
 		c.compileFuncs,
 		c.compilePlans,
 
+		// "local" optimizations
+		c.removeUnusedCode,
+
 		// final emissions
 		c.emitFuncs,
 
@@ -300,7 +303,16 @@ func (c *Compiler) initModule() error {
 
 	c.funcs = make(map[string]uint32)
 	for _, fn := range c.module.Names.Functions {
-		c.funcs[fn.Name] = fn.Index
+		name := fn.Name
+		// Account for recording duplicate functions -- this only happens
+		// with the RE2 C++ lib so far.
+		// NOTE: This isn't good enough for function names used more than
+		// two times. But let's deal with that when it happens.
+		if _, ok := c.funcs[name]; ok { // already seen
+			c.debug.Printf("function name duplicate: %s (%d)", name, fn.Index)
+			name = name + ".1"
+		}
+		c.funcs[name] = fn.Index
 	}
 
 	for _, fn := range c.policy.Funcs.Funcs {

@@ -67,7 +67,7 @@ push-builder:
 
 .PHONY: build
 build:
-	@$(DOCKER) run $(DOCKER_FLAGS) -v $(CURDIR):/src $(WASM_BUILDER_IMAGE) make $(WASM_OBJ_DIR)/opa.wasm
+	@$(DOCKER) run $(DOCKER_FLAGS) -v $(CURDIR):/src $(WASM_BUILDER_IMAGE) make $(WASM_OBJ_DIR)/opa.wasm $(WASM_OBJ_DIR)/callgraph.csv
 
 .PHONY: test
 test:
@@ -158,3 +158,9 @@ $(WASM_OBJ_DIR)/opa-test.wasm: $(OBJS) $(CPP_OBJS) $(LIB_OBJS) $(LIB_MPDEC_OBJS)
 			--import-memory \
 			--no-entry \
 			-o $@ $^
+
+$(WASM_OBJ_DIR)/callgraph.csv: $(WASM_OBJ_DIR)/opa.wasm
+	# NOTE: wasm-opt will output "warning: no output file specified",
+	# because we're not actually optimizing the wasm, but only extract
+	# information.
+	build/gen-wasm-callgraph.sh $< > $@

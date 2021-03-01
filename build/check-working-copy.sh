@@ -3,6 +3,7 @@
 EXCEPTIONS=(
   "internal/compiler/wasm/opa/opa.go"
   "internal/compiler/wasm/opa/opa.wasm"
+  "internal/compiler/wasm/opa/callgraph.csv"
 )
 
 STATUS=$(git status --porcelain)
