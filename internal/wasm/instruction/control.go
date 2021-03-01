@@ -56,6 +56,29 @@ func (i Block) Instructions() []Instruction {
 	return i.Instrs
 }
 
+// If represents a WASM if instruction.
+// NOTE(sr): we only use if with one branch so far!
+type If struct {
+	NoImmediateArgs
+	Type   *types.ValueType
+	Instrs []Instruction
+}
+
+// Op returns the opcode of the instruction.
+func (If) Op() opcode.Opcode {
+	return opcode.If
+}
+
+// BlockType returns the type of the if's THEN branch.
+func (i If) BlockType() *types.ValueType {
+	return i.Type
+}
+
+// Instructions represents the instructions contained in the if's THEN branch.
+func (i If) Instructions() []Instruction {
+	return i.Instrs
+}
+
 // Loop represents a WASM loop instruction.
 type Loop struct {
 	NoImmediateArgs

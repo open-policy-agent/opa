@@ -702,12 +702,10 @@ func (c *Compiler) compileFunc(fn *ir.Func) error {
 
 	// memoization: get
 	if memoize {
-		c.appendInstr(instruction.Block{Instrs: []instruction.Instruction{
-			instruction.I32Const{Value: int32(idx)},
-			instruction.Call{Index: c.function(opaMemoizeGet)},
-			instruction.TeeLocal{Index: c.local(fn.Return)},
-			instruction.I32Eqz{},
-			instruction.BrIf{Index: 0},
+		c.appendInstr(instruction.I32Const{Value: int32(idx)})
+		c.appendInstr(instruction.Call{Index: c.function(opaMemoizeGet)})
+		c.appendInstr(instruction.TeeLocal{Index: c.local(fn.Return)})
+		c.appendInstr(instruction.If{Instrs: []instruction.Instruction{
 			instruction.GetLocal{Index: c.local(fn.Return)},
 			instruction.Return{},
 		}})
