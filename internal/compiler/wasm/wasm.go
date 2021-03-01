@@ -1417,20 +1417,20 @@ func (c *Compiler) compileCallStmt(stmt *ir.CallStmt, result *[]instruction.Inst
 
 func (c *Compiler) compileInternalCall(stmt *ir.CallStmt, index uint32, result *[]instruction.Instruction) error {
 
-	block := instruction.Block{}
+	instrs := []instruction.Instruction{}
 
 	// Prepare function args and call.
 	for _, arg := range stmt.Args {
-		block.Instrs = append(block.Instrs, c.instrRead(arg))
+		instrs = append(instrs, c.instrRead(arg))
 	}
 
-	block.Instrs = append(block.Instrs,
+	instrs = append(instrs,
 		instruction.Call{Index: index},
 		instruction.TeeLocal{Index: c.local(stmt.Result)},
 		instruction.I32Eqz{},
-		instruction.BrIf{Index: 1})
+		instruction.BrIf{Index: 0})
 
-	*result = append(*result, block)
+	*result = append(*result, instrs...)
 
 	return nil
 }
