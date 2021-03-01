@@ -719,7 +719,11 @@ func (c *Compiler) compileFunc(fn *ir.Func) error {
 			return errors.Wrapf(err, "block %d", i)
 		}
 		if i < len(fn.Blocks)-1 { // not the last block: wrap in `block` instr
-			c.appendInstr(instruction.Block{Instrs: instrs})
+			if withControlInstr(instrs) { // unless we don't need to
+				c.appendInstr(instruction.Block{Instrs: instrs})
+			} else {
+				c.appendInstrs(instrs)
+			}
 		} else { // last block, no wrapping
 			// memoization: insert, spliced into the instructions right
 			// before the return:
@@ -880,7 +884,11 @@ func (c *Compiler) compileBlock(block *ir.Block) ([]instruction.Instruction, err
 				if err != nil {
 					return nil, err
 				}
-				instrs = append(instrs, instruction.Block{Instrs: block})
+				if withControlInstr(block) {
+					instrs = append(instrs, instruction.Block{Instrs: block})
+				} else {
+					instrs = append(instrs, block...)
+				}
 			}
 		case *ir.BreakStmt:
 			instrs = append(instrs, instruction.Br{Index: stmt.Index})

@@ -9,6 +9,11 @@ import (
 	"github.com/open-policy-agent/opa/internal/wasm/types"
 )
 
+// !!! If you find yourself adding support for more control
+//     instructions (br_table, if, ...), please adapt the
+//     `withControlInstr` functions of
+//     `compiler/wasm/optimizations.go`
+
 // Unreachable represents a WASM unreachable instruction.
 type Unreachable struct {
 	NoImmediateArgs

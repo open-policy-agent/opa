@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/open-policy-agent/opa/internal/wasm/encoding"
+	"github.com/open-policy-agent/opa/internal/wasm/instruction"
 )
 
 const warning = `---------------------------------------------------------------
@@ -79,4 +80,24 @@ func (c *Compiler) optimizeBinaryen() error {
 func woptFound() bool {
 	_, err := exec.LookPath("wasm-opt")
 	return err == nil
+}
+
+// NOTE(sr): Yes, there are more control instructions than these two,
+// but we haven't made use of them yet. So this function only checks
+// for the control instructions we're possibly emitting, and which are
+// relevant for block nesting.
+func withControlInstr(is []instruction.Instruction) bool {
+	for _, i := range is {
+		switch i := i.(type) {
+		case instruction.Br, instruction.BrIf:
+			return true
+		case instruction.StructuredInstruction:
+			// NOTE(sr): We could attempt to further flatten the nested blocks
+			// here, but I believe we'd then have to correct block labels.
+			if withControlInstr(i.Instructions()) {
+				return true
+			}
+		}
+	}
+	return false
 }
