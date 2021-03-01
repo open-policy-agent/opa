@@ -9,8 +9,6 @@ import (
 	"path"
 	"strings"
 
-	"github.com/sirupsen/logrus"
-
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/download"
 	"github.com/open-policy-agent/opa/keys"
@@ -48,8 +46,6 @@ func ParseConfig(config []byte, services []string) (*Config, error) {
 			SizeLimitBytes: bundle.DefaultSizeLimitBytes,
 		},
 	}
-
-	logrus.Warn("Deprecated 'bundle' configuration specified. Use 'bundles' instead. See https://www.openpolicyagent.org/docs/latest/configuration/#bundles")
 
 	return &parsedConfig, nil
 }

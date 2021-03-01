@@ -17,7 +17,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sirupsen/logrus"
+	"github.com/open-policy-agent/opa/sdk"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
@@ -37,6 +37,7 @@ type Plugin struct {
 	listeners         map[interface{}]func(Status)             // listeners to send status updates to
 	bulkListeners     map[interface{}]func(map[string]*Status) // listeners to send aggregated status updates to
 	downloaders       map[string]*download.Downloader
+	logger            sdk.Logger
 	mtx               sync.Mutex
 	cfgMtx            sync.Mutex
 	legacyConfig      bool
@@ -60,6 +61,7 @@ func New(parsedConfig *Config, manager *plugins.Manager) *Plugin {
 		downloaders: make(map[string]*download.Downloader),
 		etags:       make(map[string]string),
 		ready:       false,
+		logger:      manager.Logger(),
 	}
 
 	manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateNotReady})
@@ -98,7 +100,8 @@ func (p *Plugin) Start(ctx context.Context) error {
 
 	p.initDownloaders()
 	for name, dl := range p.downloaders {
-		p.logInfo(name, "Starting bundle downloader.")
+
+		p.log(name).Info("Starting bundle downloader.")
 		dl.Start(ctx)
 	}
 	return nil
@@ -109,7 +112,7 @@ func (p *Plugin) Stop(ctx context.Context) {
 	p.mtx.Lock()
 	defer p.mtx.Unlock()
 	for name, dl := range p.downloaders {
-		p.logInfo(name, "Stopping bundle downloader.")
+		p.log(name).Info("Stopping bundle downloader.")
 		dl.Stop(ctx)
 	}
 }
@@ -152,7 +155,7 @@ func (p *Plugin) Reconfigure(ctx context.Context, config interface{}) {
 	// Cleanup existing downloaders that are deleted
 	for name := range p.downloaders {
 		if _, deleted := deletedBundles[name]; deleted {
-			p.logInfo(name, "Bundle downloader configuration removed. Stopping bundle downloader.")
+			p.log(name).Info("Bundle downloader configuration removed. Stopping bundle downloader.")
 			delete(p.downloaders, name)
 			delete(p.status, name)
 			delete(p.etags, name)
@@ -171,7 +174,7 @@ func (p *Plugin) Reconfigure(ctx context.Context, config interface{}) {
 		}
 		err := bundle.Deactivate(opts)
 		if err != nil {
-			p.logError(fmt.Sprint(deletedBundles), "Failed to deactivate bundles: %s", err)
+			p.manager.Logger().Error(fmt.Sprint(deletedBundles), "Failed to deactivate bundles: %s", err)
 			return err
 		}
 		return nil
@@ -191,9 +194,9 @@ func (p *Plugin) Reconfigure(ctx context.Context, config interface{}) {
 		if isNew || updated {
 			if isNew {
 				p.status[name] = &Status{Name: name}
-				p.logInfo(name, "New bundle downloader configuration added. Starting bundle downloader.")
+				p.log(name).Info("New bundle downloader configuration added. Starting bundle downloader.")
 			} else {
-				p.logInfo(name, "Bundle downloader configuration changed. Restarting bundle downloader.")
+				p.log(name).Info("Bundle downloader configuration changed. Restarting bundle downloader.")
 			}
 			p.downloaders[name] = p.newDownloader(name, source)
 			p.downloaders[name].Start(ctx)
@@ -267,7 +270,7 @@ func (p *Plugin) loadAndActivateBundlesFromDisk(ctx context.Context) error {
 		if p.persistBundle(name) {
 			b, err := loadBundleFromDisk(p.bundlePersistPath, name, src)
 			if err != nil {
-				p.logError(name, "Failed to load bundle from disk: %v", err)
+				p.log(name).Error("Failed to load bundle from disk: %v", err)
 				return err
 			}
 
@@ -279,7 +282,7 @@ func (p *Plugin) loadAndActivateBundlesFromDisk(ctx context.Context) error {
 
 			err = p.activate(ctx, name, b)
 			if err != nil {
-				p.logError(name, "Bundle activation failed: %v", err)
+				p.log(name).Error("Bundle activation failed: %v", err)
 				return err
 			}
 
@@ -288,7 +291,7 @@ func (p *Plugin) loadAndActivateBundlesFromDisk(ctx context.Context) error {
 
 			p.checkPluginReadiness()
 
-			p.logDebug(name, "Bundle loaded from disk and activated successfully.")
+			p.log(name).Debug("Bundle loaded from disk and activated successfully.")
 		}
 	}
 	return nil
@@ -342,7 +345,7 @@ func (p *Plugin) process(ctx context.Context, name string, u download.Update) {
 	p.status[name].SetRequest()
 
 	if u.Error != nil {
-		p.logError(name, "Bundle download failed: %v", u.Error)
+		p.log(name).Error("Bundle download failed: %v", u.Error)
 		p.status[name].SetError(u.Error)
 		p.downloaders[name].ClearCache()
 		return
@@ -357,32 +360,32 @@ func (p *Plugin) process(ctx context.Context, name string, u download.Update) {
 		defer p.status[name].Metrics.Timer(metrics.RegoLoadBundles).Stop()
 
 		if err := p.activate(ctx, name, u.Bundle); err != nil {
-			p.logError(name, "Bundle activation failed: %v", err)
+			p.log(name).Error("Bundle activation failed: %v", err)
 			p.status[name].SetError(err)
 			p.downloaders[name].ClearCache()
 			return
 		}
 
 		if p.persistBundle(name) {
-			p.logDebug(name, "Persisting bundle to disk in progress.")
+			p.log(name).Debug("Persisting bundle to disk in progress.")
 
 			err := p.saveBundleToDisk(name, u.Bundle)
 			if err != nil {
-				p.logError(name, "Persisting bundle to disk failed: %v", err)
+				p.log(name).Error("Persisting bundle to disk failed: %v", err)
 				p.status[name].SetError(err)
 				p.downloaders[name].ClearCache()
 				return
 			}
-			p.logDebug(name, "Bundle persisted to disk successfully at path %v.", filepath.Join(p.bundlePersistPath, name))
+			p.log(name).Debug("Bundle persisted to disk successfully at path %v.", filepath.Join(p.bundlePersistPath, name))
 		}
 
 		p.status[name].SetError(nil)
 		p.status[name].SetActivateSuccess(u.Bundle.Manifest.Revision)
 
 		if u.ETag != "" {
-			p.logInfo(name, "Bundle downloaded and activated successfully. Etag updated to %v.", u.ETag)
+			p.log(name).Info("Bundle downloaded and activated successfully. Etag updated to %v.", u.ETag)
 		} else {
-			p.logInfo(name, "Bundle downloaded and activated successfully.")
+			p.log(name).Info("Bundle downloaded and activated successfully.")
 		}
 		p.etags[name] = u.ETag
 
@@ -392,7 +395,7 @@ func (p *Plugin) process(ctx context.Context, name string, u download.Update) {
 	}
 
 	if etag, ok := p.etags[name]; ok && u.ETag == etag {
-		p.logDebug(name, "Bundle download skipped, server replied with not modified.")
+		p.log(name).Debug("Bundle download skipped, server replied with not modified.")
 		p.status[name].SetError(nil)
 		return
 	}
@@ -416,14 +419,14 @@ func (p *Plugin) checkPluginReadiness() {
 }
 
 func (p *Plugin) activate(ctx context.Context, name string, b *bundle.Bundle) error {
-	p.logDebug(name, "Bundle activation in progress. Opening storage transaction.")
+	p.log(name).Debug("Bundle activation in progress. Opening storage transaction.")
 
 	params := storage.WriteParams
 	params.Context = storage.NewContext()
 
 	err := storage.Txn(ctx, p.manager.Store, params, func(txn storage.Transaction) error {
-		p.logDebug(name, "Opened storage transaction (%v).", txn.ID())
-		defer p.logDebug(name, "Closing storage transaction (%v).", txn.ID())
+		p.log(name).Debug("Opened storage transaction (%v).", txn.ID())
+		defer p.log(name).Debug("Closing storage transaction (%v).", txn.ID())
 
 		// Compile the bundle modules with a new compiler and set it on the
 		// transaction params for use by onCommit hooks.
@@ -471,32 +474,6 @@ func (p *Plugin) persistBundle(name string) bool {
 	return bundleSrc.Persist
 }
 
-func (p *Plugin) logError(bundleName string, fmt string, a ...interface{}) {
-	logrus.WithFields(p.logrusFields(bundleName)).Errorf(fmt, a...)
-}
-
-func (p *Plugin) logInfo(bundleName string, fmt string, a ...interface{}) {
-	logrus.WithFields(p.logrusFields(bundleName)).Infof(fmt, a...)
-}
-
-func (p *Plugin) logDebug(bundleName string, fmt string, a ...interface{}) {
-	logrus.WithFields(p.logrusFields(bundleName)).Debugf(fmt, a...)
-}
-
-func (p *Plugin) logWarn(bundleName string, fmt string, a ...interface{}) {
-	logrus.WithFields(p.logrusFields(bundleName)).Warnf(fmt, a...)
-}
-
-func (p *Plugin) logrusFields(bundleName string) logrus.Fields {
-
-	f := logrus.Fields{
-		"plugin": Name,
-		"name":   bundleName,
-	}
-
-	return f
-}
-
 // configDelta will return a map of new bundle sources, updated bundle sources, and a set of deleted bundle names
 func (p *Plugin) configDelta(newConfig *Config) (map[string]*Source, map[string]*Source, map[string]struct{}) {
 	deletedBundles := map[string]struct{}{}
@@ -528,14 +505,14 @@ func (p *Plugin) saveBundleToDisk(name string, b *bundle.Bundle) error {
 
 	saveErr := saveCurrentBundleToDisk(bundleDir, ".bundle.tar.gz.tmp", b)
 	if saveErr != nil {
-		p.logWarn(name, "Failed to save new bundle to disk: %v", saveErr)
+		p.log(name).Error("Failed to save new bundle to disk: %v", saveErr)
 
 		if err := os.Remove(tmpFile); err != nil {
-			p.logWarn(name, "Failed to remove temp file ('%s'): %v", tmpFile, err)
+			p.log(name).Warn("Failed to remove temp file ('%s'): %v", tmpFile, err)
 		}
 
 		if _, err := os.Stat(bundleFile); err == nil {
-			p.logWarn(name, "Older version of activated bundle persisted, ignoring error")
+			p.log(name).Warn("Older version of activated bundle persisted, ignoring error")
 			return nil
 		}
 		return saveErr
@@ -591,6 +568,13 @@ func loadBundleFromDisk(path, name string, src *Source) (*bundle.Bundle, error) 
 	} else {
 		return nil, err
 	}
+}
+
+func (p *Plugin) log(name string) sdk.Logger {
+	if p.logger == nil {
+		p.logger = sdk.NewStandardLogger()
+	}
+	return p.logger.WithFields(map[string]interface{}{"name": name, "plugin": Name})
 }
 
 func (p *Plugin) getBundlePersistPath() (string, error) {

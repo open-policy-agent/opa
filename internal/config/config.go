@@ -13,6 +13,8 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/open-policy-agent/opa/sdk"
+
 	"github.com/open-policy-agent/opa/keys"
 
 	"github.com/ghodss/yaml"
@@ -27,6 +29,7 @@ type ServiceOptions struct {
 	Raw        json.RawMessage
 	AuthPlugin func(string) rest.HTTPAuthPlugin
 	Keys       map[string]*keys.Config
+	Logger     sdk.Logger
 }
 
 // ParseServicesConfig returns a set of named service clients. The service
@@ -42,7 +45,7 @@ func ParseServicesConfig(opts ServiceOptions) (map[string]rest.Client, error) {
 
 	if err := util.Unmarshal(opts.Raw, &arr); err == nil {
 		for _, s := range arr {
-			client, err := rest.New(s, opts.Keys, rest.AuthPluginLookup(opts.AuthPlugin))
+			client, err := rest.New(s, opts.Keys, rest.AuthPluginLookup(opts.AuthPlugin), rest.Logger(opts.Logger))
 			if err != nil {
 				return nil, err
 			}
@@ -50,7 +53,7 @@ func ParseServicesConfig(opts ServiceOptions) (map[string]rest.Client, error) {
 		}
 	} else if util.Unmarshal(opts.Raw, &obj) == nil {
 		for k := range obj {
-			client, err := rest.New(obj[k], opts.Keys, rest.Name(k), rest.AuthPluginLookup(opts.AuthPlugin))
+			client, err := rest.New(obj[k], opts.Keys, rest.Name(k), rest.AuthPluginLookup(opts.AuthPlugin), rest.Logger(opts.Logger))
 			if err != nil {
 				return nil, err
 			}
