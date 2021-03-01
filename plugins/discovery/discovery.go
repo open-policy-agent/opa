@@ -11,7 +11,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/sirupsen/logrus"
+	"github.com/open-policy-agent/opa/sdk"
 
 	"github.com/open-policy-agent/opa/ast"
 	bundleApi "github.com/open-policy-agent/opa/bundle"
@@ -43,6 +43,7 @@ type Discovery struct {
 	etag       string               // discovery bundle etag for caching purposes
 	metrics    metrics.Metrics
 	readyOnce  sync.Once
+	logger     sdk.Logger
 }
 
 // Factories provides a set of factory functions to use for
@@ -62,7 +63,6 @@ func Metrics(m metrics.Metrics) func(*Discovery) {
 
 // New returns a new discovery plugin.
 func New(manager *plugins.Manager, opts ...func(*Discovery)) (*Discovery, error) {
-
 	result := &Discovery{
 		manager: manager,
 	}
@@ -93,6 +93,8 @@ func New(manager *plugins.Manager, opts ...func(*Discovery)) (*Discovery, error)
 	result.status = &bundle.Status{
 		Name: *config.Name,
 	}
+
+	result.logger = manager.Logger().WithFields(map[string]interface{}{"name": *config.Name, "plugin": Name})
 
 	manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateNotReady})
 	return result, nil
@@ -136,7 +138,7 @@ func (c *Discovery) processUpdate(ctx context.Context, u download.Update) {
 	c.status.SetRequest()
 
 	if u.Error != nil {
-		c.logError("Discovery download failed: %v", u.Error)
+		c.logger.Error("Discovery download failed: %v", u.Error)
 		c.status.SetError(u.Error)
 		c.downloader.ClearCache()
 		return
@@ -148,7 +150,7 @@ func (c *Discovery) processUpdate(ctx context.Context, u download.Update) {
 		c.status.LastSuccessfulDownload = c.status.LastSuccessfulRequest
 
 		if err := c.reconfigure(ctx, u); err != nil {
-			c.logError("Discovery reconfiguration error occurred: %v", err)
+			c.logger.Error("Discovery reconfiguration error occurred: %v", err)
 			c.status.SetError(err)
 			c.downloader.ClearCache()
 			return
@@ -163,16 +165,16 @@ func (c *Discovery) processUpdate(ctx context.Context, u download.Update) {
 		})
 
 		if u.ETag != "" {
-			c.logInfo("Discovery update processed successfully. Etag updated to %v.", u.ETag)
+			c.logger.Info("Discovery update processed successfully. Etag updated to %v.", u.ETag)
 		} else {
-			c.logInfo("Discovery update processed successfully.")
+			c.logger.Info("Discovery update processed successfully.")
 		}
 		c.etag = u.ETag
 		return
 	}
 
 	if u.ETag == c.etag {
-		c.logDebug("Discovery update skipped, server replied with not modified.")
+		c.logger.Debug("Discovery update skipped, server replied with not modified.")
 		c.status.SetError(nil)
 		return
 	}
@@ -198,25 +200,6 @@ func (c *Discovery) reconfigure(ctx context.Context, u download.Update) error {
 	return nil
 }
 
-func (c *Discovery) logError(fmt string, a ...interface{}) {
-	logrus.WithFields(c.logrusFields()).Errorf(fmt, a...)
-}
-
-func (c *Discovery) logInfo(fmt string, a ...interface{}) {
-	logrus.WithFields(c.logrusFields()).Infof(fmt, a...)
-}
-
-func (c *Discovery) logDebug(fmt string, a ...interface{}) {
-	logrus.WithFields(c.logrusFields()).Debugf(fmt, a...)
-}
-
-func (c *Discovery) logrusFields() logrus.Fields {
-	return logrus.Fields{
-		"name":   *c.config.Name,
-		"plugin": "discovery",
-	}
-}
-
 func (c *Discovery) processBundle(ctx context.Context, b *bundleApi.Bundle) (*pluginSet, error) {
 
 	config, err := evaluateBundle(ctx, c.manager.ID, c.manager.Info, b, c.config.query)
@@ -233,6 +216,7 @@ func (c *Discovery) processBundle(ctx context.Context, b *bundleApi.Bundle) (*pl
 		Raw:        config.Services,
 		AuthPlugin: c.manager.AuthPlugin,
 		Keys:       c.manager.PublicKeys(),
+		Logger:     c.logger.WithFields(c.manager.Client(c.config.service).Logger().GetFields()),
 	}
 	services, err := cfg.ParseServicesConfig(opts)
 	if err != nil {
@@ -358,6 +342,8 @@ func getPluginSet(factories map[string]plugins.Factory, manager *plugins.Manager
 		if err != nil {
 			return nil, err
 		}
+	} else {
+		manager.Logger().Warn("Deprecated 'bundle' configuration specified. Use 'bundles' instead. See https://www.openpolicyagent.org/docs/latest/configuration/#bundles")
 	}
 
 	decisionLogsConfig, err := logs.ParseConfig(config.DecisionLogs, manager.Services(), pluginNames)

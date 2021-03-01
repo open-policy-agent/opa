@@ -25,8 +25,7 @@ import (
 	"github.com/open-policy-agent/opa/internal/jwx/jws"
 	"github.com/open-policy-agent/opa/internal/uuid"
 	"github.com/open-policy-agent/opa/keys"
-
-	"github.com/sirupsen/logrus"
+	"github.com/open-policy-agent/opa/sdk"
 )
 
 // DefaultTLSConfig defines standard TLS configurations based on the Config
@@ -134,6 +133,7 @@ type oauth2ClientCredentialsAuthPlugin struct {
 	signingKeyParsed interface{}
 	tokenCache       *oauth2Token
 	tlsSkipVerify    bool
+	logger           sdk.Logger
 }
 
 type oauth2Token struct {
@@ -225,6 +225,8 @@ func (ap *oauth2ClientCredentialsAuthPlugin) NewClient(c Config) (*http.Client, 
 
 	// Inherit skip verify from the "parent" settings. Should this be configurable on the credentials too?
 	ap.tlsSkipVerify = c.AllowInsureTLS
+
+	ap.logger = c.logger
 
 	if !strings.HasPrefix(ap.TokenURL, "https://") {
 		return nil, errors.New("token_url required to use https scheme")
@@ -319,7 +321,7 @@ func (ap *oauth2ClientCredentialsAuthPlugin) requestToken() (*oauth2Token, error
 func (ap *oauth2ClientCredentialsAuthPlugin) Prepare(req *http.Request) error {
 	minTokenLifetime := float64(10)
 	if ap.tokenCache == nil || ap.tokenCache.ExpiresAt.Sub(time.Now()).Seconds() < minTokenLifetime {
-		logrus.Debugf("Requesting token from token_url %v", ap.TokenURL)
+		ap.logger.Debug("Requesting token from token_url %v", ap.TokenURL)
 		token, err := ap.requestToken()
 		if err != nil {
 			return err
@@ -415,15 +417,20 @@ type awsSigningAuthPlugin struct {
 	AWSEnvironmentCredentials *awsEnvironmentCredentialService `json:"environment_credentials,omitempty"`
 	AWSMetadataCredentials    *awsMetadataCredentialService    `json:"metadata_credentials,omitempty"`
 	AWSWebIdentityCredentials *awsWebIdentityCredentialService `json:"web_identity_credentials,omitempty"`
+
+	logger sdk.Logger
 }
 
 func (ap *awsSigningAuthPlugin) awsCredentialService() awsCredentialService {
 	if ap.AWSEnvironmentCredentials != nil {
+		ap.AWSEnvironmentCredentials.logger = ap.logger
 		return ap.AWSEnvironmentCredentials
 	}
 	if ap.AWSWebIdentityCredentials != nil {
+		ap.AWSWebIdentityCredentials.logger = ap.logger
 		return ap.AWSWebIdentityCredentials
 	}
+	ap.AWSMetadataCredentials.logger = ap.logger
 	return ap.AWSMetadataCredentials
 }
 
@@ -456,7 +463,7 @@ func (ap *awsSigningAuthPlugin) NewClient(c Config) (*http.Client, error) {
 }
 
 func (ap *awsSigningAuthPlugin) Prepare(req *http.Request) error {
-	logrus.Debug("Signing request with AWS credentials.")
+	ap.logger.Debug("Signing request with AWS credentials.")
 	err := signV4(req, ap.awsCredentialService(), time.Now())
 	return err
 }
