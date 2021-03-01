@@ -61,7 +61,6 @@ const (
 	opaSet               = "opa_set"
 	opaSetAdd            = "opa_set_add"
 	opaStringTerminated  = "opa_string_terminated"
-	opaValueBooleanSet   = "opa_value_boolean_set"
 	opaValueNumberSetInt = "opa_value_number_set_int"
 	opaValueCompare      = "opa_value_compare"
 	opaValueGet          = "opa_value_get"
@@ -920,14 +919,6 @@ func (c *Compiler) compileBlock(block *ir.Block) ([]instruction.Instruction, err
 					instruction.SetLocal{Index: c.local(stmt.Target)},
 				},
 			})
-		case *ir.AssignBooleanStmt:
-			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Target)})
-			if stmt.Value {
-				instrs = append(instrs, instruction.I32Const{Value: 1})
-			} else {
-				instrs = append(instrs, instruction.I32Const{Value: 0})
-			}
-			instrs = append(instrs, instruction.Call{Index: c.function(opaValueBooleanSet)})
 		case *ir.AssignIntStmt:
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Target)})
 			instrs = append(instrs, instruction.I64Const{Value: stmt.Value})

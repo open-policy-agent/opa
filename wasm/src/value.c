@@ -1164,13 +1164,6 @@ opa_value *opa_set_with_cap(size_t n)
 }
 
 OPA_INTERNAL
-void opa_value_boolean_set(opa_value *v, int b)
-{
-    opa_boolean_t *ret = opa_cast_boolean(v);
-    ret->v = b;
-}
-
-OPA_INTERNAL
 void opa_value_number_set_int(opa_value *v, long long i)
 {
 	opa_number_t *ret = opa_cast_number(v);

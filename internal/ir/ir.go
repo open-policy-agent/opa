@@ -259,14 +259,6 @@ type NotStmt struct {
 	Location
 }
 
-// AssignBooleanStmt represents an assignment of a boolean value to a local variable.
-type AssignBooleanStmt struct {
-	Value  bool
-	Target Local
-
-	Location
-}
-
 // AssignIntStmt represents an assignment of an integer value to a
 // local variable.
 type AssignIntStmt struct {

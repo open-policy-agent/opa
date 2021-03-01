@@ -149,7 +149,6 @@ opa_value *opa_object();
 opa_value *opa_set();
 opa_value *opa_set_with_cap(size_t cap);
 
-void opa_value_boolean_set(opa_value *v, int b);
 void opa_value_number_set_int(opa_value *v, long long i);
 
 int opa_number_try_int(opa_number_t *n, long long *i);
