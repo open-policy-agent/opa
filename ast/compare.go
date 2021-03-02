@@ -97,11 +97,16 @@ func Compare(a, b interface{}) int {
 			}
 		}
 
-		bigA, ok := new(big.Float).SetString(string(a))
+		// We use big.Rat for comparing big numbers.
+		// It replaces big.Float due to following reason:
+		// big.Float comes with a default precision of 64, and setting a
+		// larger precision results in more memory being allocated
+		// (regardless of the actual number we are parsing with SetString).
+		bigA, ok := new(big.Rat).SetString(string(a))
 		if !ok {
 			panic("illegal value")
 		}
-		bigB, ok := new(big.Float).SetString(string(b.(Number)))
+		bigB, ok := new(big.Rat).SetString(string(b.(Number)))
 		if !ok {
 			panic("illegal value")
 		}
