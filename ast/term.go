@@ -1518,14 +1518,19 @@ func (s *set) insert(x *Term) {
 			break
 		}
 
-		a, ok := new(big.Float).SetString(string(x))
+		// We use big.Rat for comparing big numbers.
+		// It replaces big.Float due to following reason:
+		// big.Float comes with a default precision of 64, and setting a
+		// larger precision results in more memory being allocated
+		// (regardless of the actual number we are parsing with SetString).
+		a, ok := new(big.Rat).SetString(string(x))
 		if !ok {
 			panic("illegal value")
 		}
 
 		equal = func(b Value) bool {
 			if b, ok := b.(Number); ok {
-				b, ok := new(big.Float).SetString(string(b))
+				b, ok := new(big.Rat).SetString(string(b))
 				if !ok {
 					panic("illegal value")
 				}
@@ -1579,14 +1584,19 @@ func (s *set) get(x *Term) *Term {
 			break
 		}
 
-		a, ok := new(big.Float).SetString(string(x))
+		// We use big.Rat for comparing big numbers.
+		// It replaces big.Float due to following reason:
+		// big.Float comes with a default precision of 64, and setting a
+		// larger precision results in more memory being allocated
+		// (regardless of the actual number we are parsing with SetString).
+		a, ok := new(big.Rat).SetString(string(x))
 		if !ok {
 			panic("illegal value")
 		}
 
 		equal = func(b Value) bool {
 			if b, ok := b.(Number); ok {
-				b, ok := new(big.Float).SetString(string(b))
+				b, ok := new(big.Rat).SetString(string(b))
 				if !ok {
 					panic("illegal value")
 				}
@@ -1983,14 +1993,19 @@ func (obj *object) get(k *Term) *objectElem {
 			break
 		}
 
-		a, ok := new(big.Float).SetString(string(x))
+		// We use big.Rat for comparing big numbers.
+		// It replaces big.Float due to following reason:
+		// big.Float comes with a default precision of 64, and setting a
+		// larger precision results in more memory being allocated
+		// (regardless of the actual number we are parsing with SetString).
+		a, ok := new(big.Rat).SetString(string(x))
 		if !ok {
 			panic("illegal value")
 		}
 
 		equal = func(b Value) bool {
 			if b, ok := b.(Number); ok {
-				b, ok := new(big.Float).SetString(string(b))
+				b, ok := new(big.Rat).SetString(string(b))
 				if !ok {
 					panic("illegal value")
 				}
@@ -2038,14 +2053,19 @@ func (obj *object) insert(k, v *Term) {
 			break
 		}
 
-		a, ok := new(big.Float).SetString(string(x))
+		// We use big.Rat for comparing big numbers.
+		// It replaces big.Float due to following reason:
+		// big.Float comes with a default precision of 64, and setting a
+		// larger precision results in more memory being allocated
+		// (regardless of the actual number we are parsing with SetString).
+		a, ok := new(big.Rat).SetString(string(x))
 		if !ok {
 			panic("illegal value")
 		}
 
 		equal = func(b Value) bool {
 			if b, ok := b.(Number); ok {
-				b, ok := new(big.Float).SetString(string(b))
+				b, ok := new(big.Rat).SetString(string(b))
 				if !ok {
 					panic("illegal value")
 				}
