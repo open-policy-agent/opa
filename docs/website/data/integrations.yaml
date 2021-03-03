@@ -719,7 +719,7 @@ integrations:
 
   php-authorization:
     title: HTTP API Authorization in PHP
-    description: This integration demonstrates using OPA to perform API authorization in a PSR-15 compliant framework.
+    description: These integrations demonstrate using OPA to perform API authorization in PSR-15 and Symfony compliant frameworks.
     labels:
       layer: network
       category: application
@@ -730,6 +730,9 @@ integrations:
     code:
       - https://github.com/segrax/opa-php-examples
       - https://github.com/segrax/openpolicyagent
+      - https://github.com/build-security/opa-symfony-middleware
+    inventors:
+      - build.security      
 
   gradle-plugin:
     title: Gradle Build Plugin
