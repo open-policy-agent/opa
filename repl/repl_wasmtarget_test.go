@@ -6,6 +6,12 @@
 
 package repl
 
+import (
+	"bytes"
+	"context"
+	"testing"
+)
+
 func TestReplWasmTarget(t *testing.T) {
 	ctx := context.Background()
 	store := newTestStore()
