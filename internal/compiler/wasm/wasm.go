@@ -229,7 +229,7 @@ func New() *Compiler {
 	}
 	c.stages = []func() error{
 		c.initModule,
-		c.compileStrings,
+		c.compileStringsAndBooleans,
 		c.compileExternalFuncDecls,
 		c.compileEntrypointDecls,
 		c.compileFuncs,
@@ -296,45 +296,7 @@ func (c *Compiler) initModule() error {
 		return err
 	}
 
-	// add globals for ABI [minor] version, export them
-	abiVersionGlobals := []module.Global{
-		{
-			Type:    types.I32,
-			Mutable: false,
-			Init: module.Expr{
-				Instrs: []instruction.Instruction{
-					instruction.I32Const{Value: opaWasmABIVersionVal},
-				},
-			},
-		},
-		{
-			Type:    types.I32,
-			Mutable: false,
-			Init: module.Expr{
-				Instrs: []instruction.Instruction{
-					instruction.I32Const{Value: opaWasmABIMinorVersionVal},
-				},
-			},
-		},
-	}
-	abiVersionExports := []module.Export{
-		{
-			Name: opaWasmABIVersionVar,
-			Descriptor: module.ExportDescriptor{
-				Type:  module.GlobalExportType,
-				Index: uint32(len(c.module.Global.Globals)),
-			},
-		},
-		{
-			Name: opaWasmABIMinorVersionVar,
-			Descriptor: module.ExportDescriptor{
-				Type:  module.GlobalExportType,
-				Index: uint32(len(c.module.Global.Globals)) + 1,
-			},
-		},
-	}
-	c.module.Global.Globals = append(c.module.Global.Globals, abiVersionGlobals...)
-	c.module.Export.Exports = append(c.module.Export.Exports, abiVersionExports...)
+	c.emitABIVersionGlobals()
 
 	c.funcs = make(map[string]uint32)
 	for _, fn := range c.module.Names.Functions {
@@ -382,9 +344,53 @@ func (c *Compiler) initModule() error {
 	return nil
 }
 
-// compileStrings compiles string constants into the data section of the module.
-// The strings are indexed for lookups in later stages.
-func (c *Compiler) compileStrings() error {
+// emitABIVersionGLobals adds globals for ABI [minor] version, exports them
+func (c *Compiler) emitABIVersionGlobals() {
+	abiVersionGlobals := []module.Global{
+		{
+			Type:    types.I32,
+			Mutable: false,
+			Init: module.Expr{
+				Instrs: []instruction.Instruction{
+					instruction.I32Const{Value: opaWasmABIVersionVal},
+				},
+			},
+		},
+		{
+			Type:    types.I32,
+			Mutable: false,
+			Init: module.Expr{
+				Instrs: []instruction.Instruction{
+					instruction.I32Const{Value: opaWasmABIMinorVersionVal},
+				},
+			},
+		},
+	}
+	abiVersionExports := []module.Export{
+		{
+			Name: opaWasmABIVersionVar,
+			Descriptor: module.ExportDescriptor{
+				Type:  module.GlobalExportType,
+				Index: uint32(len(c.module.Global.Globals)),
+			},
+		},
+		{
+			Name: opaWasmABIMinorVersionVar,
+			Descriptor: module.ExportDescriptor{
+				Type:  module.GlobalExportType,
+				Index: uint32(len(c.module.Global.Globals)) + 1,
+			},
+		},
+	}
+	c.module.Global.Globals = append(c.module.Global.Globals, abiVersionGlobals...)
+	c.module.Export.Exports = append(c.module.Export.Exports, abiVersionExports...)
+}
+
+// compileStringsAndBooleans compiles various string constants (strings, file names,
+// external function names, entrypoint names, builtin names), and interned opa_value structs
+// for strings and booleans into the data section of the module.
+// All are indexed for lookups in later stages.
+func (c *Compiler) compileStringsAndBooleans() error {
 
 	var err error
 	c.stringOffset, err = getLowestFreeDataSegmentOffset(c.module)
@@ -394,6 +400,33 @@ func (c *Compiler) compileStrings() error {
 
 	var buf bytes.Buffer
 
+	c.writeStrings(&buf)
+
+	if err := c.writeInternedOPAValues(&buf); err != nil {
+		return err
+	}
+
+	c.writeFileAddrs(&buf)
+	c.writeExternalFuncNames(&buf)
+	c.writeEntrypointNames(&buf)
+	c.writeBuiltinStrings(&buf)
+
+	c.module.Data.Segments = append(c.module.Data.Segments, module.DataSegment{
+		Index: 0,
+		Offset: module.Expr{
+			Instrs: []instruction.Instruction{
+				instruction.I32Const{
+					Value: c.stringOffset,
+				},
+			},
+		},
+		Init: buf.Bytes(),
+	})
+
+	return nil
+}
+
+func (c *Compiler) writeStrings(buf *bytes.Buffer) {
 	c.stringAddrs = make([]uint32, len(c.policy.Static.Strings))
 
 	for i, s := range c.policy.Static.Strings {
@@ -402,7 +435,9 @@ func (c *Compiler) compileStrings() error {
 		buf.WriteByte(0)
 		c.stringAddrs[i] = addr
 	}
+}
 
+func (c *Compiler) writeInternedOPAValues(buf *bytes.Buffer) error {
 	// interned `opa_value*` for these true/false booleans
 	c.opaBoolAddrs = make(map[ir.Bool]uint32, 2)
 	for _, val := range []bool{true, false} {
@@ -439,7 +474,10 @@ func (c *Compiler) compileStrings() error {
 			return fmt.Errorf("short write: %d (expected %d)", n, size)
 		}
 	}
+	return nil
+}
 
+func (c *Compiler) writeFileAddrs(buf *bytes.Buffer) {
 	// NOTE(sr): All files that have been consulted in planning are recorded,
 	// regardless of their potential in generating runtime errors.
 	c.fileAddrs = make([]uint32, len(c.policy.Static.Files))
@@ -450,7 +488,9 @@ func (c *Compiler) compileStrings() error {
 		buf.WriteByte(0)
 		c.fileAddrs[i] = addr
 	}
+}
 
+func (c *Compiler) writeExternalFuncNames(buf *bytes.Buffer) {
 	c.externalFuncNameAddrs = make(map[string]int32)
 
 	for _, decl := range c.policy.Static.BuiltinFuncs {
@@ -461,7 +501,9 @@ func (c *Compiler) compileStrings() error {
 			c.externalFuncNameAddrs[decl.Name] = addr
 		}
 	}
+}
 
+func (c *Compiler) writeEntrypointNames(buf *bytes.Buffer) {
 	c.entrypointNameAddrs = make(map[string]int32)
 
 	for _, plan := range c.policy.Plans.Plans {
@@ -470,7 +512,9 @@ func (c *Compiler) compileStrings() error {
 		buf.WriteByte(0)
 		c.entrypointNameAddrs[plan.Name] = addr
 	}
+}
 
+func (c *Compiler) writeBuiltinStrings(buf *bytes.Buffer) {
 	c.builtinStringAddrs = make(map[int]uint32, len(errorMessages))
 
 	for i := range errorMessages {
@@ -479,20 +523,6 @@ func (c *Compiler) compileStrings() error {
 		buf.WriteByte(0)
 		c.builtinStringAddrs[errorMessages[i].id] = addr
 	}
-
-	c.module.Data.Segments = append(c.module.Data.Segments, module.DataSegment{
-		Index: 0,
-		Offset: module.Expr{
-			Instrs: []instruction.Instruction{
-				instruction.I32Const{
-					Value: c.stringOffset,
-				},
-			},
-		},
-		Init: buf.Bytes(),
-	})
-
-	return nil
 }
 
 // compileExternalFuncDecls generates a function that lists the built-ins required by
