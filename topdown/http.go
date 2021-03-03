@@ -507,12 +507,7 @@ func createHTTPRequest(bctx BuiltinContext, obj ast.Object) (*http.Request, *htt
 }
 
 func executeHTTPRequest(req *http.Request, client *http.Client) (*http.Response, error) {
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-
-	return resp, nil
+	return client.Do(req)
 }
 
 func isContentTypeJSON(header http.Header) bool {

@@ -40,7 +40,7 @@ func TestMain(m *testing.M) {
 	var err error
 	testRuntime, err = e2e.NewTestRuntime(testServerParams)
 	if err != nil {
-		os.Exit(1)
+		panic(err)
 	}
 
 	files := map[string]string{
@@ -152,6 +152,9 @@ func runAuthzBenchmark(b *testing.B, mode testAuthz.InputMode, numPaths int) {
 		// long it takes the golang client to unpack the response body.
 		b.StartTimer()
 		resp, err := testRuntime.GetDataWithRawInput(url, inputReader)
+		if err != nil {
+			b.Fatal(err)
+		}
 		b.StopTimer()
 
 		body, err := ioutil.ReadAll(resp)

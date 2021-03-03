@@ -9,7 +9,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"runtime"
+	"strings"
 	"sync"
+
+	"github.com/bytecodealliance/wasmtime-go"
 
 	"github.com/open-policy-agent/opa/internal/wasm/sdk/internal/wasm"
 	"github.com/open-policy-agent/opa/internal/wasm/sdk/opa/errors"
@@ -178,11 +181,17 @@ func (o *OPA) Eval(ctx context.Context, opts EvalOpts) (*Result, error) {
 	defer o.pool.Release(instance, m)
 
 	result, err := instance.Eval(ctx, opts.Entrypoint, opts.Input, m)
-	if err != nil {
+	if t, ok := err.(*wasmtime.Trap); ok && strings.HasPrefix(t.Message(), "wasm trap: interrupt") {
+		return nil, errors.ErrCancelled
+	}
+	switch err {
+	case nil:
+		return &Result{Result: result}, nil
+	case errors.ErrCancelled: // errors that don't need re-wrapping
+		return nil, err
+	default:
 		return nil, fmt.Errorf("%v: %w", err, errors.ErrInternal)
 	}
-
-	return &Result{Result: result}, nil
 }
 
 // Close waits until all the pending evaluations complete and then

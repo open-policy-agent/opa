@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/bytecodealliance/wasmtime-go"
 	_ "github.com/bytecodealliance/wasmtime-go/build/include"        // to include the C headers.
@@ -17,6 +18,7 @@ import (
 	_ "github.com/bytecodealliance/wasmtime-go/build/windows-x86_64" // to include the static lib for linking.
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/internal/wasm/sdk/opa/errors"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/topdown"
 )
@@ -26,6 +28,7 @@ type VM struct {
 	dispatcher           *builtinDispatcher
 	store                *wasmtime.Store
 	instance             *wasmtime.Instance // Pointer to avoid unintented destruction (triggering finalizers within).
+	intHandle            *wasmtime.InterruptHandle
 	policy               []byte
 	data                 []byte
 	memory               *wasmtime.Memory
@@ -64,7 +67,9 @@ type vmOpts struct {
 
 func newVM(opts vmOpts) (*VM, error) {
 	v := &VM{}
-	store := wasmtime.NewStore(wasmtime.NewEngine())
+	cfg := wasmtime.NewConfig()
+	cfg.SetInterruptable(true)
+	store := wasmtime.NewStore(wasmtime.NewEngineWithConfig(cfg))
 	memorytype := wasmtime.NewMemoryType(wasmtime.Limits{Min: opts.memoryMin, Max: opts.memoryMax})
 	memory := wasmtime.NewMemory(store, memorytype)
 	imports := []*wasmtime.Extern{
@@ -81,6 +86,10 @@ func newVM(opts vmOpts) (*VM, error) {
 	i, err := wasmtime.NewInstance(store, module, imports)
 	if err != nil {
 		return nil, err
+	}
+	v.intHandle, err = store.InterruptHandle()
+	if err != nil {
+		return nil, fmt.Errorf("get interrupt handle: %w", err)
 	}
 
 	v.store = store
@@ -205,16 +214,35 @@ func (i *VM) Eval(ctx context.Context, entrypoint int32, input *interface{}, met
 	metrics.Timer("wasm_vm_eval").Start()
 	defer metrics.Timer("wasm_vm_eval").Stop()
 
+	if err := i.clearInterrupts(ctx); err != nil {
+		return nil, fmt.Errorf("clear interrupts: %w", err)
+	}
+
 	metrics.Timer("wasm_vm_eval_prepare_input").Start()
+
+	// Setting the ctx here ensures that it'll be available to builtins that
+	// make use of it (e.g. `http.send`); and it will spawn a go routine
+	// cancelling the builtins that use topdown.Cancel, when the context is
+	// cancelled.
+	i.dispatcher.Reset(ctx)
+
+	// Interrupt the VM if the context is cancelled.
+	done := make(chan struct{})
+	defer close(done)
+	go func() {
+		select {
+		case <-done:
+		case <-ctx.Done():
+			i.intHandle.Interrupt()
+		}
+	}()
+
 	err := i.setHeapState(i.evalHeapPtr)
 	if err != nil {
 		return nil, err
 	}
 
-	i.dispatcher.Reset(ctx)
-
 	// Parse the input JSON and activate it with the data.
-
 	ctxAddr, err := i.evalCtxNew()
 	if err != nil {
 		return nil, err
@@ -250,6 +278,8 @@ func (i *VM) Eval(ctx context.Context, entrypoint int32, input *interface{}, met
 				switch e := e.(type) {
 				case abortError:
 					err = fmt.Errorf(e.message)
+				case cancelledError:
+					err = errors.ErrCancelled
 				case builtinError:
 					err = e.err
 					if _, ok := err.(topdown.Halt); !ok {
@@ -297,6 +327,10 @@ func (i *VM) Eval(ctx context.Context, entrypoint int32, input *interface{}, met
 // SetPolicyData Will either update the VM's data or, if the policy changed,
 // re-initialize the VM.
 func (i *VM) SetPolicyData(opts vmOpts) error {
+	if err := i.clearInterrupts(context.TODO()); err != nil {
+		return fmt.Errorf("clear interrupts: %w", err)
+	}
+
 	if !bytes.Equal(opts.policy, i.policy) {
 		// Swap the instance to a new one, with new policy.
 		n, err := newVM(opts)
@@ -347,6 +381,10 @@ type abortError struct {
 	message string
 }
 
+type cancelledError struct {
+	message string
+}
+
 // Println is invoked if the policy WASM code calls opa_println().
 func (i *VM) Println(arg int32) {
 	data := i.memory.UnsafeData()[arg:]
@@ -371,6 +409,9 @@ func (i *VM) Entrypoints() map[string]int32 {
 // specified path. If an error occurs the instance is still in a valid state, however
 // the data will not have been modified.
 func (i *VM) SetDataPath(path []string, value interface{}) error {
+	if err := i.clearInterrupts(context.TODO()); err != nil {
+		return fmt.Errorf("clear interrupts: %w", err)
+	}
 
 	// Reset the heap ptr before patching the vm to try and keep any
 	// new allocations safe from subsequent heap resets on eval.
@@ -421,6 +462,10 @@ func (i *VM) SetDataPath(path []string, value interface{}) error {
 // specified path. If an error occurs the instance is still in a valid state, however
 // the data will not have been modified.
 func (i *VM) RemoveDataPath(path []string) error {
+	if err := i.clearInterrupts(context.TODO()); err != nil {
+		return fmt.Errorf("clear interrupts: %w", err)
+	}
+
 	pathAddr, err := i.toRegoJSON(path, true)
 	if err != nil {
 		return err
@@ -579,5 +624,25 @@ func callVoid(vm *VM, name string, args ...int32) error {
 	}
 
 	_, err := vm.instance.GetExport(name).Func().Call(sl...)
+	return err
+}
+
+func (i *VM) clearInterrupts(ctx context.Context) error {
+	// NOTE: It doesn't matter which exported function of the wasm module we call,
+	// any set traps will trigger. Let's call a cheap one.
+	_, err := i.heapPtrGet()
+	if err == nil {
+		return nil
+	}
+	if t, ok := err.(*wasmtime.Trap); ok && strings.HasPrefix(t.Message(), "wasm trap: interrupt") {
+		// Check if OUR ctx is done. If it wasn't, we've triggered the
+		// trap of a previous evaluation.
+		select {
+		case <-ctx.Done(): // chan closed
+			return errors.ErrCancelled
+		default: // don't block
+		}
+		return nil
+	}
 	return err
 }
