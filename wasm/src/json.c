@@ -668,9 +668,9 @@ opa_value *opa_json_parse_token(opa_json_lex *ctx, int token)
     case OPA_JSON_TOKEN_NULL:
         return opa_null();
     case OPA_JSON_TOKEN_TRUE:
-        return opa_boolean(TRUE);
+        return opa_boolean(true);
     case OPA_JSON_TOKEN_FALSE:
-        return opa_boolean(FALSE);
+        return opa_boolean(false);
     case OPA_JSON_TOKEN_NUMBER:
         return opa_json_parse_number(ctx->buf, ctx->buf_end - ctx->buf);
     case OPA_JSON_TOKEN_STRING:

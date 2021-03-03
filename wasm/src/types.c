@@ -46,7 +46,7 @@ opa_value *opa_types_is_null(opa_value *v)
 OPA_BUILTIN
 opa_value *opa_types_name(opa_value *v)
 {
-    switch (v->type)
+    switch (opa_value_type(v))
     {
     case OPA_NULL:
         return opa_string("null", 4);

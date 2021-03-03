@@ -16,6 +16,8 @@ extern "C" {
 #define OPA_ARRAY (5)
 #define OPA_OBJECT (6)
 #define OPA_SET (7)
+#define OPA_STRING_INTERNED (8)
+#define OPA_BOOLEAN_INTERNED (9) // TODO(sr): make an "interned" bitmask?
 
 #define OPA_NUMBER_REPR_INT (1)
 #define OPA_NUMBER_REPR_FLOAT (2)
@@ -31,7 +33,7 @@ struct opa_value
 typedef struct
 {
     opa_value hdr;
-    int v;
+    bool v;
 } opa_boolean_t;
 
 typedef struct
@@ -130,7 +132,7 @@ opa_errc opa_value_add_path(opa_value *data, opa_value *path, opa_value *v);
 opa_errc opa_value_remove_path(opa_value *data, opa_value *path);
 
 opa_value *opa_null();
-opa_value *opa_boolean(int v);
+opa_value *opa_boolean(bool v);
 opa_value *opa_number_size(size_t v);
 opa_value *opa_number_int(long long v);
 opa_value *opa_number_float(double v);
@@ -147,7 +149,6 @@ opa_value *opa_object();
 opa_value *opa_set();
 opa_value *opa_set_with_cap(size_t cap);
 
-void opa_value_boolean_set(opa_value *v, int b);
 void opa_value_number_set_int(opa_value *v, long long i);
 
 int opa_number_try_int(opa_number_t *n, long long *i);

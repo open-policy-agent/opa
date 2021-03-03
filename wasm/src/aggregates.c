@@ -278,13 +278,13 @@ opa_value *opa_agg_all(opa_value *v)
 
         for (int i = 0; i < a->len; i++)
         {
-            if (opa_value_type(a->elems[i].v) != OPA_BOOLEAN || opa_cast_boolean(a->elems[i].v)->v == FALSE)
+            if (opa_value_type(a->elems[i].v) != OPA_BOOLEAN || opa_cast_boolean(a->elems[i].v)->v == false)
             {
-                return opa_boolean(FALSE);
+                return opa_boolean(false);
             }
         }
 
-        return opa_boolean(TRUE);
+        return opa_boolean(true);
     }
     case OPA_SET: {
         opa_set_t *s = opa_cast_set(v);
@@ -293,14 +293,14 @@ opa_value *opa_agg_all(opa_value *v)
         {
             for (opa_set_elem_t *elem = s->buckets[i]; elem != NULL; elem = elem->next)
             {
-                if (opa_value_type(elem->v) != OPA_BOOLEAN || opa_cast_boolean(elem->v)->v == FALSE)
+                if (opa_value_type(elem->v) != OPA_BOOLEAN || opa_cast_boolean(elem->v)->v == false)
                 {
-                    return opa_boolean(FALSE);
+                    return opa_boolean(false);
                 }
             }
         }
 
-        return opa_boolean(TRUE);
+        return opa_boolean(true);
     }
     default:
         return NULL;
@@ -317,23 +317,23 @@ opa_value *opa_agg_any(opa_value *v)
 
         for (int i = 0; i < a->len; i++)
         {
-            if (opa_value_type(a->elems[i].v) == OPA_BOOLEAN && opa_cast_boolean(a->elems[i].v)->v == TRUE)
+            if (opa_value_type(a->elems[i].v) == OPA_BOOLEAN && opa_cast_boolean(a->elems[i].v)->v == true)
             {
-                return opa_boolean(TRUE);
+                return opa_boolean(true);
             }
         }
 
-        return opa_boolean(FALSE);
+        return opa_boolean(false);
     }
     case OPA_SET: {
         opa_set_t *s = opa_cast_set(v);
         if (s->len == 0)
         {
-            return opa_boolean(FALSE);
+            return opa_boolean(false);
         }
 
-        opa_boolean_t b = { .hdr.type = OPA_BOOLEAN, .v = TRUE};
-        return opa_boolean(opa_set_get(s, &b.hdr) == NULL ? FALSE : TRUE);
+        opa_boolean_t b = { .hdr.type = OPA_BOOLEAN, .v = true};
+        return opa_boolean(opa_set_get(s, &b.hdr) == NULL ? false : true);
     }
     default:
         return NULL;

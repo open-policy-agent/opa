@@ -12,7 +12,7 @@ opa_value *opa_to_number(opa_value *v)
     case OPA_BOOLEAN:
     {
         opa_boolean_t *a = opa_cast_boolean(v);
-        return a->v == FALSE ? opa_number_int(0) : opa_number_int(1);
+        return opa_number_int(a->v ? 1 : 0);
     }
     case OPA_NUMBER:
        return v;

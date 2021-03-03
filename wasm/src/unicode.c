@@ -6,9 +6,9 @@
 
 // Tests whether the code point is an utf-16 surrogate (encoded
 // representation of low or high bits).
-int opa_unicode_surrogate(int codepoint)
+bool opa_unicode_surrogate(int codepoint)
 {
-    return 0xd800 <= codepoint && codepoint < 0xe000 ? TRUE : FALSE;
+    return 0xd800 <= codepoint && codepoint < 0xe000;
 }
 
 // Reads the unicode UTF-16 code unit \uXXXX escaping.
@@ -236,26 +236,26 @@ const static range16_t white_spaces[] = {
 };
 
 // is16 reports whether codepoint is in the sorted slice of 16-bit ranges.
-int is16(const range16_t *ranges, int n, uint16_t cp)
+bool is16(const range16_t *ranges, int n, uint16_t cp)
 {
     for (int i = 0; i < n; i++)
     {
         if (cp < ranges[i].lo)
         {
-            return FALSE;
+            return false;
         }
 
         if (cp <= ranges[i].hi)
         {
-            return ranges[i].stride == 1 || (cp-ranges[i].lo)%ranges[i].stride == 0 ? TRUE : FALSE;
+            return ranges[i].stride == 1 || (cp-ranges[i].lo)%ranges[i].stride == 0;
         }
     }
 
-    return FALSE;
+    return false;
 }
 
 // is returns true if the codepoint is in the range table.
-static int is(const range16_t *r16, int l16, int cp)
+static bool is(const range16_t *r16, int l16, int cp)
 {
     if (l16 > 0 && cp <= r16[l16-1].hi)
     {
@@ -265,11 +265,11 @@ static int is(const range16_t *r16, int l16, int cp)
     // TODO: Check for 32-bit ranges here, if such tables needed.
     // TODO: For any future larger tables, implement binary search.
 
-    return FALSE;
+    return false;
 }
 
 // Returns true if the codepoint is a whitespace.
-int opa_unicode_is_space(int cp)
+bool opa_unicode_is_space(int cp)
 {
     if (cp <= 0xff) { // Latin1
         return cp == '\t' || cp == '\n' || cp == '\v' || cp ==  '\f' || cp ==  '\r' || cp == ' ' || cp == 0x85 || cp == 0xa0;

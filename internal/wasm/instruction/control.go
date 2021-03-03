@@ -9,6 +9,11 @@ import (
 	"github.com/open-policy-agent/opa/internal/wasm/types"
 )
 
+// !!! If you find yourself adding support for more control
+//     instructions (br_table, if, ...), please adapt the
+//     `withControlInstr` functions of
+//     `compiler/wasm/optimizations.go`
+
 // Unreachable represents a WASM unreachable instruction.
 type Unreachable struct {
 	NoImmediateArgs
@@ -48,6 +53,29 @@ func (i Block) BlockType() *types.ValueType {
 
 // Instructions returns the instructions contained in the block.
 func (i Block) Instructions() []Instruction {
+	return i.Instrs
+}
+
+// If represents a WASM if instruction.
+// NOTE(sr): we only use if with one branch so far!
+type If struct {
+	NoImmediateArgs
+	Type   *types.ValueType
+	Instrs []Instruction
+}
+
+// Op returns the opcode of the instruction.
+func (If) Op() opcode.Opcode {
+	return opcode.If
+}
+
+// BlockType returns the type of the if's THEN branch.
+func (i If) BlockType() *types.ValueType {
+	return i.Type
+}
+
+// Instructions represents the instructions contained in the if's THEN branch.
+func (i If) Instructions() []Instruction {
 	return i.Instrs
 }
 

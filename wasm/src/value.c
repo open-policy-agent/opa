@@ -21,41 +21,36 @@ static void __opa_set_add_elem(opa_set_t *set, opa_set_elem_t *new, size_t hash)
 OPA_INTERNAL
 int opa_value_type(opa_value *node)
 {
-	return node->type;
+    // For all intents and purposes, interned strings are strings,
+    // interned booleans are booleans.
+    // Only opa_value_free and opa_value_shallow_copy handle them
+    // separately, by refering to node->type directly.
+    switch (node->type)
+    {
+    case OPA_STRING_INTERNED:
+        return OPA_STRING;
+    case OPA_BOOLEAN_INTERNED:
+        return OPA_BOOLEAN;
+    default:
+        return node->type;
+    }
 }
 
 opa_value *opa_value_get_object(opa_object_t *obj, opa_value *key)
 {
     opa_object_elem_t *elem = opa_object_get(obj, key);
-
-    if (elem != NULL)
-    {
-        return elem->v;
-    }
-
-    return NULL;
+    return elem == NULL ? NULL : elem->v;
 }
 
 opa_value *opa_value_get_set(opa_set_t *set, opa_value *key)
 {
     opa_set_elem_t *elem = opa_set_get(set, key);
-
-    if (elem != NULL)
-    {
-        return elem->v;
-    }
-
-    return NULL;
+    return elem == NULL ? NULL : elem->v;
 }
 
 opa_value *opa_value_get_array_native(opa_array_t *arr, long long i)
 {
-    if (i >= arr->len)
-    {
-        return NULL;
-    }
-
-    return arr->elems[i].v;
+    return i >= arr->len ? NULL : arr->elems[i].v;
 }
 
 opa_value *opa_value_get_array(opa_array_t *arr, opa_value *key)
@@ -279,7 +274,7 @@ size_t opa_value_length_string(opa_string_t *str)
 OPA_INTERNAL
 size_t opa_value_length(opa_value *node)
 {
-    switch (node->type)
+    switch (opa_value_type(node))
     {
     case OPA_ARRAY:
         return opa_value_length_array(opa_cast_array(node));
@@ -487,29 +482,28 @@ int opa_value_compare_set(opa_set_t *a, opa_set_t *b)
 OPA_INTERNAL
 int opa_value_compare(opa_value *a, opa_value *b)
 {
-    if (a == NULL && b == NULL)
+    if (a == b)
     {
         return 0;
     }
-    else if (b == NULL)
+    if (b == NULL)
     {
         return 1;
     }
-    else if (a == NULL)
+    if (a == NULL)
     {
         return -1;
     }
-
-    if (a->type < b->type)
+    if (opa_value_type(a) < opa_value_type(b))
     {
         return -1;
     }
-    else if (b->type < a->type)
+    if (opa_value_type(b) < opa_value_type(a))
     {
         return 1;
     }
 
-    switch (a->type)
+    switch (opa_value_type(a))
     {
     case OPA_NULL:
         return 0;
@@ -575,7 +569,7 @@ fnv1a32(size_t hash, const void *input, size_t len)
 }
 
 size_t opa_boolean_hash(opa_boolean_t *b) {
-    return b->v == FALSE ? 0 : 1;
+    return b->v ? 0 : 1;
 }
 
 size_t opa_number_hash(opa_number_t *n) {
@@ -635,7 +629,7 @@ size_t opa_set_hash(opa_set_t *o) {
 }
 
 size_t opa_value_hash(opa_value *node) {
-    switch (node->type)
+    switch (opa_value_type(node))
     {
     case OPA_NULL:
         return 0;
@@ -656,9 +650,10 @@ size_t opa_value_hash(opa_value *node) {
     return 0;
 }
 
+OPA_INTERNAL
 void opa_value_free(opa_value *node)
 {
-    switch (node->type)
+    switch (node->type) // bypass opa_value_type: don't free OPA_STRING_INTERNED
     {
     case OPA_NULL:
         opa_free(node);
@@ -821,7 +816,7 @@ opa_value *opa_value_shallow_copy_set(opa_set_t *s)
 
 opa_value *opa_value_shallow_copy(opa_value *node)
 {
-    switch (node->type)
+    switch (node->type) // bypass opa_value_type: pass OPA_STRING_INTERNED along as-is
     {
     case OPA_NULL:
         return node;
@@ -837,6 +832,9 @@ opa_value *opa_value_shallow_copy(opa_value *node)
         return opa_value_shallow_copy_object(opa_cast_object(node));
     case OPA_SET:
         return opa_value_shallow_copy_set(opa_cast_set(node));
+    case OPA_STRING_INTERNED:
+    case OPA_BOOLEAN_INTERNED:
+        return node;
     }
 
     return NULL;
@@ -885,13 +883,17 @@ opa_value *opa_null()
     return ret;
 }
 
-OPA_INTERNAL
-opa_value *opa_boolean(int v)
+opa_value *opa_boolean_allocated(bool v)
 {
     opa_boolean_t *ret = (opa_boolean_t *)opa_malloc(sizeof(opa_boolean_t));
     ret->hdr.type = OPA_BOOLEAN;
     ret->v = v;
     return &ret->hdr;
+}
+
+opa_value *opa_boolean(bool v)
+{
+    return opa_boolean_allocated(v);
 }
 
 OPA_INTERNAL
@@ -1159,13 +1161,6 @@ opa_value *opa_set_with_cap(size_t n)
     }
 
     return __opa_set_with_buckets(buckets);
-}
-
-OPA_INTERNAL
-void opa_value_boolean_set(opa_value *v, int b)
-{
-    opa_boolean_t *ret = opa_cast_boolean(v);
-    ret->v = b;
 }
 
 OPA_INTERNAL
@@ -1535,7 +1530,6 @@ int _validate_json_path(opa_value *path)
     }
 
     int path_len = opa_value_length(path);
-
     if (path_len == 0)
     {
         return -1;
@@ -1544,12 +1538,9 @@ int _validate_json_path(opa_value *path)
     for (int i = 0; i < path_len-1; i++)
     {
         opa_value *v = opa_value_get_array_native(opa_cast_array(path), i);
-        switch (v->type)
+        if (opa_value_type(v) != OPA_STRING)
         {
-            case OPA_STRING:
-                continue;
-            default:
-                return -1;
+            return -1;
         }
     }
 

@@ -53,10 +53,5 @@ opa_value *opa_memoize_get(int32_t index)
     opa_number_init_int(&key, index);
     opa_object_elem_t *elem = opa_object_get(m->table, &key.hdr);
 
-    if (elem == NULL)
-    {
-        return NULL;
-    }
-
-    return elem->v;
+    return elem == NULL ? NULL : elem->v;
 }
