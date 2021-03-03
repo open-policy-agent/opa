@@ -6,6 +6,18 @@
 
 package rego
 
+import (
+	"context"
+	"testing"
+
+	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/storage/inmem"
+)
+
+func TestFails(t *testing.T) {
+	t.Error("this won't pass")
+}
+
 func TestPrepareAndEvalWithWasmTarget(t *testing.T) {
 	mod := `
 	package test
