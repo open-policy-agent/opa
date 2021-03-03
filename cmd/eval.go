@@ -394,7 +394,7 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 
 	if len(params.dataPaths.v) > 0 {
 		f := loaderFilter{
-			Ignore: checkParams.ignore,
+			Ignore: params.ignore,
 		}
 		regoArgs = append(regoArgs, rego.Load(params.dataPaths.v, f.Apply))
 	}
