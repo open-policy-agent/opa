@@ -343,6 +343,39 @@ func Source(w io.Writer, r Output) error {
 	return nil
 }
 
+// Raw prints the values from r to w.  Each result is written on a separate
+// line, and the expressions are separated by spaces.  If the values are
+// strings, they are written directly rather than formatted as compact
+// JSON strings.  This output format makes OPA useful in a scripting context.
+func Raw(w io.Writer, r Output) error {
+	if r.Errors != nil {
+		return prettyError(w, r.Errors)
+	}
+
+	for _, rs := range r.Result {
+		for i, expr := range rs.Expressions {
+			if str, ok := expr.Value.(string); ok {
+				fmt.Fprint(w, str)
+			} else {
+				bytes, err := json.Marshal(expr.Value)
+				if err != nil {
+					return err
+				}
+
+				fmt.Fprint(w, string(bytes))
+			}
+
+			if i+1 >= len(rs.Expressions) {
+				fmt.Fprintln(w, "")
+			} else {
+				fmt.Fprint(w, " ")
+			}
+		}
+	}
+
+	return nil
+}
+
 func prettyError(w io.Writer, err error) error {
 	_, err = fmt.Fprintln(w, err)
 	return err
