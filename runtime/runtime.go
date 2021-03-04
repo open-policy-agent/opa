@@ -178,6 +178,11 @@ type Params struct {
 	// configured bundles and plugins to be activated/ready before listening for traffic.
 	// A value of 0 or less means no wait is exercised.
 	ReadyTimeout int
+
+	// To limit the TLS versions on opa server side
+	TlsMinVersion uint16
+	// To limit the TLS versions on opa server side
+	TlsMaxVersion uint16
 }
 
 // LoggingConfig stores the configuration for OPA's logging behaviour.
@@ -326,7 +331,9 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 		WithDecisionIDFactory(rt.decisionIDFactory).
 		WithDecisionLoggerWithErr(rt.decisionLogger).
 		WithRuntime(rt.Manager.Info).
-		WithMetrics(rt.metrics)
+		WithMetrics(rt.metrics).
+		WithTLSMinVersion(rt.Params.TlsMinVersion).
+		WithTLSMinVersion(rt.Params.TlsMaxVersion)
 
 	if rt.Params.DiagnosticAddrs != nil {
 		rt.server = rt.server.WithDiagnosticAddresses(*rt.Params.DiagnosticAddrs)

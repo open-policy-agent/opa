@@ -176,6 +176,8 @@ To skip bundle verification, use the --skip-verify flag.
 	runCommand.Flags().StringVarP(&cmdParams.tlsCertFile, "tls-cert-file", "", "", "set path of TLS certificate file")
 	runCommand.Flags().StringVarP(&cmdParams.tlsPrivateKeyFile, "tls-private-key-file", "", "", "set path of TLS private key file")
 	runCommand.Flags().StringVarP(&cmdParams.tlsCACertFile, "tls-ca-cert-file", "", "", "set path of TLS CA cert file")
+	runCommand.Flags().Uint16VarP(&cmdParams.rt.TlsMinVersion, "tls-min-version", "", tls.VersionTLS10, "TLS min version")
+	runCommand.Flags().Uint16VarP(&cmdParams.rt.TlsMaxVersion, "tls-max-version", "", tls.VersionTLS13, "TLS max version")
 	runCommand.Flags().VarP(cmdParams.authentication, "authentication", "", "set authentication scheme")
 	runCommand.Flags().VarP(cmdParams.authorization, "authorization", "", "set authorization scheme")
 	runCommand.Flags().VarP(cmdParams.logLevel, "log-level", "l", "set log level")

@@ -116,6 +116,8 @@ type Server struct {
 	metrics                Metrics
 	defaultDecisionPath    string
 	interQueryBuiltinCache iCache.InterQueryCache
+	tlsMinVersion          uint16
+	tlsMaxVersion          uint16
 }
 
 // Metrics defines the interface that the server requires for recording HTTP
@@ -308,6 +310,18 @@ func (s *Server) WithRuntime(term *ast.Term) *Server {
 // router is not supplied, the server will create it's own.
 func (s *Server) WithRouter(router *mux.Router) *Server {
 	s.router = router
+	return s
+}
+
+// With TLS minVersion
+func (s *Server) WithTLSMinVersion(minVersion uint16) *Server {
+	s.tlsMinVersion = minVersion
+	return s
+}
+
+// With TLS maxVersion
+func (s *Server) WithTLSMaxVersion(maxVersion uint16) *Server {
+	s.tlsMaxVersion = maxVersion
 	return s
 }
 
@@ -514,6 +528,8 @@ func (s *Server) getListenerForHTTPSServer(u *url.URL, h http.Handler, t httpLis
 		TLSConfig: &tls.Config{
 			Certificates: []tls.Certificate{*s.cert},
 			ClientCAs:    s.certPool,
+			MinVersion:   s.tlsMinVersion,
+			MaxVersion:   s.tlsMaxVersion,
 		},
 	}
 	if s.authentication == AuthenticationTLS {
