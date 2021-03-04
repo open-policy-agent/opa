@@ -3,6 +3,63 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
+## Unreleased
+
+This release contains a number of enhancements and bug fixes.
+
+### Tooling
+
+- The `eval` subcommand now supports a `-s`/`--schema` flag that accepts a JSON schema for the `input` document. The schema is used when type checking the policy so that invalid references to (or operations on) `input` data are caught at compile time. In the future, the schema support will be expanded to accept multiple schemas and rule-level annotations. See the new [Schemas](https://www.openpolicyagent.org/docs/edge/schemas/) documentation for details. Authored by @[aavarghese](https://github.com/aavarghese) and @[vazirim](https://github.com/vazirim).
+- The `eval`, `test`, `bench` and REPL subcommands now supports a `-t`/`--target` flag to set the evaluation engine to use. The default engine is `rego` referring to the standard Rego interpreter in OPA. Users can now select `wasm` to enable Wasm compilation and execution of policies ([#2878](https://github.com/open-policy-agent/opa/issues/2878)).
+- The `eval` subcommand now supports a `raw` option for `-f`/`--format` that is useful in bash scripts. Authored by @[jaspervdj-luminal](https://github.com/jaspervdj-luminal).
+- The test framework now supports "skippable" tests. Prefix the test name with `todo_` to have the test runner skip the test, e.g., `todo_test_allow { ... }`.
+- The `eval` subcommand now correctly supports the `--ignore` flag. Previously the flag was not being applied.
+
+### Server
+
+- The `POST /v1/compile` API now supports a `?metrics` query parameter similar to other APIs. Authored by @[jkbschmid](https://github.com/jkbschmid).
+- The directory used for persisting downloaded bundles can now be configured. See the [Configuration](https://www.openpolicyagent.org/docs/latest/configuration/) page for details.
+- The HTTP Decision Logger plugin no longer blocks server shutdown for the grace period when there are no logs to upload.
+- The Bundle plugin now unregisters listeners correctly. This issue would cause listeners to be invoked when bundle updates were dispatched even if the listener was unregistered ([#3190](https://github.com/open-policy-agent/opa/issues/3190)).
+- The server now correctly decodes policy IDs in the HTTP request URL. Authored by @[mattmahn](https://github.com/mattmahn) ([#2116](https://github.com/open-policy-agent/opa/issues/2116)).
+- The server now configures the `http_request_duration_seconds` metric (for all of the server endpoitns) with smaller, more granular buckets that better map to actual response latencies from OPA.  Authored by @[luong-komorebi](https://github.com/luong-komorebi) ([#3196](https://github.com/open-policy-agent/opa/issues/3196)).
+
+### Security
+
+- PKCS8 keys are now supported when signing bundles and communicating with control plane services. Previously only PKCS1 keys were supported ([#3116](https://github.com/open-policy-agent/opa/issues/3116)).
+- The built-in OPA HTTP API authorizer policy can now return a _reason_ to explain why a request to the OPA API is denied ([#3056](https://github.com/open-policy-agent/opa/issues/3056)). See the [Security](https://www.openpolicyagent.org/docs/edge/security/) documentation for details. Thanks to @[ajanthan](https://github.com/ajanthan) for helping improve this.
+
+### Compiler
+
+- The compiler can be configured to emit debug messages that explain comprehension indexing decisions. Debug messages can be enabled when running `opa build` with `--debug`.
+- A panic was fixed in one of the rewriting stages when comprehensions were used as object keys ([#2915](https://github.com/open-policy-agent/opa/issues/2915))
+
+### Evaluation
+
+- A bug in big integer comparison was fixed. This issue was discovered when comparing serial numbers from X.509 certificates. Authored by @[andrehaland](https://github.com/andrehaland) ([#3147](https://github.com/open-policy-agent/opa/issues/3147)).
+- The `io.jwt.decode_verify` function now uses the environment supplied time-of-day value instead of calling `time.Now()` ([#3105](https://github.com/open-policy-agent/opa/issues/3105)).
+
+### Documentation
+
+- The documentation now includes a dedicated section the OPA-Envoy integration. See [https://www.openpolicyagent.org/docs/latest/envoy-introduction/](https://www.openpolicyagent.org/docs/latest/envoy-introduction/) for details.
+- The ecosystem page now ranks integrations by number of unique domains instead of the sheer number of references.
+
+### WebAssembly
+
+- The `data` document no longer needs to be initialized to an empty object ([#3130](https://github.com/open-policy-agent/opa/issues/3130)).
+- The mpd library is now initalized by the module's `Start` function ([#3110](https://github.com/open-policy-agent/opa/issues/3110)).
+- The planner now longer re-plans rules blindly when `with` statements are encountered ([#3150](https://github.com/open-policy-agent/opa/issues/3150)).
+- The planner and compiler now support dynamic dispatch. Previously the planner would enumerate all functions and invocation was controlled at runtime ([#2936](https://github.com/open-policy-agent/opa/issues/2936)).
+- The compiler now inserts memoization instructions into function bodies instead of at callsites. This reduces the number of wasm instructions in the resulting binary ([#3169](https://github.com/open-policy-agent/opa/pull/3169)).
+- The wasmtime runtime is now the default runtime used by OPA to execute compiled policies. The new runtime no longer leaks memory when policies are reloaded.
+- The planner and compiler now intern strings and booleans and implement a few micro-optimizations to reduce the size of the resulting binary.
+- The capabilities support has been updated to include an ABI major and minor version for tracking backwards compatibility on compiled policies ([#3120](https://github.com/open-policy-agent/opa/issues/3120)).
+
+### Backwards Compatibility
+
+- The `opa test` subcommand previously supported a `-t` flag as shorthand for `--timeout`. With this release, the `-t` shorthand has been redefined for `--target`. After searching GitHub for examples of `opa test -t` (and finding nothing) we felt comfortable making this backwards incompatible change.
+- The Go version used to build the OPA release has been updated from `1.14.9` to `1.15.8`. Because of this, TLS certificates that rely on Common Name for verification are no longer supported and will not work. For more information see https://github.com/golang/go/issues/39568.
+
 ## 0.26.0
 
 This release contains a number of enhancements and bug fixes.
@@ -53,10 +110,6 @@ This release contains a number of enhancements and bug fixes.
 ### Deprecations
 
 - OPA now logs warnings when it receives legacy `bundle` config sections instead of the `bundles` section introduced in v0.13.0.
-
-## Unreleased
-
-Previously, the `opa test` command used `t` as shorthand for the `timeout` flag. This change adds a new `target` flag to `opa eval`, `opa bench` and `opa test`([#2878](https://github.com/open-policy-agent/opa/issues/2878)). `t` is now a shorthand for the `target` flag and is no longer used for the `timeout` flag in `opa test`.
 
 ## 0.25.2
 
