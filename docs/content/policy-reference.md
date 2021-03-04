@@ -1060,8 +1060,8 @@ literal         = ( some-decl | expr | "not" expr ) { with-modifier }
 with-modifier   = "with" term "as" term
 some-decl       = "some" var { "," var }
 expr            = term | expr-call | expr-infix
-expr-call       = var [ "." var ] "(" [ term { "," term } ] ")"
-expr-infix      = [ term "=" ] term infix-operator term
+expr-call       = var [ "." var ] "(" [ expr { "," expr } ] ")"
+expr-infix      = [ term "=" ] expr infix-operator expr
 term            = ref | var | scalar | array | object | set | array-compr | object-compr | set-compr
 array-compr     = "[" term "|" rule-body "]"
 set-compr       = "{" term "|" rule-body "}"
