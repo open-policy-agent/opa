@@ -6,6 +6,7 @@ require (
 	github.com/OneOfOne/xxhash v1.2.8
 	github.com/bytecodealliance/wasmtime-go v0.23.0
 	github.com/cpuguy83/go-md2man v1.0.10 // indirect
+	github.com/fortytw2/leaktest v1.3.0
 	github.com/fsnotify/fsnotify v1.4.9
 	github.com/ghodss/yaml v1.0.0
 	github.com/gobwas/glob v0.2.3
@@ -26,8 +27,7 @@ require (
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415
 	github.com/yashtewari/glob-intersection v0.0.0-20180916065949-5c77d914dd0b
-	golang.org/x/lint v0.0.0-20200302205851-738671d3881b
-	golang.org/x/net v0.0.0-20200927032502-5d4f70055728
-	golang.org/x/text v0.3.3 // indirect
-	golang.org/x/tools v0.0.0-20201009032223-96877f285f7e
+	golang.org/x/lint v0.0.0-20201208152925-83fdc39ff7b5
+	golang.org/x/net v0.0.0-20201021035429-f5854403a974
+	golang.org/x/tools v0.1.0
 )
