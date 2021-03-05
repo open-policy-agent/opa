@@ -60,7 +60,6 @@ func (h *LoggingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		if loggingEnabled(logrus.DebugLevel) {
 			var bs []byte
-			var err error
 			if r.Body != nil {
 				bs, r.Body, err = readBody(r.Body)
 			}

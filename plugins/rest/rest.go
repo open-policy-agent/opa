@@ -15,11 +15,11 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/open-policy-agent/opa/sdk"
+
 	"github.com/open-policy-agent/opa/keys"
 
 	"github.com/open-policy-agent/opa/internal/version"
-
-	"github.com/sirupsen/logrus"
 
 	"github.com/open-policy-agent/opa/util"
 )
@@ -51,7 +51,8 @@ type Config struct {
 		Plugin      *string                            `json:"plugin,omitempty"`
 	} `json:"credentials"`
 
-	keys map[string]*keys.Config
+	keys   map[string]*keys.Config
+	logger sdk.Logger
 }
 
 // Equal returns true if this client config is equal to the other.
@@ -108,6 +109,7 @@ type Client struct {
 	config           Config
 	headers          map[string]string
 	authPluginLookup func(string) HTTPAuthPlugin
+	logger           sdk.Logger
 }
 
 // Name returns an option that overrides the service name on the client.
@@ -124,6 +126,13 @@ func Name(s string) func(*Client) {
 func AuthPluginLookup(l func(string) HTTPAuthPlugin) func(*Client) {
 	return func(c *Client) {
 		c.authPluginLookup = l
+	}
+}
+
+// Logger assigns a logger to the client
+func Logger(l sdk.Logger) func(*Client) {
+	return func(c *Client) {
+		c.logger = l
 	}
 }
 
@@ -153,6 +162,11 @@ func New(config []byte, keys map[string]*keys.Config, opts ...func(*Client)) (Cl
 		f(&client)
 	}
 
+	if client.logger == nil {
+		client.logger = sdk.NewStandardLogger()
+	}
+	client.config.logger = client.logger
+
 	return client, nil
 }
 
@@ -164,6 +178,11 @@ func (c Client) Service() string {
 // Config returns this Client's configuration
 func (c Client) Config() *Config {
 	return &c.config
+}
+
+// Logger returns the logger assigned to the Client
+func (c Client) Logger() sdk.Logger {
+	return c.logger
 }
 
 // WithHeader returns a shallow copy of the client with a header to include the
@@ -249,7 +268,7 @@ func (c Client) Do(ctx context.Context, method, path string) (*http.Response, er
 		return nil, err
 	}
 
-	logrus.WithFields(logrus.Fields{
+	c.logger.WithFields(map[string]interface{}{
 		"method":  method,
 		"url":     url,
 		"headers": req.Header,
@@ -259,7 +278,7 @@ func (c Client) Do(ctx context.Context, method, path string) (*http.Response, er
 	if resp != nil {
 		// Only log for debug purposes. If an error occurred, the caller should handle
 		// that. In the non-error case, the caller may not do anything.
-		logrus.WithFields(logrus.Fields{
+		c.logger.WithFields(map[string]interface{}{
 			"method":  method,
 			"url":     url,
 			"status":  resp.Status,

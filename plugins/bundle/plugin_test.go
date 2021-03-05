@@ -20,12 +20,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/open-policy-agent/opa/keys"
-
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/config"
 	"github.com/open-policy-agent/opa/download"
+	"github.com/open-policy-agent/opa/keys"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/storage"
@@ -50,7 +49,7 @@ func TestPluginOneShot(t *testing.T) {
 		Manifest: bundle.Manifest{Revision: "quickbrownfaux"},
 		Data:     util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}}`)).(map[string]interface{}),
 		Modules: []bundle.ModuleFile{
-			bundle.ModuleFile{
+			{
 				Path:   "/foo/bar",
 				Parsed: ast.MustParseModule(module),
 				Raw:    []byte(module),
@@ -526,7 +525,12 @@ func TestPluginOneShotActivationConflictingRoots(t *testing.T) {
 func TestPluginOneShotActivationPrefixMatchingRoots(t *testing.T) {
 	ctx := context.Background()
 	manager := getTestManager()
-	plugin := Plugin{manager: manager, status: map[string]*Status{}, etags: map[string]string{}, downloaders: map[string]*download.Downloader{}}
+	plugin := Plugin{
+		manager:     manager,
+		status:      map[string]*Status{},
+		etags:       map[string]string{},
+		downloaders: map[string]*download.Downloader{},
+	}
 	bundleNames := []string{"test-bundle1", "test-bundle2"}
 
 	for _, name := range bundleNames {
@@ -680,7 +684,12 @@ func validateStatus(t *testing.T, actual Status, expected string, expectStatusEr
 func TestPluginListenerErrorClearedOn304(t *testing.T) {
 	ctx := context.Background()
 	manager := getTestManager()
-	plugin := Plugin{manager: manager, status: map[string]*Status{}, etags: map[string]string{}, downloaders: map[string]*download.Downloader{}}
+	plugin := Plugin{
+		manager:     manager,
+		status:      map[string]*Status{},
+		etags:       map[string]string{},
+		downloaders: map[string]*download.Downloader{},
+	}
 	bundleName := "test-bundle"
 	plugin.status[bundleName] = &Status{Name: bundleName}
 	plugin.downloaders[bundleName] = download.New(download.Config{}, plugin.manager.Client(""), bundleName)
@@ -727,7 +736,12 @@ func TestPluginListenerErrorClearedOn304(t *testing.T) {
 func TestPluginBulkListener(t *testing.T) {
 	ctx := context.Background()
 	manager := getTestManager()
-	plugin := Plugin{manager: manager, status: map[string]*Status{}, etags: map[string]string{}, downloaders: map[string]*download.Downloader{}}
+	plugin := Plugin{
+		manager:     manager,
+		status:      map[string]*Status{},
+		etags:       map[string]string{},
+		downloaders: map[string]*download.Downloader{},
+	}
 	bundleNames := []string{
 		"b1",
 		"b2",
@@ -910,7 +924,12 @@ func TestPluginBulkListener(t *testing.T) {
 func TestPluginBulkListenerStatusCopyOnly(t *testing.T) {
 	ctx := context.Background()
 	manager := getTestManager()
-	plugin := Plugin{manager: manager, status: map[string]*Status{}, etags: map[string]string{}, downloaders: map[string]*download.Downloader{}}
+	plugin := Plugin{
+		manager:     manager,
+		status:      map[string]*Status{},
+		etags:       map[string]string{},
+		downloaders: map[string]*download.Downloader{},
+	}
 	bundleNames := []string{
 		"b1",
 		"b2",
@@ -962,7 +981,12 @@ func TestPluginActivateScopedBundle(t *testing.T) {
 
 	ctx := context.Background()
 	manager := getTestManager()
-	plugin := Plugin{manager: manager, status: map[string]*Status{}, etags: map[string]string{}, downloaders: map[string]*download.Downloader{}}
+	plugin := Plugin{
+		manager:     manager,
+		status:      map[string]*Status{},
+		etags:       map[string]string{},
+		downloaders: map[string]*download.Downloader{},
+	}
 	bundleName := "test-bundle"
 	plugin.status[bundleName] = &Status{Name: bundleName}
 	plugin.downloaders[bundleName] = download.New(download.Config{}, plugin.manager.Client(""), bundleName)
@@ -1080,7 +1104,12 @@ func TestPluginSetCompilerOnContext(t *testing.T) {
 
 	ctx := context.Background()
 	manager := getTestManager()
-	plugin := Plugin{manager: manager, status: map[string]*Status{}, etags: map[string]string{}, downloaders: map[string]*download.Downloader{}}
+	plugin := Plugin{
+		manager:     manager,
+		status:      map[string]*Status{},
+		etags:       map[string]string{},
+		downloaders: map[string]*download.Downloader{},
+	}
 	bundleName := "test-bundle"
 	plugin.status[bundleName] = &Status{Name: bundleName}
 	plugin.downloaders[bundleName] = download.New(download.Config{}, plugin.manager.Client(""), bundleName)
@@ -1340,7 +1369,12 @@ func TestPluginRequestVsDownloadTimestamp(t *testing.T) {
 
 	ctx := context.Background()
 	manager := getTestManager()
-	plugin := Plugin{manager: manager, status: map[string]*Status{}, etags: map[string]string{}, downloaders: map[string]*download.Downloader{}}
+	plugin := Plugin{
+		manager:     manager,
+		status:      map[string]*Status{},
+		etags:       map[string]string{},
+		downloaders: map[string]*download.Downloader{},
+	}
 	bundleName := "test-bundle"
 	plugin.status[bundleName] = &Status{Name: bundleName}
 	plugin.downloaders[bundleName] = download.New(download.Config{}, plugin.manager.Client(""), bundleName)
@@ -1384,7 +1418,12 @@ func TestUpgradeLegacyBundleToMuiltiBundleSameBundle(t *testing.T) {
 
 	ctx := context.Background()
 	manager := getTestManager()
-	plugin := Plugin{manager: manager, status: map[string]*Status{}, etags: map[string]string{}, downloaders: map[string]*download.Downloader{}}
+	plugin := Plugin{
+		manager:     manager,
+		status:      map[string]*Status{},
+		etags:       map[string]string{},
+		downloaders: map[string]*download.Downloader{},
+	}
 	bundleName := "test-bundle"
 	plugin.status[bundleName] = &Status{Name: bundleName}
 	plugin.downloaders[bundleName] = download.New(download.Config{}, plugin.manager.Client(""), bundleName)

@@ -35,6 +35,18 @@ func New(inner metrics.Metrics, logger func(attrs map[string]interface{}, f stri
 		prometheus.HistogramOpts{
 			Name: "http_request_duration_seconds",
 			Help: "A histogram of duration for requests.",
+			Buckets: []float64{
+				1e-6, // 1 microsecond
+				5e-6,
+				1e-5,
+				5e-5,
+				1e-4,
+				5e-4,
+				1e-3, // 1 millisecond
+				0.01,
+				0.1,
+				1, // 1 second
+			},
 		},
 		[]string{"code", "handler", "method"},
 	)

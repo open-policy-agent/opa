@@ -14,6 +14,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/open-policy-agent/opa/sdk"
 )
 
 // this is usually private; but we need it here
@@ -106,14 +108,18 @@ func TestMetadataCredentialService(t *testing.T) {
 		RoleName:        "my_iam_role",
 		RegionName:      "us-east-1",
 		credServicePath: "this is not a URL", // malformed
-		tokenPath:       ts.server.URL + "/latest/api/token"}
+		tokenPath:       ts.server.URL + "/latest/api/token",
+		logger:          sdk.NewStandardLogger(),
+	}
 	_, err := cs.credentials()
 	assertErr("unsupported protocol scheme \"\"", err, t)
 
 	// wrong path: no role set but no ECS URI in environment
 	os.Unsetenv(ecsRelativePathEnvVar)
 	cs = awsMetadataCredentialService{
-		RegionName: "us-east-1"}
+		RegionName: "us-east-1",
+		logger:     sdk.NewStandardLogger(),
+	}
 	_, err = cs.credentials()
 	assertErr("metadata endpoint cannot be determined from settings and environment", err, t)
 
@@ -122,7 +128,9 @@ func TestMetadataCredentialService(t *testing.T) {
 		RoleName:        "not_my_iam_role", // not present
 		RegionName:      "us-east-1",
 		credServicePath: ts.server.URL + "/latest/meta-data/iam/security-credentials/",
-		tokenPath:       ts.server.URL + "/latest/api/token"}
+		tokenPath:       ts.server.URL + "/latest/api/token",
+		logger:          sdk.NewStandardLogger(),
+	}
 	_, err = cs.credentials()
 	assertErr("metadata HTTP request returned unexpected status: 404 Not Found", err, t)
 
@@ -131,7 +139,9 @@ func TestMetadataCredentialService(t *testing.T) {
 		RoleName:        "my_bad_iam_role", // not good
 		RegionName:      "us-east-1",
 		credServicePath: ts.server.URL + "/latest/meta-data/iam/security-credentials/",
-		tokenPath:       ts.server.URL + "/latest/api/token"}
+		tokenPath:       ts.server.URL + "/latest/api/token",
+		logger:          sdk.NewStandardLogger(),
+	}
 	_, err = cs.credentials()
 	assertErr("failed to parse credential response from metadata service: invalid character 'T' looking for beginning of value", err, t)
 
@@ -140,7 +150,9 @@ func TestMetadataCredentialService(t *testing.T) {
 		RoleName:        "my_iam_role",
 		RegionName:      "us-east-1",
 		credServicePath: ts.server.URL + "/latest/meta-data/iam/security-credentials/",
-		tokenPath:       ts.server.URL + "/latest/api/missing_token"} // will 404
+		tokenPath:       ts.server.URL + "/latest/api/missing_token",
+		logger:          sdk.NewStandardLogger(),
+	} // will 404
 	_, err = cs.credentials()
 	assertErr("metadata token HTTP request returned unexpected status: 404 Not Found", err, t)
 
@@ -149,7 +161,9 @@ func TestMetadataCredentialService(t *testing.T) {
 		RoleName:        "my_iam_role",
 		RegionName:      "us-east-1",
 		credServicePath: ts.server.URL + "/latest/meta-data/iam/security-credentials/",
-		tokenPath:       ts.server.URL + "/latest/api/bad_token"} // not good
+		tokenPath:       ts.server.URL + "/latest/api/bad_token",
+		logger:          sdk.NewStandardLogger(),
+	} // not good
 	_, err = cs.credentials()
 	assertErr("metadata HTTP request returned unexpected status: 401 Unauthorized", err, t)
 
@@ -164,7 +178,9 @@ func TestMetadataCredentialService(t *testing.T) {
 		RoleName:        "my_iam_role",
 		RegionName:      "us-east-1",
 		credServicePath: ts.server.URL + "/latest/meta-data/iam/security-credentials/",
-		tokenPath:       ts.server.URL + "/latest/api/token"}
+		tokenPath:       ts.server.URL + "/latest/api/token",
+		logger:          sdk.NewStandardLogger(),
+	}
 	_, err = cs.credentials()
 	assertErr("metadata service query did not succeed: Failure", err, t)
 
@@ -179,7 +195,9 @@ func TestMetadataCredentialService(t *testing.T) {
 		RoleName:        "my_iam_role",
 		RegionName:      "us-east-1",
 		credServicePath: ts.server.URL + "/latest/meta-data/iam/security-credentials/",
-		tokenPath:       ts.server.URL + "/latest/api/token"}
+		tokenPath:       ts.server.URL + "/latest/api/token",
+		logger:          sdk.NewStandardLogger(),
+	}
 	var creds awsCredentials
 	creds, err = cs.credentials()
 
@@ -203,7 +221,9 @@ func TestMetadataCredentialService(t *testing.T) {
 		RoleName:        "my_iam_role",
 		RegionName:      "us-east-1",
 		credServicePath: ts.server.URL + "/latest/meta-data/iam/security-credentials/",
-		tokenPath:       ts.server.URL + "/latest/api/token"}
+		tokenPath:       ts.server.URL + "/latest/api/token",
+		logger:          sdk.NewStandardLogger(),
+	}
 	ts.payload = metadataPayload{
 		AccessKeyID:     "MYAWSACCESSKEYGOESHERE",
 		SecretAccessKey: "MYAWSSECRETACCESSKEYGOESHERE",
@@ -247,7 +267,9 @@ func TestV4Signing(t *testing.T) {
 		RoleName:        "not_my_iam_role", // not present
 		RegionName:      "us-east-1",
 		credServicePath: ts.server.URL + "/latest/meta-data/iam/security-credentials/",
-		tokenPath:       ts.server.URL + "/latest/api/token"}
+		tokenPath:       ts.server.URL + "/latest/api/token",
+		logger:          sdk.NewStandardLogger(),
+	}
 	req, _ := http.NewRequest("GET", "https://mybucket.s3.amazonaws.com/bundle.tar.gz", strings.NewReader(""))
 	err := signV4(req, cs, time.Unix(1556129697, 0))
 
@@ -258,7 +280,9 @@ func TestV4Signing(t *testing.T) {
 		RoleName:        "my_iam_role", // not present
 		RegionName:      "us-east-1",
 		credServicePath: ts.server.URL + "/latest/meta-data/iam/security-credentials/",
-		tokenPath:       ts.server.URL + "/latest/api/token"}
+		tokenPath:       ts.server.URL + "/latest/api/token",
+		logger:          sdk.NewStandardLogger(),
+	}
 	ts.payload = metadataPayload{
 		AccessKeyID:     "MYAWSACCESSKEYGOESHERE",
 		SecretAccessKey: "MYAWSSECRETACCESSKEYGOESHERE",
@@ -293,7 +317,9 @@ func TestV4SigningCustomPort(t *testing.T) {
 		RoleName:        "my_iam_role", // not present
 		RegionName:      "us-east-1",
 		credServicePath: ts.server.URL + "/latest/meta-data/iam/security-credentials/",
-		tokenPath:       ts.server.URL + "/latest/api/token"}
+		tokenPath:       ts.server.URL + "/latest/api/token",
+		logger:          sdk.NewStandardLogger(),
+	}
 	ts.payload = metadataPayload{
 		AccessKeyID:     "MYAWSACCESSKEYGOESHERE",
 		SecretAccessKey: "MYAWSSECRETACCESSKEYGOESHERE",
@@ -385,6 +411,7 @@ func TestWebIdentityCredentialService(t *testing.T) {
 	defer ts.stop()
 	cs := awsWebIdentityCredentialService{
 		stsURL: ts.server.URL,
+		logger: sdk.NewStandardLogger(),
 	}
 
 	goodTokenFile, err := ioutil.TempFile(os.TempDir(), "opa-aws-test-")

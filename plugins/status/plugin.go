@@ -12,6 +12,8 @@ import (
 	"net/http"
 	"reflect"
 
+	"github.com/open-policy-agent/opa/sdk"
+
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 
@@ -47,6 +49,7 @@ type Plugin struct {
 	metrics            metrics.Metrics
 	lastPluginStatuses map[string]*plugins.Status
 	pluginStatusCh     chan map[string]*plugins.Status
+	logger             sdk.Logger
 }
 
 // Config contains configuration for the plugin.
@@ -118,6 +121,7 @@ func New(parsedConfig *Config, manager *plugins.Manager) *Plugin {
 		stop:           make(chan chan struct{}),
 		reconfig:       make(chan interface{}),
 		pluginStatusCh: make(chan map[string]*plugins.Status),
+		logger:         manager.Logger().WithFields(map[string]interface{}{"plugin": Name}),
 	}
 
 	p.manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateNotReady})
@@ -144,7 +148,7 @@ func Lookup(manager *plugins.Manager) *Plugin {
 
 // Start starts the plugin.
 func (p *Plugin) Start(ctx context.Context) error {
-	p.logInfo("Starting status reporter.")
+	p.logger.Info("Starting status reporter.")
 
 	go p.loop()
 
@@ -161,7 +165,7 @@ func (p *Plugin) Start(ctx context.Context) error {
 
 // Stop stops the plugin.
 func (p *Plugin) Stop(ctx context.Context) {
-	p.logInfo("Stopping status reporter.")
+	p.logger.Info("Stopping status reporter.")
 	p.manager.UnregisterPluginStatusListener(Name)
 	done := make(chan struct{})
 	p.stop <- done
@@ -205,33 +209,33 @@ func (p *Plugin) loop() {
 			p.lastPluginStatuses = statuses
 			err := p.oneShot(ctx)
 			if err != nil {
-				p.logError("%v.", err)
+				p.logger.Error("%v.", err)
 			} else {
-				p.logInfo("Status update sent successfully in response to plugin update.")
+				p.logger.Info("Status update sent successfully in response to plugin update.")
 			}
 		case statuses := <-p.bulkBundleCh:
 			p.lastBundleStatuses = statuses
 			err := p.oneShot(ctx)
 			if err != nil {
-				p.logError("%v.", err)
+				p.logger.Error("%v.", err)
 			} else {
-				p.logInfo("Status update sent successfully in response to bundle update.")
+				p.logger.Info("Status update sent successfully in response to bundle update.")
 			}
 		case status := <-p.bundleCh:
 			p.lastBundleStatus = &status
 			err := p.oneShot(ctx)
 			if err != nil {
-				p.logError("%v.", err)
+				p.logger.Error("%v.", err)
 			} else {
-				p.logInfo("Status update sent successfully in response to bundle update.")
+				p.logger.Info("Status update sent successfully in response to bundle update.")
 			}
 		case status := <-p.discoCh:
 			p.lastDiscoStatus = &status
 			err := p.oneShot(ctx)
 			if err != nil {
-				p.logError("%v.", err)
+				p.logger.Error("%v.", err)
 			} else {
-				p.logInfo("Status update sent successfully in response to discovery update.")
+				p.logger.Info("Status update sent successfully in response to discovery update.")
 			}
 
 		case newConfig := <-p.reconfig:
@@ -262,7 +266,7 @@ func (p *Plugin) oneShot(ctx context.Context) error {
 	if p.config.ConsoleLogs {
 		err := p.logUpdate(req)
 		if err != nil {
-			p.logError("Failed to log to console: %v.", err)
+			p.logger.Error("Failed to log to console: %v.", err)
 		}
 	}
 
@@ -295,30 +299,12 @@ func (p *Plugin) reconfigure(config interface{}) {
 	newConfig := config.(*Config)
 
 	if reflect.DeepEqual(p.config, *newConfig) {
-		p.logDebug("Status reporter configuration unchanged.")
+		p.logger.Debug("Status reporter configuration unchanged.")
 		return
 	}
 
-	p.logInfo("Status reporter configuration changed.")
+	p.logger.Info("Status reporter configuration changed.")
 	p.config = *newConfig
-}
-
-func (p *Plugin) logError(fmt string, a ...interface{}) {
-	logrus.WithFields(p.logrusFields()).Errorf(fmt, a...)
-}
-
-func (p *Plugin) logInfo(fmt string, a ...interface{}) {
-	logrus.WithFields(p.logrusFields()).Infof(fmt, a...)
-}
-
-func (p *Plugin) logDebug(fmt string, a ...interface{}) {
-	logrus.WithFields(p.logrusFields()).Debugf(fmt, a...)
-}
-
-func (p *Plugin) logrusFields() logrus.Fields {
-	return logrus.Fields{
-		"plugin": Name,
-	}
 }
 
 func (p *Plugin) logUpdate(update *UpdateRequestV1) error {

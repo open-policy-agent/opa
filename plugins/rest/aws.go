@@ -19,7 +19,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sirupsen/logrus"
+	"github.com/open-policy-agent/opa/sdk"
 )
 
 const (
@@ -61,7 +61,9 @@ type awsCredentialService interface {
 }
 
 // awsEnvironmentCredentialService represents an static environment-variable credential provider for AWS
-type awsEnvironmentCredentialService struct{}
+type awsEnvironmentCredentialService struct {
+	logger sdk.Logger
+}
 
 func (cs *awsEnvironmentCredentialService) credentials() (awsCredentials, error) {
 	var creds awsCredentials
@@ -97,6 +99,7 @@ type awsMetadataCredentialService struct {
 	expiration      time.Time
 	credServicePath string
 	tokenPath       string
+	logger          sdk.Logger
 }
 
 func (cs *awsMetadataCredentialService) urlForMetadataService() (string, error) {
@@ -148,11 +151,11 @@ func (cs *awsMetadataCredentialService) refreshFromService() error {
 
 	// short circuit if a reasonable amount of time until credential expiration remains
 	if time.Now().Add(time.Minute * 5).Before(cs.expiration) {
-		logrus.Debug("Credentials previously obtained from metadata service still valid.")
+		cs.logger.Debug("Credentials previously obtained from metadata service still valid.")
 		return nil
 	}
 
-	logrus.Debug("Obtaining credentials from metadata service.")
+	cs.logger.Debug("Obtaining credentials from metadata service.")
 	metaDataURL, err := cs.urlForMetadataService()
 	if err != nil {
 		// configuration issue or missing ECS environment
@@ -174,7 +177,7 @@ func (cs *awsMetadataCredentialService) refreshFromService() error {
 		if err != nil {
 			return errors.New("unable to construct metadata token HTTP request: " + err.Error())
 		}
-		body, err := doMetaDataRequestWithClient(tokenReq, client, "metadata token")
+		body, err := doMetaDataRequestWithClient(tokenReq, client, "metadata token", cs.logger)
 		if err != nil {
 			return err
 		}
@@ -182,7 +185,7 @@ func (cs *awsMetadataCredentialService) refreshFromService() error {
 		req.Header.Set("X-aws-ec2-metadata-token", string(body))
 	}
 
-	body, err := doMetaDataRequestWithClient(req, client, "metadata")
+	body, err := doMetaDataRequestWithClient(req, client, "metadata", cs.logger)
 	if err != nil {
 		return err
 	}
@@ -226,6 +229,7 @@ type awsWebIdentityCredentialService struct {
 	stsURL               string
 	creds                awsCredentials
 	expiration           time.Time
+	logger               sdk.Logger
 }
 
 func (cs *awsWebIdentityCredentialService) populateFromEnv() error {
@@ -275,11 +279,11 @@ func (cs *awsWebIdentityCredentialService) refreshFromService() error {
 
 	// short circuit if a reasonable amount of time until credential expiration remains
 	if time.Now().Add(time.Minute * 5).Before(cs.expiration) {
-		logrus.Debug("Credentials previously obtained from sts service still valid.")
+		cs.logger.Debug("Credentials previously obtained from sts service still valid.")
 		return nil
 	}
 
-	logrus.Debugf("Obtaining credentials from sts for role %s.", cs.RoleArn)
+	cs.logger.Debug("Obtaining credentials from sts for role %s.", cs.RoleArn)
 
 	var sessionName string
 	if cs.SessionName == "" {
@@ -312,7 +316,7 @@ func (cs *awsWebIdentityCredentialService) refreshFromService() error {
 		return errors.New("unable to construct STS HTTP request: " + err.Error())
 	}
 
-	body, err := doMetaDataRequestWithClient(req, client, "STS")
+	body, err := doMetaDataRequestWithClient(req, client, "STS", cs.logger)
 	if err != nil {
 		return err
 	}
@@ -346,7 +350,7 @@ func isECS() bool {
 	return isECS
 }
 
-func doMetaDataRequestWithClient(req *http.Request, client *http.Client, desc string) ([]byte, error) {
+func doMetaDataRequestWithClient(req *http.Request, client *http.Client, desc string, logger sdk.Logger) ([]byte, error) {
 	// convenience function to get the body of an AWS EC2 metadata service request with
 	// appropriate error-handling boilerplate and logging for this special case
 	resp, err := client.Do(req)
@@ -356,7 +360,7 @@ func doMetaDataRequestWithClient(req *http.Request, client *http.Client, desc st
 	}
 	defer resp.Body.Close()
 
-	logrus.WithFields(logrus.Fields{
+	logger.WithFields(map[string]interface{}{
 		"url":     req.URL.String(),
 		"status":  resp.Status,
 		"headers": resp.Header,

@@ -16,8 +16,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/open-policy-agent/opa/sdk"
+
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/internal/ref"
@@ -334,6 +335,7 @@ type Plugin struct {
 	reconfig  chan reconfigure
 	mask      *rego.PreparedEvalQuery
 	maskMutex sync.Mutex
+	logger    sdk.Logger
 }
 
 type reconfigure struct {
@@ -370,6 +372,7 @@ func New(parsedConfig *Config, manager *plugins.Manager) *Plugin {
 		buffer:   newLogBuffer(*parsedConfig.Reporting.BufferSizeLimitBytes),
 		enc:      newChunkEncoder(*parsedConfig.Reporting.UploadSizeLimitBytes),
 		reconfig: make(chan reconfigure),
+		logger:   manager.Logger().WithFields(map[string]interface{}{"plugin": Name}),
 	}
 
 	manager.RegisterCompilerTrigger(plugin.compilerUpdated)
@@ -392,7 +395,7 @@ func Lookup(manager *plugins.Manager) *Plugin {
 
 // Start starts the plugin.
 func (p *Plugin) Start(ctx context.Context) error {
-	p.logInfo("Starting decision logger.")
+	p.logger.Info("Starting decision logger.")
 	go p.loop()
 	p.manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateOK})
 	return nil
@@ -400,7 +403,7 @@ func (p *Plugin) Start(ctx context.Context) error {
 
 // Stop stops the plugin.
 func (p *Plugin) Stop(ctx context.Context) {
-	p.logInfo("Stopping decision logger.")
+	p.logger.Info("Stopping decision logger.")
 
 	if _, ok := ctx.Deadline(); ok && p.config.Service != "" {
 		p.flushDecisions(ctx)
@@ -413,14 +416,14 @@ func (p *Plugin) Stop(ctx context.Context) {
 }
 
 func (p *Plugin) flushDecisions(ctx context.Context) {
-	p.logInfo("Flushing decision logs.")
+	p.logger.Info("Flushing decision logs.")
 
 	done := make(chan bool)
 
 	go func(ctx context.Context, done chan bool) {
 		for ctx.Err() == nil {
 			if _, err := p.oneShot(ctx); err != nil {
-				p.logError("Error flushing decisions: %s", err)
+				p.logger.Error("Error flushing decisions: %s", err)
 				// Wait some before retrying, but skip incrementing interval since we are shutting down
 				time.Sleep(1 * time.Second)
 			} else {
@@ -432,11 +435,11 @@ func (p *Plugin) flushDecisions(ctx context.Context) {
 
 	select {
 	case <-done:
-		p.logInfo("All decisions in buffer uploaded.")
+		p.logger.Info("All decisions in buffer uploaded.")
 	case <-ctx.Done():
 		switch ctx.Err() {
 		case context.DeadlineExceeded, context.Canceled:
-			p.logError("Plugin stopped with decisions possibly still in buffer.")
+			p.logger.Error("Plugin stopped with decisions possibly still in buffer.")
 		}
 	}
 }
@@ -474,14 +477,14 @@ func (p *Plugin) Log(ctx context.Context, decision *server.Info) error {
 	err := p.maskEvent(ctx, decision.Txn, &event)
 	if err != nil {
 		// TODO(tsandall): see note below about error handling.
-		p.logError("Log event masking failed: %v.", err)
+		p.logger.Error("Log event masking failed: %v.", err)
 		return nil
 	}
 
 	if p.config.ConsoleLogs {
 		err := p.logEvent(event)
 		if err != nil {
-			p.logError("Failed to log to console: %v.", err)
+			p.logger.Error("Failed to log to console: %v.", err)
 		}
 	}
 
@@ -502,7 +505,7 @@ func (p *Plugin) Log(ctx context.Context, decision *server.Info) error {
 			// TODO(tsandall): revisit this now that we have an API that
 			// can return an error. Should the default behaviour be to
 			// fail-closed as we do for plugins?
-			p.logError("Log encoding failed: %v.", err)
+			p.logger.Error("Log encoding failed: %v.", err)
 			return nil
 		}
 
@@ -550,11 +553,11 @@ func (p *Plugin) loop() {
 			uploaded, err = p.oneShot(ctx)
 
 			if err != nil {
-				p.logError("%v.", err)
+				p.logger.Error("%v.", err)
 			} else if uploaded {
-				p.logInfo("Logs uploaded successfully.")
+				p.logger.Info("Logs uploaded successfully.")
 			} else {
-				p.logInfo("Log upload skipped.")
+				p.logger.Info("Log upload skipped.")
 			}
 		}
 
@@ -569,7 +572,7 @@ func (p *Plugin) loop() {
 		}
 
 		if p.config.Service != "" {
-			p.logDebug("Waiting %v before next upload/retry.", delay)
+			p.logger.Debug("Waiting %v before next upload/retry.", delay)
 		}
 
 		timer := time.NewTimer(delay)
@@ -638,18 +641,18 @@ func (p *Plugin) reconfigure(config interface{}) {
 	newConfig := config.(*Config)
 
 	if reflect.DeepEqual(p.config, *newConfig) {
-		p.logDebug("Decision log uploader configuration unchanged.")
+		p.logger.Debug("Decision log uploader configuration unchanged.")
 		return
 	}
 
-	p.logInfo("Decision log uploader configuration changed.")
+	p.logger.Info("Decision log uploader configuration changed.")
 	p.config = *newConfig
 }
 
 func (p *Plugin) bufferChunk(buffer *logBuffer, bs []byte) {
 	dropped := buffer.Push(bs)
 	if dropped > 0 {
-		p.logError("Dropped %v chunks from buffer. Reduce reporting interval or increase buffer size.", dropped)
+		p.logger.Error("Dropped %v chunks from buffer. Reduce reporting interval or increase buffer size.", dropped)
 	}
 }
 
@@ -707,7 +710,7 @@ func (p *Plugin) maskEvent(ctx context.Context, txn storage.Transaction, event *
 	mRuleSet, err := newMaskRuleSet(
 		rs[0].Expressions[0].Value,
 		func(mRule *maskRule, err error) {
-			p.logError("mask rule skipped: %s: %s", mRule.String(), err.Error())
+			p.logger.Error("mask rule skipped: %s: %s", mRule.String(), err.Error())
 		},
 	)
 	if err != nil {
@@ -745,35 +748,17 @@ func uploadChunk(ctx context.Context, client rest.Client, partitionName string, 
 	}
 }
 
-func (p *Plugin) logError(fmt string, a ...interface{}) {
-	logrus.WithFields(p.logrusFields()).Errorf(fmt, a...)
-}
-
-func (p *Plugin) logInfo(fmt string, a ...interface{}) {
-	logrus.WithFields(p.logrusFields()).Infof(fmt, a...)
-}
-
-func (p *Plugin) logDebug(fmt string, a ...interface{}) {
-	logrus.WithFields(p.logrusFields()).Debugf(fmt, a...)
-}
-
-func (p *Plugin) logrusFields() logrus.Fields {
-	return logrus.Fields{
-		"plugin": Name,
-	}
-}
-
 func (p *Plugin) logEvent(event EventV1) error {
 	eventBuf, err := json.Marshal(&event)
 	if err != nil {
 		return err
 	}
-	fields := logrus.Fields{}
+	fields := map[string]interface{}{}
 	err = util.UnmarshalJSON(eventBuf, &fields)
 	if err != nil {
 		return err
 	}
-	plugins.GetConsoleLogger().WithFields(fields).WithFields(logrus.Fields{
+	plugins.GetConsoleLogger().WithFields(fields).WithFields(map[string]interface{}{
 		"type": "openpolicyagent.org/decision_logs",
 	}).Info("Decision Log")
 	return nil
