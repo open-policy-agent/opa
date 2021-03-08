@@ -60,6 +60,8 @@ This release contains a number of enhancements and bug fixes.
 - The `opa test` subcommand previously supported a `-t` flag as shorthand for `--timeout`. With this release, the `-t` shorthand has been redefined for `--target`. After searching GitHub for examples of `opa test -t` (and finding nothing) we felt comfortable making this backwards incompatible change.
 - The Go version used to build the OPA release has been updated from `1.14.9` to `1.15.8`. Because of this, TLS certificates that rely on Common Name for verification are no longer supported and will not work. For more information see https://github.com/golang/go/issues/39568.
 
+## Unreleased
+
 ## 0.26.0
 
 This release contains a number of enhancements and bug fixes.
