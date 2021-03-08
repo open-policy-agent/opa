@@ -705,6 +705,7 @@ included in the actual bundle gzipped tarball.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
+| `discovery.service` | `string` | No | Name of the service to use to contact remote server. If omitted, the configuration must contain exactly one service. Discovery will default to this service. |
 | `discovery.name` | `string` | Yes | Name of the discovery configuration to download. |
 | `discovery.resource` | `string` | No (default: `/bundles/<name>`) | Resource path to use to download bundle from configured service. |
 | `discovery.prefix` | `string` | No (default: `bundles`) | Deprecated: Use `resource` instead. Path prefix to use to download configuration from remote server. |
