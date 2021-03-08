@@ -953,7 +953,7 @@ func formatHTTPResponseToAST(resp *http.Response, forceJSONDecode bool) (ast.Val
 		return nil, 0, err
 	}
 
-	return resultObj, len(resultRawBody), nil
+	return resultObj, len(resultObj.String()), nil
 }
 
 func getResponseHeaders(headers http.Header) map[string]interface{} {
