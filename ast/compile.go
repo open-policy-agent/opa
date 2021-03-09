@@ -1591,15 +1591,23 @@ func (qc *queryCompiler) resolveRefs(qctx *QueryContext, body Body) (Body, error
 
 	var globals map[Var]Ref
 
-	if qctx != nil && qctx.Package != nil {
-		var ruleExports []Var
-		rules := qc.compiler.getExports()
-		if exist, ok := rules.Get(qctx.Package.Path); ok {
-			ruleExports = exist.([]Var)
+	if qctx != nil {
+		pkg := qctx.Package
+		// Query compiler ought to generate a package if one was not provided and one or more imports were provided.
+		// The generated package name could even be an empty string to avoid conflicts (it doesn't have to be valid syntactically)
+		if pkg == nil && len(qctx.Imports) > 0 {
+			pkg = &Package{Path: RefTerm(VarTerm("")).Value.(Ref)}
 		}
+		if pkg != nil {
+			var ruleExports []Var
+			rules := qc.compiler.getExports()
+			if exist, ok := rules.Get(pkg.Path); ok {
+				ruleExports = exist.([]Var)
+			}
 
-		globals = getGlobals(qctx.Package, ruleExports, qc.qctx.Imports)
-		qctx.Imports = nil
+			globals = getGlobals(qctx.Package, ruleExports, qctx.Imports)
+			qctx.Imports = nil
+		}
 	}
 
 	ignore := &declaredVarStack{declaredVars(body)}
