@@ -3872,6 +3872,13 @@ func TestQueryCompiler(t *testing.T) {
 			q:        "data.deadbeef(x)",
 			expected: fmt.Errorf("rego_type_error: undefined function data.deadbeef"),
 		},
+		{
+			note:     "imports resolved without package",
+			q:        "abc",
+			pkg:      "",
+			imports:  []string{"import input.xyz as abc"},
+			expected: "input.xyz",
+		},
 	}
 	for _, tc := range tests {
 		runQueryCompilerTest(t, tc.note, tc.q, tc.pkg, tc.imports, tc.expected)
