@@ -287,8 +287,6 @@ complex types.
 | <span class="opa-keep-it-together">``output := max(array_or_set)``</span> | ``output`` is the maximum value in ``array_or_set`` | ✅ |
 | <span class="opa-keep-it-together">``output := min(array_or_set)``</span> | ``output`` is the minimum value in ``array_or_set`` | ✅ |
 | <span class="opa-keep-it-together">``output := sort(array_or_set)``</span> | ``output`` is the sorted ``array`` containing elements from ``array_or_set``. | ✅ |
-| <span class="opa-keep-it-together">``output := all(array_or_set)``</span> | ``output`` is ``true`` if all of the values in ``array_or_set`` are ``true``. A collection of length 0 returns ``true``.| ✅ |
-| <span class="opa-keep-it-together">``output := any(array_or_set)``</span> | ``output`` is ``true`` if any of the values in ``array_or_set`` is ``true``. A collection of length 0 returns ``false``.| ✅ |
 
 ### Arrays
 | Built-in | Description | Wasm Support |
