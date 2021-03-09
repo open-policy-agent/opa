@@ -271,7 +271,7 @@ func TestV4Signing(t *testing.T) {
 		logger:          sdk.NewStandardLogger(),
 	}
 	req, _ := http.NewRequest("GET", "https://mybucket.s3.amazonaws.com/bundle.tar.gz", strings.NewReader(""))
-	err := signV4(req, cs, time.Unix(1556129697, 0))
+	err := signV4(req, "s3", cs, time.Unix(1556129697, 0))
 
 	assertErr("error getting AWS credentials: metadata HTTP request returned unexpected status: 404 Not Found", err, t)
 
@@ -290,10 +290,10 @@ func TestV4Signing(t *testing.T) {
 		Token:           "MYAWSSECURITYTOKENGOESHERE",
 		Expiration:      time.Now().UTC().Add(time.Minute * 2)}
 	req, _ = http.NewRequest("GET", "https://mybucket.s3.amazonaws.com/bundle.tar.gz", strings.NewReader(""))
-	err = signV4(req, cs, time.Unix(1556129697, 0))
+	err = signV4(req, "s3", cs, time.Unix(1556129697, 0))
 
 	if err != nil {
-		t.Error("unexpected error during signing")
+		t.Fatal("unexpected error during signing")
 	}
 
 	// expect mandatory headers
@@ -306,6 +306,89 @@ func TestV4Signing(t *testing.T) {
 		"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", t)
 	assertEq(req.Header.Get("X-Amz-Date"), "20190424T181457Z", t)
 	assertEq(req.Header.Get("X-Amz-Security-Token"), "MYAWSSECURITYTOKENGOESHERE", t)
+}
+
+func TestV4SigningForApiGateway(t *testing.T) {
+	ts := ec2CredTestServer{}
+	ts.start()
+	defer ts.stop()
+
+	cs := &awsMetadataCredentialService{
+		RoleName:        "my_iam_role", // not present
+		RegionName:      "us-east-1",
+		credServicePath: ts.server.URL + "/latest/meta-data/iam/security-credentials/",
+		tokenPath:       ts.server.URL + "/latest/api/token",
+		logger:          sdk.NewStandardLogger(),
+	}
+	ts.payload = metadataPayload{
+		AccessKeyID:     "MYAWSACCESSKEYGOESHERE",
+		SecretAccessKey: "MYAWSSECRETACCESSKEYGOESHERE",
+		Code:            "Success",
+		Token:           "MYAWSSECURITYTOKENGOESHERE",
+		Expiration:      time.Now().UTC().Add(time.Minute * 2)}
+	req, _ := http.NewRequest("POST", "https://myrestapi.execute-api.us-east-1.amazonaws.com/prod/logs",
+		strings.NewReader("{ \"payload\": 42 }"))
+	req.Header.Set("Content-Type", "application/json")
+
+	err := signV4(req, "execute-api", cs, time.Unix(1556129697, 0))
+
+	if err != nil {
+		t.Fatal("unexpected error during signing")
+	}
+
+	// expect mandatory headers
+	assertEq(req.Header.Get("Host"), "myrestapi.execute-api.us-east-1.amazonaws.com", t)
+	assertEq(req.Header.Get("Authorization"),
+		"AWS4-HMAC-SHA256 Credential=MYAWSACCESSKEYGOESHERE/20190424/us-east-1/execute-api/aws4_request,"+
+			"SignedHeaders=content-type;host;x-amz-date;x-amz-security-token,"+
+			"Signature=c8ee72cc45050b255bcbf19defc693f7cd788959b5380fa0985de6e865635339", t)
+	// no content sha should be set, since this is specific to s3 and glacier
+	assertEq(req.Header.Get("X-Amz-Content-Sha256"), "", t)
+	assertEq(req.Header.Get("X-Amz-Date"), "20190424T181457Z", t)
+	assertEq(req.Header.Get("X-Amz-Security-Token"), "MYAWSSECURITYTOKENGOESHERE", t)
+}
+
+func TestV4SigningOmitsIgnoredHeaders(t *testing.T) {
+	ts := ec2CredTestServer{}
+	ts.start()
+	defer ts.stop()
+
+	cs := &awsMetadataCredentialService{
+		RoleName:        "my_iam_role", // not present
+		RegionName:      "us-east-1",
+		credServicePath: ts.server.URL + "/latest/meta-data/iam/security-credentials/",
+		tokenPath:       ts.server.URL + "/latest/api/token",
+		logger:          sdk.NewStandardLogger(),
+	}
+	ts.payload = metadataPayload{
+		AccessKeyID:     "MYAWSACCESSKEYGOESHERE",
+		SecretAccessKey: "MYAWSSECRETACCESSKEYGOESHERE",
+		Code:            "Success",
+		Token:           "MYAWSSECURITYTOKENGOESHERE",
+		Expiration:      time.Now().UTC().Add(time.Minute * 2)}
+	req, _ := http.NewRequest("POST", "https://myrestapi.execute-api.us-east-1.amazonaws.com/prod/logs",
+		strings.NewReader("{ \"payload\": 42 }"))
+	req.Header.Set("Content-Type", "application/json")
+
+	// These are headers that should never be included in the signed headers
+	req.Header.Set("User-Agent", "Unit Tests!")
+	req.Header.Set("Authorization", "Auth header will be overwritten, and shouldn't be signed")
+	req.Header.Set("X-Amzn-Trace-Id", "Some trace id")
+
+	err := signV4(req, "execute-api", cs, time.Unix(1556129697, 0))
+
+	if err != nil {
+		t.Fatal("unexpected error during signing")
+	}
+
+	// Check the signed headers doesn't include user-agent, authorization or x-amz-trace-id
+	assertEq(req.Header.Get("Authorization"),
+		"AWS4-HMAC-SHA256 Credential=MYAWSACCESSKEYGOESHERE/20190424/us-east-1/execute-api/aws4_request,"+
+			"SignedHeaders=content-type;host;x-amz-date;x-amz-security-token,"+
+			"Signature=c8ee72cc45050b255bcbf19defc693f7cd788959b5380fa0985de6e865635339", t)
+	// The headers omitted from signing should still be present in the request
+	assertEq(req.Header.Get("User-Agent"), "Unit Tests!", t)
+	assertEq(req.Header.Get("X-Amzn-Trace-Id"), "Some trace id", t)
 }
 
 func TestV4SigningCustomPort(t *testing.T) {
@@ -327,10 +410,10 @@ func TestV4SigningCustomPort(t *testing.T) {
 		Token:           "MYAWSSECURITYTOKENGOESHERE",
 		Expiration:      time.Now().UTC().Add(time.Minute * 2)}
 	req, _ := http.NewRequest("GET", "https://custom.s3.server:9000/bundle.tar.gz", strings.NewReader(""))
-	err := signV4(req, cs, time.Unix(1556129697, 0))
+	err := signV4(req, "s3", cs, time.Unix(1556129697, 0))
 
 	if err != nil {
-		t.Error("unexpected error during signing")
+		t.Fatal("unexpected error during signing")
 	}
 
 	// expect mandatory headers
@@ -343,6 +426,77 @@ func TestV4SigningCustomPort(t *testing.T) {
 		"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", t)
 	assertEq(req.Header.Get("X-Amz-Date"), "20190424T181457Z", t)
 	assertEq(req.Header.Get("X-Amz-Security-Token"), "MYAWSSECURITYTOKENGOESHERE", t)
+}
+
+func TestV4SigningDoesNotMutateBody(t *testing.T) {
+	ts := ec2CredTestServer{}
+	ts.start()
+	defer ts.stop()
+
+	cs := &awsMetadataCredentialService{
+		RoleName:        "my_iam_role", // not present
+		RegionName:      "us-east-1",
+		credServicePath: ts.server.URL + "/latest/meta-data/iam/security-credentials/",
+		tokenPath:       ts.server.URL + "/latest/api/token",
+		logger:          sdk.NewStandardLogger(),
+	}
+	ts.payload = metadataPayload{
+		AccessKeyID:     "MYAWSACCESSKEYGOESHERE",
+		SecretAccessKey: "MYAWSSECRETACCESSKEYGOESHERE",
+		Code:            "Success",
+		Token:           "MYAWSSECURITYTOKENGOESHERE",
+		Expiration:      time.Now().UTC().Add(time.Minute * 2)}
+	req, _ := http.NewRequest("POST", "https://myrestapi.execute-api.us-east-1.amazonaws.com/prod/logs",
+		strings.NewReader("{ \"payload\": 42 }"))
+
+	err := signV4(req, "execute-api", cs, time.Unix(1556129697, 0))
+
+	if err != nil {
+		t.Fatal("unexpected error during signing")
+	}
+
+	// Read the body and check that it was not mutated
+	body, _ := ioutil.ReadAll(req.Body)
+	assertEq(string(body), "{ \"payload\": 42 }", t)
+}
+
+func TestV4SigningWithMultiValueHeaders(t *testing.T) {
+	ts := ec2CredTestServer{}
+	ts.start()
+	defer ts.stop()
+
+	cs := &awsMetadataCredentialService{
+		RoleName:        "my_iam_role", // not present
+		RegionName:      "us-east-1",
+		credServicePath: ts.server.URL + "/latest/meta-data/iam/security-credentials/",
+		tokenPath:       ts.server.URL + "/latest/api/token",
+		logger:          sdk.NewStandardLogger(),
+	}
+	ts.payload = metadataPayload{
+		AccessKeyID:     "MYAWSACCESSKEYGOESHERE",
+		SecretAccessKey: "MYAWSSECRETACCESSKEYGOESHERE",
+		Code:            "Success",
+		Token:           "MYAWSSECURITYTOKENGOESHERE",
+		Expiration:      time.Now().UTC().Add(time.Minute * 2)}
+	req, _ := http.NewRequest("POST", "https://myrestapi.execute-api.us-east-1.amazonaws.com/prod/logs",
+		strings.NewReader("{ \"payload\": 42 }"))
+	req.Header.Add("Accept", "text/plain")
+	req.Header.Add("Accept", "text/html")
+
+	err := signV4(req, "execute-api", cs, time.Unix(1556129697, 0))
+
+	if err != nil {
+		t.Fatal("unexpected error during signing")
+	}
+
+	// Check the signed headers includes our multi-value 'accept' header
+	assertEq(req.Header.Get("Authorization"),
+		"AWS4-HMAC-SHA256 Credential=MYAWSACCESSKEYGOESHERE/20190424/us-east-1/execute-api/aws4_request,"+
+			"SignedHeaders=accept;host;x-amz-date;x-amz-security-token,"+
+			"Signature=0237b0c789cad36212f0efba70c02549e1f659ab9caaca16423930cc7236c046", t)
+	// The multi-value headers are preserved
+	assertEq(req.Header.Values("Accept")[0], "text/plain", t)
+	assertEq(req.Header.Values("Accept")[1], "text/html", t)
 }
 
 // simulate EC2 metadata service
