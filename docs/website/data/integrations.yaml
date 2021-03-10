@@ -216,7 +216,7 @@ integrations:
       - envoy
     tutorials:
       - https://github.com/tsandall/minimal-opa-envoy-example/blob/master/README.md
-      - https://www.openpolicyagent.org/docs/latest/envoy-authorization/
+      - https://www.openpolicyagent.org/docs/latest/envoy-introduction/
     code:
       - https://github.com/open-policy-agent/opa-istio-plugin
       - https://github.com/tsandall/minimal-opa-envoy-example
@@ -732,7 +732,7 @@ integrations:
       - https://github.com/segrax/openpolicyagent
       - https://github.com/build-security/opa-symfony-middleware
     inventors:
-      - build.security      
+      - build.security
 
   gradle-plugin:
     title: Gradle Build Plugin
@@ -859,7 +859,7 @@ integrations:
       - scalr
     blogs:
       - https://www.scalr.com/blog/opa-is-to-policy-automation-as-terraform-is-to-iac/
-      
+
   fairwinds-insights:
     title: Fairwinds Insights Configuration Validation Software
     description: Automate, monitor and enforce OPA policies with visibility across multiple clusters and multiple teams. It ensures the same policies are applied across all your clusters and gives some flexibility if you want certain policies to apply to only certain workloads. Run the same policies in CI/CD, Admission Control, and In-cluster scanning to apply policy consistently throughout the development and deployment process.
