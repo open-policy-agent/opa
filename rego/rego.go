@@ -1889,7 +1889,7 @@ func (r *Rego) evalWasm(ctx context.Context, ectx *EvalContext) (ResultSet, erro
 		input = &i
 	}
 
-	result, err := r.opa.Eval(ctx, opa.EvalOpts{Metrics: r.metrics, Input: input})
+	result, err := r.opa.Eval(ctx, opa.EvalOpts{Metrics: r.metrics, Input: input, Time: ectx.time})
 	if err != nil {
 		return nil, err
 	}
