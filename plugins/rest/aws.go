@@ -5,6 +5,7 @@
 package rest
 
 import (
+	"bytes"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/json"
@@ -46,6 +47,15 @@ const (
 	awsRoleArnEnvVar              = "AWS_ROLE_ARN"
 	awsWebIdentityTokenFileEnvVar = "AWS_WEB_IDENTITY_TOKEN_FILE"
 )
+
+// Headers that may be mutated before reaching an aws service (eg by a proxy) should be added here to omit them from
+// the sigv4 canonical request
+// ref. https://github.com/aws/aws-sdk-go/blob/master/aws/signer/v4/v4.go#L92
+var awsSigv4IgnoredHeaders = map[string]bool{
+	"authorization":   true,
+	"user-agent":      true,
+	"x-amzn-trace-id": true,
+}
 
 // awsCredentials represents the credentials obtained from an AWS credential provider
 type awsCredentials struct {
@@ -384,7 +394,7 @@ func sha256MAC(message []byte, key []byte) []byte {
 	return mac.Sum(nil)
 }
 
-func sortKeys(strMap map[string]string) []string {
+func sortKeys(strMap map[string][]string) []string {
 	keys := make([]string, len(strMap))
 
 	i := 0
@@ -397,7 +407,11 @@ func sortKeys(strMap map[string]string) []string {
 }
 
 // signV4 modifies an http.Request to include an AWS V4 signature based on a credential provider
-func signV4(req *http.Request, credService awsCredentialService, theTime time.Time) error {
+func signV4(req *http.Request, service string, credService awsCredentialService, theTime time.Time) error {
+	// General ref. https://docs.aws.amazon.com/general/latest/gr/sigv4_signing.html
+	// S3 ref. https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-auth-using-authorization-header.html
+	// APIGateway ref. https://docs.aws.amazon.com/apigateway/api-reference/signing-requests/
+
 	var body []byte
 	if req.Body == nil {
 		body = []byte("")
@@ -407,6 +421,9 @@ func signV4(req *http.Request, credService awsCredentialService, theTime time.Ti
 		if err != nil {
 			return errors.New("error getting request body: " + err.Error())
 		}
+		// Since ReadAll consumed the body ReadCloser, we must create a new ReadCloser for the request so that the
+		// subsequent read starts from the beginning
+		req.Body = ioutil.NopCloser(bytes.NewReader(body))
 	}
 	creds, err := credService.credentials()
 	if err != nil {
@@ -422,9 +439,13 @@ func signV4(req *http.Request, credService awsCredentialService, theTime time.Ti
 	iso8601Now := now.Format("20060102T150405Z")
 
 	awsHeaders := map[string]string{
-		"host":                 req.URL.Host,
-		"x-amz-content-sha256": bodyHexHash,
-		"x-amz-date":           iso8601Now,
+		"host":       req.URL.Host,
+		"x-amz-date": iso8601Now,
+	}
+
+	// s3 and glacier require the extra x-amz-content-sha256 header. other services do not.
+	if service == "s3" || service == "glacier" {
+		awsHeaders["x-amz-content-sha256"] = bodyHexHash
 	}
 
 	// the security token header is necessary for ephemeral credentials, e.g. from
@@ -433,7 +454,20 @@ func signV4(req *http.Request, credService awsCredentialService, theTime time.Ti
 		awsHeaders["x-amz-security-token"] = creds.SessionToken
 	}
 
-	// ref. https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-auth-using-authorization-header.html
+	headersToSign := map[string][]string{}
+
+	// sign all of the aws headers
+	for k, v := range awsHeaders {
+		headersToSign[k] = []string{v}
+	}
+
+	// sign all of the request's headers, except for those in the ignore list
+	for k, v := range req.Header {
+		lowerCaseHeader := strings.ToLower(k)
+		if !awsSigv4IgnoredHeaders[lowerCaseHeader] {
+			headersToSign[lowerCaseHeader] = v
+		}
+	}
 
 	// the "canonical request" is the normalized version of the AWS service access
 	// that we're attempting to perform; in this case, a GET from an S3 bucket
@@ -442,9 +476,9 @@ func signV4(req *http.Request, credService awsCredentialService, theTime time.Ti
 	canonicalReq += "\n"                         // query string; not implemented
 
 	// include the values for the signed headers
-	orderedKeys := sortKeys(awsHeaders)
+	orderedKeys := sortKeys(headersToSign)
 	for _, k := range orderedKeys {
-		canonicalReq += k + ":" + awsHeaders[k] + "\n"
+		canonicalReq += k + ":" + strings.Join(headersToSign[k], ",") + "\n"
 	}
 	canonicalReq += "\n" // linefeed to terminate headers
 
@@ -455,17 +489,17 @@ func signV4(req *http.Request, credService awsCredentialService, theTime time.Ti
 
 	// the "string to sign" is a time-bounded, scoped request token which
 	// is linked to the "canonical request" by inclusion of its SHA-256 hash
-	strToSign := "AWS4-HMAC-SHA256\n"                                    // V4 signing with SHA-256 HMAC
-	strToSign += iso8601Now + "\n"                                       // ISO 8601 time
-	strToSign += dateNow + "/" + creds.RegionName + "/s3/aws4_request\n" // scoping for signature
-	strToSign += fmt.Sprintf("%x", sha256.Sum256([]byte(canonicalReq)))  // SHA-256 of canonical request
+	strToSign := "AWS4-HMAC-SHA256\n"                                                 // V4 signing with SHA-256 HMAC
+	strToSign += iso8601Now + "\n"                                                    // ISO 8601 time
+	strToSign += dateNow + "/" + creds.RegionName + "/" + service + "/aws4_request\n" // scoping for signature
+	strToSign += fmt.Sprintf("%x", sha256.Sum256([]byte(canonicalReq)))               // SHA-256 of canonical request
 
 	// the "signing key" is generated by repeated HMAC-SHA256 based on the same
 	// scoping that's included in the "string to sign"; but including the secret key
 	// to allow AWS to validate it
 	signingKey := sha256MAC([]byte(dateNow), []byte("AWS4"+creds.SecretKey))
 	signingKey = sha256MAC([]byte(creds.RegionName), signingKey)
-	signingKey = sha256MAC([]byte("s3"), signingKey)
+	signingKey = sha256MAC([]byte(service), signingKey)
 	signingKey = sha256MAC([]byte("aws4_request"), signingKey)
 
 	// the "signature" is finally the "string to sign" signed by the "signing key"
@@ -474,15 +508,15 @@ func signV4(req *http.Request, credService awsCredentialService, theTime time.Ti
 	// required format of Authorization header; n.b. the access key corresponding to
 	// the secret key is included here
 	authHdr := "AWS4-HMAC-SHA256 Credential=" + creds.AccessKey + "/" + dateNow
-	authHdr += "/" + creds.RegionName + "/s3/aws4_request,"
+	authHdr += "/" + creds.RegionName + "/" + service + "/aws4_request,"
 	authHdr += "SignedHeaders=" + headerList + ","
 	authHdr += "Signature=" + fmt.Sprintf("%x", signature)
 
 	// add the computed Authorization
-	req.Header.Add("Authorization", authHdr)
+	req.Header.Set("Authorization", authHdr)
 
 	// populate the other signed headers into the request
-	for _, k := range orderedKeys {
+	for k := range awsHeaders {
 		req.Header.Add(k, awsHeaders[k])
 	}
 

@@ -384,9 +384,15 @@ keys:
 
 #### AWS Signature
 
-OPA will authenticate with an [AWS4 HMAC](https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-auth-using-authorization-header.html) signature. Two methods of obtaining the
+OPA will authenticate with an [AWS4 HMAC](https://docs.aws.amazon.com/general/latest/gr/sigv4_signing.html) signature. Several methods of obtaining the
 necessary credentials are available; exactly one must be specified to use the AWS signature
 authentication method.
+
+The AWS service for which to sign the request can be specified in the `service` field. If omitted, the default is `s3`.
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `services[_].credentials.s3_signing.service` | `string` | No | The AWS service to sign requests with, eg `execute-api` or `s3`. Default: `s3` |
 
 ##### Using Static Environment Credentials
 If specifying `environment_credentials`, OPA will expect to find environment variables
