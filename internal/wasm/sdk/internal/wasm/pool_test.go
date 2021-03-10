@@ -9,6 +9,7 @@ package wasm_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
@@ -20,7 +21,7 @@ import (
 
 func TestPoolCopyParsedDataOnInit(t *testing.T) {
 	module := `package test
-	
+
 	p = data.a
 	`
 	data := []byte(`{
@@ -49,7 +50,7 @@ func TestPoolCopyParsedDataOnInit(t *testing.T) {
 
 func TestPoolCopyParsedDataUpdateFull(t *testing.T) {
 	module := `package test
-	
+
 	p = data.a
 	`
 	data := []byte(`{"a": 123}`)
@@ -80,7 +81,7 @@ func TestPoolCopyParsedDataUpdateFull(t *testing.T) {
 
 func TestPoolCopyParsedDataUpdatePartial(t *testing.T) {
 	module := `package test
-	
+
 	p = data.a
 	`
 	data := []byte(`{}`)
@@ -149,7 +150,7 @@ func ensurePoolResults(t *testing.T, testPool *wasm.Pool, poolSize int, expected
 
 		toRelease = append(toRelease, vm)
 
-		result, err := vm.Eval(context.Background(), 0, nil, metrics.New())
+		result, err := vm.Eval(context.Background(), 0, nil, metrics.New(), time.Now())
 		if err != nil {
 			t.Fatalf("Unexpected error: %s", err)
 		}

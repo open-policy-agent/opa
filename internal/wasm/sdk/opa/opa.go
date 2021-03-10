@@ -11,6 +11,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/bytecodealliance/wasmtime-go"
 
@@ -157,6 +158,7 @@ type EvalOpts struct {
 	Entrypoint int32
 	Input      *interface{}
 	Metrics    metrics.Metrics
+	Time       time.Time
 }
 
 // Eval evaluates the policy with the given input, returning the
@@ -180,7 +182,7 @@ func (o *OPA) Eval(ctx context.Context, opts EvalOpts) (*Result, error) {
 
 	defer o.pool.Release(instance, m)
 
-	result, err := instance.Eval(ctx, opts.Entrypoint, opts.Input, m)
+	result, err := instance.Eval(ctx, opts.Entrypoint, opts.Input, m, opts.Time)
 	if t, ok := err.(*wasmtime.Trap); ok && strings.HasPrefix(t.Message(), "wasm trap: interrupt") {
 		return nil, errors.ErrCancelled
 	}

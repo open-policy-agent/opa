@@ -8,24 +8,13 @@ package opa
 
 import (
 	"context"
+
 	wopa "github.com/open-policy-agent/opa/internal/wasm/sdk/opa"
-	"github.com/open-policy-agent/opa/metrics"
 )
 
 // OPA is an implementation of the OPA SDK.
 type OPA struct {
 	opa *wopa.OPA
-}
-
-// Result holds the evaluation result.
-type Result struct {
-	Result []byte
-}
-
-// EvalOpts define options for performing an evaluation.
-type EvalOpts struct {
-	Input   *interface{}
-	Metrics metrics.Metrics
 }
 
 // New constructs a new OPA instance.
@@ -60,6 +49,7 @@ func (o *OPA) Eval(ctx context.Context, opts EvalOpts) (*Result, error) {
 	evalOptions := wopa.EvalOpts{
 		Input:   opts.Input,
 		Metrics: opts.Metrics,
+		Time:    opts.Time,
 	}
 
 	res, err := o.opa.Eval(ctx, evalOptions)

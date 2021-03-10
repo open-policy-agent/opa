@@ -98,6 +98,21 @@ func TestPrepareAndEvalWithWasmTargetModulesOnCompiler(t *testing.T) {
 	}, "[[true]]")
 }
 
+func TestWasmTimeOfDay(t *testing.T) {
+
+	ctx := context.Background()
+	pq, err := New(Query("time.now_ns()"), Target("wasm")).PrepareForEval(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	now := time.Unix(1615397269, 0)
+
+	assertPreparedEvalQueryEval(t, pq, []EvalOption{
+		EvalTime(now),
+	}, "[[1615397269000000000]]")
+}
+
 func TestEvalWithContextTimeout(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 		select {
