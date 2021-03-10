@@ -19,7 +19,11 @@ jobs:
 
   go-test:
     name: Go Test
-    runs-on: ubuntu-18.04
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-18.04, macos-latest]
     steps:
       - name: Check out code
         uses: actions/checkout@v2
@@ -74,7 +78,11 @@ jobs:
 
   wasm-go-sdk-e2e:
     name: OPA Wasm SDK e2e
-    runs-on: ubuntu-18.04
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-18.04, macos-latest]
     steps:
       - name: Check out code
         uses: actions/checkout@v2
