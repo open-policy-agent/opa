@@ -361,7 +361,7 @@ func (t *TestRuntime) request(method, url string, input io.Reader) (io.ReadClose
 		return nil, fmt.Errorf("unexpected error: %w", err)
 	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected response status: %d %s", resp.StatusCode, resp.Status)
+		return nil, fmt.Errorf("unexpected response status: %s", resp.Status)
 	}
 	return resp.Body, nil
 }

@@ -62,10 +62,11 @@ func (d *builtinDispatcher) SetMap(m map[int32]topdown.BuiltinFunc) {
 	d.builtins = m
 }
 
+// Reset is called in Eval before using the builtinDispatcher.
 func (d *builtinDispatcher) Reset(ctx context.Context) {
 	d.ctx = &topdown.BuiltinContext{
 		Context:  ctx,
-		Cancel:   nil,
+		Cancel:   topdown.NewCancel(),
 		Runtime:  nil,
 		Time:     ast.NumberTerm(json.Number(strconv.FormatInt(time.Now().UnixNano(), 10))),
 		Metrics:  metrics.New(),
@@ -88,6 +89,41 @@ func (d *builtinDispatcher) Call(caller *wasmtime.Caller, args []wasmtime.Val) (
 		panic("unreachable: uninitialized built-in dispatcher index")
 	}
 
+	// Bridge ctx <-> topdown.Cancel
+	//
+	// If the ctx is cancelled (deadline expired, or manually cancelled), this will
+	// cause all topdown-builtins (host functions in wasm terms) to be aborted; if
+	// they check for this. That check occurrs in certain potentially-long-running
+	// builtins, currently only net.cidr_expand.
+	// Other potentially-long-running builtins use the passed context, forwarding
+	// it into stdlib functions: http.send
+	// The context-scenario should work out-of-the-box; the topdown.Cancel scenario
+	// is wired up via the go routine below.
+	done := make(chan struct{})
+	defer close(done)
+	go func() {
+		select {
+		case <-done:
+		case <-d.ctx.Context.Done():
+			d.ctx.Cancel.Cancel()
+		}
+	}()
+
+	// We don't care for ctx cancellation in the exports called here: they are
+	// wasm module exports that the host function can make use of.
+	// If the ctx is cancelled, and we're evaluation this call stack:
+	//
+	// wasm func
+	//          \---> host func [(*builtinDispatcher).Call]
+	//                         \---> wasm func [exports]
+	//
+	// then the ctx <-> interrupt bridging done in internal/wasm/vm.g will
+	// already have taken care of signalling the interrupt to the wasm
+	// instance. The instances checks for interrupts that may have happened
+	// at the head of every loop, and in the prologue of every function.
+	//
+	// See https://docs.wasmtime.dev/api/wasmtime/struct.Store.html#when-are-interrupts-delivered
+
 	exports := getExports(caller)
 
 	var convertedArgs []*ast.Term
@@ -105,10 +141,16 @@ func (d *builtinDispatcher) Call(caller *wasmtime.Caller, args []wasmtime.Val) (
 
 	var output *ast.Term
 
-	if err := d.builtins[args[0].I32()](*d.ctx, convertedArgs, func(t *ast.Term) error {
+	err := d.builtins[args[0].I32()](*d.ctx, convertedArgs, func(t *ast.Term) error {
 		output = t
 		return nil
-	}); err != nil {
+	})
+	if err != nil {
+		if e, ok := err.(topdown.Halt); ok {
+			if e, ok := e.Err.(*topdown.Error); ok && e.Code == topdown.CancelErr {
+				panic(cancelledError{message: e.Message})
+			}
+		}
 		panic(builtinError{err: err})
 	}
 

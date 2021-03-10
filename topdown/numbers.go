@@ -13,7 +13,7 @@ import (
 
 var one = big.NewInt(1)
 
-func builtinNumbersRange(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+func builtinNumbersRange(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 
 	x, err := builtins.BigIntOperand(operands[0].Value, 1)
 	if err != nil {
@@ -27,13 +27,25 @@ func builtinNumbersRange(_ BuiltinContext, operands []*ast.Term, iter func(*ast.
 
 	result := ast.NewArray()
 	cmp := x.Cmp(y)
+	haltErr := Halt{
+		Err: &Error{
+			Code:    CancelErr,
+			Message: "numbers.range: timed out before generating all numbers in range",
+		},
+	}
 
 	if cmp <= 0 {
 		for i := new(big.Int).Set(x); i.Cmp(y) <= 0; i = i.Add(i, one) {
+			if bctx.Cancel != nil && bctx.Cancel.Cancelled() {
+				return haltErr
+			}
 			result = result.Append(ast.NewTerm(builtins.IntToNumber(i)))
 		}
 	} else {
 		for i := new(big.Int).Set(x); i.Cmp(y) >= 0; i = i.Sub(i, one) {
+			if bctx.Cancel != nil && bctx.Cancel.Cancelled() {
+				return haltErr
+			}
 			result = result.Append(ast.NewTerm(builtins.IntToNumber(i)))
 		}
 	}

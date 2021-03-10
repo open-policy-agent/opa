@@ -23,4 +23,6 @@ var (
 	ErrNonBoolean = errors.New("non-boolean decision")
 	// ErrInternal is the error returned if the evaluation fails due to an internal error.
 	ErrInternal = errors.New("internal error")
+	// ErrCancelled is the error returned if the evaluation is cancelled.
+	ErrCancelled = errors.New("cancelled")
 )
