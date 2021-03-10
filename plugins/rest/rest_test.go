@@ -136,6 +136,19 @@ func TestNew(t *testing.T) {
 			}`,
 		},
 		{
+			name: "ValidApiGatewayEnvCreds",
+			input: `{
+				"name": "foo",
+				"url": "http://localhost",
+				"credentials": {
+					"s3_signing": {
+						"service": "execute-api",
+						"environment_credentials": {}
+					}
+				}
+			}`,
+		},
+		{
 			name: "ValidS3MetadataCredsWithRole",
 			input: `{
 				"name": "foo",

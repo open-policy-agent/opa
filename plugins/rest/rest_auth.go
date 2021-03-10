@@ -28,6 +28,11 @@ import (
 	"github.com/open-policy-agent/opa/sdk"
 )
 
+const (
+	// Default to s3 when the service for sigv4 signing is not specified for backwards compatibility
+	awsSigv4SigningDefaultService = "s3"
+)
+
 // DefaultTLSConfig defines standard TLS configurations based on the Config
 func DefaultTLSConfig(c Config) (*tls.Config, error) {
 	t := &tls.Config{}
@@ -417,6 +422,7 @@ type awsSigningAuthPlugin struct {
 	AWSEnvironmentCredentials *awsEnvironmentCredentialService `json:"environment_credentials,omitempty"`
 	AWSMetadataCredentials    *awsMetadataCredentialService    `json:"metadata_credentials,omitempty"`
 	AWSWebIdentityCredentials *awsWebIdentityCredentialService `json:"web_identity_credentials,omitempty"`
+	AWSService                string                           `json:"service,omitempty"`
 
 	logger sdk.Logger
 }
@@ -459,11 +465,16 @@ func (ap *awsSigningAuthPlugin) NewClient(c Config) (*http.Client, error) {
 			return nil, err
 		}
 	}
+
+	if ap.AWSService == "" {
+		ap.AWSService = awsSigv4SigningDefaultService
+	}
+
 	return DefaultRoundTripperClient(t, *c.ResponseHeaderTimeoutSeconds), nil
 }
 
 func (ap *awsSigningAuthPlugin) Prepare(req *http.Request) error {
 	ap.logger.Debug("Signing request with AWS credentials.")
-	err := signV4(req, ap.awsCredentialService(), time.Now())
+	err := signV4(req, ap.AWSService, ap.awsCredentialService(), time.Now())
 	return err
 }
