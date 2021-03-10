@@ -107,6 +107,7 @@ type EvalContext struct {
 	indexing               bool
 	interQueryBuiltinCache cache.InterQueryCache
 	resolvers              []refResolver
+	sortSets               bool
 }
 
 // EvalOption defines a function to set an option on an EvalConfig
@@ -229,6 +230,13 @@ func EvalInterQueryBuiltinCache(c cache.InterQueryCache) EvalOption {
 func EvalResolver(ref ast.Ref, r resolver.Resolver) EvalOption {
 	return func(e *EvalContext) {
 		e.resolvers = append(e.resolvers, refResolver{ref, r})
+	}
+}
+
+// EvalSortSets causes the evaluator to sort sets before returning them as JSON arrays.
+func EvalSortSets(yes bool) EvalOption {
+	return func(e *EvalContext) {
+		e.sortSets = yes
 	}
 }
 
@@ -1946,7 +1954,7 @@ func (r *Rego) generateResult(qr topdown.QueryResult, ectx *EvalContext) (Result
 
 	result := newResult()
 	for k := range qr {
-		v, err := ast.JSON(qr[k].Value)
+		v, err := ast.JSONWithOpt(qr[k].Value, ast.JSONOpt{SortSets: ectx.sortSets})
 		if err != nil {
 			return result, err
 		}
@@ -1966,7 +1974,7 @@ func (r *Rego) generateResult(qr topdown.QueryResult, ectx *EvalContext) (Result
 		}
 
 		if k, ok := r.capture[expr]; ok {
-			v, err := ast.JSON(qr[k].Value)
+			v, err := ast.JSONWithOpt(qr[k].Value, ast.JSONOpt{SortSets: ectx.sortSets})
 			if err != nil {
 				return result, err
 			}

@@ -159,6 +159,10 @@ func (illegalResolver) Resolve(ref Ref) (interface{}, error) {
 // value should not contain any values that require evaluation (e.g., vars,
 // comprehensions, etc.)
 func ValueToInterface(v Value, resolver Resolver) (interface{}, error) {
+	return valueToInterface(v, resolver, JSONOpt{})
+}
+
+func valueToInterface(v Value, resolver Resolver, opt JSONOpt) (interface{}, error) {
 	switch v := v.(type) {
 	case Null:
 		return nil, nil
@@ -171,7 +175,7 @@ func ValueToInterface(v Value, resolver Resolver) (interface{}, error) {
 	case *Array:
 		buf := []interface{}{}
 		for i := 0; i < v.Len(); i++ {
-			x1, err := ValueToInterface(v.Elem(i).Value, resolver)
+			x1, err := valueToInterface(v.Elem(i).Value, resolver, opt)
 			if err != nil {
 				return nil, err
 			}
@@ -181,7 +185,7 @@ func ValueToInterface(v Value, resolver Resolver) (interface{}, error) {
 	case *object:
 		buf := make(map[string]interface{}, v.Len())
 		err := v.Iter(func(k, v *Term) error {
-			ki, err := ValueToInterface(k.Value, resolver)
+			ki, err := valueToInterface(k.Value, resolver, opt)
 			if err != nil {
 				return err
 			}
@@ -194,7 +198,7 @@ func ValueToInterface(v Value, resolver Resolver) (interface{}, error) {
 				}
 				str = strings.TrimSpace(buf.String())
 			}
-			vi, err := ValueToInterface(v.Value, resolver)
+			vi, err := valueToInterface(v.Value, resolver, opt)
 			if err != nil {
 				return err
 			}
@@ -207,14 +211,20 @@ func ValueToInterface(v Value, resolver Resolver) (interface{}, error) {
 		return buf, nil
 	case Set:
 		buf := []interface{}{}
-		err := v.Iter(func(x *Term) error {
-			x1, err := ValueToInterface(x.Value, resolver)
+		iter := func(x *Term) error {
+			x1, err := valueToInterface(x.Value, resolver, opt)
 			if err != nil {
 				return err
 			}
 			buf = append(buf, x1)
 			return nil
-		})
+		}
+		var err error
+		if opt.SortSets {
+			err = v.Sorted().Iter(iter)
+		} else {
+			err = v.Iter(iter)
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -229,7 +239,18 @@ func ValueToInterface(v Value, resolver Resolver) (interface{}, error) {
 // JSON returns the JSON representation of v. The value must not contain any
 // refs or terms that require evaluation (e.g., vars, comprehensions, etc.)
 func JSON(v Value) (interface{}, error) {
-	return ValueToInterface(v, illegalResolver{})
+	return JSONWithOpt(v, JSONOpt{})
+}
+
+// JSONOpt defines parameters for AST to JSON conversion.
+type JSONOpt struct {
+	SortSets bool // sort sets before serializing (this makes conversion more expensive)
+}
+
+// JSONWithOpt returns the JSON representation of v. The value must not contain any
+// refs or terms that require evaluation (e.g., vars, comprehensions, etc.)
+func JSONWithOpt(v Value, opt JSONOpt) (interface{}, error) {
+	return valueToInterface(v, illegalResolver{}, opt)
 }
 
 // MustJSON returns the JSON representation of v. The value must not contain any
