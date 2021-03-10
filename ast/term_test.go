@@ -939,6 +939,24 @@ func TestValueToInterface(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Expected error from JSON(%v)", term)
 	}
+
+	// Ordering option
+	//
+	// These inputs exercise all of the cases (i.e., sets nested in arrays, object keys, and object values.)
+	//
+	a, err := JSONWithOpt(MustParseTerm(`[{{3, 4}: {1, 2}}]`).Value, JSONOpt{SortSets: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	b, err := JSONWithOpt(MustParseTerm(`[{{4, 3}: {2, 1}}]`).Value, JSONOpt{SortSets: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !reflect.DeepEqual(a, b) {
+		t.Fatalf("expcted %v = %v", a, b)
+	}
 }
 
 func assertTermEqual(t *testing.T, x *Term, y *Term) {
