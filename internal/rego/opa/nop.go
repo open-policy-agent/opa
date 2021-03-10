@@ -8,23 +8,10 @@ package opa
 
 import (
 	"context"
-
-	"github.com/open-policy-agent/opa/metrics"
 )
 
 // OPA is a stub implementation of a opa.OPA.
 type OPA struct {
-}
-
-// Result is a stub implementation of a opa.Result.
-type Result struct {
-	Result []byte
-}
-
-// EvalOpts is a stub implementation of a opa.EvalOpts.
-type EvalOpts struct {
-	Input   *interface{}
-	Metrics metrics.Metrics
 }
 
 // New unimplemented.

@@ -63,12 +63,15 @@ func (d *builtinDispatcher) SetMap(m map[int32]topdown.BuiltinFunc) {
 }
 
 // Reset is called in Eval before using the builtinDispatcher.
-func (d *builtinDispatcher) Reset(ctx context.Context) {
+func (d *builtinDispatcher) Reset(ctx context.Context, ns time.Time) {
+	if ns.IsZero() {
+		ns = time.Now()
+	}
 	d.ctx = &topdown.BuiltinContext{
 		Context:  ctx,
 		Cancel:   topdown.NewCancel(),
 		Runtime:  nil,
-		Time:     ast.NumberTerm(json.Number(strconv.FormatInt(time.Now().UnixNano(), 10))),
+		Time:     ast.NumberTerm(json.Number(strconv.FormatInt(ns.UnixNano(), 10))),
 		Metrics:  metrics.New(),
 		Cache:    make(builtins.Cache),
 		Location: nil,
