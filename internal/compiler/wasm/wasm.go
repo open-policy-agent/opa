@@ -163,6 +163,16 @@ var builtinsFunctions = map[string]string{
 	ast.JSONFilter.Name:                 "builtin_json_filter",
 }
 
+// If none of these is called from a policy, the resulting wasm
+// module will not contain any RE2-related functions
+var builtinsUsingRE2 = [...]string{
+	builtinsFunctions[ast.RegexIsValid.Name],
+	builtinsFunctions[ast.RegexMatch.Name],
+	builtinsFunctions[ast.RegexMatchDeprecated.Name],
+	builtinsFunctions[ast.RegexFindAllStringSubmatch.Name],
+	builtinsFunctions[ast.GlobMatch.Name],
+}
+
 var builtinDispatchers = [...]string{
 	"opa_builtin0",
 	"opa_builtin1",
