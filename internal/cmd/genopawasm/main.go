@@ -28,8 +28,8 @@ func main() {
 		Use:   executable,
 		Short: executable + " <opa.wasm path>",
 		RunE: func(_ *cobra.Command, args []string) error {
-			if len(args) != 1 {
-				return fmt.Errorf("provide path of opa.wasm file")
+			if len(args) != 2 {
+				return fmt.Errorf("provide path of opa.wasm and callgraph.csv files")
 			}
 			return run(params, args)
 		},
@@ -81,6 +81,16 @@ func Bytes() ([]byte, error) {
 	return ioutil.ReadAll(gr)
 }
 
+// CallGraphCSV returns a CSV representation of the
+// OPA-WASM bytecode's call graph: 'caller,callee'
+func CallGraphCSV() ([]byte, error) {
+	cg, err := gzip.NewReader(bytes.NewBuffer(gzippedCallGraphCSV))
+	if err != nil {
+		return nil, err
+	}
+	return ioutil.ReadAll(cg)
+}
+
 `))
 
 	if err != nil {
@@ -92,7 +102,34 @@ func Bytes() ([]byte, error) {
 		return err
 	}
 
-	in, err := os.Open(args[0])
+	if err := output(out, args[0]); err != nil {
+		return err
+	}
+
+	if _, err := out.Write([]byte(`")
+`)); err != nil {
+		return err
+	}
+
+	_, err = out.Write([]byte(`var gzippedCallGraphCSV = []byte("`))
+	if err != nil {
+		return err
+	}
+
+	if err := output(out, args[1]); err != nil {
+		return err
+	}
+
+	if _, err := out.Write([]byte(`")
+`)); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func output(out io.Writer, filename string) error {
+	in, err := os.Open(filename)
 	if err != nil {
 		return err
 	}
@@ -116,14 +153,7 @@ func Bytes() ([]byte, error) {
 			return err
 		}
 	}
-
-	_, err = out.Write([]byte(`")`))
-	if err != nil {
-		return err
-	}
-
-	_, err = out.Write([]byte("\n"))
-	return err
+	return nil
 }
 
 var digits = "0123456789ABCDEF"
