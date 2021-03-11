@@ -176,7 +176,11 @@ func (c *Compiler) removeUnusedCode() error {
 	// anything referenced in a table
 	for _, seg := range c.module.Element.Segments {
 		for _, idx := range seg.Indices {
-			reach(cgIdx, keepFuncs, idx)
+			if c.skipElemRE2(keepFuncs, idx) {
+				c.debug.Printf("dropping element %d because policy does not depend on re2", idx)
+			} else {
+				reach(cgIdx, keepFuncs, idx)
+			}
 		}
 	}
 
@@ -241,4 +245,38 @@ func reach(cg map[uint32][]uint32, keep map[uint32]struct{}, node uint32) {
 			reach(cg, keep, v)
 		}
 	}
+}
+
+// skipElemRE2 determines if a function in the table is really required:
+// We'll exclude anything with a prefix of "re2::" if none of the known
+// entrypoints into re2 are used.
+func (c *Compiler) skipElemRE2(keep map[uint32]struct{}, idx uint32) bool {
+	if c.usesRE2(keep) {
+		return false
+	}
+	return c.nameContains(idx, "re2::", "lexer::", "std::", "__cxa_pure_virtual", "operator", "parser_")
+}
+
+func (c *Compiler) usesRE2(keep map[uint32]struct{}) bool {
+	for _, fn := range builtinsUsingRE2 {
+		if _, ok := keep[c.function(fn)]; ok {
+			return true
+		}
+	}
+	return false
+}
+
+func (c *Compiler) nameContains(idx uint32, hs ...string) bool {
+	// TODO(sr): keep reverse mapping (idx -> name) in Compiler struct
+	for _, nm := range c.module.Names.Functions {
+		if nm.Index == idx {
+			for _, h := range hs {
+				if strings.Contains(nm.Name, h) {
+					return true
+				}
+			}
+			return false
+		}
+	}
+	return false
 }
