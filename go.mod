@@ -4,7 +4,7 @@ go 1.12
 
 require (
 	github.com/OneOfOne/xxhash v1.2.8
-	github.com/bytecodealliance/wasmtime-go v0.23.0
+	github.com/bytecodealliance/wasmtime-go v0.24.0
 	github.com/cpuguy83/go-md2man v1.0.10 // indirect
 	github.com/fortytw2/leaktest v1.3.0
 	github.com/fsnotify/fsnotify v1.4.9
