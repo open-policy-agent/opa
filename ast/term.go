@@ -143,6 +143,12 @@ func (UnknownValueErr) Error() string {
 	return "unknown value"
 }
 
+// IsFindNotFoundErr exposes whether the given error is equal to
+// errFindNotFound
+func IsFindNotFoundErr(err error) bool {
+	return err == errFindNotFound
+}
+
 // IsUnknownValueErr returns true if the err is an UnknownValueErr.
 func IsUnknownValueErr(err error) bool {
 	_, ok := err.(UnknownValueErr)
@@ -1106,18 +1112,35 @@ func (arr *Array) Find(path Ref) (Value, error) {
 	if len(path) == 0 {
 		return arr, nil
 	}
-	num, ok := path[0].Value.(Number)
-	if !ok {
-		return nil, errFindNotFound
+	switch v := path[0].Value.(type) {
+	case Number:
+		num := v
+		i, ok := num.Int()
+		if !ok {
+			return nil, errFindNotFound
+		}
+		if i < 0 || i >= arr.Len() {
+			return nil, errFindNotFound
+		}
+		return arr.Elem(i).Value.Find(path[1:])
+	case Var:
+		if v.IsWildcard() {
+			var out Value
+			arr.Iter(func(t *Term) error {
+				var err error
+				out, err = t.Value.Find(path[1:])
+				if out != nil && err == nil {
+					return fmt.Errorf("found")
+				}
+				return nil
+			})
+			if out != nil {
+				return out, nil
+			}
+		}
+		// ohno
 	}
-	i, ok := num.Int()
-	if !ok {
-		return nil, errFindNotFound
-	}
-	if i < 0 || i >= arr.Len() {
-		return nil, errFindNotFound
-	}
-	return arr.Elem(i).Value.Find(path[1:])
+	return nil, errFindNotFound
 }
 
 // Get returns the element at pos or nil if not possible.

@@ -501,6 +501,7 @@ type Rego struct {
 	parsedInput            ast.Value
 	unknowns               []string
 	parsedUnknowns         []*ast.Term
+	autoUnknownNilInputs   bool
 	disableInlining        []string
 	shallowInlining        bool
 	skipPartialNamespace   bool
@@ -796,6 +797,12 @@ func ParsedInput(x ast.Value) func(r *Rego) {
 func Unknowns(unknowns []string) func(r *Rego) {
 	return func(r *Rego) {
 		r.unknowns = unknowns
+	}
+}
+
+func AutoNilUnknowns(yes bool) func(r *Rego) {
+	return func(r *Rego) {
+		r.autoUnknownNilInputs = true
 	}
 }
 
@@ -2081,13 +2088,56 @@ func (r *Rego) partialResult(ctx context.Context, pCfg *PrepareConfig) (PartialR
 	return result, nil
 }
 
-func (r *Rego) partial(ctx context.Context, ectx *EvalContext) (*PartialQueries, error) {
+func (r *Rego) buildUnknownsFromNilInput(ctx context.Context, ectx *EvalContext) ([]*ast.Term, error) {
+	// Determine the expected input structure from the query module
+	var modInputs []*ast.Term
+	for _, mod := range r.parsedModules {
+		ast.WalkTerms(mod, func(x *ast.Term) bool {
+			if strings.HasPrefix(x.String(), "input.") {
+				modInputs = append(modInputs, x)
+			}
+			return true
+		})
+	}
 
+	var err error
+	ectx.parsedInput, err = r.parseRawInput(ectx.rawInput, ectx.metrics)
+	if err != nil {
+		return nil, err
+	}
+
+	// Inspect input document to determine what is missing, if anything
+	var unknowns []*ast.Term
+	for i, in := range modInputs {
+		// If the term Value is a Ref, remove the zeroth term (`input`) and
+		// attempt to find values in the parsedInput Value
+		if ref, ok := in.Value.(ast.Ref); ok && len(ref) > 1 {
+			_, err := ectx.parsedInput.Find(ref[1:])
+			if ast.IsFindNotFoundErr(err) {
+				unknowns = append(unknowns, modInputs[i])
+				continue
+			}
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	return unknowns, nil
+}
+
+func (r *Rego) partial(ctx context.Context, ectx *EvalContext) (*PartialQueries, error) {
 	var unknowns []*ast.Term
 
-	if ectx.parsedUnknowns != nil {
+	switch {
+	case r.autoUnknownNilInputs && (ectx.hasInput || ectx.rawInput != nil):
+		var err error
+		unknowns, err = r.buildUnknownsFromNilInput(ctx, ectx)
+		if err != nil {
+			return nil, err
+		}
+	case ectx.parsedUnknowns != nil:
 		unknowns = ectx.parsedUnknowns
-	} else if ectx.unknowns != nil {
+	case ectx.unknowns != nil:
 		unknowns = make([]*ast.Term, len(ectx.unknowns))
 		for i := range ectx.unknowns {
 			var err error
@@ -2096,7 +2146,7 @@ func (r *Rego) partial(ctx context.Context, ectx *EvalContext) (*PartialQueries,
 				return nil, err
 			}
 		}
-	} else {
+	default:
 		// Use input document as unknown if caller has not specified any.
 		unknowns = []*ast.Term{ast.NewTerm(ast.InputRootRef)}
 	}

@@ -919,6 +919,9 @@ func TestPrepareAndPartial(t *testing.T) {
 	// as expected for Partial.
 
 	partialQuery, err := r.Partial(ctx)
+	if err != nil {
+		t.Errorf("error evaluating partial: %v", err)
+	}
 	expectedQuery := "input.x = 1"
 	if len(partialQuery.Queries) != 1 {
 		t.Errorf("expected 1 query but found %d: %+v", len(partialQuery.Queries), pq)
@@ -926,6 +929,140 @@ func TestPrepareAndPartial(t *testing.T) {
 	if partialQuery.Queries[0].String() != expectedQuery {
 		t.Errorf("unexpected query in result, expected='%s' found='%s'",
 			expectedQuery, partialQuery.Queries[0].String())
+	}
+}
+
+func anyGround(bodies []ast.Body) bool {
+	for _, body := range bodies {
+		if body.IsGround() {
+			return true
+		}
+	}
+	return false
+}
+
+func hasAny(bodies []ast.Body, pfx string) bool {
+	for _, body := range bodies {
+		if strings.Contains(body.String(), pfx) {
+			return true
+		}
+	}
+	return false
+}
+
+func TestPartialAutoUnknownInputs(t *testing.T) {
+	tests := []struct {
+		input map[string]interface{}
+		test  func(t *testing.T, pq *PartialQueries, err error)
+	}{
+		{
+			input: map[string]interface{}{
+				"y": struct{ Y int }{Y: 3},
+			},
+			test: func(t *testing.T, pq *PartialQueries, err error) {
+				if !anyGround(pq.Queries) {
+					t.Error("No grounded queries found")
+				}
+				if len(pq.Queries) == 0 {
+					t.Error("No queries found for autoUnknownNilInputs")
+				}
+			},
+		},
+		{
+			input: map[string]interface{}{
+				"x": 1,
+				"y": struct{ Y int }{Y: 3},
+			},
+			test: func(t *testing.T, pq *PartialQueries, err error) {
+				ok := false
+
+				for _, q := range pq.Queries {
+					if len(q) == 0 {
+						ok = true
+						break
+					}
+				}
+
+				if !ok {
+					t.Error("Did not find any empty queries (known true)")
+				}
+			},
+		},
+		{
+			input: map[string]interface{}{
+				"w": []string{"u", "v"},
+			},
+			test: func(t *testing.T, pq *PartialQueries, err error) {
+				if hasAny(pq.Queries, "input.w") {
+					t.Error("should not have returned w as a query when w was set")
+				}
+				ok := false
+
+				for _, q := range pq.Queries {
+					if len(q) == 0 {
+						ok = true
+						break
+					}
+				}
+
+				if ok {
+					t.Error("Found an empty query (known true) but should not have")
+				}
+			},
+		},
+		{
+			input: map[string]interface{}{
+				"w": []string{"u", "v", "w"},
+			},
+			test: func(t *testing.T, pq *PartialQueries, err error) {
+				if hasAny(pq.Queries, "input.w") {
+					t.Error("should not have returned w as a query when w was set")
+				}
+				ok := false
+
+				for _, q := range pq.Queries {
+					if len(q) == 0 {
+						ok = true
+						break
+					}
+				}
+
+				if !ok {
+					t.Error("Did not find any empty queries (known true)")
+				}
+			},
+		},
+		{
+			input: map[string]interface{}{
+				"z": []struct{ Z int }{{Z: 3}},
+			},
+			test: func(t *testing.T, pq *PartialQueries, err error) {
+				if hasAny(pq.Queries, "input.z") {
+					t.Error("should not have returned z as a query when z existed in input")
+				}
+			},
+		},
+	}
+
+	for i, test := range tests {
+		t.Run(strconv.Itoa(i+1), func(t *testing.T) {
+			r := New(
+				Query("data.test.p"),
+				AutoNilUnknowns(true),
+				Input(test.input),
+				Module("test.rego", `
+package test
+
+			p { input.x = 1 }
+			p { input.y.Y = 2 }
+			p { input.z[_].Z = 3 }
+			p { input.w[_] = "w" }
+		`),
+			)
+
+			pq, err := r.Partial(context.Background())
+			test.test(t, pq, err)
+		})
 	}
 }
 
