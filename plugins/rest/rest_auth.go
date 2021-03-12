@@ -466,6 +466,9 @@ func (ap *awsSigningAuthPlugin) NewClient(c Config) (*http.Client, error) {
 		}
 	}
 
+	if ap.logger == nil {
+		ap.logger = c.logger
+	}
 	if ap.AWSService == "" {
 		ap.AWSService = awsSigv4SigningDefaultService
 	}
