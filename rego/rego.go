@@ -490,52 +490,52 @@ type loadPaths struct {
 
 // Rego constructs a query and can be evaluated to obtain results.
 type Rego struct {
-	query                  string
-	parsedQuery            ast.Body
-	compiledQueries        map[queryType]compiledQuery
-	pkg                    string
-	parsedPackage          *ast.Package
-	imports                []string
-	parsedImports          []*ast.Import
-	rawInput               *interface{}
-	parsedInput            ast.Value
-	unknowns               []string
-	parsedUnknowns         []*ast.Term
-	autoUnknownNilInputs   bool
-	disableInlining        []string
-	shallowInlining        bool
-	skipPartialNamespace   bool
-	partialNamespace       string
-	modules                []rawModule
-	parsedModules          map[string]*ast.Module
-	compiler               *ast.Compiler
-	store                  storage.Store
-	ownStore               bool
-	txn                    storage.Transaction
-	metrics                metrics.Metrics
-	queryTracers           []topdown.QueryTracer
-	tracebuf               *topdown.BufferTracer
-	trace                  bool
-	instrumentation        *topdown.Instrumentation
-	instrument             bool
-	capture                map[*ast.Expr]ast.Var // map exprs to generated capture vars
-	termVarID              int
-	dump                   io.Writer
-	runtime                *ast.Term
-	time                   time.Time
-	builtinDecls           map[string]*ast.Builtin
-	builtinFuncs           map[string]*topdown.Builtin
-	unsafeBuiltins         map[string]struct{}
-	loadPaths              loadPaths
-	bundlePaths            []string
-	bundles                map[string]*bundle.Bundle
-	skipBundleVerification bool
-	interQueryBuiltinCache cache.InterQueryCache
-	strictBuiltinErrors    bool
-	resolvers              []refResolver
-	schemaSet              *ast.SchemaSet
-	target                 string // target type (wasm, rego, etc.)
-	opa                    *opa.OPA
+	query                    string
+	parsedQuery              ast.Body
+	compiledQueries          map[queryType]compiledQuery
+	pkg                      string
+	parsedPackage            *ast.Package
+	imports                  []string
+	parsedImports            []*ast.Import
+	rawInput                 *interface{}
+	parsedInput              ast.Value
+	unknowns                 []string
+	parsedUnknowns           []*ast.Term
+	autoUnknownMissingInputs bool
+	disableInlining          []string
+	shallowInlining          bool
+	skipPartialNamespace     bool
+	partialNamespace         string
+	modules                  []rawModule
+	parsedModules            map[string]*ast.Module
+	compiler                 *ast.Compiler
+	store                    storage.Store
+	ownStore                 bool
+	txn                      storage.Transaction
+	metrics                  metrics.Metrics
+	queryTracers             []topdown.QueryTracer
+	tracebuf                 *topdown.BufferTracer
+	trace                    bool
+	instrumentation          *topdown.Instrumentation
+	instrument               bool
+	capture                  map[*ast.Expr]ast.Var // map exprs to generated capture vars
+	termVarID                int
+	dump                     io.Writer
+	runtime                  *ast.Term
+	time                     time.Time
+	builtinDecls             map[string]*ast.Builtin
+	builtinFuncs             map[string]*topdown.Builtin
+	unsafeBuiltins           map[string]struct{}
+	loadPaths                loadPaths
+	bundlePaths              []string
+	bundles                  map[string]*bundle.Bundle
+	skipBundleVerification   bool
+	interQueryBuiltinCache   cache.InterQueryCache
+	strictBuiltinErrors      bool
+	resolvers                []refResolver
+	schemaSet                *ast.SchemaSet
+	target                   string // target type (wasm, rego, etc.)
+	opa                      *opa.OPA
 }
 
 // Function represents a built-in function that is callable in Rego.
@@ -800,14 +800,14 @@ func Unknowns(unknowns []string) func(r *Rego) {
 	}
 }
 
-// AutoUnknownNilInputs expands on the default behavior of assuming `input` is
+// AutoUnknownMissingInputs expands on the default behavior of assuming `input` is
 // unknown. If set, and if input is given, the behavior changes such that the
 // module queries and input values are interrogated. If the values inspected in
 // the modules are not found in the input object, their paths are added to the
 // list of Unknowns.
-func AutoNilUnknowns(yes bool) func(r *Rego) {
+func AutoUnknownMissingInputs(yes bool) func(r *Rego) {
 	return func(r *Rego) {
-		r.autoUnknownNilInputs = true
+		r.autoUnknownMissingInputs = true
 	}
 }
 
@@ -2093,7 +2093,7 @@ func (r *Rego) partialResult(ctx context.Context, pCfg *PrepareConfig) (PartialR
 	return result, nil
 }
 
-func (r *Rego) buildUnknownsFromNilInput(ctx context.Context, ectx *EvalContext) ([]*ast.Term, error) {
+func (r *Rego) buildUnknownsFromModulesAndInput(ctx context.Context, ectx *EvalContext) ([]*ast.Term, error) {
 	// Determine the expected input structure from the query module
 	var modInputs []*ast.Term
 	for _, mod := range r.parsedModules {
@@ -2134,9 +2134,9 @@ func (r *Rego) partial(ctx context.Context, ectx *EvalContext) (*PartialQueries,
 	var unknowns []*ast.Term
 
 	switch {
-	case r.autoUnknownNilInputs && (ectx.hasInput || ectx.rawInput != nil):
+	case r.autoUnknownMissingInputs && (ectx.hasInput || ectx.rawInput != nil):
 		var err error
-		unknowns, err = r.buildUnknownsFromNilInput(ctx, ectx)
+		unknowns, err = r.buildUnknownsFromModulesAndInput(ctx, ectx)
 		if err != nil {
 			return nil, err
 		}
