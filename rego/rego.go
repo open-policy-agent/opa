@@ -2118,13 +2118,14 @@ func (r *Rego) buildUnknownsFromModulesAndInput(ctx context.Context, ectx *EvalC
 		// attempt to find values in the parsedInput Value
 		if ref, ok := in.Value.(ast.Ref); ok && len(ref) > 1 {
 			_, err := ectx.parsedInput.Find(ref[1:])
+			if err == nil {
+				continue
+			}
 			if ast.IsFindNotFoundErr(err) {
 				unknowns = append(unknowns, modInputs[i])
 				continue
 			}
-			if err != nil {
-				return nil, err
-			}
+			return nil, err
 		}
 	}
 	return unknowns, nil
