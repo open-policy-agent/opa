@@ -807,7 +807,7 @@ func Unknowns(unknowns []string) func(r *Rego) {
 // list of Unknowns.
 func AutoUnknownMissingInputs(yes bool) func(r *Rego) {
 	return func(r *Rego) {
-		r.autoUnknownMissingInputs = true
+		r.autoUnknownMissingInputs = yes
 	}
 }
 
