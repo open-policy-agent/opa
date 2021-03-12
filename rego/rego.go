@@ -800,6 +800,11 @@ func Unknowns(unknowns []string) func(r *Rego) {
 	}
 }
 
+// AutoUnknownNilInputs expands on the default behavior of assuming `input` is
+// unknown. If set, and if input is given, the behavior changes such that the
+// module queries and input values are interrogated. If the values inspected in
+// the modules are not found in the input object, their paths are added to the
+// list of Unknowns.
 func AutoNilUnknowns(yes bool) func(r *Rego) {
 	return func(r *Rego) {
 		r.autoUnknownNilInputs = true
