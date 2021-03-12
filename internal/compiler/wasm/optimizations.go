@@ -193,16 +193,6 @@ func (c *Compiler) removeUnusedCode() error {
 	}
 	c.module.Names.Functions = funcNames
 
-	// functions we've compiled only get a new index
-	funcs := []funcCode{}
-	for _, f := range c.funcsCode {
-		oldIdx := c.funcs[f.name]
-		if _, ok := keepFuncs[oldIdx]; ok {
-			funcs = append(funcs, f)
-		}
-	}
-	c.funcsCode = funcs
-
 	// For anything that we don't want, replace the function code entries'
 	// expressions with `unreachable`.
 	// We do this because it lets the resulting wasm module pass `wasm-validate`,
@@ -217,9 +207,9 @@ func (c *Compiler) removeUnusedCode() error {
 		return fmt.Errorf("write code entry: %w", err)
 	}
 	for i := range c.module.Code.Segments {
-		if _, ok := keepFuncs[uint32(i)]; !ok {
-			idx := i - c.functionImportCount()
-			c.module.Code.Segments[idx].Code = buf.Bytes()
+		idx := i + c.functionImportCount()
+		if _, ok := keepFuncs[uint32(idx)]; !ok {
+			c.module.Code.Segments[i].Code = buf.Bytes()
 		}
 	}
 	return nil
