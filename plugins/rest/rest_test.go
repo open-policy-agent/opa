@@ -1277,6 +1277,38 @@ func TestOauth2ClientCredentialsJwtAuthentication(t *testing.T) {
 	}
 }
 
+// https://github.com/open-policy-agent/opa/issues/3255
+func TestS3SigningInstantiationInitializesLogger(t *testing.T) {
+	config := fmt.Sprintf(`{
+			"name": "foo",
+			"url": "https://bundles.example.com",
+			"credentials": {
+				"s3_signing": {
+					"environment_credentials": {}
+				}
+			}
+		}`)
+
+	authPlugin := &awsSigningAuthPlugin{
+		AWSEnvironmentCredentials: &awsEnvironmentCredentialService{},
+	}
+	client, err := New([]byte(config), map[string]*keys.Config{}, AuthPluginLookup(func(name string) HTTPAuthPlugin {
+		return authPlugin
+	}))
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	plugin := client.authPluginLookup("s3_signing")
+	if _, err = plugin.NewClient(client.config); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	if authPlugin.logger == nil {
+		t.Errorf("Expected logger to be initialized")
+	}
+}
+
 func newTestClient(t *testing.T, ts *testServer, certPath string, keypath string) *Client {
 	config := fmt.Sprintf(`{
 			"name": "foo",
