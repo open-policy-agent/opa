@@ -17,6 +17,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"reflect"
 	"strconv"
 	"strings"
 	"testing"
@@ -1138,7 +1139,6 @@ func TestHTTPSendInterQueryCachingModifiedResp(t *testing.T) {
 									r1 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true})
 									r2 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true}) # stale
 									r3 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true}) # cached and fresh
-									r1 == r2
 									r2 == r3
 									x = r1.body
 								}`,
@@ -1355,12 +1355,12 @@ func TestGetResponseHeaderDateEmpty(t *testing.T) {
 
 func TestIsCachedResponseFreshZeroTime(t *testing.T) {
 	zeroTime := new(time.Time)
-	result := isCachedResponseFresh(BuiltinContext{}, &interQueryCacheValue{date: *zeroTime}, nil)
+	result := isCachedResponseFresh(BuiltinContext{}, &responseHeaders{date: *zeroTime}, nil)
 	if result {
 		t.Fatal("Expected stale cache response")
 	}
 
-	result = isCachedResponseFresh(BuiltinContext{Time: ast.NullTerm()}, &interQueryCacheValue{date: time.Now()}, nil)
+	result = isCachedResponseFresh(BuiltinContext{Time: ast.NullTerm()}, &responseHeaders{date: time.Now()}, nil)
 	if result {
 		t.Fatal("Expected stale cache response")
 	}
@@ -1580,6 +1580,49 @@ func TestInterQueryCheckCacheError(t *testing.T) {
 	errMsg := "eval_builtin_error: http.send: 'force_cache' set but 'force_cache_duration_seconds' parameter is missing"
 	if err.Error() != errMsg {
 		t.Fatalf("Expected error message %v but got %v", errMsg, err.Error())
+	}
+}
+
+func TestNewInterQueryCacheValue(t *testing.T) {
+	headers := make(http.Header)
+	headers.Set("test-header", "test-value")
+	headers.Set("Cache-Control", "max-age=290304000, public")
+	headers.Set("Date", "Wed, 31 Dec 2115 07:28:00 GMT")
+
+	// test data
+	var b = []byte(`[{"ID": "1", "Firstname": "John"}]`)
+
+	response := &http.Response{
+		Status:     "200 OK",
+		StatusCode: http.StatusOK,
+		Header:     headers,
+		Request:    &http.Request{Method: "Get"},
+		Body:       ioutil.NopCloser(bytes.NewBuffer(b)),
+	}
+
+	result, err := newInterQueryCacheValue(response, b)
+	if err != nil {
+		t.Fatalf("Unexpected error %v", err)
+	}
+
+	cvd := interQueryCacheData{RespBody: b,
+		Status:     "200 OK",
+		StatusCode: http.StatusOK,
+		Headers:    headers}
+
+	cvdBytes, err := json.Marshal(cvd)
+	if err != nil {
+		t.Fatalf("Unexpected error %v", err)
+	}
+
+	expectedResult := &interQueryCacheValue{Data: cvdBytes}
+
+	if !reflect.DeepEqual(result, expectedResult) {
+		t.Fatalf("Expected result %v but got %v", expectedResult, result)
+	}
+
+	if int64(len(cvdBytes)) != result.SizeInBytes() {
+		t.Fatalf("Expected cache item size %v but got %v", len(cvdBytes), result.SizeInBytes())
 	}
 }
 
