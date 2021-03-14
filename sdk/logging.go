@@ -48,7 +48,13 @@ func NewStandardLogger() *StandardLogger {
 // WithFields provides additional fields to include in log output
 func (l *StandardLogger) WithFields(fields map[string]interface{}) Logger {
 	cp := *l
-	cp.fields = fields
+	cp.fields = make(map[string]interface{})
+	for k, v := range l.fields {
+		cp.fields[k] = v
+	}
+	for k, v := range fields {
+		cp.fields[k] = v
+	}
 	return &cp
 }
 
