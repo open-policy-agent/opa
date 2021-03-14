@@ -13,6 +13,7 @@ import (
 
 	"github.com/open-policy-agent/opa/internal/storage/mock"
 	"github.com/open-policy-agent/opa/plugins/rest"
+	"github.com/open-policy-agent/opa/sdk"
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/topdown/cache"
 )
@@ -290,6 +291,20 @@ func TestPluginManagerAuthPlugin(t *testing.T) {
 		return
 	default:
 		t.Fatal("expected HTTPAuthPlugin to be myAuthPluginMock")
+	}
+}
+
+func TestPluginManagerLogger(t *testing.T) {
+
+	logger := sdk.NewStandardLogger().WithFields(map[string]interface{}{"context": "myloggincontext"})
+
+	m, err := New([]byte(`{}`), "test", inmem.New(), Logger(logger))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if m.Logger() != logger {
+		t.Fatal("Logger was not configured on plugin manager")
 	}
 }
 

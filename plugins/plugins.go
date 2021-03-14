@@ -250,6 +250,13 @@ func GracefulShutdownPeriod(gracefulShutdownPeriod int) func(*Manager) {
 	}
 }
 
+// Logger configures the passed logger on the plugin manager (useful to configure default fields)
+func Logger(logger sdk.Logger) func(*Manager) {
+	return func(m *Manager) {
+		m.logger = logger
+	}
+}
+
 // New creates a new Manager using config.
 func New(raw []byte, id string, store storage.Store, opts ...func(*Manager)) (*Manager, error) {
 
@@ -279,10 +286,15 @@ func New(raw []byte, id string, store storage.Store, opts ...func(*Manager)) (*M
 		interQueryBuiltinCacheConfig: interQueryBuiltinCacheConfig,
 	}
 
+	if m.logger == nil {
+		m.logger = sdk.NewStandardLogger()
+	}
+
 	serviceOpts := cfg.ServiceOptions{
 		Raw:        parsedConfig.Services,
 		AuthPlugin: m.AuthPlugin,
 		Keys:       keys,
+		Logger:     m.logger,
 	}
 	services, err := cfg.ParseServicesConfig(serviceOpts)
 	if err != nil {
@@ -293,10 +305,6 @@ func New(raw []byte, id string, store storage.Store, opts ...func(*Manager)) (*M
 
 	for _, f := range opts {
 		f(m)
-	}
-
-	if m.logger == nil {
-		m.logger = sdk.NewStandardLogger()
 	}
 
 	return m, nil
@@ -505,6 +513,7 @@ func (m *Manager) Reconfigure(config *config.Config) error {
 	opts := cfg.ServiceOptions{
 		Raw:        config.Services,
 		AuthPlugin: m.AuthPlugin,
+		Logger:     m.logger,
 	}
 
 	keys, err := keys.ParseKeysConfig(config.Keys)

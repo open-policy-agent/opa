@@ -57,7 +57,9 @@ type Config struct {
 
 // Equal returns true if this client config is equal to the other.
 func (c *Config) Equal(other *Config) bool {
-	return reflect.DeepEqual(c, other)
+	otherWithoutLogger := *other
+	otherWithoutLogger.logger = c.logger
+	return reflect.DeepEqual(c, &otherWithoutLogger)
 }
 
 func (c *Config) authPlugin(authPluginLookup func(string) HTTPAuthPlugin) (HTTPAuthPlugin, error) {
