@@ -113,7 +113,7 @@ OHoCIHmNX37JOqTcTzGn2u9+c8NlnvZ0uDvsd1BmKPaUmjmm
 	})
 	t.Run("Time", func(t *testing.T) {
 		now := time.Now()
-		wallclock := ast.IntNumberTerm(int(now.UnixNano()))
+		wallclock := ast.NumberTerm(int64ToJSONNumber(now.UnixNano()))
 
 		t.Run("if provided, is parsed properly", func(t *testing.T) {
 			c := ast.NewObject()
