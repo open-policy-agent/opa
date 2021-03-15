@@ -1440,6 +1440,10 @@ func (r *Rego) PrepareForEval(ctx context.Context, opts ...PrepareOption) (Prepa
 			},
 		},
 	})
+	if err != nil {
+		txnClose(ctx, err) // Ignore error
+		return PreparedEvalQuery{}, err
+	}
 
 	if r.target == targetWasm {
 
