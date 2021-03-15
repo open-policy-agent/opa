@@ -463,8 +463,8 @@ p[1] {
 }
 			`},
 			exps: map[ir.Stmt]string{
-				&ir.GreaterThanStmt{}: "module-0.rego:4:3: 1 > 2",
-				&ir.SetAddStmt{}:      "module-0.rego:3:1: p[1]",
+				&ir.CallStmt{}:   "module-0.rego:4:3: 1 > 2",
+				&ir.SetAddStmt{}: "module-0.rego:3:1: p[1]",
 			},
 			where: funcs,
 		},
@@ -511,9 +511,10 @@ a = { "a": "b" |
   1 > 0
 }`},
 			exps: map[ir.Stmt]string{
-				&ir.GreaterThanStmt{}:      "module-0.rego:3:3: 1 > 0",
+				&ir.CallStmt{}:             "module-0.rego:3:3: 1 > 0",
 				&ir.ObjectInsertOnceStmt{}: "module-0.rego:2:5: { \"a\": \"b\" |\n  1 > 0\n}",
 			},
+			where: funcs,
 		},
 		{
 			note:    "array comprehension in policy",
@@ -524,9 +525,10 @@ a = [ "a" |
   1 > 0
 ]`},
 			exps: map[ir.Stmt]string{
-				&ir.GreaterThanStmt{}: "module-0.rego:3:3: 1 > 0",
+				&ir.CallStmt{}:        "module-0.rego:3:3: 1 > 0",
 				&ir.ArrayAppendStmt{}: "module-0.rego:2:5: [ \"a\" |\n  1 > 0\n]",
 			},
+			where: funcs,
 		},
 		{
 			note:    "set comprehension in policy",
@@ -537,9 +539,10 @@ a = { "a" |
   1 > 0
 }`},
 			exps: map[ir.Stmt]string{
-				&ir.GreaterThanStmt{}: "module-0.rego:3:3: 1 > 0",
-				&ir.SetAddStmt{}:      "module-0.rego:2:5: { \"a\" |\n  1 > 0\n}",
+				&ir.CallStmt{}:   "module-0.rego:3:3: 1 > 0",
+				&ir.SetAddStmt{}: "module-0.rego:2:5: { \"a\" |\n  1 > 0\n}",
 			},
+			where: funcs,
 		},
 		{
 			note:    "set in policy",

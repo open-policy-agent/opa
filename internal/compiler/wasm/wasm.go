@@ -126,6 +126,12 @@ var builtinsFunctions = map[string]string{
 	ast.NetCIDRContains.Name:            "opa_cidr_contains",
 	ast.NetCIDROverlap.Name:             "opa_cidr_contains",
 	ast.NetCIDRIntersects.Name:          "opa_cidr_intersects",
+	ast.Equal.Name:                      "opa_cmp_eq",
+	ast.GreaterThan.Name:                "opa_cmp_gt",
+	ast.GreaterThanEq.Name:              "opa_cmp_gte",
+	ast.LessThan.Name:                   "opa_cmp_lt",
+	ast.LessThanEq.Name:                 "opa_cmp_lte",
+	ast.NotEqual.Name:                   "opa_cmp_neq",
 	ast.GlobMatch.Name:                  "opa_glob_match",
 	ast.JSONMarshal.Name:                "opa_json_marshal",
 	ast.JSONUnmarshal.Name:              "opa_json_unmarshal",
@@ -1017,34 +1023,6 @@ func (c *Compiler) compileBlock(block *ir.Block) ([]instruction.Instruction, err
 				instrs = append(instrs, instruction.Call{Index: c.function(opaValueCompare)})
 				instrs = append(instrs, instruction.BrIf{Index: 0})
 			}
-		case *ir.LessThanStmt:
-			instrs = append(instrs, c.instrRead(stmt.A))
-			instrs = append(instrs, c.instrRead(stmt.B))
-			instrs = append(instrs, instruction.Call{Index: c.function(opaValueCompare)})
-			instrs = append(instrs, instruction.I32Const{Value: 0})
-			instrs = append(instrs, instruction.I32GeS{})
-			instrs = append(instrs, instruction.BrIf{Index: 0})
-		case *ir.LessThanEqualStmt:
-			instrs = append(instrs, c.instrRead(stmt.A))
-			instrs = append(instrs, c.instrRead(stmt.B))
-			instrs = append(instrs, instruction.Call{Index: c.function(opaValueCompare)})
-			instrs = append(instrs, instruction.I32Const{Value: 0})
-			instrs = append(instrs, instruction.I32GtS{})
-			instrs = append(instrs, instruction.BrIf{Index: 0})
-		case *ir.GreaterThanStmt:
-			instrs = append(instrs, c.instrRead(stmt.A))
-			instrs = append(instrs, c.instrRead(stmt.B))
-			instrs = append(instrs, instruction.Call{Index: c.function(opaValueCompare)})
-			instrs = append(instrs, instruction.I32Const{Value: 0})
-			instrs = append(instrs, instruction.I32LeS{})
-			instrs = append(instrs, instruction.BrIf{Index: 0})
-		case *ir.GreaterThanEqualStmt:
-			instrs = append(instrs, c.instrRead(stmt.A))
-			instrs = append(instrs, c.instrRead(stmt.B))
-			instrs = append(instrs, instruction.Call{Index: c.function(opaValueCompare)})
-			instrs = append(instrs, instruction.I32Const{Value: 0})
-			instrs = append(instrs, instruction.I32LtS{})
-			instrs = append(instrs, instruction.BrIf{Index: 0})
 		case *ir.NotEqualStmt:
 			if stmt.A == stmt.B { // same local, same bool constant, or same string constant
 				instrs = append(instrs, instruction.Br{Index: 0})
