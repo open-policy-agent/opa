@@ -728,54 +728,7 @@ func (p *Planner) planExprCall(e *ast.Expr, iter planiter) error {
 	switch operator {
 	case ast.Equality.Name:
 		return p.planUnify(e.Operand(0), e.Operand(1), iter)
-	case ast.Equal.Name:
-		return p.planBinaryExpr(e, func(a, b ir.LocalOrConst) error {
-			p.appendStmt(&ir.EqualStmt{
-				A: a,
-				B: b,
-			})
-			return iter()
-		})
-	case ast.LessThan.Name:
-		return p.planBinaryExpr(e, func(a, b ir.LocalOrConst) error {
-			p.appendStmt(&ir.LessThanStmt{
-				A: a,
-				B: b,
-			})
-			return iter()
-		})
-	case ast.LessThanEq.Name:
-		return p.planBinaryExpr(e, func(a, b ir.LocalOrConst) error {
-			p.appendStmt(&ir.LessThanEqualStmt{
-				A: a,
-				B: b,
-			})
-			return iter()
-		})
-	case ast.GreaterThan.Name:
-		return p.planBinaryExpr(e, func(a, b ir.LocalOrConst) error {
-			p.appendStmt(&ir.GreaterThanStmt{
-				A: a,
-				B: b,
-			})
-			return iter()
-		})
-	case ast.GreaterThanEq.Name:
-		return p.planBinaryExpr(e, func(a, b ir.LocalOrConst) error {
-			p.appendStmt(&ir.GreaterThanEqualStmt{
-				A: a,
-				B: b,
-			})
-			return iter()
-		})
-	case ast.NotEqual.Name:
-		return p.planBinaryExpr(e, func(a, b ir.LocalOrConst) error {
-			p.appendStmt(&ir.NotEqualStmt{
-				A: a,
-				B: b,
-			})
-			return iter()
-		})
+
 	default:
 
 		var relation bool
