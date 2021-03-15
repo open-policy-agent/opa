@@ -96,6 +96,9 @@ func runAuthzBenchmark(b *testing.B, mode testAuthz.InputMode, numPaths int) {
 		// long it takes the golang client to unpack the response body.
 		b.StartTimer()
 		resp, err := testRuntime.GetDataWithRawInput(url, inputReader)
+		if err != nil {
+			b.Fatal(err)
+		}
 		b.StopTimer()
 
 		body, err := ioutil.ReadAll(resp)
