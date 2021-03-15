@@ -11,13 +11,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/open-policy-agent/opa/plugins"
-	"github.com/open-policy-agent/opa/runtime"
-
 	"github.com/sirupsen/logrus"
-
 	"github.com/sirupsen/logrus/hooks/test"
 
+	"github.com/open-policy-agent/opa/plugins"
+	"github.com/open-policy-agent/opa/runtime"
 	"github.com/open-policy-agent/opa/test/e2e"
 )
 

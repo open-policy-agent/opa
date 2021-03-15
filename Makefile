@@ -109,6 +109,10 @@ test-coverage: generate
 perf: generate
 	$(GO) test $(GO_TAGS),slow $(GO_TEST_TIMEOUT) -run=- -bench=. -benchmem ./...
 
+.PHONY: perf-noisy
+perf-noisy: generate
+	$(GO) test $(GO_TAGS),slow,noisy $(GO_TEST_TIMEOUT) -run=- -bench=. -benchmem ./...
+
 .PHONY: wasm-sdk-e2e-test
 wasm-sdk-e2e-test: generate
 	$(GO) test $(GO_TAGS),slow,wasm_sdk_e2e $(GO_TEST_TIMEOUT) -v ./internal/wasm/sdk/test/e2e
