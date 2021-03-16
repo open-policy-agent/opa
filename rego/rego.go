@@ -1924,36 +1924,26 @@ func (r *Rego) evalWasm(ctx context.Context, ectx *EvalContext) (ResultSet, erro
 		return nil, nil
 	}
 
-	qr := topdown.QueryResult{}
+	var rs ResultSet
 	err = resultSet.Iter(func(term *ast.Term) error {
 		obj, ok := term.Value.(ast.Object)
 		if !ok {
 			return fmt.Errorf("illegal result type")
 		}
-
+		qr := topdown.QueryResult{}
 		obj.Foreach(func(k, v *ast.Term) {
 			kvt := ast.VarTerm(string(k.Value.(ast.String)))
 			qr[kvt.Value.(ast.Var)] = v
 		})
-
+		result, err := r.generateResult(qr, ectx)
+		if err != nil {
+			return err
+		}
+		rs = append(rs, result)
 		return nil
 	})
-	if err != nil {
-		return nil, err
-	}
 
-	res, err := r.generateResult(qr, ectx)
-	if err != nil {
-		return nil, err
-	}
-
-	rs := ResultSet{res}
-
-	if len(rs) == 0 {
-		return nil, nil
-	}
-
-	return rs, nil
+	return rs, err
 }
 
 func (r *Rego) generateResult(qr topdown.QueryResult, ectx *EvalContext) (Result, error) {
