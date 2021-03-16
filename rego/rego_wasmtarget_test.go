@@ -56,7 +56,7 @@ func TestPrepareAndEvalWithWasmTarget(t *testing.T) {
 		t.Fatalf("Unexpected error: %s", err)
 	}
 
-	assertPreparedEvalQueryEval(t, pq, []EvalOption{}, "[[true, true]]")
+	assertPreparedEvalQueryEval(t, pq, []EvalOption{}, "[[true, true],[true, true]]")
 
 	pq, err = New(
 		Query("foo(100)"),
