@@ -463,6 +463,26 @@ func TestCompilerWasmTarget(t *testing.T) {
 	})
 }
 
+// If we're building a wasm bundle, and the `opa` binary we use to do that
+// does not support wasm _itself_, then it shouldn't bother.
+func TestCompilerWasmTargetWithCapabilitiesUnset(t *testing.T) {
+	files := map[string]string{
+		"test.rego": `package test
+
+		p = 7
+		q = p+1`,
+	}
+
+	test.WithTempFS(files, func(root string) {
+
+		compiler := New().WithPaths(root).WithTarget("wasm").WithEntrypoints("test/p", "test/q")
+		err := compiler.Build(context.Background())
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+	})
+}
+
 func TestCompilerWasmTargetWithCapabilitiesMismatch(t *testing.T) {
 	files := map[string]string{
 		"test.rego": `package test
@@ -473,11 +493,20 @@ func TestCompilerWasmTargetWithCapabilitiesMismatch(t *testing.T) {
 
 	test.WithTempFS(files, func(root string) {
 
-		compiler := New().WithPaths(root).WithTarget("wasm").WithEntrypoints("test/p", "test/q").
-			WithCapabilities(wasmABIVersions(ast.WasmABIVersion{Version: 0}, ast.WasmABIVersion{Version: 1, Minor: 2}, ast.WasmABIVersion{Version: 2}))
-		err := compiler.Build(context.Background())
-		if err == nil {
-			t.Fatal("expected err, got nil")
+		for note, wabis := range map[string][]ast.WasmABIVersion{
+			"none":     []ast.WasmABIVersion{},
+			"mismatch": []ast.WasmABIVersion{{Version: 0}, {Version: 1, Minor: 2}},
+		} {
+			t.Run(note, func(t *testing.T) {
+				caps := ast.CapabilitiesForThisVersion()
+				caps.WasmABIVersions = wabis
+				compiler := New().WithPaths(root).WithTarget("wasm").WithEntrypoints("test/p", "test/q").
+					WithCapabilities(caps)
+				err := compiler.Build(context.Background())
+				if err == nil {
+					t.Fatal("expected err, got nil")
+				}
+			})
 		}
 	})
 }
