@@ -775,10 +775,7 @@ func parseResponseHeaders(headers http.Header) (*responseHeaders, error) {
 		return nil, err
 	}
 
-	result.expires, err = getResponseHeaderExpires(headers)
-	if err != nil {
-		return nil, err
-	}
+	result.expires = getResponseHeaderExpires(headers)
 
 	result.etag = headers.Get("etag")
 
@@ -936,15 +933,22 @@ func getResponseHeaderDate(headers http.Header) (date time.Time, err error) {
 		err = fmt.Errorf("no date header")
 		return
 	}
-	return time.Parse(time.RFC1123, dateHeader)
+	return http.ParseTime(dateHeader)
 }
 
-func getResponseHeaderExpires(headers http.Header) (date time.Time, err error) {
+func getResponseHeaderExpires(headers http.Header) time.Time {
 	expiresHeader := headers.Get("expires")
 	if expiresHeader == "" {
-		return
+		return time.Time{}
 	}
-	return time.Parse(time.RFC1123, expiresHeader)
+
+	date, err := http.ParseTime(expiresHeader)
+	if err != nil {
+		// servers can set `Expires: 0` which is an invalid date to indicate expired content
+		return time.Time{}
+	}
+
+	return date
 }
 
 // parseMaxAgeCacheDirective parses the max-age directive expressed in delta-seconds as per
