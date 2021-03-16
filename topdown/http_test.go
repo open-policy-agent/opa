@@ -978,6 +978,9 @@ func TestHTTPSendInterQueryCaching(t *testing.T) {
 
 	data := loadSmallTestData()
 
+	t0 := time.Now()
+	opts := setTime(t0)
+
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
 
@@ -989,6 +992,8 @@ func TestHTTPSendInterQueryCaching(t *testing.T) {
 				for k, v := range tc.headers {
 					headers[k] = v
 				}
+
+				headers.Set("Date", t0.Format(time.RFC1123))
 
 				etag := w.Header().Get("etag")
 				lm := w.Header().Get("last-modified")
@@ -1008,7 +1013,7 @@ func TestHTTPSendInterQueryCaching(t *testing.T) {
 			}))
 			defer ts.Close()
 
-			runTopDownTestCase(t, data, tc.note, []string{strings.ReplaceAll(tc.ruleTemplate, "%URL%", ts.URL)}, tc.response)
+			runTopDownTestCase(t, data, tc.note, []string{strings.ReplaceAll(tc.ruleTemplate, "%URL%", ts.URL)}, tc.response, opts)
 
 			// Note: The runTopDownTestCase ends up evaluating twice (once with and once without partial
 			// eval first), so expect 2x the total request count the test case specified.
@@ -1095,6 +1100,9 @@ func TestHTTPSendInterQueryForceCaching(t *testing.T) {
 
 	data := loadSmallTestData()
 
+	t0 := time.Now()
+	opts := setTime(t0)
+
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
 
@@ -1107,12 +1115,14 @@ func TestHTTPSendInterQueryForceCaching(t *testing.T) {
 					headers[k] = v
 				}
 
+				headers.Set("Date", t0.Format(time.RFC1123))
+
 				w.WriteHeader(http.StatusOK)
 				w.Write([]byte(tc.response))
 			}))
 			defer ts.Close()
 
-			runTopDownTestCase(t, data, tc.note, []string{strings.ReplaceAll(tc.ruleTemplate, "%URL%", ts.URL)}, tc.response)
+			runTopDownTestCase(t, data, tc.note, []string{strings.ReplaceAll(tc.ruleTemplate, "%URL%", ts.URL)}, tc.response, opts)
 
 			// Note: The runTopDownTestCase ends up evaluating twice (once with and once without partial
 			// eval first), so expect 2x the total request count the test case specified.
@@ -1162,6 +1172,9 @@ func TestHTTPSendInterQueryCachingModifiedResp(t *testing.T) {
 
 	data := loadSmallTestData()
 
+	t0 := time.Now()
+	opts := setTime(t0)
+
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
 
@@ -1173,6 +1186,8 @@ func TestHTTPSendInterQueryCachingModifiedResp(t *testing.T) {
 				for k, v := range tc.headers {
 					headers[k] = v
 				}
+
+				headers.Set("Date", t0.Format(time.RFC1123))
 
 				etag := w.Header().Get("etag")
 
@@ -1190,7 +1205,7 @@ func TestHTTPSendInterQueryCachingModifiedResp(t *testing.T) {
 			}))
 			defer ts.Close()
 
-			runTopDownTestCase(t, data, tc.note, []string{strings.ReplaceAll(tc.ruleTemplate, "%URL%", ts.URL)}, tc.response)
+			runTopDownTestCase(t, data, tc.note, []string{strings.ReplaceAll(tc.ruleTemplate, "%URL%", ts.URL)}, tc.response, opts)
 
 			// Note: The runTopDownTestCase ends up evaluating twice (once with and once without partial
 			// eval first), so expect 2x the total request count the test case specified.
@@ -1227,6 +1242,9 @@ func TestHTTPSendInterQueryCachingNewResp(t *testing.T) {
 
 	data := loadSmallTestData()
 
+	t0 := time.Now()
+	opts := setTime(t0)
+
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
 
@@ -1238,6 +1256,8 @@ func TestHTTPSendInterQueryCachingNewResp(t *testing.T) {
 				for k, v := range tc.headers {
 					headers[k] = v
 				}
+
+				headers.Set("Date", t0.Format(time.RFC1123))
 
 				etag := w.Header().Get("etag")
 
@@ -1251,7 +1271,7 @@ func TestHTTPSendInterQueryCachingNewResp(t *testing.T) {
 			}))
 			defer ts.Close()
 
-			runTopDownTestCase(t, data, tc.note, []string{strings.ReplaceAll(tc.ruleTemplate, "%URL%", ts.URL)}, tc.response)
+			runTopDownTestCase(t, data, tc.note, []string{strings.ReplaceAll(tc.ruleTemplate, "%URL%", ts.URL)}, tc.response, opts)
 
 			// Note: The runTopDownTestCase ends up evaluating twice (once with and once without partial
 			// eval first), so expect 2x the total request count the test case specified.
