@@ -405,10 +405,16 @@ func loadSmallTestData() map[string]interface{} {
 	return data
 }
 
-func runTopDownTestCase(t *testing.T, data map[string]interface{}, note string, rules []string, expected interface{}) {
+func setTime(t time.Time) func(*Query) *Query {
+	return func(q *Query) *Query {
+		return q.WithTime(t)
+	}
+}
+
+func runTopDownTestCase(t *testing.T, data map[string]interface{}, note string, rules []string, expected interface{}, options ...func(*Query) *Query) {
 	t.Helper()
 
-	runTopDownTestCaseWithContext(context.Background(), t, data, note, rules, nil, "", expected)
+	runTopDownTestCaseWithContext(context.Background(), t, data, note, rules, nil, "", expected, options...)
 }
 
 func runTopDownTestCaseWithModules(t *testing.T, data map[string]interface{}, note string, rules []string, modules []string, input string, expected interface{}) {
@@ -417,7 +423,8 @@ func runTopDownTestCaseWithModules(t *testing.T, data map[string]interface{}, no
 	runTopDownTestCaseWithContext(context.Background(), t, data, note, rules, modules, input, expected)
 }
 
-func runTopDownTestCaseWithContext(ctx context.Context, t *testing.T, data map[string]interface{}, note string, rules []string, modules []string, input string, expected interface{}) {
+func runTopDownTestCaseWithContext(ctx context.Context, t *testing.T, data map[string]interface{}, note string, rules []string, modules []string, input string, expected interface{},
+	options ...func(*Query) *Query) {
 	t.Helper()
 
 	imports := []string{}
@@ -437,7 +444,7 @@ func runTopDownTestCaseWithContext(ctx context.Context, t *testing.T, data map[s
 
 	store := inmem.NewFromObject(data)
 
-	assertTopDownWithPathAndContext(ctx, t, compiler, store, note, []string{"generated", "p"}, input, expected)
+	assertTopDownWithPathAndContext(ctx, t, compiler, store, note, []string{"generated", "p"}, input, expected, options...)
 }
 
 func assertTopDownWithPath(t *testing.T, compiler *ast.Compiler, store storage.Store, note string, path []string, input string, expected interface{}) {
@@ -446,7 +453,8 @@ func assertTopDownWithPath(t *testing.T, compiler *ast.Compiler, store storage.S
 	assertTopDownWithPathAndContext(context.Background(), t, compiler, store, note, path, input, expected)
 }
 
-func assertTopDownWithPathAndContext(ctx context.Context, t *testing.T, compiler *ast.Compiler, store storage.Store, note string, path []string, input string, expected interface{}) {
+func assertTopDownWithPathAndContext(ctx context.Context, t *testing.T, compiler *ast.Compiler, store storage.Store, note string, path []string, input string, expected interface{},
+	options ...func(*Query) *Query) {
 	t.Helper()
 
 	var inputTerm *ast.Term
@@ -508,6 +516,10 @@ func assertTopDownWithPathAndContext(ctx context.Context, t *testing.T, compiler
 
 	if os.Getenv("OPA_TRACE_TEST") != "" {
 		query = query.WithTracer(&tracer)
+	}
+
+	for _, opt := range options {
+		query = opt(query)
 	}
 
 	t.Run(note, func(t *testing.T) {
