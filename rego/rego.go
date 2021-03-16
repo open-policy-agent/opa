@@ -1440,10 +1440,15 @@ func (r *Rego) PrepareForEval(ctx context.Context, opts ...PrepareOption) (Prepa
 			},
 		},
 	})
+	if err != nil {
+		txnClose(ctx, err) // Ignore error
+		return PreparedEvalQuery{}, err
+	}
 
 	if r.target == targetWasm {
 
 		if r.hasWasmModule() {
+			txnClose(ctx, err) // Ignore error
 			return PreparedEvalQuery{}, fmt.Errorf("wasm target not supported")
 		}
 
@@ -1456,16 +1461,19 @@ func (r *Rego) PrepareForEval(ctx context.Context, opts ...PrepareOption) (Prepa
 
 		cr, err := r.compileWasm(modules, queries, evalQueryType)
 		if err != nil {
+			txnClose(ctx, err) // Ignore error
 			return PreparedEvalQuery{}, err
 		}
 
 		data, err := r.store.Read(ctx, r.txn, storage.Path{})
 		if err != nil {
+			txnClose(ctx, err) // Ignore error
 			return PreparedEvalQuery{}, err
 		}
 
 		o, err := opa.New().WithPolicyBytes(cr.Bytes).WithDataJSON(data).Init()
 		if err != nil {
+			txnClose(ctx, err) // Ignore error
 			return PreparedEvalQuery{}, err
 		}
 		r.opa = o

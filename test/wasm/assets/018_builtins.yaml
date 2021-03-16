@@ -1,4 +1,70 @@
 cases:
+  - note: equal built-in (true)
+    query: equal(1,1,x)
+    want_result:
+    - x: true
+  - # NOTE: This is a property of the planner/compiler interaction, more so
+    # than it is a property of the builtin implementation. Therefore, we only
+    # assert it once for equal/true, equal/false; instead of duplicating all
+    # the other comparison test cases.
+    note: equal built-in (true, result not captured)
+    query: equal(1,1)
+    want_defined: true
+  - note: equal built-in (false)
+    query: equal(1,2,x)
+    want_result:
+    - x: false
+  - note: equal built-in (false, result not captured)
+    query: equal(1,2)
+    want_defined: false
+  - note: gt built-in (true)
+    query: gt(1,0,x)
+    want_result:
+    - x: true
+  - note: gt built-in (false)
+    query: gt(1,2,x)
+    want_result:
+    - x: false
+  - note: gte built-in (true)
+    query: gte(1,0,x)
+    want_result:
+    - x: true
+  - note: gte built-in (true, equal)
+    query: gte(1,1,x)
+    want_result:
+    - x: true
+  - note: gte built-in (false)
+    query: gte(1,2,x)
+    want_result:
+    - x: false
+  - note: lt built-in (true)
+    query: lt(0,1,x)
+    want_result:
+    - x: true
+  - note: lt built-in (false)
+    query: lt(2,1,x)
+    want_result:
+    - x: false
+  - note: lte built-in (true)
+    query: lte(0,1,x)
+    want_result:
+    - x: true
+  - note: lte built-in (true, equal)
+    query: lte(0,0,x)
+    want_result:
+    - x: true
+  - note: lte built-in (false)
+    query: lte(2,1,x)
+    want_result:
+    - x: false
+  - note: neq built-in (true)
+    query: neq(0,1,x)
+    want_result:
+    - x: true
+  - note: neq built-in (false)
+    query: neq(1,1,x)
+    want_result:
+    - x: false
   - note: abs built-in
     query: abs(-1,x)
     want_result: [{'x': 1}]

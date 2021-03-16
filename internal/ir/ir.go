@@ -356,38 +356,6 @@ type EqualStmt struct {
 	Location
 }
 
-// LessThanStmt represents a < check of two local variables.
-type LessThanStmt struct {
-	A LocalOrConst
-	B LocalOrConst
-
-	Location
-}
-
-// LessThanEqualStmt represents a <= check of two local variables.
-type LessThanEqualStmt struct {
-	A LocalOrConst
-	B LocalOrConst
-
-	Location
-}
-
-// GreaterThanStmt represents a > check of two local variables.
-type GreaterThanStmt struct {
-	A LocalOrConst
-	B LocalOrConst
-
-	Location
-}
-
-// GreaterThanEqualStmt represents a >= check of two local variables.
-type GreaterThanEqualStmt struct {
-	A LocalOrConst
-	B LocalOrConst
-
-	Location
-}
-
 // NotEqualStmt represents a != check of two local variables.
 type NotEqualStmt struct {
 	A LocalOrConst

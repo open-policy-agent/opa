@@ -57,6 +57,15 @@ func TestPrepareAndEvalWithWasmTarget(t *testing.T) {
 	}
 
 	assertPreparedEvalQueryEval(t, pq, []EvalOption{}, "[[true, true]]")
+
+	pq, err = New(
+		Query("foo(100)"),
+		Target("wasm"),
+	).PrepareForEval(ctx)
+
+	if err == nil {
+		t.Fatal("Expected error")
+	}
 }
 
 func TestPrepareAndEvalWithWasmTargetModulesOnCompiler(t *testing.T) {
