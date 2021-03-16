@@ -888,6 +888,17 @@ integrations:
       - https://www.fairwinds.com/blog/why-kubernetes-policy-enforcement
       - https://www.fairwinds.com/blog/an-interview-with-flatfile-on-why-fairwinds-insights-kubernetes-configuration-validation
 
+  flask-opa:
+    title: Flask-OPA
+    description: Simple to use Flask extension that lets you secure your projects with OPA. It allows HTTP API Authorization and Policy Enforcement Point (AOP using decorators on methods).
+    labels:
+      category: flask
+      layer: library
+    code:
+      - https://github.com/EliuX/flask-opa
+    blogs:
+      - https://github.com/EliuX/flask-opa/tree/master/examples
+
 organizations:
   styra:
     name: Styra
@@ -1113,3 +1124,6 @@ software:
   helm:
     name: Helm
     link: https://helm.sh/
+  flask:
+    name: Flask
+    link: https://flask.palletsprojects.com/
