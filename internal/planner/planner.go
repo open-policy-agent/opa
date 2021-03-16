@@ -544,9 +544,7 @@ func (p *Planner) planNot(e *ast.Expr, iter planiter) error {
 	prev := p.curr
 	p.curr = not.Block
 
-	if err := p.planExpr(e.Complement(), func() error {
-		return nil
-	}); err != nil {
+	if err := p.planExpr(e.Complement(), func() error { return nil }); err != nil {
 		return err
 	}
 
@@ -1580,6 +1578,23 @@ func (p *Planner) planRefData(virtual *ruletrie, base *baseptr, ref ast.Ref, ind
 		}); err != nil {
 			return err
 		}
+	}
+
+	// If all variables are known, and there's no virtual docs to worry
+	// about, we can avoid scanning, and plan a simple dot-dot-dot sequence
+	// instead.
+	scan := false
+	ast.WalkVars(ref[index], func(v ast.Var) bool {
+		if !scan {
+			_, exists := p.vars.Get(v)
+			if !exists {
+				scan = true
+			}
+		}
+		return scan
+	})
+	if !scan && exclude.Len() == 0 {
+		return p.planRefRec(ref, index, iter)
 	}
 
 	p.ltarget = base.local
