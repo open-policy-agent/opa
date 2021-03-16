@@ -1675,9 +1675,15 @@ func TestDataProvenanceSingleBundle(t *testing.T) {
 		t.Errorf("Unexpected provenance data: \n\n%+v\n\nExpected:\n%+v\n\n", result.Provenance, expectedProvenance)
 	}
 
+	ctx := context.Background()
+
 	// Update bundle revision and request again
-	f.server.revisions["b1"] = "r1"
-	f.server.legacyRevision = "r1"
+	err := storage.Txn(ctx, f.server.store, storage.WriteParams, func(txn storage.Transaction) error {
+		return bundle.LegacyWriteManifestToStore(ctx, f.server.store, txn, bundle.Manifest{Revision: "r1"})
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	req = newReqV1(http.MethodPost, "/data?provenance", "")
 	f.reset()
@@ -1711,7 +1717,14 @@ func TestDataProvenanceSingleFileBundle(t *testing.T) {
 	version.Hostname = "foo.bar.com"
 
 	// No bundle plugin initialized, just a legacy revision set
-	f.server.legacyRevision = "r1"
+	ctx := context.Background()
+
+	err := storage.Txn(ctx, f.server.store, storage.WriteParams, func(txn storage.Transaction) error {
+		return bundle.LegacyWriteManifestToStore(ctx, f.server.store, txn, bundle.Manifest{Revision: "r1"})
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	req := newReqV1(http.MethodPost, "/data?provenance", "")
 	f.reset()
@@ -1783,7 +1796,14 @@ func TestDataProvenanceMultiBundle(t *testing.T) {
 	}
 
 	// Update bundle revision for a single bundle and make the request again
-	f.server.revisions["b1"] = "r1"
+	ctx := context.Background()
+
+	err := storage.Txn(ctx, f.server.store, storage.WriteParams, func(txn storage.Transaction) error {
+		return bundle.WriteManifestToStore(ctx, f.server.store, txn, "b1", bundle.Manifest{Revision: "r1"})
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	req = newReqV1(http.MethodPost, "/data?provenance", "")
 	f.reset()
@@ -1808,8 +1828,16 @@ func TestDataProvenanceMultiBundle(t *testing.T) {
 	}
 
 	// Update both and check again
-	f.server.revisions["b1"] = "r2"
-	f.server.revisions["b2"] = "r1"
+	err = storage.Txn(ctx, f.server.store, storage.WriteParams, func(txn storage.Transaction) error {
+		err := bundle.WriteManifestToStore(ctx, f.server.store, txn, "b1", bundle.Manifest{Revision: "r2"})
+		if err != nil {
+			return err
+		}
+		return bundle.WriteManifestToStore(ctx, f.server.store, txn, "b2", bundle.Manifest{Revision: "r1"})
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	req = newReqV1(http.MethodPost, "/data?provenance", "")
 	f.reset()
