@@ -65,6 +65,10 @@ func TestPlannerHelloWorld(t *testing.T) {
 			queries: []string{"not input.x.y = 1"},
 		},
 		{
+			note:    "not and known vars", // https://github.com/open-policy-agent/opa/issues/3279
+			queries: []string{`x = "foo"; not data.tenants[x]`},
+		},
+		{
 			note:    "array ref pattern match",
 			queries: []string{"input.x = [1, [y]]"},
 		},

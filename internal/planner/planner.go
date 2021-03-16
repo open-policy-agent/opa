@@ -536,7 +536,6 @@ func (p *Planner) planExpr(e *ast.Expr, iter planiter) error {
 }
 
 func (p *Planner) planNot(e *ast.Expr, iter planiter) error {
-
 	not := &ir.NotStmt{
 		Block: &ir.Block{},
 	}
@@ -544,9 +543,7 @@ func (p *Planner) planNot(e *ast.Expr, iter planiter) error {
 	prev := p.curr
 	p.curr = not.Block
 
-	if err := p.planExpr(e.Complement(), func() error {
-		return nil
-	}); err != nil {
+	if err := p.planExpr(e.Complement(), func() error { return nil }); err != nil {
 		return err
 	}
 
@@ -1414,19 +1411,7 @@ func (p *Planner) planRefRec(ref ast.Ref, index int, iter planiter) error {
 		return iter()
 	}
 
-	scan := false
-
-	ast.WalkVars(ref[index], func(v ast.Var) bool {
-		if !scan {
-			_, exists := p.vars.Get(v)
-			if !exists {
-				scan = true
-			}
-		}
-		return scan
-	})
-
-	if !scan {
+	if !p.unseenVars(ref[index]) {
 		return p.planDot(ref[index], func() error {
 			return p.planRefRec(ref, index+1, iter)
 		})
@@ -1580,32 +1565,36 @@ func (p *Planner) planRefData(virtual *ruletrie, base *baseptr, ref ast.Ref, ind
 		}); err != nil {
 			return err
 		}
+
+		// Perform a scan of the base documents starting from the location referred
+		// to by the 'path' data pointer. Use the `lexclude` set to avoid revisiting
+		// sub trees.
+		p.ltarget = base.local
+		return p.planRefRec(base.path, 0, func() error {
+			return p.planScan(ref[index], func(lkey ir.Local) error {
+				if lexclude != nil {
+					lignore := p.newLocal()
+					p.appendStmt(&ir.NotStmt{
+						Block: p.blockWithStmt(&ir.DotStmt{
+							Source: *lexclude,
+							Key:    lkey,
+							Target: lignore,
+						})})
+				}
+
+				// Assume that virtual sub trees have been visited already so
+				// recurse without the virtual node.
+				return p.planRefData(nil, &baseptr{local: p.ltarget.(ir.Local)}, ref, index+1, iter)
+			})
+		})
 	}
 
+	// There is nothing to exclude, so we do the same thing done above, but
+	// use planRefRec to avoid the scan if ref[index] is ground or seen.
 	p.ltarget = base.local
-	return p.planRefDataBaseScan(base.path, ref, index, lexclude, iter)
-}
-
-// Perform a scan of the base documents starting from the location referred
-// to by the 'path' data pointer. Use the set (planned into 'lexclude') to
-// avoid revisiting sub trees.
-func (p *Planner) planRefDataBaseScan(path ast.Ref, ref ast.Ref, index int, lexclude *ir.Local, iter planiter) error {
-	return p.planRefRec(path, 0, func() error {
-		return p.planScan(ref[index], func(lkey ir.Local) error {
-			if lexclude != nil {
-				lignore := p.newLocal()
-				p.appendStmt(&ir.NotStmt{
-					Block: p.blockWithStmt(&ir.DotStmt{
-						Source: *lexclude,
-						Key:    lkey,
-						Target: lignore,
-					})})
-			}
-
-			// Assume that virtual sub trees have been visited already so
-			// recurse without the virtual node.
-			return p.planRefData(nil, &baseptr{local: p.ltarget.(ir.Local)}, ref, index+1, iter)
-		})
+	base.path = append(base.path, ref[index])
+	return p.planRefRec(base.path, 0, func() error {
+		return p.planRefData(nil, &baseptr{local: p.ltarget.(ir.Local)}, ref, index+1, iter)
 	})
 }
 
@@ -2058,10 +2047,16 @@ func (p *Planner) optimizeLookup(t *ruletrie, ref ast.Ref) ([][]*ast.Rule, []ir.
 	return res, path, index, true
 }
 
-func (p *Planner) seenVar(ref *ast.Term) (bool, bool) {
-	if v, ok := ref.Value.(ast.Var); ok {
-		_, ok := p.vars.Get(v)
-		return true, ok
-	}
-	return false, false
+func (p *Planner) unseenVars(t *ast.Term) bool {
+	unseen := false // any var unseen?
+	ast.WalkVars(t, func(v ast.Var) bool {
+		if !unseen {
+			_, exists := p.vars.Get(v)
+			if !exists {
+				unseen = true
+			}
+		}
+		return unseen
+	})
+	return unseen
 }

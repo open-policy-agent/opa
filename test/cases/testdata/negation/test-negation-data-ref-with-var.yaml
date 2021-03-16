@@ -1,0 +1,56 @@
+cases:
+- data:
+    b:
+      v1: hello
+      v2: goodbye
+  modules:
+  - |
+    package test
+
+    p = y {
+      y := "v0"
+      not data.test.q[y]
+    }
+
+    q[x] {
+      data.b[x] = v
+    }
+  note: 'negation/pos: ref with variable'
+  query: data.test.p = x
+  want_result:
+  - x: v0
+- data:
+    b:
+      v1: hello
+      v2: goodbye
+  modules:
+  - |
+    package test
+
+    p = y {
+      y := "v1"
+      not data.test.q[y]
+    }
+
+    q[x] {
+      data.b[x] = v
+    }
+  note: 'negation/neg: ref with variable'
+  query: data.test.p = x
+  want_result: []
+- data:
+    bar:
+      q: 8
+  modules:
+  - |
+    package foo
+    p {
+      k := "p"
+      not data.bar[k]
+    }
+  - |
+    package bar
+    p = 7
+  note: 'negation/neg: ref with variable and virtual doc'
+  query: data.foo.p = x
+  want_result: []
