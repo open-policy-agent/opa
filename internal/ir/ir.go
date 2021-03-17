@@ -185,20 +185,32 @@ type CallDynamicStmt struct {
 
 // LocalOrConst is a tagged union of the two types, Local and StringIndex.
 // It's used with CallDynamicStmt.
-type LocalOrConst interface{ localOrConst() }
+type LocalOrConst interface {
+	fmt.Stringer
+	localOrConst()
+}
 
 func (Local) localOrConst() {}
+func (l Local) String() string {
+	return fmt.Sprintf("Local<%d>", int(l))
+}
 
 // StringIndex represents the index into the plan's list of constant strings
 // of a constant string.
 type StringIndex int
 
 func (StringIndex) localOrConst() {}
+func (s StringIndex) String() string {
+	return fmt.Sprintf("String<%d>", int(s))
+}
 
 // Bool represents a constant boolean.
 type Bool bool
 
 func (Bool) localOrConst() {}
+func (b Bool) String() string {
+	return fmt.Sprintf("Bool<%v>", bool(b))
+}
 
 // BlockStmt represents a nested block. Nested blocks and break statements can
 // be used to short-circuit execution.
