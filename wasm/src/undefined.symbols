@@ -5,3 +5,13 @@ opa_builtin1
 opa_builtin2
 opa_builtin3
 opa_builtin4
+proxy_log
+proxy_get_buffer_bytes
+proxy_set_tick_period_milliseconds
+proxy_get_header_map_pairs
+proxy_add_header_map_value
+proxy_replace_header_map_value
+proxy_remove_header_map_value
+proxy_set_buffer_bytes
+proxy_get_property
+proxy_send_local_response

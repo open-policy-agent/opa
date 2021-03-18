@@ -21,7 +21,8 @@ CFLAGS += \
 	-I src/lib \
 	-I src/libmpdec \
 	-DCONFIG_32 \
-	-DANSI
+	-DANSI \
+	-DOPA_PROXY_WASM
 
 CPPFLAGS += \
 	-std=c++17 \
@@ -31,12 +32,14 @@ CPPFLAGS += \
 	--target=wasm32-unknown-unknown-wasm \
 	-fno-exceptions \
 	-fno-rtti \
+	-I sdk \
 	-I src/lib \
 	-I src/libc++ \
 	-I /usr/lib/llvm-11/include/c++/v1 \
 	-I /usr/lib/llvm-11/lib/clang/11.0.0/include \
 	-I src/re2 \
-	-D_LIBCPP_HAS_NO_THREADS
+	-D_LIBCPP_HAS_NO_THREADS \
+	-DOPA_PROXY_WASM
 
 ifeq ($(DEBUG), 1)
 CFLAGS += -O1 -gdwarf -DDEBUG
@@ -83,11 +86,12 @@ $(shell mkdir -p $(WASM_OBJ_DIR)/src/libmpdec)
 $(shell mkdir -p $(WASM_OBJ_DIR)/src/libc++)
 $(shell mkdir -p $(WASM_OBJ_DIR)/src/re2/re2)
 $(shell mkdir -p $(WASM_OBJ_DIR)/src/re2/util)
-$(shell mkdir -p $(WASM_OBJ_DIR)/src)
+$(shell mkdir -p $(WASM_OBJ_DIR)/sdk)
 $(shell mkdir -p $(WASM_OBJ_DIR)/tests)
 
 SRCS := $(sort $(wildcard src/*.c))
 CPP_SRCS := $(sort $(wildcard src/*.cc))
+PROXY_WASM_SRCS := sdk/proxy_wasm_intrinsics.cc
 LIB_SRCS := $(sort $(wildcard src/lib/*.c))
 LIB_MPDEC_SRCS := $(sort $(wildcard src/libmpdec/*.c))
 LIB_CPP_SRCS := $(sort $(wildcard src/libc++/*.cc))
@@ -98,6 +102,7 @@ TEST_CPP_SRCS := $(sort $(wildcard tests/*.cc))
 
 -include $(patsubst %.c,$(WASM_OBJ_DIR)/%.d,$(SRCS))
 -include $(patsubst %.cc,$(WASM_OBJ_DIR)/%.d,$(CPP_SRCS))
+-include $(patsubst %.cc,$(WASM_OBJ_DIR)/%.d,$(PROXY_WASM_SRCS))
 -include $(patsubst %.c,$(WASM_OBJ_DIR)/%.d,$(LIB_SRCS))
 -include $(patsubst %.c,$(WASM_OBJ_DIR)/%.d,$(LIB_MPDEC_SRCS))
 -include $(patsubst %.cc,$(WASM_OBJ_DIR)/%.d,$(LIB_CPP_SRCS))
@@ -108,6 +113,7 @@ TEST_CPP_SRCS := $(sort $(wildcard tests/*.cc))
 
 OBJS := $(patsubst %.c, $(WASM_OBJ_DIR)/%.wasm, $(SRCS))
 CPP_OBJS := $(patsubst %.cc, $(WASM_OBJ_DIR)/%.wasm, $(CPP_SRCS))
+PROXY_WASM_OBJS := $(patsubst %.cc, $(WASM_OBJ_DIR)/%.wasm, $(PROXY_WASM_SRCS))
 LIB_OBJS := $(patsubst %.c, $(WASM_OBJ_DIR)/%.wasm, $(LIB_SRCS))
 LIB_MPDEC_OBJS := $(patsubst %.c, $(WASM_OBJ_DIR)/%.wasm, $(LIB_MPDEC_SRCS))
 LIB_CPP_OBJS := $(patsubst %.cc, $(WASM_OBJ_DIR)/%.wasm, $(LIB_CPP_SRCS))
@@ -120,6 +126,9 @@ $(OBJS): $(WASM_OBJ_DIR)/src/%.wasm: src/%.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 $(CPP_OBJS): $(WASM_OBJ_DIR)/src/%.wasm: src/%.cc
+	$(CXX) $(CPPFLAGS) -c -o $@ $<
+
+$(PROXY_WASM_OBJS): $(WASM_OBJ_DIR)/sdk/%.wasm: sdk/%.cc
 	$(CXX) $(CPPFLAGS) -c -o $@ $<
 
 $(LIB_OBJS): $(WASM_OBJ_DIR)/src/lib/%.wasm: src/lib/%.c
@@ -143,10 +152,11 @@ $(TEST_OBJS): $(WASM_OBJ_DIR)/tests/%.wasm: tests/%.c
 $(TEST_CPP_OBJS): $(WASM_OBJ_DIR)/tests/%.wasm: tests/%.cc
 	$(CXX) $(CPPFLAGS) -I src -c -o $@ $<
 
-$(WASM_OBJ_DIR)/opa.wasm: $(OBJS) $(CPP_OBJS) $(LIB_OBJS) $(LIB_MPDEC_OBJS) $(LIB_CPP_OBJS) $(RE2_RE2_OBJS) $(RE2_UTIL_OBJS)
+$(WASM_OBJ_DIR)/opa.wasm: $(OBJS) $(CPP_OBJS) $(LIB_OBJS) $(LIB_MPDEC_OBJS) $(LIB_CPP_OBJS) $(RE2_RE2_OBJS) $(RE2_UTIL_OBJS) $(PROXY_WASM_OBJS)
 	wasm-ld-11 \
 			--allow-undefined-file=src/undefined.symbols \
 			--import-memory \
+			--export-dynamic \
 			--no-entry \
 			-o $@ $^
 	@wasm2wat $(WASM_OBJ_DIR)/opa.wasm > $(WASM_OBJ_DIR)/opa.wast

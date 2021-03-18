@@ -252,7 +252,9 @@ func New() *Compiler {
 		c.compilePlans,
 
 		// "local" optimizations
-		c.removeUnusedCode,
+		// TODO(sr): we now need some C++ besides re2, so we can't toss
+		// it all out.
+		// c.removeUnusedCode,
 
 		// final emissions
 		c.emitFuncs,
@@ -886,6 +888,7 @@ func (c *Compiler) emitMapping() error {
 	c.appendInstr(instruction.I32Const{Value: dataOffset})
 	c.appendInstr(instruction.I32Const{Value: int32(len(jsonMap))})
 	c.appendInstr(instruction.Call{Index: c.function(opaMappingInit)})
+	c.appendInstr(instruction.Call{Index: c.function("_register_proxy_wasm")})
 	c.emitFunctionDecl(fName, module.FunctionType{}, false)
 	idx := c.function(fName)
 	c.module.Start.FuncIndex = &idx
@@ -899,6 +902,8 @@ func (c *Compiler) emitMapping() error {
 // differentiate that some unknown symbols (opa_abort, opa_builtin0, etc) should
 // be created as imports, and other should be ignored. So, we're having a stub
 // implementation in wasm/src/value.c that'll get replaced here.
+// TODO(sr): I believe we could deduplicate this code by using storeFunc for this,
+// too. c.funcs should have the ID of the runtime function...?
 func (c *Compiler) replaceBooleanFunc() error {
 	c.code = &module.CodeEntry{}
 	c.appendInstr(instruction.I32Const{Value: int32(c.opaBoolAddrs[true])})
@@ -1490,12 +1495,17 @@ func (c *Compiler) compileExternalCall(stmt *ir.CallStmt, id int32, result *[]in
 }
 
 func (c *Compiler) emitFunctionDecl(name string, tpe module.FunctionType, export bool) {
-
-	typeIndex := c.emitFunctionType(tpe)
-	c.module.Function.TypeIndices = append(c.module.Function.TypeIndices, typeIndex)
-	c.module.Code.Segments = append(c.module.Code.Segments, module.RawCodeSegment{})
-	idx := uint32((len(c.module.Function.TypeIndices) - 1) + c.functionImportCount())
-	c.funcs[name] = idx
+	var idx uint32
+	if old, ok := c.funcs[name]; ok {
+		c.debug.Printf("function %s: over-writing old index %d", name, old)
+		idx = old
+	} else {
+		typeIndex := c.emitFunctionType(tpe)
+		c.module.Function.TypeIndices = append(c.module.Function.TypeIndices, typeIndex)
+		c.module.Code.Segments = append(c.module.Code.Segments, module.RawCodeSegment{})
+		idx = uint32((len(c.module.Function.TypeIndices) - 1) + c.functionImportCount())
+		c.funcs[name] = idx
+	}
 
 	if export {
 		c.module.Export.Exports = append(c.module.Export.Exports, module.Export{

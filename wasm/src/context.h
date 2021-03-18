@@ -3,6 +3,10 @@
 
 #include "value.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct
 {
     opa_value *input;
@@ -23,4 +27,11 @@ opa_value *opa_builtin2(int, void *, opa_value *, opa_value *);
 opa_value *opa_builtin3(int, void *, opa_value *, opa_value *, opa_value *);
 opa_value *opa_builtin4(int, void *, opa_value *, opa_value *, opa_value *, opa_value *);
 
+#ifdef OPA_PROXY_WASM
+void *eval(opa_eval_ctx_t *ctx);
+#endif
+
+#ifdef __cplusplus
+}
+#endif
 #endif

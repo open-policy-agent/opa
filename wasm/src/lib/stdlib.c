@@ -7,6 +7,14 @@
 #include "../malloc.h"
 #include "../std.h"
 
+#ifdef OPA_PROXY_WASM
+// NOTE(sr): Avoids the import of `opa_abort`
+void opa_abort(const char *msg)
+{
+    while (true) {}
+}
+#endif
+
 void abort(void)
 {
     while (true)
@@ -15,6 +23,9 @@ void abort(void)
     }
 }
 
+#ifdef OPA_PROXY_WASM
+WASM_EXPORT(malloc)
+#endif
 void *malloc(size_t size)
 {
     return opa_malloc(size);
