@@ -287,7 +287,7 @@ spec:
         - "--addr=localhost:8181"
         - "--diagnostic-addr=0.0.0.0:8282"
         - "--set=plugins.envoy_ext_authz_grpc.addr=:9191"
-        - "--set=plugins.envoy_ext_authz_grpc.query=data.envoy.authz.allow"
+        - "--set=plugins.envoy_ext_authz_grpc.path=envoy/authz/allow"
         - "--set=decision_logs.console=true"
         - "--ignore=.*"
         - "/policy/policy.rego"
