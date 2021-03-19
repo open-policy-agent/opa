@@ -7,6 +7,7 @@ package config
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -18,19 +19,19 @@ import (
 
 // Config represents the configuration file that OPA can be started with.
 type Config struct {
-	Services                     json.RawMessage            `json:"services"`
-	Labels                       map[string]string          `json:"labels"`
-	Discovery                    json.RawMessage            `json:"discovery"`
-	Bundle                       json.RawMessage            `json:"bundle"` // Deprecated: Use `bundles` instead
-	Bundles                      json.RawMessage            `json:"bundles"`
-	DecisionLogs                 json.RawMessage            `json:"decision_logs"`
-	Status                       json.RawMessage            `json:"status"`
-	Plugins                      map[string]json.RawMessage `json:"plugins"`
-	Keys                         json.RawMessage            `json:"keys"`
-	DefaultDecision              *string                    `json:"default_decision"`
-	DefaultAuthorizationDecision *string                    `json:"default_authorization_decision"`
-	Caching                      json.RawMessage            `json:"caching"`
-	PersistenceDirectory         *string                    `json:"persistence_directory"`
+	Services                     json.RawMessage            `json:"services,omitempty"`
+	Labels                       map[string]string          `json:"labels,omitempty"`
+	Discovery                    json.RawMessage            `json:"discovery,omitempty"`
+	Bundle                       json.RawMessage            `json:"bundle,omitempty"` // Deprecated: Use `bundles` instead
+	Bundles                      json.RawMessage            `json:"bundles,omitempty"`
+	DecisionLogs                 json.RawMessage            `json:"decision_logs,omitempty"`
+	Status                       json.RawMessage            `json:"status,omitempty"`
+	Plugins                      map[string]json.RawMessage `json:"plugins,omitempty"`
+	Keys                         json.RawMessage            `json:"keys,omitempty"`
+	DefaultDecision              *string                    `json:"default_decision,omitempty"`
+	DefaultAuthorizationDecision *string                    `json:"default_authorization_decision,omitempty"`
+	Caching                      json.RawMessage            `json:"caching,omitempty"`
+	PersistenceDirectory         *string                    `json:"persistence_directory,omitempty"`
 }
 
 // ParseConfig returns a valid Config object with defaults injected. The id
@@ -103,6 +104,91 @@ func (c Config) GetPersistenceDirectory() (string, error) {
 		return filepath.Join(pwd, ".opa"), nil
 	}
 	return *c.PersistenceDirectory, nil
+}
+
+// ActiveConfig returns OPA's active configuration
+// with the credentials and crypto keys removed
+func (c *Config) ActiveConfig() (interface{}, error) {
+	bs, err := json.Marshal(c)
+	if err != nil {
+		return nil, err
+	}
+
+	var result map[string]interface{}
+	if err := util.Unmarshal(bs, &result); err != nil {
+		return nil, err
+	}
+
+	if result["services"] != nil {
+		err = removeServiceCredentials(result["services"])
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if result["keys"] != nil {
+		err = removeCryptoKeys(result["keys"])
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return result, nil
+}
+
+func removeServiceCredentials(x interface{}) error {
+
+	switch x := x.(type) {
+	case []interface{}:
+		for _, v := range x {
+			err := removeKey(v, "credentials")
+			if err != nil {
+				return err
+			}
+		}
+
+	case map[string]interface{}:
+		for _, v := range x {
+			err := removeKey(v, "credentials")
+			if err != nil {
+				return err
+			}
+		}
+	default:
+		return fmt.Errorf("illegal service config type: %T", x)
+	}
+
+	return nil
+}
+
+func removeCryptoKeys(x interface{}) error {
+
+	switch x := x.(type) {
+	case map[string]interface{}:
+		for _, v := range x {
+			err := removeKey(v, "key", "private_key")
+			if err != nil {
+				return err
+			}
+		}
+	default:
+		return fmt.Errorf("illegal keys config type: %T", x)
+	}
+
+	return nil
+}
+
+func removeKey(x interface{}, keys ...string) error {
+	val, ok := x.(map[string]interface{})
+	if !ok {
+		return fmt.Errorf("type assertion error")
+	}
+
+	for _, key := range keys {
+		delete(val, key)
+	}
+
+	return nil
 }
 
 const (

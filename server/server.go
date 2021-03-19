@@ -76,6 +76,7 @@ const (
 	PromHandlerV1Query    = "v1/query"
 	PromHandlerV1Policies = "v1/policies"
 	PromHandlerV1Compile  = "v1/compile"
+	PromHandlerV1Config   = "v1/config"
 	PromHandlerIndex      = "index"
 	PromHandlerCatch      = "catchall"
 	PromHandlerHealth     = "health"
@@ -612,6 +613,7 @@ func (s *Server) initRouters() {
 	s.registerHandler(mainRouter, 1, "/query", http.MethodGet, s.instrumentHandler(s.v1QueryGet, PromHandlerV1Query))
 	s.registerHandler(mainRouter, 1, "/query", http.MethodPost, s.instrumentHandler(s.v1QueryPost, PromHandlerV1Query))
 	s.registerHandler(mainRouter, 1, "/compile", http.MethodPost, s.instrumentHandler(s.v1CompilePost, PromHandlerV1Compile))
+	s.registerHandler(mainRouter, 1, "/config", http.MethodGet, s.instrumentHandler(s.v1ConfigGet, PromHandlerV1Config))
 	mainRouter.Handle("/", s.instrumentHandler(s.unversionedPost, PromHandlerIndex)).Methods(http.MethodPost)
 	mainRouter.Handle("/", s.instrumentHandler(s.indexGet, PromHandlerIndex)).Methods(http.MethodGet)
 
@@ -2002,6 +2004,17 @@ func (s *Server) v1QueryPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writer.JSON(w, 200, results, pretty)
+}
+
+func (s *Server) v1ConfigGet(w http.ResponseWriter, r *http.Request) {
+	pretty := getBoolParam(r.URL, types.ParamPrettyV1, true)
+	result, err := s.manager.Config.ActiveConfig()
+	if err != nil {
+		writer.ErrorAuto(w, err)
+		return
+	}
+
+	writer.JSON(w, 200, result, pretty)
 }
 
 func (s *Server) checkPolicyIDScope(ctx context.Context, txn storage.Transaction, id string) error {

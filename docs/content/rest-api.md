@@ -1828,3 +1828,67 @@ Content-Type: application/json
 ```json
 {}
 ```
+
+##  Config API
+
+The `/config` API endpoint returns OPA's active configuration. When the discovery feature is enabled, this API can be
+used to fetch the discovered configuration in the last evaluated discovery bundle. The `credentials` field in the
+[Services](../configuration#services) configuration and the `private_key` and `key` fields in the [Keys](../configuration#keys)
+configuration will be omitted from the API response.
+
+### Get Config
+
+```
+GET /v1/config HTTP/1.1
+```
+
+#### Query Parameters
+
+- **pretty** - If parameter is `true`, response will formatted for humans.
+
+#### Status Codes
+
+- **200** - no error
+- **500** - server error
+
+#### Example Request
+```http
+GET /v1/config HTTP/1.1
+```
+
+#### Example Response
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+```
+```json
+{
+  "services": {
+    "acmecorp": {
+      "url": "https://example.com/control-plane-api/v1"
+    }
+  },
+  "labels": {
+    "id": "test-id",
+    "version": "0.27.0"
+  },
+  "keys": {
+    "global_key": {
+      "scope": "read"
+    }
+  },
+  "decision_logs": {
+    "service": "acmecorp"
+  },
+  "status": {
+    "service": "acmecorp"
+  },
+  "bundles": {
+    "authz": {
+      "service": "acmecorp"
+    }
+  },
+  "default_authorization_decision": "/system/authz/allow",
+  "default_decision": "/system/main"
+}
+```
