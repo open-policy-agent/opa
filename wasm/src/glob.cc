@@ -59,20 +59,21 @@ opa_value *opa_glob_match(opa_value *pattern, opa_value *delimiters, opa_value *
     }
 
     opa_string_t *p = opa_cast_string(pattern);
-    opa_array_t *d = opa_cast_array(delimiters);
 
     std::vector<std::string> v;
 
-    for (int i = 0; i < d->len; i++)
+    opa_value *prev = NULL;
+    opa_value *curr = NULL;
+    while ((curr = opa_value_iter(delimiters, prev)) != NULL)
     {
-        if (opa_value_type(d->elems[i].v) != OPA_STRING)
+        opa_value *elem = opa_value_get(delimiters, curr);
+        if (opa_value_type(elem) != OPA_STRING)
         {
             return NULL;
         }
-
-        opa_string_t *s = opa_cast_string(d->elems[i].v);
-        std::string delimiter(s->v, s->len);
-        v.push_back(delimiter);
+        opa_string_t *s = opa_cast_string(elem);
+        v.push_back(std::string(s->v, s->len));
+        prev = curr;
     }
 
     glob_cache *c = cache();

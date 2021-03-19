@@ -1,6 +1,8 @@
 #ifndef OPA_TEST_H
 #define OPA_TEST_H
 
+#include "str.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif

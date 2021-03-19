@@ -6,7 +6,7 @@
 #include "unicode.h"
 
 // The following is a re-implementation of parser in
-// https://github.com/gobwas/glob/blob.
+// https://github.com/gobwas/glob.
 //
 // The MIT License (MIT)
 //
