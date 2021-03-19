@@ -235,21 +235,25 @@ void test_glob_translate()
             v.push_back(delimiters[i]);                                 \
         }                                                               \
         glob_translate(pattern, strlen(pattern), v, &re2);              \
-        test(test_case, memcmp(re2.c_str(), expected, strlen(expected)) == 0); \
+        test_str_eq(test_case, expected, re2.c_str());                  \
         re2::RE2::Options options;                                      \
         options.set_log_errors(false);                                  \
         re2::RE2 compiled(std::string(re2.c_str(),strlen(re2.c_str())), options); \
         test(test_case, compiled.ok());                                 \
     }
 
-    TEST("glob/translate", "[a-z][!a-x]*cat*[h][!b]*eyes*", "^[a-z][^a-x].*cat.*[h][^b].*eyes.*$");
-    TEST("glob/translate", "https://*.google.*", "^https\\:\\/\\/.*\\.google\\..*$");
-    TEST("glob/translate", "{https://*.google.*,*yandex.*,*yahoo.*,*mail.ru}", "^(https\\:\\/\\/.*\\.google\\..*|.*yandex\\..*|.*yahoo\\..*|.*mail\\.ru)$");
-    TEST("glob/translate", "{https://*gobwas.com,http://exclude.gobwas.com}", "^(https\\:\\/\\/.*gobwas\\.com|http\\:\\/\\/exclude\\.gobwas\\.com)$");
-    TEST("glob/translate", "abc*", "^abc.*$");
-    TEST("glob/translate", "*def", "^.*def$");
-    TEST("glob/translate", "ab*ef", "^ab.*ef$");
+    TEST("glob/translate", "[a-z][!a-x]*cat*[h][!b]*eyes*", "^[a-z][^a-x][^\\.]*cat[^\\.]*[h][^b][^\\.]*eyes[^\\.]*$");
+    TEST("glob/translate", "https://*.google.*", "^https\\:\\/\\/[^\\.]*\\.google\\.[^\\.]*$");
+    TEST("glob/translate", "https://*.google.*", "^https\\:\\/\\/[^\\.]*\\.google\\.[^\\.]*$", "."); // "." is the default
+    TEST("glob/translate", "{https://*.google.*,*yandex.*,*yahoo.*,*mail.ru}", "^(https\\:\\/\\/[^\\.]*\\.google\\.[^\\.]*|[^\\.]*yandex\\.[^\\.]*|[^\\.]*yahoo\\.[^\\.]*|[^\\.]*mail\\.ru)$");
+    TEST("glob/translate", "{https://*gobwas.com,http://exclude.gobwas.com}", "^(https\\:\\/\\/[^\\.]*gobwas\\.com|http\\:\\/\\/exclude\\.gobwas\\.com)$");
+    TEST("glob/translate", "abc*", "^abc[^\\.]*$");
+    TEST("glob/translate", "*def", "^[^\\.]*def$");
+    TEST("glob/translate", "*def", "^[^\\.]*def$", "."); // "." is the default
+    TEST("glob/translate", "ab*ef", "^ab[^\\.]*ef$");
     TEST("glob/translate", "api.*.com", "^api\\.[^\\.\\,]*\\.com$", ".", ",");
-    TEST("glob/translate", "api.**.com", "^api\\..*\\.com$", ".", ",");
+    TEST("glob/translate", "api.**.com", "^api\\..*\\.com$");
+    TEST("glob/translate", "api.**.com", "^api\\..*\\.com$", "."); // "." is the default...
+    TEST("glob/translate", "api.**.com", "^api\\..*\\.com$", ".", ","); // and "," does not matter here
 #undef TEST
 }

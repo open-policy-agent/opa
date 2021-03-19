@@ -210,8 +210,17 @@ cases:
     query: net.cidr_intersects("192.168.1.0/25", "192.168.1.64/25", x)
     want_result: [{'x': true}]
   - note: glob.match built-in
-    query: glob.match("*:github:com", [":"], "api:github:com",x)
+    query: glob.match("*:github:com", [":"], "api:github:com", x)
     want_result: [{'x': true}]
+  - note: glob.match built-in, multiple delimiters
+    query: glob.match("*.github.com:foo", [".", ":"], "api.github.com:foo", x)
+    want_result: [{'x': true}]
+  - note: glob.match built-in delimiters default
+    query: glob.match("*.github.com", [], "api.github.com", x)
+    want_result: [{'x': true}]
+  - note: glob.match built-in delimiters default, negative
+    query: glob.match("*foo*", [], "5.0 foo/90", x)
+    want_result: [{'x': false}]
   - note: json.marshal built-in
     query: json.marshal("string",x)
     want_result: [{'x': '"string"'}]
