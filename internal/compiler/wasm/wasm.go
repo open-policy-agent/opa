@@ -720,6 +720,7 @@ func (c *Compiler) compilePlans() error {
 	main.Instrs = append(main.Instrs,
 		instruction.I32Const{Value: c.builtinStringAddr(errIllegalEntrypoint)},
 		instruction.Call{Index: c.function(opaAbort)},
+		instruction.Unreachable{},
 	)
 
 	c.appendInstr(main)
@@ -1668,7 +1669,8 @@ func getLowestFreeElementSegmentOffset(m *module.Module) (int32, error) {
 
 // runtimeErrorAbort uses the passed source location to build the
 // arguments for a call to opa_runtime_error(file, row, col, msg).
-// It returns the instructions that make up the function call.
+// It returns the instructions that make up the function call with
+// arguments, followed by Unreachable.
 func (c *Compiler) runtimeErrorAbort(loc ir.Location, errType int) []instruction.Instruction {
 	index, row, col := loc.Index, loc.Row, loc.Col
 	return []instruction.Instruction{
@@ -1677,6 +1679,7 @@ func (c *Compiler) runtimeErrorAbort(loc ir.Location, errType int) []instruction
 		instruction.I32Const{Value: int32(col)},
 		instruction.I32Const{Value: c.builtinStringAddr(errType)},
 		instruction.Call{Index: c.function(opaRuntimeError)},
+		instruction.Unreachable{},
 	}
 }
 
