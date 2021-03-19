@@ -6,9 +6,14 @@ package config
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
+
+	"github.com/open-policy-agent/opa/util"
+	"github.com/open-policy-agent/opa/version"
 )
 
 func TestConfigPluginsEnabled(t *testing.T) {
@@ -97,4 +102,194 @@ func TestPersistDirectory(t *testing.T) {
 	if persistDir != dir {
 		t.Errorf("expected peristDir %v and dir %v to be equal", persistDir, dir)
 	}
+}
+
+func TestActiveConfig(t *testing.T) {
+
+	common := `"labels": {
+			"region": "west"
+		},
+		"keys": {
+			"global_key": {
+				"algorithm": HS256,
+				"key": "secret"
+			},
+			"local_key": {
+				"private_key": "some_private_key"
+			}
+		},
+		"decision_logs": {
+			"service": "acmecorp",
+			"reporting": {
+				"min_delay_seconds": 300,
+				"max_delay_seconds": 600
+			}
+		},
+		"plugins": {
+			"some-plugin": {}
+		},
+		"discovery": {"name": "config"}`
+
+	serviceObj := `"services": {
+			"acmecorp": {
+				"url": "https://example.com/control-plane-api/v1",
+				"response_header_timeout_seconds": 5,
+				"headers": {"foo": "bar"},
+				"credentials": {"bearer": {"token": "test"}}
+			},
+			"opa.example.com": {
+				"url": "https://opa.example.com",
+				"headers": {"foo": "bar"},
+				"credentials": {"gcp_metadata": {"audience": "test"}}
+			}
+		},`
+
+	servicesList := `"services": [
+			{
+				"name": "acmecorp",
+				"url": "https://example.com/control-plane-api/v1",
+				"response_header_timeout_seconds": 5,
+				"headers": {"foo": "bar"},
+				"credentials": {"bearer": {"token": "test"}}
+			},
+			{
+				"name": "opa.example.com",
+				"url": "https://opa.example.com",
+				"headers": {"foo": "bar"},
+				"credentials": {"gcp_metadata": {"audience": "test"}}
+			}
+		],`
+
+	expectedCommon := fmt.Sprintf(`"labels": {
+			"id": "foo",
+			"version": %v,
+			"region": "west"
+		},
+		"keys": {
+			"global_key": {
+				"algorithm": HS256
+			},
+			"local_key": {}
+		},
+		"decision_logs": {
+			"service": "acmecorp",
+			"reporting": {
+				"min_delay_seconds": 300,
+				"max_delay_seconds": 600
+			}
+		},
+		"plugins": {
+			"some-plugin": {}
+		},
+		"default_authorization_decision": "/system/authz/allow",
+		"default_decision": "/system/main",
+		"discovery": {"name": "config"}`, version.Version)
+
+	expectedServiceObj := `"services": {
+			"acmecorp": {
+				"url": "https://example.com/control-plane-api/v1",
+				"response_header_timeout_seconds": 5,
+				"headers": {"foo": "bar"}
+			},
+			"opa.example.com": {
+				"url": "https://opa.example.com",
+				"headers": {"foo": "bar"}
+			}
+		},`
+
+	expectedServicesList := `"services": [
+			{
+				"name": "acmecorp",
+				"url": "https://example.com/control-plane-api/v1",
+				"response_header_timeout_seconds": 5,
+				"headers": {"foo": "bar"}
+			},
+			{
+				"name": "opa.example.com",
+				"url": "https://opa.example.com",
+				"headers": {"foo": "bar"}
+			}
+		],`
+
+	badKeysConfig := []byte(`{
+		"keys": [
+			{
+				"algorithm": "HS256"
+			}
+		]
+	}`)
+
+	badServicesConfig := []byte(`{
+		"services": {
+			"acmecorp": ["foo"]
+		}
+	}`)
+
+	tests := map[string]struct {
+		raw      []byte
+		expected []byte
+		wantErr  bool
+		err      error
+	}{
+		"valid_config_with_svc_object": {
+			[]byte(fmt.Sprintf(`{ %v %v }`, serviceObj, common)),
+			[]byte(fmt.Sprintf(`{ %v %v }`, expectedServiceObj, expectedCommon)),
+			false,
+			nil,
+		},
+		"valid_config_with_svc_list": {
+			[]byte(fmt.Sprintf(`{ %v %v }`, servicesList, common)),
+			[]byte(fmt.Sprintf(`{ %v %v }`, expectedServicesList, expectedCommon)),
+			false,
+			nil,
+		},
+		"invalid_config_with_bad_keys": {
+			badKeysConfig,
+			nil,
+			true,
+			fmt.Errorf("illegal keys config type: []interface {}"),
+		},
+		"invalid_config_with_bad_creds": {
+			badServicesConfig,
+			nil,
+			true,
+			fmt.Errorf("type assertion error"),
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+
+			conf, err := ParseConfig(tc.raw, "foo")
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			actual, err := conf.ActiveConfig()
+
+			if tc.wantErr {
+				if err == nil {
+					t.Fatal("Expected error but got nil")
+				}
+
+				if tc.err != nil && tc.err.Error() != err.Error() {
+					t.Fatalf("Expected error message %v but got %v", tc.err.Error(), err.Error())
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("Unexpected error %v", err)
+				}
+
+				var expected map[string]interface{}
+				if err := util.Unmarshal(tc.expected, &expected); err != nil {
+					t.Fatal(err)
+				}
+
+				if !reflect.DeepEqual(actual, expected) {
+					t.Fatalf("want %v got %v", expected, actual)
+				}
+			}
+		})
+	}
+
 }

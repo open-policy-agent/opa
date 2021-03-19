@@ -170,6 +170,173 @@ func TestProcessBundle(t *testing.T) {
 
 }
 
+func TestProcessBundleWithActiveConfig(t *testing.T) {
+
+	ctx := context.Background()
+
+	manager, err := plugins.New([]byte(`{
+		"labels": {"x": "y"},
+		"services": {
+			"localhost": {
+				"url": "http://localhost:9999",
+				"credentials": {"bearer": {"token": "test"}}
+			}
+		},
+		"keys": {
+			"local_key": {
+				"private_key": "local"
+			}
+		},
+		"discovery": {"name": "config"},
+	}`), "test-id", inmem.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	initialBundle := makeDataBundle(1, `
+		{
+			"config": {
+				"services": {
+					"acmecorp": {
+						"url": "https://example.com/control-plane-api/v1",
+						"credentials": {"bearer": {"token": "test-acmecorp"}}
+					}
+				},
+				"bundles": {"test-bundle": {"service": "localhost"}},
+				"status": {"partition_name": "foo"},
+				"decision_logs": {"partition_name": "bar"},
+				"default_decision": "bar/baz",
+				"default_authorization_decision": "baz/qux",
+				"keys": {
+					"global_key": {
+						"scope": "read",
+						"key": "secret"
+					}
+				}
+			}
+		}
+	`)
+
+	disco, err := New(manager)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = disco.processBundle(ctx, initialBundle)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	actual, err := manager.Config.ActiveConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expectedConfig := fmt.Sprintf(`{
+		"services": {
+			"acmecorp": {
+				"url": "https://example.com/control-plane-api/v1"
+			}
+		},
+		"labels": {
+			"id": "test-id",
+			"version": %v,
+			"x": "y"
+		},
+		"keys": {
+			"global_key": {
+				"scope": "read"
+			}
+		},
+		"decision_logs": {
+			"partition_name": "bar"
+		},
+		"status": {
+			"partition_name": "foo"
+		},
+		"bundles": {
+			"test-bundle": {
+				"service": "localhost"
+			}
+		},
+		"default_authorization_decision": "baz/qux",
+		"default_decision": "bar/baz"}`, version.Version)
+
+	var expected map[string]interface{}
+	if err := util.Unmarshal([]byte(expectedConfig), &expected); err != nil {
+		t.Fatal(err)
+	}
+
+	if !reflect.DeepEqual(actual, expected) {
+		t.Fatalf("want %v got %v", expected, actual)
+	}
+
+	initialBundle = makeDataBundle(2, `
+		{
+			"config": {
+				"services": {
+					"opa.example.com": {
+						"url": "https://opa.example.com",
+						"credentials": {"bearer": {"token": "test-opa"}}
+					}
+				},
+				"bundles": {"test-bundle-2": {"service": "opa.example.com"}},
+				"decision_logs": {},
+				"keys": {
+					"global_key_2": {
+						"scope": "write",
+						"key": "secret_2"
+					}
+				}
+			}
+		}
+	`)
+
+	_, err = disco.processBundle(ctx, initialBundle)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	actual, err = manager.Config.ActiveConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expectedConfig2 := fmt.Sprintf(`{
+		"services": {
+			"opa.example.com": {
+				"url": "https://opa.example.com"
+			}
+		},
+		"labels": {
+			"id": "test-id",
+			"version": %v,
+			"x": "y"
+		},
+		"keys": {
+			"global_key_2": {
+				"scope": "write"
+			}
+		},
+		"decision_logs": {},
+		"bundles": {
+			"test-bundle-2": {
+				"service": "opa.example.com"
+			}
+		},
+		"default_authorization_decision": "/system/authz/allow",
+		"default_decision": "/system/main"}`, version.Version)
+
+	var expected2 map[string]interface{}
+	if err := util.Unmarshal([]byte(expectedConfig2), &expected2); err != nil {
+		t.Fatal(err)
+	}
+
+	if !reflect.DeepEqual(actual, expected2) {
+		t.Fatalf("want %v got %v", expected, actual)
+	}
+}
+
 type testFactory struct {
 	p *reconfigureTestPlugin
 }

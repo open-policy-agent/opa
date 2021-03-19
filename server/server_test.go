@@ -22,6 +22,7 @@ import (
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
+	"github.com/open-policy-agent/opa/config"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/plugins"
 	pluginBundle "github.com/open-policy-agent/opa/plugins/bundle"
@@ -1175,6 +1176,68 @@ p = true { false }`
 		t.Run(tc.note, func(t *testing.T) {
 			executeRequests(t, tc.reqs)
 		})
+	}
+}
+
+func TestConfigV1(t *testing.T) {
+	f := newFixture(t)
+
+	c := []byte(`{"services": {
+			"acmecorp": {
+				"url": "https://example.com/control-plane-api/v1",
+				"credentials": {"bearer": {"token": "test"}}
+			}
+		},
+		"labels": {
+			"region": "west"
+		},
+		"keys": {
+			"global_key": {
+				"algorithm": HS256,
+				"key": "secret"
+			}
+		}}`)
+
+	conf, err := config.ParseConfig(c, "foo")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	f.server.manager.Config = conf
+
+	expected := map[string]interface{}{}
+	expected["labels"] = map[string]interface{}{"id": "foo", "version": version.Version, "region": "west"}
+	expected["keys"] = map[string]interface{}{"global_key": map[string]interface{}{"algorithm": "HS256"}}
+	expected["services"] = map[string]interface{}{"acmecorp": map[string]interface{}{"url": "https://example.com/control-plane-api/v1"}}
+	expected["default_authorization_decision"] = "/system/authz/allow"
+	expected["default_decision"] = "/system/main"
+
+	bs, err := json.Marshal(expected)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := f.v1(http.MethodGet, "/config", "", 200, string(bs)); err != nil {
+		t.Fatal(err)
+	}
+
+	badServicesConfig := []byte(`{
+		"services": {
+			"acmecorp": ["foo"]
+		}
+	}`)
+
+	conf, err = config.ParseConfig(badServicesConfig, "foo")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	f.server.manager.Config = conf
+
+	if err := f.v1(http.MethodGet, "/config", "", 500, `{
+				"code": "internal_error",
+				"message": "type assertion error"}`); err != nil {
+		t.Fatal(err)
 	}
 }
 
