@@ -5,6 +5,7 @@
 package bundle
 
 import (
+	"crypto/ecdsa"
 	"crypto/rsa"
 	"fmt"
 	"path/filepath"
@@ -193,9 +194,23 @@ f10hbJEuLFhD1c2dNjwqflANV5OanG1syqYqil5TgWm1AaRFj+PbRPk0FRfF9y+e
 tKaHBn4eyNlKjQaEn16ZxKJm
 -----END PRIVATE KEY-----`
 
+	pkcs1ecPrivateKey := `-----BEGIN EC PRIVATE KEY-----
+MHcCAQEEINMW3Ro+oSlbPebDGzeu9w4Eug5ZS/TdjnfnqBP0tMVaoAoGCCqGSM49
+AwEHoUQDQgAEkla2v5uQDXr/WoXdCyD3OfAn21K+suzymtp9qAWqRTXWK0a09/cW
+Go/Uf1QsCMvmJJ5n9QZb15mhdReiCy4bNw==
+-----END EC PRIVATE KEY-----`
+
+	pkcs8ecPrivateKey := `-----BEGIN PRIVATE KEY-----
+MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgZAUy0S0Dow25efPX
+SXNNy1EFGSxFEjEQMWSo5/PoL16hRANCAAS1MkJ0tCo++7BktJcmXusp55WyB6n1
+qnby6ICFV1o3cV2WFc5PVToBVoPEyUZQ7KFz/3znYQ44fbclemgU/5mf
+-----END PRIVATE KEY-----`
+
 	files := map[string]string{
 		"private.pem": privateKey,
 		"pkcs8.pem":   pkcs8privateKey,
+		"pkcs1ec.pem": pkcs1ecPrivateKey,
+		"pkcs8ec.pem": pkcs8ecPrivateKey,
 	}
 
 	test.WithTempFS(files, func(rootDir string) {
@@ -222,6 +237,28 @@ tKaHBn4eyNlKjQaEn16ZxKJm
 		_, ok = result.(*rsa.PrivateKey)
 		if !ok {
 			t.Fatalf("Expected key type *rsa.PrivateKey but got %T", result)
+		}
+
+		sc = NewSigningConfig(filepath.Join(rootDir, "pkcs1ec.pem"), "ES256", "")
+		result, err = sc.GetPrivateKey()
+		if err != nil {
+			t.Fatalf("Unexpected error %v", err)
+		}
+
+		_, ok = result.(*ecdsa.PrivateKey)
+		if !ok {
+			t.Fatalf("Expected key type *ecdsa.PrivateKey but got %T", result)
+		}
+
+		sc = NewSigningConfig(filepath.Join(rootDir, "pkcs8ec.pem"), "ES256", "")
+		result, err = sc.GetPrivateKey()
+		if err != nil {
+			t.Fatalf("Unexpected error %v", err)
+		}
+
+		_, ok = result.(*ecdsa.PrivateKey)
+		if !ok {
+			t.Fatalf("Expected key type *ecdsa.PrivateKey but got %T", result)
 		}
 
 		// key file does not exist, check that error generated with RS56 as the signing algorithm

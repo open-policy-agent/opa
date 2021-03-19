@@ -52,7 +52,11 @@ func GetSigningKey(key string, alg jwa.SignatureAlgorithm) (interface{}, error) 
 
 		priv, err := x509.ParseECPrivateKey(block.Bytes)
 		if err != nil {
-			return nil, err
+			pkcs8priv, err2 := x509.ParsePKCS8PrivateKey(block.Bytes)
+			if err2 != nil {
+				return nil, fmt.Errorf("error parsing private key (%v), (%v)", err, err2)
+			}
+			return pkcs8priv, nil
 		}
 		return priv, nil
 	case jwa.HS256, jwa.HS384, jwa.HS512:
