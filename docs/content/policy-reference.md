@@ -64,7 +64,7 @@ obj[k]
 obj.foo.bar.baz
 
 # check if path foo.bar.baz, foo.bar, or foo does not exist or is false
-not obj.foo.bar.bar
+not obj.foo.bar.baz
 ```
 
 ### Sets
