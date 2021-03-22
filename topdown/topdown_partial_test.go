@@ -20,18 +20,19 @@ import (
 func TestTopDownPartialEval(t *testing.T) {
 
 	tests := []struct {
-		note            string
-		unknowns        []string
-		disableInlining []string
-		shallow         bool
-		query           string
-		modules         []string
-		data            string
-		input           string
-		wantQueries     []string
-		wantQueryASTs   []ast.Body
-		wantSupport     []string
-		ignoreOrder     bool
+		note                 string
+		unknowns             []string
+		disableInlining      []string
+		shallow              bool
+		skipPartialNamespace bool
+		query                string
+		modules              []string
+		data                 string
+		input                string
+		wantQueries          []string
+		wantQueryASTs        []ast.Body
+		wantSupport          []string
+		ignoreOrder          bool
 	}{
 		{
 			note:        "empty",
@@ -2269,6 +2270,47 @@ func TestTopDownPartialEval(t *testing.T) {
 			},
 			wantQueries: []string{`input.foo`, `input.foo`},
 		},
+		{
+			note:  "package path copied when skip partial namespace enabled (bug 3302)",
+			query: "data.test.p = x",
+			modules: []string{`
+				package test
+				pkg = "foo" { input.x = "foo" }
+				pkg = "bar" { input.x = "bar" }
+				p = x { k = pkg; x = data.other[k].p }
+			`, `
+				package other.foo
+				p = 1 { input = a }
+			`, `
+				package other.bar
+				p = 2 { input = a }
+			`},
+			wantQueries: []string{"data.test.p = x"},
+			wantSupport: []string{
+				`
+					package other.foo
+
+					p = 1 { input = a5 }
+				`,
+				`
+					package other.bar
+
+					p = 2 { input = a4 }
+				`,
+				`
+					package test
+
+					pkg = "foo" { input.x = "foo" }
+
+					pkg = "bar" { input.x = "bar" }
+
+					p = x1 { data.test.pkg = k1; "bar" = k1; data.other[k1].p = x1 }
+					p = x1 { data.test.pkg = k1; "foo" = k1; data.other[k1].p = x1 }
+				`,
+			},
+			shallow:              true,
+			skipPartialNamespace: true,
+		},
 	}
 
 	ctx := context.Background()
@@ -2311,6 +2353,7 @@ func TestTopDownPartialEval(t *testing.T) {
 				WithTracer(&buf).
 				WithUnknowns(unknowns).
 				WithDisableInlining(disableInlining).
+				WithSkipPartialNamespace(tc.skipPartialNamespace).
 				WithShallowInlining(tc.shallow)
 
 			// Set genvarprefix so that tests can refer to vars in generated

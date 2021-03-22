@@ -2600,7 +2600,7 @@ func (e *eval) comprehensionIndex(term *ast.Term) *ast.ComprehensionIndex {
 func (e *eval) savePackagePathAndTerm(plugged, ref ast.Ref) (ast.Ref, *ast.Term) {
 
 	if e.skipSaveNamespace {
-		return plugged, ast.NewTerm(ref)
+		return plugged.Copy(), ast.NewTerm(ref.Copy())
 	}
 
 	return plugged.Insert(e.saveNamespace, 1), ast.NewTerm(ref.Insert(e.saveNamespace, 1))
