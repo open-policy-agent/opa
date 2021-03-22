@@ -1205,13 +1205,15 @@ func TestConfigV1(t *testing.T) {
 
 	f.server.manager.Config = conf
 
-	expected := map[string]interface{}{}
-	expected["labels"] = map[string]interface{}{"id": "foo", "version": version.Version, "region": "west"}
-	expected["keys"] = map[string]interface{}{"global_key": map[string]interface{}{"algorithm": "HS256"}}
-	expected["services"] = map[string]interface{}{"acmecorp": map[string]interface{}{"url": "https://example.com/control-plane-api/v1"}}
-	expected["default_authorization_decision"] = "/system/authz/allow"
-	expected["default_decision"] = "/system/main"
-
+	expected := map[string]interface{}{
+		"result": map[string]interface{}{
+			"labels":                         map[string]interface{}{"id": "foo", "version": version.Version, "region": "west"},
+			"keys":                           map[string]interface{}{"global_key": map[string]interface{}{"algorithm": "HS256"}},
+			"services":                       map[string]interface{}{"acmecorp": map[string]interface{}{"url": "https://example.com/control-plane-api/v1"}},
+			"default_authorization_decision": "/system/authz/allow",
+			"default_decision":               "/system/main",
+		},
+	}
 	bs, err := json.Marshal(expected)
 	if err != nil {
 		t.Fatal(err)
