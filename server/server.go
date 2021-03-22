@@ -2014,7 +2014,10 @@ func (s *Server) v1ConfigGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writer.JSON(w, 200, result, pretty)
+	var resp types.ConfigResponseV1
+	resp.Result = &result
+
+	writer.JSON(w, http.StatusOK, resp, pretty)
 }
 
 func (s *Server) checkPolicyIDScope(ctx context.Context, txn storage.Transaction, id string) error {

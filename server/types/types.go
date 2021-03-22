@@ -373,6 +373,11 @@ type QueryRequestV1 struct {
 	Query string `json:"query"`
 }
 
+// ConfigResponseV1 models the response message for Config API operations.
+type ConfigResponseV1 struct {
+	Result *interface{} `json:"result,omitempty"`
+}
+
 const (
 	// ParamQueryV1 defines the name of the HTTP URL parameter that specifies
 	// values for the request query.

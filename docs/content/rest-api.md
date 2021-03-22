@@ -1863,32 +1863,34 @@ Content-Type: application/json
 ```
 ```json
 {
-  "services": {
-    "acmecorp": {
-      "url": "https://example.com/control-plane-api/v1"
-    }
-  },
-  "labels": {
-    "id": "test-id",
-    "version": "0.27.0"
-  },
-  "keys": {
-    "global_key": {
-      "scope": "read"
-    }
-  },
-  "decision_logs": {
-    "service": "acmecorp"
-  },
-  "status": {
-    "service": "acmecorp"
-  },
-  "bundles": {
-    "authz": {
+  "result": {
+    "services": {
+      "acmecorp": {
+        "url": "https://example.com/control-plane-api/v1"
+      }
+    },
+    "labels": {
+      "id": "test-id",
+      "version": "0.27.0"
+    },
+    "keys": {
+      "global_key": {
+        "scope": "read"
+      }
+    },
+    "decision_logs": {
       "service": "acmecorp"
-    }
-  },
-  "default_authorization_decision": "/system/authz/allow",
-  "default_decision": "/system/main"
+    },
+    "status": {
+      "service": "acmecorp"
+    },
+    "bundles": {
+      "authz": {
+        "service": "acmecorp"
+      }
+    },
+    "default_authorization_decision": "/system/authz/allow",
+    "default_decision": "/system/main"
+  }
 }
 ```
