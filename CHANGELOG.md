@@ -5,6 +5,32 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Server
+
+- The server now supports a `GET /v1/config` endpoint that returns OPA's active configuration. This API is useful if you need to debug the running configuration in an OPA configured via Discovery. ([#2020](https://github.com/open-policy-agent/opa/issues/2020))
+
+### Plugins
+
+- Library users can now customize the logger used by the plugins by providing the `plugins.Logger` option when creating the plugin manager.
+
+### Security
+
+- __**!!! TODO !!!**__ OPA now supports PKCS8 encoded EC private keys for bundle signing([#3283](https://github.com/open-policy-agent/opa/issues/3283)). Authored by @[andrehaland](https://github.com/andrehaland).
+
+### Evaluation
+
+- Partial evaluation now correctly generates package paths when namespacing is disabled. ([#3302](https://github.com/open-policy-agent/opa/issues/3302)).
+- The `http.send` function no longer errors out on invalid Expires headers. ([#3284](https://github.com/open-policy-agent/opa/issues/3284))
+- The inter-query cache now serializes elements on insertion thereby reducing memory usage significantly (because deserialized elements carry a ~20x cost.) ([#3042](https://github.com/open-policy-agent/opa/issues/3042))
+
+### WebAssembly
+
+- The `opa eval` subcommand now correctly returns the set of all variable bindings and expression values when the `wasm` target is enabled. Previously it returned only set of variable bindings. ([#3281](https://github.com/open-policy-agent/opa/issues/3281))
+- The `glob.match` function now handles the default delimiter correctly. ([#3294](https://github.com/open-policy-agent/opa/issues/3294))
+- The `opa build` subcommand no longer requires a capabilities file when the `wasm` target is enabled. If capabilities are not provided, OPA will use the capabilities for its own version. ([#3270](https://github.com/open-policy-agent/opa/issues/3270))
+- The `opa eval` subcommand no longer panics when a policy fails to type check and the `wasm` target is enabled.
+- The comparison functions can now return `false` instead of either being `true` or `undefined`.  ([#3271](https://github.com/open-policy-agent/opa/issues/3271))
+
 ## 0.27.1
 
 This release contains a fix for crashes experienced when configuring OPA to use S3 signing as service credentials ([#3255](https://github.com/open-policy-agent/opa/issues/3255)).
