@@ -75,6 +75,46 @@ wasmtime_error_t* go_linker_define_instance(
   return wasmtime_linker_define_instance(linker, &name, instance);
 }
 
+wasmtime_error_t* go_linker_define_module(
+    wasmtime_linker_t *linker,
+    char *name_ptr,
+    size_t name_len,
+    wasm_module_t *module
+) {
+  wasm_byte_vec_t name;
+  name.data = name_ptr;
+  name.size = name_len;
+  return wasmtime_linker_module(linker, &name, module);
+}
+
+wasmtime_error_t* go_linker_get_default(
+    wasmtime_linker_t *linker,
+    char *name_ptr,
+    size_t name_len,
+    wasm_func_t **func
+) {
+  wasm_byte_vec_t name;
+  name.data = name_ptr;
+  name.size = name_len;
+  return wasmtime_linker_get_default(linker, &name, func);
+}
+
+wasmtime_error_t* go_linker_get_one_by_name(
+    wasmtime_linker_t *linker,
+    char *module_ptr,
+    size_t module_len,
+    char *name_ptr,
+    size_t name_len,
+    wasm_extern_t **item
+) {
+  wasm_byte_vec_t module, name;
+  module.data = module_ptr;
+  module.size = module_len;
+  name.data = name_ptr;
+  name.size = name_len;
+  return wasmtime_linker_get_one_by_name(linker, &module,&name, item);
+}
+
 void go_externref_new_with_finalizer(
     size_t env,
     wasm_val_t *valp

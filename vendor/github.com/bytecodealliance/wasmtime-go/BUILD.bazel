@@ -3,12 +3,12 @@ load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 cc_library(
     name = "wasmtime",
     srcs = select({
-        "@io_bazel_rules_go//go/platform:darwin": ["build/macos-x86_64/libwasmtime.a"],
+        "@io_bazel_rules_go//go/platform:darwin_amd64": ["build/macos-x86_64/libwasmtime.a"],
         "@io_bazel_rules_go//go/platform:linux_amd64": ["build/linux-x86_64/libwasmtime.a"],
         "@io_bazel_rules_go//go/platform:windows_amd64": ["build/windows-x86_64/libwasmtime.a"],
     }),
-    includes = ["build/include"],
     hdrs = glob(["build/include/*.h"]),
+    includes = ["build/include"],
     visibility = ["//visibility:public"],
 )
 
@@ -50,16 +50,14 @@ go_library(
         "wasi.go",
         "wat2wasm.go",
     ],
+    cdeps = [":wasmtime"],  # add wasmtime dep
     cgo = True,
     clinkopts = select({
         "@io_bazel_rules_go//go/platform:windows": [
-            "-luserenv -lole32 -lntdll -lws2_32 -lkernel32",
+            "-luserenv -lole32 -lntdll -lws2_32 -lkernel32 -lbcrypt",
         ],
-        "//conditions:default": [
-            "-lm -ldl",
-        ],
+        "//conditions:default": ["-lm -ldl"],
     }),
-    cdeps = [":wasmtime"], # add wasmtime dep
     copts = [
         "-Ibuild/include",
     ] + select({
@@ -87,7 +85,9 @@ go_test(
         "instance_test.go",
         "linker_test.go",
         "memorytype_test.go",
+        "module_linking_test.go",
         "module_test.go",
+        "reftypes_test.go",
         "slab_test.go",
         "store_test.go",
         "table_test.go",
@@ -96,7 +96,6 @@ go_test(
         "valtype_test.go",
         "wasi_test.go",
         "wasm2wat_test.go",
-        "module_linking_test.go",
     ],
     embed = [":go_default_library"],
 )
