@@ -102,3 +102,29 @@ func (enc *chunkEncoder) reset() []byte {
 	}
 	return nil
 }
+
+// chunkDecoder decodes the encoded chunks and outputs the log events
+type chunkDecoder struct {
+	raw []byte
+}
+
+func newChunkDecoder(raw []byte) *chunkDecoder {
+	return &chunkDecoder{
+		raw: raw,
+	}
+}
+
+func (dec *chunkDecoder) decode() ([]EventV1, error) {
+	gr, err := gzip.NewReader(bytes.NewReader(dec.raw))
+	if err != nil {
+		return nil, err
+	}
+
+	var events []EventV1
+	if err := json.NewDecoder(gr).Decode(&events); err != nil {
+		return nil, err
+	}
+	gr.Close()
+
+	return events, nil
+}
