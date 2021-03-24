@@ -17,6 +17,26 @@ wasmtime_error_t* go_linker_define_instance(
     size_t name_len,
     wasm_instance_t *item
 );
+wasmtime_error_t* go_linker_define_module(
+    wasmtime_linker_t *linker,
+    char *name_ptr,
+    size_t name_len,
+    wasm_module_t *item
+);
+wasmtime_error_t* go_linker_get_default(
+    wasmtime_linker_t *linker,
+    char *name_ptr,
+    size_t name_len,
+    wasm_func_t **func
+);
+wasmtime_error_t* go_linker_get_one_by_name(
+    wasmtime_linker_t *linker,
+    char *module_ptr,
+    size_t module_len,
+    char *name_ptr,
+    size_t name_len,
+    wasm_extern_t **item
+);
 void go_externref_new_with_finalizer(
     size_t env,
     wasm_val_t *valp

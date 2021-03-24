@@ -93,6 +93,30 @@ func (l *Linker) DefineInstance(module string, instance *Instance) error {
 	return mkError(err)
 }
 
+// DefineModule defines automatic instantiations of the module in this linker.
+//
+// The `name` of the module is the name within the linker, and the `module` is
+// the one that's being instantiated. This function automatically handles
+// WASI Commands and Reactors for instantiation and initialization. For more
+// information see the Rust documentation --
+// https://docs.wasmtime.dev/api/wasmtime/struct.Linker.html#method.module.
+func (l *Linker) DefineModule(name string, module *Module) error {
+	err := C.go_linker_define_module(
+		l.ptr(),
+		C._GoStringPtr(name),
+		C._GoStringLen(name),
+		module.ptr(),
+	)
+	runtime.KeepAlive(l)
+	runtime.KeepAlive(name)
+	runtime.KeepAlive(module)
+	if err == nil {
+		return nil
+	}
+
+	return mkError(err)
+}
+
 // DefineWasi links a WASI module into this linker, ensuring that all exported functions
 // are available for linking.
 //
@@ -127,4 +151,52 @@ func (l *Linker) Instantiate(module *Module) (*Instance, error) {
 		return nil, mkError(err)
 	}
 	return mkInstance(ret, l.Store.freelist, nil), nil
+}
+
+// GetDefault acquires the "default export" of the named module in this linker.
+//
+// If there is no default item then an error is returned, otherwise the default
+// function is returned.
+//
+// For more information see the Rust documentation --
+// https://docs.wasmtime.dev/api/wasmtime/struct.Linker.html#method.get_default.
+func (l *Linker) GetDefault(name string) (*Func, error) {
+	var ret *C.wasm_func_t
+	err := C.go_linker_get_default(
+		l.ptr(),
+		C._GoStringPtr(name),
+		C._GoStringLen(name),
+		&ret,
+	)
+	runtime.KeepAlive(l)
+	runtime.KeepAlive(name)
+	if err != nil {
+		return nil, mkError(err)
+	}
+	return mkFunc(ret, l.Store.freelist, nil), nil
+
+}
+
+// GetOneByName loads an item by name from this linker.
+//
+// If the item isn't defined then an error is returned, otherwise the item is
+// returned.
+func (l *Linker) GetOneByName(module, name string) (*Extern, error) {
+	var ret *C.wasm_extern_t
+	err := C.go_linker_get_one_by_name(
+		l.ptr(),
+		C._GoStringPtr(module),
+		C._GoStringLen(module),
+		C._GoStringPtr(name),
+		C._GoStringLen(name),
+		&ret,
+	)
+	runtime.KeepAlive(l)
+	runtime.KeepAlive(name)
+	runtime.KeepAlive(module)
+	if err != nil {
+		return nil, mkError(err)
+	}
+	return mkExtern(ret, l.Store.freelist, nil), nil
+
 }
