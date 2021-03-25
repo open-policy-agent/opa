@@ -58,6 +58,7 @@ func New() *OPA {
 // configuration. If the configuration is invalid, it returns
 // ErrInvalidConfig.
 func (o *OPA) Init() (*OPA, error) {
+	ctx := context.Background()
 	if o.configErr != nil {
 		return nil, o.configErr
 	}
@@ -65,7 +66,7 @@ func (o *OPA) Init() (*OPA, error) {
 	o.pool = wasm.NewPool(o.poolSize, o.memoryMinPages, o.memoryMaxPages)
 
 	if len(o.policy) != 0 {
-		if err := o.pool.SetPolicyData(o.policy, o.data); err != nil {
+		if err := o.pool.SetPolicyData(ctx, o.policy, o.data); err != nil {
 			return nil, err
 		}
 	}
@@ -76,7 +77,7 @@ func (o *OPA) Init() (*OPA, error) {
 // SetData updates the data for the subsequent Eval calls.  Returns
 // either ErrNotReady, ErrInvalidPolicyOrData, or ErrInternal if an
 // error occurs.
-func (o *OPA) SetData(v interface{}) error {
+func (o *OPA) SetData(ctx context.Context, v interface{}) error {
 	if o.pool == nil {
 		return errors.ErrNotReady
 	}
@@ -89,27 +90,27 @@ func (o *OPA) SetData(v interface{}) error {
 	o.mutex.Lock()
 	defer o.mutex.Unlock()
 
-	return o.setPolicyData(o.policy, raw)
+	return o.setPolicyData(ctx, o.policy, raw)
 }
 
 // SetDataPath will update the current data on the VMs by setting the value at the
 // specified path. If an error occurs the instance is still in a valid state, however
 // the data will not have been modified.
-func (o *OPA) SetDataPath(path []string, value interface{}) error {
-	return o.pool.SetDataPath(path, value)
+func (o *OPA) SetDataPath(ctx context.Context, path []string, value interface{}) error {
+	return o.pool.SetDataPath(ctx, path, value)
 }
 
 // RemoveDataPath will update the current data on the VMs by removing the value at the
 // specified path. If an error occurs the instance is still in a valid state, however
 // the data will not have been modified.
-func (o *OPA) RemoveDataPath(path []string) error {
-	return o.pool.RemoveDataPath(path)
+func (o *OPA) RemoveDataPath(ctx context.Context, path []string) error {
+	return o.pool.RemoveDataPath(ctx, path)
 }
 
 // SetPolicy updates the policy for the subsequent Eval calls.
 // Returns either ErrNotReady, ErrInvalidPolicy or ErrInternal if an
 // error occurs.
-func (o *OPA) SetPolicy(p []byte) error {
+func (o *OPA) SetPolicy(ctx context.Context, p []byte) error {
 	if o.pool == nil {
 		return errors.ErrNotReady
 	}
@@ -117,13 +118,13 @@ func (o *OPA) SetPolicy(p []byte) error {
 	o.mutex.Lock()
 	defer o.mutex.Unlock()
 
-	return o.setPolicyData(p, o.data)
+	return o.setPolicyData(ctx, p, o.data)
 }
 
 // SetPolicyData updates both the policy and data for the subsequent
 // Eval calls.  Returns either ErrNotReady, ErrInvalidPolicyOrData, or
 // ErrInternal if an error occurs.
-func (o *OPA) SetPolicyData(policy []byte, data *interface{}) error {
+func (o *OPA) SetPolicyData(ctx context.Context, policy []byte, data *interface{}) error {
 	if o.pool == nil {
 		return errors.ErrNotReady
 	}
@@ -140,11 +141,11 @@ func (o *OPA) SetPolicyData(policy []byte, data *interface{}) error {
 	o.mutex.Lock()
 	defer o.mutex.Unlock()
 
-	return o.setPolicyData(policy, raw)
+	return o.setPolicyData(ctx, policy, raw)
 }
 
-func (o *OPA) setPolicyData(policy []byte, data []byte) error {
-	if err := o.pool.SetPolicyData(policy, data); err != nil {
+func (o *OPA) setPolicyData(ctx context.Context, policy []byte, data []byte) error {
+	if err := o.pool.SetPolicyData(ctx, policy, data); err != nil {
 		return err
 	}
 

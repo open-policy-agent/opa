@@ -92,7 +92,7 @@ func main() {
 
 	// Evaluate the new policy.
 
-	if err := rego.SetPolicy(policy); err != nil {
+	if err := rego.SetPolicy(ctx, policy); err != nil {
 		fmt.Printf("error: %v\n", err)
 		return
 	}

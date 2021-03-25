@@ -38,7 +38,7 @@ type Loader struct {
 
 // policyData captures the functions used in setting the policy and data.
 type policyData interface {
-	SetPolicyData(policy []byte, data *interface{}) error
+	SetPolicyData(ctx context.Context, policy []byte, data *interface{}) error
 }
 
 // New constructs a new file loader periodically reloading the bundle
@@ -143,7 +143,7 @@ func (l *Loader) Load(ctx context.Context) error {
 		data = &v
 	}
 
-	return l.pd.SetPolicyData(b.WasmModules[0].Raw, data)
+	return l.pd.SetPolicyData(ctx, b.WasmModules[0].Raw, data)
 }
 
 // poller periodically downloads the bundle.

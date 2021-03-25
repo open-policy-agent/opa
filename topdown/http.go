@@ -158,6 +158,14 @@ func handleHTTPSendErr(bctx BuiltinContext, err error) error {
 	if urlErr, ok := err.(*url.Error); ok && urlErr.Timeout() && bctx.Context.Err() == nil {
 		err = fmt.Errorf("%s %s: request timed out", urlErr.Op, urlErr.URL)
 	}
+	if err := bctx.Context.Err(); err != nil {
+		return Halt{
+			Err: &Error{
+				Code:    CancelErr,
+				Message: fmt.Sprintf("http.send: timed out (%s)", err.Error()),
+			},
+		}
+	}
 	return handleBuiltinErr(ast.HTTPSend.Name, bctx.Location, err)
 }
 
