@@ -5,4 +5,6 @@
 # Only run install if node_modules does not exist
 if ! [ -d "node_modules/" ]; then
   npm i
+else
+  echo "NOT running npm install as node_modules directory already is present"
 fi
