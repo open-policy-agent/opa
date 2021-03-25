@@ -1,8 +1,8 @@
-import babel from 'rollup-plugin-babel'
-import commonjs from 'rollup-plugin-commonjs'
-import json from 'rollup-plugin-json'
+import babel from '@rollup/plugin-babel'
+import commonjs from '@rollup/plugin-commonjs'
+import json from '@rollup/plugin-json'
 import postcss from 'rollup-plugin-postcss'
-import resolve from 'rollup-plugin-node-resolve'
+import resolve from '@rollup/plugin-node-resolve'
 import {terser} from 'rollup-plugin-terser'
 
 import pkg from './package.json'
