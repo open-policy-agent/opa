@@ -153,8 +153,10 @@ func (d *builtinDispatcher) Call(caller *wasmtime.Caller, args []wasmtime.Val) (
 			if e, ok := e.Err.(*topdown.Error); ok && e.Code == topdown.CancelErr {
 				panic(cancelledError{message: e.Message})
 			}
+			panic(builtinError{err: err})
 		}
-		panic(builtinError{err: err})
+		// non-halt errors are treated as undefined ("non-strict eval" is the only
+		// mode in wasm), the `output == nil` case below will return NULL
 	}
 
 	// if output is undefined, return NULL
