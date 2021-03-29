@@ -15,15 +15,15 @@ import (
 )
 
 const (
-	none int64 = 1
-	kb         = 1000
-	ki         = 1024
-	mb         = kb * 1000
-	mi         = ki * 1024
-	gb         = mb * 1000
-	gi         = mi * 1024
-	tb         = gb * 1000
-	ti         = gi * 1024
+	none float64 = 1
+	kb           = 1000
+	ki           = 1024
+	mb           = kb * 1000
+	mi           = ki * 1024
+	gb           = mb * 1000
+	gi           = mi * 1024
+	tb           = gb * 1000
+	ti           = gi * 1024
 )
 
 // The rune values for 0..9 as well as the period symbol (for parsing floats)
@@ -39,12 +39,12 @@ func errUnitNotRecognized(unit string) error {
 
 var (
 	errNoAmount       = parseNumBytesError("no byte amount provided")
-	errIntConv        = parseNumBytesError("could not parse byte amount to integer")
+	errNumConv        = parseNumBytesError("could not parse byte amount to a number")
 	errIncludesSpaces = parseNumBytesError("spaces not allowed in resource strings")
 )
 
 func builtinNumBytes(a ast.Value) (ast.Value, error) {
-	var m int64
+	var m float64
 
 	raw, err := builtins.StringOperand(a, 1)
 	if err != nil {
@@ -86,14 +86,14 @@ func builtinNumBytes(a ast.Value) (ast.Value, error) {
 		return nil, errUnitNotRecognized(unitStr)
 	}
 
-	num, err := strconv.ParseInt(numStr, 10, 64)
+	num, err := strconv.ParseFloat(numStr, 64)
 	if err != nil {
-		return nil, errIntConv
+		return nil, errNumConv
 	}
 
 	total := num * m
 
-	return builtins.IntToNumber(big.NewInt(total)), nil
+	return builtins.IntToNumber(big.NewInt(int64(total))), nil
 }
 
 // Makes the string lower case and removes spaces and quotation marks
