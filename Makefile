@@ -79,7 +79,7 @@ generate: wasm-lib-build
 build: go-build
 
 .PHONY: image
-image: build-docker
+image: ci-go-build-docker
 	@$(MAKE) image-quick
 
 .PHONY: install
