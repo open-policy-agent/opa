@@ -17,6 +17,8 @@ func TestNumBytes(t *testing.T) {
 			expected   int64
 		}{
 			{"zero", `0`, 0},
+			{"zero float", `0.0`, 0},
+			{"zero bare float", `.0`, 0},
 			{"raw number", `12345`, 12345},
 			{"10 kilobytes uppercase", `10KB`, 10 * kb},
 			{"10 KiB uppercase", `10KIB`, 10 * ki},
@@ -24,6 +26,9 @@ func TestNumBytes(t *testing.T) {
 			{"10 KiB mixed case", `10Kib`, 10 * ki},
 			{"200 megabytes as mb", `200mb`, 200 * mb},
 			{"300 GiB", `300GiB`, 300 * gi},
+			{"1.1 KB floating point", `1.1KB`, 1.1 * kb},
+			{"1.1 KiB floating point rounded", `1.1KiB`, 1126},
+			{".5 KB bare floating point", `.5KB`, 0.5 * kb},
 			{"100 kilobytes as k", `100k`, 100 * kb},
 			{"100 kilobytes as kb", `100kb`, 100 * kb},
 			{"100 kibibytes as ki", `100ki`, 100 * ki},
@@ -61,6 +66,7 @@ func TestNumBytes(t *testing.T) {
 			{"3MiB", "3MB", ">"},
 			{"2MiB", "2Mi", "=="},
 			{"4Mi", "4M", ">"},
+			{"4.1Mi", "4Mi", ">"},
 			{"128Gi", "137438953472", "=="},
 		}
 
@@ -77,9 +83,8 @@ func TestNumBytes(t *testing.T) {
 			{"", errNoAmount},
 			{"GB", errNoAmount},
 			{"foo", errNoAmount},
-			{"10.25", errIntConv},
-			{"0.00", errIntConv},
-			{"100.1GB", errIntConv},
+			{"0.0.0", errNumConv},
+			{".5.2", errNumConv},
 			{"100 kb", errIncludesSpaces},
 			{" 327MiB ", errIncludesSpaces},
 		}
@@ -145,13 +150,13 @@ func parseIntFromString(t *testing.T, s string) int64 {
 	val, err := builtinNumBytes(sVal)
 
 	if err != nil {
-		t.Fatalf(`numbytes err: could not parse "%s" into int: %v`, s, err)
+		t.Fatalf(`numbytes err: could not parse "%s" into number: %v`, s, err)
 	}
 
 	i := val.(ast.Number)
 	num, ok := i.Int64()
 	if !ok {
-		t.Fatalf("numbytes err: could not parse value %s into int", val.String())
+		t.Fatalf("numbytes err: could not parse value %s into number", val.String())
 	}
 
 	return num
