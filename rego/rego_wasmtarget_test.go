@@ -197,7 +197,7 @@ allow {
 			target: "wasm",
 			policy: httpSend,
 			errorCheck: func(err error) bool {
-				return err == nil
+				return errors.Is(err, sdk_errors.ErrCancelled)
 			},
 		},
 		{
