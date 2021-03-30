@@ -53,6 +53,7 @@ type Bundle struct {
 // SignaturesConfig represents an array of JWTs that encapsulate the signatures for the bundle.
 type SignaturesConfig struct {
 	Signatures []string `json:"signatures,omitempty"`
+	Plugin     string   `json:"plugin,omitempty"`
 }
 
 // isEmpty returns if the SignaturesConfig is empty.
@@ -804,6 +805,10 @@ func (b *Bundle) GenerateSignature(signingConfig *SigningConfig, keyID string, u
 
 	if b.Signatures.isEmpty() {
 		b.Signatures = SignaturesConfig{}
+	}
+
+	if signingConfig.Plugin != "" {
+		b.Signatures.Plugin = signingConfig.Plugin
 	}
 
 	b.Signatures.Signatures = []string{string(token)}

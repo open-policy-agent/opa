@@ -285,3 +285,35 @@ func TestVerifyBundleFile(t *testing.T) {
 		})
 	}
 }
+
+type CustomVerifier struct{}
+
+func (*CustomVerifier) VerifyBundleSignature(sc SignaturesConfig, bvc *VerificationConfig) (map[string]FileInfo, error) {
+	return map[string]FileInfo{}, nil
+}
+
+func TestCustomVerifier(t *testing.T) {
+	custom := &CustomVerifier{}
+	err := RegisterVerifier(defaultVerifierID, custom)
+	if err == nil {
+		t.Fatalf("Expected error when registering with default ID")
+	}
+	RegisterVerifier("_test", custom)
+	defaultVerifier, err := GetVerifier(defaultVerifierID)
+	if err != nil {
+		t.Fatalf("Unexpected error %v", err)
+	}
+	if _, isDefault := defaultVerifier.(*DefaultVerifier); !isDefault {
+		t.Fatalf("Expected DefaultVerifier to be registered at key %s", defaultVerifierID)
+	}
+	customVerifier, err := GetVerifier("_test")
+	if err != nil {
+		t.Fatalf("Unexpected error %v", err)
+	}
+	if _, isCustom := customVerifier.(*CustomVerifier); !isCustom {
+		t.Fatalf("Expected CustomVerifier to be registered at key _test")
+	}
+	if _, err = GetVerifier("_unregistered"); err == nil {
+		t.Fatalf("Expected error when no Verifier exists at provided key")
+	}
+}
