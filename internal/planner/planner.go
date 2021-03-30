@@ -1360,6 +1360,10 @@ func (p *Planner) planObjectComprehension(oc *ast.ObjectComprehension, iter plan
 
 func (p *Planner) planComprehension(body ast.Body, closureIter planiter, target ir.Local, iter planiter) error {
 
+	// Variables that have been introduced in this comprehension have
+	// no effect on other parts of the policy, so they'll be dropped
+	// below.
+	p.vars.Push(map[ast.Var]ir.Local{})
 	prev := p.curr
 	p.curr = &ir.Block{}
 	ploc := p.loc
@@ -1373,6 +1377,7 @@ func (p *Planner) planComprehension(body ast.Body, closureIter planiter, target 
 	block := p.curr
 	p.curr = prev
 	p.loc = ploc
+	p.vars.Pop()
 
 	p.appendStmt(&ir.BlockStmt{
 		Blocks: []*ir.Block{

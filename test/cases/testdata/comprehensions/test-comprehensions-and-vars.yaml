@@ -1,0 +1,16 @@
+cases:
+- data:
+  modules:
+  - |
+    package test
+    xs := {"a", "b", "c"}
+    p = x {
+      y := { x | xs[x] }
+      z := { x | xs[x] }
+      count(y) == count(z)
+      x := count(y)
+    }
+  note: comprehensions/var bindings have no effect outside
+  query: data.test.p = x
+  want_result:
+  - x: 3
