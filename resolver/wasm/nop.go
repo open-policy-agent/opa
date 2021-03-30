@@ -29,27 +29,27 @@ func (r *Resolver) Close() {
 }
 
 // Eval unimplemented.
-func (r *Resolver) Eval(ctx context.Context, input resolver.Input) (resolver.Result, error) {
+func (r *Resolver) Eval(context.Context, resolver.Input) (resolver.Result, error) {
 
 	panic("unreachable")
 }
 
 // SetData unimplemented.
-func (r *Resolver) SetData(data interface{}) error {
+func (r *Resolver) SetData(context.Context, interface{}) error {
 	panic("unreachable")
 }
 
 // SetDataPath unimplemented.
-func (r *Resolver) SetDataPath(path []string, data interface{}) error {
+func (r *Resolver) SetDataPath(context.Context, []string, interface{}) error {
 	panic("unreachable")
 }
 
 // RemoveDataPath unimplemented.
-func (r *Resolver) RemoveDataPath(path []string) error {
+func (r *Resolver) RemoveDataPath(context.Context, []string) error {
 	panic("unreachable")
 }
 
 // New unimplemented. Will always return an error.
-func New(entrypoints []ast.Ref, policy []byte, data interface{}) (*Resolver, error) {
+func New([]ast.Ref, []byte, interface{}) (*Resolver, error) {
 	return nil, errors.New("WebAssembly runtime not supported in this build")
 }

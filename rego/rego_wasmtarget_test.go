@@ -150,7 +150,6 @@ allow {
 	http.send({"method": "get", "url": "%s", "raise_error": true})
 }`,
 		ts.URL)
-	httpSendTopdownError := fmt.Sprintf(`http.send: Get "%s": context deadline exceeded`, ts.URL)
 
 	// This is a natively-implemented (for the wasm target) function that
 	// takes long.
@@ -170,13 +169,10 @@ allow {
 			errorCheck: topdown.IsCancel,
 		},
 		{
-			note:   "http.send",
-			target: "rego",
-			policy: httpSend,
-			errorCheck: func(err error) bool {
-				var te *topdown.Error
-				return errors.As(err, &te) && te.Message == httpSendTopdownError
-			},
+			note:       "http.send",
+			target:     "rego",
+			policy:     httpSend,
+			errorCheck: topdown.IsCancel,
 		},
 		{
 			note:       "numbers.range",
@@ -206,7 +202,8 @@ allow {
 			policy: numbersRange,
 			errorCheck: func(err error) bool {
 				return errors.Is(err, sdk_errors.ErrCancelled)
-			}},
+			},
+		},
 	} {
 		t.Run(tc.target+"/"+tc.note, func(t *testing.T) {
 			defer leaktest.Check(t)()

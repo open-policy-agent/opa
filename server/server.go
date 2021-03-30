@@ -1502,6 +1502,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 			result.Explanation, err = types.NewTraceV1(*buf, pretty)
 			if err != nil {
 				writer.ErrorAuto(w, err)
+				return
 			}
 		}
 		err = logger.Log(ctx, txn, decisionID, r.RemoteAddr, urlPath, "", goInput, input, nil, nil, m)

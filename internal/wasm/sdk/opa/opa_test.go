@@ -236,6 +236,8 @@ a = "c" { input > 2 }`,
 
 	for _, test := range tests {
 		t.Run(test.Description, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
 			policy := compileRegoToWasm(test.Policy, test.Query, dump)
 			data := []byte(test.Data)
 			if len(data) == 0 {
@@ -257,24 +259,24 @@ a = "c" { input > 2 }`,
 				case eval.NewPolicy != "" && eval.NewData != "":
 					policy := compileRegoToWasm(eval.NewPolicy, test.Query, dump)
 					data := parseJSON(eval.NewData)
-					if err := instance.SetPolicyData(policy, data); err != nil {
+					if err := instance.SetPolicyData(ctx, policy, data); err != nil {
 						t.Errorf(err.Error())
 					}
 
 				case eval.NewPolicy != "":
 					policy := compileRegoToWasm(eval.NewPolicy, test.Query, dump)
-					if err := instance.SetPolicy(policy); err != nil {
+					if err := instance.SetPolicy(ctx, policy); err != nil {
 						t.Errorf(err.Error())
 					}
 
 				case eval.NewData != "":
 					data := parseJSON(eval.NewData)
-					if err := instance.SetData(*data); err != nil {
+					if err := instance.SetData(ctx, *data); err != nil {
 						t.Errorf(err.Error())
 					}
 				}
 
-				r, err := instance.Eval(context.Background(), opa.EvalOpts{Input: parseJSON(eval.Input)})
+				r, err := instance.Eval(ctx, opa.EvalOpts{Input: parseJSON(eval.Input)})
 				if err != nil {
 					if test.WantErr == "" { // no error desired
 						t.Fatal(err.Error())

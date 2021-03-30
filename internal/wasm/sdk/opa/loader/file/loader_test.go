@@ -79,7 +79,7 @@ type testPolicyData struct {
 	updated chan struct{}
 }
 
-func (pd *testPolicyData) SetPolicyData(policy []byte, data *interface{}) error {
+func (pd *testPolicyData) SetPolicyData(_ context.Context, policy []byte, data *interface{}) error {
 	pd.Lock()
 	defer pd.Unlock()
 

@@ -62,7 +62,7 @@ func TestHTTPSendTimeout(t *testing.T) {
 			evalTimeout:    500 * time.Millisecond,
 			serverDelay:    5 * time.Second,
 			defaultTimeout: 1 * time.Minute,
-			expected:       &Error{Code: BuiltinErr, Message: "context deadline exceeded"},
+			expected:       &Error{Code: CancelErr, Message: "timed out (context deadline exceeded)"},
 		},
 		{
 			note:           "param timeout less than default",
@@ -86,7 +86,7 @@ func TestHTTPSendTimeout(t *testing.T) {
 			evalTimeout:    500 * time.Millisecond,
 			serverDelay:    5 * time.Second,
 			defaultTimeout: 1 * time.Minute,
-			expected:       &Error{Code: BuiltinErr, Message: "context deadline exceeded"},
+			expected:       &Error{Code: CancelErr, Message: "timed out (context deadline exceeded)"},
 		},
 	}
 
@@ -96,9 +96,8 @@ func TestHTTPSendTimeout(t *testing.T) {
 		tsMtx.Unlock()
 
 		ctx := context.Background()
-		var cancel context.CancelFunc
 		if tc.evalTimeout > 0 {
-			ctx, cancel = context.WithTimeout(ctx, tc.evalTimeout)
+			ctx, _ = context.WithTimeout(ctx, tc.evalTimeout)
 		}
 
 		// TODO(patrick-east): Remove this along with the environment variable so that the "default" can't change
@@ -116,8 +115,5 @@ func TestHTTPSendTimeout(t *testing.T) {
 
 		// Put back the default (may not have changed)
 		defaultHTTPRequestTimeout = originalDefaultTimeout
-		if cancel != nil {
-			cancel()
-		}
 	}
 }

@@ -120,18 +120,18 @@ func (r *Resolver) Eval(ctx context.Context, input resolver.Input) (resolver.Res
 }
 
 // SetData will update the external data for the Wasm instance.
-func (r *Resolver) SetData(data interface{}) error {
-	return r.o.SetData(data)
+func (r *Resolver) SetData(ctx context.Context, data interface{}) error {
+	return r.o.SetData(ctx, data)
 }
 
 // SetDataPath will set the provided data on the wasm instance at the specified path.
-func (r *Resolver) SetDataPath(path []string, data interface{}) error {
-	return r.o.SetDataPath(path, data)
+func (r *Resolver) SetDataPath(ctx context.Context, path []string, data interface{}) error {
+	return r.o.SetDataPath(ctx, path, data)
 }
 
 // RemoveDataPath will remove any data at the specified path.
-func (r *Resolver) RemoveDataPath(path []string) error {
-	return r.o.RemoveDataPath(path)
+func (r *Resolver) RemoveDataPath(ctx context.Context, path []string) error {
+	return r.o.RemoveDataPath(ctx, path)
 }
 
 func getResult(evalResult *opa.Result) (ast.Value, error) {

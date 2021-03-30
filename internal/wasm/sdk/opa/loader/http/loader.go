@@ -15,9 +15,8 @@ import (
 	"time"
 
 	"github.com/open-policy-agent/opa/bundle"
-	"github.com/open-policy-agent/opa/internal/wasm/sdk/opa/errors"
-
 	"github.com/open-policy-agent/opa/internal/wasm/sdk/opa"
+	"github.com/open-policy-agent/opa/internal/wasm/sdk/opa/errors"
 )
 
 const (
@@ -54,7 +53,7 @@ type Loader struct {
 
 // policyData captures the functions used in setting the policy and data.
 type policyData interface {
-	SetPolicyData(policy []byte, data *interface{}) error
+	SetPolicyData(ctx context.Context, policy []byte, data *interface{}) error
 }
 
 // New constructs a new HTTP loader periodically downloading a bundle
@@ -199,7 +198,7 @@ func (l *Loader) Load(ctx context.Context) error {
 		data = &v
 	}
 
-	return l.pd.SetPolicyData(bundle.WasmModules[0].Raw, data)
+	return l.pd.SetPolicyData(ctx, bundle.WasmModules[0].Raw, data)
 }
 
 // get executes HTTP GET.

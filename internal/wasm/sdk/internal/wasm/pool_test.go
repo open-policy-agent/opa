@@ -20,6 +20,7 @@ import (
 )
 
 func TestPoolCopyParsedDataOnInit(t *testing.T) {
+	ctx := context.Background()
 	module := `package test
 
 	p = data.a
@@ -45,10 +46,12 @@ func TestPoolCopyParsedDataOnInit(t *testing.T) {
 	poolSize := 4
 	testPool := initPoolWithData(t, uint32(poolSize), module, "test/p", data)
 	expected := `{{"result":{"b":[1,2,3,{"d":{"e":{"f":123}},"c":4}]}}}`
-	ensurePoolResults(t, testPool, poolSize, expected)
+	ensurePoolResults(t, ctx, testPool, poolSize, expected)
 }
 
 func TestPoolCopyParsedDataUpdateFull(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	module := `package test
 
 	p = data.a
@@ -59,24 +62,24 @@ func TestPoolCopyParsedDataUpdateFull(t *testing.T) {
 	testPool := initPoolWithData(t, uint32(poolSize), module, "test/p", data)
 
 	updated := []byte(`{"a": {"x": 123, "y": "bar"}}`)
-	err := testPool.SetPolicyData(testPool.Policy(), updated)
+	err := testPool.SetPolicyData(ctx, testPool.Policy(), updated)
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
 
 	expected := `{{"result":{"y":"bar","x":123}}}`
-	ensurePoolResults(t, testPool, poolSize, expected)
+	ensurePoolResults(t, ctx, testPool, poolSize, expected)
 
 	// Change it one more time, now that all VM's in the pool have been
 	// initialized and exercised at least once.
 	updated = []byte(`{"a": [1, 2, 3]}`)
-	err = testPool.SetPolicyData(testPool.Policy(), updated)
+	err = testPool.SetPolicyData(ctx, testPool.Policy(), updated)
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
 
 	expected = `{{"result":[1,2,3]}}`
-	ensurePoolResults(t, testPool, poolSize, expected)
+	ensurePoolResults(t, ctx, testPool, poolSize, expected)
 }
 
 func TestPoolCopyParsedDataUpdatePartial(t *testing.T) {
@@ -123,34 +126,36 @@ func TestPoolCopyParsedDataUpdatePartial(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.note, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
 			var err error
 			if tc.remove {
-				err = testPool.RemoveDataPath(tc.path)
+				err = testPool.RemoveDataPath(ctx, tc.path)
 			} else {
-				err = testPool.SetDataPath(tc.path, tc.update)
+				err = testPool.SetDataPath(ctx, tc.path, tc.update)
 			}
 
 			if err != nil {
 				t.Fatalf("Unexpected error: %s", err)
 			}
 
-			ensurePoolResults(t, testPool, poolSize, tc.expected)
+			ensurePoolResults(t, ctx, testPool, poolSize, tc.expected)
 		})
 	}
 }
 
-func ensurePoolResults(t *testing.T, testPool *wasm.Pool, poolSize int, expected string) {
+func ensurePoolResults(t *testing.T, ctx context.Context, testPool *wasm.Pool, poolSize int, expected string) {
 	t.Helper()
 	var toRelease []*wasm.VM
 	for i := 0; i < poolSize; i++ {
-		vm, err := testPool.Acquire(context.Background(), metrics.New())
+		vm, err := testPool.Acquire(ctx, metrics.New())
 		if err != nil {
 			t.Fatalf("Unexpected error: %s", err)
 		}
 
 		toRelease = append(toRelease, vm)
 
-		result, err := vm.Eval(context.Background(), 0, nil, metrics.New(), time.Now())
+		result, err := vm.Eval(ctx, 0, nil, metrics.New(), time.Now())
 		if err != nil {
 			t.Fatalf("Unexpected error: %s", err)
 		}
@@ -189,7 +194,7 @@ func initPoolWithData(t *testing.T, size uint32, module string, entrypoint strin
 
 	testPool := wasm.NewPool(size, 16, 0)
 
-	err = testPool.SetPolicyData(compiler.Bundle().WasmModules[0].Raw, data)
+	err = testPool.SetPolicyData(ctx, compiler.Bundle().WasmModules[0].Raw, data)
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
