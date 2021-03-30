@@ -1463,16 +1463,77 @@ func (p *Planner) planRefData(virtual *ruletrie, base *baseptr, ref ast.Ref, ind
 				}
 			}
 
-			p.ltarget = p.newLocal()
+			// We're planning a structure like this:
+			//
+			// block a
+			//   block b
+			//     block c1
+			//       opa_mapping_lookup || br c1
+			//       call_indirect      || br a
+			//       br b
+			//     end
+			//     block c2
+			//       dot i   || br c2
+			//       dot i+1 || br c2
+			//       br b
+			//     end
+			//     br a
+			//   end
+			//   dot i+2 || br a
+			//   dot i+3 || br a
+			// end
+			//
+			// We have to do it like this because the dot IR stmts
+			// are compiled to `br 0`, the innermost block, if they
+			// fail.
+			// The "c2" block will construct the reference from `data`
+			// only, in case the mapping lookup doesn't yield a func
+			// to call_dynamic.
+
+			ltarget := p.newLocal()
+			p.ltarget = ltarget
+			prev := p.curr
+
+			callDynBlock := &ir.Block{} // "c1" in the sketch
+			p.curr = callDynBlock
 			p.appendStmt(&ir.CallDynamicStmt{
 				Args: []ir.Local{
 					p.vars.GetOrEmpty(ast.InputRootDocument.Value.(ast.Var)),
 					p.vars.GetOrEmpty(ast.DefaultRootDocument.Value.(ast.Var)),
 				},
 				Path:   path,
-				Result: p.ltarget.(ir.Local),
+				Result: ltarget,
 			})
-			return p.planRefRec(ref, index+1, iter)
+			p.appendStmt(&ir.BreakStmt{Index: 1})
+
+			dotBlock := &ir.Block{} // "c2" in the sketch above
+			p.curr = dotBlock
+			p.ltarget = p.vars.GetOrEmpty(ast.DefaultRootDocument.Value.(ast.Var))
+
+			return p.planRefRec(ref[:index+1], 1, func() error {
+				p.appendStmt(&ir.AssignVarStmt{
+					Source: p.ltarget.(ir.Local),
+					Target: ltarget,
+				})
+				p.appendStmt(&ir.BreakStmt{Index: 1})
+				p.ltarget = ltarget
+
+				outerBlock := &ir.Block{Stmts: []ir.Stmt{
+					&ir.BlockStmt{Blocks: []*ir.Block{
+						{ // block "b" in the sketch above
+							Stmts: []ir.Stmt{
+								&ir.BlockStmt{Blocks: []*ir.Block{callDynBlock, dotBlock}},
+								&ir.BreakStmt{Index: 1}},
+						},
+					}},
+				}}
+				p.curr = outerBlock
+				return p.planRefRec(ref, index+1, func() error { // rest of the ref
+					p.curr = prev
+					p.appendStmt(&ir.BlockStmt{Blocks: []*ir.Block{outerBlock}})
+					return iter()
+				})
+			})
 		}
 	}
 

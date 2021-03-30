@@ -85,3 +85,39 @@ cases:
       - x: q
         z: 1
         w: 1
+  - note: data ref used after failed lookup
+    query: data.foo.p = x
+    modules:
+      - |
+        package foo
+        p = y {
+          k := "q"
+          y := data.bar[k].baz
+        }
+      - |
+        package bar
+        p = { "baz": 100 }
+    data:
+      bar:
+        q:
+          baz: 8
+    want_result:
+      - x: 8
+  - note: data ref not used after successful lookup
+    query: data.foo.p = x
+    modules:
+      - |
+        package foo
+        p = y {
+          k := "p"
+          y := data.bar[k].baz
+        }
+      - |
+        package bar
+        p = { "baz": 100 }
+    data:
+      bar:
+        q:
+          baz: 8
+    want_result:
+      - x: 100
