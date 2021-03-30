@@ -28,6 +28,7 @@ require (
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415
 	github.com/yashtewari/glob-intersection v0.0.0-20180916065949-5c77d914dd0b
+	go.uber.org/automaxprocs v1.4.0
 	golang.org/x/lint v0.0.0-20201208152925-83fdc39ff7b5
 	golang.org/x/net v0.0.0-20201021035429-f5854403a974
 	golang.org/x/tools v0.1.0

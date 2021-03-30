@@ -20,13 +20,13 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/open-policy-agent/opa/bundle"
-
 	"github.com/fsnotify/fsnotify"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"go.uber.org/automaxprocs/maxprocs"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/internal/config"
 	"github.com/open-policy-agent/opa/internal/prometheus"
 	"github.com/open-policy-agent/opa/internal/report"
@@ -289,6 +289,7 @@ func (rt *Runtime) StartServer(ctx context.Context) {
 // will block until either: an error occurs, the context is canceled, or
 // a SIGTERM or SIGKILL signal is sent.
 func (rt *Runtime) Serve(ctx context.Context) error {
+
 	if rt.Params.Addrs == nil {
 		return fmt.Errorf("at least one address must be configured in runtime parameters")
 	}
@@ -304,6 +305,19 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 		"diagnostic-addrs": *rt.Params.DiagnosticAddrs,
 	}).Info("Initializing server.")
 
+	// NOTE(tsandall): at some point, hopefully we can remove this because the
+	// Go runtime will just do the right thing. Until then, try to set
+	// GOMAXPROCS based on the CPU quota applied to the process.
+	undo, err := maxprocs.Set(maxprocs.Logger(func(f string, a ...interface{}) {
+		logrus.Debugf(f, a...)
+	}))
+
+	if err != nil {
+		logrus.WithFields(logrus.Fields{"err": err}).Debug("Failed to set GOMAXPROCS from CPU quota.")
+	}
+
+	defer undo()
+
 	if err := rt.Manager.Start(ctx); err != nil {
 		logrus.WithField("err", err).Error("Failed to start plugins.")
 		return err
@@ -311,7 +325,6 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 
 	defer rt.Manager.Stop(ctx)
 
-	var err error
 	rt.server = server.New().
 		WithStore(rt.Store).
 		WithManager(rt.Manager).
