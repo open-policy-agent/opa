@@ -246,6 +246,117 @@ func FilteredPaths(paths []string, filter Filter) ([]string, error) {
 	return result, nil
 }
 
+// Schemas loads a schema set from the specified file path.
+func Schemas(schemaPath string) (*ast.SchemaSet, error) {
+
+	var errs Errors
+	ss, err := loadSchemas(schemaPath)
+	if err != nil {
+		errs.add(err)
+		return nil, errs
+	}
+
+	return ss, nil
+}
+
+func loadSchemas(schemaPath string) (*ast.SchemaSet, error) {
+
+	if schemaPath == "" {
+		return nil, nil
+	}
+
+	ss := ast.NewSchemaSet()
+	path, err := fileurl.Clean(schemaPath)
+	if err != nil {
+		return nil, err
+	}
+
+	info, err := os.Stat(path)
+	if err != nil {
+		return nil, err
+	}
+
+	// Handle single file case.
+	if !info.IsDir() {
+		schema, err := loadOneSchema(path)
+		if err != nil {
+			return nil, err
+		}
+		ss.ByPath.Put(ast.InputRootRef, schema)
+		return ss, nil
+
+	}
+
+	// Handle directory case.
+	rootDir := path
+
+	err = filepath.Walk(path,
+		func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			} else if info.IsDir() {
+				return nil
+			}
+
+			schema, err := loadOneSchema(path)
+			if err != nil {
+				return err
+			}
+
+			relPath, err := filepath.Rel(rootDir, path)
+			if err != nil {
+				return err
+			}
+
+			key := getSchemaSetByPathKey(relPath)
+			ss.ByPath.Put(key, schema)
+			return nil
+		})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return ss, nil
+}
+
+func getSchemaSetByPathKey(path string) ast.Ref {
+
+	front := filepath.Dir(path)
+	last := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
+
+	var parts []string
+
+	if front != "." {
+		parts = append(strings.Split(filepath.ToSlash(front), "/"), last)
+	} else {
+		parts = []string{last}
+	}
+
+	key := make(ast.Ref, 1+len(parts))
+	key[0] = ast.SchemaRootDocument
+	for i := range parts {
+		key[i+1] = ast.StringTerm(parts[i])
+	}
+
+	return key
+}
+
+func loadOneSchema(path string) (interface{}, error) {
+	bs, err := ioutil.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	var schema interface{}
+	err = util.Unmarshal(bs, &schema)
+	if err != nil {
+		return nil, errors.Wrap(err, path)
+	}
+
+	return schema, nil
+}
+
 // All returns a Result object loaded (recursively) from the specified paths.
 // Deprecated: Use FileLoader.Filtered() instead.
 func All(paths []string) (*Result, error) {

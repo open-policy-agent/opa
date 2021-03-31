@@ -729,3 +729,92 @@ func TestDirs(t *testing.T) {
 		t.Errorf("got: %q wanted: %q", sorted, e)
 	}
 }
+
+func TestSchemas(t *testing.T) {
+
+	tests := []struct {
+		note   string
+		path   string
+		files  map[string]string
+		exp    map[string]string
+		expErr string
+	}{
+		{
+			note: "empty path",
+			path: "", // no error, no files
+		},
+		{
+			note:   "bad file path",
+			path:   "foo/bar/baz.json",
+			expErr: "stat foo/bar/baz.json: no such file or directory",
+		},
+		{
+			note: "bad file content",
+			path: "foo/bar/baz.json",
+			files: map[string]string{
+				"foo/bar/baz.json": `{
+					"foo
+				}`,
+			},
+			expErr: "found unexpected end of stream",
+		},
+		{
+			note: "one global file",
+			path: "foo/bar/baz.json",
+			files: map[string]string{
+				"foo/bar/baz.json": `{"type": "string"}`,
+			},
+			exp: map[string]string{
+				"input": `{"type": "string"}`,
+			},
+		},
+		{
+			note: "directory loading",
+			path: "foo/",
+			files: map[string]string{
+				"foo/qux.json":     `{"type": "number"}`,
+				"foo/bar/baz.json": `{"type": "string"}`,
+			},
+			exp: map[string]string{
+				"schema.qux":     `{"type": "number"}`,
+				"schema.bar.baz": `{"type": "string"}`,
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			test.WithTempFS(tc.files, func(rootDir string) {
+				err := os.Chdir(rootDir)
+				if err != nil {
+					t.Fatal(err)
+				}
+				ss, err := Schemas(tc.path)
+				if tc.expErr != "" {
+					if err == nil {
+						t.Fatal("expected error")
+					}
+					if !strings.Contains(err.Error(), tc.expErr) {
+						t.Fatalf("expected error to contain %q but got %q", tc.expErr, err)
+					}
+				} else {
+					if err != nil {
+						t.Fatal("unexpected error:", err)
+					}
+					for k, v := range tc.exp {
+						key := ast.MustParseRef(k)
+						var schema interface{}
+						util.Unmarshal([]byte(v), &schema)
+						result, ok := ss.ByPath.Get(key)
+						if !ok {
+							t.Fatalf("expected schema with key %v", key)
+						}
+						if !reflect.DeepEqual(schema, result) {
+							t.Fatalf("expected schema %v but got %v", schema, result)
+						}
+					}
+				}
+			})
+		})
+	}
+}
