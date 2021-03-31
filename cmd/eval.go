@@ -11,20 +11,19 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
-
-	"github.com/open-policy-agent/opa/compile"
 
 	"github.com/spf13/cobra"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/ast/location"
+	"github.com/open-policy-agent/opa/compile"
 	"github.com/open-policy-agent/opa/cover"
 	fileurl "github.com/open-policy-agent/opa/internal/file/url"
 	pr "github.com/open-policy-agent/opa/internal/presentation"
 	"github.com/open-policy-agent/opa/internal/runtime"
+	"github.com/open-policy-agent/opa/loader"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/profiler"
 	"github.com/open-policy-agent/opa/rego"
@@ -439,7 +438,7 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 		-s {file} (one input schema file)
 		-s {directory} (one schema directory with input and data schema files)
 	*/
-	schemaSet, err := readSchemaBytes(params)
+	schemaSet, err := loader.Schemas(params.schemaPath)
 	if err != nil {
 		return nil, err
 	}
@@ -539,89 +538,6 @@ func readInputBytes(params evalCommandParams) ([]byte, error) {
 		}
 		return ioutil.ReadFile(path)
 	}
-	return nil, nil
-}
-
-func readSchemaBytes(params evalCommandParams) (*ast.SchemaSet, error) {
-	if params.schemaPath != "" {
-		ss := ast.NewSchemaSet()
-		var schema interface{}
-		path, err := fileurl.Clean(params.schemaPath)
-		if err != nil {
-			return nil, err
-		}
-
-		if info, err := os.Stat(path); err == nil && !info.IsDir() { //contains a single input schema file
-			schemaBytes, err := ioutil.ReadFile(path)
-			if err != nil {
-				return nil, err
-			}
-
-			err = util.Unmarshal(schemaBytes, &schema)
-			if err != nil {
-				return nil, fmt.Errorf("unable to unmarshal schema: %s", err.Error())
-			}
-
-			ss.ByPath.Put(ast.InputRootRef, schema)
-			return ss, nil
-		} else if err != nil {
-			return nil, err
-		}
-
-		rootDir := path
-
-		err = filepath.Walk(path,
-			func(path string, info os.FileInfo, err error) error {
-				if err != nil {
-					return fmt.Errorf("error in walking file path: %w", err)
-				}
-
-				if info.IsDir() { // ignoring directories
-					return nil
-				}
-
-				// proceed knowing it's a file
-				schemaBytes, err := ioutil.ReadFile(path)
-				if err != nil {
-					return err
-				}
-				err = util.Unmarshal(schemaBytes, &schema)
-				if err != nil {
-					return fmt.Errorf("unable to unmarshal schema: %s", err)
-				}
-
-				relPath, err := filepath.Rel(rootDir, path)
-				if err != nil {
-					return err
-				}
-
-				front := filepath.Dir(relPath)
-				last := strings.TrimSuffix(filepath.Base(relPath), filepath.Ext(path))
-
-				var parts []string
-
-				if front != "." {
-					parts = append(strings.Split(filepath.ToSlash(front), "/"), last)
-				} else {
-					parts = []string{last}
-				}
-
-				key := make(ast.Ref, 1+len(parts))
-				key[0] = ast.VarTerm("schema")
-				for i := range parts {
-					key[i+1] = ast.StringTerm(parts[i])
-				}
-
-				ss.ByPath.Put(key, schema)
-				return nil
-			})
-		if err != nil {
-			return nil, err
-		}
-
-		return ss, nil
-	}
-
 	return nil, nil
 }
 
