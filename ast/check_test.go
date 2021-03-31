@@ -1883,3 +1883,79 @@ whocan[user] {
 		})
 	}
 }
+
+func TestCheckAnnotationInference(t *testing.T) {
+
+	tests := []struct {
+		note    string
+		modules map[string]string
+		schemas map[string]string
+		exp     map[string]types.Type
+	}{
+		{
+			note: "rule scope",
+			modules: map[string]string{
+				"test.rego": `
+package test
+
+# METADATA
+# scope: rule
+# schemas:
+# - input: schema.foo
+p = x { input = x }
+
+q = p`,
+			},
+			schemas: map[string]string{
+				"schema.foo": `{"type": "number"}`,
+			},
+			exp: map[string]types.Type{
+				"data.test.p": types.N,
+				"data.test.q": types.N,
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+
+			modules := map[string]*Module{}
+			for k, v := range tc.modules {
+				var err error
+				modules[k], err = ParseModuleWithOpts(k, v, ParserOptions{ProcessAnnotation: true})
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				ss := NewSchemaSet()
+				for k, v := range tc.schemas {
+
+					ref := MustParseRef(k)
+					var schema interface{}
+					err = util.Unmarshal([]byte(v), &schema)
+					if err != nil {
+						t.Fatal(err)
+					}
+
+					ss.ByPath.Put(ref, schema)
+				}
+
+				compiler := NewCompiler().WithSchemas(ss)
+				compiler.Compile(modules)
+				if compiler.Failed() {
+					t.Fatal("unexpected error:", compiler.Errors)
+				}
+
+				for k, v := range tc.exp {
+					ref := MustParseRef(k)
+					result := compiler.TypeEnv.Get(ref)
+					if types.Compare(result, v) != 0 {
+						t.Errorf("expected %v => %v but got %v", ref, v, result)
+					}
+				}
+			}
+
+		})
+	}
+
+}
