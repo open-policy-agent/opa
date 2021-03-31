@@ -148,6 +148,8 @@ func (tc *typeChecker) checkLanguageBuiltins(env *TypeEnv, builtins map[string]*
 
 func (tc *typeChecker) checkRule(env *TypeEnv, rule *Rule) {
 
+	env = env.wrap()
+
 	if schemaAnnots := getRuleAnnotation(rule); schemaAnnots != nil {
 		for _, schemaAnnot := range schemaAnnots {
 			ref, refType, err := processAnnotation(schemaAnnot, env, rule)
@@ -156,10 +158,7 @@ func (tc *typeChecker) checkRule(env *TypeEnv, rule *Rule) {
 				continue
 			}
 			prefixRef, t := env.GetPrefix(ref)
-			env = env.wrap()
-			if t == nil {
-				env.tree.Put(ref, refType)
-			} else if len(prefixRef) == len(ref) {
+			if t == nil || len(prefixRef) == len(ref) {
 				env.tree.Put(ref, refType)
 			} else {
 				newType, err := override(ref[len(prefixRef):], t, refType, rule)
@@ -173,6 +172,7 @@ func (tc *typeChecker) checkRule(env *TypeEnv, rule *Rule) {
 	}
 
 	cpy, err := tc.CheckBody(env, rule.Body)
+	env = env.next
 	path := rule.Path()
 
 	if len(err) > 0 {
