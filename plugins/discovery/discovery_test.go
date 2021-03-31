@@ -16,12 +16,18 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus/hooks/test"
+
 	"github.com/open-policy-agent/opa/ast"
 	bundleApi "github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/download"
+	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/plugins/bundle"
+	"github.com/open-policy-agent/opa/plugins/logs"
 	"github.com/open-policy-agent/opa/plugins/status"
+	"github.com/open-policy-agent/opa/server"
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/topdown/cache"
 	"github.com/open-policy-agent/opa/util"
@@ -988,6 +994,127 @@ func TestStatusUpdatesTimestamp(t *testing.T) {
 
 	if disco.status.LastSuccessfulDownload != disco.status.LastSuccessfulRequest || disco.status.LastSuccessfulDownload == disco.status.LastRequest {
 		t.Fatal("expected last successful request to be same as download but different from request")
+	}
+}
+
+func TestStatusMetricsForLogDrops(t *testing.T) {
+
+	ts := testServer{t: t}
+	ts.Start()
+	defer ts.Stop()
+
+	logLevel := logrus.GetLevel()
+	defer logrus.SetLevel(logLevel)
+
+	// Ensure that status messages are printed to console even with the standard logger configured to log errors only
+	logrus.SetLevel(logrus.ErrorLevel)
+
+	hook := test.NewLocal(plugins.GetConsoleLogger())
+
+	ctx := context.Background()
+
+	manager, err := plugins.New([]byte(fmt.Sprintf(`{
+			"services": {
+				"localhost": {
+					"url": %q
+				}
+			},
+			"discovery": {"name": "config"}
+		}`, ts.server.URL)), "test-id", inmem.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	initialBundle := makeDataBundle(1, `
+		{
+			"config": {
+				"status": {"console": true},
+				"decision_logs": {
+					"service": "localhost",
+					"reporting": {
+						"max_decisions_per_second": 1
+					}
+				}
+			}
+		}
+	`)
+
+	disco, err := New(manager, Metrics(metrics.New()))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ps, err := disco.processBundle(ctx, initialBundle)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// start the decision log and status plugins
+	for _, p := range ps.Start {
+		if err := p.Start(ctx); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	plugin := logs.Lookup(manager)
+	if plugin == nil {
+		t.Fatal("Expected decision log plugin registered on manager")
+	}
+
+	var input interface{} = map[string]interface{}{"method": "GET"}
+	var result interface{} = false
+
+	event1 := &server.Info{
+		DecisionID: "abc",
+		Path:       "foo/bar",
+		Input:      &input,
+		Results:    &result,
+		RemoteAddr: "test-1",
+	}
+
+	event2 := &server.Info{
+		DecisionID: "def",
+		Path:       "foo/baz",
+		Input:      &input,
+		Results:    &result,
+		RemoteAddr: "test-2",
+	}
+
+	event3 := &server.Info{
+		DecisionID: "ghi",
+		Path:       "foo/aux",
+		Input:      &input,
+		Results:    &result,
+		RemoteAddr: "test-3",
+	}
+
+	_ = plugin.Log(ctx, event1) // event 1 should be written into the decision log encoder
+	_ = plugin.Log(ctx, event2) // event 2 should not be written into the decision log encoder as rate limit exceeded
+	_ = plugin.Log(ctx, event3) // event 3 should not be written into the decision log encoder as rate limit exceeded
+
+	// trigger a status update
+	disco.oneShot(ctx, download.Update{ETag: "etag-1", Bundle: makeDataBundle(1, `{
+		"config": {
+			"bundle": {"name": "test1"}
+		}
+	}`)})
+
+	entries := hook.AllEntries()
+	if len(entries) == 0 {
+		t.Fatal("Expected log entries but got none")
+	}
+
+	// Pick the last entry as it should have the drop count
+	e := entries[len(entries)-1]
+
+	if _, ok := e.Data["metrics"]; !ok {
+		t.Fatal("Expected metrics")
+	}
+
+	exp := map[string]interface{}{"<built-in>": map[string]interface{}{"counter_decision_logs_dropped": json.Number("2")}}
+
+	if !reflect.DeepEqual(e.Data["metrics"], exp) {
+		t.Fatalf("Expected %v but got %v", exp, e.Data["metrics"])
 	}
 }
 
