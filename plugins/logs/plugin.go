@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+
 	"math"
 	"math/rand"
 	"net/http"
@@ -17,17 +18,17 @@ import (
 	"sync"
 	"time"
 
-	"github.com/open-policy-agent/opa/sdk"
-
 	"github.com/pkg/errors"
 
 	"golang.org/x/time/rate"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/internal/ref"
+	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/plugins/rest"
 	"github.com/open-policy-agent/opa/rego"
+	"github.com/open-policy-agent/opa/sdk"
 	"github.com/open-policy-agent/opa/server"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/util"
@@ -214,6 +215,7 @@ const (
 	defaultUploadSizeLimitBytes = int64(32768) // 32KB limit
 	defaultBufferSizeLimitBytes = int64(0)     // unlimited
 	defaultMaskDecisionPath     = "/system/log/mask"
+	logDropCounterName          = "decision_logs_dropped"
 )
 
 // ReportingConfig represents configuration for the plugin's reporting behaviour.
@@ -345,6 +347,7 @@ type Plugin struct {
 	maskMutex sync.Mutex
 	logger    sdk.Logger
 	limiter   *rate.Limiter
+	metrics   metrics.Metrics
 }
 
 type reconfigure struct {
@@ -394,6 +397,12 @@ func New(parsedConfig *Config, manager *plugins.Manager) *Plugin {
 	manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateNotReady})
 
 	return plugin
+}
+
+// WithMetrics sets the global metrics provider to be used by the plugin.
+func (p *Plugin) WithMetrics(m metrics.Metrics) *Plugin {
+	p.metrics = m
+	return p
 }
 
 // Name identifies the plugin on manager.
@@ -668,6 +677,10 @@ func (p *Plugin) reconfigure(config interface{}) {
 func (p *Plugin) encodeAndBufferEvent(event EventV1) {
 	if p.limiter != nil {
 		if !p.limiter.Allow() {
+			if p.metrics != nil {
+				p.metrics.Counter(logDropCounterName).Incr()
+			}
+
 			p.logger.Error("Decision log dropped as rate limit exceeded. Reduce reporting interval or increase rate limit.")
 			return
 		}
