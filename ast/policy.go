@@ -31,8 +31,14 @@ var DefaultRootDocument = VarTerm("data")
 // InputRootDocument names the document containing query arguments.
 var InputRootDocument = VarTerm("input")
 
+// SchemaRootDocument names the document containing external data schemas.
+var SchemaRootDocument = VarTerm("schema")
+
 // RootDocumentNames contains the names of top-level documents that can be
 // referred to in modules and queries.
+//
+// Note, the schema document is not currently implemented in the evaluator so it
+// is not registered as a root document name (yet).
 var RootDocumentNames = NewSet(
 	DefaultRootDocument,
 	InputRootDocument,
@@ -47,6 +53,13 @@ var DefaultRootRef = Ref{DefaultRootDocument}
 //
 // All refs to query arguments are prefixed with this ref.
 var InputRootRef = Ref{InputRootDocument}
+
+// SchemaRootRef is a reference to the root of the schema document.
+//
+// All refs to schema documents are prefixed with this ref. Note, the schema
+// document is not currently implemented in the evaluator so it is not
+// registered as a root document ref (yet).
+var SchemaRootRef = Ref{SchemaRootDocument}
 
 // RootDocumentRefs contains the prefixes of top-level documents that all
 // non-local references start with.
