@@ -22,6 +22,8 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/plugins"
+	"github.com/open-policy-agent/opa/plugins/bundle"
+	"github.com/open-policy-agent/opa/plugins/status"
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/server"
 	"github.com/open-policy-agent/opa/storage"
@@ -29,6 +31,8 @@ import (
 	"github.com/open-policy-agent/opa/topdown"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/version"
+	"github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus/hooks/test"
 )
 
 func TestMain(m *testing.M) {
@@ -735,6 +739,113 @@ func TestPluginRateLimitRequeue(t *testing.T) {
 	events := decodeLogEvent(t, chunk)
 	if len(events) != 1 {
 		t.Fatalf("Expected 1 event but got %v", len(events))
+	}
+}
+
+func TestPluginRateLimitDropCountStatus(t *testing.T) {
+	ctx := context.Background()
+
+	ts, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
+	if err != nil {
+		panic(err)
+	}
+
+	numDecisions := 1 // 1 decision per second
+
+	fixture := newTestFixture(t, func(c *Config) {
+		limit := float64(numDecisions)
+		c.Reporting.MaxDecisionsPerSecond = &limit
+	}, func(c *Config) {
+		limit := int64(300)
+		c.Reporting.UploadSizeLimitBytes = &limit
+	})
+	defer fixture.server.stop()
+
+	fixture.plugin.metrics = metrics.New()
+
+	var input interface{} = map[string]interface{}{"method": "GET"}
+	var result interface{} = false
+
+	event1 := &server.Info{
+		DecisionID: "abc",
+		Path:       "foo/bar",
+		Input:      &input,
+		Results:    &result,
+		RemoteAddr: "test-1",
+		Timestamp:  ts,
+	}
+
+	event2 := &server.Info{
+		DecisionID: "def",
+		Path:       "foo/baz",
+		Input:      &input,
+		Results:    &result,
+		RemoteAddr: "test-2",
+		Timestamp:  ts,
+	}
+
+	event3 := &server.Info{
+		DecisionID: "ghi",
+		Path:       "foo/aux",
+		Input:      &input,
+		Results:    &result,
+		RemoteAddr: "test-3",
+		Timestamp:  ts,
+	}
+
+	_ = fixture.plugin.Log(ctx, event1) // event 1 should be written into the encoder
+
+	if fixture.plugin.enc.bytesWritten == 0 {
+		t.Fatal("Expected event to be written into the encoder")
+	}
+
+	// Create a status plugin that logs to console
+	pluginConfig := []byte(fmt.Sprintf(`{
+			"console": true,
+		}`))
+
+	config, _ := status.ParseConfig(pluginConfig, fixture.manager.Services())
+	p := status.New(config, fixture.manager).WithMetrics(fixture.plugin.metrics)
+
+	fixture.manager.Register(status.Name, p)
+	if err := fixture.manager.Start(ctx); err != nil {
+		panic(err)
+	}
+
+	logLevel := logrus.GetLevel()
+	defer logrus.SetLevel(logLevel)
+
+	// Ensure that status messages are printed to console even with the standard logger configured to log errors only
+	logrus.SetLevel(logrus.ErrorLevel)
+
+	hook := test.NewLocal(plugins.GetConsoleLogger())
+
+	_ = fixture.plugin.Log(ctx, event2) // event 2 should not be written into the encoder as rate limit exceeded
+	_ = fixture.plugin.Log(ctx, event3) // event 3 should not be written into the encoder as rate limit exceeded
+
+	// Trigger a status update
+	status := testStatus()
+	p.UpdateDiscoveryStatus(*status)
+
+	// Give the logger / console some time to process and print the events
+	time.Sleep(10 * time.Millisecond)
+
+	entries := hook.AllEntries()
+	if len(entries) == 0 {
+		t.Fatal("Expected log entries but got none")
+	}
+
+	// Pick the last entry as it should have the drop count
+	e := entries[len(entries)-1]
+
+	if _, ok := e.Data["metrics"]; !ok {
+		t.Fatal("Expected metrics")
+	}
+
+	exp := map[string]interface{}{"<built-in>": map[string]interface{}{"counter_decision_logs_dropped": json.Number("2")}}
+
+	if !reflect.DeepEqual(e.Data["metrics"], exp) {
+		t.Fatalf("Expected %v but got %v", exp, e.Data["metrics"])
 	}
 }
 
@@ -1580,4 +1691,19 @@ func compareLogEvent(t *testing.T, actual []byte, exp EventV1) {
 	if !reflect.DeepEqual(events[0], exp) {
 		t.Fatalf("Expected %+v but got %+v", exp, events[0])
 	}
+}
+
+func testStatus() *bundle.Status {
+
+	tDownload, _ := time.Parse("2018-01-01T00:00:00.0000000Z", time.RFC3339Nano)
+	tActivate, _ := time.Parse("2018-01-01T00:00:01.0000000Z", time.RFC3339Nano)
+
+	status := bundle.Status{
+		Name:                     "example/authz",
+		ActiveRevision:           "quickbrawnfaux",
+		LastSuccessfulDownload:   tDownload,
+		LastSuccessfulActivation: tActivate,
+	}
+
+	return &status
 }
