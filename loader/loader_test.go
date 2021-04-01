@@ -805,8 +805,8 @@ func TestSchemas(t *testing.T) {
 						key := ast.MustParseRef(k)
 						var schema interface{}
 						util.Unmarshal([]byte(v), &schema)
-						result, ok := ss.ByPath.Get(key)
-						if !ok {
+						result := ss.Get(key)
+						if result == nil {
 							t.Fatalf("expected schema with key %v", key)
 						}
 						if !reflect.DeepEqual(schema, result) {

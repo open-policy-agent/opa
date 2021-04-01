@@ -1808,9 +1808,9 @@ whocan[user] {
 }`
 
 	schemaSet := NewSchemaSet()
-	schemaSet.ByPath.Put(MustParseRef("schema.input"), ischema)
-	schemaSet.ByPath.Put(MustParseRef(`schema["whocan-input-schema"]`), ischema2)
-	schemaSet.ByPath.Put(MustParseRef(`schema["acl-schema"]`), dschema)
+	schemaSet.Put(MustParseRef("schema.input"), ischema)
+	schemaSet.Put(MustParseRef(`schema["whocan-input-schema"]`), ischema2)
+	schemaSet.Put(MustParseRef(`schema["acl-schema"]`), dschema)
 
 	tests := map[string]struct {
 		module    string
@@ -1937,7 +1937,7 @@ q = p`,
 						t.Fatal(err)
 					}
 
-					ss.ByPath.Put(ref, schema)
+					ss.Put(ref, schema)
 				}
 
 				compiler := NewCompiler().WithSchemas(ss)

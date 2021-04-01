@@ -299,12 +299,12 @@ func testReadParamWithSchemaDir(t *testing.T, input string, query string, inputS
 			return
 		}
 
-		if _, ok := schemaSet.ByPath.Get(ast.MustParseRef("schema.input")); !ok {
+		if schemaSet.Get(ast.MustParseRef("schema.input")) == nil {
 			err = fmt.Errorf("Expected schema for input in schemaSet but got none")
 			return
 		}
 
-		if _, ok := schemaSet.ByPath.Get(ast.MustParseRef(`schema.kubernetes["data-schema"]`)); !ok {
+		if schemaSet.Get(ast.MustParseRef(`schema.kubernetes["data-schema"]`)) == nil {
 			err = fmt.Errorf("Expected schemas for data in schemaSet but got none")
 			return
 		}
