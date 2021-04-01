@@ -1105,25 +1105,29 @@ func getRuleAnnotation(rule *Rule) (sannots []SchemaAnnotation) {
 // NOTE: Currently, annotations must preceed the rule. In the future, this
 // restriction could be relaxed with other kinds of annotation scopes.
 func processAnnotation(annot SchemaAnnotation, env *TypeEnv, rule *Rule) (Ref, types.Type, *Error) {
-	if env.schemaSet == nil || env.schemaSet.ByPath == nil {
+	if env.schemaSet == nil {
 		return nil, nil, NewError(TypeErr, rule.Location, "schemas need to be supplied for the annotation: %s", annot.Schema)
 	}
+
 	schemaRef, err := ParseRef(annot.Schema)
 	if err != nil {
 		return nil, nil, NewError(TypeErr, rule.Location, "schema is not well formed in annotation: %s", annot.Schema)
 	}
-	schema, ok := env.schemaSet.ByPath.Get(schemaRef)
-	if !ok {
+
+	schema := env.schemaSet.Get(schemaRef)
+	if schema == nil {
 		return nil, nil, NewError(TypeErr, rule.Location, "schema does not exist for given path in annotation: %s", schemaRef.String())
 	}
-	newType, err := setTypesWithSchema(schema)
+
+	tpe, err := loadSchema(schema)
 	if err != nil {
 		return nil, nil, NewError(TypeErr, rule.Location, err.Error())
 	}
+
 	ref, err := ParseRef(annot.Path)
 	if err != nil {
 		return nil, nil, NewError(TypeErr, rule.Location, err.Error())
 	}
 
-	return ref, newType, nil
+	return ref, tpe, nil
 }

@@ -109,25 +109,6 @@ type Compiler struct {
 	schemaSet            *SchemaSet                    // user-supplied schemas for input and data documents
 }
 
-// SchemaSet holds a map from a path to a schema
-type SchemaSet struct {
-	ByPath *util.HashMap
-}
-
-// NewSchemaSet returns an empty SchemaSet.
-func NewSchemaSet() *SchemaSet {
-
-	eqFunc := func(a, b util.T) bool {
-		return a.(Ref).Equal(b.(Ref))
-	}
-
-	hashFunc := func(x util.T) int { return x.(Ref).Hash() }
-
-	return &SchemaSet{
-		ByPath: util.NewHashMap(eqFunc, hashFunc),
-	}
-}
-
 // CompilerStage defines the interface for stages in the compiler.
 type CompilerStage func(*Compiler) *Error
 
@@ -955,20 +936,6 @@ func parseSchema(schema interface{}) (types.Type, error) {
 	return types.A, nil
 }
 
-func setTypesWithSchema(schema interface{}) (types.Type, error) {
-	goJSONSchema, err := compileSchema(schema)
-	if err != nil {
-		return nil, fmt.Errorf("compile failed: %s", err.Error())
-	}
-
-	newtype, err := parseSchema(goJSONSchema.RootSchema)
-	if err != nil {
-		return nil, fmt.Errorf("error when type checking %v", err)
-	}
-
-	return newtype, nil
-}
-
 // checkTypes runs the type checker on all rules. The type checker builds a
 // TypeEnv that is stored on the compiler.
 func (c *Compiler) checkTypes() {
@@ -1058,20 +1025,23 @@ func (c *Compiler) init() {
 
 func (c *Compiler) setSchemas() {
 	if c.schemaSet != nil {
-		if c.schemaSet.ByPath != nil {
-			// First, set the schemaSet in the type environment
-			c.TypeEnv.WithSchemas(c.schemaSet)
 
-			// Second, set the schema for the input globally
-			schema, ok := c.schemaSet.ByPath.Get(InputRootRef)
-			if ok {
-				newtype, err := setTypesWithSchema(schema)
-				if err != nil {
-					c.err(NewError(TypeErr, nil, err.Error()))
-				}
-				c.TypeEnv.tree.PutOne(VarTerm("input").Value, newtype)
-			}
+		// First, set the schemaSet in the type environment
+		c.TypeEnv.WithSchemas(c.schemaSet)
+
+		// Second, set the schema for the input globally if it exists
+		schema := c.schemaSet.Get(InputRootRef)
+		if schema == nil {
+			return
 		}
+
+		tpe, err := loadSchema(schema)
+		if err != nil {
+			c.err(NewError(TypeErr, nil, err.Error()))
+			return
+		}
+
+		c.TypeEnv.tree.Put(InputRootRef, tpe)
 	}
 }
 

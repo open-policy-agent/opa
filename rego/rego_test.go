@@ -1862,7 +1862,7 @@ func TestPrepareAndCompileWithSchema(t *testing.T) {
 	err := util.Unmarshal([]byte(schemaBytes), &schema)
 
 	schemaSet := ast.NewSchemaSet()
-	schemaSet.ByPath.Put(ast.InputRootRef, schema)
+	schemaSet.Put(ast.InputRootRef, schema)
 
 	r := New(
 		Query("data.test.x"),
