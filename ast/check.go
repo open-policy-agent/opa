@@ -157,7 +157,7 @@ func (tc *typeChecker) checkRule(env *TypeEnv, rule *Rule) {
 				tc.err([]*Error{err})
 				continue
 			}
-			prefixRef, t := env.GetPrefix(ref)
+			prefixRef, t := getPrefix(env, ref)
 			if t == nil || len(prefixRef) == len(ref) {
 				env.tree.Put(ref, refType)
 			} else {
@@ -1013,6 +1013,23 @@ func getArgTypes(env *TypeEnv, args []*Term) []types.Type {
 		pre[i] = env.Get(args[i])
 	}
 	return pre
+}
+
+// getPrefix returns the shortest prefix of ref that exists in env
+func getPrefix(env *TypeEnv, ref Ref) (Ref, types.Type) {
+	if len(ref) == 1 {
+		t := env.Get(ref)
+		if t != nil {
+			return ref, t
+		}
+	}
+	for i := 1; i < len(ref); i++ {
+		t := env.Get(ref[:i])
+		if t != nil {
+			return ref[:i], t
+		}
+	}
+	return nil, nil
 }
 
 // override takes a type t and returns a type obtained from t where the path represented by ref within it has type o (overriding the original type of that path)
