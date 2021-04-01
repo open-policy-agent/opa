@@ -919,7 +919,7 @@ func parseSchema(schema interface{}) (types.Type, error) {
 		} else if subSchema.Types.Contains("string") {
 			return types.S, nil
 
-		} else if subSchema.Types.Contains("integer") {
+		} else if subSchema.Types.Contains("integer") || subSchema.Types.Contains("number") {
 			return types.N, nil
 
 		} else if subSchema.Types.Contains("object") {

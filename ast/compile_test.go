@@ -4403,6 +4403,26 @@ func TestParseSchemaBooleanField(t *testing.T) {
 	testParseSchema(t, booleanSchema, expectedType)
 }
 
+func TestParseSchemaBasics(t *testing.T) {
+	tests := []struct {
+		note   string
+		schema string
+		exp    types.Type
+	}{
+		{
+			note:   "number",
+			schema: `{"type": "number"}`,
+			exp:    types.N,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			testParseSchema(t, tc.schema, tc.exp)
+		})
+	}
+}
+
 func TestCompileSchemaEmptySchema(t *testing.T) {
 	schema := ""
 	var sch interface{}
