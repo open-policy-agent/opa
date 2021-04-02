@@ -27,6 +27,8 @@ type typeChecker struct {
 	errs         Errors
 	exprCheckers map[string]exprChecker
 	varRewriter  rewriteVars
+	ss           *SchemaSet
+	input        types.Type
 }
 
 // newTypeChecker returns a new typeChecker object that has no errors.
@@ -38,9 +40,48 @@ func newTypeChecker() *typeChecker {
 	return tc
 }
 
+func (tc *typeChecker) newEnv(exist *TypeEnv) *TypeEnv {
+	if exist != nil {
+		return exist.wrap()
+	}
+	env := newTypeEnv(tc.copy)
+	if tc.input != nil {
+		env.tree.Put(InputRootRef, tc.input)
+	}
+	return env
+}
+
+func (tc *typeChecker) copy() *typeChecker {
+	return newTypeChecker().
+		WithVarRewriter(tc.varRewriter).
+		WithSchemaSet(tc.ss).
+		WithInputType(tc.input)
+}
+
+func (tc *typeChecker) WithSchemaSet(ss *SchemaSet) *typeChecker {
+	tc.ss = ss
+	return tc
+}
+
 func (tc *typeChecker) WithVarRewriter(f rewriteVars) *typeChecker {
 	tc.varRewriter = f
 	return tc
+}
+
+func (tc *typeChecker) WithInputType(tpe types.Type) *typeChecker {
+	tc.input = tpe
+	return tc
+}
+
+// Env returns a type environment for the specified built-ins with any other
+// global types configured on the checker. In practice, this is the default
+// environment that other statements will be checked against.
+func (tc *typeChecker) Env(builtins map[string]*Builtin) *TypeEnv {
+	env := tc.newEnv(nil)
+	for _, bi := range builtins {
+		env.tree.Put(bi.Ref(), bi.Decl)
+	}
+	return env
 }
 
 // CheckBody runs type checking on the body and returns a TypeEnv if no errors
@@ -49,12 +90,7 @@ func (tc *typeChecker) WithVarRewriter(f rewriteVars) *typeChecker {
 func (tc *typeChecker) CheckBody(env *TypeEnv, body Body) (*TypeEnv, Errors) {
 
 	errors := []*Error{}
-
-	if env == nil {
-		env = NewTypeEnv()
-	} else {
-		env = env.wrap()
-	}
+	env = tc.newEnv(env)
 
 	WalkExprs(body, func(expr *Expr) bool {
 
@@ -94,11 +130,7 @@ func (tc *typeChecker) CheckBody(env *TypeEnv, body Body) (*TypeEnv, Errors) {
 // are found. The resulting TypeEnv wraps the provided one. The resulting
 // TypeEnv will be able to resolve types of refs that refer to rules.
 func (tc *typeChecker) CheckTypes(env *TypeEnv, sorted []util.T) (*TypeEnv, Errors) {
-	if env == nil {
-		env = NewTypeEnv()
-	} else {
-		env = env.wrap()
-	}
+	env = tc.newEnv(env)
 	for _, s := range sorted {
 		tc.checkRule(env, s.(*Rule))
 	}
@@ -111,19 +143,19 @@ func (tc *typeChecker) checkClosures(env *TypeEnv, expr *Expr) Errors {
 	WalkClosures(expr, func(x interface{}) bool {
 		switch x := x.(type) {
 		case *ArrayComprehension:
-			_, errs := newTypeChecker().WithVarRewriter(tc.varRewriter).CheckBody(env, x.Body)
+			_, errs := tc.copy().CheckBody(env, x.Body)
 			if len(errs) > 0 {
 				result = errs
 				return true
 			}
 		case *SetComprehension:
-			_, errs := newTypeChecker().WithVarRewriter(tc.varRewriter).CheckBody(env, x.Body)
+			_, errs := tc.copy().CheckBody(env, x.Body)
 			if len(errs) > 0 {
 				result = errs
 				return true
 			}
 		case *ObjectComprehension:
-			_, errs := newTypeChecker().WithVarRewriter(tc.varRewriter).CheckBody(env, x.Body)
+			_, errs := tc.copy().CheckBody(env, x.Body)
 			if len(errs) > 0 {
 				result = errs
 				return true
@@ -134,25 +166,13 @@ func (tc *typeChecker) checkClosures(env *TypeEnv, expr *Expr) Errors {
 	return result
 }
 
-func (tc *typeChecker) checkLanguageBuiltins(env *TypeEnv, builtins map[string]*Builtin) *TypeEnv {
-	if env == nil {
-		env = NewTypeEnv()
-	} else {
-		env = env.wrap()
-	}
-	for _, bi := range builtins {
-		env.tree.Put(bi.Ref(), bi.Decl)
-	}
-	return env
-}
-
 func (tc *typeChecker) checkRule(env *TypeEnv, rule *Rule) {
 
 	env = env.wrap()
 
 	if schemaAnnots := getRuleAnnotation(rule); schemaAnnots != nil {
 		for _, schemaAnnot := range schemaAnnots {
-			ref, refType, err := processAnnotation(schemaAnnot, env, rule)
+			ref, refType, err := processAnnotation(tc.ss, schemaAnnot, env, rule)
 			if err != nil {
 				tc.err([]*Error{err})
 				continue
@@ -1121,8 +1141,8 @@ func getRuleAnnotation(rule *Rule) (sannots []SchemaAnnotation) {
 
 // NOTE: Currently, annotations must preceed the rule. In the future, this
 // restriction could be relaxed with other kinds of annotation scopes.
-func processAnnotation(annot SchemaAnnotation, env *TypeEnv, rule *Rule) (Ref, types.Type, *Error) {
-	if env.schemaSet == nil {
+func processAnnotation(ss *SchemaSet, annot SchemaAnnotation, env *TypeEnv, rule *Rule) (Ref, types.Type, *Error) {
+	if ss == nil {
 		return nil, nil, NewError(TypeErr, rule.Location, "schemas need to be supplied for the annotation: %s", annot.Schema)
 	}
 
@@ -1131,7 +1151,7 @@ func processAnnotation(annot SchemaAnnotation, env *TypeEnv, rule *Rule) (Ref, t
 		return nil, nil, NewError(TypeErr, rule.Location, "schema is not well formed in annotation: %s", annot.Schema)
 	}
 
-	schema := env.schemaSet.Get(schemaRef)
+	schema := ss.Get(schemaRef)
 	if schema == nil {
 		return nil, nil, NewError(TypeErr, rule.Location, "schema does not exist for given path in annotation: %s", schemaRef.String())
 	}

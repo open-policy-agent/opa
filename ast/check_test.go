@@ -286,7 +286,7 @@ func TestCheckInference(t *testing.T) {
 		t.Run(tc.note, func(t *testing.T) {
 			body := MustParseBody(tc.query)
 			checker := newTypeChecker()
-			env := checker.checkLanguageBuiltins(nil, BuiltinMap)
+			env := checker.Env(BuiltinMap)
 			env, err := checker.CheckBody(env, body)
 			if len(err) != 0 {
 				t.Fatalf("Unexpected error: %v", err)
@@ -528,7 +528,7 @@ func TestCheckErrorSuppression(t *testing.T) {
 
 	query = `_ = [true | count(1)]`
 
-	_, errs = newTypeChecker().CheckBody(newTypeChecker().checkLanguageBuiltins(nil, BuiltinMap), MustParseBody(query))
+	_, errs = newTypeChecker().CheckBody(newTypeChecker().Env(BuiltinMap), MustParseBody(query))
 	if len(errs) != 1 {
 		t.Fatalf("Expected exactly one error but got: %v", errs)
 	}
@@ -557,7 +557,7 @@ func TestCheckBadCardinality(t *testing.T) {
 	for _, test := range tests {
 		body := MustParseBody(test.body)
 		tc := newTypeChecker()
-		env := tc.checkLanguageBuiltins(nil, BuiltinMap)
+		env := tc.Env(BuiltinMap)
 		_, err := tc.CheckBody(env, body)
 		if len(err) != 1 || err[0].Code != TypeErr {
 			t.Fatalf("Expected 1 type error from %v but got: %v", body, err)
@@ -965,7 +965,7 @@ func TestFunctionTypeInferenceUnappliedWithObjectVarKey(t *testing.T) {
 		f(x) = y { y = {x: 1} }
 	`)
 
-	env, err := newTypeChecker().CheckTypes(newTypeChecker().checkLanguageBuiltins(nil, BuiltinMap), []util.T{
+	env, err := newTypeChecker().CheckTypes(newTypeChecker().Env(BuiltinMap), []util.T{
 		module.Rules[0],
 	})
 
@@ -1208,7 +1208,7 @@ func newTestEnv(rs []string) *TypeEnv {
 		}
 	}
 
-	env, err := newTypeChecker().CheckTypes(newTypeChecker().checkLanguageBuiltins(nil, BuiltinMap), elems)
+	env, err := newTypeChecker().CheckTypes(newTypeChecker().Env(BuiltinMap), elems)
 	if len(err) > 0 {
 		panic(err)
 	}
@@ -1863,8 +1863,8 @@ whocan[user] {
 				}
 			}
 
-			oldTypeEnv := newTypeChecker().checkLanguageBuiltins(nil, BuiltinMap).WithSchemas(tc.schemaSet)
-			typeenv, errors := newTypeChecker().CheckTypes(oldTypeEnv, elems)
+			oldTypeEnv := newTypeChecker().WithSchemaSet(tc.schemaSet).Env(BuiltinMap)
+			typeenv, errors := newTypeChecker().WithSchemaSet(tc.schemaSet).CheckTypes(oldTypeEnv, elems)
 			if len(errors) > 0 {
 				for _, e := range errors {
 					if tc.err == "" || !strings.Contains(e.Error(), tc.err) {
