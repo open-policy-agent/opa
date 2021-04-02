@@ -11,22 +11,18 @@ import (
 
 // TypeEnv contains type info for static analysis such as type checking.
 type TypeEnv struct {
-	tree      *typeTreeNode
-	next      *TypeEnv
-	schemaSet *SchemaSet
+	tree       *typeTreeNode
+	next       *TypeEnv
+	newChecker func() *typeChecker
 }
 
-// NewTypeEnv returns an empty TypeEnv.
-func NewTypeEnv() *TypeEnv {
+// newTypeEnv returns an empty TypeEnv. The constructor is not exported because
+// type environments should only be created by the type checker.
+func newTypeEnv(f func() *typeChecker) *TypeEnv {
 	return &TypeEnv{
-		tree: newTypeTree(),
+		tree:       newTypeTree(),
+		newChecker: f,
 	}
-}
-
-// WithSchemas sets the user-provided schemas
-func (env *TypeEnv) WithSchemas(schemas *SchemaSet) *TypeEnv {
-	env.schemaSet = schemas
-	return env
 }
 
 // Get returns the type of x.
@@ -101,22 +97,19 @@ func (env *TypeEnv) Get(x interface{}) types.Type {
 
 	// Comprehensions.
 	case *ArrayComprehension:
-		checker := newTypeChecker()
-		cpy, errs := checker.CheckBody(env, x.Body)
+		cpy, errs := env.newChecker().CheckBody(env, x.Body)
 		if len(errs) == 0 {
 			return types.NewArray(nil, cpy.Get(x.Term))
 		}
 		return nil
 	case *ObjectComprehension:
-		checker := newTypeChecker()
-		cpy, errs := checker.CheckBody(env, x.Body)
+		cpy, errs := env.newChecker().CheckBody(env, x.Body)
 		if len(errs) == 0 {
 			return types.NewObject(nil, types.NewDynamicProperty(cpy.Get(x.Key), cpy.Get(x.Value)))
 		}
 		return nil
 	case *SetComprehension:
-		checker := newTypeChecker()
-		cpy, errs := checker.CheckBody(env, x.Body)
+		cpy, errs := env.newChecker().CheckBody(env, x.Body)
 		if len(errs) == 0 {
 			return types.NewSet(cpy.Get(x.Term))
 		}
