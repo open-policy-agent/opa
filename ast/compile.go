@@ -107,6 +107,7 @@ type Compiler struct {
 	initialized          bool                          // indicates if init() has been called
 	debug                debug.Debug                   // emits debug information produced during compilation
 	schemaSet            *SchemaSet                    // user-supplied schemas for input and data documents
+	inputType            types.Type                    // global input type retrieved from schema set
 }
 
 // CompilerStage defines the interface for stages in the compiler.
@@ -220,7 +221,6 @@ func NewCompiler() *Compiler {
 
 	c := &Compiler{
 		Modules:       map[string]*Module{},
-		TypeEnv:       NewTypeEnv(),
 		RewrittenVars: map[Var]Var{},
 		ruleIndices: util.NewHashMap(func(a, b util.T) bool {
 			r1, r2 := a.(Ref), b.(Ref)
@@ -630,7 +630,7 @@ func (c *Compiler) RuleIndex(path Ref) RuleIndex {
 
 // PassesTypeCheck determines whether the given body passes type checking
 func (c *Compiler) PassesTypeCheck(body Body) bool {
-	checker := newTypeChecker()
+	checker := newTypeChecker().WithSchemaSet(c.schemaSet).WithInputType(c.inputType)
 	env := c.TypeEnv
 	_, errs := checker.CheckBody(env, body)
 	return len(errs) == 0
@@ -941,7 +941,10 @@ func parseSchema(schema interface{}) (types.Type, error) {
 func (c *Compiler) checkTypes() {
 	// Recursion is caught in earlier step, so this cannot fail.
 	sorted, _ := c.Graph.Sort()
-	checker := newTypeChecker().WithVarRewriter(rewriteVarsInRef(c.RewrittenVars))
+	checker := newTypeChecker().
+		WithSchemaSet(c.schemaSet).
+		WithInputType(c.inputType).
+		WithVarRewriter(rewriteVarsInRef(c.RewrittenVars))
 	env, errs := checker.CheckTypes(c.TypeEnv, sorted)
 	for _, err := range errs {
 		c.err(err)
@@ -1016,33 +1019,24 @@ func (c *Compiler) init() {
 		c.builtins[name] = bi
 	}
 
-	tc := newTypeChecker()
-	c.TypeEnv = tc.checkLanguageBuiltins(nil, c.builtins)
-	c.setSchemas()
+	// Load the global input schema if one was provided.
+	if c.schemaSet != nil {
+		if schema := c.schemaSet.Get(InputRootRef); schema != nil {
+			tpe, err := loadSchema(schema)
+			if err != nil {
+				c.err(NewError(TypeErr, nil, err.Error()))
+			} else {
+				c.inputType = tpe
+			}
+		}
+	}
+
+	c.TypeEnv = newTypeChecker().
+		WithSchemaSet(c.schemaSet).
+		WithInputType(c.inputType).
+		Env(c.builtins)
 
 	c.initialized = true
-}
-
-func (c *Compiler) setSchemas() {
-	if c.schemaSet != nil {
-
-		// First, set the schemaSet in the type environment
-		c.TypeEnv.WithSchemas(c.schemaSet)
-
-		// Second, set the schema for the input globally if it exists
-		schema := c.schemaSet.Get(InputRootRef)
-		if schema == nil {
-			return
-		}
-
-		tpe, err := loadSchema(schema)
-		if err != nil {
-			c.err(NewError(TypeErr, nil, err.Error()))
-			return
-		}
-
-		c.TypeEnv.tree.Put(InputRootRef, tpe)
-	}
 }
 
 func (c *Compiler) err(err *Error) {
@@ -1658,7 +1652,10 @@ func (qc *queryCompiler) checkSafety(_ *QueryContext, body Body) (Body, error) {
 
 func (qc *queryCompiler) checkTypes(qctx *QueryContext, body Body) (Body, error) {
 	var errs Errors
-	checker := newTypeChecker().WithVarRewriter(rewriteVarsInRef(qc.rewritten, qc.compiler.RewrittenVars))
+	checker := newTypeChecker().
+		WithSchemaSet(qc.compiler.schemaSet).
+		WithInputType(qc.compiler.inputType).
+		WithVarRewriter(rewriteVarsInRef(qc.rewritten, qc.compiler.RewrittenVars))
 	qc.typeEnv, errs = checker.CheckBody(qc.compiler.TypeEnv, body)
 	if len(errs) > 0 {
 		return nil, errs
