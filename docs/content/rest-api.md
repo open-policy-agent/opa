@@ -1894,3 +1894,19 @@ Content-Type: application/json
   }
 }
 ```
+
+## Base URI of exposed API endpoints
+The Policy API is exposed as rooted by `/`. In case OPA is employed behind an inflexible reverse proxy such as the
+Azure Functions Custom Handler a prefixed API path might need to used (e.g. `/api/opa/`). OPA supports this through the `--prefix-path` setting.
+### Example OPA Startup
+```shell
+opa run -s --prefix-path=/api/opa 
+```
+
+### Example
+```http
+GET /api/opa/v1/policies HTTP/1.1
+```
+### Result
+List of all policy modules.
+
