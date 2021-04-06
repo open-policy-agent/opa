@@ -103,14 +103,7 @@ func testAssertResultSet(t *testing.T, wantResult []map[string]interface{}, rs Q
 	for _, b := range wantResult {
 		obj := ast.NewObject()
 		for k, v := range b {
-			astValue := ast.MustInterfaceToValue(v)
-			if sortBindings {
-				switch t := astValue.(type) {
-				case *ast.Array:
-					astValue = t.Sorted()
-				}
-			}
-			obj.Insert(ast.StringTerm(k), ast.NewTerm(astValue))
+			obj.Insert(ast.StringTerm(k), ast.NewTerm(ast.MustInterfaceToValue(v)))
 		}
 		exp.Add(ast.NewTerm(obj))
 	}

@@ -28,6 +28,7 @@ import (
 )
 
 const opaRootDir = "../../../../../"
+
 var caseDir = flag.String("case-dir", filepath.Join(opaRootDir, "test/cases/testdata"), "set directory to load test cases from")
 var exceptionsFile = flag.String("exceptions", "./exceptions.yaml", "set file to load a list of test names to exclude")
 
@@ -171,32 +172,37 @@ func assertEmptyResultSet(t *testing.T, result *opa.Result) {
 
 func assertResultSet(t *testing.T, want []map[string]interface{}, sortBindings bool, result *opa.Result) {
 	t.Helper()
-	a := toAST(want)
 
-	// Round trip the wasm result through JSON to convert sets into array
-	b := roundTripAstToJSON(result.Result)
-
-	if sortBindings {
-		result := ast.NewArray()
-		a.Value.(*ast.Array).Sorted().Foreach(func(x *ast.Term) {
-			cpy, _ := x.Value.(ast.Object).Map(func(k, v *ast.Term) (*ast.Term, *ast.Term, error) {
-				return k, ast.NewTerm(v.Value.(*ast.Array).Sorted()), nil
-			})
-			result.Append(ast.NewTerm(cpy))
-		})
-		a.Value = result
-		result = ast.NewArray()
-		b.Value.(*ast.Array).Sorted().Foreach(func(x *ast.Term) {
-			cpy, _ := x.Value.(ast.Object).Map(func(k, v *ast.Term) (*ast.Term, *ast.Term, error) {
-				return k, ast.NewTerm(v.Value.(*ast.Array).Sorted()), nil
-			})
-			result.Append(ast.NewTerm(cpy))
-		})
-		b.Value = result
+	exp := ast.NewSet()
+	for _, b := range want {
+		obj := ast.NewObject()
+		for k, v := range b {
+			astValue := ast.MustInterfaceToValue(v)
+			obj.Insert(ast.StringTerm(k), ast.NewTerm(astValue))
+		}
+		exp.Add(ast.NewTerm(obj))
 	}
 
-	if !a.Equal(b) {
-		t.Fatalf("expected %v but got %v", a, b)
+	// Round trip the wasm result through JSON to convert sets into array
+	b := roundTripAstToJSON(result.Result, sortBindings)
+	got := ast.NewSet()
+
+	b.Value.(*ast.Array).Foreach(func(x *ast.Term) {
+		obj := ast.NewObject()
+		x.Value.(ast.Object).Foreach(func(k, v *ast.Term) {
+			var val ast.Value
+			if a, ok := v.Value.(*ast.Array); ok && sortBindings {
+				val = a.Sorted()
+			} else {
+				val = v.Value
+			}
+			obj.Insert(k, ast.NewTerm(val))
+		})
+		got.Add(ast.NewTerm(obj))
+	})
+
+	if exp.Compare(got) != 0 {
+		t.Fatalf("expected %v but got %v", exp, got)
 	}
 }
 
@@ -227,7 +233,6 @@ func toAST(a interface{}) *ast.Term {
 	}
 
 	buf := bytes.NewBuffer(nil)
-
 	if err := json.NewEncoder(buf).Encode(a); err != nil {
 		panic(err)
 	}
@@ -235,8 +240,12 @@ func toAST(a interface{}) *ast.Term {
 	return ast.MustParseTerm(buf.String())
 }
 
-func roundTripAstToJSON(b []byte) *ast.Term {
-	return toAST(ast.MustJSON(ast.MustParseTerm(string(b)).Value))
+func roundTripAstToJSON(b []byte, sortBindings bool) *ast.Term {
+	j, err := ast.JSONWithOpt(ast.MustParseTerm(string(b)).Value, ast.JSONOpt{SortSets: sortBindings})
+	if err != nil {
+		panic(err)
+	}
+	return toAST(j)
 }
 
 func addTestSleepBuiltin() {
