@@ -115,6 +115,7 @@ type Server struct {
 	metrics                Metrics
 	defaultDecisionPath    string
 	interQueryBuiltinCache iCache.InterQueryCache
+	prefixPath             string
 }
 
 // Metrics defines the interface that the server requires for recording HTTP
@@ -299,6 +300,13 @@ func (s *Server) WithRuntime(term *ast.Term) *Server {
 // router is not supplied, the server will create it's own.
 func (s *Server) WithRouter(router *mux.Router) *Server {
 	s.router = router
+	return s
+}
+
+// WithPrefixPath sets the common prefix used for accessing all OPA's HTTP API
+// requests.
+func (s *Server) WithPrefixPath(prefixPath string) *Server {
+	s.prefixPath = prefixPath
 	return s
 }
 
@@ -566,6 +574,12 @@ func (s *Server) initRouters() {
 	}
 
 	diagRouter := mux.NewRouter()
+
+	// adding prefix to routers
+	if s.prefixPath != "" {
+		mainRouter = mainRouter.PathPrefix(s.prefixPath).Subrouter()
+		diagRouter = diagRouter.PathPrefix(s.prefixPath).Subrouter()
+	}
 
 	// All routers get the same base configuration *and* diagnostic API's
 	for _, router := range []*mux.Router{mainRouter, diagRouter} {

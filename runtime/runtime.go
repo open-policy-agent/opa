@@ -178,6 +178,10 @@ type Params struct {
 	// configured bundles and plugins to be activated/ready before listening for traffic.
 	// A value of 0 or less means no wait is exercised.
 	ReadyTimeout int
+
+	// PrefixPath sets he URL prefix path used for all OPA HTTP API requests to support behind
+	// reverse proxies with fixed route prefixes as in e.g. Azure Functions Custom Handlers.
+	PrefixPath string
 }
 
 // LoggingConfig stores the configuration for OPA's logging behaviour.
@@ -339,7 +343,8 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 		WithDecisionIDFactory(rt.decisionIDFactory).
 		WithDecisionLoggerWithErr(rt.decisionLogger).
 		WithRuntime(rt.Manager.Info).
-		WithMetrics(rt.metrics)
+		WithMetrics(rt.metrics).
+		WithPrefixPath(rt.Params.PrefixPath)
 
 	if rt.Params.DiagnosticAddrs != nil {
 		rt.server = rt.server.WithDiagnosticAddresses(*rt.Params.DiagnosticAddrs)
