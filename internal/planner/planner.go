@@ -898,10 +898,7 @@ func (p *Planner) planUnify(a, b *ast.Term, iter planiter) error {
 				return p.planUnifyLocalObject(p.ltarget, va, iter)
 			})
 		case ast.Object:
-			if va.Len() == vb.Len() {
-				return p.planUnifyObjectsRec(va, vb, va.Keys(), 0, iter)
-			}
-			return nil
+			return p.planUnifyObjects(va, vb, iter)
 		}
 	}
 
@@ -1014,6 +1011,56 @@ func (p *Planner) planUnifyLocalArrayRec(a ir.LocalOrConst, index int, b *ast.Ar
 	})
 }
 
+func (p *Planner) planUnifyObjects(a, b ast.Object, iter planiter) error {
+	if a.Len() != b.Len() {
+		return nil
+	}
+
+	aKeys := ast.NewSet(a.Keys()...)
+	bKeys := ast.NewSet(b.Keys()...)
+	unifyKeys := aKeys.Diff(bKeys)
+
+	// planUnifyObjectsRec will actually set variables where possible;
+	// planUnifyObjectLocals only asserts equality -- it won't assign
+	// to any local
+	return p.planUnifyObjectsRec(a, b, aKeys.Intersect(bKeys).Slice(), 0, func() error {
+		if unifyKeys.Len() == 0 {
+			return iter()
+		}
+		return p.planObject(a, func() error {
+			la := p.ltarget
+			return p.planObject(b, func() error {
+				return p.planUnifyObjectLocals(la, p.ltarget, unifyKeys.Slice(), 0, p.newLocal(), p.newLocal(), iter)
+			})
+		})
+	})
+}
+
+func (p *Planner) planUnifyObjectLocals(a, b ir.LocalOrConst, keys []*ast.Term, index int, l0, l1 ir.Local, iter planiter) error {
+	if index == len(keys) {
+		return iter()
+	}
+
+	return p.planTerm(keys[index], func() error {
+		p.appendStmt(&ir.DotStmt{
+			Source: a,
+			Key:    p.ltarget,
+			Target: l0,
+		})
+		p.appendStmt(&ir.DotStmt{
+			Source: b,
+			Key:    p.ltarget,
+			Target: l1,
+		})
+		p.appendStmt(&ir.EqualStmt{
+			A: l0,
+			B: l1,
+		})
+
+		return p.planUnifyObjectLocals(a, b, keys, index+1, l0, l1, iter)
+	})
+}
+
 func (p *Planner) planUnifyLocalObject(a ir.LocalOrConst, b ast.Object, iter planiter) error {
 	p.appendStmt(&ir.IsObjectStmt{
 		Source: a,
@@ -1037,31 +1084,26 @@ func (p *Planner) planUnifyLocalObject(a ir.LocalOrConst, b ast.Object, iter pla
 		B: blen,
 	})
 
-	lkey := p.newLocal()
 	lval := p.newLocal()
 	bkeys := b.Keys()
 
-	return p.planUnifyLocalObjectRec(a, 0, bkeys, b, lkey, lval, iter)
+	return p.planUnifyLocalObjectRec(a, 0, bkeys, b, lval, iter)
 }
 
-func (p *Planner) planUnifyLocalObjectRec(a ir.LocalOrConst, index int, keys []*ast.Term, b ast.Object, lkey, lval ir.Local, iter planiter) error {
+func (p *Planner) planUnifyLocalObjectRec(a ir.LocalOrConst, index int, keys []*ast.Term, b ast.Object, lval ir.Local, iter planiter) error {
 
 	if index == len(keys) {
 		return iter()
 	}
 
 	return p.planTerm(keys[index], func() error {
-		p.appendStmt(&ir.AssignVarStmt{
-			Source: p.ltarget,
-			Target: lkey,
-		})
 		p.appendStmt(&ir.DotStmt{
 			Source: a,
-			Key:    lkey,
+			Key:    p.ltarget,
 			Target: lval,
 		})
 		return p.planUnifyLocal(lval, b.Get(keys[index]), func() error {
-			return p.planUnifyLocalObjectRec(a, index+1, keys, b, lkey, lval, iter)
+			return p.planUnifyLocalObjectRec(a, index+1, keys, b, lval, iter)
 		})
 	})
 }
