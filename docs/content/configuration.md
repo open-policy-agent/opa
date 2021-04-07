@@ -722,3 +722,5 @@ included in the actual bundle gzipped tarball.
 | `discovery.signing.keyid` | `string` | No | Name of the key to use for bundle signature verification. |
 | `discovery.signing.scope` | `string` | No | Scope to use for bundle signature verification. |
 | `discovery.signing.exclude_files` | `array` | No | Files in the bundle to exclude during verification. |
+
+Note: discovery should be mutually exclusive with other kinds of configuration: if discovery is on, bundles/decision logs/status cannot be configured manually.
