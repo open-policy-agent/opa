@@ -1,4 +1,3 @@
 # Exception Format is <test name>: <reason>
 "eqexpr/unordered: object keys": "https://github.com/open-policy-agent/opa/issues/3351"
 "eqexpr/unordered: object keys (reverse)": "https://github.com/open-policy-agent/opa/issues/3351"
-"regexfindallstringsubmatch/multiple patterns, matches, and captures with specified number of matches": "https://github.com/open-policy-agent/opa/issues/3352"
