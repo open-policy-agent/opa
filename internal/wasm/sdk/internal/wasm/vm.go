@@ -174,7 +174,7 @@ func newVM(opts vmOpts) (*VM, error) {
 
 	// Construct the builtin id to name mappings.
 
-	val, err := i.GetExport("builtins").Func().Call()
+	val, err := i.GetFunc("builtins").Call()
 	if err != nil {
 		return nil, err
 	}
@@ -203,7 +203,7 @@ func newVM(opts vmOpts) (*VM, error) {
 	v.dispatcher.SetMap(builtinMap)
 
 	// Extract the entrypoint ID's
-	val, err = i.GetExport("entrypoints").Func().Call()
+	val, err = i.GetFunc("entrypoints").Call()
 	if err != nil {
 		return nil, err
 	}
@@ -616,7 +616,7 @@ func callOrCancel(ctx context.Context, vm *VM, name string, args ...int32) (inte
 				}
 			}
 		}()
-		res, err = vm.instance.GetExport(name).Func().Call(sl...)
+		res, err = vm.instance.GetFunc(name).Call(sl...)
 		errc <- err
 	}()
 
@@ -633,7 +633,7 @@ func callOrCancel(ctx context.Context, vm *VM, name string, args ...int32) (inte
 	// clear trap: reaching this, we have definitely been interrupted
 	err := <-errc
 	for err != errors.ErrCancelled && !trap(err) {
-		_, err = vm.instance.GetExport("opa_heap_ptr_get").Func().Call() // cheap call
+		_, err = vm.instance.GetFunc("opa_heap_ptr_get").Call() // cheap call
 	}
 	return 0, errors.ErrCancelled
 }
