@@ -272,6 +272,8 @@ private key is encrypted.
 | `services[_].credentials.client_tls.cert` | `string` | Yes | The path to the client certificate to authenticate with. |
 | `services[_].credentials.client_tls.private_key` | `string` | Yes | The path to the private key of the client certificate. |
 | `services[_].credentials.client_tls.private_key_passphrase` | `string` | No | The passphrase to use for the private key. |
+| `services[_].credentials.client_tls.ca_cert` | `string` | No | The path to the root CA certificate. |
+| `services[_].credentials.client_tls.system_ca_required` | `bool` | No | Require system certificate appended with root CA certificate. |
 
 #### OAuth2 Client Credentials
 

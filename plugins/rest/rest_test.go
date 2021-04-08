@@ -977,6 +977,65 @@ func TestClientCertPassword(t *testing.T) {
 	})
 }
 
+func TestClientCACert(t *testing.T) {
+	ts := testServer{
+		t:                t,
+		tls:              true,
+		expectClientCert: true,
+	}
+	ts.start()
+	defer ts.stop()
+
+	files := map[string]string{
+		"client.pem": string(ts.clientCertPem),
+		"client.key": string(ts.clientCertKey),
+		"ca.pem":     string(ts.rootCertPEM),
+	}
+
+	test.WithTempFS(files, func(path string) {
+		certPath := filepath.Join(path, "client.pem")
+		keyPath := filepath.Join(path, "client.key")
+		ts.caCert = filepath.Join(path, "ca.pem")
+
+		client := newTestClient(t, &ts, certPath, keyPath)
+
+		ctx := context.Background()
+		if _, err := client.Do(ctx, "GET", "test"); err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+	})
+}
+
+func TestClientCACertWithSystemCA(t *testing.T) {
+	ts := testServer{
+		t:                t,
+		tls:              true,
+		expectClientCert: true,
+		expectSystemCA:   true,
+	}
+	ts.start()
+	defer ts.stop()
+
+	files := map[string]string{
+		"client.pem": string(ts.clientCertPem),
+		"client.key": string(ts.clientCertKey),
+		"ca.pem":     string(ts.rootCertPEM),
+	}
+
+	test.WithTempFS(files, func(path string) {
+		certPath := filepath.Join(path, "client.pem")
+		keyPath := filepath.Join(path, "client.key")
+		ts.caCert = filepath.Join(path, "ca.pem")
+
+		client := newTestClient(t, &ts, certPath, keyPath)
+
+		ctx := context.Background()
+		if _, err := client.Do(ctx, "GET", "test"); err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+	})
+}
+
 func TestOauth2ClientCredentials(t *testing.T) {
 	tests := []struct {
 		ts      *testServer
@@ -1328,6 +1387,12 @@ func newTestClient(t *testing.T, ts *testServer, certPath string, keypath string
 	if ts.clientCertPassword != "" {
 		client.Config().Credentials.ClientTLS.PrivateKeyPassphrase = ts.clientCertPassword
 	}
+	if ts.caCert != "" {
+		client.Config().Credentials.ClientTLS.CACert = ts.caCert
+	}
+	if ts.expectSystemCA {
+		client.Config().Credentials.ClientTLS.SystemCARequired = true
+	}
 
 	return &client
 }
@@ -1347,6 +1412,9 @@ type testServer struct {
 	clientCertKey      []byte
 	clientCertPassword string
 	expectClientCert   bool
+	rootCertPEM        []byte
+	caCert             string
+	expectSystemCA     bool
 	serverCertPool     *x509.CertPool
 	keys               map[string]*keys.Config
 }
@@ -1614,6 +1682,7 @@ func (t *testServer) generateClientKeys() {
 	// save a copy of the root certificate for clients to use
 	t.serverCertPool = x509.NewCertPool()
 	t.serverCertPool.AppendCertsFromPEM(rootCertPEM)
+	t.rootCertPEM = rootCertPEM
 
 	// create a key-pair for the client
 	clientKey, err := rsa.GenerateKey(rand.Reader, 2048)
