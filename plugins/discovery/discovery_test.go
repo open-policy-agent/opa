@@ -999,10 +999,6 @@ func TestStatusUpdatesTimestamp(t *testing.T) {
 
 func TestStatusMetricsForLogDrops(t *testing.T) {
 
-	ts := testServer{t: t}
-	ts.Start()
-	defer ts.Stop()
-
 	logLevel := logrus.GetLevel()
 	defer logrus.SetLevel(logLevel)
 
@@ -1013,14 +1009,14 @@ func TestStatusMetricsForLogDrops(t *testing.T) {
 
 	ctx := context.Background()
 
-	manager, err := plugins.New([]byte(fmt.Sprintf(`{
-			"services": {
-				"localhost": {
-					"url": %q
-				}
-			},
-			"discovery": {"name": "config"}
-		}`, ts.server.URL)), "test-id", inmem.New())
+	manager, err := plugins.New([]byte(`{
+		"services": {
+			"localhost": {
+				"url": "http://localhost:9999"
+			}
+		},
+		"discovery": {"name": "config"},
+	}`), "test-id", inmem.New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1095,7 +1091,7 @@ func TestStatusMetricsForLogDrops(t *testing.T) {
 	// trigger a status update
 	disco.oneShot(ctx, download.Update{ETag: "etag-1", Bundle: makeDataBundle(1, `{
 		"config": {
-			"bundle": {"name": "test1"}
+			"bundles": {"test-bundle": {"service": "localhost"}}
 		}
 	}`)})
 
