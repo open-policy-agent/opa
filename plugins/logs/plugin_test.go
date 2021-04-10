@@ -1007,6 +1007,49 @@ func TestPluginReconfigure(t *testing.T) {
 	}
 }
 
+func TestPluginReconfigureUploadSizeLimit(t *testing.T) {
+
+	ctx := context.Background()
+	limit := int64(300)
+
+	fixture := newTestFixture(t, func(c *Config) {
+		c.Reporting.UploadSizeLimitBytes = &limit
+	})
+
+	defer fixture.server.stop()
+
+	if err := fixture.plugin.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	ensurePluginState(t, fixture.plugin, plugins.StateOK)
+
+	if fixture.plugin.enc.limit != limit {
+		t.Fatalf("Expected upload size limit %v but got %v", limit, fixture.plugin.enc.limit)
+	}
+
+	newLimit := int64(600)
+
+	pluginConfig := []byte(fmt.Sprintf(`{
+			"service": "example",
+			"reporting": {
+				"upload_size_limit_bytes": %v,
+			}
+		}`, newLimit))
+
+	config, _ := ParseConfig(pluginConfig, fixture.manager.Services(), nil)
+
+	fixture.plugin.Reconfigure(ctx, config)
+	ensurePluginState(t, fixture.plugin, plugins.StateOK)
+
+	fixture.plugin.Stop(ctx)
+	ensurePluginState(t, fixture.plugin, plugins.StateNotReady)
+
+	if fixture.plugin.enc.limit != newLimit {
+		t.Fatalf("Expected upload size limit %v but got %v", newLimit, fixture.plugin.enc.limit)
+	}
+}
+
 func TestPluginMasking(t *testing.T) {
 	tests := []struct {
 		note        string
