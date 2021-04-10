@@ -153,6 +153,48 @@ func TestFailureUnexpected(t *testing.T) {
 	}
 }
 
+func TestEtagInResponse(t *testing.T) {
+	ctx := context.Background()
+	fixture := newTestFixture(t)
+	fixture.server.etagInResponse = true
+	fixture.d = New(Config{}, fixture.client, "/bundles/test/bundle1").WithCallback(fixture.oneShot)
+	defer fixture.server.stop()
+
+	if fixture.d.etag != "" {
+		t.Fatalf("Expected empty downloader ETag but got %v", fixture.d.etag)
+	}
+
+	fixture.server.expEtag = "some etag value"
+
+	err := fixture.d.oneShot(ctx)
+	if err != nil {
+		t.Fatal("Unexpected:", err)
+	} else if len(fixture.updates) != 1 {
+		t.Fatal("expected update")
+	} else if fixture.d.etag != fixture.server.expEtag {
+		t.Fatalf("Expected downloader ETag %v but got %v", fixture.server.expEtag, fixture.d.etag)
+	}
+
+	if fixture.updates[0].Bundle == nil {
+		// 200 response on first request, bundle should be present
+		t.Errorf("Expected bundle in response")
+	}
+
+	err = fixture.d.oneShot(ctx)
+	if err != nil {
+		t.Fatal("Unexpected:", err)
+	} else if len(fixture.updates) != 2 {
+		t.Fatal("expected two updates")
+	} else if fixture.d.etag != fixture.server.expEtag {
+		t.Fatalf("Expected downloader ETag %v but got %v", fixture.server.expEtag, fixture.d.etag)
+	}
+
+	if fixture.updates[1].Bundle != nil {
+		// 304 response on second request, bundle should _not_ be present
+		t.Errorf("Expected no bundle in response")
+	}
+}
+
 type testFixture struct {
 	d                         *Downloader
 	client                    rest.Client
@@ -230,12 +272,13 @@ func (t *testFixture) oneShot(ctx context.Context, u Update) {
 }
 
 type testServer struct {
-	t       *testing.T
-	expCode int
-	expEtag string
-	expAuth string
-	bundles map[string]bundle.Bundle
-	server  *httptest.Server
+	t              *testing.T
+	expCode        int
+	expEtag        string
+	expAuth        string
+	bundles        map[string]bundle.Bundle
+	server         *httptest.Server
+	etagInResponse bool
 }
 
 func (t *testServer) handle(w http.ResponseWriter, r *http.Request) {
@@ -262,7 +305,9 @@ func (t *testServer) handle(w http.ResponseWriter, r *http.Request) {
 	if t.expEtag != "" {
 		etag := r.Header.Get("If-None-Match")
 		if etag == t.expEtag {
-			w.Header().Add("Etag", t.expEtag)
+			if t.etagInResponse {
+				w.Header().Add("Etag", t.expEtag)
+			}
 			w.WriteHeader(304)
 			return
 		}
