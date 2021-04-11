@@ -494,7 +494,7 @@ integrations:
 
   springsecurity-api:
     title: Authorization for Java Spring Security
-    description: Spring Security provides a framework for securing Java applications.  This integration provides a simple implementation of an AccessDecisionVoter for Spring Security that uses OPA for making API authorization decisions.
+    description: Spring Security provides a framework for securing Java applications.  These integrations provide simple implementations for Spring Security that use OPA for making API authorization decisions.  They provide support for both traditional Spring Security (MVC), as well as an implementation for Spring Reactive (Web Flux).
     labels:
       layer: network
       category: application
@@ -504,11 +504,16 @@ integrations:
       - https://github.com/open-policy-agent/contrib/tree/master/spring_authz
       - https://github.com/Bisnode/opa-spring-security
       - https://github.com/build-security/opa-java-spring-client
+      - https://github.com/massenz/jwt-opa
+
     tutorials:
       - https://github.com/open-policy-agent/contrib/blob/master/spring_authz/README.md
+      - https://github.com/massenz/jwt-opa#web-server-demo-app
     inventors:
       - styra
       - build.security
+      - bisnode
+      - alertavert
 
   spinnaker-pipeline:
     title: Spinnaker Pipeline Policy Enforcment
@@ -1033,7 +1038,9 @@ organizations:
   authorizon:
     name: authorizon
     link: https://authorizon.com
-
+  alertavert:
+    name: AlertAVert.com
+    link: http://www.alertavert.com/
 software:
   kubernetes:
     name: Kubernetes
