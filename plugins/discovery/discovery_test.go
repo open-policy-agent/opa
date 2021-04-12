@@ -1107,10 +1107,18 @@ func TestStatusMetricsForLogDrops(t *testing.T) {
 		t.Fatal("Expected metrics")
 	}
 
-	exp := map[string]interface{}{"<built-in>": map[string]interface{}{"counter_decision_logs_dropped": json.Number("2")}}
+	builtInMet := e.Data["metrics"].(map[string]interface{})["<built-in>"]
+	dropCount := builtInMet.(map[string]interface{})["counter_decision_logs_dropped"]
 
-	if !reflect.DeepEqual(e.Data["metrics"], exp) {
-		t.Fatalf("Expected %v but got %v", exp, e.Data["metrics"])
+	actual, err := dropCount.(json.Number).Int64()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Along with event 2 and event 3, event 1 could also get dropped. This happens when the decision log plugin
+	// tries to requeue event 1 after a failed upload attempt to a non-existent remote endpoint
+	if actual < 2 {
+		t.Fatal("Expected at least 2 events to be dropped")
 	}
 }
 
