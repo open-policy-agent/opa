@@ -185,6 +185,7 @@ var DefaultBuiltins = [...]*Builtin{
 	Clock,
 	Weekday,
 	AddDate,
+	Diff,
 
 	// Crypto
 	CryptoX509ParseCertificates,
@@ -1718,6 +1719,24 @@ var AddDate = &Builtin{
 			types.N,
 		),
 		types.N,
+	),
+}
+
+// Diff returns the difference [years, months, days, hours, minutes, seconds] between two unix timestamps in nanoseconds
+var Diff = &Builtin{
+	Name: "time.diff",
+	Decl: types.NewFunction(
+		types.Args(
+			types.NewAny(
+				types.N,
+				types.NewArray([]types.Type{types.N, types.S}, nil),
+			),
+			types.NewAny(
+				types.N,
+				types.NewArray([]types.Type{types.N, types.S}, nil),
+			),
+		),
+		types.NewArray([]types.Type{types.N, types.N, types.N, types.N, types.N, types.N}, nil),
 	),
 }
 
