@@ -432,7 +432,7 @@ func (node *trieNode) String() string {
 		flags = append(flags, fmt.Sprintf("%d rule(s)", len(node.rules)))
 	}
 	if len(node.mappers) > 0 {
-		flags = append(flags, "mapper(s)")
+		flags = append(flags, fmt.Sprintf("%d mapper(s)", len(node.mappers)))
 	}
 	return strings.Join(flags, " ")
 }
@@ -586,8 +586,8 @@ func (node *trieNode) traverse(resolver ValueResolver, tr *trieTraversalResult) 
 		node.any.Traverse(resolver, tr)
 	}
 
-	if len(node.mappers) == 0 {
-		return node.traverseValue(resolver, tr, v)
+	if err := node.traverseValue(resolver, tr, v); err != nil {
+		return err
 	}
 
 	for i := range node.mappers {

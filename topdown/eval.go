@@ -1260,7 +1260,7 @@ func (e *eval) getRules(ref ast.Ref) (*ast.IndexResult, error) {
 	} else {
 		var b strings.Builder
 		b.Grow(len("(matched NNNN rules)"))
-		b.WriteString("matched ")
+		b.WriteString("(matched ")
 		b.WriteString(strconv.FormatInt(int64(len(result.Rules)), 10))
 		b.WriteString(" rules)")
 		msg = b.String()
