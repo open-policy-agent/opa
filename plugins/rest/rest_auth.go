@@ -343,6 +343,8 @@ type clientTLSAuthPlugin struct {
 	Cert                 string `json:"cert"`
 	PrivateKey           string `json:"private_key"`
 	PrivateKeyPassphrase string `json:"private_key_passphrase,omitempty"`
+	CACert               string `json:"ca_cert,omitempty"`
+	SystemCARequired     bool   `json:"system_ca_required,omitempty"`
 }
 
 func (ap *clientTLSAuthPlugin) NewClient(c Config) (*http.Client, error) {
@@ -406,6 +408,29 @@ func (ap *clientTLSAuthPlugin) NewClient(c Config) (*http.Client, error) {
 	cert, err := tls.X509KeyPair(certPEMBlock, keyPEMBlock)
 	if err != nil {
 		return nil, err
+	}
+
+	if ap.CACert != "" {
+		caCert, err := ioutil.ReadFile(ap.CACert)
+		if err != nil {
+			return nil, err
+		}
+
+		var caCertPool *x509.CertPool
+		if ap.SystemCARequired {
+			caCertPool, err = x509.SystemCertPool()
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			caCertPool = x509.NewCertPool()
+		}
+
+		ok := caCertPool.AppendCertsFromPEM(caCert)
+		if !ok {
+			return nil, errors.New("unable to parse and append CA certificate to certicate pool")
+		}
+		tlsConfig.RootCAs = caCertPool
 	}
 
 	tlsConfig.Certificates = []tls.Certificate{cert}
