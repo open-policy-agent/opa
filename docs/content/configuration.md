@@ -358,7 +358,7 @@ Two claims will always be included in the issued JWT: `iat` and `exp`. Any other
 ##### Example
 
 Using a [Google Cloud Storage](https://cloud.google.com/storage/) bucket as a bundle service backend from outside the
-cloud account (for access from inside the account, see the [GCP Metadata Token](#GCP Metadata Token) section).
+cloud account (for access from inside the account, see the [GCP Metadata Token](#gcp-metadata-token) section).
 
 ```yaml
 services:
