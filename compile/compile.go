@@ -20,6 +20,7 @@ import (
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/internal/compiler/wasm"
 	"github.com/open-policy-agent/opa/internal/debug"
+	"github.com/open-policy-agent/opa/internal/ir"
 	"github.com/open-policy-agent/opa/internal/planner"
 	"github.com/open-policy-agent/opa/internal/ref"
 	initload "github.com/open-policy-agent/opa/internal/runtime/init"
@@ -443,6 +444,9 @@ func (c *Compiler) compileWasm(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
+	// dump policy IR (if "debug" wasn't requested, debug.Witer will discard it)
+	ir.Pretty(c.debug.Writer(), policy)
 
 	// Compile the policy into a wasm binary.
 	m, err := compiler.WithPolicy(policy).WithDebug(c.debug.Writer()).Compile()
