@@ -299,6 +299,7 @@ Following successful authentication at the token endpoint the returned token wil
 | `services[_].credentials.oauth2.grant_type` | `string` | No | Defaults to `client_credentials`. |
 | `services[_].credentials.oauth2.client_id` | `string` | No | The client ID to use for authentication. |
 | `services[_].credentials.oauth2.signing_key` | `string` | Yes | Reference to private key used for signing the JWT. |
+| `services[_].credentials.oauth2.thumbprint` | `string` | No | Certificate thumbprint to use for x5t header generation. |
 | `services[_].credentials.oauth2.additional_claims` | `map` | No | Map of claims to include in the JWT (see notes below) |
 | `services[_].credentials.oauth2.include_jti_claim` | `bool` | No | Include a uniquely generated `jti` claim in any issued JWT |
 | `services[_].credentials.oauth2.scopes` | `[]string` | No | Optional list of scopes to request for the token. |

@@ -9,6 +9,8 @@ import (
 	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
 	"errors"
@@ -130,6 +132,7 @@ type oauth2ClientCredentialsAuthPlugin struct {
 	ClientID     string                 `json:"client_id"`
 	ClientSecret string                 `json:"client_secret"`
 	SigningKeyID string                 `json:"signing_key"`
+	Thumbprint   string                 `json:"thumbprint"`
 	Claims       map[string]interface{} `json:"additional_claims"`
 	IncludeJti   bool                   `json:"include_jti_claim"`
 	Scopes       []string               `json:"scopes,omitempty"`
@@ -176,7 +179,18 @@ func (ap *oauth2ClientCredentialsAuthPlugin) createAuthJWT(claims map[string]int
 		return nil, err
 	}
 
-	jwsHeaders := []byte(fmt.Sprintf(`{"typ":"JWT","alg":"%v"}`, ap.signingKey.Algorithm))
+	var jwsHeaders []byte
+	if ap.Thumbprint != "" {
+		bytes, err := hex.DecodeString(ap.Thumbprint)
+		if err != nil {
+			return nil, err
+		}
+		x5t := base64.URLEncoding.EncodeToString(bytes)
+		jwsHeaders = []byte(fmt.Sprintf(`{"typ":"JWT","alg":"%s","x5t":"%s"}`, ap.signingKey.Algorithm, x5t))
+	} else {
+		jwsHeaders = []byte(fmt.Sprintf(`{"typ":"JWT","alg":"%s"}`, ap.signingKey.Algorithm))
+	}
+
 	jwsCompact, err := jws.SignLiteral(payload, jwa.SignatureAlgorithm(ap.signingKey.Algorithm), signingKey, jwsHeaders)
 	if err != nil {
 		return nil, err
