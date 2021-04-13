@@ -23,6 +23,13 @@ import (
 	"github.com/open-policy-agent/opa/util"
 )
 
+// Logger defines the interface for status plugins.
+type Logger interface {
+	plugins.Plugin
+
+	Log(context.Context, *UpdateRequestV1) error
+}
+
 // UpdateRequestV1 represents the status update message that OPA sends to
 // remote HTTP endpoints.
 type UpdateRequestV1 struct {
@@ -54,14 +61,26 @@ type Plugin struct {
 
 // Config contains configuration for the plugin.
 type Config struct {
-	Service       string `json:"service"`
-	PartitionName string `json:"partition_name,omitempty"`
-	ConsoleLogs   bool   `json:"console"`
+	Plugin        *string `json:"plugin"`
+	Service       string  `json:"service"`
+	PartitionName string  `json:"partition_name,omitempty"`
+	ConsoleLogs   bool    `json:"console"`
 }
 
-func (c *Config) validateAndInjectDefaults(services []string) error {
+func (c *Config) validateAndInjectDefaults(services []string, plugins []string) error {
 
-	if c.Service == "" && len(services) != 0 && !c.ConsoleLogs {
+	if c.Plugin != nil {
+		var found bool
+		for _, other := range plugins {
+			if other == *c.Plugin {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return fmt.Errorf("invalid plugin name %q in status", *c.Plugin)
+		}
+	} else if c.Service == "" && len(services) != 0 && !c.ConsoleLogs {
 		// For backwards compatibility allow defaulting to the first
 		// service listed, but only if console logging is disabled. If enabled
 		// we can't tell if the deployer wanted to use only console logs or
@@ -82,16 +101,16 @@ func (c *Config) validateAndInjectDefaults(services []string) error {
 		}
 	}
 
-	// If a service wasn't found, and console logging isn't enabled.
-	if c.Service == "" && !c.ConsoleLogs {
-		return fmt.Errorf("invalid status config, must have a `service` target or `console` logging specified")
+	// If a plugin or service wasn't found, and console logging isn't enabled.
+	if c.Plugin == nil && c.Service == "" && !c.ConsoleLogs {
+		return fmt.Errorf("invalid status config, must have a `service`, `plugin`, or `console` logging specified")
 	}
 
 	return nil
 }
 
 // ParseConfig validates the config and injects default values.
-func ParseConfig(config []byte, services []string) (*Config, error) {
+func ParseConfig(config []byte, services []string, plugins []string) (*Config, error) {
 
 	if config == nil {
 		return nil, nil
@@ -103,7 +122,7 @@ func ParseConfig(config []byte, services []string) (*Config, error) {
 		return nil, err
 	}
 
-	if err := parsedConfig.validateAndInjectDefaults(services); err != nil {
+	if err := parsedConfig.validateAndInjectDefaults(services, plugins); err != nil {
 		return nil, err
 	}
 
@@ -268,6 +287,14 @@ func (p *Plugin) oneShot(ctx context.Context) error {
 		if err != nil {
 			p.logger.Error("Failed to log to console: %v.", err)
 		}
+	}
+
+	if p.config.Plugin != nil {
+		proxy, ok := p.manager.Plugin(*p.config.Plugin).(Logger)
+		if !ok {
+			return fmt.Errorf("plugin does not implement Logger interface")
+		}
+		return proxy.Log(ctx, req)
 	}
 
 	if p.config.Service != "" {

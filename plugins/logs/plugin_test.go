@@ -804,7 +804,7 @@ func TestPluginRateLimitDropCountStatus(t *testing.T) {
 			"console": true,
 		}`))
 
-	config, _ := status.ParseConfig(pluginConfig, fixture.manager.Services())
+	config, _ := status.ParseConfig(pluginConfig, fixture.manager.Services(), nil)
 	p := status.New(config, fixture.manager).WithMetrics(fixture.plugin.metrics)
 
 	fixture.manager.Register(status.Name, p)
