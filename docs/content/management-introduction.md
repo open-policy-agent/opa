@@ -1,8 +1,7 @@
 ---
-title: Management APIs
-kind: operations
+title: "Overview & Architecture"
+kind: management
 weight: 1
-restrictedtoc: true
 ---
 
 OPA exposes a set of APIs that enable unified, logically centralized policy
