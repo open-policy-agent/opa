@@ -686,6 +686,21 @@ to track **remove** vs **upsert** mask operations.
 }
 ```
 
+### Decision Logs Plugin
+
+If the default decision logging behavior does not work for your use case, you can implement your own plugin to customize decision logging, e.g. use a different transport, transform logs, etc.
+
+```yaml
+decision_logs:
+  plugin: my_decision_logs
+
+plugins:
+  my_decision_logs:
+    some: property 
+```
+
+Check out [this example](extensions#putting-it-together) to learn how to build and register the plugin with OPA.
+
 ## Status
 
 OPA can periodically report status updates to remote HTTP servers. The
@@ -931,6 +946,21 @@ This will dump all status updates to the console. See
 > Warning: Status update messages are somewhat infrequent but can be very verbose! The
 >`metrics.prometheus` portion of the status update in particular can create a considerable
 > amount of log text at info level.
+
+### Status Plugin
+
+If the default status logging behavior does not work for your use case, you can implement your own plugin to customize status logging, e.g. use a different transport, transform logs, etc.
+
+```yaml
+status:
+  plugin: my_status_logs
+
+plugins:
+  my_status_logs:
+    some: property 
+```
+
+Check out [this example](extensions#putting-it-together) for a custom decision logs plugin, and adapt it for the [Logger interface](https://pkg.go.dev/github.com/open-policy-agent/opa/plugins/status#Logger) defined in the status plugin.
 
 ## Discovery
 

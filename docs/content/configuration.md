@@ -694,6 +694,7 @@ included in the actual bundle gzipped tarball.
 | `status.service` | `string` | Yes | Name of service to use to contact remote server. |
 | `status.partition_name` | `string` | No | Path segment to include in status updates. |
 | `status.console` | `boolean` | No (default: `false`) | Log the status updates locally to the console. When enabled alongside a remote status update API the `service` must be configured, the default `service` selection will be disabled. |
+| `status.plugin` | `string` | No | Use the named plugin for status updates. If this field exists, the other configuration fields are not required. |
 
 
 ### Decision Logs
