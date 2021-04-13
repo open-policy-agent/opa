@@ -272,6 +272,8 @@ private key is encrypted.
 | `services[_].credentials.client_tls.cert` | `string` | Yes | The path to the client certificate to authenticate with. |
 | `services[_].credentials.client_tls.private_key` | `string` | Yes | The path to the private key of the client certificate. |
 | `services[_].credentials.client_tls.private_key_passphrase` | `string` | No | The passphrase to use for the private key. |
+| `services[_].credentials.client_tls.ca_cert` | `string` | No | The path to the root CA certificate. |
+| `services[_].credentials.client_tls.system_ca_required` | `bool` | No | Require system certificate appended with root CA certificate. |
 
 #### OAuth2 Client Credentials
 
@@ -297,6 +299,7 @@ Following successful authentication at the token endpoint the returned token wil
 | `services[_].credentials.oauth2.grant_type` | `string` | No | Defaults to `client_credentials`. |
 | `services[_].credentials.oauth2.client_id` | `string` | No | The client ID to use for authentication. |
 | `services[_].credentials.oauth2.signing_key` | `string` | Yes | Reference to private key used for signing the JWT. |
+| `services[_].credentials.oauth2.thumbprint` | `string` | No | Certificate thumbprint to use for x5t header generation. |
 | `services[_].credentials.oauth2.additional_claims` | `map` | No | Map of claims to include in the JWT (see notes below) |
 | `services[_].credentials.oauth2.include_jti_claim` | `bool` | No | Include a uniquely generated `jti` claim in any issued JWT |
 | `services[_].credentials.oauth2.scopes` | `[]string` | No | Optional list of scopes to request for the token. |
