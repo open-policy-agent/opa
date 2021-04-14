@@ -74,12 +74,6 @@ func (r *Refactor) Move(q MoveQuery) (*MoveQueryResult, error) {
 	for _, module := range q.Modules {
 		t := ast.NewGenericTransformer(func(x interface{}) (interface{}, error) {
 			if s, ok := x.(ast.Ref); ok {
-				// exact match
-				if val, found := q.SrcDstMapping[s.String()]; found {
-					return ast.ParseRef(val)
-				}
-
-				// prefix match
 				for k, v := range q.SrcDstMapping {
 					other, err := ast.ParseRef(k)
 					if err != nil {
