@@ -19,6 +19,7 @@ policy.wasm
 .gitbook
 .go
 release-notes.md
+bundle.tar.gz
 
 # ci artifacts
 fuzzit
