@@ -3,6 +3,7 @@
 .vscode
 .idea
 *~
+*.swp
 
 # build artifacts
 coverage.txt
