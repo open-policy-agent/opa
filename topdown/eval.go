@@ -1972,7 +1972,7 @@ func (e evalVirtualPartial) evalAllRules(iter unifyIterator, rules []*ast.Rule) 
 		}
 	}
 
-	return e.e.biunify(result, e.rterm, e.bindings, e.bindings, iter)
+	return e.e.biunify(result, e.rterm, e.bindings, e.rbindings, iter)
 }
 
 func (e evalVirtualPartial) evalOneRulePreUnify(iter unifyIterator, rule *ast.Rule, cacheKey ast.Ref, result *ast.Term, unknown bool) error {

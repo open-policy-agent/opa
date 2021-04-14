@@ -1,0 +1,18 @@
+cases:
+- data:
+  modules:
+  - |
+    package foo
+    p {
+        q[i][j] = v # this fails!
+    }
+    q[x] {
+        x = r
+    }
+    r[x] {
+        x = [1]
+    }
+  note: partialsetdoc/iteration
+  query: data.foo.p = x
+  want_result:
+  - x: true
