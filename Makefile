@@ -345,7 +345,7 @@ deploy-ci: push-image tag-edge push-edge push-binary-edge
 
 .PHONY: release-ci
 # Don't tag and push "latest" image tags if the version is a release candidate or a bugfix branch
-# where the changes don't exist in master
+# where the changes don't exist in main
 ifneq (,$(or $(findstring rc,$(VERSION)), $(findstring release-,$(shell git branch --contains HEAD))))
 release-ci: push-image
 else
