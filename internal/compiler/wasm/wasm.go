@@ -1375,12 +1375,12 @@ func (c *Compiler) compileUpsert(local ir.Local, path []int, value ir.LocalOrCon
 }
 
 func (c *Compiler) compileCallDynamicStmt(stmt *ir.CallDynamicStmt, result *[]instruction.Instruction) error {
-	block := instruction.Block{}
+	instrs := []instruction.Instruction{}
 	larray := c.genLocal()
 	lidx := c.genLocal()
 
 	// init array:
-	block.Instrs = append(block.Instrs,
+	instrs = append(instrs,
 		instruction.I32Const{Value: int32(len(stmt.Path))},
 		instruction.Call{Index: c.function(opaArrayWithCap)},
 		instruction.SetLocal{Index: larray},
@@ -1388,7 +1388,7 @@ func (c *Compiler) compileCallDynamicStmt(stmt *ir.CallDynamicStmt, result *[]in
 
 	// append to it:
 	for _, lv := range stmt.Path {
-		block.Instrs = append(block.Instrs,
+		instrs = append(instrs,
 			instruction.GetLocal{Index: larray},
 			c.instrRead(lv),
 			instruction.Call{Index: c.function(opaArrayAppend)},
@@ -1397,7 +1397,7 @@ func (c *Compiler) compileCallDynamicStmt(stmt *ir.CallDynamicStmt, result *[]in
 
 	// prep stack for later call_indirect
 	for _, arg := range stmt.Args {
-		block.Instrs = append(block.Instrs, instruction.GetLocal{Index: c.local(arg)})
+		instrs = append(instrs, instruction.GetLocal{Index: c.local(arg)})
 	}
 
 	tpe := module.FunctionType{
@@ -1406,22 +1406,22 @@ func (c *Compiler) compileCallDynamicStmt(stmt *ir.CallDynamicStmt, result *[]in
 	}
 	typeIndex := c.emitFunctionType(tpe)
 
-	block.Instrs = append(block.Instrs,
+	instrs = append(instrs,
 		// lookup elem idx via larray path
 		instruction.GetLocal{Index: larray},
 		instruction.Call{Index: c.function(opaMappingLookup)}, // [arg0 arg1 larray] -> [arg0 arg1 tbl_idx]
 		instruction.TeeLocal{Index: lidx},
-		instruction.I32Eqz{}, // mapping not found
-		instruction.BrIf{Index: 1},
+		instruction.I32Eqz{},       // mapping not found
+		instruction.BrIf{Index: 0}, // check data
 
 		instruction.GetLocal{Index: lidx},
 		instruction.CallIndirect{Index: typeIndex}, // [arg0 arg1 tbl_idx] -> [res]
 		instruction.TeeLocal{Index: c.local(stmt.Result)},
 		instruction.I32Eqz{},
-		instruction.BrIf{Index: 1},
+		instruction.BrIf{Index: 2}, // mapping found, "undefined" result counts
 	)
 
-	*result = append(*result, block)
+	*result = append(*result, instrs...)
 	return nil
 }
 
