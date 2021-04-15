@@ -36,9 +36,8 @@ import (
 const (
 	defaultPartialNamespace = "partial"
 	targetWasm              = "wasm"
+	wasmVarPrefix           = "^"
 )
-
-var wasmVarPrefix = "^"
 
 // CompileResult represents the result of compiling a Rego query, zero or more
 // Rego modules, and arbitrary contextual data into an executable.
@@ -1957,8 +1956,8 @@ func (r *Rego) generateResult(qr topdown.QueryResult, ectx *EvalContext) (Result
 	rewritten := ectx.compiledQuery.compiler.RewrittenVars()
 
 	result := newResult()
-	for k := range qr {
-		v, err := ast.JSONWithOpt(qr[k].Value, ast.JSONOpt{SortSets: ectx.sortSets})
+	for k, term := range qr {
+		v, err := ast.JSONWithOpt(term.Value, ast.JSONOpt{SortSets: ectx.sortSets})
 		if err != nil {
 			return result, err
 		}
