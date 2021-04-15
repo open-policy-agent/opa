@@ -184,7 +184,6 @@ type CallDynamicStmt struct {
 }
 
 // LocalOrConst is a tagged union of the two types, Local and StringIndex.
-// It's used with CallDynamicStmt.
 type LocalOrConst interface {
 	fmt.Stringer
 	localOrConst()
