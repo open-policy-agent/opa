@@ -442,6 +442,17 @@ func TestDataV0(t *testing.T) {
 		input.flag = true
 	}
 	`
+	pretty := `{
+          "p": "hello",
+          "q": {
+            "foo": [
+              1,
+              2,
+              3,
+              4
+            ]
+          }
+        }`
 
 	f := newFixture(t)
 
@@ -455,6 +466,10 @@ func TestDataV0(t *testing.T) {
 
 	if err := f.v0(http.MethodPost, "/data/test/q/foo", `{"flag": true}`, 200, `[1,2,3,4]`); err != nil {
 		t.Fatalf("Expected response [1,2,3,4] but got: %v", err)
+	}
+
+	if err := f.v0(http.MethodPost, "/data/test?pretty=true", `{"flag": true}`, 200, pretty); err != nil {
+		t.Fatalf("Expected response %v but got: %v", pretty, err)
 	}
 
 	req := newReqV0(http.MethodPost, "/data/test/q", "")
