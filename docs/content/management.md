@@ -446,7 +446,21 @@ OPA out-of-band
 
 * `iss`: unused for verification even if present in payload
 
+#### Signature Plugin
 
+OPA supports the option to implement your own bundle signing and verification logic. This will be unnecessary 
+for most and is intended for advanced use cases, such as leveraging key-related services from cloud providers. 
+To implement your own signing and verification logic, you'll need to [extend OPA](../extensions). Here is
+[an example](https://github.com/open-policy-agent/contrib/tree/master/custom_bundle_signing) to get you started.
+
+When registering custom signing and verification plugins, you will need to register the Signer and the Verifier
+under the same plugin key, because the plugin key is stored in the signed bundle and informs OPA which Verifier
+is capable of verifying the bundle, e.g.
+
+```go
+bundle.RegisterSigner("custom", &CustomSigner{})
+bundle.RegisterVerifier("custom", &CustomVerifier{})
+```
 
 ## Decision Logs
 

@@ -76,6 +76,7 @@ func (vc *VerificationConfig) GetPublicKey(id string) (*KeyConfig, error) {
 
 // SigningConfig represents the key configuration used to generate a signed bundle
 type SigningConfig struct {
+	Plugin     string
 	Key        string
 	Algorithm  string
 	ClaimsPath string
@@ -88,10 +89,19 @@ func NewSigningConfig(key, alg, claimsPath string) *SigningConfig {
 	}
 
 	return &SigningConfig{
+		Plugin:     defaultSignerID,
 		Key:        key,
 		Algorithm:  alg,
 		ClaimsPath: claimsPath,
 	}
+}
+
+// WithPlugin sets the signing plugin in the signing config
+func (s *SigningConfig) WithPlugin(plugin string) *SigningConfig {
+	if plugin != "" {
+		s.Plugin = plugin
+	}
+	return s
 }
 
 // GetPrivateKey returns the private key or secret from the signing config

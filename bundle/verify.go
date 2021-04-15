@@ -20,9 +20,45 @@ import (
 	"github.com/pkg/errors"
 )
 
+const defaultVerifierID = "_default"
+
+var verifiers map[string]Verifier
+
+// Verifier is the interface expected for implementations that verify bundle signatures.
+type Verifier interface {
+	VerifyBundleSignature(SignaturesConfig, *VerificationConfig) (map[string]FileInfo, error)
+}
+
+// VerifyBundleSignature will retrieve the Verifier implementation based
+// on the Plugin specified in SignaturesConfig, and call its implementation
+// of VerifyBundleSignature. VerifyBundleSignature verifies the bundle signature
+// using the given public keys or secret. If a signature is verified, it keeps
+// track of the files specified in the JWT payload
+func VerifyBundleSignature(sc SignaturesConfig, bvc *VerificationConfig) (map[string]FileInfo, error) {
+	// default implementation does not return a nil for map, so don't
+	// do it here either
+	files := make(map[string]FileInfo)
+	var plugin string
+	// for backwards compatibility, check if there is no plugin specified, and use default
+	if sc.Plugin == "" {
+		plugin = defaultVerifierID
+	} else {
+		plugin = sc.Plugin
+	}
+	verifier, err := GetVerifier(plugin)
+	if err != nil {
+		return files, err
+	}
+	return verifier.VerifyBundleSignature(sc, bvc)
+}
+
+// DefaultVerifier is the default bundle verification implementation. It verifies bundles by checking
+// the JWT signature using a locally-accessible public key.
+type DefaultVerifier struct{}
+
 // VerifyBundleSignature verifies the bundle signature using the given public keys or secret.
 // If a signature is verified, it keeps track of the files specified in the JWT payload
-func VerifyBundleSignature(sc SignaturesConfig, bvc *VerificationConfig) (map[string]FileInfo, error) {
+func (*DefaultVerifier) VerifyBundleSignature(sc SignaturesConfig, bvc *VerificationConfig) (map[string]FileInfo, error) {
 	files := make(map[string]FileInfo)
 
 	if len(sc.Signatures) == 0 {
@@ -170,4 +206,28 @@ func VerifyBundleFile(path string, data bytes.Buffer, files map[string]FileInfo)
 
 	delete(files, path)
 	return nil
+}
+
+// GetVerifier returns the Verifier registered under the given id
+func GetVerifier(id string) (Verifier, error) {
+	verifier, ok := verifiers[id]
+	if !ok {
+		return nil, fmt.Errorf("no verifier exists under id %s", id)
+	}
+	return verifier, nil
+}
+
+// RegisterVerifier registers a Verifier under the given id
+func RegisterVerifier(id string, v Verifier) error {
+	if id == defaultVerifierID {
+		return fmt.Errorf("verifier id %s is reserved, use a different id", id)
+	}
+	verifiers[id] = v
+	return nil
+}
+
+func init() {
+	verifiers = map[string]Verifier{
+		defaultVerifierID: &DefaultVerifier{},
+	}
 }
