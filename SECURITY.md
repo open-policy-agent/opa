@@ -115,7 +115,7 @@ patches, understand exact mitigation steps, etc.
 - The maintainers will create a new patch release branch from the latest patch release tag + the fix
   from the security branch. As a practical example if v1.5.3 is the latest patch release in opa.git
   a new branch will be created called v1.5.4 which includes only patches required to fix the issue.
-- The Fix Lead will cherry-pick the patches onto the master branch and all relevant release branches.
+- The Fix Lead will cherry-pick the patches onto the main branch and all relevant release branches.
   The Fix Team will LGTM and merge. Maintainers will merge these PRs as quickly as possible. Changes
   shouldn't be made to the commits even for a typo in the CHANGELOG as this will change the git sha
   of the commits leading to confusion and potentially conflicts as the fix is cherry-picked around
