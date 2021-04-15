@@ -23,10 +23,10 @@ familiar with signing off, see CONTRIBUTING.md below.
 
 For more information on contributing to OPA see:
 
-* [CONTRIBUTING.md](https://github.com/open-policy-agent/opa/blob/master/CONTRIBUTING.md)
+* [CONTRIBUTING.md](https://github.com/open-policy-agent/opa/blob/main/CONTRIBUTING.md)
   for high-level contribution guidelines.
 
-* [DEVELOPMENT.md](https://github.com/open-policy-agent/opa/blob/master/docs/devel/DEVELOPMENT.md)
+* [DEVELOPMENT.md](https://github.com/open-policy-agent/opa/blob/main/docs/devel/DEVELOPMENT.md)
   for development workflow and environment setup.
 
 -->
