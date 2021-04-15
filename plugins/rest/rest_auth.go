@@ -9,6 +9,8 @@ import (
 	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
 	"errors"
@@ -130,6 +132,7 @@ type oauth2ClientCredentialsAuthPlugin struct {
 	ClientID     string                 `json:"client_id"`
 	ClientSecret string                 `json:"client_secret"`
 	SigningKeyID string                 `json:"signing_key"`
+	Thumbprint   string                 `json:"thumbprint"`
 	Claims       map[string]interface{} `json:"additional_claims"`
 	IncludeJti   bool                   `json:"include_jti_claim"`
 	Scopes       []string               `json:"scopes,omitempty"`
@@ -176,7 +179,18 @@ func (ap *oauth2ClientCredentialsAuthPlugin) createAuthJWT(claims map[string]int
 		return nil, err
 	}
 
-	jwsHeaders := []byte(fmt.Sprintf(`{"typ":"JWT","alg":"%v"}`, ap.signingKey.Algorithm))
+	var jwsHeaders []byte
+	if ap.Thumbprint != "" {
+		bytes, err := hex.DecodeString(ap.Thumbprint)
+		if err != nil {
+			return nil, err
+		}
+		x5t := base64.URLEncoding.EncodeToString(bytes)
+		jwsHeaders = []byte(fmt.Sprintf(`{"typ":"JWT","alg":"%s","x5t":"%s"}`, ap.signingKey.Algorithm, x5t))
+	} else {
+		jwsHeaders = []byte(fmt.Sprintf(`{"typ":"JWT","alg":"%s"}`, ap.signingKey.Algorithm))
+	}
+
 	jwsCompact, err := jws.SignLiteral(payload, jwa.SignatureAlgorithm(ap.signingKey.Algorithm), signingKey, jwsHeaders)
 	if err != nil {
 		return nil, err
@@ -343,6 +357,8 @@ type clientTLSAuthPlugin struct {
 	Cert                 string `json:"cert"`
 	PrivateKey           string `json:"private_key"`
 	PrivateKeyPassphrase string `json:"private_key_passphrase,omitempty"`
+	CACert               string `json:"ca_cert,omitempty"`
+	SystemCARequired     bool   `json:"system_ca_required,omitempty"`
 }
 
 func (ap *clientTLSAuthPlugin) NewClient(c Config) (*http.Client, error) {
@@ -406,6 +422,29 @@ func (ap *clientTLSAuthPlugin) NewClient(c Config) (*http.Client, error) {
 	cert, err := tls.X509KeyPair(certPEMBlock, keyPEMBlock)
 	if err != nil {
 		return nil, err
+	}
+
+	if ap.CACert != "" {
+		caCert, err := ioutil.ReadFile(ap.CACert)
+		if err != nil {
+			return nil, err
+		}
+
+		var caCertPool *x509.CertPool
+		if ap.SystemCARequired {
+			caCertPool, err = x509.SystemCertPool()
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			caCertPool = x509.NewCertPool()
+		}
+
+		ok := caCertPool.AppendCertsFromPEM(caCert)
+		if !ok {
+			return nil, errors.New("unable to parse and append CA certificate to certicate pool")
+		}
+		tlsConfig.RootCAs = caCertPool
 	}
 
 	tlsConfig.Certificates = []tls.Certificate{cert}

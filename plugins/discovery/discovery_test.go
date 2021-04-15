@@ -999,10 +999,6 @@ func TestStatusUpdatesTimestamp(t *testing.T) {
 
 func TestStatusMetricsForLogDrops(t *testing.T) {
 
-	ts := testServer{t: t}
-	ts.Start()
-	defer ts.Stop()
-
 	logLevel := logrus.GetLevel()
 	defer logrus.SetLevel(logLevel)
 
@@ -1013,14 +1009,14 @@ func TestStatusMetricsForLogDrops(t *testing.T) {
 
 	ctx := context.Background()
 
-	manager, err := plugins.New([]byte(fmt.Sprintf(`{
-			"services": {
-				"localhost": {
-					"url": %q
-				}
-			},
-			"discovery": {"name": "config"}
-		}`, ts.server.URL)), "test-id", inmem.New())
+	manager, err := plugins.New([]byte(`{
+		"services": {
+			"localhost": {
+				"url": "http://localhost:9999"
+			}
+		},
+		"discovery": {"name": "config"},
+	}`), "test-id", inmem.New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1095,7 +1091,7 @@ func TestStatusMetricsForLogDrops(t *testing.T) {
 	// trigger a status update
 	disco.oneShot(ctx, download.Update{ETag: "etag-1", Bundle: makeDataBundle(1, `{
 		"config": {
-			"bundle": {"name": "test1"}
+			"bundles": {"test-bundle": {"service": "localhost"}}
 		}
 	}`)})
 
@@ -1111,10 +1107,18 @@ func TestStatusMetricsForLogDrops(t *testing.T) {
 		t.Fatal("Expected metrics")
 	}
 
-	exp := map[string]interface{}{"<built-in>": map[string]interface{}{"counter_decision_logs_dropped": json.Number("2")}}
+	builtInMet := e.Data["metrics"].(map[string]interface{})["<built-in>"]
+	dropCount := builtInMet.(map[string]interface{})["counter_decision_logs_dropped"]
 
-	if !reflect.DeepEqual(e.Data["metrics"], exp) {
-		t.Fatalf("Expected %v but got %v", exp, e.Data["metrics"])
+	actual, err := dropCount.(json.Number).Int64()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Along with event 2 and event 3, event 1 could also get dropped. This happens when the decision log plugin
+	// tries to requeue event 1 after a failed upload attempt to a non-existent remote endpoint
+	if actual < 2 {
+		t.Fatal("Expected at least 2 events to be dropped")
 	}
 }
 

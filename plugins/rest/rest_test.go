@@ -14,6 +14,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/base64"
+	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -430,6 +431,22 @@ func TestNew(t *testing.T) {
 						"signing_key": "key1",
 						"token_url": "https://localhost",
 						"scopes": ["profile", "opa"]
+					}
+				}
+			}`,
+		},
+		{
+			name: "Oauth2ClientCredentialsJwtThumbprint",
+			input: `{
+				"name": "foo",
+				"url": "http://localhost",
+				"credentials": {
+					"oauth2": {
+						"grant_type": "client_credentials",
+						"signing_key": "key1",
+						"token_url": "https://localhost",
+						"scopes": ["profile", "opa"],
+						"thumbprint": "8F1BDDDE9982299E62749C20EDDBAAC57F619D04"
 					}
 				}
 			}`,
@@ -977,6 +994,65 @@ func TestClientCertPassword(t *testing.T) {
 	})
 }
 
+func TestClientCACert(t *testing.T) {
+	ts := testServer{
+		t:                t,
+		tls:              true,
+		expectClientCert: true,
+	}
+	ts.start()
+	defer ts.stop()
+
+	files := map[string]string{
+		"client.pem": string(ts.clientCertPem),
+		"client.key": string(ts.clientCertKey),
+		"ca.pem":     string(ts.rootCertPEM),
+	}
+
+	test.WithTempFS(files, func(path string) {
+		certPath := filepath.Join(path, "client.pem")
+		keyPath := filepath.Join(path, "client.key")
+		ts.caCert = filepath.Join(path, "ca.pem")
+
+		client := newTestClient(t, &ts, certPath, keyPath)
+
+		ctx := context.Background()
+		if _, err := client.Do(ctx, "GET", "test"); err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+	})
+}
+
+func TestClientCACertWithSystemCA(t *testing.T) {
+	ts := testServer{
+		t:                t,
+		tls:              true,
+		expectClientCert: true,
+		expectSystemCA:   true,
+	}
+	ts.start()
+	defer ts.stop()
+
+	files := map[string]string{
+		"client.pem": string(ts.clientCertPem),
+		"client.key": string(ts.clientCertKey),
+		"ca.pem":     string(ts.rootCertPEM),
+	}
+
+	test.WithTempFS(files, func(path string) {
+		certPath := filepath.Join(path, "client.pem")
+		keyPath := filepath.Join(path, "client.key")
+		ts.caCert = filepath.Join(path, "ca.pem")
+
+		client := newTestClient(t, &ts, certPath, keyPath)
+
+		ctx := context.Background()
+		if _, err := client.Do(ctx, "GET", "test"); err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+	})
+}
+
 func TestOauth2ClientCredentials(t *testing.T) {
 	tests := []struct {
 		ts      *testServer
@@ -1255,6 +1331,7 @@ func TestOauth2ClientCredentialsJwtAuthentication(t *testing.T) {
 		tokenTTL:         300,
 		expGrantType:     "client_credentials",
 		expScope:         &[]string{"scope1", "scope2"},
+		expX5t:           "jxvd3pmCKZ5idJwg7duqxX9hnQQ=",
 		expJwtCredential: true,
 		expAlgorithm:     jwa.RS256,
 		verificationKey:  &key.PublicKey,
@@ -1328,6 +1405,12 @@ func newTestClient(t *testing.T, ts *testServer, certPath string, keypath string
 	if ts.clientCertPassword != "" {
 		client.Config().Credentials.ClientTLS.PrivateKeyPassphrase = ts.clientCertPassword
 	}
+	if ts.caCert != "" {
+		client.Config().Credentials.ClientTLS.CACert = ts.caCert
+	}
+	if ts.expectSystemCA {
+		client.Config().Credentials.ClientTLS.SystemCARequired = true
+	}
 
 	return &client
 }
@@ -1347,6 +1430,9 @@ type testServer struct {
 	clientCertKey      []byte
 	clientCertPassword string
 	expectClientCert   bool
+	rootCertPEM        []byte
+	caCert             string
+	expectSystemCA     bool
 	serverCertPool     *x509.CertPool
 	keys               map[string]*keys.Config
 }
@@ -1360,6 +1446,7 @@ type oauth2TestServer struct {
 	expJwtCredential bool
 	expScope         *[]string
 	expAlgorithm     jwa.SignatureAlgorithm
+	expX5t           string
 	tokenType        string
 	tokenTTL         int64
 	invocations      int32
@@ -1435,6 +1522,7 @@ func newOauth2ClientCredentialsJwtAuthClient(t *testing.T, keys map[string]*keys
 					"signing_key": "key1",
 					"client_id": "client-one",
 					"scopes": ["scope1", "scope2"],
+					"thumbprint": "8F1BDDDE9982299E62749C20EDDBAAC57F619D04",
 					"additional_claims": {
 						"aud": "test-audience",
 						"iss": "client-one"
@@ -1546,6 +1634,17 @@ func (t *oauth2TestServer) handle(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			t.t.Fatalf("Unexpected signature verification error %v", err)
 		}
+
+		if t.expX5t != "" {
+			headerRaw, _ := base64.RawURLEncoding.DecodeString(strings.Split(token, ".")[0])
+			var headers map[string]string
+			_ = json.Unmarshal(headerRaw, &headers)
+			x5t := headers["x5t"]
+
+			if t.expX5t != x5t {
+				t.t.Errorf("Expected expX5t %v, got %v", t.expX5t, x5t)
+			}
+		}
 	}
 
 	t.invocations++
@@ -1614,6 +1713,7 @@ func (t *testServer) generateClientKeys() {
 	// save a copy of the root certificate for clients to use
 	t.serverCertPool = x509.NewCertPool()
 	t.serverCertPool.AppendCertsFromPEM(rootCertPEM)
+	t.rootCertPEM = rootCertPEM
 
 	// create a key-pair for the client
 	clientKey, err := rsa.GenerateKey(rand.Reader, 2048)

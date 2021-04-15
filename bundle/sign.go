@@ -7,15 +7,48 @@ package bundle
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/open-policy-agent/opa/internal/jwx/jwa"
 	"github.com/open-policy-agent/opa/internal/jwx/jws"
 )
 
+const defaultSignerID = "_default"
+
+var signers map[string]Signer
+
+// Signer is the interface expected for implementations that generate bundle signatures.
+type Signer interface {
+	GenerateSignedToken([]FileInfo, *SigningConfig, string) (string, error)
+}
+
+// GenerateSignedToken will retrieve the Signer implementation based on the Plugin specified
+// in SigningConfig, and call its implementation of GenerateSignedToken. The signer generates
+// a signed token given the list of files to be included in the payload and the bundle
+// signing config. The keyID if non-empty, represents the value for the "keyid" claim in the token.
+func GenerateSignedToken(files []FileInfo, sc *SigningConfig, keyID string) (string, error) {
+	var plugin string
+	// for backwards compatibility, check if there is no plugin specified, and use default
+	if sc.Plugin == "" {
+		plugin = defaultSignerID
+	} else {
+		plugin = sc.Plugin
+	}
+	signer, err := GetSigner(plugin)
+	if err != nil {
+		return "", err
+	}
+	return signer.GenerateSignedToken(files, sc, keyID)
+}
+
+// DefaultSigner is the default bundle signing implementation. It signs bundles by generating
+// a JWT and signing it using a locally-accessible private key.
+type DefaultSigner struct{}
+
 // GenerateSignedToken generates a signed token given the list of files to be
 // included in the payload and the bundle signing config. The keyID if non-empty,
 // represents the value for the "keyid" claim in the token
-func GenerateSignedToken(files []FileInfo, sc *SigningConfig, keyID string) (string, error) {
+func (*DefaultSigner) GenerateSignedToken(files []FileInfo, sc *SigningConfig, keyID string) (string, error) {
 	payload, err := generatePayload(files, sc, keyID)
 	if err != nil {
 		return "", err
@@ -70,4 +103,28 @@ func generatePayload(files []FileInfo, sc *SigningConfig, keyID string) ([]byte,
 		}
 	}
 	return json.Marshal(payload)
+}
+
+// GetSigner returns the Signer registered under the given id
+func GetSigner(id string) (Signer, error) {
+	signer, ok := signers[id]
+	if !ok {
+		return nil, fmt.Errorf("no signer exists under id %s", id)
+	}
+	return signer, nil
+}
+
+// RegisterSigner registers a Signer under the given id
+func RegisterSigner(id string, s Signer) error {
+	if id == defaultSignerID {
+		return fmt.Errorf("signer id %s is reserved, use a different id", id)
+	}
+	signers[id] = s
+	return nil
+}
+
+func init() {
+	signers = map[string]Signer{
+		defaultSignerID: &DefaultSigner{},
+	}
 }

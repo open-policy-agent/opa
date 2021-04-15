@@ -1260,7 +1260,7 @@ func (e *eval) getRules(ref ast.Ref) (*ast.IndexResult, error) {
 	} else {
 		var b strings.Builder
 		b.Grow(len("(matched NNNN rules)"))
-		b.WriteString("matched ")
+		b.WriteString("(matched ")
 		b.WriteString(strconv.FormatInt(int64(len(result.Rules)), 10))
 		b.WriteString(" rules)")
 		msg = b.String()
@@ -1972,7 +1972,7 @@ func (e evalVirtualPartial) evalAllRules(iter unifyIterator, rules []*ast.Rule) 
 		}
 	}
 
-	return e.e.biunify(result, e.rterm, e.bindings, e.bindings, iter)
+	return e.e.biunify(result, e.rterm, e.bindings, e.rbindings, iter)
 }
 
 func (e evalVirtualPartial) evalOneRulePreUnify(iter unifyIterator, rule *ast.Rule, cacheKey ast.Ref, result *ast.Term, unknown bool) error {

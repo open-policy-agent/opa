@@ -178,7 +178,7 @@ Where /some/path contains:
 	  |     |
 	  |     +-- data.json
 	  |
-	  +-- baz_test.rego
+	  +-- baz.rego
 	  |
 	  +-- manifest.yaml
 
