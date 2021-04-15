@@ -149,6 +149,15 @@ func TestBaseDocEqIndexing(t *testing.T) {
 		input.x = x
 	}
 
+	glob_match_mappers_non_mapped_match {
+		input.x = "/bar"
+	}
+
+	glob_match_mappers_non_mapped_match {
+		input.x = x
+		glob.match("bar", ["/"], x)
+	}
+
 	glob_match_overlapped_mappers {
 		input.x = x
 		glob.match("foo:*", [":"], x)
@@ -389,6 +398,15 @@ func TestBaseDocEqIndexing(t *testing.T) {
 					input.x = x
 				}
 			`},
+		},
+		{
+			note:    "glob.match - mapper and no mapper, non-mapped value matches",
+			ruleset: "glob_match_mappers_non_mapped_match",
+			input:   `{"x": "/bar"}`,
+			expectedRS: []string{
+				`glob_match_mappers_non_mapped_match {
+					input.x = "/bar"
+				}`},
 		},
 		{
 			// NOTE(tsandall): The rule index returns both rules because the trie nodes
