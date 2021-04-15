@@ -13,12 +13,12 @@ evaluation, policy coverage, and more.
 
 | Editor | Link |
 | --- | --- |
-| Atom | [https://github.com/open-policy-agent/opa/tree/master/misc/syntax/atom](https://github.com/open-policy-agent/opa/tree/master/misc/syntax/atom) |
+| Atom | [https://github.com/open-policy-agent/opa/tree/main/misc/syntax/atom](https://github.com/open-policy-agent/opa/tree/main/misc/syntax/atom) |
 | Emacs | [https://github.com/psibi/rego-mode](https://github.com/psibi/rego-mode) |
 | IntelliJ IDEA | [https://github.com/open-policy-agent/opa-idea-plugin](https://github.com/open-policy-agent/opa-idea-plugin) |
 | Nano | [https://github.com/scopatz/nanorc](https://github.com/scopatz/nanorc) |
-| Sublime Text | [https://github.com/open-policy-agent/opa/tree/master/misc/syntax/sublime](https://github.com/open-policy-agent/opa/tree/master/misc/syntax/sublime) |
-| TextMate | [https://github.com/open-policy-agent/opa/tree/master/misc/syntax/textmate](https://github.com/open-policy-agent/opa/tree/master/misc/syntax/textmate) |
+| Sublime Text | [https://github.com/open-policy-agent/opa/tree/main/misc/syntax/sublime](https://github.com/open-policy-agent/opa/tree/main/misc/syntax/sublime) |
+| TextMate | [https://github.com/open-policy-agent/opa/tree/main/misc/syntax/textmate](https://github.com/open-policy-agent/opa/tree/main/misc/syntax/textmate) |
 | Vim | [https://github.com/tsandall/vim-rego](https://github.com/tsandall/vim-rego) |
 | Visual Studio Code | [https://marketplace.visualstudio.com/items?itemName=tsandall.opa](https://marketplace.visualstudio.com/items?itemName=tsandall.opa) |
 

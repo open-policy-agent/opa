@@ -118,7 +118,7 @@ recommend using an explicit version tag.
 Development builds are also available on Docker Hub. For each version the
 `{version}-dev` tag refers the most recent development build for that version.
 
-The `edge` tag refers to the current `master` branch of OPA. Useful for testing
+The `edge` tag refers to the current `main` branch of OPA. Useful for testing
 unreleased features. It is not recommended to use `edge` for production deployments.
 
 The version information is contained in the OPA executable itself. You can check
@@ -364,7 +364,3 @@ The mechanisms discussed above ensure that OPA is not asked to answer policy que
 The choices are more varied if the policy is not making an allow/deny decision, but often there is some analog to fail-open and fail-closed.  The key observation is that this logic is entirely the responsibility of the software asking OPA for a policy decision.  Despite the fact that what to do when OPA is unavailable is technically a policy question, it is one that we cannot rely on OPA to answer.  The right logic can depend on many factors including the likelihood of OPA not making a decision and the cost of allowing or denying a request incorrectly.
 
 In Kubernetes admission control, for example, the Kubernetes admin can choose whether to fail-open or fail-closed, leaving the decision up to the user.  And often this is the correct way to build an integration because it is unlikely that there is a universal solution.  For example, running an OPA-integration in a development environment might require fail-open, but running exactly the same integration in a production environment might require fail-closed.
-
-
-
-
