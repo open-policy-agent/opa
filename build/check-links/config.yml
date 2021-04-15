@@ -1,0 +1,5 @@
+path_exclusions:
+  - "docs/website/node_modules"
+links_exclusions:
+  - "https:\/\/github.com\/open-policy-agent\/opa\/issues\/.*"
+  - "mailto:.*"
