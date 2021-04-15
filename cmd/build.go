@@ -40,6 +40,7 @@ type buildParams struct {
 	pubKeyID           string
 	claimsFile         string
 	excludeVerifyFiles []string
+	plugin             string
 }
 
 func newBuildParams() buildParams {
@@ -231,6 +232,7 @@ against OPA v0.22.0:
 
 	// bundle signing config
 	addSigningKeyFlag(buildCommand.Flags(), &buildParams.key)
+	addSigningPluginFlag(buildCommand.Flags(), &buildParams.plugin)
 	addClaimsFileFlag(buildCommand.Flags(), &buildParams.claimsFile)
 
 	RootCommand.AddCommand(buildCommand)
@@ -246,7 +248,7 @@ func dobuild(params buildParams, args []string) error {
 		return err
 	}
 
-	bsc := buildSigningConfig(params.key, params.algorithm, params.claimsFile)
+	bsc := buildSigningConfig(params.key, params.algorithm, params.claimsFile, params.plugin)
 
 	if bvc != nil || bsc != nil {
 		if !params.bundleMode {
@@ -324,10 +326,10 @@ func buildVerificationConfig(pubKey, pubKeyID, alg, scope string, excludeFiles [
 	return bundle.NewVerificationConfig(map[string]*keys.Config{pubKeyID: keyConfig}, pubKeyID, scope, excludeFiles), nil
 }
 
-func buildSigningConfig(key, alg, claimsFile string) *bundle.SigningConfig {
+func buildSigningConfig(key, alg, claimsFile, plugin string) *bundle.SigningConfig {
 	if key == "" {
 		return nil
 	}
 
-	return bundle.NewSigningConfig(key, alg, claimsFile)
+	return bundle.NewSigningConfig(key, alg, claimsFile).WithPlugin(plugin)
 }

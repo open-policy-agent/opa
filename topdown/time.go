@@ -124,6 +124,72 @@ func builtinAddDate(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Te
 	return iter(ast.NewTerm(ast.Number(int64ToJSONNumber(result.UnixNano()))))
 }
 
+func builtinDiff(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	t1, err := tzTime(operands[0].Value)
+	if err != nil {
+		return err
+	}
+	t2, err := tzTime(operands[1].Value)
+	if err != nil {
+		return err
+	}
+
+	// The following implementation of this function is taken
+	// from https://github.com/icza/gox licensed under Apache 2.0.
+	// The only modification made is to variable names.
+	//
+	// For details, see https://stackoverflow.com/a/36531443/1705598
+	//
+	// Copyright 2021 icza
+	// BEGIN REDISTRIBUTION FROM APACHE 2.0 LICENSED PROJECT
+	if t1.Location() != t2.Location() {
+		t2 = t2.In(t1.Location())
+	}
+	if t1.After(t2) {
+		t1, t2 = t2, t1
+	}
+	y1, M1, d1 := t1.Date()
+	y2, M2, d2 := t2.Date()
+
+	h1, m1, s1 := t1.Clock()
+	h2, m2, s2 := t2.Clock()
+
+	year := y2 - y1
+	month := int(M2 - M1)
+	day := d2 - d1
+	hour := h2 - h1
+	min := m2 - m1
+	sec := s2 - s1
+
+	// Normalize negative values
+	if sec < 0 {
+		sec += 60
+		min--
+	}
+	if min < 0 {
+		min += 60
+		hour--
+	}
+	if hour < 0 {
+		hour += 24
+		day--
+	}
+	if day < 0 {
+		// Days in month:
+		t := time.Date(y1, M1, 32, 0, 0, 0, 0, time.UTC)
+		day += 32 - t.Day()
+		month--
+	}
+	if month < 0 {
+		month += 12
+		year--
+	}
+	// END REDISTRIBUTION FROM APACHE 2.0 LICENSED PROJECT
+
+	return iter(ast.ArrayTerm(ast.IntNumberTerm(year), ast.IntNumberTerm(month), ast.IntNumberTerm(day),
+		ast.IntNumberTerm(hour), ast.IntNumberTerm(min), ast.IntNumberTerm(sec)))
+}
+
 func tzTime(a ast.Value) (t time.Time, err error) {
 	var nVal ast.Value
 	loc := time.UTC
@@ -208,6 +274,7 @@ func init() {
 	RegisterFunctionalBuiltin1(ast.Clock.Name, builtinClock)
 	RegisterFunctionalBuiltin1(ast.Weekday.Name, builtinWeekday)
 	RegisterBuiltinFunc(ast.AddDate.Name, builtinAddDate)
+	RegisterBuiltinFunc(ast.Diff.Name, builtinDiff)
 	tzCacheMutex = &sync.Mutex{}
 	tzCache = make(map[string]*time.Location)
 }

@@ -113,6 +113,7 @@ func TestGenerateSignedTokenWithClaims(t *testing.T) {
 		keyid := "foo"
 
 		sc := NewSigningConfig("secret", "HS256", filepath.Join(rootDir, "claims.json"))
+
 		token, err := GenerateSignedToken(input, sc, keyid)
 		if err != nil {
 			t.Fatalf("Unexpected error %v", err)
@@ -187,5 +188,37 @@ func TestGeneratePayload(t *testing.T) {
 
 	if _, ok := payload["keyid"]; ok {
 		t.Fatal("Unexpected claim \"keyid\" in token")
+	}
+}
+
+type CustomSigner struct{}
+
+func (*CustomSigner) GenerateSignedToken(files []FileInfo, sc *SigningConfig, keyID string) (string, error) {
+	return "", nil
+}
+
+func TestCustomSigner(t *testing.T) {
+	custom := &CustomSigner{}
+	err := RegisterSigner(defaultSignerID, custom)
+	if err == nil {
+		t.Fatalf("Expected error when registering with default ID")
+	}
+	RegisterSigner("_test", custom)
+	defaultSigner, err := GetSigner(defaultSignerID)
+	if err != nil {
+		t.Fatalf("Unexpected error %v", err)
+	}
+	if _, isDefault := defaultSigner.(*DefaultSigner); !isDefault {
+		t.Fatalf("Expected DefaultSigner to be registered at key %s", defaultSignerID)
+	}
+	customSigner, err := GetSigner("_test")
+	if err != nil {
+		t.Fatalf("Unexpected error %v", err)
+	}
+	if _, isCustom := customSigner.(*CustomSigner); !isCustom {
+		t.Fatalf("Expected CustomSigner to be registered at key _test")
+	}
+	if _, err = GetSigner("_unregistered"); err == nil {
+		t.Fatalf("Expected error when no Signer exists at provided key")
 	}
 }

@@ -899,6 +899,25 @@ integrations:
     blogs:
       - https://github.com/EliuX/flask-opa/tree/master/examples
 
+  opal:
+    title: OPAL (Open Policy Administration Layer)
+    description:  |
+      OPAL is an administration layer for Open Policy Agent (OPA), detecting changes in realtime to both policy and policy data and pushing live updates to your agents.
+      OPAL brings open-policy up to the speed needed by live applications. As your application state changes (whether it's via your APIs, DBs, git, S3 or 3rd-party SaaS services), OPAL will make sure your services are always in sync with the authorization data and policy they need (and only those they need).
+    labels:
+      category: updates
+      layer: application
+    inventors:
+      - authorizon
+    software:
+      - opal
+    code:
+      - https://github.com/authorizon/opal
+    tutorials:
+      - https://github.com/authorizon/opal/blob/master/docs/index.md
+    videos:
+      - https://www.youtube.com/watch?v=K1Zm2FPfrh8
+
 organizations:
   styra:
     name: Styra
@@ -1011,6 +1030,9 @@ organizations:
   fairwinds:
     name: Fairwinds
     link: https://fairwinds.com
+  authorizon:
+    name: authorizon
+    link: https://authorizon.com
 
 software:
   kubernetes:
@@ -1127,3 +1149,6 @@ software:
   flask:
     name: Flask
     link: https://flask.palletsprojects.com/
+  opal:
+    name: OPAL
+    link: https://opal.ac
