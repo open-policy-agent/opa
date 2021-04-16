@@ -606,7 +606,7 @@ func callOrCancel(ctx context.Context, vm *VM, name string, args ...int32) (inte
 				case cancelledError:
 					errc <- errors.ErrCancelled
 				case builtinError:
-					if _, ok := e.err.(topdown.Halt); !ok {
+					if topdown.IsHalt(err) {
 						errc <- nil
 						return
 					}
