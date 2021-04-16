@@ -3,6 +3,7 @@
 {{ $releases   := site.Data.releases }}
 {{ $latest     := index $releases 1 }}
 {{ $version    := index (split .File.Path "/") 1 }}
+{{ $page       := trim .RelPermalink "/" }}
 {{ $isLatest   := or (eq $version $latest) (eq $version "latest") }}
 <div class="dashboard-panel left has-background-white-bis is-hidden-mobile">
   <div class="dashboard-panel-header has-text-centered">
@@ -52,7 +53,11 @@
                     {{ if $isLatest }}
                         {{ $verRef = "latest" }}
                     {{ end }}
-                    <a href="/docs/{{ $verRef }}" class="dropdown-item">
+                    {{ $versionedLink := strings.Replace $page $version $verRef }}
+                    {{ if (eq (site.GetPage $versionedLink).Content "") }}
+                        {{ $versionedLink = printf "docs/%s" $verRef }}
+                    {{ end }}
+                    <a href="{{ printf "/%s" $versionedLink }}" class="dropdown-item">
                         {{ . }}
                         {{ if $isLatest }}
                           <span class="tag latest-tag is-success is-small has-text-weight-bold">
