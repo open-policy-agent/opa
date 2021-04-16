@@ -5,7 +5,6 @@
 package http
 
 import (
-	"fmt"
 	"net/http"
 	"time"
 
@@ -22,7 +21,7 @@ func (l *Loader) WithURL(url string) *Loader {
 // http.DefaultClient is used.
 func (l *Loader) WithClient(client *http.Client) *Loader {
 	if client == nil {
-		l.configErr = fmt.Errorf("client: %w", errors.ErrInvalidConfig)
+		l.configErr = errors.New(errors.InvalidConfigErr, "client")
 		return l
 	}
 
@@ -33,7 +32,7 @@ func (l *Loader) WithClient(client *http.Client) *Loader {
 // WithInterval configures the minimum and maximum delay between bundle downloads.
 func (l *Loader) WithInterval(min, max time.Duration) *Loader {
 	if min > max {
-		l.configErr = fmt.Errorf("interval: %w", errors.ErrInvalidConfig)
+		l.configErr = errors.New(errors.InvalidConfigErr, "interval min > max")
 		return l
 	}
 
@@ -46,7 +45,7 @@ func (l *Loader) WithInterval(min, max time.Duration) *Loader {
 // HTTP request is not modified after the handle invocation.
 func (l *Loader) WithPrepareRequest(prepare func(*http.Request) error) *Loader {
 	if prepare == nil {
-		l.configErr = fmt.Errorf("prepare request: %w", errors.ErrInvalidConfig)
+		l.configErr = errors.New(errors.InvalidConfigErr, "missing prepare")
 		return l
 	}
 
@@ -57,7 +56,7 @@ func (l *Loader) WithPrepareRequest(prepare func(*http.Request) error) *Loader {
 // WithErrorLogger configures an error logger invoked with all the errors.
 func (l *Loader) WithErrorLogger(logger func(error)) *Loader {
 	if logger == nil {
-		l.configErr = fmt.Errorf("logger: %w", errors.ErrInvalidConfig)
+		l.configErr = errors.New(errors.InvalidConfigErr, "missing logger")
 		return l
 	}
 

@@ -14,12 +14,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/open-policy-agent/opa/metrics"
-
-	"github.com/open-policy-agent/opa/bundle"
-
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/bundle"
+	wasm_errors "github.com/open-policy-agent/opa/internal/wasm/sdk/opa/errors"
 	"github.com/open-policy-agent/opa/loader"
+	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
@@ -258,10 +257,13 @@ func (r *Runner) RunBenchmarks(ctx context.Context, txn storage.Transaction, opt
 	})
 }
 
-func (r *Runner) runTests(ctx context.Context, txn storage.Transaction, runFunc func(context.Context, storage.Transaction, *ast.Module, *ast.Rule) (*Result, bool)) (ch chan *Result, err error) {
+type run func(context.Context, storage.Transaction, *ast.Module, *ast.Rule) (*Result, bool)
+
+func (r *Runner) runTests(ctx context.Context, txn storage.Transaction, runFunc run) (chan *Result, error) {
 	var testRegex *regexp.Regexp
+	var err error
+
 	if r.filter != "" {
-		var err error
 		testRegex, err = regexp.Compile(r.filter)
 		if err != nil {
 			return nil, err
@@ -327,7 +329,7 @@ func (r *Runner) runTests(ctx context.Context, txn storage.Transaction, runFunc 
 
 	sort.Strings(filenames)
 
-	ch = make(chan *Result)
+	ch := make(chan *Result)
 
 	go func() {
 		defer close(ch)
@@ -415,7 +417,7 @@ func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.
 		return tr, false
 	}
 
-	rego := rego.New(
+	rg := rego.New(
 		rego.Store(r.store),
 		rego.Transaction(txn),
 		rego.Compiler(r.compiler),
@@ -426,7 +428,7 @@ func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.
 	)
 
 	t0 := time.Now()
-	rs, err := rego.Eval(ctx)
+	rs, err := rg.Eval(ctx)
 	dt := time.Since(t0)
 
 	var trace []*topdown.Event
@@ -436,12 +438,12 @@ func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.
 	}
 
 	tr := newResult(rule.Loc(), mod.Package.Path.String(), ruleName, dt, trace)
+	tr.Error = err
 	var stop bool
 
 	if err != nil {
-		tr.Error = err
-		if topdown.IsCancel(err) && !(ctx.Err() == context.DeadlineExceeded) {
-			stop = true
+		if topdown.IsCancel(err) || wasm_errors.IsCancel(err) {
+			stop = ctx.Err() != context.DeadlineExceeded
 		}
 	} else if len(rs) == 0 {
 		tr.Fail = true
