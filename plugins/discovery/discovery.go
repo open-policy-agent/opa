@@ -351,7 +351,7 @@ func getPluginSet(factories map[string]plugins.Factory, manager *plugins.Manager
 		return nil, err
 	}
 
-	statusConfig, err := status.ParseConfig(config.Status, manager.Services())
+	statusConfig, err := status.ParseConfig(config.Status, manager.Services(), pluginNames)
 	if err != nil {
 		return nil, err
 	}

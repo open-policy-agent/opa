@@ -289,7 +289,7 @@ func TestPluginReconfigure(t *testing.T) {
 			"partition_name": "test"
 		}`))
 
-	config, _ := ParseConfig(pluginConfig, fixture.manager.Services())
+	config, _ := ParseConfig(pluginConfig, fixture.manager.Services(), nil)
 
 	fixture.plugin.Reconfigure(ctx, config)
 	fixture.plugin.Stop(ctx)
@@ -335,7 +335,7 @@ func TestParseConfigUseDefaultServiceNoConsole(t *testing.T) {
 		"console": false
 	}`))
 
-	config, err := ParseConfig([]byte(loggerConfig), services)
+	config, err := ParseConfig([]byte(loggerConfig), services, nil)
 
 	if err != nil {
 		t.Errorf("Unexpected error: %s", err)
@@ -357,7 +357,7 @@ func TestParseConfigDefaultServiceWithConsole(t *testing.T) {
 		"console": true
 	}`))
 
-	config, err := ParseConfig([]byte(loggerConfig), services)
+	config, err := ParseConfig([]byte(loggerConfig), services, nil)
 
 	if err != nil {
 		t.Errorf("Unexpected error: %s", err)
@@ -371,7 +371,7 @@ func TestParseConfigDefaultServiceWithConsole(t *testing.T) {
 func TestParseConfigDefaultServiceWithNoServiceOrConsole(t *testing.T) {
 	loggerConfig := []byte(fmt.Sprintf(`{}`))
 
-	_, err := ParseConfig([]byte(loggerConfig), []string{})
+	_, err := ParseConfig([]byte(loggerConfig), []string{}, nil)
 
 	if err == nil {
 		t.Errorf("Expected an error but err==nil")
@@ -421,7 +421,7 @@ func newTestFixture(t *testing.T, m metrics.Metrics, options ...testPluginCustom
 			"service": "example",
 		}`))
 
-	config, _ := ParseConfig(pluginConfig, manager.Services())
+	config, _ := ParseConfig(pluginConfig, manager.Services(), nil)
 	for _, option := range options {
 		option(config)
 	}
@@ -479,4 +479,44 @@ func testStatus() *bundle.Status {
 	}
 
 	return &status
+}
+
+type testPlugin struct {
+	reqs []UpdateRequestV1
+}
+
+func (*testPlugin) Start(context.Context) error {
+	return nil
+}
+
+func (p *testPlugin) Stop(context.Context) {
+}
+
+func (p *testPlugin) Reconfigure(context.Context, interface{}) {
+}
+
+func (p *testPlugin) Log(_ context.Context, req *UpdateRequestV1) error {
+	p.reqs = append(p.reqs, *req)
+	return nil
+}
+
+func TestPluginCustomBackend(t *testing.T) {
+	ctx := context.Background()
+	manager, _ := plugins.New(nil, "test-instance-id", inmem.New())
+
+	backend := &testPlugin{}
+	manager.Register("test_plugin", backend)
+
+	config, err := ParseConfig([]byte(`{"plugin": "test_plugin"}`), nil, []string{"test_plugin"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	plugin := New(config, manager)
+	plugin.oneShot(ctx)
+	plugin.oneShot(ctx)
+
+	if len(backend.reqs) != 2 {
+		t.Fatalf("Unexpected number of reqs: expected 2, got %d: %v", len(backend.reqs), backend.reqs)
+	}
 }
