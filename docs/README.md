@@ -33,7 +33,7 @@ support backwards compatible URLs (from pre-netlify days) and to have the `lates
 version of the docs URLs work
 [openpolicyagent.org/docs/latest](https://openpolicyagent.org/docs/latest) the site
 relies on Netlify URL [redirects and rewrites](https://www.netlify.com/docs/redirects/)
-which are defined in [website/layouts/index.redirects](./webiste/layouts/index.redirects)
+which are defined in [website/layouts/index.redirects](./website/layouts/index.redirects)
 and are build into a `_redirects` file when the Hugo build happens via
 `make production-build` or `make preview-build`.
 
@@ -127,7 +127,7 @@ docker run --rm -it --net=host linkchecker/linkchecker $URL
 Note: You may need to adjust the `URL` (host and/or port) depending on the environment. For OSX
 and Windows the host might need to be `host.docker.internal` instead of `localhost`.
 
-> This link checker will work on best with Netlify previews! Just point it at the preview URL instead of the local server.
+> This link checker will work best with Netlify previews! Just point it at the preview URL instead of the local server.
   The "pretty url" feature seems to work best when deployed, running locally may result in erroneous links.
 
 ## Live Code Blocks
