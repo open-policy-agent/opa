@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/open-policy-agent/opa/internal/report"
+	"github.com/open-policy-agent/opa/server"
 
 	"github.com/sirupsen/logrus"
 
@@ -300,6 +301,38 @@ func TestCheckOPAUpdateLoopWithNewUpdate(t *testing.T) {
 	defer teardown()
 
 	testCheckOPAUpdateLoop(t, baseURL, "OPA is out of date.")
+}
+
+func TestCheckAuthIneffective(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	var output bytes.Buffer
+
+	params := NewParams()
+	params.Authentication = server.AuthenticationToken
+	params.Authorization = server.AuthorizationOff
+	params.Output = &output
+	params.Addrs = &[]string{":0"}
+	params.GracefulShutdownPeriod = 1
+	rt, err := NewRuntime(ctx, params)
+	if err != nil {
+		t.Fatalf("Unexpected error %v", err)
+	}
+	logrus.SetOutput(rt.Params.Output)
+
+	done := make(chan bool)
+	go func() {
+		rt.StartServer(ctx)
+		done <- true
+
+	}()
+	time.Sleep(2 * time.Millisecond)
+
+	expected := "Token authentication enabled without authorization. Authentication will be ineffective. See https://www.openpolicyagent.org/docs/latest/security/#authentication-and-authorization for more information."
+	if !strings.Contains(output.String(), expected) {
+		t.Fatalf("Expected output to contain: \"%v\" but got \"%v\"", expected, output.String())
+	}
+	cancel()
+	<-done
 }
 
 func getTestServer(update interface{}, statusCode int) (baseURL string, teardownFn func()) {
