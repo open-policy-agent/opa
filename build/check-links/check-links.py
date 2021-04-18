@@ -17,7 +17,6 @@ config = 'config.yml'
 regex = False
 result = 0
 
-
 class bcolors:
     HEADER = '\033[95m'
     OKGREEN = '\033[92m'
