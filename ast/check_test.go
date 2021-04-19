@@ -1451,57 +1451,6 @@ whocan[user] {
 		access[_] == input.operation
 }`
 
-	module5 := `
-package policy
-
-import data.acl
-import input
-
-default allow = false
-
-# METADATA
-# scope: rule
-# schemas:
-#   - badref: schema["whocan-input-schema"]
-whocan[user] {
-		access = acl[user]
-		access[_] == input.operation
-}`
-
-	module6 := `
-package policy
-
-import data.acl
-import input
-
-default allow = false
-
-# METADATA
-# scope: rule
-# schemas:
-#   - data/acl: schema/acl-schema
-whocan[user] {
-		access = acl[user]
-		access[_] == input.operation
-}`
-
-	module7 := `
-package policy
-
-import data.acl
-import input
-
-default allow = false
-
-# METADATA
-# scope: rule
-# schemas:
-#   - input= schema["whocan-input-schema"]
-whocan[user] {
-		access = acl[user]
-		access[_] == input.operation
-}`
-
 	module8 := `
 package policy
 
@@ -1821,9 +1770,6 @@ whocan[user] {
 		"correct data override":                                                           {module: module2, schemaSet: schemaSet},
 		"incorrect data override":                                                         {module: module3, schemaSet: schemaSet, err: "undefined ref: input.user"},
 		"schema not exist in annotation path":                                             {module: module4, schemaSet: schemaSet, err: "schema does not exist for given path in annotation"},
-		"non ref in annotation":                                                           {module: module5, schemaSet: schemaSet, err: "expected ref but got"},
-		"Ill-structured annotation with bad path":                                         {module: module6, schemaSet: schemaSet, err: "schema is not well formed in annotation"},
-		"Ill-structured (invalid) annotation":                                             {module: module7, schemaSet: schemaSet, err: "unable to unmarshall the metadata yaml in comment"},
 		"empty schema set":                                                                {module: module1, schemaSet: nil, err: "schemas need to be supplied for the annotation"},
 		"overriding ref with length greater than one and not existing":                    {module: module8, schemaSet: schemaSet, err: "undefined ref: input.apple.banana"},
 		"overriding ref with length greater than one and existing prefix":                 {module: module9, schemaSet: schemaSet},

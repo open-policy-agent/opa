@@ -298,6 +298,28 @@ fn([x, y]) = z { json.unmarshal(x, z); z > y }
 	}
 }
 
+func TestVisitorAnnotations(t *testing.T) {
+
+	module, err := ParseModuleWithOpts("test.rego", `package test
+
+# METADATA
+# scope: rule
+p := 7`, ParserOptions{ProcessAnnotation: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	vis := &testVis{}
+
+	NewGenericVisitor(vis.Visit).Walk(module)
+
+	exp := 20
+
+	if len(vis.elems) != exp {
+		t.Fatalf("expected %d elements but got %v: %v", exp, len(vis.elems), vis.elems)
+	}
+}
+
 func TestWalkVars(t *testing.T) {
 	x := MustParseBody(`x = 1; data.abc[2] = y; y[z] = [q | q = 1]`)
 	found := NewVarSet()

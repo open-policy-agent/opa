@@ -108,12 +108,12 @@ type descriptor struct {
 }
 
 type fileLoader struct {
-	metrics           metrics.Metrics
-	bvc               *bundle.VerificationConfig
-	skipVerify        bool
-	descriptors       []*descriptor
-	files             map[string]bundle.FileInfo
-	processAnnotation bool
+	metrics     metrics.Metrics
+	bvc         *bundle.VerificationConfig
+	skipVerify  bool
+	descriptors []*descriptor
+	files       map[string]bundle.FileInfo
+	opts        ast.ParserOptions
 }
 
 // WithMetrics provides the metrics instance to use while loading
@@ -136,7 +136,7 @@ func (fl *fileLoader) WithSkipBundleVerification(skipVerify bool) FileLoader {
 
 // WithProcessAnnotation enables or disables processing of schema annotations on rules
 func (fl *fileLoader) WithProcessAnnotation(processAnnotation bool) FileLoader {
-	fl.processAnnotation = processAnnotation
+	fl.opts.ProcessAnnotation = processAnnotation
 	return fl
 }
 
@@ -156,7 +156,7 @@ func (fl fileLoader) Filtered(paths []string, filter Filter) (*Result, error) {
 			return err
 		}
 
-		result, err := loadKnownTypes(path, bs, fl.metrics, fl.processAnnotation)
+		result, err := loadKnownTypes(path, bs, fl.metrics, fl.opts)
 		if err != nil {
 			if !isUnrecognizedFile(err) {
 				return err
@@ -164,7 +164,7 @@ func (fl fileLoader) Filtered(paths []string, filter Filter) (*Result, error) {
 			if depth > 0 {
 				return nil
 			}
-			result, err = loadFileForAnyType(path, bs, fl.metrics)
+			result, err = loadFileForAnyType(path, bs, fl.metrics, fl.opts)
 			if err != nil {
 				return err
 			}
@@ -187,7 +187,7 @@ func (fl fileLoader) AsBundle(path string) (*bundle.Bundle, error) {
 		WithMetrics(fl.metrics).
 		WithBundleVerificationConfig(fl.bvc).
 		WithSkipBundleVerification(fl.skipVerify).
-		WithProcessAnnotations(fl.processAnnotation)
+		WithProcessAnnotations(fl.opts.ProcessAnnotation)
 
 	// For bundle directories add the full path in front of module file names
 	// to simplify debugging.
@@ -387,8 +387,13 @@ func AllRegos(paths []string) (*Result, error) {
 	})
 }
 
-// Rego returns a RegoFile object loaded from the given path.
+// Rego is deprecated. Use RegoWithOpts instead.
 func Rego(path string) (*RegoFile, error) {
+	return RegoWithOpts(path, ast.ParserOptions{})
+}
+
+// RegoWithOpts returns a RegoFile object loaded from the given path.
+func RegoWithOpts(path string, opts ast.ParserOptions) (*RegoFile, error) {
 	path, err := fileurl.Clean(path)
 	if err != nil {
 		return nil, err
@@ -397,7 +402,7 @@ func Rego(path string) (*RegoFile, error) {
 	if err != nil {
 		return nil, err
 	}
-	return loadRego(path, bs, metrics.New())
+	return loadRego(path, bs, metrics.New(), opts)
 }
 
 // CleanPath returns the normalized version of a path that can be used as an identifier.
@@ -578,12 +583,12 @@ func allRec(path string, filter Filter, errors *Errors, loaded *Result, depth in
 	}
 }
 
-func loadKnownTypes(path string, bs []byte, m metrics.Metrics, processAnnotation bool) (interface{}, error) {
+func loadKnownTypes(path string, bs []byte, m metrics.Metrics, opts ast.ParserOptions) (interface{}, error) {
 	switch filepath.Ext(path) {
 	case ".json":
 		return loadJSON(path, bs, m)
 	case ".rego":
-		return loadRego(path, bs, m, processAnnotation)
+		return loadRego(path, bs, m, opts)
 	case ".yaml", ".yml":
 		return loadYAML(path, bs, m)
 	default:
@@ -598,8 +603,8 @@ func loadKnownTypes(path string, bs []byte, m metrics.Metrics, processAnnotation
 	return nil, unrecognizedFile(path)
 }
 
-func loadFileForAnyType(path string, bs []byte, m metrics.Metrics) (interface{}, error) {
-	module, err := loadRego(path, bs, m)
+func loadFileForAnyType(path string, bs []byte, m metrics.Metrics, opts ast.ParserOptions) (interface{}, error) {
+	module, err := loadRego(path, bs, m, opts)
 	if err == nil {
 		return module, nil
 	}
@@ -620,17 +625,11 @@ func loadBundleFile(path string, bs []byte, m metrics.Metrics) (bundle.Bundle, e
 	return br.Read()
 }
 
-func loadRego(path string, bs []byte, m metrics.Metrics, parserOptions ...bool) (*RegoFile, error) {
+func loadRego(path string, bs []byte, m metrics.Metrics, opts ast.ParserOptions) (*RegoFile, error) {
 	m.Timer(metrics.RegoModuleParse).Start()
 	var module *ast.Module
 	var err error
-	if len(parserOptions) == 1 {
-		module, err = ast.ParseModuleWithOpts(path, string(bs), ast.ParserOptions{
-			ProcessAnnotation: parserOptions[0],
-		})
-	} else {
-		module, err = ast.ParseModule(path, string(bs))
-	}
+	module, err = ast.ParseModuleWithOpts(path, string(bs), opts)
 	m.Timer(metrics.RegoModuleParse).Stop()
 	if err != nil {
 		return nil, err

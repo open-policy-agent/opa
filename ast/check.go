@@ -1129,31 +1129,29 @@ func getObjectType(ref Ref, o types.Type, rule *Rule, d *types.DynamicProperty) 
 	return getObjectTypeRec(keys, o, d), nil
 }
 
-func getRuleAnnotation(rule *Rule) (sannots []SchemaAnnotation) {
-	for _, annot := range rule.Module.Annotation {
-		schemaAnnots, ok := annot.(*SchemaAnnotations)
-		if ok && schemaAnnots.Scope == ruleScope && schemaAnnots.Rule == rule {
-			return schemaAnnots.SchemaAnnotation
+func getRuleAnnotation(rule *Rule) (result []*SchemaAnnotation) {
+	for _, a := range rule.Module.Annotations {
+		other, ok := a.Node.(*Rule)
+		if !ok {
+			continue
+		}
+		if other == rule {
+			result = append(result, a.Schemas...)
 		}
 	}
-	return nil
+	return result
 }
 
 // NOTE: Currently, annotations must preceed the rule. In the future, this
 // restriction could be relaxed with other kinds of annotation scopes.
-func processAnnotation(ss *SchemaSet, annot SchemaAnnotation, env *TypeEnv, rule *Rule) (Ref, types.Type, *Error) {
+func processAnnotation(ss *SchemaSet, annot *SchemaAnnotation, env *TypeEnv, rule *Rule) (Ref, types.Type, *Error) {
 	if ss == nil {
 		return nil, nil, NewError(TypeErr, rule.Location, "schemas need to be supplied for the annotation: %s", annot.Schema)
 	}
 
-	schemaRef, err := ParseRef(annot.Schema)
-	if err != nil {
-		return nil, nil, NewError(TypeErr, rule.Location, "schema is not well formed in annotation: %s", annot.Schema)
-	}
-
-	schema := ss.Get(schemaRef)
+	schema := ss.Get(annot.Schema)
 	if schema == nil {
-		return nil, nil, NewError(TypeErr, rule.Location, "schema does not exist for given path in annotation: %s", schemaRef.String())
+		return nil, nil, NewError(TypeErr, rule.Location, "schema does not exist for given path in annotation: %s", annot.Schema)
 	}
 
 	tpe, err := loadSchema(schema)
@@ -1161,10 +1159,5 @@ func processAnnotation(ss *SchemaSet, annot SchemaAnnotation, env *TypeEnv, rule
 		return nil, nil, NewError(TypeErr, rule.Location, err.Error())
 	}
 
-	ref, err := ParseRef(annot.Path)
-	if err != nil {
-		return nil, nil, NewError(TypeErr, rule.Location, err.Error())
-	}
-
-	return ref, tpe, nil
+	return annot.Path, tpe, nil
 }

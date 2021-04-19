@@ -425,11 +425,11 @@ func ParseModule(filename, input string) (*Module, error) {
 // For details on Module objects and their fields, see policy.go.
 // Empty input will return nil, nil.
 func ParseModuleWithOpts(filename, input string, popts ParserOptions) (*Module, error) {
-	stmts, comments, annotations, err := ParseStatementsWithOpts(filename, input, popts)
+	stmts, comments, err := ParseStatementsWithOpts(filename, input, popts)
 	if err != nil {
 		return nil, err
 	}
-	return parseModule(filename, stmts, comments, annotations)
+	return parseModule(filename, stmts, comments)
 }
 
 // ParseBody returns exactly one body.
@@ -570,38 +570,30 @@ func (a commentKey) Compare(other commentKey) int {
 	return 0
 }
 
-// ParseStatements returns a slice of parsed statements.
-// This is the default return value from the parser.
+// ParseStatements is deprecated. Use ParseStatementWithOpts instead.
 func ParseStatements(filename, input string) ([]Statement, []*Comment, error) {
-
-	stmts, comment, _, errs := NewParser().WithFilename(filename).WithReader(bytes.NewBufferString(input)).Parse()
-
-	if len(errs) > 0 {
-		return nil, nil, errs
-	}
-
-	return stmts, comment, nil
+	return ParseStatementsWithOpts(filename, input, ParserOptions{})
 }
 
-// ParseStatementsWithOpts returns a slice of parsed statements, and has an additional input ParserOptions
-// This is the default return value from the parser.
-func ParseStatementsWithOpts(filename, input string, popts ParserOptions) ([]Statement, []*Comment, []Annotations, error) {
+// ParseStatementsWithOpts returns a slice of parsed statements. This is the
+// default return value from the parser.
+func ParseStatementsWithOpts(filename, input string, popts ParserOptions) ([]Statement, []*Comment, error) {
 
 	parser := NewParser().WithFilename(filename).WithReader(bytes.NewBufferString(input))
 
 	if popts.ProcessAnnotation {
 		parser.WithProcessAnnotation(popts.ProcessAnnotation)
 	}
-	stmts, comment, annotations, errs := parser.Parse()
+	stmts, comments, errs := parser.Parse()
 
 	if len(errs) > 0 {
-		return nil, nil, nil, errs
+		return nil, nil, errs
 	}
 
-	return stmts, comment, annotations, nil
+	return stmts, comments, nil
 }
 
-func parseModule(filename string, stmts []Statement, comments []*Comment, annotation []Annotations) (*Module, error) {
+func parseModule(filename string, stmts []Statement, comments []*Comment) (*Module, error) {
 
 	if len(stmts) == 0 {
 		return nil, NewError(ParseErr, &Location{File: filename}, "empty module")
@@ -616,14 +608,13 @@ func parseModule(filename string, stmts []Statement, comments []*Comment, annota
 	}
 
 	mod := &Module{
-		Package:    _package,
-		Annotation: annotation,
+		Package: _package,
 	}
 
 	// The comments slice only holds comments that were not their own statements.
 	mod.Comments = append(mod.Comments, comments...)
 
-	for _, stmt := range stmts[1:] {
+	for i, stmt := range stmts[1:] {
 		switch stmt := stmt.(type) {
 		case *Import:
 			mod.Imports = append(mod.Imports, stmt)
@@ -636,20 +627,42 @@ func parseModule(filename string, stmts []Statement, comments []*Comment, annota
 				errs = append(errs, NewError(ParseErr, stmt[0].Location, err.Error()))
 			} else {
 				mod.Rules = append(mod.Rules, rule)
+
+				// NOTE(tsandall): the statement should now be interpreted as a
+				// rule so update the statement list. This is important for the
+				// logic below that associates annotations with statements.
+				stmts[i+1] = rule
 			}
 		case *Package:
 			errs = append(errs, NewError(ParseErr, stmt.Loc(), "unexpected package"))
-		case *Comment: // Ignore comments, they're handled above.
+		case *Annotations:
+			mod.Annotations = append(mod.Annotations, stmt)
+		case *Comment:
+			// Ignore comments, they're handled above.
 		default:
 			panic("illegal value") // Indicates grammar is out-of-sync with code.
 		}
 	}
 
-	if len(errs) == 0 {
-		return mod, nil
+	if len(errs) > 0 {
+		return nil, errs
 	}
 
-	return nil, errs
+	// Find first non-annotation statement following each annotation and attach
+	// the annotation to that statement.
+	for _, a := range mod.Annotations {
+		for _, stmt := range stmts {
+			_, ok := stmt.(*Annotations)
+			if !ok {
+				if stmt.Loc().Row > a.Location.Row {
+					a.Node = stmt
+					break
+				}
+			}
+		}
+	}
+
+	return mod, nil
 }
 
 func setRuleModule(rule *Rule, module *Module) {

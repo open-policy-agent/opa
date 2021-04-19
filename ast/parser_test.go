@@ -2662,13 +2662,21 @@ else = {
 	`), curElse.Head.Value.Location)
 }
 
-func TestGetAnnotation(t *testing.T) {
+func TestAnnotations(t *testing.T) {
+
+	dataServers := MustParseRef("data.servers")
+	dataNetworks := MustParseRef("data.networks")
+	dataPorts := MustParseRef("data.ports")
+
+	schemaServers := MustParseRef("schema.servers")
+	schemaNetworks := MustParseRef("schema.networks")
+	schemaPorts := MustParseRef("schema.ports")
 
 	tests := []struct {
 		note           string
 		module         string
 		expNumComments int
-		expAnnotations []Annotations
+		expAnnotations []*Annotations
 		expError       string
 	}{
 		{
@@ -2680,7 +2688,6 @@ import data.servers
 import data.networks
 import data.ports
 
-#Schema annotation for this rule referencing a single schema
 # METADATA
 # scope: rule
 # schemas:
@@ -2690,12 +2697,15 @@ public_servers[server] {
 	ports[k].networks[l] = networks[m].id;
 	networks[m].public = true
 }`,
-			expNumComments: 5,
-			expAnnotations: append(make([]Annotations, 0),
-				&SchemaAnnotations{
-					SchemaAnnotation: append(make([]SchemaAnnotation, 0), SchemaAnnotation{Path: "data.servers", Schema: "schemas.servers"}),
-					Scope:            ruleScope,
-				}),
+			expNumComments: 4,
+			expAnnotations: []*Annotations{
+				&Annotations{
+					Schemas: []*SchemaAnnotation{
+						{Path: dataServers, Schema: schemaServers},
+					},
+					Scope: annotationScopeRule,
+				},
+			},
 		},
 		{
 			note: "Multiple annotations on multiple lines",
@@ -2706,7 +2716,6 @@ import data.servers
 import data.networks
 import data.ports
 
-#Schema annotation for this rule referencing three schemas
 # METADATA
 # scope: rule
 # schemas:
@@ -2718,12 +2727,17 @@ public_servers[server] {
 	ports[k].networks[l] = networks[m].id;
 	networks[m].public = true
 }`,
-			expNumComments: 7,
-			expAnnotations: append(make([]Annotations, 0),
-				&SchemaAnnotations{
-					SchemaAnnotation: append(make([]SchemaAnnotation, 0), SchemaAnnotation{Path: "data.servers", Schema: "schemas.servers"}, SchemaAnnotation{Path: "data.networks", Schema: "schemas.networks"}, SchemaAnnotation{Path: "data.ports", Schema: "schemas.ports"}),
-					Scope:            ruleScope,
-				}),
+			expNumComments: 6,
+			expAnnotations: []*Annotations{
+				&Annotations{
+					Schemas: []*SchemaAnnotation{
+						{Path: dataServers, Schema: schemaServers},
+						{Path: dataNetworks, Schema: schemaNetworks},
+						{Path: dataPorts, Schema: schemaPorts},
+					},
+					Scope: annotationScopeRule,
+				},
+			},
 		},
 		{
 			note: "Comment in between metadata and rule (valid)",
@@ -2734,25 +2748,30 @@ import data.servers
 import data.networks
 import data.ports
 
-#Schema annotation for this rule referencing three schemas
 # METADATA
 # scope: rule
 # schemas:
 #   - data.servers: schema.servers
 #   - data.networks: schema.networks
 #   - data.ports: schema.ports
-#This is a comment after the metadata yaml
+
+# This is a comment after the metadata YAML
 public_servers[server] {
 	server = servers[i]; server.ports[j] = ports[k].id
 	ports[k].networks[l] = networks[m].id;
 	networks[m].public = true
 }`,
-			expNumComments: 8,
-			expAnnotations: append(make([]Annotations, 0),
-				&SchemaAnnotations{
-					SchemaAnnotation: append(make([]SchemaAnnotation, 0), SchemaAnnotation{Path: "data.servers", Schema: "schemas.servers"}, SchemaAnnotation{Path: "data.networks", Schema: "schemas.networks"}, SchemaAnnotation{Path: "data.ports", Schema: "schemas.ports"}),
-					Scope:            ruleScope,
-				}),
+			expNumComments: 7,
+			expAnnotations: []*Annotations{
+				&Annotations{
+					Schemas: []*SchemaAnnotation{
+						{Path: dataServers, Schema: schemaServers},
+						{Path: dataNetworks, Schema: schemaNetworks},
+						{Path: dataPorts, Schema: schemaPorts},
+					},
+					Scope: annotationScopeRule,
+				},
+			},
 		},
 		{
 			note: "Empty comment line in between metadata and rule (valid)",
@@ -2763,7 +2782,6 @@ import data.servers
 import data.networks
 import data.ports
 
-#Schema annotation for this rule referencing three schemas
 # METADATA
 # scope: rule
 # schemas:
@@ -2776,12 +2794,17 @@ public_servers[server] {
 	ports[k].networks[l] = networks[m].id;
 	networks[m].public = true
 }`,
-			expNumComments: 8,
-			expAnnotations: append(make([]Annotations, 0),
-				&SchemaAnnotations{
-					SchemaAnnotation: append(make([]SchemaAnnotation, 0), SchemaAnnotation{Path: "data.servers", Schema: "schemas.servers"}, SchemaAnnotation{Path: "data.networks", Schema: "schemas.networks"}, SchemaAnnotation{Path: "data.ports", Schema: "schemas.ports"}),
-					Scope:            ruleScope,
-				}),
+			expNumComments: 7,
+			expAnnotations: []*Annotations{
+				&Annotations{
+					Schemas: []*SchemaAnnotation{
+						{Path: dataServers, Schema: schemaServers},
+						{Path: dataNetworks, Schema: schemaNetworks},
+						{Path: dataPorts, Schema: schemaPorts},
+					},
+					Scope: annotationScopeRule,
+				},
+			},
 		},
 		{
 			note: "Ill-structured (invalid) metadata start",
@@ -2792,7 +2815,6 @@ import data.servers
 import data.networks
 import data.ports
 
-#Schema annotation for this rule referencing three schemas
 # METADATA
 # scope: rule
 # schemas:
@@ -2805,11 +2827,10 @@ public_servers[server] {
 	ports[k].networks[l] = networks[m].id;
 	networks[m].public = true
 }`,
-			expNumComments: 8,
-			expAnnotations: nil,
+			expError: "rego_parse_error: yaml: line 7: could not find expected ':'",
 		},
 		{
-			note: "Ill-structured (valid) annotation",
+			note: "Ill-structured (invalid) annotation document path",
 			module: `
 package opa.examples
 
@@ -2817,22 +2838,38 @@ import data.servers
 import data.networks
 import data.ports
 
-#Schema annotation for this rule referencing three schemas
 # METADATA
 # scope: rule
 # schemas:
-#   - data/servers: schemas/servers
+#   - data/servers: schema.servers
 public_servers[server] {
 	server = servers[i]; server.ports[j] = ports[k].id
 	ports[k].networks[l] = networks[m].id;
 	networks[m].public = true
 }`,
-			expNumComments: 5,
-			expAnnotations: append(make([]Annotations, 0),
-				&SchemaAnnotations{
-					SchemaAnnotation: append(make([]SchemaAnnotation, 0), SchemaAnnotation{Path: "data/servers", Schema: "schemas/servers"}),
-					Scope:            ruleScope,
-				}),
+			expNumComments: 4,
+			expError:       "rego_parse_error: invalid document reference",
+		},
+		{
+			note: "Ill-structured (invalid) annotation schema path",
+			module: `
+package opa.examples
+
+import data.servers
+import data.networks
+import data.ports
+
+# METADATA
+# scope: rule
+# schemas:
+#   - data.servers: schema/servers
+public_servers[server] {
+	server = servers[i]; server.ports[j] = ports[k].id
+	ports[k].networks[l] = networks[m].id;
+	networks[m].public = true
+}`,
+			expNumComments: 4,
+			expError:       "rego_parse_error: invalid schema reference",
 		},
 		{
 			note: "Ill-structured (invalid) annotation",
@@ -2843,7 +2880,6 @@ import data.servers
 import data.networks
 import data.ports
 
-#Schema annotation for this rule referencing three schemas
 # METADATA
 # scope: rule
 # schemas:
@@ -2854,8 +2890,7 @@ public_servers[server] {
 	networks[m].public = true
 }`,
 			expNumComments: 5,
-			expAnnotations: nil,
-			expError:       "unable to unmarshall the metadata yaml in comment",
+			expError:       "rego_parse_error: yaml: unmarshal errors:\n  line 3: cannot unmarshal !!str",
 		},
 		{
 			note: "Indentation error in yaml",
@@ -2866,7 +2901,6 @@ import data.servers
 import data.networks
 import data.ports
 
-#Schema annotation for this rule referencing three schemas
 # METADATA
 # scope: rule
 # schemas:
@@ -2878,9 +2912,8 @@ public_servers[server] {
 	ports[k].networks[l] = networks[m].id;
 	networks[m].public = true
 }`,
-			expNumComments: 7,
-			expAnnotations: nil,
-			expError:       "unable to unmarshall the metadata yaml in comment",
+			expNumComments: 6,
+			expError:       "rego_parse_error: yaml: line 3: did not find expected key",
 		},
 		{
 			note: "Multiple rules with and without metadata",
@@ -2891,7 +2924,6 @@ import data.servers
 import data.networks
 import data.ports
 
-#Schema annotation for this rule referencing three schemas
 # METADATA
 # scope: rule
 # schemas:
@@ -2910,12 +2942,17 @@ public_servers_1[server] {
 	networks[m].public = true
 	server.typo  # won't catch this type error since rule has no schema metadata
 }`,
-			expNumComments: 8,
-			expAnnotations: append(make([]Annotations, 0),
-				&SchemaAnnotations{
-					SchemaAnnotation: append(make([]SchemaAnnotation, 0), SchemaAnnotation{Path: "data.servers", Schema: "schemas.servers"}, SchemaAnnotation{Path: "data.networks", Schema: "schemas.networks"}, SchemaAnnotation{Path: "data.ports", Schema: "schemas.ports"}),
-					Scope:            ruleScope,
-				}),
+			expNumComments: 7,
+			expAnnotations: []*Annotations{
+				&Annotations{
+					Schemas: []*SchemaAnnotation{
+						{Path: dataServers, Schema: schemaServers},
+						{Path: dataNetworks, Schema: schemaNetworks},
+						{Path: dataPorts, Schema: schemaPorts},
+					},
+					Scope: annotationScopeRule,
+				},
+			},
 		},
 		{
 			note: "Multiple rules with metadata",
@@ -2926,7 +2963,6 @@ import data.servers
 import data.networks
 import data.ports
 
-#Schema annotation for this rule referencing three schemas
 # METADATA
 # scope: rule
 # schemas:
@@ -2935,7 +2971,6 @@ public_servers[server] {
 	server = servers[i]
 }
 
-#Schema annotation for this rule referencing three schemas
 # METADATA
 # scope: rule
 # schemas:
@@ -2945,17 +2980,48 @@ public_servers_1[server] {
 	ports[k].networks[l] = networks[m].id;
 	networks[m].public = true
 }`,
-			expNumComments: 11,
-			expAnnotations: append(make([]Annotations, 0),
-				&SchemaAnnotations{
-					SchemaAnnotation: append(make([]SchemaAnnotation, 0), SchemaAnnotation{Path: "data.servers", Schema: "schemas.servers"}),
-					Scope:            ruleScope,
-					Rule:             MustParseRule(`public_servers[server] { server = servers[i] }`),
-				}, &SchemaAnnotations{
-					SchemaAnnotation: append(make([]SchemaAnnotation, 0), SchemaAnnotation{Path: "data.networks", Schema: "schemas.networks"}, SchemaAnnotation{Path: "data.ports", Schema: "schemas.ports"}),
-					Scope:            ruleScope,
-					Rule:             MustParseRule(`public_servers_1[server] { ports[k].networks[l] = networks[m].id; networks[m].public = true }`),
-				}),
+			expNumComments: 9,
+			expAnnotations: []*Annotations{
+				&Annotations{
+					Schemas: []*SchemaAnnotation{
+						{Path: dataServers, Schema: schemaServers},
+					},
+					Scope: annotationScopeRule,
+					Node:  MustParseRule(`public_servers[server] { server = servers[i] }`),
+				},
+				&Annotations{
+					Schemas: []*SchemaAnnotation{
+
+						{Path: dataNetworks, Schema: schemaNetworks},
+						{Path: dataPorts, Schema: schemaPorts},
+					},
+					Scope: annotationScopeRule,
+					Node:  MustParseRule(`public_servers_1[server] { ports[k].networks[l] = networks[m].id; networks[m].public = true }`),
+				},
+			},
+		},
+		{
+			note: "Empty annotation error due to whitespace following METADATA hint",
+			module: `package test
+
+# METADATA
+
+# scope: rule
+p { input.x > 7 }`,
+			expError: "test.rego:3: rego_parse_error: expected METADATA block, found whitespace",
+		},
+		{
+			note: "Annotation on constant",
+			module: `
+package test
+
+# METADATA
+# scope: rule
+p := 7`,
+			expNumComments: 2,
+			expAnnotations: []*Annotations{
+				{Scope: annotationScopeRule},
+			},
 		},
 	}
 
@@ -2974,31 +3040,11 @@ public_servers_1[server] {
 			}
 
 			if len(mod.Comments) != tc.expNumComments {
-				t.Errorf("Expected %v comments but got %v", tc.expNumComments, len(mod.Comments))
+				t.Fatalf("Expected %v comments but got %v", tc.expNumComments, len(mod.Comments))
 			}
 
-			annotations := mod.Annotation
-			if len(annotations) != len(tc.expAnnotations) {
-				t.Errorf("Expected %v annotations but got %v", len(tc.expAnnotations), len(annotations))
-			}
-
-			for _, annot := range annotations {
-				schemaAnnots, ok := annot.(*SchemaAnnotations)
-				if !ok {
-					t.Fatalf("Expected err: %v but no error from parse module", tc.expError)
-				}
-				for _, tcannot := range tc.expAnnotations {
-					tcschemaAnnots, ok := tcannot.(*SchemaAnnotations)
-					if !ok {
-						t.Fatalf("Expected err: %v but no error from parse module", tc.expError)
-					}
-					if schemaAnnots.Scope == ruleScope && tcschemaAnnots.Scope == ruleScope && tcschemaAnnots.Rule != nil && schemaAnnots.Rule.Head.Name == tcschemaAnnots.Rule.Head.Name {
-						if len(schemaAnnots.SchemaAnnotation) != len(tcschemaAnnots.SchemaAnnotation) {
-							t.Errorf("Expected %v annotations but got %v", len(schemaAnnots.SchemaAnnotation), len(tcschemaAnnots.SchemaAnnotation))
-						}
-					}
-				}
-
+			if annotationsCompare(tc.expAnnotations, mod.Annotations) != 0 {
+				t.Fatalf("expected %v but got %v", tc.expAnnotations, mod.Annotations)
 			}
 		})
 	}
