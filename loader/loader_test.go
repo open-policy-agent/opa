@@ -765,7 +765,7 @@ func TestSchemas(t *testing.T) {
 				"foo/bar/baz.json": `{"type": "string"}`,
 			},
 			exp: map[string]string{
-				"input": `{"type": "string"}`,
+				"schema": `{"type": "string"}`,
 			},
 		},
 		{
@@ -802,7 +802,12 @@ func TestSchemas(t *testing.T) {
 						t.Fatal("unexpected error:", err)
 					}
 					for k, v := range tc.exp {
-						key := ast.MustParseRef(k)
+						var key ast.Ref
+						if k == "schema" {
+							key = ast.SchemaRootRef.Copy()
+						} else {
+							key = ast.MustParseRef(k)
+						}
 						var schema interface{}
 						util.Unmarshal([]byte(v), &schema)
 						result := ss.Get(key)

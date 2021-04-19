@@ -282,7 +282,7 @@ func loadSchemas(schemaPath string) (*ast.SchemaSet, error) {
 		if err != nil {
 			return nil, err
 		}
-		ss.Put(ast.InputRootRef, schema)
+		ss.Put(ast.SchemaRootRef, schema)
 		return ss, nil
 
 	}
