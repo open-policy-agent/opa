@@ -1616,6 +1616,9 @@ func (b *metadataParser) Parse() (*Annotations, error) {
 
 var errInvalidSchemaRef = fmt.Errorf("invalid schema reference")
 
+// NOTE(tsandall): 'schema' is not registered as a root because it's not
+// supported by the compiler or evaluator today. Once we fix that, we can remove
+// this function.
 func parseSchemaRef(s string) (Ref, error) {
 
 	term, err := ParseTerm(s)
