@@ -49,7 +49,7 @@ func parse(args []string, stdout io.Writer, stderr io.Writer) int {
 		return 0
 	}
 
-	result, err := loader.Rego(args[0])
+	result, err := loader.RegoWithOpts(args[0], ast.ParserOptions{ProcessAnnotation: true})
 
 	switch parseParams.format.String() {
 	case parseFormatJSON:

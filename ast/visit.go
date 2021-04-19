@@ -52,6 +52,9 @@ func walk(v Visitor, x interface{}) {
 		for _, r := range x.Rules {
 			Walk(w, r)
 		}
+		for _, a := range x.Annotations {
+			Walk(w, a)
+		}
 		for _, c := range x.Comments {
 			Walk(w, c)
 		}
@@ -280,6 +283,9 @@ func (vis *GenericVisitor) Walk(x interface{}) {
 		for _, r := range x.Rules {
 			vis.Walk(r)
 		}
+		for _, a := range x.Annotations {
+			vis.Walk(a)
+		}
 		for _, c := range x.Comments {
 			vis.Walk(c)
 		}
@@ -397,6 +403,9 @@ func (vis *BeforeAfterVisitor) Walk(x interface{}) {
 		}
 		for _, r := range x.Rules {
 			vis.Walk(r)
+		}
+		for _, a := range x.Annotations {
+			vis.Walk(a)
 		}
 		for _, c := range x.Comments {
 			vis.Walk(c)

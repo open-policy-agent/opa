@@ -131,11 +131,11 @@ type (
 	// within a namespace (defined by the package) and optional
 	// dependencies on external documents (defined by imports).
 	Module struct {
-		Package    *Package      `json:"package"`
-		Imports    []*Import     `json:"imports,omitempty"`
-		Rules      []*Rule       `json:"rules,omitempty"`
-		Comments   []*Comment    `json:"comments,omitempty"`
-		Annotation []Annotations `json:"annotation,omitempty"`
+		Package     *Package       `json:"package"`
+		Imports     []*Import      `json:"imports,omitempty"`
+		Annotations []*Annotations `json:"annotations,omitempty"`
+		Rules       []*Rule        `json:"rules,omitempty"`
+		Comments    []*Comment     `json:"comments,omitempty"`
 	}
 
 	// Comment contains the raw text from the comment in the definition.
@@ -144,27 +144,18 @@ type (
 		Location *Location
 	}
 
-	// Annotations contains information extracted from metadata in comments
-	Annotations interface {
-		annotationMaker()
-
-		// NOTE(tsandall): these are temporary interfaces that are required to support copy operations.
-		// When we get rid of the rule pointers, these may not be needed.
-		copy(Node) Annotations
-		node() Node
+	// Annotations represents metadata attached to other AST nodes such as rules.
+	Annotations struct {
+		Node     Node                `json:"-"`
+		Location *Location           `json:"-"`
+		Scope    string              `json:"scope"`
+		Schemas  []*SchemaAnnotation `json:"schemas,omitempty"`
 	}
 
-	// SchemaAnnotations contains information about schemas
-	SchemaAnnotations struct {
-		SchemaAnnotation []SchemaAnnotation `json:"schemaannotation"`
-		Scope            string             `json:"scope"`
-		Rule             *Rule              `json:"-"`
-	}
-
-	// SchemaAnnotation contains information about a schema
+	// SchemaAnnotation contains a schema declaration for the document identified by the path.
 	SchemaAnnotation struct {
-		Path   string `json:"path"`
-		Schema string `json:"schema"`
+		Path   Ref `json:"path"`
+		Schema Ref `json:"schema"`
 	}
 
 	// Package represents the namespace of the documents produced
@@ -239,17 +230,108 @@ type (
 	}
 )
 
-func (s *SchemaAnnotations) copy(node Node) Annotations {
+func (s *Annotations) String() string {
+	bs, _ := json.Marshal(s)
+	return string(bs)
+}
+
+// Loc returns the location of this annotation.
+func (s *Annotations) Loc() *Location {
+	return s.Location
+}
+
+// SetLoc updates the location of this annotation.
+func (s *Annotations) SetLoc(l *Location) {
+	s.Location = l
+}
+
+// Compare returns an integer indicating if s is less than, equal to, or greater
+// than other.
+func (s *Annotations) Compare(other *Annotations) int {
+
+	if cmp := scopeCompare(s.Scope, other.Scope); cmp != 0 {
+		return cmp
+	}
+
+	max := len(s.Schemas)
+	if len(other.Schemas) < max {
+		max = len(other.Schemas)
+	}
+
+	for i := 0; i < max; i++ {
+		if cmp := s.Schemas[i].Compare(other.Schemas[i]); cmp != 0 {
+			return cmp
+		}
+	}
+
+	if len(s.Schemas) > len(other.Schemas) {
+		return 1
+	} else if len(s.Schemas) < len(other.Schemas) {
+		return -1
+	}
+
+	return 0
+}
+
+// Copy returns a deep copy of s.
+func (s *Annotations) Copy(node Node) *Annotations {
 	cpy := *s
-	cpy.Rule = node.(*Rule)
+	cpy.Schemas = make([]*SchemaAnnotation, len(s.Schemas))
+	for i := range cpy.Schemas {
+		cpy.Schemas[i] = s.Schemas[i].Copy()
+	}
+	cpy.Node = node
 	return &cpy
 }
 
-func (s *SchemaAnnotations) node() Node {
-	return s.Rule
+// Copy returns a deep copy of s.
+func (s *SchemaAnnotation) Copy() *SchemaAnnotation {
+	cpy := *s
+	return &cpy
 }
 
-func (*SchemaAnnotations) annotationMaker() {}
+// Compare returns an integer indicating if s is less than, equal to, or greater
+// than other.
+func (s *SchemaAnnotation) Compare(other *SchemaAnnotation) int {
+
+	if cmp := s.Path.Compare(other.Path); cmp != 0 {
+		return cmp
+	}
+
+	if cmp := s.Schema.Compare(other.Schema); cmp != 0 {
+		return cmp
+	}
+
+	return 0
+}
+
+func scopeCompare(s1, s2 string) int {
+
+	o1 := scopeOrder(s1)
+	o2 := scopeOrder(s2)
+
+	if o2 < o1 {
+		return 1
+	} else if o2 > o1 {
+		return -1
+	}
+
+	if s1 < s2 {
+		return -1
+	} else if s2 < s1 {
+		return 1
+	}
+
+	return 0
+}
+
+func scopeOrder(s string) int {
+	switch s {
+	case annotationScopeRule:
+		return 1
+	}
+	return 0
+}
 
 // Compare returns an integer indicating whether mod is less than, equal to,
 // or greater than other.
@@ -268,6 +350,9 @@ func (mod *Module) Compare(other *Module) int {
 	if cmp := importsCompare(mod.Imports, other.Imports); cmp != 0 {
 		return cmp
 	}
+	if cmp := annotationsCompare(mod.Annotations, other.Annotations); cmp != 0 {
+		return cmp
+	}
 	return rulesCompare(mod.Rules, other.Rules)
 }
 
@@ -276,32 +361,38 @@ func (mod *Module) Copy() *Module {
 	cpy := *mod
 	cpy.Rules = make([]*Rule, len(mod.Rules))
 
-	// NOTE(tsandall): only construct the map if annotations are present. This is a temporary
-	// workaround to deal with the lack of a stable index mapping annotations to rules.
-	var rules map[Node]Node
-	if len(mod.Annotation) > 0 {
-		rules = make(map[Node]Node, len(mod.Rules))
+	var nodes map[Node]Node
+
+	if len(mod.Annotations) > 0 {
+		nodes = make(map[Node]Node)
 	}
 
 	for i := range mod.Rules {
 		cpy.Rules[i] = mod.Rules[i].Copy()
 		cpy.Rules[i].Module = &cpy
-
-		if rules != nil {
-			rules[mod.Rules[i]] = cpy.Rules[i]
+		if nodes != nil {
+			nodes[mod.Rules[i]] = cpy.Rules[i]
 		}
-	}
-
-	cpy.Annotation = make([]Annotations, len(mod.Annotation))
-	for i := range mod.Annotation {
-		cpy.Annotation[i] = mod.Annotation[i].copy(rules[mod.Annotation[i].node()])
 	}
 
 	cpy.Imports = make([]*Import, len(mod.Imports))
 	for i := range mod.Imports {
 		cpy.Imports[i] = mod.Imports[i].Copy()
+		if nodes != nil {
+			nodes[mod.Imports[i]] = cpy.Imports[i]
+		}
 	}
+
 	cpy.Package = mod.Package.Copy()
+	if nodes != nil {
+		nodes[mod.Package] = cpy.Package
+	}
+
+	cpy.Annotations = make([]*Annotations, len(mod.Annotations))
+	for i := range mod.Annotations {
+		cpy.Annotations[i] = mod.Annotations[i].Copy(nodes[mod.Annotations[i].Node])
+	}
+
 	return &cpy
 }
 
@@ -312,16 +403,36 @@ func (mod *Module) Equal(other *Module) bool {
 
 func (mod *Module) String() string {
 	buf := []string{}
+
+	byNode := map[Node][]*Annotations{}
+	for _, a := range mod.Annotations {
+		byNode[a.Node] = append(byNode[a.Node], a)
+	}
+
+	appendAnnotationStrings := func(buf []string, node Node) []string {
+		if as, ok := byNode[node]; ok {
+			for i := range as {
+				buf = append(buf, "# METADATA")
+				buf = append(buf, "# "+as[i].String())
+			}
+		}
+		return buf
+	}
+
+	buf = appendAnnotationStrings(buf, mod.Package)
 	buf = append(buf, mod.Package.String())
+
 	if len(mod.Imports) > 0 {
 		buf = append(buf, "")
 		for _, imp := range mod.Imports {
+			buf = appendAnnotationStrings(buf, imp)
 			buf = append(buf, imp.String())
 		}
 	}
 	if len(mod.Rules) > 0 {
 		buf = append(buf, "")
 		for _, rule := range mod.Rules {
+			buf = appendAnnotationStrings(buf, rule)
 			buf = append(buf, rule.String())
 		}
 	}

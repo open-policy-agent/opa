@@ -192,6 +192,9 @@ func Compare(a, b interface{}) int {
 	case *Package:
 		b := b.(*Package)
 		return a.Compare(b)
+	case *Annotations:
+		b := b.(*Annotations)
+		return a.Compare(b)
 	case *Module:
 		b := b.(*Module)
 		return a.Compare(b)
@@ -251,6 +254,8 @@ func sortOrder(x interface{}) int {
 		return 1001
 	case *Package:
 		return 1002
+	case *Annotations:
+		return 1003
 	case *Module:
 		return 10000
 	}
@@ -258,6 +263,25 @@ func sortOrder(x interface{}) int {
 }
 
 func importsCompare(a, b []*Import) int {
+	minLen := len(a)
+	if len(b) < minLen {
+		minLen = len(b)
+	}
+	for i := 0; i < minLen; i++ {
+		if cmp := a[i].Compare(b[i]); cmp != 0 {
+			return cmp
+		}
+	}
+	if len(a) < len(b) {
+		return -1
+	}
+	if len(b) < len(a) {
+		return 1
+	}
+	return 0
+}
+
+func annotationsCompare(a, b []*Annotations) int {
 	minLen := len(a)
 	if len(b) < minLen {
 		minLen = len(b)
