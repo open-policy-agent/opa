@@ -37,6 +37,9 @@ func (ss *SchemaSet) Put(path Ref, raw interface{}) {
 
 // Get returns the raw schema identified by the path.
 func (ss *SchemaSet) Get(path Ref) interface{} {
+	if ss == nil {
+		return nil
+	}
 	x, ok := ss.m.Get(path)
 	if !ok {
 		return nil

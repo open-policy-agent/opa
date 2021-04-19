@@ -305,6 +305,11 @@ func (s *SchemaAnnotation) Compare(other *SchemaAnnotation) int {
 	return 0
 }
 
+func (s *SchemaAnnotation) String() string {
+	bs, _ := json.Marshal(s)
+	return string(bs)
+}
+
 func scopeCompare(s1, s2 string) int {
 
 	o1 := scopeOrder(s1)

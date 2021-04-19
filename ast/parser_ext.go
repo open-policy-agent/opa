@@ -660,9 +660,50 @@ func parseModule(filename string, stmts []Statement, comments []*Comment) (*Modu
 				}
 			}
 		}
+
+		if a.Scope == "" {
+			switch a.Node.(type) {
+			case *Rule:
+				a.Scope = annotationScopeRule
+			case *Package:
+				a.Scope = annotationScopePackage
+			case *Import:
+				a.Scope = annotationScopeImport
+			}
+		}
+
+		if err := validateAnnotationScopeAttachment(a); err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	if len(errs) > 0 {
+		return nil, errs
 	}
 
 	return mod, nil
+}
+
+func validateAnnotationScopeAttachment(a *Annotations) *Error {
+
+	switch a.Scope {
+	case annotationScopeRule, annotationScopeDocument:
+		if _, ok := a.Node.(*Rule); ok {
+			return nil
+		}
+		return newScopeAttachmentErr(a)
+	case annotationScopePackage, annotationScopeSubpackages:
+		if _, ok := a.Node.(*Package); ok {
+			return nil
+		}
+		return newScopeAttachmentErr(a)
+	}
+
+	return NewError(ParseErr, a.Loc(), "invalid annotation scope '%v'", a.Scope)
+}
+
+func newScopeAttachmentErr(a *Annotations) *Error {
+	return NewError(ParseErr, a.Loc(), "annotation scope '%v' cannot be applied to %v statement", a.Scope, TypeName(a.Node))
 }
 
 func setRuleModule(rule *Rule, module *Module) {

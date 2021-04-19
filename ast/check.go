@@ -131,8 +131,16 @@ func (tc *typeChecker) CheckBody(env *TypeEnv, body Body) (*TypeEnv, Errors) {
 // TypeEnv will be able to resolve types of refs that refer to rules.
 func (tc *typeChecker) CheckTypes(env *TypeEnv, sorted []util.T) (*TypeEnv, Errors) {
 	env = tc.newEnv(env)
+	var as *annotationSet
+	if tc.ss != nil {
+		var errs Errors
+		as, errs = buildAnnotationSet(sorted)
+		if len(errs) > 0 {
+			return env, errs
+		}
+	}
 	for _, s := range sorted {
-		tc.checkRule(env, s.(*Rule))
+		tc.checkRule(env, as, s.(*Rule))
 	}
 	tc.errs.Sort()
 	return env, tc.errs
@@ -166,11 +174,11 @@ func (tc *typeChecker) checkClosures(env *TypeEnv, expr *Expr) Errors {
 	return result
 }
 
-func (tc *typeChecker) checkRule(env *TypeEnv, rule *Rule) {
+func (tc *typeChecker) checkRule(env *TypeEnv, as *annotationSet, rule *Rule) {
 
 	env = env.wrap()
 
-	if schemaAnnots := getRuleAnnotation(rule); schemaAnnots != nil {
+	if schemaAnnots := getRuleAnnotation(as, rule); schemaAnnots != nil {
 		for _, schemaAnnot := range schemaAnnots {
 			ref, refType, err := processAnnotation(tc.ss, schemaAnnot, env, rule)
 			if err != nil {
@@ -1129,29 +1137,32 @@ func getObjectType(ref Ref, o types.Type, rule *Rule, d *types.DynamicProperty) 
 	return getObjectTypeRec(keys, o, d), nil
 }
 
-func getRuleAnnotation(rule *Rule) (result []*SchemaAnnotation) {
-	for _, a := range rule.Module.Annotations {
-		other, ok := a.Node.(*Rule)
-		if !ok {
-			continue
-		}
-		if other == rule {
-			result = append(result, a.Schemas...)
-		}
+func getRuleAnnotation(as *annotationSet, rule *Rule) (result []*SchemaAnnotation) {
+
+	for _, x := range as.GetSubpackagesScope(rule.Module.Package.Path) {
+		result = append(result, x.Schemas...)
 	}
+
+	if x := as.GetPackageScope(rule.Module.Package); x != nil {
+		result = append(result, x.Schemas...)
+	}
+
+	if x := as.GetDocumentScope(rule.Path()); x != nil {
+		result = append(result, x.Schemas...)
+	}
+
+	for _, x := range as.GetRuleScope(rule) {
+		result = append(result, x.Schemas...)
+	}
+
 	return result
 }
 
-// NOTE: Currently, annotations must preceed the rule. In the future, this
-// restriction could be relaxed with other kinds of annotation scopes.
 func processAnnotation(ss *SchemaSet, annot *SchemaAnnotation, env *TypeEnv, rule *Rule) (Ref, types.Type, *Error) {
-	if ss == nil {
-		return nil, nil, NewError(TypeErr, rule.Location, "schemas need to be supplied for the annotation: %s", annot.Schema)
-	}
 
 	schema := ss.Get(annot.Schema)
 	if schema == nil {
-		return nil, nil, NewError(TypeErr, rule.Location, "schema does not exist for given path in annotation: %s", annot.Schema)
+		return nil, nil, NewError(TypeErr, rule.Location, "undefined schema: %v", annot.Schema)
 	}
 
 	tpe, err := loadSchema(schema)
@@ -1160,4 +1171,163 @@ func processAnnotation(ss *SchemaSet, annot *SchemaAnnotation, env *TypeEnv, rul
 	}
 
 	return annot.Path, tpe, nil
+}
+
+func errAnnotationRedeclared(a *Annotations, other *Location) *Error {
+	return NewError(TypeErr, a.Location, "%v annotation redeclared: %v", a.Scope, other)
+}
+
+type annotationSet struct {
+	byRule    map[*Rule][]*Annotations
+	byPackage map[*Package]*Annotations
+	byPath    *annotationTreeNode
+}
+
+func buildAnnotationSet(rules []util.T) (*annotationSet, Errors) {
+	as := newAnnotationSet()
+	processed := map[*Module]struct{}{}
+	var errs Errors
+	for _, x := range rules {
+		module := x.(*Rule).Module
+		if _, ok := processed[module]; ok {
+			continue
+		}
+		processed[module] = struct{}{}
+		for _, a := range module.Annotations {
+			if err := as.Add(a); err != nil {
+				errs = append(errs, err)
+			}
+		}
+	}
+	if len(errs) > 0 {
+		return nil, errs
+	}
+	return as, nil
+}
+
+func newAnnotationSet() *annotationSet {
+	return &annotationSet{
+		byRule:    map[*Rule][]*Annotations{},
+		byPackage: map[*Package]*Annotations{},
+		byPath:    newAnnotationTree(),
+	}
+}
+
+func (as *annotationSet) Add(a *Annotations) *Error {
+	switch a.Scope {
+	case annotationScopeRule:
+		rule := a.Node.(*Rule)
+		as.byRule[rule] = append(as.byRule[rule], a)
+	case annotationScopePackage:
+		pkg := a.Node.(*Package)
+		if exist, ok := as.byPackage[pkg]; ok {
+			return errAnnotationRedeclared(a, exist.Location)
+		}
+		as.byPackage[pkg] = a
+	case annotationScopeDocument:
+		rule := a.Node.(*Rule)
+		path := rule.Path()
+		x := as.byPath.Get(path)
+		if x != nil {
+			return errAnnotationRedeclared(a, x.Value.Location)
+		}
+		as.byPath.Insert(path, a)
+	case annotationScopeSubpackages:
+		pkg := a.Node.(*Package)
+		x := as.byPath.Get(pkg.Path)
+		if x != nil {
+			return errAnnotationRedeclared(a, x.Value.Location)
+		}
+		as.byPath.Insert(pkg.Path, a)
+	}
+	return nil
+}
+
+func (as *annotationSet) GetRuleScope(r *Rule) []*Annotations {
+	if as == nil {
+		return nil
+	}
+	return as.byRule[r]
+}
+
+func (as *annotationSet) GetSubpackagesScope(path Ref) []*Annotations {
+	if as == nil {
+		return nil
+	}
+	return as.byPath.Ancestors(path)
+}
+
+func (as *annotationSet) GetDocumentScope(path Ref) *Annotations {
+	if as == nil {
+		return nil
+	}
+	if node := as.byPath.Get(path); node != nil {
+		return node.Value
+	}
+	return nil
+}
+
+func (as *annotationSet) GetPackageScope(pkg *Package) *Annotations {
+	if as == nil {
+		return nil
+	}
+	return as.byPackage[pkg]
+}
+
+type annotationTreeNode struct {
+	Value    *Annotations
+	Children map[Value]*annotationTreeNode // we assume key elements are hashable (vars and strings only!)
+}
+
+func newAnnotationTree() *annotationTreeNode {
+	return &annotationTreeNode{
+		Value:    nil,
+		Children: map[Value]*annotationTreeNode{},
+	}
+}
+
+func (t *annotationTreeNode) Insert(path Ref, value *Annotations) {
+	node := t
+	for _, k := range path {
+		child, ok := node.Children[k.Value]
+		if !ok {
+			child = newAnnotationTree()
+			node.Children[k.Value] = child
+		}
+		node = child
+	}
+	node.Value = value
+}
+
+func (t *annotationTreeNode) Get(path Ref) *annotationTreeNode {
+	node := t
+	for _, k := range path {
+		if node == nil {
+			return nil
+		}
+		child, ok := node.Children[k.Value]
+		if !ok {
+			return nil
+		}
+		node = child
+	}
+	return node
+}
+
+func (t *annotationTreeNode) Ancestors(path Ref) (result []*Annotations) {
+	node := t
+	for _, k := range path {
+		if node == nil {
+			return result
+		}
+		child, ok := node.Children[k.Value]
+		if !ok {
+			return result
+		}
+		if child.Value != nil {
+			result = append(result, child.Value)
+		}
+		node = child
+	}
+	return result
 }
