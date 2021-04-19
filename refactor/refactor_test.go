@@ -239,6 +239,51 @@ p = data.foo`)
 	}
 }
 
+func TestMovePrefixEmpty(t *testing.T) {
+	module1 := ast.MustParseModule(`package foo.bar.v1
+
+helper_1 {
+	to_number(split(input.baz, ".")[1]) >= 1
+}
+
+helper_2 {
+	to_number(split(data.bar, ".")[1]) >= 1
+}`)
+
+	modules := map[string]*ast.Module{
+		"policy1.rego": module1,
+	}
+
+	mappings := map[string]string{
+		"data.foo": "data.hidden.name[\"hello:0.1\"]",
+		"data.bar": "data.hello",
+	}
+
+	result, err := New().Move(MoveQuery{
+		Modules:       modules,
+		SrcDstMapping: mappings,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	actual := result.Result["policy1.rego"]
+
+	expected := ast.MustParseModule(`package hidden.name["hello:0.1"].bar.v1
+
+helper_1 {
+	to_number(split(input.baz, ".")[1]) >= 1
+}
+
+helper_2 {
+	to_number(split(data.hello, ".")[1]) >= 1
+}`)
+
+	if !expected.Equal(actual) {
+		t.Fatalf("Expected module:\n%v\n\nGot:\n%v\n", expected, actual)
+	}
+}
+
 func TestMoveConflictingRulesNoValidation(t *testing.T) {
 	module1 := ast.MustParseModule(`package a.b
 

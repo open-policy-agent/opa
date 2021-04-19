@@ -93,8 +93,9 @@ func (r *Refactor) Move(q MoveQuery) (*MoveQueryResult, error) {
 					//          mapping: {"data.foo.bar": "data.baz"}
 					// In this scenario, we can relocate data.foo.bar but everything under data.foo
 					// (e.g., data.foo.baz, data.foo.qux, etc.) can't be relocated
-					if other.HasPrefix(s.ConstantPrefix()) {
-						msg := fmt.Sprintf("cannot rewrite `%v`: constant prefix `%v` of `%v` is too short", s, s.ConstantPrefix(), s)
+					r := s.ConstantPrefix()
+					if len(r) != 0 && other.HasPrefix(r) {
+						msg := fmt.Sprintf("cannot rewrite `%v`: constant prefix `%v` of `%v` is too short", s, r, s)
 						x := Error{Message: msg, Location: s[len(s)-1].Loc()}
 						return nil, x
 					}
