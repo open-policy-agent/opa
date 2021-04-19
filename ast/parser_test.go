@@ -3023,6 +3023,57 @@ p := 7`,
 				{Scope: annotationScopeRule},
 			},
 		},
+		{
+			note: "Default rule scope",
+			module: `
+package test
+
+# METADATA
+# {}
+p := 7`,
+			expNumComments: 2,
+			expAnnotations: []*Annotations{
+				{Scope: annotationScopeRule},
+			},
+		},
+		{
+			note: "Unknown scope",
+			module: `
+package test
+
+# METADATA
+# scope: deadbeef
+p := 7`,
+			expNumComments: 2,
+			expError:       "invalid annotation scope 'deadbeef'",
+		},
+		{
+			note: "Invalid rule scope/attachment",
+			module: `
+# METADATA
+# scope: rule
+package test
+
+p := 7`,
+			expNumComments: 2,
+			expError:       "annotation scope 'rule' cannot be applied to package statement",
+		},
+		{
+			note: "Scope attachment error: document on import",
+			module: `package test
+# METADATA
+# scope: document
+import data.foo.bar`,
+			expError: "test.rego:2: rego_parse_error: annotation scope 'document' cannot be applied to import statement",
+		},
+		{
+			note: "Scope attachment error: package on non-package",
+			module: `package test
+# METADATA
+# scope: package
+import data.foo`,
+			expError: "test.rego:2: rego_parse_error: annotation scope 'package' cannot be applied to import statement",
+		},
 	}
 
 	for _, tc := range tests {

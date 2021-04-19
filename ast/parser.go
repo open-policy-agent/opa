@@ -94,7 +94,11 @@ func (p *Parser) WithProcessAnnotation(processAnnotation bool) *Parser {
 }
 
 const (
-	annotationScopeRule = "rule"
+	annotationScopePackage     = "package"
+	annotationScopeImport      = "import"
+	annotationScopeRule        = "rule"
+	annotationScopeDocument    = "document"
+	annotationScopeSubpackages = "subpackages"
 )
 
 // Parse will read the Rego source and parse statements and

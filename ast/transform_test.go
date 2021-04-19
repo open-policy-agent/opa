@@ -93,11 +93,13 @@ p := 7`, ParserOptions{ProcessAnnotation: true})
 	exp, err := ParseModuleWithOpts("test.rego", `package test
 
 # METADATA
-# scope: deadbeef
+# scope: rule
 p := 7`, ParserOptions{ProcessAnnotation: true})
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	exp.Annotations[0].Scope = "deadbeef"
 
 	if resultMod.Compare(exp) != 0 {
 		t.Fatalf("expected:\n\n%v\n\ngot:\n\n%v", exp, resultMod)

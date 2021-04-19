@@ -1369,14 +1369,11 @@ const dataSchema = `{
 
 func TestCheckAnnotationRules(t *testing.T) {
 
-	var ischema interface{}
-	_ = util.Unmarshal([]byte(inputSchema), &ischema)
-
-	var ischema2 interface{}
-	_ = util.Unmarshal([]byte(inputSchema2), &ischema2)
-
-	var dschema interface{}
-	_ = util.Unmarshal([]byte(dataSchema), &dschema)
+	ischema := util.MustUnmarshalJSON([]byte(inputSchema))
+	ischema2 := util.MustUnmarshalJSON([]byte(inputSchema2))
+	dschema := util.MustUnmarshalJSON([]byte(dataSchema))
+	numberSchema := util.MustUnmarshalJSON([]byte(`{"type": "number"}`))
+	stringSchema := util.MustUnmarshalJSON([]byte(`{"type": "string"}`))
 
 	module1 := `
 package policy
@@ -1445,7 +1442,7 @@ default allow = false
 # METADATA
 # scope: rule
 # schemas:
-#   - input: schema["badpath"]
+#   - input: schema.missing
 whocan[user] {
 		access = acl[user]
 		access[_] == input.operation
@@ -1757,60 +1754,162 @@ whocan[user] {
 }`
 
 	schemaSet := NewSchemaSet()
+	schemaSet.Put(MustParseRef("schema.number"), numberSchema)
+	schemaSet.Put(MustParseRef("schema.string"), stringSchema)
 	schemaSet.Put(MustParseRef("schema.input"), ischema)
 	schemaSet.Put(MustParseRef(`schema["whocan-input-schema"]`), ischema2)
 	schemaSet.Put(MustParseRef(`schema["acl-schema"]`), dschema)
 
-	tests := map[string]struct {
-		module    string
-		schemaSet *SchemaSet
-		err       string
+	tests := []struct {
+		note   string
+		module string
+		err    string
 	}{
-		"data and input annotations":                                                      {module: module1, schemaSet: schemaSet},
-		"correct data override":                                                           {module: module2, schemaSet: schemaSet},
-		"incorrect data override":                                                         {module: module3, schemaSet: schemaSet, err: "undefined ref: input.user"},
-		"schema not exist in annotation path":                                             {module: module4, schemaSet: schemaSet, err: "schema does not exist for given path in annotation"},
-		"empty schema set":                                                                {module: module1, schemaSet: nil, err: "schemas need to be supplied for the annotation"},
-		"overriding ref with length greater than one and not existing":                    {module: module8, schemaSet: schemaSet, err: "undefined ref: input.apple.banana"},
-		"overriding ref with length greater than one and existing prefix":                 {module: module9, schemaSet: schemaSet},
-		"overriding ref with length greater than one and existing prefix with type error": {module: module10, schemaSet: schemaSet, err: "undefined ref: input.apple.orange.banana.fruit"},
-		"overriding ref with length greater than one and existing ref":                    {module: module11, schemaSet: schemaSet, err: "undefined ref: input.apple.orange.user"},
-		"overriding ref of size one":                                                      {module: module12, schemaSet: schemaSet, err: "undefined ref: input.user"},
-		"overriding annotation written with brackets":                                     {module: module13, schemaSet: schemaSet, err: "undefined ref: input.apple.orange.fruit"},
-		"overriding strict":                                                               {module: module14, schemaSet: schemaSet, err: "undefined ref: input.request.object.spec.typo"},
-		"data annotation but no input schema":                                             {module: module15, schemaSet: schemaSet},
-		"data schema annotation does not overly restrict data expression":                 {module: module16, schemaSet: schemaSet},
-		"correct defer annotation on another rule has no effect base case":                {module: module17, schemaSet: schemaSet},
-		"correct defer annotation on another rule has no effect":                          {module: module18, schemaSet: schemaSet},
-		"overriding ref with data prefix":                                                 {module: module19, schemaSet: schemaSet, err: "data.acl.foo.blah"},
-		"data annotation type error":                                                      {module: module20, schemaSet: schemaSet, err: "data.acl.foo"},
-		"more than one rule with metadata":                                                {module: module21, schemaSet: schemaSet},
-		"more than one rule with metadata with type error":                                {module: module22, schemaSet: schemaSet, err: "undefined ref"},
+		{note: "data and input annotations", module: module1},
+		{note: "correct data override", module: module2},
+		{note: "incorrect data override", module: module3, err: "undefined ref: input.user"},
+		{note: "missing schema", module: module4, err: "undefined schema: schema.missing"},
+		{note: "overriding ref with length greater than one and not existing", module: module8, err: "undefined ref: input.apple.banana"},
+		{note: "overriding ref with length greater than one and existing prefix", module: module9},
+		{note: "overriding ref with length greater than one and existing prefix with type error", module: module10, err: "undefined ref: input.apple.orange.banana.fruit"},
+		{note: "overriding ref with length greater than one and existing ref", module: module11, err: "undefined ref: input.apple.orange.user"},
+		{note: "overriding ref of size one", module: module12, err: "undefined ref: input.user"},
+		{note: "overriding annotation written with brackets", module: module13, err: "undefined ref: input.apple.orange.fruit"},
+		{note: "overriding strict", module: module14, err: "undefined ref: input.request.object.spec.typo"},
+		{note: "data annotation but no input schema", module: module15},
+		{note: "data schema annotation does not overly restrict data expression", module: module16},
+		{note: "correct defer annotation on another rule has no effect base case", module: module17},
+		{note: "correct defer annotation on another rule has no effect", module: module18},
+		{note: "overriding ref with data prefix", module: module19, err: "data.acl.foo.blah"},
+		{note: "data annotation type error", module: module20, err: "data.acl.foo"},
+		{note: "more than one rule with metadata", module: module21},
+		{note: "more than one rule with metadata with type error", module: module22, err: "undefined ref"},
+		{note: "document scope", err: "test.rego:8: rego_type_error: match error", module: `package test
+# METADATA
+# scope: document
+# schemas:
+# - input.foo: schema.number
+p { input.foo = 7 }
+
+p { input.foo = [] }`},
+
+		{note: "rule scope overrides document scope", module: `package test
+
+# METADATA
+# scope: document
+# schemas:
+# - input.foo: schema.number
+p { input.foo = 7 }
+
+# METADATA
+# scope: rule
+# schemas:
+# - input.foo: schema.string
+p { input.foo = "str" }`},
+
+		{note: "rule scope merges with document scope", err: "test.rego:15: rego_type_error: match error", module: `package test
+
+# METADATA
+# scope: document
+# schemas:
+# - input.bar: schema.number
+p { input.bar = 7 }
+
+# METADATA
+# scope: rule
+# schemas:
+# - input.foo: schema.string
+p {
+	input.foo = "str"
+	input.bar = "str"
+}`},
+
+		{note: "document scope conflict", err: "test.rego:9: rego_type_error: document annotation redeclared: test.rego:3", module: `package test
+
+# METADATA
+# scope: document
+# schemas:
+# - input.foo: schema.number
+p { input.foo = 7 }
+
+# METADATA
+# scope: document
+# schemas:
+# - input.foo: schema.string
+p { input.foo = "str" }`},
+
+		{note: "subpackages scope", err: "test.rego:7: rego_type_error: match error", module: `# METADATA
+# scope: subpackages
+# schemas:
+# - input: schema.number
+package test
+
+p { input = "str" }`},
+
+		{note: "document scope overrides subpackages scope", module: `# METADATA
+# scope: subpackages
+# schemas:
+# - input: schema.number
+package test
+
+# METADATA
+# scope: document
+# schemas:
+# - input: schema.string
+p { input = "str" }`},
+
+		{note: "document scope overrides subpackages scope and finds error", err: "test.rego:11: rego_type_error: match error", module: `# METADATA
+# scope: subpackages
+# schemas:
+# - input: schema.string
+package test
+
+# METADATA
+# scope: rule
+# schemas:
+# - input: schema.number
+p { input = "str" }`},
+
+		{note: "package scope", err: "test.rego:7: rego_type_error: match error", module: `# METADATA
+# scope: package
+# schemas:
+# - input: schema.string
+package test
+
+p { input = 7 }`},
+
+		{note: "rule scope overrides package scope", module: `# METADATA
+# scope: package
+# schemas:
+# - input: schema.string
+package test
+
+# METADATA
+# scope: rule
+# schemas:
+# - input: schema.number
+p { input = 7 }`},
 	}
 
-	for name, tc := range tests {
-		t.Run(name, func(t *testing.T) {
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
 			mod, err := ParseModuleWithOpts("test.rego", tc.module, ParserOptions{
 				ProcessAnnotation: true,
 			})
 			if err != nil {
-				if !strings.Contains(err.Error(), tc.err) {
-					t.Fatalf("Unexpected parse module error when processing annotations: %v", err)
-				}
-				return
+				t.Fatal(err)
 			}
 
 			var elems []util.T
 			for _, rule := range mod.Rules {
 				elems = append(elems, rule)
 				for next := rule.Else; next != nil; next = next.Else {
-					next.Module = mod
 					elems = append(elems, next)
 				}
 			}
 
-			oldTypeEnv := newTypeChecker().WithSchemaSet(tc.schemaSet).Env(BuiltinMap)
-			typeenv, errors := newTypeChecker().WithSchemaSet(tc.schemaSet).CheckTypes(oldTypeEnv, elems)
+			oldTypeEnv := newTypeChecker().WithSchemaSet(schemaSet).Env(BuiltinMap)
+			typeenv, errors := newTypeChecker().WithSchemaSet(schemaSet).CheckTypes(oldTypeEnv, elems)
 			if len(errors) > 0 {
 				for _, e := range errors {
 					if tc.err == "" || !strings.Contains(e.Error(), tc.err) {
@@ -1819,7 +1918,7 @@ whocan[user] {
 				}
 				return
 			} else if tc.err != "" {
-				t.Fatalf("Expected err: %v but no error from check types", tc.err)
+				t.Fatalf("Expected error %q but got success", tc.err)
 			}
 
 			if oldTypeEnv.tree.children != nil && typeenv.next.tree.children != nil && (typeenv.next.tree.children.Len() != oldTypeEnv.tree.children.Len()) {
