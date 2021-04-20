@@ -1,6 +1,7 @@
 #include "std.h"
 #include "str.h"
 #include "conversions.h"
+#include "value.h"
 
 OPA_BUILTIN
 opa_value *opa_to_number(opa_value *v)
@@ -17,17 +18,7 @@ opa_value *opa_to_number(opa_value *v)
     case OPA_NUMBER:
        return v;
     case OPA_STRING:
-    {
-        opa_string_t *a = opa_cast_string(v);
-        double n;
-
-        if (opa_atof64(a->v, a->len, &n) != 0)
-        {
-            return NULL;
-        }
-
-        return opa_number_float(n);
-    }
+        return opa_number_from_string(opa_cast_string(v));
     default:
         return NULL;
     }

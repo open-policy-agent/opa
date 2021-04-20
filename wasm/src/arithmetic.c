@@ -27,7 +27,7 @@ opa_value *opa_arith_abs(opa_value *v)
         opa_abort("opa_number_to_bf: invalid number");
     }
 
-    return opa_bf_to_number(r);
+    return opa_number_mpd_allocated(r);
 }
 
 OPA_BUILTIN
@@ -50,7 +50,7 @@ opa_value *opa_arith_round(opa_value *v)
         opa_abort("opa_arith_round: invalid number");
     }
 
-    return opa_bf_to_number(r);
+    return opa_number_mpd_allocated(r);
 }
 
 OPA_BUILTIN
@@ -73,13 +73,13 @@ opa_value *opa_arith_ceil(opa_value *v)
         return NULL;
     }
 
-    return opa_bf_to_number(r);
+    return opa_number_mpd_allocated(r);
 }
 
 OPA_BUILTIN
 opa_value *opa_arith_floor(opa_value *v)
 {
-     mpd_t *n = opa_number_to_bf(v);
+    mpd_t *n = opa_number_to_bf(v);
     if (n == NULL)
     {
         return NULL;
@@ -96,7 +96,7 @@ opa_value *opa_arith_floor(opa_value *v)
         return NULL;
     }
 
-    return opa_bf_to_number(r);
+    return opa_number_mpd_allocated(r);
 }
 
 OPA_BUILTIN
@@ -124,7 +124,7 @@ opa_value *opa_arith_plus(opa_value *a, opa_value *b)
         opa_abort("opa_arith_plus: invalid number");
     }
 
-    return opa_bf_to_number(r);
+    return opa_number_mpd_allocated(r);
 }
 
 OPA_BUILTIN
@@ -147,7 +147,7 @@ opa_value *opa_arith_minus(opa_value *a, opa_value *b)
             opa_abort("opa_arith_minus: invalid number");
         }
 
-        return opa_bf_to_number(r);
+        return opa_number_mpd_allocated(r);
     }
 
     opa_mpd_del(x);
@@ -181,7 +181,7 @@ opa_value *opa_arith_multiply(opa_value *a, opa_value *b)
         opa_abort("opa_arith_multiply: invalid number");
     }
 
-    return opa_bf_to_number(r);
+    return opa_number_mpd_allocated(r);
 }
 
 OPA_BUILTIN
@@ -215,7 +215,7 @@ opa_value *opa_arith_divide(opa_value *a, opa_value *b)
         opa_abort("opa_arith_divide: invalid number"); // TODO(sr): when does this happen?
     }
 
-    return opa_bf_to_number(r);
+    return opa_number_mpd_allocated(r);
 }
 
 OPA_BUILTIN
@@ -242,5 +242,5 @@ opa_value *opa_arith_rem(opa_value *a, opa_value *b)
         return NULL;
     }
 
-    return opa_bf_to_number(r);
+    return opa_number_mpd_allocated(r);
 }

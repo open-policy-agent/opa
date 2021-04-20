@@ -2,6 +2,7 @@
 #include "bits.h"
 #include "mpd.h"
 #include "std.h"
+#include "value.h"
 
 #define swap(x, y) { mpd_t *v = x; x = y; y = v; }
 
@@ -25,11 +26,11 @@ opa_value *opa_bits_or(opa_value *a, opa_value *b)
             mpd_t *x1 = qsub_one(qabs(x));
             mpd_t *y1 = qsub_one(qabs(y));
             mpd_t *z = qadd_one(qand(x1, y1));
-            return opa_bf_to_number(qneg(z));
+            return opa_number_mpd_allocated(qneg(z));
         }
 
         // x | y == x | y
-        return opa_bf_to_number(qor(x, y));
+        return opa_number_mpd_allocated(qor(x, y));
     }
 
     // x.neg != y.neg
@@ -42,7 +43,7 @@ opa_value *opa_bits_or(opa_value *a, opa_value *b)
     // x | (-y) == x | ^(y-1) == ^((y-1) &^ x) == -(^((y-1) &^ x) + 1)
     mpd_t *y1 = qsub_one(qabs(y));
     mpd_t *z = qadd_one(qand_not(y1, x));
-    return opa_bf_to_number(qneg(z));
+    return opa_number_mpd_allocated(qneg(z));
 }
 
 OPA_BUILTIN
@@ -65,11 +66,11 @@ opa_value *opa_bits_and(opa_value *a, opa_value *b)
             mpd_t *x1 = qsub_one(qabs(x));
             mpd_t *y1 = qsub_one(qabs(y));
             mpd_t *z = qadd_one(qor(x1, y1));
-            return opa_bf_to_number(qneg(z));
+            return opa_number_mpd_allocated(qneg(z));
         }
 
         // x & y == x & y
-        return opa_bf_to_number(qand(x, y));
+        return opa_number_mpd_allocated(qand(x, y));
     }
 
     // x.neg != y.neg
@@ -82,7 +83,7 @@ opa_value *opa_bits_and(opa_value *a, opa_value *b)
     // x & (-y) == x & ^(y-1) == x &^ (y-1)
     mpd_t *y1 = qsub_one(qabs(y));
     mpd_t *z = qand_not(x, y1);
-    return opa_bf_to_number(z);
+    return opa_number_mpd_allocated(z);
 }
 
 OPA_BUILTIN
@@ -107,11 +108,11 @@ opa_value *opa_bits_negate(opa_value *a)
 
         x = opa_bf_bits_to_bf(x);
         mpd_t *z = qsub_one(x);
-        return opa_bf_to_number(z);
+        return opa_number_mpd_allocated(z);
     }
 
     // ^x == -x-1 == -(x+1)
-    return opa_bf_to_number(qneg(qadd_one(x)));
+    return opa_number_mpd_allocated(qneg(qadd_one(x)));
 }
 
 OPA_BUILTIN
@@ -133,11 +134,11 @@ opa_value *opa_bits_xor(opa_value *a, opa_value *b)
             // (-x) ^ (-y) == ^(x-1) ^ ^(y-1) == (x-1) ^ (y-1)
             mpd_t *x1 = qsub_one(qabs(x));
             mpd_t *y1 = qsub_one(qabs(y));
-            return opa_bf_to_number(qxor(x1, y1));
+            return opa_number_mpd_allocated(qxor(x1, y1));
         }
 
         // x ^ y == x ^ y
-        return opa_bf_to_number(qxor(x, y));
+        return opa_number_mpd_allocated(qxor(x, y));
     }
 
     // x.neg != y.neg
@@ -150,7 +151,7 @@ opa_value *opa_bits_xor(opa_value *a, opa_value *b)
     // x ^ (-y) == x ^ ^(y-1) == ^(x ^ (y-1)) == -((x ^ (y-1)) + 1)
     mpd_t *y1 = qsub_one(qabs(y));
     mpd_t *z = qadd_one(qxor(x, y1));
-    return opa_bf_to_number(qneg(z));
+    return opa_number_mpd_allocated(qneg(z));
 }
 
 OPA_BUILTIN
@@ -187,7 +188,7 @@ opa_value *opa_bits_shiftleft(opa_value *a, opa_value *b)
         opa_abort("opa_bits_shift");
     }
 
-    return opa_bf_to_number(opa_bf_bits_to_bf(r));
+    return opa_number_mpd_allocated(opa_bf_bits_to_bf(r));
 }
 
 OPA_BUILTIN
@@ -227,7 +228,7 @@ opa_value *opa_bits_shiftright(opa_value *a, opa_value *b)
         mpd_qshiftr_inplace(t, n);
 
         mpd_t *z = qneg(qadd_one(opa_bf_bits_to_bf(t)));
-        return opa_bf_to_number(z);
+        return opa_number_mpd_allocated(z);
     }
 
     x = opa_bf_to_bf_bits(x);
@@ -239,5 +240,5 @@ opa_value *opa_bits_shiftright(opa_value *a, opa_value *b)
 
     mpd_qshiftr_inplace(x, n);
 
-    return opa_bf_to_number(opa_bf_bits_to_bf(x));
+    return opa_number_mpd_allocated(opa_bf_bits_to_bf(x));
 }

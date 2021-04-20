@@ -5,99 +5,63 @@
 OPA_BUILTIN
 opa_value *opa_numbers_range(opa_value *v1, opa_value *v2)
 {
-    mpd_t *i1 = NULL;
-    mpd_t *i2 = NULL;
-    opa_value *result = NULL;
+    mpd_t *i1 = opa_number_to_bf(v1);
+    mpd_t *i2 = opa_number_to_bf(v2);
 
-    i1 = opa_number_to_bf(v1);
-
-    if (i1 == NULL)
+    if (i1 == NULL || i2 == NULL ||
+        !mpd_isinteger(i1) || !mpd_isinteger(i2))
     {
-        goto cleanup;
-    }
-    else if (!mpd_isinteger(i1))
-    {
-        goto cleanup;
-    }
-
-    i2 = opa_number_to_bf(v2);
-
-    if (i2 == NULL)
-    {
-        goto cleanup;
-    }
-    else if (!mpd_isinteger(i2))
-    {
-        goto cleanup;
+        return NULL;
     }
 
     uint32_t status = 0;
     int cmp = mpd_qcmp(i1, i2, &status);
-
     if (status)
     {
         opa_abort("opa_numbers_range: comparison");
     }
 
-    result = opa_array();
-    opa_array_t *arr = opa_cast_array(result);
+    opa_array_t *arr = opa_cast_array(opa_array());
+    
+    // step: 1 or -1
+    mpd_t *step = (cmp <= 0) ? mpd_one() : mpd_minus_one();
 
-    if (cmp <= 0)
+    // count: abs(a-b)
+    mpd_t *diff = mpd_qnew();
+    status = 0;
+    mpd_qsub(diff, i1, i2, mpd_max_ctx(), &status);
+    if (status)
     {
-        mpd_t *curr = i1;
-        i1 = NULL;
-
-        while (cmp <= 0)
-        {
-            opa_value *add = opa_bf_to_number_no_free(curr);
-
-            if (add == NULL)
-            {
-                opa_abort("opa_numbers_range: conversion");
-            }
-
-            opa_array_append(arr, add);
-            curr = qadd_one(curr);
-            cmp = mpd_qcmp(curr, i2, &status);
-
-            if (status)
-            {
-                opa_abort("opa_numbers_range: comparison");
-            }
-        }
-
-        opa_mpd_del(curr);
-    }
-    else
-    {
-        mpd_t *curr = i1;
-        i1 = NULL;
-
-        while (cmp >= 0)
-        {
-            opa_value *add = opa_bf_to_number_no_free(curr);
-
-            if (add == NULL)
-            {
-                opa_abort("opa_numbers_range: conversion");
-            }
-
-            opa_array_append(arr, add);
-            curr = qsub_one(curr);
-            cmp = mpd_qcmp(curr, i2, &status);
-
-            if (status)
-            {
-                opa_abort("opa_numbers_range: comparison");
-            }
-        }
-
-        opa_mpd_del(curr);
+        opa_abort("opa_numbers_range: sub");
     }
 
-cleanup:
-    opa_mpd_del(i1);
-    opa_mpd_del(i2);
+    status = 0;
+    mpd_qabs(diff, diff, mpd_max_ctx(), &status);
+    if (status)
+    {
+        opa_abort("opa_numbers_range: abs");
+    }
 
-    return result;
+    long long n;
+    if (opa_mpd_try_int(diff, &n))
+    {
+        opa_abort("opa_numbers_range: int");
+    }
+    mpd_del(diff);
+
+    mpd_t *curr = mpd_qncopy(i1);
+    while (n-- >= 0)
+    {
+        mpd_t *cpy = mpd_qncopy(curr);
+        opa_array_append(arr, opa_number_mpd_allocated(cpy));
+        status = 0;
+        mpd_qadd(curr, curr, step, mpd_max_ctx(), &status);
+        if (status)
+        {
+            opa_abort("opa_numbers_range: add");
+        }
+    }
+
+    mpd_del(curr);
+    return &arr->hdr;
 }

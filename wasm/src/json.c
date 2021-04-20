@@ -473,14 +473,17 @@ opa_value *opa_json_parse_string(int token, const char *buf, int len)
 
 opa_value *opa_json_parse_number(const char *buf, int len)
 {
-    char *cpy = (char *)opa_malloc(len);
+    char *cpy = (char *)opa_malloc(len+1);
 
     for (int i = 0; i < len; i++)
     {
         cpy[i] = buf[i];
     }
+    cpy[len] = '\0';
 
-    return opa_number_ref_allocated(cpy, len);
+    opa_value *n = opa_number_ref(cpy);
+    free(cpy);
+    return n;
 }
 
 opa_value *opa_json_parse_array(opa_json_lex *ctx)
@@ -785,14 +788,12 @@ int opa_json_writer_emit_chars(opa_json_writer *w, const char *bs, size_t nb)
 int opa_json_writer_emit_char(opa_json_writer *w, char b)
 {
     char bs[] = {b};
-
     return opa_json_writer_emit_chars(w, bs, 1);
 }
 
 int opa_json_writer_emit_null(opa_json_writer *w)
 {
     char bs[] = "null";
-
     return opa_json_writer_emit_chars(w, bs, sizeof(bs)-1);
 }
 
@@ -801,20 +802,11 @@ int opa_json_writer_emit_boolean(opa_json_writer *w, opa_boolean_t *b)
     if (b->v == 0)
     {
         char bs[] = "false";
-
         return opa_json_writer_emit_chars(w, bs, sizeof(bs)-1);
     }
 
     char bs[] = "true";
-
     return opa_json_writer_emit_chars(w, bs, sizeof(bs)-1);
-}
-
-int opa_json_writer_emit_float(opa_json_writer *w, double f)
-{
-    char str[32];
-    snprintf(str, sizeof(str), "%g", f);
-    return opa_json_writer_emit_chars(w, str, opa_strlen(str));
 }
 
 int opa_json_writer_emit_integer(opa_json_writer *w, long long i)
@@ -826,18 +818,8 @@ int opa_json_writer_emit_integer(opa_json_writer *w, long long i)
 
 int opa_json_writer_emit_number(opa_json_writer *w, opa_number_t *n)
 {
-    switch (n->repr)
-    {
-    case OPA_NUMBER_REPR_FLOAT:
-        return opa_json_writer_emit_float(w, n->v.f);
-    case OPA_NUMBER_REPR_INT:
-        return opa_json_writer_emit_integer(w, n->v.i);
-    case OPA_NUMBER_REPR_REF:
-        return opa_json_writer_emit_chars(w, n->v.ref.s, n->v.ref.len);
-    default:
-        opa_abort("opa_json_writer_emit_number: illegal repr");
-        return -1;
-    }
+    char *s = opa_number_to_string(n);
+    return opa_json_writer_emit_chars(w, s, opa_strlen(s));
 }
 
 int opa_json_writer_emit_string(opa_json_writer *w, opa_string_t *s)

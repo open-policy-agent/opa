@@ -361,13 +361,12 @@ word_to_string(char *s, mpd_uint_t x, int n, char *dot)
 static inline char *
 exp_to_string(char *s, mpd_ssize_t x)
 {
-    char sign = '+';
-
+    // NOTE(sr): we're diverting from the libmpdec behaviour here:
+    // Only print the exponent's sign if it's negative.
     if (x < 0) {
-        sign = '-';
+        *s++ = '-';
         x = -x;
     }
-    *s++ = sign;
 
     return word_to_string(s, x, mpd_word_digits(x), NULL);
 }
@@ -779,7 +778,6 @@ mpd_parse_fmt_str(mpd_spec_t *spec, const char *fmt, int caps)
     spec->dot = "";
     spec->sep = "";
     spec->grouping = "";
-
 
     /* presume that the first character is a UTF-8 fill character */
     if ((n = _mpd_copy_utf8(spec->fill, cp)) < 0) {

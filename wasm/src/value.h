@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 
+#include "mpd.h"
 #include "std.h"
 
 #ifdef __cplusplus
@@ -20,8 +21,7 @@ extern "C" {
 #define OPA_BOOLEAN_INTERNED (9) // TODO(sr): make an "interned" bitmask?
 
 #define OPA_NUMBER_REPR_INT (1)
-#define OPA_NUMBER_REPR_FLOAT (2)
-#define OPA_NUMBER_REPR_REF (3)
+#define OPA_NUMBER_REPR_MPD (2)
 
 typedef struct opa_value opa_value;
 
@@ -38,10 +38,9 @@ typedef struct
 
 typedef struct
 {
-    const char *s;
-    size_t len;
-    unsigned char free; // if set 's' is not a reference and should be freed
-} opa_number_ref_t;
+    mpd_t *d;
+    unsigned char free;
+} opa_number_mpd_t;
 
 typedef struct
 {
@@ -49,8 +48,7 @@ typedef struct
     unsigned char repr;
     union {
         long long i;
-        double f;
-        opa_number_ref_t ref;
+        opa_number_mpd_t mpd;
     } v;
 } opa_number_t;
 
@@ -135,9 +133,12 @@ opa_value *opa_null();
 opa_value *opa_boolean(bool v);
 opa_value *opa_number_size(size_t v);
 opa_value *opa_number_int(long long v);
-opa_value *opa_number_float(double v);
-opa_value *opa_number_ref(const char *s, size_t len);
-opa_value *opa_number_ref_allocated(const char *s, size_t len);
+opa_value *opa_number_int_plain(long long v);
+opa_value *opa_number_ref(const char *s);
+opa_value *opa_number_mpd(mpd_t *d);
+opa_value *opa_number_mpd_allocated(mpd_t *d);
+char *opa_number_to_string(opa_number_t *n);
+opa_value *opa_number_from_string(opa_string_t *s);
 void opa_number_init_int(opa_number_t *n, long long v);
 opa_value *opa_string(const char *v, size_t len);
 opa_value *opa_string_terminated(const char *v);
@@ -152,7 +153,6 @@ opa_value *opa_set_with_cap(size_t cap);
 void opa_value_number_set_int(opa_value *v, long long i);
 
 int opa_number_try_int(opa_number_t *n, long long *i);
-double opa_number_as_float(opa_number_t *n);
 void opa_number_free(opa_number_t *n);
 
 void opa_string_free(opa_string_t *s);

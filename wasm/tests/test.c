@@ -22,11 +22,79 @@
 #include "test.h"
 #include "types.h"
 
+// NOTE(sr): This used to be a function when we still had a `double` number repr,
+// OPA_NUMBER_REPR_FLOAT
+#define opa_number_float(f) opa_number_ref(#f)
+
 void reset_heap(void)
 {
     // This will leak memory!!
     // TODO: How should we safely reset it if we don't know the original starting ptr?
     opa_heap_ptr_set(opa_heap_top_get());
+}
+
+// NOTE(sr): These tests are run in order. If they weren't, every test that
+// depends on mpd's state being initialized would have to call `opa_mpd_init`
+// first. When the Wasm module is used, the `Start` function (`_initialize`,
+// emitted from the Wasm compiler) takes care of that.
+WASM_EXPORT(test_opa_mpd)
+void test_opa_mpd(void)
+{
+    opa_mpd_init();
+    opa_value *zero = opa_number_int(0);
+    mpd_t *m_two = qadd_one(qadd_one(opa_number_to_bf(zero)));
+
+    opa_value *i_two = opa_number_int(2);
+    opa_value *r_two = opa_number_ref("2");
+
+    test("comparisons/int-ref", opa_value_compare(i_two, r_two) == 0);
+    test("comparisons/int-mpd", opa_value_compare(i_two, opa_number_mpd(m_two)) == 0);
+    test("comparisons/ref-mpd", opa_value_compare(r_two, opa_number_mpd(m_two)) == 0);
+
+    test_str_eq("hash/int", "84696349", opa_value_dump(opa_number_int(opa_value_hash(i_two))));
+    test_str_eq("hash/ref", "84696349", opa_value_dump(opa_number_int(opa_value_hash(r_two))));
+    test_str_eq("hash/mpd", "84696349", opa_value_dump(opa_number_int(opa_value_hash(opa_number_mpd(m_two)))));
+
+    test_str_eq("len/int", "1", opa_value_dump(opa_number_int(opa_number_to_bf(i_two)->len)));
+    test_str_eq("len/ref", "1", opa_value_dump(opa_number_int(opa_number_to_bf(r_two)->len)));
+    test_str_eq("len/mpd", "1", opa_value_dump(opa_number_int(m_two->len)));
+
+    test_str_eq("exp/int", "0", opa_value_dump(opa_number_int(opa_number_to_bf(i_two)->exp)));
+    test_str_eq("exp/ref", "0", opa_value_dump(opa_number_int(opa_number_to_bf(r_two)->exp)));
+    test_str_eq("exp/mpd", "0", opa_value_dump(opa_number_int(m_two->exp)));
+
+    test_str_eq("alloc/int", "2", opa_value_dump(opa_number_int(opa_number_to_bf(i_two)->alloc)));
+    test_str_eq("alloc/ref", "2", opa_value_dump(opa_number_int(opa_number_to_bf(r_two)->alloc)));
+    test_str_eq("alloc/mpd", "2", opa_value_dump(opa_number_int(m_two->alloc)));
+
+    test_str_eq("digits/int", "1", opa_value_dump(opa_number_int(opa_number_to_bf(i_two)->digits)));
+    test_str_eq("digits/ref", "1", opa_value_dump(opa_number_int(opa_number_to_bf(r_two)->digits)));
+    test_str_eq("digits/mpd", "1", opa_value_dump(opa_number_int(m_two->digits)));
+
+    test_str_eq("data/int", "2", opa_value_dump(opa_number_int(*opa_number_to_bf(i_two)->data)));
+    test_str_eq("data/ref", "2", opa_value_dump(opa_number_int(*opa_number_to_bf(r_two)->data)));
+    test_str_eq("data/mpd", "2", opa_value_dump(opa_number_int(*m_two->data)));
+
+    test_str_eq("mpd_one", "1", opa_value_dump(opa_number_mpd(mpd_one())));
+    test_str_eq("mpd_minus_one", "-1", opa_value_dump(opa_number_mpd(mpd_minus_one())));
+
+    mpd_t *y = opa_number_to_bf(opa_number_int(3));
+    uint32_t status = 0;
+    mpd_qadd(y, y, mpd_one(), mpd_max_ctx(), &status);
+    if (status)
+    {
+        opa_abort("test_opa_mpd: qadd");
+    }
+    test_str_eq("3 + mpd_one", "4", opa_value_dump(opa_number_mpd(y)));
+
+    status = 0;
+    mpd_qadd(y, y, mpd_minus_one(), mpd_max_ctx(), &status);
+    if (status)
+    {
+        opa_abort("test_opa_mpd: qadd");
+    }
+    test_str_eq("3 + mpd_one + mpd_minus_one", "3", opa_value_dump(opa_number_mpd(y)));
+    test_str_eq("mpd_one", "1", opa_value_dump(opa_number_mpd(mpd_one())));
 }
 
 WASM_EXPORT(test_opa_malloc)
@@ -246,21 +314,6 @@ void test_opa_memoize(void)
     test("get-a-after-pop", opa_value_compare(e, exp_e) == 0);
 }
 
-// NOTE(sr): These tests are run in order. If they weren't, every test that
-// depends on mpd's state being initialized would have to call `opa_mpd_init`
-// first. When the Wasm module is used, the `Start` function (`_initialize`,
-// emitted from the Wasm compiler) takes care of that.
-WASM_EXPORT(test_opa_mpd)
-void test_opa_mpd(void)
-{
-    // NOTE(sr): This call also initializes mpd_one, which is used under the
-    // hood for `qadd_one`.
-    opa_mpd_init();
-    opa_value *zero = opa_number_int(0);
-    opa_value *two = opa_bf_to_number(qadd_one(qadd_one(opa_number_to_bf(zero))));
-    test("0+1+1 is 2", opa_value_compare(opa_number_int(2), two) == 0);
-}
-
 WASM_EXPORT(test_opa_strlen)
 void test_opa_strlen(void)
 {
@@ -360,6 +413,7 @@ void test_opa_atof64(void)
     test("bad exponent", crunch_opa_atof64("1234.5e6-", 0, -2));
     test("bad exponent", crunch_opa_atof64("12345e6-", 0, -2));
     test("integer", crunch_opa_atof64("127", 127, 0));
+    test("large integer", crunch_opa_atoi64("1234567890", 1234567890, 0));
     test("negative integer", crunch_opa_atof64("-128", -128, 0));
     test("fraction", crunch_opa_atof64("16.7", 16.7, 0));
     test("exponent", crunch_opa_atof64("6e7", 6e7, 0));
@@ -1116,8 +1170,8 @@ void test_opa_value_iter_set(void)
     opa_value *v2 = opa_value_iter(&set->hdr, v1);
     opa_value *v3 = opa_value_iter(&set->hdr, v2);
 
-    opa_value *exp1 = opa_number_int(1);
-    opa_value *exp2 = opa_number_int(2);
+    opa_value *exp1 = opa_number_int(2);
+    opa_value *exp2 = opa_number_int(1);
     opa_value *exp3 = NULL;
 
     if (opa_value_compare(v1, exp1) != 0)
@@ -1242,6 +1296,13 @@ void test_opa_value_shallow_copy(void)
         test_fatal("expected original and shallow copy to be equal");
     }
 }
+WASM_EXPORT(test_opa_number_to_string)
+void test_opa_number_to_string(void)
+{
+    test_str_eq("integer", "1", opa_number_to_string(opa_cast_number(opa_number_int(1))));
+    test_str_eq("float", "1.0", opa_number_to_string(opa_cast_number(opa_number_float(1.0))));
+    test_str_eq("large ref", "2e308", opa_number_to_string(opa_cast_number(opa_number_ref("2e308"))));
+}
 
 WASM_EXPORT(test_opa_json_dump)
 void test_opa_json_dump(void)
@@ -1252,16 +1313,11 @@ void test_opa_json_dump(void)
     test("strings", opa_strcmp(opa_json_dump(opa_string_terminated("hello\"world")), "\"hello\\\"world\"") == 0);
     test("strings utf-8", opa_strcmp(opa_json_dump(opa_string_terminated("\xed\xba\xad")), "\"\xed\xba\xad\"") == 0);
     test("numbers", opa_strcmp(opa_json_dump(opa_number_int(127)), "127") == 0);
-
-    // NOTE(tsandall): the string representation is lossy. We should store
-    // user-supplied floating-point values as strings so that round-trip
-    // operations are lossless. Computed values can be lossy for the time being.
-    test("numbers/float", opa_strcmp(opa_json_dump(opa_number_float(12345.678)), "12345.7") == 0);
-
-    // NOTE(tsandall): trailing zeros should be omitted but this appears to be an open issue: https://github.com/mpaland/printf/issues/55
-    test("numbers/float", opa_strcmp(opa_json_dump(opa_number_float(10.5)), "10.5000") == 0);
-
-    test("numbers/ref", opa_strcmp(opa_json_dump(opa_number_ref("127", 3)), "127") == 0);
+    test_str_eq("numbers/float", "12345.678", opa_json_dump(opa_number_float(12345.678)));
+    test_str_eq("numbers/float (no trailing zeros)", "10.5", opa_json_dump(opa_number_float(10.5)));
+    test_str_eq("numbers/big integer", "1234567890", opa_json_dump(opa_number_float(1234567890)));
+    test_str_eq("numbers/big float", "2e308", opa_json_dump(opa_number_ref("2e308")));
+    test_str_eq("numbers/ref", "127", opa_json_dump(opa_number_ref("127")));
 
     opa_value *arr = opa_array();
     test("arrays", opa_strcmp(opa_json_dump(arr), "[]") == 0);
@@ -1315,13 +1371,13 @@ void test_opa_value_dump(void)
     test("sets of one", opa_strcmp(opa_value_dump(&set->hdr), "{1}") == 0);
 
     opa_set_add(set, opa_number_int(2));
-    test("sets", opa_strcmp(opa_value_dump(&set->hdr), "{1,2}") == 0);
+    test_str_eq("sets", "{2,1}", opa_value_dump(&set->hdr)); // NOTE(sr): hash function change
 
     opa_value *non_string_keys = opa_object();
     opa_array_t *arrk = opa_cast_array(opa_array());
     opa_array_append(arrk, opa_number_int(1));
     opa_object_insert(opa_cast_object(non_string_keys), &arrk->hdr, opa_number_int(1));
-    test_str_eq("objects/non string keys", opa_value_dump(non_string_keys), "{[1]:1}");
+    test_str_eq("objects/non string keys", "{[1]:1}", opa_value_dump(non_string_keys));
 }
 
 WASM_EXPORT(test_arithmetic)
@@ -1331,26 +1387,26 @@ void test_arithmetic(void)
 
     test("abs +1", opa_number_try_int(opa_cast_number(opa_arith_abs(opa_number_int(1))), &i) == 0 && i == 1);
     test("abs -1", opa_number_try_int(opa_cast_number(opa_arith_abs(opa_number_int(-1))), &i) == 0 && i == 1);
-    test("abs 1.5 (float)", opa_number_as_float(opa_cast_number(opa_arith_abs(opa_number_float(1.5)))) == 1.5);
-    test("abs -1.5 (float)", opa_number_as_float(opa_cast_number(opa_arith_abs(opa_number_float(-1.5)))) == 1.5);
-    test("abs 1.5 (ref)", opa_number_as_float(opa_cast_number(opa_arith_abs(opa_number_ref("1.5", 3)))) == 1.5);
-    test("abs -1.5 (ref)", opa_number_as_float(opa_cast_number(opa_arith_abs(opa_number_ref("-1.5", 4)))) == 1.5);
+    test_str_eq("abs 1.5 (float)", "1.5", opa_number_to_string(opa_cast_number(opa_arith_abs(opa_number_float(1.5)))));
+    test_str_eq("abs -1.5 (float)", "1.5", opa_number_to_string(opa_cast_number(opa_arith_abs(opa_number_float(-1.5)))));
+    test_str_eq("abs 1.5 (ref)", "1.5", opa_number_to_string(opa_cast_number(opa_arith_abs(opa_number_ref("1.5")))));
+    test_str_eq("abs -1.5 (ref)", "1.5", opa_number_to_string(opa_cast_number(opa_arith_abs(opa_number_ref("-1.5")))));
     test("round 1", opa_number_try_int(opa_cast_number(opa_arith_round(opa_number_int(1))), &i) == 0 && i == 1);
     test("round -1", opa_number_try_int(opa_cast_number(opa_arith_round(opa_number_int(-1))), &i) == 0 && i == -1);
-    test("round 1.4 (float)", opa_number_as_float(opa_cast_number(opa_arith_round(opa_number_float(1.4)))) == 1);
-    test("round -1.4 (float)", opa_number_as_float(opa_cast_number(opa_arith_round(opa_number_float(-1.4)))) == -1);
-    test("round 1.5 (float)", opa_number_as_float(opa_cast_number(opa_arith_round(opa_number_float(1.5)))) == 2);
-    test("round -1.5 (float)", opa_number_as_float(opa_cast_number(opa_arith_round(opa_number_float(-1.5)))) == -2);
-    test("round 2.5 (float)", opa_number_as_float(opa_cast_number(opa_arith_round(opa_number_float(2.5)))) == 3);
-    test("round -2.5 (float)", opa_number_as_float(opa_cast_number(opa_arith_round(opa_number_float(-2.5)))) == -3);
-    test("ceil 1", opa_number_as_float(opa_cast_number(opa_arith_ceil(opa_number_int(1)))) == 1);
-    test("ceil 1.01 (float)", opa_number_as_float(opa_cast_number(opa_arith_ceil(opa_number_float(1.01)))) == 2);
-    test("ceil -1.99999 (float)", opa_number_as_float(opa_cast_number(opa_arith_ceil(opa_number_float(-1.99999)))) == -1);
-    test("floor 1", opa_number_as_float(opa_cast_number(opa_arith_floor(opa_number_int(1)))) == 1);
-    test("floor 1.01 (float)", opa_number_as_float(opa_cast_number(opa_arith_floor(opa_number_float(1.01)))) == 1);
-    test("floor -1.99999 (float)", opa_number_as_float(opa_cast_number(opa_arith_floor(opa_number_float(-1.99999)))) == -2);
-    test("plus 1+2", opa_number_as_float(opa_cast_number(opa_arith_plus(opa_number_float(1), opa_number_float(2)))) == 3);
-    test("minus 3-2", opa_number_as_float(opa_cast_number(opa_arith_minus(opa_number_float(3), opa_number_float(2)))) == 1);
+    test_str_eq("round 1.4 (float)", "1", opa_number_to_string(opa_cast_number(opa_arith_round(opa_number_float(1.4)))));
+    test_str_eq("round -1.4 (float)", "-1", opa_number_to_string(opa_cast_number(opa_arith_round(opa_number_float(-1.4)))));
+    test_str_eq("round 1.5 (float)", "2", opa_number_to_string(opa_cast_number(opa_arith_round(opa_number_float(1.5)))));
+    test_str_eq("round -1.5 (float)", "-2", opa_number_to_string(opa_cast_number(opa_arith_round(opa_number_float(-1.5)))));
+    test_str_eq("round 2.5 (float)", "3", opa_number_to_string(opa_cast_number(opa_arith_round(opa_number_float(2.5)))));
+    test_str_eq("round -2.5 (float)", "-3", opa_number_to_string(opa_cast_number(opa_arith_round(opa_number_float(-2.5)))));
+    test_str_eq("ceil 1", "1", opa_number_to_string(opa_cast_number(opa_arith_ceil(opa_number_int(1)))));
+    test_str_eq("ceil 1.01 (float)", "2", opa_number_to_string(opa_cast_number(opa_arith_ceil(opa_number_float(1.01)))));
+    test_str_eq("ceil -1.99999 (float)", "-1", opa_number_to_string(opa_cast_number(opa_arith_ceil(opa_number_float(-1.99999)))));
+    test_str_eq("floor 1", "1", opa_number_to_string(opa_cast_number(opa_arith_floor(opa_number_int(1)))));
+    test_str_eq("floor 1.01 (float)", "1", opa_number_to_string(opa_cast_number(opa_arith_floor(opa_number_float(1.01)))));
+    test_str_eq("floor -1.99999 (float)", "-2", opa_number_to_string(opa_cast_number(opa_arith_floor(opa_number_float(-1.99999)))));
+    test_str_eq("plus 1+2", "3", opa_number_to_string(opa_cast_number(opa_arith_plus(opa_number_float(1), opa_number_float(2)))));
+    test_str_eq("minus 3-2", "1", opa_number_to_string(opa_cast_number(opa_arith_minus(opa_number_float(3), opa_number_float(2)))));
 
     opa_set_t *s1 = opa_cast_set(opa_set());
     opa_set_add(s1, opa_number_int(0));
@@ -1363,10 +1419,10 @@ void test_arithmetic(void)
 
     opa_set_t *s3 = opa_cast_set(opa_arith_minus(&s1->hdr, &s2->hdr));
     test("minus set", s3->len == 1 && opa_set_get(s3, opa_number_int(1)) != NULL);
-    test("multiply 3*2", opa_number_as_float(opa_cast_number(opa_arith_multiply(opa_number_float(3), opa_number_float(2)))) == 6);
-    test("divide 3/2", opa_number_as_float(opa_cast_number(opa_arith_divide(opa_number_float(3), opa_number_float(2)))) == 1.5);
+    test_str_eq("multiply 3*2", "6", opa_number_to_string(opa_cast_number(opa_arith_multiply(opa_number_float(3), opa_number_float(2)))));
+    test_str_eq("divide 3/2", "1.5", opa_number_to_string(opa_cast_number(opa_arith_divide(opa_number_float(3), opa_number_float(2)))));
     test("divide 3/0", opa_arith_divide(opa_number_float(3), opa_number_float(0)) == NULL);
-    test("remainder 5 % 2", opa_number_as_float(opa_cast_number(opa_arith_rem(opa_number_float(5), opa_number_float(2)))) == 1);
+    test_str_eq("remainder 5 % 2", "1", opa_number_to_string(opa_cast_number(opa_arith_rem(opa_number_float(5), opa_number_float(2)))));
     test("remainder 1.1 % 1", opa_arith_rem(opa_number_float(1.1), opa_number_float(1)) == NULL);
     test("remainder 1 % 1.1", opa_arith_rem(opa_number_float(1), opa_number_float(1.1)) == NULL);
     test("remainder 1 % 0", opa_arith_rem(opa_number_float(1), opa_number_float(0)) == NULL);
@@ -1515,7 +1571,7 @@ static opa_value *number(const char *s)
     uint32_t status = 0;
     mpd_t *r = mpd_qnew();
     mpd_qimport_u16(r, &rdata[0], digits, sign, 16, mpd_max_ctx(), &status);
-    return opa_bf_to_number(r);
+    return opa_number_mpd(r);
 }
 
 WASM_EXPORT(test_bits)
@@ -1597,10 +1653,10 @@ void test_bits(void)
      };
 
      for (int i = 0; i < sizeof(tests2)/sizeof(tests2[0]); i++) {
-         test("negate", opa_value_compare(opa_number_ref(tests2[i].output, strlen(tests2[i].output)),
-                                          opa_bits_negate(opa_number_ref(tests2[i].input, strlen(tests2[i].input)))) == 0);
-         test("negate", opa_value_compare(opa_number_ref(tests2[i].input, strlen(tests2[i].input)),
-                                          opa_bits_negate(opa_number_ref(tests2[i].output, strlen(tests2[i].output)))) == 0);
+         test("negate", opa_value_compare(opa_number_ref(tests2[i].output),
+                                          opa_bits_negate(opa_number_ref(tests2[i].input))) == 0);
+         test("negate", opa_value_compare(opa_number_ref(tests2[i].input),
+                                          opa_bits_negate(opa_number_ref(tests2[i].output))) == 0);
      }
 
      // tests from https://golang.org/src/math/big/int_test.go L883
@@ -1640,8 +1696,8 @@ void test_bits(void)
      };
 
      for (int i = 0; i < sizeof(tests3)/sizeof(tests3[0]); i++) {
-         test("right shift", opa_value_compare(opa_number_ref(tests3[i].output, strlen(tests3[i].output)),
-                                               opa_bits_shiftright(opa_number_ref(tests3[i].input, strlen(tests3[i].input)),
+         test("right shift", opa_value_compare(opa_number_ref(tests3[i].output),
+                                               opa_bits_shiftright(opa_number_ref(tests3[i].input),
                                                                    opa_number_int(tests3[i].shift))) == 0);
      };
 
@@ -1670,10 +1726,16 @@ void test_bits(void)
      };
 
      for (int i = 0; i < sizeof(tests4)/sizeof(tests4[0]); i++) {
-         test("left shift", opa_value_compare(opa_number_ref(tests4[i].output, strlen(tests4[i].output)),
-                                              opa_bits_shiftleft(opa_number_ref(tests4[i].input, strlen(tests4[i].input)),
+         test("left shift", opa_value_compare(opa_number_ref(tests4[i].output),
+                                              opa_bits_shiftleft(opa_number_ref(tests4[i].input),
                                                                  opa_number_int(tests4[i].shift))) == 0);
      };
+}
+
+WASM_EXPORT(test_value_compare)
+void test_value_compare(void)
+{
+    test("numbers/float and int", opa_value_compare(opa_number_float(1234567890), opa_number_int(1234567890)) == 0);
 }
 
 WASM_EXPORT(test_aggregates)
@@ -1705,11 +1767,11 @@ void test_aggregates(void)
     test("count/object", opa_value_compare(opa_agg_count(&obj->hdr), opa_number_int(3)) == 0);
     test("count/set", opa_value_compare(opa_agg_count(&set->hdr), opa_number_int(3)) == 0);
 
-    test("sum/array", opa_value_compare(opa_agg_sum(&arr->hdr), opa_number_int(7)) == 0);
-    test("sum/set", opa_value_compare(opa_agg_sum(&set->hdr), opa_number_int(7)) == 0);
+    test_str_eq("sum/array", "7", opa_value_dump(opa_agg_sum(&arr->hdr)));
+    test_str_eq("sum/set", "7", opa_value_dump(opa_agg_sum(&set->hdr)));
 
-    test("product/array", opa_value_compare(opa_agg_product(&arr->hdr), opa_number_int(8)) == 0);
-    test("product/set", opa_value_compare(opa_agg_product(&set->hdr), opa_number_int(8)) == 0);
+    test_str_eq("product/array", "8", opa_value_dump(opa_agg_product(&arr->hdr)));
+    test_str_eq("product/set", "8", opa_value_dump(opa_agg_product(&set->hdr)));
 
     test("max/array", opa_value_compare(opa_agg_max(&arr->hdr), opa_number_int(4)) == 0);
     test("max/set", opa_value_compare(opa_agg_max(&set->hdr), opa_number_int(4)) == 0);
@@ -2818,22 +2880,8 @@ void test_numbers_range(void)
 {
     opa_value *a = opa_number_int(10);
     opa_value *b = opa_number_int(12);
-
-    opa_value *exp = opa_array();
-    opa_array_t *arr = opa_cast_array(exp);
-    opa_array_append(arr, opa_number_int(10));
-    opa_array_append(arr, opa_number_int(11));
-    opa_array_append(arr, opa_number_int(12));
-
-    test("number.range/ascending", opa_value_compare(opa_numbers_range(a, b), exp) == 0);
-
-    opa_value *reversed = opa_array();
-    arr = opa_cast_array(reversed);
-    opa_array_append(arr, opa_number_int(12));
-    opa_array_append(arr, opa_number_int(11));
-    opa_array_append(arr, opa_number_int(10));
-
-    test("numbers.range/descending", opa_value_compare(opa_numbers_range(b, a), reversed) == 0);
+    test_str_eq("number.range/ascending", "[10,11,12]", opa_value_dump(opa_numbers_range(a, b)));
+    test_str_eq("numbers.range/descending", "[12,11,10]", opa_value_dump(opa_numbers_range(b, a)));
     test("numbers.range/bad operand", opa_numbers_range(opa_string_terminated("foo"), opa_number_int(10)) == NULL);
     test("numbers.range/bad operand", opa_numbers_range(opa_number_int(10), opa_string_terminated("foo")) == NULL);
 }
@@ -2846,6 +2894,7 @@ void test_to_number(void)
     test("to_number/true", opa_value_compare(opa_to_number(opa_boolean(true)), opa_number_int(1)) == 0);
     test("to_number/nop", opa_value_compare(opa_to_number(opa_number_int(1)), opa_number_int(1)) == 0);
     test("to_number/integer", opa_value_compare(opa_to_number(opa_string_terminated("10")), opa_number_int(10)) == 0);
+    test("to_number/large integer", opa_value_compare(opa_to_number(opa_string_terminated("1234567890")), opa_number_int(1234567890)) == 0);
     test("to_number/float", opa_value_compare(opa_to_number(opa_string_terminated("3.5")), opa_number_float(3.5)) == 0);
     test("to_number/bad string", opa_to_number(opa_string_terminated("deadbeef")) == NULL);
     test("to_number/bad value", opa_to_number(opa_array()) == NULL);

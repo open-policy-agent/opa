@@ -51,7 +51,6 @@ const (
 	opaNull              = "opa_null"
 	opaBoolean           = "opa_boolean"
 	opaNumberInt         = "opa_number_int"
-	opaNumberFloat       = "opa_number_float"
 	opaNumberRef         = "opa_number_ref"
 	opaNumberSize        = "opa_number_size"
 	opaArrayWithCap      = "opa_array_with_cap"
@@ -1047,17 +1046,12 @@ func (c *Compiler) compileBlock(block *ir.Block) ([]instruction.Instruction, err
 		case *ir.MakeNullStmt:
 			instrs = append(instrs, instruction.Call{Index: c.function(opaNull)})
 			instrs = append(instrs, instruction.SetLocal{Index: c.local(stmt.Target)})
-		case *ir.MakeNumberFloatStmt:
-			instrs = append(instrs, instruction.F64Const{Value: stmt.Value})
-			instrs = append(instrs, instruction.Call{Index: c.function(opaNumberFloat)})
-			instrs = append(instrs, instruction.SetLocal{Index: c.local(stmt.Target)})
 		case *ir.MakeNumberIntStmt:
 			instrs = append(instrs, instruction.I64Const{Value: stmt.Value})
 			instrs = append(instrs, instruction.Call{Index: c.function(opaNumberInt)})
 			instrs = append(instrs, instruction.SetLocal{Index: c.local(stmt.Target)})
 		case *ir.MakeNumberRefStmt:
 			instrs = append(instrs, instruction.I32Const{Value: c.stringAddr(stmt.Index)})
-			instrs = append(instrs, instruction.I32Const{Value: int32(len(c.policy.Static.Strings[stmt.Index].Value))})
 			instrs = append(instrs, instruction.Call{Index: c.function(opaNumberRef)})
 			instrs = append(instrs, instruction.SetLocal{Index: c.local(stmt.Target)})
 		case *ir.MakeArrayStmt:

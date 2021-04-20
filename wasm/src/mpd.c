@@ -6,7 +6,6 @@
 static int initialized;
 static mpd_context_t default_ctx;
 static mpd_context_t max_ctx;
-static mpd_t *one;
 
 OPA_INTERNAL
 void opa_mpd_init(void)
@@ -19,15 +18,6 @@ void opa_mpd_init(void)
         mpd_maxcontext(&max_ctx);
         max_ctx.traps = 0;
         max_ctx.round = MPD_ROUND_HALF_UP; // .5 always rounded up
-
-        one = mpd_qnew();
-
-        uint32_t status = 0;
-        mpd_qset_i32(one, 1, &max_ctx, &status);
-        if (status)
-        {
-            opa_abort("mpd: init");
-        }
 
         initialized = 1;
     }
@@ -43,9 +33,18 @@ mpd_context_t *mpd_max_ctx(void)
     return &max_ctx;
 }
 
-static mpd_t *mpd_one(void)
+static mpd_uint_t const_one[MPD_MINALLOC_MAX] = {1};
+static mpd_t one = {MPD_STATIC|MPD_STATIC_DATA|MPD_SHARED_DATA, 0, 1, 1, MPD_MINALLOC_MAX, const_one};
+static mpd_t minus_one = {MPD_STATIC|MPD_STATIC_DATA|MPD_SHARED_DATA|MPD_NEG, 0, 1, 1, MPD_MINALLOC_MAX, const_one};
+
+mpd_t *mpd_one(void)
 {
-    return one;
+    return &one;
+}
+
+mpd_t *mpd_minus_one(void)
+{
+    return &minus_one;
 }
 
 void opa_mpd_del(mpd_t *v)
@@ -62,116 +61,45 @@ mpd_t *opa_number_to_bf(opa_value *v)
     {
         return NULL;
     }
-
     opa_number_t *n = opa_cast_number(v);
-    mpd_t *r = NULL;
-    uint32_t status = 0;
-
     switch (n->repr)
     {
-    case OPA_NUMBER_REPR_FLOAT:
-        {
-            char buf[32]; // PRINTF_FTOA_BUFFER_SIZE
-            if (snprintf(buf, sizeof(buf), "%f", n->v.f) == sizeof(buf))
-            {
-                opa_abort("opa_number_to_bf: overflow");
-            }
-
-            r = mpd_qnew();
-            mpd_qset_string(r, buf, mpd_default_ctx(), &status);
-        }
-        break;
-
-    case OPA_NUMBER_REPR_REF:
-        r = mpd_qnew();
-
-        // Guarantee the existence of '\0' terminator. The string may
-        // be pointer to a longer buffer (allocated in JSON parsing).
-        char *s = malloc(n->v.ref.len+1);
-        memcpy(s, n->v.ref.s, n->v.ref.len);
-        s[n->v.ref.len] = 0;
-        mpd_qset_string(r, s, mpd_max_ctx(), &status);
+    case OPA_NUMBER_REPR_INT: {
+        uint32_t status = 0;
+        mpd_t *r = mpd_qnew();
+        mpd_qset_i64(r, n->v.i, mpd_default_ctx(), &status);
         if (status != 0)
         {
             opa_abort("opa_number_to_bf: invalid number");
         }
+        return r;
+    }
 
-        free(s);
-        break;
-
-    case OPA_NUMBER_REPR_INT:
-        r = mpd_qnew();
-
-        if (n->v.i >= INT32_MIN && n->v.i <= INT32_MAX)
-        {
-            mpd_qset_i32(r, (int32_t)n->v.i, mpd_default_ctx(), &status);
-        } else {
-            char buf[32]; // PRINTF_NTOA_BUFFER_SIZE
-            if (snprintf(buf, sizeof(buf), "%d", n->v.i) == sizeof(buf))
-            {
-                opa_abort("opa_number_to_bf: overflow");
-            }
-
-            r = mpd_qnew();
-            mpd_qset_string(r, buf, mpd_default_ctx(), &status);
-        }
-        break;
+    case OPA_NUMBER_REPR_MPD:
+        return n->v.mpd.d; // has static/static_data set, won't be deleted by mpd_del
 
     default:
         opa_abort("opa_number_to_bf: illegal repr");
         return NULL;
     }
+}
 
+int opa_mpd_try_int(mpd_t *d, long long *i)
+{
+    if (!mpd_isinteger(d))
+    {
+        return -1;
+    }
+
+    uint32_t status = 0;
+    int64_t w = mpd_qget_i64(d, &status);
     if (status != 0)
     {
-        opa_abort("opa_number_to_bf: invalid number x");
+        return -1;
     }
-
-    return r;
+    *i = w;
+    return 0;
 }
-
-/* converts a bignum n to an ast value and frees the bignum n. */
-opa_value *opa_bf_to_number(mpd_t *n)
-{
-    if (n == NULL)
-    {
-        return NULL;
-    }
-
-    uint32_t status = 0;
-    int32_t i = mpd_qget_i32(n, &status);
-
-    if (status == 0)
-    {
-        mpd_del(n);
-        return opa_number_int(i);
-    }
-
-    char *s = mpd_to_sci(n, 0);
-    mpd_del(n);
-    return opa_number_ref(s, opa_strlen(s));
-}
-
-/* converts a bignum n to an ast value without freeing the bignum n. */
-opa_value *opa_bf_to_number_no_free(mpd_t *n)
-{
-    if (n == NULL)
-    {
-        return NULL;
-    }
-
-    uint32_t status = 0;
-    int32_t i = mpd_qget_i32(n, &status);
-
-    if (status == 0)
-    {
-        return opa_number_int(i);
-    }
-
-    char *s = mpd_to_sci(n, 0);
-    return opa_number_ref(s, opa_strlen(s));
-}
-
 
 /* converts an big number to a bigint with base of 10 and digits of 0 and 1. */
 mpd_t *opa_bf_to_bf_bits(mpd_t *v)

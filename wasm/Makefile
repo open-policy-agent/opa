@@ -33,6 +33,7 @@ CPPFLAGS += \
 	-fno-rtti \
 	-I src/lib \
 	-I src/libc++ \
+	-I src/libmpdec \
 	-I /usr/lib/llvm-11/include/c++/v1 \
 	-I /usr/lib/llvm-11/lib/clang/11.0.0/include \
 	-I src/re2 \

@@ -1211,34 +1211,6 @@ func (p *Planner) planNumber(num ast.Number, iter planiter) error {
 	return iter()
 }
 
-func (p *Planner) planNumberFloat(f float64, iter planiter) error {
-
-	target := p.newLocal()
-
-	p.appendStmt(&ir.MakeNumberFloatStmt{
-		Value:  f,
-		Target: target,
-	})
-
-	p.ltarget = target
-
-	return iter()
-}
-
-func (p *Planner) planNumberInt(i int64, iter planiter) error {
-
-	target := p.newLocal()
-
-	p.appendStmt(&ir.MakeNumberIntStmt{
-		Value:  i,
-		Target: target,
-	})
-
-	p.ltarget = target
-
-	return iter()
-}
-
 func (p *Planner) planString(str ast.String, iter planiter) error {
 
 	p.ltarget = ir.StringIndex(p.getStringConst(string(str)))

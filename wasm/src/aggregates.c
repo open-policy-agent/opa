@@ -62,11 +62,17 @@ opa_value *opa_agg_sum(opa_value *v)
                 mpd_del(r);
                 return NULL;
             }
-
-            r = qadd(r, opa_number_to_bf(a->elems[i].v));
+            mpd_t *e = opa_number_to_bf(a->elems[i].v);
+            uint32_t status = 0;
+            mpd_qadd(r, r, e, mpd_max_ctx(), &status);
+            if (status)
+            {
+                opa_abort("opa_agg_sum: add");
+            }
+            mpd_del(e);
         }
 
-        return opa_bf_to_number(r);
+        return opa_number_mpd_allocated(r);
     }
 
     case OPA_SET: {
@@ -83,11 +89,18 @@ opa_value *opa_agg_sum(opa_value *v)
                     return NULL;
                 }
 
-                r = qadd(r, opa_number_to_bf(elem->v));
+                mpd_t *e = opa_number_to_bf(elem->v);
+                uint32_t status = 0;
+                mpd_qadd(r, r, e, mpd_max_ctx(), &status);
+                if (status)
+                {
+                    opa_abort("opa_agg_sum: add");
+                }
+                mpd_del(e);
             }
         }
 
-        return opa_bf_to_number(r);
+        return opa_number_mpd_allocated(r);
     }
 
     default:
@@ -102,7 +115,7 @@ opa_value *opa_agg_product(opa_value *v)
     {
     case OPA_ARRAY: {
         opa_array_t *a = opa_cast_array(v);
-        mpd_t *r = mpd_int(1);
+        mpd_t *r = mpd_qncopy(mpd_one());
 
         for (int i = 0; i < a->len; i++)
         {
@@ -112,15 +125,22 @@ opa_value *opa_agg_product(opa_value *v)
                 return NULL;
             }
 
-            r = qmul(r, opa_number_to_bf(a->elems[i].v));
+            mpd_t *e = opa_number_to_bf(a->elems[i].v);
+            uint32_t status = 0;
+            mpd_qmul(r, r, e, mpd_max_ctx(), &status);
+            if (status)
+            {
+                opa_abort("opa_agg_product: mul");
+            }
+            mpd_del(e);
         }
 
-        return opa_bf_to_number(r);
+        return opa_number_mpd_allocated(r);
     }
 
     case OPA_SET: {
         opa_set_t *s = opa_cast_set(v);
-        mpd_t *r = mpd_int(1);
+        mpd_t *r = mpd_qncopy(mpd_one());
 
         for (int i = 0; i < s->n; i++)
         {
@@ -132,11 +152,18 @@ opa_value *opa_agg_product(opa_value *v)
                     return NULL;
                 }
 
-                r = qmul(r, opa_number_to_bf(elem->v));
+                mpd_t *e = opa_number_to_bf(elem->v);
+                uint32_t status = 0;
+                mpd_qmul(r, r, e, mpd_max_ctx(), &status);
+                if (status)
+                {
+                    opa_abort("opa_agg_product: mul");
+                }
+                mpd_del(e);
             }
         }
 
-        return opa_bf_to_number(r);
+        return opa_number_mpd_allocated(r);
     }
 
     default:

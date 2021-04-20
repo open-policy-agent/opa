@@ -289,19 +289,6 @@ size_t opa_value_length(opa_value *node)
     }
 }
 
-int opa_value_compare_float(double a, double b)
-{
-    if (a < b)
-    {
-        return -1;
-    }
-    else if (a > b)
-    {
-        return 1;
-    }
-    return 0;
-}
-
 int opa_value_compare_number(opa_number_t *a, opa_number_t *b)
 {
     long long la, lb;
@@ -319,14 +306,6 @@ int opa_value_compare_number(opa_number_t *a, opa_number_t *b)
         return 0;
     }
 
-    if (a->repr == OPA_NUMBER_REPR_FLOAT && b->repr == OPA_NUMBER_REPR_FLOAT)
-    {
-        double da = opa_number_as_float(a);
-        double db = opa_number_as_float(b);
-
-        return opa_value_compare_float(da, db);
-    }
-
     mpd_t *ba = opa_number_to_bf(&a->hdr);
     mpd_t *bb = opa_number_to_bf(&b->hdr);
 
@@ -336,7 +315,6 @@ int opa_value_compare_number(opa_number_t *a, opa_number_t *b)
     {
         opa_abort("opa_value_compare_number");
     }
-
     mpd_del(ba);
     mpd_del(bb);
 
@@ -551,6 +529,31 @@ int opa_value_compare(opa_value *a, opa_value *b)
     }
 }
 
+char *opa_number_to_string(opa_number_t *n)
+{
+    uint32_t status = 0;
+    mpd_t *d = opa_number_to_bf(&n->hdr);
+    char *s = mpd_qformat(d, "g", mpd_max_ctx(), &status);
+    if (status & (MPD_Invalid_operation | MPD_Malloc_error))
+    {
+        opa_abort("opa_number_to_string: formatting");
+    }
+    return s;
+}
+
+// expects string to be null-terminated
+opa_value *opa_number_from_string(opa_string_t *s)
+{
+    uint32_t status = 0;
+    mpd_t *r = mpd_new(mpd_max_ctx());
+    mpd_qset_string(r, s->v, mpd_max_ctx(), &status);
+    if (status & MPD_Conversion_syntax)
+    {
+        return NULL;
+    }
+    return opa_number_mpd_allocated(r);
+}
+
 #define FNV32_INIT ((size_t)0x811c9dc5)
 
 static size_t
@@ -573,8 +576,10 @@ size_t opa_boolean_hash(opa_boolean_t *b) {
 }
 
 size_t opa_number_hash(opa_number_t *n) {
-    double d = opa_number_as_float(n);
-    return fnv1a32(FNV32_INIT, &d, sizeof(d));
+    mpd_t *d = opa_number_to_bf(&n->hdr);
+    size_t h = fnv1a32(FNV32_INIT, d->data, d->len);
+    mpd_del(d);
+    return h;
 }
 
 size_t opa_string_hash(opa_string_t *s) {
@@ -752,12 +757,10 @@ opa_value *opa_value_shallow_copy_number(opa_number_t *n)
 {
     switch (n->repr)
     {
-    case OPA_NUMBER_REPR_FLOAT:
-        return opa_number_float(n->v.f);
-    case OPA_NUMBER_REPR_REF:
-        return opa_number_ref(n->v.ref.s, n->v.ref.len);
     case OPA_NUMBER_REPR_INT:
         return opa_number_int(n->v.i);
+    case OPA_NUMBER_REPR_MPD:
+        return opa_number_mpd(n->v.mpd.d); // returned opa_number_mpd_t will have free=0
     default:
         opa_abort("opa_value_shallow_copy_number: illegal repr");
         return NULL;
@@ -897,13 +900,9 @@ opa_value *opa_boolean(bool v)
 }
 
 OPA_INTERNAL
-opa_value *opa_number_size(size_t v)
+opa_value *opa_number_size(size_t i)
 {
-    opa_number_t *ret = (opa_number_t *)opa_malloc(sizeof(opa_number_t));
-    ret->hdr.type = OPA_NUMBER;
-    ret->repr = OPA_NUMBER_REPR_INT;
-    ret->v.i = (long long)v;
-    return &ret->hdr;
+    return opa_number_int((long long) i);
 }
 
 OPA_INTERNAL
@@ -917,35 +916,49 @@ opa_value *opa_number_int(long long v)
 }
 
 OPA_INTERNAL
-opa_value *opa_number_float(double v)
+opa_value *opa_number_mpd_allocated(mpd_t *d)
 {
+    mpd_set_static(d);
+    mpd_set_static_data(d);
     opa_number_t *ret = (opa_number_t *)opa_malloc(sizeof(opa_number_t));
     ret->hdr.type = OPA_NUMBER;
-    ret->repr = OPA_NUMBER_REPR_FLOAT;
-    ret->v.f = v;
+    ret->repr = OPA_NUMBER_REPR_MPD;
+    ret->v.mpd.d = d;
+    ret->v.mpd.free = 1;
     return &ret->hdr;
 }
 
 OPA_INTERNAL
-opa_value *opa_number_ref(const char *s, size_t len)
+opa_value *opa_number_mpd(mpd_t *d)
 {
+    mpd_set_static(d);
+    mpd_set_static_data(d);
     opa_number_t *ret = (opa_number_t *)opa_malloc(sizeof(opa_number_t));
     ret->hdr.type = OPA_NUMBER;
-    ret->repr = OPA_NUMBER_REPR_REF;
-    ret->v.ref.s = s;
-    ret->v.ref.len = len;
-    ret->v.ref.free = 0;
+    ret->repr = OPA_NUMBER_REPR_MPD;
+    ret->v.mpd.d = d;
+    ret->v.mpd.free = 0;
     return &ret->hdr;
 }
 
-opa_value *opa_number_ref_allocated(const char *s, size_t len)
+OPA_INTERNAL
+opa_value *opa_number_ref(const char *s)
 {
+    mpd_t *d = mpd_qnew();
+    mpd_set_static(d);
+    mpd_set_static_data(d);
+    uint32_t status = 0;
+    mpd_qset_string(d, s, mpd_max_ctx(), &status);
+    if (status != 0)
+    {
+        opa_abort("opa_number_ref: invalid number");
+    }
+
     opa_number_t *ret = (opa_number_t *)opa_malloc(sizeof(opa_number_t));
     ret->hdr.type = OPA_NUMBER;
-    ret->repr = OPA_NUMBER_REPR_REF;
-    ret->v.ref.s = s;
-    ret->v.ref.len = len;
-    ret->v.ref.free = 1;
+    ret->repr = OPA_NUMBER_REPR_MPD;
+    ret->v.mpd.d = d;
+    ret->v.mpd.free = 1;
     return &ret->hdr;
 }
 
@@ -958,11 +971,13 @@ void opa_number_init_int(opa_number_t *n, long long v)
 
 void opa_number_free(opa_number_t *n)
 {
-    if (n->repr == OPA_NUMBER_REPR_REF)
+    if (n->repr == OPA_NUMBER_REPR_MPD)
     {
-        if (n->v.ref.free)
+        if (n->v.mpd.free)
         {
-            opa_free((void *)n->v.ref.s);
+            mpd_set_dynamic(n->v.mpd.d);
+            mpd_set_dynamic_data(n->v.mpd.d);
+            mpd_del(n->v.mpd.d);
         }
     }
 
@@ -973,40 +988,14 @@ int opa_number_try_int(opa_number_t *n, long long *i)
 {
     switch (n->repr)
     {
-    case OPA_NUMBER_REPR_FLOAT:
-        return -1;
     case OPA_NUMBER_REPR_INT:
         *i = n->v.i;
         return 0;
-    case OPA_NUMBER_REPR_REF:
-        return opa_atoi64(n->v.ref.s, n->v.ref.len, i);
+    case OPA_NUMBER_REPR_MPD:
+        return opa_mpd_try_int(n->v.mpd.d, i);
     default:
         opa_abort("opa_number_try_int: illegal repr");
         return -1;
-    }
-}
-
-double opa_number_as_float(opa_number_t *n)
-{
-    switch (n->repr)
-    {
-    case OPA_NUMBER_REPR_FLOAT:
-        return n->v.f;
-    case OPA_NUMBER_REPR_INT:
-        return (double)n->v.i;
-    case OPA_NUMBER_REPR_REF:
-    {
-        double d;
-        int rc = opa_atof64(n->v.ref.s, n->v.ref.len, &d);
-        if (rc != 0)
-        {
-            opa_abort("opa_number_as_float: illegal ref");
-        }
-        return d;
-    }
-    default:
-        opa_abort("opa_number_as_float: illegal repr");
-        return 0.0;
     }
 }
 

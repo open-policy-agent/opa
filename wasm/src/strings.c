@@ -219,6 +219,7 @@ opa_value *opa_strings_format_int(opa_value *a, opa_value *b)
     {
         opa_abort("strings: truncate failed");
     }
+    mpd_del(input);
 
     int32_t w = mpd_qget_i32(i, &status);
     if (status != 0)
