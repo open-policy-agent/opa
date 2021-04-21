@@ -199,7 +199,7 @@ appropriate.
 
 ### Putting It Together
 
-The example below shows how you can implement a custom [Decision Logger](../management/#decision-logs)
+The example below shows how you can implement a custom [Decision Logger](../management-decision-logs)
 that writes events to a stream (e.g., stdout/stderr).
 
 ```golang
@@ -236,7 +236,7 @@ func (p *PrintlnLogger) Reconfigure(ctx context.Context, config interface{}) {
 
 
 // Log is called by the decision logger when a record (event) should be emitted. The logs.EventV1 fields
-// map 1:1 to those described in https://www.openpolicyagent.org/docs/latest/management/#decision-log-service-api.
+// map 1:1 to those described in https://www.openpolicyagent.org/docs/latest/management-decision-logs
 func (p *PrintlnLogger) Log(ctx context.Context, event logs.EventV1) error {
 	p.mtx.Lock()
 	defer p.mtx.Unlock()
@@ -334,7 +334,7 @@ The source code for this example can be found
 [here](https://github.com/open-policy-agent/contrib/tree/master/decision_logger_plugin_example).
 
 > If there is a mask policy set (see [Decision
-  Logger](../management/#decision-logs) for details) the `Event` received by the
+  Logger](../management-decision-logs) for details) the `Event` received by the
   demo plugin will potentially be different than the example documented.
 
 ## Setting the OPA Runtime Version

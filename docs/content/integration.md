@@ -16,9 +16,9 @@ When integrating with OPA there are two interfaces to consider:
 
 This page focuses predominantly on different ways to integrate with OPA's policy evaluation interface and how they compare.  For more information about the management interface:
 
-- See the [Bundle API](../management/#bundles) for distributing policy and data to OPA.
-- See the [Status API](../management/#status) for collecting status reports on bundle activation and agent health.
-- See the [Decision Log API](../management/#decision-logs) for collecting a log of policy decisions made by agents.
+- See the [Bundle API](../management-bundles) for distributing policy and data to OPA.
+- See the [Status API](../management-status) for collecting status reports on bundle activation and agent health.
+- See the [Decision Log API](../management-decision-logs) for collecting a log of policy decisions made by agents.
 - See the [Health API](../rest-api#health-api) for checking agent deployment readiness and health.
 - See the [Prometheus API endpoint](../monitoring/#prometheus) to obtain insight into performance and errors.
 

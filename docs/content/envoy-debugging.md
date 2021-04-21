@@ -19,7 +19,7 @@ The `opa bench` command evaluates a Rego query multiple times and reports metric
 
 The OPA-Envoy plugin logs every decision that it makes. These logs contain lots of useful information including metrics like
 gRPC server handler time and Rego query evaluation time which can help in measuring the OPA-Envoy plugin's performance.
-To enable local console logging of decisions see [this](https://www.openpolicyagent.org/docs/latest/management/#local-decision-logs).
+To enable local console logging of decisions see [this](https://www.openpolicyagent.org/docs/latest/management-decision-logs/#local-decision-logs).
 
 ### Envoy External Authorization Filter Configuration
 
