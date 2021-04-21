@@ -68,4 +68,4 @@ See [Health API](../rest-api#health-api) for details.
 ### Status API
 
 OPA provides a plugin which can push status to a remote service.
-See [Status API](../management#status) for details.
+See [Status API](../management-status) for details.

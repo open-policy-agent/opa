@@ -1793,7 +1793,7 @@ that the server is operational. Optionally it can account for bundle activation 
             plugin is in a non-OK state.
 
 > *Note*: The bundle activation check is only for initial bundle activation. Subsequent downloads
-  will not affect the health check. The [Status](../management/#status)
+  will not affect the health check. The [Status](../management-status)
   API should be used for more fine-grained bundle status monitoring.
 
 #### Example Request

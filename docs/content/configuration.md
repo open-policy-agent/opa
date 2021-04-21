@@ -316,6 +316,7 @@ services:
     url: ${BUNDLE_SERVICE_URL}
     credentials:
       oauth2:
+        token_url: ${TOKEN_URL}
         grant_type: client_credentials
         client_id: opa-client
         signing_key: jwt_signing_key # references the key in `keys` below
@@ -363,9 +364,10 @@ cloud account (for access from inside the account, see the [GCP Metadata Token](
 ```yaml
 services:
   gcp:
-    url: ${BUNDLE_SERVICE_URL}
+    url: https://storage.googleapis.com/storage/v1/b/${BUCKET_NAME}/o
     credentials:
       oauth2:
+        token_url: https://oauth2.googleapis.com/token
         grant_type: jwt_bearer
         signing_key: jwt_signing_key # references the key in `keys` below
         scopes:
@@ -377,7 +379,7 @@ services:
 bundles:
   authz:
     service: gcp
-    resource: bundles/http/example/authz.tar.gz
+    resource: 'bundles/http/example/authz.tar.gz?alt=media'
 
 keys:
   jwt_signing_key:

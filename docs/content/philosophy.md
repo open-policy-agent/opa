@@ -145,7 +145,7 @@ how they can referenced inside of policies, and the actual mechanism(s) for load
 | Model | How to access in Rego | How to integrate with OPA |
 | --- | --- | --- |
 | Asynchronous Push | The `data` global variable | Invoke OPA's API(s), e.g., `PUT /v1/data` |
-| Asynchronous Pull | The `data` global variable | Configure OPA's [Bundle](../management#bundles) feature |
+| Asynchronous Pull | The `data` global variable | Configure OPA's [Bundle](../management-bundles) feature |
 | Synchronous Push | The `input` global variable | Provide data in policy query, e.g., inside the body of `POST /v1/data` |
 | Synchronous Pull | The [built-in functions](../policy-reference), e.g., `http.send` | N/A |
 
