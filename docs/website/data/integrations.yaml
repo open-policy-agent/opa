@@ -1,4 +1,18 @@
 integrations:
+  sphinx-rego:
+    title: Automatically document Rego policies
+    description: Sphinx extension that automatically documents Open Policy Agent Rego policies using meta properties.
+    software:
+      - sphinx-doc
+    code:
+      - https://github.com/zenitysec/sphinx-rego
+    inventors:
+      - zenity
+    category: tooling
+    labels:
+      category: tooling
+      layer: cicd
+
   kubernetes-validating-admission:
     title: Kubernetes Admission Control
     description: Kubernetes automates deployment, scaling, and management of containerized applications.  OPA provides fine-grained, context-aware authorization for which application component configuration.
@@ -1041,6 +1055,9 @@ organizations:
   alertavert:
     name: AlertAVert.com
     link: http://www.alertavert.com/
+  zenity:
+    name: Zenity
+    link: http://www.zenity.io
 software:
   kubernetes:
     name: Kubernetes
@@ -1159,3 +1176,6 @@ software:
   opal:
     name: OPAL
     link: https://opal.ac
+  sphinx-doc:
+    name: Sphinx
+    link: https://www.sphinx-doc.org
