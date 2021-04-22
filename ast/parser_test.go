@@ -2992,7 +2992,7 @@ public_servers_1[server] {
 						{Path: dataServers, Schema: schemaServers},
 					},
 					Scope: annotationScopeRule,
-					Node:  MustParseRule(`public_servers[server] { server = servers[i] }`),
+					node:  MustParseRule(`public_servers[server] { server = servers[i] }`),
 				},
 				&Annotations{
 					Schemas: []*SchemaAnnotation{
@@ -3001,7 +3001,7 @@ public_servers_1[server] {
 						{Path: dataPorts, Schema: schemaPorts},
 					},
 					Scope: annotationScopeRule,
-					Node:  MustParseRule(`public_servers_1[server] { ports[k].networks[l] = networks[m].id; networks[m].public = true }`),
+					node:  MustParseRule(`public_servers_1[server] { ports[k].networks[l] = networks[m].id; networks[m].public = true }`),
 				},
 			},
 		},
