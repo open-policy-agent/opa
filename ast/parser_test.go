@@ -2672,6 +2672,11 @@ func TestAnnotations(t *testing.T) {
 	schemaNetworks := MustParseRef("schema.networks")
 	schemaPorts := MustParseRef("schema.ports")
 
+	stringSchemaAsMap := map[string]interface{}{
+		"type": "string",
+	}
+	var stringSchema interface{} = stringSchemaAsMap
+
 	tests := []struct {
 		note           string
 		module         string
@@ -3073,6 +3078,24 @@ import data.foo.bar`,
 # scope: package
 import data.foo`,
 			expError: "test.rego:2: rego_parse_error: annotation scope 'package' cannot be applied to import statement",
+		},
+		{
+			note: "Inline schema definition",
+			module: `package test
+
+# METADATA
+# schemas:
+# - input: {"type": "string"}
+p { input = "str" }`,
+			expNumComments: 3,
+			expAnnotations: []*Annotations{
+				&Annotations{
+					Schemas: []*SchemaAnnotation{
+						{Path: InputRootRef, Definition: &stringSchema},
+					},
+					Scope: annotationScopeRule,
+				},
+			},
 		},
 	}
 

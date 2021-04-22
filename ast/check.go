@@ -1160,9 +1160,15 @@ func getRuleAnnotation(as *annotationSet, rule *Rule) (result []*SchemaAnnotatio
 
 func processAnnotation(ss *SchemaSet, annot *SchemaAnnotation, env *TypeEnv, rule *Rule) (Ref, types.Type, *Error) {
 
-	schema := ss.Get(annot.Schema)
-	if schema == nil {
-		return nil, nil, NewError(TypeErr, rule.Location, "undefined schema: %v", annot.Schema)
+	var schema interface{}
+
+	if annot.Schema != nil {
+		schema = ss.Get(annot.Schema)
+		if schema == nil {
+			return nil, nil, NewError(TypeErr, rule.Location, "undefined schema: %v", annot.Schema)
+		}
+	} else if annot.Definition != nil {
+		schema = *annot.Definition
 	}
 
 	tpe, err := loadSchema(schema)

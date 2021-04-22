@@ -1889,6 +1889,14 @@ package test
 # schemas:
 # - input: schema.number
 p { input = 7 }`},
+
+		{note: "inline definition", err: "test.rego:7: rego_type_error: match error", module: `package test
+
+# METADATA
+# scope: rule
+# schemas:
+# - input: {"type": "string"}
+p { input = 7 }`},
 	}
 
 	for _, tc := range tests {

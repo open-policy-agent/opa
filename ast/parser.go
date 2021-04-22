@@ -10,7 +10,9 @@ import (
 	"fmt"
 	"io"
 	"math/big"
+	"strings"
 
+	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 
 	"github.com/open-policy-agent/opa/ast/internal/scanner"
@@ -1563,7 +1565,7 @@ type rawAnnotation struct {
 	Schemas []rawSchemaAnnotation `json:"schemas"`
 }
 
-type rawSchemaAnnotation map[string]string
+type rawSchemaAnnotation map[string]interface{}
 
 type metadataParser struct {
 	buf *bytes.Buffer
@@ -1597,21 +1599,36 @@ func (b *metadataParser) Parse() (*Annotations, error) {
 	result.Scope = raw.Scope
 
 	for _, pair := range raw.Schemas {
-		var k, v string
+		var k string
+		var v interface{}
 		for k, v = range pair {
 		}
-		kr, err := ParseRef(k)
+
+		var a SchemaAnnotation
+		var err error
+
+		a.Path, err = ParseRef(k)
 		if err != nil {
 			return nil, fmt.Errorf("invalid document reference")
 		}
-		vr, err := parseSchemaRef(v)
-		if err != nil {
-			return nil, err
+
+		switch v := v.(type) {
+		case string:
+			a.Schema, err = parseSchemaRef(v)
+			if err != nil {
+				return nil, err
+			}
+		case map[interface{}]interface{}:
+			w, err := convertYAMLMapKeyTypes(v, nil)
+			if err != nil {
+				return nil, errors.Wrap(err, "invalid schema definition")
+			}
+			a.Definition = &w
+		default:
+			return nil, fmt.Errorf("invalid schema declaration for path %q", k)
 		}
-		result.Schemas = append(result.Schemas, &SchemaAnnotation{
-			Path:   kr,
-			Schema: vr,
-		})
+
+		result.Schemas = append(result.Schemas, &a)
 	}
 
 	result.Location = b.loc
@@ -1640,4 +1657,33 @@ func parseSchemaRef(s string) (Ref, error) {
 	}
 
 	return nil, errInvalidSchemaRef
+}
+
+func convertYAMLMapKeyTypes(x interface{}, path []string) (interface{}, error) {
+	var err error
+	switch x := x.(type) {
+	case map[interface{}]interface{}:
+		result := make(map[string]interface{}, len(x))
+		for k, v := range x {
+			str, ok := k.(string)
+			if !ok {
+				return nil, fmt.Errorf("invalid map key type(s): %v", strings.Join(path, "/"))
+			}
+			result[str], err = convertYAMLMapKeyTypes(v, append(path, str))
+			if err != nil {
+				return nil, err
+			}
+		}
+		return result, nil
+	case []interface{}:
+		for i := range x {
+			x[i], err = convertYAMLMapKeyTypes(x[i], append(path, fmt.Sprintf("%d", i)))
+			if err != nil {
+				return nil, err
+			}
+		}
+		return x, nil
+	default:
+		return x, nil
+	}
 }
