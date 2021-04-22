@@ -289,6 +289,41 @@ func TestCompareAnnotations(t *testing.T) {
 # - input: schema.b`,
 			exp: 1,
 		},
+		{
+			note: "definition",
+			a: `
+# METADATA
+# schemas:
+# - input: {"type": "string"}`,
+			b: `
+# METADATA
+# schemas:
+# - input: {"type": "string"}`,
+		},
+		{
+			note: "definition - less than schema",
+			a: `
+# METADATA
+# schemas:
+# - input: {"type": "string"}`,
+			b: `
+# METADATA
+# schemas:
+# - input: schema.a`,
+			exp: -1,
+		},
+		{
+			note: "schema - greater than definition",
+			a: `
+# METADATA
+# schemas:
+# - input: schema.a`,
+			b: `
+# METADATA
+# schemas:
+# - input: {"type": "string"}`,
+			exp: 1,
+		},
 	}
 
 	for _, tc := range tests {

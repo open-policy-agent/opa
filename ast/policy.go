@@ -154,8 +154,9 @@ type (
 
 	// SchemaAnnotation contains a schema declaration for the document identified by the path.
 	SchemaAnnotation struct {
-		Path   Ref `json:"path"`
-		Schema Ref `json:"schema"`
+		Path       Ref          `json:"path"`
+		Schema     Ref          `json:"schema,omitempty"`
+		Definition *interface{} `json:"definition,omitempty"`
 	}
 
 	// Package represents the namespace of the documents produced
@@ -300,6 +301,14 @@ func (s *SchemaAnnotation) Compare(other *SchemaAnnotation) int {
 
 	if cmp := s.Schema.Compare(other.Schema); cmp != 0 {
 		return cmp
+	}
+
+	if s.Definition != nil && other.Definition == nil {
+		return -1
+	} else if s.Definition == nil && other.Definition != nil {
+		return 1
+	} else if s.Definition != nil && other.Definition != nil {
+		return util.Compare(*s.Definition, *other.Definition)
 	}
 
 	return 0
