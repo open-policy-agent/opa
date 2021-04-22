@@ -1222,16 +1222,16 @@ func newAnnotationSet() *annotationSet {
 func (as *annotationSet) Add(a *Annotations) *Error {
 	switch a.Scope {
 	case annotationScopeRule:
-		rule := a.Node.(*Rule)
+		rule := a.node.(*Rule)
 		as.byRule[rule] = append(as.byRule[rule], a)
 	case annotationScopePackage:
-		pkg := a.Node.(*Package)
+		pkg := a.node.(*Package)
 		if exist, ok := as.byPackage[pkg]; ok {
 			return errAnnotationRedeclared(a, exist.Location)
 		}
 		as.byPackage[pkg] = a
 	case annotationScopeDocument:
-		rule := a.Node.(*Rule)
+		rule := a.node.(*Rule)
 		path := rule.Path()
 		x := as.byPath.Get(path)
 		if x != nil {
@@ -1239,7 +1239,7 @@ func (as *annotationSet) Add(a *Annotations) *Error {
 		}
 		as.byPath.Insert(path, a)
 	case annotationScopeSubpackages:
-		pkg := a.Node.(*Package)
+		pkg := a.node.(*Package)
 		x := as.byPath.Get(pkg.Path)
 		if x != nil {
 			return errAnnotationRedeclared(a, x.Value.Location)

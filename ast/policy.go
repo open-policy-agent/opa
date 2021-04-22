@@ -146,10 +146,10 @@ type (
 
 	// Annotations represents metadata attached to other AST nodes such as rules.
 	Annotations struct {
-		Node     Node                `json:"-"`
 		Location *Location           `json:"-"`
 		Scope    string              `json:"scope"`
 		Schemas  []*SchemaAnnotation `json:"schemas,omitempty"`
+		node     Node
 	}
 
 	// SchemaAnnotation contains a schema declaration for the document identified by the path.
@@ -281,7 +281,7 @@ func (s *Annotations) Copy(node Node) *Annotations {
 	for i := range cpy.Schemas {
 		cpy.Schemas[i] = s.Schemas[i].Copy()
 	}
-	cpy.Node = node
+	cpy.node = node
 	return &cpy
 }
 
@@ -404,7 +404,7 @@ func (mod *Module) Copy() *Module {
 
 	cpy.Annotations = make([]*Annotations, len(mod.Annotations))
 	for i := range mod.Annotations {
-		cpy.Annotations[i] = mod.Annotations[i].Copy(nodes[mod.Annotations[i].Node])
+		cpy.Annotations[i] = mod.Annotations[i].Copy(nodes[mod.Annotations[i].node])
 	}
 
 	return &cpy
@@ -420,7 +420,7 @@ func (mod *Module) String() string {
 
 	byNode := map[Node][]*Annotations{}
 	for _, a := range mod.Annotations {
-		byNode[a.Node] = append(byNode[a.Node], a)
+		byNode[a.node] = append(byNode[a.node], a)
 	}
 
 	appendAnnotationStrings := func(buf []string, node Node) []string {
