@@ -1897,6 +1897,15 @@ p { input = 7 }`},
 # schemas:
 # - input: {"type": "string"}
 p { input = 7 }`},
+		{note: "document scope is unordered", err: "test.rego:3: rego_type_error: match error", module: `package test
+
+p { input = 7 }
+
+# METADATA
+# scope: document
+# schemas:
+# - input: schema.string
+p { input = "foo" }`},
 	}
 
 	for _, tc := range tests {
