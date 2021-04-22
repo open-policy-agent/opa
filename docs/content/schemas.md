@@ -8,7 +8,7 @@ weight: 2
 
 You can provide one or more input schema files and/or data schema files to `opa eval` to improve static type checking and get more precise error reports as you develop Rego code.
 
-The `-s` flag can be used to upload schemas for input and data documents in JSON Schema format. You can either load a single JSON schema file for the input document or directory of schema files. 
+The `-s` flag can be used to upload schemas for input and data documents in JSON Schema format. You can either load a single JSON schema file for the input document or directory of schema files.
 
 ```
 -s, --schema string set schema file path or directory path
@@ -57,13 +57,13 @@ starts with a specific prefix.
 
 `pod.rego`
 ```
-package kubernetes.admission                                                
+package kubernetes.admission
 
-deny[msg] {                                                                
-  input.request.kind.kinds == "Pod"                               
-  image := input.request.object.spec.containers[_].image                    
-  not startswith(image, "hooli.com/")                                       
-  msg := sprintf("image '%v' comes from untrusted registry", [image])       
+deny[msg] {
+  input.request.kind.kinds == "Pod"
+  image := input.request.object.spec.containers[_].image
+  not startswith(image, "hooli.com/")
+  msg := sprintf("image '%v' comes from untrusted registry", [image])
 }
 ```
 
@@ -143,26 +143,24 @@ When passing a directory of schemas to `opa eval`, schema annotations become han
 
 ```
 # METADATA
-# scope: rule
-# schemas: 
-#   - <expression>:<path-to-schema>
+# schemas:
+#   - <path-to-value>:<path-to-schema>
 #   ...
-#   - <expression>:<path-to-schema>
-<ruleName> {
+#   - <path-to-value>:<path-to-schema>
+allow {
   ...
 }
 ```
 
-The annotation must be specified as a yaml within a comment block that **must** start with `# METADATA`. Next, it contains a `scope` field to indicate the scope of application of the annotation. The only scope currently supported is `rule`, meaning an annotation that applies within the scope of a rule. Also, every line in the comment block containing the annotation **must** start at Column 1 in the module/file, or otherwise, they will be ignored. Notice that the comment block containing the annotation **must** immediately precede the block defining the rule without any empty lines in between. 
+The annotation must be specified as YAML within a comment block that **must** start with `# METADATA`. Also, every line in the comment block containing the annotation **must** start at Column 1 in the module/file, or otherwise, they will be ignored.
 
-The `schemas` field specifies an array associating schemas to expressions. An expression is of the form `<input|data>.field1. ... .fieldN`.
-Note that we currently don't support aliasing, so the expression must start with either `input` or `data`.
+The `schemas` field specifies an array associating schemas to data values. Paths must start with `input` or `data` (i.e., they must be fully-qualified.)
 
 The type checker derives a Rego Object type for the schema and an appropriate entry is added to the type environment before type checking the rule. This entry is removed upon exit from the rule.
 
 Example:
 
-Consider the following Rego code which checks if an operation is allowed by a user, given an acl data document:
+Consider the following Rego code which checks if an operation is allowed by a user, given an ACL data document:
 
 ```
 package policy
@@ -172,9 +170,8 @@ import data.acl
 default allow = false
 
 # METADATA
-# scope: rule
 # schemas:
-#   - input: schema["input"]
+#   - input: schema.input
 #   - data.acl: schema["acl-schema"]
 allow {
         access = data.acl["alice"]
@@ -195,12 +192,12 @@ mySchemasDir/
 └── acl-schema.json
 ```
 
-For actual code samples, see: https://github.com/aavarghese/opa-schema-examples/acl
+For actual code samples, see https://github.com/aavarghese/opa-schema-examples/tree/main/acl.
 
 In the first `allow` rule above, the input document has the schema `input.json`, and `data.acl` has the schema `acl-schema.json`. Note that we use the relative path inside the `mySchemasDir` directory to identify a schema, omit the `.json` suffix, and use the global variable `schema` to stand for the top-level of the directory.
 Schemas in annotations are proper Rego references. So `schema.input` is also valid, but `schema.acl-schema` is not.
 
-If we had the expression `data.acl.foo` in this rule, it would result in a type error because it is not allowed according to `acl-schema.json`.
+If we had the expression `data.acl.foo` in this rule, it would result in a type error because the schema contained in `acl-schema.json` only defines object properties `"alice"` and `"bob"` in the ACL data document.
 
 On the other hand, this annotation does not constrain other paths under `data`. What it says is that we know the type of `data.acl` statically, but not that of other paths. So for example, `data.foo` is not a type error and gets assigned the type `Any`.
 
@@ -208,29 +205,152 @@ Note that the second `allow` rule doesn't have a METADATA comment block attached
 
 On a different note, schema annotations can also be added to policy files part of a bundle package loaded via `opa eval --bundle` alongwith the `--schema` parameter for type checking a set of `*.rego` policy files.
 
+### Annotation Scopes
 
-### Schema overriding
+Annotations can be defined at the rule or package level. The `scope` field on
+the annotation determines how the schema annotation will be applied. If the
+`scope` field is omitted, it defaults to the scope for the statement that
+immediately follows the annotation. The `scope` values that are currently
+supported are:
 
-JSON Schemas are often incomplete specifications of the format of data. For example, a Kubernetes Admission Review resource has a field `object` which can contain any other Kubernetes resource. A schema for Admission Review has a generic type `object` for that field that has no further specification. To allow more precise type checking in such cases, we support overriding existing schemas. 
+* `rule` - applies to the individual rule statement
+* `document` - applies to all of the rules with the same name in the same package
+* `package` - applies to all of the rules in the package
+* `subpackages` - applies to all of the rules in the package and all subpackages (recursively)
 
-Consider the following example:
+In case of overlap, schema annotations override each other as follows:
+
 ```
-package kubernetes.admission                                                
+rule overrides document
+document overrides package
+package overrides subpackages
+```
+
+The following sections explain how the different scopes work.
+
+#### Rule and Document Scopes
+
+In the example above, the second rule does not include an annotation so type
+checking of the second rule would not take schemas into account. To enable type
+checking on the second (or other rules in the same file) we could specify the
+annotation multiple times:
+
+```
+# METADATA
+# scope: rule
+# schemas:
+#   - input: schema.input
+#   - data.acl: schema["acl-schema"]
+allow {
+        access = data.acl["alice"]
+        access[_] == input.operation
+}
 
 # METADATA
 # scope: rule
-# schemas: 
-#   - input: schema["input"]
-#   - input.request.object: schema.kubernetes["pod"]
-deny[msg] {                                                              
-  input.request.kind.kind == "Pod"                                          
-  image := input.request.object.spec.containers[_].image                    
-  not startswith(image, "hooli.com/")                                       
-  msg := sprintf("image '%v' comes from untrusted registry", [image])       
+# schemas:
+#   - input: schema.input
+#   - data.acl: schema["acl-schema"]
+allow {
+        access = data.acl["bob"]
+        access[_] == input.operation
 }
 ```
 
-In this example, the `input` is associated with an Admission Review schema, and furthermore `input.request.object` is set to have the schema of a Kubernetes Pod. In effect, the second schema annotation overrides the first one. Overriding is a schema transformation feature and combines existing schemas. In this case, we are combining the Admission Review schema with that of a Pod. 
+This is obviously redundant and error prone. To avoid this problem, we can
+define the annotation once on a rule with scope `document`:
+
+```
+# METADATA
+# scope: document
+# schemas:
+#   - input: schema.input
+#   - data.acl: schema["acl-schema"]
+allow {
+        access = data.acl["alice"]
+        access[_] == input.operation
+}
+
+allow {
+        access = data.acl["bob"]
+        access[_] == input.operation
+}
+```
+
+In this example, the annotation with `document` scope has the same affect as the
+two `rule` scoped annotations in the previous example.
+
+Since the `document` scope annotation applies to all rules with the same name in
+the same package (which can span multiple files) and there is no ordering across
+files in the same package, `document` scope annotations can only be specified
+**once** per rule set. The `document` scope annotation can be applied to any
+rule in the set (i.e., ordering does not matter.)
+
+#### Package and Subpackage Scopes
+
+Annotations can be defined at the `package` level and then applied to all rules
+within the package:
+
+```
+# METADATA
+# scope: package
+# schemas:
+#   - input: schema.input
+#   - data.acl: schema["acl-schema"]
+package example
+
+allow {
+        access = data.acl["alice"]
+        access[_] == input.operation
+}
+
+allow {
+        access = data.acl["bob"]
+        access[_] == input.operation
+}
+```
+
+`package` scoped schema annotations are useful when all rules in the same
+package operate on the same input structure. In some cases, when policies are
+organized into many sub-packages, it is useful to declare schemas recursively
+for them using the `subpackages` scope. For example:
+
+```
+# METADTA
+# scope: subpackages
+# schemas:
+# - input: schema.input
+package kubernetes.admission
+```
+
+This snippet would declare the top-level schema for `input` for the
+`kubernetes.admission` package as well as all subpackages. If admission control
+rules were defined inside packages like `kubernetes.admission.workloads.pods`,
+they would be able to pickup that one schema declaration.
+
+### Overriding
+
+JSON Schemas are often incomplete specifications of the format of data. For example, a Kubernetes Admission Review resource has a field `object` which can contain any other Kubernetes resource. A schema for Admission Review has a generic type `object` for that field that has no further specification. To allow more precise type checking in such cases, we support overriding existing schemas.
+
+Consider the following example:
+
+```
+package kubernetes.admission
+
+# METADATA
+# scope: rule
+# schemas:
+# - input: schema.input
+# - input.request.object: schema.kubernetes.pod
+deny[msg] {
+        input.request.kind.kind == "Pod"
+        image := input.request.object.spec.containers[_].image
+        not startswith(image, "hooli.com/")
+        msg := sprintf("image '%v' comes from untrusted registry", [image])
+}
+```
+
+In this example, the `input` is associated with an Admission Review schema, and furthermore `input.request.object` is set to have the schema of a Kubernetes Pod. In effect, the second schema annotation overrides the first one. Overriding is a schema transformation feature and combines existing schemas. In this case, we are combining the Admission Review schema with that of a Pod.
 
 Notice that the order of schema annotations matter for overriding to work correctly.
 
@@ -254,10 +374,6 @@ object{a: object{b: object{c: C, d: D, e: E1}}}
 ```
 
 Notice that `b` still has its fields `c` and `d`, so overriding has a merging effect as well. Moreover, the type of expression `a.b.e` is now `E1` instead of `E`.
-
-
-
-
 
 We can also use overriding to add new paths to an existing type, so if we override the initial type with the following:
 
@@ -317,7 +433,7 @@ mySchemasDir/
 ```
 
 In this example, we associate the schema `input.json` with the input document in the rule `allow`, and the schema `whocan-input-schema.json`
-with the input document for the rule `whocan`. 
+with the input document for the rule `whocan`.
 
 ### Translating schemas to Rego types and dynamicity
 
@@ -325,12 +441,12 @@ Rego has a gradual type system meaning that types can be partially known statica
 
 When we derive a type from a schema, we try to match what is known and unknown in the schema. For example, an `object` that has no specified fields becomes the Rego type `Object{Any: Any}`. However, currently `additionalProperties` and `additionalItems` are ignored. When a schema is fully specified, we derive a type with its dynamic part set to nil, meaning that we take a strict interpretation in order to get the most out of static type checking. This is the case even if `additionalProperties` is set to `true` in the schema. In the future, we will take this feature into account when deriving Rego types.
 
-When overriding existing types, the dynamicity of the overridden prefix is preserved. 
+When overriding existing types, the dynamicity of the overridden prefix is preserved.
 
 
 ## Limitations
 
-Currently this feature admits schemas written in JSON Schema but does not support every feature available in this format. 
+Currently this feature admits schemas written in JSON Schema but does not support every feature available in this format.
 In particular the following features are not yet supported:
 
 * additional properties for objects
@@ -356,7 +472,7 @@ In this case, we are overriding the root of all documents to have some schema. S
 
 For more examples, please see https://github.com/aavarghese/opa-schema-examples
 
-This contains samples for Envoy, Kubernetes, and Terraform including corresponding JSON Schemas. 
+This contains samples for Envoy, Kubernetes, and Terraform including corresponding JSON Schemas.
 
 For a reference on JSON Schema please see: http://json-schema.org/understanding-json-schema/reference/index.html
 
