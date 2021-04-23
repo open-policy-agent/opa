@@ -339,6 +339,8 @@ opa_mpd_init,mpd_maxcontext
 opa_mpd_del,mpd_del
 opa_number_to_bf,opa_value_type
 opa_number_to_bf,mpd_qnew
+opa_number_to_bf,mpd_set_static
+opa_number_to_bf,mpd_set_static_data
 opa_number_to_bf,mpd_qset_i64
 opa_number_to_bf,opa_abort
 opa_mpd_try_int,mpd_isinteger

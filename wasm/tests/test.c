@@ -95,6 +95,11 @@ void test_opa_mpd(void)
     }
     test_str_eq("3 + mpd_one + mpd_minus_one", "3", opa_value_dump(opa_number_mpd(y)));
     test_str_eq("mpd_one", "1", opa_value_dump(opa_number_mpd(mpd_one())));
+
+    opa_value *u = opa_number_int(4);
+    mpd_t *z = opa_number_to_bf(u);
+    test("opa_number_to_bf changes repr", OPA_NUMBER_REPR_MPD == opa_cast_number(u)->repr);
+
 }
 
 WASM_EXPORT(test_opa_malloc)

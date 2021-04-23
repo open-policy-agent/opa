@@ -67,11 +67,16 @@ mpd_t *opa_number_to_bf(opa_value *v)
     case OPA_NUMBER_REPR_INT: {
         uint32_t status = 0;
         mpd_t *r = mpd_qnew();
+        mpd_set_static(r);
+        mpd_set_static_data(r);
         mpd_qset_i64(r, n->v.i, mpd_default_ctx(), &status);
         if (status != 0)
         {
             opa_abort("opa_number_to_bf: invalid number");
         }
+        n->repr = OPA_NUMBER_REPR_MPD;
+        n->v.mpd.d = r;
+        n->v.mpd.free = 1;
         return r;
     }
 
