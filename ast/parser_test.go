@@ -3061,7 +3061,7 @@ package test
 
 p := 7`,
 			expNumComments: 2,
-			expError:       "annotation scope 'rule' cannot be applied to package statement",
+			expError:       "test.rego:2: rego_parse_error: annotation scope 'rule' must be applied to rule (have package)",
 		},
 		{
 			note: "Scope attachment error: document on import",
@@ -3069,7 +3069,15 @@ p := 7`,
 # METADATA
 # scope: document
 import data.foo.bar`,
-			expError: "test.rego:2: rego_parse_error: annotation scope 'document' cannot be applied to import statement",
+			expError: "test.rego:2: rego_parse_error: annotation scope 'document' must be applied to rule (have import)",
+		},
+		{
+			note: "Scope attachment error: unattached",
+			module: `package test
+
+# METADATA
+# scope: package`,
+			expError: "test.rego:3: rego_parse_error: annotation scope 'package' must be applied to package",
 		},
 		{
 			note: "Scope attachment error: package on non-package",
@@ -3077,7 +3085,7 @@ import data.foo.bar`,
 # METADATA
 # scope: package
 import data.foo`,
-			expError: "test.rego:2: rego_parse_error: annotation scope 'package' cannot be applied to import statement",
+			expError: "test.rego:2: rego_parse_error: annotation scope 'package' must be applied to package (have import)",
 		},
 		{
 			note: "Inline schema definition",

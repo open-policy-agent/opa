@@ -691,19 +691,23 @@ func validateAnnotationScopeAttachment(a *Annotations) *Error {
 		if _, ok := a.node.(*Rule); ok {
 			return nil
 		}
-		return newScopeAttachmentErr(a)
+		return newScopeAttachmentErr(a, "rule")
 	case annotationScopePackage, annotationScopeSubpackages:
 		if _, ok := a.node.(*Package); ok {
 			return nil
 		}
-		return newScopeAttachmentErr(a)
+		return newScopeAttachmentErr(a, "package")
 	}
 
 	return NewError(ParseErr, a.Loc(), "invalid annotation scope '%v'", a.Scope)
 }
 
-func newScopeAttachmentErr(a *Annotations) *Error {
-	return NewError(ParseErr, a.Loc(), "annotation scope '%v' cannot be applied to %v statement", a.Scope, TypeName(a.node))
+func newScopeAttachmentErr(a *Annotations, want string) *Error {
+	var have string
+	if a.node != nil {
+		have = fmt.Sprintf(" (have %v)", TypeName(a.node))
+	}
+	return NewError(ParseErr, a.Loc(), "annotation scope '%v' must be applied to %v%v", a.Scope, want, have)
 }
 
 func setRuleModule(rule *Rule, module *Module) {
