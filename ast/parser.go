@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"io"
 	"math/big"
+	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -1568,8 +1570,9 @@ type rawAnnotation struct {
 type rawSchemaAnnotation map[string]interface{}
 
 type metadataParser struct {
-	buf *bytes.Buffer
-	loc *location.Location
+	buf      *bytes.Buffer
+	comments []*Comment
+	loc      *location.Location
 }
 
 func newMetadataParser(loc *Location) *metadataParser {
@@ -1579,7 +1582,10 @@ func newMetadataParser(loc *Location) *metadataParser {
 func (b *metadataParser) Append(c *Comment) {
 	b.buf.Write(bytes.TrimPrefix(c.Text, []byte(" ")))
 	b.buf.WriteByte('\n')
+	b.comments = append(b.comments, c)
 }
+
+var yamlLineErrRegex = regexp.MustCompile(`^yaml: line ([[:digit:]]+):`)
 
 func (b *metadataParser) Parse() (*Annotations, error) {
 
@@ -1589,9 +1595,19 @@ func (b *metadataParser) Parse() (*Annotations, error) {
 		return nil, fmt.Errorf("expected METADATA block, found whitespace")
 	}
 
-	// TODO(tsandall): how to improve locations of errors? The YAML parser
-	// doesn't include line numbers in the error API.
 	if err := yaml.Unmarshal(b.buf.Bytes(), &raw); err != nil {
+		match := yamlLineErrRegex.FindStringSubmatch(err.Error())
+		if len(match) == 2 {
+			n, err2 := strconv.Atoi(match[1])
+			if err2 == nil {
+				index := n - 1 // line numbering is 1-based so subtract one from row
+				if index >= len(b.comments) {
+					b.loc = b.comments[len(b.comments)-1].Location
+				} else {
+					b.loc = b.comments[index].Location
+				}
+			}
+		}
 		return nil, err
 	}
 
