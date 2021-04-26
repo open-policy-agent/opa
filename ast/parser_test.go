@@ -2832,7 +2832,7 @@ public_servers[server] {
 	ports[k].networks[l] = networks[m].id;
 	networks[m].public = true
 }`,
-			expError: "rego_parse_error: yaml: line 7: could not find expected ':'",
+			expError: "test.rego:14: rego_parse_error: yaml: line 7: could not find expected ':'",
 		},
 		{
 			note: "Ill-structured (invalid) annotation document path",
