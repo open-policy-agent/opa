@@ -9,15 +9,7 @@ void* operator new(size_t size) {
     return opa_malloc(size);
 }
 
-void* operator new(unsigned long size, std::align_val_t) {
-    return opa_malloc(size);
-}
-
 void operator delete(void *p) {
-    opa_free(p);
-}
-
-void operator delete(void *p, std::align_val_t) {
     opa_free(p);
 }
 
