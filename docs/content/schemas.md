@@ -154,6 +154,13 @@ allow {
 
 The annotation must be specified as YAML within a comment block that **must** start with `# METADATA`. Also, every line in the comment block containing the annotation **must** start at Column 1 in the module/file, or otherwise, they will be ignored.
 
+> 🚨 OPA will attempt to parse the YAML document in comments following the
+> initial `# METADATA` comment. If the YAML document cannot be parsed, OPA will
+> return an error. If you need to include additional comments between the
+> comment block and the next statement, include a blank line immediately after
+> the comment block containing the YAML document. This tells OPA that the
+> comment block containing the YAML document is finished
+
 The `schemas` field specifies an array associating schemas to data values. Paths must start with `input` or `data` (i.e., they must be fully-qualified.)
 
 The type checker derives a Rego Object type for the schema and an appropriate entry is added to the type environment before type checking the rule. This entry is removed upon exit from the rule.
