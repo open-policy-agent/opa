@@ -3,7 +3,7 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.28.0
 
 This release includes a number of features, enhancements, and fixes. The default
 branch for the Git repository has also been updated to `main`.
