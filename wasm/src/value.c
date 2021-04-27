@@ -319,14 +319,6 @@ int opa_value_compare_number(opa_number_t *a, opa_number_t *b)
         return 0;
     }
 
-    if (a->repr == OPA_NUMBER_REPR_FLOAT && b->repr == OPA_NUMBER_REPR_FLOAT)
-    {
-        double da = opa_number_as_float(a);
-        double db = opa_number_as_float(b);
-
-        return opa_value_compare_float(da, db);
-    }
-
     mpd_t *ba = opa_number_to_bf(&a->hdr);
     mpd_t *bb = opa_number_to_bf(&b->hdr);
 
@@ -752,8 +744,6 @@ opa_value *opa_value_shallow_copy_number(opa_number_t *n)
 {
     switch (n->repr)
     {
-    case OPA_NUMBER_REPR_FLOAT:
-        return opa_number_float(n->v.f);
     case OPA_NUMBER_REPR_REF:
         return opa_number_ref(n->v.ref.s, n->v.ref.len);
     case OPA_NUMBER_REPR_INT:
@@ -917,16 +907,6 @@ opa_value *opa_number_int(long long v)
 }
 
 OPA_INTERNAL
-opa_value *opa_number_float(double v)
-{
-    opa_number_t *ret = (opa_number_t *)opa_malloc(sizeof(opa_number_t));
-    ret->hdr.type = OPA_NUMBER;
-    ret->repr = OPA_NUMBER_REPR_FLOAT;
-    ret->v.f = v;
-    return &ret->hdr;
-}
-
-OPA_INTERNAL
 opa_value *opa_number_ref(const char *s, size_t len)
 {
     opa_number_t *ret = (opa_number_t *)opa_malloc(sizeof(opa_number_t));
@@ -973,8 +953,6 @@ int opa_number_try_int(opa_number_t *n, long long *i)
 {
     switch (n->repr)
     {
-    case OPA_NUMBER_REPR_FLOAT:
-        return -1;
     case OPA_NUMBER_REPR_INT:
         *i = n->v.i;
         return 0;
@@ -990,8 +968,6 @@ double opa_number_as_float(opa_number_t *n)
 {
     switch (n->repr)
     {
-    case OPA_NUMBER_REPR_FLOAT:
-        return n->v.f;
     case OPA_NUMBER_REPR_INT:
         return (double)n->v.i;
     case OPA_NUMBER_REPR_REF:

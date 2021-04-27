@@ -810,13 +810,6 @@ int opa_json_writer_emit_boolean(opa_json_writer *w, opa_boolean_t *b)
     return opa_json_writer_emit_chars(w, bs, sizeof(bs)-1);
 }
 
-int opa_json_writer_emit_float(opa_json_writer *w, double f)
-{
-    char str[32];
-    snprintf(str, sizeof(str), "%g", f);
-    return opa_json_writer_emit_chars(w, str, opa_strlen(str));
-}
-
 int opa_json_writer_emit_integer(opa_json_writer *w, long long i)
 {
     char str[sizeof(i)*8+1]; // once base=2 is supported we need 8 bits per byte.
@@ -828,8 +821,6 @@ int opa_json_writer_emit_number(opa_json_writer *w, opa_number_t *n)
 {
     switch (n->repr)
     {
-    case OPA_NUMBER_REPR_FLOAT:
-        return opa_json_writer_emit_float(w, n->v.f);
     case OPA_NUMBER_REPR_INT:
         return opa_json_writer_emit_integer(w, n->v.i);
     case OPA_NUMBER_REPR_REF:
