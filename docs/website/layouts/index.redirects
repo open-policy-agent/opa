@@ -13,10 +13,11 @@
 /docs/latest/how-do-i-test-policies/                /docs/latest/policy-testing/            301!
 /docs/latest/language-reference/                    /docs/latest/policy-reference/          301!
 /docs/latest/language-cheatsheet/                   /docs/latest/edge/policy-cheatsheet/    301!
-/docs/latest/bundles/                               /docs/latest/management/#bundles        301!
-/docs/latest/status/                                /docs/latest/management/#status         301!
-/docs/latest/decision-logs/                         /docs/latest/management/#decision-logs  301!
-/docs/latest/discovery/                             /docs/latest/management/#discovery      301!
+/docs/latest/bundles/                               /docs/latest/management-bundles/        301!
+/docs/latest/status/                                /docs/latest/management-status/         301!
+/docs/latest/decision-logs/                         /docs/latest/management-decision-logs/  301!
+/docs/latest/discovery/                             /docs/latest/management-discovery/      301!
+/docs/latest/management/                            /docs/latest/management-introduction/   301!
 /docs/latest/kubernetes-admission-control/          /docs/latest/kubernetes-tutorial/       301!
 
 /docs/latest/external-data/#option-5-pull-data-during-evaluation-experimental        /docs/latest/external-data/#option-5-pull-data-during-evaluation    301!
