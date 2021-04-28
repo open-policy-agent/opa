@@ -22,6 +22,10 @@
 #include "test.h"
 #include "types.h"
 
+// NOTE(sr): we've removed the float number representation, so this helper
+// is to make our tests less annoying:
+#define opa_number_float(f) opa_number_ref(#f, sizeof(#f))
+
 void reset_heap(void)
 {
     // This will leak memory!!
@@ -1253,15 +1257,8 @@ void test_opa_json_dump(void)
     test("strings utf-8", opa_strcmp(opa_json_dump(opa_string_terminated("\xed\xba\xad")), "\"\xed\xba\xad\"") == 0);
     test("numbers", opa_strcmp(opa_json_dump(opa_number_int(127)), "127") == 0);
 
-    // NOTE(tsandall): the string representation is lossy. We should store
-    // user-supplied floating-point values as strings so that round-trip
-    // operations are lossless. Computed values can be lossy for the time being.
-    test("numbers/float", opa_strcmp(opa_json_dump(opa_number_float(12345.678)), "12345.7") == 0);
-
-    // NOTE(tsandall): trailing zeros should be omitted but this appears to be an open issue: https://github.com/mpaland/printf/issues/55
-    test("numbers/float", opa_strcmp(opa_json_dump(opa_number_float(10.5)), "10.5000") == 0);
-
-    test("numbers/ref", opa_strcmp(opa_json_dump(opa_number_ref("127", 3)), "127") == 0);
+    test_str_eq("numbers/float", "12345.678", opa_json_dump(opa_number_float(12345.678)));
+    test_str_eq("numbers/float", "10.5", opa_json_dump(opa_number_float(10.5)));
 
     opa_value *arr = opa_array();
     test("arrays", opa_strcmp(opa_json_dump(arr), "[]") == 0);
