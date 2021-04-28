@@ -2,6 +2,8 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
+// +build slow
+
 package download
 
 import (
@@ -9,11 +11,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/keys"
@@ -36,6 +39,10 @@ func TestStartStop(t *testing.T) {
 	})
 
 	d.Start(ctx)
+
+	// Give time for some download events to occur
+	time.Sleep(1 * time.Second)
+
 	u1 := <-updates
 
 	if u1.Bundle == nil || len(u1.Bundle.Modules) == 0 {
@@ -47,6 +54,100 @@ func TestStartStop(t *testing.T) {
 	}
 
 	d.Stop(ctx)
+}
+
+func TestStartStopWithLongPollNotSupported(t *testing.T) {
+	ctx := context.Background()
+
+	config := Config{}
+	min := int64(1)
+	max := int64(2)
+	timeout := int64(1)
+	config.Polling.MinDelaySeconds = &min
+	config.Polling.MaxDelaySeconds = &max
+	config.Polling.LongPollingTimeoutSeconds = &timeout
+
+	if err := config.ValidateAndInjectDefaults(); err != nil {
+		t.Fatal(err)
+	}
+
+	fixture := newTestFixture(t)
+	fixture.d = New(config, fixture.client, "/bundles/test/bundle1").WithCallback(fixture.oneShot)
+	defer fixture.server.stop()
+
+	fixture.d.Start(ctx)
+
+	// Give time for some download events to occur
+	time.Sleep(5 * time.Second)
+
+	if len(fixture.updates) < 2 {
+		t.Fatalf("Expected at least 2 updates but got %v\n", len(fixture.updates))
+	}
+
+	fixture.d.Stop(ctx)
+}
+
+func TestStartStopWithLongPollSupported(t *testing.T) {
+	ctx := context.Background()
+
+	config := Config{}
+	timeout := int64(1)
+	config.Polling.LongPollingTimeoutSeconds = &timeout
+
+	if err := config.ValidateAndInjectDefaults(); err != nil {
+		t.Fatal(err)
+	}
+
+	fixture := newTestFixture(t)
+	fixture.d = New(config, fixture.client, "/bundles/test/bundle1").WithCallback(fixture.oneShot)
+	fixture.server.longPoll = true
+	defer fixture.server.stop()
+
+	fixture.d.Start(ctx)
+
+	// Give time for some download events to occur
+	time.Sleep(3 * time.Second)
+
+	if len(fixture.updates) == 0 {
+		t.Fatal("expected update but got none")
+	}
+
+	fixture.d.Stop(ctx)
+}
+
+func TestStartStopWithLongPollWithLongTimeout(t *testing.T) {
+	ctx := context.Background()
+
+	config := Config{}
+	timeout := int64(3) // this will result in the test server sleeping for 3 seconds
+	config.Polling.LongPollingTimeoutSeconds = &timeout
+
+	if err := config.ValidateAndInjectDefaults(); err != nil {
+		t.Fatal(err)
+	}
+
+	fixture := newTestFixture(t)
+	fixture.d = New(config, fixture.client, "/bundles/test/bundle1").WithCallback(fixture.oneShot)
+	fixture.server.longPoll = true
+	defer fixture.server.stop()
+
+	fixture.d.Start(ctx)
+
+	time.Sleep(500 * time.Millisecond)
+
+	if len(fixture.updates) != 0 {
+		t.Fatalf("expected no update but got %v", len(fixture.updates))
+	}
+
+	fixture.d.Stop(ctx)
+
+	if len(fixture.updates) != 1 {
+		t.Fatalf("expected one update but got %v", len(fixture.updates))
+	}
+
+	if fixture.updates[0].Error == nil {
+		t.Fatal("expected error but got nil")
+	}
 }
 
 func TestEtagCachingLifecycle(t *testing.T) {
@@ -63,7 +164,7 @@ func TestEtagCachingLifecycle(t *testing.T) {
 
 	// simulate successful bundle activation and check updated etag on the downloader
 	fixture.server.expEtag = "some etag value"
-	err := fixture.d.oneShot(ctx)
+	_, err := fixture.d.oneShot(ctx)
 	if err != nil {
 		t.Fatal("Unexpected:", err)
 	} else if len(fixture.updates) != 1 {
@@ -74,7 +175,7 @@ func TestEtagCachingLifecycle(t *testing.T) {
 
 	// simulate downloader error and check etag is cleared
 	fixture.server.expCode = 500
-	err = fixture.d.oneShot(ctx)
+	_, err = fixture.d.oneShot(ctx)
 	if err == nil {
 		t.Fatal("Expected error but got nil")
 	} else if len(fixture.updates) != 2 {
@@ -86,7 +187,7 @@ func TestEtagCachingLifecycle(t *testing.T) {
 	// simulate successful bundle activation and check updated etag on the downloader
 	fixture.server.expCode = 0
 	fixture.server.expEtag = "some new etag value"
-	err = fixture.d.oneShot(ctx)
+	_, err = fixture.d.oneShot(ctx)
 	if err != nil {
 		t.Fatal("Unexpected:", err)
 	} else if len(fixture.updates) != 3 {
@@ -98,7 +199,7 @@ func TestEtagCachingLifecycle(t *testing.T) {
 	// simulate bundle activation error and check etag is cleared
 	fixture.mockBundleActivationError = true
 	fixture.server.expEtag = "some newer etag value"
-	err = fixture.d.oneShot(ctx)
+	_, err = fixture.d.oneShot(ctx)
 	if err != nil {
 		t.Fatal("Unexpected:", err)
 	} else if len(fixture.updates) != 4 {
@@ -117,7 +218,7 @@ func TestFailureAuthn(t *testing.T) {
 
 	d := New(Config{}, fixture.client, "/bundles/test/bundle1")
 
-	err := d.oneShot(ctx)
+	_, err := d.oneShot(ctx)
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -132,7 +233,7 @@ func TestFailureNotFound(t *testing.T) {
 
 	d := New(Config{}, fixture.client, "/bundles/test/non-existent")
 
-	err := d.oneShot(ctx)
+	_, err := d.oneShot(ctx)
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -147,7 +248,7 @@ func TestFailureUnexpected(t *testing.T) {
 
 	d := New(Config{}, fixture.client, "/bundles/test/bundle1")
 
-	err := d.oneShot(ctx)
+	_, err := d.oneShot(ctx)
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -166,7 +267,7 @@ func TestEtagInResponse(t *testing.T) {
 
 	fixture.server.expEtag = "some etag value"
 
-	err := fixture.d.oneShot(ctx)
+	_, err := fixture.d.oneShot(ctx)
 	if err != nil {
 		t.Fatal("Unexpected:", err)
 	} else if len(fixture.updates) != 1 {
@@ -180,7 +281,7 @@ func TestEtagInResponse(t *testing.T) {
 		t.Errorf("Expected bundle in response")
 	}
 
-	err = fixture.d.oneShot(ctx)
+	_, err = fixture.d.oneShot(ctx)
 	if err != nil {
 		t.Fatal("Unexpected:", err)
 	} else if len(fixture.updates) != 2 {
@@ -279,9 +380,30 @@ type testServer struct {
 	bundles        map[string]bundle.Bundle
 	server         *httptest.Server
 	etagInResponse bool
+	longPoll       bool
 }
 
 func (t *testServer) handle(w http.ResponseWriter, r *http.Request) {
+
+	if t.longPoll {
+		parts := strings.Split(r.Header.Get("Prefer"), "=")
+		if len(parts) != 2 {
+			panic("Invalid \"wait\" Preference")
+		}
+
+		timeout, err := strconv.Atoi(parts[1])
+		if err != nil {
+			panic(err)
+		}
+
+		// indicate server supports long polling
+		w.Header().Add("Content-Type", "application/vnd.openpolicyagent.bundles")
+
+		// simulate long operation
+		time.Sleep(time.Duration(timeout) * time.Second)
+	} else {
+		w.Header().Add("Content-Type", "application/gzip")
+	}
 
 	if t.expCode != 0 {
 		w.WriteHeader(t.expCode)
@@ -312,8 +434,6 @@ func (t *testServer) handle(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-
-	w.Header().Add("Content-Type", "application/gzip")
 
 	if t.expEtag != "" {
 		w.Header().Add("Etag", t.expEtag)
