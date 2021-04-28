@@ -87,8 +87,10 @@ func New(manager *plugins.Manager, opts ...func(*Discovery)) (*Discovery, error)
 	}
 
 	result.config = config
-	result.downloader = download.New(config.Config, manager.Client(config.service), config.path).WithCallback(result.oneShot).
-		WithBundleVerificationConfig(config.Signing)
+	result.downloader = download.New(config.Config, manager.Client(config.service), config.path).
+		WithCallback(result.oneShot).
+		WithBundleVerificationConfig(config.Signing).
+		WithDisableTimer(manager.DisablePluginTimers)
 	result.status = &bundle.Status{
 		Name: Name,
 	}
@@ -99,8 +101,13 @@ func New(manager *plugins.Manager, opts ...func(*Discovery)) (*Discovery, error)
 	return result, nil
 }
 
+func (c *Discovery) Name() string {
+	return Name
+}
+
 // Start starts the dynamic discovery process if configured.
 func (c *Discovery) Start(ctx context.Context) error {
+	c.logger.Info("Starting discovery.")
 	if c.downloader != nil {
 		c.downloader.Start(ctx)
 	} else {
@@ -112,6 +119,7 @@ func (c *Discovery) Start(ctx context.Context) error {
 
 // Stop stops the dynamic discovery process if configured.
 func (c *Discovery) Stop(ctx context.Context) {
+	c.logger.Info("Stopping discovery.")
 	if c.downloader != nil {
 		c.downloader.Stop(ctx)
 	}
@@ -121,6 +129,13 @@ func (c *Discovery) Stop(ctx context.Context) {
 
 // Reconfigure is a no-op on discovery.
 func (*Discovery) Reconfigure(context.Context, interface{}) {
+}
+
+func (c *Discovery) Trigger(ctx context.Context, addCheckpoint func(name string) chan<- error) {
+	c.logger.Debug("%q triggered", Name)
+	if c.downloader != nil {
+		c.downloader.Trigger(ctx, addCheckpoint)
+	}
 }
 
 func (c *Discovery) oneShot(ctx context.Context, u download.Update) {

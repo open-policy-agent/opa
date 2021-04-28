@@ -374,20 +374,31 @@ func ParseConfig(config []byte, services []string, plugins []string) (*Config, e
 
 // New returns a new Plugin with the given config.
 func New(parsedConfig *Config, manager *plugins.Manager) *Plugin {
+	var plugin *Plugin
 
-	plugin := &Plugin{
-		manager:  manager,
-		config:   *parsedConfig,
-		stop:     make(chan chan struct{}),
-		buffer:   newLogBuffer(*parsedConfig.Reporting.BufferSizeLimitBytes),
-		enc:      newChunkEncoder(*parsedConfig.Reporting.UploadSizeLimitBytes),
-		reconfig: make(chan reconfigure),
-		logger:   manager.Logger().WithFields(map[string]interface{}{"plugin": Name}),
-	}
-
-	if parsedConfig.Reporting.MaxDecisionsPerSecond != nil {
-		limit := *parsedConfig.Reporting.MaxDecisionsPerSecond
-		plugin.limiter = rate.NewLimiter(rate.Limit(limit), int(math.Max(1, limit)))
+	if manager.DisablePluginTimers {
+		plugin = &Plugin{
+			manager:  manager,
+			config:   *parsedConfig,
+			buffer:   newLogBuffer(*parsedConfig.Reporting.BufferSizeLimitBytes),
+			enc:      newChunkEncoder(*parsedConfig.Reporting.UploadSizeLimitBytes),
+			reconfig: make(chan reconfigure, 10),
+			logger:   manager.Logger().WithFields(map[string]interface{}{"plugin": Name}),
+		}
+	} else {
+		plugin = &Plugin{
+			manager:  manager,
+			config:   *parsedConfig,
+			stop:     make(chan chan struct{}),
+			buffer:   newLogBuffer(*parsedConfig.Reporting.BufferSizeLimitBytes),
+			enc:      newChunkEncoder(*parsedConfig.Reporting.UploadSizeLimitBytes),
+			reconfig: make(chan reconfigure),
+			logger:   manager.Logger().WithFields(map[string]interface{}{"plugin": Name}),
+		}
+		if parsedConfig.Reporting.MaxDecisionsPerSecond != nil {
+			limit := *parsedConfig.Reporting.MaxDecisionsPerSecond
+			plugin.limiter = rate.NewLimiter(rate.Limit(limit), int(math.Max(1, limit)))
+		}
 	}
 
 	manager.RegisterCompilerTrigger(plugin.compilerUpdated)
@@ -414,10 +425,16 @@ func Lookup(manager *plugins.Manager) *Plugin {
 	return nil
 }
 
+func (p *Plugin) Name() string {
+	return Name
+}
+
 // Start starts the plugin.
 func (p *Plugin) Start(ctx context.Context) error {
 	p.logger.Info("Starting decision logger.")
-	go p.loop()
+	if !p.manager.DisablePluginTimers {
+		go p.loop()
+	}
 	p.manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateOK})
 	return nil
 }
@@ -430,10 +447,18 @@ func (p *Plugin) Stop(ctx context.Context) {
 		p.flushDecisions(ctx)
 	}
 
-	done := make(chan struct{})
-	p.stop <- done
-	<-done
+	if !p.manager.DisablePluginTimers {
+		done := make(chan struct{})
+		p.stop <- done
+		<-done
+	}
+
 	p.manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateNotReady})
+}
+
+func (p *Plugin) Trigger(ctx context.Context, addCheckpoint func(name string) chan<- error) {
+	checkpoint := addCheckpoint(Name)
+	go p.triggeredLoop(ctx, checkpoint)
 }
 
 func (p *Plugin) flushDecisions(ctx context.Context) {
@@ -443,7 +468,7 @@ func (p *Plugin) flushDecisions(ctx context.Context) {
 
 	go func(ctx context.Context, done chan bool) {
 		for ctx.Err() == nil {
-			if _, err := p.oneShot(ctx); err != nil {
+			if _, err := p.uploadLogs(ctx); err != nil {
 				p.logger.Error("Error flushing decisions: %s", err)
 				// Wait some before retrying, but skip incrementing interval since we are shutting down
 				time.Sleep(1 * time.Second)
@@ -527,10 +552,18 @@ func (p *Plugin) Log(ctx context.Context, decision *server.Info) error {
 }
 
 // Reconfigure notifies the plugin with a new configuration.
-func (p *Plugin) Reconfigure(_ context.Context, config interface{}) {
+func (p *Plugin) Reconfigure(ctx context.Context, config interface{}) {
 
-	done := make(chan struct{})
+	var done chan struct{}
+	if p.manager.DisablePluginTimers {
+		done = make(chan struct{}, 10)
+	} else {
+		done = make(chan struct{})
+	}
 	p.reconfig <- reconfigure{config: config, done: done}
+	if p.manager.DisablePluginTimers {
+		p.triggeredLoop(ctx, nil)
+	}
 
 	p.maskMutex.Lock()
 	defer p.maskMutex.Unlock()
@@ -555,20 +588,7 @@ func (p *Plugin) loop() {
 	var retry int
 
 	for {
-		var err error
-
-		if p.config.Service != "" {
-			var uploaded bool
-			uploaded, err = p.oneShot(ctx)
-
-			if err != nil {
-				p.logger.Error("%v.", err)
-			} else if uploaded {
-				p.logger.Info("Logs uploaded successfully.")
-			} else {
-				p.logger.Debug("Log upload queue was empty.")
-			}
-		}
+		err := p.oneShot(ctx)
 
 		var delay time.Duration
 
@@ -604,7 +624,24 @@ func (p *Plugin) loop() {
 	}
 }
 
-func (p *Plugin) oneShot(ctx context.Context) (ok bool, err error) {
+func (p *Plugin) triggeredLoop(ctx context.Context, triggerDone chan<- error) {
+	for {
+		err := p.oneShot(ctx)
+
+		select {
+		case update := <-p.reconfig:
+			p.reconfigure(update.config)
+			update.done <- struct{}{}
+		default:
+			if triggerDone != nil {
+				triggerDone <- err
+			}
+			return
+		}
+	}
+}
+
+func (p *Plugin) uploadLogs(ctx context.Context) (ok bool, err error) {
 	// Make a local copy of the plugins's encoder and buffer and create
 	// a new encoder and buffer. This is needed as locking the buffer for
 	// the upload duration will block policy evaluation and result in
@@ -657,6 +694,25 @@ func (p *Plugin) oneShot(ctx context.Context) (ok bool, err error) {
 	}
 
 	return err == nil, err
+}
+
+func (p *Plugin) oneShot(ctx context.Context) error {
+	var err error
+
+	if p.config.Service != "" {
+		var uploaded bool
+		uploaded, err = p.uploadLogs(ctx)
+
+		if err != nil {
+			p.logger.Error("%v.", err)
+		} else if uploaded {
+			p.logger.Info("Logs uploaded successfully.")
+		} else {
+			p.logger.Info("Log upload skipped.")
+		}
+	}
+
+	return err
 }
 
 func (p *Plugin) reconfigure(config interface{}) {

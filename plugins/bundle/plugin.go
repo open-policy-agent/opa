@@ -78,6 +78,10 @@ func Lookup(manager *plugins.Manager) *Plugin {
 	return nil
 }
 
+func (p *Plugin) Name() string {
+	return Name
+}
+
 // Start runs the plugin. The plugin will periodically try to download bundles
 // from the configured service. When a new bundle is downloaded, the data and
 // policies are extracted and inserted into storage.
@@ -119,6 +123,21 @@ func (p *Plugin) Stop(ctx context.Context) {
 	for name, dl := range stopDownloaders {
 		p.log(name).Info("Stopping bundle loader.")
 		dl.Stop(ctx)
+	}
+}
+
+func (p *Plugin) Trigger(ctx context.Context, addCheckpoint func(name string) chan<- error) {
+	p.logger.Debug("%q triggered", Name)
+	p.mtx.Lock()
+	dls := map[string]bundleLoader{}
+	for name, dl := range p.downloaders {
+		if dl != nil {
+			dls[name] = dl
+		}
+	}
+	p.mtx.Unlock()
+	for _, dl := range dls {
+		dl.Trigger(ctx, addCheckpoint)
 	}
 }
 
@@ -328,7 +347,8 @@ func (p *Plugin) newDownloader(name string, source *Source) bundleLoader {
 		WithCallback(callback).
 		WithBundleVerificationConfig(source.Signing).
 		WithSizeLimitBytes(source.SizeLimitBytes).
-		WithBundlePersistence(p.persistBundle(name))
+		WithBundlePersistence(p.persistBundle(name)).
+		WithDisableTimer(p.manager.DisablePluginTimers)
 }
 
 func (p *Plugin) oneShot(ctx context.Context, name string, u download.Update) {
@@ -617,6 +637,7 @@ func (p *Plugin) getBundlePersistPath() (string, error) {
 type bundleLoader interface {
 	Start(context.Context)
 	Stop(context.Context)
+	Trigger(context.Context, func(string) chan<- error)
 	ClearCache()
 }
 
@@ -650,6 +671,10 @@ func (fl *fileLoader) Start(context.Context) {
 }
 
 func (*fileLoader) Stop(context.Context) {
+
+}
+
+func (*fileLoader) Trigger(context.Context, func(string) chan<- error) {
 
 }
 

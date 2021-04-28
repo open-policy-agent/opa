@@ -594,6 +594,7 @@ func (s *Server) initRouters() {
 		mainRouter.Handle("/debug/pprof/block", pprof.Handler("block"))
 		mainRouter.Handle("/debug/pprof/heap", pprof.Handler("heap"))
 		mainRouter.Handle("/debug/pprof/mutex", pprof.Handler("mutex"))
+		mainRouter.Handle("/debug/pprof/goroutine", pprof.Handler("goroutine"))
 		mainRouter.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
 		mainRouter.HandleFunc("/debug/pprof/profile", pprof.Profile)
 		mainRouter.HandleFunc("/debug/pprof/symbol", pprof.Symbol)

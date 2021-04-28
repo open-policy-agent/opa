@@ -28,6 +28,7 @@ import (
 
 const (
 	minRetryDelay = time.Millisecond * 100
+	Name          = "downloader"
 )
 
 // Update contains the result of a download. If an error occurred, the Error
@@ -60,6 +61,7 @@ type Downloader struct {
 	mtx               sync.Mutex
 	stopped           bool
 	persist           bool
+	disableTimer      bool
 }
 
 type downloaderResponse struct {
@@ -111,9 +113,19 @@ func (d *Downloader) WithBundlePersistence(persist bool) *Downloader {
 	return d
 }
 
+// WithDisableTimer specifies if the loop timer should be disabled.
+func (d *Downloader) WithDisableTimer(disable bool) *Downloader {
+	d.disableTimer = disable
+	return d
+}
+
 // ClearCache resets the etag value on the downloader
 func (d *Downloader) ClearCache() {
 	d.etag = ""
+}
+
+func (d *Downloader) Name() string {
+	return Name
 }
 
 // Start tells the Downloader to begin downloading bundles.
@@ -126,7 +138,9 @@ func (d *Downloader) doStart(context.Context) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	d.wg.Add(1)
-	go d.loop(ctx)
+	if !d.disableTimer {
+		go d.loop(ctx)
+	}
 
 	done := <-d.stop // blocks until there's something to read
 	cancel()
@@ -147,6 +161,12 @@ func (d *Downloader) Stop(context.Context) {
 	done := make(chan struct{})
 	d.stop <- done
 	<-done
+}
+
+func (d *Downloader) Trigger(ctx context.Context, addCheckpoint func(name string) chan<- error) {
+	d.logger.Debug("Downloader triggered for %q", d.path)
+	checkpoint := addCheckpoint(fmt.Sprintf("downloader-%s", d.path))
+	go d.triggeredLoop(ctx, checkpoint)
 }
 
 func (d *Downloader) loop(ctx context.Context) {
@@ -198,6 +218,14 @@ func (d *Downloader) loop(ctx context.Context) {
 	}
 }
 
+func (d *Downloader) triggeredLoop(ctx context.Context, triggerDone chan<- error) {
+	_, err := d.oneShot(ctx)
+	d.logger.Debug("Downloader trigger done for %q", d.path)
+	if triggerDone != nil {
+		triggerDone <- err
+	}
+}
+
 func (d *Downloader) oneShot(ctx context.Context) (bool, error) {
 	m := metrics.New()
 	resp, err := d.download(ctx, m)
@@ -215,6 +243,7 @@ func (d *Downloader) oneShot(ctx context.Context) (bool, error) {
 	d.etag = resp.etag
 
 	if d.f != nil {
+		d.logger.Debug("Calling downloader callback")
 		d.f(ctx, Update{ETag: resp.etag, Bundle: resp.b, Error: nil, Metrics: m, Raw: resp.raw})
 	}
 
@@ -271,7 +300,7 @@ func (d *Downloader) download(ctx context.Context, m metrics.Metrics) (*download
 			if err != nil {
 				return nil, err
 			}
-
+			d.logger.Debug("Download completed.")
 			return &downloaderResponse{
 				b:        &b,
 				raw:      &buf,
@@ -288,6 +317,7 @@ func (d *Downloader) download(ctx context.Context, m metrics.Metrics) (*download
 			longPoll: isLongPollSupported(resp.Header),
 		}, nil
 	case http.StatusNotModified:
+		d.logger.Debug("Server replied with not modified.")
 		etag := resp.Header.Get("ETag")
 		if etag == "" {
 			etag = d.etag

@@ -188,6 +188,11 @@ type Params struct {
 	// Router uses a first-matching-route-wins strategy, so no existing routes are overridden
 	// If it is nil, a new mux.Router will be created
 	Router *mux.Router
+
+	// DisablePluginTimers flag will disable all plugin timers. With plugin timers disabled, custom
+	// code must be used to trigger plugins via the plugin manager. This is useful for environments
+	// that don't have continuous compute available, or can only run tasks during limited windows.
+	DisablePluginTimers bool
 }
 
 // LoggingConfig stores the configuration for OPA's logging behaviour.
@@ -274,7 +279,9 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		plugins.InitFiles(loaded.Files),
 		plugins.MaxErrors(params.ErrorLimit),
 		plugins.GracefulShutdownPeriod(params.GracefulShutdownPeriod),
-		plugins.ConsoleLogger(consoleLogger))
+		plugins.ConsoleLogger(consoleLogger),
+		plugins.DisablePluginTimers(params.DisablePluginTimers))
+
 	if err != nil {
 		return nil, errors.Wrap(err, "config error")
 	}

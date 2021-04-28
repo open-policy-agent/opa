@@ -42,20 +42,21 @@ type UpdateRequestV1 struct {
 
 // Plugin implements status reporting. Updates can be triggered by the caller.
 type Plugin struct {
-	manager            *plugins.Manager
-	config             Config
-	bundleCh           chan bundle.Status // Deprecated: Use bulk bundle status updates instead
-	lastBundleStatus   *bundle.Status     // Deprecated: Use bulk bundle status updates instead
-	bulkBundleCh       chan map[string]*bundle.Status
-	lastBundleStatuses map[string]*bundle.Status
-	discoCh            chan bundle.Status
-	lastDiscoStatus    *bundle.Status
-	stop               chan chan struct{}
-	reconfig           chan interface{}
-	metrics            metrics.Metrics
-	lastPluginStatuses map[string]*plugins.Status
-	pluginStatusCh     chan map[string]*plugins.Status
-	logger             logging.Logger
+	manager                  *plugins.Manager
+	config                   Config
+	bundleCh                 chan bundle.Status // Deprecated: Use bulk bundle status updates instead
+	lastBundleStatus         *bundle.Status     // Deprecated: Use bulk bundle status updates instead
+	bulkBundleCh             chan map[string]*bundle.Status
+	lastBundleStatuses       map[string]*bundle.Status
+	discoCh                  chan bundle.Status
+	lastDiscoStatus          *bundle.Status
+	stop                     chan chan struct{}
+	reconfig                 chan interface{}
+	metrics                  metrics.Metrics
+	lastPluginStatuses       map[string]*plugins.Status
+	pluginStatusCh           chan map[string]*plugins.Status
+	logger                   logging.Logger
+	statusListenerRegistered bool
 }
 
 // Config contains configuration for the plugin.
@@ -130,16 +131,34 @@ func ParseConfig(config []byte, services []string, plugins []string) (*Config, e
 
 // New returns a new Plugin with the given config.
 func New(parsedConfig *Config, manager *plugins.Manager) *Plugin {
-	p := &Plugin{
-		manager:        manager,
-		config:         *parsedConfig,
-		bundleCh:       make(chan bundle.Status),
-		bulkBundleCh:   make(chan map[string]*bundle.Status),
-		discoCh:        make(chan bundle.Status),
-		stop:           make(chan chan struct{}),
-		reconfig:       make(chan interface{}),
-		pluginStatusCh: make(chan map[string]*plugins.Status),
-		logger:         manager.Logger().WithFields(map[string]interface{}{"plugin": Name}),
+	var p *Plugin
+	// Buffered channels are required when using triggers because
+	// status updates happen during a trigger, resulting in a blocking
+	// send that never gets unblocked
+	if manager.DisablePluginTimers {
+		p = &Plugin{
+			manager:        manager,
+			config:         *parsedConfig,
+			bundleCh:       make(chan bundle.Status, 10),
+			bulkBundleCh:   make(chan map[string]*bundle.Status, 10),
+			discoCh:        make(chan bundle.Status, 10),
+			stop:           make(chan chan struct{}, 10),
+			reconfig:       make(chan interface{}, 10),
+			pluginStatusCh: make(chan map[string]*plugins.Status, 10),
+			logger:         manager.Logger().WithFields(map[string]interface{}{"plugin": Name}),
+		}
+	} else {
+		p = &Plugin{
+			manager:        manager,
+			config:         *parsedConfig,
+			bundleCh:       make(chan bundle.Status),
+			bulkBundleCh:   make(chan map[string]*bundle.Status),
+			discoCh:        make(chan bundle.Status),
+			stop:           make(chan chan struct{}),
+			reconfig:       make(chan interface{}),
+			pluginStatusCh: make(chan map[string]*plugins.Status),
+			logger:         manager.Logger().WithFields(map[string]interface{}{"plugin": Name}),
+		}
 	}
 
 	p.manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateNotReady})
@@ -164,15 +183,20 @@ func Lookup(manager *plugins.Manager) *Plugin {
 	return nil
 }
 
+func (p *Plugin) Name() string {
+	return Name
+}
+
 // Start starts the plugin.
 func (p *Plugin) Start(ctx context.Context) error {
 	p.logger.Info("Starting status reporter.")
 
-	go p.loop()
-
-	// Setup a listener for plugin statuses, but only after starting the loop
-	// to prevent blocking threads pushing the plugin updates.
-	p.manager.RegisterPluginStatusListener(Name, p.UpdatePluginStatus)
+	if !p.manager.DisablePluginTimers {
+		go p.loop()
+		// Setup a listener for plugin statuses, but only after starting the loop
+		// to prevent blocking threads pushing the plugin updates.
+		p.manager.RegisterPluginStatusListener(Name, p.UpdatePluginStatus)
+	}
 
 	// Set the status plugin's status to OK now that everything is registered and
 	// the loop is running. This will trigger an update on the listener with the
@@ -185,9 +209,13 @@ func (p *Plugin) Start(ctx context.Context) error {
 func (p *Plugin) Stop(ctx context.Context) {
 	p.logger.Info("Stopping status reporter.")
 	p.manager.UnregisterPluginStatusListener(Name)
-	done := make(chan struct{})
-	p.stop <- done
-	<-done
+
+	if !p.manager.DisablePluginTimers {
+		done := make(chan struct{})
+		p.stop <- done
+		<-done
+	}
+
 	p.manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateNotReady})
 }
 
@@ -213,8 +241,23 @@ func (p *Plugin) UpdatePluginStatus(status map[string]*plugins.Status) {
 }
 
 // Reconfigure notifies the plugin with a new configuration.
-func (p *Plugin) Reconfigure(_ context.Context, config interface{}) {
+func (p *Plugin) Reconfigure(ctx context.Context, config interface{}) {
 	p.reconfig <- config
+	if p.manager.DisablePluginTimers {
+		p.triggeredLoop(ctx, nil)
+	}
+}
+
+func (p *Plugin) Trigger(ctx context.Context, addCheckpoint func(name string) chan<- error) {
+	checkpoint := addCheckpoint("status")
+	go p.triggeredLoop(ctx, checkpoint)
+
+	if !p.statusListenerRegistered {
+		// Setup a listener for plugin statuses, but only after starting the loop
+		// to prevent blocking threads pushing the plugin updates.
+		p.manager.RegisterPluginStatusListener(Name, p.UpdatePluginStatus)
+		p.statusListenerRegistered = true
+	}
 }
 
 func (p *Plugin) loop() {
@@ -262,6 +305,34 @@ func (p *Plugin) loop() {
 		case done := <-p.stop:
 			cancel()
 			done <- struct{}{}
+			return
+		}
+	}
+}
+
+func (p *Plugin) triggeredLoop(ctx context.Context, triggerDone chan<- error) {
+	for {
+		select {
+		case statuses := <-p.pluginStatusCh:
+			p.lastPluginStatuses = statuses
+		case statuses := <-p.bulkBundleCh:
+			p.lastBundleStatuses = statuses
+		case status := <-p.bundleCh:
+			p.lastBundleStatus = &status
+		case status := <-p.discoCh:
+			p.lastDiscoStatus = &status
+		case newConfig := <-p.reconfig:
+			p.reconfigure(newConfig)
+		default:
+			err := p.oneShot(ctx)
+			if err != nil {
+				p.logger.Error("%v.", err)
+			} else {
+				p.logger.Info("Status updates sent successfully")
+			}
+			if triggerDone != nil {
+				triggerDone <- nil
+			}
 			return
 		}
 	}

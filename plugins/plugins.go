@@ -91,9 +91,11 @@ type Factory interface {
 // it will first Validate the configuration using your factory and
 // then call Reconfigure.
 type Plugin interface {
+	Name() string
 	Start(ctx context.Context) error
 	Stop(ctx context.Context)
 	Reconfigure(ctx context.Context, config interface{})
+	Trigger(ctx context.Context, addCheckpoint func(name string) chan<- error)
 }
 
 // State defines the state that a Plugin instance is currently
@@ -135,10 +137,11 @@ type StatusListener func(status map[string]*Status)
 // Manager implements lifecycle management of plugins and gives plugins access
 // to engine-wide components like storage.
 type Manager struct {
-	Store  storage.Store
-	Config *config.Config
-	Info   *ast.Term
-	ID     string
+	Store               storage.Store
+	Config              *config.Config
+	Info                *ast.Term
+	ID                  string
+	DisablePluginTimers bool
 
 	compiler                     *ast.Compiler
 	compilerMux                  sync.RWMutex
@@ -240,6 +243,12 @@ func MaxErrors(n int) func(*Manager) {
 func GracefulShutdownPeriod(gracefulShutdownPeriod int) func(*Manager) {
 	return func(m *Manager) {
 		m.gracefulShutdownPeriod = gracefulShutdownPeriod
+	}
+}
+
+func DisablePluginTimers(disablePluginTimers bool) func(*Manager) {
+	return func(m *Manager) {
+		m.DisablePluginTimers = disablePluginTimers
 	}
 }
 
@@ -402,6 +411,38 @@ func (m *Manager) Plugins() []string {
 	return result
 }
 
+// TriggerPlugins calls Trigger on each plugin and waits for all to finish
+func (m *Manager) TriggerPlugins(ctx context.Context) sync.Map {
+	m.logger.Debug("triggering all plugins")
+	m.mtx.Lock()
+	plugins := make([]namedplugin, len(m.plugins))
+	for i, p := range m.plugins {
+		plugins[i] = p
+	}
+	// can't remain locked during trigger because plugins access the same
+	// lock in manager for other actions while being triggered
+	m.mtx.Unlock()
+	var wg sync.WaitGroup
+	checkpointErrors := sync.Map{}
+	addCheckpoint := func(name string) chan<- error {
+		wg.Add(1)
+		checkpoint := make(chan error)
+		waitForCheckpoint := func() {
+			checkpointErrors.Store(name, <-checkpoint)
+			wg.Done()
+		}
+		go waitForCheckpoint()
+		return checkpoint
+	}
+	for _, p := range plugins {
+		p.plugin.Trigger(ctx, addCheckpoint)
+		m.logger.Debug("plugin %q triggered", p.name)
+	}
+	wg.Wait()
+	m.logger.Debug("all plugins triggered")
+	return checkpointErrors
+}
+
 // Plugin returns the plugin registered with name or nil if name is not found.
 func (m *Manager) Plugin(name string) Plugin {
 	m.mtx.Lock()
@@ -412,6 +453,39 @@ func (m *Manager) Plugin(name string) Plugin {
 		}
 	}
 	return nil
+}
+
+// TriggerPlugin calls Trigger on the plugin registered with name, or returns an error if no plugin is found
+func (m *Manager) TriggerPlugin(ctx context.Context, name string) (sync.Map, error) {
+	m.mtx.Lock()
+	var plugin Plugin
+	for i := range m.plugins {
+		if m.plugins[i].name == name {
+			plugin = m.plugins[i].plugin
+			break
+		}
+	}
+	if plugin == nil {
+		return sync.Map{}, fmt.Errorf("unable to trigger plugin, no plugin found under name %q", name)
+	}
+	// can't remain locked during trigger because plugins access the same
+	// lock in manager for other actions while being triggered
+	m.mtx.Unlock()
+	var wg sync.WaitGroup
+	checkpointErrors := sync.Map{}
+	addCheckpoint := func(name string) chan<- error {
+		wg.Add(1)
+		checkpoint := make(chan error)
+		waitForCheckpoint := func() {
+			checkpointErrors.Store(name, <-checkpoint)
+			wg.Done()
+		}
+		go waitForCheckpoint()
+		return checkpoint
+	}
+	plugin.Trigger(ctx, addCheckpoint)
+	wg.Wait()
+	return checkpointErrors, nil
 }
 
 // AuthPlugin returns the HTTPAuthPlugin registered with name or nil if name is not found.
