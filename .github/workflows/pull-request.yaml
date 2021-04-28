@@ -13,9 +13,43 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v2
 
-      - name: Build Golang
-        run: make ci-go-build-all-platforms
+      - name: Build Linux and Windows
+        run: make ci-go-build-linux ci-go-build-windows
         timeout-minutes: 30
+
+      - name: Upload binaries
+        uses: actions/upload-artifact@v2
+        if: always()
+        with:
+          name: binaries
+          path: _release
+
+  go-build-darwin:
+    name: Go Build (darwin)
+    runs-on: macos-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - id: go_version
+        name: Read go version
+        run: echo "::set-output name=go_version::$(cat .go-version)"
+
+      - name: Install Go (${{ steps.go_version.outputs.go_version }})
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ steps.go_version.outputs.go_version }}
+
+      - name: Build Darwin
+        run: make build-darwin
+        timeout-minutes: 30
+
+      - name: Upload binaries (darwin)
+        uses: actions/upload-artifact@v2
+        if: always()
+        with:
+          name: binaries
+          path: _release
 
   go-test:
     name: Go Test

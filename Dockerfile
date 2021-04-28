@@ -19,7 +19,7 @@ MAINTAINER Torin Sandall <torinsandall@gmail.com>
 USER ${USER}
 
 ARG BIN_DIR=.
-COPY ${BIN_DIR}/opa_docker_amd64 /opa
+COPY ${BIN_DIR}/opa_linux_amd64 /opa
 
 ENTRYPOINT ["/opa"]
 CMD ["run"]
