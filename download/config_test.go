@@ -64,6 +64,15 @@ func TestConfigValidation(t *testing.T) {
 			expMin: time.Second * 10,
 			expMax: time.Second * 30,
 		},
+		{
+			note: "long polling timeout < 1",
+			input: `{
+				"polling": {
+					"long_polling_timeout_seconds": 0
+				}
+			}`,
+			wantErr: true,
+		},
 	}
 
 	for _, test := range tests {

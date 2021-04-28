@@ -16,8 +16,9 @@ const (
 
 // PollingConfig represents polling configuration for the downloader.
 type PollingConfig struct {
-	MinDelaySeconds *int64 `json:"min_delay_seconds,omitempty"` // min amount of time to wait between successful poll attempts
-	MaxDelaySeconds *int64 `json:"max_delay_seconds,omitempty"` // max amount of time to wait between poll attempts
+	MinDelaySeconds           *int64 `json:"min_delay_seconds,omitempty"`            // min amount of time to wait between successful poll attempts
+	MaxDelaySeconds           *int64 `json:"max_delay_seconds,omitempty"`            // max amount of time to wait between poll attempts
+	LongPollingTimeoutSeconds *int64 `json:"long_polling_timeout_seconds,omitempty"` // max amount of time the server should wait before issuing a timeout if there's no update available
 }
 
 // Config represents the configuration for the downloader.
@@ -52,6 +53,11 @@ func (c *Config) ValidateAndInjectDefaults() error {
 	maxSeconds := int64(time.Duration(max) * time.Second)
 	c.Polling.MaxDelaySeconds = &maxSeconds
 
-	return nil
+	if c.Polling.LongPollingTimeoutSeconds != nil {
+		if *c.Polling.LongPollingTimeoutSeconds < 1 {
+			return fmt.Errorf("'long_polling_timeout_seconds' must be at least 1")
+		}
+	}
 
+	return nil
 }
