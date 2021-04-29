@@ -21,6 +21,7 @@ import (
 const (
 	ServerHandler       = "server_handler"
 	ServerQueryCacheHit = "server_query_cache_hit"
+	SDKDecisionEval     = "sdk_decision_eval"
 	RegoQueryCompile    = "rego_query_compile"
 	RegoQueryEval       = "rego_query_eval"
 	RegoQueryParse      = "rego_query_parse"
