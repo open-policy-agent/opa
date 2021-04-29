@@ -12,11 +12,10 @@ import (
 	"net/http"
 	"reflect"
 
-	"github.com/open-policy-agent/opa/sdk"
-
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 
+	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/plugins/bundle"
@@ -56,7 +55,7 @@ type Plugin struct {
 	metrics            metrics.Metrics
 	lastPluginStatuses map[string]*plugins.Status
 	pluginStatusCh     chan map[string]*plugins.Status
-	logger             sdk.Logger
+	logger             logging.Logger
 }
 
 // Config contains configuration for the plugin.
@@ -344,7 +343,7 @@ func (p *Plugin) logUpdate(update *UpdateRequestV1) error {
 	if err != nil {
 		return err
 	}
-	plugins.GetConsoleLogger().WithFields(fields).WithFields(logrus.Fields{
+	p.manager.ConsoleLogger().WithFields(fields).WithFields(logrus.Fields{
 		"type": "openpolicyagent.org/status",
 	}).Info("Status Log")
 	return nil

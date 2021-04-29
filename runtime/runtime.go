@@ -34,6 +34,7 @@ import (
 	initload "github.com/open-policy-agent/opa/internal/runtime/init"
 	"github.com/open-policy-agent/opa/internal/uuid"
 	"github.com/open-policy-agent/opa/loader"
+	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/plugins/discovery"
@@ -141,6 +142,9 @@ type Params struct {
 	// Logging configures the logging behaviour.
 	Logging LoggingConfig
 
+	// ConsoleLogger sets the logger implementation to use for console logs.
+	ConsoleLogger logging.Logger
+
 	// ConfigFile refers to the OPA configuration to load on startup.
 	ConfigFile string
 
@@ -246,7 +250,25 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		return nil, err
 	}
 
-	manager, err := plugins.New(config, params.ID, inmem.New(), plugins.Info(info), plugins.InitBundles(loaded.Bundles), plugins.InitFiles(loaded.Files), plugins.MaxErrors(params.ErrorLimit), plugins.GracefulShutdownPeriod(params.GracefulShutdownPeriod))
+	var consoleLogger logging.Logger
+
+	if params.ConsoleLogger == nil {
+		stdLogger := logging.NewStandardLogger()
+		stdLogger.SetFormatter(getFormatter(params.Logging.Format))
+		consoleLogger = stdLogger
+	} else {
+		consoleLogger = params.ConsoleLogger
+	}
+
+	manager, err := plugins.New(config,
+		params.ID,
+		inmem.New(),
+		plugins.Info(info),
+		plugins.InitBundles(loaded.Bundles),
+		plugins.InitFiles(loaded.Files),
+		plugins.MaxErrors(params.ErrorLimit),
+		plugins.GracefulShutdownPeriod(params.GracefulShutdownPeriod),
+		plugins.ConsoleLogger(consoleLogger))
 	if err != nil {
 		return nil, errors.Wrap(err, "config error")
 	}
@@ -728,23 +750,22 @@ func onReloadPrinter(output io.Writer) func(time.Duration, error) {
 	}
 }
 
-func setupLogging(config LoggingConfig) {
-	var formatter logrus.Formatter
-	switch config.Format {
+func getFormatter(format string) logrus.Formatter {
+	switch format {
 	case "text":
-		formatter = &prettyFormatter{}
+		return &prettyFormatter{}
 	case "json-pretty":
-		formatter = &logrus.JSONFormatter{PrettyPrint: true}
+		return &logrus.JSONFormatter{PrettyPrint: true}
 	case "json":
 		fallthrough
 	default:
-		formatter = &logrus.JSONFormatter{}
+		return &logrus.JSONFormatter{}
 	}
-	logrus.SetFormatter(formatter)
-	// While the plugin console logger logs independently of the configured --log-level,
-	// it should follow the configured --log-format
-	plugins.GetConsoleLogger().SetFormatter(formatter)
+}
 
+func setupLogging(config LoggingConfig) {
+	formatter := getFormatter(config.Format)
+	logrus.SetFormatter(formatter)
 	lvl := logrus.InfoLevel
 
 	if config.Level != "" {

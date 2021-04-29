@@ -17,12 +17,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/open-policy-agent/opa/sdk"
-
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/download"
 	bundleUtils "github.com/open-policy-agent/opa/internal/bundle"
+	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/storage"
@@ -37,7 +36,7 @@ type Plugin struct {
 	listeners         map[interface{}]func(Status)             // listeners to send status updates to
 	bulkListeners     map[interface{}]func(map[string]*Status) // listeners to send aggregated status updates to
 	downloaders       map[string]*download.Downloader
-	logger            sdk.Logger
+	logger            logging.Logger
 	mtx               sync.Mutex
 	cfgMtx            sync.Mutex
 	legacyConfig      bool
@@ -570,9 +569,9 @@ func loadBundleFromDisk(path, name string, src *Source) (*bundle.Bundle, error) 
 	}
 }
 
-func (p *Plugin) log(name string) sdk.Logger {
+func (p *Plugin) log(name string) logging.Logger {
 	if p.logger == nil {
-		p.logger = sdk.NewStandardLogger()
+		p.logger = logging.NewStandardLogger()
 	}
 	return p.logger.WithFields(map[string]interface{}{"name": name, "plugin": Name})
 }

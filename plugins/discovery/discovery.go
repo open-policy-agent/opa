@@ -11,14 +11,13 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/open-policy-agent/opa/sdk"
-
 	"github.com/open-policy-agent/opa/ast"
 	bundleApi "github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/config"
 	"github.com/open-policy-agent/opa/download"
 	cfg "github.com/open-policy-agent/opa/internal/config"
 	"github.com/open-policy-agent/opa/keys"
+	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/plugins/bundle"
@@ -43,7 +42,7 @@ type Discovery struct {
 	etag       string               // discovery bundle etag for caching purposes
 	metrics    metrics.Metrics
 	readyOnce  sync.Once
-	logger     sdk.Logger
+	logger     logging.Logger
 }
 
 // Factories provides a set of factory functions to use for

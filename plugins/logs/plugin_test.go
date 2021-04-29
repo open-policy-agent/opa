@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/logging/test"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/plugins/bundle"
@@ -31,8 +32,6 @@ import (
 	"github.com/open-policy-agent/opa/topdown"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/version"
-	"github.com/sirupsen/logrus"
-	"github.com/sirupsen/logrus/hooks/test"
 )
 
 func TestMain(m *testing.M) {
@@ -43,8 +42,6 @@ func TestMain(m *testing.M) {
 type testPlugin struct {
 	events []EventV1
 }
-
-type testPluginCustomizer func(c *Config)
 
 func (p *testPlugin) Start(context.Context) error {
 	return nil
@@ -456,10 +453,7 @@ func logServerInfo(id string, input interface{}, result interface{}) *server.Inf
 func TestPluginRequeBufferPreserved(t *testing.T) {
 	ctx := context.Background()
 
-	fixture := newTestFixture(t, func(c *Config) {
-		limit := int64(300)
-		c.Reporting.UploadSizeLimitBytes = &limit
-	})
+	fixture := newTestFixture(t, testFixtureOptions{ReportingUploadSizeLimitBytes: 300})
 	defer fixture.server.stop()
 
 	fixture.server.ch = make(chan []EventV1, 3)
@@ -499,12 +493,9 @@ func TestPluginRateLimitInt(t *testing.T) {
 
 	numDecisions := 1 // 1 decision per second
 
-	fixture := newTestFixture(t, func(c *Config) {
-		limit := float64(numDecisions)
-		c.Reporting.MaxDecisionsPerSecond = &limit
-	}, func(c *Config) {
-		limit := int64(300)
-		c.Reporting.UploadSizeLimitBytes = &limit
+	fixture := newTestFixture(t, testFixtureOptions{
+		ReportingMaxDecisionsPerSecond: float64(numDecisions),
+		ReportingUploadSizeLimitBytes:  300,
 	})
 	defer fixture.server.stop()
 
@@ -595,13 +586,9 @@ func TestPluginRateLimitFloat(t *testing.T) {
 	}
 
 	numDecisions := 0.1 // 0.1 decision per second ie. 1 decision per 10 seconds
-
-	fixture := newTestFixture(t, func(c *Config) {
-		limit := float64(numDecisions)
-		c.Reporting.MaxDecisionsPerSecond = &limit
-	}, func(c *Config) {
-		limit := int64(300)
-		c.Reporting.UploadSizeLimitBytes = &limit
+	fixture := newTestFixture(t, testFixtureOptions{
+		ReportingMaxDecisionsPerSecond: float64(numDecisions),
+		ReportingUploadSizeLimitBytes:  300,
 	})
 	defer fixture.server.stop()
 
@@ -696,12 +683,9 @@ func TestPluginRateLimitRequeue(t *testing.T) {
 
 	numDecisions := 100 // 100 decisions per second
 
-	fixture := newTestFixture(t, func(c *Config) {
-		limit := float64(numDecisions)
-		c.Reporting.MaxDecisionsPerSecond = &limit
-	}, func(c *Config) {
-		limit := int64(300)
-		c.Reporting.UploadSizeLimitBytes = &limit
+	fixture := newTestFixture(t, testFixtureOptions{
+		ReportingMaxDecisionsPerSecond: float64(numDecisions),
+		ReportingUploadSizeLimitBytes:  300,
 	})
 	defer fixture.server.stop()
 
@@ -751,13 +735,10 @@ func TestPluginRateLimitDropCountStatus(t *testing.T) {
 	}
 
 	numDecisions := 1 // 1 decision per second
-
-	fixture := newTestFixture(t, func(c *Config) {
-		limit := float64(numDecisions)
-		c.Reporting.MaxDecisionsPerSecond = &limit
-	}, func(c *Config) {
-		limit := int64(300)
-		c.Reporting.UploadSizeLimitBytes = &limit
+	fixture := newTestFixture(t, testFixtureOptions{
+		ConsoleLogger:                  test.New(),
+		ReportingMaxDecisionsPerSecond: float64(numDecisions),
+		ReportingUploadSizeLimitBytes:  300,
 	})
 	defer fixture.server.stop()
 
@@ -812,14 +793,6 @@ func TestPluginRateLimitDropCountStatus(t *testing.T) {
 		panic(err)
 	}
 
-	logLevel := logrus.GetLevel()
-	defer logrus.SetLevel(logLevel)
-
-	// Ensure that status messages are printed to console even with the standard logger configured to log errors only
-	logrus.SetLevel(logrus.ErrorLevel)
-
-	hook := test.NewLocal(plugins.GetConsoleLogger())
-
 	_ = fixture.plugin.Log(ctx, event2) // event 2 should not be written into the encoder as rate limit exceeded
 	_ = fixture.plugin.Log(ctx, event3) // event 3 should not be written into the encoder as rate limit exceeded
 
@@ -830,7 +803,7 @@ func TestPluginRateLimitDropCountStatus(t *testing.T) {
 	// Give the logger / console some time to process and print the events
 	time.Sleep(10 * time.Millisecond)
 
-	entries := hook.AllEntries()
+	entries := fixture.consoleLogger.Entries()
 	if len(entries) == 0 {
 		t.Fatal("Expected log entries but got none")
 	}
@@ -838,14 +811,14 @@ func TestPluginRateLimitDropCountStatus(t *testing.T) {
 	// Pick the last entry as it should have the drop count
 	e := entries[len(entries)-1]
 
-	if _, ok := e.Data["metrics"]; !ok {
+	if _, ok := e.Fields["metrics"]; !ok {
 		t.Fatal("Expected metrics")
 	}
 
 	exp := map[string]interface{}{"<built-in>": map[string]interface{}{"counter_decision_logs_dropped": json.Number("2")}}
 
-	if !reflect.DeepEqual(e.Data["metrics"], exp) {
-		t.Fatalf("Expected %v but got %v", exp, e.Data["metrics"])
+	if !reflect.DeepEqual(e.Fields["metrics"], exp) {
+		t.Fatalf("Expected %v but got %v", exp, e.Fields["metrics"])
 	}
 }
 
@@ -1012,10 +985,9 @@ func TestPluginReconfigureUploadSizeLimit(t *testing.T) {
 	ctx := context.Background()
 	limit := int64(300)
 
-	fixture := newTestFixture(t, func(c *Config) {
-		c.Reporting.UploadSizeLimitBytes = &limit
+	fixture := newTestFixture(t, testFixtureOptions{
+		ReportingUploadSizeLimitBytes: limit,
 	})
-
 	defer fixture.server.stop()
 
 	if err := fixture.plugin.Start(ctx); err != nil {
@@ -1352,13 +1324,20 @@ func TestPluginMasking(t *testing.T) {
 	}
 }
 
-type testFixture struct {
-	manager *plugins.Manager
-	plugin  *Plugin
-	server  *testServer
+type testFixtureOptions struct {
+	ConsoleLogger                  *test.Logger
+	ReportingUploadSizeLimitBytes  int64
+	ReportingMaxDecisionsPerSecond float64
 }
 
-func newTestFixture(t *testing.T, options ...testPluginCustomizer) testFixture {
+type testFixture struct {
+	manager       *plugins.Manager
+	consoleLogger *test.Logger
+	plugin        *Plugin
+	server        *testServer
+}
+
+func newTestFixture(t *testing.T, opts ...testFixtureOptions) testFixture {
 
 	ts := testServer{
 		t:       t,
@@ -1384,14 +1363,30 @@ func newTestFixture(t *testing.T, options ...testPluginCustomizer) testFixture {
 				}
 			]}`, ts.server.URL))
 
-	manager, err := plugins.New(managerConfig, "test-instance-id", inmem.New(), plugins.GracefulShutdownPeriod(10))
+	var options testFixtureOptions
+
+	if len(opts) > 0 {
+		options = opts[0]
+	}
+
+	manager, err := plugins.New(
+		managerConfig,
+		"test-instance-id",
+		inmem.New(),
+		plugins.GracefulShutdownPeriod(10),
+		plugins.ConsoleLogger(options.ConsoleLogger))
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	config, _ := ParseConfig([]byte(`{"service": "example"}`), manager.Services(), nil)
-	for _, option := range options {
-		option(config)
+
+	if options.ReportingMaxDecisionsPerSecond != 0 {
+		config.Reporting.MaxDecisionsPerSecond = &options.ReportingMaxDecisionsPerSecond
+	}
+
+	if options.ReportingUploadSizeLimitBytes != 0 {
+		config.Reporting.UploadSizeLimitBytes = &options.ReportingUploadSizeLimitBytes
 	}
 
 	if s, ok := manager.PluginStatus()[Name]; ok {
@@ -1403,9 +1398,10 @@ func newTestFixture(t *testing.T, options ...testPluginCustomizer) testFixture {
 	ensurePluginState(t, p, plugins.StateNotReady)
 
 	return testFixture{
-		manager: manager,
-		plugin:  p,
-		server:  &ts,
+		manager:       manager,
+		consoleLogger: options.ConsoleLogger,
+		plugin:        p,
+		server:        &ts,
 	}
 
 }
