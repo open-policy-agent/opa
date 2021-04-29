@@ -16,8 +16,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sirupsen/logrus"
-	"github.com/sirupsen/logrus/hooks/test"
+	"github.com/open-policy-agent/opa/logging/test"
 
 	"github.com/open-policy-agent/opa/ast"
 	bundleApi "github.com/open-policy-agent/opa/bundle"
@@ -999,15 +998,9 @@ func TestStatusUpdatesTimestamp(t *testing.T) {
 
 func TestStatusMetricsForLogDrops(t *testing.T) {
 
-	logLevel := logrus.GetLevel()
-	defer logrus.SetLevel(logLevel)
-
-	// Ensure that status messages are printed to console even with the standard logger configured to log errors only
-	logrus.SetLevel(logrus.ErrorLevel)
-
-	hook := test.NewLocal(plugins.GetConsoleLogger())
-
 	ctx := context.Background()
+
+	testLogger := test.New()
 
 	manager, err := plugins.New([]byte(`{
 		"services": {
@@ -1016,7 +1009,7 @@ func TestStatusMetricsForLogDrops(t *testing.T) {
 			}
 		},
 		"discovery": {"name": "config"},
-	}`), "test-id", inmem.New())
+	}`), "test-id", inmem.New(), plugins.ConsoleLogger(testLogger))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1095,7 +1088,7 @@ func TestStatusMetricsForLogDrops(t *testing.T) {
 		}
 	}`)})
 
-	entries := hook.AllEntries()
+	entries := testLogger.Entries()
 	if len(entries) == 0 {
 		t.Fatal("Expected log entries but got none")
 	}
@@ -1103,11 +1096,11 @@ func TestStatusMetricsForLogDrops(t *testing.T) {
 	// Pick the last entry as it should have the drop count
 	e := entries[len(entries)-1]
 
-	if _, ok := e.Data["metrics"]; !ok {
+	if _, ok := e.Fields["metrics"]; !ok {
 		t.Fatal("Expected metrics")
 	}
 
-	builtInMet := e.Data["metrics"].(map[string]interface{})["<built-in>"]
+	builtInMet := e.Fields["metrics"].(map[string]interface{})["<built-in>"]
 	dropCount := builtInMet.(map[string]interface{})["counter_decision_logs_dropped"]
 
 	actual, err := dropCount.(json.Number).Int64()

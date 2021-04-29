@@ -11,10 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sirupsen/logrus"
-	"github.com/sirupsen/logrus/hooks/test"
-
-	"github.com/open-policy-agent/opa/plugins"
+	"github.com/open-policy-agent/opa/logging/test"
 	"github.com/open-policy-agent/opa/runtime"
 	"github.com/open-policy-agent/opa/test/e2e"
 )
@@ -30,6 +27,8 @@ func TestMain(m *testing.M) {
 	}
 	// Ensure decisions are logged regardless of regular log level
 	testServerParams.Logging = runtime.LoggingConfig{Level: "error"}
+	consoleLogger := test.New()
+	testServerParams.ConsoleLogger = consoleLogger
 
 	var err error
 	testRuntime, err = e2e.NewTestRuntime(testServerParams)
@@ -37,13 +36,13 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
+	testRuntime.ConsoleLogger = consoleLogger
 	os.Exit(testRuntime.RunTests(m))
 }
 
 func TestConsoleDecisionLogWithInput(t *testing.T) {
 
 	// Setup a test hook on the console logger (what the console decision logger uses)
-	hook := test.NewLocal(plugins.GetConsoleLogger())
 
 	policy := `
 	package test
@@ -102,19 +101,21 @@ func TestConsoleDecisionLogWithInput(t *testing.T) {
 		}},
 	}
 
-	var entry *logrus.Entry
-	for _, e := range hook.AllEntries() {
-		if e.Message == "Decision Log" {
-			entry = e
+	var entry test.LogEntry
+	var found bool
+
+	for _, entry = range testRuntime.ConsoleLogger.Entries() {
+		if entry.Message == "Decision Log" {
+			found = true
 		}
 	}
 
-	if entry == nil {
-		t.Fatalf("Did not find 'Decision Log' event in captured logrus entries")
+	if !found {
+		t.Fatalf("Did not find 'Decision Log' event in captured log entries")
 	}
 
 	// Ensure expected fields exist
-	for fieldName, rawField := range entry.Data {
+	for fieldName, rawField := range entry.Fields {
 		if fd, ok := expectedFields[fieldName]; ok {
 			if fieldValue, ok := rawField.(string); ok && fd.match != nil {
 				fd.match(t, fieldValue)
