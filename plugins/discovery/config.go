@@ -84,8 +84,8 @@ func ParseConfig(bs []byte, services []string) (*Config, error) {
 
 func (c *Config) validateAndInjectDefaults(services []string, confKeys map[string]*keys.Config) error {
 
-	if c.Name == nil {
-		return fmt.Errorf("missing required discovery.name field")
+	if c.Resource == nil && c.Name == nil {
+		return fmt.Errorf("missing required discovery.resource field")
 	}
 
 	// make a copy of the keys map
@@ -123,13 +123,13 @@ func (c *Config) validateAndInjectDefaults(services []string, confKeys map[strin
 
 	c.service = service
 
-	decision := c.Decision
-
-	if decision == nil {
-		decision = c.Name
+	if c.Decision != nil {
+		c.query = fmt.Sprintf("%v.%v", ast.DefaultRootDocument, strings.Replace(strings.Trim(*c.Decision, "/"), "/", ".", -1))
+	} else if c.Name != nil {
+		c.query = fmt.Sprintf("%v.%v", ast.DefaultRootDocument, strings.Replace(strings.Trim(*c.Name, "/"), "/", ".", -1))
+	} else {
+		c.query = ast.DefaultRootDocument.String()
 	}
-
-	c.query = fmt.Sprintf("%v.%v", ast.DefaultRootDocument, strings.Replace(strings.Trim(*decision, "/"), "/", ".", -1))
 
 	return c.Config.ValidateAndInjectDefaults()
 }

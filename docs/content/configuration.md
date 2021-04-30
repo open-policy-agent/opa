@@ -87,8 +87,8 @@ services:
         token: "${BEARER_TOKEN}"
 
 discovery:
-  name: example
   resource: /configuration/example/discovery
+  decision: example
 ```
 The environment variables `BASE_URL` and `BEARER_TOKEN` will be substituted in when the config
 file is loaded by the OPA runtime.
@@ -718,13 +718,16 @@ included in the actual bundle gzipped tarball.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
+| `discovery.resource` | `string` | Yes | Resource path to use to download bundle from configured service. |
 | `discovery.service` | `string` | No | Name of the service to use to contact remote server. If omitted, the configuration must contain exactly one service. Discovery will default to this service. |
-| `discovery.name` | `string` | Yes | Name of the discovery configuration to download. |
-| `discovery.resource` | `string` | No (default: `/bundles/<name>`) | Resource path to use to download bundle from configured service. |
-| `discovery.prefix` | `string` | No (default: `bundles`) | Deprecated: Use `resource` instead. Path prefix to use to download configuration from remote server. |
-| `discovery.decision` | `string` | No (default: value of `discovery.name` configuration field) | Name of the OPA query that will be used to calculate the configuration |
+| `discovery.decision` | `string` | No | The path of the decision to evaluate in the discovery bundle. By default, OPA will evaluate `data` in the discovery bundle to produce the configuration. |
 | `discovery.polling.min_delay_seconds` | `int64` | No (default: `60`) | Minimum amount of time to wait between configuration downloads. |
 | `discovery.polling.max_delay_seconds` | `int64` | No (default: `120`) | Maximum amount of time to wait between configuration downloads. |
 | `discovery.signing.keyid` | `string` | No | Name of the key to use for bundle signature verification. |
 | `discovery.signing.scope` | `string` | No | Scope to use for bundle signature verification. |
 | `discovery.signing.exclude_files` | `array` | No | Files in the bundle to exclude during verification. |
+
+The following `discovery` configuration fields are supported but deprecated:
+
+| `discovery.prefix` | `string` | No (default: `bundles`) | Deprecated: Use `resource` instead. Path prefix to use to download configuration from remote server. |
+| `discovery.name` | `string` | No | Deprecated: Use `resource` instead. Name of the discovery configuration to download. If `discovery.name` is specified and `discovery.resource` is unset, the `discovery.decision` field will default to the `discovery.name` value. |
