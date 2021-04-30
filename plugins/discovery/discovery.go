@@ -90,10 +90,10 @@ func New(manager *plugins.Manager, opts ...func(*Discovery)) (*Discovery, error)
 	result.downloader = download.New(config.Config, manager.Client(config.service), config.path).WithCallback(result.oneShot).
 		WithBundleVerificationConfig(config.Signing)
 	result.status = &bundle.Status{
-		Name: *config.Name,
+		Name: Name,
 	}
 
-	result.logger = manager.Logger().WithFields(map[string]interface{}{"name": *config.Name, "plugin": Name})
+	result.logger = manager.Logger().WithFields(map[string]interface{}{"plugin": Name})
 
 	manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateNotReady})
 	return result, nil
