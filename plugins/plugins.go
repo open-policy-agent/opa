@@ -383,7 +383,7 @@ func (m *Manager) Register(name string, plugin Plugin) {
 		plugin: plugin,
 	})
 	if _, ok := m.pluginStatus[name]; !ok {
-		m.pluginStatus[name] = nil
+		m.pluginStatus[name] = &Status{State: StateNotReady}
 	}
 }
 
