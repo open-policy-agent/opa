@@ -16,7 +16,7 @@ import (
 
 func TestModuleJSONRoundTrip(t *testing.T) {
 
-	mod := MustParseModule(`package a.b.c
+	mod, err := ParseModuleWithOpts("test.rego", `package a.b.c
 
 import data.x.y as z
 import data.u.i
@@ -40,7 +40,15 @@ a = true { xs = {a: b | input.y[a] = "foo"; b = input.z["bar"]} }
 b = true { xs = {{"x": a[i].a} | a[i].n = "bob"; b[x]} }
 call_values { f(x) != g(x) }
 assigned := 1
-`)
+
+# METADATA
+# scope: rule
+metadata := 7
+`, ParserOptions{ProcessAnnotation: true})
+
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	bs, err := json.Marshal(mod)
 	if err != nil {
@@ -60,6 +68,10 @@ assigned := 1
 
 	if mod.Rules[3].Path().String() != "data.a.b.c.t" {
 		t.Fatal("expected path data.a.b.c.t for 4th rule in module but got:", mod.Rules[3].Path())
+	}
+
+	if len(roundtrip.Annotations) != 1 {
+		t.Fatal("expected exactly one annotation")
 	}
 }
 
@@ -512,6 +524,48 @@ func TestSomeDeclString(t *testing.T) {
 
 	if result != expected {
 		t.Fatalf("Expected %v but got %v", expected, result)
+	}
+}
+
+func TestAnnotationsString(t *testing.T) {
+	a := &Annotations{
+		Scope: "foo",
+		Schemas: []*SchemaAnnotation{
+			{
+				Path:   MustParseRef("data.bar"),
+				Schema: MustParseRef("schema.baz"),
+			},
+		},
+	}
+
+	// NOTE(tsandall): for now, annotations are represented as JSON objects
+	// which are a subset of YAML. We could improve this in the future.
+	exp := `{"scope":"foo","schemas":[{"path":[{"type":"var","value":"data"},{"type":"string","value":"bar"}],"schema":[{"type":"var","value":"schema"},{"type":"string","value":"baz"}]}]}`
+
+	if exp != a.String() {
+		t.Fatalf("expected %q but got %q", exp, a.String())
+	}
+}
+
+func TestModuleStringAnnotations(t *testing.T) {
+	module, err := ParseModuleWithOpts("test.rego", `package test
+
+# METADATA
+# scope: rule
+p := 7`, ParserOptions{ProcessAnnotation: true})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	exp := `package test
+
+# METADATA
+# {"scope":"rule"}
+p := 7 { true }`
+
+	if module.String() != exp {
+		t.Fatalf("expected %q but got %q", exp, module.String())
 	}
 }
 

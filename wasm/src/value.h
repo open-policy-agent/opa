@@ -20,8 +20,7 @@ extern "C" {
 #define OPA_BOOLEAN_INTERNED (9) // TODO(sr): make an "interned" bitmask?
 
 #define OPA_NUMBER_REPR_INT (1)
-#define OPA_NUMBER_REPR_FLOAT (2)
-#define OPA_NUMBER_REPR_REF (3)
+#define OPA_NUMBER_REPR_REF (2)
 
 typedef struct opa_value opa_value;
 
@@ -49,7 +48,6 @@ typedef struct
     unsigned char repr;
     union {
         long long i;
-        double f;
         opa_number_ref_t ref;
     } v;
 } opa_number_t;

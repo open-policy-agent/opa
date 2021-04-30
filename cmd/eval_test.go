@@ -15,6 +15,7 @@ import (
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/internal/presentation"
+	"github.com/open-policy-agent/opa/loader"
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/topdown"
 	"github.com/open-policy-agent/opa/util"
@@ -287,7 +288,7 @@ func testReadParamWithSchemaDir(t *testing.T, input string, query string, inputS
 		params.inputPath = filepath.Join(path, "input.json")
 		params.schemaPath = filepath.Join(path, "schemas")
 
-		schemaSet, err := readSchemaBytes(params)
+		schemaSet, err := loader.Schemas(params.schemaPath)
 		if err != nil {
 			err = fmt.Errorf("Unexpected error or undefined from evaluation: %v", err)
 			return
@@ -298,12 +299,12 @@ func testReadParamWithSchemaDir(t *testing.T, input string, query string, inputS
 			return
 		}
 
-		if _, ok := schemaSet.ByPath.Get(ast.MustParseRef("schema.input")); !ok {
+		if schemaSet.Get(ast.MustParseRef("schema.input")) == nil {
 			err = fmt.Errorf("Expected schema for input in schemaSet but got none")
 			return
 		}
 
-		if _, ok := schemaSet.ByPath.Get(ast.MustParseRef(`schema.kubernetes["data-schema"]`)); !ok {
+		if schemaSet.Get(ast.MustParseRef(`schema.kubernetes["data-schema"]`)) == nil {
 			err = fmt.Errorf("Expected schemas for data in schemaSet but got none")
 			return
 		}

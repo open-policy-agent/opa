@@ -50,7 +50,7 @@ standard GitHub fork workflow. See [OPA Dev Instructions](DEVELOPMENT.md)
 	```
 	git add .
 	git commit -s -m "Prepare v<version> release"
-	git push origin master
+	git push origin main
 	```
 
 1. Create a Pull Request for the release preparation commit.
@@ -59,7 +59,7 @@ standard GitHub fork workflow. See [OPA Dev Instructions](DEVELOPMENT.md)
 
     ```
     git fetch upstream
-    git tag v<semver> upstream/master
+    git tag v<semver> upstream/main
     ```
 
     > Note: Ensure that tag is pointing to the correct commit ID! It must be the merged release preparation commit.
@@ -83,7 +83,7 @@ standard GitHub fork workflow. See [OPA Dev Instructions](DEVELOPMENT.md)
 
 	```
 	git commit -a -s -m "Prepare v<next_semvar> development"
-	git push origin master
+	git push origin main
 	```
 
 1. Create a Pull Request for the development preparation commit.
@@ -144,7 +144,7 @@ git checkout release-0.14
 git reset --hard upstream/release-0.14
 ```
 
-Cherry pick the changes from master or other branches onto the bugfix branch:
+Cherry pick the changes from main or other branches onto the bugfix branch:
 
 ```bash
 git cherry-pick -x <commit-id>
@@ -176,12 +176,12 @@ git push origin release-0.14
 
 Open a Pull Request against the upstream release branch. Be careful to open the
 Pull Request against the correct upstream release branch. **DO NOT** open/merge
-the Pull Request into master or other release branches:
+the Pull Request into main or other release branches:
 
 Once the Pull Request has merged fetch the latest changes and tag the commit to
 prepare for publishing. Use the same instructions as defined above in normal
 release [publishing](#publishing) guide (being careful to tag the appropriate commit).
 
-Last step is to copy the CHANGELOG snippet and capabilities.json for the version to `master`. Create
+Last step is to copy the CHANGELOG snippet and capabilities.json for the version to `main`. Create
 a new PR with the version information added below the `Unreleased` section. Remove
 any `Unreleased` notes if they were included in the bugfix release.

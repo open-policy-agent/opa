@@ -57,7 +57,7 @@ with `make check`.
 
     ```
     git fetch upstream
-    git rebase upstream/master
+    git rebase upstream/main
     ```
 
 1. Develop your changes and regularly update your local branch against upstream.
@@ -96,7 +96,7 @@ Built-in functions may be upstreamed if they are generally useful and provide fu
 impractical to implement natively in Rego (e.g., CIDR arithmetic). Implementations should avoid thirdparty
 dependencies. If absolutely necessary, consider importing the code manually into the `internal` package.
 
-All built-in function implementations must include a test suite. See [test/cases/testdata/helloworld](https://github.com/open-policy-agent/opa/blob/master/test/cases/testdata/helloworld)
+All built-in function implementations must include a test suite. See [test/cases/testdata/helloworld](https://github.com/open-policy-agent/opa/blob/main/test/cases/testdata/helloworld)
 in this repository for an example of how to implement tests for your built-in functions.
 
 ## Benchmarks
@@ -107,7 +107,7 @@ benchmarking framework for all benchmarks. The benchmarks run on every pull
 request.
 
 To help catch performance regressions we also run a batch job that compares the
-benchmark results from the tip of master against the last major release. All of
+benchmark results from the tip of main against the last major release. All of
 the results are posted and can be viewed
 [here](https://opa-benchmark-results.s3.amazonaws.com/index.html).
 
@@ -187,4 +187,4 @@ Below is a list of workflows and links to their status:
 
 | Workflow | Description |
 |----------|-------------|
-| [![Nightly](https://github.com/open-policy-agent/opa/workflows/Nightly/badge.svg?branch=master)](https://github.com/open-policy-agent/opa/actions?query=workflow%3A"Nightly") | Runs once per day at 8:00 UTC. |
+| [![Nightly](https://github.com/open-policy-agent/opa/workflows/Nightly/badge.svg?branch=main)](https://github.com/open-policy-agent/opa/actions?query=workflow%3A"Nightly") | Runs once per day at 8:00 UTC. |

@@ -1,4 +1,20 @@
+# This file is used to generate the OPA ecosystem page: https://www.openpolicyagent.org/docs/latest/ecosystem/
+# For instructions on how to add an entry, see https://github.com/open-policy-agent/opa/tree/main/docs#integration-index
 integrations:
+  sphinx-rego:
+    title: Automatically document Rego policies
+    description: Sphinx extension that automatically documents Open Policy Agent Rego policies using meta properties.
+    software:
+      - sphinx-doc
+    code:
+      - https://github.com/zenitysec/sphinx-rego
+    inventors:
+      - zenity
+    category: tooling
+    labels:
+      category: tooling
+      layer: cicd
+
   kubernetes-validating-admission:
     title: Kubernetes Admission Control
     description: Kubernetes automates deployment, scaling, and management of containerized applications.  OPA provides fine-grained, context-aware authorization for which application component configuration.
@@ -494,7 +510,7 @@ integrations:
 
   springsecurity-api:
     title: Authorization for Java Spring Security
-    description: Spring Security provides a framework for securing Java applications.  This integration provides a simple implementation of an AccessDecisionVoter for Spring Security that uses OPA for making API authorization decisions.
+    description: Spring Security provides a framework for securing Java applications.  These integrations provide simple implementations for Spring Security that use OPA for making API authorization decisions.  They provide support for both traditional Spring Security (MVC), as well as an implementation for Spring Reactive (Web Flux).
     labels:
       layer: network
       category: application
@@ -504,11 +520,16 @@ integrations:
       - https://github.com/open-policy-agent/contrib/tree/master/spring_authz
       - https://github.com/Bisnode/opa-spring-security
       - https://github.com/build-security/opa-java-spring-client
+      - https://github.com/massenz/jwt-opa
+
     tutorials:
       - https://github.com/open-policy-agent/contrib/blob/master/spring_authz/README.md
+      - https://github.com/massenz/jwt-opa#web-server-demo-app
     inventors:
       - styra
       - build.security
+      - bisnode
+      - alertavert
 
   spinnaker-pipeline:
     title: Spinnaker Pipeline Policy Enforcment
@@ -899,6 +920,25 @@ integrations:
     blogs:
       - https://github.com/EliuX/flask-opa/tree/master/examples
 
+  opal:
+    title: OPAL (Open Policy Administration Layer)
+    description:  |
+      OPAL is an administration layer for Open Policy Agent (OPA), detecting changes in realtime to both policy and policy data and pushing live updates to your agents.
+      OPAL brings open-policy up to the speed needed by live applications. As your application state changes (whether it's via your APIs, DBs, git, S3 or 3rd-party SaaS services), OPAL will make sure your services are always in sync with the authorization data and policy they need (and only those they need).
+    labels:
+      category: updates
+      layer: application
+    inventors:
+      - authorizon
+    software:
+      - opal
+    code:
+      - https://github.com/authorizon/opal
+    tutorials:
+      - https://github.com/authorizon/opal/blob/master/docs/index.md
+    videos:
+      - https://www.youtube.com/watch?v=K1Zm2FPfrh8
+
 organizations:
   styra:
     name: Styra
@@ -1011,7 +1051,15 @@ organizations:
   fairwinds:
     name: Fairwinds
     link: https://fairwinds.com
-
+  authorizon:
+    name: authorizon
+    link: https://authorizon.com
+  alertavert:
+    name: AlertAVert.com
+    link: http://www.alertavert.com/
+  zenity:
+    name: Zenity
+    link: http://www.zenity.io
 software:
   kubernetes:
     name: Kubernetes
@@ -1127,3 +1175,9 @@ software:
   flask:
     name: Flask
     link: https://flask.palletsprojects.com/
+  opal:
+    name: OPAL
+    link: https://opal.ac
+  sphinx-doc:
+    name: Sphinx
+    link: https://www.sphinx-doc.org

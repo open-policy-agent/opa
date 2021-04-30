@@ -951,7 +951,8 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, urlPath str
 		return
 	}
 
-	writer.JSON(w, 200, rs[0].Expressions[0].Value, false)
+	pretty := getBoolParam(r.URL, types.ParamPrettyV1, true)
+	writer.JSON(w, 200, rs[0].Expressions[0].Value, pretty)
 }
 
 func (s *Server) getCachedPreparedEvalQuery(key string, m metrics.Metrics) (*rego.PreparedEvalQuery, bool) {

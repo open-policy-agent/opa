@@ -135,6 +135,18 @@ func (i *Instance) GetExport(name string) *Extern {
 	return i.exports[name]
 }
 
+// GetFunc attemps to find a function on this instance by `name`.
+//
+// May return `nil` if this instance has no function named `name`,
+// it is not a function, etc.
+func (i *Instance) GetFunc(name string) *Func {
+	f := i.GetExport(name)
+	if f == nil {
+		return nil
+	}
+	return f.Func()
+}
+
 func (i *Instance) populateExports() {
 	exports := i.Exports()
 	for j, ty := range i.Type().Exports() {

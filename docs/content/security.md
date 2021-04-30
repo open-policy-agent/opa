@@ -535,7 +535,7 @@ few things to keep in mind:
 * Do not pass credentials as command-line arguments.
 * Run OPA as a non-root user ideally inside it's own account.
 
-With OPA configured to fetch policies using the [Bundles](../management/#bundles) feature
+With OPA configured to fetch policies using the [Bundles](../management-bundles) feature
 you can configure OPA with a restrictive authorization policy that only grants
 clients access to the default policy decision, i.e., `POST /`:
 

@@ -51,6 +51,22 @@ cases:
   - |
     package bar
     p = 7
-  note: 'negation/neg: ref with variable and virtual doc'
+  note: 'negation/neg: ref with variable (hit) and virtual doc (miss))'
+  query: data.foo.p = x
+  want_result: []
+- data:
+    bar:
+      q: 8
+  modules:
+  - |
+    package foo
+    p {
+      k := "q"
+      not data.bar[k]
+    }
+  - |
+    package bar
+    p = 7
+  note: 'negation/neg: ref with variable (miss) and virtual doc (hit)'
   query: data.foo.p = x
   want_result: []

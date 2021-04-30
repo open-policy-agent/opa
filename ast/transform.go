@@ -59,6 +59,15 @@ func Transform(t Transformer, x interface{}) (interface{}, error) {
 				return nil, fmt.Errorf("illegal transform: %T != %T", y.Rules[i], rule)
 			}
 		}
+		for i := range y.Annotations {
+			a, err := Transform(t, y.Annotations[i])
+			if err != nil {
+				return nil, err
+			}
+			if y.Annotations[i], ok = a.(*Annotations); !ok {
+				return nil, fmt.Errorf("illegal transform: %T != %T", y.Annotations[i], a)
+			}
+		}
 		for i := range y.Comments {
 			comment, err := Transform(t, y.Comments[i])
 			if err != nil {

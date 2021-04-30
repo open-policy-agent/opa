@@ -1,5 +1,5 @@
 {{ $isDoc := eq .Section "docs" }}
-{{ $isHome       := .IsHome }}
+{{ $isHome := .IsHome }}
 {{ if $isHome }}
 {{/*  The homepage layouts/index.html template defines its own <head> content.  */}}
 {{ block "main" . }}

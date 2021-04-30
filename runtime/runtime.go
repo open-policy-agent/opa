@@ -305,6 +305,10 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 		"diagnostic-addrs": *rt.Params.DiagnosticAddrs,
 	}).Info("Initializing server.")
 
+	if rt.Params.Authorization == server.AuthorizationOff && rt.Params.Authentication == server.AuthenticationToken {
+		logrus.Error("Token authentication enabled without authorization. Authentication will be ineffective. See https://www.openpolicyagent.org/docs/latest/security/#authentication-and-authorization for more information.")
+	}
+
 	// NOTE(tsandall): at some point, hopefully we can remove this because the
 	// Go runtime will just do the right thing. Until then, try to set
 	// GOMAXPROCS based on the CPU quota applied to the process.

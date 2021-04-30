@@ -4,13 +4,12 @@ go 1.12
 
 require (
 	github.com/OneOfOne/xxhash v1.2.8
-	github.com/bytecodealliance/wasmtime-go v0.25.0
+	github.com/bytecodealliance/wasmtime-go v0.26.0
 	github.com/cpuguy83/go-md2man v1.0.10 // indirect
 	github.com/fortytw2/leaktest v1.3.0
 	github.com/fsnotify/fsnotify v1.4.9
 	github.com/ghodss/yaml v1.0.0
 	github.com/gobwas/glob v0.2.3
-	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/protobuf v1.4.3 // indirect
 	github.com/gorilla/mux v1.7.3
 	github.com/mattn/go-runewidth v0.0.9 // indirect
@@ -31,8 +30,7 @@ require (
 	go.uber.org/automaxprocs v1.4.0
 	golang.org/x/lint v0.0.0-20201208152925-83fdc39ff7b5
 	golang.org/x/net v0.0.0-20201021035429-f5854403a974
-	golang.org/x/tools v0.1.0
 	golang.org/x/time v0.0.0-20210220033141-f8bda1e9f3ba
-	golang.org/x/text v0.3.3 // indirect
+	golang.org/x/tools v0.1.0
 	gopkg.in/yaml.v2 v2.3.0
 )

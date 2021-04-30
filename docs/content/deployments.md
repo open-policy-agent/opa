@@ -118,7 +118,7 @@ recommend using an explicit version tag.
 Development builds are also available on Docker Hub. For each version the
 `{version}-dev` tag refers the most recent development build for that version.
 
-The `edge` tag refers to the current `master` branch of OPA. Useful for testing
+The `edge` tag refers to the current `main` branch of OPA. Useful for testing
 unreleased features. It is not recommended to use `edge` for production deployments.
 
 The version information is contained in the OPA executable itself. You can check
@@ -350,7 +350,7 @@ The relevance of the discussion above depends on how you have chosen to deploy p
 
 If you deploy policies to OPA on disk (e.g. volume mounting into the OPA container on Kubernetes), then OPA will only start answering policy queries once all the policies are successfully loaded.  In this case, it is impossible for OPA to answer policy queries before it has loaded policy, so the discussion above is a non-issue.
 
-On the other hand, if you use the [Bundle service](../management/#bundles) OPA will start up without any policies and immediately start downloading a bundle.  But even before the bundle has successfully downloaded, OPA will answer policy queries if asked (which is in every case except the bootstrap case the right thing to do).  For this reason, OPA provides a `/health` [API](../rest-api/#health-api) that verifies that the server is operational and optionally that a bundle has been successfully activated.  As long as no policy queries are routed to OPA until the `/health` API verifies that OPA is operational.  The recommendation is to ensure the `/health` API indicates that OPA is operational before routing policy queries to it.
+On the other hand, if you use the [Bundle service](../management-bundles) OPA will start up without any policies and immediately start downloading a bundle.  But even before the bundle has successfully downloaded, OPA will answer policy queries if asked (which is in every case except the bootstrap case the right thing to do).  For this reason, OPA provides a `/health` [API](../rest-api/#health-api) that verifies that the server is operational and optionally that a bundle has been successfully activated.  As long as no policy queries are routed to OPA until the `/health` API verifies that OPA is operational.  The recommendation is to ensure the `/health` API indicates that OPA is operational before routing policy queries to it.
 
 Finally, you might choose to push policies into OPA via its [REST API](../rest-api/#create-or-update-a-policy).  In this case, there is no way for OPA to know whether it has a complete policy set, and so the decision as to when to route policy queries to OPA must be handled by whatever software is pushing policies into OPA.
 
@@ -364,7 +364,3 @@ The mechanisms discussed above ensure that OPA is not asked to answer policy que
 The choices are more varied if the policy is not making an allow/deny decision, but often there is some analog to fail-open and fail-closed.  The key observation is that this logic is entirely the responsibility of the software asking OPA for a policy decision.  Despite the fact that what to do when OPA is unavailable is technically a policy question, it is one that we cannot rely on OPA to answer.  The right logic can depend on many factors including the likelihood of OPA not making a decision and the cost of allowing or denying a request incorrectly.
 
 In Kubernetes admission control, for example, the Kubernetes admin can choose whether to fail-open or fail-closed, leaving the decision up to the user.  And often this is the correct way to build an integration because it is unlikely that there is a universal solution.  For example, running an OPA-integration in a development environment might require fail-open, but running exactly the same integration in a production environment might require fail-closed.
-
-
-
-

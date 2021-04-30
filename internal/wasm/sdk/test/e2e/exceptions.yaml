@@ -1,3 +1,1 @@
 # Exception Format is <test name>: <reason>
-"jsonpatch/set": "unexpected panic or evaluation error - https://github.com/open-policy-agent/opa/issues/2949"
-"jsonpatch/json_patch_tests": "unexpected panic or evaluation error - https://github.com/open-policy-agent/opa/issues/2949"

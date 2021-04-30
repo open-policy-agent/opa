@@ -440,6 +440,15 @@ cases:
   - note: regex.is_valid built-in
     query: 'regex.match("foo.*bar", "fooxbar", x)'
     want_result: [{'x': true}]
-  - note: regex.find_all_string_submatch_n built-in
-    query: 'regex.find_all_string_submatch_n("a(x*)b(y|z)c", "-axxxbyc-", -1, x)'
-    want_result: [{'x': [["axxxbyc", "xxx", "y"]]}]
+  - note: regex.find_all_string_submatch_n built-in, all matches
+    query: 'regex.find_all_string_submatch_n("foo(.?)", "seefood fool foo", -1, x)'
+    want_result: [{'x': [["food","d"],["fool","l"],["foo", ""]]}]
+  - note: regex.find_all_string_submatch_n built-in, one match only
+    query: 'regex.find_all_string_submatch_n("foo(.?)", "seefood fool foo", 1, x)'
+    want_result: [{'x': [["food","d"]]}]
+  - note: regex.find_all_string_submatch_n built-in, two matches only
+    query: 'regex.find_all_string_submatch_n("foo(.?)", "seefood fool foo", 2, x)'
+    want_result: [{'x': [["food","d"],["fool","l"]]}]
+  - note: regex.find_all_string_submatch_n built-in, more matches than there are
+    query: 'regex.find_all_string_submatch_n("foo(.?)", "seefood fool foo", 10, x)'
+    want_result: [{'x': [["food","d"],["fool","l"],["foo", ""]]}]

@@ -69,19 +69,6 @@ mpd_t *opa_number_to_bf(opa_value *v)
 
     switch (n->repr)
     {
-    case OPA_NUMBER_REPR_FLOAT:
-        {
-            char buf[32]; // PRINTF_FTOA_BUFFER_SIZE
-            if (snprintf(buf, sizeof(buf), "%f", n->v.f) == sizeof(buf))
-            {
-                opa_abort("opa_number_to_bf: overflow");
-            }
-
-            r = mpd_qnew();
-            mpd_qset_string(r, buf, mpd_default_ctx(), &status);
-        }
-        break;
-
     case OPA_NUMBER_REPR_REF:
         r = mpd_qnew();
 

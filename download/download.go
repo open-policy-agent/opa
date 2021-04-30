@@ -189,7 +189,11 @@ func (d *Downloader) download(ctx context.Context, m metrics.Metrics) (*bundle.B
 		return nil, "", nil
 
 	case http.StatusNotModified:
-		return nil, resp.Header.Get("ETag"), nil
+		etag := resp.Header.Get("ETag")
+		if etag == "" {
+			etag = d.etag
+		}
+		return nil, etag, nil
 	case http.StatusNotFound:
 		return nil, "", fmt.Errorf("server replied with not found")
 	case http.StatusUnauthorized:

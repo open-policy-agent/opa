@@ -272,6 +272,8 @@ private key is encrypted.
 | `services[_].credentials.client_tls.cert` | `string` | Yes | The path to the client certificate to authenticate with. |
 | `services[_].credentials.client_tls.private_key` | `string` | Yes | The path to the private key of the client certificate. |
 | `services[_].credentials.client_tls.private_key_passphrase` | `string` | No | The passphrase to use for the private key. |
+| `services[_].credentials.client_tls.ca_cert` | `string` | No | The path to the root CA certificate. |
+| `services[_].credentials.client_tls.system_ca_required` | `bool` | No | Require system certificate appended with root CA certificate. |
 
 #### OAuth2 Client Credentials
 
@@ -297,6 +299,7 @@ Following successful authentication at the token endpoint the returned token wil
 | `services[_].credentials.oauth2.grant_type` | `string` | No | Defaults to `client_credentials`. |
 | `services[_].credentials.oauth2.client_id` | `string` | No | The client ID to use for authentication. |
 | `services[_].credentials.oauth2.signing_key` | `string` | Yes | Reference to private key used for signing the JWT. |
+| `services[_].credentials.oauth2.thumbprint` | `string` | No | Certificate thumbprint to use for x5t header generation. |
 | `services[_].credentials.oauth2.additional_claims` | `map` | No | Map of claims to include in the JWT (see notes below) |
 | `services[_].credentials.oauth2.include_jti_claim` | `bool` | No | Include a uniquely generated `jti` claim in any issued JWT |
 | `services[_].credentials.oauth2.scopes` | `[]string` | No | Optional list of scopes to request for the token. |
@@ -313,6 +316,7 @@ services:
     url: ${BUNDLE_SERVICE_URL}
     credentials:
       oauth2:
+        token_url: ${TOKEN_URL}
         grant_type: client_credentials
         client_id: opa-client
         signing_key: jwt_signing_key # references the key in `keys` below
@@ -355,14 +359,15 @@ Two claims will always be included in the issued JWT: `iat` and `exp`. Any other
 ##### Example
 
 Using a [Google Cloud Storage](https://cloud.google.com/storage/) bucket as a bundle service backend from outside the
-cloud account (for access from inside the account, see the [GCP Metadata Token](#GCP Metadata Token) section).
+cloud account (for access from inside the account, see the [GCP Metadata Token](#gcp-metadata-token) section).
 
 ```yaml
 services:
   gcp:
-    url: ${BUNDLE_SERVICE_URL}
+    url: https://storage.googleapis.com/storage/v1/b/${BUCKET_NAME}/o
     credentials:
       oauth2:
+        token_url: https://oauth2.googleapis.com/token
         grant_type: jwt_bearer
         signing_key: jwt_signing_key # references the key in `keys` below
         scopes:
@@ -374,7 +379,7 @@ services:
 bundles:
   authz:
     service: gcp
-    resource: bundles/http/example/authz.tar.gz
+    resource: 'bundles/http/example/authz.tar.gz?alt=media'
 
 keys:
   jwt_signing_key:
@@ -691,6 +696,7 @@ included in the actual bundle gzipped tarball.
 | `status.service` | `string` | Yes | Name of service to use to contact remote server. |
 | `status.partition_name` | `string` | No | Path segment to include in status updates. |
 | `status.console` | `boolean` | No (default: `false`) | Log the status updates locally to the console. When enabled alongside a remote status update API the `service` must be configured, the default `service` selection will be disabled. |
+| `status.plugin` | `string` | No | Use the named plugin for status updates. If this field exists, the other configuration fields are not required. |
 
 
 ### Decision Logs

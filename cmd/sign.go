@@ -32,6 +32,7 @@ type signCmdParams struct {
 	claimsFile     string
 	outputFilePath string
 	bundleMode     bool
+	plugin         string
 }
 
 const (
@@ -150,6 +151,7 @@ https://www.openpolicyagent.org/docs/latest/management/#signature-format.
 	addSigningKeyFlag(signCommand.Flags(), &cmdParams.key)
 	addClaimsFileFlag(signCommand.Flags(), &cmdParams.claimsFile)
 	addSigningAlgFlag(signCommand.Flags(), &cmdParams.algorithm, defaultTokenSigningAlg)
+	addSigningPluginFlag(signCommand.Flags(), &cmdParams.plugin)
 
 	signCommand.Flags().StringVarP(&cmdParams.outputFilePath, "output-file-path", "o", ".", "set the location for the .signatures.json file")
 
@@ -172,8 +174,9 @@ func doSign(args []string, params signCmdParams) error {
 		return err
 	}
 
-	// generate the signed token
-	token, err := bundle.GenerateSignedToken(files, buildSigningConfig(params.key, params.algorithm, params.claimsFile), "")
+	signingConfig := buildSigningConfig(params.key, params.algorithm, params.claimsFile, params.plugin)
+
+	token, err := bundle.GenerateSignedToken(files, signingConfig, "")
 	if err != nil {
 		return err
 	}

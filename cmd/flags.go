@@ -75,7 +75,7 @@ func addBenchmemFlag(fs *pflag.FlagSet, benchMem *bool, value bool) {
 }
 
 func addCountFlag(fs *pflag.FlagSet, count *int, cmdType string) {
-	fs.IntVar(count, "count", 1, fmt.Sprintf("number of times to repeat each %s (default 1)", cmdType))
+	fs.IntVar(count, "count", 1, fmt.Sprintf("number of times to repeat each %s", cmdType))
 }
 
 func addMaxErrorsFlag(fs *pflag.FlagSet, errLimit *int) {
@@ -96,6 +96,10 @@ func addClaimsFileFlag(fs *pflag.FlagSet, file *string) {
 
 func addSigningKeyFlag(fs *pflag.FlagSet, key *string) {
 	fs.StringVarP(key, "signing-key", "", "", "set the secret (HMAC) or path of the PEM file containing the private key (RSA and ECDSA)")
+}
+
+func addSigningPluginFlag(fs *pflag.FlagSet, plugin *string) {
+	fs.StringVarP(plugin, "signing-plugin", "", "", "name of the plugin to use for signing/verification (see https://openpolicyagent.org/docs/latest/management/#signature-plugin")
 }
 
 func addVerificationKeyFlag(fs *pflag.FlagSet, key *string) {

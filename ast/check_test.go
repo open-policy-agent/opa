@@ -286,7 +286,7 @@ func TestCheckInference(t *testing.T) {
 		t.Run(tc.note, func(t *testing.T) {
 			body := MustParseBody(tc.query)
 			checker := newTypeChecker()
-			env := checker.checkLanguageBuiltins(nil, BuiltinMap)
+			env := checker.Env(BuiltinMap)
 			env, err := checker.CheckBody(env, body)
 			if len(err) != 0 {
 				t.Fatalf("Unexpected error: %v", err)
@@ -528,7 +528,7 @@ func TestCheckErrorSuppression(t *testing.T) {
 
 	query = `_ = [true | count(1)]`
 
-	_, errs = newTypeChecker().CheckBody(newTypeChecker().checkLanguageBuiltins(nil, BuiltinMap), MustParseBody(query))
+	_, errs = newTypeChecker().CheckBody(newTypeChecker().Env(BuiltinMap), MustParseBody(query))
 	if len(errs) != 1 {
 		t.Fatalf("Expected exactly one error but got: %v", errs)
 	}
@@ -557,7 +557,7 @@ func TestCheckBadCardinality(t *testing.T) {
 	for _, test := range tests {
 		body := MustParseBody(test.body)
 		tc := newTypeChecker()
-		env := tc.checkLanguageBuiltins(nil, BuiltinMap)
+		env := tc.Env(BuiltinMap)
 		_, err := tc.CheckBody(env, body)
 		if len(err) != 1 || err[0].Code != TypeErr {
 			t.Fatalf("Expected 1 type error from %v but got: %v", body, err)
@@ -965,7 +965,7 @@ func TestFunctionTypeInferenceUnappliedWithObjectVarKey(t *testing.T) {
 		f(x) = y { y = {x: 1} }
 	`)
 
-	env, err := newTypeChecker().CheckTypes(newTypeChecker().checkLanguageBuiltins(nil, BuiltinMap), []util.T{
+	env, err := newTypeChecker().CheckTypes(newTypeChecker().Env(BuiltinMap), []util.T{
 		module.Rules[0],
 	})
 
@@ -1208,7 +1208,7 @@ func newTestEnv(rs []string) *TypeEnv {
 		}
 	}
 
-	env, err := newTypeChecker().CheckTypes(newTypeChecker().checkLanguageBuiltins(nil, BuiltinMap), elems)
+	env, err := newTypeChecker().CheckTypes(newTypeChecker().Env(BuiltinMap), elems)
 	if len(err) > 0 {
 		panic(err)
 	}
@@ -1369,14 +1369,11 @@ const dataSchema = `{
 
 func TestCheckAnnotationRules(t *testing.T) {
 
-	var ischema interface{}
-	_ = util.Unmarshal([]byte(inputSchema), &ischema)
-
-	var ischema2 interface{}
-	_ = util.Unmarshal([]byte(inputSchema2), &ischema2)
-
-	var dschema interface{}
-	_ = util.Unmarshal([]byte(dataSchema), &dschema)
+	ischema := util.MustUnmarshalJSON([]byte(inputSchema))
+	ischema2 := util.MustUnmarshalJSON([]byte(inputSchema2))
+	dschema := util.MustUnmarshalJSON([]byte(dataSchema))
+	numberSchema := util.MustUnmarshalJSON([]byte(`{"type": "number"}`))
+	stringSchema := util.MustUnmarshalJSON([]byte(`{"type": "string"}`))
 
 	module1 := `
 package policy
@@ -1445,58 +1442,7 @@ default allow = false
 # METADATA
 # scope: rule
 # schemas:
-#   - input: schema["badpath"]
-whocan[user] {
-		access = acl[user]
-		access[_] == input.operation
-}`
-
-	module5 := `
-package policy
-
-import data.acl
-import input
-
-default allow = false
-
-# METADATA
-# scope: rule
-# schemas:
-#   - badref: schema["whocan-input-schema"]
-whocan[user] {
-		access = acl[user]
-		access[_] == input.operation
-}`
-
-	module6 := `
-package policy
-
-import data.acl
-import input
-
-default allow = false
-
-# METADATA
-# scope: rule
-# schemas:
-#   - data/acl: schema/acl-schema
-whocan[user] {
-		access = acl[user]
-		access[_] == input.operation
-}`
-
-	module7 := `
-package policy
-
-import data.acl
-import input
-
-default allow = false
-
-# METADATA
-# scope: rule
-# schemas:
-#   - input= schema["whocan-input-schema"]
+#   - input: schema.missing
 whocan[user] {
 		access = acl[user]
 		access[_] == input.operation
@@ -1808,63 +1754,179 @@ whocan[user] {
 }`
 
 	schemaSet := NewSchemaSet()
-	schemaSet.ByPath.Put(MustParseRef("schema.input"), ischema)
-	schemaSet.ByPath.Put(MustParseRef(`schema["whocan-input-schema"]`), ischema2)
-	schemaSet.ByPath.Put(MustParseRef(`schema["acl-schema"]`), dschema)
+	schemaSet.Put(MustParseRef("schema.number"), numberSchema)
+	schemaSet.Put(MustParseRef("schema.string"), stringSchema)
+	schemaSet.Put(MustParseRef("schema.input"), ischema)
+	schemaSet.Put(MustParseRef(`schema["whocan-input-schema"]`), ischema2)
+	schemaSet.Put(MustParseRef(`schema["acl-schema"]`), dschema)
 
-	tests := map[string]struct {
-		module    string
-		schemaSet *SchemaSet
-		err       string
+	tests := []struct {
+		note   string
+		module string
+		err    string
 	}{
-		"data and input annotations":                                                      {module: module1, schemaSet: schemaSet},
-		"correct data override":                                                           {module: module2, schemaSet: schemaSet},
-		"incorrect data override":                                                         {module: module3, schemaSet: schemaSet, err: "undefined ref: input.user"},
-		"schema not exist in annotation path":                                             {module: module4, schemaSet: schemaSet, err: "schema does not exist for given path in annotation"},
-		"non ref in annotation":                                                           {module: module5, schemaSet: schemaSet, err: "expected ref but got"},
-		"Ill-structured annotation with bad path":                                         {module: module6, schemaSet: schemaSet, err: "schema is not well formed in annotation"},
-		"Ill-structured (invalid) annotation":                                             {module: module7, schemaSet: schemaSet, err: "unable to unmarshall the metadata yaml in comment"},
-		"empty schema set":                                                                {module: module1, schemaSet: nil, err: "schemas need to be supplied for the annotation"},
-		"overriding ref with length greater than one and not existing":                    {module: module8, schemaSet: schemaSet, err: "undefined ref: input.apple.banana"},
-		"overriding ref with length greater than one and existing prefix":                 {module: module9, schemaSet: schemaSet},
-		"overriding ref with length greater than one and existing prefix with type error": {module: module10, schemaSet: schemaSet, err: "undefined ref: input.apple.orange.banana.fruit"},
-		"overriding ref with length greater than one and existing ref":                    {module: module11, schemaSet: schemaSet, err: "undefined ref: input.apple.orange.user"},
-		"overriding ref of size one":                                                      {module: module12, schemaSet: schemaSet, err: "undefined ref: input.user"},
-		"overriding annotation written with brackets":                                     {module: module13, schemaSet: schemaSet, err: "undefined ref: input.apple.orange.fruit"},
-		"overriding strict":                                                               {module: module14, schemaSet: schemaSet, err: "undefined ref: input.request.object.spec.typo"},
-		"data annotation but no input schema":                                             {module: module15, schemaSet: schemaSet},
-		"data schema annotation does not overly restrict data expression":                 {module: module16, schemaSet: schemaSet},
-		"correct defer annotation on another rule has no effect base case":                {module: module17, schemaSet: schemaSet},
-		"correct defer annotation on another rule has no effect":                          {module: module18, schemaSet: schemaSet},
-		"overriding ref with data prefix":                                                 {module: module19, schemaSet: schemaSet, err: "data.acl.foo.blah"},
-		"data annotation type error":                                                      {module: module20, schemaSet: schemaSet, err: "data.acl.foo"},
-		"more than one rule with metadata":                                                {module: module21, schemaSet: schemaSet},
-		"more than one rule with metadata with type error":                                {module: module22, schemaSet: schemaSet, err: "undefined ref"},
+		{note: "data and input annotations", module: module1},
+		{note: "correct data override", module: module2},
+		{note: "incorrect data override", module: module3, err: "undefined ref: input.user"},
+		{note: "missing schema", module: module4, err: "undefined schema: schema.missing"},
+		{note: "overriding ref with length greater than one and not existing", module: module8, err: "undefined ref: input.apple.banana"},
+		{note: "overriding ref with length greater than one and existing prefix", module: module9},
+		{note: "overriding ref with length greater than one and existing prefix with type error", module: module10, err: "undefined ref: input.apple.orange.banana.fruit"},
+		{note: "overriding ref with length greater than one and existing ref", module: module11, err: "undefined ref: input.apple.orange.user"},
+		{note: "overriding ref of size one", module: module12, err: "undefined ref: input.user"},
+		{note: "overriding annotation written with brackets", module: module13, err: "undefined ref: input.apple.orange.fruit"},
+		{note: "overriding strict", module: module14, err: "undefined ref: input.request.object.spec.typo"},
+		{note: "data annotation but no input schema", module: module15},
+		{note: "data schema annotation does not overly restrict data expression", module: module16},
+		{note: "correct defer annotation on another rule has no effect base case", module: module17},
+		{note: "correct defer annotation on another rule has no effect", module: module18},
+		{note: "overriding ref with data prefix", module: module19, err: "data.acl.foo.blah"},
+		{note: "data annotation type error", module: module20, err: "data.acl.foo"},
+		{note: "more than one rule with metadata", module: module21},
+		{note: "more than one rule with metadata with type error", module: module22, err: "undefined ref"},
+		{note: "document scope", err: "test.rego:8: rego_type_error: match error", module: `package test
+# METADATA
+# scope: document
+# schemas:
+# - input.foo: schema.number
+p { input.foo = 7 }
+
+p { input.foo = [] }`},
+
+		{note: "rule scope overrides document scope", module: `package test
+
+# METADATA
+# scope: document
+# schemas:
+# - input.foo: schema.number
+p { input.foo = 7 }
+
+# METADATA
+# scope: rule
+# schemas:
+# - input.foo: schema.string
+p { input.foo = "str" }`},
+
+		{note: "rule scope merges with document scope", err: "test.rego:15: rego_type_error: match error", module: `package test
+
+# METADATA
+# scope: document
+# schemas:
+# - input.bar: schema.number
+p { input.bar = 7 }
+
+# METADATA
+# scope: rule
+# schemas:
+# - input.foo: schema.string
+p {
+	input.foo = "str"
+	input.bar = "str"
+}`},
+
+		{note: "document scope conflict", err: "test.rego:9: rego_type_error: document annotation redeclared: test.rego:3", module: `package test
+
+# METADATA
+# scope: document
+# schemas:
+# - input.foo: schema.number
+p { input.foo = 7 }
+
+# METADATA
+# scope: document
+# schemas:
+# - input.foo: schema.string
+p { input.foo = "str" }`},
+
+		{note: "subpackages scope", err: "test.rego:7: rego_type_error: match error", module: `# METADATA
+# scope: subpackages
+# schemas:
+# - input: schema.number
+package test
+
+p { input = "str" }`},
+
+		{note: "document scope overrides subpackages scope", module: `# METADATA
+# scope: subpackages
+# schemas:
+# - input: schema.number
+package test
+
+# METADATA
+# scope: document
+# schemas:
+# - input: schema.string
+p { input = "str" }`},
+
+		{note: "document scope overrides subpackages scope and finds error", err: "test.rego:11: rego_type_error: match error", module: `# METADATA
+# scope: subpackages
+# schemas:
+# - input: schema.string
+package test
+
+# METADATA
+# scope: rule
+# schemas:
+# - input: schema.number
+p { input = "str" }`},
+
+		{note: "package scope", err: "test.rego:7: rego_type_error: match error", module: `# METADATA
+# scope: package
+# schemas:
+# - input: schema.string
+package test
+
+p { input = 7 }`},
+
+		{note: "rule scope overrides package scope", module: `# METADATA
+# scope: package
+# schemas:
+# - input: schema.string
+package test
+
+# METADATA
+# scope: rule
+# schemas:
+# - input: schema.number
+p { input = 7 }`},
+
+		{note: "inline definition", err: "test.rego:7: rego_type_error: match error", module: `package test
+
+# METADATA
+# scope: rule
+# schemas:
+# - input: {"type": "string"}
+p { input = 7 }`},
+		{note: "document scope is unordered", err: "test.rego:3: rego_type_error: match error", module: `package test
+
+p { input = 7 }
+
+# METADATA
+# scope: document
+# schemas:
+# - input: schema.string
+p { input = "foo" }`},
 	}
 
-	for name, tc := range tests {
-		t.Run(name, func(t *testing.T) {
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
 			mod, err := ParseModuleWithOpts("test.rego", tc.module, ParserOptions{
 				ProcessAnnotation: true,
 			})
 			if err != nil {
-				if !strings.Contains(err.Error(), tc.err) {
-					t.Fatalf("Unexpected parse module error when processing annotations: %v", err)
-				}
-				return
+				t.Fatal(err)
 			}
 
 			var elems []util.T
 			for _, rule := range mod.Rules {
 				elems = append(elems, rule)
 				for next := rule.Else; next != nil; next = next.Else {
-					next.Module = mod
 					elems = append(elems, next)
 				}
 			}
 
-			oldTypeEnv := newTypeChecker().checkLanguageBuiltins(nil, BuiltinMap).WithSchemas(tc.schemaSet)
-			typeenv, errors := newTypeChecker().CheckTypes(oldTypeEnv, elems)
+			oldTypeEnv := newTypeChecker().WithSchemaSet(schemaSet).Env(BuiltinMap)
+			typeenv, errors := newTypeChecker().WithSchemaSet(schemaSet).CheckTypes(oldTypeEnv, elems)
 			if len(errors) > 0 {
 				for _, e := range errors {
 					if tc.err == "" || !strings.Contains(e.Error(), tc.err) {
@@ -1873,7 +1935,7 @@ whocan[user] {
 				}
 				return
 			} else if tc.err != "" {
-				t.Fatalf("Expected err: %v but no error from check types", tc.err)
+				t.Fatalf("Expected error %q but got success", tc.err)
 			}
 
 			if oldTypeEnv.tree.children != nil && typeenv.next.tree.children != nil && (typeenv.next.tree.children.Len() != oldTypeEnv.tree.children.Len()) {
@@ -1882,4 +1944,80 @@ whocan[user] {
 
 		})
 	}
+}
+
+func TestCheckAnnotationInference(t *testing.T) {
+
+	tests := []struct {
+		note    string
+		modules map[string]string
+		schemas map[string]string
+		exp     map[string]types.Type
+	}{
+		{
+			note: "rule scope",
+			modules: map[string]string{
+				"test.rego": `
+package test
+
+# METADATA
+# scope: rule
+# schemas:
+# - input: schema.foo
+p = x { input = x }
+
+q = p`,
+			},
+			schemas: map[string]string{
+				"schema.foo": `{"type": "number"}`,
+			},
+			exp: map[string]types.Type{
+				"data.test.p": types.N,
+				"data.test.q": types.N,
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+
+			modules := map[string]*Module{}
+			for k, v := range tc.modules {
+				var err error
+				modules[k], err = ParseModuleWithOpts(k, v, ParserOptions{ProcessAnnotation: true})
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				ss := NewSchemaSet()
+				for k, v := range tc.schemas {
+
+					ref := MustParseRef(k)
+					var schema interface{}
+					err = util.Unmarshal([]byte(v), &schema)
+					if err != nil {
+						t.Fatal(err)
+					}
+
+					ss.Put(ref, schema)
+				}
+
+				compiler := NewCompiler().WithSchemas(ss)
+				compiler.Compile(modules)
+				if compiler.Failed() {
+					t.Fatal("unexpected error:", compiler.Errors)
+				}
+
+				for k, v := range tc.exp {
+					ref := MustParseRef(k)
+					result := compiler.TypeEnv.Get(ref)
+					if types.Compare(result, v) != 0 {
+						t.Errorf("expected %v => %v but got %v", ref, v, result)
+					}
+				}
+			}
+
+		})
+	}
+
 }

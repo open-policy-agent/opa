@@ -216,6 +216,10 @@ func TestReadWithSignatures(t *testing.T) {
 
 	signedTokenHS256 := `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImZvbyJ9.eyJmaWxlcyI6W3sibmFtZSI6Ii5tYW5pZmVzdCIsImhhc2giOiI1MDdhMmMzOGExNDQxZGI1OGQyY2I4Nzk4MmM0MmFhOTFhNDM0MmVmNDIyYTZiNTQyZWRkZWJlZWY2ZjA0MTJmIiwiYWxnb3JpdGhtIjoiU0hBLTI1NiJ9LHsibmFtZSI6ImEvYi9jL2RhdGEuanNvbiIsImhhc2giOiI0MmNmZTY3NjhiNTdiYjVmNzUwM2MxNjVjMjhkZDA3YWM1YjgxMzU1NGViYzg1MGYyY2MzNTg0M2U3MTM3YjFkIiwiYWxnb3JpdGhtIjoiU0hBLTI1NiJ9LHsibmFtZSI6Imh0dHAvcG9saWN5L3BvbGljeS5yZWdvIiwiaGFzaCI6ImE2MTVlZWFlZTIxZGU1MTc5ZGUwODBkZThjMzA1MmM4ZGE5MDExMzg0MDZiYTcxYzM4YzAzMjg0NWY3ZDU0ZjQiLCJhbGdvcml0aG0iOiJTSEEtMjU2In1dLCJpYXQiOjE1OTIyNDgwMjcsImlzcyI6IkpXVFNlcnZpY2UiLCJrZXlpZCI6ImZvbyIsInNjb3BlIjoid3JpdGUifQ.grzWHYvyVS6LfWy0oiFTEJThKooOAwic8sexYaflzOM`
 	otherSignedTokenHS256 := `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImZvbyJ9.eyJmaWxlcyI6W3sibmFtZSI6ImEvYi9jL2RhdGEuanNvbiIsImhhc2giOiJmOWNhYzA3MTQ3MDVkMjBkMWEyMDg4MDE4NWNkZWQ2ZTBmNmQwNDA2NjJkMmViYjA5NjFkM2Q5ZjMxN2Q4YWNiIn1dLCJpYXQiOjE1OTIyNDgwMjcsImlzcyI6IkpXVFNlcnZpY2UiLCJzY29wZSI6IndyaXRlIn0.WJhnUjwaVvckSgOd4QcVvKThN6oc99NiPiwHKYnoG7c`
+	defaultSigner, _ := GetSigner(defaultSignerID)
+	defaultVerifier, _ := GetVerifier(defaultVerifierID)
+	RegisterSigner("_bar", defaultSigner)
+	RegisterVerifier("_bar", defaultVerifier)
 
 	tests := map[string]struct {
 		files   [][2]string
@@ -263,6 +267,16 @@ func TestReadWithSignatures(t *testing.T) {
 		"exclude_files": {
 			[][2]string{
 				{"/.signatures.json", fmt.Sprintf(`{"signatures": ["%v"]}`, signedTokenHS256)},
+				{"/.manifest", `{"revision": "quickbrownfaux"}`},
+				{"/a/b/c/data.json", "[1,2,3]"},
+				{"/http/policy/policy.rego", `package example`},
+			},
+			NewVerificationConfig(map[string]*KeyConfig{"foo": {Key: "secret", Algorithm: "HS256"}}, "", "write", []string{".*", "a/b/c/data.json", "http/policy/policy.rego"}),
+			false, nil,
+		},
+		"customer_signer_verifier": {
+			[][2]string{
+				{"/.signatures.json", fmt.Sprintf(`{"signatures": ["%v"],"plugin":"_bar"}`, signedTokenHS256)},
 				{"/.manifest", `{"revision": "quickbrownfaux"}`},
 				{"/a/b/c/data.json", "[1,2,3]"},
 				{"/http/policy/policy.rego", `package example`},
@@ -839,6 +853,58 @@ func TestGenerateSignature(t *testing.T) {
 	}
 
 	sc := NewSigningConfig("secret", "HS256", "")
+
+	err := bundle.GenerateSignature(sc, "", false)
+	if err != nil {
+		t.Fatal("Unexpected error:", err)
+	}
+
+	if reflect.DeepEqual(signatures, bundle.Signatures) {
+		t.Fatal("Expected signatures to be different")
+	}
+
+	current := bundle.Signatures
+	err = bundle.GenerateSignature(sc, "", false)
+	if err != nil {
+		t.Fatal("Unexpected error:", err)
+	}
+
+	if !reflect.DeepEqual(current, bundle.Signatures) {
+		t.Fatal("Expected signatures to be same")
+	}
+}
+
+func TestGenerateSignatureWithPlugin(t *testing.T) {
+	signatures := SignaturesConfig{Signatures: []string{"some_token"}, Plugin: "_foo"}
+
+	bundle := Bundle{
+		Data: map[string]interface{}{
+			"foo": map[string]interface{}{
+				"bar": []interface{}{json.Number("1"), json.Number("2"), json.Number("3")},
+				"baz": true,
+				"qux": "hello",
+			},
+		},
+		Modules: []ModuleFile{
+			{
+				URL:    "/foo/corge/corge.rego",
+				Path:   "/foo/corge/corge.rego",
+				Parsed: ast.MustParseModule(`package foo.corge`),
+				Raw:    []byte("package foo.corge\n"),
+			},
+		},
+		Wasm: []byte("modules-compiled-as-wasm-binary"),
+		Manifest: Manifest{
+			Revision: "quickbrownfaux",
+		},
+		Signatures: signatures,
+	}
+
+	defaultSigner, _ := GetSigner(defaultSignerID)
+	defaultVerifier, _ := GetVerifier(defaultVerifierID)
+	RegisterSigner("_foo", defaultSigner)
+	RegisterVerifier("_foo", defaultVerifier)
+	sc := NewSigningConfig("secret", "HS256", "").WithPlugin("_foo")
 
 	err := bundle.GenerateSignature(sc, "", false)
 	if err != nil {

@@ -3,6 +3,7 @@
 .vscode
 .idea
 *~
+*.swp
 
 # build artifacts
 coverage.txt
@@ -18,6 +19,7 @@ policy.wasm
 .gitbook
 .go
 release-notes.md
+bundle.tar.gz
 
 # ci artifacts
 fuzzit

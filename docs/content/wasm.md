@@ -68,10 +68,10 @@ empty (indicating an undefined policy decision) otherwise they should select the
 ### Advanced Compiling Options
 
 You can also compile Rego policies into Wasm modules from Go using the lower-level
-[rego](https://godoc.org/github.com/open-policy-agent/opa/rego#Rego.Compile) API
-that produces raw Wasm executables and the higher-level [compile]() API that
-produces OPA bundle files. The [compile](https://godoc.org/github.com/open-policy-agent/opa/compile#Compiler.Build)
-API is recommended.
+[rego](https://pkg.go.dev/github.com/open-policy-agent/opa/rego#Rego.Compile) API
+that produces raw Wasm executables and the higher-level
+[compile](https://pkg.go.dev/github.com/open-policy-agent/opa/compile#Compiler.Build)
+API that produces OPA bundle files. The compile API is recommended.
 
 ## Using Compiled Policies
 

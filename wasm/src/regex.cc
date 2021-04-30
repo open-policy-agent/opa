@@ -94,8 +94,8 @@ opa_value *opa_regex_find_all_string_submatch(opa_value *pattern, opa_value *val
         return NULL;
     }
 
-    long long n;
-    if (opa_number_try_int(opa_cast_number(number), &n))
+    long long num_results;
+    if (opa_number_try_int(opa_cast_number(number), &num_results))
     {
         return NULL;
     }
@@ -110,7 +110,7 @@ opa_value *opa_regex_find_all_string_submatch(opa_value *pattern, opa_value *val
 
     opa_string_t *s = opa_cast_string(value);
     opa_array_t *result = opa_cast_array(opa_array());
-    int nsubmatch = nsubmatch = re->NumberOfCapturingGroups() + 1;
+    int nsubmatch = re->NumberOfCapturingGroups() + 1;
     re2::StringPiece submatches[nsubmatch];
 
     // The following is effectively refactored RE2::GlobalReplace:
@@ -120,7 +120,7 @@ opa_value *opa_regex_find_all_string_submatch(opa_value *pattern, opa_value *val
     const char* lastend = NULL;
     int pos = 0;
 
-    while (p <= ep) {
+    while (p <= ep && (num_results == -1 || result->len < num_results)) {
         if (!re->Match(s->v, static_cast<size_t>(p - s->v), s->len, re2::RE2::UNANCHORED, submatches, nsubmatch))
         {
             break;
