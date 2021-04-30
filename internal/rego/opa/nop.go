@@ -8,6 +8,8 @@ package opa
 
 import (
 	"context"
+	"fmt"
+	"os"
 )
 
 // OPA is a stub implementation of a opa.OPA.
@@ -16,7 +18,14 @@ type OPA struct {
 
 // New unimplemented.
 func New() *OPA {
-	panic("WebAssembly runtime not supported in this build")
+	fmt.Fprintf(os.Stderr, `WebAssembly runtime not supported in this build.
+----------------------------------------------------------------------------------
+Please download OPA from https://www.openpolicyagent.org/docs/latest/#running-opa,
+or build it yourself with Wasm enabled.
+----------------------------------------------------------------------------------
+`)
+	os.Exit(1)
+	return nil
 }
 
 // WithPolicyBytes unimplemented.
