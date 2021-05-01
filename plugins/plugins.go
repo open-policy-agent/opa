@@ -125,6 +125,10 @@ type Status struct {
 	Message string `json:"message,omitempty"`
 }
 
+func (s *Status) String() string {
+	return fmt.Sprintf("{%v %q}", s.State, s.Message)
+}
+
 // StatusListener defines a handler to register for status updates.
 type StatusListener func(status map[string]*Status)
 
