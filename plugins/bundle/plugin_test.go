@@ -13,12 +13,15 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path"
 	"path/filepath"
 	"reflect"
 	"sort"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/open-policy-agent/opa/util/test"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
@@ -529,7 +532,7 @@ func TestPluginOneShotActivationPrefixMatchingRoots(t *testing.T) {
 		manager:     manager,
 		status:      map[string]*Status{},
 		etags:       map[string]string{},
-		downloaders: map[string]*download.Downloader{},
+		downloaders: map[string]bundleLoader{},
 	}
 	bundleNames := []string{"test-bundle1", "test-bundle2"}
 
@@ -688,7 +691,7 @@ func TestPluginListenerErrorClearedOn304(t *testing.T) {
 		manager:     manager,
 		status:      map[string]*Status{},
 		etags:       map[string]string{},
-		downloaders: map[string]*download.Downloader{},
+		downloaders: map[string]bundleLoader{},
 	}
 	bundleName := "test-bundle"
 	plugin.status[bundleName] = &Status{Name: bundleName}
@@ -740,7 +743,7 @@ func TestPluginBulkListener(t *testing.T) {
 		manager:     manager,
 		status:      map[string]*Status{},
 		etags:       map[string]string{},
-		downloaders: map[string]*download.Downloader{},
+		downloaders: map[string]bundleLoader{},
 	}
 	bundleNames := []string{
 		"b1",
@@ -928,7 +931,7 @@ func TestPluginBulkListenerStatusCopyOnly(t *testing.T) {
 		manager:     manager,
 		status:      map[string]*Status{},
 		etags:       map[string]string{},
-		downloaders: map[string]*download.Downloader{},
+		downloaders: map[string]bundleLoader{},
 	}
 	bundleNames := []string{
 		"b1",
@@ -985,7 +988,7 @@ func TestPluginActivateScopedBundle(t *testing.T) {
 		manager:     manager,
 		status:      map[string]*Status{},
 		etags:       map[string]string{},
-		downloaders: map[string]*download.Downloader{},
+		downloaders: map[string]bundleLoader{},
 	}
 	bundleName := "test-bundle"
 	plugin.status[bundleName] = &Status{Name: bundleName}
@@ -1108,7 +1111,7 @@ func TestPluginSetCompilerOnContext(t *testing.T) {
 		manager:     manager,
 		status:      map[string]*Status{},
 		etags:       map[string]string{},
-		downloaders: map[string]*download.Downloader{},
+		downloaders: map[string]bundleLoader{},
 	}
 	bundleName := "test-bundle"
 	plugin.status[bundleName] = &Status{Name: bundleName}
@@ -1373,7 +1376,7 @@ func TestPluginRequestVsDownloadTimestamp(t *testing.T) {
 		manager:     manager,
 		status:      map[string]*Status{},
 		etags:       map[string]string{},
-		downloaders: map[string]*download.Downloader{},
+		downloaders: map[string]bundleLoader{},
 	}
 	bundleName := "test-bundle"
 	plugin.status[bundleName] = &Status{Name: bundleName}
@@ -1422,7 +1425,7 @@ func TestUpgradeLegacyBundleToMuiltiBundleSameBundle(t *testing.T) {
 		manager:     manager,
 		status:      map[string]*Status{},
 		etags:       map[string]string{},
-		downloaders: map[string]*download.Downloader{},
+		downloaders: map[string]bundleLoader{},
 	}
 	bundleName := "test-bundle"
 	plugin.status[bundleName] = &Status{Name: bundleName}
@@ -1517,7 +1520,7 @@ func TestUpgradeLegacyBundleToMuiltiBundleNewBundles(t *testing.T) {
 		manager:     manager,
 		status:      map[string]*Status{},
 		etags:       map[string]string{},
-		downloaders: map[string]*download.Downloader{},
+		downloaders: map[string]bundleLoader{},
 	}
 	bundleName := "test-bundle"
 	plugin.status[bundleName] = &Status{Name: bundleName}
@@ -1886,6 +1889,64 @@ func TestConfiguredBundlePersistPath(t *testing.T) {
 	if path != "/var/opa/bundles" {
 		t.Errorf("expected configured persist path '/var/opa/bundles'")
 	}
+}
+
+func TestPluginUsingFileLoader(t *testing.T) {
+
+	test.WithTempFS(map[string]string{}, func(dir string) {
+
+		b := bundle.Bundle{
+			Data: map[string]interface{}{},
+			Modules: []bundle.ModuleFile{
+				{
+					URL: "test.rego",
+					Raw: []byte(`package test
+
+					p = 7`),
+				},
+			},
+		}
+
+		name := path.Join(dir, "bundle.tar.gz")
+
+		f, err := os.Create(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if err := bundle.NewWriter(f).Write(b); err != nil {
+			t.Fatal(err)
+		}
+
+		f.Close()
+
+		mgr := getTestManager()
+		url := "file://" + name
+
+		p := New(&Config{Bundles: map[string]*Source{
+			"test": &Source{
+				SizeLimitBytes: 1e5,
+				Resource:       url,
+			},
+		}}, mgr)
+
+		ch := make(chan Status)
+
+		p.Register("test", func(s Status) {
+			ch <- s
+		})
+
+		if err := p.Start(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+
+		s := <-ch
+
+		if s.LastSuccessfulActivation.IsZero() {
+			t.Fatal("expected successful activation")
+		}
+	})
+
 }
 
 func writeTestBundleToDisk(t *testing.T, srcDir string, signed bool) bundle.Bundle {
