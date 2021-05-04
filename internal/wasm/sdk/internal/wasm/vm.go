@@ -74,15 +74,27 @@ func newVM(opts vmOpts) (*VM, error) {
 	store := wasmtime.NewStore(wasmtime.NewEngineWithConfig(cfg))
 	memorytype := wasmtime.NewMemoryType(wasmtime.Limits{Min: opts.memoryMin, Max: opts.memoryMax})
 	memory := wasmtime.NewMemory(store, memorytype)
-	imports := []*wasmtime.Extern{
-		memory.AsExtern(),
-	}
 
-	v.dispatcher = newBuiltinDispatcher()
-	imports = append(imports, opaFunctions(v.dispatcher, store)...)
 	module, err := wasmtime.NewModule(store.Engine, opts.policy)
 	if err != nil {
 		return nil, err
+	}
+
+	v.dispatcher = newBuiltinDispatcher()
+	externs := opaFunctions(v.dispatcher, store)
+	imports := []*wasmtime.Extern{}
+	for _, imp := range module.Imports() {
+		if imp.Type().MemoryType() != nil {
+			imports = append(imports, memory.AsExtern())
+		}
+		if imp.Type().FuncType() == nil {
+			continue
+		}
+		if ext, ok := externs[*imp.Name()]; ok {
+			imports = append(imports, ext)
+		} else {
+			return nil, fmt.Errorf("cannot provide import %s", *imp.Name())
+		}
 	}
 
 	i, err := wasmtime.NewInstance(store, module, imports)
