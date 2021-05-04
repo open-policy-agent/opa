@@ -20,17 +20,17 @@ import (
 	"github.com/open-policy-agent/opa/topdown/builtins"
 )
 
-func opaFunctions(dispatcher *builtinDispatcher, store *wasmtime.Store) []*wasmtime.Extern {
+func opaFunctions(dispatcher *builtinDispatcher, store *wasmtime.Store) map[string]*wasmtime.Extern {
 
 	i32 := wasmtime.NewValType(wasmtime.KindI32)
 
-	externs := []*wasmtime.Extern{
-		wasmtime.NewFunc(store, wasmtime.NewFuncType([]*wasmtime.ValType{i32}, nil), opaAbort).AsExtern(),
-		wasmtime.NewFunc(store, wasmtime.NewFuncType([]*wasmtime.ValType{i32, i32}, []*wasmtime.ValType{i32}), dispatcher.Call).AsExtern(),
-		wasmtime.NewFunc(store, wasmtime.NewFuncType([]*wasmtime.ValType{i32, i32, i32}, []*wasmtime.ValType{i32}), dispatcher.Call).AsExtern(),
-		wasmtime.NewFunc(store, wasmtime.NewFuncType([]*wasmtime.ValType{i32, i32, i32, i32}, []*wasmtime.ValType{i32}), dispatcher.Call).AsExtern(),
-		wasmtime.NewFunc(store, wasmtime.NewFuncType([]*wasmtime.ValType{i32, i32, i32, i32, i32}, []*wasmtime.ValType{i32}), dispatcher.Call).AsExtern(),
-		wasmtime.NewFunc(store, wasmtime.NewFuncType([]*wasmtime.ValType{i32, i32, i32, i32, i32, i32}, []*wasmtime.ValType{i32}), dispatcher.Call).AsExtern(),
+	externs := map[string]*wasmtime.Extern{
+		"opa_abort":    wasmtime.NewFunc(store, wasmtime.NewFuncType([]*wasmtime.ValType{i32}, nil), opaAbort).AsExtern(),
+		"opa_builtin0": wasmtime.NewFunc(store, wasmtime.NewFuncType([]*wasmtime.ValType{i32, i32}, []*wasmtime.ValType{i32}), dispatcher.Call).AsExtern(),
+		"opa_builtin1": wasmtime.NewFunc(store, wasmtime.NewFuncType([]*wasmtime.ValType{i32, i32, i32}, []*wasmtime.ValType{i32}), dispatcher.Call).AsExtern(),
+		"opa_builtin2": wasmtime.NewFunc(store, wasmtime.NewFuncType([]*wasmtime.ValType{i32, i32, i32, i32}, []*wasmtime.ValType{i32}), dispatcher.Call).AsExtern(),
+		"opa_builtin3": wasmtime.NewFunc(store, wasmtime.NewFuncType([]*wasmtime.ValType{i32, i32, i32, i32, i32}, []*wasmtime.ValType{i32}), dispatcher.Call).AsExtern(),
+		"opa_builtin4": wasmtime.NewFunc(store, wasmtime.NewFuncType([]*wasmtime.ValType{i32, i32, i32, i32, i32, i32}, []*wasmtime.ValType{i32}), dispatcher.Call).AsExtern(),
 	}
 
 	return externs
