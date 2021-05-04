@@ -1,7 +1,7 @@
 FROM ubuntu:20.04
 
-ARG WABT_VERSION=1.0.20
-ARG BINARYEN_VERSION=version_99
+ARG WABT_VERSION=1.0.23
+ARG BINARYEN_VERSION=version_101
 
 RUN apt-get update && apt-get install -y curl git build-essential python
 
