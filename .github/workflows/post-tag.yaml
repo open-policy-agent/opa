@@ -15,7 +15,7 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Build Linux and Windows
-        run: make ci-go-build-linux ci-go-build-windows
+        run: make ci-go-ci-build-linux ci-go-ci-build-windows
         timeout-minutes: 30
         env:
           TELEMETRY_URL: ${{ secrets.TELEMETRY_URL }}
@@ -45,7 +45,7 @@ jobs:
           go-version: ${{ steps.go_version.outputs.go_version }}
 
       - name: Build Darwin
-        run: make build-darwin
+        run: make ci-build-darwin
         timeout-minutes: 30
         env:
           TELEMETRY_URL: ${{ secrets.TELEMETRY_URL }}

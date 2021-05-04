@@ -89,7 +89,7 @@ build: go-build
 
 .PHONY: image
 image:
-	DOCKER_UID=$(shell id -u) DOCKER_GID=$(shell id -g) $(MAKE) ci-go-build-linux
+	DOCKER_UID=$(shell id -u) DOCKER_GID=$(shell id -g) $(MAKE) ci-go-ci-build-linux
 	@$(MAKE) image-quick
 
 .PHONY: install
@@ -257,20 +257,22 @@ ci-check-working-copy: generate
 .PHONY: ci-wasm
 ci-wasm: wasm-test
 
-.PHONY: build-linux
-build-linux: ensure-release-dir
+.PHONY: ci-build-linux
+ci-build-linux: ensure-release-dir
 	@$(MAKE) build GOOS=linux
 	chmod +x opa_linux_$(GOARCH)
 	mv opa_linux_$(GOARCH) $(RELEASE_DIR)/
 
-.PHONY: build-darwin
-build-darwin: ensure-release-dir
+.PHONY: ci-build-darwin
+ci-build-darwin: ensure-release-dir
 	@$(MAKE) build GOOS=darwin
 	chmod +x opa_darwin_$(GOARCH)
 	mv opa_darwin_$(GOARCH) $(RELEASE_DIR)/
 
-.PHONY: build-windows
-build-windows: ensure-release-dir
+# NOTE: This target expects to be run as root on some debian/ubuntu variant
+# that can install the `gcc-mingw-w64-x86-64` package via apt-get.
+.PHONY: ci-build-windows
+ci-build-windows: ensure-release-dir
 	build/ensure-windows-toolchain.sh
 	@$(MAKE) build GOOS=windows CC=x86_64-w64-mingw32-gcc
 	mv opa_windows_$(GOARCH) $(RELEASE_DIR)/opa_windows_$(GOARCH).exe
@@ -280,7 +282,7 @@ ensure-release-dir:
 	mkdir -p $(RELEASE_DIR)
 
 .PHONY: build-all-platforms
-build-all-platforms: build-linux build-darwin build-windows
+build-all-platforms: ci-build-linux ci-build-darwin ci-build-windows
 
 .PHONY: image-quick
 image-quick:
@@ -409,3 +411,31 @@ dev-patch:
 		-v $(PWD):/_src \
 		python:2.7 \
 		/_src/build/gen-dev-patch.sh --version=$(VERSION) --source-url=/_src
+
+# Deprecated targets. To be removed.
+.PHONY: build-linux depr-build-linux build-windows depr-build-windows build-darwin depr-build-darwin
+build-linux: deprecation-build-linux
+build-windows: deprecation-build-windows
+build-darwin: deprecation-build-darwin
+
+.PHONY: deprecation-%
+deprecation-%:
+	@echo "----------------------------------------------"
+	@echo "The '$*' make target is deprecated!"
+	@echo "----------------------------------------------"
+	@echo "To run build for your platform, use 'make build'."
+	@echo "To cross-compile for a specific platform, use the corresponding 'ci-build-*' target."
+	@echo
+	@$(MAKE) depr-$*
+
+depr-build-linux: ensure-release-dir
+	@$(MAKE) build GOOS=linux CGO_ENABLED=0 WASM_ENABLED=0
+	mv opa_linux_$(GOARCH) $(RELEASE_DIR)/
+
+depr-build-darwin: ensure-release-dir
+	@$(MAKE) build GOOS=darwin CGO_ENABLED=0 WASM_ENABLED=0
+	mv opa_darwin_$(GOARCH) $(RELEASE_DIR)/
+
+depr-build-windows: ensure-release-dir
+	@$(MAKE) build GOOS=windows CGO_ENABLED=0 WASM_ENABLED=0
+	mv opa_windows_$(GOARCH) $(RELEASE_DIR)/opa_windows_$(GOARCH).exe
