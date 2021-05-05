@@ -27,7 +27,7 @@ DOCKER_RUNNING := $(shell docker ps >/dev/null 2>&1 && echo 1 || echo 0)
 
 # We use root because the windows build, invoked through the ci-go-build-windows
 # target, installs the gcc mingw32 cross-compiler.
-# For image-quick, it's overridden, so that the built binary isn't root-owned.
+# For image, it's overridden, so that the built binary isn't root-owned.
 DOCKER_UID ?= 0
 DOCKER_GID ?= 0
 
@@ -286,6 +286,7 @@ build-all-platforms: ci-build-linux ci-build-darwin ci-build-windows
 
 .PHONY: image-quick
 image-quick:
+	chmod +x $(RELEASE_DIR)/opa_linux_amd64
 	$(DOCKER) build \
 		-t $(DOCKER_IMAGE):$(VERSION) \
 		--build-arg BASE=gcr.io/distroless/cc \
@@ -302,6 +303,11 @@ image-quick:
 		--build-arg BASE=gcr.io/distroless/cc \
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		.
+.PHONY: ci-image-smoke-test
+ci-image-smoke-test: image-quick
+	$(DOCKER) run $(DOCKER_IMAGE):$(VERSION) version
+	$(DOCKER) run $(DOCKER_IMAGE):$(VERSION)-debug version
+	$(DOCKER) run $(DOCKER_IMAGE):$(VERSION)-rootless version
 
 .PHONY: push
 push:
