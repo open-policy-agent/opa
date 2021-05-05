@@ -34,10 +34,13 @@ const (
 	WasmFile              = "policy.wasm"
 	ManifestExt           = ".manifest"
 	SignaturesFile        = "signatures.json"
+	patchFile             = "patch.json"
 	dataFile              = "data.json"
 	yamlDataFile          = "data.yaml"
 	defaultHashingAlg     = "SHA-256"
 	DefaultSizeLimitBytes = (1024 * 1024 * 1024) // limit bundle reads to 1GB to protect against gzip bombs
+	DeltaBundleType       = "delta"
+	SnapshotBundleType    = "snapshot"
 )
 
 // Bundle represents a loaded bundle. The bundle can contain data and policies.
@@ -48,6 +51,20 @@ type Bundle struct {
 	Modules     []ModuleFile
 	Wasm        []byte // Deprecated. Use WasmModules instead
 	WasmModules []WasmModuleFile
+	Patch       Patch
+}
+
+// Patch contains an array of objects wherein each object represents the patch operation to be
+// applied to the bundle data.
+type Patch struct {
+	Data []PatchOperation `json:"data,omitempty"`
+}
+
+// PatchOperation models a single patch operation against a document.
+type PatchOperation struct {
+	Op    string      `json:"op"`
+	Path  string      `json:"path"`
+	Value interface{} `json:"value"`
 }
 
 // SignaturesConfig represents an array of JWTs that encapsulate the signatures for the bundle.
@@ -129,17 +146,7 @@ func (m Manifest) Equal(other Manifest) bool {
 		return false
 	}
 
-	if len(m.WasmResolvers) != len(other.WasmResolvers) {
-		return false
-	}
-
-	for i := 0; i < len(m.WasmResolvers); i++ {
-		if m.WasmResolvers[i] != other.WasmResolvers[i] {
-			return false
-		}
-	}
-
-	return m.rootSet().Equal(other.rootSet())
+	return m.equalWasmResolversAndRoots(other)
 }
 
 // Copy returns a deep copy of the manifest.
@@ -169,6 +176,20 @@ func (m Manifest) rootSet() stringSet {
 	}
 
 	return stringSet(rs)
+}
+
+func (m Manifest) equalWasmResolversAndRoots(other Manifest) bool {
+	if len(m.WasmResolvers) != len(other.WasmResolvers) {
+		return false
+	}
+
+	for i := 0; i < len(m.WasmResolvers); i++ {
+		if m.WasmResolvers[i] != other.WasmResolvers[i] {
+			return false
+		}
+	}
+
+	return m.rootSet().Equal(other.rootSet())
 }
 
 type stringSet map[string]struct{}
@@ -253,6 +274,21 @@ func (m *Manifest) validateAndInjectDefaults(b Bundle) error {
 		seenEps[wmConfig.Entrypoint] = struct{}{}
 
 		wasmModuleToEps[wmConfig.Module] = wmConfig.Entrypoint
+	}
+
+	// Validate data patches in bundle.
+	for _, patch := range b.Patch.Data {
+		path := strings.Trim(patch.Path, "/")
+		found := false
+		for i := range roots {
+			if strings.HasPrefix(path, roots[i]) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return fmt.Errorf("manifest roots %v do not permit data patch at path '%s'", roots, path)
+		}
 	}
 
 	// Validate data in bundle.
@@ -372,31 +408,28 @@ func (r *Reader) Read() (Bundle, error) {
 	var descriptors []*Descriptor
 	var err error
 
-	bundle.Data = map[string]interface{}{}
-
-	bundle.Signatures, descriptors, err = listSignaturesAndDescriptors(r.loader, r.skipVerify, r.sizeLimitBytes)
+	bundle.Signatures, bundle.Patch, descriptors, err = preProcessBundle(r.loader, r.skipVerify, r.sizeLimitBytes)
 	if err != nil {
 		return bundle, err
 	}
 
-	err = r.checkSignaturesAndDescriptors(bundle.Signatures)
-	if err != nil {
-		return bundle, err
+	if bundle.Type() == SnapshotBundleType {
+		err = r.checkSignaturesAndDescriptors(bundle.Signatures)
+		if err != nil {
+			return bundle, err
+		}
+
+		bundle.Data = map[string]interface{}{}
 	}
 
 	for _, f := range descriptors {
-		var buf bytes.Buffer
-		n, err := f.Read(&buf, r.sizeLimitBytes)
-		f.Close() // always close, even on error
-
-		if err != nil && err != io.EOF {
+		buf, err := readFile(f, r.sizeLimitBytes)
+		if err != nil {
 			return bundle, err
-		} else if err == nil && n >= r.sizeLimitBytes {
-			return bundle, fmt.Errorf("bundle file exceeded max size (%v bytes)", r.sizeLimitBytes-1)
 		}
 
 		// verify the file content
-		if !bundle.Signatures.isEmpty() {
+		if bundle.Type() == SnapshotBundleType && !bundle.Signatures.isEmpty() {
 			path := f.Path()
 			if r.baseDir != "" {
 				path = f.URL()
@@ -477,8 +510,22 @@ func (r *Reader) Read() (Bundle, error) {
 		}
 	}
 
+	if bundle.Type() == DeltaBundleType {
+		if len(bundle.Data) != 0 {
+			return bundle, fmt.Errorf("delta bundle expected to contain only patch file but data files found")
+		}
+
+		if len(bundle.Modules) != 0 {
+			return bundle, fmt.Errorf("delta bundle expected to contain only patch file but policy files found")
+		}
+
+		if len(bundle.WasmModules) != 0 {
+			return bundle, fmt.Errorf("delta bundle expected to contain only patch file but wasm files found")
+		}
+	}
+
 	// check if the bundle signatures specify any files that weren't found in the bundle
-	if len(r.files) != 0 {
+	if bundle.Type() == SnapshotBundleType && len(r.files) != 0 {
 		extra := []string{}
 		for k := range r.files {
 			extra = append(extra, k)
@@ -619,36 +666,45 @@ func (w *Writer) Write(bundle Bundle) error {
 	gw := gzip.NewWriter(w.w)
 	tw := tar.NewWriter(gw)
 
-	var buf bytes.Buffer
+	bundleType := bundle.Type()
 
-	if err := json.NewEncoder(&buf).Encode(bundle.Data); err != nil {
-		return err
-	}
+	if bundleType == SnapshotBundleType {
+		var buf bytes.Buffer
 
-	if err := archive.WriteFile(tw, "data.json", buf.Bytes()); err != nil {
-		return err
-	}
-
-	for _, module := range bundle.Modules {
-		path := module.URL
-		if w.usePath {
-			path = module.Path
+		if err := json.NewEncoder(&buf).Encode(bundle.Data); err != nil {
+			return err
 		}
 
-		if err := archive.WriteFile(tw, path, module.Raw); err != nil {
+		if err := archive.WriteFile(tw, "data.json", buf.Bytes()); err != nil {
+			return err
+		}
+
+		for _, module := range bundle.Modules {
+			path := module.URL
+			if w.usePath {
+				path = module.Path
+			}
+
+			if err := archive.WriteFile(tw, path, module.Raw); err != nil {
+				return err
+			}
+		}
+
+		if err := w.writeWasm(tw, bundle); err != nil {
+			return err
+		}
+
+		if err := writeSignatures(tw, bundle); err != nil {
+			return err
+		}
+
+	} else if bundleType == DeltaBundleType {
+		if err := writePatch(tw, bundle); err != nil {
 			return err
 		}
 	}
 
-	if err := w.writeWasm(tw, bundle); err != nil {
-		return err
-	}
-
 	if err := writeManifest(tw, bundle); err != nil {
-		return err
-	}
-
-	if err := writeSignatures(tw, bundle); err != nil {
 		return err
 	}
 
@@ -691,6 +747,17 @@ func writeManifest(tw *tar.Writer, bundle Bundle) error {
 	}
 
 	return archive.WriteFile(tw, ManifestExt, buf.Bytes())
+}
+
+func writePatch(tw *tar.Writer, bundle Bundle) error {
+
+	var buf bytes.Buffer
+
+	if err := json.NewEncoder(&buf).Encode(bundle.Patch); err != nil {
+		return err
+	}
+
+	return archive.WriteFile(tw, patchFile, buf.Bytes())
 }
 
 func writeSignatures(tw *tar.Writer, bundle Bundle) error {
@@ -941,6 +1008,14 @@ func (b *Bundle) readData(key []string) *interface{} {
 	return &child
 }
 
+// Type returns the type of the bundle.
+func (b *Bundle) Type() string {
+	if len(b.Patch.Data) != 0 {
+		return DeltaBundleType
+	}
+	return SnapshotBundleType
+}
+
 func mktree(path []string, value interface{}) (map[string]interface{}, error) {
 	if len(path) == 0 {
 		// For 0 length path the value is the full tree.
@@ -1110,9 +1185,10 @@ func IsStructuredDoc(name string) bool {
 		filepath.Base(name) == SignaturesFile || filepath.Base(name) == ManifestExt
 }
 
-func listSignaturesAndDescriptors(loader DirectoryLoader, skipVerify bool, sizeLimitBytes int64) (SignaturesConfig, []*Descriptor, error) {
+func preProcessBundle(loader DirectoryLoader, skipVerify bool, sizeLimitBytes int64) (SignaturesConfig, Patch, []*Descriptor, error) {
 	descriptors := []*Descriptor{}
 	var signatures SignaturesConfig
+	var patch Patch
 
 	for {
 		f, err := loader.NextFile()
@@ -1121,26 +1197,54 @@ func listSignaturesAndDescriptors(loader DirectoryLoader, skipVerify bool, sizeL
 		}
 
 		if err != nil {
-			return signatures, nil, errors.Wrap(err, "bundle read failed")
+			return signatures, patch, nil, errors.Wrap(err, "bundle read failed")
 		}
 
 		// check for the signatures file
 		if !skipVerify && strings.HasSuffix(f.Path(), SignaturesFile) {
-			var buf bytes.Buffer
-			n, err := f.Read(&buf, sizeLimitBytes)
-			f.Close() // always close, even on error
-			if err != nil && err != io.EOF {
-				return signatures, nil, err
-			} else if err == nil && n >= sizeLimitBytes {
-				return signatures, nil, fmt.Errorf("bundle signatures file exceeded max size (%v bytes)", sizeLimitBytes-1)
+			buf, err := readFile(f, sizeLimitBytes)
+			if err != nil {
+				return signatures, patch, nil, err
 			}
 
 			if err := util.NewJSONDecoder(&buf).Decode(&signatures); err != nil {
-				return signatures, nil, errors.Wrap(err, "bundle load failed on signatures decode")
+				return signatures, patch, nil, errors.Wrap(err, "bundle load failed on signatures decode")
 			}
 		} else if !strings.HasSuffix(f.Path(), SignaturesFile) {
 			descriptors = append(descriptors, f)
+
+			if filepath.Base(f.Path()) == patchFile {
+
+				var b bytes.Buffer
+				tee := io.TeeReader(f.reader, &b)
+				f.reader = tee
+
+				buf, err := readFile(f, sizeLimitBytes)
+				if err != nil {
+					return signatures, patch, nil, err
+				}
+
+				if err := util.NewJSONDecoder(&buf).Decode(&patch); err != nil {
+					return signatures, patch, nil, errors.Wrap(err, "bundle load failed on patch decode")
+				}
+
+				f.reader = &b
+			}
 		}
 	}
-	return signatures, descriptors, nil
+	return signatures, patch, descriptors, nil
+}
+
+func readFile(f *Descriptor, sizeLimitBytes int64) (bytes.Buffer, error) {
+	var buf bytes.Buffer
+	n, err := f.Read(&buf, sizeLimitBytes)
+	f.Close() // always close, even on error
+
+	if err != nil && err != io.EOF {
+		return buf, err
+	} else if err == nil && n >= sizeLimitBytes {
+		return buf, fmt.Errorf("bundle file '%v' exceeded max size (%v bytes)", strings.TrimPrefix(f.Path(), "/"), sizeLimitBytes-1)
+	}
+
+	return buf, nil
 }
