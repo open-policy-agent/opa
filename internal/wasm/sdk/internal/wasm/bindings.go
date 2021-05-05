@@ -149,8 +149,9 @@ func (d *builtinDispatcher) Call(caller *wasmtime.Caller, args []wasmtime.Val) (
 		return nil
 	})
 	if err != nil {
-		if e, ok := err.(topdown.Halt); ok {
-			if e, ok := e.Err.(*topdown.Error); ok && e.Code == topdown.CancelErr {
+		if errors.As(err, &topdown.Halt{}) {
+			var e *topdown.Error
+			if errors.As(err, &e) && e.Code == topdown.CancelErr {
 				panic(cancelledError{message: e.Message})
 			}
 			panic(builtinError{err: err})

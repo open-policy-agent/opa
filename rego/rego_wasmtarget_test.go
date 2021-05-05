@@ -8,7 +8,6 @@ package rego
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -181,28 +180,22 @@ allow {
 			errorCheck: topdown.IsCancel,
 		},
 		{
-			note:   "net.cidr_expand",
-			target: "wasm",
-			policy: cidrExpand,
-			errorCheck: func(err error) bool {
-				return errors.Is(err, sdk_errors.ErrCancelled)
-			},
+			note:       "net.cidr_expand",
+			target:     "wasm",
+			policy:     cidrExpand,
+			errorCheck: sdk_errors.IsCancel,
 		},
 		{
-			note:   "http.send",
-			target: "wasm",
-			policy: httpSend,
-			errorCheck: func(err error) bool {
-				return errors.Is(err, sdk_errors.ErrCancelled)
-			},
+			note:       "http.send",
+			target:     "wasm",
+			policy:     httpSend,
+			errorCheck: sdk_errors.IsCancel,
 		},
 		{
-			note:   "numbers.range",
-			target: "wasm",
-			policy: numbersRange,
-			errorCheck: func(err error) bool {
-				return errors.Is(err, sdk_errors.ErrCancelled)
-			},
+			note:       "numbers.range",
+			target:     "wasm",
+			policy:     numbersRange,
+			errorCheck: sdk_errors.IsCancel,
 		},
 	} {
 		t.Run(tc.target+"/"+tc.note, func(t *testing.T) {

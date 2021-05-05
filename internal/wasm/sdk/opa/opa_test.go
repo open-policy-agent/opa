@@ -38,7 +38,7 @@ func TestOPA(t *testing.T) {
 		Query       string
 		Data        string
 		Evals       []Eval
-		WantErr     string // "" means no error expected
+		WantErr     string // "" (or unset) means no error expected
 	}{
 		{
 			Description: "No input, no data, static policy",
@@ -48,7 +48,6 @@ func TestOPA(t *testing.T) {
 				{Result: `{{"x": true}}`},
 				{Result: `{{"x": true}}`},
 			},
-			WantErr: "",
 		},
 		{
 			Description: "Only input changing",
@@ -58,7 +57,6 @@ func TestOPA(t *testing.T) {
 				{Input: "false", Result: `{{"x": false}}`},
 				{Input: "true", Result: `{{"x": true}}`},
 			},
-			WantErr: "",
 		},
 		{
 			Description: "Only data changing",
@@ -69,7 +67,6 @@ func TestOPA(t *testing.T) {
 				{Result: `{{"x": false}}`},
 				{NewData: `{"q": true}`, Result: `{{"x": true}}`},
 			},
-			WantErr: "",
 		},
 		{
 			Description: "Only policy changing",
@@ -80,7 +77,6 @@ func TestOPA(t *testing.T) {
 				{Result: `{{"x": false}}`},
 				{NewPolicy: `a = data.r`, Result: `{{"x": true}}`},
 			},
-			WantErr: "",
 		},
 		{
 			Description: "Policy and data changing",
@@ -91,7 +87,6 @@ func TestOPA(t *testing.T) {
 				{Result: `{{"x": 0}}`},
 				{NewPolicy: `a = data.r`, NewData: `{"q": 2, "r": 3}`, Result: `{{"x": 3}}`},
 			},
-			WantErr: "",
 		},
 		{
 			Description: "Builtins",
@@ -101,7 +96,6 @@ func TestOPA(t *testing.T) {
 				{NewData: `{"q": []}`, Result: `{{"x": 0}}`},
 				{NewData: `{"q": [1, 2]}`, Result: `{{"x": 5}}`},
 			},
-			WantErr: "",
 		},
 		{
 			Description: "Undefined decision",
@@ -110,14 +104,13 @@ func TestOPA(t *testing.T) {
 			Evals: []Eval{
 				{Result: `set()`},
 			},
-			WantErr: "",
 		},
 		{
 			Description: "Runtime error/object insert conflict",
 			Policy:      `a = { "a": y | y := [1, 2][_] }`,
 			Query:       "data.p.a.a = x",
 			Evals:       []Eval{{}},
-			WantErr:     "module.rego:2:5: object insert conflict: internal error",
+			WantErr:     "internal_error: module.rego:2:5: object insert conflict",
 		},
 		{
 			Description: "Runtime error/var assignment conflict",
@@ -127,7 +120,7 @@ a = "c" { input > 2 }`,
 			Evals: []Eval{
 				{Input: "3"},
 			},
-			WantErr: "module.rego:3:1: var assignment conflict: internal error",
+			WantErr: "internal_error: module.rego:3:1: var assignment conflict",
 		},
 		{
 			Description: "Runtime error/else conflict-1",
@@ -141,7 +134,7 @@ a = "c" { input > 2 }`,
 				}
 				q = false`,
 			Evals:   []Eval{{}},
-			WantErr: "module.rego:9:5: var assignment conflict: internal error",
+			WantErr: "internal_error: module.rego:9:5: var assignment conflict",
 		},
 		{
 			Description: "Runtime error/else conflict-2",
@@ -160,7 +153,7 @@ a = "c" { input > 2 }`,
 					true
 				}`,
 			Evals:   []Eval{{}},
-			WantErr: "module.rego:12:5: var assignment conflict: internal error",
+			WantErr: "internal_error: module.rego:12:5: var assignment conflict",
 		},
 		// NOTE(sr): The next two test cases were used to replicate issue
 		// https://github.com/open-policy-agent/opa/issues/2962 -- their raison d'être

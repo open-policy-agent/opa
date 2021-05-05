@@ -7,12 +7,13 @@ package wasm
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"sync"
 
 	"github.com/open-policy-agent/opa/internal/wasm/sdk/opa/errors"
 	"github.com/open-policy-agent/opa/metrics"
 )
+
+var errNotReady = errors.New(errors.NotReadyErr, "")
 
 // Pool maintains a pool of WebAssemly VM instances.
 type Pool struct {
@@ -85,7 +86,7 @@ func (p *Pool) Acquire(ctx context.Context, metrics metrics.Metrics) (*VM, error
 	defer p.mutex.Unlock()
 
 	if !p.initialized || p.closed {
-		return nil, errors.ErrNotReady
+		return nil, errNotReady
 	}
 
 	for i, vm := range p.vms {
@@ -110,7 +111,7 @@ func (p *Pool) Acquire(ctx context.Context, metrics metrics.Metrics) (*VM, error
 
 	if err != nil {
 		p.available <- struct{}{}
-		return nil, fmt.Errorf("%v: %w", err, errors.ErrInternal)
+		return nil, errors.New(errors.InternalErr, err.Error())
 	}
 
 	p.acquired = append(p.acquired, true)
@@ -177,7 +178,7 @@ func (p *Pool) SetPolicyData(ctx context.Context, policy []byte, data []byte) er
 			p.initialized = true
 			p.policy, p.parsedData, p.parsedDataAddr = policy, parsedData, parsedDataAddr
 		} else {
-			err = fmt.Errorf("%v: %w", err, errors.ErrInvalidPolicyOrData)
+			err = errors.New(errors.InvalidPolicyOrDataErr, err.Error())
 		}
 
 		p.mutex.Unlock()
@@ -186,7 +187,7 @@ func (p *Pool) SetPolicyData(ctx context.Context, policy []byte, data []byte) er
 
 	if p.closed {
 		p.mutex.Unlock()
-		return errors.ErrNotReady
+		return errNotReady
 	}
 
 	currentPolicy, currentData := p.policy, p.parsedData
@@ -198,7 +199,7 @@ func (p *Pool) SetPolicyData(ctx context.Context, policy []byte, data []byte) er
 
 	err := p.setPolicyData(ctx, policy, data)
 	if err != nil {
-		return fmt.Errorf("%v: %w", err, errors.ErrInternal)
+		return errors.New(errors.InternalErr, err.Error())
 	}
 
 	return nil

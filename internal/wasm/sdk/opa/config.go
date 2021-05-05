@@ -6,7 +6,6 @@ package opa
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 
 	"github.com/open-policy-agent/opa/internal/wasm/sdk/internal/wasm"
@@ -17,7 +16,7 @@ import (
 func (o *OPA) WithPolicyFile(fileName string) *OPA {
 	policy, err := ioutil.ReadFile(fileName)
 	if err != nil {
-		o.configErr = fmt.Errorf("%v: %w", err.Error(), errors.ErrInvalidConfig)
+		o.configErr = errors.New(errors.InvalidConfigErr, err.Error())
 		return o
 	}
 
@@ -35,7 +34,7 @@ func (o *OPA) WithPolicyBytes(policy []byte) *OPA {
 func (o *OPA) WithDataFile(fileName string) *OPA {
 	data, err := ioutil.ReadFile(fileName)
 	if err != nil {
-		o.configErr = fmt.Errorf("%v: %w", err.Error(), errors.ErrInvalidConfig)
+		o.configErr = errors.New(errors.InvalidConfigErr, err.Error())
 		return o
 	}
 
@@ -53,7 +52,7 @@ func (o *OPA) WithDataBytes(data []byte) *OPA {
 func (o *OPA) WithDataJSON(data interface{}) *OPA {
 	v, err := json.Marshal(data)
 	if err != nil {
-		o.configErr = fmt.Errorf("%v: %w", err.Error(), errors.ErrInvalidConfig)
+		o.configErr = errors.New(errors.InvalidConfigErr, err.Error())
 		return o
 	}
 
@@ -65,7 +64,7 @@ func (o *OPA) WithDataJSON(data interface{}) *OPA {
 // evaluation.
 func (o *OPA) WithMemoryLimits(min, max uint32) *OPA {
 	if min < 2*wasm.PageSize {
-		o.configErr = fmt.Errorf("too low minimum memory limit: %w", errors.ErrInvalidConfig)
+		o.configErr = errors.New(errors.InvalidConfigErr, "too low minimum memory limit")
 		return o
 	}
 
@@ -74,7 +73,7 @@ func (o *OPA) WithMemoryLimits(min, max uint32) *OPA {
 	}
 
 	if min > max {
-		o.configErr = fmt.Errorf("too low maximum memory limit: %w", errors.ErrInvalidConfig)
+		o.configErr = errors.New(errors.InvalidConfigErr, "too low maximum memory limit")
 		return o
 	}
 
@@ -88,7 +87,7 @@ func (o *OPA) WithMemoryLimits(min, max uint32) *OPA {
 // usable for the process as per runtime.NumCPU().
 func (o *OPA) WithPoolSize(size uint32) *OPA {
 	if size == 0 {
-		o.configErr = fmt.Errorf("pool size: %w", errors.ErrInvalidConfig)
+		o.configErr = errors.New(errors.InvalidConfigErr, "pool size")
 		return o
 	}
 
