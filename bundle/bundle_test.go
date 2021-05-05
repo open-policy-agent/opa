@@ -101,7 +101,7 @@ func TestReadWithSizeLimit(t *testing.T) {
 	br := NewCustomReader(loader).WithSizeLimitBytes(4)
 
 	_, err := br.Read()
-	if err == nil || err.Error() != "bundle file exceeded max size (4 bytes)" {
+	if err == nil || err.Error() != "bundle file 'data.json' exceeded max size (4 bytes)" {
 		t.Fatal("expected error but got:", err)
 	}
 
@@ -113,10 +113,9 @@ func TestReadWithSizeLimit(t *testing.T) {
 	br = NewCustomReader(loader).WithSizeLimitBytes(4)
 
 	_, err = br.Read()
-	if err == nil || err.Error() != "bundle signatures file exceeded max size (4 bytes)" {
+	if err == nil || err.Error() != "bundle file '.signatures.json' exceeded max size (4 bytes)" {
 		t.Fatal("expected error but got:", err)
 	}
-
 }
 
 func testReadBundle(t *testing.T, baseDir string) {
@@ -418,6 +417,103 @@ func TestReadWithSignaturesWithBaseDir(t *testing.T) {
 	}
 }
 
+func TestReadWithPatch(t *testing.T) {
+	files := [][2]string{
+		{"/.manifest", `{"revision": "quickbrownfaux",  "roots": ["a"]}`},
+		{"/patch.json", `{"data": [{"op": "add", "path": "/a/b/d", "value": "foo"}, {"op": "remove", "path": "a/b/c"}]}`},
+	}
+
+	buf := archive.MustWriteTarGz(files)
+
+	loader := NewTarballLoaderWithBaseURL(buf, "/foo/bar")
+	reader := NewCustomReader(loader).WithBaseDir("/foo/bar")
+	b, err := reader.Read()
+	if err != nil {
+		t.Fatalf("Unexpected error %v", err)
+	}
+
+	actual := b.Type()
+	if actual != DeltaBundleType {
+		t.Fatalf("Expected delta bundle but got %v", actual)
+	}
+
+	if len(b.Patch.Data) != 2 {
+		t.Fatalf("Expected two patch operations but got %v", len(b.Patch.Data))
+	}
+
+	p1 := PatchOperation{
+		Op:    "add",
+		Path:  "/a/b/d",
+		Value: "foo",
+	}
+
+	p2 := PatchOperation{
+		Op:   "remove",
+		Path: "a/b/c",
+	}
+
+	expected := Patch{Data: []PatchOperation{p1, p2}}
+
+	if !reflect.DeepEqual(b.Patch.Data, expected.Data) {
+		t.Fatalf("Expected patch %v but got %v", expected.Data, b.Patch.Data)
+	}
+}
+
+func TestReadWithPatchExtraFiles(t *testing.T) {
+	cases := []struct {
+		note  string
+		files [][2]string
+		err   string
+	}{
+		{
+			note: "extra data file",
+			files: [][2]string{
+				{"/.manifest", `{"revision": "quickbrownfaux",  "roots": ["a"]}`},
+				{"/patch.json", `{"data": [{"op": "add", "path": "/a/b/d", "value": "foo"}, {"op": "remove", "path": "a/b/c"}]}`},
+				{"/a/b/c/data.json", "[1,2,3]"},
+			},
+			err: "delta bundle expected to contain only patch file but data files found",
+		},
+		{
+			note: "extra policy file",
+			files: [][2]string{
+				{"/.manifest", `{"revision": "quickbrownfaux",  "roots": ["a"]}`},
+				{"/patch.json", `{"data": [{"op": "add", "path": "/a/b/d", "value": "foo"}, {"op": "remove", "path": "a/b/c"}]}`},
+				{"/http/policy/policy.rego", `package example`},
+			},
+			err: "delta bundle expected to contain only patch file but policy files found",
+		},
+		{
+			note: "extra wasm file",
+			files: [][2]string{
+				{"/.manifest", `{"revision": "quickbrownfaux",  "roots": ["a"]}`},
+				{"/patch.json", `{"data": [{"op": "add", "path": "/a/b/d", "value": "foo"}, {"op": "remove", "path": "a/b/c"}]}`},
+				{"/policy.wasm", `modules-compiled-as-wasm-binary`},
+			},
+			err: "delta bundle expected to contain only patch file but wasm files found",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			buf := archive.MustWriteTarGz(tc.files)
+			loader := NewTarballLoaderWithBaseURL(buf, "/foo/bar")
+			reader := NewCustomReader(loader).WithBaseDir("/foo/bar")
+			_, err := reader.Read()
+			if tc.err == "" && err != nil {
+				t.Fatal("Unexpected error occurred:", err)
+			} else if tc.err != "" && err == nil {
+				t.Fatal("Expected error but got success")
+			} else if tc.err != "" && err != nil {
+				if tc.err != err.Error() {
+					t.Fatalf("Expected error to contain %q but got: %v", tc.err, err)
+				}
+			}
+		})
+	}
+
+}
+
 func TestReadWithSignaturesExtraFiles(t *testing.T) {
 	signedTokenHS256 := `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImZvbyJ9.eyJmaWxlcyI6W3sibmFtZSI6Ii5tYW5pZmVzdCIsImhhc2giOiI1MDdhMmMzOGExNDQxZGI1OGQyY2I4Nzk4MmM0MmFhOTFhNDM0MmVmNDIyYTZiNTQyZWRkZWJlZWY2ZjA0MTJmIiwiYWxnb3JpdGhtIjoiU0hBLTI1NiJ9LHsibmFtZSI6ImEvYi9jL2RhdGEuanNvbiIsImhhc2giOiI0MmNmZTY3NjhiNTdiYjVmNzUwM2MxNjVjMjhkZDA3YWM1YjgxMzU1NGViYzg1MGYyY2MzNTg0M2U3MTM3YjFkIiwiYWxnb3JpdGhtIjoiU0hBLTI1NiJ9LHsibmFtZSI6Imh0dHAvcG9saWN5L3BvbGljeS5yZWdvIiwiaGFzaCI6ImE2MTVlZWFlZTIxZGU1MTc5ZGUwODBkZThjMzA1MmM4ZGE5MDExMzg0MDZiYTcxYzM4YzAzMjg0NWY3ZDU0ZjQiLCJhbGdvcml0aG0iOiJTSEEtMjU2In1dLCJpYXQiOjE1OTIyNDgwMjcsImlzcyI6IkpXVFNlcnZpY2UiLCJzY29wZSI6IndyaXRlIn0.Vmm9UDiInUnXXlk-OOjiCy3rR7EVvXS-OFst1rbh3Zo`
 
@@ -634,6 +730,14 @@ func TestReadRootValidation(t *testing.T) {
 				{"/c/e/data.json", `"bad bad bad"`},
 			},
 			err: "manifest roots [a b c/d] do not permit data at path '/c/e'",
+		},
+		{
+			note: "err data patch outside scope",
+			files: [][2]string{
+				{"/.manifest", `{"revision": "abcd", "roots": ["a", "b", "c/d"]}`},
+				{"/patch.json", `{"data": [{"op": "add", "path": "/a/b/d", "value": "foo"}, {"op": "remove", "path": "/c/e"}]}`},
+			},
+			err: "manifest roots [a b c/d] do not permit data patch at path 'c/e'",
 		},
 	}
 
@@ -911,6 +1015,46 @@ func TestRoundtripWithPlanModules(t *testing.T) {
 		b2.PlanModules[0].URL != b.PlanModules[0].URL ||
 		!bytes.Equal(b2.PlanModules[0].Raw, b.PlanModules[0].Raw) {
 		t.Fatalf("expected %+v but got %+v", b, b2)
+	}
+}
+
+func TestRoundtripDeltaBundle(t *testing.T) {
+
+	// replace a value
+	p1 := PatchOperation{
+		Op:    "replace",
+		Path:  "a/baz",
+		Value: "bux",
+	}
+
+	// add a new object member
+	p2 := PatchOperation{
+		Op:    "add",
+		Path:  "/a/foo",
+		Value: []string{"hello", "world"},
+	}
+
+	bundle := Bundle{
+		Patch: Patch{Data: []PatchOperation{p1, p2}},
+		Manifest: Manifest{
+			Revision: "delta",
+			Roots:    &[]string{"a"},
+		},
+	}
+
+	var buf bytes.Buffer
+
+	if err := NewWriter(&buf).Write(bundle); err != nil {
+		t.Fatal("Unexpected error:", err)
+	}
+
+	bundle2, err := NewReader(&buf).Read()
+	if err != nil {
+		t.Fatal("Unexpected error:", err)
+	}
+
+	if !bundle2.Equal(bundle) {
+		t.Fatal("Exp:", bundle, "\n\nGot:", bundle2)
 	}
 }
 
