@@ -7,18 +7,17 @@ package opa
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"runtime"
-	"strings"
 	"sync"
 	"time"
 
-	"github.com/bytecodealliance/wasmtime-go"
-
 	"github.com/open-policy-agent/opa/internal/wasm/sdk/internal/wasm"
 	"github.com/open-policy-agent/opa/internal/wasm/sdk/opa/errors"
+	sdk_errors "github.com/open-policy-agent/opa/internal/wasm/sdk/opa/errors"
 	"github.com/open-policy-agent/opa/metrics"
 )
+
+var errNotReady = errors.New(errors.NotReadyErr, "")
 
 // OPA executes WebAssembly compiled Rego policies.
 type OPA struct {
@@ -79,12 +78,12 @@ func (o *OPA) Init() (*OPA, error) {
 // error occurs.
 func (o *OPA) SetData(ctx context.Context, v interface{}) error {
 	if o.pool == nil {
-		return errors.ErrNotReady
+		return errNotReady
 	}
 
 	raw, err := json.Marshal(v)
 	if err != nil {
-		return fmt.Errorf("%v: %w", err, errors.ErrInvalidPolicyOrData)
+		return sdk_errors.New(sdk_errors.InvalidPolicyOrDataErr, err.Error())
 	}
 
 	o.mutex.Lock()
@@ -112,7 +111,7 @@ func (o *OPA) RemoveDataPath(ctx context.Context, path []string) error {
 // error occurs.
 func (o *OPA) SetPolicy(ctx context.Context, p []byte) error {
 	if o.pool == nil {
-		return errors.ErrNotReady
+		return errNotReady
 	}
 
 	o.mutex.Lock()
@@ -126,7 +125,7 @@ func (o *OPA) SetPolicy(ctx context.Context, p []byte) error {
 // ErrInternal if an error occurs.
 func (o *OPA) SetPolicyData(ctx context.Context, policy []byte, data *interface{}) error {
 	if o.pool == nil {
-		return errors.ErrNotReady
+		return errNotReady
 	}
 
 	var raw []byte
@@ -134,7 +133,7 @@ func (o *OPA) SetPolicyData(ctx context.Context, policy []byte, data *interface{
 		var err error
 		raw, err = json.Marshal(*data)
 		if err != nil {
-			return fmt.Errorf("%v: %w", err, errors.ErrInvalidPolicyOrData)
+			return sdk_errors.New(sdk_errors.InvalidPolicyOrDataErr, err.Error())
 		}
 	}
 
@@ -168,7 +167,7 @@ type EvalOpts struct {
 // ErrInternal if any other error occurs.
 func (o *OPA) Eval(ctx context.Context, opts EvalOpts) (*Result, error) {
 	if o.pool == nil {
-		return nil, errors.ErrNotReady
+		return nil, errNotReady
 	}
 
 	m := opts.Metrics
@@ -184,17 +183,11 @@ func (o *OPA) Eval(ctx context.Context, opts EvalOpts) (*Result, error) {
 	defer o.pool.Release(instance, m)
 
 	result, err := instance.Eval(ctx, opts.Entrypoint, opts.Input, m, opts.Time)
-	if t, ok := err.(*wasmtime.Trap); ok && strings.HasPrefix(t.Message(), "wasm trap: interrupt") {
-		return nil, errors.ErrCancelled
-	}
-	switch err {
-	case nil:
-		return &Result{Result: result}, nil
-	case errors.ErrCancelled: // errors that don't need re-wrapping
+	if err != nil {
 		return nil, err
-	default:
-		return nil, fmt.Errorf("%v: %w", err, errors.ErrInternal)
 	}
+
+	return &Result{Result: result}, nil
 }
 
 // Close waits until all the pending evaluations complete and then

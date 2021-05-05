@@ -6,7 +6,6 @@ package file
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"sync"
 	"time"
@@ -21,6 +20,8 @@ const (
 	// DefaultInterval for re-loading the bundle file.
 	DefaultInterval = time.Minute
 )
+
+var errNotReady = errors.New(errors.NotReadyErr, "")
 
 // Loader loads a bundle from a file. If started, it loads the bundle
 // periodically until closed.
@@ -64,7 +65,7 @@ func (l *Loader) Init() (*Loader, error) {
 	}
 
 	if l.filename == "" {
-		return nil, fmt.Errorf("filename: %w", errors.ErrInvalidConfig)
+		return nil, errors.New(errors.InvalidConfigErr, "missing filename")
 	}
 
 	l.initialized = true
@@ -75,7 +76,7 @@ func (l *Loader) Init() (*Loader, error) {
 // bundle loading fails.
 func (l *Loader) Start(ctx context.Context) error {
 	if !l.initialized {
-		return errors.ErrNotReady
+		return errNotReady
 	}
 
 	if err := l.Load(ctx); err != nil {
@@ -113,7 +114,7 @@ func (l *Loader) Close() {
 // returns.
 func (l *Loader) Load(ctx context.Context) error {
 	if !l.initialized {
-		return errors.ErrNotReady
+		return errNotReady
 	}
 
 	l.mutex.Lock()
@@ -121,7 +122,7 @@ func (l *Loader) Load(ctx context.Context) error {
 
 	f, err := os.Open(l.filename)
 	if err != nil {
-		return fmt.Errorf("%v: %w", err, errors.ErrInvalidBundle)
+		return errors.New(errors.InvalidBundleErr, err.Error())
 	}
 
 	defer f.Close()
@@ -130,11 +131,11 @@ func (l *Loader) Load(ctx context.Context) error {
 
 	b, err := bundle.NewReader(f).Read()
 	if err != nil {
-		return fmt.Errorf("%v: %w", err, errors.ErrInvalidBundle)
+		return errors.New(errors.InvalidBundleErr, err.Error())
 	}
 
 	if len(b.WasmModules) == 0 {
-		return fmt.Errorf("missing wasm: %w", errors.ErrInvalidBundle)
+		return errors.New(errors.InvalidBundleErr, "missing wasm")
 	}
 
 	var data *interface{}

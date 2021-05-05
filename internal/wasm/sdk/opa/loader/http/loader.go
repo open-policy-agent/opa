@@ -82,7 +82,7 @@ func (l *Loader) Init() (*Loader, error) {
 	}
 
 	if l.url == "" {
-		return nil, fmt.Errorf("missing url: %w", errors.ErrInvalidConfig)
+		return nil, errors.New(errors.InvalidConfigErr, "missing url")
 	}
 
 	l.initialized = true
@@ -93,7 +93,7 @@ func (l *Loader) Init() (*Loader, error) {
 // successful download.  If cancelled, will return context.Cancelled.
 func (l *Loader) Start(ctx context.Context) error {
 	if !l.initialized {
-		return errors.ErrNotReady
+		return errors.New(errors.NotReadyErr, "")
 	}
 
 	if err := l.download(ctx); err != nil {
@@ -177,7 +177,7 @@ func (l *Loader) download(ctx context.Context) error {
 // SetPolicyData of OPA returns.
 func (l *Loader) Load(ctx context.Context) error {
 	if !l.initialized {
-		return errors.ErrNotReady
+		return errors.New(errors.NotReadyErr, "")
 	}
 
 	l.mutex.Lock()
@@ -185,11 +185,11 @@ func (l *Loader) Load(ctx context.Context) error {
 
 	bundle, err := l.get(ctx, "")
 	if err != nil {
-		return fmt.Errorf("%v: %w", err, errors.ErrInvalidBundle)
+		return errors.New(errors.InvalidBundleErr, err.Error())
 	}
 
 	if len(bundle.WasmModules) == 0 {
-		return errors.ErrInvalidBundle
+		return errors.New(errors.InvalidBundleErr, "missing wasm")
 	}
 
 	var data *interface{}
