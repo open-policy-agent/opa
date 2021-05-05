@@ -454,7 +454,7 @@ func (p *Plugin) process(ctx context.Context, name string, u download.Update) {
 			return
 		}
 
-		if p.persistBundle(name) {
+		if u.Bundle.Type() == bundle.SnapshotBundleType && p.persistBundle(name) {
 			p.log(name).Debug("Persisting bundle to disk in progress.")
 
 			err := p.saveBundleToDisk(name, u.Raw)
@@ -521,8 +521,18 @@ func (p *Plugin) activate(ctx context.Context, name string, b *bundle.Bundle) er
 
 		// Compile the bundle modules with a new compiler and set it on the
 		// transaction params for use by onCommit hooks.
-		compiler := ast.NewCompiler().
-			WithPathConflictsCheck(storage.NonEmpty(ctx, p.manager.Store, txn)).
+		// If activating a delta bundle, use the manager's compiler which should have
+		// the polices compiled on it.
+		var compiler *ast.Compiler
+		if b.Type() == bundle.DeltaBundleType {
+			compiler = p.manager.GetCompiler()
+		}
+
+		if compiler == nil {
+			compiler = ast.NewCompiler()
+		}
+
+		compiler = compiler.WithPathConflictsCheck(storage.NonEmpty(ctx, p.manager.Store, txn)).
 			WithEnablePrintStatements(p.manager.EnablePrintStatements())
 
 		var activateErr error

@@ -105,6 +105,46 @@ in bundle responses to identify the revision of the bundle. OPA will include the
 check the `If-None-Match` header and reply with HTTP `304 Not Modified` if the
 bundle has not changed since the last update.
 
+#### HTTP Long Polling
+
+With the periodic bundle downloading (ie. `short polling`) technique, OPA sends regular requests to the remote HTTP
+server to pull any available bundle. If there is no new bundle, the server responds with a `304 Not Modified` response.
+The polling frequency depends on the latency that the client can tolerate in
+retrieving updated information from the server.  A drawback of this
+method is that if the acceptable latency is low, then the polling frequency could add unnecessary
+burden on the server and/or network.
+
+[HTTP Long Polling](https://datatracker.ietf.org/doc/html/rfc6202#section-2) helps to minimize server/network resource
+usage and also reduces the delay in delivery of updates to the client. When OPA sends a long poll request to the server,
+it defers its response until an update is available or timeout has occurred. In case of a timeout, the server responds
+with a `304 Not Modified` response.
+
+The below configuration shows how to enable bundle downloading via `long polling`:
+
+```yaml
+services:
+  - name: acmecorp
+    url: https://example.com/service/v1
+    credentials:
+      bearer:
+        token: "bGFza2RqZmxha3NkamZsa2Fqc2Rsa2ZqYWtsc2RqZmtramRmYWxkc2tm"
+
+bundles:
+  authz:
+    service: acmecorp
+    resource: somedir/bundle.tar.gz
+    persist: true
+    polling:
+      long_polling_timeout_seconds: 10
+    signing:
+      keyid: my_global_key
+      scope: read
+```
+
+With the above configuration, OPA sends a long poll request to the server with a timeout set to `10` seconds. If the server
+supports `long polling`, OPA expects the server to set the `Content-Type` header to `application/vnd.openpolicyagent.bundles`.
+If the server does not support `long polling`, OPA will fallback to the regular periodic polling.
+
 ### Bundle File Format
 
 Bundle files are gzipped tarballs that contain policies and data. The data
@@ -418,6 +458,103 @@ is capable of verifying the bundle, e.g.
 bundle.RegisterSigner("custom", &CustomSigner{})
 bundle.RegisterVerifier("custom", &CustomVerifier{})
 ```
+
+### Delta Bundles
+
+A regular _snapshot_ bundle represents the entirety of OPA’s policy and data cache. When a new _snapshot_ bundle is
+downloaded, OPA will erase and overwrite all the policy and data in its cache before activating the new bundle. We can
+optionally scope the bundle to a subset of OPA’s policy and data cache by defining the `roots` in the bundle's manifest.
+
+Although OPA [caches](#caching) snapshot bundles to avoid unnecessary retransmission,
+servers must still retransmit the entire snapshot when any change occurs. If you need
+to propagate small changes to bundles without waiting for polling delays, consider
+using _delta_ bundles in conjunction with [HTTP Long Polling](#http-long-polling).
+
+_Delta_ bundles provide a more efficient way to make data changes by containing patches to data instead of snapshots.
+_Delta_ bundles are similar to _snapshot_ bundles in terms of structure and layout semantics. A _delta_ bundle contains a
+single `patch.json` file at the root of the bundle which includes a [JSON Patch](https://datatracker.ietf.org/doc/html/rfc6902)
+(i.e., an array of JSON objects). The operations in the JSON Patch will be applied to OPA's in-memory store in order.
+_Delta_ bundles currently support updates to data only and not on policies. Hence, by leveraging _delta_ bundles along with
+[HTTP Long Polling](#http-long-polling), bundle services can propagate data changes to OPAs more quickly and efficiently.
+
+#### Delta Bundle File Format
+
+OPA expects a _delta_ bundle to contain an optional `.manifest` file and a required `patch.json` file that specifies a list of
+patch operations on the data. OPA will generate an error if a _delta_ bundle contains any policy, data or wasm binary files.
+If the `.manifest` file specifies any `roots`, any data patch outside the bundle's roots will cause an error.
+
+```bash
+$ tar tzf bundle.tar.gz
+.manifest
+patch.json
+```
+
+Below is an example of the `patch.json` file:
+
+```json
+[
+  {"op": "upsert", "path": "/a/b", "value": ["hello", "world"]},
+  {"op": "remove", "path": "/a/c"}
+]
+```
+
+A _delta_ bundle update for an existing _snapshot_ bundle, MUST have the same values for the manifest `roots` and `wasm`
+fields from the original _snapshot_ bundle. This means a _delta_ bundle cannot be used to change the scope of the original
+bundle. A _delta_ bundle can however contain different values for the bundle's `revision` and `metadata`.
+
+#### Delta Bundle Patch Operations
+
+Each patch operation defined in the `patch.json` file must have exactly one `op` member which indicates the
+operation to perform. Valid options include:
+
+|  op | Description  |
+|-----|--------------|
+| `"remove"` | The `"path"` specified will be removed from OPA's in-memory store. The `"value"` field is ignored for `"remove"` operations. |
+| `"replace"` | The value at the specified `"path"` will be replaced by the new value defined by the `"value"` field. The target path must exist for the operation to be successful. |
+| `"upsert"` | The `"value"` will be set at the specified `"path"`. If the `"path"` specifies an array index, the `"value"` is inserted into the array at the specified index. If the `"path"` specifies an object member that does not already exist, a new member is added to the object. If the object member exists, its value is replaced. If the `"path"` does not exist, OPA will create and add it to its in-memory store. |
+
+
+The `"path"` field defines a JSON pointer path to the location to perform the operation on.
+
+The `"value"` field defines the value to be added or replaced. Only required for `"upsert"` and  `"replace"` operations.
+
+#### Limitations
+
+* _Delta_ bundles only support updates to data
+
+* _Delta_ bundles do not support bundle signing
+
+* Unlike _snapshot_ bundles, activated _delta_ bundles are not persisted to disk when the `bundles[_].persist` field is `true`
+
+
+#### Delta Bundle FAQ
+
+This section discusses some _delta_ bundle usage, edge cases and failure scenarios.
+
+* What happens if OPA cannot apply a data patch ?
+
+Bundle activation will fail in this scenario. In the next attempt to download the bundle, OPA will set the value
+of the `If-None-Match` header of the bundle request to the last successful activation Etag value. This should help the
+Bundle Service to send the correct revision of the bundle to OPA.
+
+* What happens if OPA cannot reach the Bundle Service (for example. network failure) or is unable to download a bundle ?
+
+OPA always includes the last successful activation Etag value in the bundle request. When OPA eventually reconnects
+with the server, the value of the `If-None-Match` header of bundle request could be empty indicating that OPA was not
+able to activate the first revision of the bundle itself. This helps the server to re-transmit the correct bundle revision.
+
+In case OPA has already activated a revision of the bundle, and reaches out to the server with the last
+successful activation Etag value, the server now knows to send the next bundle revision. This could either be a snapshot
+or delta bundle. One possible approach on the server-side, would be to first send a snapshot bundle and then send delta bundles
+to perform data patch operations. The server could maintain the order in which the bundles should go out for example,
+assigning an Etag value to each bundle revision. Hence, it can figure out the right bundle to send by looking up the
+`If-None-Match` header of bundle request and then lining-up the next bundle in the queue.
+
+* Does a _delta_ bundle always need to be preceded by a _snapshot_ bundle ?
+
+No. OPA will activate a _delta_ bundle if all the patch operations in it were successfully applied. Note that a _snapshot_
+bundle would erase and overwrite policy and data under the manifest `roots`.
+
 
 ## Implementations
 

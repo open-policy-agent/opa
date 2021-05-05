@@ -97,6 +97,91 @@ func TestPluginOneShot(t *testing.T) {
 	}
 }
 
+func TestPluginOneShotDeltaBundle(t *testing.T) {
+
+	ctx := context.Background()
+	manager := getTestManager()
+	plugin := New(&Config{}, manager)
+	bundleName := "test-bundle"
+	plugin.status[bundleName] = &Status{Name: bundleName, Metrics: metrics.New()}
+	plugin.downloaders[bundleName] = download.New(download.Config{}, plugin.manager.Client(""), bundleName)
+
+	ensurePluginState(t, plugin, plugins.StateNotReady)
+
+	module := "package a\n\ncorge=1"
+
+	b := bundle.Bundle{
+		Manifest: bundle.Manifest{Revision: "quickbrownfaux", Roots: &[]string{"a"}},
+		Data: map[string]interface{}{
+			"a": map[string]interface{}{
+				"baz": "qux",
+			},
+		},
+		Modules: []bundle.ModuleFile{
+			{
+				Path:   "a/policy.rego",
+				Parsed: ast.MustParseModule(module),
+				Raw:    []byte(module),
+			},
+		},
+	}
+
+	plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New()})
+
+	ensurePluginState(t, plugin, plugins.StateOK)
+
+	// simulate a delta bundle download
+
+	// replace a value
+	p1 := bundle.PatchOperation{
+		Op:    "replace",
+		Path:  "a/baz",
+		Value: "bux",
+	}
+
+	// add a new object member
+	p2 := bundle.PatchOperation{
+		Op:    "upsert",
+		Path:  "/a/foo",
+		Value: []string{"hello", "world"},
+	}
+
+	b2 := bundle.Bundle{
+		Manifest: bundle.Manifest{Revision: "delta", Roots: &[]string{"a"}},
+		Patch:    bundle.Patch{Data: []bundle.PatchOperation{p1, p2}},
+	}
+
+	plugin.process(ctx, bundleName, download.Update{Bundle: &b2, Metrics: metrics.New()})
+
+	ensurePluginState(t, plugin, plugins.StateOK)
+
+	txn := storage.NewTransactionOrDie(ctx, manager.Store)
+	defer manager.Store.Abort(ctx, txn)
+
+	ids, err := manager.Store.ListPolicies(ctx, txn)
+	if err != nil {
+		t.Fatal(err)
+	} else if len(ids) != 1 {
+		t.Fatal("Expected 1 policy")
+	}
+
+	bs, err := manager.Store.GetPolicy(ctx, txn, ids[0])
+	exp := []byte("package a\n\ncorge=1")
+	if err != nil {
+		t.Fatal(err)
+	} else if !bytes.Equal(bs, exp) {
+		t.Fatalf("Bad policy content. Exp:\n%v\n\nGot:\n\n%v", string(exp), string(bs))
+	}
+
+	data, err := manager.Store.Read(ctx, txn, storage.Path{})
+	expData := util.MustUnmarshalJSON([]byte(`{"a": {"baz": "bux", "foo": ["hello", "world"]}, "system": {"bundles": {"test-bundle": {"manifest": {"revision": "delta", "roots": ["a"]}}}}}`))
+	if err != nil {
+		t.Fatal(err)
+	} else if !reflect.DeepEqual(data, expData) {
+		t.Fatalf("Bad data content. Exp:\n%v\n\nGot:\n\n%v", expData, data)
+	}
+}
+
 func TestPluginStart(t *testing.T) {
 
 	ctx := context.Background()
