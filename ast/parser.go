@@ -944,7 +944,7 @@ func (p *Parser) parseNumber() *Term {
 	s := prefix + p.s.lit
 	f, ok := new(big.Float).SetString(s)
 	if !ok {
-		p.illegal("expected number")
+		p.illegal("invalid float")
 		return nil
 	}
 
@@ -956,7 +956,7 @@ func (p *Parser) parseNumber() *Term {
 	//
 	// The limit is arbitrary.
 	exp := f.MantExp(nil)
-	if exp > 1e5 || exp < -1e5 {
+	if exp > 1e5 || exp < -1e5 || f.IsInf() { // +/- inf, exp is 0
 		p.error(p.s.Loc(), "number too big")
 		return nil
 	}

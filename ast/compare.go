@@ -102,14 +102,43 @@ func Compare(a, b interface{}) int {
 		// big.Float comes with a default precision of 64, and setting a
 		// larger precision results in more memory being allocated
 		// (regardless of the actual number we are parsing with SetString).
-		bigA, ok := new(big.Rat).SetString(string(a))
+		//
+		// Note: If we're so close to zero that big.Float says we are zero, do
+		// *not* big.Rat).SetString on the original string it'll potentially
+		// take very long.
+		var bigA, bigB *big.Rat
+		fa, ok := new(big.Float).SetString(string(a))
 		if !ok {
 			panic("illegal value")
 		}
-		bigB, ok := new(big.Rat).SetString(string(b.(Number)))
+		if fa.IsInt() {
+			if i, _ := fa.Int64(); i == 0 {
+				bigA = new(big.Rat).SetInt64(0)
+			}
+		}
+		if bigA == nil {
+			bigA, ok = new(big.Rat).SetString(string(a))
+			if !ok {
+				panic("illegal value")
+			}
+		}
+
+		fb, ok := new(big.Float).SetString(string(b.(Number)))
 		if !ok {
 			panic("illegal value")
 		}
+		if fb.IsInt() {
+			if i, _ := fb.Int64(); i == 0 {
+				bigB = new(big.Rat).SetInt64(0)
+			}
+		}
+		if bigB == nil {
+			bigB, ok = new(big.Rat).SetString(string(b.(Number)))
+			if !ok {
+				panic("illegal value")
+			}
+		}
+
 		return bigA.Cmp(bigB)
 	case String:
 		b := b.(String)
