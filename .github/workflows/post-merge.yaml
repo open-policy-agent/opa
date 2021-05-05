@@ -57,10 +57,61 @@ jobs:
         run: make ci-go-test-coverage
         timeout-minutes: 30
 
+  release-build:
+    name: Release Build (linux, windows)
+    runs-on: ubuntu-18.04
+    needs: generate
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: Build Linux and Windows
+        run: make ci-go-ci-build-linux ci-go-ci-build-windows
+        timeout-minutes: 30
+        env:
+          TELEMETRY_URL: ${{ secrets.TELEMETRY_URL }}
+
+      - name: Upload binaries
+        uses: actions/upload-artifact@v2
+        if: always()
+        with:
+          name: binaries
+          path: _release
+
+  release-build-darwin:
+    name: Release Build (darwin)
+    runs-on: macos-latest
+    needs: generate
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - id: go_version
+        name: Read go version
+        run: echo "::set-output name=go_version::$(cat .go-version)"
+
+      - name: Install Go (${{ steps.go_version.outputs.go_version }})
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ steps.go_version.outputs.go_version }}
+
+      - name: Build Darwin
+        run: make ci-build-darwin
+        timeout-minutes: 30
+        env:
+          TELEMETRY_URL: ${{ secrets.TELEMETRY_URL }}
+
+      - name: Upload binaries (darwin)
+        uses: actions/upload-artifact@v2
+        if: always()
+        with:
+          name: binaries
+          path: _release
+
   deploy-edge:
     name: Push Edge Release
     runs-on: ubuntu-18.04
-    needs: generate
+    needs: [release-build, release-build-darwin]
     steps:
       - name: Check out code
         uses: actions/checkout@v2
@@ -69,10 +120,11 @@ jobs:
         run: make ci-release-test
         timeout-minutes: 60
 
-      - name: Build Release Binaries
-        env:
-          TELEMETRY_URL: ${{ secrets.TELEMETRY_URL }}
-        run: make release-local
+      - name: Download release binaries
+        uses: actions/download-artifact@v2
+        with:
+          name: binaries
+          path: _release
 
       - name: Deploy OPA Edge
         env:

@@ -7,8 +7,11 @@ VERSION := $(shell ./build/get-build-version.sh)
 CGO_ENABLED ?= 1
 WASM_ENABLED ?= 1
 
-# Force modules on and to use the vendor directory.
-GO := CGO_ENABLED=$(CGO_ENABLED) GO111MODULE=on GOFLAGS=-mod=vendor go
+# See https://golang.org/cmd/go/#hdr-Build_modes:
+# > -buildmode=exe
+# > Build the listed main packages and everything they import into
+# > executables. Packages not named main are ignored.
+GO := CGO_ENABLED=$(CGO_ENABLED) GOFLAGS="-buildmode=exe" go
 GO_TEST_TIMEOUT := -timeout 30m
 
 GO_TAGS := -tags=
@@ -21,6 +24,12 @@ GOARCH := $(shell go env GOARCH)
 GOOS := $(shell go env GOOS)
 
 DOCKER_RUNNING := $(shell docker ps >/dev/null 2>&1 && echo 1 || echo 0)
+
+# We use root because the windows build, invoked through the ci-go-build-windows
+# target, installs the gcc mingw32 cross-compiler.
+# For image-quick, it's overridden, so that the built binary isn't root-owned.
+DOCKER_UID ?= 0
+DOCKER_GID ?= 0
 
 ifeq ($(shell tty > /dev/null && echo 1 || echo 0), 1)
 DOCKER_FLAGS := --rm -it
@@ -79,7 +88,8 @@ generate: wasm-lib-build
 build: go-build
 
 .PHONY: image
-image: ci-go-build-docker
+image:
+	DOCKER_UID=$(shell id -u) DOCKER_GID=$(shell id -g) $(MAKE) ci-go-ci-build-linux
 	@$(MAKE) image-quick
 
 .PHONY: install
@@ -221,7 +231,7 @@ wasm-rego-testgen-install:
 
 CI_GOLANG_DOCKER_MAKE := $(DOCKER) run \
 	$(DOCKER_FLAGS) \
-	-u $(shell id -u):$(shell id -g) \
+	-u $(DOCKER_UID):$(DOCKER_GID) \
 	-v $(PWD):/src \
 	-w /src \
 	-e GOCACHE=/src/.go/cache \
@@ -247,23 +257,24 @@ ci-check-working-copy: generate
 .PHONY: ci-wasm
 ci-wasm: wasm-test
 
-.PHONY: build-docker
-build-docker: ensure-release-dir
-	$(GO) build $(GO_TAGS) -o $(RELEASE_DIR)/opa_docker_$(GOARCH) -ldflags $(LDFLAGS)
-
-.PHONY: build-linux
-build-linux: ensure-release-dir
-	@$(MAKE) build GOOS=linux CGO_ENABLED=0 WASM_ENABLED=0
+.PHONY: ci-build-linux
+ci-build-linux: ensure-release-dir
+	@$(MAKE) build GOOS=linux
+	chmod +x opa_linux_$(GOARCH)
 	mv opa_linux_$(GOARCH) $(RELEASE_DIR)/
 
-.PHONY: build-darwin
-build-darwin: ensure-release-dir
-	@$(MAKE) build GOOS=darwin CGO_ENABLED=0 WASM_ENABLED=0
+.PHONY: ci-build-darwin
+ci-build-darwin: ensure-release-dir
+	@$(MAKE) build GOOS=darwin
+	chmod +x opa_darwin_$(GOARCH)
 	mv opa_darwin_$(GOARCH) $(RELEASE_DIR)/
 
-.PHONY: build-windows
-build-windows: ensure-release-dir
-	@$(MAKE) build GOOS=windows CGO_ENABLED=0 WASM_ENABLED=0
+# NOTE: This target expects to be run as root on some debian/ubuntu variant
+# that can install the `gcc-mingw-w64-x86-64` package via apt-get.
+.PHONY: ci-build-windows
+ci-build-windows: ensure-release-dir
+	build/ensure-windows-toolchain.sh
+	@$(MAKE) build GOOS=windows CC=x86_64-w64-mingw32-gcc
 	mv opa_windows_$(GOARCH) $(RELEASE_DIR)/opa_windows_$(GOARCH).exe
 
 .PHONY: ensure-release-dir
@@ -271,7 +282,7 @@ ensure-release-dir:
 	mkdir -p $(RELEASE_DIR)
 
 .PHONY: build-all-platforms
-build-all-platforms: build-docker build-linux build-darwin build-windows
+build-all-platforms: ci-build-linux ci-build-darwin ci-build-windows
 
 .PHONY: image-quick
 image-quick:
@@ -400,3 +411,31 @@ dev-patch:
 		-v $(PWD):/_src \
 		python:2.7 \
 		/_src/build/gen-dev-patch.sh --version=$(VERSION) --source-url=/_src
+
+# Deprecated targets. To be removed.
+.PHONY: build-linux depr-build-linux build-windows depr-build-windows build-darwin depr-build-darwin
+build-linux: deprecation-build-linux
+build-windows: deprecation-build-windows
+build-darwin: deprecation-build-darwin
+
+.PHONY: deprecation-%
+deprecation-%:
+	@echo "----------------------------------------------"
+	@echo "The '$*' make target is deprecated!"
+	@echo "----------------------------------------------"
+	@echo "To run build for your platform, use 'make build'."
+	@echo "To cross-compile for a specific platform, use the corresponding 'ci-build-*' target."
+	@echo
+	@$(MAKE) depr-$*
+
+depr-build-linux: ensure-release-dir
+	@$(MAKE) build GOOS=linux CGO_ENABLED=0 WASM_ENABLED=0
+	mv opa_linux_$(GOARCH) $(RELEASE_DIR)/
+
+depr-build-darwin: ensure-release-dir
+	@$(MAKE) build GOOS=darwin CGO_ENABLED=0 WASM_ENABLED=0
+	mv opa_darwin_$(GOARCH) $(RELEASE_DIR)/
+
+depr-build-windows: ensure-release-dir
+	@$(MAKE) build GOOS=windows CGO_ENABLED=0 WASM_ENABLED=0
+	mv opa_windows_$(GOARCH) $(RELEASE_DIR)/opa_windows_$(GOARCH).exe

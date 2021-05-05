@@ -169,6 +169,10 @@ func TestBuildErrorVerifyNonBundle(t *testing.T) {
 }
 
 func TestBuildVerificationConfigError(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("cannot be run as root")
+	}
+
 	files := map[string]string{
 		"public.pem": "foo",
 	}
