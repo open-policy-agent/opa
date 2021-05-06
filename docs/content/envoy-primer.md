@@ -19,11 +19,6 @@ import input.attributes.request.http
 
 default allow = false
 
-token = {"valid": valid, "payload": payload} {
-    [_, encoded] := split(http.headers.authorization, " ")
-    [valid, _, payload] := io.jwt.decode_verify(encoded, {"secret": "secret"})
-}
-
 allow {
     is_token_valid
     action_allowed
@@ -51,8 +46,14 @@ action_allowed {
 action_allowed {
   http.method == "POST"
   token.payload.role == "admin"
-  glob.match("/people", [], http.path)
+  glob.match("/people", ["/"], http.path)
   lower(input.parsed_body.firstname) != base64url.decode(token.payload.sub)
+}
+
+
+token := {"valid": valid, "payload": payload} {
+    [_, encoded] := split(http.headers.authorization, " ")
+    [valid, _, payload] := io.jwt.decode_verify(encoded, {"secret": "secret"})
 }
 ```
 
