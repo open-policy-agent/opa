@@ -776,9 +776,11 @@ func TestPluginRateLimitDropCountStatus(t *testing.T) {
 
 	_ = fixture.plugin.Log(ctx, event1) // event 1 should be written into the encoder
 
+	fixture.plugin.mtx.Lock()
 	if fixture.plugin.enc.bytesWritten == 0 {
 		t.Fatal("Expected event to be written into the encoder")
 	}
+	fixture.plugin.mtx.Unlock()
 
 	// Create a status plugin that logs to console
 	pluginConfig := []byte(fmt.Sprintf(`{
@@ -790,7 +792,7 @@ func TestPluginRateLimitDropCountStatus(t *testing.T) {
 
 	fixture.manager.Register(status.Name, p)
 	if err := fixture.manager.Start(ctx); err != nil {
-		panic(err)
+		t.Fatal(err)
 	}
 
 	_ = fixture.plugin.Log(ctx, event2) // event 2 should not be written into the encoder as rate limit exceeded
@@ -803,7 +805,7 @@ func TestPluginRateLimitDropCountStatus(t *testing.T) {
 	// Give the logger / console some time to process and print the events
 	time.Sleep(10 * time.Millisecond)
 
-	entries := fixture.consoleLogger.Entries()
+	entries := testLogger.Entries()
 	if len(entries) == 0 {
 		t.Fatal("Expected log entries but got none")
 	}
@@ -996,9 +998,11 @@ func TestPluginReconfigureUploadSizeLimit(t *testing.T) {
 
 	ensurePluginState(t, fixture.plugin, plugins.StateOK)
 
+	fixture.plugin.mtx.Lock()
 	if fixture.plugin.enc.limit != limit {
 		t.Fatalf("Expected upload size limit %v but got %v", limit, fixture.plugin.enc.limit)
 	}
+	fixture.plugin.mtx.Unlock()
 
 	newLimit := int64(600)
 
@@ -1017,9 +1021,11 @@ func TestPluginReconfigureUploadSizeLimit(t *testing.T) {
 	fixture.plugin.Stop(ctx)
 	ensurePluginState(t, fixture.plugin, plugins.StateNotReady)
 
+	fixture.plugin.mtx.Lock()
 	if fixture.plugin.enc.limit != newLimit {
 		t.Fatalf("Expected upload size limit %v but got %v", newLimit, fixture.plugin.enc.limit)
 	}
+	fixture.plugin.mtx.Unlock()
 }
 
 func TestPluginMasking(t *testing.T) {
