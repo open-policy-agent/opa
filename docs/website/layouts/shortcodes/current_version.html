@@ -1,1 +1,6 @@
-{{ index (split $.Page.File.Path "/") 1 }}
+{{- $version := index (split $.Page.File.Path "/") 1 -}}
+{{- if (eq $version "latest") -}}
+{{- index site.Data.releases 1 -}}
+{{- else -}}
+{{- $version -}}
+{{- end -}}

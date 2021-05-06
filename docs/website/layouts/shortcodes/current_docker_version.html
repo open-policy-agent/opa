@@ -1,6 +1,8 @@
 {{- $version := index (split $.Page.File.Path "/") 1 -}}
-{{- if or (eq $version "edge") (eq $version "latest") -}}
-{{ $version }}
+{{- if eq $version "latest" -}}
+{{- strings.TrimPrefix "v" (index site.Data.releases 1) -}}
+{{- else if eq $version "edge" -}}
+edge
 {{- else -}}
 {{- strings.TrimPrefix "v" $version -}}
 {{- end -}}
