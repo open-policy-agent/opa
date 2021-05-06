@@ -44,12 +44,12 @@ production users that have added themselves (in alphabetical order):
   and the code is Open Source, [see
   `github.com/chef/automate`](https://github.com/chef/automate/tree/master/components/authz-service).
 
-* [cluetec.de](https://cluetec.de) primarily uses OPA to enforce fine-grained authorization 
+* [cluetec.de](https://cluetec.de) primarily uses OPA to enforce fine-grained authorization
   and data-filtering policies in its Spring-based microservices and multi-tenant SaaS. Policies
   are mapped to tenant-specific domains and used to enrich the database queries without any code
   modifications. OPA is also used to enforce admission control policies and RBAC in multi-tenant
   Kubernetes clusters.
- 
+
 * [Cloudflare](https://www.cloudflare.com/) uses OPA as a validating
   admission controller to prevent conflicting Ingresses in their
   Kubernetes clusters that host a mix of production and test
@@ -78,6 +78,13 @@ production users that have added themselves (in alphabetical order):
   multi-tenancy, and risk management policies across approximately 50
   clusters and 1,000 namespaces. For more information on how Intuit
   uses OPA see [this talk from KubeCon Seattle 2018](https://youtu.be/CDDsjMOtJ-c?t=980).
+
+* [Jetstack](https://www.jetstack.io) uses OPA on customer projects to validate
+  resources deployed to Kubernetes environments are conformant with
+  organization rules. This has involved both validating and mutating resources
+  as well as the following related projects: conftest, konstraint, and
+  Gatekeeper. Jetstack also uses OPA via the Golang API in _Jetstack Secure_ to
+  automate the checking of resources against our best practice recommendations.
 
 * [Medallia](https://www.medallia.com/) uses OPA to audit AWS
   resources for compliance violations. The policies search across
@@ -110,10 +117,10 @@ production users that have added themselves (in alphabetical order):
   no matter the environment.
 
 * [Splash]([https://splashthat.com) uses OPA to handle fine-grained authorization
-  across its entire platform, implemented as both a sidecar in Kubernetes and a separate 
-  container on bare instances. Policies and datasets are recompiled and updated based 
+  across its entire platform, implemented as both a sidecar in Kubernetes and a separate
+  container on bare instances. Policies and datasets are recompiled and updated based
   on changes to users' roles and permissions.
-  
+
 * [SAP/InfraBox](https://github.com/SAP/Infrabox) integrates OPA to
   implement authorization over HTTP API resources. OPA policies
   evaluate user and permission data replicated from Postgres to make
@@ -122,10 +129,10 @@ production users that have added themselves (in alphabetical order):
   external users.
 
 * [T-Mobile](https://www.t-mobile.com) uses OPA as a core component for their
-  [MagTape](https://github.com/tmobile/magtape/) project that enforces best 
-  practices and secure configurations across their fleet of Kubernetes 
-  clusters (more info in [this blog post](https://opensource.t-mobile.com/blog/posts/rolling-out-the-magenta-tape/)). 
-  T-Mobile also leverages OPA to enforce authorization workflows within their 
+  [MagTape](https://github.com/tmobile/magtape/) project that enforces best
+  practices and secure configurations across their fleet of Kubernetes
+  clusters (more info in [this blog post](https://opensource.t-mobile.com/blog/posts/rolling-out-the-magenta-tape/)).
+  T-Mobile also leverages OPA to enforce authorization workflows within their
   Corporate Delivery Platform (CI/CD).
 
 * [Tremolo Security](https://www.tremolosecurity.com/) uses OPA at a
@@ -172,11 +179,11 @@ pre-production (in alphabetical order):
 * [Cyral](https://www.cyral.com/) is a venture-funded data security
   company. Still in stealth mode but using OPA to manage and enforce
   fine-grained authorization policies.
-  
+
 * [build.security](https://build.security/) is a venture-funded cyber security
   company, making it easy for developers to build role-based and attribute-based
   access controls to their applications and services. build.security is leveraging
-  OPA and rego at their core technology.  
+  OPA and rego at their core technology.
 
 * [ORY Keto](https://github.com/ory/keto) replaced their internal
   decision engine with OPA. By leveraging OPA, ORY Keto was able to
