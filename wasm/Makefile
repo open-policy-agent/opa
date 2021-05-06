@@ -9,7 +9,7 @@ DOCKER_FLAGS += -it
 endif
 
 DOCKER_WASM_BUILDER_IMAGE ?= openpolicyagent/opa-wasm-builder
-WASM_BUILDER_VERSION := 1.3
+WASM_BUILDER_VERSION := 1.4
 WASM_BUILDER_IMAGE := $(DOCKER_WASM_BUILDER_IMAGE):$(WASM_BUILDER_VERSION)
 WASM_OBJ_DIR := _obj
 
@@ -33,10 +33,11 @@ CPPFLAGS += \
 	-fno-rtti \
 	-I src/lib \
 	-I src/libc++ \
-	-I /usr/lib/llvm-11/include/c++/v1 \
-	-I /usr/lib/llvm-11/lib/clang/11.0.0/include \
+	-I /usr/lib/llvm-12/include/c++/v1 \
+	-I /usr/lib/llvm-12/lib/clang/12.0.0/include \
 	-I src/re2 \
-	-D_LIBCPP_HAS_NO_THREADS
+	-D_LIBCPP_HAS_NO_THREADS \
+	-D_LIBCPP_HAS_NO_LIBRARY_ALIGNED_ALLOCATION
 
 ifeq ($(DEBUG), 1)
 CFLAGS += -O1 -gdwarf -DDEBUG
@@ -144,7 +145,7 @@ $(TEST_CPP_OBJS): $(WASM_OBJ_DIR)/tests/%.wasm: tests/%.cc
 	$(CXX) $(CPPFLAGS) -I src -c -o $@ $<
 
 $(WASM_OBJ_DIR)/opa.wasm: $(OBJS) $(CPP_OBJS) $(LIB_OBJS) $(LIB_MPDEC_OBJS) $(LIB_CPP_OBJS) $(RE2_RE2_OBJS) $(RE2_UTIL_OBJS)
-	wasm-ld-11 \
+	wasm-ld-12 \
 			--allow-undefined-file=src/undefined.symbols \
 			--import-memory \
 			--no-entry \
@@ -153,7 +154,7 @@ $(WASM_OBJ_DIR)/opa.wasm: $(OBJS) $(CPP_OBJS) $(LIB_OBJS) $(LIB_MPDEC_OBJS) $(LI
 
 $(WASM_OBJ_DIR)/opa-test.wasm: $(OBJS) $(CPP_OBJS) $(LIB_OBJS) $(LIB_MPDEC_OBJS) $(LIB_CPP_OBJS) $(RE2_RE2_OBJS) $(RE2_UTIL_OBJS) $(TEST_OBJS) $(TEST_CPP_OBJS)
 	@cat src/undefined.symbols tests/undefined.symbols > _obj/undefined.symbols
-	@wasm-ld-11 \
+	@wasm-ld-12 \
 			--allow-undefined-file=_obj/undefined.symbols \
 			--import-memory \
 			--no-entry \
