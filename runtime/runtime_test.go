@@ -304,7 +304,8 @@ func TestCheckOPAUpdateLoopWithNewUpdate(t *testing.T) {
 }
 
 func TestCheckAuthIneffective(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Millisecond)
+	defer cancel() // NOTE(sr): The timeout will have been reached by the time `done` is closed.
 	var output bytes.Buffer
 
 	params := NewParams()
@@ -319,20 +320,18 @@ func TestCheckAuthIneffective(t *testing.T) {
 	}
 	logrus.SetOutput(rt.Params.Output)
 
-	done := make(chan bool)
+	done := make(chan struct{})
 	go func() {
 		rt.StartServer(ctx)
-		done <- true
-
+		close(done)
 	}()
-	time.Sleep(2 * time.Millisecond)
+	<-done
 
 	expected := "Token authentication enabled without authorization. Authentication will be ineffective. See https://www.openpolicyagent.org/docs/latest/security/#authentication-and-authorization for more information."
 	if !strings.Contains(output.String(), expected) {
 		t.Fatalf("Expected output to contain: \"%v\" but got \"%v\"", expected, output.String())
 	}
-	cancel()
-	<-done
+
 }
 
 func getTestServer(update interface{}, statusCode int) (baseURL string, teardownFn func()) {
