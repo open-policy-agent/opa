@@ -192,6 +192,11 @@ pre-production (in alphabetical order):
   December 2018, ~850 ORY Keto instances were running in a mix of
   pre-production and production environments.
 
+* [Scalr](https://scalr.com/) is a remote operations backend for Terraform
+  that helps users scale their Terraform usage through automation and collaboration.
+  Scalr uses OPA](https://docs.scalr.com/en/latest/opa.html) to validate Terraform
+  code against organization standards and allows for approvals prior to a Terraform apply.
+
 * [Spacelift](https://spacelift.io) is a specialized CI/CD platform
   for infrastructure-as-code. Spacelift is [using OPA](https://docs.spacelift.io/concepts/policy) to provide flexible,
   fine-grained controls at various application decision points, including
