@@ -194,7 +194,7 @@ pre-production (in alphabetical order):
 
 * [Scalr](https://scalr.com/) is a remote operations backend for Terraform
   that helps users scale their Terraform usage through automation and collaboration.
-  Scalr uses OPA](https://docs.scalr.com/en/latest/opa.html) to validate Terraform
+  [Scalr uses OPA](https://docs.scalr.com/en/latest/opa.html) to validate Terraform
   code against organization standards and allows for approvals prior to a Terraform apply.
 
 * [Spacelift](https://spacelift.io) is a specialized CI/CD platform
