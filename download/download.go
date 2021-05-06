@@ -11,6 +11,8 @@ import (
 	"math/rand"
 	"net/http"
 	"path"
+	"strconv"
+	"sync"
 	"time"
 
 	"github.com/open-policy-agent/opa/sdk"
@@ -43,15 +45,17 @@ type Update struct {
 // updates from the remote HTTP endpoint that the client is configured to
 // connect to.
 type Downloader struct {
-	config         Config                        // downloader configuration for tuning polling and other downloader behaviour
-	client         rest.Client                   // HTTP client to use for bundle downloading
-	path           string                        // path to use in bundle download request
-	stop           chan chan struct{}            // used to signal plugin to stop running
-	f              func(context.Context, Update) // callback function invoked when download updates occur
-	etag           string                        // HTTP Etag for caching purposes
-	sizeLimitBytes *int64                        // max bundle file size in bytes (passed to reader)
-	bvc            *bundle.VerificationConfig
-	logger         sdk.Logger
+	config            Config                        // downloader configuration for tuning polling and other downloader behaviour
+	client            rest.Client                   // HTTP client to use for bundle downloading
+	path              string                        // path to use in bundle download request
+	stop              chan chan struct{}            // used to signal plugin to stop running
+	f                 func(context.Context, Update) // callback function invoked when download updates occur
+	etag              string                        // HTTP Etag for caching purposes
+	sizeLimitBytes    *int64                        // max bundle file size in bytes (passed to reader)
+	bvc               *bundle.VerificationConfig
+	logger            sdk.Logger
+	respHdrTimeoutSec int64
+	wg                sync.WaitGroup
 }
 
 // New returns a new Downloader that can be started.
@@ -97,30 +101,58 @@ func (d *Downloader) ClearCache() {
 
 // Start tells the Downloader to begin downloading bundles.
 func (d *Downloader) Start(ctx context.Context) {
-	go d.loop()
+	go d.doStart(ctx)
 }
 
-// Stop tells the Downloader to stop begin downloading bundles.
-func (d *Downloader) Stop(ctx context.Context) {
+func (d *Downloader) doStart(ctx context.Context) {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	d.wg.Add(1)
+	go d.loop(ctx)
+
+	done := <-d.stop // blocks until there's something to read
+	cancel()
+	d.wg.Wait()
+	close(done)
+	return
+}
+
+// Stop tells the Downloader to stop downloading bundles.
+func (d *Downloader) Stop(context.Context) {
 	done := make(chan struct{})
 	d.stop <- done
 	_ = <-done
 }
 
-func (d *Downloader) loop() {
-
-	ctx, cancel := context.WithCancel(context.Background())
+func (d *Downloader) loop(ctx context.Context) {
+	defer d.wg.Done()
 
 	var retry int
 
 	for {
-		err := d.oneShot(ctx)
+		longPoll, err := d.oneShot(ctx)
+
+		if ctx.Err() != nil {
+			return
+		}
+
 		var delay time.Duration
 
 		if err == nil {
-			min := float64(*d.config.Polling.MinDelaySeconds)
-			max := float64(*d.config.Polling.MaxDelaySeconds)
-			delay = time.Duration(((max - min) * rand.Float64()) + min)
+			if !longPoll {
+				if d.config.Polling.LongPollingTimeoutSeconds != nil {
+					d.config.Polling.LongPollingTimeoutSeconds = nil
+				}
+
+				// revert the response header timeout value on the http client's transport
+				if *d.client.Config().ResponseHeaderTimeoutSeconds == 0 {
+					d.client = d.client.SetResponseHeaderTimeout(&d.respHdrTimeoutSec)
+				}
+
+				min := float64(*d.config.Polling.MinDelaySeconds)
+				max := float64(*d.config.Polling.MaxDelaySeconds)
+				delay = time.Duration(((max - min) * rand.Float64()) + min)
+			}
 		} else {
 			delay = util.DefaultBackoff(float64(minRetryDelay), float64(*d.config.Polling.MaxDelaySeconds), retry)
 		}
@@ -135,33 +167,45 @@ func (d *Downloader) loop() {
 			} else {
 				retry = 0
 			}
-		case done := <-d.stop:
-			cancel()
-			done <- struct{}{}
+		case <-ctx.Done():
 			return
 		}
 	}
 }
 
-func (d *Downloader) oneShot(ctx context.Context) error {
+func (d *Downloader) oneShot(ctx context.Context) (bool, error) {
 	m := metrics.New()
-	b, etag, err := d.download(ctx, m)
+	b, etag, longPoll, err := d.download(ctx, m)
 
 	d.etag = etag
 
 	if d.f != nil {
 		d.f(ctx, Update{ETag: etag, Bundle: b, Error: err, Metrics: m})
 	}
-
-	return err
+	return longPoll, err
 }
 
-func (d *Downloader) download(ctx context.Context, m metrics.Metrics) (*bundle.Bundle, string, error) {
+func (d *Downloader) download(ctx context.Context, m metrics.Metrics) (*bundle.Bundle, string, bool, error) {
 	d.logger.Debug("Download starting.")
 
-	resp, err := d.client.WithHeader("If-None-Match", d.etag).Do(ctx, "GET", d.path)
+	d.client = d.client.WithHeader("If-None-Match", d.etag)
+
+	if d.config.Polling.LongPollingTimeoutSeconds != nil {
+		d.client = d.client.WithHeader("Prefer", fmt.Sprintf("wait=%s", strconv.FormatInt(*d.config.Polling.LongPollingTimeoutSeconds, 10)))
+
+		// fetch existing response header timeout value on the http client's transport and
+		// clear it for the long poll request
+		current := d.client.Config().ResponseHeaderTimeoutSeconds
+		if *current != 0 {
+			d.respHdrTimeoutSec = *current
+			t := int64(0)
+			d.client = d.client.SetResponseHeaderTimeout(&t)
+		}
+	}
+
+	resp, err := d.client.Do(ctx, "GET", d.path)
 	if err != nil {
-		return nil, "", errors.Wrap(err, "request failed")
+		return nil, "", false, errors.Wrap(err, "request failed")
 	}
 
 	defer util.Close(resp)
@@ -180,25 +224,28 @@ func (d *Downloader) download(ctx context.Context, m metrics.Metrics) (*bundle.B
 			}
 			b, err := reader.Read()
 			if err != nil {
-				return nil, "", err
+				return nil, "", false, err
 			}
-			return &b, resp.Header.Get("ETag"), nil
+			return &b, resp.Header.Get("ETag"), isLongPollSupported(resp.Header), nil
 		}
 
 		d.logger.Debug("Server replied with empty body.")
-		return nil, "", nil
-
+		return nil, "", isLongPollSupported(resp.Header), nil
 	case http.StatusNotModified:
 		etag := resp.Header.Get("ETag")
 		if etag == "" {
 			etag = d.etag
 		}
-		return nil, etag, nil
+		return nil, etag, isLongPollSupported(resp.Header), nil
 	case http.StatusNotFound:
-		return nil, "", fmt.Errorf("server replied with not found")
+		return nil, "", false, fmt.Errorf("server replied with not found")
 	case http.StatusUnauthorized:
-		return nil, "", fmt.Errorf("server replied with not authorized")
+		return nil, "", false, fmt.Errorf("server replied with not authorized")
 	default:
-		return nil, "", fmt.Errorf("server replied with HTTP %v", resp.StatusCode)
+		return nil, "", false, fmt.Errorf("server replied with HTTP %v", resp.StatusCode)
 	}
+}
+
+func isLongPollSupported(header http.Header) bool {
+	return header.Get("Content-Type") == "application/vnd.openpolicyagent.bundles"
 }

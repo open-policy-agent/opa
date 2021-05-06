@@ -182,6 +182,12 @@ func (c Client) Config() *Config {
 	return &c.config
 }
 
+// SetResponseHeaderTimeout sets the "ResponseHeaderTimeout" in the http client's Transport
+func (c Client) SetResponseHeaderTimeout(timeout *int64) Client {
+	c.config.ResponseHeaderTimeoutSeconds = timeout
+	return c
+}
+
 // Logger returns the logger assigned to the Client
 func (c Client) Logger() sdk.Logger {
 	return c.logger
