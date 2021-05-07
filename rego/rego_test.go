@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"reflect"
 	"strconv"
 	"strings"
@@ -1448,10 +1449,47 @@ func TestRegoEvalWithBundle(t *testing.T) {
 		}
 
 		assertResultSet(t, rs, `[["bar"]]`)
+
+		mods := pq.Modules()
+		if exp, act := 1, len(mods); exp != act {
+			t.Fatalf("expected %d modules, found %d", exp, act)
+		}
+		for act := range mods {
+			if exp := filepath.Join(path, "x/x.rego"); exp != act {
+				t.Errorf("expected module name %q, got %q", exp, act)
+			}
+		}
 	})
 }
 
-func TestRegoEvalPoliciesinStore(t *testing.T) {
+func TestRegoEvalWithBundleURL(t *testing.T) {
+	files := map[string]string{
+		"x/x.rego": "package x\np = data.x.b",
+	}
+
+	test.WithTempFS(files, func(path string) {
+		ctx := context.Background()
+		pq, err := New(
+			LoadBundle("file://"+path),
+			Query("data.x.p"),
+		).PrepareForEval(ctx)
+		if err != nil {
+			t.Fatalf("Unexpected error: %s", err)
+		}
+
+		mods := pq.Modules()
+		if exp, act := 1, len(mods); exp != act {
+			t.Fatalf("expected %d modules, found %d", exp, act)
+		}
+		for act := range mods {
+			if exp := filepath.Join(path, "x/x.rego"); exp != act {
+				t.Errorf("expected module name %q, got %q", exp, act)
+			}
+		}
+	})
+}
+
+func TestRegoEvalPoliciesInStore(t *testing.T) {
 	store := mock.New()
 	ctx := context.Background()
 	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
