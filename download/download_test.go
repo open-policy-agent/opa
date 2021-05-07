@@ -80,11 +80,10 @@ func TestStartStopWithLongPollNotSupported(t *testing.T) {
 	// Give time for some download events to occur
 	time.Sleep(5 * time.Second)
 
+	fixture.d.Stop(ctx)
 	if len(fixture.updates) < 2 {
 		t.Fatalf("Expected at least 2 updates but got %v\n", len(fixture.updates))
 	}
-
-	fixture.d.Stop(ctx)
 }
 
 func TestStartStopWithLongPollSupported(t *testing.T) {
@@ -108,11 +107,10 @@ func TestStartStopWithLongPollSupported(t *testing.T) {
 	// Give time for some download events to occur
 	time.Sleep(3 * time.Second)
 
+	fixture.d.Stop(ctx)
 	if len(fixture.updates) == 0 {
 		t.Fatal("expected update but got none")
 	}
-
-	fixture.d.Stop(ctx)
 }
 
 func TestStartStopWithLongPollWithLongTimeout(t *testing.T) {
