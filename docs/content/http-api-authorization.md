@@ -9,8 +9,9 @@ Anything that exposes an HTTP API (whether an individual microservice or an appl
 ## Goals
 
 In this tutorial, you'll use a simple HTTP web server that accepts any HTTP GET
-request that you issue and echoes the OPA decision back as text. Both OPA and
-the web server will be run as containers.
+request that you issue and echoes the OPA decision back as text. OPA will fetch
+policy bundles from a simple bundle server. Both OPA, the bundle server and the
+web server will be run as containers.
 
 For this tutorial, our desired policy is:
 
@@ -23,9 +24,48 @@ This tutorial requires [Docker Compose](https://docs.docker.com/compose/install/
 
 ## Steps
 
-### 1. Bootstrap the tutorial environment using Docker Compose.
+### 1. Create a policy bundle.
 
-First, create a `docker-compose.yml` file that runs OPA and the demo web server.
+Create a policy that allows users to request their own salary as well as the salary of their direct subordinates.
+
+**example.rego**:
+
+```live:example:module:openable
+package httpapi.authz
+
+# bob is alice's manager, and betty is charlie's.
+subordinates = {"alice": [], "charlie": [], "bob": ["alice"], "betty": ["charlie"]}
+
+default allow = false
+
+# Allow users to get their own salaries.
+allow {
+  some username
+  input.method == "GET"
+  input.path = ["finance", "salary", username]
+  input.user == username
+}
+
+# Allow managers to get their subordinates' salaries.
+allow {
+  some username
+  input.method == "GET"
+  input.path = ["finance", "salary", username]
+  subordinates[input.user][_] == username
+}
+```
+
+Then, build a bundle.
+
+```shell
+opa build example.rego
+```
+
+You should now see a policy bundle (`bundle.tar.gz`) in your working directory.
+
+### 2. Bootstrap the tutorial environment using Docker Compose.
+
+Next, create a `docker-compose.yml` file that runs OPA, a bundle server and the demo web server.
 
 **docker-compose.yml**:
 
@@ -33,29 +73,44 @@ First, create a `docker-compose.yml` file that runs OPA and the demo web server.
 version: '2'
 services:
   opa:
-    image: openpolicyagent/opa:{{< current_docker_version >}}
+    image: openpolicyagent/opa:{{< current_docker_version >}}-rootless
     ports:
-      - 8181:8181
+    - 8181:8181
     # WARNING: OPA is NOT running with an authorization policy configured. This
     # means that clients can read and write policies in OPA. If you are
     # deploying OPA in an insecure environment, be sure to configure
     # authentication and authorization on the daemon. See the Security page for
     # details: https://www.openpolicyagent.org/docs/security.html.
     command:
-      - "run"
-      - "--server"
-      - "--log-format=json-pretty"
-      - "--set=decision_logs.console=true"
+    - "run"
+    - "--server"
+    - "--log-format=json-pretty"
+    - "--set=decision_logs.console=true"
+    - "--set=services.nginx.url=http://bundle_server"
+    - "--set=bundles.nginx.service=nginx"
+    - "--set=bundles.nginx.resource=bundles/bundle.tar.gz"
+    depends_on:
+    - bundle_server
   api_server:
-    image: openpolicyagent/demo-restful-api:0.2
+    image: openpolicyagent/demo-restful-api:0.3
     ports:
-      - 5000:5000
+    - 5000:5000
     environment:
-      - OPA_ADDR=http://opa:8181
-      - POLICY_PATH=/v1/data/httpapi/authz
+    - OPA_ADDR=http://opa:8181
+    - POLICY_PATH=/v1/data/httpapi/authz
+    depends_on:
+    - opa
+  bundle_server:
+    image: nginx:1.20.0-alpine
+    ports:
+    - 8888:80
+    volumes:
+    - ./bundles:/usr/share/nginx/html/bundles
 ```
 
 Then run `docker-compose` to pull and run the containers.
+
+**NOTE:** if running "Docker Desktop" (Mac or Windows) you may instead use the `docker compose` command.
 
 ```shell
 docker-compose -f docker-compose.yml up
@@ -90,48 +145,6 @@ if rsp.json()["allow"]:
 else:
   # HTTP API denied
 
-```
-
-### 2. Load a policy into OPA.
-
-In another terminal, create a policy that allows users to
-request their own salary as well as the salary of their direct subordinates.
-
-**example.rego**:
-
-```live:example:module:openable
-package httpapi.authz
-
-# bob is alice's manager, and betty is charlie's.
-subordinates = {"alice": [], "charlie": [], "bob": ["alice"], "betty": ["charlie"]}
-
-# HTTP API request
-import input
-
-default allow = false
-
-# Allow users to get their own salaries.
-allow {
-  some username
-  input.method == "GET"
-  input.path = ["finance", "salary", username]
-  input.user == username
-}
-
-# Allow managers to get their subordinates' salaries.
-allow {
-  some username
-  input.method == "GET"
-  input.path = ["finance", "salary", username]
-  subordinates[input.user][_] == username
-}
-```
-
-Then load the policy via OPA's REST API.
-
-```shell
-curl -X PUT --data-binary @example.rego \
-  localhost:8181/v1/policies/example
 ```
 
 ### 3. Check that `alice` can see her own salary.
@@ -191,8 +204,6 @@ this.
 ```live:hr_example:module:read_only,openable
 package httpapi.authz
 
-import input
-
 # Allow HR members to get anyone's salary.
 allow {
   input.method == "GET"
@@ -206,12 +217,15 @@ hr = [
 ]
 ```
 
-Upload the new policy to OPA.
+Build a new bundle with the new policy included.
 
 ```shell
-curl -X PUT --data-binary @example-hr.rego \
-  http://localhost:8181/v1/policies/example-hr
+opa build example.rego example-hr.rego
 ```
+
+The updated bundle will automatically be served by the bundle server, but note that it  might take up to the
+configured `max_delay_seconds` for the new bundle to be downloaded by OPA. If you plan to make frequent policy
+changes you might want to adjust this value in `docker-compose.yml` accordingly.
 
 For the sake of the tutorial we included `manager_of` and `hr` data directly
 inside the policies. In real-world scenarios that information would be imported
@@ -232,10 +246,7 @@ OPA supports the parsing of JSON Web Tokens via the builtin function `io.jwt.dec
 To get a sense of one way the subordinate and HR data might be communicated in the
 real world, let's try a similar exercise utilizing the JWT utilities of OPA.
 
-Shut down your `docker-compose` instance from before with `^C` and then restart it to
-ensure you are working with a fresh instance of OPA.
-
-**example.rego**:
+**example-jwt.rego**:
 
 ```live:jwt_example:module:openable
 package httpapi.authz
@@ -285,11 +296,10 @@ token = {"payload": payload} {
   "user": "alice"
 ```
 
-And load it into OPA:
+Build a new bundle for the new policy.
 
 ```shell
-curl -X PUT --data-binary @example.rego \
-  localhost:8181/v1/policies/example
+opa build example-jwt.rego
 ```
 
 For convenience, we'll want to store user tokens in environment variables (they're really long).
@@ -349,6 +359,7 @@ You learned a number of things about API authorization with OPA:
 * You can import external data into OPA and write policies that depend on
   that data.
 * You can use OPA data structures to define abstractions over your data.
+* You can use a remote bundle server for distributing policy and data.
 
 The code for this tutorial can be found in the
 [open-policy-agent/contrib](https://github.com/open-policy-agent/contrib)
