@@ -1,4 +1,4 @@
-package sdk
+package logging
 
 import (
 	"github.com/sirupsen/logrus"
@@ -43,6 +43,11 @@ func NewStandardLogger() *StandardLogger {
 	return &StandardLogger{
 		logger: logrus.StandardLogger(),
 	}
+}
+
+// SetFormatter sets the underlying logrus formatter.
+func (l *StandardLogger) SetFormatter(formatter logrus.Formatter) {
+	l.logger.SetFormatter(formatter)
 }
 
 // WithFields provides additional fields to include in log output

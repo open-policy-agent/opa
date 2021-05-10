@@ -22,6 +22,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 
+	"github.com/open-policy-agent/opa/logging/test"
 	"github.com/open-policy-agent/opa/runtime"
 	"github.com/open-policy-agent/opa/server/types"
 	"github.com/open-policy-agent/opa/util"
@@ -53,14 +54,15 @@ func NewAPIServerTestParams() runtime.Params {
 // TestRuntime holds metadata and provides helper methods
 // to interact with the runtime being tested.
 type TestRuntime struct {
-	Params  runtime.Params
-	Runtime *runtime.Runtime
-	Ctx     context.Context
-	Cancel  context.CancelFunc
-	Client  *http.Client
-	url     string
-	diagURL string
-	urlMtx  *sync.Mutex
+	Params        runtime.Params
+	Runtime       *runtime.Runtime
+	Ctx           context.Context
+	Cancel        context.CancelFunc
+	Client        *http.Client
+	ConsoleLogger *test.Logger
+	url           string
+	diagURL       string
+	urlMtx        *sync.Mutex
 }
 
 // NewTestRuntime returns a new TestRuntime which

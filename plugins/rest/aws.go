@@ -20,7 +20,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/open-policy-agent/opa/sdk"
+	"github.com/open-policy-agent/opa/logging"
 )
 
 const (
@@ -72,7 +72,7 @@ type awsCredentialService interface {
 
 // awsEnvironmentCredentialService represents an static environment-variable credential provider for AWS
 type awsEnvironmentCredentialService struct {
-	logger sdk.Logger
+	logger logging.Logger
 }
 
 func (cs *awsEnvironmentCredentialService) credentials() (awsCredentials, error) {
@@ -109,7 +109,7 @@ type awsMetadataCredentialService struct {
 	expiration      time.Time
 	credServicePath string
 	tokenPath       string
-	logger          sdk.Logger
+	logger          logging.Logger
 }
 
 func (cs *awsMetadataCredentialService) urlForMetadataService() (string, error) {
@@ -239,7 +239,7 @@ type awsWebIdentityCredentialService struct {
 	stsURL               string
 	creds                awsCredentials
 	expiration           time.Time
-	logger               sdk.Logger
+	logger               logging.Logger
 }
 
 func (cs *awsWebIdentityCredentialService) populateFromEnv() error {
@@ -360,7 +360,7 @@ func isECS() bool {
 	return isECS
 }
 
-func doMetaDataRequestWithClient(req *http.Request, client *http.Client, desc string, logger sdk.Logger) ([]byte, error) {
+func doMetaDataRequestWithClient(req *http.Request, client *http.Client, desc string, logger logging.Logger) ([]byte, error) {
 	// convenience function to get the body of an AWS EC2 metadata service request with
 	// appropriate error-handling boilerplate and logging for this special case
 	resp, err := client.Do(req)

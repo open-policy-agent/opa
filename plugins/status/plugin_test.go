@@ -14,9 +14,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sirupsen/logrus"
-	"github.com/sirupsen/logrus/hooks/test"
-
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/plugins/bundle"
@@ -200,42 +197,6 @@ func TestPluginStartDiscovery(t *testing.T) {
 
 	if !reflect.DeepEqual(result, exp) {
 		t.Fatalf("Expected: %+v but got: %+v", exp, result)
-	}
-}
-
-func TestPluginConsoleLogging(t *testing.T) {
-	logLevel := logrus.GetLevel()
-	defer logrus.SetLevel(logLevel)
-
-	// Ensure that status messages are printed to console even with the standard logger configured to log errors only
-	logrus.SetLevel(logrus.ErrorLevel)
-
-	hook := test.NewLocal(plugins.GetConsoleLogger())
-
-	fixture := newTestFixture(t, nil, func(c *Config) {
-		c.ConsoleLogs = true
-		c.Service = ""
-	})
-
-	ctx := context.Background()
-	_ = fixture.plugin.Start(ctx)
-	defer fixture.plugin.Stop(ctx)
-
-	status := testStatus()
-
-	fixture.plugin.UpdateDiscoveryStatus(*status)
-
-	// Give the logger / console some time to process and print the events
-	time.Sleep(10 * time.Millisecond)
-
-	// Skip the first entry as it is about the plugin getting updated
-	e := hook.AllEntries()[1]
-
-	if e.Message != "Status Log" {
-		t.Fatal("Expected status log to console")
-	}
-	if _, ok := e.Data["discovery"]; !ok {
-		t.Fatal("Expected discovery status update")
 	}
 }
 
