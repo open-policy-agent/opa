@@ -15,13 +15,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/open-policy-agent/opa/sdk"
-
 	"github.com/pkg/errors"
 
-	"github.com/open-policy-agent/opa/metrics"
-
 	"github.com/open-policy-agent/opa/bundle"
+	"github.com/open-policy-agent/opa/logging"
+	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/plugins/rest"
 	"github.com/open-policy-agent/opa/util"
 )
@@ -53,9 +51,9 @@ type Downloader struct {
 	etag              string                        // HTTP Etag for caching purposes
 	sizeLimitBytes    *int64                        // max bundle file size in bytes (passed to reader)
 	bvc               *bundle.VerificationConfig
-	logger            sdk.Logger
 	respHdrTimeoutSec int64
 	wg                sync.WaitGroup
+	logger            logging.Logger
 }
 
 // New returns a new Downloader that can be started.

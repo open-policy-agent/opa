@@ -91,6 +91,14 @@ func TestConfigDecision(t *testing.T) {
 			input:    `{"name": "a/b/c"}`,
 			decision: "data.a.b.c",
 		},
+		{
+			input:    `{"resource": "discovery.tar.gz"}`,
+			decision: `data`,
+		},
+		{
+			input:    `{"resource": "discovery.tar.gz", "decision": "foo/bar"}`,
+			decision: "data.foo.bar",
+		},
 	}
 
 	for i, test := range tests {

@@ -22,12 +22,11 @@ import (
 	"time"
 
 	"github.com/open-policy-agent/opa/internal/jwx/jwa"
-	"github.com/open-policy-agent/opa/internal/jwx/jws/sign"
-
 	"github.com/open-policy-agent/opa/internal/jwx/jws"
+	"github.com/open-policy-agent/opa/internal/jwx/jws/sign"
 	"github.com/open-policy-agent/opa/internal/uuid"
 	"github.com/open-policy-agent/opa/keys"
-	"github.com/open-policy-agent/opa/sdk"
+	"github.com/open-policy-agent/opa/logging"
 )
 
 const (
@@ -141,7 +140,7 @@ type oauth2ClientCredentialsAuthPlugin struct {
 	signingKeyParsed interface{}
 	tokenCache       *oauth2Token
 	tlsSkipVerify    bool
-	logger           sdk.Logger
+	logger           logging.Logger
 }
 
 type oauth2Token struct {
@@ -463,7 +462,7 @@ type awsSigningAuthPlugin struct {
 	AWSWebIdentityCredentials *awsWebIdentityCredentialService `json:"web_identity_credentials,omitempty"`
 	AWSService                string                           `json:"service,omitempty"`
 
-	logger sdk.Logger
+	logger logging.Logger
 }
 
 func (ap *awsSigningAuthPlugin) awsCredentialService() awsCredentialService {

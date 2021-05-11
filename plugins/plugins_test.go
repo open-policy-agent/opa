@@ -11,9 +11,12 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/sirupsen/logrus"
+
 	"github.com/open-policy-agent/opa/internal/storage/mock"
+	"github.com/open-policy-agent/opa/logging"
+	"github.com/open-policy-agent/opa/logging/test"
 	"github.com/open-policy-agent/opa/plugins/rest"
-	"github.com/open-policy-agent/opa/sdk"
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/topdown/cache"
 )
@@ -296,7 +299,7 @@ func TestPluginManagerAuthPlugin(t *testing.T) {
 
 func TestPluginManagerLogger(t *testing.T) {
 
-	logger := sdk.NewStandardLogger().WithFields(map[string]interface{}{"context": "myloggincontext"})
+	logger := logging.NewStandardLogger().WithFields(map[string]interface{}{"context": "myloggincontext"})
 
 	m, err := New([]byte(`{}`), "test", inmem.New(), Logger(logger))
 	if err != nil {
@@ -305,6 +308,37 @@ func TestPluginManagerLogger(t *testing.T) {
 
 	if m.Logger() != logger {
 		t.Fatal("Logger was not configured on plugin manager")
+	}
+}
+
+func TestPluginManagerConsoleLogger(t *testing.T) {
+	logLevel := logrus.GetLevel()
+	defer logrus.SetLevel(logLevel)
+
+	// Ensure that status messages are printed to console even with the standard logger configured to log errors only
+	logrus.SetLevel(logrus.ErrorLevel)
+
+	consoleLogger := test.New()
+
+	mgr, err := New([]byte(`{}`), "", inmem.New(), ConsoleLogger(consoleLogger))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	mgr.ConsoleLogger().WithFields(map[string]interface{}{"foo": "bar"}).Info("Some message")
+
+	entries := consoleLogger.Entries()
+
+	exp := []test.LogEntry{
+		{
+			Level:   logging.Info,
+			Fields:  map[string]interface{}{"foo": "bar"},
+			Message: "Some message",
+		},
+	}
+
+	if !reflect.DeepEqual(exp, entries) {
+		t.Fatalf("want %v but got %v", exp, entries)
 	}
 }
 

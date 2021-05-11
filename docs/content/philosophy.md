@@ -171,7 +171,7 @@ virtual documents named `data.iam.user_has_role` and `data.acme.user_is_assigned
 
 > [1] OPA has excellent support for loading JSON and YAML because they are prevalent
 > in modern systems however OPA is not tied to any particular data format. OPA
-> uses it's own internal representation for structures like maps and lists (a.k.a.,
+> uses its own internal representation for structures like maps and lists (a.k.a.,
 > objects and arrays in JSON.)
 
 > [2] The term "document" comes from the document-oriented database world. Document

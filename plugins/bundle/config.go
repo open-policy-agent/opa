@@ -6,6 +6,7 @@ package bundle
 
 import (
 	"fmt"
+	"net/url"
 	"path"
 	"strings"
 
@@ -172,8 +173,19 @@ func (c *Config) validateAndInjectDefaults(services []string, keys map[string]*k
 			}
 		}
 
+		// If the resource specifies a file:// URL then we can ignore the
+		// service configuration error.
+		ignoreServiceConfigErr := false
+
+		if strings.HasPrefix(source.Resource, "file://") {
+			if _, err := url.Parse(source.Resource); err != nil {
+				return fmt.Errorf("invalid URL for bundle %q: %v", name, err)
+			}
+			ignoreServiceConfigErr = true
+		}
+
 		source.Service, err = c.getServiceFromList(source.Service, services)
-		if err == nil {
+		if err == nil || ignoreServiceConfigErr {
 			err = source.Config.ValidateAndInjectDefaults()
 		}
 		if err != nil {
