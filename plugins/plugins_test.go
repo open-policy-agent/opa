@@ -11,8 +11,6 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/sirupsen/logrus"
-
 	"github.com/open-policy-agent/opa/internal/storage/mock"
 	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/logging/test"
@@ -312,12 +310,6 @@ func TestPluginManagerLogger(t *testing.T) {
 }
 
 func TestPluginManagerConsoleLogger(t *testing.T) {
-	logLevel := logrus.GetLevel()
-	defer logrus.SetLevel(logLevel)
-
-	// Ensure that status messages are printed to console even with the standard logger configured to log errors only
-	logrus.SetLevel(logrus.ErrorLevel)
-
 	consoleLogger := test.New()
 
 	mgr, err := New([]byte(`{}`), "", inmem.New(), ConsoleLogger(consoleLogger))
@@ -354,13 +346,13 @@ func (m *myAuthPluginMock) NewClient(c rest.Config) (*http.Client, error) {
 		10,
 	), nil
 }
-func (m *myAuthPluginMock) Prepare(req *http.Request) error {
+func (*myAuthPluginMock) Prepare(*http.Request) error {
 	return nil
 }
-func (m *myAuthPluginMock) Start(ctx context.Context) error {
+func (*myAuthPluginMock) Start(context.Context) error {
 	return nil
 }
-func (m *myAuthPluginMock) Stop(ctx context.Context) {
+func (*myAuthPluginMock) Stop(context.Context) {
 }
-func (m *myAuthPluginMock) Reconfigure(ctx context.Context, config interface{}) {
+func (*myAuthPluginMock) Reconfigure(context.Context, interface{}) {
 }

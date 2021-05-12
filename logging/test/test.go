@@ -2,6 +2,7 @@ package test
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/open-policy-agent/opa/logging"
 )
@@ -18,6 +19,7 @@ type Logger struct {
 	level   logging.Level
 	fields  map[string]interface{}
 	entries *[]LogEntry
+	mtx     sync.Mutex
 }
 
 // New instantiates new Logger.
@@ -31,7 +33,13 @@ func New() *Logger {
 // WithFields provides additional fields to include in log output.
 // Implemented here primarily to be able to switch between implementations without loss of data.
 func (l *Logger) WithFields(fields map[string]interface{}) logging.Logger {
-	cp := *l
+	l.mtx.Lock()
+	defer l.mtx.Unlock()
+	cp := Logger{
+		level:   l.level,
+		entries: l.entries,
+		fields:  l.fields,
+	}
 	flds := make(map[string]interface{})
 	for k, v := range cp.fields {
 		flds[k] = v
@@ -81,10 +89,14 @@ func (l *Logger) GetLevel() logging.Level {
 
 // Entries returns buffered log entries.
 func (l *Logger) Entries() []LogEntry {
+	l.mtx.Lock()
+	defer l.mtx.Unlock()
 	return *l.entries
 }
 
 func (l *Logger) append(lvl logging.Level, f string, a ...interface{}) {
+	l.mtx.Lock()
+	defer l.mtx.Unlock()
 	*l.entries = append(*l.entries, LogEntry{
 		Level:   lvl,
 		Fields:  l.fields,

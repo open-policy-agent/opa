@@ -728,6 +728,7 @@ func TestPluginRateLimitRequeue(t *testing.T) {
 
 func TestPluginRateLimitDropCountStatus(t *testing.T) {
 	ctx := context.Background()
+	testLogger := test.New()
 
 	ts, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
 	if err != nil {
@@ -736,7 +737,7 @@ func TestPluginRateLimitDropCountStatus(t *testing.T) {
 
 	numDecisions := 1 // 1 decision per second
 	fixture := newTestFixture(t, testFixtureOptions{
-		ConsoleLogger:                  test.New(),
+		ConsoleLogger:                  testLogger,
 		ReportingMaxDecisionsPerSecond: float64(numDecisions),
 		ReportingUploadSizeLimitBytes:  300,
 	})
@@ -804,6 +805,7 @@ func TestPluginRateLimitDropCountStatus(t *testing.T) {
 
 	// Give the logger / console some time to process and print the events
 	time.Sleep(10 * time.Millisecond)
+	p.Stop(ctx)
 
 	entries := testLogger.Entries()
 	if len(entries) == 0 {
