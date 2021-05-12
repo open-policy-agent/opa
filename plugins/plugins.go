@@ -96,6 +96,11 @@ type Plugin interface {
 	Reconfigure(ctx context.Context, config interface{})
 }
 
+// Triggerable defines the interface plugins use for manual plugin triggers.
+type Triggerable interface {
+	Trigger(context.Context) error
+}
+
 // State defines the state that a Plugin instance is currently
 // in with pre-defined states.
 type State string
@@ -117,6 +122,21 @@ const (
 	// degraded state. It may be used to indicate manual remediation is needed, or to
 	// alert admins of some other noteworthy state.
 	StateWarn State = "WARN"
+)
+
+// TriggerMode defines the trigger mode utilized by a Plugin for bundle download,
+// log upload etc.
+type TriggerMode string
+
+const (
+	// TriggerPeriodic represents periodic polling mechanism
+	TriggerPeriodic TriggerMode = "periodic"
+
+	// TriggerManual represents manual triggering mechanism
+	TriggerManual TriggerMode = "manual"
+
+	// DefaultTriggerMode represents default trigger mechanism
+	DefaultTriggerMode TriggerMode = "periodic"
 )
 
 // Status has a Plugin's current status plus an optional Message.

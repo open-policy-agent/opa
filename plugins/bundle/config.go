@@ -10,6 +10,8 @@ import (
 	"path"
 	"strings"
 
+	"github.com/open-policy-agent/opa/plugins"
+
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/download"
 	"github.com/open-policy-agent/opa/keys"
@@ -31,7 +33,7 @@ func ParseConfig(config []byte, services []string) (*Config, error) {
 		return nil, err
 	}
 
-	if err := parsedConfig.validateAndInjectDefaults(services, nil); err != nil {
+	if err := parsedConfig.validateAndInjectDefaults(services, nil, nil); err != nil {
 		return nil, err
 	}
 
@@ -55,7 +57,7 @@ func ParseConfig(config []byte, services []string) (*Config, error) {
 // the defined `bundles`. This expects a map of bundle names to resource
 // configurations.
 func ParseBundlesConfig(config []byte, services []string) (*Config, error) {
-	return NewConfigBuilder().WithBytes(config).WithServices(services).Parse()
+	return NewConfigBuilder().WithBytes(config).WithServices(services).WithTriggerMode(nil).Parse()
 }
 
 // NewConfigBuilder returns a new ConfigBuilder to build and parse the bundle config
@@ -81,6 +83,16 @@ func (b *ConfigBuilder) WithKeyConfigs(keys map[string]*keys.Config) *ConfigBuil
 	return b
 }
 
+// WithTriggerMode sets the plugin trigger mode
+func (b *ConfigBuilder) WithTriggerMode(trigger *plugins.TriggerMode) *ConfigBuilder {
+	if trigger == nil {
+		t := plugins.DefaultTriggerMode
+		trigger = &t
+	}
+	b.trigger = trigger
+	return b
+}
+
 // Parse validates the config and injects default values for the defined `bundles`.
 func (b *ConfigBuilder) Parse() (*Config, error) {
 	if b.raw == nil {
@@ -101,7 +113,7 @@ func (b *ConfigBuilder) Parse() (*Config, error) {
 		}
 	}
 
-	err := c.validateAndInjectDefaults(b.services, b.keys)
+	err := c.validateAndInjectDefaults(b.services, b.keys, b.trigger)
 	if err != nil {
 		return nil, err
 	}
@@ -114,6 +126,7 @@ type ConfigBuilder struct {
 	raw      []byte
 	services []string
 	keys     map[string]*keys.Config
+	trigger  *plugins.TriggerMode
 }
 
 // Config represents the configuration of the plugin.
@@ -150,7 +163,7 @@ func (c *Config) IsMultiBundle() bool {
 	return c.Name == ""
 }
 
-func (c *Config) validateAndInjectDefaults(services []string, keys map[string]*keys.Config) error {
+func (c *Config) validateAndInjectDefaults(services []string, keys map[string]*keys.Config, trigger *plugins.TriggerMode) error {
 	if c.Bundles == nil {
 		return c.validateAndInjectDefaultsLegacy(services)
 	}
@@ -185,11 +198,38 @@ func (c *Config) validateAndInjectDefaults(services []string, keys map[string]*k
 		}
 
 		source.Service, err = c.getServiceFromList(source.Service, services)
-		if err == nil || ignoreServiceConfigErr {
-			err = source.Config.ValidateAndInjectDefaults()
-		}
 		if err != nil {
 			return fmt.Errorf("invalid configuration for bundle %q: %s", name, err.Error())
+		}
+
+		if trigger == nil {
+			t := plugins.DefaultTriggerMode
+			trigger = &t
+		} else {
+			err = validateTriggerMode(*trigger)
+			if err != nil {
+				return err
+			}
+		}
+
+		if source.Trigger == nil {
+			source.Trigger = trigger
+		} else {
+			err := validateTriggerMode(*source.Trigger)
+			if err != nil {
+				return err
+			}
+
+			if *source.Trigger != *trigger {
+				return fmt.Errorf("invalid configuration for bundle %q: discovery has trigger mode %s, bundle has %s", name, *trigger, *source.Trigger)
+			}
+		}
+
+		if err == nil || ignoreServiceConfigErr {
+			err = source.Config.ValidateAndInjectDefaults()
+			if err != nil {
+				return fmt.Errorf("invalid configuration for bundle %q: %w", name, err)
+			}
 		}
 
 		if source.SizeLimitBytes <= 0 {
@@ -240,6 +280,15 @@ func (c *Config) getServiceFromList(service string, services []string) (string, 
 func (c *Config) generateLegacyResourcePath() string {
 	joined := path.Join(*c.Prefix, c.Name)
 	return strings.TrimPrefix(joined, "/")
+}
+
+func validateTriggerMode(mode plugins.TriggerMode) error {
+	switch mode {
+	case plugins.TriggerPeriodic, plugins.TriggerManual:
+		return nil
+	default:
+		return fmt.Errorf("invalid trigger mode %q (want %q or %q)", mode, plugins.TriggerPeriodic, plugins.TriggerManual)
+	}
 }
 
 const (

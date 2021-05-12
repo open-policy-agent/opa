@@ -34,15 +34,17 @@ const Name = "discovery"
 // started it will periodically download a configuration bundle and try to
 // reconfigure the OPA.
 type Discovery struct {
-	manager    *plugins.Manager
-	config     *Config
-	factories  map[string]plugins.Factory
-	downloader *download.Downloader // discovery bundle downloader
-	status     *bundle.Status       // discovery status
-	etag       string               // discovery bundle etag for caching purposes
-	metrics    metrics.Metrics
-	readyOnce  sync.Once
-	logger     logging.Logger
+	manager      *plugins.Manager
+	config       *Config
+	factories    map[string]plugins.Factory
+	downloader   *download.Downloader                // discovery bundle downloader
+	status       *bundle.Status                      // discovery status
+	listenersMtx sync.Mutex                          // lock for listener map
+	listeners    map[interface{}]func(bundle.Status) // listeners for discovery update events
+	etag         string                              // discovery bundle etag for caching purposes
+	metrics      metrics.Metrics
+	readyOnce    sync.Once
+	logger       logging.Logger
 }
 
 // Factories provides a set of factory functions to use for
@@ -76,7 +78,8 @@ func New(manager *plugins.Manager, opts ...func(*Discovery)) (*Discovery, error)
 	if err != nil {
 		return nil, err
 	} else if config == nil {
-		if _, err := getPluginSet(result.factories, manager, manager.Config, result.metrics); err != nil {
+		t := plugins.DefaultTriggerMode
+		if _, err := getPluginSet(result.factories, manager, manager.Config, result.metrics, &t); err != nil {
 			return nil, err
 		}
 		return result, nil
@@ -123,12 +126,49 @@ func (c *Discovery) Stop(ctx context.Context) {
 func (*Discovery) Reconfigure(context.Context, interface{}) {
 }
 
+// Lookup returns the discovery plugin registered with the manager.
+func Lookup(manager *plugins.Manager) *Discovery {
+	if p := manager.Plugin(Name); p != nil {
+		return p.(*Discovery)
+	}
+	return nil
+}
+
+func (c *Discovery) TriggerMode() *plugins.TriggerMode {
+	if c.config == nil {
+		return nil
+	}
+	return c.config.Trigger
+}
+
+func (c *Discovery) Trigger(ctx context.Context) error {
+	return c.downloader.Trigger(ctx)
+}
+
+func (c *Discovery) RegisterListener(name interface{}, f func(bundle.Status)) {
+	c.listenersMtx.Lock()
+	defer c.listenersMtx.Unlock()
+
+	if c.listeners == nil {
+		c.listeners = map[interface{}]func(bundle.Status){}
+	}
+
+	c.listeners[name] = f
+}
+
 func (c *Discovery) oneShot(ctx context.Context, u download.Update) {
 
 	c.processUpdate(ctx, u)
 
 	if p := status.Lookup(c.manager); p != nil {
 		p.UpdateDiscoveryStatus(*c.status)
+	}
+
+	c.listenersMtx.Lock()
+	defer c.listenersMtx.Unlock()
+
+	for _, f := range c.listeners {
+		f(*c.status)
 	}
 }
 
@@ -246,7 +286,7 @@ func (c *Discovery) processBundle(ctx context.Context, b *bundleApi.Bundle) (*pl
 		return nil, err
 	}
 
-	return getPluginSet(c.factories, c.manager, config, c.metrics)
+	return getPluginSet(c.factories, c.manager, config, c.metrics, c.config.Trigger)
 }
 
 func evaluateBundle(ctx context.Context, id string, info *ast.Term, b *bundleApi.Bundle, query string) (*config.Config, error) {
@@ -301,7 +341,7 @@ type pluginfactory struct {
 	config  interface{}
 }
 
-func getPluginSet(factories map[string]plugins.Factory, manager *plugins.Manager, config *config.Config, m metrics.Metrics) (*pluginSet, error) {
+func getPluginSet(factories map[string]plugins.Factory, manager *plugins.Manager, config *config.Config, m metrics.Metrics, trigger *plugins.TriggerMode) (*pluginSet, error) {
 
 	// Parse and validate plugin configurations.
 	pluginNames := []string{}
@@ -336,7 +376,7 @@ func getPluginSet(factories map[string]plugins.Factory, manager *plugins.Manager
 	}
 	if bundleConfig == nil {
 		bundleConfig, err = bundle.NewConfigBuilder().WithBytes(config.Bundles).WithServices(manager.Services()).
-			WithKeyConfigs(manager.PublicKeys()).Parse()
+			WithKeyConfigs(manager.PublicKeys()).WithTriggerMode(trigger).Parse()
 		if err != nil {
 			return nil, err
 		}
@@ -344,12 +384,14 @@ func getPluginSet(factories map[string]plugins.Factory, manager *plugins.Manager
 		manager.Logger().Warn("Deprecated 'bundle' configuration specified. Use 'bundles' instead. See https://www.openpolicyagent.org/docs/latest/configuration/#bundles")
 	}
 
-	decisionLogsConfig, err := logs.ParseConfig(config.DecisionLogs, manager.Services(), pluginNames)
+	decisionLogsConfig, err := logs.NewConfigBuilder().WithBytes(config.DecisionLogs).WithServices(manager.Services()).
+		WithPlugins(pluginNames).WithTriggerMode(trigger).Parse()
 	if err != nil {
 		return nil, err
 	}
 
-	statusConfig, err := status.ParseConfig(config.Status, manager.Services(), pluginNames)
+	statusConfig, err := status.NewConfigBuilder().WithBytes(config.Status).WithServices(manager.Services()).
+		WithPlugins(pluginNames).WithTriggerMode(trigger).Parse()
 	if err != nil {
 		return nil, err
 	}
