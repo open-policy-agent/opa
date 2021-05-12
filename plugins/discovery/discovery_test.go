@@ -363,7 +363,7 @@ func (r *reconfigureTestPlugin) Start(context.Context) error {
 	return nil
 }
 
-func (r *reconfigureTestPlugin) Stop(context.Context) {
+func (*reconfigureTestPlugin) Stop(context.Context) {
 }
 
 func (r *reconfigureTestPlugin) Reconfigure(_ context.Context, config interface{}) {

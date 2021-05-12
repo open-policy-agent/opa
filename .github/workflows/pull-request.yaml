@@ -135,6 +135,16 @@ jobs:
         run: make ci-go-wasm-sdk-e2e-test
         timeout-minutes: 30
 
+  race-detector:
+    name: Go Race Detector
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: Test with Race Detector
+        run: make ci-go-race-detector
+
   smoke-test-docker-images:
     name: docker image smoke test
     runs-on: ubuntu-latest

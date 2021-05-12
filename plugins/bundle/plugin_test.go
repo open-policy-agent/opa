@@ -869,8 +869,9 @@ func TestPluginBulkListener(t *testing.T) {
 	go plugin.oneShot(ctx, bundleNames[0], download.Update{})
 	s4 := <-bulkChan
 
-	if !reflect.DeepEqual(s3, s4) {
-		t.Fatalf("Expected: %v but got: %v", s3, s4)
+	s = s4[bundleNames[0]]
+	if s.ActiveRevision != "fancybluederg" || s.Code != "" || s.Message != "" || len(s.Errors) != 0 {
+		t.Errorf("Unexpected same status update for bundle %q, got: %v", bundleNames[0], s)
 	}
 
 	// Test updates the other bundles
