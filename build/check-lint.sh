@@ -11,12 +11,10 @@ source $OPA_DIR/build/utils.sh
 function opa::check_lint() {
     exec 5>&1
     exit_code=0
-    for pkg in $(opa::go_packages); do
-        __output=$(go run ./vendor/golang.org/x/lint/golint $pkg | tee >(cat - >&5))
-        if [ ! -z "$__output" ]; then
-            exit_code=1
-        fi
-    done
+    __output=$(go run ./vendor/github.com/golangci/golangci-lint/cmd/golangci-lint/main.go run | tee >(cat - >&5))
+    if [ ! -z "$__output" ]; then
+        exit_code=1
+    fi
     exit $exit_code
 }
 

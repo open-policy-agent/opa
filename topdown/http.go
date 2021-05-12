@@ -1005,7 +1005,7 @@ func prepareASTResult(headers http.Header, forceJSONDecode bool, body []byte, st
 	// an error will not be returned. Instead the "body" field
 	// in the result will be null.
 	if isContentTypeJSON(headers) || forceJSONDecode {
-		util.UnmarshalJSON(body, &resultBody)
+		_ = util.UnmarshalJSON(body, &resultBody)
 	}
 
 	result := make(map[string]interface{})

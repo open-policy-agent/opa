@@ -25,12 +25,6 @@ type QuerySet struct {
 }
 
 type planiter func() error
-type binaryiter func(ir.LocalOrConst, ir.LocalOrConst) error
-
-type wasmBuiltin struct {
-	*ast.Builtin
-	WasmFunction string
-}
 
 // Planner implements a query planner for Rego queries.
 type Planner struct {
@@ -61,7 +55,7 @@ func (p *Planner) debugf(format string, args ...interface{}) {
 	} else {
 		msg = fmt.Sprintf(format, args...)
 	}
-	p.debug.Output(2, msg)
+	_ = p.debug.Output(2, msg) // ignore error
 }
 
 // New returns a new Planner object.
@@ -1133,16 +1127,6 @@ func (p *Planner) planUnifyObjectsRec(a, b ast.Object, keys []*ast.Term, index i
 	})
 }
 
-func (p *Planner) planBinaryExpr(e *ast.Expr, iter binaryiter) error {
-	return p.planTerm(e.Operand(0), func() error {
-		a := p.ltarget
-		return p.planTerm(e.Operand(1), func() error {
-			b := p.ltarget
-			return iter(a, b)
-		})
-	})
-}
-
 func (p *Planner) planTerm(t *ast.Term, iter planiter) error {
 
 	switch v := t.Value.(type) {
@@ -1208,34 +1192,6 @@ func (p *Planner) planNumber(num ast.Number, iter planiter) error {
 	})
 
 	p.ltarget = target
-	return iter()
-}
-
-func (p *Planner) planNumberFloat(f float64, iter planiter) error {
-
-	target := p.newLocal()
-
-	p.appendStmt(&ir.MakeNumberFloatStmt{
-		Value:  f,
-		Target: target,
-	})
-
-	p.ltarget = target
-
-	return iter()
-}
-
-func (p *Planner) planNumberInt(i int64, iter planiter) error {
-
-	target := p.newLocal()
-
-	p.appendStmt(&ir.MakeNumberIntStmt{
-		Value:  i,
-		Target: target,
-	})
-
-	p.ltarget = target
-
 	return iter()
 }
 
@@ -1911,25 +1867,6 @@ func (p *Planner) planScanValues(val *ast.Term, iter scaniter) error {
 	p.appendStmt(scan)
 
 	return nil
-}
-
-// planSaveLocals returns a slice of locals holding temporary variables that
-// have been assigned from the supplied vars.
-func (p *Planner) planSaveLocals(vars ...ir.Local) []ir.Local {
-
-	lsaved := make([]ir.Local, len(vars))
-
-	for i := range vars {
-
-		lsaved[i] = p.newLocal()
-
-		p.appendStmt(&ir.AssignVarStmt{
-			Source: vars[i],
-			Target: lsaved[i],
-		})
-	}
-
-	return lsaved
 }
 
 type termsliceiter func([]ir.LocalOrConst) error

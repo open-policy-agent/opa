@@ -447,12 +447,6 @@ func runTopDownTestCaseWithContext(ctx context.Context, t *testing.T, data map[s
 	assertTopDownWithPathAndContext(ctx, t, compiler, store, note, []string{"generated", "p"}, input, expected, options...)
 }
 
-func assertTopDownWithPath(t *testing.T, compiler *ast.Compiler, store storage.Store, note string, path []string, input string, expected interface{}) {
-	t.Helper()
-
-	assertTopDownWithPathAndContext(context.Background(), t, compiler, store, note, path, input, expected)
-}
-
 func assertTopDownWithPathAndContext(ctx context.Context, t *testing.T, compiler *ast.Compiler, store storage.Store, note string, path []string, input string, expected interface{},
 	options ...func(*Query) *Query) {
 	t.Helper()

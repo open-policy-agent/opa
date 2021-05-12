@@ -79,8 +79,6 @@ func getFilename(filename string) string {
 }
 
 const (
-	path = "src/github.com/open-policy-agent/opa/test/scheduler"
-
 	requestedPod = `{"pod": {
  "status": {
   "phase": "Pending"

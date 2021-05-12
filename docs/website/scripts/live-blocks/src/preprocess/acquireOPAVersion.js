@@ -110,7 +110,7 @@ async function getReleaseAssetURL(version) {
       }
     }
   } catch (e) {
-    throw new ChainedError(`error occured while getting the OPA release asset URL for ${version} on ${PLATFORM} from ${releaseURL}`, e)
+    throw new ChainedError(`error occurred while getting the OPA release asset URL for ${version} on ${PLATFORM} from ${releaseURL}`, e)
   }
   throw new Error(`unable to get the OPA release asset URL for ${version} on ${PLATFORM} from ${releaseURL}`)
 }

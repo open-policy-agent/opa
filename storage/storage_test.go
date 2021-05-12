@@ -52,16 +52,21 @@ func TestNonEmpty(t *testing.T) {
 	ctx := context.Background()
 
 	for _, tc := range cases {
-		store := inmem.NewFromReader(bytes.NewBufferString(tc.content))
-		storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
-			nonEmpty, err := storage.NonEmpty(ctx, store, txn)(strings.Split(tc.path, "/"))
+		t.Run(tc.content, func(t *testing.T) {
+			store := inmem.NewFromReader(bytes.NewBufferString(tc.content))
+			err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
+				nonEmpty, err := storage.NonEmpty(ctx, store, txn)(strings.Split(tc.path, "/"))
+				if err != nil {
+					t.Fatal(err)
+				}
+				if nonEmpty != tc.exp {
+					t.Errorf("Expected %v for %v on %v but got", tc.exp, tc.path, tc.content)
+				}
+				return nil
+			})
 			if err != nil {
-				t.Fatal(err)
+				t.Error(err)
 			}
-			if nonEmpty != tc.exp {
-				t.Errorf("Expected %v for %v on %v but got", tc.exp, tc.path, tc.content)
-			}
-			return nil
 		})
 	}
 

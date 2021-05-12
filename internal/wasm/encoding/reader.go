@@ -530,11 +530,7 @@ func readGlobal(r io.Reader, global *module.Global) error {
 		return fmt.Errorf("illegal mutability flag")
 	}
 
-	if err := readConstantExpr(r, &global.Init); err != nil {
-		return err
-	}
-
-	return nil
+	return readConstantExpr(r, &global.Init)
 }
 
 func readImport(r io.Reader, imp *module.Import) error {
@@ -651,11 +647,7 @@ func readElementSegment(r io.Reader, seg *module.ElementSegment) error {
 		return err
 	}
 
-	if err := readVarUint32Vector(r, &seg.Indices); err != nil {
-		return err
-	}
-
-	return nil
+	return readVarUint32Vector(r, &seg.Indices)
 }
 
 func readDataSegment(r io.Reader, seg *module.DataSegment) error {
@@ -668,11 +660,7 @@ func readDataSegment(r io.Reader, seg *module.DataSegment) error {
 		return err
 	}
 
-	if err := readByteVector(r, &seg.Init); err != nil {
-		return err
-	}
-
-	return nil
+	return readByteVector(r, &seg.Init)
 }
 
 func readRawCodeSegment(r io.Reader, seg *module.RawCodeSegment) error {

@@ -116,12 +116,12 @@ func (u *unifier) unify(a *Term, b *Term) {
 			u.markAllSafe(a)
 		case *object:
 			if a.Len() == b.Len() {
-				a.Iter(func(k, v *Term) error {
+				_ = a.Iter(func(k, v *Term) error {
 					if v2 := b.Get(k); v2 != nil {
 						u.unify(v, v2)
 					}
 					return nil
-				})
+				}) // impossible to return error
 			}
 		}
 

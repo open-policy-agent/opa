@@ -432,7 +432,7 @@ func (p *Plugin) Stop(ctx context.Context) {
 
 	done := make(chan struct{})
 	p.stop <- done
-	_ = <-done
+	<-done
 	p.manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateNotReady})
 }
 
@@ -536,7 +536,7 @@ func (p *Plugin) Reconfigure(_ context.Context, config interface{}) {
 	defer p.maskMutex.Unlock()
 	p.mask = nil
 
-	_ = <-done
+	<-done
 }
 
 // compilerUpdated is called when a compiler trigger on the plugin manager

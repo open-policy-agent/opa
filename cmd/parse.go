@@ -54,7 +54,7 @@ func parse(args []string, stdout io.Writer, stderr io.Writer) int {
 	switch parseParams.format.String() {
 	case parseFormatJSON:
 		if err != nil {
-			pr.JSON(stderr, pr.Output{Errors: pr.NewOutputErrors(err)})
+			_ = pr.JSON(stderr, pr.Output{Errors: pr.NewOutputErrors(err)})
 			return 1
 		}
 

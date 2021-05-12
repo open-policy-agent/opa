@@ -237,7 +237,7 @@ func pathsToObject(paths []ast.Ref) ast.Object {
 // an array.
 func toIndex(arr *ast.Array, term *ast.Term) (int, error) {
 	i := 0
-	ok := true
+	var ok bool
 	switch v := term.Value.(type) {
 	case ast.Number:
 		if i, ok = v.Int(); !ok {

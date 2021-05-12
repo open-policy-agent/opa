@@ -581,21 +581,21 @@ func (d *Schema) parseSchema(documentNode interface{}, currentSchema *SubSchema)
 		}
 	}
 
-	if required, err := getSlice(m, KeyRequired); err != nil {
+	required, err := getSlice(m, KeyRequired)
+	if err != nil {
 		return err
-	} else if required != nil {
-		for _, requiredValue := range required {
-			if s, isString := requiredValue.(string); !isString {
-				return invalidType(TypeString, KeyRequired)
-			} else if isStringInSlice(currentSchema.required, s) {
-				return errors.New(formatErrorDescription(
-					Locale.KeyItemsMustBeUnique(),
-					ErrorDetails{"key": KeyRequired},
-				))
-			} else {
-				currentSchema.required = append(currentSchema.required, s)
-			}
+	}
+	for _, requiredValue := range required {
+		s, isString := requiredValue.(string)
+		if !isString {
+			return invalidType(TypeString, KeyRequired)
+		} else if isStringInSlice(currentSchema.required, s) {
+			return errors.New(formatErrorDescription(
+				Locale.KeyItemsMustBeUnique(),
+				ErrorDetails{"key": KeyRequired},
+			))
 		}
+		currentSchema.required = append(currentSchema.required, s)
 	}
 
 	// validation : array
@@ -663,61 +663,61 @@ func (d *Schema) parseSchema(documentNode interface{}, currentSchema *SubSchema)
 		currentSchema._const = is
 	}
 
-	if enum, err := getSlice(m, KeyEnum); err != nil {
+	enum, err := getSlice(m, KeyEnum)
+	if err != nil {
 		return err
-	} else if enum != nil {
-		for _, v := range enum {
-			is, err := marshalWithoutNumber(v)
-			if err != nil {
-				return err
-			}
-			if isStringInSlice(currentSchema.enum, *is) {
-				return errors.New(formatErrorDescription(
-					Locale.KeyItemsMustBeUnique(),
-					ErrorDetails{"key": KeyEnum},
-				))
-			}
-			currentSchema.enum = append(currentSchema.enum, *is)
+	}
+	for _, v := range enum {
+		is, err := marshalWithoutNumber(v)
+		if err != nil {
+			return err
 		}
+		if isStringInSlice(currentSchema.enum, *is) {
+			return errors.New(formatErrorDescription(
+				Locale.KeyItemsMustBeUnique(),
+				ErrorDetails{"key": KeyEnum},
+			))
+		}
+		currentSchema.enum = append(currentSchema.enum, *is)
 	}
 
 	// validation : SubSchema
-	if oneOf, err := getSlice(m, KeyOneOf); err != nil {
+	oneOf, err := getSlice(m, KeyOneOf)
+	if err != nil {
 		return err
-	} else if oneOf != nil {
-		for _, v := range oneOf {
-			newSchema := &SubSchema{Property: KeyOneOf, Parent: currentSchema, Ref: currentSchema.Ref}
-			currentSchema.oneOf = append(currentSchema.oneOf, newSchema)
-			err := d.parseSchema(v, newSchema)
-			if err != nil {
-				return err
-			}
+	}
+	for _, v := range oneOf {
+		newSchema := &SubSchema{Property: KeyOneOf, Parent: currentSchema, Ref: currentSchema.Ref}
+		currentSchema.oneOf = append(currentSchema.oneOf, newSchema)
+		err := d.parseSchema(v, newSchema)
+		if err != nil {
+			return err
 		}
 	}
 
-	if anyOf, err := getSlice(m, KeyAnyOf); err != nil {
+	anyOf, err := getSlice(m, KeyAnyOf)
+	if err != nil {
 		return err
-	} else if anyOf != nil {
-		for _, v := range anyOf {
-			newSchema := &SubSchema{Property: KeyAnyOf, Parent: currentSchema, Ref: currentSchema.Ref}
-			currentSchema.anyOf = append(currentSchema.anyOf, newSchema)
-			err := d.parseSchema(v, newSchema)
-			if err != nil {
-				return err
-			}
+	}
+	for _, v := range anyOf {
+		newSchema := &SubSchema{Property: KeyAnyOf, Parent: currentSchema, Ref: currentSchema.Ref}
+		currentSchema.anyOf = append(currentSchema.anyOf, newSchema)
+		err := d.parseSchema(v, newSchema)
+		if err != nil {
+			return err
 		}
 	}
 
-	if allOf, err := getSlice(m, KeyAllOf); err != nil {
+	allOf, err := getSlice(m, KeyAllOf)
+	if err != nil {
 		return err
-	} else if allOf != nil {
-		for _, v := range allOf {
-			newSchema := &SubSchema{Property: KeyAllOf, Parent: currentSchema, Ref: currentSchema.Ref}
-			currentSchema.allOf = append(currentSchema.allOf, newSchema)
-			err := d.parseSchema(v, newSchema)
-			if err != nil {
-				return err
-			}
+	}
+	for _, v := range allOf {
+		newSchema := &SubSchema{Property: KeyAllOf, Parent: currentSchema, Ref: currentSchema.Ref}
+		currentSchema.allOf = append(currentSchema.allOf, newSchema)
+		err := d.parseSchema(v, newSchema)
+		if err != nil {
+			return err
 		}
 	}
 

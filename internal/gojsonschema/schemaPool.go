@@ -82,7 +82,10 @@ func (p *schemaPool) parseReferencesRecursive(document interface{}, ref gojsonre
 	switch m := document.(type) {
 	case []interface{}:
 		for _, v := range m {
-			p.parseReferencesRecursive(v, ref, draft)
+			err := p.parseReferencesRecursive(v, ref, draft)
+			if err != nil {
+				return err
+			}
 		}
 	case map[string]interface{}:
 		localRef := &ref
@@ -128,11 +131,17 @@ func (p *schemaPool) parseReferencesRecursive(document interface{}, ref gojsonre
 			if k == KeyProperties || k == KeyDependencies || k == KeyPatternProperties {
 				if child, ok := v.(map[string]interface{}); ok {
 					for _, v := range child {
-						p.parseReferencesRecursive(v, *localRef, draft)
+						err := p.parseReferencesRecursive(v, *localRef, draft)
+						if err != nil {
+							return err
+						}
 					}
 				}
 			} else {
-				p.parseReferencesRecursive(v, *localRef, draft)
+				err := p.parseReferencesRecursive(v, *localRef, draft)
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -203,7 +212,10 @@ func (p *schemaPool) GetDocument(reference gojsonreference.JsonReference) (*sche
 	}
 
 	// add the whole document to the pool for potential re-use
-	p.parseReferences(document, refToURL, true)
+	err = p.parseReferences(document, refToURL, true)
+	if err != nil {
+		return nil, err
+	}
 
 	_, draft, _ = parseSchemaURL(document)
 

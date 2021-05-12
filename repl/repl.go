@@ -5,6 +5,7 @@
 // Package repl implements a Read-Eval-Print-Loop (REPL) for interacting with the policy engine.
 //
 // The REPL is typically used from the command line, however, it can also be used as a library.
+// nolint: goconst // String reuse here doesn't make sense to deduplicate.
 package repl
 
 import (
@@ -141,7 +142,7 @@ func (r *REPL) Loop(ctx context.Context) {
 	line.SetCompleter(r.complete)
 
 loop:
-	for true {
+	for {
 
 		input, err := line.Prompt(r.getPrompt())
 
@@ -176,7 +177,7 @@ loop:
 exitPrompt:
 	fmt.Fprintln(r.output)
 
-	for true {
+	for {
 		input, err := line.Prompt(exitPromptMessage)
 
 		// exit on ctrl+d
@@ -304,12 +305,6 @@ func (r *REPL) SetOPAVersionReport(report [][2]string) {
 	r.mtx.Lock()
 	defer r.mtx.Unlock()
 	r.report = report
-}
-
-func (r *REPL) getOPAVersionReport() [][2]string {
-	r.mtx.Lock()
-	defer r.mtx.Unlock()
-	return r.report
 }
 
 func (r *REPL) complete(line string) []string {
@@ -494,10 +489,7 @@ func (r *REPL) checkTraceSupported() {
 }
 
 func (r *REPL) metricsEnabled() bool {
-	if r.metrics != nil {
-		return true
-	}
-	return false
+	return r.metrics != nil
 }
 
 func (r *REPL) cmdMetrics() error {
@@ -1141,7 +1133,7 @@ func (r *REPL) getPrompt() string {
 
 func (r *REPL) loadHistory(prompt *liner.State) {
 	if f, err := os.Open(r.historyPath); err == nil {
-		prompt.ReadHistory(f)
+		_, _ = prompt.ReadHistory(f) // ignore error
 		f.Close()
 	}
 }
@@ -1192,7 +1184,7 @@ func (r *REPL) printTypes(ctx context.Context, typeEnv *ast.TypeEnv, body ast.Bo
 
 func (r *REPL) saveHistory(prompt *liner.State) {
 	if f, err := os.Create(r.historyPath); err == nil {
-		prompt.WriteHistory(f)
+		_, _ = prompt.WriteHistory(f) // ignore error
 		f.Close()
 	}
 }

@@ -23,7 +23,7 @@ func TestHTTPLoader(t *testing.T) {
 	// Start loader, without having the HTTP content in place.
 
 	var pd testPolicyData
-	loader, err := new(&pd).WithURL("http://localhost:0").WithInterval(10*time.Millisecond, 20*time.Millisecond).Init()
+	loader, err := newLoader(&pd).WithURL("http://localhost:0").WithInterval(10*time.Millisecond, 20*time.Millisecond).Init()
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -59,7 +59,7 @@ func TestHTTPLoader(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	loader, err = new(&pd).WithURL(ts.URL).WithInterval(10*time.Millisecond, 20*time.Millisecond).Init()
+	loader, err = newLoader(&pd).WithURL(ts.URL).WithInterval(10*time.Millisecond, 20*time.Millisecond).Init()
 	if err != nil {
 		t.Fatal(err.Error())
 	}

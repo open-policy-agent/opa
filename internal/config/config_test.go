@@ -2,6 +2,7 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
+// nolint: goconst // string duplication is for test readability.
 package config
 
 import (
@@ -30,7 +31,7 @@ func TestSubEnvVarsVarsSubOne(t *testing.T) {
 
 	actual := subEnvVars(configYaml)
 
-	if string(actual) != expected {
+	if actual != expected {
 		t.Errorf("Expected: '%s'\nActual: '%s'", expected, actual)
 	}
 }
@@ -224,7 +225,7 @@ func TestMergeValuesOverrideSingleList(t *testing.T) {
 	dest := map[string]interface{}{
 		"a": map[string]interface{}{
 			"b": []map[string]interface{}{
-				map[string]interface{}{
+				{
 					"k1": "v1",
 					"k2": "v2",
 				},
@@ -234,7 +235,7 @@ func TestMergeValuesOverrideSingleList(t *testing.T) {
 	src := map[string]interface{}{
 		"a": map[string]interface{}{
 			"b": []map[string]interface{}{
-				map[string]interface{}{
+				{
 					"k3": "v3",
 				},
 			},
@@ -247,7 +248,7 @@ func TestMergeValuesOverrideSingleList(t *testing.T) {
 	expected := map[string]interface{}{
 		"a": map[string]interface{}{
 			"b": []map[string]interface{}{
-				map[string]interface{}{
+				{
 					"k3": "v3",
 				},
 			},

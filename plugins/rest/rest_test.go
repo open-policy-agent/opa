@@ -30,15 +30,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/open-policy-agent/opa/keys"
-
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/internal/jwx/jwa"
 	"github.com/open-policy-agent/opa/internal/jwx/jws"
+	"github.com/open-policy-agent/opa/keys"
 
 	"github.com/open-policy-agent/opa/internal/version"
 	"github.com/open-policy-agent/opa/util/test"
 )
+
+const keyID = "key1"
 
 func TestNew(t *testing.T) {
 
@@ -312,12 +313,12 @@ func TestNew(t *testing.T) {
 		},
 		{
 			name: "Oauth2JwtBearerMissingSigningKey",
-			input: `{
+			input: fmt.Sprintf(`{
 				"name": "foo",
 				"url": "http://localhost",
 				"credentials": {
 					"oauth2": {
-						"grant_type": "jwt_bearer",
+						"grant_type": %q,
 						"token_url": "https://localhost",
 						"scopes": ["profile", "opa"],
 						"additional_claims": {
@@ -325,17 +326,17 @@ func TestNew(t *testing.T) {
 						}
 					}
 				}
-			}`,
+			}`, grantTypeJwtBearer),
 			wantErr: true,
 		},
 		{
 			name: "Oauth2JwtBearerSigningKeyWithoutCorrespondingKey",
-			input: `{
+			input: fmt.Sprintf(`{
 				"name": "foo",
 				"url": "http://localhost",
 				"credentials": {
 					"oauth2": {
-						"grant_type": "jwt_bearer",
+						"grant_type": %q,
 						"signing_key": "key2",
 						"token_url": "https://localhost",
 						"scopes": ["profile", "opa"],
@@ -344,17 +345,17 @@ func TestNew(t *testing.T) {
 						}
 					}
 				}
-			}`,
+			}`, grantTypeJwtBearer),
 			wantErr: true,
 		},
 		{
 			name: "Oauth2JwtBearerSigningKeyWithCorrespondingKey",
-			input: `{
+			input: fmt.Sprintf(`{
 				"name": "foo",
 				"url": "http://localhost",
 				"credentials": {
 					"oauth2": {
-						"grant_type": "jwt_bearer",
+						"grant_type": %q,
 						"signing_key": "key1",
 						"token_url": "https://localhost",
 						"scopes": ["profile", "opa"],
@@ -363,16 +364,16 @@ func TestNew(t *testing.T) {
 						}
 					}
 				}
-			}`,
+			}`, grantTypeJwtBearer),
 		},
 		{
 			name: "Oauth2JwtBearerSigningKeyPublicKeyReference",
-			input: `{
+			input: fmt.Sprintf(`{
 				"name": "foo",
 				"url": "http://localhost",
 				"credentials": {
 					"oauth2": {
-						"grant_type": "jwt_bearer",
+						"grant_type": %q,
 						"signing_key": "pub_key",
 						"token_url": "https://localhost",
 						"scopes": ["profile", "opa"],
@@ -381,7 +382,7 @@ func TestNew(t *testing.T) {
 						}
 					}
 				}
-			}`,
+			}`, grantTypeJwtBearer),
 			wantErr: true,
 		},
 		{
@@ -404,12 +405,12 @@ func TestNew(t *testing.T) {
 		},
 		{
 			name: "Oauth2ClientCredentialsMissingCredentials",
-			input: `{
+			input: fmt.Sprintf(`{
 				"name": "foo",
 				"url": "http://localhost",
 				"credentials": {
 					"oauth2": {
-						"grant_type": "client_credentials",
+						"grant_type": %q,
 						"token_url": "https://localhost",
 						"scopes": ["profile", "opa"],
 						"additional_claims": {
@@ -417,48 +418,48 @@ func TestNew(t *testing.T) {
 						}
 					}
 				}
-			}`,
+			}`, grantTypeClientCredentials),
 			wantErr: true,
 		},
 		{
 			name: "Oauth2ClientCredentialsJwtNoAdditionalClaims",
-			input: `{
+			input: fmt.Sprintf(`{
 				"name": "foo",
 				"url": "http://localhost",
 				"credentials": {
 					"oauth2": {
-						"grant_type": "client_credentials",
+						"grant_type": %q,
 						"signing_key": "key1",
 						"token_url": "https://localhost",
 						"scopes": ["profile", "opa"]
 					}
 				}
-			}`,
+			}`, grantTypeClientCredentials),
 		},
 		{
 			name: "Oauth2ClientCredentialsJwtThumbprint",
-			input: `{
+			input: fmt.Sprintf(`{
 				"name": "foo",
 				"url": "http://localhost",
 				"credentials": {
 					"oauth2": {
-						"grant_type": "client_credentials",
+						"grant_type": %q,
 						"signing_key": "key1",
 						"token_url": "https://localhost",
 						"scopes": ["profile", "opa"],
 						"thumbprint": "8F1BDDDE9982299E62749C20EDDBAAC57F619D04"
 					}
 				}
-			}`,
+			}`, grantTypeClientCredentials),
 		},
 		{
 			name: "Oauth2ClientCredentialsTooManyCredentials",
-			input: `{
+			input: fmt.Sprintf(`{
 				"name": "foo",
 				"url": "http://localhost",
 				"credentials": {
 					"oauth2": {
-						"grant_type": "client_credentials",
+						"grant_type": %q,
 						"signing_key": "key1",
 						"client_id": "client-one",
 						"client_secret": "supersecret",
@@ -469,17 +470,17 @@ func TestNew(t *testing.T) {
 						}
 					}
 				}
-			}`,
+			}`, grantTypeClientCredentials),
 			wantErr: true,
 		},
 		{
 			name: "Oauth2ClientCredentialsJWTAuthentication",
-			input: `{
+			input: fmt.Sprintf(`{
 				"name": "foo",
 				"url": "http://localhost",
 				"credentials": {
 					"oauth2": {
-						"grant_type": "client_credentials",
+						"grant_type": %q,
 						"signing_key": "key1",
 						"token_url": "https://localhost",
 						"scopes": ["profile", "opa"],
@@ -488,7 +489,7 @@ func TestNew(t *testing.T) {
 						}
 					}
 				}
-			}`,
+			}`, grantTypeClientCredentials),
 		},
 		{
 			name: "S3WebIdentityMissingEnvVars",
@@ -621,8 +622,8 @@ func TestNew(t *testing.T) {
 		Bytes: x509.MarshalPKCS1PublicKey(&key.PublicKey),
 	})
 
-	keys := map[string]*keys.Config{
-		"key1": {
+	ks := map[string]*keys.Config{
+		keyID: {
 			PrivateKey: string(keyPem),
 			Algorithm:  "RS256",
 		},
@@ -644,8 +645,9 @@ func TestNew(t *testing.T) {
 				}
 			}()
 
-			client, err := New([]byte(tc.input), keys, AuthPluginLookup(mockAuthPluginLookup))
-			if err != nil && !tc.wantErr {
+			client, err := New([]byte(tc.input), ks, AuthPluginLookup(mockAuthPluginLookup))
+			if err != nil {
+				// We never want an error here and cannot proceed if there is one.
 				t.Fatalf("Unexpected error: %v", err)
 			}
 
@@ -718,8 +720,8 @@ func TestDoWithResponseHeaderTimeout(t *testing.T) {
 				"url": %q,
 				"response_header_timeout_seconds": %v,
 			}`, baseURL, tc.responseHeaderTimeout)
-			keys := map[string]*keys.Config{}
-			client, err := New([]byte(config), keys)
+			ks := map[string]*keys.Config{}
+			client, err := New([]byte(config), ks)
 			if err != nil {
 				t.Fatalf("Unexpected error: %v", err)
 			}
@@ -777,13 +779,13 @@ func testBearerToken(t *testing.T, scheme, token string) {
 		"url": %q,
 		"credentials": {
 			"bearer": {
-				"scheme": "%s",
-				"token": "%s"
+				"scheme": %q,
+				"token": %q
 			}
 		}
 	}`, ts.server.URL, scheme, token)
-	keys := map[string]*keys.Config{}
-	client, err := New([]byte(config), keys)
+	ks := map[string]*keys.Config{}
+	client, err := New([]byte(config), ks)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -853,7 +855,7 @@ func TestBearerTokenPath(t *testing.T) {
 		}
 
 		// Update the token file and try again
-		if err := ioutil.WriteFile(filepath.Join(path, "token.txt"), []byte("newsecret"), 0644); err != nil {
+		if err := ioutil.WriteFile(filepath.Join(path, "token.txt"), []byte("newsecret"), 0600); err != nil {
 			t.Fatalf("Unexpected error: %s", err)
 		}
 
@@ -877,8 +879,8 @@ func TestBearerTokenInvalidConfig(t *testing.T) {
 		"url": %q,
 		"credentials": {
 			"bearer": {
-				"token_path": "%s",
-				"token": "%s"
+				"token_path": %q,
+				"token": %q
 			}
 		}
 	}`, ts.server.URL, "token.txt", "secret")
@@ -954,10 +956,10 @@ func TestClientCert(t *testing.T) {
 		}
 
 		// Update the key files and try again..
-		if err := ioutil.WriteFile(filepath.Join(path, "client.pem"), ts.clientCertPem, 0644); err != nil {
+		if err := ioutil.WriteFile(filepath.Join(path, "client.pem"), ts.clientCertPem, 0600); err != nil {
 			t.Fatalf("Unexpected error: %s", err)
 		}
-		if err := ioutil.WriteFile(filepath.Join(path, "client.key"), ts.clientCertKey, 0644); err != nil {
+		if err := ioutil.WriteFile(filepath.Join(path, "client.key"), ts.clientCertKey, 0600); err != nil {
 			t.Fatalf("Unexpected error: %s", err)
 		}
 		if _, err := client.Do(ctx, "GET", "test"); err != nil {
@@ -1181,8 +1183,8 @@ func TestOauth2JwtBearerGrantType(t *testing.T) {
 		t.Fatalf("Unexpected error %v", err)
 	}
 	keyPem := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(key)})
-	keys := map[string]*keys.Config{
-		"key1": {
+	ks := map[string]*keys.Config{
+		keyID: {
 			PrivateKey: string(keyPem),
 			Algorithm:  "RS256",
 		},
@@ -1204,8 +1206,8 @@ func TestOauth2JwtBearerGrantType(t *testing.T) {
 	ots.start()
 	defer ots.stop()
 
-	client := newOauth2JwtBearerTestClient(t, keys, &ts, &ots, func(c *Config) {
-		c.Credentials.OAuth2.SigningKeyID = "key1"
+	client := newOauth2JwtBearerTestClient(t, ks, &ts, &ots, func(c *Config) {
+		c.Credentials.OAuth2.SigningKeyID = keyID
 	})
 	ctx := context.Background()
 	_, err = client.Do(ctx, "GET", "test")
@@ -1226,8 +1228,8 @@ func TestOauth2JwtBearerGrantTypePKCS8EncodedPrivateKey(t *testing.T) {
 	}
 
 	keyPem := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: privateKey})
-	keys := map[string]*keys.Config{
-		"key1": {
+	ks := map[string]*keys.Config{
+		keyID: {
 			PrivateKey: string(keyPem),
 			Algorithm:  "RS256",
 		},
@@ -1249,8 +1251,8 @@ func TestOauth2JwtBearerGrantTypePKCS8EncodedPrivateKey(t *testing.T) {
 	ots.start()
 	defer ots.stop()
 
-	client := newOauth2JwtBearerTestClient(t, keys, &ts, &ots, func(c *Config) {
-		c.Credentials.OAuth2.SigningKeyID = "key1"
+	client := newOauth2JwtBearerTestClient(t, ks, &ts, &ots, func(c *Config) {
+		c.Credentials.OAuth2.SigningKeyID = keyID
 	})
 	ctx := context.Background()
 	_, err = client.Do(ctx, "GET", "test")
@@ -1270,8 +1272,8 @@ func TestOauth2JwtBearerGrantTypeEllipticCurveAlgorithm(t *testing.T) {
 	}
 
 	keyPem := pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: privateKey})
-	keys := map[string]*keys.Config{
-		"key1": {
+	ks := map[string]*keys.Config{
+		keyID: {
 			PrivateKey: string(keyPem),
 			Algorithm:  "ES256",
 		},
@@ -1293,8 +1295,8 @@ func TestOauth2JwtBearerGrantTypeEllipticCurveAlgorithm(t *testing.T) {
 	ots.start()
 	defer ots.stop()
 
-	client := newOauth2JwtBearerTestClient(t, keys, &ts, &ots, func(c *Config) {
-		c.Credentials.OAuth2.SigningKeyID = "key1"
+	client := newOauth2JwtBearerTestClient(t, ks, &ts, &ots, func(c *Config) {
+		c.Credentials.OAuth2.SigningKeyID = keyID
 		c.Credentials.OAuth2.IncludeJti = true
 	})
 	ctx := context.Background()
@@ -1315,8 +1317,8 @@ func TestOauth2ClientCredentialsJwtAuthentication(t *testing.T) {
 		t.Fatalf("Unexpected error %v", err)
 	}
 	keyPem := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(key)})
-	keys := map[string]*keys.Config{
-		"key1": {
+	ks := map[string]*keys.Config{
+		keyID: {
 			PrivateKey: string(keyPem),
 			Algorithm:  "RS256",
 		},
@@ -1329,7 +1331,7 @@ func TestOauth2ClientCredentialsJwtAuthentication(t *testing.T) {
 	ots := oauth2TestServer{
 		t:                t,
 		tokenTTL:         300,
-		expGrantType:     "client_credentials",
+		expGrantType:     grantTypeClientCredentials,
 		expScope:         &[]string{"scope1", "scope2"},
 		expX5t:           "jxvd3pmCKZ5idJwg7duqxX9hnQQ=",
 		expJwtCredential: true,
@@ -1339,8 +1341,8 @@ func TestOauth2ClientCredentialsJwtAuthentication(t *testing.T) {
 	ots.start()
 	defer ots.stop()
 
-	client := newOauth2ClientCredentialsJwtAuthClient(t, keys, &ts, &ots, func(c *Config) {
-		c.Credentials.OAuth2.SigningKeyID = "key1"
+	client := newOauth2ClientCredentialsJwtAuthClient(t, ks, &ts, &ots, func(c *Config) {
+		c.Credentials.OAuth2.SigningKeyID = keyID
 	})
 	ctx := context.Background()
 	_, err = client.Do(ctx, "GET", "test")
@@ -1356,7 +1358,7 @@ func TestOauth2ClientCredentialsJwtAuthentication(t *testing.T) {
 
 // https://github.com/open-policy-agent/opa/issues/3255
 func TestS3SigningInstantiationInitializesLogger(t *testing.T) {
-	config := fmt.Sprintf(`{
+	config := `{
 			"name": "foo",
 			"url": "https://bundles.example.com",
 			"credentials": {
@@ -1364,7 +1366,7 @@ func TestS3SigningInstantiationInitializesLogger(t *testing.T) {
 					"environment_credentials": {}
 				}
 			}
-		}`)
+		}`
 
 	authPlugin := &awsSigningAuthPlugin{
 		AWSEnvironmentCredentials: &awsEnvironmentCredentialService{},
@@ -1434,7 +1436,6 @@ type testServer struct {
 	caCert             string
 	expectSystemCA     bool
 	serverCertPool     *x509.CertPool
-	keys               map[string]*keys.Config
 }
 
 type oauth2TestServer struct {
@@ -1487,7 +1488,7 @@ func newOauth2JwtBearerTestClient(t *testing.T, keys map[string]*keys.Config, ts
 			"credentials": {
 				"oauth2": {
 					"token_url": "%v/token",
-					"grant_type": "jwt_bearer",
+					"grant_type": %q,
 					"scopes": ["scope1", "scope2"],
 					"additional_claims": {
 						"aud": "test-audience",
@@ -1495,7 +1496,7 @@ func newOauth2JwtBearerTestClient(t *testing.T, keys map[string]*keys.Config, ts
 					}
 				}
 			}
-		}`, ts.server.URL, ots.server.URL)
+		}`, ts.server.URL, ots.server.URL, grantTypeJwtBearer)
 
 	client, err := New([]byte(config), keys)
 	if err != nil {
@@ -1518,7 +1519,7 @@ func newOauth2ClientCredentialsJwtAuthClient(t *testing.T, keys map[string]*keys
 			"credentials": {
 				"oauth2": {
 					"token_url": "%v/token",
-					"grant_type": "client_credentials",
+					"grant_type": %q,
 					"signing_key": "key1",
 					"client_id": "client-one",
 					"scopes": ["scope1", "scope2"],
@@ -1529,7 +1530,7 @@ func newOauth2ClientCredentialsJwtAuthClient(t *testing.T, keys map[string]*keys
 					}
 				}
 			}
-		}`, ts.server.URL, ots.server.URL)
+		}`, ts.server.URL, ots.server.URL, grantTypeClientCredentials)
 
 	client, err := New([]byte(config), keys)
 	if err != nil {
@@ -1592,7 +1593,7 @@ func (t *oauth2TestServer) handle(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if t.expGrantType == "" {
-		t.expGrantType = "client_credentials"
+		t.expGrantType = grantTypeClientCredentials
 	}
 	if r.Form["grant_type"][0] != t.expGrantType {
 		t.t.Fatalf("Expected grant_type=%v", t.expGrantType)
@@ -1737,6 +1738,7 @@ func (t *testServer) generateClientKeys() {
 
 	var pemBlock *pem.Block
 	if t.clientCertPassword != "" {
+		// nolint: staticcheck // We don't want to forbid users from using this encryption.
 		pemBlock, err = x509.EncryptPEMBlock(rand.Reader, "RSA PRIVATE KEY", x509.MarshalPKCS1PrivateKey(clientKey),
 			[]byte(t.clientCertPassword), x509.PEMCipherAES128)
 		if err != nil {

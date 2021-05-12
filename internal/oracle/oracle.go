@@ -83,7 +83,7 @@ func (o *Oracle) FindDefinition(q DefinitionQuery) (*DefinitionQueryResult, erro
 		}
 	}
 
-	// If the match is a variable, walk inward to find the first occurence of the variable
+	// If the match is a variable, walk inward to find the first occurrence of the variable
 	// in function arguments or the body.
 	top := stack[len(stack)-1]
 	if term, ok := top.(*ast.Term); ok {

@@ -148,7 +148,9 @@ func BenchmarkMaskingNop(b *testing.B) {
 	}
 
 	cfg := &Config{Service: "svc"}
-	cfg.validateAndInjectDefaults([]string{"svc"}, nil)
+	if err := cfg.validateAndInjectDefaults([]string{"svc"}, nil); err != nil {
+		b.Fatal(err)
+	}
 	plugin := New(cfg, manager)
 
 	b.ResetTimer()
@@ -186,7 +188,9 @@ func BenchmarkMaskingRuleCountsNop(b *testing.B) {
 	}
 
 	cfg := &Config{Service: "svc"}
-	cfg.validateAndInjectDefaults([]string{"svc"}, nil)
+	if err := cfg.validateAndInjectDefaults([]string{"svc"}, nil); err != nil {
+		b.Fatal(err)
+	}
 	plugin := New(cfg, manager)
 
 	for _, ruleCount := range numRules {
@@ -216,16 +220,13 @@ func BenchmarkMaskingErase(b *testing.B) {
 	store := inmem.New()
 
 	err := storage.Txn(ctx, store, storage.WriteParams, func(txn storage.Transaction) error {
-		if err := store.UpsertPolicy(ctx, txn, "test.rego", []byte(`
+		return store.UpsertPolicy(ctx, txn, "test.rego", []byte(`
 			package system.log
 
 			mask["/input"] {
 				input.input.request.kind.kind == "Pod"
 			}
-		`)); err != nil {
-			return err
-		}
-		return nil
+		`))
 	})
 	if err != nil {
 		b.Fatal(err)
@@ -239,7 +240,9 @@ func BenchmarkMaskingErase(b *testing.B) {
 	}
 
 	cfg := &Config{Service: "svc"}
-	cfg.validateAndInjectDefaults([]string{"svc"}, nil)
+	if err := cfg.validateAndInjectDefaults([]string{"svc"}, nil); err != nil {
+		b.Fatal(err)
+	}
 	plugin := New(cfg, manager)
 
 	b.ResetTimer()

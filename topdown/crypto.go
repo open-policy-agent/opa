@@ -22,6 +22,15 @@ import (
 	"github.com/open-policy-agent/opa/util"
 )
 
+const (
+	// blockTypeCertificate indicates this PEM block contains the signed certificate.
+	// Exported for tests.
+	blockTypeCertificate = "CERTIFICATE"
+	// blockTypeCertificateRequest indicates this PEM block contains a certificate
+	// request. Exported for tests.
+	blockTypeCertificateRequest = "CERTIFICATE REQUEST"
+)
+
 func builtinCryptoX509ParseCertificates(a ast.Value) (ast.Value, error) {
 
 	input, err := builtins.StringOperand(a, 1)
@@ -42,7 +51,7 @@ func builtinCryptoX509ParseCertificates(a ast.Value) (ast.Value, error) {
 
 	// attempt to decode input as PEM data
 	p, rest := pem.Decode(bytes)
-	if p != nil && p.Type != "CERTIFICATE" {
+	if p != nil && p.Type != blockTypeCertificate {
 		return nil, fmt.Errorf("PEM data contains '%s', expected CERTIFICATE", p.Type)
 	}
 	if p != nil {
@@ -60,7 +69,7 @@ func builtinCryptoX509ParseCertificates(a ast.Value) (ast.Value, error) {
 				break
 			}
 			// reject any data that isn't exclusively certificates
-			if p != nil && p.Type != "CERTIFICATE" {
+			if p.Type != blockTypeCertificate {
 				return nil, fmt.Errorf("PEM data contains '%s', expected CERTIFICATE", p.Type)
 			}
 			bytes = append(bytes, p.Bytes...)
@@ -105,7 +114,7 @@ func builtinCryptoX509ParseCertificateRequest(a ast.Value) (ast.Value, error) {
 	}
 
 	p, _ := pem.Decode(bytes)
-	if p != nil && p.Type != "CERTIFICATE REQUEST" {
+	if p != nil && p.Type != blockTypeCertificateRequest {
 		return nil, fmt.Errorf("invalid PEM-encoded certificate signing request")
 	}
 	if p != nil {

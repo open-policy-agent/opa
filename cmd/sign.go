@@ -10,19 +10,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"strings"
-
-	initload "github.com/open-policy-agent/opa/internal/runtime/init"
-
-	"github.com/open-policy-agent/opa/bundle"
-
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
+	"github.com/open-policy-agent/opa/bundle"
+	initload "github.com/open-policy-agent/opa/internal/runtime/init"
 	"github.com/open-policy-agent/opa/util"
 )
 

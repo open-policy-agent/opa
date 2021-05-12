@@ -48,7 +48,10 @@ func TestFilterTraceVerbose(t *testing.T) {
 
 func TestFilterTraceExplainFails(t *testing.T) {
 	p := newTestCommandParams()
-	p.explain.Set(explainModeFails)
+	err := p.explain.Set(explainModeFails)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
 	expected := `Enter data.testing.test_p = _
 | Enter data.testing.test_p
 | | Enter data.testing.p
@@ -65,7 +68,10 @@ func TestFilterTraceExplainFails(t *testing.T) {
 
 func TestFilterTraceExplainNotes(t *testing.T) {
 	p := newTestCommandParams()
-	p.explain.Set(explainModeNotes)
+	err := p.explain.Set(explainModeNotes)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
 	expected := `Enter data.testing.test_p = _
 | Enter data.testing.test_p
 | | Enter data.testing.p
@@ -80,7 +86,10 @@ func TestFilterTraceExplainNotes(t *testing.T) {
 
 func TestFilterTraceExplainFull(t *testing.T) {
 	p := newTestCommandParams()
-	p.explain.Set(explainModeFull)
+	err := p.explain.Set(explainModeFull)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
 	expected := `Enter data.testing.test_p = _
 | Eval data.testing.test_p = _
 | Index data.testing.test_p (matched 1 rule)

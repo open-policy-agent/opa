@@ -59,11 +59,11 @@ type policyData interface {
 // New constructs a new HTTP loader periodically downloading a bundle
 // over HTTP.
 func New(o *opa.OPA) *Loader {
-	return new(o)
+	return newLoader(o)
 }
 
-// new constucts a new HTTP loader. This is for tests.
-func new(pd policyData) *Loader {
+// newLoader constructs a new HTTP loader. This is for tests.
+func newLoader(pd policyData) *Loader {
 	return &Loader{
 		pd:             pd,
 		client:         http.DefaultClient,
@@ -157,7 +157,7 @@ func (l *Loader) download(ctx context.Context) error {
 			return err
 		} else if err != nil {
 			l.logError(err)
-		} else if err == nil {
+		} else {
 			break
 		}
 
@@ -252,6 +252,6 @@ func (l *Loader) get(ctx context.Context, tag string) (*bundle.Bundle, error) {
 // close closes the HTTP response gracefully, first draining it, to
 // avoid resource leaks.
 func (l *Loader) close(resp *http.Response) {
-	io.Copy(ioutil.Discard, resp.Body) // Ignore errors.
-	resp.Body.Close()
+	_, _ = io.Copy(ioutil.Discard, resp.Body) // Ignore errors.
+	_ = resp.Body.Close()
 }

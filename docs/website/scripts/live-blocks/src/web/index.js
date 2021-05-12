@@ -257,7 +257,7 @@ async function runHandlers(handlers) {
   try {
     await batchProcess(0, handlers)
   } catch (errs) {
-    report('one or more errors occured in change handlers', handlers, errs)
+    report('one or more errors occurred in change handlers', handlers, errs)
   }
 }
 

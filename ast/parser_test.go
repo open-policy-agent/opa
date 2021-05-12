@@ -2712,7 +2712,7 @@ public_servers[server] {
 }`,
 			expNumComments: 4,
 			expAnnotations: []*Annotations{
-				&Annotations{
+				{
 					Schemas: []*SchemaAnnotation{
 						{Path: dataServers, Schema: schemaServers},
 					},
@@ -2742,7 +2742,7 @@ public_servers[server] {
 }`,
 			expNumComments: 6,
 			expAnnotations: []*Annotations{
-				&Annotations{
+				{
 					Schemas: []*SchemaAnnotation{
 						{Path: dataServers, Schema: schemaServers},
 						{Path: dataNetworks, Schema: schemaNetworks},
@@ -2776,7 +2776,7 @@ public_servers[server] {
 }`,
 			expNumComments: 7,
 			expAnnotations: []*Annotations{
-				&Annotations{
+				{
 					Schemas: []*SchemaAnnotation{
 						{Path: dataServers, Schema: schemaServers},
 						{Path: dataNetworks, Schema: schemaNetworks},
@@ -2809,7 +2809,7 @@ public_servers[server] {
 }`,
 			expNumComments: 7,
 			expAnnotations: []*Annotations{
-				&Annotations{
+				{
 					Schemas: []*SchemaAnnotation{
 						{Path: dataServers, Schema: schemaServers},
 						{Path: dataNetworks, Schema: schemaNetworks},
@@ -2957,7 +2957,7 @@ public_servers_1[server] {
 }`,
 			expNumComments: 7,
 			expAnnotations: []*Annotations{
-				&Annotations{
+				{
 					Schemas: []*SchemaAnnotation{
 						{Path: dataServers, Schema: schemaServers},
 						{Path: dataNetworks, Schema: schemaNetworks},
@@ -2995,14 +2995,14 @@ public_servers_1[server] {
 }`,
 			expNumComments: 9,
 			expAnnotations: []*Annotations{
-				&Annotations{
+				{
 					Schemas: []*SchemaAnnotation{
 						{Path: dataServers, Schema: schemaServers},
 					},
 					Scope: annotationScopeRule,
 					node:  MustParseRule(`public_servers[server] { server = servers[i] }`),
 				},
-				&Annotations{
+				{
 					Schemas: []*SchemaAnnotation{
 
 						{Path: dataNetworks, Schema: schemaNetworks},
@@ -3105,7 +3105,7 @@ import data.foo`,
 p { input = "str" }`,
 			expNumComments: 3,
 			expAnnotations: []*Annotations{
-				&Annotations{
+				{
 					Schemas: []*SchemaAnnotation{
 						{Path: InputRootRef, Definition: &stringSchema},
 					},

@@ -187,7 +187,7 @@ func (p *Plugin) Stop(ctx context.Context) {
 	p.manager.UnregisterPluginStatusListener(Name)
 	done := make(chan struct{})
 	p.stop <- done
-	_ = <-done
+	<-done
 	p.manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateNotReady})
 }
 

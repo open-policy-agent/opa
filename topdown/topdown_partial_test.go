@@ -2430,7 +2430,7 @@ func prepareTest(ctx context.Context, t *testing.T, params fixtureParams, f func
 			store = inmem.New()
 		}
 
-		storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
+		err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 
 			compiler := ast.NewCompiler()
 			modules := map[string]*ast.Module{}
@@ -2467,6 +2467,9 @@ func prepareTest(ctx context.Context, t *testing.T, params fixtureParams, f func
 
 			return nil
 		})
+		if err != nil {
+			t.Fatal(err)
+		}
 	})
 }
 

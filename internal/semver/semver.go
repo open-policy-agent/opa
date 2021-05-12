@@ -51,7 +51,7 @@ func splitOff(input *string, delim string) (val string) {
 	return val
 }
 
-// NewVersion constucts new SemVers from strings
+// NewVersion constructs new SemVers from strings
 func NewVersion(version string) (*Version, error) {
 	v := Version{}
 
@@ -80,7 +80,7 @@ func (v *Version) Set(version string) error {
 		return fmt.Errorf("failed to validate metadata: %v", err)
 	}
 
-	parsed := make([]int64, 3, 3)
+	parsed := make([]int64, 3)
 
 	for i, v := range dotParts[:3] {
 		val, err := strconv.ParseInt(v, 10, 64)

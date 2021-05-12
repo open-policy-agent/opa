@@ -43,7 +43,7 @@ func TestCompilerBadDataSegment(t *testing.T) {
 
 	_, err = getLowestFreeDataSegmentOffset(&module.Module{Data: module.DataSection{
 		Segments: []module.DataSegment{
-			module.DataSegment{
+			{
 				Offset: module.Expr{
 					Instrs: []instruction.Instruction{},
 				},
@@ -56,7 +56,7 @@ func TestCompilerBadDataSegment(t *testing.T) {
 
 	_, err = getLowestFreeDataSegmentOffset(&module.Module{Data: module.DataSection{
 		Segments: []module.DataSegment{
-			module.DataSegment{
+			{
 				Offset: module.Expr{
 					Instrs: []instruction.Instruction{
 						instruction.I64Const{Value: 100},
@@ -71,7 +71,7 @@ func TestCompilerBadDataSegment(t *testing.T) {
 
 	result, err = getLowestFreeDataSegmentOffset(&module.Module{Data: module.DataSection{
 		Segments: []module.DataSegment{
-			module.DataSegment{
+			{
 				Init: []byte("foo"),
 				Offset: module.Expr{
 					Instrs: []instruction.Instruction{
@@ -79,7 +79,7 @@ func TestCompilerBadDataSegment(t *testing.T) {
 					},
 				},
 			},
-			module.DataSegment{
+			{
 				Init: []byte("bar"),
 				Offset: module.Expr{
 					Instrs: []instruction.Instruction{

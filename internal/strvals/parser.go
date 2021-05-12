@@ -50,20 +50,6 @@ func Parse(s string) (map[string]interface{}, error) {
 	return vals, err
 }
 
-// ParseFile parses a set line, but its final value is loaded from the file at the path specified by the original value.
-//
-// A set line is of the form name1=path1,name2=path2
-//
-// When the files at path1 and path2 contained "val1" and "val2" respectively, the set line is consumed as
-// name1=val1,name2=val2
-func ParseFile(s string, runesToVal runesToVal) (map[string]interface{}, error) {
-	vals := map[string]interface{}{}
-	scanner := bytes.NewBufferString(s)
-	t := newFileParser(scanner, vals, runesToVal)
-	err := t.parse()
-	return vals, err
-}
-
 // ParseString parses a set line and forces a string value.
 //
 // A set line is of the form name1=value1,name2=value2
@@ -318,7 +304,10 @@ func (t *parser) valList() ([]interface{}, error) {
 	}
 
 	if r != '{' {
-		t.sc.UnreadRune()
+		e = t.sc.UnreadRune()
+		if e != nil {
+			return []interface{}{}, e
+		}
 		return []interface{}{}, ErrNotList
 	}
 
@@ -334,7 +323,10 @@ func (t *parser) valList() ([]interface{}, error) {
 		case last == '}':
 			// If this is followed by ',', consume it.
 			if r, _, e := t.sc.ReadRune(); e == nil && r != ',' {
-				t.sc.UnreadRune()
+				e = t.sc.UnreadRune()
+				if e != nil {
+					return []interface{}{}, e
+				}
 			}
 			v, e := t.runesToVal(rs)
 			list = append(list, v)
@@ -350,7 +342,7 @@ func (t *parser) valList() ([]interface{}, error) {
 }
 
 func runesUntil(in io.RuneReader, stop map[rune]bool) ([]rune, rune, error) {
-	v := []rune{}
+	var v []rune
 	for {
 		switch r, _, e := in.ReadRune(); {
 		case e != nil:

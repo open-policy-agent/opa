@@ -282,6 +282,9 @@ func TestBundleLifecycle(t *testing.T) {
 	// Ensure the bundle was activated
 	txn = storage.NewTransactionOrDie(ctx, mockStore)
 	names, err := ReadBundleNamesFromStore(ctx, mockStore, txn)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if len(names) != len(bundles) {
 		t.Fatalf("expected %d bundles in store, found %d", len(bundles), len(names))
@@ -360,6 +363,9 @@ func TestBundleLifecycle(t *testing.T) {
 	// Expect the store to have been cleared out after deactivating the bundles
 	txn = storage.NewTransactionOrDie(ctx, mockStore)
 	names, err = ReadBundleNamesFromStore(ctx, mockStore, txn)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if len(names) != 0 {
 		t.Fatalf("expected 0 bundles in store, found %d", len(names))
@@ -734,7 +740,6 @@ type testWriteModuleCase struct {
 	compilerMods map[string]*ast.Module
 	storeData    map[string]interface{}
 	expectErr    bool
-	writeToStore bool
 }
 
 func TestWriteModules(t *testing.T) {
@@ -752,24 +757,21 @@ func TestWriteModules(t *testing.T) {
 					},
 				},
 			},
-			expectErr:    false,
-			writeToStore: true,
+			expectErr: false,
 		},
 		{
 			note: "extra modules only",
 			extraMods: map[string]*ast.Module{
 				"mod1": ast.MustParseModule("package a\np = true"),
 			},
-			expectErr:    false,
-			writeToStore: true,
+			expectErr: false,
 		},
 		{
 			note: "compiler modules only",
 			compilerMods: map[string]*ast.Module{
 				"mod1": ast.MustParseModule("package a\np = true"),
 			},
-			expectErr:    false,
-			writeToStore: true,
+			expectErr: false,
 		},
 		{
 			note: "module files and extra modules",
@@ -786,8 +788,7 @@ func TestWriteModules(t *testing.T) {
 			extraMods: map[string]*ast.Module{
 				"mod2": ast.MustParseModule("package b\np = false"),
 			},
-			expectErr:    false,
-			writeToStore: true,
+			expectErr: false,
 		},
 		{
 			note: "module files and compiler modules",
@@ -804,8 +805,7 @@ func TestWriteModules(t *testing.T) {
 			compilerMods: map[string]*ast.Module{
 				"mod2": ast.MustParseModule("package b\np = false"),
 			},
-			expectErr:    false,
-			writeToStore: true,
+			expectErr: false,
 		},
 		{
 			note: "extra modules and compiler modules",
@@ -815,8 +815,7 @@ func TestWriteModules(t *testing.T) {
 			compilerMods: map[string]*ast.Module{
 				"mod2": ast.MustParseModule("package b\np = false"),
 			},
-			expectErr:    false,
-			writeToStore: true,
+			expectErr: false,
 		},
 		{
 			note: "compile error: path conflict",
@@ -835,8 +834,7 @@ func TestWriteModules(t *testing.T) {
 					"p": "foo",
 				},
 			},
-			expectErr:    true,
-			writeToStore: false,
+			expectErr: true,
 		},
 	}
 

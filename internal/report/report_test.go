@@ -175,7 +175,7 @@ func getTestServer(update interface{}, statusCode int) (baseURL string, teardown
 		w.WriteHeader(statusCode)
 		bs, _ := json.Marshal(update)
 		w.Header().Set("Content-Type", "application/json")
-		w.Write(bs)
+		_, _ = w.Write(bs)
 	})
 	return ts.URL, ts.Close
 }

@@ -200,7 +200,7 @@ func (t *timer) Start() {
 func (t *timer) Stop() int64 {
 	t.mtx.Lock()
 	defer t.mtx.Unlock()
-	delta := time.Now().Sub(t.start).Nanoseconds()
+	delta := time.Since(t.start).Nanoseconds()
 	t.value += delta
 	return delta
 }

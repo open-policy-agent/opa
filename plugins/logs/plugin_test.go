@@ -476,7 +476,7 @@ func TestPluginRequeBufferPreserved(t *testing.T) {
 		t.Fatal("Expected error")
 	}
 
-	_ = <-fixture.server.ch
+	<-fixture.server.ch
 
 	if fixture.plugin.buffer.Len() < bufLen {
 		t.Fatal("Expected buffer to be preserved")
@@ -709,7 +709,7 @@ func TestPluginRateLimitRequeue(t *testing.T) {
 		t.Fatal("Expected error")
 	}
 
-	_ = <-fixture.server.ch
+	<-fixture.server.ch
 
 	if fixture.plugin.buffer.Len() < bufLen {
 		t.Fatal("Expected buffer to be preserved")
@@ -1742,8 +1742,8 @@ func compareLogEvent(t *testing.T, actual []byte, exp EventV1) {
 
 func testStatus() *bundle.Status {
 
-	tDownload, _ := time.Parse("2018-01-01T00:00:00.0000000Z", time.RFC3339Nano)
-	tActivate, _ := time.Parse("2018-01-01T00:00:01.0000000Z", time.RFC3339Nano)
+	tDownload, _ := time.Parse(time.RFC3339Nano, "2018-01-01T00:00:00.0000000Z")
+	tActivate, _ := time.Parse(time.RFC3339Nano, "2018-01-01T00:00:01.0000000Z")
 
 	status := bundle.Status{
 		Name:                     "example/authz",

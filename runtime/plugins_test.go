@@ -25,13 +25,9 @@ func (t *Tester) Start(ctx context.Context) error {
 	return t.startErr
 }
 
-func (t *Tester) Stop(ctx context.Context) {
-	return
-}
+func (t *Tester) Stop(ctx context.Context) {}
 
-func (t *Tester) Reconfigure(ctx context.Context, config interface{}) {
-	return
-}
+func (t *Tester) Reconfigure(ctx context.Context, config interface{}) {}
 
 type Config struct {
 	ConfigErr bool `json:"configerr"`
@@ -41,17 +37,17 @@ type Factory struct{}
 
 func (f Factory) Validate(_ *plugins.Manager, config []byte) (interface{}, error) {
 
-	test := Config{}
+	cfg := Config{}
 
-	if err := util.Unmarshal(config, &test); err != nil {
+	if err := util.Unmarshal(config, &cfg); err != nil {
 		return nil, err
 	}
 
-	if test.ConfigErr {
+	if cfg.ConfigErr {
 		return nil, fmt.Errorf("test error")
 	}
 
-	return test, nil
+	return cfg, nil
 }
 
 func (f Factory) New(_ *plugins.Manager, config interface{}) plugins.Plugin {

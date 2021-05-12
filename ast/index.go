@@ -6,7 +6,6 @@ package ast
 
 import (
 	"fmt"
-	"io"
 	"sort"
 	"strings"
 
@@ -421,7 +420,7 @@ func (node *trieNode) String() string {
 		flags = append(flags, fmt.Sprintf("array:%p", node.array))
 	}
 	if len(node.scalars) > 0 {
-		buf := []string{}
+		buf := make([]string, 0, len(node.scalars))
 		for k, v := range node.scalars {
 			buf = append(buf, fmt.Sprintf("scalar(%v):%p", k, v))
 		}
@@ -575,7 +574,10 @@ func (node *trieNode) traverse(resolver ValueResolver, tr *trieTraversalResult) 
 	}
 
 	if node.undefined != nil {
-		node.undefined.Traverse(resolver, tr)
+		err = node.undefined.Traverse(resolver, tr)
+		if err != nil {
+			return err
+		}
 	}
 
 	if v == nil {
@@ -583,7 +585,10 @@ func (node *trieNode) traverse(resolver ValueResolver, tr *trieTraversalResult) 
 	}
 
 	if node.any != nil {
-		node.any.Traverse(resolver, tr)
+		err = node.any.Traverse(resolver, tr)
+		if err != nil {
+			return err
+		}
 	}
 
 	if err := node.traverseValue(resolver, tr, v); err != nil {
@@ -632,7 +637,10 @@ func (node *trieNode) traverseArray(resolver ValueResolver, tr *trieTraversalRes
 	}
 
 	if node.any != nil {
-		node.any.traverseArray(resolver, tr, arr.Slice(1, -1))
+		err := node.any.traverseArray(resolver, tr, arr.Slice(1, -1))
+		if err != nil {
+			return err
+		}
 	}
 
 	child, ok := node.scalars[head]
@@ -672,18 +680,6 @@ func (node *trieNode) traverseUnknown(resolver ValueResolver, tr *trieTraversalR
 	}
 
 	return nil
-}
-
-type triePrinter struct {
-	depth int
-	w     io.Writer
-}
-
-func (p triePrinter) Do(x interface{}) trieWalker {
-	padding := strings.Repeat(" ", p.depth)
-	fmt.Fprintf(p.w, "%v%v\n", padding, x)
-	p.depth++
-	return p
 }
 
 func eqOperandsToRefAndValue(isVirtual func(Ref) bool, a, b *Term) (Ref, Value, bool) {

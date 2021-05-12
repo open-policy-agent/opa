@@ -165,7 +165,7 @@ func generateObject(width, depth int) map[string]interface{} {
 	for i := 0; i < width; i++ {
 		key := fmt.Sprintf("entry-%d", i)
 		if depth <= 1 {
-			o[key] = fmt.Sprintf("value")
+			o[key] = "value"
 		} else {
 			o[key] = generateObject(width, depth-1)
 		}

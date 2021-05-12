@@ -66,7 +66,6 @@ func opaPrintln(caller *wasmtime.Caller, args []wasmtime.Val) ([]wasmtime.Val, *
 type builtinDispatcher struct {
 	ctx      *topdown.BuiltinContext
 	builtins map[int32]topdown.BuiltinFunc
-	result   *ast.Term
 }
 
 func newBuiltinDispatcher() *builtinDispatcher {

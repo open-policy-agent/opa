@@ -284,20 +284,20 @@ func TestInMemoryTxnMultipleWrites(t *testing.T) {
 	}
 
 	for _, w := range writes {
-		var json interface{}
+		var jsn interface{}
 		if w.value != "" {
-			json = util.MustUnmarshalJSON([]byte(w.value))
+			jsn = util.MustUnmarshalJSON([]byte(w.value))
 		}
-		if err := store.Write(ctx, txn, w.op, storage.MustParsePath(w.path), json); err != nil {
+		if err := store.Write(ctx, txn, w.op, storage.MustParsePath(w.path), jsn); err != nil {
 			t.Fatalf("Unexpected write error on %v: %v", w, err)
 		}
 	}
 
 	for _, r := range reads {
-		json := util.MustUnmarshalJSON([]byte(r.expected))
+		jsn := util.MustUnmarshalJSON([]byte(r.expected))
 		result, err := store.Read(ctx, txn, storage.MustParsePath(r.path))
-		if err != nil || !reflect.DeepEqual(json, result) {
-			t.Fatalf("Expected writer's read %v to be %v but got: %v (err: %v)", r.path, json, result, err)
+		if err != nil || !reflect.DeepEqual(jsn, result) {
+			t.Fatalf("Expected writer's read %v to be %v but got: %v (err: %v)", r.path, jsn, result, err)
 		}
 	}
 
@@ -308,10 +308,10 @@ func TestInMemoryTxnMultipleWrites(t *testing.T) {
 	txn = storage.NewTransactionOrDie(ctx, store)
 
 	for _, r := range reads {
-		json := util.MustUnmarshalJSON([]byte(r.expected))
+		jsn := util.MustUnmarshalJSON([]byte(r.expected))
 		result, err := store.Read(ctx, txn, storage.MustParsePath(r.path))
-		if err != nil || !reflect.DeepEqual(json, result) {
-			t.Fatalf("Expected reader's read %v to be %v but got: %v (err: %v)", r.path, json, result, err)
+		if err != nil || !reflect.DeepEqual(jsn, result) {
+			t.Fatalf("Expected reader's read %v to be %v but got: %v (err: %v)", r.path, jsn, result, err)
 		}
 	}
 }
@@ -338,11 +338,11 @@ func TestInMemoryTxnWriteFailures(t *testing.T) {
 	}
 
 	for _, w := range writes {
-		var json interface{}
+		var jsn interface{}
 		if w.value != "" {
-			json = util.MustUnmarshalJSON([]byte(w.value))
+			jsn = util.MustUnmarshalJSON([]byte(w.value))
 		}
-		err := store.Write(ctx, txn, w.op, storage.MustParsePath(w.path), json)
+		err := store.Write(ctx, txn, w.op, storage.MustParsePath(w.path), jsn)
 		if (w.errCode == "" && err != nil) || (err == nil && w.errCode != "") {
 			t.Fatalf("Expected errCode %q but got: %v", w.errCode, err)
 		}
@@ -601,7 +601,7 @@ func TestInMemoryContext(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	store.Register(ctx, txn, storage.TriggerConfig{
+	_, err = store.Register(ctx, txn, storage.TriggerConfig{
 		OnCommit: func(ctx context.Context, txn storage.Transaction, event storage.TriggerEvent) {
 			if event.Context.Get("foo") != "bar" {
 				t.Fatalf("Expected foo/bar in context but got: %+v", event.Context)
@@ -610,6 +610,9 @@ func TestInMemoryContext(t *testing.T) {
 			}
 		},
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if err := store.Commit(ctx, txn); err != nil {
 		t.Fatal(err)

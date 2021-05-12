@@ -426,7 +426,11 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 		}(loop)
 	}
 
-	signalc := make(chan os.Signal)
+	// Buffer one element as os/signal uses non-blocking channel sends.
+	// This prevents potentially dropping the first element and failing to shut
+	// down gracefully. A buffer of 1 is sufficient as we're just looking for a
+	// one-time shutdown signal.
+	signalc := make(chan os.Signal, 1)
 	signal.Notify(signalc, syscall.SIGINT, syscall.SIGTERM)
 
 	rt.serverInitMtx.Lock()
@@ -574,24 +578,20 @@ func (rt *Runtime) startWatcher(ctx context.Context, paths []string, onReload fu
 }
 
 func (rt *Runtime) readWatcher(ctx context.Context, watcher *fsnotify.Watcher, paths []string, onReload func(time.Duration, error)) {
-	for {
-		select {
-		case evt := <-watcher.Events:
-
-			removalMask := (fsnotify.Remove | fsnotify.Rename)
-			mask := (fsnotify.Create | fsnotify.Write | removalMask)
-			if (evt.Op & mask) != 0 {
-				logrus.WithFields(logrus.Fields{
-					"event": evt.String(),
-				}).Debugf("registered file event")
-				t0 := time.Now()
-				removed := ""
-				if (evt.Op & removalMask) != 0 {
-					removed = evt.Name
-				}
-				err := rt.processWatcherUpdate(ctx, paths, removed)
-				onReload(time.Since(t0), err)
+	for evt := range watcher.Events {
+		removalMask := fsnotify.Remove | fsnotify.Rename
+		mask := fsnotify.Create | fsnotify.Write | removalMask
+		if (evt.Op & mask) != 0 {
+			logrus.WithFields(logrus.Fields{
+				"event": evt.String(),
+			}).Debugf("registered file event")
+			t0 := time.Now()
+			removed := ""
+			if (evt.Op & removalMask) != 0 {
+				removed = evt.Name
 			}
+			err := rt.processWatcherUpdate(ctx, paths, removed)
+			onReload(time.Since(t0), err)
 		}
 	}
 }

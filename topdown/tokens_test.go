@@ -118,7 +118,7 @@ OHoCIHmNX37JOqTcTzGn2u9+c8NlnvZ0uDvsd1BmKPaUmjmm
 		t.Run("if provided, is parsed properly", func(t *testing.T) {
 			c := ast.NewObject()
 			c.Insert(ast.StringTerm("time"), wallclock)
-			constraints, err := parseTokenConstraints(c, ast.NumberTerm(json.Number("12134")))
+			constraints, err := parseTokenConstraints(c, ast.NumberTerm("12134"))
 			if err != nil {
 				t.Fatalf("parseTokenConstraints: %v", err)
 			}
@@ -307,6 +307,9 @@ func TestTopDownJWTEncodeSignES256(t *testing.T) {
 		t.Fatal("Failed to create private key")
 	}
 	publicKey, err := jwk.GetPublicKey(key)
+	if err != nil {
+		t.Fatalf("failed to get public key: %v", err)
+	}
 
 	// Verify with vendor library
 
@@ -424,13 +427,16 @@ func TestTopDownJWTEncodeSignES512(t *testing.T) {
 
 	keys, err := jwk.ParseString(ecKey)
 	if err != nil {
-		t.Fatal("Failed to parse JWK")
+		t.Fatalf("Failed to parse JWK: %v", err)
 	}
 	key, err := keys.Keys[0].Materialize()
 	if err != nil {
-		t.Fatal("Failed to create private key")
+		t.Fatalf("Failed to create private key: %v", err)
 	}
 	publicKey, err := jwk.GetPublicKey(key)
+	if err != nil {
+		t.Fatalf("Failed to get public key: %v", err)
+	}
 
 	// Verify with vendor library
 

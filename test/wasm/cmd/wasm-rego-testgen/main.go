@@ -174,11 +174,7 @@ func run(params params) error {
 				}
 
 				dst := strings.Replace(files[i].Name(), ".yaml", ".json", -1)
-				if err := writeFile(tw, dst, bs); err != nil {
-					return err
-				}
-
-				return nil
+				return writeFile(tw, dst, bs)
 			}()
 			if err != nil {
 				return errors.Wrap(err, files[i].Name())

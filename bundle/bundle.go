@@ -591,7 +591,6 @@ type Writer struct {
 	usePath       bool
 	disableFormat bool
 	w             io.Writer
-	signingConfig *SigningConfig
 }
 
 // NewWriter returns a bundle writer that writes to w.

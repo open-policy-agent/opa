@@ -790,10 +790,10 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 			// Build slice of expected error messages.
 			expected := []string{}
 
-			MustParseTerm(tc.expected).Value.(Set).Iter(func(x *Term) error {
+			_ = MustParseTerm(tc.expected).Value.(Set).Iter(func(x *Term) error {
 				expected = append(expected, makeErrMsg(string(x.Value.(Var))))
 				return nil
-			})
+			}) // cannot return error
 
 			sort.Strings(expected)
 
@@ -2709,11 +2709,11 @@ func TestCompilerSetGraph(t *testing.T) {
 		},
 		{
 			x:    q,
-			want: map[util.T]struct{}{p: struct{}{}, mod5.Rules[1]: struct{}{}, mod5.Rules[3]: struct{}{}, mod5.Rules[5]: struct{}{}},
+			want: map[util.T]struct{}{p: {}, mod5.Rules[1]: {}, mod5.Rules[3]: {}, mod5.Rules[5]: {}},
 		},
 		{
 			x:    r,
-			want: map[util.T]struct{}{p: struct{}{}},
+			want: map[util.T]struct{}{p: {}},
 		},
 	}
 
@@ -3302,11 +3302,11 @@ r3 = 3`,
 func TestCompileCustomBuiltins(t *testing.T) {
 
 	compiler := NewCompiler().WithBuiltins(map[string]*Builtin{
-		"baz": &Builtin{
+		"baz": {
 			Name: "baz",
 			Decl: types.NewFunction([]types.Type{types.S}, types.A),
 		},
-		"foo.bar": &Builtin{
+		"foo.bar": {
 			Name: "foo.bar",
 			Decl: types.NewFunction([]types.Type{types.S}, types.A),
 		},
@@ -3999,7 +3999,7 @@ func TestQueryCompilerWithStageAfterWithMetrics(t *testing.T) {
 
 func TestQueryCompilerWithUnsafeBuiltins(t *testing.T) {
 	c := NewCompiler().WithUnsafeBuiltins(map[string]struct{}{
-		"count": struct{}{},
+		"count": {},
 	})
 
 	_, err := c.QueryCompiler().WithUnsafeBuiltins(map[string]struct{}{}).Compile(MustParseBody("count([])"))
@@ -4258,7 +4258,7 @@ func TestCompilerWithUnsafeBuiltins(t *testing.T) {
 	// Rego includes a number of built-in functions. In some cases, you may not
 	// want all builtins to be available to a program. This test shows how to
 	// mark a built-in as unsafe.
-	compiler := NewCompiler().WithUnsafeBuiltins(map[string]struct{}{"re_match": struct{}{}})
+	compiler := NewCompiler().WithUnsafeBuiltins(map[string]struct{}{"re_match": {}})
 
 	// This query should not compile because the `re_match` built-in is no
 	// longer available.

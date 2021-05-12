@@ -36,7 +36,7 @@ export default async function localEval(groups, groupName, opaVersion) {
       if (pretty === 'undefined') { // Special undefined case, use the same message as the playground.
         throw new OPAErrors('undefined decision', undefined)
 
-      } else { // Some other error occured, reevaluate to get the JSON-formatted version of the errors so that they can be compared against what the block expects.
+      } else { // Some other error occurred, reevaluate to get the JSON-formatted version of the errors so that they can be compared against what the block expects.
         try {
           await execFile(opa, args('json'))
           throw new Error('subsequent eval of failing evaluation did not fail')
@@ -55,7 +55,7 @@ export default async function localEval(groups, groupName, opaVersion) {
             }
             throw opaErrors
           } else { // Reevaluation didn't produce output
-            throw new ChainedError('an error occured while trying to get details about an evaluation failure', e2)
+            throw new ChainedError('an error occurred while trying to get details about an evaluation failure', e2)
           }
         }
       }
@@ -111,6 +111,6 @@ async function prepEval(groups, groupName) {
 
     return [(format) => [...base, `--format=${format}`, ...rest], moduleFilenameMap]
   } catch (e) {
-    throw new ChainedError('a problem occured while preparing to evaluate', e)
+    throw new ChainedError('a problem occurred while preparing to evaluate', e)
   }
 }

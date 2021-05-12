@@ -49,7 +49,7 @@ func (p *schemaReferencePool) Get(ref string) (r *SubSchema, o bool) {
 
 	if sch, ok := p.documents[ref]; ok {
 		if internalLogEnabled {
-			internalLog(fmt.Sprintf(" From pool"))
+			internalLog(" From pool")
 		}
 		return sch, true
 	}

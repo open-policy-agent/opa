@@ -30,15 +30,15 @@ type Type interface {
 	json.Marshaler
 }
 
-func (Null) typeMarker() string     { return "null" }
-func (Boolean) typeMarker() string  { return "boolean" }
-func (Number) typeMarker() string   { return "number" }
-func (String) typeMarker() string   { return "string" }
-func (*Array) typeMarker() string   { return "array" }
-func (*Object) typeMarker() string  { return "object" }
-func (*Set) typeMarker() string     { return "set" }
-func (Any) typeMarker() string      { return "any" }
-func (Function) typeMarker() string { return "function" }
+func (Null) typeMarker() string     { return typeNull }
+func (Boolean) typeMarker() string  { return typeBoolean }
+func (Number) typeMarker() string   { return typeNumber }
+func (String) typeMarker() string   { return typeString }
+func (*Array) typeMarker() string   { return typeArray }
+func (*Object) typeMarker() string  { return typeObject }
+func (*Set) typeMarker() string     { return typeSet }
+func (Any) typeMarker() string      { return typeAny }
+func (Function) typeMarker() string { return typeFunction }
 
 // Null represents the null type.
 type Null struct{}
@@ -56,7 +56,7 @@ func (t Null) MarshalJSON() ([]byte, error) {
 }
 
 func (t Null) String() string {
-	return "null"
+	return typeNull
 }
 
 // Boolean represents the boolean type.
@@ -101,7 +101,7 @@ func (t String) MarshalJSON() ([]byte, error) {
 }
 
 func (t String) String() string {
-	return "string"
+	return typeString
 }
 
 // Number represents the number type.
@@ -123,7 +123,7 @@ func (t Number) MarshalJSON() ([]byte, error) {
 }
 
 func (Number) String() string {
-	return "number"
+	return typeNumber
 }
 
 // Array represents the array type.
@@ -217,7 +217,7 @@ func (t *Set) MarshalJSON() ([]byte, error) {
 }
 
 func (t *Set) String() string {
-	prefix := "set"
+	prefix := typeSet
 	return prefix + "[" + Sprint(t.of) + "]"
 }
 

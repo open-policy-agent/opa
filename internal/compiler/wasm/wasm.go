@@ -3,6 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // Package wasm contains an IR->WASM compiler backend.
+// nolint: deadcode,varcheck // Package in development (2021).
 package wasm
 
 import (
@@ -802,12 +803,6 @@ func (c *Compiler) compileFunc(fn *ir.Func) error {
 		},
 	}
 
-	var params []types.ValueType
-
-	for i := 0; i < len(fn.Params); i++ {
-		params = append(params, types.I32)
-	}
-
 	return c.storeFunc(fn.Name, c.code)
 }
 
@@ -1149,7 +1144,10 @@ func (c *Compiler) compileBlock(block *ir.Block) ([]instruction.Instruction, err
 			instrs = append(instrs, instruction.Call{Index: c.function(opaSetAdd)})
 		default:
 			var buf bytes.Buffer
-			ir.Pretty(&buf, stmt)
+			err := ir.Pretty(&buf, stmt)
+			if err != nil {
+				return nil, err
+			}
 			return instrs, fmt.Errorf("illegal statement: %v", buf.String())
 		}
 	}

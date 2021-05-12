@@ -22,7 +22,7 @@ func NewTLSBased(inner http.Handler) *TLSBased {
 
 func (h *TLSBased) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if tls := r.TLS; tls != nil {
-		if certs := tls.PeerCertificates; certs != nil && len(certs) > 0 {
+		if certs := tls.PeerCertificates; len(certs) > 0 {
 			r = SetIdentity(r, certs[0].Subject.ToRDNSequence().String())
 		}
 	}

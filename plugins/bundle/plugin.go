@@ -40,7 +40,6 @@ type Plugin struct {
 	logger            logging.Logger
 	mtx               sync.Mutex
 	cfgMtx            sync.Mutex
-	legacyConfig      bool
 	ready             bool
 	bundlePersistPath string
 }
@@ -550,11 +549,7 @@ func saveCurrentBundleToDisk(path, filename string, b *bundle.Bundle) error {
 		}
 	}
 
-	if err := ioutil.WriteFile(filepath.Join(path, filename), buf.Bytes(), 0644); err != nil {
-		return err
-	}
-
-	return nil
+	return ioutil.WriteFile(filepath.Join(path, filename), buf.Bytes(), 0644)
 }
 
 func loadBundleFromDisk(path, name string, src *Source) (*bundle.Bundle, error) {

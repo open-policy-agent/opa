@@ -2,6 +2,7 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
+// nolint: goconst // string duplication is for test readability.
 package server
 
 import (
@@ -42,11 +43,6 @@ type tr struct {
 	body   string
 	code   int
 	resp   string
-}
-
-type trw struct {
-	tr   tr
-	wait chan struct{}
 }
 
 func TestUnversionedGetHealth(t *testing.T) {
@@ -720,9 +716,12 @@ func TestCompileV1Observability(t *testing.T) {
 
 	f := newFixture(t)
 
-	f.v1(http.MethodPut, "/policies/test", `package test
+	err := f.v1(http.MethodPut, "/policies/test", `package test
 
 	p { input.x = 1 }`, 200, "")
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	compileReq := newReqV1(http.MethodPost, "/compile?metrics&explain=full", `{
 		"query": "data.test.p = true"
@@ -1572,7 +1571,10 @@ func TestBundleScopeMultiBundle(t *testing.T) {
 func TestDataGetExplainFull(t *testing.T) {
 	f := newFixture(t)
 
-	f.v1(http.MethodPut, "/data/x", `{"a":1,"b":2}`, 204, "")
+	err := f.v1(http.MethodPut, "/data/x", `{"a":1,"b":2}`, 204, "")
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	req := newReqV1(http.MethodGet, "/data/x?explain=full", "")
 	f.reset()
@@ -1646,9 +1648,12 @@ func TestDataGetExplainFull(t *testing.T) {
 func TestDataPostExplain(t *testing.T) {
 	f := newFixture(t)
 
-	f.v1(http.MethodPut, "/policies/test", `package test
+	err := f.v1(http.MethodPut, "/policies/test", `package test
 
 p = [1, 2, 3, 4] { true }`, 200, "")
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	req := newReqV1(http.MethodPost, "/data/test/p?explain=full", "")
 	f.reset()
@@ -1682,14 +1687,20 @@ p = [1, 2, 3, 4] { true }`, 200, "")
 func TestDataPostExplainNotes(t *testing.T) {
 	f := newFixture(t)
 
-	f.v1(http.MethodPut, "/policies/test", `
+	err := f.v1(http.MethodPut, "/policies/test", `
 		package test
 		p {
 			data.a[i] = x; x > 1
 			trace(sprintf("found x = %d", [x]))
 		}`, 200, "")
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	f.v1(http.MethodPut, "/data/a", `[1,2,3]`, 200, "")
+	err = f.v1(http.MethodPut, "/data/a", `[1,2,3]`, 204, "")
+	if err != nil {
+		t.Fatal(err)
+	}
 	f.reset()
 
 	req := newReqV1(http.MethodPost, "/data/test/p?explain=notes", "")
@@ -2023,7 +2034,10 @@ func testDataMetrics(t *testing.T, f *fixture, url string, expected []string) {
 func TestV1Pretty(t *testing.T) {
 
 	f := newFixture(t)
-	f.v1(http.MethodPatch, "/data/x", `[{"op": "add", "path":"/", "value": [1,2,3,4]}]`, 204, "")
+	err := f.v1(http.MethodPatch, "/data/x", `[{"op": "add", "path":"/", "value": [1,2,3,4]}]`, 204, "")
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	req := newReqV1(http.MethodGet, "/data/x?pretty=true", "")
 	f.reset()
@@ -2223,9 +2237,15 @@ q[x] { p[x] }`,
 
 func TestPoliciesPutV1Noop(t *testing.T) {
 	f := newFixture(t)
-	f.v1("PUT", "/policies/test?metrics", `package foo`, 200, "")
+	err := f.v1("PUT", "/policies/test?metrics", `package foo`, 200, "")
+	if err != nil {
+		t.Fatal(err)
+	}
 	f.reset()
-	f.v1("PUT", "/policies/test?metrics", `package foo`, 200, "")
+	err = f.v1("PUT", "/policies/test?metrics", `package foo`, 200, "")
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	var resp types.PolicyPutResponseV1
 	if err := json.NewDecoder(f.recorder.Body).Decode(&resp); err != nil {
@@ -2251,7 +2271,10 @@ func TestPoliciesPutV1Noop(t *testing.T) {
 	f.reset()
 
 	// Ensure subsequent update with changed policy parses the body.
-	f.v1("PUT", "/policies/test?metrics", "package foo\np = 1", 200, "")
+	err = f.v1("PUT", "/policies/test?metrics", "package foo\np = 1", 200, "")
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	var resp2 types.PolicyPutResponseV1
 	if err := json.NewDecoder(f.recorder.Body).Decode(&resp2); err != nil {
@@ -2456,8 +2479,8 @@ func TestPoliciesUrlEncoded(t *testing.T) {
 	f.reset()
 	// DELETE policy with URL encoded ID
 
-	delete := newReqV1(http.MethodDelete, fmt.Sprintf("/policies/%s", urlEscapedPolicyID), "")
-	f.server.Handler.ServeHTTP(f.recorder, delete)
+	deleteRequest := newReqV1(http.MethodDelete, fmt.Sprintf("/policies/%s", urlEscapedPolicyID), "")
+	f.server.Handler.ServeHTTP(f.recorder, deleteRequest)
 	if f.recorder.Code != 200 {
 		t.Fatalf("Expected success but got %v", f.recorder)
 	}
@@ -3231,15 +3254,6 @@ func newFixture(t *testing.T, opts ...func(*Server)) *fixture {
 	}
 }
 
-func (f *fixture) loadResponse() interface{} {
-	var v interface{}
-	err := util.NewJSONDecoder(f.recorder.Body).Decode(&v)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
 func (f *fixture) v1TestRequests(trs []tr) error {
 	for i, tr := range trs {
 		if err := f.v1(tr.method, tr.path, tr.body, tr.code, tr.resp); err != nil {
@@ -3275,7 +3289,7 @@ func (f *fixture) executeRequestForHandler(h http.Handler, req *http.Request, co
 	}
 	if resp != "" {
 		var result interface{}
-		if err := util.UnmarshalJSON([]byte(f.recorder.Body.String()), &result); err != nil {
+		if err := util.UnmarshalJSON(f.recorder.Body.Bytes(), &result); err != nil {
 			return fmt.Errorf("Expected JSON response from %v %v but got: %v", req.Method, req.URL, f.recorder)
 		}
 		var expected interface{}
@@ -3611,7 +3625,7 @@ func TestMixedAddrTypes(t *testing.T) {
 func TestCustomRoute(t *testing.T) {
 	router := mux.NewRouter()
 	router.HandleFunc("/customEndpoint", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(`{"myCustomResponse": true}`))
+		_, _ = w.Write([]byte(`{"myCustomResponse": true}`)) // ignore error
 	})
 	f := newFixture(t, func(server *Server) {
 		server.WithRouter(router)

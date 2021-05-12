@@ -11,6 +11,15 @@ import (
 	"github.com/open-policy-agent/opa/util/test"
 )
 
+const formatted = `package test
+
+p {
+	a == 1
+	true
+	1 + 3
+}
+`
+
 func TestFmtFormatFile(t *testing.T) {
 	params := fmtCommandParams{}
 	var stdout bytes.Buffer
@@ -24,15 +33,6 @@ func TestFmtFormatFile(t *testing.T) {
 
 	
 	`
-
-	formatted := `package test
-
-p {
-	a == 1
-	true
-	1 + 3
-}
-`
 
 	files := map[string]string{
 		"policy.rego": unformatted,
@@ -57,17 +57,8 @@ func TestFmtFormatFileNoChanges(t *testing.T) {
 	params := fmtCommandParams{}
 	var stdout bytes.Buffer
 
-	policyContent := `package test
-
-p {
-	a == 1
-	true
-	1 + 3
-}
-`
-
 	files := map[string]string{
-		"policy.rego": policyContent,
+		"policy.rego": formatted,
 	}
 
 	test.WithTempFS(files, func(path string) {
@@ -79,8 +70,8 @@ p {
 		}
 
 		actual := stdout.String()
-		if actual != policyContent {
-			t.Fatalf("Expected:%s\n\nGot:\n%s\n\n", policyContent, actual)
+		if actual != formatted {
+			t.Fatalf("Expected:%s\n\nGot:\n%s\n\n", formatted, actual)
 		}
 	})
 }
@@ -91,17 +82,8 @@ func TestFmtFormatFileDiff(t *testing.T) {
 	}
 	var stdout bytes.Buffer
 
-	policyContent := `package test
-
-p {
-	a == 1
-	true
-	1 + 3
-}
-`
-
 	files := map[string]string{
-		"policy.rego": policyContent,
+		"policy.rego": formatted,
 	}
 
 	test.WithTempFS(files, func(path string) {
@@ -126,17 +108,8 @@ func TestFmtFormatFileList(t *testing.T) {
 	}
 	var stdout bytes.Buffer
 
-	policyContent := `package test
-
-p {
-	a == 1
-	true
-	1 + 3
-}
-`
-
 	files := map[string]string{
-		"policy.rego": policyContent,
+		"policy.rego": formatted,
 	}
 
 	test.WithTempFS(files, func(path string) {
@@ -160,17 +133,8 @@ func TestFmtFailFileNoChanges(t *testing.T) {
 		fail: true,
 	}
 
-	policyContent := `package test
-
-p {
-	a == 1
-	true
-	1 + 3
-}
-`
-
 	files := map[string]string{
-		"policy.rego": policyContent,
+		"policy.rego": formatted,
 	}
 
 	test.WithTempFS(files, func(path string) {
@@ -178,7 +142,7 @@ p {
 		info, err := os.Stat(policyFile)
 		err = formatFile(&params, ioutil.Discard, policyFile, info, err)
 		if err != nil {
-			t.Fatalf("Expected error but did not recieve one")
+			t.Fatalf("Expected error but did not receive one")
 		}
 	})
 }

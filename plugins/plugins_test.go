@@ -47,7 +47,10 @@ func TestManagerCacheTriggers(t *testing.T) {
 		t.Fatal("Listeners should not be called yet")
 	}
 
-	m.Reconfigure(m.Config)
+	err = m.Reconfigure(m.Config)
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
 
 	if l1Called == false || l2Called == false {
 		t.Fatal("Listeners should hav been called")
@@ -85,9 +88,10 @@ func TestManagerPluginStatusListener(t *testing.T) {
 	}
 
 	// Push an update to a plugin, ensure current status is reflected and listeners were called
-	m.UpdatePluginStatus("p1", &Status{State: StateOK, Message: "foo"})
+	const message = "foo"
+	m.UpdatePluginStatus("p1", &Status{State: StateOK, Message: message})
 	currentStatus = m.PluginStatus()
-	if len(currentStatus) != 1 || currentStatus["p1"].State != StateOK || currentStatus["p1"].Message != "foo" {
+	if len(currentStatus) != 1 || currentStatus["p1"].State != StateOK || currentStatus["p1"].Message != message {
 		t.Fatalf("Expected 1 statuses in current plugin status map with state OK and message 'foo', got: %+v", currentStatus)
 	}
 	if !reflect.DeepEqual(currentStatus, l1Status) || !reflect.DeepEqual(l1Status, l2Status) {
@@ -103,7 +107,7 @@ func TestManagerPluginStatusListener(t *testing.T) {
 	// Send another update, ensure the status is ok and the remaining listener is still called
 	m.UpdatePluginStatus("p2", &Status{State: StateErr})
 	currentStatus = m.PluginStatus()
-	if len(currentStatus) != 2 || currentStatus["p1"].State != StateOK || currentStatus["p1"].Message != "foo" || currentStatus["p2"].State != StateErr {
+	if len(currentStatus) != 2 || currentStatus["p1"].State != StateOK || currentStatus["p1"].Message != message || currentStatus["p2"].State != StateErr {
 		t.Fatalf("Unexpected current plugin status, got: %+v", currentStatus)
 	}
 	if !reflect.DeepEqual(currentStatus, l2Status) {
@@ -119,7 +123,7 @@ func TestManagerPluginStatusListener(t *testing.T) {
 	// Ensure updates can still be sent with no listeners
 	m.UpdatePluginStatus("p2", &Status{State: StateOK})
 	currentStatus = m.PluginStatus()
-	if len(currentStatus) != 2 || currentStatus["p1"].State != StateOK || currentStatus["p1"].Message != "foo" || currentStatus["p2"].State != StateOK {
+	if len(currentStatus) != 2 || currentStatus["p1"].State != StateOK || currentStatus["p1"].Message != message || currentStatus["p2"].State != StateOK {
 		t.Fatalf("Unexpected current plugin status, got: %+v", currentStatus)
 	}
 }
@@ -264,8 +268,8 @@ func (m *mockForInitStartOrdering) Start(ctx context.Context) error {
 	return fmt.Errorf("expected manager to be initialized")
 }
 
-func (m *mockForInitStartOrdering) Stop(ctx context.Context)                            { return }
-func (m *mockForInitStartOrdering) Reconfigure(ctx context.Context, config interface{}) { return }
+func (*mockForInitStartOrdering) Stop(context.Context)                     {}
+func (*mockForInitStartOrdering) Reconfigure(context.Context, interface{}) {}
 
 func TestPluginManagerAuthPlugin(t *testing.T) {
 	m, err := New([]byte(`{"plugins": {"someplugin": {}}}`), "test", inmem.New())
@@ -317,14 +321,16 @@ func TestPluginManagerConsoleLogger(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	mgr.ConsoleLogger().WithFields(map[string]interface{}{"foo": "bar"}).Info("Some message")
+	const fieldKey = "foo"
+	const fieldValue = "bar"
+	mgr.ConsoleLogger().WithFields(map[string]interface{}{fieldKey: fieldValue}).Info("Some message")
 
 	entries := consoleLogger.Entries()
 
 	exp := []test.LogEntry{
 		{
 			Level:   logging.Info,
-			Fields:  map[string]interface{}{"foo": "bar"},
+			Fields:  map[string]interface{}{fieldKey: fieldValue},
 			Message: "Some message",
 		},
 	}

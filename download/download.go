@@ -102,7 +102,8 @@ func (d *Downloader) Start(ctx context.Context) {
 	go d.doStart(ctx)
 }
 
-func (d *Downloader) doStart(ctx context.Context) {
+func (d *Downloader) doStart(context.Context) {
+	// We'll revisit context passing/usage later.
 	ctx, cancel := context.WithCancel(context.Background())
 
 	d.wg.Add(1)
@@ -112,14 +113,13 @@ func (d *Downloader) doStart(ctx context.Context) {
 	cancel()
 	d.wg.Wait()
 	close(done)
-	return
 }
 
 // Stop tells the Downloader to stop downloading bundles.
 func (d *Downloader) Stop(context.Context) {
 	done := make(chan struct{})
 	d.stop <- done
-	_ = <-done
+	<-done
 }
 
 func (d *Downloader) loop(ctx context.Context) {

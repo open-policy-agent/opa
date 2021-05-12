@@ -23,6 +23,7 @@
 //
 // created          16-06-2013
 
+// nolint: deadcode // Package in development (2021).
 package gojsonschema
 
 import (
@@ -36,8 +37,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 )
-
-const displayErrorMessages = false
 
 const circularReference = `{
 	"type": "object",

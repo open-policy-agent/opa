@@ -582,11 +582,7 @@ func writeGlobal(w io.Writer, global module.Global) error {
 		return err
 	}
 
-	if err := writeInstructions(w, global.Init.Instrs); err != nil {
-		return err
-	}
-
-	return nil
+	return writeInstructions(w, global.Init.Instrs)
 }
 
 func writeInstructions(w io.Writer, instrs []instruction.Instruction) error {

@@ -37,7 +37,7 @@ func BenchmarkInliningFullScan(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
 
-				storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
+				err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 
 					q := NewQuery(body).
 						WithCompiler(compiler).
@@ -58,6 +58,9 @@ func BenchmarkInliningFullScan(b *testing.B) {
 
 					return nil
 				})
+				if err != nil {
+					b.Fatal(err)
+				}
 			}
 		})
 	}

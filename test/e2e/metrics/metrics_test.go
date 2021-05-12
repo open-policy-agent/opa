@@ -155,8 +155,7 @@ func TestRequestWithInstrumentationV1CompileAPI(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var i interface{}
-	i = "{\"x\": 4}"
+	var i interface{} = "{\"x\": 4}"
 	req := types.CompileRequestV1{
 		Query:    "data.test.p == true",
 		Input:    &i,

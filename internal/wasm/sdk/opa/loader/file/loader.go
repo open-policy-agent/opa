@@ -48,7 +48,7 @@ func New(opa *opa.OPA) *Loader {
 	return new(opa)
 }
 
-// new constucts a new file loader. This is for tests.
+// new constructs a new file loader. This is for tests.
 func new(pd policyData) *Loader {
 	return &Loader{
 		pd:       pd,
