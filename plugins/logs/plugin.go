@@ -220,11 +220,12 @@ const (
 
 // ReportingConfig represents configuration for the plugin's reporting behaviour.
 type ReportingConfig struct {
-	BufferSizeLimitBytes  *int64   `json:"buffer_size_limit_bytes,omitempty"`  // max size of in-memory buffer
-	UploadSizeLimitBytes  *int64   `json:"upload_size_limit_bytes,omitempty"`  // max size of upload payload
-	MinDelaySeconds       *int64   `json:"min_delay_seconds,omitempty"`        // min amount of time to wait between successful poll attempts
-	MaxDelaySeconds       *int64   `json:"max_delay_seconds,omitempty"`        // max amount of time to wait between poll attempts
-	MaxDecisionsPerSecond *float64 `json:"max_decisions_per_second,omitempty"` // max number of decision logs to buffer per second
+	BufferSizeLimitBytes  *int64               `json:"buffer_size_limit_bytes,omitempty"`  // max size of in-memory buffer
+	UploadSizeLimitBytes  *int64               `json:"upload_size_limit_bytes,omitempty"`  // max size of upload payload
+	MinDelaySeconds       *int64               `json:"min_delay_seconds,omitempty"`        // min amount of time to wait between successful poll attempts
+	MaxDelaySeconds       *int64               `json:"max_delay_seconds,omitempty"`        // max amount of time to wait between poll attempts
+	MaxDecisionsPerSecond *float64             `json:"max_decisions_per_second,omitempty"` // max number of decision logs to buffer per second
+	Trigger               *plugins.TriggerMode `json:"trigger,omitempty"`                  // trigger mode
 }
 
 // Config represents the plugin configuration.
@@ -239,11 +240,11 @@ type Config struct {
 	maskDecisionRef ast.Ref
 }
 
-func (c *Config) validateAndInjectDefaults(services []string, plugins []string) error {
+func (c *Config) validateAndInjectDefaults(services []string, pluginsList []string, trigger *plugins.TriggerMode) error {
 
 	if c.Plugin != nil {
 		var found bool
-		for _, other := range plugins {
+		for _, other := range pluginsList {
 			if other == *c.Plugin {
 				found = true
 				break
@@ -275,6 +276,29 @@ func (c *Config) validateAndInjectDefaults(services []string, plugins []string) 
 
 	if c.Plugin == nil && c.Service == "" && !c.ConsoleLogs {
 		return fmt.Errorf("invalid decision_log config, must have a `service`, `plugin`, or `console` logging enabled")
+	}
+
+	if trigger == nil {
+		t := plugins.DefaultTriggerMode
+		trigger = &t
+	} else {
+		err := validateTriggerMode(*trigger)
+		if err != nil {
+			return err
+		}
+	}
+
+	if c.Reporting.Trigger == nil {
+		c.Reporting.Trigger = trigger
+	} else {
+		err := validateTriggerMode(*c.Reporting.Trigger)
+		if err != nil {
+			return err
+		}
+
+		if *c.Reporting.Trigger != *trigger {
+			return fmt.Errorf("invalid decision_log config, discovery has trigger mode %s, decision_log has %s", *trigger, *c.Reporting.Trigger)
+		}
 	}
 
 	min := defaultMinDelaySeconds
@@ -346,6 +370,15 @@ func (c *Config) validateAndInjectDefaults(services []string, plugins []string) 
 	return nil
 }
 
+func validateTriggerMode(mode plugins.TriggerMode) error {
+	switch mode {
+	case plugins.TriggerPeriodic, plugins.TriggerManual:
+		return nil
+	default:
+		return fmt.Errorf("invalid trigger mode %q (want %q or %q)", mode, plugins.TriggerPeriodic, plugins.TriggerManual)
+	}
+}
+
 // Plugin implements decision log buffering and uploading.
 type Plugin struct {
 	manager   *plugins.Manager
@@ -369,17 +402,63 @@ type reconfigure struct {
 
 // ParseConfig validates the config and injects default values.
 func ParseConfig(config []byte, services []string, plugins []string) (*Config, error) {
-	if config == nil {
+	return NewConfigBuilder().WithBytes(config).WithServices(services).WithPlugins(plugins).WithTriggerMode(nil).Parse()
+}
+
+// ConfigBuilder assists in the construction of the plugin configuration.
+type ConfigBuilder struct {
+	raw      []byte
+	services []string
+	plugins  []string
+	trigger  *plugins.TriggerMode
+}
+
+// NewConfigBuilder returns a new ConfigBuilder to build and parse the plugin config.
+func NewConfigBuilder() *ConfigBuilder {
+	return &ConfigBuilder{}
+}
+
+// WithBytes sets the raw plugin config.
+func (b *ConfigBuilder) WithBytes(config []byte) *ConfigBuilder {
+	b.raw = config
+	return b
+}
+
+// WithServices sets the services that implement control plane APIs.
+func (b *ConfigBuilder) WithServices(services []string) *ConfigBuilder {
+	b.services = services
+	return b
+}
+
+// WithPlugins sets the list of named plugins for decision logging.
+func (b *ConfigBuilder) WithPlugins(plugins []string) *ConfigBuilder {
+	b.plugins = plugins
+	return b
+}
+
+// WithTriggerMode sets the plugin trigger mode.
+func (b *ConfigBuilder) WithTriggerMode(trigger *plugins.TriggerMode) *ConfigBuilder {
+	if trigger == nil {
+		t := plugins.DefaultTriggerMode
+		trigger = &t
+	}
+	b.trigger = trigger
+	return b
+}
+
+// Parse validates the config and injects default values.
+func (b *ConfigBuilder) Parse() (*Config, error) {
+	if b.raw == nil {
 		return nil, nil
 	}
 
 	var parsedConfig Config
 
-	if err := util.Unmarshal(config, &parsedConfig); err != nil {
+	if err := util.Unmarshal(b.raw, &parsedConfig); err != nil {
 		return nil, err
 	}
 
-	if err := parsedConfig.validateAndInjectDefaults(services, plugins); err != nil {
+	if err := parsedConfig.validateAndInjectDefaults(b.services, b.plugins, b.trigger); err != nil {
 		return nil, err
 	}
 
@@ -440,8 +519,10 @@ func (p *Plugin) Start(ctx context.Context) error {
 func (p *Plugin) Stop(ctx context.Context) {
 	p.logger.Info("Stopping decision logger.")
 
-	if _, ok := ctx.Deadline(); ok && p.config.Service != "" {
-		p.flushDecisions(ctx)
+	if *p.config.Reporting.Trigger == plugins.TriggerPeriodic {
+		if _, ok := ctx.Deadline(); ok && p.config.Service != "" {
+			p.flushDecisions(ctx)
+		}
 	}
 
 	done := make(chan struct{})
@@ -553,6 +634,31 @@ func (p *Plugin) Reconfigure(_ context.Context, config interface{}) {
 	<-done
 }
 
+// Trigger can be used to control when the plugin attempts to upload
+// a new decision log in manual triggering mode.
+func (p *Plugin) Trigger(ctx context.Context) error {
+	done := make(chan error)
+
+	go func() {
+		if p.config.Service != "" {
+			err := p.doOneShot(ctx)
+			if err != nil {
+				if ctx.Err() == nil {
+					done <- err
+				}
+			}
+		}
+		close(done)
+	}()
+
+	select {
+	case err := <-done:
+		return err
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
 // compilerUpdated is called when a compiler trigger on the plugin manager
 // fires. This indicates a new compiler instance is available. The decision
 // logger needs to prepare a new masking query.
@@ -566,47 +672,43 @@ func (p *Plugin) loop() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	var retry int
-
 	for {
-		var err error
 
-		if p.config.Service != "" {
-			var uploaded bool
-			uploaded, err = p.oneShot(ctx)
+		var retry int
+		var waitC chan struct{}
 
-			if err != nil {
-				p.logger.Error("%v.", err)
-			} else if uploaded {
-				p.logger.Info("Logs uploaded successfully.")
+		if *p.config.Reporting.Trigger == plugins.TriggerPeriodic && p.config.Service != "" {
+			err := p.doOneShot(ctx)
+
+			var delay time.Duration
+
+			if err == nil {
+				min := float64(*p.config.Reporting.MinDelaySeconds)
+				max := float64(*p.config.Reporting.MaxDelaySeconds)
+				delay = time.Duration(((max - min) * rand.Float64()) + min)
 			} else {
-				p.logger.Debug("Log upload queue was empty.")
+				delay = util.DefaultBackoff(float64(minRetryDelay), float64(*p.config.Reporting.MaxDelaySeconds), retry)
 			}
-		}
 
-		var delay time.Duration
-
-		if err == nil {
-			min := float64(*p.config.Reporting.MinDelaySeconds)
-			max := float64(*p.config.Reporting.MaxDelaySeconds)
-			delay = time.Duration(((max - min) * rand.Float64()) + min)
-		} else {
-			delay = util.DefaultBackoff(float64(minRetryDelay), float64(*p.config.Reporting.MaxDelaySeconds), retry)
-		}
-
-		if p.config.Service != "" {
 			p.logger.Debug("Waiting %v before next upload/retry.", delay)
-		}
 
-		timer := time.NewTimer(delay)
+			waitC = make(chan struct{})
+			go func() {
+				select {
+				case <-time.After(delay):
+					if err != nil {
+						retry++
+					} else {
+						retry = 0
+					}
+					close(waitC)
+				case <-ctx.Done():
+				}
+			}()
+		}
 
 		select {
-		case <-timer.C:
-			if err != nil {
-				retry++
-			} else {
-				retry = 0
-			}
+		case <-waitC:
 		case update := <-p.reconfig:
 			p.reconfigure(update.config)
 			update.done <- struct{}{}
@@ -616,6 +718,19 @@ func (p *Plugin) loop() {
 			return
 		}
 	}
+}
+
+func (p *Plugin) doOneShot(ctx context.Context) error {
+	uploaded, err := p.oneShot(ctx)
+
+	if err != nil {
+		p.logger.Error("%v.", err)
+	} else if uploaded {
+		p.logger.Info("Logs uploaded successfully.")
+	} else {
+		p.logger.Debug("Log upload queue was empty.")
+	}
+	return err
 }
 
 func (p *Plugin) oneShot(ctx context.Context) (ok bool, err error) {

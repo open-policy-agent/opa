@@ -17,6 +17,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/open-policy-agent/opa/plugins"
+
 	"github.com/pkg/errors"
 
 	"github.com/open-policy-agent/opa/bundle"
@@ -49,6 +51,7 @@ type Downloader struct {
 	config            Config                        // downloader configuration for tuning polling and other downloader behaviour
 	client            rest.Client                   // HTTP client to use for bundle downloading
 	path              string                        // path to use in bundle download request
+	trigger           chan chan struct{}            // channel to signal downloads when manual triggering is enabled
 	stop              chan chan struct{}            // used to signal plugin to stop running
 	f                 func(context.Context, Update) // callback function invoked when download updates occur
 	etag              string                        // HTTP Etag for caching purposes
@@ -72,11 +75,12 @@ type downloaderResponse struct {
 // New returns a new Downloader that can be started.
 func New(config Config, client rest.Client, path string) *Downloader {
 	return &Downloader{
-		config: config,
-		client: client,
-		path:   path,
-		stop:   make(chan chan struct{}),
-		logger: client.Logger(),
+		config:  config,
+		client:  client,
+		path:    path,
+		trigger: make(chan chan struct{}),
+		stop:    make(chan chan struct{}),
+		logger:  client.Logger(),
 	}
 }
 
@@ -121,9 +125,35 @@ func (d *Downloader) SetCache(etag string) {
 	d.etag = etag
 }
 
+// Trigger can be used to control when the downloader attempts to download
+// a new bundle in manual triggering mode.
+func (d *Downloader) Trigger(ctx context.Context) error {
+	done := make(chan error)
+
+	go func() {
+		_, err := d.oneShot(ctx)
+		if err != nil {
+			d.logger.Error("Bundle download failed: %v.", err)
+			if ctx.Err() == nil {
+				done <- err
+			}
+		}
+		close(done)
+	}()
+
+	select {
+	case err := <-done:
+		return err
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
 // Start tells the Downloader to begin downloading bundles.
 func (d *Downloader) Start(ctx context.Context) {
-	go d.doStart(ctx)
+	if *d.config.Trigger == plugins.TriggerPeriodic {
+		go d.doStart(ctx)
+	}
 }
 
 func (d *Downloader) doStart(context.Context) {
@@ -142,6 +172,10 @@ func (d *Downloader) doStart(context.Context) {
 
 // Stop tells the Downloader to stop downloading bundles.
 func (d *Downloader) Stop(context.Context) {
+	if *d.config.Trigger == plugins.TriggerManual {
+		return
+	}
+
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
@@ -160,15 +194,18 @@ func (d *Downloader) loop(ctx context.Context) {
 	var retry int
 
 	for {
+
+		var delay time.Duration
+
 		longPoll, err := d.oneShot(ctx)
 
 		if ctx.Err() != nil {
 			return
 		}
 
-		var delay time.Duration
-
-		if err == nil {
+		if err != nil {
+			delay = util.DefaultBackoff(float64(minRetryDelay), float64(*d.config.Polling.MaxDelaySeconds), retry)
+		} else {
 			if !longPoll {
 				if d.config.Polling.LongPollingTimeoutSeconds != nil {
 					d.config.Polling.LongPollingTimeoutSeconds = nil
@@ -183,15 +220,12 @@ func (d *Downloader) loop(ctx context.Context) {
 				max := float64(*d.config.Polling.MaxDelaySeconds)
 				delay = time.Duration(((max - min) * rand.Float64()) + min)
 			}
-		} else {
-			delay = util.DefaultBackoff(float64(minRetryDelay), float64(*d.config.Polling.MaxDelaySeconds), retry)
 		}
 
 		d.logger.Debug("Waiting %v before next download/retry.", delay)
-		timer := time.NewTimer(delay)
 
 		select {
-		case <-timer.C:
+		case <-time.After(delay):
 			if err != nil {
 				retry++
 			} else {

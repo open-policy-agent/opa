@@ -19,6 +19,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/open-policy-agent/opa/plugins"
+
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/keys"
 	"github.com/open-policy-agent/opa/plugins/rest"
@@ -420,6 +422,100 @@ func TestEtagInResponse(t *testing.T) {
 		// 304 response on second request, bundle should _not_ be present
 		t.Errorf("Expected no bundle in response")
 	}
+}
+
+func TestTriggerManual(t *testing.T) {
+
+	ctx := context.Background()
+	fixture := newTestFixture(t)
+
+	config := Config{}
+	tr := plugins.TriggerManual
+	config.Trigger = &tr
+
+	if err := config.ValidateAndInjectDefaults(); err != nil {
+		t.Fatal(err)
+	}
+
+	updates := make(chan *Update)
+
+	d := New(config, fixture.client, "/bundles/test/bundle1").
+		WithCallback(func(_ context.Context, u Update) {
+			updates <- &u
+		})
+
+	d.Start(ctx)
+
+	// execute a series of triggers and expect responses
+	for i := 0; i < 10; i++ {
+
+		// mutate the fixture server's bundle for this trigger
+		exp := fmt.Sprintf("rev%d", i)
+		b := fixture.server.bundles["test/bundle1"]
+		b.Manifest.Revision = exp
+		fixture.server.bundles["test/bundle1"] = b
+
+		// trigger the downloader
+		go func() {
+			d.Trigger(ctx)
+		}()
+
+		// wait for the update
+		u := <-updates
+
+		if u.Bundle.Manifest.Revision != exp {
+			t.Fatalf("expected revision %q but got %q", exp, u.Bundle.Manifest.Revision)
+		}
+	}
+
+	d.Stop(ctx)
+}
+
+func TestTriggerManualWithTimeout(t *testing.T) {
+
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+
+	fixture := newTestFixture(t)
+
+	config := Config{}
+	tr := plugins.TriggerManual
+	config.Trigger = &tr
+
+	if err := config.ValidateAndInjectDefaults(); err != nil {
+		t.Fatal(err)
+	}
+
+	d := New(config, fixture.client, "/bundles/test/bundle1").
+		WithCallback(func(_ context.Context, u Update) {
+			time.Sleep(3 * time.Second) // this should cause the context deadline to exceed
+		})
+
+	d.Start(ctx)
+
+	b := fixture.server.bundles["test/bundle1"]
+	b.Manifest.Revision = "rev%0"
+	fixture.server.bundles["test/bundle1"] = b
+
+	// trigger the downloader
+	done := make(chan struct{})
+	go func() {
+		// this call should block till the context deadline exceeds
+		d.Trigger(ctx)
+		close(done)
+	}()
+	<-done
+
+	if ctx.Err() == nil {
+		t.Fatal("Expected error but got nil")
+	}
+
+	exp := "context deadline exceeded"
+	if ctx.Err().Error() != exp {
+		t.Fatalf("Expected error %v but got %v", exp, ctx.Err().Error())
+	}
+
+	d.Stop(ctx)
 }
 
 type testFixture struct {
