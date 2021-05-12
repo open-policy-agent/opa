@@ -19,7 +19,7 @@
   },
   "dependencies": {
     "cheerio": "^1.0.0-rc.3",
-    "codemirror": "^5.48.4",
+    "codemirror": "^5.58.2",
     "codemirror-rego": "^1.1.0",
     "esm": "^3.2.25",
     "node-fetch": "^2.6.1",
