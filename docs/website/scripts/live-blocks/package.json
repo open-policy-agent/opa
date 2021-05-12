@@ -43,7 +43,7 @@
     "dot-prop": ">=5.1.1",
     "minimist": ">=1.2.2",
     "mocha": "^8.1.1",
-    "postcss": "^8.2.8",
+    "postcss": "^8.2.10",
     "regenerator-runtime": "^0.13.2",
     "rollup": "^2.42.4",
     "rollup-plugin-postcss": "^4.0.0",
