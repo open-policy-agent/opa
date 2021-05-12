@@ -22,9 +22,21 @@ func MockBundle(file string, policies map[string]string) func(*Server) error {
 	}
 }
 
+// Ready provides a channel that the server will use to gate readiness. The
+// caller can provide this channel to prevent the server from becoming ready.
+// The server will response with HTTP 500 responses until ready. The caller
+// should close the channel to indicate readiness.
+func Ready(ch chan struct{}) func(*Server) error {
+	return func(s *Server) error {
+		s.ready = ch
+		return nil
+	}
+}
+
 // Server provides a mock HTTP server for testing the SDK and integrations.
 type Server struct {
 	server  *httptest.Server
+	ready   chan struct{}
 	bundles map[string]map[string]string
 }
 
@@ -47,6 +59,10 @@ func NewServer(opts ...func(*Server) error) (*Server, error) {
 			return nil, err
 		}
 	}
+	if s.ready == nil {
+		s.ready = make(chan struct{})
+		close(s.ready)
+	}
 	s.server = httptest.NewServer(http.HandlerFunc(s.handle))
 	return s, nil
 }
@@ -68,6 +84,13 @@ func (s *Server) URL() string {
 }
 
 func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
+
+	select {
+	case <-s.ready:
+	default:
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 
 	if strings.HasPrefix(r.URL.Path, "/bundles") {
 		s.handleBundles(w, r)
