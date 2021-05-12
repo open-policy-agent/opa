@@ -784,9 +784,9 @@ func TestPluginRateLimitDropCountStatus(t *testing.T) {
 	fixture.plugin.mtx.Unlock()
 
 	// Create a status plugin that logs to console
-	pluginConfig := []byte(fmt.Sprintf(`{
+	pluginConfig := []byte(`{
 			"console": true,
-		}`))
+		}`)
 
 	config, _ := status.ParseConfig(pluginConfig, fixture.manager.Services(), nil)
 	p := status.New(config, fixture.manager).WithMetrics(fixture.plugin.metrics)
@@ -849,6 +849,179 @@ func TestPluginRateLimitBadConfig(t *testing.T) {
 	if err.Error() != expected {
 		t.Fatalf("Expected error message %v but got %v", expected, err.Error())
 	}
+}
+
+func TestPluginTriggerManual(t *testing.T) {
+	ctx := context.Background()
+
+	fixture := newTestFixture(t)
+	defer fixture.server.stop()
+
+	fixture.server.ch = make(chan []EventV1, 4)
+	tr := plugins.TriggerManual
+	fixture.plugin.config.Reporting.Trigger = &tr
+
+	if err := fixture.plugin.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	testMetrics := getWellKnownMetrics()
+	msAsFloat64 := map[string]interface{}{}
+	for k, v := range testMetrics.All() {
+		msAsFloat64[k] = float64(v.(uint64))
+	}
+
+	var input interface{} = map[string]interface{}{"method": "GET"}
+	var result interface{} = false
+
+	ts, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
+	if err != nil {
+		panic(err)
+	}
+
+	exp := EventV1{
+		Labels: map[string]string{
+			"id":      "test-instance-id",
+			"app":     "example-app",
+			"version": version.Version,
+		},
+		Path:        "tda/bar",
+		Input:       &input,
+		Result:      &result,
+		RequestedBy: "test",
+		Timestamp:   ts,
+		Metrics:     msAsFloat64,
+	}
+
+	for i := 0; i < 400; i++ {
+		fixture.plugin.Log(ctx, &server.Info{
+			Revision:   fmt.Sprint(i),
+			DecisionID: fmt.Sprint(i),
+			Path:       "tda/bar",
+			Input:      &input,
+			Results:    &result,
+			RemoteAddr: "test",
+			Timestamp:  ts,
+			Metrics:    testMetrics,
+		})
+
+		// trigger the decision log upload
+		go func() {
+			fixture.plugin.Trigger(ctx)
+		}()
+
+		chunk := <-fixture.server.ch
+
+		expLen := 1
+		if len(chunk) != 1 {
+			t.Fatalf("Expected chunk len %v but got: %v", expLen, len(chunk))
+		}
+
+		exp.Revision = fmt.Sprint(i)
+		exp.DecisionID = fmt.Sprint(i)
+
+		if !reflect.DeepEqual(chunk[0], exp) {
+			t.Fatalf("Expected %+v but got %+v", exp, chunk[0])
+		}
+	}
+
+	fixture.plugin.Stop(ctx)
+}
+
+func TestPluginTriggerManualWithTimeout(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(3 * time.Second) // this should cause the context deadline to exceed
+	}))
+
+	// setup plugin pointing at fake server
+	managerConfig := []byte(fmt.Sprintf(`{
+			"labels": {
+				"app": "example-app"
+			},
+			"services": [
+				{
+					"name": "example",
+					"url": %q
+				}
+			]}`, s.URL))
+
+	manager, err := plugins.New(
+		managerConfig,
+		"test-instance-id",
+		inmem.New(),
+		plugins.GracefulShutdownPeriod(10))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	pluginConfig := make(map[string]interface{})
+
+	pluginConfig["service"] = "example"
+	pluginConfig["resource"] = "/"
+
+	pluginConfigBytes, err := json.MarshalIndent(pluginConfig, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	config, _ := ParseConfig(pluginConfigBytes, manager.Services(), nil)
+
+	tr := plugins.TriggerManual
+	config.Reporting.Trigger = &tr
+
+	if s, ok := manager.PluginStatus()[Name]; ok {
+		t.Fatalf("Unexpected status found in plugin manager for %s: %+v", Name, s)
+	}
+
+	p := New(config, manager)
+
+	ensurePluginState(t, p, plugins.StateNotReady)
+
+	if err := p.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	var input interface{} = map[string]interface{}{"method": "GET"}
+	var result interface{} = false
+
+	ts, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
+	if err != nil {
+		panic(err)
+	}
+
+	err = p.Log(ctx, &server.Info{
+		DecisionID: "0",
+		Path:       "tda/bar",
+		Input:      &input,
+		Results:    &result,
+		RemoteAddr: "test",
+		Timestamp:  ts,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	done := make(chan struct{})
+	go func() {
+		// this call should block till the context deadline exceeds
+		p.Trigger(ctx)
+		close(done)
+	}()
+	<-done
+
+	if ctx.Err() == nil {
+		t.Fatal("Expected error but got nil")
+	}
+
+	exp := "context deadline exceeded"
+	if ctx.Err().Error() != exp {
+		t.Fatalf("Expected error %v but got %v", exp, ctx.Err().Error())
+	}
+
+	p.Stop(ctx)
 }
 
 func TestPluginGracefulShutdownFlushesDecisions(t *testing.T) {
@@ -1272,7 +1445,9 @@ func TestPluginMasking(t *testing.T) {
 
 			// Instantiate the plugin.
 			cfg := &Config{Service: "svc"}
-			cfg.validateAndInjectDefaults([]string{"svc"}, nil)
+			trigger := plugins.DefaultTriggerMode
+			cfg.validateAndInjectDefaults([]string{"svc"}, nil, &trigger)
+
 			plugin := New(cfg, manager)
 
 			if err := plugin.Start(ctx); err != nil {
@@ -1308,7 +1483,7 @@ func TestPluginMasking(t *testing.T) {
 				// Reconfigure and ensure that mask is invalidated.
 				maskDecision := "dead/beef"
 				newConfig := &Config{Service: "svc", MaskDecision: &maskDecision}
-				if err := newConfig.validateAndInjectDefaults([]string{"svc"}, nil); err != nil {
+				if err := newConfig.validateAndInjectDefaults([]string{"svc"}, nil, &trigger); err != nil {
 					t.Fatal(err)
 				}
 
@@ -1445,9 +1620,9 @@ func TestParseConfigUseDefaultServiceNoConsole(t *testing.T) {
 		"s3",
 	}
 
-	loggerConfig := []byte(fmt.Sprintf(`{
+	loggerConfig := []byte(`{
 		"console": false
-	}`))
+	}`)
 
 	config, err := ParseConfig([]byte(loggerConfig), services, nil)
 
@@ -1467,9 +1642,9 @@ func TestParseConfigDefaultServiceWithConsole(t *testing.T) {
 		"s3",
 	}
 
-	loggerConfig := []byte(fmt.Sprintf(`{
+	loggerConfig := []byte(`{
 		"console": true
-	}`))
+	}`)
 
 	config, err := ParseConfig([]byte(loggerConfig), services, nil)
 
@@ -1483,12 +1658,72 @@ func TestParseConfigDefaultServiceWithConsole(t *testing.T) {
 }
 
 func TestParseConfigDefaultServiceWithNoServiceOrConsole(t *testing.T) {
-	loggerConfig := []byte(fmt.Sprintf(`{}`))
+	loggerConfig := []byte(`{}`)
 
 	_, err := ParseConfig([]byte(loggerConfig), []string{}, nil)
 
 	if err == nil {
 		t.Errorf("Expected an error but err==nil")
+	}
+}
+
+func TestParseConfigTriggerMode(t *testing.T) {
+	cases := []struct {
+		note     string
+		config   []byte
+		expected plugins.TriggerMode
+		wantErr  bool
+		err      error
+	}{
+		{
+			note:     "default trigger mode",
+			config:   []byte(`{}`),
+			expected: plugins.DefaultTriggerMode,
+		},
+		{
+			note:     "manual trigger mode",
+			config:   []byte(`{"reporting": {"trigger": "manual"}}`),
+			expected: plugins.TriggerManual,
+		},
+		{
+			note:     "trigger mode mismatch",
+			config:   []byte(`{"reporting": {"trigger": "manual"}}`),
+			expected: plugins.TriggerPeriodic,
+			wantErr:  true,
+			err:      fmt.Errorf("invalid decision_log config, discovery has trigger mode periodic, decision_log has manual"),
+		},
+		{
+			note:     "bad trigger mode",
+			config:   []byte(`{"reporting": {"trigger": "foo"}}`),
+			expected: "foo",
+			wantErr:  true,
+			err:      fmt.Errorf("invalid trigger mode \"foo\" (want \"periodic\" or \"manual\")"),
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+
+			c, err := NewConfigBuilder().WithBytes(tc.config).WithServices([]string{"s0"}).WithTriggerMode(&tc.expected).Parse()
+
+			if tc.wantErr {
+				if err == nil {
+					t.Fatal("Expected error but got nil")
+				}
+
+				if tc.err != nil && tc.err.Error() != err.Error() {
+					t.Fatalf("Expected error message %v but got %v", tc.err.Error(), err.Error())
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("Unexpected error %v", err)
+				}
+
+				if *c.Reporting.Trigger != tc.expected {
+					t.Fatalf("Expected trigger mode %v but got %v", tc.expected, *c.Reporting.Trigger)
+				}
+			}
+		})
 	}
 }
 

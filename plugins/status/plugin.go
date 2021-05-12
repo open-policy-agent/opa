@@ -42,35 +42,46 @@ type UpdateRequestV1 struct {
 
 // Plugin implements status reporting. Updates can be triggered by the caller.
 type Plugin struct {
-	manager            *plugins.Manager
-	config             Config
-	bundleCh           chan bundle.Status // Deprecated: Use bulk bundle status updates instead
-	lastBundleStatus   *bundle.Status     // Deprecated: Use bulk bundle status updates instead
+	manager          *plugins.Manager
+	config           Config
+	bundleCh         chan bundle.Status // Deprecated: Use bulk bundle status updates instead
+	lastBundleStatus *bundle.Status     // Deprecated: Use bulk bundle status updates instead
+
 	bulkBundleCh       chan map[string]*bundle.Status
 	lastBundleStatuses map[string]*bundle.Status
-	discoCh            chan bundle.Status
-	lastDiscoStatus    *bundle.Status
-	stop               chan chan struct{}
-	reconfig           chan interface{}
-	metrics            metrics.Metrics
-	lastPluginStatuses map[string]*plugins.Status
+
+	discoCh         chan bundle.Status
+	lastDiscoStatus *bundle.Status
+
 	pluginStatusCh     chan map[string]*plugins.Status
-	logger             logging.Logger
+	lastPluginStatuses map[string]*plugins.Status
+
+	stop     chan chan struct{}
+	reconfig chan interface{}
+	metrics  metrics.Metrics
+	logger   logging.Logger
+	trigger  chan trigger
 }
 
 // Config contains configuration for the plugin.
 type Config struct {
-	Plugin        *string `json:"plugin"`
-	Service       string  `json:"service"`
-	PartitionName string  `json:"partition_name,omitempty"`
-	ConsoleLogs   bool    `json:"console"`
+	Plugin        *string              `json:"plugin"`
+	Service       string               `json:"service"`
+	PartitionName string               `json:"partition_name,omitempty"`
+	ConsoleLogs   bool                 `json:"console"`
+	Trigger       *plugins.TriggerMode `json:"trigger,omitempty"` // trigger mode
 }
 
-func (c *Config) validateAndInjectDefaults(services []string, plugins []string) error {
+type trigger struct {
+	ctx  context.Context
+	done chan error
+}
+
+func (c *Config) validateAndInjectDefaults(services []string, pluginsList []string, trigger *plugins.TriggerMode) error {
 
 	if c.Plugin != nil {
 		var found bool
-		for _, other := range plugins {
+		for _, other := range pluginsList {
 			if other == *c.Plugin {
 				found = true
 				break
@@ -105,23 +116,100 @@ func (c *Config) validateAndInjectDefaults(services []string, plugins []string) 
 		return fmt.Errorf("invalid status config, must have a `service`, `plugin`, or `console` logging specified")
 	}
 
+	if trigger == nil {
+		t := plugins.DefaultTriggerMode
+		trigger = &t
+	} else {
+		err := validateTriggerMode(*trigger)
+		if err != nil {
+			return err
+		}
+	}
+
+	if c.Trigger == nil {
+		c.Trigger = trigger
+	} else {
+		err := validateTriggerMode(*c.Trigger)
+		if err != nil {
+			return err
+		}
+
+		if *c.Trigger != *trigger {
+			return fmt.Errorf("invalid status config, discovery has trigger mode %s, status has %s", *trigger, *c.Trigger)
+		}
+	}
+
 	return nil
+}
+
+func validateTriggerMode(mode plugins.TriggerMode) error {
+	switch mode {
+	case plugins.TriggerPeriodic, plugins.TriggerManual:
+		return nil
+	default:
+		return fmt.Errorf("invalid trigger mode %q (want %q or %q)", mode, plugins.TriggerPeriodic, plugins.TriggerManual)
+	}
 }
 
 // ParseConfig validates the config and injects default values.
 func ParseConfig(config []byte, services []string, plugins []string) (*Config, error) {
+	return NewConfigBuilder().WithBytes(config).WithServices(services).WithPlugins(plugins).WithTriggerMode(nil).Parse()
+}
 
-	if config == nil {
+// ConfigBuilder assists in the construction of the plugin configuration.
+type ConfigBuilder struct {
+	raw      []byte
+	services []string
+	plugins  []string
+	trigger  *plugins.TriggerMode
+}
+
+// NewConfigBuilder returns a new ConfigBuilder to build and parse the plugin config.
+func NewConfigBuilder() *ConfigBuilder {
+	return &ConfigBuilder{}
+}
+
+// WithBytes sets the raw plugin config.
+func (b *ConfigBuilder) WithBytes(config []byte) *ConfigBuilder {
+	b.raw = config
+	return b
+}
+
+// WithServices sets the services that implement control plane APIs.
+func (b *ConfigBuilder) WithServices(services []string) *ConfigBuilder {
+	b.services = services
+	return b
+}
+
+// WithPlugins sets the list of named plugins for status updates.
+func (b *ConfigBuilder) WithPlugins(plugins []string) *ConfigBuilder {
+	b.plugins = plugins
+	return b
+}
+
+// WithTriggerMode sets the plugin trigger mode.
+func (b *ConfigBuilder) WithTriggerMode(trigger *plugins.TriggerMode) *ConfigBuilder {
+	if trigger == nil {
+		t := plugins.DefaultTriggerMode
+		trigger = &t
+	}
+	b.trigger = trigger
+	return b
+}
+
+// Parse validates the config and injects default values.
+func (b *ConfigBuilder) Parse() (*Config, error) {
+	if b.raw == nil {
 		return nil, nil
 	}
 
 	var parsedConfig Config
 
-	if err := util.Unmarshal(config, &parsedConfig); err != nil {
+	if err := util.Unmarshal(b.raw, &parsedConfig); err != nil {
 		return nil, err
 	}
 
-	if err := parsedConfig.validateAndInjectDefaults(services, plugins); err != nil {
+	if err := parsedConfig.validateAndInjectDefaults(b.services, b.plugins, b.trigger); err != nil {
 		return nil, err
 	}
 
@@ -140,6 +228,7 @@ func New(parsedConfig *Config, manager *plugins.Manager) *Plugin {
 		reconfig:       make(chan interface{}),
 		pluginStatusCh: make(chan map[string]*plugins.Status),
 		logger:         manager.Logger().WithFields(map[string]interface{}{"plugin": Name}),
+		trigger:        make(chan trigger),
 	}
 
 	p.manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateNotReady})
@@ -217,28 +306,49 @@ func (p *Plugin) Reconfigure(_ context.Context, config interface{}) {
 	p.reconfig <- config
 }
 
+// Trigger can be used to control when the plugin attempts to upload
+//status in manual triggering mode.
+func (p *Plugin) Trigger(ctx context.Context) error {
+	done := make(chan error)
+	p.trigger <- trigger{ctx: ctx, done: done}
+
+	select {
+	case err := <-done:
+		return err
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
 func (p *Plugin) loop() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
 	for {
+
 		select {
 		case statuses := <-p.pluginStatusCh:
 			p.lastPluginStatuses = statuses
-			err := p.oneShot(ctx)
-			if err != nil {
-				p.logger.Error("%v.", err)
-			} else {
-				p.logger.Info("Status update sent successfully in response to plugin update.")
+			if *p.config.Trigger == plugins.TriggerPeriodic {
+				err := p.oneShot(ctx)
+				if err != nil {
+					p.logger.Error("%v.", err)
+				} else {
+					p.logger.Info("Status update sent successfully in response to plugin update.")
+				}
 			}
+
 		case statuses := <-p.bulkBundleCh:
 			p.lastBundleStatuses = statuses
-			err := p.oneShot(ctx)
-			if err != nil {
-				p.logger.Error("%v.", err)
-			} else {
-				p.logger.Info("Status update sent successfully in response to bundle update.")
+			if *p.config.Trigger == plugins.TriggerPeriodic {
+				err := p.oneShot(ctx)
+				if err != nil {
+					p.logger.Error("%v.", err)
+				} else {
+					p.logger.Info("Status update sent successfully in response to bundle update.")
+				}
 			}
+
 		case status := <-p.bundleCh:
 			p.lastBundleStatus = &status
 			err := p.oneShot(ctx)
@@ -249,16 +359,27 @@ func (p *Plugin) loop() {
 			}
 		case status := <-p.discoCh:
 			p.lastDiscoStatus = &status
-			err := p.oneShot(ctx)
-			if err != nil {
-				p.logger.Error("%v.", err)
-			} else {
-				p.logger.Info("Status update sent successfully in response to discovery update.")
+			if *p.config.Trigger == plugins.TriggerPeriodic {
+				err := p.oneShot(ctx)
+				if err != nil {
+					p.logger.Error("%v.", err)
+				} else {
+					p.logger.Info("Status update sent successfully in response to discovery update.")
+				}
 			}
-
 		case newConfig := <-p.reconfig:
 			p.reconfigure(newConfig)
-
+		case update := <-p.trigger:
+			err := p.oneShot(update.ctx)
+			if err != nil {
+				p.logger.Error("%v.", err)
+				if update.ctx.Err() == nil {
+					update.done <- err
+				}
+			} else {
+				p.logger.Info("Status update sent successfully in response to manual trigger.")
+			}
+			close(update.done)
 		case done := <-p.stop:
 			cancel()
 			done <- struct{}{}
