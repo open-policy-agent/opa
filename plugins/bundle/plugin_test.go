@@ -1051,7 +1051,7 @@ func TestPluginActivateScopedBundle(t *testing.T) {
 	// that the manifest has been written to storage.
 	expData := util.MustUnmarshalJSON([]byte(`{"a1": "foo", "a3": "x2", "a5": "x3"}`))
 	expIds := []string{filepath.Join(bundleName, "bundle/id1"), "some/id2", "some/id3"}
-	validateStoreState(ctx, t, manager.Store, "/a", expData, expIds, bundleName, "quickbrownfaux")
+	validateStoreState(ctx, t, manager.Store, "/a", expData, expIds, bundleName, "quickbrownfaux", nil)
 
 	// Activate a bundle that is scoped to a/a3 ad a/a6. Include a function
 	// inside package a.a4 that we can depend on outside of the bundle scope to
@@ -1059,7 +1059,13 @@ func TestPluginActivateScopedBundle(t *testing.T) {
 	module = "package a.a4\n\nbar=1\n\nfunc(x) = x"
 
 	b = bundle.Bundle{
-		Manifest: bundle.Manifest{Revision: "quickbrownfaux-2", Roots: &[]string{"a/a3", "a/a4"}},
+		Manifest: bundle.Manifest{Revision: "quickbrownfaux-2", Roots: &[]string{"a/a3", "a/a4"},
+			Metadata: map[string]interface{}{
+				"a": map[string]interface{}{
+					"a1": "deadbeef",
+				},
+			},
+		},
 		Data: map[string]interface{}{
 			"a": map[string]interface{}{
 				"a3": "foo",
@@ -1080,7 +1086,10 @@ func TestPluginActivateScopedBundle(t *testing.T) {
 	// Ensure a/a5-a6 are intact. a3 and a4 are overwritten by bundle.
 	expData = util.MustUnmarshalJSON([]byte(`{"a3": "foo", "a5": "x3"}`))
 	expIds = []string{filepath.Join(bundleName, "bundle/id2"), "some/id3"}
-	validateStoreState(ctx, t, manager.Store, "/a", expData, expIds, bundleName, "quickbrownfaux-2")
+	validateStoreState(ctx, t, manager.Store, "/a", expData, expIds, bundleName, "quickbrownfaux-2",
+		map[string]interface{}{
+			"a": map[string]interface{}{"a1": "deadbeef"},
+		})
 
 	// Upsert policy outside of bundle scope that depends on bundle.
 	if err := storage.Txn(ctx, manager.Store, storage.WriteParams, func(txn storage.Transaction) error {
@@ -1101,7 +1110,10 @@ func TestPluginActivateScopedBundle(t *testing.T) {
 	// Ensure bundle activation failed by checking that previous revision is
 	// still active.
 	expIds = []string{filepath.Join(bundleName, "bundle/id2"), "not_scoped", "some/id3"}
-	validateStoreState(ctx, t, manager.Store, "/a", expData, expIds, bundleName, "quickbrownfaux-2")
+	validateStoreState(ctx, t, manager.Store, "/a", expData, expIds, bundleName, "quickbrownfaux-2",
+		map[string]interface{}{
+			"a": map[string]interface{}{"a1": "deadbeef"},
+		})
 }
 
 func TestPluginSetCompilerOnContext(t *testing.T) {
@@ -1469,7 +1481,7 @@ func TestUpgradeLegacyBundleToMuiltiBundleSameBundle(t *testing.T) {
 	// Ensure it has been activated
 	expData := util.MustUnmarshalJSON([]byte(`{"a2": "foo"}`))
 	expIds := []string{"bundle/id1"}
-	validateStoreState(ctx, t, manager.Store, "/a", expData, expIds, bundleName, "quickbrownfaux")
+	validateStoreState(ctx, t, manager.Store, "/a", expData, expIds, bundleName, "quickbrownfaux", nil)
 
 	if plugin.config.IsMultiBundle() {
 		t.Fatalf("Expected plugin to be in non-multi bundle config mode")
@@ -1490,7 +1502,7 @@ func TestUpgradeLegacyBundleToMuiltiBundleSameBundle(t *testing.T) {
 
 	// The only thing that should have changed is the store id for the policy
 	expIds = []string{"test-bundle/bundle/id1"}
-	validateStoreState(ctx, t, manager.Store, "/a", expData, expIds, bundleName, "quickbrownfaux-2")
+	validateStoreState(ctx, t, manager.Store, "/a", expData, expIds, bundleName, "quickbrownfaux-2", nil)
 
 	// Make sure the legacy path is gone now that we are in multi-bundle mode
 	var actual string
@@ -1585,7 +1597,7 @@ func TestUpgradeLegacyBundleToMuiltiBundleNewBundles(t *testing.T) {
 	// Ensure it has been activated
 	expData := util.MustUnmarshalJSON([]byte(`{"a2": "foo"}`))
 	expIds := []string{"bundle/id1"}
-	validateStoreState(ctx, t, manager.Store, "/a", expData, expIds, bundleName, "quickbrownfaux")
+	validateStoreState(ctx, t, manager.Store, "/a", expData, expIds, bundleName, "quickbrownfaux", nil)
 
 	if plugin.config.IsMultiBundle() {
 		t.Fatalf("Expected plugin to be in non-multi bundle config mode")
@@ -1626,7 +1638,7 @@ func TestUpgradeLegacyBundleToMuiltiBundleNewBundles(t *testing.T) {
 
 	expData = util.MustUnmarshalJSON([]byte(`{"b2": "foo"}`))
 	expIds = []string{"b2/id1"}
-	validateStoreState(ctx, t, manager.Store, "/a", expData, expIds, "b2", "b2-1")
+	validateStoreState(ctx, t, manager.Store, "/a", expData, expIds, "b2", "b2-1", nil)
 
 	// Make sure the legacy path is gone now that we are in multi-bundle mode
 	var actual string
@@ -2008,7 +2020,7 @@ func getTestSignedBundle(t *testing.T) bundle.Bundle {
 	return b
 }
 
-func validateStoreState(ctx context.Context, t *testing.T, store storage.Store, root string, expData interface{}, expIds []string, expBundleName string, expBundleRev string) {
+func validateStoreState(ctx context.Context, t *testing.T, store storage.Store, root string, expData interface{}, expIds []string, expBundleName string, expBundleRev string, expMetadata map[string]interface{}) {
 	t.Helper()
 	if err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 		value, err := store.Read(ctx, txn, storage.MustParsePath(root))
@@ -2039,6 +2051,14 @@ func validateStoreState(ctx context.Context, t *testing.T, store storage.Store, 
 
 		if rev != expBundleRev {
 			return fmt.Errorf("Unexpected revision found on bundle: %s", rev)
+		}
+
+		metadata, err := bundle.ReadBundleMetadataFromStore(ctx, store, txn, expBundleName)
+		if err != nil {
+			return fmt.Errorf("Unexpected error when reading bundle metadata from store: %s", err)
+		}
+		if !reflect.DeepEqual(expMetadata, metadata) {
+			return fmt.Errorf("Unexpected metadata found on bundle: %v", metadata)
 		}
 
 		return nil
