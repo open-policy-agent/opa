@@ -46,7 +46,8 @@ update_makefile() {
 }
 
 update_changelog() {
-    cat >_CHANGELOG.md <<EOF
+    if $(grep -q '## Unreleased' CHANGELOG.md) ; then
+        cat >_CHANGELOG.md <<EOF
 $(awk '1;/## Unreleased/{exit}' CHANGELOG.md | sed '$d')
 
 ## $VERSION
@@ -54,7 +55,18 @@ $(awk '1;/## Unreleased/{exit}' CHANGELOG.md | sed '$d')
 $(./build/changelog.py $LAST_VERSION HEAD)
 $(sed '1,/## Unreleased/d' CHANGELOG.md)
 EOF
+    else
+        cat >_CHANGELOG.md <<EOF
+$(awk '{if ($1 == "##") {exit;} else {print $0}}' CHANGELOG.md)
 
+## $VERSION
+
+$(./build/changelog.py $LAST_VERSION HEAD)
+
+$(awk '/^##/{f=1}f' CHANGELOG.md)
+EOF
+    fi
+   
     mv _CHANGELOG.md CHANGELOG.md
 }
 

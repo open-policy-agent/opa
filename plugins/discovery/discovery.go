@@ -120,8 +120,7 @@ func (c *Discovery) Stop(ctx context.Context) {
 }
 
 // Reconfigure is a no-op on discovery.
-func (c *Discovery) Reconfigure(_ context.Context, _ interface{}) {
-
+func (*Discovery) Reconfigure(context.Context, interface{}) {
 }
 
 func (c *Discovery) oneShot(ctx context.Context, u download.Update) {

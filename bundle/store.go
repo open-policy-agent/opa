@@ -47,6 +47,10 @@ func wasmEntrypointsPath(name string) storage.Path {
 	return append(BundlesBasePath, name, "manifest", "wasm")
 }
 
+func metadataPath(name string) storage.Path {
+	return append(BundlesBasePath, name, "manifest", "metadata")
+}
+
 // ReadBundleNamesFromStore will return a list of bundle names which have had their metadata stored.
 func ReadBundleNamesFromStore(ctx context.Context, store storage.Store, txn storage.Transaction) ([]string, error) {
 	value, err := store.Read(ctx, txn, BundlesBasePath)
@@ -220,6 +224,31 @@ func readRevisionFromStore(ctx context.Context, store storage.Store, txn storage
 	}
 
 	return str, nil
+}
+
+// ReadBundleMetadataFromStore returns the metadata in the specified bundle.
+// If the bundle is not activated, this function will return
+// storage NotFound error.
+func ReadBundleMetadataFromStore(ctx context.Context, store storage.Store, txn storage.Transaction, name string) (map[string]interface{}, error) {
+	return readMetadataFromStore(ctx, store, txn, metadataPath(name))
+}
+
+func readMetadataFromStore(ctx context.Context, store storage.Store, txn storage.Transaction, path storage.Path) (map[string]interface{}, error) {
+	value, err := store.Read(ctx, txn, path)
+	if err != nil {
+		if storageErr, ok := err.(*storage.Error); ok && storageErr.Code == storage.NotFoundErr {
+			return nil, nil
+		}
+
+		return nil, err
+	}
+
+	data, ok := value.(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("corrupt manifest metadata")
+	}
+
+	return data, nil
 }
 
 // ActivateOpts defines options for the Activate API call.

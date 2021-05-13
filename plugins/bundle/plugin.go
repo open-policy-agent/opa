@@ -342,7 +342,8 @@ func (p *Plugin) oneShot(ctx context.Context, name string, u download.Update) {
 		// made to it.
 		statusCpy := map[string]*Status{}
 		for k, v := range p.status {
-			statusCpy[k] = v
+			v := *v
+			statusCpy[k] = &v
 		}
 		listener(statusCpy)
 	}

@@ -162,6 +162,10 @@ fields:
       the Wasm module to compute the value.
     * `module` - A string path to the Wasm module relative to the root of the bundle.
 
+* `metadata` - An optional key that contains arbitrary metadata to accompany the
+  bundle. This metadata is available for querying using `data.system`, along with the
+  rest of the manifest.
+
 For example, this manifest specifies a revision (which happens to be a Git
 commit hash) and a set of roots for the bundle contents. In this case, the
 manifest declares that it owns the roots `data.roles` and

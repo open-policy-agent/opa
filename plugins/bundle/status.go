@@ -9,9 +9,8 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/open-policy-agent/opa/metrics"
-
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/server/types"
 )
 

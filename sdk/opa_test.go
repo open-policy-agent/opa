@@ -311,9 +311,11 @@ func TestAsync(t *testing.T) {
 
 	ctx := context.Background()
 
+	callerReadyCh := make(chan struct{})
 	readyCh := make(chan struct{})
 
 	server := sdktest.MustNewServer(
+		sdktest.Ready(callerReadyCh),
 		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
 			"main.rego": "package system\nmain = 7",
 		}),
@@ -347,6 +349,11 @@ func TestAsync(t *testing.T) {
 	}
 
 	defer opa.Stop(ctx)
+
+	// Signal the server to become ready. By controlling server readiness, we
+	// can avoid a race condition above when expecting an undefined decision.
+	close(callerReadyCh)
+
 	<-readyCh
 
 	exp := json.Number("7")
