@@ -21,7 +21,7 @@ import (
 	"github.com/open-policy-agent/opa/internal/file/archive"
 )
 
-func TestManifestAddroot(t *testing.T) {
+func TestManifestAddRoot(t *testing.T) {
 	var m Manifest
 	m.AddRoot("x/y")
 	m.AddRoot("y/z")

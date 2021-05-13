@@ -178,6 +178,10 @@ func (fl fileLoader) Filtered(paths []string, filter Filter) (*Result, error) {
 // it will be treated as a normal tarball bundle. If a directory
 // is supplied it will be loaded as an unzipped bundle tree.
 func (fl fileLoader) AsBundle(path string) (*bundle.Bundle, error) {
+	path, err := fileurl.Clean(path)
+	if err != nil {
+		return nil, err
+	}
 	bundleLoader, isDir, err := GetBundleDirectoryLoader(path)
 	if err != nil {
 		return nil, err

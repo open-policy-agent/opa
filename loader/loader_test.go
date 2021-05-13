@@ -411,8 +411,9 @@ func TestAsBundleWithDir(t *testing.T) {
 
 func TestAsBundleWithFileURLDir(t *testing.T) {
 	files := map[string]string{
-		"/foo/data.json": "[1,2,3]",
-		"/.manifest":     `{"roots": ["foo"]}`,
+		"/foo/data.json":   "[1,2,3]",
+		"/foo/policy.rego": "package foo.bar\np = 1",
+		"/.manifest":       `{"roots": ["foo"]}`,
 	}
 
 	test.WithTempFS(files, func(rootDir string) {
@@ -423,6 +424,18 @@ func TestAsBundleWithFileURLDir(t *testing.T) {
 
 		if b == nil {
 			t.Fatalf("Expected bundle to be non-nil")
+		}
+
+		if len(b.Modules) != 1 {
+			t.Fatalf("expected 1 modules, got %d", len(b.Modules))
+		}
+		expectedModulePaths := map[string]struct{}{
+			filepath.Join(rootDir, "/foo/policy.rego"): {},
+		}
+		for _, mf := range b.Modules {
+			if _, found := expectedModulePaths[mf.Path]; !found {
+				t.Errorf("Unexpected module file with path %s in bundle modules", mf.Path)
+			}
 		}
 
 		expectedData := util.MustUnmarshalJSON([]byte(`{"foo": [1,2,3]}`))
