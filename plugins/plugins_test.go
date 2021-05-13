@@ -12,8 +12,9 @@ import (
 	"testing"
 
 	"github.com/open-policy-agent/opa/internal/storage/mock"
+	"github.com/open-policy-agent/opa/logging"
+	"github.com/open-policy-agent/opa/logging/test"
 	"github.com/open-policy-agent/opa/plugins/rest"
-	"github.com/open-policy-agent/opa/sdk"
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/topdown/cache"
 )
@@ -296,7 +297,7 @@ func TestPluginManagerAuthPlugin(t *testing.T) {
 
 func TestPluginManagerLogger(t *testing.T) {
 
-	logger := sdk.NewStandardLogger().WithFields(map[string]interface{}{"context": "myloggincontext"})
+	logger := logging.NewStandardLogger().WithFields(map[string]interface{}{"context": "myloggincontext"})
 
 	m, err := New([]byte(`{}`), "test", inmem.New(), Logger(logger))
 	if err != nil {
@@ -305,6 +306,31 @@ func TestPluginManagerLogger(t *testing.T) {
 
 	if m.Logger() != logger {
 		t.Fatal("Logger was not configured on plugin manager")
+	}
+}
+
+func TestPluginManagerConsoleLogger(t *testing.T) {
+	consoleLogger := test.New()
+
+	mgr, err := New([]byte(`{}`), "", inmem.New(), ConsoleLogger(consoleLogger))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	mgr.ConsoleLogger().WithFields(map[string]interface{}{"foo": "bar"}).Info("Some message")
+
+	entries := consoleLogger.Entries()
+
+	exp := []test.LogEntry{
+		{
+			Level:   logging.Info,
+			Fields:  map[string]interface{}{"foo": "bar"},
+			Message: "Some message",
+		},
+	}
+
+	if !reflect.DeepEqual(exp, entries) {
+		t.Fatalf("want %v but got %v", exp, entries)
 	}
 }
 
@@ -320,13 +346,13 @@ func (m *myAuthPluginMock) NewClient(c rest.Config) (*http.Client, error) {
 		10,
 	), nil
 }
-func (m *myAuthPluginMock) Prepare(req *http.Request) error {
+func (*myAuthPluginMock) Prepare(*http.Request) error {
 	return nil
 }
-func (m *myAuthPluginMock) Start(ctx context.Context) error {
+func (*myAuthPluginMock) Start(context.Context) error {
 	return nil
 }
-func (m *myAuthPluginMock) Stop(ctx context.Context) {
+func (*myAuthPluginMock) Stop(context.Context) {
 }
-func (m *myAuthPluginMock) Reconfigure(ctx context.Context, config interface{}) {
+func (*myAuthPluginMock) Reconfigure(context.Context, interface{}) {
 }

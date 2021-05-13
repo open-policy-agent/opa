@@ -171,6 +171,33 @@ func TestReadWithManifest(t *testing.T) {
 	}
 }
 
+func TestManifestMetadata(t *testing.T) {
+	files := [][2]string{
+		{"/.manifest", `{
+			"metadata": {
+				"foo": {
+					"version": "1.0.0"
+				} 
+			}
+		}`},
+	}
+	buf := archive.MustWriteTarGz(files)
+	bundle, err := NewReader(buf).Read()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bundle.Manifest.Metadata["foo"] == nil {
+		t.Fatal("Unexpected nil metadata key")
+	}
+	data, ok := bundle.Manifest.Metadata["foo"].(map[string]interface{})
+	if !ok {
+		t.Fatal("Unexpected structure in metadata")
+	}
+	if data["version"] != "1.0.0" {
+		t.Fatalf("Unexpected metadata value: %v", data["version"])
+	}
+}
+
 func TestReadWithManifestInData(t *testing.T) {
 	files := [][2]string{
 		{"/.manifest", `{"revision": "quickbrownfaux"}`},

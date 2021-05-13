@@ -13,12 +13,15 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path"
 	"path/filepath"
 	"reflect"
 	"sort"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/open-policy-agent/opa/util/test"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
@@ -529,7 +532,7 @@ func TestPluginOneShotActivationPrefixMatchingRoots(t *testing.T) {
 		manager:     manager,
 		status:      map[string]*Status{},
 		etags:       map[string]string{},
-		downloaders: map[string]*download.Downloader{},
+		downloaders: map[string]bundleLoader{},
 	}
 	bundleNames := []string{"test-bundle1", "test-bundle2"}
 
@@ -688,7 +691,7 @@ func TestPluginListenerErrorClearedOn304(t *testing.T) {
 		manager:     manager,
 		status:      map[string]*Status{},
 		etags:       map[string]string{},
-		downloaders: map[string]*download.Downloader{},
+		downloaders: map[string]bundleLoader{},
 	}
 	bundleName := "test-bundle"
 	plugin.status[bundleName] = &Status{Name: bundleName}
@@ -740,7 +743,7 @@ func TestPluginBulkListener(t *testing.T) {
 		manager:     manager,
 		status:      map[string]*Status{},
 		etags:       map[string]string{},
-		downloaders: map[string]*download.Downloader{},
+		downloaders: map[string]bundleLoader{},
 	}
 	bundleNames := []string{
 		"b1",
@@ -866,8 +869,9 @@ func TestPluginBulkListener(t *testing.T) {
 	go plugin.oneShot(ctx, bundleNames[0], download.Update{})
 	s4 := <-bulkChan
 
-	if !reflect.DeepEqual(s3, s4) {
-		t.Fatalf("Expected: %v but got: %v", s3, s4)
+	s = s4[bundleNames[0]]
+	if s.ActiveRevision != "fancybluederg" || s.Code != "" || s.Message != "" || len(s.Errors) != 0 {
+		t.Errorf("Unexpected same status update for bundle %q, got: %v", bundleNames[0], s)
 	}
 
 	// Test updates the other bundles
@@ -928,7 +932,7 @@ func TestPluginBulkListenerStatusCopyOnly(t *testing.T) {
 		manager:     manager,
 		status:      map[string]*Status{},
 		etags:       map[string]string{},
-		downloaders: map[string]*download.Downloader{},
+		downloaders: map[string]bundleLoader{},
 	}
 	bundleNames := []string{
 		"b1",
@@ -985,7 +989,7 @@ func TestPluginActivateScopedBundle(t *testing.T) {
 		manager:     manager,
 		status:      map[string]*Status{},
 		etags:       map[string]string{},
-		downloaders: map[string]*download.Downloader{},
+		downloaders: map[string]bundleLoader{},
 	}
 	bundleName := "test-bundle"
 	plugin.status[bundleName] = &Status{Name: bundleName}
@@ -1047,7 +1051,7 @@ func TestPluginActivateScopedBundle(t *testing.T) {
 	// that the manifest has been written to storage.
 	expData := util.MustUnmarshalJSON([]byte(`{"a1": "foo", "a3": "x2", "a5": "x3"}`))
 	expIds := []string{filepath.Join(bundleName, "bundle/id1"), "some/id2", "some/id3"}
-	validateStoreState(ctx, t, manager.Store, "/a", expData, expIds, bundleName, "quickbrownfaux")
+	validateStoreState(ctx, t, manager.Store, "/a", expData, expIds, bundleName, "quickbrownfaux", nil)
 
 	// Activate a bundle that is scoped to a/a3 ad a/a6. Include a function
 	// inside package a.a4 that we can depend on outside of the bundle scope to
@@ -1055,7 +1059,13 @@ func TestPluginActivateScopedBundle(t *testing.T) {
 	module = "package a.a4\n\nbar=1\n\nfunc(x) = x"
 
 	b = bundle.Bundle{
-		Manifest: bundle.Manifest{Revision: "quickbrownfaux-2", Roots: &[]string{"a/a3", "a/a4"}},
+		Manifest: bundle.Manifest{Revision: "quickbrownfaux-2", Roots: &[]string{"a/a3", "a/a4"},
+			Metadata: map[string]interface{}{
+				"a": map[string]interface{}{
+					"a1": "deadbeef",
+				},
+			},
+		},
 		Data: map[string]interface{}{
 			"a": map[string]interface{}{
 				"a3": "foo",
@@ -1076,7 +1086,10 @@ func TestPluginActivateScopedBundle(t *testing.T) {
 	// Ensure a/a5-a6 are intact. a3 and a4 are overwritten by bundle.
 	expData = util.MustUnmarshalJSON([]byte(`{"a3": "foo", "a5": "x3"}`))
 	expIds = []string{filepath.Join(bundleName, "bundle/id2"), "some/id3"}
-	validateStoreState(ctx, t, manager.Store, "/a", expData, expIds, bundleName, "quickbrownfaux-2")
+	validateStoreState(ctx, t, manager.Store, "/a", expData, expIds, bundleName, "quickbrownfaux-2",
+		map[string]interface{}{
+			"a": map[string]interface{}{"a1": "deadbeef"},
+		})
 
 	// Upsert policy outside of bundle scope that depends on bundle.
 	if err := storage.Txn(ctx, manager.Store, storage.WriteParams, func(txn storage.Transaction) error {
@@ -1097,7 +1110,10 @@ func TestPluginActivateScopedBundle(t *testing.T) {
 	// Ensure bundle activation failed by checking that previous revision is
 	// still active.
 	expIds = []string{filepath.Join(bundleName, "bundle/id2"), "not_scoped", "some/id3"}
-	validateStoreState(ctx, t, manager.Store, "/a", expData, expIds, bundleName, "quickbrownfaux-2")
+	validateStoreState(ctx, t, manager.Store, "/a", expData, expIds, bundleName, "quickbrownfaux-2",
+		map[string]interface{}{
+			"a": map[string]interface{}{"a1": "deadbeef"},
+		})
 }
 
 func TestPluginSetCompilerOnContext(t *testing.T) {
@@ -1108,7 +1124,7 @@ func TestPluginSetCompilerOnContext(t *testing.T) {
 		manager:     manager,
 		status:      map[string]*Status{},
 		etags:       map[string]string{},
-		downloaders: map[string]*download.Downloader{},
+		downloaders: map[string]bundleLoader{},
 	}
 	bundleName := "test-bundle"
 	plugin.status[bundleName] = &Status{Name: bundleName}
@@ -1373,7 +1389,7 @@ func TestPluginRequestVsDownloadTimestamp(t *testing.T) {
 		manager:     manager,
 		status:      map[string]*Status{},
 		etags:       map[string]string{},
-		downloaders: map[string]*download.Downloader{},
+		downloaders: map[string]bundleLoader{},
 	}
 	bundleName := "test-bundle"
 	plugin.status[bundleName] = &Status{Name: bundleName}
@@ -1422,7 +1438,7 @@ func TestUpgradeLegacyBundleToMuiltiBundleSameBundle(t *testing.T) {
 		manager:     manager,
 		status:      map[string]*Status{},
 		etags:       map[string]string{},
-		downloaders: map[string]*download.Downloader{},
+		downloaders: map[string]bundleLoader{},
 	}
 	bundleName := "test-bundle"
 	plugin.status[bundleName] = &Status{Name: bundleName}
@@ -1465,7 +1481,7 @@ func TestUpgradeLegacyBundleToMuiltiBundleSameBundle(t *testing.T) {
 	// Ensure it has been activated
 	expData := util.MustUnmarshalJSON([]byte(`{"a2": "foo"}`))
 	expIds := []string{"bundle/id1"}
-	validateStoreState(ctx, t, manager.Store, "/a", expData, expIds, bundleName, "quickbrownfaux")
+	validateStoreState(ctx, t, manager.Store, "/a", expData, expIds, bundleName, "quickbrownfaux", nil)
 
 	if plugin.config.IsMultiBundle() {
 		t.Fatalf("Expected plugin to be in non-multi bundle config mode")
@@ -1486,7 +1502,7 @@ func TestUpgradeLegacyBundleToMuiltiBundleSameBundle(t *testing.T) {
 
 	// The only thing that should have changed is the store id for the policy
 	expIds = []string{"test-bundle/bundle/id1"}
-	validateStoreState(ctx, t, manager.Store, "/a", expData, expIds, bundleName, "quickbrownfaux-2")
+	validateStoreState(ctx, t, manager.Store, "/a", expData, expIds, bundleName, "quickbrownfaux-2", nil)
 
 	// Make sure the legacy path is gone now that we are in multi-bundle mode
 	var actual string
@@ -1517,7 +1533,7 @@ func TestUpgradeLegacyBundleToMuiltiBundleNewBundles(t *testing.T) {
 		manager:     manager,
 		status:      map[string]*Status{},
 		etags:       map[string]string{},
-		downloaders: map[string]*download.Downloader{},
+		downloaders: map[string]bundleLoader{},
 	}
 	bundleName := "test-bundle"
 	plugin.status[bundleName] = &Status{Name: bundleName}
@@ -1581,7 +1597,7 @@ func TestUpgradeLegacyBundleToMuiltiBundleNewBundles(t *testing.T) {
 	// Ensure it has been activated
 	expData := util.MustUnmarshalJSON([]byte(`{"a2": "foo"}`))
 	expIds := []string{"bundle/id1"}
-	validateStoreState(ctx, t, manager.Store, "/a", expData, expIds, bundleName, "quickbrownfaux")
+	validateStoreState(ctx, t, manager.Store, "/a", expData, expIds, bundleName, "quickbrownfaux", nil)
 
 	if plugin.config.IsMultiBundle() {
 		t.Fatalf("Expected plugin to be in non-multi bundle config mode")
@@ -1622,7 +1638,7 @@ func TestUpgradeLegacyBundleToMuiltiBundleNewBundles(t *testing.T) {
 
 	expData = util.MustUnmarshalJSON([]byte(`{"b2": "foo"}`))
 	expIds = []string{"b2/id1"}
-	validateStoreState(ctx, t, manager.Store, "/a", expData, expIds, "b2", "b2-1")
+	validateStoreState(ctx, t, manager.Store, "/a", expData, expIds, "b2", "b2-1", nil)
 
 	// Make sure the legacy path is gone now that we are in multi-bundle mode
 	var actual string
@@ -1888,6 +1904,64 @@ func TestConfiguredBundlePersistPath(t *testing.T) {
 	}
 }
 
+func TestPluginUsingFileLoader(t *testing.T) {
+
+	test.WithTempFS(map[string]string{}, func(dir string) {
+
+		b := bundle.Bundle{
+			Data: map[string]interface{}{},
+			Modules: []bundle.ModuleFile{
+				{
+					URL: "test.rego",
+					Raw: []byte(`package test
+
+					p = 7`),
+				},
+			},
+		}
+
+		name := path.Join(dir, "bundle.tar.gz")
+
+		f, err := os.Create(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if err := bundle.NewWriter(f).Write(b); err != nil {
+			t.Fatal(err)
+		}
+
+		f.Close()
+
+		mgr := getTestManager()
+		url := "file://" + name
+
+		p := New(&Config{Bundles: map[string]*Source{
+			"test": &Source{
+				SizeLimitBytes: 1e5,
+				Resource:       url,
+			},
+		}}, mgr)
+
+		ch := make(chan Status)
+
+		p.Register("test", func(s Status) {
+			ch <- s
+		})
+
+		if err := p.Start(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+
+		s := <-ch
+
+		if s.LastSuccessfulActivation.IsZero() {
+			t.Fatal("expected successful activation")
+		}
+	})
+
+}
+
 func writeTestBundleToDisk(t *testing.T, srcDir string, signed bool) bundle.Bundle {
 	t.Helper()
 
@@ -1946,7 +2020,7 @@ func getTestSignedBundle(t *testing.T) bundle.Bundle {
 	return b
 }
 
-func validateStoreState(ctx context.Context, t *testing.T, store storage.Store, root string, expData interface{}, expIds []string, expBundleName string, expBundleRev string) {
+func validateStoreState(ctx context.Context, t *testing.T, store storage.Store, root string, expData interface{}, expIds []string, expBundleName string, expBundleRev string, expMetadata map[string]interface{}) {
 	t.Helper()
 	if err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
 		value, err := store.Read(ctx, txn, storage.MustParsePath(root))
@@ -1977,6 +2051,14 @@ func validateStoreState(ctx context.Context, t *testing.T, store storage.Store, 
 
 		if rev != expBundleRev {
 			return fmt.Errorf("Unexpected revision found on bundle: %s", rev)
+		}
+
+		metadata, err := bundle.ReadBundleMetadataFromStore(ctx, store, txn, expBundleName)
+		if err != nil {
+			return fmt.Errorf("Unexpected error when reading bundle metadata from store: %s", err)
+		}
+		if !reflect.DeepEqual(expMetadata, metadata) {
+			return fmt.Errorf("Unexpected metadata found on bundle: %v", metadata)
 		}
 
 		return nil

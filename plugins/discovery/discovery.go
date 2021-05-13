@@ -11,14 +11,13 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/open-policy-agent/opa/sdk"
-
 	"github.com/open-policy-agent/opa/ast"
 	bundleApi "github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/config"
 	"github.com/open-policy-agent/opa/download"
 	cfg "github.com/open-policy-agent/opa/internal/config"
 	"github.com/open-policy-agent/opa/keys"
+	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/plugins/bundle"
@@ -43,7 +42,7 @@ type Discovery struct {
 	etag       string               // discovery bundle etag for caching purposes
 	metrics    metrics.Metrics
 	readyOnce  sync.Once
-	logger     sdk.Logger
+	logger     logging.Logger
 }
 
 // Factories provides a set of factory functions to use for
@@ -91,10 +90,10 @@ func New(manager *plugins.Manager, opts ...func(*Discovery)) (*Discovery, error)
 	result.downloader = download.New(config.Config, manager.Client(config.service), config.path).WithCallback(result.oneShot).
 		WithBundleVerificationConfig(config.Signing)
 	result.status = &bundle.Status{
-		Name: *config.Name,
+		Name: Name,
 	}
 
-	result.logger = manager.Logger().WithFields(map[string]interface{}{"name": *config.Name, "plugin": Name})
+	result.logger = manager.Logger().WithFields(map[string]interface{}{"plugin": Name})
 
 	manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateNotReady})
 	return result, nil
@@ -121,8 +120,7 @@ func (c *Discovery) Stop(ctx context.Context) {
 }
 
 // Reconfigure is a no-op on discovery.
-func (c *Discovery) Reconfigure(_ context.Context, _ interface{}) {
-
+func (*Discovery) Reconfigure(context.Context, interface{}) {
 }
 
 func (c *Discovery) oneShot(ctx context.Context, u download.Update) {

@@ -8,7 +8,7 @@ OPA can be configured to download bundles of policy and data, report status, and
 upload decision logs to remote endpoints. The discovery feature helps you
 centrally manage the OPA configuration for these features. You should use the
 discovery feature if you want to avoid managing OPA configuration updates in
-number of different locations.
+a number of different locations.
 
 When the discovery feature is enabled, OPA will periodically download a
 *discovery bundle*. Like regular bundles, the discovery bundle may contain JSON
@@ -35,7 +35,7 @@ See the [Configuration Reference](../configuration) for configuration details.
 OPA expects the service to expose an API endpoint that serves bundles.
 
 ```http
-GET /<service_url>/<discovery.resource>HTTP/1.1
+GET /<service_url>/<discovery.resource> HTTP/1.1
 ```
 
 If the bundle exists, the server should respond with an HTTP 200 OK status
@@ -52,19 +52,15 @@ to OPA is referred to as the "boot configuration".
 
 ```yaml
 services:
-  - name: acmecorp
+  acmecorp:
     url: https://example.com/control-plane-api/v1
     credentials:
       bearer:
         token: "bGFza2RqZmxha3NkamZsa2Fqc2Rsa2ZqYWtsc2RqZmtramRmYWxkc2tm"
 
 discovery:
-  name: example
-  resource: /configuration/example/discovery.tar.gz
   service: acmecorp
-  signing:
-    keyid: my_global_key
-    scope: read
+  resource: /configuration/example/discovery.tar.gz
 ```
 
 Using the boot configuration above, OPA will fetch discovery bundles from:
@@ -79,23 +75,14 @@ services[discovery.service].url          discovery.resource
 is convenient if you want to serve discovery bundles and normal bundles from the same API
 endpoint. If only one service is defined, there is no need to set `discovery.service`.
 
-> The `discovery.prefix` configuration option is still available but has been
-deprecated in favor of `discovery.resource`. It will eventually be removed.
 
 > The optional `discovery.signing` field can be used to specify the `keyid` and `scope` that should be used
 > for verifying the signature of the discovery bundle. See [this](#discovery-bundle-signature) section for details.
 
-
 OPA generates it's subsequent configuration by querying the Rego and JSON files
-contained inside the discovery bundle. The query is defined by the
-`discovery.name` field from the boot configuration: `data.<discovery.name>`. For
-example. with the boot configuration above, OPA executes the following query:
+contained inside the discovery bundle. The default query is `data` however this
+can be overriden by specifying the `discovery.decision`.
 
-```
-data.example
-```
-
-As an alternative, you can also provide a `decision` field, to specify the name of the query. For example, with this configuration:
 ```yaml
 services:
   - name: acmecorp
@@ -108,7 +95,9 @@ discovery:
   resource: /configuration/example/discovery.tar.gz
   decision: example/discovery
 ```
+
 OPA executes the following query:
+
 ```
 data.example.discovery
 ```
@@ -184,23 +173,23 @@ Below is a policy file which generates an OPA configuration.
 **example.rego**
 
 ```ruby
-package example
+package discovery
 
-discovery = {
+config := {
   "bundles": {
     "main": {
       "service": "acmecorp",
-      "resource": bundle_name #line 7
+      "resource": bundle_name  # line 7
     }
   }
 }
 
-rt = opa.runtime()
-region = rt.config.labels.region
-bundle_name = region_bundle[region]
+rt := opa.runtime()
+region := rt.config.labels.region
+bundle_name := region_bundle[region]
 
 # region-bundle information
-region_bundle = {
+region_bundle := {
   "US": "example/test1/p",
   "UK": "example/test2/p"
 }
@@ -221,10 +210,9 @@ services:
     credentials:
       bearer:
         token: "bGFza2RqZmxha3NkamZsa2Fqc2Rsa2ZqYWtsc2RqZmtramRmYWxkc2tm"
-
 discovery:
-  name: /example/discovery
-
+  resource: bundles/discovery.tar.gz
+  decision: discovery/config
 labels:
   region: "US"
 ```
@@ -254,10 +242,9 @@ services:
     credentials:
       bearer:
         token: "bGFza2RqZmxha3NkamZsa2Fqc2Rsa2ZqYWtsc2RqZmtramRmYWxkc2tm"
-
 discovery:
-  name: /example/discovery
-
+  resource: bundles/discovery.tar.gz
+  decision: discovery/config
 labels:
   region: "UK"
 ```

@@ -15,12 +15,9 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/open-policy-agent/opa/sdk"
-
-	"github.com/open-policy-agent/opa/keys"
-
 	"github.com/open-policy-agent/opa/internal/version"
-
+	"github.com/open-policy-agent/opa/keys"
+	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/util"
 )
 
@@ -52,7 +49,7 @@ type Config struct {
 	} `json:"credentials"`
 
 	keys   map[string]*keys.Config
-	logger sdk.Logger
+	logger logging.Logger
 }
 
 // Equal returns true if this client config is equal to the other.
@@ -111,7 +108,7 @@ type Client struct {
 	config           Config
 	headers          map[string]string
 	authPluginLookup func(string) HTTPAuthPlugin
-	logger           sdk.Logger
+	logger           logging.Logger
 }
 
 // Name returns an option that overrides the service name on the client.
@@ -132,7 +129,7 @@ func AuthPluginLookup(l func(string) HTTPAuthPlugin) func(*Client) {
 }
 
 // Logger assigns a logger to the client
-func Logger(l sdk.Logger) func(*Client) {
+func Logger(l logging.Logger) func(*Client) {
 	return func(c *Client) {
 		c.logger = l
 	}
@@ -165,7 +162,7 @@ func New(config []byte, keys map[string]*keys.Config, opts ...func(*Client)) (Cl
 	}
 
 	if client.logger == nil {
-		client.logger = sdk.NewStandardLogger()
+		client.logger = logging.NewStandardLogger()
 	}
 	client.config.logger = client.logger
 
@@ -189,7 +186,7 @@ func (c Client) SetResponseHeaderTimeout(timeout *int64) Client {
 }
 
 // Logger returns the logger assigned to the Client
-func (c Client) Logger() sdk.Logger {
+func (c Client) Logger() logging.Logger {
 	return c.logger
 }
 

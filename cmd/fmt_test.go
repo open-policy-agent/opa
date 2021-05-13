@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bytes"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -150,6 +151,63 @@ p {
 
 		if len(actual) > 0 {
 			t.Fatalf("Expected no output, got:\n%s\n\n", actual)
+		}
+	})
+}
+
+func TestFmtFailFileNoChanges(t *testing.T) {
+	params := fmtCommandParams{
+		fail: true,
+	}
+
+	policyContent := `package test
+
+p {
+	a == 1
+	true
+	1 + 3
+}
+`
+
+	files := map[string]string{
+		"policy.rego": policyContent,
+	}
+
+	test.WithTempFS(files, func(path string) {
+		policyFile := filepath.Join(path, "policy.rego")
+		info, err := os.Stat(policyFile)
+		err = formatFile(&params, io.Discard, policyFile, info, err)
+		if err != nil {
+			t.Fatalf("Expected error but did not recieve one")
+		}
+	})
+}
+
+func TestFmtFailFileChanges(t *testing.T) {
+	params := fmtCommandParams{
+		fail: true,
+	}
+
+	unformatted := `
+	package test
+	
+	p { a == 1; true
+		1 +    3
+	}
+
+	
+	`
+
+	files := map[string]string{
+		"policy.rego": unformatted,
+	}
+
+	test.WithTempFS(files, func(path string) {
+		policyFile := filepath.Join(path, "policy.rego")
+		info, err := os.Stat(policyFile)
+		err = formatFile(&params, io.Discard, policyFile, info, err)
+		if err == nil {
+			t.Fatalf("Unexpected error: %s", err)
 		}
 	})
 }

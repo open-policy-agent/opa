@@ -309,6 +309,8 @@ b2:
 b3:
   service: s3
   resource: /some/longer/path/bundle.tar.gz
+b4:
+  resource: file:///foo/bar
 `)
 	services := []string{"s1", "s3"}
 	parsedConfig, err := ParseBundlesConfig(conf, services)
@@ -318,10 +320,6 @@ b3:
 
 	if parsedConfig.Name != "" {
 		t.Fatalf("Expected config `Name` to be empty, actual: %s", parsedConfig.Name)
-	}
-
-	if len(parsedConfig.Bundles) != 3 {
-		t.Fatalf("Expected 3 bundles in parsed config, got: %+v", parsedConfig.Bundles)
 	}
 
 	expectedSources := map[string]struct {
@@ -340,6 +338,14 @@ b3:
 			service:  "s3",
 			resource: "/some/longer/path/bundle.tar.gz",
 		},
+		"b4": {
+			service:  "s1",
+			resource: "file:///foo/bar",
+		},
+	}
+
+	if len(parsedConfig.Bundles) != len(expectedSources) {
+		t.Fatalf("Expected %d bundles in parsed config, got: %+v", len(expectedSources), parsedConfig.Bundles)
 	}
 
 	for name, expected := range expectedSources {

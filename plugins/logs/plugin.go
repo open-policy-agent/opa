@@ -9,7 +9,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-
 	"math"
 	"math/rand"
 	"net/http"
@@ -19,16 +18,15 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-
 	"golang.org/x/time/rate"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/internal/ref"
+	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/plugins/rest"
 	"github.com/open-policy-agent/opa/rego"
-	"github.com/open-policy-agent/opa/sdk"
 	"github.com/open-policy-agent/opa/server"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/util"
@@ -345,9 +343,9 @@ type Plugin struct {
 	reconfig  chan reconfigure
 	mask      *rego.PreparedEvalQuery
 	maskMutex sync.Mutex
-	logger    sdk.Logger
 	limiter   *rate.Limiter
 	metrics   metrics.Metrics
+	logger    logging.Logger
 }
 
 type reconfigure struct {
@@ -809,7 +807,7 @@ func (p *Plugin) logEvent(event EventV1) error {
 	if err != nil {
 		return err
 	}
-	plugins.GetConsoleLogger().WithFields(fields).WithFields(map[string]interface{}{
+	p.manager.ConsoleLogger().WithFields(fields).WithFields(map[string]interface{}{
 		"type": "openpolicyagent.org/decision_logs",
 	}).Info("Decision Log")
 	return nil
