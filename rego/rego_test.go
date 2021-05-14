@@ -958,9 +958,9 @@ func TestPartialNamespace(t *testing.T) {
 	expSupport := ast.MustParseModule(`
 		package foo.test
 
-		p { input.x = 1 }
-
 		default p = false
+
+		p { input.x = 1 }
 	`)
 
 	if len(pq.Support) != 1 || !pq.Support[0].Equal(expSupport) {
@@ -1729,13 +1729,56 @@ func TestShallowInliningOption(t *testing.T) {
 	exp := ast.MustParseModule(`
 		package partial.test
 
-		q { 7 = input.x }
 		p { data.partial.test.q = true }
+		q { 7 = input.x }
 	`)
 
 	if len(pq.Support) != 1 || !pq.Support[0].Equal(exp) {
 		t.Fatal("expected module:", exp, "\n\ngot module:", pq.Support[0])
 	}
+}
+
+func TestRegoPartialResultSortedRules(t *testing.T) {
+	r := New(Query("data.test.p"), Module("example.rego", `
+		package test
+
+		default p = false
+
+		p {
+			r = (input.d * input.a) + input.c
+			r < s
+		}
+
+		p {
+			r = (input.d * input.b) + input.c
+			r < s
+		}
+
+		s = 100
+
+	`))
+
+	pq, err := r.Partial(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Without sorting of support rules, the output of the above partial evaluation
+	// resulted in a random order of the support rules (in this case two different possible outputs)
+	exp := ast.MustParseModule(
+		`package partial.test
+
+		default p = false
+
+		p = true { lt(plus(mul(input.d, input.a), input.c), 100) }
+		p = true { lt(plus(mul(input.d, input.b), input.c), 100) }
+		`,
+	)
+
+	if len(pq.Support) != 1 || !pq.Support[0].Equal(exp) {
+		t.Fatal("expected module:", exp, "\n\ngot module:", pq.Support[0])
+	}
+
 }
 
 func TestPrepareWithEmptyModule(t *testing.T) {

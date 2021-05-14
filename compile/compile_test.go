@@ -350,9 +350,9 @@ func TestCompilerOptimizationL1(t *testing.T) {
 		optimizedExp := ast.MustParseModule(`
 			package test
 
-			q { input.x = 1 }
-			p { data.test.q = X; X }
 			default p = false
+			p { data.test.q = X; X }
+			q { input.x = 1 }
 		`)
 
 		// NOTE(tsandall): PE generates vars with wildcard prefix. Instead of
@@ -409,8 +409,8 @@ func TestCompilerOptimizationL2(t *testing.T) {
 		optimizedExp := ast.MustParseModule(`
 			package test
 
-			p { input.x = 1 }
 			default p = false
+			p { input.x = 1 }
 		`)
 
 		if len(compiler.bundle.Modules) != 2 {
@@ -872,10 +872,11 @@ func TestOptimizerOutput(t *testing.T) {
 				"optimized/test.rego": `
 					package test
 
+					default p = false
+
 					p = true { 1 = input.x }
 					p = true { 2 = input.x }
 
-					default p = false
 				`,
 				"test.rego": `
 					package test
