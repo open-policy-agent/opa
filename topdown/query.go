@@ -370,6 +370,12 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 		err = e.builtinErrors.errs[0]
 	}
 
+	for i := range support {
+		sort.Slice(support[i].Rules, func(j, k int) bool {
+			return support[i].Rules[j].Compare(support[i].Rules[k]) < 0
+		})
+	}
+
 	return partials, support, err
 }
 
