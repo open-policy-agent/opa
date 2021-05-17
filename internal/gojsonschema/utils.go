@@ -28,28 +28,7 @@ package gojsonschema
 import (
 	"encoding/json"
 	"math/big"
-	"reflect"
 )
-
-func isKind(what interface{}, kinds ...reflect.Kind) bool {
-	target := what
-	if isJSONNumber(what) {
-		// JSON Numbers are strings!
-		target = *mustBeNumber(what)
-	}
-	targetKind := reflect.ValueOf(target).Kind()
-	for _, kind := range kinds {
-		if targetKind == kind {
-			return true
-		}
-	}
-	return false
-}
-
-func existsMapKey(m map[string]interface{}, k string) bool {
-	_, ok := m[k]
-	return ok
-}
 
 func isStringInSlice(s []string, what string) bool {
 	for i := range s {
@@ -58,16 +37,6 @@ func isStringInSlice(s []string, what string) bool {
 		}
 	}
 	return false
-}
-
-// indexStringInSlice returns the index of the first instance of 'what' in s or -1 if it is not found in s.
-func indexStringInSlice(s []string, what string) int {
-	for i := range s {
-		if s[i] == what {
-			return i
-		}
-	}
-	return -1
 }
 
 func marshalToJSONString(value interface{}) (*string, error) {
@@ -131,41 +100,39 @@ const (
 )
 
 func mustBeInteger(what interface{}) *int {
-
-	if isJSONNumber(what) {
-
-		number := what.(json.Number)
-
-		isInt := checkJSONInteger(number)
-
-		if isInt {
-
-			int64Value, err := number.Int64()
-			if err != nil {
-				return nil
-			}
-
-			int32Value := int(int64Value)
-			return &int32Value
-		}
-
+	number, ok := what.(json.Number)
+	if !ok {
+		return nil
 	}
 
-	return nil
+	isInt := checkJSONInteger(number)
+	if !isInt {
+		return nil
+	}
+
+	int64Value, err := number.Int64()
+	if err != nil {
+		return nil
+	}
+
+	// This doesn't actually convert to an int32 value; it converts to the
+	// system-specific default integer. Assuming this is a valid int32 could cause
+	// bugs.
+	int32Value := int(int64Value)
+	return &int32Value
 }
 
 func mustBeNumber(what interface{}) *big.Rat {
-
-	if isJSONNumber(what) {
-		number := what.(json.Number)
-		float64Value, success := new(big.Rat).SetString(string(number))
-		if success {
-			return float64Value
-		}
+	number, ok := what.(json.Number)
+	if !ok {
+		return nil
 	}
 
+	float64Value, success := new(big.Rat).SetString(string(number))
+	if success {
+		return float64Value
+	}
 	return nil
-
 }
 
 func convertDocumentNode(val interface{}) interface{} {
