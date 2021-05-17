@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
+	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"go.uber.org/automaxprocs/maxprocs"
@@ -182,6 +183,11 @@ type Params struct {
 	// configured bundles and plugins to be activated/ready before listening for traffic.
 	// A value of 0 or less means no wait is exercised.
 	ReadyTimeout int
+
+	// Router is the router to which handlers for the REST API are added.
+	// Router uses a first-matching-route-wins strategy, so no existing routes are overridden
+	// If it is nil, a new mux.Router will be created
+	Router *mux.Router
 }
 
 // LoggingConfig stores the configuration for OPA's logging behaviour.
@@ -352,6 +358,7 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 	defer rt.Manager.Stop(ctx)
 
 	rt.server = server.New().
+		WithRouter(rt.Params.Router).
 		WithStore(rt.Store).
 		WithManager(rt.Manager).
 		WithCompilerErrorLimit(rt.Params.ErrorLimit).
