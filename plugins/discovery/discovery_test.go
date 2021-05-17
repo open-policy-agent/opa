@@ -1088,6 +1088,8 @@ func TestStatusMetricsForLogDrops(t *testing.T) {
 		}
 	}`)})
 
+	status.Lookup(manager).Stop(ctx)
+
 	entries := testLogger.Entries()
 	if len(entries) == 0 {
 		t.Fatal("Expected log entries but got none")
