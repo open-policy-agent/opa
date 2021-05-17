@@ -32,6 +32,15 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v2
 
+    - id: go_version
+      name: Read go version
+      run: echo "::set-output name=go_version::$(cat .go-version)"
+
+    - name: Install Go (${{ steps.go_version.outputs.go_version }})
+      uses: actions/setup-go@v2
+      with:
+        go-version: ${{ steps.go_version.outputs.go_version }}
+
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
       uses: github/codeql-action/init@v1
