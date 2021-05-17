@@ -18,6 +18,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -3604,6 +3605,27 @@ func TestMixedAddrTypes(t *testing.T) {
 		if _, ok := diagAddrs[addr]; !ok {
 			t.Errorf("Unexpected diagnostic address %v", addr)
 		}
+	}
+}
+
+func TestCustomRoute(t *testing.T) {
+	router := mux.NewRouter()
+	router.HandleFunc("/customEndpoint", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`{"myCustomResponse": true}`))
+	})
+	f := newFixture(t, func(server *Server) {
+		server.WithRouter(router)
+	})
+
+	if err := f.v1(http.MethodGet, "/data", "", 200, `{"result":{}}`); err != nil {
+		t.Fatalf("Unexpected response for default server route: %v", err)
+	}
+	r, err := http.NewRequest(http.MethodGet, "/customEndpoint", nil)
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+	if err := f.executeRequest(r, http.StatusOK, `{"myCustomResponse": true}`); err != nil {
+		t.Fatalf("Request to custom endpoint failed: %s", err)
 	}
 }
 
