@@ -854,7 +854,7 @@ The `request` object parameter may contain the following fields:
 | `headers` | no | `object` | HTTP headers to include in the request (e.g,. `{"X-Opa": "rules"}`). |
 | `enable_redirect` | no | `boolean` | Follow HTTP redirects. Default: `false`. |
 | `force_json_decode` | no | `boolean` | Decode the HTTP response message body as JSON even if the `Content-Type` header is missing. Default: `false`. |
-| `tls_use_system_certs` | no | `boolean` | Use the system certificate pool. Default: `false`. |
+| `tls_use_system_certs` | no | `boolean` | Use the system certificate pool. Default: `true` when `tls_ca_cert`, `tls_ca_cert_file`, `tls_ca_cert_env_variable` are unset. |
 | `tls_ca_cert` | no | `string` | String containing a root certificate in PEM encoded format. |
 | `tls_ca_cert_file` | no | `string` | Path to file containing a root certificate in PEM encoded format. |
 | `tls_ca_cert_env_variable` | no | `string` | Environment variable containing a root certificate in PEM encoded format. |
