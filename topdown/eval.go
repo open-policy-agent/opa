@@ -1506,6 +1506,8 @@ func (e evalFunc) eval(iter unifyIterator) error {
 		return err
 	}
 
+	argCount := len(ir.Rules[0].Head.Args)
+
 	if ir.Empty() {
 		return nil
 	}
@@ -1513,19 +1515,30 @@ func (e evalFunc) eval(iter unifyIterator) error {
 	if len(ir.Else) > 0 && e.e.unknown(e.e.query[e.e.index], e.e.bindings) {
 		// Partial evaluation of ordered rules is not supported currently. Save the
 		// expression and continue. This could be revisited in the future.
-		return e.e.saveCall(len(ir.Rules[0].Head.Args), e.terms, iter)
+		return e.e.saveCall(argCount, e.terms, iter)
+	}
+
+	var cacheKey ast.Ref
+	var hit bool
+	if !e.e.partial() {
+		cacheKey, hit, err = e.evalCache(argCount, iter)
+		if err != nil {
+			return err
+		} else if hit {
+			return nil
+		}
 	}
 
 	var prev *ast.Term
 
 	for i := range ir.Rules {
-		next, err := e.evalOneRule(iter, ir.Rules[i], prev)
+		next, err := e.evalOneRule(iter, ir.Rules[i], cacheKey, prev)
 		if err != nil {
 			return err
 		}
 		if next == nil {
 			for _, rule := range ir.Else[ir.Rules[i]] {
-				next, err = e.evalOneRule(iter, rule, prev)
+				next, err = e.evalOneRule(iter, rule, cacheKey, prev)
 				if err != nil {
 					return err
 				}
@@ -1542,15 +1555,40 @@ func (e evalFunc) eval(iter unifyIterator) error {
 	return nil
 }
 
-func (e evalFunc) evalOneRule(iter unifyIterator, rule *ast.Rule, prev *ast.Term) (*ast.Term, error) {
+func (e evalFunc) evalCache(argCount int, iter unifyIterator) (ast.Ref, bool, error) {
+	var plen int
+	if len(e.terms) == argCount+2 { // func name + output = 2
+		plen = len(e.terms) - 1
+	} else {
+		plen = len(e.terms)
+	}
+	cacheKey := make([]*ast.Term, plen)
+	for i := 0; i < plen; i++ {
+		cacheKey[i] = e.e.bindings.Plug(e.terms[i])
+	}
+
+	cached := e.e.virtualCache.Get(cacheKey)
+	if cached != nil {
+		e.e.instr.counterIncr(evalOpVirtualCacheHit)
+		if argCount == len(e.terms)-1 { // f(x)
+			if ast.Boolean(false).Equal(cached.Value) {
+				return nil, true, nil
+			}
+			return nil, true, iter()
+		}
+		// f(x, y), y captured output value
+		return nil, true, e.e.unify(e.terms[len(e.terms)-1] /* y */, cached, iter)
+	}
+	e.e.instr.counterIncr(evalOpVirtualCacheMiss)
+	return cacheKey, false, nil
+}
+
+func (e evalFunc) evalOneRule(iter unifyIterator, rule *ast.Rule, cacheKey ast.Ref, prev *ast.Term) (*ast.Term, error) {
 
 	child := e.e.child(rule.Body)
 
 	args := make([]*ast.Term, len(e.terms)-1)
-
-	for i := range rule.Head.Args {
-		args[i] = rule.Head.Args[i]
-	}
+	copy(args, rule.Head.Args)
 
 	if len(args) == len(rule.Head.Args)+1 {
 		args[len(args)-1] = rule.Head.Value
@@ -1573,6 +1611,9 @@ func (e evalFunc) evalOneRule(iter unifyIterator, rule *ast.Rule, prev *ast.Term
 			}
 
 			result = child.bindings.Plug(rule.Head.Value)
+			if cacheKey != nil {
+				e.e.virtualCache.Put(cacheKey, result) // the redos confirm this, or the evaluation is aborted
+			}
 
 			if len(rule.Head.Args) == len(e.terms)-1 {
 				if result.Value.Compare(ast.Boolean(false)) == 0 {
@@ -1652,9 +1693,7 @@ func (e evalTree) finish(iter unifyIterator) error {
 		return err
 	}
 
-	return e.e.biunify(e.rterm, v, e.rbindings, e.bindings, func() error {
-		return iter()
-	})
+	return e.e.biunify(e.rterm, v, e.rbindings, e.bindings, iter)
 }
 
 func (e evalTree) next(iter unifyIterator, plugged *ast.Term) error {
