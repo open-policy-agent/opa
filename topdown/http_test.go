@@ -2223,6 +2223,101 @@ func TestHTTPSNoClientCerts(t *testing.T) {
 	})
 }
 
+func TestCertSelectionLogic(t *testing.T) {
+	const (
+		localClientCertFile = "testdata/client-cert.pem"
+		localClientKeyFile  = "testdata/client-key.pem"
+		localCaFile         = "testdata/ca.pem"
+		localServerCertFile = "testdata/server-cert.pem"
+		localServerKeyFile  = "testdata/server-key.pem"
+	)
+
+	//caCertPEM, err := ioutil.ReadFile(localCaFile)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//caPool := x509.NewCertPool()
+	//if ok := caPool.AppendCertsFromPEM(caCertPEM); !ok {
+	//	t.Fatal("failed to parse CA cert")
+	//}
+
+	// Set up Environment
+	clientCert, err := readCertFromFile(localClientCertFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = os.Setenv("CLIENT_CERT_ENV", string(clientCert))
+	if err != nil {
+		t.Fatal(err)
+	}
+	clientKey, err := readKeyFromFile(localClientKeyFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = os.Setenv("CLIENT_KEY_ENV", string(clientKey))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	getClientTlsConfig := func(obj ast.Object) *tls.Config {
+		_, client, err := createHTTPRequest(BuiltinContext{Context: context.Background()}, obj)
+		if err != nil {
+			t.Fatalf("Unexpected error creating HTTP request %v", err)
+		}
+		if client.Transport == nil {
+			return nil
+		}
+		return client.Transport.(*http.Transport).TLSClientConfig
+	}
+	systemCerts, err := x509.SystemCertPool()
+	if err != nil {
+		t.Fatalf("Unexpected error reading system certs %v", err)
+	}
+
+	obj := ast.NewObject([2]*ast.Term{ast.StringTerm("tls_use_system_certs"), ast.BooleanTerm(true)})
+	tlsConfig := getClientTlsConfig(obj)
+	if !reflect.DeepEqual(tlsConfig.RootCAs.Subjects(), systemCerts.Subjects()) {
+		t.Error("Expected TLS config to use system certs")
+	}
+
+	obj = ast.NewObject([2]*ast.Term{ast.StringTerm("tls_use_system_certs"), ast.BooleanTerm(false)})
+	tlsConfig = getClientTlsConfig(obj)
+	if tlsConfig != nil {
+		t.Error("Expected no TLS config")
+	}
+
+	// loads no CA certs when client certs are not included
+	obj = ast.NewObject()
+	tlsConfig = getClientTlsConfig(obj)
+	if tlsConfig != nil {
+		t.Error("Expected no TLS config")
+	}
+
+	// loads system CA certs when client certs are provided without corresponding CA certs
+	obj = ast.NewObject([2]*ast.Term{ast.StringTerm("tls_client_cert"), ast.StringTerm(string(clientCert))},
+		[2]*ast.Term{ast.StringTerm("tls_client_key"), ast.StringTerm(string(clientKey))})
+	tlsConfig = getClientTlsConfig(obj)
+	if !reflect.DeepEqual(tlsConfig.RootCAs.Subjects(), systemCerts.Subjects()) {
+		t.Error("Expected TLS config to use system certs")
+	}
+
+	// loads system CA certs when client certs are provided as file paths without corresponding CA certs
+	obj = ast.NewObject([2]*ast.Term{ast.StringTerm("tls_client_cert_file"), ast.StringTerm(localClientCertFile)},
+		[2]*ast.Term{ast.StringTerm("tls_client_key_file"), ast.StringTerm(localClientKeyFile)})
+	tlsConfig = getClientTlsConfig(obj)
+	if !reflect.DeepEqual(tlsConfig.RootCAs.Subjects(), systemCerts.Subjects()) {
+		t.Error("Expected TLS config to use system certs")
+	}
+
+	// loads system CA certs when client certs are provided as env variables without corresponding CA certs
+	obj = ast.NewObject([2]*ast.Term{ast.StringTerm("tls_client_cert_env_variable"), ast.StringTerm("CLIENT_CERT_ENV")},
+		[2]*ast.Term{ast.StringTerm("tls_client_key_env_variable"), ast.StringTerm("CLIENT_KEY_ENV")})
+	tlsConfig = getClientTlsConfig(obj)
+	if !reflect.DeepEqual(tlsConfig.RootCAs.Subjects(), systemCerts.Subjects()) {
+		t.Error("Expected TLS config to use system certs")
+	}
+}
+
 func TestHTTPSendMetrics(t *testing.T) {
 
 	// run test server
