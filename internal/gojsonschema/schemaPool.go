@@ -29,7 +29,6 @@ package gojsonschema
 import (
 	"errors"
 	"fmt"
-	"reflect"
 
 	"github.com/xeipuuv/gojsonreference"
 )
@@ -89,28 +88,32 @@ func (p *schemaPool) parseReferencesRecursive(document interface{}, ref gojsonre
 		localRef := &ref
 
 		keyID := KeyIDNew
-		if existsMapKey(m, KeyID) {
+		if _, ok := m[KeyID]; ok {
 			keyID = KeyID
 		}
-		if existsMapKey(m, keyID) && isKind(m[keyID], reflect.String) {
-			jsonReference, err := gojsonreference.NewJsonReference(m[keyID].(string))
-			if err == nil {
-				localRef, err = ref.Inherits(jsonReference)
+		if v, ok := m[keyID]; ok {
+			if value, isString := v.(string); isString {
+				jsonReference, err := gojsonreference.NewJsonReference(value)
 				if err == nil {
-					if _, ok := p.schemaPoolDocuments[localRef.String()]; ok {
-						return fmt.Errorf("Reference already exists: \"%s\"", localRef.String())
+					localRef, err = ref.Inherits(jsonReference)
+					if err == nil {
+						if _, ok := p.schemaPoolDocuments[localRef.String()]; ok {
+							return fmt.Errorf("Reference already exists: \"%s\"", localRef.String())
+						}
+						p.schemaPoolDocuments[localRef.String()] = &schemaPoolDocument{Document: document, Draft: draft}
 					}
-					p.schemaPoolDocuments[localRef.String()] = &schemaPoolDocument{Document: document, Draft: draft}
 				}
 			}
 		}
 
-		if existsMapKey(m, KeyRef) && isKind(m[KeyRef], reflect.String) {
-			jsonReference, err := gojsonreference.NewJsonReference(m[KeyRef].(string))
-			if err == nil {
-				absoluteRef, err := localRef.Inherits(jsonReference)
+		if v, ok := m[KeyRef]; ok {
+			if s, isString := v.(string); isString {
+				jsonReference, err := gojsonreference.NewJsonReference(s)
 				if err == nil {
-					m[KeyRef] = absoluteRef.String()
+					absoluteRef, err := localRef.Inherits(jsonReference)
+					if err == nil {
+						m[KeyRef] = absoluteRef.String()
+					}
 				}
 			}
 		}

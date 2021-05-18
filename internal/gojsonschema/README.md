@@ -11,6 +11,8 @@ The modifications done are as below:
 
 2. Also, other changes in `gojsonschema`'s code include fixes to satisfy OPA's lint and format checker scripts. Hence, this `internal/gojsonschema` is in conformance with OPA's code style.
 
+3. Modernize usage of Go in `gojsonschema`, using conventions like type switching and language-built-in map accessing rather than helper methods. 
+
 [![GoDoc](https://godoc.org/github.com/xeipuuv/gojsonschema?status.svg)](https://godoc.org/github.com/xeipuuv/gojsonschema)
 [![Build Status](https://travis-ci.org/xeipuuv/gojsonschema.svg)](https://travis-ci.org/xeipuuv/gojsonschema)
 [![Go Report Card](https://goreportcard.com/badge/github.com/xeipuuv/gojsonschema)](https://goreportcard.com/report/github.com/xeipuuv/gojsonschema)

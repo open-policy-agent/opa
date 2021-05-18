@@ -17,7 +17,6 @@ package gojsonschema
 import (
 	"errors"
 	"math"
-	"reflect"
 
 	"github.com/xeipuuv/gojsonreference"
 )
@@ -88,29 +87,27 @@ func (dc draftConfigs) GetSchemaURL(draft Draft) string {
 }
 
 func parseSchemaURL(documentNode interface{}) (string, *Draft, error) {
-
-	if isKind(documentNode, reflect.Bool) {
+	if _, ok := documentNode.(bool); ok {
 		return "", nil, nil
 	}
 
-	if !isKind(documentNode, reflect.Map) {
+	m, ok := documentNode.(map[string]interface{})
+	if !ok {
 		return "", nil, errors.New("schema is invalid")
 	}
 
-	m := documentNode.(map[string]interface{})
-
-	if existsMapKey(m, KeySchema) {
-		if !isKind(m[KeySchema], reflect.String) {
+	if v, ok := m[KeySchema]; ok {
+		s, ok := v.(string)
+		if !ok {
 			return "", nil, errors.New(formatErrorDescription(
 				Locale.MustBeOfType(),
 				ErrorDetails{
 					"key":  KeySchema,
 					"type": TypeString,
-				},
-			))
+				}))
 		}
 
-		schemaReference, err := gojsonreference.NewJsonReference(m[KeySchema].(string))
+		schemaReference, err := gojsonreference.NewJsonReference(s)
 
 		if err != nil {
 			return "", nil, err

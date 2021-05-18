@@ -222,11 +222,11 @@ func TestRefProperty(t *testing.T) {
 	// call the target function
 	s, err := NewSchema(schemaLoader)
 	if err != nil {
-		t.Errorf("Got error: %s", err.Error())
+		t.Fatalf("Got error: %s", err.Error())
 	}
 	result, err := s.Validate(documentLoader)
 	if err != nil {
-		t.Errorf("Got error: %s", err.Error())
+		t.Fatalf("Got error: %s", err.Error())
 	}
 	if !result.Valid() {
 		for _, err := range result.Errors() {
@@ -249,7 +249,7 @@ func TestFragmentLoader(t *testing.T) {
 	schema, err := NewSchema(schemaLoader)
 
 	if err != nil {
-		t.Errorf("Encountered error while loading schema: %s", err.Error())
+		t.Fatalf("Encountered error while loading schema: %s", err.Error())
 	}
 
 	validDocument := NewStringLoader(`5`)
@@ -360,7 +360,7 @@ func TestLocationIndependentIdentifier(t *testing.T) {
 
 	result, err := s.Validate(documentLoader)
 	if err != nil {
-		t.Errorf("Got error: %s", err.Error())
+		t.Fatalf("Got error: %s", err.Error())
 	}
 
 	if len(result.Errors()) != 2 || result.Errors()[0].Type() != "false" || result.Errors()[1].Type() != "number_all_of" {
