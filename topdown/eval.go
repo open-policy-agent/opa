@@ -618,10 +618,15 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 	ref := terms[0].Value.(ast.Ref)
 
 	if ref[0].Equal(ast.DefaultRootDocument) {
+		ir, err := e.getRules(ref)
+		if err != nil {
+			return err
+		}
 		eval := evalFunc{
 			e:     e,
 			ref:   ref,
 			terms: terms,
+			ir:    ir,
 		}
 		return eval.eval(iter)
 	}
@@ -1497,31 +1502,40 @@ type evalFunc struct {
 	e     *eval
 	ref   ast.Ref
 	terms []*ast.Term
+	ir    *ast.IndexResult
 }
 
 func (e evalFunc) eval(iter unifyIterator) error {
 
-	ir, err := e.e.getRules(e.ref)
-	if err != nil {
-		return err
-	}
-
 	// default functions aren't supported:
 	// https://github.com/open-policy-agent/opa/issues/2445
-	if len(ir.Rules) == 0 {
+	if len(e.ir.Rules) == 0 {
 		return nil
 	}
 
-	argCount := len(ir.Rules[0].Head.Args)
+	argCount := len(e.ir.Rules[0].Head.Args)
 
-	if len(ir.Else) > 0 && e.e.unknown(e.e.query[e.e.index], e.e.bindings) {
+	if len(e.ir.Else) > 0 && e.e.unknown(e.e.query[e.e.index], e.e.bindings) {
 		// Partial evaluation of ordered rules is not supported currently. Save the
 		// expression and continue. This could be revisited in the future.
 		return e.e.saveCall(argCount, e.terms, iter)
 	}
 
+	if e.e.partial() && (e.e.inliningControl.shallow || e.e.inliningControl.Disabled(e.ref, false)) {
+		// check if the function definitions, or any of the arguments
+		// contain something unknown
+		unknown := e.e.unknown(e.ref, e.e.bindings)
+		for i := 1; !unknown && i <= argCount; i++ {
+			unknown = e.e.unknown(e.terms[i], e.e.bindings)
+		}
+		if unknown {
+			return e.partialEvalSupport(iter)
+		}
+	}
+
 	var cacheKey ast.Ref
 	var hit bool
+	var err error
 	if !e.e.partial() {
 		cacheKey, hit, err = e.evalCache(argCount, iter)
 		if err != nil {
@@ -1533,13 +1547,13 @@ func (e evalFunc) eval(iter unifyIterator) error {
 
 	var prev *ast.Term
 
-	for i := range ir.Rules {
-		next, err := e.evalOneRule(iter, ir.Rules[i], cacheKey, prev)
+	for i := range e.ir.Rules {
+		next, err := e.evalOneRule(iter, e.ir.Rules[i], cacheKey, prev)
 		if err != nil {
 			return err
 		}
 		if next == nil {
-			for _, rule := range ir.Else[ir.Rules[i]] {
+			for _, rule := range e.ir.Else[e.ir.Rules[i]] {
 				next, err = e.evalOneRule(iter, rule, cacheKey, prev)
 				if err != nil {
 					return err
@@ -1649,6 +1663,75 @@ func (e evalFunc) evalOneRule(iter unifyIterator, rule *ast.Rule, cacheKey ast.R
 	})
 
 	return result, err
+}
+
+func (e evalFunc) partialEvalSupport(iter unifyIterator) error {
+
+	path := e.e.namespaceRef(e.ref)
+	term := ast.NewTerm(path)
+
+	if !e.e.saveSupport.Exists(path) {
+		for _, rule := range e.ir.Rules {
+			err := e.partialEvalSupportRule(rule, path)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	if !e.e.saveSupport.Exists(path) { // we haven't saved anything, nothing to call
+		return nil
+	}
+
+	return e.e.saveCall(len(e.terms), append([]*ast.Term{term}, e.terms[1:]...), iter)
+}
+
+func (e evalFunc) partialEvalSupportRule(rule *ast.Rule, path ast.Ref) error {
+
+	child := e.e.child(rule.Body)
+	child.traceEnter(rule)
+
+	e.e.saveStack.PushQuery(nil)
+
+	// treat the function arguments as unknown during rule body evaluation
+	var args []*ast.Term
+	ast.WalkVars(rule.Head.Args, func(v ast.Var) bool {
+		args = append(args, ast.VarTerm(string(v)))
+		return false
+	})
+	e.e.saveSet.Push(args, child.bindings)
+
+	err := child.eval(func(child *eval) error {
+		child.traceExit(rule)
+
+		current := e.e.saveStack.PopQuery()
+		plugged := current.Plug(e.e.caller.bindings)
+
+		// Skip this rule body if it fails to type-check.
+		// Type-checking failure means the rule body will never succeed.
+		if e.e.compiler.PassesTypeCheck(plugged) {
+			head := &ast.Head{
+				Name:  rule.Head.Name,
+				Value: child.bindings.PlugNamespaced(rule.Head.Value, e.e.caller.bindings),
+				Args:  make([]*ast.Term, len(rule.Head.Args)),
+			}
+			for i, a := range rule.Head.Args {
+				head.Args[i] = child.bindings.PlugNamespaced(a, e.e.caller.bindings)
+			}
+
+			e.e.saveSupport.Insert(path, &ast.Rule{
+				Head: head,
+				Body: plugged,
+			})
+		}
+		child.traceRedo(rule)
+		e.e.saveStack.PushQuery(current)
+		return nil
+	})
+
+	e.e.saveSet.Pop()
+	e.e.saveStack.PopQuery()
+	return err
 }
 
 type evalTree struct {
@@ -2125,7 +2208,8 @@ func (e evalVirtualPartial) evalOneRuleContinue(iter unifyIterator, rule *ast.Ru
 
 func (e evalVirtualPartial) partialEvalSupport(iter unifyIterator) error {
 
-	path, term := e.e.savePackagePathAndTerm(e.plugged[:e.pos+1], e.ref)
+	path := e.e.namespaceRef(e.plugged[:e.pos+1])
+	term := ast.NewTerm(e.e.namespaceRef(e.ref))
 
 	var defined bool
 
@@ -2414,7 +2498,8 @@ func (e evalVirtualComplete) partialEval(iter unifyIterator) error {
 
 func (e evalVirtualComplete) partialEvalSupport(iter unifyIterator) error {
 
-	path, term := e.e.savePackagePathAndTerm(e.plugged[:e.pos+1], e.ref)
+	path := e.e.namespaceRef(e.plugged[:e.pos+1])
+	term := ast.NewTerm(e.e.namespaceRef(e.ref))
 
 	if !e.e.saveSupport.Exists(path) {
 
@@ -2638,13 +2723,11 @@ func (e *eval) comprehensionIndex(term *ast.Term) *ast.ComprehensionIndex {
 	return e.compiler.ComprehensionIndex(term)
 }
 
-func (e *eval) savePackagePathAndTerm(plugged, ref ast.Ref) (ast.Ref, *ast.Term) {
-
+func (e *eval) namespaceRef(ref ast.Ref) ast.Ref {
 	if e.skipSaveNamespace {
-		return plugged.Copy(), ast.NewTerm(ref.Copy())
+		return ref.Copy()
 	}
-
-	return plugged.Insert(e.saveNamespace, 1), ast.NewTerm(ref.Insert(e.saveNamespace, 1))
+	return ref.Insert(e.saveNamespace, 1)
 }
 
 type savePair struct {
