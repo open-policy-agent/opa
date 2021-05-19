@@ -1821,6 +1821,30 @@ func TestTopDownPartialEval(t *testing.T) {
 			},
 		},
 		{
+			note:  "function inlining: output checked",
+			query: "data.test.p = true",
+			modules: []string{`
+					package test
+					f(x) = y {
+						y = x == 1
+					}
+					p {
+						f(input)
+					}
+				`},
+			wantQueryASTs: []ast.Body{
+				ast.NewBody(
+					ast.NewExpr(
+						ast.CallTerm(
+							ast.NewTerm(ast.Equal.Ref()),
+							ast.NewTerm(ast.InputRootRef),
+							ast.IntNumberTerm(1),
+						),
+					),
+				),
+			},
+		},
+		{
 			note:  "disable inlining: complete doc",
 			query: "data.test.p = true",
 			modules: []string{`
@@ -1867,6 +1891,27 @@ func TestTopDownPartialEval(t *testing.T) {
 				q = ["a", "b"] { 2 = input }`,
 			},
 			disableInlining: []string{`data.test.q`},
+		},
+		{
+			note:  "disable inlining: function",
+			query: "data.test.p = true",
+			modules: []string{`
+				package test
+
+				p { q[x]; f(x) }
+				q = {"a", "b"}
+				f(x) { input = x }
+			`},
+			wantQueries: []string{
+				`data.partial.test.f("a")`,
+				`data.partial.test.f("b")`,
+			},
+			wantSupport: []string{
+				`package partial.test
+
+				f(__local0__3) { input = __local0__3 }`,
+			},
+			disableInlining: []string{"data.test.f"},
 		},
 		{
 			note:  "disable inlining: partial doc",
@@ -2150,7 +2195,7 @@ func TestTopDownPartialEval(t *testing.T) {
 			},
 		},
 		{
-			note:  "shallow inlining: function output checked",
+			note:  "shallow inlining: function not inlined if no unknowns in rule bodies, but in args",
 			query: "data.test.p = true",
 			modules: []string{`
 					package test
@@ -2158,7 +2203,9 @@ func TestTopDownPartialEval(t *testing.T) {
 					f(x) = y {
 						y = x == 1
 					}
-
+					f(x) = y {
+						y = x == 2
+					}
 					p {
 						f(input)
 					}
@@ -2168,7 +2215,162 @@ func TestTopDownPartialEval(t *testing.T) {
 			wantSupport: []string{
 				`package partial.test
 
-				p = true { __local2__1 = input; __local2__1 = __local0__2; equal(__local0__2, 1, __local1__2); y2 = __local1__2; y2 }
+				p = true { __local4__1 = input; data.partial.test.f(__local4__1) }
+				f(__local0__2) = y2 { equal(__local0__2, 1, __local2__2); y2 = __local2__2 }
+				f(__local1__3) = y3 { equal(__local1__3, 2, __local3__3); y3 = __local3__3 }`,
+			},
+		},
+		{
+			note:    "shallow inlining: function with unknowns in rule body",
+			query:   "data.test.f(1, x)",
+			shallow: true,
+			modules: []string{
+				`package test
+				f(x) = true { input.x = x }
+				f(x) = false { input.y = x }`,
+			},
+			wantQueries: []string{`data.partial.test.f(1, x)`},
+			wantSupport: []string{
+				`package partial.test
+				f(__local0__2) = true { input.x = __local0__2 }
+				f(__local1__1) = false { input.y = __local1__1 }`,
+			},
+		},
+		{
+			note:    "shallow inlining: functions with no unknowns in rule body or output, always true",
+			query:   "data.test.f(1, y)",
+			shallow: true,
+			modules: []string{
+				`package test
+				f(x) = true { x >= 1 }
+				f(x) = false { x < 0 }
+				f(x) = "meow" { false }`,
+			},
+			wantQueries: []string{`y = true`},
+		},
+		{
+			note:    "shallow inlining: functions with multiple args, no unknowns",
+			query:   "data.test.f(1, [1,2,3], y)",
+			shallow: true,
+			modules: []string{
+				`package test
+				f(x, y) = true { x > 1 }
+				f(x, y) = false {
+					x <= 0
+					count(y) == 3
+				}`,
+			},
+			wantQueries: []string{},
+		},
+		{
+			note:    "shallow inlining: functions that are always undefined",
+			query:   "data.test.f(1, y)",
+			shallow: true,
+			modules: []string{
+				`package test
+				f(x) = "uhm" { input.x = "x"; false }
+				f(x) = "like" { input.y = "y"; false }
+				f(x) = "whatever" { false }`,
+			},
+			wantQueries: []string{},
+		},
+		{
+			note:    "shallow inlining: functions with non-var arguments",
+			query:   "data.test.f(1, y)",
+			shallow: true,
+			modules: []string{
+				`package test
+				f(true) = true
+				f(x) = false { x != true }`,
+			},
+			wantQueries: []string{`y = false`},
+		},
+		{
+			note:    "shallow inlining: functions with unknown call-site arguments",
+			query:   "input = x; data.test.f([1, x])",
+			shallow: true,
+			modules: []string{
+				`package test
+				f([x, y]) {
+				  z = 7
+				  x > (y+z)
+				}`,
+			},
+			wantQueries: []string{`input = x; data.partial.test.f([1, x])`},
+			wantSupport: []string{
+				`package partial.test
+				f([__local0__1, __local1__1]) = true {
+					plus(__local1__1, 7, __local2__1)
+					gt(__local0__1, __local2__1)
+				}`,
+			},
+		},
+		{
+			note:    "shallow inlining: function unknowns transitive",
+			query:   "data.test.p = true",
+			shallow: true,
+			modules: []string{
+				`
+					package test
+
+					p {
+						f(1)
+					}
+
+					f(x) {
+						g(x)
+					}
+
+					g(x) {
+						x = input
+					}
+				`,
+			},
+			wantQueries: []string{`data.partial.test.p = true`},
+			wantSupport: []string{
+				`
+					package partial.test
+
+					p { data.partial.test.f(1) }
+					f(__local0__2) { data.partial.test.g(__local0__2) }
+					g(__local1__3) { __local1__3 = input }
+				`,
+			},
+		},
+		{
+			note:    "shallow inlining: function unknowns transitive - mixed",
+			query:   "data.test.p = true",
+			shallow: true,
+			modules: []string{
+				`
+					package test
+
+					p {
+						f(1) # unknown dependency so must be saved
+						h(8) # known so can be evaluated
+					}
+
+					f(x) {
+						g(x)
+					}
+
+					g(x) {
+						x = input
+					}
+
+					h(x) {
+						x > 7
+					}
+				`,
+			},
+			wantQueries: []string{`data.partial.test.p = true`},
+			wantSupport: []string{
+				`
+					package partial.test
+
+					p { data.partial.test.f(1) }
+					f(__local0__2) { data.partial.test.g(__local0__2) }
+					g(__local1__3) { __local1__3 = input }
 				`,
 			},
 		},

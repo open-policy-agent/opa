@@ -57,7 +57,7 @@ func (ss *saveSet) contains(t *ast.Term, b *bindings) bool {
 	return false
 }
 
-// ContainsRecursive retruns true if the term t is or contains a term that is
+// ContainsRecursive returns true if the term t is or contains a term that is
 // contained in the save set. This function will close over the binding list
 // when it encounters vars.
 func (ss *saveSet) ContainsRecursive(t *ast.Term, b *bindings) bool {
