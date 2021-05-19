@@ -87,11 +87,6 @@ func TestCompare(t *testing.T) {
 	}
 }
 
-type fixtureJSON struct {
-	GreaterVersion *Version
-	LesserVersion  *Version
-}
-
 func TestBadInput(t *testing.T) {
 	bad := []string{
 		"1.2",

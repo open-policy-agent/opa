@@ -20,6 +20,9 @@ type maskOP string
 const (
 	maskOPRemove maskOP = "remove"
 	maskOPUpsert maskOP = "upsert"
+
+	partInput  = "input"
+	partResult = "result"
 )
 
 var (
@@ -61,7 +64,7 @@ func newMaskRule(path string, opts ...maskRuleOption) (*maskRule, error) {
 
 	parts := strings.Split(path[1:], "/")
 
-	if parts[0] != "input" && parts[0] != "result" {
+	if parts[0] != partInput && parts[0] != partResult {
 		return nil, fmt.Errorf("mask prefix not allowed: %v", parts[0])
 	}
 
@@ -131,7 +134,7 @@ func (r maskRule) Mask(event *EventV1) error {
 	var maskObjPtr **interface{} // pointer to the event Input|Result pointer itself
 
 	switch p := r.escapedParts[0]; p {
-	case "input":
+	case partInput:
 		if event.Input == nil {
 			if r.failUndefinedPath {
 				return errMaskInvalidObject
@@ -141,7 +144,7 @@ func (r maskRule) Mask(event *EventV1) error {
 		maskObj = event.Input
 		maskObjPtr = &event.Input
 
-	case "result":
+	case partResult:
 		if event.Result == nil {
 			if r.failUndefinedPath {
 				return errMaskInvalidObject
@@ -329,7 +332,7 @@ func (rs maskRuleSet) Mask(event *EventV1) {
 		// result must be deep copied if there are any mask rules
 		// targeting it, to avoid modifying the result sent
 		// to the consumer
-		if mRule.escapedParts[0] == "result" && event.Result != nil && !rs.resultCopied {
+		if mRule.escapedParts[0] == partResult && event.Result != nil && !rs.resultCopied {
 			resultCopy := deepcopy.DeepCopy(*event.Result)
 			event.Result = &resultCopy
 			rs.resultCopied = true

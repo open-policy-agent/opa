@@ -588,7 +588,7 @@ func (p *Plugin) Start(ctx context.Context) error {
 func (p *Plugin) Stop(ctx context.Context) {
 	done := make(chan struct{})
 	p.stop <- done
-	_ = <-done
+	<-done
 	p.manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateNotReady})
 	return
 }

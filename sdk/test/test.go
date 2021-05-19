@@ -115,7 +115,7 @@ func (s *Server) handleBundles(w http.ResponseWriter, r *http.Request) {
 		module, err := ast.ParseModule(url, str)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte(err.Error()))
+			_, _ = w.Write([]byte(err.Error()))
 			return
 		}
 		modules = append(modules, bundle.ModuleFile{
@@ -135,11 +135,11 @@ func (s *Server) handleBundles(w http.ResponseWriter, r *http.Request) {
 	}).Build(r.Context())
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(err.Error()))
+		_, _ = w.Write([]byte(err.Error()))
 		return
 	}
 
 	// Write out the bundle
 	w.WriteHeader(http.StatusOK)
-	io.Copy(w, buf)
+	_, _ = io.Copy(w, buf)
 }

@@ -298,7 +298,9 @@ func TestCustomVerifier(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Expected error when registering with default ID")
 	}
-	RegisterVerifier("_test", custom)
+	if err := RegisterVerifier("_test", custom); err != nil {
+		t.Fatal(err)
+	}
 	defaultVerifier, err := GetVerifier(defaultVerifierID)
 	if err != nil {
 		t.Fatalf("Unexpected error %v", err)

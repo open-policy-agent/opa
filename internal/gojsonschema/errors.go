@@ -1,3 +1,4 @@
+// nolint: goconst // String duplication will be handled later by using errors.Is.
 package gojsonschema
 
 import (

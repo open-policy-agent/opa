@@ -29,7 +29,10 @@ func TestRunBenchmark(t *testing.T) {
 	args := []string{"1 + 1"}
 	var buf bytes.Buffer
 
-	rc := benchMain(args, params, &buf, &goBenchRunner{})
+	rc, err := benchMain(args, params, &buf, &goBenchRunner{})
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
 
 	if rc != 0 {
 		t.Fatalf("Unexpected return code %d, expected 0", rc)
@@ -37,7 +40,7 @@ func TestRunBenchmark(t *testing.T) {
 
 	// Expect a json serialized benchmark result with histogram fields
 	var br testing.BenchmarkResult
-	err := util.UnmarshalJSON(buf.Bytes(), &br)
+	err = util.UnmarshalJSON(buf.Bytes(), &br)
 	if err != nil {
 		t.Fatalf("Unexpected error unmarshalling output: %s", err)
 	}
@@ -62,7 +65,10 @@ func TestRunBenchmarkFailFast(t *testing.T) {
 	args := []string{"a := 1; a > 2"}
 	var buf bytes.Buffer
 
-	rc := benchMain(args, params, &buf, &goBenchRunner{})
+	rc, err := benchMain(args, params, &buf, &goBenchRunner{})
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
 
 	if rc != 1 {
 		t.Fatalf("Unexpected return code %d, expected 1", rc)
@@ -70,7 +76,7 @@ func TestRunBenchmarkFailFast(t *testing.T) {
 
 	// Expect a json serialized benchmark result with histogram fields
 	var pr presentation.Output
-	err := util.UnmarshalJSON(buf.Bytes(), &pr)
+	err = util.UnmarshalJSON(buf.Bytes(), &pr)
 	if err != nil {
 		t.Fatalf("Unexpected error unmarshalling output: %s", err)
 	}
@@ -100,7 +106,10 @@ func TestBenchPartial(t *testing.T) {
 	args := []string{"input=1"}
 	var buf bytes.Buffer
 
-	rc := benchMain(args, params, &buf, &mockBenchRunner{})
+	rc, err := benchMain(args, params, &buf, &mockBenchRunner{})
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
 
 	if rc != 0 {
 		t.Fatalf("Unexpected return code %d, expected 0", rc)
@@ -112,7 +121,10 @@ func TestBenchMainErrPreparing(t *testing.T) {
 	args := []string{"???"} // query compile error
 	var buf bytes.Buffer
 
-	rc := benchMain(args, params, &buf, &mockBenchRunner{})
+	rc, err := benchMain(args, params, &buf, &mockBenchRunner{})
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
 
 	if rc != 1 {
 		t.Fatalf("Unexpected return code %d, expected 1", rc)
@@ -129,7 +141,10 @@ func TestBenchMainErrRunningBenchmark(t *testing.T) {
 		return testing.BenchmarkResult{}, errors.New("error error error")
 	}
 
-	rc := benchMain(args, params, &buf, mockRunner)
+	rc, err := benchMain(args, params, &buf, mockRunner)
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
 
 	if rc != 1 {
 		t.Fatalf("Unexpected return code %d, expected 1", rc)
@@ -150,7 +165,10 @@ func TestBenchMainWithCount(t *testing.T) {
 		return testing.BenchmarkResult{}, nil
 	}
 
-	rc := benchMain(args, params, &buf, mockRunner)
+	rc, err := benchMain(args, params, &buf, mockRunner)
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
 
 	if rc != 0 {
 		t.Fatalf("Unexpected return code %d, expected 0", rc)
@@ -175,7 +193,10 @@ func TestBenchMainWithNegativeCount(t *testing.T) {
 		return testing.BenchmarkResult{}, nil
 	}
 
-	rc := benchMain(args, params, &buf, mockRunner)
+	rc, err := benchMain(args, params, &buf, mockRunner)
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
 
 	if rc != 0 {
 		t.Fatalf("Unexpected return code %d, expected 0", rc)
@@ -212,7 +233,10 @@ func validateBenchMainPrep(t *testing.T, args []string, params benchmarkCommandP
 		return testing.BenchmarkResult{}, nil
 	}
 
-	rc := benchMain(args, params, &buf, mockRunner)
+	rc, err := benchMain(args, params, &buf, mockRunner)
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
 	if rc != 0 {
 		t.Fatalf("Unexpected return code %d, expected 0", rc)
 	}
@@ -255,7 +279,10 @@ func TestBenchMainInvalidInputFile(t *testing.T) {
 
 		var buf bytes.Buffer
 
-		rc := benchMain(args, params, &buf, &mockBenchRunner{})
+		rc, err := benchMain(args, params, &buf, &mockBenchRunner{})
+		if err != nil {
+			t.Fatalf("Unexpected error: %s", err)
+		}
 		if rc != 1 {
 			t.Fatalf("Unexpected return code %d, expected 1", rc)
 		}
@@ -306,7 +333,10 @@ func TestBenchMainWithBundleData(t *testing.T) {
 			t.Fatalf("Unexpected error: %s", err)
 		}
 
-		params.bundlePaths.Set(bundlePath)
+		err = params.bundlePaths.Set(bundlePath)
+		if err != nil {
+			t.Fatalf("Unexpected error: %s", err)
+		}
 
 		args := []string{"data.a.b.x"}
 
@@ -317,7 +347,10 @@ func TestBenchMainWithBundleData(t *testing.T) {
 
 func TestRenderBenchmarkResultJSONOutput(t *testing.T) {
 	params := testBenchParams()
-	params.outputFormat.Set(evalJSONOutput)
+	err := params.outputFormat.Set(evalJSONOutput)
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
 
 	br := fakeBenchResults()
 
@@ -356,7 +389,10 @@ func TestRenderBenchmarkResultJSONOutput(t *testing.T) {
 func TestRenderBenchmarkResultPrettyOutput(t *testing.T) {
 	params := testBenchParams()
 	params.benchMem = false
-	params.outputFormat.Set(evalPrettyOutput)
+	err := params.outputFormat.Set(evalPrettyOutput)
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
 
 	br := fakeBenchResults()
 
@@ -390,7 +426,10 @@ func TestRenderBenchmarkResultPrettyOutput(t *testing.T) {
 func TestRenderBenchmarkResultPrettyOutputShowAllocs(t *testing.T) {
 	params := testBenchParams()
 	params.benchMem = true
-	params.outputFormat.Set(evalPrettyOutput)
+	err := params.outputFormat.Set(evalPrettyOutput)
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
 
 	br := fakeBenchResults()
 
@@ -426,7 +465,10 @@ func TestRenderBenchmarkResultPrettyOutputShowAllocs(t *testing.T) {
 func TestRenderBenchmarkResultGoBenchOutputShowAllocs(t *testing.T) {
 	params := testBenchParams()
 	params.benchMem = true
-	params.outputFormat.Set(benchmarkGoBenchOutput)
+	err := params.outputFormat.Set(benchmarkGoBenchOutput)
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
 
 	br := fakeBenchResults()
 
@@ -446,13 +488,19 @@ func TestRenderBenchmarkResultGoBenchOutputShowAllocs(t *testing.T) {
 
 func TestRenderBenchmarkErrorJSONOutput(t *testing.T) {
 	params := testBenchParams()
-	params.outputFormat.Set(evalJSONOutput)
+	err := params.outputFormat.Set(evalJSONOutput)
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
 
 	var buf bytes.Buffer
 
-	_, err := ast.ParseBody("???")
+	_, err = ast.ParseBody("???")
 
-	renderBenchmarkError(params, err, &buf)
+	err = renderBenchmarkError(params, err, &buf)
+	if err != nil {
+		t.Fatalf("Unexpected error %v", err)
+	}
 
 	actual := buf.String()
 	expected := `{
@@ -481,14 +529,20 @@ func TestRenderBenchmarkErrorJSONOutput(t *testing.T) {
 
 func TestRenderBenchmarkErrorPrettyOutput(t *testing.T) {
 	params := testBenchParams()
-	params.outputFormat.Set(evalPrettyOutput)
+	err := params.outputFormat.Set(evalPrettyOutput)
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
 
 	testPrettyBenchmarkOutput(t, params)
 }
 
 func TestRenderBenchmarkErrorGoBenchOutput(t *testing.T) {
 	params := testBenchParams()
-	params.outputFormat.Set(benchmarkGoBenchOutput)
+	err := params.outputFormat.Set(benchmarkGoBenchOutput)
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
 
 	testPrettyBenchmarkOutput(t, params)
 }
@@ -498,7 +552,10 @@ func testPrettyBenchmarkOutput(t *testing.T, params benchmarkCommandParams) {
 
 	_, err := ast.ParseBody("???")
 
-	renderBenchmarkError(params, err, &buf)
+	err = renderBenchmarkError(params, err, &buf)
+	if err != nil {
+		t.Fatalf("Unexpected error %v", err)
+	}
 
 	actual := buf.String()
 	expected := `1 error occurred: 1:1: rego_parse_error: illegal token
@@ -514,7 +571,7 @@ func testBenchParams() benchmarkCommandParams {
 	params := newBenchmarkEvalParams()
 	params.benchMem = true
 	params.metrics = true
-	params.outputFormat.Set(evalJSONOutput)
+	_ = params.outputFormat.Set(evalJSONOutput)
 	params.count = 1
 	return params
 }

@@ -190,8 +190,14 @@ func doDiff(old, new []byte) (stdout, stderr bytes.Buffer, err error) {
 	defer os.Remove(n.Name())
 	defer n.Close()
 
-	o.Write(old)
-	n.Write(new)
+	_, err = o.Write(old)
+	if err != nil {
+		return stdout, stderr, err
+	}
+	_, err = n.Write(new)
+	if err != nil {
+		return stdout, stderr, err
+	}
 
 	cmd := exec.Command("diff", "-u", o.Name(), n.Name())
 	cmd.Stdout = &stdout

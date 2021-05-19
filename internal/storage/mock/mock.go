@@ -245,10 +245,8 @@ func (s *Store) Abort(ctx context.Context, txn storage.Transaction) {
 	mockTxn := txn.(*Transaction)
 	s.inmem.Abort(ctx, mockTxn.txn)
 	mockTxn.Aborted++
-	return
 }
 
 func getRealTxn(txn storage.Transaction) storage.Transaction {
 	return txn.(*Transaction).txn
-
 }

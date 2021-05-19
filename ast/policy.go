@@ -20,7 +20,6 @@ import (
 // subsequent lookups. If the hash seeds are out of sync, lookups will fail.
 var hashSeed = rand.New(rand.NewSource(time.Now().UnixNano()))
 var hashSeed0 = (uint64(hashSeed.Uint32()) << 32) | uint64(hashSeed.Uint32())
-var hashSeed1 = (uint64(hashSeed.Uint32()) << 32) | uint64(hashSeed.Uint32())
 
 // DefaultRootDocument is the default root document.
 //
@@ -416,8 +415,6 @@ func (mod *Module) Equal(other *Module) bool {
 }
 
 func (mod *Module) String() string {
-	buf := []string{}
-
 	byNode := map[Node][]*Annotations{}
 	for _, a := range mod.Annotations {
 		byNode[a.node] = append(byNode[a.node], a)
@@ -433,6 +430,7 @@ func (mod *Module) String() string {
 		return buf
 	}
 
+	buf := []string{}
 	buf = appendAnnotationStrings(buf, mod.Package)
 	buf = append(buf, mod.Package.String())
 
@@ -1566,12 +1564,6 @@ func (rs RuleSet) String() string {
 	}
 	return "{" + strings.Join(buf, ", ") + "}"
 }
-
-type ruleSlice []*Rule
-
-func (s ruleSlice) Less(i, j int) bool { return Compare(s[i], s[j]) < 0 }
-func (s ruleSlice) Swap(i, j int)      { x := s[i]; s[i] = s[j]; s[j] = x }
-func (s ruleSlice) Len() int           { return len(s) }
 
 // Returns true if the equality or assignment expression referred to by expr
 // has a valid number of arguments.

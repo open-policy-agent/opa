@@ -2,6 +2,7 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
+// nolint: goconst // string duplication is for test readability.
 package repl
 
 import (
@@ -62,21 +63,27 @@ baz(_) = y {
 
 	var buf bytes.Buffer
 	repl := newRepl(store, &buf)
-	repl.OneShot(ctx, "json")
-	repl.OneShot(ctx, "data.a.b.d.baz(null, x)")
+
+	if err := repl.OneShot(ctx, "json"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, "data.a.b.d.baz(null, x)"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	exp := util.MustUnmarshalJSON([]byte(`{"result": [{"expressions": [{"text":"data.a.b.d.baz(null, x)", "value": true, "location": {"row": 1, "col": 1}}], "bindings": {"x": "foo"}}]}`))
 	result := util.MustUnmarshalJSON(buf.Bytes())
 	if !reflect.DeepEqual(exp, result) {
 		t.Fatalf("expected data.a.b.d.baz(x) to be %v, got %v", exp, result)
 	}
 
-	err := repl.OneShot(ctx, "p(x) = y { y = x+4 }")
-	if err != nil {
-		t.Fatalf("failed to compile repl function: %v", err)
+	if err := repl.OneShot(ctx, "p(x) = y { y = x+4 }"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
 	}
 
 	buf.Reset()
-	repl.OneShot(ctx, "data.repl.p(5, y)")
+	if err := repl.OneShot(ctx, "data.repl.p(5, y)"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	exp = util.MustUnmarshalJSON([]byte(`{
 		"result": [
 			{
@@ -101,11 +108,17 @@ baz(_) = y {
 		t.Fatalf("expected datrepl.p(x) to be %v, got %v", exp, result)
 	}
 
-	repl.OneShot(ctx, "f(1, x) = y { y = x }")
-	repl.OneShot(ctx, "f(2, x) = y { y = x*2 }")
+	if err := repl.OneShot(ctx, "f(1, x) = y { y = x }"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, "f(2, x) = y { y = x*2 }"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
 	buf.Reset()
-	repl.OneShot(ctx, "data.repl.f(1, 2, y)")
+	if err := repl.OneShot(ctx, "data.repl.f(1, 2, y)"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	exp = util.MustUnmarshalJSON([]byte(`{
 		"result": [
 			{
@@ -130,7 +143,9 @@ baz(_) = y {
 		t.Fatalf("expected data.repl.f(1, 2, y) to be %v, got %v", exp, result)
 	}
 	buf.Reset()
-	repl.OneShot(ctx, "data.repl.f(2, 2, y)")
+	if err := repl.OneShot(ctx, "data.repl.f(2, 2, y)"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	exp = util.MustUnmarshalJSON([]byte(`{
 		"result": [
 			{
@@ -185,7 +200,9 @@ r = 3 { true }`)
 
 	var buf bytes.Buffer
 	repl := newRepl(store, &buf)
-	repl.OneShot(ctx, "s = 4")
+	if err := repl.OneShot(ctx, "s = 4"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	buf.Reset()
 
 	result := repl.complete("")
@@ -224,8 +241,12 @@ r = 3 { true }`)
 		t.Fatalf("Expected %v but got: %v", expected, result)
 	}
 
-	repl.OneShot(ctx, "import data.a.b.c.p as xyz")
-	repl.OneShot(ctx, "import data.a.b.d")
+	if err := repl.OneShot(ctx, "import data.a.b.c.p as xyz"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, "import data.a.b.d"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
 	result = repl.complete("x")
 	expected = []string{
@@ -248,7 +269,9 @@ func TestDump(t *testing.T) {
 	store := inmem.NewFromObject(data)
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
-	repl.OneShot(ctx, "dump")
+	if err := repl.OneShot(ctx, "dump"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	expectOutput(t, buffer.String(), "{\"a\":[1,2,3,4]}\n")
 }
 
@@ -269,9 +292,16 @@ func TestDumpPath(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	defer os.RemoveAll(dir)
+	t.Cleanup(func() {
+		err := os.RemoveAll(dir)
+		if err != nil {
+			t.Errorf("error cleaning up with RemoveAll(): %v", err)
+		}
+	})
 	file := filepath.Join(dir, "tmpfile")
-	repl.OneShot(ctx, fmt.Sprintf("dump %s", file))
+	if err := repl.OneShot(ctx, fmt.Sprintf("dump %s", file)); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
 	if buffer.String() != "" {
 		t.Errorf("Expected no output but got: %v", buffer.String())
@@ -304,7 +334,9 @@ func TestHelp(t *testing.T) {
 	store := inmem.New()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
-	repl.OneShot(ctx, "help deadbeef")
+	if err := repl.OneShot(ctx, "help deadbeef"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
 	expected := "blah blah blah\n"
 
@@ -321,7 +353,9 @@ func TestHelpWithOPAVersionReport(t *testing.T) {
 
 	// empty report
 	repl.SetOPAVersionReport(nil)
-	repl.OneShot(ctx, "help")
+	if err := repl.OneShot(ctx, "help"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
 	if strings.Contains(buffer.String(), "Version Info") {
 		t.Fatalf("Unexpected output from help: \"%v\"", buffer.String())
@@ -334,7 +368,9 @@ func TestHelpWithOPAVersionReport(t *testing.T) {
 		{"Download", "https://openpolicyagent.org/downloads/v0.19.2/opa_darwin_amd64"},
 		{"Release Notes", "https://github.com/open-policy-agent/opa/releases/tag/v0.19.2"},
 	})
-	repl.OneShot(ctx, "help")
+	if err := repl.OneShot(ctx, "help"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
 	exp := `Latest Upstream Version : 0.19.2
 Download                : https://openpolicyagent.org/downloads/v0.19.2/opa_darwin_amd64
@@ -350,7 +386,9 @@ func TestShowDebug(t *testing.T) {
 	store := inmem.New()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
-	repl.OneShot(ctx, "show debug")
+	if err := repl.OneShot(ctx, "show debug"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
 	var result replDebugState
 
@@ -367,11 +405,21 @@ func TestShowDebug(t *testing.T) {
 
 	buffer.Reset()
 
-	repl.OneShot(ctx, "trace")
-	repl.OneShot(ctx, "metrics")
-	repl.OneShot(ctx, "instrument")
-	repl.OneShot(ctx, "profile")
-	repl.OneShot(ctx, "show debug")
+	if err := repl.OneShot(ctx, "trace"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, "metrics"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, "instrument"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, "profile"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, "show debug"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
 	exp.Explain = explainFull
 	exp.Metrics = true
@@ -393,13 +441,21 @@ func TestShow(t *testing.T) {
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
 
-	repl.OneShot(ctx, `package repl_test`)
-	repl.OneShot(ctx, "show")
+	if err := repl.OneShot(ctx, `package repl_test`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, "show"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	assertREPLText(t, buffer, "package repl_test\n")
 	buffer.Reset()
 
-	repl.OneShot(ctx, "import input.xyz")
-	repl.OneShot(ctx, "show")
+	if err := repl.OneShot(ctx, "import input.xyz"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, "show"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
 	expected := `package repl_test
 
@@ -407,8 +463,12 @@ import input.xyz` + "\n"
 	assertREPLText(t, buffer, expected)
 	buffer.Reset()
 
-	repl.OneShot(ctx, "import data.foo as bar")
-	repl.OneShot(ctx, "show")
+	if err := repl.OneShot(ctx, "import data.foo as bar"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, "show"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
 	expected = `package repl_test
 
@@ -417,11 +477,17 @@ import input.xyz` + "\n"
 	assertREPLText(t, buffer, expected)
 	buffer.Reset()
 
-	repl.OneShot(ctx, `p[1] { true }`)
+	if err := repl.OneShot(ctx, `p[1] { true }`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	buffer.Reset()
-	repl.OneShot(ctx, `p[2] { true }`)
+	if err := repl.OneShot(ctx, `p[2] { true }`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	buffer.Reset()
-	repl.OneShot(ctx, "show")
+	if err := repl.OneShot(ctx, "show"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
 	expected = `package repl_test
 
@@ -434,14 +500,22 @@ p[2]` + "\n"
 	assertREPLText(t, buffer, expected)
 	buffer.Reset()
 
-	repl.OneShot(ctx, "package abc")
-	repl.OneShot(ctx, "show")
+	if err := repl.OneShot(ctx, "package abc"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, "show"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
 	assertREPLText(t, buffer, "package abc\n")
 	buffer.Reset()
 
-	repl.OneShot(ctx, "package repl_test")
-	repl.OneShot(ctx, "show")
+	if err := repl.OneShot(ctx, "package repl_test"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, "show"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
 	assertREPLText(t, buffer, expected)
 	buffer.Reset()
@@ -453,9 +527,15 @@ func TestTypes(t *testing.T) {
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
 
-	repl.OneShot(ctx, "types")
-	repl.OneShot(ctx, `p[x] = y { x := "a"; y := 1 }`)
-	repl.OneShot(ctx, `p[x]`)
+	if err := repl.OneShot(ctx, "types"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, `p[x] = y { x := "a"; y := 1 }`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, `p[x]`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
 	output := strings.TrimSpace(buffer.String())
 
@@ -478,7 +558,9 @@ func TestUnknown(t *testing.T) {
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
 
-	repl.OneShot(ctx, "xs = [1,2,3]")
+	if err := repl.OneShot(ctx, "xs = [1,2,3]"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	buffer.Reset()
 
 	err := repl.OneShot(ctx, "unknown input")
@@ -486,7 +568,9 @@ func TestUnknown(t *testing.T) {
 		t.Fatal("Unexpected command error:", err)
 	}
 
-	repl.OneShot(ctx, "data.repl.xs[i] = x; input.x = x")
+	if err := repl.OneShot(ctx, "data.repl.xs[i] = x; input.x = x"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
 	output := strings.TrimSpace(buffer.String())
 	expected := strings.TrimSpace(`
@@ -515,7 +599,9 @@ func TestUnknownMetrics(t *testing.T) {
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
 
-	repl.OneShot(ctx, "xs = [1,2,3]")
+	if err := repl.OneShot(ctx, "xs = [1,2,3]"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	buffer.Reset()
 
 	err := repl.OneShot(ctx, "unknown input")
@@ -523,9 +609,13 @@ func TestUnknownMetrics(t *testing.T) {
 		t.Fatal("Unexpected command error:", err)
 	}
 
-	repl.OneShot(ctx, "metrics")
+	if err := repl.OneShot(ctx, "metrics"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
-	repl.OneShot(ctx, "data.repl.xs[i] = x; input.x = x")
+	if err := repl.OneShot(ctx, "data.repl.xs[i] = x; input.x = x"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
 	output := strings.TrimSpace(buffer.String())
 	expected := strings.TrimSpace(`
@@ -559,7 +649,9 @@ func TestUnknownJSON(t *testing.T) {
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
 
-	repl.OneShot(ctx, "xs = [1,2,3]")
+	if err := repl.OneShot(ctx, "xs = [1,2,3]"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	buffer.Reset()
 
 	err := repl.OneShot(ctx, "unknown input")
@@ -567,8 +659,12 @@ func TestUnknownJSON(t *testing.T) {
 		t.Fatal("Unexpected command error:", err)
 	}
 
-	repl.OneShot(ctx, "json")
-	repl.OneShot(ctx, "data.repl.xs[i] = x; input.x = x")
+	if err := repl.OneShot(ctx, "json"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, "data.repl.xs[i] = x; input.x = x"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
 	var result presentation.Output
 
@@ -594,7 +690,9 @@ func TestUnknownInvalid(t *testing.T) {
 
 	// Ensure that partial evaluation has not been enabled.
 	buffer.Reset()
-	repl.OneShot(ctx, "1+2")
+	if err := repl.OneShot(ctx, "1+2"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	result := strings.TrimSpace(buffer.String())
 	if result != "3" {
 		t.Fatal("want true but got:", result)
@@ -609,9 +707,15 @@ func TestUnset(t *testing.T) {
 
 	var err error
 
-	repl.OneShot(ctx, "magic = 23")
-	repl.OneShot(ctx, "p = 3.14")
-	repl.OneShot(ctx, "unset p")
+	if err := repl.OneShot(ctx, "magic = 23"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, "p = 3.14"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, "unset p"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
 	err = repl.OneShot(ctx, "p")
 
@@ -620,9 +724,15 @@ func TestUnset(t *testing.T) {
 	}
 
 	buffer.Reset()
-	repl.OneShot(ctx, "p = 3.14")
-	repl.OneShot(ctx, `p = 3 { false }`)
-	repl.OneShot(ctx, "unset p")
+	if err := repl.OneShot(ctx, "p = 3.14"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, `p = 3 { false }`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, "unset p"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
 	err = repl.OneShot(ctx, "p")
 	if _, ok := err.(ast.Errors); !ok {
@@ -642,8 +752,12 @@ func TestUnset(t *testing.T) {
 	}
 
 	buffer.Reset()
-	repl.OneShot(ctx, "p(x) = y { y = x }")
-	repl.OneShot(ctx, "unset p")
+	if err := repl.OneShot(ctx, "p(x) = y { y = x }"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, "unset p"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
 	err = repl.OneShot(ctx, "data.repl.p(1, 2)")
 	if err == nil || err.Error() != `1 error occurred: 1:1: rego_type_error: undefined function data.repl.p` {
@@ -651,9 +765,15 @@ func TestUnset(t *testing.T) {
 	}
 
 	buffer.Reset()
-	repl.OneShot(ctx, "p(1, x) = y { y = x }")
-	repl.OneShot(ctx, "p(2, x) = y { y = x+1 }")
-	repl.OneShot(ctx, "unset p")
+	if err := repl.OneShot(ctx, "p(1, x) = y { y = x }"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, "p(2, x) = y { y = x+1 }"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, "unset p"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
 	err = repl.OneShot(ctx, "data.repl.p(1, 2, 3)")
 	if err == nil || err.Error() != `1 error occurred: 1:1: rego_type_error: undefined function data.repl.p` {
@@ -661,38 +781,52 @@ func TestUnset(t *testing.T) {
 	}
 
 	buffer.Reset()
-	repl.OneShot(ctx, `unset q`)
+	if err := repl.OneShot(ctx, `unset q`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	if buffer.String() != "warning: no matching rules in current module\n" {
 		t.Fatalf("Expected unset error for missing rule but got: %v", buffer.String())
 	}
 
 	buffer.Reset()
-	repl.OneShot(ctx, `unset q`)
+	if err := repl.OneShot(ctx, `unset q`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	if buffer.String() != "warning: no matching rules in current module\n" {
 		t.Fatalf("Expected unset error for missing function but got: %v", buffer.String())
 	}
 
 	buffer.Reset()
-	repl.OneShot(ctx, `magic`)
+	if err := repl.OneShot(ctx, `magic`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	if buffer.String() != "23\n" {
 		t.Fatalf("Expected magic to be defined but got: %v", buffer.String())
 	}
 
 	buffer.Reset()
-	repl.OneShot(ctx, `package data.other`)
-	err = repl.OneShot(ctx, `unset magic`)
+	if err := repl.OneShot(ctx, `package data.other`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, `unset magic`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	if buffer.String() != "warning: no matching rules in current module\n" {
 		t.Fatalf("Expected unset error for bad syntax but got: %v", buffer.String())
 	}
 
-	repl.OneShot(ctx, `input = {}`)
+	if err := repl.OneShot(ctx, `input = {}`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
 	if err := repl.OneShot(ctx, `unset input`); err != nil {
 		t.Fatalf("Expected unset to succeed for input: %v", err)
 	}
 
 	buffer.Reset()
-	repl.OneShot(ctx, `not input`)
+	if err := repl.OneShot(ctx, `not input`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
 	if buffer.String() != "true\n" {
 		t.Fatalf("Expected unset input to remove input document: %v", buffer.String())
@@ -705,10 +839,14 @@ func TestOneShotEmptyBufferOneExpr(t *testing.T) {
 	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
-	repl.OneShot(ctx, "data.a[i].b.c[j] = 2")
+	if err := repl.OneShot(ctx, "data.a[i].b.c[j] = 2"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	expectOutput(t, buffer.String(), "+---+---+\n| i | j |\n+---+---+\n| 0 | 1 |\n+---+---+\n")
 	buffer.Reset()
-	repl.OneShot(ctx, "data.a[i].b.c[j] = \"deadbeef\"")
+	if err := repl.OneShot(ctx, "data.a[i].b.c[j] = \"deadbeef\""); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	expectOutput(t, buffer.String(), "undefined\n")
 }
 
@@ -717,7 +855,9 @@ func TestOneShotEmptyBufferOneRule(t *testing.T) {
 	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
-	repl.OneShot(ctx, `p[x] { data.a[i] = x }`)
+	if err := repl.OneShot(ctx, `p[x] { data.a[i] = x }`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	expectOutput(t, buffer.String(), "Rule 'p' defined in package repl. Type 'show' to see rules.\n")
 }
 
@@ -726,11 +866,17 @@ func TestOneShotBufferedExpr(t *testing.T) {
 	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
-	repl.OneShot(ctx, "data.a[i].b.c[j] = ")
+	if err := repl.OneShot(ctx, "data.a[i].b.c[j] = "); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	expectOutput(t, buffer.String(), "")
-	repl.OneShot(ctx, "2")
+	if err := repl.OneShot(ctx, "2"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	expectOutput(t, buffer.String(), "")
-	repl.OneShot(ctx, "")
+	if err := repl.OneShot(ctx, ""); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	expectOutput(t, buffer.String(), "+---+---+\n| i | j |\n+---+---+\n| 0 | 1 |\n+---+---+\n")
 }
 
@@ -739,20 +885,34 @@ func TestOneShotBufferedRule(t *testing.T) {
 	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
-	repl.OneShot(ctx, "p[x] { ")
+	if err := repl.OneShot(ctx, "p[x] { "); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	expectOutput(t, buffer.String(), "")
-	repl.OneShot(ctx, "data.a[i].b.c[1]")
+	if err := repl.OneShot(ctx, "data.a[i].b.c[1]"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	expectOutput(t, buffer.String(), "")
-	repl.OneShot(ctx, " = ")
+	if err := repl.OneShot(ctx, " = "); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	expectOutput(t, buffer.String(), "")
-	repl.OneShot(ctx, "x")
+	if err := repl.OneShot(ctx, "x"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	expectOutput(t, buffer.String(), "")
-	repl.OneShot(ctx, "}")
+	if err := repl.OneShot(ctx, "}"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	expectOutput(t, buffer.String(), "")
-	repl.OneShot(ctx, "")
+	if err := repl.OneShot(ctx, ""); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	expectOutput(t, buffer.String(), "Rule 'p' defined in package repl. Type 'show' to see rules.\n")
 	buffer.Reset()
-	repl.OneShot(ctx, "p[2]")
+	if err := repl.OneShot(ctx, "p[2]"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	expectOutput(t, buffer.String(), "2\n")
 }
 
@@ -762,7 +922,9 @@ func TestOneShotJSON(t *testing.T) {
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
 	repl.outputFormat = "json"
-	repl.OneShot(ctx, "data.a[i] = x")
+	if err := repl.OneShot(ctx, "data.a[i] = x"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	var expected interface{}
 	if err := util.UnmarshalJSON([]byte(`{
 		"result": [
@@ -850,7 +1012,9 @@ p = [1, 2, 3] { true }`)
 		panic(err)
 	}
 
-	repl.OneShot(ctx, "data")
+	if err := repl.OneShot(ctx, "data"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
 	expected := parseJSON(`
 	{
@@ -898,7 +1062,9 @@ func TestEvalFalse(t *testing.T) {
 	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
-	repl.OneShot(ctx, "false")
+	if err := repl.OneShot(ctx, "false"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	result := buffer.String()
 	if result != "false\n" {
 		t.Errorf("Expected result to be false but got: %v", result)
@@ -910,14 +1076,18 @@ func TestEvalConstantRule(t *testing.T) {
 	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
-	repl.OneShot(ctx, "pi = 3.14")
+	if err := repl.OneShot(ctx, "pi = 3.14"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	result := buffer.String()
 	if result != "Rule 'pi' defined in package repl. Type 'show' to see rules.\n" {
 		t.Errorf("Expected rule to be defined but got: %v", result)
 		return
 	}
 	buffer.Reset()
-	repl.OneShot(ctx, "pi")
+	if err := repl.OneShot(ctx, "pi"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	result = buffer.String()
 	expected := "3.14\n"
 	if result != expected {
@@ -927,11 +1097,17 @@ func TestEvalConstantRule(t *testing.T) {
 	buffer.Reset()
 	err := repl.OneShot(ctx, "pi.deadbeef")
 	result = buffer.String()
-	if result != "" || !strings.Contains(err.Error(), "undefined ref: data.repl.pi.deadbeef") {
+	expected = "undefined ref: data.repl.pi.deadbeef"
+	if err == nil {
+		t.Fatalf("Expected OneShot to return error %v but got: %v", expected, err)
+	}
+	if result != "" || !strings.Contains(err.Error(), expected) {
 		t.Fatalf("Expected pi.deadbeef to fail/error but got:\nresult: %q\nerr: %v", result, err)
 	}
 	buffer.Reset()
-	repl.OneShot(ctx, "pi > 3")
+	if err := repl.OneShot(ctx, "pi > 3"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	result = buffer.String()
 	if result != "true\n" {
 		t.Errorf("Expected pi > 3 to be true but got: %v", result)
@@ -944,8 +1120,12 @@ func TestEvalBooleanFlags(t *testing.T) {
 	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
-	repl.OneShot(ctx, "flags = [true, true]")
-	repl.OneShot(ctx, "flags[_]")
+	if err := repl.OneShot(ctx, "flags = [true, true]"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, "flags[_]"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	expected := strings.TrimSpace(`
 Rule 'flags' defined in package repl. Type 'show' to see rules.
 +----------+
@@ -960,8 +1140,12 @@ Rule 'flags' defined in package repl. Type 'show' to see rules.
 	}
 	buffer.Reset()
 
-	repl.OneShot(ctx, `flags2 = [true, "x", 1]`)
-	repl.OneShot(ctx, "flags2[_]")
+	if err := repl.OneShot(ctx, `flags2 = [true, "x", 1]`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, "flags2[_]"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	expected = strings.TrimSpace(`
 Rule 'flags2' defined in package repl. Type 'show' to see rules.
 +-----------+
@@ -982,12 +1166,18 @@ func TestEvalConstantRuleDefaultRootDoc(t *testing.T) {
 	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
-	repl.OneShot(ctx, "input = 1")
+	if err := repl.OneShot(ctx, "input = 1"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	buffer.Reset()
-	repl.OneShot(ctx, "input = 2")
+	if err := repl.OneShot(ctx, "input = 2"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	assertREPLText(t, buffer, "undefined\n")
 	buffer.Reset()
-	repl.OneShot(ctx, "input = 1")
+	if err := repl.OneShot(ctx, "input = 1"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	assertREPLText(t, buffer, "true\n")
 }
 
@@ -1002,44 +1192,62 @@ func TestEvalConstantRuleAssignment(t *testing.T) {
 	redefinedInput := "Rule 'input' re-defined in package repl. Type 'show' to see rules.\n"
 
 	repl := newRepl(store, &buffer)
-	repl.OneShot(ctx, "x = 1")
+	if err := repl.OneShot(ctx, "x = 1"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	assertREPLText(t, buffer, defined)
 	buffer.Reset()
-	repl.OneShot(ctx, "x := 2")
+	if err := repl.OneShot(ctx, "x := 2"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	assertREPLText(t, buffer, redefined)
 	buffer.Reset()
 
-	repl.OneShot(ctx, "show")
+	if err := repl.OneShot(ctx, "show"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	assertREPLText(t, buffer, `package repl
 
 x := 2
 `)
 	buffer.Reset()
 
-	repl.OneShot(ctx, "x := 3")
+	if err := repl.OneShot(ctx, "x := 3"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	assertREPLText(t, buffer, redefined)
 	buffer.Reset()
-	repl.OneShot(ctx, "x")
+	if err := repl.OneShot(ctx, "x"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	result := buffer.String()
 	if result != "3\n" {
 		t.Fatalf("Expected 3 but got: %v", result)
 	}
 
 	buffer.Reset()
-	repl.OneShot(ctx, "x = 3")
+	if err := repl.OneShot(ctx, "x = 3"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	result = buffer.String()
 	if result != "true\n" {
 		t.Fatalf("Expected true but got: %v", result)
 	}
 
 	buffer.Reset()
-	repl.OneShot(ctx, "input = 0")
+	if err := repl.OneShot(ctx, "input = 0"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	assertREPLText(t, buffer, definedInput)
 	buffer.Reset()
-	repl.OneShot(ctx, "input := 1")
+	if err := repl.OneShot(ctx, "input := 1"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	assertREPLText(t, buffer, redefinedInput)
 	buffer.Reset()
-	repl.OneShot(ctx, "input")
+	if err := repl.OneShot(ctx, "input"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	result = buffer.String()
 	if result != "1\n" {
 		t.Fatalf("Expected 1 but got: %v", result)
@@ -1129,7 +1337,9 @@ func TestEvalSingleTermMultiValue(t *testing.T) {
 		panic(err)
 	}
 
-	repl.OneShot(ctx, "data.a[i].b.c[_]")
+	if err := repl.OneShot(ctx, "data.a[i].b.c[_]"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	var result interface{}
 	if err := util.UnmarshalJSON(buffer.Bytes(), &result); err != nil {
 		t.Errorf("Expected valid JSON document: %v: %v", err, buffer.String())
@@ -1143,7 +1353,9 @@ func TestEvalSingleTermMultiValue(t *testing.T) {
 
 	buffer.Reset()
 
-	repl.OneShot(ctx, "data.deadbeef[x]")
+	if err := repl.OneShot(ctx, "data.deadbeef[x]"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	s := buffer.String()
 	if s != "{}\n" {
 		t.Errorf("Expected undefined from reference but got: %v", s)
@@ -1152,9 +1364,13 @@ func TestEvalSingleTermMultiValue(t *testing.T) {
 
 	buffer.Reset()
 
-	repl.OneShot(ctx, `p[x] { a = [1, 2, 3, 4]; a[_] = x }`)
+	if err := repl.OneShot(ctx, `p[x] { a = [1, 2, 3, 4]; a[_] = x }`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	buffer.Reset()
-	repl.OneShot(ctx, "p[x]")
+	if err := repl.OneShot(ctx, "p[x]"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
 	input = `
 	{
@@ -1243,12 +1459,22 @@ func TestEvalSingleTermMultiValueSetRef(t *testing.T) {
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
 	repl.outputFormat = "json"
-	repl.OneShot(ctx, `p[1] { true }`)
-	repl.OneShot(ctx, `p[2] { true }`)
-	repl.OneShot(ctx, `q = {3, 4} { true }`)
-	repl.OneShot(ctx, `r = [x, y] { x = {5, 6}; y = [7, 8] }`)
+	if err := repl.OneShot(ctx, `p[1] { true }`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, `p[2] { true }`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, `q = {3, 4} { true }`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, `r = [x, y] { x = {5, 6}; y = [7, 8] }`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
-	repl.OneShot(ctx, "p[x]")
+	if err := repl.OneShot(ctx, "p[x]"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	expected := parseJSON(`{
 		"result": [
 		  {
@@ -1289,7 +1515,9 @@ func TestEvalSingleTermMultiValueSetRef(t *testing.T) {
 	}
 
 	buffer.Reset()
-	repl.OneShot(ctx, "q[x]")
+	if err := repl.OneShot(ctx, "q[x]"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	expected = parseJSON(`{
 		"result": [
 		  {
@@ -1335,7 +1563,9 @@ func TestEvalSingleTermMultiValueSetRef(t *testing.T) {
 	// refs to sets, then those bindings could be filtered out. For now this is
 	// acceptable, as it should be an edge case.
 	buffer.Reset()
-	repl.OneShot(ctx, "r[_][x]")
+	if err := repl.OneShot(ctx, "r[_][x]"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	expected = parseJSON(`{
 		"result": [
 		  {
@@ -1413,6 +1643,9 @@ func TestEvalRuleCompileError(t *testing.T) {
 	repl := newRepl(store, &buffer)
 	err := repl.OneShot(ctx, `p[x] { true }`)
 	expected := "x is unsafe"
+	if err == nil {
+		t.Fatalf("Expected OneShot to return error %v but got: %v", expected, err)
+	}
 	if !strings.Contains(err.Error(), expected) {
 		t.Errorf("Expected error to contain %v but got: %v (err: %v)", expected, buffer.String(), err)
 		return
@@ -1436,7 +1669,9 @@ func TestEvalBodyCompileError(t *testing.T) {
 		t.Fatalf("Expected error message in output but got`: %v", buffer.String())
 	}
 	buffer.Reset()
-	repl.OneShot(ctx, `x = 1; y = 2; y > x`)
+	if err := repl.OneShot(ctx, `x = 1; y = 2; y > x`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	result := util.MustUnmarshalJSON(buffer.Bytes())
 	exp := util.MustUnmarshalJSON([]byte(`{
 		"result": [
@@ -1485,7 +1720,9 @@ func TestEvalBodyContainingWildCards(t *testing.T) {
 	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
-	repl.OneShot(ctx, "data.a[_].b.c[_] = x")
+	if err := repl.OneShot(ctx, "data.a[_].b.c[_] = x"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	expected := strings.TrimSpace(`
 +-------+
 |   x   |
@@ -1510,14 +1747,28 @@ func TestEvalBodyInput(t *testing.T) {
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
 
-	repl.OneShot(ctx, `package repl`)
-	repl.OneShot(ctx, `input["foo.bar"] = "hello" { true }`)
-	repl.OneShot(ctx, `input["baz"] = data.a[0].b.c[2] { true }`)
-	repl.OneShot(ctx, `package test`)
-	repl.OneShot(ctx, "import input.baz")
-	repl.OneShot(ctx, `p = true { input["foo.bar"] = "hello"; baz = false }`)
+	if err := repl.OneShot(ctx, `package repl`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, `input["foo.bar"] = "hello" { true }`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, `input["baz"] = data.a[0].b.c[2] { true }`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, `package test`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, "import input.baz"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, `p = true { input["foo.bar"] = "hello"; baz = false }`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	buffer.Reset()
-	repl.OneShot(ctx, "p")
+	if err := repl.OneShot(ctx, "p"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
 	result := buffer.String()
 	if result != "true\n" {
@@ -1533,10 +1784,16 @@ func TestEvalBodyInputComplete(t *testing.T) {
 
 	// Test that input can be defined completely:
 	// https://github.com/open-policy-agent/opa/issues/231
-	repl.OneShot(ctx, `package repl`)
-	repl.OneShot(ctx, `input = 1`)
+	if err := repl.OneShot(ctx, `package repl`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, `input = 1`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	buffer.Reset()
-	repl.OneShot(ctx, `input`)
+	if err := repl.OneShot(ctx, `input`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
 	result := buffer.String()
 	if result != "1\n" {
@@ -1546,10 +1803,16 @@ func TestEvalBodyInputComplete(t *testing.T) {
 	buffer.Reset()
 
 	// Test that input is as expected
-	repl.OneShot(ctx, `package ex1`)
-	repl.OneShot(ctx, `x = input`)
+	if err := repl.OneShot(ctx, `package ex1`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, `x = input`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	buffer.Reset()
-	repl.OneShot(ctx, `x`)
+	if err := repl.OneShot(ctx, `x`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
 	result = buffer.String()
 	if result != "1\n" {
@@ -1557,10 +1820,16 @@ func TestEvalBodyInputComplete(t *testing.T) {
 	}
 
 	// Test that local input replaces other inputs
-	repl.OneShot(ctx, `package ex2`)
-	repl.OneShot(ctx, `input = 2`)
+	if err := repl.OneShot(ctx, `package ex2`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, `input = 2`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	buffer.Reset()
-	repl.OneShot(ctx, `input`)
+	if err := repl.OneShot(ctx, `input`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
 	result = buffer.String()
 
@@ -1571,8 +1840,12 @@ func TestEvalBodyInputComplete(t *testing.T) {
 	buffer.Reset()
 
 	// Test that original input is intact
-	repl.OneShot(ctx, `package ex3`)
-	repl.OneShot(ctx, `input`)
+	if err := repl.OneShot(ctx, `package ex3`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, `input`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
 	result = buffer.String()
 
@@ -1584,14 +1857,18 @@ func TestEvalBodyInputComplete(t *testing.T) {
 	buffer.Reset()
 
 	repl = newRepl(store, &buffer)
-	repl.OneShot(ctx, `input.p`)
+	if err := repl.OneShot(ctx, `input.p`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	result = buffer.String()
 	if result != "undefined\n" {
 		t.Fatalf("Expected undefined but got: %v", result)
 	}
 
 	buffer.Reset()
-	repl.OneShot(ctx, `input.p = false`)
+	if err := repl.OneShot(ctx, `input.p = false`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	result = buffer.String()
 	if result != "undefined\n" {
 		t.Fatalf("Expected undefined but got: %v", result)
@@ -1605,9 +1882,13 @@ func TestEvalBodyWith(t *testing.T) {
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
 
-	repl.OneShot(ctx, `p = true { input.foo = "bar" }`)
+	if err := repl.OneShot(ctx, `p = true { input.foo = "bar" }`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	buffer.Reset()
-	repl.OneShot(ctx, "p")
+	if err := repl.OneShot(ctx, "p"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
 	if buffer.String() != "undefined\n" {
 		t.Fatalf("Expected undefined but got: %v", buffer.String())
@@ -1615,7 +1896,9 @@ func TestEvalBodyWith(t *testing.T) {
 
 	buffer.Reset()
 
-	repl.OneShot(ctx, `p with input.foo as "bar"`)
+	if err := repl.OneShot(ctx, `p with input.foo as "bar"`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
 	result := buffer.String()
 	expected := "true\n"
@@ -1630,9 +1913,15 @@ func TestEvalBodyRewrittenBuiltin(t *testing.T) {
 	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
-	repl.OneShot(ctx, "json")
-	repl.OneShot(ctx, `p[x] { a[x]; a = [1,2,3,4] }`)
-	repl.OneShot(ctx, "p[x] > 1")
+	if err := repl.OneShot(ctx, "json"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, `p[x] { a[x]; a = [1,2,3,4] }`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, "p[x] > 1"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	result := util.MustUnmarshalJSON(buffer.Bytes())
 	expected := util.MustUnmarshalJSON([]byte(`{
 		"result": [
@@ -1678,9 +1967,15 @@ func TestEvalBodyRewrittenRef(t *testing.T) {
 	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
-	repl.OneShot(ctx, "json")
-	repl.OneShot(ctx, `i = 1`)
-	repl.OneShot(ctx, `data.a[0].b.c[i]`)
+	if err := repl.OneShot(ctx, "json"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, `i = 1`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, `data.a[0].b.c[i]`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	result := util.MustUnmarshalJSON(buffer.Bytes())
 	expected := util.MustUnmarshalJSON([]byte(`{
 		"result": [
@@ -1702,8 +1997,12 @@ func TestEvalBodyRewrittenRef(t *testing.T) {
 		t.Fatalf("Expected %v but got: %v", expected, buffer.String())
 	}
 	buffer.Reset()
-	repl.OneShot(ctx, "p = {1,2,3}")
-	repl.OneShot(ctx, "p")
+	if err := repl.OneShot(ctx, "p = {1,2,3}"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, "p"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	result = util.MustUnmarshalJSON(buffer.Bytes())
 	expected = util.MustUnmarshalJSON([]byte(`{
 		"result": [
@@ -1729,7 +2028,9 @@ func TestEvalBodyRewrittenRef(t *testing.T) {
 		t.Fatalf("Expected %v but got: %v", expected, buffer.String())
 	}
 	buffer.Reset()
-	repl.OneShot(ctx, "p[x]")
+	if err := repl.OneShot(ctx, "p[x]"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	result = util.MustUnmarshalJSON(buffer.Bytes())
 	expected = util.MustUnmarshalJSON([]byte(`{
 		"result": [
@@ -1790,8 +2091,12 @@ func TestEvalBodySomeDecl(t *testing.T) {
 	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
-	repl.OneShot(ctx, "json")
-	repl.OneShot(ctx, "some x; x = 1")
+	if err := repl.OneShot(ctx, "json"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, "some x; x = 1"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	exp := util.MustUnmarshalJSON([]byte(`{
 		"result": [
 			{
@@ -1822,13 +2127,17 @@ func TestEvalImport(t *testing.T) {
 	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
-	repl.OneShot(ctx, "import data.a")
+	if err := repl.OneShot(ctx, "import data.a"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	if len(buffer.Bytes()) != 0 {
 		t.Errorf("Expected no output but got: %v", buffer.String())
 		return
 	}
 	buffer.Reset()
-	repl.OneShot(ctx, "a[0].b.c[0] = true")
+	if err := repl.OneShot(ctx, "a[0].b.c[0] = true"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	result := buffer.String()
 	expected := "true\n"
 	if result != expected {
@@ -1839,7 +2148,9 @@ func TestEvalImport(t *testing.T) {
 	// https://github.com/open-policy-agent/opa/issues/158 - re-run query to
 	// make sure import is not lost
 	buffer.Reset()
-	repl.OneShot(ctx, "a[0].b.c[0] = true")
+	if err := repl.OneShot(ctx, "a[0].b.c[0] = true"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	result = buffer.String()
 	expected = "true\n"
 	if result != expected {
@@ -1852,17 +2163,31 @@ func TestEvalPackage(t *testing.T) {
 	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
-	repl.OneShot(ctx, `package foo.bar`)
-	repl.OneShot(ctx, `p = true { true }`)
-	repl.OneShot(ctx, `package baz.qux`)
+	if err := repl.OneShot(ctx, `package foo.bar`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, `p = true { true }`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, `package baz.qux`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	buffer.Reset()
 	err := repl.OneShot(ctx, "p")
-	if !strings.Contains(err.Error(), "p is unsafe") {
+	expected := "p is unsafe"
+	if err == nil {
+		t.Fatalf("Expected OneShot to return error %v but got: %v", expected, err)
+	}
+	if !strings.Contains(err.Error(), expected) {
 		t.Fatalf("Expected unsafe variable error but got: %v", err)
 	}
-	repl.OneShot(ctx, "import data.foo.bar.p")
+	if err := repl.OneShot(ctx, "import data.foo.bar.p"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	buffer.Reset()
-	repl.OneShot(ctx, "p")
+	if err := repl.OneShot(ctx, "p"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	if buffer.String() != "true\n" {
 		t.Errorf("Expected expression to eval successfully but got: %v", buffer.String())
 		return
@@ -1875,22 +2200,34 @@ func TestMetrics(t *testing.T) {
 	var buffer bytes.Buffer
 
 	repl := newRepl(store, &buffer)
-	repl.OneShot(ctx, "a = {[1,2], [3,4]}")
-	repl.OneShot(ctx, "metrics")
-	repl.OneShot(ctx, `[x | a[x]]`)
+	if err := repl.OneShot(ctx, "a = {[1,2], [3,4]}"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, "metrics"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, `[x | a[x]]`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	if !strings.Contains(buffer.String(), "timer_rego_query_compile_ns") {
 		t.Fatal("Expected output to contain well known metric key but got:", buffer.String())
 	}
 
 	buffer.Reset()
-	repl.OneShot(ctx, `[x | a[x]]`)
+	if err := repl.OneShot(ctx, `[x | a[x]]`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	if !strings.Contains(buffer.String(), "timer_rego_query_compile_ns") {
 		t.Fatal("Expected output to contain well known metric key but got:", buffer.String())
 	}
 
 	buffer.Reset()
-	repl.OneShot(ctx, "metrics")
-	repl.OneShot(ctx, `[x | a[x]]`)
+	if err := repl.OneShot(ctx, "metrics"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, `[x | a[x]]`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
 	expected := `[
   [
@@ -1977,8 +2314,12 @@ default allow = false
 
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
-	repl.OneShot(ctx, "profile")
-	repl.OneShot(ctx, "data.rbac.allow")
+	if err := repl.OneShot(ctx, "profile"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, "data.rbac.allow"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	result := buffer.String()
 	lines := strings.Split(result, "\n")
 	if len(lines) != numLines {
@@ -1994,7 +2335,9 @@ func TestStrictBuiltinErrors(t *testing.T) {
 
 	repl := newRepl(store, &buffer)
 
-	repl.OneShot(ctx, "1/0")
+	if err := repl.OneShot(ctx, "1/0"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
 	result := buffer.String()
 
@@ -2004,8 +2347,12 @@ func TestStrictBuiltinErrors(t *testing.T) {
 
 	buffer.Reset()
 
-	repl.OneShot(ctx, "strict-builtin-errors")
-	repl.OneShot(ctx, "1/0")
+	if err := repl.OneShot(ctx, "strict-builtin-errors"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, "1/0"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
 	result = buffer.String()
 
@@ -2022,8 +2369,12 @@ func TestInstrument(t *testing.T) {
 	repl := newRepl(store, &buffer)
 
 	// Turn on instrumentation w/o turning on metrics.
-	repl.OneShot(ctx, "instrument")
-	repl.OneShot(ctx, "true")
+	if err := repl.OneShot(ctx, "instrument"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, "true"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
 	result := buffer.String()
 
@@ -2034,8 +2385,12 @@ func TestInstrument(t *testing.T) {
 	buffer.Reset()
 
 	// Turn off instrumentation.
-	repl.OneShot(ctx, "instrument")
-	repl.OneShot(ctx, "true")
+	if err := repl.OneShot(ctx, "instrument"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, "true"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
 	result = buffer.String()
 
@@ -2046,8 +2401,12 @@ func TestInstrument(t *testing.T) {
 	buffer.Reset()
 
 	// Turn on metrics and then turn on instrumentation.
-	repl.OneShot(ctx, "metrics")
-	repl.OneShot(ctx, "true")
+	if err := repl.OneShot(ctx, "metrics"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, "true"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
 	result = buffer.String()
 
@@ -2061,8 +2420,12 @@ func TestInstrument(t *testing.T) {
 
 	buffer.Reset()
 
-	repl.OneShot(ctx, "instrument")
-	repl.OneShot(ctx, "true")
+	if err := repl.OneShot(ctx, "instrument"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, "true"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
 	result = buffer.String()
 
@@ -2081,8 +2444,12 @@ func TestEvalTrace(t *testing.T) {
 	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
-	repl.OneShot(ctx, "trace")
-	repl.OneShot(ctx, `data.a[i].b.c[j] = x; data.a[k].b.c[x] = 1`)
+	if err := repl.OneShot(ctx, "trace"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, `data.a[i].b.c[j] = x; data.a[k].b.c[x] = 1`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	expected := strings.TrimSpace(`
 query:1     Enter data.a[i].b.c[j] = x; data.a[k].b.c[x] = 1
 query:1     | Eval data.a[i].b.c[j] = x
@@ -2123,10 +2490,16 @@ func TestEvalNotes(t *testing.T) {
 	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
-	repl.OneShot(ctx, `p { a = [1,2,3]; a[i] = x; x > 1; trace(sprintf("x = %d", [x])) }`)
-	repl.OneShot(ctx, "notes")
+	if err := repl.OneShot(ctx, `p { a = [1,2,3]; a[i] = x; x > 1; trace(sprintf("x = %d", [x])) }`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, "notes"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	buffer.Reset()
-	repl.OneShot(ctx, "p")
+	if err := repl.OneShot(ctx, "p"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	expected := strings.TrimSpace(`query:1     Enter data.repl.p = _
 query:1     | Enter data.repl.p
 query:1     | | Note "x = 2"
@@ -2146,8 +2519,12 @@ func TestTruncatePrettyOutput(t *testing.T) {
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
 	repl.prettyLimit = 1000 // crank up limit to test repl command
-	repl.OneShot(ctx, "pretty-limit 80")
-	repl.OneShot(ctx, "data[x]")
+	if err := repl.OneShot(ctx, "pretty-limit 80"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, "data[x]"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	for _, line := range strings.Split(buffer.String(), "\n") {
 		// | "repl" | {"version": <elided>... |
 		if len(line) > 96 {
@@ -2166,31 +2543,45 @@ func TestUnsetPackage(t *testing.T) {
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
 
-	repl.OneShot(ctx, "package a")
+	if err := repl.OneShot(ctx, "package a"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	if err := repl.OneShot(ctx, `unset-package 5`); err == nil {
 		t.Fatalf("Expected package-unset error for bad package but got: %v", buffer.String())
 	}
 
 	buffer.Reset()
 
-	repl.OneShot(ctx, "package a")
-	repl.OneShot(ctx, "unset-package b")
+	if err := repl.OneShot(ctx, "package a"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, "unset-package b"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	if buffer.String() != "warning: no matching package\n" {
 		t.Fatalf("Expected unset-package warning no matching package but got: %v", buffer.String())
 	}
 
 	buffer.Reset()
 
-	repl.OneShot(ctx, `package a`)
+	if err := repl.OneShot(ctx, `package a`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	if err := repl.OneShot(ctx, `unset-package b`); err != nil {
 		t.Fatalf("Expected unset-package to succeed for input: %v", err)
 	}
 
 	buffer.Reset()
 
-	repl.OneShot(ctx, "package a")
-	repl.OneShot(ctx, "unset-package a")
-	repl.OneShot(ctx, "show")
+	if err := repl.OneShot(ctx, "package a"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, "unset-package a"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, "show"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	if buffer.String() != "no rules defined\n" {
 		t.Fatalf("Expected unset-package to return to default but got: %v", buffer.String())
 	}

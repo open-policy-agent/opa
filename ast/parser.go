@@ -167,7 +167,7 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 		}
 
 		p.restore(s)
-		s = p.save()
+		p.save() // no need to save return value to s
 
 		if body := p.parseQuery(true, tokens.EOF); body != nil {
 			stmts = append(stmts, body)
@@ -1541,7 +1541,7 @@ func (p *Parser) setLoc(term *Term, loc *location.Location, offset, end int) *Te
 
 func (p *Parser) validateDefaultRuleValue(rule *Rule) bool {
 	if rule.Head.Value == nil {
-		p.error(rule.Loc(), fmt.Sprintf("illegal default rule (must have a value)"))
+		p.error(rule.Loc(), "illegal default rule (must have a value)")
 		return false
 	}
 

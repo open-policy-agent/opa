@@ -19,14 +19,13 @@ const bom = 0xFEFF
 // Scanner is used to tokenize an input stream of
 // Rego source code.
 type Scanner struct {
-	offset   int
-	row      int
-	col      int
-	bs       []byte
-	curr     rune
-	width    int
-	errors   []Error
-	filename string
+	offset int
+	row    int
+	col    int
+	bs     []byte
+	curr   rune
+	width  int
+	errors []Error
 }
 
 // Error represents a scanner error.
@@ -345,13 +344,6 @@ func (s *Scanner) next() {
 	} else {
 		s.col++
 	}
-}
-
-func (s *Scanner) peek(i int) rune {
-	if s.offset+i < len(s.bs) {
-		return rune(s.bs[s.offset+i])
-	}
-	return 0
 }
 
 func (s *Scanner) literalStart() int {

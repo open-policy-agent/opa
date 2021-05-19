@@ -35,7 +35,7 @@ func term(s string) *ast.Term {
 func TestBindingsArrayHashmap(t *testing.T) {
 	var bindings bindings
 	b := newBindingsArrayHashmap()
-	keys := make(map[int]ast.Var, 0)
+	keys := make(map[int]ast.Var)
 
 	for i := 0; i < maxLinearScan+1; i++ {
 		b.Put(testBindingKey(i), testBindingValue(&bindings, i))

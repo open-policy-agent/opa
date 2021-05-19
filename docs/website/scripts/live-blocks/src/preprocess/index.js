@@ -50,7 +50,7 @@ async function start() {
   }
 }
 
-// Processes a file at a path, may reject with one or more errors (the latter as an array) that occured while trying to do so.
+// Processes a file at a path, may reject with one or more errors (the latter as an array) that occurred while trying to do so.
 async function processFile(path) {
   const version = getVersion(path)
 

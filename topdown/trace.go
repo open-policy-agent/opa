@@ -196,10 +196,7 @@ func NewBufferTracer() *BufferTracer {
 
 // Enabled always returns true if the BufferTracer is instantiated.
 func (b *BufferTracer) Enabled() bool {
-	if b == nil {
-		return false
-	}
-	return true
+	return b != nil
 }
 
 // Trace adds the event to the buffer.
@@ -445,7 +442,7 @@ func rewrite(event *Event) *Event {
 		node = v.Copy()
 	}
 
-	ast.TransformVars(node, func(v ast.Var) (ast.Value, error) {
+	_, _ = ast.TransformVars(node, func(v ast.Var) (ast.Value, error) {
 		if meta, ok := cpy.LocalMetadata[v]; ok {
 			return meta.Name, nil
 		}

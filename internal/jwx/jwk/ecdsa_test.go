@@ -6,11 +6,12 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
+	"reflect"
+	"testing"
+
 	"github.com/open-policy-agent/opa/internal/jwx/buffer"
 	"github.com/open-policy-agent/opa/internal/jwx/jwa"
 	"github.com/open-policy-agent/opa/internal/jwx/jwk"
-	"reflect"
-	"testing"
 )
 
 func TestECDSA(t *testing.T) {
@@ -38,7 +39,7 @@ func TestECDSA(t *testing.T) {
 			t.Fatalf("Failed to unmarshal JWK Set: %s", err.Error())
 		}
 		if len(rawKeySetJSON.Keys) != 1 {
-			t.Fatalf("Failed to parse JWK Set: %s", err.Error())
+			t.Fatalf("Failed to parse JWK Set: %v", err)
 		}
 		rawKeyJSON := rawKeySetJSON.Keys[0]
 		curveName := rawKeyJSON.Crv
@@ -50,7 +51,7 @@ func TestECDSA(t *testing.T) {
 		if err == nil {
 			t.Fatal("Key generation should fail")
 		}
-		rawKeyJSON.Crv = jwa.EllipticCurveAlgorithm("P-256")
+		rawKeyJSON.Crv = jwa.P256
 		rawKeyJSON.D = buffer.Buffer("1234")
 		_, err = rawKeyJSON.GenerateKey()
 		if err == nil {
@@ -234,12 +235,12 @@ func TestECDSA(t *testing.T) {
   "y": "lf0u0pMj4lGAzZix5u4Cm5CMQIgMNpkwy163wtKYVKI",
   "d": "0g5vAEKzugrXaRbgKG0Tj2qJ5lMP4Bezds1_sTybkfk"
 }`
-		rawKeyJson := &jwk.RawKeyJSON{}
-		err := json.Unmarshal([]byte(jwkSrc), rawKeyJson)
+		rawKeyJSON := &jwk.RawKeyJSON{}
+		err := json.Unmarshal([]byte(jwkSrc), rawKeyJSON)
 		if err != nil {
 			t.Fatalf("Failed to unmarshal JWK Set: %s", err.Error())
 		}
-		_, err = rawKeyJson.GenerateKey()
+		_, err = rawKeyJSON.GenerateKey()
 		if err == nil {
 			t.Fatalf("Key Generation should fail")
 		}

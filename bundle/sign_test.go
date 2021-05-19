@@ -203,7 +203,9 @@ func TestCustomSigner(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Expected error when registering with default ID")
 	}
-	RegisterSigner("_test", custom)
+	if err := RegisterSigner("_test", custom); err != nil {
+		t.Fatal(err)
+	}
 	defaultSigner, err := GetSigner(defaultSignerID)
 	if err != nil {
 		t.Fatalf("Unexpected error %v", err)

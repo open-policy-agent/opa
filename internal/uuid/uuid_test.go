@@ -9,7 +9,7 @@ import (
 )
 
 func TestUUID4(t *testing.T) {
-	uuid, err := New(bytes.NewReader(make([]byte, 16, 16)))
+	uuid, err := New(bytes.NewReader(make([]byte, 16)))
 	if err != nil {
 		t.Fatal(err)
 	}

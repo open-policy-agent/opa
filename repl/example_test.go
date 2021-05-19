@@ -13,6 +13,7 @@ import (
 	"github.com/open-policy-agent/opa/storage/inmem"
 )
 
+// nolint // example code
 func ExampleREPL_OneShot() {
 	// Initialize context for the example. Normally the caller would obtain the
 	// context from an input parameter or instantiate their own.
@@ -25,13 +26,13 @@ func ExampleREPL_OneShot() {
 	var buf bytes.Buffer
 
 	// Create a new REPL.
-	repl := repl.New(store, "", &buf, "json", 0, "")
+	r := repl.New(store, "", &buf, "json", 0, "")
 
 	// Define a rule inside the REPL.
-	repl.OneShot(ctx, "p { a = [1, 2, 3, 4]; a[_] > 3 }")
+	r.OneShot(ctx, "p { a = [1, 2, 3, 4]; a[_] > 3 }")
 
 	// Query the rule defined above.
-	repl.OneShot(ctx, "p")
+	r.OneShot(ctx, "p")
 
 	// Inspect the output. Defining rules does not produce output so we only expect
 	// output from the second line of input.

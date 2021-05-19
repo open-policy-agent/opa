@@ -23,6 +23,7 @@
 //
 // created          26-02-2013
 
+// nolint: deadcode,unused,varcheck // Package in development (2021).
 package gojsonschema
 
 import (

@@ -52,15 +52,15 @@ func TestEnvironmentCredentialService(t *testing.T) {
 	cs := &awsEnvironmentCredentialService{}
 
 	// wrong path: some required environment is missing
-	envCreds, err := cs.credentials()
+	_, err := cs.credentials()
 	assertErr("no AWS_ACCESS_KEY_ID set in environment", err, t)
 
 	os.Setenv("AWS_ACCESS_KEY_ID", "MYAWSACCESSKEYGOESHERE")
-	envCreds, err = cs.credentials()
+	_, err = cs.credentials()
 	assertErr("no AWS_SECRET_ACCESS_KEY set in environment", err, t)
 
 	os.Setenv("AWS_SECRET_ACCESS_KEY", "MYAWSSECRETACCESSKEYGOESHERE")
-	envCreds, err = cs.credentials()
+	_, err = cs.credentials()
 	assertErr("no AWS_REGION set in environment", err, t)
 
 	os.Setenv("AWS_REGION", "us-east-1")
@@ -87,7 +87,7 @@ func TestEnvironmentCredentialService(t *testing.T) {
 		os.Setenv(testCase.tokenEnv, testCase.tokenValue)
 		expectedCreds.SessionToken = testCase.tokenValue
 
-		envCreds, err = cs.credentials()
+		envCreds, err := cs.credentials()
 		if err != nil {
 			t.Error("unexpected error: " + err.Error())
 		}
@@ -200,6 +200,10 @@ func TestMetadataCredentialService(t *testing.T) {
 	}
 	var creds awsCredentials
 	creds, err = cs.credentials()
+	if err != nil {
+		// Cannot proceed with test if unable to fetch credentials.
+		t.Fatal(err)
+	}
 
 	assertEq(creds.AccessKey, ts.payload.AccessKeyID, t)
 	assertEq(creds.SecretKey, ts.payload.SecretAccessKey, t)
@@ -209,6 +213,10 @@ func TestMetadataCredentialService(t *testing.T) {
 	// happy path: verify credentials are cached based on expiry
 	ts.payload.AccessKeyID = "ICHANGEDTHISBUTWEWONTSEEIT"
 	creds, err = cs.credentials()
+	if err != nil {
+		// Cannot proceed with test if unable to fetch credentials.
+		t.Fatal(err)
+	}
 
 	assertEq(creds.AccessKey, "MYAWSACCESSKEYGOESHERE", t) // the original value
 	assertEq(creds.SecretKey, ts.payload.SecretAccessKey, t)
@@ -232,6 +240,10 @@ func TestMetadataCredentialService(t *testing.T) {
 		Expiration:      time.Now().UTC().Add(time.Minute * 2)} // short time
 
 	creds, err = cs.credentials()
+	if err != nil {
+		// Cannot proceed with test if unable to fetch credentials.
+		t.Fatal(err)
+	}
 
 	assertEq(creds.AccessKey, ts.payload.AccessKeyID, t)
 	assertEq(creds.SecretKey, ts.payload.SecretAccessKey, t)
@@ -241,20 +253,15 @@ func TestMetadataCredentialService(t *testing.T) {
 	// second time through, with changes
 	ts.payload.AccessKeyID = "ICHANGEDTHISANDWEWILLSEEIT"
 	creds, err = cs.credentials()
+	if err != nil {
+		// Cannot proceed with test if unable to fetch credentials.
+		t.Fatal(err)
+	}
 
 	assertEq(creds.AccessKey, ts.payload.AccessKeyID, t) // the new value
 	assertEq(creds.SecretKey, ts.payload.SecretAccessKey, t)
 	assertEq(creds.RegionName, cs.RegionName, t)
 	assertEq(creds.SessionToken, ts.payload.Token, t)
-}
-
-type testCredentialService struct{}
-
-func (cs *testCredentialService) credentials() (awsCredentials, error) {
-	return awsCredentials{AccessKey: "MYAWSACCESSKEYGOESHERE",
-		SecretKey:    "MYAWSSECRETACCESSKEYGOESHERE",
-		RegionName:   "us-east-1",
-		SessionToken: "MYAWSSECURITYTOKENGOESHERE"}, nil
 }
 
 func TestV4Signing(t *testing.T) {
@@ -501,11 +508,8 @@ func TestV4SigningWithMultiValueHeaders(t *testing.T) {
 
 // simulate EC2 metadata service
 type ec2CredTestServer struct {
-	t         *testing.T
-	server    *httptest.Server
-	expPath   string
-	expMethod string
-	payload   metadataPayload // must set before use
+	server  *httptest.Server
+	payload metadataPayload // must set before use
 }
 
 func (t *ec2CredTestServer) handle(w http.ResponseWriter, r *http.Request) {
@@ -522,17 +526,17 @@ func (t *ec2CredTestServer) handle(w http.ResponseWriter, r *http.Request) {
 	case goodTokenPath:
 		// a valid token
 		w.WriteHeader(200)
-		w.Write([]byte(tokenValue))
+		_, _ = w.Write([]byte(tokenValue))
 	case badTokenPath:
 		// an invalid token
 		w.WriteHeader(200)
-		w.Write([]byte("THIS_IS_A_BAD_TOKEN"))
+		_, _ = w.Write([]byte("THIS_IS_A_BAD_TOKEN"))
 	case goodPath:
 		// validate token...
 		if r.Header.Get("X-aws-ec2-metadata-token") == tokenValue {
 			// a metadata response that's well-formed
 			w.WriteHeader(200)
-			w.Write(jsonBytes)
+			_, _ = w.Write(jsonBytes)
 		} else {
 			// an unauthorized response
 			w.WriteHeader(401)
@@ -540,7 +544,7 @@ func (t *ec2CredTestServer) handle(w http.ResponseWriter, r *http.Request) {
 	case badPath:
 		// a metadata response that's not well-formed
 		w.WriteHeader(200)
-		w.Write([]byte("This isn't a JSON payload"))
+		_, _ = w.Write([]byte("This isn't a JSON payload"))
 	default:
 		// something else that we won't be able to find
 		w.WriteHeader(404)
@@ -573,18 +577,44 @@ func TestWebIdentityCredentialService(t *testing.T) {
 		t.Errorf("Error while creating token file: %s", err)
 		return
 	}
-	defer os.Remove(goodTokenFile.Name())
-	goodTokenFile.WriteString("good-token")
-	goodTokenFile.Close()
+	t.Cleanup(func() {
+		err := os.Remove(goodTokenFile.Name())
+		if err != nil {
+			t.Fatalf("unable to remove goodTokenFile %q: %v", goodTokenFile.Name(), err)
+		}
+	})
+	_, err = goodTokenFile.WriteString("good-token")
+	if err != nil {
+		t.Errorf("Error while creating token file: %s", err)
+		return
+	}
+	err = goodTokenFile.Close()
+	if err != nil {
+		t.Errorf("Error while creating token file: %s", err)
+		return
+	}
 
 	badTokenFile, err := ioutil.TempFile(os.TempDir(), "opa-aws-test-")
 	if err != nil {
 		t.Errorf("Error while creating token file: %s", err)
 		return
 	}
-	defer os.Remove(badTokenFile.Name())
-	badTokenFile.WriteString("bad-token")
-	badTokenFile.Close()
+	t.Cleanup(func() {
+		err := os.Remove(badTokenFile.Name())
+		if err != nil {
+			t.Fatalf("unable to remove badTokenFile %q: %v", badTokenFile.Name(), err)
+		}
+	})
+	_, err = badTokenFile.WriteString("bad-token")
+	if err != nil {
+		t.Errorf("Error while creating token file: %s", err)
+		return
+	}
+	err = badTokenFile.Close()
+	if err != nil {
+		t.Errorf("Error while creating token file: %s", err)
+		return
+	}
 
 	// wrong path: no AWS_ROLE_ARN set
 	err = cs.populateFromEnv()
@@ -680,7 +710,7 @@ func (t *stsTestServer) handle(w http.ResponseWriter, r *http.Request) {
 
 	if r.URL.Query().Get("RoleArn") == "BrokenRole" {
 		w.WriteHeader(200)
-		w.Write([]byte("{}"))
+		_, _ = w.Write([]byte("{}"))
 		return
 	}
 
@@ -715,7 +745,7 @@ func (t *stsTestServer) handle(w http.ResponseWriter, r *http.Request) {
 	</ResponseMetadata>
   </AssumeRoleWithWebIdentityResponse>`
 
-	w.Write([]byte(fmt.Sprintf(xmlResponse, sessionName, time.Now().Add(time.Hour).Format(time.RFC3339), t.accessKey)))
+	_, _ = w.Write([]byte(fmt.Sprintf(xmlResponse, sessionName, time.Now().Add(time.Hour).Format(time.RFC3339), t.accessKey)))
 }
 
 func (t *stsTestServer) start() {

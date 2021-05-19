@@ -46,8 +46,8 @@ func TestWatchPaths(t *testing.T) {
 			t.Fatalf("Unexpected error: %v", err)
 		}
 		result := []string{}
-		for _, path := range paths {
-			result = append(result, filepath.Clean(strings.TrimPrefix(path, rootDir)))
+		for _, p := range paths {
+			result = append(result, filepath.Clean(strings.TrimPrefix(p, rootDir)))
 		}
 		if !reflect.DeepEqual(expected, result) {
 			t.Fatalf("Expected %q but got: %q", expected, result)
@@ -174,9 +174,12 @@ func testRuntimeProcessWatchEventPolicyError(t *testing.T, asBundle bool) {
 			t.Fatal(err)
 		}
 
-		storage.Txn(ctx, rt.Store, storage.WriteParams, func(txn storage.Transaction) error {
+		err = storage.Txn(ctx, rt.Store, storage.WriteParams, func(txn storage.Transaction) error {
 			return rt.Store.UpsertPolicy(ctx, txn, "out-of-band.rego", []byte(`package foo`))
 		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 
 		ch := make(chan error)
 
@@ -342,7 +345,7 @@ func getTestServer(update interface{}, statusCode int) (baseURL string, teardown
 		w.WriteHeader(statusCode)
 		bs, _ := json.Marshal(update)
 		w.Header().Set("Content-Type", "application/json")
-		w.Write(bs)
+		_, _ = w.Write(bs) // ignore error
 	})
 	return ts.URL, ts.Close
 }

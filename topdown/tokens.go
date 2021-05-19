@@ -31,11 +31,14 @@ import (
 var (
 	jwtEncKey = ast.StringTerm("enc")
 	jwtCtyKey = ast.StringTerm("cty")
-	jwtAlgKey = ast.StringTerm("alg")
 	jwtIssKey = ast.StringTerm("iss")
 	jwtExpKey = ast.StringTerm("exp")
 	jwtNbfKey = ast.StringTerm("nbf")
 	jwtAudKey = ast.StringTerm("aud")
+)
+
+const (
+	headerJwt = "JWT"
 )
 
 // JSONWebToken represent the 3 parts (header, payload & signature) of
@@ -91,7 +94,7 @@ func builtinJWTDecode(a ast.Value) (ast.Value, error) {
 		// When the payload is itself another encoded JWT, then its
 		// contents are quoted (behavior of https://jwt.io/). To fix
 		// this, remove leading and trailing quotes.
-		if ctyVal == "JWT" {
+		if ctyVal == headerJwt {
 			p, err = builtinTrim(p, ast.String(`"'`))
 			if err != nil {
 				panic("not reached")
@@ -274,7 +277,7 @@ func getKeyFromCertOrJWK(certificate string) ([]interface{}, error) {
 			return nil, fmt.Errorf("extra data after a PEM certificate block")
 		}
 
-		if block.Type == "CERTIFICATE" {
+		if block.Type == blockTypeCertificate {
 			cert, err := x509.ParseCertificate(block.Bytes)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to parse a PEM certificate")
@@ -762,7 +765,7 @@ func tokenHeaderCrit(header *tokenHeader, value ast.Value) error {
 		return fmt.Errorf("crit: must be a list")
 	}
 	header.crit = map[string]bool{}
-	v.Iter(func(elem *ast.Term) error {
+	_ = v.Iter(func(elem *ast.Term) error {
 		tv, ok := elem.Value.(ast.String)
 		if !ok {
 			return fmt.Errorf("crit: must be a list of strings")
@@ -842,7 +845,7 @@ func commonBuiltinJWTEncodeSign(inputHeaders, jwsPayload, jwkSrc string) (ast.Va
 	}
 	alg := standardHeaders.GetAlgorithm()
 
-	if (standardHeaders.Type == "" || standardHeaders.Type == "JWT") && !json.Valid([]byte(jwsPayload)) {
+	if (standardHeaders.Type == "" || standardHeaders.Type == headerJwt) && !json.Valid([]byte(jwsPayload)) {
 		return nil, fmt.Errorf("type is JWT but payload is not JSON")
 	}
 
@@ -953,7 +956,7 @@ func builtinJWTDecodeVerify(bctx BuiltinContext, args []*ast.Term, iter func(*as
 			return fmt.Errorf("JWT payload had invalid encoding: %v", err)
 		}
 		// RFC7159 7.2 #8 and 5.2 cty
-		if strings.ToUpper(header.cty) == "JWT" {
+		if strings.ToUpper(header.cty) == headerJwt {
 			// Nested JWT, go round again with payload as first argument
 			a = p
 			continue

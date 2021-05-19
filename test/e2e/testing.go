@@ -61,7 +61,6 @@ type TestRuntime struct {
 	Client        *http.Client
 	ConsoleLogger *test.Logger
 	url           string
-	diagURL       string
 	urlMtx        *sync.Mutex
 }
 
@@ -380,11 +379,7 @@ func (t *TestRuntime) GetDataWithInputTyped(path string, input interface{}, resp
 }
 
 // HealthCheck will query /health and return an error if the server is not healthy
-func (t *TestRuntime) HealthCheck(url string, params ...string) error {
-	reqURL := url + "/health"
-	if len(params) > 0 {
-		reqURL += "?" + strings.Join(params, "&")
-	}
+func (t *TestRuntime) HealthCheck(url string) error {
 	req, err := http.NewRequest("GET", url+"/health", nil)
 	if err != nil {
 		return fmt.Errorf("unexpected error creating request: %s", err)

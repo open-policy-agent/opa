@@ -10,6 +10,6 @@
 package tools
 
 import (
-	_ "golang.org/x/lint/golint"
+	_ "github.com/golangci/golangci-lint/cmd/golangci-lint"
 	_ "golang.org/x/tools/cmd/goimports"
 )

@@ -180,7 +180,7 @@ func (tc *typeChecker) checkRule(env *TypeEnv, as *annotationSet, rule *Rule) {
 
 	if schemaAnnots := getRuleAnnotation(as, rule); schemaAnnots != nil {
 		for _, schemaAnnot := range schemaAnnots {
-			ref, refType, err := processAnnotation(tc.ss, schemaAnnot, env, rule)
+			ref, refType, err := processAnnotation(tc.ss, schemaAnnot, rule)
 			if err != nil {
 				tc.err([]*Error{err})
 				continue
@@ -379,24 +379,24 @@ func unify2(env *TypeEnv, a *Term, typeA types.Type, b *Term, typeB types.Type) 
 
 	switch a.Value.(type) {
 	case *Array:
-		return unify2Array(env, a, typeA, b, typeB)
+		return unify2Array(env, a, b)
 	case *object:
-		return unify2Object(env, a, typeA, b, typeB)
+		return unify2Object(env, a, b)
 	case Var:
 		switch b.Value.(type) {
 		case Var:
 			return unify1(env, a, types.A, false) && unify1(env, b, env.Get(a), false)
 		case *Array:
-			return unify2Array(env, b, typeB, a, typeA)
+			return unify2Array(env, b, a)
 		case *object:
-			return unify2Object(env, b, typeB, a, typeA)
+			return unify2Object(env, b, a)
 		}
 	}
 
 	return false
 }
 
-func unify2Array(env *TypeEnv, a *Term, typeA types.Type, b *Term, typeB types.Type) bool {
+func unify2Array(env *TypeEnv, a *Term, b *Term) bool {
 	arr := a.Value.(*Array)
 	switch bv := b.Value.(type) {
 	case *Array:
@@ -414,7 +414,7 @@ func unify2Array(env *TypeEnv, a *Term, typeA types.Type, b *Term, typeB types.T
 	return false
 }
 
-func unify2Object(env *TypeEnv, a *Term, typeA types.Type, b *Term, typeB types.Type) bool {
+func unify2Object(env *TypeEnv, a *Term, b *Term) bool {
 	obj := a.Value.(Object)
 	switch bv := b.Value.(type) {
 	case *object:
@@ -682,7 +682,7 @@ func (rc *refChecker) checkRef(curr *TypeEnv, node *typeTreeNode, ref Ref, idx i
 	// potentially refers to data for which no type information exists,
 	// checking should never fail.
 	node.Children().Iter(func(_, child util.T) bool {
-		rc.checkRef(curr, child.(*typeTreeNode), ref, idx+1)
+		_ = rc.checkRef(curr, child.(*typeTreeNode), ref, idx+1) // ignore error
 		return false
 	})
 
@@ -1062,7 +1062,7 @@ func getPrefix(env *TypeEnv, ref Ref) (Ref, types.Type) {
 
 // override takes a type t and returns a type obtained from t where the path represented by ref within it has type o (overriding the original type of that path)
 func override(ref Ref, t types.Type, o types.Type, rule *Rule) (types.Type, *Error) {
-	newStaticProps := []*types.StaticProperty{}
+	var newStaticProps []*types.StaticProperty
 	obj, ok := t.(*types.Object)
 	if !ok {
 		newType, err := getObjectType(ref, o, rule, types.NewDynamicProperty(types.A, types.A))
@@ -1158,7 +1158,7 @@ func getRuleAnnotation(as *annotationSet, rule *Rule) (result []*SchemaAnnotatio
 	return result
 }
 
-func processAnnotation(ss *SchemaSet, annot *SchemaAnnotation, env *TypeEnv, rule *Rule) (Ref, types.Type, *Error) {
+func processAnnotation(ss *SchemaSet, annot *SchemaAnnotation, rule *Rule) (Ref, types.Type, *Error) {
 
 	var schema interface{}
 

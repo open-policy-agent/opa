@@ -52,7 +52,6 @@ type evalCommandParams struct {
 	ignore              []string
 	outputFormat        *util.EnumFlag
 	profile             bool
-	profileTopResults   bool
 	profileCriteria     repeatedStringFlag
 	profileLimit        intFlag
 	prettyLimit         intFlag
@@ -266,8 +265,6 @@ Loads a single JSON file, applying it to the input document; or all the schema f
 
 	RootCommand.AddCommand(evalCommand)
 }
-
-const schemaVar = "schema"
 
 func eval(args []string, params evalCommandParams, w io.Writer) (bool, error) {
 

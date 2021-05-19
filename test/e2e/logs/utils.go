@@ -1,7 +1,6 @@
 package logs
 
 import (
-	"compress/gzip"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -11,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/open-policy-agent/opa/plugins/logs"
 	"github.com/open-policy-agent/opa/test/e2e"
 )
 
@@ -98,22 +96,6 @@ func GeneratePolicy(ruleCounts int, ruleHits int) string {
 type TestLogServer struct {
 	server   *http.Server
 	listener net.Listener
-}
-
-func (t *TestLogServer) handle(w http.ResponseWriter, r *http.Request) {
-	gr, err := gzip.NewReader(r.Body)
-	if err != nil {
-		panic(err)
-	}
-	var events []logs.EventV1
-	if err := json.NewDecoder(gr).Decode(&events); err != nil {
-		panic(err)
-	}
-	if err := gr.Close(); err != nil {
-		panic(err)
-	}
-
-	w.WriteHeader(200)
 }
 
 // URL string representation for the current server. Requires that the server

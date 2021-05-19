@@ -379,7 +379,7 @@ func TestConfigIsMultiBundle(t *testing.T) {
 			conf: Config{
 				Name: "bundle.tar.gz",
 				Bundles: map[string]*Source{
-					"bundle.tar.gz": &Source{},
+					"bundle.tar.gz": {},
 				},
 			},
 			expected: false,
@@ -388,7 +388,7 @@ func TestConfigIsMultiBundle(t *testing.T) {
 			conf: Config{
 				Name: "",
 				Bundles: map[string]*Source{
-					"bundle.tar.gz": &Source{},
+					"bundle.tar.gz": {},
 				},
 			},
 			expected: true,

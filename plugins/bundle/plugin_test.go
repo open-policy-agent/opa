@@ -2,6 +2,7 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
+// nolint: goconst // string duplication is for test readability.
 package bundle
 
 import (
@@ -150,7 +151,7 @@ func TestPluginOneShotBundlePersistence(t *testing.T) {
 		Manifest: bundle.Manifest{Revision: "quickbrownfaux"},
 		Data:     util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}}`)).(map[string]interface{}),
 		Modules: []bundle.ModuleFile{
-			bundle.ModuleFile{
+			{
 				URL:    "/foo/bar.rego",
 				Path:   "/foo/bar.rego",
 				Parsed: ast.MustParseModule(module),
@@ -245,7 +246,7 @@ func TestLoadAndActivateBundlesFromDisk(t *testing.T) {
 		Manifest: bundle.Manifest{Revision: "quickbrownfaux"},
 		Data:     util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}}`)).(map[string]interface{}),
 		Modules: []bundle.ModuleFile{
-			bundle.ModuleFile{
+			{
 				URL:    "/foo/bar.rego",
 				Path:   "/foo/bar.rego",
 				Parsed: ast.MustParseModule(module),
@@ -674,7 +675,7 @@ func validateStatus(t *testing.T, actual Status, expected string, expectStatusEr
 	t.Helper()
 
 	if expectStatusErr && !isErrStatus(actual) {
-		t.Errorf("Expected status to be in an error state, but no error has occured.")
+		t.Errorf("Expected status to be in an error state, but no error has occurred.")
 	} else if !expectStatusErr && isErrStatus(actual) {
 		t.Errorf("Unexpected error status %s", actual)
 	}
@@ -1014,10 +1015,7 @@ func TestPluginActivateScopedBundle(t *testing.T) {
 		if err := manager.Store.UpsertPolicy(ctx, txn, "some/id2", []byte(`package a.a4`)); err != nil {
 			return err
 		}
-		if err := manager.Store.UpsertPolicy(ctx, txn, "some/id3", []byte(`package a.a6`)); err != nil {
-			return err
-		}
-		return nil
+		return manager.Store.UpsertPolicy(ctx, txn, "some/id3", []byte(`package a.a6`))
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -1035,7 +1033,7 @@ func TestPluginActivateScopedBundle(t *testing.T) {
 			},
 		},
 		Modules: []bundle.ModuleFile{
-			bundle.ModuleFile{
+			{
 				Path:   "bundle/id1",
 				Parsed: ast.MustParseModule(module),
 				Raw:    []byte(module),
@@ -1072,7 +1070,7 @@ func TestPluginActivateScopedBundle(t *testing.T) {
 			},
 		},
 		Modules: []bundle.ModuleFile{
-			bundle.ModuleFile{
+			{
 				Path:   "bundle/id2",
 				Parsed: ast.MustParseModule(module),
 				Raw:    []byte(module),
@@ -1140,7 +1138,7 @@ func TestPluginSetCompilerOnContext(t *testing.T) {
 		Manifest: bundle.Manifest{Revision: "quickbrownfaux"},
 		Data:     map[string]interface{}{},
 		Modules: []bundle.ModuleFile{
-			bundle.ModuleFile{
+			{
 				Path:   "/test.rego",
 				Parsed: ast.MustParseModule(module),
 				Raw:    []byte(module),
@@ -1153,12 +1151,12 @@ func TestPluginSetCompilerOnContext(t *testing.T) {
 	events := []storage.TriggerEvent{}
 
 	if err := storage.Txn(ctx, manager.Store, storage.WriteParams, func(txn storage.Transaction) error {
-		manager.Store.Register(ctx, txn, storage.TriggerConfig{
+		_, err := manager.Store.Register(ctx, txn, storage.TriggerConfig{
 			OnCommit: func(ctx context.Context, txn storage.Transaction, event storage.TriggerEvent) {
 				events = append(events, event)
 			},
 		})
-		return nil
+		return err
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -1377,7 +1375,7 @@ func TestPluginReconfigure(t *testing.T) {
 		})
 	}
 	if len(stages) != updateCount {
-		t.Fatalf("Expected to have recieved %d updates, got %d", len(stages), updateCount)
+		t.Fatalf("Expected to have received %d updates, got %d", len(stages), updateCount)
 	}
 }
 
@@ -1447,7 +1445,7 @@ func TestUpgradeLegacyBundleToMuiltiBundleSameBundle(t *testing.T) {
 	// Start with a "legacy" style config for a single bundle
 	plugin.config = Config{
 		Bundles: map[string]*Source{
-			bundleName: &Source{
+			bundleName: {
 				Service: "s1",
 			},
 		},
@@ -1466,7 +1464,7 @@ func TestUpgradeLegacyBundleToMuiltiBundleSameBundle(t *testing.T) {
 			},
 		},
 		Modules: []bundle.ModuleFile{
-			bundle.ModuleFile{
+			{
 				Path:   "bundle/id1",
 				Parsed: ast.MustParseModule(module),
 				Raw:    []byte(module),
@@ -1490,7 +1488,7 @@ func TestUpgradeLegacyBundleToMuiltiBundleSameBundle(t *testing.T) {
 	// Update to the newer style config with the same bundle
 	multiBundleConf := &Config{
 		Bundles: map[string]*Source{
-			bundleName: &Source{
+			bundleName: {
 				Service: "s1",
 			},
 		},
@@ -1562,7 +1560,7 @@ func TestUpgradeLegacyBundleToMuiltiBundleNewBundles(t *testing.T) {
 	// Start with a "legacy" style config for a single bundle
 	plugin.config = Config{
 		Bundles: map[string]*Source{
-			bundleName: &Source{
+			bundleName: {
 				Config:  downloadConf,
 				Service: serviceName,
 			},
@@ -1582,7 +1580,7 @@ func TestUpgradeLegacyBundleToMuiltiBundleNewBundles(t *testing.T) {
 			},
 		},
 		Modules: []bundle.ModuleFile{
-			bundle.ModuleFile{
+			{
 				Path:   "bundle/id1",
 				Parsed: ast.MustParseModule(module),
 				Raw:    []byte(module),
@@ -1606,7 +1604,7 @@ func TestUpgradeLegacyBundleToMuiltiBundleNewBundles(t *testing.T) {
 	// Update to the newer style config with a new bundle
 	multiBundleConf := &Config{
 		Bundles: map[string]*Source{
-			"b2": &Source{
+			"b2": {
 				Config:  downloadConf,
 				Service: serviceName,
 			},
@@ -1619,14 +1617,14 @@ func TestUpgradeLegacyBundleToMuiltiBundleNewBundles(t *testing.T) {
 
 	module = "package a.c\n\nbar=1"
 	b = bundle.Bundle{
-		Manifest: bundle.Manifest{Revision: fmt.Sprintf("b2-1"), Roots: &[]string{"a/b2", "a/c"}},
+		Manifest: bundle.Manifest{Revision: "b2-1", Roots: &[]string{"a/b2", "a/c"}},
 		Data: map[string]interface{}{
 			"a": map[string]interface{}{
 				"b2": "foo",
 			},
 		},
 		Modules: []bundle.ModuleFile{
-			bundle.ModuleFile{
+			{
 				Path:   "id1",
 				Parsed: ast.MustParseModule(module),
 				Raw:    []byte(module),
@@ -1752,7 +1750,7 @@ func TestSaveBundleToDiskOverWrite(t *testing.T) {
 			},
 		},
 		Modules: []bundle.ModuleFile{
-			bundle.ModuleFile{
+			{
 				Path:   "bundle/id1",
 				Parsed: ast.MustParseModule(module),
 				Raw:    []byte(module),
@@ -1937,7 +1935,7 @@ func TestPluginUsingFileLoader(t *testing.T) {
 		url := "file://" + name
 
 		p := New(&Config{Bundles: map[string]*Source{
-			"test": &Source{
+			"test": {
 				SizeLimitBytes: 1e5,
 				Resource:       url,
 			},

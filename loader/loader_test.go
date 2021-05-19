@@ -168,10 +168,11 @@ func TestFilteredPaths(t *testing.T) {
 
 	test.WithTempFS(files, func(rootDir string) {
 
-		paths := []string{}
-		paths = append(paths, filepath.Join(rootDir, "a"))
-		paths = append(paths, filepath.Join(rootDir, "b"))
-		paths = append(paths, filepath.Join(rootDir, "foo"))
+		paths := []string{
+			filepath.Join(rootDir, "a"),
+			filepath.Join(rootDir, "b"),
+			filepath.Join(rootDir, "foo"),
+		}
 
 		result, err := FilteredPaths(paths, nil)
 		if err != nil {
@@ -221,7 +222,10 @@ func TestGetBundleDirectoryLoader(t *testing.T) {
 		}
 
 		err = bundle.Write(f, *b)
-		f.Close()
+		if err != nil {
+			t.Fatalf("Unexpected error: %s", err)
+		}
+		err = f.Close()
 		if err != nil {
 			t.Fatalf("Unexpected error: %s", err)
 		}
@@ -236,7 +240,7 @@ func TestGetBundleDirectoryLoader(t *testing.T) {
 		}
 
 		// check files
-		result := []string{}
+		var result []string
 		for {
 			f, err := bl.NextFile()
 			if err == io.EOF {
@@ -487,7 +491,10 @@ func TestAsBundleWithFile(t *testing.T) {
 		}
 
 		err = bundle.Write(f, *b)
-		f.Close()
+		if err != nil {
+			t.Fatalf("Unexpected error: %s", err)
+		}
+		err = f.Close()
 		if err != nil {
 			t.Fatalf("Unexpected error: %s", err)
 		}
@@ -679,12 +686,12 @@ func TestSplitPrefix(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.input, func(t *testing.T) {
-			parts, path := SplitPrefix(tc.input)
+			parts, gotPath := SplitPrefix(tc.input)
 			if !reflect.DeepEqual(parts, tc.wantParts) {
 				t.Errorf("wanted parts %v but got %v", tc.wantParts, parts)
 			}
-			if path != tc.wantPath {
-				t.Errorf("wanted path %q but got %q", path, tc.wantPath)
+			if gotPath != tc.wantPath {
+				t.Errorf("wanted path %q but got %q", gotPath, tc.wantPath)
 			}
 		})
 	}
@@ -822,7 +829,10 @@ func TestSchemas(t *testing.T) {
 							key = ast.MustParseRef(k)
 						}
 						var schema interface{}
-						util.Unmarshal([]byte(v), &schema)
+						err = util.Unmarshal([]byte(v), &schema)
+						if err != nil {
+							t.Fatalf("Unexpected error: %v", err)
+						}
 						result := ss.Get(key)
 						if result == nil {
 							t.Fatalf("expected schema with key %v", key)

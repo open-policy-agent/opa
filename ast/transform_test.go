@@ -84,6 +84,9 @@ p := 7`, ParserOptions{ProcessAnnotation: true})
 			return x, nil
 		},
 	}, module)
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
 
 	resultMod, ok := result.(*Module)
 	if !ok {

@@ -11,6 +11,18 @@ import (
 	"github.com/open-policy-agent/opa/util"
 )
 
+const (
+	typeNull     = "null"
+	typeBoolean  = "boolean"
+	typeNumber   = "number"
+	typeString   = "string"
+	typeArray    = "array"
+	typeSet      = "set"
+	typeObject   = "object"
+	typeAny      = "any"
+	typeFunction = "function"
+)
+
 // Unmarshal deserializes bs and returns the resulting type.
 func Unmarshal(bs []byte) (result Type, err error) {
 
@@ -18,15 +30,15 @@ func Unmarshal(bs []byte) (result Type, err error) {
 
 	if err = util.UnmarshalJSON(bs, &hint); err == nil {
 		switch hint.Type {
-		case "null":
+		case typeNull:
 			result = NewNull()
-		case "boolean":
+		case typeBoolean:
 			result = NewBoolean()
-		case "number":
+		case typeNumber:
 			result = NewNumber()
-		case "string":
+		case typeString:
 			result = NewString()
-		case "array":
+		case typeArray:
 			var arr rawarray
 			if err = util.UnmarshalJSON(bs, &arr); err == nil {
 				var err error
@@ -42,7 +54,7 @@ func Unmarshal(bs []byte) (result Type, err error) {
 				}
 				result = NewArray(static, dynamic)
 			}
-		case "object":
+		case typeObject:
 			var obj rawobject
 			if err = util.UnmarshalJSON(bs, &obj); err == nil {
 				var err error
@@ -56,7 +68,7 @@ func Unmarshal(bs []byte) (result Type, err error) {
 				}
 				result = NewObject(static, dynamic)
 			}
-		case "set":
+		case typeSet:
 			var set rawset
 			if err = util.UnmarshalJSON(bs, &set); err == nil {
 				var of Type
@@ -64,7 +76,7 @@ func Unmarshal(bs []byte) (result Type, err error) {
 					result = NewSet(of)
 				}
 			}
-		case "any":
+		case typeAny:
 			var any rawunion
 			if err = util.UnmarshalJSON(bs, &any); err == nil {
 				var of []Type
@@ -72,7 +84,7 @@ func Unmarshal(bs []byte) (result Type, err error) {
 					result = NewAny(of...)
 				}
 			}
-		case "function":
+		case typeFunction:
 			var decl rawdecl
 			if err = util.UnmarshalJSON(bs, &decl); err == nil {
 				var args []Type

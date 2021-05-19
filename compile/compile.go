@@ -92,7 +92,7 @@ func (c *Compiler) WithAsBundle(enabled bool) *Compiler {
 }
 
 // WithEntrypoints sets the policy entrypoints on the compiler. Entrypoints tell the
-// compiler what rules to expect and where optimizations can be targetted. The wasm
+// compiler what rules to expect and where optimizations can be targeted. The wasm
 // target requires at least one entrypoint as does optimization.
 func (c *Compiler) WithEntrypoints(e ...string) *Compiler {
 	c.entrypoints = c.entrypoints.Append(e...)
@@ -446,7 +446,10 @@ func (c *Compiler) compileWasm(ctx context.Context) error {
 	}
 
 	// dump policy IR (if "debug" wasn't requested, debug.Witer will discard it)
-	ir.Pretty(c.debug.Writer(), policy)
+	err = ir.Pretty(c.debug.Writer(), policy)
+	if err != nil {
+		return err
+	}
 
 	// Compile the policy into a wasm binary.
 	m, err := compiler.WithPolicy(policy).WithDebug(c.debug.Writer()).Compile()
@@ -533,9 +536,7 @@ func pruneBundleEntrypoints(b *bundle.Bundle, entrypointrefs []*ast.Term) error 
 		pkgPath := mf.Parsed.Package.Path.String()
 		if imports, ok := requiredImports[pkgPath]; ok {
 			mf.Raw = nil
-			for _, newImport := range imports {
-				mf.Parsed.Imports = append(mf.Parsed.Imports, newImport)
-			}
+			mf.Parsed.Imports = append(mf.Parsed.Imports, imports...)
 		}
 	}
 

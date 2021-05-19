@@ -1117,7 +1117,7 @@ func (r *Rego) Eval(ctx context.Context) (ResultSet, error) {
 
 	pq, err := r.PrepareForEval(ctx)
 	if err != nil {
-		txnClose(ctx, err) // Ignore error
+		_ = txnClose(ctx, err) // Ignore error
 		return nil, err
 	}
 
@@ -1190,7 +1190,7 @@ func (r *Rego) Partial(ctx context.Context) (*PartialQueries, error) {
 
 	pq, err := r.PrepareForPartial(ctx)
 	if err != nil {
-		txnClose(ctx, err) // Ignore error
+		_ = txnClose(ctx, err) // Ignore error
 		return nil, err
 	}
 
@@ -1342,7 +1342,10 @@ func (r *Rego) compileWasm(modules []*ast.Module, queries []ast.Body, qType quer
 	if r.dump != nil {
 		fmt.Fprintln(r.dump, "PLAN:")
 		fmt.Fprintln(r.dump, "-----")
-		ir.Pretty(r.dump, policy)
+		err = ir.Pretty(r.dump, policy)
+		if err != nil {
+			return nil, err
+		}
 		fmt.Fprintln(r.dump)
 	}
 
@@ -1416,7 +1419,7 @@ func (r *Rego) PrepareForEval(ctx context.Context, opts ...PrepareOption) (Prepa
 
 		pr, err := r.partialResult(ctx, pCfg)
 		if err != nil {
-			txnClose(ctx, err) // Ignore error
+			_ = txnClose(ctx, err) // Ignore error
 			return PreparedEvalQuery{}, err
 		}
 
@@ -1440,14 +1443,14 @@ func (r *Rego) PrepareForEval(ctx context.Context, opts ...PrepareOption) (Prepa
 		},
 	})
 	if err != nil {
-		txnClose(ctx, err) // Ignore error
+		_ = txnClose(ctx, err) // Ignore error
 		return PreparedEvalQuery{}, err
 	}
 
 	if r.target == targetWasm {
 
 		if r.hasWasmModule() {
-			txnClose(ctx, err) // Ignore error
+			_ = txnClose(ctx, err) // Ignore error
 			return PreparedEvalQuery{}, fmt.Errorf("wasm target not supported")
 		}
 
@@ -1458,21 +1461,23 @@ func (r *Rego) PrepareForEval(ctx context.Context, opts ...PrepareOption) (Prepa
 
 		queries := []ast.Body{r.compiledQueries[evalQueryType].query}
 
+		// nolint: staticcheck // SA4006 false positive
 		cr, err := r.compileWasm(modules, queries, evalQueryType)
 		if err != nil {
-			txnClose(ctx, err) // Ignore error
+			_ = txnClose(ctx, err) // Ignore error
 			return PreparedEvalQuery{}, err
 		}
 
+		// nolint: staticcheck // SA4006 false positive
 		data, err := r.store.Read(ctx, r.txn, storage.Path{})
 		if err != nil {
-			txnClose(ctx, err) // Ignore error
+			_ = txnClose(ctx, err) // Ignore error
 			return PreparedEvalQuery{}, err
 		}
 
 		o, err := opa.New().WithPolicyBytes(cr.Bytes).WithDataJSON(data).Init()
 		if err != nil {
-			txnClose(ctx, err) // Ignore error
+			_ = txnClose(ctx, err) // Ignore error
 			return PreparedEvalQuery{}, err
 		}
 		r.opa = o
@@ -2423,7 +2428,7 @@ func parseStringsToRefs(s []string) ([]ast.Ref, error) {
 	return refs, nil
 }
 
-// helper function to finish a built-in function call. If an error occured,
+// helper function to finish a built-in function call. If an error occurred,
 // wrap the error and return it. Otherwise, invoke the iterator if the result
 // was defined.
 func finishFunction(name string, bctx topdown.BuiltinContext, result *ast.Term, err error, iter func(*ast.Term) error) error {

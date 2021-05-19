@@ -885,7 +885,7 @@ func TestTraceRewrittenVarsIssue2022(t *testing.T) {
 			Terms: ast.VarTerm("foo"),
 		},
 		LocalMetadata: map[ast.Var]VarMetadata{
-			ast.Var("foo"): VarMetadata{Name: ast.Var("bar")},
+			ast.Var("foo"): {Name: ast.Var("bar")},
 		},
 	}
 

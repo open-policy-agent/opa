@@ -2,6 +2,7 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
+// nolint: goconst // string duplication is for test readability.
 package cmd
 
 import (
@@ -249,7 +250,7 @@ func testEvalWithSchemaFile(t *testing.T, input string, query string, schema str
 	return err
 }
 
-func testEvalWithInvalidSchemaFile(t *testing.T, input string, query string, schema string) error {
+func testEvalWithInvalidSchemaFile(input string, query string, schema string) error {
 	files := map[string]string{
 		"input.json":  input,
 		"schema.json": schema,
@@ -274,7 +275,7 @@ func testEvalWithInvalidSchemaFile(t *testing.T, input string, query string, sch
 	return err
 }
 
-func testReadParamWithSchemaDir(t *testing.T, input string, query string, inputSchema string) error {
+func testReadParamWithSchemaDir(input string, inputSchema string) error {
 	files := map[string]string{
 		"input.json":                          input,
 		"schemas/input.json":                  inputSchema,
@@ -288,9 +289,10 @@ func testReadParamWithSchemaDir(t *testing.T, input string, query string, inputS
 		params.inputPath = filepath.Join(path, "input.json")
 		params.schemaPath = filepath.Join(path, "schemas")
 
-		schemaSet, err := loader.Schemas(params.schemaPath)
-		if err != nil {
-			err = fmt.Errorf("Unexpected error or undefined from evaluation: %v", err)
+		// Don't assign over "err" or "err =" does nothing.
+		schemaSet, errSchema := loader.Schemas(params.schemaPath)
+		if errSchema != nil {
+			err = fmt.Errorf("Unexpected error or undefined from evaluation: %v", errSchema)
 			return
 		}
 
@@ -400,7 +402,7 @@ func TestEvalWithJSONSchema(t *testing.T) {
 		t.Fatalf("unexpected error: %s", err)
 	}
 
-	err = testReadParamWithSchemaDir(t, input, query, schema)
+	err = testReadParamWithSchemaDir(input, schema)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -427,7 +429,7 @@ func TestEvalWithInvalidSchemaFile(t *testing.T) {
 		t.Fatalf("expected error but err == nil")
 	}
 
-	err = testEvalWithInvalidSchemaFile(t, input, query, schema)
+	err = testEvalWithInvalidSchemaFile(input, query, schema)
 	if err == nil {
 		t.Fatalf("expected error but err == nil")
 	}

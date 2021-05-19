@@ -8,11 +8,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"net/http"
+	"net/http/httptest"
 	"reflect"
 	"strings"
 	"testing"
-
-	"net/http/httptest"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/server/identifier"
@@ -287,7 +286,7 @@ func TestMakeInput(t *testing.T) {
 
 	req = identifier.SetIdentity(req, "bob")
 
-	req, result, err := makeInput(req)
+	_, result, err := makeInput(req)
 	if err != nil {
 		panic(err)
 	}

@@ -2,6 +2,7 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
+// nolint: goconst // string duplication is for test readability.
 package rego
 
 import (
@@ -859,6 +860,9 @@ func TestPrepareAndPartialResult(t *testing.T) {
 	// as expected for PartialResult.
 
 	partial, err := r.PartialResult(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	r2 := partial.Rego(
 		Input(map[string]int{"y": 7}),
@@ -920,6 +924,9 @@ func TestPrepareAndPartial(t *testing.T) {
 	// as expected for Partial.
 
 	partialQuery, err := r.Partial(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
 	expectedQuery := "input.x = 1"
 	if len(partialQuery.Queries) != 1 {
 		t.Errorf("expected 1 query but found %d: %+v", len(partialQuery.Queries), pq)
@@ -1286,7 +1293,7 @@ func TestUnsafeBuiltins(t *testing.T) {
 	t.Run("unsafe query", func(t *testing.T) {
 		r := New(
 			Query(`count([1, 2, 3])`),
-			UnsafeBuiltins(map[string]struct{}{"count": struct{}{}}),
+			UnsafeBuiltins(map[string]struct{}{"count": {}}),
 		)
 		if _, err := r.Eval(ctx); err == nil || !strings.Contains(err.Error(), unsafeCountExpr) {
 			t.Fatalf("Expected unsafe built-in error but got %v", err)
@@ -1301,7 +1308,7 @@ func TestUnsafeBuiltins(t *testing.T) {
 				count(input.requests) > 10
 			}
 			`),
-			UnsafeBuiltins(map[string]struct{}{"count": struct{}{}}),
+			UnsafeBuiltins(map[string]struct{}{"count": {}}),
 		)
 		if _, err := r.Eval(ctx); err == nil || !strings.Contains(err.Error(), unsafeCountExpr) {
 			t.Fatalf("Expected unsafe built-in error but got %v", err)
@@ -1310,7 +1317,7 @@ func TestUnsafeBuiltins(t *testing.T) {
 
 	t.Run("inherit in query", func(t *testing.T) {
 		r := New(
-			Compiler(ast.NewCompiler().WithUnsafeBuiltins(map[string]struct{}{"count": struct{}{}})),
+			Compiler(ast.NewCompiler().WithUnsafeBuiltins(map[string]struct{}{"count": {}})),
 			Query("count([])"),
 		)
 		if _, err := r.Eval(ctx); err == nil || !strings.Contains(err.Error(), unsafeCountExpr) {
@@ -1320,7 +1327,7 @@ func TestUnsafeBuiltins(t *testing.T) {
 
 	t.Run("override/disable in query", func(t *testing.T) {
 		r := New(
-			Compiler(ast.NewCompiler().WithUnsafeBuiltins(map[string]struct{}{"count": struct{}{}})),
+			Compiler(ast.NewCompiler().WithUnsafeBuiltins(map[string]struct{}{"count": {}})),
 			UnsafeBuiltins(map[string]struct{}{}),
 			Query("count([])"),
 		)
@@ -1331,8 +1338,8 @@ func TestUnsafeBuiltins(t *testing.T) {
 
 	t.Run("override/change in query", func(t *testing.T) {
 		r := New(
-			Compiler(ast.NewCompiler().WithUnsafeBuiltins(map[string]struct{}{"count": struct{}{}})),
-			UnsafeBuiltins(map[string]struct{}{"max": struct{}{}}),
+			Compiler(ast.NewCompiler().WithUnsafeBuiltins(map[string]struct{}{"count": {}})),
+			UnsafeBuiltins(map[string]struct{}{"max": {}}),
 			Query("count([]); max([1,2])"),
 		)
 
@@ -1345,7 +1352,7 @@ func TestUnsafeBuiltins(t *testing.T) {
 	t.Run("ignore if given compiler", func(t *testing.T) {
 		r := New(
 			Compiler(ast.NewCompiler()),
-			UnsafeBuiltins(map[string]struct{}{"count": struct{}{}}),
+			UnsafeBuiltins(map[string]struct{}{"count": {}}),
 			Query("data.test.p = 0"),
 			Module("test.rego", `package test
 
@@ -1830,7 +1837,7 @@ func TestEvalWithInterQueryCache(t *testing.T) {
 		}
 
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"x": 1}`))
+		_, _ = w.Write([]byte(`{"x": 1}`))
 	}))
 	defer ts.Close()
 
@@ -1941,6 +1948,9 @@ func TestPrepareAndCompileWithSchema(t *testing.T) {
 
 	var schema interface{}
 	err := util.Unmarshal([]byte(schemaBytes), &schema)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	schemaSet := ast.NewSchemaSet()
 	schemaSet.Put(ast.InputRootRef, schema)

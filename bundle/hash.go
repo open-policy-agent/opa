@@ -95,7 +95,7 @@ func walk(v interface{}, h io.Writer) {
 
 	switch x := v.(type) {
 	case map[string]interface{}:
-		h.Write([]byte("{"))
+		_, _ = h.Write([]byte("{"))
 
 		var keys []string
 		for k := range x {
@@ -105,30 +105,30 @@ func walk(v interface{}, h io.Writer) {
 
 		for i, key := range keys {
 			if i > 0 {
-				h.Write([]byte(","))
+				_, _ = h.Write([]byte(","))
 			}
 
-			h.Write(encodePrimitive(key))
-			h.Write([]byte(":"))
+			_, _ = h.Write(encodePrimitive(key))
+			_, _ = h.Write([]byte(":"))
 			walk(x[key], h)
 		}
 
-		h.Write([]byte("}"))
+		_, _ = h.Write([]byte("}"))
 	case []interface{}:
-		h.Write([]byte("["))
+		_, _ = h.Write([]byte("["))
 
 		for i, e := range x {
 			if i > 0 {
-				h.Write([]byte(","))
+				_, _ = h.Write([]byte(","))
 			}
 			walk(e, h)
 		}
 
-		h.Write([]byte("]"))
+		_, _ = h.Write([]byte("]"))
 	case []byte:
-		h.Write(x)
+		_, _ = h.Write(x)
 	default:
-		h.Write(encodePrimitive(x))
+		_, _ = h.Write(encodePrimitive(x))
 	}
 }
 
@@ -136,6 +136,6 @@ func encodePrimitive(v interface{}) []byte {
 	var buf bytes.Buffer
 	encoder := json.NewEncoder(&buf)
 	encoder.SetEscapeHTML(false)
-	encoder.Encode(v)
-	return []byte(strings.Trim(string(buf.Bytes()), "\n"))
+	_ = encoder.Encode(v)
+	return []byte(strings.Trim(buf.String(), "\n"))
 }

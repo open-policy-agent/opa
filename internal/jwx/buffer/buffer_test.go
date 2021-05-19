@@ -8,7 +8,7 @@ import (
 
 func TestBuffer_FromUint(t *testing.T) {
 	b := FromUint(1)
-	if bytes.Compare([]byte{1}, b.Bytes()) != 0 {
+	if !bytes.Equal([]byte{1}, b.Bytes()) {
 		t.Fatal("mismatched buffer values")
 	}
 }
@@ -16,13 +16,13 @@ func TestBuffer_FromUint(t *testing.T) {
 func TestBuffer_Convert(t *testing.T) {
 	v1 := []byte{'a', 'b', 'c'}
 	b := Buffer(v1)
-	if bytes.Compare(v1, b.Bytes()) != 0 {
+	if !bytes.Equal(v1, b.Bytes()) {
 		t.Fatal("mismatched buffer values")
 	}
 
 	v2 := "abc"
 	b = Buffer(v2)
-	if bytes.Compare([]byte(v2), b.Bytes()) != 0 {
+	if !bytes.Equal([]byte(v2), b.Bytes()) {
 		t.Fatal("mismatched buffer values")
 	}
 }
@@ -33,7 +33,7 @@ func TestBuffer_Base64Encode(t *testing.T) {
 	if err != nil {
 		t.Fatal("failed to base64 encode")
 	}
-	if bytes.Compare([]byte{'Y', 'W', 'J', 'j'}, v) != 0 {
+	if !bytes.Equal([]byte{'Y', 'W', 'J', 'j'}, v) {
 		t.Fatal("mismatched buffer values")
 	}
 }
@@ -55,7 +55,7 @@ func TestJSON(t *testing.T) {
 		t.Fatal("failed to marshal buffer")
 	}
 
-	if bytes.Compare(b1, b2) != 0 {
+	if !bytes.Equal(b1, b2) {
 		t.Fatal("mismatched buffer values")
 	}
 }
@@ -75,7 +75,7 @@ func TestFunky(t *testing.T) {
 func TestBuffer_NData(t *testing.T) {
 	payload := []byte("Alice")
 	nd := Buffer(payload).NData()
-	if bytes.Compare([]byte{0, 0, 0, 5, 65, 108, 105, 99, 101}, nd) != 0 {
+	if !bytes.Equal([]byte{0, 0, 0, 5, 65, 108, 105, 99, 101}, nd) {
 		t.Fatal("mismatched byte buffer values")
 	}
 
@@ -83,7 +83,7 @@ func TestBuffer_NData(t *testing.T) {
 	if err != nil {
 		t.Fatal("failed to extract data")
 	}
-	if bytes.Compare(payload, b1.Bytes()) != 0 {
+	if !bytes.Equal(payload, b1.Bytes()) {
 		t.Fatal("mismatched byte values ")
 	}
 }

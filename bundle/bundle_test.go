@@ -2,6 +2,7 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
+// nolint: goconst // string duplication is for test readability.
 package bundle
 
 import (
@@ -245,8 +246,12 @@ func TestReadWithSignatures(t *testing.T) {
 	otherSignedTokenHS256 := `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImZvbyJ9.eyJmaWxlcyI6W3sibmFtZSI6ImEvYi9jL2RhdGEuanNvbiIsImhhc2giOiJmOWNhYzA3MTQ3MDVkMjBkMWEyMDg4MDE4NWNkZWQ2ZTBmNmQwNDA2NjJkMmViYjA5NjFkM2Q5ZjMxN2Q4YWNiIn1dLCJpYXQiOjE1OTIyNDgwMjcsImlzcyI6IkpXVFNlcnZpY2UiLCJzY29wZSI6IndyaXRlIn0.WJhnUjwaVvckSgOd4QcVvKThN6oc99NiPiwHKYnoG7c`
 	defaultSigner, _ := GetSigner(defaultSignerID)
 	defaultVerifier, _ := GetVerifier(defaultVerifierID)
-	RegisterSigner("_bar", defaultSigner)
-	RegisterVerifier("_bar", defaultVerifier)
+	if err := RegisterSigner("_bar", defaultSigner); err != nil {
+		t.Fatal(err)
+	}
+	if err := RegisterVerifier("_bar", defaultVerifier); err != nil {
+		t.Fatal(err)
+	}
 
 	tests := map[string]struct {
 		files   [][2]string
@@ -684,8 +689,8 @@ func TestReadErrorBadGzip(t *testing.T) {
 func TestReadErrorBadTar(t *testing.T) {
 	var buf bytes.Buffer
 	gw := gzip.NewWriter(&buf)
-	gw.Write([]byte("bad tar bytes"))
-	gw.Close()
+	_, _ = gw.Write([]byte("bad tar bytes"))
+	_ = gw.Close()
 	_, err := NewReader(&buf).Read()
 	if err == nil {
 		t.Fatal("expected error")
@@ -929,8 +934,12 @@ func TestGenerateSignatureWithPlugin(t *testing.T) {
 
 	defaultSigner, _ := GetSigner(defaultSignerID)
 	defaultVerifier, _ := GetVerifier(defaultVerifierID)
-	RegisterSigner("_foo", defaultSigner)
-	RegisterVerifier("_foo", defaultVerifier)
+	if err := RegisterSigner("_foo", defaultSigner); err != nil {
+		t.Fatal(err)
+	}
+	if err := RegisterVerifier("_foo", defaultVerifier); err != nil {
+		t.Fatal(err)
+	}
 	sc := NewSigningConfig("secret", "HS256", "").WithPlugin("_foo")
 
 	err := bundle.GenerateSignature(sc, "", false)
@@ -1201,8 +1210,8 @@ func TestParsedModules(t *testing.T) {
 
 func TestMergeCorruptManifest(t *testing.T) {
 	_, err := Merge([]*Bundle{
-		&Bundle{},
-		&Bundle{},
+		{},
+		{},
 	})
 	if err == nil || err.Error() != "bundle manifest not initialized" {
 		t.Fatal("unexpected error:", err)
@@ -1224,7 +1233,7 @@ func TestMerge(t *testing.T) {
 		{
 			note: "no op",
 			bundles: []*Bundle{
-				&Bundle{
+				{
 					Manifest: Manifest{
 						Revision: "abcdef",
 					},

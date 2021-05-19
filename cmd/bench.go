@@ -74,7 +74,9 @@ The optional "gobench" output format conforms to the Go Benchmark Data Format.
 			return validateEvalParams(&params.evalCommandParams, args)
 		},
 		Run: func(_ *cobra.Command, args []string) {
-			os.Exit(benchMain(args, params, os.Stdout, &goBenchRunner{}))
+			exit, err := benchMain(args, params, os.Stdout, &goBenchRunner{})
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(exit)
 		},
 	}
 
@@ -106,11 +108,11 @@ type benchRunner interface {
 	run(ctx context.Context, ectx *evalContext, params benchmarkCommandParams, f func(context.Context, ...rego.EvalOption) error) (testing.BenchmarkResult, error)
 }
 
-func benchMain(args []string, params benchmarkCommandParams, w io.Writer, r benchRunner) int {
+func benchMain(args []string, params benchmarkCommandParams, w io.Writer, r benchRunner) (int, error) {
 	ectx, err := setupEval(args, params.evalCommandParams)
 	if err != nil {
-		renderBenchmarkError(params, err, w)
-		return 1
+		errRender := renderBenchmarkError(params, err, w)
+		return 1, errRender
 	}
 
 	ctx := context.Background()
@@ -120,8 +122,8 @@ func benchMain(args []string, params benchmarkCommandParams, w io.Writer, r benc
 		// Take the eval context and prepare anything else we possible can before benchmarking the evaluation
 		pq, err := ectx.r.PrepareForEval(ctx)
 		if err != nil {
-			renderBenchmarkError(params, err, w)
-			return 1
+			errRender := renderBenchmarkError(params, err, w)
+			return 1, errRender
 		}
 
 		benchFunc = func(ctx context.Context, opts ...rego.EvalOption) error {
@@ -137,8 +139,8 @@ func benchMain(args []string, params benchmarkCommandParams, w io.Writer, r benc
 		// As with normal evaluation, prepare as much as possible up front.
 		pq, err := ectx.r.PrepareForPartial(ctx)
 		if err != nil {
-			renderBenchmarkError(params, err, w)
-			return 1
+			errRender := renderBenchmarkError(params, err, w)
+			return 1, errRender
 		}
 
 		benchFunc = func(ctx context.Context, opts ...rego.EvalOption) error {
@@ -156,13 +158,13 @@ func benchMain(args []string, params benchmarkCommandParams, w io.Writer, r benc
 	for i := 0; i < params.count; i++ {
 		br, err := r.run(ctx, ectx, params, benchFunc)
 		if err != nil {
-			renderBenchmarkError(params, err, w)
-			return 1
+			errRender := renderBenchmarkError(params, err, w)
+			return 1, errRender
 		}
 		renderBenchmarkResult(params, br, w)
 	}
 
-	return 0
+	return 0, nil
 }
 
 type goBenchRunner struct {
@@ -254,7 +256,7 @@ func (r *goBenchRunner) run(ctx context.Context, ectx *evalContext, params bench
 func renderBenchmarkResult(params benchmarkCommandParams, br testing.BenchmarkResult, w io.Writer) {
 	switch params.outputFormat.String() {
 	case evalJSONOutput:
-		presentation.JSON(w, br)
+		_ = presentation.JSON(w, br)
 	case benchmarkGoBenchOutput:
 		fmt.Fprintf(w, "BenchmarkOPAEval\t%s", br.String())
 		if params.benchMem {

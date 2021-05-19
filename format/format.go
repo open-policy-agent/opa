@@ -141,12 +141,11 @@ func defaultLocation(x ast.Node) *ast.Location {
 type writer struct {
 	buf bytes.Buffer
 
-	indent        string
-	level         int
-	inline        bool
-	beforeEnd     *ast.Comment
-	delay         bool
-	wildcardNames map[string]string
+	indent    string
+	level     int
+	inline    bool
+	beforeEnd *ast.Comment
+	delay     bool
 }
 
 func (w *writer) writeModule(module *ast.Module) {
@@ -259,15 +258,15 @@ func (w *writer) writeRule(rule *ast.Rule, isElse bool, comments []*ast.Comment)
 
 	comments = w.writeBody(rule.Body, comments)
 
-	var close *ast.Location
+	var closeLoc *ast.Location
 
 	if len(rule.Head.Args) > 0 {
-		close = closingLoc('(', ')', '{', '}', rule.Location)
+		closeLoc = closingLoc('(', ')', '{', '}', rule.Location)
 	} else {
-		close = closingLoc('[', ']', '{', '}', rule.Location)
+		closeLoc = closingLoc('[', ']', '{', '}', rule.Location)
 	}
 
-	comments = w.insertComments(comments, close)
+	comments = w.insertComments(comments, closeLoc)
 
 	w.down()
 	w.startLine()
@@ -322,7 +321,7 @@ func (w *writer) writeElse(rule *ast.Rule, comments []*ast.Comment) []*ast.Comme
 		w.startLine()
 	}
 
-	rule.Else.Head.Name = ast.Var("else")
+	rule.Else.Head.Name = "else"
 	rule.Else.Head.Args = nil
 	comments = w.insertComments(comments, rule.Else.Head.Location)
 
@@ -474,7 +473,7 @@ func (w *writer) writeFunctionCall(expr *ast.Expr, comments []*ast.Comment) []*a
 	if numCallArgs == numDeclArgs {
 		// Print infix where result is unassigned (e.g., x != y)
 		comments = w.writeTerm(terms[1], comments)
-		w.write(" " + string(bi.Infix) + " ")
+		w.write(" " + bi.Infix + " ")
 		return w.writeTerm(terms[2], comments)
 	} else if numCallArgs == numDeclArgs+1 {
 		// Print infix where result is assigned (e.g., z = x + y)
@@ -490,7 +489,7 @@ func (w *writer) writeFunctionCall(expr *ast.Expr, comments []*ast.Comment) []*a
 }
 
 func (w *writer) writeFunctionCallPlain(terms []*ast.Term, comments []*ast.Comment) []*ast.Comment {
-	w.write(string(terms[0].String()) + "(")
+	w.write(terms[0].String() + "(")
 	if len(terms) > 1 {
 		for _, v := range terms[1 : len(terms)-1] {
 			comments = w.writeTerm(v, comments)
@@ -546,7 +545,7 @@ func (w *writer) writeTermParens(parens bool, term *ast.Term, comments []*ast.Co
 	case ast.Var:
 		w.write(w.formatVar(x))
 	case ast.Call:
-		comments = w.writeCall(parens, x, term.Location, comments)
+		comments = w.writeCall(parens, x, comments)
 	case fmt.Stringer:
 		w.write(x.String())
 	}
@@ -596,11 +595,11 @@ func (w *writer) formatVar(v ast.Var) string {
 	return v.String()
 }
 
-func (w *writer) writeCall(parens bool, x ast.Call, loc *ast.Location, comments []*ast.Comment) []*ast.Comment {
+func (w *writer) writeCall(parens bool, x ast.Call, comments []*ast.Comment) []*ast.Comment {
 
 	bi, ok := ast.BuiltinMap[x[0].String()]
 	if !ok || bi.Infix == "" {
-		return w.writeFunctionCallPlain([]*ast.Term(x), comments)
+		return w.writeFunctionCallPlain(x, comments)
 	}
 
 	// TODO(tsandall): improve to consider precedence?
@@ -929,15 +928,8 @@ func locCmp(a, b interface{}) int {
 func getLoc(x interface{}) *ast.Location {
 	switch x := x.(type) {
 	case ast.Statement:
+		// Implicitly matches *ast.Head, *ast.Expr, *ast.With, *ast.Term.
 		return x.Loc()
-	case *ast.Head:
-		return x.Location
-	case *ast.Expr:
-		return x.Location
-	case *ast.With:
-		return x.Location
-	case *ast.Term:
-		return x.Location
 	case *ast.Location:
 		return x
 	case [2]*ast.Term:
@@ -1084,13 +1076,6 @@ func (w *writer) writeLine(s string) {
 func (w *writer) startMultilineSeq() {
 	w.endLine()
 	w.up()
-	w.startLine()
-}
-
-func (w *writer) endMultilineSeq() {
-	w.write(",")
-	w.endLine()
-	w.down()
 	w.startLine()
 }
 

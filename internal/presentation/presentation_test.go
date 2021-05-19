@@ -359,7 +359,7 @@ func TestSource(t *testing.T) {
 
 	buf := new(bytes.Buffer)
 
-	Source(buf, Output{
+	err := Source(buf, Output{
 		Partial: &rego.PartialQueries{
 			Queries: []ast.Body{
 				ast.MustParseBody("a = 1; b = 2"),
@@ -372,6 +372,9 @@ func TestSource(t *testing.T) {
 			},
 		},
 	})
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
 
 	exp := `# Query 1
 a = 1
@@ -456,7 +459,10 @@ func TestRaw(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
 			buf := new(bytes.Buffer)
-			Raw(buf, tc.output)
+			err := Raw(buf, tc.output)
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			}
 			if buf.String() != tc.want {
 				t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", tc.want, buf.String())
 			}

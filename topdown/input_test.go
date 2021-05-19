@@ -89,8 +89,7 @@ func TestMergeTermWithValues(t *testing.T) {
 			pairs := make([][2]*ast.Term, len(tc.input))
 
 			for j := range tc.input {
-				var k *ast.Term
-				k = ast.MustParseTerm(tc.input[j][0])
+				k := ast.MustParseTerm(tc.input[j][0])
 				v := ast.MustParseTerm(tc.input[j][1])
 				pairs[j] = [...]*ast.Term{k, v}
 			}

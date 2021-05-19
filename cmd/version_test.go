@@ -88,8 +88,8 @@ func expectOutputKeys(t *testing.T, stdout string, expectedKeys []string) {
 		t.Fatalf("expected %v but got %v", expectedKeys, gotKeys)
 	}
 
-	for i := range expectedKeys {
-		if expectedKeys[i] != gotKeys[i] {
+	for i, got := range gotKeys {
+		if expectedKeys[i] != got {
 			t.Fatalf("expected %v but got %v", expectedKeys, gotKeys)
 		}
 	}
@@ -103,7 +103,7 @@ func getTestServer(update interface{}, statusCode int) (baseURL string, teardown
 		w.WriteHeader(statusCode)
 		bs, _ := json.Marshal(update)
 		w.Header().Set("Content-Type", "application/json")
-		w.Write(bs)
+		_, _ = w.Write(bs)
 	})
 	return ts.URL, ts.Close
 }

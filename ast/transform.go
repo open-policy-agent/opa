@@ -357,18 +357,6 @@ func transformBody(t Transformer, body Body) (Body, error) {
 	return r, nil
 }
 
-func transformExpr(t Transformer, expr *Expr) (*Expr, error) {
-	y, err := Transform(t, expr)
-	if err != nil {
-		return nil, err
-	}
-	h, ok := y.(*Expr)
-	if !ok {
-		return nil, fmt.Errorf("illegal transform: %T != %T", expr, y)
-	}
-	return h, nil
-}
-
 func transformTerm(t Transformer, term *Term) (*Term, error) {
 	v, err := transformValue(t, term.Value)
 	if err != nil {

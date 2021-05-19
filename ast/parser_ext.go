@@ -547,29 +547,6 @@ func ParseStatement(input string) (Statement, error) {
 	return stmts[0], nil
 }
 
-type commentKey struct {
-	File string
-	Row  int
-	Col  int
-}
-
-func (a commentKey) Compare(other commentKey) int {
-	if a.File < other.File {
-		return -1
-	} else if a.File > other.File {
-		return 1
-	} else if a.Row < other.Row {
-		return -1
-	} else if a.Row > other.Row {
-		return 1
-	} else if a.Col < other.Col {
-		return -1
-	} else if a.Col > other.Col {
-		return 1
-	}
-	return 0
-}
-
 // ParseStatements is deprecated. Use ParseStatementWithOpts instead.
 func ParseStatements(filename, input string) ([]Statement, []*Comment, error) {
 	return ParseStatementsWithOpts(filename, input, ParserOptions{})

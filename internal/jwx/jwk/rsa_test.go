@@ -41,7 +41,7 @@ func TestRSA(t *testing.T) {
 			t.Fatalf("JSON marshal failed: %s", err.Error())
 		}
 
-		if bytes.Compare(jsonBuf1, jsonBuf2) != 0 {
+		if !bytes.Equal(jsonBuf1, jsonBuf2) {
 			t.Fatal("JSON marshal buffers do not match")
 		}
 	}
@@ -61,12 +61,15 @@ func TestRSA(t *testing.T) {
 			t.Fatalf("Failed to unmarshal JWK: %s", err.Error())
 		}
 		jwkKey, err = rawKeyJSON.GenerateKey()
+		if err != nil {
+			t.Fatalf("Failed to generate key: %v", err)
+		}
 		if _, ok := jwkKey.(*jwk.RSAPublicKey); !ok {
 			t.Fatalf("Key type should be of type: %s", fmt.Sprintf("%T", jwkKey))
 		}
 		rsaKey, err := jwkKey.Materialize()
 		if err != nil {
-			t.Fatal("Failed to materialize symmetric key")
+			t.Fatalf("Failed to materialize symmetric key: %v", err)
 		}
 		if jwk.GetKeyTypeFromKey(rsaKey) != jwa.RSA {
 			t.Fatal("Wrong Key Type")
@@ -145,6 +148,9 @@ func TestRSA(t *testing.T) {
 				t.Fatalf("Failed to unmarshal JWK: %s", err.Error())
 			}
 			jwkKey, err = rawKeyJSON.GenerateKey()
+			if err != nil {
+				t.Fatalf("Failed to generate key: %v", err)
+			}
 			if _, ok := jwkKey.(*jwk.RSAPrivateKey); !ok {
 				t.Fatalf("Key type should be of type: %s", fmt.Sprintf("%T", jwkKey))
 			}
@@ -190,7 +196,7 @@ func TestRSA(t *testing.T) {
 			rawKeyJSON := rawKeySetJSON.Keys[0]
 			jwkKey, err = rawKeyJSON.GenerateKey()
 			if err != nil {
-				t.Fatalf("Failed to generate key: %s", err.Error())
+				t.Fatalf("Failed to generate key: %v", err)
 			}
 			if _, ok := jwkKey.(*jwk.RSAPrivateKey); !ok {
 				t.Fatalf("Key type should be of type: %s", fmt.Sprintf("%T", jwkKey))

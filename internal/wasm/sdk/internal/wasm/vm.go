@@ -31,7 +31,6 @@ type VM struct {
 	instance             *wasmtime.Instance // Pointer to avoid unintented destruction (triggering finalizers within).
 	intHandle            *wasmtime.InterruptHandle
 	policy               []byte
-	data                 []byte
 	memory               *wasmtime.Memory
 	memoryMin            uint32
 	memoryMax            uint32
@@ -539,32 +538,6 @@ func (i *VM) toRegoJSON(ctx context.Context, v interface{}, free bool) (int32, e
 	}
 
 	return addr, nil
-}
-
-// fromRegoValue parses serialized opa values from the Wasm memory buffer into
-// Rego AST types.
-func (i *VM) fromRegoValue(ctx context.Context, addr int32, free bool) (*ast.Term, error) {
-	serialized, err := i.valueDump(ctx, addr)
-	if err != nil {
-		return nil, err
-	}
-
-	data := i.memory.UnsafeData()[serialized:]
-	n := bytes.IndexByte(data, 0)
-	if n < 0 {
-		n = 0
-	}
-
-	// Parse the result into ast types.
-	result, err := ast.ParseTerm(string(data[0:n]))
-
-	if free {
-		if err := i.free(ctx, serialized); err != nil {
-			return nil, err
-		}
-	}
-
-	return result, err
 }
 
 func (i *VM) getHeapState(ctx context.Context) (int32, error) {

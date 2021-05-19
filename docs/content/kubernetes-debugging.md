@@ -18,7 +18,7 @@ If you are loading policies into OPA via
 [kube-mgmt](https://github.com/open-policy-agent/kube-mgmt) you can check the
 `openpolicyagent.org/policy-status` annotation on ConfigMaps that contain your
 policies. The annotation should be set to `"ok"` if the policy was loaded
-successfully. If errors occured during loading (e.g., because the policy
+successfully. If errors occurred during loading (e.g., because the policy
 contained a syntax error) the cause will be reported here.
 
 If the annotation is

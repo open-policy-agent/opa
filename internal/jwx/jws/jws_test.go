@@ -8,14 +8,15 @@ import (
 	"crypto/sha512"
 	"encoding/base64"
 	"encoding/json"
+	"math/big"
+	"strings"
+	"testing"
+
 	"github.com/open-policy-agent/opa/internal/jwx/jwa"
 	"github.com/open-policy-agent/opa/internal/jwx/jwk"
 	"github.com/open-policy-agent/opa/internal/jwx/jws"
 	"github.com/open-policy-agent/opa/internal/jwx/jws/sign"
 	"github.com/open-policy-agent/opa/internal/jwx/jws/verify"
-	"math/big"
-	"strings"
-	"testing"
 )
 
 const examplePayload = `{"iss":"joe",` + "\r\n" + ` "exp":1300819380,` + "\r\n" + ` "http://example.com/is_root":true}`
@@ -42,9 +43,10 @@ func TestParseErrors(t *testing.T) {
 			t.Fatalf("Parsing compact serialization with less than 3 parts should be an error")
 		}
 	})
+	const badValue = "%badvalue%"
 	t.Run("Compact bad header", func(t *testing.T) {
 		parts := strings.Split(exampleCompactSerialization, ".")
-		parts[0] = "%badvalue%"
+		parts[0] = "badValue"
 		incoming := strings.Join(parts, ".")
 
 		_, err := jws.ParseString(incoming)
@@ -54,7 +56,7 @@ func TestParseErrors(t *testing.T) {
 	})
 	t.Run("Compact bad Payload", func(t *testing.T) {
 		parts := strings.Split(exampleCompactSerialization, ".")
-		parts[1] = "%badvalue%"
+		parts[1] = badValue
 		incoming := strings.Join(parts, ".")
 
 		_, err := jws.ParseString(incoming)
@@ -64,7 +66,7 @@ func TestParseErrors(t *testing.T) {
 	})
 	t.Run("Compact bad Signature", func(t *testing.T) {
 		parts := strings.Split(exampleCompactSerialization, ".")
-		parts[2] = "%badvalue%"
+		parts[2] = badValue
 		incoming := strings.Join(parts, ".")
 
 		_, err := jws.ParseString(incoming)
@@ -101,7 +103,7 @@ func TestRoundTrip(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Message verification failed: %s", err.Error())
 			}
-			if bytes.Compare(payload, verified) != 0 {
+			if !bytes.Equal(payload, verified) {
 				t.Fatalf("Mismatched payload (%s):(%s)", payload, verified)
 			}
 		})
@@ -138,7 +140,7 @@ func TestVerifyWithJWKSet(t *testing.T) {
 		t.Fatalf("Failed to verify with JWK: %s", err.Error())
 	}
 
-	if bytes.Compare(payload, verified) != 0 {
+	if !bytes.Equal(payload, verified) {
 		t.Fatalf("Mismatched payload (%s):(%s)", payload, verified)
 	}
 }
@@ -161,7 +163,7 @@ func TestRoundtrip_RSACompact(t *testing.T) {
 			t.Fatalf("Failed to verify signature: %s", err.Error())
 		}
 
-		if bytes.Compare(payload, verified) != 0 {
+		if !bytes.Equal(payload, verified) {
 			t.Fatalf("Mismatched payloads (%s):(%s)", payload, verified)
 		}
 	}
@@ -281,9 +283,6 @@ func TestEncode(t *testing.T) {
 		}
 		hdrBuf := base64.RawURLEncoding.EncodeToString([]byte(hdr))
 		payload := base64.RawURLEncoding.EncodeToString([]byte(examplePayload))
-		if err != nil {
-			t.Fatal("Failed to base64 encode Payload")
-		}
 
 		signingInput := strings.Join(
 			[]string{
@@ -563,6 +562,9 @@ func TestDecode_ES384Compact_NoSigTrim(t *testing.T) {
 		t.Fatalf("Failed to decode signature: %s", err.Error())
 	}
 	publicKey, err := jwkKeySet.Keys[0].Materialize()
+	if err != nil {
+		t.Fatalf("Failed to materialize keys: %v", err)
+	}
 	signingInput := strings.Join(
 		[]string{
 			parts[0],

@@ -64,7 +64,7 @@ func TestSymmetric(t *testing.T) {
 		if jwk.GetKeyTypeFromKey(realizedKey0) != jwa.OctetSeq {
 			t.Fatal("Wrong Key Type")
 		}
-		if bytes.Compare(realizedKey0.([]byte), buf1) != 0 {
+		if !bytes.Equal(realizedKey0.([]byte), buf1) {
 			t.Fatalf("Mismatched key values %s:%s", realizedKey0.([]byte), buf1)
 		}
 
@@ -80,7 +80,7 @@ func TestSymmetric(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to materialize key: %s", err.Error())
 		}
-		if bytes.Compare(realizedKey1.([]byte), buf2) != 0 {
+		if !bytes.Equal(realizedKey1.([]byte), buf2) {
 			t.Fatalf("Mismatched key values %s:%s", realizedKey1.([]byte), buf1)
 		}
 	})

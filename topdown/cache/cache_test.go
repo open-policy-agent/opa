@@ -148,6 +148,9 @@ func TestUpdateConfig(t *testing.T) {
 		t.Fatal("Cache config is different than expected after a nil update")
 	}
 	config2, err := ParseCachingConfig(nil)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	actualC.UpdateConfig(config2)
 	if actualC.config != config2 {
 		t.Fatal("Cache config is different than expected after update")

@@ -113,6 +113,7 @@ func TestRunWithCoverage(t *testing.T) {
 type expectedTestResult struct {
 	wantErr  bool
 	wantFail bool
+	// nolint: structcheck // The test doesn't check this value, but should.
 	wantSkip bool
 }
 

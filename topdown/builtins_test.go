@@ -11,7 +11,7 @@ import (
 func TestCustomBuiltinIterator(t *testing.T) {
 
 	query := NewQuery(ast.MustParseBody("test(1, x)")).WithBuiltins(map[string]*Builtin{
-		"test": &Builtin{
+		"test": {
 			Decl: &ast.Builtin{
 				Name: "test",
 				Decl: types.NewFunction(types.Args(types.N), types.N),

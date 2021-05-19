@@ -15,7 +15,7 @@ func testParseSchema(t *testing.T, schema string, expectedType types.Type) {
 	}
 	newtype, err := loadSchema(sch)
 	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 	if newtype == nil {
 		t.Fatalf("parseSchema returned nil type")
@@ -149,9 +149,12 @@ func TestParseSchemaWithSchemaBadSchema(t *testing.T) {
 	}
 	jsonSchema, err := compileSchema(sch)
 	if err != nil {
-		t.Fatalf("Unable to compile schema")
+		t.Fatalf("Unable to compile schema: %v", err)
 	}
 	newtype, err := parseSchema(jsonSchema) // Did not pass the subschema
+	if err == nil {
+		t.Fatalf("Expected parseSchema() = error, got nil")
+	}
 	if newtype != nil {
 		t.Fatalf("Incorrect return from parseSchema with a bad schema")
 	}

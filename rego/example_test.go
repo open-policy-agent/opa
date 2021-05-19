@@ -2,6 +2,7 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
+// nolint // example code
 package rego_test
 
 import (
@@ -781,9 +782,6 @@ func ExampleRego_custom_functional_builtin() {
 }
 
 func ExampleRego_custom_function_caching() {
-
-	type builtinCacheKey string
-
 	i := 0
 
 	r := rego.New(
