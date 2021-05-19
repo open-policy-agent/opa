@@ -42,6 +42,7 @@ type Plugin struct {
 	cfgMtx            sync.Mutex
 	ready             bool
 	bundlePersistPath string
+	stopped           bool
 }
 
 // New returns a new Plugin with the given config.
@@ -99,7 +100,6 @@ func (p *Plugin) Start(ctx context.Context) error {
 
 	p.initDownloaders()
 	for name, dl := range p.downloaders {
-
 		p.log(name).Info("Starting bundle loader.")
 		dl.Start(ctx)
 	}
@@ -109,8 +109,15 @@ func (p *Plugin) Start(ctx context.Context) error {
 // Stop stops the plugin.
 func (p *Plugin) Stop(ctx context.Context) {
 	p.mtx.Lock()
-	defer p.mtx.Unlock()
+	stopDownloaders := map[string]bundleLoader{}
 	for name, dl := range p.downloaders {
+		stopDownloaders[name] = dl
+	}
+	p.downloaders = nil
+	p.stopped = true
+	p.mtx.Unlock()
+
+	for name, dl := range stopDownloaders {
 		p.log(name).Info("Stopping bundle loader.")
 		dl.Stop(ctx)
 	}
@@ -361,7 +368,9 @@ func (p *Plugin) process(ctx context.Context, name string, u download.Update) {
 	if u.Error != nil {
 		p.log(name).Error("Bundle load failed: %v", u.Error)
 		p.status[name].SetError(u.Error)
-		p.downloaders[name].ClearCache()
+		if !p.stopped {
+			p.downloaders[name].ClearCache()
+		}
 		return
 	}
 
@@ -376,7 +385,9 @@ func (p *Plugin) process(ctx context.Context, name string, u download.Update) {
 		if err := p.activate(ctx, name, u.Bundle); err != nil {
 			p.log(name).Error("Bundle activation failed: %v", err)
 			p.status[name].SetError(err)
-			p.downloaders[name].ClearCache()
+			if !p.stopped {
+				p.downloaders[name].ClearCache()
+			}
 			return
 		}
 
@@ -387,7 +398,9 @@ func (p *Plugin) process(ctx context.Context, name string, u download.Update) {
 			if err != nil {
 				p.log(name).Error("Persisting bundle to disk failed: %v", err)
 				p.status[name].SetError(err)
-				p.downloaders[name].ClearCache()
+				if !p.stopped {
+					p.downloaders[name].ClearCache()
+				}
 				return
 			}
 			p.log(name).Debug("Bundle persisted to disk successfully at path %v.", filepath.Join(p.bundlePersistPath, name))

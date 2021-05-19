@@ -54,6 +54,8 @@ type Downloader struct {
 	respHdrTimeoutSec int64
 	wg                sync.WaitGroup
 	logger            logging.Logger
+	mtx               sync.Mutex
+	stopped           bool
 }
 
 // New returns a new Downloader that can be started.
@@ -112,11 +114,19 @@ func (d *Downloader) doStart(context.Context) {
 	done := <-d.stop // blocks until there's something to read
 	cancel()
 	d.wg.Wait()
+	d.stopped = true
 	close(done)
 }
 
 // Stop tells the Downloader to stop downloading bundles.
 func (d *Downloader) Stop(context.Context) {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
+
+	if d.stopped {
+		return
+	}
+
 	done := make(chan struct{})
 	d.stop <- done
 	<-done
