@@ -107,6 +107,70 @@ func TestPluginStart(t *testing.T) {
 	}
 }
 
+func TestStop(t *testing.T) {
+	var longPollTimeout int64 = 3
+	done := make(chan struct{})
+	tsURLBase := "/opa-test/"
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !strings.HasPrefix(r.URL.Path, tsURLBase) {
+			t.Fatalf("Invalid request URL path: %s, expected prefix %s", r.URL.Path, tsURLBase)
+		}
+
+		close(done)
+
+		// simulate long operation
+		time.Sleep(time.Duration(longPollTimeout) * time.Second)
+		fmt.Fprintln(w) // Note: this is an invalid bundle and will fail the download
+	}))
+	defer ts.Close()
+
+	ctx := context.Background()
+	manager := getTestManager()
+
+	serviceName := "test-svc"
+	err := manager.Reconfigure(&config.Config{
+		Services: []byte(fmt.Sprintf("{\"%s\":{ \"url\": \"%s\"}}", serviceName, ts.URL+tsURLBase)),
+	})
+	if err != nil {
+		t.Fatalf("Error configuring plugin manager: %s", err)
+	}
+
+	baseConf := download.Config{Polling: download.PollingConfig{LongPollingTimeoutSeconds: &longPollTimeout}}
+
+	plugin := Plugin{
+		manager:     manager,
+		status:      map[string]*Status{},
+		etags:       map[string]string{},
+		downloaders: map[string]bundleLoader{},
+	}
+	bundleName := "test-bundle"
+	plugin.status[bundleName] = &Status{Name: bundleName}
+
+	callback := func(ctx context.Context, u download.Update) {
+		plugin.oneShot(ctx, bundleName, u)
+	}
+	plugin.downloaders[bundleName] = download.New(baseConf, plugin.manager.Client(serviceName), bundleName).WithCallback(callback)
+
+	err = plugin.Start(ctx)
+	if err != nil {
+		t.Fatal("unexpected error:", err)
+	}
+
+	// Give time for a long poll request to be initiated
+	<-done
+
+	plugin.Stop(ctx)
+
+	if plugin.status[bundleName].Code != errCode {
+		t.Fatalf("expected error code %v but got %v", errCode, plugin.status[bundleName].Code)
+	}
+
+	if !strings.Contains(plugin.status[bundleName].Message, "context canceled") {
+		t.Fatalf("unexpected error message %v", plugin.status[bundleName].Message)
+	}
+}
+
 func TestPluginOneShotBundlePersistence(t *testing.T) {
 
 	ctx := context.Background()
