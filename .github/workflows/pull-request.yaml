@@ -91,6 +91,17 @@ jobs:
         run: make ci-go-perf
         timeout-minutes: 30
 
+  go-quick-fuzz:
+    name: Go quick fuzz
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: Run fuzz check (3m)
+        run: make ci-go-check-fuzz FUZZ_TIME=180
+        timeout-minutes: 30
+
   go-lint:
     name: Go Lint
     runs-on: ubuntu-18.04
