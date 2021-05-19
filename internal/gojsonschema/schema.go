@@ -314,7 +314,7 @@ func (d *Schema) parseSchema(documentNode interface{}, currentSchema *SubSchema)
 				default:
 					return invalidType(StringSchema+"/"+StringArrayOfSchemas, KeyItems)
 				}
-				currentSchema.itemsChildrenIsSingleSchema = false
+				currentSchema.ItemsChildrenIsSingleSchema = false
 			}
 		case map[string]interface{}, bool:
 			newSchema := &SubSchema{Parent: currentSchema, Property: KeyItems}
@@ -324,7 +324,7 @@ func (d *Schema) parseSchema(documentNode interface{}, currentSchema *SubSchema)
 			if err != nil {
 				return err
 			}
-			currentSchema.itemsChildrenIsSingleSchema = true
+			currentSchema.ItemsChildrenIsSingleSchema = true
 		default:
 			return invalidType(StringSchema+"/"+StringArrayOfSchemas, KeyItems)
 		}

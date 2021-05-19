@@ -462,7 +462,7 @@ func (v *SubSchema) validateArray(currentSubSchema *SubSchema, value []interface
 	nbValues := len(value)
 
 	// TODO explain
-	if currentSubSchema.itemsChildrenIsSingleSchema {
+	if currentSubSchema.ItemsChildrenIsSingleSchema {
 		for i := range value {
 			subContext := NewJSONContext(strconv.Itoa(i), context)
 			validationResult := currentSubSchema.ItemsChildren[0].subValidateWithContext(value[i], subContext)
