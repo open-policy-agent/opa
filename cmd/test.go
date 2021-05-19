@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -252,6 +253,17 @@ func opaTest(args []string) int {
 			}
 		}
 	} else {
+		//for test coverage with --bundle, retrieve modules from bundles
+		if modules == nil {
+			modules := map[string]*ast.Module{}
+			for path, b := range bundles {
+				for bundleName, mod := range b.ParsedModules(path) {
+					splitBundleName := strings.Split(bundleName, "/")
+					name := splitBundleName[len(splitBundleName)-1]
+					modules[name] = mod
+				}
+			}
+		}
 		reporter = tester.JSONCoverageReporter{
 			Cover:     cov,
 			Modules:   modules,
