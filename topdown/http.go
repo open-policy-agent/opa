@@ -244,7 +244,7 @@ func createHTTPRequest(bctx BuiltinContext, obj ast.Object) (*http.Request, *htt
 	var body *bytes.Buffer
 	var rawBody *bytes.Buffer
 	var enableRedirect bool
-	var tlsUseSystemCerts bool
+	var tlsUseSystemCerts *bool
 	var tlsConfig tls.Config
 	var customHeaders map[string]interface{}
 	var tlsInsecureSkipVerify bool
@@ -307,10 +307,11 @@ func createHTTPRequest(bctx BuiltinContext, obj ast.Object) (*http.Request, *htt
 		case "raw_body":
 			rawBody = bytes.NewBuffer([]byte(strVal))
 		case "tls_use_system_certs":
-			tlsUseSystemCerts, err = strconv.ParseBool(obj.Get(val).String())
+			tempTLSUseSystemCerts, err := strconv.ParseBool(obj.Get(val).String())
 			if err != nil {
 				return nil, nil, err
 			}
+			tlsUseSystemCerts = &tempTLSUseSystemCerts
 		case "tls_ca_cert":
 			tlsCaCert = bytes.Trim([]byte(strVal), "\"")
 		case "tls_ca_cert_file":
@@ -401,9 +402,16 @@ func createHTTPRequest(bctx BuiltinContext, obj ast.Object) (*http.Request, *htt
 		tlsConfig.Certificates = append(tlsConfig.Certificates, cert)
 	}
 
+	// Use system certs if no CA cert is provided
+	// or system certs flag is not set
+	if len(tlsCaCert) == 0 && tlsCaCertFile == "" && tlsCaCertEnvVar == "" && tlsUseSystemCerts == nil {
+		trueValue := true
+		tlsUseSystemCerts = &trueValue
+	}
+
 	// Check the system certificates config first so that we
 	// load additional certificated into the correct pool.
-	if tlsUseSystemCerts {
+	if tlsUseSystemCerts != nil && *tlsUseSystemCerts {
 		pool, err := x509.SystemCertPool()
 		if err != nil {
 			return nil, nil, err

@@ -2233,6 +2233,139 @@ func TestHTTPSNoClientCerts(t *testing.T) {
 	})
 }
 
+func TestCertSelectionLogic(t *testing.T) {
+	const (
+		localCaFile = "testdata/ca.pem"
+	)
+
+	// Set up Environment
+	caCertPEM, err := ioutil.ReadFile(localCaFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	caPool := x509.NewCertPool()
+	if ok := caPool.AppendCertsFromPEM(caCertPEM); !ok {
+		t.Fatal("failed to parse CA cert")
+	}
+
+	ca, err := ioutil.ReadFile(localCaFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = os.Setenv("CLIENT_CA_ENV", string(caCertPEM))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	getClientTLSConfig := func(obj ast.Object) *tls.Config {
+		_, client, err := createHTTPRequest(BuiltinContext{Context: context.Background()}, obj)
+		if err != nil {
+			t.Fatalf("Unexpected error creating HTTP request %v", err)
+		}
+		if client.Transport == nil {
+			return nil
+		}
+		return client.Transport.(*http.Transport).TLSClientConfig
+	}
+
+	systemCertsPool, err := x509.SystemCertPool()
+	if err != nil {
+		t.Fatalf("Unexpected error reading system certs %v", err)
+	}
+
+	tempSystemCertsPool, err := x509.SystemCertPool()
+	if err != nil {
+		t.Fatalf("Unexpected error reading system certs %v", err)
+	}
+	systemCertsAndCaPool, err := addCACertsFromBytes(tempSystemCertsPool, ca)
+	if err != nil {
+		t.Fatalf("Unexpected error merging system certs and ca certs %v", err)
+	}
+
+	tests := []struct {
+		note     string
+		input    map[*ast.Term]*ast.Term
+		expected [][]byte
+		msg      string
+	}{
+		{
+			note:     "tls_use_system_certs set to true",
+			input:    map[*ast.Term]*ast.Term{ast.StringTerm("tls_use_system_certs"): ast.BooleanTerm(true)},
+			expected: systemCertsPool.Subjects(),
+			msg:      "Expected TLS config to use system certs",
+		},
+		{
+			note:     "tls_use_system_certs set to nil",
+			input:    map[*ast.Term]*ast.Term{ast.StringTerm("tls_use_system_certs"): ast.BooleanTerm(false)},
+			expected: nil,
+			msg:      "Expected no TLS config",
+		},
+		{
+			note:     "no CAs specified",
+			input:    nil,
+			expected: systemCertsPool.Subjects(),
+			msg:      "Expected TLS config to use system certs",
+		},
+		{
+			note:     "CA cert provided directly",
+			input:    map[*ast.Term]*ast.Term{ast.StringTerm("tls_ca_cert"): ast.StringTerm(string(ca))},
+			expected: caPool.Subjects(),
+			msg:      "Expected TLS config to use provided CA certs",
+		},
+		{
+			note:     "CA cert file path provided",
+			input:    map[*ast.Term]*ast.Term{ast.StringTerm("tls_ca_cert_file"): ast.StringTerm(localCaFile)},
+			expected: caPool.Subjects(),
+			msg:      "Expected TLS config to use provided CA certs in file",
+		},
+		{
+			note:     "CA cert provided in env variable",
+			input:    map[*ast.Term]*ast.Term{ast.StringTerm("tls_ca_cert_env_variable"): ast.StringTerm("CLIENT_CA_ENV")},
+			expected: caPool.Subjects(),
+			msg:      "Expected TLS config to use provided CA certs in env variable",
+		},
+		{
+			note: "CA cert provided directly and tls_use_system_certs parameter set to false",
+			input: map[*ast.Term]*ast.Term{
+				ast.StringTerm("tls_ca_cert"):          ast.StringTerm(string(ca)),
+				ast.StringTerm("tls_use_system_certs"): ast.BooleanTerm(false),
+			},
+			expected: caPool.Subjects(),
+			msg:      "Expected TLS config to use provided CA certs only",
+		},
+		{
+			note: "CA cert provided directly and tls_use_system_certs parameter set to true",
+			input: map[*ast.Term]*ast.Term{
+				ast.StringTerm("tls_ca_cert"):          ast.StringTerm(string(ca)),
+				ast.StringTerm("tls_use_system_certs"): ast.BooleanTerm(true),
+			},
+			expected: systemCertsAndCaPool.Subjects(),
+			msg:      "Expected TLS config to use provided CA certs and system certs",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			obj := ast.NewObject()
+			for key, value := range tc.input {
+				obj.Insert(key, value)
+			}
+			tlsConfig := getClientTLSConfig(obj)
+			if tc.expected == nil {
+				if tlsConfig != nil {
+					t.Fatalf(tc.msg)
+				}
+			} else {
+				if !reflect.DeepEqual(tlsConfig.RootCAs.Subjects(), tc.expected) {
+					t.Fatal(tc.msg)
+				}
+			}
+		})
+	}
+}
+
 func TestHTTPSendMetrics(t *testing.T) {
 
 	// run test server
