@@ -8,6 +8,8 @@ import (
 )
 
 func testParseSchema(t *testing.T, schema string, expectedType types.Type) {
+	t.Helper()
+
 	var sch interface{}
 	err := util.Unmarshal([]byte(schema), &sch)
 	if err != nil {
@@ -26,15 +28,14 @@ func testParseSchema(t *testing.T, schema string, expectedType types.Type) {
 }
 
 func TestParseSchemaObject(t *testing.T) {
-	//Expected type is: object<b: array<object<a: number, b: array<number>, c: any>>, foo: string>
 	innerObjectStaticProps := []*types.StaticProperty{}
 	innerObjectStaticProps = append(innerObjectStaticProps, &types.StaticProperty{Key: "a", Value: types.N})
-	innerObjectStaticProps = append(innerObjectStaticProps, &types.StaticProperty{Key: "b", Value: types.NewArray([]types.Type{types.N}, nil)})
+	innerObjectStaticProps = append(innerObjectStaticProps, &types.StaticProperty{Key: "b", Value: types.NewArray(nil, types.N)})
 	innerObjectStaticProps = append(innerObjectStaticProps, &types.StaticProperty{Key: "c", Value: types.A})
 	innerObjectType := types.NewObject(innerObjectStaticProps, nil)
 
 	staticProps := []*types.StaticProperty{}
-	staticProps = append(staticProps, &types.StaticProperty{Key: "b", Value: types.NewArray([]types.Type{innerObjectType}, nil)})
+	staticProps = append(staticProps, &types.StaticProperty{Key: "b", Value: types.NewArray(nil, innerObjectType)})
 	staticProps = append(staticProps, &types.StaticProperty{Key: "foo", Value: types.S})
 
 	expectedType := types.NewObject(staticProps, nil)
@@ -54,7 +55,7 @@ func TestSetTypesWithSchemaRef(t *testing.T) {
 	if newtype == nil {
 		t.Fatalf("parseSchema returned nil type")
 	}
-	if newtype.String() != "object<apiVersion: string, kind: string, metadata: object<annotations: object[any: any], clusterName: string, creationTimestamp: string, deletionGracePeriodSeconds: number, deletionTimestamp: string, finalizers: array<string>, generateName: string, generation: number, initializers: object<pending: array<object<name: string>>, result: object<apiVersion: string, code: number, details: object<causes: array<object<field: string, message: string, reason: string>>, group: string, kind: string, name: string, retryAfterSeconds: number, uid: string>, kind: string, message: string, metadata: object<continue: string, resourceVersion: string, selfLink: string>, reason: string, status: string>>, labels: object[any: any], managedFields: array<object<apiVersion: string, fields: object[any: any], manager: string, operation: string, time: string>>, name: string, namespace: string, ownerReferences: array<object<apiVersion: string, blockOwnerDeletion: boolean, controller: boolean, kind: string, name: string, uid: string>>, resourceVersion: string, selfLink: string, uid: string>>" {
+	if newtype.String() != "object<apiVersion: string, kind: string, metadata: object<annotations: object[any: any], clusterName: string, creationTimestamp: string, deletionGracePeriodSeconds: number, deletionTimestamp: string, finalizers: array[string], generateName: string, generation: number, initializers: object<pending: array[object<name: string>], result: object<apiVersion: string, code: number, details: object<causes: array[object<field: string, message: string, reason: string>], group: string, kind: string, name: string, retryAfterSeconds: number, uid: string>, kind: string, message: string, metadata: object<continue: string, resourceVersion: string, selfLink: string>, reason: string, status: string>>, labels: object[any: any], managedFields: array[object<apiVersion: string, fields: object[any: any], manager: string, operation: string, time: string>], name: string, namespace: string, ownerReferences: array[object<apiVersion: string, blockOwnerDeletion: boolean, controller: boolean, kind: string, name: string, uid: string>], resourceVersion: string, selfLink: string, uid: string>>" {
 		t.Fatalf("parseSchema returned an incorrect type: %s", newtype.String())
 	}
 }
@@ -118,6 +119,37 @@ func TestParseSchemaBasics(t *testing.T) {
 			note:   "number",
 			schema: `{"type": "number"}`,
 			exp:    types.N,
+		},
+		{
+			note: "array of objects",
+			schema: `{
+				"type": "array",
+				"items": {
+					"type": "object",
+					"properties": {
+						"id": {"type": "string"},
+						"value": {"type": "number"}
+					}
+				}
+			}`,
+			exp: types.NewArray(nil, types.NewObject([]*types.StaticProperty{
+				types.NewStaticProperty("id", types.S),
+				types.NewStaticProperty("value", types.N),
+			}, nil)),
+		},
+		{
+			note: "static array items",
+			schema: `{
+				"type": "array",
+				"items": [
+					{"type": "string"},
+					{"type": "number"}
+				]
+			}`,
+			exp: types.NewArray([]types.Type{
+				types.S,
+				types.N,
+			}, nil),
 		},
 	}
 

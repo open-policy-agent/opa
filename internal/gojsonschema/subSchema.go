@@ -102,7 +102,7 @@ type SubSchema struct {
 	// hierarchy
 	Parent                      *SubSchema
 	ItemsChildren               []*SubSchema
-	itemsChildrenIsSingleSchema bool
+	ItemsChildrenIsSingleSchema bool
 	PropertiesChildren          []*SubSchema
 
 	// validation : number / integer
