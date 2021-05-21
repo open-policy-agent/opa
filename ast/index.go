@@ -233,12 +233,15 @@ func (i *refindices) Update(rule *Rule, expr *Expr) {
 
 	op := expr.Operator()
 
-	if op.Equal(Equality.Ref()) || op.Equal(Equal.Ref()) {
-
+	if op.Equal(Equality.Ref()) {
 		i.updateEq(rule, expr)
-
+	} else if op.Equal(Equal.Ref()) && len(expr.Operands()) == 2 {
+		// NOTE(tsandall): if equal() is called with more than two arguments the
+		// output value is being captured in which case the indexer cannot
+		// exclude the rule if the equal() call would return false (because the
+		// false value must still be produced.)
+		i.updateEq(rule, expr)
 	} else if op.Equal(GlobMatch.Ref()) {
-
 		i.updateGlobMatch(rule, expr)
 	}
 }
@@ -291,20 +294,19 @@ func (i *refindices) Mapper(rule *Rule, ref Ref) *valueMapper {
 
 func (i *refindices) updateEq(rule *Rule, expr *Expr) {
 	a, b := expr.Operand(0), expr.Operand(1)
-	if ref, value, ok := eqOperandsToRefAndValue(i.isVirtual, a, b); ok {
-		i.insert(rule, &refindex{
-			Ref:   ref,
-			Value: value,
-		})
-	} else if ref, value, ok := eqOperandsToRefAndValue(i.isVirtual, b, a); ok {
-		i.insert(rule, &refindex{
-			Ref:   ref,
-			Value: value,
-		})
+	args := rule.Head.Args
+	if idx, ok := eqOperandsToRefAndValue(i.isVirtual, args, a, b); ok {
+		i.insert(rule, idx)
+		return
+	}
+	if idx, ok := eqOperandsToRefAndValue(i.isVirtual, args, b, a); ok {
+		i.insert(rule, idx)
+		return
 	}
 }
 
 func (i *refindices) updateGlobMatch(rule *Rule, expr *Expr) {
+	args := rule.Head.Args
 
 	delim, ok := globDelimiterToString(expr.Operand(1))
 	if !ok {
@@ -314,25 +316,36 @@ func (i *refindices) updateGlobMatch(rule *Rule, expr *Expr) {
 	if arr := globPatternToArray(expr.Operand(0), delim); arr != nil {
 		// The 3rd operand of glob.match is the value to match. We assume the
 		// 3rd operand was a reference that has been rewritten and bound to a
-		// variable earlier in the query.
+		// variable earlier in the query OR a function argument variable.
 		match := expr.Operand(2)
 		if _, ok := match.Value.(Var); ok {
+			var ref Ref
 			for _, other := range i.rules[rule] {
 				if _, ok := other.Value.(Var); ok && other.Value.Compare(match.Value) == 0 {
-					i.insert(rule, &refindex{
-						Ref:   other.Ref,
-						Value: arr.Value,
-						Mapper: &valueMapper{
-							Key: delim,
-							MapValue: func(v Value) Value {
-								if s, ok := v.(String); ok {
-									return stringSliceToArray(splitStringEscaped(string(s), delim))
-								}
-								return v
-							},
-						},
-					})
+					ref = other.Ref
 				}
+			}
+			if ref == nil {
+				for j, arg := range args {
+					if arg.Equal(match) {
+						ref = Ref{FunctionArgRootDocument, IntNumberTerm(j)}
+					}
+				}
+			}
+			if ref != nil {
+				i.insert(rule, &refindex{
+					Ref:   ref,
+					Value: arr.Value,
+					Mapper: &valueMapper{
+						Key: delim,
+						MapValue: func(v Value) Value {
+							if s, ok := v.(String); ok {
+								return stringSliceToArray(splitStringEscaped(string(s), delim))
+							}
+							return v
+						},
+					},
+				})
 			}
 		}
 	}
@@ -682,28 +695,41 @@ func (node *trieNode) traverseUnknown(resolver ValueResolver, tr *trieTraversalR
 	return nil
 }
 
-func eqOperandsToRefAndValue(isVirtual func(Ref) bool, a, b *Term) (Ref, Value, bool) {
-
-	ref, ok := a.Value.(Ref)
-	if !ok {
-		return nil, nil, false
+// If term `a` is one of the function's operands, we store a Ref: `args[0]`
+// for the argument number. So for `f(x, y) { x = 10; y = 12 }`, we'll
+// bind `args[0]` and `args[1]` to this rule when called for (x=10) and
+// (y=12) respectively.
+func eqOperandsToRefAndValue(isVirtual func(Ref) bool, args []*Term, a, b *Term) (*refindex, bool) {
+	switch v := a.Value.(type) {
+	case Var:
+		for i, arg := range args {
+			if arg.Value.Compare(v) == 0 {
+				if bval, ok := indexValue(b); ok {
+					return &refindex{Ref: Ref{FunctionArgRootDocument, IntNumberTerm(i)}, Value: bval}, true
+				}
+			}
+		}
+	case Ref:
+		if !RootDocumentNames.Contains(v[0]) {
+			return nil, false
+		}
+		if isVirtual(v) {
+			return nil, false
+		}
+		if v.IsNested() || !v.IsGround() {
+			return nil, false
+		}
+		if bval, ok := indexValue(b); ok {
+			return &refindex{Ref: v, Value: bval}, true
+		}
 	}
+	return nil, false
+}
 
-	if !RootDocumentNames.Contains(ref[0]) {
-		return nil, nil, false
-	}
-
-	if isVirtual(ref) {
-		return nil, nil, false
-	}
-
-	if ref.IsNested() || !ref.IsGround() {
-		return nil, nil, false
-	}
-
+func indexValue(b *Term) (Value, bool) {
 	switch b := b.Value.(type) {
 	case Null, Boolean, Number, String, Var:
-		return ref, b, true
+		return b, true
 	case *Array:
 		stop := false
 		first := true
@@ -721,11 +747,11 @@ func eqOperandsToRefAndValue(isVirtual func(Ref) bool, a, b *Term) (Ref, Value, 
 		})
 		vis.Walk(b)
 		if !stop {
-			return ref, b, true
+			return b, true
 		}
 	}
 
-	return nil, nil, false
+	return nil, false
 }
 
 func globDelimiterToString(delim *Term) (string, bool) {

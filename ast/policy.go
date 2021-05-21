@@ -33,6 +33,11 @@ var InputRootDocument = VarTerm("input")
 // SchemaRootDocument names the document containing external data schemas.
 var SchemaRootDocument = VarTerm("schema")
 
+// FunctionArgRootDocument names the document containing function arguments.
+// It's only for internal usage, for referencing function arguments between
+// the index and topdown.
+var FunctionArgRootDocument = VarTerm("args")
+
 // RootDocumentNames contains the names of top-level documents that can be
 // referred to in modules and queries.
 //
