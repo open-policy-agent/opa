@@ -617,11 +617,21 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 
 	ref := terms[0].Value.(ast.Ref)
 
+	args := make([]*ast.Term, len(terms)-1)
+	for i := 1; i < len(terms); i++ {
+		args[i-1] = e.bindings.PlugNamespaced(terms[i], e.caller.bindings)
+	}
+
 	if ref[0].Equal(ast.DefaultRootDocument) {
+		ir, err := e.getRules(ref, args...)
+		if err != nil {
+			return err
+		}
 		eval := evalFunc{
 			e:     e,
 			ref:   ref,
 			terms: terms,
+			ir:    ir,
 		}
 		return eval.eval(iter)
 	}
@@ -1233,7 +1243,7 @@ func (e *eval) saveInlinedNegatedExprs(exprs []*ast.Expr, iter unifyIterator) er
 	return err
 }
 
-func (e *eval) getRules(ref ast.Ref) (*ast.IndexResult, error) {
+func (e *eval) getRules(ref ast.Ref, args ...*ast.Term) (*ast.IndexResult, error) {
 	e.instr.startTimer(evalOpRuleIndex)
 	defer e.instr.stopTimer(evalOpRuleIndex)
 
@@ -1245,9 +1255,9 @@ func (e *eval) getRules(ref ast.Ref) (*ast.IndexResult, error) {
 	var result *ast.IndexResult
 	var err error
 	if e.indexing {
-		result, err = index.Lookup(e)
+		result, err = index.Lookup(&evalResolver{e: e, args: args})
 	} else {
-		result, err = index.AllRules(e)
+		result, err = index.AllRules(&evalResolver{e: e})
 	}
 
 	if err != nil {
@@ -1270,23 +1280,44 @@ func (e *eval) getRules(ref ast.Ref) (*ast.IndexResult, error) {
 }
 
 func (e *eval) Resolve(ref ast.Ref) (ast.Value, error) {
-	e.instr.startTimer(evalOpResolve)
+	return (&evalResolver{e: e}).Resolve(ref)
+}
 
-	if e.inliningControl.Disabled(ref, true) || e.saveSet.Contains(ast.NewTerm(ref), nil) {
-		e.instr.stopTimer(evalOpResolve)
+type evalResolver struct {
+	e    *eval
+	args []*ast.Term
+}
+
+func (e *evalResolver) Resolve(ref ast.Ref) (ast.Value, error) {
+	e.e.instr.startTimer(evalOpResolve)
+
+	if e.e.inliningControl.Disabled(ref, true) || e.e.saveSet.Contains(ast.NewTerm(ref), nil) {
+		e.e.instr.stopTimer(evalOpResolve)
+		return nil, ast.UnknownValueErr{}
+	}
+
+	// Lookup of function argument values works by using ast.Number
+	// in ref[0]. The callsite-local arguments are passed in e.args,
+	// index by argument index.
+	if i, ok := funArg(ref); ok {
+		if ast.IsScalar(e.args[i].Value) {
+			e.e.instr.stopTimer(evalOpResolve)
+			return e.args[i].Value, nil
+		}
+		e.e.instr.stopTimer(evalOpResolve)
 		return nil, ast.UnknownValueErr{}
 	}
 
 	if ref[0].Equal(ast.InputRootDocument) {
-		if e.input != nil {
-			v, err := e.input.Value.Find(ref[1:])
+		if e.e.input != nil {
+			v, err := e.e.input.Value.Find(ref[1:])
 			if err != nil {
 				v = nil
 			}
-			e.instr.stopTimer(evalOpResolve)
+			e.e.instr.stopTimer(evalOpResolve)
 			return v, nil
 		}
-		e.instr.stopTimer(evalOpResolve)
+		e.e.instr.stopTimer(evalOpResolve)
 		return nil, nil
 	}
 
@@ -1294,16 +1325,16 @@ func (e *eval) Resolve(ref ast.Ref) (ast.Value, error) {
 
 		var repValue ast.Value
 
-		if e.data != nil {
-			if v, err := e.data.Value.Find(ref[1:]); err == nil {
+		if e.e.data != nil {
+			if v, err := e.e.data.Value.Find(ref[1:]); err == nil {
 				repValue = v
 			} else {
 				repValue = nil
 			}
 		}
 
-		if e.targetStack.Prefixed(ref) {
-			e.instr.stopTimer(evalOpResolve)
+		if e.e.targetStack.Prefixed(ref) {
+			e.e.instr.stopTimer(evalOpResolve)
 			return repValue, nil
 		}
 
@@ -1314,11 +1345,11 @@ func (e *eval) Resolve(ref ast.Ref) (ast.Value, error) {
 		// example, a 2MB JSON value can take upwards of 30 millisceonds to convert.
 		// We cache the result of conversion here in case the same base document is
 		// being read multiple times during evaluation.
-		realValue := e.baseCache.Get(ref)
+		realValue := e.e.baseCache.Get(ref)
 		if realValue != nil {
-			e.instr.counterIncr(evalOpBaseCacheHit)
+			e.e.instr.counterIncr(evalOpBaseCacheHit)
 			if repValue == nil {
-				e.instr.stopTimer(evalOpResolve)
+				e.e.instr.stopTimer(evalOpResolve)
 				return realValue, nil
 			}
 			var ok bool
@@ -1327,14 +1358,25 @@ func (e *eval) Resolve(ref ast.Ref) (ast.Value, error) {
 				err = mergeConflictErr(ref[0].Location)
 			}
 		} else {
-			e.instr.counterIncr(evalOpBaseCacheMiss)
-			merged, err = e.resolveReadFromStorage(ref, repValue)
+			e.e.instr.counterIncr(evalOpBaseCacheMiss)
+			merged, err = e.e.resolveReadFromStorage(ref, repValue)
 		}
-		e.instr.stopTimer(evalOpResolve)
+		e.e.instr.stopTimer(evalOpResolve)
 		return merged, err
 	}
-	e.instr.stopTimer(evalOpResolve)
+	e.e.instr.stopTimer(evalOpResolve)
 	return nil, fmt.Errorf("illegal ref")
+}
+
+func funArg(ref ast.Ref) (int, bool) {
+	if len(ref) != 1 {
+		return 0, false
+	}
+	v, ok := ref[0].Value.(ast.Number)
+	if !ok {
+		return 0, false
+	}
+	return v.Int()
 }
 
 func (e *eval) resolveReadFromStorage(ref ast.Ref, a ast.Value) (ast.Value, error) {
@@ -1497,24 +1539,20 @@ type evalFunc struct {
 	e     *eval
 	ref   ast.Ref
 	terms []*ast.Term
+	ir    *ast.IndexResult
 }
 
 func (e evalFunc) eval(iter unifyIterator) error {
 
-	ir, err := e.e.getRules(e.ref)
-	if err != nil {
-		return err
-	}
-
 	// default functions aren't supported:
 	// https://github.com/open-policy-agent/opa/issues/2445
-	if len(ir.Rules) == 0 {
+	if len(e.ir.Rules) == 0 {
 		return nil
 	}
 
-	argCount := len(ir.Rules[0].Head.Args)
+	argCount := len(e.ir.Rules[0].Head.Args)
 
-	if len(ir.Else) > 0 && e.e.unknown(e.e.query[e.e.index], e.e.bindings) {
+	if len(e.ir.Else) > 0 && e.e.unknown(e.e.query[e.e.index], e.e.bindings) {
 		// Partial evaluation of ordered rules is not supported currently. Save the
 		// expression and continue. This could be revisited in the future.
 		return e.e.saveCall(argCount, e.terms, iter)
@@ -1522,6 +1560,7 @@ func (e evalFunc) eval(iter unifyIterator) error {
 
 	var cacheKey ast.Ref
 	var hit bool
+	var err error
 	if !e.e.partial() {
 		cacheKey, hit, err = e.evalCache(argCount, iter)
 		if err != nil {
@@ -1533,13 +1572,13 @@ func (e evalFunc) eval(iter unifyIterator) error {
 
 	var prev *ast.Term
 
-	for i := range ir.Rules {
-		next, err := e.evalOneRule(iter, ir.Rules[i], cacheKey, prev)
+	for i := range e.ir.Rules {
+		next, err := e.evalOneRule(iter, e.ir.Rules[i], cacheKey, prev)
 		if err != nil {
 			return err
 		}
 		if next == nil {
-			for _, rule := range ir.Else[ir.Rules[i]] {
+			for _, rule := range e.ir.Else[e.ir.Rules[i]] {
 				next, err = e.evalOneRule(iter, rule, cacheKey, prev)
 				if err != nil {
 					return err

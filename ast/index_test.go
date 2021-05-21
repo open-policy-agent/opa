@@ -13,9 +13,17 @@ type testResolver struct {
 	input       *Term
 	failRef     Ref
 	unknownRefs Set
+	args        []Value
 }
 
 func (r testResolver) Resolve(ref Ref) (Value, error) {
+	if len(ref) == 1 {
+		if v, ok := ref[0].Value.(Number); ok {
+			if i, ok := v.Int(); ok && 0 <= i && i < len(r.args) {
+				return r.args[i], nil
+			}
+		}
+	}
 	if r.unknownRefs != nil && r.unknownRefs.Contains(NewTerm(ref)) {
 		return nil, UnknownValueErr{}
 	}
@@ -177,6 +185,31 @@ func TestBaseDocEqIndexing(t *testing.T) {
 		input.x = x
 		glob.match("bar/*", ["/"], x)
 	}
+
+
+	# functions
+	f(x) = y {
+		input.a = "foo"
+		x = 10
+		y := 10
+	}
+	f(x) = 12 { x = 11 }
+	f(x) = x+1 {
+		input.a = x
+		x != 10
+		x != 11
+	}
+
+	g(x, y) = z {
+		x = 12
+		y = "monkeys"
+		z = 1
+	}
+	g(a, b) = c {
+		a = "a"
+		b = "b"
+		c = "c"
+	}
 	`)
 
 	tests := []struct {
@@ -184,6 +217,7 @@ func TestBaseDocEqIndexing(t *testing.T) {
 		ruleset    string
 		input      string
 		unknowns   []string
+		args       []Value
 		expectedRS interface{}
 		expectedDR *Rule
 	}{
@@ -451,6 +485,35 @@ func TestBaseDocEqIndexing(t *testing.T) {
 			input:      `{"x": [0]}`,
 			expectedRS: []string{},
 		},
+		{
+			note:    "functions: args match",
+			ruleset: "f",
+			input:   `{"a": 1}`,
+			args:    []Value{Number("11")},
+			expectedRS: []string{
+				`f(x) = 12 { x = 11 } `,
+				`f(x) = plus(x, 1) { input.a = x; neq(x, 10); neq(x, 11) }`, // neq not respected in index
+			},
+		},
+		{
+			note:    "functions: multiple args, each matches",
+			ruleset: "g",
+			input:   `{"a": 1}`,
+			args:    []Value{Number("12"), StringTerm("monkeys").Value},
+			expectedRS: []string{
+				`g(x, y) = z { x = 12; y = "monkeys"; z = 1 }`,
+			},
+		},
+		{
+			note:    "functions: input + args match",
+			ruleset: "f",
+			input:   `{"a": "foo"}`,
+			args:    []Value{Number("10")},
+			expectedRS: []string{
+				`f(x) = y { input.a = "foo"; x = 10; assign(y, 10) }`,
+				`f(x) = plus(x, 1) { input.a = x; neq(x, 10); neq(x, 11) }`, // neq not respected in index
+			},
+		},
 	}
 
 	for _, tc := range tests {
@@ -498,7 +561,7 @@ func TestBaseDocEqIndexing(t *testing.T) {
 				}
 			}
 
-			result, err := index.Lookup(testResolver{input: input, unknownRefs: unknownRefs})
+			result, err := index.Lookup(testResolver{input: input, unknownRefs: unknownRefs, args: tc.args})
 			if err != nil {
 				t.Fatalf("Unexpected error during index lookup: %v", err)
 			}
