@@ -617,7 +617,13 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 	ref := terms[0].Value.(ast.Ref)
 
 	if ref[0].Equal(ast.DefaultRootDocument) {
-		ir, err := e.getRules(ref)
+		var ir *ast.IndexResult
+		var err error
+		if e.partial() {
+			ir, err = e.getRules(ref, nil)
+		} else {
+			ir, err = e.getRules(ref, terms[1:])
+		}
 		if err != nil {
 			return err
 		}
@@ -1237,7 +1243,7 @@ func (e *eval) saveInlinedNegatedExprs(exprs []*ast.Expr, iter unifyIterator) er
 	return err
 }
 
-func (e *eval) getRules(ref ast.Ref) (*ast.IndexResult, error) {
+func (e *eval) getRules(ref ast.Ref, args []*ast.Term) (*ast.IndexResult, error) {
 	e.instr.startTimer(evalOpRuleIndex)
 	defer e.instr.stopTimer(evalOpRuleIndex)
 
@@ -1249,9 +1255,9 @@ func (e *eval) getRules(ref ast.Ref) (*ast.IndexResult, error) {
 	var result *ast.IndexResult
 	var err error
 	if e.indexing {
-		result, err = index.Lookup(e)
+		result, err = index.Lookup(&evalResolver{e: e, args: args})
 	} else {
-		result, err = index.AllRules(e)
+		result, err = index.AllRules(&evalResolver{e: e})
 	}
 
 	if err != nil {
@@ -1274,23 +1280,50 @@ func (e *eval) getRules(ref ast.Ref) (*ast.IndexResult, error) {
 }
 
 func (e *eval) Resolve(ref ast.Ref) (ast.Value, error) {
-	e.instr.startTimer(evalOpResolve)
+	return (&evalResolver{e: e}).Resolve(ref)
+}
 
-	if e.inliningControl.Disabled(ref, true) || e.saveSet.Contains(ast.NewTerm(ref), nil) {
-		e.instr.stopTimer(evalOpResolve)
+type evalResolver struct {
+	e    *eval
+	args []*ast.Term
+}
+
+func (e *evalResolver) Resolve(ref ast.Ref) (ast.Value, error) {
+	e.e.instr.startTimer(evalOpResolve)
+
+	if e.e.inliningControl.Disabled(ref, true) || e.e.saveSet.Contains(ast.NewTerm(ref), nil) {
+		e.e.instr.stopTimer(evalOpResolve)
+		return nil, ast.UnknownValueErr{}
+	}
+
+	// Lookup of function argument values works by using the `args` ref[0],
+	// where the ast.Number in ref[1] references the function argument of
+	// that number. The callsite-local arguments are passed in e.args,
+	// indexed by argument index.
+	if ref[0].Equal(ast.FunctionArgRootDocument) {
+		v, ok := ref[1].Value.(ast.Number)
+		if ok {
+			i, ok := v.Int()
+			if ok && i >= 0 && i < len(e.args) {
+				e.e.instr.stopTimer(evalOpResolve)
+				plugged := e.e.bindings.PlugNamespaced(e.args[i], e.e.caller.bindings)
+				return plugged.Value, nil
+			}
+		}
+		e.e.instr.stopTimer(evalOpResolve)
 		return nil, ast.UnknownValueErr{}
 	}
 
 	if ref[0].Equal(ast.InputRootDocument) {
-		if e.input != nil {
-			v, err := e.input.Value.Find(ref[1:])
+		if e.e.input != nil {
+			v, err := e.e.input.Value.Find(ref[1:])
 			if err != nil {
 				v = nil
 			}
-			e.instr.stopTimer(evalOpResolve)
+			e.e.instr.stopTimer(evalOpResolve)
 			return v, nil
 		}
-		e.instr.stopTimer(evalOpResolve)
+		e.e.instr.stopTimer(evalOpResolve)
 		return nil, nil
 	}
 
@@ -1298,16 +1331,16 @@ func (e *eval) Resolve(ref ast.Ref) (ast.Value, error) {
 
 		var repValue ast.Value
 
-		if e.data != nil {
-			if v, err := e.data.Value.Find(ref[1:]); err == nil {
+		if e.e.data != nil {
+			if v, err := e.e.data.Value.Find(ref[1:]); err == nil {
 				repValue = v
 			} else {
 				repValue = nil
 			}
 		}
 
-		if e.targetStack.Prefixed(ref) {
-			e.instr.stopTimer(evalOpResolve)
+		if e.e.targetStack.Prefixed(ref) {
+			e.e.instr.stopTimer(evalOpResolve)
 			return repValue, nil
 		}
 
@@ -1318,11 +1351,11 @@ func (e *eval) Resolve(ref ast.Ref) (ast.Value, error) {
 		// example, a 2MB JSON value can take upwards of 30 millisceonds to convert.
 		// We cache the result of conversion here in case the same base document is
 		// being read multiple times during evaluation.
-		realValue := e.baseCache.Get(ref)
+		realValue := e.e.baseCache.Get(ref)
 		if realValue != nil {
-			e.instr.counterIncr(evalOpBaseCacheHit)
+			e.e.instr.counterIncr(evalOpBaseCacheHit)
 			if repValue == nil {
-				e.instr.stopTimer(evalOpResolve)
+				e.e.instr.stopTimer(evalOpResolve)
 				return realValue, nil
 			}
 			var ok bool
@@ -1331,13 +1364,13 @@ func (e *eval) Resolve(ref ast.Ref) (ast.Value, error) {
 				err = mergeConflictErr(ref[0].Location)
 			}
 		} else {
-			e.instr.counterIncr(evalOpBaseCacheMiss)
-			merged, err = e.resolveReadFromStorage(ref, repValue)
+			e.e.instr.counterIncr(evalOpBaseCacheMiss)
+			merged, err = e.e.resolveReadFromStorage(ref, repValue)
 		}
-		e.instr.stopTimer(evalOpResolve)
+		e.e.instr.stopTimer(evalOpResolve)
 		return merged, err
 	}
-	e.instr.stopTimer(evalOpResolve)
+	e.e.instr.stopTimer(evalOpResolve)
 	return nil, fmt.Errorf("illegal ref")
 }
 
@@ -1432,7 +1465,7 @@ func (e *eval) getDeclArgsLen(x *ast.Expr) (int, error) {
 		return len(bi.Decl.Args()), nil
 	}
 
-	ir, err := e.getRules(operator)
+	ir, err := e.getRules(operator, nil)
 	if err != nil {
 		return -1, err
 	} else if ir == nil || ir.Empty() {
@@ -1956,7 +1989,7 @@ type evalVirtual struct {
 
 func (e evalVirtual) eval(iter unifyIterator) error {
 
-	ir, err := e.e.getRules(e.plugged[:e.pos+1])
+	ir, err := e.e.getRules(e.plugged[:e.pos+1], nil)
 	if err != nil {
 		return err
 	}

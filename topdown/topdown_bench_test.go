@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"testing"
 	"text/template"
@@ -626,6 +627,51 @@ func BenchmarkComprehensionIndexing(b *testing.B) {
 			})
 		}
 	}
+}
+
+func BenchmarkFunctionArgumentIndex(b *testing.B) {
+	ctx := context.Background()
+
+	sizes := []int{10, 100, 1000}
+
+	for _, n := range sizes {
+		compiler := ast.MustCompileModules(map[string]string{
+			"test.rego": moduleWithDefs(n),
+		})
+		body := ast.MustParseBody(fmt.Sprintf("data.test.f(%d, x)", n))
+
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				q := NewQuery(body).
+					WithCompiler(compiler).
+					WithIndexing(true)
+
+				res, err := q.Run(ctx)
+				if err != nil {
+					b.Fatal(err)
+				}
+
+				if len(res) != 1 {
+					b.Fatalf("Expected one result, got %d", len(res))
+				}
+				if !ast.Boolean(true).Equal(res[0][ast.Var("x")].Value) {
+					b.Errorf("expected x=>true, got %v", res[0])
+				}
+			}
+		})
+	}
+}
+
+func moduleWithDefs(n int) string {
+	var b strings.Builder
+
+	b.WriteString(`package test
+`)
+	for i := 1; i <= n; i++ {
+		fmt.Fprintf(&b, `f(x) = y { y := true; x == %[1]d }
+`, i)
+	}
+	return b.String()
 }
 
 func genComprehensionIndexingData(n int) map[string]interface{} {

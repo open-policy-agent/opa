@@ -13,9 +13,17 @@ type testResolver struct {
 	input       *Term
 	failRef     Ref
 	unknownRefs Set
+	args        []Value
 }
 
 func (r testResolver) Resolve(ref Ref) (Value, error) {
+	if ref[0].Equal(FunctionArgRootDocument) {
+		if v, ok := ref[1].Value.(Number); ok {
+			if i, ok := v.Int(); ok && 0 <= i && i < len(r.args) {
+				return r.args[i], nil
+			}
+		}
+	}
 	if r.unknownRefs != nil && r.unknownRefs.Contains(NewTerm(ref)) {
 		return nil, UnknownValueErr{}
 	}
@@ -181,9 +189,11 @@ func TestBaseDocEqIndexing(t *testing.T) {
 
 	tests := []struct {
 		note       string
+		module     *Module
 		ruleset    string
 		input      string
 		unknowns   []string
+		args       []Value
 		expectedRS interface{}
 		expectedDR *Rule
 	}{
@@ -451,11 +461,153 @@ func TestBaseDocEqIndexing(t *testing.T) {
 			input:      `{"x": [0]}`,
 			expectedRS: []string{},
 		},
+		{
+			note: "functions: args match",
+			module: MustParseModule(`package test
+			f(x) = y {
+				input.a = "foo"
+				x = 10
+				y := 10
+			}
+			f(x) = 12 { x = 11 }
+			f(x) = x+1 {
+				input.a = x
+				x != 10
+				x != 11
+			}`),
+			ruleset: "f",
+			input:   `{"a": "foo"}`,
+			args:    []Value{Number("11")},
+			expectedRS: []string{
+				`f(x) = 12 { x = 11 } `,
+				`f(x) = plus(x, 1) { input.a = x; neq(x, 10); neq(x, 11) }`, // neq not respected in index
+			},
+		},
+		{
+			note: "functions: input + args match",
+			module: MustParseModule(`package test
+			f(x) = y {
+				input.a = "foo"
+				x = 10
+				y := 10
+			}
+			f(x) = 12 { x = 11 }
+			f(x) = x+1 {
+				input.a = x
+				x != 10
+				x != 11
+			}`),
+			ruleset: "f",
+			input:   `{"a": "foo"}`,
+			args:    []Value{Number("10")},
+			expectedRS: []string{
+				`f(x) = y { input.a = "foo"; x = 10; assign(y, 10) }`,
+				`f(x) = plus(x, 1) { input.a = x; neq(x, 10); neq(x, 11) }`, // neq not respected in index
+			},
+		},
+		{
+			note: "functions: multiple args, each matches",
+			module: MustParseModule(`package test
+			g(x, y) = z {
+				x = 12
+				y = "monkeys"
+				z = 1
+			}
+			g(a, b) = c {
+				a = "a"
+				b = "b"
+				c = "c"
+			}`),
+			ruleset: "g",
+			args:    []Value{Number("12"), StringTerm("monkeys").Value},
+			expectedRS: []string{
+				`g(x, y) = z { x = 12; y = "monkeys"; z = 1 }`,
+			},
+		},
+		{
+			note: "functions: glob.match in function, arg matching first glob",
+			module: MustParseModule(`package test
+			glob_f(a) = true {
+				glob.match("foo:*", [":"], a)
+			}
+			glob_f(a) = true {
+				glob.match("baz:*", [":"], a)
+			}
+			glob_f(a) = true {
+				a = 12
+			}`),
+			ruleset: "glob_f",
+			args:    []Value{StringTerm("foo:bar").Value},
+			expectedRS: []string{
+				`glob_f(a) = true { glob.match("foo:*", [":"], a) }`,
+			},
+		},
+		{
+			note: "functions: glob.match in function, arg matching second glob",
+			module: MustParseModule(`package test
+			glob_f(a) = true {
+				glob.match("foo:*", [":"], a)
+			}
+			glob_f(a) = true {
+				glob.match("baz:*", [":"], a)
+			}
+			glob_f(a) = true {
+				a = 12
+			}`),
+			ruleset: "glob_f",
+			args:    []Value{StringTerm("baz:bar").Value},
+			expectedRS: []string{
+				`glob_f(a) = true { glob.match("baz:*", [":"], a) }`,
+			},
+		},
+		{
+			note: "functions: glob.match in function, arg matching non-glob rule",
+			module: MustParseModule(`package test
+			glob_f(a) = true {
+				glob.match("baz:*", [":"], a)
+			}
+			glob_f(a) = true {
+				a = 12
+			}`),
+			ruleset: "glob_f",
+			args:    []Value{Number("12")},
+			expectedRS: []string{
+				`glob_f(a) = true { a = 12 }`,
+			},
+		},
+		{
+			note: "functions: multiple outputs for same inputs",
+			module: MustParseModule(`package test
+			f(x) = y { a = x; equal(a, 1, r); y = r }
+			f(x) = y { a = x; equal(a, 2, r); y = r }`),
+			ruleset: "f",
+			input:   `{}`,
+			args:    []Value{Number("1")},
+			expectedRS: []string{
+				`f(x) = y { a = x; equal(a, 1, r); y = r }`,
+				`f(x) = y { a = x; equal(a, 2, r); y = r }`,
+			},
+		},
+		{
+			note: "functions: do not index equal(x,y,z)",
+			module: MustParseModule(`package test
+				f(x) = y { equal(x, 1, z); y = z }
+			`),
+			ruleset: "f",
+			input:   `{}`,
+			args:    []Value{Number("2")},
+			expectedRS: []string{
+				`f(x) = y { equal(x, 1, z); y = z }`,
+			},
+		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-
+			module := module
+			if tc.module != nil {
+				module = tc.module
+			}
 			rules := []*Rule{}
 			for _, rule := range module.Rules {
 				if rule.Head.Name == Var(tc.ruleset) {
@@ -498,7 +650,7 @@ func TestBaseDocEqIndexing(t *testing.T) {
 				}
 			}
 
-			result, err := index.Lookup(testResolver{input: input, unknownRefs: unknownRefs})
+			result, err := index.Lookup(testResolver{input: input, unknownRefs: unknownRefs, args: tc.args})
 			if err != nil {
 				t.Fatalf("Unexpected error during index lookup: %v", err)
 			}

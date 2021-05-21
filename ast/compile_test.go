@@ -2284,7 +2284,7 @@ func TestRewriteDeclaredVars(t *testing.T) {
 					f(input, "bar")
 				}
 
-				f(x,y) {
+				f(x, y) {
 					x[y]
 				}
 				`,
