@@ -629,16 +629,27 @@ func (o *optimizer) Do(ctx context.Context) error {
 			unknowns = o.findUnknowns()
 		}
 
+		required := o.findRequiredDocuments(e)
+
 		r := rego.New(
 			rego.ParsedQuery(ast.NewBody(ast.Equality.Expr(resultsym, e))),
 			rego.PartialNamespace(o.nsprefix),
-			rego.DisableInlining(o.findRequiredDocuments(e)),
+			rego.DisableInlining(required),
 			rego.ShallowInlining(o.shallow),
 			rego.SkipPartialNamespace(true),
 			rego.ParsedUnknowns(unknowns),
 			rego.Compiler(o.compiler),
 			rego.Store(store),
 		)
+
+		o.debug.Printf("optimizer: entrypoint: %v", e)
+		o.debug.Printf("  partial-namespace: %v", o.nsprefix)
+		o.debug.Printf("  disable-inlining: %v", required)
+		o.debug.Printf("  shallow-inlining: %v", o.shallow)
+
+		for i := range unknowns {
+			o.debug.Printf("  unknown: %v", unknowns[i])
+		}
 
 		pq, err := r.Partial(ctx)
 		if err != nil {
@@ -738,7 +749,6 @@ func (o *optimizer) findUnknowns() []*ast.Term {
 				return true
 			}
 			if !refs.ContainsPrefix(prefix) {
-				o.debug.Printf("%s: marking %v as unknown", x[0].Location, prefix)
 				unknowns.AddPrefix(prefix)
 			}
 			return false

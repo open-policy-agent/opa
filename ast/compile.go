@@ -1794,7 +1794,7 @@ func getComprehensionIndex(dbg debug.Debug, arity func(Ref) int, candidates VarS
 	unsafe := body.Vars(SafetyCheckVisitorParams).Diff(outputs).Diff(ReservedVars)
 
 	if len(unsafe) > 0 {
-		dbg.Printf("%s: unsafe vars: %v", expr.Location, unsafe)
+		dbg.Printf("%s: comprehension index: unsafe vars: %v", expr.Location, unsafe)
 		return nil
 	}
 
@@ -1804,7 +1804,7 @@ func getComprehensionIndex(dbg debug.Debug, arity func(Ref) int, candidates VarS
 	regressionVis := newComprehensionIndexRegressionCheckVisitor(candidates)
 	regressionVis.Walk(body)
 	if regressionVis.worse {
-		dbg.Printf("%s: output vars intersect candidates", expr.Location)
+		dbg.Printf("%s: comprehension index: output vars intersect candidates", expr.Location)
 		return nil
 	}
 
@@ -1814,7 +1814,7 @@ func getComprehensionIndex(dbg debug.Debug, arity func(Ref) int, candidates VarS
 	nestedVis := newComprehensionIndexNestedCandidateVisitor(candidates)
 	nestedVis.Walk(body)
 	if nestedVis.found {
-		dbg.Printf("%s: nested comprehensions close over candidates", expr.Location)
+		dbg.Printf("%s: comprehension index: nested comprehensions close over candidates", expr.Location)
 		return nil
 	}
 
@@ -1824,7 +1824,7 @@ func getComprehensionIndex(dbg debug.Debug, arity func(Ref) int, candidates VarS
 	// empty, there is no indexing to do.
 	indexVars := candidates.Intersect(outputs)
 	if len(indexVars) == 0 {
-		dbg.Printf("%s: no index vars", expr.Location)
+		dbg.Printf("%s: comprehension index: no index vars", expr.Location)
 		return nil
 	}
 
@@ -1846,7 +1846,7 @@ func getComprehensionIndex(dbg debug.Debug, arity func(Ref) int, candidates VarS
 			debugRes[i] = r
 		}
 	}
-	dbg.Printf("%s: comprehension index built with keys: %v", expr.Location, debugRes)
+	dbg.Printf("%s: comprehension index: built with keys: %v", expr.Location, debugRes)
 	return &ComprehensionIndex{Term: term, Keys: result}
 }
 
