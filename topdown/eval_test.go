@@ -5,9 +5,13 @@
 package topdown
 
 import (
+	"context"
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/metrics"
+	"github.com/open-policy-agent/opa/storage"
+	"github.com/open-policy-agent/opa/storage/inmem"
 )
 
 func TestQueryIDFactory(t *testing.T) {
@@ -235,6 +239,117 @@ func TestContainsNestedRefOrCall(t *testing.T) {
 			result := containsNestedRefOrCall(vis, expr)
 			if result != tc.want {
 				t.Fatal("Expected", tc.want, "but got", result)
+			}
+		})
+	}
+}
+
+func TestTopdownVirtualCacheFunctions(t *testing.T) {
+	ctx := context.Background()
+	store := inmem.New()
+
+	tests := []struct {
+		note      string
+		module    string
+		query     string
+		hit, miss uint64
+		exp       interface{} // if non-nil, check var `x`
+	}{
+		{
+			note: "different args",
+			module: `package p
+					f(0) = 1
+					f(x) = 12 { x > 0 }`,
+			query: `data.p.f(0); data.p.f(1)`,
+			hit:   0,
+			miss:  2,
+		},
+		{
+			note: "same args",
+			module: `package p
+					f(0) = 1
+					f(x) = 12 { x > 0 }`,
+			query: `data.p.f(1); data.p.f(1)`,
+			hit:   1,
+			miss:  1,
+		},
+		{
+			note: "captured output",
+			module: `package p
+					f(0) = 1
+					f(x) = 12 { x > 0 }`,
+			query: `data.p.f(0); data.p.f(0, x)`,
+			hit:   1,
+			miss:  1,
+			exp:   1,
+		},
+		{
+			note: "captured output, bool(false) result",
+			module: `package p
+					g(x) = true { x > 0 }
+					g(x) = false { x <= 0 }`,
+			query: `data.p.g(-1, x); data.p.g(-1, y)`,
+			hit:   1,
+			miss:  1,
+			exp:   false,
+		},
+		{
+			note: "same args, iteration case",
+			module: `package p
+			f(0) = 1
+			f(x) = 12 { x > 0 }
+			q = y {
+				x := f(1)
+				y := f(1)
+				x == y
+			}`,
+			query: `x = data.p.q`,
+			hit:   1,
+			miss:  2, // one for q, one for f(1)
+			exp:   12,
+		},
+		{
+			note: "cache invalidation",
+			module: `package p
+					f(x) = y { x+input = y }`,
+			query: `data.p.f(1, z) with input as 7; data.p.f(1, z2) with input as 8`,
+			hit:   0,
+			miss:  2,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			compiler := compileModules([]string{tc.module})
+			txn := storage.NewTransactionOrDie(ctx, store)
+			defer store.Abort(ctx, txn)
+			m := metrics.New()
+
+			query := NewQuery(ast.MustParseBody(tc.query)).
+				WithCompiler(compiler).
+				WithStore(store).
+				WithTransaction(txn).
+				WithInstrumentation(NewInstrumentation(m))
+			qrs, err := query.Run(ctx)
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+			if exp, act := 1, len(qrs); exp != act {
+				t.Fatalf("expected %d query result, got %d query results: %+v", exp, act, qrs)
+			}
+			if tc.exp != nil {
+				x := ast.Var("x")
+				if exp, act := ast.NewTerm(ast.MustInterfaceToValue(tc.exp)), qrs[0][x]; !exp.Equal(act) {
+					t.Errorf("unexpected query result: want = %v, got = %v", exp, act)
+				}
+			}
+
+			// check metrics
+			if exp, act := tc.hit, m.Counter(evalOpVirtualCacheHit).Value().(uint64); exp != act {
+				t.Errorf("expected %d cache hits, got %d", exp, act)
+			}
+			if exp, act := tc.miss, m.Counter(evalOpVirtualCacheMiss).Value().(uint64); exp != act {
+				t.Errorf("expected %d cache misses, got %d", exp, act)
 			}
 		})
 	}
