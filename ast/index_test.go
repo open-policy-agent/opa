@@ -210,6 +210,17 @@ func TestBaseDocEqIndexing(t *testing.T) {
 		b = "b"
 		c = "c"
 	}
+
+	# functions with glob.match
+	glob_f(a) = true {
+		glob.match("foo:*", [":"], a)
+	}
+	glob_f(a) = true {
+		glob.match("baz:*", [":"], a)
+	}
+	glob_f(a) = true {
+		a = 12
+	}
 	`)
 
 	tests := []struct {
@@ -496,15 +507,6 @@ func TestBaseDocEqIndexing(t *testing.T) {
 			},
 		},
 		{
-			note:    "functions: multiple args, each matches",
-			ruleset: "g",
-			input:   `{"a": 1}`,
-			args:    []Value{Number("12"), StringTerm("monkeys").Value},
-			expectedRS: []string{
-				`g(x, y) = z { x = 12; y = "monkeys"; z = 1 }`,
-			},
-		},
-		{
 			note:    "functions: input + args match",
 			ruleset: "f",
 			input:   `{"a": "foo"}`,
@@ -512,6 +514,38 @@ func TestBaseDocEqIndexing(t *testing.T) {
 			expectedRS: []string{
 				`f(x) = y { input.a = "foo"; x = 10; assign(y, 10) }`,
 				`f(x) = plus(x, 1) { input.a = x; neq(x, 10); neq(x, 11) }`, // neq not respected in index
+			},
+		},
+		{
+			note:    "functions: multiple args, each matches",
+			ruleset: "g",
+			args:    []Value{Number("12"), StringTerm("monkeys").Value},
+			expectedRS: []string{
+				`g(x, y) = z { x = 12; y = "monkeys"; z = 1 }`,
+			},
+		},
+		{
+			note:    "functions: glob.match in function, arg matching first glob",
+			ruleset: "glob_f",
+			args:    []Value{StringTerm("foo:bar").Value},
+			expectedRS: []string{
+				`glob_f(a) = true { glob.match("foo:*", [":"], a) }`,
+			},
+		},
+		{
+			note:    "functions: glob.match in function, arg matching second glob",
+			ruleset: "glob_f",
+			args:    []Value{StringTerm("baz:bar").Value},
+			expectedRS: []string{
+				`glob_f(a) = true { glob.match("baz:*", [":"], a) }`,
+			},
+		},
+		{
+			note:    "functions: glob.match in function, arg matching non-glob rule",
+			ruleset: "glob_f",
+			args:    []Value{Number("12")},
+			expectedRS: []string{
+				`glob_f(a) = true { a = 12 }`,
 			},
 		},
 	}

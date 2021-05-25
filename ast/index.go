@@ -235,9 +235,7 @@ func (i *refindices) Update(rule *Rule, expr *Expr) {
 
 	if op.Equal(Equality.Ref()) || op.Equal(Equal.Ref()) {
 		i.updateEq(rule, expr)
-
 	} else if op.Equal(GlobMatch.Ref()) {
-
 		i.updateGlobMatch(rule, expr)
 	}
 }
@@ -301,8 +299,8 @@ func (i *refindices) updateEq(rule *Rule, expr *Expr) {
 	}
 }
 
-// TODO: function arg indexing with glob.match
 func (i *refindices) updateGlobMatch(rule *Rule, expr *Expr) {
+	args := rule.Head.Args
 
 	delim, ok := globDelimiterToString(expr.Operand(1))
 	if !ok {
@@ -312,25 +310,34 @@ func (i *refindices) updateGlobMatch(rule *Rule, expr *Expr) {
 	if arr := globPatternToArray(expr.Operand(0), delim); arr != nil {
 		// The 3rd operand of glob.match is the value to match. We assume the
 		// 3rd operand was a reference that has been rewritten and bound to a
-		// variable earlier in the query.
+		// variable earlier in the query OR a function argument variable.
 		match := expr.Operand(2)
 		if _, ok := match.Value.(Var); ok {
+			var ref Ref
 			for _, other := range i.rules[rule] {
 				if _, ok := other.Value.(Var); ok && other.Value.Compare(match.Value) == 0 {
-					i.insert(rule, &refindex{
-						Ref:   other.Ref,
-						Value: arr.Value,
-						Mapper: &valueMapper{
-							Key: delim,
-							MapValue: func(v Value) Value {
-								if s, ok := v.(String); ok {
-									return stringSliceToArray(splitStringEscaped(string(s), delim))
-								}
-								return v
-							},
-						},
-					})
+					ref = other.Ref
 				}
+			}
+			for j, arg := range args {
+				if arg.Equal(match) {
+					ref = Ref{IntNumberTerm(j)}
+				}
+			}
+			if ref != nil {
+				i.insert(rule, &refindex{
+					Ref:   ref,
+					Value: arr.Value,
+					Mapper: &valueMapper{
+						Key: delim,
+						MapValue: func(v Value) Value {
+							if s, ok := v.(String); ok {
+								return stringSliceToArray(splitStringEscaped(string(s), delim))
+							}
+							return v
+						},
+					},
+				})
 			}
 		}
 	}
