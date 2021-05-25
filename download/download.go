@@ -6,8 +6,10 @@
 package download
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"math/rand"
 	"net/http"
 	"path"
@@ -36,6 +38,7 @@ type Update struct {
 	Bundle  *bundle.Bundle
 	Error   error
 	Metrics metrics.Metrics
+	Raw     io.Reader
 }
 
 // Downloader implements low-level OPA bundle downloading. Downloader can be
@@ -56,6 +59,14 @@ type Downloader struct {
 	logger            logging.Logger
 	mtx               sync.Mutex
 	stopped           bool
+	persist           bool
+}
+
+type downloaderResponse struct {
+	b        *bundle.Bundle
+	raw      io.Reader
+	etag     string
+	longPoll bool
 }
 
 // New returns a new Downloader that can be started.
@@ -91,6 +102,12 @@ func (d *Downloader) WithBundleVerificationConfig(config *bundle.VerificationCon
 // WithSizeLimitBytes sets the file size limit for bundles read by this downloader.
 func (d *Downloader) WithSizeLimitBytes(n int64) *Downloader {
 	d.sizeLimitBytes = &n
+	return d
+}
+
+// WithBundlePersistence specifies if the downloaded bundle will eventually be persisted to disk.
+func (d *Downloader) WithBundlePersistence(persist bool) *Downloader {
+	d.persist = persist
 	return d
 }
 
@@ -183,17 +200,28 @@ func (d *Downloader) loop(ctx context.Context) {
 
 func (d *Downloader) oneShot(ctx context.Context) (bool, error) {
 	m := metrics.New()
-	b, etag, longPoll, err := d.download(ctx, m)
+	resp, err := d.download(ctx, m)
 
-	d.etag = etag
+	if err != nil {
+		d.etag = ""
+
+		if d.f != nil {
+			d.f(ctx, Update{ETag: "", Bundle: nil, Error: err, Metrics: m, Raw: nil})
+		}
+
+		return false, err
+	}
+
+	d.etag = resp.etag
 
 	if d.f != nil {
-		d.f(ctx, Update{ETag: etag, Bundle: b, Error: err, Metrics: m})
+		d.f(ctx, Update{ETag: resp.etag, Bundle: resp.b, Error: nil, Metrics: m, Raw: resp.raw})
 	}
-	return longPoll, err
+
+	return resp.longPoll, nil
 }
 
-func (d *Downloader) download(ctx context.Context, m metrics.Metrics) (*bundle.Bundle, string, bool, error) {
+func (d *Downloader) download(ctx context.Context, m metrics.Metrics) (*downloaderResponse, error) {
 	d.logger.Debug("Download starting.")
 
 	d.client = d.client.WithHeader("If-None-Match", d.etag)
@@ -213,44 +241,69 @@ func (d *Downloader) download(ctx context.Context, m metrics.Metrics) (*bundle.B
 
 	resp, err := d.client.Do(ctx, "GET", d.path)
 	if err != nil {
-		return nil, "", false, errors.Wrap(err, "request failed")
+		return nil, errors.Wrap(err, "request failed")
 	}
 
 	defer util.Close(resp)
 
 	switch resp.StatusCode {
 	case http.StatusOK:
+		var buf bytes.Buffer
 		if resp.Body != nil {
 			d.logger.Debug("Download in progress.")
 			m.Timer(metrics.RegoLoadBundles).Start()
 			defer m.Timer(metrics.RegoLoadBundles).Stop()
 			baseURL := path.Join(d.client.Config().URL, d.path)
-			loader := bundle.NewTarballLoaderWithBaseURL(resp.Body, baseURL)
+
+			var loader bundle.DirectoryLoader
+			if d.persist {
+				tee := io.TeeReader(resp.Body, &buf)
+				loader = bundle.NewTarballLoaderWithBaseURL(tee, baseURL)
+			} else {
+				loader = bundle.NewTarballLoaderWithBaseURL(resp.Body, baseURL)
+			}
+
 			reader := bundle.NewCustomReader(loader).WithMetrics(m).WithBundleVerificationConfig(d.bvc)
 			if d.sizeLimitBytes != nil {
 				reader = reader.WithSizeLimitBytes(*d.sizeLimitBytes)
 			}
 			b, err := reader.Read()
 			if err != nil {
-				return nil, "", false, err
+				return nil, err
 			}
-			return &b, resp.Header.Get("ETag"), isLongPollSupported(resp.Header), nil
+
+			return &downloaderResponse{
+				b:        &b,
+				raw:      &buf,
+				etag:     resp.Header.Get("ETag"),
+				longPoll: isLongPollSupported(resp.Header),
+			}, nil
 		}
 
 		d.logger.Debug("Server replied with empty body.")
-		return nil, "", isLongPollSupported(resp.Header), nil
+		return &downloaderResponse{
+			b:        nil,
+			raw:      nil,
+			etag:     "",
+			longPoll: isLongPollSupported(resp.Header),
+		}, nil
 	case http.StatusNotModified:
 		etag := resp.Header.Get("ETag")
 		if etag == "" {
 			etag = d.etag
 		}
-		return nil, etag, isLongPollSupported(resp.Header), nil
+		return &downloaderResponse{
+			b:        nil,
+			raw:      nil,
+			etag:     etag,
+			longPoll: isLongPollSupported(resp.Header),
+		}, nil
 	case http.StatusNotFound:
-		return nil, "", false, fmt.Errorf("server replied with not found")
+		return nil, fmt.Errorf("server replied with not found")
 	case http.StatusUnauthorized:
-		return nil, "", false, fmt.Errorf("server replied with not authorized")
+		return nil, fmt.Errorf("server replied with not authorized")
 	default:
-		return nil, "", false, fmt.Errorf("server replied with HTTP %v", resp.StatusCode)
+		return nil, fmt.Errorf("server replied with HTTP %v", resp.StatusCode)
 	}
 }
 

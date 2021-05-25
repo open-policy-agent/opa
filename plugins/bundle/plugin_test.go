@@ -10,6 +10,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -21,6 +22,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/open-policy-agent/opa/internal/file/archive"
 
 	"github.com/open-policy-agent/opa/util/test"
 
@@ -226,7 +229,12 @@ func TestPluginOneShotBundlePersistence(t *testing.T) {
 
 	b.Manifest.Init()
 
-	plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New()})
+	var buf bytes.Buffer
+	if err := bundle.NewWriter(&buf).UseModulePath(true).Write(b); err != nil {
+		t.Fatal("unexpected error:", err)
+	}
+
+	plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New(), Raw: &buf})
 
 	ensurePluginState(t, plugin, plugins.StateOK)
 
@@ -267,6 +275,105 @@ func TestPluginOneShotBundlePersistence(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	} else if !reflect.DeepEqual(data, expData) {
+		t.Fatalf("Bad data content. Exp:\n%v\n\nGot:\n\n%v", expData, data)
+	}
+}
+
+func TestPluginOneShotSignedBundlePersistence(t *testing.T) {
+
+	ctx := context.Background()
+	manager := getTestManager()
+
+	dir, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatalf("unexpected error %v", err)
+	}
+
+	defer os.RemoveAll(dir)
+
+	bundleName := "test-bundle"
+	vc := bundle.NewVerificationConfig(map[string]*bundle.KeyConfig{"foo": {Key: "secret", Algorithm: "HS256"}}, "foo", "", nil)
+	bundleSource := Source{
+		Persist: true,
+		Signing: vc,
+	}
+
+	bundles := map[string]*Source{}
+	bundles[bundleName] = &bundleSource
+
+	plugin := New(&Config{Bundles: bundles}, manager)
+
+	plugin.status[bundleName] = &Status{Name: bundleName, Metrics: metrics.New()}
+	plugin.downloaders[bundleName] = download.New(download.Config{}, plugin.manager.Client(""), bundleName)
+	plugin.bundlePersistPath = filepath.Join(dir, ".opa")
+
+	ensurePluginState(t, plugin, plugins.StateNotReady)
+
+	// simulate a bundle download error with no bundle on disk
+	plugin.oneShot(ctx, bundleName, download.Update{Error: fmt.Errorf("unknown error")})
+
+	if plugin.status[bundleName].Message == "" {
+		t.Fatal("expected error but got none")
+	}
+
+	ensurePluginState(t, plugin, plugins.StateNotReady)
+
+	// download a signed bundle and persist to disk. Then verify the bundle persisted to disk
+	signedTokenHS256 := `eyJhbGciOiJIUzI1NiJ9.eyJmaWxlcyI6W3sibmFtZSI6Ii5tYW5pZmVzdCIsImhhc2giOiI1MDdhMmMzOGExNDQxZGI1OGQyY2I4Nzk4MmM0MmFhOTFhNDM0MmVmNDIyYTZiNTQyZWRkZWJlZWY2ZjA0MTJmIiwiYWxnb3JpdGhtIjoiU0hBLTI1NiJ9LHsibmFtZSI6ImV4YW1wbGUxL2RhdGEuanNvbiIsImhhc2giOiI3YTM4YmY4MWYzODNmNjk0MzNhZDZlOTAwZDM1YjNlMjM4NTU5M2Y3NmE3YjdhYjVkNDM1NWI4YmE0MWVlMjRiIiwiYWxnb3JpdGhtIjoiU0hBLTI1NiJ9LHsibmFtZSI6ImV4YW1wbGUyL2RhdGEuanNvbiIsImhhc2giOiI5ZTRmMTg5YmY0MDc5ZDFiNmViNjQ0Njg3OTg2NmNkNWYzOWMyNjg4MGQ0ZmI1MThmNGUwMWNkMWJiZmU1MTNlIiwiYWxnb3JpdGhtIjoiU0hBLTI1NiJ9XX0.jCLRMyys5u8S2sTS2pWWY82IAeKDpLh3S641_BskCtY`
+
+	files := [][2]string{
+		{"/.manifest", `{"revision": "quickbrownfaux"}`},
+		{"/.signatures.json", fmt.Sprintf(`{"signatures": ["%v"]}`, signedTokenHS256)},
+		{"/example1/data.json", `{"foo": "bar"}`},
+		{"/example2/data.json", `{"x": true}`},
+	}
+
+	buf := archive.MustWriteTarGz(files)
+
+	var dup bytes.Buffer
+	tee := io.TeeReader(buf, &dup)
+	reader := bundle.NewReader(tee).WithBundleVerificationConfig(vc)
+	b, err := reader.Read()
+	if err != nil {
+		t.Fatal("unexpected error:", err)
+	}
+
+	plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New(), Raw: &dup})
+
+	ensurePluginState(t, plugin, plugins.StateOK)
+
+	// load signed bundle from disk
+	result, err := loadBundleFromDisk(plugin.bundlePersistPath, bundleName, bundles[bundleName])
+	if err != nil {
+		t.Fatal("unexpected error:", err)
+	}
+
+	if !result.Equal(b) {
+		t.Fatal("expected the downloaded bundle to be equal to the one loaded from disk")
+	}
+
+	// simulate a bundle download error and verify that the bundle on disk is activated
+	plugin.oneShot(ctx, bundleName, download.Update{Error: fmt.Errorf("unknown error")})
+
+	ensurePluginState(t, plugin, plugins.StateOK)
+
+	txn := storage.NewTransactionOrDie(ctx, manager.Store)
+	defer manager.Store.Abort(ctx, txn)
+
+	ids, err := manager.Store.ListPolicies(ctx, txn)
+	if err != nil {
+		t.Fatal(err)
+	} else if len(ids) != 0 {
+		t.Fatal("Expected no policy")
+	}
+
+	data, err := manager.Store.Read(ctx, txn, storage.Path{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expData := util.MustUnmarshalJSON([]byte(`{"example1": {"foo": "bar"}, "example2": {"x": true}, "system": {"bundles": {"test-bundle": {"manifest": {"revision": "quickbrownfaux", "roots": [""]}}}}}`))
+	if !reflect.DeepEqual(data, expData) {
 		t.Fatalf("Bad data content. Exp:\n%v\n\nGot:\n\n%v", expData, data)
 	}
 }
@@ -321,7 +428,12 @@ func TestLoadAndActivateBundlesFromDisk(t *testing.T) {
 
 	b.Manifest.Init()
 
-	err = plugin.saveBundleToDisk(bundleName, &b)
+	var buf bytes.Buffer
+	if err := bundle.NewWriter(&buf).UseModulePath(true).Write(b); err != nil {
+		t.Fatal("unexpected error:", err)
+	}
+
+	err = plugin.saveBundleToDisk(bundleName, &buf)
 	if err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
@@ -1739,9 +1851,7 @@ func TestSaveBundleToDiskNew(t *testing.T) {
 	plugin := New(&Config{Bundles: bundles}, manager)
 	plugin.bundlePersistPath = filepath.Join(dir, ".opa")
 
-	b := getTestBundle(t)
-
-	err = plugin.saveBundleToDisk("foo", &b)
+	err = plugin.saveBundleToDisk("foo", getTestRawBundle(t))
 	if err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
@@ -1764,9 +1874,7 @@ func TestSaveBundleToDiskNewConfiguredPersistDir(t *testing.T) {
 		t.Fatalf("unexpected error %v", err)
 	}
 
-	b := getTestBundle(t)
-
-	err = plugin.saveBundleToDisk("foo", &b)
+	err = plugin.saveBundleToDisk("foo", getTestRawBundle(t))
 	if err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
@@ -1823,7 +1931,12 @@ func TestSaveBundleToDiskOverWrite(t *testing.T) {
 	}
 	newBundle.Manifest.Init()
 
-	err = plugin.saveBundleToDisk("foo", &newBundle)
+	var buf bytes.Buffer
+	if err := bundle.NewWriter(&buf).UseModulePath(true).Write(newBundle); err != nil {
+		t.Fatal("unexpected error:", err)
+	}
+
+	err = plugin.saveBundleToDisk("foo", &buf)
 	if err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
@@ -1839,8 +1952,6 @@ func TestSaveBundleToDiskOverWrite(t *testing.T) {
 }
 
 func TestSaveCurrentBundleToDisk(t *testing.T) {
-	b := getTestBundle(t)
-
 	srcDir, err := ioutil.TempDir("", "")
 	if err != nil {
 		t.Fatalf("unexpected error %v", err)
@@ -1848,13 +1959,23 @@ func TestSaveCurrentBundleToDisk(t *testing.T) {
 
 	defer os.RemoveAll(srcDir)
 
-	err = saveCurrentBundleToDisk(srcDir, "bundle.tar.gz", &b)
+	err = saveCurrentBundleToDisk(srcDir, "bundle.tar.gz", getTestRawBundle(t))
 	if err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
 
 	if _, err := os.Stat(filepath.Join(srcDir, "bundle.tar.gz")); err != nil {
 		t.Fatalf("unexpected error %v", err)
+	}
+
+	err = saveCurrentBundleToDisk(srcDir, "bundle.tar.gz", nil)
+	if err == nil {
+		t.Fatal("expected error but got nil")
+	}
+
+	expErrMsg := "no raw bundle bytes to persist to disk"
+	if err.Error() != expErrMsg {
+		t.Fatalf("expected error: %v but got: %v", expErrMsg, err)
 	}
 }
 
@@ -2080,6 +2201,19 @@ func getTestSignedBundle(t *testing.T) bundle.Bundle {
 		t.Fatal("Unexpected error:", err)
 	}
 	return b
+}
+
+func getTestRawBundle(t *testing.T) io.Reader {
+	t.Helper()
+
+	b := getTestBundle(t)
+
+	var buf bytes.Buffer
+	if err := bundle.NewWriter(&buf).UseModulePath(true).Write(b); err != nil {
+		t.Fatal("unexpected error:", err)
+	}
+
+	return &buf
 }
 
 func validateStoreState(ctx context.Context, t *testing.T, store storage.Store, root string, expData interface{}, expIds []string, expBundleName string, expBundleRev string, expMetadata map[string]interface{}) {

@@ -6,11 +6,10 @@
 package bundle
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -328,7 +327,8 @@ func (p *Plugin) newDownloader(name string, source *Source) bundleLoader {
 	return download.New(conf, client, path).
 		WithCallback(callback).
 		WithBundleVerificationConfig(source.Signing).
-		WithSizeLimitBytes(source.SizeLimitBytes)
+		WithSizeLimitBytes(source.SizeLimitBytes).
+		WithBundlePersistence(p.persistBundle(name))
 }
 
 func (p *Plugin) oneShot(ctx context.Context, name string, u download.Update) {
@@ -394,7 +394,7 @@ func (p *Plugin) process(ctx context.Context, name string, u download.Update) {
 		if p.persistBundle(name) {
 			p.log(name).Debug("Persisting bundle to disk in progress.")
 
-			err := p.saveBundleToDisk(name, u.Bundle)
+			err := p.saveBundleToDisk(name, u.Raw)
 			if err != nil {
 				p.log(name).Error("Persisting bundle to disk failed: %v", err)
 				p.status[name].SetError(err)
@@ -524,13 +524,13 @@ func (p *Plugin) configDelta(newConfig *Config) (map[string]*Source, map[string]
 	return newBundles, updatedBundles, deletedBundles
 }
 
-func (p *Plugin) saveBundleToDisk(name string, b *bundle.Bundle) error {
+func (p *Plugin) saveBundleToDisk(name string, raw io.Reader) error {
 
 	bundleDir := filepath.Join(p.bundlePersistPath, name)
 	tmpFile := filepath.Join(bundleDir, ".bundle.tar.gz.tmp")
 	bundleFile := filepath.Join(bundleDir, "bundle.tar.gz")
 
-	saveErr := saveCurrentBundleToDisk(bundleDir, ".bundle.tar.gz.tmp", b)
+	saveErr := saveCurrentBundleToDisk(bundleDir, ".bundle.tar.gz.tmp", raw)
 	if saveErr != nil {
 		p.log(name).Error("Failed to save new bundle to disk: %v", saveErr)
 
@@ -548,13 +548,7 @@ func (p *Plugin) saveBundleToDisk(name string, b *bundle.Bundle) error {
 	return os.Rename(tmpFile, bundleFile)
 }
 
-func saveCurrentBundleToDisk(path, filename string, b *bundle.Bundle) error {
-	var buf bytes.Buffer
-
-	if err := bundle.NewWriter(&buf).UseModulePath(true).Write(*b); err != nil {
-		return err
-	}
-
+func saveCurrentBundleToDisk(path, filename string, raw io.Reader) error {
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		err = os.MkdirAll(path, os.ModePerm)
 		if err != nil {
@@ -562,7 +556,18 @@ func saveCurrentBundleToDisk(path, filename string, b *bundle.Bundle) error {
 		}
 	}
 
-	return ioutil.WriteFile(filepath.Join(path, filename), buf.Bytes(), 0644)
+	if raw == nil {
+		return fmt.Errorf("no raw bundle bytes to persist to disk")
+	}
+
+	dest, err := os.OpenFile(filepath.Join(path, filename), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	if err != nil {
+		return err
+	}
+	defer dest.Close()
+
+	_, err = io.Copy(dest, raw)
+	return err
 }
 
 func loadBundleFromDisk(path, name string, src *Source) (*bundle.Bundle, error) {
