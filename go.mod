@@ -10,8 +10,10 @@ require (
 	github.com/ghodss/yaml v1.0.0
 	github.com/gobwas/glob v0.2.3
 	github.com/golang/protobuf v1.4.3 // indirect
-	github.com/golangci/golangci-lint v1.40.1
+	github.com/google/go-cmp v0.5.4 // indirect
 	github.com/gorilla/mux v1.8.0
+	github.com/kr/text v0.2.0 // indirect
+	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/peterh/liner v0.0.0-20170211195444-bf27d3ba8e1d
 	github.com/pkg/errors v0.9.1
@@ -28,7 +30,10 @@ require (
 	github.com/yashtewari/glob-intersection v0.0.0-20180916065949-5c77d914dd0b
 	go.uber.org/automaxprocs v1.4.0
 	golang.org/x/net v0.0.0-20210405180319-a5a99cb37ef4
+	golang.org/x/text v0.3.5 // indirect
 	golang.org/x/time v0.0.0-20210220033141-f8bda1e9f3ba
 	golang.org/x/tools v0.1.2-0.20210512205948-8287d5da45e4
+	google.golang.org/protobuf v1.25.0 // indirect
+	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
 	gopkg.in/yaml.v2 v2.4.0
 )

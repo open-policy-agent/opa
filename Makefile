@@ -128,19 +128,8 @@ wasm-sdk-e2e-test: generate
 	$(GO) test $(GO_TAGS),slow,wasm_sdk_e2e $(GO_TEST_TIMEOUT) -v ./internal/wasm/sdk/test/e2e
 
 .PHONY: check
-check: check-fmt check-vet check-lint
-
-.PHONY: check-fmt
-check-fmt:
-	./build/check-fmt.sh
-
-.PHONY: check-vet
-check-vet:
-	./build/check-vet.sh
-
-.PHONY: check-lint
-check-lint:
-	./build/check-lint.sh
+check:
+	docker run --rm -v $(shell pwd):/app -w /app golangci/golangci-lint:v1.40.1 golangci-lint run -v
 
 .PHONY: fmt
 fmt:
