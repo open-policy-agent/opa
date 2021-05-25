@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strconv"
 	"strings"
 	"testing"
@@ -51,6 +52,58 @@ func TestStartStop(t *testing.T) {
 
 	if !strings.HasSuffix(u1.Bundle.Modules[0].URL, u1.Bundle.Modules[0].Path) {
 		t.Fatalf("expected URL to have path as suffix but got %v and %v", u1.Bundle.Modules[0].URL, u1.Bundle.Modules[0].Path)
+	}
+
+	d.Stop(ctx)
+}
+
+func TestStartStopWithBundlePersistence(t *testing.T) {
+	ctx := context.Background()
+	fixture := newTestFixture(t)
+
+	updates := make(chan *Update)
+
+	config := Config{}
+	if err := config.ValidateAndInjectDefaults(); err != nil {
+		t.Fatal(err)
+	}
+
+	d := New(config, fixture.client, "/bundles/test/bundle1").WithCallback(func(_ context.Context, u Update) {
+		updates <- &u
+	}).WithBundlePersistence(true)
+
+	d.Start(ctx)
+
+	// Give time for some download events to occur
+	time.Sleep(1 * time.Second)
+
+	u1 := <-updates
+
+	if u1.Bundle == nil || len(u1.Bundle.Modules) == 0 {
+		t.Fatal("expected bundle with at least one module but got:", u1)
+	}
+
+	if !strings.HasSuffix(u1.Bundle.Modules[0].URL, u1.Bundle.Modules[0].Path) {
+		t.Fatalf("expected URL to have path as suffix but got %v and %v", u1.Bundle.Modules[0].URL, u1.Bundle.Modules[0].Path)
+	}
+
+	if u1.Raw == nil {
+		t.Fatal("expected bundle reader to be non-nil")
+	}
+
+	r := bundle.NewReader(u1.Raw)
+
+	b, err := r.Read()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !reflect.DeepEqual(b.Data, u1.Bundle.Data) {
+		t.Fatal("expected the bundle object and reader to have the same data")
+	}
+
+	if len(b.Modules) != len(u1.Bundle.Modules) {
+		t.Fatal("expected the bundle object and reader to have the same number of bundle modules")
 	}
 
 	d.Stop(ctx)
