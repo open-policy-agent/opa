@@ -623,7 +623,13 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 	}
 
 	if ref[0].Equal(ast.DefaultRootDocument) {
-		ir, err := e.getRules(ref, args...)
+		var ir *ast.IndexResult
+		var err error
+		if e.partial() {
+			ir, err = e.getRules(ref)
+		} else {
+			ir, err = e.getRules(ref, args...)
+		}
 		if err != nil {
 			return err
 		}
@@ -1300,7 +1306,7 @@ func (e *evalResolver) Resolve(ref ast.Ref) (ast.Value, error) {
 	// in ref[0]. The callsite-local arguments are passed in e.args,
 	// index by argument index.
 	if i, ok := funArg(ref); ok {
-		if ast.IsScalar(e.args[i].Value) {
+		if i >= 0 && i < len(e.args) && ast.IsScalar(e.args[i].Value) {
 			e.e.instr.stopTimer(evalOpResolve)
 			return e.args[i].Value, nil
 		}
