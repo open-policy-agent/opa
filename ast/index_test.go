@@ -185,46 +185,11 @@ func TestBaseDocEqIndexing(t *testing.T) {
 		input.x = x
 		glob.match("bar/*", ["/"], x)
 	}
-
-
-	# functions
-	f(x) = y {
-		input.a = "foo"
-		x = 10
-		y := 10
-	}
-	f(x) = 12 { x = 11 }
-	f(x) = x+1 {
-		input.a = x
-		x != 10
-		x != 11
-	}
-
-	g(x, y) = z {
-		x = 12
-		y = "monkeys"
-		z = 1
-	}
-	g(a, b) = c {
-		a = "a"
-		b = "b"
-		c = "c"
-	}
-
-	# functions with glob.match
-	glob_f(a) = true {
-		glob.match("foo:*", [":"], a)
-	}
-	glob_f(a) = true {
-		glob.match("baz:*", [":"], a)
-	}
-	glob_f(a) = true {
-		a = 12
-	}
 	`)
 
 	tests := []struct {
 		note       string
+		module     *Module
 		ruleset    string
 		input      string
 		unknowns   []string
@@ -497,9 +462,21 @@ func TestBaseDocEqIndexing(t *testing.T) {
 			expectedRS: []string{},
 		},
 		{
-			note:    "functions: args match",
+			note: "functions: args match",
+			module: MustParseModule(`package test
+			f(x) = y {
+				input.a = "foo"
+				x = 10
+				y := 10
+			}
+			f(x) = 12 { x = 11 }
+			f(x) = x+1 {
+				input.a = x
+				x != 10
+				x != 11
+			}`),
 			ruleset: "f",
-			input:   `{"a": 1}`,
+			input:   `{"a": "foo"}`,
 			args:    []Value{Number("11")},
 			expectedRS: []string{
 				`f(x) = 12 { x = 11 } `,
@@ -507,7 +484,19 @@ func TestBaseDocEqIndexing(t *testing.T) {
 			},
 		},
 		{
-			note:    "functions: input + args match",
+			note: "functions: input + args match",
+			module: MustParseModule(`package test
+			f(x) = y {
+				input.a = "foo"
+				x = 10
+				y := 10
+			}
+			f(x) = 12 { x = 11 }
+			f(x) = x+1 {
+				input.a = x
+				x != 10
+				x != 11
+			}`),
 			ruleset: "f",
 			input:   `{"a": "foo"}`,
 			args:    []Value{Number("10")},
@@ -517,7 +506,18 @@ func TestBaseDocEqIndexing(t *testing.T) {
 			},
 		},
 		{
-			note:    "functions: multiple args, each matches",
+			note: "functions: multiple args, each matches",
+			module: MustParseModule(`package test
+			g(x, y) = z {
+				x = 12
+				y = "monkeys"
+				z = 1
+			}
+			g(a, b) = c {
+				a = "a"
+				b = "b"
+				c = "c"
+			}`),
 			ruleset: "g",
 			args:    []Value{Number("12"), StringTerm("monkeys").Value},
 			expectedRS: []string{
@@ -525,7 +525,17 @@ func TestBaseDocEqIndexing(t *testing.T) {
 			},
 		},
 		{
-			note:    "functions: glob.match in function, arg matching first glob",
+			note: "functions: glob.match in function, arg matching first glob",
+			module: MustParseModule(`package test
+			glob_f(a) = true {
+				glob.match("foo:*", [":"], a)
+			}
+			glob_f(a) = true {
+				glob.match("baz:*", [":"], a)
+			}
+			glob_f(a) = true {
+				a = 12
+			}`),
 			ruleset: "glob_f",
 			args:    []Value{StringTerm("foo:bar").Value},
 			expectedRS: []string{
@@ -533,7 +543,17 @@ func TestBaseDocEqIndexing(t *testing.T) {
 			},
 		},
 		{
-			note:    "functions: glob.match in function, arg matching second glob",
+			note: "functions: glob.match in function, arg matching second glob",
+			module: MustParseModule(`package test
+			glob_f(a) = true {
+				glob.match("foo:*", [":"], a)
+			}
+			glob_f(a) = true {
+				glob.match("baz:*", [":"], a)
+			}
+			glob_f(a) = true {
+				a = 12
+			}`),
 			ruleset: "glob_f",
 			args:    []Value{StringTerm("baz:bar").Value},
 			expectedRS: []string{
@@ -541,7 +561,14 @@ func TestBaseDocEqIndexing(t *testing.T) {
 			},
 		},
 		{
-			note:    "functions: glob.match in function, arg matching non-glob rule",
+			note: "functions: glob.match in function, arg matching non-glob rule",
+			module: MustParseModule(`package test
+			glob_f(a) = true {
+				glob.match("baz:*", [":"], a)
+			}
+			glob_f(a) = true {
+				a = 12
+			}`),
 			ruleset: "glob_f",
 			args:    []Value{Number("12")},
 			expectedRS: []string{
@@ -552,7 +579,10 @@ func TestBaseDocEqIndexing(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-
+			module := module
+			if tc.module != nil {
+				module = tc.module
+			}
 			rules := []*Rule{}
 			for _, rule := range module.Rules {
 				if rule.Head.Name == Var(tc.ruleset) {
