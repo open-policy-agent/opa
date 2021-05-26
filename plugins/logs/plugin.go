@@ -566,7 +566,7 @@ func (p *Plugin) loop() {
 			} else if uploaded {
 				p.logger.Info("Logs uploaded successfully.")
 			} else {
-				p.logger.Info("Log upload skipped.")
+				p.logger.Debug("Log upload queue was empty.")
 			}
 		}
 
