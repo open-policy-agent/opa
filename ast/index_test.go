@@ -575,6 +575,19 @@ func TestBaseDocEqIndexing(t *testing.T) {
 				`glob_f(a) = true { a = 12 }`,
 			},
 		},
+		{
+			note: "functions: multiple outputs for same inputs",
+			module: MustParseModule(`package test
+			f(x) = y { a = x; equal(a, 1, r); y = r }
+			f(x) = y { a = x; equal(a, 2, r); y = r }`),
+			ruleset: "f",
+			input:   `{}`,
+			args:    []Value{Number("1")},
+			expectedRS: []string{
+				`f(x) = y { a = x; equal(a, 1, r); y = r }`,
+				`f(x) = y { a = x; equal(a, 2, r); y = r }`,
+			},
+		},
 	}
 
 	for _, tc := range tests {
