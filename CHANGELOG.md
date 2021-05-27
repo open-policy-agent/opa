@@ -3,7 +3,61 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.29.0
+
+This release contains a number of enhancements and fixes.
+
+### SDK
+
+- This release includes a new top-level package to support OPA integrations in Go programs: `github.com/open-policy-agent/opa/sdk`. Users that want to integrate OPA as a library in Go and expose features like bundles and decision logging should use this package. The package is controlled by specifying an OPA configuration file. Hot reloading is supported out-of-the-box. See the GoDoc for [the package docs](https://pkg.go.dev/github.com/open-policy-agent/opa@v0.29.0/sdk) for more details.
+
+### Server
+
+- A deadlock in the bundle plugin during shutdown has been resolved ([#3363](https://github.com/open-policy-agent/opa/issues/3363))
+- An issue between bundle signing and bundle persistence when multiple data.json files are included in the bundle has been resolved ([#3472](https://github.com/open-policy-agent/opa/issues/3472))
+- The `github.com/open-policy-agent/opa/runtime#Params` struct now supports a router parameter to enable custom routes on the HTTP server.
+- The bundle manifest can now include an extra `metadata` key where arbitrary key-value pairs can be stored. Authored by @[viovanov](https://github.com/viovanov)
+- The bundle plugin now supports file:// urls in the `resource` field for test purposes.
+- The decision log plugin emits a clearer message at DEBUG instead of INFO when there is no work to do. Authored by [andrewbanchich](https://github.com/andrewbanchich)
+- The discovery plugin now supports a `resource` configuration field like the bundle plugin. Similarly, the `resource` is treated as the canonical setting to identify the discovery bundle.
+
+### Tooling
+
+- The `opa test` timeout as been increased to 30 seconds when benchmarking ([#3107](https://github.com/open-policy-agent/opa/issues/3107))
+- The `opa eval --schema` flag has been fixed to correctly set the schema when a _single_ schema file is passed
+- The `opa build --debug` flag output has been improved for readability
+- The `array.items` JSON schema value is now supported by the type checker
+- The `opa fmt` subcommand can now exit with a non-zero status when a diff is detected (by passing `--fail`)
+- The `opa test` subcommand no longer emits bogus file paths when fed a file:// url
+
+### Built-in Functions
+
+- The `http.send` built-in function falls back to the system certificate pool when the `tls_ca_cert` or `tls_ca_cert_env_variable` options are not specified ([#2271](https://github.com/open-policy-agent/opa/issues/2271)) authored by @[olamiko](https://github.com/olamiko)
+
+### Evaluation
+
+- The order of support rules emitted by partial evaluation is now deterministic ([#3453](https://github.com/open-policy-agent/opa/issues/3453)) authored by @[andrehaland](https://github.com/andrehaland)
+- The big number performance regression caught by the fuzzer has been resolved ([#3262](https://github.com/open-policy-agent/opa/issues/3262))
+- The evaluator has been updated to memoize calls to rules with arguments (functions) within a single query. This avoids recomputing function results when the same input is passed multiple times (similar to how complete rules are memoized.)
+
+### WebAssembly
+
+- The `wasm` target no longer panics if the OPA binary does not include a wasm runtime ([#3264](https://github.com/open-policy-agent/opa/issues/3264))
+- The interrupt handling mechanism has been rewritten to make safe use of the wasmtime package. The SDK also returns structured errors now that are more aligned with topdown. ([#3225](https://github.com/open-policy-agent/opa/issues/3225))
+- The SDK provides the subset of required imports now (which is useful for debugging with opa_println in the runtime library if needed.)
+- The opa_number_float type has been removed from the value library (it was unused after moving to libmpdec)
+- The runtime library builder has been updated to use llvm-12 and the wasmtime-go package has been updated to v0.27.0
+
+### Documentation
+
+- The HTTP API authorization tutorial has been updated to show how to distribute policies using bundles
+- The Envoy tutorial has been tweaked to show better path matching examples
+
+### Infrastructure
+
+- The release-patch script has been improved to deal with _this file_ in bugfix/patch releases ([#2533](https://github.com/open-policy-agent/opa/issues/2533)) authored by @[jjshanks](https://github.com/jjshanks)
+- The Makefile check targets now rely on golangci-lint and many linting errors have been resolved (authored by @[willbeason](https://github.com/willbeason))
+- Multiple nightly fuzzing and data race issues in test cases have been resolved
 
 ## 0.28.0
 
