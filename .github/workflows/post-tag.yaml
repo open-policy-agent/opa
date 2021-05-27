@@ -6,6 +6,18 @@ on:
       - '*'
 
 jobs:
+  generate:
+    name: Generate Code
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+        with:
+          token: ${{ secrets.GH_PUSH_TOKEN }}
+
+      - name: Generate
+        run: make clean generate
+
   release-build:
     name: Release Build (linux, windows)
     runs-on: ubuntu-18.04
