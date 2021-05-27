@@ -3,7 +3,9 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.29.1
+
+This is a bugfix release to resolve an issue in the release pipeline.
 
 ## 0.29.0
 
