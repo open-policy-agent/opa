@@ -104,7 +104,7 @@ Consider the following input document:
 
   Clearly there are 2 image names that are in violation of the policy. However, when we evaluate the erroneous Rego code against this input we obtain:
   ```
-  % opa eval --format pretty -i opa-schema-examples/kubernetes/input.json -d opa-schema-examples/kubernetes/policy.rego
+  % opa eval data.kubernetes.admission --format pretty -i opa-schema-examples/kubernetes/input.json -d opa-schema-examples/kubernetes/policy.rego
   []
   ```
 
@@ -123,7 +123,7 @@ Consider the following input document:
 
   We can pass this schema to the evaluator as follows:
   ```
-  % opa eval --format pretty -i opa-schema-examples/kubernetes/input.json -d opa-schema-examples/kubernetes/policy.rego -s opa-schema-examples/kubernetes/schemas/input.json
+  % opa eval data.kubernetes.admission --format pretty -i opa-schema-examples/kubernetes/input.json -d opa-schema-examples/kubernetes/policy.rego -s opa-schema-examples/kubernetes/schemas/input.json
   ```
 
   With the erroneous Rego code, we now obtain the following type error:

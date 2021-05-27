@@ -869,7 +869,7 @@ func TestCompilerCheckTypesWithSchema(t *testing.T) {
 		t.Fatal("Unexpected error:", err)
 	}
 	schemaSet := NewSchemaSet()
-	schemaSet.Put(InputRootRef, schema)
+	schemaSet.Put(SchemaRootRef, schema)
 	c.WithSchemas(schemaSet)
 	compileStages(c, c.checkTypes)
 	assertNotFailed(t, c)
@@ -4305,7 +4305,7 @@ func TestCompilerPassesTypeCheckNegative(t *testing.T) {
 func TestWithSchema(t *testing.T) {
 	c := NewCompiler()
 	schemaSet := NewSchemaSet()
-	schemaSet.Put(InputRootRef, objectSchema)
+	schemaSet.Put(SchemaRootRef, objectSchema)
 	c.WithSchemas(schemaSet)
 	if c.schemaSet == nil {
 		t.Fatalf("WithSchema did not set the schema correctly in the compiler")

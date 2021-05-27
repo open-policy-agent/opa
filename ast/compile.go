@@ -1027,7 +1027,7 @@ func (c *Compiler) init() {
 
 	// Load the global input schema if one was provided.
 	if c.schemaSet != nil {
-		if schema := c.schemaSet.Get(InputRootRef); schema != nil {
+		if schema := c.schemaSet.Get(SchemaRootRef); schema != nil {
 			tpe, err := loadSchema(schema)
 			if err != nil {
 				c.err(NewError(TypeErr, nil, err.Error()))
