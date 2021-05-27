@@ -2246,13 +2246,13 @@ func TestTopDownPartialEval(t *testing.T) {
 				`
 					package partial.test
 
-					p { not data.partial.__not1_1_3__ }
+					p { not data.partial.__not1_1_4__ }
 					p { not data.partial.__not1_1_5__ }
 				`,
 				`
 					package partial
 
-					__not1_1_3__ { input[1] = x_term_3_01; x_term_3_01 }
+					__not1_1_4__ { input[1] = x_term_4_01; x_term_4_01 }
 					__not1_1_5__ { input[2] = x_term_5_01; x_term_5_01 }
 				`,
 			},
