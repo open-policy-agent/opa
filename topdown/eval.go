@@ -1302,13 +1302,18 @@ func (e *evalResolver) Resolve(ref ast.Ref) (ast.Value, error) {
 		return nil, ast.UnknownValueErr{}
 	}
 
-	// Lookup of function argument values works by using ast.Number
-	// in ref[0]. The callsite-local arguments are passed in e.args,
-	// index by argument index.
-	if i, ok := funArg(ref); ok {
-		if i >= 0 && i < len(e.args) && ast.IsScalar(e.args[i].Value) {
-			e.e.instr.stopTimer(evalOpResolve)
-			return e.args[i].Value, nil
+	// Lookup of function argument values works by using the `args` ref[0],
+	// where the ast.Number in ref[1] references the function argument of
+	// that number. The callsite-local arguments are passed in e.args,
+	// indexed by argument index.
+	if ref[0].Equal(ast.FunctionArgRootDocument) {
+		v, ok := ref[1].Value.(ast.Number)
+		if ok {
+			i, ok := v.Int()
+			if ok && i >= 0 && i < len(e.args) && ast.IsScalar(e.args[i].Value) {
+				e.e.instr.stopTimer(evalOpResolve)
+				return e.args[i].Value, nil
+			}
 		}
 		e.e.instr.stopTimer(evalOpResolve)
 		return nil, ast.UnknownValueErr{}
@@ -1372,17 +1377,6 @@ func (e *evalResolver) Resolve(ref ast.Ref) (ast.Value, error) {
 	}
 	e.e.instr.stopTimer(evalOpResolve)
 	return nil, fmt.Errorf("illegal ref")
-}
-
-func funArg(ref ast.Ref) (int, bool) {
-	if len(ref) != 1 {
-		return 0, false
-	}
-	v, ok := ref[0].Value.(ast.Number)
-	if !ok {
-		return 0, false
-	}
-	return v.Int()
 }
 
 func (e *eval) resolveReadFromStorage(ref ast.Ref, a ast.Value) (ast.Value, error) {

@@ -289,11 +289,11 @@ func (i *refindices) Mapper(rule *Rule, ref Ref) *valueMapper {
 func (i *refindices) updateEq(rule *Rule, expr *Expr) {
 	a, b := expr.Operand(0), expr.Operand(1)
 	args := rule.Head.Args
-	if idx, ok := eqOperandsToRefOrArgAndValue(i.isVirtual, args, a, b); ok {
+	if idx, ok := eqOperandsToRefAndValue(i.isVirtual, args, a, b); ok {
 		i.insert(rule, idx)
 		return
 	}
-	if idx, ok := eqOperandsToRefOrArgAndValue(i.isVirtual, args, b, a); ok {
+	if idx, ok := eqOperandsToRefAndValue(i.isVirtual, args, b, a); ok {
 		i.insert(rule, idx)
 		return
 	}
@@ -321,7 +321,7 @@ func (i *refindices) updateGlobMatch(rule *Rule, expr *Expr) {
 			}
 			for j, arg := range args {
 				if arg.Equal(match) {
-					ref = Ref{IntNumberTerm(j)}
+					ref = Ref{FunctionArgRootDocument, IntNumberTerm(j)}
 				}
 			}
 			if ref != nil {
@@ -687,18 +687,18 @@ func (node *trieNode) traverseUnknown(resolver ValueResolver, tr *trieTraversalR
 	return nil
 }
 
-// If term `a` is one of the function's operands, we store a Ref:
-// the argument number. So for `f(x, y) { x = 10; y = 12 }`, we'll
-// bind Ref{Number(0)} and Ref{Number(1)} to this rule when called
-// for (x=10) and (y=12) respectively.
-func eqOperandsToRefOrArgAndValue(isVirtual func(Ref) bool, args []*Term, a, b *Term) (*refindex, bool) {
+// If term `a` is one of the function's operands, we store a Ref: `args[0]`
+// for the argument number. So for `f(x, y) { x = 10; y = 12 }`, we'll
+// bind `args[0]` and `args[1]` to this rule when called for (x=10) and
+// (y=12) respectively.
+func eqOperandsToRefAndValue(isVirtual func(Ref) bool, args []*Term, a, b *Term) (*refindex, bool) {
 
 	ref, ok := a.Value.(Ref)
 	if !ok {
 		for i, arg := range args {
 			if arg.Equal(a) {
 				if bval, ok := indexValue(b); ok {
-					return &refindex{Ref: Ref{IntNumberTerm(i)}, Value: bval}, true
+					return &refindex{Ref: Ref{FunctionArgRootDocument, IntNumberTerm(i)}, Value: bval}, true
 				}
 			}
 		}

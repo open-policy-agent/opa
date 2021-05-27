@@ -17,8 +17,8 @@ type testResolver struct {
 }
 
 func (r testResolver) Resolve(ref Ref) (Value, error) {
-	if len(ref) == 1 {
-		if v, ok := ref[0].Value.(Number); ok {
+	if ref[0].Equal(FunctionArgRootDocument) {
+		if v, ok := ref[1].Value.(Number); ok {
 			if i, ok := v.Int(); ok && 0 <= i && i < len(r.args) {
 				return r.args[i], nil
 			}
