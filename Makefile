@@ -259,7 +259,8 @@ ci-wasm: wasm-test
 
 .PHONY: ci-build-linux
 ci-build-linux: ensure-release-dir
-	@$(MAKE) build GOOS=linux
+	build/ensure-musl-toolchain.sh
+	CC=musl-gcc $(MAKE) build GOOS=linux
 	chmod +x opa_linux_$(GOARCH)
 	mv opa_linux_$(GOARCH) $(RELEASE_DIR)/
 
