@@ -1,0 +1,12 @@
+cases:
+- data:
+  modules:
+  - |
+    package p
+    
+    f(x) {
+        r = input.that_is_not_there
+    }
+  note: basic call
+  query: data.p.f(1)
+  want_result: []
