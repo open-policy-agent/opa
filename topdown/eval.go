@@ -1506,7 +1506,9 @@ func (e evalFunc) eval(iter unifyIterator) error {
 		return err
 	}
 
-	if ir.Empty() {
+	// default functions aren't supported:
+	// https://github.com/open-policy-agent/opa/issues/2445
+	if len(ir.Rules) == 0 {
 		return nil
 	}
 
