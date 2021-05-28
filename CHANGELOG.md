@@ -7,6 +7,8 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 This is a bugfix release to resolve an issue in topdown's function output caching ([#3501](https://github.com/open-policy-agent/opa/issues/3501))
 
+## Unreleased
+
 ## 0.29.1
 
 This is a bugfix release to resolve an issue in the release pipeline.
