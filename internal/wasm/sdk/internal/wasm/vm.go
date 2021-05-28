@@ -14,7 +14,7 @@ import (
 
 	"github.com/bytecodealliance/wasmtime-go"
 	_ "github.com/bytecodealliance/wasmtime-go/build/include"        // to include the C headers.
-	_ "github.com/bytecodealliance/wasmtime-go/build/linux-x86_64"   // to include the static lib for linking.
+	_ "github.com/bytecodealliance/wasmtime-go/build/linux-musl-x86_64"   // to include the static lib for linking.
 	_ "github.com/bytecodealliance/wasmtime-go/build/macos-x86_64"   // to include the static lib for linking.
 	_ "github.com/bytecodealliance/wasmtime-go/build/windows-x86_64" // to include the static lib for linking.
 
