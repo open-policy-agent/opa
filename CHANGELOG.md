@@ -3,7 +3,9 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.29.2
+
+This is a bugfix release to resolve an issue in topdown's function output caching ([#3501](https://github.com/open-policy-agent/opa/issues/3501))
 
 ## 0.29.1
 
