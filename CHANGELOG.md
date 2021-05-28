@@ -3,6 +3,8 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
+## Unreleased
+
 ## 0.29.3
 
 This bugfix release addresses another edge case in function evaluation ([#3505](https://github.com/open-policy-agent/opa/pull/3505)).
