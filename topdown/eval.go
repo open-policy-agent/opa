@@ -1506,11 +1506,11 @@ func (e evalFunc) eval(iter unifyIterator) error {
 		return err
 	}
 
-	argCount := len(ir.Rules[0].Head.Args)
-
 	if ir.Empty() {
 		return nil
 	}
+
+	argCount := len(ir.Rules[0].Head.Args)
 
 	if len(ir.Else) > 0 && e.e.unknown(e.e.query[e.e.index], e.e.bindings) {
 		// Partial evaluation of ordered rules is not supported currently. Save the
