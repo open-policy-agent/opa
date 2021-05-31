@@ -77,9 +77,35 @@ allow {
 
 	// We need a client with proper TLS setup, otherwise the health check
 	// that loops to determine if the server is ready will fail.
-	testRuntime.Client = newClient(pool, "testdata/client-cert.pem", "testdata/client-key.pem")
+	testRuntime.Client = newClient(0, pool, "testdata/client-cert.pem", "testdata/client-key.pem")
 
 	os.Exit(testRuntime.RunTests(m))
+}
+
+func TestMinTLSVersion(t *testing.T) {
+	endpoint := testRuntime.URL()
+	t.Run("TLS version not suported by server", func(t *testing.T) {
+
+		c := newClient(tls.VersionTLS10, pool, "testdata/client-cert.pem", "testdata/client-key.pem")
+		_, err := c.Get(endpoint)
+		if err == nil {
+			t.Error("expected err - protocol version not supported, got nil")
+		}
+
+	})
+	t.Run("TLS Version supported by server", func(t *testing.T) {
+
+		c := newClient(tls.VersionTLS12, pool, "testdata/client-cert.pem", "testdata/client-key.pem")
+		resp, err := c.Get(endpoint)
+		if err != nil {
+			t.Fatalf("GET: %v", err)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			t.Errorf("expected status 200, got %s", resp.Status)
+		}
+	})
+
 }
 
 func TestAuthenticationTLS(t *testing.T) {
@@ -89,7 +115,7 @@ func TestAuthenticationTLS(t *testing.T) {
 	// already queries the health endpoint using a properly authenticated, and
 	// authorized, http client.
 	t.Run("happy path", func(t *testing.T) {
-		c := newClient(pool, "testdata/client-cert.pem", "testdata/client-key.pem")
+		c := newClient(0, pool, "testdata/client-cert.pem", "testdata/client-key.pem")
 		resp, err := c.Get(endpoint)
 		if err != nil {
 			t.Fatalf("GET: %v", err)
@@ -101,7 +127,7 @@ func TestAuthenticationTLS(t *testing.T) {
 	})
 
 	t.Run("authn successful, authz failed", func(t *testing.T) {
-		c := newClient(pool, "testdata/client-cert-2.pem", "testdata/client-key-2.pem")
+		c := newClient(0, pool, "testdata/client-cert-2.pem", "testdata/client-key-2.pem")
 		resp, err := c.Get(endpoint)
 		if err != nil {
 			t.Fatalf("GET: %v", err)
@@ -113,7 +139,7 @@ func TestAuthenticationTLS(t *testing.T) {
 	})
 
 	t.Run("client trusts server, but doesn't provide client cert", func(t *testing.T) {
-		c := newClient(pool)
+		c := newClient(0, pool)
 		_, err := c.Get(endpoint)
 		if _, ok := err.(*url.Error); !ok {
 			t.Errorf("expected *url.Error, got %T: %v", err, err)
@@ -121,7 +147,7 @@ func TestAuthenticationTLS(t *testing.T) {
 	})
 }
 
-func newClient(pool *x509.CertPool, clientKeyPair ...string) *http.Client {
+func newClient(maxTLSVersion uint16, pool *x509.CertPool, clientKeyPair ...string) *http.Client {
 	c := *http.DefaultClient
 	// Note: zero-values in http.Transport are bad settings -- they let the client
 	// leak connections -- but it's good enough for these tests. Don't instantiate
@@ -138,6 +164,9 @@ func newClient(pool *x509.CertPool, clientKeyPair ...string) *http.Client {
 			panic(err)
 		}
 		tr.TLSClientConfig.Certificates = []tls.Certificate{clientCert}
+	}
+	if maxTLSVersion != 0 {
+		tr.TLSClientConfig.MaxVersion = maxTLSVersion
 	}
 	c.Transport = tr
 	return &c

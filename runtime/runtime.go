@@ -99,6 +99,10 @@ type Params struct {
 	// CertPool holds the CA certs trusted by the OPA server.
 	CertPool *x509.CertPool
 
+	// MinVersion contains the minimum TLS version that is acceptable.
+	// If zero, TLS 1.2 is currently taken as the minimum.
+	MinTLSVersion string
+
 	// HistoryPath is the filename to store the interactive shell user
 	// input history.
 	HistoryPath string
@@ -356,7 +360,6 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 	}
 
 	defer rt.Manager.Stop(ctx)
-
 	rt.server = server.New().
 		WithRouter(rt.Params.Router).
 		WithStore(rt.Store).
@@ -372,7 +375,8 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 		WithDecisionIDFactory(rt.decisionIDFactory).
 		WithDecisionLoggerWithErr(rt.decisionLogger).
 		WithRuntime(rt.Manager.Info).
-		WithMetrics(rt.metrics)
+		WithMetrics(rt.metrics).
+		WithMinTLSVersion(rt.Params.MinTLSVersion)
 
 	if rt.Params.DiagnosticAddrs != nil {
 		rt.server = rt.server.WithDiagnosticAddresses(*rt.Params.DiagnosticAddrs)
