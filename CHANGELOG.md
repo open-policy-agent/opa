@@ -3,7 +3,17 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.29.4
+
+This is a bugfix release that re-introduces linux binaries that do not depend on glibc, i.e., run in unmodified Alpine Linux systems.
+
+### Fixes
+
+- build: add static (wasm-disabled) linux build (#3511) ([#3499](https://github.com/open-policy-agent/opa/issues/3499)) authored by @[srenatus](https://github.com/srenatus)
+
+### Miscellaneous
+
+- bundle: Implement a DirectoryLoader for fs.FS (#3493) ([#3489](https://github.com/open-policy-agent/opa/issues/3489)) authored by @[simongottschlag](https://github.com/simongottschlag)
 
 ## 0.29.3
 
