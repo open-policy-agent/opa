@@ -48,7 +48,7 @@ If the '-l' option is supplied, the 'fmt' command will output the names of files
 that would change if formatted. The '-l' option will suppress any other output
 to stdout from the 'fmt' command.
 
-If the '-e' option is supplied, the 'fmt' command will return a non zero exit
+If the '--fail' option is supplied, the 'fmt' command will return a non zero exit
 code if a file would be reformatted.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		os.Exit(opaFmt(args))
