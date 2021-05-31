@@ -702,6 +702,30 @@ func TestTopDownPartialEval(t *testing.T) {
 			},
 		},
 		{
+			note:    "with+shallow: partial set elem",
+			shallow: true,
+			query:   "data.test.p = a",
+			modules: []string{
+				`package test
+
+				p[x] { q[x] }
+				q[7] { false with input as 1 }`,
+			},
+			wantQueries: []string{`set() = a`},
+		},
+		{
+			note:    "with+shallow: partial obj key",
+			shallow: true,
+			query:   "data.test.p = a",
+			modules: []string{
+				`package test
+
+				p[x] = y { q[x] = y }
+				q[7] = 8 { false with input as 1 }`,
+			},
+			wantQueries: []string{`{} = a`},
+		},
+		{
 			note:  "save: sub path",
 			query: "input.x = 1; input.y = 2; input.z.a = 3; input.z.b = x",
 			input: `{"x": 1, "z": {"b": 4}}`,
