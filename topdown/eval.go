@@ -389,7 +389,7 @@ func (e *eval) evalWith(iter evalIterator) error {
 		}
 
 		// Disable inlining on all references in the expression so the result of
-		// partial evaluation has the same semamntics w/ the with statements
+		// partial evaluation has the same semantics w/ the with statements
 		// preserved.
 		ast.WalkRefs(expr, func(x ast.Ref) bool {
 			disable = append(disable, x.GroundPrefix())
@@ -443,8 +443,7 @@ func (e *eval) evalWith(iter evalIterator) error {
 	return err
 }
 
-func (e *eval) evalWithPush(input *ast.Term, data *ast.Term, targets []ast.Ref, disable []ast.Ref) (*ast.Term, *ast.Term) {
-
+func (e *eval) evalWithPush(input, data *ast.Term, targets, disable []ast.Ref) (*ast.Term, *ast.Term) {
 	var oldInput *ast.Term
 
 	if input != nil {
@@ -467,7 +466,7 @@ func (e *eval) evalWithPush(input *ast.Term, data *ast.Term, targets []ast.Ref, 
 	return oldInput, oldData
 }
 
-func (e *eval) evalWithPop(input *ast.Term, data *ast.Term) {
+func (e *eval) evalWithPop(input, data *ast.Term) {
 	e.inliningControl.PopDisable()
 	e.targetStack.Pop()
 	e.virtualCache.Pop()
@@ -2227,6 +2226,11 @@ func (e evalVirtualPartial) partialEvalSupport(iter unifyIterator) error {
 	}
 
 	if !defined {
+		if len(e.ref) != e.pos+1 {
+			return nil
+		}
+
+		// the entire partial set/obj was queried, e.g. data.a.q (not data.a.q[x])
 		term = e.empty
 	}
 
