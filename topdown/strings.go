@@ -384,6 +384,25 @@ func builtinSprintf(a, b ast.Value) (ast.Value, error) {
 	return ast.String(fmt.Sprintf(string(s), args...)), nil
 }
 
+func builtinRepeat(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	s, err := builtins.StringOperand(operands[0].Value, 1)
+	if err != nil {
+		return err
+	}
+
+	count, err := builtins.IntOperand(operands[1].Value, 2)
+	if err != nil {
+		return err
+	}
+
+	if count < 0 {
+		return builtins.NewOperandErr(2, "count must be greater than zero")
+	}
+	result := ast.String(strings.Repeat(string(s), int(count)))
+
+	return iter(ast.NewTerm(result))
+}
+
 func init() {
 	RegisterFunctionalBuiltin2(ast.FormatInt.Name, builtinFormatInt)
 	RegisterFunctionalBuiltin2(ast.Concat.Name, builtinConcat)
@@ -404,4 +423,5 @@ func init() {
 	RegisterFunctionalBuiltin2(ast.TrimSuffix.Name, builtinTrimSuffix)
 	RegisterFunctionalBuiltin1(ast.TrimSpace.Name, builtinTrimSpace)
 	RegisterFunctionalBuiltin2(ast.Sprintf.Name, builtinSprintf)
+	RegisterBuiltinFunc(ast.Repeat.Name, builtinRepeat)
 }

@@ -1,0 +1,12 @@
+cases:
+- note: 'strings/repeat_test'
+  modules:
+  - |
+    package generated
+
+    p = x {
+      x := repeat("hi", 5)
+    }
+  query: data.generated.p = x
+  want_result:
+  - x: hihihihihi 

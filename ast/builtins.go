@@ -114,6 +114,7 @@ var DefaultBuiltins = [...]*Builtin{
 	StartsWith,
 	EndsWith,
 	Split,
+	Repeat,
 	Replace,
 	ReplaceN,
 	Trim,
@@ -1029,6 +1030,18 @@ var Sprintf = &Builtin{
 		types.Args(
 			types.S,
 			types.NewArray(nil, types.A),
+		),
+		types.S,
+	),
+}
+
+// Repeat returns the string s, repeated count number of times.
+var Repeat = &Builtin{
+	Name: "repeat",
+	Decl: types.NewFunction(
+		types.Args(
+			types.S,
+			types.N,
 		),
 		types.S,
 	),

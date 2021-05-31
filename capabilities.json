@@ -2554,6 +2554,23 @@
       "infix": "%"
     },
     {
+      "name": "repeat",
+      "decl": {
+        "args": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "number"
+          }
+        ],
+        "result": {
+          "type": "string"
+        },
+        "type": "function"
+      }
+    },
+    {
       "name": "replace",
       "decl": {
         "args": [
