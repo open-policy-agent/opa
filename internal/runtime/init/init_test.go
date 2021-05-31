@@ -57,6 +57,19 @@ p = true { 1 = 2 }`
 			asBundle:     false,
 		},
 		{
+			note: "load duplicate files",
+			fs: map[string]string{
+				"datafile":   `{"foo": "bar", "x": {"y": {"z": [1]}}}`,
+				"policyFile": mod1,
+			},
+			loadParams: []string{"datafile", "policyFile", "policyFile"},
+			expectedData: map[string]string{
+				"/foo": "bar",
+			},
+			expectedMods: []string{mod1},
+			asBundle:     false,
+		},
+		{
 			note: "load bundle",
 			fs: map[string]string{
 				"datafile":    `{"foo": "bar", "x": {"y": {"z": [1]}}}`, // Should be ignored
