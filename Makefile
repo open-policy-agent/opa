@@ -399,24 +399,6 @@ check-fuzz:
 #
 ######################################################
 
-.PHONY: release
-release:
-	$(DOCKER) run $(DOCKER_FLAGS) \
-		-v $(PWD)/$(RELEASE_DIR):/$(RELEASE_DIR) \
-		-v $(PWD):/_src \
-		-e TELEMETRY_URL=$(TELEMETRY_URL) \
-		$(RELEASE_BUILD_IMAGE) \
-		/_src/build/build-release.sh --version=$(VERSION) --output-dir=/$(RELEASE_DIR) --source-url=/_src
-
-.PHONY: release-local
-release-local:
-	$(DOCKER) run $(DOCKER_FLAGS) \
-		-v $(PWD)/$(RELEASE_DIR):/$(RELEASE_DIR) \
-		-v $(PWD):/_src \
-		-e TELEMETRY_URL=$(TELEMETRY_URL) \
-		$(RELEASE_BUILD_IMAGE) \
-		/_src/build/build-release.sh --output-dir=/$(RELEASE_DIR) --source-url=/_src
-
 .PHONY: release-patch
 release-patch:
 	@$(DOCKER) run $(DOCKER_FLAGS) \
@@ -433,10 +415,12 @@ dev-patch:
 		/_src/build/gen-dev-patch.sh --version=$(VERSION) --source-url=/_src
 
 # Deprecated targets. To be removed.
-.PHONY: build-linux depr-build-linux build-windows depr-build-windows build-darwin depr-build-darwin
+.PHONY: build-linux depr-build-linux build-windows depr-build-windows build-darwin depr-build-darwin release release-local
 build-linux: deprecation-build-linux
 build-windows: deprecation-build-windows
 build-darwin: deprecation-build-darwin
+release: deprecation-release
+release-local: deprecation-release-local
 
 .PHONY: deprecation-%
 deprecation-%:
@@ -459,3 +443,19 @@ depr-build-darwin: ensure-release-dir
 depr-build-windows: ensure-release-dir
 	@$(MAKE) build GOOS=windows CGO_ENABLED=0 WASM_ENABLED=0
 	mv opa_windows_$(GOARCH) $(RELEASE_DIR)/opa_windows_$(GOARCH).exe
+
+depr-release:
+	$(DOCKER) run $(DOCKER_FLAGS) \
+		-v $(PWD)/$(RELEASE_DIR):/$(RELEASE_DIR) \
+		-v $(PWD):/_src \
+		-e TELEMETRY_URL=$(TELEMETRY_URL) \
+		$(RELEASE_BUILD_IMAGE) \
+		/_src/build/build-release.sh --version=$(VERSION) --output-dir=/$(RELEASE_DIR) --source-url=/_src
+
+depr-release-local:
+	$(DOCKER) run $(DOCKER_FLAGS) \
+		-v $(PWD)/$(RELEASE_DIR):/$(RELEASE_DIR) \
+		-v $(PWD):/_src \
+		-e TELEMETRY_URL=$(TELEMETRY_URL) \
+		$(RELEASE_BUILD_IMAGE) \
+		/_src/build/build-release.sh --output-dir=/$(RELEASE_DIR) --source-url=/_src
