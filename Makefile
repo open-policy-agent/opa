@@ -263,6 +263,12 @@ ci-build-linux: ensure-release-dir
 	chmod +x opa_linux_$(GOARCH)
 	mv opa_linux_$(GOARCH) $(RELEASE_DIR)/
 
+.PHONY: ci-build-linux-static
+ci-build-linux-static: ensure-release-dir
+	@$(MAKE) build GOOS=linux WASM_ENABLED=0 CGO_ENABLED=0
+	chmod +x opa_linux_$(GOARCH)
+	mv opa_linux_$(GOARCH) $(RELEASE_DIR)/opa_linux_$(GOARCH)_static
+
 .PHONY: ci-build-darwin
 ci-build-darwin: ensure-release-dir
 	@$(MAKE) build GOOS=darwin
@@ -282,32 +288,40 @@ ensure-release-dir:
 	mkdir -p $(RELEASE_DIR)
 
 .PHONY: build-all-platforms
-build-all-platforms: ci-build-linux ci-build-darwin ci-build-windows
+build-all-platforms: ci-build-linux ci-build-linux-static ci-build-darwin ci-build-windows
 
 .PHONY: image-quick
 image-quick:
-	chmod +x $(RELEASE_DIR)/opa_linux_amd64
+	chmod +x $(RELEASE_DIR)/opa_linux_amd64*
 	$(DOCKER) build \
 		-t $(DOCKER_IMAGE):$(VERSION) \
 		--build-arg BASE=gcr.io/distroless/cc \
-		--build-arg BIN_DIR=$(RELEASE_DIR) \
+		--build-arg BIN=$(RELEASE_DIR)/opa_linux_amd64 \
 		.
 	$(DOCKER) build \
 		-t $(DOCKER_IMAGE):$(VERSION)-debug \
 		--build-arg BASE=gcr.io/distroless/cc:debug \
-		--build-arg BIN_DIR=$(RELEASE_DIR) \
+		--build-arg BIN=$(RELEASE_DIR)/opa_linux_amd64 \
 		.
 	$(DOCKER) build \
 		-t $(DOCKER_IMAGE):$(VERSION)-rootless \
 		--build-arg USER=1000 \
 		--build-arg BASE=gcr.io/distroless/cc \
-		--build-arg BIN_DIR=$(RELEASE_DIR) \
+		--build-arg BIN=$(RELEASE_DIR)/opa_linux_amd64 \
 		.
+	# this isn't published, only used for smoke testing the binaries
+	$(DOCKER) build \
+		-t $(DOCKER_IMAGE):$(VERSION)-static-ci-only \
+		--build-arg BASE=alpine \
+		--build-arg BIN=$(RELEASE_DIR)/opa_linux_amd64_static \
+		.
+
 .PHONY: ci-image-smoke-test
 ci-image-smoke-test: image-quick
 	$(DOCKER) run $(DOCKER_IMAGE):$(VERSION) version
 	$(DOCKER) run $(DOCKER_IMAGE):$(VERSION)-debug version
 	$(DOCKER) run $(DOCKER_IMAGE):$(VERSION)-rootless version
+	$(DOCKER) run $(DOCKER_IMAGE):$(VERSION)-static-ci-only version
 
 .PHONY: push
 push:
@@ -385,24 +399,6 @@ check-fuzz:
 #
 ######################################################
 
-.PHONY: release
-release:
-	$(DOCKER) run $(DOCKER_FLAGS) \
-		-v $(PWD)/$(RELEASE_DIR):/$(RELEASE_DIR) \
-		-v $(PWD):/_src \
-		-e TELEMETRY_URL=$(TELEMETRY_URL) \
-		$(RELEASE_BUILD_IMAGE) \
-		/_src/build/build-release.sh --version=$(VERSION) --output-dir=/$(RELEASE_DIR) --source-url=/_src
-
-.PHONY: release-local
-release-local:
-	$(DOCKER) run $(DOCKER_FLAGS) \
-		-v $(PWD)/$(RELEASE_DIR):/$(RELEASE_DIR) \
-		-v $(PWD):/_src \
-		-e TELEMETRY_URL=$(TELEMETRY_URL) \
-		$(RELEASE_BUILD_IMAGE) \
-		/_src/build/build-release.sh --output-dir=/$(RELEASE_DIR) --source-url=/_src
-
 .PHONY: release-patch
 release-patch:
 	@$(DOCKER) run $(DOCKER_FLAGS) \
@@ -419,10 +415,12 @@ dev-patch:
 		/_src/build/gen-dev-patch.sh --version=$(VERSION) --source-url=/_src
 
 # Deprecated targets. To be removed.
-.PHONY: build-linux depr-build-linux build-windows depr-build-windows build-darwin depr-build-darwin
+.PHONY: build-linux depr-build-linux build-windows depr-build-windows build-darwin depr-build-darwin release release-local
 build-linux: deprecation-build-linux
 build-windows: deprecation-build-windows
 build-darwin: deprecation-build-darwin
+release: deprecation-release
+release-local: deprecation-release-local
 
 .PHONY: deprecation-%
 deprecation-%:
@@ -445,3 +443,19 @@ depr-build-darwin: ensure-release-dir
 depr-build-windows: ensure-release-dir
 	@$(MAKE) build GOOS=windows CGO_ENABLED=0 WASM_ENABLED=0
 	mv opa_windows_$(GOARCH) $(RELEASE_DIR)/opa_windows_$(GOARCH).exe
+
+depr-release:
+	$(DOCKER) run $(DOCKER_FLAGS) \
+		-v $(PWD)/$(RELEASE_DIR):/$(RELEASE_DIR) \
+		-v $(PWD):/_src \
+		-e TELEMETRY_URL=$(TELEMETRY_URL) \
+		$(RELEASE_BUILD_IMAGE) \
+		/_src/build/build-release.sh --version=$(VERSION) --output-dir=/$(RELEASE_DIR) --source-url=/_src
+
+depr-release-local:
+	$(DOCKER) run $(DOCKER_FLAGS) \
+		-v $(PWD)/$(RELEASE_DIR):/$(RELEASE_DIR) \
+		-v $(PWD):/_src \
+		-e TELEMETRY_URL=$(TELEMETRY_URL) \
+		$(RELEASE_BUILD_IMAGE) \
+		/_src/build/build-release.sh --output-dir=/$(RELEASE_DIR) --source-url=/_src
