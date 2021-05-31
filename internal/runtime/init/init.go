@@ -109,6 +109,22 @@ type Descriptor struct {
 	Path string
 }
 
+// removeDuplicatePaths removes duplicate file paths in order
+func removeDuplicatePaths(paths []string) []string {
+	pathMap := make(map[string]bool)
+	result := []string{}
+
+	for _, path := range paths {
+		if pathMap[path] {
+			continue
+		}
+		pathMap[path] = true
+		result = append(result, path)
+	}
+
+	return result
+}
+
 // LoadPaths reads data and policy from the given paths and returns a set of bundles or
 // raw loader file results.
 func LoadPaths(paths []string, filter loader.Filter, asBundle bool, bvc *bundle.VerificationConfig, skipVerify bool) (*LoadPathsResult, error) {
@@ -128,6 +144,7 @@ func LoadPaths(paths []string, filter loader.Filter, asBundle bool, bvc *bundle.
 		return &result, nil
 	}
 
+	paths = removeDuplicatePaths(paths)
 	files, err := loader.NewFileLoader().Filtered(paths, filter)
 	if err != nil {
 		return nil, err
