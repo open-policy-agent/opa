@@ -5,6 +5,14 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+## 0.29.3
+
+This bugfix release addresses another edge case in function evaluation ([#3505](https://github.com/open-policy-agent/opa/pull/3505)).
+
+## 0.29.2
+
+This is a bugfix release to resolve an issue in topdown's function output caching ([#3501](https://github.com/open-policy-agent/opa/issues/3501))
+
 ## 0.29.1
 
 This is a bugfix release to resolve an issue in the release pipeline.
