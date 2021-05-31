@@ -346,6 +346,7 @@ push-binary-edge:
 	aws s3 cp $(RELEASE_DIR)/opa_darwin_$(GOARCH) s3://$(S3_RELEASE_BUCKET)/edge/opa_darwin_$(GOARCH)
 	aws s3 cp $(RELEASE_DIR)/opa_windows_$(GOARCH).exe s3://$(S3_RELEASE_BUCKET)/edge/opa_windows_$(GOARCH).exe
 	aws s3 cp $(RELEASE_DIR)/opa_linux_$(GOARCH) s3://$(S3_RELEASE_BUCKET)/edge/opa_linux_$(GOARCH)
+	aws s3 cp $(RELEASE_DIR)/opa_linux_$(GOARCH)_static s3://$(S3_RELEASE_BUCKET)/edge/opa_linux_$(GOARCH)_static
 
 .PHONY: tag-edge
 tag-edge:
