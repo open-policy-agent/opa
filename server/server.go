@@ -2086,7 +2086,13 @@ func (s *Server) checkPathScope(ctx context.Context, txn storage.Transaction, pa
 	spathParts := strings.Split(spath, "/")
 
 	for name, roots := range bundleRoots {
+		if roots == nil {
+			return types.BadRequestErr(fmt.Sprintf("all paths owned by bundle %q", name))
+		}
 		for _, root := range roots {
+			if root == "" {
+				return types.BadRequestErr(fmt.Sprintf("all paths owned by bundle %q", name))
+			}
 			if isPathOwned(spathParts, strings.Split(root, "/")) {
 				return types.BadRequestErr(fmt.Sprintf("path %v is owned by bundle %q", spath, name))
 			}

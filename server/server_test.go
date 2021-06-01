@@ -1568,6 +1568,75 @@ func TestBundleScopeMultiBundle(t *testing.T) {
 	}
 }
 
+func TestBundleNoRoots(t *testing.T) {
+	ctx := context.Background()
+
+	f := newFixture(t)
+
+	txn := storage.NewTransactionOrDie(ctx, f.server.store, storage.WriteParams)
+
+	if err := bundle.WriteManifestToStore(ctx, f.server.store, txn, "test-bundle", bundle.Manifest{
+		Revision: "AAAAA",
+		// No Roots provided
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := f.server.store.UpsertPolicy(ctx, txn, "someid", []byte(`package x.y.z`)); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := f.server.store.Commit(ctx, txn); err != nil {
+		t.Fatal(err)
+	}
+
+	cases := []tr{
+		{
+			method: "PUT",
+			path:   "/data/a/b",
+			body:   "1",
+			code:   http.StatusBadRequest,
+			resp:   `{"code": "invalid_parameter", "message": "all paths owned by bundle \"test-bundle\""}`,
+		},
+	}
+
+	if err := f.v1TestRequests(cases); err != nil {
+		t.Fatal(err)
+	}
+
+	txn = storage.NewTransactionOrDie(ctx, f.server.store, storage.WriteParams)
+
+	if err := bundle.WriteManifestToStore(ctx, f.server.store, txn, "test-bundle", bundle.Manifest{
+		Revision: "AAAAA",
+		// Roots provided but contains empty string
+		Roots: &[]string{"", "does/not/matter"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := f.server.store.UpsertPolicy(ctx, txn, "someid", []byte(`package x.y.z`)); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := f.server.store.Commit(ctx, txn); err != nil {
+		t.Fatal(err)
+	}
+
+	cases = []tr{
+		{
+			method: "PUT",
+			path:   "/data/a/b",
+			body:   "1",
+			code:   http.StatusBadRequest,
+			resp:   `{"code": "invalid_parameter", "message": "all paths owned by bundle \"test-bundle\""}`,
+		},
+	}
+
+	if err := f.v1TestRequests(cases); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestDataGetExplainFull(t *testing.T) {
 	f := newFixture(t)
 
