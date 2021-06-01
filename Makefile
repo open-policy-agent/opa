@@ -23,6 +23,8 @@ GOVERSION := $(shell cat ./.go-version)
 GOARCH := $(shell go env GOARCH)
 GOOS := $(shell go env GOOS)
 
+GOLANGCI_LINT_VERSION := v1.40.1
+
 DOCKER_RUNNING := $(shell docker ps >/dev/null 2>&1 && echo 1 || echo 0)
 
 # We use root because the windows build, invoked through the ci-go-build-windows
@@ -129,11 +131,11 @@ wasm-sdk-e2e-test: generate
 
 .PHONY: check
 check:
-	docker run --rm -v $(shell pwd):/app -w /app golangci/golangci-lint:v1.40.1 golangci-lint run -v
+	docker run --rm -v $(shell pwd):/app -w /app golangci/golangci-lint:${GOLANGCI_LINT_VERSION} golangci-lint run -v
 
 .PHONY: fmt
 fmt:
-	./build/run-fmt.sh
+	docker run --rm -v $(shell pwd):/app -w /app golangci/golangci-lint:${GOLANGCI_LINT_VERSION} golangci-lint run -v --fix
 
 .PHONY: clean
 clean: wasm-lib-clean
