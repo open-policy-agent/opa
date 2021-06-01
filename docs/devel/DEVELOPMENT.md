@@ -140,8 +140,9 @@ If dependencies have been removed ensure to run `go mod tidy` to clean them up.
 
 ### Tool Dependencies
 
-We use some tools such as `goimports` which are versioned and vendored
-with OPA as depedencies. See [tools.go](../../tools.go) for a list of tools.
+Sometimes we use some tools which are versioned and vendored
+with OPA as dependencies. For now, we have none, but any we use in the future
+should go in [tools.go](../../tools.go).
 
 More details on the pattern: [https://github.com/go-modules-by-example/index/blob/master/010_tools/README.md](https://github.com/go-modules-by-example/index/blob/master/010_tools/README.md)
 
