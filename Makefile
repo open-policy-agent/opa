@@ -131,11 +131,19 @@ wasm-sdk-e2e-test: generate
 
 .PHONY: check
 check:
+ifeq ($(DOCKER_RUNNING), 1)
 	docker run --rm -v $(shell pwd):/app -w /app golangci/golangci-lint:${GOLANGCI_LINT_VERSION} golangci-lint run -v
+else
+	@echo "Docker not installed or running. Skipping golangci run."
+endif
 
 .PHONY: fmt
 fmt:
+ifeq ($(DOCKER_RUNNING), 1)
 	docker run --rm -v $(shell pwd):/app -w /app golangci/golangci-lint:${GOLANGCI_LINT_VERSION} golangci-lint run -v --fix
+else
+	@echo "Docker not installed or running. Skipping golangci run."
+endif
 
 .PHONY: clean
 clean: wasm-lib-clean
