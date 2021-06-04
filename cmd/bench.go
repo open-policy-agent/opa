@@ -75,7 +75,11 @@ The optional "gobench" output format conforms to the Go Benchmark Data Format.
 		},
 		Run: func(_ *cobra.Command, args []string) {
 			exit, err := benchMain(args, params, os.Stdout, &goBenchRunner{})
-			fmt.Fprintln(os.Stderr, err)
+			if err != nil {
+				// NOTE: err should only be non-nil if a (highly unlikely)
+				// presentation error occurs.
+				fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			}
 			os.Exit(exit)
 		},
 	}
