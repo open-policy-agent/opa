@@ -91,7 +91,7 @@ build: go-build
 
 .PHONY: image
 image:
-	DOCKER_UID=$(shell id -u) DOCKER_GID=$(shell id -g) $(MAKE) ci-go-ci-build-linux
+	DOCKER_UID=$(shell id -u) DOCKER_GID=$(shell id -g) $(MAKE) ci-go-ci-build-linux ci-go-ci-build-linux-static
 	@$(MAKE) image-quick
 
 .PHONY: install
