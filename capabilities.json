@@ -2554,23 +2554,6 @@
       "infix": "%"
     },
     {
-      "name": "repeat",
-      "decl": {
-        "args": [
-          {
-            "type": "string"
-          },
-          {
-            "type": "number"
-          }
-        ],
-        "result": {
-          "type": "string"
-        },
-        "type": "function"
-      }
-    },
-    {
       "name": "replace",
       "decl": {
         "args": [
@@ -2745,6 +2728,23 @@
         ],
         "result": {
           "type": "boolean"
+        },
+        "type": "function"
+      }
+    },
+    {
+      "name": "strings.repeat",
+      "decl": {
+        "args": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "number"
+          }
+        ],
+        "result": {
+          "type": "string"
         },
         "type": "function"
       }

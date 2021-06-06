@@ -5,7 +5,7 @@ cases:
     package generated
 
     p = x {
-      x := repeat("hi", 5)
+      x := strings.repeat("hi", 5)
     }
   query: data.generated.p = x
   want_result:

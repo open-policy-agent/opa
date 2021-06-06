@@ -359,7 +359,7 @@ complex types.
 | <span class="opa-keep-it-together">``output := trim_suffix(string, suffix)``</span> | ``output`` is a ``string`` representing ``string`` with trailing instance of ``suffix`` removed. If ``string`` doesn't end with suffix, ``string`` is returned unchanged.| ✅ |
 | <span class="opa-keep-it-together">``output := trim_space(string)``</span> | ``output`` is a ``string`` representing ``string`` with all leading and trailing white space removed.| ✅ |
 | <span class="opa-keep-it-together">``output := upper(string)``</span> | ``output`` is ``string`` after converting to upper case | ✅ |
-| <span class="opa-keep-it-together">``output := repeat(string, count)``</span> | ``string`` is repeated count number of times | ✅ |
+| <span class="opa-keep-it-together">``output := strings.repeat(string, count)``</span> | ``string`` is repeated ``count`` number of times | ``SDK-dependent`` |
 
 ### Regex
 | Built-in | Description | Wasm Support |

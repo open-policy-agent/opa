@@ -395,7 +395,7 @@ func builtinRepeat(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) 
 		return err
 	}
 
-	if count < 0 {
+	if count <= 0 {
 		return builtins.NewOperandErr(2, "count must be greater than zero")
 	}
 	result := ast.String(strings.Repeat(string(s), int(count)))

@@ -1037,7 +1037,7 @@ var Sprintf = &Builtin{
 
 // Repeat returns the string s, repeated count number of times.
 var Repeat = &Builtin{
-	Name: "repeat",
+	Name: "strings.repeat",
 	Decl: types.NewFunction(
 		types.Args(
 			types.S,
