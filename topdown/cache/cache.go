@@ -123,7 +123,13 @@ func (c *cache) UpdateConfig(config *Config) {
 func (c *cache) unsafeInsert(k ast.Value, v InterQueryCacheValue) (dropped int) {
 	size := v.SizeInBytes()
 	limit := c.maxSizeBytes()
+
 	if limit > 0 {
+		if size > limit {
+			dropped++
+			return dropped
+		}
+
 		for key := c.l.Front(); key != nil && (c.usage+size > limit); key = key.Next() {
 			dropKey := key.Value.(ast.Value)
 			c.unsafeDelete(dropKey)
