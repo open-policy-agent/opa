@@ -104,6 +104,38 @@ func TestTopDownPartialEval(t *testing.T) {
 			},
 		},
 		{
+			note:  "iterate data - unknown key",
+			query: `data.test.p = true`,
+			data:  `{"x": {"foo": 7, "bar": 7}}`,
+			modules: []string{
+				`
+					package test
+
+					p {
+						input.x = k
+						data.x[k] = 7
+					}
+				`,
+			},
+			wantQueries: []string{`input.x = "foo"`, `input.x = "bar"`},
+		},
+		{
+			note:  "iterate data - unknown key undefined",
+			query: `data.test.p = true`,
+			data:  `{"x": {"foo": 8, "bar": 8}}`,
+			modules: []string{
+				`
+					package test
+
+					p {
+						input.x = k
+						data.x[k] = 7
+					}
+				`,
+			},
+			wantQueries: []string{},
+		},
+		{
 			note:  "iterate rules: partial object",
 			query: `data.test.p[x] = input.x`,
 			modules: []string{
