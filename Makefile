@@ -23,6 +23,8 @@ GOVERSION := $(shell cat ./.go-version)
 GOARCH := $(shell go env GOARCH)
 GOOS := $(shell go env GOOS)
 
+GOLANGCI_LINT_VERSION := v1.40.1
+
 DOCKER_RUNNING := $(shell docker ps >/dev/null 2>&1 && echo 1 || echo 0)
 
 # We use root because the windows build, invoked through the ci-go-build-windows
@@ -89,7 +91,7 @@ build: go-build
 
 .PHONY: image
 image:
-	DOCKER_UID=$(shell id -u) DOCKER_GID=$(shell id -g) $(MAKE) ci-go-ci-build-linux
+	DOCKER_UID=$(shell id -u) DOCKER_GID=$(shell id -g) $(MAKE) ci-go-ci-build-linux ci-go-ci-build-linux-static
 	@$(MAKE) image-quick
 
 .PHONY: install
@@ -128,23 +130,20 @@ wasm-sdk-e2e-test: generate
 	$(GO) test $(GO_TAGS),slow,wasm_sdk_e2e $(GO_TEST_TIMEOUT) -v ./internal/wasm/sdk/test/e2e
 
 .PHONY: check
-check: check-fmt check-vet check-lint
-
-.PHONY: check-fmt
-check-fmt:
-	./build/check-fmt.sh
-
-.PHONY: check-vet
-check-vet:
-	./build/check-vet.sh
-
-.PHONY: check-lint
-check-lint:
-	./build/check-lint.sh
+check:
+ifeq ($(DOCKER_RUNNING), 1)
+	docker run --rm -v $(shell pwd):/app -w /app golangci/golangci-lint:${GOLANGCI_LINT_VERSION} golangci-lint run -v
+else
+	@echo "Docker not installed or running. Skipping golangci run."
+endif
 
 .PHONY: fmt
 fmt:
-	./build/run-fmt.sh
+ifeq ($(DOCKER_RUNNING), 1)
+	docker run --rm -v $(shell pwd):/app -w /app golangci/golangci-lint:${GOLANGCI_LINT_VERSION} golangci-lint run -v --fix
+else
+	@echo "Docker not installed or running. Skipping golangci run."
+endif
 
 .PHONY: clean
 clean: wasm-lib-clean

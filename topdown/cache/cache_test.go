@@ -80,9 +80,22 @@ func TestInsert(t *testing.T) {
 	}
 
 	cache := NewInterQueryCache(config)
-	cacheValue := newInterQueryCacheValue(ast.StringTerm("bar").Value, 20)
 
-	dropped := cache.Insert(ast.StringTerm("foo").Value, cacheValue)
+	// large cache value that exceeds limit
+	cacheValueLarge := newInterQueryCacheValue(ast.StringTerm("bar").Value, 40)
+	dropped := cache.Insert(ast.StringTerm("foo").Value, cacheValueLarge)
+
+	if dropped != 1 {
+		t.Fatal("Expected dropped to be one")
+	}
+
+	_, found := cache.Get(ast.StringTerm("foo").Value)
+	if found {
+		t.Fatal("Unexpected key \"foo\" in cache")
+	}
+
+	cacheValue := newInterQueryCacheValue(ast.StringTerm("bar").Value, 20)
+	dropped = cache.Insert(ast.StringTerm("foo").Value, cacheValue)
 
 	if dropped != 0 {
 		t.Fatal("Expected dropped to be zero")
@@ -96,7 +109,7 @@ func TestInsert(t *testing.T) {
 		t.Fatal("Expected dropped to be one")
 	}
 
-	_, found := cache.Get(ast.StringTerm("foo2").Value)
+	_, found = cache.Get(ast.StringTerm("foo2").Value)
 	if !found {
 		t.Fatal("Expected key \"foo2\" in cache")
 	}

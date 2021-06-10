@@ -110,7 +110,7 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Golang Style and Lint Check
-        run: make ci-go-check
+        run: make check
         timeout-minutes: 30
 
   wasm:

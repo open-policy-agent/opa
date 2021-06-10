@@ -253,23 +253,13 @@ func TestEtagCachingLifecycle(t *testing.T) {
 		t.Fatalf("Expected empty downloader ETag but got %v", fixture.d.etag)
 	}
 
-	// simulate successful bundle activation and check updated etag on the downloader
+	// simulate downloader error on first bundle download
+	fixture.server.expCode = 500
 	fixture.server.expEtag = "some etag value"
 	_, err := fixture.d.oneShot(ctx)
-	if err != nil {
-		t.Fatal("Unexpected:", err)
-	} else if len(fixture.updates) != 1 {
-		t.Fatal("expected update")
-	} else if fixture.d.etag != fixture.server.expEtag {
-		t.Fatalf("Expected downloader ETag %v but got %v", fixture.server.expEtag, fixture.d.etag)
-	}
-
-	// simulate downloader error and check etag is cleared
-	fixture.server.expCode = 500
-	_, err = fixture.d.oneShot(ctx)
 	if err == nil {
 		t.Fatal("Expected error but got nil")
-	} else if len(fixture.updates) != 2 {
+	} else if len(fixture.updates) != 1 {
 		t.Fatal("expected update")
 	} else if fixture.d.etag != "" {
 		t.Fatalf("Expected empty downloader ETag but got %v", fixture.d.etag)
@@ -277,7 +267,17 @@ func TestEtagCachingLifecycle(t *testing.T) {
 
 	// simulate successful bundle activation and check updated etag on the downloader
 	fixture.server.expCode = 0
-	fixture.server.expEtag = "some new etag value"
+	_, err = fixture.d.oneShot(ctx)
+	if err != nil {
+		t.Fatal("Unexpected:", err)
+	} else if len(fixture.updates) != 2 {
+		t.Fatal("expected update")
+	} else if fixture.d.etag != fixture.server.expEtag {
+		t.Fatalf("Expected downloader ETag %v but got %v", fixture.server.expEtag, fixture.d.etag)
+	}
+
+	// simulate another successful bundle activation and check updated etag on the downloader
+	fixture.server.expEtag = "some etag value - 2"
 	_, err = fixture.d.oneShot(ctx)
 	if err != nil {
 		t.Fatal("Unexpected:", err)
@@ -287,16 +287,51 @@ func TestEtagCachingLifecycle(t *testing.T) {
 		t.Fatalf("Expected downloader ETag %v but got %v", fixture.server.expEtag, fixture.d.etag)
 	}
 
-	// simulate bundle activation error and check etag is cleared
+	// simulate bundle activation error and check etag is set from the last successful activation
 	fixture.mockBundleActivationError = true
-	fixture.server.expEtag = "some newer etag value"
+	fixture.server.expEtag = "some newer etag value - 3"
 	_, err = fixture.d.oneShot(ctx)
 	if err != nil {
 		t.Fatal("Unexpected:", err)
 	} else if len(fixture.updates) != 4 {
 		t.Fatal("expected update")
-	} else if fixture.d.etag != "" {
-		t.Fatalf("Expected empty downloader ETag but got %v", fixture.d.etag)
+	} else if fixture.d.etag != "some etag value - 2" {
+		t.Fatalf("Expected downloader ETag %v but got %v", "some etag value - 2", fixture.d.etag)
+	}
+
+	// simulate successful bundle activation and check updated etag on the downloader
+	fixture.server.expCode = 0
+	fixture.mockBundleActivationError = false
+	_, err = fixture.d.oneShot(ctx)
+	if err != nil {
+		t.Fatal("Unexpected:", err)
+	} else if len(fixture.updates) != 5 {
+		t.Fatal("expected update")
+	} else if fixture.d.etag != fixture.server.expEtag {
+		t.Fatalf("Expected downloader ETag %v but got %v", fixture.server.expEtag, fixture.d.etag)
+	}
+
+	// simulate downloader error and check etag is set from the last successful activation
+	fixture.server.expCode = 500
+	_, err = fixture.d.oneShot(ctx)
+	if err == nil {
+		t.Fatal("Expected error but got nil")
+	} else if len(fixture.updates) != 6 {
+		t.Fatal("expected update")
+	} else if fixture.d.etag != fixture.server.expEtag {
+		t.Fatalf("Expected downloader ETag %v but got %v", fixture.server.expEtag, fixture.d.etag)
+	}
+
+	// simulate bundle activation error and check etag is set from the last successful activation
+	fixture.mockBundleActivationError = true
+	fixture.server.expCode = 0
+	_, err = fixture.d.oneShot(ctx)
+	if err != nil {
+		t.Fatal("Unexpected:", err)
+	} else if len(fixture.updates) != 7 {
+		t.Fatal("expected update")
+	} else if fixture.d.etag != fixture.server.expEtag {
+		t.Fatalf("Expected downloader ETag %v but got %v", fixture.server.expEtag, fixture.d.etag)
 	}
 }
 
@@ -393,6 +428,7 @@ type testFixture struct {
 	server                    *testServer
 	updates                   []Update
 	mockBundleActivationError bool
+	etags                     map[string]string
 }
 
 func newTestFixture(t *testing.T) testFixture {
@@ -443,6 +479,7 @@ func newTestFixture(t *testing.T) testFixture {
 		client:  tc,
 		server:  &ts,
 		updates: []Update{},
+		etags:   make(map[string]string),
 	}
 }
 
@@ -451,16 +488,20 @@ func (t *testFixture) oneShot(ctx context.Context, u Update) {
 	t.updates = append(t.updates, u)
 
 	if u.Error != nil {
-		t.d.ClearCache()
+		etag := t.etags["test/bundle1"]
+		t.d.SetCache(etag)
 		return
 	}
 
 	if u.Bundle != nil {
 		if t.mockBundleActivationError {
-			t.d.ClearCache()
+			etag := t.etags["test/bundle1"]
+			t.d.SetCache(etag)
 			return
 		}
 	}
+
+	t.etags["test/bundle1"] = u.ETag
 }
 
 type testServer struct {

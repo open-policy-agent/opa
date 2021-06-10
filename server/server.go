@@ -527,8 +527,13 @@ func (s *Server) getListenerForHTTPSServer(u *url.URL, h http.Handler, t httpLis
 func (s *Server) getListenerForUNIXSocket(u *url.URL, h http.Handler, t httpListenerType) (Loop, httpListener, error) {
 	socketPath := u.Host + u.Path
 
-	// Remove domain socket file in case it already exists.
-	os.Remove(socketPath)
+	// Recover @ prefix for abstract Unix sockets.
+	if strings.HasPrefix(u.String(), u.Scheme+"://@") {
+		socketPath = "@" + socketPath
+	} else {
+		// Remove domain socket file in case it already exists.
+		os.Remove(socketPath)
+	}
 
 	domainSocketServer := http.Server{Handler: h}
 	unixListener, err := net.Listen("unix", socketPath)
@@ -2086,7 +2091,13 @@ func (s *Server) checkPathScope(ctx context.Context, txn storage.Transaction, pa
 	spathParts := strings.Split(spath, "/")
 
 	for name, roots := range bundleRoots {
+		if roots == nil {
+			return types.BadRequestErr(fmt.Sprintf("all paths owned by bundle %q", name))
+		}
 		for _, root := range roots {
+			if root == "" {
+				return types.BadRequestErr(fmt.Sprintf("all paths owned by bundle %q", name))
+			}
 			if isPathOwned(spathParts, strings.Split(root, "/")) {
 				return types.BadRequestErr(fmt.Sprintf("path %v is owned by bundle %q", spath, name))
 			}

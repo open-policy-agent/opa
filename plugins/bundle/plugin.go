@@ -369,7 +369,8 @@ func (p *Plugin) process(ctx context.Context, name string, u download.Update) {
 		p.log(name).Error("Bundle load failed: %v", u.Error)
 		p.status[name].SetError(u.Error)
 		if !p.stopped {
-			p.downloaders[name].ClearCache()
+			etag := p.etags[name]
+			p.downloaders[name].SetCache(etag)
 		}
 		return
 	}
@@ -386,7 +387,8 @@ func (p *Plugin) process(ctx context.Context, name string, u download.Update) {
 			p.log(name).Error("Bundle activation failed: %v", err)
 			p.status[name].SetError(err)
 			if !p.stopped {
-				p.downloaders[name].ClearCache()
+				etag := p.etags[name]
+				p.downloaders[name].SetCache(etag)
 			}
 			return
 		}
@@ -399,7 +401,8 @@ func (p *Plugin) process(ctx context.Context, name string, u download.Update) {
 				p.log(name).Error("Persisting bundle to disk failed: %v", err)
 				p.status[name].SetError(err)
 				if !p.stopped {
-					p.downloaders[name].ClearCache()
+					etag := p.etags[name]
+					p.downloaders[name].SetCache(etag)
 				}
 				return
 			}
@@ -617,6 +620,7 @@ func (p *Plugin) getBundlePersistPath() (string, error) {
 type bundleLoader interface {
 	Start(context.Context)
 	Stop(context.Context)
+	SetCache(string)
 	ClearCache()
 }
 
@@ -654,5 +658,9 @@ func (*fileLoader) Stop(context.Context) {
 }
 
 func (*fileLoader) ClearCache() {
+
+}
+
+func (*fileLoader) SetCache(string) {
 
 }

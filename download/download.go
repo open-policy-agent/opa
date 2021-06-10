@@ -111,9 +111,14 @@ func (d *Downloader) WithBundlePersistence(persist bool) *Downloader {
 	return d
 }
 
-// ClearCache resets the etag value on the downloader
+// ClearCache is deprecated. Use SetCache instead.
 func (d *Downloader) ClearCache() {
 	d.etag = ""
+}
+
+// SetCache sets the given etag value on the downloader.
+func (d *Downloader) SetCache(etag string) {
+	d.etag = etag
 }
 
 // Start tells the Downloader to begin downloading bundles.
