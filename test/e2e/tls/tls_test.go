@@ -18,6 +18,13 @@ import (
 var testRuntime *e2e.TestRuntime
 var pool *x509.CertPool
 
+var minTLSVersions = map[string]uint16{
+	"1.0": tls.VersionTLS10,
+	"1.1": tls.VersionTLS11,
+	"1.2": tls.VersionTLS12,
+	"1.3": tls.VersionTLS13,
+}
+
 // print error to stderr, exit 1
 func fatal(err interface{}) {
 	fmt.Fprintf(os.Stderr, "%s\n", err)
@@ -25,7 +32,10 @@ func fatal(err interface{}) {
 }
 
 func TestMain(m *testing.M) {
+	minTLSVersion := flag.String("--min-TLS-Version", "1.2", "minimum TLS Version")
+	TLSVersion := minTLSVersions[*minTLSVersion]
 	flag.Parse()
+	var err error
 
 	caCertPEM, err := ioutil.ReadFile("testdata/ca.pem")
 	if err != nil {
@@ -69,6 +79,9 @@ allow {
 	testServerParams.Authentication = server.AuthenticationTLS
 	testServerParams.Authorization = server.AuthorizationBasic
 	testServerParams.Paths = []string{"system.authz:" + tmpfile.Name()}
+	if TLSVersion != 0 {
+		testServerParams.MinTLSVersion = TLSVersion
+	}
 
 	testRuntime, err = e2e.NewTestRuntime(testServerParams)
 	if err != nil {
@@ -88,6 +101,7 @@ func TestMinTLSVersion(t *testing.T) {
 
 		c := newClient(tls.VersionTLS10, pool, "testdata/client-cert.pem", "testdata/client-key.pem")
 		_, err := c.Get(endpoint)
+
 		if err == nil {
 			t.Error("expected err - protocol version not supported, got nil")
 		}
@@ -96,6 +110,38 @@ func TestMinTLSVersion(t *testing.T) {
 	t.Run("TLS Version supported by server", func(t *testing.T) {
 
 		c := newClient(tls.VersionTLS12, pool, "testdata/client-cert.pem", "testdata/client-key.pem")
+		resp, err := c.Get(endpoint)
+		if err != nil {
+			t.Fatalf("GET: %v", err)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			t.Errorf("expected status 200, got %s", resp.Status)
+		}
+	})
+
+}
+
+func TestNotDefaultTLSVersion(t *testing.T) {
+
+	oldArgs := os.Args
+	defer func() { os.Args = oldArgs }()
+	os.Args = []string{"cmd", "--min-TLS-Version", "1.3"}
+	endpoint := testRuntime.URL()
+	t.Run("server started with min TLS Version 1.3, client connecting with not supported TLS version", func(t *testing.T) {
+
+		c := newClient(tls.VersionTLS10, pool, "testdata/client-cert.pem", "testdata/client-key.pem")
+		_, err := c.Get(endpoint)
+
+		if err == nil {
+			t.Error("expected err - protocol version not supported, got nil")
+		}
+
+	})
+
+	t.Run("server started with min TLS Version 1.3, client connecting supported TLS version", func(t *testing.T) {
+
+		c := newClient(tls.VersionTLS13, pool, "testdata/client-cert.pem", "testdata/client-key.pem")
 		resp, err := c.Get(endpoint)
 		if err != nil {
 			t.Fatalf("GET: %v", err)

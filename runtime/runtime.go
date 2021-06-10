@@ -101,7 +101,7 @@ type Params struct {
 
 	// MinVersion contains the minimum TLS version that is acceptable.
 	// If zero, TLS 1.2 is currently taken as the minimum.
-	MinTLSVersion string
+	MinTLSVersion uint16
 
 	// HistoryPath is the filename to store the interactive shell user
 	// input history.

@@ -59,17 +59,7 @@ const (
 	AuthenticationTLS
 )
 
-const (
-
-	//TLSVersion10 is a constant for tls version 1.0
-	TLSVersion10 = "1.0"
-	//TLSVersion11 is a constant for tls version 1.1
-	TLSVersion11 = "1.1"
-	//TLSVersion12 is a constant for tls version 1.2
-	TLSVersion12 = "1.2"
-	//TLSVersion13 is a constant for tls version 1.3
-	TLSVersion13 = "1.3"
-)
+var supportedTLSVersions = []uint16{tls.VersionTLS10, tls.VersionTLS11, tls.VersionTLS12, tls.VersionTLS13}
 
 // AuthorizationScheme enumerates the supported authorization schemes. The authorization
 // scheme determines how access to OPA is controlled.
@@ -80,6 +70,7 @@ const (
 	AuthorizationOff AuthorizationScheme = iota
 	AuthorizationBasic
 )
+
 const defaultMinTLSVersion = tls.VersionTLS12
 
 // Set of handlers for use in the "handler" dimension of the duration metric.
@@ -316,8 +307,12 @@ func (s *Server) WithRouter(router *mux.Router) *Server {
 	return s
 }
 
-func (s *Server) WithMinTLSVersion(minTLSVersion string) *Server {
-	s.minTLSVersion = getMinTLSVersion(minTLSVersion)
+func (s *Server) WithMinTLSVersion(minTLSVersion uint16) *Server {
+	if isMinTLSVersionSupported(minTLSVersion) {
+		s.minTLSVersion = minTLSVersion
+	} else {
+		s.minTLSVersion = defaultMinTLSVersion
+	}
 	return s
 }
 
@@ -482,20 +477,14 @@ func (b *baseHTTPListener) Type() httpListenerType {
 	return b.t
 }
 
-func getMinTLSVersion(minTLSVersion string) (minServerTlSVersion uint16) {
-	switch minTLSVersion {
-	case TLSVersion10:
-		minServerTlSVersion = tls.VersionTLS10
-	case TLSVersion11:
-		minServerTlSVersion = tls.VersionTLS11
-	case TLSVersion12:
-		minServerTlSVersion = tls.VersionTLS12
-	case TLSVersion13:
-		minServerTlSVersion = tls.VersionTLS13
-	default:
-		minServerTlSVersion = defaultMinTLSVersion
+func isMinTLSVersionSupported(TLSVersion uint16) bool {
+	for _, version := range supportedTLSVersions {
+		if TLSVersion == version {
+
+			return true
+		}
 	}
-	return
+	return false
 }
 
 func (s *Server) getListener(addr string, h http.Handler, t httpListenerType) (Loop, httpListener, error) {
