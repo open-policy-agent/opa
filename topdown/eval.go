@@ -1761,12 +1761,10 @@ func (e evalTree) eval(iter unifyIterator) error {
 
 func (e evalTree) finish(iter unifyIterator) error {
 
-	// During partial evaluation it may not be possible to compute the value
-	// for this reference if it refers to a virtual document so save the entire
-	// expression. See "save: full extent" test case for an example. We also
-	// need to account for the inlining controls here to prevent base documents
-	// from being inlined when they should not be.
-	save := e.e.unknown(e.ref, e.e.bindings)
+	// In some cases, it may not be possible to PE the ref. If the path refers
+	// to virtual docs that PE does not support or base documents where inlining
+	// has been disabled, then we have to save.
+	save := e.e.unknown(e.plugged, e.e.bindings)
 
 	if save {
 		return e.e.saveUnify(ast.NewTerm(e.plugged), e.rterm, e.bindings, e.rbindings, iter)
