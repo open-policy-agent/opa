@@ -25,15 +25,9 @@ type Frame struct {
 }
 
 // NewTrap creates a new `Trap` with the `name` and the type provided.
-func NewTrap(store *Store, message string) *Trap {
-	cs := C.CString(message)
-	messageVec := C.wasm_byte_vec_t{
-		data: cs,
-		size: C.size_t(len(message) + 1),
-	}
-	ptr := C.wasm_trap_new(store.ptr(), &messageVec)
-	C.free(unsafe.Pointer(cs))
-	runtime.KeepAlive(store)
+func NewTrap(message string) *Trap {
+	ptr := C.wasmtime_trap_new(C._GoStringPtr(message), C._GoStringLen(message))
+	runtime.KeepAlive(message)
 	return mkTrap(ptr)
 }
 

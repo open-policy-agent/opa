@@ -9,23 +9,15 @@ import "runtime"
 // More details you can see [examples for C](https://bytecodealliance.github.io/wasmtime/examples-c-linking.html) or
 // [examples for Rust](https://bytecodealliance.github.io/wasmtime/examples-rust-linking.html)
 type Linker struct {
-	_ptr  *C.wasmtime_linker_t
-	Store *Store
+	_ptr   *C.wasmtime_linker_t
+	Engine *Engine
 }
 
-func NewLinker(store *Store) *Linker {
-	ptr := C.wasmtime_linker_new(store.ptr())
-	runtime.KeepAlive(store)
-	return mkLinker(ptr, store)
-}
-
-func mkLinker(ptr *C.wasmtime_linker_t, store *Store) *Linker {
-	linker := &Linker{_ptr: ptr, Store: store}
+func NewLinker(engine *Engine) *Linker {
+	ptr := C.wasmtime_linker_new(engine.ptr())
+	linker := &Linker{_ptr: ptr, Engine: engine}
 	runtime.SetFinalizer(linker, func(linker *Linker) {
-		freelist := linker.Store.freelist
-		freelist.lock.Lock()
-		defer freelist.lock.Unlock()
-		freelist.linkers = append(freelist.linkers, linker._ptr)
+		C.wasmtime_linker_delete(linker._ptr)
 	})
 	return linker
 }
@@ -47,18 +39,18 @@ func (l *Linker) AllowShadowing(allow bool) {
 // an error if shadowing is disallowed and the module/name is already defined.
 func (l *Linker) Define(module, name string, item AsExtern) error {
 	extern := item.AsExtern()
-	err := C.go_linker_define(
+	err := C.wasmtime_linker_define(
 		l.ptr(),
 		C._GoStringPtr(module),
 		C._GoStringLen(module),
 		C._GoStringPtr(name),
 		C._GoStringLen(name),
-		extern.ptr(),
+		&extern,
 	)
 	runtime.KeepAlive(l)
 	runtime.KeepAlive(module)
 	runtime.KeepAlive(name)
-	runtime.KeepAlive(extern)
+	runtime.KeepAlive(item)
 	if err == nil {
 		return nil
 	}
@@ -69,23 +61,24 @@ func (l *Linker) Define(module, name string, item AsExtern) error {
 // DefineFunc acts as a convenience wrapper to calling Define and WrapFunc.
 //
 // Returns an error if shadowing is disabled and the name is already defined.
-func (l *Linker) DefineFunc(module, name string, f interface{}) error {
-	return l.Define(module, name, WrapFunc(l.Store, f))
+func (l *Linker) DefineFunc(store Storelike, module, name string, f interface{}) error {
+	return l.Define(module, name, WrapFunc(store, f))
 }
 
 // DefineInstance defines all exports of an instance provided under the module name provided.
 //
 // Returns an error if shadowing is disabled and names are already defined.
-func (l *Linker) DefineInstance(module string, instance *Instance) error {
-	err := C.go_linker_define_instance(
+func (l *Linker) DefineInstance(store Storelike, module string, instance *Instance) error {
+	err := C.wasmtime_linker_define_instance(
 		l.ptr(),
+		store.Context(),
 		C._GoStringPtr(module),
 		C._GoStringLen(module),
-		instance.ptr(),
+		&instance.val,
 	)
 	runtime.KeepAlive(l)
 	runtime.KeepAlive(module)
-	runtime.KeepAlive(instance)
+	runtime.KeepAlive(store)
 	if err == nil {
 		return nil
 	}
@@ -100,9 +93,10 @@ func (l *Linker) DefineInstance(module string, instance *Instance) error {
 // WASI Commands and Reactors for instantiation and initialization. For more
 // information see the Rust documentation --
 // https://docs.wasmtime.dev/api/wasmtime/struct.Linker.html#method.module.
-func (l *Linker) DefineModule(name string, module *Module) error {
-	err := C.go_linker_define_module(
+func (l *Linker) DefineModule(store Storelike, name string, module *Module) error {
+	err := C.wasmtime_linker_module(
 		l.ptr(),
+		store.Context(),
 		C._GoStringPtr(name),
 		C._GoStringLen(name),
 		module.ptr(),
@@ -110,6 +104,7 @@ func (l *Linker) DefineModule(name string, module *Module) error {
 	runtime.KeepAlive(l)
 	runtime.KeepAlive(name)
 	runtime.KeepAlive(module)
+	runtime.KeepAlive(store)
 	if err == nil {
 		return nil
 	}
@@ -121,10 +116,9 @@ func (l *Linker) DefineModule(name string, module *Module) error {
 // are available for linking.
 //
 // Returns an error if shadowing is disabled and names are already defined.
-func (l *Linker) DefineWasi(instance *WasiInstance) error {
-	err := C.wasmtime_linker_define_wasi(l.ptr(), instance.ptr())
+func (l *Linker) DefineWasi() error {
+	err := C.wasmtime_linker_define_wasi(l.ptr())
 	runtime.KeepAlive(l)
-	runtime.KeepAlive(instance)
 	if err == nil {
 		return nil
 	}
@@ -136,21 +130,18 @@ func (l *Linker) DefineWasi(instance *WasiInstance) error {
 //
 // Returns an error if the instance's imports couldn't be satisfied, had the
 // wrong types, or if a trap happened executing the start function.
-func (l *Linker) Instantiate(module *Module) (*Instance, error) {
-	var ret *C.wasm_instance_t
-	var err *C.wasmtime_error_t
-	trap := enterWasm(l.Store.freelist, func(trap **C.wasm_trap_t) {
-		err = C.wasmtime_linker_instantiate(l.ptr(), module.ptr(), &ret, trap)
+func (l *Linker) Instantiate(store Storelike, module *Module) (*Instance, error) {
+	var ret C.wasmtime_instance_t
+	err := enterWasm(store, func(trap **C.wasm_trap_t) *C.wasmtime_error_t {
+		return C.wasmtime_linker_instantiate(l.ptr(), store.Context(), module.ptr(), &ret, trap)
 	})
 	runtime.KeepAlive(l)
 	runtime.KeepAlive(module)
-	if trap != nil {
-		return nil, trap
-	}
+	runtime.KeepAlive(store)
 	if err != nil {
-		return nil, mkError(err)
+		return nil, err
 	}
-	return mkInstance(ret, l.Store.freelist, nil), nil
+	return mkInstance(ret), nil
 }
 
 // GetDefault acquires the "default export" of the named module in this linker.
@@ -160,31 +151,34 @@ func (l *Linker) Instantiate(module *Module) (*Instance, error) {
 //
 // For more information see the Rust documentation --
 // https://docs.wasmtime.dev/api/wasmtime/struct.Linker.html#method.get_default.
-func (l *Linker) GetDefault(name string) (*Func, error) {
-	var ret *C.wasm_func_t
-	err := C.go_linker_get_default(
+func (l *Linker) GetDefault(store Storelike, name string) (*Func, error) {
+	var ret C.wasmtime_func_t
+	err := C.wasmtime_linker_get_default(
 		l.ptr(),
+		store.Context(),
 		C._GoStringPtr(name),
 		C._GoStringLen(name),
 		&ret,
 	)
 	runtime.KeepAlive(l)
 	runtime.KeepAlive(name)
+	runtime.KeepAlive(store)
 	if err != nil {
 		return nil, mkError(err)
 	}
-	return mkFunc(ret, l.Store.freelist, nil), nil
+	return mkFunc(ret), nil
 
 }
 
 // GetOneByName loads an item by name from this linker.
 //
-// If the item isn't defined then an error is returned, otherwise the item is
+// If the item isn't defined then nil is returned, otherwise the item is
 // returned.
-func (l *Linker) GetOneByName(module, name string) (*Extern, error) {
-	var ret *C.wasm_extern_t
-	err := C.go_linker_get_one_by_name(
+func (l *Linker) Get(store Storelike, module, name string) *Extern {
+	var ret C.wasmtime_extern_t
+	ok := C.wasmtime_linker_get(
 		l.ptr(),
+		store.Context(),
 		C._GoStringPtr(module),
 		C._GoStringLen(module),
 		C._GoStringPtr(name),
@@ -194,9 +188,10 @@ func (l *Linker) GetOneByName(module, name string) (*Extern, error) {
 	runtime.KeepAlive(l)
 	runtime.KeepAlive(name)
 	runtime.KeepAlive(module)
-	if err != nil {
-		return nil, mkError(err)
+	runtime.KeepAlive(store)
+	if ok {
+		return mkExtern(&ret)
 	}
-	return mkExtern(ret, l.Store.freelist, nil), nil
+	return nil
 
 }

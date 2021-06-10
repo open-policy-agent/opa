@@ -7,7 +7,7 @@ cc_library(
         "@io_bazel_rules_go//go/platform:linux_amd64": ["build/linux-x86_64/libwasmtime.a"],
         "@io_bazel_rules_go//go/platform:windows_amd64": ["build/windows-x86_64/libwasmtime.a"],
     }),
-    hdrs = glob(["build/include/*.h"]),
+    hdrs = glob(["build/include/**/*.h"]),
     includes = ["build/include"],
     visibility = ["//visibility:public"],
 )
@@ -23,7 +23,6 @@ go_library(
         "extern.go",
         "externtype.go",
         "ffi.go",
-        "freelist.go",
         "func.go",
         "functype.go",
         "global.go",

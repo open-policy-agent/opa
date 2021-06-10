@@ -1,6 +1,6 @@
 package wasmtime
 
-// #include <wasmtime.h>
+// #include "shims.h"
 import "C"
 import "runtime"
 
@@ -9,108 +9,103 @@ import "runtime"
 // Read more in [spec](https://webassembly.github.io/spec/core/exec/runtime.html#external-values)
 //
 type Extern struct {
-	_ptr     *C.wasm_extern_t
-	_owner   interface{}
-	freelist *freeList
+	_ptr *C.wasmtime_extern_t
 }
 
 // AsExtern is an interface for all types which can be imported or exported as an Extern
 type AsExtern interface {
-	AsExtern() *Extern
+	AsExtern() C.wasmtime_extern_t
 }
 
-func mkExtern(ptr *C.wasm_extern_t, freelist *freeList, owner interface{}) *Extern {
-	f := &Extern{_ptr: ptr, _owner: owner, freelist: freelist}
-	if owner == nil {
-		runtime.SetFinalizer(f, func(f *Extern) {
-			f.freelist.lock.Lock()
-			defer f.freelist.lock.Unlock()
-			f.freelist.externs = append(f.freelist.externs, f._ptr)
-		})
-	}
+func mkExtern(ptr *C.wasmtime_extern_t) *Extern {
+	f := &Extern{_ptr: ptr}
+	runtime.SetFinalizer(f, func(f *Extern) {
+		C.wasmtime_extern_delete(f._ptr)
+	})
 	return f
 }
 
-func (e *Extern) ptr() *C.wasm_extern_t {
+func (e *Extern) ptr() *C.wasmtime_extern_t {
 	ret := e._ptr
 	maybeGC()
 	return ret
 }
 
-func (e *Extern) owner() interface{} {
-	if e._owner != nil {
-		return e._owner
-	}
-	return e
-}
-
 // Type returns the type of this export
-func (e *Extern) Type() *ExternType {
-	ptr := C.wasm_extern_type(e.ptr())
+func (e *Extern) Type(store Storelike) *ExternType {
+	ptr := C.wasmtime_extern_type(store.Context(), e.ptr())
 	runtime.KeepAlive(e)
+	runtime.KeepAlive(store)
 	return mkExternType(ptr, nil)
 }
 
 // Func returns a Func if this export is a function or nil otherwise
 func (e *Extern) Func() *Func {
-	ret := C.wasm_extern_as_func(e.ptr())
-	if ret == nil {
+	ptr := e.ptr()
+	if ptr.kind != C.WASMTIME_EXTERN_FUNC {
 		return nil
 	}
-
-	return mkFunc(ret, e.freelist, e.owner())
+	ret := mkFunc(C.go_wasmtime_extern_func_get(ptr))
+	runtime.KeepAlive(e)
+	return ret
 }
 
 // Global returns a Global if this export is a global or nil otherwise
 func (e *Extern) Global() *Global {
-	ret := C.wasm_extern_as_global(e.ptr())
-	if ret == nil {
+	ptr := e.ptr()
+	if ptr.kind != C.WASMTIME_EXTERN_GLOBAL {
 		return nil
 	}
-
-	return mkGlobal(ret, e.freelist, e.owner())
+	ret := mkGlobal(C.go_wasmtime_extern_global_get(ptr))
+	runtime.KeepAlive(e)
+	return ret
 }
 
 // Memory returns a Memory if this export is a memory or nil otherwise
 func (e *Extern) Memory() *Memory {
-	ret := C.wasm_extern_as_memory(e.ptr())
-	if ret == nil {
+	ptr := e.ptr()
+	if ptr.kind != C.WASMTIME_EXTERN_MEMORY {
 		return nil
 	}
-
-	return mkMemory(ret, e.freelist, e.owner())
+	ret := mkMemory(C.go_wasmtime_extern_memory_get(ptr))
+	runtime.KeepAlive(e)
+	return ret
 }
 
 // Table returns a Table if this export is a table or nil otherwise
 func (e *Extern) Table() *Table {
-	ret := C.wasm_extern_as_table(e.ptr())
-	if ret == nil {
+	ptr := e.ptr()
+	if ptr.kind != C.WASMTIME_EXTERN_TABLE {
 		return nil
 	}
-
-	return mkTable(ret, e.freelist, e.owner())
+	ret := mkTable(C.go_wasmtime_extern_table_get(ptr))
+	runtime.KeepAlive(e)
+	return ret
 }
 
 // Module returns a Module if this export is a module or nil otherwise
 func (e *Extern) Module() *Module {
-	ret := C.wasm_extern_as_module(e.ptr())
-	if ret == nil {
+	ptr := e.ptr()
+	if ptr.kind != C.WASMTIME_EXTERN_MODULE {
 		return nil
 	}
-
-	return mkModule(ret, e.owner())
+	module := C.go_wasmtime_extern_module_get(ptr)
+	ret := mkModule(C.wasmtime_module_clone(module))
+	runtime.KeepAlive(e)
+	return ret
 }
 
 // Instance returns a Instance if this export is a module or nil otherwise
 func (e *Extern) Instance() *Instance {
-	ret := C.wasm_extern_as_instance(e.ptr())
-	if ret == nil {
+	ptr := e.ptr()
+	if ptr.kind != C.WASMTIME_EXTERN_INSTANCE {
 		return nil
 	}
-
-	return mkInstance(ret, e.freelist, e.owner())
+	ret := mkInstance(C.go_wasmtime_extern_instance_get(ptr))
+	runtime.KeepAlive(e)
+	return ret
 }
 
-func (e *Extern) AsExtern() *Extern {
-	return e
+func (e *Extern) AsExtern() C.wasmtime_extern_t {
+	return *e.ptr()
 }

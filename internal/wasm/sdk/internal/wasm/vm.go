@@ -13,10 +13,6 @@ import (
 	"time"
 
 	"github.com/bytecodealliance/wasmtime-go"
-	_ "github.com/bytecodealliance/wasmtime-go/build/include"        // to include the C headers.
-	_ "github.com/bytecodealliance/wasmtime-go/build/linux-x86_64"   // to include the static lib for linking.
-	_ "github.com/bytecodealliance/wasmtime-go/build/macos-x86_64"   // to include the static lib for linking.
-	_ "github.com/bytecodealliance/wasmtime-go/build/windows-x86_64" // to include the static lib for linking.
 
 	"github.com/open-policy-agent/opa/ast"
 	sdk_errors "github.com/open-policy-agent/opa/internal/wasm/sdk/opa/errors"
@@ -72,7 +68,10 @@ func newVM(opts vmOpts) (*VM, error) {
 	cfg.SetInterruptable(true)
 	store := wasmtime.NewStore(wasmtime.NewEngineWithConfig(cfg))
 	memorytype := wasmtime.NewMemoryType(wasmtime.Limits{Min: opts.memoryMin, Max: opts.memoryMax})
-	memory := wasmtime.NewMemory(store, memorytype)
+	memory, err := wasmtime.NewMemory(store, memorytype)
+	if err != nil {
+		return nil, err
+	}
 
 	module, err := wasmtime.NewModule(store.Engine, opts.policy)
 	if err != nil {
@@ -81,10 +80,10 @@ func newVM(opts vmOpts) (*VM, error) {
 
 	v.dispatcher = newBuiltinDispatcher()
 	externs := opaFunctions(v.dispatcher, store)
-	imports := []*wasmtime.Extern{}
-	for _, imp := range module.Imports() {
+	imports := []wasmtime.AsExtern{}
+	for _, imp := range module.Type().Imports() {
 		if imp.Type().MemoryType() != nil {
-			imports = append(imports, memory.AsExtern())
+			imports = append(imports, memory)
 		}
 		if imp.Type().FuncType() == nil {
 			continue
@@ -159,11 +158,14 @@ func newVM(opts vmOpts) (*VM, error) {
 	// This only works because the placement is deterministic (eg, for a given policy
 	// the base heap pointer and parsed data layout will always be the same).
 	if opts.parsedData != nil {
-		if uint32(memory.DataSize())-uint32(v.baseHeapPtr) < uint32(len(opts.parsedData)) {
-			delta := uint32(len(opts.parsedData)) - (uint32(memory.DataSize()) - uint32(v.baseHeapPtr))
-			memory.Grow(uint(Pages(delta))) // TODO: Check return value?
+		if uint32(memory.DataSize(store))-uint32(v.baseHeapPtr) < uint32(len(opts.parsedData)) {
+			delta := uint32(len(opts.parsedData)) - (uint32(memory.DataSize(store)) - uint32(v.baseHeapPtr))
+			_, err = memory.Grow(store, uint(Pages(delta)))
+			if err != nil {
+				return nil, err
+			}
 		}
-		mem := memory.UnsafeData()
+		mem := memory.UnsafeData(store)
 		for src, dest := 0, v.baseHeapPtr; src < len(opts.parsedData); src, dest = src+1, dest+1 {
 			mem[dest] = opts.parsedData[src]
 		}
@@ -185,7 +187,7 @@ func newVM(opts vmOpts) (*VM, error) {
 
 	// Construct the builtin id to name mappings.
 
-	val, err := i.GetFunc("builtins").Call()
+	val, err := i.GetFunc(store, "builtins").Call(store)
 	if err != nil {
 		return nil, err
 	}
@@ -214,7 +216,7 @@ func newVM(opts vmOpts) (*VM, error) {
 	v.dispatcher.SetMap(builtinMap)
 
 	// Extract the entrypoint ID's
-	val, err = i.GetFunc("entrypoints").Call()
+	val, err = i.GetFunc(store, "entrypoints").Call(store)
 	if err != nil {
 		return nil, err
 	}
@@ -301,7 +303,7 @@ func (i *VM) Eval(ctx context.Context, entrypoint int32, input *interface{}, met
 		return nil, err
 	}
 
-	data := i.memory.UnsafeData()[serialized:]
+	data := i.memory.UnsafeData(i.store)[serialized:]
 	n := bytes.IndexByte(data, 0)
 	if n < 0 {
 		n = 0
@@ -337,11 +339,14 @@ func (i *VM) SetPolicyData(ctx context.Context, opts vmOpts) error {
 	}
 
 	if opts.parsedData != nil {
-		if uint32(i.memory.DataSize())-uint32(i.baseHeapPtr) < uint32(len(opts.parsedData)) {
-			delta := uint32(len(opts.parsedData)) - (uint32(i.memory.DataSize()) - uint32(i.baseHeapPtr))
-			i.memory.Grow(uint(Pages(delta))) // TODO: Check return value
+		if uint32(i.memory.DataSize(i.store))-uint32(i.baseHeapPtr) < uint32(len(opts.parsedData)) {
+			delta := uint32(len(opts.parsedData)) - (uint32(i.memory.DataSize(i.store)) - uint32(i.baseHeapPtr))
+			_, err := i.memory.Grow(i.store, uint(Pages(delta)))
+			if err != nil {
+				return err
+			}
 		}
-		mem := i.memory.UnsafeData()
+		mem := i.memory.UnsafeData(i.store)
 		for src, dest := 0, i.baseHeapPtr; src < len(opts.parsedData); src, dest = src+1, dest+1 {
 			mem[dest] = opts.parsedData[src]
 		}
@@ -374,7 +379,7 @@ type cancelledError struct {
 
 // Println is invoked if the policy WASM code calls opa_println().
 func (i *VM) Println(arg int32) {
-	data := i.memory.UnsafeData()[arg:]
+	data := i.memory.UnsafeData(i.store)[arg:]
 	n := bytes.IndexByte(data, 0)
 	if n == -1 {
 		panic("invalid opa_println argument")
@@ -474,7 +479,7 @@ func (i *VM) fromRegoJSON(ctx context.Context, addr int32, free bool) (interface
 		return nil, err
 	}
 
-	data := i.memory.UnsafeData()[serialized:]
+	data := i.memory.UnsafeData(i.store)[serialized:]
 	n := bytes.IndexByte(data, 0)
 	if n < 0 {
 		n = 0
@@ -524,7 +529,7 @@ func (i *VM) toRegoJSON(ctx context.Context, v interface{}, free bool) (int32, e
 		return 0, err
 	}
 
-	copy(i.memory.UnsafeData()[p:p+n], raw)
+	copy(i.memory.UnsafeData(i.store)[p:p+n], raw)
 
 	addr, err := i.valueParse(ctx, p, n)
 	if err != nil {
@@ -551,7 +556,7 @@ func (i *VM) setHeapState(ctx context.Context, ptr int32) error {
 func (i *VM) cloneDataSegment() (int32, []byte) {
 	// The parsed data values sit between the base heap address and end
 	// at the eval heap pointer address.
-	srcData := i.memory.UnsafeData()[i.baseHeapPtr:i.evalHeapPtr]
+	srcData := i.memory.UnsafeData(i.store)[i.baseHeapPtr:i.evalHeapPtr]
 	patchedData := make([]byte, len(srcData))
 	copy(patchedData, srcData)
 	return i.dataAddr, patchedData
@@ -595,7 +600,7 @@ func callOrCancel(ctx context.Context, vm *VM, name string, args ...int32) (inte
 		close(ctxdone)
 	}()
 
-	f := vm.instance.GetFunc(name)
+	f := vm.instance.GetFunc(vm.store, name)
 	// If this call into the VM ends up calling host functions (builtins not
 	// implemented in Wasm), and those panic, wasmtime will re-throw them,
 	// and this is where we deal with that:
@@ -615,7 +620,7 @@ func callOrCancel(ctx context.Context, vm *VM, name string, args ...int32) (inte
 				}
 			}
 		}()
-		res, err = f.Call(sl...)
+		res, err = f.Call(vm.store, sl...)
 		return
 	}()
 	if err != nil {

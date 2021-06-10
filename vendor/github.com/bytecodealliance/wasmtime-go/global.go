@@ -1,6 +1,6 @@
 package wasmtime
 
-// #include <wasmtime.h>
+// #include "shims.h"
 import "C"
 import "runtime"
 
@@ -8,24 +8,22 @@ import "runtime"
 // It holds an individual value and a flag indicating whether it is mutable.
 // Read more in [spec](https://webassembly.github.io/spec/core/exec/runtime.html#global-instances)
 type Global struct {
-	_ptr     *C.wasm_global_t
-	_owner   interface{}
-	freelist *freeList
+	val C.wasmtime_global_t
 }
 
 // NewGlobal creates a new `Global` in the given `Store` with the specified `ty` and
 // initial value `val`.
 func NewGlobal(
-	store *Store,
+	store Storelike,
 	ty *GlobalType,
 	val Val,
 ) (*Global, error) {
-	var ptr *C.wasm_global_t
+	var ret C.wasmtime_global_t
 	err := C.wasmtime_global_new(
-		store.ptr(),
+		store.Context(),
 		ty.ptr(),
 		val.ptr(),
-		&ptr,
+		&ret,
 	)
 	runtime.KeepAlive(store)
 	runtime.KeepAlive(ty)
@@ -34,53 +32,32 @@ func NewGlobal(
 		return nil, mkError(err)
 	}
 
-	return mkGlobal(ptr, store.freelist, nil), nil
+	return mkGlobal(ret), nil
 }
 
-func mkGlobal(ptr *C.wasm_global_t, freelist *freeList, owner interface{}) *Global {
-	f := &Global{_ptr: ptr, _owner: owner, freelist: freelist}
-	if owner == nil {
-		runtime.SetFinalizer(f, func(f *Global) {
-			f.freelist.lock.Lock()
-			defer f.freelist.lock.Unlock()
-			f.freelist.globals = append(f.freelist.globals, f._ptr)
-		})
-	}
-	return f
-}
-
-func (g *Global) ptr() *C.wasm_global_t {
-	ret := g._ptr
-	maybeGC()
-	return ret
-}
-
-func (g *Global) owner() interface{} {
-	if g._owner != nil {
-		return g._owner
-	}
-	return g
+func mkGlobal(val C.wasmtime_global_t) *Global {
+	return &Global{val}
 }
 
 // Type returns the type of this global
-func (g *Global) Type() *GlobalType {
-	ptr := C.wasm_global_type(g.ptr())
-	runtime.KeepAlive(g)
+func (g *Global) Type(store Storelike) *GlobalType {
+	ptr := C.wasmtime_global_type(store.Context(), &g.val)
+	runtime.KeepAlive(store)
 	return mkGlobalType(ptr, nil)
 }
 
 // Get gets the value of this global
-func (g *Global) Get() Val {
-	ret := C.wasm_val_t{}
-	C.wasm_global_get(g.ptr(), &ret)
-	runtime.KeepAlive(g)
-	return takeVal(&ret, g.freelist)
+func (g *Global) Get(store Storelike) Val {
+	ret := C.wasmtime_val_t{}
+	C.wasmtime_global_get(store.Context(), &g.val, &ret)
+	runtime.KeepAlive(store)
+	return takeVal(&ret)
 }
 
 // Set sets the value of this global
-func (g *Global) Set(val Val) error {
-	err := C.wasmtime_global_set(g.ptr(), val.ptr())
-	runtime.KeepAlive(g)
+func (g *Global) Set(store Storelike, val Val) error {
+	err := C.wasmtime_global_set(store.Context(), &g.val, val.ptr())
+	runtime.KeepAlive(store)
 	runtime.KeepAlive(val)
 	if err == nil {
 		return nil
@@ -89,7 +66,8 @@ func (g *Global) Set(val Val) error {
 	return mkError(err)
 }
 
-func (g *Global) AsExtern() *Extern {
-	ptr := C.wasm_global_as_extern(g.ptr())
-	return mkExtern(ptr, g.freelist, g.owner())
+func (g *Global) AsExtern() C.wasmtime_extern_t {
+	ret := C.wasmtime_extern_t{kind: C.WASMTIME_EXTERN_GLOBAL}
+	C.go_wasmtime_extern_global_set(&ret, g.val)
+	return ret
 }
