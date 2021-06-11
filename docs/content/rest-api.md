@@ -1216,7 +1216,7 @@ GET /v1/query
 - **500** - server error
 - **501** - streaming not implemented
 
-For queries that have large JSON values it is recommended to use the `POST` method with the query included as the `POST` body
+For queries that have large JSON values it is recommended to use the `POST` method with the query included as the `POST` body:
 
 ```
 POST /v1/query HTTP/1.1
@@ -1225,7 +1225,10 @@ Content-Type: application/json
 
 ```json
 {
-  "query": "data.servers[i].ports[_] = \"p2\"; data.servers[i].name = name"
+  "query": "input.servers[i].ports[_] = \"p2\"; input.servers[i].name = name",
+  "input": {
+    "servers": [ ... ],
+  }
 }
 ```
 

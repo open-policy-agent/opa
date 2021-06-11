@@ -1991,6 +1991,16 @@ func (s *Server) v1QueryPost(w http.ResponseWriter, r *http.Request) {
 	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1, true)
 	includeInstrumentation := getBoolParam(r.URL, types.ParamInstrumentV1, true)
 
+	var input ast.Value
+
+	if request.Input != nil {
+		input, err = ast.InterfaceToValue(*request.Input)
+		if err != nil {
+			writer.ErrorAuto(w, err)
+			return
+		}
+	}
+
 	txn, err := s.store.NewTransaction(ctx)
 	if err != nil {
 		writer.ErrorAuto(w, err)
@@ -2005,7 +2015,7 @@ func (s *Server) v1QueryPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	results, err := s.execQuery(ctx, r, br, txn, decisionID, parsedQuery, nil, m, explainMode, includeMetrics, includeInstrumentation, pretty)
+	results, err := s.execQuery(ctx, r, br, txn, decisionID, parsedQuery, input, m, explainMode, includeMetrics, includeInstrumentation, pretty)
 	if err != nil {
 		switch err := err.(type) {
 		case ast.Errors:
