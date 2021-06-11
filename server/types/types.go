@@ -370,7 +370,8 @@ type PartialEvaluationResultV1 struct {
 
 // QueryRequestV1 models the request message for Query API operations.
 type QueryRequestV1 struct {
-	Query string `json:"query"`
+	Query string       `json:"query"`
+	Input *interface{} `json:"input"`
 }
 
 // ConfigResponseV1 models the response message for Config API operations.

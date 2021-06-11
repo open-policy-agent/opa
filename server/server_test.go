@@ -2565,6 +2565,8 @@ func TestQueryPostBasic(t *testing.T) {
 
 	setup := []tr{
 		{http.MethodPost, "/query", `{"query": "a=data.k.x with data.k as {\"x\" : 7}"}`, 200, `{"result":[{"a":7}]}`},
+		{http.MethodPost, "/query", `{"query": "input=x", "input": 7}`, 200, `{"result":[{"x":7}]}`},
+		{http.MethodPost, "/query", `{"query": "input=x", "input": @}`, 400, ``},
 	}
 
 	for _, tr := range setup {
