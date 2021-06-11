@@ -727,63 +727,17 @@ func (s *Server) execQuery(ctx context.Context, r *http.Request, br bundleRevisi
 }
 
 func (s *Server) indexGet(w http.ResponseWriter, r *http.Request) {
-
-	decisionID := s.generateDecisionID()
-
-	renderHeader(w)
-	renderBanner(w)
-	renderVersion(w)
-	defer renderFooter(w)
-
-	values := r.URL.Query()
-	qStrs := values[types.ParamQueryV1]
-	inputStrs := values[types.ParamInputV1]
-
-	explainMode := getExplain(r.URL.Query()[types.ParamExplainV1], types.ExplainOffV1)
-	ctx := r.Context()
-
-	renderQueryForm(w, qStrs, inputStrs, explainMode)
-
-	if len(qStrs) == 0 {
-		return
-	}
-
-	qStr := qStrs[len(qStrs)-1]
-	t0 := time.Now()
-
-	var input ast.Value
-	if len(inputStrs) > 0 && len(inputStrs[len(qStrs)-1]) > 0 {
-		t, err := ast.ParseTerm(inputStrs[len(qStrs)-1])
-		if err != nil {
-			renderQueryResult(w, nil, err, t0)
-			return
-		}
-		input = t.Value
-	}
-
-	parsedQuery, _ := validateQuery(qStr)
-
-	txn, err := s.store.NewTransaction(ctx)
-	if err != nil {
-		renderQueryResult(w, nil, err, t0)
-		return
-	}
-
-	defer s.store.Abort(ctx, txn)
-
-	br, err := getRevisions(ctx, s.store, txn)
-	if err != nil {
-		writer.ErrorAuto(w, err)
-		return
-	}
-
-	results, err := s.execQuery(ctx, r, br, txn, decisionID, parsedQuery, input, nil, explainMode, false, false, true)
-	if err != nil {
-		renderQueryResult(w, nil, err, t0)
-		return
-	}
-
-	renderQueryResult(w, results, err, t0)
+	_ = indexHTML.Execute(w, struct {
+		Version        string
+		BuildCommit    string
+		BuildTimestamp string
+		BuildHostname  string
+	}{
+		Version:        version.Version,
+		BuildCommit:    version.Vcs,
+		BuildTimestamp: version.Timestamp,
+		BuildHostname:  version.Hostname,
+	})
 }
 
 func (s *Server) registerHandler(router *mux.Router, version int, path string, method string, h http.Handler) {
@@ -2576,8 +2530,38 @@ func readInputCompilePostV1(r io.ReadCloser) (*compileRequest, *types.ErrorV1) {
 	return result, nil
 }
 
-func renderBanner(w http.ResponseWriter) {
-	fmt.Fprintln(w, `<pre>
+var indexHTML, _ = template.New("index").Parse(`
+<html>
+<head>
+<script type="text/javascript">
+function query() {
+	params = {
+		'query': document.getElementById("query").value,
+	}
+	if (document.getElementById("input").value !== "") {
+		try {
+			params["input"] = JSON.parse(document.getElementById("input").value);
+		} catch (e) {
+			document.getElementById("result").innerHTML = e;
+			return;
+		}
+	}
+	body = JSON.stringify(params);
+	opts = {
+		'method': 'POST',
+		'body': body,
+	}
+	fetch(new Request('/v1/query', opts))
+		.then(resp => resp.json())
+		.then(json => {
+			str = JSON.stringify(json, null, 2);
+			document.getElementById("result").innerHTML = str;
+		});
+}
+</script>
+</head>
+</body>
+<pre>
  ________      ________    ________
 |\   __  \    |\   __  \  |\   __  \
 \ \  \|\  \   \ \  \|\  \ \ \  \|\  \
@@ -2585,76 +2569,23 @@ func renderBanner(w http.ResponseWriter) {
   \ \  \\\  \   \ \  \___|  \ \  \ \  \
    \ \_______\   \ \__\      \ \__\ \__\
     \|_______|    \|__|       \|__|\|__|
-	</pre>`)
-	fmt.Fprintln(w, "Open Policy Agent - An open source project to policy-enable your service.<br>")
-	fmt.Fprintln(w, "<br>")
-}
-
-func renderFooter(w http.ResponseWriter) {
-	fmt.Fprintln(w, "</body>")
-	fmt.Fprintln(w, "</html>")
-}
-
-func renderHeader(w http.ResponseWriter) {
-	fmt.Fprintln(w, "<html>")
-	fmt.Fprintln(w, "<body>")
-}
-
-func renderQueryForm(w http.ResponseWriter, qStrs []string, inputStrs []string, explain types.ExplainModeV1) {
-
-	query := ""
-
-	if len(qStrs) > 0 {
-		query = qStrs[len(qStrs)-1]
-	}
-
-	input := ""
-	if len(inputStrs) > 0 {
-		input = inputStrs[len(inputStrs)-1]
-	}
-
-	explainRadioCheck := []string{"", "", ""}
-	switch explain {
-	case types.ExplainOffV1:
-		explainRadioCheck[0] = "checked"
-	case types.ExplainFullV1:
-		explainRadioCheck[1] = "checked"
-	}
-
-	fmt.Fprintf(w, `
-	<form>
-  	Query:<br>
-	<textarea rows="10" cols="50" name="q">%s</textarea><br>
-	<br>Input Data (JSON):<br>
-	<textarea rows="10" cols="50" name="input">%s</textarea><br>
-	<br><input type="submit" value="Submit"> Explain:
-	<input type="radio" name="explain" value="off" %v>Off
-	<input type="radio" name="explain" value="full" %v>Full
-	</form>`, template.HTMLEscapeString(query), template.HTMLEscapeString(input), explainRadioCheck[0], explainRadioCheck[1])
-}
-
-func renderQueryResult(w io.Writer, results interface{}, err error, t0 time.Time) {
-
-	buf, err2 := json.MarshalIndent(results, "", "  ")
-	d := time.Since(t0)
-
-	if err != nil {
-		fmt.Fprintf(w, "Query error (took %v): <pre>%v</pre>", d, template.HTMLEscapeString(err.Error()))
-	} else if err2 != nil {
-		fmt.Fprintf(w, "JSON marshal error: <pre>%v</pre>", template.HTMLEscapeString(err.Error()))
-	} else {
-		fmt.Fprintf(w, "Query results (took %v):<br>", d)
-		fmt.Fprintf(w, "<pre>%s</pre>", template.HTMLEscapeString(string(buf)))
-	}
-}
-
-func renderVersion(w http.ResponseWriter) {
-	fmt.Fprintln(w, "Version: "+version.Version+"<br>")
-	fmt.Fprintln(w, "Build Commit: "+version.Vcs+"<br>")
-	fmt.Fprintln(w, "Build Timestamp: "+version.Timestamp+"<br>")
-	fmt.Fprintln(w, "Build Hostname: "+version.Hostname+"<br>")
-	fmt.Fprintln(w, "<br>")
-}
+</pre>
+Open Policy Agent - An open source project to policy-enable your service.<br>
+<br>
+Version: {{ .Version }}<br>
+Build Commit: {{ .BuildCommit }}<br>
+Build Timestamp: {{ .BuildTimestamp }}<br>
+Build Hostname: {{ .BuildHostname }}<br>
+<br>
+Query:<br>
+<textarea rows="10" cols="50" id="query"></textarea><br>
+<br>Input Data (JSON):<br>
+<textarea rows="10" cols="50" id="input"></textarea><br>
+<br><button onclick="query()">Submit</button>
+<pre><div id="result"></div></pre>
+</body>
+</html>
+`)
 
 type decisionLogger struct {
 	revisions map[string]string
