@@ -62,7 +62,7 @@ p = true { 1 = 2 }`
 				"datafile":   `{"foo": "bar", "x": {"y": {"z": [1]}}}`,
 				"policyFile": mod1,
 			},
-			loadParams: []string{"datafile", "policyFile", "policyFile"},
+			loadParams: []string{"datafile", "policyFile", "."},
 			expectedData: map[string]string{
 				"/foo": "bar",
 			},

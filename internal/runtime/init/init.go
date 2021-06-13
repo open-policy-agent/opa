@@ -8,6 +8,7 @@ package init
 import (
 	"context"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -110,19 +111,29 @@ type Descriptor struct {
 }
 
 // removeDuplicatePaths removes duplicate file paths in order
-func removeDuplicatePaths(paths []string) []string {
-	pathMap := make(map[string]bool)
+func removeDuplicatePaths(paths []string) ([]string, error) {
+	pathMap := make(map[string]struct{})
 	result := []string{}
 
 	for _, path := range paths {
-		if pathMap[path] {
+		path, err := filepath.Abs(path)
+		if err != nil {
+			return nil, err
+		}
+
+		parentPath := filepath.Dir(path)
+
+		if _, ok := pathMap[path]; ok {
+			continue
+		} else if _, ok = pathMap[parentPath]; ok {
 			continue
 		}
-		pathMap[path] = true
+
+		pathMap[path] = struct{}{}
 		result = append(result, path)
 	}
 
-	return result
+	return result, nil
 }
 
 // LoadPaths reads data and policy from the given paths and returns a set of bundles or
@@ -144,7 +155,12 @@ func LoadPaths(paths []string, filter loader.Filter, asBundle bool, bvc *bundle.
 		return &result, nil
 	}
 
-	paths = removeDuplicatePaths(paths)
+	sort.Strings(paths)
+	paths, err = removeDuplicatePaths(paths)
+	if err != nil {
+		return nil, err
+	}
+
 	files, err := loader.NewFileLoader().Filtered(paths, filter)
 	if err != nil {
 		return nil, err
