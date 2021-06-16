@@ -5,8 +5,9 @@ cases:
     package test
 
     p = x {
-      x := strings.repeat("hi", 5)
+      x := strings.repeat("hi", -1)
     }
   query: data.test.p = x
+  note: 'count must be greater than zero'
   want_result:
-  - x: hihihihihi 
+  - x: "" 
