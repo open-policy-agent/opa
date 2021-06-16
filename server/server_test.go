@@ -1568,6 +1568,75 @@ func TestBundleScopeMultiBundle(t *testing.T) {
 	}
 }
 
+func TestBundleNoRoots(t *testing.T) {
+	ctx := context.Background()
+
+	f := newFixture(t)
+
+	txn := storage.NewTransactionOrDie(ctx, f.server.store, storage.WriteParams)
+
+	if err := bundle.WriteManifestToStore(ctx, f.server.store, txn, "test-bundle", bundle.Manifest{
+		Revision: "AAAAA",
+		// No Roots provided
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := f.server.store.UpsertPolicy(ctx, txn, "someid", []byte(`package x.y.z`)); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := f.server.store.Commit(ctx, txn); err != nil {
+		t.Fatal(err)
+	}
+
+	cases := []tr{
+		{
+			method: "PUT",
+			path:   "/data/a/b",
+			body:   "1",
+			code:   http.StatusBadRequest,
+			resp:   `{"code": "invalid_parameter", "message": "all paths owned by bundle \"test-bundle\""}`,
+		},
+	}
+
+	if err := f.v1TestRequests(cases); err != nil {
+		t.Fatal(err)
+	}
+
+	txn = storage.NewTransactionOrDie(ctx, f.server.store, storage.WriteParams)
+
+	if err := bundle.WriteManifestToStore(ctx, f.server.store, txn, "test-bundle", bundle.Manifest{
+		Revision: "AAAAA",
+		// Roots provided but contains empty string
+		Roots: &[]string{"", "does/not/matter"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := f.server.store.UpsertPolicy(ctx, txn, "someid", []byte(`package x.y.z`)); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := f.server.store.Commit(ctx, txn); err != nil {
+		t.Fatal(err)
+	}
+
+	cases = []tr{
+		{
+			method: "PUT",
+			path:   "/data/a/b",
+			body:   "1",
+			code:   http.StatusBadRequest,
+			resp:   `{"code": "invalid_parameter", "message": "all paths owned by bundle \"test-bundle\""}`,
+		},
+	}
+
+	if err := f.v1TestRequests(cases); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestDataGetExplainFull(t *testing.T) {
 	f := newFixture(t)
 
@@ -2058,62 +2127,6 @@ func TestV1Pretty(t *testing.T) {
 	}
 }
 
-func TestIndexGetEscaped(t *testing.T) {
-	f := newFixture(t)
-	get, err := http.NewRequest(http.MethodGet, `/?q=</textarea><script>alert(1)</script>`, strings.NewReader(""))
-	if err != nil {
-		panic(err)
-	}
-	f.server.Handler.ServeHTTP(f.recorder, get)
-	if f.recorder.Code != 200 {
-		t.Errorf("Expected success but got: %v", f.recorder)
-		return
-	}
-	page := f.recorder.Body.String()
-	exp := "&lt;/textarea&gt;&lt;script&gt;alert(1)&lt;/script&gt;"
-	if !strings.Contains(page, exp) {
-		t.Fatalf("Expected page to contain escaped URL parameter but got: %v", page)
-	}
-
-}
-
-func TestIndexGet(t *testing.T) {
-	f := newFixture(t)
-	get, err := http.NewRequest(http.MethodGet, `/?q=foo = 1&input=`, strings.NewReader(""))
-	if err != nil {
-		panic(err)
-	}
-	f.server.Handler.ServeHTTP(f.recorder, get)
-	if f.recorder.Code != 200 {
-		t.Errorf("Expected success but got: %v", f.recorder)
-		return
-	}
-	page := f.recorder.Body.String()
-	if !strings.Contains(page, "Query result") {
-		t.Errorf("Expected page to contain 'Query result' but got: %v", page)
-		return
-	}
-}
-
-func TestIndexGetCompileError(t *testing.T) {
-	f := newFixture(t)
-	// "foo" is not bound
-	get, err := http.NewRequest(http.MethodGet, `/?q=foo`, strings.NewReader(""))
-	if err != nil {
-		panic(err)
-	}
-	f.server.Handler.ServeHTTP(f.recorder, get)
-	if f.recorder.Code != 200 {
-		t.Errorf("Expected success but got: %v", f.recorder)
-		return
-	}
-	page := f.recorder.Body.String()
-	if !strings.Contains(page, "foo is unsafe") {
-		t.Errorf("Expected page to contain 'foo is unsafe' but got: %v", page)
-		return
-	}
-}
-
 func TestPoliciesPutV1(t *testing.T) {
 	f := newFixture(t)
 	req := newReqV1(http.MethodPut, "/policies/1", testMod)
@@ -2496,6 +2509,8 @@ func TestQueryPostBasic(t *testing.T) {
 
 	setup := []tr{
 		{http.MethodPost, "/query", `{"query": "a=data.k.x with data.k as {\"x\" : 7}"}`, 200, `{"result":[{"a":7}]}`},
+		{http.MethodPost, "/query", `{"query": "input=x", "input": 7}`, 200, `{"result":[{"x":7}]}`},
+		{http.MethodPost, "/query", `{"query": "input=x", "input": @}`, 400, ``},
 	}
 
 	for _, tr := range setup {

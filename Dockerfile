@@ -18,8 +18,8 @@ MAINTAINER Torin Sandall <torinsandall@gmail.com>
 # _Something_ needs to be between the two COPY steps.
 USER ${USER}
 
-ARG BIN_DIR=.
-COPY ${BIN_DIR}/opa_linux_amd64 /opa
+ARG BIN=./opa_linux_amd64
+COPY ${BIN} /opa
 
 ENTRYPOINT ["/opa"]
 CMD ["run"]

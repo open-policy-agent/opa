@@ -91,6 +91,7 @@ type preparedQuery struct {
 type EvalContext struct {
 	hasInput               bool
 	time                   time.Time
+	seed                   io.Reader
 	rawInput               *interface{}
 	parsedInput            ast.Value
 	metrics                metrics.Metrics
@@ -214,6 +215,14 @@ func EvalRuleIndexing(enabled bool) EvalOption {
 func EvalTime(x time.Time) EvalOption {
 	return func(e *EvalContext) {
 		e.time = x
+	}
+}
+
+// EvalSeed sets a reader that will seed randomization required by built-in functions.
+// If a seed is not provided crypto/rand.Reader is used.
+func EvalSeed(r io.Reader) EvalOption {
+	return func(e *EvalContext) {
+		e.seed = r
 	}
 }
 
@@ -521,6 +530,7 @@ type Rego struct {
 	dump                   io.Writer
 	runtime                *ast.Term
 	time                   time.Time
+	seed                   io.Reader
 	builtinDecls           map[string]*ast.Builtin
 	builtinFuncs           map[string]*topdown.Builtin
 	unsafeBuiltins         map[string]struct{}
@@ -981,6 +991,14 @@ func Time(x time.Time) func(r *Rego) {
 	}
 }
 
+// Seed sets a reader that will seed randomization required by built-in functions.
+// If a seed is not provided crypto/rand.Reader is used.
+func Seed(r io.Reader) func(*Rego) {
+	return func(e *Rego) {
+		e.seed = r
+	}
+}
+
 // PrintTrace is a helper function to write a human-readable version of the
 // trace to the writer w.
 func PrintTrace(w io.Writer, r *Rego) {
@@ -1127,6 +1145,7 @@ func (r *Rego) Eval(ctx context.Context) (ResultSet, error) {
 		EvalInstrument(r.instrument),
 		EvalTime(r.time),
 		EvalInterQueryBuiltinCache(r.interQueryBuiltinCache),
+		EvalSeed(r.seed),
 	}
 
 	for _, qt := range r.queryTracers {
@@ -1856,7 +1875,8 @@ func (r *Rego) eval(ctx context.Context, ectx *EvalContext) (ResultSet, error) {
 		WithRuntime(r.runtime).
 		WithIndexing(ectx.indexing).
 		WithInterQueryBuiltinCache(ectx.interQueryBuiltinCache).
-		WithStrictBuiltinErrors(r.strictBuiltinErrors)
+		WithStrictBuiltinErrors(r.strictBuiltinErrors).
+		WithSeed(ectx.seed)
 
 	if !ectx.time.IsZero() {
 		q = q.WithTime(ectx.time)
@@ -2121,7 +2141,8 @@ func (r *Rego) partial(ctx context.Context, ectx *EvalContext) (*PartialQueries,
 		WithSkipPartialNamespace(r.skipPartialNamespace).
 		WithShallowInlining(r.shallowInlining).
 		WithInterQueryBuiltinCache(ectx.interQueryBuiltinCache).
-		WithStrictBuiltinErrors(r.strictBuiltinErrors)
+		WithStrictBuiltinErrors(r.strictBuiltinErrors).
+		WithSeed(ectx.seed)
 
 	if !ectx.time.IsZero() {
 		q = q.WithTime(ectx.time)

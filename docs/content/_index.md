@@ -648,7 +648,7 @@ curl -L -o opa https://openpolicyagent.org/downloads/{{< current_version >}}/opa
 On Linux (64-bit):
 
 ```shell
-curl -L -o opa https://openpolicyagent.org/downloads/{{< current_version >}}/opa_linux_amd64
+curl -L -o opa https://openpolicyagent.org/downloads/{{< current_version >}}/opa_linux_amd64_static
 ```
 
 > Windows users can obtain the OPA executable from [here](https://openpolicyagent.org/downloads/{{< current_version >}}/opa_windows_amd64.exe).

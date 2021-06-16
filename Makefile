@@ -23,6 +23,8 @@ GOVERSION := $(shell cat ./.go-version)
 GOARCH := $(shell go env GOARCH)
 GOOS := $(shell go env GOOS)
 
+GOLANGCI_LINT_VERSION := v1.40.1
+
 DOCKER_RUNNING := $(shell docker ps >/dev/null 2>&1 && echo 1 || echo 0)
 
 # We use root because the windows build, invoked through the ci-go-build-windows
@@ -89,7 +91,7 @@ build: go-build
 
 .PHONY: image
 image:
-	DOCKER_UID=$(shell id -u) DOCKER_GID=$(shell id -g) $(MAKE) ci-go-ci-build-linux
+	DOCKER_UID=$(shell id -u) DOCKER_GID=$(shell id -g) $(MAKE) ci-go-ci-build-linux ci-go-ci-build-linux-static
 	@$(MAKE) image-quick
 
 .PHONY: install
@@ -128,23 +130,20 @@ wasm-sdk-e2e-test: generate
 	$(GO) test $(GO_TAGS),slow,wasm_sdk_e2e $(GO_TEST_TIMEOUT) -v ./internal/wasm/sdk/test/e2e
 
 .PHONY: check
-check: check-fmt check-vet check-lint
-
-.PHONY: check-fmt
-check-fmt:
-	./build/check-fmt.sh
-
-.PHONY: check-vet
-check-vet:
-	./build/check-vet.sh
-
-.PHONY: check-lint
-check-lint:
-	./build/check-lint.sh
+check:
+ifeq ($(DOCKER_RUNNING), 1)
+	docker run --rm -v $(shell pwd):/app -w /app golangci/golangci-lint:${GOLANGCI_LINT_VERSION} golangci-lint run -v
+else
+	@echo "Docker not installed or running. Skipping golangci run."
+endif
 
 .PHONY: fmt
 fmt:
-	./build/run-fmt.sh
+ifeq ($(DOCKER_RUNNING), 1)
+	docker run --rm -v $(shell pwd):/app -w /app golangci/golangci-lint:${GOLANGCI_LINT_VERSION} golangci-lint run -v --fix
+else
+	@echo "Docker not installed or running. Skipping golangci run."
+endif
 
 .PHONY: clean
 clean: wasm-lib-clean
@@ -263,6 +262,12 @@ ci-build-linux: ensure-release-dir
 	chmod +x opa_linux_$(GOARCH)
 	mv opa_linux_$(GOARCH) $(RELEASE_DIR)/
 
+.PHONY: ci-build-linux-static
+ci-build-linux-static: ensure-release-dir
+	@$(MAKE) build GOOS=linux WASM_ENABLED=0 CGO_ENABLED=0
+	chmod +x opa_linux_$(GOARCH)
+	mv opa_linux_$(GOARCH) $(RELEASE_DIR)/opa_linux_$(GOARCH)_static
+
 .PHONY: ci-build-darwin
 ci-build-darwin: ensure-release-dir
 	@$(MAKE) build GOOS=darwin
@@ -282,32 +287,40 @@ ensure-release-dir:
 	mkdir -p $(RELEASE_DIR)
 
 .PHONY: build-all-platforms
-build-all-platforms: ci-build-linux ci-build-darwin ci-build-windows
+build-all-platforms: ci-build-linux ci-build-linux-static ci-build-darwin ci-build-windows
 
 .PHONY: image-quick
 image-quick:
-	chmod +x $(RELEASE_DIR)/opa_linux_amd64
+	chmod +x $(RELEASE_DIR)/opa_linux_amd64*
 	$(DOCKER) build \
 		-t $(DOCKER_IMAGE):$(VERSION) \
 		--build-arg BASE=gcr.io/distroless/cc \
-		--build-arg BIN_DIR=$(RELEASE_DIR) \
+		--build-arg BIN=$(RELEASE_DIR)/opa_linux_amd64 \
 		.
 	$(DOCKER) build \
 		-t $(DOCKER_IMAGE):$(VERSION)-debug \
 		--build-arg BASE=gcr.io/distroless/cc:debug \
-		--build-arg BIN_DIR=$(RELEASE_DIR) \
+		--build-arg BIN=$(RELEASE_DIR)/opa_linux_amd64 \
 		.
 	$(DOCKER) build \
 		-t $(DOCKER_IMAGE):$(VERSION)-rootless \
 		--build-arg USER=1000 \
 		--build-arg BASE=gcr.io/distroless/cc \
-		--build-arg BIN_DIR=$(RELEASE_DIR) \
+		--build-arg BIN=$(RELEASE_DIR)/opa_linux_amd64 \
 		.
+	# this isn't published, only used for smoke testing the binaries
+	$(DOCKER) build \
+		-t $(DOCKER_IMAGE):$(VERSION)-static-ci-only \
+		--build-arg BASE=alpine \
+		--build-arg BIN=$(RELEASE_DIR)/opa_linux_amd64_static \
+		.
+
 .PHONY: ci-image-smoke-test
 ci-image-smoke-test: image-quick
 	$(DOCKER) run $(DOCKER_IMAGE):$(VERSION) version
 	$(DOCKER) run $(DOCKER_IMAGE):$(VERSION)-debug version
 	$(DOCKER) run $(DOCKER_IMAGE):$(VERSION)-rootless version
+	$(DOCKER) run $(DOCKER_IMAGE):$(VERSION)-static-ci-only version
 
 .PHONY: push
 push:
@@ -332,6 +345,7 @@ push-binary-edge:
 	aws s3 cp $(RELEASE_DIR)/opa_darwin_$(GOARCH) s3://$(S3_RELEASE_BUCKET)/edge/opa_darwin_$(GOARCH)
 	aws s3 cp $(RELEASE_DIR)/opa_windows_$(GOARCH).exe s3://$(S3_RELEASE_BUCKET)/edge/opa_windows_$(GOARCH).exe
 	aws s3 cp $(RELEASE_DIR)/opa_linux_$(GOARCH) s3://$(S3_RELEASE_BUCKET)/edge/opa_linux_$(GOARCH)
+	aws s3 cp $(RELEASE_DIR)/opa_linux_$(GOARCH)_static s3://$(S3_RELEASE_BUCKET)/edge/opa_linux_$(GOARCH)_static
 
 .PHONY: tag-edge
 tag-edge:
@@ -385,24 +399,6 @@ check-fuzz:
 #
 ######################################################
 
-.PHONY: release
-release:
-	$(DOCKER) run $(DOCKER_FLAGS) \
-		-v $(PWD)/$(RELEASE_DIR):/$(RELEASE_DIR) \
-		-v $(PWD):/_src \
-		-e TELEMETRY_URL=$(TELEMETRY_URL) \
-		$(RELEASE_BUILD_IMAGE) \
-		/_src/build/build-release.sh --version=$(VERSION) --output-dir=/$(RELEASE_DIR) --source-url=/_src
-
-.PHONY: release-local
-release-local:
-	$(DOCKER) run $(DOCKER_FLAGS) \
-		-v $(PWD)/$(RELEASE_DIR):/$(RELEASE_DIR) \
-		-v $(PWD):/_src \
-		-e TELEMETRY_URL=$(TELEMETRY_URL) \
-		$(RELEASE_BUILD_IMAGE) \
-		/_src/build/build-release.sh --output-dir=/$(RELEASE_DIR) --source-url=/_src
-
 .PHONY: release-patch
 release-patch:
 	@$(DOCKER) run $(DOCKER_FLAGS) \
@@ -419,10 +415,12 @@ dev-patch:
 		/_src/build/gen-dev-patch.sh --version=$(VERSION) --source-url=/_src
 
 # Deprecated targets. To be removed.
-.PHONY: build-linux depr-build-linux build-windows depr-build-windows build-darwin depr-build-darwin
+.PHONY: build-linux depr-build-linux build-windows depr-build-windows build-darwin depr-build-darwin release release-local
 build-linux: deprecation-build-linux
 build-windows: deprecation-build-windows
 build-darwin: deprecation-build-darwin
+release: deprecation-release
+release-local: deprecation-release-local
 
 .PHONY: deprecation-%
 deprecation-%:
@@ -445,3 +443,19 @@ depr-build-darwin: ensure-release-dir
 depr-build-windows: ensure-release-dir
 	@$(MAKE) build GOOS=windows CGO_ENABLED=0 WASM_ENABLED=0
 	mv opa_windows_$(GOARCH) $(RELEASE_DIR)/opa_windows_$(GOARCH).exe
+
+depr-release:
+	$(DOCKER) run $(DOCKER_FLAGS) \
+		-v $(PWD)/$(RELEASE_DIR):/$(RELEASE_DIR) \
+		-v $(PWD):/_src \
+		-e TELEMETRY_URL=$(TELEMETRY_URL) \
+		$(RELEASE_BUILD_IMAGE) \
+		/_src/build/build-release.sh --version=$(VERSION) --output-dir=/$(RELEASE_DIR) --source-url=/_src
+
+depr-release-local:
+	$(DOCKER) run $(DOCKER_FLAGS) \
+		-v $(PWD)/$(RELEASE_DIR):/$(RELEASE_DIR) \
+		-v $(PWD):/_src \
+		-e TELEMETRY_URL=$(TELEMETRY_URL) \
+		$(RELEASE_BUILD_IMAGE) \
+		/_src/build/build-release.sh --output-dir=/$(RELEASE_DIR) --source-url=/_src

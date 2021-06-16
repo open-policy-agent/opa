@@ -16,7 +16,7 @@ package oidc
 issuers = {"https://issuer1.example.com", "https://issuer2.example.com"}
 
 metadata_discovery(issuer) = http.send({
-    "url": concat("", issuers[issuer], "/.well-known/openid-configuration",
+    "url": concat("", [issuers[issuer], "/.well-known/openid-configuration"]),
     "method": "GET",
     "force_cache": true,
     "force_cache_duration_seconds": 86400 # Cache response for 24 hours
