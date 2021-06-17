@@ -49,7 +49,7 @@ If you want to kick the tires:
   Instructions](https://github.com/open-policy-agent/gatekeeper#installation-instructions)
   in the README.
 * See the
-  [demo/bank](https://github.com/open-policy-agent/gatekeeper/tree/master/demo/basic)
+  [demo/basic](https://github.com/open-policy-agent/gatekeeper/tree/master/demo/basic)
   and
   [demo/agilebank](https://github.com/open-policy-agent/gatekeeper/tree/master/demo/agilebank)
   directories for examples policies and setup scripts.
