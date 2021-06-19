@@ -82,7 +82,7 @@ func Load(configFile string, overrides []string, overrideFiles []string) ([]byte
 
 		processedConf := subEnvVars(string(bytes))
 
-		if err := yaml.Unmarshal([]byte(processedConf), &baseConf); err != nil {
+		if err := util.Unmarshal([]byte(processedConf), &baseConf); err != nil {
 			return []byte{}, fmt.Errorf("failed to parse %s: %s", configFile, err)
 		}
 	}

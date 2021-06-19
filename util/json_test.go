@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/open-policy-agent/opa/util"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestInvalidJSONInput(t *testing.T) {
@@ -109,6 +110,33 @@ func TestReference(t *testing.T) {
 			if rv.Elem().Kind() == reflect.Ptr {
 				t.Error("expected non-pointer element")
 			}
+		})
+	}
+}
+
+func TestUnmarshal(t *testing.T) {
+	specialChars := []struct {
+		beforeUnescape string
+		afterUnescape  string
+	}{
+		{beforeUnescape: `\"`, afterUnescape: `"`},
+		{beforeUnescape: `\\`, afterUnescape: `\`},
+		{beforeUnescape: `\/`, afterUnescape: "/"},
+		{beforeUnescape: `/`, afterUnescape: "/"},
+		{beforeUnescape: `\b`, afterUnescape: "\b"},
+		{beforeUnescape: `\f`, afterUnescape: "\f"},
+		{beforeUnescape: `\n`, afterUnescape: "\n"},
+		{beforeUnescape: `\r`, afterUnescape: "\r"},
+		{beforeUnescape: `\t`, afterUnescape: "\t"},
+		{beforeUnescape: `\u0041`, afterUnescape: "A"},
+	}
+	for _, c := range specialChars {
+		t.Run(fmt.Sprintf("json special character %v", c.beforeUnescape), func(t *testing.T) {
+			v := make(map[string]interface{})
+			if err := util.Unmarshal([]byte(fmt.Sprintf(`{"key":"%v"}`, c.beforeUnescape)), &v); err != nil {
+				t.Fatalf("expect not return error, got %v", err)
+			}
+			assert.Equal(t, v["key"], c.afterUnescape)
 		})
 	}
 }
