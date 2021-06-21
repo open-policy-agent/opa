@@ -346,16 +346,21 @@ func (t *Object) MarshalJSON() ([]byte, error) {
 
 // Select returns the type of the named property.
 func (t *Object) Select(name interface{}) Type {
-	for _, p := range t.static {
-		if util.Compare(p.Key, name) == 0 {
-			return p.Value
-		}
+
+	pos := sort.Search(len(t.static), func(x int) bool {
+		return util.Compare(t.static[x].Key, name) >= 0
+	})
+
+	if pos < len(t.static) && util.Compare(t.static[pos].Key, name) == 0 {
+		return t.static[pos].Value
 	}
+
 	if t.dynamic != nil {
 		if Contains(t.dynamic.Key, TypeOf(name)) {
 			return t.dynamic.Value
 		}
 	}
+
 	return nil
 }
 
