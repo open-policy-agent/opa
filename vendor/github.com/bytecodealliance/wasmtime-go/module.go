@@ -1,27 +1,6 @@
 package wasmtime
 
-// #include <wasmtime.h>
-//
-// wasmtime_error_t *go_module_new(wasm_engine_t *engine, uint8_t *bytes, size_t len, wasm_module_t **ret) {
-//    wasm_byte_vec_t vec;
-//    vec.data = (wasm_byte_t*) bytes;
-//    vec.size = len;
-//    return wasmtime_module_new(engine, &vec, ret);
-// }
-//
-// wasmtime_error_t *go_module_validate(wasm_store_t *store, uint8_t *bytes, size_t len) {
-//    wasm_byte_vec_t vec;
-//    vec.data = (wasm_byte_t*) bytes;
-//    vec.size = len;
-//    return wasmtime_module_validate(store, &vec);
-// }
-//
-// wasmtime_error_t *go_module_deserialize(wasm_engine_t *engine, uint8_t *bytes, size_t len, wasm_module_t **ret) {
-//    wasm_byte_vec_t vec;
-//    vec.data = (wasm_byte_t*) bytes;
-//    vec.size = len;
-//    return wasmtime_module_deserialize(engine, &vec, ret);
-// }
+// #include "shims.h"
 import "C"
 import (
 	"io/ioutil"
@@ -33,8 +12,7 @@ import (
 // In addition, it can declare imports and exports and provide initialization logic in the form of data and element segments or a start function.
 // Modules organized WebAssembly programs as the unit of deployment, loading, and compilation.
 type Module struct {
-	_ptr   *C.wasm_module_t
-	_owner interface{}
+	_ptr *C.wasmtime_module_t
 }
 
 // NewModule compiles a new `Module` from the `wasm` provided with the given configuration
@@ -49,8 +27,8 @@ func NewModule(engine *Engine, wasm []byte) (*Module, error) {
 	if len(wasm) > 0 {
 		wasmPtr = (*C.uint8_t)(unsafe.Pointer(&wasm[0]))
 	}
-	var ptr *C.wasm_module_t
-	err := C.go_module_new(engine.ptr(), wasmPtr, C.size_t(len(wasm)), &ptr)
+	var ptr *C.wasmtime_module_t
+	err := C.wasmtime_module_new(engine.ptr(), wasmPtr, C.size_t(len(wasm)), &ptr)
 	runtime.KeepAlive(engine)
 	runtime.KeepAlive(wasm)
 
@@ -58,7 +36,7 @@ func NewModule(engine *Engine, wasm []byte) (*Module, error) {
 		return nil, mkError(err)
 	}
 
-	return mkModule(ptr, nil), nil
+	return mkModule(ptr), nil
 }
 
 // NewModuleFromFile reads the contents of the `file` provided and interprets them as either the
@@ -84,13 +62,13 @@ func NewModuleFromFile(engine *Engine, file string) (*Module, error) {
 
 // ModuleValidate validates whether `wasm` would be a valid wasm module according to the
 // configuration in `store`
-func ModuleValidate(store *Store, wasm []byte) error {
+func ModuleValidate(engine *Engine, wasm []byte) error {
 	var wasmPtr *C.uint8_t
 	if len(wasm) > 0 {
 		wasmPtr = (*C.uint8_t)(unsafe.Pointer(&wasm[0]))
 	}
-	err := C.go_module_validate(store.ptr(), wasmPtr, C.size_t(len(wasm)))
-	runtime.KeepAlive(store)
+	err := C.wasmtime_module_validate(engine.ptr(), wasmPtr, C.size_t(len(wasm)))
+	runtime.KeepAlive(engine)
 	runtime.KeepAlive(wasm)
 	if err == nil {
 		return nil
@@ -99,32 +77,23 @@ func ModuleValidate(store *Store, wasm []byte) error {
 	return mkError(err)
 }
 
-func mkModule(ptr *C.wasm_module_t, owner interface{}) *Module {
+func mkModule(ptr *C.wasmtime_module_t) *Module {
 	module := &Module{_ptr: ptr}
-	if owner == nil {
-		runtime.SetFinalizer(module, func(module *Module) {
-			C.wasm_module_delete(module._ptr)
-		})
-	}
+	runtime.SetFinalizer(module, func(module *Module) {
+		C.wasmtime_module_delete(module._ptr)
+	})
 	return module
 }
 
-func (m *Module) ptr() *C.wasm_module_t {
+func (m *Module) ptr() *C.wasmtime_module_t {
 	ret := m._ptr
 	maybeGC()
 	return ret
 }
 
-func (m *Module) owner() interface{} {
-	if m._owner != nil {
-		return m._owner
-	}
-	return m
-}
-
 // Type returns a `ModuleType` that corresponds for this module.
 func (m *Module) Type() *ModuleType {
-	ptr := C.wasm_module_type(m.ptr())
+	ptr := C.wasmtime_module_type(m.ptr())
 	runtime.KeepAlive(m)
 	return mkModuleType(ptr, nil)
 }
@@ -144,27 +113,6 @@ func (list *importTypeList) mkGoList() []*ImportType {
 	for i := 0; i < int(list.vec.size); i++ {
 		ptr := *(**C.wasm_importtype_t)(unsafe.Pointer(uintptr(base) + unsafe.Sizeof(ptr)*uintptr(i)))
 		ty := mkImportType(ptr, list)
-		ret[i] = ty
-	}
-	return ret
-}
-
-// Imports returns a list of `ImportType` items which are the items imported by this
-// module and are required for instantiation.
-func (m *Module) Imports() []*ImportType {
-	imports := &importTypeList{}
-	C.wasm_module_imports(m.ptr(), &imports.vec)
-	runtime.KeepAlive(m)
-	runtime.SetFinalizer(imports, func(imports *importTypeList) {
-		C.wasm_importtype_vec_delete(&imports.vec)
-	})
-
-	ret := make([]*ImportType, int(imports.vec.size))
-	base := unsafe.Pointer(imports.vec.data)
-	var ptr *C.wasm_importtype_t
-	for i := 0; i < int(imports.vec.size); i++ {
-		ptr := *(**C.wasm_importtype_t)(unsafe.Pointer(uintptr(base) + unsafe.Sizeof(ptr)*uintptr(i)))
-		ty := mkImportType(ptr, imports)
 		ret[i] = ty
 	}
 	return ret
@@ -190,15 +138,6 @@ func (list *exportTypeList) mkGoList() []*ExportType {
 	return ret
 }
 
-// Exports returns a list of `ExportType` items which are the items that will
-// be exported by this module after instantiation.
-func (m *Module) Exports() []*ExportType {
-	exports := &exportTypeList{}
-	C.wasm_module_exports(m.ptr(), &exports.vec)
-	runtime.KeepAlive(m)
-	return exports.mkGoList()
-}
-
 // NewModuleDeserialize decodes and deserializes in-memory bytes previously
 // produced by `module.Serialize()`.
 //
@@ -214,11 +153,11 @@ func (m *Module) Exports() []*ExportType {
 // provided engine, and from the same version of this library.
 func NewModuleDeserialize(engine *Engine, encoded []byte) (*Module, error) {
 	var encodedPtr *C.uint8_t
-	var ptr *C.wasm_module_t
+	var ptr *C.wasmtime_module_t
 	if len(encoded) > 0 {
 		encodedPtr = (*C.uint8_t)(unsafe.Pointer(&encoded[0]))
 	}
-	err := C.go_module_deserialize(
+	err := C.wasmtime_module_deserialize(
 		engine.ptr(),
 		encodedPtr,
 		C.size_t(len(encoded)),
@@ -231,7 +170,7 @@ func NewModuleDeserialize(engine *Engine, encoded []byte) (*Module, error) {
 		return nil, mkError(err)
 	}
 
-	return mkModule(ptr, nil), nil
+	return mkModule(ptr), nil
 }
 
 // Serialize will convert this in-memory compiled module into a list of bytes.
@@ -254,7 +193,8 @@ func (m *Module) Serialize() ([]byte, error) {
 	return ret, nil
 }
 
-func (m *Module) AsExtern() *Extern {
-	ptr := C.wasm_module_as_extern(m.ptr())
-	return mkExtern(ptr, nil, m.owner())
+func (m *Module) AsExtern() C.wasmtime_extern_t {
+	ret := C.wasmtime_extern_t{kind: C.WASMTIME_EXTERN_MODULE}
+	C.go_wasmtime_extern_module_set(&ret, m.ptr())
+	return ret
 }
