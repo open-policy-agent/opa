@@ -42,6 +42,7 @@ type Config struct {
 	Headers                      map[string]string `json:"headers"`
 	AllowInsecureTLS             bool              `json:"allow_insecure_tls,omitempty"`
 	ResponseHeaderTimeoutSeconds *int64            `json:"response_header_timeout_seconds,omitempty"`
+	TLS                          *serverTLSConfig  `json:"tls,omitempty"`
 	Credentials                  struct {
 		Bearer      *bearerAuthPlugin                  `json:"bearer,omitempty"`
 		OAuth2      *oauth2ClientCredentialsAuthPlugin `json:"oauth2,omitempty"`
@@ -50,7 +51,6 @@ type Config struct {
 		GCPMetadata *gcpMetadataAuthPlugin             `json:"gcp_metadata,omitempty"`
 		Plugin      *string                            `json:"plugin,omitempty"`
 	} `json:"credentials"`
-
 	keys   map[string]*keys.Config
 	logger logging.Logger
 }

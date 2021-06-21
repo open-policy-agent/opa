@@ -865,6 +865,65 @@ func TestBearerTokenPath(t *testing.T) {
 	})
 }
 
+func TestBearerWithCustomCACert(t *testing.T) {
+	ts := testServer{
+		t:                  t,
+		tls:                true,
+		expBearerScheme:    "",
+		expBearerToken:     "secret",
+		expBearerTokenPath: true,
+	}
+	ts.start()
+	defer ts.stop()
+
+	files := map[string]string{
+		"token.txt": "secret",
+		"ca.pem":    string(ts.rootCertPEM),
+	}
+
+	test.WithTempFS(files, func(path string) {
+		tokenPath := filepath.Join(path, "token.txt")
+		ts.caCert = filepath.Join(path, "ca.pem")
+
+		client := newTestBearerClient(t, &ts, tokenPath)
+
+		ctx := context.Background()
+		if _, err := client.Do(ctx, "GET", "test"); err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+	})
+}
+
+func TestBearerWithCustomCACertAndSystemCA(t *testing.T) {
+	ts := testServer{
+		t:                  t,
+		tls:                true,
+		expBearerScheme:    "",
+		expBearerToken:     "secret",
+		expBearerTokenPath: true,
+		expectSystemCA:     true,
+	}
+	ts.start()
+	defer ts.stop()
+
+	files := map[string]string{
+		"token.txt": "secret",
+		"ca.pem":    string(ts.rootCertPEM),
+	}
+
+	test.WithTempFS(files, func(path string) {
+		tokenPath := filepath.Join(path, "token.txt")
+		ts.caCert = filepath.Join(path, "ca.pem")
+
+		client := newTestBearerClient(t, &ts, tokenPath)
+
+		ctx := context.Background()
+		if _, err := client.Do(ctx, "GET", "test"); err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+	})
+}
+
 func TestBearerTokenInvalidConfig(t *testing.T) {
 	ts := testServer{
 		t:               t,
@@ -905,12 +964,13 @@ func newTestBearerClient(t *testing.T, ts *testServer, tokenPath string) *Client
 	config := fmt.Sprintf(`{
 			"name": "foo",
 			"url": %q,
+			"tls": {"ca_cert": %q, system_ca_required: %v},
 			"credentials": {
 				"bearer": {
 					"token_path": %q
 				}
 			}
-		}`, ts.server.URL, tokenPath)
+		}`, ts.server.URL, ts.caCert, ts.expectSystemCA, tokenPath)
 	client, err := New([]byte(config), map[string]*keys.Config{})
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
@@ -996,7 +1056,7 @@ func TestClientCertPassword(t *testing.T) {
 	})
 }
 
-func TestClientCACert(t *testing.T) {
+func TestClientTLSWithCustomCACert(t *testing.T) {
 	ts := testServer{
 		t:                t,
 		tls:              true,
@@ -1025,7 +1085,7 @@ func TestClientCACert(t *testing.T) {
 	})
 }
 
-func TestClientCACertWithSystemCA(t *testing.T) {
+func TestClientTLSWithCustomCACertAndSystemCA(t *testing.T) {
 	ts := testServer{
 		t:                t,
 		tls:              true,
@@ -1393,25 +1453,20 @@ func newTestClient(t *testing.T, ts *testServer, certPath string, keypath string
 			"name": "foo",
 			"url": %q,
 			"allow_insecure_tls": true,
+			"tls": {"ca_cert": %q, system_ca_required: %v},
 			"credentials": {
 				"client_tls": {
 					"cert": %q,
 					"private_key": %q
 				}
 			}
-		}`, ts.server.URL, certPath, keypath)
+		}`, ts.server.URL, ts.caCert, ts.expectSystemCA, certPath, keypath)
 	client, err := New([]byte(config), map[string]*keys.Config{})
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 	if ts.clientCertPassword != "" {
 		client.Config().Credentials.ClientTLS.PrivateKeyPassphrase = ts.clientCertPassword
-	}
-	if ts.caCert != "" {
-		client.Config().Credentials.ClientTLS.CACert = ts.caCert
-	}
-	if ts.expectSystemCA {
-		client.Config().Credentials.ClientTLS.SystemCARequired = true
 	}
 
 	return &client
@@ -1436,6 +1491,7 @@ type testServer struct {
 	caCert             string
 	expectSystemCA     bool
 	serverCertPool     *x509.CertPool
+	certificates       []tls.Certificate
 }
 
 type oauth2TestServer struct {
@@ -1711,10 +1767,17 @@ func (t *testServer) generateClientKeys() {
 		t.t.Fatalf("error creating cert: %v", err)
 	}
 
+	keyPEMBlock := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(rootKey)})
+	cert, err := tls.X509KeyPair(rootCertPEM, keyPEMBlock)
+	if err != nil {
+		t.t.Fatalf("error creating tls.X509KeyPair: %v", err)
+	}
+
 	// save a copy of the root certificate for clients to use
 	t.serverCertPool = x509.NewCertPool()
 	t.serverCertPool.AppendCertsFromPEM(rootCertPEM)
 	t.rootCertPEM = rootCertPEM
+	t.certificates = []tls.Certificate{cert}
 
 	// create a key-pair for the client
 	clientKey, err := rsa.GenerateKey(rand.Reader, 2048)
@@ -1760,8 +1823,9 @@ func (t *testServer) start() {
 	if t.tls {
 		t.generateClientKeys()
 		t.server.TLS = &tls.Config{
-			ClientAuth: tls.RequireAndVerifyClientCert,
-			ClientCAs:  t.serverCertPool,
+			ClientAuth:   tls.VerifyClientCertIfGiven,
+			ClientCAs:    t.serverCertPool,
+			Certificates: t.certificates,
 		}
 		t.server.StartTLS()
 	} else {
