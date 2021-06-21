@@ -92,6 +92,12 @@ production users that have added themselves (in alphabetical order):
   and identify high-risk configurations. The policies ingest 1,000s of
   AWS resources to generate the final report.
 
+* [Mercari](https://www.mercari.com/) uses OPA to enforce admission control
+  policies in their multi-tenant Kubernetes clusters. It helps maintain 
+  the governance of the cluster, checking that developers are following 
+  the best practices in the admission controller. They also use [confest](https://github.com/open-policy-agent/conftest) to 
+  enforce policies in their CI/CD pipeline.
+
 * [Netflix](https://www.netflix.com) uses OPA as a method of enforcing
   access control in microservices across a variety of languages and
   frameworks for thousands of instances in their cloud
