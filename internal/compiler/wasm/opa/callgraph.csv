@@ -996,6 +996,7 @@ fprintf,opa_abort
 fwrite,opa_abort
 fputc,opa_abort
 abort,opa_abort
+opa_abort,opa_abort_
 malloc,opa_malloc
 free,opa_free
 calloc,opa_malloc
