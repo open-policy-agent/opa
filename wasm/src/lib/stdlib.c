@@ -15,6 +15,12 @@ void abort(void)
     }
 }
 
+void opa_abort(const char *msg)
+{
+    opa_abort_(msg);
+    __builtin_unreachable();
+}
+
 void *malloc(size_t size)
 {
     return opa_malloc(size);

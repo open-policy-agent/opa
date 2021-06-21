@@ -225,6 +225,13 @@ a = "c" { input > 2 }`,
 				{Result: `{{}}`},
 			},
 		},
+		{
+			Description: "Runtime error/bad utf8 input to count()",
+			Policy:      `a = count(base64.decode("2E84ZuPUd7zfvCZSNEchVpDEIj6PL7JfLpIqyxVG16k="))`,
+			Query:       "data.p.a = x",
+			Evals:       []Eval{{}},
+			WantErr:     "internal_error: string: invalid unicode",
+		},
 	}
 
 	for _, test := range tests {
