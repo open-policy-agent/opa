@@ -322,6 +322,11 @@ ci-image-smoke-test: image-quick
 	$(DOCKER) run $(DOCKER_IMAGE):$(VERSION)-rootless version
 	$(DOCKER) run $(DOCKER_IMAGE):$(VERSION)-static-ci-only version
 
+.PHONY: ci-binary-smoke-test-%
+ci-binary-smoke-test-%:
+	chmod +x "$(RELEASE_DIR)/$(BINARY)"
+	"$(RELEASE_DIR)/$(BINARY)" eval -t "$*" 'time.now_ns()'
+
 .PHONY: push
 push:
 	$(DOCKER) push $(DOCKER_IMAGE):$(VERSION)

@@ -173,6 +173,39 @@ jobs:
       - name: Test images
         run: make ci-image-smoke-test
 
+  smoke-test-binaries:
+    runs-on: ${{ matrix.os }}
+    needs: [go-build-linux, go-build-darwin, go-build-windows]
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            exec: opa_linux_amd64
+          - os: ubuntu-latest
+            exec: opa_linux_amd64_static
+            wasm: disabled
+          - os: macos-latest
+            exec: opa_darwin_amd64
+          - os: windows-latest
+            exec: opa_windows_amd64.exe
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: Download release binaries
+        uses: actions/download-artifact@v2
+        with:
+          name: binaries
+          path: _release
+
+      - name: Test binaries (Rego)
+        run: make ci-binary-smoke-test-rego BINARY=${{ matrix.exec }}
+
+      - name: Test binaries (Wasm)
+        run: make ci-binary-smoke-test-wasm BINARY=${{ matrix.exec }}
+        if: matrix.wasm != 'disabled'
+
   nodejs-wasm-example:
     name: npm-opa-wasm
     runs-on: ubuntu-latest
