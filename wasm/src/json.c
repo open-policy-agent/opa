@@ -1,5 +1,6 @@
 #include <stdio.h>
 
+#include "stdlib.h"
 #include "str.h"
 #include "value.h"
 #include "json.h"
