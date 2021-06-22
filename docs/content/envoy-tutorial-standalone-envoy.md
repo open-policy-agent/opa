@@ -329,7 +329,7 @@ example-app-67c644b9cb-bbqgh   3/3     Running   0          8s
 
 > The `proxy-init` container installs iptables rules to redirect all container
   traffic through the Envoy proxy sidecar. More information can be found
-  [here](https://github.com/open-policy-agent/contrib/tree/master/envoy_iptables).
+  [here](https://github.com/open-policy-agent/contrib/tree/main/envoy_iptables).
 
 
 ### 5. Create a Service to expose HTTP server
