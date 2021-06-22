@@ -151,7 +151,7 @@ They are only provided for convenience/test purposes.
 
 #### Kafka Authorizer JAR File
 
-The Kafka image used in this tutorial includes a pre-installed JAR file that implements the [Kafka Authorizer](https://kafka.apache.org/documentation/#security_authz) interface. For more information on the authorizer see [open-policy-agent/contrib/kafka_authorizer](https://github.com/open-policy-agent/contrib/tree/master/kafka_authorizer).
+The Kafka image used in this tutorial includes a pre-installed JAR file that implements the [Kafka Authorizer](https://kafka.apache.org/documentation/#security_authz) interface. For more information on the authorizer see [open-policy-agent/contrib/kafka_authorizer](https://github.com/open-policy-agent/contrib/tree/main/kafka_authorizer).
 
 ### 2. Define a policy to restrict consumer access to topics containing Personally Identifiable Information (PII).
 

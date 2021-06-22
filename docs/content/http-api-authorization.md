@@ -118,7 +118,7 @@ docker-compose -f docker-compose.yml up
 
 Every time the demo web server receives an HTTP request, it
 asks OPA to decide whether an HTTP API is authorized or not
-using a single RESTful API call.  An example code is [here](https://github.com/open-policy-agent/contrib/blob/master/api_authz/docker/echo_server.py),
+using a single RESTful API call.  An example code is [here](https://github.com/open-policy-agent/contrib/blob/main/api_authz/docker/echo_server.py),
 but the crux of the (Python) code is shown below.
 
 ```python
