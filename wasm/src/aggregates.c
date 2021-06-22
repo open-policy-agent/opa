@@ -2,6 +2,7 @@
 #include "mpd.h"
 #include "std.h"
 #include "unicode.h"
+#include "re2/util/utf.h"
 
 OPA_BUILTIN
 opa_value *opa_agg_count(opa_value *v)
@@ -11,13 +12,12 @@ opa_value *opa_agg_count(opa_value *v)
     case OPA_STRING: {
         opa_string_t *s = opa_cast_string(v);
         int units = 0;
+        Rune rune;
 
-        for (int i = 0, len = 0; i < s->len; units++, i += len)
+        for (int i = 0, len = 0; i < s->len; i += len)
         {
-            if (opa_unicode_decode_utf8(s->v, i, s->len, &len) == -1)
-            {
-                opa_abort("string: invalid unicode");
-            }
+            len = chartorune(&rune, &s->v[i]);
+            units++;
         }
 
         return opa_number_int(units);

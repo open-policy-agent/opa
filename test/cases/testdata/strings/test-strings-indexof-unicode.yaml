@@ -1,0 +1,13 @@
+cases:
+- data:
+  modules:
+  - |
+    package test
+
+    p = x {
+      indexof("μx", "x", x)
+    }
+  note: 'strings/indexof: unicode'
+  query: data.test.p = x
+  want_result:
+  - x: 1
