@@ -97,9 +97,19 @@ func builtinIndexOf(a, b ast.Value) (ast.Value, error) {
 	if err != nil {
 		return nil, err
 	}
+	if len(string(search)) == 0 {
+		return nil, fmt.Errorf("empty search character")
+	}
 
-	index := strings.Index(string(base), string(search))
-	return ast.IntNumberTerm(index).Value, nil
+	baseRunes := []rune(string(base))
+	searchRune := []rune(string(search))[0]
+	for i, r := range baseRunes {
+		if r == searchRune {
+			return ast.IntNumberTerm(i).Value, nil
+		}
+	}
+
+	return ast.IntNumberTerm(-1).Value, nil
 }
 
 func builtinSubstring(a, b, c ast.Value) (ast.Value, error) {
