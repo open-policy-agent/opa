@@ -246,8 +246,8 @@ func (p *PrintlnLogger) Log(ctx context.Context, event logs.EventV1) error {
 	if p.config.Stderr {
 		w = os.Stderr
 	}
-	e, _ := json.Marshal(event)
-	_, err := fmt.Fprintln(w, string(e))
+	bs, err := json.Marshal(event)
+	_, err = fmt.Fprintln(w, string(bs))
 	if err != nil {
 		p.manager.UpdatePluginStatus(PluginName, &plugins.Status{State: plugins.StateErr})
 	}
