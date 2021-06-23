@@ -6,10 +6,12 @@
 package bundle
 
 import (
+	"archive/tar"
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
 	"fmt"
+	"io"
 
 	"path/filepath"
 	"reflect"
@@ -904,6 +906,40 @@ func TestWriterUsePath(t *testing.T) {
 
 	if bundle2.Modules[0].URL != "/path.rego" || bundle2.Modules[0].Path != "/path.rego" {
 		t.Fatal("expected module path to be used but got:", bundle2.Modules[0])
+	}
+}
+
+func TestWriterSkipEmptyManifest(t *testing.T) {
+
+	bundle := Bundle{
+		Data:     map[string]interface{}{},
+		Manifest: Manifest{},
+	}
+
+	var buf bytes.Buffer
+
+	if err := NewWriter(&buf).Write(bundle); err != nil {
+		t.Fatal("Unexpected error:", err)
+	}
+
+	gr, err := gzip.NewReader(&buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tr := tar.NewReader(gr)
+	for {
+		f, err := tr.Next()
+		if err != nil {
+			if err != io.EOF {
+				t.Fatal(err)
+			}
+			break
+		}
+
+		if f.Name != "/data.json" {
+			t.Fatal("expected only /data.json but got:", f.Name)
+		}
 	}
 }
 

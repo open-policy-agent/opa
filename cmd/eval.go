@@ -538,6 +538,8 @@ func readInputBytes(params evalCommandParams) ([]byte, error) {
 	return nil, nil
 }
 
+const stringType = "string"
+
 type repeatedStringFlag struct {
 	v     []string
 	isSet bool
@@ -551,7 +553,7 @@ func newrepeatedStringFlag(val []string) repeatedStringFlag {
 }
 
 func (f *repeatedStringFlag) Type() string {
-	return "string"
+	return stringType
 }
 
 func (f *repeatedStringFlag) String() string {

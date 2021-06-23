@@ -697,6 +697,10 @@ func (w *Writer) writeWasm(tw *tar.Writer, bundle Bundle) error {
 
 func writeManifest(tw *tar.Writer, bundle Bundle) error {
 
+	if bundle.Manifest.Equal(Manifest{}) {
+		return nil
+	}
+
 	var buf bytes.Buffer
 
 	if err := json.NewEncoder(&buf).Encode(bundle.Manifest); err != nil {

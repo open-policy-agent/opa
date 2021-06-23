@@ -171,7 +171,7 @@ func newcapabilitiesFlag() *capabilitiesFlag {
 }
 
 func (f *capabilitiesFlag) Type() string {
-	return "string"
+	return stringType
 }
 
 func (f *capabilitiesFlag) String() string {
@@ -187,4 +187,26 @@ func (f *capabilitiesFlag) Set(s string) error {
 	defer fd.Close()
 	f.C, err = ast.LoadCapabilitiesJSON(fd)
 	return err
+}
+
+type stringptrFlag struct {
+	v     *string
+	isSet bool
+}
+
+func (f *stringptrFlag) Type() string {
+	return stringType
+}
+
+func (f *stringptrFlag) String() string {
+	if f.v == nil {
+		return ""
+	}
+	return *f.v
+}
+
+func (f *stringptrFlag) Set(s string) error {
+	f.v = &s
+	f.isSet = true
+	return nil
 }
