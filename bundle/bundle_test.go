@@ -29,6 +29,55 @@ func TestManifestAddRoot(t *testing.T) {
 	m.rootSet().Equal(stringSet{"x/y": struct{}{}, "y/z": struct{}{}})
 }
 
+func TestManifestEqual(t *testing.T) {
+	var m Manifest
+	var n Manifest
+
+	assertEqual := func() {
+		t.Helper()
+		if !m.Equal(n) {
+			t.Fatal("expected manifests to be equal")
+		}
+	}
+
+	assertNotEqual := func() {
+		t.Helper()
+		if m.Equal(n) {
+			t.Fatal("expected manifests to be different")
+		}
+	}
+
+	assertEqual()
+
+	n.Revision = "xxx"
+	assertNotEqual()
+
+	m.Revision = "xxx"
+	assertEqual()
+
+	n.WasmResolvers = append(n.WasmResolvers, WasmResolver{})
+	assertNotEqual()
+
+	m.WasmResolvers = append(m.WasmResolvers, WasmResolver{})
+	assertEqual()
+
+	n.WasmResolvers[0].Module = "yyy"
+	assertNotEqual()
+
+	m.WasmResolvers[0].Module = "yyy"
+	assertEqual()
+
+	n.Metadata = map[string]interface{}{
+		"foo": "bar",
+	}
+	assertNotEqual()
+
+	m.Metadata = map[string]interface{}{
+		"foo": "bar",
+	}
+	assertEqual()
+}
+
 func TestRead(t *testing.T) {
 	testReadBundle(t, "")
 }
@@ -178,7 +227,7 @@ func TestManifestMetadata(t *testing.T) {
 			"metadata": {
 				"foo": {
 					"version": "1.0.0"
-				} 
+				}
 			}
 		}`},
 	}
