@@ -30,7 +30,7 @@ type buildParams struct {
 	optimizationLevel  int
 	entrypoints        repeatedStringFlag
 	outputFile         string
-	revision           string
+	revision           stringptrFlag
 	ignore             []string
 	debug              bool
 	algorithm          string
@@ -92,7 +92,9 @@ For more information on bundles see https://www.openpolicyagent.org/docs/latest/
 When -b is specified the 'build' command assumes paths refer to existing bundle files
 or directories following the bundle structure. If multiple bundles are provided, their
 contents are merged. If there are any merge conflicts (e.g., due to conflicting bundle
-roots), the command fails.
+roots), the command fails. When loading an existing bundle file, the .manifest from
+the input bundle will be included in the output bundle. Flags that set .manifest fields
+(such as --revision) override input bundle .manifest fields.
 
 The -O flag controls the optimization level. By default, optimization is disabled (-O=0).
 When optimization is enabled the 'build' command generates a bundle that is semantically
@@ -216,7 +218,7 @@ against OPA v0.22.0:
 	buildCommand.Flags().BoolVarP(&buildParams.debug, "debug", "", false, "enable debug output")
 	buildCommand.Flags().IntVarP(&buildParams.optimizationLevel, "optimize", "O", 0, "set optimization level")
 	buildCommand.Flags().VarP(&buildParams.entrypoints, "entrypoint", "e", "set slash separated entrypoint path")
-	buildCommand.Flags().StringVarP(&buildParams.revision, "revision", "r", "", "set output bundle revision")
+	buildCommand.Flags().VarP(&buildParams.revision, "revision", "r", "set output bundle revision")
 	buildCommand.Flags().StringVarP(&buildParams.outputFile, "output", "o", "bundle.tar.gz", "set the output filename")
 
 	addBundleModeFlag(buildCommand.Flags(), &buildParams.bundleMode, false)
@@ -273,9 +275,12 @@ func dobuild(params buildParams, args []string) error {
 		WithEntrypoints(params.entrypoints.v...).
 		WithPaths(args...).
 		WithFilter(buildCommandLoaderFilter(params.bundleMode, params.ignore)).
-		WithRevision(params.revision).
 		WithBundleVerificationConfig(bvc).
 		WithBundleSigningConfig(bsc)
+
+	if params.revision.isSet {
+		compiler = compiler.WithRevision(*params.revision.v)
+	}
 
 	if params.debug {
 		compiler = compiler.WithDebug(os.Stderr)
