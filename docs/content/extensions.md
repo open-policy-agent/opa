@@ -204,6 +204,8 @@ that writes events to a stream (e.g., stdout/stderr).
 
 ```golang
 import (
+	"encoding/json"
+
 	"github.com/open-policy-agent/opa/plugins/logs"
 )
 
@@ -244,7 +246,8 @@ func (p *PrintlnLogger) Log(ctx context.Context, event logs.EventV1) error {
 	if p.config.Stderr {
 		w = os.Stderr
 	}
-	_, err := fmt.Fprintln(w, event)
+	e, _ := json.Marshal(event)
+	_, err := fmt.Fprintln(w, string(e))
 	if err != nil {
 		p.manager.UpdatePluginStatus(PluginName, &plugins.Status{State: plugins.StateErr})
 	}
