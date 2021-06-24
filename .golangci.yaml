@@ -14,9 +14,7 @@ linters:
     - errcheck
     - govet
     - ineffassign
-#    - golint # deprecated and no longer supported
     - revive # replacement for golint
-    - goconst
     - gofmt
     - goimports
     - unused

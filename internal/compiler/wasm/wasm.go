@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 // Package wasm contains an IR->WASM compiler backend.
-// nolint: deadcode,varcheck // Package in development (2021).
 package wasm
 
 import (
@@ -32,6 +31,7 @@ const (
 	opaWasmABIMinorVersionVar = "opa_wasm_abi_minor_version"
 )
 
+// nolint: deadcode,varcheck
 const (
 	opaTypeNull int32 = iota + 1
 	opaTypeBoolean
@@ -45,10 +45,8 @@ const (
 )
 
 const (
-	opaFuncPrefix        = "opa_"
 	opaAbort             = "opa_abort"
 	opaRuntimeError      = "opa_runtime_error"
-	opaJSONParse         = "opa_json_parse"
 	opaNull              = "opa_null"
 	opaBoolean           = "opa_boolean"
 	opaNumberInt         = "opa_number_int"
