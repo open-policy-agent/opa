@@ -85,6 +85,43 @@ func TestInterfaceToValue(t *testing.T) {
 
 }
 
+func TestInterfaceToValueStructs(t *testing.T) {
+
+	var x struct {
+		Foo struct {
+			Baz string `json:"baz"`
+		} `json:"foo"`
+		bar string
+	}
+
+	x.Foo.Baz = "a"
+	x.bar = "b"
+
+	result, err := InterfaceToValue(x)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	exp := MustParseTerm(`{"foo": {"baz": "a"}}`)
+
+	if result.Compare(exp.Value) != 0 {
+		t.Fatalf("expected %v but got %v", exp, result)
+	}
+
+	var m brokenMarshaller
+
+	_, err = InterfaceToValue(m)
+	if err == nil || err.Error() != "ast: interface conversion: json: error calling MarshalJSON for type ast.brokenMarshaller: broken" {
+		t.Fatal("expected error but got:", err)
+	}
+}
+
+type brokenMarshaller struct{}
+
+func (brokenMarshaller) MarshalJSON() ([]byte, error) {
+	return nil, fmt.Errorf("broken")
+}
+
 func TestObjectInsertGetLen(t *testing.T) {
 	tests := []struct {
 		insert   [][2]string
