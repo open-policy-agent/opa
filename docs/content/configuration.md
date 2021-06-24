@@ -242,6 +242,8 @@ multiple services.
 | `services[_].url` | `string` | Yes | Base URL to contact the service with. |
 | `services[_].response_header_timeout_seconds` | `int64` | No (default: 10) | Amount of time to wait for a server's response headers after fully writing the request. This time does not include the time to read the response body. |
 | `services[_].headers` | `object` | No | HTTP headers to include in requests to the service. |
+| `services[_].tls.ca_cert` | `string` | No | The path to the root CA certificate.  If not provided, this defaults to TLS using the host's root CA set. |
+| `services[_].tls.system_ca_required` | `bool` | No (default: `false`) | Require system certificate appended with root CA certificate. |
 | `services[_].allow_insecure_tls` | `bool` | No | Allow insecure TLS. |
 
 Each service may optionally specify a credential mechanism by which OPA will authenticate
@@ -272,8 +274,6 @@ private key is encrypted.
 | `services[_].credentials.client_tls.cert` | `string` | Yes | The path to the client certificate to authenticate with. |
 | `services[_].credentials.client_tls.private_key` | `string` | Yes | The path to the private key of the client certificate. |
 | `services[_].credentials.client_tls.private_key_passphrase` | `string` | No | The passphrase to use for the private key. |
-| `services[_].credentials.client_tls.ca_cert` | `string` | No | The path to the root CA certificate. |
-| `services[_].credentials.client_tls.system_ca_required` | `bool` | No | Require system certificate appended with root CA certificate. |
 
 #### OAuth2 Client Credentials
 

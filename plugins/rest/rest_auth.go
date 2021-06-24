@@ -44,6 +44,30 @@ func DefaultTLSConfig(c Config) (*tls.Config, error) {
 	if url.Scheme == "https" {
 		t.InsecureSkipVerify = c.AllowInsecureTLS
 	}
+
+	if c.TLS != nil && c.TLS.CACert != "" {
+		caCert, err := ioutil.ReadFile(c.TLS.CACert)
+		if err != nil {
+			return nil, err
+		}
+
+		var rootCAs *x509.CertPool
+		if c.TLS.SystemCARequired {
+			rootCAs, err = x509.SystemCertPool()
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			rootCAs = x509.NewCertPool()
+		}
+
+		ok := rootCAs.AppendCertsFromPEM(caCert)
+		if !ok {
+			return nil, errors.New("unable to parse and append CA certificate to certificate pool")
+		}
+		t.RootCAs = rootCAs
+	}
+
 	return t, nil
 }
 
@@ -76,6 +100,11 @@ func (ap *defaultAuthPlugin) NewClient(c Config) (*http.Client, error) {
 
 func (ap *defaultAuthPlugin) Prepare(req *http.Request) error {
 	return nil
+}
+
+type serverTLSConfig struct {
+	CACert           string `json:"ca_cert,omitempty"`
+	SystemCARequired bool   `json:"system_ca_required,omitempty"`
 }
 
 // bearerAuthPlugin represents authentication via a bearer token in the HTTP Authorization header
@@ -356,8 +385,8 @@ type clientTLSAuthPlugin struct {
 	Cert                 string `json:"cert"`
 	PrivateKey           string `json:"private_key"`
 	PrivateKeyPassphrase string `json:"private_key_passphrase,omitempty"`
-	CACert               string `json:"ca_cert,omitempty"`
-	SystemCARequired     bool   `json:"system_ca_required,omitempty"`
+	CACert               string `json:"ca_cert,omitempty"`            // Deprecated: Use `services[_].tls.ca_cert` instead
+	SystemCARequired     bool   `json:"system_ca_required,omitempty"` // Deprecated: Use `services[_].tls.system_ca_required` instead
 }
 
 func (ap *clientTLSAuthPlugin) NewClient(c Config) (*http.Client, error) {
@@ -424,32 +453,40 @@ func (ap *clientTLSAuthPlugin) NewClient(c Config) (*http.Client, error) {
 	if err != nil {
 		return nil, err
 	}
+	tlsConfig.Certificates = []tls.Certificate{cert}
 
-	if ap.CACert != "" {
-		caCert, err := ioutil.ReadFile(ap.CACert)
-		if err != nil {
-			return nil, err
-		}
+	var client *http.Client
 
-		var caCertPool *x509.CertPool
-		if ap.SystemCARequired {
-			caCertPool, err = x509.SystemCertPool()
+	if c.TLS != nil && c.TLS.CACert != "" {
+		client = DefaultRoundTripperClient(tlsConfig, *c.ResponseHeaderTimeoutSeconds)
+	} else {
+		if ap.CACert != "" {
+			c.logger.Warn("Deprecated 'services[_].credentials.client_tls.ca_cert' configuration specified. Use 'services[_].tls.ca_cert' instead. See https://www.openpolicyagent.org/docs/latest/configuration/#services")
+			caCert, err := ioutil.ReadFile(ap.CACert)
 			if err != nil {
 				return nil, err
 			}
-		} else {
-			caCertPool = x509.NewCertPool()
+
+			var caCertPool *x509.CertPool
+			if ap.SystemCARequired {
+				caCertPool, err = x509.SystemCertPool()
+				if err != nil {
+					return nil, err
+				}
+			} else {
+				caCertPool = x509.NewCertPool()
+			}
+
+			ok := caCertPool.AppendCertsFromPEM(caCert)
+			if !ok {
+				return nil, errors.New("unable to parse and append CA certificate to certificate pool")
+			}
+			tlsConfig.RootCAs = caCertPool
 		}
 
-		ok := caCertPool.AppendCertsFromPEM(caCert)
-		if !ok {
-			return nil, errors.New("unable to parse and append CA certificate to certicate pool")
-		}
-		tlsConfig.RootCAs = caCertPool
+		client = DefaultRoundTripperClient(tlsConfig, *c.ResponseHeaderTimeoutSeconds)
 	}
 
-	tlsConfig.Certificates = []tls.Certificate{cert}
-	client := DefaultRoundTripperClient(tlsConfig, *c.ResponseHeaderTimeoutSeconds)
 	return client, nil
 }
 
