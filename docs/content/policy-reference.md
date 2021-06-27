@@ -1045,7 +1045,7 @@ with
 
 Rego’s syntax is defined by the following grammar:
 
-```
+```ebnf
 module          = package { import } policy
 package         = "package" ref
 import          = "import" package [ "as" var ]
