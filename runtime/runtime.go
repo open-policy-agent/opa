@@ -360,6 +360,7 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 	}
 
 	defer rt.Manager.Stop(ctx)
+
 	rt.server = server.New().
 		WithRouter(rt.Params.Router).
 		WithStore(rt.Store).

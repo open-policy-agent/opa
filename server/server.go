@@ -480,7 +480,6 @@ func (b *baseHTTPListener) Type() httpListenerType {
 func isMinTLSVersionSupported(TLSVersion uint16) bool {
 	for _, version := range supportedTLSVersions {
 		if TLSVersion == version {
-
 			return true
 		}
 	}

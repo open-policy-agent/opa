@@ -32,10 +32,9 @@ func fatal(err interface{}) {
 }
 
 func TestMain(m *testing.M) {
-	minTLSVersion := flag.String("--min-TLS-Version", "1.2", "minimum TLS Version")
+	minTLSVersion := flag.String("--min-tls-version", "1.2", "minimum TLS Version")
 	TLSVersion := minTLSVersions[*minTLSVersion]
 	flag.Parse()
-	var err error
 
 	caCertPEM, err := ioutil.ReadFile("testdata/ca.pem")
 	if err != nil {
@@ -126,7 +125,7 @@ func TestNotDefaultTLSVersion(t *testing.T) {
 
 	oldArgs := os.Args
 	defer func() { os.Args = oldArgs }()
-	os.Args = []string{"cmd", "--min-TLS-Version", "1.3"}
+	os.Args = []string{"cmd", "--min-tls-version", "1.3"}
 	endpoint := testRuntime.URL()
 	t.Run("server started with min TLS Version 1.3, client connecting with not supported TLS version", func(t *testing.T) {
 
