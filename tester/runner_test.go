@@ -6,10 +6,12 @@ package tester_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/cover"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/tester"
@@ -101,6 +103,34 @@ func TestRunBenchmark(t *testing.T) {
 func TestRunWithCoverage(t *testing.T) {
 	cov := cover.New()
 	modules := testRun(t, testRunConfig{coverTracer: cov})
+	report := cov.Report(modules)
+	if len(report.Files) != len(modules) {
+		t.Errorf("Expected %d files in coverage report, got %d", len(modules), len(report.Files))
+	}
+	if report.Coverage == 0 {
+		t.Error("Expected test coverage")
+	}
+}
+
+func TestRunWithCoverageForBundles(t *testing.T) {
+	cov := cover.New()
+	modules := testRun(t, testRunConfig{coverTracer: cov})
+	testBundle := bundle.Bundle{
+		Modules: []bundle.ModuleFile{
+			{
+				Path:   "/foo/policy.rego",
+				Parsed: ast.MustParseModule(`package foo`),
+			},
+		},
+	}
+	bundles := map[string]*bundle.Bundle{"testBundle": &testBundle}
+	for path, b := range bundles {
+		for bundleName, mod := range b.ParsedModules(path) {
+			splitBundleName := strings.Split(bundleName, "/")
+			name := splitBundleName[len(splitBundleName)-1]
+			modules[name] = mod
+		}
+	}
 	report := cov.Report(modules)
 	if len(report.Files) != len(modules) {
 		t.Errorf("Expected %d files in coverage report, got %d", len(modules), len(report.Files))
