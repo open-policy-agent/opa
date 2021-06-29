@@ -157,7 +157,7 @@ func opaTest(args []string) int {
 		Ignore: testParams.ignore,
 	}
 
-	var modules map[string]*ast.Module
+	modules := map[string]*ast.Module{}
 	var bundles map[string]*bundle.Bundle
 	var store storage.Store
 	var err error
@@ -255,7 +255,6 @@ func opaTest(args []string) int {
 	} else {
 		//for test coverage with --bundle, retrieve modules from bundles
 		if modules == nil {
-			modules := map[string]*ast.Module{}
 			for path, b := range bundles {
 				for bundleName, mod := range b.ParsedModules(path) {
 					splitBundleName := strings.Split(bundleName, "/")
