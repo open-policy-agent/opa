@@ -35,6 +35,7 @@ type runCmdParams struct {
 	skipVersionCheck   bool
 	authentication     *util.EnumFlag
 	authorization      *util.EnumFlag
+	minTLSVersion      *util.EnumFlag
 	logLevel           *util.EnumFlag
 	logFormat          *util.EnumFlag
 	algorithm          string
@@ -50,6 +51,7 @@ func newRunParams() runCmdParams {
 		rt:             runtime.NewParams(),
 		authentication: util.NewEnumFlag("off", []string{"token", "tls", "off"}),
 		authorization:  util.NewEnumFlag("off", []string{"basic", "off"}),
+		minTLSVersion:  util.NewEnumFlag("1.2", []string{"1.0", "1.1", "1.2", "1.3"}),
 		logLevel:       util.NewEnumFlag("info", []string{"debug", "info", "error"}),
 		logFormat:      util.NewEnumFlag("json", []string{"text", "json", "json-pretty"}),
 	}
@@ -178,6 +180,7 @@ To skip bundle verification, use the --skip-verify flag.
 	runCommand.Flags().StringVarP(&cmdParams.tlsCACertFile, "tls-ca-cert-file", "", "", "set path of TLS CA cert file")
 	runCommand.Flags().VarP(cmdParams.authentication, "authentication", "", "set authentication scheme")
 	runCommand.Flags().VarP(cmdParams.authorization, "authorization", "", "set authorization scheme")
+	runCommand.Flags().VarP(cmdParams.minTLSVersion, "min-tls-version", "", "set minimum TLS version to be used by OPA's server, default is 1.2")
 	runCommand.Flags().VarP(cmdParams.logLevel, "log-level", "l", "set log level")
 	runCommand.Flags().VarP(cmdParams.logFormat, "log-format", "", "set log format")
 	runCommand.Flags().IntVar(&cmdParams.rt.GracefulShutdownPeriod, "shutdown-grace-period", 10, "set the time (in seconds) that the server will wait to gracefully shut down")
@@ -220,6 +223,13 @@ func initRuntime(ctx context.Context, params runCmdParams, args []string) (*runt
 		"off":   server.AuthorizationOff,
 	}
 
+	minTLSVersions := map[string]uint16{
+		"1.0": tls.VersionTLS10,
+		"1.1": tls.VersionTLS11,
+		"1.2": tls.VersionTLS12,
+		"1.3": tls.VersionTLS13,
+	}
+
 	cert, err := loadCertificate(params.tlsCertFile, params.tlsPrivateKeyFile)
 	if err != nil {
 		return nil, err
@@ -235,6 +245,7 @@ func initRuntime(ctx context.Context, params runCmdParams, args []string) (*runt
 
 	params.rt.Authentication = authenticationSchemes[params.authentication.String()]
 	params.rt.Authorization = authorizationScheme[params.authorization.String()]
+	params.rt.MinTLSVersion = minTLSVersions[params.minTLSVersion.String()]
 	params.rt.Certificate = cert
 	params.rt.Logging = runtime.LoggingConfig{
 		Level:  params.logLevel.String(),
