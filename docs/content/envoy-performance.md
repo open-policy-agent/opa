@@ -4,41 +4,176 @@ kind: envoy
 weight: 100
 ---
 
-This page provides some performance benchmarks that give an idea of the overhead of using the OPA-Envoy plugin.
+This page provides some guidance and best practices around benchmarking the performance of the OPA-Envoy plugin in order
+to give users an idea of the overhead of using the plugin. It describes an example setup to perform the benchmarks, different
+benchmarking scenarios and important metrics that should be captured to understand the impact of the OPA-Envoy plugin.
 
-### Test Setup
+### Benchmark Setup
 
-The setup uses the same example Go application that's described in the [standalone Envoy tutorial](../envoy-tutorial-standalone-envoy#steps). Below
-are some more details about the setup:
+#### Sample App
 
-* Platform: Minikube
-* Kubernetes Version: 1.18.6
-* Envoy Version: 1.17.0
-* OPA-Envoy Version: 0.26.0-envoy
+The first component of the setup features a simple Go app which provides information about employees in a company. It 
+exposes a `/people` endpoint to `get` and `create` employees. The app's source code can be found [here](https://github.com/ashutosh-narkar/go-test-server).
 
-### Benchmarks
+#### Envoy
+  
+Next, is the Envoy proxy that runs alongside the example application. The Envoy configuration below defines an external authorization
+filter `envoy.ext_authz` for a gRPC authorization server. The config uses Envoy’s in-built gRPC client which
+is a minimal custom implementation of gRPC to make the external gRPC call.
+  
+```yaml
+static_resources:
+  listeners:
+  - address:
+      socket_address:
+        address: 0.0.0.0
+        port_value: 8000
+    filter_chains:
+    - filters:
+      - name: envoy.http_connection_manager
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+          codec_type: auto
+          stat_prefix: ingress_http
+          route_config:
+            name: local_route
+            virtual_hosts:
+            - name: backend
+              domains:
+              - "*"
+              routes:
+              - match:
+                  prefix: "/"
+                route:
+                  cluster: service
+          http_filters:
+          - name: envoy.ext_authz
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthz
+              transport_api_version: V3
+              with_request_body:
+                max_request_bytes: 8192
+                allow_partial_message: true
+              failure_mode_allow: false
+              grpc_service:
+                envoy_grpc:
+                  cluster_name: opa-envoy
+                timeout: 0.5s
+          - name: envoy.filters.http.router
+  clusters:
+  - name: service
+    connect_timeout: 0.25s
+    type: strict_dns
+    lb_policy: round_robin
+    load_assignment:
+      cluster_name: service
+      endpoints:
+      - lb_endpoints:
+        - endpoint:
+            address:
+              socket_address:
+                address: 127.0.0.1
+                port_value: 8080
+  - name: opa-envoy
+    connect_timeout: 1.25s
+    type: strict_dns
+    lb_policy: round_robin
+    http2_protocol_options: {}
+    load_assignment:
+      cluster_name: opa-envoy
+      endpoints:
+      - lb_endpoints:
+        - endpoint:
+            address:
+              socket_address:
+                address: 127.0.0.1
+                port_value: 9191
+admin:
+  access_log_path: "/dev/null"
+  address:
+    socket_address:
+      address: 0.0.0.0
+      port_value: 8001
+layered_runtime:
+  layers:
+    - name: static_layer_0
+      static_layer:
+        envoy:
+          resource_limits:
+            listener:
+              example_listener_name:
+                connection_limit: 10000
+        overload:
+          global_downstream_max_connections: 50000
+```
 
-The benchmark result below provides the percentile distribution of the latency observed by sending *100 requests/sec*
-to the sample application. Each request makes a `GET` call to the `/people` endpoint exposed by the application.
+#### OPA-Envoy Plugin
 
-The graph shows the latency distribution when the load test is performed under the following conditions:
+Now let's deploy OPA as an External Authorization server. Below is a sample configuration for the OPA-Envoy container:
+
+```yaml
+containers:
+- image: openpolicyagent/opa:{{< current_opa_envoy_docker_version >}}
+  imagePullPolicy: IfNotPresent
+  name: opa
+  resources:
+    requests:
+      memory: "64Mi"
+      cpu: "1m"
+    limits:
+      memory: "128Mi"
+      cpu: "2m"
+  args:
+  - "run"
+  - "--server"
+  - "--addr=localhost:8181"
+  - "--diagnostic-addr=0.0.0.0:8282"
+  - "--set=plugins.envoy_ext_authz_grpc.addr=:9191"
+  - "--set=plugins.envoy_ext_authz_grpc.path=envoy/authz/allow"
+  - "--ignore=.*"
+  - "/policy/policy.rego"
+  livenessProbe:
+    httpGet:
+      path: /health?plugins
+      port: 8282
+  readinessProbe:
+    httpGet:
+      path: /health?plugins
+      port: 8282
+```
+
+> 💡 Consider specifying CPU and memory resource requests and limits for the OPA and other containers to prevent
+> deployments from resource starvation.
+> You can also start OPA with the [`GOMAXPROCS`](https://golang.org/pkg/runtime)environment variable to limit the number of
+cores that OPA can consume.
+>
+> 💡 The OPA-Envoy plugin can be configured to listen on a UNIX Domain Socket. A complete example of such a setup
+> can be found [here](https://github.com/open-policy-agent/opa-envoy-plugin/tree/main/examples/envoy-uds).
+
+
+### Load Generator And Measurement Tool
+
+Consider using a load generator and measurement tool that measures latency from the end user’s perspective and reports
+latency as the percentiles of a distribution, e.g. `p50` (median), `p99`, `p999` etc. As example
+implementation of such a tool can be found [here](https://github.com/ashutosh-narkar/stress-opa-envoy).
+
+### Benchmark Scenarios
+
+Following are some scenarios to perform benchmarks on. The results could be used to compare OPA-Envoy plugin's
+latency and resource consumption with the baseline (no-opa) case for instance.
 
 * **App Only**
 
-In this case, the graph documents the latency distribution observed when requests are
-sent directly to the application ie. no Envoy and OPA in the request path. This scenario is depicted by the
-`blue` curve.
+In this case, requests are sent directly to the application ie. no Envoy and OPA in the request path.
 
 * **App and Envoy**
 
-In this case, the distribution is with [Envoy External Authorization API](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/security/ext_authz_filter.html) disabled. This means
-OPA is not included in the request path but Envoy is. This scenario is depicted by the `red` curve.
+In this case, OPA is not included in the request path but Envoy is (ie. [Envoy External Authorization API](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/security/ext_authz_filter.html) disabled).
 
 * **App, Envoy and OPA (NOP policy)**
 
-In the case, we will see the latency observed with [Envoy External Authorization API](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/security/ext_authz_filter.html) enabled. This means
-Envoy will make a call to OPA on every incoming request. The graph explores the effect of loading the below NOP policy into
-OPA. This scenario is depicted by the `green` curve.
+In this case, performance measurements are observed with [Envoy External Authorization API](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/security/ext_authz_filter.html) enabled. This means
+Envoy will make a call to OPA on every incoming request with the below NOP policy loaded into OPA.
 
 ```live:nop_example:module:read_only
 package envoy.authz
@@ -48,8 +183,8 @@ default allow = true
 
 * **App, Envoy and OPA (RBAC policy)**
 
-In the case, we will see the latency observed with [Envoy External Authorization API](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/security/ext_authz_filter.html) enabled and
-explore the effect of loading the following RBAC policy into OPA. This scenario is depicted by the `yellow` curve.
+In this case, performance measurements are observed with [Envoy External Authorization API](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/security/ext_authz_filter.html) enabled and
+a sample real-world RBAC policy as shown below loaded into OPA.
 
 ```live:rbac_example:module:read_only
 package envoy.authz
@@ -94,80 +229,33 @@ role_perms = {
 }
 ```
 
-{{< figure src="hist-google-grpc-100.png" width="250" >}}
+* **App, Envoy and OPA (Header Injection policy)**
 
-The above four scenarios are replicated to measure the latency distribution now by sending *1000 requests/sec*
-to the sample application. The following graph captures this result.
+This scenario is similar to the previous one expect the policy decision is an object which contains optional
+response headers. An example of such a policy can be found [here](../envoy-primer#example-policy-with-object-response).
 
-{{< figure src="hist-google-grpc-1000.png" width="250" >}}
+### Measurements
 
-#### OPA Benchmarks
+This section describes some metrics that should help to measure the cost of the OPA-Envoy plugin in terms of
+CPU and memory consumed as well as latency added.
 
-The table below captures the `gRPC Server Handler` and `OPA Evaluation` time with [Envoy External Authorization API](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/security/ext_authz_filter.html) enabled and the
-`RBAC` policy described above loaded into OPA. All values are in microseconds.
+* `End-to-end Latency` is the latency measured from the end user’s perspective. This includes time spent on the network,
+in the application, in OPA and so on. The sample [load tester tool](https://github.com/ashutosh-narkar/stress-opa-envoy)
+shows how to measure this metric.
 
-##### OPA Evaluation
+* `OPA Evaluation` is the time taken to evaluate the policy.
 
-`OPA Evaluation` is the time taken to evaluate the policy.
+* `gRPC Server Handler` is the total time taken to prepare the input for the policy, evaluate the policy (`OPA Evaluation`)
+and prepare the result. Basically this is time spent by the OPA-Envoy plugin to process the request. OPA's [metrics](https://pkg.go.dev/github.com/open-policy-agent/opa/metrics)
+package provides helpers to measure both `gRPC Server Handler` and `OPA Evaluation` time.
 
-| Number of Requests per sec | 75% | 90% | 95% | 99% | 99.9% | 99.99% | Mean | Median |
-|--------------------------|---|---|---|---|-----|------|----|------|
-| `100` | `419.568` | `686.746` | `962.673` | `4048.899` | `14549.446` | `14680.476` | `467.001` | `311.939` |
-| `1000` | `272.289` | `441.121` | `765.384` | `2766.152` | `63938.739` | `65609.013` | `380.009` | `207.277` |
-| `2000` | `278.970` | `720.716` | `1830.884` | `4104.182` | `35013.074` | `35686.142` | `450.875` | `178.829` |
-| `3000` | `266.105` | `693.839` | `1824.983` | `5069.019` | `368469.802` | `375877.246` | `971.173` | `175.948` |
-| `4000` | `373.699` | `1087.224` | `2279.981` | `4735.961` | `95769.559` | `96310.587` | `665.828` | `218.180` |
-| `5000` | `303.871` | `1188.718` | `2321.216` | `6116.459` | `317098.375` | `325740.476` | `865.961` | `188.054` |
+* `Resource utilization` refers to the CPU and memory usage of the OPA-Envoy container. `kubectl top` utility can be
+leveraged to measure this.
 
-##### gRPC Server Handler
 
-`gRPC Server Handler` is the total time taken to prepare the input for the policy, evaluate the policy (`OPA Evaluation`)
-and prepare the result.
+### Features
 
-| Number of Requests per sec | 75% | 90% | 95% | 99% | 99.9% | 99.99% | Mean | Median |
-|--------------------------|---|---|---|---|-----|------|----|------|
-| `100` | `825.112` | `1170.699` | `1882.797` | `6559.087` | `15583.934` | `15651.395` | `862.647` | `613.916` |
-| `1000` | `536.859` | `957.586` | `1928.785` | `4606.781` | `139058.276` | `141515.222` | `884.912` | `397.676` |
-| `2000` | `564.386` | `1784.671` | `2794.505` | `43412.251` | `271882.085` | `272075.761` | `2008.655` | `351.330` |
-| `3000` | `538.376` | `2292.657` | `3014.675` | `32718.355` | `364730.469` | `370538.309` | `1799.534` | `322.755` |
-| `4000` | `708.905` | `2397.769` | `4134.862` | `316881.804` | `636688.855` | `637773.152` | `7054.173` | `400.242` |
-| `5000` | `620.252` | `2197.613` | `3548.392` | `176699.779` | `556518.400` | `558795.978` | `4581.492` | `339.063` |
-
-##### Resource Utilization
-
-The following table records the CPU and memory usage for the OPA-Envoy container. These metrics were obtained using the
-`kubectl top` command. No resource limits were specified for the OPA-Envoy container.
-
-| Number of Requests per sec | CPU(cores) | Memory(bytes) |
-|--------------------------|---|---|
-| `100` | `253m` | `21Mi` |
-| `1000` | `563m` | `52Mi` |
-| `2000` | `906m` | `121Mi` |
-| `3000` | `779m` | `117Mi` |
-| `4000` | `920m` | `159Mi` |
-| `5000` | `828m` | `116Mi` |
-
-In the analysis so far, the gRPC client used in Envoy's External authorization filter configuration is the [Google C++ gRPC client](https://github.com/grpc/grpc).
-The following graph displays the latency distribution for the same four conditions described previously (ie. *App Only*,
-*App and Envoy*, *App, Envoy and OPA (NOP policy)* and *App, Envoy and OPA (RBAC policy)*) by sending *100 requests/sec*
-to the sample application but now using Envoy’s in-built gRPC client.
-
-{{< figure src="hist-envoy-grpc-100.png" width="250" >}}
-
-The below graph captures the latency distribution when *1000 requests/sec* are sent to the sample application and
-Envoy’s in-built gRPC client is used.
-
-{{< figure src="hist-envoy-grpc-1000.png" width="250" >}}
-
-The above graphs show that there is extra latency added when the OPA-Envoy plugin is used as an external authorization service.
-For example, in the previous graph, the latency for the *App, Envoy and OPA (NOP policy)* condition between the 90th and 99th percentile
-is at least double than that for *App and Envoy*.
-
-The following graphs show the latency distribution for the *App, Envoy and OPA (NOP policy)* and *App, Envoy and OPA (RBAC policy)*
-condition and plot the latencies seen by using the Google C++ gRPC client and Envoy’s in-built gRPC client in the
-External authorization filter configuration. The first graph is when *100 requests/sec* are sent to the application
-while the second one for *1000 requests/sec*.
-
-{{< figure src="hist-google-vs-envoy-grpc-100.png" width="250" >}}
-
-{{< figure src="hist-google-vs-envoy-grpc-1000.png" width="250" >}}
+The sample OPA-Envoy deployment described [previously](#opa-envoy-plugin), does not utilize OPA's [decision logs](https://www.openpolicyagent.org/docs/latest/management-decision-logs/)
+management API that enables periodic reporting of decision logs to remote HTTP servers or local console. Decision logging
+can be enabled by updating the OPA-Envoy configuration, and the guidance provided on this page can be used to
+gather benchmark results.
