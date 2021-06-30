@@ -3,7 +3,65 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.30.0
+
+This release contains a number of enhancements and fixes.
+
+### Server and Runtime
+
+- Support listening on abstract Unix Domain Sockets ([#3533](https://github.com/open-policy-agent/opa/issues/3533)) authored by @[amanymous-net](https://github.com/amanymous-net)
+- Support minimum TLS version configuration, default to 1.2 ([#3226](https://github.com/open-policy-agent/opa/issues/3226)) authored by @[kale-amruta](https://github.com/kale-amruta)
+- Enhancement in REST Plugin: You can now specify a CA cert for remote services implementing the management APIs (bundles, status, decision logs, discovery) ([#1954](https://github.com/open-policy-agent/opa/issues/1954))
+- Bugfix: treat missing/empty roots as owning all paths ([#3521](https://github.com/open-policy-agent/opa/issues/3521))
+
+  Before, it would have been possible to overwrite a policy that was supplied by a bundle (with an empty manifest, or a manifest without declared roots), due to an erroneous check.
+  This will now be forbidden, and return a 400 HTTP status, in accordance with the documentation.
+- Extend POST v1/query endpoint to accept input, refactor index.html to use fetch()
+- Bundle download: In case of download or activation errors, the cached Etag is reset to the last successful activation. Previously OPA would reset the cached Etag entirely, which could trigger unnecessary bundle downloads in edge-case scenarios.
+
+### Tooling
+
+- `opa build`: Do not write manifest if empty ([#3480](https://github.com/open-policy-agent/opa/issues/3480)). Under the hood, the manifest metadata is now included in the Equal() function's checks.
+- `opa fmt`: Fix incorrect help text ([#3518](https://github.com/open-policy-agent/opa/issues/3518)) authored by @[andrehaland](https://github.com/andrehaland)
+- `opa bench`: Do not print nil errors ([#3530](https://github.com/open-policy-agent/opa/issues/3530))
+
+### Rego
+
+- Expose random seeding in rego package ([#3560](https://github.com/open-policy-agent/opa/issues/3560))
+- Enhance `ast.InterfaceToValue` to handle non-native types
+- Enhance indexer to understand function args
+- Enhance static property lookup of objects: Use binary search
+- Fix PE unknown check to avoid saving unnecessarily ([#3552](https://github.com/open-policy-agent/opa/issues/3552))
+- Fix inlining controls for functions ([#3463](https://github.com/open-policy-agent/opa/issues/3463))
+- Fix (shallow) partial eval of ref to empty collection in presence of `with` statement ([#3420](https://github.com/open-policy-agent/opa/issues/3420))
+- Fix cache value size checking during insert operation
+- Fix `indexof` when using UTF-8 characters
+- Fix `http.send` flaky test
+
+#### Wasm
+
+- SDK: update wasmtime-go to 0.28.0, authored by @[olivierlemasle](https://github.com/olivierlemasle)
+- Bugfix: count() now counts invalid UTF-8 runes (previously aborted)
+- Compiler: emit unreachable instruction after opa_abort()
+
+### Miscellaneous
+
+- `make check` now uses golangci-lint via docker, authored by @[willbeason](https://github.com/willbeason)
+- The statically-built linux binary is properly used in the make targets that need it, and published to edge binaries.
+- Built binaries are now smoke tested on Windows, macos, and Linux.
+- Fix test failing with Go 1.17 rc in gojsonschema ([#3589](https://github.com/open-policy-agent/opa/issues/3589)) authored by @[olivierlemasle](https://github.com/olivierlemasle)
+- Build: Bump Go version to 1.16.3 ([#3555](https://github.com/open-policy-agent/opa/issues/3555))
+- CI: enable dependabot for wasmtime-go
+
+#### Documentation
+
+- OAuth2/OIDC: Fixed `concat` arguments in metadata discovery method ([#3543](https://github.com/open-policy-agent/opa/pull/3543), @[iggbom](https://github.com/iggbom))
+- Policy Reference: syntax highlighting EBNF grammar (@[PatMyron](https://github.com/PatMyron))
+- Extending OPA: fix typo (@[dxps](https://github.com/dxps))
+- Extending OPA: marshal the decision log (@[TheLunaticScripter](https://github.com/TheLunaticScripter))
+- Kubernetes Introduction: fix typo (@[dbaker-rh](https://github.com/dbaker-rh))
+- Envoy: Add guidance for OPA-Envoy benchmarks
+- Change default linux download to `opa_linux_amd64_static`
 
 ## 0.29.4
 
