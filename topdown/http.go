@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -411,7 +412,7 @@ func createHTTPRequest(bctx BuiltinContext, obj ast.Object) (*http.Request, *htt
 
 	// Check the system certificates config first so that we
 	// load additional certificated into the correct pool.
-	if tlsUseSystemCerts != nil && *tlsUseSystemCerts {
+	if tlsUseSystemCerts != nil && *tlsUseSystemCerts && runtime.GOOS != "windows" {
 		pool, err := x509.SystemCertPool()
 		if err != nil {
 			return nil, nil, err
