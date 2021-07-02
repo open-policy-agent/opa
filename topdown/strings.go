@@ -88,6 +88,18 @@ func builtinConcat(a, b ast.Value) (ast.Value, error) {
 }
 
 func builtinIndexOf(a, b ast.Value) (ast.Value, error) {
+	runesEqual := func(a, b []rune) bool {
+		if len(a) != len(b) {
+			return false
+		}
+		for i, v := range a {
+			if v != b[i] {
+				return false
+			}
+		}
+		return true
+	}
+
 	base, err := builtins.StringOperand(a, 1)
 	if err != nil {
 		return nil, err
@@ -102,10 +114,16 @@ func builtinIndexOf(a, b ast.Value) (ast.Value, error) {
 	}
 
 	baseRunes := []rune(string(base))
-	searchRune := []rune(string(search))[0]
+	searchRunes := []rune(string(search))
+	searchLen := len(searchRunes)
+
 	for i, r := range baseRunes {
-		if r == searchRune {
-			return ast.IntNumberTerm(i).Value, nil
+		if r == searchRunes[0] {
+			if len(baseRunes) >= i+searchLen {
+				if runesEqual(baseRunes[i:i+searchLen], searchRunes) {
+					return ast.IntNumberTerm(i).Value, nil
+				}
+			}
 		}
 	}
 

@@ -1,13 +1,56 @@
 cases:
-- data:
-  modules:
+- modules:
   - |
     package test
 
     p = x {
       indexof("μx", "x", x)
     }
-  note: 'strings/indexof: unicode'
+  note: 'strings/indexof: unicode char'
   query: data.test.p = x
   want_result:
   - x: 1
+- modules:
+  - |
+    package test
+
+    p = x {
+      indexof("μ", "μμ", x)
+    }
+  note: 'strings/indexof: unicode chars not found'
+  query: data.test.p = x
+  want_result:
+  - x: -1
+- modules:
+  - |
+    package test
+
+    p = x {
+      indexof("skön var våren", "vår", x)
+    }
+  note: 'strings/indexof: unicode string'
+  query: data.test.p = x
+  want_result:
+  - x: 9
+- modules:
+  - |
+    package test
+
+    p = x {
+      indexof("🍧🍨🧁🍰🍮", "🍮", x)
+    }
+  note: 'strings/indexof: unicode string emoji'
+  query: data.test.p = x
+  want_result:
+  - x: 4
+- modules:
+  - |
+    package test
+
+    p = x {
+      indexof("🍧🍨🧁🍰🍮", "🍧🍨🧁🍰🍮", x)
+    }
+  note: 'strings/indexof: unicode string emojis'
+  query: data.test.p = x
+  want_result:
+  - x: 0
