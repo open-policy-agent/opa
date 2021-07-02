@@ -3,7 +3,14 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.30.1
+
+This is a bugfix release to correct the behaviour of the `indexof` builtin ([#3606](https://github.com/open-policy-agent/opa/issues/3606)).
+In v0.30.0, it only checked the first character of the substring to be found: `indexof("foo", "fox")` erroneously returned 0 instead of -1.
+
+### Miscellaneous
+
+- wasm-sdk: Fix typo in non-wasm error message, authored by @[olivierlemasle](https://github.com/olivierlemasle)
 
 ## 0.30.0
 
