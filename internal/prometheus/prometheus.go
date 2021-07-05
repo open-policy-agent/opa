@@ -12,6 +12,7 @@ import (
 	"strconv"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/open-policy-agent/opa/metrics"
@@ -30,7 +31,7 @@ type Provider struct {
 // New returns a new Provider object.
 func New(inner metrics.Metrics, logger func(attrs map[string]interface{}, f string, a ...interface{})) *Provider {
 	registry := prometheus.NewRegistry()
-	registry.MustRegister(prometheus.NewGoCollector())
+	registry.MustRegister(collectors.NewGoCollector())
 	durationHistogram := prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name: "http_request_duration_seconds",
