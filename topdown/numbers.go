@@ -5,7 +5,9 @@
 package topdown
 
 import (
+	"fmt"
 	"math/big"
+	"math/rand"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/topdown/builtins"
@@ -53,6 +55,34 @@ func builtinNumbersRange(bctx BuiltinContext, operands []*ast.Term, iter func(*a
 	return iter(ast.NewTerm(result))
 }
 
+func builtinRandIntn(bctx BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
+
+	strOp, err := builtins.StringOperand(args[0].Value, 1)
+	if err != nil {
+		return err
+
+	}
+
+	n, err := builtins.IntOperand(args[1].Value, 2)
+	if err != nil {
+		return err
+	}
+
+	var key = uuidCachingKey(fmt.Sprintf("%s-%d", strOp, n))
+	var result *ast.Term
+
+	if val, ok := bctx.Cache.Get(key); !ok {
+		result = ast.IntNumberTerm(rand.Intn(n))
+		bctx.Cache.Put(key, result)
+	} else {
+		result = val.(*ast.Term)
+	}
+
+	return iter(result)
+
+}
+
 func init() {
 	RegisterBuiltinFunc(ast.NumbersRange.Name, builtinNumbersRange)
+	RegisterBuiltinFunc(ast.RandIntn.Name, builtinRandIntn)
 }
