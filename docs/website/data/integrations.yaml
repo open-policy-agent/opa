@@ -939,6 +939,21 @@ integrations:
     videos:
       - https://www.youtube.com/watch?v=K1Zm2FPfrh8
 
+  bottle:
+    title: Custom Bottle Application Authorization
+    description:  |
+      This integration demonstrates using Open Policy Agent to perform API authorization for a Python application backed by Bottle.
+      Bottle is a fast, simple and lightweight WSGI micro web-framework for Python.
+    labels:
+      layer: network
+      category: application
+    software:
+      - bottle
+    code:
+      - https://github.com/dolevf/bottle-acl-openpolicyagent
+    blogs:
+      - https://blog.lethalbit.com/open-policy-agent-for-bottle-web-framework/
+
 organizations:
   styra:
     name: Styra
@@ -1181,3 +1196,6 @@ software:
   sphinx-doc:
     name: Sphinx
     link: https://www.sphinx-doc.org
+  bottle:
+    name: Bottle
+    link: https://bottlepy.org
