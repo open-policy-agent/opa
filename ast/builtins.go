@@ -126,6 +126,7 @@ var DefaultBuiltins = [...]*Builtin{
 
 	// Numbers
 	NumbersRange,
+	RandIntn,
 
 	// Encoding
 	JSONMarshal,
@@ -1038,6 +1039,18 @@ var Sprintf = &Builtin{
 /**
  * Numbers
  */
+
+// RandIntn returns a random number 0 - n
+var RandIntn = &Builtin{
+	Name: "rand.intn",
+	Decl: types.NewFunction(
+		types.Args(
+			types.S,
+			types.N,
+		),
+		types.N,
+	),
+}
 
 // NumbersRange returns an array of numbers in the given inclusive range.
 var NumbersRange = &Builtin{

@@ -2387,6 +2387,23 @@
       }
     },
     {
+      "name": "rand.intn",
+      "decl": {
+        "args": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "number"
+          }
+        ],
+        "result": {
+          "type": "number"
+        },
+        "type": "function"
+      }
+    },
+    {
       "name": "re_match",
       "decl": {
         "args": [
