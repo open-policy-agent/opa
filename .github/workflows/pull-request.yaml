@@ -9,7 +9,7 @@ jobs:
   go:
     runs-on: ubuntu-18.04
     outputs:
-      version: ${{ steps.go_version.outputs.go_versiont }}
+      version: ${{ steps.go_version.outputs.go_version }}
     steps:
       - name: Check out code
         uses: actions/checkout@v2
@@ -57,7 +57,7 @@ jobs:
   go-build-darwin:
     name: Go Build (darwin)
     runs-on: macos-latest
-    needs: go-version
+    needs: go
     steps:
       - name: Check out code
         uses: actions/checkout@v2
@@ -81,7 +81,7 @@ jobs:
   go-test:
     name: Go Test
     runs-on: ${{ matrix.os }}
-    needs: go-version
+    needs: go
     strategy:
       matrix:
         include:
