@@ -6,6 +6,18 @@ jobs:
   # All jobs essentially re-create the `ci-release-test` make target, but are split
   # up for parallel runners for faster PR feedback and a nicer UX.
 
+  go:
+    runs-on: ubuntu-18.04
+    outputs:
+      version: ${{ steps.go_version.outputs.go_versiont }}
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - id: go_version
+        name: Read go version
+        run: echo "::set-output name=go_version::$(cat .go-version)"
+
   go-build-linux:
     name: Go Build (linux)
     runs-on: ubuntu-18.04
@@ -45,18 +57,15 @@ jobs:
   go-build-darwin:
     name: Go Build (darwin)
     runs-on: macos-latest
+    needs: go-version
     steps:
       - name: Check out code
         uses: actions/checkout@v2
 
-      - id: go_version
-        name: Read go version
-        run: echo "::set-output name=go_version::$(cat .go-version)"
-
-      - name: Install Go (${{ steps.go_version.outputs.go_version }})
+      - name: Install Go (${{ needs.go.outputs.version }})
         uses: actions/setup-go@v2
         with:
-          go-version: ${{ steps.go_version.outputs.go_version }}
+          go-version: ${{ needs.go.outputs.version }}
 
       - name: Build Darwin
         run: make ci-build-darwin
@@ -71,13 +80,26 @@ jobs:
 
   go-test:
     name: Go Test
-    runs-on: ubuntu-18.04
+    runs-on: ${{ matrix.os }}
+    needs: go-version
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-18.04
+          - os: macos-latest
+          - os: windows-latest
+
     steps:
       - name: Check out code
         uses: actions/checkout@v2
 
+      - name: Install Go (${{ needs.go.outputs.version }})
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ needs.go.outputs.version }}
+
       - name: Unit Test Golang
-        run: make ci-go-test-coverage
+        run: make test-coverage
         timeout-minutes: 30
 
   go-perf:
