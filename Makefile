@@ -114,7 +114,7 @@ race-detector: generate
 	$(GO) test $(GO_TAGS),slow -race -vet=off ./...
 
 .PHONY: test-coverage
-test-coverage: generate
+test-coverage:
 	$(GO) test $(GO_TAGS),slow -coverprofile=coverage.txt -covermode=atomic ./...
 
 .PHONY: perf
