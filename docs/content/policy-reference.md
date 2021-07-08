@@ -364,7 +364,7 @@ complex types.
 | Built-in | Description | Wasm Support |
 | ------- |-------------|---------------|
 | <span class="opa-keep-it-together">``output := regex.match(pattern, value)``</span> | ``output`` is a ``boolean`` that indicates if ``value`` matches the regex ``pattern``. | ✅ |
-| <span class="opa-keep-it-together">``output := regex.is_valid(pattern)``</span> | ``output`` is a ``boolean`` that indicates if ``pattern` is a valid regex pattern. The detailed syntax for regex patterns is defined by https://github.com/google/re2/wiki/Syntax. | ✅ |
+| <span class="opa-keep-it-together">``output := regex.is_valid(pattern)``</span> | ``output`` is a ``boolean`` that indicates if ``pattern`` is a valid regex pattern. The detailed syntax for regex patterns is defined by https://github.com/google/re2/wiki/Syntax. | ✅ |
 | <span class="opa-keep-it-together">``output := regex.split(pattern, string)``</span> | ``output`` is ``array[string]`` representing elements of ``string`` separated by ``pattern`` | ``SDK-dependent`` |
 | <span class="opa-keep-it-together">``regex.globs_match(glob1, glob2)``</span> | true if the intersection of regex-style globs ``glob1`` and ``glob2`` matches a non-empty set of non-empty strings. The set of regex symbols is limited for this builtin: only ``.``, ``*``, ``+``, ``[``, ``-``, ``]`` and ``\`` are treated as special symbols. | ``SDK-dependent`` |
 | <span class="opa-keep-it-normal">``output := regex.template_match(pattern, string, delimiter_start, delimiter_end)``</span> | ``output`` is true if ``string`` matches ``pattern``. ``pattern`` is a string containing ``0..n`` regular expressions delimited by ``delimiter_start`` and ``delimiter_end``. Example ``regex.template_match("urn:foo:{.*}", "urn:foo:bar:baz", "{", "}")`` returns ``true``. | ``SDK-dependent`` |
@@ -793,6 +793,7 @@ Note that the opa executable will need access to the timezone files in the envir
 | Built-in | Description | Wasm Support |
 | ------- |-------------|---------------|
 | <span class="opa-keep-it-together">``output := crypto.x509.parse_certificates(certs)``</span> | ``certs`` is base64 encoded DER or PEM data containing one or more certificates or a PEM string of one or more certificates. ``output`` is an array of X.509 certificates represented as JSON objects. | ``SDK-dependent`` |
+| <span class="opa-keep-it-together">``output := crypto.x509.parse_and_verify_certificates(certs)``</span> | ``certs`` is base64 encoded DER or PEM data containing two or more certificates where the first is a root CA, the last is a leaf certificate, and all others are intermediate CAs. ``output`` is of the form ``[valid, certs]``. If the input certificate chain could be verified then ``valid`` is ``true`` and ``certs`` is an array of X.509 certificates represented as JSON objects. If the input certificate chain could not be verified then ``valid`` is ``false`` and ``certs`` is ``[]``. | ``SDK-dependent`` |
 | <span class="opa-keep-it-together">``output := crypto.x509.parse_certificate_request(csr)``</span> | ``csr`` is a base64 string containing either a PEM encoded or DER CSR or a string containing a PEM CSR.``output`` is an X.509 CSR represented as a JSON object. | ``SDK-dependent`` |
 | <span class="opa-keep-it-together">``output := crypto.md5(string)``</span> | ``output`` is ``string`` md5 hashed. | ``SDK-dependent`` |
 | <span class="opa-keep-it-together">``output := crypto.sha1(string)``</span> | ``output`` is ``string`` sha1 hashed. | ``SDK-dependent`` |
@@ -854,7 +855,7 @@ The `request` object parameter may contain the following fields:
 | `headers` | no | `object` | HTTP headers to include in the request (e.g,. `{"X-Opa": "rules"}`). |
 | `enable_redirect` | no | `boolean` | Follow HTTP redirects. Default: `false`. |
 | `force_json_decode` | no | `boolean` | Decode the HTTP response message body as JSON even if the `Content-Type` header is missing. Default: `false`. |
-| `tls_use_system_certs` | no | `boolean` | Use the system certificate pool. Default: `true` when `tls_ca_cert`, `tls_ca_cert_file`, `tls_ca_cert_env_variable` are unset. |
+| `tls_use_system_certs` | no | `boolean` | Use the system certificate pool. Default: `true` when `tls_ca_cert`, `tls_ca_cert_file`, `tls_ca_cert_env_variable` are unset. **Ignored on Windows** due to the system certificate pool not being accessible in the same way as it is for other platforms. |
 | `tls_ca_cert` | no | `string` | String containing a root certificate in PEM encoded format. |
 | `tls_ca_cert_file` | no | `string` | Path to file containing a root certificate in PEM encoded format. |
 | `tls_ca_cert_env_variable` | no | `string` | Environment variable containing a root certificate in PEM encoded format. |
@@ -1045,7 +1046,7 @@ with
 
 Rego’s syntax is defined by the following grammar:
 
-```
+```ebnf
 module          = package { import } policy
 package         = "package" ref
 import          = "import" package [ "as" var ]

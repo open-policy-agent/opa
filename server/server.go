@@ -59,6 +59,8 @@ const (
 	AuthenticationTLS
 )
 
+var supportedTLSVersions = []uint16{tls.VersionTLS10, tls.VersionTLS11, tls.VersionTLS12, tls.VersionTLS13}
+
 // AuthorizationScheme enumerates the supported authorization schemes. The authorization
 // scheme determines how access to OPA is controlled.
 type AuthorizationScheme int
@@ -68,6 +70,8 @@ const (
 	AuthorizationOff AuthorizationScheme = iota
 	AuthorizationBasic
 )
+
+const defaultMinTLSVersion = tls.VersionTLS12
 
 // Set of handlers for use in the "handler" dimension of the duration metric.
 const (
@@ -100,6 +104,7 @@ type Server struct {
 	authorization          AuthorizationScheme
 	cert                   *tls.Certificate
 	certPool               *x509.CertPool
+	minTLSVersion          uint16
 	mtx                    sync.RWMutex
 	partials               map[string]rego.PartialResult
 	preparedEvalQueries    *cache
@@ -302,6 +307,15 @@ func (s *Server) WithRouter(router *mux.Router) *Server {
 	return s
 }
 
+func (s *Server) WithMinTLSVersion(minTLSVersion uint16) *Server {
+	if isMinTLSVersionSupported(minTLSVersion) {
+		s.minTLSVersion = minTLSVersion
+	} else {
+		s.minTLSVersion = defaultMinTLSVersion
+	}
+	return s
+}
+
 // Listeners returns functions that listen and serve connections.
 func (s *Server) Listeners() ([]Loop, error) {
 	loops := []Loop{}
@@ -463,6 +477,15 @@ func (b *baseHTTPListener) Type() httpListenerType {
 	return b.t
 }
 
+func isMinTLSVersionSupported(TLSVersion uint16) bool {
+	for _, version := range supportedTLSVersions {
+		if TLSVersion == version {
+			return true
+		}
+	}
+	return false
+}
+
 func (s *Server) getListener(addr string, h http.Handler, t httpListenerType) (Loop, httpListener, error) {
 	parsedURL, err := parseURL(addr, s.cert != nil)
 	if err != nil {
@@ -515,6 +538,12 @@ func (s *Server) getListenerForHTTPSServer(u *url.URL, h http.Handler, t httpLis
 	}
 	if s.authentication == AuthenticationTLS {
 		httpsServer.TLSConfig.ClientAuth = tls.RequireAndVerifyClientCert
+	}
+
+	if s.minTLSVersion != 0 {
+		httpsServer.TLSConfig.MinVersion = s.minTLSVersion
+	} else {
+		httpsServer.TLSConfig.MinVersion = defaultMinTLSVersion
 	}
 
 	l := newHTTPListener(&httpsServer, t)

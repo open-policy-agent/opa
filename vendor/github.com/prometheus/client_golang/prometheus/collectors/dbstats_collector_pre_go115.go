@@ -1,4 +1,4 @@
-// Copyright 2019 The Prometheus Authors
+// Copyright 2021 The Prometheus Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -11,19 +11,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build go1.12
+// +build !go1.15
 
-package prometheus
+package collectors
 
-import "runtime/debug"
+import (
+	"database/sql"
 
-// readBuildInfo is a wrapper around debug.ReadBuildInfo for Go 1.12+.
-func readBuildInfo() (path, version, sum string) {
-	path, version, sum = "unknown", "unknown", "unknown"
-	if bi, ok := debug.ReadBuildInfo(); ok {
-		path = bi.Main.Path
-		version = bi.Main.Version
-		sum = bi.Main.Sum
-	}
-	return
-}
+	"github.com/prometheus/client_golang/prometheus"
+)
+
+func (c *dbStatsCollector) describeNewInGo115(ch chan<- *prometheus.Desc) {}
+
+func (c *dbStatsCollector) collectNewInGo115(ch chan<- prometheus.Metric, stats sql.DBStats) {}

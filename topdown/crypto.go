@@ -5,6 +5,7 @@
 package topdown
 
 import (
+	"bytes"
 	"crypto/md5"
 	"crypto/sha1"
 	"crypto/sha256"
@@ -32,67 +33,54 @@ const (
 )
 
 func builtinCryptoX509ParseCertificates(a ast.Value) (ast.Value, error) {
-
 	input, err := builtins.StringOperand(a, 1)
 	if err != nil {
 		return nil, err
 	}
 
-	// data to be passed to x509.ParseCertificates
-	bytes := []byte(input)
-
-	// if the input is not a PEM string, attempt to decode b64
-	if str := string(input); !strings.HasPrefix(str, "-----BEGIN CERTIFICATE-----") {
-		bytes, err = base64.StdEncoding.DecodeString(str)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	// attempt to decode input as PEM data
-	p, rest := pem.Decode(bytes)
-	if p != nil && p.Type != blockTypeCertificate {
-		return nil, fmt.Errorf("PEM data contains '%s', expected CERTIFICATE", p.Type)
-	}
-	if p != nil {
-		// if PEM decoded as a valid certificate, use its data as the DER input
-		bytes = p.Bytes
-	}
-
-	// check for more certificates in the chain
-	if p != nil && len(rest) > 0 {
-		var p *pem.Block
-		for {
-			p, rest = pem.Decode(rest)
-			if p == nil {
-				// finish when no more PEM data is read
-				break
-			}
-			// reject any data that isn't exclusively certificates
-			if p.Type != blockTypeCertificate {
-				return nil, fmt.Errorf("PEM data contains '%s', expected CERTIFICATE", p.Type)
-			}
-			bytes = append(bytes, p.Bytes...)
-		}
-	}
-
-	certs, err := x509.ParseCertificates(bytes)
+	certs, err := getX509CertsFromString(string(input))
 	if err != nil {
 		return nil, err
 	}
 
-	bs, err := json.Marshal(certs)
+	return ast.InterfaceToValue(certs)
+}
+
+func builtinCryptoX509ParseAndVerifyCertificates(
+	_ BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
+
+	a := args[0].Value
+	input, err := builtins.StringOperand(a, 1)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	var x interface{}
+	invalid := ast.ArrayTerm(
+		ast.BooleanTerm(false),
+		ast.NewTerm(ast.NewArray()),
+	)
 
-	if err := util.UnmarshalJSON(bs, &x); err != nil {
-		return nil, err
+	certs, err := getX509CertsFromString(string(input))
+	if err != nil {
+		return iter(invalid)
 	}
 
-	return ast.InterfaceToValue(x)
+	verified, err := verifyX509CertificateChain(certs)
+	if err != nil {
+		return iter(invalid)
+	}
+
+	value, err := ast.InterfaceToValue(verified)
+	if err != nil {
+		return err
+	}
+
+	valid := ast.ArrayTerm(
+		ast.BooleanTerm(true),
+		ast.NewTerm(value),
+	)
+
+	return iter(valid)
 }
 
 func builtinCryptoX509ParseCertificateRequest(a ast.Value) (ast.Value, error) {
@@ -160,10 +148,82 @@ func builtinCryptoSha256(a ast.Value) (ast.Value, error) {
 
 func init() {
 	RegisterFunctionalBuiltin1(ast.CryptoX509ParseCertificates.Name, builtinCryptoX509ParseCertificates)
+	RegisterBuiltinFunc(ast.CryptoX509ParseAndVerifyCertificates.Name, builtinCryptoX509ParseAndVerifyCertificates)
 	RegisterFunctionalBuiltin1(ast.CryptoMd5.Name, builtinCryptoMd5)
 	RegisterFunctionalBuiltin1(ast.CryptoSha1.Name, builtinCryptoSha1)
 	RegisterFunctionalBuiltin1(ast.CryptoSha256.Name, builtinCryptoSha256)
 	RegisterFunctionalBuiltin1(ast.CryptoX509ParseCertificateRequest.Name, builtinCryptoX509ParseCertificateRequest)
+}
+
+func verifyX509CertificateChain(certs []*x509.Certificate) ([]*x509.Certificate, error) {
+	if len(certs) < 2 {
+		return nil, builtins.NewOperandErr(1, "must supply at least two certificates to be able to verify")
+	}
+
+	// first cert is the root
+	roots := x509.NewCertPool()
+	roots.AddCert(certs[0])
+
+	// all other certs except the last are intermediates
+	intermediates := x509.NewCertPool()
+	for i := 1; i < len(certs)-1; i++ {
+		intermediates.AddCert(certs[i])
+	}
+
+	// last cert is the leaf
+	leaf := certs[len(certs)-1]
+
+	// verify the cert chain back to the root
+	verifyOpts := x509.VerifyOptions{
+		Roots:         roots,
+		Intermediates: intermediates,
+	}
+	chains, err := leaf.Verify(verifyOpts)
+	if err != nil {
+		return nil, err
+	}
+
+	return chains[0], nil
+}
+
+func getX509CertsFromString(certs string) ([]*x509.Certificate, error) {
+	// if the input is PEM handle that
+	if strings.HasPrefix(certs, "-----BEGIN") {
+		return getX509CertsFromPem([]byte(certs))
+	}
+
+	// assume input is base64 if not PEM
+	b64, err := base64.StdEncoding.DecodeString(certs)
+	if err != nil {
+		return nil, err
+	}
+
+	// handle if the decoded base64 contains PEM rather than the expected DER
+	if bytes.HasPrefix(b64, []byte("-----BEGIN")) {
+		return getX509CertsFromPem(b64)
+	}
+
+	// otherwise assume the contents are DER
+	return x509.ParseCertificates(b64)
+}
+
+func getX509CertsFromPem(pemBlocks []byte) ([]*x509.Certificate, error) {
+	var decodedCerts []byte
+	for len(pemBlocks) > 0 {
+		p, r := pem.Decode(pemBlocks)
+		if p != nil && p.Type != blockTypeCertificate {
+			return nil, fmt.Errorf("PEM block type is '%s', expected %s", p.Type, blockTypeCertificate)
+		}
+
+		if p == nil {
+			break
+		}
+
+		pemBlocks = r
+		decodedCerts = append(decodedCerts, p.Bytes...)
+	}
+
+	return x509.ParseCertificates(decodedCerts)
 }
 
 // addCACertsFromFile adds CA certificates from filePath into the given pool.

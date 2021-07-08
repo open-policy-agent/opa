@@ -20,7 +20,7 @@ type OPA struct {
 func New() *OPA {
 	fmt.Fprintf(os.Stderr, `WebAssembly runtime not supported in this build.
 ----------------------------------------------------------------------------------
-Please download an OPA binay with Wasm enabled from
+Please download an OPA binary with Wasm enabled from
   https://www.openpolicyagent.org/docs/latest/#running-opa
 or build it yourself (with Wasm enabled).
 ----------------------------------------------------------------------------------
