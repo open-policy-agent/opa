@@ -63,7 +63,6 @@ Decision log updates contain the following fields:
 | --- | --- | --- |
 | `[_].labels` | `object` | Set of key-value pairs that uniquely identify the OPA instance. |
 | `[_].decision_id` | `string` | Unique identifier generated for each decision for traceability. |
-| `[_].revision` | `string` | (Deprecated) Bundle revision that contained the policy used to produce the decision. Omitted when `bundles` are configured.  |
 | `[_].bundles` | `object` | Set of key-value pairs describing the bundles which contained policy used to produce the decision. |
 | `[_].bundles[_].revision` | `string` | Revision of the bundle at the time of evaluation. |
 | `[_].path` | `string` | Hierarchical policy decision path, e.g., `/http/example/authz/allow`. Receivers should tolerate slash-prefixed paths. |
