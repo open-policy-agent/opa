@@ -7,6 +7,7 @@ package opa
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"runtime"
 	"sync"
 	"time"
@@ -159,6 +160,7 @@ type EvalOpts struct {
 	Input      *interface{}
 	Metrics    metrics.Metrics
 	Time       time.Time
+	Seed       io.Reader
 }
 
 // Eval evaluates the policy with the given input, returning the
@@ -182,7 +184,7 @@ func (o *OPA) Eval(ctx context.Context, opts EvalOpts) (*Result, error) {
 
 	defer o.pool.Release(instance, m)
 
-	result, err := instance.Eval(ctx, opts.Entrypoint, opts.Input, m, opts.Time)
+	result, err := instance.Eval(ctx, opts.Entrypoint, opts.Input, m, opts.Seed, opts.Time)
 	if err != nil {
 		return nil, err
 	}

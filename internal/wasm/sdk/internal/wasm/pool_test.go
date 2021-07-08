@@ -8,6 +8,7 @@ package wasm_test
 
 import (
 	"context"
+	"math/rand"
 	"testing"
 	"time"
 
@@ -155,7 +156,7 @@ func ensurePoolResults(t *testing.T, ctx context.Context, testPool *wasm.Pool, p
 
 		toRelease = append(toRelease, vm)
 
-		result, err := vm.Eval(ctx, 0, nil, metrics.New(), time.Now())
+		result, err := vm.Eval(ctx, 0, nil, metrics.New(), rand.New(rand.NewSource(0)), time.Now())
 		if err != nil {
 			t.Fatalf("Unexpected error: %s", err)
 		}

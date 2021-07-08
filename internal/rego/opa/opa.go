@@ -50,6 +50,7 @@ func (o *OPA) Eval(ctx context.Context, opts EvalOpts) (*Result, error) {
 		Input:   opts.Input,
 		Metrics: opts.Metrics,
 		Time:    opts.Time,
+		Seed:    opts.Seed,
 	}
 
 	res, err := o.opa.Eval(ctx, evalOptions)

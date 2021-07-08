@@ -9,6 +9,7 @@ package rego
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -221,6 +222,50 @@ allow {
 			if time.Since(before) > 2*time.Second {
 				// if the cancelled execution took so long, it wasn't really cancelled
 				t.Errorf("expected cancellation, but test ran %s", time.Since(before))
+			}
+		})
+	}
+}
+
+func TestRandSeedingOptions(t *testing.T) {
+
+	ctx := context.Background()
+
+	exp := "0194fdc2-fa2f-4cc0-81d3-ff12045b73c8"
+
+	for _, tgt := range []string{targetWasm, targetRego} {
+		t.Run(tgt, func(t *testing.T) {
+			seed := rand.New(rand.NewSource(0))
+
+			// Check expected uuid is returned.
+			rs, err := New(Query(`uuid.rfc4122("", x)`), Seed(seed), Target(tgt)).Eval(ctx)
+			if err != nil {
+				t.Fatal(err)
+			} else if rs[0].Bindings["x"] != exp {
+				t.Fatalf("expected %q but got %q", exp, rs[0].Bindings["x"])
+			}
+
+			// Check that seed does not propagate to prepared query.
+			eval, err := New(Query(`uuid.rfc4122("", x)`), Seed(seed)).PrepareForEval(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			rs2, err := eval.Eval(ctx)
+			if err != nil {
+				t.Fatal(err)
+			} else if rs2[0].Bindings["x"] == exp {
+				t.Fatal("expected new uuid")
+			}
+
+			exp3 := "6e4ff95f-f662-45ee-a82a-bdf44a2d0b75"
+
+			// Check that prepared query uses explicitly provided seed.
+			rs3, err := eval.Eval(ctx, EvalSeed(seed))
+			if err != nil {
+				t.Fatal(err)
+			} else if rs3[0].Bindings["x"] != exp3 {
+				t.Fatalf("expected %q but got %q", exp, rs3[0].Bindings["x"])
 			}
 		})
 	}
