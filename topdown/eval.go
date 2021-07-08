@@ -1035,22 +1035,33 @@ func (e *eval) buildComprehensionCacheObject(x *ast.ObjectComprehension, keys []
 }
 
 func (e *eval) biunifyComprehensionPartial(a, b *ast.Term, b1, b2 *bindings, swap bool, iter unifyIterator) error {
-	cpyA := a.Copy()
-
-	// Capture bindings available to the comprehension. We will add expressions
-	// to the comprehension body that ensure the comprehension body is safe.
-	// Currently this process adds _all_ bindings (even if they are not
-	// needed.) Eventually we may want to make the logic a bit smarter.
-	var extras []*ast.Expr
-
-	err := b1.Iter(e.caller.bindings, func(k, v *ast.Term) error {
-		extras = append(extras, ast.Equality.Expr(k, v))
-		return nil
-	})
-
+	var err error
+	cpyA, err := e.amendComprehension(a, b1)
 	if err != nil {
 		return err
 	}
+
+	if ast.IsComprehension(b.Value) {
+		b, err = e.amendComprehension(b, b2)
+		if err != nil {
+			return err
+		}
+	}
+
+	// The other term might need to be plugged so include the bindings. The
+	// bindings for the comprehension term are saved (for compatibility) but
+	// the eventual plug operation on the comprehension will be a no-op.
+	if !swap {
+		return e.saveUnify(cpyA, b, b1, b2, iter)
+	}
+
+	return e.saveUnify(b, cpyA, b2, b1, iter)
+}
+
+// amendComprehension captures bindings available to the comprehension,
+// and used within its term or body.
+func (e *eval) amendComprehension(a *ast.Term, b1 *bindings) (*ast.Term, error) {
+	cpyA := a.Copy()
 
 	// Namespace the variables in the body to avoid collision when the final
 	// queries returned by partial evaluation.
@@ -1064,23 +1075,22 @@ func (e *eval) biunifyComprehensionPartial(a, b *ast.Term, b1, b2 *bindings, swa
 	case *ast.ObjectComprehension:
 		body = &a.Body
 	default:
-		return fmt.Errorf("illegal comprehension %T", a)
+		return nil, fmt.Errorf("illegal comprehension %T", a)
 	}
 
-	for _, e := range extras {
-		body.Append(e)
+	vars := a.Vars()
+	err := b1.Iter(e.caller.bindings, func(k, v *ast.Term) error {
+		if vars.Contains(k.Value.(ast.Var)) {
+			body.Append(ast.Equality.Expr(k, v))
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	b1.Namespace(cpyA, e.caller.bindings)
-
-	// The other term might need to be plugged so include the bindings. The
-	// bindings for the comprehension term are saved (for compatibility) but
-	// the eventual plug operation on the comprehension will be a no-op.
-	if !swap {
-		return e.saveUnify(cpyA, b, b1, b2, iter)
-	}
-
-	return e.saveUnify(b, cpyA, b2, b1, iter)
+	return cpyA, nil
 }
 
 func (e *eval) biunifyComprehensionArray(x *ast.ArrayComprehension, b *ast.Term, b1, b2 *bindings, iter unifyIterator) error {
