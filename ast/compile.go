@@ -827,7 +827,7 @@ func (c *Compiler) checkSafetyRuleBodies() {
 
 func (c *Compiler) checkBodySafety(safe VarSet, b Body) Body {
 	reordered, unsafe := reorderBodyForSafety(c.builtins, c.GetArity, safe, b)
-	if errs := safetyErrorSlice(unsafe); len(errs) > 0 {
+	if errs := safetyErrorSlice(unsafe, c.RewrittenVars); len(errs) > 0 {
 		for _, err := range errs {
 			c.err(err)
 		}
@@ -855,6 +855,9 @@ func (c *Compiler) checkSafetyRuleHeads() {
 			safe.Update(r.Head.Args.Vars())
 			unsafe := r.Head.Vars().Diff(safe)
 			for v := range unsafe {
+				if w, ok := c.RewrittenVars[v]; ok {
+					v = w
+				}
 				if !v.IsGenerated() {
 					c.err(NewError(UnsafeVarErr, r.Loc(), "var %v is unsafe", v))
 				}
@@ -1650,7 +1653,7 @@ func (qc *queryCompiler) checkUndefinedFuncs(_ *QueryContext, body Body) (Body, 
 func (qc *queryCompiler) checkSafety(_ *QueryContext, body Body) (Body, error) {
 	safe := ReservedVars.Copy()
 	reordered, unsafe := reorderBodyForSafety(qc.compiler.builtins, qc.compiler.GetArity, safe, body)
-	if errs := safetyErrorSlice(unsafe); len(errs) > 0 {
+	if errs := safetyErrorSlice(unsafe, qc.RewrittenVars()); len(errs) > 0 {
 		return nil, errs
 	}
 	return reordered, nil
@@ -3867,15 +3870,19 @@ func isVirtual(node *TreeNode, ref Ref) bool {
 	return true
 }
 
-func safetyErrorSlice(unsafe unsafeVars) (result Errors) {
+func safetyErrorSlice(unsafe unsafeVars, rewritten map[Var]Var) (result Errors) {
 
 	if len(unsafe) == 0 {
 		return
 	}
 
 	for _, pair := range unsafe.Vars() {
-		if !pair.Var.IsGenerated() {
-			result = append(result, NewError(UnsafeVarErr, pair.Loc, "var %v is unsafe", pair.Var))
+		v := pair.Var
+		if w, ok := rewritten[v]; ok {
+			v = w
+		}
+		if !v.IsGenerated() {
+			result = append(result, NewError(UnsafeVarErr, pair.Loc, "var %v is unsafe", v))
 		}
 	}
 

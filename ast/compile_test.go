@@ -1591,6 +1591,19 @@ func TestCompilerRewriteLocalAssignments(t *testing.T) {
 		{
 			module: `
 				package test
+				head_unsafe_var[a] { some a }
+			`,
+			exp: `
+				package test
+				head_unsafe_var[__local0__] { true }
+			`,
+			expRewrittenMap: map[Var]Var{
+				Var("__local0__"): Var("a"),
+			},
+		},
+		{
+			module: `
+				package test
 				p = {1,2,3}
 				x = 4
 				head_nested[p[x]] {
@@ -2343,6 +2356,17 @@ func TestRewriteDeclaredVars(t *testing.T) {
 				}
 			`,
 			wantErr: errors.New("declared var x unused"),
+		},
+		{
+			note: "declare unsafe err",
+			module: `
+				package test
+				p[x] {
+					some x
+					x == 1
+				}
+			`,
+			wantErr: errors.New("var x is unsafe"),
 		},
 		{
 			note: "declare arg err",
@@ -3825,6 +3849,13 @@ func TestQueryCompiler(t *testing.T) {
 			pkg:      "",
 			imports:  nil,
 			expected: fmt.Errorf("1 error occurred: 1:1: rego_unsafe_var_error: var z is unsafe"),
+		},
+		{
+			note:     "unsafe declared var",
+			q:        "[1 | some x; x == 1]",
+			pkg:      "",
+			imports:  nil,
+			expected: fmt.Errorf("1 error occurred: 1:14: rego_unsafe_var_error: var x is unsafe"),
 		},
 		{
 			note:     "safe vars",

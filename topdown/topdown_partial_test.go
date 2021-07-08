@@ -1268,6 +1268,13 @@ func TestTopDownPartialEval(t *testing.T) {
 			},
 		},
 		{
+			note:  "copy propagation: declared var built-in output",
+			query: "some x; plus(input, 1, x); x = y",
+			wantQueries: []string{
+				`plus(input, 1, y)`,
+			},
+		},
+		{
 			note:  "copy propagation: no dependencies",
 			query: "data.test.p",
 			modules: []string{
