@@ -28,6 +28,8 @@ type VM struct {
 	instance             *wasmtime.Instance // Pointer to avoid unintented destruction (triggering finalizers within).
 	intHandle            *wasmtime.InterruptHandle
 	policy               []byte
+	abiMajorVersion      int32
+	abiMinorVersion      int32
 	memory               *wasmtime.Memory
 	memoryMin            uint32
 	memoryMax            uint32
@@ -35,6 +37,7 @@ type VM struct {
 	baseHeapPtr          int32
 	dataAddr             int32
 	evalHeapPtr          int32
+	evalOneOff           func(context.Context, int32, int32, int32, int32, int32) (int32, error)
 	eval                 func(context.Context, int32) error
 	evalCtxGetResult     func(context.Context, int32) (int32, error)
 	evalCtxNew           func(context.Context) (int32, error)
@@ -105,6 +108,14 @@ func newVM(opts vmOpts) (*VM, error) {
 		return nil, fmt.Errorf("get interrupt handle: %w", err)
 	}
 
+	v.abiMajorVersion, v.abiMinorVersion, err = getABIVersion(i, store)
+	if err != nil {
+		return nil, fmt.Errorf("invalid module: %w", err)
+	}
+	if v.abiMajorVersion != int32(1) || (v.abiMinorVersion != int32(1) && v.abiMinorVersion != int32(2)) {
+		return nil, fmt.Errorf("invalid module: unsupported ABI version: %d.%d", v.abiMajorVersion, v.abiMinorVersion)
+	}
+
 	v.store = store
 	v.instance = i
 	v.policy = opts.policy
@@ -121,6 +132,9 @@ func newVM(opts vmOpts) (*VM, error) {
 	}
 	v.evalCtxSetInput = func(ctx context.Context, a int32, b int32) error {
 		return callVoid(ctx, v, "opa_eval_ctx_set_input", a, b)
+	}
+	v.evalOneOff = func(ctx context.Context, ep, dataAddr, inputAddr, inputLen, heapAddr int32) (int32, error) {
+		return call(ctx, v, "opa_eval", 0 /* reserved */, ep, dataAddr, inputAddr, inputLen, heapAddr, 1 /* value output */)
 	}
 	v.evalCtxSetEntrypoint = func(ctx context.Context, a int32, b int32) error {
 		return callVoid(ctx, v, "opa_eval_ctx_set_entrypoint", a, b)
@@ -238,9 +252,88 @@ func newVM(opts vmOpts) (*VM, error) {
 	return v, nil
 }
 
+func getABIVersion(i *wasmtime.Instance, store wasmtime.Storelike) (int32, int32, error) {
+	major := i.GetExport(store, "opa_wasm_abi_version").Global()
+	minor := i.GetExport(store, "opa_wasm_abi_minor_version").Global()
+	if major != nil && minor != nil {
+		majorVal := major.Get(store)
+		minorVal := minor.Get(store)
+		if majorVal.Kind() == wasmtime.KindI32 && minorVal.Kind() == wasmtime.KindI32 {
+			return majorVal.I32(), minorVal.I32(), nil
+		}
+	}
+	return 0, 0, fmt.Errorf("failed to read ABI version")
+}
+
 // Eval performs an evaluation of the specified entrypoint, with any provided
 // input, and returns the resulting value dumped to a string.
 func (i *VM) Eval(ctx context.Context, entrypoint int32, input *interface{}, metrics metrics.Metrics, seed io.Reader, ns time.Time) ([]byte, error) {
+	if i.abiMinorVersion < int32(2) {
+		return i.evalCompat(ctx, entrypoint, input, metrics, seed, ns)
+	}
+
+	metrics.Timer("wasm_vm_eval").Start()
+	defer metrics.Timer("wasm_vm_eval").Stop()
+
+	mem := i.memory.UnsafeData(i.store)
+	inputAddr, inputLen := int32(0), int32(0)
+
+	// NOTE: we'll never free the memory used for the input string during
+	// the one evaluation, but we'll overwrite it on the next evaluation.
+	heapPtr := i.evalHeapPtr
+
+	if input != nil {
+		metrics.Timer("wasm_vm_eval_prepare_input").Start()
+		var raw []byte
+		switch v := (*input).(type) {
+		case []byte:
+			raw = v
+		case *ast.Term:
+			raw = []byte(v.String())
+		case ast.Value:
+			raw = []byte(v.String())
+		default:
+			var err error
+			raw, err = json.Marshal(v)
+			if err != nil {
+				return nil, err
+			}
+		}
+		inputLen = int32(len(raw))
+		inputAddr = i.evalHeapPtr
+		heapPtr += inputLen
+		copy(mem[inputAddr:inputAddr+inputLen], raw)
+
+		metrics.Timer("wasm_vm_eval_prepare_input").Stop()
+	}
+
+	// Setting the ctx here ensures that it'll be available to builtins that
+	// make use of it (e.g. `http.send`); and it will spawn a go routine
+	// cancelling the builtins that use topdown.Cancel, when the context is
+	// cancelled.
+	i.dispatcher.Reset(ctx, seed, ns)
+
+	metrics.Timer("wasm_vm_eval_call").Start()
+	resultAddr, err := i.evalOneOff(ctx, int32(entrypoint), i.dataAddr, inputAddr, inputLen, heapPtr)
+	if err != nil {
+		return nil, err
+	}
+	metrics.Timer("wasm_vm_eval_call").Stop()
+
+	data := i.memory.UnsafeData(i.store)[resultAddr:]
+	n := bytes.IndexByte(data, 0)
+	if n < 0 {
+		n = 0
+	}
+
+	// Skip free'ing input and result JSON as the heap will be reset next round anyway.
+	return data[:n], nil
+}
+
+// evalCompat evaluates a policy using multiple calls into the VM to set the stage.
+// It's been superceded with ABI version 1.2, but still here for compatibility with
+// Wasm modules lacking the needed export (i.e., ABI 1.1).
+func (i *VM) evalCompat(ctx context.Context, entrypoint int32, input *interface{}, metrics metrics.Metrics, seed io.Reader, ns time.Time) ([]byte, error) {
 	metrics.Timer("wasm_vm_eval").Start()
 	defer metrics.Timer("wasm_vm_eval").Stop()
 
@@ -640,6 +733,12 @@ func callOrCancel(ctx context.Context, vm *VM, name string, args ...int32) (inte
 					}
 				}
 				if msg != "" {
+					// TODO(sr): Out of bounds memory access is a trap, too!
+					// This "interrupted at" is a bit misleading, however, currently
+					// the only way to fix this is by looking at the string
+					// `t.Error()` which also contains a (long, prettily) rendered
+					// backtrace.
+					// See also https://github.com/bytecodealliance/wasmtime-go/issues/63
 					msg = "interrupted at " + msg
 				}
 			}

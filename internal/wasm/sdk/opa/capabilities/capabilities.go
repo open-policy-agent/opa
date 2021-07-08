@@ -6,10 +6,7 @@
 
 package capabilities
 
-const abiVersion = 1
-const abiMinorVersion = 1
-
 // ABIVersions returns the ABI versions that this SDK supports
 func ABIVersions() [][2]int {
-	return [][2]int{{abiVersion, abiMinorVersion}}
+	return [][2]int{{1, 1}, {1, 2}}
 }
