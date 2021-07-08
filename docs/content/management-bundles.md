@@ -96,10 +96,6 @@ for verifying the signature of the bundle. See [this](#signing) section for deta
 
 See the following section for details on the bundle file format.
 
-> Note: The `bundle` config keyword will still work with the current versions
-of OPA, but has been deprecated. It is highly recommended to switch to the
-`bundles` configuration.
-
 #### Caching
 
 Services implementing the Bundle Service API should set the HTTP `Etag` header
@@ -688,7 +684,7 @@ curl --silent \
 
 #### Upload Bundle
 
-Uploading bundles to Azure Blob storage is easily done using the [azcopy](https://docs.microsoft.com/en-us/azure/storage/common/storage-use-azcopy-v10) tool. Make sure to first properly [authorize](https://docs.microsoft.com/en-us/azure/storage/common/storage-use-azcopy-authorize-azure-active-directory) the user to be able to upload to Blob storage. 
+Uploading bundles to Azure Blob storage is easily done using the [azcopy](https://docs.microsoft.com/en-us/azure/storage/common/storage-use-azcopy-v10) tool. Make sure to first properly [authorize](https://docs.microsoft.com/en-us/azure/storage/common/storage-use-azcopy-authorize-azure-active-directory) the user to be able to upload to Blob storage.
 
 By now you should be able to login interactively using `azcopy login --tenant-id <Active Directory tenant ID>`. Since you'll most likely will want to log in from scripts (to upload bundles programmatically), you should however create an Azure AD application, and a [service principal](https://docs.microsoft.com/en-us/azure/active-directory/develop/howto-create-service-principal-portal) to do so. Good news! If you've followed the Authentication steps above, you already have one.
 
@@ -782,7 +778,7 @@ bundles:
     service: blob
     resource: opa/bundle.tar.gz
 ```
-Note that the `$CLIENT_ID` is what is referred to as the "Application ID" inside your Azure account. 
+Note that the `$CLIENT_ID` is what is referred to as the "Application ID" inside your Azure account.
 Also note in particular how the `thumbprint` property is required for Azure. The value expected here can be found under "Certificates and Secrets" in your application's configuration.
 
 {{< figure src="thumbprint.png" width="150" caption="Certificate thumbprint" >}}
@@ -801,7 +797,7 @@ Nginx offers a simple but competent bundle server for those who prefer to host t
 
 #### Upload Bundle
 
-Either use the [nginx-upload-module](https://www.nginx.com/resources/wiki/modules/upload/) or upload bundles out-of-band with SSH or similar. 
+Either use the [nginx-upload-module](https://www.nginx.com/resources/wiki/modules/upload/) or upload bundles out-of-band with SSH or similar.
 
 #### Example OPA Configuration
 

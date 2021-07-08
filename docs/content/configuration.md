@@ -729,5 +729,7 @@ included in the actual bundle gzipped tarball.
 
 The following `discovery` configuration fields are supported but deprecated:
 
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
 | `discovery.prefix` | `string` | No (default: `bundles`) | Deprecated: Use `resource` instead. Path prefix to use to download configuration from remote server. |
 | `discovery.name` | `string` | No | Deprecated: Use `resource` instead. Name of the discovery configuration to download. If `discovery.name` is specified and `discovery.resource` is unset, the `discovery.decision` field will default to the `discovery.name` value. |
