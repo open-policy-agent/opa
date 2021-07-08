@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"time"
 
 	"github.com/bytecodealliance/wasmtime-go"
@@ -239,7 +240,7 @@ func newVM(opts vmOpts) (*VM, error) {
 
 // Eval performs an evaluation of the specified entrypoint, with any provided
 // input, and returns the resulting value dumped to a string.
-func (i *VM) Eval(ctx context.Context, entrypoint int32, input *interface{}, metrics metrics.Metrics, ns time.Time) ([]byte, error) {
+func (i *VM) Eval(ctx context.Context, entrypoint int32, input *interface{}, metrics metrics.Metrics, seed io.Reader, ns time.Time) ([]byte, error) {
 	metrics.Timer("wasm_vm_eval").Start()
 	defer metrics.Timer("wasm_vm_eval").Stop()
 
@@ -249,7 +250,7 @@ func (i *VM) Eval(ctx context.Context, entrypoint int32, input *interface{}, met
 	// make use of it (e.g. `http.send`); and it will spawn a go routine
 	// cancelling the builtins that use topdown.Cancel, when the context is
 	// cancelled.
-	i.dispatcher.Reset(ctx, ns)
+	i.dispatcher.Reset(ctx, seed, ns)
 
 	err := i.setHeapState(ctx, i.evalHeapPtr)
 	if err != nil {

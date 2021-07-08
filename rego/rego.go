@@ -35,8 +35,13 @@ import (
 
 const (
 	defaultPartialNamespace = "partial"
-	targetWasm              = "wasm"
 	wasmVarPrefix           = "^"
+)
+
+// nolint: deadcode,varcheck
+const (
+	targetWasm = "wasm"
+	targetRego = "rego"
 )
 
 // CompileResult represents the result of compiling a Rego query, zero or more
@@ -1935,7 +1940,12 @@ func (r *Rego) evalWasm(ctx context.Context, ectx *EvalContext) (ResultSet, erro
 		input = &i
 	}
 
-	result, err := r.opa.Eval(ctx, opa.EvalOpts{Metrics: r.metrics, Input: input, Time: ectx.time})
+	result, err := r.opa.Eval(ctx, opa.EvalOpts{
+		Metrics: r.metrics,
+		Input:   input,
+		Time:    ectx.time,
+		Seed:    ectx.seed,
+	})
 	if err != nil {
 		return nil, err
 	}
