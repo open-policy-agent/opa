@@ -1,6 +1,7 @@
 package opa
 
 import (
+	"io"
 	"time"
 
 	"github.com/open-policy-agent/opa/metrics"
@@ -16,4 +17,5 @@ type EvalOpts struct {
 	Input   *interface{}
 	Metrics metrics.Metrics
 	Time    time.Time
+	Seed    io.Reader
 }

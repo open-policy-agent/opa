@@ -13,21 +13,20 @@ type uuidCachingKey string
 
 func builtinUUIDRFC4122(bctx BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
 
-	var result *ast.Term
 	var key = uuidCachingKey(args[0].Value.String())
 
-	if val, ok := bctx.Cache.Get(key); !ok {
-		s, err := uuid.New(bctx.Seed)
-		if err != nil {
-			return err
-		}
-
-		result = ast.NewTerm(ast.String(s))
-		bctx.Cache.Put(key, result)
-
-	} else {
-		result = val.(*ast.Term)
+	val, ok := bctx.Cache.Get(key)
+	if ok {
+		return iter(val.(*ast.Term))
 	}
+
+	s, err := uuid.New(bctx.Seed)
+	if err != nil {
+		return err
+	}
+
+	result := ast.NewTerm(ast.String(s))
+	bctx.Cache.Put(key, result)
 
 	return iter(result)
 }
