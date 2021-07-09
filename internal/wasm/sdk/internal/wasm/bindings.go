@@ -7,6 +7,7 @@ package wasm
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -81,6 +82,9 @@ func (d *builtinDispatcher) SetMap(m map[int32]topdown.BuiltinFunc) {
 func (d *builtinDispatcher) Reset(ctx context.Context, seed io.Reader, ns time.Time) {
 	if ns.IsZero() {
 		ns = time.Now()
+	}
+	if seed == nil {
+		seed = rand.Reader
 	}
 	d.ctx = &topdown.BuiltinContext{
 		Context:      ctx,
