@@ -703,25 +703,30 @@ type stsTestServer struct {
 }
 
 func (t *stsTestServer) handle(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path != "/" || r.URL.Query().Get("Action") != "AssumeRoleWithWebIdentity" {
+	if r.URL.Path != "/" || r.Method != http.MethodPost {
 		w.WriteHeader(404)
 		return
 	}
 
-	if r.URL.Query().Get("RoleArn") == "BrokenRole" {
+	if err := r.ParseForm(); err != nil || r.PostForm.Get("Action") != "AssumeRoleWithWebIdentity" {
+		w.WriteHeader(400)
+		return
+	}
+
+	if r.PostForm.Get("RoleArn") == "BrokenRole" {
 		w.WriteHeader(200)
 		_, _ = w.Write([]byte("{}"))
 		return
 	}
 
-	token := r.URL.Query().Get("WebIdentityToken")
+	token := r.PostForm.Get("WebIdentityToken")
 	if token != "good-token" {
 		w.WriteHeader(401)
 		return
 	}
 	w.WriteHeader(200)
 
-	sessionName := r.URL.Query().Get("RoleSessionName")
+	sessionName := r.PostForm.Get("RoleSessionName")
 
 	// Taken from STS docs: https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRoleWithWebIdentity.html
 	xmlResponse := `<AssumeRoleWithWebIdentityResponse xmlns="https://sts.amazonaws.com/doc/2011-06-15/">
