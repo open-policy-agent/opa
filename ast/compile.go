@@ -1525,6 +1525,10 @@ func (qc *queryCompiler) runStageAfter(metricName string, query Body, s QueryCom
 
 func (qc *queryCompiler) Compile(query Body) (Body, error) {
 
+	if len(query) == 0 {
+		return nil, Errors{NewError(CompileErr, nil, "empty query cannot be compiled")}
+	}
+
 	query = query.Copy()
 
 	stages := []struct {

@@ -3806,6 +3806,11 @@ func TestQueryCompiler(t *testing.T) {
 		expected interface{}
 	}{
 		{
+			note:     "empty query",
+			q:        "   \t \n # foo \n",
+			expected: fmt.Errorf("1 error occurred: rego_compile_error: empty query cannot be compiled"),
+		},
+		{
 			note:     "invalid eq",
 			q:        "eq()",
 			expected: fmt.Errorf("too few arguments"),
