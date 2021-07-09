@@ -317,14 +317,15 @@ func (cs *awsWebIdentityCredentialService) refreshFromService() error {
 		"Version":          []string{"2011-06-15"},
 	}
 	stsRequestURL, _ := url.Parse(cs.stsPath())
-	stsRequestURL.RawQuery = queryVals.Encode()
 
 	// construct an HTTP client with a reasonably short timeout
 	client := &http.Client{Timeout: time.Second * 10}
-	req, err := http.NewRequest(http.MethodGet, stsRequestURL.String(), nil)
+	req, err := http.NewRequest(http.MethodPost, stsRequestURL.String(), strings.NewReader(queryVals.Encode()))
 	if err != nil {
 		return errors.New("unable to construct STS HTTP request: " + err.Error())
 	}
+
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 
 	body, err := doMetaDataRequestWithClient(req, client, "STS", cs.logger)
 	if err != nil {
