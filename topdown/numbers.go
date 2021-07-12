@@ -66,6 +66,8 @@ func builtinRandIntn(bctx BuiltinContext, args []*ast.Term, iter func(*ast.Term)
 	n, err := builtins.IntOperand(args[1].Value, 2)
 	if err != nil {
 		return err
+	} else if n <= 0 {
+		return fmt.Errorf("invalid argument (n must be > 0)")
 	}
 
 	var key = uuidCachingKey(fmt.Sprintf("%s-%d", strOp, n))
