@@ -4,7 +4,9 @@
 
 package ast
 
-import "fmt"
+import (
+	"fmt"
+)
 
 // Transformer defines the interface for transforming AST elements. If the
 // transformer returns nil and does not indicate an error, the AST element will
