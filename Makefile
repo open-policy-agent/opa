@@ -308,10 +308,9 @@ image-quick:
 		--build-arg BASE=gcr.io/distroless/cc \
 		--build-arg BIN=$(RELEASE_DIR)/opa_linux_amd64 \
 		.
-	# this isn't published, only used for smoke testing the binaries
 	$(DOCKER) build \
-		-t $(DOCKER_IMAGE):$(VERSION)-static-ci-only \
-		--build-arg BASE=alpine \
+		-t $(DOCKER_IMAGE):$(VERSION)-static \
+		--build-arg BASE=gcr.io/distroless/static \
 		--build-arg BIN=$(RELEASE_DIR)/opa_linux_amd64_static \
 		.
 
@@ -320,7 +319,7 @@ ci-image-smoke-test: image-quick
 	$(DOCKER) run $(DOCKER_IMAGE):$(VERSION) version
 	$(DOCKER) run $(DOCKER_IMAGE):$(VERSION)-debug version
 	$(DOCKER) run $(DOCKER_IMAGE):$(VERSION)-rootless version
-	$(DOCKER) run $(DOCKER_IMAGE):$(VERSION)-static-ci-only version
+	$(DOCKER) run $(DOCKER_IMAGE):$(VERSION)-static version
 
 .PHONY: ci-binary-smoke-test-%
 ci-binary-smoke-test-%:
@@ -332,18 +331,21 @@ push:
 	$(DOCKER) push $(DOCKER_IMAGE):$(VERSION)
 	$(DOCKER) push $(DOCKER_IMAGE):$(VERSION)-debug
 	$(DOCKER) push $(DOCKER_IMAGE):$(VERSION)-rootless
+	$(DOCKER) push $(DOCKER_IMAGE):$(VERSION)-static
 
 .PHONY: tag-latest
 tag-latest:
 	$(DOCKER) tag $(DOCKER_IMAGE):$(VERSION) $(DOCKER_IMAGE):latest
 	$(DOCKER) tag $(DOCKER_IMAGE):$(VERSION)-debug $(DOCKER_IMAGE):latest-debug
 	$(DOCKER) tag $(DOCKER_IMAGE):$(VERSION)-rootless $(DOCKER_IMAGE):latest-rootless
+	$(DOCKER) tag $(DOCKER_IMAGE):$(VERSION)-static $(DOCKER_IMAGE):latest-static
 
 .PHONY: push-latest
 push-latest:
 	$(DOCKER) push $(DOCKER_IMAGE):latest
 	$(DOCKER) push $(DOCKER_IMAGE):latest-debug
 	$(DOCKER) push $(DOCKER_IMAGE):latest-rootless
+	$(DOCKER) push $(DOCKER_IMAGE):latest-static
 
 .PHONY: push-binary-edge
 push-binary-edge:
@@ -357,12 +359,14 @@ tag-edge:
 	$(DOCKER) tag $(DOCKER_IMAGE):$(VERSION) $(DOCKER_IMAGE):edge
 	$(DOCKER) tag $(DOCKER_IMAGE):$(VERSION)-debug $(DOCKER_IMAGE):edge-debug
 	$(DOCKER) tag $(DOCKER_IMAGE):$(VERSION)-rootless $(DOCKER_IMAGE):edge-rootless
+	$(DOCKER) tag $(DOCKER_IMAGE):$(VERSION)-static $(DOCKER_IMAGE):edge-static
 
 .PHONY: push-edge
 push-edge:
 	$(DOCKER) push $(DOCKER_IMAGE):edge
 	$(DOCKER) push $(DOCKER_IMAGE):edge-debug
 	$(DOCKER) push $(DOCKER_IMAGE):edge-rootless
+	$(DOCKER) push $(DOCKER_IMAGE):edge-static
 
 .PHONY: docker-login
 docker-login:
