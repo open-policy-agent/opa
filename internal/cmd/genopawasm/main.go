@@ -70,27 +70,42 @@ import (
 	"bytes"
 	"compress/gzip"
 	"io/ioutil"
+	"sync"
+)
+
+var (
+	bytesOnce        sync.Once
+	bs               []byte
+	callGraphCSVOnce sync.Once
+	callGraphCSV     []byte
 )
 
 // Bytes returns the OPA-WASM bytecode.
 func Bytes() ([]byte, error) {
-	gr, err := gzip.NewReader(bytes.NewBuffer(gzipped))
-	if err != nil {
-		return nil, err
-	}
-	return ioutil.ReadAll(gr)
+	var err error
+	bytesOnce.Do(func() {
+		gr, err := gzip.NewReader(bytes.NewBuffer(gzipped))
+		if err != nil {
+			return
+		}
+		bs, err = ioutil.ReadAll(gr)
+	})
+	return bs, err
 }
 
 // CallGraphCSV returns a CSV representation of the
 // OPA-WASM bytecode's call graph: 'caller,callee'
 func CallGraphCSV() ([]byte, error) {
-	cg, err := gzip.NewReader(bytes.NewBuffer(gzippedCallGraphCSV))
-	if err != nil {
-		return nil, err
-	}
-	return ioutil.ReadAll(cg)
+	var err error
+	callGraphCSVOnce.Do(func() {
+		cg, err := gzip.NewReader(bytes.NewBuffer(gzippedCallGraphCSV))
+		if err != nil {
+			return
+		}
+		callGraphCSV, err = ioutil.ReadAll(cg)
+	})
+	return callGraphCSV, err
 }
-
 `))
 
 	if err != nil {
