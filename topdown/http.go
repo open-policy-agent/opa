@@ -23,10 +23,17 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/internal/version"
 	"github.com/open-policy-agent/opa/topdown/builtins"
+	"github.com/open-policy-agent/opa/topdown/cache"
 	"github.com/open-policy-agent/opa/util"
 )
 
-const defaultHTTPRequestTimeoutEnv = "HTTP_SEND_TIMEOUT"
+type cachingMode string
+
+const (
+	defaultHTTPRequestTimeoutEnv             = "HTTP_SEND_TIMEOUT"
+	defaultCachingMode           cachingMode = "serialized"
+	cachingModeDeserialized      cachingMode = "deserialized"
+)
 
 var defaultHTTPRequestTimeout = time.Second * 5
 
@@ -55,6 +62,7 @@ var allowedKeyNames = [...]string{
 	"force_cache",
 	"force_cache_duration_seconds",
 	"raise_error",
+	"caching_mode",
 }
 
 var (
@@ -354,7 +362,7 @@ func createHTTPRequest(bctx BuiltinContext, obj ast.Object) (*http.Request, *htt
 			if err != nil {
 				return nil, nil, err
 			}
-		case "cache", "force_cache", "force_cache_duration_seconds", "force_json_decode", "raise_error": // no-op
+		case "cache", "force_cache", "force_cache_duration_seconds", "force_json_decode", "raise_error", "caching_mode": // no-op
 		default:
 			return nil, nil, fmt.Errorf("invalid parameter %q", key)
 		}
@@ -576,14 +584,19 @@ func checkHTTPSendInterQueryCache(bctx BuiltinContext, key ast.Object, req *http
 		return nil, nil
 	}
 
-	cachedResp, ok := value.(*interQueryCacheValue)
-	if !ok {
-		return nil, nil
-	}
+	var cachedRespData *interQueryCacheData
 
-	cachedRespData, err := cachedResp.copyCacheData()
-	if err != nil {
-		return nil, err
+	switch v := value.(type) {
+	case *interQueryCacheValue:
+		var err error
+		cachedRespData, err = v.copyCacheData()
+		if err != nil {
+			return nil, err
+		}
+	case *interQueryCacheData:
+		cachedRespData = v
+	default:
+		return nil, nil
 	}
 
 	headers, err := parseResponseHeaders(cachedRespData.Headers)
@@ -616,12 +629,23 @@ func checkHTTPSendInterQueryCache(bctx BuiltinContext, key ast.Object, req *http
 			}
 		}
 
-		cv, err := cachedRespData.toCacheValue()
+		cachingMode, err := getCachingMode(key)
 		if err != nil {
 			return nil, err
 		}
 
-		bctx.InterQueryBuiltinCache.Insert(key, cv)
+		var pcv cache.InterQueryCacheValue
+
+		if cachingMode == defaultCachingMode {
+			pcv, err = cachedRespData.toCacheValue()
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			pcv = cachedRespData
+		}
+
+		bctx.InterQueryBuiltinCache.Insert(key, pcv)
 
 		return cachedRespData.formatToAST(forceJSONDecode)
 	}
@@ -647,7 +671,24 @@ func insertIntoHTTPSendInterQueryCache(bctx BuiltinContext, key ast.Value, resp 
 
 	requestCache := bctx.InterQueryBuiltinCache
 
-	pcv, err := newInterQueryCacheValue(resp, respBody)
+	obj, ok := key.(ast.Object)
+	if !ok {
+		return fmt.Errorf("interface conversion error")
+	}
+
+	cachingMode, err := getCachingMode(obj)
+	if err != nil {
+		return err
+	}
+
+	var pcv cache.InterQueryCacheValue
+
+	if cachingMode == defaultCachingMode {
+		pcv, err = newInterQueryCacheValue(resp, respBody)
+	} else {
+		pcv, err = newInterQueryCacheData(resp, respBody)
+	}
+
 	if err != nil {
 		return err
 	}
@@ -699,6 +740,25 @@ func getBoolValFromReqObj(req ast.Object, key *ast.Term) (bool, error) {
 		}
 	}
 	return bool(b), nil
+}
+
+func getCachingMode(req ast.Object) (cachingMode, error) {
+	key := ast.StringTerm("caching_mode")
+	var s ast.String
+	var ok bool
+	if v := req.Get(key); v != nil {
+		if s, ok = v.Value.(ast.String); !ok {
+			return "", fmt.Errorf("invalid value for %v field", key.String())
+		}
+
+		switch cachingMode(s) {
+		case defaultCachingMode, cachingModeDeserialized:
+			return cachingMode(s), nil
+		default:
+			return "", fmt.Errorf("invalid value specified for %v field: %v", key.String(), string(s))
+		}
+	}
+	return cachingMode(defaultCachingMode), nil
 }
 
 type interQueryCacheValue struct {
@@ -762,6 +822,10 @@ func (c *interQueryCacheData) toCacheValue() (*interQueryCacheValue, error) {
 		return nil, err
 	}
 	return &interQueryCacheValue{Data: b}, nil
+}
+
+func (c *interQueryCacheData) SizeInBytes() int64 {
+	return 0
 }
 
 type responseHeaders struct {
