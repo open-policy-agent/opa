@@ -6,14 +6,15 @@ package topdown
 
 import (
 	"context"
+	"encoding/binary"
 	"fmt"
 	"io"
-
-	"github.com/open-policy-agent/opa/metrics"
-	"github.com/open-policy-agent/opa/topdown/cache"
+	"math/rand"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/topdown/builtins"
+	"github.com/open-policy-agent/opa/topdown/cache"
 )
 
 type (
@@ -34,7 +35,7 @@ type (
 	BuiltinContext struct {
 		Context                context.Context       // request context that was passed when query started
 		Metrics                metrics.Metrics       // metrics registry for recording built-in specific metrics
-		Seed                   io.Reader             // randomization seed
+		Seed                   io.Reader             // randomization source
 		Time                   *ast.Term             // wall clock time
 		Cancel                 Cancel                // atomic value that signals evaluation to halt
 		Runtime                *ast.Term             // runtime information on the OPA instance
@@ -46,6 +47,7 @@ type (
 		TraceEnabled           bool                  // indicates whether tracing is enabled for the evaluation
 		QueryID                uint64                // identifies query being evaluated
 		ParentID               uint64                // identifies parent of query being evaluated
+		rand                   *rand.Rand            // randomization source for non-security-sensitive operations
 	}
 
 	// BuiltinFunc defines an interface for implementing built-in functions.
@@ -55,6 +57,25 @@ type (
 	// value.
 	BuiltinFunc func(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error
 )
+
+// Rand returns a random number generator based on the Seed for this built-in
+// context. The random number will be re-used across multiple calls to this
+// function. If a random number generator cannot be created, an error is
+// returned.
+func (bctx *BuiltinContext) Rand() (*rand.Rand, error) {
+
+	if bctx.rand != nil {
+		return bctx.rand, nil
+	}
+
+	seed, err := readInt64(bctx.Seed)
+	if err != nil {
+		return nil, err
+	}
+
+	bctx.rand = rand.New(rand.NewSource(seed))
+	return bctx.rand, nil
+}
 
 // RegisterBuiltinFunc adds a new built-in function to the evaluation engine.
 func RegisterBuiltinFunc(name string, f BuiltinFunc) {
@@ -167,4 +188,13 @@ func handleBuiltinErr(name string, loc *ast.Location, err error) error {
 			Location: loc,
 		}
 	}
+}
+
+func readInt64(r io.Reader) (int64, error) {
+	bs := make([]byte, 8)
+	n, err := io.ReadFull(r, bs)
+	if n != len(bs) || err != nil {
+		return 0, err
+	}
+	return int64(binary.BigEndian.Uint64(bs)), nil
 }

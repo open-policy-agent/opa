@@ -276,6 +276,7 @@ complex types.
 | <span class="opa-keep-it-together">``output := floor(x)``</span>    | ``output`` is ``x`` rounded down the nearest integer | ✅ |
 | <span class="opa-keep-it-together">``output := abs(x)``</span>    | ``output`` is the absolute value of ``x`` | ✅ |
 | <span class="opa-keep-it-together">``output := numbers.range(a, b)``</span> | ``output`` is the range of integer numbers between ``a`` and ``b`` (inclusive). If ``a`` == ``b`` then ``output`` == ``[a]``. If ``a`` < ``b`` the range is in ascending order. If ``a`` > ``b`` the range is in descending order. | ✅ |
+  <span class="opa-keep-it-together">``output := rand.intn(str, n)``</span> |  ``output`` is a ``number`` in the range [0, abs(``n``)). If ``n`` is 0, then ``output`` is 0. For any given (``str``, ``n``) pair the output will be consistent throughout a query evaluation. | SDK-dependent |
 
 ### Aggregates
 
