@@ -56,6 +56,12 @@ a = true`, "data.p.a = x")
 	}
 }
 
+func BenchmarkWasmCompilation(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		_ = compileRegoToWasm("a = true", "data.p.a = x", false)
+	}
+}
+
 func BenchmarkWASMArrayIteration(b *testing.B) {
 	sizes := []int{10, 100, 1000, 10000}
 	for _, n := range sizes {
