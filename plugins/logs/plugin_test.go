@@ -1336,6 +1336,9 @@ type testFixtureOptions struct {
 	ConsoleLogger                  *test.Logger
 	ReportingUploadSizeLimitBytes  int64
 	ReportingMaxDecisionsPerSecond float64
+	Resource                       *string
+	TestServerPath                 *string
+	PartitionName                  *string
 }
 
 type testFixture struct {
@@ -1387,7 +1390,28 @@ func newTestFixture(t *testing.T, opts ...testFixtureOptions) testFixture {
 		t.Fatal(err)
 	}
 
-	config, _ := ParseConfig([]byte(`{"service": "example"}`), manager.Services(), nil)
+	pluginConfig := make(map[string]interface{})
+
+	pluginConfig["service"] = "example"
+
+	if options.Resource != nil {
+		pluginConfig["resource"] = *options.Resource
+	}
+
+	if options.PartitionName != nil {
+		pluginConfig["partition_name"] = *options.PartitionName
+	}
+
+	pluginConfigBytes, err := json.MarshalIndent(pluginConfig, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	config, _ := ParseConfig(pluginConfigBytes, manager.Services(), nil)
+
+	if options.TestServerPath != nil {
+		ts.path = *options.TestServerPath
+	}
 
 	if options.ReportingMaxDecisionsPerSecond != 0 {
 		config.Reporting.MaxDecisionsPerSecond = &options.ReportingMaxDecisionsPerSecond
@@ -1628,11 +1652,129 @@ func TestEventV1ToAST(t *testing.T) {
 	}
 }
 
+func TestPluginDefaultResourcePath(t *testing.T) {
+
+	ctx := context.Background()
+
+	testServerPath := "/logs"
+
+	fixture := newTestFixture(t, testFixtureOptions{
+		TestServerPath: &testServerPath,
+	})
+	defer fixture.server.stop()
+
+	fixture.server.ch = make(chan []EventV1, 1)
+
+	var input interface{} = map[string]interface{}{"method": "GET"}
+	var result1 interface{} = false
+
+	fixture.plugin.Log(ctx, &server.Info{
+		DecisionID: "abc",
+		Path:       "data.foo.bar",
+		Input:      &input,
+		Results:    &result1,
+		RemoteAddr: "test",
+		Timestamp:  time.Now().UTC(),
+	})
+
+	if *fixture.plugin.config.Resource != defaultResourcePath {
+		t.Errorf("Expected the resource path to be the default %s, actual = '%s'", defaultResourcePath, *fixture.plugin.config.Resource)
+	}
+
+	fixture.server.expCode = 200
+
+	_, err := fixture.plugin.oneShot(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestPluginResourcePathAndPartitionName(t *testing.T) {
+
+	ctx := context.Background()
+
+	resourcePath := "/resource/path"
+	partitionName := "partition"
+	expectedPath := fmt.Sprintf("/logs/%v", partitionName)
+
+	fixture := newTestFixture(t, testFixtureOptions{
+		Resource:       &resourcePath,
+		TestServerPath: &expectedPath,
+		PartitionName:  &partitionName,
+	})
+	defer fixture.server.stop()
+
+	fixture.server.ch = make(chan []EventV1, 1)
+
+	var input interface{} = map[string]interface{}{"method": "GET"}
+	var result1 interface{} = false
+
+	fixture.plugin.Log(ctx, &server.Info{
+		DecisionID: "abc",
+		Path:       "data.foo.bar",
+		Input:      &input,
+		Results:    &result1,
+		RemoteAddr: "test",
+		Timestamp:  time.Now().UTC(),
+	})
+
+	if *fixture.plugin.config.Resource != expectedPath {
+		t.Errorf("Expected resource to be %s, but got %s", expectedPath, *fixture.plugin.config.Resource)
+	}
+
+	fixture.server.expCode = 200
+
+	_, err := fixture.plugin.oneShot(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestPluginResourcePath(t *testing.T) {
+
+	ctx := context.Background()
+
+	resourcePath := "/plugin/log/path"
+	testServerPath := "/plugin/log/path"
+
+	fixture := newTestFixture(t, testFixtureOptions{
+		Resource:       &resourcePath,
+		TestServerPath: &testServerPath,
+	})
+	defer fixture.server.stop()
+
+	fixture.server.ch = make(chan []EventV1, 1)
+
+	var input interface{} = map[string]interface{}{"method": "GET"}
+	var result1 interface{} = false
+
+	fixture.plugin.Log(ctx, &server.Info{
+		DecisionID: "abc",
+		Path:       "data.foo.bar",
+		Input:      &input,
+		Results:    &result1,
+		RemoteAddr: "test",
+		Timestamp:  time.Now().UTC(),
+	})
+
+	if *fixture.plugin.config.Resource != resourcePath {
+		t.Errorf("Expected resource to be %s, but got %s", resourcePath, *fixture.plugin.config.Resource)
+	}
+
+	fixture.server.expCode = 200
+
+	_, err := fixture.plugin.oneShot(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 type testServer struct {
 	t       *testing.T
 	expCode int
 	server  *httptest.Server
 	ch      chan []EventV1
+	path    string
 }
 
 func (t *testServer) handle(w http.ResponseWriter, r *http.Request) {
@@ -1647,7 +1789,11 @@ func (t *testServer) handle(w http.ResponseWriter, r *http.Request) {
 	if err := gr.Close(); err != nil {
 		t.t.Fatal(err)
 	}
-	t.t.Logf("decision log test server received %d events", len(events))
+	if t.path != "" && r.URL.Path != t.path {
+		t.t.Fatalf("expecting the request path %s to equal the configured path: %s", r.URL.Path, t.path)
+	}
+
+	t.t.Logf("decision log test server received %d events at path %s", len(events), r.URL.Path)
 	t.ch <- events
 	w.WriteHeader(t.expCode)
 }
