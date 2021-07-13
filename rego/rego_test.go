@@ -8,6 +8,8 @@ package rego
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -19,6 +21,7 @@ import (
 	"time"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/ast/location"
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/internal/storage/mock"
 	"github.com/open-policy-agent/opa/metrics"
@@ -236,8 +239,37 @@ func TestRegoCancellation(t *testing.T) {
 
 	if err == nil {
 		t.Fatalf("Expected cancellation error but got: %v", rs)
-	} else if topdownErr, ok := err.(*topdown.Error); !ok || topdownErr.Code != topdown.CancelErr {
-		t.Fatalf("Got unexpected error: %v", err)
+	}
+	exp := topdown.Error{Code: topdown.CancelErr, Message: "caller cancelled query execution"}
+	if !errors.Is(err, &exp) {
+		t.Errorf("error: expected %v, got: %v", exp, err)
+	}
+}
+
+func TestRegoCustomBuiltinHalt(t *testing.T) {
+
+	funOpt := Function1(
+		&Function{
+			Name: "halt_func",
+			Decl: types.NewFunction(
+				types.Args(types.S),
+				types.NewNull(),
+			),
+		},
+		func(BuiltinContext, *ast.Term) (*ast.Term, error) {
+			return nil, NewHaltError(fmt.Errorf("stop"))
+		},
+	)
+	r := New(Query(`halt_func("")`), funOpt)
+	rs, err := r.Eval(context.Background())
+	if err == nil {
+		t.Fatalf("Expected halt error but got: %v", rs)
+	}
+	// exp is the error topdown returns after unwrapping the Halt
+	exp := topdown.Error{Code: topdown.BuiltinErr, Message: "halt_func: stop",
+		Location: location.NewLocation([]byte(`halt_func("")`), "", 1, 1)}
+	if !errors.Is(err, &exp) {
+		t.Fatalf("error: expected %v, got: %v", exp, err)
 	}
 }
 
