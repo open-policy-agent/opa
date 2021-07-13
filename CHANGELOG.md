@@ -5,6 +5,12 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+## 0.30.2
+
+This is a bugfix release that modifies the AWS credential provider to use POST
+instead of GET for retrieving AWS STS tokens. The GET method can leak
+credentials into the debug log if the AWS STS endpoint is unavailable.
+
 ## 0.30.1
 
 This is a bugfix release to correct the behaviour of the `indexof` builtin ([#3606](https://github.com/open-policy-agent/opa/issues/3606)).
