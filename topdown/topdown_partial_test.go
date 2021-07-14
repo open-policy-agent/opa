@@ -2681,6 +2681,19 @@ func TestTopDownPartialEval(t *testing.T) {
 			shallow:              true,
 			skipPartialNamespace: true,
 		},
+		{
+			note:  "copypropagation: circular reference (bug 3559)",
+			query: "data.test.p",
+			modules: []string{`package test
+				p {
+					q[_]
+				}
+				q[x] {
+					x = input[x]
+				}`,
+			},
+			wantQueries: []string{`x_term_1_01; x_term_1_01 = input[x_term_1_01]`},
+		},
 	}
 
 	ctx := context.Background()
