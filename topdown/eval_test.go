@@ -244,7 +244,7 @@ func TestContainsNestedRefOrCall(t *testing.T) {
 	}
 }
 
-func TestTopdownVirtualCacheFunctions(t *testing.T) {
+func TestTopdownVirtualCache(t *testing.T) {
 	ctx := context.Background()
 	store := inmem.New()
 
@@ -315,6 +315,95 @@ func TestTopdownVirtualCacheFunctions(t *testing.T) {
 			query: `data.p.f(1, z) with input as 7; data.p.f(1, z2) with input as 8`,
 			hit:   0,
 			miss:  2,
+		},
+		{
+			note: "partial object: simple",
+			module: `package p
+			s["foo"] = true { true }
+			s["bar"] = true { true }`,
+			query: `data.p.s["foo"]; data.p.s["foo"]`,
+			hit:   1,
+			miss:  1,
+		},
+		{
+			note: "partial set: simple",
+			module: `package p
+			s["foo"] { true }
+			s["bar"] { true }`,
+			query: `data.p.s["foo"]; data.p.s["foo"]`,
+			hit:   1,
+			miss:  1,
+		},
+		{
+			note: "partial set: object",
+			module: `package p
+				s[z] { z := {"foo": "bar"} }`,
+			query: `x = {"foo": "bar"}; data.p.s[x]; data.p.s[x]`,
+			hit:   1,
+			miss:  1,
+		},
+		{
+			note: "partial set: miss",
+			module: `package p
+				s[z] { z = true }`,
+			query: `data.p.s[true]; not data.p.s[false]`,
+			hit:   0,
+			miss:  2,
+		},
+		{
+			note: "partial set: full extent cached",
+			module: `package test
+				p[x] { x = 1 }
+				p[x] { x = 2 }
+			`,
+			query: "data.test.p = x; data.test.p = y",
+			hit:   1,
+			miss:  1,
+		},
+		{
+			note: "partial set: all rules + each rule (non-ground var) cached",
+			module: `package test
+				p { data.test.q = x; data.test.q[y] = z; data.test.q[a] = b }
+				q[x] { x = 1 }
+				q[x] { x = 2 }
+			`,
+			query: "data.test.p = true",
+			hit:   3, // 'data.test.q[y] = z' + 2x 'data.test.q[a] = b'
+			miss:  2, // 'data.test.p = true' + 'data.test.q = x'
+		},
+		{
+			note: "partial set: all rules + each rule (non-ground composite) cached",
+			module: `package test
+				p { data.test.q = x; data.test.q[[y, 1]] = z; data.test.q[[a, 2]] = b }
+				q[[x, x]] { x = 1 }
+				q[[x, x]] { x = 2 }
+			`,
+			query: "data.test.p = true",
+			hit:   2, // 'data.test.q[[y,1]] = z' + 'data.test.q[[a, 2]] = b'
+			miss:  2, // 'data.test.p = true' + 'data.test.q = x'
+		},
+		{
+			note: "partial set: each rule (non-ground var), full extent cached",
+			module: `package test
+				p { data.test.q[y] = z; data.test.q = x }
+				q[x] { x = 1 }
+				q[x] { x = 2 }
+			`,
+			query: "data.test.p = x",
+			hit:   2, // 2x 'data.test.q = x'
+			miss:  2, // 'data.test.p = true' + 'data.test.q[y] = z'
+		},
+		{
+			note: "partial set: each rule (non-ground composite), full extent cached",
+			module: `package test
+				p = y { data.test.q[[y, 1]] = z; data.test.q = x }
+				q[[x, x]] { x = 1 }
+				q[[x, x]] { x = 2 }
+			`,
+			query: "data.test.p = x",
+			hit:   0,
+			miss:  3, // 'data.test.p = true' + 'data.test.q[[y, 1]] = z' + 'data.test.q = x'
+			exp:   1,
 		},
 	}
 
