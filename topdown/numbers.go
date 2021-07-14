@@ -7,11 +7,12 @@ package topdown
 import (
 	"fmt"
 	"math/big"
-	"math/rand"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/topdown/builtins"
 )
+
+type randIntCachingKey string
 
 var one = big.NewInt(1)
 
@@ -66,15 +67,25 @@ func builtinRandIntn(bctx BuiltinContext, args []*ast.Term, iter func(*ast.Term)
 	n, err := builtins.IntOperand(args[1].Value, 2)
 	if err != nil {
 		return err
-	} else if n <= 0 {
-		return fmt.Errorf("invalid argument (n must be > 0)")
 	}
 
-	var key = uuidCachingKey(fmt.Sprintf("%s-%d", strOp, n))
+	if n == 0 {
+		return iter(ast.IntNumberTerm(0))
+	}
+
+	if n < 0 {
+		n = -n
+	}
+
+	var key = randIntCachingKey(fmt.Sprintf("%s-%d", strOp, n))
 	var result *ast.Term
 
 	if val, ok := bctx.Cache.Get(key); !ok {
-		result = ast.IntNumberTerm(rand.Intn(n))
+		r, err := bctx.Rand()
+		if err != nil {
+			return err
+		}
+		result = ast.IntNumberTerm(r.Intn(n))
 		bctx.Cache.Put(key, result)
 	} else {
 		result = val.(*ast.Term)

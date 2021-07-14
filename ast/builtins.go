@@ -259,6 +259,7 @@ var IgnoreDuringPartialEval = []*Builtin{
 	NowNanos,
 	HTTPSend,
 	UUIDRFC4122,
+	RandIntn,
 }
 
 /**
