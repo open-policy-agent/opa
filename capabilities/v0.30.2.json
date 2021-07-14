@@ -595,39 +595,6 @@
       }
     },
     {
-      "name": "crypto.x509.parse_and_verify_certificates",
-      "decl": {
-        "args": [
-          {
-            "type": "string"
-          }
-        ],
-        "result": {
-          "static": [
-            {
-              "type": "boolean"
-            },
-            {
-              "dynamic": {
-                "dynamic": {
-                  "key": {
-                    "type": "string"
-                  },
-                  "value": {
-                    "type": "any"
-                  }
-                },
-                "type": "object"
-              },
-              "type": "array"
-            }
-          ],
-          "type": "array"
-        },
-        "type": "function"
-      }
-    },
-    {
       "name": "crypto.x509.parse_certificate_request",
       "decl": {
         "args": [
@@ -2378,23 +2345,6 @@
               }
             ],
             "type": "any"
-          }
-        ],
-        "result": {
-          "type": "number"
-        },
-        "type": "function"
-      }
-    },
-    {
-      "name": "rand.intn",
-      "decl": {
-        "args": [
-          {
-            "type": "string"
-          },
-          {
-            "type": "number"
           }
         ],
         "result": {

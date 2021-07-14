@@ -202,7 +202,7 @@ opa run --set "decision_logs.plugin=my_plugin" --set "plugins.my_plugin=null"
 
 ###### Keys with Special Characters
 
-If you have a key which contains a special character (`.`, `=`, etc), like `opa.example.com`, and want to use
+If you have a key which contains a special character (`=`, `[`, `,`, `.`), like `opa.example.com`, and want to use
 the `--set` or `--set-file` options you will need to escape the character with a backslash (`\`).
 
 For example a config section like:

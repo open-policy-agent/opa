@@ -2,6 +2,7 @@ package topdown
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"sort"
@@ -1528,11 +1529,12 @@ func (e evalBuiltin) eval(iter unifyIterator) error {
 	})
 
 	if err != nil {
-		if h, ok := err.(Halt); !ok {
+		var t Halt
+		if errors.As(err, &t) {
+			err = t.Err
+		} else {
 			e.e.builtinErrors.errs = append(e.e.builtinErrors.errs, err)
 			err = nil
-		} else {
-			err = h.Err
 		}
 	}
 
