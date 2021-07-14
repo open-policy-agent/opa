@@ -399,7 +399,7 @@ func (term *Term) Hash() int {
 	return term.Value.Hash()
 }
 
-// IsGround returns true if this terms' Value is ground.
+// IsGround returns true if this term's Value is ground.
 func (term *Term) IsGround() bool {
 	return term.Value.IsGround()
 }
