@@ -222,25 +222,34 @@ func (t bindingPlugTransform) Transform(x interface{}) (interface{}, error) {
 	}
 }
 
-func (t bindingPlugTransform) plugBindingsVar(pctx *plugContext, v ast.Var) (result ast.Value) {
+func (t bindingPlugTransform) plugBindingsVar(pctx *plugContext, v ast.Var) ast.Value {
 
-	result = v
+	var result ast.Value = v
 
 	// Apply union-find to remove redundant variables from input.
-	if root, ok := pctx.uf.Find(v); ok {
+	root, ok := pctx.uf.Find(v)
+	if ok {
 		result = root.Value()
 	}
 
 	// Apply binding list to substitute remaining vars.
-	if v, ok := result.(ast.Var); ok {
-		if b := pctx.removedEqs.Get(v); b != nil {
-			if !pctx.negated || b.IsGround() {
-				result = b
-			}
-		}
+	v, ok = result.(ast.Var)
+	if !ok {
+		return result
+	}
+	b := pctx.removedEqs.Get(v)
+	if b == nil {
+		return result
+	}
+	if pctx.negated && !b.IsGround() {
+		return result
 	}
 
-	return result
+	if r, ok := b.(ast.Ref); ok && r.OutputVars().Contains(v) {
+		return result
+	}
+
+	return b
 }
 
 func (t bindingPlugTransform) plugBindingsRef(pctx *plugContext, v ast.Ref) ast.Ref {
