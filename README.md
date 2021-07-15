@@ -1,9 +1,11 @@
 # README.md
-[logo](Master/build/go-version.1.16.6/logo/logo-144x144.png)
+# [OPA][logo]('https://github.com/BigGuy573/Master/build/go-version.1.16.6/logo/logo-144x144.png')
 # Open Policy Agent
 ---
-[![Slack Status](http://slack.openpolicyagent.org/badge.svg)](https://slack.openpolicyagent.org)
-[![Build Status](https://github.com/open-policy-agent/opa/workflows/Post%20Merge/badge.svg?branch=main)](https://github.com/open-policy-agent/opa/actions) 
+# [OPA][Slack Status'http://slack.openpolicyagent.org/badge.svg]
+# [OPA}Open Policy Agent'https://slack.openpolicyagent.org]
+# [OPA Status Badge][Build Status]
+# [OPA]('https://github.com/open-policy-agent/opa/workflows/Post%20Merge/badge.svg?branch=main')](https://github.com/open-policy-agent/opa/actions) 
 [![Go Report Card](https://goreportcard.com/badge/open-policy-agent/opa)](https://goreportcard.com/report/open-policy-agent/opa) 
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/1768/badge)](https://bestpractices.coreinfrastructure.org/projects/1768) 
 [![Netlify Status](https://api.netlify.com/api/v1/badges/4a0a092a-8741-4826-a28f-826d4a576cab/deploy-status)](https://app.netlify.com/sites/openpolicyagent/deploys)
