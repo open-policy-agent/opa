@@ -498,7 +498,7 @@ func TestCompilerWasmTargetWithCapabilitiesMismatch(t *testing.T) {
 
 		for note, wabis := range map[string][]ast.WasmABIVersion{
 			"none":     {},
-			"mismatch": {{Version: 0}, {Version: 1, Minor: 2}},
+			"mismatch": {{Version: 0}, {Version: 1, Minor: 2000}},
 		} {
 			t.Run(note, func(t *testing.T) {
 				caps := ast.CapabilitiesForThisVersion()

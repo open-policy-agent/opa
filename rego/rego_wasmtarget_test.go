@@ -270,3 +270,23 @@ func TestRandSeedingOptions(t *testing.T) {
 		})
 	}
 }
+
+func TestCompatWithABIMinorVersion1(t *testing.T) {
+	ctx := context.Background()
+
+	pq, err := New(
+		LoadBundle("testdata/bundle.tar.gz"),
+		Query("data.test.allow"),
+	).PrepareForEval(ctx)
+
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+
+	rs, err := pq.Eval(ctx, EvalInput(map[string]interface{}{"x": "x"}))
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+
+	assertResultSet(t, rs, `[[true]]`)
+}
