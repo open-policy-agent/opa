@@ -21,7 +21,6 @@ func BenchmarkWasmRego(b *testing.B) {
 	policy := compileRegoToWasm("a = true", "data.p.a = x", false)
 	instance, _ := opa.New().
 		WithPolicyBytes(policy).
-		WithMemoryLimits(131070, 2*131070). // TODO: For some reason unlimited memory slows down the eval_ctx_new().
 		WithPoolSize(1).
 		Init()
 

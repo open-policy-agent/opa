@@ -5,7 +5,6 @@ const { readFileSync, readdirSync } = require('fs');
 function stringDecoder(mem) {
     return function (addr) {
         const i8 = new Int8Array(mem.buffer);
-        const start = addr;
         var s = "";
         while (i8[addr] != 0) {
             s += String.fromCharCode(i8[addr++]);
@@ -93,16 +92,14 @@ function loadJSON(mod, memory, value) {
 }
 
 function dumpJSON(mod, memory, addr) {
-
     const rawAddr = mod.instance.exports.opa_json_dump(addr);
+    return parseJSON(memory, rawAddr);
+}
+
+function parseJSON(memory, rawAddr) {
     const buf = new Uint8Array(memory.buffer);
-
-    // NOTE(tsandall): There must be a better way of doing this...
-    let idx = rawAddr;
-    while (buf[idx] != 0) {
-        idx++;
-    }
-
+    const idx = rawAddr + buf.slice(rawAddr).findIndex((elem) => elem === 0);
+    // TODO(sr): use TextDecoder and friends
     return JSON.parse(decodeURIComponent(escape(String.fromCharCode.apply(null, buf.slice(rawAddr, idx)))));
 }
 
@@ -202,19 +199,31 @@ async function instantiate(bytes, memory, data) {
 
 function evaluate(policy, input) {
 
-    policy.module.instance.exports.opa_heap_ptr_set(policy.heapPtr);
+    let inputLen = 0;
+    let inputAddr = 0;
+    if (input) {
+        const inp = JSON.stringify(input);
+        const buf = new Uint8Array(policy.memory.buffer);
+        inputAddr = policy.heapPtr;
+        inputLen = inp.length;
 
-    const inputAddr = loadJSON(policy.module, policy.memory, input);
-    const ctxAddr = policy.module.instance.exports.opa_eval_ctx_new();
+        for (let i = 0; i < inputLen; i++) {
+            buf[inputAddr + i] = inp.charCodeAt(i);
+        }
+        policy.heapPtr = inputAddr + inputLen;
+    }
 
-    policy.module.instance.exports.opa_eval_ctx_set_input(ctxAddr, inputAddr);
-    policy.module.instance.exports.opa_eval_ctx_set_data(ctxAddr, policy.dataAddr);
+    const addr = policy.module.instance.exports.opa_eval(
+        0, // reserved
+        0, // entrypoint
+        policy.dataAddr,
+        inputAddr,
+        inputLen,
+        policy.heapPtr,
+        0, // json output
+        );
 
-    policy.module.instance.exports.eval(ctxAddr);
-
-    const resultAddr = policy.module.instance.exports.opa_eval_ctx_get_result(ctxAddr);
-
-    return { addr: resultAddr };
+    return { addr };
 }
 
 function namespace(cache, key) {
@@ -282,7 +291,7 @@ async function test() {
             const result = evaluate(policy, testCases[i].input);
 
             const expDefined = testCases[i].want_defined;
-            const rs = dumpJSON(policy.module, policy.memory, result.addr);
+            const rs = parseJSON(policy.memory, result.addr);
 
             if (expDefined !== undefined) {
                 const len = rs.length

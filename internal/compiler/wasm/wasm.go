@@ -27,7 +27,7 @@ import (
 const (
 	opaWasmABIVersionVal      = 1
 	opaWasmABIVersionVar      = "opa_wasm_abi_version"
-	opaWasmABIMinorVersionVal = 1
+	opaWasmABIMinorVersionVal = 2
 	opaWasmABIMinorVersionVar = "opa_wasm_abi_minor_version"
 )
 
@@ -899,20 +899,7 @@ func (c *Compiler) replaceBooleanFunc() error {
 	c.appendInstr(instruction.GetLocal{Index: 0})
 	c.appendInstr(instruction.Select{})
 
-	// replace the code segment
-	var idx uint32
-	for _, fn := range c.module.Names.Functions {
-		if fn.Name == opaBoolean {
-			idx = fn.Index - uint32(c.functionImportCount())
-		}
-	}
-	var buf bytes.Buffer
-	if err := encoding.WriteCodeEntry(&buf, c.code); err != nil {
-		return err
-	}
-
-	c.module.Code.Segments[idx].Code = buf.Bytes()
-	return nil
+	return c.storeFunc(opaBoolean, c.code)
 }
 
 func (c *Compiler) compileBlock(block *ir.Block) ([]instruction.Instruction, error) {
@@ -1487,11 +1474,17 @@ func (c *Compiler) compileExternalCall(stmt *ir.CallStmt, id int32, result *[]in
 
 func (c *Compiler) emitFunctionDecl(name string, tpe module.FunctionType, export bool) {
 
-	typeIndex := c.emitFunctionType(tpe)
-	c.module.Function.TypeIndices = append(c.module.Function.TypeIndices, typeIndex)
-	c.module.Code.Segments = append(c.module.Code.Segments, module.RawCodeSegment{})
-	idx := uint32((len(c.module.Function.TypeIndices) - 1) + c.functionImportCount())
-	c.funcs[name] = idx
+	var idx uint32
+	if old, ok := c.funcs[name]; ok {
+		c.debug.Printf("function declaration for %v is being emitted multiple times (overwriting old index %d)", name, old)
+		idx = old
+	} else {
+		typeIndex := c.emitFunctionType(tpe)
+		c.module.Function.TypeIndices = append(c.module.Function.TypeIndices, typeIndex)
+		c.module.Code.Segments = append(c.module.Code.Segments, module.RawCodeSegment{})
+		idx = uint32((len(c.module.Function.TypeIndices) - 1) + c.functionImportCount())
+		c.funcs[name] = idx
+	}
 
 	if export {
 		c.module.Export.Exports = append(c.module.Export.Exports, module.Export{
