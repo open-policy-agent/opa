@@ -749,7 +749,11 @@ func newParserErrorDetail(bs []byte, offset int) *ParserErrorDetail {
 func (d ParserErrorDetail) Lines() []string {
 	line := strings.TrimLeft(d.Line, "\t") // remove leading tabs
 	tabCount := len(d.Line) - len(line)
-	return []string{line, strings.Repeat(" ", d.Idx-tabCount) + "^"}
+	indent := d.Idx - tabCount
+	if indent < 0 {
+		indent = 0
+	}
+	return []string{line, strings.Repeat(" ", indent) + "^"}
 }
 
 func isNewLineChar(b byte) bool {
