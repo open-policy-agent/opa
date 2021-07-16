@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/topdown"
 )
 
@@ -34,12 +35,12 @@ func New() *Profiler {
 }
 
 // Enabled returns true if profiler is enabled.
-func (p *Profiler) Enabled() bool {
+func (*Profiler) Enabled() bool {
 	return true
 }
 
 // Config returns the standard Tracer configuration for the profiler
-func (p *Profiler) Config() topdown.TraceConfig {
+func (*Profiler) Config() topdown.TraceConfig {
 	return topdown.TraceConfig{
 		PlugLocalVars: false, // Event variable metadata is not required for the Profiler
 	}
@@ -47,9 +48,10 @@ func (p *Profiler) Config() topdown.TraceConfig {
 
 // ReportByFile returns a profiler report for expressions grouped by the
 // file name. For each file the results are sorted by increasing row number.
-func (p *Profiler) ReportByFile() (report Report) {
+func (p *Profiler) ReportByFile() Report {
 	p.processLastExpr()
-	report.Files = map[string]*FileReport{}
+
+	report := Report{Files: map[string]*FileReport{}}
 	for file, hits := range p.hits {
 		stats := []ExprStats{}
 		for _, stat := range hits {
@@ -218,6 +220,47 @@ type ExprStats struct {
 	NumEval    int           `json:"num_eval"`
 	NumRedo    int           `json:"num_redo"`
 	Location   *ast.Location `json:"location"`
+}
+
+// ExprStatsAggregated represents the result of profiling an expression
+// by aggregating `n` profiles.
+type ExprStatsAggregated struct {
+	ExprTimeNsStats interface{}   `json:"total_time_ns_stats"`
+	NumEval         int           `json:"num_eval"`
+	NumRedo         int           `json:"num_redo"`
+	Location        *ast.Location `json:"location"`
+}
+
+func aggregate(stats ...ExprStats) ExprStatsAggregated {
+	if len(stats) == 0 {
+		return ExprStatsAggregated{}
+	}
+	res := ExprStatsAggregated{
+		NumEval:  stats[0].NumEval,
+		NumRedo:  stats[0].NumRedo,
+		Location: stats[0].Location,
+	}
+	var timeNs []int64
+	for _, s := range stats {
+		timeNs = append(timeNs, s.ExprTimeNs)
+	}
+	res.ExprTimeNsStats = metrics.Statistics(timeNs...)
+	return res
+}
+
+func AggregateProfiles(profiles ...[]ExprStats) []ExprStatsAggregated {
+	if len(profiles) == 0 {
+		return []ExprStatsAggregated{}
+	}
+	res := make([]ExprStatsAggregated, len(profiles[0]))
+	for j := 0; j < len(profiles[0]); j++ {
+		var s []ExprStats
+		for _, p := range profiles {
+			s = append(s, p[j])
+		}
+		res[j] = aggregate(s...)
+	}
+	return res
 }
 
 func sortStatsByRow(ps []ExprStats) {

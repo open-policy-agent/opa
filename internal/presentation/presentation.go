@@ -109,14 +109,16 @@ func (o DepAnalysisOutput) sort() {
 
 // Output contains the result of evaluation to be presented.
 type Output struct {
-	Errors      OutputErrors         `json:"errors,omitempty"`
-	Result      rego.ResultSet       `json:"result,omitempty"`
-	Partial     *rego.PartialQueries `json:"partial,omitempty"`
-	Metrics     metrics.Metrics      `json:"metrics,omitempty"`
-	Explanation []*topdown.Event     `json:"explanation,omitempty"`
-	Profile     []profiler.ExprStats `json:"profile,omitempty"`
-	Coverage    *cover.Report        `json:"coverage,omitempty"`
-	limit       int
+	Errors            OutputErrors                   `json:"errors,omitempty"`
+	Result            rego.ResultSet                 `json:"result,omitempty"`
+	Partial           *rego.PartialQueries           `json:"partial,omitempty"`
+	Metrics           metrics.Metrics                `json:"metrics,omitempty"`
+	AggregatedMetrics map[string]interface{}         `json:"aggregated_metrics,omitempty"`
+	Explanation       []*topdown.Event               `json:"explanation,omitempty"`
+	Profile           []profiler.ExprStats           `json:"profile,omitempty"`
+	AggregatedProfile []profiler.ExprStatsAggregated `json:"aggregated_profile,omitempty"`
+	Coverage          *cover.Report                  `json:"coverage,omitempty"`
+	limit             int
 }
 
 // WithLimit sets the output limit to set on stringified values.
@@ -306,6 +308,21 @@ func Pretty(w io.Writer, r Output) error {
 			return err
 		}
 	}
+	if len(r.AggregatedMetrics) > 0 {
+		if err := prettyAggregatedMetrics(w, r.AggregatedMetrics, r.limit); err != nil {
+			return err
+		}
+	}
+	if len(r.Profile) > 0 {
+		if err := prettyProfile(w, r.Profile); err != nil {
+			return err
+		}
+	}
+	if len(r.AggregatedProfile) > 0 {
+		if err := prettyAggregatedProfile(w, r.AggregatedProfile); err != nil {
+			return err
+		}
+	}
 	if r.Coverage != nil {
 		if err := prettyCoverage(w, r.Coverage); err != nil {
 			return err
@@ -458,6 +475,18 @@ func prettyMetrics(w io.Writer, m metrics.Metrics, limit int) error {
 	return nil
 }
 
+var statKeys = []string{"min", "max", "mean", "stddev", "median", "75%", "90%", "95%", "99%", "99.9%", "99.99%"}
+
+func prettyAggregatedMetrics(w io.Writer, ms map[string]interface{}, limit int) error {
+	keys := []string{"metric"}
+	tableMetrics := generateTableWithKeys(w, append(keys, statKeys...)...)
+	populateTableAggregatedMetrics(ms, tableMetrics, limit)
+	if tableMetrics.NumLines() > 0 {
+		tableMetrics.Render()
+	}
+	return nil
+}
+
 func prettyProfile(w io.Writer, profile []profiler.ExprStats) error {
 	tableProfile := generateTableProfile(w)
 	for _, rs := range profile {
@@ -468,6 +497,25 @@ func prettyProfile(w io.Writer, profile []profiler.ExprStats) error {
 		numRedo := strconv.FormatInt(int64(rs.NumRedo), 10)
 		loc := rs.Location.String()
 		line = append(line, timeNsStr, numEval, numRedo, loc)
+		tableProfile.Append(line)
+	}
+	if tableProfile.NumLines() > 0 {
+		tableProfile.Render()
+	}
+	return nil
+}
+
+func prettyAggregatedProfile(w io.Writer, profile []profiler.ExprStatsAggregated) error {
+	tableProfile := generateTableWithKeys(w, append(statKeys, "num eval", "num redo", "location")...)
+	for _, rs := range profile {
+		line := []string{}
+		for _, k := range statKeys {
+			line = append(line, fmt.Sprintf("%v", rs.ExprTimeNsStats.(map[string]interface{})[k]))
+		}
+		numEval := strconv.FormatInt(int64(rs.NumEval), 10)
+		numRedo := strconv.FormatInt(int64(rs.NumRedo), 10)
+		loc := rs.Location.String()
+		line = append(line, numEval, numRedo, loc)
 		tableProfile.Append(line)
 	}
 	if tableProfile.NumLines() > 0 {
@@ -533,20 +581,25 @@ func printPrettyRow(table *tablewriter.Table, keys []resultKey, result rego.Resu
 }
 
 func generateTableMetrics(writer io.Writer) *tablewriter.Table {
+	return generateTableWithKeys(writer, "Metric", "Value")
+}
+
+func generateTableWithKeys(writer io.Writer, keys ...string) *tablewriter.Table {
 	table := tablewriter.NewWriter(writer)
-	table.SetHeader([]string{"Metric", "Value"})
+	aligns := []int{tablewriter.ALIGN_CENTER}
+	var hdrs []string
+	for _, k := range keys {
+		hdrs = append(hdrs, strings.Title((k)))
+		aligns = append(aligns, tablewriter.ALIGN_LEFT)
+	}
+	table.SetHeader(hdrs)
 	table.SetAlignment(tablewriter.ALIGN_CENTER)
-	table.SetColumnAlignment([]int{tablewriter.ALIGN_LEFT, tablewriter.ALIGN_LEFT})
+	table.SetColumnAlignment(aligns)
 	return table
 }
 
 func generateTableProfile(writer io.Writer) *tablewriter.Table {
-	table := tablewriter.NewWriter(writer)
-	table.SetHeader([]string{"Time", "Num Eval", "Num Redo", "Location"})
-	table.SetAlignment(tablewriter.ALIGN_CENTER)
-	table.SetColumnAlignment([]int{tablewriter.ALIGN_LEFT, tablewriter.ALIGN_LEFT,
-		tablewriter.ALIGN_LEFT, tablewriter.ALIGN_LEFT})
-	return table
+	return generateTableWithKeys(writer, "Time", "Num Eval", "Num Redo", "Location")
 }
 
 func populateTableMetrics(m metrics.Metrics, table *tablewriter.Table, prettyLimit int) {
@@ -567,6 +620,21 @@ func populateTableMetrics(m metrics.Metrics, table *tablewriter.Table, prettyLim
 				lines = append(lines, line)
 			}
 		}
+	}
+	sortMetricRows(lines)
+	table.AppendBulk(lines)
+}
+
+func populateTableAggregatedMetrics(ms map[string]interface{}, table *tablewriter.Table, prettyLimit int) {
+	lines := [][]string{}
+	for name, vals := range ms {
+		line := []string{name}
+		vs := vals.(map[string]interface{})
+		for _, k := range statKeys {
+			value := checkStrLimit(fmt.Sprintf("%v", vs[k]), prettyLimit)
+			line = append(line, value)
+		}
+		lines = append(lines, line)
 	}
 	sortMetricRows(lines)
 	table.AppendBulk(lines)
