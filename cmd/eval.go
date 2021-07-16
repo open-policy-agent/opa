@@ -284,7 +284,9 @@ func eval(args []string, params evalCommandParams, w io.Writer) (bool, error) {
 	for i := 0; i < ectx.params.count; i++ {
 		results[i] = evalOnce(ctx, ectx)
 		profiles[i] = results[i].Profile
-		timers[i] = results[i].Metrics.(metrics.TimerMetrics).Timers()
+		if ts, ok := results[i].Metrics.(metrics.TimerMetrics); ok {
+			timers[i] = ts.Timers()
+		}
 	}
 
 	result := results[0]
