@@ -475,7 +475,7 @@ func prettyMetrics(w io.Writer, m metrics.Metrics, limit int) error {
 	return nil
 }
 
-var statKeys = []string{"count", "min", "max", "mean", "stddev", "median", "75%", "90%", "95%", "99%", "99.9%", "99.99%"}
+var statKeys = []string{"min", "max", "mean", "stddev", "median", "75%", "90%", "95%", "99%", "99.9%", "99.99%"}
 
 func prettyAggregatedMetrics(w io.Writer, ms map[string]interface{}, limit int) error {
 	keys := []string{"metric"}
