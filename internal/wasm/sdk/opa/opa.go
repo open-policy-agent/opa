@@ -45,7 +45,7 @@ type Result struct {
 // initialized before invoking the Eval.
 func New() *OPA {
 	opa := &OPA{
-		memoryMinPages: 16,
+		memoryMinPages: 129,
 		memoryMaxPages: 0x10000, // 4GB
 		poolSize:       uint32(runtime.GOMAXPROCS(0)),
 		logError:       func(error) {},
