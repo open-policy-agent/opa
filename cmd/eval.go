@@ -54,6 +54,7 @@ type evalCommandParams struct {
 	profile             bool
 	profileCriteria     repeatedStringFlag
 	profileLimit        intFlag
+	count               int
 	prettyLimit         intFlag
 	fail                bool
 	failDefined         bool
@@ -74,6 +75,7 @@ func newEvalCommandParams() evalCommandParams {
 		}),
 		explain: newExplainFlag([]string{explainModeOff, explainModeFull, explainModeNotes, explainModeFails}),
 		target:  util.NewEnumFlag(compile.TargetRego, []string{compile.TargetRego, compile.TargetWasm}),
+		count:   1,
 	}
 }
 
@@ -262,34 +264,105 @@ Loads a single JSON file, applying it to the input document; or all the schema f
 	setExplainFlag(evalCommand.Flags(), params.explain)
 	addSchemaFlag(evalCommand.Flags(), &params.schemaPath)
 	addTargetFlag(evalCommand.Flags(), params.target)
+	addCountFlag(evalCommand.Flags(), &params.count, "benchmark")
 
 	RootCommand.AddCommand(evalCommand)
 }
 
 func eval(args []string, params evalCommandParams, w io.Writer) (bool, error) {
 
+	ctx := context.Background()
+
 	ectx, err := setupEval(args, params)
 	if err != nil {
 		return false, err
 	}
 
-	ctx := context.Background()
+	results := make([]pr.Output, ectx.params.count)
+	profiles := make([][]profiler.ExprStats, ectx.params.count)
+	timers := make([]map[string]interface{}, ectx.params.count)
 
+	for i := 0; i < ectx.params.count; i++ {
+		results[i] = evalOnce(ctx, ectx)
+		profiles[i] = results[i].Profile
+		if ts, ok := results[i].Metrics.(metrics.TimerMetrics); ok {
+			timers[i] = ts.Timers()
+		}
+	}
+
+	result := results[0]
+
+	if ectx.params.count > 1 {
+		result.Profile = nil
+		result.Metrics = nil
+		result.AggregatedProfile = profiler.AggregateProfiles(profiles...)
+		timersAggregated := map[string]interface{}{}
+		for name := range timers[0] {
+			var vals []int64
+			for _, t := range timers {
+				val, ok := t[name].(int64)
+				if !ok {
+					return false, fmt.Errorf("missing timer for %s" + name)
+				}
+				vals = append(vals, val)
+			}
+			timersAggregated[name] = metrics.Statistics(vals...)
+		}
+		result.AggregatedMetrics = timersAggregated
+	}
+
+	switch ectx.params.outputFormat.String() {
+	case evalBindingsOutput:
+		err = pr.Bindings(w, result)
+	case evalValuesOutput:
+		err = pr.Values(w, result)
+	case evalPrettyOutput:
+		err = pr.Pretty(w, result)
+	case evalSourceOutput:
+		err = pr.Source(w, result)
+	case evalRawOutput:
+		err = pr.Raw(w, result)
+	default:
+		err = pr.JSON(w, result)
+	}
+
+	if err != nil {
+		return false, err
+	} else if len(result.Errors) > 0 {
+		// If the rego package returned an error, return a special error here so
+		// that the command doesn't print the same error twice. The error will
+		// have been printed above by the presentation package.
+		return false, regoError{}
+	} else if len(result.Result) == 0 {
+		return false, nil
+	}
+
+	return true, nil
+}
+
+func evalOnce(ctx context.Context, ectx *evalContext) pr.Output {
 	var result pr.Output
 	var resultErr error
-
 	var parsedModules map[string]*ast.Module
+
+	if ectx.metrics != nil {
+		ectx.metrics.Clear()
+	}
+	if ectx.profiler != nil {
+		ectx.profiler.reset()
+	}
+	r := rego.New(ectx.regoArgs...)
 
 	if !ectx.params.partial {
 		var pq rego.PreparedEvalQuery
-		pq, resultErr = ectx.r.PrepareForEval(ctx)
+		pq, resultErr = r.PrepareForEval(ctx)
 		if resultErr == nil {
 			parsedModules = pq.Modules()
 			result.Result, resultErr = pq.Eval(ctx, ectx.evalArgs...)
 		}
 	} else {
 		var pq rego.PreparedPartialQuery
-		pq, resultErr = ectx.r.PrepareForPartial(ctx)
+		pq, resultErr = r.PrepareForPartial(ctx)
 		if resultErr == nil {
 			parsedModules = pq.Modules()
 			result.Partial, resultErr = pq.Partial(ctx, ectx.evalArgs...)
@@ -321,7 +394,7 @@ func eval(args []string, params evalCommandParams, w io.Writer) (bool, error) {
 			sortOrder = getProfileSortOrder(strings.Split(ectx.params.profileCriteria.String(), ","))
 		}
 
-		result.Profile = ectx.profiler.ReportTopNResults(ectx.params.profileLimit.v, sortOrder)
+		result.Profile = ectx.profiler.p.ReportTopNResults(ectx.params.profileLimit.v, sortOrder)
 	}
 
 	if ectx.params.coverage {
@@ -329,42 +402,16 @@ func eval(args []string, params evalCommandParams, w io.Writer) (bool, error) {
 		result.Coverage = &report
 	}
 
-	switch params.outputFormat.String() {
-	case evalBindingsOutput:
-		err = pr.Bindings(w, result)
-	case evalValuesOutput:
-		err = pr.Values(w, result)
-	case evalPrettyOutput:
-		err = pr.Pretty(w, result)
-	case evalSourceOutput:
-		err = pr.Source(w, result)
-	case evalRawOutput:
-		err = pr.Raw(w, result)
-	default:
-		err = pr.JSON(w, result)
-	}
-
-	if err != nil {
-		return false, err
-	} else if len(result.Errors) > 0 {
-		// If the rego package returned an error, return a special error here so
-		// that the command doesn't print the same error twice. The error will
-		// have been printed above by the presentation package.
-		return false, regoError{}
-	} else if len(result.Result) == 0 {
-		return false, nil
-	} else {
-		return true, nil
-	}
+	return result
 }
 
 type evalContext struct {
 	params   evalCommandParams
 	metrics  metrics.Metrics
-	profiler *profiler.Profiler
+	profiler *resettableProfiler
 	cover    *cover.Cover
 	tracer   *topdown.BufferTracer
-	r        *rego.Rego
+	regoArgs []func(*rego.Rego)
 	evalArgs []rego.EvalOption
 }
 
@@ -470,10 +517,10 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 		evalArgs = append(evalArgs, rego.EvalInstrument(true))
 	}
 
-	var p *profiler.Profiler
+	rp := resettableProfiler{}
 	if params.profile {
-		p = profiler.New()
-		evalArgs = append(evalArgs, rego.EvalQueryTracer(p))
+		rp.p = profiler.New()
+		evalArgs = append(evalArgs, rego.EvalQueryTracer(&rp))
 	}
 
 	if params.partial {
@@ -493,20 +540,30 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 		regoArgs = append(regoArgs, rego.StrictBuiltinErrors(true))
 	}
 
-	eval := rego.New(regoArgs...)
-
 	evalCtx := &evalContext{
 		params:   params,
 		metrics:  m,
-		profiler: p,
+		profiler: &rp,
 		cover:    c,
 		tracer:   tracer,
-		r:        eval,
+		regoArgs: regoArgs,
 		evalArgs: evalArgs,
 	}
 
 	return evalCtx, nil
 }
+
+type resettableProfiler struct {
+	p *profiler.Profiler
+}
+
+func (r *resettableProfiler) reset() {
+	r.p = profiler.New()
+}
+
+func (*resettableProfiler) Enabled() bool                 { return true }
+func (r *resettableProfiler) TraceEvent(ev topdown.Event) { r.p.TraceEvent(ev) }
+func (r *resettableProfiler) Config() topdown.TraceConfig { return r.p.Config() }
 
 func getProfileSortOrder(sortOrder []string) []string {
 
