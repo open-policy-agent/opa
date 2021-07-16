@@ -36,6 +36,8 @@ void reset_heap(void)
 WASM_EXPORT(test_opa_malloc)
 void test_opa_malloc(void)
 {
+    opa_malloc_init_test();
+
     reset_heap();
 
     // NOTE(tsandall): These numbers are not particularly important. They're
