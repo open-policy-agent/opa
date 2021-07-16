@@ -149,6 +149,8 @@ $(WASM_OBJ_DIR)/opa.wasm: $(OBJS) $(CPP_OBJS) $(LIB_OBJS) $(LIB_MPDEC_OBJS) $(LI
 			--allow-undefined-file=src/undefined.symbols \
 			--import-memory \
 			--no-entry \
+			-z stack-size=8388608 \
+			--stack-first \
 			-o $@ $^
 	@wasm2wat $(WASM_OBJ_DIR)/opa.wasm > $(WASM_OBJ_DIR)/opa.wast
 
