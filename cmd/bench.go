@@ -13,11 +13,10 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/open-policy-agent/opa/compile"
-
 	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
 
+	"github.com/open-policy-agent/opa/compile"
 	"github.com/open-policy-agent/opa/internal/presentation"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/rego"

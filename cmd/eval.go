@@ -54,6 +54,7 @@ type evalCommandParams struct {
 	profile             bool
 	profileCriteria     repeatedStringFlag
 	profileLimit        intFlag
+	count               int
 	prettyLimit         intFlag
 	fail                bool
 	failDefined         bool
@@ -262,22 +263,79 @@ Loads a single JSON file, applying it to the input document; or all the schema f
 	setExplainFlag(evalCommand.Flags(), params.explain)
 	addSchemaFlag(evalCommand.Flags(), &params.schemaPath)
 	addTargetFlag(evalCommand.Flags(), params.target)
+	addCountFlag(evalCommand.Flags(), &params.count, "benchmark")
 
 	RootCommand.AddCommand(evalCommand)
 }
 
 func eval(args []string, params evalCommandParams, w io.Writer) (bool, error) {
 
+	ctx := context.Background()
+
 	ectx, err := setupEval(args, params)
 	if err != nil {
 		return false, err
 	}
 
-	ctx := context.Background()
+	results := make([]pr.Output, ectx.params.count)
+	profiles := make([][]profiler.ExprStats, ectx.params.count)
+	timers := make([]map[string]interface{}, ectx.params.count)
 
+	for i := 0; i < ectx.params.count; i++ {
+		results[i] = evalOnce(ctx, ectx)
+		profiles[i] = results[i].Profile
+		timers[i] = results[i].Metrics.(metrics.TimerMetrics).Timers()
+	}
+
+	result := results[0]
+
+	if ectx.params.count > 1 {
+		result.Profile = nil
+		result.Metrics = nil
+		result.AggregatedProfile = profiler.AggregateProfiles(profiles...)
+		timersAggregated := map[string]interface{}{}
+		for name := range timers[0] {
+			var vals []int64
+			for _, t := range timers {
+				vals = append(vals, t[name].(int64))
+			}
+			timersAggregated[name] = metrics.Statistics(vals...)
+		}
+		result.AggregatedMetrics = timersAggregated
+	}
+
+	switch ectx.params.outputFormat.String() {
+	case evalBindingsOutput:
+		err = pr.Bindings(w, result)
+	case evalValuesOutput:
+		err = pr.Values(w, result)
+	case evalPrettyOutput:
+		err = pr.Pretty(w, result)
+	case evalSourceOutput:
+		err = pr.Source(w, result)
+	case evalRawOutput:
+		err = pr.Raw(w, result)
+	default:
+		err = pr.JSON(w, result)
+	}
+
+	if err != nil {
+		return false, err
+	} else if len(result.Errors) > 0 {
+		// If the rego package returned an error, return a special error here so
+		// that the command doesn't print the same error twice. The error will
+		// have been printed above by the presentation package.
+		return false, regoError{}
+	} else if len(result.Result) == 0 {
+		return false, nil
+	}
+
+	return true, nil
+}
+
+func evalOnce(ctx context.Context, ectx *evalContext) pr.Output {
 	var result pr.Output
 	var resultErr error
-
 	var parsedModules map[string]*ast.Module
 
 	if !ectx.params.partial {
@@ -329,33 +387,7 @@ func eval(args []string, params evalCommandParams, w io.Writer) (bool, error) {
 		result.Coverage = &report
 	}
 
-	switch params.outputFormat.String() {
-	case evalBindingsOutput:
-		err = pr.Bindings(w, result)
-	case evalValuesOutput:
-		err = pr.Values(w, result)
-	case evalPrettyOutput:
-		err = pr.Pretty(w, result)
-	case evalSourceOutput:
-		err = pr.Source(w, result)
-	case evalRawOutput:
-		err = pr.Raw(w, result)
-	default:
-		err = pr.JSON(w, result)
-	}
-
-	if err != nil {
-		return false, err
-	} else if len(result.Errors) > 0 {
-		// If the rego package returned an error, return a special error here so
-		// that the command doesn't print the same error twice. The error will
-		// have been printed above by the presentation package.
-		return false, regoError{}
-	} else if len(result.Result) == 0 {
-		return false, nil
-	} else {
-		return true, nil
-	}
+	return result
 }
 
 type evalContext struct {
