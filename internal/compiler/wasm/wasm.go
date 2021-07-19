@@ -872,11 +872,10 @@ func (c *Compiler) emitMappingAndStartFunc() error {
 	c.module.Table.Tables[0].Lim.Min = min
 	c.module.Table.Tables[0].Lim.Max = &max
 
-	low, err := getLowestFreeDataSegmentOffset(c.module)
+	heapBase, err := getLowestFreeDataSegmentOffset(c.module)
 	if err != nil {
 		return err
 	}
-	heapBase := align(low)
 
 	// create function that calls `void opa_mapping_initialize(const char *s, const int l)`
 	// with s being the offset of the data segment just written, and l its length
@@ -909,16 +908,6 @@ func (c *Compiler) replaceBooleanFunc() error {
 	c.appendInstr(instruction.Select{})
 
 	return c.storeFunc(opaBoolean, c.code)
-}
-
-const pageSize = 65535 // TODO: move
-
-// align returns the next wasm page size multiple larger or equal to i
-func align(i int32) int32 {
-	if i%pageSize == 0 {
-		return i
-	}
-	return i + pageSize - i%pageSize
 }
 
 func (c *Compiler) compileBlock(block *ir.Block) ([]instruction.Instruction, error) {
