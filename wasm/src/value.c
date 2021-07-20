@@ -536,10 +536,8 @@ int opa_value_compare(opa_value *a, opa_value *b)
         return opa_value_compare_set(a1, b1);
     }
     default:
-    {
         opa_abort("illegal value");
         return 0;
-    }
     }
 }
 
