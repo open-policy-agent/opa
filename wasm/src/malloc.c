@@ -6,7 +6,6 @@
 
 #define ARRAY_SIZE(ARRAY) (sizeof(ARRAY) / sizeof((ARRAY)[0]))
 
-static int initialized;
 static unsigned int heap_ptr;
 static unsigned int heap_top;
 extern unsigned char __heap_base; // set by lld
