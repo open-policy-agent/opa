@@ -238,7 +238,7 @@ function namespace(cache, key) {
 
 async function test() {
 
-    const memory = new WebAssembly.Memory({ initial: 129 });
+    const memory = new WebAssembly.Memory({ initial: 5 });
     const t0 = now();
     var testCases = [];
     const files = readdirSync('.');
