@@ -150,6 +150,7 @@ $(WASM_OBJ_DIR)/opa.wasm: $(OBJS) $(CPP_OBJS) $(LIB_OBJS) $(LIB_MPDEC_OBJS) $(LI
 			--import-memory \
 			--no-entry \
 			--stack-first \
+			-z stack-size=131072 \
 			-o $@ $^
 	@wasm2wat $(WASM_OBJ_DIR)/opa.wasm > $(WASM_OBJ_DIR)/opa.wast
 
