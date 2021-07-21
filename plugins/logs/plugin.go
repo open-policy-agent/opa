@@ -12,6 +12,7 @@ import (
 	"math"
 	"math/rand"
 	"net/http"
+	"net/url"
 	"reflect"
 	"strings"
 	"sync"
@@ -214,6 +215,7 @@ const (
 	defaultBufferSizeLimitBytes = int64(0)     // unlimited
 	defaultMaskDecisionPath     = "/system/log/mask"
 	logDropCounterName          = "decision_logs_dropped"
+	defaultResourcePath         = "/logs"
 )
 
 // ReportingConfig represents configuration for the plugin's reporting behaviour.
@@ -227,13 +229,13 @@ type ReportingConfig struct {
 
 // Config represents the plugin configuration.
 type Config struct {
-	Plugin        *string         `json:"plugin"`
-	Service       string          `json:"service"`
-	PartitionName string          `json:"partition_name,omitempty"`
-	Reporting     ReportingConfig `json:"reporting"`
-	MaskDecision  *string         `json:"mask_decision"`
-	ConsoleLogs   bool            `json:"console"`
-
+	Plugin          *string         `json:"plugin"`
+	Service         string          `json:"service"`
+	PartitionName   string          `json:"partition_name,omitempty"`
+	Reporting       ReportingConfig `json:"reporting"`
+	MaskDecision    *string         `json:"mask_decision"`
+	ConsoleLogs     bool            `json:"console"`
+	Resource        *string         `json:"resource"`
 	maskDecisionRef ast.Ref
 }
 
@@ -327,6 +329,18 @@ func (c *Config) validateAndInjectDefaults(services []string, plugins []string) 
 	c.maskDecisionRef, err = ref.ParseDataPath(*c.MaskDecision)
 	if err != nil {
 		return errors.Wrap(err, "invalid mask_decision in decision_logs")
+	}
+
+	if c.PartitionName != "" {
+		resourcePath := fmt.Sprintf("/logs/%v", c.PartitionName)
+		c.Resource = &resourcePath
+	} else if c.Resource == nil {
+		resourcePath := defaultResourcePath
+		c.Resource = &resourcePath
+	} else {
+		if _, err := url.Parse(*c.Resource); err != nil {
+			return fmt.Errorf("invalid resource path %q: %w", *c.Resource, err)
+		}
 	}
 
 	return nil
@@ -632,7 +646,7 @@ func (p *Plugin) oneShot(ctx context.Context) (ok bool, err error) {
 
 	for bs := oldBuffer.Pop(); bs != nil; bs = oldBuffer.Pop() {
 		if err == nil {
-			err = uploadChunk(ctx, p.manager.Client(p.config.Service), p.config.PartitionName, bs)
+			err = uploadChunk(ctx, p.manager.Client(p.config.Service), *p.config.Resource, bs)
 		}
 		if err != nil {
 			if p.limiter != nil {
@@ -771,13 +785,13 @@ func (p *Plugin) maskEvent(ctx context.Context, txn storage.Transaction, event *
 	return nil
 }
 
-func uploadChunk(ctx context.Context, client rest.Client, partitionName string, data []byte) error {
+func uploadChunk(ctx context.Context, client rest.Client, uploadPath string, data []byte) error {
 
 	resp, err := client.
 		WithHeader("Content-Type", "application/json").
 		WithHeader("Content-Encoding", "gzip").
 		WithBytes(data).
-		Do(ctx, "POST", fmt.Sprintf("/logs/%v", partitionName))
+		Do(ctx, "POST", uploadPath)
 
 	if err != nil {
 		return errors.Wrap(err, "Log upload failed")
