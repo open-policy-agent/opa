@@ -149,6 +149,7 @@ $(WASM_OBJ_DIR)/opa.wasm: $(OBJS) $(CPP_OBJS) $(LIB_OBJS) $(LIB_MPDEC_OBJS) $(LI
 			--allow-undefined-file=src/undefined.symbols \
 			--import-memory \
 			--no-entry \
+			--stack-first \
 			-o $@ $^
 	@wasm2wat $(WASM_OBJ_DIR)/opa.wasm > $(WASM_OBJ_DIR)/opa.wast
 
@@ -158,6 +159,7 @@ $(WASM_OBJ_DIR)/opa-test.wasm: $(OBJS) $(CPP_OBJS) $(LIB_OBJS) $(LIB_MPDEC_OBJS)
 			--allow-undefined-file=_obj/undefined.symbols \
 			--import-memory \
 			--no-entry \
+			--stack-first \
 			-o $@ $^
 
 $(WASM_OBJ_DIR)/callgraph.csv: $(WASM_OBJ_DIR)/opa.wasm

@@ -76,6 +76,7 @@ const (
 	opaMappingInit       = "opa_mapping_init"
 	opaMappingLookup     = "opa_mapping_lookup"
 	opaMPDInit           = "opa_mpd_init"
+	opaMallocInit        = "opa_malloc_init"
 )
 
 var builtinsFunctions = map[string]string{
@@ -637,7 +638,7 @@ func (c *Compiler) compileFuncs() error {
 		}
 	}
 
-	if err := c.emitMapping(); err != nil {
+	if err := c.emitMappingAndStartFunc(); err != nil {
 		return fmt.Errorf("writing mapping: %w", err)
 	}
 
@@ -815,7 +816,7 @@ func mapFunc(mapping ast.Object, fn *ir.Func, index int) (ast.Object, bool) {
 	return mapping.Merge(curr)
 }
 
-func (c *Compiler) emitMapping() error {
+func (c *Compiler) emitMappingAndStartFunc() error {
 	var indices []uint32
 	var ok bool
 	mapping := ast.NewObject()
@@ -871,10 +872,17 @@ func (c *Compiler) emitMapping() error {
 	c.module.Table.Tables[0].Lim.Min = min
 	c.module.Table.Tables[0].Lim.Max = &max
 
+	heapBase, err := getLowestFreeDataSegmentOffset(c.module)
+	if err != nil {
+		return err
+	}
+
 	// create function that calls `void opa_mapping_initialize(const char *s, const int l)`
 	// with s being the offset of the data segment just written, and l its length
 	fName := "_initialize"
 	c.code = &module.CodeEntry{}
+	c.appendInstr(instruction.I32Const{Value: heapBase})
+	c.appendInstr(instruction.Call{Index: c.function(opaMallocInit)})
 	c.appendInstr(instruction.Call{Index: c.function(opaMPDInit)})
 	c.appendInstr(instruction.I32Const{Value: dataOffset})
 	c.appendInstr(instruction.I32Const{Value: int32(len(jsonMap))})
