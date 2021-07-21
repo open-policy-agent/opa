@@ -68,7 +68,7 @@ function run_testcases {
         --volumes-from $TESTGEN_CONTAINER_NAME \
         -e VERBOSE=$VERBOSE \
         -w /scratch \
-        node:8 \
+        node:14 \
         sh -c 'tar xzf \
             /src/.go/cache/testcases.tar.gz \
             && node test.js opa.wasm' &

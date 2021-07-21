@@ -104,13 +104,10 @@ opa_object_t *__paths_to_object(opa_value *a)
             switch (opa_value_type(child))
             {
                 case OPA_NULL:
-                {
                     done = 1;
-                }
+                    break;
                 case OPA_OBJECT:
-                {
                     node = opa_cast_object(child);
-                }
             }
         }
 
