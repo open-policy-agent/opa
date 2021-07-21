@@ -322,11 +322,13 @@ func TestNamedEntrypoint(t *testing.T) {
 		t.Fatalf("Unexpected error: %s", err)
 	}
 
-	instance, _ := opa.New().
+	instance, err := opa.New().
 		WithPolicyBytes(compiler.Bundle().WasmModules[0].Raw).
-		WithMemoryLimits(131070, 2*131070). // TODO: For some reason unlimited memory slows down the eval_ctx_new().
 		WithPoolSize(1).
 		Init()
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
 
 	eps, err := instance.Entrypoints(ctx)
 	if err != nil {
