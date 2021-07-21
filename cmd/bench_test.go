@@ -216,7 +216,8 @@ func validateBenchMainPrep(t *testing.T, args []string, params benchmarkCommandP
 	mockRunner.onRun = func(ctx context.Context, ectx *evalContext, params benchmarkCommandParams, f func(context.Context, ...rego.EvalOption) error) (testing.BenchmarkResult, error) {
 
 		// cheat and use the ectx to evalute the query to ensure the input setup on it was valid
-		pq, err := ectx.r.PrepareForEval(ctx)
+		r := rego.New(ectx.regoArgs...)
+		pq, err := r.PrepareForEval(ctx)
 		if err != nil {
 			return testing.BenchmarkResult{}, err
 		}
