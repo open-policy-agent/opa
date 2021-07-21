@@ -96,7 +96,7 @@ func benchmarkIteration(b *testing.B, module string) {
 
 	instance, err := opa.New().
 		WithPolicyBytes(policy).
-		WithMemoryLimits(3*wasm.PageSize, 47*wasm.PageSize).
+		WithMemoryLimits(2*wasm.PageSize, 47*wasm.PageSize).
 		WithPoolSize(1).
 		Init()
 	if err != nil {
