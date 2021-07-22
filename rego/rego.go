@@ -1933,9 +1933,14 @@ func (r *Rego) eval(ctx context.Context, ectx *EvalContext) (ResultSet, error) {
 
 func (r *Rego) evalWasm(ctx context.Context, ectx *EvalContext) (ResultSet, error) {
 
+	input := ectx.rawInput
+	if ectx.parsedInput != nil {
+		i := interface{}(ectx.parsedInput)
+		input = &i
+	}
 	result, err := r.opa.Eval(ctx, opa.EvalOpts{
 		Metrics: r.metrics,
-		Input:   ectx.rawInput,
+		Input:   input,
 		Time:    ectx.time,
 		Seed:    ectx.seed,
 	})

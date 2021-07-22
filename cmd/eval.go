@@ -465,7 +465,8 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 	inputBytes, err := readInputBytes(params)
 	if err != nil {
 		return nil, err
-	} else if inputBytes != nil {
+	}
+	if inputBytes != nil {
 		var input interface{}
 		err := util.Unmarshal(inputBytes, &input)
 		if err != nil {
