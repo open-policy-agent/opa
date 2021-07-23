@@ -4,6 +4,17 @@ cases:
   - |
     package test
     p {
+        units.parse_bytes("\"100TIB\"") == 109951162777600
+    }
+  note: parse_bytes/removes quotes and lowercases string
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+    p {
         units.parse_bytes("0") == 0
     }
   note: parse_bytes/zero

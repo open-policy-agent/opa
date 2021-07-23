@@ -96,7 +96,7 @@ func builtinNumBytes(a ast.Value) (ast.Value, error) {
 	return builtins.IntToNumber(big.NewInt(int64(total))), nil
 }
 
-// Makes the string lower case and removes spaces and quotation marks
+// Makes the string lower case and removes quotation marks
 func formatString(s ast.String) string {
 	str := string(s)
 	lower := strings.ToLower(str)
