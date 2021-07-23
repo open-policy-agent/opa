@@ -437,7 +437,7 @@ The following table shows examples of how ``glob.match`` works:
 | <span class="opa-keep-it-together">``output := is_set(x)``</span> | ``output`` is ``true`` if ``x`` is a set; otherwise undefined | ✅ |
 | <span class="opa-keep-it-together">``output := is_object(x)``</span> | ``output`` is ``true`` if ``x`` is an object; otherwise undefined | ✅ |
 | <span class="opa-keep-it-together">``output := is_null(x)``</span> | ``output`` is ``true`` if ``x`` is null; otherwise undefined | ✅ |
-| <span class="opa-keep-it-together">``output := type_name(x)``</span> | ``output`` is the type of ``x`` |
+| <span class="opa-keep-it-together">``output := type_name(x)``</span> | ``output`` is the type of ``x`` (e.g. ``"number"``, ``"boolean"``, ...) | ✅ |
 
 ### Encoding
 
