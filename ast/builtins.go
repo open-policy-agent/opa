@@ -114,6 +114,7 @@ var DefaultBuiltins = [...]*Builtin{
 	StartsWith,
 	EndsWith,
 	Split,
+	Repeat,
 	Replace,
 	ReplaceN,
 	Trim,
@@ -916,6 +917,18 @@ var Split = &Builtin{
 			types.S,
 		),
 		types.NewArray(nil, types.S),
+	),
+}
+
+// Repeat repeats a string N times
+var Repeat = &Builtin{
+	Name: "strings.repeat",
+	Decl: types.NewFunction(
+		types.Args(
+			types.S,
+			types.N,
+		),
+		types.S,
 	),
 }
 

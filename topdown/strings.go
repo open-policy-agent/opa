@@ -243,6 +243,24 @@ func builtinSplit(a, b ast.Value) (ast.Value, error) {
 	return ast.NewArray(arr...), nil
 }
 
+func builtinRepeat(a, b ast.Value) (ast.Value, error) {
+	s, err := builtins.StringOperand(a, 1)
+	if err != nil {
+		return nil, err
+	}
+
+	times, err := builtins.IntOperand(b, 2)
+	if err != nil {
+		return nil, err
+	}
+
+	if times < 0 {
+		return nil, fmt.Errorf("negative repeat count")
+	}
+
+	return ast.String(strings.Repeat(string(s), times)), nil
+}
+
 func builtinReplace(a, b, c ast.Value) (ast.Value, error) {
 	s, err := builtins.StringOperand(a, 1)
 	if err != nil {
@@ -423,6 +441,7 @@ func init() {
 	RegisterFunctionalBuiltin1(ast.Upper.Name, builtinUpper)
 	RegisterFunctionalBuiltin1(ast.Lower.Name, builtinLower)
 	RegisterFunctionalBuiltin2(ast.Split.Name, builtinSplit)
+	RegisterFunctionalBuiltin2(ast.Repeat.Name, builtinRepeat)
 	RegisterFunctionalBuiltin3(ast.Replace.Name, builtinReplace)
 	RegisterFunctionalBuiltin2(ast.ReplaceN.Name, builtinReplaceN)
 	RegisterFunctionalBuiltin2(ast.Trim.Name, builtinTrim)
