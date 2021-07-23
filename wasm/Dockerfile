@@ -14,6 +14,7 @@ RUN apt-get update && \
     apt-get install -y \
       cmake \
       clang-12 \
+      clang-format-12 \
       libc++-12-dev \
       libc++abi-12-dev \
       lld-12 && \
@@ -24,6 +25,7 @@ RUN apt-get update && \
 
 RUN ln -s /usr/bin/clang-12 /usr/bin/clang && \
     ln -s /usr/bin/clang++-12 /usr/bin/clang++ && \
+    ln -s /usr/bin/clang-format-12 /usr/bin/clang-format && \
     ln -s /usr/bin/clang-cpp-12 /usr/bin/clang-cpp
 
 RUN git clone https://github.com/WebAssembly/wabt && \
