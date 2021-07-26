@@ -2723,6 +2723,21 @@ func TestTopDownPartialEval(t *testing.T) {
 			},
 			wantQueries: []string{`x_term_1_01; x_term_1_01 = input[x_term_1_01]`},
 		},
+		{
+			note:  "copypropagation: circular reference (bug 3071)",
+			query: "data.test.p",
+			modules: []string{`package test
+				p[y] {
+					s := { i | input[i] }
+					s & set() != s
+					y := sprintf("%v", [s])
+				}`,
+			},
+			wantQueries: []string{`data.partial.test.p`},
+			wantSupport: []string{`package partial.test
+				p[__local1__1] { __local0__1 = {i1 | input[i1]}; neq(and(__local0__1, set()), __local0__1); sprintf("%v", [__local0__1], __local1__1) }
+			`},
+		},
 	}
 
 	ctx := context.Background()
