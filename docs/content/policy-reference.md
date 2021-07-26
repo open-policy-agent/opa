@@ -1025,6 +1025,14 @@ net.cidr_contains_matches({["1.1.0.0/16", "foo"], "1.1.2.0/24"}, {"x": "1.1.1.12
 | ------- |-------------|---------------|
 | <span class="opa-keep-it-together">``trace(string)``</span> | ``trace`` outputs the debug message ``string`` as a ``Note`` event in the query explanation. For example, ``trace("Hello There!")`` includes ``Note "Hello There!"`` in the query explanation. To print variables, use sprintf. For example, ``person := "Bob"; trace(sprintf("Hello There! %v", [person]))`` will emit ``Note "Hello There! Bob"``. | ``SDK-dependent`` |
 
+By default, explanations are disabled. The following table summarizes how you can enable tracing:
+
+API | Parameter | Example | Memo
+--- | --- | --- | ---
+CLI | `--explain` | `opa eval --explain=notes --format=pretty 'trace("hello world")'` |
+HTTP | `explain=notes` | `curl localhost:8181/v1/data/example/allow?explain=notes&pretty` |
+REPL | `notes` | n/a | The "notes" command enables trace explanations. See `help` for more details.
+
 ## Reserved Names
 
 The following words are reserved and cannot be used as variable names, rule
