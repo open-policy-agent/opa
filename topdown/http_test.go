@@ -989,6 +989,34 @@ func TestHTTPSendInterQueryCaching(t *testing.T) {
 			response:         `{"x": 1}`,
 			expectedReqCount: 3,
 		},
+		{
+			note: "http.send GET cache hit deserialized mode (max_age_response_fresh)",
+			ruleTemplate: `p = x {
+									r1 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true, "caching_mode": "deserialized"})
+									r2 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true, "caching_mode": "deserialized"})  # cached and fresh
+									r3 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true, "caching_mode": "deserialized"})  # cached and fresh
+									r1 == r2
+									r2 == r3
+									x = r1.body
+								}`,
+			headers:          map[string][]string{"Cache-Control": {"max-age=290304000, public"}},
+			response:         `{"x": 1}`,
+			expectedReqCount: 1,
+		},
+		{
+			note: "http.send GET cache hit serialized mode explicit (max_age_response_fresh)",
+			ruleTemplate: `p = x {
+									r1 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true, "caching_mode": "serialized"})
+									r2 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true, "caching_mode": "serialized"})  # cached and fresh
+									r3 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true, "caching_mode": "serialized"})  # cached and fresh
+									r1 == r2
+									r2 == r3
+									x = r1.body
+								}`,
+			headers:          map[string][]string{"Cache-Control": {"max-age=290304000, public"}},
+			response:         `{"x": 1}`,
+			expectedReqCount: 1,
+		},
 	}
 
 	data := loadSmallTestData()
@@ -1192,6 +1220,19 @@ func TestHTTPSendInterQueryCachingModifiedResp(t *testing.T) {
 			expectedReqCount: 2,
 		},
 		{
+			note: "http.send GET cache deserialized mode (response_stale_revalidate_with_etag)",
+			ruleTemplate: `p = x {
+									r1 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true, "caching_mode": "deserialized"})
+									r2 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true, "caching_mode": "deserialized"}) # stale
+									r3 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true, "caching_mode": "deserialized"}) # cached and fresh
+									r2 == r3
+									x = r1.body
+								}`,
+			headers:          map[string][]string{"Cache-Control": {"max-age=0, public"}, "Etag": {"1234"}, "location": {"/test"}},
+			response:         `{"x": 1}`,
+			expectedReqCount: 2,
+		},
+		{
 			note: "http.send GET (response_stale_revalidate_with_no_etag)",
 			ruleTemplate: `p = x {
 									r1 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true})
@@ -1385,6 +1426,71 @@ func TestInsertIntoHTTPSendInterQueryCacheError(t *testing.T) {
 			actualCount := len(requests) / 2
 			if actualCount != tc.expectedReqCount {
 				t.Fatalf("Expected to get %d requests, got %d", tc.expectedReqCount, actualCount)
+			}
+		})
+	}
+}
+
+func TestGetCachingMode(t *testing.T) {
+	tests := []struct {
+		note      string
+		input     ast.Object
+		expected  cachingMode
+		wantError bool
+		err       error
+	}{
+		{
+			note:      "default caching mode",
+			input:     ast.MustParseTerm(`{}`).Value.(ast.Object),
+			expected:  defaultCachingMode,
+			wantError: false,
+		},
+		{
+			note:      "serialized caching mode",
+			input:     ast.MustParseTerm(`{"caching_mode": "serialized"}`).Value.(ast.Object),
+			expected:  defaultCachingMode,
+			wantError: false,
+		},
+		{
+			note:      "deserialized caching mode",
+			input:     ast.MustParseTerm(`{"caching_mode": "deserialized"}`).Value.(ast.Object),
+			expected:  cachingModeDeserialized,
+			wantError: false,
+		},
+		{
+			note:      "invalid caching mode type",
+			input:     ast.MustParseTerm(`{"caching_mode": 1}`).Value.(ast.Object),
+			wantError: true,
+			err:       fmt.Errorf("invalid value for \"caching_mode\" field"),
+		},
+		{
+			note:      "invalid caching mode value",
+			input:     ast.MustParseTerm(`{"caching_mode": "foo"}`).Value.(ast.Object),
+			wantError: true,
+			err:       fmt.Errorf("invalid value specified for \"caching_mode\" field: foo"),
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+
+			actual, err := getCachingMode(tc.input)
+			if tc.wantError {
+				if err == nil {
+					t.Fatal("Expected error but got nil")
+				}
+
+				if tc.err != nil && tc.err.Error() != err.Error() {
+					t.Fatalf("Expected error message %v but got %v", tc.err.Error(), err.Error())
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("Unexpected error %v", err)
+				}
+
+				if actual != tc.expected {
+					t.Fatalf("Expected caching mode %v but got %v", tc.expected, actual)
+				}
 			}
 		})
 	}

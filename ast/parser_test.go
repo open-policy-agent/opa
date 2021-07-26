@@ -2221,6 +2221,17 @@ p = true {
 			err: `1 error occurred: test.rego:4: rego_parse_error: unexpected as keyword
 	as
 	^`},
+		{
+			note: "input is tab and space tokens only",
+			exp: &ParserErrorDetail{
+				Line: "\t\v\f ",
+				Idx:  0,
+			},
+			input: "\t\v\f ",
+			// NOTE(sr): With the unprintable control characters, the output is pretty
+			// useless. But it's also quite an edge case.
+			err: "1 error occurred: test.rego:1: rego_parse_error: illegal token\n\t\v\f \n\t^",
+		},
 	}
 
 	for _, tc := range tests {
@@ -2231,7 +2242,7 @@ p = true {
 			}
 			detail := err.(Errors)[0].Details
 			if !reflect.DeepEqual(detail, tc.exp) {
-				t.Fatalf("Expected %v but got: %v", tc.exp, detail)
+				t.Errorf("Expected %v but got: %v", tc.exp, detail)
 			}
 			if tc.err != "" && tc.err != err.Error() {
 				t.Fatalf("Expected error string %q but got: %q", tc.err, err.Error())

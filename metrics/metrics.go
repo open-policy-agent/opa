@@ -52,6 +52,10 @@ type Metrics interface {
 	json.Marshaler
 }
 
+type TimerMetrics interface {
+	Timers() map[string]interface{}
+}
+
 type metrics struct {
 	mtx        sync.Mutex
 	timers     map[string]Timer
@@ -153,6 +157,16 @@ func (m *metrics) All() map[string]interface{} {
 		result[m.formatKey(name, cntr)] = cntr.Value()
 	}
 	return result
+}
+
+func (m *metrics) Timers() map[string]interface{} {
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
+	ts := map[string]interface{}{}
+	for n, t := range m.timers {
+		ts[m.formatKey(n, t)] = t.Value()
+	}
+	return ts
 }
 
 func (m *metrics) Clear() {
@@ -286,4 +300,12 @@ func (c *counter) Add(n uint64) {
 
 func (c *counter) Value() interface{} {
 	return atomic.LoadUint64(&c.c)
+}
+
+func Statistics(num ...int64) interface{} {
+	t := newHistogram()
+	for _, n := range num {
+		t.Update(n)
+	}
+	return t.Value()
 }

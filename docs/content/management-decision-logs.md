@@ -19,13 +19,13 @@ See the [Configuration Reference](../configuration) for configuration details.
 OPA expects the service to expose an API endpoint that will receive decision logs.
 
 ```http
-POST /logs[/<partition_name>] HTTP/1.1
+POST /[<decision_logs.resource>] HTTP/1.1
 Content-Encoding: gzip
 Content-Type: application/json
 ```
 
-The partition name is an optional path segment that can be used to route logs
-to different backends. If the partition name is not configured on the agent,
+The resource field is an optional configuration that can be used to route logs
+to a specific endpoint in the service by defining the full path. If the resource path is not configured on the agent,
 updates will be sent to `/logs`.
 
 The message body contains a gzip compressed JSON array. Each array element (event)

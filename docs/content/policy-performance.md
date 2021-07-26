@@ -286,6 +286,7 @@ The `opa eval` command provides the following profiler options:
 | <span class="opa-keep-it-together">`--profile`</span> | Enables expression profiling and outputs profiler results. | off |
 | <span class="opa-keep-it-together">`--profile-sort`</span> | Criteria to sort the expression profiling results. This options implies `--profile`. | total_time_ns => num_eval => num_redo => file => line |
 | <span class="opa-keep-it-together">`--profile-limit`</span> | Desired number of profiling results sorted on the given criteria. This options implies `--profile`. | 10 |
+| <span class="opa-keep-it-together">`--count`</span> | Desired number of evaluations that profiling metrics are to be captured for. With `--format=pretty`, the output will contain min, max, mean and the 90th and 99th percentile. All collected percentiles can be found in the JSON output. | 1 |
 
 #### Sort criteria for the profile results
 
@@ -401,6 +402,43 @@ false
 ```
 As seen from the above table, all results are displayed. The profile results are
 sorted on the default sort criteria.
+
+To evaluation the policy multiple times, and aggregate the profiling data over those
+runs, pass `--count=NUMBER`:
+
+
+```bash
+opa eval --data rbac.rego --profile --format=pretty --count=10 'data.rbac.allow'
+```
+
+**Sample Output**
+```ruby
+false
++------------------------------+---------+----------+---------------+----------------+---------------+
+|            METRIC            |   MIN   |   MAX    |     MEAN      |      90%       |      99%      |
++------------------------------+---------+----------+---------------+----------------+---------------+
+| timer_rego_load_files_ns     | 349969  | 2549399  | 1.4760619e+06 | 2.5312689e+06  | 2.549399e+06  |
+| timer_rego_module_compile_ns | 1087507 | 24537496 | 1.120074e+07  | 2.41699473e+07 | 2.4537496e+07 |
+| timer_rego_module_parse_ns   | 275531  | 1915263  | 1.126406e+06  | 1.9016968e+06  | 1.915263e+06  |
+| timer_rego_query_compile_ns  | 61663   | 64395    | 63062.5       | 64374.1        | 64395         |
+| timer_rego_query_eval_ns     | 161812  | 1198092  | 637754        | 1.1846622e+06  | 1.198092e+06  |
+| timer_rego_query_parse_ns    | 6078    | 6078     | 6078          | 6078           | 6078          |
++------------------------------+---------+----------+---------------+----------------+---------------+
++----------+-------------+-------------+-------------+-------------+----------+----------+-----------------+
+|   MIN    |     MAX     |    MEAN     |     90%     |     99%     | NUM EVAL | NUM REDO |    LOCATION     |
++----------+-------------+-------------+-------------+-------------+----------+----------+-----------------+
+| 43.875µs | 26.135469ms | 11.494512ms | 25.746215ms | 26.135469ms | 1        | 1        | data.rbac.allow |
+| 21.478µs | 211.461µs   | 98.102µs    | 205.72µs    | 211.461µs   | 1        | 1        | rbac.rego:13    |
+| 19.652µs | 123.537µs   | 73.161µs    | 122.75µs    | 123.537µs   | 1        | 1        | rbac.rego:40    |
+| 12.303µs | 117.277µs   | 61.59µs     | 116.733µs   | 117.277µs   | 2        | 1        | rbac.rego:50    |
+| 12.224µs | 93.214µs    | 51.289µs    | 92.217µs    | 93.214µs    | 1        | 1        | rbac.rego:44    |
+| 5.561µs  | 84.121µs    | 43.002µs    | 83.469µs    | 84.121µs    | 1        | 1        | rbac.rego:51    |
+| 5.56µs   | 71.712µs    | 36.545µs    | 71.158µs    | 71.712µs    | 1        | 0        | rbac.rego:45    |
+| 4.958µs  | 66.04µs     | 33.161µs    | 65.636µs    | 66.04µs     | 1        | 2        | rbac.rego:49    |
+| 4.326µs  | 65.836µs    | 30.461µs    | 65.083µs    | 65.836µs    | 1        | 1        | rbac.rego:6     |
+| 3.948µs  | 43.399µs    | 24.167µs    | 43.055µs    | 43.399µs    | 1        | 2        | rbac.rego:55    |
++----------+-------------+-------------+-------------+-------------+----------+----------+-----------------+
+```
 
 ##### Example: Display top `5` profile results
 

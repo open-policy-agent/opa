@@ -119,7 +119,7 @@ p = 1`,
 	})
 }
 
-func testEvalWithInputFile(t *testing.T, input string, query string) error {
+func testEvalWithInputFile(t *testing.T, input string, query string, params evalCommandParams) error {
 	files := map[string]string{
 		"input.json": input,
 	}
@@ -127,7 +127,6 @@ func testEvalWithInputFile(t *testing.T, input string, query string) error {
 	var err error
 	test.WithTempFS(files, func(path string) {
 
-		params := newEvalCommandParams()
 		params.inputPath = filepath.Join(path, "input.json")
 
 		var buf bytes.Buffer
@@ -162,44 +161,10 @@ func testEvalWithInputFile(t *testing.T, input string, query string) error {
 	return err
 }
 
-func TestEvalWithJSONInputFile(t *testing.T) {
-
-	input := `{
-		"foo": "a",
-		"b": [
-			{
-				"a": 1,
-				"b": [1, 2, 3],
-				"c": null
-			}
-		]
-}`
-	query := "input.b[0].a == 1"
-	err := testEvalWithInputFile(t, input, query)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-}
-
-func TestEvalWithYAMLInputFile(t *testing.T) {
-	input := `
-foo: a
-b:
-  - a: 1
-    b: [1, 2, 3]
-    c:
-`
-	query := "input.b[0].a == 1"
-	err := testEvalWithInputFile(t, input, query)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-}
-
 func TestEvalWithInvalidInputFile(t *testing.T) {
 	input := `{badjson`
 	query := "input.b[0].a == 1"
-	err := testEvalWithInputFile(t, input, query)
+	err := testEvalWithInputFile(t, input, query, newEvalCommandParams())
 	if err == nil {
 		t.Fatalf("expected error but err == nil")
 	}
