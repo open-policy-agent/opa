@@ -299,10 +299,12 @@ func (p *CopyPropagator) updateBindings(pctx *plugContext, expr *ast.Expr) bool 
 		}
 	} else if expr.IsCall() {
 		terms := expr.Terms.([]*ast.Term)
-		output := terms[len(terms)-1]
-		if k, ok := output.Value.(ast.Var); ok && !p.livevars.Contains(k) && !pctx.headvars.Contains(k) {
-			pctx.removedEqs.Put(k, ast.CallTerm(terms[:len(terms)-1]...).Value)
-			return false
+		if p.compiler.GetArity(expr.Operator()) == len(terms)-2 { // with captured output
+			output := terms[len(terms)-1]
+			if k, ok := output.Value.(ast.Var); ok && !p.livevars.Contains(k) && !pctx.headvars.Contains(k) {
+				pctx.removedEqs.Put(k, ast.CallTerm(terms[:len(terms)-1]...).Value)
+				return false
+			}
 		}
 	}
 	return !isNoop(expr)
