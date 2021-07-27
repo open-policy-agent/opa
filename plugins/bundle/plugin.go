@@ -603,7 +603,7 @@ func loadBundleFromDisk(path, name string, src *Source) (*bundle.Bundle, error) 
 
 func (p *Plugin) log(name string) logging.Logger {
 	if p.logger == nil {
-		p.logger = logging.NewStandardLogger()
+		p.logger = logging.Get()
 	}
 	return p.logger.WithFields(map[string]interface{}{"name": name, "plugin": Name})
 }

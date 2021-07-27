@@ -263,9 +263,9 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 	var consoleLogger logging.Logger
 
 	if params.ConsoleLogger == nil {
-		stdLogger := logging.NewStandardLogger()
-		stdLogger.SetFormatter(getFormatter(params.Logging.Format))
-		consoleLogger = stdLogger
+		l := logging.New()
+		l.SetFormatter(getFormatter(params.Logging.Format))
+		consoleLogger = l
 	} else {
 		consoleLogger = params.ConsoleLogger
 	}
