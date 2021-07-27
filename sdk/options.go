@@ -51,7 +51,7 @@ func (o *Options) init() error {
 	}
 
 	if o.ConsoleLogger == nil {
-		l := logging.NewStandardLogger()
+		l := logging.New()
 		l.SetFormatter(&logrus.JSONFormatter{})
 		o.ConsoleLogger = l
 	}

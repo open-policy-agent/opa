@@ -38,8 +38,20 @@ type StandardLogger struct {
 	fields map[string]interface{}
 }
 
-// NewStandardLogger instantiates new default OPA logger
+// New returns a new standard logger.
+func New() *StandardLogger {
+	return &StandardLogger{
+		logger: logrus.New(),
+	}
+}
+
+// NewStandardLogger is deprecated. Use Get instead.
 func NewStandardLogger() *StandardLogger {
+	return Get()
+}
+
+// Get returns the standard logger used throughout OPA.
+func Get() *StandardLogger {
 	return &StandardLogger{
 		logger: logrus.StandardLogger(),
 	}
