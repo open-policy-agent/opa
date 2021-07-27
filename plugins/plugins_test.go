@@ -301,7 +301,7 @@ func TestPluginManagerAuthPlugin(t *testing.T) {
 
 func TestPluginManagerLogger(t *testing.T) {
 
-	logger := logging.NewStandardLogger().WithFields(map[string]interface{}{"context": "myloggincontext"})
+	logger := logging.Get().WithFields(map[string]interface{}{"context": "myloggincontext"})
 
 	m, err := New([]byte(`{}`), "test", inmem.New(), Logger(logger))
 	if err != nil {
