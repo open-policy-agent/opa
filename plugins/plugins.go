@@ -289,11 +289,11 @@ func New(raw []byte, id string, store storage.Store, opts ...func(*Manager)) (*M
 	}
 
 	if m.logger == nil {
-		m.logger = logging.NewStandardLogger()
+		m.logger = logging.Get()
 	}
 
 	if m.consoleLogger == nil {
-		m.consoleLogger = logging.NewStandardLogger()
+		m.consoleLogger = logging.New()
 	}
 
 	serviceOpts := cfg.ServiceOptions{

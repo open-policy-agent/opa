@@ -437,7 +437,7 @@ The following table shows examples of how ``glob.match`` works:
 | <span class="opa-keep-it-together">``output := is_set(x)``</span> | ``output`` is ``true`` if ``x`` is a set; otherwise undefined | ✅ |
 | <span class="opa-keep-it-together">``output := is_object(x)``</span> | ``output`` is ``true`` if ``x`` is an object; otherwise undefined | ✅ |
 | <span class="opa-keep-it-together">``output := is_null(x)``</span> | ``output`` is ``true`` if ``x`` is null; otherwise undefined | ✅ |
-| <span class="opa-keep-it-together">``output := type_name(x)``</span> | ``output`` is the type of ``x`` |
+| <span class="opa-keep-it-together">``output := type_name(x)``</span> | ``output`` is the type of ``x`` (e.g. ``"number"``, ``"boolean"``, ...) | ✅ |
 
 ### Encoding
 
@@ -1024,6 +1024,14 @@ net.cidr_contains_matches({["1.1.0.0/16", "foo"], "1.1.2.0/24"}, {"x": "1.1.1.12
 | Built-in | Description | Wasm Support |
 | ------- |-------------|---------------|
 | <span class="opa-keep-it-together">``trace(string)``</span> | ``trace`` outputs the debug message ``string`` as a ``Note`` event in the query explanation. For example, ``trace("Hello There!")`` includes ``Note "Hello There!"`` in the query explanation. To print variables, use sprintf. For example, ``person := "Bob"; trace(sprintf("Hello There! %v", [person]))`` will emit ``Note "Hello There! Bob"``. | ``SDK-dependent`` |
+
+By default, explanations are disabled. The following table summarizes how you can enable tracing:
+
+API | Parameter | Example | Memo
+--- | --- | --- | ---
+CLI | `--explain` | `opa eval --explain=notes --format=pretty 'trace("hello world")'` |
+HTTP | `explain=notes` | `curl localhost:8181/v1/data/example/allow?explain=notes&pretty` |
+REPL | `notes` | n/a | The "notes" command enables trace explanations. See `help` for more details.
 
 ## Reserved Names
 

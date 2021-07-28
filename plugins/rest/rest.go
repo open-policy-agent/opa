@@ -165,7 +165,7 @@ func New(config []byte, keys map[string]*keys.Config, opts ...func(*Client)) (Cl
 	}
 
 	if client.logger == nil {
-		client.logger = logging.NewStandardLogger()
+		client.logger = logging.Get()
 	}
 	client.config.logger = client.logger
 
