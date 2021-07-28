@@ -4348,6 +4348,56 @@ func TestWithSchema(t *testing.T) {
 	}
 }
 
+func TestAnyOfObjectSchema1(t *testing.T) {
+	c := NewCompiler()
+	schemaSet := NewSchemaSet()
+	schemaSet.Put(SchemaRootRef, anyOfExtendCoreSchema)
+	c.WithSchemas(schemaSet)
+	if c.schemaSet == nil {
+		t.Fatalf("Did not correctly compile an object type schema with anyOf outside core schema")
+	}
+}
+
+func TestAnyOfObjectSchema2(t *testing.T) {
+	c := NewCompiler()
+	schemaSet := NewSchemaSet()
+	schemaSet.Put(SchemaRootRef, anyOfInsideCoreSchema)
+	c.WithSchemas(schemaSet)
+	if c.schemaSet == nil {
+		t.Fatalf("Did not correctly compile an object type schema with anyOf inside core schema")
+	}
+}
+
+func TestAnyOfArraySchema(t *testing.T) {
+	c := NewCompiler()
+	schemaSet := NewSchemaSet()
+	schemaSet.Put(SchemaRootRef, anyOfArraySchema)
+	c.WithSchemas(schemaSet)
+	if c.schemaSet == nil {
+		t.Fatalf("Did not correctly compile an array type schema with anyOf")
+	}
+}
+
+func TestAnyOfObjectMissing(t *testing.T) {
+	c := NewCompiler()
+	schemaSet := NewSchemaSet()
+	schemaSet.Put(SchemaRootRef, anyOfObjectMissing)
+	c.WithSchemas(schemaSet)
+	if c.schemaSet == nil {
+		t.Fatalf("Did not correctly compile an object type schema with anyOf where one of the props did not explicitly claim type")
+	}
+}
+
+func TestAnyOfArrayMissing(t *testing.T) {
+	c := NewCompiler()
+	schemaSet := NewSchemaSet()
+	schemaSet.Put(SchemaRootRef, anyOfArrayMissing)
+	c.WithSchemas(schemaSet)
+	if c.schemaSet == nil {
+		t.Fatalf("Did not correctly compile an array type schema with anyOf where items are inside anyOf")
+	}
+}
+
 const objectSchema = `{
 	"$schema": "http://json-schema.org/draft-07/schema",
 	"$id": "http://example.com/example.json",
@@ -4557,3 +4607,124 @@ const podSchema = `
     "$schema": "http://json-schema.org/schema#"
   }
 `
+const anyOfExtendCoreSchema = `{
+	"type": "object",
+	"properties": {
+		"AddressLine": { "type": "string" }
+	},
+	"anyOf": [
+		{
+			"type": "object",
+			"properties": {
+				"State":   { "type": "string" },
+				"ZipCode": { "type": "string" }
+			}
+		},
+		{
+			"type": "object",
+			"properties": {
+				"County":   { "type": "string" },
+				"PostCode": { "type": "integer" }
+			}
+		}
+	]
+}`
+
+const anyOfInsideCoreSchema = ` {
+	"type": "object",
+	"properties": {
+		"AddressLine": { "type": "string" },
+		"RandomInfo": {
+			"anyOf": [
+				{ "type": "object",
+				  "properties": {
+					  "accessMe": {"type": "string"}
+				  }
+				},
+				{ "type": "number", "minimum": 0 }
+			  ]
+		}
+	}
+}`
+
+const anyOfObjectMissing = `{
+	"type": "object",
+	"properties": {
+		"AddressLine": { "type": "string" }
+	},
+	"anyOf": [
+		{
+			"type": "object",
+			"properties": {
+				"State":   { "type": "string" },
+				"ZipCode": { "type": "string" }
+			}
+		},
+		{
+			"properties": {
+				"County":   { "type": "string" },
+				"PostCode": { "type": "integer" }
+			}
+		}
+	]
+}`
+
+const anyOfArraySchema = ` {
+	"type": "object",
+	"properties": {
+		"familyMembers": {
+			"type": "array",
+			"items": {
+				"anyOf": [
+					{
+						"type": "object",
+						"properties": {
+							"age": { "type": "integer" },
+							"name": {"type": "string"}
+						}
+					},{
+						"type": "object",
+						"properties": {
+							"personality": { "type": "string" },
+							"nickname": { "type": "string"  }
+						}
+					}
+				]
+			}
+		}
+	}
+}`
+
+const anyOfArrayMissing = `{
+	"type": "array",
+	"anyOf": [
+		{
+			"items": [
+				{"type": "number"},
+				{"type": "string"}]
+            },
+		{	"items": [
+				{"type": "integer"}]
+		}
+	]
+}`
+
+const anyOfSchemaParentVariation = `{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "anyOf": [
+        {
+            "type": "object",
+            "properties": {
+                "State":   { "type": "string" },
+                "ZipCode": { "type": "string" }
+            },
+        },
+        {
+            "type": "object",
+            "properties": {
+                "County":   { "type": "string" },
+                "PostCode": { "type": "string" }
+            },
+        }
+    ]
+}`

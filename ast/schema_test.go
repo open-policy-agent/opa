@@ -191,3 +191,98 @@ func TestParseSchemaWithSchemaBadSchema(t *testing.T) {
 		t.Fatalf("Incorrect return from parseSchema with a bad schema")
 	}
 }
+
+func TestAnyOfSchema(t *testing.T) {
+
+	// Test 1 & 3: anyOf extends the core schema
+	extendCoreStaticPropsExp1 := []*types.StaticProperty{types.NewStaticProperty("AddressLine", types.S)}
+	extendCoreStaticPropsExp2 := []*types.StaticProperty{
+		types.NewStaticProperty("State", types.S),
+		types.NewStaticProperty("ZipCode", types.S)}
+	extendCoreStaticPropsExp3 := []*types.StaticProperty{
+		types.NewStaticProperty("County", types.S),
+		types.NewStaticProperty("PostCode", types.N)}
+	extendCoreSchemaTypeExp := types.Or(types.NewObject(extendCoreStaticPropsExp3, nil),
+		types.Or(
+			types.NewObject(extendCoreStaticPropsExp1, nil),
+			types.NewObject(extendCoreStaticPropsExp2, nil)))
+
+	// Test 2: anyOf is inside the core schema
+	insideCoreObjType := types.NewObject([]*types.StaticProperty{
+		types.NewStaticProperty("accessMe", types.S)}, nil)
+	insideCoreAnyType := types.Or(insideCoreObjType, types.N)
+	insideCoreStaticProps := []*types.StaticProperty{
+		types.NewStaticProperty("AddressLine", types.S),
+		types.NewStaticProperty("RandomInfo", insideCoreAnyType)}
+	insideCoreTypeExp := types.NewObject(insideCoreStaticProps, nil)
+
+	// Test 4: anyOf in an array
+	arrayObjType1 := types.NewObject([]*types.StaticProperty{
+		types.NewStaticProperty("age", types.N),
+		types.NewStaticProperty("name", types.S)}, nil)
+	arrayObjType2 := types.NewObject([]*types.StaticProperty{
+		types.NewStaticProperty("personality", types.S),
+		types.NewStaticProperty("nickname", types.S)}, nil)
+	arrayOrType := types.Or(arrayObjType1, arrayObjType2)
+	arrayArrayType := types.NewArray(nil, arrayOrType)
+	arrayObjtype := types.NewObject([]*types.StaticProperty{
+		types.NewStaticProperty("familyMembers", arrayArrayType)}, nil)
+
+	// Test 5: anyOf array has items but not specified
+	arrayMissing1 := types.NewArray([]types.Type{
+		types.N, types.S}, nil)
+	arrayMissing2 := types.NewArray([]types.Type{types.N}, nil)
+	arrayMissingType := types.Or(arrayMissing1, arrayMissing2)
+
+	// Test 6: anyOf Parent variation schema
+	anyOfParentVar1 := types.NewObject([]*types.StaticProperty{
+		types.NewStaticProperty("State", types.S),
+		types.NewStaticProperty("ZipCode", types.S)}, nil)
+	anyOfParentVar2 := types.NewObject([]*types.StaticProperty{
+		types.NewStaticProperty("County", types.S),
+		types.NewStaticProperty("PostCode", types.S)}, nil)
+	anyOfParentVarType := types.Or(anyOfParentVar1, anyOfParentVar2)
+
+	tests := []struct {
+		note     string
+		schema   string
+		expected types.Type
+	}{
+		{
+			note:     "anyOf extend core schema",
+			schema:   anyOfExtendCoreSchema,
+			expected: extendCoreSchemaTypeExp,
+		},
+		{
+			note:     "anyOf inside core schema",
+			schema:   anyOfInsideCoreSchema,
+			expected: insideCoreTypeExp,
+		},
+		{
+			note:     "anyOf object missing type",
+			schema:   anyOfObjectMissing,
+			expected: extendCoreSchemaTypeExp,
+		},
+		{
+			note:     "anyOf of an array",
+			schema:   anyOfArraySchema,
+			expected: arrayObjtype,
+		},
+		{
+			note:     "anyOf array missing type",
+			schema:   anyOfArrayMissing,
+			expected: arrayMissingType,
+		},
+		{
+			note:     "anyOf as parent",
+			schema:   anyOfSchemaParentVariation,
+			expected: anyOfParentVarType,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			testParseSchema(t, tc.schema, tc.expected)
+		})
+	}
+}
