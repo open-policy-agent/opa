@@ -452,7 +452,7 @@ When overriding existing types, the dynamicity of the overridden prefix is prese
 
 ### Supporting JSON Schema composition keywords 
 
-JSON Schema provides keywords such as `anyOf` and `allOf` to structure a complex schema. For `anyOf`, at least one subschemas must be true, and for `allOf`, all subschemas must be true. The type checker is able to identify such keywords and derive a more robust Rego type through more complex schemas. 
+JSON Schema provides keywords such as `anyOf` and `allOf` to structure a complex schema. For `anyOf`, at least one of the subschemas must be true, and for `allOf`, all subschemas must be true. The type checker is able to identify such keywords and derive a more robust Rego type through more complex schemas. 
 
 #### `anyOf`
 
@@ -471,11 +471,48 @@ deny {
 }
 ```
 
-`input-anyOf.json`: https://github.com/aavarghese/opa-schema-examples/blob/main/kubernetes/schemas/input-anyOf.json
+`input-anyOf.json`
+```
+{
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "type": "object",
+    "properties": {
+        "kind": {"type": "string"},
+        "request": {
+            "type": "object",
+            "anyOf": [
+                {
+                   "properties": {
+                       "kind": {
+                           "type": "object",
+                           "properties": {
+                               "kind": {"type": "string"},
+                               "version": {"type": "string" }
+                           }
+                       }
+                   }
+                },
+                {
+                   "properties": {
+                       "server": {
+                           "type": "object",
+                           "properties": {
+                               "accessNum": {"type": "integer"},
+                               "version": {"type": "string"}
+                           }
+                       }
+                   }
+                }
+            ]
+        }
+    }
+}
+
+```
 
 We can see that `request` is an object with two options as indicated by the choices under `anyOf`: 
-* contains properties `kind`, which has properties `kind` and `version`
-* contains properties `server`, which has properties `accessNum` and `version`
+* contains property `kind`, which has properties `kind` and `version`
+* contains property `server`, which has properties `accessNum` and `version`
 
 The type checker finds the first error in the Rego code, suggesting that `servers` should be either `kind` or `server`. 
 ```

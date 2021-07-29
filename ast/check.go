@@ -1047,7 +1047,7 @@ func removeDuplicate(list []Value) []Value {
 	seen := make(map[Value]bool)
 	var newResult []Value
 	for _, item := range list {
-		if _, yes := seen[item]; !yes {
+		if !seen[item] {
 			newResult = append(newResult, item)
 			seen[item] = true
 		}

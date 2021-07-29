@@ -909,7 +909,7 @@ func parseSchema(schema interface{}) (types.Type, error) {
 			}
 
 			// Only add Object type with static props to orType
-			if objType, isObj := coreType.(*types.Object); isObj {
+			if objType, ok := coreType.(*types.Object); ok {
 				if objType.StaticProperties() != nil && objType.DynamicProperties() == nil {
 					orType = types.Or(orType, coreType)
 				}
