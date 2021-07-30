@@ -271,12 +271,12 @@ func (v *SubSchema) validateSchema(currentSubSchema *SubSchema, currentNode inte
 		internalLog(" %v", currentNode)
 	}
 
-	if len(currentSubSchema.anyOf) > 0 {
+	if len(currentSubSchema.AnyOf) > 0 {
 
 		validatedAnyOf := false
 		var bestValidationResult *Result
 
-		for _, anyOfSchema := range currentSubSchema.anyOf {
+		for _, anyOfSchema := range currentSubSchema.AnyOf {
 			if !validatedAnyOf {
 				validationResult := anyOfSchema.subValidateWithContext(currentNode, context)
 				validatedAnyOf = validationResult.Valid()

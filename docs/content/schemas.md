@@ -450,6 +450,85 @@ When we derive a type from a schema, we try to match what is known and unknown i
 
 When overriding existing types, the dynamicity of the overridden prefix is preserved.
 
+### Supporting JSON Schema composition keywords 
+
+JSON Schema provides keywords such as `anyOf` and `allOf` to structure a complex schema. For `anyOf`, at least one of the subschemas must be true, and for `allOf`, all subschemas must be true. The type checker is able to identify such keywords and derive a more robust Rego type through more complex schemas. 
+
+#### `anyOf`
+
+Specifically, `anyOf` acts as an Rego Or type where at least one (can be more than one) of the subschemas is true. Consider the following Rego and schema file containing `anyOf`:
+
+`policy-anyOf.rego`
+```
+package kubernetes.admission  
+
+# METADATA
+# scope: rule
+# schemas: 
+#   - input: schema["input-anyOf"] 
+deny {                                                                
+  input.request.servers.versions == "Pod"                       
+}
+```
+
+`input-anyOf.json`
+```
+{
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "type": "object",
+    "properties": {
+        "kind": {"type": "string"},
+        "request": {
+            "type": "object",
+            "anyOf": [
+                {
+                   "properties": {
+                       "kind": {
+                           "type": "object",
+                           "properties": {
+                               "kind": {"type": "string"},
+                               "version": {"type": "string" }
+                           }
+                       }
+                   }
+                },
+                {
+                   "properties": {
+                       "server": {
+                           "type": "object",
+                           "properties": {
+                               "accessNum": {"type": "integer"},
+                               "version": {"type": "string"}
+                           }
+                       }
+                   }
+                }
+            ]
+        }
+    }
+}
+
+```
+
+We can see that `request` is an object with two options as indicated by the choices under `anyOf`: 
+* contains property `kind`, which has properties `kind` and `version`
+* contains property `server`, which has properties `accessNum` and `version`
+
+The type checker finds the first error in the Rego code, suggesting that `servers` should be either `kind` or `server`. 
+```
+	input.request.servers.versions
+	              ^
+	              have: "servers"
+	              want (one of): ["kind" "server"]
+```
+Once this is fixed, the second typo is highlighted, prompting the user to choose between `accessNum` and `version`.
+```
+	input.request.server.versions
+	                     ^
+	                     have: "versions"
+	                     want (one of): ["accessNum" "version"]
+```
+
 
 ## Limitations
 
@@ -460,7 +539,7 @@ In particular the following features are not yet supported:
 * pattern properties for objects
 * additional items for arrays
 * contains for arrays
-* allOf, anyOf, oneOf, not
+* allOf, oneOf, not
 * enum
 * if/then/else
 

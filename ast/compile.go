@@ -894,6 +894,40 @@ func parseSchema(schema interface{}) (types.Type, error) {
 		return parseSchema(subSchema.RefSchema)
 	}
 
+	// Handle anyOf
+	if subSchema.AnyOf != nil {
+		var orType types.Type
+
+		// If there is a core schema, find its type first
+		if subSchema.Types.IsTyped() {
+			copySchema := *subSchema
+			copySchemaRef := &copySchema
+			copySchemaRef.AnyOf = nil
+			coreType, err := parseSchema(copySchemaRef)
+			if err != nil {
+				return nil, fmt.Errorf("unexpected schema type %v: %w", subSchema, err)
+			}
+
+			// Only add Object type with static props to orType
+			if objType, ok := coreType.(*types.Object); ok {
+				if objType.StaticProperties() != nil && objType.DynamicProperties() == nil {
+					orType = types.Or(orType, coreType)
+				}
+			}
+		}
+
+		// Iterate through every property of AnyOf and add it to orType
+		for _, pSchema := range subSchema.AnyOf {
+			newtype, err := parseSchema(pSchema)
+			if err != nil {
+				return nil, fmt.Errorf("unexpected schema type %v: %w", pSchema, err)
+			}
+			orType = types.Or(newtype, orType)
+		}
+
+		return orType, nil
+	}
+
 	if subSchema.Types.IsTyped() {
 		if subSchema.Types.Contains("boolean") {
 			return types.B, nil
@@ -942,6 +976,18 @@ func parseSchema(schema interface{}) (types.Type, error) {
 			return types.NewArray(nil, types.A), nil
 		}
 	}
+
+	// Assume types if not specified in schema
+	if len(subSchema.PropertiesChildren) > 0 {
+		if err := subSchema.Types.Add("object"); err == nil {
+			return parseSchema(subSchema)
+		}
+	} else if len(subSchema.ItemsChildren) > 0 {
+		if err := subSchema.Types.Add("array"); err == nil {
+			return parseSchema(subSchema)
+		}
+	}
+
 	return types.A, nil
 }
 
