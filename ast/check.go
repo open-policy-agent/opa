@@ -1024,7 +1024,15 @@ func getOneOfForType(tpe types.Type) (result []Value) {
 			}
 			result = append(result, v)
 		}
+
+	case types.Any:
+		for _, object := range tpe {
+			objRes := getOneOfForType(object)
+			result = append(result, objRes...)
+		}
 	}
+
+	result = removeDuplicate(result)
 	sortValueSlice(result)
 	return result
 }
@@ -1033,6 +1041,18 @@ func sortValueSlice(sl []Value) {
 	sort.Slice(sl, func(i, j int) bool {
 		return sl[i].Compare(sl[j]) < 0
 	})
+}
+
+func removeDuplicate(list []Value) []Value {
+	seen := make(map[Value]bool)
+	var newResult []Value
+	for _, item := range list {
+		if !seen[item] {
+			newResult = append(newResult, item)
+			seen[item] = true
+		}
+	}
+	return newResult
 }
 
 func getArgTypes(env *TypeEnv, args []*Term) []types.Type {

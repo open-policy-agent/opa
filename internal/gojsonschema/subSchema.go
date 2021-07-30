@@ -142,7 +142,7 @@ type SubSchema struct {
 
 	// validation : SubSchema
 	oneOf []*SubSchema
-	anyOf []*SubSchema
+	AnyOf []*SubSchema
 	allOf []*SubSchema
 	not   *SubSchema
 	_if   *SubSchema // if/else are golang keywords
