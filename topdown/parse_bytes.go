@@ -15,15 +15,20 @@ import (
 )
 
 const (
-	none int64 = 1
-	kb         = 1000
-	ki         = 1024
-	mb         = kb * 1000
-	mi         = ki * 1024
-	gb         = mb * 1000
-	gi         = mi * 1024
-	tb         = gb * 1000
-	ti         = gi * 1024
+	none uint64 = 1 << (10 * iota)
+	ki
+	mi
+	gi
+	ti
+	pi
+	ei
+
+	kb uint64 = 1000
+	mb        = kb * 1000
+	gb        = mb * 1000
+	tb        = gb * 1000
+	pb        = tb * 1000
+	eb        = pb * 1000
 )
 
 func parseNumBytesError(msg string) error {
@@ -61,23 +66,31 @@ func builtinNumBytes(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.T
 
 	switch unit {
 	case "":
-		m.SetInt64(none)
+		m.SetUint64(none)
 	case "kb", "k":
-		m.SetInt64(kb)
+		m.SetUint64(kb)
 	case "kib", "ki":
-		m.SetInt64(ki)
+		m.SetUint64(ki)
 	case "mb", "m":
-		m.SetInt64(mb)
+		m.SetUint64(mb)
 	case "mib", "mi":
-		m.SetInt64(mi)
+		m.SetUint64(mi)
 	case "gb", "g":
-		m.SetInt64(gb)
+		m.SetUint64(gb)
 	case "gib", "gi":
-		m.SetInt64(gi)
+		m.SetUint64(gi)
 	case "tb", "t":
-		m.SetInt64(tb)
+		m.SetUint64(tb)
 	case "tib", "ti":
-		m.SetInt64(ti)
+		m.SetUint64(ti)
+	case "pb", "p":
+		m.SetUint64(pb)
+	case "pib", "pi":
+		m.SetUint64(pi)
+	case "eb", "e":
+		m.SetUint64(eb)
+	case "eib", "ei":
+		m.SetUint64(ei)
 	default:
 		return errUnitNotRecognized(unit)
 	}
