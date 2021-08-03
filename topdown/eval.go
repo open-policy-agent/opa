@@ -1413,8 +1413,8 @@ func (e *eval) resolveReadFromStorage(ref ast.Ref, a ast.Value) (ast.Value, erro
 		}
 
 		if len(path) == 0 {
-			obj := blob.(map[string]interface{})
-			if len(obj) > 0 {
+			obj, ok := blob.(map[string]interface{})
+			if ok && len(obj) > 0 {
 				cpy := make(map[string]interface{}, len(obj)-1)
 				for k, v := range obj {
 					if string(ast.SystemDocumentKey) == k {
