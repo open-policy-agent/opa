@@ -491,7 +491,7 @@ default response = {"allowed": true}
 response = {
     "allowed": false,
     "status": {
-        "reason": reason,
+        "message": reason,
     },
 } {
     reason = concat(", ", admission.deny)
@@ -502,7 +502,7 @@ response = {
 The `system.main` policy MUST generate an **AdmissionReview** object containing
 a response that the API server can interpret. If the request should be allowed,
 the `response.allowed` field should be true. Otherwise, the `response.allowed`
-field should be set to `false` and the `response.status.reason` field should be
+field should be set to `false` and the `response.status.message` field should be
 set to include an error message that indicates why the request is being
 rejected. The error message will be returned to the API server caller (e.g., the
 user running `kubectl`). Often the error message is the concatenation of all the
@@ -517,7 +517,7 @@ kind: AdmissionReview
 response:
   allowed: false
   status:
-    reason: "image fails to come from trusted registry: nginx"
+    message: "image fails to come from trusted registry: nginx"
 ```
 
 For more detail on how Kubernetes Admission Control works, see [this blog
