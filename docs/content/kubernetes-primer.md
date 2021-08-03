@@ -255,9 +255,9 @@ apiVersion: admission.k8s.io/v1
 kind: AdmissionReview
 request:
   kind:
-    group: extensions
+    group: networking.k8s.io
     kind: Ingress
-    version: v1beta1
+    version: v1
   object:
     metadata:
       name: prod
@@ -268,8 +268,10 @@ request:
           paths:
           - path: /finance
             backend:
-              serviceName: banking
-              servicePort: 443
+              service:
+                name: banking
+                port:
+                  number: 443
 ```
 
 To avoid conflicting ingresses, you write a policy like the one that follows.
@@ -307,7 +309,7 @@ Here are two examples.
 <div style="float: left; width: 49%; padding: 3px">
 <center><b>data.kubernetes.ingresses[namespace][name]</b></center>
 <pre><code>
-apiVersion: extensions/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: prod
@@ -318,8 +320,10 @@ spec:
       paths:
       - path: /finance
         backend:
-          serviceName: banking
-          servicePort: 443
+          service:
+            name: banking
+            port:
+              number: 443
 </code></pre></div>
 <div style="float: left; width: 49%; padding 3px;">
 <center><b>input</b></center>
@@ -328,9 +332,9 @@ apiVersion: admission.k8s.io/v1
 kind: AdmissionReview
 request:
   kind:
-    group: extensions
+    group: networking.k8s.io
     kind: Ingress
-    version: v1beta1
+    version: v1
   operation: CREATE
   userInfo:
     groups:
@@ -345,8 +349,10 @@ request:
           paths:
           - path: /finance
             backend:
-              serviceName: banking
-              servicePort: 443
+              service:
+                name: banking
+                port:
+                  number: 443
 </code></pre></div>
 
 
