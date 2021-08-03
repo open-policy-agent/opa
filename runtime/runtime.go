@@ -763,6 +763,7 @@ func onReloadPrinter(output io.Writer) func(time.Duration, error) {
 }
 
 func getFormatter(format string) logrus.Formatter {
+	pretty := false
 	switch format {
 	case "text":
 		return &prettyFormatter{}
@@ -771,7 +772,14 @@ func getFormatter(format string) logrus.Formatter {
 	case "json":
 		fallthrough
 	default:
-		return &logrus.JSONFormatter{}
+		logrus.SetFormatter(&logrus.JSONFormatter{})
+		jsonFormatter := &logrus.JSONFormatter{
+			PrettyPrint: pretty,
+		}
+		if tsFormat := os.Getenv("OPA_TIMESTAMP_FMT"); tsFormat != "" {
+			jsonFormatter.TimestampFormat = tsFormat
+		}
+		return jsonFormatter
 	}
 }
 
