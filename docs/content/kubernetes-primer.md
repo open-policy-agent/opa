@@ -95,7 +95,7 @@ In OPA, `input` is a reserved, global variable whose value is the  Kubernetes Ad
 AdmissionReview objects have many fields.  The rule above uses `input.request.kind`, which includes the usual group/version/kind information.  The rule also uses `input.request.object`, which is the YAML that the user provided to `kubectl` (augmented with defaults, timestamps, etc.).  The full `input` object is 50+ lines of YAML, so below we show just the relevant parts.
 
 ```yaml
-apiVersion: admission.k8s.io/v1beta1
+apiVersion: admission.k8s.io/v1
 kind: AdmissionReview
 request:
   kind:
@@ -251,7 +251,7 @@ For example, it’s possible to accidentally configure two Kubernetes ingresses 
 Below is a partial example of the input OPA sees when someone creates an ingress.  To avoid conflicts, we want to prevent two ingresses from having the same `request.object.spec.rules.host`.  If OPA has only this one ingress configuration it doesn't have enough information to make an allow/deny decision; it also needs the configurations for all of the existing ingresses.
 
 ```yaml
-apiVersion: admission.k8s.io/v1beta1
+apiVersion: admission.k8s.io/v1
 kind: AdmissionReview
 request:
   kind:
@@ -324,7 +324,7 @@ spec:
 <div style="float: left; width: 49%; padding 3px;">
 <center><b>input</b></center>
 <pre><code>
-apiVersion: admission.k8s.io/v1beta1
+apiVersion: admission.k8s.io/v1
 kind: AdmissionReview
 request:
   kind:
@@ -383,7 +383,7 @@ controller executes, the API server sends a webhook request to OPA containing an
 **AdmissionReview**:
 
 ```yaml
-apiVersion: admission.k8s.io/v1beta1
+apiVersion: admission.k8s.io/v1
 kind: AdmissionReview
 request:
   kind:
@@ -459,7 +459,7 @@ Content-Type: application/json
 
 ```json
 {
-  "apiVersion": "admission.k8s.io/v1beta1",
+  "apiVersion": "admission.k8s.io/v1",
   "kind": "AdmissionReview",
   "request": ...
 }
@@ -481,7 +481,7 @@ package system
 import data.kubernetes.admission
 
 main = {
-  "apiVersion": "admission.k8s.io/v1beta1",
+  "apiVersion": "admission.k8s.io/v1",
   "kind": "AdmissionReview",
   "response": response,
 }
@@ -512,7 +512,7 @@ For example, with the input and Image Registry Safety examples above, the
 response from OPA would be:
 
 ```yaml
-apiVersion: admission.k8s.io/v1beta1
+apiVersion: admission.k8s.io/v1
 kind: AdmissionReview
 response:
   allowed: false
