@@ -337,6 +337,36 @@ func TestCheckAuthIneffective(t *testing.T) {
 
 }
 
+func TestServerInitialized(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Millisecond)
+	defer cancel() // NOTE(sr): The timeout will have been reached by the time `done` is closed.
+	var output bytes.Buffer
+
+	params := NewParams()
+	params.Output = &output
+	params.Addrs = &[]string{":0"}
+	params.GracefulShutdownPeriod = 1
+	rt, err := NewRuntime(ctx, params)
+	if err != nil {
+		t.Fatalf("Unexpected error %v", err)
+	}
+	logrus.SetOutput(rt.Params.Output)
+
+	initChannel := rt.Manager.ServerInitializedChannel()
+	done := make(chan struct{})
+	go func() {
+		rt.StartServer(ctx)
+		close(done)
+	}()
+	<-done
+	select {
+	case <-initChannel:
+		return
+	default:
+		t.Fatal("expected ServerInitializedChannel to be closed")
+	}
+}
+
 func getTestServer(update interface{}, statusCode int) (baseURL string, teardownFn func()) {
 	mux := http.NewServeMux()
 	ts := httptest.NewServer(mux)
