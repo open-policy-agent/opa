@@ -30,15 +30,6 @@ type Caller struct {
 	ptr *C.wasmtime_caller_t
 }
 
-type funcNewEntry struct {
-	callback func(*Caller, []Val) ([]Val, *Trap)
-	results  []*ValType
-}
-
-type funcWrapEntry struct {
-	callback reflect.Value
-}
-
 // NewFunc creates a new `Func` with the given `ty` which, when called, will call `f`
 //
 // The `ty` given is the wasm type signature of the `Func` to create. When called
@@ -60,12 +51,7 @@ func NewFunc(
 	ty *FuncType,
 	f func(*Caller, []Val) ([]Val, *Trap),
 ) *Func {
-	data := getDataInStore(store)
-	idx := len(data.funcNew)
-	data.funcNew = append(data.funcNew, funcNewEntry{
-		callback: f,
-		results:  ty.Results(),
-	})
+	idx := insertFuncNew(getDataInStore(store), ty, f)
 
 	ret := C.wasmtime_func_t{}
 	C.go_func_new(
@@ -93,7 +79,7 @@ func goTrampolineNew(
 	caller := &Caller{ptr: callerPtr}
 	defer func() { caller.ptr = nil }()
 	data := getDataInStore(caller)
-	entry := data.funcNew[int(env)]
+	entry := data.getFuncNew(int(env))
 
 	params := make([]Val, int(argsNum))
 	var val C.wasmtime_val_t
@@ -176,8 +162,25 @@ func WrapFunc(
 	store Storelike,
 	f interface{},
 ) *Func {
-	// Make sure the `interface{}` passed in was indeed a function
 	val := reflect.ValueOf(f)
+	wasmTy := inferFuncType(val)
+	idx := insertFuncWrap(getDataInStore(store), val)
+
+	ret := C.wasmtime_func_t{}
+	C.go_func_new(
+		store.Context(),
+		wasmTy.ptr(),
+		C.size_t(idx),
+		1, // this is `WrapFunc`, not `NewFunc`
+		&ret,
+	)
+	runtime.KeepAlive(store)
+	runtime.KeepAlive(wasmTy)
+	return mkFunc(ret)
+}
+
+func inferFuncType(val reflect.Value) *FuncType {
+	// Make sure the `interface{}` passed in was indeed a function
 	ty := val.Type()
 	if ty.Kind() != reflect.Func {
 		panic("callback provided must be a `func`")
@@ -205,25 +208,7 @@ func WrapFunc(
 		}
 		results = append(results, typeToValType(resultTy))
 	}
-	wasmTy := NewFuncType(params, results)
-
-	// Store our `f` callback into the list for wrapped functions, and now
-	// we've got everything necessary to make the wasm handle.
-	data := getDataInStore(store)
-	idx := len(data.funcWrap)
-	data.funcWrap = append(data.funcWrap, funcWrapEntry{callback: val})
-
-	ret := C.wasmtime_func_t{}
-	C.go_func_new(
-		store.Context(),
-		wasmTy.ptr(),
-		C.size_t(idx),
-		1, // this is `WrapFunc`, not `NewFunc`
-		&ret,
-	)
-	runtime.KeepAlive(store)
-	runtime.KeepAlive(wasmTy)
-	return mkFunc(ret)
+	return NewFuncType(params, results)
 }
 
 func typeToValType(ty reflect.Type) *ValType {
@@ -264,7 +249,7 @@ func goTrampolineWrap(
 	caller := &Caller{ptr: callerPtr}
 	defer func() { caller.ptr = nil }()
 	data := getDataInStore(caller)
-	entry := data.funcWrap[int(env)]
+	entry := data.getFuncWrap(int(env))
 
 	ty := entry.callback.Type()
 	params := make([]reflect.Value, ty.NumIn())
