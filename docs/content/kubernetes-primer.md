@@ -267,6 +267,7 @@ request:
         http:
           paths:
           - path: /finance
+            pathType: Prefix
             backend:
               service:
                 name: banking
@@ -319,6 +320,7 @@ spec:
     http:
       paths:
       - path: /finance
+        pathType: Prefix
         backend:
           service:
             name: banking
@@ -348,6 +350,7 @@ request:
         http:
           paths:
           - path: /finance
+            pathType: Prefix
             backend:
               service:
                 name: banking
