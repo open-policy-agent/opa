@@ -438,9 +438,13 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 	signalc := make(chan os.Signal, 1)
 	signal.Notify(signalc, syscall.SIGINT, syscall.SIGTERM)
 
+	// Note that there is a small chance the socket of the server listener is still
+	// closed by the time this block is executed, due to the serverLoop above
+	// executing in a goroutine.
 	rt.serverInitMtx.Lock()
 	rt.serverInitialized = true
 	rt.serverInitMtx.Unlock()
+	rt.Manager.ServerInitialized()
 
 	logrus.Debug("Server initialized.")
 
