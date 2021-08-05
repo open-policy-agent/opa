@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"time"
 
@@ -550,7 +551,7 @@ type Rego struct {
 	resolvers              []refResolver
 	schemaSet              *ast.SchemaSet
 	target                 string // target type (wasm, rego, etc.)
-	opa                    *opa.OPA
+	opa                    opa.EvalEngine
 }
 
 // Function represents a built-in function that is callable in Rego.
@@ -1501,7 +1502,21 @@ func (r *Rego) PrepareForEval(ctx context.Context, opts ...PrepareOption) (Prepa
 			return PreparedEvalQuery{}, err
 		}
 
-		o, err := opa.New().WithPolicyBytes(cr.Bytes).WithDataJSON(data).Init()
+		e, err := opa.LookupEngine(targetWasm)
+		if err != nil {
+			if errors.Is(err, opa.ErrEngineNotFound) {
+				fmt.Fprintf(os.Stderr, `WebAssembly runtime not supported in this build.
+----------------------------------------------------------------------------------
+Please download an OPA binary with Wasm enabled from
+  https://www.openpolicyagent.org/docs/latest/#running-opa
+or build it yourself (with Wasm enabled).
+----------------------------------------------------------------------------------
+`)
+				os.Exit(1)
+			}
+		}
+
+		o, err := e.New().WithPolicyBytes(cr.Bytes).WithDataJSON(data).Init()
 		if err != nil {
 			_ = txnClose(ctx, err) // Ignore error
 			return PreparedEvalQuery{}, err

@@ -11,16 +11,19 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/open-policy-agent/opa/internal/wasm/sdk/opa"
-
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/internal/rego/opa"
 	"github.com/open-policy-agent/opa/resolver"
 )
 
 // New creates a new Resolver instance which is using the Wasm module
 // policy for the given entrypoint ref.
 func New(entrypoints []ast.Ref, policy []byte, data interface{}) (*Resolver, error) {
-	o, err := opa.New().
+	e, err := opa.LookupEngine("wasm")
+	if err != nil {
+		return nil, err
+	}
+	o, err := e.New().
 		WithPolicyBytes(policy).
 		WithDataJSON(data).
 		Init()
@@ -63,7 +66,7 @@ func New(entrypoints []ast.Ref, policy []byte, data interface{}) (*Resolver, err
 type Resolver struct {
 	entrypoints   []ast.Ref
 	entrypointIDs *ast.ValueMap
-	o             *opa.OPA
+	o             opa.EvalEngine
 }
 
 // Entrypoints returns a list of entrypoints this resolver is configured to
