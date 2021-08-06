@@ -1787,6 +1787,10 @@ that the server is operational. Optionally it can account for bundle activation 
 `bundles` - Boolean parameter to account for bundle activation status in response. This includes
             any discovery bundles or bundles defined in the loaded discovery configuration.
 `plugins` - Boolean parameter to account for plugin status in response.
+`exclude-plugin` - String parameter to exclude a plugin from status checks. Can be added multiple 
+            times. Does nothing if `plugins` is not true. This parameter is useful for special use cases
+            where a plugin depends on the server being fully initialized before it can fully intialize
+            itself.
 
 #### Status Codes
 - **200** - OPA service is healthy. If the `bundles` option is specified then all configured bundles have
@@ -1812,6 +1816,11 @@ GET /health?bundles HTTP/1.1
 #### Example Request (plugin status)
 ```http
 GET /health?plugins HTTP/1.1
+```
+
+#### Example Request (plugin status with exclude)
+```http
+GET /health?plugins&exclude-plugin=decision-logs&exclude-plugin=status HTTP/1.1
 ```
 
 #### Healthy Response

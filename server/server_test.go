@@ -348,6 +348,107 @@ func TestUnversionedGetHealthCheckDiscoveryWithPlugins(t *testing.T) {
 	}
 }
 
+func TestUnversionedGetHealthCheckDiscoveryWithPluginsAndExclude(t *testing.T) {
+
+	// Use the same server through the cases, the status updates apply incrementally to it.
+	f := newFixture(t)
+
+	cases := []struct {
+		note          string
+		statusUpdates map[string]*plugins.Status
+		exp           int
+	}{
+		{
+			note:          "no plugins configured",
+			statusUpdates: nil,
+			exp:           200,
+		},
+		{
+			note: "one plugin configured - not ready",
+			statusUpdates: map[string]*plugins.Status{
+				"p1": {State: plugins.StateNotReady},
+			},
+			exp: 500,
+		},
+		{
+			note: "one plugin configured - ready",
+			statusUpdates: map[string]*plugins.Status{
+				"p1": {State: plugins.StateOK},
+			},
+			exp: 200,
+		},
+		{
+			note: "one plugin configured - error state",
+			statusUpdates: map[string]*plugins.Status{
+				"p1": {State: plugins.StateErr},
+			},
+			exp: 500,
+		},
+		{
+			note: "one plugin configured - recovered from error",
+			statusUpdates: map[string]*plugins.Status{
+				"p1": {State: plugins.StateOK},
+			},
+			exp: 200,
+		},
+		{
+			note: "add excluded plugin - not ready",
+			statusUpdates: map[string]*plugins.Status{
+				"p1": {State: plugins.StateOK},
+				"p2": {State: plugins.StateNotReady},
+			},
+			exp: 200,
+		},
+		{
+			note: "add another excluded plugin - not ready",
+			statusUpdates: map[string]*plugins.Status{
+				"p1": {State: plugins.StateOK},
+				"p2": {State: plugins.StateNotReady},
+				"p3": {State: plugins.StateNotReady},
+			},
+			exp: 200,
+		},
+		{
+			note: "excluded plugin - error",
+			statusUpdates: map[string]*plugins.Status{
+				"p1": {State: plugins.StateOK},
+				"p2": {State: plugins.StateErr},
+				"p3": {State: plugins.StateErr},
+			},
+			exp: 200,
+		},
+		{
+			note: "first plugin - error",
+			statusUpdates: map[string]*plugins.Status{
+				"p1": {State: plugins.StateErr},
+				"p2": {State: plugins.StateErr},
+				"p3": {State: plugins.StateErr},
+			},
+			exp: 500,
+		},
+		{
+			note: "all plugins ready",
+			statusUpdates: map[string]*plugins.Status{
+				"p1": {State: plugins.StateOK},
+				"p2": {State: plugins.StateOK},
+				"p3": {State: plugins.StateOK},
+			},
+			exp: 200,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			for name, status := range tc.statusUpdates {
+				f.server.manager.UpdatePluginStatus(name, status)
+			}
+
+			req := newReqUnversioned(http.MethodGet, "/health?plugins&exclude-plugin=p2&exclude-plugin=p3", "")
+			validateDiagnosticRequest(t, f, req, tc.exp, `{}`)
+		})
+	}
+}
+
 func TestUnversionedGetHealthCheckBundleAndPlugins(t *testing.T) {
 
 	cases := []struct {

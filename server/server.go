@@ -1016,6 +1016,11 @@ func (s *Server) unversionedGetHealth(w http.ResponseWriter, r *http.Request) {
 	includeBundleStatus := getBoolParam(r.URL, types.ParamBundleActivationV1, true) ||
 		getBoolParam(r.URL, types.ParamBundlesActivationV1, true)
 	includePluginStatus := getBoolParam(r.URL, types.ParamPluginsV1, true)
+	excludePlugin := getStringSliceParam(r.URL, types.ParamExcludePluginV1)
+	excludePluginMap := map[string]struct{}{}
+	for _, name := range excludePlugin {
+		excludePluginMap[name] = struct{}{}
+	}
 
 	// Ensure the server can evaluate a simple query
 	if !s.canEval(ctx) {
@@ -1037,7 +1042,10 @@ func (s *Server) unversionedGetHealth(w http.ResponseWriter, r *http.Request) {
 	if includePluginStatus {
 		// Ensure that all plugins (if requested to be included in the result) have an OK status.
 		hasErr := false
-		for _, status := range pluginStatuses {
+		for name, status := range pluginStatuses {
+			if _, exclude := excludePluginMap[name]; exclude {
+				continue
+			}
 			if status != nil && status.State != plugins.StateOK {
 				hasErr = true
 				break
@@ -2408,6 +2416,22 @@ func getBoolParam(url *url.URL, name string, ifEmpty bool) bool {
 	}
 
 	return false
+}
+
+func getStringSliceParam(url *url.URL, name string) []string {
+
+	p, ok := url.Query()[name]
+	if !ok {
+		return nil
+	}
+
+	// Query params w/o values are represented as slice (of len 1) with an
+	// empty string.
+	if len(p) == 1 && p[0] == "" {
+		return nil
+	}
+
+	return p
 }
 
 func getExplain(p []string, zero types.ExplainModeV1) types.ExplainModeV1 {
