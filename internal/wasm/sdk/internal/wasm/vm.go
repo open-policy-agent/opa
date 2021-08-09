@@ -19,6 +19,7 @@ import (
 	sdk_errors "github.com/open-policy-agent/opa/internal/wasm/sdk/opa/errors"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/topdown"
+	"github.com/open-policy-agent/opa/topdown/cache"
 )
 
 // VM is a wrapper around a Wasm VM instance
@@ -267,9 +268,15 @@ func getABIVersion(i *wasmtime.Instance, store wasmtime.Storelike) (int32, int32
 
 // Eval performs an evaluation of the specified entrypoint, with any provided
 // input, and returns the resulting value dumped to a string.
-func (i *VM) Eval(ctx context.Context, entrypoint int32, input *interface{}, metrics metrics.Metrics, seed io.Reader, ns time.Time) ([]byte, error) {
+func (i *VM) Eval(ctx context.Context,
+	entrypoint int32,
+	input *interface{},
+	metrics metrics.Metrics,
+	seed io.Reader,
+	ns time.Time,
+	iqbCache cache.InterQueryCache) ([]byte, error) {
 	if i.abiMinorVersion < int32(2) {
-		return i.evalCompat(ctx, entrypoint, input, metrics, seed, ns)
+		return i.evalCompat(ctx, entrypoint, input, metrics, seed, ns, iqbCache)
 	}
 
 	metrics.Timer("wasm_vm_eval").Start()
@@ -311,7 +318,7 @@ func (i *VM) Eval(ctx context.Context, entrypoint int32, input *interface{}, met
 	// make use of it (e.g. `http.send`); and it will spawn a go routine
 	// cancelling the builtins that use topdown.Cancel, when the context is
 	// cancelled.
-	i.dispatcher.Reset(ctx, seed, ns)
+	i.dispatcher.Reset(ctx, seed, ns, iqbCache)
 
 	metrics.Timer("wasm_vm_eval_call").Start()
 	resultAddr, err := i.evalOneOff(ctx, int32(entrypoint), i.dataAddr, inputAddr, inputLen, heapPtr)
@@ -333,7 +340,13 @@ func (i *VM) Eval(ctx context.Context, entrypoint int32, input *interface{}, met
 // evalCompat evaluates a policy using multiple calls into the VM to set the stage.
 // It's been superceded with ABI version 1.2, but still here for compatibility with
 // Wasm modules lacking the needed export (i.e., ABI 1.1).
-func (i *VM) evalCompat(ctx context.Context, entrypoint int32, input *interface{}, metrics metrics.Metrics, seed io.Reader, ns time.Time) ([]byte, error) {
+func (i *VM) evalCompat(ctx context.Context,
+	entrypoint int32,
+	input *interface{},
+	metrics metrics.Metrics,
+	seed io.Reader,
+	ns time.Time,
+	iqbCache cache.InterQueryCache) ([]byte, error) {
 	metrics.Timer("wasm_vm_eval").Start()
 	defer metrics.Timer("wasm_vm_eval").Stop()
 
@@ -343,7 +356,7 @@ func (i *VM) evalCompat(ctx context.Context, entrypoint int32, input *interface{
 	// make use of it (e.g. `http.send`); and it will spawn a go routine
 	// cancelling the builtins that use topdown.Cancel, when the context is
 	// cancelled.
-	i.dispatcher.Reset(ctx, seed, ns)
+	i.dispatcher.Reset(ctx, seed, ns, iqbCache)
 
 	err := i.setHeapState(ctx, i.evalHeapPtr)
 	if err != nil {
