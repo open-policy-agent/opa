@@ -1939,10 +1939,11 @@ func (r *Rego) evalWasm(ctx context.Context, ectx *EvalContext) (ResultSet, erro
 		input = &i
 	}
 	result, err := r.opa.Eval(ctx, opa.EvalOpts{
-		Metrics: r.metrics,
-		Input:   input,
-		Time:    ectx.time,
-		Seed:    ectx.seed,
+		Metrics:                r.metrics,
+		Input:                  input,
+		Time:                   ectx.time,
+		Seed:                   ectx.seed,
+		InterQueryBuiltinCache: ectx.interQueryBuiltinCache,
 	})
 	if err != nil {
 		return nil, err
