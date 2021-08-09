@@ -47,10 +47,11 @@ func (o *OPA) Init() (*OPA, error) {
 // Eval evaluates the policy.
 func (o *OPA) Eval(ctx context.Context, opts EvalOpts) (*Result, error) {
 	evalOptions := wopa.EvalOpts{
-		Input:   opts.Input,
-		Metrics: opts.Metrics,
-		Time:    opts.Time,
-		Seed:    opts.Seed,
+		Input:                  opts.Input,
+		Metrics:                opts.Metrics,
+		Time:                   opts.Time,
+		Seed:                   opts.Seed,
+		InterQueryBuiltinCache: opts.InterQueryBuiltinCache,
 	}
 
 	res, err := o.opa.Eval(ctx, evalOptions)

@@ -20,6 +20,7 @@ import (
 	sdk_errors "github.com/open-policy-agent/opa/internal/wasm/sdk/opa/errors"
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/topdown"
+	"github.com/open-policy-agent/opa/topdown/cache"
 )
 
 func TestPrepareAndEvalWithWasmTarget(t *testing.T) {
@@ -289,4 +290,45 @@ func TestCompatWithABIMinorVersion1(t *testing.T) {
 	}
 
 	assertResultSet(t, rs, `[[true]]`)
+}
+
+func TestEvalWasmWithInterQueryCache(t *testing.T) {
+	newHeaders := map[string][]string{"Cache-Control": {"max-age=290304000, public"}}
+
+	var requests []*http.Request
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests = append(requests, r)
+		headers := w.Header()
+
+		for k, v := range newHeaders {
+			headers[k] = v
+		}
+
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"x": 1}`))
+	}))
+	defer ts.Close()
+
+	query := fmt.Sprintf(`http.send({"method": "get", "url": "%s", "force_json_decode": true, "cache": true})`, ts.URL)
+
+	// add an inter-query cache
+	config, _ := cache.ParseCachingConfig(nil)
+	interQueryCache := cache.NewInterQueryCache(config)
+
+	ctx := context.Background()
+	_, err := New(Target("wasm"), Query(query), InterQueryBuiltinCache(interQueryCache)).Eval(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// eval again with same query
+	// this request should be served by the cache
+	_, err = New(Target("wasm"), Query(query), InterQueryBuiltinCache(interQueryCache)).Eval(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(requests) != 1 {
+		t.Fatal("Expected server to be called only once")
+	}
 }
