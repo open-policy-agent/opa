@@ -28,7 +28,7 @@ import (
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/topdown"
-	iCache "github.com/open-policy-agent/opa/topdown/cache"
+	"github.com/open-policy-agent/opa/topdown/cache"
 	"github.com/open-policy-agent/opa/types"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/util/test"
@@ -1856,7 +1856,6 @@ func TestPrepareWithWasmTargetNotSupported(t *testing.T) {
 }
 
 func TestEvalWithInterQueryCache(t *testing.T) {
-	query := `http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true})`
 	newHeaders := map[string][]string{"Cache-Control": {"max-age=290304000, public"}}
 
 	var requests []*http.Request
@@ -1872,20 +1871,21 @@ func TestEvalWithInterQueryCache(t *testing.T) {
 		_, _ = w.Write([]byte(`{"x": 1}`))
 	}))
 	defer ts.Close()
+	query := fmt.Sprintf(`http.send({"method": "get", "url": "%s", "force_json_decode": true, "cache": true})`, ts.URL)
 
 	// add an inter-query cache
-	config, _ := iCache.ParseCachingConfig(nil)
-	interQueryCache := iCache.NewInterQueryCache(config)
+	config, _ := cache.ParseCachingConfig(nil)
+	interQueryCache := cache.NewInterQueryCache(config)
 
 	ctx := context.Background()
-	_, err := New(Query(strings.ReplaceAll(query, "%URL%", ts.URL)), InterQueryBuiltinCache(interQueryCache)).Eval(ctx)
+	_, err := New(Query(query), InterQueryBuiltinCache(interQueryCache)).Eval(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// eval again with same query
 	// this request should be served by the cache
-	_, err = New(Query(strings.ReplaceAll(query, "%URL%", ts.URL)), InterQueryBuiltinCache(interQueryCache)).Eval(ctx)
+	_, err = New(Query(query), InterQueryBuiltinCache(interQueryCache)).Eval(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}

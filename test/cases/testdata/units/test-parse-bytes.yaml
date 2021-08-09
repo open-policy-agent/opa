@@ -357,3 +357,99 @@ cases:
   query: data.test.p = x
   want_result:
   - x: true
+
+  - data:
+  modules:
+  - |
+    package test
+    p {
+        units.parse_bytes("100p") == 100000000000000000
+    }
+  note: parse_bytes/100 petabytes as p
+  query: data.test.p = x
+  want_result:
+  - x: true
+
+- data:
+  modules:
+  - |
+    package test
+    p {
+        units.parse_bytes("100pb") == 100000000000000000
+    }
+  note: parse_bytes/100 petabytes as pb
+  query: data.test.p = x
+  want_result:
+  - x: true
+
+- data:
+  modules:
+  - |
+    package test
+    p {
+        units.parse_bytes("100pi") == 112589990684262400
+    }
+  note: parse_bytes/100 pebibytes as pi
+  query: data.test.p = x
+  want_result:
+  - x: true
+
+- data:
+  modules:
+  - |
+    package test
+    p {
+        units.parse_bytes("100pib") == 112589990684262400
+    }
+  note: parse_bytes/100 pebibytes as pib
+  query: data.test.p = x
+  want_result:
+  - x: true
+
+  - data:
+  modules:
+  - |
+    package test
+    p {
+        units.parse_bytes("10e") == 10000000000000000000
+    }
+  note: parse_bytes/10 etabytes as e
+  query: data.test.p = x
+  want_result:
+  - x: true
+
+- data:
+  modules:
+  - |
+    package test
+    p {
+        units.parse_bytes("10eb") == 10000000000000000000
+    }
+  note: parse_bytes/10 etabytes as eb
+  query: data.test.p = x
+  want_result:
+  - x: true
+
+- data:
+  modules:
+  - |
+    package test
+    p {
+        units.parse_bytes("10ei") == 11529215046068469760
+    }
+  note: parse_bytes/10 ebibytes as ei
+  query: data.test.p = x
+  want_result:
+  - x: true
+
+- data:
+  modules:
+  - |
+    package test
+    p {
+        units.parse_bytes("10eib") == 11529215046068469760
+    }
+  note: parse_bytes/10 ebibytes as eib
+  query: data.test.p = x
+  want_result:
+  - x: true
