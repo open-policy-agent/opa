@@ -227,7 +227,7 @@ func validateBenchMainPrep(t *testing.T, args []string, params benchmarkCommandP
 			return testing.BenchmarkResult{}, err
 		}
 
-		if len(rs) != 1 || rs[0].Expressions[0].Value != true {
+		if !rs.Allowed() {
 			t.Errorf("Unexpected results: %+v", rs)
 		}
 

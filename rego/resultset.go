@@ -68,3 +68,21 @@ func newExpressionValue(expr *ast.Expr, value interface{}) *ExpressionValue {
 func (ev *ExpressionValue) String() string {
 	return fmt.Sprint(ev.Value)
 }
+
+// Allowed is a helper method that'll return true iff there is only one expression
+// in the result set's only member, and that expression has the value `true`; and
+// there are no bindings.
+//
+// If bindings are present, this will yield `false`: it would be a pitfall to
+// return `true` for a query like `data.authz.allow = x`, which always has result
+// set element with value true, but could also have a binding `x: false`.
+func (rs ResultSet) Allowed() bool {
+	if len(rs) == 1 && len(rs[0].Bindings) == 0 {
+		if exprs := rs[0].Expressions; len(exprs) == 1 {
+			if b, ok := exprs[0].Value.(bool); ok {
+				return b
+			}
+		}
+	}
+	return false
+}
