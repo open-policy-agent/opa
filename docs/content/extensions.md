@@ -56,7 +56,7 @@ r := rego.New(
 			}
 			return nil, nil
 		}),
-	))
+)
 
 query, err := r.PrepareForEval(ctx)
 if err != nil {
