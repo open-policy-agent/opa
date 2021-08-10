@@ -2,7 +2,9 @@ package wasmtime
 
 // #include <wasm.h>
 import "C"
-import "runtime"
+import (
+	"runtime"
+)
 
 // Engine is an instance of a wasmtime engine which is used to create a `Store`.
 //

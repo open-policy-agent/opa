@@ -5,6 +5,7 @@ package wasmtime
 import "C"
 import (
 	"errors"
+	"reflect"
 	"runtime"
 	"sync"
 	"unsafe"
@@ -39,9 +40,19 @@ var gStoreSlab slab
 // information through invocations as well as store Go closures that have been
 // added to the store.
 type storeData struct {
+	engine    *Engine
 	funcNew   []funcNewEntry
 	funcWrap  []funcWrapEntry
 	lastPanic interface{}
+}
+
+type funcNewEntry struct {
+	callback func(*Caller, []Val) ([]Val, *Trap)
+	results  []*ValType
+}
+
+type funcWrapEntry struct {
+	callback reflect.Value
 }
 
 // NewStore creates a new `Store` from the configuration provided in `engine`
@@ -50,7 +61,7 @@ func NewStore(engine *Engine) *Store {
 	// the store.
 	gStoreLock.Lock()
 	idx := gStoreSlab.allocate()
-	gStoreMap[idx] = &storeData{}
+	gStoreMap[idx] = &storeData{engine: engine}
 	gStoreLock.Unlock()
 
 	ptr := C.go_store_new(engine.ptr(), C.size_t(idx))
@@ -161,4 +172,95 @@ func (i *InterruptHandle) ptr() *C.wasmtime_interrupt_handle_t {
 	ret := i._ptr
 	maybeGC()
 	return ret
+}
+
+var gEngineFuncLock sync.Mutex
+var gEngineFuncNew = make(map[int]*funcNewEntry)
+var gEngineFuncNewSlab slab
+var gEngineFuncWrap = make(map[int]*funcWrapEntry)
+var gEngineFuncWrapSlab slab
+
+func insertFuncNew(data *storeData, ty *FuncType, callback func(*Caller, []Val) ([]Val, *Trap)) int {
+	var idx int
+	entry := funcNewEntry{
+		callback: callback,
+		results:  ty.Results(),
+	}
+	if data == nil {
+		gEngineFuncLock.Lock()
+		defer gEngineFuncLock.Unlock()
+		idx = gEngineFuncNewSlab.allocate()
+		gEngineFuncNew[idx] = &entry
+		idx = (idx << 1) | 0
+	} else {
+		idx = len(data.funcNew)
+		data.funcNew = append(data.funcNew, entry)
+		idx = (idx << 1) | 1
+	}
+	return idx
+}
+
+func (data *storeData) getFuncNew(idx int) *funcNewEntry {
+	if idx&1 == 0 {
+		gEngineFuncLock.Lock()
+		defer gEngineFuncLock.Unlock()
+		return gEngineFuncNew[idx>>1]
+	} else {
+		return &data.funcNew[idx>>1]
+	}
+}
+
+func insertFuncWrap(data *storeData, callback reflect.Value) int {
+	var idx int
+	entry := funcWrapEntry{callback}
+	if data == nil {
+		gEngineFuncLock.Lock()
+		defer gEngineFuncLock.Unlock()
+		idx = gEngineFuncWrapSlab.allocate()
+		gEngineFuncWrap[idx] = &entry
+		idx = (idx << 1) | 0
+	} else {
+		idx = len(data.funcWrap)
+		data.funcWrap = append(data.funcWrap, entry)
+		idx = (idx << 1) | 1
+	}
+	return idx
+
+}
+
+func (data *storeData) getFuncWrap(idx int) *funcWrapEntry {
+	if idx&1 == 0 {
+		gEngineFuncLock.Lock()
+		defer gEngineFuncLock.Unlock()
+		return gEngineFuncWrap[idx>>1]
+	} else {
+		return &data.funcWrap[idx>>1]
+	}
+}
+
+//export goFinalizeFuncNew
+func goFinalizeFuncNew(env unsafe.Pointer) {
+	idx := int(uintptr(env))
+	if idx&1 != 0 {
+		panic("shouldn't finalize a store-local index")
+	}
+	idx = idx >> 1
+	gEngineFuncLock.Lock()
+	defer gEngineFuncLock.Unlock()
+	delete(gEngineFuncNew, idx)
+	gEngineFuncNewSlab.deallocate(idx)
+
+}
+
+//export goFinalizeFuncWrap
+func goFinalizeFuncWrap(env unsafe.Pointer) {
+	idx := int(uintptr(env))
+	if idx&1 != 0 {
+		panic("shouldn't finalize a store-local index")
+	}
+	idx = idx >> 1
+	gEngineFuncLock.Lock()
+	defer gEngineFuncLock.Unlock()
+	delete(gEngineFuncWrap, idx)
+	gEngineFuncWrapSlab.deallocate(idx)
 }
