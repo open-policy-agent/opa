@@ -24,6 +24,34 @@ type Frame struct {
 	_owner interface{}
 }
 
+// TrapCode is the code of an instruction trap.
+type TrapCode uint8
+
+const (
+	// StackOverflow: the current stack space was exhausted.
+	StackOverflow TrapCode = iota
+	// MemoryOutOfBounds: out-of-bounds memory access.
+	MemoryOutOfBounds
+	// HeapMisaligned: a wasm atomic operation was presented with a not-naturally-aligned linear-memory address.
+	HeapMisaligned
+	// TableOutOfBounds: out-of-bounds access to a table.
+	TableOutOfBounds
+	// IndirectCallToNull: indirect call to a null table entry.
+	IndirectCallToNull
+	// BadSignature: signature mismatch on indirect call.
+	BadSignature
+	// IntegerOverflow: an integer arithmetic operation caused an overflow.
+	IntegerOverflow
+	// IntegerDivisionByZero: integer division by zero.
+	IntegerDivisionByZero
+	// BadConversionToInteger: failed float-to-int conversion.
+	BadConversionToInteger
+	// UnreachableCodeReached: code that was supposed to have been unreachable was reached.
+	UnreachableCodeReached
+	// Interrupt: execution has been interrupted.
+	Interrupt
+)
+
 // NewTrap creates a new `Trap` with the `name` and the type provided.
 func NewTrap(message string) *Trap {
 	ptr := C.wasmtime_trap_new(C._GoStringPtr(message), C._GoStringLen(message))
@@ -45,13 +73,25 @@ func (t *Trap) ptr() *C.wasm_trap_t {
 	return ret
 }
 
-// Message returns the name in the module this export type is exporting
+// Message returns the message of the `Trap`
 func (t *Trap) Message() string {
 	message := C.wasm_byte_vec_t{}
 	C.wasm_trap_message(t.ptr(), &message)
 	ret := C.GoStringN(message.data, C.int(message.size-1))
 	runtime.KeepAlive(t)
 	C.wasm_byte_vec_delete(&message)
+	return ret
+}
+
+// Code returns the code of the `Trap` if it exists, nil otherwise.
+func (t *Trap) Code() *TrapCode {
+	var code C.uint8_t
+	var ret *TrapCode
+	ok := C.wasmtime_trap_code(t.ptr(), &code)
+	if ok == C._Bool(true) {
+		ret = (*TrapCode)(&code)
+	}
+	runtime.KeepAlive(t)
 	return ret
 }
 

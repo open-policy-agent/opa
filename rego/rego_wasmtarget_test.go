@@ -217,6 +217,9 @@ allow {
 			}
 
 			_, err = pq.Eval(ctx)
+			if testing.Verbose() {
+				t.Log(err)
+			}
 			if !tc.errorCheck(err) {
 				t.Errorf("failed checking error, got %[1]v (%[1]T)", err)
 			}
