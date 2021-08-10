@@ -279,6 +279,60 @@ p[x] { data.a[i] = x }`,
 	}
 }
 
+// astStore returns a fixed ast.Value for Read.
+type astStore struct {
+	storage.WritesNotSupported
+	storage.TriggersNotSupported
+	storage.PolicyNotSupported
+	path  string
+	value ast.Value
+}
+
+func (*astStore) NewTransaction(context.Context, ...storage.TransactionParams) (storage.Transaction, error) {
+	return nil, nil
+}
+
+func (*astStore) Commit(context.Context, storage.Transaction) error {
+	return nil
+}
+
+func (*astStore) Abort(context.Context, storage.Transaction) {}
+
+func (a *astStore) Read(ctx context.Context, txn storage.Transaction, path storage.Path) (interface{}, error) {
+	if path.String() == a.path {
+		return a.value, nil
+	}
+
+	return nil, &storage.Error{
+		Code:    storage.NotFoundErr,
+		Message: "not found",
+	}
+}
+
+func TestTopdownStoreAST(t *testing.T) {
+	body := ast.MustParseBody(`data.stored = x`)
+	ctx := context.Background()
+	compiler := ast.NewCompiler()
+	store := &astStore{path: "/stored", value: ast.String("value")}
+
+	txn := storage.NewTransactionOrDie(ctx, store)
+	q := NewQuery(body).WithCompiler(compiler).WithStore(store).WithTransaction(txn)
+	qrs, err := q.Run(ctx)
+
+	result := queryResultSetToTerm(qrs)
+	exp := ast.MustParseTerm(`
+                {
+                        {
+                                x: "value"
+                        }
+                }
+        `)
+
+	if err != nil || !result.Equal(exp) {
+		t.Fatalf("expected %v but got %v (error: %v)", exp, result, err)
+	}
+}
+
 func compileModules(input []string) *ast.Compiler {
 
 	mods := map[string]*ast.Module{}
