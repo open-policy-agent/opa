@@ -2,7 +2,17 @@
 #include <wasmtime.h>
 
 wasmtime_store_t *go_store_new(wasm_engine_t *engine, size_t env);
-void go_func_new(wasmtime_context_t *context, wasm_functype_t *ty, size_t env, int wrap, wasmtime_func_t *ret);
+void go_func_new(wasmtime_context_t *context, wasm_functype_t *ty, size_t env, int wrap,  wasmtime_func_t *ret);
+wasmtime_error_t *go_linker_define_func(
+    wasmtime_linker_t *linker,
+    const char *module,
+    size_t module_len,
+    const char *name,
+    size_t name_len,
+    const wasm_functype_t *ty,
+    int wrap,
+    size_t env
+);
 wasmtime_externref_t *go_externref_new(size_t env);
 
 #define EACH_UNION_ACCESSOR(name) \

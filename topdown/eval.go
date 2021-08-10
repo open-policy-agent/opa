@@ -1413,22 +1413,41 @@ func (e *eval) resolveReadFromStorage(ref ast.Ref, a ast.Value) (ast.Value, erro
 		}
 
 		if len(path) == 0 {
-			obj := blob.(map[string]interface{})
-			if len(obj) > 0 {
-				cpy := make(map[string]interface{}, len(obj)-1)
-				for k, v := range obj {
-					if string(ast.SystemDocumentKey) == k {
-						continue
+			switch obj := blob.(type) {
+			case map[string]interface{}:
+				if len(obj) > 0 {
+					cpy := make(map[string]interface{}, len(obj)-1)
+					for k, v := range obj {
+						if string(ast.SystemDocumentKey) != k {
+							cpy[k] = v
+						}
 					}
-					cpy[k] = v
+					blob = cpy
 				}
-				blob = cpy
+			case ast.Object:
+				if obj.Len() > 0 {
+					cpy := ast.NewObject()
+					if err := obj.Iter(func(k *ast.Term, v *ast.Term) error {
+						if !ast.SystemDocumentKey.Equal(k.Value) {
+							cpy.Insert(k, v)
+						}
+						return nil
+					}); err != nil {
+						return nil, err
+					}
+					blob = cpy
+
+				}
 			}
 		}
 
-		v, err = ast.InterfaceToValue(blob)
-		if err != nil {
-			return nil, err
+		var ok bool
+		v, ok = blob.(ast.Value)
+		if !ok {
+			v, err = ast.InterfaceToValue(blob)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
