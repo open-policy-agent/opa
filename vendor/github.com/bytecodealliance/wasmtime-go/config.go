@@ -100,6 +100,12 @@ func (cfg *Config) SetWasmModuleLinking(enabled bool) {
 	runtime.KeepAlive(cfg)
 }
 
+// SetWasmMultiMemory configures whether the wasm multi memory proposal is enabled
+func (cfg *Config) SetWasmMultiMemory(enabled bool) {
+	C.wasmtime_config_wasm_multi_memory_set(cfg.ptr(), C.bool(enabled))
+	runtime.KeepAlive(cfg)
+}
+
 // SetStrategy configures what compilation strategy is used to compile wasm code
 func (cfg *Config) SetStrategy(strat Strategy) error {
 	err := C.wasmtime_config_strategy_set(cfg.ptr(), C.wasmtime_strategy_t(strat))

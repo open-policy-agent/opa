@@ -3,7 +3,10 @@ package wasmtime
 // #include <wasmtime.h>
 // #include "shims.h"
 import "C"
-import "runtime"
+import (
+	"reflect"
+	"runtime"
+)
 
 // Linker implements a wasmtime Linking module, which can link instantiated modules together.
 // More details you can see [examples for C](https://bytecodealliance.github.io/wasmtime/examples-c-linking.html) or
@@ -63,6 +66,70 @@ func (l *Linker) Define(module, name string, item AsExtern) error {
 // Returns an error if shadowing is disabled and the name is already defined.
 func (l *Linker) DefineFunc(store Storelike, module, name string, f interface{}) error {
 	return l.Define(module, name, WrapFunc(store, f))
+}
+
+// FuncNew defines a function in this linker in the same style as `NewFunc`
+//
+// Note that this function does not require a `Storelike`, which is
+// intentional. This function can be used to insert store-independent functions
+// into this linker which allows this linker to be used for instantiating
+// modules in multiple different stores.
+//
+// Returns an error if shadowing is disabled and the name is already defined.
+func (l *Linker) FuncNew(module, name string, ty *FuncType, f func(*Caller, []Val) ([]Val, *Trap)) error {
+	idx := insertFuncNew(nil, ty, f)
+	err := C.go_linker_define_func(
+		l.ptr(),
+		C._GoStringPtr(module),
+		C._GoStringLen(module),
+		C._GoStringPtr(name),
+		C._GoStringLen(name),
+		ty.ptr(),
+		0, // this is "new"
+		C.size_t(idx),
+	)
+	runtime.KeepAlive(l)
+	runtime.KeepAlive(module)
+	runtime.KeepAlive(name)
+	runtime.KeepAlive(ty)
+	if err == nil {
+		return nil
+	}
+
+	return mkError(err)
+}
+
+// FuncWrap defines a function in this linker in the same style as `WrapFunc`
+//
+// Note that this function does not require a `Storelike`, which is
+// intentional. This function can be used to insert store-independent functions
+// into this linker which allows this linker to be used for instantiating
+// modules in multiple different stores.
+//
+// Returns an error if shadowing is disabled and the name is already defined.
+func (l *Linker) FuncWrap(module, name string, f interface{}) error {
+	val := reflect.ValueOf(f)
+	ty := inferFuncType(val)
+	idx := insertFuncWrap(nil, val)
+	err := C.go_linker_define_func(
+		l.ptr(),
+		C._GoStringPtr(module),
+		C._GoStringLen(module),
+		C._GoStringPtr(name),
+		C._GoStringLen(name),
+		ty.ptr(),
+		1, // this is "wrap"
+		C.size_t(idx),
+	)
+	runtime.KeepAlive(l)
+	runtime.KeepAlive(module)
+	runtime.KeepAlive(name)
+	runtime.KeepAlive(ty)
+	if err == nil {
+		return nil
+	}
+
+	return mkError(err)
 }
 
 // DefineInstance defines all exports of an instance provided under the module name provided.

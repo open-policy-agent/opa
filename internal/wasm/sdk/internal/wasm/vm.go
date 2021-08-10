@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/bytecodealliance/wasmtime-go"
@@ -733,32 +734,34 @@ func callOrCancel(ctx context.Context, vm *VM, name string, args ...int32) (inte
 	if err != nil {
 		// if last err was trap, extract information
 		var t *wasmtime.Trap
-		var msg string
 		if errors.As(err, &t) {
-			if len(t.Frames()) > 1 {
-				for _, fr := range t.Frames() {
-					if fun := fr.FuncName(); fun != nil {
-						if msg != "" {
-							msg = *fun + "/" + msg
-						} else {
-							msg = *fun
-						}
-					}
-				}
-				if msg != "" {
-					// TODO(sr): Out of bounds memory access is a trap, too!
-					// This "interrupted at" is a bit misleading, however, currently
-					// the only way to fix this is by looking at the string
-					// `t.Error()` which also contains a (long, prettily) rendered
-					// backtrace.
-					// See also https://github.com/bytecodealliance/wasmtime-go/issues/63
-					msg = "interrupted at " + msg
-				}
+			code := t.Code()
+			if code != nil && *code == wasmtime.Interrupt {
+				return 0, sdk_errors.New(sdk_errors.CancelledErr, getStack(t.Frames(), "interrupted"))
 			}
-			return 0, sdk_errors.New(sdk_errors.CancelledErr, msg)
+			return 0, sdk_errors.New(sdk_errors.InternalErr, getStack(t.Frames(), "trapped"))
 		}
 		return 0, err
 	}
 	<-ctxdone // wait for the goroutine that's checking ctx
 	return res, nil
+}
+
+func getStack(fs []*wasmtime.Frame, desc string) string {
+	var b strings.Builder
+	b.WriteString(desc)
+	if len(fs) > 1 {
+		b.WriteString(" at ")
+		for i := len(fs) - 1; i >= 0; i-- { // backwards
+			fr := fs[i]
+			if fun := fr.FuncName(); fun != nil {
+				if i != len(fs)-1 {
+					b.WriteRune('/')
+				}
+				b.WriteString(*fun)
+
+			}
+		}
+	}
+	return b.String()
 }
