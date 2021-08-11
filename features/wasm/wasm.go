@@ -62,6 +62,7 @@ func (o *OPA) Eval(ctx context.Context, opts opa.EvalOpts) (*opa.Result, error) 
 	evalOptions := wopa.EvalOpts{
 		Input:                  opts.Input,
 		Metrics:                opts.Metrics,
+		Entrypoint:             opts.Entrypoint,
 		Time:                   opts.Time,
 		Seed:                   opts.Seed,
 		InterQueryBuiltinCache: opts.InterQueryBuiltinCache,
