@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"os"
 	"strings"
 	"testing"
@@ -443,5 +444,40 @@ func TestTopDownJWTEncodeSignES512(t *testing.T) {
 	verifiedPayload, err := jws.Verify([]byte(result.(string)), alg, publicKey)
 	if err != nil || string(verifiedPayload) != examplePayload {
 		t.Fatal("Failed to verify message")
+	}
+}
+
+func TestTopdownJWTEncodeSignECWithSeedReturnsSameSignature(t *testing.T) {
+	query := `io.jwt.encode_sign({"alg": "ES256"},{"pay": "load"},
+	  {"kty":"EC",
+	   "crv":"P-256",
+	   "x":"f83OJ3D2xF1Bg8vub9tLe1gHMzV76e8Tus9uPHvRVEU",
+	   "y":"x_FEzRu9m36HLN_tue659LNpXW6pCyStikYjKIWI5a0",
+	   "d":"jpsQnnGQmL-YBIffH1136cspYG6-0iY7X1fCE9-E9LI"
+	  }, x)`
+	results := ast.NewSet()
+
+	for i := 0; i < 10; i++ {
+		seed := int64(123)
+		q := NewQuery(ast.MustParseBody(query)).
+			WithSeed(rand.New(rand.NewSource(seed))).
+			WithStrictBuiltinErrors(true).
+			WithCompiler(ast.NewCompiler())
+
+		qrs, err := q.Run(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		} else if len(qrs) != 1 {
+			t.Fatal("expected exactly one result but got:", qrs)
+		}
+
+		results.Add(queryResultSetToTerm(qrs))
+	}
+
+	// NOTE(sr): It could be 1, it could be 2, because `randutil.MaybeReadByte` will
+	// skip the first byte with a probability of 0.5, but by means not controlled by
+	// `rand`.
+	if act := results.Len(); act > 2 {
+		t.Errorf("expected at most two set elements but got %d: %v", act, results)
 	}
 }

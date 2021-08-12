@@ -261,7 +261,7 @@ func TestEncode(t *testing.T) {
 			t.Fatal("Failed to parse key")
 		}
 		var jwsCompact []byte
-		jwsCompact, err = jws.SignLiteral([]byte(examplePayload), alg, key, hdrBytes)
+		jwsCompact, err = jws.SignLiteral([]byte(examplePayload), alg, key, hdrBytes, rand.Reader)
 		if err != nil {
 			t.Fatal("Failed to sign message")
 		}
@@ -599,13 +599,13 @@ func TestSignErrors(t *testing.T) {
 		}
 	})
 	t.Run("Invalid signature algorithm", func(t *testing.T) {
-		_, err := jws.SignLiteral([]byte("payload"), jwa.SignatureAlgorithm("dummy"), nil, []byte("header"))
+		_, err := jws.SignLiteral([]byte("payload"), jwa.SignatureAlgorithm("dummy"), nil, []byte("header"), rand.Reader)
 		if err == nil {
 			t.Fatal("JWS signing should have failed")
 		}
 	})
 	t.Run("Invalid signature algorithm", func(t *testing.T) {
-		_, err := jws.SignLiteral([]byte("payload"), jwa.SignatureAlgorithm("dummy"), nil, []byte("header"))
+		_, err := jws.SignLiteral([]byte("payload"), jwa.SignatureAlgorithm("dummy"), nil, []byte("header"), rand.Reader)
 		if err == nil {
 			t.Fatal("JWS signing should have failed")
 		}

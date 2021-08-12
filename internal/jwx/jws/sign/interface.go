@@ -3,6 +3,7 @@ package sign
 import (
 	"crypto/ecdsa"
 	"crypto/rsa"
+	"io"
 
 	"github.com/open-policy-agent/opa/internal/jwx/jwa"
 )
@@ -28,7 +29,7 @@ type RSASigner struct {
 	sign rsaSignFunc
 }
 
-type ecdsaSignFunc func([]byte, *ecdsa.PrivateKey) ([]byte, error)
+type ecdsaSignFunc func([]byte, *ecdsa.PrivateKey, io.Reader) ([]byte, error)
 
 // ECDSASigner uses crypto/ecdsa to sign the payloads.
 type ECDSASigner struct {

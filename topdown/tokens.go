@@ -851,7 +851,7 @@ func commonBuiltinJWTEncodeSign(bctx BuiltinContext, inputHeaders, jwsPayload, j
 
 	// process payload and sign
 	var jwsCompact []byte
-	jwsCompact, err = jws.SignLiteral([]byte(jwsPayload), alg, key, jwsHeaders)
+	jwsCompact, err = jws.SignLiteral([]byte(jwsPayload), alg, key, jwsHeaders, bctx.Seed)
 	if err != nil {
 		return err
 	}
