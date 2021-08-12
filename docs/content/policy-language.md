@@ -404,7 +404,7 @@ sites := [
 q[name] { name := sites[_].name }
 ```
 
-In this case, we evaluate `q` with a variable `x` (which is not bound to a value). As as result, the query returns all of the values for `x` and all of the values for `q[x]`, which are always the same because `q` is a set.
+In this case, we evaluate `q` with a variable `x` (which is not bound to a value). As a result, the query returns all of the values for `x` and all of the values for `q[x]`, which are always the same because `q` is a set.
 
 ```live:eg/variables:query:merge_down
 q[x]
