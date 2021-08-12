@@ -1592,7 +1592,7 @@ func (e evalFunc) eval(iter unifyIterator) error {
 			unknown = e.e.unknown(e.terms[i], e.e.bindings)
 		}
 		if unknown {
-			return e.partialEvalSupport(iter)
+			return e.partialEvalSupport(argCount, iter)
 		}
 	}
 
@@ -1728,7 +1728,7 @@ func (e evalFunc) evalOneRule(iter unifyIterator, rule *ast.Rule, cacheKey ast.R
 	return result, err
 }
 
-func (e evalFunc) partialEvalSupport(iter unifyIterator) error {
+func (e evalFunc) partialEvalSupport(declArgsLen int, iter unifyIterator) error {
 
 	path := e.e.namespaceRef(e.ref)
 	term := ast.NewTerm(path)
@@ -1746,7 +1746,7 @@ func (e evalFunc) partialEvalSupport(iter unifyIterator) error {
 		return nil
 	}
 
-	return e.e.saveCall(len(e.terms), append([]*ast.Term{term}, e.terms[1:]...), iter)
+	return e.e.saveCall(declArgsLen, append([]*ast.Term{term}, e.terms[1:]...), iter)
 }
 
 func (e evalFunc) partialEvalSupportRule(rule *ast.Rule, path ast.Ref) error {
