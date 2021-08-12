@@ -1,13 +1,15 @@
 package ast
 
 import (
+	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/open-policy-agent/opa/types"
 	"github.com/open-policy-agent/opa/util"
 )
 
-func testParseSchema(t *testing.T, schema string, expectedType types.Type) {
+func testParseSchema(t *testing.T, schema string, expectedType types.Type, expectedError error) {
 	t.Helper()
 
 	var sch interface{}
@@ -16,11 +18,14 @@ func testParseSchema(t *testing.T, schema string, expectedType types.Type) {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	newtype, err := loadSchema(sch)
-	if err != nil {
+	if err != nil && errors.Is(err, expectedError) {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if newtype == nil {
+	if newtype == nil && expectedType != nil {
 		t.Fatalf("parseSchema returned nil type")
+	}
+	if newtype != nil && expectedType == nil {
+		t.Fatalf("expected nil but parseSchema returned a not nil type")
 	}
 	if types.Compare(newtype, expectedType) != 0 {
 		t.Fatalf("parseSchema returned an incorrect type: %s, expected: %s", newtype.String(), expectedType.String())
@@ -39,7 +44,7 @@ func TestParseSchemaObject(t *testing.T) {
 	staticProps = append(staticProps, &types.StaticProperty{Key: "foo", Value: types.S})
 
 	expectedType := types.NewObject(staticProps, nil)
-	testParseSchema(t, objectSchema, expectedType)
+	testParseSchema(t, objectSchema, expectedType, nil)
 }
 
 func TestSetTypesWithSchemaRef(t *testing.T) {
@@ -79,18 +84,235 @@ func TestSetTypesWithPodSchema(t *testing.T) {
 
 }
 
+func TestAllOfSchemas(t *testing.T) {
+	//Test 1: object schema
+	objectSchemaStaticProps := []*types.StaticProperty{}
+	objectSchemaStaticProps = append(objectSchemaStaticProps, &types.StaticProperty{Key: "AddressLine1", Value: types.S})
+	objectSchemaStaticProps = append(objectSchemaStaticProps, &types.StaticProperty{Key: "AddressLine2", Value: types.S})
+	objectSchemaStaticProps = append(objectSchemaStaticProps, &types.StaticProperty{Key: "City", Value: types.S})
+	objectSchemaStaticProps = append(objectSchemaStaticProps, &types.StaticProperty{Key: "State", Value: types.S})
+	objectSchemaStaticProps = append(objectSchemaStaticProps, &types.StaticProperty{Key: "ZipCode", Value: types.S})
+	objectSchemaStaticProps = append(objectSchemaStaticProps, &types.StaticProperty{Key: "County", Value: types.S})
+	objectSchemaStaticProps = append(objectSchemaStaticProps, &types.StaticProperty{Key: "PostCode", Value: types.S})
+	objectSchemaExpectedType := types.NewObject(objectSchemaStaticProps, nil)
+
+	//Test 2: array schema
+	arrayExpectedType := types.NewArray(nil, types.N)
+
+	//Test 3: parent variation
+	parentVariationStaticProps := []*types.StaticProperty{}
+	parentVariationStaticProps = append(parentVariationStaticProps, &types.StaticProperty{Key: "State", Value: types.S})
+	parentVariationStaticProps = append(parentVariationStaticProps, &types.StaticProperty{Key: "ZipCode", Value: types.S})
+	parentVariationStaticProps = append(parentVariationStaticProps, &types.StaticProperty{Key: "County", Value: types.S})
+	parentVariationStaticProps = append(parentVariationStaticProps, &types.StaticProperty{Key: "PostCode", Value: types.S})
+	parentVariationExpectedType := types.NewObject(parentVariationStaticProps, nil)
+
+	//Test 4: empty schema with allOf
+	emptyExpectedType := types.A
+
+	//Tests 5 & 6: schema with array of arrays,  object and array as siblings
+	expectedError := fmt.Errorf("unable to merge these schemas")
+
+	//Test 7: array of objects
+	arrayOfObjectsStaticProps := []*types.StaticProperty{}
+	arrayOfObjectsStaticProps = append(arrayOfObjectsStaticProps, &types.StaticProperty{Key: "State", Value: types.S})
+	arrayOfObjectsStaticProps = append(arrayOfObjectsStaticProps, &types.StaticProperty{Key: "ZipCode", Value: types.S})
+	arrayOfObjectsStaticProps = append(arrayOfObjectsStaticProps, &types.StaticProperty{Key: "County", Value: types.S})
+	arrayOfObjectsStaticProps = append(arrayOfObjectsStaticProps, &types.StaticProperty{Key: "PostCode", Value: types.S})
+	arrayOfObjectsStaticProps = append(arrayOfObjectsStaticProps, &types.StaticProperty{Key: "Street", Value: types.S})
+	arrayOfObjectsStaticProps = append(arrayOfObjectsStaticProps, &types.StaticProperty{Key: "House", Value: types.S})
+	innerType := types.NewObject(arrayOfObjectsStaticProps, nil)
+	arrayOfObjectsExpectedType := types.NewArray(nil, innerType)
+
+	//Tests 8 & 9: allOf schema with type not specified
+	objectMissingStaticProps := []*types.StaticProperty{}
+	objectMissingStaticProps = append(objectMissingStaticProps, &types.StaticProperty{Key: "AddressLine", Value: types.S})
+	objectMissingStaticProps = append(objectMissingStaticProps, &types.StaticProperty{Key: "State", Value: types.S})
+	objectMissingStaticProps = append(objectMissingStaticProps, &types.StaticProperty{Key: "ZipCode", Value: types.S})
+	objectMissingStaticProps = append(objectMissingStaticProps, &types.StaticProperty{Key: "County", Value: types.S})
+	objectMissingStaticProps = append(objectMissingStaticProps, &types.StaticProperty{Key: "PostCode", Value: types.N})
+	objectMissingExpectedType := types.NewObject(objectMissingStaticProps, nil)
+	arrayMissingExpectedType := types.NewArray([]types.Type{types.N, types.N}, nil)
+
+	//Tests 10 & 11: allOf schema with array that contains different types (with and without error)
+	arrayDifTypesExpectedType := types.NewArray([]types.Type{types.S, types.N}, nil)
+
+	//Test 12: array inside of object
+	arrayInObjectstaticProps := []*types.StaticProperty{}
+	arrayInObjectstaticProps = append(arrayInObjectstaticProps, &types.StaticProperty{Key: "age", Value: types.N})
+	arrayInObjectstaticProps = append(arrayInObjectstaticProps, &types.StaticProperty{Key: "name", Value: types.S})
+	arrayInObjectstaticProps = append(arrayInObjectstaticProps, &types.StaticProperty{Key: "personality", Value: types.S})
+	arrayInObjectstaticProps = append(arrayInObjectstaticProps, &types.StaticProperty{Key: "nickname", Value: types.S})
+	innerObjectsType := types.NewObject(arrayInObjectstaticProps, nil)
+	arrayInObjectInnerType := types.NewArray(nil, innerObjectsType)
+	arrayInObjectExpectedType := types.NewObject([]*types.StaticProperty{
+		types.NewStaticProperty("familyMembers", arrayInObjectInnerType)}, nil)
+
+	//Test 13: allOf inside core schema
+	coreStaticProps := []*types.StaticProperty{}
+	coreStaticProps = append(coreStaticProps, &types.StaticProperty{Key: "accessMe", Value: types.S})
+	coreStaticProps = append(coreStaticProps, &types.StaticProperty{Key: "accessYou", Value: types.S})
+	insideType := types.NewObject(coreStaticProps, nil)
+	outerType := []*types.StaticProperty{}
+	outerType = append(outerType, &types.StaticProperty{Key: "RandomInfo", Value: insideType})
+	outerType = append(outerType, &types.StaticProperty{Key: "AddressLine", Value: types.S})
+	coreSchemaExpectedType := types.NewObject(outerType, nil)
+
+	//Tests 14-17: other types besides array and object
+	expectedStringType := types.NewString()
+	expectedIntegerType := types.NewNumber()
+	expectedBooleanType := types.NewBoolean()
+
+	//Test 18: array with uneven numbers of items children to merge
+	expectedUnevenArrayType := types.NewArray([]types.Type{types.N, types.N, types.S}, nil)
+
+	tests := []struct {
+		note          string
+		schema        string
+		expectedType  types.Type
+		expectedError error
+	}{
+		{
+			note:          "allOf with mergeable Object types in schema",
+			schema:        allOfObjectSchema,
+			expectedType:  objectSchemaExpectedType,
+			expectedError: nil,
+		},
+		{
+			note:          "allOf with mergeable Array types in schema",
+			schema:        allOfArraySchema,
+			expectedType:  arrayExpectedType,
+			expectedError: nil,
+		},
+		{
+			note:          "allOf without a parent schema",
+			schema:        allOfSchemaParentVariation,
+			expectedType:  parentVariationExpectedType,
+			expectedError: nil,
+		},
+		{
+			note:          "allOf with empty schema",
+			schema:        emptySchema,
+			expectedType:  emptyExpectedType,
+			expectedError: nil,
+		},
+		{
+			note:          "allOf schema with unmergeable Array of Arrays",
+			schema:        allOfArrayOfArrays,
+			expectedType:  nil,
+			expectedError: expectedError,
+		},
+		{
+			note:          "allOf with mergeable Array of Object types in schema",
+			schema:        allOfArrayOfObjects,
+			expectedType:  arrayOfObjectsExpectedType,
+			expectedError: nil,
+		},
+		{
+			note:          "allOf schema with Array and Object types as siblings",
+			schema:        allOfObjectAndArray,
+			expectedType:  nil,
+			expectedError: expectedError,
+		},
+		{
+			note:          "allOf with mergeable Object types in schema with type declaration missing",
+			schema:        allOfObjectMissing,
+			expectedType:  objectMissingExpectedType,
+			expectedError: nil,
+		},
+		{
+			note:          "allOf with mergeable Array types in schema with type declaration missing",
+			schema:        allOfArrayMissing,
+			expectedType:  arrayMissingExpectedType,
+			expectedError: nil,
+		},
+		{
+			note:          "allOf schema with an Array that contains different mergeable types",
+			schema:        allOfArrayDifTypes,
+			expectedType:  arrayDifTypesExpectedType,
+			expectedError: nil,
+		},
+		{
+			note:          "allOf schema with Array type that contains different unmergeable types",
+			schema:        allOfArrayDifTypesWithError,
+			expectedType:  nil,
+			expectedError: expectedError,
+		},
+		{
+			note:          "allOf with mergeable Object containing Array types in schema",
+			schema:        allOfArrayInsideObject,
+			expectedType:  arrayInObjectExpectedType,
+			expectedError: nil,
+		},
+		{
+			note:          "allOf with mergeable types inside of core schema",
+			schema:        allOfInsideCoreSchema,
+			expectedType:  coreSchemaExpectedType,
+			expectedError: nil,
+		},
+		{
+			note:          "allOf with mergeable String types in schema",
+			schema:        allOfStringSchema,
+			expectedType:  expectedStringType,
+			expectedError: nil,
+		},
+		{
+			note:          "allOf with mergeable Integer types in schema",
+			schema:        allOfIntegerSchema,
+			expectedType:  expectedIntegerType,
+			expectedError: nil,
+		},
+		{
+			note:          "allOf with mergeable Boolean types in schema",
+			schema:        allOfBooleanSchema,
+			expectedType:  expectedBooleanType,
+			expectedError: nil,
+		},
+		{
+			note:          "allOf schema with different unmergeable types",
+			schema:        allOfTypeErrorSchema,
+			expectedType:  nil,
+			expectedError: expectedError,
+		},
+		{
+			note:          "allOf schema with unmergeable types String and Boolean",
+			schema:        allOfStringSchemaWithError,
+			expectedType:  nil,
+			expectedError: expectedError,
+		},
+		{
+			note:          "allOf unmergeable schema with different parent and items types",
+			schema:        allOfSchemaWithParentError,
+			expectedType:  nil,
+			expectedError: expectedError,
+		},
+		{
+			note:          "allOf schema of Array type with uneven numbers of items to merge",
+			schema:        allOfSchemaWithUnevenArray,
+			expectedType:  expectedUnevenArrayType,
+			expectedError: nil,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			testParseSchema(t, tc.schema, tc.expectedType, tc.expectedError)
+		})
+	}
+}
+
 func TestParseSchemaUntypedField(t *testing.T) {
 	//Expected type is: object<foo: any>
 	staticProps := []*types.StaticProperty{}
 	staticProps = append(staticProps, &types.StaticProperty{Key: "foo", Value: types.A})
 	expectedType := types.NewObject(staticProps, nil)
-	testParseSchema(t, untypedFieldObjectSchema, expectedType)
+	testParseSchema(t, untypedFieldObjectSchema, expectedType, nil)
 }
 
 func TestParseSchemaNoChildren(t *testing.T) {
 	//Expected type is: object[any: any]
 	expectedType := types.NewObject(nil, &types.DynamicProperty{Key: types.A, Value: types.A})
-	testParseSchema(t, noChildrenObjectSchema, expectedType)
+	testParseSchema(t, noChildrenObjectSchema, expectedType, nil)
 }
 
 func TestParseSchemaArrayNoItems(t *testing.T) {
@@ -98,7 +320,7 @@ func TestParseSchemaArrayNoItems(t *testing.T) {
 	staticProps := []*types.StaticProperty{}
 	staticProps = append(staticProps, &types.StaticProperty{Key: "b", Value: types.NewArray(nil, types.A)})
 	expectedType := types.NewObject(staticProps, nil)
-	testParseSchema(t, arrayNoItemsSchema, expectedType)
+	testParseSchema(t, arrayNoItemsSchema, expectedType, nil)
 }
 
 func TestParseSchemaBooleanField(t *testing.T) {
@@ -106,7 +328,7 @@ func TestParseSchemaBooleanField(t *testing.T) {
 	staticProps := []*types.StaticProperty{}
 	staticProps = append(staticProps, &types.StaticProperty{Key: "a", Value: types.B})
 	expectedType := types.NewObject(staticProps, nil)
-	testParseSchema(t, booleanSchema, expectedType)
+	testParseSchema(t, booleanSchema, expectedType, nil)
 }
 
 func TestParseSchemaBasics(t *testing.T) {
@@ -155,7 +377,7 @@ func TestParseSchemaBasics(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			testParseSchema(t, tc.schema, tc.exp)
+			testParseSchema(t, tc.schema, tc.exp, nil)
 		})
 	}
 }
@@ -282,7 +504,7 @@ func TestAnyOfSchema(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			testParseSchema(t, tc.schema, tc.expected)
+			testParseSchema(t, tc.schema, tc.expected, nil)
 		})
 	}
 }

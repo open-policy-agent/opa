@@ -875,6 +875,143 @@ func TestCompilerCheckTypesWithSchema(t *testing.T) {
 	assertNotFailed(t, c)
 }
 
+func TestCompilerCheckTypesWithAllOfSchema(t *testing.T) {
+
+	tests := []struct {
+		note          string
+		schema        string
+		expectedError error
+	}{
+		{
+			note:          "allOf with mergeable Object types in schema",
+			schema:        allOfObjectSchema,
+			expectedError: nil,
+		},
+		{
+			note:          "allOf with mergeable Array types in schema",
+			schema:        allOfArraySchema,
+			expectedError: nil,
+		},
+		{
+			note:          "allOf without a parent schema",
+			schema:        allOfSchemaParentVariation,
+			expectedError: nil,
+		},
+		{
+			note:          "allOf with empty schema",
+			schema:        emptySchema,
+			expectedError: nil,
+		},
+		{
+			note:          "allOf with mergeable Array of Object types in schema",
+			schema:        allOfArrayOfObjects,
+			expectedError: nil,
+		},
+		{
+			note:          "allOf with mergeable Object types in schema with type declaration missing",
+			schema:        allOfObjectMissing,
+			expectedError: nil,
+		},
+		{
+			note:          "allOf with Array of mergeable different types in schema",
+			schema:        allOfArrayDifTypes,
+			expectedError: nil,
+		},
+		{
+			note:          "allOf with mergeable Object containing Array types in schema",
+			schema:        allOfArrayInsideObject,
+			expectedError: nil,
+		},
+		{
+			note:          "allOf with mergeable Array types in schema with type declaration missing",
+			schema:        allOfArrayMissing,
+			expectedError: nil,
+		},
+		{
+			note:          "allOf with mergeable types inside of core schema",
+			schema:        allOfInsideCoreSchema,
+			expectedError: nil,
+		},
+		{
+			note:          "allOf with mergeable String types in schema",
+			schema:        allOfStringSchema,
+			expectedError: nil,
+		},
+		{
+			note:          "allOf with mergeable Integer types in schema",
+			schema:        allOfIntegerSchema,
+			expectedError: nil,
+		},
+		{
+			note:          "allOf with mergeable Boolean types in schema",
+			schema:        allOfBooleanSchema,
+			expectedError: nil,
+		},
+		{
+			note:          "allOf with mergeable Array types with uneven numbers of items",
+			schema:        allOfSchemaWithUnevenArray,
+			expectedError: nil,
+		},
+		{
+			note:          "allOf schema with unmergeable Array of Arrays",
+			schema:        allOfArrayOfArrays,
+			expectedError: fmt.Errorf("unable to merge these schemas"),
+		},
+		{
+			note:          "allOf schema with Array and Object types as siblings",
+			schema:        allOfObjectAndArray,
+			expectedError: fmt.Errorf("unable to merge these schemas"),
+		},
+		{
+			note:          "allOf schema with Array type that contains different unmergeable types",
+			schema:        allOfArrayDifTypesWithError,
+			expectedError: fmt.Errorf("unable to merge these schemas"),
+		},
+		{
+			note:          "allOf schema with different unmergeable types",
+			schema:        allOfTypeErrorSchema,
+			expectedError: fmt.Errorf("unable to merge these schemas"),
+		},
+		{
+			note:          "allOf unmergeable schema with different parent and items types",
+			schema:        allOfSchemaWithParentError,
+			expectedError: fmt.Errorf("unable to merge these schemas"),
+		},
+		{
+			note:          "allOf schema of Array type with uneven numbers of items to merge",
+			schema:        allOfSchemaWithUnevenArray,
+			expectedError: nil,
+		},
+		{
+			note:          "allOf schema with unmergeable types String and Boolean",
+			schema:        allOfStringSchemaWithError,
+			expectedError: fmt.Errorf("unable to merge these schemas"),
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			c := NewCompiler()
+			var schema interface{}
+			err := util.Unmarshal([]byte(tc.schema), &schema)
+			if err != nil {
+				t.Fatal("Unexpected error:", err)
+			}
+			schemaSet := NewSchemaSet()
+			schemaSet.Put(SchemaRootRef, schema)
+			c.WithSchemas(schemaSet)
+			compileStages(c, c.checkTypes)
+			if tc.expectedError != nil {
+				if errors.Is(c.Errors, tc.expectedError) {
+					t.Fatal("Unexpected error:", err)
+				}
+			} else {
+				assertNotFailed(t, c)
+			}
+		})
+	}
+}
+
 func TestCompilerCheckRuleConflicts(t *testing.T) {
 
 	c := getCompilerWithParsedModules(map[string]string{
@@ -4605,8 +4742,34 @@ const podSchema = `
       }
     ],
     "$schema": "http://json-schema.org/schema#"
-  }
-`
+  }`
+
+const anyOfArraySchema = `{
+	"type": "object",
+	"properties": {
+		"familyMembers": {
+			"type": "array",
+			"items": {
+				"anyOf": [
+					{
+						"type": "object",
+						"properties": {
+							"age": { "type": "integer" },
+							"name": {"type": "string"}
+						}
+					},{
+						"type": "object",
+						"properties": {
+							"personality": { "type": "string" },
+							"nickname": { "type": "string"  }
+						}
+					}
+				]
+			}
+		}
+	}
+}`
+
 const anyOfExtendCoreSchema = `{
 	"type": "object",
 	"properties": {
@@ -4625,6 +4788,134 @@ const anyOfExtendCoreSchema = `{
 			"properties": {
 				"County":   { "type": "string" },
 				"PostCode": { "type": "integer" }
+			}
+		}
+	]
+}`
+
+const allOfObjectSchema = `{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "type": "object",
+    "title": "My schema",
+    "properties": {
+        "AddressLine1": { "type": "string" },
+        "AddressLine2": { "type": "string" },
+        "City":         { "type": "string" }
+    },
+    "allOf": [
+        {
+            "type": "object",
+            "properties": {
+                "State":   { "type": "string" },
+                "ZipCode": { "type": "string" }
+            },
+        },
+        {
+            "type": "object",
+            "properties": {
+                "County":   { "type": "string" },
+                "PostCode": { "type": "string" }
+            },
+        }
+    ]
+}`
+
+const allOfArraySchema = `{
+	"$schema": "http://json-schema.org/draft-04/schema#",
+	"type": "array",
+	"title": "The b schema",
+	"description": "An explanation about the purpose of this instance.",
+	"items": {
+		"type": "integer",
+		"title": "The items schema",
+		"description": "An explanation about the purpose of this instance."
+	},
+	"allOf": [
+		{
+		"type": "array",
+		"title": "The b schema",
+		"description": "An explanation about the purpose of this instance.",
+		"items": {	
+			"type": "integer",
+			"title": "The items schema",
+			"description": "An explanation about the purpose of this instance."
+		}
+		},
+		{
+		"type": "array",
+		"title": "The b schema",
+		"description": "An explanation about the purpose of this instance.",
+		"items": {
+			"type": "integer",
+			"title": "The items schema",
+			"description": "An explanation about the purpose of this instance."
+		}
+		}
+	]
+}`
+
+const allOfSchemaParentVariation = `{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "allOf": [
+        {
+            "type": "object",
+            "properties": {
+                "State":   { "type": "string" },
+                "ZipCode": { "type": "string" }
+            },
+        },
+        {
+            "type": "object",
+            "properties": {
+                "County":   { "type": "string" },
+                "PostCode": { "type": "string" }
+            },
+        }
+    ]
+}`
+
+const emptySchema = `{
+	"allof" : []
+ }`
+
+const allOfArrayOfArrays = `{
+	"$schema": "http://json-schema.org/draft-04/schema#",
+	"type": "array",
+	"title": "The b schema",
+	"description": "An explanation about the purpose of this instance.",
+	"items": {
+		"type": "array",
+		"title": "The items schema",
+		"description": "An explanation about the purpose of this instance.",
+		"items": {
+			"type": "integer",
+			"title": "The items schema",
+			"description": "An explanation about the purpose of this instance."
+		}
+	},
+	"allOf": [{
+			"type": "array",
+			"title": "The b schema",
+			"description": "An explanation about the purpose of this instance.",
+			"items": {
+				"type": "array",
+				"title": "The items schema",
+				"description": "An explanation about the purpose of this instance.",
+				"items": {
+					"type": "integer",
+					"title": "The items schema",
+					"description": "An explanation about the purpose of this instance."
+				}
+			}
+		},
+		{
+			"type": "array",
+			"title": "The b schema",
+			"description": "An explanation about the purpose of this instance.",
+			"items": {
+				"type": "integer",
+				"title": "The items schema",
+				"description": "An explanation about the purpose of this instance."
 			}
 		}
 	]
@@ -4669,27 +4960,169 @@ const anyOfObjectMissing = `{
 	]
 }`
 
-const anyOfArraySchema = ` {
+const allOfArrayOfObjects = `{
+	"$schema": "http://json-schema.org/draft-04/schema#",
+	"type": "array",
+	"title": "The b schema",
+	"description": "An explanation about the purpose of this instance.",
+	"items": {
+		"type": "object",
+		"title": "The items schema",
+		"description": "An explanation about the purpose of this instance.",
+		"properties": {
+			"State": {
+				"type": "string"
+			},
+			"ZipCode": {
+				"type": "string"
+			}
+		},
+		"allOf": [{
+				"type": "object",
+				"title": "The b schema",
+				"description": "An explanation about the purpose of this instance.",
+				"properties": {
+					"County": {
+						"type": "string"
+					},
+					"PostCode": {
+						"type": "string"
+					}
+				}
+			},
+			{
+				"type": "object",
+				"title": "The b schema",
+				"description": "An explanation about the purpose of this instance.",
+				"properties": {
+					"Street": {
+						"type": "string"
+					},
+					"House": {
+						"type": "string"
+					}
+				}
+			}
+		]
+	}
+}`
+
+const allOfObjectAndArray = `{
+	"$schema": "http://json-schema.org/draft-04/schema#",
+	"type": "object",
+	"title": "My schema",
+	"properties": {
+		"AddressLine1": {
+			"type": "string"
+		},
+		"AddressLine2": {
+			"type": "string"
+		},
+		"City": {
+			"type": "string"
+		}
+	},
+	"allOf": [{
+			"type": "object",
+			"properties": {
+				"State": {
+					"type": "string"
+				},
+				"ZipCode": {
+					"type": "string"
+				}
+			}
+		},
+		{
+			"type": "array",
+			"title": "The b schema",
+			"description": "An explanation about the purpose of this instance.",
+			"items": {
+				"type": "integer",
+				"title": "The items schema",
+				"description": "An explanation about the purpose of this instance."
+			}
+		}
+	]
+}`
+
+const allOfObjectMissing = `{
+	"type": "object",
+	"properties": {
+		"AddressLine": { "type": "string" }
+	},
+	"allOf": [
+		{
+			"type": "object",
+			"properties": {
+				"State":   { "type": "string" },
+				"ZipCode": { "type": "string" }
+			}
+		},
+		{
+			"properties": {
+				"County":   { "type": "string" },
+				"PostCode": { "type": "integer" }
+			}
+		}
+	]
+}`
+
+const allOfArrayDifTypes = `{
+	"$schema": "http://json-schema.org/draft-04/schema#",
+	"type": "array",
+	"title": "The b schema",
+	"description": "An explanation about the purpose of this instance.",
+	"allOf": [{
+			"type": "array",
+			"items": [{
+					"type": "string"
+				},
+				{
+					"type": "integer"
+				}
+			]
+		},
+		{
+			"type": "array",
+			"items": [{
+					"type": "string"
+				},
+				{
+					"type": "integer"
+				}
+			]
+		}
+	]
+}`
+
+const allOfArrayInsideObject = `{
 	"type": "object",
 	"properties": {
 		"familyMembers": {
 			"type": "array",
 			"items": {
-				"anyOf": [
-					{
-						"type": "object",
-						"properties": {
-							"age": { "type": "integer" },
-							"name": {"type": "string"}
-						}
-					},{
-						"type": "object",
-						"properties": {
-							"personality": { "type": "string" },
-							"nickname": { "type": "string"  }
+				"allOf": [{
+					"type": "object",
+					"properties": {
+						"age": {
+							"type": "integer"
+						},
+						"name": {
+							"type": "string"
 						}
 					}
-				]
+				}, {
+					"type": "object",
+					"properties": {
+						"personality": {
+							"type": "string"
+						},
+						"nickname": {
+							"type": "string"
+						}
+					}
+				}]
 			}
 		}
 	}
@@ -4705,6 +5138,25 @@ const anyOfArrayMissing = `{
             },
 		{	"items": [
 				{"type": "integer"}]
+		}
+	]
+}`
+
+const allOfArrayMissing = `{
+	"type": "array",
+	"allOf": [{
+			"items": [{
+					"type": "integer"
+				},
+				{
+					"type": "integer"
+				}
+			]
+		},
+		{
+			"items": [{
+				"type": "integer"
+			}]
 		}
 	]
 }`
@@ -4727,4 +5179,165 @@ const anyOfSchemaParentVariation = `{
             },
         }
     ]
+	}
+}`
+
+const allOfInsideCoreSchema = `{
+	"type": "object",
+	"properties": {
+		"AddressLine": { "type": "string" },
+		"RandomInfo": {
+			"allOf": [
+				{ "type": "object",
+				  "properties": {
+					  "accessMe": {"type": "string"}
+				  }
+				},
+				{ "type": "object",
+					"properties": {
+						"accessYou": {"type": "string"}
+					}}
+			  ]
+		}
+	}
+}`
+
+const allOfArrayDifTypesWithError = `{
+	"$schema": "http://json-schema.org/draft-04/schema#",
+	"type": "array",
+	"title": "The b schema",
+	"description": "An explanation about the purpose of this instance.",
+	"allOf": [{
+			"type": "array",
+			"items": [{
+					"type": "string"
+				},
+				{
+					"type": "integer"
+				}
+			]
+		},
+		{
+			"type": "array",
+			"items": [{
+					"type": "boolean"
+				},
+				{
+					"type": "integer"
+				}
+			]
+		}
+	]
+}`
+
+const allOfStringSchema = `{
+	"$schema": "http://json-schema.org/draft-04/schema#",
+	"type": "string",
+	"title": "The b schema",
+	"description": "An explanation about the purpose of this instance.",
+	"allOf": [{
+			"type": "string",
+		},
+		{
+			"type": "string",
+		}
+	]
+}`
+
+const allOfIntegerSchema = `{
+	"$schema": "http://json-schema.org/draft-04/schema#",
+	"type": "integer",
+	"title": "The b schema",
+	"description": "An explanation about the purpose of this instance.",
+	"allOf": [{
+			"type": "integer",
+		},
+		{
+			"type": "integer",
+		}
+	]
+}`
+
+const allOfBooleanSchema = `{
+	"$schema": "http://json-schema.org/draft-04/schema#",
+	"type": "boolean",
+	"title": "The b schema",
+	"description": "An explanation about the purpose of this instance.",
+	"allOf": [{
+			"type": "boolean",
+		},
+		{
+			"type": "boolean",
+		}
+	]
+}`
+
+const allOfTypeErrorSchema = `{
+	"$schema": "http://json-schema.org/draft-04/schema#",
+	"type": "string",
+	"title": "The b schema",
+	"description": "An explanation about the purpose of this instance.",
+	"allOf": [{
+			"type": "string",
+		},
+		{
+			"type": "integer",
+		}
+	]
+}`
+
+const allOfStringSchemaWithError = `{
+	"$schema": "http://json-schema.org/draft-04/schema#",
+	"type": "string",
+	"title": "The b schema",
+	"description": "An explanation about the purpose of this instance.",
+	"allOf": [{
+			"type": "string",
+		},
+		{
+			"type": "string",
+		},
+		{
+			"type": "boolean",
+		}
+	]
+}`
+
+const allOfSchemaWithParentError = `{
+	"$schema": "http://json-schema.org/draft-04/schema#",
+	"type": "string",
+	"title": "The b schema",
+	"description": "An explanation about the purpose of this instance.",
+	"allOf": [{
+			"type": "integer",
+		},
+		{
+			"type": "integer",
+		}
+	]
+}`
+
+const allOfSchemaWithUnevenArray = `{
+	"type": "array",
+	"allOf": [{
+			"items": [{
+					"type": "integer"
+				},
+				{
+					"type": "integer"
+				}
+			]
+		},
+		{
+			"items": [{
+				"type": "integer"
+			},
+			{
+				"type": "integer"
+			},
+			{
+				"type": "string"
+			}]
+		}
+	]
 }`
