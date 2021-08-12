@@ -47,7 +47,7 @@ The file-ownership system may be the one that is asking for an authorization dec
 ### Flow
 1. OPA-enabled software gathers relevant metadata (and caches it for subsequent requests)
 1. OPA-enabled software sends `input` to OPA including the external data
-1. Policy makes decisions based on external data included in `input` and
+1. Policy makes decisions based on external data included in `input`
 
 {{< figure src="data-input.png" width="60" caption="Input flow" >}}
 
