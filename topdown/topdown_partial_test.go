@@ -2438,6 +2438,35 @@ func TestTopDownPartialEval(t *testing.T) {
 			},
 		},
 		{
+			note:    "shallow inlining: functions with unknowns in body, result passed to builtin",
+			query:   "data.test.p",
+			shallow: true,
+			modules: []string{
+				`package test
+				p {
+				  y = f(1)
+				  count(y)
+				}
+
+				f(x) = [] {
+					# NOTE(sr): if we use '_' here, we cannot ever have a match
+					# when comparing the actual and expected support modules.
+					_x = input  # anything dependent on an unknown will do
+				}`,
+			},
+			wantQueries: []string{`data.partial.test.p = x_term_0_0; x_term_0_0`},
+			wantSupport: []string{
+				`package partial.test
+				p {
+					data.partial.test.f(1, __local1__1)
+					y1 = __local1__1
+					count(y1)
+				}
+				f(__local0__2) = [] { _x2 = input }
+				`,
+			},
+		},
+		{
 			note:  "comprehensions: ref heads (with namespacing)",
 			query: "data.test.p = true; input.x = x",
 			modules: []string{ // include an unknown in the comprehension to force saving
