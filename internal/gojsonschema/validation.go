@@ -325,10 +325,10 @@ func (v *SubSchema) validateSchema(currentSubSchema *SubSchema, currentNode inte
 
 	}
 
-	if len(currentSubSchema.allOf) > 0 {
+	if len(currentSubSchema.AllOf) > 0 {
 		nbValidated := 0
 
-		for _, allOfSchema := range currentSubSchema.allOf {
+		for _, allOfSchema := range currentSubSchema.AllOf {
 			validationResult := allOfSchema.subValidateWithContext(currentNode, context)
 			if validationResult.Valid() {
 				nbValidated++
@@ -336,7 +336,7 @@ func (v *SubSchema) validateSchema(currentSubSchema *SubSchema, currentNode inte
 			result.mergeErrors(validationResult)
 		}
 
-		if nbValidated != len(currentSubSchema.allOf) {
+		if nbValidated != len(currentSubSchema.AllOf) {
 			result.addInternalError(new(NumberAllOfError), context, currentNode, ErrorDetails{})
 		}
 	}
