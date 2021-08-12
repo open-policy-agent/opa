@@ -529,6 +529,81 @@ Once this is fixed, the second typo is highlighted, prompting the user to choose
 	                     want (one of): ["accessNum" "version"]
 ```
 
+#### `allOf`
+
+Specifically, `allOf` keyword implies that all conditions under `allOf` within a schema must be met by the given data. `allOf` is implemented through merging the types from all of the JSON subSchemas listed under `allOf` before parsing the result to convert it to a Rego type. Merging of the JSON subSchemas essentially combines the passed in subSchemas based on what types they contain. Consider the following Rego and schema file containing `allOf`:
+
+`policy-allOf.rego`
+```
+package kubernetes.admission  
+
+# METADATA
+# scope: rule
+# schemas: 
+#   - input: schema["input-allof"] 
+deny {                                                                
+  input.request.servers.versions == "Pod"                       
+}
+```
+
+`input-allof.json`
+```
+{
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "type": "object",
+    "properties": {
+        "kind": {"type": "string"},
+        "request": {
+            "type": "object",
+            "allOf": [
+                {
+                   "properties": {
+                       "kind": {
+                           "type": "object",
+                           "properties": {
+                               "kind": {"type": "string"},
+                               "version": {"type": "string" }
+                           }
+                       }
+                   }
+                },
+                {
+                   "properties": {
+                       "server": {
+                           "type": "object",
+                           "properties": {
+                               "accessNum": {"type": "integer"},
+                               "version": {"type": "string"}
+                           }
+                       }
+                   }
+                }
+            ]
+        }
+    }
+}
+
+```
+
+We can see that `request` is an object with properties as indicated by the elements listed under `allOf`: 
+* contains property `kind`, which has properties `kind` and `version`
+* contains property `server`, which has properties `accessNum` and `version`
+
+The type checker finds the first error in the Rego code, suggesting that `servers` should be `server`. 
+```
+	input.request.servers.versions
+	              ^
+	              have: "servers"
+	              want (one of): ["kind" "server"]
+```
+Once this is fixed, the second typo is highlighted, informing the user that `versions` should be one of `accessNum` or `version`. 
+```
+	input.request.server.versions
+	                     ^
+	                     have: "versions"
+	                     want (one of): ["accessNum" "version"]
+```
+Because the properties `kind`, `version`, and `accessNum` are all under the `allOf` keyword, the resulting schema that the given data must be validated against will contain the types contained in these properties children (string and integer). 
 
 ## Limitations
 
@@ -539,7 +614,7 @@ In particular the following features are not yet supported:
 * pattern properties for objects
 * additional items for arrays
 * contains for arrays
-* allOf, oneOf, not
+* oneOf, not
 * enum
 * if/then/else
 
