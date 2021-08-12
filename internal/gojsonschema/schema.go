@@ -714,7 +714,7 @@ func (d *Schema) parseSchema(documentNode interface{}, currentSchema *SubSchema)
 	}
 	for _, v := range allOf {
 		newSchema := &SubSchema{Property: KeyAllOf, Parent: currentSchema, Ref: currentSchema.Ref}
-		currentSchema.allOf = append(currentSchema.allOf, newSchema)
+		currentSchema.AllOf = append(currentSchema.AllOf, newSchema)
 		err := d.parseSchema(v, newSchema)
 		if err != nil {
 			return err

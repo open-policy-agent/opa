@@ -883,6 +883,47 @@ func compileSchema(goSchema interface{}) (*gojsonschema.Schema, error) {
 	return schemasCompiled, nil
 }
 
+func mergeSchemas(schemas ...*gojsonschema.SubSchema) (*gojsonschema.SubSchema, error) {
+	if len(schemas) == 0 {
+		return nil, nil
+	}
+	var result = schemas[0]
+
+	for i := range schemas {
+		if len(schemas[i].PropertiesChildren) > 0 {
+			if !schemas[i].Types.Contains("object") {
+				if err := schemas[i].Types.Add("object"); err != nil {
+					return nil, fmt.Errorf("unable to set the type in schemas")
+				}
+			}
+		} else if len(schemas[i].ItemsChildren) > 0 {
+			if !schemas[i].Types.Contains("array") {
+				if err := schemas[i].Types.Add("array"); err != nil {
+					return nil, fmt.Errorf("unable to set the type in schemas")
+				}
+			}
+		}
+	}
+
+	for i := 1; i < len(schemas); i++ {
+		if result.Types.String() != schemas[i].Types.String() {
+			return nil, fmt.Errorf("unable to merge these schemas: type mismatch: %v and %v", result.Types.String(), schemas[i].Types.String())
+		} else if result.Types.Contains("object") && len(result.PropertiesChildren) > 0 && schemas[i].Types.Contains("object") && len(schemas[i].PropertiesChildren) > 0 {
+			result.PropertiesChildren = append(result.PropertiesChildren, schemas[i].PropertiesChildren...)
+		} else if result.Types.Contains("array") && len(result.ItemsChildren) > 0 && schemas[i].Types.Contains("array") && len(schemas[i].ItemsChildren) > 0 {
+			for j := 0; j < len(schemas[i].ItemsChildren); j++ {
+				if len(result.ItemsChildren)-1 < j && !(len(schemas[i].ItemsChildren)-1 < j) {
+					result.ItemsChildren = append(result.ItemsChildren, schemas[i].ItemsChildren[j])
+				}
+				if result.ItemsChildren[j].Types.String() != schemas[i].ItemsChildren[j].Types.String() {
+					return nil, fmt.Errorf("unable to merge these schemas")
+				}
+			}
+		}
+	}
+	return result, nil
+}
+
 func parseSchema(schema interface{}) (types.Type, error) {
 	subSchema, ok := schema.(*gojsonschema.SubSchema)
 	if !ok {
@@ -926,6 +967,27 @@ func parseSchema(schema interface{}) (types.Type, error) {
 		}
 
 		return orType, nil
+	}
+
+	if subSchema.AllOf != nil {
+		subSchemaArray := subSchema.AllOf
+		allOfResult, err := mergeSchemas(subSchemaArray...)
+		if err != nil {
+			return nil, err
+		}
+
+		if subSchema.Types.IsTyped() {
+			if (subSchema.Types.Contains("object") && allOfResult.Types.Contains("object")) || (subSchema.Types.Contains("array") && allOfResult.Types.Contains("array")) {
+				objectOrArrayResult, err := mergeSchemas(allOfResult, subSchema)
+				if err != nil {
+					return nil, err
+				}
+				return parseSchema(objectOrArrayResult)
+			} else if subSchema.Types.String() != allOfResult.Types.String() {
+				return nil, fmt.Errorf("unable to merge these schemas")
+			}
+		}
+		return parseSchema(allOfResult)
 	}
 
 	if subSchema.Types.IsTyped() {
@@ -1570,7 +1632,6 @@ func (qc *queryCompiler) runStageAfter(metricName string, query Body, s QueryCom
 }
 
 func (qc *queryCompiler) Compile(query Body) (Body, error) {
-
 	if len(query) == 0 {
 		return nil, Errors{NewError(CompileErr, nil, "empty query cannot be compiled")}
 	}
