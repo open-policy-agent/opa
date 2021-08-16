@@ -17,6 +17,7 @@ type Result struct {
 type EvalOpts struct {
 	Input                  *interface{}
 	Metrics                metrics.Metrics
+	Entrypoint             int32
 	Time                   time.Time
 	Seed                   io.Reader
 	InterQueryBuiltinCache cache.InterQueryCache

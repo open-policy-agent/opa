@@ -2,9 +2,12 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-// +build opa_wasm
-
 package version
 
+import "github.com/open-policy-agent/opa/internal/rego/opa"
+
 // WasmRuntimeAvailable indicates if a wasm runtime is available in this OPA.
-const WasmRuntimeAvailable = true
+func WasmRuntimeAvailable() bool {
+	_, err := opa.LookupEngine("wasm")
+	return err == nil
+}

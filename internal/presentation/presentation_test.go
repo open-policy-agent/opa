@@ -36,6 +36,15 @@ func (t *testErrorWithMarshaller) MarshalJSON() ([]byte, error) {
 	})
 }
 
+type testErrorWithDetails struct{}
+
+func (*testErrorWithDetails) Error() string { return "something went wrong" }
+func (*testErrorWithDetails) Details() string {
+	return `oh
+so
+wrong`
+}
+
 func validateJSONOutput(t *testing.T, testErr error, expected string) {
 	t.Helper()
 	output := Output{Errors: NewOutputErrors(testErr)}
@@ -73,6 +82,21 @@ func TestOutputJSONErrorCustomMarshaller(t *testing.T) {
   "errors": [
     {
       "message": "custom message"
+    }
+  ]
+}
+`
+
+	validateJSONOutput(t, err, expected)
+}
+
+func TestOutputJSONErrorWithDetails(t *testing.T) {
+	err := &testErrorWithDetails{}
+	expected := `{
+  "errors": [
+    {
+      "message": "something went wrong",
+      "details": "oh\nso\nwrong"
     }
   ]
 }
@@ -453,6 +477,17 @@ func TestRaw(t *testing.T) {
 				Errors: NewOutputErrors(fmt.Errorf("boom")),
 			},
 			want: "1 error occurred: boom\n",
+		},
+		{
+			// NOTE(sr): The presentation package outputs whatever Error() on
+			// the errors it is given yields. So even though NewOutputErrors
+			// will pick up the error details, they won't be output, as they
+			// are not included in the error's Error() string.
+			note: "error with details",
+			output: Output{
+				Errors: NewOutputErrors(&testErrorWithDetails{}),
+			},
+			want: "1 error occurred: something went wrong\n",
 		},
 	}
 
