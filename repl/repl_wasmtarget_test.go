@@ -10,6 +10,8 @@ import (
 	"bytes"
 	"context"
 	"testing"
+
+	_ "github.com/open-policy-agent/opa/features/wasm"
 )
 
 func TestReplWasmTarget(t *testing.T) {

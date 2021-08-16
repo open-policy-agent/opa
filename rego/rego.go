@@ -550,7 +550,7 @@ type Rego struct {
 	resolvers              []refResolver
 	schemaSet              *ast.SchemaSet
 	target                 string // target type (wasm, rego, etc.)
-	opa                    *opa.OPA
+	opa                    opa.EvalEngine
 }
 
 // Function represents a built-in function that is callable in Rego.
@@ -1501,7 +1501,12 @@ func (r *Rego) PrepareForEval(ctx context.Context, opts ...PrepareOption) (Prepa
 			return PreparedEvalQuery{}, err
 		}
 
-		o, err := opa.New().WithPolicyBytes(cr.Bytes).WithDataJSON(data).Init()
+		e, err := opa.LookupEngine(targetWasm)
+		if err != nil {
+			return PreparedEvalQuery{}, err
+		}
+
+		o, err := e.New().WithPolicyBytes(cr.Bytes).WithDataJSON(data).Init()
 		if err != nil {
 			_ = txnClose(ctx, err) // Ignore error
 			return PreparedEvalQuery{}, err

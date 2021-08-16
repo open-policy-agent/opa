@@ -431,6 +431,11 @@ const (
 	// of the health API.
 	ParamPluginsV1 = "plugins"
 
+	// ParamExcludePluginV1 defines the name of the HTTP URL parameter that
+	// indicates the client wants to exclude plugin status in the results
+	// of the health API for the specified plugin(s)
+	ParamExcludePluginV1 = "exclude-plugin"
+
 	// ParamStrictBuiltinErrors names the HTTP URL parameter that indicates the client
 	// wants built-in function errors to be treated as fatal.
 	ParamStrictBuiltinErrors = "strict-builtin-errors"

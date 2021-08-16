@@ -16,11 +16,14 @@ import (
 	"time"
 
 	"github.com/fortytw2/leaktest"
+
 	"github.com/open-policy-agent/opa/ast"
 	sdk_errors "github.com/open-policy-agent/opa/internal/wasm/sdk/opa/errors"
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/topdown"
 	"github.com/open-policy-agent/opa/topdown/cache"
+
+	_ "github.com/open-policy-agent/opa/features/wasm"
 )
 
 func TestPrepareAndEvalWithWasmTarget(t *testing.T) {

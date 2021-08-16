@@ -45,7 +45,7 @@ func generateCmdOutput(out io.Writer, check bool) {
 
 	var wasmAvailable string
 
-	if version.WasmRuntimeAvailable {
+	if version.WasmRuntimeAvailable() {
 		wasmAvailable = "available"
 	} else {
 		wasmAvailable = "unavailable"
