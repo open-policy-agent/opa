@@ -6,12 +6,24 @@ package opa
 
 import (
 	"context"
-	"fmt"
 )
 
-// ErrEngineNotFound is returned by LookupEngine if no engine was
+// ErrEngineNotFound is returned by LookupEngine if no wasm engine was
 // registered by that name.
-var ErrEngineNotFound = fmt.Errorf("engine not found")
+var ErrEngineNotFound error = &errEngineNotFound{}
+
+type errEngineNotFound struct{}
+
+func (*errEngineNotFound) Error() string { return "engine not found" }
+func (*errEngineNotFound) Details() string {
+	return `WebAssembly runtime not supported in this build.
+----------------------------------------------------------------------------------
+Please download an OPA binary with Wasm enabled from
+https://www.openpolicyagent.org/docs/latest/#running-opa
+or build it yourself (with Wasm enabled).
+----------------------------------------------------------------------------------
+`
+}
 
 // Engine repesents a factory for instances of EvalEngine implementations
 type Engine interface {

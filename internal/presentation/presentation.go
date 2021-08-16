@@ -198,6 +198,9 @@ func NewOutputErrors(err error) []OutputError {
 				Message: err.Error(),
 				err:     typedErr,
 			}}
+			if d, ok := err.(rego.ErrorWithDetails); ok {
+				errs[0].Details = d.Details()
+			}
 		}
 	}
 	return errs
@@ -388,8 +391,8 @@ func Raw(w io.Writer, r Output) error {
 	return nil
 }
 
-func prettyError(w io.Writer, err error) error {
-	_, err = fmt.Fprintln(w, err)
+func prettyError(w io.Writer, errs OutputErrors) error {
+	_, err := fmt.Fprintln(w, errs)
 	return err
 }
 
