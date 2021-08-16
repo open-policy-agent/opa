@@ -2,8 +2,6 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-// +build opa_wasm
-
 // Import this package to enable evaluation of rego code using the
 // built-in wasm engine.
 package wasm
