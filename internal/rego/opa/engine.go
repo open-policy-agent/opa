@@ -15,14 +15,15 @@ var ErrEngineNotFound error = &errEngineNotFound{}
 type errEngineNotFound struct{}
 
 func (*errEngineNotFound) Error() string { return "engine not found" }
-func (*errEngineNotFound) Details() string {
-	return `WebAssembly runtime not supported in this build.
-----------------------------------------------------------------------------------
-Please download an OPA binary with Wasm enabled from
-https://www.openpolicyagent.org/docs/latest/#running-opa
-or build it yourself (with Wasm enabled).
-----------------------------------------------------------------------------------
-`
+func (*errEngineNotFound) Lines() []string {
+	return []string{
+		`WebAssembly runtime not supported in this build.`,
+		`----------------------------------------------------------------------------------`,
+		`Please download an OPA binary with Wasm enabled from`,
+		`https://www.openpolicyagent.org/docs/latest/#running-opa`,
+		`or build it yourself (with Wasm enabled).`,
+		`----------------------------------------------------------------------------------`,
+	}
 }
 
 // Engine repesents a factory for instances of EvalEngine implementations
