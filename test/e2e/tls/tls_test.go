@@ -3,6 +3,7 @@ package tls
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -32,7 +33,7 @@ func fatal(err interface{}) {
 }
 
 func TestMain(m *testing.M) {
-	minTLSVersion := flag.String("--min-tls-version", "1.2", "minimum TLS Version")
+	minTLSVersion := flag.String("min-tls-version", "1.2", "minimum TLS Version")
 	TLSVersion := minTLSVersions[*minTLSVersion]
 	flag.Parse()
 
@@ -135,7 +136,10 @@ func TestNotDefaultTLSVersion(t *testing.T) {
 		if err == nil {
 			t.Error("expected err - protocol version not supported, got nil")
 		}
-
+		var exp *url.Error
+		if !errors.As(err, &exp) {
+			t.Errorf("expected err type %[1]T, got %[2]T: %[2]v", exp, err)
+		}
 	})
 
 	t.Run("server started with min TLS Version 1.3, client connecting supported TLS version", func(t *testing.T) {
