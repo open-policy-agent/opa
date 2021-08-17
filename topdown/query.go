@@ -51,6 +51,7 @@ type Query struct {
 	indexing               bool
 	interQueryBuiltinCache cache.InterQueryCache
 	strictBuiltinErrors    bool
+	builtinErrors          func(...error)
 }
 
 // Builtin represents a built-in function that queries can call.
@@ -236,6 +237,14 @@ func (q *Query) WithStrictBuiltinErrors(yes bool) *Query {
 	return q
 }
 
+// WithBuiltinErrors tells the evaluator to pass built-in function errors to provided function.
+// It presents an alterative to using `WithStrictBuiltinErrors(true)`: the errors that happen
+// can be inspected, but don't affect the evaluation.
+func (q *Query) WithBuiltinErrors(f func(errs ...error)) *Query {
+	q.builtinErrors = f
+	return q
+}
+
 // WithResolver configures an external resolver to use for the given ref.
 func (q *Query) WithResolver(ref ast.Ref, r resolver.Resolver) *Query {
 	q.external.Put(ref, r)
@@ -370,6 +379,10 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 		err = e.builtinErrors.errs[0]
 	}
 
+	if q.builtinErrors != nil {
+		q.builtinErrors(e.builtinErrors.errs...)
+	}
+
 	for i := range support {
 		sort.Slice(support[i].Rules, func(j, k int) bool {
 			return support[i].Rules[j].Compare(support[i].Rules[k]) < 0
@@ -447,6 +460,10 @@ func (q *Query) Iter(ctx context.Context, iter func(QueryResult) error) error {
 
 	if q.strictBuiltinErrors && err == nil && len(e.builtinErrors.errs) > 0 {
 		err = e.builtinErrors.errs[0]
+	}
+
+	if q.builtinErrors != nil {
+		q.builtinErrors(e.builtinErrors.errs...)
 	}
 
 	q.metrics.Timer(metrics.RegoQueryEval).Stop()

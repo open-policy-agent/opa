@@ -20,15 +20,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/open-policy-agent/opa/format"
-
 	"github.com/ghodss/yaml"
 
-	iCache "github.com/open-policy-agent/opa/topdown/cache"
-
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/format"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
+	iCache "github.com/open-policy-agent/opa/topdown/cache"
 	"github.com/open-policy-agent/opa/types"
 	"github.com/open-policy-agent/opa/util"
 )
