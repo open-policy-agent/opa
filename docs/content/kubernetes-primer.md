@@ -6,7 +6,8 @@ weight: 2
 
 Read this page if you are new to Kubernetes admission control with OPA and want
 to learn how to write policies for Kubernetes.  It covers the version
-that uses kube-mgmt. The [OPA Gatekeeper version](https://github.com/open-policy-agent/gatekeeper) has its own docs.
+that uses kube-mgmt. The [OPA Gatekeeper version](https://open-policy-agent.github.io/gatekeeper)
+has its own docs.
 
 ## Writing Policies
 

@@ -30,7 +30,7 @@ Kubernetes clusters for security, cost, and availability reasons.
 
 ## What is OPA Gatekeeper?
 
-[OPA Gatekeeper](https://github.com/open-policy-agent/gatekeeper) is a new
+[OPA Gatekeeper](https://open-policy-agent.github.io/gatekeeper) is a new
 project that provides first-class integration between OPA and Kubernetes. For
 background information see this [blog
 post](https://kubernetes.io/blog/2019/08/06/opa-gatekeeper-policy-and-governance-for-kubernetes)
