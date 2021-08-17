@@ -14,6 +14,6 @@ cases:
     }
   note: cryptox509parsecertificates/invalid DER or PEM data, b64
   query: data.generated.p = x
-  want_error: 'asn1: structure error'
+  want_error: 'x509: malformed certificate'
   want_error_code: eval_builtin_error
   strict_error: true
