@@ -12,7 +12,6 @@ import (
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
-	"github.com/open-policy-agent/opa/util"
 )
 
 func TestAuthz(t *testing.T) {
@@ -50,7 +49,7 @@ func TestAuthz(t *testing.T) {
 		t.Fatalf("Unexpected error(s): %v", err)
 	}
 
-	if len(rs) != 1 || util.Compare(rs[0].Expressions[0].Value, expected) != 0 {
-		t.Fatalf("Unexpected result: %v", rs)
+	if rs.Allowed() != expected {
+		t.Fatalf("Unexpected result: want %v, got %v", expected, rs.Allowed())
 	}
 }
