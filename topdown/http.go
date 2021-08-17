@@ -6,12 +6,14 @@ package topdown
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"math"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -227,6 +229,36 @@ func canonicalizeHeaders(headers map[string]interface{}) map[string]interface{} 
 	}
 
 	return canonicalized
+}
+
+// useSocket examines the url for "unix://" and returns a *http.Transport with
+// a DialContext that opens a socket (specified in the http call).
+// The url is expected to contain socket=/path/to/socket (url encoded)
+// Ex. "unix:localhost/end/point?socket=%2Ftmp%2Fhttp.sock"
+func useSocket(rawURL string, tlsConfig *tls.Config) (bool, string, *http.Transport) {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return false, "", nil
+	}
+
+	if u.Scheme != "unix" || u.RawQuery == "" {
+		return false, rawURL, nil
+	}
+
+	// Get the path to the socket
+	v, err := url.ParseQuery(u.RawQuery)
+	if err != nil {
+		return false, rawURL, nil
+	}
+
+	tr := http.DefaultTransport.(*http.Transport).Clone()
+	tr.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+		return http.DefaultTransport.(*http.Transport).DialContext(ctx, u.Scheme, v.Get("socket"))
+	}
+	tr.TLSClientConfig = tlsConfig
+
+	rawURL = strings.Replace(rawURL, "unix:", "http:", 1)
+	return true, rawURL, tr
 }
 
 func createHTTPRequest(bctx BuiltinContext, obj ast.Object) (*http.Request, *http.Client, error) {
@@ -462,8 +494,18 @@ func createHTTPRequest(bctx BuiltinContext, obj ast.Object) (*http.Request, *htt
 	}
 
 	if isTLS {
-		client.Transport = &http.Transport{
-			TLSClientConfig: &tlsConfig,
+		if ok, parsedURL, tr := useSocket(url, &tlsConfig); ok {
+			client.Transport = tr
+			url = parsedURL
+		} else {
+			tr := http.DefaultTransport.(*http.Transport).Clone()
+			tr.TLSClientConfig = &tlsConfig
+			client.Transport = tr
+		}
+	} else {
+		if ok, parsedURL, tr := useSocket(url, nil); ok {
+			client.Transport = tr
+			url = parsedURL
 		}
 	}
 
