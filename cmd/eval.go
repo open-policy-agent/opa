@@ -59,7 +59,7 @@ type evalCommandParams struct {
 	fail                bool
 	failDefined         bool
 	bundlePaths         repeatedStringFlag
-	schemaPath          string
+	schema              *schemaFlags
 	target              *util.EnumFlag
 }
 
@@ -73,9 +73,13 @@ func newEvalCommandParams() evalCommandParams {
 			evalSourceOutput,
 			evalRawOutput,
 		}),
-		explain: newExplainFlag([]string{explainModeOff, explainModeFull, explainModeNotes, explainModeFails}),
-		target:  util.NewEnumFlag(compile.TargetRego, []string{compile.TargetRego, compile.TargetWasm}),
-		count:   1,
+		explain:         newExplainFlag([]string{explainModeOff, explainModeFull, explainModeNotes, explainModeFails}),
+		target:          util.NewEnumFlag(compile.TargetRego, []string{compile.TargetRego, compile.TargetWasm}),
+		count:           1,
+		profileCriteria: newrepeatedStringFlag([]string{}),
+		profileLimit:    newIntFlag(defaultProfileLimit),
+		prettyLimit:     newIntFlag(defaultPrettyLimit),
+		schema:          &schemaFlags{},
 	}
 }
 
@@ -137,9 +141,6 @@ func (regoError) Error() string {
 func init() {
 
 	params := newEvalCommandParams()
-	params.profileCriteria = newrepeatedStringFlag([]string{})
-	params.profileLimit = newIntFlag(defaultProfileLimit)
-	params.prettyLimit = newIntFlag(defaultPrettyLimit)
 
 	evalCommand := &cobra.Command{
 		Use:   "eval <query>",
@@ -262,7 +263,7 @@ Loads a single JSON file, applying it to the input document; or all the schema f
 	addOutputFormat(evalCommand.Flags(), params.outputFormat)
 	addIgnoreFlag(evalCommand.Flags(), &params.ignore)
 	setExplainFlag(evalCommand.Flags(), params.explain)
-	addSchemaFlag(evalCommand.Flags(), &params.schemaPath)
+	addSchemaFlags(evalCommand.Flags(), params.schema)
 	addTargetFlag(evalCommand.Flags(), params.target)
 	addCountFlag(evalCommand.Flags(), &params.count, "benchmark")
 
@@ -479,15 +480,15 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 		regoArgs = append(regoArgs, rego.ParsedInput(inputValue))
 	}
 
-	/*
-		-s {file} (one input schema file)
-		-s {directory} (one schema directory with input and data schema files)
-	*/
-	schemaSet, err := loader.Schemas(params.schemaPath)
+	//	-s {file} (one input schema file)
+	//	-s {directory} (one schema directory with input and data schema files)
+	schemaSet, err := loader.Schemas(params.schema.path)
 	if err != nil {
 		return nil, err
 	}
-	regoArgs = append(regoArgs, rego.Schemas(schemaSet))
+	regoArgs = append(regoArgs,
+		rego.Schemas(schemaSet),
+		rego.FetchRemoteSchemas(params.schema.fetchRemote))
 
 	var tracer *topdown.BufferTracer
 

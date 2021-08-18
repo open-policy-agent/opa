@@ -144,17 +144,8 @@ func testEvalWithInputFile(t *testing.T, input string, query string, params eval
 		}
 
 		rs := output.Result
-		if len(rs) != 1 {
-			t.Fatalf("Expected exactly 1 result, actual: %s", rs)
-		}
-
-		r := rs[0].Expressions
-		if len(r) != 1 {
-			t.Fatalf("Expected exactly 1 expression in the result, actual: %s", r)
-		}
-
-		if string(util.MustMarshalJSON(r[0].Value)) != "true" {
-			t.Fatalf("Expected result value to be true")
+		if exp, act := true, rs.Allowed(); exp != act {
+			t.Errorf("expected %v, got %v", exp, act)
 		}
 	})
 
@@ -181,7 +172,7 @@ func testEvalWithSchemaFile(t *testing.T, input string, query string, schema str
 
 		params := newEvalCommandParams()
 		params.inputPath = filepath.Join(path, "input.json")
-		params.schemaPath = filepath.Join(path, "schema.json")
+		params.schema = &schemaFlags{path: filepath.Join(path, "schema.json")}
 
 		var buf bytes.Buffer
 		var defined bool
@@ -198,17 +189,8 @@ func testEvalWithSchemaFile(t *testing.T, input string, query string, schema str
 		}
 
 		rs := output.Result
-		if len(rs) != 1 {
-			t.Fatalf("Expected exactly 1 result, actual: %s", rs)
-		}
-
-		r := rs[0].Expressions
-		if len(r) != 1 {
-			t.Fatalf("Expected exactly 1 expression in the result, actual: %s", r)
-		}
-
-		if string(util.MustMarshalJSON(r[0].Value)) != "true" {
-			t.Fatalf("Expected result value to be true")
+		if exp, act := true, rs.Allowed(); exp != act {
+			t.Errorf("expected %v, got %v", exp, act)
 		}
 	})
 
@@ -226,7 +208,7 @@ func testEvalWithInvalidSchemaFile(input string, query string, schema string) er
 
 		params := newEvalCommandParams()
 		params.inputPath = filepath.Join(path, "input.json")
-		params.schemaPath = filepath.Join(path, "schemaBad.json")
+		params.schema = &schemaFlags{path: filepath.Join(path, "schemaBad.json")}
 
 		var buf bytes.Buffer
 		var defined bool
@@ -252,10 +234,10 @@ func testReadParamWithSchemaDir(input string, inputSchema string) error {
 
 		params := newEvalCommandParams()
 		params.inputPath = filepath.Join(path, "input.json")
-		params.schemaPath = filepath.Join(path, "schemas")
+		params.schema = &schemaFlags{path: filepath.Join(path, "schemas")}
 
 		// Don't assign over "err" or "err =" does nothing.
-		schemaSet, errSchema := loader.Schemas(params.schemaPath)
+		schemaSet, errSchema := loader.Schemas(params.schema.path)
 		if errSchema != nil {
 			err = fmt.Errorf("Unexpected error or undefined from evaluation: %v", errSchema)
 			return
@@ -398,6 +380,70 @@ func TestEvalWithInvalidSchemaFile(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected error but err == nil")
 	}
+}
+
+func TestEvalWithSchemaFileWithRemoteRef(t *testing.T) {
+
+	input := `{"metadata": {"clusterName": "NAME"}}`
+	schema := `{
+	"type": "object",
+	"properties": {
+	"metadata": {
+		"$ref": "https://kubernetesjsonschema.dev/v1.14.0/_definitions.json#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta",
+		"description": "Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#metadata"
+		}
+	}
+}`
+
+	query := "data.p.r"
+	files := map[string]string{
+		"input.json":  input,
+		"schema.json": schema,
+		"p.rego":      "package p\nr { input.metadata.clusterName == \"NAME\" }",
+	}
+
+	t.Run("remote refs disabled", func(t *testing.T) {
+		test.WithTempFS(files, func(path string) {
+			params := newEvalCommandParams()
+			params.inputPath = filepath.Join(path, "input.json")
+			params.schema = &schemaFlags{path: filepath.Join(path, "schema.json"), fetchRemote: false}
+			_ = params.dataPaths.Set(filepath.Join(path, "p.rego"))
+
+			var buf bytes.Buffer
+			_, err := eval([]string{query}, params, &buf)
+			if err == nil {
+				t.Fatal("expected error, got nil")
+			}
+			var output presentation.Output
+			if err := util.NewJSONDecoder(&buf).Decode(&output); err != nil {
+				t.Fatal(err)
+			}
+			if exp, act := 1, len(output.Errors); exp != act {
+				t.Fatalf("expected %d errors, got %d", exp, act)
+			}
+			if exp, act := "rego_type_error", output.Errors[0].Code; exp != act {
+				t.Errorf("expected code %v, got %v", exp, act)
+			}
+		})
+	})
+
+	t.Run("remote refs enabled", func(t *testing.T) {
+		test.WithTempFS(files, func(path string) {
+			params := newEvalCommandParams()
+			params.inputPath = filepath.Join(path, "input.json")
+			params.schema = &schemaFlags{path: filepath.Join(path, "schema.json"), fetchRemote: true}
+			_ = params.dataPaths.Set(filepath.Join(path, "p.rego"))
+
+			var buf bytes.Buffer
+			defined, err := eval([]string{query}, params, &buf)
+			if err != nil {
+				t.Fatalf("expected no error, got %v", err)
+			}
+			if exp, act := true, defined; exp != act {
+				t.Errorf("expected defined %v, got %v", exp, act)
+			}
+		})
+	})
 }
 
 func TestEvalReturnsRegoError(t *testing.T) {

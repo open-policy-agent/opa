@@ -30,6 +30,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -41,6 +42,16 @@ import (
 
 	"github.com/xeipuuv/gojsonreference"
 )
+
+// NOTE(sr): We need to control whether remote references are resolved
+// via HTTP requests. It's quite cumbersome to add extra parameters to
+// all calls and interfaces involved, so we're using a global variable
+// insead:
+var fetchRemoteRefs bool
+
+func SetFetchRemoteRefs(yes bool) {
+	fetchRemoteRefs = yes
+}
 
 var osFS = osFileSystem(os.Open)
 
@@ -141,8 +152,6 @@ func (l *jsonReferenceLoader) LoadJSON() (interface{}, error) {
 	refToURL := reference
 	refToURL.GetUrl().Fragment = ""
 
-	var document interface{}
-
 	if reference.HasFileScheme {
 
 		filename := strings.TrimPrefix(refToURL.String(), "file://")
@@ -159,22 +168,14 @@ func (l *jsonReferenceLoader) LoadJSON() (interface{}, error) {
 			filename = filepath.FromSlash(filename)
 		}
 
-		document, err = l.loadFromFile(filename)
-		if err != nil {
-			return nil, err
-		}
-
-	} else {
-
-		document, err = l.loadFromHTTP(refToURL.String())
-		if err != nil {
-			return nil, err
-		}
-
+		return l.loadFromFile(filename)
 	}
 
-	return document, nil
+	if fetchRemoteRefs {
+		return l.loadFromHTTP(refToURL.String())
+	}
 
+	return nil, fmt.Errorf("remote reference loading disabled: %s", reference.String())
 }
 
 func (l *jsonReferenceLoader) loadFromHTTP(address string) (interface{}, error) {

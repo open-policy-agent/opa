@@ -605,6 +605,25 @@ Once this is fixed, the second typo is highlighted, informing the user that `ver
 ```
 Because the properties `kind`, `version`, and `accessNum` are all under the `allOf` keyword, the resulting schema that the given data must be validated against will contain the types contained in these properties children (string and integer). 
 
+### Remote references in JSON schemas
+
+It is valid for JSON schemas to reference other JSON schemas via URLs, like this:
+```json
+{
+  "description": "Pod is a collection of containers that can run on a host.",
+	"type": "object",
+	"properties": {
+    "metadata": {
+      "$ref": "https://kubernetesjsonschema.dev/v1.14.0/_definitions.json#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta",
+      "description": "Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#metadata"
+	  }
+	}
+}
+```
+
+OPA's type checker will **not** fetch remote references by default.
+To opt-in to this behaviour, pass `--fetch-remote-schemas` to your OPA command.
+
 ## Limitations
 
 Currently this feature admits schemas written in JSON Schema but does not support every feature available in this format.

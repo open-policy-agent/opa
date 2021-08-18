@@ -45,6 +45,7 @@ func newBenchmarkEvalParams() benchmarkCommandParams {
 				benchmarkGoBenchOutput,
 			}),
 			target: util.NewEnumFlag(compile.TargetRego, []string{compile.TargetRego, compile.TargetWasm}),
+			schema: &schemaFlags{},
 		},
 	}
 }
@@ -97,7 +98,7 @@ The optional "gobench" output format conforms to the Go Benchmark Data Format.
 	addMetricsFlag(benchCommand.Flags(), &params.metrics, true)
 	addOutputFormat(benchCommand.Flags(), params.outputFormat)
 	addIgnoreFlag(benchCommand.Flags(), &params.ignore)
-	addSchemaFlag(benchCommand.Flags(), &params.schemaPath)
+	addSchemaFlags(benchCommand.Flags(), params.schema)
 	addTargetFlag(benchCommand.Flags(), params.target)
 
 	// Shared benchmark flags

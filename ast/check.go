@@ -24,11 +24,12 @@ type exprChecker func(*TypeEnv, *Expr) *Error
 // accumulated on the typeChecker so that a single run can report multiple
 // issues.
 type typeChecker struct {
-	errs         Errors
-	exprCheckers map[string]exprChecker
-	varRewriter  rewriteVars
-	ss           *SchemaSet
-	input        types.Type
+	errs               Errors
+	exprCheckers       map[string]exprChecker
+	varRewriter        rewriteVars
+	ss                 *SchemaSet
+	fetchRemoteSchemas bool
+	input              types.Type
 }
 
 // newTypeChecker returns a new typeChecker object that has no errors.
@@ -55,11 +56,17 @@ func (tc *typeChecker) copy() *typeChecker {
 	return newTypeChecker().
 		WithVarRewriter(tc.varRewriter).
 		WithSchemaSet(tc.ss).
+		WithFetchRemoteSchemas(tc.fetchRemoteSchemas).
 		WithInputType(tc.input)
 }
 
 func (tc *typeChecker) WithSchemaSet(ss *SchemaSet) *typeChecker {
 	tc.ss = ss
+	return tc
+}
+
+func (tc *typeChecker) WithFetchRemoteSchemas(yes bool) *typeChecker {
+	tc.fetchRemoteSchemas = yes
 	return tc
 }
 
@@ -180,7 +187,7 @@ func (tc *typeChecker) checkRule(env *TypeEnv, as *annotationSet, rule *Rule) {
 
 	if schemaAnnots := getRuleAnnotation(as, rule); schemaAnnots != nil {
 		for _, schemaAnnot := range schemaAnnots {
-			ref, refType, err := processAnnotation(tc.ss, schemaAnnot, rule)
+			ref, refType, err := processAnnotation(tc.ss, schemaAnnot, rule, tc.fetchRemoteSchemas)
 			if err != nil {
 				tc.err([]*Error{err})
 				continue
@@ -1178,7 +1185,7 @@ func getRuleAnnotation(as *annotationSet, rule *Rule) (result []*SchemaAnnotatio
 	return result
 }
 
-func processAnnotation(ss *SchemaSet, annot *SchemaAnnotation, rule *Rule) (Ref, types.Type, *Error) {
+func processAnnotation(ss *SchemaSet, annot *SchemaAnnotation, rule *Rule, fetchRemote bool) (Ref, types.Type, *Error) {
 
 	var schema interface{}
 
@@ -1191,7 +1198,7 @@ func processAnnotation(ss *SchemaSet, annot *SchemaAnnotation, rule *Rule) (Ref,
 		schema = *annot.Definition
 	}
 
-	tpe, err := loadSchema(schema)
+	tpe, err := loadSchema(schema, fetchRemote)
 	if err != nil {
 		return nil, nil, NewError(TypeErr, rule.Location, err.Error())
 	}

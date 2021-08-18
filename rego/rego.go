@@ -486,6 +486,7 @@ type Rego struct {
 	strictBuiltinErrors    bool
 	resolvers              []refResolver
 	schemaSet              *ast.SchemaSet
+	fetchRemoteSchemas     bool
 	target                 string // target type (wasm, rego, etc.)
 	opa                    opa.EvalEngine
 	generateJSON           func(*ast.Term, *EvalContext) (interface{}, error)
@@ -1008,6 +1009,13 @@ func Schemas(x *ast.SchemaSet) func(r *Rego) {
 	}
 }
 
+// FetchRemoteSchemas enables that remote refs will be fetched for schemas
+func FetchRemoteSchemas(yes bool) func(r *Rego) {
+	return func(r *Rego) {
+		r.fetchRemoteSchemas = yes
+	}
+}
+
 // Target sets the runtime to exercise.
 func Target(t string) func(r *Rego) {
 	return func(r *Rego) {
@@ -1042,10 +1050,9 @@ func New(options ...func(r *Rego)) *Rego {
 		r.compiler = ast.NewCompiler().
 			WithUnsafeBuiltins(r.unsafeBuiltins).
 			WithBuiltins(r.builtinDecls).
-			WithDebug(r.dump)
-		if r.schemaSet != nil {
-			r.compiler.WithSchemas(r.schemaSet)
-		}
+			WithDebug(r.dump).
+			WithSchemas(r.schemaSet).
+			WithFetchRemoteSchemas(r.fetchRemoteSchemas)
 	}
 
 	if r.store == nil {
@@ -1522,11 +1529,6 @@ func (r *Rego) prepare(ctx context.Context, qType queryType, extras []extraStage
 		return err
 	}
 
-	r.schemaSet, err = r.schemas()
-	if err != nil {
-		return err
-	}
-
 	err = r.loadFiles(ctx, r.txn, r.metrics)
 	if err != nil {
 		return err
@@ -1670,13 +1672,6 @@ func (r *Rego) parseInput() (ast.Value, error) {
 		return r.parsedInput, nil
 	}
 	return r.parseRawInput(r.rawInput, r.metrics)
-}
-
-func (r *Rego) schemas() (*ast.SchemaSet, error) {
-	if r.schemaSet != nil {
-		return r.schemaSet, nil
-	}
-	return nil, nil
 }
 
 func (r *Rego) parseRawInput(rawInput *interface{}, m metrics.Metrics) (ast.Value, error) {
