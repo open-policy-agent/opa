@@ -10,6 +10,10 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
@@ -385,20 +389,22 @@ func TestEvalWithInvalidSchemaFile(t *testing.T) {
 func TestEvalWithSchemaFileWithRemoteRef(t *testing.T) {
 
 	input := `{"metadata": {"clusterName": "NAME"}}`
-	schema := `{
+	schemaFmt := `{
 	"type": "object",
 	"properties": {
 	"metadata": {
-		"$ref": "https://kubernetesjsonschema.dev/v1.14.0/_definitions.json#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta",
+		"$ref": "%s/v1.14.0/_definitions.json#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta",
 		"description": "Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#metadata"
 		}
 	}
 }`
+	ts := kubeSchemaServer(t)
+	t.Cleanup(ts.Close)
 
 	query := "data.p.r"
 	files := map[string]string{
 		"input.json":  input,
-		"schema.json": schema,
+		"schema.json": fmt.Sprintf(schemaFmt, ts.URL),
 		"p.rego":      "package p\nr { input.metadata.clusterName == \"NAME\" }",
 	}
 
@@ -760,4 +766,18 @@ func TestResetExprLocations(t *testing.T) {
 		vis.Walk(pq.Support[i])
 	}
 
+}
+func kubeSchemaServer(t *testing.T) *httptest.Server {
+	t.Helper()
+	r, err := os.Open("../ast/testdata/_definitions.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, err := io.Copy(w, r)
+		if err != nil {
+			panic(err)
+		}
+	}))
+	return ts
 }

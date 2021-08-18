@@ -3,6 +3,11 @@ package ast
 import (
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"strings"
 	"testing"
 
 	"github.com/open-policy-agent/opa/types"
@@ -49,7 +54,11 @@ func TestParseSchemaObject(t *testing.T) {
 
 func TestSetTypesWithSchemaRef(t *testing.T) {
 	var sch interface{}
-	err := util.Unmarshal([]byte(refSchema), &sch)
+
+	ts := kubeSchemaServer(t)
+	t.Cleanup(ts.Close)
+	refSchemaReplaced := strings.ReplaceAll(refSchema, "https://kubernetesjsonschema.dev/v1.14.0/", ts.URL+"/")
+	err := util.Unmarshal([]byte(refSchemaReplaced), &sch)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -59,7 +68,7 @@ func TestSetTypesWithSchemaRef(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
-		expErr := `unable to compile the schema: remote reference loading disabled: https://kubernetesjsonschema.dev/v1.14.0/_definitions.json`
+		expErr := fmt.Sprintf("unable to compile the schema: remote reference loading disabled: %s/_definitions.json", ts.URL)
 		if exp, act := expErr, err.Error(); act != exp {
 			t.Errorf("expected message %q, got %q", exp, act)
 		}
@@ -81,11 +90,16 @@ func TestSetTypesWithSchemaRef(t *testing.T) {
 
 func TestSetTypesWithPodSchema(t *testing.T) {
 	var sch interface{}
-	err := util.Unmarshal([]byte(podSchema), &sch)
+
+	ts := kubeSchemaServer(t)
+	t.Cleanup(ts.Close)
+
+	podSchemaReplaced := strings.ReplaceAll(podSchema, "https://kubernetesjsonschema.dev/v1.14.0/", ts.URL+"/")
+	err := util.Unmarshal([]byte(podSchemaReplaced), &sch)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	newtype, err := loadSchema(sch, false)
+	newtype, err := loadSchema(sch, true)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -521,4 +535,19 @@ func TestAnyOfSchema(t *testing.T) {
 			testParseSchema(t, tc.schema, tc.expected, nil)
 		})
 	}
+}
+
+func kubeSchemaServer(t *testing.T) *httptest.Server {
+	t.Helper()
+	r, err := os.Open("testdata/_definitions.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, err := io.Copy(w, r)
+		if err != nil {
+			panic(err)
+		}
+	}))
+	return ts
 }
