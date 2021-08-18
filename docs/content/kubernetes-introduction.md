@@ -30,8 +30,8 @@ Kubernetes clusters for security, cost, and availability reasons.
 
 ## What is OPA Gatekeeper?
 
-[OPA Gatekeeper](https://open-policy-agent.github.io/gatekeeper) is a new
-project that provides first-class integration between OPA and Kubernetes. For
+[OPA Gatekeeper](https://open-policy-agent.github.io/gatekeeper) is a specialized
+project providing first-class integration between OPA and Kubernetes. For
 background information see this [blog
 post](https://kubernetes.io/blog/2019/08/06/opa-gatekeeper-policy-and-governance-for-kubernetes)
 on kubernetes.io and check out this [Katakoda tutorial](https://katacoda.com/austinheiman/scenarios/open-policy-agent-gatekeeper).
@@ -54,8 +54,10 @@ If you want to kick the tires:
   [demo/agilebank](https://github.com/open-policy-agent/gatekeeper/tree/master/demo/agilebank)
   directories for examples policies and setup scripts.
 
-**Recommendation**: OPA Gatekeeper is currently in beta. If you are getting
-started with admission control, we recommend you try it out.
+**Recommendation**: OPA Gatekeeper is **the go-to project** for using OPA for
+Kubernetes admission control. Plain OPA and Kube-mgmt (see below) are alternatives
+that can be reached for if you want to use the management features of OPA, such as
+status logs, decision logs, and bundles.
 
 ## How Does It Work With Plain OPA and Kube-mgmt?
 
