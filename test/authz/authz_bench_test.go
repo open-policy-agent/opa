@@ -12,7 +12,6 @@ import (
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
-	"github.com/open-policy-agent/opa/util"
 )
 
 func BenchmarkAuthzForbidAuthn(b *testing.B) {
@@ -86,7 +85,7 @@ func runAuthzBenchmark(b *testing.B, mode InputMode, numPaths int) {
 		}
 		b.StopTimer()
 
-		if len(rs) != 1 || util.Compare(rs[0].Expressions[0].Value, expected) != 0 {
+		if rs.Allowed() != expected {
 			b.Fatalf("Unexpected result: %v", rs)
 		}
 	}

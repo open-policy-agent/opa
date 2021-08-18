@@ -28,7 +28,7 @@ This page focuses predominantly on different ways to integrate with OPA's policy
 OPA supports different ways to evaluate policies.
 
 * The [REST API](../rest-api) returns decisions as JSON over HTTP.
-* The [Go API (GoDoc)](https://godoc.org/github.com/open-policy-agent/opa/rego) returns
+* The [Go API (GoDoc)](https://pkg.go.dev/github.com/open-policy-agent/opa/rego) returns
   decisions as simple Go types (`bool`, `string`, `map[string]interface{}`,
   etc.)
 * [WebAssembly](../wasm) compiles Rego policies into WASM instructions so they can be embedded and evaluated by any WebAssembly runtime
@@ -169,7 +169,7 @@ API Authorization](../http-api-authorization) tutorial.
 ### Integrating with the Go API
 
 Use the
-[github.com/open-policy-agent/opa/rego](https://godoc.org/github.com/open-policy-agent/opa/rego)
+[github.com/open-policy-agent/opa/rego](https://pkg.go.dev/github.com/open-policy-agent/opa/rego)
 package to embed OPA as a library inside services written in Go. To get started
 import the `rego` package:
 
@@ -264,8 +264,22 @@ if err != nil {
 }
 ```
 
+For the common case of policies evaluating to a single boolean value, there's
+a helper method: With `results.Allowed()`, the previous snippet can be shortened
+to
+
+```go
+results, err := query.Eval(ctx, rego.EvalInput(input))
+if err != nil {
+    // handle error
+}
+if !results.Allowed() {
+    // handle result
+}
+```
+
 For more examples of embedding OPA as a library see the
-[`rego`](https://godoc.org/github.com/open-policy-agent/opa/rego#pkg-examples)
+[`rego`](https://pkg.go.dev/github.com/open-policy-agent/opa/rego#pkg-examples)
 package in the Go documentation.
 
 ### WebAssembly (Wasm)
@@ -279,10 +293,10 @@ See [OPA Wasm docs](../wasm) for more details.
 
 A comparison of the different integration choices are summarized below.
 
-| Dimension | REST API | Go Lib | WASM (WIP) |
+| Dimension | REST API | Go Lib | Wasm |
 | --------- | -------- | ------ | ---------- |
 | Evaluation | Fast | Faster | Fastest |
-| Language | Any | Only Go | Any with WASM |
+| Language | Any | Only Go | Any with Wasm |
 | Operations | Update just OPA | Update entire service | Update service rarely |
 | Security | Must secure API | Enable only what is needed | Enable only what is needed |
 
