@@ -38,12 +38,8 @@ func (t *testErrorWithMarshaller) MarshalJSON() ([]byte, error) {
 
 type testErrorWithDetails struct{}
 
-func (*testErrorWithDetails) Error() string { return "something went wrong" }
-func (*testErrorWithDetails) Details() string {
-	return `oh
-so
-wrong`
-}
+func (*testErrorWithDetails) Error() string   { return "something went wrong" }
+func (*testErrorWithDetails) Lines() []string { return []string{"oh", "so", "wrong"} }
 
 func validateJSONOutput(t *testing.T, testErr error, expected string) {
 	t.Helper()
@@ -487,7 +483,7 @@ func TestRaw(t *testing.T) {
 			output: Output{
 				Errors: NewOutputErrors(&testErrorWithDetails{}),
 			},
-			want: "1 error occurred: something went wrong\n",
+			want: "1 error occurred: something went wrong\noh\nso\nwrong\n",
 		},
 	}
 
