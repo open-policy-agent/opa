@@ -338,7 +338,7 @@ func (w *settingsAckSwallowWriter) Write(p []byte) (int, error) {
 			}
 			fSize := fh.Length + 9
 			if uint32(len(w.buf)) < fSize {
-				// Have not collected whole frame. Stop processing buf, and withold on
+				// Have not collected whole frame. Stop processing buf, and withhold on
 				// forward bytes to w.Writer until we get the full frame.
 				break
 			}
