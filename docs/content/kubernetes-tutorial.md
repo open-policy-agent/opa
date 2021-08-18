@@ -5,7 +5,8 @@ weight: 10
 ---
 
 This tutorial shows how to deploy OPA as an admission controller from scratch.
-It covers the OPA-kubernetes version that uses kube-mgmt.  The [OPA Gatekeeper version](https://github.com/open-policy-agent/gatekeeper) has its own docs.
+It covers the OPA-kubernetes version that uses kube-mgmt.
+The [OPA Gatekeeper version](https://open-policy-agent.github.io/gatekeeper) has its own docs.
 For the purpose of the tutorial we will deploy two policies that ensure:
 
 - Ingress hostnames must be whitelisted on the Namespace containing the Ingress.
