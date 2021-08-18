@@ -1833,8 +1833,8 @@ func (ci *ComprehensionIndex) String() string {
 
 func buildComprehensionIndices(dbg debug.Debug, arity func(Ref) int, candidates VarSet, rwVars map[Var]Var, node interface{}, result map[*Term]*ComprehensionIndex) uint64 {
 	var n uint64
+	cpy := candidates.Copy()
 	WalkBodies(node, func(b Body) bool {
-		cpy := candidates.Copy()
 		for _, expr := range b {
 			index := getComprehensionIndex(dbg, arity, cpy, rwVars, expr)
 			if index != nil {

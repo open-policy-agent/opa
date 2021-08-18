@@ -15,8 +15,10 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"reflect"
 	"strconv"
@@ -2513,4 +2515,82 @@ var httpSendHelperRules = []string{
 	`remove_headers(resp) = no_headers {
 		no_headers = object.remove(resp, ["headers"])
 	}`,
+}
+
+func TestSocketHTTPGetRequest(t *testing.T) {
+	var people []Person
+
+	// test data
+	people = append(people, Person{ID: "1", Firstname: "John"})
+
+	// Create a local socket
+	tmpF, err := ioutil.TempFile("", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	socketPath := tmpF.Name()
+	tmpF.Close()
+	os.Remove(socketPath)
+
+	socket, err := net.Listen("unix", socketPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rs := http.Server{
+		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			headers := w.Header()
+			headers["test-header"] = []string{"test-value"}
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(people)
+		}),
+	}
+
+	go func() {
+		_ = rs.Serve(socket)
+	}()
+	defer rs.Close()
+
+	path := fmt.Sprintf("socket=%s", url.PathEscape(socketPath))
+	rawURL := fmt.Sprintf("unix://localhost/end/point?%s", path) // Send a request to the server over the socket
+
+	// expected result
+	expectedResult := make(map[string]interface{})
+	expectedResult["status"] = "200 OK"
+	expectedResult["status_code"] = http.StatusOK
+
+	var body []interface{}
+	bodyMap := map[string]string{"id": "1", "firstname": "John"}
+	body = append(body, bodyMap)
+	expectedResult["body"] = body
+	expectedResult["raw_body"] = "[{\"id\":\"1\",\"firstname\":\"John\"}]\n"
+	expectedResult["headers"] = map[string]interface{}{
+		"content-length": []interface{}{"32"},
+		"content-type":   []interface{}{"text/plain; charset=utf-8"},
+		"test-header":    []interface{}{"test-value"},
+	}
+
+	resultObj, err := ast.InterfaceToValue(expectedResult)
+	if err != nil {
+		panic(err)
+	}
+
+	// run the test
+	tests := []struct {
+		note     string
+		rules    []string
+		expected interface{}
+	}{
+		{"http.send", []string{fmt.Sprintf(
+			`p = x { http.send({"method": "get", "url": "%s", "force_json_decode": true}, resp); x := clean_headers(resp) }`, rawURL)}, resultObj.String()},
+		{"http.send skip verify no HTTPS", []string{fmt.Sprintf(
+			`p = x { http.send({"method": "get", "url": "%s", "force_json_decode": true, "tls_insecure_skip_verify": true}, resp); x := clean_headers(resp) }`, rawURL)}, resultObj.String()},
+	}
+
+	data := loadSmallTestData()
+
+	for _, tc := range tests {
+		runTopDownTestCase(t, data, tc.note, append(tc.rules, httpSendHelperRules...), tc.expected)
+	}
 }
