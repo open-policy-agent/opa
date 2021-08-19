@@ -488,7 +488,7 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 	}
 	regoArgs = append(regoArgs,
 		rego.Schemas(schemaSet),
-		rego.FetchRemoteSchemas(params.schema.fetchRemote))
+		rego.FetchRemoteSchemas(!params.schema.dontFetchRemote))
 
 	var tracer *topdown.BufferTracer
 

@@ -621,8 +621,8 @@ It is valid for JSON schemas to reference other JSON schemas via URLs, like this
 }
 ```
 
-OPA's type checker will **not** fetch remote references by default.
-To opt-in to this behaviour, pass `--fetch-remote-schemas` to your OPA command.
+OPA's type checker will fetch these remote references by default.
+To disable this, pass `--disable-remote-schemas` to your OPA command.
 
 ## Limitations
 

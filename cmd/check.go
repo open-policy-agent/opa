@@ -112,7 +112,7 @@ func checkModules(args []string) int {
 		SetErrorLimit(checkParams.errLimit).
 		WithCapabilities(capabilities).
 		WithSchemas(ss).
-		WithFetchRemoteSchemas(checkParams.schema.fetchRemote)
+		WithFetchRemoteSchemas(!checkParams.schema.dontFetchRemote)
 
 	compiler.Compile(modules)
 

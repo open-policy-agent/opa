@@ -412,7 +412,7 @@ func TestEvalWithSchemaFileWithRemoteRef(t *testing.T) {
 		test.WithTempFS(files, func(path string) {
 			params := newEvalCommandParams()
 			params.inputPath = filepath.Join(path, "input.json")
-			params.schema = &schemaFlags{path: filepath.Join(path, "schema.json"), fetchRemote: false}
+			params.schema = &schemaFlags{path: filepath.Join(path, "schema.json"), dontFetchRemote: true}
 			_ = params.dataPaths.Set(filepath.Join(path, "p.rego"))
 
 			var buf bytes.Buffer
@@ -437,7 +437,7 @@ func TestEvalWithSchemaFileWithRemoteRef(t *testing.T) {
 		test.WithTempFS(files, func(path string) {
 			params := newEvalCommandParams()
 			params.inputPath = filepath.Join(path, "input.json")
-			params.schema = &schemaFlags{path: filepath.Join(path, "schema.json"), fetchRemote: true}
+			params.schema = &schemaFlags{path: filepath.Join(path, "schema.json"), dontFetchRemote: false}
 			_ = params.dataPaths.Set(filepath.Join(path, "p.rego"))
 
 			var buf bytes.Buffer
