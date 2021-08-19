@@ -239,31 +239,12 @@ func (db *store) underlying(txn storage.Transaction) (*transaction, error) {
 	return underlying, nil
 }
 
-var doesNotExistMsg = "document does not exist"
 var rootMustBeObjectMsg = "root must be object"
 var rootCannotBeRemovedMsg = "root cannot be removed"
-var outOfRangeMsg = "array index out of range"
-var arrayIndexTypeMsg = "array index must be integer"
 
 func invalidPatchError(f string, a ...interface{}) *storage.Error {
 	return &storage.Error{
 		Code:    storage.InvalidPatchErr,
 		Message: fmt.Sprintf(f, a...),
-	}
-}
-
-func notFoundError(path storage.Path) *storage.Error {
-	return notFoundErrorHint(path, doesNotExistMsg)
-}
-
-func notFoundErrorHint(path storage.Path, hint string) *storage.Error {
-	return notFoundErrorf("%v: %v", path.String(), hint)
-}
-
-func notFoundErrorf(f string, a ...interface{}) *storage.Error {
-	msg := fmt.Sprintf(f, a...)
-	return &storage.Error{
-		Code:    storage.NotFoundErr,
-		Message: msg,
 	}
 }
