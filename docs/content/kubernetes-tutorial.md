@@ -251,7 +251,7 @@ data:
         "allowed": false,
         "uid": uid,
         "status": {
-            "reason": reason,
+            "message": reason,
         },
     } {
         reason = concat(", ", admission.deny)
