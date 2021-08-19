@@ -21,8 +21,10 @@ package jws
 
 import (
 	"bytes"
+	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"io"
 	"strings"
 
 	"github.com/open-policy-agent/opa/internal/jwx/jwa"
@@ -37,7 +39,7 @@ import (
 // it in compact serialization format. In this format you may NOT use
 // multiple signers.
 //
-func SignLiteral(payload []byte, alg jwa.SignatureAlgorithm, key interface{}, hdrBuf []byte) ([]byte, error) {
+func SignLiteral(payload []byte, alg jwa.SignatureAlgorithm, key interface{}, hdrBuf []byte, rnd io.Reader) ([]byte, error) {
 	encodedHdr := base64.RawURLEncoding.EncodeToString(hdrBuf)
 	encodedPayload := base64.RawURLEncoding.EncodeToString(payload)
 	signingInput := strings.Join(
@@ -50,7 +52,14 @@ func SignLiteral(payload []byte, alg jwa.SignatureAlgorithm, key interface{}, hd
 	if err != nil {
 		return nil, errors.Wrap(err, `failed to create signer`)
 	}
-	signature, err := signer.Sign([]byte(signingInput), key)
+
+	var signature []byte
+	switch s := signer.(type) {
+	case *sign.ECDSASigner:
+		signature, err = s.SignWithRand([]byte(signingInput), key, rnd)
+	default:
+		signature, err = signer.Sign([]byte(signingInput), key)
+	}
 	if err != nil {
 		return nil, errors.Wrap(err, `failed to sign Payload`)
 	}
@@ -81,7 +90,9 @@ func SignWithOption(payload []byte, alg jwa.SignatureAlgorithm, key interface{})
 	if err != nil {
 		return nil, errors.Wrap(err, `failed to marshal Headers`)
 	}
-	return SignLiteral(payload, alg, key, hdrBuf)
+	// NOTE(sr): we don't use SignWithOption -- if we did, this rand.Reader
+	// should come from the BuiltinContext's Seed, too.
+	return SignLiteral(payload, alg, key, hdrBuf, rand.Reader)
 }
 
 // Verify checks if the given JWS message is verifiable using `alg` and `key`.

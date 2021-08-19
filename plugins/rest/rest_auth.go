@@ -219,7 +219,11 @@ func (ap *oauth2ClientCredentialsAuthPlugin) createAuthJWT(claims map[string]int
 		jwsHeaders = []byte(fmt.Sprintf(`{"typ":"JWT","alg":"%s"}`, ap.signingKey.Algorithm))
 	}
 
-	jwsCompact, err := jws.SignLiteral(payload, jwa.SignatureAlgorithm(ap.signingKey.Algorithm), signingKey, jwsHeaders)
+	jwsCompact, err := jws.SignLiteral(payload,
+		jwa.SignatureAlgorithm(ap.signingKey.Algorithm),
+		signingKey,
+		jwsHeaders,
+		rand.Reader)
 	if err != nil {
 		return nil, err
 	}
