@@ -4,6 +4,7 @@ import (
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/rand"
+	"io"
 
 	"github.com/open-policy-agent/opa/internal/jwx/jwa"
 
@@ -25,7 +26,7 @@ func init() {
 }
 
 func makeECDSASignFunc(hash crypto.Hash) ecdsaSignFunc {
-	return ecdsaSignFunc(func(payload []byte, key *ecdsa.PrivateKey) ([]byte, error) {
+	return ecdsaSignFunc(func(payload []byte, key *ecdsa.PrivateKey, rnd io.Reader) ([]byte, error) {
 		curveBits := key.Curve.Params().BitSize
 		keyBytes := curveBits / 8
 		// Curve bits do not need to be a multiple of 8.
@@ -34,7 +35,7 @@ func makeECDSASignFunc(hash crypto.Hash) ecdsaSignFunc {
 		}
 		h := hash.New()
 		h.Write(payload)
-		r, s, err := ecdsa.Sign(rand.Reader, key, h.Sum(nil))
+		r, s, err := ecdsa.Sign(rnd, key, h.Sum(nil))
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to sign payload using ecdsa")
 		}
@@ -69,8 +70,9 @@ func (s ECDSASigner) Algorithm() jwa.SignatureAlgorithm {
 	return s.alg
 }
 
-// Sign signs payload with a ECDSA private key
-func (s ECDSASigner) Sign(payload []byte, key interface{}) ([]byte, error) {
+// SignWithRand signs payload with a ECDSA private key and a provided randomness
+// source (such as `rand.Reader`).
+func (s ECDSASigner) SignWithRand(payload []byte, key interface{}, r io.Reader) ([]byte, error) {
 	if key == nil {
 		return nil, errors.New(`missing private key while signing payload`)
 	}
@@ -79,6 +81,10 @@ func (s ECDSASigner) Sign(payload []byte, key interface{}) ([]byte, error) {
 	if !ok {
 		return nil, errors.Errorf(`invalid key type %T. *ecdsa.PrivateKey is required`, key)
 	}
+	return s.sign(payload, privateKey, r)
+}
 
-	return s.sign(payload, privateKey)
+// Sign signs payload with a ECDSA private key
+func (s ECDSASigner) Sign(payload []byte, key interface{}) ([]byte, error) {
+	return s.SignWithRand(payload, key, rand.Reader)
 }

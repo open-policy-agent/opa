@@ -823,69 +823,66 @@ func (header *tokenHeader) valid() bool {
 	return true
 }
 
-func commonBuiltinJWTEncodeSign(inputHeaders, jwsPayload, jwkSrc string) (ast.Value, error) {
+func commonBuiltinJWTEncodeSign(bctx BuiltinContext, inputHeaders, jwsPayload, jwkSrc string, iter func(*ast.Term) error) error {
 
 	keys, err := jwk.ParseString(jwkSrc)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	key, err := keys.Keys[0].Materialize()
 	if err != nil {
-		return nil, err
+		return err
 	}
 	if jwk.GetKeyTypeFromKey(key) != keys.Keys[0].GetKeyType() {
-		return nil, fmt.Errorf("JWK derived key type and keyType parameter do not match")
+		return fmt.Errorf("JWK derived key type and keyType parameter do not match")
 	}
 
 	standardHeaders := &jws.StandardHeaders{}
 	jwsHeaders := []byte(inputHeaders)
 	err = json.Unmarshal(jwsHeaders, standardHeaders)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	alg := standardHeaders.GetAlgorithm()
 
 	if (standardHeaders.Type == "" || standardHeaders.Type == headerJwt) && !json.Valid([]byte(jwsPayload)) {
-		return nil, fmt.Errorf("type is JWT but payload is not JSON")
+		return fmt.Errorf("type is JWT but payload is not JSON")
 	}
 
 	// process payload and sign
 	var jwsCompact []byte
-	jwsCompact, err = jws.SignLiteral([]byte(jwsPayload), alg, key, jwsHeaders)
+	jwsCompact, err = jws.SignLiteral([]byte(jwsPayload), alg, key, jwsHeaders, bctx.Seed)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return ast.String(jwsCompact), nil
+	return iter(ast.StringTerm(string(jwsCompact)))
 
 }
 
-func builtinJWTEncodeSign(a ast.Value, b ast.Value, c ast.Value) (ast.Value, error) {
+func builtinJWTEncodeSign(bctx BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
 
-	jwkSrc := c.String()
-
-	inputHeaders := a.String()
-
-	jwsPayload := b.String()
-
-	return commonBuiltinJWTEncodeSign(inputHeaders, jwsPayload, jwkSrc)
+	inputHeaders := args[0].String()
+	jwsPayload := args[1].String()
+	jwkSrc := args[2].String()
+	return commonBuiltinJWTEncodeSign(bctx, inputHeaders, jwsPayload, jwkSrc, iter)
 
 }
 
-func builtinJWTEncodeSignRaw(a ast.Value, b ast.Value, c ast.Value) (ast.Value, error) {
+func builtinJWTEncodeSignRaw(bctx BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
 
-	jwkSrc, err := builtins.StringOperand(c, 1)
+	jwkSrc, err := builtins.StringOperand(args[2].Value, 3)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	inputHeaders, err := builtins.StringOperand(a, 1)
+	inputHeaders, err := builtins.StringOperand(args[0].Value, 1)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	jwsPayload, err := builtins.StringOperand(b, 1)
+	jwsPayload, err := builtins.StringOperand(args[1].Value, 2)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return commonBuiltinJWTEncodeSign(string(inputHeaders), string(jwsPayload), string(jwkSrc))
+	return commonBuiltinJWTEncodeSign(bctx, string(inputHeaders), string(jwsPayload), string(jwkSrc), iter)
 }
 
 // Implements full JWT decoding, validation and verification.
@@ -1111,6 +1108,6 @@ func init() {
 	RegisterBuiltinFunc(ast.JWTVerifyHS384.Name, builtinJWTVerifyHS384)
 	RegisterBuiltinFunc(ast.JWTVerifyHS512.Name, builtinJWTVerifyHS512)
 	RegisterBuiltinFunc(ast.JWTDecodeVerify.Name, builtinJWTDecodeVerify)
-	RegisterFunctionalBuiltin3(ast.JWTEncodeSignRaw.Name, builtinJWTEncodeSignRaw)
-	RegisterFunctionalBuiltin3(ast.JWTEncodeSign.Name, builtinJWTEncodeSign)
+	RegisterBuiltinFunc(ast.JWTEncodeSignRaw.Name, builtinJWTEncodeSignRaw)
+	RegisterBuiltinFunc(ast.JWTEncodeSign.Name, builtinJWTEncodeSign)
 }
