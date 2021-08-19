@@ -5,9 +5,7 @@ weight: 30
 restrictedtoc: true
 ---
 
-## Monitoring
-
-### Prometheus
+## Prometheus
 
 OPA exposes an HTTP endpoint that can be used to collect performance metrics
 for all API calls. The Prometheus endpoint is enabled by default when you run
@@ -60,12 +58,12 @@ The Prometheus endpoint exports Go runtime metrics as well as HTTP request laten
 | go_threads | gauge | Number of OS threads created. |
 | http_request_duration_seconds | histogram | A histogram of duration for requests. |
 
-### Health Checks
+## Health Checks
 
 OPA exposes a `/health` API endpoint that can be used to perform health checks.
 See [Health API](../rest-api#health-api) for details.
 
-### Status API
+## Status API
 
 OPA provides a plugin which can push status to a remote service.
 See [Status API](../management-status) for details.
