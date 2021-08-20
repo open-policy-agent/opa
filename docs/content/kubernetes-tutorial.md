@@ -100,7 +100,7 @@ openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out s
 Create a Secret to store the TLS credentials for OPA:
 
 ```bash
-kubectl create secret tls opa-server --cert=server.crt --key=server.key
+kubectl create secret tls opa-server --cert=server.crt --key=server.key --namespace opa
 ```
 
 Next, use the file below to deploy OPA as an admission controller.
@@ -251,7 +251,7 @@ data:
         "allowed": false,
         "uid": uid,
         "status": {
-            "reason": reason,
+            "message": reason,
         },
     } {
         reason = concat(", ", admission.deny)
