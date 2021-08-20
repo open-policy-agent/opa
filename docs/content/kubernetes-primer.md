@@ -450,7 +450,7 @@ request:
     group: ''
     resource: pods
     version: v1
-  uid: bbfeef88-d98d-11e8-b280-080027868e77
+  uid: 8d836dfd-e0c0-4490-93ba-85ed4a04261e
   userInfo:
     groups:
     - system:masters
@@ -496,10 +496,13 @@ main = {
   "response": response,
 }
 
-default response = {"allowed": true}
+default uid = ""
+
+uid = input.request.uid
 
 response = {
     "allowed": false,
+    "uid": uid,
     "status": {
         "message": reason,
     },
@@ -507,6 +510,7 @@ response = {
     reason = concat(", ", admission.deny)
     reason != ""
 }
+else = {"allowed": true, "uid": uid}
 ```
 
 The `system.main` policy MUST generate an **AdmissionReview** object containing
@@ -525,6 +529,7 @@ response from OPA would be:
 apiVersion: admission.k8s.io/v1
 kind: AdmissionReview
 response:
+  uid: 8d836dfd-e0c0-4490-93ba-85ed4a04261e
   allowed: false
   status:
     message: "image fails to come from trusted registry: nginx"
