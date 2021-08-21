@@ -11,6 +11,8 @@ import (
 
 	"github.com/open-policy-agent/opa/internal/deepcopy"
 	"github.com/open-policy-agent/opa/storage"
+	"github.com/open-policy-agent/opa/storage/internal/errors"
+	"github.com/open-policy-agent/opa/storage/internal/ptr"
 )
 
 // transaction implements the low-level read/write operations on the in-memory
@@ -82,7 +84,7 @@ func (txn *transaction) Write(op storage.PatchOp, path storage.Path, value inter
 		if update.path.Equal(path) {
 			if update.remove {
 				if op != storage.AddOp {
-					return notFoundError(path)
+					return errors.NewNotFoundError(path)
 				}
 			}
 			txn.updates.Remove(curr)
@@ -103,7 +105,7 @@ func (txn *transaction) Write(op storage.PatchOp, path storage.Path, value inter
 		// existing update is mutated.
 		if path.HasPrefix(update.path) {
 			if update.remove {
-				return notFoundError(path)
+				return errors.NewNotFoundError(path)
 			}
 			suffix := path[len(update.path):]
 			newUpdate, err := newUpdate(update.value, op, suffix, 0, value)
@@ -174,7 +176,7 @@ func (txn *transaction) Commit() (result storage.TriggerEvent) {
 func (txn *transaction) Read(path storage.Path) (interface{}, error) {
 
 	if !txn.write {
-		return ptr(txn.db.data, path)
+		return ptr.Ptr(txn.db.data, path)
 	}
 
 	merge := []*update{}
@@ -185,9 +187,9 @@ func (txn *transaction) Read(path storage.Path) (interface{}, error) {
 
 		if path.HasPrefix(update.path) {
 			if update.remove {
-				return nil, notFoundError(path)
+				return nil, errors.NewNotFoundError(path)
 			}
-			return ptr(update.value, path[len(update.path):])
+			return ptr.Ptr(update.value, path[len(update.path):])
 		}
 
 		if update.path.HasPrefix(path) {
@@ -195,7 +197,7 @@ func (txn *transaction) Read(path storage.Path) (interface{}, error) {
 		}
 	}
 
-	data, err := ptr(txn.db.data, path)
+	data, err := ptr.Ptr(txn.db.data, path)
 
 	if err != nil {
 		return nil, err
@@ -234,12 +236,12 @@ func (txn *transaction) GetPolicy(id string) ([]byte, error) {
 		if !update.remove {
 			return update.value, nil
 		}
-		return nil, notFoundErrorf("policy id %q", id)
+		return nil, errors.NewNotFoundErrorf("policy id %q", id)
 	}
 	if exist, ok := txn.db.policies[id]; ok {
 		return exist, nil
 	}
-	return nil, notFoundErrorf("policy id %q", id)
+	return nil, errors.NewNotFoundErrorf("policy id %q", id)
 }
 
 func (txn *transaction) UpsertPolicy(id string, bs []byte) error {
@@ -282,7 +284,7 @@ func newUpdate(data interface{}, op storage.PatchOp, path storage.Path, idx int,
 		return newUpdateArray(data, op, path, idx, value)
 
 	case nil, bool, json.Number, string:
-		return nil, notFoundError(path)
+		return nil, errors.NewNotFoundError(path)
 	}
 
 	return nil, &storage.Error{
@@ -304,7 +306,7 @@ func newUpdateArray(data []interface{}, op storage.PatchOp, path storage.Path, i
 			return &update{path[:len(path)-1], false, cpy}, nil
 		}
 
-		pos, err := validateArrayIndex(data, path[idx], path)
+		pos, err := ptr.ValidateArrayIndex(data, path[idx], path)
 		if err != nil {
 			return nil, err
 		}
@@ -330,7 +332,7 @@ func newUpdateArray(data []interface{}, op storage.PatchOp, path storage.Path, i
 		}
 	}
 
-	pos, err := validateArrayIndex(data, path[idx], path)
+	pos, err := ptr.ValidateArrayIndex(data, path[idx], path)
 	if err != nil {
 		return nil, err
 	}
@@ -344,7 +346,7 @@ func newUpdateObject(data map[string]interface{}, op storage.PatchOp, path stora
 		switch op {
 		case storage.ReplaceOp, storage.RemoveOp:
 			if _, ok := data[path[idx]]; !ok {
-				return nil, notFoundError(path)
+				return nil, errors.NewNotFoundError(path)
 			}
 		}
 		return &update{path, op == storage.RemoveOp, value}, nil
@@ -354,13 +356,13 @@ func newUpdateObject(data map[string]interface{}, op storage.PatchOp, path stora
 		return newUpdate(data, op, path, idx+1, value)
 	}
 
-	return nil, notFoundError(path)
+	return nil, errors.NewNotFoundError(path)
 }
 func (u *update) Apply(data interface{}) interface{} {
 	if len(u.path) == 0 {
 		return u.value
 	}
-	parent, err := ptr(data, u.path[:len(u.path)-1])
+	parent, err := ptr.Ptr(data, u.path[:len(u.path)-1])
 	if err != nil {
 		panic(err)
 	}
@@ -387,39 +389,4 @@ func (u *update) Relative(path storage.Path) *update {
 	cpy := *u
 	cpy.path = cpy.path[len(path):]
 	return &cpy
-}
-
-func ptr(data interface{}, path storage.Path) (interface{}, error) {
-	node := data
-	for i := range path {
-		key := path[i]
-		switch curr := node.(type) {
-		case map[string]interface{}:
-			var ok bool
-			if node, ok = curr[key]; !ok {
-				return nil, notFoundError(path)
-			}
-		case []interface{}:
-			pos, err := validateArrayIndex(curr, key, path)
-			if err != nil {
-				return nil, err
-			}
-			node = curr[pos]
-		default:
-			return nil, notFoundError(path)
-		}
-	}
-
-	return node, nil
-}
-
-func validateArrayIndex(arr []interface{}, s string, path storage.Path) (int, error) {
-	idx, err := strconv.Atoi(s)
-	if err != nil {
-		return 0, notFoundErrorHint(path, arrayIndexTypeMsg)
-	}
-	if idx < 0 || idx >= len(arr) {
-		return 0, notFoundErrorHint(path, outOfRangeMsg)
-	}
-	return idx, nil
 }
