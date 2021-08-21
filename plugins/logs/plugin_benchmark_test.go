@@ -127,7 +127,7 @@ const largeEvent = `{
 	  "response": {
 		"allowed": false,
 		"status": {
-		  "reason": "Resource Pod/demo/nginx includes container image 'nginx' from prohibited registry"
+		  "message": "Resource Pod/demo/nginx includes container image 'nginx' from prohibited registry"
 		}
 	  }
 	},

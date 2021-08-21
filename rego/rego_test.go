@@ -2012,3 +2012,14 @@ func TestPrepareAndCompileWithSchema(t *testing.T) {
 		t.Errorf("Unexpected error when compiling: %s", err.Error())
 	}
 }
+
+func TestGenerateJSON(t *testing.T) {
+	r := New(
+		Query("input"),
+		Input("original-input"),
+		GenerateJSON(func(t *ast.Term, ectx *EvalContext) (interface{}, error) {
+			return "converted-input", nil
+		}),
+	)
+	assertEval(t, r, `[["converted-input"]]`)
+}

@@ -233,7 +233,7 @@ sent back to the API Server.
   "response": {
     "allowed": false,
     "status": {
-      "reason": "container image refers to illegal registry (must be hooli.com)"
+      "message": "container image refers to illegal registry (must be hooli.com)"
     }
   }
 }

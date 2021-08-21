@@ -488,6 +488,7 @@ type Rego struct {
 	schemaSet              *ast.SchemaSet
 	target                 string // target type (wasm, rego, etc.)
 	opa                    opa.EvalEngine
+	generateJSON           func(*ast.Term, *EvalContext) (interface{}, error)
 }
 
 // Function represents a built-in function that is callable in Rego.
@@ -1014,6 +1015,13 @@ func Target(t string) func(r *Rego) {
 	}
 }
 
+// GenerateJSON sets the AST to JSON converter for the results.
+func GenerateJSON(f func(*ast.Term, *EvalContext) (interface{}, error)) func(r *Rego) {
+	return func(r *Rego) {
+		r.generateJSON = f
+	}
+}
+
 // New returns a new Rego object.
 func New(options ...func(r *Rego)) *Rego {
 
@@ -1063,6 +1071,10 @@ func New(options ...func(r *Rego)) *Rego {
 
 	if r.partialNamespace == "" {
 		r.partialNamespace = defaultPartialNamespace
+	}
+
+	if r.generateJSON == nil {
+		r.generateJSON = generateJSON
 	}
 
 	return r
@@ -1933,7 +1945,7 @@ func (r *Rego) generateResult(qr topdown.QueryResult, ectx *EvalContext) (Result
 
 	result := newResult()
 	for k, term := range qr {
-		v, err := ast.JSONWithOpt(term.Value, ast.JSONOpt{SortSets: ectx.sortSets})
+		v, err := r.generateJSON(term, ectx)
 		if err != nil {
 			return result, err
 		}
@@ -1953,7 +1965,7 @@ func (r *Rego) generateResult(qr topdown.QueryResult, ectx *EvalContext) (Result
 		}
 
 		if k, ok := r.capture[expr]; ok {
-			v, err := ast.JSONWithOpt(qr[k].Value, ast.JSONOpt{SortSets: ectx.sortSets})
+			v, err := r.generateJSON(qr[k], ectx)
 			if err != nil {
 				return result, err
 			}
@@ -2437,4 +2449,8 @@ func newFunction(decl *Function, f topdown.BuiltinFunc) func(*Rego) {
 			Func: f,
 		}
 	}
+}
+
+func generateJSON(term *ast.Term, ectx *EvalContext) (interface{}, error) {
+	return ast.JSONWithOpt(term.Value, ast.JSONOpt{SortSets: ectx.sortSets})
 }
