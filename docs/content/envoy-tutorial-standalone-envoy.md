@@ -400,6 +400,14 @@ Check that `Bob` **cannot** create an employee with the same firstname as himsel
 curl -i  -H "Authorization: Bearer $BOB_TOKEN" -d '{"firstname":"Bob", "lastname":"Rego"}' -H "Content-Type: application/json" -X POST http://$SERVICE_URL/people
 ```
 
+To remove the kubernetes resources created during this tutorial please use the following commands.
+```bash
+kubectl delete service example-app-service
+kubectl delete deployment example-app
+kubectl delete secret opa-policy
+kubectl delete configmap proxy-config
+```
+
 ## Wrap Up
 
 Congratulations for finishing the tutorial !
