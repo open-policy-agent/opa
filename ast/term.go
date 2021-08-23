@@ -544,7 +544,7 @@ func (null Null) Hash() int {
 }
 
 // IsGround always returns true.
-func (null Null) IsGround() bool {
+func (Null) IsGround() bool {
 	return true
 }
 
@@ -593,7 +593,7 @@ func (bol Boolean) Hash() int {
 }
 
 // IsGround always returns true.
-func (bol Boolean) IsGround() bool {
+func (Boolean) IsGround() bool {
 	return true
 }
 
@@ -685,7 +685,7 @@ func (num Number) Float64() (float64, bool) {
 }
 
 // IsGround always returns true.
-func (num Number) IsGround() bool {
+func (Number) IsGround() bool {
 	return true
 }
 
@@ -747,7 +747,7 @@ func (str String) Find(path Ref) (Value, error) {
 }
 
 // IsGround always returns true.
-func (str String) IsGround() bool {
+func (String) IsGround() bool {
 	return true
 }
 
@@ -801,7 +801,7 @@ func (v Var) Hash() int {
 }
 
 // IsGround always returns false.
-func (v Var) IsGround() bool {
+func (Var) IsGround() bool {
 	return false
 }
 
@@ -1177,11 +1177,16 @@ func (arr *Array) MarshalJSON() ([]byte, error) {
 }
 
 func (arr *Array) String() string {
-	var buf []string
-	for _, e := range arr.elems {
-		buf = append(buf, e.String())
+	var b strings.Builder
+	b.WriteRune('[')
+	for i, e := range arr.elems {
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		b.WriteString(e.String())
 	}
-	return "[" + strings.Join(buf, ", ") + "]"
+	b.WriteRune(']')
+	return b.String()
 }
 
 // Len returns the number of elements in the array.
@@ -1336,12 +1341,19 @@ func (s *set) String() string {
 	if s.Len() == 0 {
 		return "set()"
 	}
-	buf := []string{}
+	var b strings.Builder
+	b.WriteRune('{')
 	sorted := s.Sorted()
+	first := true
 	sorted.Foreach(func(x *Term) {
-		buf = append(buf, fmt.Sprint(x))
+		if !first {
+			b.WriteString(", ")
+		}
+		first = false
+		b.WriteString(x.Value.String())
 	})
-	return "{" + strings.Join(buf, ", ") + "}"
+	b.WriteRune('}')
+	return b.String()
 }
 
 // Compare compares s to other, return <0, 0, or >0 if it is less than, equal to,
@@ -2040,12 +2052,20 @@ func (obj object) Len() int {
 }
 
 func (obj object) String() string {
-	var buf []string
+	var b strings.Builder
+	b.WriteRune('{')
+
 	sorted := objectElemSliceSorted(obj.keys)
-	for _, elem := range sorted {
-		buf = append(buf, fmt.Sprintf("%s: %s", elem.key, elem.value))
+	for i, elem := range sorted {
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		b.WriteString(elem.key.String())
+		b.WriteString(": ")
+		b.WriteString(elem.value.String())
 	}
-	return "{" + strings.Join(buf, ", ") + "}"
+	b.WriteRune('}')
+	return b.String()
 }
 
 func (obj *object) get(k *Term) *objectElem {
