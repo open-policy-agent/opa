@@ -47,9 +47,9 @@ func (ss *SchemaSet) Get(path Ref) interface{} {
 	return x
 }
 
-func loadSchema(raw interface{}, fetchRemote bool) (types.Type, error) {
+func loadSchema(raw interface{}, allowNet []string) (types.Type, error) {
 
-	jsonSchema, err := compileSchema(raw, fetchRemote)
+	jsonSchema, err := compileSchema(raw, allowNet)
 	if err != nil {
 		return nil, err
 	}

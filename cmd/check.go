@@ -111,8 +111,7 @@ func checkModules(args []string) int {
 	compiler := ast.NewCompiler().
 		SetErrorLimit(checkParams.errLimit).
 		WithCapabilities(capabilities).
-		WithSchemas(ss).
-		WithFetchRemoteSchemas(!checkParams.schema.dontFetchRemote)
+		WithSchemas(ss)
 
 	compiler.Compile(modules)
 

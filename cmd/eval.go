@@ -33,6 +33,7 @@ import (
 )
 
 type evalCommandParams struct {
+	capabilities        *capabilitiesFlag
 	coverage            bool
 	partial             bool
 	unknowns            []string
@@ -65,6 +66,7 @@ type evalCommandParams struct {
 
 func newEvalCommandParams() evalCommandParams {
 	return evalCommandParams{
+		capabilities: newcapabilitiesFlag(),
 		outputFormat: util.NewEnumFlag(evalJSONOutput, []string{
 			evalJSONOutput,
 			evalValuesOutput,
@@ -212,8 +214,30 @@ Schema
 The -s/--schema flag provides one or more JSON Schemas used to validate references to the input or data documents.
 Loads a single JSON file, applying it to the input document; or all the schema files under the specified directory.
 
-	$ opa eval --data policy.rego --input input.json --schema schema.json
-	$ opa eval --data policy.rego --input input.json --schema schemas/
+    $ opa eval --data policy.rego --input input.json --schema schema.json
+    $ opa eval --data policy.rego --input input.json --schema schemas/
+
+Capabilities
+------------
+
+When passing a capabilities definition file via --capabilities, one can restrict which
+hosts remote schema definitions can be retrieved from. For example, a capabilities.json
+containing
+
+    {
+        "builtins": [ ... ],
+        "allow_net": [ "kubernetesjsonschema.dev" ]
+    }
+
+would disallow fetching remote schemas from any host but "kubernetesjsonschema.dev".
+Setting allow_net to an empty array would prohibit fetching any remote schemas.
+
+Not providing a capabilities file, or providing a file without an allow_net key, will
+permit fetching remote schemas from any host.
+
+Note that the metaschemas http://json-schema.org/draft-04/schema, http://json-schema.org/draft-06/schema,
+and http://json-schema.org/draft-07/schema, are always available, even without network
+access.
 `,
 
 		PreRunE: func(cmd *cobra.Command, args []string) error {
@@ -249,6 +273,7 @@ Loads a single JSON file, applying it to the input document; or all the schema f
 	evalCommand.Flags().BoolVarP(&params.failDefined, "fail-defined", "", false, "exits with non-zero exit code on defined/non-empty result and errors")
 
 	// Shared flags
+	addCapabilitiesFlag(evalCommand.Flags(), params.capabilities)
 	addPartialFlag(evalCommand.Flags(), &params.partial, false)
 	addUnknownsFlag(evalCommand.Flags(), &params.unknowns, []string{"input"})
 	addFailFlag(evalCommand.Flags(), &params.fail, false)
@@ -486,9 +511,7 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 	if err != nil {
 		return nil, err
 	}
-	regoArgs = append(regoArgs,
-		rego.Schemas(schemaSet),
-		rego.FetchRemoteSchemas(!params.schema.dontFetchRemote))
+	regoArgs = append(regoArgs, rego.Schemas(schemaSet))
 
 	var tracer *topdown.BufferTracer
 
@@ -540,6 +563,10 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 
 	if params.strictBuiltinErrors {
 		regoArgs = append(regoArgs, rego.StrictBuiltinErrors(true))
+	}
+
+	if params.capabilities != nil {
+		regoArgs = append(regoArgs, rego.Capabilities(params.capabilities.C))
 	}
 
 	evalCtx := &evalContext{

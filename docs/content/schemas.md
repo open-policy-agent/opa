@@ -622,7 +622,34 @@ It is valid for JSON schemas to reference other JSON schemas via URLs, like this
 ```
 
 OPA's type checker will fetch these remote references by default.
-To disable this, pass `--disable-remote-schemas` to your OPA command.
+To control the remote hosts schemas will be fetched from, pass a capabilities
+file to your `opa eval` or `opa check` call.
+
+Starting from the capabilities.json of your OPA version (which can be found [in the
+repository](https://github.com/open-policy-agent/opa/tree/main/capabilities)), add
+an `allow_net` key to it: its values are the IP addresses or host names that OPA is
+supposed to connect to for retrieving remote schemas.
+
+```json
+{
+  "builtins": [ ... ],
+  "allow_net": [ "kubernetesjsonschema.dev" ]
+}
+```
+
+#### Note
+
+- To forbid all network access in schema checking, set `allow_net` to `[]`
+- Host names are checked against the list as-is, so adding `127.0.0.1` to `allow_net`,
+  and referencing a schema from `http://localhost/` will _fail_.
+- Metaschemas for different JSON Schema draft versions are not subject to this
+  constraint, as they are already provided by OPA's schema checker without requiring
+  network access. These are:
+
+  - `http://json-schema.org/draft-04/schema`
+  - `http://json-schema.org/draft-06/schema`
+  - `http://json-schema.org/draft-07/schema`
+
 
 ## Limitations
 

@@ -135,13 +135,11 @@ func addUnknownsFlag(fs *pflag.FlagSet, unknowns *[]string, value []string) {
 }
 
 type schemaFlags struct {
-	path            string
-	dontFetchRemote bool
+	path string
 }
 
 func addSchemaFlags(fs *pflag.FlagSet, schema *schemaFlags) {
 	fs.StringVarP(&schema.path, "schema", "s", "", "set schema file path or directory path")
-	fs.BoolVar(&schema.dontFetchRemote, "disable-remote-schemas", false, "disable fetching remote schemas when referenced")
 }
 
 func addTargetFlag(fs *pflag.FlagSet, target *util.EnumFlag) {

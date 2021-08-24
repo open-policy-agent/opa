@@ -43,14 +43,29 @@ import (
 	"github.com/xeipuuv/gojsonreference"
 )
 
-// NOTE(sr): We need to control whether remote references are resolved
-// via HTTP requests. It's quite cumbersome to add extra parameters to
-// all calls and interfaces involved, so we're using a global variable
-// insead:
-var fetchRemoteRefs bool
+// NOTE(sr): We need to control from which hosts remote references are
+// allowed to be resolved via HTTP requests. It's quite cumbersome to
+// add extra parameters to all calls and interfaces involved, so we're
+// using a global variable instead:
+var allowNet map[string]struct{}
 
-func SetFetchRemoteRefs(yes bool) {
-	fetchRemoteRefs = yes
+func SetAllowNet(hosts []string) {
+	if hosts == nil {
+		allowNet = nil // resetting the global
+		return
+	}
+	allowNet = make(map[string]struct{}, len(hosts))
+	for _, host := range hosts {
+		allowNet[host] = struct{}{}
+	}
+}
+
+func isAllowed(ref *url.URL) bool {
+	if allowNet == nil {
+		return true
+	}
+	_, ok := allowNet[ref.Hostname()]
+	return ok
 }
 
 var osFS = osFileSystem(os.Open)
@@ -171,7 +186,16 @@ func (l *jsonReferenceLoader) LoadJSON() (interface{}, error) {
 		return l.loadFromFile(filename)
 	}
 
-	if fetchRemoteRefs {
+	// NOTE(sr): hardcoded metaschema references are not subject to allow_net
+	// checking; their contents are hardcoded in the library!
+	//
+	// returned cached versions for metaschemas for drafts 4, 6 and 7
+	// for performance and allow for easier offline use
+	if metaSchema := drafts.GetMetaSchema(refToURL.String()); metaSchema != "" {
+		return decodeJSONUsingNumber(strings.NewReader(metaSchema))
+	}
+
+	if isAllowed(refToURL.GetUrl()) {
 		return l.loadFromHTTP(refToURL.String())
 	}
 
@@ -179,12 +203,6 @@ func (l *jsonReferenceLoader) LoadJSON() (interface{}, error) {
 }
 
 func (l *jsonReferenceLoader) loadFromHTTP(address string) (interface{}, error) {
-
-	// returned cached versions for metaschemas for drafts 4, 6 and 7
-	// for performance and allow for easier offline use
-	if metaSchema := drafts.GetMetaSchema(address); metaSchema != "" {
-		return decodeJSONUsingNumber(strings.NewReader(metaSchema))
-	}
 
 	resp, err := http.Get(address)
 	if err != nil {

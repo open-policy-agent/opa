@@ -107,7 +107,6 @@ type Compiler struct {
 	initialized          bool                          // indicates if init() has been called
 	debug                debug.Debug                   // emits debug information produced during compilation
 	schemaSet            *SchemaSet                    // user-supplied schemas for input and data documents
-	fetchRemoteSchemas   bool                          // if false (default), don't HTTP GET remote schemas if they are referenced
 	inputType            types.Type                    // global input type retrieved from schema set
 }
 
@@ -369,13 +368,6 @@ func (c *Compiler) Compile(modules map[string]*Module) {
 // WithSchemas sets a schemaSet to the compiler
 func (c *Compiler) WithSchemas(schemas *SchemaSet) *Compiler {
 	c.schemaSet = schemas
-	return c
-}
-
-// WithFetchRemoteSchemas toggles if the compiler should fetch remote
-// schema references via HTTP requests.
-func (c *Compiler) WithFetchRemoteSchemas(yes bool) *Compiler {
-	c.fetchRemoteSchemas = yes
 	return c
 }
 
@@ -875,8 +867,8 @@ func (c *Compiler) checkSafetyRuleHeads() {
 	}
 }
 
-func compileSchema(goSchema interface{}, fetchRemote bool) (*gojsonschema.Schema, error) {
-	gojsonschema.SetFetchRemoteRefs(fetchRemote)
+func compileSchema(goSchema interface{}, allowNet []string) (*gojsonschema.Schema, error) {
+	gojsonschema.SetAllowNet(allowNet)
 
 	var refLoader gojsonschema.JSONLoader
 	sl := gojsonschema.NewSchemaLoader()
@@ -1149,7 +1141,7 @@ func (c *Compiler) init() {
 	// Load the global input schema if one was provided.
 	if c.schemaSet != nil {
 		if schema := c.schemaSet.Get(SchemaRootRef); schema != nil {
-			tpe, err := loadSchema(schema, c.fetchRemoteSchemas)
+			tpe, err := loadSchema(schema, c.capabilities.AllowNet)
 			if err != nil {
 				c.err(NewError(TypeErr, nil, err.Error()))
 			} else {

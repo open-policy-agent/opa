@@ -44,10 +44,10 @@ type buildParams struct {
 }
 
 func newBuildParams() buildParams {
-	var buildParams buildParams
-	buildParams.capabilities = newcapabilitiesFlag()
-	buildParams.target = util.NewEnumFlag(compile.TargetRego, []string{compile.TargetRego, compile.TargetWasm})
-	return buildParams
+	return buildParams{
+		capabilities: newcapabilitiesFlag(),
+		target:       util.NewEnumFlag(compile.TargetRego, []string{compile.TargetRego, compile.TargetWasm}),
+	}
 }
 
 func init() {

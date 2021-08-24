@@ -134,7 +134,7 @@ func TestSuite(t *testing.T) {
 		}
 	}()
 
-	SetFetchRemoteRefs(true)
+	SetAllowNet(nil)
 
 	err = filepath.Walk(wd, func(path string, fileInfo os.FileInfo, err error) error {
 		if fileInfo.IsDir() && path != wd && !testDirectories.MatchString(fileInfo.Name()) {

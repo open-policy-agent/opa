@@ -10,10 +10,9 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
@@ -408,11 +407,13 @@ func TestEvalWithSchemaFileWithRemoteRef(t *testing.T) {
 		"p.rego":      "package p\nr { input.metadata.clusterName == \"NAME\" }",
 	}
 
-	t.Run("remote refs disabled", func(t *testing.T) {
+	t.Run("all remote refs disabled", func(t *testing.T) {
 		test.WithTempFS(files, func(path string) {
 			params := newEvalCommandParams()
 			params.inputPath = filepath.Join(path, "input.json")
-			params.schema = &schemaFlags{path: filepath.Join(path, "schema.json"), dontFetchRemote: true}
+			params.schema = &schemaFlags{path: filepath.Join(path, "schema.json")}
+			params.capabilities.C = ast.CapabilitiesForThisVersion()
+			params.capabilities.C.AllowNet = []string{}
 			_ = params.dataPaths.Set(filepath.Join(path, "p.rego"))
 
 			var buf bytes.Buffer
@@ -433,11 +434,58 @@ func TestEvalWithSchemaFileWithRemoteRef(t *testing.T) {
 		})
 	})
 
-	t.Run("remote refs enabled", func(t *testing.T) {
+	t.Run("all remote refs enabled", func(t *testing.T) {
 		test.WithTempFS(files, func(path string) {
 			params := newEvalCommandParams()
 			params.inputPath = filepath.Join(path, "input.json")
-			params.schema = &schemaFlags{path: filepath.Join(path, "schema.json"), dontFetchRemote: false}
+			params.schema = &schemaFlags{path: filepath.Join(path, "schema.json")}
+			_ = params.dataPaths.Set(filepath.Join(path, "p.rego"))
+
+			var buf bytes.Buffer
+			defined, err := eval([]string{query}, params, &buf)
+			if err != nil {
+				t.Fatalf("expected no error, got %v", err)
+			}
+			if exp, act := true, defined; exp != act {
+				t.Errorf("expected defined %v, got %v", exp, act)
+			}
+		})
+	})
+
+	t.Run("required remote ref host not enabled", func(t *testing.T) {
+		test.WithTempFS(files, func(path string) {
+			params := newEvalCommandParams()
+			params.inputPath = filepath.Join(path, "input.json")
+			params.schema = &schemaFlags{path: filepath.Join(path, "schema.json")}
+			params.capabilities.C = ast.CapabilitiesForThisVersion()
+			params.capabilities.C.AllowNet = []string{"something.else"}
+			_ = params.dataPaths.Set(filepath.Join(path, "p.rego"))
+
+			var buf bytes.Buffer
+			_, err := eval([]string{query}, params, &buf)
+			if err == nil {
+				t.Fatal("expected error, got nil")
+			}
+			var output presentation.Output
+			if err := util.NewJSONDecoder(&buf).Decode(&output); err != nil {
+				t.Fatal(err)
+			}
+			if exp, act := 1, len(output.Errors); exp != act {
+				t.Fatalf("expected %d errors, got %d", exp, act)
+			}
+			if exp, act := "rego_type_error", output.Errors[0].Code; exp != act {
+				t.Errorf("expected code %v, got %v", exp, act)
+			}
+		})
+	})
+
+	t.Run("only required remote ref host enabled", func(t *testing.T) {
+		test.WithTempFS(files, func(path string) {
+			params := newEvalCommandParams()
+			params.inputPath = filepath.Join(path, "input.json")
+			params.schema = &schemaFlags{path: filepath.Join(path, "schema.json")}
+			params.capabilities.C = ast.CapabilitiesForThisVersion()
+			params.capabilities.C.AllowNet = []string{"127.0.0.1"}
 			_ = params.dataPaths.Set(filepath.Join(path, "p.rego"))
 
 			var buf bytes.Buffer
@@ -769,12 +817,12 @@ func TestResetExprLocations(t *testing.T) {
 }
 func kubeSchemaServer(t *testing.T) *httptest.Server {
 	t.Helper()
-	r, err := os.Open("../ast/testdata/_definitions.json")
+	bs, err := ioutil.ReadFile("../ast/testdata/_definitions.json")
 	if err != nil {
 		t.Fatal(err)
 	}
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		_, err := io.Copy(w, r)
+		_, err := w.Write(bs)
 		if err != nil {
 			panic(err)
 		}

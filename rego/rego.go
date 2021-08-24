@@ -475,6 +475,7 @@ type Rego struct {
 	runtime                *ast.Term
 	time                   time.Time
 	seed                   io.Reader
+	capabilities           *ast.Capabilities
 	builtinDecls           map[string]*ast.Builtin
 	builtinFuncs           map[string]*topdown.Builtin
 	unsafeBuiltins         map[string]struct{}
@@ -486,7 +487,6 @@ type Rego struct {
 	strictBuiltinErrors    bool
 	resolvers              []refResolver
 	schemaSet              *ast.SchemaSet
-	fetchRemoteSchemas     bool
 	target                 string // target type (wasm, rego, etc.)
 	opa                    opa.EvalEngine
 	generateJSON           func(*ast.Term, *EvalContext) (interface{}, error)
@@ -1009,10 +1009,12 @@ func Schemas(x *ast.SchemaSet) func(r *Rego) {
 	}
 }
 
-// FetchRemoteSchemas enables that remote refs will be fetched for schemas
-func FetchRemoteSchemas(yes bool) func(r *Rego) {
+// Capabilities configures the underlying compiler's capabilities.
+// This option is ignored for module compilation if the caller supplies the
+// compiler.
+func Capabilities(c *ast.Capabilities) func(r *Rego) {
 	return func(r *Rego) {
-		r.fetchRemoteSchemas = yes
+		r.capabilities = c
 	}
 }
 
@@ -1052,7 +1054,7 @@ func New(options ...func(r *Rego)) *Rego {
 			WithBuiltins(r.builtinDecls).
 			WithDebug(r.dump).
 			WithSchemas(r.schemaSet).
-			WithFetchRemoteSchemas(r.fetchRemoteSchemas)
+			WithCapabilities(r.capabilities)
 	}
 
 	if r.store == nil {
