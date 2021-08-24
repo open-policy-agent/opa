@@ -234,3 +234,19 @@ jobs:
           npm install
           ./e2e.sh
         working-directory: npm-opa-wasm
+
+  go-version-build:
+    name: Go compat builds
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - version: "1.16"
+          - version: "1.15"
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: Build
+        run: make ci-go-ci-build-linux GOVERSION=${{ matrix.version }}
+        timeout-minutes: 30
