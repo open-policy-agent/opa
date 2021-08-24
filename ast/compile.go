@@ -867,7 +867,9 @@ func (c *Compiler) checkSafetyRuleHeads() {
 	}
 }
 
-func compileSchema(goSchema interface{}) (*gojsonschema.Schema, error) {
+func compileSchema(goSchema interface{}, allowNet []string) (*gojsonschema.Schema, error) {
+	gojsonschema.SetAllowNet(allowNet)
+
 	var refLoader gojsonschema.JSONLoader
 	sl := gojsonschema.NewSchemaLoader()
 
@@ -878,7 +880,7 @@ func compileSchema(goSchema interface{}) (*gojsonschema.Schema, error) {
 	}
 	schemasCompiled, err := sl.Compile(refLoader)
 	if err != nil {
-		return nil, fmt.Errorf("unable to compile the schema due to: %w", err)
+		return nil, fmt.Errorf("unable to compile the schema: %w", err)
 	}
 	return schemasCompiled, nil
 }
@@ -1139,7 +1141,7 @@ func (c *Compiler) init() {
 	// Load the global input schema if one was provided.
 	if c.schemaSet != nil {
 		if schema := c.schemaSet.Get(SchemaRootRef); schema != nil {
-			tpe, err := loadSchema(schema)
+			tpe, err := loadSchema(schema, c.capabilities.AllowNet)
 			if err != nil {
 				c.err(NewError(TypeErr, nil, err.Error()))
 			} else {
