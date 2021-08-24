@@ -152,15 +152,15 @@ Examples
 
 To evaluate a simple query:
 
-	$ opa eval 'x = 1; y = 2; x < y'
+    $ opa eval 'x = 1; y = 2; x < y'
 
 To evaluate a query against JSON data:
 
-	$ opa eval --data data.json 'data.names[_] = name'
+    $ opa eval --data data.json 'data.names[_] = name'
 
 To evaluate a query against JSON data supplied with a file:// URL:
 
-	$ opa eval --data file:///path/to/file.json 'data'
+    $ opa eval --data file:///path/to/file.json 'data'
 
 
 File & Bundle Loading
@@ -170,19 +170,19 @@ The --bundle flag will load data files and Rego files contained
 in the bundle specified by the path. It can be either a
 compressed tar archive bundle file or a directory tree.
 
-	$ opa eval --bundle /some/path 'data'
+    $ opa eval --bundle /some/path 'data'
 
 Where /some/path contains:
 
-	foo/
-	  |
-	  +-- bar/
-	  |     |
-	  |     +-- data.json
-	  |
-	  +-- baz.rego
-	  |
-	  +-- manifest.yaml
+    foo/
+      |
+      +-- bar/
+      |     |
+      |     +-- data.json
+      |
+      +-- baz.rego
+      |
+      +-- manifest.yaml
 
 The JSON file 'foo/bar/data.json' would be loaded and rooted under
 'data.foo.bar' and the 'foo/baz.rego' would be loaded and rooted under the
@@ -201,10 +201,10 @@ Output Formats
 
 Set the output format with the --format flag.
 
-	--format=json      : output raw query results as JSON
-	--format=values    : output line separated JSON arrays containing expression values
-	--format=bindings  : output line separated JSON objects containing variable bindings
-	--format=pretty    : output query results in a human-readable format
+    --format=json      : output raw query results as JSON
+    --format=values    : output line separated JSON arrays containing expression values
+    --format=bindings  : output line separated JSON objects containing variable bindings
+    --format=pretty    : output query results in a human-readable format
 
 Schema
 ------

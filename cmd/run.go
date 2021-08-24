@@ -67,11 +67,11 @@ func init() {
 
 To run the interactive shell:
 
-	$ opa run
+    $ opa run
 
 To run the server:
 
-	$ opa run -s
+    $ opa run -s
 
 The 'run' command starts an instance of the OPA runtime. The OPA runtime can be
 started as an interactive shell or a server.
@@ -91,23 +91,23 @@ files.
 When loading from directories, only files with known extensions are considered.
 The current set of file extensions that OPA will consider are:
 
-	.json          # JSON data
-	.yaml or .yml  # YAML data
-	.rego          # Rego file
+    .json          # JSON data
+    .yaml or .yml  # YAML data
+    .rego          # Rego file
 
 Non-bundle data file and directory paths can be prefixed with the desired
 destination in the data document with the following syntax:
 
-	<dotted-path>:<file-path>
+    <dotted-path>:<file-path>
 
 To set a data file as the input document in the interactive shell use the
 "repl.input" path prefix with the input file:
 
-	repl.input:<file-path>
+    repl.input:<file-path>
 
 Example:
 
-	opa run repl.input:input.json
+    $ opa run repl.input:input.json
 
 Which will load the "input.json" file at path "data.repl.input".
 
@@ -116,7 +116,7 @@ Use the "help input" command in the interactive shell to see more options.
 
 File paths can be specified as URLs to resolve ambiguity in paths containing colons:
 
-	$ opa run file:///c:/path/to/data.json
+    $ opa run file:///c:/path/to/data.json
 
 The 'run' command can also verify the signature of a signed bundle.
 A signed bundle is a normal OPA bundle that includes a file
@@ -140,7 +140,7 @@ bundle signature verification.
 
 Example:
 
-	$ opa run --verification-key secret --signing-alg HS256 --bundle bundle.tar.gz
+    $ opa run --verification-key secret --signing-alg HS256 --bundle bundle.tar.gz
 
 The 'run' command will read the bundle "bundle.tar.gz", check the
 ".signatures.json" file and perform verification using the provided key.
