@@ -12,6 +12,7 @@ import (
 	"github.com/bytecodealliance/wasmtime-go"
 
 	"github.com/open-policy-agent/opa/internal/wasm/sdk/opa/errors"
+	"github.com/open-policy-agent/opa/internal/wasm/util"
 	"github.com/open-policy-agent/opa/metrics"
 )
 
@@ -180,7 +181,7 @@ func (p *Pool) SetPolicyData(ctx context.Context, policy []byte, data []byte) er
 
 		if err == nil {
 			parsedDataAddr, parsedData := vm.cloneDataSegment()
-			p.memoryMinPages = Pages(uint32(vm.memory.DataSize(vm.store)))
+			p.memoryMinPages = util.Pages(uint32(vm.memory.DataSize(vm.store)))
 			p.vms = append(p.vms, vm)
 			p.acquired = append(p.acquired, false)
 			p.initialized = true
@@ -288,7 +289,7 @@ func (p *Pool) updateVMs(update func(vm *VM, opts vmOpts) error) error {
 				activated = true
 				policy = vm.policy
 				parsedDataAddr, parsedData = vm.cloneDataSegment()
-				seedMemorySize = Pages(uint32(vm.memory.DataSize(vm.store)))
+				seedMemorySize = util.Pages(uint32(vm.memory.DataSize(vm.store)))
 				p.activate(policy, parsedData, parsedDataAddr, seedMemorySize)
 			}
 

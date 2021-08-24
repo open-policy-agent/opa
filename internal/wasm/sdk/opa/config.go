@@ -8,8 +8,8 @@ import (
 	"encoding/json"
 	"io/ioutil"
 
-	"github.com/open-policy-agent/opa/internal/wasm/sdk/internal/wasm"
 	"github.com/open-policy-agent/opa/internal/wasm/sdk/opa/errors"
+	"github.com/open-policy-agent/opa/internal/wasm/util"
 )
 
 // WithPolicyFile configures a policy file to load.
@@ -63,7 +63,7 @@ func (o *OPA) WithDataJSON(data interface{}) *OPA {
 // WithMemoryLimits configures the memory limits (in bytes) for a single policy
 // evaluation.
 func (o *OPA) WithMemoryLimits(min, max uint32) *OPA {
-	if min < 2*wasm.PageSize {
+	if min < 2*util.PageSize {
 		o.configErr = errors.New(errors.InvalidConfigErr, "too low minimum memory limit")
 		return o
 	}
@@ -77,7 +77,7 @@ func (o *OPA) WithMemoryLimits(min, max uint32) *OPA {
 		return o
 	}
 
-	o.memoryMinPages, o.memoryMaxPages = wasm.Pages(min), wasm.Pages(max)
+	o.memoryMinPages, o.memoryMaxPages = util.Pages(min), util.Pages(max)
 	return o
 }
 

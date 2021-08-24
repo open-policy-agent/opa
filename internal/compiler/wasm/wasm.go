@@ -21,6 +21,7 @@ import (
 	"github.com/open-policy-agent/opa/internal/wasm/instruction"
 	"github.com/open-policy-agent/opa/internal/wasm/module"
 	"github.com/open-policy-agent/opa/internal/wasm/types"
+	"github.com/open-policy-agent/opa/internal/wasm/util"
 	opatypes "github.com/open-policy-agent/opa/types"
 )
 
@@ -254,10 +255,12 @@ func New() *Compiler {
 	c.stages = []func() error{
 		c.initModule,
 		c.compileStringsAndBooleans,
+		c.addImportMemoryDecl,
 		c.compileExternalFuncDecls,
 		c.compileEntrypointDecls,
 		c.compileFuncs,
 		c.compilePlans,
+		c.emitABIVersionGlobals,
 
 		// "local" optimizations
 		c.removeUnusedCode,
@@ -323,8 +326,6 @@ func (c *Compiler) initModule() error {
 		return err
 	}
 
-	c.emitABIVersionGlobals()
-
 	c.funcs = make(map[string]uint32)
 	for _, fn := range c.module.Names.Functions {
 		name := fn.Name
@@ -369,19 +370,86 @@ func (c *Compiler) initModule() error {
 		Results: []types.ValueType{types.I32},
 	}, true)
 
-	c.module.Export.Exports = append(c.module.Export.Exports, module.Export{
-		Name: "memory",
-		Descriptor: module.ExportDescriptor{
-			Type:  module.MemoryExportType,
-			Index: 0,
+	// NOTE(sr): LLVM needs a section of linear memory to be zero'ed out and reserved,
+	// for static variables defined in the C code. When using imported memory, it adds
+	// a data segment to ensure that. When not using imported memory, it would ensure
+	// that a zero'ed out region is available by adjust the __heap_base address.
+	// Since we control "imported/not-imported" memory here, we make these adjustments
+	// here, too:
+	//
+	// a. the __heap_base exported variable is read,
+	// b. the __heap_base variable is removed from exports and globals
+	// c. a data segment filled with zeros of the proper length is added
+	var idx uint32
+	var del int
+	for i, exp := range c.module.Export.Exports {
+		if exp.Name == "__heap_base" {
+			idx = exp.Descriptor.Index
+			del = i
+		}
+	}
+	heapBase := c.module.Global.Globals[idx].Init.Instrs[0].(instruction.I32Const).Value
+
+	// (b) remove __heap_base export and global
+	c.module.Export.Exports = append(c.module.Export.Exports[:del], c.module.Export.Exports[del+1:]...)
+	c.module.Global.Globals = append(c.module.Global.Globals[:idx], c.module.Global.Globals[idx+1:]...)
+
+	// (c) add data segment with zeros
+	offset, err := getLowestFreeDataSegmentOffset(c.module)
+	if err != nil {
+		return err
+	}
+
+	c.module.Data.Segments = append(c.module.Data.Segments, module.DataSegment{
+		Index: 0,
+		Offset: module.Expr{
+			Instrs: []instruction.Instruction{
+				instruction.I32Const{
+					Value: offset,
+				},
+			},
 		},
+		Init: bytes.Repeat([]byte{0}, int(heapBase-offset)),
 	})
 
 	return nil
 }
 
+// NOTE(sr): The wasm module we start with, compiled via LLVM, has NO memory
+// import or export. Here, we change that: the OPA-generated wasm module will
+//
+// a. import its memory
+// b. re-export that memory
+// c. have no "own" memory (in its memory section)
+//
+// (b) is provided by the LLVM base module, it already has an export of memory[0]
+// (a) and (c) are taken care of here.
+//
+// In the future, we could change that, and here would be the place to do so.
+func (c *Compiler) addImportMemoryDecl() error {
+	offset, err := getLowestFreeDataSegmentOffset(c.module)
+	if err != nil {
+		return err
+	}
+
+	c.module.Import.Imports = append(c.module.Import.Imports, module.Import{
+		Module: "env",
+		Name:   "memory",
+		Descriptor: module.MemoryImport{
+			Mem: module.MemType{
+				Lim: module.Limit{
+					Min: util.Pages(uint32(offset)),
+				},
+			},
+		},
+	})
+	c.module.Memory.Memories = nil
+
+	return nil
+}
+
 // emitABIVersionGLobals adds globals for ABI [minor] version, exports them
-func (c *Compiler) emitABIVersionGlobals() {
+func (c *Compiler) emitABIVersionGlobals() error {
 	abiVersionGlobals := []module.Global{
 		{
 			Type:    types.I32,
@@ -420,6 +488,7 @@ func (c *Compiler) emitABIVersionGlobals() {
 	}
 	c.module.Global.Globals = append(c.module.Global.Globals, abiVersionGlobals...)
 	c.module.Export.Exports = append(c.module.Export.Exports, abiVersionExports...)
+	return nil
 }
 
 // compileStringsAndBooleans compiles various string constants (strings, file names,

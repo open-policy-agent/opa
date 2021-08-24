@@ -50,6 +50,10 @@ func WriteModule(w io.Writer, module *module.Module) error {
 		return err
 	}
 
+	if err := writeMemorySection(w, module.Memory); err != nil {
+		return err
+	}
+
 	if err := writeGlobalSection(w, module.Global); err != nil {
 		return err
 	}
@@ -264,7 +268,31 @@ func writeTableSection(w io.Writer, s module.TableSection) error {
 	}
 
 	return writeRawSection(w, &buf)
+}
 
+func writeMemorySection(w io.Writer, s module.MemorySection) error {
+
+	if len(s.Memories) == 0 {
+		return nil
+	}
+
+	if err := writeByte(w, constant.MemorySectionID); err != nil {
+		return err
+	}
+
+	var buf bytes.Buffer
+
+	if err := leb128.WriteVarUint32(&buf, uint32(len(s.Memories))); err != nil {
+		return err
+	}
+
+	for _, mem := range s.Memories {
+		if err := writeLimits(&buf, mem.Lim); err != nil {
+			return err
+		}
+	}
+
+	return writeRawSection(w, &buf)
 }
 
 func writeExportSection(w io.Writer, s module.ExportSection) error {

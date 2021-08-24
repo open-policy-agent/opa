@@ -11,8 +11,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/open-policy-agent/opa/internal/wasm/sdk/internal/wasm"
 	"github.com/open-policy-agent/opa/internal/wasm/sdk/opa"
+	"github.com/open-policy-agent/opa/internal/wasm/util"
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/util/test"
 )
@@ -96,7 +96,7 @@ func benchmarkIteration(b *testing.B, module string) {
 
 	instance, err := opa.New().
 		WithPolicyBytes(policy).
-		WithMemoryLimits(2*wasm.PageSize, 47*wasm.PageSize).
+		WithMemoryLimits(2*util.PageSize, 47*util.PageSize).
 		WithPoolSize(1).
 		Init()
 	if err != nil {
@@ -138,7 +138,7 @@ func BenchmarkWASMLargeJSON(b *testing.B) {
 			instance, err := opa.New().
 				WithPolicyBytes(policy).
 				WithDataJSON(data).
-				WithMemoryLimits(200*wasm.PageSize, 600*wasm.PageSize). // This is rather much
+				WithMemoryLimits(200*util.PageSize, 600*util.PageSize). // This is rather much
 				WithPoolSize(1).
 				Init()
 			if err != nil {
@@ -186,7 +186,7 @@ func runVirtualDocsBenchmark(b *testing.B, numTotalRules, numHitRules int) {
 
 	instance, err := opa.New().
 		WithPolicyBytes(policy).
-		WithMemoryLimits(8*wasm.PageSize, 8*wasm.PageSize).
+		WithMemoryLimits(8*util.PageSize, 8*util.PageSize).
 		WithPoolSize(1).
 		Init()
 	if err != nil {
