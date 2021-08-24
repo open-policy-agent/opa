@@ -475,6 +475,7 @@ type Rego struct {
 	runtime                *ast.Term
 	time                   time.Time
 	seed                   io.Reader
+	capabilities           *ast.Capabilities
 	builtinDecls           map[string]*ast.Builtin
 	builtinFuncs           map[string]*topdown.Builtin
 	unsafeBuiltins         map[string]struct{}
@@ -1008,6 +1009,15 @@ func Schemas(x *ast.SchemaSet) func(r *Rego) {
 	}
 }
 
+// Capabilities configures the underlying compiler's capabilities.
+// This option is ignored for module compilation if the caller supplies the
+// compiler.
+func Capabilities(c *ast.Capabilities) func(r *Rego) {
+	return func(r *Rego) {
+		r.capabilities = c
+	}
+}
+
 // Target sets the runtime to exercise.
 func Target(t string) func(r *Rego) {
 	return func(r *Rego) {
@@ -1042,10 +1052,9 @@ func New(options ...func(r *Rego)) *Rego {
 		r.compiler = ast.NewCompiler().
 			WithUnsafeBuiltins(r.unsafeBuiltins).
 			WithBuiltins(r.builtinDecls).
-			WithDebug(r.dump)
-		if r.schemaSet != nil {
-			r.compiler.WithSchemas(r.schemaSet)
-		}
+			WithDebug(r.dump).
+			WithSchemas(r.schemaSet).
+			WithCapabilities(r.capabilities)
 	}
 
 	if r.store == nil {
@@ -1522,11 +1531,6 @@ func (r *Rego) prepare(ctx context.Context, qType queryType, extras []extraStage
 		return err
 	}
 
-	r.schemaSet, err = r.schemas()
-	if err != nil {
-		return err
-	}
-
 	err = r.loadFiles(ctx, r.txn, r.metrics)
 	if err != nil {
 		return err
@@ -1670,13 +1674,6 @@ func (r *Rego) parseInput() (ast.Value, error) {
 		return r.parsedInput, nil
 	}
 	return r.parseRawInput(r.rawInput, r.metrics)
-}
-
-func (r *Rego) schemas() (*ast.SchemaSet, error) {
-	if r.schemaSet != nil {
-		return r.schemaSet, nil
-	}
-	return nil, nil
 }
 
 func (r *Rego) parseRawInput(rawInput *interface{}, m metrics.Metrics) (ast.Value, error) {

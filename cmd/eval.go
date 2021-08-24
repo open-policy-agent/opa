@@ -33,6 +33,7 @@ import (
 )
 
 type evalCommandParams struct {
+	capabilities        *capabilitiesFlag
 	coverage            bool
 	partial             bool
 	unknowns            []string
@@ -59,12 +60,13 @@ type evalCommandParams struct {
 	fail                bool
 	failDefined         bool
 	bundlePaths         repeatedStringFlag
-	schemaPath          string
+	schema              *schemaFlags
 	target              *util.EnumFlag
 }
 
 func newEvalCommandParams() evalCommandParams {
 	return evalCommandParams{
+		capabilities: newcapabilitiesFlag(),
 		outputFormat: util.NewEnumFlag(evalJSONOutput, []string{
 			evalJSONOutput,
 			evalValuesOutput,
@@ -73,9 +75,13 @@ func newEvalCommandParams() evalCommandParams {
 			evalSourceOutput,
 			evalRawOutput,
 		}),
-		explain: newExplainFlag([]string{explainModeOff, explainModeFull, explainModeNotes, explainModeFails}),
-		target:  util.NewEnumFlag(compile.TargetRego, []string{compile.TargetRego, compile.TargetWasm}),
-		count:   1,
+		explain:         newExplainFlag([]string{explainModeOff, explainModeFull, explainModeNotes, explainModeFails}),
+		target:          util.NewEnumFlag(compile.TargetRego, []string{compile.TargetRego, compile.TargetWasm}),
+		count:           1,
+		profileCriteria: newrepeatedStringFlag([]string{}),
+		profileLimit:    newIntFlag(defaultProfileLimit),
+		prettyLimit:     newIntFlag(defaultPrettyLimit),
+		schema:          &schemaFlags{},
 	}
 }
 
@@ -137,9 +143,6 @@ func (regoError) Error() string {
 func init() {
 
 	params := newEvalCommandParams()
-	params.profileCriteria = newrepeatedStringFlag([]string{})
-	params.profileLimit = newIntFlag(defaultProfileLimit)
-	params.prettyLimit = newIntFlag(defaultPrettyLimit)
 
 	evalCommand := &cobra.Command{
 		Use:   "eval <query>",
@@ -151,15 +154,15 @@ Examples
 
 To evaluate a simple query:
 
-	$ opa eval 'x = 1; y = 2; x < y'
+    $ opa eval 'x = 1; y = 2; x < y'
 
 To evaluate a query against JSON data:
 
-	$ opa eval --data data.json 'data.names[_] = name'
+    $ opa eval --data data.json 'data.names[_] = name'
 
 To evaluate a query against JSON data supplied with a file:// URL:
 
-	$ opa eval --data file:///path/to/file.json 'data'
+    $ opa eval --data file:///path/to/file.json 'data'
 
 
 File & Bundle Loading
@@ -169,19 +172,19 @@ The --bundle flag will load data files and Rego files contained
 in the bundle specified by the path. It can be either a
 compressed tar archive bundle file or a directory tree.
 
-	$ opa eval --bundle /some/path 'data'
+    $ opa eval --bundle /some/path 'data'
 
 Where /some/path contains:
 
-	foo/
-	  |
-	  +-- bar/
-	  |     |
-	  |     +-- data.json
-	  |
-	  +-- baz.rego
-	  |
-	  +-- manifest.yaml
+    foo/
+      |
+      +-- bar/
+      |     |
+      |     +-- data.json
+      |
+      +-- baz.rego
+      |
+      +-- manifest.yaml
 
 The JSON file 'foo/bar/data.json' would be loaded and rooted under
 'data.foo.bar' and the 'foo/baz.rego' would be loaded and rooted under the
@@ -200,10 +203,10 @@ Output Formats
 
 Set the output format with the --format flag.
 
-	--format=json      : output raw query results as JSON
-	--format=values    : output line separated JSON arrays containing expression values
-	--format=bindings  : output line separated JSON objects containing variable bindings
-	--format=pretty    : output query results in a human-readable format
+    --format=json      : output raw query results as JSON
+    --format=values    : output line separated JSON arrays containing expression values
+    --format=bindings  : output line separated JSON objects containing variable bindings
+    --format=pretty    : output query results in a human-readable format
 
 Schema
 ------
@@ -211,8 +214,30 @@ Schema
 The -s/--schema flag provides one or more JSON Schemas used to validate references to the input or data documents.
 Loads a single JSON file, applying it to the input document; or all the schema files under the specified directory.
 
-	$ opa eval --data policy.rego --input input.json --schema schema.json
-	$ opa eval --data policy.rego --input input.json --schema schemas/
+    $ opa eval --data policy.rego --input input.json --schema schema.json
+    $ opa eval --data policy.rego --input input.json --schema schemas/
+
+Capabilities
+------------
+
+When passing a capabilities definition file via --capabilities, one can restrict which
+hosts remote schema definitions can be retrieved from. For example, a capabilities.json
+containing
+
+    {
+        "builtins": [ ... ],
+        "allow_net": [ "kubernetesjsonschema.dev" ]
+    }
+
+would disallow fetching remote schemas from any host but "kubernetesjsonschema.dev".
+Setting allow_net to an empty array would prohibit fetching any remote schemas.
+
+Not providing a capabilities file, or providing a file without an allow_net key, will
+permit fetching remote schemas from any host.
+
+Note that the metaschemas http://json-schema.org/draft-04/schema, http://json-schema.org/draft-06/schema,
+and http://json-schema.org/draft-07/schema, are always available, even without network
+access.
 `,
 
 		PreRunE: func(cmd *cobra.Command, args []string) error {
@@ -248,6 +273,7 @@ Loads a single JSON file, applying it to the input document; or all the schema f
 	evalCommand.Flags().BoolVarP(&params.failDefined, "fail-defined", "", false, "exits with non-zero exit code on defined/non-empty result and errors")
 
 	// Shared flags
+	addCapabilitiesFlag(evalCommand.Flags(), params.capabilities)
 	addPartialFlag(evalCommand.Flags(), &params.partial, false)
 	addUnknownsFlag(evalCommand.Flags(), &params.unknowns, []string{"input"})
 	addFailFlag(evalCommand.Flags(), &params.fail, false)
@@ -262,7 +288,7 @@ Loads a single JSON file, applying it to the input document; or all the schema f
 	addOutputFormat(evalCommand.Flags(), params.outputFormat)
 	addIgnoreFlag(evalCommand.Flags(), &params.ignore)
 	setExplainFlag(evalCommand.Flags(), params.explain)
-	addSchemaFlag(evalCommand.Flags(), &params.schemaPath)
+	addSchemaFlags(evalCommand.Flags(), params.schema)
 	addTargetFlag(evalCommand.Flags(), params.target)
 	addCountFlag(evalCommand.Flags(), &params.count, "benchmark")
 
@@ -479,11 +505,9 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 		regoArgs = append(regoArgs, rego.ParsedInput(inputValue))
 	}
 
-	/*
-		-s {file} (one input schema file)
-		-s {directory} (one schema directory with input and data schema files)
-	*/
-	schemaSet, err := loader.Schemas(params.schemaPath)
+	//	-s {file} (one input schema file)
+	//	-s {directory} (one schema directory with input and data schema files)
+	schemaSet, err := loader.Schemas(params.schema.path)
 	if err != nil {
 		return nil, err
 	}
@@ -539,6 +563,10 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 
 	if params.strictBuiltinErrors {
 		regoArgs = append(regoArgs, rego.StrictBuiltinErrors(true))
+	}
+
+	if params.capabilities != nil {
+		regoArgs = append(regoArgs, rego.Capabilities(params.capabilities.C))
 	}
 
 	evalCtx := &evalContext{

@@ -23,12 +23,13 @@ var checkParams = struct {
 	ignore       []string
 	bundleMode   bool
 	capabilities *capabilitiesFlag
-	schemaPath   string
+	schema       *schemaFlags
 }{
 	format: util.NewEnumFlag(checkFormatPretty, []string{
 		checkFormatPretty, checkFormatJSON,
 	}),
 	capabilities: newcapabilitiesFlag(),
+	schema:       &schemaFlags{},
 }
 
 const (
@@ -61,7 +62,7 @@ func checkModules(args []string) int {
 
 	modules := map[string]*ast.Module{}
 
-	ss, err := loader.Schemas(checkParams.schemaPath)
+	ss, err := loader.Schemas(checkParams.schema.path)
 	if err != nil {
 		outputErrors(err)
 		return 1
@@ -151,6 +152,6 @@ func init() {
 	checkCommand.Flags().VarP(checkParams.format, "format", "f", "set output format")
 	addBundleModeFlag(checkCommand.Flags(), &checkParams.bundleMode, false)
 	addCapabilitiesFlag(checkCommand.Flags(), checkParams.capabilities)
-	addSchemaFlag(checkCommand.Flags(), &checkParams.schemaPath)
+	addSchemaFlags(checkCommand.Flags(), checkParams.schema)
 	RootCommand.AddCommand(checkCommand)
 }

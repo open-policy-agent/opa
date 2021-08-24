@@ -44,10 +44,10 @@ type buildParams struct {
 }
 
 func newBuildParams() buildParams {
-	var buildParams buildParams
-	buildParams.capabilities = newcapabilitiesFlag()
-	buildParams.target = util.NewEnumFlag(compile.TargetRego, []string{compile.TargetRego, compile.TargetWasm})
-	return buildParams
+	return buildParams{
+		capabilities: newcapabilitiesFlag(),
+		target:       util.NewEnumFlag(compile.TargetRego, []string{compile.TargetRego, compile.TargetWasm}),
+	}
 }
 
 func init() {
@@ -63,27 +63,27 @@ The 'build' command packages OPA policy and data files into bundles. Bundles are
 gzipped tarballs containing policies and data. Paths referring to directories are
 loaded recursively.
 
-	$ ls
-	example.rego
+    $ ls
+    example.rego
 
-	$ opa build -b .
+    $ opa build -b .
 
 You can load bundles into OPA on the command-line:
 
-	$ ls
-	bundle.tar.gz example.rego
+    $ ls
+    bundle.tar.gz example.rego
 
-	$ opa run bundle.tar.gz
+    $ opa run bundle.tar.gz
 
 You can also configure OPA to download bundles from remote HTTP endpoints:
 
-	$ opa run --server \
-		--set bundles.example.resource=bundle.tar.gz \
-		--set services.example.url=http://localhost:8080
+    $ opa run --server \
+        --set bundles.example.resource=bundle.tar.gz \
+        --set services.example.url=http://localhost:8080
 
 Inside another terminal in the same directory, serve the bundle via HTTP:
 
-	$ python3 -m http.server --bind localhost 8080
+    $ python3 -m http.server --bind localhost 8080
 
 For more information on bundles see https://www.openpolicyagent.org/docs/latest/management.
 
@@ -131,21 +131,21 @@ https://www.openpolicyagent.org/docs/latest/management/#signature-verification.
 
 Example:
 
-	$ opa build --verification-key /path/to/public_key.pem --signing-key /path/to/private_key.pem --bundle foo
+    $ opa build --verification-key /path/to/public_key.pem --signing-key /path/to/private_key.pem --bundle foo
 
 Where foo has the following structure:
 
-	foo/
-	  |
-	  +-- bar/
-	  |     |
-	  |     +-- data.json
-	  |
-	  +-- policy.rego
-	  |
-	  +-- .manifest
-	  |
-	  +-- .signatures.json
+    foo/
+      |
+      +-- bar/
+      |     |
+      |     +-- data.json
+      |
+      +-- policy.rego
+      |
+      +-- .manifest
+      |
+      +-- .signatures.json
 
 
 The 'build' command will verify the signatures using the public key provided by the --verification-key flag.
@@ -170,35 +170,35 @@ The capabilities define the built-in functions and other language features that 
 may depend on. For example, the following capabilities file only permits the policy to
 depend on the "plus" built-in function ('+'):
 
-	{
-		"builtins": [
-			{
-				"name": "plus",
-				"infix": "+",
-				"decl": {
-					"type": "function",
-					"args": [
-						{
-							"type": "number"
-						},
-						{
-							"type": "number"
-						}
-					],
-					"result": {
-						"type": "number"
-					}
-				}
-			}
-		]
-	}
+    {
+        "builtins": [
+            {
+                "name": "plus",
+                "infix": "+",
+                "decl": {
+                    "type": "function",
+                    "args": [
+                        {
+                            "type": "number"
+                        },
+                        {
+                            "type": "number"
+                        }
+                    ],
+                    "result": {
+                        "type": "number"
+                    }
+                }
+            }
+        ]
+    }
 
-Capablities can be used to validate policies against a specific version of OPA.
+Capabilities can be used to validate policies against a specific version of OPA.
 The OPA repository contains a set of capabilities files for each OPA release. For example,
 the following command builds a directory of policies ('./policies') and validates them
 against OPA v0.22.0:
 
-	opa build ./policies --capabilities $OPA_SRC/capabilities/v0.22.0.json
+    opa build ./policies --capabilities $OPA_SRC/capabilities/v0.22.0.json
 `,
 		PreRunE: func(Cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {

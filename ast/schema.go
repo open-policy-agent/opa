@@ -47,16 +47,16 @@ func (ss *SchemaSet) Get(path Ref) interface{} {
 	return x
 }
 
-func loadSchema(raw interface{}) (types.Type, error) {
+func loadSchema(raw interface{}, allowNet []string) (types.Type, error) {
 
-	jsonSchema, err := compileSchema(raw)
+	jsonSchema, err := compileSchema(raw, allowNet)
 	if err != nil {
-		return nil, fmt.Errorf("compile failed: %s", err.Error())
+		return nil, err
 	}
 
 	tpe, err := parseSchema(jsonSchema.RootSchema)
 	if err != nil {
-		return nil, fmt.Errorf("error when type checking %v", err)
+		return nil, fmt.Errorf("type checking: %w", err)
 	}
 
 	return tpe, nil
