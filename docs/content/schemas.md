@@ -605,6 +605,52 @@ Once this is fixed, the second typo is highlighted, informing the user that `ver
 ```
 Because the properties `kind`, `version`, and `accessNum` are all under the `allOf` keyword, the resulting schema that the given data must be validated against will contain the types contained in these properties children (string and integer). 
 
+### Remote references in JSON schemas
+
+It is valid for JSON schemas to reference other JSON schemas via URLs, like this:
+```json
+{
+  "description": "Pod is a collection of containers that can run on a host.",
+	"type": "object",
+	"properties": {
+    "metadata": {
+      "$ref": "https://kubernetesjsonschema.dev/v1.14.0/_definitions.json#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta",
+      "description": "Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#metadata"
+	  }
+	}
+}
+```
+
+OPA's type checker will fetch these remote references by default.
+To control the remote hosts schemas will be fetched from, pass a capabilities
+file to your `opa eval` or `opa check` call.
+
+Starting from the capabilities.json of your OPA version (which can be found [in the
+repository](https://github.com/open-policy-agent/opa/tree/main/capabilities)), add
+an `allow_net` key to it: its values are the IP addresses or host names that OPA is
+supposed to connect to for retrieving remote schemas.
+
+```json
+{
+  "builtins": [ ... ],
+  "allow_net": [ "kubernetesjsonschema.dev" ]
+}
+```
+
+#### Note
+
+- To forbid all network access in schema checking, set `allow_net` to `[]`
+- Host names are checked against the list as-is, so adding `127.0.0.1` to `allow_net`,
+  and referencing a schema from `http://localhost/` will _fail_.
+- Metaschemas for different JSON Schema draft versions are not subject to this
+  constraint, as they are already provided by OPA's schema checker without requiring
+  network access. These are:
+
+  - `http://json-schema.org/draft-04/schema`
+  - `http://json-schema.org/draft-06/schema`
+  - `http://json-schema.org/draft-07/schema`
+
+
 ## Limitations
 
 Currently this feature admits schemas written in JSON Schema but does not support every feature available in this format.

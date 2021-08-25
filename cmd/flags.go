@@ -134,8 +134,12 @@ func addUnknownsFlag(fs *pflag.FlagSet, unknowns *[]string, value []string) {
 	fs.StringArrayVarP(unknowns, "unknowns", "u", value, "set paths to treat as unknown during partial evaluation")
 }
 
-func addSchemaFlag(fs *pflag.FlagSet, schemaPath *string) {
-	fs.StringVarP(schemaPath, "schema", "s", "", "set schema file path or directory path")
+type schemaFlags struct {
+	path string
+}
+
+func addSchemaFlags(fs *pflag.FlagSet, schema *schemaFlags) {
+	fs.StringVarP(&schema.path, "schema", "s", "", "set schema file path or directory path")
 }
 
 func addTargetFlag(fs *pflag.FlagSet, target *util.EnumFlag) {

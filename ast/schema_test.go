@@ -3,6 +3,10 @@ package ast
 import (
 	"errors"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/open-policy-agent/opa/types"
@@ -17,7 +21,7 @@ func testParseSchema(t *testing.T, schema string, expectedType types.Type, expec
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	newtype, err := loadSchema(sch)
+	newtype, err := loadSchema(sch, nil)
 	if err != nil && errors.Is(err, expectedError) {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -49,29 +53,76 @@ func TestParseSchemaObject(t *testing.T) {
 
 func TestSetTypesWithSchemaRef(t *testing.T) {
 	var sch interface{}
-	err := util.Unmarshal([]byte(refSchema), &sch)
+
+	ts := kubeSchemaServer(t)
+	t.Cleanup(ts.Close)
+	refSchemaReplaced := strings.ReplaceAll(refSchema, "https://kubernetesjsonschema.dev/v1.14.0/", ts.URL+"/")
+	err := util.Unmarshal([]byte(refSchemaReplaced), &sch)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	newtype, err := loadSchema(sch)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-	if newtype == nil {
-		t.Fatalf("parseSchema returned nil type")
-	}
-	if newtype.String() != "object<apiVersion: string, kind: string, metadata: object<annotations: object[any: any], clusterName: string, creationTimestamp: string, deletionGracePeriodSeconds: number, deletionTimestamp: string, finalizers: array[string], generateName: string, generation: number, initializers: object<pending: array[object<name: string>], result: object<apiVersion: string, code: number, details: object<causes: array[object<field: string, message: string, reason: string>], group: string, kind: string, name: string, retryAfterSeconds: number, uid: string>, kind: string, message: string, metadata: object<continue: string, resourceVersion: string, selfLink: string>, reason: string, status: string>>, labels: object[any: any], managedFields: array[object<apiVersion: string, fields: object[any: any], manager: string, operation: string, time: string>], name: string, namespace: string, ownerReferences: array[object<apiVersion: string, blockOwnerDeletion: boolean, controller: boolean, kind: string, name: string, uid: string>], resourceVersion: string, selfLink: string, uid: string>>" {
-		t.Fatalf("parseSchema returned an incorrect type: %s", newtype.String())
-	}
+
+	t.Run("remote refs disabled", func(t *testing.T) {
+		_, err := loadSchema(sch, []string{})
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		expErr := fmt.Sprintf("unable to compile the schema: remote reference loading disabled: %s/_definitions.json", ts.URL)
+		if exp, act := expErr, err.Error(); act != exp {
+			t.Errorf("expected message %q, got %q", exp, act)
+		}
+	})
+
+	t.Run("all remote refs enabled", func(t *testing.T) {
+		newtype, err := loadSchema(sch, nil)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if newtype == nil {
+			t.Fatalf("parseSchema returned nil type")
+		}
+		if newtype.String() != "object<apiVersion: string, kind: string, metadata: object<annotations: object[any: any], clusterName: string, creationTimestamp: string, deletionGracePeriodSeconds: number, deletionTimestamp: string, finalizers: array[string], generateName: string, generation: number, initializers: object<pending: array[object<name: string>], result: object<apiVersion: string, code: number, details: object<causes: array[object<field: string, message: string, reason: string>], group: string, kind: string, name: string, retryAfterSeconds: number, uid: string>, kind: string, message: string, metadata: object<continue: string, resourceVersion: string, selfLink: string>, reason: string, status: string>>, labels: object[any: any], managedFields: array[object<apiVersion: string, fields: object[any: any], manager: string, operation: string, time: string>], name: string, namespace: string, ownerReferences: array[object<apiVersion: string, blockOwnerDeletion: boolean, controller: boolean, kind: string, name: string, uid: string>], resourceVersion: string, selfLink: string, uid: string>>" {
+			t.Fatalf("parseSchema returned an incorrect type: %s", newtype.String())
+		}
+	})
+
+	t.Run("desired remote ref selectively enabled", func(t *testing.T) {
+		newtype, err := loadSchema(sch, []string{"127.0.0.1"})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if newtype == nil {
+			t.Fatalf("parseSchema returned nil type")
+		}
+		if newtype.String() != "object<apiVersion: string, kind: string, metadata: object<annotations: object[any: any], clusterName: string, creationTimestamp: string, deletionGracePeriodSeconds: number, deletionTimestamp: string, finalizers: array[string], generateName: string, generation: number, initializers: object<pending: array[object<name: string>], result: object<apiVersion: string, code: number, details: object<causes: array[object<field: string, message: string, reason: string>], group: string, kind: string, name: string, retryAfterSeconds: number, uid: string>, kind: string, message: string, metadata: object<continue: string, resourceVersion: string, selfLink: string>, reason: string, status: string>>, labels: object[any: any], managedFields: array[object<apiVersion: string, fields: object[any: any], manager: string, operation: string, time: string>], name: string, namespace: string, ownerReferences: array[object<apiVersion: string, blockOwnerDeletion: boolean, controller: boolean, kind: string, name: string, uid: string>], resourceVersion: string, selfLink: string, uid: string>>" {
+			t.Fatalf("parseSchema returned an incorrect type: %s", newtype.String())
+		}
+	})
+
+	t.Run("different remote ref selectively enabled", func(t *testing.T) {
+		_, err := loadSchema(sch, []string{"foo"})
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		expErr := fmt.Sprintf("unable to compile the schema: remote reference loading disabled: %s/_definitions.json", ts.URL)
+		if exp, act := expErr, err.Error(); act != exp {
+			t.Errorf("expected message %q, got %q", exp, act)
+		}
+	})
 }
 
 func TestSetTypesWithPodSchema(t *testing.T) {
 	var sch interface{}
-	err := util.Unmarshal([]byte(podSchema), &sch)
+
+	ts := kubeSchemaServer(t)
+	t.Cleanup(ts.Close)
+
+	podSchemaReplaced := strings.ReplaceAll(podSchema, "https://kubernetesjsonschema.dev/v1.14.0/", ts.URL+"/")
+	err := util.Unmarshal([]byte(podSchemaReplaced), &sch)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	newtype, err := loadSchema(sch)
+	newtype, err := loadSchema(sch, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -389,7 +440,7 @@ func TestCompileSchemaEmptySchema(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	jsonSchema, _ := compileSchema(sch)
+	jsonSchema, _ := compileSchema(sch, []string{})
 	if jsonSchema != nil {
 		t.Fatalf("Incorrect return from parseSchema with an empty schema")
 	}
@@ -401,7 +452,7 @@ func TestParseSchemaWithSchemaBadSchema(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	jsonSchema, err := compileSchema(sch)
+	jsonSchema, err := compileSchema(sch, []string{})
 	if err != nil {
 		t.Fatalf("Unable to compile schema: %v", err)
 	}
@@ -507,4 +558,19 @@ func TestAnyOfSchema(t *testing.T) {
 			testParseSchema(t, tc.schema, tc.expected, nil)
 		})
 	}
+}
+
+func kubeSchemaServer(t *testing.T) *httptest.Server {
+	t.Helper()
+	bs, err := ioutil.ReadFile("testdata/_definitions.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, err := w.Write(bs)
+		if err != nil {
+			panic(err)
+		}
+	}))
+	return ts
 }
