@@ -84,24 +84,19 @@ func newVM(opts vmOpts) (*VM, error) {
 		return nil, err
 	}
 
+	linker := wasmtime.NewLinker(store.Engine)
 	v.dispatcher = newBuiltinDispatcher()
 	externs := opaFunctions(v.dispatcher, store)
-	imports := []wasmtime.AsExtern{}
-	for _, imp := range module.Type().Imports() {
-		if imp.Type().MemoryType() != nil {
-			imports = append(imports, memory)
-		}
-		if imp.Type().FuncType() == nil {
-			continue
-		}
-		if ext, ok := externs[*imp.Name()]; ok {
-			imports = append(imports, ext)
-		} else {
-			return nil, fmt.Errorf("cannot provide import %s", *imp.Name())
+	for name, extern := range externs {
+		if err := linker.Define("env", name, extern); err != nil {
+			return nil, fmt.Errorf("linker: env.%s: %w", name, err)
 		}
 	}
+	if err := linker.Define("env", "memory", memory); err != nil {
+		return nil, fmt.Errorf("linker: env.memory: %w", err)
+	}
 
-	i, err := wasmtime.NewInstance(store, module, imports)
+	i, err := linker.Instantiate(store, module)
 	if err != nil {
 		return nil, err
 	}
