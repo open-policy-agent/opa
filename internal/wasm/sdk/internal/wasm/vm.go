@@ -26,6 +26,7 @@ import (
 // VM is a wrapper around a Wasm VM instance
 type VM struct {
 	dispatcher           *builtinDispatcher
+	engine               *wasmtime.Engine
 	store                *wasmtime.Store
 	instance             *wasmtime.Instance // Pointer to avoid unintented destruction (triggering finalizers within).
 	intHandle            *wasmtime.InterruptHandle
@@ -67,12 +68,10 @@ type vmOpts struct {
 	memoryMax      uint32
 }
 
-func newVM(opts vmOpts) (*VM, error) {
+func newVM(opts vmOpts, engine *wasmtime.Engine) (*VM, error) {
 	ctx := context.Background()
-	v := &VM{}
-	cfg := wasmtime.NewConfig()
-	cfg.SetInterruptable(true)
-	store := wasmtime.NewStore(wasmtime.NewEngineWithConfig(cfg))
+	v := &VM{engine: engine}
+	store := wasmtime.NewStore(engine)
 	memorytype := wasmtime.NewMemoryType(wasmtime.Limits{Min: opts.memoryMin, Max: opts.memoryMax})
 	memory, err := wasmtime.NewMemory(store, memorytype)
 	if err != nil {
@@ -84,24 +83,19 @@ func newVM(opts vmOpts) (*VM, error) {
 		return nil, err
 	}
 
+	linker := wasmtime.NewLinker(store.Engine)
 	v.dispatcher = newBuiltinDispatcher()
 	externs := opaFunctions(v.dispatcher, store)
-	imports := []wasmtime.AsExtern{}
-	for _, imp := range module.Type().Imports() {
-		if imp.Type().MemoryType() != nil {
-			imports = append(imports, memory)
-		}
-		if imp.Type().FuncType() == nil {
-			continue
-		}
-		if ext, ok := externs[*imp.Name()]; ok {
-			imports = append(imports, ext)
-		} else {
-			return nil, fmt.Errorf("cannot provide import %s", *imp.Name())
+	for name, extern := range externs {
+		if err := linker.Define("env", name, extern); err != nil {
+			return nil, fmt.Errorf("linker: env.%s: %w", name, err)
 		}
 	}
+	if err := linker.Define("env", "memory", memory); err != nil {
+		return nil, fmt.Errorf("linker: env.memory: %w", err)
+	}
 
-	i, err := wasmtime.NewInstance(store, module, imports)
+	i, err := linker.Instantiate(store, module)
 	if err != nil {
 		return nil, err
 	}
@@ -430,7 +424,7 @@ func (i *VM) SetPolicyData(ctx context.Context, opts vmOpts) error {
 
 	if !bytes.Equal(opts.policy, i.policy) {
 		// Swap the instance to a new one, with new policy.
-		n, err := newVM(opts)
+		n, err := newVM(opts, i.engine)
 		if err != nil {
 			return err
 		}
