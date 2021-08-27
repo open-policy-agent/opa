@@ -6,6 +6,7 @@
 package discovery
 
 import (
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -16,6 +17,10 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/open-policy-agent/opa/storage"
+
+	"github.com/open-policy-agent/opa/rego"
 
 	"github.com/open-policy-agent/opa/logging/test"
 
@@ -1152,7 +1157,8 @@ bundle:
   service: s2
 `
 	manager := getTestManager(t, conf)
-	_, err := getPluginSet(nil, manager, manager.Config, nil)
+	trigger := plugins.TriggerManual
+	_, err := getPluginSet(nil, manager, manager.Config, nil, &trigger)
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
@@ -1188,7 +1194,8 @@ bundles:
     service: s1
 `
 	manager := getTestManager(t, conf)
-	_, err := getPluginSet(nil, manager, manager.Config, nil)
+	trigger := plugins.TriggerManual
+	_, err := getPluginSet(nil, manager, manager.Config, nil, &trigger)
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
@@ -1205,6 +1212,205 @@ bundles:
 
 	if bp.Config().Bundles["bundle-new"].Service != "s1" {
 		t.Fatalf("Expected the bundle to be configured as bundles[0], got: %+v", bp.Config().Bundles)
+	}
+}
+
+func TestGetPluginSetWithBadManualTriggerBundlesConfig(t *testing.T) {
+	confGood := `
+services:
+  s1:
+    url: http://test1.com
+
+bundles:
+  bundle-new:
+    service: s1
+`
+
+	confBad := `
+services:
+  s1:
+    url: http://test1.com
+
+bundles:
+  bundle-new:
+    service: s1
+    trigger: periodic
+`
+
+	tests := map[string]struct {
+		conf    string
+		wantErr bool
+		err     error
+	}{
+		"no_trigger_mode_mismatch": {
+			confGood, false, nil,
+		},
+		"trigger_mode_mismatch": {
+			confBad, true, fmt.Errorf("invalid configuration for bundle \"bundle-new\": discovery has trigger mode manual, bundle has periodic"),
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+
+			manager := getTestManager(t, tc.conf)
+			trigger := plugins.TriggerManual
+			_, err := getPluginSet(nil, manager, manager.Config, nil, &trigger)
+
+			if tc.wantErr {
+				if err == nil {
+					t.Fatal("Expected error but got nil")
+				}
+
+				if tc.err != nil && tc.err.Error() != err.Error() {
+					t.Fatalf("Expected error message %v but got %v", tc.err.Error(), err.Error())
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("Unexpected error %v", err)
+				}
+			}
+		})
+	}
+}
+
+func TestGetPluginSetWithBadManualTriggerDecisionLogConfig(t *testing.T) {
+
+	confGood := `
+services:
+  s1:
+    url: http://test1.com
+
+bundles:
+  bundle-new:
+    service: s1
+    trigger: manual
+decision_logs:
+  service: s1
+`
+
+	confBad := `
+services:
+  s1:
+    url: http://test1.com
+
+bundles:
+  bundle-new:
+    service: s1
+    trigger: manual
+decision_logs:
+  service: s1
+  reporting:
+    trigger: periodic
+`
+
+	tests := map[string]struct {
+		conf    string
+		wantErr bool
+		err     error
+	}{
+		"no_trigger_mode_mismatch": {
+			confGood, false, nil,
+		},
+		"trigger_mode_mismatch": {
+			confBad, true, fmt.Errorf("invalid decision_log config, discovery has trigger mode manual, decision_log has periodic"),
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+
+			manager := getTestManager(t, tc.conf)
+			trigger := plugins.TriggerManual
+			_, err := getPluginSet(nil, manager, manager.Config, nil, &trigger)
+
+			if tc.wantErr {
+				if err == nil {
+					t.Fatal("Expected error but got nil")
+				}
+
+				if tc.err != nil && tc.err.Error() != err.Error() {
+					t.Fatalf("Expected error message %v but got %v", tc.err.Error(), err.Error())
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("Unexpected error %v", err)
+				}
+			}
+		})
+	}
+}
+
+func TestGetPluginSetWithBadManualTriggerStatusConfig(t *testing.T) {
+	confGood := `
+services:
+  s1:
+    url: http://test1.com
+
+bundles:
+  bundle-new:
+    service: s1
+    trigger: manual
+decision_logs:
+  service: s1
+  reporting:
+    trigger: manual
+status:
+  service: s1
+`
+
+	confBad := `
+services:
+  s1:
+    url: http://test1.com
+
+bundles:
+  bundle-new:
+    service: s1
+    trigger: manual
+decision_logs:
+  service: s1
+  reporting:
+    trigger: manual
+status:
+  service: s1
+  trigger: periodic
+`
+
+	tests := map[string]struct {
+		conf    string
+		wantErr bool
+		err     error
+	}{
+		"no_trigger_mode_mismatch": {
+			confGood, false, nil,
+		},
+		"trigger_mode_mismatch": {
+			confBad, true, fmt.Errorf("invalid status config, discovery has trigger mode manual, status has periodic"),
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+
+			manager := getTestManager(t, tc.conf)
+			trigger := plugins.TriggerManual
+			_, err := getPluginSet(nil, manager, manager.Config, nil, &trigger)
+
+			if tc.wantErr {
+				if err == nil {
+					t.Fatal("Expected error but got nil")
+				}
+
+				if tc.err != nil && tc.err.Error() != err.Error() {
+					t.Fatalf("Expected error message %v but got %v", tc.err.Error(), err.Error())
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("Unexpected error %v", err)
+				}
+			}
+		})
 	}
 }
 
@@ -1275,4 +1481,534 @@ func TestInterQueryBuiltinCacheConfigUpdate(t *testing.T) {
 	if config2 == nil || *config2.InterQueryBuiltinCache.MaxSizeBytes != int64(200) {
 		t.Fatalf("Expected cache max size bytes to be 200 after discovery reconfigure, got: %v", config2.InterQueryBuiltinCache.MaxSizeBytes)
 	}
+}
+
+func TestPluginManualTriggerLifecycle(t *testing.T) {
+	ctx := context.Background()
+	m := metrics.New()
+
+	fixture := newTestFixture(t)
+	defer fixture.stop()
+
+	// run query
+	result, err := fixture.runQuery(ctx, "data.foo.bar", m)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if result != nil {
+		t.Fatalf("Expected nil result but got %v", result)
+	}
+
+	// log result (there should not be a decision log plugin on the manager yet)
+	err = fixture.log(ctx, "data.foo.bar", m, &result)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// start the discovery plugin
+	if err := fixture.plugin.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	// trigger the discovery plugin
+	fixture.server.discoConfig = `
+		{
+			"config": {
+				"bundles": {
+					"authz": {
+						"service": "example",
+						"trigger": "manual"
+					}
+				},
+				"status": {"service": "example", "trigger": "manual"},
+				"decision_logs": {"service": "example", "reporting": {"trigger": "manual"}}
+			}
+		}`
+
+	fixture.server.dicsoBundleRev = 1
+
+	trigger := make(chan struct{})
+	fixture.discoTrigger <- trigger
+	<-trigger
+
+	// check if the discovery, bundle, decision log and status plugin are configured
+	expectedNum := 4
+	if len(fixture.manager.Plugins()) != expectedNum {
+		t.Fatalf("Expected %v configured plugins but got %v", expectedNum, len(fixture.manager.Plugins()))
+	}
+
+	// run query (since the bundle plugin is not triggered yet, there should not be any activated bundles)
+	result, err = fixture.runQuery(ctx, "data.foo.bar", m)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if result != nil {
+		t.Fatalf("Expected nil result but got %v", result)
+	}
+
+	// log result
+	err = fixture.log(ctx, "data.foo.bar", m, &result)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// trigger the bundle plugin
+	fixture.server.bundleData = map[string]interface{}{
+		"foo": map[string]interface{}{
+			"bar": "hello",
+		},
+	}
+	fixture.server.bundleRevision = "abc"
+
+	trigger = make(chan struct{})
+	fixture.bundleTrigger <- trigger
+	<-trigger
+
+	// ensure the bundle was activated
+	txn := storage.NewTransactionOrDie(ctx, fixture.manager.Store)
+	names, err := bundleApi.ReadBundleNamesFromStore(ctx, fixture.manager.Store, txn)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expectedNum = 1
+	if len(names) != expectedNum {
+		t.Fatalf("Expected %d bundles in store, found %d", expectedNum, len(names))
+	}
+
+	// stop the "read" transaction
+	fixture.manager.Store.Abort(ctx, txn)
+
+	// run query
+	result, err = fixture.runQuery(ctx, "data.foo.bar", m)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected := "hello"
+	if result != expected {
+		t.Fatalf("Expected result %v but got %v", expected, result)
+	}
+
+	// log result
+	err = fixture.log(ctx, "data.foo.bar", m, &result)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// trigger the decision log plugin
+	trigger = make(chan struct{})
+	fixture.decisionLogTrigger <- trigger
+	<-trigger
+
+	expectedNum = 2
+	if len(fixture.server.logEvent) != expectedNum {
+		t.Fatalf("Expected %d decision log events, found %d", expectedNum, len(fixture.server.logEvent))
+	}
+
+	// verify the result in the last log
+	if *fixture.server.logEvent[1].Result != expected {
+		t.Fatalf("Expected result %v but got %v", expected, result)
+	}
+
+	// trigger the status plugin
+	trigger = make(chan struct{})
+	fixture.statusTrigger <- trigger
+	<-trigger
+
+	expectedNum = 1
+	if len(fixture.server.statusEvent) != expectedNum {
+		t.Fatalf("Expected %d status updates, found %d", expectedNum, len(fixture.server.statusEvent))
+	}
+
+	// update the service bundle and trigger the bundle plugin again
+	fixture.testServiceBundleUpdateScenario(ctx, m)
+
+	// reconfigure the service bundle config to go from manual to periodic polling. This should result in an error
+	// when the discovery plugin tries to reconfigure the bundle
+	fixture.server.discoConfig = `
+		{
+			"config": {
+				"bundles": {
+					"authz": {
+						"service": "example",
+						"trigger": "periodic"
+					}
+				}
+			}
+		}`
+	fixture.server.dicsoBundleRev = 2
+
+	trigger = make(chan struct{})
+	fixture.discoTrigger <- trigger
+	<-trigger
+
+	// trigger the status plugin
+	trigger = make(chan struct{})
+	fixture.statusTrigger <- trigger
+	<-trigger
+
+	expectedNum = 3
+	if len(fixture.server.statusEvent) != expectedNum {
+		t.Fatalf("Expected %d status updates, found %d", expectedNum, len(fixture.server.statusEvent))
+	}
+
+	// check for error in the last update corresponding to the bad service bundle config
+	disco, _ := fixture.server.statusEvent[2].(map[string]interface{})
+	errMsg := disco["discovery"].(map[string]interface{})["message"]
+
+	expErrMsg := "invalid configuration for bundle \"authz\": discovery has trigger mode manual, bundle has periodic"
+	if errMsg != expErrMsg {
+		t.Fatalf("Expected error %v but got %v", expErrMsg, errMsg)
+	}
+
+	// reconfigure plugins via discovery and then trigger discovery
+	fixture.testDiscoReconfigurationScenario(ctx, m)
+}
+
+type testFixture struct {
+	manager            *plugins.Manager
+	plugin             *Discovery
+	discoTrigger       chan chan struct{}
+	bundleTrigger      chan chan struct{}
+	decisionLogTrigger chan chan struct{}
+	statusTrigger      chan chan struct{}
+	stopCh             chan chan struct{}
+	server             *testFixtureServer
+}
+
+func newTestFixture(t *testing.T) *testFixture {
+	ts := testFixtureServer{
+		t:           t,
+		statusEvent: []interface{}{},
+		logEvent:    []logs.EventV1{},
+	}
+
+	ts.start()
+
+	managerConfig := []byte(fmt.Sprintf(`{
+			"labels": {
+				"app": "example-app"
+			},
+            "discovery": {"name": "disco", "trigger": "manual", decision: config},
+			"services": [
+				{
+					"name": "example",
+					"url": %q
+				}
+			]}`, ts.server.URL))
+
+	manager, err := plugins.New(managerConfig, "test-id", inmem.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	disco, err := New(manager)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	manager.Register(Name, disco)
+
+	tf := testFixture{
+		manager:            manager,
+		plugin:             disco,
+		server:             &ts,
+		discoTrigger:       make(chan chan struct{}),
+		bundleTrigger:      make(chan chan struct{}),
+		decisionLogTrigger: make(chan chan struct{}),
+		statusTrigger:      make(chan chan struct{}),
+		stopCh:             make(chan chan struct{}),
+	}
+
+	go tf.loop(context.Background())
+
+	return &tf
+}
+
+func (t *testFixture) loop(ctx context.Context) {
+
+	for {
+		select {
+		case stop := <-t.stopCh:
+			close(stop)
+			return
+		case done := <-t.discoTrigger:
+			if p, ok := t.manager.Plugin(Name).(plugins.Triggerable); ok {
+				_ = p.Trigger(ctx)
+			}
+			close(done)
+
+		case done := <-t.bundleTrigger:
+			if p, ok := t.manager.Plugin(bundle.Name).(plugins.Triggerable); ok {
+				_ = p.Trigger(ctx)
+			}
+			close(done)
+
+		case done := <-t.decisionLogTrigger:
+			if p, ok := t.manager.Plugin(logs.Name).(plugins.Triggerable); ok {
+				_ = p.Trigger(ctx)
+			}
+			close(done)
+		case done := <-t.statusTrigger:
+			if p, ok := t.manager.Plugin(status.Name).(plugins.Triggerable); ok {
+				_ = p.Trigger(ctx)
+			}
+			close(done)
+		}
+	}
+}
+
+func (t *testFixture) runQuery(ctx context.Context, query string, m metrics.Metrics) (interface{}, error) {
+	r := rego.New(
+		rego.Query(query),
+		rego.Store(t.manager.Store),
+		rego.Metrics(m),
+	)
+
+	//Run evaluation.
+	rs, err := r.Eval(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(rs) == 0 {
+		return nil, nil
+	}
+
+	return rs[0].Expressions[0].Value, nil
+}
+
+func (t *testFixture) log(ctx context.Context, query string, m metrics.Metrics, result *interface{}) error {
+
+	record := server.Info{
+		Timestamp: time.Now(),
+		Path:      query,
+		Metrics:   m,
+		Results:   result,
+	}
+
+	if logger := logs.Lookup(t.manager); logger != nil {
+		if err := logger.Log(ctx, &record); err != nil {
+			return fmt.Errorf("decision log: %w", err)
+		}
+	}
+	return nil
+}
+
+func (t *testFixture) testServiceBundleUpdateScenario(ctx context.Context, m metrics.Metrics) {
+	t.server.bundleData = map[string]interface{}{
+		"foo": map[string]interface{}{
+			"bar": "world",
+		},
+	}
+	t.server.bundleRevision = "def"
+
+	trigger := make(chan struct{})
+	t.bundleTrigger <- trigger
+	<-trigger
+
+	// run query
+	result, err := t.runQuery(ctx, "data.foo.bar", m)
+	if err != nil {
+		t.server.t.Fatal(err)
+	}
+
+	expected := "world"
+	if result != expected {
+		t.server.t.Fatalf("Expected result %v but got %v", expected, result)
+	}
+
+	// log result
+	err = t.log(ctx, "data.foo.bar", m, &result)
+	if err != nil {
+		t.server.t.Fatal(err)
+	}
+
+	// trigger the decision log plugin
+	trigger = make(chan struct{})
+	t.decisionLogTrigger <- trigger
+	<-trigger
+
+	expectedNum := 3
+	if len(t.server.logEvent) != expectedNum {
+		t.server.t.Fatalf("Expected %d decision log events, found %d", expectedNum, len(t.server.logEvent))
+	}
+
+	// verify the result in the last log
+	if *t.server.logEvent[2].Result != expected {
+		t.server.t.Fatalf("Expected result %v but got %v", expected, result)
+	}
+
+	// trigger the status plugin (there should be a pending update corresponding to the last service bundle activation)
+	trigger = make(chan struct{})
+	t.statusTrigger <- trigger
+	<-trigger
+
+	expectedNum = 2
+	if len(t.server.statusEvent) != expectedNum {
+		t.server.t.Fatalf("Expected %d status updates, found %d", expectedNum, len(t.server.statusEvent))
+	}
+
+	// verify the updated bundle revision in the last status update
+	bundles, _ := t.server.statusEvent[1].(map[string]interface{})
+	actual := bundles["bundles"].(map[string]interface{})["authz"].(map[string]interface{})["active_revision"]
+
+	if actual != t.server.bundleRevision {
+		t.server.t.Fatalf("Expected revision %v but got %v", t.server.bundleRevision, actual)
+	}
+}
+
+func (t *testFixture) testDiscoReconfigurationScenario(ctx context.Context, m metrics.Metrics) {
+	t.server.discoConfig = `
+		{
+			"config": {
+				"bundles": {
+					"authz": {
+						"service": "example",
+                        "resource": "newbundles/authz",
+						"trigger": "manual"
+					}
+				},
+				"status": {"service": "example", "trigger": "manual", "partition_name": "new"},
+				"decision_logs": {"service": "example", "resource": "newlogs", "reporting": {"trigger": "manual"}}
+			}
+		}`
+
+	t.server.dicsoBundleRev = 3
+
+	trigger := make(chan struct{})
+	t.discoTrigger <- trigger
+	<-trigger
+
+	// trigger the bundle plugin
+	t.server.bundleData = map[string]interface{}{
+		"bux": map[string]interface{}{
+			"qux": "hello again!",
+		},
+	}
+	t.server.bundleRevision = "ghi"
+
+	trigger = make(chan struct{})
+	t.bundleTrigger <- trigger
+	<-trigger
+
+	// run query
+	result, err := t.runQuery(ctx, "data.bux.qux", m)
+	if err != nil {
+		t.server.t.Fatal(err)
+	}
+
+	expected := "hello again!"
+	if result != expected {
+		t.server.t.Fatalf("Expected result %v but got %v", expected, result)
+	}
+
+	// trigger the status plugin (there should be pending updates corresponding to the last discovery and service bundle activation)
+	trigger = make(chan struct{})
+	t.statusTrigger <- trigger
+	<-trigger
+
+	expectedNum := 4
+	if len(t.server.statusEvent) != expectedNum {
+		t.server.t.Fatalf("Expected %d status updates, found %d", expectedNum, len(t.server.statusEvent))
+	}
+
+	// verify the updated discovery and service bundle revisions in the last status update
+	bundles, _ := t.server.statusEvent[3].(map[string]interface{})
+	actual := bundles["bundles"].(map[string]interface{})["authz"].(map[string]interface{})["active_revision"]
+
+	if actual != t.server.bundleRevision {
+		t.server.t.Fatalf("Expected revision %v but got %v", t.server.bundleRevision, actual)
+	}
+
+	disco, _ := t.server.statusEvent[3].(map[string]interface{})
+	actual = disco["discovery"].(map[string]interface{})["active_revision"]
+
+	expectedRev := fmt.Sprintf("test-revision-%v", t.server.dicsoBundleRev)
+	if actual != expectedRev {
+		t.server.t.Fatalf("Expected discovery bundle revision %v but got %v", expectedRev, actual)
+	}
+}
+
+func (t *testFixture) stop() {
+	done := make(chan struct{})
+	t.stopCh <- done
+	<-done
+
+	t.server.stop()
+}
+
+type testFixtureServer struct {
+	t              *testing.T
+	server         *httptest.Server
+	discoConfig    string
+	dicsoBundleRev int
+	bundleData     map[string]interface{}
+	bundleRevision string
+	statusEvent    []interface{}
+	logEvent       []logs.EventV1
+}
+
+func (t *testFixtureServer) handle(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path == "/bundles/disco" {
+		// prepare a discovery bundle with some configured plugins
+
+		b := makeDataBundle(t.dicsoBundleRev, t.discoConfig)
+
+		err := bundleApi.NewWriter(w).Write(*b)
+		if err != nil {
+			t.t.Fatal(err)
+		}
+	} else if r.URL.Path == "/bundles/authz" || r.URL.Path == "/newbundles/authz" {
+		// prepare a regular bundle
+
+		b := bundleApi.Bundle{
+			Data:     t.bundleData,
+			Manifest: bundleApi.Manifest{Revision: t.bundleRevision},
+		}
+
+		err := bundleApi.NewWriter(w).Write(b)
+		if err != nil {
+			t.t.Fatal(err)
+		}
+	} else if r.URL.Path == "/status" || r.URL.Path == "/status/new" {
+
+		var event interface{}
+
+		if err := util.NewJSONDecoder(r.Body).Decode(&event); err != nil {
+			t.t.Fatal(err)
+		}
+
+		t.statusEvent = append(t.statusEvent, event)
+
+	} else if r.URL.Path == "/logs" || r.URL.Path == "/newlogs" {
+		gr, err := gzip.NewReader(r.Body)
+		if err != nil {
+			t.t.Fatal(err)
+		}
+		var events []logs.EventV1
+		if err := json.NewDecoder(gr).Decode(&events); err != nil {
+			t.t.Fatal(err)
+		}
+		if err := gr.Close(); err != nil {
+			t.t.Fatal(err)
+		}
+
+		t.logEvent = append(t.logEvent, events...)
+
+	} else {
+		t.t.Fatalf("unknown path %v", r.URL.Path)
+	}
+
+}
+
+func (t *testFixtureServer) start() {
+	t.server = httptest.NewServer(http.HandlerFunc(t.handle))
+}
+
+func (t *testFixtureServer) stop() {
+	t.server.Close()
 }

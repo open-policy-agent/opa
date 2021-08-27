@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -71,6 +72,221 @@ func TestPluginStart(t *testing.T) {
 
 	if !reflect.DeepEqual(result, exp) {
 		t.Fatalf("Expected: %v but got: %v", exp, result)
+	}
+}
+
+func TestPluginStartTriggerManual(t *testing.T) {
+
+	fixture := newTestFixture(t, nil)
+	fixture.server.ch = make(chan UpdateRequestV1)
+	defer fixture.server.stop()
+
+	ctx := context.Background()
+	tr := plugins.TriggerManual
+	fixture.plugin.config.Trigger = &tr
+
+	// Start will trigger a status update when the plugin state switches
+	// from "not ready" to "ok". This status update will be sent only after a manual trigger
+	err := fixture.plugin.Start(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer fixture.plugin.Stop(ctx)
+
+	// trigger the status update
+	go func() {
+		_ = fixture.plugin.Trigger(ctx)
+	}()
+
+	result := <-fixture.server.ch
+
+	exp := UpdateRequestV1{
+		Labels: map[string]string{
+			"id":      "test-instance-id",
+			"app":     "example-app",
+			"version": version.Version,
+		},
+		Plugins: map[string]*plugins.Status{
+			"status": {State: plugins.StateOK},
+		},
+	}
+
+	if !reflect.DeepEqual(result, exp) {
+		t.Fatalf("Expected: %v but got: %v", exp, result)
+	}
+
+	status := testStatus()
+
+	fixture.plugin.BulkUpdateBundleStatus(map[string]*bundle.Status{"test": status})
+
+	// trigger the status update
+	go func() {
+		_ = fixture.plugin.Trigger(ctx)
+	}()
+
+	result = <-fixture.server.ch
+
+	exp.Bundles = map[string]*bundle.Status{"test": status}
+
+	if !reflect.DeepEqual(result, exp) {
+		t.Fatalf("Expected: %v but got: %v", exp, result)
+	}
+}
+
+func TestPluginStartTriggerManualMultiple(t *testing.T) {
+
+	fixture := newTestFixture(t, nil)
+	fixture.server.ch = make(chan UpdateRequestV1)
+	defer fixture.server.stop()
+
+	ctx := context.Background()
+	tr := plugins.TriggerManual
+	fixture.plugin.config.Trigger = &tr
+
+	err := fixture.plugin.Start(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer fixture.plugin.Stop(ctx)
+
+	status := testStatus()
+	fixture.plugin.BulkUpdateBundleStatus(map[string]*bundle.Status{"test": status})
+	fixture.plugin.UpdateDiscoveryStatus(*status)
+
+	exp := UpdateRequestV1{
+		Labels: map[string]string{
+			"id":      "test-instance-id",
+			"app":     "example-app",
+			"version": version.Version,
+		},
+		Plugins: map[string]*plugins.Status{
+			"status": {State: plugins.StateOK},
+		},
+	}
+
+	// trigger the status update
+	go func() {
+		_ = fixture.plugin.Trigger(ctx)
+	}()
+
+	result := <-fixture.server.ch
+
+	exp.Bundles = map[string]*bundle.Status{"test": status}
+	exp.Discovery = status
+
+	if !reflect.DeepEqual(result, exp) {
+		t.Fatalf("Expected: %v but got: %v", exp, result)
+	}
+}
+
+func TestPluginStartTriggerManualWithTimeout(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(3 * time.Second) // this should cause the context deadline to exceed
+	}))
+
+	managerConfig := []byte(fmt.Sprintf(`{
+			"labels": {
+				"app": "example-app"
+			},
+			"services": [
+				{
+					"name": "example",
+					"url": %q
+				}
+			]}`, s.URL))
+
+	manager, err := plugins.New(managerConfig, "test-instance-id", inmem.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	pluginConfig := []byte(`{
+			"service": "example",
+		}`)
+
+	config, _ := ParseConfig(pluginConfig, manager.Services(), nil)
+	tr := plugins.TriggerManual
+	config.Trigger = &tr
+
+	p := New(config, manager)
+
+	// Start will trigger a status update when the plugin state switches
+	// from "not ready" to "ok". This status update will be sent only after a manual trigger
+	err = p.Start(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer p.Stop(ctx)
+
+	// trigger the status update
+	done := make(chan struct{})
+	go func() {
+		// this call should block till the context deadline exceeds
+		_ = p.Trigger(ctx)
+		close(done)
+	}()
+	<-done
+
+	if ctx.Err() == nil {
+		t.Fatal("Expected error but got nil")
+	}
+
+	exp := "context deadline exceeded"
+	if ctx.Err().Error() != exp {
+		t.Fatalf("Expected error %v but got %v", exp, ctx.Err().Error())
+	}
+}
+
+func TestPluginStartTriggerManualWithError(t *testing.T) {
+	ctx := context.Background()
+
+	managerConfig := []byte(`{
+			"labels": {
+				"app": "example-app"
+			},
+			"services": [
+				{
+					"name": "example",
+					"url": "http://localhost:12345"
+				}
+			]}`)
+
+	manager, err := plugins.New(managerConfig, "test-instance-id", inmem.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	pluginConfig := []byte(`{
+			"service": "example",
+		}`)
+
+	config, _ := ParseConfig(pluginConfig, manager.Services(), nil)
+	tr := plugins.TriggerManual
+	config.Trigger = &tr
+
+	p := New(config, manager)
+
+	// Start will trigger a status update when the plugin state switches
+	// from "not ready" to "ok". This status update will be sent only after a manual trigger
+	err = p.Start(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer p.Stop(ctx)
+
+	// trigger the status update
+	// this call should result in an error from the bad service config
+	err = p.Trigger(ctx)
+	if err == nil {
+		t.Fatal("Expected error but got nil")
+	}
+
+	exp := "connection refused"
+	if !strings.Contains(err.Error(), exp) {
+		t.Fatalf("Unexpected error message %v", err.Error())
 	}
 }
 
@@ -351,6 +567,66 @@ func TestParseConfigDefaultServiceWithNoServiceOrConsole(t *testing.T) {
 
 	if err == nil {
 		t.Error("Expected an error but err==nil")
+	}
+}
+
+func TestParseConfigTriggerMode(t *testing.T) {
+	cases := []struct {
+		note     string
+		config   []byte
+		expected plugins.TriggerMode
+		wantErr  bool
+		err      error
+	}{
+		{
+			note:     "default trigger mode",
+			config:   []byte(`{}`),
+			expected: plugins.DefaultTriggerMode,
+		},
+		{
+			note:     "manual trigger mode",
+			config:   []byte(`{"trigger": "manual"}`),
+			expected: plugins.TriggerManual,
+		},
+		{
+			note:     "trigger mode mismatch",
+			config:   []byte(`{"trigger": "manual"}`),
+			expected: plugins.TriggerPeriodic,
+			wantErr:  true,
+			err:      fmt.Errorf("invalid status config, discovery has trigger mode periodic, status has manual"),
+		},
+		{
+			note:     "bad trigger mode",
+			config:   []byte(`{"trigger": "foo"}`),
+			expected: "foo",
+			wantErr:  true,
+			err:      fmt.Errorf("invalid trigger mode \"foo\" (want \"periodic\" or \"manual\")"),
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+
+			c, err := NewConfigBuilder().WithBytes(tc.config).WithServices([]string{"s0"}).WithTriggerMode(&tc.expected).Parse()
+
+			if tc.wantErr {
+				if err == nil {
+					t.Fatal("Expected error but got nil")
+				}
+
+				if tc.err != nil && tc.err.Error() != err.Error() {
+					t.Fatalf("Expected error message %v but got %v", tc.err.Error(), err.Error())
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("Unexpected error %v", err)
+				}
+
+				if *c.Trigger != tc.expected {
+					t.Fatalf("Expected trigger mode %v but got %v", tc.expected, *c.Trigger)
+				}
+			}
+		})
 	}
 }
 
