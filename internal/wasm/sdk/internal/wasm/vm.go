@@ -26,6 +26,7 @@ import (
 // VM is a wrapper around a Wasm VM instance
 type VM struct {
 	dispatcher           *builtinDispatcher
+	engine               *wasmtime.Engine
 	store                *wasmtime.Store
 	instance             *wasmtime.Instance // Pointer to avoid unintented destruction (triggering finalizers within).
 	intHandle            *wasmtime.InterruptHandle
@@ -67,12 +68,10 @@ type vmOpts struct {
 	memoryMax      uint32
 }
 
-func newVM(opts vmOpts) (*VM, error) {
+func newVM(opts vmOpts, engine *wasmtime.Engine) (*VM, error) {
 	ctx := context.Background()
-	v := &VM{}
-	cfg := wasmtime.NewConfig()
-	cfg.SetInterruptable(true)
-	store := wasmtime.NewStore(wasmtime.NewEngineWithConfig(cfg))
+	v := &VM{engine: engine}
+	store := wasmtime.NewStore(engine)
 	memorytype := wasmtime.NewMemoryType(wasmtime.Limits{Min: opts.memoryMin, Max: opts.memoryMax})
 	memory, err := wasmtime.NewMemory(store, memorytype)
 	if err != nil {
@@ -425,7 +424,7 @@ func (i *VM) SetPolicyData(ctx context.Context, opts vmOpts) error {
 
 	if !bytes.Equal(opts.policy, i.policy) {
 		// Swap the instance to a new one, with new policy.
-		n, err := newVM(opts)
+		n, err := newVM(opts, i.engine)
 		if err != nil {
 			return err
 		}
