@@ -3,7 +3,77 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.32.0
+
+This release includes a number of improvements and fixes.
+
+### 💾 Disk-based Storage (Experimental)
+
+This release adds a disk-based storage implementation to OPA. The implementation can be found in [github.com/open-policy-agent/storage/disk](https://pkg.go.dev/github.com/open-policy-agent/opa/storage/disk). There is also an example in the [`rego` package](https://pkg.go.dev/github.com/open-policy-agent/opa/rego#pkg-examples) that shows how policies can be evaluated with the disk-based store. The disk-based store is currently only available as a library (i.e., it is not integrated into the rest of OPA yet.) In the next few releases, we are planning to integrate the implementation into the OPA server and provide tooling to help leverage the disk-based store.
+
+### Built-in Functions
+
+This release includes a few improvements to existing built-in functions:
+
+- The `http.send` function now supports UNIX domain sockets ([#3661](https://github.com/open-policy-agent/opa/issues/3661)) authored by @[kirk-patton](https://github.com/kirk-patton)
+- The `units.parse_bytes` function now supports E* and P* units ([#2911](https://github.com/open-policy-agent/opa/issues/2911))
+- The `io.jwt.encode_sign` function uses the built-in context randomization source (which is helpful for replay purposes)
+
+### Server
+
+This release includes multiple improvements for OPA server deployments in serverless environments:
+
+- Plugins can now be triggered manually within OPA. This feature allows users extending and customizing OPA to control exactly when operations like bundle downloads and decision log uploads occur. The built-in plugins now include a `trigger` configuration that can be set to `manual` or `periodic` (which is the default). When `manual` triggering is enabled, the plugins WILL NOT perform any periodic/background operations. Instead, the plugins will only execute when the [`Trigger`](https://github.com/open-policy-agent/opa/blob/main/plugins/plugins.go#L101) API is invoked.
+- Plugins can now wait for server initialization. When runtime initialization is finished, plugins can be notified. This allows plugins to synchronize their behaviour with server startup. [#3701](https://github.com/open-policy-agent/opa/issues/3701) authored by @[gshively11](https://github.com/gshively11).
+- The [Health API](https://www.openpolicyagent.org/docs/latest/rest-api/#health-api) now supports an `exclude-plugin` parameter to control which plugins are checked. [#3713](https://github.com/open-policy-agent/opa/issues/3713) authored by @[gshively11](https://github.com/gshively11).
+
+### Tooling
+
+- The compiler no longer fetches remote schemas by default when used as as library. Capabilities have been updated to include an `allow_net` field to control whether network operations can be performed ([#3746](https://github.com/open-policy-agent/opa/issues/3746)). This field is only used to control schema fetching today. In future versions of OPA, the `allow_net` parameter will be used to control other behaviour like `http.send`.
+- The `WebAssembly runtime not supported` error message has been improved [#3739](https://github.com/open-policy-agent/opa/pull/3739).
+
+### Rego
+
+- Added support for `anyOf` and `allOf` keywords in JSON schema support in the type checker ([#3592](https://github.com/open-policy-agent/opa/issues/3592)) authored by [@jchen10500](https://github.com/jchen10500) and [@juliafriedman8](https://github.com/juliafriedman8).
+- Added support for custom JSON result marshalling in the `rego` package.
+- Added a new convenience function (`Allowed() bool`) to the `rego.ResultSet` API.
+- Improved string-representation construction performance for arrays, sets, and objects.
+- Improved the topdown evaluator to support `ast.Value` results from the store so that unnecessary conversions can be avoided.
+- Improved the `rego` package to make the wasmtime-go dependency optional at build-time ([#3545](https://github.com/open-policy-agent/opa/issues/3545)).
+- Fixed a bug in the comprehension indexer whereby index keys were not constructed correctly leading to incorrect outputs ([#3579](https://github.com/open-policy-agent/opa/issues/3579)).
+- Fixed a stack overflow during partial evaluation due to incorrect term rewriting in the copy propagation implementation ([#3071](https://github.com/open-policy-agent/opa/issues/3071)).
+- Fixed a bug in partial evaluation when shallow inlinign is enabled that resulted in built-in functions being invoked instead of saved ([#3681](https://github.com/open-policy-agent/opa/issues/3681)).
+
+### WebAssembly
+
+- The internal Wasm SDK now supports the inter-query built-in cache.
+- The pre-compiled runtime is now built with llvm 12.0.1 and the builder image includes clang-format.
+- The internal Wasm SDK has been updated to use wasmtime-go v0.29.0.
+
+### Documentation
+
+This release includes a number of documentation improvements:
+
+- The wasm `opa_eval` arguments have been clarified [#3699](https://github.com/open-policy-agent/opa/issues/3696)
+- The contributing and development guide have been moved into a dedicated [Contributing](https://www.openpolicyagent.org/docs/latest/contributing/) section on the website [#3751](https://github.com/open-policy-agent/opa/issues/3751)
+- The Envoy standalone tutorial includes cleanup steps now (thanks [@princespaghetti](https://github.com/princespaghetti))
+- Various typos have been fixed by multiple folks (thanks [@Tej-Singh-Rana](https://github.com/Tej-Singh-Rana) [@gujun4990](https://github.com/gujun4990))
+- The Kubernetes ingress validation tutorial has been updated to include new mandatory attributes and newer API versions (thanks [@ereslibre](https://github.com/ereslibre))
+- The recommendations around using OPA Gatekeeper have been improved.
+
+### Infrastructure
+
+- OPA is now built with Go v1.17 and CI jobs have been added to ensure OPA builds with older versions of Go.
+
+### Backwards Compatibility
+
+The `rego` package no longer relies on build constraints to enable the Wasm runtime. Instead, library users must opt-in to Wasm runtime support by adding an import statement in the Go code:
+
+```go
+import _ "github.com/open-policy-agent/opa/features/wasm"
+```
+
+This change ensures that (by default) the wasmtime-go blobs are not vendored in projects that embed OPA as a library. If you are currently relying on the Wasm runtime support in the `rego` package (via the `rego.Target("wasm")` option), please update you code to include the import above. See [#3545](https://github.com/open-policy-agent/opa/issues/3545) for more details.
 
 ## 0.31.0
 
@@ -125,7 +195,7 @@ For example, a policy like
 ```rego
 package demo
 
-q { 
+q {
 	input == "open sesame"
 }
 
@@ -152,7 +222,7 @@ See [#3580](https://github.com/open-policy-agent/opa/issues/3580) for details.
 - New built-in function: `rand.intn` generates a random number between `0` and `n` ([#3615](https://github.com/open-policy-agent/opa/issues/3615)), authored by @[base698](https://github.com/base698)
 
   The function takes a string argument to ensure that the same call, within one policy evaluation, returns the same random number.
-- `http.send` enhancement: New `caching_mode` parameter to configure if deserialized or serialized response bodies should be cached ([#3599](https://github.com/open-policy-agent/opa/issues/3599)) 
+- `http.send` enhancement: New `caching_mode` parameter to configure if deserialized or serialized response bodies should be cached ([#3599](https://github.com/open-policy-agent/opa/issues/3599))
 - Custom built-in function enhancement: let custom builtins halt evaluation ([#3534](https://github.com/open-policy-agent/opa/issues/3534))
 - Partial evaluation: Fix stack overflow on certain expressions ([#3559](https://github.com/open-policy-agent/opa/issues/3559))
 
