@@ -6,6 +6,7 @@
 package bundle
 
 import (
+	"encoding/pem"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -106,6 +107,12 @@ func (s *SigningConfig) WithPlugin(plugin string) *SigningConfig {
 
 // GetPrivateKey returns the private key or secret from the signing config
 func (s *SigningConfig) GetPrivateKey() (interface{}, error) {
+
+	block, _ := pem.Decode([]byte(s.Key))
+	if block != nil {
+		return sign.GetSigningKey(s.Key, jwa.SignatureAlgorithm(s.Algorithm))
+	}
+
 	var priv string
 	if _, err := os.Stat(s.Key); err == nil {
 		bs, err := ioutil.ReadFile(s.Key)
@@ -118,6 +125,7 @@ func (s *SigningConfig) GetPrivateKey() (interface{}, error) {
 	} else {
 		return nil, err
 	}
+
 	return sign.GetSigningKey(priv, jwa.SignatureAlgorithm(s.Algorithm))
 }
 
