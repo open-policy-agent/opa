@@ -24,13 +24,13 @@ type Descriptor struct {
 	closeOnce *sync.Once
 }
 
-// LazyFile defers reading the file until the first call of Read
+// lazyFile defers reading the file until the first call of Read
 type lazyFile struct {
 	path string
 	file *os.File
 }
 
-// NewLazyFile creates a new instance of LazyFile
+// newLazyFile creates a new instance of lazyFile
 func newLazyFile(path string) *lazyFile {
 	return &lazyFile{path: path}
 }
