@@ -25,20 +25,20 @@ type Descriptor struct {
 }
 
 // LazyFile defers reading the file until the first call of Read
-type LazyFile struct {
+type lazyFile struct {
 	path string
 	file *os.File
 }
 
 // NewLazyFile creates a new instance of LazyFile
-func NewLazyFile(path string) *LazyFile {
-	return &LazyFile{path: path}
+func newLazyFile(path string) *lazyFile {
+	return &lazyFile{path: path}
 }
 
 // Read implements io.Reader. It will check if the file has been opened
 // and open it if it has not before attempting to read using the file's
 // read method
-func (f *LazyFile) Read(b []byte) (int, error) {
+func (f *lazyFile) Read(b []byte) (int, error) {
 	var err error
 
 	if f.file == nil {
@@ -52,7 +52,7 @@ func (f *LazyFile) Read(b []byte) (int, error) {
 
 // Close closes the lazy file if it has been opened using the file's
 // close method
-func (f *LazyFile) Close() error {
+func (f *lazyFile) Close() error {
 	if f.file != nil {
 		return f.file.Close()
 	}
@@ -166,7 +166,7 @@ func (d *dirLoader) NextFile() (*Descriptor, error) {
 
 	fileName := d.files[d.idx]
 	d.idx++
-	fh := NewLazyFile(fileName)
+	fh := newLazyFile(fileName)
 
 	// Trim off the root directory and return path as if chrooted
 	cleanedPath := strings.TrimPrefix(fileName, d.root)
