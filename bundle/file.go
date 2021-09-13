@@ -24,6 +24,42 @@ type Descriptor struct {
 	closeOnce *sync.Once
 }
 
+// lazyFile defers reading the file until the first call of Read
+type lazyFile struct {
+	path string
+	file *os.File
+}
+
+// newLazyFile creates a new instance of lazyFile
+func newLazyFile(path string) *lazyFile {
+	return &lazyFile{path: path}
+}
+
+// Read implements io.Reader. It will check if the file has been opened
+// and open it if it has not before attempting to read using the file's
+// read method
+func (f *lazyFile) Read(b []byte) (int, error) {
+	var err error
+
+	if f.file == nil {
+		if f.file, err = os.Open(f.path); err != nil {
+			return 0, errors.Wrapf(err, "failed to open file %s", f.path)
+		}
+	}
+
+	return f.file.Read(b)
+}
+
+// Close closes the lazy file if it has been opened using the file's
+// close method
+func (f *lazyFile) Close() error {
+	if f.file != nil {
+		return f.file.Close()
+	}
+
+	return nil
+}
+
 func newDescriptor(url, path string, reader io.Reader) *Descriptor {
 	return &Descriptor{
 		url:    url,
@@ -130,10 +166,7 @@ func (d *dirLoader) NextFile() (*Descriptor, error) {
 
 	fileName := d.files[d.idx]
 	d.idx++
-	fh, err := os.Open(fileName)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to open file %s", fileName)
-	}
+	fh := newLazyFile(fileName)
 
 	// Trim off the root directory and return path as if chrooted
 	cleanedPath := strings.TrimPrefix(fileName, d.root)
