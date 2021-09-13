@@ -19,6 +19,7 @@ import (
 	"strings"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/internal/jwx/jwk"
 	"github.com/open-policy-agent/opa/topdown/builtins"
 	"github.com/open-policy-agent/opa/util"
 )
@@ -30,6 +31,12 @@ const (
 	// blockTypeCertificateRequest indicates this PEM block contains a certificate
 	// request. Exported for tests.
 	blockTypeCertificateRequest = "CERTIFICATE REQUEST"
+	// blockTypeRSAPrivateKey indicates this PEM block contains a RSA private key.
+	// Exported for tests.
+	blockTypeRSAPrivateKey = "RSA PRIVATE KEY"
+	// blockTypeRSAPrivateKey indicates this PEM block contains a RSA private key.
+	// Exported for tests.
+	blockTypePrivateKey = "PRIVATE KEY"
 )
 
 func builtinCryptoX509ParseCertificates(a ast.Value) (ast.Value, error) {
@@ -126,6 +133,43 @@ func builtinCryptoX509ParseCertificateRequest(a ast.Value) (ast.Value, error) {
 	return ast.InterfaceToValue(x)
 }
 
+func builtinCryptoX509ParseRSAPrivateKey(_ BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
+
+	a := args[0].Value
+	input, err := builtins.StringOperand(a, 1)
+	if err != nil {
+		return err
+	}
+
+	// get the raw private key
+	rawKey, err := getRSAPrivateKeyFromString(string(input))
+	if err != nil {
+		return err
+	}
+
+	rsaPrivateKey, err := jwk.New(rawKey)
+	if err != nil {
+		return err
+	}
+
+	jsonKey, err := json.Marshal(rsaPrivateKey)
+	if err != nil {
+		return err
+	}
+
+	var x interface{}
+	if err := util.UnmarshalJSON(jsonKey, &x); err != nil {
+		return err
+	}
+
+	value, err := ast.InterfaceToValue(x)
+	if err != nil {
+		return err
+	}
+
+	return iter(ast.NewTerm(value))
+}
+
 func hashHelper(a ast.Value, h func(ast.String) string) (ast.Value, error) {
 	s, err := builtins.StringOperand(a, 1)
 	if err != nil {
@@ -153,6 +197,7 @@ func init() {
 	RegisterFunctionalBuiltin1(ast.CryptoSha1.Name, builtinCryptoSha1)
 	RegisterFunctionalBuiltin1(ast.CryptoSha256.Name, builtinCryptoSha256)
 	RegisterFunctionalBuiltin1(ast.CryptoX509ParseCertificateRequest.Name, builtinCryptoX509ParseCertificateRequest)
+	RegisterBuiltinFunc(ast.CryptoX509ParseRSAPrivateKey.Name, builtinCryptoX509ParseRSAPrivateKey)
 }
 
 func verifyX509CertificateChain(certs []*x509.Certificate) ([]*x509.Certificate, error) {
@@ -224,6 +269,45 @@ func getX509CertsFromPem(pemBlocks []byte) ([]*x509.Certificate, error) {
 	}
 
 	return x509.ParseCertificates(decodedCerts)
+}
+
+func getRSAPrivateKeyFromString(key string) (interface{}, error) {
+	// if the input is PEM handle that
+	if strings.HasPrefix(key, "-----BEGIN") {
+		return getRSAPrivateKeyFromPEM([]byte(key))
+	}
+
+	// assume input is base64 if not PEM
+	b64, err := base64.StdEncoding.DecodeString(key)
+	if err != nil {
+		return nil, err
+	}
+
+	return getRSAPrivateKeyFromPEM(b64)
+}
+
+func getRSAPrivateKeyFromPEM(pemBlocks []byte) (interface{}, error) {
+
+	// decode the pem into the Block struct
+	p, _ := pem.Decode(pemBlocks)
+	if p == nil {
+		return nil, fmt.Errorf("failed to parse PEM block containing the key")
+	}
+
+	// if the key is in PKCS1 format
+	if p.Type == blockTypeRSAPrivateKey {
+		return x509.ParsePKCS1PrivateKey(p.Bytes)
+	}
+
+	// if the key is in PKCS8 format
+	if p.Type == blockTypePrivateKey {
+		return x509.ParsePKCS8PrivateKey(p.Bytes)
+	}
+
+	// unsupported key format
+	return nil, fmt.Errorf("PEM block type is '%s', expected %s or %s", p.Type, blockTypeRSAPrivateKey,
+		blockTypePrivateKey)
+
 }
 
 // addCACertsFromFile adds CA certificates from filePath into the given pool.
