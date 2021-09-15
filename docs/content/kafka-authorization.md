@@ -291,7 +291,7 @@ First, run `kafka-console-producer` to generate some data on the
 
 
 ```bash
-docker run --rm --network opakafkatutorial_default \
+docker run --rm --network opa-kafka-tutorial_default \
     openpolicyagent/demo-kafka:1.0 \
     bash -c 'for i in {1..10}; do echo "{\"user\": \"bob\", \"score\": $i}"; done | kafka-console-producer --topic credit-scores --broker-list kafka:9093 -producer.config /etc/kafka/secrets/anon_producer.ssl.config'
 ```
@@ -304,7 +304,7 @@ the `pii_consumer` credentials to simulate a service that is allowed to read
 PII data.
 
 ```bash
-docker run --rm --network opakafkatutorial_default \
+docker run --rm --network opa-kafka-tutorial_default \
     openpolicyagent/demo-kafka:1.0 \
     kafka-console-consumer --bootstrap-server kafka:9093 --topic credit-scores --from-beginning --consumer.config /etc/kafka/secrets/pii_consumer.ssl.config
 ```
@@ -318,7 +318,7 @@ Finally, run `kafka-console-consumer` again but this time try to use the
 service that has **not** been explicitly granted access to PII data.
 
 ```bash
-docker run --rm --network opakafkatutorial_default \
+docker run --rm --network opa-kafka-tutorial_default \
     openpolicyagent/demo-kafka:1.0 \
     kafka-console-consumer --bootstrap-server kafka:9093 --topic credit-scores --from-beginning --consumer.config /etc/kafka/secrets/anon_consumer.ssl.config
 ```
@@ -378,7 +378,7 @@ First, run `kafka-console-producer` and simulate a service with access to the
 `click-stream` topic.
 
 ```bash
-docker run --rm --network opakafkatutorial_default \
+docker run --rm --network opa-kafka-tutorial_default \
     openpolicyagent/demo-kafka:1.0 \
     bash -c 'for i in {1..10}; do echo "{\"user\": \"alice\", \"button\": $i}"; done | kafka-console-producer --topic click-stream --broker-list kafka:9093 -producer.config /etc/kafka/secrets/fanout_producer.ssl.config'
 ```
@@ -386,7 +386,7 @@ docker run --rm --network opakafkatutorial_default \
 Next, run the `kafka-console-consumer` to confirm that the messages were published.
 
 ```bash
-docker run --rm --network opakafkatutorial_default \
+docker run --rm --network opa-kafka-tutorial_default \
     openpolicyagent/demo-kafka:1.0 \
     kafka-console-consumer --bootstrap-server kafka:9093 --topic click-stream --from-beginning --consumer.config /etc/kafka/secrets/anon_consumer.ssl.config
 ```
@@ -397,7 +397,7 @@ Lastly, run `kafka-console-producer` to simulate a service that should **not**
 have access to _high fanout_ topics.
 
 ```bash
-docker run --rm --network opakafkatutorial_default \
+docker run --rm --network opa-kafka-tutorial_default \
     openpolicyagent/demo-kafka:1.0 \
     bash -c 'echo "{\"user\": \"alice\", \"button\": \"bogus\"}" | kafka-console-producer --topic click-stream --broker-list kafka:9093 -producer.config /etc/kafka/secrets/anon_producer.ssl.config'
 ```
