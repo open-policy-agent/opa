@@ -5,16 +5,61 @@ on: [pull_request]
 jobs:
   # All jobs essentially re-create the `ci-release-test` make target, but are split
   # up for parallel runners for faster PR feedback and a nicer UX.
-
-  go-build-linux:
-    name: Go Build (linux)
+  generate:
+    name: Generate Code
     runs-on: ubuntu-18.04
     steps:
       - name: Check out code
         uses: actions/checkout@v2
 
-      - name: Build Linux
-        run: make ci-go-ci-build-linux ci-go-ci-build-linux-static
+      - name: Generate
+        run: make clean generate
+
+      - name: Upload generated artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: generated
+          path: |
+            internal/compiler/wasm/opa
+            capabilities.json
+
+  go-build:
+    name: Go Build (${{ matrix.os }})
+    runs-on: ${{ matrix.run }}
+    needs: generate
+    strategy:
+      matrix:
+        include:
+          - os: linux
+            run: ubuntu-18.04
+            targets: ci-go-ci-build-linux ci-go-ci-build-linux-static
+          - os: windows
+            run: ubuntu-18.04
+            targets: ci-go-ci-build-windows
+          - os: darwin
+            run: macos-latest
+            targets: ci-build-darwin
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - id: go_version
+        name: Read go version
+        run: echo "::set-output name=go_version::$(cat .go-version)"
+
+      - name: Install Go (${{ steps.go_version.outputs.go_version }})
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ steps.go_version.outputs.go_version }}
+        if: matrix.os == 'darwin'
+
+      - name: Download generated artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: generated
+
+      - name: Build
+        run: make ${{ matrix.targets }}
         timeout-minutes: 30
 
       - name: Upload binaries
@@ -24,27 +69,17 @@ jobs:
           name: binaries
           path: _release
 
-  go-build-windows:
-    name: Go Build (windows)
-    runs-on: ubuntu-18.04
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v2
-
-      - name: Build Windows
-        run: make ci-go-ci-build-windows
-        timeout-minutes: 30
-
-      - name: Upload binaries
-        uses: actions/upload-artifact@v2
-        if: always()
-        with:
-          name: binaries
-          path: _release
-
-  go-build-darwin:
-    name: Go Build (darwin)
-    runs-on: macos-latest
+  go-test:
+    name: Go Test (${{ matrix.os }})
+    runs-on: ${{ matrix.run }}
+    needs: generate
+    strategy:
+      matrix:
+        include:
+          - os: linux
+            run: ubuntu-18.04
+          - os: darwin
+            run: macos-latest
     steps:
       - name: Check out code
         uses: actions/checkout@v2
@@ -58,26 +93,13 @@ jobs:
         with:
           go-version: ${{ steps.go_version.outputs.go_version }}
 
-      - name: Build Darwin
-        run: make ci-build-darwin
-        timeout-minutes: 30
-
-      - name: Upload binaries (darwin)
-        uses: actions/upload-artifact@v2
-        if: always()
+      - name: Download generated artifacts
+        uses: actions/download-artifact@v2
         with:
-          name: binaries
-          path: _release
-
-  go-test:
-    name: Go Test
-    runs-on: ubuntu-18.04
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v2
+          name: generated
 
       - name: Unit Test Golang
-        run: make ci-go-test-coverage
+        run: make test-coverage
         timeout-minutes: 30
 
   go-perf:
@@ -159,7 +181,7 @@ jobs:
   smoke-test-docker-images:
     name: docker image smoke test
     runs-on: ubuntu-latest
-    needs: [go-build-linux, go-build-darwin, go-build-windows]
+    needs: go-build
     steps:
       - name: Check out code
         uses: actions/checkout@v2
@@ -175,7 +197,7 @@ jobs:
 
   smoke-test-binaries:
     runs-on: ${{ matrix.os }}
-    needs: [go-build-linux, go-build-darwin, go-build-windows]
+    needs: go-build
     strategy:
       matrix:
         include:
@@ -209,7 +231,7 @@ jobs:
   nodejs-wasm-example:
     name: npm-opa-wasm
     runs-on: ubuntu-latest
-    needs: [go-build-linux, go-build-darwin, go-build-windows]
+    needs: go-build
     steps:
       - name: Download release binaries
         uses: actions/download-artifact@v2
