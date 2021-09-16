@@ -5,6 +5,7 @@
 package ast
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -481,6 +482,22 @@ wildcard = true { bar[_] = 1 }`
 
 	if !roundtrip.Equal(mod) {
 		t.Fatalf("Expected roundtripped to equal original but:\n\nExpected:\n\n%v\n\nDoes not equal result:\n\n%v", mod, roundtrip)
+	}
+}
+
+func TestModuleCopy(t *testing.T) {
+
+	input := `package foo
+
+	# comment
+	p := 7`
+
+	mod := MustParseModule(input)
+	cpy := mod.Copy()
+	cpy.Comments[0].Text[0] = 'X'
+
+	if !bytes.Equal(mod.Comments[0].Text, []byte(" comment")) {
+		t.Fatal("expected comment text to be unchanged")
 	}
 }
 

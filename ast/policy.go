@@ -411,6 +411,11 @@ func (mod *Module) Copy() *Module {
 		cpy.Annotations[i] = mod.Annotations[i].Copy(nodes[mod.Annotations[i].node])
 	}
 
+	cpy.Comments = make([]*Comment, len(mod.Comments))
+	for i := range mod.Comments {
+		cpy.Comments[i] = mod.Comments[i].Copy()
+	}
+
 	return &cpy
 }
 
