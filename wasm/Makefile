@@ -68,7 +68,8 @@ push-builder:
 
 .PHONY: build
 build:
-	@$(DOCKER) run $(DOCKER_FLAGS) -v $(CURDIR):/src $(WASM_BUILDER_IMAGE) make $(WASM_OBJ_DIR)/opa.wasm $(WASM_OBJ_DIR)/callgraph.csv
+	@$(DOCKER) run $(DOCKER_FLAGS) -v $(CURDIR):/src $(WASM_BUILDER_IMAGE) \
+	  make --no-builtin-rules $(WASM_OBJ_DIR)/opa.wasm $(WASM_OBJ_DIR)/callgraph.csv
 
 .PHONY: test
 test:
@@ -167,3 +168,7 @@ $(WASM_OBJ_DIR)/callgraph.csv: $(WASM_OBJ_DIR)/opa.wasm
 	# because we're not actually optimizing the wasm, but only extract
 	# information.
 	build/gen-wasm-callgraph.sh $< > $@
+
+# These are for canceling the implicit rules of GNU Make, see
+# https://www.gnu.org/software/make/manual/html_node/Canceling-Rules.html#Canceling-Rules
+src/libc++/mutex: src/libc++/mutex.cc
