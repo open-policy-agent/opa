@@ -2,6 +2,7 @@ package jwk
 
 import (
 	"crypto/rsa"
+	"encoding/binary"
 	"math/big"
 
 	"github.com/pkg/errors"
@@ -29,9 +30,37 @@ func newRSAPrivateKey(key *rsa.PrivateKey) (*RSAPrivateKey, error) {
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to set Key Type")
 	}
+
+	var algoParams jwa.AlgorithmParameters
+
+	// it is needed to use raw encoding to omit the "=" paddings at the end
+	algoParams.D = key.D.Bytes()
+	algoParams.P = key.Primes[0].Bytes()
+	algoParams.Q = key.Primes[1].Bytes()
+	algoParams.Dp = key.Precomputed.Dp.Bytes()
+	algoParams.Dq = key.Precomputed.Dq.Bytes()
+	algoParams.Qi = key.Precomputed.Qinv.Bytes()
+
+	// "modulus" (N) from the public key in the private key
+	algoParams.N = key.PublicKey.N.Bytes()
+
+	// make the E a.k.a "coprime"
+	// https://en.wikipedia.org/wiki/RSA_(cryptosystem)
+	coprime := make([]byte, 8)
+	binary.BigEndian.PutUint64(coprime, uint64(key.PublicKey.E))
+	// find the 1st index of non 0x0 paddings from the beginning
+	i := 0
+	for ; i < len(coprime); i++ {
+		if coprime[i] != 0x0 {
+			break
+		}
+	}
+	algoParams.E = coprime[i:]
+
 	return &RSAPrivateKey{
-		StandardHeaders: &hdr,
-		key:             key,
+		StandardHeaders:     &hdr,
+		AlgorithmParameters: &algoParams,
+		key:                 key,
 	}, nil
 }
 
@@ -99,5 +128,6 @@ func (k *RSAPrivateKey) GenerateKey(keyJSON *RawKeyJSON) error {
 
 	k.key = privateKey
 	k.StandardHeaders = &keyJSON.StandardHeaders
+	k.AlgorithmParameters = &keyJSON.AlgorithmParameters
 	return nil
 }
