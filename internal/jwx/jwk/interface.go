@@ -48,6 +48,7 @@ type RSAPublicKey struct {
 // RSAPrivateKey is a type of JWK generated from RSA private keys
 type RSAPrivateKey struct {
 	*StandardHeaders
+	*jwa.AlgorithmParameters
 	key *rsa.PrivateKey
 }
 

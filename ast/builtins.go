@@ -195,6 +195,7 @@ var DefaultBuiltins = [...]*Builtin{
 	CryptoSha1,
 	CryptoSha256,
 	CryptoX509ParseCertificateRequest,
+	CryptoX509ParseRSAPrivateKey,
 
 	// Graphs
 	WalkBuiltin,
@@ -1791,6 +1792,16 @@ var CryptoX509ParseAndVerifyCertificates = &Builtin{
 // request from the given PEM-encoded PKCS#10 certificate signing request.
 var CryptoX509ParseCertificateRequest = &Builtin{
 	Name: "crypto.x509.parse_certificate_request",
+	Decl: types.NewFunction(
+		types.Args(types.S),
+		types.NewObject(nil, types.NewDynamicProperty(types.S, types.A)),
+	),
+}
+
+// CryptoX509ParseRSAPrivateKey returns a JWK for signing a JWT from the given
+// PEM-encoded RSA private key.
+var CryptoX509ParseRSAPrivateKey = &Builtin{
+	Name: "crypto.x509.parse_rsa_private_key",
 	Decl: types.NewFunction(
 		types.Args(types.S),
 		types.NewObject(nil, types.NewDynamicProperty(types.S, types.A)),
