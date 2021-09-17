@@ -2,7 +2,9 @@ version: 2
 updates:
   - package-ecosystem: gomod
     directory: /
-    allow:
-      - dependency-name: github.com/bytecodealliance/wasmtime-go
+    schedule:
+      interval: daily
+  - package-ecosystem: github-actions
+    directory: /
     schedule:
       interval: daily
