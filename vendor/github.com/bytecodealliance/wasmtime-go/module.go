@@ -1,6 +1,7 @@
 package wasmtime
 
 // #include "shims.h"
+// #include <stdlib.h>
 import "C"
 import (
 	"io/ioutil"
@@ -165,6 +166,22 @@ func NewModuleDeserialize(engine *Engine, encoded []byte) (*Module, error) {
 	)
 	runtime.KeepAlive(engine)
 	runtime.KeepAlive(encoded)
+
+	if err != nil {
+		return nil, mkError(err)
+	}
+
+	return mkModule(ptr), nil
+}
+
+// NewModuleDeserializeFile is the same as `NewModuleDeserialize` except that
+// the bytes are read from a file instead of provided as an argument.
+func NewModuleDeserializeFile(engine *Engine, path string) (*Module, error) {
+	cs := C.CString(path)
+	var ptr *C.wasmtime_module_t
+	err := C.wasmtime_module_deserialize_file(engine.ptr(), cs, &ptr)
+	runtime.KeepAlive(engine)
+	C.free(unsafe.Pointer(cs))
 
 	if err != nil {
 		return nil, mkError(err)

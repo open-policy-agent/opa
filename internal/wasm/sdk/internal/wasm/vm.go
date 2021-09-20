@@ -72,7 +72,7 @@ func newVM(opts vmOpts, engine *wasmtime.Engine) (*VM, error) {
 	ctx := context.Background()
 	v := &VM{engine: engine}
 	store := wasmtime.NewStore(engine)
-	memorytype := wasmtime.NewMemoryType(wasmtime.Limits{Min: opts.memoryMin, Max: opts.memoryMax})
+	memorytype := wasmtime.NewMemoryType(opts.memoryMin, true, opts.memoryMax)
 	memory, err := wasmtime.NewMemory(store, memorytype)
 	if err != nil {
 		return nil, err
@@ -171,7 +171,7 @@ func newVM(opts vmOpts, engine *wasmtime.Engine) (*VM, error) {
 	if opts.parsedData != nil {
 		if uint32(memory.DataSize(store))-uint32(v.baseHeapPtr) < uint32(len(opts.parsedData)) {
 			delta := uint32(len(opts.parsedData)) - (uint32(memory.DataSize(store)) - uint32(v.baseHeapPtr))
-			_, err = memory.Grow(store, uint(Pages(delta)))
+			_, err = memory.Grow(store, uint64(Pages(delta)))
 			if err != nil {
 				return nil, err
 			}
@@ -443,7 +443,7 @@ func (i *VM) SetPolicyData(ctx context.Context, opts vmOpts) error {
 	if opts.parsedData != nil {
 		if uint32(i.memory.DataSize(i.store))-uint32(i.baseHeapPtr) < uint32(len(opts.parsedData)) {
 			delta := uint32(len(opts.parsedData)) - (uint32(i.memory.DataSize(i.store)) - uint32(i.baseHeapPtr))
-			_, err := i.memory.Grow(i.store, uint(Pages(delta)))
+			_, err := i.memory.Grow(i.store, uint64(Pages(delta)))
 			if err != nil {
 				return err
 			}
