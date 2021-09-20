@@ -30,7 +30,6 @@ go_library(
         "importtype.go",
         "instance.go",
         "instancetype.go",
-        "limits.go",
         "linker.go",
         "maybe_gc_no.go",
         "memory.go",
