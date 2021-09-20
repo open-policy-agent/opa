@@ -143,7 +143,7 @@ func goTrampolineNew(
 //
 // `float32` - a wasm `f32`
 //
-// `float64` - a wasm `f32`
+// `float64` - a wasm `f64`
 //
 // `*Caller` - information about the caller's instance
 //

@@ -106,6 +106,12 @@ func (cfg *Config) SetWasmMultiMemory(enabled bool) {
 	runtime.KeepAlive(cfg)
 }
 
+// SetWasmMemory64 configures whether the wasm memory64 proposal is enabled
+func (cfg *Config) SetWasmMemory64(enabled bool) {
+	C.wasmtime_config_wasm_memory64_set(cfg.ptr(), C.bool(enabled))
+	runtime.KeepAlive(cfg)
+}
+
 // SetStrategy configures what compilation strategy is used to compile wasm code
 func (cfg *Config) SetStrategy(strat Strategy) error {
 	err := C.wasmtime_config_strategy_set(cfg.ptr(), C.wasmtime_strategy_t(strat))

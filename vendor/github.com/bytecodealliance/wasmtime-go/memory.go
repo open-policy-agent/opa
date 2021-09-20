@@ -73,21 +73,21 @@ func (mem *Memory) DataSize(store Storelike) uintptr {
 }
 
 // Size returns the size, in wasm pages, of this memory
-func (mem *Memory) Size(store Storelike) uint32 {
-	ret := uint32(C.wasmtime_memory_size(store.Context(), &mem.val))
+func (mem *Memory) Size(store Storelike) uint64 {
+	ret := uint64(C.wasmtime_memory_size(store.Context(), &mem.val))
 	runtime.KeepAlive(store)
 	return ret
 }
 
 // Grow grows this memory by `delta` pages
-func (mem *Memory) Grow(store Storelike, delta uint) (uint32, error) {
-	prev := C.uint32_t(0)
-	err := C.wasmtime_memory_grow(store.Context(), &mem.val, C.wasm_memory_pages_t(delta), &prev)
+func (mem *Memory) Grow(store Storelike, delta uint64) (uint64, error) {
+	prev := C.uint64_t(0)
+	err := C.wasmtime_memory_grow(store.Context(), &mem.val, C.uint64_t(delta), &prev)
 	runtime.KeepAlive(store)
 	if err != nil {
 		return 0, mkError(err)
 	}
-	return uint32(prev), nil
+	return uint64(prev), nil
 }
 
 func (mem *Memory) AsExtern() C.wasmtime_extern_t {
