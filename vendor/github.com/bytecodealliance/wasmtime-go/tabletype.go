@@ -10,12 +10,22 @@ type TableType struct {
 	_owner interface{}
 }
 
-// NewTableType creates a new `TableType` with the `element` type provided as well as
-// `limits` on its size.
-func NewTableType(element *ValType, limits Limits) *TableType {
+// NewTableType creates a new `TableType` with the `element` type provided as
+// well as limits on its size.
+//
+// The `min` value is the minimum size, in elements, of this table. The
+// `has_max` boolean indicates whether a maximum size is present, and if so
+// `max` is used as the maximum size of the table, in elements.
+func NewTableType(element *ValType, min uint32, has_max bool, max uint32) *TableType {
 	valptr := C.wasm_valtype_new(C.wasm_valtype_kind(element.ptr()))
 	runtime.KeepAlive(element)
-	limitsFFI := limits.ffi()
+	if !has_max {
+		max = 0xffffffff
+	}
+	limitsFFI := C.wasm_limits_t{
+		min: C.uint32_t(min),
+		max: C.uint32_t(max),
+	}
 	ptr := C.wasm_tabletype_new(valptr, &limitsFFI)
 
 	return mkTableType(ptr, nil)
@@ -50,10 +60,27 @@ func (ty *TableType) Element() *ValType {
 	return mkValType(ptr, ty.owner())
 }
 
-// Limits returns limits on the size of this table type
-func (ty *TableType) Limits() Limits {
+// Minimum returns the minimum size, in elements, of this table.
+func (ty *TableType) Minimum() uint32 {
 	ptr := C.wasm_tabletype_limits(ty.ptr())
-	return mkLimits(ptr, ty.owner())
+	ret := uint32(ptr.min)
+	runtime.KeepAlive(ty)
+	return ret
+}
+
+// Maximum returns the maximum size, in elements, of this table.
+//
+// If no maximum size is listed then `(false, 0)` is returned, otherwise
+// `(true, N)` is returned where `N` is the maximum size.
+func (ty *TableType) Maximum() (bool, uint32) {
+	ptr := C.wasm_tabletype_limits(ty.ptr())
+	ret := uint32(ptr.max)
+	runtime.KeepAlive(ty)
+	if ret == 0xffffffff {
+		return false, 0
+	} else {
+		return true, ret
+	}
 }
 
 // AsExternType converts this type to an instance of `ExternType`
