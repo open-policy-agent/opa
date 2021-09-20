@@ -376,6 +376,7 @@ func NewAny(of ...Type) Any {
 	for i := range sl {
 		sl[i] = of[i]
 	}
+	sort.Sort(typeSlice(sl))
 	return sl
 }
 
@@ -411,7 +412,14 @@ func (t Any) Merge(other Type) Any {
 	if t.Contains(other) {
 		return t
 	}
-	return append(t, other)
+	cpy := make(Any, len(t)+1)
+	idx := sort.Search(len(t), func(i int) bool {
+		return Compare(t[i], other) >= 0
+	})
+	copy(cpy, t[:idx])
+	cpy[idx] = other
+	copy(cpy[idx+1:], t[idx:])
+	return cpy
 }
 
 // Union returns a new Any type that is the union of the two Any types.
@@ -431,6 +439,7 @@ func (t Any) Union(other Any) Any {
 			cpy = append(cpy, other[i])
 		}
 	}
+	sort.Sort(typeSlice(cpy))
 	return cpy
 }
 
@@ -625,8 +634,6 @@ func Compare(a, b Type) int {
 	case Any:
 		sl1 := typeSlice(a.(Any))
 		sl2 := typeSlice(b.(Any))
-		sort.Sort(sl1)
-		sort.Sort(sl2)
 		return typeSliceCompare(sl1, sl2)
 	case *Function:
 		fA := a.(*Function)

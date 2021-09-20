@@ -193,10 +193,7 @@ func TestOutputJSONErrorStructuredAstErr(t *testing.T) {
           {
             "of": [
               {
-                "of": {
-                  "type": "any"
-                },
-                "type": "set"
+                "type": "string"
               },
               {
                 "dynamic": {
@@ -216,7 +213,10 @@ func TestOutputJSONErrorStructuredAstErr(t *testing.T) {
                 "type": "object"
               },
               {
-                "type": "string"
+                "of": {
+                  "type": "any"
+                },
+                "type": "set"
               }
             ],
             "type": "any"
