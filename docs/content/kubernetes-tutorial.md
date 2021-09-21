@@ -25,13 +25,18 @@ For the purpose of the tutorial we will deploy two policies that ensure:
 
 ## Prerequisites
 
-This tutorial requires Kubernetes 1.13 or later. To run the tutorial locally ensure you start a cluster with Kubernetes version 1.13+, we recommend using [minikube](https://kubernetes.io/docs/getting-started-guides/minikube) or [KIND](https://kind.sigs.k8s.io/).
+This tutorial requires Kubernetes 1.20 or later. To run the tutorial locally ensure you start a cluster with Kubernetes
+version 1.20+, we recommend using [minikube](https://kubernetes.io/docs/getting-started-guides/minikube) or
+[KIND](https://kind.sigs.k8s.io/).
 
 ## Steps
 
-### 1. Start Kubernetes recommended Admisson Controllers enabled
+### 1. Enable recommended Kubernetes Admission Controllers
 
-To implement admission control rules that validate Kubernetes resources during create, update, and delete operations, you must enable the [ValidatingAdmissionWebhook](https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/#validatingadmissionwebhook) when the Kubernetes API server is started. The ValidatingAdmissionWebhook admission controller is included in the [recommended set of admission controllers to enable](https://kubernetes.io/docs/admin/admission-controllers/#is-there-a-recommended-set-of-admission-controllers-to-use)
+To implement admission control rules that validate Kubernetes resources during create, update, and delete operations,
+you must enable the [ValidatingAdmissionWebhook](https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/#validatingadmissionwebhook)
+when the Kubernetes API server is started. The ValidatingAdmissionWebhook admission controller is included in
+the [recommended set of admission controllers to enable](https://kubernetes.io/docs/admin/admission-controllers/#is-there-a-recommended-set-of-admission-controllers-to-use)
 
 Start minikube:
 
@@ -47,8 +52,6 @@ minikube addons enable ingress
 
 ### 2. Create a new Namespace to deploy OPA into
 
-When OPA is deployed on top of Kubernetes, policies are automatically loaded out of ConfigMaps in the `opa` namespace.
-
 ```bash
 kubectl create namespace opa
 ```
@@ -60,9 +63,10 @@ kubectl config set-context opa-tutorial --user minikube --cluster minikube --nam
 kubectl config use-context opa-tutorial
 ```
 
-### 3. Deploy OPA on top of Kubernetes
+### 3. Create TLS credentials for OPA
 
-Communication between Kubernetes and OPA must be secured using TLS. To configure TLS, use `openssl` to create a certificate authority (CA) and certificate/key pair for OPA:
+Communication between Kubernetes and OPA must be secured using TLS. To configure TLS, use `openssl` to create a
+certificate authority (CA) and certificate/key pair for OPA:
 
 ```bash
 openssl genrsa -out ca.key 2048
@@ -102,6 +106,151 @@ Create a Secret to store the TLS credentials for OPA:
 ```bash
 kubectl create secret tls opa-server --cert=server.crt --key=server.key --namespace opa
 ```
+
+### 4. Define OPA policy
+
+Let's define a couple of policies to test admission control. First create a new folder to store our policies:
+
+```bash
+mkdir policies && cd policies
+```
+
+#### Policy 1: Restrict Hostnames
+
+Create a policy that restricts the hostnames that an ingress can use. Only hostnames matching the specified regular
+expressions will be allowed.
+
+**ingress-whitelist.rego**:
+
+```live:ingress_whitelist:module:read_only
+package kubernetes.admission
+
+import data.kubernetes.namespaces
+
+operations = {"CREATE", "UPDATE"}
+
+deny[msg] {
+	input.request.kind.kind == "Ingress"
+	operations[input.request.operation]
+	host := input.request.object.spec.rules[_].host
+	not fqdn_matches_any(host, valid_ingress_hosts)
+	msg := sprintf("invalid ingress host %q", [host])
+}
+
+valid_ingress_hosts = {host |
+	whitelist := namespaces[input.request.namespace].metadata.annotations["ingress-whitelist"]
+	hosts := split(whitelist, ",")
+	host := hosts[_]
+}
+
+fqdn_matches_any(str, patterns) {
+	fqdn_matches(str, patterns[_])
+}
+
+fqdn_matches(str, pattern) {
+	pattern_parts := split(pattern, ".")
+	pattern_parts[0] == "*"
+	str_parts := split(str, ".")
+	n_pattern_parts := count(pattern_parts)
+	n_str_parts := count(str_parts)
+	suffix := trim(pattern, "*.")
+	endswith(str, suffix)
+}
+
+fqdn_matches(str, pattern) {
+    not contains(pattern, "*")
+    str == pattern
+}
+```
+
+#### Policy 2: Prohibit Hostname Conflicts
+
+Now let's define another policy to test admission control. The following policy prevents Ingress objects in different
+namespaces from sharing the same hostname.
+
+**ingress-conflicts.rego**:
+
+```live:ingress_conflicts:module:read_only
+package kubernetes.admission
+
+import data.kubernetes.ingresses
+
+deny[msg] {
+    some other_ns, other_ingress
+    input.request.kind.kind == "Ingress"
+    input.request.operation == "CREATE"
+    host := input.request.object.spec.rules[_].host
+    ingress := ingresses[other_ns][other_ingress]
+    other_ns != input.request.namespace
+    ingress.spec.rules[_].host == host
+    msg := sprintf("invalid ingress host %q (conflicts with %v/%v)", [host, other_ns, other_ingress])
+}
+```
+
+#### Combine Policies
+
+Let's define a main policy that imports the [Restrict Hostnames](#policy-1-restrict-hostnames) and
+[Prohibit Hostname Conflicts](#policy-2-prohibit-hostname-conflicts) policies and provides an overall policy decision.
+
+**main.rego**:
+
+```live:main:module:read_only
+package system
+
+import data.kubernetes.admission
+
+main = {
+  "apiVersion": "admission.k8s.io/v1beta1",
+  "kind": "AdmissionReview",
+  "response": response,
+}
+
+default uid = ""
+
+uid = input.request.uid
+
+response = {
+    "allowed": false,
+    "uid": uid,
+    "status": {
+        "message": reason,
+    },
+} {
+    reason = concat(", ", admission.deny)
+    reason != ""
+}
+else = {"allowed": true, "uid": uid}
+```
+
+> ⚠️ When OPA receives a request, it executes a query against the document defined `data.system.main` by default.
+
+### 5. Build and Publish OPA Bundle
+
+Build an OPA bundle containing policies defined in the previous step. In our setup, OPA will download policies from the
+bundle service and the `kube-mgmt` container will load Kubernetes resources into OPA. Since we load policy and data into
+OPA from multiple sources, we need to scope the bundle to a subset of OPA’s policy and data cache by defining a manifest.
+More information about this can be found [here](../management-bundles#multiple-sources-of-policy-and-data). Run the
+following commands in the `policies` folder created in the previous step.
+
+```bash
+cat > .manifest <<EOF
+{
+    "roots": ["kubernetes/admission", "system"]
+}
+EOF
+```
+
+```bash
+opa build -b .
+```
+
+We will now serve the OPA bundle using Nginx.
+
+```bash
+docker run --rm --name bundle-server -d -p 8888:80 -v ${PWD}:/usr/share/nginx/html:ro nginx:latest
+```
+
+### 6. Deploy OPA as an Admission Controller
 
 Next, use the file below to deploy OPA as an admission controller.
 
@@ -196,7 +345,10 @@ spec:
             - "--tls-private-key-file=/certs/tls.key"
             - "--addr=0.0.0.0:8443"
             - "--addr=http://127.0.0.1:8181"
+            - "--set=services.default.url=http://host.minikube.internal:8888"
+            - "--set=bundles.default.resource=bundle.tar.gz"
             - "--log-format=json-pretty"
+            - "--set=status.console=true"
             - "--set=decision_logs.console=true"
           volumeMounts:
             - readOnly: true
@@ -225,48 +377,20 @@ spec:
         - name: opa-server
           secret:
             secretName: opa-server
----
-kind: ConfigMap
-apiVersion: v1
-metadata:
-  name: opa-default-system-main
-  namespace: opa
-data:
-  main: |
-    package system
-
-    import data.kubernetes.admission
-
-    main = {
-      "apiVersion": "admission.k8s.io/v1beta1",
-      "kind": "AdmissionReview",
-      "response": response,
-    }
-
-    default uid = ""
-
-    uid = input.request.uid
-
-    response = {
-        "allowed": false,
-        "uid": uid,
-        "status": {
-            "message": reason,
-        },
-    } {
-        reason = concat(", ", admission.deny)
-        reason != ""
-    }
-    else = {"allowed": true, "uid": uid}
 ```
+
+> ⚠️ If using `kind` to run a local Kubernetes cluster, the bundle service URL should be `http://host.docker.internal:8888`.
 
 ```bash
 kubectl apply -f admission-controller.yaml
 ```
 
-When OPA starts, the `kube-mgmt` container will load Kubernetes Namespace and Ingress objects into OPA. You can configure the sidecar to load any kind of Kubernetes object into OPA. The sidecar establishes watches on the Kubernetes API server so that OPA has access to an eventually consistent cache of Kubernetes objects.
+When OPA starts, the `kube-mgmt` container will load Kubernetes Namespace and Ingress objects into OPA. You can
+configure the sidecar to load any kind of Kubernetes object into OPA. The sidecar establishes watches on the
+Kubernetes API server so that OPA has access to an eventually consistent cache of Kubernetes objects.
 
-Next, generate the manifest that will be used to register OPA as an admission controller.  This webhook will ignore any namespace with the label `openpolicyagent.org/webhook=ignore`.
+Next, generate the manifest that will be used to register OPA as an admission controller.  This webhook will ignore
+any namespace with the label `openpolicyagent.org/webhook=ignore`.
 
 ```bash
 cat > webhook-configuration.yaml <<EOF
@@ -295,7 +419,8 @@ webhooks:
 EOF
 ```
 
-The generated configuration file includes a base64 encoded representation of the CA certificate so that TLS connections can be established between the Kubernetes API server and OPA.
+The generated configuration file includes a base64 encoded representation of the CA certificate created in [Step 3](#3-create-tls-credentials-for-opa)
+so that TLS connections can be established between the Kubernetes API server and OPA.
 
 Next label `kube-system` and the `opa` namespace so that OPA does not control the resources in those namespaces.
 
@@ -317,64 +442,9 @@ You can follow the OPA logs to see the webhook requests being issued by the Kube
 kubectl logs -l app=opa -c opa -f
 ```
 
-### 4. Define a policy and load it into OPA via Kubernetes
+### 7. Exercise Restrict Hostnames policy
 
-To test admission control, create a policy that restricts the hostnames that an ingress can use.
-
-**ingress-whitelist.rego**:
-
-```live:ingress_whitelist:module:read_only
-package kubernetes.admission
-
-import data.kubernetes.namespaces
-
-operations = {"CREATE", "UPDATE"}
-
-deny[msg] {
-	input.request.kind.kind == "Ingress"
-	operations[input.request.operation]
-	host := input.request.object.spec.rules[_].host
-	not fqdn_matches_any(host, valid_ingress_hosts)
-	msg := sprintf("invalid ingress host %q", [host])
-}
-
-valid_ingress_hosts = {host |
-	whitelist := namespaces[input.request.namespace].metadata.annotations["ingress-whitelist"]
-	hosts := split(whitelist, ",")
-	host := hosts[_]
-}
-
-fqdn_matches_any(str, patterns) {
-	fqdn_matches(str, patterns[_])
-}
-
-fqdn_matches(str, pattern) {
-	pattern_parts := split(pattern, ".")
-	pattern_parts[0] == "*"
-	str_parts := split(str, ".")
-	n_pattern_parts := count(pattern_parts)
-	n_str_parts := count(str_parts)
-	suffix := trim(pattern, "*.")
-	endswith(str, suffix)
-}
-
-fqdn_matches(str, pattern) {
-    not contains(pattern, "*")
-    str == pattern
-}
-```
-
-Store the policy in Kubernetes as a ConfigMap. By default kube-mgmt will try to load policies out of configmaps in the opa namespace OR configmaps in other namespaces labelled openpolicyagent.org/policy=rego.
-
-```bash
-kubectl create configmap ingress-whitelist --from-file=ingress-whitelist.rego
-```
-
-The OPA sidecar will notice the ConfigMap and automatically load the policy into OPA.
-
-### 5. Exercise the policy
-
-Create two new namespaces to test the Ingress policy.
+Now let's exercise the [Restrict Hostnames](#policy-1-restrict-hostnames) policy by creating two new namespaces.
 
 **qa-namespace.yaml**:
 
@@ -452,46 +522,14 @@ The second Ingress is rejected because its hostname does not match the whitelist
 It will report an error as follows:
 
 ```
-Error from server (invalid ingress host "acmecorp.com"): error when creating "ingress-bad.yaml": admission webhook "validating-webhook.openpolicyagent.org" denied the request: invalid ingress host "acmecorp.com"
+Error from server (invalid ingress host "acmecorp.com"): error when creating "ingress-bad.yaml":
+admission webhook "validating-webhook.openpolicyagent.org" denied the request: invalid ingress host "acmecorp.com"
 ```
 
-### 6. Modify the policy and exercise the changes
+### 8. Exercise Prohibit Hostname Conflicts policy
 
-OPA allows you to modify policies on-the-fly without recompiling any of the services that offload policy decisions to it.
-
-To enforce the second half of the policy from the start of this tutorial you can load another policy into OPA that prevents Ingress objects in different namespaces from sharing the same hostname.
-
-**ingress-conflicts.rego**:
-
-```live:ingress_conflicts:module:read_only
-package kubernetes.admission
-
-import data.kubernetes.ingresses
-
-deny[msg] {
-    some other_ns, other_ingress
-    input.request.kind.kind == "Ingress"
-    input.request.operation == "CREATE"
-    host := input.request.object.spec.rules[_].host
-    ingress := ingresses[other_ns][other_ingress]
-    other_ns != input.request.namespace
-    ingress.spec.rules[_].host == host
-    msg := sprintf("invalid ingress host %q (conflicts with %v/%v)", [host, other_ns, other_ingress])
-}
-```
-
-```bash
-kubectl create configmap ingress-conflicts --from-file=ingress-conflicts.rego
-```
-
-The OPA sidecar annotates ConfigMaps containing policies to indicate if they
-were installed successfully. Verify that the ConfigMap was installed successfully:
-
-```
-kubectl get configmap ingress-conflicts -o yaml
-```
-
-Test that you cannot create an Ingress in another namespace with the same hostname as the one created earlier.
+Test the [Prohibit Hostname Conflicts](#policy-2-prohibit-hostname-conflicts) policy by verifying that you cannot
+create an Ingress in another namespace with the same hostname as the one created earlier.
 
 **staging-namespace.yaml**:
 
@@ -515,7 +553,9 @@ kubectl create -f ingress-ok.yaml -n staging
 The above command will report an error as follows:
 
 ```
-Error from server (invalid ingress host "signin.acmecorp.com" (conflicts with production/ingress-ok)): error when creating "ingress-ok.yaml": admission webhook "validating-webhook.openpolicyagent.org" denied the request: invalid ingress host "signin.acmecorp.com" (conflicts with production/ingress-ok)
+Error from server (invalid ingress host "signin.acmecorp.com" (conflicts with production/ingress-ok)): error when
+creating "ingress-ok.yaml": admission webhook "validating-webhook.openpolicyagent.org" denied the request: invalid
+ingress host "signin.acmecorp.com" (conflicts with production/ingress-ok)
 ```
 
 ## Wrap Up
@@ -524,9 +564,8 @@ Congratulations for finishing the tutorial!
 
 This tutorial showed how you can leverage OPA to enforce admission control
 decisions in Kubernetes clusters without modifying or recompiling any
-Kubernetes components. Furthermore, once Kubernetes is configured to use OPA as
-an External Admission Controller, policies can be modified on-the-fly to
-satisfy changing operational requirements.
+Kubernetes components. Furthermore, with OPA's [Bundle](../management-bundles) feature policies can be
+periodically downloaded from remote servers to satisfy changing operational requirements.
 
 For more information about deploying OPA on top of Kubernetes, see
 [Deployments - Kubernetes](../deployments#kubernetes).
