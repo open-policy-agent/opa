@@ -59,9 +59,36 @@ func (s *state) Text(offset, end int) []byte {
 
 // Parser is used to parse Rego statements.
 type Parser struct {
-	r  io.Reader
-	s  *state
-	po ParserOptions
+	r     io.Reader
+	s     *state
+	po    ParserOptions
+	cache parsedTermCache
+}
+
+type parsedTermCacheItem struct {
+	t      *Term
+	post   *state // post is the post-state that's restored on a cache-hit
+	offset int
+	next   *parsedTermCacheItem
+}
+
+type parsedTermCache struct {
+	m *parsedTermCacheItem
+}
+
+func (c parsedTermCache) String() string {
+	s := strings.Builder{}
+	s.WriteRune('{')
+	var e *parsedTermCacheItem
+	for e = c.m; e != nil; e = e.next {
+		fmt.Fprintf(&s, "%v", e)
+	}
+	s.WriteRune('}')
+	return s.String()
+}
+
+func (e *parsedTermCacheItem) String() string {
+	return fmt.Sprintf("<%d:%v>", e.offset, e.t)
 }
 
 // ParserOptions defines the options for parsing Rego statements.
@@ -71,8 +98,10 @@ type ParserOptions struct {
 
 // NewParser creates and initializes a Parser.
 func NewParser() *Parser {
-	p := &Parser{s: &state{},
-		po: ParserOptions{}}
+	p := &Parser{
+		s:  &state{},
+		po: ParserOptions{},
+	}
 	return p
 }
 
@@ -104,6 +133,33 @@ const (
 	annotationScopeDocument    = "document"
 	annotationScopeSubpackages = "subpackages"
 )
+
+func (p *Parser) parsedTermCacheLookup() (*Term, *state) {
+	l := p.s.loc.Offset
+	// stop comparing once the cached offsets are lower than l
+	for h := p.cache.m; h != nil && h.offset >= l; h = h.next {
+		if h.offset == l {
+			return h.t, h.post
+		}
+	}
+	return nil, nil
+}
+
+func (p *Parser) parsedTermCachePush(t *Term, s0 *state) {
+	s1 := p.save()
+	o0 := s0.loc.Offset
+	entry := parsedTermCacheItem{t: t, post: s1, offset: o0}
+
+	// find the first one whose offset is smaller than ours
+	var e *parsedTermCacheItem
+	for e = p.cache.m; e != nil; e = e.next {
+		if e.offset < o0 {
+			break
+		}
+	}
+	entry.next = e
+	p.cache.m = &entry
+}
 
 // Parse will read the Rego source and parse statements and
 // comments as they are found. Any errors encountered while
@@ -167,7 +223,6 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 		}
 
 		p.restore(s)
-		p.save() // no need to save return value to s
 
 		if body := p.parseQuery(true, tokens.EOF); body != nil {
 			stmts = append(stmts, body)
@@ -852,6 +907,12 @@ func (p *Parser) parseTermFactor(lhs *Term, offset int) *Term {
 }
 
 func (p *Parser) parseTerm() *Term {
+	if term, s := p.parsedTermCacheLookup(); s != nil {
+		p.restore(s)
+		return term
+	}
+	s0 := p.save()
+
 	var term *Term
 	switch p.s.tok {
 	case tokens.Null:
@@ -883,10 +944,11 @@ func (p *Parser) parseTerm() *Term {
 		}
 	default:
 		p.illegalToken()
-		return nil
 	}
 
-	return p.parseTermFinish(term)
+	term = p.parseTermFinish(term)
+	p.parsedTermCachePush(term, s0)
+	return term
 }
 
 func (p *Parser) parseTermFinish(head *Term) *Term {
@@ -1147,18 +1209,17 @@ func (p *Parser) parseArray() (term *Term) {
 			}
 		}
 		// fall back to parsing as a normal array definition
-		fallthrough
-	default:
-		p.restore(s)
-		if terms := p.parseTermList(tokens.RBrack, nil); terms != nil {
-			return NewTerm(NewArray(terms...))
-		}
-		return nil
 	}
+
+	p.restore(s)
+
+	if terms := p.parseTermList(tokens.RBrack, nil); terms != nil {
+		return NewTerm(NewArray(terms...))
+	}
+	return nil
 }
 
 func (p *Parser) parseSetOrObject() (term *Term) {
-
 	loc := p.s.Loc()
 	offset := p.s.loc.Offset
 
@@ -1190,7 +1251,6 @@ func (p *Parser) parseSetOrObject() (term *Term) {
 	//
 	// Note: We don't know yet if it is a set or object being defined.
 	head := p.parseTerm()
-
 	if head == nil {
 		return nil
 	}
@@ -1208,7 +1268,8 @@ func (p *Parser) parseSetOrObject() (term *Term) {
 
 	p.restore(s)
 
-	if head = p.parseTermRelation(); head == nil {
+	head = p.parseTermRelation()
+	if head == nil {
 		return nil
 	}
 
@@ -1218,10 +1279,9 @@ func (p *Parser) parseSetOrObject() (term *Term) {
 	case tokens.Colon:
 		// It still might be an object comprehension, eg { a+1: b | ... }
 		return p.parseObject(head, potentialComprehension)
-	default:
-		p.illegal("non-terminated set")
 	}
 
+	p.illegal("non-terminated set")
 	return nil
 }
 
@@ -1234,7 +1294,6 @@ func (p *Parser) parseSet(s *state, head *Term, potentialComprehension bool) *Te
 		if terms := p.parseTermList(tokens.RBrace, []*Term{head}); terms != nil {
 			return SetTerm(terms...)
 		}
-		return nil
 	case tokens.Or:
 		if potentialComprehension {
 			// Try to parse as if it is a set comprehension
@@ -1251,7 +1310,6 @@ func (p *Parser) parseSet(s *state, head *Term, potentialComprehension bool) *Te
 		if terms := p.parseTermList(tokens.RBrace, nil); terms != nil {
 			return SetTerm(terms...)
 		}
-		return nil
 	}
 	return nil
 }
@@ -1260,18 +1318,31 @@ func (p *Parser) parseObject(k *Term, potentialComprehension bool) *Term {
 	// NOTE(tsandall): Assumption: this function is called after parsing the key
 	// of the head element and then receiving a colon token from the scanner.
 	// Advance beyond the colon and attempt to parse an object.
+	if p.s.tok != tokens.Colon {
+		panic("expected colon")
+	}
 	p.scan()
 
 	s := p.save()
-	v := p.parseTerm()
 
+	// NOTE(sr): We first try to parse the value as a term (`v`), and see
+	// if we can parse `{ x: v | ...}` as a comprehension.
+	// However, if we encounter either a Comma or an RBace, it cannot be
+	// parsed as a comprehension -- so we save double work further down
+	// where `parseObjectFinish(k, v, false)` would only exercise the
+	// same code paths once more.
+	v := p.parseTerm()
 	if v == nil {
 		return nil
 	}
 
-	switch p.s.tok {
-	case tokens.RBrace, tokens.Comma, tokens.Or:
-		if potentialComprehension {
+	potentialRelation := true
+	if potentialComprehension {
+		switch p.s.tok {
+		case tokens.RBrace, tokens.Comma:
+			potentialRelation = false
+			fallthrough
+		case tokens.Or:
 			if term := p.parseObjectFinish(k, v, true); term != nil {
 				return term
 			}
@@ -1280,17 +1351,19 @@ func (p *Parser) parseObject(k *Term, potentialComprehension bool) *Term {
 
 	p.restore(s)
 
-	if v = p.parseTermRelation(); v == nil {
-		return nil
+	if potentialRelation {
+		v := p.parseTermRelation()
+		if v == nil {
+			return nil
+		}
+
+		switch p.s.tok {
+		case tokens.RBrace, tokens.Comma:
+			return p.parseObjectFinish(k, v, false)
+		}
 	}
 
-	switch p.s.tok {
-	case tokens.Comma, tokens.RBrace:
-		return p.parseObjectFinish(k, v, false)
-	default:
-		p.illegal("non-terminated object")
-	}
-
+	p.illegal("non-terminated object")
 	return nil
 }
 
@@ -1422,7 +1495,6 @@ func (p *Parser) errorf(loc *location.Location, f string, a ...interface{}) {
 }
 
 func (p *Parser) illegal(note string, a ...interface{}) {
-
 	tok := p.s.tok.String()
 
 	if p.s.tok == tokens.Illegal {
@@ -1437,7 +1509,7 @@ func (p *Parser) illegal(note string, a ...interface{}) {
 
 	note = fmt.Sprintf(note, a...)
 	if len(note) > 0 {
-		p.errorf(p.s.Loc(), "unexpected %s %s: %v", tok, tokType, note)
+		p.errorf(p.s.Loc(), "unexpected %s %s: %s", tok, tokType, note)
 	} else {
 		p.errorf(p.s.Loc(), "unexpected %s %s", tok, tokType)
 	}
