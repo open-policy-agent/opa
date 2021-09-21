@@ -402,6 +402,21 @@ netlify-preview: clean docs-clean build docs-live-blocks-install-deps docs-live-
 check-fuzz:
 	./build/check-fuzz.sh $(FUZZ_TIME)
 
+# GOPRIVATE=* causes go to fetch all dependencies from their corresponding VCS
+# source, not through the golang-provided proxy services. We're cleaning out
+# /src/.go by providing a tmpfs mount, so the `go mod vendor -v` command will
+# not be able to use any module cache.
+.PHONY: check-go-module
+check-go-module:
+	docker run \
+	  $(DOCKER_FLAGS) \
+	  -w /src \
+	  -v $(PWD):/src \
+	  -e 'GOPRIVATE=*' \
+	  --tmpfs /src/.go \
+	  golang:$(GOVERSION) \
+	  go mod vendor -v
+
 ######################################################
 #
 # Release targets
