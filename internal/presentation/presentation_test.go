@@ -10,7 +10,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"testing"
+
+	"github.com/open-policy-agent/opa/util"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/loader"
@@ -50,9 +53,11 @@ func validateJSONOutput(t *testing.T, testErr error, expected string) {
 		t.Fatalf("Unexpected error: %s", err)
 	}
 
-	if buf.String() != expected {
-		t.Fatalf("Unexpected marshalled error value.\n Expected (len=%d):\n>>>\n%s\n<<<\n\nActual (len=%d):\n>>>>\n%s\n<<<<\n",
-			len(expected), expected, len(buf.String()), buf.String())
+	result := util.MustUnmarshalJSON(buf.Bytes())
+	exp := util.MustUnmarshalJSON([]byte(expected))
+
+	if !reflect.DeepEqual(result, exp) {
+		t.Fatal("expected:", exp, "got:", result)
 	}
 }
 
@@ -173,63 +178,64 @@ func TestOutputJSONErrorStructuredTopdownErr(t *testing.T) {
 func TestOutputJSONErrorStructuredAstErr(t *testing.T) {
 	_, err := rego.New(rego.Query("count(0)")).Eval(context.Background())
 	expected := `{
-  "errors": [
-    {
-      "message": "count: invalid argument(s)",
-      "code": "rego_type_error",
-      "location": {
-        "file": "",
-        "row": 1,
-        "col": 1
-      },
-      "details": {
-        "have": [
-          {
-            "type": "number"
-          },
-          null
-        ],
-        "want": [
-          {
-            "of": [
-              {
-                "type": "string"
-              },
-              {
-                "dynamic": {
-                  "type": "any"
-                },
-                "type": "array"
-              },
-              {
-                "dynamic": {
-                  "key": {
-                    "type": "any"
-                  },
-                  "value": {
-                    "type": "any"
-                  }
-                },
-                "type": "object"
-              },
-              {
-                "of": {
-                  "type": "any"
-                },
-                "type": "set"
-              }
-            ],
-            "type": "any"
-          },
-          {
-            "type": "number"
-          }
-        ]
-      }
-    }
-  ]
-}
-`
+		"errors": [
+		  {
+			"message": "count: invalid argument(s)",
+			"code": "rego_type_error",
+			"location": {
+			  "file": "",
+			  "row": 1,
+			  "col": 1
+			},
+			"details": {
+			  "have": [
+				{
+				  "type": "number"
+				},
+				null
+			  ],
+			  "want": {
+				"args": [
+				  {
+					"of": [
+					  {
+						"type": "string"
+					  },
+					  {
+						"dynamic": {
+						  "type": "any"
+						},
+						"type": "array"
+					  },
+					  {
+						"dynamic": {
+						  "key": {
+							"type": "any"
+						  },
+						  "value": {
+							"type": "any"
+						  }
+						},
+						"type": "object"
+					  },
+					  {
+						"of": {
+						  "type": "any"
+						},
+						"type": "set"
+					  }
+					],
+					"type": "any"
+				  },
+				  {
+					"type": "number"
+				  }
+				]
+			  }
+			}
+		  }
+		]
+	  }`
 
 	validateJSONOutput(t, err, expected)
 }
