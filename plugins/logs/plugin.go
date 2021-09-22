@@ -278,28 +278,11 @@ func (c *Config) validateAndInjectDefaults(services []string, pluginsList []stri
 		return fmt.Errorf("invalid decision_log config, must have a `service`, `plugin`, or `console` logging enabled")
 	}
 
-	if trigger == nil {
-		t := plugins.DefaultTriggerMode
-		trigger = &t
-	} else {
-		err := validateTriggerMode(*trigger)
-		if err != nil {
-			return err
-		}
+	t, err := plugins.ValidateAndInjectDefaultsForTriggerMode(trigger, c.Reporting.Trigger)
+	if err != nil {
+		return errors.Wrap(err, "invalid decision_log config")
 	}
-
-	if c.Reporting.Trigger == nil {
-		c.Reporting.Trigger = trigger
-	} else {
-		err := validateTriggerMode(*c.Reporting.Trigger)
-		if err != nil {
-			return err
-		}
-
-		if *c.Reporting.Trigger != *trigger {
-			return fmt.Errorf("invalid decision_log config, discovery has trigger mode %s, decision_log has %s", *trigger, *c.Reporting.Trigger)
-		}
-	}
+	c.Reporting.Trigger = t
 
 	min := defaultMinDelaySeconds
 	max := defaultMaxDelaySeconds
@@ -349,7 +332,6 @@ func (c *Config) validateAndInjectDefaults(services []string, pluginsList []stri
 		c.MaskDecision = &maskDecision
 	}
 
-	var err error
 	c.maskDecisionRef, err = ref.ParseDataPath(*c.MaskDecision)
 	if err != nil {
 		return errors.Wrap(err, "invalid mask_decision in decision_logs")
@@ -368,15 +350,6 @@ func (c *Config) validateAndInjectDefaults(services []string, pluginsList []stri
 	}
 
 	return nil
-}
-
-func validateTriggerMode(mode plugins.TriggerMode) error {
-	switch mode {
-	case plugins.TriggerPeriodic, plugins.TriggerManual:
-		return nil
-	default:
-		return fmt.Errorf("invalid trigger mode %q (want %q or %q)", mode, plugins.TriggerPeriodic, plugins.TriggerManual)
-	}
 }
 
 // Plugin implements decision log buffering and uploading.
@@ -401,8 +374,9 @@ type reconfigure struct {
 }
 
 // ParseConfig validates the config and injects default values.
-func ParseConfig(config []byte, services []string, plugins []string) (*Config, error) {
-	return NewConfigBuilder().WithBytes(config).WithServices(services).WithPlugins(plugins).WithTriggerMode(nil).Parse()
+func ParseConfig(config []byte, services []string, pluginList []string) (*Config, error) {
+	t := plugins.DefaultTriggerMode
+	return NewConfigBuilder().WithBytes(config).WithServices(services).WithPlugins(pluginList).WithTriggerMode(&t).Parse()
 }
 
 // ConfigBuilder assists in the construction of the plugin configuration.
@@ -438,10 +412,6 @@ func (b *ConfigBuilder) WithPlugins(plugins []string) *ConfigBuilder {
 
 // WithTriggerMode sets the plugin trigger mode.
 func (b *ConfigBuilder) WithTriggerMode(trigger *plugins.TriggerMode) *ConfigBuilder {
-	if trigger == nil {
-		t := plugins.DefaultTriggerMode
-		trigger = &t
-	}
 	b.trigger = trigger
 	return b
 }

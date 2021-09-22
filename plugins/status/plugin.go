@@ -116,44 +116,19 @@ func (c *Config) validateAndInjectDefaults(services []string, pluginsList []stri
 		return fmt.Errorf("invalid status config, must have a `service`, `plugin`, or `console` logging specified")
 	}
 
-	if trigger == nil {
-		t := plugins.DefaultTriggerMode
-		trigger = &t
-	} else {
-		err := validateTriggerMode(*trigger)
-		if err != nil {
-			return err
-		}
+	t, err := plugins.ValidateAndInjectDefaultsForTriggerMode(trigger, c.Trigger)
+	if err != nil {
+		return errors.Wrap(err, "invalid status config")
 	}
-
-	if c.Trigger == nil {
-		c.Trigger = trigger
-	} else {
-		err := validateTriggerMode(*c.Trigger)
-		if err != nil {
-			return err
-		}
-
-		if *c.Trigger != *trigger {
-			return fmt.Errorf("invalid status config, discovery has trigger mode %s, status has %s", *trigger, *c.Trigger)
-		}
-	}
+	c.Trigger = t
 
 	return nil
 }
 
-func validateTriggerMode(mode plugins.TriggerMode) error {
-	switch mode {
-	case plugins.TriggerPeriodic, plugins.TriggerManual:
-		return nil
-	default:
-		return fmt.Errorf("invalid trigger mode %q (want %q or %q)", mode, plugins.TriggerPeriodic, plugins.TriggerManual)
-	}
-}
-
 // ParseConfig validates the config and injects default values.
-func ParseConfig(config []byte, services []string, plugins []string) (*Config, error) {
-	return NewConfigBuilder().WithBytes(config).WithServices(services).WithPlugins(plugins).WithTriggerMode(nil).Parse()
+func ParseConfig(config []byte, services []string, pluginsList []string) (*Config, error) {
+	t := plugins.DefaultTriggerMode
+	return NewConfigBuilder().WithBytes(config).WithServices(services).WithPlugins(pluginsList).WithTriggerMode(&t).Parse()
 }
 
 // ConfigBuilder assists in the construction of the plugin configuration.
@@ -189,10 +164,6 @@ func (b *ConfigBuilder) WithPlugins(plugins []string) *ConfigBuilder {
 
 // WithTriggerMode sets the plugin trigger mode.
 func (b *ConfigBuilder) WithTriggerMode(trigger *plugins.TriggerMode) *ConfigBuilder {
-	if trigger == nil {
-		t := plugins.DefaultTriggerMode
-		trigger = &t
-	}
 	b.trigger = trigger
 	return b
 }
