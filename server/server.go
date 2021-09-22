@@ -120,6 +120,7 @@ type Server struct {
 	metrics                Metrics
 	defaultDecisionPath    string
 	interQueryBuiltinCache iCache.InterQueryCache
+	allPluginsOkOnce       bool
 }
 
 // Metrics defines the interface that the server requires for recording HTTP
@@ -620,6 +621,10 @@ func (s *Server) initRouters() {
 		}
 
 		router.Handle("/health", s.instrumentHandler(s.unversionedGetHealth, PromHandlerHealth)).Methods(http.MethodGet)
+		// Use this route to evaluate health policy defined at system.health
+		// By convention, policy is typically defined at system.health.live and system.health.ready, and is
+		// evaluated by calling /health/live and /health/ready respectively.
+		router.Handle("/health/{path:.+}", s.instrumentHandler(s.unversionedGetHealthWithPolicy, PromHandlerHealth)).Methods(http.MethodGet)
 	}
 
 	if s.pprofEnabled {
@@ -1024,7 +1029,7 @@ func (s *Server) unversionedGetHealth(w http.ResponseWriter, r *http.Request) {
 
 	// Ensure the server can evaluate a simple query
 	if !s.canEval(ctx) {
-		writeHealthResponse(w, errors.New("unable to perform evaluation"), struct{}{})
+		writeHealthResponse(w, errors.New("unable to perform evaluation"))
 		return
 	}
 
@@ -1035,7 +1040,7 @@ func (s *Server) unversionedGetHealth(w http.ResponseWriter, r *http.Request) {
 	// normal bundles that are configured.
 	if includeBundleStatus && !s.bundlesReady(pluginStatuses) {
 		// For backwards compatibility we don't return a payload with statuses for the bundle endpoint
-		writeHealthResponse(w, errors.New("not all configured bundles have been activated"), struct{}{})
+		writeHealthResponse(w, errors.New("not all configured bundles have been activated"))
 		return
 	}
 
@@ -1052,20 +1057,89 @@ func (s *Server) unversionedGetHealth(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		if hasErr {
-			writeHealthResponse(w, errors.New("not all plugins in OK state"), struct{}{})
+			writeHealthResponse(w, errors.New("not all plugins in OK state"))
 			return
 		}
 	}
-	writeHealthResponse(w, nil, struct{}{})
+	writeHealthResponse(w, nil)
 }
 
-func writeHealthResponse(w http.ResponseWriter, err error, payload interface{}) {
-	status := http.StatusOK
-	if err != nil {
-		status = http.StatusInternalServerError
+func (s *Server) unversionedGetHealthWithPolicy(w http.ResponseWriter, r *http.Request) {
+	pluginStatus := s.manager.PluginStatus()
+	pluginState := map[string]string{}
+
+	// optimistically assume all plugins are ok
+	allPluginsOk := true
+	// iterate over plugin status to extract state
+	for name, status := range pluginStatus {
+		if status != nil {
+			pluginState[name] = string(status.State)
+			// if all plugins have not been in OK state yet, then check to see if plugin state is OKx
+			if !s.allPluginsOkOnce && status.State != plugins.StateOK {
+				allPluginsOk = false
+			}
+		}
+	}
+	// once all plugins are OK, set the allPluginsOkOnce flag to true, indicating that all
+	// plugins have achieved a "ready" state at least once on the server.
+	if allPluginsOk {
+		s.mtx.Lock()
+		s.allPluginsOkOnce = true
+		s.mtx.Unlock()
 	}
 
-	writer.JSON(w, status, payload, false)
+	input := map[string]interface{}{
+		"plugin_state":  pluginState,
+		"plugins_ready": s.allPluginsOkOnce,
+	}
+
+	vars := mux.Vars(r)
+	urlPath := vars["path"]
+	healthDataPath := fmt.Sprintf("/system/health/%s", urlPath)
+	healthDataPath = stringPathToDataRef(healthDataPath).String()
+
+	rego := rego.New(
+		rego.Query(healthDataPath),
+		rego.Compiler(s.getCompiler()),
+		rego.Store(s.store),
+		rego.Input(input),
+		rego.Runtime(s.runtime),
+	)
+
+	rs, err := rego.Eval(r.Context())
+
+	if err != nil {
+		writeHealthResponse(w, err)
+		return
+	}
+
+	if len(rs) == 0 {
+		writeHealthResponse(w, fmt.Errorf("health policy was undefined at %s", healthDataPath))
+		return
+	}
+
+	result, ok := rs[0].Expressions[0].Value.(bool)
+
+	if ok && result {
+		writeHealthResponse(w, nil)
+		return
+	}
+
+	writeHealthResponse(w, fmt.Errorf("health policy was not true at %s", healthDataPath))
+}
+
+type healthResponse struct {
+	Err string `json:"error,omitempty"`
+}
+
+func writeHealthResponse(w http.ResponseWriter, err error) {
+	status := http.StatusOK
+	response := healthResponse{}
+	if err != nil {
+		status = http.StatusInternalServerError
+		response.Err = err.Error()
+	}
+	writer.JSON(w, status, response, false)
 }
 
 func (s *Server) v1CompilePost(w http.ResponseWriter, r *http.Request) {
