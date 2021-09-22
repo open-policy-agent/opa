@@ -67,7 +67,7 @@ func TestUnversionedGetHealthCheckOnlyBundlePlugin(t *testing.T) {
 
 	// The bundle hasn't been activated yet, expect the health check to fail
 	req := newReqUnversioned(http.MethodGet, "/health?bundles=true", "")
-	validateDiagnosticRequest(t, f, req, 500, `{}`)
+	validateDiagnosticRequest(t, f, req, 500, `{"error":"not all configured bundles have been activated"}`)
 
 	// Set the bundle to be activated.
 	f.server.manager.UpdatePluginStatus("bundle", &plugins.Status{State: plugins.StateOK})
@@ -86,7 +86,7 @@ func TestUnversionedGetHealthCheckDiscoveryWithBundle(t *testing.T) {
 
 	// The discovery bundle hasn't been activated yet, expect the health check to fail
 	req := newReqUnversioned(http.MethodGet, "/health?bundles=true", "")
-	validateDiagnosticRequest(t, f, req, 500, `{}`)
+	validateDiagnosticRequest(t, f, req, 500, `{"error":"not all configured bundles have been activated"}`)
 
 	// Set the bundle to be not ready (plugin configured and created, but hasn't activated all bundles yet).
 	f.server.manager.UpdatePluginStatus("discovery", &plugins.Status{State: plugins.StateOK})
@@ -94,7 +94,7 @@ func TestUnversionedGetHealthCheckDiscoveryWithBundle(t *testing.T) {
 
 	// The discovery bundle is OK, but the newly configured bundle hasn't been activated yet, expect the health check to fail
 	req = newReqUnversioned(http.MethodGet, "/health?bundles=true", "")
-	validateDiagnosticRequest(t, f, req, 500, `{}`)
+	validateDiagnosticRequest(t, f, req, 500, `{"error":"not all configured bundles have been activated"}`)
 
 	// Set the bundle to be activated.
 	f.server.manager.UpdatePluginStatus("bundle", &plugins.Status{State: plugins.StateOK})
@@ -231,39 +231,45 @@ func TestUnversionedGetHealthCheckDiscoveryWithPlugins(t *testing.T) {
 		note          string
 		statusUpdates map[string]*plugins.Status
 		exp           int
+		expBody       string
 	}{
 		{
 			note:          "no plugins configured",
 			statusUpdates: nil,
 			exp:           200,
+			expBody:       `{}`,
 		},
 		{
 			note: "one plugin configured - not ready",
 			statusUpdates: map[string]*plugins.Status{
 				"p1": {State: plugins.StateNotReady},
 			},
-			exp: 500,
+			exp:     500,
+			expBody: `{"error": "not all plugins in OK state"}`,
 		},
 		{
 			note: "one plugin configured - ready",
 			statusUpdates: map[string]*plugins.Status{
 				"p1": {State: plugins.StateOK},
 			},
-			exp: 200,
+			exp:     200,
+			expBody: `{}`,
 		},
 		{
 			note: "one plugin configured - error state",
 			statusUpdates: map[string]*plugins.Status{
 				"p1": {State: plugins.StateErr},
 			},
-			exp: 500,
+			exp:     500,
+			expBody: `{"error": "not all plugins in OK state"}`,
 		},
 		{
 			note: "one plugin configured - recovered from error",
 			statusUpdates: map[string]*plugins.Status{
 				"p1": {State: plugins.StateOK},
 			},
-			exp: 200,
+			exp:     200,
+			expBody: `{}`,
 		},
 		{
 			note: "add second plugin - not ready",
@@ -271,7 +277,8 @@ func TestUnversionedGetHealthCheckDiscoveryWithPlugins(t *testing.T) {
 				"p1": {State: plugins.StateOK},
 				"p2": {State: plugins.StateNotReady},
 			},
-			exp: 500,
+			exp:     500,
+			expBody: `{"error": "not all plugins in OK state"}`,
 		},
 		{
 			note: "add third plugin - not ready",
@@ -280,7 +287,8 @@ func TestUnversionedGetHealthCheckDiscoveryWithPlugins(t *testing.T) {
 				"p2": {State: plugins.StateNotReady},
 				"p3": {State: plugins.StateNotReady},
 			},
-			exp: 500,
+			exp:     500,
+			expBody: `{"error": "not all plugins in OK state"}`,
 		},
 		{
 			note: "mixed states - not ready",
@@ -289,7 +297,8 @@ func TestUnversionedGetHealthCheckDiscoveryWithPlugins(t *testing.T) {
 				"p2": {State: plugins.StateErr},
 				"p3": {State: plugins.StateNotReady},
 			},
-			exp: 500,
+			exp:     500,
+			expBody: `{"error": "not all plugins in OK state"}`,
 		},
 		{
 			note: "mixed states - still not ready",
@@ -298,7 +307,8 @@ func TestUnversionedGetHealthCheckDiscoveryWithPlugins(t *testing.T) {
 				"p2": {State: plugins.StateErr},
 				"p3": {State: plugins.StateOK},
 			},
-			exp: 500,
+			exp:     500,
+			expBody: `{"error": "not all plugins in OK state"}`,
 		},
 		{
 			note: "all plugins ready",
@@ -307,7 +317,8 @@ func TestUnversionedGetHealthCheckDiscoveryWithPlugins(t *testing.T) {
 				"p2": {State: plugins.StateOK},
 				"p3": {State: plugins.StateOK},
 			},
-			exp: 200,
+			exp:     200,
+			expBody: `{}`,
 		},
 		{
 			note: "one plugins fails",
@@ -316,7 +327,8 @@ func TestUnversionedGetHealthCheckDiscoveryWithPlugins(t *testing.T) {
 				"p2": {State: plugins.StateOK},
 				"p3": {State: plugins.StateOK},
 			},
-			exp: 500,
+			exp:     500,
+			expBody: `{"error": "not all plugins in OK state"}`,
 		},
 		{
 			note: "all plugins ready - recovery",
@@ -325,14 +337,16 @@ func TestUnversionedGetHealthCheckDiscoveryWithPlugins(t *testing.T) {
 				"p2": {State: plugins.StateOK},
 				"p3": {State: plugins.StateOK},
 			},
-			exp: 200,
+			exp:     200,
+			expBody: `{}`,
 		},
 		{
 			note: "nil plugin status",
 			statusUpdates: map[string]*plugins.Status{
 				"p1": nil,
 			},
-			exp: 200,
+			exp:     200,
+			expBody: `{}`,
 		},
 	}
 
@@ -343,7 +357,7 @@ func TestUnversionedGetHealthCheckDiscoveryWithPlugins(t *testing.T) {
 			}
 
 			req := newReqUnversioned(http.MethodGet, "/health?plugins", "")
-			validateDiagnosticRequest(t, f, req, tc.exp, `{}`)
+			validateDiagnosticRequest(t, f, req, tc.exp, tc.expBody)
 		})
 	}
 }
@@ -357,39 +371,45 @@ func TestUnversionedGetHealthCheckDiscoveryWithPluginsAndExclude(t *testing.T) {
 		note          string
 		statusUpdates map[string]*plugins.Status
 		exp           int
+		expBody       string
 	}{
 		{
 			note:          "no plugins configured",
 			statusUpdates: nil,
 			exp:           200,
+			expBody:       `{}`,
 		},
 		{
 			note: "one plugin configured - not ready",
 			statusUpdates: map[string]*plugins.Status{
 				"p1": {State: plugins.StateNotReady},
 			},
-			exp: 500,
+			exp:     500,
+			expBody: `{"error": "not all plugins in OK state"}`,
 		},
 		{
 			note: "one plugin configured - ready",
 			statusUpdates: map[string]*plugins.Status{
 				"p1": {State: plugins.StateOK},
 			},
-			exp: 200,
+			exp:     200,
+			expBody: `{}`,
 		},
 		{
 			note: "one plugin configured - error state",
 			statusUpdates: map[string]*plugins.Status{
 				"p1": {State: plugins.StateErr},
 			},
-			exp: 500,
+			exp:     500,
+			expBody: `{"error": "not all plugins in OK state"}`,
 		},
 		{
 			note: "one plugin configured - recovered from error",
 			statusUpdates: map[string]*plugins.Status{
 				"p1": {State: plugins.StateOK},
 			},
-			exp: 200,
+			exp:     200,
+			expBody: `{}`,
 		},
 		{
 			note: "add excluded plugin - not ready",
@@ -397,7 +417,8 @@ func TestUnversionedGetHealthCheckDiscoveryWithPluginsAndExclude(t *testing.T) {
 				"p1": {State: plugins.StateOK},
 				"p2": {State: plugins.StateNotReady},
 			},
-			exp: 200,
+			exp:     200,
+			expBody: `{}`,
 		},
 		{
 			note: "add another excluded plugin - not ready",
@@ -406,7 +427,8 @@ func TestUnversionedGetHealthCheckDiscoveryWithPluginsAndExclude(t *testing.T) {
 				"p2": {State: plugins.StateNotReady},
 				"p3": {State: plugins.StateNotReady},
 			},
-			exp: 200,
+			exp:     200,
+			expBody: `{}`,
 		},
 		{
 			note: "excluded plugin - error",
@@ -415,7 +437,8 @@ func TestUnversionedGetHealthCheckDiscoveryWithPluginsAndExclude(t *testing.T) {
 				"p2": {State: plugins.StateErr},
 				"p3": {State: plugins.StateErr},
 			},
-			exp: 200,
+			exp:     200,
+			expBody: `{}`,
 		},
 		{
 			note: "first plugin - error",
@@ -424,7 +447,8 @@ func TestUnversionedGetHealthCheckDiscoveryWithPluginsAndExclude(t *testing.T) {
 				"p2": {State: plugins.StateErr},
 				"p3": {State: plugins.StateErr},
 			},
-			exp: 500,
+			exp:     500,
+			expBody: `{"error": "not all plugins in OK state"}`,
 		},
 		{
 			note: "all plugins ready",
@@ -433,7 +457,8 @@ func TestUnversionedGetHealthCheckDiscoveryWithPluginsAndExclude(t *testing.T) {
 				"p2": {State: plugins.StateOK},
 				"p3": {State: plugins.StateOK},
 			},
-			exp: 200,
+			exp:     200,
+			expBody: `{}`,
 		},
 	}
 
@@ -444,7 +469,7 @@ func TestUnversionedGetHealthCheckDiscoveryWithPluginsAndExclude(t *testing.T) {
 			}
 
 			req := newReqUnversioned(http.MethodGet, "/health?plugins&exclude-plugin=p2&exclude-plugin=p3", "")
-			validateDiagnosticRequest(t, f, req, tc.exp, `{}`)
+			validateDiagnosticRequest(t, f, req, tc.exp, tc.expBody)
 		})
 	}
 }
@@ -455,39 +480,45 @@ func TestUnversionedGetHealthCheckBundleAndPlugins(t *testing.T) {
 		note     string
 		statuses map[string]*plugins.Status
 		exp      int
+		expBody  string
 	}{
 		{
 			note:     "no plugins configured",
 			statuses: nil,
 			exp:      200,
+			expBody:  `{}`,
 		},
 		{
 			note: "only bundle plugin configured - not ready",
 			statuses: map[string]*plugins.Status{
 				"bundle": {State: plugins.StateNotReady},
 			},
-			exp: 500,
+			exp:     500,
+			expBody: `{"error": "not all configured bundles have been activated"}`,
 		},
 		{
 			note: "only bundle plugin configured - ok",
 			statuses: map[string]*plugins.Status{
 				"bundle": {State: plugins.StateOK},
 			},
-			exp: 200,
+			exp:     200,
+			expBody: `{}`,
 		},
 		{
 			note: "only custom plugin configured - not ready",
 			statuses: map[string]*plugins.Status{
 				"p1": {State: plugins.StateNotReady},
 			},
-			exp: 500,
+			exp:     500,
+			expBody: `{"error": "not all plugins in OK state"}`,
 		},
 		{
 			note: "only custom plugin configured - ok",
 			statuses: map[string]*plugins.Status{
 				"p1": {State: plugins.StateOK},
 			},
-			exp: 200,
+			exp:     200,
+			expBody: `{}`,
 		},
 		{
 			note: "both configured - bundle not ready",
@@ -495,7 +526,8 @@ func TestUnversionedGetHealthCheckBundleAndPlugins(t *testing.T) {
 				"bundle": {State: plugins.StateNotReady},
 				"p1":     {State: plugins.StateOK},
 			},
-			exp: 500,
+			exp:     500,
+			expBody: `{"error": "not all configured bundles have been activated"}`,
 		},
 		{
 			note: "both configured - custom plugin not ready",
@@ -503,7 +535,8 @@ func TestUnversionedGetHealthCheckBundleAndPlugins(t *testing.T) {
 				"bundle": {State: plugins.StateOK},
 				"p1":     {State: plugins.StateNotReady},
 			},
-			exp: 500,
+			exp:     500,
+			expBody: `{"error": "not all plugins in OK state"}`,
 		},
 		{
 			note: "both configured - both ready",
@@ -511,7 +544,8 @@ func TestUnversionedGetHealthCheckBundleAndPlugins(t *testing.T) {
 				"bundle": {State: plugins.StateOK},
 				"p1":     {State: plugins.StateOK},
 			},
-			exp: 200,
+			exp:     200,
+			expBody: `{}`,
 		},
 	}
 
@@ -524,9 +558,116 @@ func TestUnversionedGetHealthCheckBundleAndPlugins(t *testing.T) {
 			}
 
 			req := newReqUnversioned(http.MethodGet, "/health?plugins&bundles", "")
-			validateDiagnosticRequest(t, f, req, tc.exp, `{}`)
+			validateDiagnosticRequest(t, f, req, tc.exp, tc.expBody)
 		})
 	}
+}
+
+func TestUnversionedGetHealthWithPolicyMissing(t *testing.T) {
+	f := newFixture(t)
+	req := newReqUnversioned(http.MethodGet, "/health/live", "")
+	validateDiagnosticRequest(t, f, req, 500, `{"error":"health policy was undefined at data.system.health.live"}`)
+}
+
+func TestUnversionedGetHealthWithPolicyUpdates(t *testing.T) {
+	ctx := context.Background()
+	store := inmem.New()
+	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
+	healthPolicy := `package system.health
+
+  live := true
+  `
+
+	if err := store.UpsertPolicy(ctx, txn, "test", []byte(healthPolicy)); err != nil {
+		panic(err)
+	}
+
+	if err := store.Commit(ctx, txn); err != nil {
+		panic(err)
+	}
+
+	f := newFixtureWithStore(t, store)
+	req := newReqUnversioned(http.MethodGet, "/health/live", "")
+	validateDiagnosticRequest(t, f, req, 200, `{}`)
+
+	// update health policy to set live to false
+	txn = storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
+	healthPolicy = `package system.health
+
+  live := false 
+  `
+
+	if err := store.UpsertPolicy(ctx, txn, "test", []byte(healthPolicy)); err != nil {
+		panic(err)
+	}
+
+	if err := store.Commit(ctx, txn); err != nil {
+		panic(err)
+	}
+
+	req = newReqUnversioned(http.MethodGet, "/health/live", "")
+	validateDiagnosticRequest(t, f, req, 500, `{"error": "health policy was not true at data.system.health.live"}`)
+}
+
+func TestUnversionedGetHealthWithPolicyUsingPlugins(t *testing.T) {
+	ctx := context.Background()
+	store := inmem.New()
+	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
+	healthPolicy := `package system.health
+
+  default live = false
+
+  live {
+    input.plugin_state.bundle == "OK"
+  }
+
+  default ready = false
+
+  ready {
+    input.plugins_ready
+  }
+  `
+
+	if err := store.UpsertPolicy(ctx, txn, "test", []byte(healthPolicy)); err != nil {
+		panic(err)
+	}
+
+	if err := store.Commit(ctx, txn); err != nil {
+		panic(err)
+	}
+
+	// plugins start out as not ready
+	f := newFixtureWithStore(t, store)
+	f.server.manager.UpdatePluginStatus("discovery", &plugins.Status{State: plugins.StateNotReady})
+	f.server.manager.UpdatePluginStatus("bundle", &plugins.Status{State: plugins.StateNotReady})
+
+	// make sure live and ready are failing, as expected
+	liveReq := newReqUnversioned(http.MethodGet, "/health/live", "")
+	validateDiagnosticRequest(t, f, liveReq, 500, `{"error": "health policy was not true at data.system.health.live"}`)
+
+	readyReq := newReqUnversioned(http.MethodGet, "/health/ready", "")
+	validateDiagnosticRequest(t, f, readyReq, 500, `{"error": "health policy was not true at data.system.health.ready"}`)
+
+	// all plugins are reporting OK
+	f.server.manager.UpdatePluginStatus("discovery", &plugins.Status{State: plugins.StateOK})
+	f.server.manager.UpdatePluginStatus("bundle", &plugins.Status{State: plugins.StateOK})
+
+	// make sure live and ready are now passing, as expected
+	liveReq = newReqUnversioned(http.MethodGet, "/health/live", "")
+	validateDiagnosticRequest(t, f, liveReq, 200, `{}`)
+
+	readyReq = newReqUnversioned(http.MethodGet, "/health/ready", "")
+	validateDiagnosticRequest(t, f, readyReq, 200, `{}`)
+
+	// bundle is now not ready again
+	f.server.manager.UpdatePluginStatus("bundle", &plugins.Status{State: plugins.StateNotReady})
+
+	// the live rule should fail, but the ready rule should still succeed, because plugins_ready stays true once set
+	liveReq = newReqUnversioned(http.MethodGet, "/health/live", "")
+	validateDiagnosticRequest(t, f, liveReq, 500, `{"error": "health policy was not true at data.system.health.live"}`)
+
+	readyReq = newReqUnversioned(http.MethodGet, "/health/ready", "")
+	validateDiagnosticRequest(t, f, readyReq, 200, `{}`)
 }
 
 func TestDataV0(t *testing.T) {
@@ -3341,6 +3482,37 @@ type fixture struct {
 func newFixture(t *testing.T, opts ...func(*Server)) *fixture {
 	ctx := context.Background()
 	store := inmem.New()
+	m, err := plugins.New([]byte{}, "test", store)
+	if err != nil {
+		panic(err)
+	}
+
+	if err := m.Start(ctx); err != nil {
+		panic(err)
+	}
+
+	server := New().
+		WithAddresses([]string{"localhost:8182"}).
+		WithStore(store).
+		WithManager(m)
+	for _, opt := range opts {
+		opt(server)
+	}
+	server, err = server.Init(ctx)
+	if err != nil {
+		panic(err)
+	}
+	recorder := httptest.NewRecorder()
+
+	return &fixture{
+		server:   server,
+		recorder: recorder,
+		t:        t,
+	}
+}
+
+func newFixtureWithStore(t *testing.T, store storage.Store, opts ...func(*Server)) *fixture {
+	ctx := context.Background()
 	m, err := plugins.New([]byte{}, "test", store)
 	if err != nil {
 		panic(err)
