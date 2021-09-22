@@ -87,12 +87,25 @@ func Unmarshal(bs []byte) (result Type, err error) {
 		case typeFunction:
 			var decl rawdecl
 			if err = util.UnmarshalJSON(bs, &decl); err == nil {
-				var args []Type
-				if args, err = unmarshalSlice(decl.Args); err == nil {
-					var ret Type
-					if ret, err = Unmarshal(decl.Result); err == nil {
-						result = NewFunction(args, ret)
+				args, err := unmarshalSlice(decl.Args)
+				if err != nil {
+					return nil, err
+				}
+				var ret Type
+				if len(decl.Result) > 0 {
+					ret, err = Unmarshal(decl.Result)
+					if err != nil {
+						return nil, err
 					}
+				}
+				if len(decl.Variadic) > 0 {
+					varargs, err := Unmarshal(decl.Variadic)
+					if err != nil {
+						return nil, err
+					}
+					result = NewVariadicFunction(args, varargs, ret)
+				} else {
+					result = NewFunction(args, ret)
 				}
 			}
 		default:
@@ -136,8 +149,9 @@ type rawunion struct {
 }
 
 type rawdecl struct {
-	Args   []json.RawMessage `json:"args"`
-	Result json.RawMessage   `json:"result"`
+	Args     []json.RawMessage `json:"args"`
+	Result   json.RawMessage   `json:"result"`
+	Variadic json.RawMessage   `json:"variadic"`
 }
 
 func unmarshalSlice(elems []json.RawMessage) (result []Type, err error) {
