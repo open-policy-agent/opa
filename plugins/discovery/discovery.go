@@ -78,8 +78,7 @@ func New(manager *plugins.Manager, opts ...func(*Discovery)) (*Discovery, error)
 	if err != nil {
 		return nil, err
 	} else if config == nil {
-		t := plugins.DefaultTriggerMode
-		if _, err := getPluginSet(result.factories, manager, manager.Config, result.metrics, &t); err != nil {
+		if _, err := getPluginSet(result.factories, manager, manager.Config, result.metrics, nil); err != nil {
 			return nil, err
 		}
 		return result, nil

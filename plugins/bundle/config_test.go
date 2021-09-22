@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/open-policy-agent/opa/plugins"
+
 	"github.com/open-policy-agent/opa/keys"
 
 	"github.com/open-policy-agent/opa/bundle"
@@ -403,5 +405,91 @@ func TestConfigIsMultiBundle(t *testing.T) {
 			}
 		})
 	}
+}
 
+func TestParseConfigTriggerMode(t *testing.T) {
+
+	tm := plugins.TriggerManual
+
+	tests := []struct {
+		conf        string
+		services    []string
+		triggerMode *plugins.TriggerMode
+		expected    plugins.TriggerMode
+		wantError   bool
+		err         error
+	}{
+		{
+			conf:        `{"b1":{"service": "s1"}}`,
+			services:    []string{"s1"},
+			wantError:   false,
+			triggerMode: nil,
+			expected:    plugins.TriggerPeriodic,
+		},
+		{
+			conf:        `{"b1":{"service": "s1", "trigger": "manual"}}`,
+			services:    []string{"s1"},
+			wantError:   false,
+			triggerMode: nil,
+			expected:    plugins.TriggerManual,
+		},
+		{
+			conf:        `{"b1":{"service": "s1"}}`,
+			services:    []string{"s1"},
+			wantError:   false,
+			triggerMode: &tm,
+			expected:    plugins.TriggerManual,
+		},
+		{
+			conf:        `{"b1":{"service": "s1", "trigger": "manual"}}`,
+			services:    []string{"s1"},
+			wantError:   false,
+			triggerMode: &tm,
+			expected:    plugins.TriggerManual,
+		},
+		{
+			conf:        `{"b1":{"service": "s1", "trigger": "periodic"}}`,
+			services:    []string{"s1"},
+			wantError:   true,
+			err:         fmt.Errorf("invalid configuration for bundle \"b1\": trigger mode mismatch: manual and periodic (hint: check discovery configuration)"),
+			triggerMode: &tm,
+		},
+		{
+			conf:        `{"b1":{"service": "s1", "trigger": "foo"}}`,
+			services:    []string{"s1"},
+			wantError:   true,
+			err:         fmt.Errorf("invalid configuration for bundle \"b1\": invalid trigger mode \"foo\" (want \"periodic\" or \"manual\")"),
+			triggerMode: nil,
+		},
+	}
+
+	for i := range tests {
+		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
+			config, err := NewConfigBuilder().WithBytes([]byte(tests[i].conf)).WithServices(tests[i].services).WithTriggerMode(tests[i].triggerMode).Parse()
+			if err != nil && !tests[i].wantError {
+				t.Fatalf("Unexpected error: %s", err)
+			}
+			if err == nil && tests[i].wantError {
+				t.Fatalf("Expected an error but didn't get one")
+			}
+
+			if tests[i].wantError {
+				if err == nil {
+					t.Fatal("Expected error but got nil")
+				}
+
+				if tests[i].err != nil && tests[i].err.Error() != err.Error() {
+					t.Fatalf("Expected error message %v but got %v", tests[i].err.Error(), err.Error())
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("Unexpected error %v", err)
+				}
+
+				if *config.Bundles["b1"].Trigger != tests[i].expected {
+					t.Fatalf("Expected trigger mode %v but got %v", tests[i].expected, *config.Bundles["b1"].Trigger)
+				}
+			}
+		})
+	}
 }
