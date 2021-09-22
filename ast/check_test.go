@@ -695,6 +695,61 @@ func TestVoidBuiltins(t *testing.T) {
 	}
 }
 
+func TestVariadicBuiltins(t *testing.T) {
+
+	// Ensure type checking allows variadic arguments.
+	env := newTypeChecker().Env(map[string]*Builtin{
+		"println": {
+			Name: "println",
+			Decl: types.NewVariadicFunction([]types.Type{}, types.A, nil),
+		},
+	})
+
+	_, errs := newTypeChecker().CheckBody(env, MustParseBody(`println("hello", "world")`))
+	if len(errs) != 0 {
+		t.Fatal(errs)
+	}
+
+	// Test error checking on positional arguments on a variadic function.
+	env = newTypeChecker().Env(map[string]*Builtin{
+		"println": {
+			Name: "println",
+			Decl: types.NewVariadicFunction([]types.Type{types.N}, types.A, nil),
+		},
+	})
+
+	_, errs = newTypeChecker().CheckBody(env, MustParseBody(`println("hello", 7)`))
+	if len(errs) != 1 {
+		t.Fatal("expected one error but got:", errs)
+	}
+
+	detail := errs[0].Details.(*ArgErrDetail)
+
+	if len(detail.Have) != 2 || len(detail.Want.Args) != 1 || types.Compare(detail.Want.Args[0], types.N) != 0 {
+		t.Fatal("unexpected detail:", detail)
+	}
+
+	// Test error checking on variadic arguments.
+	env = newTypeChecker().Env(map[string]*Builtin{
+		"println": {
+			Name: "println",
+			Decl: types.NewVariadicFunction([]types.Type{types.N}, types.N, nil),
+		},
+	})
+
+	_, errs = newTypeChecker().CheckBody(env, MustParseBody(`println(7, "world")`))
+	if len(errs) != 1 {
+		t.Fatal("expected one error but got:", errs)
+	}
+
+	detail = errs[0].Details.(*ArgErrDetail)
+
+	if len(detail.Have) != 2 || len(detail.Want.Args) != 1 || types.Compare(detail.Want.Args[0], types.N) != 0 || types.Compare(detail.Want.Variadic, types.N) != 0 {
+		t.Fatal("unexpected detail:", detail)
+	}
+
+}
+
 func TestCheckRefErrUnsupported(t *testing.T) {
 
 	query := `arr = [[1,2],[3,4]]; arr[1][0].deadbeef`
@@ -1119,9 +1174,11 @@ func TestCheckErrorDetails(t *testing.T) {
 					types.N,
 					types.S,
 				},
-				Want: []types.Type{
-					types.S,
-					types.S,
+				Want: types.FuncArgs{
+					Args: []types.Type{
+						types.S,
+						types.S,
+					},
 				},
 			},
 			expected: []string{

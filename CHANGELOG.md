@@ -5,6 +5,13 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Backwards Compatibility
+
+* The `github.com/open-policy-agent/opa/ast#ArgErrDetail` struct has been
+  modified to use the new `types.FuncArgs` struct to represent the required
+  arguments. Callers that depend on the exact structure of the error details
+  must update to use the `types.FuncArgs` struct.
+
 ## 0.32.1
 
 This is a bugfix release to address a problem related to mismatching checksums in the official go mod proxy.
