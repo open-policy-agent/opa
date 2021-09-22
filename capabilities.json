@@ -2669,6 +2669,32 @@
       }
     },
     {
+      "name": "set.multiply",
+      "decl": {
+        "args": [
+          {
+            "of": {
+              "type": "any"
+            },
+            "type": "set"
+          },
+          {
+            "of": {
+              "type": "any"
+            },
+            "type": "set"
+          }
+        ],
+        "result": {
+          "of": {
+            "type": "any"
+          },
+          "type": "set"
+        },
+        "type": "function"
+      }
+    },
+    {
       "name": "set_diff",
       "decl": {
         "args": [

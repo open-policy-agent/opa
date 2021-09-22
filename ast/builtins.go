@@ -102,6 +102,7 @@ var DefaultBuiltins = [...]*Builtin{
 	SetDiff,
 	Intersection,
 	Union,
+	SetMultiply,
 
 	// Strings
 	Concat,
@@ -2063,6 +2064,18 @@ var Union = &Builtin{
 	Decl: types.NewFunction(
 		types.Args(
 			types.NewSet(types.NewSet(types.A)),
+		),
+		types.NewSet(types.A),
+	),
+}
+
+// SetMultiply returns the product of two input sets
+var SetMultiply = &Builtin{
+	Name: "set.multiply",
+	Decl: types.NewFunction(
+		types.Args(
+			types.NewSet(types.A),
+			types.NewSet(types.A),
 		),
 		types.NewSet(types.A),
 	),

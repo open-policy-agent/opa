@@ -1263,6 +1263,7 @@ type Set interface {
 	Diff(Set) Set
 	Intersect(Set) Set
 	Union(Set) Set
+	Multiply(Set) Set
 	Add(*Term)
 	Iter(func(*Term) error) error
 	Until(func(*Term) bool) bool
@@ -1423,6 +1424,17 @@ func (s *set) Union(other Set) Set {
 	})
 	other.Foreach(func(x *Term) {
 		r.Add(x)
+	})
+	return r
+}
+
+func (s *set) Multiply(other Set) Set {
+	r := NewSet()
+	s.Foreach(func(term1 *Term) {
+		other.Foreach(func(term2 *Term) {
+			el := ArrayTerm(term1, term2)
+			r.Add(el)
+		})
 	})
 	return r
 }

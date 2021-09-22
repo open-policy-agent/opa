@@ -77,8 +77,23 @@ func builtinSetUnion(a ast.Value) (ast.Value, error) {
 	return result, err
 }
 
+func builtinSetMultiply(a, b ast.Value) (ast.Value, error) {
+
+	s1, err := builtins.SetOperand(a, 1)
+	if err != nil {
+		return nil, err
+	}
+
+	s2, err := builtins.SetOperand(b, 2)
+	if err != nil {
+		return nil, err
+	}
+	return s1.Multiply(s2), nil
+}
+
 func init() {
 	RegisterFunctionalBuiltin2(ast.SetDiff.Name, builtinSetDiff)
 	RegisterFunctionalBuiltin1(ast.Intersection.Name, builtinSetIntersection)
 	RegisterFunctionalBuiltin1(ast.Union.Name, builtinSetUnion)
+	RegisterFunctionalBuiltin2(ast.SetMultiply.Name, builtinSetMultiply)
 }
