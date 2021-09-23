@@ -224,6 +224,46 @@ func getWasmResolversOnContext(context *storage.Context) []*wasm.Resolver {
 	return resolvers
 }
 
+func validateTriggerMode(mode TriggerMode) error {
+	switch mode {
+	case TriggerPeriodic, TriggerManual:
+		return nil
+	default:
+		return fmt.Errorf("invalid trigger mode %q (want %q or %q)", mode, TriggerPeriodic, TriggerManual)
+	}
+}
+
+// ValidateAndInjectDefaultsForTriggerMode validates the trigger mode and injects default values
+func ValidateAndInjectDefaultsForTriggerMode(a, b *TriggerMode) (*TriggerMode, error) {
+
+	if a == nil && b != nil {
+		err := validateTriggerMode(*b)
+		if err != nil {
+			return nil, err
+		}
+		return b, nil
+	} else if a != nil && b == nil {
+		err := validateTriggerMode(*a)
+		if err != nil {
+			return nil, err
+		}
+		return a, nil
+	} else if a != nil && b != nil {
+		if *a != *b {
+			return nil, fmt.Errorf("trigger mode mismatch: %s and %s (hint: check discovery configuration)", *a, *b)
+		}
+		err := validateTriggerMode(*a)
+		if err != nil {
+			return nil, err
+		}
+		return a, nil
+
+	} else {
+		t := DefaultTriggerMode
+		return &t, nil
+	}
+}
+
 type namedplugin struct {
 	name   string
 	plugin Plugin

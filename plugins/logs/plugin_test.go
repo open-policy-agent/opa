@@ -1690,14 +1690,14 @@ func TestParseConfigTriggerMode(t *testing.T) {
 			config:   []byte(`{"reporting": {"trigger": "manual"}}`),
 			expected: plugins.TriggerPeriodic,
 			wantErr:  true,
-			err:      fmt.Errorf("invalid decision_log config, discovery has trigger mode periodic, decision_log has manual"),
+			err:      fmt.Errorf("invalid decision_log config: trigger mode mismatch: periodic and manual (hint: check discovery configuration)"),
 		},
 		{
 			note:     "bad trigger mode",
 			config:   []byte(`{"reporting": {"trigger": "foo"}}`),
 			expected: "foo",
 			wantErr:  true,
-			err:      fmt.Errorf("invalid trigger mode \"foo\" (want \"periodic\" or \"manual\")"),
+			err:      fmt.Errorf("invalid decision_log config: invalid trigger mode \"foo\" (want \"periodic\" or \"manual\")"),
 		},
 	}
 
