@@ -206,10 +206,10 @@ p = {"hello": "alice", "goodbye": "bob"} { true }`,
 	//
 	// len: 2
 	// err: <nil>
-	// bindings["x"]: hello (i=0)
-	// value: alice (i=0)
-	// bindings["x"]: goodbye (i=1)
-	// value: bob (i=1)
+	// bindings["x"]: goodbye (i=0)
+	// value: bob (i=0)
+	// bindings["x"]: hello (i=1)
+	// value: alice (i=1)
 }
 
 func ExampleRego_Eval_compiler() {
