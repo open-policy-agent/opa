@@ -1800,22 +1800,20 @@ func (obj *object) Compare(other Value) int {
 	}
 	a := obj
 	b := other.(*object)
-	akeys := objectElemSliceSorted(a.keys)
-	bkeys := objectElemSliceSorted(b.keys)
 	minLen := len(a.keys)
 	if len(b.keys) < len(a.keys) {
 		minLen = len(b.keys)
 	}
 	for i := 0; i < minLen; i++ {
-		keysCmp := Compare(akeys[i].key, bkeys[i].key)
+		keysCmp := Compare(a.keys[i].key, b.keys[i].key)
 		if keysCmp < 0 {
 			return -1
 		}
 		if keysCmp > 0 {
 			return 1
 		}
-		valA := akeys[i].value
-		valB := bkeys[i].value
+		valA := a.keys[i].value
+		valB := b.keys[i].value
 		valCmp := Compare(valA, valB)
 		if valCmp != 0 {
 			return valCmp
@@ -2054,8 +2052,7 @@ func (obj object) String() string {
 	var b strings.Builder
 	b.WriteRune('{')
 
-	sorted := objectElemSliceSorted(obj.keys)
-	for i, elem := range sorted {
+	for i, elem := range obj.keys {
 		if i > 0 {
 			b.WriteString(", ")
 		}
@@ -2259,7 +2256,15 @@ func (obj *object) insert(k, v *Term) {
 		next:  head,
 	}
 	obj.elems[hash] = elem
-	obj.keys = append(obj.keys, elem)
+	i := sort.Search(len(obj.keys), func(i int) bool { return Compare(elem.key, obj.keys[i].key) < 0 })
+	if i < len(obj.keys) {
+		// insert at position `i`:
+		obj.keys = append(obj.keys, nil)   // add some space
+		copy(obj.keys[i+1:], obj.keys[i:]) // move things over
+		obj.keys[i] = elem                 // drop it in position
+	} else {
+		obj.keys = append(obj.keys, elem)
+	}
 	obj.hash = 0
 
 	if k.IsGround() {
@@ -2556,15 +2561,6 @@ func (c Call) String() string {
 		args[i-1] = c[i].String()
 	}
 	return fmt.Sprintf("%v(%v)", c[0], strings.Join(args, ", "))
-}
-
-func objectElemSliceSorted(a objectElemSlice) objectElemSlice {
-	b := make(objectElemSlice, len(a))
-	for i := range b {
-		b[i] = a[i]
-	}
-	sort.Sort(b)
-	return b
 }
 
 func termSliceCopy(a []*Term) []*Term {
