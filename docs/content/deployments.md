@@ -346,6 +346,7 @@ $ curl localhost:8181/v1/data/baz
 Just because OPA has returned an answer for a policy query, that does not indicate that it was operationally ready for that query.  Moreover, the operational readiness of OPA cannot be ascertained from the query response, as illustrated above.  Two issues must therefore be addressed: how to know when OPA is operationally ready for policy queries and how to make a decision before OPA is ready.
 
 ### Ensuring Operational Readiness
+
 The relevance of the discussion above depends on how you have chosen to deploy policies into OPA.
 
 If you deploy policies to OPA on disk (e.g. volume mounting into the OPA container on Kubernetes), then OPA will only start answering policy queries once all the policies are successfully loaded.  In this case, it is impossible for OPA to answer policy queries before it has loaded policy, so the discussion above is a non-issue.
@@ -365,7 +366,7 @@ The choices are more varied if the policy is not making an allow/deny decision, 
 
 In Kubernetes admission control, for example, the Kubernetes admin can choose whether to fail-open or fail-closed, leaving the decision up to the user.  And often this is the correct way to build an integration because it is unlikely that there is a universal solution.  For example, running an OPA-integration in a development environment might require fail-open, but running exactly the same integration in a production environment might require fail-closed.
 
-## Capabilities 
+## Capabilities
 
 OPA now supports a _capabilities_ check on policies. The check allows callers to restrict the [built-in](../kubernetes-primer/#builtins) functions that policies may depend on. If the policies passed to OPA require built-ins not listed in the capabilities structure, an error is returned. The capabilities check is currently supported by the `check` and `build` sub-commands and can be accessed programmatically on the `ast.Compiler` structure. The OPA repository includes a set of capabilities files for previous versions of OPA in the [capabilities](https://github.com/open-policy-agent/opa/tree/main/capabilities) folder.
 
@@ -392,8 +393,6 @@ $ opa build ./policies/example.rego --capabilities ./capabilities/v0.22.0.json
 # ERROR!
 $ opa build ./policies/example.rego --capabilities ./capabilities/v0.21.1.json
 ```
-
-	
 
 ### Built-ins
 
@@ -430,7 +429,6 @@ The following command builds a directory of policies ('./policies') and validate
 opa build ./policies --capabilities ./capability-built-in-plus.json
 ```
 
-	
 ### Network
 
 When passing a capabilities definition file via `--capabilities`, one can restrict which hosts remote schema definitions can be retrieved from. For example, a `capabilities.json` containing the json below would disallow fetching remote schemas from any host but "kubernetesjsonschema.dev". Setting `allow_net` to an empty array would prohibit fetching any remote schemas.
