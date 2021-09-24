@@ -1800,23 +1800,22 @@ func (obj *object) Compare(other Value) int {
 	}
 	a := obj
 	b := other.(*object)
-	// TODO: Ideally Compare would be immutable; the following sorts happen in place.
-	sort.Sort(a.keys)
-	sort.Sort(b.keys)
+	akeys := objectElemSliceSorted(a.keys)
+	bkeys := objectElemSliceSorted(b.keys)
 	minLen := len(a.keys)
 	if len(b.keys) < len(a.keys) {
 		minLen = len(b.keys)
 	}
 	for i := 0; i < minLen; i++ {
-		keysCmp := Compare(a.keys[i].key, b.keys[i].key)
+		keysCmp := Compare(akeys[i].key, bkeys[i].key)
 		if keysCmp < 0 {
 			return -1
 		}
 		if keysCmp > 0 {
 			return 1
 		}
-		valA := a.keys[i].value
-		valB := b.keys[i].value
+		valA := akeys[i].value
+		valB := bkeys[i].value
 		valCmp := Compare(valA, valB)
 		if valCmp != 0 {
 			return valCmp
