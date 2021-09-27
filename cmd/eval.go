@@ -13,6 +13,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -62,6 +63,7 @@ type evalCommandParams struct {
 	bundlePaths         repeatedStringFlag
 	schema              *schemaFlags
 	target              *util.EnumFlag
+	timeout             time.Duration
 }
 
 func newEvalCommandParams() evalCommandParams {
@@ -271,6 +273,7 @@ access.
 	evalCommand.Flags().VarP(&params.profileLimit, "profile-limit", "", "set number of profiling results to show")
 	evalCommand.Flags().VarP(&params.prettyLimit, "pretty-limit", "", "set limit after which pretty output gets truncated")
 	evalCommand.Flags().BoolVarP(&params.failDefined, "fail-defined", "", false, "exits with non-zero exit code on defined/non-empty result and errors")
+	evalCommand.Flags().DurationVar(&params.timeout, "timeout", 0, "set eval timeout (default unlimited)")
 
 	// Shared flags
 	addCapabilitiesFlag(evalCommand.Flags(), params.capabilities)
@@ -298,6 +301,11 @@ access.
 func eval(args []string, params evalCommandParams, w io.Writer) (bool, error) {
 
 	ctx := context.Background()
+	if params.timeout != 0 {
+		var cancel func()
+		ctx, cancel = context.WithTimeout(ctx, params.timeout)
+		defer cancel()
+	}
 
 	ectx, err := setupEval(args, params)
 	if err != nil {
