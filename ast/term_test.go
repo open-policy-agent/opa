@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"sort"
 	"strings"
 	"testing"
 
@@ -259,6 +260,37 @@ func TestObjectFilter(t *testing.T) {
 				t.Errorf("Expected:\n\n\t%s\n\nGot:\n\n\t%s\n\n", expected, actual)
 			}
 		})
+	}
+}
+
+func TestObjectInsertKeepsSorting(t *testing.T) {
+	keysSorted := func(o *object) func(int, int) bool {
+		return func(i, j int) bool {
+			return Compare(o.keys[i].key, o.keys[j].key) < 0
+		}
+	}
+
+	obj := NewObject(
+		[2]*Term{StringTerm("d"), IntNumberTerm(4)},
+		[2]*Term{StringTerm("b"), IntNumberTerm(2)},
+		[2]*Term{StringTerm("a"), IntNumberTerm(1)},
+	)
+	o := obj.(*object)
+	act := sort.SliceIsSorted(o.keys, keysSorted(o))
+	if exp := true; act != exp {
+		t.Errorf("SliceIsSorted: expected %v, got %v", exp, act)
+		for i := range o.keys {
+			t.Logf("elem[%d]: %v", i, o.keys[i].key)
+		}
+	}
+
+	obj.Insert(StringTerm("c"), IntNumberTerm(3))
+	act = sort.SliceIsSorted(o.keys, keysSorted(o))
+	if exp := true; act != exp {
+		t.Errorf("SliceIsSorted: expected %v, got %v", exp, act)
+		for i := range o.keys {
+			t.Logf("elem[%d]: %v", i, o.keys[i].key)
+		}
 	}
 }
 
