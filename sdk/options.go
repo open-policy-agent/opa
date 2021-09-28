@@ -11,6 +11,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/open-policy-agent/opa/logging"
+	"github.com/open-policy-agent/opa/plugins"
 )
 
 // Options contains parameters to setup and configure OPA.
@@ -34,6 +35,10 @@ type Options struct {
 	// field is not set, the New() function will block until ready. The channel
 	// is closed to signal readiness.
 	Ready chan struct{}
+
+	// Plugins provides a set of plugins.Factory instances that will be
+	// registered with the OPA SDK instance.
+	Plugins map[string]plugins.Factory
 
 	config []byte
 	block  bool
