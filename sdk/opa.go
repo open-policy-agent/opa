@@ -37,6 +37,7 @@ type OPA struct {
 	mtx     sync.Mutex
 	logger  logging.Logger
 	console logging.Logger
+	plugins map[string]plugins.Factory
 	config  []byte
 }
 
@@ -69,6 +70,7 @@ func New(ctx context.Context, opts Options) (*OPA, error) {
 	opa.config = opts.config
 	opa.logger = opts.Logger
 	opa.console = opts.ConsoleLogger
+	opa.plugins = opts.Plugins
 
 	return opa, opa.configure(ctx, opa.config, opts.Ready, opts.block)
 }
@@ -138,7 +140,7 @@ func (opa *OPA) configure(ctx context.Context, bs []byte, ready chan struct{}, b
 		close(ready)
 	})
 
-	d, err := discovery.New(manager)
+	d, err := discovery.New(manager, discovery.Factories(opa.plugins))
 	if err != nil {
 		return err
 	}
