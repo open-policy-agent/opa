@@ -1787,7 +1787,7 @@ that the server is operational. Optionally it can account for bundle activation 
 `bundles` - Boolean parameter to account for bundle activation status in response. This includes
             any discovery bundles or bundles defined in the loaded discovery configuration.
 `plugins` - Boolean parameter to account for plugin status in response.
-`exclude-plugin` - String parameter to exclude a plugin from status checks. Can be added multiple 
+`exclude-plugin` - String parameter to exclude a plugin from status checks. Can be added multiple
             times. Does nothing if `plugins` is not true. This parameter is useful for special use cases
             where a plugin depends on the server being fully initialized before it can fully intialize
             itself.
@@ -1848,15 +1848,24 @@ Other error messages include:
 - `"unable to perform evaluation"`
 - `"not all configured bundles have been activated"`
 
-## Health API With Policy
+### Custom Health Checks
 
-The policy-based Health API is useful if you need to implement complex health check behavior, such as the 
-[liveness](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/) 
-and [readiness](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/#define-readiness-probes) 
-probes in Kubernetes. Conventionally, the `/health/live` and `/health/ready` API endpoints allow you 
-to define policy that evaluates the current state of the server and its plugins to determine "liveness" 
-(when OPA is capable of receiving traffic) and "readiness" (when OPA is ready to receive traffic). 
-Policy for the `live` and `ready` rules is defined under `system.health`.
+The Health API includes support for "all or nothing" checks that verify
+configured bundles have activated and plugins are operational. In some cases,
+health checks may need to perform fine-grained checks on plugin state or other
+internal components. To support these cases, use the policy-based Health API.
+
+By convention, the `/health/live` and `/health/ready` API endpoints allow you to
+use Rego to evaluate the current state of the server and its plugins to
+determine "liveness" (when OPA is capable of receiving traffic) and "readiness"
+(when OPA is ready to receive traffic). Policy for the `live` and `ready` rules
+is defined under package `system.health`.
+
+> The "liveness" and "readiness" check convention comes from
+> [Kubernetes](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/)
+> but they are just conventions. You can implement your own check endpoints
+> under the `system.health` package as needed. Any rules implemented inside of
+> `system.health` will be exposed at `/health/<rule-name>`.
 
 #### Policy Examples
 

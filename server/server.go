@@ -1040,7 +1040,7 @@ func (s *Server) unversionedGetHealth(w http.ResponseWriter, r *http.Request) {
 	// normal bundles that are configured.
 	if includeBundleStatus && !s.bundlesReady(pluginStatuses) {
 		// For backwards compatibility we don't return a payload with statuses for the bundle endpoint
-		writeHealthResponse(w, errors.New("not all configured bundles have been activated"))
+		writeHealthResponse(w, errors.New("one or more bundles are not activated"))
 		return
 	}
 
@@ -1057,7 +1057,7 @@ func (s *Server) unversionedGetHealth(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		if hasErr {
-			writeHealthResponse(w, errors.New("not all plugins in OK state"))
+			writeHealthResponse(w, errors.New("one or more plugins are not up"))
 			return
 		}
 	}
@@ -1070,28 +1070,33 @@ func (s *Server) unversionedGetHealthWithPolicy(w http.ResponseWriter, r *http.R
 
 	// optimistically assume all plugins are ok
 	allPluginsOk := true
-	// iterate over plugin status to extract state
-	for name, status := range pluginStatus {
-		if status != nil {
-			pluginState[name] = string(status.State)
-			// if all plugins have not been in OK state yet, then check to see if plugin state is OKx
-			if !s.allPluginsOkOnce && status.State != plugins.StateOK {
-				allPluginsOk = false
+
+	// build input document for health check query
+	input := func() map[string]interface{} {
+		s.mtx.Lock()
+		defer s.mtx.Unlock()
+
+		// iterate over plugin status to extract state
+		for name, status := range pluginStatus {
+			if status != nil {
+				pluginState[name] = string(status.State)
+				// if all plugins have not been in OK state yet, then check to see if plugin state is OKx
+				if !s.allPluginsOkOnce && status.State != plugins.StateOK {
+					allPluginsOk = false
+				}
 			}
 		}
-	}
-	// once all plugins are OK, set the allPluginsOkOnce flag to true, indicating that all
-	// plugins have achieved a "ready" state at least once on the server.
-	if allPluginsOk {
-		s.mtx.Lock()
-		s.allPluginsOkOnce = true
-		s.mtx.Unlock()
-	}
+		// once all plugins are OK, set the allPluginsOkOnce flag to true, indicating that all
+		// plugins have achieved a "ready" state at least once on the server.
+		if allPluginsOk {
+			s.allPluginsOkOnce = true
+		}
 
-	input := map[string]interface{}{
-		"plugin_state":  pluginState,
-		"plugins_ready": s.allPluginsOkOnce,
-	}
+		return map[string]interface{}{
+			"plugin_state":  pluginState,
+			"plugins_ready": s.allPluginsOkOnce,
+		}
+	}()
 
 	vars := mux.Vars(r)
 	urlPath := vars["path"]
@@ -1114,7 +1119,7 @@ func (s *Server) unversionedGetHealthWithPolicy(w http.ResponseWriter, r *http.R
 	}
 
 	if len(rs) == 0 {
-		writeHealthResponse(w, fmt.Errorf("health policy was undefined at %s", healthDataPath))
+		writeHealthResponse(w, fmt.Errorf("health check (%v) was undefined", healthDataPath))
 		return
 	}
 
@@ -1125,20 +1130,18 @@ func (s *Server) unversionedGetHealthWithPolicy(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	writeHealthResponse(w, fmt.Errorf("health policy was not true at %s", healthDataPath))
-}
-
-type healthResponse struct {
-	Err string `json:"error,omitempty"`
+	writeHealthResponse(w, fmt.Errorf("health check (%v) returned unexpected value", healthDataPath))
 }
 
 func writeHealthResponse(w http.ResponseWriter, err error) {
 	status := http.StatusOK
-	response := healthResponse{}
+	var response types.HealthResponseV1
+
 	if err != nil {
 		status = http.StatusInternalServerError
-		response.Err = err.Error()
+		response.Error = err.Error()
 	}
+
 	writer.JSON(w, status, response, false)
 }
 
