@@ -29,6 +29,7 @@ import (
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/topdown"
 	"github.com/open-policy-agent/opa/topdown/cache"
+	"github.com/open-policy-agent/opa/topdown/print"
 	"github.com/open-policy-agent/opa/types"
 	"github.com/open-policy-agent/opa/util"
 )
@@ -113,6 +114,7 @@ type EvalContext struct {
 	interQueryBuiltinCache cache.InterQueryCache
 	resolvers              []refResolver
 	sortSets               bool
+	printHook              print.Hook
 }
 
 // EvalOption defines a function to set an option on an EvalConfig
@@ -289,6 +291,7 @@ func (pq preparedQuery) newEvalContext(ctx context.Context, options []EvalOption
 		compiledQuery:    compiledQuery{},
 		indexing:         true,
 		resolvers:        pq.r.resolvers,
+		printHook:        pq.r.printHook,
 	}
 
 	for _, o := range options {
@@ -490,6 +493,8 @@ type Rego struct {
 	target                 string // target type (wasm, rego, etc.)
 	opa                    opa.EvalEngine
 	generateJSON           func(*ast.Term, *EvalContext) (interface{}, error)
+	printHook              print.Hook
+	enablePrintStatements  bool
 }
 
 // Function represents a built-in function that is callable in Rego.
@@ -1032,6 +1037,23 @@ func GenerateJSON(f func(*ast.Term, *EvalContext) (interface{}, error)) func(r *
 	}
 }
 
+// PrintHook sets the object to use for handling print statement outputs.
+func PrintHook(h print.Hook) func(r *Rego) {
+	return func(r *Rego) {
+		r.printHook = h
+	}
+}
+
+// EnablePrintStatements enables print() calls. If this option is not provided,
+// print() calls will be erased from the policy. This option only applies to
+// queries and policies that passed as raw strings, i.e., this function will not
+// have any affect if the caller supplies the ast.Compiler instance.
+func EnablePrintStatements(yes bool) func(r *Rego) {
+	return func(r *Rego) {
+		r.enablePrintStatements = yes
+	}
+}
+
 // New returns a new Rego object.
 func New(options ...func(r *Rego)) *Rego {
 
@@ -1054,7 +1076,8 @@ func New(options ...func(r *Rego)) *Rego {
 			WithBuiltins(r.builtinDecls).
 			WithDebug(r.dump).
 			WithSchemas(r.schemaSet).
-			WithCapabilities(r.capabilities)
+			WithCapabilities(r.capabilities).
+			WithEnablePrintStatements(r.enablePrintStatements)
 	}
 
 	if r.store == nil {
@@ -1805,7 +1828,8 @@ func (r *Rego) compileQuery(query ast.Body, m metrics.Metrics, extras []extraSta
 
 	qc := r.compiler.QueryCompiler().
 		WithContext(qctx).
-		WithUnsafeBuiltins(r.unsafeBuiltins)
+		WithUnsafeBuiltins(r.unsafeBuiltins).
+		WithEnablePrintStatements(r.enablePrintStatements)
 
 	for _, extra := range extras {
 		qc = qc.WithStageAfter(extra.after, extra.stage)
@@ -1834,7 +1858,8 @@ func (r *Rego) eval(ctx context.Context, ectx *EvalContext) (ResultSet, error) {
 		WithIndexing(ectx.indexing).
 		WithInterQueryBuiltinCache(ectx.interQueryBuiltinCache).
 		WithStrictBuiltinErrors(r.strictBuiltinErrors).
-		WithSeed(ectx.seed)
+		WithSeed(ectx.seed).
+		WithPrintHook(ectx.printHook)
 
 	if !ectx.time.IsZero() {
 		q = q.WithTime(ectx.time)
@@ -2102,7 +2127,8 @@ func (r *Rego) partial(ctx context.Context, ectx *EvalContext) (*PartialQueries,
 		WithShallowInlining(r.shallowInlining).
 		WithInterQueryBuiltinCache(ectx.interQueryBuiltinCache).
 		WithStrictBuiltinErrors(r.strictBuiltinErrors).
-		WithSeed(ectx.seed)
+		WithSeed(ectx.seed).
+		WithPrintHook(ectx.printHook)
 
 	if !ectx.time.IsZero() {
 		q = q.WithTime(ectx.time)
