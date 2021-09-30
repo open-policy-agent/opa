@@ -68,6 +68,8 @@ If you use the container images, or the published binaries, of OPA 0.32.0, you a
 
 Many thanks to [James Alseth](https://github.com/jalseth) for triaging this, and engaging with upstream to fix this.
 
+## Unreleased
+
 ## 0.32.0
 
 This release includes a number of improvements and fixes.
