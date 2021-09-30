@@ -169,8 +169,7 @@ production users that have added themselves (in alphabetical order):
 
 * [Xenit AB](https://www.xenit.se/) uses OPA to implement fine-grained control
   over resource formulation in its managed Kubernetes service as well as several
-  customer-specific implementations. For more information, see the Xenit [Kubernetes
-  Terraform template library](https://github.com/XenitAB/terraform-modules) and
+  customer-specific implementations. For more information, see the Kubernetes Terraform library [OPA Gatekeeper module](https://github.com/XenitAB/terraform-modules/tree/main/modules/kubernetes/opa-gatekeeper) and
   [OPA Gatekeeper policy library](https://github.com/XenitAB/gatekeeper-library).
 
 * [Yelp](https://www.yelp.com/) use OPA and Envoy to enforce authorization policies
