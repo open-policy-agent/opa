@@ -6,6 +6,7 @@ package ast
 import (
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"strings"
 	"testing"
 )
@@ -149,6 +150,45 @@ func BenchmarkObjectString(b *testing.B) {
 				}
 			})
 		})
+	}
+}
+
+func BenchmarkObjectConstruction(b *testing.B) {
+	sizes := []int{5, 50, 500, 5000, 50000}
+
+	b.Run("random keys", func(b *testing.B) {
+		for _, n := range sizes {
+			b.Run(fmt.Sprint(n), func(b *testing.B) {
+				obj := map[string]int{}
+				for i := 0; i < n; i++ {
+					j := rand.Intn(n)
+					obj[fmt.Sprint(j)] = i
+				}
+				benchObjectConstruction(b, obj)
+			})
+		}
+	})
+	b.Run("increasing keys", func(b *testing.B) {
+		for _, n := range sizes {
+			b.Run(fmt.Sprint(n), func(b *testing.B) {
+				obj := map[string]int{}
+				for i := 0; i < n; i++ {
+					obj[fmt.Sprint(i)] = i
+				}
+				benchObjectConstruction(b, obj)
+			})
+		}
+	})
+}
+
+func benchObjectConstruction(b *testing.B, obj map[string]int) {
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		val := MustInterfaceToValue(obj)
+		_, ok := val.(Object)
+		if !ok {
+			b.Fail()
+		}
 	}
 }
 

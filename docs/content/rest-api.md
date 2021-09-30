@@ -1787,7 +1787,7 @@ that the server is operational. Optionally it can account for bundle activation 
 `bundles` - Boolean parameter to account for bundle activation status in response. This includes
             any discovery bundles or bundles defined in the loaded discovery configuration.
 `plugins` - Boolean parameter to account for plugin status in response.
-`exclude-plugin` - String parameter to exclude a plugin from status checks. Can be added multiple 
+`exclude-plugin` - String parameter to exclude a plugin from status checks. Can be added multiple
             times. Does nothing if `plugins` is not true. This parameter is useful for special use cases
             where a plugin depends on the server being fully initialized before it can fully intialize
             itself.
@@ -1838,8 +1838,126 @@ HTTP/1.1 500 Internal Server Error
 Content-Type: application/json
 ```
 ```json
+{
+  "error": "not all plugins in OK state"
+}
+```
+
+Other error messages include:
+
+- `"unable to perform evaluation"`
+- `"not all configured bundles have been activated"`
+
+### Custom Health Checks
+
+The Health API includes support for "all or nothing" checks that verify
+configured bundles have activated and plugins are operational. In some cases,
+health checks may need to perform fine-grained checks on plugin state or other
+internal components. To support these cases, use the policy-based Health API.
+
+By convention, the `/health/live` and `/health/ready` API endpoints allow you to
+use Rego to evaluate the current state of the server and its plugins to
+determine "liveness" (when OPA is capable of receiving traffic) and "readiness"
+(when OPA is ready to receive traffic). Policy for the `live` and `ready` rules
+is defined under package `system.health`.
+
+> The "liveness" and "readiness" check convention comes from
+> [Kubernetes](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/)
+> but they are just conventions. You can implement your own check endpoints
+> under the `system.health` package as needed. Any rules implemented inside of
+> `system.health` will be exposed at `/health/<rule-name>`.
+
+#### Policy Examples
+
+Here is a basic health policy for liveness and readiness. In this example, OPA is live once it is
+able to process the `live` rule. OPA is ready once all plugins have entered the OK state at least once.
+
+```rego
+package system.health
+
+// opa is live if it can process this rule
+default live = true
+
+// by default, opa is not ready
+default ready = false
+
+// opa is ready once all plugins have reported OK at least once
+ready {
+  input.plugins_ready
+}
+```
+
+Note that once `input.plugins_ready` is true, it stays true. If you want to fail the ready check when
+specific a plugin leaves the OK state, try this:
+
+```rego
+package system.health
+
+default live = true
+
+default ready = false
+
+// opa is ready once all plugins have reported OK at least once AND
+// the bundle plugin is currently in an OK state
+ready {
+  input.plugins_ready
+  input.plugin_state.bundle == "OK"
+}
+```
+
+See the following section for all the inputs available to use in health policy.
+
+#### Policy Inputs
+
+- `input.plugins_ready`: Will be false until all registered plugins have started
+and are reporting an `OK` state, at which point it will be true. Once true, it will stay true
+until the process ends.
+- `input.plugin_state.<plugin_name>`: Shows the current state of a plugin, where `<plugin_name>`
+is replaced with the name of the plugin, e.g. `bundle`, `status`.
+
+#### Status Codes
+
+- **200** - OPA service is healthy.
+- **500** - OPA service is not healthy because policy has not evaluated to true, or is missing.
+
+#### Example Requests
+
+```http
+GET /health/ready HTTP/1.1
+```
+
+```http
+GET /health/live HTTP/1.1
+```
+
+#### Healthy Response
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+```
+
+```json
 {}
 ```
+
+#### Unhealthy Response
+
+```http
+HTTP/1.1 500 Internal Server Error
+Content-Type: application/json
+```
+
+```json
+{
+  "error": "health policy was not true at data.system.health.<rule_name>"
+}
+```
+
+Other error messages include:
+
+- `"health policy was undefined at data.system.health.<rule_name>"`
+
 
 ##  Config API
 
