@@ -167,6 +167,11 @@ production users that have added themselves (in alphabetical order):
   [part 1](https://blog.verygoodsecurity.com/posts/building-a-fine-grained-permission-system-in-a-distributed-environment),
   [part 2](https://blog.verygoodsecurity.com/posts/building-a-fine-grained-permissions-system-in-a-distributed-environment).
 
+* [Xenit AB](https://www.xenit.se/) uses OPA to implement fine-grained control
+  over resource formulation in its managed Kubernetes service as well as several
+  customer-specific implementations. For more information, see the Kubernetes Terraform library [OPA Gatekeeper module](https://github.com/XenitAB/terraform-modules/tree/main/modules/kubernetes/opa-gatekeeper) and
+  [OPA Gatekeeper policy library](https://github.com/XenitAB/gatekeeper-library).
+
 * [Yelp](https://www.yelp.com/) use OPA and Envoy to enforce authorization policies
   across a fleet of microservices that evolved out of a monolithic architecture.
   For more information see this talk from [KubeCon US 2019](https://www.youtube.com/watch?v=Z6aN3Smt-9M).
