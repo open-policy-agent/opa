@@ -1003,6 +1003,23 @@
       }
     },
     {
+      "name": "internal.print",
+      "decl": {
+        "args": [
+          {
+            "dynamic": {
+              "of": {
+                "type": "any"
+              },
+              "type": "set"
+            },
+            "type": "array"
+          }
+        ],
+        "type": "function"
+      }
+    },
+    {
       "name": "intersection",
       "decl": {
         "args": [
@@ -2379,6 +2396,15 @@
         "type": "function"
       },
       "infix": "+"
+    },
+    {
+      "name": "print",
+      "decl": {
+        "type": "function",
+        "variadic": {
+          "type": "any"
+        }
+      }
     },
     {
       "name": "product",

@@ -15,6 +15,7 @@ import (
 	"github.com/open-policy-agent/opa/topdown/builtins"
 	"github.com/open-policy-agent/opa/topdown/cache"
 	"github.com/open-policy-agent/opa/topdown/copypropagation"
+	"github.com/open-policy-agent/opa/topdown/print"
 )
 
 type evalIterator func(*eval) error
@@ -78,6 +79,7 @@ type eval struct {
 	genvarid               int
 	runtime                *ast.Term
 	builtinErrors          *builtinErrors
+	printHook              print.Hook
 }
 
 func (e *eval) Run(iter evalIterator) error {
@@ -665,6 +667,7 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 		TraceEnabled:           e.traceEnabled,
 		QueryID:                e.queryID,
 		ParentID:               parentID,
+		PrintHook:              e.printHook,
 	}
 
 	eval := evalBuiltin{
@@ -1521,7 +1524,7 @@ func (e evalBuiltin) eval(iter unifyIterator) error {
 		operands[i] = e.e.bindings.Plug(e.terms[i])
 	}
 
-	numDeclArgs := len(e.bi.Decl.Args())
+	numDeclArgs := len(e.bi.Decl.FuncArgs().Args)
 
 	e.e.instr.startTimer(evalOpBuiltinCall)
 
@@ -1531,7 +1534,9 @@ func (e evalBuiltin) eval(iter unifyIterator) error {
 
 		var err error
 
-		if len(operands) == numDeclArgs {
+		if e.bi.Decl.Result() == nil {
+			err = iter()
+		} else if len(operands) == numDeclArgs {
 			if output.Value.Compare(ast.Boolean(false)) != 0 {
 				err = iter()
 			}
