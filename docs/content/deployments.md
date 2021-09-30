@@ -444,3 +444,40 @@ When passing a capabilities definition file via `--capabilities`, one can restri
 Not providing a capabilities file, or providing a file without an `allow_net` key, will permit fetching remote schemas from any host.
 
 Note that the metaschemas http://json-schema.org/draft-04/schema, http://json-schema.org/draft-06/schema, and http://json-schema.org/draft-07/schema, are always available, even without network access.
+
+### Building your own capabilities JSON
+
+Use the following JSON structure to build more complex capability checks. 
+
+```json
+{
+    "builtins": [
+        {
+            "name": "name", // REQUIRED: Unique name of built-in function, e.g., <name>(arg1,arg2,...,argN)
+
+            "infix": "+",  // OPTIONAL: Unique name of infix operator. Default should be unset.
+
+            "decl": {  // REQUIRED: Built-in function type declaration.
+
+                "type": "function", // REQUIRED: states this is a function 
+
+                "args": [ // REQUIRED: List of types to be passed in as an arguement: any, number, string, boolean, object, array, set. 
+                    {
+                        "type": "number" 
+                    },
+                    {
+                        "type": "number"
+                    }
+                ],
+                "result": { // REQUIRED: The expected result type.
+                    "type": "number"
+                }
+            }
+        }
+    ],
+    "allow_net": [ // OPTIONAL: allow_net is an array of hostnames or IP addresses, that an OPA instance is allowed to connect to.
+      "mycompany.com",
+      "database.safe",
+    ]
+}
+```
