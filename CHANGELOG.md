@@ -3,7 +3,41 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.33.0
+
+This release includes a number of improvements and fixes.
+
+### Built-in Functions
+
+This release introduces `crypto.x509.parse_rsa_private_key` so that policy authors can decode RSA private keys and structure them as JWKs ([#3765](https://github.com/open-policy-agent/opa/issues/3765)). Authored by @[cris-he](https://github.com/cris-he).
+
+### Fixes
+
+- Fix object comparison to avoid sorting keys in-place. This prevents the interpreter from generating non-deterministic results when values are inserted into the partial set memoization cache. ([#3819](https://github.com/open-policy-agent/opa/issues/3819))
+- Fix data races in `ast` package caused by sorting `types.Any` instances in-place and shallow-copying module comments when a deep-copy should be performed ([#3793](https://github.com/open-policy-agent/opa/issues/3793)). Reported by @[markushinz](https://github.com/markushinz).
+- Fix "file name too long" error caused by bundle loader treating PEM encoded private keys as file paths ([#3766](https://github.com/open-policy-agent/opa/issues/3766))
+- Fix plugins to support manual triggering mode when discovery is disabled ([#3797](https://github.com/open-policy-agent/opa/issues/3797))
+
+### Server & Tooling
+
+- The server now supports policy-based health checks that can inspect the state of plugins and other internal components ([#3759](https://github.com/open-policy-agent/opa/issues/3759)) authored by @[gshively11](https://github.com/gshively11)
+- The bundle reader now loads files lazily to avoid hitting file descriptor limits ([#3777](https://github.com/open-policy-agent/opa/issues/3777)). Authored by @[bhoriuchi](https://github.com/bhoriuchi)
+- The `opa eval` sub-command supports a `--timeout` option for limiting how long evaluation can run.
+
+### Rego
+
+- The type checker now supports variadic arguments on void functions. This change paves the way for `print()` support as well as variadic arguments on all functions.
+- The parser now memoizes term parsing. This prevents non-linear runtime for large nested objects and sets.
+
+### CI & Dependencies
+
+- Fix spurious build errors in wasm library.
+- Update wasmtime dependency to v0.30.0.
+- Run PR checks on macOS in addition to Linux ([#3176](https://github.com/open-policy-agent/opa/issues/3176)).
+
+### Documentation
+
+- Update the Kubernetes and Envoy (standalone) tutorials to show how the OPA management APIs can be used to distribute policies.
 
 ### Backwards Compatibility
 
