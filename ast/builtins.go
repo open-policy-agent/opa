@@ -247,6 +247,10 @@ var DefaultBuiltins = [...]*Builtin{
 	//SemVers
 	SemVerIsValid,
 	SemVerCompare,
+
+	// Printing
+	Print,
+	InternalPrint,
 }
 
 // BuiltinMap provides a convenient mapping of built-in names to
@@ -2216,6 +2220,27 @@ var SemVerCompare = &Builtin{
 		),
 		types.N,
 	),
+}
+
+/**
+ * Printing
+ */
+
+// Print is a special built-in function that writes zero or more operands
+// to a message buffer. The caller controls how the buffer is displayed. The
+// operands may be of any type. Furthermore, unlike other built-in functions,
+// undefined operands DO NOT cause the print() function to fail during
+// evaluation.
+var Print = &Builtin{
+	Name: "print",
+	Decl: types.NewVariadicFunction(nil, types.A, nil),
+}
+
+// InternalPrint represents the internal implementation of the print() function.
+// The compiler rewrites print() calls to refer to the internal implementation.
+var InternalPrint = &Builtin{
+	Name: "internal.print",
+	Decl: types.NewFunction([]types.Type{types.NewArray(nil, types.NewSet(types.A))}, nil),
 }
 
 /**

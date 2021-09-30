@@ -2800,6 +2800,216 @@ func TestCompilerRewriteWithValue(t *testing.T) {
 	}
 }
 
+func TestCompilerRewritePrintCallsErasure(t *testing.T) {
+
+	cases := []struct {
+		note   string
+		module string
+		exp    string
+	}{
+		{
+			note: "no-op",
+			module: `package test
+			p { true }`,
+			exp: `package test
+			p { true }`,
+		},
+		{
+			note: "replace empty body with true",
+			module: `package test
+
+			p { print(1) }
+			`,
+			exp: `package test
+
+			p { true } `,
+		},
+		{
+			note: "rule body",
+			module: `package test
+
+			p { false; print(1) }
+			`,
+			exp: `package test
+
+			p { false } `,
+		},
+		{
+			note: "set comprehension body",
+			module: `package test
+
+			p { {1 | false; print(1)} }
+			`,
+			exp: `package test
+
+			p { {1 | false} } `,
+		},
+		{
+			note: "array comprehension body",
+			module: `package test
+
+			p { [1 | false; print(1)] }
+			`,
+			exp: `package test
+
+			p { [1 | false] } `,
+		},
+		{
+			note: "object comprehension body",
+			module: `package test
+
+			p { {"x": 1 | false; print(1)} }
+			`,
+			exp: `package test
+
+			p { {"x": 1 | false} } `,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			c := NewCompiler().WithEnablePrintStatements(false)
+			c.Compile(map[string]*Module{
+				"test.rego": MustParseModule(tc.module),
+			})
+			if c.Failed() {
+				t.Fatal(c.Errors)
+			}
+			exp := MustParseModule(tc.exp)
+			if !exp.Equal(c.Modules["test.rego"]) {
+				t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", exp, c.Modules["test.rego"])
+			}
+		})
+	}
+}
+
+func TestCompilerRewritePrintCallsErrors(t *testing.T) {
+	cases := []struct {
+		note   string
+		module string
+		exp    error
+	}{
+		{
+			note: "non-existent var",
+			module: `package test
+
+			p { print(x) }`,
+			exp: errors.New("var x is undeclared"),
+		},
+		{
+			note: "declared after print",
+			module: `package test
+
+			p { print(x); x = 7 }`,
+			exp: errors.New("var x is undeclared"),
+		},
+		{
+			note: "inside comprehension",
+			module: `package test
+			p { {1 | print(x)} }
+			`,
+			exp: errors.New("var x is undeclared"),
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			c := NewCompiler().WithEnablePrintStatements(true)
+			c.Compile(map[string]*Module{
+				"test.rego": MustParseModule(tc.module),
+			})
+			if !c.Failed() {
+				t.Fatal("expected error")
+			}
+			if c.Errors[0].Code != CompileErr || c.Errors[0].Message != tc.exp.Error() {
+				t.Fatal("unexpected error:", c.Errors)
+			}
+		})
+	}
+}
+
+func TestCompilerRewritePrintCalls(t *testing.T) {
+	cases := []struct {
+		note   string
+		module string
+		exp    string
+	}{
+		{
+			note: "print one",
+			module: `package test
+
+			p { print(1) }`,
+			exp: `package test
+
+			p = true { __local1__ = {__local0__ | __local0__ = 1}; internal.print([__local1__]) }`,
+		},
+		{
+			note: "print multiple",
+			module: `package test
+
+			p { print(1, 2) }`,
+			exp: `package test
+
+			p = true { __local2__ = {__local0__ | __local0__ = 1}; __local3__ = {__local1__ | __local1__ = 2}; internal.print([__local2__, __local3__]) }`,
+		},
+		{
+			note: "print inside set comprehension",
+			module: `package test
+
+			p { x = 1; {2 | print(x)} }`,
+			exp: `package test
+
+			p = true { x = 1; {2 | __local1__ = {__local0__ | __local0__ = x}; internal.print([__local1__])} }`,
+		},
+		{
+			note: "print inside array comprehension",
+			module: `package test
+
+			p { x = 1; [2 | print(x)] }`,
+			exp: `package test
+
+			p = true { x = 1; [2 | __local1__ = {__local0__ | __local0__ = x}; internal.print([__local1__])] }`,
+		},
+		{
+			note: "print inside object comprehension",
+			module: `package test
+
+			p { x = 1; {"x": 2 | print(x)} }`,
+			exp: `package test
+
+			p = true { x = 1; {"x": 2 | __local1__ = {__local0__ | __local0__ = x}; internal.print([__local1__])} }`,
+		},
+		{
+			note: "print output of nested call",
+			module: `package test
+
+			p {
+				x := split("abc", "")[y]
+				print(x, y)
+			}`,
+			exp: `package test
+
+			p = true { split("abc", "", __local3__); __local0__ = __local3__[y]; __local4__ = {__local1__ | __local1__ = __local0__}; __local5__ = {__local2__ | __local2__ = y}; internal.print([__local4__, __local5__]) }`,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			c := NewCompiler().WithEnablePrintStatements(true)
+			c.Compile(map[string]*Module{
+				"test.rego": MustParseModule(tc.module),
+			})
+			if c.Failed() {
+				t.Fatal(c.Errors)
+			}
+			exp := MustParseModule(tc.exp)
+			if !exp.Equal(c.Modules["test.rego"]) {
+				t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", exp, c.Modules["test.rego"])
+			}
+		})
+	}
+}
+
 func TestCompilerMockFunction(t *testing.T) {
 	c := NewCompiler()
 	c.Modules["test"] = MustParseModule(`
@@ -3170,6 +3380,27 @@ foo[x] {
 
 	if len(result) != 1 || result[0] != expected {
 		t.Errorf("Expected %v but got: %v", expected, result)
+	}
+}
+
+func TestCompilerCheckVoidCalls(t *testing.T) {
+	c := NewCompiler().WithCapabilities(&Capabilities{Builtins: []*Builtin{
+		{
+			Name: "test",
+			Decl: types.NewFunction([]types.Type{types.B}, nil),
+		},
+	}})
+	c.Compile(map[string]*Module{
+		"test.rego": MustParseModule(`package test
+
+		p {
+			x = test(true)
+		}`),
+	})
+	if !c.Failed() {
+		t.Fatal("expected error")
+	} else if c.Errors[0].Code != TypeErr || c.Errors[0].Message != "test(true) used as value" {
+		t.Fatal("unexpected error:", c.Errors)
 	}
 }
 
@@ -4075,6 +4306,16 @@ func TestQueryCompiler(t *testing.T) {
 			imports:  []string{"import input.xyz as abc"},
 			expected: "input.xyz",
 		},
+		{
+			note:     "void call used as value",
+			q:        "x = print(1)",
+			expected: fmt.Errorf("rego_type_error: print(1) used as value"),
+		},
+		{
+			note:     "print call erasure",
+			q:        `print(1)`,
+			expected: "true",
+		},
 	}
 	for _, tc := range tests {
 		runQueryCompilerTest(t, tc.note, tc.q, tc.pkg, tc.imports, tc.expected)
@@ -4374,7 +4615,7 @@ func compilerErrsToStringSlice(errors []*Error) []string {
 
 func runQueryCompilerTest(t *testing.T, note, q, pkg string, imports []string, expected interface{}) {
 	t.Run(note, func(t *testing.T) {
-		c := NewCompiler()
+		c := NewCompiler().WithEnablePrintStatements(false)
 		c.Compile(getCompilerTestModules())
 		assertNotFailed(t, c)
 		qc := c.QueryCompiler()
@@ -4857,7 +5098,7 @@ const allOfArraySchema = `{
 		"type": "array",
 		"title": "The b schema",
 		"description": "An explanation about the purpose of this instance.",
-		"items": {	
+		"items": {
 			"type": "integer",
 			"title": "The items schema",
 			"description": "An explanation about the purpose of this instance."
