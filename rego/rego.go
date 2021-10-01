@@ -2167,7 +2167,8 @@ func (r *Rego) rewriteQueryToCaptureValue(qc ast.QueryCompiler, query ast.Body) 
 			expr.Terms = ast.Equality.Expr(terms, capture).Terms
 			r.capture[expr] = capture.Value.(ast.Var)
 		case []*ast.Term:
-			if r.compiler.GetArity(expr.Operator()) == len(terms)-1 {
+			tpe := r.compiler.TypeEnv.Get(terms[0])
+			if !types.Void(tpe) && types.Arity(tpe) == len(terms)-1 {
 				capture = r.generateTermVar()
 				expr.Terms = append(terms, capture)
 				r.capture[expr] = capture.Value.(ast.Var)
