@@ -216,6 +216,22 @@ func TestRegoRewrittenVarsCapture(t *testing.T) {
 
 }
 
+func TestRegoDoNotCaptureVoidCalls(t *testing.T) {
+
+	ctx := context.Background()
+
+	r := New(Query("print(1)"))
+
+	rs, err := r.Eval(ctx)
+	if err != nil || len(rs) != 1 {
+		t.Fatal(err, "rs:", rs)
+	}
+
+	if !rs[0].Expressions[0].Value.(bool) {
+		t.Fatal("expected expression value to be true")
+	}
+}
+
 func TestRegoCancellation(t *testing.T) {
 
 	ast.RegisterBuiltin(&ast.Builtin{
