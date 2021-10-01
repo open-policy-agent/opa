@@ -37,7 +37,7 @@ JWTs have a limited size in practice, so if your organization has too many user 
 * OPA has early support for making HTTP requests during evaluation, which could be used to check if a JWT has been revoked.  Though if you're connecting to a remote system on every policy decision anyway, you should think about whether connecting to the authentication system directly is more appropriate (see below).
 
 ## Option 2: Overload `input`
-Often policies require external data that's not available to the authentication system, ruling out JWTs.  The calling system can include external as part of `input` (necessitating of course that the policy is written accordingly).
+Often policies require external data that's not available to the authentication system, ruling out JWTs.  The calling system can include external data as part of `input` (necessitating of course that the policy is written accordingly).
 
 For example, suppose your policy says that only a file's owner may delete it.  The authentication system does not track resource-ownership, but the system responsible for files certainly does.
 
