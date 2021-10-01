@@ -28,7 +28,7 @@ install-deps: live-blocks-install-deps
 # npm scripts in ./website/scripts/live-blocks
 .PHONY: live-blocks-%
 live-blocks-%:
-	cd $(CURDIR)/website/scripts/live-blocks && npm run --silent $*
+	cd $(CURDIR)/website/scripts/live-blocks && npm run $*
 
 .PHONY: serve-local
 serve-local: production-build
