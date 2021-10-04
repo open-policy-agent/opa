@@ -14,6 +14,7 @@ Thanks to @[iainmcgin](https://github.com/iainmcgin) for reporting.
 ### Fixes
 
 - format: make groupIterable sort by row ([#3849](https://github.com/open-policy-agent/opa/issues/3849)) 
+- build: fix netlify build (#3845)
 
 ## 0.33.0
 
