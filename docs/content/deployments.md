@@ -368,7 +368,7 @@ In Kubernetes admission control, for example, the Kubernetes admin can choose wh
 
 ## Capabilities
 
-OPA now supports a _capabilities_ check on policies. The check allows callers to restrict the [built-in](../policy-reference/#built-in-functions) functions that policies may depend on. If the policies passed to OPA require built-ins not listed in the capabilities structure, an error is returned. The capabilities check is currently supported by the `check` and `build` sub-commands and can be accessed programmatically on the `ast.Compiler` structure. The OPA repository includes a set of capabilities files for previous versions of OPA in the [capabilities](https://github.com/open-policy-agent/opa/tree/main/capabilities) folder.
+OPA now supports a _capabilities_ check on policies. The check allows callers to restrict the [built-in](../kubernetes-primer/#builtins) functions that policies may depend on. If the policies passed to OPA require built-ins not listed in the capabilities structure, an error is returned. The capabilities check is currently supported by the `check` and `build` sub-commands and can be accessed programmatically on the `ast.Compiler` structure. The OPA repository includes a set of capabilities files for previous versions of OPA in the [capabilities](https://github.com/open-policy-agent/opa/tree/main/capabilities) folder.
 
 For example, given the following policy:
 
