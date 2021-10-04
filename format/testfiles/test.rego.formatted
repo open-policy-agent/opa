@@ -19,7 +19,10 @@ foo[x] {
 	g(x, "foo") = z
 }
 
-globals = {"fizz": "buzz", "foo": "bar"}
+globals = {
+	"foo": "bar",
+	"fizz": "buzz",
+}
 
 partial_obj["x"] = 1
 
