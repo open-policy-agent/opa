@@ -9,6 +9,7 @@ import (
 	"math/rand"
 	"strings"
 	"testing"
+	"time"
 )
 
 func BenchmarkObjectLookup(b *testing.B) {
@@ -155,41 +156,44 @@ func BenchmarkObjectString(b *testing.B) {
 
 func BenchmarkObjectConstruction(b *testing.B) {
 	sizes := []int{5, 50, 500, 5000, 50000}
+	seed := time.Now().UnixNano()
 
-	b.Run("random keys", func(b *testing.B) {
+	b.Run("shuffled keys", func(b *testing.B) {
 		for _, n := range sizes {
 			b.Run(fmt.Sprint(n), func(b *testing.B) {
-				obj := map[string]int{}
+				es := []struct{ k, v int }{}
 				for i := 0; i < n; i++ {
-					j := rand.Intn(n)
-					obj[fmt.Sprint(j)] = i
+					es = append(es, struct{ k, v int }{i, i})
 				}
-				benchObjectConstruction(b, obj)
+				rand.Seed(seed)
+				rand.Shuffle(len(es), func(i, j int) { es[i], es[j] = es[j], es[i] })
+				b.ResetTimer()
+				for i := 0; i < b.N; i++ {
+					obj := NewObject()
+					for _, e := range es {
+						obj.Insert(IntNumberTerm(e.k), IntNumberTerm(e.v))
+					}
+				}
 			})
 		}
 	})
 	b.Run("increasing keys", func(b *testing.B) {
 		for _, n := range sizes {
 			b.Run(fmt.Sprint(n), func(b *testing.B) {
-				obj := map[string]int{}
-				for i := 0; i < n; i++ {
-					obj[fmt.Sprint(i)] = i
+				es := []struct{ k, v int }{}
+				for v := 0; v < n; v++ {
+					es = append(es, struct{ k, v int }{v, v})
 				}
-				benchObjectConstruction(b, obj)
+				b.ResetTimer()
+				for i := 0; i < b.N; i++ {
+					obj := NewObject()
+					for _, e := range es {
+						obj.Insert(IntNumberTerm(e.k), IntNumberTerm(e.v))
+					}
+				}
 			})
 		}
 	})
-}
-
-func benchObjectConstruction(b *testing.B, obj map[string]int) {
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		val := MustInterfaceToValue(obj)
-		_, ok := val.(Object)
-		if !ok {
-			b.Fail()
-		}
-	}
 }
 
 // BenchmarkArrayString compares the performance characteristics of
