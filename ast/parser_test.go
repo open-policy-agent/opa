@@ -12,8 +12,6 @@ import (
 	"testing"
 )
 
-var _ = fmt.Printf
-
 const (
 	testModule = `
 # This policy module belongs the opa.example package.
@@ -3163,7 +3161,10 @@ func assertLocationText(t *testing.T, expected string, actual *Location) {
 }
 
 func assertParseError(t *testing.T, msg string, input string) {
-	assertParseErrorFunc(t, msg, input, func(string) {})
+	t.Helper()
+	t.Run(msg, func(t *testing.T) {
+		assertParseErrorFunc(t, msg, input, func(string) {})
+	})
 }
 
 func assertParseErrorContains(t *testing.T, msg string, input string, expected string) {
@@ -3275,7 +3276,9 @@ func assertParseOneExprNegated(t *testing.T, msg string, input string, correct *
 
 func assertParseOneTerm(t *testing.T, msg string, input string, correct *Term) {
 	t.Helper()
-	assertParseOneExpr(t, msg, input, &Expr{Terms: correct})
+	t.Run(msg, func(t *testing.T) {
+		assertParseOneExpr(t, msg, input, &Expr{Terms: correct})
+	})
 }
 
 func assertParseOneTermNegated(t *testing.T, msg string, input string, correct *Term) {

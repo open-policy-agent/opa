@@ -14,6 +14,44 @@ import (
 
 var dynamicPropertyAnyAny = NewDynamicProperty(A, A)
 
+func TestAnySorted(t *testing.T) {
+	a := NewAny(S, N)
+	if Compare(a[0], N) != 0 {
+		t.Fatal("expected any type to be sorted")
+	}
+}
+
+func TestAnyMerge(t *testing.T) {
+	x := NewAny(S, B)
+
+	if Compare(x.Merge(N)[1], N) != 0 {
+		t.Fatal("expected number to be inserted into middle")
+	}
+
+	if Compare(x.Merge(NewNull())[0], NewNull()) != 0 {
+		t.Fatal("expected null to be inserted at front")
+	}
+
+	if Compare(x.Merge(NewArray(nil, A))[2], NewArray(nil, A)) != 0 {
+		t.Fatal("expected array to be inserted at back")
+	}
+}
+
+func TestAnyUnion(t *testing.T) {
+	x := NewAny(NewNull(), N)
+	y := NewAny(S, B)
+	z := x.Union(y)
+	exp := []Type{NewNull(), B, N, S}
+	if len(z) != len(exp) {
+		t.Fatalf("expected %v elements in result of union", len(exp))
+	}
+	for i := range z {
+		if Compare(z[i], exp[i]) != 0 {
+			t.Fatal("expected", exp[i], "but got", z[i])
+		}
+	}
+}
+
 func TestStrings(t *testing.T) {
 
 	tpe := NewObject([]*StaticProperty{
@@ -42,6 +80,13 @@ func TestStrings(t *testing.T) {
 
 	if ftpe.String() != expected {
 		t.Fatalf("Expected %v but got: %v", expected, ftpe)
+	}
+
+	ftpe = NewVariadicFunction([]Type{N}, S, nil)
+	expected = "(number, string...) => ???"
+
+	if ftpe.String() != expected {
+		t.Fatal("expected", expected, "but got:", ftpe)
 	}
 }
 
@@ -414,6 +459,23 @@ func TestRoundtripJSON(t *testing.T) {
 		),
 	}, NewAny(S, N))
 
+	bs, err := json.Marshal(tpe)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := Unmarshal(bs)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if Compare(result, tpe) != 0 {
+		t.Fatalf("Got: %v\n\nExpected: %v", result, tpe)
+	}
+}
+
+func TestRoundtripJSONVariadicFunction(t *testing.T) {
+	tpe := NewVariadicFunction([]Type{S}, N, nil)
 	bs, err := json.Marshal(tpe)
 	if err != nil {
 		t.Fatal(err)

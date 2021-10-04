@@ -46,6 +46,7 @@ type testCommandParams struct {
 	runRegex     string
 	count        int
 	target       *util.EnumFlag
+	skipExitZero bool
 }
 
 func newTestCommandParams() *testCommandParams {
@@ -293,8 +294,12 @@ func runTests(ctx context.Context, txn storage.Transaction, runner *tester.Runne
 	go func() {
 		defer close(dup)
 		for tr := range ch {
-			if !tr.Pass() {
+			if !tr.Pass() && !testParams.skipExitZero {
 				exitCode = 2
+			}
+			if tr.Skip && exitCode == 0 && testParams.skipExitZero {
+				// there is a skipped test, adding the flag -z exits 0 if there are no failures
+				exitCode = 0
 			}
 			tr.Trace = filterTrace(testParams, tr.Trace)
 			dup <- tr
@@ -343,6 +348,7 @@ func filterTrace(params *testCommandParams, trace []*topdown.Event) []*topdown.E
 }
 
 func init() {
+	testCommand.Flags().BoolVarP(&testParams.skipExitZero, "exit-zero-on-skipped", "z", false, "skipped tests return status 0")
 	testCommand.Flags().BoolVarP(&testParams.verbose, "verbose", "v", false, "set verbose reporting mode")
 	testCommand.Flags().BoolVarP(&testParams.failureLine, "show-failure-line", "l", false, "show test failure line")
 	_ = testCommand.Flags().MarkDeprecated("show-failure-line", "use -v instead")

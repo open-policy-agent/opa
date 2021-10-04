@@ -1907,11 +1907,11 @@ func TestCompilerRewriteLocalAssignments(t *testing.T) {
 			`,
 			exp: `
 				package test
-				object_keys = true { {k: __local0__, "k2": __local1__} = {"foo": 1, "k2": 2} }
+				object_keys = true { {"k2": __local0__, k: __local1__} = {"foo": 1, "k2": 2} }
 			`,
 			expRewrittenMap: map[Var]Var{
-				Var("__local0__"): Var("v1"),
-				Var("__local1__"): Var("v2"),
+				Var("__local0__"): Var("v2"),
+				Var("__local1__"): Var("v1"),
 			},
 		},
 		{

@@ -379,6 +379,11 @@ type ConfigResponseV1 struct {
 	Result *interface{} `json:"result,omitempty"`
 }
 
+// HealthResponseV1 models the response message for Health API operations.
+type HealthResponseV1 struct {
+	Error string `json:"error,omitempty"`
+}
+
 const (
 	// ParamQueryV1 defines the name of the HTTP URL parameter that specifies
 	// values for the request query.

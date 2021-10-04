@@ -6,6 +6,7 @@ package ast
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/open-policy-agent/opa/util"
@@ -49,6 +50,19 @@ func BenchmarkParseStatementSimpleArray(b *testing.B) {
 	}
 }
 
+func TestParseStatementSimpleArray(b *testing.T) {
+	sizes := []int{10} // , 10, 100, 1000}
+	for _, size := range sizes {
+		b.Run(fmt.Sprint(size), func(b *testing.T) {
+			stmt := generateArrayStatement(size)
+			_, err := ParseStatement(stmt)
+			if err != nil {
+				b.Fatalf("Unexpected error: %s", err)
+			}
+		})
+	}
+}
+
 // BenchmarkParseStatementNestedObjects gives a baseline for parsing objects.
 // This includes "flat" ones and more deeply nested varieties.
 func BenchmarkParseStatementNestedObjects(b *testing.B) {
@@ -57,6 +71,16 @@ func BenchmarkParseStatementNestedObjects(b *testing.B) {
 		b.Run(fmt.Sprintf("%dx%d", size[0], size[1]), func(b *testing.B) {
 			stmt := generateObjectStatement(size[0], size[1])
 			runParseStatementBenchmark(b, stmt)
+		})
+	}
+}
+
+func BenchmarkParseStatementNestedObjectsOrSets(b *testing.B) {
+	sizes := []int{1, 5, 10, 15, 20}
+	for _, size := range sizes {
+		b.Run(fmt.Sprintf("%d", size), func(b *testing.B) {
+			stmt := generateObjectOrSetStatement(size)
+			runParseStatementBenchmarkWithError(b, stmt)
 		})
 	}
 }
@@ -139,6 +163,16 @@ func runParseStatementBenchmark(b *testing.B, stmt string) {
 	}
 }
 
+func runParseStatementBenchmarkWithError(b *testing.B, stmt string) {
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := ParseStatement(stmt)
+		if err == nil {
+			b.Fatalf("Expected error: %s", err)
+		}
+	}
+}
+
 func generateModule(numRules int) string {
 	mod := "package bench\n"
 	for i := 0; i < numRules; i++ {
@@ -171,4 +205,12 @@ func generateObject(width, depth int) map[string]interface{} {
 		}
 	}
 	return o
+}
+
+func generateObjectOrSetStatement(depth int) string {
+	s := strings.Builder{}
+	for i := 0; i < depth; i++ {
+		fmt.Fprintf(&s, `{a%d:a%d|`, i, i)
+	}
+	return s.String()
 }

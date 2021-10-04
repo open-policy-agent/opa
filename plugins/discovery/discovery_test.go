@@ -1246,7 +1246,7 @@ bundles:
 			confGood, false, nil,
 		},
 		"trigger_mode_mismatch": {
-			confBad, true, fmt.Errorf("invalid configuration for bundle \"bundle-new\": discovery has trigger mode manual, bundle has periodic"),
+			confBad, true, fmt.Errorf("invalid configuration for bundle \"bundle-new\": trigger mode mismatch: manual and periodic (hint: check discovery configuration)"),
 		},
 	}
 
@@ -1313,7 +1313,7 @@ decision_logs:
 			confGood, false, nil,
 		},
 		"trigger_mode_mismatch": {
-			confBad, true, fmt.Errorf("invalid decision_log config, discovery has trigger mode manual, decision_log has periodic"),
+			confBad, true, fmt.Errorf("invalid decision_log config: trigger mode mismatch: manual and periodic (hint: check discovery configuration)"),
 		},
 	}
 
@@ -1386,7 +1386,7 @@ status:
 			confGood, false, nil,
 		},
 		"trigger_mode_mismatch": {
-			confBad, true, fmt.Errorf("invalid status config, discovery has trigger mode manual, status has periodic"),
+			confBad, true, fmt.Errorf("invalid status config: trigger mode mismatch: manual and periodic (hint: check discovery configuration)"),
 		},
 	}
 
@@ -1659,7 +1659,7 @@ func TestPluginManualTriggerLifecycle(t *testing.T) {
 	disco, _ := fixture.server.statusEvent[2].(map[string]interface{})
 	errMsg := disco["discovery"].(map[string]interface{})["message"]
 
-	expErrMsg := "invalid configuration for bundle \"authz\": discovery has trigger mode manual, bundle has periodic"
+	expErrMsg := "invalid configuration for bundle \"authz\": trigger mode mismatch: manual and periodic (hint: check discovery configuration)"
 	if errMsg != expErrMsg {
 		t.Fatalf("Expected error %v but got %v", expErrMsg, errMsg)
 	}
