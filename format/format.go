@@ -810,10 +810,17 @@ func (w *writer) listWriter() entryWriter {
 	}
 }
 
-func groupIterable(elements []interface{}, last *ast.Location) (lines [][]interface{}) {
+// groupIterable will group the `elements` slice into slices according to their
+// location: anything on the same line will be put into a slice.
+func groupIterable(elements []interface{}, last *ast.Location) [][]interface{} {
+	sort.Slice(elements, func(i, j int) bool {
+		return locLess(elements[i], elements[j])
+	})
+	var lines [][]interface{}
 	var cur []interface{}
 	for i, t := range elements {
-		loc := getLoc(t)
+		elem := t
+		loc := getLoc(elem)
 		lineDiff := loc.Row - last.Row
 		if lineDiff > 0 && i > 0 {
 			lines = append(lines, cur)
@@ -821,7 +828,7 @@ func groupIterable(elements []interface{}, last *ast.Location) (lines [][]interf
 		}
 
 		last = loc
-		cur = append(cur, t)
+		cur = append(cur, elem)
 	}
 	return append(lines, cur)
 }
