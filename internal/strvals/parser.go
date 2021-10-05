@@ -382,7 +382,7 @@ func typedVal(v []rune, st bool) interface{} {
 	}
 
 	if strings.EqualFold(val, "null") {
-		return nil
+		return struct{}{}
 	}
 
 	if strings.EqualFold(val, "0") {
