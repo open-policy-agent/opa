@@ -439,3 +439,48 @@ func TestLoadConfigWithParamOverrideNoConfigFile(t *testing.T) {
 		t.Errorf("config does not match expected:\n\nExpected: %+v\nActual: %+v", expected, config)
 	}
 }
+
+func TestLoadConfigWithParamOverrideNoConfigFileWithEmptyObject(t *testing.T) {
+	configOverrides := []string{
+		"services.acmecorp.url=https://example.com/control-plane-api/v1",
+		"services.acmecorp.headers=null",
+		"services.acmecorp.credentials.s3_signing.environment_credentials=null",
+		"decision_logs.plugin=my_plugin",
+		"plugins.my_plugin=null",
+	}
+
+	configBytes, err := Load("", configOverrides, nil)
+	if err != nil {
+		t.Errorf("unexpected error loading config: " + err.Error())
+	}
+
+	config := map[string]interface{}{}
+	err = yaml.Unmarshal(configBytes, &config)
+	if err != nil {
+		t.Errorf("unexpected error unmarshalling config")
+	}
+
+	expected := map[string]interface{}{
+		"services": map[string]interface{}{
+			"acmecorp": map[string]interface{}{
+				"url":     "https://example.com/control-plane-api/v1",
+				"headers": map[string]interface{}{},
+				"credentials": map[string]interface{}{
+					"s3_signing": map[string]interface{}{
+						"environment_credentials": map[string]interface{}{},
+					},
+				},
+			},
+		},
+		"decision_logs": map[string]interface{}{
+			"plugin": "my_plugin",
+		},
+		"plugins": map[string]interface{}{
+			"my_plugin": map[string]interface{}{},
+		},
+	}
+
+	if !reflect.DeepEqual(config, expected) {
+		t.Errorf("config does not match expected:\n\nExpected: %+v\nActual: %+v", expected, config)
+	}
+}

@@ -98,7 +98,7 @@ func TestParseSet(t *testing.T) {
 	}{
 		{
 			"name1=null,f=false,t=true",
-			map[string]interface{}{"name1": nil, "f": false, "t": true},
+			map[string]interface{}{"name1": map[string]interface{}{}, "f": false, "t": true},
 			false,
 		},
 		{
@@ -142,7 +142,7 @@ func TestParseSet(t *testing.T) {
 		},
 		{
 			str:    "is_null=null",
-			expect: map[string]interface{}{"is_null": nil},
+			expect: map[string]interface{}{"is_null": map[string]interface{}{}},
 			err:    false,
 		},
 		{
