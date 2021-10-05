@@ -40,10 +40,11 @@ This tutorial requires:
   * Docker Engine 18.06.0-ce or newer
   * Docker API version 1.38 or newer
   * `root` or `sudo` access
+  * Nginx, or any capable [bundle](https://www.openpolicyagent.org/docs/latest/management-bundles/) server
 
 The tutorial has been tested on the following platforms:
 
-  * Ubuntu 18.04 (64-bit)
+  * Ubuntu 20.04 (64-bit)
 
 If you are using a different distro, OS, or architecture, the steps will be the
 same. However, there may be slight differences in the commands you need to run.
@@ -56,11 +57,7 @@ restart, you will need root access.
 
 ### 1. Create an empty policy definition that will allow all requests.
 
-```shell
-mkdir -p /etc/docker/policies
-```
-
-**/etc/docker/policies/authz.rego**:
+**authz.rego**:
 
 ```live:docker_authz:module:read_only
 package docker.authz
@@ -69,13 +66,52 @@ allow = true
 ```
 
 This policy defines a single rule named `allow` that always produces the
-decision `true`. Once all of the components are running, we will come back to
+decision `true`. Once all the components are running, we will come back to
 the policy.
 
-### 2. Install the opa-docker-authz plugin.
+### 2. Create policy bundle and OPA configuration.
+
+For the purpose of this example, we are going to use [Nginx](https://www.openpolicyagent.org/docs/latest/management-bundles/#nginx)
+to serve bundles from the same machine Docker is running on.
+
+With nginx running, simply build the policy bundle placed into the nginx web root directory.
 
 ```shell
-docker plugin install openpolicyagent/opa-docker-authz-v2:0.4 opa-args="-policy-file /opa/policies/authz.rego"
+opa build --bundle --output /var/www/html/bundle.tar.gz .
+```
+
+Next, create an OPA configuration file pointing to the bundle.
+
+```yaml
+services:
+  authz:
+    url: http://localhost
+
+bundles:
+  authz:
+    service: authz
+    resource: bundle.tar.gz
+
+# Optional - Print decisions in the Docker logs. Configure a remote service for production use cases.
+decision_logs:
+  console: true
+```
+
+Save the above file as `config.yaml`. We'll need to place this somewhere where the plugin can find it.
+The `/etc/docker` directory will be mounted as `/opa` in the container running the plugin, so let's create a
+sub-directory for our configuration file there.
+
+```shell
+sudo mkdir -p /etc/docker/config
+sudo mv config.yaml /etc/docker/config/
+```
+
+### 3. Install the opa-docker-authz plugin.
+
+Install the `opa-docker-authz` plugin and point it to the config file just created.
+
+```shell
+docker plugin install openpolicyagent/opa-docker-authz-v2:0.8 opa-args="-config-file /opa/config/config.yaml"
 ```
 
 You need to configure the Docker daemon to use the plugin for authorization.
@@ -83,7 +119,7 @@ You need to configure the Docker daemon to use the plugin for authorization.
 ```shell
 cat > /etc/docker/daemon.json <<EOF
 {
-    "authorization-plugins": ["openpolicyagent/opa-docker-authz-v2:0.4"]
+    "authorization-plugins": ["openpolicyagent/opa-docker-authz-v2:0.8"]
 }
 EOF
 ```
@@ -100,19 +136,25 @@ kill -HUP $(pidof dockerd)
 docker ps
 ```
 
-If everything is setup correctly, the command should exit successfully. You can
+If everything is set up correctly, the command should exit successfully. You can
 expect to see log messages from OPA and the plugin.
 
 ### 5. Test that the policy definition is working.
 
 Let’s modify our policy to **deny** all requests:
 
-**/etc/docker/policies/authz.rego**:
+**authz.rego**:
 
 ```live:docker_authz_deny_all:module:read_only
 package docker.authz
 
 allow = false
+```
+
+Rebuild the bundle and save it in the Nginx document root directory.
+
+```shell
+opa build --bundle --output /var/www/html/bundle.tar.gz .
 ```
 
 In OPA, rules defines the content of documents. Documents be boolean values
@@ -142,7 +184,7 @@ Now let's change the policy so that it's a bit more useful.
 
 ### 6. Update the policy to reject requests with the unconfined [seccomp](https://en.wikipedia.org/wiki/Seccomp) profile:
 
-**/etc/docker/policies/authz.rego**:
+**authz.rego**:
 
 ```live:docker_authz_deny_unconfined:module:openable
 package docker.authz
@@ -162,6 +204,12 @@ seccomp_unconfined {
     # to an element in the array SecurityOpt referenced on the left-hand side.
     input.Body.HostConfig.SecurityOpt[_] == "seccomp:unconfined"
 }
+```
+
+Again, rebuild the bundle and save it in the Nginx document root directory.
+
+```shell
+opa build --bundle --output /var/www/html/bundle.tar.gz .
 ```
 
 The plugin queries the `allow` rule to authorize requests to Docker. The `input`
@@ -305,7 +353,7 @@ docker run --security-opt seccomp:unconfined hello-world
 Congratulations! You have successfully prevented containers from running without
 seccomp!
 
-The rest of the tutorial shows how you can grant fine grained access to specific
+The rest of the tutorial shows how you can grant fine-grained access to specific
 clients.
 
 ### <a name="identify-user"></a> 8. Identify the user in Docker requests.
