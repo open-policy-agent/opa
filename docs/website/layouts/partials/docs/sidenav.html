@@ -13,6 +13,12 @@
 {{ $version    := index (split .File.Path "/") 1 }}
 {{ $latest     := index site.Data.releases 1 }}
 
+<span class="docs-nav-title">Online Editor</span>
+<a class="docs-nav-title" href="https://play.openpolicyagent.org/">
+  Rego Playground
+</a>
+<hr class="docs-nav-hr" />
+
 <span class="docs-nav-title">
   Core Docs
 </span>
@@ -48,10 +54,6 @@
 {{ partial "docs/sidenav-section.html" ( dict "ctx" . "sectionTitle" "Contributing" "section" $contrib "pageUrl" $pageUrl "version" $version ) }}
 
 {{ partial "docs/sidenav-section.html" ( dict "ctx" . "sectionTitle" "Miscellaneous" "section" $misc "pageUrl" $pageUrl "version" $version ) }}
-
-<a class="docs-nav-item" href="https://play.openpolicyagent.org/">
-  Rego Playground
-</a>
 
 <hr class="docs-nav-hr" />
 
