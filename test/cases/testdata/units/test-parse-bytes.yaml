@@ -406,7 +406,7 @@ cases:
   want_result:
   - x: true
 
-  - data:
+- data:
   modules:
   - |
     package test
