@@ -111,7 +111,8 @@ func checkModules(args []string) int {
 	compiler := ast.NewCompiler().
 		SetErrorLimit(checkParams.errLimit).
 		WithCapabilities(capabilities).
-		WithSchemas(ss)
+		WithSchemas(ss).
+		WithEnablePrintStatements(true)
 
 	compiler.Compile(modules)
 
