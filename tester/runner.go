@@ -6,6 +6,7 @@
 package tester
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"regexp"
@@ -64,17 +65,19 @@ type Result struct {
 	Skip            bool                     `json:"skip,omitempty"`
 	Duration        time.Duration            `json:"duration"`
 	Trace           []*topdown.Event         `json:"trace,omitempty"`
+	Output          []byte                   `json:"output,omitempty"`
 	FailedAt        *ast.Expr                `json:"failed_at,omitempty"`
 	BenchmarkResult *testing.BenchmarkResult `json:"benchmark_result,omitempty"`
 }
 
-func newResult(loc *ast.Location, pkg, name string, duration time.Duration, trace []*topdown.Event) *Result {
+func newResult(loc *ast.Location, pkg, name string, duration time.Duration, trace []*topdown.Event, output []byte) *Result {
 	return &Result{
 		Location: loc,
 		Package:  pkg,
 		Name:     name,
 		Duration: duration,
 		Trace:    trace,
+		Output:   output,
 	}
 }
 
@@ -110,17 +113,18 @@ type BenchmarkOptions struct {
 
 // Runner implements simple test discovery and execution.
 type Runner struct {
-	compiler    *ast.Compiler
-	store       storage.Store
-	cover       topdown.QueryTracer
-	trace       bool
-	runtime     *ast.Term
-	failureLine bool
-	timeout     time.Duration
-	modules     map[string]*ast.Module
-	bundles     map[string]*bundle.Bundle
-	filter      string
-	target      string // target type (wasm, rego, etc.)
+	compiler              *ast.Compiler
+	store                 storage.Store
+	cover                 topdown.QueryTracer
+	trace                 bool
+	enablePrintStatements bool
+	runtime               *ast.Term
+	failureLine           bool
+	timeout               time.Duration
+	modules               map[string]*ast.Module
+	bundles               map[string]*bundle.Bundle
+	filter                string
+	target                string // target type (wasm, rego, etc.)
 }
 
 // NewRunner returns a new runner.
@@ -164,6 +168,13 @@ func (r *Runner) SetCoverageQueryTracer(tracer topdown.QueryTracer) *Runner {
 	}
 	r.cover = tracer
 	r.trace = false
+	return r
+}
+
+// CapturePrintOutput captures print() call outputs during evaluation and
+// includes the output in test results.
+func (r *Runner) CapturePrintOutput(yes bool) *Runner {
+	r.enablePrintStatements = yes
 	return r
 }
 
@@ -246,20 +257,20 @@ func (r *Runner) Run(ctx context.Context, modules map[string]*ast.Module) (ch ch
 
 // RunTests executes tests found in either modules or bundles loaded on the runner.
 func (r *Runner) RunTests(ctx context.Context, txn storage.Transaction) (ch chan *Result, err error) {
-	return r.runTests(ctx, txn, r.runTest)
+	return r.runTests(ctx, txn, true, r.runTest)
 }
 
 // RunBenchmarks executes tests similar to tester.Runner#RunTests but will repeat
 // a number of times to get stable performance metrics.
 func (r *Runner) RunBenchmarks(ctx context.Context, txn storage.Transaction, options BenchmarkOptions) (ch chan *Result, err error) {
-	return r.runTests(ctx, txn, func(ctx context.Context, txn storage.Transaction, module *ast.Module, rule *ast.Rule) (result *Result, b bool) {
+	return r.runTests(ctx, txn, false, func(ctx context.Context, txn storage.Transaction, module *ast.Module, rule *ast.Rule) (result *Result, b bool) {
 		return r.runBenchmark(ctx, txn, module, rule, options)
 	})
 }
 
 type run func(context.Context, storage.Transaction, *ast.Module, *ast.Rule) (*Result, bool)
 
-func (r *Runner) runTests(ctx context.Context, txn storage.Transaction, runFunc run) (chan *Result, error) {
+func (r *Runner) runTests(ctx context.Context, txn storage.Transaction, enablePrintStatements bool, runFunc run) (chan *Result, error) {
 	var testRegex *regexp.Regexp
 	var err error
 
@@ -271,7 +282,8 @@ func (r *Runner) runTests(ctx context.Context, txn storage.Transaction, runFunc 
 	}
 
 	if r.compiler == nil {
-		r.compiler = ast.NewCompiler()
+		r.compiler = ast.NewCompiler().
+			WithEnablePrintStatements(enablePrintStatements)
 	}
 
 	// rewrite duplicate test_* rule names as we compile modules
@@ -411,11 +423,12 @@ func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.
 	ruleName := string(rule.Head.Name)
 
 	if strings.HasPrefix(ruleName, SkipTestPrefix) {
-		tr := newResult(rule.Loc(), mod.Package.Path.String(), ruleName, 0*time.Second, nil)
+		tr := newResult(rule.Loc(), mod.Package.Path.String(), ruleName, 0*time.Second, nil, nil)
 		tr.Skip = true
-
 		return tr, false
 	}
+
+	printbuf := bytes.NewBuffer(nil)
 
 	rg := rego.New(
 		rego.Store(r.store),
@@ -425,6 +438,7 @@ func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.
 		rego.QueryTracer(tracer),
 		rego.Runtime(r.runtime),
 		rego.Target(r.target),
+		rego.PrintHook(topdown.NewPrintHook(printbuf)),
 	)
 
 	t0 := time.Now()
@@ -437,7 +451,7 @@ func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.
 		trace = *bufferTracer
 	}
 
-	tr := newResult(rule.Loc(), mod.Package.Path.String(), ruleName, dt, trace)
+	tr := newResult(rule.Loc(), mod.Package.Path.String(), ruleName, dt, trace, printbuf.Bytes())
 	tr.Error = err
 	var stop bool
 
