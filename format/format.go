@@ -490,15 +490,13 @@ func (w *writer) writeFunctionCall(expr *ast.Expr, comments []*ast.Comment) []*a
 
 func (w *writer) writeFunctionCallPlain(terms []*ast.Term, comments []*ast.Comment) []*ast.Comment {
 	w.write(terms[0].String() + "(")
-	if len(terms) > 1 {
-		for _, v := range terms[1 : len(terms)-1] {
-			comments = w.writeTerm(v, comments)
-			w.write(", ")
-		}
-		comments = w.writeTerm(terms[len(terms)-1], comments)
+	defer w.write(")")
+	args := make([]interface{}, len(terms)-1)
+	for i, t := range terms[1:] {
+		args[i] = t
 	}
-	w.write(")")
-	return comments
+	loc := terms[0].Location
+	return w.writeIterable(args, loc, closingLoc(0, 0, '(', ')', loc), comments, w.listWriter())
 }
 
 func (w *writer) writeWith(with *ast.With, comments []*ast.Comment) []*ast.Comment {
