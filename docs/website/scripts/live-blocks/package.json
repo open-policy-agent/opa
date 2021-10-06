@@ -44,7 +44,7 @@
     "dot-prop": ">=5.1.1",
     "glob-parent": ">=5.1.2",
     "minimist": ">=1.2.2",
-    "mocha": "^8.1.1",
+    "mocha": ">=9.1.2",
     "normalize-url": ">=4.5.1",
     "nth-check": ">=2.0.1",
     "postcss": "^8.2.10",
