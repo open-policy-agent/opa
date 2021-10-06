@@ -38,6 +38,7 @@ import (
 // REPL represents an instance of the interactive shell.
 type REPL struct {
 	output  io.Writer
+	stderr  io.Writer
 	store   storage.Store
 	runtime *ast.Term
 
@@ -123,6 +124,11 @@ func (r *REPL) initModule(ctx context.Context) error {
 		return nil
 	}
 	return r.evalStatement(ctx, defaultPackage())
+}
+
+func (r *REPL) WithStderrWriter(w io.Writer) *REPL {
+	r.stderr = w
+	return nil
 }
 
 // Loop will run until the user enters "exit", Ctrl+C, Ctrl+D, or an unexpected error occurs.
@@ -681,7 +687,7 @@ func (r *REPL) recompile(ctx context.Context, cpy *ast.Module) error {
 		}
 	}
 
-	compiler := ast.NewCompiler().SetErrorLimit(r.errLimit)
+	compiler := ast.NewCompiler().SetErrorLimit(r.errLimit).WithEnablePrintStatements(true)
 
 	if r.instrument {
 		compiler.WithMetrics(r.metrics)
@@ -705,8 +711,8 @@ func (r *REPL) compileBody(ctx context.Context, compiler *ast.Compiler, body ast
 		qctx = qctx.WithPackage(r.modules[r.currentModuleID].Package).WithImports(r.modules[r.currentModuleID].Imports)
 	}
 
-	qc := compiler.QueryCompiler()
-	body, err := qc.WithContext(qctx).Compile(body)
+	qc := compiler.QueryCompiler().WithContext(qctx).WithEnablePrintStatements(true)
+	body, err := qc.Compile(body)
 	return body, qc.TypeEnv(), err
 }
 
@@ -746,7 +752,7 @@ func (r *REPL) compileRule(ctx context.Context, rule *ast.Rule) error {
 		policies[id] = mod
 	}
 
-	compiler := ast.NewCompiler().SetErrorLimit(r.errLimit)
+	compiler := ast.NewCompiler().SetErrorLimit(r.errLimit).WithEnablePrintStatements(true)
 
 	if r.instrument {
 		compiler.WithMetrics(r.metrics)
@@ -846,7 +852,7 @@ func (r *REPL) loadCompiler(ctx context.Context) (*ast.Compiler, error) {
 		policies[id] = mod
 	}
 
-	compiler := ast.NewCompiler().SetErrorLimit(r.errLimit)
+	compiler := ast.NewCompiler().SetErrorLimit(r.errLimit).WithEnablePrintStatements(true)
 
 	if r.instrument {
 		compiler.WithMetrics(r.metrics)
@@ -940,6 +946,8 @@ func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, input ast.V
 		rego.Runtime(r.runtime),
 		rego.StrictBuiltinErrors(r.strictBuiltinErrors),
 		rego.Target(r.target),
+		rego.EnablePrintStatements(true),
+		rego.PrintHook(topdown.NewPrintHook(r.stderrWriter())),
 	}
 
 	if r.explain != explainOff {
@@ -1006,6 +1014,8 @@ func (r *REPL) evalPartial(ctx context.Context, compiler *ast.Compiler, input as
 		rego.ParsedUnknowns(r.unknowns),
 		rego.Runtime(r.runtime),
 		rego.StrictBuiltinErrors(r.strictBuiltinErrors),
+		rego.EnablePrintStatements(true),
+		rego.PrintHook(topdown.NewPrintHook(r.stderrWriter())),
 	)
 
 	pq, err := eval.Partial(ctx)
@@ -1187,6 +1197,13 @@ func (r *REPL) saveHistory(prompt *liner.State) {
 		_, _ = prompt.WriteHistory(f) // ignore error
 		f.Close()
 	}
+}
+
+func (r *REPL) stderrWriter() io.Writer {
+	if r.stderr != nil {
+		return r.stderr
+	}
+	return os.Stderr
 }
 
 type commandDesc struct {
