@@ -39,8 +39,8 @@ func (r PrettyReporter) Report(ch chan *Result) error {
 
 	dirty := false
 	var pass, fail, skip, errs int
-
 	var results, failures []*Result
+
 	for tr := range ch {
 		if tr.Pass() {
 			pass++
@@ -78,6 +78,11 @@ func (r PrettyReporter) Report(ch chan *Result) error {
 		} else if r.Verbose {
 			dirty = true
 			fmt.Fprintln(r.Output, tr)
+			if len(tr.Output) > 0 {
+				fmt.Fprintln(r.Output)
+				fmt.Fprintln(newIndentingWriter(r.Output), strings.TrimSpace(string(tr.Output)))
+				fmt.Fprintln(r.Output)
+			}
 		} else if !tr.Pass() {
 			dirty = true
 			if r.FailureLine {
@@ -88,6 +93,11 @@ func (r PrettyReporter) Report(ch chan *Result) error {
 				}
 			} else {
 				fmt.Fprintln(r.Output, tr)
+				if len(tr.Output) > 0 {
+					fmt.Fprintln(r.Output)
+					fmt.Fprintln(newIndentingWriter(r.Output), strings.TrimSpace(string(tr.Output)))
+					fmt.Fprintln(r.Output)
+				}
 			}
 		}
 		if tr.Error != nil {
