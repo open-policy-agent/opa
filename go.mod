@@ -6,7 +6,7 @@ require (
 	github.com/OneOfOne/xxhash v1.2.8
 	github.com/bytecodealliance/wasmtime-go v0.30.0
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
-	github.com/dgraph-io/badger/v3 v3.2103.1
+	github.com/dgraph-io/badger/v3 v3.2103.2
 	github.com/dgryski/go-farm v0.0.0-20200201041132-a6ae2369ad13 // indirect
 	github.com/fortytw2/leaktest v1.3.0
 	github.com/fsnotify/fsnotify v1.5.1
@@ -14,7 +14,6 @@ require (
 	github.com/gobwas/glob v0.2.3
 	github.com/golang/glog v1.0.0 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
-	github.com/google/flatbuffers v1.12.1 // indirect
 	github.com/gorilla/mux v1.8.0
 	github.com/klauspost/compress v1.13.5 // indirect
 	github.com/kr/text v0.2.0 // indirect
@@ -40,7 +39,3 @@ require (
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
 	gopkg.in/yaml.v2 v2.4.0
 )
-
-// HACK: as there are issues with sum value of v1.12.0, make sure to update this when badger updates its dependencies
-// See issue: https://github.com/google/flatbuffers/issues/6466
-replace github.com/google/flatbuffers v1.12.0 => github.com/google/flatbuffers v1.12.1
