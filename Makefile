@@ -119,11 +119,11 @@ test-coverage: generate
 
 .PHONY: perf
 perf: generate
-	$(GO) test $(GO_TAGS),slow $(GO_TEST_TIMEOUT) -run=- -bench=. -benchmem ./...
+	$(GO) test $(GO_TAGS),slow $(GO_TEST_TIMEOUT) -run=^$$ -bench=. -benchmem ./...
 
 .PHONY: perf-noisy
 perf-noisy: generate
-	$(GO) test $(GO_TAGS),slow,noisy $(GO_TEST_TIMEOUT) -run=- -bench=. -benchmem ./...
+	$(GO) test $(GO_TAGS),slow,noisy $(GO_TEST_TIMEOUT) -run=^$$ -bench=. -benchmem ./...
 
 .PHONY: wasm-sdk-e2e-test
 wasm-sdk-e2e-test: generate
