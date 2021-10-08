@@ -1025,7 +1025,21 @@ net.cidr_contains_matches({["1.1.0.0/16", "foo"], "1.1.2.0/24"}, {"x": "1.1.1.12
 
 | Built-in | Description | Wasm Support |
 | ------- |-------------|---------------|
-| <span class="opa-keep-it-together">``trace(string)``</span> | ``trace`` outputs the debug message ``string`` as a ``Note`` event in the query explanation. For example, ``trace("Hello There!")`` includes ``Note "Hello There!"`` in the query explanation. To print variables, use sprintf. For example, ``person := "Bob"; trace(sprintf("Hello There! %v", [person]))`` will emit ``Note "Hello There! Bob"``. | ``SDK-dependent`` |
+| <span class="opa-keep-it-together">``print(...)``</span> | ``print`` is used to output the values of variables for debugging purposes. ``print`` calls have no affect on the result of queries or rules. All variables passed to `print` must be assigned inside of the query or rule. If any of the `print` arguments are undefined, their values are represented as `<undefined>` in the output stream. Because policies can be invoked via different interfaces (e.g., CLI, HTTP API, etc.) the exact output format differs. See the table below for details. | ``SDK-dependent`` |
+
+API | Output | Memo
+--- | --- | ---
+`opa eval` | `stderr` |
+`opa run` (REPL)  | `stderr` |
+`opa test` | `stdout` | Specify `-v` to see output for passing tests. Output for failing tests is displayed automatically.
+`opa run -s` (server) | `stderr` | Specify `--log-level=info` (default) or higher. Output is sent to the log stream. Use `--log-format=text` for pretty output.
+Go (library) | `io.Writer` | [https://pkg.go.dev/github.com/open-policy-agent/opa/rego#example-Rego-Print_statements](https://pkg.go.dev/github.com/open-policy-agent/opa/rego#example-Rego-Print_statements)
+
+### Tracing
+
+| Built-in | Description | Wasm Support |
+| ------- |-------------|---------------|
+| <span class="opa-keep-it-together">``trace(string)``</span> | ``trace`` emits ``string`` as a ``Note`` event in the query explanation. Query explanations show the exact expressions evaluated by OPA during policy execution. For example, ``trace("Hello There!")`` includes ``Note "Hello There!"`` in the query explanation. To include variables in the message, use ``sprintf``. For example, ``person := "Bob"; trace(sprintf("Hello There! %v", [person]))`` will emit ``Note "Hello There! Bob"`` inside of the explanation. | ``SDK-dependent`` |
 
 By default, explanations are disabled. The following table summarizes how you can enable tracing:
 
