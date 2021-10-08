@@ -193,6 +193,16 @@ func TestOutputVarsForNode(t *testing.T) {
 			query: "{x, 2}[1] = y",
 			exp:   `set()`,
 		},
+		{
+			note:  "nested function calls",
+			query: `z = "abc"; x = split(z, "")[y]`,
+			exp:   `{x, y, z}`,
+		},
+		{
+			note:  "unsafe nested function calls",
+			query: `z = "abc"; x = split(z, a)[y]`,
+			exp:   `{z}`,
+		},
 	}
 
 	for _, tc := range tests {

@@ -4,6 +4,25 @@
 
 package ast
 
+func isRefSafe(ref Ref, safe VarSet) bool {
+	switch head := ref[0].Value.(type) {
+	case Var:
+		return safe.Contains(head)
+	case Call:
+		vis := NewVarVisitor().WithParams(SafetyCheckVisitorParams)
+		vis.Walk(head)
+		unsafe := vis.Vars().Diff(safe)
+		return len(unsafe) == 0
+	default:
+		for v := range ref[0].Vars() {
+			if !safe.Contains(v) {
+				return false
+			}
+		}
+		return true
+	}
+}
+
 // Unify returns a set of variables that will be unified when the equality expression defined by
 // terms a and b is evaluated. The unifier assumes that variables in the VarSet safe are already
 // unified.
@@ -27,18 +46,6 @@ func (u *unifier) isSafe(x Var) bool {
 	return u.safe.Contains(x) || u.unified.Contains(x)
 }
 
-func (u *unifier) isHeadSafe(r Ref) bool {
-	if v, ok := r[0].Value.(Var); ok {
-		return u.isSafe(v)
-	}
-	for v := range r[0].Vars() {
-		if !u.isSafe(v) {
-			return false
-		}
-	}
-	return true
-}
-
 func (u *unifier) unify(a *Term, b *Term) {
 
 	switch a := a.Value.(type) {
@@ -57,7 +64,7 @@ func (u *unifier) unify(a *Term, b *Term) {
 		case *Array, Object:
 			u.unifyAll(a, b)
 		case Ref:
-			if u.isHeadSafe(b) {
+			if isRefSafe(b, u.safe) {
 				u.markSafe(a)
 			}
 		default:
@@ -65,7 +72,7 @@ func (u *unifier) unify(a *Term, b *Term) {
 		}
 
 	case Ref:
-		if u.isHeadSafe(a) {
+		if isRefSafe(a, u.safe) {
 			switch b := b.Value.(type) {
 			case Var:
 				u.markSafe(b)
