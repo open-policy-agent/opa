@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
+## Unreleased
+
+### Backwards Compatibility
+
+* The `github.com/open-policy-agent/opa/runtime#NewLoggingHandler` function now
+  requires a logger instance. Requiring the logger avoids the need for the
+  logging handler to depend on the global logrus logger (which is useful for
+  test purposes.) This change is unlikely to affect users.
+
 ## 0.33.1
 
 This is a bugfix release addressing an issue in the formatting of rego code that contains
@@ -79,8 +88,6 @@ There are *no functional changes* in this bugfix release.
 If you use the container images, or the published binaries, of OPA 0.32.0, you are **not affected** by this.
 
 Many thanks to [James Alseth](https://github.com/jalseth) for triaging this, and engaging with upstream to fix this.
-
-## Unreleased
 
 ## 0.32.0
 

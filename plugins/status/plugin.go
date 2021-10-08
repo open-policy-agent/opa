@@ -13,7 +13,6 @@ import (
 	"reflect"
 
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 
 	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/metrics"
@@ -430,12 +429,12 @@ func (p *Plugin) logUpdate(update *UpdateRequestV1) error {
 	if err != nil {
 		return err
 	}
-	fields := logrus.Fields{}
+	fields := map[string]interface{}{}
 	err = util.UnmarshalJSON(eventBuf, &fields)
 	if err != nil {
 		return err
 	}
-	p.manager.ConsoleLogger().WithFields(fields).WithFields(logrus.Fields{
+	p.manager.ConsoleLogger().WithFields(fields).WithFields(map[string]interface{}{
 		"type": "openpolicyagent.org/status",
 	}).Info("Status Log")
 	return nil

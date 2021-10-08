@@ -20,8 +20,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sirupsen/logrus"
-
+	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/logging/test"
 	"github.com/open-policy-agent/opa/runtime"
 	"github.com/open-policy-agent/opa/server/types"
@@ -195,7 +194,7 @@ func (t *TestRuntime) runTests(m *testing.M, suppressLogs bool) int {
 	go func() {
 		// Suppress the stdlogger in the server
 		if suppressLogs {
-			logrus.SetOutput(ioutil.Discard)
+			logging.Get().SetOutput(ioutil.Discard)
 		}
 		err := t.Runtime.Serve(t.Ctx)
 		done <- err
@@ -204,7 +203,7 @@ func (t *TestRuntime) runTests(m *testing.M, suppressLogs bool) int {
 	// Turns out this thread gets a different stdlogger
 	// so we need to set the output on it here too.
 	if suppressLogs {
-		logrus.SetOutput(ioutil.Discard)
+		logging.Get().SetOutput(ioutil.Discard)
 	}
 
 	// wait for the server to be ready
@@ -239,7 +238,7 @@ func (t *TestRuntime) WaitForServer() error {
 			// Then make sure it has started serving
 			err := t.HealthCheck(t.URL())
 			if err == nil {
-				logrus.Infof("Test server ready and listening on: %s", t.URL())
+				logging.Get().Info("Test server ready and listening on: %s", t.URL())
 				return nil
 			}
 		}
