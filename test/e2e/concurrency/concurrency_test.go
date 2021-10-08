@@ -18,7 +18,7 @@ func TestMain(m *testing.M) {
 	testServerParams := e2e.NewAPIServerTestParams()
 
 	var err error
-	testRuntime, err = e2e.NewTestRuntime(testServerParams)
+	testRuntime, err = e2e.NewTestRuntimeWithOpts(e2e.TestRuntimeOpts{}, testServerParams)
 	if err != nil {
 		os.Exit(1)
 	}

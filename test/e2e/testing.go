@@ -53,18 +53,25 @@ func NewAPIServerTestParams() runtime.Params {
 // TestRuntime holds metadata and provides helper methods
 // to interact with the runtime being tested.
 type TestRuntime struct {
-	Params        runtime.Params
-	Runtime       *runtime.Runtime
-	Ctx           context.Context
-	Cancel        context.CancelFunc
-	Client        *http.Client
-	ConsoleLogger *test.Logger
-	url           string
-	urlMtx        *sync.Mutex
+	Params         runtime.Params
+	Runtime        *runtime.Runtime
+	Ctx            context.Context
+	Cancel         context.CancelFunc
+	Client         *http.Client
+	ConsoleLogger  *test.Logger
+	url            string
+	urlMtx         *sync.Mutex
+	waitForBundles bool
 }
 
-// NewTestRuntime returns a new TestRuntime which
+// NewTestRuntime returns a new TestRuntime.
 func NewTestRuntime(params runtime.Params) (*TestRuntime, error) {
+	return NewTestRuntimeWithOpts(TestRuntimeOpts{}, params)
+}
+
+// NewTestRuntimeWithOpts returns a new TestRuntime.
+func NewTestRuntimeWithOpts(opts TestRuntimeOpts, params runtime.Params) (*TestRuntime, error) {
+
 	ctx := context.Background()
 	ctx, cancel := context.WithCancel(ctx)
 
@@ -75,12 +82,13 @@ func NewTestRuntime(params runtime.Params) (*TestRuntime, error) {
 	}
 
 	return &TestRuntime{
-		Params:  params,
-		Runtime: rt,
-		Ctx:     ctx,
-		Cancel:  cancel,
-		Client:  &http.Client{},
-		urlMtx:  new(sync.Mutex),
+		Params:         params,
+		Runtime:        rt,
+		Ctx:            ctx,
+		Cancel:         cancel,
+		Client:         &http.Client{},
+		urlMtx:         new(sync.Mutex),
+		waitForBundles: opts.WaitForBundles,
 	}, nil
 }
 
@@ -226,6 +234,43 @@ func (t *TestRuntime) runTests(m *testing.M, suppressLogs bool) int {
 	}
 
 	return errc
+}
+
+// TestRuntimeOpts contains parameters for the test runtime.
+type TestRuntimeOpts struct {
+	WaitForBundles bool // indicates if readiness check should depend on bundle activation
+}
+
+// WithRuntime invokes f with a new TestRuntime after waiting for server
+// readiness. This function can be called inside of each test that requires a
+// runtime as opposed to RunTests which can only be called once.
+func WithRuntime(t *testing.T, opts TestRuntimeOpts, params runtime.Params, f func(rt *TestRuntime)) {
+
+	t.Helper()
+
+	rt, err := NewTestRuntimeWithOpts(opts, params)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	done := make(chan error)
+	go func() {
+		err := rt.Runtime.Serve(rt.Ctx)
+		done <- err
+	}()
+
+	err = rt.WaitForServer()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	f(rt)
+	rt.Cancel()
+	err = <-done
+
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
 // WaitForServer will block until the server is running and passes a health check.
@@ -379,7 +424,13 @@ func (t *TestRuntime) GetDataWithInputTyped(path string, input interface{}, resp
 
 // HealthCheck will query /health and return an error if the server is not healthy
 func (t *TestRuntime) HealthCheck(url string) error {
-	req, err := http.NewRequest("GET", url+"/health", nil)
+
+	url += "/health"
+	if t.waitForBundles {
+		url += "?bundles"
+	}
+
+	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return fmt.Errorf("unexpected error creating request: %s", err)
 	}
