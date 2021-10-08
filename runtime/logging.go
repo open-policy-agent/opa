@@ -7,19 +7,35 @@ package runtime
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"errors"
 	"io"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
 	"sync/atomic"
 	"time"
 
-	"io/ioutil"
-
 	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/server/types"
+	"github.com/open-policy-agent/opa/topdown/print"
+	"github.com/sirupsen/logrus"
 )
+
+type loggingPrintHook struct {
+	logger logging.Logger
+}
+
+func (h loggingPrintHook) Print(pctx print.Context, msg string) error {
+	// NOTE(tsandall): if the request context is not present then do not panic,
+	// just log the print message without the additional context.
+	rctx, _ := pctx.Context.Value(reqCtxKey).(requestContext)
+	fields := rctx.Fields()
+	fields["line"] = pctx.Location.String()
+	h.logger.WithFields(fields).Info(msg)
+	return nil
+}
 
 // LoggingHandler returns an http.Handler that will print log messages
 // containing the request information as well as response status and latency.
@@ -42,21 +58,41 @@ func (h *LoggingHandler) loggingEnabled(level logging.Level) bool {
 	return level <= h.logger.GetLevel()
 }
 
+type requestContextKey string
+
+const reqCtxKey = requestContextKey("request-context-key")
+
+type requestContext struct {
+	ClientAddr string
+	ReqID      uint64
+	ReqMethod  string
+	ReqPath    string
+}
+
+func (rctx requestContext) Fields() logrus.Fields {
+	return logrus.Fields{
+		"client_addr": rctx.ClientAddr,
+		"req_id":      rctx.ReqID,
+		"req_method":  rctx.ReqMethod,
+		"req_path":    rctx.ReqPath,
+	}
+}
+
 func (h *LoggingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	requestID := atomic.AddUint64(&h.requestID, uint64(1))
-	recorder := newRecorder(h.logger, w, r, requestID, h.loggingEnabled(logging.Debug))
+	var rctx requestContext
+	rctx.ReqID = atomic.AddUint64(&h.requestID, uint64(1))
+	recorder := newRecorder(h.logger, w, r, rctx.ReqID, h.loggingEnabled(logging.Debug))
 	t0 := time.Now()
 
 	if h.loggingEnabled(logging.Info) {
 
-		fields := map[string]interface{}{
-			"client_addr": r.RemoteAddr,
-			"req_id":      requestID,
-			"req_method":  r.Method,
-			"req_path":    r.URL.EscapedPath(),
-		}
+		rctx.ClientAddr = r.RemoteAddr
+		rctx.ReqMethod = r.Method
+		rctx.ReqPath = r.URL.EscapedPath()
+		r = r.WithContext(context.WithValue(r.Context(), reqCtxKey, rctx))
 
 		var err error
+		fields := rctx.Fields()
 
 		if h.loggingEnabled(logging.Debug) {
 			var bs []byte
@@ -99,10 +135,10 @@ func (h *LoggingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if h.loggingEnabled(logging.Info) {
 		fields := map[string]interface{}{
-			"client_addr":   r.RemoteAddr,
-			"req_id":        requestID,
-			"req_method":    r.Method,
-			"req_path":      r.URL.EscapedPath(),
+			"client_addr":   rctx.ClientAddr,
+			"req_id":        rctx.ReqID,
+			"req_method":    rctx.ReqMethod,
+			"req_path":      rctx.ReqPath,
 			"resp_status":   statusCode,
 			"resp_bytes":    recorder.bytesWritten,
 			"resp_duration": float64(dt.Nanoseconds()) / 1e6,

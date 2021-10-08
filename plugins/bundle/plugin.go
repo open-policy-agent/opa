@@ -491,7 +491,9 @@ func (p *Plugin) activate(ctx context.Context, name string, b *bundle.Bundle) er
 
 		// Compile the bundle modules with a new compiler and set it on the
 		// transaction params for use by onCommit hooks.
-		compiler := ast.NewCompiler().WithPathConflictsCheck(storage.NonEmpty(ctx, p.manager.Store, txn))
+		compiler := ast.NewCompiler().
+			WithPathConflictsCheck(storage.NonEmpty(ctx, p.manager.Store, txn)).
+			WithEnablePrintStatements(p.manager.EnablePrintStatements())
 
 		var activateErr error
 

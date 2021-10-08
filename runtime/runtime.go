@@ -307,7 +307,9 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		plugins.InitFiles(loaded.Files),
 		plugins.MaxErrors(params.ErrorLimit),
 		plugins.GracefulShutdownPeriod(params.GracefulShutdownPeriod),
-		plugins.ConsoleLogger(consoleLogger))
+		plugins.ConsoleLogger(consoleLogger),
+		plugins.EnablePrintStatements(logger.GetLevel() >= logging.Info),
+		plugins.PrintHook(loggingPrintHook{logger: logger}))
 	if err != nil {
 		return nil, errors.Wrap(err, "config error")
 	}
