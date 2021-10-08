@@ -3142,24 +3142,34 @@ func TestCompilerCheckDynamicRecursion(t *testing.T) {
 	// This test tries to circumvent the recursion check by using dynamic
 	// references.  For more background info, see
 	// <https://github.com/open-policy-agent/opa/issues/1565>.
-	c := NewCompiler()
-	c.Modules = map[string]*Module{
-		"recursion": MustParseModule(`package recursion
 
+	for note, mod := range map[string]*Module{
+		"recursion": MustParseModule(`
+package recursion
 pkg = "recursion"
-
 foo[x] {
-  data[pkg]["foo"][x]
-}`),
-	}
+	data[pkg]["foo"][x]
+}
+`),
+		"system.main": MustParseModule(`
+package system.main
+foo {
+  data[input]
+}
+`),
+	} {
+		t.Run(note, func(t *testing.T) {
+			c := NewCompiler()
+			c.Modules = map[string]*Module{note: mod}
+			compileStages(c, c.checkRecursion)
 
-	compileStages(c, c.checkRecursion)
+			result := compilerErrsToStringSlice(c.Errors)
+			expected := "rego_recursion_error: rule foo is recursive: foo -> foo"
 
-	result := compilerErrsToStringSlice(c.Errors)
-	expected := "rego_recursion_error: rule foo is recursive: foo -> foo"
-
-	if len(result) != 1 || result[0] != expected {
-		t.Errorf("Expected %v but got: %v", expected, result)
+			if len(result) != 1 || result[0] != expected {
+				t.Errorf("Expected %v but got: %v", expected, result)
+			}
+		})
 	}
 }
 
@@ -3412,6 +3422,8 @@ r1 = 1`,
 r2 = 2`,
 		"mod3": `package a.b
 r3 = 3`,
+		"hidden": `package system.hidden
+r4 = 4`,
 	})
 
 	compileStages(compiler, nil)
@@ -3419,6 +3431,7 @@ r3 = 3`,
 	rule1 := compiler.Modules["mod1"].Rules[0]
 	rule2 := compiler.Modules["mod2"].Rules[0]
 	rule3 := compiler.Modules["mod3"].Rules[0]
+	rule4 := compiler.Modules["hidden"].Rules[0]
 
 	tests := []struct {
 		input    string
@@ -3429,7 +3442,7 @@ r3 = 3`,
 		{"data.a.b[x].d", []*Rule{rule1, rule3}},
 		{"data.a.b.c", []*Rule{rule1, rule2}},
 		{"data.a.b.d", nil},
-		{"data[x]", []*Rule{rule1, rule2, rule3}},
+		{"data[x]", []*Rule{rule1, rule2, rule3, rule4}},
 		{"data[data.complex_computation].b[y]", []*Rule{rule1, rule2, rule3}},
 		{"data[x][y].c.e", []*Rule{rule2}},
 		{"data[x][y].r3", []*Rule{rule3}},

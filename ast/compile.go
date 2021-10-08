@@ -571,7 +571,7 @@ func (c *Compiler) GetRulesDynamic(ref Ref) (rules []*Rule) {
 			// under this "prefix".
 			node.DepthFirst(func(descendant *TreeNode) bool {
 				insertRules(set, descendant.Values)
-				return descendant.Hide
+				return false
 			})
 		} else if i == 0 || IsConstant(ref[i].Value) {
 			// The head of the ref is always grounded.  In case another part of the
@@ -591,9 +591,6 @@ func (c *Compiler) GetRulesDynamic(ref Ref) (rules []*Rule) {
 			// This part of the ref is a dynamic term.  We can't know what it refers
 			// to and will just need to try all of the children.
 			for _, child := range node.Children {
-				if child.Hide {
-					continue
-				}
 				insertRules(set, child.Values)
 				walk(child, i+1)
 			}
@@ -707,7 +704,7 @@ func (c *Compiler) checkRecursion() {
 func (c *Compiler) checkSelfPath(loc *Location, eq func(a, b util.T) bool, a, b util.T) {
 	tr := NewGraphTraversal(c.Graph)
 	if p := util.DFSPath(tr, eq, a, b); len(p) > 0 {
-		n := []string{}
+		n := make([]string, 0, len(p))
 		for _, x := range p {
 			n = append(n, astNodeToString(x))
 		}
@@ -716,12 +713,7 @@ func (c *Compiler) checkSelfPath(loc *Location, eq func(a, b util.T) bool, a, b 
 }
 
 func astNodeToString(x interface{}) string {
-	switch x := x.(type) {
-	case *Rule:
-		return string(x.Head.Name)
-	default:
-		panic("not reached")
-	}
+	return string(x.(*Rule).Head.Name)
 }
 
 // checkRuleConflicts ensures that rules definitions are not in conflict.
