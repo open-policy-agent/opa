@@ -9,7 +9,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"strings"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/metrics"
@@ -447,7 +446,7 @@ func erasePolicies(ctx context.Context, store storage.Store, txn storage.Transac
 		}
 		deleted := false
 		for root := range roots {
-			if strings.HasPrefix(path, root) {
+			if RootPathsContain([]string{root}, path) {
 				if err := store.DeletePolicy(ctx, txn, id); err != nil {
 					return nil, err
 				}

@@ -490,15 +490,13 @@ func (w *writer) writeFunctionCall(expr *ast.Expr, comments []*ast.Comment) []*a
 
 func (w *writer) writeFunctionCallPlain(terms []*ast.Term, comments []*ast.Comment) []*ast.Comment {
 	w.write(terms[0].String() + "(")
-	if len(terms) > 1 {
-		for _, v := range terms[1 : len(terms)-1] {
-			comments = w.writeTerm(v, comments)
-			w.write(", ")
-		}
-		comments = w.writeTerm(terms[len(terms)-1], comments)
+	defer w.write(")")
+	args := make([]interface{}, len(terms)-1)
+	for i, t := range terms[1:] {
+		args[i] = t
 	}
-	w.write(")")
-	return comments
+	loc := terms[0].Location
+	return w.writeIterable(args, loc, closingLoc(0, 0, '(', ')', loc), comments, w.listWriter())
 }
 
 func (w *writer) writeWith(with *ast.With, comments []*ast.Comment) []*ast.Comment {
@@ -810,10 +808,17 @@ func (w *writer) listWriter() entryWriter {
 	}
 }
 
-func groupIterable(elements []interface{}, last *ast.Location) (lines [][]interface{}) {
+// groupIterable will group the `elements` slice into slices according to their
+// location: anything on the same line will be put into a slice.
+func groupIterable(elements []interface{}, last *ast.Location) [][]interface{} {
+	sort.Slice(elements, func(i, j int) bool {
+		return locLess(elements[i], elements[j])
+	})
+	var lines [][]interface{}
 	var cur []interface{}
 	for i, t := range elements {
-		loc := getLoc(t)
+		elem := t
+		loc := getLoc(elem)
 		lineDiff := loc.Row - last.Row
 		if lineDiff > 0 && i > 0 {
 			lines = append(lines, cur)
@@ -821,7 +826,7 @@ func groupIterable(elements []interface{}, last *ast.Location) (lines [][]interf
 		}
 
 		last = loc
-		cur = append(cur, t)
+		cur = append(cur, elem)
 	}
 	return append(lines, cur)
 }

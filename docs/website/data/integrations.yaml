@@ -881,6 +881,21 @@ integrations:
     blogs:
       - https://www.scalr.com/blog/opa-is-to-policy-automation-as-terraform-is-to-iac/
 
+  spire:
+    title: SPIRE
+    description: SPIRE is a production-ready implementation of the SPIFFE APIs that performs node and workload attestation in order to securely issue SPIFFE Verifiable Identity Documents (SVIDs) to workloads, and verify the SVIDs of other workloads, based on a predefined set of conditions.
+    labels:
+      layer: network
+      category: application
+    software:
+      - SPIFFE
+      - SPIRE
+    code:
+      - https://github.com/spiffe/spire/blob/v1.0.2/doc/authorization_policy_engine.md
+    tutorials:
+      - https://spiffe.io/docs/latest/microservices/envoy-opa/readme/
+      - https://spiffe.io/docs/latest/microservices/envoy-jwt-opa/readme/
+
   fairwinds-insights:
     title: Fairwinds Insights Configuration Validation Software
     description: Automate, monitor and enforce OPA policies with visibility across multiple clusters and multiple teams. It ensures the same policies are applied across all your clusters and gives some flexibility if you want certain policies to apply to only certain workloads. Run the same policies in CI/CD, Admission Control, and In-cluster scanning to apply policy consistently throughout the development and deployment process.
@@ -1199,3 +1214,9 @@ software:
   bottle:
     name: Bottle
     link: https://bottlepy.org
+  spiffe:
+    name: SPIFFE
+    link: https://spiffe.io
+  spire:
+    name: SPIRE
+    link: https://spiffe.io

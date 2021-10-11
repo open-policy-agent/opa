@@ -510,6 +510,16 @@ func TestErasePolicies(t *testing.T) {
 			expectedRemaining: []string{"mod1", "mod2"},
 		},
 		{
+			note: "erase correct paths",
+			initialPolicies: map[string][]byte{
+				"mod1": []byte("package a.test\np = true"),
+				"mod2": []byte("package a.test_v2\np = true"),
+			},
+			roots:             []string{"a/test"},
+			expectErr:         false,
+			expectedRemaining: []string{"mod2"},
+		},
+		{
 			note: "erase some",
 			initialPolicies: map[string][]byte{
 				"mod1": []byte("package a\np = true"),
@@ -556,7 +566,7 @@ func TestErasePolicies(t *testing.T) {
 
 			if !tc.expectErr {
 				if len(remaining) != len(tc.expectedRemaining) {
-					t.Fatalf("expected %d modules remaining, got %d", len(remaining), len(tc.expectedRemaining))
+					t.Fatalf("expected %d modules remaining, got %d", len(tc.expectedRemaining), len(remaining))
 				}
 				for _, name := range tc.expectedRemaining {
 					if _, ok := remaining[name]; !ok {
