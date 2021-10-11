@@ -785,7 +785,7 @@ Also note in particular how the `thumbprint` property is required for Azure. The
 
 ### Nginx
 
-Nginx offers a simple but competent bundle server for those who prefer to host their own. A great choice or for local testing.
+Nginx offers a simple but competent bundle server for those who prefer to host their own. A great choice for local testing.
 
 | Feature | Supported |
 |---------|-----------|
