@@ -128,11 +128,11 @@ func TestScalarTerms(t *testing.T) {
 	assertParseErrorContains(t, "non-string", "'a string'", "illegal token")
 	assertParseErrorContains(t, "non-number", "6zxy", "illegal number format")
 	assertParseErrorContains(t, "non-number2", "6d7", "illegal number format")
-	assertParseErrorContains(t, "non-number3", "6\"foo\"", "expected exactly one statement") // ??
+	assertParseErrorContains(t, "non-number3", "6\"foo\"", `expected \n or ;`)
 	assertParseErrorContains(t, "non-number4", "6true", "illegal number format")
 	assertParseErrorContains(t, "non-number5", "6false", "illegal number format")
 	assertParseErrorContains(t, "non-number6", "6[null, null]", "illegal ref (head cannot be number)") // ??
-	assertParseErrorContains(t, "non-number7", "6{\"foo\": \"bar\"}", "expected exactly one statement")
+	assertParseErrorContains(t, "non-number7", "6{\"foo\": \"bar\"}", `expected \n or ;`)
 	assertParseErrorContains(t, "non-number8", ".0.", "expected fraction")
 	assertParseErrorContains(t, "non-number9", "0e", "expected exponent")
 	assertParseErrorContains(t, "non-number10", "0e.", "expected exponent")
@@ -153,6 +153,8 @@ func TestScalarTerms(t *testing.T) {
 
 	// g := big.NewFloat(1); g.SetMantExp(g, 1e6); g.String() // => 9.900656229e+301029
 	assertParseErrorContains(t, "float exp > 1e5", "9.900656229e+301029", "number too big")
+
+	assertParseErrorContains(t, "many expressions in a row", "x = 1 1+1 true != false", `expected \n or ;`)
 }
 
 func TestVarTerms(t *testing.T) {
@@ -1804,7 +1806,7 @@ func TestModuleParseErrors(t *testing.T) {
 
 	errs, ok := err.(Errors)
 	if !ok {
-		panic("unexpected error value")
+		t.Fatalf("unexpected error value: %v", err)
 	}
 
 	if len(errs) != 5 {

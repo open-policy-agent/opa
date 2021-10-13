@@ -226,6 +226,9 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 
 		if body := p.parseQuery(true, tokens.EOF); body != nil {
 			stmts = append(stmts, body)
+			if p.s.tok != tokens.EOF && !p.s.skippedNL {
+				p.illegal(`expected \n or ;`)
+			}
 			continue
 		}
 
