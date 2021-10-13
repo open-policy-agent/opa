@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -xe
+set -e
 
 ORIGINAL_COMMIT=$(git symbolic-ref -q --short HEAD || git name-rev --name-only HEAD)
 # If no name can be found "git name-rev" returns
@@ -57,36 +57,7 @@ for release in ${ALL_RELEASES}; do
 done
 
 echo "Git version: ${GIT_VERSION}"
-
-echo "Saving current workspace state"
-STASH_TOKEN=$(cat /dev/urandom | LC_CTYPE=C tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
-git stash push --include-untracked -m "${STASH_TOKEN}"
-
-function restore_tree {
-    echo "Returning to commit ${ORIGINAL_COMMIT}"
-    git checkout ${ORIGINAL_COMMIT}
-
-    # Only pop from the stash if we had stashed something earlier
-    if [[ -n "$(git stash list | head -1 | grep ${STASH_TOKEN} || echo '')" ]]; then
-        git stash pop
-    fi
-}
-
-function cleanup {
-    EXIT_CODE=$?
-
-    if [[ "${EXIT_CODE}" != "0" ]]; then
-        # on errors attempt to restore the starting tree state
-        restore_tree
-
-        echo "Error loading docs"
-        exit ${EXIT_CODE}
-    fi
-
-    echo "Docs loading complete"
-}
-
-trap cleanup EXIT
+echo "Releases to consider: ${RELEASES[*]}"
 
 echo "Cleaning generated folder"
 rm -rf ${ROOT_DIR}/docs/website/generated/*
@@ -101,14 +72,13 @@ echo "- latest" > ${RELEASES_YAML_FILE}
 
 for release in "${RELEASES[@]}"; do
     version_docs_dir=${ROOT_DIR}/docs/website/generated/docs/${release}
-
     mkdir -p ${version_docs_dir}
 
     echo "Checking out release ${release}"
 
     # Don't error if the checkout fails
     set +e
-    git checkout ${release}
+    git archive --format=tar ${release} content | tar x -C ${version_docs_dir} --strip-components=1
     errc=$?
     set -e
 
@@ -120,14 +90,7 @@ for release in "${RELEASES[@]}"; do
     else
         echo "WARNING: Failed to check out version ${version}!!"
     fi
-
-    echo "Copying doc content from tag ${release}"
-    cp -r ${ROOT_DIR}/docs/content/* ${version_docs_dir}/
-
 done
-
-# Go back to the original tree state
-restore_tree
 
 # Create the "edge" version from current working tree
 echo 'Adding "edge" to releases.yaml'
@@ -138,4 +101,4 @@ echo "- edge" >> ${RELEASES_YAML_FILE}
 ln -s ../../../content ${ROOT_DIR}/docs/website/generated/docs/edge
 
 # Create a "latest" version from the latest semver found
-ln -s ${ROOT_DIR}/docs/website/generated/docs/${RELEASES[0]} ${ROOT_DIR}/docs/website/generated/docs/latest
+ln -s ${RELEASES[0]} ${ROOT_DIR}/docs/website/generated/docs/latest
