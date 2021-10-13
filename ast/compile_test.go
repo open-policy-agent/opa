@@ -3434,23 +3434,28 @@ r4 = 4`,
 	rule4 := compiler.Modules["hidden"].Rules[0]
 
 	tests := []struct {
-		input    string
-		expected []*Rule
+		input         string
+		expected      []*Rule
+		excludeHidden bool
 	}{
-		{"data.a.b.c.d.r1", []*Rule{rule1}},
-		{"data.a.b[x]", []*Rule{rule1, rule2, rule3}},
-		{"data.a.b[x].d", []*Rule{rule1, rule3}},
-		{"data.a.b.c", []*Rule{rule1, rule2}},
-		{"data.a.b.d", nil},
-		{"data[x]", []*Rule{rule1, rule2, rule3, rule4}},
-		{"data[data.complex_computation].b[y]", []*Rule{rule1, rule2, rule3}},
-		{"data[x][y].c.e", []*Rule{rule2}},
-		{"data[x][y].r3", []*Rule{rule3}},
+		{input: "data.a.b.c.d.r1", expected: []*Rule{rule1}},
+		{input: "data.a.b[x]", expected: []*Rule{rule1, rule2, rule3}},
+		{input: "data.a.b[x].d", expected: []*Rule{rule1, rule3}},
+		{input: "data.a.b.c", expected: []*Rule{rule1, rule2}},
+		{input: "data.a.b.d"},
+		{input: "data[x]", expected: []*Rule{rule1, rule2, rule3, rule4}},
+		{input: "data[data.complex_computation].b[y]", expected: []*Rule{rule1, rule2, rule3}},
+		{input: "data[x][y].c.e", expected: []*Rule{rule2}},
+		{input: "data[x][y].r3", expected: []*Rule{rule3}},
+		{input: "data[x][y]", expected: []*Rule{rule1, rule2, rule3}, excludeHidden: true}, // old behaviour of GetRulesDynamic
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.input, func(t *testing.T) {
-			result := compiler.GetRulesDynamic(MustParseRef(tc.input))
+			result := compiler.GetRulesDynamicWithOpts(
+				MustParseRef(tc.input),
+				RulesOptions{IncludeHiddenModules: !tc.excludeHidden},
+			)
 
 			if len(result) != len(tc.expected) {
 				t.Fatalf("Expected %v but got: %v", tc.expected, result)
