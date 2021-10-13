@@ -21,6 +21,7 @@ import (
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/topdown"
 	"github.com/open-policy-agent/opa/topdown/cache"
+	"github.com/open-policy-agent/opa/topdown/print"
 )
 
 // VM is a wrapper around a Wasm VM instance
@@ -269,9 +270,10 @@ func (i *VM) Eval(ctx context.Context,
 	metrics metrics.Metrics,
 	seed io.Reader,
 	ns time.Time,
-	iqbCache cache.InterQueryCache) ([]byte, error) {
+	iqbCache cache.InterQueryCache,
+	ph print.Hook) ([]byte, error) {
 	if i.abiMinorVersion < int32(2) {
-		return i.evalCompat(ctx, entrypoint, input, metrics, seed, ns, iqbCache)
+		return i.evalCompat(ctx, entrypoint, input, metrics, seed, ns, iqbCache, ph)
 	}
 
 	metrics.Timer("wasm_vm_eval").Start()
@@ -313,7 +315,7 @@ func (i *VM) Eval(ctx context.Context,
 	// make use of it (e.g. `http.send`); and it will spawn a go routine
 	// cancelling the builtins that use topdown.Cancel, when the context is
 	// cancelled.
-	i.dispatcher.Reset(ctx, seed, ns, iqbCache)
+	i.dispatcher.Reset(ctx, seed, ns, iqbCache, ph)
 
 	metrics.Timer("wasm_vm_eval_call").Start()
 	resultAddr, err := i.evalOneOff(ctx, int32(entrypoint), i.dataAddr, inputAddr, inputLen, heapPtr)
@@ -341,7 +343,8 @@ func (i *VM) evalCompat(ctx context.Context,
 	metrics metrics.Metrics,
 	seed io.Reader,
 	ns time.Time,
-	iqbCache cache.InterQueryCache) ([]byte, error) {
+	iqbCache cache.InterQueryCache,
+	ph print.Hook) ([]byte, error) {
 	metrics.Timer("wasm_vm_eval").Start()
 	defer metrics.Timer("wasm_vm_eval").Stop()
 
@@ -351,7 +354,7 @@ func (i *VM) evalCompat(ctx context.Context,
 	// make use of it (e.g. `http.send`); and it will spawn a go routine
 	// cancelling the builtins that use topdown.Cancel, when the context is
 	// cancelled.
-	i.dispatcher.Reset(ctx, seed, ns, iqbCache)
+	i.dispatcher.Reset(ctx, seed, ns, iqbCache, ph)
 
 	err := i.setHeapState(ctx, i.evalHeapPtr)
 	if err != nil {

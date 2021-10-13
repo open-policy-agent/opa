@@ -6,6 +6,7 @@ import (
 
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/topdown/cache"
+	"github.com/open-policy-agent/opa/topdown/print"
 )
 
 // Result holds the evaluation result.
@@ -21,4 +22,5 @@ type EvalOpts struct {
 	Time                   time.Time
 	Seed                   io.Reader
 	InterQueryBuiltinCache cache.InterQueryCache
+	PrintHook              print.Hook
 }

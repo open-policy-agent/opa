@@ -33,7 +33,7 @@ type Planner struct {
 	modules []*ast.Module           // input modules to support queries
 	strings map[string]int          // global string constant indices
 	files   map[string]int          // global file constant indices
-	externs map[string]struct{}     // built-in functions that are required in execution environment
+	externs map[string]*ast.Builtin // built-in functions that are required in execution environment
 	decls   map[string]*ast.Builtin // built-in functions that may be provided in execution environment
 	rules   *ruletrie               // rules that may be planned
 	funcs   *funcstack              // functions that have been planned
@@ -68,7 +68,7 @@ func New() *Planner {
 		},
 		strings: map[string]int{},
 		files:   map[string]int{},
-		externs: map[string]struct{}{},
+		externs: map[string]*ast.Builtin{},
 		lnext:   ir.Unused,
 		vars: newVarstack(map[ast.Var]ir.Local{
 			ast.InputRootDocument.Value.(ast.Var):   ir.Input,
@@ -725,6 +725,7 @@ func (p *Planner) planExprCall(e *ast.Expr, iter planiter) error {
 		var relation bool
 		var name string
 		var arity int
+		var void bool
 		var args []ir.LocalOrConst
 
 		node := p.rules.Lookup(e.Operator())
@@ -743,8 +744,9 @@ func (p *Planner) planExprCall(e *ast.Expr, iter planiter) error {
 		} else if decl, ok := p.decls[operator]; ok {
 			relation = decl.Relation
 			arity = len(decl.Decl.Args())
+			void = decl.Decl.Result() == nil
 			name = operator
-			p.externs[operator] = struct{}{}
+			p.externs[operator] = decl
 		} else {
 			return fmt.Errorf("illegal call: unknown operator %q", operator)
 		}
@@ -759,7 +761,7 @@ func (p *Planner) planExprCall(e *ast.Expr, iter planiter) error {
 			return p.planExprCallRelation(name, arity, operands, args, iter)
 		}
 
-		return p.planExprCallFunc(name, arity, operands, args, iter)
+		return p.planExprCallFunc(name, arity, void, operands, args, iter)
 	}
 }
 
@@ -814,7 +816,7 @@ func (p *Planner) planExprCallRelation(name string, arity int, operands []*ast.T
 	})
 }
 
-func (p *Planner) planExprCallFunc(name string, arity int, operands []*ast.Term, args []ir.LocalOrConst, iter planiter) error {
+func (p *Planner) planExprCallFunc(name string, arity int, void bool, operands []*ast.Term, args []ir.LocalOrConst, iter planiter) error {
 
 	if len(operands) == arity {
 		// definition: f(x) = y { ... }
@@ -828,10 +830,12 @@ func (p *Planner) planExprCallFunc(name string, arity int, operands []*ast.Term,
 				Result: ltarget,
 			})
 
-			p.appendStmt(&ir.NotEqualStmt{
-				A: ltarget,
-				B: ir.Bool(false),
-			})
+			if !void {
+				p.appendStmt(&ir.NotEqualStmt{
+					A: ltarget,
+					B: ir.Bool(false),
+				})
+			}
 
 			return iter()
 		})
@@ -1890,8 +1894,8 @@ func (p *Planner) planExterns() error {
 
 	p.policy.Static.BuiltinFuncs = make([]*ir.BuiltinFunc, 0, len(p.externs))
 
-	for name := range p.externs {
-		p.policy.Static.BuiltinFuncs = append(p.policy.Static.BuiltinFuncs, &ir.BuiltinFunc{Name: name})
+	for name, decl := range p.externs {
+		p.policy.Static.BuiltinFuncs = append(p.policy.Static.BuiltinFuncs, &ir.BuiltinFunc{Name: name, Decl: decl.Decl})
 	}
 
 	sort.Slice(p.policy.Static.BuiltinFuncs, func(i, j int) bool {
