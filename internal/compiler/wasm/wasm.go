@@ -21,6 +21,7 @@ import (
 	"github.com/open-policy-agent/opa/internal/wasm/instruction"
 	"github.com/open-policy-agent/opa/internal/wasm/module"
 	"github.com/open-policy-agent/opa/internal/wasm/types"
+	opatypes "github.com/open-policy-agent/opa/types"
 )
 
 // Record Wasm ABI version in exported global variable
@@ -179,6 +180,11 @@ var builtinsUsingRE2 = [...]string{
 	builtinsFunctions[ast.GlobMatch.Name],
 }
 
+type externalFunc struct {
+	ID   int32
+	Decl *opatypes.Function
+}
+
 var builtinDispatchers = [...]string{
 	"opa_builtin0",
 	"opa_builtin1",
@@ -198,17 +204,17 @@ type Compiler struct {
 
 	funcsCode []funcCode // compile functions' code
 
-	builtinStringAddrs    map[int]uint32     // addresses of built-in string constants
-	externalFuncNameAddrs map[string]int32   // addresses of required built-in function names for listing
-	externalFuncs         map[string]int32   // required built-in function ids
-	entrypointNameAddrs   map[string]int32   // addresses of available entrypoint names for listing
-	entrypoints           map[string]int32   // available entrypoint ids
-	stringOffset          int32              // null-terminated string data base offset
-	stringAddrs           []uint32           // null-terminated string constant addresses
-	opaStringAddrs        []uint32           // addresses of interned opa_string_t
-	opaBoolAddrs          map[ir.Bool]uint32 // addresses of interned opa_boolean_t
-	fileAddrs             []uint32           // null-terminated string constant addresses, used for file names
-	funcs                 map[string]uint32  // maps imported and exported function names to function indices
+	builtinStringAddrs    map[int]uint32          // addresses of built-in string constants
+	externalFuncNameAddrs map[string]int32        // addresses of required built-in function names for listing
+	externalFuncs         map[string]externalFunc // required built-in function ids and types
+	entrypointNameAddrs   map[string]int32        // addresses of available entrypoint names for listing
+	entrypoints           map[string]int32        // available entrypoint ids
+	stringOffset          int32                   // null-terminated string data base offset
+	stringAddrs           []uint32                // null-terminated string constant addresses
+	opaStringAddrs        []uint32                // addresses of interned opa_string_t
+	opaBoolAddrs          map[ir.Bool]uint32      // addresses of interned opa_boolean_t
+	fileAddrs             []uint32                // null-terminated string constant addresses, used for file names
+	funcs                 map[string]uint32       // maps imported and exported function names to function indices
 
 	nextLocal uint32
 	locals    map[ir.Local]uint32
@@ -567,7 +573,7 @@ func (c *Compiler) compileExternalFuncDecls() error {
 
 	c.appendInstr(instruction.Call{Index: c.function(opaObject)})
 	c.appendInstr(instruction.SetLocal{Index: lobj})
-	c.externalFuncs = make(map[string]int32)
+	c.externalFuncs = make(map[string]externalFunc)
 
 	for index, decl := range c.policy.Static.BuiltinFuncs {
 		if _, ok := builtinsFunctions[decl.Name]; !ok {
@@ -577,7 +583,7 @@ func (c *Compiler) compileExternalFuncDecls() error {
 			c.appendInstr(instruction.I64Const{Value: int64(index)})
 			c.appendInstr(instruction.Call{Index: c.function(opaNumberInt)})
 			c.appendInstr(instruction.Call{Index: c.function(opaObjectInsert)})
-			c.externalFuncs[decl.Name] = int32(index)
+			c.externalFuncs[decl.Name] = externalFunc{ID: int32(index), Decl: decl.Decl}
 		}
 	}
 
@@ -1428,8 +1434,8 @@ func (c *Compiler) compileCallStmt(stmt *ir.CallStmt, result *[]instruction.Inst
 		return c.compileInternalCall(stmt, index, result)
 	}
 
-	if id, ok := c.externalFuncs[fn]; ok {
-		return c.compileExternalCall(stmt, id, result)
+	if ef, ok := c.externalFuncs[fn]; ok {
+		return c.compileExternalCall(stmt, ef, result)
 	}
 
 	c.errors = append(c.errors, fmt.Errorf("undefined function: %q", fn))
@@ -1457,7 +1463,7 @@ func (c *Compiler) compileInternalCall(stmt *ir.CallStmt, index uint32, result *
 	return nil
 }
 
-func (c *Compiler) compileExternalCall(stmt *ir.CallStmt, id int32, result *[]instruction.Instruction) error {
+func (c *Compiler) compileExternalCall(stmt *ir.CallStmt, ef externalFunc, result *[]instruction.Instruction) error {
 
 	if len(stmt.Args) >= len(builtinDispatchers) {
 		c.errors = append(c.errors, fmt.Errorf("too many built-in call arguments: %q", stmt.Func))
@@ -1465,7 +1471,7 @@ func (c *Compiler) compileExternalCall(stmt *ir.CallStmt, id int32, result *[]in
 	}
 
 	instrs := *result
-	instrs = append(instrs, instruction.I32Const{Value: id})
+	instrs = append(instrs, instruction.I32Const{Value: ef.ID})
 	instrs = append(instrs, instruction.I32Const{Value: 0}) // unused context parameter
 
 	for _, arg := range stmt.Args {
@@ -1473,9 +1479,15 @@ func (c *Compiler) compileExternalCall(stmt *ir.CallStmt, id int32, result *[]in
 	}
 
 	instrs = append(instrs, instruction.Call{Index: c.function(builtinDispatchers[len(stmt.Args)])})
-	instrs = append(instrs, instruction.TeeLocal{Index: c.local(stmt.Result)})
-	instrs = append(instrs, instruction.I32Eqz{})
-	instrs = append(instrs, instruction.BrIf{Index: 0})
+
+	if ef.Decl.Result() != nil {
+		instrs = append(instrs, instruction.TeeLocal{Index: c.local(stmt.Result)})
+		instrs = append(instrs, instruction.I32Eqz{})
+		instrs = append(instrs, instruction.BrIf{Index: 0})
+	} else {
+		instrs = append(instrs, instruction.Drop{})
+	}
+
 	*result = instrs
 	return nil
 }

@@ -1920,6 +1920,7 @@ func (r *Rego) evalWasm(ctx context.Context, ectx *EvalContext) (ResultSet, erro
 		Time:                   ectx.time,
 		Seed:                   ectx.seed,
 		InterQueryBuiltinCache: ectx.interQueryBuiltinCache,
+		PrintHook:              ectx.printHook,
 	})
 	if err != nil {
 		return nil, err

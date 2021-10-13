@@ -10,6 +10,8 @@ package ir
 
 import (
 	"fmt"
+
+	"github.com/open-policy-agent/opa/types"
 )
 
 type (
@@ -31,6 +33,7 @@ type (
 	// policy.
 	BuiltinFunc struct {
 		Name string
+		Decl *types.Function
 	}
 
 	// Plans represents a collection of named query plans to expose in the policy.
