@@ -18,4 +18,4 @@ mkdir -p ../../public/live-blocks # Other assets
 cp -r static/* ../../public/live-blocks/
 
 # Preprocess the docs
-find ../../public/ -name '*.html' -print0 | xargs -0 -n200 npm run preprocess
+find ../../public/ -name '*.html' -exec node -r esm src/preprocess/index.js {} +
