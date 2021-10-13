@@ -69,7 +69,7 @@ func (ev *ExpressionValue) String() string {
 	return fmt.Sprint(ev.Value)
 }
 
-// Allowed is a helper method that'll return true iff there is only one expression
+// Allowed is a helper method that'll return true if there is only one expression
 // in the result set's only member, and that expression has the value `true`; and
 // there are no bindings.
 //
