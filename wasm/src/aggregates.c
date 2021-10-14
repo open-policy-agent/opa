@@ -339,3 +339,31 @@ opa_value *opa_agg_any(opa_value *v)
         return NULL;
     }
 }
+
+OPA_BUILTIN
+opa_value *builtin_member(opa_value *v, opa_value *collection)
+{
+    opa_value *prev = NULL;
+    opa_value *curr = NULL;
+    while ((curr = opa_value_iter(collection, prev)) != NULL)
+    {
+        if (opa_value_compare(v, opa_value_get(collection, curr)) == 0)
+        {
+            return opa_boolean(true);
+        }
+        prev = curr;
+    }
+    return opa_boolean(false);
+}
+
+OPA_BUILTIN
+opa_value *builtin_member3(opa_value *key, opa_value *val, opa_value *collection)
+{
+    switch (opa_value_type(collection))
+    {
+    case OPA_ARRAY:
+    case OPA_OBJECT:
+        return opa_boolean(opa_value_compare(val, opa_value_get(collection, key)) == 0);
+    }
+    return opa_boolean(false);
+}
