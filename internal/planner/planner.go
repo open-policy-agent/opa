@@ -1973,7 +1973,7 @@ func rewrittenVar(vars map[ast.Var]ast.Var, k ast.Var) ast.Var {
 // into ref's parth that is still to be planned; if the passed ref's vars
 // allow for optimization using CallDynamicStmt.
 //
-// It's possible iff
+// It's possible if all of these conditions hold:
 // - all vars in ref have been seen
 // - all ground terms (strings) match some child key on their respective
 //   layer of the ruletrie
