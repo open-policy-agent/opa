@@ -18,6 +18,7 @@ import (
 	"github.com/open-policy-agent/opa/bundle"
 	bundleUtils "github.com/open-policy-agent/opa/internal/bundle"
 	"github.com/open-policy-agent/opa/internal/compiler/wasm"
+	"github.com/open-policy-agent/opa/internal/future"
 	"github.com/open-policy-agent/opa/internal/ir"
 	"github.com/open-policy-agent/opa/internal/planner"
 	"github.com/open-policy-agent/opa/internal/rego/opa"
@@ -1576,12 +1577,24 @@ func (r *Rego) prepare(ctx context.Context, qType queryType, extras []extraStage
 		return err
 	}
 
-	r.parsedQuery, err = r.parseQuery(r.metrics)
+	imports, err := r.prepareImports()
 	if err != nil {
 		return err
 	}
 
-	err = r.compileAndCacheQuery(qType, r.parsedQuery, r.metrics, extras)
+	futureImports := []*ast.Import{}
+	for _, imp := range imports {
+		if imp.Path.Value.(ast.Ref).HasPrefix(ast.Ref([]*ast.Term{ast.FutureRootDocument})) {
+			futureImports = append(futureImports, imp)
+		}
+	}
+
+	r.parsedQuery, err = r.parseQuery(futureImports, r.metrics)
+	if err != nil {
+		return err
+	}
+
+	err = r.compileAndCacheQuery(qType, r.parsedQuery, imports, r.metrics, extras)
 	if err != nil {
 		return err
 	}
@@ -1720,7 +1733,7 @@ func (r *Rego) parseRawInput(rawInput *interface{}, m metrics.Metrics) (ast.Valu
 	return ast.InterfaceToValue(*rawPtr)
 }
 
-func (r *Rego) parseQuery(m metrics.Metrics) (ast.Body, error) {
+func (r *Rego) parseQuery(futureImports []*ast.Import, m metrics.Metrics) (ast.Body, error) {
 	if r.parsedQuery != nil {
 		return r.parsedQuery, nil
 	}
@@ -1728,7 +1741,11 @@ func (r *Rego) parseQuery(m metrics.Metrics) (ast.Body, error) {
 	m.Timer(metrics.RegoQueryParse).Start()
 	defer m.Timer(metrics.RegoQueryParse).Stop()
 
-	return ast.ParseBody(r.query)
+	popts, err := future.ParserOptionsFromFutureImports(futureImports)
+	if err != nil {
+		return nil, err
+	}
+	return ast.ParseBodyWithOpts(r.query, popts)
 }
 
 func (r *Rego) compileModules(ctx context.Context, txn storage.Transaction, m metrics.Metrics) error {
@@ -1773,7 +1790,7 @@ func (r *Rego) compileModules(ctx context.Context, txn storage.Transaction, m me
 	return nil
 }
 
-func (r *Rego) compileAndCacheQuery(qType queryType, query ast.Body, m metrics.Metrics, extras []extraStage) error {
+func (r *Rego) compileAndCacheQuery(qType queryType, query ast.Body, imports []*ast.Import, m metrics.Metrics, extras []extraStage) error {
 	m.Timer(metrics.RegoQueryCompile).Start()
 	defer m.Timer(metrics.RegoQueryCompile).Stop()
 
@@ -1782,7 +1799,7 @@ func (r *Rego) compileAndCacheQuery(qType queryType, query ast.Body, m metrics.M
 		return nil
 	}
 
-	qc, compiled, err := r.compileQuery(query, m, extras)
+	qc, compiled, err := r.compileQuery(query, imports, m, extras)
 	if err != nil {
 		return err
 	}
@@ -1795,7 +1812,24 @@ func (r *Rego) compileAndCacheQuery(qType queryType, query ast.Body, m metrics.M
 	return nil
 }
 
-func (r *Rego) compileQuery(query ast.Body, m metrics.Metrics, extras []extraStage) (ast.QueryCompiler, ast.Body, error) {
+func (r *Rego) prepareImports() ([]*ast.Import, error) {
+	imports := r.parsedImports
+
+	if len(r.imports) > 0 {
+		s := make([]string, len(r.imports))
+		for i := range r.imports {
+			s[i] = fmt.Sprintf("import %v", r.imports[i])
+		}
+		parsed, err := ast.ParseImports(strings.Join(s, "\n"))
+		if err != nil {
+			return nil, err
+		}
+		imports = append(imports, parsed...)
+	}
+	return imports, nil
+}
+
+func (r *Rego) compileQuery(query ast.Body, imports []*ast.Import, m metrics.Metrics, extras []extraStage) (ast.QueryCompiler, ast.Body, error) {
 	var pkg *ast.Package
 
 	if r.pkg != "" {
@@ -1806,20 +1840,6 @@ func (r *Rego) compileQuery(query ast.Body, m metrics.Metrics, extras []extraSta
 		}
 	} else {
 		pkg = r.parsedPackage
-	}
-
-	imports := r.parsedImports
-
-	if len(r.imports) > 0 {
-		s := make([]string, len(r.imports))
-		for i := range r.imports {
-			s[i] = fmt.Sprintf("import %v", r.imports[i])
-		}
-		parsed, err := ast.ParseImports(strings.Join(s, "\n"))
-		if err != nil {
-			return nil, nil, err
-		}
-		imports = append(imports, parsed...)
 	}
 
 	qctx := ast.NewQueryContext().
