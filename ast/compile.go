@@ -3197,6 +3197,10 @@ func resolveRefsInExpr(globals map[Var]Ref, ignore *declaredVarStack, expr *Expr
 			buf[i] = resolveRefsInTerm(globals, ignore, ts[i])
 		}
 		cpy.Terms = buf
+	case *SomeDecl:
+		if val, ok := ts.Symbols[0].Value.(Call); ok {
+			cpy.Terms = &SomeDecl{Symbols: []*Term{CallTerm(resolveRefsInTermSlice(globals, ignore, val)...)}}
+		}
 	}
 	for _, w := range cpy.With {
 		w.Target = resolveRefsInTerm(globals, ignore, w.Target)
@@ -3329,7 +3333,23 @@ func declaredVars(x interface{}) VarSet {
 				})
 			} else if decl, ok := x.Terms.(*SomeDecl); ok {
 				for i := range decl.Symbols {
-					vars.Add(decl.Symbols[i].Value.(Var))
+					switch val := decl.Symbols[i].Value.(type) {
+					case Var:
+						vars.Add(val)
+					case Call:
+						args := val[1:]
+						if len(args) == 3 { // some x, y in xs
+							WalkVars(args[1], func(v Var) bool {
+								vars.Add(v)
+								return false
+							})
+						}
+						// some x in xs
+						WalkVars(args[0], func(v Var) bool {
+							vars.Add(v)
+							return false
+						})
+					}
 				}
 			}
 		case *ArrayComprehension, *SetComprehension, *ObjectComprehension:
@@ -3840,8 +3860,8 @@ func rewriteDeclaredVarsInBody(g *localVarGenerator, stack *localDeclaredVars, u
 		var expr *Expr
 		if body[i].IsAssignment() {
 			expr, errs = rewriteDeclaredAssignment(g, stack, body[i], errs)
-		} else if decl, ok := body[i].Terms.(*SomeDecl); ok {
-			errs = rewriteSomeDeclStatement(g, stack, decl, errs)
+		} else if _, ok := body[i].Terms.(*SomeDecl); ok {
+			expr, errs = rewriteSomeDeclStatement(g, stack, body[i], errs)
 		} else {
 			expr, errs = rewriteDeclaredVarsInExpr(g, stack, body[i], errs)
 		}
@@ -3896,14 +3916,48 @@ func checkUnusedDeclaredVars(loc *Location, stack *localDeclaredVars, used VarSe
 	return errs
 }
 
-func rewriteSomeDeclStatement(g *localVarGenerator, stack *localDeclaredVars, decl *SomeDecl, errs Errors) Errors {
+func rewriteSomeDeclStatement(g *localVarGenerator, stack *localDeclaredVars, expr *Expr, errs Errors) (*Expr, Errors) {
+	e := expr.Copy()
+	decl := e.Terms.(*SomeDecl)
 	for i := range decl.Symbols {
-		v := decl.Symbols[i].Value.(Var)
-		if _, err := rewriteDeclaredVar(g, stack, v, declaredVar); err != nil {
-			errs = append(errs, NewError(CompileErr, decl.Loc(), err.Error()))
+		switch v := decl.Symbols[i].Value.(type) {
+		case Var:
+			if _, err := rewriteDeclaredVar(g, stack, v, declaredVar); err != nil {
+				return nil, append(errs, NewError(CompileErr, decl.Loc(), err.Error()))
+			}
+		case Call:
+			var key, val, container *Term
+			switch len(v) {
+			case 4: // member3
+				key = v[1]
+				val = v[2]
+				container = v[3]
+			case 3: // member
+				key = NewTerm(g.Generate())
+				val = v[1]
+				container = v[2]
+			}
+
+			var rhs *Term
+			switch c := container.Value.(type) {
+			case Ref:
+				rhs = RefTerm(append(c, key)...)
+			default:
+				rhs = RefTerm(container, key)
+			}
+			e.Terms = []*Term{
+				RefTerm(VarTerm(Equality.Name)), val, rhs,
+			}
+
+			for _, v0 := range outputVarsForExprEq(e, container.Vars()).Sorted() {
+				if _, err := rewriteDeclaredVar(g, stack, v0, declaredVar); err != nil {
+					return nil, append(errs, NewError(CompileErr, decl.Loc(), err.Error()))
+				}
+			}
+			return rewriteDeclaredVarsInExpr(g, stack, e, errs)
 		}
 	}
-	return errs
+	return nil, errs
 }
 
 func rewriteDeclaredVarsInExpr(g *localVarGenerator, stack *localDeclaredVars, expr *Expr, errs Errors) (*Expr, Errors) {
@@ -4211,6 +4265,11 @@ func safetyErrorSlice(unsafe unsafeVars, rewritten map[Var]Var) (result Errors) 
 			v = w
 		}
 		if !v.IsGenerated() {
+			if _, ok := futureKeywords[string(v)]; ok {
+				result = append(result, NewError(UnsafeVarErr, pair.Loc,
+					"var %[1]v is unsafe (hint: `import future.keywords.%[1]v` to import a future keyword)", v))
+				continue
+			}
 			result = append(result, NewError(UnsafeVarErr, pair.Loc, "var %v is unsafe", v))
 		}
 	}
