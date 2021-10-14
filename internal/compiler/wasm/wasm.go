@@ -168,6 +168,8 @@ var builtinsFunctions = map[string]string{
 	ast.RegexFindAllStringSubmatch.Name: "opa_regex_find_all_string_submatch",
 	ast.JSONRemove.Name:                 "builtin_json_remove",
 	ast.JSONFilter.Name:                 "builtin_json_filter",
+	ast.Member.Name:                     "builtin_member",
+	ast.MemberWithKey.Name:              "builtin_member3",
 }
 
 // If none of these is called from a policy, the resulting wasm
