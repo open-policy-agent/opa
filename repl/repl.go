@@ -26,6 +26,7 @@ import (
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/format"
+	"github.com/open-policy-agent/opa/internal/future"
 	pr "github.com/open-policy-agent/opa/internal/presentation"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/profiler"
@@ -328,7 +329,7 @@ func (r *REPL) complete(line string) []string {
 
 	// add imports
 	for _, mod := range r.modules {
-		for _, imp := range mod.Imports {
+		for _, imp := range future.FilterFutureImports(mod.Imports) {
 			path := imp.Name().String()
 			if strings.HasPrefix(path, line) {
 				set[path] = struct{}{}
@@ -708,7 +709,8 @@ func (r *REPL) compileBody(ctx context.Context, compiler *ast.Compiler, body ast
 	qctx := ast.NewQueryContext()
 
 	if r.currentModuleID != "" {
-		qctx = qctx.WithPackage(r.modules[r.currentModuleID].Package).WithImports(r.modules[r.currentModuleID].Imports)
+		qctx = qctx.WithPackage(r.modules[r.currentModuleID].Package).
+			WithImports(future.FilterFutureImports(r.modules[r.currentModuleID].Imports))
 	}
 
 	qc := compiler.QueryCompiler().WithContext(qctx).WithEnablePrintStatements(true)
@@ -787,11 +789,16 @@ func (r *REPL) evalBufferOne(ctx context.Context) error {
 		return nil
 	}
 
+	popts, err := r.parserOptions()
+	if err != nil {
+		return err
+	}
+
 	// The user may enter lines with comments on the end or
 	// multiple lines with comments interspersed. In these cases
 	// the parser will return multiple statements.
 	r.timerStart(metrics.RegoQueryParse)
-	stmts, _, err := ast.ParseStatements("", line)
+	stmts, _, err := ast.ParseStatementsWithOpts("", line, popts)
 	r.timerStop(metrics.RegoQueryParse)
 
 	if err != nil {
@@ -821,8 +828,13 @@ func (r *REPL) evalBufferMulti(ctx context.Context) error {
 		return nil
 	}
 
+	popts, err := r.parserOptions()
+	if err != nil {
+		return err
+	}
+
 	r.timerStart(metrics.RegoQueryParse)
-	stmts, _, err := ast.ParseStatements("", line)
+	stmts, _, err := ast.ParseStatementsWithOpts("", line, popts)
 	r.timerStop(metrics.RegoQueryParse)
 
 	if err != nil {
@@ -836,6 +848,13 @@ func (r *REPL) evalBufferMulti(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func (r *REPL) parserOptions() (ast.ParserOptions, error) {
+	if r.currentModuleID != "" {
+		return future.ParserOptionsFromFutureImports(r.modules[r.currentModuleID].Imports)
+	}
+	return ast.ParserOptions{}, nil
 }
 
 func (r *REPL) loadCompiler(ctx context.Context) (*ast.Compiler, error) {
@@ -1364,8 +1383,7 @@ func printHelpExamples(output io.Writer, promptSymbol string) {
 
 func printHelpCommands(output io.Writer) {
 
-	all := extra[:]
-	all = append(all, builtin[:]...)
+	all := append(extra[:], builtin[:]...)
 
 	// Compute max length of all command and topic names.
 	names := []string{}
@@ -1460,6 +1478,11 @@ For example:
 
 	# Import "params" defined above.
 	> import input.params
+
+	# Import a future keyword.
+	> import future.keywords.in
+	> 1 in [0, 2, 1]
+	true
 
 	# Define rule that refers to "params".
 	> is_post { params.method = "POST" }

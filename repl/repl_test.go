@@ -2158,6 +2158,98 @@ func TestEvalImport(t *testing.T) {
 	}
 }
 
+func TestEvalImportFutureKeywords(t *testing.T) {
+	ctx := context.Background()
+	store := newTestStore()
+	var buffer bytes.Buffer
+	repl := newRepl(store, &buffer)
+
+	err := repl.OneShot(ctx, "1 in [1]")
+	if err == nil {
+		t.Fatal("Expected error got nil")
+	}
+	expected := "rego_unsafe_var_error: var in is unsafe (hint: `import future.keywords.in` to import a future keyword)"
+	if !strings.Contains(err.Error(), expected) {
+		t.Fatalf("Expected error to contain %q but got: %v", expected, err)
+	}
+	buffer.Reset()
+
+	// future keywords import
+	if err := repl.OneShot(ctx, "import future.keywords"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if len(buffer.Bytes()) != 0 {
+		t.Errorf("Expected no output but got: %v", buffer.String())
+		return
+	}
+	buffer.Reset()
+	if err := repl.OneShot(ctx, "1 in [1,2,3]"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	result := buffer.String()
+	expected = "true\n"
+	if result != expected {
+		t.Errorf("Expected expression to evaluate successfully but got: %v", result)
+		return
+	}
+	buffer.Reset()
+	if err := repl.OneShot(ctx, "show"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	act := buffer.String()
+	exp := `package repl
+
+import future.keywords
+`
+	if act != exp {
+		t.Errorf("expected %q, got: %q", exp, act)
+		return
+	}
+
+	buffer.Reset()
+	if err := repl.OneShot(ctx, `package foo.bar`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, "import future.keywords.in"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if len(buffer.Bytes()) != 0 {
+		t.Errorf("Expected no output but got: %v", buffer.String())
+		return
+	}
+	if err := repl.OneShot(ctx, `p = true { 1 in [1,2,3] }`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	// ignore "rule p defined" message
+	buffer.Reset()
+	if err := repl.OneShot(ctx, "show"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	act = buffer.String()
+	exp = `package foo.bar
+
+import future.keywords.in
+
+p {
+	1 in [1, 2, 3]
+}
+`
+	if act != exp {
+		t.Errorf("expected %q, got: %q", exp, act)
+		return
+	}
+	buffer.Reset()
+	if err := repl.OneShot(ctx, "p"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	result = buffer.String()
+	expected = "true\n"
+	if result != expected {
+		t.Errorf("Expected expression to evaluate successfully but got: %v", result)
+		return
+	}
+}
+
 func TestEvalPackage(t *testing.T) {
 	ctx := context.Background()
 	store := newTestStore()
