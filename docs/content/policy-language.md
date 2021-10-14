@@ -1517,6 +1517,156 @@ q {
 ```live:eg/assignment2:output:expect_assigned_above,expect_referenced_above
 ```
 
+#### Membership `in`
+
+> To ensure backwards-compatibility, new keywords (like `in`) are introduced slowly.
+> In the first stage, users can opt-in to using the new keywords via a special import:
+> `import future.keywords` introduces _all_ future keywords, and
+> `import future.keywords.in` introduces the `in` keyword described here.
+>
+> At some point in the future, the keyword will become _standard_, and the import will
+> become a no-op that can safely be removed. This should give all users ample time to
+> update their policies, so that the new keyword will not cause clashes with existing
+> variable names.
+
+The membership operator `in` lets you check if an element is part of a collection (array, set, or object). It always evaluates to `true` or `false`:
+
+```live:eg/member1:module:merge_down
+import future.keywords.in
+
+p = [x, y, z] {
+    x := 3 in [1, 2, 3]            # array
+    y := 3 in {1, 2, 3}            # set
+    z := 3 in {"foo": 1, "bar": 3} # object
+}
+```
+```live:eg/member1:output
+```
+
+When providing two arguments on the left-hand side of the `in` operator,
+and an object or an array on the right-hand side, the first argument is
+taken to be the key (object) or index (array), respectively:
+
+```live:eg/member1c:module:merge_down
+import future.keywords.in
+
+p = [ x, y ] {
+    x := "foo", "bar" in {"foo": "bar"}    # key, val with object
+    y := 2, "baz" in ["foo", "bar", "baz"] # key, val with array
+}
+```
+```live:eg/member1c:output
+```
+
+**Note** that in list contexts, like set or array definitions and function
+arguments, parentheses are required to use the form with two left-hand side
+arguments -- compare:
+
+```live:eg/member1d:module:merge_down
+import future.keywords.in
+
+p = x {
+    x := { 0, 2 in [2] }
+}
+q = x {
+    x := { (0, 2 in [2]) }
+}
+w = x {
+    x := g((0, 2 in [2]))
+}
+z = x {
+    x := f(0, 2 in [2])
+}
+
+f(x, y) =  sprintf("two function arguments: %v, %v", [x, y])
+g(x) = sprintf("one function argument: %v", [x])
+```
+```live:eg/member1d:output
+```
+
+Combined with `not`, the operator can be handy when asserting that an element is _not_
+member of an array:
+
+```live:eg/member1a:module:merge_down
+import future.keywords.in
+
+deny {
+    not "admin" in input.user.roles
+}
+
+test_deny {
+    deny with input.user.roles as ["operator", "user"]
+}
+```
+```live:eg/member1a:output
+```
+
+**Note** that expressions using the `in` operator _always return `true` or `false`_, even
+when called in non-collection arguments:
+
+```live:eg/member1b:module:merge_down
+import future.keywords.in
+
+q = x {
+    x := 3 in "three"
+}
+```
+```live:eg/member1b:output
+```
+
+Using the `some` variant, it can be used to introduce new variables based on a collections' items:
+
+```live:eg/member2:module:merge_down
+import future.keywords.in
+
+p[x] {
+    some x in ["a", "r", "r", "a", "y"]
+}
+
+q[x] {
+    some x in {"s", "e", "t"}
+}
+
+r[x] {
+    some x in {"foo": "bar", "baz": "quz"}
+}
+```
+```live:eg/member2:output
+```
+
+Furthermore, passing a second argument allows you to work with _object keys_ and _array indices_:
+```live:eg/member3:module:merge_down
+import future.keywords.in
+
+p[x] {
+    some x, "r" in ["a", "r", "r", "a", "y"] # key variable, value constant
+}
+
+q[x] = y {
+     some x, y in ["a", "r", "r", "a", "y"] # both variables
+}
+
+r[y] = x {
+    some x, y in {"foo": "bar", "baz": "quz"}
+}
+```
+```live:eg/member3:output
+```
+
+Any argument to the `some` variant can be a composite, non-ground value:
+
+```live:eg/member4:module:merge_down
+import future.keywords.in
+
+p[x] = y {
+    some x, {"foo": y} in [{"foo": 100}, {"bar": 200}]
+}
+p[x] = y {
+    some {"bar": x}, {"foo": y} in {{"bar": "b"}: {"foo": "f"}}
+}
+```
+```live:eg/member4:output
+```
 
 #### Comparison `==`
 
