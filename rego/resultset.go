@@ -69,9 +69,11 @@ func (ev *ExpressionValue) String() string {
 	return fmt.Sprint(ev.Value)
 }
 
-// Allowed is a helper method that'll return true iff there is only one expression
-// in the result set's only member, and that expression has the value `true`; and
-// there are no bindings.
+// Allowed is a helper method that'll return true if all of these conditions hold:
+// - the result set only has one element
+// - there is only one expression in the result set's only element
+// - that expression has the value `true`
+// - there are no bindings.
 //
 // If bindings are present, this will yield `false`: it would be a pitfall to
 // return `true` for a query like `data.authz.allow = x`, which always has result
