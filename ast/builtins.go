@@ -33,6 +33,10 @@ var DefaultBuiltins = [...]*Builtin{
 	// Assignment (":=")
 	Assign,
 
+	// Membership, infix "in": `x in xs`
+	Member,
+	MemberWithKey,
+
 	// Comparisons
 	GreaterThan,
 	GreaterThanEq,
@@ -291,6 +295,34 @@ var Assign = &Builtin{
 	Infix: ":=",
 	Decl: types.NewFunction(
 		types.Args(types.A, types.A),
+		types.B,
+	),
+}
+
+// Member represents the `in` (infix) operator.
+var Member = &Builtin{
+	Name:  "internal.member_2",
+	Infix: "in",
+	Decl: types.NewFunction(
+		types.Args(
+			types.A,
+			types.A,
+		),
+		types.B,
+	),
+}
+
+// MemberWithKey represents the `in` (infix) operator when used
+// with two terms on the lhs, i.e., `k, v in obj`.
+var MemberWithKey = &Builtin{
+	Name:  "internal.member_3",
+	Infix: "in",
+	Decl: types.NewFunction(
+		types.Args(
+			types.A,
+			types.A,
+			types.A,
+		),
 		types.B,
 	),
 }
