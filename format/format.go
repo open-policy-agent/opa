@@ -42,10 +42,10 @@ func MustAst(x interface{}) []byte {
 // Ast formats a Rego AST element. If the passed value is not a valid AST
 // element, Ast returns nil and an error. If AST nodes are missing locations
 // an arbitrary location will be used.
-func Ast(x interface{}) (formatted []byte, err error) {
+func Ast(x interface{}) ([]byte, error) {
 
 	// The node has to be deep copied because it may be mutated below. Alternatively,
-	// we could avoid the copy by checking if mtuation will occur first. For now,
+	// we could avoid the copy by checking if mutation will occur first. For now,
 	// since format is not latency sensitive, just deep copy in all cases.
 	x = ast.Copy(x)
 
@@ -68,7 +68,10 @@ func Ast(x interface{}) (formatted []byte, err error) {
 		return false
 	})
 
-	w := &writer{indent: "\t"}
+	w := &writer{
+		indent: "\t",
+	}
+
 	switch x := x.(type) {
 	case *ast.Module:
 		w.writeModule(x)
@@ -438,20 +441,24 @@ func (w *writer) writeSomeDecl(decl *ast.SomeDecl, comments []*ast.Comment) []*a
 	row := decl.Location.Row
 
 	for i, term := range decl.Symbols {
+		switch val := term.Value.(type) {
+		case ast.Var:
+			if term.Location.Row > row {
+				w.endLine()
+				w.startLine()
+				w.write(w.indent)
+				row = term.Location.Row
+			} else if i > 0 {
+				w.write(" ")
+			}
 
-		if term.Location.Row > row {
-			w.endLine()
-			w.startLine()
-			w.write(w.indent)
-			row = term.Location.Row
-		} else if i > 0 {
-			w.write(" ")
-		}
+			comments = w.writeTerm(term, comments)
 
-		comments = w.writeTerm(term, comments)
-
-		if i < len(decl.Symbols)-1 {
-			w.write(",")
+			if i < len(decl.Symbols)-1 {
+				w.write(",")
+			}
+		case ast.Call:
+			comments = w.writeInOperator(false, val[1:], comments)
 		}
 	}
 
@@ -461,8 +468,14 @@ func (w *writer) writeSomeDecl(decl *ast.SomeDecl, comments []*ast.Comment) []*a
 func (w *writer) writeFunctionCall(expr *ast.Expr, comments []*ast.Comment) []*ast.Comment {
 
 	terms := expr.Terms.([]*ast.Term)
+	operator := terms[0].Value.String()
 
-	bi, ok := ast.BuiltinMap[terms[0].Value.String()]
+	switch operator {
+	case ast.Member.Name, ast.MemberWithKey.Name:
+		return w.writeInOperator(false, terms[1:], comments)
+	}
+
+	bi, ok := ast.BuiltinMap[operator]
 	if !ok || bi.Infix == "" {
 		return w.writeFunctionCallPlain(terms, comments)
 	}
@@ -470,13 +483,13 @@ func (w *writer) writeFunctionCall(expr *ast.Expr, comments []*ast.Comment) []*a
 	numDeclArgs := len(bi.Decl.Args())
 	numCallArgs := len(terms) - 1
 
-	if numCallArgs == numDeclArgs {
-		// Print infix where result is unassigned (e.g., x != y)
+	switch numCallArgs {
+	case numDeclArgs: // Print infix where result is unassigned (e.g., x != y)
 		comments = w.writeTerm(terms[1], comments)
 		w.write(" " + bi.Infix + " ")
 		return w.writeTerm(terms[2], comments)
-	} else if numCallArgs == numDeclArgs+1 {
-		// Print infix where result is assigned (e.g., z = x + y)
+
+	case numDeclArgs + 1: // Print infix where result is assigned (e.g., z = x + y)
 		comments = w.writeTerm(terms[3], comments)
 		w.write(" " + ast.Equality.Infix + " ")
 		comments = w.writeTerm(terms[1], comments)
@@ -484,7 +497,6 @@ func (w *writer) writeFunctionCall(expr *ast.Expr, comments []*ast.Comment) []*a
 		comments = w.writeTerm(terms[2], comments)
 		return comments
 	}
-
 	return w.writeFunctionCallPlain(terms, comments)
 }
 
@@ -594,10 +606,15 @@ func (w *writer) formatVar(v ast.Var) string {
 }
 
 func (w *writer) writeCall(parens bool, x ast.Call, comments []*ast.Comment) []*ast.Comment {
-
 	bi, ok := ast.BuiltinMap[x[0].String()]
 	if !ok || bi.Infix == "" {
 		return w.writeFunctionCallPlain(x, comments)
+	}
+
+	if bi.Infix == "in" {
+		// NOTE(sr): `in` requires special handling, mirroring what happens in the parser,
+		// since there can be one or two lhs arguments.
+		return w.writeInOperator(true, x[1:], comments)
 	}
 
 	// TODO(tsandall): improve to consider precedence?
@@ -611,6 +628,31 @@ func (w *writer) writeCall(parens bool, x ast.Call, comments []*ast.Comment) []*
 		w.write(")")
 	}
 
+	return comments
+}
+
+func (w *writer) writeInOperator(parens bool, operands []*ast.Term, comments []*ast.Comment) []*ast.Comment {
+	kw := "in"
+	switch len(operands) {
+	case 2:
+		comments = w.writeTermParens(true, operands[0], comments)
+		w.write(" ")
+		w.write(kw)
+		w.write(" ")
+		comments = w.writeTermParens(true, operands[1], comments)
+	case 3:
+		if parens {
+			w.write("(")
+			defer w.write(")")
+		}
+		comments = w.writeTermParens(true, operands[0], comments)
+		w.write(", ")
+		comments = w.writeTermParens(true, operands[1], comments)
+		w.write(" ")
+		w.write(kw)
+		w.write(" ")
+		comments = w.writeTermParens(true, operands[2], comments)
+	}
 	return comments
 }
 

@@ -203,6 +203,30 @@ func TestFormatAST(t *testing.T) {
 			expected: ``,
 		},
 		{
+			note:     "x in xs",
+			toFmt:    ast.Member.Call(ast.VarTerm("x"), ast.VarTerm("xs")),
+			expected: `x in xs`,
+		},
+		{
+			note:     "x, y in xs",
+			toFmt:    ast.MemberWithKey.Call(ast.VarTerm("x"), ast.VarTerm("y"), ast.VarTerm("xs")),
+			expected: `(x, y in xs)`,
+		},
+		{
+			note: "some x in xs",
+			toFmt: ast.NewExpr(&ast.SomeDecl{Symbols: []*ast.Term{
+				ast.Member.Call(ast.VarTerm("x"), ast.VarTerm("xs")),
+			}}),
+			expected: `some x in xs`,
+		},
+		{
+			note: "some x, y in xs",
+			toFmt: ast.NewExpr(&ast.SomeDecl{Symbols: []*ast.Term{
+				ast.MemberWithKey.Call(ast.VarTerm("x"), ast.VarTerm("y"), ast.VarTerm("xs")),
+			}}),
+			expected: `some x, y in xs`,
+		},
+		{
 			note: "body shared wildcard",
 			toFmt: ast.Body{
 				&ast.Expr{
