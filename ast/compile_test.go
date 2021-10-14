@@ -1477,6 +1477,24 @@ p[foo[bar[i]]] = {"baz": baz} { true }`)
 			[true | x := y]
 		}`)
 
+	c.Modules["someinassign"] = MustParseModule(`package someinassign
+		import future.keywords.in
+		x = 1
+		y = 1
+
+		p[x] {
+			some x in [1, 2, y]
+		}`)
+
+	c.Modules["someinassignwithkey"] = MustParseModule(`package someinassignwithkey
+		import future.keywords.in
+		x = 1
+		y = 1
+
+		p[x] {
+			some k, v in [1, 2, y]
+		}`)
+
 	c.Modules["donotresolve"] = MustParseModule(`package donotresolve
 
 		x = 1
@@ -1621,6 +1639,21 @@ p[foo[bar[i]]] = {"baz": baz} { true }`)
 	mod13 := c.Modules["comprehensions"]
 	assertExprEqual(t, mod13.Rules[3].Body[0].Terms.(*Term).Value.(Ref)[3].Value.(*ArrayComprehension).Body[0], MustParseExpr("x = data.comprehensions.nums[_]"))
 	assertExprEqual(t, mod13.Rules[4].Head.Value.Value.(*ArrayComprehension).Body[0], MustParseExpr("y = data.comprehensions.f(1)[0]"))
+
+	// Ignore vars assigned via `some x in xs`.
+	mod14 := c.Modules["someinassign"]
+	someInAssignCall := mod14.Rules[2].Body[0].Terms.(*SomeDecl).Symbols[0].Value.(Call)
+	assertTermEqual(t, someInAssignCall[1], VarTerm("x"))
+	collectionLastElem := someInAssignCall[2].Value.(*Array).Get(IntNumberTerm(2))
+	assertTermEqual(t, collectionLastElem, MustParseTerm("data.someinassign.y"))
+
+	// Ignore key and val vars assigned via `some k, v in xs`.
+	mod15 := c.Modules["someinassignwithkey"]
+	someInAssignCall = mod15.Rules[2].Body[0].Terms.(*SomeDecl).Symbols[0].Value.(Call)
+	assertTermEqual(t, someInAssignCall[1], VarTerm("k"))
+	assertTermEqual(t, someInAssignCall[2], VarTerm("v"))
+	collectionLastElem = someInAssignCall[3].Value.(*Array).Get(IntNumberTerm(2))
+	assertTermEqual(t, collectionLastElem, MustParseTerm("data.someinassignwithkey.y"))
 }
 
 func TestCompilerResolveErrors(t *testing.T) {
@@ -2262,7 +2295,7 @@ func TestRewriteLocalVarDeclarationErrors(t *testing.T) {
 	}
 }
 
-func TestRewriteDecledVarsStage(t *testing.T) {
+func TestRewriteDeclaredVarsStage(t *testing.T) {
 
 	// Unlike the following test case, this only executes up to the
 	// RewriteLocalVars stage. This is done so that later stages like
@@ -2386,6 +2419,73 @@ func TestRewriteDeclaredVars(t *testing.T) {
 				y = 1
 				q[[2, "b"]]
 				p { __local1__ = data.test.y; data.test.q[[__local1__, __local0__]] }
+			`,
+		},
+		{
+			note: "rewrite some x in xs",
+			module: `
+				package test
+				import future.keywords.in
+				xs = ["a", "b", "c"]
+				p { some x in xs; x == "a" }
+			`,
+			exp: `
+				package test
+				xs = ["a", "b", "c"]
+				p { __local2__ = data.test.xs[__local1__]; __local2__ = "a" }
+			`,
+		},
+		{
+			note: "rewrite some k, x in xs",
+			module: `
+				package test
+				import future.keywords.in
+				xs = ["a", "b", "c"]
+				p { some k, x in xs; x == "a"; k == 2 }
+			`,
+			exp: `
+				package test
+				xs = ["a", "b", "c"]
+				p { __local1__ = data.test.xs[__local0__]; __local1__ = "a"; __local0__ = 2 }
+			`,
+		},
+		{
+			note: "rewrite some k, x in xs[i]",
+			module: `
+				package test
+				import future.keywords.in
+				xs = [["a", "b", "c"], []]
+				p {
+					some i
+					some k, x in xs[i]
+					x == "a"
+					k == 2
+				}
+			`,
+			exp: `
+				package test
+				xs = [["a", "b", "c"], []]
+				p = true { __local2__ = data.test.xs[__local0__][__local1__]; __local2__ = "a"; __local1__ = 2 }
+			`,
+		},
+		{
+			note: "rewrite some k, x in xs[i] with `i` as ref",
+			module: `
+				package test
+				import future.keywords.in
+				i = 0
+				xs = [["a", "b", "c"], []]
+				p {
+					some k, x in xs[i]
+					x == "a"
+					k == 2
+				}
+			`,
+			exp: `
+				package test
+				i = 0
+				xs = [["a", "b", "c"], []]
+				p = true { __local2__ = data.test.i; __local1__ = data.test.xs[__local2__][__local0__]; __local1__ = "a"; __local0__ = 2 }
 			`,
 		},
 		{
@@ -4244,6 +4344,11 @@ func TestQueryCompiler(t *testing.T) {
 			pkg:      "",
 			imports:  nil,
 			expected: fmt.Errorf("1 error occurred: 1:1: rego_unsafe_var_error: var z is unsafe"),
+		},
+		{
+			note:     "unsafe var that is a future keyword",
+			q:        "1 in 2",
+			expected: fmt.Errorf("1 error occurred: 1:3: rego_unsafe_var_error: var in is unsafe (hint: `import future.keywords.in` to import a future keyword)"),
 		},
 		{
 			note:     "unsafe declared var",
