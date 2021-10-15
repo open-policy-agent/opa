@@ -187,6 +187,13 @@ remain anonymous.
 This is a list of adopters in early stages of production or
 pre-production (in alphabetical order):
 
+* [Aserto](https://www.aserto.com/) is a venture-backed developer API company 
+  that helps developers easily build permissions and roles into their SaaS 
+  applications. Aserto uses OPA as its core engine, and has contributed projects 
+  such as [Open Policy Registry](https://openpolicyregistry.io) and  
+  [OPA Runtime](https://github.com/aserto-dev/runtime) that make it easier for 
+  developers to incorporate OPA policies and the OPA engine into their applications.
+  
 * [Cyral](https://www.cyral.com/) is a venture-funded data security
   company. Still in stealth mode but using OPA to manage and enforce
   fine-grained authorization policies.
