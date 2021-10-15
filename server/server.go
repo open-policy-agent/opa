@@ -727,6 +727,8 @@ func (s *Server) execQuery(ctx context.Context, r *http.Request, br bundleRevisi
 		rego.Runtime(s.runtime),
 		rego.UnsafeBuiltins(unsafeBuiltinsMap),
 		rego.InterQueryBuiltinCache(s.interQueryBuiltinCache),
+		rego.PrintHook(s.manager.PrintHook()),
+		rego.EnablePrintStatements(s.manager.EnablePrintStatements()),
 	}
 
 	for _, r := range s.manager.GetWasmResolvers() {
@@ -893,6 +895,7 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, urlPath str
 			rego.Metrics(m),
 			rego.Runtime(s.runtime),
 			rego.UnsafeBuiltins(unsafeBuiltinsMap),
+			rego.PrintHook(s.manager.PrintHook()),
 		}
 
 		// Set resolvers on the base Rego object to avoid having them get
@@ -1109,6 +1112,7 @@ func (s *Server) unversionedGetHealthWithPolicy(w http.ResponseWriter, r *http.R
 		rego.Store(s.store),
 		rego.Input(input),
 		rego.Runtime(s.runtime),
+		rego.PrintHook(s.manager.PrintHook()),
 	)
 
 	rs, err := rego.Eval(r.Context())
@@ -1190,6 +1194,7 @@ func (s *Server) v1CompilePost(w http.ResponseWriter, r *http.Request) {
 		rego.Runtime(s.runtime),
 		rego.UnsafeBuiltins(unsafeBuiltinsMap),
 		rego.InterQueryBuiltinCache(s.interQueryBuiltinCache),
+		rego.PrintHook(s.manager.PrintHook()),
 	)
 
 	pq, err := eval.Partial(ctx)
@@ -1310,6 +1315,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 			rego.Runtime(s.runtime),
 			rego.UnsafeBuiltins(unsafeBuiltinsMap),
 			rego.StrictBuiltinErrors(strictBuiltinErrors),
+			rego.PrintHook(s.manager.PrintHook()),
 		}
 
 		for _, r := range s.manager.GetWasmResolvers() {
@@ -1936,7 +1942,10 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 
 	modules[path] = parsedMod
 
-	c := ast.NewCompiler().SetErrorLimit(s.errLimit).WithPathConflictsCheck(storage.NonEmpty(ctx, s.store, txn))
+	c := ast.NewCompiler().
+		SetErrorLimit(s.errLimit).
+		WithPathConflictsCheck(storage.NonEmpty(ctx, s.store, txn)).
+		WithEnablePrintStatements(s.manager.EnablePrintStatements())
 
 	m.Timer(metrics.RegoModuleCompile).Start()
 
@@ -2273,6 +2282,7 @@ func (s *Server) makeRego(ctx context.Context, partial bool, txn storage.Transac
 		rego.Instrument(instrument),
 		rego.Runtime(s.runtime),
 		rego.UnsafeBuiltins(unsafeBuiltinsMap),
+		rego.PrintHook(s.manager.PrintHook()),
 	)
 
 	if partial {

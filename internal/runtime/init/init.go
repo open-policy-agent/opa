@@ -22,11 +22,12 @@ import (
 
 // InsertAndCompileOptions contains the input for the operation.
 type InsertAndCompileOptions struct {
-	Store     storage.Store
-	Txn       storage.Transaction
-	Files     loader.Result
-	Bundles   map[string]*bundle.Bundle
-	MaxErrors int
+	Store                 storage.Store
+	Txn                   storage.Transaction
+	Files                 loader.Result
+	Bundles               map[string]*bundle.Bundle
+	MaxErrors             int
+	EnablePrintStatements bool
 }
 
 // InsertAndCompileResult contains the output of the operation.
@@ -51,7 +52,10 @@ func InsertAndCompile(ctx context.Context, opts InsertAndCompileOptions) (*Inser
 		policies[id] = parsed.Parsed
 	}
 
-	compiler := ast.NewCompiler().SetErrorLimit(opts.MaxErrors).WithPathConflictsCheck(storage.NonEmpty(ctx, opts.Store, opts.Txn))
+	compiler := ast.NewCompiler().
+		SetErrorLimit(opts.MaxErrors).
+		WithPathConflictsCheck(storage.NonEmpty(ctx, opts.Store, opts.Txn)).
+		WithEnablePrintStatements(opts.EnablePrintStatements)
 	m := metrics.New()
 
 	activation := &bundle.ActivateOpts{

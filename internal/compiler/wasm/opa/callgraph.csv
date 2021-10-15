@@ -33,6 +33,14 @@ opa_agg_all,opa_boolean
 opa_agg_any,opa_value_type
 opa_agg_any,opa_boolean
 opa_agg_any,opa_set_get
+builtin_member,opa_value_iter
+builtin_member,opa_value_get
+builtin_member,opa_value_compare
+builtin_member,opa_boolean
+builtin_member3,opa_value_type
+builtin_member3,opa_value_get
+builtin_member3,opa_value_compare
+builtin_member3,opa_boolean
 opa_arith_abs,opa_number_to_bf
 opa_arith_abs,mpd_qnew
 opa_arith_abs,mpd_max_ctx

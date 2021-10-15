@@ -995,3 +995,35 @@ func ExampleRego_custom_function_global() {
 	//
 	// [foo bar baz]
 }
+
+func ExampleRego_print_statements() {
+
+	var buf bytes.Buffer
+
+	r := rego.New(
+		rego.Query("data.example.rule_containing_print_call"),
+		rego.Module("example.rego", `
+			package example
+
+			rule_containing_print_call {
+				print("input.foo is:", input.foo, "and input.bar is:", input.bar)
+			}
+		`),
+		rego.Input(map[string]interface{}{
+			"foo": 7,
+		}),
+		rego.EnablePrintStatements(true),
+		rego.PrintHook(topdown.NewPrintHook(&buf)),
+	)
+
+	_, err := r.Eval(context.Background())
+	if err != nil {
+		// handle error
+	}
+
+	fmt.Println("buf:", buf.String())
+
+	// Output:
+	//
+	// buf: input.foo is: 7 and input.bar is: <undefined>
+}

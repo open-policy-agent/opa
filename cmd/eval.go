@@ -312,6 +312,10 @@ func eval(args []string, params evalCommandParams, w io.Writer) (bool, error) {
 		return false, err
 	}
 
+	ectx.regoArgs = append(ectx.regoArgs,
+		rego.EnablePrintStatements(true),
+		rego.PrintHook(topdown.NewPrintHook(os.Stderr)))
+
 	results := make([]pr.Output, ectx.params.count)
 	profiles := make([][]profiler.ExprStats, ectx.params.count)
 	timers := make([]map[string]interface{}, ectx.params.count)

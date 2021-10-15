@@ -309,6 +309,8 @@ func TestExprString(t *testing.T) {
 		},
 	}
 	expr9 := Contains.Expr(StringTerm("foo.bar"), StringTerm("."))
+	expr10 := Member.Expr(StringTerm("foo"), VarTerm("xs"))
+	expr11 := MemberWithKey.Expr(VarTerm("x"), StringTerm("foo"), VarTerm("xs"))
 	assertExprString(t, expr1, "q.r[x]")
 	assertExprString(t, expr2, "not q.r[x]")
 	assertExprString(t, expr3, "\"a\" = 17.1")
@@ -318,6 +320,8 @@ func TestExprString(t *testing.T) {
 	assertExprString(t, expr7, "count(\"foo\", x)")
 	assertExprString(t, expr8, "data.test.f(1, x)")
 	assertExprString(t, expr9, `contains("foo.bar", ".")`)
+	assertExprString(t, expr10, `internal.member_2("foo", xs)`)
+	assertExprString(t, expr11, `internal.member_3(x, "foo", xs)`)
 }
 
 func TestExprBadJSON(t *testing.T) {
@@ -540,7 +544,21 @@ func TestSomeDeclString(t *testing.T) {
 	expected := "some a, b"
 
 	if result != expected {
-		t.Fatalf("Expected %v but got %v", expected, result)
+		t.Errorf("Expected %v but got %v", expected, result)
+	}
+
+	s := &SomeDecl{
+		Symbols: []*Term{Member.Call(VarTerm("x"), VarTerm("xs"))},
+	}
+	if exp, act := "some x in xs", s.String(); act != exp {
+		t.Errorf("Expected %v but got %v", exp, act)
+	}
+
+	s1 := &SomeDecl{
+		Symbols: []*Term{Member.Call(VarTerm("x"), VarTerm("y"), VarTerm("xs"))},
+	}
+	if exp, act := "some x, y in xs", s1.String(); act != exp {
+		t.Errorf("Expected %v but got %v", exp, act)
 	}
 }
 
