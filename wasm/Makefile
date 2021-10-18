@@ -148,8 +148,8 @@ $(TEST_CPP_OBJS): $(WASM_OBJ_DIR)/tests/%.wasm: tests/%.cc
 $(WASM_OBJ_DIR)/opa.wasm: $(OBJS) $(CPP_OBJS) $(LIB_OBJS) $(LIB_MPDEC_OBJS) $(LIB_CPP_OBJS) $(RE2_RE2_OBJS) $(RE2_UTIL_OBJS)
 	wasm-ld-12 \
 			--allow-undefined-file=src/undefined.symbols \
-			--import-memory \
 			--no-entry \
+			--export=__heap_base \
 			--stack-first \
 			-o $@ $^
 	@wasm2wat $(WASM_OBJ_DIR)/opa.wasm > $(WASM_OBJ_DIR)/opa.wast
@@ -158,7 +158,6 @@ $(WASM_OBJ_DIR)/opa-test.wasm: $(OBJS) $(CPP_OBJS) $(LIB_OBJS) $(LIB_MPDEC_OBJS)
 	@cat src/undefined.symbols tests/undefined.symbols > _obj/undefined.symbols
 	@wasm-ld-12 \
 			--allow-undefined-file=_obj/undefined.symbols \
-			--import-memory \
 			--no-entry \
 			--stack-first \
 			-o $@ $^
