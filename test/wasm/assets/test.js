@@ -68,7 +68,7 @@ function formatMicros(us) {
     }
 }
 
-function loadJSON(mod, memory, value) {
+function loadJSON(mod, value) {
 
     if (value === undefined) {
         return 0;
@@ -76,7 +76,7 @@ function loadJSON(mod, memory, value) {
 
     const str = JSON.stringify(value);
     const rawAddr = mod.instance.exports.opa_malloc(str.length);
-    const buf = new Uint8Array(memory.buffer);
+    const buf = new Uint8Array(mod.instance.exports.memory.buffer);
 
     for (let i = 0; i < str.length; i++) {
         buf[rawAddr + i] = str.charCodeAt(i);
@@ -91,9 +91,9 @@ function loadJSON(mod, memory, value) {
     return parsedAddr;
 }
 
-function dumpJSON(mod, memory, addr) {
+function dumpJSON(mod, addr) {
     const rawAddr = mod.instance.exports.opa_json_dump(addr);
-    return parseJSON(memory, rawAddr);
+    return parseJSON(mod.instance.exports.memory, rawAddr);
 }
 
 function parseJSON(memory, rawAddr) {
@@ -142,56 +142,48 @@ function builtinCall(policy, func) {
     let args = [];
 
     for (let i = 2; i < argArray.length; i++) {
-        const jsArg = dumpJSON(policy.module, policy.memory, argArray[i]);
+        const jsArg = dumpJSON(policy.module, argArray[i]);
         args.push(jsArg);
     }
 
     const result = impl(...args);
 
-    return loadJSON(policy.module, policy.memory, result);
+    return loadJSON(policy.module, result);
 }
 
-async function instantiate(bytes, memory, data) {
+async function instantiate(bytes, data) {
 
-    const addr2string = stringDecoder(memory);
-
-    let policy = { memory };
+    const memory = new WebAssembly.Memory({initial: 5});
+    let addr2string = () => console.warn("cannot call addr2string from Start function");
+    const policy = {};
 
     policy.module = await WebAssembly.instantiate(bytes, {
         env: {
             memory,
-            opa_abort: function (addr) {
+            opa_abort: (addr) => {
                 throw { message: addr2string(addr) };
             },
-            opa_println: function (addr) {
+            opa_println: (addr) => {
                 console.log(addr2string(addr));
             },
-            opa_builtin0: function (func, ctx) {
-                return builtinCall(policy, func);
-            },
-            opa_builtin1: function (func, ctx, v1) {
-                return builtinCall(policy, func, v1);
-            },
-            opa_builtin2: function (func, ctx, v1, v2) {
-                return builtinCall(policy, func, v1, v2);
-            },
-            opa_builtin3: function (func, ctx, v1, v2, v3) {
-                return builtinCall(policy, func, v1, v2, v3);
-            },
-            opa_builtin4: function (func, ctx, v1, v2, v3, v4) {
-                return builtinCall(policy, func, v1, v2, v3, v4);
-            },
+            opa_builtin0: (func, _ctx)                 => builtinCall(policy, func),
+            opa_builtin1: (func, _ctx, v1)             => builtinCall(policy, func, v1),
+            opa_builtin2: (func, _ctx, v1, v2)         => builtinCall(policy, func, v1, v2),
+            opa_builtin3: (func, _ctx, v1, v2, v3)     => builtinCall(policy, func, v1, v2, v3),
+            opa_builtin4: (func, _ctx, v1, v2, v3, v4) => builtinCall(policy, func, v1, v2, v3, v4),
         },
     });
 
-    builtins = dumpJSON(policy.module, policy.memory, policy.module.instance.exports.builtins());
+    addr2string = stringDecoder(policy.module.instance.exports.memory);
+
+    builtins = dumpJSON(policy.module, policy.module.instance.exports.builtins());
     policy.builtins = {};
 
     for (var key of Object.keys(builtins)) {
         policy.builtins[builtins[key]] = key
     }
 
-    policy.dataAddr = loadJSON(policy.module, policy.memory, data);
+    policy.dataAddr = loadJSON(policy.module, data);
     policy.heapPtr = policy.module.instance.exports.opa_heap_ptr_get();
 
     return policy;
@@ -203,7 +195,7 @@ function evaluate(policy, input) {
     let inputAddr = 0;
     if (input) {
         const inp = JSON.stringify(input);
-        const buf = new Uint8Array(policy.memory.buffer);
+        const buf = new Uint8Array(policy.module.instance.exports.memory.buffer);
         inputAddr = policy.heapPtr;
         inputLen = inp.length;
 
@@ -238,7 +230,6 @@ function namespace(cache, key) {
 
 async function test() {
 
-    const memory = new WebAssembly.Memory({ initial: 5 });
     const t0 = now();
     var testCases = [];
     const files = readdirSync('.');
@@ -262,8 +253,7 @@ async function test() {
 
     const t_load = now();
     const dt_load = t_load - t0;
-    console.log('Found ' + testCases.length + ' WASM test cases in ' + numFiles + ' file(s). Took ' + formatMicros(dt_load) + '. Running now.');
-    console.log();
+    console.log(`Found ${testCases.length} WASM test cases in ${numFiles} file(s). Took ${formatMicros(dt_load)}. Running now.\n`);
 
     let numSkipped = 0;
     let numPassed = 0;
@@ -287,11 +277,11 @@ async function test() {
         let extra = '';
 
         try {
-            const policy = await instantiate(testCases[i].wasmBytes, memory, testCases[i].data);
+            const policy = await instantiate(testCases[i].wasmBytes, testCases[i].data);
             const result = evaluate(policy, testCases[i].input);
 
             const expDefined = testCases[i].want_defined;
-            const rs = parseJSON(policy.memory, result.addr);
+            const rs = parseJSON(policy.module.instance.exports.memory, result.addr);
 
             if (expDefined !== undefined) {
                 const len = rs.length
