@@ -25,7 +25,7 @@ structured data as input.
 
 {{< figure src="opa-service.svg" width="65" caption="Policy Decoupling" >}}
 
-OPA generates policy decisions by evaluating the query input and against
+OPA generates policy decisions by evaluating the query input against
 policies and data. OPA and Rego are domain-agnostic so you can describe almost
 any kind of invariant in your policies. For example:
 
