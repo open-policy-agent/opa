@@ -93,6 +93,7 @@ func (e *parsedTermCacheItem) String() string {
 
 // ParserOptions defines the options for parsing Rego statements.
 type ParserOptions struct {
+	Capabilities      *Capabilities
 	ProcessAnnotation bool
 	AllFutureKeywords bool
 	FutureKeywords    []string
@@ -151,6 +152,12 @@ func (p *Parser) WithAllFutureKeywords(yes bool) *Parser {
 	return p
 }
 
+// WithCapabilities sets the capabilities structure on the parser.
+func (p *Parser) WithCapabilities(c *Capabilities) *Parser {
+	p.po.Capabilities = c
+	return p
+}
+
 const (
 	annotationScopePackage     = "package"
 	annotationScopeImport      = "import"
@@ -203,6 +210,26 @@ func (p *Parser) futureParser() *Parser {
 // parsing will be accumulated and returned as a list of Errors.
 func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 
+	if p.po.Capabilities == nil {
+		p.po.Capabilities = CapabilitiesForThisVersion()
+	}
+
+	allowedFutureKeywords := map[string]tokens.Token{}
+
+	for _, kw := range p.po.Capabilities.FutureKeywords {
+		var ok bool
+		allowedFutureKeywords[kw], ok = futureKeywords[kw]
+		if !ok {
+			return nil, nil, Errors{
+				&Error{
+					Code:     ParseErr,
+					Message:  fmt.Sprintf("illegal capabilities: unknown keyword: %v", kw),
+					Location: nil,
+				},
+			}
+		}
+	}
+
 	var err error
 	p.s.s, err = scanner.New(p.r)
 	if err != nil {
@@ -217,12 +244,12 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 
 	selected := map[string]tokens.Token{}
 	if p.po.AllFutureKeywords {
-		for kw, tok := range futureKeywords {
+		for kw, tok := range allowedFutureKeywords {
 			selected[kw] = tok
 		}
 	} else {
 		for _, kw := range p.po.FutureKeywords {
-			tok, ok := futureKeywords[kw]
+			tok, ok := allowedFutureKeywords[kw]
 			if !ok {
 				return nil, nil, Errors{
 					&Error{
@@ -264,7 +291,7 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 
 		if imp := p.parseImport(); imp != nil {
 			if FutureRootDocument.Equal(imp.Path.Value.(Ref)[0]) {
-				p.futureImport(imp)
+				p.futureImport(imp, allowedFutureKeywords)
 			}
 			stmts = append(stmts, imp)
 			continue
@@ -1935,11 +1962,13 @@ func convertYAMLMapKeyTypes(x interface{}, path []string) (interface{}, error) {
 	}
 }
 
+// futureKeywords is the source of truth for future keywords that will
+// eventually become standard keywords inside of Rego.
 var futureKeywords = map[string]tokens.Token{
 	"in": tokens.In,
 }
 
-func (p *Parser) futureImport(imp *Import) {
+func (p *Parser) futureImport(imp *Import, allowedFutureKeywords map[string]tokens.Token) {
 	path := imp.Path.Value.(Ref)
 	if len(path) == 1 {
 		p.errorf(imp.Path.Location, "invalid import, use `import future.keywords` or `import.future.keywords.in`")
@@ -1956,8 +1985,8 @@ func (p *Parser) futureImport(imp *Import) {
 		return
 	}
 
-	kwds := make([]string, 0, len(futureKeywords))
-	for k := range futureKeywords {
+	kwds := make([]string, 0, len(allowedFutureKeywords))
+	for k := range allowedFutureKeywords {
 		kwds = append(kwds, k)
 	}
 	switch len(path) {
@@ -1969,7 +1998,7 @@ func (p *Parser) futureImport(imp *Import) {
 			return
 		}
 		keyword := string(kw)
-		_, ok = futureKeywords[keyword]
+		_, ok = allowedFutureKeywords[keyword]
 		if !ok {
 			p.errorf(imp.Path.Location, "unexpected keyword, must be one of %v", kwds)
 			return
@@ -1978,6 +2007,6 @@ func (p *Parser) futureImport(imp *Import) {
 		kwds = []string{keyword} // overwrite
 	}
 	for _, kw := range kwds {
-		p.s.s.AddKeyword(kw, futureKeywords[kw])
+		p.s.s.AddKeyword(kw, allowedFutureKeywords[kw])
 	}
 }
