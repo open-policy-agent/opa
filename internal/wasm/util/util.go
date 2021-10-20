@@ -2,7 +2,7 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-package wasm
+package util
 
 // PageSize represents the WASM page size in bytes.
 const PageSize = 65535
