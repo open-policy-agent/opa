@@ -3586,6 +3586,9 @@
       }
     }
   ],
+  "future_keywords": [
+    "in"
+  ],
   "wasm_abi_versions": [
     {
       "version": 1,
