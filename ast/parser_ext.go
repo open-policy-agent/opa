@@ -563,12 +563,11 @@ func ParseStatementsWithOpts(filename, input string, popts ParserOptions) ([]Sta
 	parser := NewParser().
 		WithFilename(filename).
 		WithReader(bytes.NewBufferString(input)).
+		WithProcessAnnotation(popts.ProcessAnnotation).
 		WithFutureKeywords(popts.FutureKeywords...).
-		WithAllFutureKeywords(popts.AllFutureKeywords)
+		WithAllFutureKeywords(popts.AllFutureKeywords).
+		WithCapabilities(popts.Capabilities)
 
-	if popts.ProcessAnnotation {
-		parser.WithProcessAnnotation(popts.ProcessAnnotation)
-	}
 	stmts, comments, errs := parser.Parse()
 
 	if len(errs) > 0 {
