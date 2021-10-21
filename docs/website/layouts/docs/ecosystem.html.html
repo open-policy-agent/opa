@@ -95,13 +95,13 @@
           {{ $rank := (index $integrations "rank") }}
           {{ $integration := (index $.Site.Data.integrations.integrations $name) }}
           <div class="integration-item" onclick="openModal('{{ $name }}-detail-modal')">
-            <div class="card">
+            <div class="card is-flex-grow-1">
               <div class="card-image">
                 <figure class="image">
                   {{ partial "docs/integration-logo.html" (dict "name" $name) }}
                 </figure>
               </div>
-              <div class="card-content">
+              <div class="card-content has-text-centered">
                 <p class="title is-6">{{- $integration.title -}}</p>
               </div>
             </div>
