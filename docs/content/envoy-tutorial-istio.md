@@ -17,7 +17,7 @@ authorization decisions to OPA.
 This tutorial requires Kubernetes 1.14 or later. To run the tutorial locally, we
 recommend using
 [minikube](https://minikube.sigs.k8s.io/docs/start/) in
-version `v1.0+` with Kubernetes 1.14+.
+version `v1.0+` with Kubernetes 1.14+ and not 1.19+ due to the usage of `admissionregistration.k8s.io/v1beta1` in the _quick_start-yaml_.
 
 The tutorial also requires Istio v1.8.0 or later. It assumes you have Istio deployed on top of Kubernetes.
 See Istio's [Quick Start](https://istio.io/docs/setup/kubernetes/install/kubernetes/) page to get started.
