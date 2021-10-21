@@ -1,4 +1,4 @@
-@import "initial-variables"
+@import "derived-variables"
 
 =clearfix
   &::after
@@ -9,11 +9,11 @@
 =center($width, $height: 0)
   position: absolute
   @if $height != 0
-    left: calc(50% - (#{$width} / 2))
-    top: calc(50% - (#{$height} / 2))
+    left: calc(50% - (#{$width} * 0.5))
+    top: calc(50% - (#{$height} * 0.5))
   @else
-    left: calc(50% - (#{$width} / 2))
-    top: calc(50% - (#{$width} / 2))
+    left: calc(50% - (#{$width} * 0.5))
+    top: calc(50% - (#{$width} * 0.5))
 
 =fa($size, $dimensions)
   display: inline-block
@@ -48,7 +48,7 @@
     &:nth-child(3)
       top: calc(50% + 4px)
   &:hover
-    background-color: rgba(black, 0.05)
+    background-color: bulmaRgba(black, 0.05)
   // Modifers
   &.is-active
     span
@@ -67,6 +67,18 @@
   @each $placeholder in $placeholders
     &:#{$placeholder}-placeholder
       @content
+
+=reset
+  -moz-appearance: none
+  -webkit-appearance: none
+  appearance: none
+  background: none
+  border: none
+  color: currentColor
+  font-family: inherit
+  font-size: 1em
+  margin: 0
+  padding: 0
 
 // Responsiveness
 
@@ -128,6 +140,30 @@
     @media screen and (min-width: $fullhd)
       @content
 
+=ltr
+  @if not $rtl
+    @content
+
+=rtl
+  @if $rtl
+    @content
+
+=ltr-property($property, $spacing, $right: true)
+  $normal: if($right, "right", "left")
+  $opposite: if($right, "left", "right")
+  @if $rtl
+    #{$property}-#{$opposite}: $spacing
+  @else
+    #{$property}-#{$normal}: $spacing
+
+=ltr-position($spacing, $right: true)
+  $normal: if($right, "right", "left")
+  $opposite: if($right, "left", "right")
+  @if $rtl
+    #{$opposite}: $spacing
+  @else
+    #{$normal}: $spacing
+
 // Placeholders
 
 =unselectable
@@ -136,9 +172,6 @@
   -moz-user-select: none
   -ms-user-select: none
   user-select: none
-
-%unselectable
-  +unselectable
 
 =arrow($color: transparent)
   border: 3px solid $color
@@ -156,21 +189,15 @@
   transform-origin: center
   width: 0.625em
 
-%arrow
-  +arrow
-
-=block
+=block($spacing: $block-spacing)
   &:not(:last-child)
-    margin-bottom: 1.5rem
-
-%block
-  +block
+    margin-bottom: $spacing
 
 =delete
-  @extend %unselectable
+  +unselectable
   -moz-appearance: none
   -webkit-appearance: none
-  background-color: rgba($black, 0.2)
+  background-color: bulmaRgba($scheme-invert, 0.2)
   border: none
   border-radius: $radius-rounded
   cursor: pointer
@@ -190,7 +217,7 @@
   width: 20px
   &::before,
   &::after
-    background-color: $white
+    background-color: $scheme-main
     content: ""
     display: block
     left: 50%
@@ -206,9 +233,9 @@
     width: 2px
   &:hover,
   &:focus
-    background-color: rgba($black, 0.3)
+    background-color: bulmaRgba($scheme-invert, 0.3)
   &:active
-    background-color: rgba($black, 0.4)
+    background-color: bulmaRgba($scheme-invert, 0.4)
   // Sizes
   &.is-small
     height: 16px
@@ -232,9 +259,6 @@
     min-width: 32px
     width: 32px
 
-%delete
-  +delete
-
 =loader
   animation: spinAround 500ms infinite linear
   border: 2px solid $grey-lighter
@@ -247,9 +271,6 @@
   position: relative
   width: 1em
 
-%loader
-  +loader
-
 =overlay($offset: 0)
   bottom: $offset
   left: $offset
@@ -257,5 +278,3 @@
   right: $offset
   top: $offset
 
-%overlay
-  +overlay
