@@ -1,5 +1,14 @@
-// Main container
+@import "../utilities/mixins"
 
+$hero-body-padding: 3rem 1.5rem !default
+$hero-body-padding-tablet: 3rem 3rem !default
+$hero-body-padding-small: 1.5rem !default
+$hero-body-padding-medium: 9rem 4.5rem !default
+$hero-body-padding-large: 18rem 6rem !default
+
+$hero-colors: $colors !default
+
+// Main container
 .hero
   align-items: stretch
   display: flex
@@ -11,19 +20,19 @@
     ul
       border-bottom: none
   // Colors
-  @each $name, $pair in $colors
+  @each $name, $pair in $hero-colors
     $color: nth($pair, 1)
     $color-invert: nth($pair, 2)
     &.is-#{$name}
       background-color: $color
       color: $color-invert
-      a:not(.button):not(.dropdown-item):not(.tag),
+      a:not(.button):not(.dropdown-item):not(.tag):not(.pagination-link.is-current),
       strong
         color: inherit
       .title
         color: $color-invert
       .subtitle
-        color: rgba($color-invert, 0.9)
+        color: bulmaRgba($color-invert, 0.9)
         a:not(.button),
         strong
           color: $color-invert
@@ -32,12 +41,12 @@
           background-color: $color
       .navbar-item,
       .navbar-link
-        color: rgba($color-invert, 0.7)
+        color: bulmaRgba($color-invert, 0.7)
       a.navbar-item,
       .navbar-link
         &:hover,
         &.is-active
-          background-color: darken($color, 5%)
+          background-color: bulmaDarken($color, 5%)
           color: $color-invert
       .tabs
         a
@@ -47,13 +56,14 @@
             opacity: 1
         li
           &.is-active a
+            color: $color !important
             opacity: 1
         &.is-boxed,
         &.is-toggle
           a
             color: $color-invert
             &:hover
-              background-color: rgba($black, 0.1)
+              background-color: bulmaRgba($scheme-invert, 0.1)
           li.is-active a
             &,
             &:hover
@@ -61,41 +71,26 @@
               border-color: $color-invert
               color: $color
       // Modifiers
-      &.is-bold
-        $gradient-top-left: darken(saturate(adjust-hue($color, -10deg), 10%), 10%)
-        $gradient-bottom-right: lighten(saturate(adjust-hue($color, 10deg), 5%), 5%)
-        background-image: linear-gradient(141deg, $gradient-top-left 0%, $color 71%, $gradient-bottom-right 100%)
-        +mobile
-          .navbar-menu
-            background-image: linear-gradient(141deg, $gradient-top-left 0%, $color 71%, $gradient-bottom-right 100%)
-      // Responsiveness
-      // +mobile
-      //   .nav-toggle
-      //     span
-      //       background-color: $color-invert
-      //     &:hover
-      //       background-color: rgba($black, 0.1)
-      //     &.is-active
-      //       span
-      //         background-color: $color-invert
-      //   .nav-menu
-      //     .nav-item
-      //       border-top-color: rgba($color-invert, 0.2)
+      @if type-of($color) == 'color'
+        &.is-bold
+          $gradient-top-left: darken(saturate(adjust-hue($color, -10deg), 10%), 10%)
+          $gradient-bottom-right: lighten(saturate(adjust-hue($color, 10deg), 5%), 5%)
+          background-image: linear-gradient(141deg, $gradient-top-left 0%, $color 71%, $gradient-bottom-right 100%)
+          +mobile
+            .navbar-menu
+              background-image: linear-gradient(141deg, $gradient-top-left 0%, $color 71%, $gradient-bottom-right 100%)
   // Sizes
   &.is-small
     .hero-body
-      padding-bottom: 1.5rem
-      padding-top: 1.5rem
+      padding: $hero-body-padding-small
   &.is-medium
     +tablet
       .hero-body
-        padding-bottom: 9rem
-        padding-top: 9rem
+        padding: $hero-body-padding-medium
   &.is-large
     +tablet
       .hero-body
-        padding-bottom: 18rem
-        padding-top: 18rem
+        padding: $hero-body-padding-large
   &.is-halfheight,
   &.is-fullheight,
   &.is-fullheight-with-navbar
@@ -141,7 +136,7 @@
     display: flex
     justify-content: center
     .button:not(:last-child)
-      margin-right: 1.5rem
+      +ltr-property("margin", 1.5rem)
 
 // Containers
 
@@ -153,4 +148,6 @@
 .hero-body
   flex-grow: 1
   flex-shrink: 0
-  padding: 3rem 1.5rem
+  padding: $hero-body-padding
+  +tablet
+    padding: $hero-body-padding-tablet
