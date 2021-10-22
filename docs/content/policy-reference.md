@@ -38,6 +38,11 @@ val := arr[0]
 
 # lookup last value
 val := arr[count(arr)-1]
+
+# with `import future.keywords.in`
+some 0, val in arr   # lookup value at index 0
+0, "foo" in arr      # check if value at index 0 is "foo"
+some i, "foo" in arr # find all indices i that have value "foo"
 ```
 
 ### Objects
@@ -65,6 +70,12 @@ obj.foo.bar.baz
 
 # check if path foo.bar.baz, foo.bar, or foo does not exist or is false
 not obj.foo.bar.baz
+
+# with `import future.keywords.in`
+# check if key exists: its value could be false, the expression will be true
+"foo" in obj
+# check if value for key "foo" is "bar"
+"foo", "bar" in obj
 ```
 
 ### Sets
@@ -81,6 +92,12 @@ a_set[["a", "b", "c"]]
 
 # find all arrays of the form [x, "b", z] in the set
 a_set[[x, "b", z]]
+
+# with `import future.keywords.in`
+"foo" in a_set
+not "foo" in a_set
+some ["a", "b", "c"] in a_set
+some [x, "b", z] in a_set
 ```
 
 ## Iteration
@@ -96,6 +113,11 @@ val := arr[_]
 
 # iterate over index/value pairs
 val := arr[i]
+
+# with `import future.keywords.in`
+some val in arr    # iterate over values
+some i, _ in arr   # iterate over indices
+some i, val in arr # iterate over index/value pairs
 ```
 
 ### Objects
@@ -109,6 +131,11 @@ val := obj[_]
 
 # iterate over key/value pairs
 val := obj[key]
+
+# with `import future.keywords.in`
+some val in obj      # iterate over values
+some key, _ in obj   # iterate over keys
+some key, val in obj # key/value pairs
 ```
 
 ### Sets
@@ -116,6 +143,9 @@ val := obj[key]
 ```live:iteration/sets:query:read_only
 # iterate over values
 set[val]
+
+# with `import future.keywords.in`
+some val in set
 ```
 
 ### Advanced
