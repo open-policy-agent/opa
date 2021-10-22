@@ -315,15 +315,6 @@ type MakeNullStmt struct {
 	Location
 }
 
-// MakeNumberFloatStmt constructs a local variable that refers to a
-// floating-point number value.
-type MakeNumberFloatStmt struct {
-	Value  float64
-	Target Local
-
-	Location
-}
-
 // MakeNumberIntStmt constructs a local variable that refers to an integer value.
 type MakeNumberIntStmt struct {
 	Value  int64
