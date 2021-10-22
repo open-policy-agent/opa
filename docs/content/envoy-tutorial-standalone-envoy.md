@@ -11,10 +11,10 @@ policies over the HTTP request body.
 
 ## Prerequisites
 
-This tutorial requires Kubernetes 1.14 or later. To run the tutorial locally, we
+This tutorial requires Kubernetes 1.20 or later. To run the tutorial locally, we
 recommend using
 [minikube](https://minikube.sigs.k8s.io/docs/start/) in
-version `v1.0+` with Kubernetes 1.14+.
+version `v1.21+` with Kubernetes 1.20+.
 
 ## Steps
 
@@ -40,7 +40,7 @@ static_resources:
         port_value: 8000
     filter_chains:
     - filters:
-      - name: envoy.http_connection_manager
+      - name: envoy.filters.network.http_connection_manager
         typed_config:
           "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
           codec_type: auto
