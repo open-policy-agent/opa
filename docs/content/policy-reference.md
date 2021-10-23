@@ -72,10 +72,11 @@ obj.foo.bar.baz
 not obj.foo.bar.baz
 
 # with `import future.keywords.in`
-# check if key exists: its value could be false, the expression will be true
-"foo" in obj
-# check if value for key "foo" is "bar"
-"foo", "bar" in obj
+o := {"foo": false}
+# check if value exists: the expression will be true
+false in o
+# check if value for key "foo" is false
+"foo", false in o
 ```
 
 ### Sets
