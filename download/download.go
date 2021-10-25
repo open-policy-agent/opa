@@ -131,7 +131,7 @@ func (d *Downloader) Trigger(ctx context.Context) error {
 	done := make(chan error)
 
 	go func() {
-		_, err := d.oneShot(ctx)
+		_, err := d.oneShot(ctx, false)
 		if err != nil {
 			d.logger.Error("Bundle download failed: %v.", err)
 			if ctx.Err() == nil {
@@ -193,11 +193,16 @@ func (d *Downloader) loop(ctx context.Context) {
 
 	var retry int
 
+	longPoll := false
+	if d.config.Polling.LongPollingTimeoutSeconds != nil {
+		longPoll = true
+	}
+
 	for {
 
 		var delay time.Duration
-
-		longPoll, err := d.oneShot(ctx)
+		var err error
+		longPoll, err = d.oneShot(ctx, longPoll)
 
 		if ctx.Err() != nil {
 			return
@@ -205,6 +210,9 @@ func (d *Downloader) loop(ctx context.Context) {
 
 		if err != nil {
 			delay = util.DefaultBackoff(float64(minRetryDelay), float64(*d.config.Polling.MaxDelaySeconds), retry)
+			if d.config.Polling.LongPollingTimeoutSeconds != nil {
+				longPoll = true
+			}
 		} else {
 			if !longPoll {
 				if d.config.Polling.LongPollingTimeoutSeconds != nil {
@@ -237,9 +245,9 @@ func (d *Downloader) loop(ctx context.Context) {
 	}
 }
 
-func (d *Downloader) oneShot(ctx context.Context) (bool, error) {
+func (d *Downloader) oneShot(ctx context.Context, longPoll bool) (bool, error) {
 	m := metrics.New()
-	resp, err := d.download(ctx, m)
+	resp, err := d.download(ctx, m, longPoll)
 
 	if err != nil {
 		d.etag = ""
@@ -256,11 +264,10 @@ func (d *Downloader) oneShot(ctx context.Context) (bool, error) {
 	if d.f != nil {
 		d.f(ctx, Update{ETag: resp.etag, Bundle: resp.b, Error: nil, Metrics: m, Raw: resp.raw})
 	}
-
 	return resp.longPoll, nil
 }
 
-func (d *Downloader) download(ctx context.Context, m metrics.Metrics) (*downloaderResponse, error) {
+func (d *Downloader) download(ctx context.Context, m metrics.Metrics, longPoll bool) (*downloaderResponse, error) {
 	d.logger.Debug("Download starting.")
 
 	d.client = d.client.WithHeader("If-None-Match", d.etag)
@@ -282,9 +289,8 @@ func (d *Downloader) download(ctx context.Context, m metrics.Metrics) (*download
 	if err != nil {
 		return nil, errors.Wrap(err, "request failed")
 	}
-
+	fmt.Println("AAAAAAAAAAAAAAAAAAAAAaaa longPoll ", longPoll, " resp ", resp)
 	defer util.Close(resp)
-
 	switch resp.StatusCode {
 	case http.StatusOK:
 		var buf bytes.Buffer
@@ -335,7 +341,7 @@ func (d *Downloader) download(ctx context.Context, m metrics.Metrics) (*download
 			b:        nil,
 			raw:      nil,
 			etag:     etag,
-			longPoll: isLongPollSupported(resp.Header),
+			longPoll: longPoll, // isLongPollSupported(resp.Header),
 		}, nil
 	case http.StatusNotFound:
 		return nil, fmt.Errorf("server replied with not found")
