@@ -1701,6 +1701,9 @@ func (e evalFunc) evalOneRule(iter unifyIterator, rule *ast.Rule, cacheKey ast.R
 
 			if len(rule.Head.Args) == len(e.terms)-1 {
 				if result.Value.Compare(ast.Boolean(false)) == 0 {
+					if prev != nil && ast.Compare(prev, result) != 0 {
+						return functionConflictErr(rule.Location)
+					}
 					return nil
 				}
 			}
