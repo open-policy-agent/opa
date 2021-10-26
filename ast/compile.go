@@ -121,6 +121,14 @@ type CompilerStageDefinition struct {
 	Stage      CompilerStage
 }
 
+// RulesOptions defines the options for retrieving rules by Ref from the
+// compiler.
+type RulesOptions struct {
+	// IncludeHiddenModules determines if the result contains hidden modules,
+	// currently only the "system" namespace, i.e. "data.system.*".
+	IncludeHiddenModules bool
+}
+
 // QueryContext contains contextual information for running an ad-hoc query.
 //
 // Ad-hoc queries can be run in the context of a package and imports may be
@@ -554,6 +562,14 @@ func (c *Compiler) GetRules(ref Ref) (rules []*Rule) {
 }
 
 // GetRulesDynamic returns a slice of rules that could be referred to by a ref.
+//
+// Deprecated: use GetRulesDynamicWithOpts
+func (c *Compiler) GetRulesDynamic(ref Ref) []*Rule {
+	return c.GetRulesDynamicWithOpts(ref, RulesOptions{})
+}
+
+// GetRulesDynamicWithOpts returns a slice of rules that could be referred to by
+// a ref.
 // When parts of the ref are statically known, we use that information to narrow
 // down which rules the ref could refer to, but in the most general case this
 // will be an over-approximation.
@@ -572,10 +588,25 @@ func (c *Compiler) GetRules(ref Ref) (rules []*Rule) {
 //
 // The following calls yield the rules on the right.
 //
-//  GetRulesDynamic("data.a[x].c[y]") => [rule1, rule2]
-//  GetRulesDynamic("data.a[x].c.r2") => [rule2]
-//  GetRulesDynamic("data.a.b[x][y]") => [rule1]
-func (c *Compiler) GetRulesDynamic(ref Ref) (rules []*Rule) {
+//  GetRulesDynamicWithOpts("data.a[x].c[y]", opts) => [rule1, rule2]
+//  GetRulesDynamicWithOpts("data.a[x].c.r2", opts) => [rule2]
+//  GetRulesDynamicWithOpts("data.a.b[x][y]", opts) => [rule1]
+//
+// Using the RulesOptions parameter, the inclusion of hidden modules can be
+// controlled:
+//
+// With
+//
+//  package system.main
+//
+//  r3 = 3 # rule3
+//
+// We'd get this result:
+//
+//  GetRulesDynamicWithOpts("data[x]", RulesOptions{IncludeHiddenModules: true}) => [rule1, rule2, rule3]
+//
+// Without the options, it would be excluded.
+func (c *Compiler) GetRulesDynamicWithOpts(ref Ref, opts RulesOptions) []*Rule {
 	node := c.RuleTree
 
 	set := map[*Rule]struct{}{}
@@ -586,6 +617,9 @@ func (c *Compiler) GetRulesDynamic(ref Ref) (rules []*Rule) {
 			// under this "prefix".
 			node.DepthFirst(func(descendant *TreeNode) bool {
 				insertRules(set, descendant.Values)
+				if opts.IncludeHiddenModules {
+					return false
+				}
 				return descendant.Hide
 			})
 		} else if i == 0 || IsConstant(ref[i].Value) {
@@ -606,7 +640,7 @@ func (c *Compiler) GetRulesDynamic(ref Ref) (rules []*Rule) {
 			// This part of the ref is a dynamic term.  We can't know what it refers
 			// to and will just need to try all of the children.
 			for _, child := range node.Children {
-				if child.Hide {
+				if child.Hide && !opts.IncludeHiddenModules {
 					continue
 				}
 				insertRules(set, child.Values)
@@ -616,6 +650,7 @@ func (c *Compiler) GetRulesDynamic(ref Ref) (rules []*Rule) {
 	}
 
 	walk(node, 0)
+	rules := make([]*Rule, 0, len(set))
 	for rule := range set {
 		rules = append(rules, rule)
 	}
@@ -1764,7 +1799,10 @@ func (c *Compiler) setRuleTree() {
 }
 
 func (c *Compiler) setGraph() {
-	c.Graph = NewGraph(c.Modules, c.GetRulesDynamic)
+	list := func(r Ref) []*Rule {
+		return c.GetRulesDynamicWithOpts(r, RulesOptions{IncludeHiddenModules: true})
+	}
+	c.Graph = NewGraph(c.Modules, list)
 }
 
 type queryCompiler struct {

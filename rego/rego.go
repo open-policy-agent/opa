@@ -1469,6 +1469,11 @@ func (r *Rego) PrepareForEval(ctx context.Context, opts ...PrepareOption) (Prepa
 
 		queries := []ast.Body{r.compiledQueries[evalQueryType].query}
 
+		e, err := opa.LookupEngine(targetWasm)
+		if err != nil {
+			return PreparedEvalQuery{}, err
+		}
+
 		// nolint: staticcheck // SA4006 false positive
 		cr, err := r.compileWasm(modules, queries, evalQueryType)
 		if err != nil {
@@ -1480,11 +1485,6 @@ func (r *Rego) PrepareForEval(ctx context.Context, opts ...PrepareOption) (Prepa
 		data, err := r.store.Read(ctx, r.txn, storage.Path{})
 		if err != nil {
 			_ = txnClose(ctx, err) // Ignore error
-			return PreparedEvalQuery{}, err
-		}
-
-		e, err := opa.LookupEngine(targetWasm)
-		if err != nil {
 			return PreparedEvalQuery{}, err
 		}
 
