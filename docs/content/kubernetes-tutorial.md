@@ -416,7 +416,7 @@ webhooks:
       service:
         namespace: opa
         name: opa
-    admissionReviewVersions: ["v1beta1"]
+    admissionReviewVersions: ["v1", "v1beta1"]
     sideEffects: None
 EOF
 ```

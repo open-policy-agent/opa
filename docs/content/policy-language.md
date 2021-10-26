@@ -1300,6 +1300,9 @@ The `some` keyword is not required but it's recommended to avoid situations like
 the one above where introduction of a rule inside a package could change
 behaviour of other rules.
 
+For using the `some` keyword with iteration, see
+[the documentation of the `in` operator](#membership-and-iteration-in).
+
 ## With Keyword
 
 The `with` keyword allows queries to programmatically specify values nested
@@ -1483,41 +1486,7 @@ limit imposed on the number of `else` clauses on a rule.
 
 ## Operators
 
-### Equality: Assignment, Comparison, and Unification
-
-Rego supports three kinds of equality: assignment (`:=`), comparison (`==`), and unification `=`.  Both assignment (`:=`) and comparison (`==`) are only available inside of rules (and in the REPL), and we recommend using them whenever possible for policies that are easier to read and write.
-
-#### Assignment `:=`
-
-The assignment operator (`:=`) is used to define local variables inside of a rule. Assigned variables are locally scoped to that rule and shadow global variables.
-
-```live:eg/assignment1:module:read_only
-x := 100
-
-p {
-    x := 1     # declare local variable 'x' and assign value 1
-    x != 100   # true because 'x' refers to local variable
-}
-```
-
-Assigned variables are not allowed to appear before the assignment in the
-query. For example, the following policy will not compile:
-
-```live:eg/assignment2:module:merge_down
-p {
-    x != 100
-    x := 1     # error because x appears earlier in the query.
-}
-
-q {
-    x := 1
-    x := 2     # error because x is assigned twice.
-}
-```
-```live:eg/assignment2:output:expect_assigned_above,expect_referenced_above
-```
-
-#### Membership `in`
+### Membership and iteration: `in`
 
 > To ensure backwards-compatibility, new keywords (like `in`) are introduced slowly.
 > In the first stage, users can opt-in to using the new keywords via a special import:
@@ -1666,6 +1635,40 @@ p[x] = y {
 }
 ```
 ```live:eg/member4:output
+```
+
+### Equality: Assignment, Comparison, and Unification
+
+Rego supports three kinds of equality: assignment (`:=`), comparison (`==`), and unification `=`.  Both assignment (`:=`) and comparison (`==`) are only available inside of rules (and in the REPL), and we recommend using them whenever possible for policies that are easier to read and write.
+
+#### Assignment `:=`
+
+The assignment operator (`:=`) is used to define local variables inside of a rule. Assigned variables are locally scoped to that rule and shadow global variables.
+
+```live:eg/assignment1:module:read_only
+x := 100
+
+p {
+    x := 1     # declare local variable 'x' and assign value 1
+    x != 100   # true because 'x' refers to local variable
+}
+```
+
+Assigned variables are not allowed to appear before the assignment in the
+query. For example, the following policy will not compile:
+
+```live:eg/assignment2:module:merge_down
+p {
+    x != 100
+    x := 1     # error because x appears earlier in the query.
+}
+
+q {
+    x := 1
+    x := 2     # error because x is assigned twice.
+}
+```
+```live:eg/assignment2:output:expect_assigned_above,expect_referenced_above
 ```
 
 #### Comparison `==`
