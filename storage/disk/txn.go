@@ -167,25 +167,58 @@ type update struct {
 	delete bool
 }
 
-func (txn *transaction) Write(_ context.Context, op storage.PatchOp, path storage.Path, value interface{}) error {
+// errTxnTooBigErrorHandler checks if the passed error was caused by a transaction
+// that was _too big_. If so, it attempts to commit the transaction and opens a new one.
+// See https://dgraph.io/docs/badger/get-started/#read-write-transactions
+func errTxnTooBigErrorHandler(txn *transaction, err error) error {
+	errSetCommit := txn.underlying.Commit()
+	if errSetCommit != nil {
+		return wrapError(errSetCommit)
+	}
+	txn.underlying = txn.db.db.NewTransaction(true)
+	return nil
+}
 
+// !!!  infinite recursion only if infinite txn too big error occurred
+func deleteWithErrTxnTooBigErrorHandling(txn *transaction, u *update) error {
+	err := txn.underlying.Delete(u.key)
+	if err == badger.ErrTxnTooBig {
+		if txnErr := errTxnTooBigErrorHandler(txn, err); txnErr != nil {
+			return txnErr
+		}
+		return deleteWithErrTxnTooBigErrorHandling(txn, u)
+	}
+	return wrapError(err)
+}
+
+// !!! infinite recursion only if infinite txn too big error occurred
+func setWithErrTxnTooBigErrorHandling(txn *transaction, u *update) error {
+	err := txn.underlying.Set(u.key, u.value)
+	if err == badger.ErrTxnTooBig {
+		if txnErr := errTxnTooBigErrorHandler(txn, err); txnErr != nil {
+			return txnErr
+		}
+		return setWithErrTxnTooBigErrorHandling(txn, u)
+	}
+	return wrapError(err)
+}
+
+func (txn *transaction) Write(_ context.Context, op storage.PatchOp, path storage.Path, value interface{}) error {
 	updates, err := txn.partitionWrite(op, path, value)
 	if err != nil {
 		return err
 	}
-
 	for _, u := range updates {
 		if u.delete {
-			if err := txn.underlying.Delete(u.key); err != nil {
-				return wrapError(err)
+			if err := deleteWithErrTxnTooBigErrorHandling(txn, &u); err != nil {
+				return err
 			}
 		} else {
-			if err := txn.underlying.Set(u.key, u.value); err != nil {
-				return wrapError(err)
+			if err := setWithErrTxnTooBigErrorHandling(txn, &u); err != nil {
+				return err
 			}
 		}
 	}
-
 	return nil
 }
 

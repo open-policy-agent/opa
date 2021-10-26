@@ -15,8 +15,8 @@ import (
 // Capabilities defines a structure containing data that describes the capablilities
 // or features supported by a particular version of OPA.
 type Capabilities struct {
-	// builtins is a set of built-in functions that are supported.
 	Builtins        []*Builtin       `json:"builtins"`
+	FutureKeywords  []string         `json:"future_keywords"`
 	WasmABIVersions []WasmABIVersion `json:"wasm_abi_versions"`
 
 	// allow_net is an array of hostnames or IP addresses, that an OPA instance is
@@ -48,6 +48,11 @@ func CapabilitiesForThisVersion() *Capabilities {
 	sort.Slice(f.Builtins, func(i, j int) bool {
 		return f.Builtins[i].Name < f.Builtins[j].Name
 	})
+
+	for kw := range futureKeywords {
+		f.FutureKeywords = append(f.FutureKeywords, kw)
+	}
+	sort.Strings(f.FutureKeywords)
 
 	return f
 }

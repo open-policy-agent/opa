@@ -20,9 +20,8 @@ import (
 	"time"
 
 	"github.com/open-policy-agent/opa/internal/report"
+	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/server"
-
-	"github.com/sirupsen/logrus"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/storage"
@@ -309,19 +308,22 @@ func TestCheckOPAUpdateLoopWithNewUpdate(t *testing.T) {
 func TestCheckAuthIneffective(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Millisecond)
 	defer cancel() // NOTE(sr): The timeout will have been reached by the time `done` is closed.
-	var output bytes.Buffer
 
 	params := NewParams()
 	params.Authentication = server.AuthenticationToken
 	params.Authorization = server.AuthorizationOff
-	params.Output = &output
+
+	logger := logging.New()
+	stdout := bytes.NewBuffer(nil)
+	logger.SetOutput(stdout)
+
+	params.Logger = logger
 	params.Addrs = &[]string{":0"}
 	params.GracefulShutdownPeriod = 1
 	rt, err := NewRuntime(ctx, params)
 	if err != nil {
 		t.Fatalf("Unexpected error %v", err)
 	}
-	logrus.SetOutput(rt.Params.Output)
 
 	done := make(chan struct{})
 	go func() {
@@ -331,8 +333,8 @@ func TestCheckAuthIneffective(t *testing.T) {
 	<-done
 
 	expected := "Token authentication enabled without authorization. Authentication will be ineffective. See https://www.openpolicyagent.org/docs/latest/security/#authentication-and-authorization for more information."
-	if !strings.Contains(output.String(), expected) {
-		t.Fatalf("Expected output to contain: \"%v\" but got \"%v\"", expected, output.String())
+	if !strings.Contains(stdout.String(), expected) {
+		t.Fatalf("Expected output to contain: \"%v\" but got \"%v\"", expected, stdout.String())
 	}
 
 }
@@ -346,11 +348,12 @@ func TestServerInitialized(t *testing.T) {
 	params.Output = &output
 	params.Addrs = &[]string{":0"}
 	params.GracefulShutdownPeriod = 1
+	params.Logger = logging.NewNoOpLogger()
+
 	rt, err := NewRuntime(ctx, params)
 	if err != nil {
 		t.Fatalf("Unexpected error %v", err)
 	}
-	logrus.SetOutput(rt.Params.Output)
 
 	initChannel := rt.Manager.ServerInitializedChannel()
 	done := make(chan struct{})
@@ -385,7 +388,7 @@ func testCheckOPAUpdate(t *testing.T, url string, expected *report.DataResponse)
 	os.Setenv("OPA_TELEMETRY_SERVICE_URL", url)
 
 	ctx := context.Background()
-	rt := getTestRuntime(ctx, t)
+	rt := getTestRuntime(ctx, t, logging.NewNoOpLogger())
 	result := rt.checkOPAUpdate(ctx)
 
 	if !reflect.DeepEqual(result, expected) {
@@ -398,12 +401,13 @@ func testCheckOPAUpdateLoop(t *testing.T, url, expected string) {
 	os.Setenv("OPA_TELEMETRY_SERVICE_URL", url)
 
 	ctx := context.Background()
-	rt := getTestRuntime(ctx, t)
-	var stdout bytes.Buffer
-	rt.Params.Output = &stdout
 
-	logrus.SetOutput(rt.Params.Output)
-	logrus.SetLevel(logrus.DebugLevel)
+	logger := logging.New()
+	stdout := bytes.NewBuffer(nil)
+	logger.SetOutput(stdout)
+	logger.SetLevel(logging.Debug)
+
+	rt := getTestRuntime(ctx, t, logger)
 
 	done := make(chan struct{})
 	go func() {
@@ -418,11 +422,12 @@ func testCheckOPAUpdateLoop(t *testing.T, url, expected string) {
 	}
 }
 
-func getTestRuntime(ctx context.Context, t *testing.T) *Runtime {
+func getTestRuntime(ctx context.Context, t *testing.T, logger logging.Logger) *Runtime {
 	t.Helper()
 
 	params := NewParams()
 	params.EnableVersionCheck = true
+	params.Logger = logger
 	rt, err := NewRuntime(ctx, params)
 	if err != nil {
 		t.Fatalf("Unexpected error %v", err)

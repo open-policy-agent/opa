@@ -9,6 +9,7 @@ import (
 
 	"github.com/open-policy-agent/opa/resolver"
 	"github.com/open-policy-agent/opa/topdown/cache"
+	"github.com/open-policy-agent/opa/topdown/print"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/metrics"
@@ -51,6 +52,7 @@ type Query struct {
 	indexing               bool
 	interQueryBuiltinCache cache.InterQueryCache
 	strictBuiltinErrors    bool
+	printHook              print.Hook
 }
 
 // Builtin represents a built-in function that queries can call.
@@ -242,6 +244,11 @@ func (q *Query) WithResolver(ref ast.Ref, r resolver.Resolver) *Query {
 	return q
 }
 
+func (q *Query) WithPrintHook(h print.Hook) *Query {
+	q.printHook = h
+	return q
+}
+
 // PartialRun executes partial evaluation on the query with respect to unknown
 // values. Partial evaluation attempts to evaluate as much of the query as
 // possible without requiring values for the unknowns set on the query. The
@@ -303,6 +310,7 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 		runtime:       q.runtime,
 		indexing:      q.indexing,
 		builtinErrors: &builtinErrors{},
+		printHook:     q.printHook,
 	}
 
 	if len(q.disableInlining) > 0 {
@@ -433,6 +441,7 @@ func (q *Query) Iter(ctx context.Context, iter func(QueryResult) error) error {
 		runtime:                q.runtime,
 		indexing:               q.indexing,
 		builtinErrors:          &builtinErrors{},
+		printHook:              q.printHook,
 	}
 	e.caller = e
 	q.metrics.Timer(metrics.RegoQueryEval).Start()

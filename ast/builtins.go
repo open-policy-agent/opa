@@ -33,6 +33,10 @@ var DefaultBuiltins = [...]*Builtin{
 	// Assignment (":=")
 	Assign,
 
+	// Membership, infix "in": `x in xs`
+	Member,
+	MemberWithKey,
+
 	// Comparisons
 	GreaterThan,
 	GreaterThanEq,
@@ -247,6 +251,10 @@ var DefaultBuiltins = [...]*Builtin{
 	//SemVers
 	SemVerIsValid,
 	SemVerCompare,
+
+	// Printing
+	Print,
+	InternalPrint,
 }
 
 // BuiltinMap provides a convenient mapping of built-in names to
@@ -287,6 +295,34 @@ var Assign = &Builtin{
 	Infix: ":=",
 	Decl: types.NewFunction(
 		types.Args(types.A, types.A),
+		types.B,
+	),
+}
+
+// Member represents the `in` (infix) operator.
+var Member = &Builtin{
+	Name:  "internal.member_2",
+	Infix: "in",
+	Decl: types.NewFunction(
+		types.Args(
+			types.A,
+			types.A,
+		),
+		types.B,
+	),
+}
+
+// MemberWithKey represents the `in` (infix) operator when used
+// with two terms on the lhs, i.e., `k, v in obj`.
+var MemberWithKey = &Builtin{
+	Name:  "internal.member_3",
+	Infix: "in",
+	Decl: types.NewFunction(
+		types.Args(
+			types.A,
+			types.A,
+			types.A,
+		),
 		types.B,
 	),
 }
@@ -2216,6 +2252,27 @@ var SemVerCompare = &Builtin{
 		),
 		types.N,
 	),
+}
+
+/**
+ * Printing
+ */
+
+// Print is a special built-in function that writes zero or more operands
+// to a message buffer. The caller controls how the buffer is displayed. The
+// operands may be of any type. Furthermore, unlike other built-in functions,
+// undefined operands DO NOT cause the print() function to fail during
+// evaluation.
+var Print = &Builtin{
+	Name: "print",
+	Decl: types.NewVariadicFunction(nil, types.A, nil),
+}
+
+// InternalPrint represents the internal implementation of the print() function.
+// The compiler rewrites print() calls to refer to the internal implementation.
+var InternalPrint = &Builtin{
+	Name: "internal.print",
+	Decl: types.NewFunction([]types.Type{types.NewArray(nil, types.NewSet(types.A))}, nil),
 }
 
 /**

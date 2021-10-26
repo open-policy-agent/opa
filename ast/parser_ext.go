@@ -435,7 +435,11 @@ func ParseModuleWithOpts(filename, input string, popts ParserOptions) (*Module, 
 // ParseBody returns exactly one body.
 // If multiple bodies are parsed, an error is returned.
 func ParseBody(input string) (Body, error) {
-	stmts, _, err := ParseStatements("", input)
+	return ParseBodyWithOpts(input, ParserOptions{})
+}
+
+func ParseBodyWithOpts(input string, popts ParserOptions) (Body, error) {
+	stmts, _, err := ParseStatementsWithOpts("", input, popts)
 	if err != nil {
 		return nil, err
 	}
@@ -556,11 +560,14 @@ func ParseStatements(filename, input string) ([]Statement, []*Comment, error) {
 // default return value from the parser.
 func ParseStatementsWithOpts(filename, input string, popts ParserOptions) ([]Statement, []*Comment, error) {
 
-	parser := NewParser().WithFilename(filename).WithReader(bytes.NewBufferString(input))
+	parser := NewParser().
+		WithFilename(filename).
+		WithReader(bytes.NewBufferString(input)).
+		WithProcessAnnotation(popts.ProcessAnnotation).
+		WithFutureKeywords(popts.FutureKeywords...).
+		WithAllFutureKeywords(popts.AllFutureKeywords).
+		WithCapabilities(popts.Capabilities)
 
-	if popts.ProcessAnnotation {
-		parser.WithProcessAnnotation(popts.ProcessAnnotation)
-	}
 	stmts, comments, errs := parser.Parse()
 
 	if len(errs) > 0 {
@@ -580,7 +587,7 @@ func parseModule(filename string, stmts []Statement, comments []*Comment) (*Modu
 
 	_package, ok := stmts[0].(*Package)
 	if !ok {
-		loc := stmts[0].(Statement).Loc()
+		loc := stmts[0].Loc()
 		errs = append(errs, NewError(ParseErr, loc, "package expected"))
 	}
 

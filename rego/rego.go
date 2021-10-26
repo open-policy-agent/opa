@@ -18,6 +18,7 @@ import (
 	"github.com/open-policy-agent/opa/bundle"
 	bundleUtils "github.com/open-policy-agent/opa/internal/bundle"
 	"github.com/open-policy-agent/opa/internal/compiler/wasm"
+	"github.com/open-policy-agent/opa/internal/future"
 	"github.com/open-policy-agent/opa/internal/ir"
 	"github.com/open-policy-agent/opa/internal/planner"
 	"github.com/open-policy-agent/opa/internal/rego/opa"
@@ -29,6 +30,7 @@ import (
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/topdown"
 	"github.com/open-policy-agent/opa/topdown/cache"
+	"github.com/open-policy-agent/opa/topdown/print"
 	"github.com/open-policy-agent/opa/types"
 	"github.com/open-policy-agent/opa/util"
 )
@@ -113,6 +115,7 @@ type EvalContext struct {
 	interQueryBuiltinCache cache.InterQueryCache
 	resolvers              []refResolver
 	sortSets               bool
+	printHook              print.Hook
 }
 
 // EvalOption defines a function to set an option on an EvalConfig
@@ -289,6 +292,7 @@ func (pq preparedQuery) newEvalContext(ctx context.Context, options []EvalOption
 		compiledQuery:    compiledQuery{},
 		indexing:         true,
 		resolvers:        pq.r.resolvers,
+		printHook:        pq.r.printHook,
 	}
 
 	for _, o := range options {
@@ -490,6 +494,8 @@ type Rego struct {
 	target                 string // target type (wasm, rego, etc.)
 	opa                    opa.EvalEngine
 	generateJSON           func(*ast.Term, *EvalContext) (interface{}, error)
+	printHook              print.Hook
+	enablePrintStatements  bool
 }
 
 // Function represents a built-in function that is callable in Rego.
@@ -1032,6 +1038,23 @@ func GenerateJSON(f func(*ast.Term, *EvalContext) (interface{}, error)) func(r *
 	}
 }
 
+// PrintHook sets the object to use for handling print statement outputs.
+func PrintHook(h print.Hook) func(r *Rego) {
+	return func(r *Rego) {
+		r.printHook = h
+	}
+}
+
+// EnablePrintStatements enables print() calls. If this option is not provided,
+// print() calls will be erased from the policy. This option only applies to
+// queries and policies that passed as raw strings, i.e., this function will not
+// have any affect if the caller supplies the ast.Compiler instance.
+func EnablePrintStatements(yes bool) func(r *Rego) {
+	return func(r *Rego) {
+		r.enablePrintStatements = yes
+	}
+}
+
 // New returns a new Rego object.
 func New(options ...func(r *Rego)) *Rego {
 
@@ -1054,7 +1077,8 @@ func New(options ...func(r *Rego)) *Rego {
 			WithBuiltins(r.builtinDecls).
 			WithDebug(r.dump).
 			WithSchemas(r.schemaSet).
-			WithCapabilities(r.capabilities)
+			WithCapabilities(r.capabilities).
+			WithEnablePrintStatements(r.enablePrintStatements)
 	}
 
 	if r.store == nil {
@@ -1553,12 +1577,24 @@ func (r *Rego) prepare(ctx context.Context, qType queryType, extras []extraStage
 		return err
 	}
 
-	r.parsedQuery, err = r.parseQuery(r.metrics)
+	imports, err := r.prepareImports()
 	if err != nil {
 		return err
 	}
 
-	err = r.compileAndCacheQuery(qType, r.parsedQuery, r.metrics, extras)
+	futureImports := []*ast.Import{}
+	for _, imp := range imports {
+		if imp.Path.Value.(ast.Ref).HasPrefix(ast.Ref([]*ast.Term{ast.FutureRootDocument})) {
+			futureImports = append(futureImports, imp)
+		}
+	}
+
+	r.parsedQuery, err = r.parseQuery(futureImports, r.metrics)
+	if err != nil {
+		return err
+	}
+
+	err = r.compileAndCacheQuery(qType, r.parsedQuery, imports, r.metrics, extras)
 	if err != nil {
 		return err
 	}
@@ -1697,7 +1733,7 @@ func (r *Rego) parseRawInput(rawInput *interface{}, m metrics.Metrics) (ast.Valu
 	return ast.InterfaceToValue(*rawPtr)
 }
 
-func (r *Rego) parseQuery(m metrics.Metrics) (ast.Body, error) {
+func (r *Rego) parseQuery(futureImports []*ast.Import, m metrics.Metrics) (ast.Body, error) {
 	if r.parsedQuery != nil {
 		return r.parsedQuery, nil
 	}
@@ -1705,7 +1741,11 @@ func (r *Rego) parseQuery(m metrics.Metrics) (ast.Body, error) {
 	m.Timer(metrics.RegoQueryParse).Start()
 	defer m.Timer(metrics.RegoQueryParse).Stop()
 
-	return ast.ParseBody(r.query)
+	popts, err := future.ParserOptionsFromFutureImports(futureImports)
+	if err != nil {
+		return nil, err
+	}
+	return ast.ParseBodyWithOpts(r.query, popts)
 }
 
 func (r *Rego) compileModules(ctx context.Context, txn storage.Transaction, m metrics.Metrics) error {
@@ -1750,7 +1790,7 @@ func (r *Rego) compileModules(ctx context.Context, txn storage.Transaction, m me
 	return nil
 }
 
-func (r *Rego) compileAndCacheQuery(qType queryType, query ast.Body, m metrics.Metrics, extras []extraStage) error {
+func (r *Rego) compileAndCacheQuery(qType queryType, query ast.Body, imports []*ast.Import, m metrics.Metrics, extras []extraStage) error {
 	m.Timer(metrics.RegoQueryCompile).Start()
 	defer m.Timer(metrics.RegoQueryCompile).Stop()
 
@@ -1759,7 +1799,7 @@ func (r *Rego) compileAndCacheQuery(qType queryType, query ast.Body, m metrics.M
 		return nil
 	}
 
-	qc, compiled, err := r.compileQuery(query, m, extras)
+	qc, compiled, err := r.compileQuery(query, imports, m, extras)
 	if err != nil {
 		return err
 	}
@@ -1772,7 +1812,24 @@ func (r *Rego) compileAndCacheQuery(qType queryType, query ast.Body, m metrics.M
 	return nil
 }
 
-func (r *Rego) compileQuery(query ast.Body, m metrics.Metrics, extras []extraStage) (ast.QueryCompiler, ast.Body, error) {
+func (r *Rego) prepareImports() ([]*ast.Import, error) {
+	imports := r.parsedImports
+
+	if len(r.imports) > 0 {
+		s := make([]string, len(r.imports))
+		for i := range r.imports {
+			s[i] = fmt.Sprintf("import %v", r.imports[i])
+		}
+		parsed, err := ast.ParseImports(strings.Join(s, "\n"))
+		if err != nil {
+			return nil, err
+		}
+		imports = append(imports, parsed...)
+	}
+	return imports, nil
+}
+
+func (r *Rego) compileQuery(query ast.Body, imports []*ast.Import, m metrics.Metrics, extras []extraStage) (ast.QueryCompiler, ast.Body, error) {
 	var pkg *ast.Package
 
 	if r.pkg != "" {
@@ -1785,27 +1842,14 @@ func (r *Rego) compileQuery(query ast.Body, m metrics.Metrics, extras []extraSta
 		pkg = r.parsedPackage
 	}
 
-	imports := r.parsedImports
-
-	if len(r.imports) > 0 {
-		s := make([]string, len(r.imports))
-		for i := range r.imports {
-			s[i] = fmt.Sprintf("import %v", r.imports[i])
-		}
-		parsed, err := ast.ParseImports(strings.Join(s, "\n"))
-		if err != nil {
-			return nil, nil, err
-		}
-		imports = append(imports, parsed...)
-	}
-
 	qctx := ast.NewQueryContext().
 		WithPackage(pkg).
 		WithImports(imports)
 
 	qc := r.compiler.QueryCompiler().
 		WithContext(qctx).
-		WithUnsafeBuiltins(r.unsafeBuiltins)
+		WithUnsafeBuiltins(r.unsafeBuiltins).
+		WithEnablePrintStatements(r.enablePrintStatements)
 
 	for _, extra := range extras {
 		qc = qc.WithStageAfter(extra.after, extra.stage)
@@ -1834,7 +1878,8 @@ func (r *Rego) eval(ctx context.Context, ectx *EvalContext) (ResultSet, error) {
 		WithIndexing(ectx.indexing).
 		WithInterQueryBuiltinCache(ectx.interQueryBuiltinCache).
 		WithStrictBuiltinErrors(r.strictBuiltinErrors).
-		WithSeed(ectx.seed)
+		WithSeed(ectx.seed).
+		WithPrintHook(ectx.printHook)
 
 	if !ectx.time.IsZero() {
 		q = q.WithTime(ectx.time)
@@ -1895,6 +1940,7 @@ func (r *Rego) evalWasm(ctx context.Context, ectx *EvalContext) (ResultSet, erro
 		Time:                   ectx.time,
 		Seed:                   ectx.seed,
 		InterQueryBuiltinCache: ectx.interQueryBuiltinCache,
+		PrintHook:              ectx.printHook,
 	})
 	if err != nil {
 		return nil, err
@@ -2102,7 +2148,8 @@ func (r *Rego) partial(ctx context.Context, ectx *EvalContext) (*PartialQueries,
 		WithShallowInlining(r.shallowInlining).
 		WithInterQueryBuiltinCache(ectx.interQueryBuiltinCache).
 		WithStrictBuiltinErrors(r.strictBuiltinErrors).
-		WithSeed(ectx.seed)
+		WithSeed(ectx.seed).
+		WithPrintHook(ectx.printHook)
 
 	if !ectx.time.IsZero() {
 		q = q.WithTime(ectx.time)
@@ -2167,7 +2214,8 @@ func (r *Rego) rewriteQueryToCaptureValue(qc ast.QueryCompiler, query ast.Body) 
 			expr.Terms = ast.Equality.Expr(terms, capture).Terms
 			r.capture[expr] = capture.Value.(ast.Var)
 		case []*ast.Term:
-			if r.compiler.GetArity(expr.Operator()) == len(terms)-1 {
+			tpe := r.compiler.TypeEnv.Get(terms[0])
+			if !types.Void(tpe) && types.Arity(tpe) == len(terms)-1 {
 				capture = r.generateTermVar()
 				expr.Terms = append(terms, capture)
 				r.capture[expr] = capture.Value.(ast.Var)

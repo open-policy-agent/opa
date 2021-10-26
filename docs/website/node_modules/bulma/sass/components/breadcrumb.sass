@@ -1,3 +1,5 @@
+@import "../utilities/mixins"
+
 $breadcrumb-item-color: $link !default
 $breadcrumb-item-hover-color: $link-hover !default
 $breadcrumb-item-active-color: $text-strong !default
@@ -5,7 +7,7 @@ $breadcrumb-item-active-color: $text-strong !default
 $breadcrumb-item-padding-vertical: 0 !default
 $breadcrumb-item-padding-horizontal: 0.75em !default
 
-$breadcrumb-item-separator-color: $grey-light !default
+$breadcrumb-item-separator-color: $border-hover !default
 
 .breadcrumb
   @extend %block
@@ -24,7 +26,7 @@ $breadcrumb-item-separator-color: $grey-light !default
     align-items: center
     display: flex
     &:first-child a
-      padding-left: 0
+      +ltr-property("padding", 0, false)
     &.is-active
       a
         color: $breadcrumb-item-active-color
@@ -41,9 +43,9 @@ $breadcrumb-item-separator-color: $grey-light !default
     justify-content: flex-start
   .icon
     &:first-child
-      margin-right: 0.5em
+      +ltr-property("margin", 0.5em)
     &:last-child
-      margin-left: 0.5em
+      +ltr-property("margin", 0.5em, false)
   // Alignment
   &.is-centered
     ol,

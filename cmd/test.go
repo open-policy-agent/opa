@@ -184,7 +184,8 @@ func opaTest(args []string) int {
 
 	compiler := ast.NewCompiler().
 		SetErrorLimit(testParams.errLimit).
-		WithPathConflictsCheck(storage.NonEmpty(ctx, store, txn))
+		WithPathConflictsCheck(storage.NonEmpty(ctx, store, txn)).
+		WithEnablePrintStatements(!testParams.benchmark)
 
 	info, err := runtime.Term(runtime.Params{})
 	if err != nil {
@@ -219,6 +220,7 @@ func opaTest(args []string) int {
 	runner := tester.NewRunner().
 		SetCompiler(compiler).
 		SetStore(store).
+		CapturePrintOutput(true).
 		EnableTracing(testParams.verbose).
 		SetCoverageQueryTracer(coverTracer).
 		EnableFailureLine(testParams.failureLine).

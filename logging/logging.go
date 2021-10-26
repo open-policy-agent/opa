@@ -1,6 +1,8 @@
 package logging
 
 import (
+	"io"
+
 	"github.com/sirupsen/logrus"
 )
 
@@ -55,6 +57,11 @@ func Get() *StandardLogger {
 	return &StandardLogger{
 		logger: logrus.StandardLogger(),
 	}
+}
+
+// SetOutput sets the underlying logrus output.
+func (l *StandardLogger) SetOutput(w io.Writer) {
+	l.logger.SetOutput(w)
 }
 
 // SetFormatter sets the underlying logrus formatter.

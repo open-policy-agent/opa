@@ -1,7 +1,9 @@
-$table-color: $grey-darker !default
-$table-background-color: $white !default
+@import "../utilities/mixins"
 
-$table-cell-border: 1px solid $grey-lighter !default
+$table-color: $text-strong !default
+$table-background-color: $scheme-main !default
+
+$table-cell-border: 1px solid $border !default
 $table-cell-border-width: 0 0 1px !default
 $table-cell-padding: 0.5em 0.75em !default
 $table-cell-heading-color: $text-strong !default
@@ -15,13 +17,15 @@ $table-head-background-color: transparent !default
 $table-body-background-color: transparent !default
 $table-foot-background-color: transparent !default
 
-$table-row-hover-background-color: $white-bis !default
+$table-row-hover-background-color: $scheme-main-bis !default
 
 $table-row-active-background-color: $primary !default
 $table-row-active-color: $primary-invert !default
 
-$table-striped-row-even-background-color: $white-bis !default
-$table-striped-row-even-hover-background-color: $white-ter !default
+$table-striped-row-even-background-color: $scheme-main-bis !default
+$table-striped-row-even-hover-background-color: $scheme-main-ter !default
+
+$table-colors: $colors !default
 
 .table
   @extend %block
@@ -34,7 +38,7 @@ $table-striped-row-even-hover-background-color: $white-ter !default
     padding: $table-cell-padding
     vertical-align: top
     // Colors
-    @each $name, $pair in $colors
+    @each $name, $pair in $table-colors
       $color: nth($pair, 1)
       $color-invert: nth($pair, 2)
       &.is-#{$name}
@@ -51,9 +55,12 @@ $table-striped-row-even-hover-background-color: $white-ter !default
       a,
       strong
         color: currentColor
+    &.is-vcentered
+      vertical-align: middle
   th
     color: $table-cell-heading-color
-    text-align: left
+    &:not([align])
+      text-align: inherit
   tr
     &.is-selected
       background-color: $table-row-active-background-color

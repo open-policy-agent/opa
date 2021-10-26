@@ -38,6 +38,11 @@ val := arr[0]
 
 # lookup last value
 val := arr[count(arr)-1]
+
+# with `import future.keywords.in`
+some 0, val in arr   # lookup value at index 0
+0, "foo" in arr      # check if value at index 0 is "foo"
+some i, "foo" in arr # find all indices i that have value "foo"
 ```
 
 ### Objects
@@ -65,6 +70,13 @@ obj.foo.bar.baz
 
 # check if path foo.bar.baz, foo.bar, or foo does not exist or is false
 not obj.foo.bar.baz
+
+# with `import future.keywords.in`
+o := {"foo": false}
+# check if value exists: the expression will be true
+false in o
+# check if value for key "foo" is false
+"foo", false in o
 ```
 
 ### Sets
@@ -81,6 +93,12 @@ a_set[["a", "b", "c"]]
 
 # find all arrays of the form [x, "b", z] in the set
 a_set[[x, "b", z]]
+
+# with `import future.keywords.in`
+"foo" in a_set
+not "foo" in a_set
+some ["a", "b", "c"] in a_set
+some [x, "b", z] in a_set
 ```
 
 ## Iteration
@@ -96,6 +114,11 @@ val := arr[_]
 
 # iterate over index/value pairs
 val := arr[i]
+
+# with `import future.keywords.in`
+some val in arr    # iterate over values
+some i, _ in arr   # iterate over indices
+some i, val in arr # iterate over index/value pairs
 ```
 
 ### Objects
@@ -109,6 +132,11 @@ val := obj[_]
 
 # iterate over key/value pairs
 val := obj[key]
+
+# with `import future.keywords.in`
+some val in obj      # iterate over values
+some key, _ in obj   # iterate over keys
+some key, val in obj # key/value pairs
 ```
 
 ### Sets
@@ -116,6 +144,9 @@ val := obj[key]
 ```live:iteration/sets:query:read_only
 # iterate over values
 set[val]
+
+# with `import future.keywords.in`
+some val in set
 ```
 
 ### Advanced
@@ -846,6 +877,12 @@ org_chart_permissions[entity_name]
 | ------- |-------------|---------------|
 | <span class="opa-keep-it-together">``response := http.send(request)``</span> | ``http.send`` executes an HTTP `request` and returns a `response`. | ``SDK-dependent`` |
 
+{{% danger %}}
+This built-in function <strong>must not</strong> be used for effecting changes in
+external systems as OPA does not guarantee that the statement will be executed due
+to automatic performance optimizations that are applied during policy evaluation.
+{{% /danger %}}
+
 The `request` object parameter may contain the following fields:
 
 | Field | Required | Type | Description |
@@ -1025,7 +1062,21 @@ net.cidr_contains_matches({["1.1.0.0/16", "foo"], "1.1.2.0/24"}, {"x": "1.1.1.12
 
 | Built-in | Description | Wasm Support |
 | ------- |-------------|---------------|
-| <span class="opa-keep-it-together">``trace(string)``</span> | ``trace`` outputs the debug message ``string`` as a ``Note`` event in the query explanation. For example, ``trace("Hello There!")`` includes ``Note "Hello There!"`` in the query explanation. To print variables, use sprintf. For example, ``person := "Bob"; trace(sprintf("Hello There! %v", [person]))`` will emit ``Note "Hello There! Bob"``. | ``SDK-dependent`` |
+| <span class="opa-keep-it-together">``print(...)``</span> | ``print`` is used to output the values of variables for debugging purposes. ``print`` calls have no affect on the result of queries or rules. All variables passed to `print` must be assigned inside of the query or rule. If any of the `print` arguments are undefined, their values are represented as `<undefined>` in the output stream. Because policies can be invoked via different interfaces (e.g., CLI, HTTP API, etc.) the exact output format differs. See the table below for details. | ``SDK-dependent`` |
+
+API | Output | Memo
+--- | --- | ---
+`opa eval` | `stderr` |
+`opa run` (REPL)  | `stderr` |
+`opa test` | `stdout` | Specify `-v` to see output for passing tests. Output for failing tests is displayed automatically.
+`opa run -s` (server) | `stderr` | Specify `--log-level=info` (default) or higher. Output is sent to the log stream. Use `--log-format=text` for pretty output.
+Go (library) | `io.Writer` | [https://pkg.go.dev/github.com/open-policy-agent/opa/rego#example-Rego-Print_statements](https://pkg.go.dev/github.com/open-policy-agent/opa/rego#example-Rego-Print_statements)
+
+### Tracing
+
+| Built-in | Description | Wasm Support |
+| ------- |-------------|---------------|
+| <span class="opa-keep-it-together">``trace(string)``</span> | ``trace`` emits ``string`` as a ``Note`` event in the query explanation. Query explanations show the exact expressions evaluated by OPA during policy execution. For example, ``trace("Hello There!")`` includes ``Note "Hello There!"`` in the query explanation. To include variables in the message, use ``sprintf``. For example, ``person := "Bob"; trace(sprintf("Hello There! %v", [person]))`` will emit ``Note "Hello There! Bob"`` inside of the explanation. | ``SDK-dependent`` |
 
 By default, explanations are disabled. The following table summarizes how you can enable tracing:
 

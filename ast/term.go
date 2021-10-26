@@ -394,7 +394,8 @@ func (term *Term) Get(name *Term) *Term {
 	return nil
 }
 
-// Hash returns the hash code of the Term's value.
+// Hash returns the hash code of the Term's Value. Its Location
+// is ignored.
 func (term *Term) Hash() int {
 	return term.Value.Hash()
 }

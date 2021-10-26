@@ -18,9 +18,11 @@ import (
 
 	"github.com/open-policy-agent/opa/ast"
 	sdk_errors "github.com/open-policy-agent/opa/internal/wasm/sdk/opa/errors"
+	"github.com/open-policy-agent/opa/internal/wasm/util"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/topdown"
 	"github.com/open-policy-agent/opa/topdown/cache"
+	"github.com/open-policy-agent/opa/topdown/print"
 )
 
 // VM is a wrapper around a Wasm VM instance
@@ -112,6 +114,9 @@ func newVM(opts vmOpts, engine *wasmtime.Engine) (*VM, error) {
 		return nil, fmt.Errorf("invalid module: unsupported ABI version: %d.%d", v.abiMajorVersion, v.abiMinorVersion)
 	}
 
+	// re-exported import, or just plain export if memory wasn't imported
+	memory = i.GetExport(store, "memory").Memory()
+
 	v.store = store
 	v.instance = i
 	v.policy = opts.policy
@@ -171,7 +176,7 @@ func newVM(opts vmOpts, engine *wasmtime.Engine) (*VM, error) {
 	if opts.parsedData != nil {
 		if uint32(memory.DataSize(store))-uint32(v.baseHeapPtr) < uint32(len(opts.parsedData)) {
 			delta := uint32(len(opts.parsedData)) - (uint32(memory.DataSize(store)) - uint32(v.baseHeapPtr))
-			_, err = memory.Grow(store, uint64(Pages(delta)))
+			_, err = memory.Grow(store, uint64(util.Pages(delta)))
 			if err != nil {
 				return nil, err
 			}
@@ -269,9 +274,10 @@ func (i *VM) Eval(ctx context.Context,
 	metrics metrics.Metrics,
 	seed io.Reader,
 	ns time.Time,
-	iqbCache cache.InterQueryCache) ([]byte, error) {
+	iqbCache cache.InterQueryCache,
+	ph print.Hook) ([]byte, error) {
 	if i.abiMinorVersion < int32(2) {
-		return i.evalCompat(ctx, entrypoint, input, metrics, seed, ns, iqbCache)
+		return i.evalCompat(ctx, entrypoint, input, metrics, seed, ns, iqbCache, ph)
 	}
 
 	metrics.Timer("wasm_vm_eval").Start()
@@ -313,7 +319,7 @@ func (i *VM) Eval(ctx context.Context,
 	// make use of it (e.g. `http.send`); and it will spawn a go routine
 	// cancelling the builtins that use topdown.Cancel, when the context is
 	// cancelled.
-	i.dispatcher.Reset(ctx, seed, ns, iqbCache)
+	i.dispatcher.Reset(ctx, seed, ns, iqbCache, ph)
 
 	metrics.Timer("wasm_vm_eval_call").Start()
 	resultAddr, err := i.evalOneOff(ctx, int32(entrypoint), i.dataAddr, inputAddr, inputLen, heapPtr)
@@ -341,7 +347,8 @@ func (i *VM) evalCompat(ctx context.Context,
 	metrics metrics.Metrics,
 	seed io.Reader,
 	ns time.Time,
-	iqbCache cache.InterQueryCache) ([]byte, error) {
+	iqbCache cache.InterQueryCache,
+	ph print.Hook) ([]byte, error) {
 	metrics.Timer("wasm_vm_eval").Start()
 	defer metrics.Timer("wasm_vm_eval").Stop()
 
@@ -351,7 +358,7 @@ func (i *VM) evalCompat(ctx context.Context,
 	// make use of it (e.g. `http.send`); and it will spawn a go routine
 	// cancelling the builtins that use topdown.Cancel, when the context is
 	// cancelled.
-	i.dispatcher.Reset(ctx, seed, ns, iqbCache)
+	i.dispatcher.Reset(ctx, seed, ns, iqbCache, ph)
 
 	err := i.setHeapState(ctx, i.evalHeapPtr)
 	if err != nil {
@@ -443,7 +450,7 @@ func (i *VM) SetPolicyData(ctx context.Context, opts vmOpts) error {
 	if opts.parsedData != nil {
 		if uint32(i.memory.DataSize(i.store))-uint32(i.baseHeapPtr) < uint32(len(opts.parsedData)) {
 			delta := uint32(len(opts.parsedData)) - (uint32(i.memory.DataSize(i.store)) - uint32(i.baseHeapPtr))
-			_, err := i.memory.Grow(i.store, uint64(Pages(delta)))
+			_, err := i.memory.Grow(i.store, uint64(util.Pages(delta)))
 			if err != nil {
 				return err
 			}

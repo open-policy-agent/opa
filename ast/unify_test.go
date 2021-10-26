@@ -31,6 +31,7 @@ func TestUnify(t *testing.T) {
 		{"object/var-3", `{"x": 1, "y": x} = y`, "[]", "[]"},
 		{"object/uneven", `{"x": x, "y": 1} = {"x": y}`, "[]", "[]"},
 		{"object/uneven", `{"x": x, "y": 1} = {"x": y}`, "[x]", "[]"},
+		{"call", "x = f(y)[z]", "[y]", "[x]"},
 
 		// transitive cases
 		{"trans/redundant", "[x, x] = [x, 0]", "[]", "[x]"},
@@ -45,34 +46,36 @@ func TestUnify(t *testing.T) {
 	}
 
 	for i, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
 
-		expr := MustParseBody(tc.expr)[0]
-		safe := VarSet{}
-		MustParseTerm(tc.safe).Value.(*Array).Foreach(func(x *Term) {
-			safe.Add(x.Value.(Var))
+			expr := MustParseBody(tc.expr)[0]
+			safe := VarSet{}
+			MustParseTerm(tc.safe).Value.(*Array).Foreach(func(x *Term) {
+				safe.Add(x.Value.(Var))
+			})
+
+			terms := expr.Terms.([]*Term)
+			if !expr.IsEquality() {
+				panic(expr)
+			}
+
+			a, b := terms[1], terms[2]
+			unified := Unify(safe, a, b)
+			result := VarSet{}
+			for k := range unified {
+				result.Add(k)
+			}
+
+			expected := VarSet{}
+			MustParseTerm(tc.expected).Value.(*Array).Foreach(func(x *Term) {
+				expected.Add(x.Value.(Var))
+			})
+
+			missing := expected.Diff(result)
+			extra := result.Diff(expected)
+			if len(missing) != 0 || len(extra) != 0 {
+				t.Fatalf("%s (%d): Missing vars: %v, extra vars: %v", tc.note, i, missing, extra)
+			}
 		})
-
-		terms := expr.Terms.([]*Term)
-		if !expr.IsEquality() {
-			panic(expr)
-		}
-
-		a, b := terms[1], terms[2]
-		unified := Unify(safe, a, b)
-		result := VarSet{}
-		for k := range unified {
-			result.Add(k)
-		}
-
-		expected := VarSet{}
-		MustParseTerm(tc.expected).Value.(*Array).Foreach(func(x *Term) {
-			expected.Add(x.Value.(Var))
-		})
-
-		missing := expected.Diff(result)
-		extra := result.Diff(expected)
-		if len(missing) != 0 || len(extra) != 0 {
-			t.Errorf("%s (%d): Missing vars: %v, extra vars: %v", tc.note, i, missing, extra)
-		}
 	}
 }

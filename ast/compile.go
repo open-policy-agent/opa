@@ -94,20 +94,21 @@ type Compiler struct {
 		metricName string
 		f          func()
 	}
-	maxErrs              int
-	sorted               []string // list of sorted module names
-	pathExists           func([]string) (bool, error)
-	after                map[string][]CompilerStageDefinition
-	metrics              metrics.Metrics
-	capabilities         *Capabilities                 // user-supplied capabilities
-	builtins             map[string]*Builtin           // universe of built-in functions
-	customBuiltins       map[string]*Builtin           // user-supplied custom built-in functions (deprecated: use capabilities)
-	unsafeBuiltinsMap    map[string]struct{}           // user-supplied set of unsafe built-ins functions to block (deprecated: use capabilities)
-	comprehensionIndices map[*Term]*ComprehensionIndex // comprehension key index
-	initialized          bool                          // indicates if init() has been called
-	debug                debug.Debug                   // emits debug information produced during compilation
-	schemaSet            *SchemaSet                    // user-supplied schemas for input and data documents
-	inputType            types.Type                    // global input type retrieved from schema set
+	maxErrs               int
+	sorted                []string // list of sorted module names
+	pathExists            func([]string) (bool, error)
+	after                 map[string][]CompilerStageDefinition
+	metrics               metrics.Metrics
+	capabilities          *Capabilities                 // user-supplied capabilities
+	builtins              map[string]*Builtin           // universe of built-in functions
+	customBuiltins        map[string]*Builtin           // user-supplied custom built-in functions (deprecated: use capabilities)
+	unsafeBuiltinsMap     map[string]struct{}           // user-supplied set of unsafe built-ins functions to block (deprecated: use capabilities)
+	enablePrintStatements bool                          // indicates if print statements should be elided (default)
+	comprehensionIndices  map[*Term]*ComprehensionIndex // comprehension key index
+	initialized           bool                          // indicates if init() has been called
+	debug                 debug.Debug                   // emits debug information produced during compilation
+	schemaSet             *SchemaSet                    // user-supplied schemas for input and data documents
+	inputType             types.Type                    // global input type retrieved from schema set
 }
 
 // CompilerStage defines the interface for stages in the compiler.
@@ -191,6 +192,10 @@ type QueryCompiler interface {
 	// to Compile will take the QueryContext into account.
 	WithContext(qctx *QueryContext) QueryCompiler
 
+	// WithEnablePrintStatements enables print statements in queries compiled
+	// with the QueryCompiler.
+	WithEnablePrintStatements(yes bool) QueryCompiler
+
 	// WithUnsafeBuiltins sets the built-in functions to treat as unsafe and not
 	// allow inside of queries. By default the query compiler inherits the
 	// compiler's unsafe built-in functions. This function allows callers to
@@ -260,6 +265,8 @@ func NewCompiler() *Compiler {
 		// stages that need to generate variables.
 		{"InitLocalVarGen", "compile_stage_init_local_var_gen", c.initLocalVarGen},
 		{"RewriteLocalVars", "compile_stage_rewrite_local_vars", c.rewriteLocalVars},
+		{"CheckVoidCalls", "compile_stage_check_void_calls", c.checkVoidCalls},
+		{"RewritePrintCalls", "compile_stage_rewrite_print_calls", c.rewritePrintCalls},
 		{"RewriteExprTerms", "compile_stage_rewrite_expr_terms", c.rewriteExprTerms},
 		{"SetGraph", "compile_stage_set_graph", c.setGraph},
 		{"RewriteComprehensionTerms", "compile_stage_rewrite_comprehension_terms", c.rewriteComprehensionTerms},
@@ -285,6 +292,14 @@ func NewCompiler() *Compiler {
 // quits. Zero or a negative number indicates no limit.
 func (c *Compiler) SetErrorLimit(limit int) *Compiler {
 	c.maxErrs = limit
+	return c
+}
+
+// WithEnablePrintStatements enables print statements inside of modules compiled
+// by the compiler. If print statements are not enabled, calls to print() are
+// erased at compile-time.
+func (c *Compiler) WithEnablePrintStatements(yes bool) *Compiler {
+	c.enablePrintStatements = yes
 	return c
 }
 
@@ -1308,11 +1323,194 @@ func (c *Compiler) rewriteExprTerms() {
 	}
 }
 
+func (c *Compiler) checkVoidCalls() {
+	for _, name := range c.sorted {
+		mod := c.Modules[name]
+		for _, err := range checkVoidCalls(c.TypeEnv, mod) {
+			c.err(err)
+		}
+	}
+}
+
+func (c *Compiler) rewritePrintCalls() {
+	if !c.enablePrintStatements {
+		for _, name := range c.sorted {
+			erasePrintCalls(c.Modules[name])
+		}
+		return
+	}
+	for _, name := range c.sorted {
+		mod := c.Modules[name]
+		WalkRules(mod, func(rule *Rule) bool {
+			for _, err := range rewritePrintCalls(c.localvargen, c.GetArity, ReservedVars, rule.Body) {
+				c.err(err)
+			}
+			return false
+		})
+	}
+}
+
+// checkVoidCalls returns errors for any expressions that treat void function
+// calls as values. The only void functions in Rego are specific built-ins like
+// print().
+func checkVoidCalls(env *TypeEnv, x interface{}) Errors {
+	var errs Errors
+	WalkTerms(x, func(x *Term) bool {
+		if call, ok := x.Value.(Call); ok {
+			if tpe, ok := env.Get(call[0]).(*types.Function); ok && tpe.Result() == nil {
+				errs = append(errs, NewError(TypeErr, x.Loc(), "%v used as value", call))
+			}
+		}
+		return false
+	})
+	return errs
+}
+
+// rewritePrintCalls will rewrite the body so that print operands are captured
+// in local variables and their evaluation occurs within a comprehension.
+// Wrapping the terms inside of a comprehension ensures that undefined values do
+// not short-circuit evaluation.
+//
+// For example, given the following print statement:
+//
+//   print("the value of x is:", input.x)
+//
+// The expression would be rewritten to:
+//
+//   print({__local0__ | __local0__ = "the value of x is:"}, {__local1__ | __local1__ = input.x})
+func rewritePrintCalls(gen *localVarGenerator, getArity func(Ref) int, globals VarSet, body Body) Errors {
+
+	var errs Errors
+
+	// Visit comprehension bodies recursively to ensure print statements inside
+	// those bodies only close over variables that are safe.
+	for i := range body {
+		if ContainsComprehensions(body[i]) {
+			safe := outputVarsForBody(body[:i], getArity, globals)
+			safe.Update(globals)
+			WalkClosures(body[i], func(x interface{}) bool {
+				switch x := x.(type) {
+				case *SetComprehension:
+					errs = rewritePrintCalls(gen, getArity, safe, x.Body)
+				case *ArrayComprehension:
+					errs = rewritePrintCalls(gen, getArity, safe, x.Body)
+				case *ObjectComprehension:
+					errs = rewritePrintCalls(gen, getArity, safe, x.Body)
+				}
+				return true
+			})
+			if len(errs) > 0 {
+				return errs
+			}
+		}
+	}
+
+	for i := range body {
+
+		if !isPrintCall(body[i]) {
+			continue
+		}
+
+		var errs Errors
+		safe := outputVarsForBody(body[:i], getArity, globals)
+		safe.Update(globals)
+		args := body[i].Operands()
+
+		for j := range args {
+			vis := NewVarVisitor().WithParams(SafetyCheckVisitorParams)
+			vis.Walk(args[j])
+			unsafe := vis.Vars().Diff(safe)
+			for _, v := range unsafe.Sorted() {
+				errs = append(errs, NewError(CompileErr, args[j].Loc(), "var %v is undeclared", v))
+			}
+		}
+
+		if len(errs) > 0 {
+			return errs
+		}
+
+		arr := NewArray()
+
+		for j := range args {
+			x := NewTerm(gen.Generate()).SetLocation(args[j].Loc())
+			capture := Equality.Expr(x, args[j]).SetLocation(args[j].Loc())
+			arr = arr.Append(SetComprehensionTerm(x, NewBody(capture)).SetLocation(args[j].Loc()))
+		}
+
+		body.Set(NewExpr([]*Term{
+			NewTerm(InternalPrint.Ref()).SetLocation(body[i].Loc()),
+			NewTerm(arr).SetLocation(body[i].Loc()),
+		}).SetLocation(body[i].Loc()), i)
+	}
+
+	return nil
+}
+
+func erasePrintCalls(node interface{}) {
+	NewGenericVisitor(func(x interface{}) bool {
+		switch x := x.(type) {
+		case *Rule:
+			x.Body = erasePrintCallsInBody(x.Body)
+		case *ArrayComprehension:
+			x.Body = erasePrintCallsInBody(x.Body)
+		case *SetComprehension:
+			x.Body = erasePrintCallsInBody(x.Body)
+		case *ObjectComprehension:
+			x.Body = erasePrintCallsInBody(x.Body)
+		}
+		return false
+	}).Walk(node)
+}
+
+func erasePrintCallsInBody(x Body) Body {
+
+	if !containsPrintCall(x) {
+		return x
+	}
+
+	var cpy Body
+
+	for i := range x {
+
+		// Recursively visit any comprehensions contained in this expression.
+		erasePrintCalls(x[i])
+
+		if !isPrintCall(x[i]) {
+			cpy.Append(x[i])
+		}
+	}
+
+	if len(cpy) == 0 {
+		term := BooleanTerm(true).SetLocation(x.Loc())
+		expr := NewExpr(term).SetLocation(x.Loc())
+		cpy.Append(expr)
+	}
+
+	return cpy
+}
+
+func containsPrintCall(x Body) bool {
+	var found bool
+	WalkExprs(x, func(expr *Expr) bool {
+		if !found {
+			if isPrintCall(expr) {
+				found = true
+			}
+		}
+		return found
+	})
+	return found
+}
+
+func isPrintCall(x *Expr) bool {
+	return x.IsCall() && x.Operator().Equal(Print.Ref())
+}
+
 // rewriteTermsInHead will rewrite rules so that the head does not contain any
 // terms that require evaluation (e.g., refs or comprehensions). If the key or
-// value contains one or more of these terms, the key or value will be moved into
-// the body and assigned to a new variable. The new variable will replace the
-// key or value in the head.
+// value contains one or more of these terms, the key or value will be moved
+// into the body and assigned to a new variable. The new variable will replace
+// the key or value in the head.
 //
 // For instance, given the following rule:
 //
@@ -1608,13 +1806,14 @@ func (c *Compiler) setGraph() {
 }
 
 type queryCompiler struct {
-	compiler             *Compiler
-	qctx                 *QueryContext
-	typeEnv              *TypeEnv
-	rewritten            map[Var]Var
-	after                map[string][]QueryCompilerStageDefinition
-	unsafeBuiltins       map[string]struct{}
-	comprehensionIndices map[*Term]*ComprehensionIndex
+	compiler              *Compiler
+	qctx                  *QueryContext
+	typeEnv               *TypeEnv
+	rewritten             map[Var]Var
+	after                 map[string][]QueryCompilerStageDefinition
+	unsafeBuiltins        map[string]struct{}
+	comprehensionIndices  map[*Term]*ComprehensionIndex
+	enablePrintStatements bool
 }
 
 func newQueryCompiler(compiler *Compiler) QueryCompiler {
@@ -1624,6 +1823,11 @@ func newQueryCompiler(compiler *Compiler) QueryCompiler {
 		after:                map[string][]QueryCompilerStageDefinition{},
 		comprehensionIndices: map[*Term]*ComprehensionIndex{},
 	}
+	return qc
+}
+
+func (qc *queryCompiler) WithEnablePrintStatements(yes bool) QueryCompiler {
+	qc.enablePrintStatements = yes
 	return qc
 }
 
@@ -1685,6 +1889,8 @@ func (qc *queryCompiler) Compile(query Body) (Body, error) {
 	}{
 		{"ResolveRefs", "query_compile_stage_resolve_refs", qc.resolveRefs},
 		{"RewriteLocalVars", "query_compile_stage_rewrite_local_vars", qc.rewriteLocalVars},
+		{"CheckVoidCalls", "query_compile_stage_check_void_calls", qc.checkVoidCalls},
+		{"RewritePrintCalls", "query_compile_stage_rewrite_print_calls", qc.rewritePrintCalls},
 		{"RewriteExprTerms", "query_compile_stage_rewrite_expr_terms", qc.rewriteExprTerms},
 		{"RewriteComprehensionTerms", "query_compile_stage_rewrite_comprehension_terms", qc.rewriteComprehensionTerms},
 		{"RewriteWithValues", "query_compile_stage_rewrite_with_values", qc.rewriteWithModifiers},
@@ -1790,6 +1996,24 @@ func (qc *queryCompiler) rewriteLocalVars(_ *QueryContext, body Body) (Body, err
 		// even if they're not declared with an assignment operation. We don't
 		// want to include these inside the rewritten set though.
 		qc.rewritten[k] = v
+	}
+	return body, nil
+}
+
+func (qc *queryCompiler) rewritePrintCalls(_ *QueryContext, body Body) (Body, error) {
+	if !qc.enablePrintStatements {
+		return erasePrintCallsInBody(body), nil
+	}
+	gen := newLocalVarGenerator("q", body)
+	if errs := rewritePrintCalls(gen, qc.compiler.GetArity, ReservedVars, body); len(errs) > 0 {
+		return nil, errs
+	}
+	return body, nil
+}
+
+func (qc *queryCompiler) checkVoidCalls(_ *QueryContext, body Body) (Body, error) {
+	if errs := checkVoidCalls(qc.compiler.TypeEnv, body); len(errs) > 0 {
+		return nil, errs
 	}
 	return body, nil
 }
@@ -2804,16 +3028,8 @@ func outputVarsForTerms(expr *Expr, safe VarSet) VarSet {
 		case *SetComprehension, *ArrayComprehension, *ObjectComprehension:
 			return true
 		case Ref:
-			if v, ok := r[0].Value.(Var); ok {
-				if !safe.Contains(v) {
-					return true
-				}
-			} else {
-				for k := range r[0].Vars() {
-					if !safe.Contains(k) {
-						return true
-					}
-				}
+			if !isRefSafe(r, safe) {
+				return true
 			}
 			output.Update(r.OutputVars())
 			return false
@@ -3019,6 +3235,10 @@ func resolveRefsInExpr(globals map[Var]Ref, ignore *declaredVarStack, expr *Expr
 			buf[i] = resolveRefsInTerm(globals, ignore, ts[i])
 		}
 		cpy.Terms = buf
+	case *SomeDecl:
+		if val, ok := ts.Symbols[0].Value.(Call); ok {
+			cpy.Terms = &SomeDecl{Symbols: []*Term{CallTerm(resolveRefsInTermSlice(globals, ignore, val)...)}}
+		}
 	}
 	for _, w := range cpy.With {
 		w.Target = resolveRefsInTerm(globals, ignore, w.Target)
@@ -3151,7 +3371,23 @@ func declaredVars(x interface{}) VarSet {
 				})
 			} else if decl, ok := x.Terms.(*SomeDecl); ok {
 				for i := range decl.Symbols {
-					vars.Add(decl.Symbols[i].Value.(Var))
+					switch val := decl.Symbols[i].Value.(type) {
+					case Var:
+						vars.Add(val)
+					case Call:
+						args := val[1:]
+						if len(args) == 3 { // some x, y in xs
+							WalkVars(args[1], func(v Var) bool {
+								vars.Add(v)
+								return false
+							})
+						}
+						// some x in xs
+						WalkVars(args[0], func(v Var) bool {
+							vars.Add(v)
+							return false
+						})
+					}
 				}
 			}
 		case *ArrayComprehension, *SetComprehension, *ObjectComprehension:
@@ -3662,8 +3898,8 @@ func rewriteDeclaredVarsInBody(g *localVarGenerator, stack *localDeclaredVars, u
 		var expr *Expr
 		if body[i].IsAssignment() {
 			expr, errs = rewriteDeclaredAssignment(g, stack, body[i], errs)
-		} else if decl, ok := body[i].Terms.(*SomeDecl); ok {
-			errs = rewriteSomeDeclStatement(g, stack, decl, errs)
+		} else if _, ok := body[i].Terms.(*SomeDecl); ok {
+			expr, errs = rewriteSomeDeclStatement(g, stack, body[i], errs)
 		} else {
 			expr, errs = rewriteDeclaredVarsInExpr(g, stack, body[i], errs)
 		}
@@ -3718,14 +3954,48 @@ func checkUnusedDeclaredVars(loc *Location, stack *localDeclaredVars, used VarSe
 	return errs
 }
 
-func rewriteSomeDeclStatement(g *localVarGenerator, stack *localDeclaredVars, decl *SomeDecl, errs Errors) Errors {
+func rewriteSomeDeclStatement(g *localVarGenerator, stack *localDeclaredVars, expr *Expr, errs Errors) (*Expr, Errors) {
+	e := expr.Copy()
+	decl := e.Terms.(*SomeDecl)
 	for i := range decl.Symbols {
-		v := decl.Symbols[i].Value.(Var)
-		if _, err := rewriteDeclaredVar(g, stack, v, declaredVar); err != nil {
-			errs = append(errs, NewError(CompileErr, decl.Loc(), err.Error()))
+		switch v := decl.Symbols[i].Value.(type) {
+		case Var:
+			if _, err := rewriteDeclaredVar(g, stack, v, declaredVar); err != nil {
+				return nil, append(errs, NewError(CompileErr, decl.Loc(), err.Error()))
+			}
+		case Call:
+			var key, val, container *Term
+			switch len(v) {
+			case 4: // member3
+				key = v[1]
+				val = v[2]
+				container = v[3]
+			case 3: // member
+				key = NewTerm(g.Generate())
+				val = v[1]
+				container = v[2]
+			}
+
+			var rhs *Term
+			switch c := container.Value.(type) {
+			case Ref:
+				rhs = RefTerm(append(c, key)...)
+			default:
+				rhs = RefTerm(container, key)
+			}
+			e.Terms = []*Term{
+				RefTerm(VarTerm(Equality.Name)), val, rhs,
+			}
+
+			for _, v0 := range outputVarsForExprEq(e, container.Vars()).Sorted() {
+				if _, err := rewriteDeclaredVar(g, stack, v0, declaredVar); err != nil {
+					return nil, append(errs, NewError(CompileErr, decl.Loc(), err.Error()))
+				}
+			}
+			return rewriteDeclaredVarsInExpr(g, stack, e, errs)
 		}
 	}
-	return errs
+	return nil, errs
 }
 
 func rewriteDeclaredVarsInExpr(g *localVarGenerator, stack *localDeclaredVars, expr *Expr, errs Errors) (*Expr, Errors) {
@@ -4033,6 +4303,11 @@ func safetyErrorSlice(unsafe unsafeVars, rewritten map[Var]Var) (result Errors) 
 			v = w
 		}
 		if !v.IsGenerated() {
+			if _, ok := futureKeywords[string(v)]; ok {
+				result = append(result, NewError(UnsafeVarErr, pair.Loc,
+					"var %[1]v is unsafe (hint: `import future.keywords.%[1]v` to import a future keyword)", v))
+				continue
+			}
 			result = append(result, NewError(UnsafeVarErr, pair.Loc, "var %v is unsafe", v))
 		}
 	}

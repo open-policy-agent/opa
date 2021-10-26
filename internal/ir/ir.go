@@ -10,6 +10,8 @@ package ir
 
 import (
 	"fmt"
+
+	"github.com/open-policy-agent/opa/types"
 )
 
 type (
@@ -31,6 +33,7 @@ type (
 	// policy.
 	BuiltinFunc struct {
 		Name string
+		Decl *types.Function
 	}
 
 	// Plans represents a collection of named query plans to expose in the policy.
@@ -307,15 +310,6 @@ type ResetLocalStmt struct {
 
 // MakeNullStmt constructs a local variable that refers to a null value.
 type MakeNullStmt struct {
-	Target Local
-
-	Location
-}
-
-// MakeNumberFloatStmt constructs a local variable that refers to a
-// floating-point number value.
-type MakeNumberFloatStmt struct {
-	Value  float64
 	Target Local
 
 	Location
