@@ -170,6 +170,12 @@ The implementation is careful to use the context passed to the built-in function
 when executing the HTTP request. See the appendix at the end of this page for
 the complete example.
 
+{{% danger %}}
+Custom built-in functions <strong>must not</strong> be used for effecting changes in
+external systems as OPA does not guarantee that the statement will be executed due
+to automatic performance optimizations that are applied during policy evaluation.
+{{% /danger %}}
+
 ## Custom Plugins for OPA Runtime
 
 Read this section if you want to customize or extend the OPA runtime/executable
