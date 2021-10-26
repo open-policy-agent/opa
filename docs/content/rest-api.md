@@ -1166,7 +1166,7 @@ Content-Type: text/plain
 package system
 
 main = msg {
-  msg := sprintf("hello, %v", input.user)
+  msg := sprintf("hello, %v", [input.user])
 }
 ```
 
