@@ -1404,6 +1404,12 @@ func (p *Planner) planRef(ref ast.Ref, iter planiter) error {
 		return p.planRefData(virtual, base, ref, 1, iter)
 	}
 
+	if ref.Equal(ast.InputRootRef) {
+		p.appendStmt(&ir.IsDefinedStmt{
+			Source: p.vars.GetOrEmpty(ast.InputRootDocument.Value.(ast.Var)),
+		})
+	}
+
 	p.ltarget, ok = p.vars.Get(head)
 	if !ok {
 		return fmt.Errorf("illegal ref: unsafe head")
