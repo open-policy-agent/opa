@@ -200,7 +200,7 @@ package system
 import data.kubernetes.admission
 
 main = {
-  "apiVersion": "admission.k8s.io/v1beta1",
+  "apiVersion": "admission.k8s.io/v1",
   "kind": "AdmissionReview",
   "response": response,
 }
@@ -369,10 +369,10 @@ spec:
             initialDelaySeconds: 3
             periodSeconds: 5
         - name: kube-mgmt
-          image: openpolicyagent/kube-mgmt:0.11
+          image: openpolicyagent/kube-mgmt:2.0.1
           args:
             - "--replicate-cluster=v1/namespaces"
-            - "--replicate=extensions/v1beta1/ingresses"
+            - "--replicate=networking.k8s.io/v1/ingresses"
       volumes:
         - name: opa-server
           secret:
