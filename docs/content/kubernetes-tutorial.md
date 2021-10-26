@@ -200,7 +200,7 @@ package system
 import data.kubernetes.admission
 
 main = {
-  "apiVersion": "admission.k8s.io/v1beta1",
+  "apiVersion": "admission.k8s.io/v1",
   "kind": "AdmissionReview",
   "response": response,
 }
@@ -369,10 +369,10 @@ spec:
             initialDelaySeconds: 3
             periodSeconds: 5
         - name: kube-mgmt
-          image: openpolicyagent/kube-mgmt:0.11
+          image: openpolicyagent/kube-mgmt:2.0.1
           args:
             - "--replicate-cluster=v1/namespaces"
-            - "--replicate=extensions/v1beta1/ingresses"
+            - "--replicate=networking.k8s.io/v1/ingresses"
       volumes:
         - name: opa-server
           secret:
@@ -395,7 +395,7 @@ any namespace with the label `openpolicyagent.org/webhook=ignore`.
 ```bash
 cat > webhook-configuration.yaml <<EOF
 kind: ValidatingWebhookConfiguration
-apiVersion: admissionregistration.k8s.io/v1beta1
+apiVersion: admissionregistration.k8s.io/v1
 metadata:
   name: opa-validating-webhook
 webhooks:
@@ -416,6 +416,8 @@ webhooks:
       service:
         namespace: opa
         name: opa
+    admissionReviewVersions: ["v1"]
+    sideEffects: None
 EOF
 ```
 
@@ -479,7 +481,7 @@ and the other will be rejected.
 **ingress-ok.yaml**:
 
 ```yaml
-apiVersion: extensions/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: ingress-ok
@@ -488,15 +490,19 @@ spec:
   - host: signin.acmecorp.com
     http:
       paths:
-      - backend:
-          serviceName: nginx
-          servicePort: 80
+      - pathType: ImplementationSpecific
+        path: /
+        backend:
+          service:
+            name: nginx
+            port:
+              number: 80
 ```
 
 **ingress-bad.yaml**:
 
 ```yaml
-apiVersion: extensions/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: ingress-bad
@@ -505,9 +511,13 @@ spec:
   - host: acmecorp.com
     http:
       paths:
-      - backend:
-          serviceName: nginx
-          servicePort: 80
+      - pathType: ImplementationSpecific
+        path: /
+        backend:
+          service:
+            name: nginx
+            port:
+              number: 80
 ```
 
 Finally, try to create both Ingress objects:
@@ -522,8 +532,8 @@ The second Ingress is rejected because its hostname does not match the whitelist
 It will report an error as follows:
 
 ```
-Error from server (invalid ingress host "acmecorp.com"): error when creating "ingress-bad.yaml":
-admission webhook "validating-webhook.openpolicyagent.org" denied the request: invalid ingress host "acmecorp.com"
+Error from server: error when creating "ingress-bad.yaml": admission webhook "validating-webhook.openpolicyagent.org" 
+denied the request: invalid ingress host "acmecorp.com"
 ```
 
 ### 8. Exercise Prohibit Hostname Conflicts policy
@@ -553,9 +563,9 @@ kubectl create -f ingress-ok.yaml -n staging
 The above command will report an error as follows:
 
 ```
-Error from server (invalid ingress host "signin.acmecorp.com" (conflicts with production/ingress-ok)): error when
-creating "ingress-ok.yaml": admission webhook "validating-webhook.openpolicyagent.org" denied the request: invalid
-ingress host "signin.acmecorp.com" (conflicts with production/ingress-ok)
+Error from server (BadRequest): error when creating "ingress-ok.yaml": admission webhook 
+"validate.nginx.ingress.kubernetes.io" denied the request: host "signin.acmecorp.com" and 
+path "/" is already defined in ingress production/ingress-ok
 ```
 
 ## Wrap Up
