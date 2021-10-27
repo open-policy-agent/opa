@@ -89,32 +89,9 @@ type (
 	// TODO(tsandall): should this be int32 for safety?
 	Local int
 
-	// Const represents a constant value from the policy.
-	Const interface {
-		typeMarker()
-	}
-
-	// NullConst represents a null value.
-	NullConst struct{}
-
-	// BooleanConst represents a boolean value.
-	BooleanConst struct {
-		Value bool
-	}
-
 	// StringConst represents a string value.
 	StringConst struct {
 		Value string
-	}
-
-	// IntConst represents an integer constant.
-	IntConst struct {
-		Value int64
-	}
-
-	// FloatConst represents a floating-point constant.
-	FloatConst struct {
-		Value float64
 	}
 )
 
@@ -152,12 +129,6 @@ func (a *Plan) String() string {
 func (a *Block) String() string {
 	return fmt.Sprintf("Block (%d statements)", len(a.Stmts))
 }
-
-func (*BooleanConst) typeMarker() {}
-func (*NullConst) typeMarker()    {}
-func (*IntConst) typeMarker()     {}
-func (*FloatConst) typeMarker()   {}
-func (*StringConst) typeMarker()  {}
 
 // ReturnLocalStmt represents a return statement that yields a local value.
 type ReturnLocalStmt struct {
