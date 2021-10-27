@@ -1871,7 +1871,6 @@ func TestModuleParseErrors(t *testing.T) {
 	x = 1			# expect package
 	package a  		# unexpected package
 	1 = 2			# non-var head
-	1 != 2			# non-equality expr
 	x = y; x = 1    # multiple exprs
 	`
 
@@ -1882,11 +1881,11 @@ func TestModuleParseErrors(t *testing.T) {
 
 	errs, ok := err.(Errors)
 	if !ok {
-		panic("unexpected error value")
+		t.Fatalf("unexpected error value: %v", err)
 	}
 
-	if len(errs) != 5 {
-		t.Fatalf("Expected exactly 5 errors but got: %v", err)
+	if exp, act := 4, len(errs); exp != act {
+		t.Errorf("Expected exactly %d errors but got %d: %v", exp, act, errs)
 	}
 }
 
@@ -2080,7 +2079,6 @@ data = {"bar": 2}`
 	eq(x)`
 
 	assertParseModuleError(t, "multiple expressions", multipleExprs)
-	assertParseModuleError(t, "non-equality", nonEquality)
 	assertParseModuleError(t, "non-var name", nonVarName)
 	assertParseModuleError(t, "with expr", withExpr)
 	assertParseModuleError(t, "bad ref (too long)", badRefLen1)
@@ -2106,6 +2104,11 @@ data = {"bar": 2}`
 	}); err == nil {
 		t.Fatal("expected error for unknown expression term type")
 	}
+
+	assertParseModule(t, "non-equality", nonEquality, &Module{
+		Package: MustParseStatement(`package a.b.c`).(*Package),
+		Rules:   []*Rule{},
+	})
 }
 
 func TestWildcards(t *testing.T) {

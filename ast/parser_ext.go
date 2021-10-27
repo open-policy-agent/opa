@@ -188,7 +188,7 @@ func ParseRuleFromExpr(module *Module, expr *Expr) (*Rule, error) {
 	}
 
 	if _, ok := BuiltinMap[expr.Operator().String()]; ok {
-		return nil, fmt.Errorf("rule name conflicts with built-in function")
+		return nil, nil
 	}
 
 	return ParseRuleFromCallExpr(module, expr.Terms.([]*Term))
@@ -609,7 +609,7 @@ func parseModule(filename string, stmts []Statement, comments []*Comment) (*Modu
 			rule, err := ParseRuleFromBody(mod, stmt)
 			if err != nil {
 				errs = append(errs, NewError(ParseErr, stmt[0].Location, err.Error()))
-			} else {
+			} else if rule != nil {
 				mod.Rules = append(mod.Rules, rule)
 
 				// NOTE(tsandall): the statement should now be interpreted as a
