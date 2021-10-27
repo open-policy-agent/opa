@@ -695,11 +695,6 @@ func TestSomeDeclExpr(t *testing.T) {
 	assertParseErrorContains(t, "some + function call", "some f(x)",
 		"expected `x in xs` or `x, y in xs` expression")
 
-	assertParseErrorContains(t, "hint about future.keywords.in (internal.member_2)", "some x in xs",
-		"unexpected ident token: `import future.keywords.in` for `some x in xs` expressions")
-	assertParseErrorContains(t, "hint about future.keywords.in (internal.member_3)", "some x, y in xs",
-		"unexpected ident token: `import future.keywords.in` for `some x in xs` expressions")
-
 	assertParseOneExpr(t, "multiple", "some x, y", &Expr{
 		Terms: &SomeDecl{
 			Symbols: []*Term{
@@ -733,6 +728,31 @@ func TestSomeDeclExpr(t *testing.T) {
 			NewExpr(RefTerm(VarTerm("q"), VarTerm("x"))),
 		),
 	})
+
+	assertParseRule(t, "whitespace separated, following `in` rule ref", `
+	p[x] {
+		some x
+		in[x]
+	}
+`, &Rule{
+		Head: NewHead(Var("p"), VarTerm("x")),
+		Body: NewBody(
+			NewExpr(&SomeDecl{Symbols: []*Term{VarTerm("x")}}),
+			NewExpr(RefTerm(VarTerm("in"), VarTerm("x"))),
+		),
+	})
+
+	assertParseErrorContains(t, "some x in ... usage is hinted properly", `
+	p[x] {
+		some x in {"foo": "bar"}
+	}`,
+		"unexpected ident token: expected \\n or ; or } (hint: `import future.keywords.in` for `some x in xs` expressions)")
+
+	assertParseErrorContains(t, "some x, y in ... usage is hinted properly", `
+	p[y] = x {
+		some x, y in {"foo": "bar"}
+	}`,
+		"unexpected ident token: expected \\n or ; or } (hint: `import future.keywords.in` for `some x in xs` expressions)")
 
 	assertParseRule(t, "whitespace terminated", `
 
