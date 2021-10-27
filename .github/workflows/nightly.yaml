@@ -35,6 +35,10 @@ jobs:
       - name: Run go-fuzz
         run: make ci-go-check-fuzz
 
+      - name: Dump crashers
+        if: ${{ failure() }}
+        run: find build/fuzzer/workdir/crashers -name '*.quoted' -print -exec cat {} \;
+
       - name: Upload Workdir
         if: ${{ failure() }}
         uses: actions/upload-artifact@v2
