@@ -7,6 +7,56 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Backwards Compatibility
 
+* Function return values need to be well-defined: for a single input `x`, the function's
+  output `f(x)` can only be one value. When evaluating policies, this condition had not
+  been ensured for function calls that don't make use of their values, like
+
+  ```rego
+  package p
+  r {
+      f(1)
+  }
+  f(_) = true
+  f(_) = false
+  ```
+
+  Before, `data.p.r` evaluated to `true`. Now, it will (correctly) return an error:
+
+      eval_conflict_error: functions must not produce multiple outputs for same inputs
+
+  In more realistic settings, this can be encountered when true/false return values
+  are captured and returned where they don't need to be:
+
+  ```rego
+  package p
+  r {
+      f("any", "baz")
+  }
+  f(path, _) = r {
+      r := path == "any"
+  }
+  f(path, x) = r {
+      r := glob.match(path, ["/"], x)
+  }
+  ```
+
+  In this example, any function input containing `"any"` would make the function yield
+  two different results:
+
+  1. The first function body returns `true`, matching the `"any"` argument.
+  2. The second function body returns the result of the `glob.match` call -- `false`.
+
+  The fix here would be to _not_ capture the return value in the function bodies:
+
+  ```rego
+  f(path, _) {
+      path == "any"
+  }
+  f(path, x) {
+      glob.match(path, ["/"], x)
+  }
+  ```
+
 * The `github.com/open-policy-agent/opa/runtime#NewLoggingHandler` function now
   requires a logger instance. Requiring the logger avoids the need for the
   logging handler to depend on the global logrus logger (which is useful for
