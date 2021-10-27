@@ -34,6 +34,7 @@ type state struct {
 	lit       string
 	loc       Location
 	errors    Errors
+	hints     []string
 	comments  []*Comment
 	wildcard  int
 }
@@ -667,10 +668,9 @@ func (p *Parser) parseHead(defaultRule bool) *Head {
 		}
 		if p.s.tok != tokens.RBrack {
 			if _, ok := futureKeywords[head.Name.String()]; ok {
-				p.illegal("non-terminated rule key (hint: `import future.keywords.in` for 'in' keyword")
-			} else {
-				p.illegal("non-terminated rule key")
+				p.hint("`import future.keywords.%[1]s` for '%[1]s' keyword", head.Name.String())
 			}
+			p.illegal("non-terminated rule key")
 		}
 		p.scan()
 	}
@@ -857,22 +857,24 @@ func (p *Parser) parseSome() *Expr {
 		}
 	}
 
-	// try with `in` keyword enabled
 	p.restore(s)
 	s = p.save() // new copy for later
+	var hint bool
 	p.scan()
 	if term := p.futureParser().parseTermInfixCall(); term != nil {
 		if call, ok := term.Value.(Call); ok {
 			switch call[0].String() {
 			case Member.Name, MemberWithKey.Name:
-				p.illegal("`import future.keywords.in` for `some x in xs` expressions")
-				return nil
+				hint = true
 			}
 		}
 	}
 
 	// go on as before, it's `some x[...]` or illegal
 	p.restore(s)
+	if hint {
+		p.hint("`import future.keywords.in` for `some x in xs` expressions")
+	}
 
 	for { // collecting var args
 
@@ -1672,12 +1674,37 @@ func (p *Parser) error(loc *location.Location, reason string) {
 }
 
 func (p *Parser) errorf(loc *location.Location, f string, a ...interface{}) {
+	msg := strings.Builder{}
+	fmt.Fprintf(&msg, f, a...)
+
+	switch len(p.s.hints) {
+	case 0: // nothing to do
+	case 1:
+		msg.WriteString(" (hint: ")
+		msg.WriteString(p.s.hints[0])
+		msg.WriteRune(')')
+	default:
+		msg.WriteString(" (hints: ")
+		for i, h := range p.s.hints {
+			if i > 0 {
+				msg.WriteString(", ")
+			}
+			msg.WriteString(h)
+		}
+		msg.WriteRune(')')
+	}
+
 	p.s.errors = append(p.s.errors, &Error{
 		Code:     ParseErr,
-		Message:  fmt.Sprintf(f, a...),
+		Message:  msg.String(),
 		Location: loc,
 		Details:  newParserErrorDetail(p.s.s.Bytes(), loc.Offset),
 	})
+	p.s.hints = nil
+}
+
+func (p *Parser) hint(f string, a ...interface{}) {
+	p.s.hints = append(p.s.hints, fmt.Sprintf(f, a...))
 }
 
 func (p *Parser) illegal(note string, a ...interface{}) {
