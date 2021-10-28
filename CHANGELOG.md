@@ -183,6 +183,8 @@ Thanks to @[iainmcgin](https://github.com/iainmcgin) for reporting.
 
 - format: make groupIterable sort by row ([#3849](https://github.com/open-policy-agent/opa/issues/3849))
 
+## Unreleased
+
 ## 0.33.0
 
 This release includes a number of improvements and fixes.
