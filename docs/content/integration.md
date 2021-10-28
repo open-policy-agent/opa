@@ -32,6 +32,8 @@ OPA supports different ways to evaluate policies.
   decisions as simple Go types (`bool`, `string`, `map[string]interface{}`,
   etc.)
 * [WebAssembly](../wasm) compiles Rego policies into WASM instructions so they can be embedded and evaluated by any WebAssembly runtime
+* The [SDK](https://pkg.go.dev/github.com/open-policy-agent/opa/sdk) provides high-level APIs for obtaining the output
+  of query evaluation as simple Go types (`bool`, `string`, `map[string]interface{}`, etc.)
 
 
 ### Integrating with the REST API
@@ -288,6 +290,96 @@ Policies can be evaluated as compiled Wasm binaries.
 
 See [OPA Wasm docs](../wasm) for more details.
 
+
+### SDK
+
+The [SDK](https://pkg.go.dev/github.com/open-policy-agent/opa/sdk) package contains high-level APIs for embedding OPA
+inside of Go programs and obtaining the output of query evaluation. To get started
+import the `sdk` package:
+
+```go
+import "github.com/open-policy-agent/opa/sdk"
+```
+
+A typical workflow when using the `sdk` package would involve first creating a new `sdk.OPA` object by calling
+`sdk.New` and then invoking its `Decision` method to fetch the policy decision. The `sdk.New` call takes the
+`sdk.Options` object as an input which allows specifying the OPA configuration, console logger, plugins, etc.
+
+Here is an example that shows this process:
+
+```go
+package main
+
+import (
+	"bytes"
+	"context"
+	"fmt"
+
+	"github.com/open-policy-agent/opa/sdk"
+	sdktest "github.com/open-policy-agent/opa/sdk/test"
+)
+
+func main() {
+	ctx := context.Background()
+
+	// create a mock HTTP bundle server
+	server, err := sdktest.NewServer(sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
+		"example.rego": `
+				package authz
+
+				default allow = false
+
+				allow {
+					input.open == "sesame"
+				}
+			`,
+	}))
+	if err != nil {
+		// handle error.
+	}
+
+	defer server.Stop()
+
+	// provide the OPA configuration which specifies
+	// fetching policy bundles from the mock server
+	// and logging decisions locally to the console
+	config := []byte(fmt.Sprintf(`{
+		"services": {
+			"test": {
+				"url": %q
+			}
+		},
+		"bundles": {
+			"test": {
+				"resource": "/bundles/bundle.tar.gz"
+			}
+		},
+		"decision_logs": {
+			"console": true
+		}
+	}`, server.URL()))
+
+	// create an instance of the OPA object
+	opa, err := sdk.New(ctx, sdk.Options{
+		Config: bytes.NewReader(config),
+	})
+	if err != nil {
+		// handle error.
+	}
+
+	defer opa.Stop(ctx)
+
+	// get the named policy decision for the specified input
+	if result, err := opa.Decision(ctx, sdk.DecisionOptions{Path: "/authz/allow", Input: map[string]interface{}{"open": "sesame"}}); err != nil {
+		// handle error.
+	} else if decision, ok := result.Result.(bool); !ok || !decision {
+		// handle error.
+	}
+}
+```
+
+If you executed this code, the output (ie. [Decision Log](https://www.openpolicyagent.org/docs/latest/management-decision-logs/) event)
+would be logged to the console by default.
 
 ## Comparison
 
