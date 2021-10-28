@@ -3,7 +3,116 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.34.0
+
+This release includes a number of enhancements and fixes. In particular, this
+release adds a new keyword for membership and iteration (`in`) and a specialized
+built-in function (`print`) for debugging.
+
+### The `in` operator
+
+This release adds a new `in` operator that provides syntactic sugar for
+references that perform membership tests or iteration on collections (i.e.,
+arrays, sets, and objects.) The following table shows common patterns for arrays
+with the old and new syntax:
+
+Pattern | Existing Syntax | New Syntax
+--- | --- | ---
+Check if 7 exists in array | `7 == arr[_]` | `7 in arr`
+Check if 7 does not exist in array | n/a (requires helper rule) | `not 7 in arr`
+Iterate over the elements of array | `x := arr[_]` | `some x in arr`
+
+For more information on the `in` operator see [Membership and iteration:
+`in`](https://www.openpolicyagent.org/docs/edge/policy-language/#membership-and-iteration-in)
+in the docs.
+
+### The `print` function
+
+This release adds a new `print` function for debugging purposes. The `print`
+function can be used to output any value inside of the policy. The `print`
+function has special handling for _undefined_ values so that execution does not
+stop if any of the operands are undefined. Instead, a special marker is emitted
+in the output. For example:
+
+```rego
+package example
+
+default allow = false
+
+allow {
+  print("the subject's username is:", input.subject.username)
+  input.subject.username == "admin"
+}
+```
+
+Given the policy above, we can see the output of the `print` function via STDERR when using `opa eval`:
+
+```bash
+echo '{"subject": {"username": "admin"}}' | opa eval -d policy.rego -I -f pretty 'data.example.allow'
+```
+
+Output:
+
+```
+the subject's username is: admin
+true
+```
+
+If the username, subject, or entire input document was undefined, the `print` function will still execute:
+
+```bash
+echo '{}' | opa eval -d policy.rego -I -f pretty 'data.example.allow'
+```
+
+Output:
+
+```
+the subject's username is: <undefined>
+false
+```
+
+The `print` function is integrated into the `opa` subcommands, REPL, server, VS
+Code extension, and the playground. Library users must opt-in to `print`
+statements. For more information see the
+[Debugging](https://www.openpolicyagent.org/docs/edge/policy-reference/#debugging)
+section in the docs.
+
+### Enhancements
+
+- SDK: Allow map of plugins to be passed to SDK ([#3826](https://github.com/open-policy-agent/opa/issues/3826)) authored by @[edpaget](https://github.com/edpaget)
+- `opa test`: Change exit status when tests are skipped ([#3773](https://github.com/open-policy-agent/opa/issues/3773)) authored by @[kirk-patton](https://github.com/kirk-patton)
+- Bundles: Improve loading performance ([#3860](https://github.com/open-policy-agent/opa/issues/3860)) authored by @[0xAP](https://github.com/0xAP)
+- `opa fmt`: Keep new lines in between function arguments ([#3836](https://github.com/open-policy-agent/opa/issues/3836)) reported by @[anbrsap](https://github.com/anbrsap)
+- `opa inspect`: Add experimental subcommand for bundle inspection ([#3754](https://github.com/open-policy-agent/opa/issues/3754))
+
+### Fixes
+
+- Bundles/API: When deleting a policy, the check determining if it's bundle-owned was using the path prefix, which would yield false positives under certain circumstances.
+  It now checks the path properly, piece-by-piece. ([#3863](https://github.com/open-policy-agent/opa/issues/3863) authored by @[edpaget](https://github.com/edpaget)
+- CLI: Using `--set` with null value _again_ translates to empty object ([#3846](https://github.com/open-policy-agent/opa/issues/3846))
+- Rego: Forbid dynamic recursion with hidden (`system.*`) document ([#3876](https://github.com/open-policy-agent/opa/issues/3876)
+- Rego: Raise conflict errors in functions when output not captured ([#3912](https://github.com/open-policy-agent/opa/issues/3912))
+
+  This change has the potential to break policies that previously evaluated successfully!
+  See _Backwards Compatibility_ notes below for details.
+- Experimental disk storage: React to "txn too big" errors ([#3879](https://github.com/open-policy-agent/opa/issues/3879)), reported and authored by @[floriangasc](https://github.com/floriangasc)
+
+### Documentation
+
+- Kubernetes and Istio: Update tutorials for recent Kubernetes versions ([#3910](https://github.com/open-policy-agent/opa/issues/3910)) authored by @[olamiko](https://github.com/olamiko)
+- Deployment: Add section about Capabilities ([#3769](https://github.com/open-policy-agent/opa/issues/3769))
+- Built-in functions: Add warning to `http.send` and extension docs about side-effects in other systems (#3922) ([#3893](https://github.com/open-policy-agent/opa/issues/3893))
+- Docker Authorization: The tutorial now uses a Bundles API server.
+- SDK: An example of SDK use is provided.
+
+### Miscellaneous
+
+- Runtime: Refactor logger usage -- see below for *Backwards Compatibility* notes.
+- Wasm: fix an issue with undefined, plain `input` references ([#3891](https://github.com/open-policy-agent/opa/issues/3891))
+- test/e2e: Extend TestRuntime to avoid global fixture
+- types: Fix Arity function to return zero when type is known (#3932)
+- Wasm/builder: bump LLVM to 13.0.0, latest versions of wabt and binaryen (#3908)
+- Wasm: deal with importing memory in the compiler (#3763)
 
 ### Backwards Compatibility
 
