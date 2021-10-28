@@ -17,34 +17,34 @@ import (
 type (
 	// Policy represents a planned policy query.
 	Policy struct {
-		Static *Static
-		Plans  *Plans
-		Funcs  *Funcs
+		Static *Static `json:"static,omitempty"`
+		Plans  *Plans  `json:"plans,omitempty"`
+		Funcs  *Funcs  `json:"funcs,omitempty"`
 	}
 
 	// Static represents a static data segment that is indexed into by the policy.
 	Static struct {
-		Strings      []*StringConst
-		BuiltinFuncs []*BuiltinFunc
-		Files        []*StringConst
+		Strings      []*StringConst `json:"strings,omitempty"`
+		BuiltinFuncs []*BuiltinFunc `json:"builtin_funcs,omitempty"`
+		Files        []*StringConst `json:"files,omitempty"`
 	}
 
 	// BuiltinFunc represents a built-in function that may be required by the
 	// policy.
 	BuiltinFunc struct {
-		Name string
-		Decl *types.Function
+		Name string          `json:"name"`
+		Decl *types.Function `json:"decl"`
 	}
 
 	// Plans represents a collection of named query plans to expose in the policy.
 	Plans struct {
-		Plans []*Plan
+		Plans []*Plan `json:"plans"`
 	}
 
 	// Funcs represents a collection of planned functions to include in the
 	// policy.
 	Funcs struct {
-		Funcs []*Func
+		Funcs []*Func `json:"funcs"`
 	}
 
 	// Func represents a named plan (function) that can be invoked. Functions
@@ -52,18 +52,18 @@ type (
 	// input document and data documents are always passed as the first and
 	// second arguments (respectively).
 	Func struct {
-		Name   string
-		Params []Local
-		Return Local
-		Blocks []*Block // TODO(tsandall): should this be a plan?
-		Path   []string // optional: if non-nil, include in data function tree
+		Name   string   `json:"name"`
+		Params []Local  `json:"params"`
+		Return Local    `json:"return"`
+		Blocks []*Block `json:"blocks"`         // TODO(tsandall): should this be a plan?
+		Path   []string `json:"path,omitempty"` // optional: if non-nil, include in data function tree
 	}
 
 	// Plan represents an ordered series of blocks to execute. Plan execution
 	// stops when a return statement is reached. Blocks are executed in-order.
 	Plan struct {
-		Name   string
-		Blocks []*Block
+		Name   string   `json:"name"`
+		Blocks []*Block `json:"blocks"`
 	}
 
 	// Block represents an ordered sequence of statements to execute. Blocks are
@@ -71,7 +71,7 @@ type (
 	// or there are no more statements. If all statements are defined but no return
 	// statement is encountered, the block is undefined.
 	Block struct {
-		Stmts []Stmt
+		Stmts []Stmt `json:"stmts"`
 	}
 
 	// Stmt represents an operation (e.g., comparison, loop, dot, etc.) to execute.
@@ -91,7 +91,7 @@ type (
 
 	// StringConst represents a string value.
 	StringConst struct {
-		Value string
+		Value string `json:"value"`
 	}
 )
 
@@ -130,40 +130,23 @@ func (a *Block) String() string {
 	return fmt.Sprintf("Block (%d statements)", len(a.Stmts))
 }
 
-// ReturnLocalStmt represents a return statement that yields a local value.
-type ReturnLocalStmt struct {
-	Source Local
-
-	Location
+// Operand represents a value that a statement operates on.
+type Operand struct {
+	Value Val `json:"value"`
 }
 
-// CallStmt represents a named function call. The result should be stored in the
-// result local.
-type CallStmt struct {
-	Func   string
-	Args   []LocalOrConst
-	Result Local
-
-	Location
-}
-
-// CallDynamicStmt represents an indirect (data) function call. The result should
-// be stored in the result local.
-type CallDynamicStmt struct {
-	Args   []Local
-	Result Local
-	Path   []LocalOrConst
-
-	Location
-}
-
-// LocalOrConst is a tagged union of the two types, Local and StringIndex.
-type LocalOrConst interface {
+// Val represents an abstract value that statements operate on. There are currently
+// 3 types of values:
+//
+// 1. Local - a local variable that can refer to any type.
+// 2. StringIndex - a string constant that refers to a compiled string.
+// 3. Bool - a boolean constant.
+type Val interface {
 	fmt.Stringer
-	localOrConst()
+	typeHint() string
 }
 
-func (Local) localOrConst() {}
+func (Local) typeHint() string { return "local" }
 func (l Local) String() string {
 	return fmt.Sprintf("Local<%d>", int(l))
 }
@@ -172,7 +155,7 @@ func (l Local) String() string {
 // of a constant string.
 type StringIndex int
 
-func (StringIndex) localOrConst() {}
+func (StringIndex) typeHint() string { return "string_index" }
 func (s StringIndex) String() string {
 	return fmt.Sprintf("String<%d>", int(s))
 }
@@ -180,15 +163,42 @@ func (s StringIndex) String() string {
 // Bool represents a constant boolean.
 type Bool bool
 
-func (Bool) localOrConst() {}
+func (Bool) typeHint() string { return "bool" }
 func (b Bool) String() string {
 	return fmt.Sprintf("Bool<%v>", bool(b))
+}
+
+// ReturnLocalStmt represents a return statement that yields a local value.
+type ReturnLocalStmt struct {
+	Source Local `json:"source"`
+
+	Location
+}
+
+// CallStmt represents a named function call. The result should be stored in the
+// result local.
+type CallStmt struct {
+	Func   string    `json:"func"`
+	Args   []Operand `json:"args"`
+	Result Local     `json:"result"`
+
+	Location
+}
+
+// CallDynamicStmt represents an indirect (data) function call. The result should
+// be stored in the result local.
+type CallDynamicStmt struct {
+	Args   []Local   `json:"args"`
+	Result Local     `json:"result"`
+	Path   []Operand `json:"path"`
+
+	Location
 }
 
 // BlockStmt represents a nested block. Nested blocks and break statements can
 // be used to short-circuit execution.
 type BlockStmt struct {
-	Blocks []*Block
+	Blocks []*Block `json:"blocks"`
 
 	Location
 }
@@ -201,7 +211,7 @@ func (a *BlockStmt) String() string {
 // many blocks to jump starting from zero (the current block). Execution will
 // continue from the end of the block that is jumped to.
 type BreakStmt struct {
-	Index uint32
+	Index uint32 `json:"index"`
 
 	Location
 }
@@ -210,9 +220,9 @@ type BreakStmt struct {
 // The source of a DotStmt may be a scalar value in which case the statement
 // will be undefined.
 type DotStmt struct {
-	Source LocalOrConst
-	Key    LocalOrConst
-	Target Local
+	Source Operand `json:"source"`
+	Key    Operand `json:"key"`
+	Target Local   `json:"target"`
 
 	Location
 }
@@ -220,8 +230,8 @@ type DotStmt struct {
 // LenStmt represents a length() operation on a local variable. The
 // result is stored in the target local variable.
 type LenStmt struct {
-	Source LocalOrConst
-	Target Local
+	Source Operand `json:"source"`
+	Target Local   `json:"target"`
 
 	Location
 }
@@ -229,17 +239,17 @@ type LenStmt struct {
 // ScanStmt represents a linear scan over a composite value. The
 // source may be a scalar in which case the block will never execute.
 type ScanStmt struct {
-	Source Local
-	Key    Local
-	Value  Local
-	Block  *Block
+	Source Local  `json:"source"`
+	Key    Local  `json:"key"`
+	Value  Local  `json:"value"`
+	Block  *Block `json:"block"`
 
 	Location
 }
 
 // NotStmt represents a negated statement.
 type NotStmt struct {
-	Block *Block
+	Block *Block `json:"block"`
 
 	Location
 }
@@ -247,16 +257,16 @@ type NotStmt struct {
 // AssignIntStmt represents an assignment of an integer value to a
 // local variable.
 type AssignIntStmt struct {
-	Value  int64
-	Target Local
+	Value  int64 `json:"value"`
+	Target Local `json:"target"`
 
 	Location
 }
 
 // AssignVarStmt represents an assignment of one local variable to another.
 type AssignVarStmt struct {
-	Source LocalOrConst
-	Target Local
+	Source Operand `json:"source"`
+	Target Local   `json:"target"`
 
 	Location
 }
@@ -266,30 +276,30 @@ type AssignVarStmt struct {
 //
 // TODO(tsandall): is there a better name for this?
 type AssignVarOnceStmt struct {
-	Target Local
-	Source LocalOrConst
+	Source Operand `json:"source"`
+	Target Local   `json:"target"`
 
 	Location
 }
 
 // ResetLocalStmt resets a local variable to 0.
 type ResetLocalStmt struct {
-	Target Local
+	Target Local `json:"target"`
 
 	Location
 }
 
 // MakeNullStmt constructs a local variable that refers to a null value.
 type MakeNullStmt struct {
-	Target Local
+	Target Local `json:"target"`
 
 	Location
 }
 
 // MakeNumberIntStmt constructs a local variable that refers to an integer value.
 type MakeNumberIntStmt struct {
-	Value  int64
-	Target Local
+	Value  int64 `json:"value"`
+	Target Local `json:"target"`
 
 	Location
 }
@@ -297,73 +307,73 @@ type MakeNumberIntStmt struct {
 // MakeNumberRefStmt constructs a local variable that refers to a number stored as a string.
 type MakeNumberRefStmt struct {
 	Index  int
-	Target Local
+	Target Local `json:"target"`
 
 	Location
 }
 
 // MakeArrayStmt constructs a local variable that refers to an array value.
 type MakeArrayStmt struct {
-	Capacity int32
-	Target   Local
+	Capacity int32 `json:"capacity"`
+	Target   Local `json:"target"`
 
 	Location
 }
 
 // MakeObjectStmt constructs a local variable that refers to an object value.
 type MakeObjectStmt struct {
-	Target Local
+	Target Local `json:"target"`
 
 	Location
 }
 
 // MakeSetStmt constructs a local variable that refers to a set value.
 type MakeSetStmt struct {
-	Target Local
+	Target Local `json:"target"`
 
 	Location
 }
 
 // EqualStmt represents an value-equality check of two local variables.
 type EqualStmt struct {
-	A LocalOrConst
-	B LocalOrConst
+	A Operand `json:"a"`
+	B Operand `json:"b"`
 
 	Location
 }
 
 // NotEqualStmt represents a != check of two local variables.
 type NotEqualStmt struct {
-	A LocalOrConst
-	B LocalOrConst
+	A Operand `json:"a"`
+	B Operand `json:"b"`
 
 	Location
 }
 
 // IsArrayStmt represents a dynamic type check on a local variable.
 type IsArrayStmt struct {
-	Source LocalOrConst
+	Source Operand `json:"source"`
 
 	Location
 }
 
 // IsObjectStmt represents a dynamic type check on a local variable.
 type IsObjectStmt struct {
-	Source LocalOrConst
+	Source Operand `json:"source"`
 
 	Location
 }
 
 // IsDefinedStmt represents a check of whether a local variable is defined.
 type IsDefinedStmt struct {
-	Source Local
+	Source Local `json:"source"`
 
 	Location
 }
 
 // IsUndefinedStmt represents a check of whether local variable is undefined.
 type IsUndefinedStmt struct {
-	Source Local
+	Source Local `json:"source"`
 
 	Location
 }
@@ -371,8 +381,8 @@ type IsUndefinedStmt struct {
 // ArrayAppendStmt represents a dynamic append operation of a value
 // onto an array.
 type ArrayAppendStmt struct {
-	Value LocalOrConst
-	Array Local
+	Value Operand `json:"value"`
+	Array Local   `json:"array"`
 
 	Location
 }
@@ -380,9 +390,9 @@ type ArrayAppendStmt struct {
 // ObjectInsertStmt represents a dynamic insert operation of a
 // key/value pair into an object.
 type ObjectInsertStmt struct {
-	Key    LocalOrConst
-	Value  LocalOrConst
-	Object Local
+	Key    Operand `json:"key"`
+	Value  Operand `json:"value"`
+	Object Local   `json:"object"`
 
 	Location
 }
@@ -391,9 +401,9 @@ type ObjectInsertStmt struct {
 // pair into an object. If the key already exists and the value differs,
 // execution aborts with a conflict error.
 type ObjectInsertOnceStmt struct {
-	Key    LocalOrConst
-	Value  LocalOrConst
-	Object Local
+	Key    Operand `json:"key"`
+	Value  Operand `json:"value"`
+	Object Local   `json:"object"`
 
 	Location
 }
@@ -402,17 +412,17 @@ type ObjectInsertOnceStmt struct {
 // the locals refer to non-object values this operation will abort with a
 // conflict error. Overlapping object keys are merged recursively.
 type ObjectMergeStmt struct {
-	A      Local
-	B      Local
-	Target Local
+	A      Local `json:"a"`
+	B      Local `json:"b"`
+	Target Local `json:"target"`
 
 	Location
 }
 
 // SetAddStmt represents a dynamic add operation of an element into a set.
 type SetAddStmt struct {
-	Value LocalOrConst
-	Set   Local
+	Value Operand `json:"value"`
+	Set   Local   `json:"set"`
 
 	Location
 }
@@ -423,10 +433,10 @@ type SetAddStmt struct {
 // the Local referred to by the Path do not exist, they will be created. When
 // the WithStmt finishes the Local is reset to it's original value.
 type WithStmt struct {
-	Local Local
-	Path  []int
-	Value LocalOrConst
-	Block *Block
+	Local Local   `json:"local"`
+	Path  []int   `json:"path"`
+	Value Operand `json:"value"`
+	Block *Block  `json:"block"`
 
 	Location
 }
@@ -436,9 +446,9 @@ type NopStmt struct {
 	Location
 }
 
-// ResultSetAdd adds a value into the result set returned by the query plan.
-type ResultSetAdd struct {
-	Value Local
+// ResultSetAddStmt adds a value into the result set returned by the query plan.
+type ResultSetAddStmt struct {
+	Value Local `json:"value"`
 
 	Location
 }
@@ -446,19 +456,20 @@ type ResultSetAdd struct {
 // Location records the filen index, and the row and column inside that file
 // that a statement can be connected to.
 type Location struct {
-	Index      int // filename string constant index
-	Col, Row   int
+	File       int    `json:"file"` // filename string constant index
+	Col        int    `json:"col"`
+	Row        int    `json:"row"`
 	file, text string // only used for debugging
 }
 
 // SetLocation sets the Location for a given Stmt.
 func (l *Location) SetLocation(index, row, col int, file, text string) {
 	*l = Location{
-		Index: index,
-		Row:   row,
-		Col:   col,
-		file:  file,
-		text:  text,
+		File: index,
+		Row:  row,
+		Col:  col,
+		file: file,
+		text: text,
 	}
 }
 
