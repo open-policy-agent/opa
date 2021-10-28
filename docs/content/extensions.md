@@ -185,20 +185,22 @@ OPA defines a plugin interface that allows you to customize certain behaviour
 like decision logging or add new behaviour like different query APIs. To
 implement a custom plugin you must implement two interfaces:
 
-- [github.com/open-policy-agent/opa/plugins#Factory](https://godoc.org/github.com/open-policy-agent/opa/plugins#Factory)
+- [`Factory`](https://pkg.go.dev/github.com/open-policy-agent/opa/plugins#Factory)
   to instantiate your plugin.
-- [github.com/open-policy-agent/opa/plugins#Plugin](https://godoc.org/github.com/open-policy-agent/opa/plugins#Plugin)
+- [`Plugin`](https://pkg.go.dev/github.com/open-policy-agent/opa/plugins#Plugin)
   to provide your plugin behavior.
 
 You can register your factory with OPA by calling
-[github.com/open-policy-agent/opa/runtime#RegisterPlugin](https://godoc.org/github.com/open-policy-agent/opa/runtime#RegisterPlugin)
+[`RegisterPlugin`](https://pkg.go.dev/github.com/open-policy-agent/opa/runtime#RegisterPlugin)
 inside your main function.
 
 ### Plugin Status
 The plugin may (optionally) report its current status to the plugin Manager via the `plugins.Manager#UpdatePluginStatus`
 API.
 
-> If no status is provided the plugin is assumed to be working OK.
+{{% info %}}
+If no status is provided the plugin is assumed to be working OK.
+{{% /info %}}
 
 Typically the plugin should report `StatusNotReady` at creation time and update to `StatusOK` (or `StatusErr`) when
 appropriate.
