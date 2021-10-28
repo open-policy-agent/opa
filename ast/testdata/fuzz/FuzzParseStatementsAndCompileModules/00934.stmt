@@ -1,0 +1,2 @@
+go test fuzz v1
+string("[-42.0, 0, 100.1, 0, 1]")

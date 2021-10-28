@@ -1,0 +1,2 @@
+go test fuzz v1
+string("[null, false, true, 3.14159]")

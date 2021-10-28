@@ -25,6 +25,44 @@ jobs:
           status: ${{ job.status }}
           fields: repo,workflow
 
+  native-fuzzer:
+    name: Go Fuzzer (native)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - id: go_version
+        name: Read go version
+        run: echo "::set-output name=go_version::$(cat .go-version)"
+
+      - name: Install Go (${{ steps.go_version.outputs.go_version }})
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ steps.go_version.outputs.go_version }}
+
+      - name: Install gotip
+        run: |
+          go install golang.org/dl/gotip@latest
+          gotip download
+          gotip version
+
+      - name: gotip test -fuzz
+        run: gotip test ./ast -fuzz FuzzParseStatementsAndCompileModules -fuzztime 1h -v -run '^$'
+
+      - name: Dump crashers
+        if: ${{ failure() }}
+        run: find ast/testdata/fuzz ! -name '*.stmt' ! -type d -print -exec cat {} \;
+
+      - name: Slack Notification
+        uses: 8398a7/action-slack@v3
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }}
+        if: ${{ failure() && env.SLACK_WEBHOOK_URL }}
+        with:
+          status: ${{ job.status }}
+          fields: repo,workflow
+
   fuzzer:
     name: Go Fuzzer
     runs-on: ubuntu-latest

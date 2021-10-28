@@ -1,0 +1,2 @@
+go test fuzz v1
+string("package topdown.a.b.c.s\n\nw = {\"f\": 10, \"g\": 9.9} { true }")

@@ -1,0 +1,2 @@
+go test fuzz v1
+string("p[z] { a[i] = x; y = i / x; round(y, z) }")

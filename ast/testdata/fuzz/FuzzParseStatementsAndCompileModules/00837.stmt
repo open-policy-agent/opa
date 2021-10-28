@@ -1,0 +1,2 @@
+go test fuzz v1
+string("p[x] { y = 1; x = {\"foo\":y | y = 1} }")

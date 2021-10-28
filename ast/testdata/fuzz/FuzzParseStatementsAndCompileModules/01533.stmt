@@ -1,0 +1,2 @@
+go test fuzz v1
+string("p[[k,x]] { walk(q, [k, x]); contains(k[1], \"oo\") }")

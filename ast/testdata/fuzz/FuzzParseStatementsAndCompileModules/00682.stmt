@@ -1,0 +1,2 @@
+go test fuzz v1
+string("p[x] { i = {1, 2, 3, 4}; x = data.a[_]; i[x] }")

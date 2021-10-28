@@ -1,0 +1,2 @@
+go test fuzz v1
+string("{\n\t\t\"v\": [1,2,3,4],\n\t\t\"u\": [1,2,3,4]\n\t}")

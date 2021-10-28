@@ -1,0 +1,2 @@
+go test fuzz v1
+string("{\n\t\t\"topdown\": {\n\t\t\t\"system\": {\n\t\t\t\t\"bar\": \"goodbye\"\n\t\t\t}\n\t\t},\n\t\t\"com\": {\n\t\t\t\"system\": \"deadbeef\"\n\t\t}\n\t}")

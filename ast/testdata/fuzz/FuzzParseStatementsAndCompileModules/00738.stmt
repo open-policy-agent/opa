@@ -1,0 +1,2 @@
+go test fuzz v1
+string("package fixture\n\t\tempty = {set()}\n\t\ts = {[1, 2], [1, 3], {\"foo\": \"bar\"}, {1, 2}, [2, 7], [[1,1], 4]}\n\t\tr[x] { s[x] }\n\t\ta = [1, 2]\n\t\to = {\"foo\": \"bar\"}\n\t\tfoo = {\"bar\": 1}\n\n\t\tp1[[1,2]]\n\t\tp1[[1,3]]\n\t\tp1[[2,2]]\n\t")

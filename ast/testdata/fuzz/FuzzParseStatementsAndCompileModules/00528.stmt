@@ -1,0 +1,2 @@
+go test fuzz v1
+string("p[1] { a[0] = 100 }")

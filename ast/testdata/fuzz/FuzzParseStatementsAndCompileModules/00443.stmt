@@ -1,0 +1,2 @@
+go test fuzz v1
+string("r[k] = v { x = {\"a\": 1, \"b\": 2, \"d\": 4}; x[k] = v }")
