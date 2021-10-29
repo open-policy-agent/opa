@@ -1,0 +1,2 @@
+go test fuzz v1
+string("p = true { -1 < 0; a[i] = x; x < 5 }")

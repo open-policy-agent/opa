@@ -1,0 +1,2 @@
+go test fuzz v1
+string("operand 1 must be string but got number")

@@ -1,0 +1,2 @@
+go test fuzz v1
+string("package ex\n\np[x] { data.a[i] = x }")

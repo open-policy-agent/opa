@@ -1,0 +1,2 @@
+go test fuzz v1
+string("q = [[0, 1], [2, 3]] { true }")

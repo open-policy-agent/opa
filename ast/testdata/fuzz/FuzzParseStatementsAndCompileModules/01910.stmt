@@ -1,0 +1,2 @@
+go test fuzz v1
+string("Expected %v but got undefined from query after partial evaluation")

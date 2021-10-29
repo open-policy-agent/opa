@@ -1,0 +1,2 @@
+go test fuzz v1
+string("[\n\t\t[\"c\", \"p\", 1],\n\t\t[\"c\", \"q\", 3],\n\t\t[\"c\", \"x\", 100]\n\t]")

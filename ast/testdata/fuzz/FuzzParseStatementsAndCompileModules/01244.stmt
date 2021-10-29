@@ -1,0 +1,2 @@
+go test fuzz v1
+string("{ \"new\": \"I am a user created field\", \"iss\": \"opa\" }")

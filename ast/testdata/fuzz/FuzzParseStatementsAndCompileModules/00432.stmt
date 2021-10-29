@@ -1,0 +1,2 @@
+go test fuzz v1
+string("q[k] = v { k = y; y = x; x = \"a\"; v = \"foo\" }")
