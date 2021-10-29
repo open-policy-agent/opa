@@ -1,0 +1,2 @@
+go test fuzz v1
+string("p[z] { {\"x\": x, \"y\": 2} = {\"x\": 1, \"y\": y}; z = [x, y] }")

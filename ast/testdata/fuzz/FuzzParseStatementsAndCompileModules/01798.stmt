@@ -1,0 +1,2 @@
+go test fuzz v1
+string("virtual_doc_not_specific_index")
