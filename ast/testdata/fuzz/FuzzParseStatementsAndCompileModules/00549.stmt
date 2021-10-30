@@ -1,0 +1,2 @@
+go test fuzz v1
+string("package topdown.no.base.doc\n\np = true { true }")

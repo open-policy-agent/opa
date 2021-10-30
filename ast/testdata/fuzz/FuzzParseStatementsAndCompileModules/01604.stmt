@@ -1,0 +1,2 @@
+go test fuzz v1
+string("\n\t\tpackage test.omit_result\n\n\t\tf(x) = x\n\n\t\tp { f(1) }\n\t\t")

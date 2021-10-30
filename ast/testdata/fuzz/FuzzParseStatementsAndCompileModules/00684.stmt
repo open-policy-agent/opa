@@ -1,0 +1,2 @@
+go test fuzz v1
+string("p = true { v = {[1, 999], [3, 4]}; pair = [a[2], 4]; v[pair] }")

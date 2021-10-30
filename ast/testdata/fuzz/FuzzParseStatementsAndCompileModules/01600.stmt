@@ -1,0 +1,2 @@
+go test fuzz v1
+string("\n\t\tpackage test\n\n\t\timport data.ex\n\n\t\tfoo(x) = y {\n\t\t\ttrim(x, \"h o\", y)\n\t\t}\n\n\t\tcross = y {\n\t\t\tex.cross(\"hi, my name is foo\", y)\n\t\t}\n\n\t\tmulti(\"foo\", x) = y {\n\t\t\ty = x\n\t\t}\n\n\t\tmulti(\"bar\", x) = y {\n\t\t\ty = \"baz\"\n\t\t}\n\n\t\tmulti_cross_pkg = [y, z] {\n\t\t\tmulti(\"foo\", \"bar\", y)\n\t\t\tex.multi(2, 1, z)\n\t\t}")
