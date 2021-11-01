@@ -12,12 +12,14 @@ to customize and extend OPA in different ways.
 
 Read this section if you want to extend OPA with custom built-in functions.
 
-> This section assumes you are embedding OPA as a library and executing policies
-> via the `github.com/open-policy-agent/opa/rego` package. If you are NOT embedding OPA
-> as a library and instead want to customize the OPA runtime, read this section
-> anyway because it provides useful information on implementing built-in functions.
-> For a complete example that shows how to add custom built-in functions to the
-> OPA runtime, see the [Adding Built-in Functions to the OPA Runtime](#adding-built-in-functions-to-the-opa-runtime) appendix.
+{{% info %}}
+This section assumes you are embedding OPA as a library and executing policies
+via the <code>github.com/open-policy-agent/opa/rego</code> package. If you are NOT embedding OPA
+as a library and instead want to customize the OPA runtime, read this section
+anyway because it provides useful information on implementing built-in functions.
+For a complete example that shows how to add custom built-in functions to the
+OPA runtime, see the <a href="#adding-built-in-functions-to-the-opa-runtime">Adding Built-in Functions to the OPA Runtime</a> appendix.
+{{% /info %}}
 
 OPA supports built-in functions for simple operations like string manipulation
 and arithmetic as well as more complex operations like JWT verification and
@@ -118,10 +120,12 @@ built-in functions to avoid collisions. This declaration indicates the function
 accepts two strings and returns a value of type `any`. The `any` type is the
 union of all types in Rego.
 
-> `types.S` and `types.A` are shortcuts for constructing Rego types. If you need
-> to define use-case specific types (e.g., a list of objects that have fields
-> `foo`, `bar`, and `baz`, you will need to construct them using the `types`
-> packages APIs.)
+{{% info %}}
+<code>types.S</code> and <code>types.A</code> are shortcuts for constructing Rego types. If you need
+to define use-case specific types (e.g., a list of objects that have fields
+<code>foo</code>, <code>bar</code>, and <code>baz</code>, you will need to construct them using the <code>types</code>
+packages APIs.)
+{{% /info %}}
 
 The declaration also sets `rego.Function#Memoize` to true to enable memoization
 across multiple calls in the same query. If your built-in function performs I/O,
@@ -185,20 +189,22 @@ OPA defines a plugin interface that allows you to customize certain behaviour
 like decision logging or add new behaviour like different query APIs. To
 implement a custom plugin you must implement two interfaces:
 
-- [github.com/open-policy-agent/opa/plugins#Factory](https://godoc.org/github.com/open-policy-agent/opa/plugins#Factory)
+- [`Factory`](https://pkg.go.dev/github.com/open-policy-agent/opa/plugins#Factory)
   to instantiate your plugin.
-- [github.com/open-policy-agent/opa/plugins#Plugin](https://godoc.org/github.com/open-policy-agent/opa/plugins#Plugin)
+- [`Plugin`](https://pkg.go.dev/github.com/open-policy-agent/opa/plugins#Plugin)
   to provide your plugin behavior.
 
 You can register your factory with OPA by calling
-[github.com/open-policy-agent/opa/runtime#RegisterPlugin](https://godoc.org/github.com/open-policy-agent/opa/runtime#RegisterPlugin)
+[`RegisterPlugin`](https://pkg.go.dev/github.com/open-policy-agent/opa/runtime#RegisterPlugin)
 inside your main function.
 
 ### Plugin Status
 The plugin may (optionally) report its current status to the plugin Manager via the `plugins.Manager#UpdatePluginStatus`
 API.
 
-> If no status is provided the plugin is assumed to be working OK.
+{{% info %}}
+If no status is provided the plugin is assumed to be working OK.
+{{% /info %}}
 
 Typically the plugin should report `StatusNotReady` at creation time and update to `StatusOK` (or `StatusErr`) when
 appropriate.
@@ -346,9 +352,11 @@ log event written to stdout.
 The source code for this example can be found
 [here](https://github.com/open-policy-agent/contrib/tree/main/decision_logger_plugin_example).
 
-> If there is a mask policy set (see [Decision
-  Logger](../management-decision-logs) for details) the `Event` received by the
-  demo plugin will potentially be different than the example documented.
+{{% info %}}
+If there is a mask policy set (see <a href="../management-decision-logs">Decision Logger</a>
+for details) the <code>Event</code> received by the
+demo plugin will potentially be different than the example documented.
+{{% /info %}}
 
 ## Setting the OPA Runtime Version
 
