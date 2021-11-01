@@ -17,8 +17,6 @@ const (
 	StrategyAuto Strategy = C.WASMTIME_STRATEGY_AUTO
 	// StrategyCranelift will force wasmtime to use the Cranelift backend
 	StrategyCranelift Strategy = C.WASMTIME_STRATEGY_CRANELIFT
-	// StrategyLightbeam will force wasmtime to use the lightbeam backend
-	StrategyLightbeam Strategy = C.WASMTIME_STRATEGY_LIGHTBEAM
 )
 
 // OptLevel decides what degree of optimization wasmtime will perform on generated machine code
