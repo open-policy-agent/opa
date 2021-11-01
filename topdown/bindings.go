@@ -121,6 +121,66 @@ func (u *bindings) plugNamespaced(a *ast.Term, caller *bindings) *ast.Term {
 	return a
 }
 
+type elemIter func() (*ast.Term, *ast.Term, elemIter)
+
+func (u *bindings) plugNamespacedIter(a *ast.Term, caller *bindings) elemIter {
+	i := 0
+	var elems elemIter
+
+	switch v := a.Value.(type) {
+	case *ast.Array:
+		elems = func() (key, val *ast.Term, f elemIter) {
+			if i >= v.Len() {
+				return nil, nil, nil
+			}
+			key = ast.IntNumberTerm(i)
+			val = u.plugNamespaced(v.Elem(i), caller)
+			i++
+			f = elems
+			return
+		}
+		return elems
+
+	case ast.Object:
+		elems = func() (key, val *ast.Term, f elemIter) {
+			if i >= v.Len() {
+				return nil, nil, nil
+			}
+			k0, v0 := v.Elem(i)
+			key = u.plugNamespaced(k0, caller)
+			val = u.plugNamespaced(v0, caller)
+			i++
+			f = elems
+			return
+		}
+		return elems
+
+	case ast.Set:
+		terms := v.Slice()
+		elems = func() (key, val *ast.Term, f elemIter) {
+			if i >= v.Len() {
+				return nil, nil, nil
+			}
+			key = u.plugNamespaced(terms[i], caller)
+			val = key
+			i++
+			f = elems
+			return
+		}
+		return elems
+
+	case ast.Var:
+		b, next := u.apply(a)
+		if a != b || u != next {
+			return next.plugNamespacedIter(b, caller)
+		}
+		return u.plugNamespacedIter(u.namespaceVar(b, caller), caller)
+
+	default:
+		return nil
+	}
+}
+
 func (u *bindings) bind(a *ast.Term, b *ast.Term, other *bindings, und *undo) {
 	u.values.Put(a, value{
 		u: other,

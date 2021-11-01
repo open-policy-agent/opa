@@ -50,6 +50,51 @@ func TestTopDownPartialEval(t *testing.T) {
 			wantQueries: []string{`input.x = 1`},
 		},
 		{
+			note:        "in operator, both known",
+			query:       `"x" in ["x"]`,
+			wantQueries: []string{``},
+		},
+		{
+			note:        "in operator: both unknown",
+			query:       "input.x in input.xs",
+			wantQueries: []string{`internal.member_2(input.x, input.xs)`},
+		},
+		{
+			note:        "in operator: containee unknown",
+			query:       `input.x in ["foo"]`,
+			wantQueries: []string{`internal.member_2(input.x, ["foo"])`},
+		},
+		{
+			note:        "in operator: container unknown",
+			query:       `"x" in input.xs`,
+			wantQueries: []string{`internal.member_2("x", input.xs)`},
+		},
+		{
+			note:        "in operator: both known",
+			query:       `"x" in ["x"]`,
+			wantQueries: []string{``},
+		},
+		{
+			note:        "in operator with key: all unknown",
+			query:       "input.k, input.v in input.xs",
+			wantQueries: []string{`internal.member_3(input.k, input.v, input.xs)`},
+		},
+		{
+			note:        "in operator with key: containee key unknown",
+			query:       `input.x, "y" in {"foo": "y"}`,
+			wantQueries: []string{`internal.member_3(input.x, "y", {"foo": "y"})`},
+		},
+		{
+			note:        "in operator with key: containee value unknown",
+			query:       `"x", input.y in {"x": "y"}`,
+			wantQueries: []string{`internal.member_3("x", input.y, {"x": "y"})`},
+		},
+		{
+			note:        "in operator with key: container unknown",
+			query:       `"x", "y" in input.xs`,
+			wantQueries: []string{`internal.member_3("x", "y", input.xs)`},
+		},
+		{
 			note:        "trivial reverse",
 			query:       "1 = input.x",
 			wantQueries: []string{`1 = input.x`},
@@ -2858,12 +2903,17 @@ func prepareTest(ctx context.Context, t *testing.T, params fixtureParams, f func
 		}
 
 		err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
-
-			compiler := ast.NewCompiler()
+			caps := ast.CapabilitiesForThisVersion()
+			caps.FutureKeywords = []string{"in"}
+			compiler := ast.NewCompiler().WithCapabilities(caps)
 			modules := map[string]*ast.Module{}
 
 			for i, module := range params.modules {
-				modules[fmt.Sprint(i)] = ast.MustParseModule(module)
+				mod, err := ast.ParseModuleWithOpts("", module, ast.ParserOptions{AllFutureKeywords: true})
+				if err != nil {
+					t.Fatalf("parse module: %v", err)
+				}
+				modules[fmt.Sprint(i)] = mod
 			}
 
 			if compiler.Compile(modules); compiler.Failed() {
@@ -2878,8 +2928,11 @@ func prepareTest(ctx context.Context, t *testing.T, params fixtureParams, f func
 			queryContext := ast.NewQueryContext()
 
 			queryCompiler := compiler.QueryCompiler().WithContext(queryContext)
-
-			compiledQuery, err := queryCompiler.Compile(ast.MustParseBody(params.query))
+			body, err := ast.ParseBodyWithOpts(params.query, ast.ParserOptions{AllFutureKeywords: true})
+			if err != nil {
+				t.Fatal(err)
+			}
+			compiledQuery, err := queryCompiler.Compile(body)
 			if err != nil {
 				t.Fatal(err)
 			}

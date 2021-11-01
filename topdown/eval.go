@@ -670,14 +670,29 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 		PrintHook:              e.printHook,
 	}
 
-	eval := evalBuiltin{
-		e:     e,
-		bi:    bi,
-		bctx:  bctx,
-		f:     f,
-		terms: terms[1:],
+	switch bi.Name {
+	case ast.Member.Name:
+		eval := evalMemberOp{
+			e:     e,
+			terms: terms[1:],
+		}
+		return eval.eval(iter)
+	case ast.MemberWithKey.Name:
+		eval := evalMemberWithKeyOp{
+			e:     e,
+			terms: terms[1:],
+		}
+		return eval.eval(iter)
+	default:
+		eval := evalBuiltin{
+			e:     e,
+			bi:    bi,
+			bctx:  bctx,
+			f:     f,
+			terms: terms[1:],
+		}
+		return eval.eval(iter)
 	}
-	return eval.eval(iter)
 }
 
 func (e *eval) unify(a, b *ast.Term, iter unifyIterator) error {
@@ -1506,6 +1521,62 @@ func (e *eval) getDeclArgsLen(x *ast.Expr) (int, error) {
 	}
 
 	return len(ir.Rules[0].Head.Args), nil
+}
+
+type evalMemberOp struct {
+	e     *eval
+	terms []*ast.Term
+}
+
+func (e evalMemberOp) eval(iter unifyIterator) error {
+
+	next := e.e.bindings.plugNamespacedIter(e.terms[1], nil)
+	if next != nil {
+		elem := e.e.bindings.Plug(e.terms[0])
+
+		for _, x, next := next(); next != nil; _, x, next = next() {
+			if elem.Value.Compare(x.Value) == 0 {
+				if len(e.terms) == 2 {
+					return iter()
+				}
+				return e.e.unify(e.terms[len(e.terms)-1], ast.BooleanTerm(true), iter)
+			}
+		}
+	}
+	// no match found, or wrong type of collection argument
+	if len(e.terms) == 2 {
+		return nil
+	}
+	return e.e.unify(e.terms[len(e.terms)-1], ast.BooleanTerm(false), iter)
+}
+
+type evalMemberWithKeyOp struct {
+	e     *eval
+	terms []*ast.Term
+}
+
+func (e evalMemberWithKeyOp) eval(iter unifyIterator) error {
+
+	next := e.e.bindings.plugNamespacedIter(e.terms[2], nil)
+	if next != nil {
+		key := e.e.bindings.Plug(e.terms[0])
+		val := e.e.bindings.Plug(e.terms[1])
+
+		for k, v, next := next(); next != nil; k, v, next = next() {
+			if key.Value.Compare(k.Value) == 0 && val.Value.Compare(v.Value) == 0 {
+				if len(e.terms) == 3 {
+					return iter()
+				}
+				return e.e.unify(e.terms[len(e.terms)-1], ast.BooleanTerm(true), iter)
+			}
+		}
+	}
+
+	// no match found, or wrong type of collection argument
+	if len(e.terms) == 3 {
+		return nil
+	}
+	return e.e.unify(e.terms[len(e.terms)-1], ast.BooleanTerm(false), iter)
 }
 
 type evalBuiltin struct {

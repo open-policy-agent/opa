@@ -1489,10 +1489,7 @@ func (s *set) Reduce(i *Term, f func(*Term, *Term) (*Term, error)) (*Term, error
 	err := s.Iter(func(x *Term) error {
 		var err error
 		i, err = f(i, x)
-		if err != nil {
-			return err
-		}
-		return nil
+		return err
 	})
 	return i, err
 }
