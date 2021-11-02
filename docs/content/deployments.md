@@ -445,6 +445,41 @@ Not providing a capabilities file, or providing a file without an `allow_net` ke
 
 Note that the metaschemas http://json-schema.org/draft-04/schema, http://json-schema.org/draft-06/schema, and http://json-schema.org/draft-07/schema, are always available, even without network access.
 
+### Future keywords
+
+The availability of future keywords in an OPA version can also be controlled using the capabilities file:
+
+```json
+{
+    "future_keywords": [ "in" ]
+}
+```
+
+With these capabilities, the future import `future.keywords.in` would be available. See [the documentation
+of the membership and iteration operator for details](../policy-language/#membership-and-iteration-in).
+
+### Wasm ABI compatibility
+
+A specific OPA version's capabilities file shows which Wasm ABI versions it is capable of evaluating:
+
+```json
+{
+    "wasm_abi_versions": [
+        {
+            "version": 1,
+            "minor_version": 1
+        },
+        {
+            "version": 1,
+            "minor_version": 2
+        }
+   ]
+}
+```
+
+This snippet would allow for evaluating bundles containing Wasm modules of the ABI version 1.1 and 1.2.
+See [the ABI version docs](../wasm/#abi-versions) for details.
+
 ### Building your own capabilities JSON
 
 Use the following JSON structure to build more complex capability checks. 
@@ -478,6 +513,7 @@ Use the following JSON structure to build more complex capability checks.
     "allow_net": [ // OPTIONAL: allow_net is an array of hostnames or IP addresses, that an OPA instance is allowed to connect to.
       "mycompany.com",
       "database.safe",
-    ]
+    ],
+    "future_keywords": [ "in" ]
 }
 ```
