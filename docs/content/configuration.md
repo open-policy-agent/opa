@@ -202,7 +202,7 @@ opa run --set "decision_logs.plugin=my_plugin" --set "plugins.my_plugin=null"
 
 ###### Keys with Special Characters
 
-If you have a key which contains a special character (`.`, `=`, etc), like `opa.example.com`, and want to use
+If you have a key which contains a special character (`=`, `[`, `,`, `.`), like `opa.example.com`, and want to use
 the `--set` or `--set-file` options you will need to escape the character with a backslash (`\`).
 
 For example a config section like:
@@ -386,6 +386,11 @@ keys:
     algorithm: RS256
     private_key: ${BUNDLE_SERVICE_SIGNING_KEY}
 ```
+
+> ⚠️ OPA masks services authentication secrets which make use of the `credentials` field, in order to prevent the exposure of sensitive tokens.
+> It is important to note that the [/v1/config API](https://www.openpolicyagent.org/docs/latest/rest-api/#config-api) allows clients to read the runtime configuration of OPA. As such, any credentials used by
+> custom configurations not utilizing the credentials field will be exposed to the caller.
+> Consider requiring authentication in order to prevent unauthorized read access to OPA's runtime configuration.
 
 #### AWS Signature
 
@@ -683,6 +688,7 @@ included in the actual bundle gzipped tarball.
 | `bundles[_].service` | `string` | Yes | Name of service to use to contact remote server. |
 | `bundles[_].polling.min_delay_seconds` | `int64` | No (default: `60`) | Minimum amount of time to wait between bundle downloads. |
 | `bundles[_].polling.max_delay_seconds` | `int64` | No (default: `120`) | Maximum amount of time to wait between bundle downloads. |
+| `bundles[_].trigger` | `string`  (default: `periodic`) | No | Controls how bundle is downloaded from the remote server. Allowed values are `periodic` and `manual`. |
 | `bundles[_].persist` | `bool` | No | Persist activated bundles to disk. |
 | `bundles[_].signing.keyid` | `string` | No | Name of the key to use for bundle signature verification. |
 | `bundles[_].signing.scope` | `string` | No | Scope to use for bundle signature verification. |
@@ -697,19 +703,21 @@ included in the actual bundle gzipped tarball.
 | `status.partition_name` | `string` | No | Path segment to include in status updates. |
 | `status.console` | `boolean` | No (default: `false`) | Log the status updates locally to the console. When enabled alongside a remote status update API the `service` must be configured, the default `service` selection will be disabled. |
 | `status.plugin` | `string` | No | Use the named plugin for status updates. If this field exists, the other configuration fields are not required. |
-
+| `status.trigger` | `string`  (default: `periodic`) | No | Controls how status updates are reported to the remote server. Allowed values are `periodic` and `manual`. |
 
 ### Decision Logs
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `decision_logs.service` | `string` | No | Name of the service to use to contact remote server. If no `plugin` is specified, and `console` logging is disabled, this will default to the first `service` name defined in the Services configuration. |
-| `decision_logs.partition_name` | `string` | No | Path segment to include in status updates. |
+| `decision_logs.partition_name` | `string` | No | Deprecated: Use `resource` instead. Path segment to include in status updates. |
+| `decision_logs.resource` | `string` | No (default: `/logs`) | Full path to use for sending decision logs to a remote server. |
 | `decision_logs.reporting.buffer_size_limit_bytes` | `int64` | No | Decision log buffer size limit in bytes. OPA will drop old events from the log if this limit is exceeded. By default, no limit is set. Only one of `buffer_size_limit_bytes`, `max_decisions_per_second` may be set. |
 | `decision_logs.reporting.max_decisions_per_second` | `float64` | No | Maximum number of decision log events to buffer per second. OPA will drop events if the rate limit is exceeded. Only one of `buffer_size_limit_bytes`, `max_decisions_per_second` may be set. |
 | `decision_logs.reporting.upload_size_limit_bytes` | `int64` | No (default: `32768`) | Decision log upload size limit in bytes. OPA will chunk uploads to cap message body to this limit. |
 | `decision_logs.reporting.min_delay_seconds` | `int64` | No (default: `300`) | Minimum amount of time to wait between uploads. |
 | `decision_logs.reporting.max_delay_seconds` | `int64` | No (default: `600`) | Maximum amount of time to wait between uploads. |
+| `decision_logs.reporting.trigger` | `string` | No (default: `periodic`) | Controls how decision logs are reported to the remote server. Allowed values are `periodic` and `manual`. |
 | `decision_logs.mask_decision` | `string` | No (default: `system/log/mask`) | Set path of masking decision. |
 | `decision_logs.plugin` | `string` | No | Use the named plugin for decision logging. If this field exists, the other configuration fields are not required. |
 | `decision_logs.console` | `boolean` | No (default: `false`) | Log the decisions locally to the console. When enabled alongside a remote decision logging API the `service` must be configured, the default `service` selection will be disabled. |
@@ -723,11 +731,19 @@ included in the actual bundle gzipped tarball.
 | `discovery.decision` | `string` | No | The path of the decision to evaluate in the discovery bundle. By default, OPA will evaluate `data` in the discovery bundle to produce the configuration. |
 | `discovery.polling.min_delay_seconds` | `int64` | No (default: `60`) | Minimum amount of time to wait between configuration downloads. |
 | `discovery.polling.max_delay_seconds` | `int64` | No (default: `120`) | Maximum amount of time to wait between configuration downloads. |
+| `discovery.trigger` | `string`  (default: `periodic`) | No | Controls how bundle is downloaded from the remote server. Allowed values are `periodic` and `manual`. |
 | `discovery.signing.keyid` | `string` | No | Name of the key to use for bundle signature verification. |
 | `discovery.signing.scope` | `string` | No | Scope to use for bundle signature verification. |
 | `discovery.signing.exclude_files` | `array` | No | Files in the bundle to exclude during verification. |
 
+> ⚠️ The plugin trigger mode configured on the discovery plugin will be inherited by the bundle, decision log
+> and status plugins. For example, if the discovery plugin is configured to use the manual trigger mode, all other
+> plugins will use manual triggering as well. If any of the plugins explicitly specify a different mode (for ex. periodic),
+> OPA will generate a configuration error.
+
 The following `discovery` configuration fields are supported but deprecated:
 
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
 | `discovery.prefix` | `string` | No (default: `bundles`) | Deprecated: Use `resource` instead. Path prefix to use to download configuration from remote server. |
 | `discovery.name` | `string` | No | Deprecated: Use `resource` instead. Name of the discovery configuration to download. If `discovery.name` is specified and `discovery.resource` is unset, the `discovery.decision` field will default to the `discovery.name` value. |
