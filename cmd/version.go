@@ -68,7 +68,7 @@ func checkOPAUpdate(out io.Writer) error {
 		return err
 	}
 
-	reporter, err := report.New(id)
+	reporter, err := report.New(id, report.Options{})
 	if err != nil {
 		return err
 	}
