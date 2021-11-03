@@ -240,30 +240,6 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		}
 	}
 
-	config, err := config.Load(params.ConfigFile, params.ConfigOverrides, params.ConfigOverrideFiles)
-	if err != nil {
-		return nil, errors.Wrap(err, "config error")
-	}
-
-	var reporter *report.Reporter
-	if params.EnableVersionCheck {
-		var err error
-		reporter, err = report.New(params.ID)
-		if err != nil {
-			return nil, errors.Wrap(err, "config error")
-		}
-	}
-
-	loaded, err := initload.LoadPaths(params.Paths, params.Filter, params.BundleMode, params.BundleVerificationConfig, params.SkipBundleVerification)
-	if err != nil {
-		return nil, errors.Wrap(err, "load error")
-	}
-
-	info, err := runtime.Term(runtime.Params{Config: config})
-	if err != nil {
-		return nil, err
-	}
-
 	var logger logging.Logger
 
 	if params.Logger != nil {
@@ -289,6 +265,30 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		logger = stdLogger
 	}
 
+	config, err := config.Load(params.ConfigFile, params.ConfigOverrides, params.ConfigOverrideFiles)
+	if err != nil {
+		return nil, errors.Wrap(err, "config error")
+	}
+
+	var reporter *report.Reporter
+	if params.EnableVersionCheck {
+		var err error
+		reporter, err = report.New(params.ID, report.Options{Logger: logger})
+		if err != nil {
+			return nil, errors.Wrap(err, "config error")
+		}
+	}
+
+	loaded, err := initload.LoadPaths(params.Paths, params.Filter, params.BundleMode, params.BundleVerificationConfig, params.SkipBundleVerification)
+	if err != nil {
+		return nil, errors.Wrap(err, "load error")
+	}
+
+	info, err := runtime.Term(runtime.Params{Config: config})
+	if err != nil {
+		return nil, err
+	}
+
 	var consoleLogger logging.Logger
 
 	if params.ConsoleLogger == nil {
@@ -308,6 +308,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		plugins.MaxErrors(params.ErrorLimit),
 		plugins.GracefulShutdownPeriod(params.GracefulShutdownPeriod),
 		plugins.ConsoleLogger(consoleLogger),
+		plugins.Logger(logger),
 		plugins.EnablePrintStatements(logger.GetLevel() >= logging.Info),
 		plugins.PrintHook(loggingPrintHook{logger: logger}))
 	if err != nil {
