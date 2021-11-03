@@ -1,4 +1,7 @@
-$title-color: $grey-darker !default
+@import "../utilities/mixins"
+
+$title-color: $text-strong !default
+$title-family: false !default
 $title-size: $size-3 !default
 $title-weight: $weight-semibold !default
 $title-line-height: 1.125 !default
@@ -7,11 +10,12 @@ $title-strong-weight: inherit !default
 $title-sub-size: 0.75em !default
 $title-sup-size: 0.75em !default
 
-$subtitle-color: $grey-dark !default
+$subtitle-color: $text !default
+$subtitle-family: false !default
 $subtitle-size: $size-5 !default
 $subtitle-weight: $weight-normal !default
 $subtitle-line-height: 1.25 !default
-$subtitle-strong-color: $grey-darker !default
+$subtitle-strong-color: $text-strong !default
 $subtitle-strong-weight: $weight-semibold !default
 $subtitle-negative-margin: -1.25rem !default
 
@@ -31,14 +35,14 @@ $subtitle-negative-margin: -1.25rem !default
 
 .title
   color: $title-color
+  @if $title-family
+    font-family: $title-family
   font-size: $title-size
   font-weight: $title-weight
   line-height: $title-line-height
   strong
     color: $title-strong-color
     font-weight: $title-strong-weight
-  & + .highlight
-    margin-top: -0.75rem
   &:not(.is-spaced) + .subtitle
     margin-top: $subtitle-negative-margin
   // Sizes
@@ -49,6 +53,8 @@ $subtitle-negative-margin: -1.25rem !default
 
 .subtitle
   color: $subtitle-color
+  @if $subtitle-family
+    font-family: $subtitle-family
   font-size: $subtitle-size
   font-weight: $subtitle-weight
   line-height: $subtitle-line-height

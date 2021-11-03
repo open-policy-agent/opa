@@ -1,0 +1,2 @@
+go test fuzz v1
+string("p[[k1,k2,x]] {\n\t\t\t\t\twalk(q, [[\"a\", k1, \"b\", k2], x])\n\t\t\t\t}")

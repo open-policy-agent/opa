@@ -34,6 +34,7 @@ type state struct {
 	lit       string
 	loc       Location
 	errors    Errors
+	hints     []string
 	comments  []*Comment
 	wildcard  int
 }
@@ -93,6 +94,7 @@ func (e *parsedTermCacheItem) String() string {
 
 // ParserOptions defines the options for parsing Rego statements.
 type ParserOptions struct {
+	Capabilities      *Capabilities
 	ProcessAnnotation bool
 	AllFutureKeywords bool
 	FutureKeywords    []string
@@ -151,6 +153,12 @@ func (p *Parser) WithAllFutureKeywords(yes bool) *Parser {
 	return p
 }
 
+// WithCapabilities sets the capabilities structure on the parser.
+func (p *Parser) WithCapabilities(c *Capabilities) *Parser {
+	p.po.Capabilities = c
+	return p
+}
+
 const (
 	annotationScopePackage     = "package"
 	annotationScopeImport      = "import"
@@ -203,6 +211,26 @@ func (p *Parser) futureParser() *Parser {
 // parsing will be accumulated and returned as a list of Errors.
 func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 
+	if p.po.Capabilities == nil {
+		p.po.Capabilities = CapabilitiesForThisVersion()
+	}
+
+	allowedFutureKeywords := map[string]tokens.Token{}
+
+	for _, kw := range p.po.Capabilities.FutureKeywords {
+		var ok bool
+		allowedFutureKeywords[kw], ok = futureKeywords[kw]
+		if !ok {
+			return nil, nil, Errors{
+				&Error{
+					Code:     ParseErr,
+					Message:  fmt.Sprintf("illegal capabilities: unknown keyword: %v", kw),
+					Location: nil,
+				},
+			}
+		}
+	}
+
 	var err error
 	p.s.s, err = scanner.New(p.r)
 	if err != nil {
@@ -217,12 +245,12 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 
 	selected := map[string]tokens.Token{}
 	if p.po.AllFutureKeywords {
-		for kw, tok := range futureKeywords {
+		for kw, tok := range allowedFutureKeywords {
 			selected[kw] = tok
 		}
 	} else {
 		for _, kw := range p.po.FutureKeywords {
-			tok, ok := futureKeywords[kw]
+			tok, ok := allowedFutureKeywords[kw]
 			if !ok {
 				return nil, nil, Errors{
 					&Error{
@@ -264,7 +292,7 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 
 		if imp := p.parseImport(); imp != nil {
 			if FutureRootDocument.Equal(imp.Path.Value.(Ref)[0]) {
-				p.futureImport(imp)
+				p.futureImport(imp, allowedFutureKeywords)
 			}
 			stmts = append(stmts, imp)
 			continue
@@ -640,10 +668,9 @@ func (p *Parser) parseHead(defaultRule bool) *Head {
 		}
 		if p.s.tok != tokens.RBrack {
 			if _, ok := futureKeywords[head.Name.String()]; ok {
-				p.illegal("non-terminated rule key (hint: `import future.keywords.in` for 'in' keyword")
-			} else {
-				p.illegal("non-terminated rule key")
+				p.hint("`import future.keywords.%[1]s` for '%[1]s' keyword", head.Name.String())
 			}
+			p.illegal("non-terminated rule key")
 		}
 		p.scan()
 	}
@@ -830,22 +857,24 @@ func (p *Parser) parseSome() *Expr {
 		}
 	}
 
-	// try with `in` keyword enabled
 	p.restore(s)
 	s = p.save() // new copy for later
+	var hint bool
 	p.scan()
 	if term := p.futureParser().parseTermInfixCall(); term != nil {
 		if call, ok := term.Value.(Call); ok {
 			switch call[0].String() {
 			case Member.Name, MemberWithKey.Name:
-				p.illegal("`import future.keywords.in` for `some x in xs` expressions")
-				return nil
+				hint = true
 			}
 		}
 	}
 
 	// go on as before, it's `some x[...]` or illegal
 	p.restore(s)
+	if hint {
+		p.hint("`import future.keywords.in` for `some x in xs` expressions")
+	}
 
 	for { // collecting var args
 
@@ -1645,12 +1674,37 @@ func (p *Parser) error(loc *location.Location, reason string) {
 }
 
 func (p *Parser) errorf(loc *location.Location, f string, a ...interface{}) {
+	msg := strings.Builder{}
+	fmt.Fprintf(&msg, f, a...)
+
+	switch len(p.s.hints) {
+	case 0: // nothing to do
+	case 1:
+		msg.WriteString(" (hint: ")
+		msg.WriteString(p.s.hints[0])
+		msg.WriteRune(')')
+	default:
+		msg.WriteString(" (hints: ")
+		for i, h := range p.s.hints {
+			if i > 0 {
+				msg.WriteString(", ")
+			}
+			msg.WriteString(h)
+		}
+		msg.WriteRune(')')
+	}
+
 	p.s.errors = append(p.s.errors, &Error{
 		Code:     ParseErr,
-		Message:  fmt.Sprintf(f, a...),
+		Message:  msg.String(),
 		Location: loc,
 		Details:  newParserErrorDetail(p.s.s.Bytes(), loc.Offset),
 	})
+	p.s.hints = nil
+}
+
+func (p *Parser) hint(f string, a ...interface{}) {
+	p.s.hints = append(p.s.hints, fmt.Sprintf(f, a...))
 }
 
 func (p *Parser) illegal(note string, a ...interface{}) {
@@ -1935,11 +1989,13 @@ func convertYAMLMapKeyTypes(x interface{}, path []string) (interface{}, error) {
 	}
 }
 
+// futureKeywords is the source of truth for future keywords that will
+// eventually become standard keywords inside of Rego.
 var futureKeywords = map[string]tokens.Token{
 	"in": tokens.In,
 }
 
-func (p *Parser) futureImport(imp *Import) {
+func (p *Parser) futureImport(imp *Import, allowedFutureKeywords map[string]tokens.Token) {
 	path := imp.Path.Value.(Ref)
 	if len(path) == 1 {
 		p.errorf(imp.Path.Location, "invalid import, use `import future.keywords` or `import.future.keywords.in`")
@@ -1956,8 +2012,8 @@ func (p *Parser) futureImport(imp *Import) {
 		return
 	}
 
-	kwds := make([]string, 0, len(futureKeywords))
-	for k := range futureKeywords {
+	kwds := make([]string, 0, len(allowedFutureKeywords))
+	for k := range allowedFutureKeywords {
 		kwds = append(kwds, k)
 	}
 	switch len(path) {
@@ -1969,7 +2025,7 @@ func (p *Parser) futureImport(imp *Import) {
 			return
 		}
 		keyword := string(kw)
-		_, ok = futureKeywords[keyword]
+		_, ok = allowedFutureKeywords[keyword]
 		if !ok {
 			p.errorf(imp.Path.Location, "unexpected keyword, must be one of %v", kwds)
 			return
@@ -1978,6 +2034,6 @@ func (p *Parser) futureImport(imp *Import) {
 		kwds = []string{keyword} // overwrite
 	}
 	for _, kw := range kwds {
-		p.s.s.AddKeyword(kw, futureKeywords[kw])
+		p.s.s.AddKeyword(kw, allowedFutureKeywords[kw])
 	}
 }

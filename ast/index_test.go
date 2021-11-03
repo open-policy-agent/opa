@@ -866,3 +866,49 @@ func TestGetAllRules(t *testing.T) {
 		t.Fatalf("Expected else to be %v but got: %v", result.Else[r1], expectedElse[r1])
 	}
 }
+
+func TestSkipIndexing(t *testing.T) {
+
+	module := MustParseModule(`package test
+
+	p {
+		internal.print("here")
+		input.foo = 7
+	} else = false {
+		input.bar = 8
+	} else = true {
+		internal.print("here 2")
+		input.bar = 9
+	}
+
+	p {
+		input.foo = 9
+	}`)
+
+	index := newBaseDocEqIndex(func(Ref) bool { return false })
+
+	ok := index.Build(module.Rules)
+	if !ok {
+		t.Fatal("expected index build to succeed")
+	}
+
+	result, err := index.Lookup(testResolver{input: MustParseTerm(`{}`)})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expectedRules := NewRuleSet(module.Rules[0])
+	expectedElse := map[*Rule][]*Rule{
+		module.Rules[0]: {module.Rules[0].Else.Else},
+	}
+
+	if !NewRuleSet(result.Rules...).Equal(expectedRules) {
+		t.Fatalf("Expected rules to be %v but got: %v", expectedRules, result.Rules)
+	}
+
+	r0 := module.Rules[0]
+
+	if !NewRuleSet(result.Else[r0]...).Equal(expectedElse[r0]) {
+		t.Fatalf("Expected else to be %v but got: %v", expectedElse[r0], result.Else[r0])
+	}
+}

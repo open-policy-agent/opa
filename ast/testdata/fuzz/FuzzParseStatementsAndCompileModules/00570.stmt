@@ -1,0 +1,2 @@
+go test fuzz v1
+string("[\n\t\t[\"c\", {\n\t\t\t\"p\": [1,2],\n\t\t\t\"q\": [3,4],\n\t\t\t\"r\": {\"a\": 1, \"b\": 2},\n\t\t\t\"s\": {\"w\": {\"f\": 10, \"g\": 9.9}},\n\t\t\t\"x\": [100,200],\n\t\t\t\"y\": false,\n\t\t\t\"z\": {\"a\": \"b\"},\n\t\t\t\"undefined1\": {},\n\t\t\t\"undefined2\": {},\n\t\t\t\"empty\": {}\n\t\t}]\n\t]")

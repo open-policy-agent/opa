@@ -52,16 +52,18 @@ func (ir *IndexResult) Empty() bool {
 }
 
 type baseDocEqIndex struct {
-	isVirtual   func(Ref) bool
-	root        *trieNode
-	defaultRule *Rule
-	kind        DocKind
+	skipIndexing Set
+	isVirtual    func(Ref) bool
+	root         *trieNode
+	defaultRule  *Rule
+	kind         DocKind
 }
 
 func newBaseDocEqIndex(isVirtual func(Ref) bool) *baseDocEqIndex {
 	return &baseDocEqIndex{
-		isVirtual: isVirtual,
-		root:      newTrieNodeImpl(),
+		skipIndexing: NewSet(NewTerm(InternalPrint.Ref())),
+		isVirtual:    isVirtual,
+		root:         newTrieNodeImpl(),
 	}
 }
 
@@ -80,8 +82,17 @@ func (i *baseDocEqIndex) Build(rules []*Rule) bool {
 				i.defaultRule = rule
 				return false
 			}
+			var skip bool
 			for _, expr := range rule.Body {
-				indices.Update(rule, expr)
+				if op := expr.OperatorTerm(); op != nil && i.skipIndexing.Contains(op) {
+					skip = true
+					break
+				}
+			}
+			if !skip {
+				for _, expr := range rule.Body {
+					indices.Update(rule, expr)
+				}
 			}
 			return false
 		})

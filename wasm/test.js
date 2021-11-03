@@ -1,9 +1,8 @@
 const { readFileSync } = require('fs');
 
 function stringDecoder(mem) {
-    return function (addr) {
+    return function(addr) {
         const i8 = new Int8Array(mem.buffer);
-        const start = addr;
         var s = "";
         while (i8[addr] != 0) {
             s += String.fromCharCode(i8[addr++]);
@@ -49,21 +48,20 @@ function report(passed, error, msg) {
 
 async function test(executable) {
 
-    const mem = new WebAssembly.Memory({ initial: 3 });
-    const addr2string = stringDecoder(mem);
-
+    const memory = new WebAssembly.Memory({ initial: 3 });
+    let addr2string;
     let cache = {};
     let failedOrErrored = 0;
     let seenFuncs = {};
 
     const module = await WebAssembly.instantiate(readFileSync(executable), {
         env: {
-            memory: mem,
-            opa_builtin0: (_1, _2) => { return 0; },
-            opa_builtin1: (_1, _2, _3, _4) => { return 0; },
-            opa_builtin2: (_1, _2, _3, _4) => { return 0; },
-            opa_builtin3: (_1, _2, _3, _4, _5) => { return 0; },
-            opa_builtin4: (_1, _2, _3, _4, _5, _6) => { return 0; },
+            memory,
+            opa_builtin0: () => 0,
+            opa_builtin1: () => 0,
+            opa_builtin2: () => 0,
+            opa_builtin3: () => 0,
+            opa_builtin4: () => 0,
             opa_println: (msg) => {
                 console.log(addr2string(msg));
             },
@@ -89,6 +87,8 @@ async function test(executable) {
             },
         }
     });
+
+    addr2string = stringDecoder(module.instance.exports.memory);
 
     for (let key in module.instance.exports) {
         if (key.startsWith("test_")) {

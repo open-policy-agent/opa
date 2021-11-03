@@ -1,0 +1,2 @@
+go test fuzz v1
+string("p[x] {arr = [true, 1, \"Hey\"]; arr[_] = x; is_string(x) }")

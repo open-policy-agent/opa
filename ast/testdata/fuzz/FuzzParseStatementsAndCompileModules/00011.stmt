@@ -1,0 +1,2 @@
+go test fuzz v1
+string("github.com/open-policy-agent/opa/storage")

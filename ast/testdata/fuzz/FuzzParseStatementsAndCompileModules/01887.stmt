@@ -1,0 +1,2 @@
+go test fuzz v1
+string("\n\t\tpackage test\n\n\t\tp { data.arr[_] = _; test.sleep(\"1ms\") }\n\t\t")
