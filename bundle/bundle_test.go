@@ -25,10 +25,13 @@ import (
 )
 
 func TestManifestAddRoot(t *testing.T) {
-	var m Manifest
+	m := Manifest{Roots: &[]string{}}
 	m.AddRoot("x/y")
 	m.AddRoot("y/z")
-	m.rootSet().Equal(stringSet{"x/y": struct{}{}, "y/z": struct{}{}})
+	exp, act := stringSet{"x/y": struct{}{}, "y/z": struct{}{}}, m.rootSet()
+	if !act.Equal(exp) {
+		t.Fatalf("expected roots to be %v, got %v", exp, act)
+	}
 }
 
 func TestManifestEqual(t *testing.T) {
