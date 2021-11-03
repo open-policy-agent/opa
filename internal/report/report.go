@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/open-policy-agent/opa/keys"
+	"github.com/open-policy-agent/opa/logging"
 
 	"os"
 	"time"
@@ -52,8 +53,13 @@ type ReleaseDetails struct {
 	OPAUpToDate   bool   `json:"opa_up_to_date,omitempty"` // is running OPA version greater than or equal to the latest released
 }
 
+// Options supplies parameters to the reporter.
+type Options struct {
+	Logger logging.Logger
+}
+
 // New returns an instance of the Reporter
-func New(id string) (*Reporter, error) {
+func New(id string, opts Options) (*Reporter, error) {
 	r := Reporter{}
 	r.body = map[string]string{
 		"id":      id,
@@ -69,7 +75,7 @@ func New(id string) (*Reporter, error) {
 		"url": %q,
 	}`, url))
 
-	client, err := rest.New(restConfig, map[string]*keys.Config{})
+	client, err := rest.New(restConfig, map[string]*keys.Config{}, rest.Logger(opts.Logger))
 	if err != nil {
 		return nil, err
 	}
