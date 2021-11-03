@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
+## 0.34.1
+
+### Fixes
+
+- runtime: Fix logging configuration (#3959) ([#3958](https://github.com/open-policy-agent/opa/issues/3958))
+
 ## 0.34.0
 
 This release includes a number of enhancements and fixes. In particular, this
