@@ -2964,6 +2964,15 @@ func TestCompilerRewritePrintCallsErasure(t *testing.T) {
 
 			p { {"x": 1 | false} } `,
 		},
+		{
+			note: "in head",
+			module: `package test
+
+			p = {1 | print("x")}`,
+			exp: `package test
+
+			p = __local0__ { true; __local0__ = {1 | true} }`,
+		},
 	}
 
 	for _, tc := range cases {
@@ -3090,6 +3099,18 @@ func TestCompilerRewritePrintCalls(t *testing.T) {
 			exp: `package test
 
 			p = true { split("abc", "", __local3__); __local0__ = __local3__[y]; __local4__ = {__local1__ | __local1__ = __local0__}; __local5__ = {__local2__ | __local2__ = y}; internal.print([__local4__, __local5__]) }`,
+		},
+		{
+			note: "print call in head",
+			module: `package test
+
+			p = {1 | print("x") }`,
+			exp: `package test
+
+			p = __local1__ {
+				true
+				__local1__ = {1 | __local2__ = { __local0__ | __local0__ = "x"}; internal.print([__local2__])}
+			}`,
 		},
 	}
 
