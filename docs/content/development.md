@@ -185,6 +185,7 @@ The following secrets are used by the Github Action workflows:
 | DOCKER_PASSWORD | Docker password or API token for the configured `DOCKER_USER`. Will be used with `docker login`. Optional -- If not provided the image push steps are skipped. |
 | SLACK_NOTIFICATION_WEBHOOK | Slack webhook for sending notifications. Optional -- If not provided the notification steps are skipped. |
 | TELEMETRY_URL | URL to inject at build-time for OPA version reporting. Optional -- If not provided the default value in OPA's source is used. |
+| NETLIFY_BUILD_HOOK_URL | URL to trigger Netlify (openpolicyagent.org) deploys after release. Optional -- If not provided the Netlify steps are skipped. |
 
 ### Periodic Workflows
 
