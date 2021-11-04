@@ -387,6 +387,13 @@ keys:
     private_key: ${BUNDLE_SERVICE_SIGNING_KEY}
 ```
 
+{{% danger %}}
+OPA masks services authentication secrets which make use of the <code>credentials</code> field, in order to prevent the exposure of sensitive tokens.
+It is important to note that the <a href="../rest-api/#config-api">/v1/config API</a> allows clients to read the runtime configuration of OPA. As such, any credentials used by
+custom configurations not utilizing the credentials field will be exposed to the caller.
+Consider requiring authentication in order to prevent unauthorized read access to OPA's runtime configuration.
+{{% /danger %}}
+
 #### AWS Signature
 
 OPA will authenticate with an [AWS4 HMAC](https://docs.aws.amazon.com/general/latest/gr/sigv4_signing.html) signature. Several methods of obtaining the
