@@ -1341,10 +1341,15 @@ func (c *Compiler) rewritePrintCalls() {
 	}
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
-		WalkRules(mod, func(rule *Rule) bool {
-			for _, err := range rewritePrintCalls(c.localvargen, c.GetArity, ReservedVars, rule.Body) {
-				c.err(err)
-			}
+		WalkRules(mod, func(r *Rule) bool {
+			safe := r.Head.Args.Vars()
+			safe.Update(ReservedVars)
+			WalkBodies(r, func(b Body) bool {
+				for _, err := range rewritePrintCalls(c.localvargen, c.GetArity, safe, b) {
+					c.err(err)
+				}
+				return false
+			})
 			return false
 		})
 	}
