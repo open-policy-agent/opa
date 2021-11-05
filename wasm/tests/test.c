@@ -1454,6 +1454,17 @@ void test_array(void)
     test("array_slice", r->len == 2 &&
          opa_value_compare(r->elems[0].v, opa_number_int(1)) == 0 &&
          opa_value_compare(r->elems[1].v, opa_number_int(2)) == 0);
+    
+    opa_array_t *arr3 = opa_cast_array(opa_array());
+    opa_array_append(arr3, opa_number_int(0));
+    opa_array_append(arr3, opa_number_int(1));
+    opa_array_append(arr3, opa_number_int(2));
+
+    r = opa_cast_array(opa_array_reverse(&arr3->hdr));
+    test("array_reverse", r->len == 3 &&
+         opa_value_compare(r->elems[0].v, opa_number_int(2)) == 0 &&
+         opa_value_compare(r->elems[1].v, opa_number_int(1)) == 0 &&
+         opa_value_compare(r->elems[2].v, opa_number_int(0)) == 0);
 }
 
 WASM_EXPORT(test_types)
@@ -2678,6 +2689,10 @@ void test_strings(void)
     test("replace/acaabd", opa_value_compare(opa_strings_replace(opa_string_terminated("aca"), opa_string_terminated("a"), opa_string_terminated("bd")), opa_string_terminated("bdcbd")) == 0);
     test("replace/cacab", opa_value_compare(opa_strings_replace(opa_string_terminated("cac"), opa_string_terminated("a"), opa_string_terminated("b")), opa_string_terminated("cbc")) == 0);
     test("replace/cacabd", opa_value_compare(opa_strings_replace(opa_string_terminated("cac"), opa_string_terminated("a"), opa_string_terminated("bd")), opa_string_terminated("cbdc")) == 0);
+
+    test("reverse/abc", opa_value_compare(opa_strings_reverse(opa_string_terminated("abc")), opa_string_terminated("cba")) == 0);
+    test("reverse/unicode", opa_value_compare(opa_strings_reverse(opa_string_terminated("1😀𝛾")), opa_string_terminated("𝛾😀1"))== 0);
+    test("reverse/___", opa_value_compare(opa_strings_reverse(opa_string_terminated("")), opa_string_terminated("")) == 0);
 
     opa_object_t *obj2 = opa_cast_object(opa_object());
     opa_object_insert(obj2, opa_string_terminated("a"), opa_string_terminated("b"));
