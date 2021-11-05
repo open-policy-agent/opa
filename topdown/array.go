@@ -82,7 +82,7 @@ func builtinArrayReverse(bctx BuiltinContext, operands []*ast.Term, iter func(*a
 	index := 0
 
 	for index < length {
-		reversedArr[index] = arr.Elem(length - index - 1) //
+		reversedArr[index] = arr.Elem(length - index - 1)
 		index++
 	}
 
