@@ -81,10 +81,6 @@ jobs:
         # Subsequent jobs will be have the computed tag name
         run: echo "TAG_NAME=${GITHUB_REF##*/}" >> $GITHUB_ENV
 
-      - name: Test
-        run: make ci-release-test
-        timeout-minutes: 60
-
       - name: Download release binaries
         uses: actions/download-artifact@v2
         with:
@@ -105,4 +101,4 @@ jobs:
         env:
           # Required for the `hub` CLI
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: ./build/github-release.sh --asset-dir=./_release/${TAG_NAME#v}/ --tag=${TAG_NAME}
+        run: ./build/github-release.sh --asset-dir=$(make release-dir) --tag=${TAG_NAME}
