@@ -80,6 +80,7 @@ var DefaultBuiltins = [...]*Builtin{
 	// Arrays
 	ArrayConcat,
 	ArraySlice,
+	ArrayReverse,
 
 	// Conversions
 	ToNumber,
@@ -706,6 +707,16 @@ var ArraySlice = &Builtin{
 			types.NewArray(nil, types.A),
 			types.NewNumber(),
 			types.NewNumber(),
+		),
+		types.NewArray(nil, types.A),
+	),
+}
+
+var ArrayReverse = &Builtin{
+	Name: "array.reverse",
+	Decl: types.NewFunction(
+		types.Args(
+			types.NewArray(nil, types.A),
 		),
 		types.NewArray(nil, types.A),
 	),
