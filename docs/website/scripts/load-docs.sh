@@ -23,8 +23,18 @@ ALL_RELEASES=$(git tag -l | sort -r -V)
 RELEASES=()
 PREV_MAJOR_VER="-1"
 PREV_MINOR_VER="-1"
+
 for release in ${ALL_RELEASES}; do
     CUR_SEM_VER=${release#"v"}
+
+    # ignore if the tag if there is no corresponding OPA binary available on the GitHub Release page
+    BINARY_URL=https://github.com/open-policy-agent/opa/releases/download/${release}/opa_linux_amd64
+    curl_exit_code=0
+    curl --silent --location --head --fail $BINARY_URL >/dev/null || curl_exit_code=$?
+    if [[ $curl_exit_code -ne 0 ]]; then
+        echo "WARNING: skipping $release because $BINARY_URL does not exist (or GET failed...)"
+        continue
+    fi
 
     # ignore any release candidate versions, for now if they
     # are the "latest" they'll be documented under "edge"
