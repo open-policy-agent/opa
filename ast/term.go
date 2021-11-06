@@ -843,7 +843,7 @@ func PtrRef(head *Term, s string) (Ref, error) {
 		return Ref{head}, nil
 	}
 	parts := strings.Split(s, "/")
-	ref := make(Ref, len(parts)+1)
+	ref := make(Ref, uint(len(parts))+1)
 	ref[0] = head
 	for i := 0; i < len(parts); i++ {
 		var err error
