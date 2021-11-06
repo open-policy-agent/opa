@@ -1,6 +1,6 @@
 module github.com/open-policy-agent/opa
 
-go 1.15
+go 1.16
 
 require (
 	github.com/OneOfOne/xxhash v1.2.8

@@ -82,6 +82,10 @@ all: build test perf wasm-sdk-e2e-test check
 version:
 	@echo $(VERSION)
 
+.PHONY: release-dir
+release-dir:
+	@echo $(RELEASE_DIR)
+
 .PHONY: generate
 generate: wasm-lib-build
 	$(GO) generate
