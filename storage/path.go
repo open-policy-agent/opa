@@ -125,9 +125,9 @@ func (p Path) Ref(head *ast.Term) (ref ast.Ref) {
 	ref = make(ast.Ref, len(p)+1)
 	ref[0] = head
 	for i := range p {
-		idx, err := strconv.ParseInt(p[i], 10, 32)
+		idx, err := strconv.ParseInt(p[i], 10, 64)
 		if err == nil {
-			ref[i+1] = ast.IntNumberTerm(int(idx))
+			ref[i+1] = ast.UIntNumberTerm(uint64(idx))
 		} else {
 			ref[i+1] = ast.StringTerm(p[i])
 		}
