@@ -472,14 +472,15 @@ func (p *Parser) parseImport() *Import {
 			return nil
 		}
 
-		alias := p.parseTerm()
-
-		v, ok := alias.Value.(Var)
-		if !ok {
-			p.illegal("expected var")
-			return nil
+		if alias := p.parseTerm(); alias != nil {
+			v, ok := alias.Value.(Var)
+			if ok {
+				imp.Alias = v
+				return &imp
+			}
 		}
-		imp.Alias = v
+		p.illegal("expected var")
+		return nil
 	}
 
 	return &imp
