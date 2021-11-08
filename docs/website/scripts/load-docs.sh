@@ -23,6 +23,7 @@ ALL_RELEASES=$(git tag -l | sort -r -V)
 RELEASES=()
 PREV_MAJOR_VER="-1"
 PREV_MINOR_VER="-1"
+
 for release in ${ALL_RELEASES}; do
     CUR_SEM_VER=${release#"v"}
 
@@ -41,6 +42,15 @@ for release in ${ALL_RELEASES}; do
     if [[ (${CUR_MAJOR_VER} -lt 0) || \
             (${CUR_MAJOR_VER} -le 0 && ${CUR_MINOR_VER} -lt 11) || \
             (${CUR_MAJOR_VER} -le 0 && ${CUR_MINOR_VER} -le 10 && ${CUR_PATCH_VER} -le 7) ]]; then
+        continue
+    fi
+
+    # ignore the tag if there is no corresponding OPA binary available on the GitHub Release page
+    BINARY_URL=https://github.com/open-policy-agent/opa/releases/download/${release}/opa_linux_amd64
+    curl_exit_code=0
+    curl --silent --location --head --fail $BINARY_URL >/dev/null || curl_exit_code=$?
+    if [[ $curl_exit_code -ne 0 ]]; then
+        echo "WARNING: skipping $release because $BINARY_URL does not exist (or GET failed...)"
         continue
     fi
 

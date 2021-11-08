@@ -188,7 +188,7 @@ func TestPluginStartSameInput(t *testing.T) {
 	fixture := newTestFixture(t)
 	defer fixture.server.stop()
 
-	fixture.server.ch = make(chan []EventV1, 4)
+	fixture.server.ch = make(chan []EventV1, 3)
 	var result interface{} = false
 
 	ts, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
@@ -221,14 +221,12 @@ func TestPluginStartSameInput(t *testing.T) {
 	chunk1 := <-fixture.server.ch
 	chunk2 := <-fixture.server.ch
 	chunk3 := <-fixture.server.ch
-	chunk4 := <-fixture.server.ch
 	expLen1 := 122
-	expLen2 := 121
-	expLen3 := 121
-	expLen4 := 36
+	expLen2 := 242
+	expLen3 := 36
 
-	if len(chunk1) != expLen1 || len(chunk2) != expLen2 || len(chunk3) != expLen3 || len(chunk4) != expLen4 {
-		t.Fatalf("Expected chunk lens %v, %v, %v and %v but got: %v, %v, %v and %v", expLen1, expLen2, expLen3, expLen4, len(chunk1), len(chunk2), len(chunk3), len(chunk4))
+	if len(chunk1) != expLen1 || len(chunk2) != expLen2 || len(chunk3) != expLen3 {
+		t.Fatalf("Expected chunk lens %v, %v, and %v but got: %v, %v, and %v", expLen1, expLen2, expLen3, len(chunk1), len(chunk2), len(chunk3))
 	}
 
 	var expInput interface{} = map[string]interface{}{"method": "GET"}
@@ -254,8 +252,8 @@ func TestPluginStartSameInput(t *testing.T) {
 		Metrics:     msAsFloat64,
 	}
 
-	if !reflect.DeepEqual(chunk4[expLen4-1], exp) {
-		t.Fatalf("Expected %+v but got %+v", exp, chunk4[expLen4-1])
+	if !reflect.DeepEqual(chunk3[expLen3-1], exp) {
+		t.Fatalf("Expected %+v but got %+v", exp, chunk3[expLen3-1])
 	}
 }
 
@@ -266,7 +264,7 @@ func TestPluginStartChangingInputValues(t *testing.T) {
 	fixture := newTestFixture(t)
 	defer fixture.server.stop()
 
-	fixture.server.ch = make(chan []EventV1, 4)
+	fixture.server.ch = make(chan []EventV1, 3)
 	var result interface{} = false
 
 	ts, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
@@ -298,14 +296,12 @@ func TestPluginStartChangingInputValues(t *testing.T) {
 	chunk1 := <-fixture.server.ch
 	chunk2 := <-fixture.server.ch
 	chunk3 := <-fixture.server.ch
-	chunk4 := <-fixture.server.ch
 	expLen1 := 124
-	expLen2 := 123
-	expLen3 := 123
-	expLen4 := 30
+	expLen2 := 247
+	expLen3 := 29
 
-	if len(chunk1) != expLen1 || len(chunk2) != expLen2 || len((chunk3)) != expLen3 || len(chunk4) != expLen4 {
-		t.Fatalf("Expected chunk lens %v, %v, %v and %v but got: %v, %v, %v and %v", expLen1, expLen2, expLen3, expLen4, len(chunk1), len(chunk2), len(chunk3), len(chunk4))
+	if len(chunk1) != expLen1 || len(chunk2) != expLen2 || len((chunk3)) != expLen3 {
+		t.Fatalf("Expected chunk lens %v, %v and %v but got: %v, %v and %v", expLen1, expLen2, expLen3, len(chunk1), len(chunk2), len(chunk3))
 	}
 
 	var expInput interface{} = input
@@ -325,8 +321,8 @@ func TestPluginStartChangingInputValues(t *testing.T) {
 		Timestamp:   ts,
 	}
 
-	if !reflect.DeepEqual(chunk4[expLen4-1], exp) {
-		t.Fatalf("Expected %+v but got %+v", exp, chunk4[expLen4-1])
+	if !reflect.DeepEqual(chunk3[expLen3-1], exp) {
+		t.Fatalf("Expected %+v but got %+v", exp, chunk3[expLen3-1])
 	}
 }
 
@@ -466,8 +462,8 @@ func TestPluginRequeBufferPreserved(t *testing.T) {
 	_ = fixture.plugin.Log(ctx, logServerInfo("ghi", input, result1))
 
 	bufLen := fixture.plugin.buffer.Len()
-	if bufLen < 2 {
-		t.Fatal("Expected buffer length of at least 2")
+	if bufLen < 1 {
+		t.Fatal("Expected buffer length of at least 1")
 	}
 
 	fixture.server.expCode = 500
@@ -560,6 +556,10 @@ func TestPluginRateLimitInt(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	if len(chunk) != 1 {
+		t.Fatalf("Expected 1 chunk but got %v", len(chunk))
+	}
+
 	exp = EventV1{
 		Labels: map[string]string{
 			"id":      "test-instance-id",
@@ -574,7 +574,7 @@ func TestPluginRateLimitInt(t *testing.T) {
 		Timestamp:   ts,
 	}
 
-	compareLogEvent(t, chunk, exp)
+	compareLogEvent(t, chunk[0], exp)
 }
 
 func TestPluginRateLimitFloat(t *testing.T) {
@@ -661,6 +661,10 @@ func TestPluginRateLimitFloat(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	if len(chunk) != 1 {
+		t.Fatalf("Expected 1 chunk but got %v", len(chunk))
+	}
+
 	exp = EventV1{
 		Labels: map[string]string{
 			"id":      "test-instance-id",
@@ -675,7 +679,7 @@ func TestPluginRateLimitFloat(t *testing.T) {
 		Timestamp:   ts,
 	}
 
-	compareLogEvent(t, chunk, exp)
+	compareLogEvent(t, chunk[0], exp)
 }
 
 func TestPluginRateLimitRequeue(t *testing.T) {
@@ -699,8 +703,8 @@ func TestPluginRateLimitRequeue(t *testing.T) {
 	_ = fixture.plugin.Log(ctx, logServerInfo("ghi", input, result1)) // event 3
 
 	bufLen := fixture.plugin.buffer.Len()
-	if bufLen < 2 {
-		t.Fatal("Expected buffer length of at least 2")
+	if bufLen < 1 {
+		t.Fatal("Expected buffer length of at least 1")
 	}
 
 	fixture.server.expCode = 500
@@ -720,9 +724,24 @@ func TestPluginRateLimitRequeue(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	events := decodeLogEvent(t, chunk)
-	if len(events) != 1 {
-		t.Fatalf("Expected 1 event but got %v", len(events))
+	if len(chunk) != 1 {
+		t.Fatalf("Expected 1 chunk but got %v", len(chunk))
+	}
+
+	events := decodeLogEvent(t, chunk[0])
+
+	if len(events) != 2 {
+		t.Fatalf("Expected 2 event but got %v", len(events))
+	}
+
+	exp := "def"
+	if events[0].DecisionID != exp {
+		t.Fatalf("Expected decision log event id %v but got %v", exp, events[0].DecisionID)
+	}
+
+	exp = "ghi"
+	if events[1].DecisionID != exp {
+		t.Fatalf("Expected decision log event id %v but got %v", exp, events[1].DecisionID)
 	}
 }
 

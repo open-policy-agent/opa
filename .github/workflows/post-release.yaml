@@ -1,0 +1,17 @@
+name: Post Release
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  kick-netlify:
+    name: Kick Netlify
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Trigger Netlify Deploy
+        env:
+          NETLIFY_BUILD_HOOK_URL: ${{ secrets.NETLIFY_BUILD_HOOK_URL }}
+        if: ${{ env.NETLIFY_BUILD_HOOK_URL }}
+        run: |
+          curl --fail --request POST -d {} ${{ env.NETLIFY_BUILD_HOOK_URL }}

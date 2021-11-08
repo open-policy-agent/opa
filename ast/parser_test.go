@@ -1091,6 +1091,7 @@ func TestImport(t *testing.T) {
 	assertParseErrorContains(t, "non-ground ref", "import data.foo[x]", "rego_parse_error: unexpected var token: expecting string")
 	assertParseErrorContains(t, "non-string", "import input.foo[0]", "rego_parse_error: unexpected number token: expecting string")
 	assertParseErrorContains(t, "unknown root", "import foo.bar", "rego_parse_error: unexpected import path, must begin with one of: {data, future, input}, got: foo")
+	assertParseErrorContains(t, "bad variable term", "import input as A(", "rego_parse_error: unexpected eof token: expected var")
 
 	_, _, err := ParseStatements("", "package foo\nimport bar.data\ndefault foo=1")
 	if err == nil {

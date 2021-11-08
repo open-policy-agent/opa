@@ -18,7 +18,7 @@ import (
 func TestNewReportDefaultURL(t *testing.T) {
 	os.Unsetenv("OPA_TELEMETRY_SERVICE_URL")
 
-	reporter, err := New("")
+	reporter, err := New("", Options{})
 	if err != nil {
 		t.Fatalf("Unexpected error %v", err)
 	}
@@ -37,7 +37,7 @@ func TestSendReportBadRespStatus(t *testing.T) {
 
 	os.Setenv("OPA_TELEMETRY_SERVICE_URL", baseURL)
 
-	reporter, err := New("")
+	reporter, err := New("", Options{})
 	if err != nil {
 		t.Fatalf("Unexpected error %v", err)
 	}
@@ -62,7 +62,7 @@ func TestSendReportDecodeError(t *testing.T) {
 
 	os.Setenv("OPA_TELEMETRY_SERVICE_URL", baseURL)
 
-	reporter, err := New("")
+	reporter, err := New("", Options{})
 	if err != nil {
 		t.Fatalf("Unexpected error %v", err)
 	}
@@ -88,7 +88,7 @@ func TestSendReportWithOPAUpdate(t *testing.T) {
 
 	os.Setenv("OPA_TELEMETRY_SERVICE_URL", baseURL)
 
-	reporter, err := New("")
+	reporter, err := New("", Options{})
 	if err != nil {
 		t.Fatalf("Unexpected error %v", err)
 	}

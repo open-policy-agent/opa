@@ -56,8 +56,11 @@ func (o *Oracle) FindDefinition(q DefinitionQuery) (*DefinitionQueryResult, erro
 	if err != nil {
 		return nil, err
 	}
-
-	stack := findContainingNodeStack(compiler.Modules[q.Filename], q.Pos)
+	mod, ok := compiler.Modules[q.Filename]
+	if !ok {
+		return nil, ErrNoMatchFound
+	}
+	stack := findContainingNodeStack(mod, q.Pos)
 	if len(stack) == 0 {
 		return nil, ErrNoMatchFound
 	}

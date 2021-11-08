@@ -689,7 +689,7 @@ func (f *intFlag) String() string {
 }
 
 func (f *intFlag) Set(s string) error {
-	v, err := strconv.ParseInt(s, 0, 64)
+	v, err := strconv.ParseInt(s, 0, 32)
 	f.v = int(v)
 	f.isSet = true
 	return err

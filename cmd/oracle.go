@@ -147,9 +147,7 @@ func dofindDefinition(params findDefinitionParams, stdin io.Reader, stdout io.Wr
 }
 
 func parseFilenameOffset(s string) (string, int, error) {
-	if strings.HasPrefix(s, "file://") {
-		s = strings.TrimPrefix(s, "file://")
-	}
+	s = strings.TrimPrefix(s, "file://")
 
 	parts := strings.Split(s, ":")
 	if len(parts) != 2 {
@@ -163,7 +161,7 @@ func parseFilenameOffset(s string) (string, int, error) {
 		str = parts[1][2:]
 	}
 
-	offset, err := strconv.ParseInt(str, base, 64)
+	offset, err := strconv.ParseInt(str, base, 32)
 	if err != nil {
 		return "", 0, err
 	}
