@@ -1,10 +1,5 @@
 <article class="message is-danger">
-    {{ if .Get 0 }}
-    <div class="message-header">
-        <p>{{ .Get 0 }}</p>
-    </div>
-    {{ end }}
-    <div class="message-body">
-        {{ .Inner }}
-    </div>
+<div class="message-body">
+{{ .Inner | markdownify }}
+</div>
 </article>
