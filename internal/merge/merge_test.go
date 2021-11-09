@@ -5,50 +5,11 @@
 package merge
 
 import (
-	"fmt"
 	"reflect"
 	"testing"
 
 	"github.com/open-policy-agent/opa/util"
 )
-
-func BenchmarkInterfaceMaps(b *testing.B) {
-
-	for _, size := range []int{100, 1000, 10000} {
-
-		b.Run(fmt.Sprintf("store size %v", size), func(b *testing.B) {
-			aRaw := "{"
-			for i := 0; i < size; i++ {
-				if i != 0 {
-					aRaw += ","
-				}
-				aRaw += fmt.Sprintf(`"%v":{"a":{"b":"c","d":"e"}}`, i)
-			}
-			aRaw += "}"
-
-			aVals := map[string]interface{}{}
-			if err := util.UnmarshalJSON([]byte(aRaw), &aVals); err != nil {
-				panic(err)
-			}
-			for i := 0; i < b.N; i++ {
-				bRaw := fmt.Sprintf(`{"a%v":{"b":"c","d":"e"}}`, i)
-				bVals := map[string]interface{}{}
-				if err := util.UnmarshalJSON([]byte(bRaw), &bVals); err != nil {
-					panic(err)
-				}
-
-				b.StartTimer()
-				_, ok := InterfaceMaps(aVals, bVals)
-				b.StopTimer()
-
-				if !ok {
-					b.Fatal("merging interfaces failed")
-				}
-			}
-		})
-
-	}
-}
 
 func TestMergeDocs(t *testing.T) {
 
