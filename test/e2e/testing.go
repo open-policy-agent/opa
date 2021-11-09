@@ -45,6 +45,9 @@ func NewAPIServerTestParams() runtime.Params {
 		Format: "json-pretty",
 	}
 
+	// unless overridden, don't log from tests
+	params.Logger = logging.NewNoOpLogger()
+
 	params.GracefulShutdownPeriod = 10 // seconds
 
 	return params
@@ -78,7 +81,7 @@ func NewTestRuntimeWithOpts(opts TestRuntimeOpts, params runtime.Params) (*TestR
 	rt, err := runtime.NewRuntime(ctx, params)
 	if err != nil {
 		cancel()
-		return nil, fmt.Errorf("unable to create new runtime: %s", err)
+		return nil, fmt.Errorf("create new runtime: %w", err)
 	}
 
 	return &TestRuntime{
