@@ -12,14 +12,14 @@ to customize and extend OPA in different ways.
 
 Read this section if you want to extend OPA with custom built-in functions.
 
-{{% info %}}
+{{< info >}}
 This section assumes you are embedding OPA as a library and executing policies
-via the <code>github.com/open-policy-agent/opa/rego</code> package. If you are NOT embedding OPA
+via the `github.com/open-policy-agent/opa/rego` package. If you are NOT embedding OPA
 as a library and instead want to customize the OPA runtime, read this section
 anyway because it provides useful information on implementing built-in functions.
 For a complete example that shows how to add custom built-in functions to the
-OPA runtime, see the <a href="#adding-built-in-functions-to-the-opa-runtime">Adding Built-in Functions to the OPA Runtime</a> appendix.
-{{% /info %}}
+OPA runtime, see the [Adding Built-in Functions to the OPA Runtime](#adding-built-in-functions-to-the-opa-runtime) appendix.
+{{< /info >}}
 
 OPA supports built-in functions for simple operations like string manipulation
 and arithmetic as well as more complex operations like JWT verification and
@@ -120,12 +120,12 @@ built-in functions to avoid collisions. This declaration indicates the function
 accepts two strings and returns a value of type `any`. The `any` type is the
 union of all types in Rego.
 
-{{% info %}}
-<code>types.S</code> and <code>types.A</code> are shortcuts for constructing Rego types. If you need
+{{< info >}}
+`types.S` and `types.A` are shortcuts for constructing Rego types. If you need
 to define use-case specific types (e.g., a list of objects that have fields
-<code>foo</code>, <code>bar</code>, and <code>baz</code>, you will need to construct them using the <code>types</code>
+`foo`, `bar`, and `baz`, you will need to construct them using the `types`
 packages APIs.)
-{{% /info %}}
+{{< /info >}}
 
 The declaration also sets `rego.Function#Memoize` to true to enable memoization
 across multiple calls in the same query. If your built-in function performs I/O,
@@ -174,11 +174,11 @@ The implementation is careful to use the context passed to the built-in function
 when executing the HTTP request. See the appendix at the end of this page for
 the complete example.
 
-{{% danger %}}
-Custom built-in functions <strong>must not</strong> be used for effecting changes in
+{{< danger >}}
+Custom built-in functions **must not** be used for effecting changes in
 external systems as OPA does not guarantee that the statement will be executed due
 to automatic performance optimizations that are applied during policy evaluation.
-{{% /danger %}}
+{{< /danger >}}
 
 ## Custom Plugins for OPA Runtime
 
@@ -202,9 +202,9 @@ inside your main function.
 The plugin may (optionally) report its current status to the plugin Manager via the `plugins.Manager#UpdatePluginStatus`
 API.
 
-{{% info %}}
+{{< info >}}
 If no status is provided the plugin is assumed to be working OK.
-{{% /info %}}
+{{< /info >}}
 
 Typically the plugin should report `StatusNotReady` at creation time and update to `StatusOK` (or `StatusErr`) when
 appropriate.
@@ -352,11 +352,11 @@ log event written to stdout.
 The source code for this example can be found
 [here](https://github.com/open-policy-agent/contrib/tree/main/decision_logger_plugin_example).
 
-{{% info %}}
-If there is a mask policy set (see <a href="../management-decision-logs">Decision Logger</a>
-for details) the <code>Event</code> received by the
-demo plugin will potentially be different than the example documented.
-{{% /info %}}
+{{< info >}}
+If there is a mask policy set (see [Decision Logger](../management-decision-logs)
+for details) the `Event` received by the demo plugin will potentially be different
+than the example documented.
+{{< /info >}}
 
 ## Setting the OPA Runtime Version
 

@@ -3,7 +3,7 @@ publish = "docs/website/public"
 command = "make netlify-prod WASM_ENABLED=0 CGO_ENABLED=0"
 
 [build.environment]
-HUGO_VERSION = "0.55.5"
+HUGO_VERSION = "0.88.1"
 
 [context.deploy-preview]
 command = "make netlify-preview WASM_ENABLED=0 CGO_ENABLED=0"

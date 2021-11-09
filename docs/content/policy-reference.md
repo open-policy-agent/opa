@@ -877,11 +877,11 @@ org_chart_permissions[entity_name]
 | ------- |-------------|---------------|
 | <span class="opa-keep-it-together">``response := http.send(request)``</span> | ``http.send`` executes an HTTP `request` and returns a `response`. | ``SDK-dependent`` |
 
-{{% danger %}}
-This built-in function <strong>must not</strong> be used for effecting changes in
+{{< danger >}}
+This built-in function **must not** be used for effecting changes in
 external systems as OPA does not guarantee that the statement will be executed due
 to automatic performance optimizations that are applied during policy evaluation.
-{{% /danger %}}
+{{< /danger >}}
 
 The `request` object parameter may contain the following fields:
 

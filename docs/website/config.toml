@@ -13,6 +13,11 @@ pygmentsGuessSyntax = true
 # the are loaded via shortcode helpers.
 ignorefiles = [ "/docs/v.*/code/.*" ]
 
+[markup]
+[markup.goldmark]
+[markup.goldmark.renderer]
+unsafe = true
+
 [params]
 description = "Policy-based control for cloud native environments"
 tagline = "Empower your administrators with flexible, fine-grained control across your entire stack."
