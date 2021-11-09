@@ -132,6 +132,21 @@ integrations:
         venue: Kubecon San Diego 2019
         link: https://www.youtube.com/watch?v=lYHr_UaHsYQ&list=PLj6h78yzYM2NDs-iu8WU5fMxINxHXlien&index=140&t=0s
 
+  google-calendar:
+    title: Google Calendar
+    description: Using the Google Calendar API with OPA for calendar powered policy decisions
+    labels:
+      category: data
+      layer: rego
+    software:
+      - google-calendar
+    inventors:
+      - styra
+    code:
+      - https://github.com/anderseknert/opa-google-calendar
+    blogs:
+      - https://blog.styra.com/blog/the-power-of-data-calendar-based-policy-enforcement
+
   gcp-forseti:
     title: GCP audit with Forseti
     description: |
@@ -1220,3 +1235,6 @@ software:
   spire:
     name: SPIRE
     link: https://spiffe.io
+  google-calendar:
+    name: Google Calendar
+    link: https://calendar.google.com/
