@@ -11,14 +11,11 @@ OPA is proud to be a graduated project in the [Cloud Native Computing Foundation
 
 ## Want to learn more about OPA?
 
-- Go to [openpolicyagent.org](https://www.openpolicyagent.org) to see an overview of the OPA and its resources.
-- Read [the Docs](https://www.openpolicyagent.org/docs/) to get started with documentation and tutorials.
+- Go to [openpolicyagent.org](https://www.openpolicyagent.org) to get started with documentation and tutorials.
 - Browse [blog.openpolicyagent.org](https://blog.openpolicyagent.org) for news about OPA, community, policy and authorization.
 - Try OPA with the [Rego Playground](https://play.openpolicyagent.org) to experiment with policies and share your work.
 - View the [OPA Roadmap](https://docs.google.com/presentation/d/16QV6gvLDOV3I0_guPC3_19g6jHkEg3X9xqMYgtoCKrs/edit?usp=sharing) to see a high-level snapshot of OPA features in-progress and planned.
-- Check out the [ADOPTERS.md](./ADOPTERS.md) file for a list of production adopters. Does your 
-organization use OPA in production? Support the OPA project by submitting a 
-PR to add your organization to the list with a short description of your OPA use cases!
+- Check out the [ADOPTERS.md](./ADOPTERS.md) file for a list of production adopters. Does your organization use OPA in production? Support the OPA project by submitting a PR to add your organization to the list with a short description of your OPA use cases!
 
 ## Want to get OPA?
 
