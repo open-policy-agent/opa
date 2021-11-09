@@ -523,6 +523,45 @@ bundles:
       max_delay_seconds: 120
 ```
 
+#### Azure Managed Identities Token
+
+OPA will authenticate with an [Azure managed identities](https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/overview) token. 
+The [token request](https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/how-to-use-vm-token#get-a-token-using-http) 
+can be configured via the plugin to customize the base URL, API version, and resource. Specific managed identity IDs can be optionally provided as well.
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `services[_].credentials.azure_managed_identity.endpoint` | `string` | No | Request endpoint. (default: `http://169.254.169.254/metadata/identity/oauth2/token`, the Azure Instance Metadata Service endpoint (recommended))|
+| `services[_].credentials.azure_managed_identity.api_version` | `string` | No | API version to use. (default: `2018-02-01`, the minimum version) |
+| `services[_].credentials.azure_managed_identity.resource` | `string` | No | App ID URI of the target resource. (default: `https://storage.azure.com/`) |
+| `services[_].credentials.azure_managed_identity.object_id` | `string` | No | Optional object ID of the managed identity you would like the token for. Required, if your VM has multiple user-assigned managed identites. |
+| `services[_].credentials.azure_managed_identity.client_id` | `string` | No | Optional client ID of the managed identity you would like the token for. Required, if your VM has multiple user-assigned managed identites. |
+| `services[_].credentials.azure_managed_identity.mi_res_id` | `string` | No | Optional Azure Resource ID of the managed identity you would like the token for. Required, if your VM has multiple user-assigned managed identites. |
+
+##### Example
+Use an [Azure storage account](https://docs.microsoft.com/en-us/azure/storage/common/storage-account-overview) as a bundle service backend.
+Note that the `x-ms-version` header must be specified for the storage account service, and a minimum version of `2017-11-09` must be provided as per [Azure documentation](https://docs.microsoft.com/en-us/rest/api/storageservices/authorize-with-azure-active-directory#call-storage-operations-with-oauth-tokens).
+
+```yaml
+services: 
+  azure_storage_account: 
+    url: ${STORAGE_ACCOUNT_URL}
+    headers:
+      x-ms-version: 2017-11-09
+    response_header_timeout_seconds: 5
+    credentials: 
+      azure_managed_identity: {}
+
+bundles: 
+  authz: 
+    service: azure_storage_account
+    resource: bundles/http/example/authz.tar.gz
+    persist: true
+    polling: 
+      min_delay_seconds: 60
+      max_delay_seconds: 120
+```
+
 #### Custom Plugin
 
 If none of the existing credential options work for a service, OPA can authenticate using a custom plugin, enabling support for any authentication scheme.

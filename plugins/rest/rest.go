@@ -44,12 +44,13 @@ type Config struct {
 	ResponseHeaderTimeoutSeconds *int64            `json:"response_header_timeout_seconds,omitempty"`
 	TLS                          *serverTLSConfig  `json:"tls,omitempty"`
 	Credentials                  struct {
-		Bearer      *bearerAuthPlugin                  `json:"bearer,omitempty"`
-		OAuth2      *oauth2ClientCredentialsAuthPlugin `json:"oauth2,omitempty"`
-		ClientTLS   *clientTLSAuthPlugin               `json:"client_tls,omitempty"`
-		S3Signing   *awsSigningAuthPlugin              `json:"s3_signing,omitempty"`
-		GCPMetadata *gcpMetadataAuthPlugin             `json:"gcp_metadata,omitempty"`
-		Plugin      *string                            `json:"plugin,omitempty"`
+		Bearer               *bearerAuthPlugin                  `json:"bearer,omitempty"`
+		OAuth2               *oauth2ClientCredentialsAuthPlugin `json:"oauth2,omitempty"`
+		ClientTLS            *clientTLSAuthPlugin               `json:"client_tls,omitempty"`
+		S3Signing            *awsSigningAuthPlugin              `json:"s3_signing,omitempty"`
+		GCPMetadata          *gcpMetadataAuthPlugin             `json:"gcp_metadata,omitempty"`
+		AzureManagedIdentity *azureManagedIdentitiesAuthPlugin  `json:"azure_managed_identity,omitempty"`
+		Plugin               *string                            `json:"plugin,omitempty"`
 	} `json:"credentials"`
 	keys   map[string]*keys.Config
 	logger logging.Logger
