@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
+## Unreleased
+
+## 0.34.2
+
+### Fixes
+
+- ast: Fix print call rewriting for calls in head ([#3967](https://github.com/open-policy-agent/opa/issues/3967))
+
 ## 0.34.1
 
 ### Fixes
@@ -188,8 +196,6 @@ Thanks to @[iainmcgin](https://github.com/iainmcgin) for reporting.
 ### Fixes
 
 - format: make groupIterable sort by row ([#3849](https://github.com/open-policy-agent/opa/issues/3849))
-
-## Unreleased
 
 ## 0.33.0
 
