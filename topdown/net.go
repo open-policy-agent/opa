@@ -1,6 +1,8 @@
 package topdown
 
 import (
+	"errors"
+	"fmt"
 	"net"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -21,7 +23,16 @@ func builtinLookupIPAddr(bctx BuiltinContext, operands []*ast.Term, iter func(*a
 	}
 
 	addrs, err := net.DefaultResolver.LookupIPAddr(bctx.Context, string(name))
-	if err != nil { // handle networking errors differently? Halt?
+	if err != nil {
+		var derr *net.DNSError
+		if errors.As(err, &derr) && derr.Temporary() {
+			return Halt{
+				Err: &Error{
+					Code:    BuiltinErr,
+					Message: fmt.Sprintf("%s: %s", ast.NetLookupIPAddr.Name, derr.Error()),
+				},
+			}
+		}
 		return err
 	}
 
