@@ -43,14 +43,3 @@ cases:
   query: data.test.p = x
   want_result:
   - x: true
-- data:
-  modules:
-  - |
-    package test
-
-    p = x {
-      x := net.lookup_ip_addr(":)")
-    }
-  note: net.lookup_ip_addr/non-temporary errors yield undefined
-  query: data.test.p = x
-  want_result: []
