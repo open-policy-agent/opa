@@ -975,6 +975,7 @@ The table below shows examples of calling `http.send`:
 
 | Built-in | Description | Wasm Support |
 | ------- |-------------|---------------|
+| <span class="opa-keep-it-together">``net.lookup_ip_addr(name)``</span> | `output` is a set of IP addresses (both v4 and v6, strings) that the domain name resolves to using standard name resolution. | ``SDK-dependent`` |
 | <span class="opa-keep-it-together">``net.cidr_contains(cidr, cidr_or_ip)``</span> | `output` is `true` if `cidr_or_ip` (e.g. `127.0.0.64/26` or `127.0.0.1`) is contained within `cidr` (e.g. `127.0.0.1/24`) and false otherwise. Supports both IPv4 and IPv6 notations.| ✅ |
 | <span class="opa-keep-it-together">``output := net.cidr_contains_matches(cidrs, cidrs_or_ips)``</span> | `output` is a `set` of tuples identifying matches where `cidrs_or_ips` are contained within `cidrs`. This function is similar to `net.cidr_contains` except it allows callers to pass collections of CIDRs or IPs as arguments and returns the matches (as opposed to a boolean result indicating a match between two CIDRs/IPs.) See below for examples. | ``SDK-dependent`` |
 | <span class="opa-keep-it-together">``net.cidr_intersects(cidr1, cidr2)``</span> | `output` is `true` if `cidr1` (e.g. `192.168.0.0/16`) overlaps with `cidr2` (e.g. `192.168.1.0/24`) and false otherwise. Supports both IPv4 and IPv6 notations.| ✅ |
