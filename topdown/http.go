@@ -20,6 +20,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -68,9 +69,10 @@ var allowedKeyNames = [...]string{
 }
 
 var (
-	allowedKeys              = ast.NewSet()
-	requiredKeys             = ast.NewSet(ast.StringTerm("method"), ast.StringTerm("url"))
-	httpSendLatencyMetricKey = "rego_builtin_" + strings.ReplaceAll(ast.HTTPSend.Name, ".", "_")
+	allowedKeys                  = ast.NewSet()
+	requiredKeys                 = ast.NewSet(ast.StringTerm("method"), ast.StringTerm("url"))
+	httpSendLatencyMetricKey     = "rego_builtin_" + strings.ReplaceAll(ast.HTTPSend.Name, ".", "_")
+	httpSendClientCacheMetricKey = fmt.Sprintf("rego_builtin_%v_client_cache_hit", strings.ReplaceAll(ast.HTTPSend.Name, ".", "_"))
 )
 
 type httpSendKey string
@@ -86,6 +88,44 @@ const (
 	// HTTPSendNetworkErr represents a network error.
 	HTTPSendNetworkErr string = "eval_http_send_network_error"
 )
+
+var clientCache *httpClientCache
+
+type httpClientCache struct {
+	mu    sync.Mutex
+	items map[string]*httpClientCacheValue
+}
+
+type httpClientCacheValue struct {
+	client  *http.Client
+	req     *http.Request
+	files   map[string]os.FileInfo
+	envVars map[string]string
+}
+
+func (c *httpClientCache) Get(key ast.Value) (value *httpClientCacheValue, ok bool) {
+	c.mu.Lock()
+	value, ok = c.items[key.String()]
+	c.mu.Unlock()
+	return value, ok
+}
+
+func (c *httpClientCache) Insert(key ast.Value, value *httpClientCacheValue) {
+	c.mu.Lock()
+	c.items[key.String()] = value
+	c.mu.Unlock()
+}
+
+func (c *httpClientCache) Delete(key ast.Value) {
+	c.mu.Lock()
+	delete(c.items, key.String())
+	c.mu.Unlock()
+}
+
+func newHTTPClientCache() *httpClientCache {
+	c := &httpClientCache{items: map[string]*httpClientCacheValue{}}
+	return c
+}
 
 func builtinHTTPSend(bctx BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
 	req, err := validateHTTPRequestOperand(args[0], 1)
@@ -160,7 +200,12 @@ func getHTTPResponse(bctx BuiltinContext, req ast.Object) (*ast.Term, error) {
 func init() {
 	createAllowedKeys()
 	initDefaults()
+	createHTTPClientCache()
 	RegisterBuiltinFunc(ast.HTTPSend.Name, builtinHTTPSend)
+}
+
+func createHTTPClientCache() {
+	clientCache = newHTTPClientCache()
 }
 
 func handleHTTPSendErr(bctx BuiltinContext, err error) error {
@@ -259,6 +304,29 @@ func useSocket(rawURL string, tlsConfig *tls.Config) (bool, string, *http.Transp
 
 	rawURL = strings.Replace(rawURL, "unix:", "http:", 1)
 	return true, rawURL, tr
+}
+
+func checkIfFileModified(info map[string]os.FileInfo) (bool, error) {
+	for file, initialStat := range info {
+		stat, err := os.Stat(file)
+		if err != nil {
+			return false, err
+		}
+
+		if initialStat.Size() != stat.Size() || !initialStat.ModTime().Equal(stat.ModTime()) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func checkIfEnvVarModified(info map[string]string) bool {
+	for name, val := range info {
+		if os.Getenv(name) != val {
+			return true
+		}
+	}
+	return false
 }
 
 func createHTTPRequest(bctx BuiltinContext, obj ast.Object) (*http.Request, *http.Client, error) {
@@ -400,6 +468,26 @@ func createHTTPRequest(bctx BuiltinContext, obj ast.Object) (*http.Request, *htt
 		}
 	}
 
+	// check http client cache
+	value, found := clientCache.Get(obj)
+	if found {
+		// check if any files or env variables containing certificate/key have changed
+		modifiedFiles, err := checkIfFileModified(value.files)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		if !modifiedFiles && !checkIfEnvVarModified(value.envVars) {
+			bctx.Metrics.Counter(httpSendClientCacheMetricKey).Incr()
+			return value.req.WithContext(bctx.Context), value.client, nil
+		}
+
+		clientCache.Delete(obj)
+	}
+
+	files := map[string]os.FileInfo{}
+	envVars := map[string]string{}
+
 	isTLS := false
 	client := &http.Client{
 		Timeout: timeout,
@@ -428,6 +516,18 @@ func createHTTPRequest(bctx BuiltinContext, obj ast.Object) (*http.Request, *htt
 
 		isTLS = true
 		tlsConfig.Certificates = append(tlsConfig.Certificates, cert)
+
+		info, err := os.Stat(tlsClientCertFile)
+		if err != nil {
+			return nil, nil, err
+		}
+		files[tlsClientCertFile] = info
+
+		info, err = os.Stat(tlsClientKeyFile)
+		if err != nil {
+			return nil, nil, err
+		}
+		files[tlsClientKeyFile] = info
 	}
 
 	if tlsClientCertEnvVar != "" && tlsClientKeyEnvVar != "" {
@@ -441,6 +541,9 @@ func createHTTPRequest(bctx BuiltinContext, obj ast.Object) (*http.Request, *htt
 
 		isTLS = true
 		tlsConfig.Certificates = append(tlsConfig.Certificates, cert)
+
+		envVars[tlsClientCertEnvVar] = os.Getenv(tlsClientCertEnvVar)
+		envVars[tlsClientKeyEnvVar] = os.Getenv(tlsClientKeyEnvVar)
 	}
 
 	// Use system certs if no CA cert is provided
@@ -481,6 +584,12 @@ func createHTTPRequest(bctx BuiltinContext, obj ast.Object) (*http.Request, *htt
 
 		isTLS = true
 		tlsConfig.RootCAs = pool
+
+		info, err := os.Stat(tlsCaCertFile)
+		if err != nil {
+			return nil, nil, err
+		}
+		files[tlsCaCertFile] = info
 	}
 
 	if tlsCaCertEnvVar != "" {
@@ -491,6 +600,8 @@ func createHTTPRequest(bctx BuiltinContext, obj ast.Object) (*http.Request, *htt
 
 		isTLS = true
 		tlsConfig.RootCAs = pool
+
+		envVars[tlsCaCertEnvVar] = os.Getenv(tlsCaCertEnvVar)
 	}
 
 	if isTLS {
@@ -568,6 +679,9 @@ func createHTTPRequest(bctx BuiltinContext, obj ast.Object) (*http.Request, *htt
 	if tlsServerName != "" {
 		tlsConfig.ServerName = tlsServerName
 	}
+
+	// cache the client and request
+	clientCache.Insert(obj, &httpClientCacheValue{client: client, req: req, files: files, envVars: envVars})
 
 	return req, client, nil
 }

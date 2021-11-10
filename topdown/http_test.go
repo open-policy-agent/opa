@@ -20,17 +20,18 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/internal/version"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/topdown/builtins"
-
-	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/util/test"
 )
 
 // The person Type
@@ -2593,4 +2594,236 @@ func TestSocketHTTPGetRequest(t *testing.T) {
 	for _, tc := range tests {
 		runTopDownTestCase(t, data, tc.note, append(tc.rules, httpSendHelperRules...), tc.expected)
 	}
+}
+
+func TestHTTPSendClientCacheEnvVarUpdate(t *testing.T) {
+	const (
+		localClientCertFile  = "testdata/client-cert.pem"
+		localClientCert2File = "testdata/client-cert-2.pem"
+		localClientKeyFile   = "testdata/client-key.pem"
+		localClientKey2File  = "testdata/client-key-2.pem"
+		localCaFile          = "testdata/ca.pem"
+		localServerCertFile  = "testdata/server-cert.pem"
+		localServerKeyFile   = "testdata/server-key.pem"
+	)
+
+	caCertPEM, err := ioutil.ReadFile(localCaFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	caPool := x509.NewCertPool()
+	if ok := caPool.AppendCertsFromPEM(caCertPEM); !ok {
+		t.Fatal("failed to parse CA cert")
+	}
+
+	cert, err := tls.LoadX509KeyPair(localServerCertFile, localServerKeyFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Set up Environment
+	clientCert, err := readCertFromFile(localClientCertFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = os.Setenv("CLIENT_CERT_ENV", string(clientCert))
+	if err != nil {
+		t.Fatal(err)
+	}
+	clientKey, err := readKeyFromFile(localClientKeyFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = os.Setenv("CLIENT_KEY_ENV", string(clientKey))
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = os.Setenv("CLIENT_CA_ENV", string(caCertPEM))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Replicating some of what happens in the server's HTTPS listener
+	s := getTLSTestServer()
+	s.TLS = &tls.Config{
+		Certificates: []tls.Certificate{cert},
+		ClientAuth:   tls.RequireAndVerifyClientCert,
+		ClientCAs:    caPool,
+	}
+	s.StartTLS()
+	defer s.Close()
+
+	m := metrics.New()
+	q := NewQuery(ast.MustParseBody(fmt.Sprintf(`http.send({"method": "get", "url": "%s", "headers": {"User-Agent": "AuthZPolicy/0.0.1", "X-Opa": "server"}, "tls_ca_cert_env_variable": "CLIENT_CA_ENV", "tls_client_cert_env_variable": "CLIENT_CERT_ENV", "tls_client_key_env_variable": "CLIENT_KEY_ENV"})`, s.URL))).WithMetrics(m)
+
+	// cold cache
+	_, err = q.Run(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// cache hit
+	_, err = q.Run(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	actual := m.Counter(httpSendClientCacheMetricKey).Value().(uint64)
+	expected := uint64(1)
+	if actual != expected {
+		t.Fatalf("expected value for http.send client cache hit metric %v but got %v", expected, actual)
+	}
+
+	// update the client cert and key
+	clientCert, err = readCertFromFile(localClientCert2File)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = os.Setenv("CLIENT_CERT_ENV", string(clientCert))
+	if err != nil {
+		t.Fatal(err)
+	}
+	clientKey, err = readKeyFromFile(localClientKey2File)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = os.Setenv("CLIENT_KEY_ENV", string(clientKey))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// cache invalidation
+	_, err = q.Run(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// cache hit
+	_, err = q.Run(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	actual = m.Counter(httpSendClientCacheMetricKey).Value().(uint64)
+	expected = uint64(2)
+	if actual != expected {
+		t.Fatalf("expected value for http.send client cache hit metric %v but got %v", expected, actual)
+	}
+}
+
+func TestHTTPSendClientCacheFileUpdate(t *testing.T) {
+	const (
+		localClientCertFile  = "testdata/client-cert.pem"
+		localClientCert2File = "testdata/client-cert-2.pem"
+		localClientKeyFile   = "testdata/client-key.pem"
+		localClientKey2File  = "testdata/client-key-2.pem"
+		localCaFile          = "testdata/ca.pem"
+		localServerCertFile  = "testdata/server-cert.pem"
+		localServerKeyFile   = "testdata/server-key.pem"
+	)
+
+	caCertPEM, err := ioutil.ReadFile(localCaFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	caPool := x509.NewCertPool()
+	if ok := caPool.AppendCertsFromPEM(caCertPEM); !ok {
+		t.Fatal("failed to parse CA cert")
+	}
+
+	cert, err := tls.LoadX509KeyPair(localServerCertFile, localServerKeyFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Set up Environment
+	clientCert, err := readCertFromFile(localClientCertFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	clientKey, err := readKeyFromFile(localClientKeyFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	files := map[string]string{
+		"client-cert.pem": string(clientCert),
+		"client-key.pem":  string(clientKey),
+		"ca.pem":          string(caCertPEM),
+	}
+
+	// Replicating some of what happens in the server's HTTPS listener
+	s := getTLSTestServer()
+	s.TLS = &tls.Config{
+		Certificates: []tls.Certificate{cert},
+		ClientAuth:   tls.RequireAndVerifyClientCert,
+		ClientCAs:    caPool,
+	}
+	s.StartTLS()
+	defer s.Close()
+
+	test.WithTempFS(files, func(path string) {
+		clientCertPath := filepath.Join(path, "client-cert.pem")
+		clientKeyPath := filepath.Join(path, "client-key.pem")
+		caCertPath := filepath.Join(path, "ca.pem")
+
+		m := metrics.New()
+		q := NewQuery(ast.MustParseBody(fmt.Sprintf(`http.send({"method": "get", "url": "%s", "tls_ca_cert_file": "%s", "tls_client_cert_file": "%s", "tls_client_key_file": "%s"})`, s.URL, caCertPath, clientCertPath, clientKeyPath))).WithMetrics(m)
+
+		// cold cache
+		_, err = q.Run(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// cache hit
+		_, err = q.Run(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		actual := m.Counter(httpSendClientCacheMetricKey).Value().(uint64)
+		expected := uint64(1)
+		if actual != expected {
+			t.Fatalf("expected value for http.send client cache hit metric %v but got %v", expected, actual)
+		}
+
+		// update the client cert and key on disk
+		clientCert, err = readCertFromFile(localClientCert2File)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		clientKey, err = readKeyFromFile(localClientKey2File)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if err := ioutil.WriteFile(filepath.Join(path, "client-cert.pem"), clientCert, 0600); err != nil {
+			t.Fatalf("Unexpected error: %s", err)
+		}
+
+		if err := ioutil.WriteFile(filepath.Join(path, "client-key.pem"), clientKey, 0600); err != nil {
+			t.Fatalf("Unexpected error: %s", err)
+		}
+
+		// cache invalidation
+		_, err = q.Run(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// cache hit
+		_, err = q.Run(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		actual = m.Counter(httpSendClientCacheMetricKey).Value().(uint64)
+		expected = uint64(2)
+		if actual != expected {
+			t.Fatalf("expected value for http.send client cache hit metric %v but got %v", expected, actual)
+		}
+	})
 }
