@@ -787,7 +787,7 @@ func ShallowInlining(yes bool) func(r *Rego) {
 // rules generated from policy. Synthetic support rules are still namespaced.
 func SkipPartialNamespace(yes bool) func(r *Rego) {
 	return func(r *Rego) {
-		r.skipPartialNamespace = true
+		r.skipPartialNamespace = yes
 	}
 }
 
