@@ -25,6 +25,16 @@ func builtinLookupIPAddr(bctx BuiltinContext, operands []*ast.Term, iter func(*a
 
 	addrs, err := resolv.LookupIPAddr(bctx.Context, string(name))
 	if err != nil {
+		// NOTE(sr): We can't do better than this right now, see https://github.com/golang/go/issues/36208
+		if err.Error() == "operation was canceled" || err.Error() == "i/o timeout" {
+			return Halt{
+				Err: &Error{
+					Code:     CancelErr,
+					Message:  ast.NetLookupIPAddr.Name + ": " + err.Error(),
+					Location: bctx.Location,
+				},
+			}
+		}
 		return err
 	}
 

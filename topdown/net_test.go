@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/foxcpp/go-mockdns"
 
@@ -98,6 +99,43 @@ func TestNetLookupIPAddr(t *testing.T) {
 			}
 			if testing.Verbose() {
 				t.Log(err)
+			}
+		})
+	}
+
+	cancelled := func() context.Context {
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		return ctx
+	}
+	timedOut := func() context.Context {
+		ctx, _ := context.WithTimeout(context.Background(), time.Nanosecond) // nolint
+		return ctx
+	}
+
+	for name, ctx := range map[string]func() context.Context{
+		"cancelled": cancelled,
+		"timed out": timedOut,
+	} {
+		t.Run(name, func(t *testing.T) {
+			bctx := BuiltinContext{
+				Context: ctx(),
+				Cache:   make(builtins.Cache),
+			}
+			srv.PatchNet(resolv)
+			err := builtinLookupIPAddr(bctx, []*ast.Term{ast.StringTerm("example.org")}, func(*ast.Term) error {
+				t.Fatal("expected not to be called")
+				return nil
+			})
+			if err == nil {
+				t.Fatal("expected error")
+			}
+			_, ok := err.(Halt)
+			if !ok {
+				t.Errorf("expected Halt error, got %v (%[1]T)", err)
+			}
+			if !IsCancel(err) {
+				t.Errorf("expected wrapped Cancel error, got %v (%[1]T)", err)
 			}
 		})
 	}
