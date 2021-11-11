@@ -1,8 +1,6 @@
 package topdown
 
 import (
-	"errors"
-	"fmt"
 	"net"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -10,6 +8,9 @@ import (
 )
 
 type lookupIPAddrCacheKey string
+
+// resolv is the same as net.DefaultResolver -- this is for mocking it out in tests
+var resolv = &net.Resolver{}
 
 func builtinLookupIPAddr(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	name, err := builtins.StringOperand(operands[0].Value, 1)
@@ -22,17 +23,8 @@ func builtinLookupIPAddr(bctx BuiltinContext, operands []*ast.Term, iter func(*a
 		return iter(val.(*ast.Term))
 	}
 
-	addrs, err := net.DefaultResolver.LookupIPAddr(bctx.Context, string(name))
+	addrs, err := resolv.LookupIPAddr(bctx.Context, string(name))
 	if err != nil {
-		var derr *net.DNSError
-		if errors.As(err, &derr) && derr.Temporary() {
-			return Halt{
-				Err: &Error{
-					Code:    BuiltinErr,
-					Message: fmt.Sprintf("%s: %s", ast.NetLookupIPAddr.Name, derr.Error()),
-				},
-			}
-		}
 		return err
 	}
 
