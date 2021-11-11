@@ -43,6 +43,9 @@ github.com/dustin/go-humanize
 # github.com/fortytw2/leaktest v1.3.0
 ## explicit
 github.com/fortytw2/leaktest
+# github.com/foxcpp/go-mockdns v0.0.0-20210729171921-fb145fc6f897
+## explicit
+github.com/foxcpp/go-mockdns
 # github.com/fsnotify/fsnotify v1.5.1
 ## explicit
 github.com/fsnotify/fsnotify
@@ -96,6 +99,9 @@ github.com/klauspost/compress/zstd/internal/xxhash
 github.com/mattn/go-runewidth
 # github.com/matttproud/golang_protobuf_extensions v1.0.1
 github.com/matttproud/golang_protobuf_extensions/pbutil
+# github.com/miekg/dns v1.1.43
+## explicit
+github.com/miekg/dns
 # github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e
 ## explicit
 # github.com/olekukonko/tablewriter v0.0.5
@@ -167,16 +173,21 @@ go.opencensus.io/trace/tracestate
 go.uber.org/automaxprocs/internal/cgroups
 go.uber.org/automaxprocs/internal/runtime
 go.uber.org/automaxprocs/maxprocs
-# golang.org/x/net v0.0.0-20210825183410-e898025ed96a
+# golang.org/x/net v0.0.0-20211111083644-e5c967477495
 ## explicit
+golang.org/x/net/bpf
 golang.org/x/net/http/httpguts
 golang.org/x/net/http2
 golang.org/x/net/http2/h2c
 golang.org/x/net/http2/hpack
 golang.org/x/net/idna
+golang.org/x/net/internal/iana
+golang.org/x/net/internal/socket
 golang.org/x/net/internal/timeseries
+golang.org/x/net/ipv4
+golang.org/x/net/ipv6
 golang.org/x/net/trace
-# golang.org/x/sys v0.0.0-20210823070655-63515b42dcdf
+# golang.org/x/sys v0.0.0-20211110154304-99a53858aa08
 ## explicit
 golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/unix
