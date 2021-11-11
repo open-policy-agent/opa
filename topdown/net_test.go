@@ -1,3 +1,10 @@
+// Copyright 2021 The OPA Authors.  All rights reserved.
+// Use of this source code is governed by an Apache2
+// license that can be found in the LICENSE file.
+
+//go:build !race
+// +build !race
+
 package topdown
 
 import (
@@ -12,6 +19,9 @@ import (
 	"github.com/open-policy-agent/opa/topdown/builtins"
 )
 
+// TestNetLookupIPAddr replaces the resolver used by builtinLookupIPAddr.
+// Due to some intricacies of the net/LookupIP internals, it seems impossible
+// to do that in a way that passes the race detector.
 func TestNetLookupIPAddr(t *testing.T) {
 	srv, err := mockdns.NewServerWithLogger(map[string]mockdns.Zone{
 		"v4.org.": {
@@ -31,13 +41,14 @@ func TestNetLookupIPAddr(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() { srv.Close() })
 
 	srvFail, err := mockdns.NewServerWithLogger(map[string]mockdns.Zone{}, sink{}, true)
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { srvFail.Close() })
-	t.Cleanup(func() { mutateResolver(mockdns.UnpatchNet) })
+	t.Cleanup(func() { mockdns.UnpatchNet(resolv) })
 
 	for addr, exp := range map[string]ast.Set{
 		"v4.org":    ast.NewSet(ast.StringTerm("1.2.3.4")),
@@ -45,11 +56,13 @@ func TestNetLookupIPAddr(t *testing.T) {
 		"v4-v6.org": ast.NewSet(ast.StringTerm("1.2.3.4"), ast.StringTerm("1:2:3::4")),
 	} {
 		t.Run(addr, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
 			bctx := BuiltinContext{
-				Context: context.Background(),
+				Context: ctx,
 				Cache:   make(builtins.Cache),
 			}
-			mutateResolver(srv.PatchNet)
+			srv.PatchNet(resolv)
 			err := builtinLookupIPAddr(bctx, []*ast.Term{ast.StringTerm(addr)}, func(act *ast.Term) error {
 				if exp.Compare(act.Value) != 0 {
 					t.Errorf("expected %v, got %v", exp, act)
@@ -70,7 +83,7 @@ func TestNetLookupIPAddr(t *testing.T) {
 			}
 
 			// exercise cache hit
-			mutateResolver(srvFail.PatchNet)
+			srvFail.PatchNet(resolv)
 			err = builtinLookupIPAddr(bctx, []*ast.Term{ast.StringTerm(addr)}, func(act *ast.Term) error {
 				if exp.Compare(act.Value) != 0 {
 					t.Errorf("expected %v, got %v", exp, act)
@@ -85,11 +98,13 @@ func TestNetLookupIPAddr(t *testing.T) {
 
 	for _, addr := range []string{"error.org", "nosuch.org"} {
 		t.Run(addr, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
 			bctx := BuiltinContext{
-				Context: context.Background(),
+				Context: ctx,
 				Cache:   make(builtins.Cache),
 			}
-			mutateResolver(srv.PatchNet)
+			srv.PatchNet(resolv)
 			err := builtinLookupIPAddr(bctx, []*ast.Term{ast.StringTerm(addr)}, func(*ast.Term) error {
 				t.Fatal("expected not to be called")
 				return nil
@@ -103,26 +118,27 @@ func TestNetLookupIPAddr(t *testing.T) {
 		})
 	}
 
-	cancelled := func() context.Context {
+	cancelled := func() (context.Context, func()) {
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
-		return ctx
+		return ctx, cancel
 	}
-	timedOut := func() context.Context {
-		ctx, _ := context.WithTimeout(context.Background(), time.Nanosecond) // nolint
-		return ctx
+	timedOut := func() (context.Context, func()) {
+		return context.WithTimeout(context.Background(), time.Nanosecond)
 	}
 
-	for name, ctx := range map[string]func() context.Context{
+	for name, ctx := range map[string]func() (context.Context, func()){
 		"cancelled": cancelled,
 		"timed out": timedOut,
 	} {
 		t.Run(name, func(t *testing.T) {
+			ctx, cancel := ctx()
+			defer cancel()
 			bctx := BuiltinContext{
-				Context: ctx(),
+				Context: ctx,
 				Cache:   make(builtins.Cache),
 			}
-			mutateResolver(srv.PatchNet)
+			srv.PatchNet(resolv)
 			err := builtinLookupIPAddr(bctx, []*ast.Term{ast.StringTerm("example.org")}, func(*ast.Term) error {
 				t.Fatal("expected not to be called")
 				return nil
