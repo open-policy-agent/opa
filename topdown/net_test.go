@@ -37,7 +37,7 @@ func TestNetLookupIPAddr(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { srvFail.Close() })
-	t.Cleanup(func() { mockdns.UnpatchNet(resolv) })
+	t.Cleanup(func() { mutateResolver(mockdns.UnpatchNet) })
 
 	for addr, exp := range map[string]ast.Set{
 		"v4.org":    ast.NewSet(ast.StringTerm("1.2.3.4")),
@@ -49,7 +49,7 @@ func TestNetLookupIPAddr(t *testing.T) {
 				Context: context.Background(),
 				Cache:   make(builtins.Cache),
 			}
-			srv.PatchNet(resolv)
+			mutateResolver(srv.PatchNet)
 			err := builtinLookupIPAddr(bctx, []*ast.Term{ast.StringTerm(addr)}, func(act *ast.Term) error {
 				if exp.Compare(act.Value) != 0 {
 					t.Errorf("expected %v, got %v", exp, act)
@@ -70,7 +70,7 @@ func TestNetLookupIPAddr(t *testing.T) {
 			}
 
 			// exercise cache hit
-			srvFail.PatchNet(resolv)
+			mutateResolver(srvFail.PatchNet)
 			err = builtinLookupIPAddr(bctx, []*ast.Term{ast.StringTerm(addr)}, func(act *ast.Term) error {
 				if exp.Compare(act.Value) != 0 {
 					t.Errorf("expected %v, got %v", exp, act)
@@ -89,7 +89,7 @@ func TestNetLookupIPAddr(t *testing.T) {
 				Context: context.Background(),
 				Cache:   make(builtins.Cache),
 			}
-			srv.PatchNet(resolv)
+			mutateResolver(srv.PatchNet)
 			err := builtinLookupIPAddr(bctx, []*ast.Term{ast.StringTerm(addr)}, func(*ast.Term) error {
 				t.Fatal("expected not to be called")
 				return nil
@@ -122,7 +122,7 @@ func TestNetLookupIPAddr(t *testing.T) {
 				Context: ctx(),
 				Cache:   make(builtins.Cache),
 			}
-			srv.PatchNet(resolv)
+			mutateResolver(srv.PatchNet)
 			err := builtinLookupIPAddr(bctx, []*ast.Term{ast.StringTerm("example.org")}, func(*ast.Term) error {
 				t.Fatal("expected not to be called")
 				return nil
