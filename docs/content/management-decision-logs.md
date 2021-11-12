@@ -75,6 +75,25 @@ Decision log updates contain the following fields:
 | `[_].erased` | `array[string]` | Set of JSON Pointers specifying fields in the event that were erased. |
 | `[_].masked` | `array[string]` | Set of JSON Pointers specifying fields in the event that were masked. |
 
+If the decision log was successfully uploaded to the remote service, it should respond with an HTTP 200 OK status. If the
+service responds with a non-200 OK status, OPA will requeue the last chunk containing decision log events and upload it
+during the next upload event. OPA also performs an exponential backoff to calculate the delay in uploading the next chunk
+when the remote service responds with a non-200 OK status.
+
+OPA periodically uploads decision logs to the remote service. In order to conserve network and memory resources, OPA
+attempts to fill up each upload chunk with as many events as possible while respecting the user-specified
+`upload_size_limit_bytes` config option. OPA defines an adaptive (`soft`) limit that acts as a measure for encoding
+as many decisions into each chunk as possible. It uses the below algorithm to optimize the number of log events to
+include in a chunk. The algorithm features three phases namely:
+
+`Scale Up`: If the current chunk size is within 90% of the user-configured (`hard`) limit, exponentially increase the
+soft limit. The exponential function is 2^x where x has a minimum value of 1
+
+`Scale Down`: If the current chunk size exceeds the hard limit, decrease the soft limit and re-encode the decisions in
+the last chunk.
+
+`Equilibrium`: If the chunk size is between 90% and 100% of the user-configured limit, maintain soft limit value.
+
 ### Local Decision Logs
 
 Local console logging of decisions can be enabled via the `console` config option.
@@ -225,3 +244,12 @@ to track **remove** vs **upsert** mask operations.
   "timestamp": "2019-06-03T20:07:16.939402185Z"
 }
 ```
+
+### Rate Limiting Decision Logs
+
+There are scenarios where OPA may be uploading decisions faster than what the remote service is able to consume. Although
+OPA provides a user-specified buffer size limit in bytes, it may be difficult to determine the ideal buffer size that will
+allow the service to consume logs without being overwhelmed. The `max_decisions_per_second` config option allows users
+to set the maximum number of decision log events to buffer per second. OPA will drop events if the rate limit is exceeded.
+This option provides users more control over how OPA buffers log events and is an effective mechanism to make sure the
+service can successfully process incoming log events.
