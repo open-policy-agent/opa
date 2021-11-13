@@ -713,6 +713,7 @@ var ArraySlice = &Builtin{
 	),
 }
 
+// ArrayReverse returns a given array, reversed
 var ArrayReverse = &Builtin{
 	Name: "array.reverse",
 	Decl: types.NewFunction(

@@ -428,8 +428,7 @@ func builtinReverse(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Te
 		index++
 	}
 
-	var reversedString ast.String
-	reversedString = ast.String(sRunes)
+	var reversedString ast.String = ast.String(sRunes)
 
 	return iter(ast.StringTerm(reversedString.String()))
 
