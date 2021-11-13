@@ -128,6 +128,7 @@ var DefaultBuiltins = [...]*Builtin{
 	TrimSuffix,
 	TrimSpace,
 	Sprintf,
+	Reverse,
 
 	// Numbers
 	NumbersRange,
@@ -1080,6 +1081,17 @@ var Sprintf = &Builtin{
 		types.Args(
 			types.S,
 			types.NewArray(nil, types.A),
+		),
+		types.S,
+	),
+}
+
+// Reverse returns the given string, reversed.
+var Reverse = &Builtin{
+	Name: "reverse",
+	Decl: types.NewFunction(
+		types.Args(
+			types.S,
 		),
 		types.S,
 	),
