@@ -256,6 +256,7 @@ func useSocket(rawURL string, tlsConfig *tls.Config) (bool, string, *http.Transp
 		return http.DefaultTransport.(*http.Transport).DialContext(ctx, u.Scheme, v.Get("socket"))
 	}
 	tr.TLSClientConfig = tlsConfig
+	tr.DisableKeepAlives = true
 
 	rawURL = strings.Replace(rawURL, "unix:", "http:", 1)
 	return true, rawURL, tr
@@ -500,6 +501,7 @@ func createHTTPRequest(bctx BuiltinContext, obj ast.Object) (*http.Request, *htt
 		} else {
 			tr := http.DefaultTransport.(*http.Transport).Clone()
 			tr.TLSClientConfig = &tlsConfig
+			tr.DisableKeepAlives = true
 			client.Transport = tr
 		}
 	} else {
@@ -618,10 +620,10 @@ func insertIntoHTTPSendCache(bctx BuiltinContext, key ast.Object, value ast.Valu
 }
 
 // checkHTTPSendInterQueryCache checks for the given key's value in the inter-query cache
-func checkHTTPSendInterQueryCache(bctx BuiltinContext, key ast.Object, req *http.Request, client *http.Client, forceJSONDecode bool, cacheParams *forceCacheParams) (ast.Value, error) {
-	requestCache := bctx.InterQueryBuiltinCache
+func (c *interQueryCache) checkHTTPSendInterQueryCache() (ast.Value, error) {
+	requestCache := c.bctx.InterQueryBuiltinCache
 
-	value, found := requestCache.Get(key)
+	value, found := requestCache.Get(c.key)
 	if !found {
 		return nil, nil
 	}
@@ -647,15 +649,20 @@ func checkHTTPSendInterQueryCache(bctx BuiltinContext, key ast.Object, req *http
 	}
 
 	// check the freshness of the cached response
-	if isCachedResponseFresh(bctx, headers, cacheParams) {
-		return cachedRespData.formatToAST(forceJSONDecode)
+	if isCachedResponseFresh(c.bctx, headers, c.forceCacheParams) {
+		return cachedRespData.formatToAST(c.forceJSONDecode)
+	}
+
+	c.httpReq, c.httpClient, err = createHTTPRequest(c.bctx, c.key)
+	if err != nil {
+		return nil, handleHTTPSendErr(c.bctx, err)
 	}
 
 	// check with the server if the stale response is still up-to-date.
 	// If server returns a new response (ie. status_code=200), update the cache with the new response
 	// If server returns an unmodified response (ie. status_code=304), update the headers for the existing response
-	result, modified, err := revalidateCachedResponse(req, client, headers)
-	requestCache.Delete(key)
+	result, modified, err := revalidateCachedResponse(c.httpReq, c.httpClient, headers)
+	requestCache.Delete(c.key)
 	if err != nil || result == nil {
 		return nil, err
 	}
@@ -671,7 +678,7 @@ func checkHTTPSendInterQueryCache(bctx BuiltinContext, key ast.Object, req *http
 			}
 		}
 
-		cachingMode, err := getCachingMode(key)
+		cachingMode, err := getCachingMode(c.key)
 		if err != nil {
 			return nil, err
 		}
@@ -687,17 +694,17 @@ func checkHTTPSendInterQueryCache(bctx BuiltinContext, key ast.Object, req *http
 			pcv = cachedRespData
 		}
 
-		bctx.InterQueryBuiltinCache.Insert(key, pcv)
+		c.bctx.InterQueryBuiltinCache.Insert(c.key, pcv)
 
-		return cachedRespData.formatToAST(forceJSONDecode)
+		return cachedRespData.formatToAST(c.forceJSONDecode)
 	}
 
-	newValue, respBody, err := formatHTTPResponseToAST(result, forceJSONDecode)
+	newValue, respBody, err := formatHTTPResponseToAST(result, c.forceJSONDecode)
 	if err != nil {
 		return nil, err
 	}
 
-	err = insertIntoHTTPSendInterQueryCache(bctx, key, result, respBody, cacheParams != nil)
+	err = insertIntoHTTPSendInterQueryCache(c.bctx, c.key, result, respBody, c.forceCacheParams != nil)
 	if err != nil {
 		return nil, err
 	}
@@ -1188,23 +1195,19 @@ func newInterQueryCache(bctx BuiltinContext, key ast.Object, forceCacheParams *f
 func (c *interQueryCache) CheckCache() (ast.Value, error) {
 	var err error
 
-	c.httpReq, c.httpClient, err = createHTTPRequest(c.bctx, c.key)
-	if err != nil {
-		return nil, handleHTTPSendErr(c.bctx, err)
-	}
-
 	c.forceJSONDecode, err = getBoolValFromReqObj(c.key, ast.StringTerm("force_json_decode"))
 	if err != nil {
 		return nil, handleHTTPSendErr(c.bctx, err)
 	}
 
-	resp, err := checkHTTPSendInterQueryCache(c.bctx, c.key, c.httpReq, c.httpClient, c.forceJSONDecode, c.forceCacheParams)
+	resp, err := c.checkHTTPSendInterQueryCache()
 
 	// fallback to the http send cache if response not found in the inter-query cache or inter-query cache look-up results
 	// in an error
 	if resp == nil || err != nil {
 		return checkHTTPSendCache(c.bctx, c.key), nil
 	}
+
 	return resp, err
 }
 
@@ -1225,6 +1228,12 @@ func (c *interQueryCache) InsertIntoCache(value *http.Response) (ast.Value, erro
 
 // ExecuteHTTPRequest executes a HTTP request
 func (c *interQueryCache) ExecuteHTTPRequest() (*http.Response, error) {
+	var err error
+	c.httpReq, c.httpClient, err = createHTTPRequest(c.bctx, c.key)
+	if err != nil {
+		return nil, handleHTTPSendErr(c.bctx, err)
+	}
+
 	return executeHTTPRequest(c.httpReq, c.httpClient)
 }
 
