@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/ast/location"
 )
 
 func TestFormatNilLocation(t *testing.T) {
@@ -39,6 +40,21 @@ func TestFormatNilLocationEmptyBody(t *testing.T) {
 	x, err := Ast(b)
 	if len(x) != 0 || err != nil {
 		t.Fatalf("Expected empty result but got: %q, err: %v", string(x), err)
+	}
+}
+
+func TestFormatNilLocationFunctionArgs(t *testing.T) {
+	b := ast.NewBody()
+	s := ast.StringTerm(" ")
+	s.SetLocation(location.NewLocation([]byte("foo"), "p.rego", 2, 2))
+	b.Append(ast.Split.Expr(ast.NewTerm(ast.Var("__local1__")), s, ast.NewTerm(ast.Var("__local2__"))))
+	exp := "split(__local1__, \" \", __local2__)\n"
+	bs, err := Ast(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(bs) != exp {
+		t.Fatalf("Expected %q but got %q", exp, string(bs))
 	}
 }
 
