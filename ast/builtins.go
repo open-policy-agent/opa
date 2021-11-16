@@ -230,13 +230,14 @@ var DefaultBuiltins = [...]*Builtin{
 	// Tracing
 	Trace,
 
-	// CIDR
+	// Networking
 	NetCIDROverlap,
 	NetCIDRIntersects,
 	NetCIDRContains,
 	NetCIDRContainsMatches,
 	NetCIDRExpand,
 	NetCIDRMerge,
+	NetLookupIPAddr,
 
 	// Glob
 	GlobMatch,
@@ -269,6 +270,7 @@ var IgnoreDuringPartialEval = []*Builtin{
 	HTTPSend,
 	UUIDRFC4122,
 	RandIntn,
+	NetLookupIPAddr,
 }
 
 /**
@@ -2144,7 +2146,7 @@ var GlobQuoteMeta = &Builtin{
 }
 
 /**
- * Net CIDR
+ * Networking
  */
 
 // NetCIDRIntersects checks if a cidr intersects with another cidr and returns true or false
@@ -2223,6 +2225,17 @@ var netCidrContainsMatchesOperandType = types.NewAny(
 		),
 	)),
 )
+
+// NetLookupIPAddr returns the set of IP addresses (as strings, both v4 and v6)
+// that the passed-in name (string) resolves to using the standard name resolution
+// mechanisms available.
+var NetLookupIPAddr = &Builtin{
+	Name: "net.lookup_ip_addr",
+	Decl: types.NewFunction(
+		types.Args(types.S),
+		types.NewSet(types.S),
+	),
+}
 
 /**
  * Semantic Versions
