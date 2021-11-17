@@ -1783,6 +1783,49 @@ them to avoid naming conflicts, e.g., `org.example.special_func`.
 See the [Policy Reference](../policy-reference#built-in-functions) document for
 details on each built-in function.
 
+### Errors
+
+By default, built-in function calls that encounter runtime errors evaluate to
+undefined (which can usually be treated as `false`) and do not halt policy
+evaluation. This ensures that built-in functions can be called with invalid
+inputs without causing the entire policy to stop evaluating.
+
+In most cases, policies do not have to implement any kind of error handling
+logic. If error handling is required, the built-in function call can be negated
+to test for undefined. For example:
+
+```live:eg/errors:module:merge_down
+allow {
+  io.jwt.verify_hs256(input.token, "secret")
+  [_, payload, _] := io.jwt.decode(input.token)
+  payload.role == "admin"
+}
+
+reason["invalid JWT supplied as input"] {
+  not io.jwt.decode(input.token)
+}
+```
+```live:eg/errors:input:merge_down
+{
+    "token": "a poorly formatted token"
+}
+```
+```live:eg/errors:output
+```
+
+If you wish to disable this behaviour and instead have built-in function call
+errors treated as exceptions that halt policy evaluation enable "strict built-in
+errors" in the caller:
+
+API | Flag
+--- | ---
+`POST v1/data` (HTTP) | `strict-builtin-errors` query parameter
+`GET v1/data` (HTTP) | `strict-builtin-errors` query parameter
+`opa eval` (CLI) | `--strict-builtin-errors`
+`opa run` (REPL) | `> strict-builtin-errors`
+`rego` Go module | `rego.StrictBuiltinErrors(true)` option
+Wasm | Not Available
+
 ## Example Data
 
 The rules below define the content of documents describing a simplistic deployment environment. These documents are referenced in other sections above.
