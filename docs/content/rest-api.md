@@ -730,6 +730,7 @@ The path separator is used to access values inside object and array documents. I
 - **explain** - Return query explanation in addition to result. Values: **full**.
 - **metrics** - Return query performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
 - **instrument** - Instrument query evaluation and return a superset of performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
+- **strict-builtin-errors** - Treat built-in function call errors as fatal and return an error immediately.
 
 #### Status Codes
 
@@ -830,6 +831,7 @@ The request body contains an object that specifies a value for [The input Docume
 - **explain** - Return query explanation in addition to result. Values: **full**.
 - **metrics** - Return query performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
 - **instrument** - Instrument query evaluation and return a superset of performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
+- **strict-builtin-errors** - Treat built-in function call errors as fatal and return an error immediately.
 
 #### Status Codes
 
