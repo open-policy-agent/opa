@@ -778,6 +778,7 @@ func (o *optimizer) getSupportForEntrypoint(queries []ast.Body, e *ast.Term, res
 			return stop
 		})
 		if stop {
+			o.debug.Printf("optimizer: entrypoint: %v: discard due to self-reference", e)
 			return nil
 		}
 		module.Rules = append(module.Rules, &ast.Rule{
