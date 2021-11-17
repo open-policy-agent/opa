@@ -853,6 +853,20 @@ func (w *writer) listWriter() entryWriter {
 // groupIterable will group the `elements` slice into slices according to their
 // location: anything on the same line will be put into a slice.
 func groupIterable(elements []interface{}, last *ast.Location) [][]interface{} {
+	// Generated vars occur in the AST when we're rendering the result of
+	// partial evaluation in a bundle build with optimization. For those vars,
+	// there is no location, and the grouping based on source location will
+	// yield a bad result. So if there's a generated variable among elements,
+	// we'll render the elements all in one line.
+	vis := ast.NewVarVisitor()
+	for _, elem := range elements {
+		vis.Walk(elem)
+	}
+	for v := range vis.Vars() {
+		if v.IsGenerated() {
+			return [][]interface{}{elements}
+		}
+	}
 	sort.Slice(elements, func(i, j int) bool {
 		return locLess(elements[i], elements[j])
 	})
