@@ -1233,9 +1233,9 @@ func TestCompilerExprExpansion(t *testing.T) {
 			note:  "sets",
 			input: `{f(x), {g(x)}}`,
 			expected: []*Expr{
-				MustParseExpr("f(x, __local0__)"),
-				MustParseExpr("g(x, __local1__)"),
-				MustParseExpr("{__local0__, {__local1__,}}"),
+				MustParseExpr("g(x, __local0__)"),
+				MustParseExpr("f(x, __local1__)"),
+				MustParseExpr("{__local1__, {__local0__,}}"),
 			},
 		},
 		{
