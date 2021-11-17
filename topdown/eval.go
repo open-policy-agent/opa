@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/internal/distributedtracing"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/topdown/builtins"
@@ -80,6 +81,7 @@ type eval struct {
 	runtime                *ast.Term
 	builtinErrors          *builtinErrors
 	printHook              print.Hook
+	distributedTracingOpts distributedtracing.Options
 }
 
 func (e *eval) Run(iter evalIterator) error {
@@ -668,6 +670,7 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 		QueryID:                e.queryID,
 		ParentID:               parentID,
 		PrintHook:              e.printHook,
+		DistributedTracingOpts: e.distributedTracingOpts,
 	}
 
 	eval := evalBuiltin{
