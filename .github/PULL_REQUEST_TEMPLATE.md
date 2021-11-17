@@ -19,14 +19,11 @@ you changed. Use active voice. Keep the subject line under 50
 characters or so.
 
 * All commits must be signed off by the author. If you are not
-familiar with signing off, see CONTRIBUTING.md below.
+familiar with signing off, see our contributor guide below.
 
 For more information on contributing to OPA see:
 
-* [CONTRIBUTING.md](https://github.com/open-policy-agent/opa/blob/main/CONTRIBUTING.md)
-  for high-level contribution guidelines.
-
-* [DEVELOPMENT.md](https://github.com/open-policy-agent/opa/blob/main/docs/devel/DEVELOPMENT.md)
-  for development workflow and environment setup.
+* [Contributing Guide](https://www.openpolicyagent.org/docs/latest/contributing/)
+  for high-level contributing guidelines and development setup.
 
 -->
