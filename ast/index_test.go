@@ -912,3 +912,369 @@ func TestSkipIndexing(t *testing.T) {
 		t.Fatalf("Expected else to be %v but got: %v", expectedElse[r0], result.Else[r0])
 	}
 }
+
+func TestBaseDocIndexResultEarlyExit(t *testing.T) {
+
+	tests := []struct {
+		note            string
+		module          *Module
+		input           string
+		disableIndexing bool
+		expectedRS      interface{}
+		expectedDR      *Rule
+		expectedEE      bool
+	}{
+		{
+			note:       "single rule",
+			expectedEE: true,
+			module: MustParseModule(`package test
+r {
+	input.x = 1
+}
+r = 3 {
+	input.y = 2
+}`),
+			input: `{"x": 1}`,
+			expectedRS: []string{
+				`r { input.x = 1 }`,
+			},
+		},
+		{
+			note:            "no early exit: two rules, indexing disabled",
+			disableIndexing: true,
+			expectedEE:      false,
+			module: MustParseModule(`package test
+r {
+	input.x = 1
+}
+r = 3 {
+	input.y = 2
+}`),
+			input: `{"x": 1}`,
+			expectedRS: []string{
+				`r = 3 { input.y = 2 }`,
+				`r { input.x = 1 }`,
+			},
+		},
+		{
+			note:            "two rules, indexing disabled",
+			disableIndexing: true,
+			expectedEE:      true,
+			module: MustParseModule(`package test
+r {
+	input.x = 1
+}
+r {
+	input.y = 2
+}`),
+			input: `{"x": 1}`,
+			expectedRS: []string{
+				`r { input.y = 2 }`,
+				`r { input.x = 1 }`,
+			},
+		},
+		{
+			note:       "no early exit: different constant value",
+			expectedEE: false,
+			module: MustParseModule(`package test
+r {
+	input.x = 1
+}
+r = 2 {
+	input.x = 1
+	input.y = 2
+}`),
+			input: `{"x": 1, "y": 2}`,
+			expectedRS: []string{
+				`r { input.x = 1 }`,
+				`r = 2 { input.x = 1; input.y = 2 }`,
+			},
+		},
+		{
+			note:       "same constant value",
+			expectedEE: true,
+			module: MustParseModule(`package test
+r {
+	input.x = 1
+}
+r {
+	input.y = 1
+}`),
+			input: `{"x": 1, "y": 1}`,
+		},
+		{
+			note:       "no early exit: one rule with with non-constant value",
+			expectedEE: false,
+			module: MustParseModule(`package test
+r {
+	input.x = 1
+}
+r = x {
+	input.y = 1
+	x = "foo"
+}`),
+			input: `{"x": 1, "y": 1}`,
+			expectedRS: []string{
+				`r { input.x = 1 }`,
+				`r = x { input.y = 1; x = "foo" }`,
+			},
+		},
+		{
+			note:       "same ref value (input)",
+			expectedEE: true,
+			module: MustParseModule(`package test
+r = input.a {
+	input.x = 1
+}
+r = input.a {
+	input.y = 1
+}`),
+			input: `{"x": 1, "y": 1}`,
+		},
+		{
+			note:       "same ref value (data)",
+			expectedEE: true,
+			module: MustParseModule(`package test
+r = data.a {
+	input.x = 1
+}
+r = data.a {
+	input.y = 1
+}`),
+			input: `{"x": 1, "y": 1}`,
+		},
+		{
+			note:       "else: same constant value",
+			expectedEE: true,
+			module: MustParseModule(`package test
+r {
+	input.x = 1
+}
+else {
+	true
+}
+r {
+	input.y = 1
+}`),
+			input: `{"x": 1, "y": 1}`,
+		},
+		{
+			note:       "else: no early exit: different constant value",
+			expectedEE: false,
+			module: MustParseModule(`package test
+r {
+	input.x = 1
+}
+else = false {
+	true
+}
+r {
+	input.y = 1
+}`),
+			input: `{"x": 1, "y": 1}`,
+			expectedRS: []string{
+				`r = true { input.x = 1 } else = false { true }`,
+				`r = true { input.y = 1 }`,
+			},
+		},
+		{
+			note:       "function: single rule",
+			expectedEE: true,
+			module: MustParseModule(`package test
+r(x) {
+	input.x = x
+}
+r = 3 {
+	input.y = 2
+}`),
+			input: `{"x": 1}`,
+			expectedRS: []string{
+				`r(x) { input.x = x }`,
+			},
+		},
+		{
+			note:       "function: no early exit: different constant value",
+			expectedEE: false,
+			module: MustParseModule(`package test
+r(x) {
+	input.x = x
+}
+r(y) = 2 {
+	input.x = 1
+	input.y = y
+}`),
+			input: `{"x": 1, "y": 2}`,
+			expectedRS: []string{
+				`r(x) { input.x = x }`,
+				`r(y) = 2 { input.x = 1; input.y = y }`,
+			},
+		},
+		{
+			note:       "function: same constant value",
+			expectedEE: true,
+			module: MustParseModule(`package test
+r(x) {
+	input.x = x
+}
+r(y) {
+	input.y = y
+}`),
+			input: `{"x": 1, "y": 1}`,
+		},
+		{
+			note:       "function: no early exit: one with with non-constant value",
+			expectedEE: false,
+			module: MustParseModule(`package test
+r(x) {
+	input.x = x
+}
+r(y) = x {
+	input.y = y
+	x = "foo"
+}`),
+			input: `{"x": 1, "y": 1}`,
+		},
+		{ // NOTE(sr): impossible, the compiler rewrites this
+			note:       "function: same ref value (input)",
+			expectedEE: true,
+			module: MustParseModule(`package test
+r(x) = input.a {
+	input.x = x
+}
+r(y) = input.a {
+	input.y = y
+}`),
+			input: `{"x": 1, "y": 1}`,
+		},
+		{ // NOTE(sr): impossible, the compiler rewrites this
+			note:       "function: same ref value (data)",
+			expectedEE: true,
+			module: MustParseModule(`package test
+r(x) = data.a {
+	input.x = x
+}
+r(y) = data.a {
+	input.y = y
+}`),
+			input: `{"x": 1, "y": 1}`,
+		},
+
+		// NOTE(sr): The remaining cases record the limitations of the current implementation:
+		// Any matching rules whose values contain non-constant values are not compared, and
+		// cancel early exit.
+		{
+
+			note:       "no early exit: same ref but bound to vars",
+			expectedEE: false,
+			module: MustParseModule(`package test
+r = v {
+	input.x = 1
+	v = input.a
+}
+r = v {
+	input.y = 1
+	v = input.a
+}`),
+			input: `{"x": 1, "y": 1, "a": "a"}`,
+			expectedRS: []string{
+				`r = v { input.x = 1; v = input.a }`,
+				`r = v { input.y = 1; v = input.a }`,
+			},
+		},
+		{
+			note:       "no early exit: same value but with non-ground",
+			expectedEE: false,
+			module: MustParseModule(`package test
+r = [1, {"a": v}] {
+	input.x = 1
+	v = "a"
+}
+r = [1, {"a": v}] {
+	input.y = 1
+	v = "a"
+}`),
+			input: `{"x": 1, "y": 1}`,
+			expectedRS: []string{
+				`r = [1, {"a": v}] { input.y = 1; v = "a" }`,
+				`r = [1, {"a": v}] { input.x = 1; v = "a" }`,
+			},
+		},
+		{
+			note:       "no early exit: one rule, set comprehension value",
+			expectedEE: false,
+			// NOTE(sr): this is what the indexer gets after rewriting
+			//     r = { i | i := data.arr[i] } { true }
+			module: MustParseModule(`package test
+r = local0 {
+	local0 = {i | i := data.arr[i]}
+}`),
+			input: `{}`,
+			expectedRS: []string{
+				`r = local0 { local0 = {i | i := data.arr[i]} }`,
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			rules := []*Rule{}
+			for _, rule := range tc.module.Rules {
+				if rule.Head.Name == Var("r") {
+					rules = append(rules, rule)
+				}
+			}
+
+			var input *Term
+			if tc.input != "" {
+				input = MustParseTerm(tc.input)
+			}
+
+			var expectedRS RuleSet
+
+			switch e := tc.expectedRS.(type) {
+			case []string:
+				for _, r := range e {
+					expectedRS.Add(MustParseRule(r))
+				}
+			case RuleSet:
+				expectedRS = e
+			}
+
+			index := newBaseDocEqIndex(func(Ref) bool {
+				return false
+			})
+
+			if !index.Build(rules) {
+				t.Fatalf("Expected index build to succeed")
+			}
+
+			var unknownRefs Set
+			var result *IndexResult
+			var err error
+			if tc.disableIndexing {
+				result, err = index.AllRules(testResolver{input: input, unknownRefs: unknownRefs})
+			} else {
+				result, err = index.Lookup(testResolver{input: input, unknownRefs: unknownRefs})
+			}
+			if err != nil {
+				t.Fatalf("Unexpected error during index lookup: %v", err)
+			}
+
+			if tc.expectedRS != nil && !NewRuleSet(result.Rules...).Equal(expectedRS) {
+				t.Errorf("Expected ruleset %v but got: %v", expectedRS, result.Rules)
+			}
+
+			if result.Default == nil && tc.expectedDR != nil {
+				t.Errorf("Expected default rule but got nil")
+			} else if result.Default != nil && tc.expectedDR == nil {
+				t.Errorf("Unexpected default rule %v", result.Default)
+			} else if result.Default != nil && tc.expectedDR != nil && !result.Default.Equal(tc.expectedDR) {
+				t.Errorf("Expected default rule %v but got: %v", tc.expectedDR, result.Default)
+			}
+
+			if exp, act := tc.expectedEE, result.EarlyExit; exp != act {
+				t.Errorf("expected 'early-exit' %v, got %v", exp, act)
+			}
+		})
+	}
+}

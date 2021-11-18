@@ -112,6 +112,7 @@ type EvalContext struct {
 	disableInlining        []ast.Ref
 	parsedUnknowns         []*ast.Term
 	indexing               bool
+	earlyExit              bool
 	interQueryBuiltinCache cache.InterQueryCache
 	resolvers              []refResolver
 	sortSets               bool
@@ -218,6 +219,14 @@ func EvalRuleIndexing(enabled bool) EvalOption {
 	}
 }
 
+// EvalEarlyExit will disable 'early exit' optimizations for the
+// evaluation. This should only be used when tracing in debug mode.
+func EvalEarlyExit(enabled bool) EvalOption {
+	return func(e *EvalContext) {
+		e.earlyExit = enabled
+	}
+}
+
 // EvalTime sets the wall clock time to use during policy evaluation.
 // time.now_ns() calls will return this value.
 func EvalTime(x time.Time) EvalOption {
@@ -291,6 +300,7 @@ func (pq preparedQuery) newEvalContext(ctx context.Context, options []EvalOption
 		parsedUnknowns:   pq.r.parsedUnknowns,
 		compiledQuery:    compiledQuery{},
 		indexing:         true,
+		earlyExit:        true,
 		resolvers:        pq.r.resolvers,
 		printHook:        pq.r.printHook,
 	}
@@ -1876,6 +1886,7 @@ func (r *Rego) eval(ctx context.Context, ectx *EvalContext) (ResultSet, error) {
 		WithInstrumentation(ectx.instrumentation).
 		WithRuntime(r.runtime).
 		WithIndexing(ectx.indexing).
+		WithEarlyExit(ectx.earlyExit).
 		WithInterQueryBuiltinCache(ectx.interQueryBuiltinCache).
 		WithStrictBuiltinErrors(r.strictBuiltinErrors).
 		WithSeed(ectx.seed).
@@ -2143,6 +2154,7 @@ func (r *Rego) partial(ctx context.Context, ectx *EvalContext) (*PartialQueries,
 		WithDisableInlining(ectx.disableInlining).
 		WithRuntime(r.runtime).
 		WithIndexing(ectx.indexing).
+		WithEarlyExit(ectx.earlyExit).
 		WithPartialNamespace(ectx.partialNamespace).
 		WithSkipPartialNamespace(r.skipPartialNamespace).
 		WithShallowInlining(r.shallowInlining).

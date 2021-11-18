@@ -4,15 +4,15 @@ cases:
   - |
     package generated
 
-    p {
+    p(_) {
       data.generated.q
     }
 
     q = true
 
     q = false
-  note: 'disjunction/complete: reference error'
-  query: data.generated.p = x
+  note: 'functions/nested complete doc with conflict'
+  query: data.generated.p(1) = x
   want_error: complete rules must not produce multiple outputs
   want_error_code: eval_conflict_error
 - data:
@@ -20,7 +20,7 @@ cases:
   - |
     package generated
 
-    p {
+    p(_) {
       data.generated.q
     }
 
@@ -37,34 +37,33 @@ cases:
     else = false {
       true
     }
-  note: 'disjunction/complete: nested conflict, else'
-  query: data.generated.p = x
+  note: 'functions/nested complete doc with conflict, else'
+  query: data.generated.p(1) = x
   want_error: complete rules must not produce multiple outputs
   want_error_code: eval_conflict_error
 - data:
   modules:
   - |
-    package test
+    package generated
 
-    p {
-      x := data.test.q(1)
-      x == true
+    p(x) {
+      y := data.generated.q(x)
     }
 
     q(_) = true
 
     q(_) = false
-  note: 'disjunction/nested function with conflict'
-  query: data.test.p = x
+  note: 'functions/nested function with conflict'
+  query: data.generated.p(1) = x
   want_error: functions must not produce multiple outputs for same inputs
   want_error_code: eval_conflict_error
 - data:
   modules:
   - |
-    package test
+    package generated
 
-    p {
-      x := data.test.q(1)
+    p(x) {
+      y := data.generated.q(x)
     }
 
     q(_) = true {
@@ -80,8 +79,8 @@ cases:
     else = false {
       true
     }
-  note: 'disjunction/nested function with conflict, else'
-  query: data.test.p = x
+  note: 'functions/nested function with conflict, else'
+  query: data.generated.p(1) = x
   want_error: functions must not produce multiple outputs for same inputs
   want_error_code: eval_conflict_error
 - data:
@@ -89,12 +88,12 @@ cases:
   - |
     package test
 
-    p {
-      q
+    p(x) {
+      y := data.test.q(x)
     }
     xs = {1, 2}
-    q = xs[_]
-  note: 'disjunction/complete: conflict involving early-exit complete rule'
-  query: data.test.p = x
-  want_error: complete rules must not produce multiple outputs
+    q(_) = xs[_]
+  note: 'functions/nested function with conflict, else, no extra return'
+  query: data.test.p(1) = x
+  want_error: functions must not produce multiple outputs for same inputs
   want_error_code: eval_conflict_error

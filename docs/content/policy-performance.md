@@ -132,6 +132,108 @@ For `glob.match(pattern, delimiter, match)` statements to be indexed the pattern
 | `glob.match("foo:**:bar", [":"], input.x)` | no | pattern contains `**` |
 | `glob.match("foo:*:bar", [":"], input.x[i])` | no | match contains variable(s) |
 
+
+### Early Exit in Rule Evaluation
+
+In general, OPA has to iterate all potential variable bindings to determined the outcome
+of a query. However, there are conditions under which additional iterations cannot change
+the result:
+
+1. A set of complete document rules that only have one, ground value.
+2. A set of function rules that only have one, ground value.
+
+The most common case for this are a set of `allow` rules:
+
+```live:ee:module:read_only
+package earlyexit
+
+allow {
+  input.user = "alice"
+}
+allow {
+  input.user = "bob"
+}
+allow {
+  input.group = "admins"
+}
+```
+
+since `allow { ... }` is a shorthand for `allow = true { ... }`.
+
+Intuitively, the value can be anything that does not contain a variable:
+
+```live:eeexamples:module:read_only
+package earlyexit.examples
+
+# p, q, r and s could be evaluated with early-exit semantics:
+
+p {
+  # ...
+}
+q = 123 {
+  # ...
+}
+r = {"hello": "world"} {
+  # ...
+}
+s(x) = 12 {
+  # ...
+}
+
+# u, v, w, and y could _not_
+
+u[x] { # not a complete document rule, but a partial set
+  x := 911
+}
+v = x { # x is a variable, not ground
+  x := true
+}
+w = { "foo": x } { # a compound term containing a variable
+  x := "bar"
+}
+y(z) = r { # variable value, not ground
+  r := z + 1
+}
+```
+
+When "early exit" is possible for a (set of) rules, iterations inside that rule will be
+**cancelled** as soon as one binding matches the rule body:
+
+```live:eeiteration:module:read_only
+package earlyexit.iteration
+
+p {
+  some p
+  data.projects[p] == "project-a"
+}
+```
+
+Since there's no possibility that could change the outcome of `data.earlyexit.iteration.p`
+once a variable binding is found that satisfies the conditions, no further iteration will
+occurr.
+
+The check if "early exit" is applicable for a query happens _after_ the indexing lookup,
+so in this contrived example, an evaluation with input `{"user": "alice"}` _would_ exit
+early; an evaluation with `{"user": "bob", "group": "admins"}` _would not_:
+
+```live:eeindex:module:read_only
+package earlyexit
+
+allow {
+  input.user = "alice"
+}
+allow = false {
+  input.user = "bob"
+}
+allow {
+  input.group = "admins"
+}
+```
+
+This is because the index lookup for `{"user": "bob", "group": "admins"}` returns two complete
+document rules with _different values_, `true` and `false`, whereas the indexer query for
+`{"user": "alice"}` only returns rules with value `true`.
+
 ### Comprehension Indexing
 
 Rego does not support mutation. As a result, certain operations like "group by" require
