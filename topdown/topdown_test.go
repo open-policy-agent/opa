@@ -15,6 +15,7 @@ import (
 	"reflect"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -189,34 +190,308 @@ func TestTopDownQueryCancellation(t *testing.T) {
 		`
 		package test
 
-		p { data.arr[_] = _; test.sleep("1ms") }
+		p { data.arr[_] = x; test.sleep("10ms"); x == 999 }
 		`,
 	})
 
+	arr := make([]interface{}, 1000)
+	for i := 0; i < 1000; i++ {
+		arr[i] = i
+	}
 	data := map[string]interface{}{
-		"arr": make([]interface{}, 1000),
+		"arr": arr,
 	}
 
 	store := inmem.NewFromObject(data)
 	txn := storage.NewTransactionOrDie(ctx, store)
 	cancel := NewCancel()
+	buf := NewBufferTracer()
 
 	query := NewQuery(ast.MustParseBody("data.test.p")).
 		WithCompiler(compiler).
 		WithStore(store).
 		WithTransaction(txn).
-		WithCancel(cancel)
+		WithCancel(cancel).
+		WithTracer(buf)
 
+	done := make(chan struct{})
 	go func() {
 		time.Sleep(time.Millisecond * 50)
 		cancel.Cancel()
+		close(done)
 	}()
+	<-done
 
 	qrs, err := query.Run(ctx)
 	if err == nil || err.(*Error).Code != CancelErr {
-		t.Fatalf("Expected cancel error but got: %v (err: %v)", qrs, err)
+		t.Errorf("Expected cancel error but got: %v (err: %v)", qrs, err)
+		PrettyTrace(os.Stdout, []*Event(*buf))
 	}
+}
 
+func TestTopDownEarlyExit(t *testing.T) {
+	// NOTE(sr): There are two ways to early-exit: don't evaluate subsequent
+	// rule bodies, like
+	//
+	//  p {
+	//    true
+	//  }
+	//  p {
+	//    # not evaluated
+	//  }
+	//
+	// and not evaluating subsequent "rounds" of iteration:
+	//
+	//  p {
+	//    x[_] = "y"
+	//  }
+
+	n := func(ns ...string) []string { return ns }
+
+	tests := []struct {
+		note      string
+		module    string
+		notes     []string // expected note events
+		extraExit int      // number of "extra" events expected, each test expects 1 note, 1 early exit
+	}{
+		{
+			note: "complete doc",
+			module: `
+				package test
+				p { trace("a") }
+				p { trace("b") }`,
+			notes: n("a"),
+		},
+		{
+			note: "complete doc, nested, both exit early",
+			module: `
+				package test
+				p { q; trace("a") }
+				p { q; trace("b") }
+
+				q { trace("c") }
+				q { trace("d") }`,
+			extraExit: 1, // p + q
+			notes:     n("a", "c"),
+		},
+		{
+			note: "complete doc, nested, both exit early (else)",
+			module: `
+				package test
+				p { q; trace("a") }
+				p { q; trace("b") }
+
+				q { trace("c"); false }
+				else = true { trace("d")}
+				q { trace("e") }`,
+			extraExit: 1, // p + q
+			notes:     n("a", "c", "d"),
+		},
+		{
+			note: "complete doc: other complete doc that cannot exit early",
+			module: `
+				package test
+				p { q }
+
+				q = x { x := true; trace("a") }
+				q = x { x := true; trace("b") }`,
+			notes: n("a", "b"),
+		},
+		{
+			note: "complete doc: other complete doc that cannot exit early (else)",
+			module: `
+				package test
+				p { q }
+
+				q = x { x := true; trace("a"); false }
+				else = x { x := true; trace("b") }`,
+			notes: n("a", "b"),
+		},
+		{
+			note: "complete doc: other function that cannot exit early",
+			module: `
+				package test
+				p { q(1) }
+
+				q(_) = x { x := true; trace("a") }
+				q(_) = x { x := true; trace("b") }`,
+			notes: n("a", "b"),
+		},
+		{
+			note: "complete doc: other function that cannot exit early (else)",
+			module: `
+				package test
+				p { q(1) }
+
+				q(_) = x { x := true; trace("a"); false }
+				else = true { trace("b") }
+
+				q(_) = x { x := true; trace("c") }`,
+			notes: n("a", "b", "c"),
+		},
+		{
+			note: "function",
+			module: `
+				package test
+				p = f(1)
+				f(_) { trace("a") }
+				f(_) { trace("b") }`,
+			notes: n("a"),
+		},
+		{
+			note: "function: other function, both exit early",
+			module: `
+				package test
+				p = f(1)
+				f(_) { g(1); trace("a") }
+				f(_) { g(1); trace("b") }
+				g(_) { trace("c") }
+				g(_) { trace("d") }`,
+			notes:     n("a", "c"),
+			extraExit: 1, // f() + g()
+		},
+		{
+			note: "function: other function, both exit early (else)",
+			module: `
+			package test
+			p = f(1)
+
+			f(_) { g(1); trace("a") }
+			f(_) { g(1); trace("b") }
+
+			g(_) { trace("c"); false }
+			else = true { trace("d") }
+			g(_) { trace("e") }`,
+			notes:     n("a", "c", "d"),
+			extraExit: 1, // f() + g()
+		},
+		{
+			note: "function: other complete doc that cannot exit early",
+			module: `
+				package test
+				p = f(1)
+				f(_) { q }
+				q = x { x := true; trace("a") }
+				q = x { x := true; trace("b") }`,
+			notes: n("a", "b"),
+		},
+		{
+			note: "function: other complete doc that cannot exit early (else)",
+			module: `
+				package test
+				p = f(1)
+				f(_) { q }
+				q = x { x := true; trace("a"); false }
+				else = x { x := true; trace("b") }`,
+			notes: n("a", "b"),
+		},
+		{
+			note: "complete doc, array iteration",
+			module: `
+				package test
+				p { data.arr[_] = _; trace("x") }
+			`,
+			notes: n("x"),
+		},
+		{
+			note: "complete doc, obj iteration",
+			module: `
+				package test
+				p { data.obj[_] = _; trace("x") }
+			`,
+			notes: n("x"),
+		},
+		{
+			note: "complete doc, set iteration",
+			module: `
+				package test
+				xs := { i | data.arr[i] }
+				p { xs[_] = _; trace("x") }
+			`,
+			notes: n("x"),
+		},
+		{
+			note: "function doc, array iteration",
+			module: `
+				package test
+				p = f(1)
+				f(_) { data.arr[_] = _; trace("x") }
+			`,
+			notes: n("x"),
+		},
+		{
+			note: "complete doc, obj iteration",
+			module: `
+				package test
+				p = f(1)
+				f(_) { data.obj[_] = _; trace("x") }
+			`,
+			notes: n("x"),
+		},
+		{
+			note: "complete doc, set iteration",
+			module: `
+				package test
+				xs := { i | data.arr[i] }
+				p = f(1)
+				f(_) { xs[_] = _; trace("x") }
+			`,
+			notes: n("x"),
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			countExit := 1 + tc.extraExit
+			ctx := context.Background()
+			compiler := compileModules([]string{tc.module})
+			arr := make([]interface{}, 1000)
+			obj := make(map[string]interface{}, 1000)
+			for i := 0; i < 1000; i++ {
+				arr[i] = i
+				obj[strconv.Itoa(i)] = i
+			}
+			data := map[string]interface{}{
+				"arr": arr,
+				"obj": obj,
+			}
+
+			store := inmem.NewFromObject(data)
+			txn := storage.NewTransactionOrDie(ctx, store)
+			buf := NewBufferTracer()
+
+			query := NewQuery(ast.MustParseBody("data.test.p")).
+				WithCompiler(compiler).
+				WithStore(store).
+				WithTransaction(txn).
+				WithTracer(buf)
+
+			_, err := query.Run(ctx)
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+			notes := []string{}
+			exits := map[string]int{}
+
+			for _, ev := range []*Event(*buf) {
+				switch ev.Op {
+				case NoteOp:
+					notes = append(notes, ev.Message)
+				case ExitOp:
+					exits[ev.Message]++
+				}
+			}
+			sort.Strings(notes)
+			sort.Strings(tc.notes)
+			if !reflect.DeepEqual(notes, tc.notes) {
+				t.Errorf("unexpected note traces, expected %v, got %v", tc.notes, notes)
+				PrettyTrace(os.Stderr, *buf)
+			}
+			if exp, act := countExit, exits["early"]; exp != act {
+				t.Errorf("expected %d early exit events, got %d", exp, act)
+				PrettyTrace(os.Stderr, *buf)
+			}
+		})
+	}
 }
 
 type contextPropagationMock struct{}

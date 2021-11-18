@@ -2029,7 +2029,7 @@ func TestDataPostExplainNotes(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if len(trace) != 6 || trace[2].Op != "note" || trace[5].Op != "note" {
+	if len(trace) != 3 || trace[2].Op != "note" {
 		t.Logf("Found %d events in trace", len(trace))
 		for i := range trace {
 			t.Logf("Event #%d: %v\n", i, trace[i])
