@@ -1105,8 +1105,18 @@ func TestCompilerCheckUndefinedFuncs(t *testing.T) {
 			deadbeef(x)
 		}
 
+		# NOTE: all the dynamic dispatch examples here are not supported,
+		#       we're checking assertions about the error returned.
 		undefined_dynamic_dispatch {
-			x = "f"; data.test2[x](1)  # not currently supported
+			x = "f"; data.test2[x](1)
+		}
+
+		undefined_dynamic_dispatch_declared_var {
+			y := "f"; data.test2[y](1)
+		}
+
+		undefined_dynamic_dispatch_declared_var_in_array {
+			z := "f"; data.test2[[z]](1)
 		}
 	`
 
@@ -1129,12 +1139,35 @@ func TestCompilerCheckUndefinedFuncs(t *testing.T) {
 		"rego_type_error: undefined function data.deadbeef",
 		"rego_type_error: undefined function deadbeef",
 		"rego_type_error: undefined function data.test2[x]",
+		"rego_type_error: undefined function data.test2[y]",
+		"rego_type_error: undefined function data.test2[[z]]",
 	}
-
 	for _, w := range want {
 		if !strings.Contains(result, w) {
 			t.Fatalf("Expected %q in result but got: %v", w, result)
 		}
+	}
+}
+
+func TestCompilerQueryCompilerCheckUndefinedFuncs(t *testing.T) {
+	compiler := NewCompiler()
+
+	for _, tc := range []struct {
+		note, query, err string
+	}{
+
+		{note: "undefined function", query: `data.foo(1)`, err: "undefined function data.foo"},
+		{note: "undefined global function", query: `foo(1)`, err: "undefined function foo"},
+		{note: "var", query: `x = "f"; data[x](1)`, err: "undefined function data[x]"},
+		{note: "declared var", query: `x := "f"; data[x](1)`, err: "undefined function data[x]"},
+		{note: "declared var in array", query: `x := "f"; data[[x]](1)`, err: "undefined function data[[x]]"},
+	} {
+		t.Run(tc.note, func(t *testing.T) {
+			_, err := compiler.QueryCompiler().Compile(MustParseBody(tc.query))
+			if !strings.Contains(err.Error(), tc.err) {
+				t.Errorf("Unexpected compilation error: %v (want  %s)", err, tc.err)
+			}
+		})
 	}
 }
 

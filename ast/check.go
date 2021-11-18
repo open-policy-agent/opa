@@ -13,7 +13,7 @@ import (
 	"github.com/open-policy-agent/opa/util"
 )
 
-type rewriteVars func(x Ref) Ref
+type varRewriter func(Ref) Ref
 
 // exprChecker defines the interface for executing type checking on a single
 // expression. The exprChecker must update the provided TypeEnv with inferred
@@ -26,7 +26,7 @@ type exprChecker func(*TypeEnv, *Expr) *Error
 type typeChecker struct {
 	errs         Errors
 	exprCheckers map[string]exprChecker
-	varRewriter  rewriteVars
+	varRewriter  varRewriter
 	ss           *SchemaSet
 	allowNet     []string
 	input        types.Type
@@ -70,7 +70,7 @@ func (tc *typeChecker) WithAllowNet(hosts []string) *typeChecker {
 	return tc
 }
 
-func (tc *typeChecker) WithVarRewriter(f rewriteVars) *typeChecker {
+func (tc *typeChecker) WithVarRewriter(f varRewriter) *typeChecker {
 	tc.varRewriter = f
 	return tc
 }
@@ -570,10 +570,14 @@ func (tc *typeChecker) err(errors []*Error) {
 type refChecker struct {
 	env         *TypeEnv
 	errs        Errors
-	varRewriter rewriteVars
+	varRewriter varRewriter
 }
 
-func newRefChecker(env *TypeEnv, f rewriteVars) *refChecker {
+func rewriteVarsNop(node Ref) Ref {
+	return node
+}
+
+func newRefChecker(env *TypeEnv, f varRewriter) *refChecker {
 
 	if f == nil {
 		f = rewriteVarsNop

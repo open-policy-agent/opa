@@ -835,13 +835,13 @@ func (c *Compiler) checkRuleConflicts() {
 func (c *Compiler) checkUndefinedFuncs() {
 	for _, name := range c.sorted {
 		m := c.Modules[name]
-		for _, err := range checkUndefinedFuncs(m, c.GetArity) {
+		for _, err := range checkUndefinedFuncs(m, c.GetArity, c.RewrittenVars) {
 			c.err(err)
 		}
 	}
 }
 
-func checkUndefinedFuncs(x interface{}, arity func(Ref) int) Errors {
+func checkUndefinedFuncs(x interface{}, arity func(Ref) int, rwVars map[Var]Var) Errors {
 
 	var errs Errors
 
@@ -853,6 +853,7 @@ func checkUndefinedFuncs(x interface{}, arity func(Ref) int) Errors {
 		if arity(ref) >= 0 {
 			return false
 		}
+		ref = rewriteVarsInRef(rwVars)(ref)
 		errs = append(errs, NewError(TypeErr, expr.Loc(), "undefined function %v", ref))
 		return true
 	})
@@ -2024,7 +2025,7 @@ func (qc *queryCompiler) checkVoidCalls(_ *QueryContext, body Body) (Body, error
 }
 
 func (qc *queryCompiler) checkUndefinedFuncs(_ *QueryContext, body Body) (Body, error) {
-	if errs := checkUndefinedFuncs(body, qc.compiler.GetArity); len(errs) > 0 {
+	if errs := checkUndefinedFuncs(body, qc.compiler.GetArity, qc.rewritten); len(errs) > 0 {
 		return nil, errs
 	}
 	return body, nil
@@ -4362,7 +4363,7 @@ func checkUnsafeBuiltins(unsafeBuiltinsMap map[string]struct{}, node interface{}
 	return errs
 }
 
-func rewriteVarsInRef(vars ...map[Var]Var) func(Ref) Ref {
+func rewriteVarsInRef(vars ...map[Var]Var) varRewriter {
 	return func(node Ref) Ref {
 		i, _ := TransformVars(node, func(v Var) (Value, error) {
 			for _, m := range vars {
@@ -4374,8 +4375,4 @@ func rewriteVarsInRef(vars ...map[Var]Var) func(Ref) Ref {
 		})
 		return i.(Ref)
 	}
-}
-
-func rewriteVarsNop(node Ref) Ref {
-	return node
 }
