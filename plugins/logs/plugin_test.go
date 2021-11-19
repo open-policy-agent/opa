@@ -2,6 +2,7 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
+//go:build slow
 // +build slow
 
 package logs
@@ -83,6 +84,70 @@ func TestPluginCustomBackend(t *testing.T) {
 		if len(e.Bundles) > 0 {
 			t.Errorf("Unexpected `bundles` in event")
 		}
+	}
+}
+
+func TestPluginCustomBackendAndHTTPServiceAndConsole(t *testing.T) {
+
+	ctx := context.Background()
+	backend := testPlugin{}
+	testLogger := test.New()
+
+	fixture := newTestFixture(t, testFixtureOptions{
+		ConsoleLogger: testLogger,
+		ExtraManagerConfig: map[string]interface{}{
+			"plugins": map[string]interface{}{"test_plugin": struct{}{}},
+		},
+		ExtraConfig: map[string]interface{}{
+			"plugin":  "test_plugin",
+			"console": true,
+		},
+		ManagerInit: func(m *plugins.Manager) {
+			m.Register("test_plugin", &backend)
+		},
+	})
+
+	defer fixture.server.stop()
+
+	fixture.server.ch = make(chan []EventV1, 1)
+
+	for i := 0; i < 2; i++ {
+		fixture.plugin.Log(ctx, &server.Info{
+			Revision: fmt.Sprint(i),
+		})
+	}
+	fixture.plugin.flushDecisions(ctx)
+
+	_, err := fixture.plugin.oneShot(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// check service
+	var evs []EventV1
+	select {
+	case evs = <-fixture.server.ch:
+	default:
+	}
+
+	if exp, act := 2, len(evs); exp != act {
+		t.Errorf("Service: expected chunk len %v but got: %v", exp, act)
+	}
+
+	// check plugin
+	if exp, act := 2, len(backend.events); exp != act {
+		t.Fatalf("Plugin: expected %d events, got %d", exp, act)
+	}
+	if exp, act := "0", backend.events[0].Revision; exp != act {
+		t.Errorf("Plugin: expected event 0 rev %s, got %s", exp, act)
+	}
+	if exp, act := "1", backend.events[1].Revision; exp != act {
+		t.Errorf("Plugin: expected event 1 rev %s, got %s", exp, act)
+	}
+
+	// check console logger
+	if exp, act := 2, len(testLogger.Entries()); exp != act {
+		t.Fatalf("Console: expected %d events, got %d", exp, act)
 	}
 }
 
@@ -1533,6 +1598,9 @@ type testFixtureOptions struct {
 	Resource                       *string
 	TestServerPath                 *string
 	PartitionName                  *string
+	ExtraConfig                    map[string]interface{}
+	ExtraManagerConfig             map[string]interface{}
+	ManagerInit                    func(*plugins.Manager)
 }
 
 type testFixture struct {
@@ -1543,6 +1611,11 @@ type testFixture struct {
 }
 
 func newTestFixture(t *testing.T, opts ...testFixtureOptions) testFixture {
+
+	var options testFixtureOptions
+	if len(opts) > 0 {
+		options = opts[0]
+	}
 
 	ts := testServer{
 		t:       t,
@@ -1568,10 +1641,17 @@ func newTestFixture(t *testing.T, opts ...testFixtureOptions) testFixture {
 				}
 			]}`, ts.server.URL))
 
-	var options testFixtureOptions
-
-	if len(opts) > 0 {
-		options = opts[0]
+	mgrCfg := make(map[string]interface{})
+	err := json.Unmarshal(managerConfig, &mgrCfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for k, v := range options.ExtraManagerConfig {
+		mgrCfg[k] = v
+	}
+	managerConfig, err = json.MarshalIndent(mgrCfg, "", "  ")
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	manager, err := plugins.New(
@@ -1583,10 +1663,13 @@ func newTestFixture(t *testing.T, opts ...testFixtureOptions) testFixture {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if init := options.ManagerInit; init != nil {
+		init(manager)
+	}
 
-	pluginConfig := make(map[string]interface{})
-
-	pluginConfig["service"] = "example"
+	pluginConfig := map[string]interface{}{
+		"service": "example",
+	}
 
 	if options.Resource != nil {
 		pluginConfig["resource"] = *options.Resource
@@ -1596,12 +1679,19 @@ func newTestFixture(t *testing.T, opts ...testFixtureOptions) testFixture {
 		pluginConfig["partition_name"] = *options.PartitionName
 	}
 
+	for k, v := range options.ExtraConfig {
+		pluginConfig[k] = v
+	}
+
 	pluginConfigBytes, err := json.MarshalIndent(pluginConfig, "", "  ")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	config, _ := ParseConfig(pluginConfigBytes, manager.Services(), nil)
+	config, err := ParseConfig(pluginConfigBytes, manager.Services(), manager.Plugins())
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if options.TestServerPath != nil {
 		ts.path = *options.TestServerPath
