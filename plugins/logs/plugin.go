@@ -376,7 +376,12 @@ type reconfigure struct {
 // ParseConfig validates the config and injects default values.
 func ParseConfig(config []byte, services []string, pluginList []string) (*Config, error) {
 	t := plugins.DefaultTriggerMode
-	return NewConfigBuilder().WithBytes(config).WithServices(services).WithPlugins(pluginList).WithTriggerMode(&t).Parse()
+	return NewConfigBuilder().
+		WithBytes(config).
+		WithServices(services).
+		WithPlugins(pluginList).
+		WithTriggerMode(&t).
+		Parse()
 }
 
 // ConfigBuilder assists in the construction of the plugin configuration.
@@ -575,18 +580,18 @@ func (p *Plugin) Log(ctx context.Context, decision *server.Info) error {
 		}
 	}
 
+	if p.config.Service != "" {
+		p.mtx.Lock()
+		p.encodeAndBufferEvent(event)
+		p.mtx.Unlock()
+	}
+
 	if p.config.Plugin != nil {
 		proxy, ok := p.manager.Plugin(*p.config.Plugin).(Logger)
 		if !ok {
 			return fmt.Errorf("plugin does not implement Logger interface")
 		}
 		return proxy.Log(ctx, event)
-	}
-
-	if p.config.Service != "" {
-		p.mtx.Lock()
-		defer p.mtx.Unlock()
-		p.encodeAndBufferEvent(event)
 	}
 
 	return nil

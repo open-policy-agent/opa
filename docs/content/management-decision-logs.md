@@ -4,10 +4,11 @@ kind: management
 weight: 3
 ---
 
-OPA can periodically report decision logs to remote HTTP servers. The decision
-logs contain events that describe policy queries. Each event includes the policy
-that was queried, the input to the query, bundle metadata, and other information
-that enables auditing and offline debugging of policy decisions.
+OPA can periodically report decision logs to remote HTTP servers, using custom
+plugins, or to the console output; or any combination thereof.
+The decision logs contain events that describe policy queries. Each event includes
+the policy that was queried, the input to the query, bundle metadata, and other
+information that enables auditing and offline debugging of policy decisions.
 
 When decision logging is enabled the OPA server will include a `decision_id`
 field in API calls that return policy decisions.
