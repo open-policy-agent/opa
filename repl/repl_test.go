@@ -2595,9 +2595,6 @@ func TestEvalNotes(t *testing.T) {
 	expected := strings.TrimSpace(`query:1     Enter data.repl.p = _
 query:1     | Enter data.repl.p
 query:1     | | Note "x = 2"
-query:1     Redo data.repl.p = _
-query:1     | Redo data.repl.p
-query:1     | | Note "x = 3"
 true`)
 	expected += "\n"
 	if expected != buffer.String() {

@@ -363,7 +363,7 @@ func TestTopdownVirtualCache(t *testing.T) {
 		{
 			note: "partial set: all rules + each rule (non-ground var) cached",
 			module: `package test
-				p { data.test.q = x; data.test.q[y] = z; data.test.q[a] = b }
+				p = r { data.test.q = x; data.test.q[y] = z; data.test.q[a] = b; r := true }
 				q[x] { x = 1 }
 				q[x] { x = 2 }
 			`,
@@ -385,7 +385,7 @@ func TestTopdownVirtualCache(t *testing.T) {
 		{
 			note: "partial set: each rule (non-ground var), full extent cached",
 			module: `package test
-				p { data.test.q[y] = z; data.test.q = x }
+				p = r { data.test.q[y] = z; data.test.q = x; r := true }
 				q[x] { x = 1 }
 				q[x] { x = 2 }
 			`,

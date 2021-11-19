@@ -796,10 +796,10 @@ const (
 	CompleteDoc = iota
 
 	// PartialSetDoc represents a set document that is partially defined by the rule.
-	PartialSetDoc = iota
+	PartialSetDoc
 
 	// PartialObjectDoc represents an object document that is partially defined by the rule.
-	PartialObjectDoc = iota
+	PartialObjectDoc
 )
 
 // DocKind returns the type of document produced by this rule.

@@ -50,6 +50,7 @@ type Query struct {
 	runtime                *ast.Term
 	builtins               map[string]*Builtin
 	indexing               bool
+	earlyExit              bool
 	interQueryBuiltinCache cache.InterQueryCache
 	strictBuiltinErrors    bool
 	printHook              print.Hook
@@ -67,6 +68,7 @@ func NewQuery(query ast.Body) *Query {
 		query:        query,
 		genvarprefix: ast.WildcardPrefix,
 		indexing:     true,
+		earlyExit:    true,
 		external:     newResolverTrie(),
 	}
 }
@@ -213,6 +215,13 @@ func (q *Query) WithIndexing(enabled bool) *Query {
 	return q
 }
 
+// WithEarlyExit will enable or disable using 'early exit' for the evaluation
+// of the query. The default is enabled.
+func (q *Query) WithEarlyExit(enabled bool) *Query {
+	q.earlyExit = enabled
+	return q
+}
+
 // WithSeed sets a reader that will seed randomization required by built-in functions.
 // If a seed is not provided crypto/rand.Reader is used.
 func (q *Query) WithSeed(r io.Reader) *Query {
@@ -309,6 +318,7 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 		genvarprefix:  q.genvarprefix,
 		runtime:       q.runtime,
 		indexing:      q.indexing,
+		earlyExit:     q.earlyExit,
 		builtinErrors: &builtinErrors{},
 		printHook:     q.printHook,
 	}
@@ -440,6 +450,7 @@ func (q *Query) Iter(ctx context.Context, iter func(QueryResult) error) error {
 		genvarprefix:           q.genvarprefix,
 		runtime:                q.runtime,
 		indexing:               q.indexing,
+		earlyExit:              q.earlyExit,
 		builtinErrors:          &builtinErrors{},
 		printHook:              q.printHook,
 	}
