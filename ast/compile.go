@@ -2977,8 +2977,8 @@ func outputVarsForExpr(expr *Expr, getArity func(Ref) int, safe VarSet) VarSet {
 		}
 
 		return outputVarsForExprCall(expr, arity, safe, terms)
-	case *SomeDecl:
-		return outputVarsForExprEq(terms.Domain, safe)
+	case *QualifiedBlock:
+		return outputVarsForExprEq(NewExpr(terms.Domain), safe)
 	default:
 		panic("illegal expression")
 	}
@@ -3250,8 +3250,13 @@ func resolveRefsInExpr(globals map[Var]Ref, ignore *declaredVarStack, expr *Expr
 		if val, ok := ts.Symbols[0].Value.(Call); ok {
 			cpy.Terms = &SomeDecl{
 				Symbols: []*Term{CallTerm(resolveRefsInTermSlice(globals, ignore, val)...)},
-				Body:    resolveRefsInBody(globals, ignore, ts.Body),
 			}
+		}
+	case *QualifiedBlock:
+		cpy.Terms = &QualifiedBlock{
+			Type:   ts.Type,
+			Domain: Call(resolveRefsInTermSlice(globals, ignore, ts.Domain)),
+			Body:   resolveRefsInBody(globals, ignore, ts.Body),
 		}
 	}
 	for _, w := range cpy.With {
@@ -3403,6 +3408,18 @@ func declaredVars(x interface{}) VarSet {
 						})
 					}
 				}
+			} else if qb, ok := x.Terms.(*QualifiedBlock); ok {
+				call := []*Term(qb.Domain)[1:]
+				if len(call) == 3 {
+					WalkVars(call[1], func(v Var) bool {
+						vars.Add(v)
+						return false
+					})
+				}
+				WalkVars(call[0], func(v Var) bool {
+					vars.Add(v)
+					return false
+				})
 			}
 		case *ArrayComprehension, *SetComprehension, *ObjectComprehension:
 			return true
@@ -3544,7 +3561,7 @@ func rewriteDynamicsTermExpr(f *equalityFactory, expr *Expr, result Body) Body {
 }
 
 func rewriteDynamicsQualifiedExpr(f *equalityFactory, expr *Expr, result Body) Body {
-	term := expr.Terms.(*SomeDecl)
+	term := expr.Terms.(*QualifiedBlock)
 	term.Body = rewriteDynamics(f, term.Body)
 	return appendExpr(result, expr)
 }
@@ -3689,7 +3706,7 @@ func expandExpr(gen *localVarGenerator, expr *Expr) (result []*Expr) {
 			result = append(result, extras...)
 		}
 		result = append(result, expr)
-	case *SomeDecl:
+	case *QualifiedBlock:
 		terms.Body = rewriteExprTermsInBody(gen, terms.Body)
 		result = append(result, expr)
 	}
@@ -3926,6 +3943,8 @@ func rewriteDeclaredVarsInBody(g *localVarGenerator, stack *localDeclaredVars, u
 			expr, errs = rewriteDeclaredAssignment(g, stack, body[i], errs)
 		} else if _, ok := body[i].Terms.(*SomeDecl); ok {
 			expr, errs = rewriteSomeDeclStatement(g, stack, body[i], errs)
+		} else if _, ok := body[i].Terms.(*QualifiedBlock); ok {
+			expr, errs = rewriteQualifiedBlockStatement(g, stack, body[i], errs)
 		} else {
 			expr, errs = rewriteDeclaredVarsInExpr(g, stack, body[i], errs)
 		}
@@ -4009,27 +4028,64 @@ func rewriteSomeDeclStatement(g *localVarGenerator, stack *localDeclaredVars, ex
 			default:
 				rhs = RefTerm(container, key)
 			}
-			head := NewExpr([]*Term{
+
+			e.Terms = []*Term{
 				RefTerm(VarTerm(Equality.Name)), val, rhs,
-			})
-			for _, v0 := range outputVarsForExprEq(head, container.Vars()).Sorted() {
-				if v0.IsGenerated() { // can't be used in body
-					continue
-				}
+			}
+			for _, v0 := range outputVarsForExprEq(e, container.Vars()).Sorted() {
 				if _, err := rewriteDeclaredVar(g, stack, v0, declaredVar); err != nil {
 					return nil, append(errs, NewError(CompileErr, decl.Loc(), err.Error()))
 				}
 			}
-			var newErrs Errors
-			decl.Body, newErrs = rewriteDeclaredVarsInBody(g, stack, nil, decl.Body, errs)
-			errs = append(errs, newErrs...)
-			decl.Domain = head
-			decl.Symbols = nil // reset
-			decl.Domain, newErrs = rewriteDeclaredVarsInExpr(g, stack, decl.Domain, errs)
-			return e, append(errs, newErrs...)
+			return rewriteDeclaredVarsInExpr(g, stack, e, errs)
 		}
 	}
 	return nil, errs
+}
+
+func rewriteQualifiedBlockStatement(g *localVarGenerator, stack *localDeclaredVars, expr *Expr, errs Errors) (*Expr, Errors) {
+	e := expr.Copy()
+	decl := e.Terms.(*QualifiedBlock)
+
+	v := decl.Domain
+	log.Printf("v: %v %[1]T, len(v) = %d", v, len(v))
+	var key, val, container *Term
+	switch len(v) {
+	case 4: // member_3
+		key = v[1]
+		val = v[2]
+		container = v[3]
+	case 3: // member_2
+		key = NewTerm(g.Generate())
+		val = v[1]
+		container = v[2]
+	}
+
+	log.Printf("container: %v %[1]T", container)
+	var rhs *Term
+	switch c := container.Value.(type) {
+	case Ref:
+		rhs = RefTerm(append(c, key)...)
+	default:
+		rhs = RefTerm(container, key)
+	}
+	head := NewExpr([]*Term{
+		RefTerm(VarTerm(Equality.Name)), val, rhs,
+	})
+	for _, v0 := range outputVarsForExprEq(head, container.Vars()).Sorted() {
+		if v0.IsGenerated() { // can't be used in body
+			continue
+		}
+		if _, err := rewriteDeclaredVar(g, stack, v0, declaredVar); err != nil {
+			return nil, append(errs, NewError(CompileErr, decl.Loc(), err.Error()))
+		}
+	}
+	var newErrs Errors
+	decl.Body, newErrs = rewriteDeclaredVarsInBody(g, stack, nil, decl.Body, errs)
+	errs = append(errs, newErrs...)
+	ne, newErrs := rewriteDeclaredVarsInExpr(g, stack, head, errs)
+	decl.Domain = Call(ne.Terms.([]*Term))
+	return e, append(errs, newErrs...)
 }
 
 func rewriteDeclaredVarsInExpr(g *localVarGenerator, stack *localDeclaredVars, expr *Expr, errs Errors) (*Expr, Errors) {

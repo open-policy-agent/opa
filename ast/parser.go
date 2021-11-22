@@ -852,15 +852,21 @@ func (p *Parser) parseSome() *Expr {
 				p.illegal("expected `x in xs` or `x, y in xs` expression")
 				return nil
 			}
-			decl.Symbols = []*Term{term}
 			switch p.s.tok {
 			case tokens.LBrace: // some x in xs { ... }
 				p.scan()
-				if decl.Body = p.parseBody(tokens.RBrace); decl.Body == nil {
+				body := p.parseBody(tokens.RBrace)
+				if body == nil {
 					return nil
 				}
 				p.scan()
+				qb := &QualifiedBlock{
+					Domain: call,
+					Body:   body,
+				}
+				return NewExpr(qb).SetLocation(qb.Location)
 			}
+			decl.Symbols = []*Term{term}
 			return NewExpr(decl).SetLocation(decl.Location)
 		}
 	}

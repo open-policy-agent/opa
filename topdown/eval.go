@@ -373,7 +373,7 @@ func (e *eval) evalStep(iter evalIterator) error {
 			}
 			return nil
 		})
-	case *ast.SomeDecl:
+	case *ast.QualifiedBlock:
 		// TODO(sr): we don't update bindings, so
 		//     some x in xs { true }
 		//     x > 10
@@ -381,7 +381,7 @@ func (e *eval) evalStep(iter evalIterator) error {
 
 		// NOTE(sr): if a SomeDecl made it into topdown, it's a qualified "some x in xs { ... } " block
 		// For each binding of the domain, we'll evaluate the body.
-		child := e.closure([]*ast.Expr{terms.Domain})
+		child := e.closure(ast.NewBody(ast.NewExpr([]*ast.Term(terms.Domain))))
 		// e.findOne = true // only for 'some'
 		// TODO(sr): traces
 		err = child.eval(func(child *eval) error {

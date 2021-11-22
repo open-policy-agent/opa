@@ -229,7 +229,14 @@ type (
 	SomeDecl struct {
 		Location *Location `json:"-"`
 		Symbols  []*Term   `json:"symbols"`
-		Domain   *Expr     `json:"domain"`
+	}
+
+	QualificationType int8
+
+	QualifiedBlock struct {
+		Type     QualificationType
+		Location *Location `json:"-"`
+		Domain   Call      `json:"domain"`
 		Body     Body      `json:"body,omitempty"`
 	}
 
@@ -239,6 +246,11 @@ type (
 		Target   *Term     `json:"target"`
 		Value    *Term     `json:"value"`
 	}
+)
+
+const (
+	QualificationExistential QualificationType = iota
+	QualificationUniversal
 )
 
 func (s *Annotations) String() string {
@@ -1155,6 +1167,10 @@ func (expr *Expr) Compare(other *Expr) int {
 		if cmp := Compare(t, other.Terms.(*SomeDecl)); cmp != 0 {
 			return cmp
 		}
+	case *QualifiedBlock:
+		if cmp := Compare(t, other.Terms.(*QualifiedBlock)); cmp != 0 {
+			return cmp
+		}
 	}
 
 	return withSliceCompare(expr.With, other.With)
@@ -1246,7 +1262,7 @@ func (expr *Expr) IsAssignment() bool {
 
 // IsQualifiedBlock returns true if this expression is a some/every block
 func (expr *Expr) IsQualifiedBlock() bool {
-	_, ok := expr.Terms.(*SomeDecl)
+	_, ok := expr.Terms.(*QualifiedBlock)
 	return ok
 }
 
@@ -1352,9 +1368,7 @@ func (expr *Expr) String() string {
 		} else {
 			buf = append(buf, Call(t).String())
 		}
-	case *Term:
-		buf = append(buf, t.String())
-	case *SomeDecl:
+	case fmt.Stringer:
 		buf = append(buf, t.String())
 	}
 
@@ -1388,12 +1402,44 @@ func NewBuiltinExpr(terms ...*Term) *Expr {
 	return &Expr{Terms: terms}
 }
 
-// TODO(sr): update for { ... } body
-// TODO(sr): i've made a mess here
-func (d *SomeDecl) String() string {
-	if d.Domain != nil {
-		return "some' " + d.Domain.String() + " { " + d.Body.String() + " }"
+func (q *QualifiedBlock) String() string {
+	switch q.Type {
+	case QualificationExistential:
+		return "some " + q.Domain.String() + " { " + q.Body.String() + " }"
+	case QualificationUniversal:
+		return "every " + q.Domain.String() + " { " + q.Body.String() + " }"
 	}
+	panic("unreachable")
+}
+
+func (q *QualifiedBlock) Loc() *Location {
+	return q.Location
+}
+
+func (q *QualifiedBlock) SetLoc(l *Location) {
+	q.Location = l
+}
+
+// Copy returns a deep copy of d.
+func (q *QualifiedBlock) Copy() *QualifiedBlock {
+	cpy := *q
+	cpy.Type = q.Type
+	cpy.Domain = termSliceCopy(q.Domain)
+	cpy.Body = q.Body.Copy()
+	return &cpy
+}
+
+func (q *QualifiedBlock) Compare(other *QualifiedBlock) int {
+	if q.Type < other.Type {
+		return -1
+	}
+	if d := termSliceCompare(q.Domain, other.Domain); d != 0 {
+		return d
+	}
+	return q.Body.Compare(other.Body)
+}
+
+func (d *SomeDecl) String() string {
 	if call, ok := d.Symbols[0].Value.(Call); ok {
 		if len(call) == 4 {
 			return "some " + call[1].String() + ", " + call[2].String() + " in " + call[3].String()
@@ -1536,6 +1582,8 @@ func Copy(x interface{}) interface{} {
 	case Call:
 		return x.Copy()
 	case *Comment:
+		return x.Copy()
+	case *QualifiedBlock:
 		return x.Copy()
 	}
 	return x
