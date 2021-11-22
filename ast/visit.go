@@ -367,6 +367,14 @@ func (vis *GenericVisitor) Walk(x interface{}) {
 		for _, t := range x {
 			vis.Walk(t)
 		}
+	case *SomeDecl:
+		// if x.Domain != nil {
+		// 	log.Printf("walk some domain: %v", x.Domain)
+		// 	vis.Walk(x.Domain)
+		// }
+		if x.Body != nil {
+			vis.Walk(x.Body)
+		}
 	}
 }
 
@@ -488,6 +496,13 @@ func (vis *BeforeAfterVisitor) Walk(x interface{}) {
 		for _, t := range x {
 			vis.Walk(t)
 		}
+	case *SomeDecl:
+		if x.Domain != nil {
+			vis.Walk(x.Domain)
+		}
+		if x.Body != nil {
+			vis.Walk(x.Body)
+		}
 	}
 }
 
@@ -547,6 +562,8 @@ func (vis *VarVisitor) visit(v interface{}) bool {
 	if vis.params.SkipClosures {
 		switch v.(type) {
 		case *ArrayComprehension, *ObjectComprehension, *SetComprehension:
+			return true
+		case *SomeDecl:
 			return true
 		}
 	}
@@ -690,6 +707,10 @@ func (vis *VarVisitor) Walk(x interface{}) {
 	case Call:
 		for _, t := range x {
 			vis.Walk(t)
+		}
+	case *SomeDecl:
+		if x.Body != nil {
+			vis.Walk(x.Body)
 		}
 	}
 }

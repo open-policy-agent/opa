@@ -229,6 +229,8 @@ type (
 	SomeDecl struct {
 		Location *Location `json:"-"`
 		Symbols  []*Term   `json:"symbols"`
+		Domain   *Expr     `json:"domain"`
+		Body     Body      `json:"body,omitempty"`
 	}
 
 	// With represents a modifier on an expression.
@@ -1242,6 +1244,12 @@ func (expr *Expr) IsAssignment() bool {
 	return isGlobalBuiltin(expr, Var(Assign.Name))
 }
 
+// IsQualifiedBlock returns true if this expression is a some/every block
+func (expr *Expr) IsQualifiedBlock() bool {
+	_, ok := expr.Terms.(*SomeDecl)
+	return ok
+}
+
 // IsCall returns true if this expression calls a function.
 func (expr *Expr) IsCall() bool {
 	_, ok := expr.Terms.([]*Term)
@@ -1380,7 +1388,12 @@ func NewBuiltinExpr(terms ...*Term) *Expr {
 	return &Expr{Terms: terms}
 }
 
+// TODO(sr): update for { ... } body
+// TODO(sr): i've made a mess here
 func (d *SomeDecl) String() string {
+	if d.Domain != nil {
+		return "some' " + d.Domain.String() + " { " + d.Body.String() + " }"
+	}
 	if call, ok := d.Symbols[0].Value.(Call); ok {
 		if len(call) == 4 {
 			return "some " + call[1].String() + ", " + call[2].String() + " in " + call[3].String()
@@ -1392,6 +1405,7 @@ func (d *SomeDecl) String() string {
 		buf[i] = d.Symbols[i].String()
 	}
 	return "some " + strings.Join(buf, ", ")
+
 }
 
 // SetLoc sets the Location on d.

@@ -341,14 +341,15 @@ func (e *eval) evalStep(iter evalIterator) error {
 
 	switch terms := expr.Terms.(type) {
 	case []*ast.Term:
-		if expr.IsEquality() {
+		switch {
+		case expr.IsEquality():
 			err = e.unify(terms[1], terms[2], func() error {
 				defined = true
 				err := iter(e)
 				e.traceRedo(expr)
 				return err
 			})
-		} else {
+		case expr.IsCall():
 			err = e.evalCall(terms, func() error {
 				defined = true
 				err := iter(e)
@@ -372,6 +373,27 @@ func (e *eval) evalStep(iter evalIterator) error {
 			}
 			return nil
 		})
+	case *ast.SomeDecl:
+		// TODO(sr): we don't update bindings, so
+		//     some x in xs { true }
+		//     x > 10
+		// will be an error! (update compiler accordingly)
+
+		// NOTE(sr): if a SomeDecl made it into topdown, it's a qualified "some x in xs { ... } " block
+		// For each binding of the domain, we'll evaluate the body.
+		child := e.closure([]*ast.Expr{terms.Domain})
+		// e.findOne = true // only for 'some'
+		// TODO(sr): traces
+		err = child.eval(func(child *eval) error {
+			body := child.closure(terms.Body)
+			// body.findOne = true
+			err := body.eval(func(_ *eval) error {
+				return iter(e)
+			})
+			return err
+		})
+	default:
+		return fmt.Errorf("got %T terms: %[1]v", terms)
 	}
 
 	if err != nil {

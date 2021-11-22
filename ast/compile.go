@@ -7,6 +7,7 @@ package ast
 import (
 	"fmt"
 	"io"
+	"log"
 	"sort"
 	"strconv"
 	"strings"
@@ -1167,6 +1168,7 @@ func (c *Compiler) compile() {
 			}
 		}
 	}
+	log.Printf("mods: %v", c.Modules)
 }
 
 func (c *Compiler) init() {
@@ -1384,6 +1386,7 @@ func checkVoidCalls(env *TypeEnv, x interface{}) Errors {
 // The expression would be rewritten to:
 //
 //   print({__local0__ | __local0__ = "the value of x is:"}, {__local1__ | __local1__ = input.x})
+// TODO(sr): account for print() in some/every body
 func rewritePrintCalls(gen *localVarGenerator, getArity func(Ref) int, globals VarSet, body Body) Errors {
 
 	var errs Errors
@@ -2974,6 +2977,8 @@ func outputVarsForExpr(expr *Expr, getArity func(Ref) int, safe VarSet) VarSet {
 		}
 
 		return outputVarsForExprCall(expr, arity, safe, terms)
+	case *SomeDecl:
+		return outputVarsForExprEq(terms.Domain, safe)
 	default:
 		panic("illegal expression")
 	}
@@ -3243,7 +3248,10 @@ func resolveRefsInExpr(globals map[Var]Ref, ignore *declaredVarStack, expr *Expr
 		cpy.Terms = buf
 	case *SomeDecl:
 		if val, ok := ts.Symbols[0].Value.(Call); ok {
-			cpy.Terms = &SomeDecl{Symbols: []*Term{CallTerm(resolveRefsInTermSlice(globals, ignore, val)...)}}
+			cpy.Terms = &SomeDecl{
+				Symbols: []*Term{CallTerm(resolveRefsInTermSlice(globals, ignore, val)...)},
+				Body:    resolveRefsInBody(globals, ignore, ts.Body),
+			}
 		}
 	}
 	for _, w := range cpy.With {
@@ -3492,11 +3500,14 @@ func rewriteEquals(x interface{}) {
 func rewriteDynamics(f *equalityFactory, body Body) Body {
 	result := make(Body, 0, len(body))
 	for _, expr := range body {
-		if expr.IsEquality() {
+		switch {
+		case expr.IsEquality():
 			result = rewriteDynamicsEqExpr(f, expr, result)
-		} else if expr.IsCall() {
+		case expr.IsCall():
 			result = rewriteDynamicsCallExpr(f, expr, result)
-		} else {
+		case expr.IsQualifiedBlock():
+			result = rewriteDynamicsQualifiedExpr(f, expr, result)
+		default:
 			result = rewriteDynamicsTermExpr(f, expr, result)
 		}
 	}
@@ -3529,6 +3540,12 @@ func rewriteDynamicsCallExpr(f *equalityFactory, expr *Expr, result Body) Body {
 func rewriteDynamicsTermExpr(f *equalityFactory, expr *Expr, result Body) Body {
 	term := expr.Terms.(*Term)
 	result, expr.Terms = rewriteDynamicsInTerm(expr, f, term, result)
+	return appendExpr(result, expr)
+}
+
+func rewriteDynamicsQualifiedExpr(f *equalityFactory, expr *Expr, result Body) Body {
+	term := expr.Terms.(*SomeDecl)
+	term.Body = rewriteDynamics(f, term.Body)
 	return appendExpr(result, expr)
 }
 
@@ -3671,6 +3688,9 @@ func expandExpr(gen *localVarGenerator, expr *Expr) (result []*Expr) {
 			}
 			result = append(result, extras...)
 		}
+		result = append(result, expr)
+	case *SomeDecl:
+		terms.Body = rewriteExprTermsInBody(gen, terms.Body)
 		result = append(result, expr)
 	}
 	return
@@ -3972,11 +3992,11 @@ func rewriteSomeDeclStatement(g *localVarGenerator, stack *localDeclaredVars, ex
 		case Call:
 			var key, val, container *Term
 			switch len(v) {
-			case 4: // member3
+			case 4: // member_3
 				key = v[1]
 				val = v[2]
 				container = v[3]
-			case 3: // member
+			case 3: // member_2
 				key = NewTerm(g.Generate())
 				val = v[1]
 				container = v[2]
@@ -3989,16 +4009,24 @@ func rewriteSomeDeclStatement(g *localVarGenerator, stack *localDeclaredVars, ex
 			default:
 				rhs = RefTerm(container, key)
 			}
-			e.Terms = []*Term{
+			head := NewExpr([]*Term{
 				RefTerm(VarTerm(Equality.Name)), val, rhs,
-			}
-
-			for _, v0 := range outputVarsForExprEq(e, container.Vars()).Sorted() {
+			})
+			for _, v0 := range outputVarsForExprEq(head, container.Vars()).Sorted() {
+				if v0.IsGenerated() { // can't be used in body
+					continue
+				}
 				if _, err := rewriteDeclaredVar(g, stack, v0, declaredVar); err != nil {
 					return nil, append(errs, NewError(CompileErr, decl.Loc(), err.Error()))
 				}
 			}
-			return rewriteDeclaredVarsInExpr(g, stack, e, errs)
+			var newErrs Errors
+			decl.Body, newErrs = rewriteDeclaredVarsInBody(g, stack, nil, decl.Body, errs)
+			errs = append(errs, newErrs...)
+			decl.Domain = head
+			decl.Symbols = nil // reset
+			decl.Domain, newErrs = rewriteDeclaredVarsInExpr(g, stack, decl.Domain, errs)
+			return e, append(errs, newErrs...)
 		}
 	}
 	return nil, errs

@@ -852,8 +852,15 @@ func (p *Parser) parseSome() *Expr {
 				p.illegal("expected `x in xs` or `x, y in xs` expression")
 				return nil
 			}
-
 			decl.Symbols = []*Term{term}
+			switch p.s.tok {
+			case tokens.LBrace: // some x in xs { ... }
+				p.scan()
+				if decl.Body = p.parseBody(tokens.RBrace); decl.Body == nil {
+					return nil
+				}
+				p.scan()
+			}
 			return NewExpr(decl).SetLocation(decl.Location)
 		}
 	}
