@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log"
 	"sort"
 	"strconv"
 	"strings"
@@ -395,18 +394,25 @@ func (e *eval) evalStep(iter evalIterator) error {
 			})
 		case ast.QualificationUniversal:
 			todos := 0
+			evals := make([]*eval, 0, 1) // "delayed eval"
 			err = child.eval(func(child *eval) error {
 				todos++
 				body := child.closure(terms.Body)
 				return body.eval(func(child *eval) error {
-					todos--
-					return iter(child)
+					evals = append(evals, child)
+					return nil
 				})
 			})
-			log.Printf("todos: %d, err: %v", todos, err)
-			if todos != 0 { // empty domain => todos==0
-				log.Printf("every failed")
-				// TODO(sr): make parent return undefined
+			if err != nil {
+				return err
+			}
+			if todos != len(evals) {
+				return nil
+			}
+			for _, ev := range evals {
+				if err := iter(ev); err != nil {
+					return err
+				}
 			}
 		}
 	default:
