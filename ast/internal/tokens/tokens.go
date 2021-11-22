@@ -30,6 +30,7 @@ const (
 	Else
 	Not
 	Some
+	Every
 	With
 	Null
 	True
@@ -80,6 +81,7 @@ var strings = [...]string{
 	Else:       "else",
 	Not:        "not",
 	Some:       "some",
+	Every:      "every",
 	With:       "with",
 	Null:       "null",
 	True:       "true",

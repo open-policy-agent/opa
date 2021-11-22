@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
 	"sort"
 	"strconv"
 	"strings"
@@ -373,25 +374,41 @@ func (e *eval) evalStep(iter evalIterator) error {
 			}
 			return nil
 		})
-	case *ast.QualifiedBlock:
+	case *ast.QualifiedBlock: // TODO(sr): set `defined` appropriately
 		// TODO(sr): we don't update bindings, so
 		//     some x in xs { true }
 		//     x > 10
 		// will be an error! (update compiler accordingly)
 
-		// NOTE(sr): if a SomeDecl made it into topdown, it's a qualified "some x in xs { ... } " block
+		// NOTE(sr): if a SomeDecl made it into topdown, it's a qualified "[some|every] x in xs { ... } " block
 		// For each binding of the domain, we'll evaluate the body.
 		child := e.closure(ast.NewBody(ast.NewExpr([]*ast.Term(terms.Domain))))
-		// e.findOne = true // only for 'some'
+		// TODO(sr): figure out empty domain
 		// TODO(sr): traces
-		err = child.eval(func(child *eval) error {
-			body := child.closure(terms.Body)
-			// body.findOne = true
-			err := body.eval(func(_ *eval) error {
-				return iter(e)
+		switch terms.Type {
+		case ast.QualificationExistential:
+			e.findOne = true // only for 'some'
+			err = child.eval(func(child *eval) error {
+				body := child.closure(terms.Body)
+				body.findOne = true
+				return body.eval(iter)
 			})
-			return err
-		})
+		case ast.QualificationUniversal:
+			todos := 0
+			err = child.eval(func(child *eval) error {
+				todos++
+				body := child.closure(terms.Body)
+				return body.eval(func(child *eval) error {
+					todos--
+					return iter(child)
+				})
+			})
+			log.Printf("todos: %d, err: %v", todos, err)
+			if todos != 0 { // empty domain => todos==0
+				log.Printf("every failed")
+				// TODO(sr): make parent return undefined
+			}
+		}
 	default:
 		return fmt.Errorf("got %T terms: %[1]v", terms)
 	}
