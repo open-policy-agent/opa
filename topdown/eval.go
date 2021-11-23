@@ -393,20 +393,25 @@ func (e *eval) evalStep(iter evalIterator) error {
 				return body.eval(iter)
 			})
 		case ast.QualificationUniversal:
-			todos := 0
+			allDone := true
 			evals := make([]*eval, 0, 1) // "delayed eval"
 			err = child.eval(func(child *eval) error {
-				todos++
+				done := false
 				body := child.closure(terms.Body)
-				return body.eval(func(child *eval) error {
+				err := body.eval(func(child *eval) error {
 					evals = append(evals, child)
+					done = true
 					return nil
 				})
+				if !done {
+					allDone = false
+				}
+				return err
 			})
 			if err != nil {
 				return err
 			}
-			if todos != len(evals) {
+			if !allDone {
 				return nil
 			}
 			for _, ev := range evals {
