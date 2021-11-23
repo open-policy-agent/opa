@@ -7,7 +7,6 @@ package ast
 import (
 	"fmt"
 	"io"
-	"log"
 	"sort"
 	"strconv"
 	"strings"
@@ -1168,7 +1167,6 @@ func (c *Compiler) compile() {
 			}
 		}
 	}
-	log.Printf("mods: %v", c.Modules)
 }
 
 func (c *Compiler) init() {
@@ -4048,7 +4046,6 @@ func rewriteQualifiedBlockStatement(g *localVarGenerator, stack *localDeclaredVa
 	decl := e.Terms.(*QualifiedBlock)
 
 	v := decl.Domain
-	log.Printf("v: %v %[1]T, len(v) = %d", v, len(v))
 	var key, val, container *Term
 	switch len(v) {
 	case 4: // member_3
@@ -4061,7 +4058,6 @@ func rewriteQualifiedBlockStatement(g *localVarGenerator, stack *localDeclaredVa
 		container = v[2]
 	}
 
-	log.Printf("container: %v %[1]T", container)
 	var rhs *Term
 	switch c := container.Value.(type) {
 	case Ref:
