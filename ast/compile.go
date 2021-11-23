@@ -4069,7 +4069,7 @@ func rewriteQualifiedBlockStatement(g *localVarGenerator, stack *localDeclaredVa
 		RefTerm(VarTerm(Equality.Name)), val, rhs,
 	})
 	for _, v0 := range outputVarsForExprEq(head, container.Vars()).Sorted() {
-		if v0.IsGenerated() { // can't be used in body
+		if v0.IsGenerated() || v0.IsWildcard() { // can't be used in body
 			continue
 		}
 		if _, err := rewriteDeclaredVar(g, stack, v0, declaredVar); err != nil {
