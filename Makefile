@@ -295,27 +295,27 @@ build-all-platforms: ci-build-linux ci-build-linux-static ci-build-darwin ci-bui
 
 .PHONY: image-quick
 image-quick:
-	chmod +x $(RELEASE_DIR)/opa_linux_amd64*
+	chmod +x $(RELEASE_DIR)/opa_linux_$(GOARCH)*
 	$(DOCKER) build \
 		-t $(DOCKER_IMAGE):$(VERSION) \
 		--build-arg BASE=gcr.io/distroless/cc \
-		--build-arg BIN=$(RELEASE_DIR)/opa_linux_amd64 \
+		--build-arg BIN=$(RELEASE_DIR)/opa_linux_$(GOARCH) \
 		.
 	$(DOCKER) build \
 		-t $(DOCKER_IMAGE):$(VERSION)-debug \
 		--build-arg BASE=gcr.io/distroless/cc:debug \
-		--build-arg BIN=$(RELEASE_DIR)/opa_linux_amd64 \
+		--build-arg BIN=$(RELEASE_DIR)/opa_linux_$(GOARCH) \
 		.
 	$(DOCKER) build \
 		-t $(DOCKER_IMAGE):$(VERSION)-rootless \
 		--build-arg USER=1000 \
 		--build-arg BASE=gcr.io/distroless/cc \
-		--build-arg BIN=$(RELEASE_DIR)/opa_linux_amd64 \
+		--build-arg BIN=$(RELEASE_DIR)/opa_linux_$(GOARCH) \
 		.
 	$(DOCKER) build \
 		-t $(DOCKER_IMAGE):$(VERSION)-static \
 		--build-arg BASE=gcr.io/distroless/static \
-		--build-arg BIN=$(RELEASE_DIR)/opa_linux_amd64_static \
+		--build-arg BIN=$(RELEASE_DIR)/opa_linux_$(GOARCH)_static \
 		.
 
 .PHONY: ci-image-smoke-test
