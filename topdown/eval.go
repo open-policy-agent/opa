@@ -382,7 +382,6 @@ func (e *eval) evalStep(iter evalIterator) error {
 		// NOTE(sr): if a SomeDecl made it into topdown, it's a qualified "[some|every] x in xs { ... } " block
 		// For each binding of the domain, we'll evaluate the body.
 		child := e.closure(ast.NewBody(ast.NewExpr([]*ast.Term(terms.Domain))))
-		// TODO(sr): figure out empty domain
 		// TODO(sr): traces
 		switch terms.Type {
 		case ast.QualificationExistential:
@@ -393,7 +392,7 @@ func (e *eval) evalStep(iter evalIterator) error {
 				return body.eval(iter)
 			})
 		case ast.QualificationUniversal:
-			allDone := true
+			defined = true
 			evals := make([]*eval, 0, 1) // "delayed eval"
 			err = child.eval(func(child *eval) error {
 				done := false
@@ -404,19 +403,21 @@ func (e *eval) evalStep(iter evalIterator) error {
 					return nil
 				})
 				if !done {
-					allDone = false
+					defined = false
 				}
 				return err
 			})
 			if err != nil {
 				return err
 			}
-			if !allDone {
-				return nil
-			}
-			for _, ev := range evals {
-				if err := iter(ev); err != nil {
-					return err
+			if defined {
+				if len(evals) == 0 {
+					return iter(e)
+				}
+				for _, ev := range evals {
+					if err := iter(ev); err != nil {
+						return err
+					}
 				}
 			}
 		}
