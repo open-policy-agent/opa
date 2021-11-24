@@ -16,9 +16,12 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/go-ini/ini"
 
 	"github.com/open-policy-agent/opa/logging"
 )
@@ -46,6 +49,13 @@ const (
 	awsRegionEnvVar               = "AWS_REGION"
 	awsRoleArnEnvVar              = "AWS_ROLE_ARN"
 	awsWebIdentityTokenFileEnvVar = "AWS_WEB_IDENTITY_TOKEN_FILE"
+	awsCredentialsFileEnvVar      = "AWS_SHARED_CREDENTIALS_FILE"
+	awsProfileEnvVar              = "AWS_PROFILE"
+
+	// ref. https://docs.aws.amazon.com/sdkref/latest/guide/settings-global.html
+	accessKeyGlobalSetting     = "aws_access_key_id"
+	secretKeyGlobalSetting     = "aws_secret_access_key"
+	securityTokenGlobalSetting = "aws_session_token"
 )
 
 // Headers that may be mutated before reaching an aws service (eg by a proxy) should be added here to omit them from
@@ -89,7 +99,7 @@ func (cs *awsEnvironmentCredentialService) credentials() (awsCredentials, error)
 	if creds.RegionName == "" {
 		return creds, errors.New("no " + awsRegionEnvVar + " set in environment")
 	}
-	// SessionToken is required if using temporaty ENV credentials from assumed IAM role
+	// SessionToken is required if using temporary ENV credentials from assumed IAM role
 	// Missing SessionToken results with 403 s3 error.
 	creds.SessionToken = os.Getenv(sessionTokenEnvVar)
 	if creds.SessionToken == "" {
@@ -99,6 +109,101 @@ func (cs *awsEnvironmentCredentialService) credentials() (awsCredentials, error)
 	}
 
 	return creds, nil
+}
+
+// awsProfileCredentialService represents a credential provider for AWS that extracts credentials from the AWS
+// credentials file
+type awsProfileCredentialService struct {
+
+	// Path to the credentials file.
+	//
+	// If empty will look for "AWS_SHARED_CREDENTIALS_FILE" env variable. If the
+	// env value is empty will default to current user's home directory.
+	// Linux/OSX: "$HOME/.aws/credentials"
+	// Windows:   "%USERPROFILE%\.aws\credentials"
+	Path string `json:"path,omitempty"`
+
+	// AWS Profile to extract credentials from the credentials file. If empty
+	// will default to environment variable "AWS_PROFILE" or "default" if
+	// environment variable is also not set.
+	Profile string `json:"profile,omitempty"`
+
+	RegionName string `json:"aws_region"`
+
+	logger logging.Logger
+}
+
+func (cs *awsProfileCredentialService) credentials() (awsCredentials, error) {
+	var creds awsCredentials
+
+	filename, err := cs.path()
+	if err != nil {
+		return creds, err
+	}
+
+	cfg, err := ini.Load(filename)
+	if err != nil {
+		return creds, fmt.Errorf("failed to read credentials file: %v", err)
+	}
+
+	profile, err := cfg.GetSection(cs.profile())
+	if err != nil {
+		return creds, fmt.Errorf("failed to get profile: %v", err)
+	}
+
+	creds.AccessKey = profile.Key(accessKeyGlobalSetting).String()
+	if creds.AccessKey == "" {
+		return creds, fmt.Errorf("profile \"%v\" in credentials file %v does not contain \"%v\"", cs.Profile, cs.Path, accessKeyGlobalSetting)
+	}
+
+	creds.SecretKey = profile.Key(secretKeyGlobalSetting).String()
+	if creds.SecretKey == "" {
+		return creds, fmt.Errorf("profile \"%v\" in credentials file %v does not contain \"%v\"", cs.Profile, cs.Path, secretKeyGlobalSetting)
+	}
+
+	creds.SessionToken = profile.Key(securityTokenGlobalSetting).String() //default to empty string
+
+	if cs.RegionName == "" {
+		if cs.RegionName = os.Getenv(awsRegionEnvVar); cs.RegionName == "" {
+			return creds, errors.New("no " + awsRegionEnvVar + " set in environment or configuration")
+		}
+	}
+	creds.RegionName = cs.RegionName
+
+	return creds, nil
+}
+
+func (cs *awsProfileCredentialService) path() (string, error) {
+	if len(cs.Path) != 0 {
+		return cs.Path, nil
+	}
+
+	if cs.Path = os.Getenv(awsCredentialsFileEnvVar); len(cs.Path) != 0 {
+		return cs.Path, nil
+	}
+
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("user home directory not found: %w", err)
+	}
+
+	cs.Path = filepath.Join(homeDir, ".aws", "credentials")
+
+	return cs.Path, nil
+}
+
+func (cs *awsProfileCredentialService) profile() string {
+	if cs.Profile != "" {
+		return cs.Profile
+	}
+
+	cs.Profile = os.Getenv(awsProfileEnvVar)
+
+	if cs.Profile == "" {
+		cs.Profile = "default"
+	}
+
+	return cs.Profile
 }
 
 // awsMetadataCredentialService represents an EC2 metadata service credential provider for AWS
