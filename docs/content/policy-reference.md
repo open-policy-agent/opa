@@ -479,10 +479,10 @@ The following table shows examples of how ``glob.match`` works:
 | <span class="opa-keep-it-together">``output := base64url.encode(x)``</span> | ``output`` is ``x`` serialized to a base64url encoded string with padding | ✅ |
 | <span class="opa-keep-it-together">``output := base64url.encode_no_pad(x)``</span> | ``output`` is ``x`` serialized to a base64url encoded string without padding | ``SDK-dependent`` |
 | <span class="opa-keep-it-together">``output := base64url.decode(string)``</span> | ``output`` is ``string`` deserialized from a base64url encoded string with or without padding | ✅ |
-| <span class="opa-keep-it-together">``output := urlquery.encode(string)``</span> | ``output`` is ``string`` serialized to a URL query parameter encoded string | ``SDK-dependent`` |
-| <span class="opa-keep-it-together">``output := urlquery.encode_object(object)``</span> | ``output`` is ``object`` serialized to a URL query parameter encoded string | ``SDK-dependent`` |
-| <span class="opa-keep-it-together">``output := urlquery.decode(string)``</span> | ``output`` is ``string`` deserialized from a URL query parameter encoded string | ``SDK-dependent`` |
-| <span class="opa-keep-it-together">``output := urlquery.decode_object(string)``</span> | ``output`` is ``object`` deserialized from a URL query parameter string | ``SDK-dependent`` |
+| <span class="opa-keep-it-together">``output := urlquery.encode(string)``</span> | ``output`` is URL query parameter encoded ``string`` | ``SDK-dependent`` |
+| <span class="opa-keep-it-together">``output := urlquery.encode_object(object)``</span> | ``output`` is URL query parameter encoded ``object`` | ``SDK-dependent`` |
+| <span class="opa-keep-it-together">``output := urlquery.decode(string)``</span> | ``output`` is URL query parameter decoded ``string`` | ``SDK-dependent`` |
+| <span class="opa-keep-it-together">``output := urlquery.decode_object(string)``</span> | ``output`` is URL query parameter decoded ``string`` represented as an ``object`` | ``SDK-dependent`` |
 | <span class="opa-keep-it-together">``output := json.marshal(x)``</span> | ``output`` is ``x`` serialized to a JSON string | ✅ |
 | <span class="opa-keep-it-together">``output := json.unmarshal(string)``</span> | ``output`` is ``string`` deserialized to a term from a JSON encoded string | ✅ |
 | <span class="opa-keep-it-together">``output := json.is_valid(string)``</span> | ``output`` is a ``boolean`` that indicated whether ``string`` is a valid JSON document | ``SDK-dependent`` |
