@@ -11,9 +11,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/open-policy-agent/opa/util/test"
 
 	"github.com/open-policy-agent/opa/logging"
 )
@@ -95,6 +98,222 @@ func TestEnvironmentCredentialService(t *testing.T) {
 		if envCreds != expectedCreds {
 			t.Error("expected: ", expectedCreds, " but got: ", envCreds)
 		}
+	}
+}
+
+func TestProfileCredentialService(t *testing.T) {
+
+	defaultKey := "AKIAIOSFODNN7EXAMPLE"
+	defaultSecret := "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+	defaultSessionToken := "AQoEXAMPLEH4aoAH0gNCAPy"
+	defaultRegion := "us-west-2"
+
+	fooKey := "AKIAI44QH8DHBEXAMPLE"
+	fooSecret := "je7MtGbClwBF/2Zp9Utk/h3yCo8nvbEXAMPLEKEY"
+	fooRegion := "us-east-1"
+
+	config := fmt.Sprintf(`
+[default]
+aws_access_key_id=%v
+aws_secret_access_key=%v
+aws_session_token=%v
+
+[foo]
+aws_access_key_id=%v
+aws_secret_access_key=%v
+`, defaultKey, defaultSecret, defaultSessionToken, fooKey, fooSecret)
+
+	files := map[string]string{
+		"example.ini": config,
+	}
+
+	test.WithTempFS(files, func(path string) {
+		cfgPath := filepath.Join(path, "example.ini")
+		cs := &awsProfileCredentialService{
+			Path:       cfgPath,
+			Profile:    "foo",
+			RegionName: fooRegion,
+		}
+		creds, err := cs.credentials()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		expected := awsCredentials{
+			AccessKey:    fooKey,
+			SecretKey:    fooSecret,
+			RegionName:   fooRegion,
+			SessionToken: "",
+		}
+
+		if expected != creds {
+			t.Fatalf("Expected credentials %v but got %v", expected, creds)
+		}
+
+		// "default" profile
+		cs = &awsProfileCredentialService{
+			Path:       cfgPath,
+			Profile:    "",
+			RegionName: defaultRegion,
+		}
+
+		creds, err = cs.credentials()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		expected = awsCredentials{
+			AccessKey:    defaultKey,
+			SecretKey:    defaultSecret,
+			RegionName:   defaultRegion,
+			SessionToken: defaultSessionToken,
+		}
+
+		if expected != creds {
+			t.Fatalf("Expected credentials %v but got %v", expected, creds)
+		}
+	})
+}
+
+func TestProfileCredentialServiceWithEnvVars(t *testing.T) {
+	defaultKey := "AKIAIOSFODNN7EXAMPLE"
+	defaultSecret := "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+	defaultSessionToken := "AQoEXAMPLEH4aoAH0gNCAPy"
+	defaultRegion := "us-east-1"
+
+	config := fmt.Sprintf(`
+[default]
+aws_access_key_id=%v
+aws_secret_access_key=%v
+aws_session_token=%v
+`, defaultKey, defaultSecret, defaultSessionToken)
+
+	files := map[string]string{
+		"example.ini": config,
+	}
+
+	test.WithTempFS(files, func(path string) {
+		cfgPath := filepath.Join(path, "example.ini")
+
+		os.Setenv(awsCredentialsFileEnvVar, cfgPath)
+		os.Setenv(awsProfileEnvVar, "default")
+
+		defer os.Unsetenv(awsCredentialsFileEnvVar)
+		defer os.Unsetenv(awsProfileEnvVar)
+
+		cs := &awsProfileCredentialService{}
+		creds, err := cs.credentials()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		expected := awsCredentials{
+			AccessKey:    defaultKey,
+			SecretKey:    defaultSecret,
+			RegionName:   defaultRegion,
+			SessionToken: defaultSessionToken,
+		}
+
+		if expected != creds {
+			t.Fatalf("Expected credentials %v but got %v", expected, creds)
+		}
+	})
+}
+
+func TestProfileCredentialServiceWithDefaultPath(t *testing.T) {
+	defaultKey := "AKIAIOSFODNN7EXAMPLE"
+	defaultSecret := "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+	defaultSessionToken := "AQoEXAMPLEH4aoAH0gNCAPy"
+	defaultRegion := "us-west-2"
+
+	config := fmt.Sprintf(`
+[default]
+aws_access_key_id=%v
+aws_secret_access_key=%v
+aws_session_token=%v
+`, defaultKey, defaultSecret, defaultSessionToken)
+
+	files := map[string]string{}
+
+	test.WithTempFS(files, func(path string) {
+
+		os.Setenv("USERPROFILE", path)
+		os.Setenv("HOME", path)
+
+		defer os.Unsetenv("USERPROFILE")
+		defer os.Unsetenv("HOME")
+
+		cfgDir := filepath.Join(path, ".aws")
+		err := os.MkdirAll(cfgDir, os.ModePerm)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if err := ioutil.WriteFile(filepath.Join(cfgDir, "credentials"), []byte(config), 0600); err != nil {
+			t.Fatalf("Unexpected error: %s", err)
+		}
+
+		cs := &awsProfileCredentialService{RegionName: defaultRegion}
+		creds, err := cs.credentials()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		expected := awsCredentials{
+			AccessKey:    defaultKey,
+			SecretKey:    defaultSecret,
+			RegionName:   defaultRegion,
+			SessionToken: defaultSessionToken,
+		}
+
+		if expected != creds {
+			t.Fatalf("Expected credentials %v but got %v", expected, creds)
+		}
+	})
+}
+
+func TestProfileCredentialServiceWithError(t *testing.T) {
+	configNoAccessKeyID := `
+[default]
+aws_secret_access_key = secret
+`
+
+	configNoSecret := `
+[default]
+aws_access_key_id=accessKey
+`
+	tests := []struct {
+		note   string
+		config string
+	}{
+		{
+			note:   "no aws_access_key_id",
+			config: configNoAccessKeyID,
+		},
+		{
+			note:   "no aws_secret_access_key",
+			config: configNoSecret,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+
+			files := map[string]string{
+				"example.ini": tc.config,
+			}
+
+			test.WithTempFS(files, func(path string) {
+				cfgPath := filepath.Join(path, "example.ini")
+				cs := &awsProfileCredentialService{
+					Path: cfgPath,
+				}
+				_, err := cs.credentials()
+				if err == nil {
+					t.Fatal("Expected error but got nil")
+				}
+			})
+		})
 	}
 }
 
