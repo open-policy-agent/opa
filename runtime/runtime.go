@@ -140,10 +140,6 @@ type Params struct {
 	// sent by the server (in response to Data API queries.)
 	DecisionIDFactory func() string
 
-	// DiagnosticsBuffer is used by the server to record policy decisions.
-	// DEPRECATED. Use decision logging instead.
-	DiagnosticsBuffer server.Buffer
-
 	// Logging configures the logging behaviour.
 	Logging LoggingConfig
 
@@ -596,10 +592,6 @@ func (rt *Runtime) decisionIDFactory() string {
 }
 
 func (rt *Runtime) decisionLogger(ctx context.Context, event *server.Info) error {
-
-	if rt.Params.DiagnosticsBuffer != nil {
-		rt.Params.DiagnosticsBuffer.Push(event)
-	}
 
 	plugin := logs.Lookup(rt.Manager)
 	if plugin == nil {

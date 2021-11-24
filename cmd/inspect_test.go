@@ -51,7 +51,7 @@ func TestDoInspect(t *testing.T) {
 		res := `{
     "manifest": {"revision": "rev", "roots": ["foo", "bar", "fuz", "baz", "a", "x"]},
     "signatures_config": {},
-    "namespaces": {"": ["/data.json"], "data.foo": ["/example/foo.rego"]}
+    "namespaces": {"data": ["/data.json"], "data.foo": ["/example/foo.rego"]}
   }`
 
 		exp := util.MustUnmarshalJSON([]byte(res))
@@ -131,7 +131,7 @@ NAMESPACES:
 +-----------------------------+----------------------------------------------------+
 |          NAMESPACE          |                        FILE                        |
 +-----------------------------+----------------------------------------------------+
-|                             | /data.json                                         |
+| data                        | /data.json                                         |
 | data.a.b.y                  | /a/b/y/foo.rego                                    |
 |                             | /a/...xxxxxxxxxxxxxx/yyyyyyyyyyyyyyyyyyyy/foo.rego |
 | data.foo                    | /example/foo.rego                                  |
