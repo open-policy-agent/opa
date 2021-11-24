@@ -503,6 +503,7 @@ type awsSigningAuthPlugin struct {
 	AWSEnvironmentCredentials *awsEnvironmentCredentialService `json:"environment_credentials,omitempty"`
 	AWSMetadataCredentials    *awsMetadataCredentialService    `json:"metadata_credentials,omitempty"`
 	AWSWebIdentityCredentials *awsWebIdentityCredentialService `json:"web_identity_credentials,omitempty"`
+	AWSProfileCredentials     *awsProfileCredentialService     `json:"profile_credentials,omitempty"`
 	AWSService                string                           `json:"service,omitempty"`
 
 	logger logging.Logger
@@ -517,8 +518,12 @@ func (ap *awsSigningAuthPlugin) awsCredentialService() awsCredentialService {
 		ap.AWSWebIdentityCredentials.logger = ap.logger
 		return ap.AWSWebIdentityCredentials
 	}
-	ap.AWSMetadataCredentials.logger = ap.logger
-	return ap.AWSMetadataCredentials
+	if ap.AWSMetadataCredentials != nil {
+		ap.AWSMetadataCredentials.logger = ap.logger
+		return ap.AWSMetadataCredentials
+	}
+	ap.AWSProfileCredentials.logger = ap.logger
+	return ap.AWSProfileCredentials
 }
 
 func (ap *awsSigningAuthPlugin) NewClient(c Config) (*http.Client, error) {
@@ -527,13 +532,17 @@ func (ap *awsSigningAuthPlugin) NewClient(c Config) (*http.Client, error) {
 		return nil, err
 	}
 
-	if ap.AWSEnvironmentCredentials == nil && ap.AWSWebIdentityCredentials == nil && ap.AWSMetadataCredentials == nil {
+	if ap.AWSEnvironmentCredentials == nil && ap.AWSWebIdentityCredentials == nil && ap.AWSMetadataCredentials == nil &&
+		ap.AWSProfileCredentials == nil {
 		return nil, errors.New("a AWS credential service must be specified when S3 signing is enabled")
 	}
 
 	if (ap.AWSEnvironmentCredentials != nil && ap.AWSMetadataCredentials != nil) ||
 		(ap.AWSEnvironmentCredentials != nil && ap.AWSWebIdentityCredentials != nil) ||
-		(ap.AWSWebIdentityCredentials != nil && ap.AWSMetadataCredentials != nil) {
+		(ap.AWSEnvironmentCredentials != nil && ap.AWSProfileCredentials != nil) ||
+		(ap.AWSMetadataCredentials != nil && ap.AWSWebIdentityCredentials != nil) ||
+		(ap.AWSMetadataCredentials != nil && ap.AWSProfileCredentials != nil) ||
+		(ap.AWSWebIdentityCredentials != nil && ap.AWSProfileCredentials != nil) {
 		return nil, errors.New("exactly one AWS credential service must be specified when S3 signing is enabled")
 	}
 	if ap.AWSMetadataCredentials != nil {

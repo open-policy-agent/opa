@@ -417,6 +417,19 @@ Please note that if you are using temporary IAM credentials (e.g. assumed IAM ro
 | --- | --- | --- | --- |
 | `services[_].credentials.s3_signing.environment_credentials` | `{}` | Yes | Enables AWS signing using environment variables to source the configuration and credentials |
 
+
+##### Using Named Profile Credentials
+If specifying `profile_credentials`, OPA will expect to find the `access key id`, `secret access key` and
+`session token` from the [named profiles](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-profiles.html)
+stored in the [credentials](https://docs.aws.amazon.com/sdkref/latest/guide/file-format.html) file on disk. On each
+request OPA will re-read the credentials from the file and use them for authentication.
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `services[_].credentials.s3_signing.profile_credentials.path` | `string` | No | The path to the shared credentials file. If empty, OPA will look for the `AWS_SHARED_CREDENTIALS_FILE` env variable. If the variable is not set, the path defaults to the current user's home directory. `~/.aws/credentials` (Linux & Mac) or `%USERPROFILE%\.aws\credentials` (Windows) |
+| `services[_].credentials.s3_signing.profile_credentials.profile` | `string` | No | AWS Profile to extract credentials from the credentials file. If empty, OPA will look for the `AWS_PROFILE` env variable. If the variable is not set, the `default` profile will be used |
+| `services[_].credentials.s3_signing.metadata_credentials.aws_region` | `string` | No | The AWS region to use for the AWS signing service credential method. If unset, the `AWS_REGION` environment variable must be set |
+
 ##### Using EC2 Metadata Credentials
 If specifying `metadata_credentials`, OPA will use the AWS metadata services for [EC2](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html)
 or [ECS](https://docs.aws.amazon.com/AmazonECS/latest/userguide/task-iam-roles.html)
