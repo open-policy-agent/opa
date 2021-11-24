@@ -587,7 +587,9 @@ func (s *Server) initHandlerAuth(handler http.Handler) http.Handler {
 			s.getCompiler,
 			s.store,
 			authorizer.Runtime(s.runtime),
-			authorizer.Decision(s.manager.Config.DefaultAuthorizationDecisionRef))
+			authorizer.Decision(s.manager.Config.DefaultAuthorizationDecisionRef),
+			authorizer.PrintHook(s.manager.PrintHook()),
+			authorizer.EnablePrintStatements(s.manager.EnablePrintStatements()))
 	}
 
 	switch s.authentication {
