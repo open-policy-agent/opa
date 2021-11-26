@@ -93,3 +93,22 @@ jobs:
           status: ${{ job.status }}
           fields: repo,workflow
 
+  go-proxy-check:
+    name: Go mod check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: Vendor without proxy
+        run: make check-go-module
+        timeout-minutes: 30
+
+      - name: Slack Notification
+        uses: 8398a7/action-slack@v3
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }}
+        if: ${{ failure() && env.SLACK_WEBHOOK_URL }}
+        with:
+          status: ${{ job.status }}
+          fields: repo,workflow
