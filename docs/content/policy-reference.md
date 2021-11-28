@@ -209,7 +209,7 @@ c = a | b
 
 ```live:rules/condbool:module:read_only
 # p is true if ...
-p = true { ...}
+p = true { ... }
 
 # OR
 
