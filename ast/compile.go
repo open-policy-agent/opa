@@ -836,13 +836,13 @@ func (c *Compiler) checkRuleConflicts() {
 func (c *Compiler) checkUndefinedFuncs() {
 	for _, name := range c.sorted {
 		m := c.Modules[name]
-		for _, err := range checkUndefinedFuncs(m, c.GetArity, c.RewrittenVars) {
+		for _, err := range checkUndefinedFuncs(c.TypeEnv, m, c.GetArity, c.RewrittenVars) {
 			c.err(err)
 		}
 	}
 }
 
-func checkUndefinedFuncs(x interface{}, arity func(Ref) int, rwVars map[Var]Var) Errors {
+func checkUndefinedFuncs(env *TypeEnv, x interface{}, arity func(Ref) int, rwVars map[Var]Var) Errors {
 
 	var errs Errors
 
@@ -851,18 +851,18 @@ func checkUndefinedFuncs(x interface{}, arity func(Ref) int, rwVars map[Var]Var)
 			return false
 		}
 		ref := expr.Operator()
-		if arity := arity(ref); arity > 0 {
+		if arity := arity(ref); arity >= 0 {
 			operands := len(expr.Operands())
 			if expr.Generated { // an output var was added
 				if !expr.IsEquality() && operands != arity+1 {
 					ref = rewriteVarsInRef(rwVars)(ref)
-					errs = append(errs, arityMismatchError(ref, expr.Loc(), arity, operands-1))
+					errs = append(errs, arityMismatchError(env, ref, expr, arity, operands-1))
 					return true
 				}
 			} else { // either output var or not
 				if operands != arity && operands != arity+1 {
 					ref = rewriteVarsInRef(rwVars)(ref)
-					errs = append(errs, arityMismatchError(ref, expr.Loc(), arity, operands))
+					errs = append(errs, arityMismatchError(env, ref, expr, arity, operands))
 					return true
 				}
 			}
@@ -876,11 +876,22 @@ func checkUndefinedFuncs(x interface{}, arity func(Ref) int, rwVars map[Var]Var)
 	return errs
 }
 
-func arityMismatchError(f Ref, loc *location.Location, exp, act int) *Error {
-	if act != 1 {
-		return NewError(TypeErr, loc, "function %v has arity %d, got %d arguments", f, exp, act)
+func arityMismatchBuiltin(env *TypeEnv, f Ref, t *types.Function, loc *location.Location, operands []*Term) *Error {
+	actual := make([]types.Type, len(operands))
+	for i, op := range operands {
+		actual[i] = env.Get(op)
 	}
-	return NewError(TypeErr, loc, "function %v has arity %d, got %d argument", f, exp, act)
+	return NewError(TypeErr, loc, "built-in function %v: expected %v, got %v", f, t.FuncArgs(), types.FuncArgs{Args: actual})
+}
+
+func arityMismatchError(env *TypeEnv, f Ref, expr *Expr, exp, act int) *Error {
+	if t, ok := env.Get(f).(*types.Function); ok { // generate richer error for built-in functions
+		return arityMismatchBuiltin(env, f, t, expr.Loc(), expr.Operands()[:act])
+	}
+	if act != 1 {
+		return NewError(TypeErr, expr.Loc(), "function %v has arity %d, got %d arguments", f, exp, act)
+	}
+	return NewError(TypeErr, expr.Loc(), "function %v has arity %d, got %d argument", f, exp, act)
 }
 
 // checkSafetyRuleBodies ensures that variables appearing in negated expressions or non-target
@@ -2047,7 +2058,7 @@ func (qc *queryCompiler) checkVoidCalls(_ *QueryContext, body Body) (Body, error
 }
 
 func (qc *queryCompiler) checkUndefinedFuncs(_ *QueryContext, body Body) (Body, error) {
-	if errs := checkUndefinedFuncs(body, qc.compiler.GetArity, qc.rewritten); len(errs) > 0 {
+	if errs := checkUndefinedFuncs(qc.compiler.TypeEnv, body, qc.compiler.GetArity, qc.rewritten); len(errs) > 0 {
 		return nil, errs
 	}
 	return body, nil

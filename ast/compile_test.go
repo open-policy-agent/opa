@@ -1118,6 +1118,18 @@ func TestCompilerCheckUndefinedFuncs(t *testing.T) {
 		undefined_dynamic_dispatch_declared_var_in_array {
 			z := "f"; data.test2[[z]](1)
 		}
+
+		arity_mismatch_1 {
+			data.test2.f(1,2,3)
+		}
+
+		arity_mismatch_2 {
+			data.test2.f()
+		}
+
+		arity_mismatch_3 {
+			x:= data.test2.f()
+		}
 	`
 
 	module2 := `
@@ -1141,6 +1153,9 @@ func TestCompilerCheckUndefinedFuncs(t *testing.T) {
 		"rego_type_error: undefined function data.test2[x]",
 		"rego_type_error: undefined function data.test2[y]",
 		"rego_type_error: undefined function data.test2[[z]]",
+		"rego_type_error: function data.test2.f has arity 1, got 3 arguments",
+		"test.rego:31: rego_type_error: function data.test2.f has arity 1, got 0 arguments",
+		"test.rego:35: rego_type_error: function data.test2.f has arity 1, got 0 arguments",
 	}
 	for _, w := range want {
 		if !strings.Contains(result, w) {
@@ -4384,12 +4399,12 @@ func TestQueryCompiler(t *testing.T) {
 		{
 			note:     "invalid eq",
 			q:        "eq()",
-			expected: fmt.Errorf("1 error occurred: 1:1: rego_type_error: function eq has arity 2, got 0 arguments"),
+			expected: fmt.Errorf("1 error occurred: 1:1: rego_type_error: built-in function eq: expected (any, any), got ()"),
 		},
 		{
 			note:     "invalid eq",
 			q:        "eq(1)",
-			expected: fmt.Errorf("1 error occurred: 1:1: rego_type_error: function eq has arity 2, got 1 argument"),
+			expected: fmt.Errorf("1 error occurred: 1:1: rego_type_error: built-in function eq: expected (any, any), got (number)"),
 		},
 		{
 			note:     "rewrite assignment",
@@ -4467,11 +4482,25 @@ func TestQueryCompiler(t *testing.T) {
 			expected: `__localq1__ = data.a.b.c.z; __localq0__ = [__localq1__]; 1 with input as __localq0__`,
 		},
 		{
-			note:     "unsafe exprs",
+			note:     "built-in function arity mismatch",
+			q:        `startswith("x")`,
+			pkg:      "",
+			imports:  nil,
+			expected: fmt.Errorf("1 error occurred: 1:1: rego_type_error: built-in function startswith: expected (string, string), got (string)"),
+		},
+		{
+			note:     "built-in function arity mismatch (arity 0)",
+			q:        `x := opa.runtime("foo")`,
+			pkg:      "",
+			imports:  nil,
+			expected: fmt.Errorf("1 error occurred: 1:6: rego_type_error: built-in function opa.runtime: expected (), got (string)"),
+		},
+		{
+			note:     "built-in function arity mismatch, nested",
 			q:        "count(sum())",
 			pkg:      "",
 			imports:  nil,
-			expected: fmt.Errorf("1 error occurred: 1:7: rego_type_error: function sum has arity 1, got 0 arguments"),
+			expected: fmt.Errorf("1 error occurred: 1:7: rego_type_error: built-in function sum: expected (any<array[number], set[number]>), got ()"),
 		},
 		{
 			note:     "check types",
