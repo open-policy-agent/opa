@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/open-policy-agent/opa/ast/location"
 	"github.com/open-policy-agent/opa/internal/debug"
 	"github.com/open-policy-agent/opa/internal/gojsonschema"
 	"github.com/open-policy-agent/opa/metrics"
@@ -850,7 +851,21 @@ func checkUndefinedFuncs(x interface{}, arity func(Ref) int, rwVars map[Var]Var)
 			return false
 		}
 		ref := expr.Operator()
-		if arity(ref) >= 0 {
+		if arity := arity(ref); arity > 0 {
+			operands := len(expr.Operands())
+			if expr.Generated { // an output var was added
+				if !expr.IsEquality() && operands != arity+1 {
+					ref = rewriteVarsInRef(rwVars)(ref)
+					errs = append(errs, arityMismatchError(ref, expr.Loc(), arity, operands-1))
+					return true
+				}
+			} else { // either output var or not
+				if operands != arity && operands != arity+1 {
+					ref = rewriteVarsInRef(rwVars)(ref)
+					errs = append(errs, arityMismatchError(ref, expr.Loc(), arity, operands))
+					return true
+				}
+			}
 			return false
 		}
 		ref = rewriteVarsInRef(rwVars)(ref)
@@ -859,6 +874,13 @@ func checkUndefinedFuncs(x interface{}, arity func(Ref) int, rwVars map[Var]Var)
 	})
 
 	return errs
+}
+
+func arityMismatchError(f Ref, loc *location.Location, exp, act int) *Error {
+	if act != 1 {
+		return NewError(TypeErr, loc, "function %v has arity %d, got %d arguments", f, exp, act)
+	}
+	return NewError(TypeErr, loc, "function %v has arity %d, got %d argument", f, exp, act)
 }
 
 // checkSafetyRuleBodies ensures that variables appearing in negated expressions or non-target
@@ -2040,7 +2062,7 @@ func (qc *queryCompiler) checkSafety(_ *QueryContext, body Body) (Body, error) {
 	return reordered, nil
 }
 
-func (qc *queryCompiler) checkTypes(qctx *QueryContext, body Body) (Body, error) {
+func (qc *queryCompiler) checkTypes(_ *QueryContext, body Body) (Body, error) {
 	var errs Errors
 	checker := newTypeChecker().
 		WithSchemaSet(qc.compiler.schemaSet).
@@ -2054,7 +2076,7 @@ func (qc *queryCompiler) checkTypes(qctx *QueryContext, body Body) (Body, error)
 	return body, nil
 }
 
-func (qc *queryCompiler) checkUnsafeBuiltins(qctx *QueryContext, body Body) (Body, error) {
+func (qc *queryCompiler) checkUnsafeBuiltins(_ *QueryContext, body Body) (Body, error) {
 	var unsafe map[string]struct{}
 	if qc.unsafeBuiltins != nil {
 		unsafe = qc.unsafeBuiltins
@@ -2068,7 +2090,7 @@ func (qc *queryCompiler) checkUnsafeBuiltins(qctx *QueryContext, body Body) (Bod
 	return body, nil
 }
 
-func (qc *queryCompiler) rewriteWithModifiers(qctx *QueryContext, body Body) (Body, error) {
+func (qc *queryCompiler) rewriteWithModifiers(_ *QueryContext, body Body) (Body, error) {
 	f := newEqualityFactory(newLocalVarGenerator("q", body))
 	body, err := rewriteWithModifiersInBody(qc.compiler, f, body)
 	if err != nil {
@@ -2077,7 +2099,7 @@ func (qc *queryCompiler) rewriteWithModifiers(qctx *QueryContext, body Body) (Bo
 	return body, nil
 }
 
-func (qc *queryCompiler) buildComprehensionIndices(qctx *QueryContext, body Body) (Body, error) {
+func (qc *queryCompiler) buildComprehensionIndices(_ *QueryContext, body Body) (Body, error) {
 	// NOTE(tsandall): The query compiler does not have a metrics object so we
 	// cannot record index metrics currently.
 	_ = buildComprehensionIndices(qc.compiler.debug, qc.compiler.GetArity, ReservedVars, qc.RewrittenVars(), body, qc.comprehensionIndices)
@@ -2918,10 +2940,10 @@ func OutputVarsFromBody(c *Compiler, body Body, safe VarSet) VarSet {
 	return outputVarsForBody(body, c.GetArity, safe)
 }
 
-func outputVarsForBody(body Body, getArity func(Ref) int, safe VarSet) VarSet {
+func outputVarsForBody(body Body, arity func(Ref) int, safe VarSet) VarSet {
 	o := safe.Copy()
 	for _, e := range body {
-		o.Update(outputVarsForExpr(e, getArity, o))
+		o.Update(outputVarsForExpr(e, arity, o))
 	}
 	return o.Diff(safe)
 }
@@ -2933,7 +2955,7 @@ func OutputVarsFromExpr(c *Compiler, expr *Expr, safe VarSet) VarSet {
 	return outputVarsForExpr(expr, c.GetArity, safe)
 }
 
-func outputVarsForExpr(expr *Expr, getArity func(Ref) int, safe VarSet) VarSet {
+func outputVarsForExpr(expr *Expr, arity func(Ref) int, safe VarSet) VarSet {
 
 	// Negated expressions must be safe.
 	if expr.Negated {
@@ -2968,12 +2990,12 @@ func outputVarsForExpr(expr *Expr, getArity func(Ref) int, safe VarSet) VarSet {
 			return VarSet{}
 		}
 
-		arity := getArity(operator)
-		if arity < 0 {
+		ar := arity(operator)
+		if ar < 0 {
 			return VarSet{}
 		}
 
-		return outputVarsForExprCall(expr, arity, safe, terms)
+		return outputVarsForExprCall(expr, ar, safe, terms)
 	default:
 		panic("illegal expression")
 	}

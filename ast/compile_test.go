@@ -2693,9 +2693,8 @@ func TestCompileInvalidEqAssignExpr(t *testing.T) {
 
 
 	p {
-		# Type checking runs at a later stage so these errors will not be #
-		# caught until then. The stages before type checking should be tolerant
-		# of invalid eq and assign calls.
+		# Arity mismatches are caught in the checkUndefinedFuncs check,
+		# and invalid eq/assign calls are passed along until then.
 		assign()
 		assign(1)
 		eq()
@@ -2703,10 +2702,10 @@ func TestCompileInvalidEqAssignExpr(t *testing.T) {
 	}`)
 
 	var prev func()
-	checkRecursion := reflect.ValueOf(c.checkRecursion)
+	checkUndefinedFuncs := reflect.ValueOf(c.checkUndefinedFuncs)
 
 	for _, stage := range c.stages {
-		if reflect.ValueOf(stage.f).Pointer() == checkRecursion.Pointer() {
+		if reflect.ValueOf(stage.f).Pointer() == checkUndefinedFuncs.Pointer() {
 			break
 		}
 		prev = stage.f
@@ -4385,12 +4384,12 @@ func TestQueryCompiler(t *testing.T) {
 		{
 			note:     "invalid eq",
 			q:        "eq()",
-			expected: fmt.Errorf("too few arguments"),
+			expected: fmt.Errorf("1 error occurred: 1:1: rego_type_error: function eq has arity 2, got 0 arguments"),
 		},
 		{
 			note:     "invalid eq",
 			q:        "eq(1)",
-			expected: fmt.Errorf("too few arguments"),
+			expected: fmt.Errorf("1 error occurred: 1:1: rego_type_error: function eq has arity 2, got 1 argument"),
 		},
 		{
 			note:     "rewrite assignment",
@@ -4472,7 +4471,7 @@ func TestQueryCompiler(t *testing.T) {
 			q:        "count(sum())",
 			pkg:      "",
 			imports:  nil,
-			expected: fmt.Errorf("1 error occurred: 1:1: rego_unsafe_var_error: expression is unsafe"),
+			expected: fmt.Errorf("1 error occurred: 1:7: rego_type_error: function sum has arity 1, got 0 arguments"),
 		},
 		{
 			note:     "check types",
@@ -4645,6 +4644,7 @@ func assertCompilerErrorStrings(t *testing.T, compiler *Compiler, expected []str
 }
 
 func assertNotFailed(t *testing.T, c *Compiler) {
+	t.Helper()
 	if c.Failed() {
 		t.Fatalf("Unexpected compilation error: %v", c.Errors)
 	}
