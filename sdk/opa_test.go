@@ -16,62 +16,9 @@ import (
 
 	"github.com/fortytw2/leaktest"
 	loggingtest "github.com/open-policy-agent/opa/logging/test"
-	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/sdk"
 	sdktest "github.com/open-policy-agent/opa/sdk/test"
 )
-
-// Plugin creates an empty plugin to test plugin initialization
-type plugin struct {
-	manager *plugins.Manager
-}
-
-type factory struct{}
-
-func (p *plugin) Start(ctx context.Context) error {
-	p.manager.UpdatePluginStatus("test_plugin", &plugins.Status{State: plugins.StateOK})
-	return nil
-}
-
-func (p *plugin) Stop(ctx context.Context) {
-}
-
-func (p *plugin) Reconfigure(ctx context.Context, config interface{}) {
-}
-
-func (factory) New(manager *plugins.Manager, config interface{}) plugins.Plugin {
-	return &plugin{
-		manager: manager,
-	}
-}
-
-func (factory) Validate(manager *plugins.Manager, config []byte) (interface{}, error) {
-	return nil, nil
-}
-
-func TestPlugins(t *testing.T) {
-
-	ctx := context.Background()
-
-	config := []byte(`{
-        "plugins": {
-            "test_plugin": {}
-		}
-	}`)
-
-	opa, err := sdk.New(ctx, sdk.Options{
-		Config: bytes.NewReader(config),
-		Plugins: map[string]plugins.Factory{
-			"test_plugin": factory{},
-		},
-	})
-
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	defer opa.Stop(ctx)
-}
 
 func TestDecision(t *testing.T) {
 
@@ -556,4 +503,42 @@ func TestConfigure(t *testing.T) {
 	}
 
 	<-ch
+}
+
+func TestRuntime(t *testing.T) {
+	ctx := context.Background()
+
+	server := sdktest.MustNewServer(
+		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
+			"main.rego": "package system",
+		}),
+	)
+
+	defer server.Stop()
+
+	config := []byte(fmt.Sprintf(`{
+		"services": {
+			"test": {
+				"url": %q
+			}
+		},
+		"bundles": {
+			"test": {
+				"resource": "/bundles/bundle.tar.gz"
+			}
+		}
+	}`, server.URL()))
+
+	opa, err := sdk.New(ctx, sdk.Options{
+		Config: bytes.NewReader(config),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer opa.Stop(ctx)
+
+	if _, err := opa.Runtime(ctx); err != nil {
+		t.Fatal(err)
+	}
 }

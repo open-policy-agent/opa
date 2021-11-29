@@ -23,6 +23,7 @@ import (
 	"github.com/open-policy-agent/opa/plugins/discovery"
 	"github.com/open-policy-agent/opa/plugins/logs"
 	"github.com/open-policy-agent/opa/rego"
+	"github.com/open-policy-agent/opa/runtime"
 	"github.com/open-policy-agent/opa/server"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
@@ -37,7 +38,6 @@ type OPA struct {
 	mtx     sync.Mutex
 	logger  logging.Logger
 	console logging.Logger
-	plugins map[string]plugins.Factory
 	config  []byte
 }
 
@@ -70,7 +70,6 @@ func New(ctx context.Context, opts Options) (*OPA, error) {
 	opa.config = opts.config
 	opa.logger = opts.Logger
 	opa.console = opts.ConsoleLogger
-	opa.plugins = opts.Plugins
 
 	return opa, opa.configure(ctx, opa.config, opts.Ready, opts.block)
 }
@@ -140,7 +139,7 @@ func (opa *OPA) configure(ctx context.Context, bs []byte, ready chan struct{}, b
 		close(ready)
 	})
 
-	d, err := discovery.New(manager, discovery.Factories(opa.plugins))
+	d, err := discovery.New(manager)
 	if err != nil {
 		return err
 	}
@@ -421,4 +420,17 @@ func bundles(ctx context.Context, store storage.Store, txn storage.Transaction) 
 		bundles[name] = server.BundleInfo{Revision: r}
 	}
 	return bundles, nil
+}
+
+// Runtime returns the runtimes params of the OPA object
+func (opa *OPA) Runtime(ctx context.Context) (*runtime.Runtime, error) {
+	params := runtime.NewParams()
+	params.EnableVersionCheck = true
+
+	rt, err := runtime.NewRuntime(ctx, params)
+	if err != nil {
+		return nil, err
+	}
+
+	return rt, nil
 }
