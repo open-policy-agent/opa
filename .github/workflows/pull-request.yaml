@@ -39,7 +39,7 @@ jobs:
             targets: ci-go-ci-build-windows
           - os: darwin
             run: macos-latest
-            targets: ci-build-darwin
+            targets: ci-build-darwin ci-build-darwin-arm64-static
     steps:
       - name: Check out code
         uses: actions/checkout@v2
