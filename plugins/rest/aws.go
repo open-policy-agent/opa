@@ -378,6 +378,12 @@ func doMetaDataRequestWithClient(req *http.Request, client *http.Client, desc st
 	}).Debug("Received response from " + desc + " service.")
 
 	if resp.StatusCode != 200 {
+		if logger.GetLevel() == logging.Debug {
+			body, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				logger.Debug("Error response with response body: %v", body)
+			}
+		}
 		// could be 404 for role that's not available, but cover all the bases
 		return nil, errors.New(desc + " HTTP request returned unexpected status: " + resp.Status)
 	}
