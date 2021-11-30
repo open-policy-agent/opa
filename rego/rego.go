@@ -265,6 +265,13 @@ func EvalSortSets(yes bool) EvalOption {
 	}
 }
 
+// EvalPrintHook sets the object to use for handling print statement outputs.
+func EvalPrintHook(ph print.Hook) EvalOption {
+	return func(e *EvalContext) {
+		e.printHook = ph
+	}
+}
+
 func (pq preparedQuery) Modules() map[string]*ast.Module {
 	mods := make(map[string]*ast.Module)
 
