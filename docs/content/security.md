@@ -300,7 +300,7 @@ validate the identity:
 package system.authz
 
 # Tokens may defined in policy or pushed into OPA as data.
-tokens = {
+tokens := {
     "my-secret-token-foo": {
         "roles": ["admin"]
     },
@@ -330,7 +330,7 @@ documents:
 package system.authz
 
 # Rights may be defined in policy or pushed into OPA as data.
-rights = {
+rights := {
     "admin": {
         "path": "*"
     },
@@ -343,7 +343,7 @@ rights = {
 }
 
 # Tokens may be defined in policy or pushed into OPA as data.
-tokens = {
+tokens := {
     "my-secret-token-foo": {
         "roles": ["admin"]
     },
@@ -434,7 +434,7 @@ We also create a simple authorization policy file, called `check.rego`:
 package system.authz
 
 # client_cns may defined in policy or pushed into OPA as data.
-client_cns = {
+client_cns := {
 	"my-client": true
 }
 
@@ -547,8 +547,8 @@ default allow = false
 
 # Allow anonymous access to the default policy decision.
 allow {
-    input.method = "POST"
-    input.path = [""]
+    input.method == "POST"
+    input.path == [""]
 }
 ```
 

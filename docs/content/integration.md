@@ -69,10 +69,8 @@ package example.authz
 default allow = false
 
 allow {
-    some id
-    input.method = "GET"
-    input.path = ["salary", id]
-    input.subject.user = id
+    input.method == "GET"
+    input.path == ["salary", input.subject.user]
 }
 
 allow {
@@ -80,7 +78,7 @@ allow {
 }
 
 is_admin {
-    input.subject.groups[_] = "admin"
+    input.subject.groups[_] == "admin"
 }
 ```
 
@@ -205,9 +203,8 @@ default allow = false
 
 allow {
     some id
-    input.method = "GET"
-    input.path = ["salary", id]
-    input.subject.user = id
+    input.method == "GET"
+    input.path == ["salary", input.subject.user]
 }
 
 allow {
@@ -378,7 +375,7 @@ func main() {
 }
 ```
 
-If you executed this code, the output (ie. [Decision Log](https://www.openpolicyagent.org/docs/latest/management-decision-logs/) event)
+If you executed this code, the output (i.e. [Decision Log](https://www.openpolicyagent.org/docs/latest/management-decision-logs/) event)
 would be logged to the console by default.
 
 ## Comparison
