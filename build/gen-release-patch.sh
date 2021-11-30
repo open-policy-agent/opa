@@ -66,7 +66,6 @@ $(./build/changelog.py $LAST_VERSION HEAD)
 $(awk '/^##/{f=1}f' CHANGELOG.md)
 EOF
     fi
-   
     mv _CHANGELOG.md CHANGELOG.md
 }
 
