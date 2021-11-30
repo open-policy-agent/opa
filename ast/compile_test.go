@@ -4533,7 +4533,7 @@ func TestQueryCompiler(t *testing.T) {
 		},
 	}
 	for _, tc := range tests {
-		runQueryCompilerTest(t, tc.note, tc.q, tc.pkg, tc.imports, tc.expected)
+		t.Run(tc.note, runQueryCompilerTest(tc.q, tc.pkg, tc.imports, tc.expected))
 	}
 }
 
@@ -4829,8 +4829,9 @@ func compilerErrsToStringSlice(errors []*Error) []string {
 	return result
 }
 
-func runQueryCompilerTest(t *testing.T, note, q, pkg string, imports []string, expected interface{}) {
-	t.Run(note, func(t *testing.T) {
+func runQueryCompilerTest(q, pkg string, imports []string, expected interface{}) func(*testing.T) {
+	return func(t *testing.T) {
+		t.Helper()
 		c := NewCompiler().WithEnablePrintStatements(false)
 		c.Compile(getCompilerTestModules())
 		assertNotFailed(t, c)
@@ -4868,7 +4869,7 @@ func runQueryCompilerTest(t *testing.T, note, q, pkg string, imports []string, e
 				t.Fatalf("Expected error %v but got: %v", expected, err)
 			}
 		}
-	})
+	}
 }
 
 func TestCompilerCapabilitiesExtendedWithCustomBuiltins(t *testing.T) {
