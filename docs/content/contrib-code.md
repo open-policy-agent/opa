@@ -147,5 +147,6 @@ Before submitting large changes, please open an issue on GitHub outlining:
 - Alternative solutions or approaches if applicable.
 
 Use your judgement about what constitutes a large change. If you aren't sure,
-send a message to the [OPA slack](https://slack.openpolicyagent.org/) or submit
-[an issue on GitHub](https://github.com/open-policy-agent/opa/issues).
+send a message in 
+[#development](https://openpolicyagent.slack.com/archives/C02L1TLPN59) on Slack 
+or submit [an issue on GitHub](https://github.com/open-policy-agent/opa/issues).
