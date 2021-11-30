@@ -829,6 +829,8 @@ func (p *Plugin) maskEvent(ctx context.Context, txn storage.Transaction, event *
 				rego.Store(p.manager.Store),
 				rego.Transaction(txn),
 				rego.Runtime(p.manager.Info),
+				rego.EnablePrintStatements(p.manager.EnablePrintStatements()),
+				rego.PrintHook(p.manager.PrintHook()),
 			)
 
 			pq, err := r.PrepareForEval(context.Background())

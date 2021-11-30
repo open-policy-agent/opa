@@ -31,6 +31,7 @@ import (
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/topdown"
+	"github.com/open-policy-agent/opa/topdown/print"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/version"
 )
@@ -1287,12 +1288,22 @@ func TestPluginReconfigureUploadSizeLimit(t *testing.T) {
 	fixture.plugin.mtx.Unlock()
 }
 
+type appendingPrintHook struct {
+	printed *[]string
+}
+
+func (a appendingPrintHook) Print(_ print.Context, s string) error {
+	*a.printed = append(*a.printed, s)
+	return nil
+}
+
 func TestPluginMasking(t *testing.T) {
 	tests := []struct {
 		note        string
 		rawPolicy   []byte
 		expErased   []string
 		expMasked   []string
+		expPrinted  []string
 		errManager  error
 		expErr      error
 		input       interface{}
@@ -1496,6 +1507,24 @@ func TestPluginMasking(t *testing.T) {
 				"foo":          []interface{}{map[string]interface{}{"changed": json.Number("1")}},
 			},
 		},
+		{
+			note: "print() works",
+			rawPolicy: []byte(`
+				package system.log
+				mask["/input/password"] {
+					print("Erasing /input/password")
+					input.input.is_sensitive
+				}`),
+			expErased: []string{"/input/password"},
+			input: map[string]interface{}{
+				"is_sensitive": true,
+				"password":     "secret",
+			},
+			expected: map[string]interface{}{
+				"is_sensitive": true,
+			},
+			expPrinted: []string{"Erasing /input/password"},
+		},
 	}
 
 	for _, tc := range tests {
@@ -1514,9 +1543,17 @@ func TestPluginMasking(t *testing.T) {
 				t.Fatal(err)
 			}
 
+			var output []string
+
 			// Create and start manager. Start is required so that stored policies
 			// get compiled and made available to the plugin.
-			manager, err := plugins.New(nil, "test", store)
+			manager, err := plugins.New(
+				nil,
+				"test",
+				store,
+				plugins.EnablePrintStatements(true),
+				plugins.PrintHook(appendingPrintHook{printed: &output}),
+			)
 			if err != nil {
 				t.Fatal(err)
 			} else if err := manager.Start(ctx); err != nil {
@@ -1560,6 +1597,10 @@ func TestPluginMasking(t *testing.T) {
 				if !reflect.DeepEqual(tc.expMasked, event.Masked) {
 					t.Fatalf("Expected masked %v set but got %v", tc.expMasked, event.Masked)
 				}
+			}
+
+			if !reflect.DeepEqual(tc.expPrinted, output) {
+				t.Errorf("Expected output %v, got %v", tc.expPrinted, output)
 			}
 
 			// if reconfigure in test is on
