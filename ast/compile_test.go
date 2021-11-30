@@ -4399,12 +4399,12 @@ func TestQueryCompiler(t *testing.T) {
 		{
 			note:     "invalid eq",
 			q:        "eq()",
-			expected: fmt.Errorf("1 error occurred: 1:1: rego_type_error: built-in function eq: expected (any, any), got ()"),
+			expected: fmt.Errorf("1 error occurred: 1:1: rego_type_error: eq: arity mismatch\n\thave: ()\n\twant: (any, any)"),
 		},
 		{
 			note:     "invalid eq",
 			q:        "eq(1)",
-			expected: fmt.Errorf("1 error occurred: 1:1: rego_type_error: built-in function eq: expected (any, any), got (number)"),
+			expected: fmt.Errorf("1 error occurred: 1:1: rego_type_error: eq: arity mismatch\n\thave: (number)\n\twant: (any, any)"),
 		},
 		{
 			note:     "rewrite assignment",
@@ -4486,21 +4486,21 @@ func TestQueryCompiler(t *testing.T) {
 			q:        `startswith("x")`,
 			pkg:      "",
 			imports:  nil,
-			expected: fmt.Errorf("1 error occurred: 1:1: rego_type_error: built-in function startswith: expected (string, string), got (string)"),
+			expected: fmt.Errorf("1 error occurred: 1:1: rego_type_error: startswith: arity mismatch\n\thave: (string)\n\twant: (string, string)"),
 		},
 		{
 			note:     "built-in function arity mismatch (arity 0)",
 			q:        `x := opa.runtime("foo")`,
 			pkg:      "",
 			imports:  nil,
-			expected: fmt.Errorf("1 error occurred: 1:6: rego_type_error: built-in function opa.runtime: expected (), got (string)"),
+			expected: fmt.Errorf("1 error occurred: 1:6: rego_type_error: opa.runtime: arity mismatch\n\thave: (string, ???)\n\twant: ()"),
 		},
 		{
 			note:     "built-in function arity mismatch, nested",
 			q:        "count(sum())",
 			pkg:      "",
 			imports:  nil,
-			expected: fmt.Errorf("1 error occurred: 1:7: rego_type_error: built-in function sum: expected (any<array[number], set[number]>), got ()"),
+			expected: fmt.Errorf("1 error occurred: 1:7: rego_type_error: sum: arity mismatch\n\thave: (???)\n\twant: (any<array[number], set[number]>)"),
 		},
 		{
 			note:     "check types",

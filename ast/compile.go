@@ -11,7 +11,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/open-policy-agent/opa/ast/location"
 	"github.com/open-policy-agent/opa/internal/debug"
 	"github.com/open-policy-agent/opa/internal/gojsonschema"
 	"github.com/open-policy-agent/opa/metrics"
@@ -876,17 +875,13 @@ func checkUndefinedFuncs(env *TypeEnv, x interface{}, arity func(Ref) int, rwVar
 	return errs
 }
 
-func arityMismatchBuiltin(env *TypeEnv, f Ref, t *types.Function, loc *location.Location, operands []*Term) *Error {
-	actual := make([]types.Type, len(operands))
-	for i, op := range operands {
-		actual[i] = env.Get(op)
-	}
-	return NewError(TypeErr, loc, "built-in function %v: expected %v, got %v", f, t.FuncArgs(), types.FuncArgs{Args: actual})
-}
-
 func arityMismatchError(env *TypeEnv, f Ref, expr *Expr, exp, act int) *Error {
-	if t, ok := env.Get(f).(*types.Function); ok { // generate richer error for built-in functions
-		return arityMismatchBuiltin(env, f, t, expr.Loc(), expr.Operands()[:act])
+	if want, ok := env.Get(f).(*types.Function); ok { // generate richer error for built-in functions
+		have := make([]types.Type, len(expr.Operands()))
+		for i, op := range expr.Operands() {
+			have[i] = env.Get(op)
+		}
+		return newArgError(expr.Loc(), f, "arity mismatch", have, want.FuncArgs())
 	}
 	if act != 1 {
 		return NewError(TypeErr, expr.Loc(), "function %v has arity %d, got %d arguments", f, exp, act)
