@@ -6,36 +6,20 @@ weight: 2
 
 Contributing to our docs is one of the best ways to get started contributing to the OPA project. The OPA docs are one of the first places most people go for help, so any changes are impactful for the community. Thanks in advance for contributing to the docs.
 
-## Docs Layout
+## Sub-project docs
 
-* [Core Docs](https://www.openpolicyagent.org/docs/latest/) and reference materials for OPA and Rego
-* [Kubernetes](../kubernetes-introduction/) Admission Control Docs
-* [Envoy](../envoy-introduction/) docs for the OPA-Envoy Plugin
-* Other Use Cases like [Docker](../docker-authorization/), [Kafka](../kafka-authorization/), and [Terraform](../terraform/)
-* [Operations](../configuration/), configuration, and deployment docs for OPA   
-* [Management APIs](../management-introduction/) docs to control OPA at scale
-* [Contributing](../contributing/) to the OPA project docs
-* Miscellaneous docs like [WebAssembly](../wasm/), [OAuth2](../oauth-oidc/), and [IDE Support](../editor-and-ide-support/)
-* [Support](https://www.openpolicyagent.org/support) for Enterprise and Commercial deployments
+Docs for the OPA sub-projects each have their own home. Check out their docs to see how to contribute.
 
-Sub-project docs
 * [Gatekeeper](https://open-policy-agent.github.io/gatekeeper/website/docs/) docs for Kubernetes Admission Control
 * [Conftest](https://www.conftest.dev/) docs for validating your structured configuration data, like YAML and HCL files 
 
 
 ## Docs File Structure 
 
-[devel/](https://github.com/open-policy-agent/opa/blob/main/docs/devel) - Developer documentation for OPA (not part of the website)
-[website/](https://github.com/open-policy-agent/opa/blob/main/docs/website) - This directory contains all of the Markdown, HTML, Sass/CSS,
-and other assets needed to build the [openpolicyagent.org](https://openpolicyagent.org)
-website. See the section below for steps to build the site and test documentation changes
-locally. This content is not versioned for each release, it is common scaffolding for
-the website.
-[content/](https://github.com/open-policy-agent/opa/blob/main/docs/content) - The raw OPA documentation can be found under the 
-directory. This content is versioned for each release and should have all images
-and code snippets alongside the markdown content files.
-[website/data/integrations.yaml](https://github.com/open-policy-agent/opa/blob/main/docs/website/data/integrations.yaml) - Source for the
-integrations index. See [Integration Index](https://github.com/open-policy-agent/opa/blob/main/docs/README.md#integration-index) below for more details.
+- [devel/](https://github.com/open-policy-agent/opa/blob/main/docs/devel) - Developer documentation for OPA (not part of the website)
+- [website/](https://github.com/open-policy-agent/opa/blob/main/docs/website) - This directory contains all of the Markdown, HTML, Sass/CSS, and other assets needed to build the [openpolicyagent.org](https://openpolicyagent.org) website. See the section below for steps to build the site and test documentation changes locally. This content is not versioned for each release, it is common scaffolding for the website.
+- [content/](https://github.com/open-policy-agent/opa/blob/main/docs/content) - The raw OPA documentation can be found under the directory. This content is versioned for each release and should have all images and code snippets alongside the markdown content files.
+- [website/data/integrations.yaml](https://github.com/open-policy-agent/opa/blob/main/docs/website/data/integrations.yaml) - Source for the integrations index. See [Integration Index](https://github.com/open-policy-agent/opa/blob/main/docs/README.md#integration-index) below for more details.
 
 ## Markdown Page Structure
 
