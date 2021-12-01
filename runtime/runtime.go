@@ -299,6 +299,10 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		consoleLogger = params.ConsoleLogger
 	}
 
+	if params.Router == nil {
+		params.Router = mux.NewRouter()
+	}
+
 	manager, err := plugins.New(config,
 		params.ID,
 		inmem.New(),
@@ -310,7 +314,8 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		plugins.ConsoleLogger(consoleLogger),
 		plugins.Logger(logger),
 		plugins.EnablePrintStatements(logger.GetLevel() >= logging.Info),
-		plugins.PrintHook(loggingPrintHook{logger: logger}))
+		plugins.PrintHook(loggingPrintHook{logger: logger}),
+		plugins.WithRouter(params.Router))
 	if err != nil {
 		return nil, errors.Wrap(err, "config error")
 	}
