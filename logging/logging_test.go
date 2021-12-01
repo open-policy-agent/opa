@@ -5,7 +5,7 @@ import (
 )
 
 func TestWithFields(t *testing.T) {
-	logger := NewStandardLogger().WithFields(map[string]interface{}{"context": "contextvalue"})
+	logger := New().WithFields(map[string]interface{}{"context": "contextvalue"})
 
 	var fieldvalue interface{}
 	var ok bool
@@ -20,7 +20,7 @@ func TestWithFields(t *testing.T) {
 }
 
 func TestWithFieldsOverrides(t *testing.T) {
-	logger := NewStandardLogger().
+	logger := New().
 		WithFields(map[string]interface{}{"context": "contextvalue"}).
 		WithFields(map[string]interface{}{"context": "changedcontextvalue"})
 
@@ -37,7 +37,7 @@ func TestWithFieldsOverrides(t *testing.T) {
 }
 
 func TestWithFieldsMerges(t *testing.T) {
-	logger := NewStandardLogger().
+	logger := New().
 		WithFields(map[string]interface{}{"context": "contextvalue"}).
 		WithFields(map[string]interface{}{"anothercontext": "anothercontextvalue"})
 

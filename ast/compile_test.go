@@ -1118,6 +1118,18 @@ func TestCompilerCheckUndefinedFuncs(t *testing.T) {
 		undefined_dynamic_dispatch_declared_var_in_array {
 			z := "f"; data.test2[[z]](1)
 		}
+
+		arity_mismatch_1 {
+			data.test2.f(1,2,3)
+		}
+
+		arity_mismatch_2 {
+			data.test2.f()
+		}
+
+		arity_mismatch_3 {
+			x:= data.test2.f()
+		}
 	`
 
 	module2 := `
@@ -1141,6 +1153,9 @@ func TestCompilerCheckUndefinedFuncs(t *testing.T) {
 		"rego_type_error: undefined function data.test2[x]",
 		"rego_type_error: undefined function data.test2[y]",
 		"rego_type_error: undefined function data.test2[[z]]",
+		"rego_type_error: function data.test2.f has arity 1, got 3 arguments",
+		"test.rego:31: rego_type_error: function data.test2.f has arity 1, got 0 arguments",
+		"test.rego:35: rego_type_error: function data.test2.f has arity 1, got 0 arguments",
 	}
 	for _, w := range want {
 		if !strings.Contains(result, w) {
@@ -2693,9 +2708,8 @@ func TestCompileInvalidEqAssignExpr(t *testing.T) {
 
 
 	p {
-		# Type checking runs at a later stage so these errors will not be #
-		# caught until then. The stages before type checking should be tolerant
-		# of invalid eq and assign calls.
+		# Arity mismatches are caught in the checkUndefinedFuncs check,
+		# and invalid eq/assign calls are passed along until then.
 		assign()
 		assign(1)
 		eq()
@@ -2703,10 +2717,10 @@ func TestCompileInvalidEqAssignExpr(t *testing.T) {
 	}`)
 
 	var prev func()
-	checkRecursion := reflect.ValueOf(c.checkRecursion)
+	checkUndefinedFuncs := reflect.ValueOf(c.checkUndefinedFuncs)
 
 	for _, stage := range c.stages {
-		if reflect.ValueOf(stage.f).Pointer() == checkRecursion.Pointer() {
+		if reflect.ValueOf(stage.f).Pointer() == checkUndefinedFuncs.Pointer() {
 			break
 		}
 		prev = stage.f
@@ -4385,12 +4399,12 @@ func TestQueryCompiler(t *testing.T) {
 		{
 			note:     "invalid eq",
 			q:        "eq()",
-			expected: fmt.Errorf("too few arguments"),
+			expected: fmt.Errorf("1 error occurred: 1:1: rego_type_error: eq: arity mismatch\n\thave: ()\n\twant: (any, any)"),
 		},
 		{
 			note:     "invalid eq",
 			q:        "eq(1)",
-			expected: fmt.Errorf("too few arguments"),
+			expected: fmt.Errorf("1 error occurred: 1:1: rego_type_error: eq: arity mismatch\n\thave: (number)\n\twant: (any, any)"),
 		},
 		{
 			note:     "rewrite assignment",
@@ -4468,11 +4482,25 @@ func TestQueryCompiler(t *testing.T) {
 			expected: `__localq1__ = data.a.b.c.z; __localq0__ = [__localq1__]; 1 with input as __localq0__`,
 		},
 		{
-			note:     "unsafe exprs",
+			note:     "built-in function arity mismatch",
+			q:        `startswith("x")`,
+			pkg:      "",
+			imports:  nil,
+			expected: fmt.Errorf("1 error occurred: 1:1: rego_type_error: startswith: arity mismatch\n\thave: (string)\n\twant: (string, string)"),
+		},
+		{
+			note:     "built-in function arity mismatch (arity 0)",
+			q:        `x := opa.runtime("foo")`,
+			pkg:      "",
+			imports:  nil,
+			expected: fmt.Errorf("1 error occurred: 1:6: rego_type_error: opa.runtime: arity mismatch\n\thave: (string, ???)\n\twant: ()"),
+		},
+		{
+			note:     "built-in function arity mismatch, nested",
 			q:        "count(sum())",
 			pkg:      "",
 			imports:  nil,
-			expected: fmt.Errorf("1 error occurred: 1:1: rego_unsafe_var_error: expression is unsafe"),
+			expected: fmt.Errorf("1 error occurred: 1:7: rego_type_error: sum: arity mismatch\n\thave: (???)\n\twant: (any<array[number], set[number]>)"),
 		},
 		{
 			note:     "check types",
@@ -4505,7 +4533,7 @@ func TestQueryCompiler(t *testing.T) {
 		},
 	}
 	for _, tc := range tests {
-		runQueryCompilerTest(t, tc.note, tc.q, tc.pkg, tc.imports, tc.expected)
+		t.Run(tc.note, runQueryCompilerTest(tc.q, tc.pkg, tc.imports, tc.expected))
 	}
 }
 
@@ -4645,6 +4673,7 @@ func assertCompilerErrorStrings(t *testing.T, compiler *Compiler, expected []str
 }
 
 func assertNotFailed(t *testing.T, c *Compiler) {
+	t.Helper()
 	if c.Failed() {
 		t.Fatalf("Unexpected compilation error: %v", c.Errors)
 	}
@@ -4800,8 +4829,9 @@ func compilerErrsToStringSlice(errors []*Error) []string {
 	return result
 }
 
-func runQueryCompilerTest(t *testing.T, note, q, pkg string, imports []string, expected interface{}) {
-	t.Run(note, func(t *testing.T) {
+func runQueryCompilerTest(q, pkg string, imports []string, expected interface{}) func(*testing.T) {
+	return func(t *testing.T) {
+		t.Helper()
 		c := NewCompiler().WithEnablePrintStatements(false)
 		c.Compile(getCompilerTestModules())
 		assertNotFailed(t, c)
@@ -4839,7 +4869,7 @@ func runQueryCompilerTest(t *testing.T, note, q, pkg string, imports []string, e
 				t.Fatalf("Expected error %v but got: %v", expected, err)
 			}
 		}
-	})
+	}
 }
 
 func TestCompilerCapabilitiesExtendedWithCustomBuiltins(t *testing.T) {

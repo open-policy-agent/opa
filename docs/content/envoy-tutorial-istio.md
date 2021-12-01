@@ -67,8 +67,8 @@ The `quick_start.yaml` manifest defines the following resources:
     
     required_roles[r] {
         perm := role_perms[r][_]
-        perm.method = http_request.method
-        perm.path = http_request.path
+        perm.method == http_request.method
+        perm.path == http_request.path
     }
     
     user_name = parsed {
@@ -76,12 +76,12 @@ The `quick_start.yaml` manifest defines the following resources:
         [parsed, _] := split(base64url.decode(encoded), ":")
     }
     
-    user_roles = {
+    user_roles := {
         "alice": ["guest"],
         "bob": ["admin"]
     }
     
-    role_perms = {
+    role_perms := {
         "guest": [
             {"method": "GET",  "path": "/productpage"},
         ],

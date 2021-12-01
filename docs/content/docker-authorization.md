@@ -407,7 +407,7 @@ allow {
 
 # users defines permissions for the user. In this case, we define a single
 # attribute 'readOnly' that controls the kinds of commands the user can run.
-users = {
+users := {
     "bob": {"readOnly": true},
     "alice": {"readOnly": false},
 }

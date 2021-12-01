@@ -366,6 +366,10 @@ func New(raw []byte, id string, store storage.Store, opts ...func(*Manager)) (*M
 		serverInitialized:            make(chan struct{}),
 	}
 
+	for _, f := range opts {
+		f(m)
+	}
+
 	if m.logger == nil {
 		m.logger = logging.Get()
 	}
@@ -380,16 +384,13 @@ func New(raw []byte, id string, store storage.Store, opts ...func(*Manager)) (*M
 		Keys:       keys,
 		Logger:     m.logger,
 	}
+
 	services, err := cfg.ParseServicesConfig(serviceOpts)
 	if err != nil {
 		return nil, err
 	}
 
 	m.services = services
-
-	for _, f := range opts {
-		f(m)
-	}
 
 	return m, nil
 }

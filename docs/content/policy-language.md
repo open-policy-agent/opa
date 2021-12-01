@@ -736,7 +736,7 @@ apps_by_hostname[hostname] = app {
     some i
     server := sites[_].servers[_]
     hostname := server.hostname
-    apps[i].servers[_] = server.name
+    apps[i].servers[_] == server.name
     app := apps[i].name
 }
 ```
@@ -970,7 +970,7 @@ r(1, 2)
 On the other hand, if a call matches no functions, then the result is undefined.
 ```live:eg/double_function_define_undefined:module
 s(x, 2) = y {
-    y := x*4
+    y := x * 4
 }
 ```
 
@@ -1519,7 +1519,7 @@ taken to be the key (object) or index (array), respectively:
 ```live:eg/member1c:module:merge_down
 import future.keywords.in
 
-p = [ x, y ] {
+p := [ x, y ] {
     x := "foo", "bar" in {"foo": "bar"}    # key, val with object
     y := 2, "baz" in ["foo", "bar", "baz"] # key, val with array
 }
@@ -1534,20 +1534,20 @@ arguments -- compare:
 ```live:eg/member1d:module:merge_down
 import future.keywords.in
 
-p = x {
+p := x {
     x := { 0, 2 in [2] }
 }
-q = x {
+q := x {
     x := { (0, 2 in [2]) }
 }
-w = x {
+w := x {
     x := g((0, 2 in [2]))
 }
-z = x {
+z := x {
     x := f(0, 2 in [2])
 }
 
-f(x, y) =  sprintf("two function arguments: %v, %v", [x, y])
+f(x, y) = sprintf("two function arguments: %v, %v", [x, y])
 g(x) = sprintf("one function argument: %v", [x])
 ```
 ```live:eg/member1d:output
@@ -1639,11 +1639,11 @@ p[x] = y {
 
 ### Equality: Assignment, Comparison, and Unification
 
-Rego supports three kinds of equality: assignment (`:=`), comparison (`==`), and unification `=`.  Both assignment (`:=`) and comparison (`==`) are only available inside of rules (and in the REPL), and we recommend using them whenever possible for policies that are easier to read and write.
+Rego supports three kinds of equality: assignment (`:=`), comparison (`==`), and unification `=`. We recommend using assignment (`:=`) and comparison (`==`) whenever possible for policies that are easier to read and write.
 
 #### Assignment `:=`
 
-The assignment operator (`:=`) is used to define local variables inside of a rule. Assigned variables are locally scoped to that rule and shadow global variables.
+The assignment operator (`:=`) is used to assign values to variables. Variables assigned inside a rule are locally scoped to that rule and shadow global variables.
 
 ```live:eg/assignment1:module:read_only
 x := 100
@@ -1703,7 +1703,7 @@ r {
 
 #### Unification `=`
 
-Unification (`=`) combines assignment and comparison.  Rego will assign variables to values that make the comparison true.  Unification lets you ask for values for variables that make an expression true.
+Unification (`=`) combines assignment and comparison. Rego will assign variables to values that make the comparison true. Unification lets you ask for values for variables that make an expression true.
 
 ```live:eg/unification1:query:merge_down
 # Find values for x and y that make the equality true
@@ -1726,12 +1726,12 @@ Here is a comparison of the three forms of equality.
 ```
 Equality  Applicable    Compiler Errors            Use Case
 --------  -----------   -------------------------  ----------------------
-:=        Inside rule   Var already assigned       Assign local variable
-==        Inside rule   Var not assigned           Compare values
+:=        Everywhere    Var already assigned       Assign variable
+==        Everywhere    Var not assigned           Compare values
 =         Everywhere    Values cannot be computed  Express query
 ```
 
-Best practice is to use assignment `:=` and comparison `==` wherever possible.  The additional compiler checks help avoid errors when writing policy, and the additional syntax helps make the intent clearer when reading policy.
+Best practice is to use assignment `:=` and comparison `==` wherever possible. The additional compiler checks help avoid errors when writing policy, and the additional syntax helps make the intent clearer when reading policy.
 
 Under the hood `:=` and `==` are syntactic sugar for `=`, local variable creation, and additional compiler checks.
 
@@ -1796,13 +1796,13 @@ to test for undefined. For example:
 
 ```live:eg/errors:module:merge_down
 allow {
-  io.jwt.verify_hs256(input.token, "secret")
-  [_, payload, _] := io.jwt.decode(input.token)
-  payload.role == "admin"
+    io.jwt.verify_hs256(input.token, "secret")
+    [_, payload, _] := io.jwt.decode(input.token)
+    payload.role == "admin"
 }
 
 reason["invalid JWT supplied as input"] {
-  not io.jwt.decode(input.token)
+    not io.jwt.decode(input.token)
 }
 ```
 ```live:eg/errors:input:merge_down
