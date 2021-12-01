@@ -236,28 +236,29 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		}
 	}
 
+	level, err := getLoggingLevel(params.Logging.Level)
+	if err != nil {
+		return nil, err
+	}
+
+	// NOTE(tsandall): This is a temporary hack to ensure that log formatting
+	// and leveling is applied correctly. Currently there are a few places where
+	// the global logger is used as a fallback, however, that fallback _should_
+	// never be used. This ensures that _if_ the fallback is used accidentally,
+	// that the logging configuration is applied. Once we remove all usage of
+	// the global logger and we remove the API that allows callers to access the
+	// global logger, we can remove this.
+	logging.Get().SetFormatter(internal_logging.GetFormatter(params.Logging.Format))
+	logging.Get().SetLevel(level)
+
 	var logger logging.Logger
 
 	if params.Logger != nil {
 		logger = params.Logger
 	} else {
 		stdLogger := logging.New()
-		formatter := internal_logging.GetFormatter(params.Logging.Format)
-		stdLogger.SetFormatter(formatter)
-
-		switch strings.ToLower(params.Logging.Level) {
-		case "debug":
-			stdLogger.SetLevel(logging.Debug)
-		case "", "info":
-			stdLogger.SetLevel(logging.Info)
-		case "warn":
-			stdLogger.SetLevel(logging.Warn)
-		case "error":
-			stdLogger.SetLevel(logging.Error)
-		default:
-			return nil, fmt.Errorf("invalid log level: %v", params.Logging.Level)
-		}
-
+		stdLogger.SetLevel(level)
+		stdLogger.SetFormatter(internal_logging.GetFormatter(params.Logging.Format))
 		logger = stdLogger
 	}
 
@@ -806,6 +807,21 @@ func generateDecisionID() string {
 		return ""
 	}
 	return id
+}
+
+func getLoggingLevel(s string) (logging.Level, error) {
+	switch strings.ToLower(s) {
+	case "debug":
+		return logging.Debug, nil
+	case "", "info":
+		return logging.Info, nil
+	case "warn":
+		return logging.Warn, nil
+	case "error":
+		return logging.Error, nil
+	default:
+		return logging.Debug, fmt.Errorf("invalid log level: %v", s)
+	}
 }
 
 func init() {
