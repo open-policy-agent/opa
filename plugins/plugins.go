@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gorilla/mux"
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/config"
@@ -185,6 +186,7 @@ type Manager struct {
 	serverInitializedOnce        sync.Once
 	printHook                    print.Hook
 	enablePrintStatements        bool
+	router                       *mux.Router
 }
 
 type managerContextKey string
@@ -333,6 +335,12 @@ func EnablePrintStatements(yes bool) func(*Manager) {
 func PrintHook(h print.Hook) func(*Manager) {
 	return func(m *Manager) {
 		m.printHook = h
+	}
+}
+
+func WithRouter(r *mux.Router) func(*Manager) {
+	return func(m *Manager) {
+		m.router = r
 	}
 }
 
@@ -517,6 +525,13 @@ func (m *Manager) setCompiler(compiler *ast.Compiler) {
 	m.compilerMux.Lock()
 	defer m.compilerMux.Unlock()
 	m.compiler = compiler
+}
+
+// GetRouter returns the managers router if set
+func (m *Manager) GetRouter() *mux.Router {
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
+	return m.router
 }
 
 // RegisterCompilerTrigger registers for change notifications when the compiler
