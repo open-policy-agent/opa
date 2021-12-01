@@ -1,7 +1,7 @@
 ---
 title: Development
 kind: contrib
-weight: 2
+weight: 4
 ---
 
 OPA is written in the [Go](https://golang.org) programming language.
