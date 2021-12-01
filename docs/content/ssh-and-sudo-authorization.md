@@ -56,7 +56,7 @@ services:
   opa:
     image: openpolicyagent/opa:{{< current_docker_version >}}
     ports:
-      - 8181:8181
+      - "8181:8181"
     # WARNING: OPA is NOT running with an authorization policy configured. This
     # means that clients can read and write policies in OPA. If you are
     # deploying OPA in an insecure environment, be sure to configure
@@ -118,10 +118,10 @@ For more details on what this policy should look like, see
 package pull
 
 # Which files should be loaded into the context?
-files = ["/etc/host_identity.json"]
+files := ["/etc/host_identity.json"]
 
 # Which environment variables should be loaded into the context?
-env_vars = []
+env_vars := []
 ```
 Load this policy into OPA.
 
@@ -314,7 +314,7 @@ First, we need to make the PAM module take input from the user.
 package display
 
 # What should be prompted to the user?
-display_spec = [
+display_spec := [
   {
     "message": "Please enter an elevation ticket if you have one:",
     "style": "prompt_echo_on",
@@ -343,7 +343,7 @@ import input.display_responses
 # Allow this user if the elevation ticket they provided matches our mock API
 # of an internal elevation system.
 allow {
-  elevate.tickets[sysinfo.pam_username] == display_responses.ticket
+    elevate.tickets[sysinfo.pam_username] == display_responses.ticket
 }
 ```
 

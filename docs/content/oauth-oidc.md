@@ -71,9 +71,9 @@ jwks_url := concat("?", [
     "https://authorization-server.example.com/jwks",
     urlquery.encode_object({"kid": jwt_header.kid}),
 ])
-jwks = jwks_request(jwks_url).raw_body
+jwks := jwks_request(jwks_url).raw_body
 
-jwt_verified = jwt_unverified {
+jwt_verified := jwt_unverified {
     io.jwt.verify_rs256(input.token, jwks)
 }
 
@@ -87,7 +87,7 @@ Programmatically obtain an OAuth2 access token following the client credentials 
 ```live:oauth:module
 package oauth2
 
-token = t {
+token := t {
     response := http.send({
         "url": "https://authorization-server.example.com/token",
         "method": "POST",

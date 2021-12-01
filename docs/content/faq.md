@@ -52,8 +52,8 @@ mean the same thing whichever order you write them in.
 ```live:unordered:module:openable
 package unordered
 
-ratelimit = 4 { input.name = "alice" }
-ratelimit = 5 { input.name = "bob" }
+ratelimit = 4 { input.name == "alice" }
+ratelimit = 5 { input.name == "bob" }
 ```
 
 ```live:unordered:input
@@ -97,7 +97,7 @@ ratelimit
 
 ## Which Equality Operator Should I Use?
 
-Rego supports three kinds of equality: assignment (`:=`), comparison (`==`), and unification `=`.  Both assignment (`:=`) and comparison (`==`) are only available inside of rules (and in the REPL), and we recommend using them whenever possible for policies that are easier to read and write.
+Rego supports three kinds of equality: assignment (`:=`), comparison (`==`), and unification `=`. We recommend using assignment (`:=`) and comparison (`==`) whenever possible for policies that are easier to read and write.
 
 ```live:equality:query:read_only
 # Assignment: declare local variable x and give it value 7
@@ -113,7 +113,6 @@ y == [1, 2, [3]]
 
 # Unification: assign variables to values that make the
 #   equality true
-# Note: = is the only option outside of rule bodies
 x = 7               # causes x to be assigned 7
 [x, 2] = [3, y]     # x is assigned 3 and y is assigned 2
 ```
@@ -191,7 +190,7 @@ app_to_hostnames[app_name] = hostnames {
                            hostname := s.hostname]
 }
 
-apps = [
+apps := [
   {
     "name": "web",
     "servers": ["s1", "s2"],
@@ -206,7 +205,7 @@ apps = [
   },
 ]
 
-sites = [
+sites := [
   {
     "servers": [
       {
