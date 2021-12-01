@@ -278,6 +278,12 @@ ci-build-darwin: ensure-release-dir
 	chmod +x opa_darwin_$(GOARCH)
 	mv opa_darwin_$(GOARCH) $(RELEASE_DIR)/
 
+.PHONY: ci-build-darwin-arm64-static
+ci-build-darwin-arm64-static: ensure-release-dir
+	@$(MAKE) build GOOS=darwin GOARCH=arm64 WASM_ENABLED=0 CGO_ENABLED=0
+	chmod +x opa_darwin_arm64
+	mv opa_darwin_arm64 $(RELEASE_DIR)/opa_darwin_arm64_static
+
 # NOTE: This target expects to be run as root on some debian/ubuntu variant
 # that can install the `gcc-mingw-w64-x86-64` package via apt-get.
 .PHONY: ci-build-windows
@@ -291,7 +297,7 @@ ensure-release-dir:
 	mkdir -p $(RELEASE_DIR)
 
 .PHONY: build-all-platforms
-build-all-platforms: ci-build-linux ci-build-linux-static ci-build-darwin ci-build-windows
+build-all-platforms: ci-build-linux ci-build-linux-static ci-build-darwin ci-build-darwin-arm64-static ci-build-windows
 
 .PHONY: image-quick
 image-quick:
@@ -354,6 +360,7 @@ push-latest:
 .PHONY: push-binary-edge
 push-binary-edge:
 	aws s3 cp $(RELEASE_DIR)/opa_darwin_$(GOARCH) s3://$(S3_RELEASE_BUCKET)/edge/opa_darwin_$(GOARCH)
+	aws s3 cp $(RELEASE_DIR)/opa_darwin_arm64_static s3://$(S3_RELEASE_BUCKET)/edge/opa_darwin_arm64_static
 	aws s3 cp $(RELEASE_DIR)/opa_windows_$(GOARCH).exe s3://$(S3_RELEASE_BUCKET)/edge/opa_windows_$(GOARCH).exe
 	aws s3 cp $(RELEASE_DIR)/opa_linux_$(GOARCH) s3://$(S3_RELEASE_BUCKET)/edge/opa_linux_$(GOARCH)
 	aws s3 cp $(RELEASE_DIR)/opa_linux_$(GOARCH)_static s3://$(S3_RELEASE_BUCKET)/edge/opa_linux_$(GOARCH)_static
