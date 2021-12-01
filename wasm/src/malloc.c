@@ -173,7 +173,10 @@ static void *__opa_malloc_new_allocation(size_t size)
     if (heap_ptr >= heap_top)
     {
         unsigned int pages = (block_size / WASM_PAGE_SIZE) + 1;
-        __builtin_wasm_memory_grow(0, pages);
+        if (__builtin_wasm_memory_grow(0, pages) == -1 )
+        {
+            opa_abort("opa_malloc: failed");
+        };
         heap_top += (pages * WASM_PAGE_SIZE);
     }
 

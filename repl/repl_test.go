@@ -1255,7 +1255,7 @@ x := 2
 
 	buffer.Reset()
 	err := repl.OneShot(ctx, "assign()")
-	if err == nil || !strings.Contains(err.Error(), "too few arguments") {
+	if err == nil || !strings.Contains(err.Error(), "rego_type_error: assign: arity mismatch\n\thave: ()\n\twant: (any, any)") {
 		t.Fatal("Expected type check error but got:", err)
 	}
 }

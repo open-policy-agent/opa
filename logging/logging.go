@@ -34,7 +34,7 @@ type Logger interface {
 	SetLevel(Level)
 }
 
-// StandardLogger is the default OPA logger
+// StandardLogger is the default OPA logger implementation.
 type StandardLogger struct {
 	logger *logrus.Logger
 	fields map[string]interface{}
@@ -47,12 +47,9 @@ func New() *StandardLogger {
 	}
 }
 
-// NewStandardLogger is deprecated. Use Get instead.
-func NewStandardLogger() *StandardLogger {
-	return Get()
-}
-
 // Get returns the standard logger used throughout OPA.
+//
+// Deprecated. Do not rely on the global logger.
 func Get() *StandardLogger {
 	return &StandardLogger{
 		logger: logrus.StandardLogger(),
