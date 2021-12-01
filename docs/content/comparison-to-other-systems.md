@@ -124,20 +124,20 @@ statements above.)
 
 ```live:rbac/sod:module:openable
 # Pairs of roles that no user can be assigned to simultaneously
-sod_roles = [
-	["create-payment", "approve-payment"],
-  ["create-vendor", "pay-vendor"],
+sod_roles := [
+    ["create-payment", "approve-payment"],
+    ["create-vendor", "pay-vendor"],
 ]
 
 # Find all users violating SOD
 sod_violation[user] {
-  some user
-  # grab one role for a user
-  role1 := user_roles[user][_]
-  # grab another role for that same user
-  role2 := user_roles[user][_]
-  # check if those roles are forbidden by SOD
-  sod_roles[_] == [role1, role2]
+    some user
+    # grab one role for a user
+    role1 := user_roles[user][_]
+    # grab another role for that same user
+    role2 := user_roles[user][_]
+    # check if those roles are forbidden by SOD
+    sod_roles[_] == [role1, role2]
 }
 ```
 
@@ -187,13 +187,13 @@ OPA supports ABAC policies as shown below.
 package abac
 
 # User attributes
-user_attributes = {
+user_attributes := {
     "alice": {"tenure": 15, "title": "trader"},
     "bob": {"tenure": 5, "title": "analyst"}
 }
 
 # Stock attributes
-ticker_attributes = {
+ticker_attributes := {
     "MSFT": {"exchange": "NASDAQ", "price": 59.20},
     "AMZN": {"exchange": "NASDAQ", "price": 813.64}
 }
