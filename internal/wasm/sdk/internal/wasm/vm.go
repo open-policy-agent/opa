@@ -465,11 +465,11 @@ func (i *VM) SetPolicyData(ctx context.Context, opts vmOpts) error {
 			}
 		}
 		mem := i.memory.UnsafeData(i.store)
-		for src, dest := 0, i.baseHeapPtr; src < len(opts.parsedData); src, dest = src+1, dest+1 {
-			mem[dest] = opts.parsedData[src]
-		}
+		len := int32(len(opts.parsedData))
+		copy(mem[i.baseHeapPtr:i.baseHeapPtr+len], opts.parsedData)
 		i.dataAddr = opts.parsedDataAddr
-		i.evalHeapPtr = i.baseHeapPtr + int32(len(opts.parsedData))
+
+		i.evalHeapPtr = i.baseHeapPtr + int32(len)
 		err := i.setHeapState(ctx, i.evalHeapPtr)
 		if err != nil {
 			return err

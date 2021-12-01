@@ -429,7 +429,11 @@ check-go-module:
 
 .PHONY: release-patch
 release-patch:
+ifeq ($(GITHUB_TOKEN),)
+	@echo "\033[0;31mGITHUB_TOKEN environment variable missing.\033[33m Provide a GitHub Personal Access Token (PAT) with the 'read:org' scope.\033[0m"
+endif
 	@$(DOCKER) run $(DOCKER_FLAGS) \
+		-e GITHUB_TOKEN=$(GITHUB_TOKEN) \
 		-e LAST_VERSION=$(LAST_VERSION) \
 		-v $(PWD):/_src \
 		python:2.7 \
