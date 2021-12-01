@@ -1,9 +1,10 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 """
 changelog.py helps generate the CHANGELOG.md message for a particular release.
 """
 
 import argparse
+import os
 import subprocess
 import shlex
 import re
@@ -122,14 +123,16 @@ def get_subject(commit_message):
     return commit_message.splitlines()[0]
 
 def get_changelog_message(commit_message, issue_id, mention, reporter, repo_url):
+    subject = get_subject(commit_message)
     if issue_id:
-        subject = get_subject(commit_message)
         if mention:
             mention = " "+mention
         if reporter:
             reporter = " "+reporter
         return "Fixes", "{subject} ([#{issue_id}]({repo_url}/issues/{issue_id})){mention}{reporter}".format(subject=subject, issue_id=issue_id, repo_url=repo_url, mention=mention, reporter=reporter)
-    return None, get_subject(commit_message)
+    if mention:
+        mention = " (" + mention + ")"
+    return None, "{subject}{mention}".format(subject=subject, mention=mention)
 
 
 def get_latest_tag():
@@ -138,10 +141,12 @@ def get_latest_tag():
 
 
 def parse_args():
+    if "GITHUB_TOKEN" in os.environ:
+        default_token = os.environ["GITHUB_TOKEN"]
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--repo_url", default="https://github.com/open-policy-agent/opa")
-    parser.add_argument("--token", default="", help="GitHub API token")
+    parser.add_argument("--token", default=default_token, help="GitHub API token")
     parser.add_argument("from_version", nargs="?",
                         default=get_latest_tag(), help="start of changes")
     parser.add_argument("to_commit", nargs="?",
