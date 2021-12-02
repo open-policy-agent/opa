@@ -1671,6 +1671,21 @@ q {
 ```live:eg/assignment2:output:expect_assigned_above,expect_referenced_above
 ```
 
+A simple form of destructuring can be used to unpack values from arrays and assign them to variables:
+
+```live:eg/assignment3:module:read_only
+address := ["3 Abbey Road", "NW8 9AY", "London", "England"]
+
+in_london {
+    [_, _, city, country] := address
+    city == "London"
+    country == "England"
+}
+```
+```live:eg/assignment3:output
+```
+
+
 #### Comparison `==`
 
 Comparison checks if two values are equal within a rule.  If the left or right hand side contains a variable that has not been assigned a value, the compiler throws an error.
