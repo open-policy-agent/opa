@@ -3169,6 +3169,36 @@ func TestCompilerRewritePrintCalls(t *testing.T) {
 			f(__local0__) = __local2__ { true; __local2__ = {1 | __local0__[x]; __local3__ = {__local1__ | __local1__ = x}; internal.print([__local3__])} }
 			`,
 		},
+		{
+			note: "print call of var in head key",
+			module: `package test
+			f(_) = [1, 2, 3]
+			p[x] { [_, x, _] := f(true); print(x) }`,
+			exp: `package test
+			f(__local0__) = [1, 2, 3] { true }
+			p[__local2__] { data.test.f(true, __local5__); [__local1__, __local2__, __local3__] = __local5__; __local6__ = {__local4__ | __local4__ = __local2__}; internal.print([__local6__]) }
+			`,
+		},
+		{
+			note: "print call of var in head value",
+			module: `package test
+			f(_) = [1, 2, 3]
+			p = x { [_, x, _] := f(true); print(x) }`,
+			exp: `package test
+			f(__local0__) = [1, 2, 3] { true }
+			p = __local2__ { data.test.f(true, __local5__); [__local1__, __local2__, __local3__] = __local5__; __local6__ = {__local4__ | __local4__ = __local2__}; internal.print([__local6__]) }
+			`,
+		},
+		{
+			note: "print call of vars in head key and value",
+			module: `package test
+			f(_) = [1, 2, 3]
+			p[x] = y { [_, x, y] := f(true); print(x) }`,
+			exp: `package test
+			f(__local0__) = [1, 2, 3] { true }
+			p[__local2__] = __local3__ { data.test.f(true, __local5__); [__local1__, __local2__, __local3__] = __local5__; __local6__ = {__local4__ | __local4__ = __local2__}; internal.print([__local6__]) }
+			`,
+		},
 	}
 
 	for _, tc := range cases {
