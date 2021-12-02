@@ -657,11 +657,11 @@ func TestNew(t *testing.T) {
 				_ = os.Setenv(key, val)
 			}
 
-			defer func() {
+			t.Cleanup(func() {
 				for key := range tc.env {
 					_ = os.Unsetenv(key)
 				}
-			}()
+			})
 
 			client, err := New([]byte(tc.input), ks, AuthPluginLookup(mockAuthPluginLookup))
 			if err != nil {
