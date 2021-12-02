@@ -532,35 +532,12 @@ func (ap *awsSigningAuthPlugin) NewClient(c Config) (*http.Client, error) {
 		return nil, err
 	}
 
-	if ap.AWSEnvironmentCredentials == nil && ap.AWSWebIdentityCredentials == nil && ap.AWSMetadataCredentials == nil &&
-		ap.AWSProfileCredentials == nil {
-		return nil, errors.New("a AWS credential service must be specified when S3 signing is enabled")
-	}
-
-	if (ap.AWSEnvironmentCredentials != nil && ap.AWSMetadataCredentials != nil) ||
-		(ap.AWSEnvironmentCredentials != nil && ap.AWSWebIdentityCredentials != nil) ||
-		(ap.AWSEnvironmentCredentials != nil && ap.AWSProfileCredentials != nil) ||
-		(ap.AWSMetadataCredentials != nil && ap.AWSWebIdentityCredentials != nil) ||
-		(ap.AWSMetadataCredentials != nil && ap.AWSProfileCredentials != nil) ||
-		(ap.AWSWebIdentityCredentials != nil && ap.AWSProfileCredentials != nil) {
-		return nil, errors.New("exactly one AWS credential service must be specified when S3 signing is enabled")
-	}
-	if ap.AWSMetadataCredentials != nil {
-		if ap.AWSMetadataCredentials.RegionName == "" {
-			return nil, errors.New("at least aws_region must be specified for AWS metadata credential service")
-		}
-	}
-	if ap.AWSWebIdentityCredentials != nil {
-		if err := ap.AWSWebIdentityCredentials.populateFromEnv(); err != nil {
-			return nil, err
-		}
+	if err := ap.validateConfig(); err != nil {
+		return nil, err
 	}
 
 	if ap.logger == nil {
 		ap.logger = c.logger
-	}
-	if ap.AWSService == "" {
-		ap.AWSService = awsSigv4SigningDefaultService
 	}
 
 	return DefaultRoundTripperClient(t, *c.ResponseHeaderTimeoutSeconds), nil
@@ -568,6 +545,35 @@ func (ap *awsSigningAuthPlugin) NewClient(c Config) (*http.Client, error) {
 
 func (ap *awsSigningAuthPlugin) Prepare(req *http.Request) error {
 	ap.logger.Debug("Signing request with AWS credentials.")
-	err := signV4(req, ap.AWSService, ap.awsCredentialService(), time.Now())
-	return err
+	return signV4(req, ap.AWSService, ap.awsCredentialService(), time.Now())
+}
+
+func (ap *awsSigningAuthPlugin) validateConfig() error {
+	cfgs := map[bool]int{}
+	cfgs[ap.AWSEnvironmentCredentials != nil]++
+	cfgs[ap.AWSMetadataCredentials != nil]++
+	cfgs[ap.AWSWebIdentityCredentials != nil]++
+	cfgs[ap.AWSProfileCredentials != nil]++
+
+	switch n := cfgs[true]; {
+	case n == 0:
+		return errors.New("a AWS credential service must be specified when S3 signing is enabled")
+	case n > 1:
+		return errors.New("exactly one AWS credential service must be specified when S3 signing is enabled")
+	}
+
+	if ap.AWSMetadataCredentials != nil {
+		if ap.AWSMetadataCredentials.RegionName == "" {
+			return errors.New("at least aws_region must be specified for AWS metadata credential service")
+		}
+	}
+	if ap.AWSWebIdentityCredentials != nil {
+		if err := ap.AWSWebIdentityCredentials.populateFromEnv(); err != nil {
+			return err
+		}
+	}
+	if ap.AWSService == "" {
+		ap.AWSService = awsSigv4SigningDefaultService
+	}
+	return nil
 }
