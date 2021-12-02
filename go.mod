@@ -12,7 +12,7 @@ require (
 	github.com/foxcpp/go-mockdns v0.0.0-20210729171921-fb145fc6f897
 	github.com/fsnotify/fsnotify v1.5.1
 	github.com/ghodss/yaml v1.0.0
-	github.com/go-ini/ini v1.66.0
+	github.com/go-ini/ini v1.66.1
 	github.com/gobwas/glob v0.2.3
 	github.com/golang/glog v1.0.0 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
