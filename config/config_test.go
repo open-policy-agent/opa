@@ -16,6 +16,74 @@ import (
 	"github.com/open-policy-agent/opa/version"
 )
 
+func TestConfigPluginNames(t *testing.T) {
+	tests := []struct {
+		name     string
+		conf     Config
+		expected []string
+	}{
+		{
+			name:     "empty config",
+			conf:     Config{},
+			expected: nil,
+		},
+		{
+			name: "bundle",
+			conf: Config{
+				Bundle: []byte(`{"bundle": {"name": "test-bundle"}}`),
+			},
+			expected: []string{"bundles"},
+		},
+		{
+			name: "bundles",
+			conf: Config{
+				Bundles: []byte(`{"bundles": {"test-bundle": {}}`),
+			},
+			expected: []string{"bundles"},
+		},
+		{
+			name: "decision_logs",
+			conf: Config{
+				DecisionLogs: []byte(`{decision_logs: {}}`),
+			},
+			expected: []string{"decision_logs"},
+		},
+		{
+			name: "status",
+			conf: Config{
+				Status: []byte(`{status: {}}`),
+			},
+			expected: []string{"status"},
+		},
+		{
+			name: "plugins",
+			conf: Config{
+				Plugins: map[string]json.RawMessage{
+					"some-plugin": {},
+				},
+			},
+			expected: []string{"some-plugin"},
+		},
+		{
+			name: "sorted",
+			conf: Config{
+				DecisionLogs: []byte(`{decision_logs: {}}`),
+				Status:       []byte(`{status: {}}`),
+			},
+			expected: []string{"decision_logs", "status"},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			actual := test.conf.PluginNames()
+			if !reflect.DeepEqual(actual, test.expected) {
+				t.Errorf("Expected %v but got %v", test.expected, actual)
+			}
+		})
+	}
+}
+
 func TestConfigPluginsEnabled(t *testing.T) {
 	tests := []struct {
 		name     string
