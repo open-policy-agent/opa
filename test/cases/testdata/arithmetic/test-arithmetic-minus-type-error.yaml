@@ -1,0 +1,27 @@
+cases:
+- data:
+  modules:
+  - |
+    package test
+
+    p {
+      {1} - 1
+    }
+  note: arithmetic/minus/type error
+  query: data.test.p = x
+  want_error: operand 2 must be set but got number
+  want_error_code: eval_type_error
+  strict_error: true
+- data:
+  modules:
+  - |
+    package test
+
+    p {
+      1 - {1}
+    }
+  note: arithmetic/minus/type error
+  query: data.test.p = x
+  want_error: operand 2 must be number but got set
+  want_error_code: eval_type_error
+  strict_error: true
