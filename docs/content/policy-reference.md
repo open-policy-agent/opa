@@ -831,6 +831,10 @@ Note that the opa executable will need access to the timezone files in the envir
 | <span class="opa-keep-it-together">``output := crypto.md5(string)``</span> | ``output`` is ``string`` md5 hashed. | ``SDK-dependent`` |
 | <span class="opa-keep-it-together">``output := crypto.sha1(string)``</span> | ``output`` is ``string`` sha1 hashed. | ``SDK-dependent`` |
 | <span class="opa-keep-it-together">``output := crypto.sha256(string)``</span> | ``output`` is ``string`` sha256 hashed. | ``SDK-dependent`` |
+| <span class="opa-keep-it-together">``output := crypto.hmac.md5(string, key)``</span> | ``output`` is HMAC-MD5 of ``string`` using ``key`` | ``SDK-dependent`` |
+| <span class="opa-keep-it-together">``output := crypto.hmac.sha1(string, key)``</span> | ``output`` is HMAC-SHA-1 of ``string`` using ``key`` | ``SDK-dependent`` |
+| <span class="opa-keep-it-together">``output := crypto.hmac.sha256(string, key)``</span> | ``output`` is HMAC-SHA-256 of ``string`` using ``key`` | ``SDK-dependent`` |
+| <span class="opa-keep-it-together">``output := crypto.hmac.sha512(string, key)``</span> | ``output`` is HMAC-SHA-512 of ``string`` using ``key`` | ``SDK-dependent`` |
 
 ### Graphs
 
