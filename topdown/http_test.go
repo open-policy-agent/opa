@@ -30,6 +30,8 @@ import (
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/topdown/builtins"
 
+	iCache "github.com/open-policy-agent/opa/topdown/cache"
+
 	"github.com/open-policy-agent/opa/ast"
 )
 
@@ -2483,17 +2485,44 @@ func TestHTTPSendMetrics(t *testing.T) {
 
 	defer ts.Close()
 
-	// Execute query and verify http.send latency shows up in metrics registry.
-	m := metrics.New()
-	q := NewQuery(ast.MustParseBody(fmt.Sprintf(`http.send({"method": "get", "url": %q})`, ts.URL))).WithMetrics(m)
-	_, err := q.Run(context.Background())
-	if err != nil {
-		t.Fatal(err)
-	}
+	t.Run("latency", func(t *testing.T) {
+		// Execute query and verify http.send latency shows up in metrics registry.
+		m := metrics.New()
+		q := NewQuery(ast.MustParseBody(fmt.Sprintf(`http.send({"method": "get", "url": %q})`, ts.URL))).WithMetrics(m)
+		_, err := q.Run(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	if m.Timer(httpSendLatencyMetricKey).Int64() == 0 {
-		t.Fatal("expected non-zero value for http.send latency metric")
-	}
+		if m.Timer(httpSendLatencyMetricKey).Int64() == 0 {
+			t.Fatal("expected non-zero value for http.send latency metric")
+		}
+	})
+
+	t.Run("cache hits", func(t *testing.T) {
+		// add an inter-query cache
+		config, _ := iCache.ParseCachingConfig(nil)
+		interQueryCache := iCache.NewInterQueryCache(config)
+
+		// Execute query twice and verify http.send inter-query cache hit metric is incremented.
+		m := metrics.New()
+		q := NewQuery(ast.MustParseBody(fmt.Sprintf(`http.send({"method": "get", "url": %q, "cache": true})`, ts.URL))).
+			WithInterQueryBuiltinCache(interQueryCache).
+			WithMetrics(m)
+		_, err := q.Run(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+		// cache hit
+		_, err = q.Run(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if exp, act := uint64(1), m.Counter(httpSendInterQueryCacheHits).Value(); exp != act {
+			t.Fatalf("expected %d cache hits, got %d", exp, act)
+		}
+	})
 }
 
 func TestInitDefaults(t *testing.T) {
