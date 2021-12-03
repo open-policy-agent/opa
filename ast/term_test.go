@@ -234,6 +234,12 @@ func TestObjectFilter(t *testing.T) {
 			expected: `{"a": [{"b": 7}, {"d": 9}]}`,
 		},
 		{
+			note:     "all array elements",
+			object:   `{"a": [{"b": 7, "c": 8}, {"d": 9}]}`,
+			filter:   `{"a": {"_": null}}`,
+			expected: `{"a": [{"b": 7, "c": 8}, {"d": 9}]}`,
+		},
+		{
 			note:     "object with number keys",
 			object:   `{"a": [{"1":["b", "c", "d"]}, {"x": "y"}]}`,
 			filter:   `{"a": {"0": {"1": {"2": null}}}}`,

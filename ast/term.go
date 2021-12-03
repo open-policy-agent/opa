@@ -2043,7 +2043,7 @@ func (obj object) MergeWith(other Object, conflictResolver func(v1, v2 *Term) (*
 
 // Filter returns a new object from values in obj where the keys are
 // found in filter. Array indices for values can be specified as
-// number strings.
+// number strings or all array values can be specified using "_"
 func (obj *object) Filter(filter Object) (Object, error) {
 	filtered, err := filterObject(obj, filter)
 	if err != nil {
@@ -2301,6 +2301,9 @@ func filterObject(o Value, filter Value) (Value, error) {
 		values := NewArray()
 		for i := 0; i < v.Len(); i++ {
 			subFilter := filteredObj.Get(StringTerm(strconv.Itoa(i)))
+			if subFilter == nil {
+				subFilter = filteredObj.Get(StringTerm("_"))
+			}
 			if subFilter != nil {
 				filteredValue, err := filterObject(v.Elem(i).Value, subFilter.Value)
 				if err != nil {

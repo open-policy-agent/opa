@@ -354,9 +354,10 @@ complex types.
   `object.remove({"a": {"b": {"c": 2}}, "x": 123}, {"a": {"b": {"foo": "bar"}}}) == {"x": 123}`.
 
 
-* The `json` string `paths` may reference into array values by using index numbers. For example with the object
-  `{"a": ["x", "y", "z"]}` the path `a/1` references `y`. Nested structures are supported as well, for example:
-  `{"a": ["x", {"y": {"y1": {"y2": ["foo", "bar"]}}}, "z"]}` the path `a/1/y1/y2/0` references `"foo"`.
+* The `json` string `paths` may reference into specific array values by using index numbers or reference into 
+  the entire array by using the character `_`. For example with the object `{"a": ["x", "y", "z"]}` the path 
+  `a/1` references `y`, while the path `a/_` references `x`, `y`, and `z`. Nested structures are supported as well, 
+  for example: `{"a": ["x", {"y": {"y1": {"y2": ["foo", "bar"]}}}, "z"]}` the path `a/1/y1/y2/0` references `"foo"`.
 
 
 * The `json` string `paths` support `~0`, or `~1` characters for `~` and `/` characters in key names.
