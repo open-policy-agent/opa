@@ -441,6 +441,8 @@ func (f *File) parse(reader io.Reader) (err error) {
 			// Reset auto-counter and comments
 			p.comment.Reset()
 			p.count = 1
+			// Nested values can't span sections
+			isLastValueEmpty = false
 
 			inUnparseableSection = false
 			for i := range f.options.UnparseableSections {
