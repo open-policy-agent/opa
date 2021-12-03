@@ -68,9 +68,10 @@ var allowedKeyNames = [...]string{
 }
 
 var (
-	allowedKeys              = ast.NewSet()
-	requiredKeys             = ast.NewSet(ast.StringTerm("method"), ast.StringTerm("url"))
-	httpSendLatencyMetricKey = "rego_builtin_" + strings.ReplaceAll(ast.HTTPSend.Name, ".", "_")
+	allowedKeys                 = ast.NewSet()
+	requiredKeys                = ast.NewSet(ast.StringTerm("method"), ast.StringTerm("url"))
+	httpSendLatencyMetricKey    = "rego_builtin_" + strings.ReplaceAll(ast.HTTPSend.Name, ".", "_")
+	httpSendInterQueryCacheHits = httpSendLatencyMetricKey + "_interquery_cache_hits"
 )
 
 type httpSendKey string
@@ -627,7 +628,7 @@ func (c *interQueryCache) checkHTTPSendInterQueryCache() (ast.Value, error) {
 	if !found {
 		return nil, nil
 	}
-
+	c.bctx.Metrics.Counter(httpSendInterQueryCacheHits).Incr()
 	var cachedRespData *interQueryCacheData
 
 	switch v := value.(type) {

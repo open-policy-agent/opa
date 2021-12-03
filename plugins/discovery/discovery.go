@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -84,8 +85,8 @@ func New(manager *plugins.Manager, opts ...func(*Discovery)) (*Discovery, error)
 		return result, nil
 	}
 
-	if manager.Config.PluginsEnabled() {
-		return nil, fmt.Errorf("plugins cannot be specified in the bootstrap configuration when discovery enabled")
+	if names := manager.Config.PluginNames(); len(names) > 0 {
+		return nil, fmt.Errorf("discovery prohibits manual configuration of %v", strings.Join(names, " and "))
 	}
 
 	result.config = config
