@@ -33,6 +33,12 @@ github = "https://github.com/open-policy-agent/opa"
 sidebar = "/img/logos/opa-horizontal-color.png"
 navbar = "/img/logos/opa-icon-white.png"
 
+[params.ui]
+[params.ui.feedback]
+# Requires googleAnalytics to be set to track feedback events
+# Set hide_feedback: true in a page's front matter to disable feedback for that page
+enable = true
+
 [menu]
 [[menu.social]]
 name = "Medium"
