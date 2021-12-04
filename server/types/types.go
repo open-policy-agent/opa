@@ -379,6 +379,11 @@ type ConfigResponseV1 struct {
 	Result *interface{} `json:"result,omitempty"`
 }
 
+// StatusResponseV1 models the response message for Status API (pull) operations.
+type StatusResponseV1 struct {
+	Result *interface{} `json:"result,omitempty"`
+}
+
 // HealthResponseV1 models the response message for Health API operations.
 type HealthResponseV1 struct {
 	Error string `json:"error,omitempty"`

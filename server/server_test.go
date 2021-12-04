@@ -28,6 +28,7 @@ import (
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/plugins"
 	pluginBundle "github.com/open-policy-agent/opa/plugins/bundle"
+	pluginStatus "github.com/open-policy-agent/opa/plugins/status"
 	"github.com/open-policy-agent/opa/server/authorizer"
 	"github.com/open-policy-agent/opa/server/identifier"
 	"github.com/open-policy-agent/opa/server/types"
@@ -2738,6 +2739,82 @@ func TestPoliciesUrlEncoded(t *testing.T) {
 	f.server.Handler.ServeHTTP(f.recorder, deleteRequest)
 	if f.recorder.Code != 200 {
 		t.Fatalf("Expected success but got %v", f.recorder)
+	}
+}
+
+func TestStatusV1(t *testing.T) {
+
+	f := newFixture(t)
+
+	// Expect HTTP 500 before status plugin is registered
+	req := newReqV1(http.MethodGet, "/status", "")
+	f.server.Handler.ServeHTTP(f.recorder, req)
+
+	if f.recorder.Result().StatusCode != http.StatusInternalServerError {
+		t.Fatal("expected internal error")
+	}
+
+	// Expect HTTP 200 after status plus is registered
+	manual := plugins.TriggerManual
+	bs := pluginStatus.New(&pluginStatus.Config{Trigger: &manual}, f.server.manager)
+	err := bs.Start(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	f.server.manager.Register(pluginStatus.Name, bs)
+
+	req = newReqV1(http.MethodGet, "/status", "")
+	f.reset()
+	f.server.Handler.ServeHTTP(f.recorder, req)
+	if f.recorder.Result().StatusCode != http.StatusOK {
+		t.Fatal("expected ok")
+	}
+
+	var resp1 struct {
+		Result struct {
+			Plugins struct {
+				Status struct {
+					State string
+				}
+			}
+		}
+	}
+	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&resp1); err != nil {
+		t.Fatal(err)
+	} else if resp1.Result.Plugins.Status.State != "OK" {
+		t.Fatal("expected plugin state for status to be 'OK' but got:", resp1)
+	}
+
+	// Expect HTTP 200 and updated status after bundle update occurs
+	bs.BulkUpdateBundleStatus(map[string]*pluginBundle.Status{
+		"test": {
+			Name: "test",
+		},
+	})
+
+	req = newReqV1(http.MethodGet, "/status", "")
+	f.reset()
+	f.server.Handler.ServeHTTP(f.recorder, req)
+
+	if f.recorder.Result().StatusCode != http.StatusOK {
+		t.Fatal("expected ok")
+	}
+
+	var resp2 struct {
+		Result struct {
+			Bundles struct {
+				Test struct {
+					Name string
+				}
+			}
+		}
+	}
+
+	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&resp2); err != nil {
+		t.Fatal(err)
+	} else if resp2.Result.Bundles.Test.Name != "test" {
+		t.Fatal("expected bundle to exist in status response but got:", resp2)
 	}
 }
 
