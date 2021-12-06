@@ -1,21 +1,22 @@
-{{ $home      := site.BaseURL }}
-{{ $logo      := site.Params.logos.navbar }}
-{{ $social    := site.Params.social }}
-{{ $github    := $social.github }}
-{{ $twitter   := printf "https://twitter.com/%s" $social.twitter }}
-{{ $medium    := $social.medium }}
-{{ $slack     := $social.slack }}
-{{ $docsHome  := .CurrentSection }}
-{{ $allDocs   := where site.RegularPages "Section" "docs" }}
+{{ $home       := site.BaseURL }}
+{{ $logo       := site.Params.logos.navbar }}
+{{ $social     := site.Params.social }}
+{{ $github     := $social.github }}
+{{ $twitter    := printf "https://twitter.com/%s" $social.twitter }}
+{{ $medium     := $social.medium }}
+{{ $slack      := $social.slack }}
+{{ $docsHome   := .CurrentSection }}
+{{ $allDocs    := where site.RegularPages "Section" "docs" }}
 {{ $docs       := where $allDocs ".Params.kind" "eq" "documentation" }}
 {{ $kubernetes := where $allDocs ".Params.kind" "eq" "kubernetes" }}
-{{ $envoy := where $allDocs ".Params.kind" "eq" "envoy" }}
+{{ $envoy      := where $allDocs ".Params.kind" "eq" "envoy" }}
 {{ $tutorials  := where $allDocs ".Params.kind" "eq" "tutorial" }}
 {{ $operations := where $allDocs ".Params.kind" "eq" "operations" }}
 {{ $management := where $allDocs ".Params.kind" "eq" "management" }}
-{{ $misc := where $allDocs ".Params.kind" "eq" "misc" }}
-{{ $version   := index (split .File.Path "/") 1 }}
-{{ $pageUrl   := .URL }}
+{{ $contrib    := where $allDocs ".Params.kind" "eq" "contrib" }}
+{{ $misc       := where $allDocs ".Params.kind" "eq" "misc" }}
+{{ $version    := index (split .File.Path "/") 1 }}
+{{ $pageUrl    := .URL }}
 <nav class="navbar is-primary">
   <div class="navbar-brand is-hidden-tablet">
     <a class="navbar-item" href="{{ $home }}">
@@ -53,24 +54,13 @@
 
       {{ partial "docs/navbar-section.html" ( dict "ctx" . "sectionTitle" "Management APIs" "section" $management "pageUrl" $pageUrl "version" $version ) }}
 
+      {{ partial "docs/navbar-section.html" ( dict "ctx" . "sectionTitle" "Contributing" "section" $contrib "pageUrl" $pageUrl "version" $version ) }}
+
       {{ partial "docs/navbar-section.html" ( dict "ctx" . "sectionTitle" "Miscellaneous" "section" $misc "pageUrl" $pageUrl "version" $version ) }}
 
     </div>
 
     <div class="navbar-end">
-      <!--
-      <div class="navbar-item">
-        <div class="field">
-          <p class="control is-expanded has-icons-right">
-            <input class="input" type="search" placeholder="Search...">
-            <span class="icon is-small is-right">
-              <icon />
-            </span>
-          </p>
-        </div>
-      </div>
-      -->
-
       <div class="navbar-item">
         <div class="buttons">
           <a class="button is-primary" href="{{ $github }}" target="_blank">
