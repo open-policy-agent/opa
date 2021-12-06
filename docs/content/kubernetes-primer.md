@@ -358,9 +358,7 @@ request:
                 port:
                   number: 443
 </code></pre></div>
-
-
-<br>
+</div>
 
 ## Detailed Admission Control Flow
 

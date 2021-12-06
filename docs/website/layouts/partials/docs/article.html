@@ -19,6 +19,7 @@
       {{ if (and (not .Params.hide_feedback) (site.Params.ui.feedback.enable) (site.GoogleAnalytics)) }}
         {{ partial "feedback.html" site.Params.ui.feedback }}
       {{ end }}
+      <div class="toc-padding"></div>
     </section>
   </div>
 </article>
