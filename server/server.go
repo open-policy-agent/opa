@@ -105,7 +105,8 @@ type Server struct {
 	authorization          AuthorizationScheme
 	cert                   atomic.Value
 	certFile               string
-	keyFile                string
+	certKeyFile            string
+	certRefresh            time.Duration
 	certPool               *x509.CertPool
 	minTLSVersion          uint16
 	mtx                    sync.RWMutex
@@ -236,9 +237,10 @@ func (s *Server) WithCertificate(cert *tls.Certificate) *Server {
 
 // WithCertificatePaths sets the server-side certificate and keyfile paths
 // that the server will periodically check for changes, and reload if necessary.
-func (s *Server) WithCertificatePaths(certFile, keyFile string) *Server {
+func (s *Server) WithCertificatePaths(certFile, keyFile string, refresh time.Duration) *Server {
 	s.certFile = certFile
-	s.keyFile = keyFile
+	s.certKeyFile = keyFile
+	s.certRefresh = refresh
 	return s
 }
 
@@ -343,12 +345,12 @@ func (s *Server) Listeners() ([]Loop, error) {
 
 	for t, binding := range handlerBindings {
 		for _, addr := range binding.addrs {
-			loop, listener, err := s.getListener(addr, binding.handler, t)
+			l, listener, err := s.getListener(addr, binding.handler, t)
 			if err != nil {
 				return nil, err
 			}
 			s.httpListeners = append(s.httpListeners, listener)
-			loops = append(loops, loop)
+			loops = append(loops, l...)
 		}
 	}
 
@@ -410,7 +412,7 @@ type httpListener interface {
 	Addr() string
 	ListenAndServe() error
 	ListenAndServeTLS(certFile, keyFile string) error
-	Shutdown(ctx context.Context) error
+	Shutdown(context.Context) error
 	Type() httpListenerType
 }
 
@@ -499,26 +501,35 @@ func isMinTLSVersionSupported(TLSVersion uint16) bool {
 	return false
 }
 
-func (s *Server) getListener(addr string, h http.Handler, t httpListenerType) (Loop, httpListener, error) {
+func (s *Server) getListener(addr string, h http.Handler, t httpListenerType) ([]Loop, httpListener, error) {
 	parsedURL, err := parseURL(addr, s.cert.Load() != nil)
 	if err != nil {
 		return nil, nil, err
 	}
 
+	var loops []Loop
 	var loop Loop
 	var listener httpListener
 	switch parsedURL.Scheme {
 	case "unix":
 		loop, listener, err = s.getListenerForUNIXSocket(parsedURL, h, t)
+		loops = []Loop{loop}
 	case "http":
 		loop, listener, err = s.getListenerForHTTPServer(parsedURL, h, t)
+		loops = []Loop{loop}
 	case "https":
 		loop, listener, err = s.getListenerForHTTPSServer(parsedURL, h, t)
+		logger := s.manager.Logger().WithFields(map[string]interface{}{
+			"cert-file":     s.certFile,
+			"cert-key-file": s.certKeyFile,
+		})
+		certLoop := s.certLoop(logger)
+		loops = []Loop{loop, certLoop}
 	default:
 		err = fmt.Errorf("invalid url scheme %q", parsedURL.Scheme)
 	}
 
-	return loop, listener, err
+	return loops, listener, err
 }
 
 func (s *Server) getListenerForHTTPServer(u *url.URL, h http.Handler, t httpListenerType) (Loop, httpListener, error) {
