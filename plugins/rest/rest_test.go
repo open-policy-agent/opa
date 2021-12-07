@@ -193,7 +193,7 @@ func TestNew(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "TooManyS3CredOptions",
+			name: "TooManyS3CredOptions/metadata+environment",
 			input: `{
 				"name": "foo",
 				"url": "http://localhost",
@@ -204,6 +204,22 @@ func TestNew(t *testing.T) {
 							"iam_role": "my_iam_role"
 						},
 						"environment_credentials": {}
+					}
+				}
+			}`,
+			wantErr: true,
+		},
+		{
+			name: "TooManyS3CredOptions/metadata+profile+environment+webidentity",
+			input: `{
+				"name": "foo",
+				"url": "http://localhost",
+				"credentials": {
+					"s3_signing": {
+						"profile_credentials": {},
+						"environment_credentials": {},
+						"web_identity_credentials": {},
+						"metadata_credentials": {}
 					}
 				}
 			}`,
@@ -502,6 +518,7 @@ func TestNew(t *testing.T) {
 					},
 				}
 			}`,
+			wantErr: true,
 		},
 		{
 			name: "S3WebIdentityCreds",
@@ -517,6 +534,7 @@ func TestNew(t *testing.T) {
 			env: map[string]string{
 				awsRoleArnEnvVar:              "TEST",
 				awsWebIdentityTokenFileEnvVar: "TEST",
+				awsRegionEnvVar:               "us-west-1",
 			},
 		},
 		{
@@ -639,11 +657,11 @@ func TestNew(t *testing.T) {
 				_ = os.Setenv(key, val)
 			}
 
-			defer func() {
+			t.Cleanup(func() {
 				for key := range tc.env {
 					_ = os.Unsetenv(key)
 				}
-			}()
+			})
 
 			client, err := New([]byte(tc.input), ks, AuthPluginLookup(mockAuthPluginLookup))
 			if err != nil {
