@@ -96,6 +96,12 @@ type Params struct {
 	// is nil, the server will NOT use TLS.
 	Certificate *tls.Certificate
 
+	// CertificateFile and CertificateKeyFile are the paths to the cert and its
+	// keyfile. It'll be used to periodically reload the files from disk if they
+	// have changed.
+	CertificateFile    string
+	CertificateKeyFile string
+
 	// CertPool holds the CA certs trusted by the OPA server.
 	CertPool *x509.CertPool
 
@@ -403,6 +409,7 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 		WithAddresses(*rt.Params.Addrs).
 		WithH2CEnabled(rt.Params.H2CEnabled).
 		WithCertificate(rt.Params.Certificate).
+		WithCertificatePaths(rt.Params.CertificateFile, rt.Params.CertificateKeyFile).
 		WithCertPool(rt.Params.CertPool).
 		WithAuthentication(rt.Params.Authentication).
 		WithAuthorization(rt.Params.Authorization).

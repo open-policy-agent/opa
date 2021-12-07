@@ -234,6 +234,8 @@ func initRuntime(ctx context.Context, params runCmdParams, args []string) (*runt
 	if err != nil {
 		return nil, err
 	}
+	params.rt.CertificateFile = params.tlsCertFile
+	params.rt.CertificateKeyFile = params.tlsPrivateKeyFile
 
 	if params.tlsCACertFile != "" {
 		pool, err := loadCertPool(params.tlsCACertFile)
