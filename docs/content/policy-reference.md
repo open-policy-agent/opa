@@ -1100,15 +1100,7 @@ REPL | `notes` | n/a | The "notes" command enables trace explanations. See `help
 
 | Built-in | Description | Wasm Support |
 | ------- |-------------|---------------|
-| <span class="opa-keep-it-together">``fs.readfile(file_path)``</span> | ``fs.readfile`` opens ``file_path`` as a ``Note`` event in the query explanation. Query explanations show the exact expressions evaluated by OPA during policy execution. For example, ``trace("Hello There!")`` includes ``Note "Hello There!"`` in the query explanation. To include variables in the message, use ``sprintf``. For example, ``person := "Bob"; trace(sprintf("Hello There! %v", [person]))`` will emit ``Note "Hello There! Bob"`` inside of the explanation. | ``SDK-dependent`` |
-
-By default, explanations are disabled. The following table summarizes how you can enable tracing:
-
-API | Parameter | Example | Memo
---- | --- | --- | ---
-CLI | `--explain` | `opa eval --explain=notes --format=pretty 'trace("hello world")'` |
-HTTP | `explain=notes` | `curl localhost:8181/v1/data/example/allow?explain=notes&pretty` |
-REPL | `notes` | n/a | The "notes" command enables trace explanations. See `help` for more details.
+| <span class="opa-keep-it-together">``fs.readfile(file_path)``</span> | ``output := fs.readfile`` opens the ``file_path`` file and returns all the content to ``output``  | ``SDK-dependent`` |
 
 ## Reserved Names
 
