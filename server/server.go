@@ -534,8 +534,8 @@ func (s *Server) getListenerForHTTPSServer(u *url.URL, h http.Handler, t httpLis
 		Addr:    u.Host,
 		Handler: h,
 		TLSConfig: &tls.Config{
-			Certificates: []tls.Certificate{*s.cert},
-			ClientCAs:    s.certPool,
+			GetCertificate: s.getCertificate,
+			ClientCAs:      s.certPool,
 		},
 	}
 	if s.authentication == AuthenticationTLS {
