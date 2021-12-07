@@ -4,8 +4,15 @@
 
 package server
 
-import "crypto/tls"
+import (
+	"crypto/tls"
+	"errors"
+)
 
-func (s *Server) getCertificate(*tls.ClientHelloInfo) (*tls.Certificate, error) {
-	return s.cert, nil
+func (s *Server) getCertificate(h *tls.ClientHelloInfo) (*tls.Certificate, error) {
+	cert := s.cert.Load()
+	if cert == nil {
+		return nil, errors.New("no certificate loaded")
+	}
+	return cert.(*tls.Certificate), nil
 }
