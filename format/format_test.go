@@ -219,6 +219,11 @@ func TestFormatAST(t *testing.T) {
 			expected: ``,
 		},
 		{
+			note:     "ref operator",
+			toFmt:    ast.MustParseRef(`foo[count(foo) - 1]`),
+			expected: `foo[count(foo) - 1]`,
+		},
+		{
 			note:     "x in xs",
 			toFmt:    ast.Member.Call(ast.VarTerm("x"), ast.VarTerm("xs")),
 			expected: `x in xs`,
