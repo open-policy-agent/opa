@@ -198,15 +198,11 @@ func TestAuthenticationTLS(t *testing.T) {
 
 func newClient(maxTLSVersion uint16, pool *x509.CertPool, clientKeyPair ...string) *http.Client {
 	c := *http.DefaultClient
-	// Note: zero-values in http.Transport are bad settings -- they let the client
-	// leak connections -- but it's good enough for these tests. Don't instantiate
-	// http.Transport without providing non-zero values in non-test code, please.
-	// See https://github.com/golang/go/issues/19620 for details.
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{
-			RootCAs: pool,
-		},
+	tr := http.DefaultTransport.(*http.Transport).Clone()
+	tr.TLSClientConfig = &tls.Config{
+		RootCAs: pool,
 	}
+
 	if len(clientKeyPair) == 2 {
 		clientCert, err := tls.LoadX509KeyPair(clientKeyPair[0], clientKeyPair[1])
 		if err != nil {
