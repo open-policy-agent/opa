@@ -7,6 +7,9 @@ package server
 import (
 	"crypto/tls"
 	"errors"
+	"time"
+
+	"github.com/open-policy-agent/opa/logging"
 )
 
 func (s *Server) getCertificate(h *tls.ClientHelloInfo) (*tls.Certificate, error) {
@@ -15,4 +18,20 @@ func (s *Server) getCertificate(h *tls.ClientHelloInfo) (*tls.Certificate, error
 		return nil, errors.New("no certificate loaded")
 	}
 	return cert.(*tls.Certificate), nil
+}
+
+func (s *Server) certLoop(logger logging.Logger) Loop {
+	return func() error {
+		for range time.NewTicker(s.certRefresh).C {
+			newCert, err := tls.LoadX509KeyPair(s.certFile, s.certKeyFile)
+			if err != nil {
+				logger.Info("Failed to refresh server certificate: %s.", err.Error())
+				continue
+			}
+			logger.Debug("Refreshed server certificate.")
+			s.cert.Store(&newCert)
+		}
+
+		return nil
+	}
 }

@@ -12,6 +12,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -30,6 +31,7 @@ type runCmdParams struct {
 	tlsCertFile        string
 	tlsPrivateKeyFile  string
 	tlsCACertFile      string
+	tlsCertRefresh     time.Duration
 	ignore             []string
 	serverMode         bool
 	skipVersionCheck   bool
@@ -178,9 +180,10 @@ To skip bundle verification, use the --skip-verify flag.
 	runCommand.Flags().StringVarP(&cmdParams.tlsCertFile, "tls-cert-file", "", "", "set path of TLS certificate file")
 	runCommand.Flags().StringVarP(&cmdParams.tlsPrivateKeyFile, "tls-private-key-file", "", "", "set path of TLS private key file")
 	runCommand.Flags().StringVarP(&cmdParams.tlsCACertFile, "tls-ca-cert-file", "", "", "set path of TLS CA cert file")
+	runCommand.Flags().DurationVar(&cmdParams.tlsCertRefresh, "tls-cert-refresh", 5*time.Minute, "set certificate refresh period")
 	runCommand.Flags().VarP(cmdParams.authentication, "authentication", "", "set authentication scheme")
 	runCommand.Flags().VarP(cmdParams.authorization, "authorization", "", "set authorization scheme")
-	runCommand.Flags().VarP(cmdParams.minTLSVersion, "min-tls-version", "", "set minimum TLS version to be used by OPA's server, default is 1.2")
+	runCommand.Flags().VarP(cmdParams.minTLSVersion, "min-tls-version", "", "set minimum TLS version to be used by OPA's server")
 	runCommand.Flags().VarP(cmdParams.logLevel, "log-level", "l", "set log level")
 	runCommand.Flags().VarP(cmdParams.logFormat, "log-format", "", "set log format")
 	runCommand.Flags().IntVar(&cmdParams.rt.GracefulShutdownPeriod, "shutdown-grace-period", 10, "set the time (in seconds) that the server will wait to gracefully shut down")
@@ -236,6 +239,7 @@ func initRuntime(ctx context.Context, params runCmdParams, args []string) (*runt
 	}
 	params.rt.CertificateFile = params.tlsCertFile
 	params.rt.CertificateKeyFile = params.tlsPrivateKeyFile
+	params.rt.CertificateRefresh = params.tlsCertRefresh
 
 	if params.tlsCACertFile != "" {
 		pool, err := loadCertPool(params.tlsCACertFile)
