@@ -570,14 +570,16 @@ func (w *writer) writeRef(x ast.Ref) {
 	if len(x) > 0 {
 		w.writeTerm(x[0], nil)
 		path := x[1:]
-		for _, p := range path {
-			switch p := p.Value.(type) {
+		for _, t := range path {
+			switch p := t.Value.(type) {
 			case ast.String:
 				w.writeRefStringPath(p)
 			case ast.Var:
 				w.writeBracketed(w.formatVar(p))
 			default:
-				w.writeBracketed(p.String())
+				w.write("[")
+				w.writeTerm(t, nil)
+				w.write("]")
 			}
 		}
 	}
