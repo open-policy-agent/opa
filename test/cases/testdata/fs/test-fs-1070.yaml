@@ -1,0 +1,14 @@
+cases:
+- note: fs/read_file
+  query: data.test.p = x
+  modules:
+  - |
+    package test
+    p = fs.readfile(input.file)
+  input: {"file": "../topdown/testdata/ca.pem"}
+  want_result: [{x: "-----BEGIN CERTIFICATE-----\nMIIDATCCAemgAwIBAgIUZh0dmUOZ+xR/WnyK+APueJFe6OgwDQYJKoZIhvcNAQEL\nBQAwEDEOMAwGA1UEAwwFbXktY2EwHhcNMjExMDI0MDgyNzIxWhcNMzExMDIyMDgy\nNzIxWjAQMQ4wDAYDVQQDDAVteS1jYTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCC\nAQoCggEBAMb8vC9kCTMQ3JTiHuCJjf1IPuqNPWX+j9PbeSmVibb5xdoo7ZEcxKsP\nBB5GmiqwfiqWi85jWXONn314sEdn2QCUn7sLVjPI5udpBBqBLH9v80vUi/yRwfVR\nEdVayPktHUR4tlrO1WD14H545Pk42ayrB7cCbZxj/VdO95VmIuJlB+kFWab5bepL\nAEcV0GvnMkDaJhWc0IYHc9Rl9zv/EdoLVmCGqBtpzF7vt1mu6XeChG5zLRw9Grvr\nZLwouu8ahMXnLWG5hDuxF67rjniqmAdfNm3lYsJHJ8duNRtUST3HZpmGr77vh+aH\nYn5H1HepLsT1gdyaDESeq8QABd50Y/8CAwEAAaNTMFEwHQYDVR0OBBYEFL1uOISV\n+Bcay1Ik3PhLsPERcxtoMB8GA1UdIwQYMBaAFL1uOISV+Bcay1Ik3PhLsPERcxto\nMA8GA1UdEwEB/wQFMAMBAf8wDQYJKoZIhvcNAQELBQADggEBABzNhRXqhHn3s2O8\nzrgWUD0w/i13KlnWFsno2g8Zxxi/kK5HHyUR8roBKyGShZHiYB8pUdbZXXtzwzed\nYBjDqndhu6mhxwEeaKlVG6Yi8sNPfUKUVBBQ9KvA473geNBgfT0FapyaFHcvtvAT\nTPVLdKSqSi8QDaGywFpuce81b9yZMxDYgU3ICktpLq3qn79s5UPMyyS89LMUeQt2\nmdvSx/s9xVfB7whzciLea9nubZDRsSgxKDoGoKnv58fpjSeXEgZzqAM6hc5Ys3tj\nKkJIvfs0g/ijAfKcBkIBPazqxDZK7zHwmSramHsMnWc+l/7JkfDjB8SFghtliy8V\nBnahd2k=\n-----END CERTIFICATE-----\n"}]
+- note: fs/read_file_when_file_does_not_exists
+  query: fs.readfile("/it_does_not_exists.txt")
+  want_error_code: eval_builtin_error
+  want_error: 'fs.readfile("/it_does_not_exists.txt"): eval_builtin_error: fs.readfile: open /it_does_not_exists.txt: no such file or directory'
+  strict_error: true

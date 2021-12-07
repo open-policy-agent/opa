@@ -249,13 +249,16 @@ var DefaultBuiltins = [...]*Builtin{
 	// UUIDs
 	UUIDRFC4122,
 
-	//SemVers
+	// SemVers
 	SemVerIsValid,
 	SemVerCompare,
 
 	// Printing
 	Print,
 	InternalPrint,
+
+	// File System
+	ReadFile,
 }
 
 // BuiltinMap provides a convenient mapping of built-in names to
@@ -2384,6 +2387,15 @@ var RegexMatchDeprecated = &Builtin{
 			types.S,
 		),
 		types.B,
+	),
+}
+
+// ReadFile read a file and returns the content as string; throws an error otherwise
+var ReadFile = &Builtin{
+	Name: "fs.readfile",
+	Decl: types.NewFunction(
+		types.Args(types.S),
+		types.S,
 	),
 }
 

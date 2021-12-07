@@ -799,6 +799,20 @@
       }
     },
     {
+      "name": "fs.readfile",
+      "decl": {
+        "args": [
+          {
+            "type": "string"
+          }
+        ],
+        "result": {
+          "type": "string"
+        },
+        "type": "function"
+      }
+    },
+    {
       "name": "glob.match",
       "decl": {
         "args": [
