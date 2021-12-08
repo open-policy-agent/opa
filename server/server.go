@@ -525,8 +525,12 @@ func (s *Server) getListener(addr string, h http.Handler, t httpListenerType) ([
 			"cert-file":     s.certFile,
 			"cert-key-file": s.certKeyFile,
 		})
-		certLoop := s.certLoop(logger)
-		loops = []Loop{loop, certLoop}
+		if s.certRefresh > 0 {
+			certLoop := s.certLoop(logger)
+			loops = []Loop{loop, certLoop}
+		} else {
+			loops = []Loop{loop}
+		}
 	default:
 		err = fmt.Errorf("invalid url scheme %q", parsedURL.Scheme)
 	}
