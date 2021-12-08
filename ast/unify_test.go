@@ -4,7 +4,10 @@
 
 package ast
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+)
 
 func TestUnify(t *testing.T) {
 
@@ -28,10 +31,16 @@ func TestUnify(t *testing.T) {
 		{"object/var", `{"x": 1, "y": x} = y`, "[x]", "[y]"},
 		{"object/var (reversed)", `y = {"x": 1, "y": x}`, "[x]", "[y]"},
 		{"object/var-2", `{"x": 1, "y": x} = y`, "[y]", "[x]"},
-		{"object/var-3", `{"x": 1, "y": x} = y`, "[]", "[]"},
 		{"object/uneven", `{"x": x, "y": 1} = {"x": y}`, "[]", "[]"},
 		{"object/uneven", `{"x": x, "y": 1} = {"x": y}`, "[x]", "[]"},
-		{"call", "x = f(y)[z]", "[y]", "[x]"},
+		{"var/call-ref", "x = f(y)[z]", "[y]", "[x]"},
+		{"var/call-ref (reversed)", "f(y)[z] = x", "[y]", "[x]"},
+		{"var/call", "x = f(z)", "[z]", "[x]"},
+		{"var/call (reversed)", "f(z) = x", "[z]", "[x]"},
+		{"array/call", "[x, y] = f(z)", "[z]", "[x,y]"},
+		{"array/call (reversed)", "f(z) = [x, y]", "[z]", "[x,y]"},
+		{"object/call", `{"a": x} = f(z)`, "[z]", "[x]"},
+		{"object/call (reversed)", `f(z) = {"a": x}`, "[z]", "[x]"},
 
 		// transitive cases
 		{"trans/redundant", "[x, x] = [x, 0]", "[]", "[x]"},
@@ -43,10 +52,44 @@ func TestUnify(t *testing.T) {
 		{"trans/redundant-nested", "[x, z, z] = [1, [y, x], [2, 1]]", "[]", "[x, y, z]"},
 		{"trans/bidirectional", "[x, z, y] = [[z,y], [1,y], 2]", "[]", "[x, y, z]"},
 		{"trans/occurs", "[x, z, y] = [[y,z], [y, 1], [2, x]]", "[]", "[]"},
+
+		// unsafe refs
+		{note: "array/ref", expr: "[1,2,x] = a[_]"},
+		{note: "array/ref (reversed)", expr: "a[_] = [1,2,x]"},
+		{note: "object/ref", expr: `{"x": x} = a[_]`},
+		{note: "object/ref (reversed)", expr: `a[_] = {"x": x}`},
+		{note: "var/call-ref", expr: "x = f(y)[z]"},
+		{note: "var/call-ref (reversed)", expr: "f(y)[z] = x"},
+
+		// unsafe vars
+		{note: "array/var", expr: "[1,2,x] = y"},
+		{note: "array/var (reversed)", expr: "y = [1,2,x]"},
+		{note: "object/var", expr: `{"x": 1, "y": x} = y`},
+		{note: "object/var (reversed)", expr: `y = {"x": 1, "y": x}`},
+		{note: "var/call", expr: "x = f(z)"},
+		{note: "var/call (reversed)", expr: "f(z) = x"},
+
+		// unsafe call args
+		{note: "var/call-2", expr: "x = f(z)", safe: "[x]"},
+		{note: "var/call-2 (reversed)", expr: "f(z) = x", safe: "[x]"},
+		{note: "array/call", expr: "[x, y] = f(z)", safe: "[x,y]"},
+		{note: "array/call (reversed)", expr: "f(z) = [x, y]", safe: "[x,y]"},
+		{note: "object/call", expr: `{"a": x} = f(z)`, safe: "[x]"},
+		{note: "object/call (reversed)", expr: `f(z) = {"a": x}`, safe: "[x]"},
+
+		// partial cases
+		{note: "trans/ref", expr: "[x, y, [x, y, i]] = [1, a[i], z]", safe: "[a]", expected: "[x, y]"},
+		{note: "trans/ref", expr: "[x, y, [x, y, i]] = [1, a[i], z]", expected: "[x]"},
 	}
 
-	for i, tc := range tests {
-		t.Run(tc.note, func(t *testing.T) {
+	for _, tc := range tests {
+		if tc.expected == "" {
+			tc.expected = "[]"
+		}
+		if tc.safe == "" {
+			tc.safe = "[]"
+		}
+		t.Run(fmt.Sprintf("%s/%s/%s", tc.note, tc.safe, tc.expected), func(t *testing.T) {
 
 			expr := MustParseBody(tc.expr)[0]
 			safe := VarSet{}
@@ -74,7 +117,7 @@ func TestUnify(t *testing.T) {
 			missing := expected.Diff(result)
 			extra := result.Diff(expected)
 			if len(missing) != 0 || len(extra) != 0 {
-				t.Fatalf("%s (%d): Missing vars: %v, extra vars: %v", tc.note, i, missing, extra)
+				t.Fatalf("missing vars: %v, extra vars: %v", missing, extra)
 			}
 		})
 	}
