@@ -22,7 +22,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -105,9 +104,12 @@ type Server struct {
 	h2cEnabled             bool
 	authentication         AuthenticationScheme
 	authorization          AuthorizationScheme
-	cert                   atomic.Value
+	cert                   *tls.Certificate
+	certMtx                sync.RWMutex
 	certFile               string
+	certFileHash           []byte
 	certKeyFile            string
+	certKeyFileHash        []byte
 	certRefresh            time.Duration
 	certPool               *x509.CertPool
 	minTLSVersion          uint16
@@ -231,9 +233,7 @@ func (s *Server) WithAuthorization(scheme AuthorizationScheme) *Server {
 
 // WithCertificate sets the server-side certificate that the server will use.
 func (s *Server) WithCertificate(cert *tls.Certificate) *Server {
-	if cert != nil {
-		s.cert.Store(cert)
-	}
+	s.cert = cert
 	return s
 }
 
@@ -504,7 +504,7 @@ func isMinTLSVersionSupported(TLSVersion uint16) bool {
 }
 
 func (s *Server) getListener(addr string, h http.Handler, t httpListenerType) ([]Loop, httpListener, error) {
-	parsedURL, err := parseURL(addr, s.cert.Load() != nil)
+	parsedURL, err := parseURL(addr, s.cert != nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -551,7 +551,7 @@ func (s *Server) getListenerForHTTPServer(u *url.URL, h http.Handler, t httpList
 
 func (s *Server) getListenerForHTTPSServer(u *url.URL, h http.Handler, t httpListenerType) (Loop, httpListener, error) {
 
-	if s.cert.Load() == nil {
+	if s.cert == nil {
 		return nil, nil, fmt.Errorf("TLS certificate required but not supplied")
 	}
 
