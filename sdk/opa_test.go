@@ -19,6 +19,7 @@ import (
 	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/sdk"
 	sdktest "github.com/open-policy-agent/opa/sdk/test"
+	"github.com/open-policy-agent/opa/version"
 )
 
 // Plugin creates an empty plugin to test plugin initialization
@@ -556,4 +557,49 @@ func TestConfigure(t *testing.T) {
 	}
 
 	<-ch
+}
+
+func TestOpaVersion(t *testing.T) {
+	ctx := context.Background()
+
+	server := sdktest.MustNewServer(
+		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
+			"main.rego": `
+				package system
+				opa_version := opa.runtime().version
+			`,
+		}),
+	)
+
+	defer server.Stop()
+
+	config := []byte(fmt.Sprintf(`{
+		"services": {
+			"test": {
+				"url": %q
+			}
+		},
+		"bundles": {
+			"test": {
+				"resource": "/bundles/bundle.tar.gz"
+			}
+		}
+	}`, server.URL()))
+
+	opa, err := sdk.New(ctx, sdk.Options{
+		Config: bytes.NewReader(config),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer opa.Stop(ctx)
+
+	exp := version.Version
+
+	if result, err := opa.Decision(ctx, sdk.DecisionOptions{Path: "/system/opa_version"}); err != nil {
+		t.Fatal(err)
+	} else if !reflect.DeepEqual(result.Result, exp) {
+		t.Fatalf("expected %v but got %v", exp, result.Result)
+	}
 }
