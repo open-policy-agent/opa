@@ -1521,13 +1521,9 @@ that the server is operational. Optionally it can account for bundle activation 
 (useful for "ready" checks at startup).
 
 #### Query Parameters
-`bundles` - Boolean parameter to account for bundle activation status in response. This includes
-            any discovery bundles or bundles defined in the loaded discovery configuration.
-`plugins` - Boolean parameter to account for plugin status in response.
-`exclude-plugin` - String parameter to exclude a plugin from status checks. Can be added multiple
-            times. Does nothing if `plugins` is not true. This parameter is useful for special use cases
-            where a plugin depends on the server being fully initialized before it can fully intialize
-            itself.
+* `bundles` - Boolean parameter to account for bundle activation status in response. This includes any discovery bundles or bundles defined in the loaded discovery configuration.
+* `plugins` - Boolean parameter to account for plugin status in response.
+* `exclude-plugin` - String parameter to exclude a plugin from status checks. Can be added multiple times. Does nothing if `plugins` is not true. This parameter is useful for special use cases where a plugin depends on the server being fully initialized before it can fully intialize itself.
 
 #### Status Codes
 - **200** - OPA service is healthy. If the `bundles` option is specified then all configured bundles have
@@ -1536,9 +1532,11 @@ that the server is operational. Optionally it can account for bundle activation 
             bundles have not yet been activated. If the `plugins` option is specified then at least one
             plugin is in a non-OK state.
 
-> *Note*: The bundle activation check is only for initial bundle activation. Subsequent downloads
-  will not affect the health check. The [Status](../management-status)
-  API should be used for more fine-grained bundle status monitoring.
+{{< info >}}
+The bundle activation check is only for initial bundle activation. Subsequent
+downloads will not affect the health check. The [Status](../management-status)
+API should be used for more fine-grained bundle status monitoring.
+{{< /info >}}
 
 #### Example Request
 ```http
@@ -1609,16 +1607,16 @@ is defined under package `system.health`.
 Here is a basic health policy for liveness and readiness. In this example, OPA is live once it is
 able to process the `live` rule. OPA is ready once all plugins have entered the OK state at least once.
 
-```rego
+```live:health_policy_example:module:read_only
 package system.health
 
-// opa is live if it can process this rule
+# opa is live if it can process this rule
 default live = true
 
-// by default, opa is not ready
+# by default, opa is not ready
 default ready = false
 
-// opa is ready once all plugins have reported OK at least once
+# opa is ready once all plugins have reported OK at least once
 ready {
   input.plugins_ready
 }
@@ -1627,15 +1625,15 @@ ready {
 Note that once `input.plugins_ready` is true, it stays true. If you want to fail the ready check when
 specific a plugin leaves the OK state, try this:
 
-```rego
+```live:health_policy_example_2:module:read_only
 package system.health
 
 default live = true
 
 default ready = false
 
-// opa is ready once all plugins have reported OK at least once AND
-// the bundle plugin is currently in an OK state
+# opa is ready once all plugins have reported OK at least once AND
+# the bundle plugin is currently in an OK state
 ready {
   input.plugins_ready
   input.plugin_state.bundle == "OK"
