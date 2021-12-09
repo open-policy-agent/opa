@@ -76,6 +76,14 @@ func New(ctx context.Context, opts Options) (*OPA, error) {
 	return opa, opa.configure(ctx, opa.config, opts.Ready, opts.block)
 }
 
+// Plugin returns the named plugin. If the plugin does not exist, this function
+// returns nil.
+func (opa *OPA) Plugin(name string) plugins.Plugin {
+	opa.mtx.Lock()
+	defer opa.mtx.Unlock()
+	return opa.state.manager.Plugin(name)
+}
+
 // Configure updates the configuration of the OPA in-place. This function should
 // be called in response to configuration updates in the environment. This
 // function is atomic. If the configuration update cannot be successfully
