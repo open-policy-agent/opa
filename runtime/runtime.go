@@ -249,7 +249,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		}
 	}
 
-	level, err := getLoggingLevel(params.Logging.Level)
+	level, err := internal_logging.GetLevel(params.Logging.Level)
 	if err != nil {
 		return nil, err
 	}
@@ -856,21 +856,6 @@ func generateDecisionID() string {
 		return ""
 	}
 	return id
-}
-
-func getLoggingLevel(s string) (logging.Level, error) {
-	switch strings.ToLower(s) {
-	case "debug":
-		return logging.Debug, nil
-	case "", "info":
-		return logging.Info, nil
-	case "warn":
-		return logging.Warn, nil
-	case "error":
-		return logging.Error, nil
-	default:
-		return logging.Debug, fmt.Errorf("invalid log level: %v", s)
-	}
 }
 
 func init() {
