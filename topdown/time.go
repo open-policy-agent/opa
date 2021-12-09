@@ -19,19 +19,22 @@ import (
 var tzCache map[string]*time.Location
 var tzCacheMutex *sync.Mutex
 
-var minDateAllowedForNsConversion = time.Date(1970, 01, 01, 0, 0, 0, 0, time.UTC)
+// -9223372036854775808ns, int64 wraparound point
+var minDateAllowedForNsConversion = time.Date(1677, 9, 21, 0, 12, 43, 145224192, time.UTC)
+
+// 9223372036854775807ns, int64 wraparound point
 var maxDateAllowedForNsConversion = time.Date(2262, 4, 11, 23, 47, 16, 854775807, time.UTC)
 
 func toSafeUnixNano(t time.Time) (int64, error) {
 	if t.Before(minDateAllowedForNsConversion) {
 		// Earlier dates than this exhibits undefined Time.UnixNano() behaviour.
-		return 0, fmt.Errorf("time is before %v, and cannot be converted to epoch nano seconds",
+		return 0, fmt.Errorf("time is before %v, and cannot be converted to epoch nanoseconds",
 			minDateAllowedForNsConversion)
 	}
 
 	if t.After(maxDateAllowedForNsConversion) {
 		// Later dates than this exhibits undefined Time.UnixNano() behaviour.
-		return 0, fmt.Errorf("time is after %v, and cannot be converted to epoch nano seconds",
+		return 0, fmt.Errorf("time is after %v, and cannot be converted to epoch nanoseconds",
 			maxDateAllowedForNsConversion)
 	}
 

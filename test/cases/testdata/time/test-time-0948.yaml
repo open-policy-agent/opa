@@ -11,7 +11,7 @@ cases:
   query: data.generated.p = x
   input: { cases: {
     1: { layout: "2006-01-02T15:04:05Z07:00", value: "2017-06-02T19:00:00-07:00" },           # RFC3339
-    2: { layout: "2006-01-02T15:04:05Z07:00", value: "1970-01-01T00:00:00-00:00" },           # Earliest valid time
+    2: { layout: "2006-01-02T15:04:05Z07:00", value: "1677-09-21T00:12:43.145224192-00:00" }, # Earliest valid time
     3: { layout: "2006-01-02T15:04:05Z07:00", value: "2262-04-11T23:47:16.854775807-00:00" }, # Latest valid time
     4: { layout: "01/02 03:04:05PM '06 -0700", value: "06/02 07:00:00PM '17 -0700" },         # Layout
     5: { layout: "02 Jan 06 15:04 -0700", value: "02 Jun 17 19:00 -0700" },                   # RFC822Z
@@ -19,7 +19,7 @@ cases:
   want_result:
   - x: {
       1: 1496455200000000000,
-      2: 0,
+      2: -9223372036854775808,
       3: 9223372036854775807,
       4: 1496455200000000000,
       5: 1496455200000000000
@@ -30,12 +30,12 @@ cases:
       package generated
       
       p = ns {
-        time.parse_ns("2006-01-02T15:04:05Z07:00", "1969-12-31T23:59:59.999999999-00:00", ns)
+        time.parse_ns("2006-01-02T15:04:05Z07:00", "1677-09-21T00:12:43.145224191-00:00", ns)
       }
   query: data.generated.p = x
   strict_error: true
   want_error_code: eval_builtin_error
-  want_error: 'time is before 1970-01-01 00:00:00 +0000 UTC, and cannot be converted to epoch nano seconds'
+  want_error: 'time is before 1677-09-21 00:12:43.145224192 +0000 UTC, and cannot be converted to epoch nanoseconds'
 - note: time/parse_nanos_too_large
   modules:
     - |
@@ -47,4 +47,4 @@ cases:
   query: data.generated.p = x
   strict_error: true
   want_error_code: eval_builtin_error
-  want_error: 'time is after 2262-04-11 23:47:16.854775807 +0000 UTC, and cannot be converted to epoch nano seconds'
+  want_error: 'time is after 2262-04-11 23:47:16.854775807 +0000 UTC, and cannot be converted to epoch nanoseconds'
