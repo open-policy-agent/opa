@@ -349,7 +349,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		return nil, fmt.Errorf("config error: %w", err)
 	}
 
-	manager.Register("discovery", disco)
+	manager.Register(discovery.Name, disco)
 
 	rt := &Runtime{
 		Store:             manager.Store,
