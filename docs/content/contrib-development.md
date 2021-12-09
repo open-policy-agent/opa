@@ -96,18 +96,6 @@ Pull Request, please mention it in the discussion.
 
 > If you are not familiar with squashing commits, see [the following blog post for a good overview](http://gitready.com/advanced/2009/02/10/squashing-commits-with-rebase.html).
 
-## Built-in Functions
-
-[Built-in Functions](../policy-reference/#built-in-functions)
-can be added inside the `topdown` package in this repository.
-
-Built-in functions may be upstreamed if they are generally useful and provide functionality that would be
-impractical to implement natively in Rego (e.g., CIDR arithmetic). Implementations should avoid thirdparty
-dependencies. If absolutely necessary, consider importing the code manually into the `internal` package.
-
-All built-in function implementations must include a test suite. See [test/cases/testdata/helloworld](https://github.com/open-policy-agent/opa/blob/main/test/cases/testdata/helloworld)
-in this repository for an example of how to implement tests for your built-in functions.
-
 ## Benchmarks
 
 Several packages in this repository implement benchmark tests. To execute the
