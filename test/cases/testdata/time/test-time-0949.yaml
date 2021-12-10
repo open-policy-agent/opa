@@ -1,95 +1,48 @@
 cases:
-- data:
-    a:
-    - 1
-    - 2
-    - 3
-    - 4
-    b:
-      v1: hello
-      v2: goodbye
-    c:
-    - x:
-      - true
-      - false
-      - foo
-      "y":
-      - null
-      - 3.14159
-      z:
-        p: true
-        q: false
-    d:
-      e:
-      - bar
-      - baz
-    f:
-    - xs:
-      - 1
-      ys:
-      - 2
-    - xs:
-      - 2
-      ys:
-      - 3
-    g:
-      a:
-      - 1
-      - 0
-      - 0
-      - 0
-      b:
-      - 0
-      - 2
-      - 0
-      - 0
-      c:
-      - 0
-      - 0
-      - 0
-      - 4
-    h:
-    - - 1
-      - 2
-      - 3
-    - - 2
-      - 3
-      - 4
-    l:
-    - a: bob
-      b: -1
-      c:
-      - 1
-      - 2
-      - 3
-      - 4
-    - a: alice
-      b: 1
-      c:
-      - 2
-      - 3
-      - 4
-      - 5
-      d: null
-    m: []
-    numbers:
-    - "1"
-    - "2"
-    - "3"
-    - "4"
-    strings:
-      bar: 2
-      baz: 3
-      foo: 1
-    three: 3
+- note: time/parse_rfc3339_nanos
   modules:
-  - |
-    package generated
-
-    p = ns {
-      time.parse_rfc3339_ns("2017-06-02T19:00:00-07:00", ns)
-    }
-  note: time/parse rfc3339 nanos
+    - |
+      package generated
+      
+      p[t] = ns {
+        t = input.cases[_]
+        time.parse_rfc3339_ns(t, ns)
+      }
   query: data.generated.p = x
+  input: { cases: [
+    "1677-09-21T00:12:43.145224192-00:00", # Earliest valid time
+    "1970-01-01T00:00:00-00:00",
+    "2017-06-02T19:00:00-07:00",
+    "2262-04-11T23:47:16.854775807-00:00" # Latest valid time
+  ]}
   want_result:
-  - x: 1496455200000000000
+    - x: {
+      "1677-09-21T00:12:43.145224192-00:00": -9223372036854775808,
+      "1970-01-01T00:00:00-00:00": 0,
+      "2017-06-02T19:00:00-07:00": 1496455200000000000,
+      "2262-04-11T23:47:16.854775807-00:00": 9223372036854775807,
+    }
+- note: time/parse_rfc3339_nanos_too_small
+  modules:
+    - |
+      package generated
+      
+      p = ns {
+        time.parse_rfc3339_ns("1677-09-21T00:12:43.145224191-00:00", ns)
+      }
+  query: data.generated.p = x
+  strict_error: true
+  want_error_code: eval_builtin_error
+  want_error: 'time outside of valid range'
+- note: time/parse_rfc3339_nanos_too_large
+  modules:
+    - |
+      package generated
+      
+      p = ns {
+        time.parse_rfc3339_ns("2262-04-11T23:47:16.854775808-00:00", ns)
+      }
+  query: data.generated.p = x
+  strict_error: true
+  want_error_code: eval_builtin_error
+  want_error: 'time outside of valid range'
