@@ -47,7 +47,7 @@ re-deployed.
 ### Preview Markdown `content` (*.md)
 
 The majority of this can be done with any markdown renderer (typically built into or
-a via plug-in for IDE's and editors). The rendered output will be very similar to what Hugo will
+via a plug-in for IDEs and editors). The rendered output will be very similar to what Hugo will
 generate.
  
 > This excludes the Hugo shortcodes (places with `{{< SHORT_CODE >}}` in the markdown.

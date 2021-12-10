@@ -12,11 +12,11 @@ Excessive re-posting, unnecessary cross-posting, unsolicited advertisements for 
 
 ## Vendors
 
-The OPA community has a rich ecosystem of tools, integrations, and Vendors to support them. Any company whose primary revenue stream includes a service or technology that incorporates OPA or any of its sub-projects is considered a Vendor. As a valuable part of the OPA ecosystem Vendors are encouraged to participate in the community with the expectation that they have good intentions, this means interacting with members with the intent to be helpful and supportive. Any unsolicited advertisements will be removed and are subject to our enforcement rules.
+The OPA community has a rich ecosystem of tools, integrations, and Vendors to support them. Any company whose primary revenue stream includes a cloud-native service or technology is considered a Vendor. As a valuable part of the OPA ecosystem Vendors are encouraged to participate in the community with the expectation that they have good intentions, this means interacting with members with the intent to be helpful and supportive. Any unsolicited advertisements will be removed and are subject to our enforcement rules.
 
 ## End-users
 
-Companies that use OPA or any of its sub-projects internally, but do not sell any of these services externally, are considered an End User Company in the OPA Community. End User companies are expected to operate with positive intentions, this is not the place to build your marketing funnel for external tools and services. 
+Companies that use cloud-native services internally, but do not sell any of these services externally, are considered an End User Company in the OPA Community. End User companies are expected to operate with positive intentions, this is not the place to build your marketing funnel for external tools and services. 
 
 ## Member Participation
 
