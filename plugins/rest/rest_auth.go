@@ -90,7 +90,7 @@ func DefaultRoundTripperClient(t *tls.Config, timeout int64) *http.Client {
 // defaultAuthPlugin represents baseline 'no auth' behavior if no alternative plugin is specified for a service
 type defaultAuthPlugin struct{}
 
-func (ap *defaultAuthPlugin) NewClient(c Config) (*http.Client, error) {
+func (*defaultAuthPlugin) NewClient(c Config) (*http.Client, error) {
 	t, err := DefaultTLSConfig(c)
 	if err != nil {
 		return nil, err
@@ -98,7 +98,7 @@ func (ap *defaultAuthPlugin) NewClient(c Config) (*http.Client, error) {
 	return DefaultRoundTripperClient(t, *c.ResponseHeaderTimeoutSeconds), nil
 }
 
-func (ap *defaultAuthPlugin) Prepare(req *http.Request) error {
+func (*defaultAuthPlugin) Prepare(*http.Request) error {
 	return nil
 }
 
