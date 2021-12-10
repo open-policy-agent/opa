@@ -22,4 +22,4 @@ cases:
   query: data.generated.p = x
   strict_error: true
   want_error_code: eval_builtin_error
-  want_error: 'time is before 1677-09-21 00:12:43.145224192 +0000 UTC, and cannot be converted to epoch nanoseconds'
+  want_error: 'time outside of valid range'

@@ -7,6 +7,7 @@ package topdown
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"math/big"
 	"strconv"
 	"sync"
@@ -19,75 +20,58 @@ import (
 var tzCache map[string]*time.Location
 var tzCacheMutex *sync.Mutex
 
-// -9223372036854775808ns, int64 wraparound point
-var minDateAllowedForNsConversion = time.Date(1677, 9, 21, 0, 12, 43, 145224192, time.UTC)
+// 1677-09-21T00:12:43.145224192-00:00
+var minDateAllowedForNsConversion = time.Unix(0, math.MinInt64)
 
-// 9223372036854775807ns, int64 wraparound point
-var maxDateAllowedForNsConversion = time.Date(2262, 4, 11, 23, 47, 16, 854775807, time.UTC)
+// 2262-04-11T23:47:16.854775807-00:00
+var maxDateAllowedForNsConversion = time.Unix(0, math.MaxInt64)
 
-func toSafeUnixNano(t time.Time) (int64, error) {
-	if t.Before(minDateAllowedForNsConversion) {
-		// Earlier dates than this exhibits undefined Time.UnixNano() behaviour.
-		return 0, fmt.Errorf("time is before %v, and cannot be converted to epoch nanoseconds",
-			minDateAllowedForNsConversion)
+func toSafeUnixNano(t time.Time, iter func(*ast.Term) error) error {
+	if t.Before(minDateAllowedForNsConversion) || t.After(maxDateAllowedForNsConversion) {
+		return fmt.Errorf("time outside of valid range")
 	}
 
-	if t.After(maxDateAllowedForNsConversion) {
-		// Later dates than this exhibits undefined Time.UnixNano() behaviour.
-		return 0, fmt.Errorf("time is after %v, and cannot be converted to epoch nanoseconds",
-			maxDateAllowedForNsConversion)
-	}
-
-	return t.UnixNano(), nil
+	return iter(ast.NewTerm(ast.Number(int64ToJSONNumber(t.UnixNano()))))
 }
 
 func builtinTimeNowNanos(bctx BuiltinContext, _ []*ast.Term, iter func(*ast.Term) error) error {
 	return iter(bctx.Time)
 }
 
-func builtinTimeParseNanos(a, b ast.Value) (ast.Value, error) {
-
+func builtinTimeParseNanos(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	a := operands[0].Value
 	format, err := builtins.StringOperand(a, 1)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
+	b := operands[1].Value
 	value, err := builtins.StringOperand(b, 2)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	result, err := time.Parse(string(format), string(value))
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	ns, err := toSafeUnixNano(result)
-	if err != nil {
-		return nil, err
-	}
-
-	return ast.Number(int64ToJSONNumber(ns)), nil
+	return toSafeUnixNano(result, iter)
 }
 
-func builtinTimeParseRFC3339Nanos(a ast.Value) (ast.Value, error) {
-
+func builtinTimeParseRFC3339Nanos(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	a := operands[0].Value
 	value, err := builtins.StringOperand(a, 1)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	result, err := time.Parse(time.RFC3339, string(value))
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	ns, err := toSafeUnixNano(result)
-	if err != nil {
-		return nil, err
-	}
-
-	return ast.Number(int64ToJSONNumber(ns)), nil
+	return toSafeUnixNano(result, iter)
 }
 func builtinParseDurationNanos(a ast.Value) (ast.Value, error) {
 
@@ -131,7 +115,7 @@ func builtinWeekday(a ast.Value) (ast.Value, error) {
 	return ast.String(weekday), nil
 }
 
-func builtinAddDate(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+func builtinAddDate(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	t, err := tzTime(operands[0].Value)
 	if err != nil {
 		return err
@@ -154,15 +138,10 @@ func builtinAddDate(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Te
 
 	result := t.AddDate(years, months, days)
 
-	ns, err := toSafeUnixNano(result)
-	if err != nil {
-		return err
-	}
-
-	return iter(ast.NewTerm(ast.Number(int64ToJSONNumber(ns))))
+	return toSafeUnixNano(result, iter)
 }
 
-func builtinDiff(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+func builtinDiff(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	t1, err := tzTime(operands[0].Value)
 	if err != nil {
 		return err
@@ -305,8 +284,8 @@ func int64ToJSONNumber(i int64) json.Number {
 
 func init() {
 	RegisterBuiltinFunc(ast.NowNanos.Name, builtinTimeNowNanos)
-	RegisterFunctionalBuiltin1(ast.ParseRFC3339Nanos.Name, builtinTimeParseRFC3339Nanos)
-	RegisterFunctionalBuiltin2(ast.ParseNanos.Name, builtinTimeParseNanos)
+	RegisterBuiltinFunc(ast.ParseRFC3339Nanos.Name, builtinTimeParseRFC3339Nanos)
+	RegisterBuiltinFunc(ast.ParseNanos.Name, builtinTimeParseNanos)
 	RegisterFunctionalBuiltin1(ast.ParseDurationNanos.Name, builtinParseDurationNanos)
 	RegisterFunctionalBuiltin1(ast.Date.Name, builtinDate)
 	RegisterFunctionalBuiltin1(ast.Clock.Name, builtinClock)
