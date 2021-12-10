@@ -35,6 +35,7 @@ import (
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/plugins"
 	bundlePlugin "github.com/open-policy-agent/opa/plugins/bundle"
+	"github.com/open-policy-agent/opa/plugins/status"
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/server/authorizer"
 	"github.com/open-policy-agent/opa/server/identifier"
@@ -81,6 +82,7 @@ const (
 	PromHandlerV1Policies = "v1/policies"
 	PromHandlerV1Compile  = "v1/compile"
 	PromHandlerV1Config   = "v1/config"
+	PromHandlerV1Status   = "v1/status"
 	PromHandlerIndex      = "index"
 	PromHandlerCatch      = "catchall"
 	PromHandlerHealth     = "health"
@@ -103,6 +105,12 @@ type Server struct {
 	authentication         AuthenticationScheme
 	authorization          AuthorizationScheme
 	cert                   *tls.Certificate
+	certMtx                sync.RWMutex
+	certFile               string
+	certFileHash           []byte
+	certKeyFile            string
+	certKeyFileHash        []byte
+	certRefresh            time.Duration
 	certPool               *x509.CertPool
 	minTLSVersion          uint16
 	mtx                    sync.RWMutex
@@ -111,7 +119,6 @@ type Server struct {
 	store                  storage.Store
 	manager                *plugins.Manager
 	decisionIDFactory      func() string
-	buffer                 Buffer
 	logger                 func(context.Context, *Info) error
 	errLimit               int
 	pprofEnabled           bool
@@ -230,6 +237,15 @@ func (s *Server) WithCertificate(cert *tls.Certificate) *Server {
 	return s
 }
 
+// WithCertificatePaths sets the server-side certificate and keyfile paths
+// that the server will periodically check for changes, and reload if necessary.
+func (s *Server) WithCertificatePaths(certFile, keyFile string, refresh time.Duration) *Server {
+	s.certFile = certFile
+	s.certKeyFile = keyFile
+	s.certRefresh = refresh
+	return s
+}
+
 // WithCertPool sets the server-side cert pool that the server will use.
 func (s *Server) WithCertPool(pool *x509.CertPool) *Server {
 	s.certPool = pool
@@ -331,12 +347,12 @@ func (s *Server) Listeners() ([]Loop, error) {
 
 	for t, binding := range handlerBindings {
 		for _, addr := range binding.addrs {
-			loop, listener, err := s.getListener(addr, binding.handler, t)
+			l, listener, err := s.getListener(addr, binding.handler, t)
 			if err != nil {
 				return nil, err
 			}
 			s.httpListeners = append(s.httpListeners, listener)
-			loops = append(loops, loop)
+			loops = append(loops, l...)
 		}
 	}
 
@@ -398,7 +414,7 @@ type httpListener interface {
 	Addr() string
 	ListenAndServe() error
 	ListenAndServeTLS(certFile, keyFile string) error
-	Shutdown(ctx context.Context) error
+	Shutdown(context.Context) error
 	Type() httpListenerType
 }
 
@@ -487,26 +503,39 @@ func isMinTLSVersionSupported(TLSVersion uint16) bool {
 	return false
 }
 
-func (s *Server) getListener(addr string, h http.Handler, t httpListenerType) (Loop, httpListener, error) {
+func (s *Server) getListener(addr string, h http.Handler, t httpListenerType) ([]Loop, httpListener, error) {
 	parsedURL, err := parseURL(addr, s.cert != nil)
 	if err != nil {
 		return nil, nil, err
 	}
 
+	var loops []Loop
 	var loop Loop
 	var listener httpListener
 	switch parsedURL.Scheme {
 	case "unix":
 		loop, listener, err = s.getListenerForUNIXSocket(parsedURL, h, t)
+		loops = []Loop{loop}
 	case "http":
 		loop, listener, err = s.getListenerForHTTPServer(parsedURL, h, t)
+		loops = []Loop{loop}
 	case "https":
 		loop, listener, err = s.getListenerForHTTPSServer(parsedURL, h, t)
+		logger := s.manager.Logger().WithFields(map[string]interface{}{
+			"cert-file":     s.certFile,
+			"cert-key-file": s.certKeyFile,
+		})
+		if s.certRefresh > 0 {
+			certLoop := s.certLoop(logger)
+			loops = []Loop{loop, certLoop}
+		} else {
+			loops = []Loop{loop}
+		}
 	default:
 		err = fmt.Errorf("invalid url scheme %q", parsedURL.Scheme)
 	}
 
-	return loop, listener, err
+	return loops, listener, err
 }
 
 func (s *Server) getListenerForHTTPServer(u *url.URL, h http.Handler, t httpListenerType) (Loop, httpListener, error) {
@@ -520,6 +549,7 @@ func (s *Server) getListenerForHTTPServer(u *url.URL, h http.Handler, t httpList
 	}
 
 	l := newHTTPListener(&h1s, t)
+
 	return l.ListenAndServe, l, nil
 }
 
@@ -533,8 +563,8 @@ func (s *Server) getListenerForHTTPSServer(u *url.URL, h http.Handler, t httpLis
 		Addr:    u.Host,
 		Handler: h,
 		TLSConfig: &tls.Config{
-			Certificates: []tls.Certificate{*s.cert},
-			ClientCAs:    s.certPool,
+			GetCertificate: s.getCertificate,
+			ClientCAs:      s.certPool,
 		},
 	}
 	if s.authentication == AuthenticationTLS {
@@ -587,7 +617,9 @@ func (s *Server) initHandlerAuth(handler http.Handler) http.Handler {
 			s.getCompiler,
 			s.store,
 			authorizer.Runtime(s.runtime),
-			authorizer.Decision(s.manager.Config.DefaultAuthorizationDecisionRef))
+			authorizer.Decision(s.manager.Config.DefaultAuthorizationDecisionRef),
+			authorizer.PrintHook(s.manager.PrintHook()),
+			authorizer.EnablePrintStatements(s.manager.EnablePrintStatements()))
 	}
 
 	switch s.authentication {
@@ -659,6 +691,7 @@ func (s *Server) initRouters() {
 	s.registerHandler(mainRouter, 1, "/query", http.MethodPost, s.instrumentHandler(s.v1QueryPost, PromHandlerV1Query))
 	s.registerHandler(mainRouter, 1, "/compile", http.MethodPost, s.instrumentHandler(s.v1CompilePost, PromHandlerV1Compile))
 	s.registerHandler(mainRouter, 1, "/config", http.MethodGet, s.instrumentHandler(s.v1ConfigGet, PromHandlerV1Config))
+	s.registerHandler(mainRouter, 1, "/status", http.MethodGet, s.instrumentHandler(s.v1StatusGet, PromHandlerV1Status))
 	mainRouter.Handle("/", s.instrumentHandler(s.unversionedPost, PromHandlerIndex)).Methods(http.MethodPost)
 	mainRouter.Handle("/", s.instrumentHandler(s.indexGet, PromHandlerIndex)).Methods(http.MethodGet)
 
@@ -2120,6 +2153,22 @@ func (s *Server) v1ConfigGet(w http.ResponseWriter, r *http.Request) {
 	writer.JSON(w, http.StatusOK, resp, pretty)
 }
 
+func (s *Server) v1StatusGet(w http.ResponseWriter, r *http.Request) {
+	pretty := getBoolParam(r.URL, types.ParamPrettyV1, true)
+
+	p := status.Lookup(s.manager)
+	if p == nil {
+		writer.ErrorString(w, http.StatusInternalServerError, types.CodeInternal, errors.New("status plugin not enabled"))
+		return
+	}
+
+	var st interface{} = p.Snapshot()
+	var resp types.StatusResponseV1
+	resp.Result = &st
+
+	writer.JSON(w, http.StatusOK, resp, pretty)
+}
+
 func (s *Server) checkPolicyIDScope(ctx context.Context, txn storage.Transaction, id string) error {
 
 	bs, err := s.store.GetPolicy(ctx, txn, id)
@@ -2202,7 +2251,6 @@ func (s *Server) getDecisionLogger(br bundleRevisions) (logger decisionLogger) {
 		logger.revisions = br.Revisions
 	}
 	logger.logger = s.logger
-	logger.buffer = s.buffer
 	return logger
 }
 
@@ -2731,7 +2779,6 @@ type decisionLogger struct {
 	revisions map[string]string
 	revision  string // Deprecated: Use `revisions` instead.
 	logger    func(context.Context, *Info) error
-	buffer    Buffer
 }
 
 func (l decisionLogger) Log(ctx context.Context, txn storage.Transaction, decisionID, remoteAddr, path string, query string, goInput *interface{}, astInput ast.Value, goResults *interface{}, err error, m metrics.Metrics) error {
@@ -2761,10 +2808,6 @@ func (l decisionLogger) Log(ctx context.Context, txn storage.Transaction, decisi
 		if err := l.logger(ctx, info); err != nil {
 			return errors.Wrap(err, "decision_logs")
 		}
-	}
-
-	if l.buffer != nil {
-		l.buffer.Push(info)
 	}
 
 	return nil

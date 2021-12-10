@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gorilla/mux"
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/config"
@@ -185,6 +186,7 @@ type Manager struct {
 	serverInitializedOnce        sync.Once
 	printHook                    print.Hook
 	enablePrintStatements        bool
+	router                       *mux.Router
 }
 
 type managerContextKey string
@@ -336,6 +338,12 @@ func PrintHook(h print.Hook) func(*Manager) {
 	}
 }
 
+func WithRouter(r *mux.Router) func(*Manager) {
+	return func(m *Manager) {
+		m.router = r
+	}
+}
+
 // New creates a new Manager using config.
 func New(raw []byte, id string, store storage.Store, opts ...func(*Manager)) (*Manager, error) {
 
@@ -366,6 +374,10 @@ func New(raw []byte, id string, store storage.Store, opts ...func(*Manager)) (*M
 		serverInitialized:            make(chan struct{}),
 	}
 
+	for _, f := range opts {
+		f(m)
+	}
+
 	if m.logger == nil {
 		m.logger = logging.Get()
 	}
@@ -380,16 +392,13 @@ func New(raw []byte, id string, store storage.Store, opts ...func(*Manager)) (*M
 		Keys:       keys,
 		Logger:     m.logger,
 	}
+
 	services, err := cfg.ParseServicesConfig(serviceOpts)
 	if err != nil {
 		return nil, err
 	}
 
 	m.services = services
-
-	for _, f := range opts {
-		f(m)
-	}
 
 	return m, nil
 }
@@ -516,6 +525,13 @@ func (m *Manager) setCompiler(compiler *ast.Compiler) {
 	m.compilerMux.Lock()
 	defer m.compilerMux.Unlock()
 	m.compiler = compiler
+}
+
+// GetRouter returns the managers router if set
+func (m *Manager) GetRouter() *mux.Router {
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
+	return m.router
 }
 
 // RegisterCompilerTrigger registers for change notifications when the compiler

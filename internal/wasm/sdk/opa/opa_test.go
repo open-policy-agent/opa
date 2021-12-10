@@ -2,6 +2,7 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
+//go:build opa_wasm
 // +build opa_wasm
 
 package opa_test
@@ -17,12 +18,13 @@ import (
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/compile"
 	"github.com/open-policy-agent/opa/internal/wasm/sdk/opa"
+	wasm_util "github.com/open-policy-agent/opa/internal/wasm/util"
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/util"
 )
 
 // control dumping in this file
-const dump = true
+const dump = false
 
 func TestOPA(t *testing.T) {
 	type Eval struct {
@@ -32,13 +34,16 @@ func TestOPA(t *testing.T) {
 		Result    string
 	}
 
+	largeInput := `"` + strings.Repeat("a", 2*wasm_util.PageSize) + `"`
+
 	tests := []struct {
 		Description string
 		Policy      string
 		Query       string
 		Data        string
 		Evals       []Eval
-		WantErr     string // "" (or unset) means no error expected
+		WantErr     string   // "" (or unset) means no error expected
+		Memory      []uint32 // min, max; in pages
 	}{
 		{
 			Description: "No input, no data, static policy",
@@ -225,6 +230,38 @@ a = "c" { input > 2 }`,
 				{Result: `{{}}`},
 			},
 		},
+		{
+			Description: "input exceeds available memory, host fails to grow it",
+			Policy: `package a.b
+			p = true`,
+			Query:  `data.a.b.p`,
+			Memory: []uint32{2, 3},
+			Evals: []Eval{
+				{Input: largeInput},
+			},
+			WantErr: "input: failed to grow memory by `2` (max pages 3)",
+		},
+		{
+			Description: "input exceeds available memory, parsing it hits maximum",
+			Policy: `package a.b
+			p = true`,
+			Query:  `data.a.b.p`,
+			Memory: []uint32{2, 4},
+			Evals: []Eval{
+				{Input: largeInput},
+			},
+			WantErr: "internal_error: opa_malloc: failed",
+		},
+		{
+			Description: "input exceeds available memory, grows successfully",
+			Policy: `package a.b
+		p = true`,
+			Query:  `data.a.b.p = x`,
+			Memory: []uint32{2, 8},
+			Evals: []Eval{
+				{Input: largeInput, Result: `{{"x":true}}`},
+			},
+		},
 	}
 
 	for _, test := range tests {
@@ -236,11 +273,15 @@ a = "c" { input > 2 }`,
 			if len(data) == 0 {
 				data = nil
 			}
-			instance, err := opa.New().
+			o := opa.New().
 				WithPolicyBytes(policy).
 				WithDataBytes(data).
-				WithPoolSize(1). // Minimal pool size to test pooling.
-				Init()
+				WithPoolSize(1) // Minimal pool size to test pooling.
+			if len(test.Memory) == 2 {
+				o.WithMemoryLimits(test.Memory[0]*wasm_util.PageSize, test.Memory[1]*wasm_util.PageSize)
+			}
+
+			instance, err := o.Init()
 			if err != nil {
 				t.Fatal(err)
 			}

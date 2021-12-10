@@ -275,7 +275,9 @@ func (d *Downloader) download(ctx context.Context, m metrics.Metrics) (*download
 		d.client = d.client.WithHeader("Prefer", "wait=0")
 	}
 
+	m.Timer(metrics.BundleRequest).Start()
 	resp, err := d.client.Do(ctx, "GET", d.path)
+	m.Timer(metrics.BundleRequest).Stop()
 	if err != nil {
 		return nil, errors.Wrap(err, "request failed")
 	}

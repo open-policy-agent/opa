@@ -12,6 +12,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -30,6 +31,7 @@ type runCmdParams struct {
 	tlsCertFile        string
 	tlsPrivateKeyFile  string
 	tlsCACertFile      string
+	tlsCertRefresh     time.Duration
 	ignore             []string
 	serverMode         bool
 	skipVersionCheck   bool
@@ -170,19 +172,20 @@ To skip bundle verification, use the --skip-verify flag.
 	runCommand.Flags().StringVarP(&cmdParams.rt.HistoryPath, "history", "H", historyPath(), "set path of history file")
 	cmdParams.rt.Addrs = runCommand.Flags().StringSliceP("addr", "a", []string{defaultAddr}, "set listening address of the server (e.g., [ip]:<port> for TCP, unix://<path> for UNIX domain socket)")
 	cmdParams.rt.DiagnosticAddrs = runCommand.Flags().StringSlice("diagnostic-addr", []string{}, "set read-only diagnostic listening address of the server for /health and /metric APIs (e.g., [ip]:<port> for TCP, unix://<path> for UNIX domain socket)")
-	runCommand.Flags().BoolVarP(&cmdParams.rt.H2CEnabled, "h2c", "", false, "enable H2C for HTTP listeners")
+	runCommand.Flags().BoolVar(&cmdParams.rt.H2CEnabled, "h2c", false, "enable H2C for HTTP listeners")
 	runCommand.Flags().StringVarP(&cmdParams.rt.OutputFormat, "format", "f", "pretty", "set shell output format, i.e, pretty, json")
 	runCommand.Flags().BoolVarP(&cmdParams.rt.Watch, "watch", "w", false, "watch command line files for changes")
 	addMaxErrorsFlag(runCommand.Flags(), &cmdParams.rt.ErrorLimit)
-	runCommand.Flags().BoolVarP(&cmdParams.rt.PprofEnabled, "pprof", "", false, "enables pprof endpoints")
-	runCommand.Flags().StringVarP(&cmdParams.tlsCertFile, "tls-cert-file", "", "", "set path of TLS certificate file")
-	runCommand.Flags().StringVarP(&cmdParams.tlsPrivateKeyFile, "tls-private-key-file", "", "", "set path of TLS private key file")
-	runCommand.Flags().StringVarP(&cmdParams.tlsCACertFile, "tls-ca-cert-file", "", "", "set path of TLS CA cert file")
-	runCommand.Flags().VarP(cmdParams.authentication, "authentication", "", "set authentication scheme")
-	runCommand.Flags().VarP(cmdParams.authorization, "authorization", "", "set authorization scheme")
-	runCommand.Flags().VarP(cmdParams.minTLSVersion, "min-tls-version", "", "set minimum TLS version to be used by OPA's server, default is 1.2")
+	runCommand.Flags().BoolVar(&cmdParams.rt.PprofEnabled, "pprof", false, "enables pprof endpoints")
+	runCommand.Flags().StringVar(&cmdParams.tlsCertFile, "tls-cert-file", "", "set path of TLS certificate file")
+	runCommand.Flags().StringVar(&cmdParams.tlsPrivateKeyFile, "tls-private-key-file", "", "set path of TLS private key file")
+	runCommand.Flags().StringVar(&cmdParams.tlsCACertFile, "tls-ca-cert-file", "", "set path of TLS CA cert file")
+	runCommand.Flags().DurationVar(&cmdParams.tlsCertRefresh, "tls-cert-refresh-period", 0, "set certificate refresh period")
+	runCommand.Flags().Var(cmdParams.authentication, "authentication", "set authentication scheme")
+	runCommand.Flags().Var(cmdParams.authorization, "authorization", "set authorization scheme")
+	runCommand.Flags().Var(cmdParams.minTLSVersion, "min-tls-version", "set minimum TLS version to be used by OPA's server")
 	runCommand.Flags().VarP(cmdParams.logLevel, "log-level", "l", "set log level")
-	runCommand.Flags().VarP(cmdParams.logFormat, "log-format", "", "set log format")
+	runCommand.Flags().Var(cmdParams.logFormat, "log-format", "set log format")
 	runCommand.Flags().IntVar(&cmdParams.rt.GracefulShutdownPeriod, "shutdown-grace-period", 10, "set the time (in seconds) that the server will wait to gracefully shut down")
 	runCommand.Flags().IntVar(&cmdParams.rt.ShutdownWaitPeriod, "shutdown-wait-period", 0, "set the time (in seconds) that the server will wait before initiating shutdown")
 	addConfigOverrides(runCommand.Flags(), &cmdParams.rt.ConfigOverrides)
@@ -235,6 +238,10 @@ func initRuntime(ctx context.Context, params runCmdParams, args []string) (*runt
 		return nil, err
 	}
 
+	params.rt.CertificateFile = params.tlsCertFile
+	params.rt.CertificateKeyFile = params.tlsPrivateKeyFile
+	params.rt.CertificateRefresh = params.tlsCertRefresh
+
 	if params.tlsCACertFile != "" {
 		pool, err := loadCertPool(params.tlsCACertFile)
 		if err != nil {
@@ -270,12 +277,7 @@ func initRuntime(ctx context.Context, params runCmdParams, args []string) (*runt
 		return nil, fmt.Errorf("enable bundle mode (ie. --bundle) to verify bundle files or directories")
 	}
 
-	rt, err := runtime.NewRuntime(ctx, params.rt)
-	if err != nil {
-		return nil, err
-	}
-
-	return rt, nil
+	return runtime.NewRuntime(ctx, params.rt)
 }
 
 func startRuntime(ctx context.Context, rt *runtime.Runtime, serverMode bool) {

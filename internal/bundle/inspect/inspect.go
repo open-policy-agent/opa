@@ -126,7 +126,7 @@ func (bi *Info) getBundleDataWasmAndSignatures(name string) error {
 			path := fmt.Sprintf("%v.%v", ast.DefaultRootDocument, strings.Join(key, "."))
 			bi.Namespaces[path] = append(bi.Namespaces[path], value)
 		} else {
-			bi.Namespaces[""] = append(bi.Namespaces[""], value) // data file at bundle root
+			bi.Namespaces[ast.DefaultRootDocument.String()] = append(bi.Namespaces[ast.DefaultRootDocument.String()], value) // data file at bundle root
 		}
 	}
 

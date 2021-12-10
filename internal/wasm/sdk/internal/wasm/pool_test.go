@@ -2,6 +2,7 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
+//go:build opa_wasm
 // +build opa_wasm
 
 package wasm_test
@@ -9,6 +10,7 @@ package wasm_test
 import (
 	"context"
 	"math/rand"
+	"strings"
 	"testing"
 	"time"
 
@@ -16,10 +18,26 @@ import (
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/compile"
 	"github.com/open-policy-agent/opa/internal/wasm/sdk/internal/wasm"
+	wasm_util "github.com/open-policy-agent/opa/internal/wasm/util"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/topdown/cache"
 	"github.com/open-policy-agent/opa/util"
 )
+
+func TestOpaEvalGrowMemoryForLargeInput(t *testing.T) {
+	ctx := context.Background()
+	module := `package test
+	p = true
+	`
+	data := []byte(`{}`)
+	s := strings.Repeat("a", 16*wasm_util.PageSize)
+	input := interface{}([]byte(s))
+
+	poolSize := 1
+	testPool := initPoolWithData(t, uint32(poolSize), module, "test/p", data)
+	expected := `{{"result":true}}`
+	ensurePoolResults(t, ctx, testPool, poolSize, &input, expected)
+}
 
 func TestPoolCopyParsedDataOnInit(t *testing.T) {
 	ctx := context.Background()
@@ -48,7 +66,7 @@ func TestPoolCopyParsedDataOnInit(t *testing.T) {
 	poolSize := 4
 	testPool := initPoolWithData(t, uint32(poolSize), module, "test/p", data)
 	expected := `{{"result":{"b":[1,2,3,{"d":{"e":{"f":123}},"c":4}]}}}`
-	ensurePoolResults(t, ctx, testPool, poolSize, expected)
+	ensurePoolResults(t, ctx, testPool, poolSize, nil, expected)
 }
 
 func TestPoolCopyParsedDataUpdateFull(t *testing.T) {
@@ -70,7 +88,7 @@ func TestPoolCopyParsedDataUpdateFull(t *testing.T) {
 	}
 
 	expected := `{{"result":{"y":"bar","x":123}}}`
-	ensurePoolResults(t, ctx, testPool, poolSize, expected)
+	ensurePoolResults(t, ctx, testPool, poolSize, nil, expected)
 
 	// Change it one more time, now that all VM's in the pool have been
 	// initialized and exercised at least once.
@@ -81,7 +99,7 @@ func TestPoolCopyParsedDataUpdateFull(t *testing.T) {
 	}
 
 	expected = `{{"result":[1,2,3]}}`
-	ensurePoolResults(t, ctx, testPool, poolSize, expected)
+	ensurePoolResults(t, ctx, testPool, poolSize, nil, expected)
 }
 
 func TestPoolCopyParsedDataUpdatePartial(t *testing.T) {
@@ -141,12 +159,12 @@ func TestPoolCopyParsedDataUpdatePartial(t *testing.T) {
 				t.Fatalf("Unexpected error: %s", err)
 			}
 
-			ensurePoolResults(t, ctx, testPool, poolSize, tc.expected)
+			ensurePoolResults(t, ctx, testPool, poolSize, nil, tc.expected)
 		})
 	}
 }
 
-func ensurePoolResults(t *testing.T, ctx context.Context, testPool *wasm.Pool, poolSize int, expected string) {
+func ensurePoolResults(t *testing.T, ctx context.Context, testPool *wasm.Pool, poolSize int, input *interface{}, expected string) {
 	t.Helper()
 	var toRelease []*wasm.VM
 	for i := 0; i < poolSize; i++ {
@@ -158,7 +176,7 @@ func ensurePoolResults(t *testing.T, ctx context.Context, testPool *wasm.Pool, p
 		toRelease = append(toRelease, vm)
 
 		cfg, _ := cache.ParseCachingConfig(nil)
-		result, err := vm.Eval(ctx, 0, nil, metrics.New(), rand.New(rand.NewSource(0)), time.Now(), cache.NewInterQueryCache(cfg), nil)
+		result, err := vm.Eval(ctx, 0, input, metrics.New(), rand.New(rand.NewSource(0)), time.Now(), cache.NewInterQueryCache(cfg), nil)
 		if err != nil {
 			t.Fatalf("Unexpected error: %s", err)
 		}
@@ -195,7 +213,7 @@ func initPoolWithData(t *testing.T, size uint32, module string, entrypoint strin
 		t.Fatalf("Unexpected error: %s", err)
 	}
 
-	testPool := wasm.NewPool(size, 16, 0)
+	testPool := wasm.NewPool(size, 16, 100)
 
 	err = testPool.SetPolicyData(ctx, compiler.Bundle().WasmModules[0].Raw, data)
 	if err != nil {

@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/internal/ref"
@@ -44,7 +45,27 @@ func ParseConfig(raw []byte, id string) (*Config, error) {
 	return &result, result.validateAndInjectDefaults(id)
 }
 
+// PluginNames returns a sorted list of names of enabled plugins.
+func (c Config) PluginNames() (result []string) {
+	if c.Bundle != nil || c.Bundles != nil {
+		result = append(result, "bundles")
+	}
+	if c.Status != nil {
+		result = append(result, "status")
+	}
+	if c.DecisionLogs != nil {
+		result = append(result, "decision_logs")
+	}
+	for name := range c.Plugins {
+		result = append(result, name)
+	}
+	sort.Strings(result)
+	return result
+}
+
 // PluginsEnabled returns true if one or more plugin features are enabled.
+//
+// Deprecated. Use PluginNames instead.
 func (c Config) PluginsEnabled() bool {
 	return c.Bundle != nil || c.Bundles != nil || c.DecisionLogs != nil || c.Status != nil || len(c.Plugins) > 0
 }
