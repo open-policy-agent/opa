@@ -22,31 +22,39 @@ import (
 	"github.com/open-policy-agent/opa/version"
 )
 
-// Plugin creates an empty plugin to test plugin initialization
+// Plugin creates an empty plugin to test plugin initialization and shutdown
 type plugin struct {
-	manager *plugins.Manager
+	manager  *plugins.Manager
+	shutdown time.Duration // to simulate a shutdown that takes some time
 }
 
-type factory struct{}
+type factory struct {
+	shutdown time.Duration
+}
 
-func (p *plugin) Start(ctx context.Context) error {
+func (p *plugin) Start(context.Context) error {
 	p.manager.UpdatePluginStatus("test_plugin", &plugins.Status{State: plugins.StateOK})
 	return nil
 }
 
 func (p *plugin) Stop(ctx context.Context) {
-}
-
-func (p *plugin) Reconfigure(ctx context.Context, config interface{}) {
-}
-
-func (factory) New(manager *plugins.Manager, config interface{}) plugins.Plugin {
-	return &plugin{
-		manager: manager,
+	select {
+	case <-ctx.Done():
+	case <-time.After(p.shutdown):
 	}
 }
 
-func (factory) Validate(manager *plugins.Manager, config []byte) (interface{}, error) {
+func (*plugin) Reconfigure(context.Context, interface{}) {
+}
+
+func (f factory) New(manager *plugins.Manager, config interface{}) plugins.Plugin {
+	return &plugin{
+		manager:  manager,
+		shutdown: f.shutdown,
+	}
+}
+
+func (factory) Validate(*plugins.Manager, []byte) (interface{}, error) {
 	return nil, nil
 }
 
@@ -444,6 +452,38 @@ func TestCancelStartup(t *testing.T) {
 	})
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("expected deadline exceeded error but got %v", err)
+	}
+}
+
+// TestStopWithDeadline asserts that a graceful shutdown of the SDK is possible.
+func TestStopWithDeadline(t *testing.T) {
+
+	ctx := context.Background()
+	opa, err := sdk.New(ctx, sdk.Options{
+		Config: strings.NewReader(`{
+			"plugins": {
+				"test_plugin": {}
+			}
+		}`),
+		Plugins: map[string]plugins.Factory{
+			"test_plugin": factory{shutdown: time.Second},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	const timeout = 20 * time.Millisecond
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	before := time.Now()
+	opa.Stop(ctx) // 1m timeout is ignored
+
+	dur := time.Since(before)
+	diff := dur - timeout
+	maxDelta := 6 * time.Millisecond
+	if diff > maxDelta || diff < -maxDelta {
+		t.Errorf("expected shutdown to have %v grace period, measured shutdown in %v (max delta %v)", timeout, dur, maxDelta)
 	}
 }
 
