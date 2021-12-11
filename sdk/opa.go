@@ -101,7 +101,7 @@ func (opa *OPA) Configure(ctx context.Context, opts ConfigOptions) error {
 }
 
 func (opa *OPA) configure(ctx context.Context, bs []byte, ready chan struct{}, block bool) error {
-	info, err := runtime.Term(runtime.Params{})
+	info, err := runtime.Term(runtime.Params{Config: opa.config})
 	if err != nil {
 		return err
 	}

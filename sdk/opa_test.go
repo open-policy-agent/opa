@@ -603,3 +603,64 @@ func TestOpaVersion(t *testing.T) {
 		t.Fatalf("expected %v but got %v", exp, result.Result)
 	}
 }
+
+func TestOpaRuntimeConfig(t *testing.T) {
+	ctx := context.Background()
+
+	server := sdktest.MustNewServer(
+		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
+			"main.rego": `
+				package system
+				rt := opa.runtime()
+
+				result := {
+					"service_url": rt.config.services.test.url,
+					"bundle_resource": rt.config.bundles.test.resource,
+					"test_label": rt.config.labels.test
+				}
+			`,
+		}),
+	)
+
+	defer server.Stop()
+
+	testBundleResource := "/bundles/bundle.tar.gz"
+	testLabel := "a label"
+
+	config := []byte(fmt.Sprintf(`{
+		"services": {
+			"test": {
+				"url": %q
+			}
+		},
+		"bundles": {
+			"test": {
+				"resource": %q
+			}
+		},
+		"labels": {
+			"test": %q
+		}
+	}`, server.URL(), testBundleResource, testLabel))
+
+	opa, err := sdk.New(ctx, sdk.Options{
+		Config: bytes.NewReader(config),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer opa.Stop(ctx)
+
+	exp := map[string]interface{}{
+		"service_url":     server.URL(),
+		"bundle_resource": testBundleResource,
+		"test_label":      testLabel,
+	}
+
+	if result, err := opa.Decision(ctx, sdk.DecisionOptions{Path: "/system/result"}); err != nil {
+		t.Fatal(err)
+	} else if !reflect.DeepEqual(result.Result, exp) {
+		t.Fatalf("expected %v but got %v", exp, result.Result)
+	}
+}
