@@ -48,7 +48,7 @@ func TestGenerateBundleInfoWithFileDir(t *testing.T) {
 		}
 
 		expectedNamespaces := map[string][]string{
-			"":         {filepath.Join(rootDir, "data.json")},
+			"data":     {filepath.Join(rootDir, "data.json")},
 			"data.bar": {filepath.Join(rootDir, "base.rego")},
 			"data.foo": {filepath.Join(rootDir, "baz/authz.rego"), filepath.Join(rootDir, "foo/policy.rego")},
 			"data.fuz": {filepath.Join(rootDir, "fuz/fuz.rego"), filepath.Join(rootDir, "fuz/data.json")},
@@ -114,7 +114,7 @@ func TestGenerateBundleInfoWithFile(t *testing.T) {
 		}
 
 		expectedNamespaces := map[string][]string{
-			"":         {"/data.json"},
+			"data":     {"/data.json"},
 			"data.b.c": {"/policy.rego"},
 		}
 
@@ -181,7 +181,7 @@ func TestGenerateBundleInfoWithBundleTarGz(t *testing.T) {
 
 		expectedNamespaces := map[string][]string{
 			"data.example":                  {"/example/example.rego"},
-			"":                              {"/data.json"},
+			"data":                          {"/data.json"},
 			"data.a.b.c":                    {"/a/b/c/data.json"},
 			"data.a.b.d":                    {"/a/b/d/data.json"},
 			"data.a.b.y":                    {"/a/b/y/foo.rego", "/a/b/y/data.yaml"},

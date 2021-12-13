@@ -31,7 +31,7 @@ document.addEventListener("DOMContentLoaded", function(event) {
   var fullHeight = content.outerHeight(true) + content.offset().top
   var delta = fullHeight - lastHeading.offsetTop
   var padding = window.innerHeight - delta
-  content.css('paddingBottom', padding + 'px');
+  $('.toc-padding').css('paddingBottom', padding + 'px');
 
   tocbot.init({
     tocSelector: '.toc',

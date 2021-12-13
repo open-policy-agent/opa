@@ -10,7 +10,7 @@ For low-latency/high-performance use-cases, e.g. microservice API authorization,
 
 ### Linear fragment
 
- The *linear fragment* of the language is all of those policies where evaluation amounts to walking over the policy once.  This means there is no search required to make a policy decision.  Any variables you use can be assigned at most one value.
+The *linear fragment* of the language is all of those policies where evaluation amounts to walking over the policy once.  This means there is no search required to make a policy decision.  Any variables you use can be assigned at most one value.
 
 For example, the following rule has one local variable `user`, and that variable can only be assigned one value.  Intuitively, evaluating this rule requires checking each of the conditions in the body, and if there were N of these rules, evaluation would only require walking over each of them as well.
 
@@ -18,10 +18,10 @@ For example, the following rule has one local variable `user`, and that variable
 package linear
 
 allow {
-  some user
-  input.method = "GET"
-  input.path = ["accounts", user]
-  input.user = user
+    some user
+    input.method == "GET"
+    input.path = ["accounts", user]
+    input.user == user
 }
 ```
 
@@ -32,10 +32,10 @@ One common mistake people make is using arrays when they could use objects.  For
 ```live:prefer_objects/bad:query
 # DO NOT DO THIS.
 # Array of objects where each object has a unique identifier
-d = [{"id": "a123", "first": "alice", "last": "smith"},
-     {"id": "a456", "first": "bob", "last": "jones"},
-     {"id": "a789", "first": "clarice", "last": "johnson"}
-     ]
+d := [{"id": "a123", "first": "alice", "last": "smith"},
+      {"id": "a456", "first": "bob", "last": "jones"},
+      {"id": "a789", "first": "clarice", "last": "johnson"}
+      ]
 # search through all elements of the array to find the ID
 d[i].id == "a789"
 d[i].first ...
@@ -47,10 +47,10 @@ Instead, use a dictionary where the key is the ID and the value is the first-nam
 # DO THIS INSTEAD OF THE ABOVE
 # Use object whose keys are the IDs for the objects.
 #   Looking up an object given its ID requires NO search
-d = {"a123": {"first": "alice", "last": "smith"},
-     "a456": {"first": "bob", "last": "jones"},
-     "a789": {"first": "clarice", "last": "johnson"}
-    }
+d := {"a123": {"first": "alice", "last": "smith"},
+      "a456": {"first": "bob", "last": "jones"},
+      "a789": {"first": "clarice", "last": "johnson"}
+     }
 # no search required
 d["a789"].first ...
 ```
@@ -71,27 +71,27 @@ package indexed
 default allow = false
 
 allow {
-  some user
-  input.method = "GET"
-  input.path = ["accounts", user]
-  input.user = user
+    some user
+    input.method == "GET"
+    input.path = ["accounts", user]
+    input.user == user
 }
 
 allow {
-  input.method = "GET"
-  input.path = ["accounts", "report"]
-  roles[input.user][_] = "admin"
+    input.method == "GET"
+    input.path == ["accounts", "report"]
+    roles[input.user][_] == "admin"
 }
 
 allow {
-  input.method = "POST"
-  input.path = ["accounts"]
-  roles[input.user][_] = "admin"
+    input.method == "POST"
+    input.path == ["accounts"]
+    roles[input.user][_] == "admin"
 }
 
-roles = {
-  "bob": ["admin", "hr"],
-  "alice": ["procurement"],
+roles := {
+    "bob": ["admin", "hr"],
+    "alice": ["procurement"],
 }
 ```
 
@@ -116,11 +116,11 @@ For simple equality statements (`=` and `==`) to be indexed one side must be a n
 
 | Expression | Indexed | Reason |
 | --- | --- | --- |
-| `input.x = "foo"` | yes | n/a |
-| `input.x.y = "bar"` | yes | n/a |
-| `input.x = ["foo", i]` | yes | n/a |
-| `input.x[i] = "foo"` | no | reference contains variables |
-| `input.x[input.y] = "foo"` | no | reference is nested |
+| `input.x == "foo"` | yes | n/a |
+| `input.x.y == "bar"` | yes | n/a |
+| `input.x == ["foo", i]` | yes | n/a |
+| `input.x[i] == "foo"` | no | reference contains variables |
+| `input.x[input.y] == "foo"` | no | reference is nested |
 
 #### Glob statements
 
@@ -131,6 +131,108 @@ For `glob.match(pattern, delimiter, match)` statements to be indexed the pattern
 | `glob.match("foo:*:bar", [":"], input.x)` | yes | n/a |
 | `glob.match("foo:**:bar", [":"], input.x)` | no | pattern contains `**` |
 | `glob.match("foo:*:bar", [":"], input.x[i])` | no | match contains variable(s) |
+
+
+### Early Exit in Rule Evaluation
+
+In general, OPA has to iterate all potential variable bindings to determine the outcome
+of a query. However, there are conditions under which additional iterations cannot change
+the result:
+
+1. A set of complete document rules that only have one, ground value.
+2. A set of function rules that only have one, ground value.
+
+The most common case for this are a set of `allow` rules:
+
+```live:ee:module:read_only
+package earlyexit
+
+allow {
+    input.user == "alice"
+}
+allow {
+    input.user == "bob"
+}
+allow {
+    input.group == "admins"
+}
+```
+
+since `allow { ... }` is a shorthand for `allow = true { ... }`.
+
+Intuitively, the value can be anything that does not contain a variable:
+
+```live:eeexamples:module:read_only
+package earlyexit.examples
+
+# p, q, r and s could be evaluated with early-exit semantics:
+
+p {
+  # ...
+}
+q = 123 {
+  # ...
+}
+r = {"hello": "world"} {
+  # ...
+}
+s(x) = 12 {
+  # ...
+}
+
+# u, v, w, and y could _not_
+
+u[x] { # not a complete document rule, but a partial set
+  x := 911
+}
+v = x { # x is a variable, not ground
+  x := true
+}
+w = { "foo": x } { # a compound term containing a variable
+  x := "bar"
+}
+y(z) = r { # variable value, not ground
+  r := z + 1
+}
+```
+
+When "early exit" is possible for a (set of) rules, iterations inside that rule will be
+**cancelled** as soon as one binding matches the rule body:
+
+```live:eeiteration:module:read_only
+package earlyexit.iteration
+
+p {
+    some p
+    data.projects[p] == "project-a"
+}
+```
+
+Since there's no possibility that could change the outcome of `data.earlyexit.iteration.p`
+once a variable binding is found that satisfies the conditions, no further iteration will
+occur.
+
+The check if "early exit" is applicable for a query happens _after_ the indexing lookup,
+so in this contrived example, an evaluation with input `{"user": "alice"}` _would_ exit
+early; an evaluation with `{"user": "bob", "group": "admins"}` _would not_:
+
+```live:eeindex:module:read_only
+package earlyexit
+
+allow {
+    input.user == "alice"
+}
+allow = false {
+    input.user == "bob"
+}
+allow {
+    input.group == "admins"
+}
+```
+
+This is because the index lookup for `{"user": "bob", "group": "admins"}` returns two complete
+document rules with _different values_, `true` and `false`, whereas the indexer query for
+`{"user": "alice"}` only returns rules with value `true`.
 
 ### Comprehension Indexing
 
@@ -227,48 +329,47 @@ In order to be indexed, comprehensions must meet the following conditions:
 1. The comprehension appears in an assignment or unification statement.
 1. The expression containing the comprehension does not include a `with` statement.
 1. The expression containing the comprehension is not negated.
-1. The comprehension body is safe when considered independent from the outer query.
+1. The comprehension body is safe when considered independent of the outer query.
 1. The comprehension body closes over at least one variable in the outer query and none of these variables appear as outputs in references or `walk()` calls or inside nested comprehensions.
 
 The following examples show cases that are NOT indexed:
 
 ```rego
 not_indexed_because_missing_assignment {
-  x := input[_]
-  [y | some y; x == input[y]]
+    x := input[_]
+    [y | some y; x == input[y]]
 }
 
 not_indexed_because_includes_with {
-  x := input[_]
-  ys := [y | some y; x := input[y]] with input as {}
+    x := input[_]
+    ys := [y | some y; x := input[y]] with input as {}
 }
 
 not_indexed_because_negated {
-  x := input[_]
-  not data.arr = [y | some y; x := input[y]]
+    x := input[_]
+    not data.arr = [y | some y; x := input[y]]
 }
 
 not_indexed_because_safety {
-  obj := input.foo.bar
-  x := obj[_]
-  ys := [y | some y; x == obj[y]]
+    obj := input.foo.bar
+    x := obj[_]
+    ys := [y | some y; x == obj[y]]
 }
 
 not_indexed_because_no_closure {
-  ys := [y | x := input[y]]
+    ys := [y | x := input[y]]
 }
 
 not_indexed_because_reference_operand_closure {
-  x := input[y].x
-  ys := [y | x == input[y].z[_]]
+    x := input[y].x
+    ys := [y | x == input[y].z[_]]
 }
 
 not_indexed_because_nested_closure {
-  x = 1
-  y = 2
-  _ = [i |
-    x == input.foo[i]
-    _ = [j | y == input.bar[j]]]
+    x := 1
+    y := 2
+    _ = [i | x == input.foo[i]
+             _ = [j | y == input.bar[j]]]
 }
 ```
 
@@ -309,14 +410,14 @@ package rbac
 
 # Example input request
 
-input = {
+input := {
 	"subject": "bob",
 	"resource": "foo123",
 	"action": "write",
 }
 
 # Example RBAC configuration.
-bindings = [
+bindings := [
 	{
 		"user": "alice",
 		"roles": ["dev", "test"],
@@ -327,7 +428,7 @@ bindings = [
 	},
 ]
 
-roles = [
+roles := [
 	{
 		"name": "dev",
 		"permissions": [

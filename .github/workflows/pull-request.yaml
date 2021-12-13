@@ -39,7 +39,7 @@ jobs:
             targets: ci-go-ci-build-windows
           - os: darwin
             run: macos-latest
-            targets: ci-build-darwin
+            targets: ci-build-darwin ci-build-darwin-arm64-static
     steps:
       - name: Check out code
         uses: actions/checkout@v2
@@ -273,15 +273,4 @@ jobs:
 
       - name: Build
         run: make ci-go-ci-build-linux GOVERSION=${{ matrix.version }}
-        timeout-minutes: 30
-
-  go-proxy-check:
-    name: Go mod check
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v2
-
-      - name: Vendor without proxy
-        run: make check-go-module
         timeout-minutes: 30

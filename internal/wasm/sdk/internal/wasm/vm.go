@@ -283,7 +283,6 @@ func (i *VM) Eval(ctx context.Context,
 	metrics.Timer("wasm_vm_eval").Start()
 	defer metrics.Timer("wasm_vm_eval").Stop()
 
-	mem := i.memory.UnsafeData(i.store)
 	inputAddr, inputLen := int32(0), int32(0)
 
 	// NOTE: we'll never free the memory used for the input string during
@@ -309,6 +308,16 @@ func (i *VM) Eval(ctx context.Context,
 		}
 		inputLen = int32(len(raw))
 		inputAddr = i.evalHeapPtr
+
+		rest := inputAddr + inputLen - int32(i.memory.DataSize(i.store))
+		if rest > 0 { // need to grow memory
+			_, err := i.memory.Grow(i.store, uint64(util.Pages(uint32(rest))))
+			if err != nil {
+				return nil, fmt.Errorf("input: %w (max pages %d)", err, i.memoryMax)
+			}
+		}
+		mem := i.memory.UnsafeData(i.store)
+
 		heapPtr += inputLen
 		copy(mem[inputAddr:inputAddr+inputLen], raw)
 
@@ -456,11 +465,11 @@ func (i *VM) SetPolicyData(ctx context.Context, opts vmOpts) error {
 			}
 		}
 		mem := i.memory.UnsafeData(i.store)
-		for src, dest := 0, i.baseHeapPtr; src < len(opts.parsedData); src, dest = src+1, dest+1 {
-			mem[dest] = opts.parsedData[src]
-		}
+		len := int32(len(opts.parsedData))
+		copy(mem[i.baseHeapPtr:i.baseHeapPtr+len], opts.parsedData)
 		i.dataAddr = opts.parsedDataAddr
-		i.evalHeapPtr = i.baseHeapPtr + int32(len(opts.parsedData))
+
+		i.evalHeapPtr = i.baseHeapPtr + int32(len)
 		err := i.setHeapState(ctx, i.evalHeapPtr)
 		if err != nil {
 			return err

@@ -92,20 +92,20 @@ func TestFilterTraceExplainFull(t *testing.T) {
 	}
 	expected := `Enter data.testing.test_p = _
 | Eval data.testing.test_p = _
-| Index data.testing.test_p (matched 1 rule)
+| Index data.testing.test_p (matched 1 rule, early exit)
 | Enter data.testing.test_p
 | | Eval data.testing.p with data.x as "bar"
-| | Index data.testing.p (matched 1 rule)
+| | Index data.testing.p (matched 1 rule, early exit)
 | | Enter data.testing.p
 | | | Eval data.testing.x
-| | | Index data.testing.x (matched 1 rule)
+| | | Index data.testing.x (matched 1 rule, early exit)
 | | | Enter data.testing.x
 | | | | Eval data.testing.y
-| | | | Index data.testing.y (matched 1 rule)
+| | | | Index data.testing.y (matched 1 rule, early exit)
 | | | | Enter data.testing.y
 | | | | | Eval true
-| | | | | Exit data.testing.y
-| | | | Exit data.testing.x
+| | | | | Exit data.testing.y early
+| | | | Exit data.testing.x early
 | | | Eval trace("test test")
 | | | Note "test test"
 | | | Eval data.testing.q.foo
@@ -127,7 +127,6 @@ func TestFilterTraceExplainFull(t *testing.T) {
 | | | Redo trace("test test")
 | | | Redo data.testing.x
 | | | Redo data.testing.x
-| | | | Redo data.testing.y
 | | | | Redo data.testing.y
 | | | | | Redo true
 | | Fail data.testing.p with data.x as "bar"

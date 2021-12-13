@@ -18,10 +18,10 @@ trusted registry.
 package kubernetes.admission                                                # line 1
 
 deny[msg] {                                                                 # line 2
-  input.request.kind.kind == "Pod"                                          # line 3
-  image := input.request.object.spec.containers[_].image                    # line 4
-  not startswith(image, "hooli.com/")                                       # line 5
-  msg := sprintf("image '%v' comes from untrusted registry", [image])       # line 6
+    input.request.kind.kind == "Pod"                                        # line 3
+    image := input.request.object.spec.containers[_].image                  # line 4
+    not startswith(image, "hooli.com/")                                     # line 5
+    msg := sprintf("image '%v' comes from untrusted registry", [image])     # line 6
 }
 ```
 
@@ -358,9 +358,7 @@ request:
                 port:
                   number: 443
 </code></pre></div>
-
-
-<br>
+</div>
 
 ## Detailed Admission Control Flow
 
@@ -507,7 +505,7 @@ response = {
         "message": reason,
     },
 } {
-    reason = concat(", ", admission.deny)
+    reason := concat(", ", admission.deny)
     reason != ""
 }
 else = {"allowed": true, "uid": uid}

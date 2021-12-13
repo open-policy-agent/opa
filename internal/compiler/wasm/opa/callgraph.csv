@@ -337,6 +337,7 @@ opa_json_writer_write,opa_json_writer_emit_value
 opa_json_writer_write,opa_free
 opa_json_dump,opa_json_writer_write
 opa_value_dump,opa_json_writer_write
+opa_malloc,opa_abort
 opa_realloc,opa_malloc
 opa_realloc,memcpy
 opa_realloc,opa_free

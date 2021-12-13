@@ -11,9 +11,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/open-policy-agent/opa/util/test"
 
 	"github.com/open-policy-agent/opa/logging"
 )
@@ -43,11 +46,15 @@ func assertErr(expected string, actual error, t *testing.T) {
 }
 
 func TestEnvironmentCredentialService(t *testing.T) {
-	os.Setenv("AWS_ACCESS_KEY_ID", "")
-	os.Setenv("AWS_SECRET_ACCESS_KEY", "")
-	os.Setenv("AWS_REGION", "")
-	os.Setenv("AWS_SECURITY_TOKEN", "")
-	os.Setenv("AWS_SESSION_TOKEN", "")
+	reset := func() {
+		os.Unsetenv("AWS_ACCESS_KEY_ID")
+		os.Unsetenv("AWS_SECRET_ACCESS_KEY")
+		os.Unsetenv("AWS_REGION")
+		os.Unsetenv("AWS_SECURITY_TOKEN")
+		os.Unsetenv("AWS_SESSION_TOKEN")
+	}
+	reset()
+	t.Cleanup(reset) // reset again when we're done
 
 	cs := &awsEnvironmentCredentialService{}
 
@@ -95,6 +102,236 @@ func TestEnvironmentCredentialService(t *testing.T) {
 		if envCreds != expectedCreds {
 			t.Error("expected: ", expectedCreds, " but got: ", envCreds)
 		}
+	}
+}
+
+func TestProfileCredentialService(t *testing.T) {
+
+	defaultKey := "AKIAIOSFODNN7EXAMPLE"
+	defaultSecret := "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+	defaultSessionToken := "AQoEXAMPLEH4aoAH0gNCAPy"
+	defaultRegion := "us-west-2"
+
+	fooKey := "AKIAI44QH8DHBEXAMPLE"
+	fooSecret := "je7MtGbClwBF/2Zp9Utk/h3yCo8nvbEXAMPLEKEY"
+	fooRegion := "us-east-1"
+
+	config := fmt.Sprintf(`
+[default]
+aws_access_key_id=%v
+aws_secret_access_key=%v
+aws_session_token=%v
+
+[foo]
+aws_access_key_id=%v
+aws_secret_access_key=%v
+`, defaultKey, defaultSecret, defaultSessionToken, fooKey, fooSecret)
+
+	files := map[string]string{
+		"example.ini": config,
+	}
+
+	test.WithTempFS(files, func(path string) {
+		cfgPath := filepath.Join(path, "example.ini")
+		cs := &awsProfileCredentialService{
+			Path:       cfgPath,
+			Profile:    "foo",
+			RegionName: fooRegion,
+		}
+		creds, err := cs.credentials()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		expected := awsCredentials{
+			AccessKey:    fooKey,
+			SecretKey:    fooSecret,
+			RegionName:   fooRegion,
+			SessionToken: "",
+		}
+
+		if expected != creds {
+			t.Fatalf("Expected credentials %v but got %v", expected, creds)
+		}
+
+		// "default" profile
+		cs = &awsProfileCredentialService{
+			Path:       cfgPath,
+			Profile:    "",
+			RegionName: defaultRegion,
+		}
+
+		creds, err = cs.credentials()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		expected = awsCredentials{
+			AccessKey:    defaultKey,
+			SecretKey:    defaultSecret,
+			RegionName:   defaultRegion,
+			SessionToken: defaultSessionToken,
+		}
+
+		if expected != creds {
+			t.Fatalf("Expected credentials %v but got %v", expected, creds)
+		}
+	})
+}
+
+func TestProfileCredentialServiceWithEnvVars(t *testing.T) {
+	defaultKey := "AKIAIOSFODNN7EXAMPLE"
+	defaultSecret := "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+	defaultSessionToken := "AQoEXAMPLEH4aoAH0gNCAPy"
+	defaultRegion := "us-east-1"
+	profile := "profileName"
+	config := fmt.Sprintf(`
+[%s]
+aws_access_key_id=%s
+aws_secret_access_key=%s
+aws_session_token=%s
+`, profile, defaultKey, defaultSecret, defaultSessionToken)
+
+	files := map[string]string{
+		"example.ini": config,
+	}
+
+	test.WithTempFS(files, func(path string) {
+		cfgPath := filepath.Join(path, "example.ini")
+
+		os.Setenv(awsCredentialsFileEnvVar, cfgPath)
+		os.Setenv(awsProfileEnvVar, profile)
+		os.Setenv(awsRegionEnvVar, defaultRegion)
+
+		t.Cleanup(func() {
+			os.Unsetenv(awsCredentialsFileEnvVar)
+			os.Unsetenv(awsProfileEnvVar)
+			os.Unsetenv(awsRegionEnvVar)
+		})
+
+		cs := &awsProfileCredentialService{}
+		creds, err := cs.credentials()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		expected := awsCredentials{
+			AccessKey:    defaultKey,
+			SecretKey:    defaultSecret,
+			RegionName:   defaultRegion,
+			SessionToken: defaultSessionToken,
+		}
+
+		if expected != creds {
+			t.Fatalf("Expected credentials %v but got %v", expected, creds)
+		}
+	})
+}
+
+func TestProfileCredentialServiceWithDefaultPath(t *testing.T) {
+	defaultKey := "AKIAIOSFODNN7EXAMPLE"
+	defaultSecret := "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+	defaultSessionToken := "AQoEXAMPLEH4aoAH0gNCAPy"
+	defaultRegion := "us-west-22"
+
+	config := fmt.Sprintf(`
+[default]
+aws_access_key_id=%s
+aws_secret_access_key=%s
+aws_session_token=%s
+`, defaultKey, defaultSecret, defaultSessionToken)
+
+	files := map[string]string{}
+	oldUserProfile := os.Getenv("USERPROFILE")
+	oldHome := os.Getenv("HOME")
+
+	test.WithTempFS(files, func(path string) {
+
+		os.Setenv("USERPROFILE", path)
+		os.Setenv("HOME", path)
+
+		t.Cleanup(func() {
+			os.Setenv("USERPROFILE", oldUserProfile)
+			os.Setenv("HOME", oldHome)
+		})
+
+		cfgDir := filepath.Join(path, ".aws")
+		err := os.MkdirAll(cfgDir, os.ModePerm)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if err := ioutil.WriteFile(filepath.Join(cfgDir, "credentials"), []byte(config), 0600); err != nil {
+			t.Fatalf("Unexpected error: %s", err)
+		}
+
+		cs := &awsProfileCredentialService{RegionName: defaultRegion}
+		creds, err := cs.credentials()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		expected := awsCredentials{
+			AccessKey:    defaultKey,
+			SecretKey:    defaultSecret,
+			RegionName:   defaultRegion,
+			SessionToken: defaultSessionToken,
+		}
+
+		if expected != creds {
+			t.Fatalf("Expected credentials %v but got %v", expected, creds)
+		}
+	})
+}
+
+func TestProfileCredentialServiceWithError(t *testing.T) {
+	configNoAccessKeyID := `
+[default]
+aws_secret_access_key = secret
+`
+
+	configNoSecret := `
+[default]
+aws_access_key_id=accessKey
+`
+	tests := []struct {
+		note   string
+		config string
+		err    string
+	}{
+		{
+			note:   "no aws_access_key_id",
+			config: configNoAccessKeyID,
+			err:    "does not contain \"aws_access_key_id\"",
+		},
+		{
+			note:   "no aws_secret_access_key",
+			config: configNoSecret,
+			err:    "does not contain \"aws_secret_access_key\"",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+
+			files := map[string]string{
+				"example.ini": tc.config,
+			}
+
+			test.WithTempFS(files, func(path string) {
+				cfgPath := filepath.Join(path, "example.ini")
+				cs := &awsProfileCredentialService{
+					Path: cfgPath,
+				}
+				_, err := cs.credentials()
+				if err == nil {
+					t.Fatal("Expected error but got nil")
+				}
+				if !strings.Contains(err.Error(), tc.err) {
+					t.Errorf("expected error to contain %v, got %v", tc.err, err.Error())
+				}
+			})
+		})
 	}
 }
 
@@ -560,6 +797,16 @@ func (t *ec2CredTestServer) stop() {
 }
 
 func TestWebIdentityCredentialService(t *testing.T) {
+	reset := func() {
+		os.Unsetenv("AWS_WEB_IDENTITY_TOKEN_FILE")
+		os.Unsetenv("AWS_ROLE_ARN")
+		os.Unsetenv("AWS_REGION")
+	}
+	reset()
+	t.Cleanup(reset)
+
+	os.Setenv("AWS_REGION", "us-west-1")
+
 	testAccessKey := "ASgeIAIOSFODNN7EXAMPLE"
 	ts := stsTestServer{
 		t:         t,
@@ -572,115 +819,80 @@ func TestWebIdentityCredentialService(t *testing.T) {
 		logger: logging.Get(),
 	}
 
-	goodTokenFile, err := ioutil.TempFile(os.TempDir(), "opa-aws-test-")
-	if err != nil {
-		t.Errorf("Error while creating token file: %s", err)
-		return
+	files := map[string]string{
+		"good_token_file": "good-token",
+		"bad_token_file":  "bad-token",
 	}
-	t.Cleanup(func() {
-		err := os.Remove(goodTokenFile.Name())
+
+	test.WithTempFS(files, func(path string) {
+		goodTokenFile := filepath.Join(path, "good_token_file")
+		badTokenFile := filepath.Join(path, "bad_token_file")
+
+		// wrong path: no AWS_ROLE_ARN set
+		err := cs.populateFromEnv()
+		assertErr("no AWS_ROLE_ARN set in environment", err, t)
+		os.Setenv("AWS_ROLE_ARN", "role:arn")
+
+		// wrong path: no AWS_WEB_IDENTITY_TOKEN_FILE set
+		err = cs.populateFromEnv()
+		assertErr("no AWS_WEB_IDENTITY_TOKEN_FILE set in environment", err, t)
+		os.Setenv("AWS_WEB_IDENTITY_TOKEN_FILE", "/nonsense")
+
+		// happy path: both env vars set
+		err = cs.populateFromEnv()
 		if err != nil {
-			t.Fatalf("unable to remove goodTokenFile %q: %v", goodTokenFile.Name(), err)
+			t.Fatalf("Error while getting env vars: %s", err)
 		}
-	})
-	_, err = goodTokenFile.WriteString("good-token")
-	if err != nil {
-		t.Errorf("Error while creating token file: %s", err)
-		return
-	}
-	err = goodTokenFile.Close()
-	if err != nil {
-		t.Errorf("Error while creating token file: %s", err)
-		return
-	}
 
-	badTokenFile, err := ioutil.TempFile(os.TempDir(), "opa-aws-test-")
-	if err != nil {
-		t.Errorf("Error while creating token file: %s", err)
-		return
-	}
-	t.Cleanup(func() {
-		err := os.Remove(badTokenFile.Name())
+		// wrong path: refresh with invalid web token file
+		err = cs.refreshFromService()
+		assertErr("unable to read web token for sts HTTP request: open /nonsense: no such file or directory", err, t)
+
+		// wrong path: refresh with "bad token"
+		os.Setenv("AWS_WEB_IDENTITY_TOKEN_FILE", badTokenFile)
+		_ = cs.populateFromEnv()
+		err = cs.refreshFromService()
+		assertErr("STS HTTP request returned unexpected status: 401 Unauthorized", err, t)
+
+		// happy path: refresh with "good token"
+		os.Setenv("AWS_WEB_IDENTITY_TOKEN_FILE", goodTokenFile)
+		_ = cs.populateFromEnv()
+		err = cs.refreshFromService()
 		if err != nil {
-			t.Fatalf("unable to remove badTokenFile %q: %v", badTokenFile.Name(), err)
+			t.Fatalf("Unexpected err: %s", err)
 		}
+
+		// happy path: refresh and get credentials
+		creds, _ := cs.credentials()
+		assertEq(creds.AccessKey, testAccessKey, t)
+
+		// happy path: refresh with session and get credentials
+		cs.expiration = time.Now()
+		cs.SessionName = "TEST_SESSION"
+		creds, _ = cs.credentials()
+		assertEq(creds.AccessKey, testAccessKey, t)
+
+		// happy path: don't refresh, but get credentials
+		ts.accessKey = "OTHERKEY"
+		creds, _ = cs.credentials()
+		assertEq(creds.AccessKey, testAccessKey, t)
+
+		// happy/wrong path: refresh with "bad token" but return previous credentials
+		os.Setenv("AWS_WEB_IDENTITY_TOKEN_FILE", badTokenFile)
+		_ = cs.populateFromEnv()
+		cs.expiration = time.Now()
+		creds, err = cs.credentials()
+		assertEq(creds.AccessKey, testAccessKey, t)
+		assertErr("STS HTTP request returned unexpected status: 401 Unauthorized", err, t)
+
+		// wrong path: refresh with "bad token" but return previous credentials
+		os.Setenv("AWS_WEB_IDENTITY_TOKEN_FILE", goodTokenFile)
+		os.Setenv("AWS_ROLE_ARN", "BrokenRole")
+		_ = cs.populateFromEnv()
+		cs.expiration = time.Now()
+		creds, err = cs.credentials()
+		assertErr("failed to parse credential response from STS service: EOF", err, t)
 	})
-	_, err = badTokenFile.WriteString("bad-token")
-	if err != nil {
-		t.Errorf("Error while creating token file: %s", err)
-		return
-	}
-	err = badTokenFile.Close()
-	if err != nil {
-		t.Errorf("Error while creating token file: %s", err)
-		return
-	}
-
-	// wrong path: no AWS_ROLE_ARN set
-	err = cs.populateFromEnv()
-	assertErr("no AWS_ROLE_ARN set in environment", err, t)
-	os.Setenv("AWS_ROLE_ARN", "role:arn")
-
-	// wrong path: no AWS_WEB_IDENTITY_TOKEN_FILE set
-	err = cs.populateFromEnv()
-	assertErr("no AWS_WEB_IDENTITY_TOKEN_FILE set in environment", err, t)
-	os.Setenv("AWS_WEB_IDENTITY_TOKEN_FILE", "/nonsense")
-
-	// happy path: both env vars set
-	err = cs.populateFromEnv()
-	if err != nil {
-		t.Errorf("Error while getting env vars: %s", err)
-		return
-	}
-
-	// wrong path: refresh with invalid web token file
-	err = cs.refreshFromService()
-	assertErr("unable to read web token for sts HTTP request: open /nonsense: no such file or directory", err, t)
-
-	// wrong path: refresh with "bad token"
-	os.Setenv("AWS_WEB_IDENTITY_TOKEN_FILE", badTokenFile.Name())
-	_ = cs.populateFromEnv()
-	err = cs.refreshFromService()
-	assertErr("STS HTTP request returned unexpected status: 401 Unauthorized", err, t)
-
-	// happy path: refresh with "good token"
-	os.Setenv("AWS_WEB_IDENTITY_TOKEN_FILE", goodTokenFile.Name())
-	_ = cs.populateFromEnv()
-	err = cs.refreshFromService()
-	if err != nil {
-		t.Fatalf("Unexpected err: %s", err)
-	}
-
-	// happy path: refresh and get credentials
-	creds, _ := cs.credentials()
-	assertEq(creds.AccessKey, testAccessKey, t)
-
-	// happy path: refresh with session and get credentials
-	cs.expiration = time.Now()
-	cs.SessionName = "TEST_SESSION"
-	creds, _ = cs.credentials()
-	assertEq(creds.AccessKey, testAccessKey, t)
-
-	// happy path: don't refresh, but get credentials
-	ts.accessKey = "OTHERKEY"
-	creds, _ = cs.credentials()
-	assertEq(creds.AccessKey, testAccessKey, t)
-
-	// happy/wrong path: refresh with "bad token" but return previous credentials
-	os.Setenv("AWS_WEB_IDENTITY_TOKEN_FILE", badTokenFile.Name())
-	_ = cs.populateFromEnv()
-	cs.expiration = time.Now()
-	creds, err = cs.credentials()
-	assertEq(creds.AccessKey, testAccessKey, t)
-	assertErr("STS HTTP request returned unexpected status: 401 Unauthorized", err, t)
-
-	// wrong path: refresh with "bad token" but return previous credentials
-	os.Setenv("AWS_WEB_IDENTITY_TOKEN_FILE", goodTokenFile.Name())
-	os.Setenv("AWS_ROLE_ARN", "BrokenRole")
-	_ = cs.populateFromEnv()
-	cs.expiration = time.Now()
-	creds, err = cs.credentials()
-	assertErr("failed to parse credential response from STS service: EOF", err, t)
 }
 
 func TestStsPath(t *testing.T) {

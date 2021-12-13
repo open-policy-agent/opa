@@ -19,6 +19,7 @@ import (
 
 // Well-known metric names.
 const (
+	BundleRequest       = "bundle_request"
 	ServerHandler       = "server_handler"
 	ServerQueryCacheHit = "server_query_cache_hit"
 	SDKDecisionEval     = "sdk_decision_eval"

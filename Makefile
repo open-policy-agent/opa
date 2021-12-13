@@ -265,18 +265,28 @@ ci-build-linux: ensure-release-dir
 	@$(MAKE) build GOOS=linux
 	chmod +x opa_linux_$(GOARCH)
 	mv opa_linux_$(GOARCH) $(RELEASE_DIR)/
+	cd $(RELEASE_DIR)/ && shasum -a 256 opa_linux_$(GOARCH) > opa_linux_$(GOARCH).sha256
 
 .PHONY: ci-build-linux-static
 ci-build-linux-static: ensure-release-dir
 	@$(MAKE) build GOOS=linux WASM_ENABLED=0 CGO_ENABLED=0
 	chmod +x opa_linux_$(GOARCH)
 	mv opa_linux_$(GOARCH) $(RELEASE_DIR)/opa_linux_$(GOARCH)_static
+	cd $(RELEASE_DIR)/ && shasum -a 256 opa_linux_$(GOARCH)_static > opa_linux_$(GOARCH)_static.sha256
 
 .PHONY: ci-build-darwin
 ci-build-darwin: ensure-release-dir
 	@$(MAKE) build GOOS=darwin
 	chmod +x opa_darwin_$(GOARCH)
 	mv opa_darwin_$(GOARCH) $(RELEASE_DIR)/
+	cd $(RELEASE_DIR)/ && shasum -a 256 opa_darwin_$(GOARCH) > opa_darwin_$(GOARCH).sha256
+
+.PHONY: ci-build-darwin-arm64-static
+ci-build-darwin-arm64-static: ensure-release-dir
+	@$(MAKE) build GOOS=darwin GOARCH=arm64 WASM_ENABLED=0 CGO_ENABLED=0
+	chmod +x opa_darwin_arm64
+	mv opa_darwin_arm64 $(RELEASE_DIR)/opa_darwin_arm64_static
+	cd $(RELEASE_DIR)/ && shasum -a 256 opa_darwin_arm64_static > opa_darwin_arm64_static.sha256
 
 # NOTE: This target expects to be run as root on some debian/ubuntu variant
 # that can install the `gcc-mingw-w64-x86-64` package via apt-get.
@@ -285,37 +295,38 @@ ci-build-windows: ensure-release-dir
 	build/ensure-windows-toolchain.sh
 	@$(MAKE) build GOOS=windows CC=x86_64-w64-mingw32-gcc
 	mv opa_windows_$(GOARCH) $(RELEASE_DIR)/opa_windows_$(GOARCH).exe
+	cd $(RELEASE_DIR)/ && shasum -a 256 opa_windows_$(GOARCH).exe > opa_windows_$(GOARCH).exe.sha256
 
 .PHONY: ensure-release-dir
 ensure-release-dir:
 	mkdir -p $(RELEASE_DIR)
 
 .PHONY: build-all-platforms
-build-all-platforms: ci-build-linux ci-build-linux-static ci-build-darwin ci-build-windows
+build-all-platforms: ci-build-linux ci-build-linux-static ci-build-darwin ci-build-darwin-arm64-static ci-build-windows
 
 .PHONY: image-quick
 image-quick:
-	chmod +x $(RELEASE_DIR)/opa_linux_amd64*
+	chmod +x $(RELEASE_DIR)/opa_linux_$(GOARCH)*
 	$(DOCKER) build \
 		-t $(DOCKER_IMAGE):$(VERSION) \
 		--build-arg BASE=gcr.io/distroless/cc \
-		--build-arg BIN=$(RELEASE_DIR)/opa_linux_amd64 \
+		--build-arg BIN=$(RELEASE_DIR)/opa_linux_$(GOARCH) \
 		.
 	$(DOCKER) build \
 		-t $(DOCKER_IMAGE):$(VERSION)-debug \
 		--build-arg BASE=gcr.io/distroless/cc:debug \
-		--build-arg BIN=$(RELEASE_DIR)/opa_linux_amd64 \
+		--build-arg BIN=$(RELEASE_DIR)/opa_linux_$(GOARCH) \
 		.
 	$(DOCKER) build \
 		-t $(DOCKER_IMAGE):$(VERSION)-rootless \
 		--build-arg USER=1000 \
 		--build-arg BASE=gcr.io/distroless/cc \
-		--build-arg BIN=$(RELEASE_DIR)/opa_linux_amd64 \
+		--build-arg BIN=$(RELEASE_DIR)/opa_linux_$(GOARCH) \
 		.
 	$(DOCKER) build \
 		-t $(DOCKER_IMAGE):$(VERSION)-static \
 		--build-arg BASE=gcr.io/distroless/static \
-		--build-arg BIN=$(RELEASE_DIR)/opa_linux_amd64_static \
+		--build-arg BIN=$(RELEASE_DIR)/opa_linux_$(GOARCH)_static \
 		.
 
 .PHONY: ci-image-smoke-test
@@ -353,10 +364,7 @@ push-latest:
 
 .PHONY: push-binary-edge
 push-binary-edge:
-	aws s3 cp $(RELEASE_DIR)/opa_darwin_$(GOARCH) s3://$(S3_RELEASE_BUCKET)/edge/opa_darwin_$(GOARCH)
-	aws s3 cp $(RELEASE_DIR)/opa_windows_$(GOARCH).exe s3://$(S3_RELEASE_BUCKET)/edge/opa_windows_$(GOARCH).exe
-	aws s3 cp $(RELEASE_DIR)/opa_linux_$(GOARCH) s3://$(S3_RELEASE_BUCKET)/edge/opa_linux_$(GOARCH)
-	aws s3 cp $(RELEASE_DIR)/opa_linux_$(GOARCH)_static s3://$(S3_RELEASE_BUCKET)/edge/opa_linux_$(GOARCH)_static
+	aws s3 sync $(RELEASE_DIR) s3://$(S3_RELEASE_BUCKET)/edge/ --delete
 
 .PHONY: tag-edge
 tag-edge:
@@ -429,7 +437,11 @@ check-go-module:
 
 .PHONY: release-patch
 release-patch:
+ifeq ($(GITHUB_TOKEN),)
+	@echo "\033[0;31mGITHUB_TOKEN environment variable missing.\033[33m Provide a GitHub Personal Access Token (PAT) with the 'read:org' scope.\033[0m"
+endif
 	@$(DOCKER) run $(DOCKER_FLAGS) \
+		-e GITHUB_TOKEN=$(GITHUB_TOKEN) \
 		-e LAST_VERSION=$(LAST_VERSION) \
 		-v $(PWD):/_src \
 		python:2.7 \

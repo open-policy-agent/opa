@@ -41,25 +41,22 @@ type UpdateRequestV1 struct {
 
 // Plugin implements status reporting. Updates can be triggered by the caller.
 type Plugin struct {
-	manager          *plugins.Manager
-	config           Config
-	bundleCh         chan bundle.Status // Deprecated: Use bulk bundle status updates instead
-	lastBundleStatus *bundle.Status     // Deprecated: Use bulk bundle status updates instead
-
+	manager            *plugins.Manager
+	config             Config
+	bundleCh           chan bundle.Status // Deprecated: Use bulk bundle status updates instead
+	lastBundleStatus   *bundle.Status     // Deprecated: Use bulk bundle status updates instead
 	bulkBundleCh       chan map[string]*bundle.Status
 	lastBundleStatuses map[string]*bundle.Status
-
-	discoCh         chan bundle.Status
-	lastDiscoStatus *bundle.Status
-
+	discoCh            chan bundle.Status
+	lastDiscoStatus    *bundle.Status
 	pluginStatusCh     chan map[string]*plugins.Status
 	lastPluginStatuses map[string]*plugins.Status
-
-	stop     chan chan struct{}
-	reconfig chan interface{}
-	metrics  metrics.Metrics
-	logger   logging.Logger
-	trigger  chan trigger
+	queryCh            chan chan *UpdateRequestV1
+	stop               chan chan struct{}
+	reconfig           chan interface{}
+	metrics            metrics.Metrics
+	logger             logging.Logger
+	trigger            chan trigger
 }
 
 // Config contains configuration for the plugin.
@@ -197,6 +194,7 @@ func New(parsedConfig *Config, manager *plugins.Manager) *Plugin {
 		stop:           make(chan chan struct{}),
 		reconfig:       make(chan interface{}),
 		pluginStatusCh: make(chan map[string]*plugins.Status),
+		queryCh:        make(chan chan *UpdateRequestV1),
 		logger:         manager.Logger().WithFields(map[string]interface{}{"plugin": Name}),
 		trigger:        make(chan trigger),
 	}
@@ -276,6 +274,14 @@ func (p *Plugin) Reconfigure(_ context.Context, config interface{}) {
 	p.reconfig <- config
 }
 
+// Snapshot returns the current status.
+func (p *Plugin) Snapshot() *UpdateRequestV1 {
+	ch := make(chan *UpdateRequestV1)
+	p.queryCh <- ch
+	s := <-ch
+	return s
+}
+
 // Trigger can be used to control when the plugin attempts to upload
 //status in manual triggering mode.
 func (p *Plugin) Trigger(ctx context.Context) error {
@@ -339,6 +345,8 @@ func (p *Plugin) loop() {
 			}
 		case newConfig := <-p.reconfig:
 			p.reconfigure(newConfig)
+		case respCh := <-p.queryCh:
+			respCh <- p.snapshot()
 		case update := <-p.trigger:
 			err := p.oneShot(update.ctx)
 			if err != nil {
@@ -360,17 +368,7 @@ func (p *Plugin) loop() {
 
 func (p *Plugin) oneShot(ctx context.Context) error {
 
-	req := &UpdateRequestV1{
-		Labels:    p.manager.Labels(),
-		Discovery: p.lastDiscoStatus,
-		Bundle:    p.lastBundleStatus,
-		Bundles:   p.lastBundleStatuses,
-		Plugins:   p.lastPluginStatuses,
-	}
-
-	if p.metrics != nil {
-		req.Metrics = map[string]interface{}{p.metrics.Info().Name: p.metrics.All()}
-	}
+	req := p.snapshot()
 
 	if p.config.ConsoleLogs {
 		err := p.logUpdate(req)
@@ -422,6 +420,23 @@ func (p *Plugin) reconfigure(config interface{}) {
 
 	p.logger.Info("Status reporter configuration changed.")
 	p.config = *newConfig
+}
+
+func (p *Plugin) snapshot() *UpdateRequestV1 {
+
+	s := &UpdateRequestV1{
+		Labels:    p.manager.Labels(),
+		Discovery: p.lastDiscoStatus,
+		Bundle:    p.lastBundleStatus,
+		Bundles:   p.lastBundleStatuses,
+		Plugins:   p.lastPluginStatuses,
+	}
+
+	if p.metrics != nil {
+		s.Metrics = map[string]interface{}{p.metrics.Info().Name: p.metrics.All()}
+	}
+
+	return s
 }
 
 func (p *Plugin) logUpdate(update *UpdateRequestV1) error {

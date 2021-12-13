@@ -663,12 +663,12 @@ func TestEvalDebugTraceJSONOutput(t *testing.T) {
 
 	mod := `package x
 
-	p {
+	p[a] {
 		a := input.z
 		a == 1
 	}
 
-	p {
+	p[b] {
 		b := input.y
 		b == 1
 	}

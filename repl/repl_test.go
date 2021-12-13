@@ -1255,7 +1255,7 @@ x := 2
 
 	buffer.Reset()
 	err := repl.OneShot(ctx, "assign()")
-	if err == nil || !strings.Contains(err.Error(), "too few arguments") {
+	if err == nil || !strings.Contains(err.Error(), "rego_type_error: assign: arity mismatch\n\thave: ()\n\twant: (any, any)") {
 		t.Fatal("Expected type check error but got:", err)
 	}
 }
@@ -2595,9 +2595,6 @@ func TestEvalNotes(t *testing.T) {
 	expected := strings.TrimSpace(`query:1     Enter data.repl.p = _
 query:1     | Enter data.repl.p
 query:1     | | Note "x = 2"
-query:1     Redo data.repl.p = _
-query:1     | Redo data.repl.p
-query:1     | | Note "x = 3"
 true`)
 	expected += "\n"
 	if expected != buffer.String() {

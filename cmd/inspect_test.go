@@ -43,7 +43,13 @@ func TestDoInspect(t *testing.T) {
 		}
 
 		var out bytes.Buffer
-		err = doInspect(newInspectCommandParams(), bundleFile, &out)
+		params := newInspectCommandParams()
+		err = params.outputFormat.Set(evalJSONOutput)
+		if err != nil {
+			t.Fatalf("Unexpected error: %s", err)
+		}
+
+		err = doInspect(params, bundleFile, &out)
 		if err != nil {
 			t.Fatalf("Unexpected error %v", err)
 		}
@@ -51,7 +57,7 @@ func TestDoInspect(t *testing.T) {
 		res := `{
     "manifest": {"revision": "rev", "roots": ["foo", "bar", "fuz", "baz", "a", "x"]},
     "signatures_config": {},
-    "namespaces": {"": ["/data.json"], "data.foo": ["/example/foo.rego"]}
+    "namespaces": {"data": ["/data.json"], "data.foo": ["/example/foo.rego"]}
   }`
 
 		exp := util.MustUnmarshalJSON([]byte(res))
@@ -100,13 +106,7 @@ func TestDoInspectPretty(t *testing.T) {
 		}
 
 		var out bytes.Buffer
-		params := newInspectCommandParams()
-		err = params.outputFormat.Set(evalPrettyOutput)
-		if err != nil {
-			t.Fatalf("Unexpected error: %s", err)
-		}
-
-		err = doInspect(params, bundleFile, &out)
+		err = doInspect(newInspectCommandParams(), bundleFile, &out)
 		if err != nil {
 			t.Fatalf("Unexpected error %v", err)
 		}
@@ -131,7 +131,7 @@ NAMESPACES:
 +-----------------------------+----------------------------------------------------+
 |          NAMESPACE          |                        FILE                        |
 +-----------------------------+----------------------------------------------------+
-|                             | /data.json                                         |
+| data                        | /data.json                                         |
 | data.a.b.y                  | /a/b/y/foo.rego                                    |
 |                             | /a/...xxxxxxxxxxxxxx/yyyyyyyyyyyyyyyyyyyy/foo.rego |
 | data.foo                    | /example/foo.rego                                  |
@@ -176,13 +176,7 @@ func TestDoInspectPrettyManifestOnlySingleRoot(t *testing.T) {
 		}
 
 		var out bytes.Buffer
-		params := newInspectCommandParams()
-		err = params.outputFormat.Set(evalPrettyOutput)
-		if err != nil {
-			t.Fatalf("Unexpected error: %s", err)
-		}
-
-		err = doInspect(params, bundleFile, &out)
+		err = doInspect(newInspectCommandParams(), bundleFile, &out)
 		if err != nil {
 			t.Fatalf("Unexpected error %v", err)
 		}

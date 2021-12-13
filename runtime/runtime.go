@@ -98,6 +98,14 @@ type Params struct {
 	// is nil, the server will NOT use TLS.
 	Certificate *tls.Certificate
 
+	// CertificateFile and CertificateKeyFile are the paths to the cert and its
+	// keyfile. It'll be used to periodically reload the files from disk if they
+	// have changed. The server will attempt to refresh every 5 minutes, unless
+	// a different CertificateRefresh time.Duration is provided
+	CertificateFile    string
+	CertificateKeyFile string
+	CertificateRefresh time.Duration
+
 	// CertPool holds the CA certs trusted by the OPA server.
 	CertPool *x509.CertPool
 
@@ -141,10 +149,6 @@ type Params struct {
 	// DecisionIDFactory generates decision IDs to include in API responses
 	// sent by the server (in response to Data API queries.)
 	DecisionIDFactory func() string
-
-	// DiagnosticsBuffer is used by the server to record policy decisions.
-	// DEPRECATED. Use decision logging instead.
-	DiagnosticsBuffer server.Buffer
 
 	// Logging configures the logging behaviour.
 	Logging LoggingConfig
@@ -245,28 +249,29 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		}
 	}
 
+	level, err := getLoggingLevel(params.Logging.Level)
+	if err != nil {
+		return nil, err
+	}
+
+	// NOTE(tsandall): This is a temporary hack to ensure that log formatting
+	// and leveling is applied correctly. Currently there are a few places where
+	// the global logger is used as a fallback, however, that fallback _should_
+	// never be used. This ensures that _if_ the fallback is used accidentally,
+	// that the logging configuration is applied. Once we remove all usage of
+	// the global logger and we remove the API that allows callers to access the
+	// global logger, we can remove this.
+	logging.Get().SetFormatter(internal_logging.GetFormatter(params.Logging.Format))
+	logging.Get().SetLevel(level)
+
 	var logger logging.Logger
 
 	if params.Logger != nil {
 		logger = params.Logger
 	} else {
 		stdLogger := logging.New()
-		formatter := internal_logging.GetFormatter(params.Logging.Format)
-		stdLogger.SetFormatter(formatter)
-
-		switch strings.ToLower(params.Logging.Level) {
-		case "debug":
-			stdLogger.SetLevel(logging.Debug)
-		case "", "info":
-			stdLogger.SetLevel(logging.Info)
-		case "warn":
-			stdLogger.SetLevel(logging.Warn)
-		case "error":
-			stdLogger.SetLevel(logging.Error)
-		default:
-			return nil, fmt.Errorf("invalid log level: %v", params.Logging.Level)
-		}
-
+		stdLogger.SetLevel(level)
+		stdLogger.SetFormatter(internal_logging.GetFormatter(params.Logging.Format))
 		logger = stdLogger
 	}
 
@@ -304,6 +309,10 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		consoleLogger = params.ConsoleLogger
 	}
 
+	if params.Router == nil {
+		params.Router = mux.NewRouter()
+	}
+
 	manager, err := plugins.New(config,
 		params.ID,
 		inmem.New(),
@@ -315,7 +324,8 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		plugins.ConsoleLogger(consoleLogger),
 		plugins.Logger(logger),
 		plugins.EnablePrintStatements(logger.GetLevel() >= logging.Info),
-		plugins.PrintHook(loggingPrintHook{logger: logger}))
+		plugins.PrintHook(loggingPrintHook{logger: logger}),
+		plugins.WithRouter(params.Router))
 	if err != nil {
 		return nil, errors.Wrap(err, "config error")
 	}
@@ -429,6 +439,7 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 		WithAddresses(*rt.Params.Addrs).
 		WithH2CEnabled(rt.Params.H2CEnabled).
 		WithCertificate(rt.Params.Certificate).
+		WithCertificatePaths(rt.Params.CertificateFile, rt.Params.CertificateKeyFile, rt.Params.CertificateRefresh).
 		WithCertPool(rt.Params.CertPool).
 		WithAuthentication(rt.Params.Authentication).
 		WithAuthorization(rt.Params.Authorization).
@@ -630,10 +641,6 @@ func (rt *Runtime) decisionIDFactory() string {
 }
 
 func (rt *Runtime) decisionLogger(ctx context.Context, event *server.Info) error {
-
-	if rt.Params.DiagnosticsBuffer != nil {
-		rt.Params.DiagnosticsBuffer.Push(event)
-	}
 
 	plugin := logs.Lookup(rt.Manager)
 	if plugin == nil {
@@ -848,6 +855,21 @@ func generateDecisionID() string {
 		return ""
 	}
 	return id
+}
+
+func getLoggingLevel(s string) (logging.Level, error) {
+	switch strings.ToLower(s) {
+	case "debug":
+		return logging.Debug, nil
+	case "", "info":
+		return logging.Info, nil
+	case "warn":
+		return logging.Warn, nil
+	case "error":
+		return logging.Error, nil
+	default:
+		return logging.Debug, fmt.Errorf("invalid log level: %v", s)
+	}
 }
 
 func init() {

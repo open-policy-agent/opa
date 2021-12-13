@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/open-policy-agent/opa/server"
 	"github.com/open-policy-agent/opa/test/e2e"
@@ -45,7 +46,9 @@ func TestMain(m *testing.M) {
 	if ok := pool.AppendCertsFromPEM(caCertPEM); !ok {
 		fatal("failed to parse CA cert")
 	}
-	cert, err := tls.LoadX509KeyPair("testdata/server-cert.pem", "testdata/server-key.pem")
+	certFile := "testdata/server-cert.pem"
+	certKeyFile := "testdata/server-key.pem"
+	cert, err := tls.LoadX509KeyPair(certFile, certKeyFile)
 	if err != nil {
 		fatal(err)
 	}
@@ -76,6 +79,9 @@ allow {
 	testServerParams.Addrs = &[]string{"https://127.0.0.1:0"}
 	testServerParams.CertPool = pool
 	testServerParams.Certificate = &cert
+	testServerParams.CertificateFile = certFile
+	testServerParams.CertificateKeyFile = certKeyFile
+	testServerParams.CertificateRefresh = time.Millisecond
 	testServerParams.Authentication = server.AuthenticationTLS
 	testServerParams.Authorization = server.AuthorizationBasic
 	testServerParams.Paths = []string{"system.authz:" + tmpfile.Name()}
@@ -119,7 +125,6 @@ func TestMinTLSVersion(t *testing.T) {
 			t.Errorf("expected status 200, got %s", resp.Status)
 		}
 	})
-
 }
 
 func TestNotDefaultTLSVersion(t *testing.T) {
@@ -198,15 +203,11 @@ func TestAuthenticationTLS(t *testing.T) {
 
 func newClient(maxTLSVersion uint16, pool *x509.CertPool, clientKeyPair ...string) *http.Client {
 	c := *http.DefaultClient
-	// Note: zero-values in http.Transport are bad settings -- they let the client
-	// leak connections -- but it's good enough for these tests. Don't instantiate
-	// http.Transport without providing non-zero values in non-test code, please.
-	// See https://github.com/golang/go/issues/19620 for details.
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{
-			RootCAs: pool,
-		},
+	tr := http.DefaultTransport.(*http.Transport).Clone()
+	tr.TLSClientConfig = &tls.Config{
+		RootCAs: pool,
 	}
+
 	if len(clientKeyPair) == 2 {
 		clientCert, err := tls.LoadX509KeyPair(clientKeyPair[0], clientKeyPair[1])
 		if err != nil {

@@ -1072,8 +1072,8 @@ func TestOptimizerOutput(t *testing.T) {
 				"optimized/test.rego": `
 					package test
 
-					p = __result__ { data.external.users.foo = input.user; __result__ = true }
 					p = __result__ { data.external.users.bar = input.user; __result__ = true }
+					p = __result__ { data.external.users.foo = input.user; __result__ = true }
 				`,
 				"test.rego": `
 					package test

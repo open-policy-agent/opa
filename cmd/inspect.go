@@ -30,7 +30,7 @@ type inspectCommandParams struct {
 
 func newInspectCommandParams() inspectCommandParams {
 	return inspectCommandParams{
-		outputFormat: util.NewEnumFlag(evalJSONOutput, []string{
+		outputFormat: util.NewEnumFlag(evalPrettyOutput, []string{
 			evalJSONOutput,
 			evalPrettyOutput,
 		}),
@@ -89,7 +89,10 @@ func doInspect(params inspectCommandParams, path string, out io.Writer) error {
 	}
 
 	switch params.outputFormat.String() {
-	case evalPrettyOutput:
+	case evalJSONOutput:
+		return pr.JSON(out, info)
+
+	default:
 		if info.Manifest.Revision != "" || len(*info.Manifest.Roots) != 0 || len(info.Manifest.Metadata) != 0 {
 			if err := populateManifest(out, info.Manifest); err != nil {
 				return err
@@ -102,9 +105,6 @@ func doInspect(params inspectCommandParams, path string, out io.Writer) error {
 			}
 		}
 		return nil
-
-	default:
-		return pr.JSON(out, info)
 	}
 }
 

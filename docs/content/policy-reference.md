@@ -209,7 +209,7 @@ c = a | b
 
 ```live:rules/condbool:module:read_only
 # p is true if ...
-p = true { ...}
+p = true { ... }
 
 # OR
 
@@ -479,10 +479,10 @@ The following table shows examples of how ``glob.match`` works:
 | <span class="opa-keep-it-together">``output := base64url.encode(x)``</span> | ``output`` is ``x`` serialized to a base64url encoded string with padding | ✅ |
 | <span class="opa-keep-it-together">``output := base64url.encode_no_pad(x)``</span> | ``output`` is ``x`` serialized to a base64url encoded string without padding | ``SDK-dependent`` |
 | <span class="opa-keep-it-together">``output := base64url.decode(string)``</span> | ``output`` is ``string`` deserialized from a base64url encoded string with or without padding | ✅ |
-| <span class="opa-keep-it-together">``output := urlquery.encode(string)``</span> | ``output`` is ``string`` serialized to a URL query parameter encoded string | ``SDK-dependent`` |
-| <span class="opa-keep-it-together">``output := urlquery.encode_object(object)``</span> | ``output`` is ``object`` serialized to a URL query parameter encoded string | ``SDK-dependent`` |
-| <span class="opa-keep-it-together">``output := urlquery.decode(string)``</span> | ``output`` is ``string`` deserialized from a URL query parameter encoded string | ``SDK-dependent`` |
-| <span class="opa-keep-it-together">``output := urlquery.decode_object(string)``</span> | ``output`` is ``object`` deserialized from a URL query parameter string | ``SDK-dependent`` |
+| <span class="opa-keep-it-together">``output := urlquery.encode(string)``</span> | ``output`` is URL query parameter encoded ``string`` | ``SDK-dependent`` |
+| <span class="opa-keep-it-together">``output := urlquery.encode_object(object)``</span> | ``output`` is URL query parameter encoded ``object`` | ``SDK-dependent`` |
+| <span class="opa-keep-it-together">``output := urlquery.decode(string)``</span> | ``output`` is URL query parameter decoded ``string`` | ``SDK-dependent`` |
+| <span class="opa-keep-it-together">``output := urlquery.decode_object(string)``</span> | ``output`` is URL query parameter decoded ``string`` represented as an ``object`` | ``SDK-dependent`` |
 | <span class="opa-keep-it-together">``output := json.marshal(x)``</span> | ``output`` is ``x`` serialized to a JSON string | ✅ |
 | <span class="opa-keep-it-together">``output := json.unmarshal(string)``</span> | ``output`` is ``string`` deserialized to a term from a JSON encoded string | ✅ |
 | <span class="opa-keep-it-together">``output := json.is_valid(string)``</span> | ``output`` is a ``boolean`` that indicated whether ``string`` is a valid JSON document | ``SDK-dependent`` |
@@ -800,13 +800,13 @@ result_valid_hs256 := io.jwt.verify_hs256(result_hs256, "foo")
 | Built-in | Description | Wasm Support |
 | ------- |-------------|---------------|
 | <span class="opa-keep-it-together">``output := time.now_ns()``</span> | ``output`` is a ``number`` representing the current time since epoch in nanoseconds. | ``SDK-dependent`` |
-| <span class="opa-keep-it-together">``output := time.parse_ns(layout, value)``</span> | ``output`` is a ``number`` representing the time ``value`` in nanoseconds since epoch. See the [Go `time` package documentation](https://golang.org/pkg/time/#Parse) for more details on ``layout``. | ``SDK-dependent`` |
-| <span class="opa-keep-it-together">``output := time.parse_rfc3339_ns(value)``</span> | ``output`` is a ``number`` representing the time ``value`` in nanoseconds since epoch. | ``SDK-dependent`` |
+| <span class="opa-keep-it-together">``output := time.parse_ns(layout, value)``</span> | ``output`` is a ``number`` representing the time ``value`` in nanoseconds since epoch; or ``undefined`` if outside the valid time range that can fit within an ``int64``. See the [Go `time` package documentation](https://golang.org/pkg/time/#Parse) for more details on ``layout``. | ``SDK-dependent`` |
+| <span class="opa-keep-it-together">``output := time.parse_rfc3339_ns(value)``</span> | ``output`` is a ``number`` representing the time ``value`` in nanoseconds since epoch; or ``undefined`` if outside the valid time range that can fit within an ``int64``. | ``SDK-dependent`` |
 | <span class="opa-keep-it-together">``output := time.parse_duration_ns(duration)``</span> | ``output`` is a ``number`` representing the duration ``duration`` in nanoseconds. See the [Go `time` package documentation](https://golang.org/pkg/time/#ParseDuration) for more details on ``duration``. | ``SDK-dependent`` |
 | <span class="opa-keep-it-together">``output := time.date(ns)``<br/>``output := time.date([ns, tz])``</span> | ``output`` is of the form ``[year, month, day]``, which includes the ``year``, ``month`` (0-12), and ``day`` (0-31) as ``number``s representing the date from the nanoseconds since epoch (``ns``) in the timezone (``tz``), if supplied, or as UTC.| ``SDK-dependent`` |
 | <span class="opa-keep-it-together">``output := time.clock(ns)``<br/>``output := time.clock([ns, tz])``</span> | ``output`` is of the form ``[hour, minute, second]``, which outputs the ``hour``, ``minute`` (0-59), and ``second`` (0-59) as ``number``s representing the time of day for the nanoseconds since epoch (``ns``) in the timezone (``tz``), if supplied, or as UTC. | ``SDK-dependent`` |
 | <span class="opa-keep-it-together">``day := time.weekday(ns)``<br/>``day := time.weekday([ns, tz])``</span> | outputs the ``day`` as ``string`` representing the day of the week for the nanoseconds since epoch (``ns``) in the timezone (``tz``), if supplied, or as UTC. | ``SDK-dependent`` |
-| <span class="opa-keep-it-together">``output := time.add_date(ns, years, months, days)``</span> | ``output`` is a ``number`` representing the time since epoch in nanoseconds after adding the ``years``, ``months`` and ``days`` to ``ns``. See the [Go `time` package documentation](https://golang.org/pkg/time/#Time.AddDate) for more details on ``add_date``. | ``SDK-dependent`` |
+| <span class="opa-keep-it-together">``output := time.add_date(ns, years, months, days)``</span> | ``output`` is a ``number`` representing the time since epoch in nanoseconds after adding the ``years``, ``months`` and ``days`` to ``ns``; or ``undefined`` if outside the valid time range that can fit within an ``int64``. See the [Go `time` package documentation](https://golang.org/pkg/time/#Time.AddDate) for more details on ``add_date``. | ``SDK-dependent`` |
 | <span class="opa-keep-it-together">``output := time.diff(ns1, ns2)``<br/>``output := time.diff([ns1, tz1], [ns2, tz2])``</span> | ``output`` is of the form ``[year(s), month(s), day(s), hour(s), minute(s), second(s)]``, which outputs ``year(s)``, ``month(s)`` (0-11), ``day(s)`` (0-30),  ``hour(s)``(0-23), ``minute(s)``(0-59) and ``second(s)``(0-59)  as ``number``s representing the  difference between the the two timestamps in nanoseconds since epoch (``ns1`` and ``ns2``), in the timezones (``tz1`` and ``tz2``, respectively), if supplied, or as UTC. | ``SDK-dependent`` |
 
 > Multiple calls to the `time.now_ns` built-in function within a single policy
@@ -831,6 +831,10 @@ Note that the opa executable will need access to the timezone files in the envir
 | <span class="opa-keep-it-together">``output := crypto.md5(string)``</span> | ``output`` is ``string`` md5 hashed. | ``SDK-dependent`` |
 | <span class="opa-keep-it-together">``output := crypto.sha1(string)``</span> | ``output`` is ``string`` sha1 hashed. | ``SDK-dependent`` |
 | <span class="opa-keep-it-together">``output := crypto.sha256(string)``</span> | ``output`` is ``string`` sha256 hashed. | ``SDK-dependent`` |
+| <span class="opa-keep-it-together">``output := crypto.hmac.md5(string, key)``</span> | ``output`` is HMAC-MD5 of ``string`` using ``key`` | ``SDK-dependent`` |
+| <span class="opa-keep-it-together">``output := crypto.hmac.sha1(string, key)``</span> | ``output`` is HMAC-SHA-1 of ``string`` using ``key`` | ``SDK-dependent`` |
+| <span class="opa-keep-it-together">``output := crypto.hmac.sha256(string, key)``</span> | ``output`` is HMAC-SHA-256 of ``string`` using ``key`` | ``SDK-dependent`` |
+| <span class="opa-keep-it-together">``output := crypto.hmac.sha512(string, key)``</span> | ``output`` is HMAC-SHA-512 of ``string`` using ``key`` | ``SDK-dependent`` |
 
 ### Graphs
 

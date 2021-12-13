@@ -1,21 +1,23 @@
-{{ $home      := site.BaseURL }}
-{{ $logo      := site.Params.logos.navbar }}
-{{ $social    := site.Params.social }}
-{{ $github    := $social.github }}
-{{ $twitter   := printf "https://twitter.com/%s" $social.twitter }}
-{{ $medium    := $social.medium }}
-{{ $slack     := $social.slack }}
-{{ $docsHome  := .CurrentSection }}
-{{ $allDocs   := where site.RegularPages "Section" "docs" }}
-{{ $docs       := where $allDocs ".Params.kind" "eq" "documentation" }}
-{{ $kubernetes := where $allDocs ".Params.kind" "eq" "kubernetes" }}
-{{ $envoy := where $allDocs ".Params.kind" "eq" "envoy" }}
-{{ $tutorials  := where $allDocs ".Params.kind" "eq" "tutorial" }}
-{{ $operations := where $allDocs ".Params.kind" "eq" "operations" }}
-{{ $management := where $allDocs ".Params.kind" "eq" "management" }}
-{{ $misc := where $allDocs ".Params.kind" "eq" "misc" }}
-{{ $version   := index (split .File.Path "/") 1 }}
-{{ $pageUrl   := .URL }}
+{{ $home        := site.BaseURL }}
+{{ $logo        := site.Params.logos.navbar }}
+{{ $social      := site.Params.social }}
+{{ $github      := $social.github }}
+{{ $discussions := $social.discussions }}
+{{ $twitter     := printf "https://twitter.com/%s" $social.twitter }}
+{{ $medium      := $social.medium }}
+{{ $slack       := $social.slack }}
+{{ $docsHome    := .CurrentSection }}
+{{ $allDocs     := where site.RegularPages "Section" "docs" }}
+{{ $docs        := where $allDocs ".Params.kind" "eq" "documentation" }}
+{{ $kubernetes  := where $allDocs ".Params.kind" "eq" "kubernetes" }}
+{{ $envoy       := where $allDocs ".Params.kind" "eq" "envoy" }}
+{{ $tutorials   := where $allDocs ".Params.kind" "eq" "tutorial" }}
+{{ $operations  := where $allDocs ".Params.kind" "eq" "operations" }}
+{{ $management  := where $allDocs ".Params.kind" "eq" "management" }}
+{{ $contrib     := where $allDocs ".Params.kind" "eq" "contrib" }}
+{{ $misc        := where $allDocs ".Params.kind" "eq" "misc" }}
+{{ $version     := index (split .File.Path "/") 1 }}
+{{ $pageUrl     := .URL }}
 <nav class="navbar is-primary">
   <div class="navbar-brand is-hidden-tablet">
     <a class="navbar-item" href="{{ $home }}">
@@ -53,29 +55,32 @@
 
       {{ partial "docs/navbar-section.html" ( dict "ctx" . "sectionTitle" "Management APIs" "section" $management "pageUrl" $pageUrl "version" $version ) }}
 
+      {{ partial "docs/navbar-section.html" ( dict "ctx" . "sectionTitle" "Contributing" "section" $contrib "pageUrl" $pageUrl "version" $version ) }}
+
       {{ partial "docs/navbar-section.html" ( dict "ctx" . "sectionTitle" "Miscellaneous" "section" $misc "pageUrl" $pageUrl "version" $version ) }}
 
+      <br />
+
+      <span class="navbar-item is-size-5 has-text-weight-light is-uppercase">
+        Support
+      </span>
+      <a class="navbar-item" href="/support">
+        Enterprise and Commercial
+      </a>
     </div>
 
     <div class="navbar-end">
-      <!--
-      <div class="navbar-item">
-        <div class="field">
-          <p class="control is-expanded has-icons-right">
-            <input class="input" type="search" placeholder="Search...">
-            <span class="icon is-small is-right">
-              <icon />
-            </span>
-          </p>
-        </div>
-      </div>
-      -->
-
       <div class="navbar-item">
         <div class="buttons">
           <a class="button is-primary" href="{{ $github }}" target="_blank">
             <span class="icon has-text-white-bis">
               <i class="fab fa-github"></i>
+            </span>
+          </a>
+
+          <a class="button is-primary" href="{{ $discussions }}" target="_blank">
+            <span class="icon has-text-white-bis">
+              <i class="fas fa-comments"></i>
             </span>
           </a>
 
@@ -112,25 +117,31 @@
         </p>
       </div>
 
-      <a class="navbar-item" href="{{ $github }}" target="_blank">
+      <a class="navbar-item" href="{{ $github }}" target="_blank" title="GitHub">
         <span class="icon has-text-white-bis">
           <i class="fab fa-github"></i>
         </span>
       </a>
 
-      <a class="navbar-item" href="{{ $twitter }}" target="_blank">
+      <a class="navbar-item" href="{{ $discussions }}" target="_blank" title="GitHub Discussions">
+        <span class="icon has-text-white-bis">
+          <i class="fas fa-comments"></i>
+        </span>
+      </a>
+
+      <a class="navbar-item" href="{{ $twitter }}" target="_blank" title="Twitter">
         <span class="icon has-text-white-bis">
           <i class="fab fa-twitter"></i>
         </span>
       </a>
 
-      <a class="navbar-item" href="{{ $medium }}" target="_blank">
+      <a class="navbar-item" href="{{ $medium }}" target="_blank" title="Medium">
         <span class="icon has-text-white-bis">
           <i class="fab fa-medium"></i>
         </span>
       </a>
 
-      <a class="navbar-item" href="{{ $slack }}" target="_blank">
+      <a class="navbar-item" href="{{ $slack }}" target="_blank" title="Slack">
         <span class="icon has-text-white-bis">
           <i class="fab fa-slack"></i>
         </span>

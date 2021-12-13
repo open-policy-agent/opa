@@ -17,10 +17,20 @@ import (
 	"github.com/open-policy-agent/opa/server/identifier"
 	"github.com/open-policy-agent/opa/server/types"
 	"github.com/open-policy-agent/opa/storage/inmem"
+	"github.com/open-policy-agent/opa/topdown/print"
 	"github.com/open-policy-agent/opa/util"
 )
 
 type mockHandler struct {
+}
+
+type appendingPrintHook struct {
+	printed *[]string
+}
+
+func (a appendingPrintHook) Print(_ print.Context, s string) error {
+	*a.printed = append(*a.printed, s)
+	return nil
 }
 
 func (h *mockHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -64,6 +74,7 @@ func TestBasic(t *testing.T) {
             not wrong_object              # object response, wrong key
             not input.path[0] = "reason"  # custom reason
             not conflict_error            # eval errors
+			print("ok")
         }
 
         undefined_case {
@@ -131,7 +142,7 @@ func TestBasic(t *testing.T) {
             "DELETE": "write",
         }
         `
-		c := ast.NewCompiler()
+		c := ast.NewCompiler().WithEnablePrintStatements(true)
 		c.Compile(map[string]*ast.Module{
 			"test.rego": ast.MustParseModule(module),
 		})
@@ -170,19 +181,20 @@ func TestBasic(t *testing.T) {
 		expectedStatus int
 		expectedCode   string
 		expectedMsg    string
+		expectedPrint  []string
 	}{
-		{"root (ok)", "token0", http.MethodGet, "", http.StatusOK, "", ""},
-		{"index.html (ok)", "token0", http.MethodGet, "/index.html", http.StatusOK, "", ""},
-		{"undefined", "token0", http.MethodGet, "/undefined", http.StatusInternalServerError, types.CodeInternal, types.MsgUnauthorizedUndefinedError},
-		{"evaluation error", "token0", http.MethodGet, "/conflict_error", http.StatusInternalServerError, types.CodeInternal, types.MsgEvaluationError},
-		{"ok", "token1", http.MethodGet, "/data/some/specific/document", http.StatusOK, "", ""},
-		{"ok (w/ query params)", "token1", http.MethodGet, "/data/some/specific/document?pretty=true", http.StatusOK, "", ""},
-		{"unauthorized method", "token1", http.MethodPut, "/data/some/specific/document", http.StatusUnauthorized, types.CodeUnauthorized, types.MsgUnauthorizedError},
-		{"unauthorized path", "token2", http.MethodGet, "/data/some/doc/not/allowed", http.StatusUnauthorized, types.CodeUnauthorized, types.MsgUnauthorizedError},
-		{"unauthorized path (w/ query params)", "token2", http.MethodGet, "/data/some/doc/not/allowed?pretty=true", http.StatusUnauthorized, types.CodeUnauthorized, types.MsgUnauthorizedError},
-		{"custom reason", "token2", http.MethodGet, "/reason", http.StatusUnauthorized, types.CodeUnauthorized, "custom reason"},
-		{"custom reason, wrong type", "token2", http.MethodGet, "/reason/wrong_type", http.StatusUnauthorized, types.CodeUnauthorized, types.MsgUnauthorizedError},
-		{"non-bool/obj response", "token2", http.MethodGet, "/reason/wrong_object", http.StatusInternalServerError, types.CodeInternal, types.MsgUndefinedError},
+		{"root (ok)", "token0", http.MethodGet, "", http.StatusOK, "", "", []string{"ok"}},
+		{"index.html (ok)", "token0", http.MethodGet, "/index.html", http.StatusOK, "", "", []string{"ok"}},
+		{"undefined", "token0", http.MethodGet, "/undefined", http.StatusInternalServerError, types.CodeInternal, types.MsgUnauthorizedUndefinedError, []string{}},
+		{"evaluation error", "token0", http.MethodGet, "/conflict_error", http.StatusInternalServerError, types.CodeInternal, types.MsgEvaluationError, []string{}},
+		{"ok", "token1", http.MethodGet, "/data/some/specific/document", http.StatusOK, "", "", []string{"ok"}},
+		{"ok (w/ query params)", "token1", http.MethodGet, "/data/some/specific/document?pretty=true", http.StatusOK, "", "", []string{"ok"}},
+		{"unauthorized method", "token1", http.MethodPut, "/data/some/specific/document", http.StatusUnauthorized, types.CodeUnauthorized, types.MsgUnauthorizedError, []string{"ok"}},
+		{"unauthorized path", "token2", http.MethodGet, "/data/some/doc/not/allowed", http.StatusUnauthorized, types.CodeUnauthorized, types.MsgUnauthorizedError, []string{"ok"}},
+		{"unauthorized path (w/ query params)", "token2", http.MethodGet, "/data/some/doc/not/allowed?pretty=true", http.StatusUnauthorized, types.CodeUnauthorized, types.MsgUnauthorizedError, []string{"ok"}},
+		{"custom reason", "token2", http.MethodGet, "/reason", http.StatusUnauthorized, types.CodeUnauthorized, "custom reason", []string{}},
+		{"custom reason, wrong type", "token2", http.MethodGet, "/reason/wrong_type", http.StatusUnauthorized, types.CodeUnauthorized, types.MsgUnauthorizedError, []string{}},
+		{"non-bool/obj response", "token2", http.MethodGet, "/reason/wrong_object", http.StatusInternalServerError, types.CodeInternal, types.MsgUndefinedError, []string{}},
 	}
 
 	for _, tc := range tests {
@@ -198,12 +210,24 @@ func TestBasic(t *testing.T) {
 				req = identifier.SetIdentity(req, tc.identity)
 			}
 
-			NewBasic(&mockHandler{}, compiler, store, Decision(func() ast.Ref {
-				return ast.MustParseRef("data.system.authz.allow")
-			})).ServeHTTP(recorder, req)
+			var output []string
+			NewBasic(
+				&mockHandler{},
+				compiler,
+				store,
+				EnablePrintStatements(true),
+				PrintHook(appendingPrintHook{printed: &output}),
+				Decision(func() ast.Ref {
+					return ast.MustParseRef("data.system.authz.allow")
+				}),
+			).ServeHTTP(recorder, req)
 
 			if recorder.Code != tc.expectedStatus {
 				t.Fatalf("Expected status code %v but got: %v", tc.expectedStatus, recorder)
+			}
+
+			if !Equal(tc.expectedPrint, output) {
+				t.Errorf("Expected output %v, got %v", tc.expectedPrint, output)
 			}
 
 			// Check code/message if response should be error.
@@ -429,4 +453,16 @@ func TestMakeInputWithBody(t *testing.T) {
 
 	}
 
+}
+
+func Equal(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i, v := range a {
+		if v != b[i] {
+			return false
+		}
+	}
+	return true
 }
