@@ -12,13 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/*
-Package propagation contains OpenTelemetry context propagators.
+package otel // import "go.opentelemetry.io/otel"
 
-OpenTelemetry propagators are used to extract and inject context data from and
-into messages exchanged by applications. The propagator supported by this
-package is the W3C Trace Context encoding
-(https://www.w3.org/TR/trace-context/), and W3C Baggage
-(https://www.w3.org/TR/baggage/).
-*/
-package propagation // import "go.opentelemetry.io/otel/propagation"
+import (
+	"github.com/go-logr/logr"
+
+	"go.opentelemetry.io/otel/internal/global"
+)
+
+// SetLogger configures the logger used internally to opentelemetry.
+func SetLogger(logger logr.Logger) {
+	global.SetLogger(logger)
+}
