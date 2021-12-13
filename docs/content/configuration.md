@@ -69,6 +69,13 @@ keys:
 caching:
   inter_query_builtin_cache:
     max_size_bytes: 10000000
+
+distributed_tracing:
+  enabled: true
+  address: localhost:4317
+  service_name: opa
+  sample_percentage: 50
+  encryption: "off"
 ```
 
 #### Environment Variable Substitution
@@ -801,3 +808,27 @@ The following `discovery` configuration fields are supported but deprecated:
 | --- | --- | --- | --- |
 | `discovery.prefix` | `string` | No (default: `bundles`) | Deprecated: Use `resource` instead. Path prefix to use to download configuration from remote server. |
 | `discovery.name` | `string` | No | Deprecated: Use `resource` instead. Name of the discovery configuration to download. If `discovery.name` is specified and `discovery.resource` is unset, the `discovery.decision` field will default to the `discovery.name` value. |
+
+### Distributed tracing
+
+Distributed tracing represents the configuration of the OpenTelemetry Tracing.
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `distributed_tracing.enabled` | `bool` | No (default: `false`) | Enables distributed tracing. |
+| `distributed_tracing.address` | `string` | No (default: `localhost:4317`) | Address of the OpenTelemetry Collector gRPC endpoint. |
+| `distributed_tracing.service_name` | `string` | No (default: `opa`) | Logical name of the service. |
+| `distributed_tracing.sample_percentage` | `int` | No (default: `100`) | Percentage of traces that are sampled and exported. |
+| `distributed_tracing.encryption` | `string` | No (default: `off`) | Configures TLS. |
+| `distributed_tracing.allow_insecure_tls` | `bool` | No (default: `false`) | Allow insecure TLS. |
+| `distributed_tracing.tls_ca_cert_file` | `string` | No | The path to the root CA certificate. |
+| `distributed_tracing.tls_cert_file` | `string` | No (unless `encryption` equals `mtls`) | The path to the client certificate to authenticate with. |
+| `distributed_tracing.tls_private_key_file` | `string` | No (unless `tls_cert_file` provided)  | The path to the private key of the client certificate. |
+
+The following encryption methods are supported:
+
+| Name | Description |
+| --- | --- |
+| `off` | Disable TLS |
+| `tls` | Enable TLS |
+| `mtls` | Enable mutual TLS |

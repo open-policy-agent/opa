@@ -26,12 +26,15 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
+	"github.com/open-policy-agent/opa/internal/distributedtracing"
+
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/plugins"
 	bundlePlugin "github.com/open-policy-agent/opa/plugins/bundle"
@@ -128,6 +131,7 @@ type Server struct {
 	defaultDecisionPath    string
 	interQueryBuiltinCache iCache.InterQueryCache
 	allPluginsOkOnce       bool
+	distributedTracingOpts distributedtracing.Options
 }
 
 // Metrics defines the interface that the server requires for recording HTTP
@@ -330,6 +334,12 @@ func (s *Server) WithMinTLSVersion(minTLSVersion uint16) *Server {
 	} else {
 		s.minTLSVersion = defaultMinTLSVersion
 	}
+	return s
+}
+
+// WithDistributedTracingOpts sets the options to be used by distributed tracing.
+func (s *Server) WithDistributedTracingOpts(traceOpts distributedtracing.Options) *Server {
+	s.distributedTracingOpts = traceOpts
 	return s
 }
 
@@ -724,10 +734,14 @@ func (s *Server) initRouters() {
 }
 
 func (s *Server) instrumentHandler(handler func(http.ResponseWriter, *http.Request), label string) http.Handler {
-	if s.metrics != nil {
-		return s.metrics.InstrumentHandler(http.HandlerFunc(handler), label)
+	var httpHandler http.Handler = http.HandlerFunc(handler)
+	if len(s.distributedTracingOpts) > 0 {
+		httpHandler = otelhttp.NewHandler(http.HandlerFunc(handler), label, s.distributedTracingOpts...)
 	}
-	return http.HandlerFunc(handler)
+	if s.metrics != nil {
+		return s.metrics.InstrumentHandler(httpHandler, label)
+	}
+	return httpHandler
 }
 
 func (s *Server) execQuery(ctx context.Context, r *http.Request, br bundleRevisions, txn storage.Transaction, decisionID string, parsedQuery ast.Body, input ast.Value, m metrics.Metrics, explainMode types.ExplainModeV1, includeMetrics, includeInstrumentation, pretty bool) (results types.QueryResponseV1, err error) {
@@ -1349,6 +1363,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 			rego.UnsafeBuiltins(unsafeBuiltinsMap),
 			rego.StrictBuiltinErrors(strictBuiltinErrors),
 			rego.PrintHook(s.manager.PrintHook()),
+			rego.DistributedTracingOpts(s.distributedTracingOpts),
 		}
 
 		for _, r := range s.manager.GetWasmResolvers() {

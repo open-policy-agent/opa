@@ -26,9 +26,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/open-policy-agent/opa/internal/distributedtracing"
 	"github.com/open-policy-agent/opa/internal/version"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/topdown/builtins"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
 	iCache "github.com/open-policy-agent/opa/topdown/cache"
 
@@ -2622,4 +2624,55 @@ func TestSocketHTTPGetRequest(t *testing.T) {
 	for _, tc := range tests {
 		runTopDownTestCase(t, data, tc.note, append(tc.rules, httpSendHelperRules...), tc.expected)
 	}
+}
+
+func TestDistributedTracingEnabled(t *testing.T) {
+	c := []byte(`{"distributed_tracing": {
+		"enabled": true
+		}}`)
+
+	ctx := context.Background()
+	_, traceOpts, err := distributedtracing.Init(ctx, c, "foo")
+	if err != nil {
+		t.Fatalf("Unexpected error initializing trace exporter %v", err)
+	}
+
+	builtinContext := BuiltinContext{
+		Context:                ctx,
+		DistributedTracingOpts: traceOpts,
+	}
+
+	obj := ast.NewObject()
+	_, client, err := createHTTPRequest(builtinContext, obj)
+	if err != nil {
+		t.Fatalf("Unexpected error creating HTTP request %v", err)
+	}
+	if client.Transport == nil {
+		t.Fatal("No Transport defined")
+	}
+
+	_, ok := client.Transport.(*otelhttp.Transport)
+
+	if !ok {
+		t.Fatal("Expected otelhttp.Transport")
+	}
+
+}
+
+func TestDistributedTracingDisabled(t *testing.T) {
+	obj := ast.NewObject()
+	_, client, err := createHTTPRequest(BuiltinContext{Context: context.Background()}, obj)
+	if err != nil {
+		t.Fatalf("Unexpected error creating HTTP request %v", err)
+	}
+	if client.Transport == nil {
+		t.Fatal("No Transport defined")
+	}
+
+	_, ok := client.Transport.(*otelhttp.Transport)
+
+	if ok {
+		t.Fatal("Unexpected otelhttp.Transport")
+	}
+
 }

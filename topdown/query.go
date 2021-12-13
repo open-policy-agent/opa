@@ -12,6 +12,7 @@ import (
 	"github.com/open-policy-agent/opa/topdown/print"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/internal/distributedtracing"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/topdown/builtins"
@@ -54,6 +55,7 @@ type Query struct {
 	interQueryBuiltinCache cache.InterQueryCache
 	strictBuiltinErrors    bool
 	printHook              print.Hook
+	distributedTracingOpts distributedtracing.Options
 }
 
 // Builtin represents a built-in function that queries can call.
@@ -258,6 +260,12 @@ func (q *Query) WithPrintHook(h print.Hook) *Query {
 	return q
 }
 
+// WithDistributedTracingOpts sets the options to be used by distributed tracing.
+func (q *Query) WithDistributedTracingOpts(tr distributedtracing.Options) *Query {
+	q.distributedTracingOpts = tr
+	return q
+}
+
 // PartialRun executes partial evaluation on the query with respect to unknown
 // values. Partial evaluation attempts to evaluate as much of the query as
 // possible without requiring values for the unknowns set on the query. The
@@ -453,6 +461,7 @@ func (q *Query) Iter(ctx context.Context, iter func(QueryResult) error) error {
 		earlyExit:              q.earlyExit,
 		builtinErrors:          &builtinErrors{},
 		printHook:              q.printHook,
+		distributedTracingOpts: q.distributedTracingOpts,
 	}
 	e.caller = e
 	q.metrics.Timer(metrics.RegoQueryEval).Start()

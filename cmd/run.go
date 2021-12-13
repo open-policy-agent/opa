@@ -277,7 +277,14 @@ func initRuntime(ctx context.Context, params runCmdParams, args []string) (*runt
 		return nil, fmt.Errorf("enable bundle mode (ie. --bundle) to verify bundle files or directories")
 	}
 
-	return runtime.NewRuntime(ctx, params.rt)
+	rt, err := runtime.NewRuntime(ctx, params.rt)
+	if err != nil {
+		return nil, err
+	}
+
+	rt.SetDistributedTracingErrorHandler()
+
+	return rt, nil
 }
 
 func startRuntime(ctx context.Context, rt *runtime.Runtime, serverMode bool) {
