@@ -586,9 +586,10 @@ func (rt *Runtime) StartREPL(ctx context.Context) {
 	repl.Loop(ctx)
 }
 
-// SetDistributedTracingErrorHandler configures the distributed tracing's ErrorHandler.
-func (rt *Runtime) SetDistributedTracingErrorHandler() {
-	internal_tracing.SetErrorHandler(rt.logger)
+// SetDistributedTracingLogging configures the distributed tracing's ErrorHandler,
+// and logger instances.
+func (rt *Runtime) SetDistributedTracingLogging() {
+	internal_tracing.SetupLogging(rt.logger)
 }
 
 func (rt *Runtime) checkOPAUpdate(ctx context.Context) *report.DataResponse {

@@ -282,7 +282,7 @@ func initRuntime(ctx context.Context, params runCmdParams, args []string) (*runt
 		return nil, err
 	}
 
-	rt.SetDistributedTracingErrorHandler()
+	rt.SetDistributedTracingLogging()
 
 	return rt, nil
 }

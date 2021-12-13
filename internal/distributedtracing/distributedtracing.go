@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io/ioutil"
 
+	"github.com/go-logr/logr"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
@@ -124,10 +125,9 @@ func Init(ctx context.Context, raw []byte, id string) (*otlptrace.Exporter, trac
 	return traceExporter, options, nil
 }
 
-func SetErrorHandler(logger logging.Logger) {
-	otel.SetErrorHandler(&errorHandler{
-		logger: logger,
-	})
+func SetupLogging(logger logging.Logger) {
+	otel.SetErrorHandler(&errorHandler{logger: logger})
+	otel.SetLogger(logr.New(&sink{logger: logger}))
 }
 
 func parseDistributedTracingConfig(raw []byte) (*distributedTracingConfig, error) {
@@ -251,4 +251,38 @@ type errorHandler struct {
 
 func (e *errorHandler) Handle(err error) {
 	e.logger.Warn("Distributed tracing: " + err.Error())
+}
+
+// NOTE(sr): This adapter code is used to ensure that whatever otel logs, now or
+// in the future, will end up in "our" logs, and not go through whatever defaults
+// it has set up with its global logger. As such, it's to a full-featured
+// implementation fo the logr.LogSink interface, but a rather minimal one. Notably,
+// fields are no supported, the initial runtime time info is ignored, and there is
+// no support for different verbosity level is "info" logs: they're all printed
+// as-is.
+
+type sink struct {
+	logger logging.Logger
+}
+
+func (s *sink) Enabled(level int) bool {
+	return int(s.logger.GetLevel()) >= level
+}
+
+func (*sink) Init(logr.RuntimeInfo) {} // ignored
+
+func (s *sink) Info(_ int, msg string, _ ...interface{}) {
+	s.logger.Info(msg)
+}
+
+func (s *sink) Error(err error, msg string, _ ...interface{}) {
+	s.logger.WithFields(map[string]interface{}{"err": err}).Error(msg)
+}
+
+func (s *sink) WithName(name string) logr.LogSink {
+	return &sink{s.logger.WithFields(map[string]interface{}{"name": name})}
+}
+
+func (s *sink) WithValues(...interface{}) logr.LogSink { // ignored
+	return s
 }
