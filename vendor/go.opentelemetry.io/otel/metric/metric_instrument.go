@@ -260,11 +260,6 @@ type syncInstrument struct {
 	instrument sdkapi.SyncImpl
 }
 
-// syncBoundInstrument contains a BoundSyncImpl.
-type syncBoundInstrument struct {
-	boundInstrument sdkapi.BoundSyncImpl
-}
-
 // asyncInstrument contains a AsyncImpl.
 type asyncInstrument struct {
 	instrument sdkapi.AsyncImpl
@@ -280,10 +275,6 @@ func (s syncInstrument) SyncImpl() sdkapi.SyncImpl {
 	return s.instrument
 }
 
-func (s syncInstrument) bind(labels []attribute.KeyValue) syncBoundInstrument {
-	return newSyncBoundInstrument(s.instrument.Bind(labels))
-}
-
 func (s syncInstrument) float64Measurement(value float64) Measurement {
 	return sdkapi.NewMeasurement(s.instrument, number.NewFloat64Number(value))
 }
@@ -294,15 +285,6 @@ func (s syncInstrument) int64Measurement(value int64) Measurement {
 
 func (s syncInstrument) directRecord(ctx context.Context, number number.Number, labels []attribute.KeyValue) {
 	s.instrument.RecordOne(ctx, number, labels)
-}
-
-func (h syncBoundInstrument) directRecord(ctx context.Context, number number.Number) {
-	h.boundInstrument.RecordOne(ctx, number)
-}
-
-// Unbind calls SyncImpl.Unbind.
-func (h syncBoundInstrument) Unbind() {
-	h.boundInstrument.Unbind()
 }
 
 // checkNewAsync receives an AsyncImpl and potential
@@ -338,12 +320,6 @@ func checkNewSync(instrument sdkapi.SyncImpl, err error) (syncInstrument, error)
 	return syncInstrument{
 		instrument: instrument,
 	}, err
-}
-
-func newSyncBoundInstrument(boundInstrument sdkapi.BoundSyncImpl) syncBoundInstrument {
-	return syncBoundInstrument{
-		boundInstrument: boundInstrument,
-	}
 }
 
 // wrapInt64CounterInstrument converts a SyncImpl into Int64Counter.
@@ -392,34 +368,6 @@ type Int64Counter struct {
 	syncInstrument
 }
 
-// BoundFloat64Counter is a bound instrument for Float64Counter.
-//
-// It inherits the Unbind function from syncBoundInstrument.
-type BoundFloat64Counter struct {
-	syncBoundInstrument
-}
-
-// BoundInt64Counter is a boundInstrument for Int64Counter.
-//
-// It inherits the Unbind function from syncBoundInstrument.
-type BoundInt64Counter struct {
-	syncBoundInstrument
-}
-
-// Bind creates a bound instrument for this counter. The labels are
-// associated with values recorded via subsequent calls to Record.
-func (c Float64Counter) Bind(labels ...attribute.KeyValue) (h BoundFloat64Counter) {
-	h.syncBoundInstrument = c.bind(labels)
-	return
-}
-
-// Bind creates a bound instrument for this counter. The labels are
-// associated with values recorded via subsequent calls to Record.
-func (c Int64Counter) Bind(labels ...attribute.KeyValue) (h BoundInt64Counter) {
-	h.syncBoundInstrument = c.bind(labels)
-	return
-}
-
 // Measurement creates a Measurement object to use with batch
 // recording.
 func (c Float64Counter) Measurement(value float64) Measurement {
@@ -444,18 +392,6 @@ func (c Int64Counter) Add(ctx context.Context, value int64, labels ...attribute.
 	c.directRecord(ctx, number.NewInt64Number(value), labels)
 }
 
-// Add adds the value to the counter's sum using the labels
-// previously bound to this counter via Bind()
-func (b BoundFloat64Counter) Add(ctx context.Context, value float64) {
-	b.directRecord(ctx, number.NewFloat64Number(value))
-}
-
-// Add adds the value to the counter's sum using the labels
-// previously bound to this counter via Bind()
-func (b BoundInt64Counter) Add(ctx context.Context, value int64) {
-	b.directRecord(ctx, number.NewInt64Number(value))
-}
-
 // Float64UpDownCounter is a metric instrument that sums floating
 // point values.
 type Float64UpDownCounter struct {
@@ -465,34 +401,6 @@ type Float64UpDownCounter struct {
 // Int64UpDownCounter is a metric instrument that sums integer values.
 type Int64UpDownCounter struct {
 	syncInstrument
-}
-
-// BoundFloat64UpDownCounter is a bound instrument for Float64UpDownCounter.
-//
-// It inherits the Unbind function from syncBoundInstrument.
-type BoundFloat64UpDownCounter struct {
-	syncBoundInstrument
-}
-
-// BoundInt64UpDownCounter is a boundInstrument for Int64UpDownCounter.
-//
-// It inherits the Unbind function from syncBoundInstrument.
-type BoundInt64UpDownCounter struct {
-	syncBoundInstrument
-}
-
-// Bind creates a bound instrument for this counter. The labels are
-// associated with values recorded via subsequent calls to Record.
-func (c Float64UpDownCounter) Bind(labels ...attribute.KeyValue) (h BoundFloat64UpDownCounter) {
-	h.syncBoundInstrument = c.bind(labels)
-	return
-}
-
-// Bind creates a bound instrument for this counter. The labels are
-// associated with values recorded via subsequent calls to Record.
-func (c Int64UpDownCounter) Bind(labels ...attribute.KeyValue) (h BoundInt64UpDownCounter) {
-	h.syncBoundInstrument = c.bind(labels)
-	return
 }
 
 // Measurement creates a Measurement object to use with batch
@@ -519,18 +427,6 @@ func (c Int64UpDownCounter) Add(ctx context.Context, value int64, labels ...attr
 	c.directRecord(ctx, number.NewInt64Number(value), labels)
 }
 
-// Add adds the value to the counter's sum using the labels
-// previously bound to this counter via Bind()
-func (b BoundFloat64UpDownCounter) Add(ctx context.Context, value float64) {
-	b.directRecord(ctx, number.NewFloat64Number(value))
-}
-
-// Add adds the value to the counter's sum using the labels
-// previously bound to this counter via Bind()
-func (b BoundInt64UpDownCounter) Add(ctx context.Context, value int64) {
-	b.directRecord(ctx, number.NewInt64Number(value))
-}
-
 // Float64Histogram is a metric that records float64 values.
 type Float64Histogram struct {
 	syncInstrument
@@ -539,34 +435,6 @@ type Float64Histogram struct {
 // Int64Histogram is a metric that records int64 values.
 type Int64Histogram struct {
 	syncInstrument
-}
-
-// BoundFloat64Histogram is a bound instrument for Float64Histogram.
-//
-// It inherits the Unbind function from syncBoundInstrument.
-type BoundFloat64Histogram struct {
-	syncBoundInstrument
-}
-
-// BoundInt64Histogram is a bound instrument for Int64Histogram.
-//
-// It inherits the Unbind function from syncBoundInstrument.
-type BoundInt64Histogram struct {
-	syncBoundInstrument
-}
-
-// Bind creates a bound instrument for this Histogram. The labels are
-// associated with values recorded via subsequent calls to Record.
-func (c Float64Histogram) Bind(labels ...attribute.KeyValue) (h BoundFloat64Histogram) {
-	h.syncBoundInstrument = c.bind(labels)
-	return
-}
-
-// Bind creates a bound instrument for this Histogram. The labels are
-// associated with values recorded via subsequent calls to Record.
-func (c Int64Histogram) Bind(labels ...attribute.KeyValue) (h BoundInt64Histogram) {
-	h.syncBoundInstrument = c.bind(labels)
-	return
 }
 
 // Measurement creates a Measurement object to use with batch
@@ -593,16 +461,4 @@ func (c Float64Histogram) Record(ctx context.Context, value float64, labels ...a
 // this value.
 func (c Int64Histogram) Record(ctx context.Context, value int64, labels ...attribute.KeyValue) {
 	c.directRecord(ctx, number.NewInt64Number(value), labels)
-}
-
-// Record adds a new value to the Histogram's distribution using the labels
-// previously bound to the Histogram via Bind().
-func (b BoundFloat64Histogram) Record(ctx context.Context, value float64) {
-	b.directRecord(ctx, number.NewFloat64Number(value))
-}
-
-// Record adds a new value to the Histogram's distribution using the labels
-// previously bound to the Histogram via Bind().
-func (b BoundInt64Histogram) Record(ctx context.Context, value int64) {
-	b.directRecord(ctx, number.NewInt64Number(value))
 }
