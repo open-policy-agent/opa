@@ -26,8 +26,8 @@ import (
 	"github.com/open-policy-agent/opa/internal/version"
 	"github.com/open-policy-agent/opa/topdown/builtins"
 	"github.com/open-policy-agent/opa/topdown/cache"
+	"github.com/open-policy-agent/opa/tracing"
 	"github.com/open-policy-agent/opa/util"
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 type cachingMode string
@@ -574,7 +574,7 @@ func createHTTPRequest(bctx BuiltinContext, obj ast.Object) (*http.Request, *htt
 	}
 
 	if len(bctx.DistributedTracingOpts) > 0 {
-		client.Transport = otelhttp.NewTransport(client.Transport, bctx.DistributedTracingOpts...)
+		client.Transport = tracing.NewTransport(client.Transport, bctx.DistributedTracingOpts)
 	}
 
 	return req, client, nil

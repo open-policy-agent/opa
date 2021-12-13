@@ -7,16 +7,15 @@ import (
 	"sort"
 	"time"
 
-	"github.com/open-policy-agent/opa/resolver"
-	"github.com/open-policy-agent/opa/topdown/cache"
-	"github.com/open-policy-agent/opa/topdown/print"
-
 	"github.com/open-policy-agent/opa/ast"
-	"github.com/open-policy-agent/opa/internal/distributedtracing"
 	"github.com/open-policy-agent/opa/metrics"
+	"github.com/open-policy-agent/opa/resolver"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/topdown/builtins"
+	"github.com/open-policy-agent/opa/topdown/cache"
 	"github.com/open-policy-agent/opa/topdown/copypropagation"
+	"github.com/open-policy-agent/opa/topdown/print"
+	"github.com/open-policy-agent/opa/tracing"
 )
 
 // QueryResultSet represents a collection of results returned by a query.
@@ -55,7 +54,7 @@ type Query struct {
 	interQueryBuiltinCache cache.InterQueryCache
 	strictBuiltinErrors    bool
 	printHook              print.Hook
-	distributedTracingOpts distributedtracing.Options
+	tracingOpts            tracing.Options
 }
 
 // Builtin represents a built-in function that queries can call.
@@ -261,8 +260,8 @@ func (q *Query) WithPrintHook(h print.Hook) *Query {
 }
 
 // WithDistributedTracingOpts sets the options to be used by distributed tracing.
-func (q *Query) WithDistributedTracingOpts(tr distributedtracing.Options) *Query {
-	q.distributedTracingOpts = tr
+func (q *Query) WithDistributedTracingOpts(tr tracing.Options) *Query {
+	q.tracingOpts = tr
 	return q
 }
 
@@ -461,7 +460,7 @@ func (q *Query) Iter(ctx context.Context, iter func(QueryResult) error) error {
 		earlyExit:              q.earlyExit,
 		builtinErrors:          &builtinErrors{},
 		printHook:              q.printHook,
-		distributedTracingOpts: q.distributedTracingOpts,
+		tracingOpts:            q.tracingOpts,
 	}
 	e.caller = e
 	q.metrics.Timer(metrics.RegoQueryEval).Start()

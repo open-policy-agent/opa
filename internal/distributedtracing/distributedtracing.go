@@ -1,3 +1,7 @@
+// Copyright 2021 The OPA Authors.  All rights reserved.
+// Use of this source code is governed by an Apache2
+// license that can be found in the LICENSE file.
+
 package distributedtracing
 
 import (
@@ -7,9 +11,6 @@ import (
 	"fmt"
 	"io/ioutil"
 
-	"github.com/open-policy-agent/opa/config"
-	"github.com/open-policy-agent/opa/logging"
-	"github.com/open-policy-agent/opa/util"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
@@ -19,6 +20,16 @@ import (
 	"go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.7.0"
 	"google.golang.org/grpc/credentials"
+
+	"github.com/open-policy-agent/opa/config"
+	"github.com/open-policy-agent/opa/logging"
+	"github.com/open-policy-agent/opa/tracing"
+	"github.com/open-policy-agent/opa/util"
+
+	// The import registers opentelemetry with the top-level `tracing` package,
+	// so the latter can be used from rego/topdown without an explicit build-time
+	// dependency.
+	_ "github.com/open-policy-agent/opa/features/tracing"
 )
 
 const (
@@ -55,9 +66,7 @@ type distributedTracingConfig struct {
 	TLSCACertFile         string `json:"tls_ca_cert_file,omitempty"`
 }
 
-type Options []otelhttp.Option
-
-func Init(ctx context.Context, raw []byte, id string) (traceExporter *otlptrace.Exporter, options Options, err error) {
+func Init(ctx context.Context, raw []byte, id string) (*otlptrace.Exporter, tracing.Options, error) {
 	parsedConfig, err := config.ParseConfig(raw, id)
 	if err != nil {
 		return nil, nil, err
@@ -87,8 +96,10 @@ func Init(ctx context.Context, raw []byte, id string) (traceExporter *otlptrace.
 		return nil, nil, err
 	}
 
-	traceExporter = otlptracegrpc.NewUnstarted(otlptracegrpc.WithEndpoint(distributedTracingConfig.Address),
-		tlsOption)
+	traceExporter := otlptracegrpc.NewUnstarted(
+		otlptracegrpc.WithEndpoint(distributedTracingConfig.Address),
+		tlsOption,
+	)
 
 	res, err := resource.New(ctx,
 		resource.WithAttributes(
@@ -105,7 +116,7 @@ func Init(ctx context.Context, raw []byte, id string) (traceExporter *otlptrace.
 		trace.WithSpanProcessor(trace.NewBatchSpanProcessor(traceExporter)),
 	)
 
-	options = append(options,
+	options := tracing.NewOptions(
 		otelhttp.WithTracerProvider(traceProvider),
 		otelhttp.WithPropagators(propagation.TraceContext{}),
 	)
