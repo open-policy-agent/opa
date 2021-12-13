@@ -58,24 +58,8 @@ type InstrumentImpl interface {
 type SyncImpl interface {
 	InstrumentImpl
 
-	// Bind creates an implementation-level bound instrument,
-	// binding a label set with this instrument implementation.
-	Bind(labels []attribute.KeyValue) BoundSyncImpl
-
 	// RecordOne captures a single synchronous metric event.
 	RecordOne(ctx context.Context, number number.Number, labels []attribute.KeyValue)
-}
-
-// BoundSyncImpl is the implementation-level interface to a
-// generic bound synchronous instrument
-type BoundSyncImpl interface {
-
-	// RecordOne captures a single synchronous metric event.
-	RecordOne(ctx context.Context, number number.Number)
-
-	// Unbind frees the resources associated with this bound instrument. It
-	// does not affect the metric this bound instrument was created through.
-	Unbind()
 }
 
 // AsyncImpl is an implementation-level interface to an

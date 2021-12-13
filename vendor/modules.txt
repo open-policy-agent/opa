@@ -188,7 +188,7 @@ go.opencensus.io/internal
 go.opencensus.io/trace
 go.opencensus.io/trace/internal
 go.opencensus.io/trace/tracestate
-# go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.27.0
+# go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.28.0
 ## explicit
 go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp
 # go.opentelemetry.io/otel v1.3.0
@@ -212,10 +212,10 @@ go.opentelemetry.io/otel/exporters/otlp/otlptrace/internal/tracetransform
 # go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.3.0
 ## explicit
 go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc
-# go.opentelemetry.io/otel/internal/metric v0.25.0
+# go.opentelemetry.io/otel/internal/metric v0.26.0
 go.opentelemetry.io/otel/internal/metric/global
 go.opentelemetry.io/otel/internal/metric/registry
-# go.opentelemetry.io/otel/metric v0.25.0
+# go.opentelemetry.io/otel/metric v0.26.0
 go.opentelemetry.io/otel/metric
 go.opentelemetry.io/otel/metric/global
 go.opentelemetry.io/otel/metric/number

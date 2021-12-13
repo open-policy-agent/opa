@@ -22,12 +22,10 @@ import (
 )
 
 type noopInstrument struct{}
-type noopBoundInstrument struct{}
 type noopSyncInstrument struct{ noopInstrument }
 type noopAsyncInstrument struct{ noopInstrument }
 
 var _ SyncImpl = noopSyncInstrument{}
-var _ BoundSyncImpl = noopBoundInstrument{}
 var _ AsyncImpl = noopAsyncInstrument{}
 
 // NewNoopSyncInstrument returns a No-op implementation of the
@@ -48,16 +46,6 @@ func (noopInstrument) Implementation() interface{} {
 
 func (noopInstrument) Descriptor() Descriptor {
 	return Descriptor{}
-}
-
-func (noopBoundInstrument) RecordOne(context.Context, number.Number) {
-}
-
-func (noopBoundInstrument) Unbind() {
-}
-
-func (noopSyncInstrument) Bind([]attribute.KeyValue) BoundSyncImpl {
-	return noopBoundInstrument{}
 }
 
 func (noopSyncInstrument) RecordOne(context.Context, number.Number, []attribute.KeyValue) {

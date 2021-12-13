@@ -41,10 +41,6 @@ import (
 // in the MeterProvider and Meters ensure that each instrument has a delegate
 // before the global provider is set.
 //
-// Bound instrument operations are implemented by delegating to the
-// instrument after it is registered, with a sync.Once initializer to
-// protect against races with Release().
-//
 // Metric uniqueness checking is implemented by calling the exported
 // methods of the api/metric/registry package.
 
@@ -108,19 +104,9 @@ type AsyncImpler interface {
 	AsyncImpl() sdkapi.AsyncImpl
 }
 
-type syncHandle struct {
-	delegate unsafe.Pointer // (*sdkapi.BoundInstrumentImpl)
-
-	inst   *syncImpl
-	labels []attribute.KeyValue
-
-	initialize sync.Once
-}
-
 var _ metric.MeterProvider = &meterProvider{}
 var _ sdkapi.MeterImpl = &meterImpl{}
 var _ sdkapi.InstrumentImpl = &syncImpl{}
-var _ sdkapi.BoundSyncImpl = &syncHandle{}
 var _ sdkapi.AsyncImpl = &asyncImpl{}
 
 func (inst *instrument) Descriptor() sdkapi.Descriptor {
@@ -241,28 +227,6 @@ func (inst *syncImpl) Implementation() interface{} {
 	return inst
 }
 
-func (inst *syncImpl) Bind(labels []attribute.KeyValue) sdkapi.BoundSyncImpl {
-	if implPtr := (*sdkapi.SyncImpl)(atomic.LoadPointer(&inst.delegate)); implPtr != nil {
-		return (*implPtr).Bind(labels)
-	}
-	return &syncHandle{
-		inst:   inst,
-		labels: labels,
-	}
-}
-
-func (bound *syncHandle) Unbind() {
-	bound.initialize.Do(func() {})
-
-	implPtr := (*sdkapi.BoundSyncImpl)(atomic.LoadPointer(&bound.delegate))
-
-	if implPtr == nil {
-		return
-	}
-
-	(*implPtr).Unbind()
-}
-
 // Async delegation
 
 func (m *meterImpl) NewAsyncInstrument(
@@ -325,37 +289,11 @@ func (inst *syncImpl) RecordOne(ctx context.Context, number number.Number, label
 	}
 }
 
-// Bound instrument initialization
-
-func (bound *syncHandle) RecordOne(ctx context.Context, number number.Number) {
-	instPtr := (*sdkapi.SyncImpl)(atomic.LoadPointer(&bound.inst.delegate))
-	if instPtr == nil {
-		return
-	}
-	var implPtr *sdkapi.BoundSyncImpl
-	bound.initialize.Do(func() {
-		implPtr = new(sdkapi.BoundSyncImpl)
-		*implPtr = (*instPtr).Bind(bound.labels)
-		atomic.StorePointer(&bound.delegate, unsafe.Pointer(implPtr))
-	})
-	if implPtr == nil {
-		implPtr = (*sdkapi.BoundSyncImpl)(atomic.LoadPointer(&bound.delegate))
-	}
-	// This may still be nil if instrument was created and bound
-	// without a delegate, then the instrument was set to have a
-	// delegate and unbound.
-	if implPtr == nil {
-		return
-	}
-	(*implPtr).RecordOne(ctx, number)
-}
-
 func AtomicFieldOffsets() map[string]uintptr {
 	return map[string]uintptr{
 		"meterProvider.delegate": unsafe.Offsetof(meterProvider{}.delegate),
 		"meterImpl.delegate":     unsafe.Offsetof(meterImpl{}.delegate),
 		"syncImpl.delegate":      unsafe.Offsetof(syncImpl{}.delegate),
 		"asyncImpl.delegate":     unsafe.Offsetof(asyncImpl{}.delegate),
-		"syncHandle.delegate":    unsafe.Offsetof(syncHandle{}.delegate),
 	}
 }
