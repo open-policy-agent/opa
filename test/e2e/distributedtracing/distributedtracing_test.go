@@ -105,6 +105,9 @@ func TestClientSpan(t *testing.T) {
 
 	spans := spanExporter.GetSpans()
 
+	// 3 = GET /v1/data/test (HTTP server handler)
+	//     + http.send (HTTP client instrumentation)
+	//     + GET /health (HTTP server handler)
 	if got, expected := len(spans), 3; got != expected {
 		t.Fatalf("got %d span(s), expected %d", got, expected)
 	}
