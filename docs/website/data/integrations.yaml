@@ -1,6 +1,19 @@
 # This file is used to generate the OPA ecosystem page: https://www.openpolicyagent.org/docs/latest/ecosystem/
 # For instructions on how to add an entry, see https://github.com/open-policy-agent/opa/tree/main/docs#integration-index
 integrations:
+  apache-apisix:
+    title: Authorization Integration with Apache APISIX
+    description: Apache APISIX provides a plugin for delegating fine-grained authorization decisions to OPA.
+    software:
+      - apache-apisix
+    labels:
+      category: gateway
+      layer: network
+    code:
+      - https://github.com/apache/apisix
+    inventors:
+      - apache-apisix
+    # blogs:
   sphinx-rego:
     title: Automatically document Rego policies
     description: Sphinx extension that automatically documents Open Policy Agent Rego policies using meta properties.
@@ -1105,6 +1118,9 @@ organizations:
   zenity:
     name: Zenity
     link: http://www.zenity.io
+  apache-apisix:
+    name: Apache APISIX
+    link: https://apisix.apache.org/
 software:
   kubernetes:
     name: Kubernetes
@@ -1238,3 +1254,6 @@ software:
   google-calendar:
     name: Google Calendar
     link: https://calendar.google.com/
+  apache-apisix:
+    name: Apache APISIX
+    link: https://apisix.apache.org/
