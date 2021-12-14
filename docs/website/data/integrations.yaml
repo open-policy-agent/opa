@@ -10,7 +10,8 @@ integrations:
       category: gateway
       layer: network
     # tutorials:
-    code: https://github.com/apache/apisix
+    code:
+      - https://github.com/apache/apisix
     inventors:
       - Apache APISIX
     # blogs:
