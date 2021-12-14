@@ -28,6 +28,7 @@ import (
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/topdown/cache"
+	"github.com/open-policy-agent/opa/topdown/print"
 )
 
 // OPA represents an instance of the policy engine. OPA can be started with
@@ -120,7 +121,9 @@ func (opa *OPA) configure(ctx context.Context, bs []byte, ready chan struct{}, b
 		inmem.New(),
 		plugins.Info(info),
 		plugins.Logger(opa.logger),
-		plugins.ConsoleLogger(opa.console))
+		plugins.ConsoleLogger(opa.console),
+		plugins.EnablePrintStatements(opa.logger.GetLevel() >= logging.Info),
+		plugins.PrintHook(loggingPrintHook{logger: opa.logger}))
 	if err != nil {
 		return err
 	}
@@ -246,6 +249,7 @@ func (opa *OPA) Decision(ctx context.Context, options DecisionOptions) (*Decisio
 		defer s.manager.Store.Abort(ctx, record.Txn)
 		result.Result, record.InputAST, record.Bundles, record.Error = evaluate(ctx, evalArgs{
 			runtime:         s.manager.Info,
+			printHook:       s.manager.PrintHook(),
 			compiler:        s.manager.GetCompiler(),
 			store:           s.manager.Store,
 			txn:             record.Txn,
@@ -324,6 +328,7 @@ func IsUndefinedErr(err error) bool {
 
 type evalArgs struct {
 	runtime         *ast.Term
+	printHook       print.Hook
 	compiler        *ast.Compiler
 	store           storage.Store
 	txn             storage.Transaction
@@ -355,6 +360,7 @@ func evaluate(ctx context.Context, args evalArgs) (interface{}, ast.Value, map[s
 			rego.Compiler(args.compiler),
 			rego.Store(args.store),
 			rego.Transaction(args.txn),
+			rego.PrintHook(args.printHook),
 			rego.Runtime(args.runtime)).PrepareForEval(ctx)
 		if err != nil {
 			return nil, err
@@ -435,4 +441,13 @@ func bundles(ctx context.Context, store storage.Store, txn storage.Transaction) 
 		bundles[name] = server.BundleInfo{Revision: r}
 	}
 	return bundles, nil
+}
+
+type loggingPrintHook struct {
+	logger logging.Logger
+}
+
+func (h loggingPrintHook) Print(pctx print.Context, msg string) error {
+	h.logger.WithFields(map[string]interface{}{"line": pctx.Location.String()}).Info(msg)
+	return nil
 }
