@@ -3,15 +3,16 @@
 integrations:
   apache-apisix:
     title: Authorization Integration with Apache APISIX
-    description: Apache APISIX is a dynamic, real-time, high-performance API gateway. Integration of Apache APISIX and OPA can provide user with more secure API authorizations.
+    description: Apache APISIX provides a plugin for delegating fine-grained authorization decisions to OPA.
+    software:
+      - apache-apisix
     labels:
       category: gateway
       layer: network
-    # tutorials:
     code:
       - https://github.com/apache/apisix
     inventors:
-      - Apache APISIX
+      - apache-apisix
     # blogs:
   sphinx-rego:
     title: Automatically document Rego policies
@@ -1117,6 +1118,9 @@ organizations:
   zenity:
     name: Zenity
     link: http://www.zenity.io
+  apache-apisix:
+    name: Apache APISIX
+    link: https://apisix.apache.org/
 software:
   kubernetes:
     name: Kubernetes
@@ -1250,3 +1254,6 @@ software:
   google-calendar:
     name: Google Calendar
     link: https://calendar.google.com/
+  apache-apisix:
+    name: Apache APISIX
+    link: https://apisix.apache.org/
