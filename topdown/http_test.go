@@ -2681,3 +2681,88 @@ func TestDistributedTracingDisabled(t *testing.T) {
 		t.Errorf("calls to NewTransported: expected %d, got %d", exp, act)
 	}
 }
+
+func TestHTTPGetRequestAllowNet(t *testing.T) {
+
+	// test data
+	body := map[string]bool{"ok": true}
+
+	// test server
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(body)
+	}))
+
+	defer ts.Close()
+
+	// host
+	serverURL, err := url.Parse(ts.URL)
+	if err != nil {
+		panic(err)
+	}
+	serverHost := strings.Split(serverURL.Host, ":")[0]
+
+	// expected result
+	expectedResult := make(map[string]interface{})
+	expectedResult["status"] = "200 OK"
+	expectedResult["status_code"] = http.StatusOK
+
+	expectedResult["body"] = body
+	expectedResult["raw_body"] = "{\"ok\":true}\n"
+
+	resultObj, err := ast.InterfaceToValue(expectedResult)
+	if err != nil {
+		panic(err)
+	}
+
+	expectedError := &Error{Code: "eval_builtin_error", Message: fmt.Sprintf("http.send: unallowed host: %s", serverHost)}
+
+	rules := []string{fmt.Sprintf(
+		`p = x { http.send({"method": "get", "url": "%s", "force_json_decode": true}, resp); x := remove_headers(resp) }`, ts.URL)}
+
+	// run the test
+	tests := []struct {
+		note     string
+		rules    []string
+		options  func(*Query) *Query
+		expected interface{}
+	}{
+		{
+			"http.send allow_net nil",
+			rules,
+
+			setAllowNet(nil),
+			resultObj.String(),
+		},
+		{
+			"http.send allow_net match",
+			rules,
+			setAllowNet([]string{serverHost}),
+			resultObj.String(),
+		},
+		{
+			"http.send allow_net match + additional host",
+			rules,
+			setAllowNet([]string{serverHost, "example.com"}),
+			resultObj.String(),
+		},
+		{
+			"http.send allow_net empty",
+			rules,
+			setAllowNet([]string{}),
+			expectedError,
+		},
+		{
+			"http.send allow_net no match",
+			rules,
+			setAllowNet([]string{"example.com"}),
+			expectedError,
+		},
+	}
+
+	data := loadSmallTestData()
+
+	for _, tc := range tests {
+		runTopDownTestCase(t, data, tc.note, append(tc.rules, httpSendHelperRules...), tc.expected, tc.options)
+	}
+}

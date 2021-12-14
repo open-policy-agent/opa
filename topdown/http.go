@@ -264,6 +264,36 @@ func useSocket(rawURL string, tlsConfig *tls.Config) (bool, string, *http.Transp
 	return true, rawURL, tr
 }
 
+func verifyHost(bctx BuiltinContext, host string) error {
+	if bctx.Capabilities == nil || bctx.Capabilities.AllowNet == nil {
+		return nil
+	}
+
+	for _, allowed := range bctx.Capabilities.AllowNet {
+		if allowed == host {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("unallowed host: %s", host)
+}
+
+func verifyURLHost(bctx BuiltinContext, unverifiedURL string) error {
+	// Eager return to avoid unnecessary URL parsing
+	if bctx.Capabilities == nil || bctx.Capabilities.AllowNet == nil {
+		return nil
+	}
+
+	parsedURL, err := url.Parse(unverifiedURL)
+	if err != nil {
+		return err
+	}
+
+	host := strings.Split(parsedURL.Host, ":")[0]
+
+	return verifyHost(bctx, host)
+}
+
 func createHTTPRequest(bctx BuiltinContext, obj ast.Object) (*http.Request, *http.Client, error) {
 	var url string
 	var method string
@@ -305,7 +335,7 @@ func createHTTPRequest(bctx BuiltinContext, obj ast.Object) (*http.Request, *htt
 		var strVal string
 
 		if s, ok := obj.Get(val).Value.(ast.String); ok {
-			strVal = string(s)
+			strVal = strings.Trim(string(s), "\"")
 		} else {
 			// Most parameters are strings, so consolidate the type checking.
 			switch key {
@@ -328,9 +358,13 @@ func createHTTPRequest(bctx BuiltinContext, obj ast.Object) (*http.Request, *htt
 
 		switch key {
 		case "method":
-			method = strings.ToUpper(strings.Trim(strVal, "\""))
+			method = strings.ToUpper(strVal)
 		case "url":
-			url = strings.Trim(strVal, "\"")
+			err := verifyURLHost(bctx, strVal)
+			if err != nil {
+				return nil, nil, err
+			}
+			url = strVal
 		case "enable_redirect":
 			enableRedirect, err = strconv.ParseBool(obj.Get(val).String())
 			if err != nil {
@@ -357,25 +391,25 @@ func createHTTPRequest(bctx BuiltinContext, obj ast.Object) (*http.Request, *htt
 			}
 			tlsUseSystemCerts = &tempTLSUseSystemCerts
 		case "tls_ca_cert":
-			tlsCaCert = bytes.Trim([]byte(strVal), "\"")
+			tlsCaCert = []byte(strVal)
 		case "tls_ca_cert_file":
-			tlsCaCertFile = strings.Trim(strVal, "\"")
+			tlsCaCertFile = strVal
 		case "tls_ca_cert_env_variable":
-			tlsCaCertEnvVar = strings.Trim(strVal, "\"")
+			tlsCaCertEnvVar = strVal
 		case "tls_client_cert":
-			tlsClientCert = bytes.Trim([]byte(strVal), "\"")
+			tlsClientCert = []byte(strVal)
 		case "tls_client_cert_file":
-			tlsClientCertFile = strings.Trim(strVal, "\"")
+			tlsClientCertFile = strVal
 		case "tls_client_cert_env_variable":
-			tlsClientCertEnvVar = strings.Trim(strVal, "\"")
+			tlsClientCertEnvVar = strVal
 		case "tls_client_key":
-			tlsClientKey = bytes.Trim([]byte(strVal), "\"")
+			tlsClientKey = []byte(strVal)
 		case "tls_client_key_file":
-			tlsClientKeyFile = strings.Trim(strVal, "\"")
+			tlsClientKeyFile = strVal
 		case "tls_client_key_env_variable":
-			tlsClientKeyEnvVar = strings.Trim(strVal, "\"")
+			tlsClientKeyEnvVar = strVal
 		case "tls_server_name":
-			tlsServerName = strings.Trim(strVal, "\"")
+			tlsServerName = strVal
 		case "headers":
 			headersVal := obj.Get(val).Value
 			headersValInterface, err := ast.JSON(headersVal)
