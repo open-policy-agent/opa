@@ -5,12 +5,12 @@
 package sdk_test
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -54,14 +54,14 @@ func TestPlugins(t *testing.T) {
 
 	ctx := context.Background()
 
-	config := []byte(`{
+	config := `{
         "plugins": {
             "test_plugin": {}
 		}
-	}`)
+	}`
 
 	opa, err := sdk.New(ctx, sdk.Options{
-		Config: bytes.NewReader(config),
+		Config: strings.NewReader(config),
 		Plugins: map[string]plugins.Factory{
 			"test_plugin": factory{},
 		},
@@ -94,7 +94,7 @@ func TestDecision(t *testing.T) {
 
 	defer server.Stop()
 
-	config := []byte(fmt.Sprintf(`{
+	config := fmt.Sprintf(`{
 		"services": {
 			"test": {
 				"url": %q
@@ -105,10 +105,10 @@ func TestDecision(t *testing.T) {
 				"resource": "/bundles/bundle.tar.gz"
 			}
 		}
-	}`, server.URL()))
+	}`, server.URL())
 
 	opa, err := sdk.New(ctx, sdk.Options{
-		Config: bytes.NewReader(config),
+		Config: strings.NewReader(config),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -149,7 +149,7 @@ func TestUndefinedError(t *testing.T) {
 
 	defer server.Stop()
 
-	config := []byte(fmt.Sprintf(`{
+	config := fmt.Sprintf(`{
 		"services": {
 			"test": {
 				"url": %q
@@ -160,10 +160,10 @@ func TestUndefinedError(t *testing.T) {
 				"resource": "/bundles/bundle.tar.gz"
 			}
 		}
-	}`, server.URL()))
+	}`, server.URL())
 
 	opa, err := sdk.New(ctx, sdk.Options{
-		Config: bytes.NewReader(config),
+		Config: strings.NewReader(config),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -194,7 +194,7 @@ func TestDecisionLogging(t *testing.T) {
 
 	defer server.Stop()
 
-	config := []byte(fmt.Sprintf(`{
+	config := fmt.Sprintf(`{
 		"services": {
 			"test": {
 				"url": %q
@@ -208,11 +208,11 @@ func TestDecisionLogging(t *testing.T) {
 		"decision_logs": {
 			"console": true
 		}
-	}`, server.URL()))
+	}`, server.URL())
 
 	testLogger := loggingtest.New()
 	opa, err := sdk.New(ctx, sdk.Options{
-		Config:        bytes.NewReader(config),
+		Config:        strings.NewReader(config),
 		ConsoleLogger: testLogger,
 	})
 	if err != nil {
@@ -256,7 +256,7 @@ func TestQueryCaching(t *testing.T) {
 
 	defer server.Stop()
 
-	config := []byte(fmt.Sprintf(`{
+	config := fmt.Sprintf(`{
 		"services": {
 			"test": {
 				"url": %q
@@ -270,11 +270,11 @@ func TestQueryCaching(t *testing.T) {
 		"decision_logs": {
 			"console": true
 		}
-	}`, server.URL()))
+	}`, server.URL())
 
 	testLogger := loggingtest.New()
 	opa, err := sdk.New(ctx, sdk.Options{
-		Config:        bytes.NewReader(config),
+		Config:        strings.NewReader(config),
 		ConsoleLogger: testLogger,
 	})
 	if err != nil {
@@ -331,7 +331,7 @@ func TestDiscovery(t *testing.T) {
 
 	defer server.Stop()
 
-	config := []byte(fmt.Sprintf(`{
+	config := fmt.Sprintf(`{
 		"services": {
 			"test": {
 				"url": %q
@@ -340,10 +340,10 @@ func TestDiscovery(t *testing.T) {
 		"discovery": {
 			"resource": "/bundles/discovery.tar.gz"
 		}
-	}`, server.URL()))
+	}`, server.URL())
 
 	opa, err := sdk.New(ctx, sdk.Options{
-		Config: bytes.NewReader(config),
+		Config: strings.NewReader(config),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -377,7 +377,7 @@ func TestAsync(t *testing.T) {
 
 	defer server.Stop()
 
-	config := []byte(fmt.Sprintf(`{
+	config := fmt.Sprintf(`{
 		"services": {
 			"test": {
 				"url": %q
@@ -388,10 +388,10 @@ func TestAsync(t *testing.T) {
 				"resource": "/bundles/bundle.tar.gz"
 			}
 		}
-	}`, server.URL()))
+	}`, server.URL())
 
 	opa, err := sdk.New(ctx, sdk.Options{
-		Config: bytes.NewReader(config),
+		Config: strings.NewReader(config),
 		Ready:  readyCh,
 	})
 	if err != nil {
@@ -422,7 +422,7 @@ func TestCancelStartup(t *testing.T) {
 	server := sdktest.MustNewServer()
 	defer server.Stop()
 
-	config := []byte(fmt.Sprintf(`{
+	config := fmt.Sprintf(`{
 		"services": {
 			"test": {
 				"url": %q
@@ -433,14 +433,14 @@ func TestCancelStartup(t *testing.T) {
 				"resource": "/bundles/doesnotexist.tar.gz"
 			}
 		}
-		}`, server.URL()))
+		}`, server.URL())
 
 	// Server will return 404 responses because bundle does not exist. OPA should timeout.
 	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*100)
 	defer cancel()
 
 	_, err := sdk.New(ctx, sdk.Options{
-		Config: bytes.NewReader(config),
+		Config: strings.NewReader(config),
 	})
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("expected deadline exceeded error but got %v", err)
@@ -456,16 +456,16 @@ func TestConfigAsYAML(t *testing.T) {
 	)
 	defer server.Stop()
 
-	config := []byte(fmt.Sprintf(`services:
+	config := fmt.Sprintf(`services:
   test:
     url: %q
 bundles:
   test:
-    resource: "/bundles/bundle.tar.gz"`, server.URL()))
+    resource: "/bundles/bundle.tar.gz"`, server.URL())
 
 	ctx := context.Background()
 	_, err := sdk.New(ctx, sdk.Options{
-		Config: bytes.NewReader(config),
+		Config: strings.NewReader(config),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -486,7 +486,7 @@ func TestConfigure(t *testing.T) {
 	defer server.Stop()
 
 	// Startup new OPA with first config.
-	config1 := []byte(fmt.Sprintf(`{
+	config1 := fmt.Sprintf(`{
 		"services": {
 			"test": {
 				"url": %q
@@ -497,11 +497,11 @@ func TestConfigure(t *testing.T) {
 				"resource": "/bundles/bundle1.tar.gz"
 			}
 		}
-	}`, server.URL()))
+	}`, server.URL())
 
 	ctx := context.Background()
 	opa, err := sdk.New(ctx, sdk.Options{
-		Config: bytes.NewReader(config1),
+		Config: strings.NewReader(config1),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -518,7 +518,7 @@ func TestConfigure(t *testing.T) {
 	}
 
 	// Reconfigure with new config to make sure update is picked up.
-	config2 := []byte(fmt.Sprintf(`{
+	config2 := fmt.Sprintf(`{
 		"services": {
 			"test": {
 				"url": %q
@@ -529,10 +529,10 @@ func TestConfigure(t *testing.T) {
 				"resource": "/bundles/bundle2.tar.gz"
 			}
 		}
-	}`, server.URL()))
+	}`, server.URL())
 
 	err = opa.Configure(ctx, sdk.ConfigOptions{
-		Config: bytes.NewReader(config2),
+		Config: strings.NewReader(config2),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -549,7 +549,7 @@ func TestConfigure(t *testing.T) {
 	// Reconfigure w/ same config to verify that readiness channel is closed.
 	ch := make(chan struct{})
 	err = opa.Configure(ctx, sdk.ConfigOptions{
-		Config: bytes.NewReader(config2),
+		Config: strings.NewReader(config2),
 		Ready:  ch,
 	})
 	if err != nil {
@@ -573,7 +573,7 @@ func TestOpaVersion(t *testing.T) {
 
 	defer server.Stop()
 
-	config := []byte(fmt.Sprintf(`{
+	config := fmt.Sprintf(`{
 		"services": {
 			"test": {
 				"url": %q
@@ -584,10 +584,10 @@ func TestOpaVersion(t *testing.T) {
 				"resource": "/bundles/bundle.tar.gz"
 			}
 		}
-	}`, server.URL()))
+	}`, server.URL())
 
 	opa, err := sdk.New(ctx, sdk.Options{
-		Config: bytes.NewReader(config),
+		Config: strings.NewReader(config),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -627,7 +627,7 @@ func TestOpaRuntimeConfig(t *testing.T) {
 	testBundleResource := "/bundles/bundle.tar.gz"
 	testLabel := "a label"
 
-	config := []byte(fmt.Sprintf(`{
+	config := fmt.Sprintf(`{
 		"services": {
 			"test": {
 				"url": %q
@@ -641,10 +641,10 @@ func TestOpaRuntimeConfig(t *testing.T) {
 		"labels": {
 			"test": %q
 		}
-	}`, server.URL(), testBundleResource, testLabel))
+	}`, server.URL(), testBundleResource, testLabel)
 
 	opa, err := sdk.New(ctx, sdk.Options{
-		Config: bytes.NewReader(config),
+		Config: strings.NewReader(config),
 	})
 	if err != nil {
 		t.Fatal(err)
