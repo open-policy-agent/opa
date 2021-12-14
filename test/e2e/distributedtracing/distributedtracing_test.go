@@ -5,6 +5,7 @@
 package distributedtracing
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"net/http"
@@ -85,7 +86,7 @@ func TestServerSpan(t *testing.T) {
 	t.Run("GET v1/data", func(t *testing.T) {
 		t.Cleanup(spanExporter.Reset)
 
-		mr, err := http.Get(testRuntime.URL() + "/v1/data/test")
+		mr, err := http.Get(testRuntime.URL() + "/v1/data")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -108,9 +109,9 @@ func TestServerSpan(t *testing.T) {
 			attribute.String("http.scheme", "http"),
 			attribute.String("http.server_name", "v1/data"),
 			attribute.Int("http.status_code", 200),
-			attribute.String("http.target", "/v1/data/test"),
+			attribute.String("http.target", "/v1/data"),
 			attribute.String("http.user_agent", "Go-http-client/1.1"),
-			attribute.Int("http.wrote_bytes", 2),
+			attribute.Int("http.wrote_bytes", 66),
 			attribute.String("net.transport", "ip_tcp"),
 		}
 		compareSpanAttributes(t, expected, attribute.NewSet(spans[0].Attributes...))
@@ -122,6 +123,10 @@ func TestServerSpan(t *testing.T) {
 //
 // NOTE(sr): `{GET,POST} v1/query` are omitted, http.send is forbidden for ad-hoc queries
 func TestClientSpan(t *testing.T) {
+	type resp struct {
+		DecisionID string `json:"decision_id"`
+	}
+
 	policy := `
 	package test
 
@@ -185,6 +190,13 @@ func TestClientSpan(t *testing.T) {
 			t.Fatal(err)
 		}
 		defer mr.Body.Close()
+		var r resp
+		if err := json.NewDecoder(mr.Body).Decode(&r); err != nil {
+			t.Fatal(err)
+		}
+		if r.DecisionID == "" {
+			t.Fatal("expected decision id")
+		}
 
 		spans := spanExporter.GetSpans()
 		if got, expected := len(spans), 3; got != expected {
@@ -211,6 +223,12 @@ func TestClientSpan(t *testing.T) {
 			attribute.Int("http.status_code", 200),
 		}
 		compareSpanAttributes(t, expected, attribute.NewSet(spans[1].Attributes...))
+
+		// The (parent) server span carries the decision ID
+		expected = []attribute.KeyValue{
+			attribute.String("opa.decision_id", r.DecisionID),
+		}
+		compareSpanAttributes(t, expected, attribute.NewSet(spans[2].Attributes...))
 	})
 
 	t.Run("POST v1/data", func(t *testing.T) {
@@ -222,6 +240,13 @@ func TestClientSpan(t *testing.T) {
 			t.Fatal(err)
 		}
 		defer mr.Body.Close()
+		var r resp
+		if err := json.NewDecoder(mr.Body).Decode(&r); err != nil {
+			t.Fatal(err)
+		}
+		if r.DecisionID == "" {
+			t.Fatal("expected decision id")
+		}
 
 		spans := spanExporter.GetSpans()
 		if got, expected := len(spans), 3; got != expected {
@@ -248,6 +273,12 @@ func TestClientSpan(t *testing.T) {
 			attribute.Int("http.status_code", 200),
 		}
 		compareSpanAttributes(t, expected, attribute.NewSet(spans[1].Attributes...))
+
+		// The (parent) server span carries the decision ID
+		expected = []attribute.KeyValue{
+			attribute.String("opa.decision_id", r.DecisionID),
+		}
+		compareSpanAttributes(t, expected, attribute.NewSet(spans[2].Attributes...))
 	})
 
 	t.Run("POST /", func(t *testing.T) {

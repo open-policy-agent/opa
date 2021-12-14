@@ -26,6 +26,8 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
@@ -90,6 +92,9 @@ const (
 )
 
 const pqMaxCacheSize = 100
+
+// OpenTelemetry attributes
+const otelDecisionIDAttr = "opa.decision_id"
 
 // map of unsafe builtins
 var unsafeBuiltinsMap = map[string]struct{}{ast.HTTPSend.Name: {}}
@@ -889,8 +894,9 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, urlPath str
 	m.Timer(metrics.ServerHandler).Start()
 
 	decisionID := s.generateDecisionID()
-
 	ctx := r.Context()
+	annotateSpan(ctx, decisionID)
+
 	input, err := readInputV0(r)
 	if err != nil {
 		writer.ErrorString(w, http.StatusBadRequest, types.CodeInvalidParameter, errors.Wrapf(err, "unexpected parse error for input"))
@@ -1282,8 +1288,9 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 	m.Timer(metrics.ServerHandler).Start()
 
 	decisionID := s.generateDecisionID()
-
 	ctx := r.Context()
+	annotateSpan(ctx, decisionID)
+
 	vars := mux.Vars(r)
 	urlPath := vars["path"]
 	pretty := getBoolParam(r.URL, types.ParamPrettyV1, true)
@@ -1498,8 +1505,9 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 	m.Timer(metrics.ServerHandler).Start()
 
 	decisionID := s.generateDecisionID()
-
 	ctx := r.Context()
+	annotateSpan(ctx, decisionID)
+
 	vars := mux.Vars(r)
 	urlPath := vars["path"]
 	pretty := getBoolParam(r.URL, types.ParamPrettyV1, true)
@@ -2025,8 +2033,9 @@ func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
 	m := metrics.New()
 
 	decisionID := s.generateDecisionID()
-
 	ctx := r.Context()
+	annotateSpan(ctx, decisionID)
+
 	values := r.URL.Query()
 
 	qStrs := values[types.ParamQueryV1]
@@ -2085,8 +2094,8 @@ func (s *Server) v1QueryPost(w http.ResponseWriter, r *http.Request) {
 	m := metrics.New()
 
 	decisionID := s.generateDecisionID()
-
 	ctx := r.Context()
+	annotateSpan(ctx, decisionID)
 
 	var request types.QueryRequestV1
 	err := util.NewJSONDecoder(r.Body).Decode(&request)
@@ -2851,4 +2860,9 @@ func parseURL(s string, useHTTPSByDefault bool) (*url.URL, error) {
 		s = scheme + s
 	}
 	return url.Parse(s)
+}
+
+func annotateSpan(ctx context.Context, decisionID string) {
+	trace.SpanFromContext(ctx).
+		SetAttributes(attribute.String(otelDecisionIDAttr, decisionID))
 }
