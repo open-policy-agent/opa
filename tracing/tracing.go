@@ -34,6 +34,9 @@ func RegisterHTTPTracing(ht HTTPTracingService) {
 	tracing = ht
 }
 
+// NewTransport returns another http.RoundTripper, instrumented to emit tracing
+// spans according to Options. Provided by the HTTPTracingService registered with
+// this package via RegisterHTTPTracing.
 func NewTransport(tr http.RoundTripper, opts Options) http.RoundTripper {
 	if tracing == nil {
 		return tr
@@ -41,6 +44,9 @@ func NewTransport(tr http.RoundTripper, opts Options) http.RoundTripper {
 	return tracing.NewTransport(tr, opts)
 }
 
+// NewHandler returns another http.Handler, instrumented to emit tracing spans
+// according to Options. Provided by the HTTPTracingService registered with
+// this package via RegisterHTTPTracing.
 func NewHandler(f http.Handler, label string, opts Options) http.Handler {
 	if tracing == nil {
 		return f
