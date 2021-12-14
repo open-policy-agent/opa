@@ -1,3 +1,7 @@
+// Copyright 2021 The OPA Authors.  All rights reserved.
+// Use of this source code is governed by an Apache2
+// license that can be found in the LICENSE file.
+
 package distributedtracing
 
 import (
@@ -8,8 +12,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/open-policy-agent/opa/internal/distributedtracing"
 	"github.com/open-policy-agent/opa/test/e2e"
+	"github.com/open-policy-agent/opa/tracing"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/sdk/trace"
@@ -21,13 +25,13 @@ var spanExporter *tracetest.InMemoryExporter
 
 func TestMain(m *testing.M) {
 	spanExporter = tracetest.NewInMemoryExporter()
-	options := distributedtracing.Options{
+	options := tracing.NewOptions(
 		otelhttp.WithTracerProvider(trace.NewTracerProvider(trace.WithSpanProcessor(trace.NewSimpleSpanProcessor(spanExporter)))),
-	}
+	)
 
 	flag.Parse()
 	testServerParams := e2e.NewAPIServerTestParams()
-	testServerParams.DistrbutedTracingOpts = options
+	testServerParams.DistributedTracingOpts = options
 
 	var err error
 	testRuntime, err = e2e.NewTestRuntime(testServerParams)
@@ -101,6 +105,9 @@ func TestClientSpan(t *testing.T) {
 
 	spans := spanExporter.GetSpans()
 
+	// 3 = GET /v1/data/test (HTTP server handler)
+	//     + http.send (HTTP client instrumentation)
+	//     + GET /health (HTTP server handler)
 	if got, expected := len(spans), 3; got != expected {
 		t.Fatalf("got %d span(s), expected %d", got, expected)
 	}

@@ -1,3 +1,7 @@
+// Copyright 2021 The OPA Authors.  All rights reserved.
+// Use of this source code is governed by an Apache2
+// license that can be found in the LICENSE file.
+
 package distributedtracing
 
 import (
@@ -7,9 +11,7 @@ import (
 	"fmt"
 	"io/ioutil"
 
-	"github.com/open-policy-agent/opa/config"
-	"github.com/open-policy-agent/opa/logging"
-	"github.com/open-policy-agent/opa/util"
+	"github.com/go-logr/logr"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
@@ -19,6 +21,16 @@ import (
 	"go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.7.0"
 	"google.golang.org/grpc/credentials"
+
+	"github.com/open-policy-agent/opa/config"
+	"github.com/open-policy-agent/opa/logging"
+	"github.com/open-policy-agent/opa/tracing"
+	"github.com/open-policy-agent/opa/util"
+
+	// The import registers opentelemetry with the top-level `tracing` package,
+	// so the latter can be used from rego/topdown without an explicit build-time
+	// dependency.
+	_ "github.com/open-policy-agent/opa/features/tracing"
 )
 
 const (
@@ -55,9 +67,7 @@ type distributedTracingConfig struct {
 	TLSCACertFile         string `json:"tls_ca_cert_file,omitempty"`
 }
 
-type Options []otelhttp.Option
-
-func Init(ctx context.Context, raw []byte, id string) (traceExporter *otlptrace.Exporter, options Options, err error) {
+func Init(ctx context.Context, raw []byte, id string) (*otlptrace.Exporter, tracing.Options, error) {
 	parsedConfig, err := config.ParseConfig(raw, id)
 	if err != nil {
 		return nil, nil, err
@@ -87,8 +97,10 @@ func Init(ctx context.Context, raw []byte, id string) (traceExporter *otlptrace.
 		return nil, nil, err
 	}
 
-	traceExporter = otlptracegrpc.NewUnstarted(otlptracegrpc.WithEndpoint(distributedTracingConfig.Address),
-		tlsOption)
+	traceExporter := otlptracegrpc.NewUnstarted(
+		otlptracegrpc.WithEndpoint(distributedTracingConfig.Address),
+		tlsOption,
+	)
 
 	res, err := resource.New(ctx,
 		resource.WithAttributes(
@@ -105,7 +117,7 @@ func Init(ctx context.Context, raw []byte, id string) (traceExporter *otlptrace.
 		trace.WithSpanProcessor(trace.NewBatchSpanProcessor(traceExporter)),
 	)
 
-	options = append(options,
+	options := tracing.NewOptions(
 		otelhttp.WithTracerProvider(traceProvider),
 		otelhttp.WithPropagators(propagation.TraceContext{}),
 	)
@@ -113,10 +125,9 @@ func Init(ctx context.Context, raw []byte, id string) (traceExporter *otlptrace.
 	return traceExporter, options, nil
 }
 
-func SetErrorHandler(logger logging.Logger) {
-	otel.SetErrorHandler(&errorHandler{
-		logger: logger,
-	})
+func SetupLogging(logger logging.Logger) {
+	otel.SetErrorHandler(&errorHandler{logger: logger})
+	otel.SetLogger(logr.New(&sink{logger: logger}))
 }
 
 func parseDistributedTracingConfig(raw []byte) (*distributedTracingConfig, error) {
@@ -240,4 +251,38 @@ type errorHandler struct {
 
 func (e *errorHandler) Handle(err error) {
 	e.logger.Warn("Distributed tracing: " + err.Error())
+}
+
+// NOTE(sr): This adapter code is used to ensure that whatever otel logs, now or
+// in the future, will end up in "our" logs, and not go through whatever defaults
+// it has set up with its global logger. As such, it's to a full-featured
+// implementation fo the logr.LogSink interface, but a rather minimal one. Notably,
+// fields are no supported, the initial runtime time info is ignored, and there is
+// no support for different verbosity level is "info" logs: they're all printed
+// as-is.
+
+type sink struct {
+	logger logging.Logger
+}
+
+func (s *sink) Enabled(level int) bool {
+	return int(s.logger.GetLevel()) >= level
+}
+
+func (*sink) Init(logr.RuntimeInfo) {} // ignored
+
+func (s *sink) Info(_ int, msg string, _ ...interface{}) {
+	s.logger.Info(msg)
+}
+
+func (s *sink) Error(err error, msg string, _ ...interface{}) {
+	s.logger.WithFields(map[string]interface{}{"err": err}).Error(msg)
+}
+
+func (s *sink) WithName(name string) logr.LogSink {
+	return &sink{s.logger.WithFields(map[string]interface{}{"name": name})}
+}
+
+func (s *sink) WithValues(...interface{}) logr.LogSink { // ignored
+	return s
 }

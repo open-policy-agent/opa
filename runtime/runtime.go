@@ -22,14 +22,13 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/gorilla/mux"
-	"github.com/pkg/errors"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.uber.org/automaxprocs/maxprocs"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/internal/config"
-	"github.com/open-policy-agent/opa/internal/distributedtracing"
+	internal_tracing "github.com/open-policy-agent/opa/internal/distributedtracing"
 	internal_logging "github.com/open-policy-agent/opa/internal/logging"
 	"github.com/open-policy-agent/opa/internal/prometheus"
 	"github.com/open-policy-agent/opa/internal/report"
@@ -46,6 +45,7 @@ import (
 	"github.com/open-policy-agent/opa/server"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
+	"github.com/open-policy-agent/opa/tracing"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/version"
 )
@@ -202,7 +202,7 @@ type Params struct {
 	// If it is nil, a new mux.Router will be created
 	Router *mux.Router
 
-	DistrbutedTracingOpts distributedtracing.Options
+	DistributedTracingOpts tracing.Options
 }
 
 // LoggingConfig stores the configuration for OPA's logging behaviour.
@@ -277,7 +277,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 
 	config, err := config.Load(params.ConfigFile, params.ConfigOverrides, params.ConfigOverrideFiles)
 	if err != nil {
-		return nil, errors.Wrap(err, "config error")
+		return nil, fmt.Errorf("config error: %w", err)
 	}
 
 	var reporter *report.Reporter
@@ -285,13 +285,13 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		var err error
 		reporter, err = report.New(params.ID, report.Options{Logger: logger})
 		if err != nil {
-			return nil, errors.Wrap(err, "config error")
+			return nil, fmt.Errorf("config error: %w", err)
 		}
 	}
 
 	loaded, err := initload.LoadPaths(params.Paths, params.Filter, params.BundleMode, params.BundleVerificationConfig, params.SkipBundleVerification)
 	if err != nil {
-		return nil, errors.Wrap(err, "load error")
+		return nil, fmt.Errorf("load error: %w", err)
 	}
 
 	info, err := runtime.Term(runtime.Params{Config: config})
@@ -327,26 +327,26 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		plugins.PrintHook(loggingPrintHook{logger: logger}),
 		plugins.WithRouter(params.Router))
 	if err != nil {
-		return nil, errors.Wrap(err, "config error")
+		return nil, fmt.Errorf("config error: %w", err)
 	}
 
 	if err := manager.Init(ctx); err != nil {
-		return nil, errors.Wrap(err, "initialization error")
+		return nil, fmt.Errorf("initialization error: %w", err)
 	}
 
 	metrics := prometheus.New(metrics.New(), errorLogger(logger))
 
-	traceExporter, distrbutedTracingOpts, err := distributedtracing.Init(ctx, config, params.ID)
+	traceExporter, distributedTracingOpts, err := internal_tracing.Init(ctx, config, params.ID)
 	if err != nil {
 		return nil, fmt.Errorf("config error: %w", err)
 	}
-	if distrbutedTracingOpts != nil {
-		params.DistrbutedTracingOpts = distrbutedTracingOpts
+	if distributedTracingOpts != nil {
+		params.DistributedTracingOpts = distributedTracingOpts
 	}
 
 	disco, err := discovery.New(manager, discovery.Factories(registeredPlugins), discovery.Metrics(metrics))
 	if err != nil {
-		return nil, errors.Wrap(err, "config error")
+		return nil, fmt.Errorf("config error: %w", err)
 	}
 
 	manager.Register("discovery", disco)
@@ -418,14 +418,14 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 
 	if rt.traceExporter != nil {
 		if err := rt.traceExporter.Start(ctx); err != nil {
-			rt.logger.WithFields(map[string]interface{}{"err": err}).Error("Failed to start trace exporter.")
+			rt.logger.WithFields(map[string]interface{}{"err": err}).Error("Failed to start OpenTelemetry trace exporter.")
 			return err
 		}
 
 		defer func() {
 			err := rt.traceExporter.Shutdown(ctx)
 			if err != nil {
-				rt.logger.Error("Failed to shutdown OpenTelemetry trace exporter gracefully.")
+				rt.logger.WithFields(map[string]interface{}{"err": err}).Error("Failed to shutdown OpenTelemetry trace exporter gracefully.")
 			}
 		}()
 	}
@@ -448,7 +448,7 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 		WithRuntime(rt.Manager.Info).
 		WithMetrics(rt.metrics).
 		WithMinTLSVersion(rt.Params.MinTLSVersion).
-		WithDistributedTracingOpts(rt.Params.DistrbutedTracingOpts)
+		WithDistributedTracingOpts(rt.Params.DistributedTracingOpts)
 
 	if rt.Params.DiagnosticAddrs != nil {
 		rt.server = rt.server.WithDiagnosticAddresses(*rt.Params.DiagnosticAddrs)
@@ -586,9 +586,10 @@ func (rt *Runtime) StartREPL(ctx context.Context) {
 	repl.Loop(ctx)
 }
 
-// SetDistributedTracingErrorHandler configures the distributed tracing's ErrorHandler.
-func (rt *Runtime) SetDistributedTracingErrorHandler() {
-	distributedtracing.SetErrorHandler(rt.logger)
+// SetDistributedTracingLogging configures the distributed tracing's ErrorHandler,
+// and logger instances.
+func (rt *Runtime) SetDistributedTracingLogging() {
+	internal_tracing.SetupLogging(rt.logger)
 }
 
 func (rt *Runtime) checkOPAUpdate(ctx context.Context) *report.DataResponse {

@@ -18,7 +18,6 @@ import (
 	"github.com/open-policy-agent/opa/bundle"
 	bundleUtils "github.com/open-policy-agent/opa/internal/bundle"
 	"github.com/open-policy-agent/opa/internal/compiler/wasm"
-	"github.com/open-policy-agent/opa/internal/distributedtracing"
 	"github.com/open-policy-agent/opa/internal/future"
 	"github.com/open-policy-agent/opa/internal/ir"
 	"github.com/open-policy-agent/opa/internal/planner"
@@ -32,6 +31,7 @@ import (
 	"github.com/open-policy-agent/opa/topdown"
 	"github.com/open-policy-agent/opa/topdown/cache"
 	"github.com/open-policy-agent/opa/topdown/print"
+	"github.com/open-policy-agent/opa/tracing"
 	"github.com/open-policy-agent/opa/types"
 	"github.com/open-policy-agent/opa/util"
 )
@@ -514,7 +514,7 @@ type Rego struct {
 	generateJSON           func(*ast.Term, *EvalContext) (interface{}, error)
 	printHook              print.Hook
 	enablePrintStatements  bool
-	distributedTacingOpts  distributedtracing.Options
+	distributedTacingOpts  tracing.Options
 }
 
 // Function represents a built-in function that is callable in Rego.
@@ -1065,7 +1065,7 @@ func PrintHook(h print.Hook) func(r *Rego) {
 }
 
 // DistributedTracingOpts sets the options to be used by distributed tracing.
-func DistributedTracingOpts(tr distributedtracing.Options) func(r *Rego) {
+func DistributedTracingOpts(tr tracing.Options) func(r *Rego) {
 	return func(r *Rego) {
 		r.distributedTacingOpts = tr
 	}

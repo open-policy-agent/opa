@@ -26,15 +26,12 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
-	"github.com/open-policy-agent/opa/internal/distributedtracing"
-
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/plugins"
 	bundlePlugin "github.com/open-policy-agent/opa/plugins/bundle"
@@ -48,6 +45,7 @@ import (
 	"github.com/open-policy-agent/opa/topdown"
 	iCache "github.com/open-policy-agent/opa/topdown/cache"
 	"github.com/open-policy-agent/opa/topdown/lineage"
+	"github.com/open-policy-agent/opa/tracing"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/version"
 )
@@ -131,7 +129,7 @@ type Server struct {
 	defaultDecisionPath    string
 	interQueryBuiltinCache iCache.InterQueryCache
 	allPluginsOkOnce       bool
-	distributedTracingOpts distributedtracing.Options
+	distributedTracingOpts tracing.Options
 }
 
 // Metrics defines the interface that the server requires for recording HTTP
@@ -338,8 +336,8 @@ func (s *Server) WithMinTLSVersion(minTLSVersion uint16) *Server {
 }
 
 // WithDistributedTracingOpts sets the options to be used by distributed tracing.
-func (s *Server) WithDistributedTracingOpts(traceOpts distributedtracing.Options) *Server {
-	s.distributedTracingOpts = traceOpts
+func (s *Server) WithDistributedTracingOpts(opts tracing.Options) *Server {
+	s.distributedTracingOpts = opts
 	return s
 }
 
@@ -736,7 +734,7 @@ func (s *Server) initRouters() {
 func (s *Server) instrumentHandler(handler func(http.ResponseWriter, *http.Request), label string) http.Handler {
 	var httpHandler http.Handler = http.HandlerFunc(handler)
 	if len(s.distributedTracingOpts) > 0 {
-		httpHandler = otelhttp.NewHandler(http.HandlerFunc(handler), label, s.distributedTracingOpts...)
+		httpHandler = tracing.NewHandler(httpHandler, label, s.distributedTracingOpts)
 	}
 	if s.metrics != nil {
 		return s.metrics.InstrumentHandler(httpHandler, label)
