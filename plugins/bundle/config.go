@@ -170,10 +170,8 @@ func (c *Config) validateAndInjectDefaults(services []string, keys map[string]*k
 			source.Resource = path.Join(defaultBundlePathPrefix, name)
 		}
 
-		var err error
-
 		if source.Signing != nil {
-			err = source.Signing.ValidateAndInjectDefaults(keys)
+			err := source.Signing.ValidateAndInjectDefaults(keys)
 			if err != nil {
 				return fmt.Errorf("invalid configuration for bundle %q: %s", name, err.Error())
 			}
@@ -183,33 +181,27 @@ func (c *Config) validateAndInjectDefaults(services []string, keys map[string]*k
 			}
 		}
 
-		// If the resource specifies a file:// URL then we can ignore the
-		// service configuration error.
-		ignoreServiceConfigErr := false
-
 		if strings.HasPrefix(source.Resource, "file://") {
 			if _, err := url.Parse(source.Resource); err != nil {
 				return fmt.Errorf("invalid URL for bundle %q: %v", name, err)
 			}
-			ignoreServiceConfigErr = true
-		}
-
-		source.Service, err = c.getServiceFromList(source.Service, services)
-		if err != nil {
-			return fmt.Errorf("invalid configuration for bundle %q: %s", name, err.Error())
+		} else {
+			svc, err := c.getServiceFromList(source.Service, services)
+			if err != nil {
+				return fmt.Errorf("invalid configuration for bundle %q: %s", name, err.Error())
+			}
+			source.Service = svc
 		}
 
 		t, err := plugins.ValidateAndInjectDefaultsForTriggerMode(trigger, source.Trigger)
 		if err != nil {
 			return fmt.Errorf("invalid configuration for bundle %q: %w", name, err)
 		}
+
 		source.Trigger = t
 
-		if err == nil || ignoreServiceConfigErr {
-			err = source.Config.ValidateAndInjectDefaults()
-			if err != nil {
-				return fmt.Errorf("invalid configuration for bundle %q: %w", name, err)
-			}
+		if err := source.Config.ValidateAndInjectDefaults(); err != nil {
+			return fmt.Errorf("invalid configuration for bundle %q: %w", name, err)
 		}
 
 		if source.SizeLimitBytes <= 0 {
