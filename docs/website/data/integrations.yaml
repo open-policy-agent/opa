@@ -4,8 +4,6 @@ integrations:
   apache-apisix:
     title: Authorization Integration with Apache APISIX
     description: Apache APISIX is a dynamic, real-time, high-performance API gateway. Integration of Apache APISIX and OPA can provide user with more secure API authorizations.
-    software:
-      - Apache APISIX
     lables:
       category: gateway
       layer: network
