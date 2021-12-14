@@ -2,6 +2,7 @@ package test
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -17,6 +18,9 @@ import (
 // policies.
 func MockBundle(file string, policies map[string]string) func(*Server) error {
 	return func(s *Server) error {
+		if !strings.HasPrefix(file, "/bundles/") {
+			return fmt.Errorf("mock bundle filename must be prefixed with '/bundle/ but got %q", file)
+		}
 		s.bundles[file] = policies
 		return nil
 	}
