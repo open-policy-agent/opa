@@ -26,11 +26,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/open-policy-agent/opa/internal/distributedtracing"
 	"github.com/open-policy-agent/opa/internal/version"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/topdown/builtins"
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"github.com/open-policy-agent/opa/tracing"
 
 	iCache "github.com/open-policy-agent/opa/topdown/cache"
 
@@ -2626,24 +2625,29 @@ func TestSocketHTTPGetRequest(t *testing.T) {
 	}
 }
 
-func TestDistributedTracingEnabled(t *testing.T) {
-	c := []byte(`{"distributed_tracing": {
-		"enabled": true
-		}}`)
+type tracemock struct {
+	called int
+}
 
-	ctx := context.Background()
-	_, traceOpts, err := distributedtracing.Init(ctx, c, "foo")
-	if err != nil {
-		t.Fatalf("Unexpected error initializing trace exporter %v", err)
-	}
+func (m *tracemock) NewTransport(rt http.RoundTripper, _ tracing.Options) http.RoundTripper {
+	m.called++
+	return rt
+}
+func (*tracemock) NewHandler(http.Handler, string, tracing.Options) http.Handler {
+	panic("unreachable")
+}
+
+func TestDistributedTracingEnabled(t *testing.T) {
+
+	mock := tracemock{}
+	tracing.RegisterHTTPTracing(&mock)
 
 	builtinContext := BuiltinContext{
-		Context:                ctx,
-		DistributedTracingOpts: traceOpts,
+		Context:                context.Background(),
+		DistributedTracingOpts: tracing.NewOptions(true), // any option means it's enabled
 	}
 
-	obj := ast.NewObject()
-	_, client, err := createHTTPRequest(builtinContext, obj)
+	_, client, err := createHTTPRequest(builtinContext, ast.NewObject())
 	if err != nil {
 		t.Fatalf("Unexpected error creating HTTP request %v", err)
 	}
@@ -2651,17 +2655,21 @@ func TestDistributedTracingEnabled(t *testing.T) {
 		t.Fatal("No Transport defined")
 	}
 
-	_, ok := client.Transport.(*otelhttp.Transport)
-
-	if !ok {
-		t.Fatal("Expected otelhttp.Transport")
+	if exp, act := 1, mock.called; exp != act {
+		t.Errorf("calls to NewTransported: expected %d, got %d", exp, act)
 	}
-
 }
 
 func TestDistributedTracingDisabled(t *testing.T) {
-	obj := ast.NewObject()
-	_, client, err := createHTTPRequest(BuiltinContext{Context: context.Background()}, obj)
+
+	mock := tracemock{}
+	tracing.RegisterHTTPTracing(&mock)
+
+	builtinContext := BuiltinContext{
+		Context: context.Background(),
+	}
+
+	_, client, err := createHTTPRequest(builtinContext, ast.NewObject())
 	if err != nil {
 		t.Fatalf("Unexpected error creating HTTP request %v", err)
 	}
@@ -2669,10 +2677,7 @@ func TestDistributedTracingDisabled(t *testing.T) {
 		t.Fatal("No Transport defined")
 	}
 
-	_, ok := client.Transport.(*otelhttp.Transport)
-
-	if ok {
-		t.Fatal("Unexpected otelhttp.Transport")
+	if exp, act := 0, mock.called; exp != act {
+		t.Errorf("calls to NewTransported: expected %d, got %d", exp, act)
 	}
-
 }
