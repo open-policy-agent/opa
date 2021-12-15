@@ -10,6 +10,7 @@ import (
 	"crypto/x509"
 	"fmt"
 	"io/ioutil"
+	"strings"
 
 	"github.com/go-logr/logr"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -34,7 +35,6 @@ import (
 )
 
 const (
-	defaultEnable               = false
 	defaultAddress              = "localhost:4317"
 	defaultServiceName          = "opa"
 	defaultSampleRatePercentage = int(100)
@@ -56,7 +56,7 @@ func isSupportedSampleRatePercentage(sampleRate int) bool {
 }
 
 type distributedTracingConfig struct {
-	Enabled               *bool  `json:"enabled,omitempty"`
+	Type                  string `json:"type,omitempty"`
 	Address               string `json:"address,omitempty"`
 	ServiceName           string `json:"service_name,omitempty"`
 	SampleRatePercentage  *int   `json:"sample_percentage,omitempty"`
@@ -78,7 +78,7 @@ func Init(ctx context.Context, raw []byte, id string) (*otlptrace.Exporter, trac
 		return nil, nil, err
 	}
 
-	if !*distributedTracingConfig.Enabled {
+	if strings.ToLower(distributedTracingConfig.Type) != "grpc" {
 		return nil, nil, nil
 	}
 
@@ -132,13 +132,11 @@ func SetupLogging(logger logging.Logger) {
 
 func parseDistributedTracingConfig(raw []byte) (*distributedTracingConfig, error) {
 	if raw == nil {
-		enabled, encryptionSkipVerify := new(bool), new(bool)
+		encryptionSkipVerify := new(bool)
 		sampleRatePercentage := new(int)
-		*enabled = defaultEnable
 		*sampleRatePercentage = defaultSampleRatePercentage
 		*encryptionSkipVerify = defaultEncryptionSkipVerify
 		return &distributedTracingConfig{
-			Enabled:              enabled,
 			Address:              defaultAddress,
 			ServiceName:          defaultServiceName,
 			SampleRatePercentage: sampleRatePercentage,
@@ -148,13 +146,10 @@ func parseDistributedTracingConfig(raw []byte) (*distributedTracingConfig, error
 	}
 	var config distributedTracingConfig
 
-	if err := util.Unmarshal(raw, &config); err == nil {
-		if err = config.validateAndInjectDefaults(); err != nil {
-			return nil, err
-		}
-	} else {
+	if err := util.Unmarshal(raw, &config); err != nil {
 		return nil, err
 	}
+	config.validateAndInjectDefaults()
 
 	if !isSupportedEncryptionScheme(config.EncryptionScheme) {
 		return nil, fmt.Errorf("unsupported distributed_tracing.encryption_scheme '%v'", config.EncryptionScheme)
@@ -167,12 +162,7 @@ func parseDistributedTracingConfig(raw []byte) (*distributedTracingConfig, error
 	return &config, nil
 }
 
-func (c *distributedTracingConfig) validateAndInjectDefaults() error {
-	if c.Enabled == nil {
-		enabled := new(bool)
-		*enabled = defaultEnable
-		c.Enabled = enabled
-	}
+func (c *distributedTracingConfig) validateAndInjectDefaults() {
 	if c.Address == "" {
 		c.Address = defaultAddress
 	}
@@ -192,8 +182,6 @@ func (c *distributedTracingConfig) validateAndInjectDefaults() error {
 		*encryptionSkipVerify = defaultEncryptionSkipVerify
 		c.EncryptionSkipVerify = encryptionSkipVerify
 	}
-
-	return nil
 }
 
 func loadCertificate(tlsCertFile, tlsPrivateKeyFile string) (*tls.Certificate, error) {
@@ -204,7 +192,9 @@ func loadCertificate(tlsCertFile, tlsPrivateKeyFile string) (*tls.Certificate, e
 			return nil, err
 		}
 		return &cert, nil
-	} else if tlsCertFile != "" || tlsPrivateKeyFile != "" {
+	}
+
+	if tlsCertFile != "" || tlsPrivateKeyFile != "" {
 		return nil, fmt.Errorf("distributed_tracing.tls_cert_file and distributed_tracing.tls_private_key_file must be specified together")
 	}
 
@@ -212,20 +202,19 @@ func loadCertificate(tlsCertFile, tlsPrivateKeyFile string) (*tls.Certificate, e
 }
 
 func loadCertPool(tlsCACertFile string) (*x509.CertPool, error) {
-
-	if tlsCACertFile != "" {
-		caCertPEM, err := ioutil.ReadFile(tlsCACertFile)
-		if err != nil {
-			return nil, fmt.Errorf("read CA cert file: %v", err)
-		}
-		pool := x509.NewCertPool()
-		if ok := pool.AppendCertsFromPEM(caCertPEM); !ok {
-			return nil, fmt.Errorf("failed to parse CA cert %q", tlsCACertFile)
-		}
-		return pool, nil
+	if tlsCACertFile == "" {
+		return nil, nil
 	}
 
-	return nil, nil
+	caCertPEM, err := ioutil.ReadFile(tlsCACertFile)
+	if err != nil {
+		return nil, fmt.Errorf("read CA cert file: %v", err)
+	}
+	pool := x509.NewCertPool()
+	if ok := pool.AppendCertsFromPEM(caCertPEM); !ok {
+		return nil, fmt.Errorf("failed to parse CA cert %q", tlsCACertFile)
+	}
+	return pool, nil
 }
 
 func tlsOption(encryptionScheme string, encryptionSkipVerify bool, cert *tls.Certificate, certPool *x509.CertPool) (otlptracegrpc.Option, error) {
