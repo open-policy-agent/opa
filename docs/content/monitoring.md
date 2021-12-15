@@ -15,7 +15,8 @@ If processing the request involves policy evaluation, and that in turn uses
 [`http.send`](../policy-reference/#http), those HTTP clients will emit descendant spans.
 
 Furthermore, spans exported for policy evaluation requests will contain an
-attribute `opa.decision_id` of the evaluation's decision ID.
+attribute `opa.decision_id` of the evaluation's decision ID _if_ the server
+has decision logging enabled.
 
 See [the configuration documentation](../configuration/#distributed-tracing)
 for all OpenTelemetry-related configurables.
