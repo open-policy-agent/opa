@@ -12,7 +12,7 @@ require (
 	github.com/fsnotify/fsnotify v1.5.1
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-ini/ini v1.66.2
-	github.com/go-logr/logr v1.2.1
+	github.com/go-logr/logr v1.2.2
 	github.com/gobwas/glob v0.2.3
 	github.com/golang/glog v1.0.0 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
