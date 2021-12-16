@@ -4057,7 +4057,7 @@ func TestDiagnosticRoutes(t *testing.T) {
 
 func TestDistributedTracingEnabled(t *testing.T) {
 	c := []byte(`{"distributed_tracing": {
-		"enabled": true
+		"type": "grpc"
 		}}`)
 
 	ctx := context.Background()
