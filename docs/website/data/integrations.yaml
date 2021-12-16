@@ -983,13 +983,13 @@ integrations:
       category: updates
       layer: application
     inventors:
-      - authorizon
+      - permitio
     software:
       - opal
     code:
-      - https://github.com/authorizon/opal
+      - https://github.com/permitio/opal
     tutorials:
-      - https://github.com/authorizon/opal/blob/master/docs/index.md
+      - https://github.com/permitio/opal/blob/master/docs/index.md
     videos:
       - https://www.youtube.com/watch?v=K1Zm2FPfrh8
 
@@ -1120,9 +1120,9 @@ organizations:
   fairwinds:
     name: Fairwinds
     link: https://fairwinds.com
-  authorizon:
-    name: authorizon
-    link: https://authorizon.com
+  permitio:
+    name: Permit.io
+    link: https://permit.io
   alertavert:
     name: AlertAVert.com
     link: http://www.alertavert.com/
