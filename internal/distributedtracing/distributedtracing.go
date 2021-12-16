@@ -149,20 +149,20 @@ func parseDistributedTracingConfig(raw []byte) (*distributedTracingConfig, error
 	if err := util.Unmarshal(raw, &config); err != nil {
 		return nil, err
 	}
-	config.validateAndInjectDefaults()
-
-	if !isSupportedEncryptionScheme(config.EncryptionScheme) {
-		return nil, fmt.Errorf("unsupported distributed_tracing.encryption_scheme '%v'", config.EncryptionScheme)
-	}
-
-	if !isSupportedSampleRatePercentage(*config.SampleRatePercentage) {
-		return nil, fmt.Errorf("unsupported distributed_tracing.sample_percentage '%v'", *config.SampleRatePercentage)
+	if err := config.validateAndInjectDefaults(); err != nil {
+		return nil, err
 	}
 
 	return &config, nil
 }
 
-func (c *distributedTracingConfig) validateAndInjectDefaults() {
+func (c *distributedTracingConfig) validateAndInjectDefaults() error {
+	switch c.Type {
+	case "", "grpc": // OK
+	default:
+		return fmt.Errorf("unknown distributed_tracing.type '%s', must be \"grpc\" or \"\" (unset)", c.Type)
+	}
+
 	if c.Address == "" {
 		c.Address = defaultAddress
 	}
@@ -182,6 +182,16 @@ func (c *distributedTracingConfig) validateAndInjectDefaults() {
 		*encryptionSkipVerify = defaultEncryptionSkipVerify
 		c.EncryptionSkipVerify = encryptionSkipVerify
 	}
+
+	if !isSupportedEncryptionScheme(c.EncryptionScheme) {
+		return fmt.Errorf("unsupported distributed_tracing.encryption_scheme '%s'", c.EncryptionScheme)
+	}
+
+	if !isSupportedSampleRatePercentage(*c.SampleRatePercentage) {
+		return fmt.Errorf("unsupported distributed_tracing.sample_percentage '%v'", *c.SampleRatePercentage)
+	}
+
+	return nil
 }
 
 func loadCertificate(tlsCertFile, tlsPrivateKeyFile string) (*tls.Certificate, error) {
