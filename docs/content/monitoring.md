@@ -1,5 +1,5 @@
 ---
-title: Monitoring and Observability
+title: Monitoring
 kind: operations
 weight: 30
 restrictedtoc: true
