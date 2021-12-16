@@ -398,24 +398,17 @@ integrations:
     description: Apache Kafka is a high-performance distributed streaming platform deployed by thousands of companies.  OPA provides fine-grained, context-aware access control of which users can read/write which Kafka topics to enforce important requirements around confidentiality and integrity.
     software:
       - kafka
-      - strimzi
     labels:
       category: streaming
       layer: data
     tutorials:
-      - https://www.openpolicyagent.org/docs/kafka-authorization.html
-    blogs:
-      - https://strimzi.io/blog/2020/08/05/using-open-policy-agent-with-strimzi-and-apache-kafka/
+      - https://www.openpolicyagent.org/docs/latest/kafka-authorization/
     code:
+      - https://github.com/anderseknert/opa-kafka-plugin
       - https://github.com/llofberg/kafka-authorizer-opa
-      - https://github.com/open-policy-agent/contrib/tree/master/kafka_authorizer
-      - https://github.com/Bisnode/opa-kafka-plugin
-      - https://github.com/strimzi/strimzi-kafka-operator
     inventors:
       - ticketmaster
       - styra
-      - bisnode
-      - redhat
     videos:
       - title: "OPA at Scale: How Pinterest Manages Policy Distribution"
         speakers:
@@ -426,6 +419,24 @@ integrations:
         venue: OPA Summit at Kubecon San Diego 2019
         link: https://www.youtube.com/watch?v=LhgxFICWsA8
 
+  strimzi:
+    title: Strimzi (Apache Kafka on Kubernetes)
+    description: Strimzi provides a way to run an Apache Kafka cluster on Kubernetes in various deployment configurations. Strimzi ships with the OPA authorizer plugin right out of the box, and supports OPA as an option for Kafka authorization.
+    software:
+      - kafka
+      - strimzi
+    labels:
+      category: streaming
+      layer: data
+    blogs:
+      - https://strimzi.io/blog/2020/08/05/using-open-policy-agent-with-strimzi-and-apache-kafka/
+      - https://strimzi.io/blog/2020/09/01/enforce-custom-resource-policies-with-opa-gatekeeper/
+    code:
+      - https://github.com/strimzi/strimzi-kafka-operator
+      - https://github.com/scholzj/demo-opa-kafka-authorization
+      - https://github.com/anderseknert/opa-kafka-plugin
+    inventors:
+      - redhat
 
   ceph:
     title: Ceph Object Storage Authorization
