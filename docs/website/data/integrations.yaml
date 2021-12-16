@@ -972,13 +972,13 @@ integrations:
       category: updates
       layer: application
     inventors:
-      - authorizon
+      - Permit.io
     software:
       - opal
     code:
-      - https://github.com/authorizon/opal
+      - https://github.com/permitio/opal
     tutorials:
-      - https://github.com/authorizon/opal/blob/master/docs/index.md
+      - https://github.com/permitio/opal/blob/master/docs/index.md
     videos:
       - https://www.youtube.com/watch?v=K1Zm2FPfrh8
 
