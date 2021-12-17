@@ -29,6 +29,54 @@ func BenchmarkArrayIteration(b *testing.B) {
 	}
 }
 
+func BenchmarkArrayPlugging(b *testing.B) {
+	ctx := context.Background()
+
+	sizes := []int{10, 100, 1000, 10000}
+
+	for _, n := range sizes {
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			data := make([]interface{}, n)
+			for i := 0; i < n; i++ {
+				data[i] = fmt.Sprintf("whatever%d", i)
+			}
+			store := inmem.NewFromObject(map[string]interface{}{"fixture": data})
+			module := `package test
+			fixture := data.fixture
+			main { x := fixture }`
+
+			query := ast.MustParseBody("data.test.main")
+			compiler := ast.MustCompileModules(map[string]string{
+				"test.rego": module,
+			})
+
+			b.ResetTimer()
+
+			for i := 0; i < b.N; i++ {
+
+				err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
+
+					q := NewQuery(query).
+						WithCompiler(compiler).
+						WithStore(store).
+						WithTransaction(txn)
+
+					_, err := q.Run(ctx)
+					if err != nil {
+						return err
+					}
+
+					return nil
+				})
+
+				if err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
+}
+
 func BenchmarkSetIteration(b *testing.B) {
 	sizes := []int{10, 100, 1000, 10000}
 	for _, n := range sizes {
