@@ -118,6 +118,7 @@ type EvalContext struct {
 	resolvers              []refResolver
 	sortSets               bool
 	printHook              print.Hook
+	capabilities           *ast.Capabilities
 }
 
 // EvalOption defines a function to set an option on an EvalConfig
@@ -311,6 +312,7 @@ func (pq preparedQuery) newEvalContext(ctx context.Context, options []EvalOption
 		earlyExit:        true,
 		resolvers:        pq.r.resolvers,
 		printHook:        pq.r.printHook,
+		capabilities:     pq.r.capabilities,
 	}
 
 	for _, o := range options {
@@ -1969,6 +1971,7 @@ func (r *Rego) evalWasm(ctx context.Context, ectx *EvalContext) (ResultSet, erro
 		Seed:                   ectx.seed,
 		InterQueryBuiltinCache: ectx.interQueryBuiltinCache,
 		PrintHook:              ectx.printHook,
+		Capabilities:           ectx.capabilities,
 	})
 	if err != nil {
 		return nil, err
@@ -2075,6 +2078,7 @@ func (r *Rego) partialResult(ctx context.Context, pCfg *PrepareConfig) (PartialR
 		instrumentation:  r.instrumentation,
 		indexing:         true,
 		resolvers:        r.resolvers,
+		capabilities:     r.capabilities,
 	}
 
 	disableInlining := r.disableInlining
