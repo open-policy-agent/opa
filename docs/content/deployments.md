@@ -445,6 +445,8 @@ Not providing a capabilities file, or providing a file without an `allow_net` ke
 
 Note that the metaschemas http://json-schema.org/draft-04/schema, http://json-schema.org/draft-06/schema, and http://json-schema.org/draft-07/schema, are always available, even without network access.
 
+Similarly, the `allow_net` capability restricts what hosts the `http.send` built-in function may send requests to, and what hosts the `net.lookup_ip_addr` built-in function may resolve IP addresses for.
+
 ### Future keywords
 
 The availability of future keywords in an OPA version can also be controlled using the capabilities file:
