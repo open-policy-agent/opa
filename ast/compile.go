@@ -86,9 +86,6 @@ type Compiler struct {
 	// with the key being the generated name and value being the original.
 	RewrittenVars map[Var]Var
 
-	// Capabilities is the user-supplied capabilities or features allowed for OPA.
-	Capabilities *Capabilities
-
 	localvargen  *localVarGenerator
 	moduleLoader ModuleLoader
 	ruleIndices  *util.HashMap
@@ -102,9 +99,10 @@ type Compiler struct {
 	pathExists            func([]string) (bool, error)
 	after                 map[string][]CompilerStageDefinition
 	metrics               metrics.Metrics
+	capabilities          *Capabilities                 // user-supplied capabilities
 	builtins              map[string]*Builtin           // universe of built-in functions
-	customBuiltins        map[string]*Builtin           // user-supplied custom built-in functions (deprecated: use Capabilities)
-	unsafeBuiltinsMap     map[string]struct{}           // user-supplied set of unsafe built-ins functions to block (deprecated: use Capabilities)
+	customBuiltins        map[string]*Builtin           // user-supplied custom built-in functions (deprecated: use capabilities)
+	unsafeBuiltinsMap     map[string]struct{}           // user-supplied set of unsafe built-ins functions to block (deprecated: use capabilities)
 	enablePrintStatements bool                          // indicates if print statements should be elided (default)
 	comprehensionIndices  map[*Term]*ComprehensionIndex // comprehension key index
 	initialized           bool                          // indicates if init() has been called
@@ -327,15 +325,20 @@ func (c *Compiler) WithMetrics(metrics metrics.Metrics) *Compiler {
 	return c
 }
 
-// WithCapabilities sets Capabilities to enable during compilation. Capabilities allow the caller
-// to specify the set of built-in functions available to the policy. In the future, Capabilities
+// WithCapabilities sets capabilities to enable during compilation. Capabilities allow the caller
+// to specify the set of built-in functions available to the policy. In the future, capabilities
 // may be able to restrict access to other language features. Capabilities allow callers to check
 // if policies are compatible with a particular version of OPA. If policies are a compiled for a
 // specific version of OPA, there is no guarantee that _this_ version of OPA can evaluate them
 // successfully.
 func (c *Compiler) WithCapabilities(capabilities *Capabilities) *Compiler {
-	c.Capabilities = capabilities
+	c.capabilities = capabilities
 	return c
+}
+
+// Capabilities returns the capabilities enabled during compilation.
+func (c *Compiler) Capabilities() *Capabilities {
+	return c.capabilities
 }
 
 // WithDebug sets where debug messages are written to. Passing `nil` has no
@@ -1205,13 +1208,13 @@ func (c *Compiler) init() {
 		return
 	}
 
-	if c.Capabilities == nil {
-		c.Capabilities = CapabilitiesForThisVersion()
+	if c.capabilities == nil {
+		c.capabilities = CapabilitiesForThisVersion()
 	}
 
-	c.builtins = make(map[string]*Builtin, len(c.Capabilities.Builtins)+len(c.customBuiltins))
+	c.builtins = make(map[string]*Builtin, len(c.capabilities.Builtins)+len(c.customBuiltins))
 
-	for _, bi := range c.Capabilities.Builtins {
+	for _, bi := range c.capabilities.Builtins {
 		c.builtins[bi.Name] = bi
 	}
 
@@ -1222,7 +1225,7 @@ func (c *Compiler) init() {
 	// Load the global input schema if one was provided.
 	if c.schemaSet != nil {
 		if schema := c.schemaSet.Get(SchemaRootRef); schema != nil {
-			tpe, err := loadSchema(schema, c.Capabilities.AllowNet)
+			tpe, err := loadSchema(schema, c.capabilities.AllowNet)
 			if err != nil {
 				c.err(NewError(TypeErr, nil, err.Error()))
 			} else {

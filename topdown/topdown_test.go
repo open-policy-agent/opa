@@ -742,7 +742,7 @@ func setTime(t time.Time) func(*Query) *Query {
 
 func setAllowNet(a []string) func(*Query) *Query {
 	return func(q *Query) *Query {
-		c := q.compiler.Capabilities
+		c := q.compiler.Capabilities()
 		c.AllowNet = a
 		return q.WithCompiler(q.compiler.WithCapabilities(c))
 	}

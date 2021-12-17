@@ -703,7 +703,7 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 
 	var capabilities *ast.Capabilities
 	if e.compiler != nil {
-		capabilities = e.compiler.Capabilities
+		capabilities = e.compiler.Capabilities()
 	}
 
 	bctx := BuiltinContext{

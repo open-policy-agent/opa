@@ -353,7 +353,7 @@ func TestEvalWasmWithHTTPAllowNet(t *testing.T) {
 
 	serverUrl, err := url.Parse(ts.URL)
 	if err != nil {
-		panic(err)
+		t.Fatal(err)
 	}
 	serverHost := strings.Split(serverUrl.Host, ":")[0]
 

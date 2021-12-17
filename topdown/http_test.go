@@ -76,10 +76,7 @@ func TestHTTPGetRequest(t *testing.T) {
 		"test-header":    []interface{}{"test-value"},
 	}
 
-	resultObj, err := ast.InterfaceToValue(expectedResult)
-	if err != nil {
-		panic(err)
-	}
+	resultObj := ast.MustInterfaceToValue(expectedResult)
 
 	// run the test
 	tests := []struct {
@@ -130,10 +127,7 @@ func TestHTTPGetRequestTlsInsecureSkipVerify(t *testing.T) {
 		"content-type":   []interface{}{"text/plain; charset=utf-8"},
 	}
 
-	resultObj, err := ast.InterfaceToValue(expectedResult)
-	if err != nil {
-		panic(err)
-	}
+	resultObj := ast.MustInterfaceToValue(expectedResult)
 
 	// run the test
 	tests := []struct {
@@ -181,10 +175,7 @@ func TestHTTPEnableJSONDecode(t *testing.T) {
 		"content-type":   []interface{}{"text/plain; charset=utf-8"},
 	}
 
-	resultObj, err := ast.InterfaceToValue(expectedResult)
-	if err != nil {
-		panic(err)
-	}
+	resultObj := ast.MustInterfaceToValue(expectedResult)
 
 	// run the test
 	tests := []struct {
@@ -462,10 +453,7 @@ func TestHTTPDeleteRequest(t *testing.T) {
 		"content-type":   []interface{}{"application/json"},
 	}
 
-	resultObj, err := ast.InterfaceToValue(expectedResult)
-	if err != nil {
-		panic(err)
-	}
+	resultObj := ast.MustInterfaceToValue(expectedResult)
 
 	// delete a new person
 	personToDelete := Person{ID: "2", Firstname: "Joe"}
@@ -622,10 +610,7 @@ func TestHTTPRedirectDisable(t *testing.T) {
 		"location":       []interface{}{"/test"},
 	}
 
-	resultObj, err := ast.InterfaceToValue(expectedResult)
-	if err != nil {
-		panic(err)
-	}
+	resultObj := ast.MustInterfaceToValue(expectedResult)
 
 	data := loadSmallTestData()
 	rules := append(
@@ -655,10 +640,7 @@ func TestHTTPRedirectEnable(t *testing.T) {
 		"content-length": []interface{}{"0"},
 	}
 
-	resultObj, err := ast.InterfaceToValue(expectedResult)
-	if err != nil {
-		panic(err)
-	}
+	resultObj := ast.MustInterfaceToValue(expectedResult)
 
 	data := loadSmallTestData()
 	rules := append(
@@ -680,28 +662,19 @@ func TestHTTPSendRaiseError(t *testing.T) {
 	networkErrObj["code"] = HTTPSendNetworkErr
 	networkErrObj["message"] = "Get \"foo://foo.com\": unsupported protocol scheme \"foo\""
 
-	networkErr, err := ast.InterfaceToValue(networkErrObj)
-	if err != nil {
-		panic(err)
-	}
+	networkErr := ast.MustInterfaceToValue(networkErrObj)
 
 	internalErrObj := make(map[string]interface{})
 	internalErrObj["code"] = HTTPSendInternalErr
 	internalErrObj["message"] = fmt.Sprintf(`http.send({"method": "get", "url": "%s", "force_json_decode": true, "raise_error": false, "force_cache": true}): eval_builtin_error: http.send: 'force_cache' set but 'force_cache_duration_seconds' parameter is missing`, baseURL)
 
-	internalErr, err := ast.InterfaceToValue(internalErrObj)
-	if err != nil {
-		panic(err)
-	}
+	internalErr := ast.MustInterfaceToValue(internalErrObj)
 
 	responseObj := make(map[string]interface{})
 	responseObj["status_code"] = 0
 	responseObj["error"] = internalErrObj
 
-	response, err := ast.InterfaceToValue(responseObj)
-	if err != nil {
-		panic(err)
-	}
+	response := ast.MustInterfaceToValue(responseObj)
 
 	tests := []struct {
 		note         string
@@ -2601,10 +2574,7 @@ func TestSocketHTTPGetRequest(t *testing.T) {
 		"test-header":    []interface{}{"test-value"},
 	}
 
-	resultObj, err := ast.InterfaceToValue(expectedResult)
-	if err != nil {
-		panic(err)
-	}
+	resultObj := ast.MustInterfaceToValue(expectedResult)
 
 	// run the test
 	tests := []struct {
@@ -2698,7 +2668,7 @@ func TestHTTPGetRequestAllowNet(t *testing.T) {
 	// host
 	serverURL, err := url.Parse(ts.URL)
 	if err != nil {
-		panic(err)
+		t.Fatal(err)
 	}
 	serverHost := strings.Split(serverURL.Host, ":")[0]
 
@@ -2710,10 +2680,7 @@ func TestHTTPGetRequestAllowNet(t *testing.T) {
 	expectedResult["body"] = body
 	expectedResult["raw_body"] = "{\"ok\":true}\n"
 
-	resultObj, err := ast.InterfaceToValue(expectedResult)
-	if err != nil {
-		panic(err)
-	}
+	resultObj := ast.MustInterfaceToValue(expectedResult)
 
 	expectedError := &Error{Code: "eval_builtin_error", Message: fmt.Sprintf("http.send: unallowed host: %s", serverHost)}
 
