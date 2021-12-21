@@ -1007,6 +1007,25 @@ integrations:
       - https://github.com/dolevf/bottle-acl-openpolicyagent
     blogs:
       - https://blog.lethalbit.com/open-policy-agent-for-bottle-web-framework/
+    
+  kubescape:
+    title: Kubescape Kubernetes security posture scanner
+    description: |
+      This integration uses OPA for defining security controls over Kubernetes clusters. Kubescape is a simple extensible tool
+      finding security problems in your environment. OPA enables Kubescape to implement and extend very fast to answer new problems.
+    labels:
+      category: security
+      layer: application
+    software:
+      - kubescape
+    code:
+      - https://github.com/armosec/kubescape
+      - https://github.com/armosec/regolibrary
+    inventors:
+      - armo
+    tutorials:
+      - https://hub.armo.cloud
+
 
 organizations:
   styra:
@@ -1132,6 +1151,9 @@ organizations:
   apache-apisix:
     name: Apache APISIX
     link: https://apisix.apache.org/
+  armo: 
+    name: ARMO
+    link: https://armosec.io
 software:
   kubernetes:
     name: Kubernetes
@@ -1268,3 +1290,7 @@ software:
   apache-apisix:
     name: Apache APISIX
     link: https://apisix.apache.org/
+  kubescape: 
+    name: Kubescape
+    link: https://github.com/armosec/kubescape
+
