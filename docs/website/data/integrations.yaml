@@ -1017,7 +1017,7 @@ integrations:
       category: security
       layer: application
     software:
-      - Kubescape
+      - kubescape
     code:
       - https://github.com/armosec/kubescape
       - https://github.com/armosec/regolibrary
