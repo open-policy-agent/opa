@@ -1022,7 +1022,7 @@ integrations:
       - https://github.com/armosec/kubescape
       - https://github.com/armosec/regolibrary
     inventors:
-      - ARMO
+      - armo
     tutorials:
       - https://hub.armo.cloud
 
