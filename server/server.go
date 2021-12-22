@@ -2865,6 +2865,9 @@ func parseURL(s string, useHTTPSByDefault bool) (*url.URL, error) {
 }
 
 func annotateSpan(ctx context.Context, decisionID string) {
+	if decisionID == "" {
+		return
+	}
 	trace.SpanFromContext(ctx).
 		SetAttributes(attribute.String(otelDecisionIDAttr, decisionID))
 }

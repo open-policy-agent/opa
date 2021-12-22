@@ -701,6 +701,11 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 		parentID = e.parent.queryID
 	}
 
+	var capabilities *ast.Capabilities
+	if e.compiler != nil {
+		capabilities = e.compiler.Capabilities()
+	}
+
 	bctx := BuiltinContext{
 		Context:                e.ctx,
 		Metrics:                e.metrics,
@@ -717,6 +722,7 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 		ParentID:               parentID,
 		PrintHook:              e.printHook,
 		DistributedTracingOpts: e.tracingOpts,
+		Capabilities:           capabilities,
 	}
 
 	eval := evalBuiltin{

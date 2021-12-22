@@ -176,7 +176,7 @@ func ensurePoolResults(t *testing.T, ctx context.Context, testPool *wasm.Pool, p
 		toRelease = append(toRelease, vm)
 
 		cfg, _ := cache.ParseCachingConfig(nil)
-		result, err := vm.Eval(ctx, 0, input, metrics.New(), rand.New(rand.NewSource(0)), time.Now(), cache.NewInterQueryCache(cfg), nil)
+		result, err := vm.Eval(ctx, 0, input, metrics.New(), rand.New(rand.NewSource(0)), time.Now(), cache.NewInterQueryCache(cfg), nil, nil)
 		if err != nil {
 			t.Fatalf("Unexpected error: %s", err)
 		}

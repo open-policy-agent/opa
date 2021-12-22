@@ -815,7 +815,7 @@ Distributed tracing represents the configuration of the OpenTelemetry Tracing.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `distributed_tracing.enabled` | `bool` | No (default: `false`) | Enables distributed tracing. |
+| `distributed_tracing.type` | `string` | No | Setting this to "grpc" enables distributed tracing with an collector gRPC endpoint |
 | `distributed_tracing.address` | `string` | No (default: `localhost:4317`) | Address of the OpenTelemetry Collector gRPC endpoint. |
 | `distributed_tracing.service_name` | `string` | No (default: `opa`) | Logical name of the service. |
 | `distributed_tracing.sample_percentage` | `int` | No (default: `100`) | Percentage of traces that are sampled and exported. |

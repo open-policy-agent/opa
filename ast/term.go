@@ -1076,26 +1076,30 @@ type QueryIterator func(map[Var]Value, Value) error
 
 // ArrayTerm creates a new Term with an Array value.
 func ArrayTerm(a ...*Term) *Term {
-	return &Term{Value: &Array{a, 0}}
+	return &Term{Value: &Array{elems: a, hash: 0, ground: termSliceIsGround(a)}}
 }
 
 // NewArray creates an Array with the terms provided. The array will
 // use the provided term slice.
 func NewArray(a ...*Term) *Array {
-	return &Array{a, 0}
+	return &Array{elems: a, hash: 0, ground: termSliceIsGround(a)}
 }
 
 // Array represents an array as defined by the language. Arrays are similar to the
 // same types as defined by JSON with the exception that they can contain Vars
 // and References.
 type Array struct {
-	elems []*Term
-	hash  int
+	elems  []*Term
+	hash   int
+	ground bool
 }
 
 // Copy returns a deep copy of arr.
 func (arr *Array) Copy() *Array {
-	return &Array{termSliceCopy(arr.elems), arr.hash}
+	return &Array{
+		elems:  termSliceCopy(arr.elems),
+		hash:   arr.hash,
+		ground: arr.IsGround()}
 }
 
 // Equal returns true if arr is equal to other.
@@ -1170,13 +1174,13 @@ func (arr *Array) Hash() int {
 
 // IsGround returns true if all of the Array elements are ground.
 func (arr *Array) IsGround() bool {
-	return termSliceIsGround(arr.elems)
+	return arr.ground
 }
 
 // MarshalJSON returns JSON encoded bytes representing arr.
 func (arr *Array) MarshalJSON() ([]byte, error) {
 	if len(arr.elems) == 0 {
-		return json.Marshal([]interface{}{})
+		return []byte(`[]`), nil
 	}
 	return json.Marshal(arr.elems)
 }
@@ -1206,6 +1210,7 @@ func (arr *Array) Elem(i int) *Term {
 
 // set sets the element i of arr.
 func (arr *Array) set(i int, v *Term) {
+	arr.ground = arr.ground && v.IsGround()
 	arr.elems[i] = v
 	arr.hash = 0
 }
@@ -1215,11 +1220,16 @@ func (arr *Array) set(i int, v *Term) {
 // copy and any modifications to either of arrays may be reflected to
 // the other.
 func (arr *Array) Slice(i, j int) *Array {
+	var elems []*Term
 	if j == -1 {
-		return &Array{elems: arr.elems[i:]}
+		elems = arr.elems[i:]
+	} else {
+		elems = arr.elems[i:j]
 	}
-
-	return &Array{elems: arr.elems[i:j]}
+	// If arr is ground, the slice is, too.
+	// If it's not, the slice could still be.
+	gr := arr.ground || termSliceIsGround(elems)
+	return &Array{elems: elems, ground: gr}
 }
 
 // Iter calls f on each element in arr. If f returns an error,
@@ -1257,6 +1267,7 @@ func (arr *Array) Append(v *Term) *Array {
 	cpy := *arr
 	cpy.elems = append(arr.elems, v)
 	cpy.hash = 0
+	cpy.ground = arr.ground && v.IsGround()
 	return &cpy
 }
 
@@ -1509,7 +1520,7 @@ func (s *set) Len() int {
 // MarshalJSON returns JSON encoded bytes representing s.
 func (s *set) MarshalJSON() ([]byte, error) {
 	if s.keys == nil {
-		return json.Marshal([]interface{}{})
+		return []byte(`[]`), nil
 	}
 	return json.Marshal(s.keys)
 }

@@ -336,6 +336,11 @@ func (c *Compiler) WithCapabilities(capabilities *Capabilities) *Compiler {
 	return c
 }
 
+// Capabilities returns the capabilities enabled during compilation.
+func (c *Compiler) Capabilities() *Capabilities {
+	return c.capabilities
+}
+
 // WithDebug sets where debug messages are written to. Passing `nil` has no
 // effect.
 func (c *Compiler) WithDebug(sink io.Writer) *Compiler {

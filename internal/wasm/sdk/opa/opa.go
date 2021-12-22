@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/internal/wasm/sdk/internal/wasm"
 	"github.com/open-policy-agent/opa/internal/wasm/sdk/opa/errors"
 	sdk_errors "github.com/open-policy-agent/opa/internal/wasm/sdk/opa/errors"
@@ -165,6 +166,7 @@ type EvalOpts struct {
 	Seed                   io.Reader
 	InterQueryBuiltinCache cache.InterQueryCache
 	PrintHook              print.Hook
+	Capabilities           *ast.Capabilities
 }
 
 // Eval evaluates the policy with the given input, returning the
@@ -188,7 +190,8 @@ func (o *OPA) Eval(ctx context.Context, opts EvalOpts) (*Result, error) {
 
 	defer o.pool.Release(instance, m)
 
-	result, err := instance.Eval(ctx, opts.Entrypoint, opts.Input, m, opts.Seed, opts.Time, opts.InterQueryBuiltinCache, opts.PrintHook)
+	result, err := instance.Eval(ctx, opts.Entrypoint, opts.Input, m, opts.Seed, opts.Time, opts.InterQueryBuiltinCache,
+		opts.PrintHook, opts.Capabilities)
 	if err != nil {
 		return nil, err
 	}
