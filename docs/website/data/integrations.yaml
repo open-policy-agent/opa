@@ -13,7 +13,9 @@ integrations:
       - https://github.com/apache/apisix
     inventors:
       - apache-apisix
-    # blogs:
+    blogs:
+      - https://apisix.apache.org/blog/2021/12/24/open-policy-agent
+      - https://medium.com/@ApacheAPISIX/apache-apisix-integrates-with-open-policy-agent-to-enrich-its-ecosystem-15569fe3ab9c
   sphinx-rego:
     title: Automatically document Rego policies
     description: Sphinx extension that automatically documents Open Policy Agent Rego policies using meta properties.
@@ -1007,7 +1009,7 @@ integrations:
       - https://github.com/dolevf/bottle-acl-openpolicyagent
     blogs:
       - https://blog.lethalbit.com/open-policy-agent-for-bottle-web-framework/
-    
+
   kubescape:
     title: Kubescape Kubernetes security posture scanner
     description: |
@@ -1151,7 +1153,7 @@ organizations:
   apache-apisix:
     name: Apache APISIX
     link: https://apisix.apache.org/
-  armo: 
+  armo:
     name: ARMO
     link: https://armosec.io
 software:
@@ -1290,7 +1292,7 @@ software:
   apache-apisix:
     name: Apache APISIX
     link: https://apisix.apache.org/
-  kubescape: 
+  kubescape:
     name: Kubescape
     link: https://github.com/armosec/kubescape
 
