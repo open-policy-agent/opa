@@ -23,7 +23,7 @@ GOVERSION ?= $(shell cat ./.go-version)
 GOARCH := $(shell go env GOARCH)
 GOOS := $(shell go env GOOS)
 
-GOLANGCI_LINT_VERSION := v1.40.1
+GOLANGCI_LINT_VERSION := v1.43.0
 
 DOCKER_RUNNING := $(shell docker ps >/dev/null 2>&1 && echo 1 || echo 0)
 
