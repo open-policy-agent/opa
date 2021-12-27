@@ -1091,6 +1091,26 @@
       }
     },
     {
+      "name": "indexof_n",
+      "decl": {
+        "args": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "string"
+          }
+        ],
+        "result": {
+          "dynamic": {
+            "type": "number"
+          },
+          "type": "array"
+        },
+        "type": "function"
+      }
+    },
+    {
       "name": "internal.member_2",
       "decl": {
         "args": [

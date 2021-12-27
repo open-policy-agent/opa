@@ -112,6 +112,7 @@ var DefaultBuiltins = [...]*Builtin{
 	Concat,
 	FormatInt,
 	IndexOf,
+	IndexOfN,
 	Substring,
 	Lower,
 	Upper,
@@ -892,6 +893,18 @@ var IndexOf = &Builtin{
 			types.S,
 		),
 		types.N,
+	),
+}
+
+// IndexOfN returns a list of all the indexes of a substring contained inside a string
+var IndexOfN = &Builtin{
+	Name: "indexof_n",
+	Decl: types.NewFunction(
+		types.Args(
+			types.S,
+			types.S,
+		),
+		types.NewArray(nil, types.N),
 	),
 }
 

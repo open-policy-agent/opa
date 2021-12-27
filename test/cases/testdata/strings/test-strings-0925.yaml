@@ -1,0 +1,25 @@
+cases:
+  - note: 'strings/indexof_n_single_match'
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        p := indexof_n("dogcat", "cat")
+    want_result:
+      - x: [3]
+  - note: 'strings/indexof_n_multiple_matches'
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        p := indexof_n("dogcatdogcat", "cat")
+    want_result:
+      - x: [3, 9]
+  - note: 'strings/indexof_n_no_match'
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        p := indexof_n("dogcat", "rabbit")
+    want_result:
+      - x: []
