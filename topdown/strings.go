@@ -87,7 +87,7 @@ func builtinConcat(a, b ast.Value) (ast.Value, error) {
 	return ast.String(strings.Join(strs, string(join))), nil
 }
 
-var runesEqual = func(a, b []rune) bool {
+func runesEqual(a, b []rune) bool {
 	if len(a) != len(b) {
 		return false
 	}
