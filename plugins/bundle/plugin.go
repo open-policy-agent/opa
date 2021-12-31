@@ -684,15 +684,30 @@ func (fl *fileLoader) Trigger(ctx context.Context) error {
 func (fl *fileLoader) oneShot(ctx context.Context) {
 	var u download.Update
 	u.Metrics = metrics.New()
-	f, err := os.Open(fl.path)
+
+	info, err := os.Stat(fl.path)
 	u.Error = err
 	if err != nil {
 		fl.f(ctx, fl.name, u)
 		return
 	}
 
-	defer f.Close()
-	b, err := bundle.NewReader(f).
+	var reader *bundle.Reader
+
+	if info.IsDir() {
+		reader = bundle.NewCustomReader(bundle.NewDirectoryLoader(fl.path))
+	} else {
+		f, err := os.Open(fl.path)
+		u.Error = err
+		if err != nil {
+			fl.f(ctx, fl.name, u)
+			return
+		}
+		defer f.Close()
+		reader = bundle.NewReader(f)
+	}
+
+	b, err := reader.
 		WithMetrics(u.Metrics).
 		WithBundleVerificationConfig(fl.bvc).
 		WithSizeLimitBytes(fl.sizeLimitBytes).Read()

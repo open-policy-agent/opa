@@ -9,7 +9,7 @@ It covers the OPA-kubernetes version that uses kube-mgmt.
 The [OPA Gatekeeper version](https://open-policy-agent.github.io/gatekeeper) has its own docs.
 For the purpose of the tutorial we will deploy two policies that ensure:
 
-- Ingress hostnames must be whitelisted on the Namespace containing the Ingress.
+- Ingress hostnames must be on allowlist on the Namespace containing the Ingress.
 - Two ingresses in different namespaces must not have the same hostname.
 
 > 💡 Kubernetes does not guarantee consistency across resources. If two
@@ -120,9 +120,9 @@ mkdir policies && cd policies
 Create a policy that restricts the hostnames that an ingress can use. Only hostnames matching the specified regular
 expressions will be allowed.
 
-**ingress-whitelist.rego**:
+**ingress-allowlist.rego**:
 
-```live:ingress_whitelist:module:read_only
+```live:ingress_allowlist:module:read_only
 package kubernetes.admission
 
 import data.kubernetes.namespaces
@@ -138,8 +138,8 @@ deny[msg] {
 }
 
 valid_ingress_hosts = {host |
-	whitelist := namespaces[input.request.namespace].metadata.annotations["ingress-whitelist"]
-	hosts := split(whitelist, ",")
+	allowlist := namespaces[input.request.namespace].metadata.annotations["ingress-allowlist"]
+	hosts := split(allowlist, ",")
 	host := hosts[_]
 }
 
@@ -455,7 +455,7 @@ apiVersion: v1
 kind: Namespace
 metadata:
   annotations:
-    ingress-whitelist: "*.qa.acmecorp.com,*.internal.acmecorp.com"
+    ingress-allowlist: "*.qa.acmecorp.com,*.internal.acmecorp.com"
   name: qa
 ```
 
@@ -466,7 +466,7 @@ apiVersion: v1
 kind: Namespace
 metadata:
   annotations:
-    ingress-whitelist: "*.acmecorp.com"
+    ingress-allowlist: "*.acmecorp.com"
   name: production
 ```
 
@@ -527,7 +527,7 @@ kubectl create -f ingress-ok.yaml -n production
 kubectl create -f ingress-bad.yaml -n qa
 ```
 
-The second Ingress is rejected because its hostname does not match the whitelist in the `qa` namespace.
+The second Ingress is rejected because its hostname does not match the allowlist in the `qa` namespace.
 
 It will report an error as follows:
 
@@ -548,7 +548,7 @@ apiVersion: v1
 kind: Namespace
 metadata:
   annotations:
-    ingress-whitelist: "*.acmecorp.com"
+    ingress-allowlist: "*.acmecorp.com"
   name: staging
 ```
 

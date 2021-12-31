@@ -25,7 +25,7 @@ This tutorial requires
 * [Terraform 0.12.6](https://releases.hashicorp.com/terraform/0.12.6/)
 * [OPA](https://github.com/open-policy-agent/opa/releases)
 
-(This tutorial *should* also work with the [latest version of Terraform](https://www.terraform.io/downloads.html), but 
+(This tutorial *should* also work with the [latest version of Terraform](https://www.terraform.io/downloads.html), but
 it is untested.  Contributions welcome!)
 
 # Getting Started
@@ -75,7 +75,7 @@ terraform plan --out tfplan.binary
 
 ### 2. Convert the Terraform plan into JSON
 
-Use the command [terraform show](https://www.terraform.io/docs/commands/show.html) to convert the Terraform plan into 
+Use the command [terraform show](https://www.terraform.io/docs/commands/show.html) to convert the Terraform plan into
 JSON so that OPA can read the plan.
 
 ```shell
@@ -452,7 +452,7 @@ and there are no changes made to any IAM resources.
 (For simplicity, the threshold in this tutorial is the same for everyone, but in
 practice you would vary the threshold depending on the user.)
 
-**terraform.rego**:
+**policy/terraform.rego**:
 
 ```live:terraform:module:openable
 package terraform.analysis
@@ -551,10 +551,10 @@ num_modifies[resource_type] = num {
 ### 4. Evaluate the OPA policy on the Terraform plan
 
 To evaluate the policy against that plan, you hand OPA the policy, the Terraform plan as input, and
-ask it to evaluate `data.terraform.analysis.authz`.
+ask it to evaluate `terraform/analysis/authz`.
 
 ```shell
-opa eval --format pretty --data terraform.rego --input tfplan.json "data.terraform.analysis.authz"
+opa exec --decision terraform/analysis/authz --bundle policy/ tfplan.json
 ```
 ```live:terraform/authz:query:hidden
 data.terraform.analysis.authz
@@ -567,7 +567,7 @@ If you're curious, you can ask for the score that the policy used to make the au
 In our example, it is 11 (10 for the creation of the auto-scaling group and 1 for the creation of the server).
 
 ```shell
-opa eval --format pretty --data terraform.rego --input tfplan.json "data.terraform.analysis.score"
+opa exec --decision terraform/analysis/score --bundle policy/ tfplan.json
 ```
 
 ```live:terraform/score:query:hidden
@@ -648,24 +648,31 @@ terraform show -json tfplan_large.binary > tfplan_large.json
 Evaluate the policy to see that it fails the policy tests and check the score.
 
 ```shell
-opa eval --data terraform.rego --input tfplan_large.json "data.terraform.analysis.authz"
-opa eval --data terraform.rego --input tfplan_large.json "data.terraform.analysis.score"
+opa exec --decision terraform/analysis/authz --bundle policy/ tfplan_large.json
+opa exec --decision terraform/analysis/score --bundle policy/ tfplan_large.json
 ```
 
-### 6. (Optional) Run OPA as a daemon and evaluate policy
+### 6. (Optional) Run OPA using a remote policy bundle
 
-In addition to running OPA from the command-line, you can run it as a daemon loaded with the Terraform policy and
-then interact with it using its HTTP API.  First, start the daemon:
+In addition to loading policies from the local filesystem, `opa exec` can fetch policies from remote locations via [Bundles](). To see this in action, first build the policies into a bundle:
 
 ```shell
-opa run -s terraform.rego
+opa build policy/
 ```
 
-Then in a separate terminal, use OPA's HTTP API to evaluate the policy against the two Terraform plans.
+Next, serve the bundle via nginx:
 
-```shell
-curl localhost:8181/v0/data/terraform/analysis/authz -d @tfplan.json
-curl localhost:8181/v0/data/terraform/analysis/authz -d @tfplan_large.json
+```bash
+docker run --rm --name bundle_server -d -p 8888:80 -v ${PWD}:/usr/share/nginx/html:ro nginx:latest
+```
+
+Then run `opa exec` with bundles enabled:
+
+```
+opa exec --decision terraform/analysis/authz \
+  --set services.bundle_server.url=http://localhost:8888 \
+  --set bundles.tutorial.resource=bundle.tar.gz \
+  tfplan_large.json
 ```
 
 ## Wrap Up
@@ -689,7 +696,7 @@ If you'd like to explore an additional example that uses terraform modules pleas
 
 ## Module Steps
 
-### 1. Create and save Terraform module plan 
+### 1. Create and save Terraform module plan
 
 Create a new Terraform file that includes a
 security group and security group from a module.  (This example uses the module from https://github.com/terraform-aws-modules/terraform-aws-security-group)
@@ -767,7 +774,7 @@ The policy evaluates if a security group is valid based on the contents of it's 
 
 The policy uses the walk keyword to explore the json structure, and uses conditions to filter for the specific paths where resources would be found.
 
-**terraform_module.rego**:
+**policy/terraform_module.rego**:
 
 ```rego
 package terraform.module
@@ -780,7 +787,7 @@ deny[msg] {
 
 resources := { r |
     some path, value
-    
+
     # Walk over the JSON tree and check if the node we are
     # currently on is a module (either root or child) resources
     # value.
@@ -788,7 +795,7 @@ resources := { r |
 
     # Look for resources in the current value based on path
     rs := module_resources(path, value)
-    
+
     # Aggregate them into `resources`
     r := rs[_]
 }
@@ -796,7 +803,7 @@ resources := { r |
 # Variant to match root_module resources
 module_resources(path, value) = rs {
     # Expect something like:
-    #     
+    #
     #     {
     #     	"root_module": {
     #         	"resources": [...],
@@ -806,7 +813,7 @@ module_resources(path, value) = rs {
     #     }
     #
     # Where the path is [..., "root_module", "resources"]
-    
+
     reverse_index(path, 1) == "resources"
     reverse_index(path, 2) == "root_module"
     rs := value
@@ -815,7 +822,7 @@ module_resources(path, value) = rs {
 # Variant to match child_modules resources
 module_resources(path, value) = rs {
     # Expect something like:
-    #     
+    #
     #     {
     #     	...
     #         "child_modules": [
@@ -832,7 +839,7 @@ module_resources(path, value) = rs {
     # Note that there will always be an index int between `child_modules`
     # and `resources`. We know that walk will only visit each one once,
     # so we shouldn't need to keep track of what the index is.
-    
+
     reverse_index(path, 1) == "resources"
     reverse_index(path, 3) == "child_modules"
     rs := value
@@ -849,15 +856,22 @@ To evaluate the policy against that plan, you hand OPA the policy, the Terraform
 ask it to evaluate `data.terraform.module.deny`.
 
 ```shell
-opa eval --format pretty --data terraform_module.rego --input tfplan2.json "data.terraform.module.deny"
+opa exec --decision terraform/module/deny --bundle policy/ tfplan2.json
 ```
 
 This should return one of the two resources. The security group created by the module uses HTTP in its description and therefore fails the evaluation.
 
 ```shell
-[
-"No security groups should be using HTTP. Resource in violation: module.http_sg.aws_security_group.this_name_prefix[0]"
-]
+{
+  "result": [
+    {
+      "path": "tfplan2.json",
+      "result": [
+        "No security groups should be using HTTP. Resource in violation: module.http_sg.aws_security_group.this_name_prefix[0]"
+      ]
+    }
+  ]
+}
 ```
 
 ## Module Wrap Up

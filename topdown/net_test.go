@@ -155,6 +155,63 @@ func TestNetLookupIPAddr(t *testing.T) {
 			}
 		})
 	}
+
+	addr := "v4.org"
+	exp := ast.NewSet(ast.StringTerm("1.2.3.4"))
+	for name, allowNet := range map[string][]string{
+		"allow_net nil":                     nil,
+		"allow_net match":                   {addr},
+		"allow_net match + additional host": {addr, "example.com"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			capabilities := ast.CapabilitiesForThisVersion()
+			capabilities.AllowNet = allowNet
+			bctx := BuiltinContext{
+				Context:      ctx,
+				Cache:        make(builtins.Cache),
+				Capabilities: capabilities,
+			}
+			srv.PatchNet(resolv)
+			err := builtinLookupIPAddr(bctx, []*ast.Term{ast.StringTerm(addr)}, func(act *ast.Term) error {
+				if exp.Compare(act.Value) != 0 {
+					t.Errorf("expected %v, got %v", exp, act)
+				}
+				return nil
+			})
+			if err != nil {
+				t.Error(err)
+			}
+		})
+	}
+
+	expError := fmt.Errorf("unallowed host: %s", addr)
+	for name, allowNet := range map[string][]string{
+		"allow_net empty":    {},
+		"allow_net no match": {"example.com"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			capabilities := ast.CapabilitiesForThisVersion()
+			capabilities.AllowNet = allowNet
+			bctx := BuiltinContext{
+				Context:      ctx,
+				Cache:        make(builtins.Cache),
+				Capabilities: capabilities,
+			}
+			srv.PatchNet(resolv)
+			err := builtinLookupIPAddr(bctx, []*ast.Term{ast.StringTerm(addr)}, func(act *ast.Term) error {
+				t.Fatal("expected not to be called")
+				return nil
+			})
+			if err == nil {
+				t.Error("expected error")
+			}
+			assertError(t, expError, err)
+		})
+	}
 }
 
 type sink struct{}

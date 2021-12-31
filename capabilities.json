@@ -124,6 +124,26 @@
       }
     },
     {
+      "name": "array.reverse",
+      "decl": {
+        "args": [
+          {
+            "dynamic": {
+              "type": "any"
+            },
+            "type": "array"
+          }
+        ],
+        "result": {
+          "dynamic": {
+            "type": "any"
+          },
+          "type": "array"
+        },
+        "type": "function"
+      }
+    },
+    {
       "name": "array.slice",
       "decl": {
         "args": [
@@ -2969,6 +2989,20 @@
             },
             "type": "object"
           },
+          {
+            "type": "string"
+          }
+        ],
+        "result": {
+          "type": "string"
+        },
+        "type": "function"
+      }
+    },
+    {
+      "name": "strings.reverse",
+      "decl": {
+        "args": [
           {
             "type": "string"
           }

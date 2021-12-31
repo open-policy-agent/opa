@@ -31,6 +31,7 @@ import (
 	"github.com/open-policy-agent/opa/topdown"
 	"github.com/open-policy-agent/opa/topdown/cache"
 	"github.com/open-policy-agent/opa/topdown/print"
+	"github.com/open-policy-agent/opa/tracing"
 	"github.com/open-policy-agent/opa/types"
 	"github.com/open-policy-agent/opa/util"
 )
@@ -117,6 +118,7 @@ type EvalContext struct {
 	resolvers              []refResolver
 	sortSets               bool
 	printHook              print.Hook
+	capabilities           *ast.Capabilities
 }
 
 // EvalOption defines a function to set an option on an EvalConfig
@@ -310,6 +312,7 @@ func (pq preparedQuery) newEvalContext(ctx context.Context, options []EvalOption
 		earlyExit:        true,
 		resolvers:        pq.r.resolvers,
 		printHook:        pq.r.printHook,
+		capabilities:     pq.r.capabilities,
 	}
 
 	for _, o := range options {
@@ -513,6 +516,7 @@ type Rego struct {
 	generateJSON           func(*ast.Term, *EvalContext) (interface{}, error)
 	printHook              print.Hook
 	enablePrintStatements  bool
+	distributedTacingOpts  tracing.Options
 }
 
 // Function represents a built-in function that is callable in Rego.
@@ -1059,6 +1063,13 @@ func GenerateJSON(f func(*ast.Term, *EvalContext) (interface{}, error)) func(r *
 func PrintHook(h print.Hook) func(r *Rego) {
 	return func(r *Rego) {
 		r.printHook = h
+	}
+}
+
+// DistributedTracingOpts sets the options to be used by distributed tracing.
+func DistributedTracingOpts(tr tracing.Options) func(r *Rego) {
+	return func(r *Rego) {
+		r.distributedTacingOpts = tr
 	}
 }
 
@@ -1897,7 +1908,8 @@ func (r *Rego) eval(ctx context.Context, ectx *EvalContext) (ResultSet, error) {
 		WithInterQueryBuiltinCache(ectx.interQueryBuiltinCache).
 		WithStrictBuiltinErrors(r.strictBuiltinErrors).
 		WithSeed(ectx.seed).
-		WithPrintHook(ectx.printHook)
+		WithPrintHook(ectx.printHook).
+		WithDistributedTracingOpts(r.distributedTacingOpts)
 
 	if !ectx.time.IsZero() {
 		q = q.WithTime(ectx.time)
@@ -1959,6 +1971,7 @@ func (r *Rego) evalWasm(ctx context.Context, ectx *EvalContext) (ResultSet, erro
 		Seed:                   ectx.seed,
 		InterQueryBuiltinCache: ectx.interQueryBuiltinCache,
 		PrintHook:              ectx.printHook,
+		Capabilities:           ectx.capabilities,
 	})
 	if err != nil {
 		return nil, err
@@ -2065,6 +2078,7 @@ func (r *Rego) partialResult(ctx context.Context, pCfg *PrepareConfig) (PartialR
 		instrumentation:  r.instrumentation,
 		indexing:         true,
 		resolvers:        r.resolvers,
+		capabilities:     r.capabilities,
 	}
 
 	disableInlining := r.disableInlining

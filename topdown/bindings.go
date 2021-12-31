@@ -87,6 +87,9 @@ func (u *bindings) plugNamespaced(a *ast.Term, caller *bindings) *ast.Term {
 		}
 		return u.namespaceVar(b, caller)
 	case *ast.Array:
+		if a.IsGround() {
+			return a
+		}
 		cpy := *a
 		arr := make([]*ast.Term, v.Len())
 		for i := 0; i < len(arr); i++ {
@@ -104,6 +107,9 @@ func (u *bindings) plugNamespaced(a *ast.Term, caller *bindings) *ast.Term {
 		})
 		return &cpy
 	case ast.Set:
+		if a.IsGround() {
+			return a
+		}
 		cpy := *a
 		cpy.Value, _ = v.Map(func(x *ast.Term) (*ast.Term, error) {
 			return u.plugNamespaced(x, caller), nil
@@ -242,6 +248,9 @@ func (vis namespacingVisitor) namespaceTerm(a *ast.Term) *ast.Term {
 	case ast.Var:
 		return vis.b.namespaceVar(a, vis.caller)
 	case *ast.Array:
+		if a.IsGround() {
+			return a
+		}
 		cpy := *a
 		arr := make([]*ast.Term, v.Len())
 		for i := 0; i < len(arr); i++ {
@@ -259,6 +268,9 @@ func (vis namespacingVisitor) namespaceTerm(a *ast.Term) *ast.Term {
 		})
 		return &cpy
 	case ast.Set:
+		if a.IsGround() {
+			return a
+		}
 		cpy := *a
 		cpy.Value, _ = v.Map(func(x *ast.Term) (*ast.Term, error) {
 			return vis.namespaceTerm(x), nil

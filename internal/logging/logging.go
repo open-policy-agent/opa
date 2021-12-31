@@ -10,8 +10,24 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/open-policy-agent/opa/logging"
 	"github.com/sirupsen/logrus"
 )
+
+func GetLevel(level string) (logging.Level, error) {
+	switch strings.ToLower(level) {
+	case "debug":
+		return logging.Debug, nil
+	case "", "info":
+		return logging.Info, nil
+	case "warn":
+		return logging.Warn, nil
+	case "error":
+		return logging.Error, nil
+	default:
+		return logging.Debug, fmt.Errorf("invalid log level: %v", level)
+	}
+}
 
 func GetFormatter(format string) logrus.Formatter {
 	switch format {

@@ -489,7 +489,7 @@ func TestTriggerManualWithTimeout(t *testing.T) {
 	}
 
 	d := New(config, fixture.client, "/bundles/test/bundle1").
-		WithCallback(func(_ context.Context, u Update) {
+		WithCallback(func(context.Context, Update) {
 			time.Sleep(3 * time.Second) // this should cause the context deadline to exceed
 		})
 
@@ -512,12 +512,12 @@ func TestTriggerManualWithTimeout(t *testing.T) {
 		t.Fatal("Expected error but got nil")
 	}
 
-	exp := "context deadline exceeded"
-	if ctx.Err().Error() != exp {
-		t.Fatalf("Expected error %v but got %v", exp, ctx.Err().Error())
+	exp := context.DeadlineExceeded
+	if ctx.Err() != exp {
+		t.Fatalf("Expected error %v but got %v", exp, ctx.Err())
 	}
 
-	d.Stop(ctx)
+	d.Stop(context.Background())
 }
 
 func TestDownloadLongPollNotModifiedOn304(t *testing.T) {
@@ -696,15 +696,14 @@ func (t *testFixture) oneShot(ctx context.Context, u Update) {
 }
 
 type testServer struct {
-	t                         *testing.T
-	expCode                   int
-	expEtag                   string
-	expAuth                   string
-	bundles                   map[string]bundle.Bundle
-	server                    *httptest.Server
-	etagInResponse            bool
-	longPoll                  bool
-	opaVendorMediaTypeEnabled bool
+	t              *testing.T
+	expCode        int
+	expEtag        string
+	expAuth        string
+	bundles        map[string]bundle.Bundle
+	server         *httptest.Server
+	etagInResponse bool
+	longPoll       bool
 }
 
 func (t *testServer) handle(w http.ResponseWriter, r *http.Request) {

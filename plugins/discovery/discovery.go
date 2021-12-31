@@ -142,6 +142,9 @@ func (c *Discovery) TriggerMode() *plugins.TriggerMode {
 }
 
 func (c *Discovery) Trigger(ctx context.Context) error {
+	if c.downloader == nil {
+		return nil
+	}
 	return c.downloader.Trigger(ctx)
 }
 

@@ -31,7 +31,7 @@ production users that have added themselves (in alphabetical order):
 
 * [Capital One](https://www.capitalone.com/) uses OPA to enforce a variety of
   admission control policies across their Kubernetes clusters including image
-  registry whitelisting, label requirements, resource requirements, container
+  registry allowlisting, label requirements, resource requirements, container
   privileges, etc. For more information see this talk from [KubeCon US 2018](https://www.youtube.com/watch?v=CDDsjMOtJ-c&t=6m35s)
   and this talk from [OPA Summit 2019](https://www.youtube.com/watch?v=vkvWZuqSk5M).
 

@@ -25,32 +25,20 @@ func HTTPStatus(code int) http.HandlerFunc {
 // ErrorAuto writes a response with status and code set automatically based on
 // the type of err.
 func ErrorAuto(w http.ResponseWriter, err error) {
-	if types.IsBadRequest(err) {
+	switch {
+	case types.IsBadRequest(err):
 		ErrorString(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
-		return
-	}
-
-	if storage.IsWriteConflictError(err) {
+	case storage.IsWriteConflictError(err):
 		ErrorString(w, http.StatusNotFound, types.CodeResourceConflict, err)
-		return
-	}
-
-	if topdown.IsError(err) {
+	case topdown.IsError(err):
 		Error(w, http.StatusInternalServerError, types.NewErrorV1(types.CodeInternal, types.MsgEvaluationError).WithError(err))
-		return
-	}
-
-	if storage.IsInvalidPatch(err) {
+	case storage.IsInvalidPatch(err):
 		ErrorString(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
-		return
-	}
-
-	if storage.IsNotFound(err) {
+	case storage.IsNotFound(err):
 		ErrorString(w, http.StatusNotFound, types.CodeResourceNotFound, err)
-		return
+	default:
+		ErrorString(w, http.StatusInternalServerError, types.CodeInternal, err)
 	}
-
-	ErrorString(w, http.StatusInternalServerError, types.CodeInternal, err)
 }
 
 // ErrorString writes a response with specified status, code, and message set to
