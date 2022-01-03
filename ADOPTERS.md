@@ -31,7 +31,7 @@ production users that have added themselves (in alphabetical order):
 
 * [Capital One](https://www.capitalone.com/) uses OPA to enforce a variety of
   admission control policies across their Kubernetes clusters including image
-  registry whitelisting, label requirements, resource requirements, container
+  registry allowlisting, label requirements, resource requirements, container
   privileges, etc. For more information see this talk from [KubeCon US 2018](https://www.youtube.com/watch?v=CDDsjMOtJ-c&t=6m35s)
   and this talk from [OPA Summit 2019](https://www.youtube.com/watch?v=vkvWZuqSk5M).
 
@@ -91,6 +91,12 @@ production users that have added themselves (in alphabetical order):
   state from Terraform and AWS APIs to identify security violations
   and identify high-risk configurations. The policies ingest 1,000s of
   AWS resources to generate the final report.
+
+* [Mercari](https://www.mercari.com/) uses OPA to enforce admission control
+  policies in their multi-tenant Kubernetes clusters. It helps maintain 
+  the governance of the cluster, checking that developers are following 
+  the best practices in the admission controller. They also use [confest](https://github.com/open-policy-agent/conftest) to 
+  enforce policies in their CI/CD pipeline.
 
 * [Netflix](https://www.netflix.com) uses OPA as a method of enforcing
   access control in microservices across a variety of languages and
@@ -161,6 +167,11 @@ production users that have added themselves (in alphabetical order):
   [part 1](https://blog.verygoodsecurity.com/posts/building-a-fine-grained-permission-system-in-a-distributed-environment),
   [part 2](https://blog.verygoodsecurity.com/posts/building-a-fine-grained-permissions-system-in-a-distributed-environment).
 
+* [Xenit AB](https://www.xenit.se/) uses OPA to implement fine-grained control
+  over resource formulation in its managed Kubernetes service as well as several
+  customer-specific implementations. For more information, see the Kubernetes Terraform library [OPA Gatekeeper module](https://github.com/XenitAB/terraform-modules/tree/main/modules/kubernetes/opa-gatekeeper) and
+  [OPA Gatekeeper policy library](https://github.com/XenitAB/gatekeeper-library).
+
 * [Yelp](https://www.yelp.com/) use OPA and Envoy to enforce authorization policies
   across a fleet of microservices that evolved out of a monolithic architecture.
   For more information see this talk from [KubeCon US 2019](https://www.youtube.com/watch?v=Z6aN3Smt-9M).
@@ -176,6 +187,13 @@ remain anonymous.
 This is a list of adopters in early stages of production or
 pre-production (in alphabetical order):
 
+* [Aserto](https://www.aserto.com/) is a venture-backed developer API company 
+  that helps developers easily build permissions and roles into their SaaS 
+  applications. Aserto uses OPA as its core engine, and has contributed projects 
+  such as [Open Policy Registry](https://openpolicyregistry.io) and  
+  [OPA Runtime](https://github.com/aserto-dev/runtime) that make it easier for 
+  developers to incorporate OPA policies and the OPA engine into their applications.
+  
 * [Cyral](https://www.cyral.com/) is a venture-funded data security
   company. Still in stealth mode but using OPA to manage and enforce
   fine-grained authorization policies.

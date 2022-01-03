@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/ast/location"
 )
 
 func TestFormatNilLocation(t *testing.T) {
@@ -39,6 +40,21 @@ func TestFormatNilLocationEmptyBody(t *testing.T) {
 	x, err := Ast(b)
 	if len(x) != 0 || err != nil {
 		t.Fatalf("Expected empty result but got: %q, err: %v", string(x), err)
+	}
+}
+
+func TestFormatNilLocationFunctionArgs(t *testing.T) {
+	b := ast.NewBody()
+	s := ast.StringTerm(" ")
+	s.SetLocation(location.NewLocation([]byte("foo"), "p.rego", 2, 2))
+	b.Append(ast.Split.Expr(ast.NewTerm(ast.Var("__local1__")), s, ast.NewTerm(ast.Var("__local2__"))))
+	exp := "split(__local1__, \" \", __local2__)\n"
+	bs, err := Ast(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(bs) != exp {
+		t.Fatalf("Expected %q but got %q", exp, string(bs))
 	}
 }
 
@@ -201,6 +217,35 @@ func TestFormatAST(t *testing.T) {
 			note:     "ref nil",
 			toFmt:    ast.Ref(nil),
 			expected: ``,
+		},
+		{
+			note:     "ref operator",
+			toFmt:    ast.MustParseRef(`foo[count(foo) - 1]`),
+			expected: `foo[count(foo) - 1]`,
+		},
+		{
+			note:     "x in xs",
+			toFmt:    ast.Member.Call(ast.VarTerm("x"), ast.VarTerm("xs")),
+			expected: `x in xs`,
+		},
+		{
+			note:     "x, y in xs",
+			toFmt:    ast.MemberWithKey.Call(ast.VarTerm("x"), ast.VarTerm("y"), ast.VarTerm("xs")),
+			expected: `(x, y in xs)`,
+		},
+		{
+			note: "some x in xs",
+			toFmt: ast.NewExpr(&ast.SomeDecl{Symbols: []*ast.Term{
+				ast.Member.Call(ast.VarTerm("x"), ast.VarTerm("xs")),
+			}}),
+			expected: `some x in xs`,
+		},
+		{
+			note: "some x, y in xs",
+			toFmt: ast.NewExpr(&ast.SomeDecl{Symbols: []*ast.Term{
+				ast.MemberWithKey.Call(ast.VarTerm("x"), ast.VarTerm("y"), ast.VarTerm("xs")),
+			}}),
+			expected: `some x, y in xs`,
 		},
 		{
 			note: "body shared wildcard",

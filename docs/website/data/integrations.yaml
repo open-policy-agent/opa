@@ -1,6 +1,21 @@
 # This file is used to generate the OPA ecosystem page: https://www.openpolicyagent.org/docs/latest/ecosystem/
 # For instructions on how to add an entry, see https://github.com/open-policy-agent/opa/tree/main/docs#integration-index
 integrations:
+  apache-apisix:
+    title: Authorization Integration with Apache APISIX
+    description: Apache APISIX provides a plugin for delegating fine-grained authorization decisions to OPA.
+    software:
+      - apache-apisix
+    labels:
+      category: gateway
+      layer: network
+    code:
+      - https://github.com/apache/apisix
+    inventors:
+      - apache-apisix
+    blogs:
+      - https://apisix.apache.org/blog/2021/12/24/open-policy-agent
+      - https://medium.com/@ApacheAPISIX/apache-apisix-integrates-with-open-policy-agent-to-enrich-its-ecosystem-15569fe3ab9c
   sphinx-rego:
     title: Automatically document Rego policies
     description: Sphinx extension that automatically documents Open Policy Agent Rego policies using meta properties.
@@ -93,7 +108,6 @@ integrations:
           - name: Joe Beda
             organization: VMware
         link: https://www.youtube.com/watch?v=QU9BGPf0hBw
-
     blogs:
       - https://medium.com/@sbueringer/kubernetes-authorization-via-open-policy-agent-a9455d9d5ceb
       - https://medium.com/@jimmy.ray/policy-enabled-kubernetes-with-open-policy-agent-3b612b3f0203
@@ -108,9 +122,14 @@ integrations:
       Kubernetes Authorization is a pluggable mechanism that lets administrators control which users can run which APIs and
       is often handled by builtin RBAC.  OPA's policy language is more flexible than the RBAC, for example,
       writing policy using a prohibited list of APIs instead of the usual RBAC style of listing the permitted APIs.
+    code:
+      - https://github.com/open-policy-agent/contrib/tree/main/k8s_authorization
     blogs:
+      - https://blog.styra.com/blog/kubernetes-authorization-webhook
       - https://itnext.io/kubernetes-authorization-via-open-policy-agent-a9455d9d5ceb
       - https://itnext.io/optimizing-open-policy-agent-based-kubernetes-authorization-via-go-execution-tracer-7b439bb5dc5b
+    inventors:
+      - styra
 
   kubernetes-provisioning:
     title: Kubernetes Provisioning
@@ -131,6 +150,21 @@ integrations:
             organization: styra
         venue: Kubecon San Diego 2019
         link: https://www.youtube.com/watch?v=lYHr_UaHsYQ&list=PLj6h78yzYM2NDs-iu8WU5fMxINxHXlien&index=140&t=0s
+
+  google-calendar:
+    title: Google Calendar
+    description: Using the Google Calendar API with OPA for calendar powered policy decisions
+    labels:
+      category: data
+      layer: rego
+    software:
+      - google-calendar
+    inventors:
+      - styra
+    code:
+      - https://github.com/anderseknert/opa-google-calendar
+    blogs:
+      - https://blog.styra.com/blog/the-power-of-data-calendar-based-policy-enforcement
 
   gcp-forseti:
     title: GCP audit with Forseti
@@ -284,7 +318,6 @@ integrations:
         venue: Kubecon Austin 2017
         link: https://www.youtube.com/watch?v=R6tUNpRpdnY
 
-
   istio-authorization-edge:
     title: Container Network Authorization with Istio (at the Edge)
     description: Istio is a networking abstraction for cloud-native applications that uses Envoy at the edge. OPA hooks into Envoy’s external authorization filter to provide fine-grained, context-aware authorization for network or HTTP requests.
@@ -370,24 +403,17 @@ integrations:
     description: Apache Kafka is a high-performance distributed streaming platform deployed by thousands of companies.  OPA provides fine-grained, context-aware access control of which users can read/write which Kafka topics to enforce important requirements around confidentiality and integrity.
     software:
       - kafka
-      - strimzi
     labels:
       category: streaming
       layer: data
     tutorials:
-      - https://www.openpolicyagent.org/docs/kafka-authorization.html
-    blogs:
-      - https://strimzi.io/blog/2020/08/05/using-open-policy-agent-with-strimzi-and-apache-kafka/
+      - https://www.openpolicyagent.org/docs/latest/kafka-authorization/
     code:
+      - https://github.com/anderseknert/opa-kafka-plugin
       - https://github.com/llofberg/kafka-authorizer-opa
-      - https://github.com/open-policy-agent/contrib/tree/master/kafka_authorizer
-      - https://github.com/Bisnode/opa-kafka-plugin
-      - https://github.com/strimzi/strimzi-kafka-operator
     inventors:
       - ticketmaster
       - styra
-      - bisnode
-      - redhat
     videos:
       - title: "OPA at Scale: How Pinterest Manages Policy Distribution"
         speakers:
@@ -398,6 +424,24 @@ integrations:
         venue: OPA Summit at Kubecon San Diego 2019
         link: https://www.youtube.com/watch?v=LhgxFICWsA8
 
+  strimzi:
+    title: Strimzi (Apache Kafka on Kubernetes)
+    description: Strimzi provides a way to run an Apache Kafka cluster on Kubernetes in various deployment configurations. Strimzi ships with the OPA authorizer plugin right out of the box, and supports OPA as an option for Kafka authorization.
+    software:
+      - kafka
+      - strimzi
+    labels:
+      category: streaming
+      layer: data
+    blogs:
+      - https://strimzi.io/blog/2020/08/05/using-open-policy-agent-with-strimzi-and-apache-kafka/
+      - https://strimzi.io/blog/2020/09/01/enforce-custom-resource-policies-with-opa-gatekeeper/
+    code:
+      - https://github.com/strimzi/strimzi-kafka-operator
+      - https://github.com/scholzj/demo-opa-kafka-authorization
+      - https://github.com/anderseknert/opa-kafka-plugin
+    inventors:
+      - redhat
 
   ceph:
     title: Ceph Object Storage Authorization
@@ -428,6 +472,19 @@ integrations:
       - https://github.com/anderseknert/clj-opa
     inventors:
       - styra
+
+  open-service-mesh:
+    title: Open Service Mesh (OSM)
+    description: Open Service Mesh is a lightweight and extensible cloud native service mesh.
+    software:
+      - osm
+    labels:
+      category: servicemesh
+      layer: network
+    code:
+      - https://github.com/openservicemesh/osm/blob/main/docs/example/manifests/opa/deploy-opa-envoy.yaml
+    tutorials:
+      - https://release-v0-11.docs.openservicemesh.io/docs/guides/integrations/external_auth_opa/#osm-with-opa-plugin-external-authorization-walkthrough
 
   minio:
     title: Minio API Authorization
@@ -881,6 +938,23 @@ integrations:
     blogs:
       - https://www.scalr.com/blog/opa-is-to-policy-automation-as-terraform-is-to-iac/
 
+  spire:
+    title: SPIRE
+    description: SPIRE is a production-ready implementation of the SPIFFE APIs that performs node and workload attestation in order to securely issue SPIFFE Verifiable Identity Documents (SVIDs) to workloads, and verify the SVIDs of other workloads, based on a predefined set of conditions.
+    labels:
+      layer: network
+      category: application
+    software:
+      - SPIFFE
+      - SPIRE
+    blogs:
+      - https://blog.styra.com/blog/zero-trust-with-envoy-spire-and-open-policy-agent-opa
+    code:
+      - https://github.com/spiffe/spire/blob/v1.0.2/doc/authorization_policy_engine.md
+    tutorials:
+      - https://spiffe.io/docs/latest/microservices/envoy-opa/readme/
+      - https://spiffe.io/docs/latest/microservices/envoy-jwt-opa/readme/
+
   fairwinds-insights:
     title: Fairwinds Insights Configuration Validation Software
     description: Automate, monitor and enforce OPA policies with visibility across multiple clusters and multiple teams. It ensures the same policies are applied across all your clusters and gives some flexibility if you want certain policies to apply to only certain workloads. Run the same policies in CI/CD, Admission Control, and In-cluster scanning to apply policy consistently throughout the development and deployment process.
@@ -929,15 +1003,49 @@ integrations:
       category: updates
       layer: application
     inventors:
-      - authorizon
+      - permitio
     software:
       - opal
     code:
-      - https://github.com/authorizon/opal
+      - https://github.com/permitio/opal
     tutorials:
-      - https://github.com/authorizon/opal/blob/master/docs/index.md
+      - https://github.com/permitio/opal/blob/master/docs/index.md
     videos:
       - https://www.youtube.com/watch?v=K1Zm2FPfrh8
+
+  bottle:
+    title: Custom Bottle Application Authorization
+    description:  |
+      This integration demonstrates using Open Policy Agent to perform API authorization for a Python application backed by Bottle.
+      Bottle is a fast, simple and lightweight WSGI micro web-framework for Python.
+    labels:
+      layer: network
+      category: application
+    software:
+      - bottle
+    code:
+      - https://github.com/dolevf/bottle-acl-openpolicyagent
+    blogs:
+      - https://blog.lethalbit.com/open-policy-agent-for-bottle-web-framework/
+
+  kubescape:
+    title: Kubescape Kubernetes security posture scanner
+    description: |
+      This integration uses OPA for defining security controls over Kubernetes clusters. Kubescape is a simple extensible tool
+      finding security problems in your environment. OPA enables Kubescape to implement and extend very fast to answer new problems.
+    labels:
+      category: security
+      layer: application
+    software:
+      - kubescape
+    code:
+      - https://github.com/armosec/kubescape
+      - https://github.com/armosec/regolibrary
+    inventors:
+      - armo
+    tutorials:
+      - https://hub.armo.cloud
+
 
 organizations:
   styra:
@@ -1051,15 +1159,21 @@ organizations:
   fairwinds:
     name: Fairwinds
     link: https://fairwinds.com
-  authorizon:
-    name: authorizon
-    link: https://authorizon.com
+  permitio:
+    name: Permit.io
+    link: https://permit.io
   alertavert:
     name: AlertAVert.com
     link: http://www.alertavert.com/
   zenity:
     name: Zenity
     link: http://www.zenity.io
+  apache-apisix:
+    name: Apache APISIX
+    link: https://apisix.apache.org/
+  armo:
+    name: ARMO
+    link: https://armosec.io
 software:
   kubernetes:
     name: Kubernetes
@@ -1103,6 +1217,9 @@ software:
   javaspringsecurity:
     name: Spring Security
     link: https://spring.io/projects/spring-security
+  osm:
+    name: Open Service Mesh
+    link: https://openservicemesh.io/
   spinnaker:
     name: Spinnaker
     link: https://www.spinnaker.io/
@@ -1181,3 +1298,22 @@ software:
   sphinx-doc:
     name: Sphinx
     link: https://www.sphinx-doc.org
+  bottle:
+    name: Bottle
+    link: https://bottlepy.org
+  spiffe:
+    name: SPIFFE
+    link: https://spiffe.io
+  spire:
+    name: SPIRE
+    link: https://spiffe.io
+  google-calendar:
+    name: Google Calendar
+    link: https://calendar.google.com/
+  apache-apisix:
+    name: Apache APISIX
+    link: https://apisix.apache.org/
+  kubescape:
+    name: Kubescape
+    link: https://github.com/armosec/kubescape
+

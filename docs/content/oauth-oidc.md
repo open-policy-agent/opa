@@ -16,7 +16,7 @@ package oidc
 issuers = {"https://issuer1.example.com", "https://issuer2.example.com"}
 
 metadata_discovery(issuer) = http.send({
-    "url": concat("", issuers[issuer], "/.well-known/openid-configuration",
+    "url": concat("", [issuers[issuer], "/.well-known/openid-configuration"]),
     "method": "GET",
     "force_cache": true,
     "force_cache_duration_seconds": 86400 # Cache response for 24 hours
@@ -43,9 +43,9 @@ jwks_request(url) = http.send({
     "force_cache_duration_seconds": 3600 # Cache response for an hour
 })
 
-jwks = jwks_request("https://authorization-server.example.com/jwks").body
+jwks = jwks_request("https://authorization-server.example.com/jwks").raw_body
 
-verified = io.jwt.verify_rs256(input.token, json.marshal(jwks))
+verified = io.jwt.verify_rs256(input.token, jwks)
 ```
 
 ### Key rotation
@@ -65,16 +65,16 @@ jwks_request(url) = http.send({
 jwt_unverified := io.jwt.decode(input.token)
 jwt_header := jwt_unverified[0]
 
-jwks = jwks_cached {
-    jwks_cached := jwks_request("https://authorization-server.example.com/jwks").body
-    jwt_header.kid == jwks_cached.keys[_].kid
-} else = jwks_rotated {
-    # Add query param to second request to avoid both getting the same cache key
-    jwks_rotated := jwks_request("https://authorization-server.example.com/jwks?r=1").body
-}
+# Use the key ID (kid) from the token as a cache key - if a new kid is encountered
+# we obtain a fresh JWKS object as the keys have likely been rotated.
+jwks_url := concat("?", [
+    "https://authorization-server.example.com/jwks",
+    urlquery.encode_object({"kid": jwt_header.kid}),
+])
+jwks := jwks_request(jwks_url).raw_body
 
-jwt_verified = jwt_unverified {
-    io.jwt.verify_rs256(input.token, json.marshal(jwks))
+jwt_verified := jwt_unverified {
+    io.jwt.verify_rs256(input.token, jwks)
 }
 
 claims_verified := jwt_verified[1]
@@ -87,7 +87,7 @@ Programmatically obtain an OAuth2 access token following the client credentials 
 ```live:oauth:module
 package oauth2
 
-token = t {
+token := t {
     response := http.send({
         "url": "https://authorization-server.example.com/token",
         "method": "POST",

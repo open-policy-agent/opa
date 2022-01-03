@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"sort"
 	"strings"
 	"testing"
 
@@ -83,6 +84,43 @@ func TestInterfaceToValue(t *testing.T) {
 		}
 	}
 
+}
+
+func TestInterfaceToValueStructs(t *testing.T) {
+
+	var x struct {
+		Foo struct {
+			Baz string `json:"baz"`
+		} `json:"foo"`
+		bar string
+	}
+
+	x.Foo.Baz = "a"
+	x.bar = "b"
+
+	result, err := InterfaceToValue(x)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	exp := MustParseTerm(`{"foo": {"baz": "a"}}`)
+
+	if result.Compare(exp.Value) != 0 {
+		t.Fatalf("expected %v but got %v", exp, result)
+	}
+
+	var m brokenMarshaller
+
+	_, err = InterfaceToValue(m)
+	if err == nil || err.Error() != "ast: interface conversion: json: error calling MarshalJSON for type ast.brokenMarshaller: broken" {
+		t.Fatal("expected error but got:", err)
+	}
+}
+
+type brokenMarshaller struct{}
+
+func (brokenMarshaller) MarshalJSON() ([]byte, error) {
+	return nil, fmt.Errorf("broken")
 }
 
 func TestObjectInsertGetLen(t *testing.T) {
@@ -222,6 +260,68 @@ func TestObjectFilter(t *testing.T) {
 				t.Errorf("Expected:\n\n\t%s\n\nGot:\n\n\t%s\n\n", expected, actual)
 			}
 		})
+	}
+}
+
+func TestObjectInsertKeepsSorting(t *testing.T) {
+	keysSorted := func(o *object) func(int, int) bool {
+		return func(i, j int) bool {
+			return Compare(o.keys[i].key, o.keys[j].key) < 0
+		}
+	}
+
+	obj := NewObject(
+		[2]*Term{StringTerm("d"), IntNumberTerm(4)},
+		[2]*Term{StringTerm("b"), IntNumberTerm(2)},
+		[2]*Term{StringTerm("a"), IntNumberTerm(1)},
+	)
+	o := obj.(*object)
+	act := sort.SliceIsSorted(o.keys, keysSorted(o))
+	if exp := true; act != exp {
+		t.Errorf("SliceIsSorted: expected %v, got %v", exp, act)
+		for i := range o.keys {
+			t.Logf("elem[%d]: %v", i, o.keys[i].key)
+		}
+	}
+
+	obj.Insert(StringTerm("c"), IntNumberTerm(3))
+	act = sort.SliceIsSorted(o.keys, keysSorted(o))
+	if exp := true; act != exp {
+		t.Errorf("SliceIsSorted: expected %v, got %v", exp, act)
+		for i := range o.keys {
+			t.Logf("elem[%d]: %v", i, o.keys[i].key)
+		}
+	}
+}
+
+func TestSetInsertKeepsKeysSorting(t *testing.T) {
+	keysSorted := func(s *set) func(int, int) bool {
+		return func(i, j int) bool {
+			return Compare(s.keys[i], s.keys[j]) < 0
+		}
+	}
+
+	s0 := NewSet(
+		StringTerm("d"),
+		StringTerm("b"),
+		StringTerm("a"),
+	)
+	s := s0.(*set)
+	act := sort.SliceIsSorted(s.keys, keysSorted(s))
+	if exp := true; act != exp {
+		t.Errorf("SliceIsSorted: expected %v, got %v", exp, act)
+		for i := range s.keys {
+			t.Logf("elem[%d]: %v", i, s.keys[i])
+		}
+	}
+
+	s0.Add(StringTerm("c"))
+	act = sort.SliceIsSorted(s.keys, keysSorted(s))
+	if exp := true; act != exp {
+		t.Errorf("SliceIsSorted: expected %v, got %v", exp, act)
+		for i := range s.keys {
+			t.Logf("elem[%d]: %v", i, s.keys[i])
+		}
 	}
 }
 
@@ -745,12 +845,13 @@ func TestSetCopy(t *testing.T) {
 	cpy := orig.Copy()
 	vis := NewGenericVisitor(func(x interface{}) bool {
 		if Compare(IntNumberTerm(2), x) == 0 {
-			x.(*Term).Value = String("modified")
+			// NOTE(sr): If we mess up the rank, our sort-on-insert approach fails us
+			x.(*Term).Value = Number("2.5")
 		}
 		return false
 	})
 	vis.Walk(orig)
-	expOrig := MustParseTerm(`{1, "modified", 3}`)
+	expOrig := MustParseTerm(`{1,2.5,3}`)
 	expCpy := MustParseTerm(`{1,2,3}`)
 	if !expOrig.Equal(orig) {
 		t.Errorf("Expected %v but got %v", expOrig, orig)

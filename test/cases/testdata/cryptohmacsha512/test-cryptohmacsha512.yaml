@@ -1,0 +1,28 @@
+cases:
+  - note: cryptohmacsha512/crypto.hmac.sha512
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        
+        p[mac] {
+          mac := crypto.hmac.sha512(input.message, input.key)
+        }
+    input: {"message": "foo", "key": "bar"}
+    want_result:
+      - x:
+          - 24257d7210582a65c731ec55159c8184cc24c02489453e58587f71f44c23a2d61b4b72154a89d17b2d49448a8452ea066f4fc56a2bcead45c088572ffccdb3d8
+  - note: cryptohmacsha512/crypto.hmac.sha512_unicode
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        
+        p[mac] {
+          mac := crypto.hmac.sha512(input.message, input.key)
+        }
+    input: {"message": "åäöçß🥲♙Ω", "key": "秘密の"}
+    want_result:
+      - x:
+          - 192f5afded233d6e21427aa26ed267ac118cfa2971013d91cbed530c0b208d78138b83dfe1d6cc3553d7bd518f22a481402c723028e1279d1ffbe8f11ea6b125
+    strict_error: true

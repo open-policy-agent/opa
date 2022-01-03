@@ -31,8 +31,8 @@ const (
 // An HTTPAuthPlugin represents a mechanism to construct and configure HTTP authentication for a REST service
 type HTTPAuthPlugin interface {
 	// implementations can assume NewClient will be called before Prepare
-	NewClient(c Config) (*http.Client, error)
-	Prepare(req *http.Request) error
+	NewClient(Config) (*http.Client, error)
+	Prepare(*http.Request) error
 }
 
 // Config represents configuration for a REST client.
@@ -42,15 +42,16 @@ type Config struct {
 	Headers                      map[string]string `json:"headers"`
 	AllowInsecureTLS             bool              `json:"allow_insecure_tls,omitempty"`
 	ResponseHeaderTimeoutSeconds *int64            `json:"response_header_timeout_seconds,omitempty"`
+	TLS                          *serverTLSConfig  `json:"tls,omitempty"`
 	Credentials                  struct {
-		Bearer      *bearerAuthPlugin                  `json:"bearer,omitempty"`
-		OAuth2      *oauth2ClientCredentialsAuthPlugin `json:"oauth2,omitempty"`
-		ClientTLS   *clientTLSAuthPlugin               `json:"client_tls,omitempty"`
-		S3Signing   *awsSigningAuthPlugin              `json:"s3_signing,omitempty"`
-		GCPMetadata *gcpMetadataAuthPlugin             `json:"gcp_metadata,omitempty"`
-		Plugin      *string                            `json:"plugin,omitempty"`
+		Bearer               *bearerAuthPlugin                  `json:"bearer,omitempty"`
+		OAuth2               *oauth2ClientCredentialsAuthPlugin `json:"oauth2,omitempty"`
+		ClientTLS            *clientTLSAuthPlugin               `json:"client_tls,omitempty"`
+		S3Signing            *awsSigningAuthPlugin              `json:"s3_signing,omitempty"`
+		GCPMetadata          *gcpMetadataAuthPlugin             `json:"gcp_metadata,omitempty"`
+		AzureManagedIdentity *azureManagedIdentitiesAuthPlugin  `json:"azure_managed_identity,omitempty"`
+		Plugin               *string                            `json:"plugin,omitempty"`
 	} `json:"credentials"`
-
 	keys   map[string]*keys.Config
 	logger logging.Logger
 }
@@ -175,7 +176,7 @@ func New(config []byte, keys map[string]*keys.Config, opts ...func(*Client)) (Cl
 	}
 
 	if client.logger == nil {
-		client.logger = logging.NewStandardLogger()
+		client.logger = logging.Get()
 	}
 	client.config.logger = client.logger
 
@@ -245,8 +246,7 @@ func (c Client) Do(ctx context.Context, method, path string) (*http.Response, er
 	var body io.Reader
 
 	if c.bytes != nil {
-		buf := bytes.NewBuffer(*c.bytes)
-		body = buf
+		body = bytes.NewReader(*c.bytes)
 	} else if c.json != nil {
 		var buf bytes.Buffer
 		if err := json.NewEncoder(&buf).Encode(*c.json); err != nil {

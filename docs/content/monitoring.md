@@ -5,9 +5,23 @@ weight: 30
 restrictedtoc: true
 ---
 
-## Monitoring
+## OpenTelemetry
 
-### Prometheus
+When run as a server and configured accordingly, OPA will emit spans to an
+[OpenTelemetry](https://opentelemetry.io/) collector via gRPC.
+
+Each [REST API](../rest-api/) request sent to the server will start a span.
+If processing the request involves policy evaluation, and that in turn uses
+[`http.send`](../policy-reference/#http), those HTTP clients will emit descendant spans.
+
+Furthermore, spans exported for policy evaluation requests will contain an
+attribute `opa.decision_id` of the evaluation's decision ID _if_ the server
+has decision logging enabled.
+
+See [the configuration documentation](../configuration/#distributed-tracing)
+for all OpenTelemetry-related configurables.
+
+## Prometheus
 
 OPA exposes an HTTP endpoint that can be used to collect performance metrics
 for all API calls. The Prometheus endpoint is enabled by default when you run
@@ -60,12 +74,12 @@ The Prometheus endpoint exports Go runtime metrics as well as HTTP request laten
 | go_threads | gauge | Number of OS threads created. |
 | http_request_duration_seconds | histogram | A histogram of duration for requests. |
 
-### Health Checks
+## Health Checks
 
 OPA exposes a `/health` API endpoint that can be used to perform health checks.
 See [Health API](../rest-api#health-api) for details.
 
-### Status API
+## Status API
 
 OPA provides a plugin which can push status to a remote service.
 See [Status API](../management-status) for details.

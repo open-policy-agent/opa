@@ -193,6 +193,16 @@ func TestOutputVarsForNode(t *testing.T) {
 			query: "{x, 2}[1] = y",
 			exp:   `set()`,
 		},
+		{
+			note:  "nested function calls",
+			query: `z = "abc"; x = split(z, "")[y]`,
+			exp:   `{x, y, z}`,
+		},
+		{
+			note:  "unsafe nested function calls",
+			query: `z = "abc"; x = split(z, a)[y]`,
+			exp:   `{z}`,
+		},
 	}
 
 	for _, tc := range tests {
@@ -875,6 +885,143 @@ func TestCompilerCheckTypesWithSchema(t *testing.T) {
 	assertNotFailed(t, c)
 }
 
+func TestCompilerCheckTypesWithAllOfSchema(t *testing.T) {
+
+	tests := []struct {
+		note          string
+		schema        string
+		expectedError error
+	}{
+		{
+			note:          "allOf with mergeable Object types in schema",
+			schema:        allOfObjectSchema,
+			expectedError: nil,
+		},
+		{
+			note:          "allOf with mergeable Array types in schema",
+			schema:        allOfArraySchema,
+			expectedError: nil,
+		},
+		{
+			note:          "allOf without a parent schema",
+			schema:        allOfSchemaParentVariation,
+			expectedError: nil,
+		},
+		{
+			note:          "allOf with empty schema",
+			schema:        emptySchema,
+			expectedError: nil,
+		},
+		{
+			note:          "allOf with mergeable Array of Object types in schema",
+			schema:        allOfArrayOfObjects,
+			expectedError: nil,
+		},
+		{
+			note:          "allOf with mergeable Object types in schema with type declaration missing",
+			schema:        allOfObjectMissing,
+			expectedError: nil,
+		},
+		{
+			note:          "allOf with Array of mergeable different types in schema",
+			schema:        allOfArrayDifTypes,
+			expectedError: nil,
+		},
+		{
+			note:          "allOf with mergeable Object containing Array types in schema",
+			schema:        allOfArrayInsideObject,
+			expectedError: nil,
+		},
+		{
+			note:          "allOf with mergeable Array types in schema with type declaration missing",
+			schema:        allOfArrayMissing,
+			expectedError: nil,
+		},
+		{
+			note:          "allOf with mergeable types inside of core schema",
+			schema:        allOfInsideCoreSchema,
+			expectedError: nil,
+		},
+		{
+			note:          "allOf with mergeable String types in schema",
+			schema:        allOfStringSchema,
+			expectedError: nil,
+		},
+		{
+			note:          "allOf with mergeable Integer types in schema",
+			schema:        allOfIntegerSchema,
+			expectedError: nil,
+		},
+		{
+			note:          "allOf with mergeable Boolean types in schema",
+			schema:        allOfBooleanSchema,
+			expectedError: nil,
+		},
+		{
+			note:          "allOf with mergeable Array types with uneven numbers of items",
+			schema:        allOfSchemaWithUnevenArray,
+			expectedError: nil,
+		},
+		{
+			note:          "allOf schema with unmergeable Array of Arrays",
+			schema:        allOfArrayOfArrays,
+			expectedError: fmt.Errorf("unable to merge these schemas"),
+		},
+		{
+			note:          "allOf schema with Array and Object types as siblings",
+			schema:        allOfObjectAndArray,
+			expectedError: fmt.Errorf("unable to merge these schemas"),
+		},
+		{
+			note:          "allOf schema with Array type that contains different unmergeable types",
+			schema:        allOfArrayDifTypesWithError,
+			expectedError: fmt.Errorf("unable to merge these schemas"),
+		},
+		{
+			note:          "allOf schema with different unmergeable types",
+			schema:        allOfTypeErrorSchema,
+			expectedError: fmt.Errorf("unable to merge these schemas"),
+		},
+		{
+			note:          "allOf unmergeable schema with different parent and items types",
+			schema:        allOfSchemaWithParentError,
+			expectedError: fmt.Errorf("unable to merge these schemas"),
+		},
+		{
+			note:          "allOf schema of Array type with uneven numbers of items to merge",
+			schema:        allOfSchemaWithUnevenArray,
+			expectedError: nil,
+		},
+		{
+			note:          "allOf schema with unmergeable types String and Boolean",
+			schema:        allOfStringSchemaWithError,
+			expectedError: fmt.Errorf("unable to merge these schemas"),
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			c := NewCompiler()
+			var schema interface{}
+			err := util.Unmarshal([]byte(tc.schema), &schema)
+			if err != nil {
+				t.Fatal("Unexpected error:", err)
+			}
+			schemaSet := NewSchemaSet()
+			schemaSet.Put(SchemaRootRef, schema)
+			c.WithSchemas(schemaSet)
+			compileStages(c, c.checkTypes)
+			if tc.expectedError != nil {
+				if errors.Is(c.Errors, tc.expectedError) {
+					t.Fatal("Unexpected error:", err)
+				}
+			} else {
+				assertNotFailed(t, c)
+			}
+		})
+	}
+}
+
 func TestCompilerCheckRuleConflicts(t *testing.T) {
 
 	c := getCompilerWithParsedModules(map[string]string{
@@ -958,8 +1105,30 @@ func TestCompilerCheckUndefinedFuncs(t *testing.T) {
 			deadbeef(x)
 		}
 
+		# NOTE: all the dynamic dispatch examples here are not supported,
+		#       we're checking assertions about the error returned.
 		undefined_dynamic_dispatch {
-			x = "f"; data.test2[x](1)  # not currently supported
+			x = "f"; data.test2[x](1)
+		}
+
+		undefined_dynamic_dispatch_declared_var {
+			y := "f"; data.test2[y](1)
+		}
+
+		undefined_dynamic_dispatch_declared_var_in_array {
+			z := "f"; data.test2[[z]](1)
+		}
+
+		arity_mismatch_1 {
+			data.test2.f(1,2,3)
+		}
+
+		arity_mismatch_2 {
+			data.test2.f()
+		}
+
+		arity_mismatch_3 {
+			x:= data.test2.f()
 		}
 	`
 
@@ -982,12 +1151,38 @@ func TestCompilerCheckUndefinedFuncs(t *testing.T) {
 		"rego_type_error: undefined function data.deadbeef",
 		"rego_type_error: undefined function deadbeef",
 		"rego_type_error: undefined function data.test2[x]",
+		"rego_type_error: undefined function data.test2[y]",
+		"rego_type_error: undefined function data.test2[[z]]",
+		"rego_type_error: function data.test2.f has arity 1, got 3 arguments",
+		"test.rego:31: rego_type_error: function data.test2.f has arity 1, got 0 arguments",
+		"test.rego:35: rego_type_error: function data.test2.f has arity 1, got 0 arguments",
 	}
-
 	for _, w := range want {
 		if !strings.Contains(result, w) {
 			t.Fatalf("Expected %q in result but got: %v", w, result)
 		}
+	}
+}
+
+func TestCompilerQueryCompilerCheckUndefinedFuncs(t *testing.T) {
+	compiler := NewCompiler()
+
+	for _, tc := range []struct {
+		note, query, err string
+	}{
+
+		{note: "undefined function", query: `data.foo(1)`, err: "undefined function data.foo"},
+		{note: "undefined global function", query: `foo(1)`, err: "undefined function foo"},
+		{note: "var", query: `x = "f"; data[x](1)`, err: "undefined function data[x]"},
+		{note: "declared var", query: `x := "f"; data[x](1)`, err: "undefined function data[x]"},
+		{note: "declared var in array", query: `x := "f"; data[[x]](1)`, err: "undefined function data[[x]]"},
+	} {
+		t.Run(tc.note, func(t *testing.T) {
+			_, err := compiler.QueryCompiler().Compile(MustParseBody(tc.query))
+			if !strings.Contains(err.Error(), tc.err) {
+				t.Errorf("Unexpected compilation error: %v (want  %s)", err, tc.err)
+			}
+		})
 	}
 }
 
@@ -1086,9 +1281,9 @@ func TestCompilerExprExpansion(t *testing.T) {
 			note:  "sets",
 			input: `{f(x), {g(x)}}`,
 			expected: []*Expr{
-				MustParseExpr("f(x, __local0__)"),
-				MustParseExpr("g(x, __local1__)"),
-				MustParseExpr("{__local0__, {__local1__,}}"),
+				MustParseExpr("g(x, __local0__)"),
+				MustParseExpr("f(x, __local1__)"),
+				MustParseExpr("{__local1__, {__local0__,}}"),
 			},
 		},
 		{
@@ -1330,6 +1525,24 @@ p[foo[bar[i]]] = {"baz": baz} { true }`)
 			[true | x := y]
 		}`)
 
+	c.Modules["someinassign"] = MustParseModule(`package someinassign
+		import future.keywords.in
+		x = 1
+		y = 1
+
+		p[x] {
+			some x in [1, 2, y]
+		}`)
+
+	c.Modules["someinassignwithkey"] = MustParseModule(`package someinassignwithkey
+		import future.keywords.in
+		x = 1
+		y = 1
+
+		p[x] {
+			some k, v in [1, 2, y]
+		}`)
+
 	c.Modules["donotresolve"] = MustParseModule(`package donotresolve
 
 		x = 1
@@ -1474,6 +1687,21 @@ p[foo[bar[i]]] = {"baz": baz} { true }`)
 	mod13 := c.Modules["comprehensions"]
 	assertExprEqual(t, mod13.Rules[3].Body[0].Terms.(*Term).Value.(Ref)[3].Value.(*ArrayComprehension).Body[0], MustParseExpr("x = data.comprehensions.nums[_]"))
 	assertExprEqual(t, mod13.Rules[4].Head.Value.Value.(*ArrayComprehension).Body[0], MustParseExpr("y = data.comprehensions.f(1)[0]"))
+
+	// Ignore vars assigned via `some x in xs`.
+	mod14 := c.Modules["someinassign"]
+	someInAssignCall := mod14.Rules[2].Body[0].Terms.(*SomeDecl).Symbols[0].Value.(Call)
+	assertTermEqual(t, someInAssignCall[1], VarTerm("x"))
+	collectionLastElem := someInAssignCall[2].Value.(*Array).Get(IntNumberTerm(2))
+	assertTermEqual(t, collectionLastElem, MustParseTerm("data.someinassign.y"))
+
+	// Ignore key and val vars assigned via `some k, v in xs`.
+	mod15 := c.Modules["someinassignwithkey"]
+	someInAssignCall = mod15.Rules[2].Body[0].Terms.(*SomeDecl).Symbols[0].Value.(Call)
+	assertTermEqual(t, someInAssignCall[1], VarTerm("k"))
+	assertTermEqual(t, someInAssignCall[2], VarTerm("v"))
+	collectionLastElem = someInAssignCall[3].Value.(*Array).Get(IntNumberTerm(2))
+	assertTermEqual(t, collectionLastElem, MustParseTerm("data.someinassignwithkey.y"))
 }
 
 func TestCompilerResolveErrors(t *testing.T) {
@@ -1583,6 +1811,19 @@ func TestCompilerRewriteLocalAssignments(t *testing.T) {
 			exp: `
 				package test
 				head_key[__local0__] { __local0__ = 1 }
+			`,
+			expRewrittenMap: map[Var]Var{
+				Var("__local0__"): Var("a"),
+			},
+		},
+		{
+			module: `
+				package test
+				head_unsafe_var[a] { some a }
+			`,
+			exp: `
+				package test
+				head_unsafe_var[__local0__] { true }
 			`,
 			expRewrittenMap: map[Var]Var{
 				Var("__local0__"): Var("a"),
@@ -1757,11 +1998,11 @@ func TestCompilerRewriteLocalAssignments(t *testing.T) {
 			`,
 			exp: `
 				package test
-				object_keys = true { {k: __local0__, "k2": __local1__} = {"foo": 1, "k2": 2} }
+				object_keys = true { {"k2": __local0__, k: __local1__} = {"foo": 1, "k2": 2} }
 			`,
 			expRewrittenMap: map[Var]Var{
-				Var("__local0__"): Var("v1"),
-				Var("__local1__"): Var("v2"),
+				Var("__local0__"): Var("v2"),
+				Var("__local1__"): Var("v1"),
 			},
 		},
 		{
@@ -2102,7 +2343,7 @@ func TestRewriteLocalVarDeclarationErrors(t *testing.T) {
 	}
 }
 
-func TestRewriteDecledVarsStage(t *testing.T) {
+func TestRewriteDeclaredVarsStage(t *testing.T) {
 
 	// Unlike the following test case, this only executes up to the
 	// RewriteLocalVars stage. This is done so that later stages like
@@ -2229,6 +2470,73 @@ func TestRewriteDeclaredVars(t *testing.T) {
 			`,
 		},
 		{
+			note: "rewrite some x in xs",
+			module: `
+				package test
+				import future.keywords.in
+				xs = ["a", "b", "c"]
+				p { some x in xs; x == "a" }
+			`,
+			exp: `
+				package test
+				xs = ["a", "b", "c"]
+				p { __local2__ = data.test.xs[__local1__]; __local2__ = "a" }
+			`,
+		},
+		{
+			note: "rewrite some k, x in xs",
+			module: `
+				package test
+				import future.keywords.in
+				xs = ["a", "b", "c"]
+				p { some k, x in xs; x == "a"; k == 2 }
+			`,
+			exp: `
+				package test
+				xs = ["a", "b", "c"]
+				p { __local1__ = data.test.xs[__local0__]; __local1__ = "a"; __local0__ = 2 }
+			`,
+		},
+		{
+			note: "rewrite some k, x in xs[i]",
+			module: `
+				package test
+				import future.keywords.in
+				xs = [["a", "b", "c"], []]
+				p {
+					some i
+					some k, x in xs[i]
+					x == "a"
+					k == 2
+				}
+			`,
+			exp: `
+				package test
+				xs = [["a", "b", "c"], []]
+				p = true { __local2__ = data.test.xs[__local0__][__local1__]; __local2__ = "a"; __local1__ = 2 }
+			`,
+		},
+		{
+			note: "rewrite some k, x in xs[i] with `i` as ref",
+			module: `
+				package test
+				import future.keywords.in
+				i = 0
+				xs = [["a", "b", "c"], []]
+				p {
+					some k, x in xs[i]
+					x == "a"
+					k == 2
+				}
+			`,
+			exp: `
+				package test
+				i = 0
+				xs = [["a", "b", "c"], []]
+				p = true { __local2__ = data.test.i; __local1__ = data.test.xs[__local2__][__local0__]; __local1__ = "a"; __local0__ = 2 }
+			`,
+		},
+		{
 			note: "rewrite closures",
 			module: `
 				package test
@@ -2284,7 +2592,7 @@ func TestRewriteDeclaredVars(t *testing.T) {
 					f(input, "bar")
 				}
 
-				f(x,y) {
+				f(x, y) {
 					x[y]
 				}
 				`,
@@ -2345,6 +2653,17 @@ func TestRewriteDeclaredVars(t *testing.T) {
 			wantErr: errors.New("declared var x unused"),
 		},
 		{
+			note: "declare unsafe err",
+			module: `
+				package test
+				p[x] {
+					some x
+					x == 1
+				}
+			`,
+			wantErr: errors.New("var x is unsafe"),
+		},
+		{
 			note: "declare arg err",
 			module: `
 			package test
@@ -2389,9 +2708,8 @@ func TestCompileInvalidEqAssignExpr(t *testing.T) {
 
 
 	p {
-		# Type checking runs at a later stage so these errors will not be #
-		# caught until then. The stages before type checking should be tolerant
-		# of invalid eq and assign calls.
+		# Arity mismatches are caught in the checkUndefinedFuncs check,
+		# and invalid eq/assign calls are passed along until then.
 		assign()
 		assign(1)
 		eq()
@@ -2399,10 +2717,10 @@ func TestCompileInvalidEqAssignExpr(t *testing.T) {
 	}`)
 
 	var prev func()
-	checkRecursion := reflect.ValueOf(c.checkRecursion)
+	checkUndefinedFuncs := reflect.ValueOf(c.checkUndefinedFuncs)
 
 	for _, stage := range c.stages {
-		if reflect.ValueOf(stage.f).Pointer() == checkRecursion.Pointer() {
+		if reflect.ValueOf(stage.f).Pointer() == checkUndefinedFuncs.Pointer() {
 			break
 		}
 		prev = stage.f
@@ -2624,6 +2942,277 @@ func TestCompilerRewriteWithValue(t *testing.T) {
 				}
 			} else {
 				assertCompilerErrorStrings(t, c, []string{tc.wantErr.Error()})
+			}
+		})
+	}
+}
+
+func TestCompilerRewritePrintCallsErasure(t *testing.T) {
+
+	cases := []struct {
+		note   string
+		module string
+		exp    string
+	}{
+		{
+			note: "no-op",
+			module: `package test
+			p { true }`,
+			exp: `package test
+			p { true }`,
+		},
+		{
+			note: "replace empty body with true",
+			module: `package test
+
+			p { print(1) }
+			`,
+			exp: `package test
+
+			p { true } `,
+		},
+		{
+			note: "rule body",
+			module: `package test
+
+			p { false; print(1) }
+			`,
+			exp: `package test
+
+			p { false } `,
+		},
+		{
+			note: "set comprehension body",
+			module: `package test
+
+			p { {1 | false; print(1)} }
+			`,
+			exp: `package test
+
+			p { {1 | false} } `,
+		},
+		{
+			note: "array comprehension body",
+			module: `package test
+
+			p { [1 | false; print(1)] }
+			`,
+			exp: `package test
+
+			p { [1 | false] } `,
+		},
+		{
+			note: "object comprehension body",
+			module: `package test
+
+			p { {"x": 1 | false; print(1)} }
+			`,
+			exp: `package test
+
+			p { {"x": 1 | false} } `,
+		},
+		{
+			note: "in head",
+			module: `package test
+
+			p = {1 | print("x")}`,
+			exp: `package test
+
+			p = __local0__ { true; __local0__ = {1 | true} }`,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			c := NewCompiler().WithEnablePrintStatements(false)
+			c.Compile(map[string]*Module{
+				"test.rego": MustParseModule(tc.module),
+			})
+			if c.Failed() {
+				t.Fatal(c.Errors)
+			}
+			exp := MustParseModule(tc.exp)
+			if !exp.Equal(c.Modules["test.rego"]) {
+				t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", exp, c.Modules["test.rego"])
+			}
+		})
+	}
+}
+
+func TestCompilerRewritePrintCallsErrors(t *testing.T) {
+	cases := []struct {
+		note   string
+		module string
+		exp    error
+	}{
+		{
+			note: "non-existent var",
+			module: `package test
+
+			p { print(x) }`,
+			exp: errors.New("var x is undeclared"),
+		},
+		{
+			note: "declared after print",
+			module: `package test
+
+			p { print(x); x = 7 }`,
+			exp: errors.New("var x is undeclared"),
+		},
+		{
+			note: "inside comprehension",
+			module: `package test
+			p { {1 | print(x)} }
+			`,
+			exp: errors.New("var x is undeclared"),
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			c := NewCompiler().WithEnablePrintStatements(true)
+			c.Compile(map[string]*Module{
+				"test.rego": MustParseModule(tc.module),
+			})
+			if !c.Failed() {
+				t.Fatal("expected error")
+			}
+			if c.Errors[0].Code != CompileErr || c.Errors[0].Message != tc.exp.Error() {
+				t.Fatal("unexpected error:", c.Errors)
+			}
+		})
+	}
+}
+
+func TestCompilerRewritePrintCalls(t *testing.T) {
+	cases := []struct {
+		note   string
+		module string
+		exp    string
+	}{
+		{
+			note: "print one",
+			module: `package test
+
+			p { print(1) }`,
+			exp: `package test
+
+			p = true { __local1__ = {__local0__ | __local0__ = 1}; internal.print([__local1__]) }`,
+		},
+		{
+			note: "print multiple",
+			module: `package test
+
+			p { print(1, 2) }`,
+			exp: `package test
+
+			p = true { __local2__ = {__local0__ | __local0__ = 1}; __local3__ = {__local1__ | __local1__ = 2}; internal.print([__local2__, __local3__]) }`,
+		},
+		{
+			note: "print inside set comprehension",
+			module: `package test
+
+			p { x = 1; {2 | print(x)} }`,
+			exp: `package test
+
+			p = true { x = 1; {2 | __local1__ = {__local0__ | __local0__ = x}; internal.print([__local1__])} }`,
+		},
+		{
+			note: "print inside array comprehension",
+			module: `package test
+
+			p { x = 1; [2 | print(x)] }`,
+			exp: `package test
+
+			p = true { x = 1; [2 | __local1__ = {__local0__ | __local0__ = x}; internal.print([__local1__])] }`,
+		},
+		{
+			note: "print inside object comprehension",
+			module: `package test
+
+			p { x = 1; {"x": 2 | print(x)} }`,
+			exp: `package test
+
+			p = true { x = 1; {"x": 2 | __local1__ = {__local0__ | __local0__ = x}; internal.print([__local1__])} }`,
+		},
+		{
+			note: "print output of nested call",
+			module: `package test
+
+			p {
+				x := split("abc", "")[y]
+				print(x, y)
+			}`,
+			exp: `package test
+
+			p = true { split("abc", "", __local3__); __local0__ = __local3__[y]; __local4__ = {__local1__ | __local1__ = __local0__}; __local5__ = {__local2__ | __local2__ = y}; internal.print([__local4__, __local5__]) }`,
+		},
+		{
+			note: "print call in head",
+			module: `package test
+
+			p = {1 | print("x") }`,
+			exp: `package test
+
+			p = __local1__ {
+				true
+				__local1__ = {1 | __local2__ = { __local0__ | __local0__ = "x"}; internal.print([__local2__])}
+			}`,
+		},
+		{
+			note: "print call in head - args treated as safe",
+			module: `package test
+
+			f(a) = {1 | a[x]; print(x)}`,
+			exp: `package test
+
+			f(__local0__) = __local2__ { true; __local2__ = {1 | __local0__[x]; __local3__ = {__local1__ | __local1__ = x}; internal.print([__local3__])} }
+			`,
+		},
+		{
+			note: "print call of var in head key",
+			module: `package test
+			f(_) = [1, 2, 3]
+			p[x] { [_, x, _] := f(true); print(x) }`,
+			exp: `package test
+			f(__local0__) = [1, 2, 3] { true }
+			p[__local2__] { data.test.f(true, __local5__); [__local1__, __local2__, __local3__] = __local5__; __local6__ = {__local4__ | __local4__ = __local2__}; internal.print([__local6__]) }
+			`,
+		},
+		{
+			note: "print call of var in head value",
+			module: `package test
+			f(_) = [1, 2, 3]
+			p = x { [_, x, _] := f(true); print(x) }`,
+			exp: `package test
+			f(__local0__) = [1, 2, 3] { true }
+			p = __local2__ { data.test.f(true, __local5__); [__local1__, __local2__, __local3__] = __local5__; __local6__ = {__local4__ | __local4__ = __local2__}; internal.print([__local6__]) }
+			`,
+		},
+		{
+			note: "print call of vars in head key and value",
+			module: `package test
+			f(_) = [1, 2, 3]
+			p[x] = y { [_, x, y] := f(true); print(x) }`,
+			exp: `package test
+			f(__local0__) = [1, 2, 3] { true }
+			p[__local2__] = __local3__ { data.test.f(true, __local5__); [__local1__, __local2__, __local3__] = __local5__; __local6__ = {__local4__ | __local4__ = __local2__}; internal.print([__local6__]) }
+			`,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			c := NewCompiler().WithEnablePrintStatements(true)
+			c.Compile(map[string]*Module{
+				"test.rego": MustParseModule(tc.module),
+			})
+			if c.Failed() {
+				t.Fatal(c.Errors)
+			}
+			exp := MustParseModule(tc.exp)
+			if !exp.Equal(c.Modules["test.rego"]) {
+				t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", exp, c.Modules["test.rego"])
 			}
 		})
 	}
@@ -2981,24 +3570,55 @@ func TestCompilerCheckDynamicRecursion(t *testing.T) {
 	// This test tries to circumvent the recursion check by using dynamic
 	// references.  For more background info, see
 	// <https://github.com/open-policy-agent/opa/issues/1565>.
-	c := NewCompiler()
-	c.Modules = map[string]*Module{
-		"recursion": MustParseModule(`package recursion
 
+	for note, mod := range map[string]*Module{
+		"recursion": MustParseModule(`
+package recursion
 pkg = "recursion"
-
 foo[x] {
-  data[pkg]["foo"][x]
-}`),
+	data[pkg]["foo"][x]
+}
+`),
+		"system.main": MustParseModule(`
+package system.main
+foo {
+  data[input]
+}
+`),
+	} {
+		t.Run(note, func(t *testing.T) {
+			c := NewCompiler()
+			c.Modules = map[string]*Module{note: mod}
+			compileStages(c, c.checkRecursion)
+
+			result := compilerErrsToStringSlice(c.Errors)
+			expected := "rego_recursion_error: rule foo is recursive: foo -> foo"
+
+			if len(result) != 1 || result[0] != expected {
+				t.Errorf("Expected %v but got: %v", expected, result)
+			}
+		})
 	}
+}
 
-	compileStages(c, c.checkRecursion)
+func TestCompilerCheckVoidCalls(t *testing.T) {
+	c := NewCompiler().WithCapabilities(&Capabilities{Builtins: []*Builtin{
+		{
+			Name: "test",
+			Decl: types.NewFunction([]types.Type{types.B}, nil),
+		},
+	}})
+	c.Compile(map[string]*Module{
+		"test.rego": MustParseModule(`package test
 
-	result := compilerErrsToStringSlice(c.Errors)
-	expected := "rego_recursion_error: rule foo is recursive: foo -> foo"
-
-	if len(result) != 1 || result[0] != expected {
-		t.Errorf("Expected %v but got: %v", expected, result)
+		p {
+			x = test(true)
+		}`),
+	})
+	if !c.Failed() {
+		t.Fatal("expected error")
+	} else if c.Errors[0].Code != TypeErr || c.Errors[0].Message != "test(true) used as value" {
+		t.Fatal("unexpected error:", c.Errors)
 	}
 }
 
@@ -3251,6 +3871,8 @@ r1 = 1`,
 r2 = 2`,
 		"mod3": `package a.b
 r3 = 3`,
+		"hidden": `package system.hidden
+r4 = 4`,
 	})
 
 	compileStages(compiler, nil)
@@ -3258,25 +3880,31 @@ r3 = 3`,
 	rule1 := compiler.Modules["mod1"].Rules[0]
 	rule2 := compiler.Modules["mod2"].Rules[0]
 	rule3 := compiler.Modules["mod3"].Rules[0]
+	rule4 := compiler.Modules["hidden"].Rules[0]
 
 	tests := []struct {
-		input    string
-		expected []*Rule
+		input         string
+		expected      []*Rule
+		excludeHidden bool
 	}{
-		{"data.a.b.c.d.r1", []*Rule{rule1}},
-		{"data.a.b[x]", []*Rule{rule1, rule2, rule3}},
-		{"data.a.b[x].d", []*Rule{rule1, rule3}},
-		{"data.a.b.c", []*Rule{rule1, rule2}},
-		{"data.a.b.d", nil},
-		{"data[x]", []*Rule{rule1, rule2, rule3}},
-		{"data[data.complex_computation].b[y]", []*Rule{rule1, rule2, rule3}},
-		{"data[x][y].c.e", []*Rule{rule2}},
-		{"data[x][y].r3", []*Rule{rule3}},
+		{input: "data.a.b.c.d.r1", expected: []*Rule{rule1}},
+		{input: "data.a.b[x]", expected: []*Rule{rule1, rule2, rule3}},
+		{input: "data.a.b[x].d", expected: []*Rule{rule1, rule3}},
+		{input: "data.a.b.c", expected: []*Rule{rule1, rule2}},
+		{input: "data.a.b.d"},
+		{input: "data[x]", expected: []*Rule{rule1, rule2, rule3, rule4}},
+		{input: "data[data.complex_computation].b[y]", expected: []*Rule{rule1, rule2, rule3}},
+		{input: "data[x][y].c.e", expected: []*Rule{rule2}},
+		{input: "data[x][y].r3", expected: []*Rule{rule3}},
+		{input: "data[x][y]", expected: []*Rule{rule1, rule2, rule3}, excludeHidden: true}, // old behaviour of GetRulesDynamic
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.input, func(t *testing.T) {
-			result := compiler.GetRulesDynamic(MustParseRef(tc.input))
+			result := compiler.GetRulesDynamicWithOpts(
+				MustParseRef(tc.input),
+				RulesOptions{IncludeHiddenModules: !tc.excludeHidden},
+			)
 
 			if len(result) != len(tc.expected) {
 				t.Fatalf("Expected %v but got: %v", tc.expected, result)
@@ -3517,12 +4145,14 @@ func TestCompilerWithStageAfterWithMetrics(t *testing.T) {
 
 func TestCompilerBuildComprehensionIndexKeySet(t *testing.T) {
 
+	type expectedComprehension struct {
+		term, keys string
+	}
+	type exp map[int]expectedComprehension
 	tests := []struct {
 		note      string
 		module    string
-		atRow     int
-		wantTerm  string
-		wantKeys  string
+		expected  exp
 		wantDebug int
 	}{
 		{
@@ -3535,9 +4165,10 @@ func TestCompilerBuildComprehensionIndexKeySet(t *testing.T) {
 					keys = [j | value = input[j]]
 				}
 			`,
-			atRow:     6,
-			wantTerm:  `[j | value = input[j]]`,
-			wantKeys:  `[value]`,
+			expected: exp{6: {
+				term: `[j | value = input[j]]`,
+				keys: `[value]`,
+			}},
 			wantDebug: 1,
 		},
 		{
@@ -3551,9 +4182,10 @@ func TestCompilerBuildComprehensionIndexKeySet(t *testing.T) {
 					keys = [j | v1 = input[j].v1; v2 = input[j].v2]
 				}
 			`,
-			atRow:     7,
-			wantTerm:  `[j | v1 = input[j].v1; v2 = input[j].v2]`,
-			wantKeys:  `[v1, v2]`,
+			expected: exp{7: {
+				term: `[j | v1 = input[j].v1; v2 = input[j].v2]`,
+				keys: `[v1, v2]`,
+			}},
 			wantDebug: 1,
 		},
 		{
@@ -3566,9 +4198,10 @@ func TestCompilerBuildComprehensionIndexKeySet(t *testing.T) {
 					ys = {y | x = input[y]}
 				}
 			`,
-			atRow:    6,
-			wantTerm: `{y | x = input[y]}`,
-			wantKeys: `[x]`,
+			expected: exp{6: {
+				term: `{y | x = input[y]}`,
+				keys: `[x]`,
+			}},
 			// there are still things going on here that'll be reported, besides successful indexing
 			wantDebug: 2,
 		},
@@ -3637,19 +4270,24 @@ func TestCompilerBuildComprehensionIndexKeySet(t *testing.T) {
 			wantDebug: 1,
 		},
 		{
-			note: "skip: due to nested comprehension containing candidate",
+			note: "mixed: due to nested comprehension containing candidate + indexed nested comprehension with key from rule body",
 			module: `
 				package test
 
 				p {
-					x = input[i]                # 'x' is a candidate
-					y = 2                       # 'y' is a candidate
+					x = input[i]                # 'x' is a candidate for z (line 7)
+					y = 2                       # 'y' is a candidate for z
 					z = [1 |
-						x = data.foo[j]             # 'x' is an index key
-						t = [1 | data.bar[k] = y]   # 'y' disqualifies indexing because it is nested inside a comprehension
+						x = data.foo[j]             # 'x' is an index key for z
+						t = [1 | data.bar[k] = y]   # 'y' disqualifies indexing of z because it is nested inside a comprehension
 					]
 				}
 			`,
+			// Note: no comprehension index for line 7 (`z = [ ...`)
+			expected: exp{9: {
+				keys: `[y]`,
+				term: `[1 | data.bar[k] = y]`,
+			}},
 			wantDebug: 2,
 		},
 		{
@@ -3694,9 +4332,10 @@ func TestCompilerBuildComprehensionIndexKeySet(t *testing.T) {
 					y = input[x]
 					ys = [y | y = input[z]; z = x]
 				}`,
-			atRow:     6,
-			wantTerm:  ` [y | y = input[z]; z = x]`,
-			wantKeys:  `[x, y]`,
+			expected: exp{6: {
+				term: ` [y | y = input[z]; z = x]`,
+				keys: `[x, y]`,
+			}},
 			wantDebug: 1,
 		},
 	}
@@ -3725,48 +4364,49 @@ func TestCompilerBuildComprehensionIndexKeySet(t *testing.T) {
 			}
 
 			n := m.Counter(compileStageComprehensionIndexBuild).Value().(uint64)
-
-			if tc.atRow == 0 {
-				if n > 0 || len(compiler.comprehensionIndices) > 0 {
-					t.Fatal("expected no indices to be built. got:", compiler.comprehensionIndices)
-				}
+			if exp, act := len(tc.expected), len(compiler.comprehensionIndices); exp != act {
+				t.Fatalf("expected %d indices to be built. got: %d", exp, act)
+			}
+			if len(tc.expected) == 0 {
 				return
 			}
-
-			if n != 1 {
+			if n == 0 {
 				t.Fatal("expected counter to be incremented")
 			}
 
-			var comprehension *Term
-			WalkTerms(compiler.Modules["test.rego"], func(x *Term) bool {
-				if !IsComprehension(x.Value) {
-					return true
-				}
-				if x.Location.Row != tc.atRow {
+			for row, exp := range tc.expected {
+				var comprehension *Term
+				WalkTerms(compiler.Modules["test.rego"], func(x *Term) bool {
+					if !IsComprehension(x.Value) {
+						return true
+					}
+					_, ok := tc.expected[x.Location.Row]
+					if !ok {
+						return false
+					} else if comprehension != nil {
+						t.Fatal("expected at most one comprehension per line in test module")
+					}
+					comprehension = x
 					return false
-				} else if comprehension != nil {
-					t.Fatal("expected at most one comprehension per line in test module")
+				})
+				if comprehension == nil {
+					t.Fatal("expected comprehension at line:", row)
 				}
-				comprehension = x
-				return false
-			})
-			if comprehension == nil {
-				t.Fatal("expected comprehension at line:", tc.atRow)
-			}
 
-			result := compiler.ComprehensionIndex(comprehension)
-			if result == nil {
-				t.Fatal("expected result")
-			}
+				result := compiler.ComprehensionIndex(comprehension)
+				if result == nil {
+					t.Fatal("expected result")
+				}
 
-			expTerm := MustParseTerm(tc.wantTerm)
-			if !result.Term.Equal(expTerm) {
-				t.Fatalf("expected term to be %v but got: %v", expTerm, result.Term)
-			}
+				expTerm := MustParseTerm(exp.term)
+				if !result.Term.Equal(expTerm) {
+					t.Fatalf("expected term to be %v but got: %v", expTerm, result.Term)
+				}
 
-			expKeys := MustParseTerm(tc.wantKeys).Value.(*Array)
-			if NewArray(result.Keys...).Compare(expKeys) != 0 {
-				t.Fatalf("expected keys to be %v but got: %v", expKeys, result.Keys)
+				expKeys := MustParseTerm(exp.keys).Value.(*Array)
+				if NewArray(result.Keys...).Compare(expKeys) != 0 {
+					t.Fatalf("expected keys to be %v but got: %v", expKeys, result.Keys)
+				}
 			}
 		})
 	}
@@ -3782,14 +4422,19 @@ func TestQueryCompiler(t *testing.T) {
 		expected interface{}
 	}{
 		{
+			note:     "empty query",
+			q:        "   \t \n # foo \n",
+			expected: fmt.Errorf("1 error occurred: rego_compile_error: empty query cannot be compiled"),
+		},
+		{
 			note:     "invalid eq",
 			q:        "eq()",
-			expected: fmt.Errorf("too few arguments"),
+			expected: fmt.Errorf("1 error occurred: 1:1: rego_type_error: eq: arity mismatch\n\thave: ()\n\twant: (any, any)"),
 		},
 		{
 			note:     "invalid eq",
 			q:        "eq(1)",
-			expected: fmt.Errorf("too few arguments"),
+			expected: fmt.Errorf("1 error occurred: 1:1: rego_type_error: eq: arity mismatch\n\thave: (number)\n\twant: (any, any)"),
 		},
 		{
 			note:     "rewrite assignment",
@@ -3827,6 +4472,18 @@ func TestQueryCompiler(t *testing.T) {
 			expected: fmt.Errorf("1 error occurred: 1:1: rego_unsafe_var_error: var z is unsafe"),
 		},
 		{
+			note:     "unsafe var that is a future keyword",
+			q:        "1 in 2",
+			expected: fmt.Errorf("1 error occurred: 1:3: rego_unsafe_var_error: var in is unsafe (hint: `import future.keywords.in` to import a future keyword)"),
+		},
+		{
+			note:     "unsafe declared var",
+			q:        "[1 | some x; x == 1]",
+			pkg:      "",
+			imports:  nil,
+			expected: fmt.Errorf("1 error occurred: 1:14: rego_unsafe_var_error: var x is unsafe"),
+		},
+		{
 			note:     "safe vars",
 			q:        `data; abc`,
 			pkg:      `package ex`,
@@ -3855,11 +4512,25 @@ func TestQueryCompiler(t *testing.T) {
 			expected: `__localq1__ = data.a.b.c.z; __localq0__ = [__localq1__]; 1 with input as __localq0__`,
 		},
 		{
-			note:     "unsafe exprs",
+			note:     "built-in function arity mismatch",
+			q:        `startswith("x")`,
+			pkg:      "",
+			imports:  nil,
+			expected: fmt.Errorf("1 error occurred: 1:1: rego_type_error: startswith: arity mismatch\n\thave: (string)\n\twant: (string, string)"),
+		},
+		{
+			note:     "built-in function arity mismatch (arity 0)",
+			q:        `x := opa.runtime("foo")`,
+			pkg:      "",
+			imports:  nil,
+			expected: fmt.Errorf("1 error occurred: 1:6: rego_type_error: opa.runtime: arity mismatch\n\thave: (string, ???)\n\twant: ()"),
+		},
+		{
+			note:     "built-in function arity mismatch, nested",
 			q:        "count(sum())",
 			pkg:      "",
 			imports:  nil,
-			expected: fmt.Errorf("1 error occurred: 1:1: rego_unsafe_var_error: expression is unsafe"),
+			expected: fmt.Errorf("1 error occurred: 1:7: rego_type_error: sum: arity mismatch\n\thave: (???)\n\twant: (any<array[number], set[number]>)"),
 		},
 		{
 			note:     "check types",
@@ -3880,9 +4551,19 @@ func TestQueryCompiler(t *testing.T) {
 			imports:  []string{"import input.xyz as abc"},
 			expected: "input.xyz",
 		},
+		{
+			note:     "void call used as value",
+			q:        "x = print(1)",
+			expected: fmt.Errorf("rego_type_error: print(1) used as value"),
+		},
+		{
+			note:     "print call erasure",
+			q:        `print(1)`,
+			expected: "true",
+		},
 	}
 	for _, tc := range tests {
-		runQueryCompilerTest(t, tc.note, tc.q, tc.pkg, tc.imports, tc.expected)
+		t.Run(tc.note, runQueryCompilerTest(tc.q, tc.pkg, tc.imports, tc.expected))
 	}
 }
 
@@ -4022,6 +4703,7 @@ func assertCompilerErrorStrings(t *testing.T, compiler *Compiler, expected []str
 }
 
 func assertNotFailed(t *testing.T, c *Compiler) {
+	t.Helper()
 	if c.Failed() {
 		t.Fatalf("Unexpected compilation error: %v", c.Errors)
 	}
@@ -4177,9 +4859,10 @@ func compilerErrsToStringSlice(errors []*Error) []string {
 	return result
 }
 
-func runQueryCompilerTest(t *testing.T, note, q, pkg string, imports []string, expected interface{}) {
-	t.Run(note, func(t *testing.T) {
-		c := NewCompiler()
+func runQueryCompilerTest(q, pkg string, imports []string, expected interface{}) func(*testing.T) {
+	return func(t *testing.T) {
+		t.Helper()
+		c := NewCompiler().WithEnablePrintStatements(false)
 		c.Compile(getCompilerTestModules())
 		assertNotFailed(t, c)
 		qc := c.QueryCompiler()
@@ -4216,7 +4899,7 @@ func runQueryCompilerTest(t *testing.T, note, q, pkg string, imports []string, e
 				t.Fatalf("Expected error %v but got: %v", expected, err)
 			}
 		}
-	})
+	}
 }
 
 func TestCompilerCapabilitiesExtendedWithCustomBuiltins(t *testing.T) {
@@ -4309,6 +4992,56 @@ func TestWithSchema(t *testing.T) {
 	c.WithSchemas(schemaSet)
 	if c.schemaSet == nil {
 		t.Fatalf("WithSchema did not set the schema correctly in the compiler")
+	}
+}
+
+func TestAnyOfObjectSchema1(t *testing.T) {
+	c := NewCompiler()
+	schemaSet := NewSchemaSet()
+	schemaSet.Put(SchemaRootRef, anyOfExtendCoreSchema)
+	c.WithSchemas(schemaSet)
+	if c.schemaSet == nil {
+		t.Fatalf("Did not correctly compile an object type schema with anyOf outside core schema")
+	}
+}
+
+func TestAnyOfObjectSchema2(t *testing.T) {
+	c := NewCompiler()
+	schemaSet := NewSchemaSet()
+	schemaSet.Put(SchemaRootRef, anyOfInsideCoreSchema)
+	c.WithSchemas(schemaSet)
+	if c.schemaSet == nil {
+		t.Fatalf("Did not correctly compile an object type schema with anyOf inside core schema")
+	}
+}
+
+func TestAnyOfArraySchema(t *testing.T) {
+	c := NewCompiler()
+	schemaSet := NewSchemaSet()
+	schemaSet.Put(SchemaRootRef, anyOfArraySchema)
+	c.WithSchemas(schemaSet)
+	if c.schemaSet == nil {
+		t.Fatalf("Did not correctly compile an array type schema with anyOf")
+	}
+}
+
+func TestAnyOfObjectMissing(t *testing.T) {
+	c := NewCompiler()
+	schemaSet := NewSchemaSet()
+	schemaSet.Put(SchemaRootRef, anyOfObjectMissing)
+	c.WithSchemas(schemaSet)
+	if c.schemaSet == nil {
+		t.Fatalf("Did not correctly compile an object type schema with anyOf where one of the props did not explicitly claim type")
+	}
+}
+
+func TestAnyOfArrayMissing(t *testing.T) {
+	c := NewCompiler()
+	schemaSet := NewSchemaSet()
+	schemaSet.Put(SchemaRootRef, anyOfArrayMissing)
+	c.WithSchemas(schemaSet)
+	if c.schemaSet == nil {
+		t.Fatalf("Did not correctly compile an array type schema with anyOf where items are inside anyOf")
 	}
 }
 
@@ -4519,5 +5252,602 @@ const podSchema = `
       }
     ],
     "$schema": "http://json-schema.org/schema#"
-  }
-`
+  }`
+
+const anyOfArraySchema = `{
+	"type": "object",
+	"properties": {
+		"familyMembers": {
+			"type": "array",
+			"items": {
+				"anyOf": [
+					{
+						"type": "object",
+						"properties": {
+							"age": { "type": "integer" },
+							"name": {"type": "string"}
+						}
+					},{
+						"type": "object",
+						"properties": {
+							"personality": { "type": "string" },
+							"nickname": { "type": "string"  }
+						}
+					}
+				]
+			}
+		}
+	}
+}`
+
+const anyOfExtendCoreSchema = `{
+	"type": "object",
+	"properties": {
+		"AddressLine": { "type": "string" }
+	},
+	"anyOf": [
+		{
+			"type": "object",
+			"properties": {
+				"State":   { "type": "string" },
+				"ZipCode": { "type": "string" }
+			}
+		},
+		{
+			"type": "object",
+			"properties": {
+				"County":   { "type": "string" },
+				"PostCode": { "type": "integer" }
+			}
+		}
+	]
+}`
+
+const allOfObjectSchema = `{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "type": "object",
+    "title": "My schema",
+    "properties": {
+        "AddressLine1": { "type": "string" },
+        "AddressLine2": { "type": "string" },
+        "City":         { "type": "string" }
+    },
+    "allOf": [
+        {
+            "type": "object",
+            "properties": {
+                "State":   { "type": "string" },
+                "ZipCode": { "type": "string" }
+            },
+        },
+        {
+            "type": "object",
+            "properties": {
+                "County":   { "type": "string" },
+                "PostCode": { "type": "string" }
+            },
+        }
+    ]
+}`
+
+const allOfArraySchema = `{
+	"$schema": "http://json-schema.org/draft-04/schema#",
+	"type": "array",
+	"title": "The b schema",
+	"description": "An explanation about the purpose of this instance.",
+	"items": {
+		"type": "integer",
+		"title": "The items schema",
+		"description": "An explanation about the purpose of this instance."
+	},
+	"allOf": [
+		{
+		"type": "array",
+		"title": "The b schema",
+		"description": "An explanation about the purpose of this instance.",
+		"items": {
+			"type": "integer",
+			"title": "The items schema",
+			"description": "An explanation about the purpose of this instance."
+		}
+		},
+		{
+		"type": "array",
+		"title": "The b schema",
+		"description": "An explanation about the purpose of this instance.",
+		"items": {
+			"type": "integer",
+			"title": "The items schema",
+			"description": "An explanation about the purpose of this instance."
+		}
+		}
+	]
+}`
+
+const allOfSchemaParentVariation = `{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "allOf": [
+        {
+            "type": "object",
+            "properties": {
+                "State":   { "type": "string" },
+                "ZipCode": { "type": "string" }
+            },
+        },
+        {
+            "type": "object",
+            "properties": {
+                "County":   { "type": "string" },
+                "PostCode": { "type": "string" }
+            },
+        }
+    ]
+}`
+
+const emptySchema = `{
+	"allof" : []
+ }`
+
+const allOfArrayOfArrays = `{
+	"$schema": "http://json-schema.org/draft-04/schema#",
+	"type": "array",
+	"title": "The b schema",
+	"description": "An explanation about the purpose of this instance.",
+	"items": {
+		"type": "array",
+		"title": "The items schema",
+		"description": "An explanation about the purpose of this instance.",
+		"items": {
+			"type": "integer",
+			"title": "The items schema",
+			"description": "An explanation about the purpose of this instance."
+		}
+	},
+	"allOf": [{
+			"type": "array",
+			"title": "The b schema",
+			"description": "An explanation about the purpose of this instance.",
+			"items": {
+				"type": "array",
+				"title": "The items schema",
+				"description": "An explanation about the purpose of this instance.",
+				"items": {
+					"type": "integer",
+					"title": "The items schema",
+					"description": "An explanation about the purpose of this instance."
+				}
+			}
+		},
+		{
+			"type": "array",
+			"title": "The b schema",
+			"description": "An explanation about the purpose of this instance.",
+			"items": {
+				"type": "integer",
+				"title": "The items schema",
+				"description": "An explanation about the purpose of this instance."
+			}
+		}
+	]
+}`
+
+const anyOfInsideCoreSchema = ` {
+	"type": "object",
+	"properties": {
+		"AddressLine": { "type": "string" },
+		"RandomInfo": {
+			"anyOf": [
+				{ "type": "object",
+				  "properties": {
+					  "accessMe": {"type": "string"}
+				  }
+				},
+				{ "type": "number", "minimum": 0 }
+			  ]
+		}
+	}
+}`
+
+const anyOfObjectMissing = `{
+	"type": "object",
+	"properties": {
+		"AddressLine": { "type": "string" }
+	},
+	"anyOf": [
+		{
+			"type": "object",
+			"properties": {
+				"State":   { "type": "string" },
+				"ZipCode": { "type": "string" }
+			}
+		},
+		{
+			"properties": {
+				"County":   { "type": "string" },
+				"PostCode": { "type": "integer" }
+			}
+		}
+	]
+}`
+
+const allOfArrayOfObjects = `{
+	"$schema": "http://json-schema.org/draft-04/schema#",
+	"type": "array",
+	"title": "The b schema",
+	"description": "An explanation about the purpose of this instance.",
+	"items": {
+		"type": "object",
+		"title": "The items schema",
+		"description": "An explanation about the purpose of this instance.",
+		"properties": {
+			"State": {
+				"type": "string"
+			},
+			"ZipCode": {
+				"type": "string"
+			}
+		},
+		"allOf": [{
+				"type": "object",
+				"title": "The b schema",
+				"description": "An explanation about the purpose of this instance.",
+				"properties": {
+					"County": {
+						"type": "string"
+					},
+					"PostCode": {
+						"type": "string"
+					}
+				}
+			},
+			{
+				"type": "object",
+				"title": "The b schema",
+				"description": "An explanation about the purpose of this instance.",
+				"properties": {
+					"Street": {
+						"type": "string"
+					},
+					"House": {
+						"type": "string"
+					}
+				}
+			}
+		]
+	}
+}`
+
+const allOfObjectAndArray = `{
+	"$schema": "http://json-schema.org/draft-04/schema#",
+	"type": "object",
+	"title": "My schema",
+	"properties": {
+		"AddressLine1": {
+			"type": "string"
+		},
+		"AddressLine2": {
+			"type": "string"
+		},
+		"City": {
+			"type": "string"
+		}
+	},
+	"allOf": [{
+			"type": "object",
+			"properties": {
+				"State": {
+					"type": "string"
+				},
+				"ZipCode": {
+					"type": "string"
+				}
+			}
+		},
+		{
+			"type": "array",
+			"title": "The b schema",
+			"description": "An explanation about the purpose of this instance.",
+			"items": {
+				"type": "integer",
+				"title": "The items schema",
+				"description": "An explanation about the purpose of this instance."
+			}
+		}
+	]
+}`
+
+const allOfObjectMissing = `{
+	"type": "object",
+	"properties": {
+		"AddressLine": { "type": "string" }
+	},
+	"allOf": [
+		{
+			"type": "object",
+			"properties": {
+				"State":   { "type": "string" },
+				"ZipCode": { "type": "string" }
+			}
+		},
+		{
+			"properties": {
+				"County":   { "type": "string" },
+				"PostCode": { "type": "integer" }
+			}
+		}
+	]
+}`
+
+const allOfArrayDifTypes = `{
+	"$schema": "http://json-schema.org/draft-04/schema#",
+	"type": "array",
+	"title": "The b schema",
+	"description": "An explanation about the purpose of this instance.",
+	"allOf": [{
+			"type": "array",
+			"items": [{
+					"type": "string"
+				},
+				{
+					"type": "integer"
+				}
+			]
+		},
+		{
+			"type": "array",
+			"items": [{
+					"type": "string"
+				},
+				{
+					"type": "integer"
+				}
+			]
+		}
+	]
+}`
+
+const allOfArrayInsideObject = `{
+	"type": "object",
+	"properties": {
+		"familyMembers": {
+			"type": "array",
+			"items": {
+				"allOf": [{
+					"type": "object",
+					"properties": {
+						"age": {
+							"type": "integer"
+						},
+						"name": {
+							"type": "string"
+						}
+					}
+				}, {
+					"type": "object",
+					"properties": {
+						"personality": {
+							"type": "string"
+						},
+						"nickname": {
+							"type": "string"
+						}
+					}
+				}]
+			}
+		}
+	}
+}`
+
+const anyOfArrayMissing = `{
+	"type": "array",
+	"anyOf": [
+		{
+			"items": [
+				{"type": "number"},
+				{"type": "string"}]
+            },
+		{	"items": [
+				{"type": "integer"}]
+		}
+	]
+}`
+
+const allOfArrayMissing = `{
+	"type": "array",
+	"allOf": [{
+			"items": [{
+					"type": "integer"
+				},
+				{
+					"type": "integer"
+				}
+			]
+		},
+		{
+			"items": [{
+				"type": "integer"
+			}]
+		}
+	]
+}`
+
+const anyOfSchemaParentVariation = `{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "anyOf": [
+        {
+            "type": "object",
+            "properties": {
+                "State":   { "type": "string" },
+                "ZipCode": { "type": "string" }
+            },
+        },
+        {
+            "type": "object",
+            "properties": {
+                "County":   { "type": "string" },
+                "PostCode": { "type": "string" }
+            },
+        }
+    ]
+	}
+}`
+
+const allOfInsideCoreSchema = `{
+	"type": "object",
+	"properties": {
+		"AddressLine": { "type": "string" },
+		"RandomInfo": {
+			"allOf": [
+				{ "type": "object",
+				  "properties": {
+					  "accessMe": {"type": "string"}
+				  }
+				},
+				{ "type": "object",
+					"properties": {
+						"accessYou": {"type": "string"}
+					}}
+			  ]
+		}
+	}
+}`
+
+const allOfArrayDifTypesWithError = `{
+	"$schema": "http://json-schema.org/draft-04/schema#",
+	"type": "array",
+	"title": "The b schema",
+	"description": "An explanation about the purpose of this instance.",
+	"allOf": [{
+			"type": "array",
+			"items": [{
+					"type": "string"
+				},
+				{
+					"type": "integer"
+				}
+			]
+		},
+		{
+			"type": "array",
+			"items": [{
+					"type": "boolean"
+				},
+				{
+					"type": "integer"
+				}
+			]
+		}
+	]
+}`
+
+const allOfStringSchema = `{
+	"$schema": "http://json-schema.org/draft-04/schema#",
+	"type": "string",
+	"title": "The b schema",
+	"description": "An explanation about the purpose of this instance.",
+	"allOf": [{
+			"type": "string",
+		},
+		{
+			"type": "string",
+		}
+	]
+}`
+
+const allOfIntegerSchema = `{
+	"$schema": "http://json-schema.org/draft-04/schema#",
+	"type": "integer",
+	"title": "The b schema",
+	"description": "An explanation about the purpose of this instance.",
+	"allOf": [{
+			"type": "integer",
+		},
+		{
+			"type": "integer",
+		}
+	]
+}`
+
+const allOfBooleanSchema = `{
+	"$schema": "http://json-schema.org/draft-04/schema#",
+	"type": "boolean",
+	"title": "The b schema",
+	"description": "An explanation about the purpose of this instance.",
+	"allOf": [{
+			"type": "boolean",
+		},
+		{
+			"type": "boolean",
+		}
+	]
+}`
+
+const allOfTypeErrorSchema = `{
+	"$schema": "http://json-schema.org/draft-04/schema#",
+	"type": "string",
+	"title": "The b schema",
+	"description": "An explanation about the purpose of this instance.",
+	"allOf": [{
+			"type": "string",
+		},
+		{
+			"type": "integer",
+		}
+	]
+}`
+
+const allOfStringSchemaWithError = `{
+	"$schema": "http://json-schema.org/draft-04/schema#",
+	"type": "string",
+	"title": "The b schema",
+	"description": "An explanation about the purpose of this instance.",
+	"allOf": [{
+			"type": "string",
+		},
+		{
+			"type": "string",
+		},
+		{
+			"type": "boolean",
+		}
+	]
+}`
+
+const allOfSchemaWithParentError = `{
+	"$schema": "http://json-schema.org/draft-04/schema#",
+	"type": "string",
+	"title": "The b schema",
+	"description": "An explanation about the purpose of this instance.",
+	"allOf": [{
+			"type": "integer",
+		},
+		{
+			"type": "integer",
+		}
+	]
+}`
+
+const allOfSchemaWithUnevenArray = `{
+	"type": "array",
+	"allOf": [{
+			"items": [{
+					"type": "integer"
+				},
+				{
+					"type": "integer"
+				}
+			]
+		},
+		{
+			"items": [{
+				"type": "integer"
+			},
+			{
+				"type": "integer"
+			},
+			{
+				"type": "string"
+			}]
+		}
+	]
+}`

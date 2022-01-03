@@ -1,0 +1,2 @@
+go test fuzz v1
+string("{\"user\": \"alice\", \"azp\": \"alice\", \"subordinates\": [], \"hr\": false}")

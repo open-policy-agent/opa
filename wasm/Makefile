@@ -9,7 +9,7 @@ DOCKER_FLAGS += -it
 endif
 
 DOCKER_WASM_BUILDER_IMAGE ?= openpolicyagent/opa-wasm-builder
-WASM_BUILDER_VERSION := 1.4
+WASM_BUILDER_VERSION := 1.6
 WASM_BUILDER_IMAGE := $(DOCKER_WASM_BUILDER_IMAGE):$(WASM_BUILDER_VERSION)
 WASM_OBJ_DIR := _obj
 
@@ -33,8 +33,8 @@ CPPFLAGS += \
 	-fno-rtti \
 	-I src/lib \
 	-I src/libc++ \
-	-I /usr/lib/llvm-12/include/c++/v1 \
-	-I /usr/lib/llvm-12/lib/clang/12.0.0/include \
+	-I /usr/lib/llvm-13/include/c++/v1 \
+	-I /usr/lib/llvm-13/lib/clang/13.0.0/include \
 	-I src/re2 \
 	-D_LIBCPP_HAS_NO_THREADS \
 	-D_LIBCPP_HAS_NO_LIBRARY_ALIGNED_ALLOCATION
@@ -68,7 +68,8 @@ push-builder:
 
 .PHONY: build
 build:
-	@$(DOCKER) run $(DOCKER_FLAGS) -v $(CURDIR):/src $(WASM_BUILDER_IMAGE) make $(WASM_OBJ_DIR)/opa.wasm $(WASM_OBJ_DIR)/callgraph.csv
+	@$(DOCKER) run $(DOCKER_FLAGS) -v $(CURDIR):/src $(WASM_BUILDER_IMAGE) \
+	  make --no-builtin-rules $(WASM_OBJ_DIR)/opa.wasm $(WASM_OBJ_DIR)/callgraph.csv
 
 .PHONY: test
 test:
@@ -145,19 +146,20 @@ $(TEST_CPP_OBJS): $(WASM_OBJ_DIR)/tests/%.wasm: tests/%.cc
 	$(CXX) $(CPPFLAGS) -I src -c -o $@ $<
 
 $(WASM_OBJ_DIR)/opa.wasm: $(OBJS) $(CPP_OBJS) $(LIB_OBJS) $(LIB_MPDEC_OBJS) $(LIB_CPP_OBJS) $(RE2_RE2_OBJS) $(RE2_UTIL_OBJS)
-	wasm-ld-12 \
+	wasm-ld \
 			--allow-undefined-file=src/undefined.symbols \
-			--import-memory \
 			--no-entry \
+			--export=__heap_base \
+			--stack-first \
 			-o $@ $^
 	@wasm2wat $(WASM_OBJ_DIR)/opa.wasm > $(WASM_OBJ_DIR)/opa.wast
 
 $(WASM_OBJ_DIR)/opa-test.wasm: $(OBJS) $(CPP_OBJS) $(LIB_OBJS) $(LIB_MPDEC_OBJS) $(LIB_CPP_OBJS) $(RE2_RE2_OBJS) $(RE2_UTIL_OBJS) $(TEST_OBJS) $(TEST_CPP_OBJS)
 	@cat src/undefined.symbols tests/undefined.symbols > _obj/undefined.symbols
-	@wasm-ld-12 \
+	@wasm-ld \
 			--allow-undefined-file=_obj/undefined.symbols \
-			--import-memory \
 			--no-entry \
+			--stack-first \
 			-o $@ $^
 
 $(WASM_OBJ_DIR)/callgraph.csv: $(WASM_OBJ_DIR)/opa.wasm
@@ -165,3 +167,7 @@ $(WASM_OBJ_DIR)/callgraph.csv: $(WASM_OBJ_DIR)/opa.wasm
 	# because we're not actually optimizing the wasm, but only extract
 	# information.
 	build/gen-wasm-callgraph.sh $< > $@
+
+# These are for canceling the implicit rules of GNU Make, see
+# https://www.gnu.org/software/make/manual/html_node/Canceling-Rules.html#Canceling-Rules
+src/libc++/mutex: src/libc++/mutex.cc

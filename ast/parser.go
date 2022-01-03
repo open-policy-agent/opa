@@ -34,6 +34,7 @@ type state struct {
 	lit       string
 	loc       Location
 	errors    Errors
+	hints     []string
 	comments  []*Comment
 	wildcard  int
 }
@@ -59,20 +60,52 @@ func (s *state) Text(offset, end int) []byte {
 
 // Parser is used to parse Rego statements.
 type Parser struct {
-	r  io.Reader
-	s  *state
-	po ParserOptions
+	r     io.Reader
+	s     *state
+	po    ParserOptions
+	cache parsedTermCache
+}
+
+type parsedTermCacheItem struct {
+	t      *Term
+	post   *state // post is the post-state that's restored on a cache-hit
+	offset int
+	next   *parsedTermCacheItem
+}
+
+type parsedTermCache struct {
+	m *parsedTermCacheItem
+}
+
+func (c parsedTermCache) String() string {
+	s := strings.Builder{}
+	s.WriteRune('{')
+	var e *parsedTermCacheItem
+	for e = c.m; e != nil; e = e.next {
+		fmt.Fprintf(&s, "%v", e)
+	}
+	s.WriteRune('}')
+	return s.String()
+}
+
+func (e *parsedTermCacheItem) String() string {
+	return fmt.Sprintf("<%d:%v>", e.offset, e.t)
 }
 
 // ParserOptions defines the options for parsing Rego statements.
 type ParserOptions struct {
+	Capabilities      *Capabilities
 	ProcessAnnotation bool
+	AllFutureKeywords bool
+	FutureKeywords    []string
 }
 
 // NewParser creates and initializes a Parser.
 func NewParser() *Parser {
-	p := &Parser{s: &state{},
-		po: ParserOptions{}}
+	p := &Parser{
+		s:  &state{},
+		po: ParserOptions{},
+	}
 	return p
 }
 
@@ -97,6 +130,35 @@ func (p *Parser) WithProcessAnnotation(processAnnotation bool) *Parser {
 	return p
 }
 
+// WithFutureKeywords enables "future" keywords, i.e., keywords that can
+// be imported via
+//
+//     import future.keywords.kw
+//     import future.keywords.other
+//
+// but in a more direct way. The equivalent of this import would be
+//
+//     WithFutureKeywords("kw", "other")
+func (p *Parser) WithFutureKeywords(kws ...string) *Parser {
+	p.po.FutureKeywords = kws
+	return p
+}
+
+// WithAllFutureKeywords enables all "future" keywords, i.e., the
+// ParserOption equivalent of
+//
+//     import future.keywords
+func (p *Parser) WithAllFutureKeywords(yes bool) *Parser {
+	p.po.AllFutureKeywords = yes
+	return p
+}
+
+// WithCapabilities sets the capabilities structure on the parser.
+func (p *Parser) WithCapabilities(c *Capabilities) *Parser {
+	p.po.Capabilities = c
+	return p
+}
+
 const (
 	annotationScopePackage     = "package"
 	annotationScopeImport      = "import"
@@ -105,10 +167,69 @@ const (
 	annotationScopeSubpackages = "subpackages"
 )
 
+func (p *Parser) parsedTermCacheLookup() (*Term, *state) {
+	l := p.s.loc.Offset
+	// stop comparing once the cached offsets are lower than l
+	for h := p.cache.m; h != nil && h.offset >= l; h = h.next {
+		if h.offset == l {
+			return h.t, h.post
+		}
+	}
+	return nil, nil
+}
+
+func (p *Parser) parsedTermCachePush(t *Term, s0 *state) {
+	s1 := p.save()
+	o0 := s0.loc.Offset
+	entry := parsedTermCacheItem{t: t, post: s1, offset: o0}
+
+	// find the first one whose offset is smaller than ours
+	var e *parsedTermCacheItem
+	for e = p.cache.m; e != nil; e = e.next {
+		if e.offset < o0 {
+			break
+		}
+	}
+	entry.next = e
+	p.cache.m = &entry
+}
+
+// futureParser returns a shallow copy of `p` with an empty
+// cache, and a scanner that knows all future keywords.
+// It's used to present hints in errors, when statements would
+// only parse successfully if some future keyword is enabled.
+func (p *Parser) futureParser() *Parser {
+	q := *p
+	q.s = p.save()
+	q.s.s = p.s.s.WithKeywords(futureKeywords)
+	q.cache = parsedTermCache{}
+	return &q
+}
+
 // Parse will read the Rego source and parse statements and
 // comments as they are found. Any errors encountered while
 // parsing will be accumulated and returned as a list of Errors.
 func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
+
+	if p.po.Capabilities == nil {
+		p.po.Capabilities = CapabilitiesForThisVersion()
+	}
+
+	allowedFutureKeywords := map[string]tokens.Token{}
+
+	for _, kw := range p.po.Capabilities.FutureKeywords {
+		var ok bool
+		allowedFutureKeywords[kw], ok = futureKeywords[kw]
+		if !ok {
+			return nil, nil, Errors{
+				&Error{
+					Code:     ParseErr,
+					Message:  fmt.Sprintf("illegal capabilities: unknown keyword: %v", kw),
+					Location: nil,
+				},
+			}
+		}
+	}
 
 	var err error
 	p.s.s, err = scanner.New(p.r)
@@ -121,6 +242,28 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 			},
 		}
 	}
+
+	selected := map[string]tokens.Token{}
+	if p.po.AllFutureKeywords {
+		for kw, tok := range allowedFutureKeywords {
+			selected[kw] = tok
+		}
+	} else {
+		for _, kw := range p.po.FutureKeywords {
+			tok, ok := allowedFutureKeywords[kw]
+			if !ok {
+				return nil, nil, Errors{
+					&Error{
+						Code:     ParseErr,
+						Message:  fmt.Sprintf("unknown future keyword: %v", kw),
+						Location: nil,
+					},
+				}
+			}
+			selected[kw] = tok
+		}
+	}
+	p.s.s = p.s.s.WithKeywords(selected)
 
 	// read the first token to initialize the parser
 	p.scan()
@@ -148,6 +291,9 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 		s = p.save()
 
 		if imp := p.parseImport(); imp != nil {
+			if FutureRootDocument.Equal(imp.Path.Value.(Ref)[0]) {
+				p.futureImport(imp, allowedFutureKeywords)
+			}
 			stmts = append(stmts, imp)
 			continue
 		} else if len(p.s.errors) > 0 {
@@ -167,7 +313,6 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 		}
 
 		p.restore(s)
-		p.save() // no need to save return value to s
 
 		if body := p.parseQuery(true, tokens.EOF); body != nil {
 			stmts = append(stmts, body)
@@ -312,8 +457,10 @@ func (p *Parser) parseImport() *Import {
 
 	path := imp.Path.Value.(Ref)
 
-	if !RootDocumentNames.Contains(path[0]) {
-		p.errorf(imp.Path.Location, "unexpected import path, must begin with one of: %v, got: %v", RootDocumentNames, path[0])
+	if !RootDocumentNames.Contains(path[0]) && !FutureRootDocument.Equal(path[0]) {
+		p.errorf(imp.Path.Location, "unexpected import path, must begin with one of: %v, got: %v",
+			RootDocumentNames.Union(NewSet(FutureRootDocument)),
+			path[0])
 		return nil
 	}
 
@@ -325,14 +472,15 @@ func (p *Parser) parseImport() *Import {
 			return nil
 		}
 
-		alias := p.parseTerm()
-
-		v, ok := alias.Value.(Var)
-		if !ok {
-			p.illegal("expected var")
-			return nil
+		if alias := p.parseTerm(); alias != nil {
+			v, ok := alias.Value.(Var)
+			if ok {
+				imp.Alias = v
+				return &imp
+			}
 		}
-		imp.Alias = v
+		p.illegal("expected var")
+		return nil
 	}
 
 	return &imp
@@ -449,7 +597,7 @@ func (p *Parser) parseElse(head *Head) *Rule {
 		rule.Head.Value = BooleanTerm(true)
 	case tokens.Unify:
 		p.scan()
-		rule.Head.Value = p.parseTermRelation()
+		rule.Head.Value = p.parseTermInfixCall()
 		if rule.Head.Value == nil {
 			return nil
 		}
@@ -491,11 +639,8 @@ func (p *Parser) parseHead(defaultRule bool) *Head {
 	}()
 
 	if term := p.parseVar(); term != nil {
-		if v, ok := term.Value.(Var); ok {
-			head.Name = v
-		}
-	}
-	if head.Name == "" {
+		head.Name = term.Value.(Var)
+	} else {
 		p.illegal("expected rule head name")
 	}
 
@@ -518,11 +663,14 @@ func (p *Parser) parseHead(defaultRule bool) *Head {
 
 	if p.s.tok == tokens.LBrack {
 		p.scan()
-		head.Key = p.parseTermRelation()
+		head.Key = p.parseTermInfixCall()
 		if head.Key == nil {
 			p.illegal("expected rule key term (e.g., %s[<VALUE>] { ... })", head.Name)
 		}
 		if p.s.tok != tokens.RBrack {
+			if _, ok := futureKeywords[head.Name.String()]; ok {
+				p.hint("`import future.keywords.%[1]s` for '%[1]s' keyword", head.Name.String())
+			}
 			p.illegal("non-terminated rule key")
 		}
 		p.scan()
@@ -530,9 +678,9 @@ func (p *Parser) parseHead(defaultRule bool) *Head {
 
 	if p.s.tok == tokens.Unify {
 		p.scan()
-		head.Value = p.parseTermRelation()
+		head.Value = p.parseTermInfixCall()
 		if head.Value == nil {
-			p.illegal("expected rule value term (e.g., %s[<VALUE>] { ... })", head.Name)
+			p.illegal("expected rule value term (e.g., %s[%s] = <VALUE> { ... })", head.Name, head.Key)
 		}
 	} else if p.s.tok == tokens.Assign {
 
@@ -549,7 +697,7 @@ func (p *Parser) parseHead(defaultRule bool) *Head {
 
 		p.scan()
 		head.Assign = true
-		head.Value = p.parseTermRelation()
+		head.Value = p.parseTermInfixCall()
 		if head.Value == nil {
 			p.illegal("expected rule value term (e.g., %s := <VALUE> { ... })", head.Name)
 		}
@@ -671,7 +819,7 @@ func (p *Parser) parseWith() []*With {
 
 		p.scan()
 
-		if with.Value = p.parseTermRelation(); with.Value == nil {
+		if with.Value = p.parseTermInfixCall(); with.Value == nil {
 			return nil
 		}
 
@@ -692,13 +840,46 @@ func (p *Parser) parseSome() *Expr {
 	decl := &SomeDecl{}
 	decl.SetLoc(p.s.Loc())
 
-	for {
+	// Attempt to parse "some x in xs", which will end up in
+	//   SomeDecl{Symbols: ["member(x, xs)"]}
+	s := p.save()
+	p.scan()
+	if term := p.parseTermInfixCall(); term != nil {
+		if call, ok := term.Value.(Call); ok {
+			switch call[0].String() {
+			case Member.Name, MemberWithKey.Name: // OK
+			default:
+				p.illegal("expected `x in xs` or `x, y in xs` expression")
+				return nil
+			}
+
+			decl.Symbols = []*Term{term}
+			return NewExpr(decl).SetLocation(decl.Location)
+		}
+	}
+
+	p.restore(s)
+	s = p.save() // new copy for later
+	var hint bool
+	p.scan()
+	if term := p.futureParser().parseTermInfixCall(); term != nil {
+		if call, ok := term.Value.(Call); ok {
+			switch call[0].String() {
+			case Member.Name, MemberWithKey.Name:
+				hint = true
+			}
+		}
+	}
+
+	// go on as before, it's `some x[...]` or illegal
+	p.restore(s)
+	if hint {
+		p.hint("`import future.keywords.in` for `some x in xs` expressions")
+	}
+
+	for { // collecting var args
 
 		p.scan()
-
-		switch p.s.tok {
-		case tokens.Ident:
-		}
 
 		if p.s.tok != tokens.Ident {
 			p.illegal("expected var")
@@ -719,14 +900,13 @@ func (p *Parser) parseSome() *Expr {
 
 func (p *Parser) parseExpr() *Expr {
 
-	lhs := p.parseTermRelation()
-
+	lhs := p.parseTermInfixCall()
 	if lhs == nil {
 		return nil
 	}
 
 	if op := p.parseTermOp(tokens.Assign, tokens.Unify); op != nil {
-		if rhs := p.parseTermRelation(); rhs != nil {
+		if rhs := p.parseTermInfixCall(); rhs != nil {
 			return NewExpr([]*Term{op, lhs, rhs})
 		}
 		return nil
@@ -742,14 +922,63 @@ func (p *Parser) parseExpr() *Expr {
 	return NewExpr(lhs)
 }
 
-// parseTermRelation consumes the next term from the input and returns it. If a
+// parseTermInfixCall consumes the next term from the input and returns it. If a
 // term cannot be parsed the return value is nil and error will be recorded. The
 // scanner will be advanced to the next token before returning.
-func (p *Parser) parseTermRelation() *Term {
-	return p.parseTermRelationRec(nil, p.s.loc.Offset)
+// By starting out with infix relations (==, !=, <, etc) and further calling the
+// other binary operators (|, &, arithmetics), it constitutes the binding
+// precedence.
+func (p *Parser) parseTermInfixCall() *Term {
+	return p.parseTermIn(nil, true, p.s.loc.Offset)
 }
 
-func (p *Parser) parseTermRelationRec(lhs *Term, offset int) *Term {
+func (p *Parser) parseTermInfixCallInList() *Term {
+	return p.parseTermIn(nil, false, p.s.loc.Offset)
+}
+
+func (p *Parser) parseTermIn(lhs *Term, keyVal bool, offset int) *Term {
+	// NOTE(sr): `in` is a bit special: besides `lhs in rhs`, it also
+	// supports `key, val in rhs`, so it can have an optional second lhs.
+	// `keyVal` triggers if we attempt to parse a second lhs argument (`mhs`).
+	if lhs == nil {
+		lhs = p.parseTermRelation(nil, offset)
+	}
+	if lhs != nil {
+		if keyVal && p.s.tok == tokens.Comma { // second "lhs", or "middle hand side"
+			s := p.save()
+			p.scan()
+			if mhs := p.parseTermRelation(nil, offset); mhs != nil {
+				if op := p.parseTermOpName(MemberWithKey.Ref(), tokens.In); op != nil {
+					if rhs := p.parseTermRelation(nil, p.s.loc.Offset); rhs != nil {
+						call := p.setLoc(CallTerm(op, lhs, mhs, rhs), lhs.Location, offset, p.s.lastEnd)
+						switch p.s.tok {
+						case tokens.In:
+							return p.parseTermIn(call, keyVal, offset)
+						default:
+							return call
+						}
+					}
+				}
+			}
+			p.restore(s)
+			return nil
+		}
+		if op := p.parseTermOpName(Member.Ref(), tokens.In); op != nil {
+			if rhs := p.parseTermRelation(nil, p.s.loc.Offset); rhs != nil {
+				call := p.setLoc(CallTerm(op, lhs, rhs), lhs.Location, offset, p.s.lastEnd)
+				switch p.s.tok {
+				case tokens.In:
+					return p.parseTermIn(call, keyVal, offset)
+				default:
+					return call
+				}
+			}
+		}
+	}
+	return lhs
+}
+
+func (p *Parser) parseTermRelation(lhs *Term, offset int) *Term {
 	if lhs == nil {
 		lhs = p.parseTermOr(nil, offset)
 	}
@@ -759,7 +988,7 @@ func (p *Parser) parseTermRelationRec(lhs *Term, offset int) *Term {
 				call := p.setLoc(CallTerm(op, lhs, rhs), lhs.Location, offset, p.s.lastEnd)
 				switch p.s.tok {
 				case tokens.Equal, tokens.Neq, tokens.Lt, tokens.Gt, tokens.Lte, tokens.Gte:
-					return p.parseTermRelationRec(call, offset)
+					return p.parseTermRelation(call, offset)
 				default:
 					return call
 				}
@@ -852,6 +1081,12 @@ func (p *Parser) parseTermFactor(lhs *Term, offset int) *Term {
 }
 
 func (p *Parser) parseTerm() *Term {
+	if term, s := p.parsedTermCacheLookup(); s != nil {
+		p.restore(s)
+		return term
+	}
+	s0 := p.save()
+
 	var term *Term
 	switch p.s.tok {
 	case tokens.Null:
@@ -873,7 +1108,7 @@ func (p *Parser) parseTerm() *Term {
 	case tokens.LParen:
 		offset := p.s.loc.Offset
 		p.scan()
-		if r := p.parseTermRelation(); r != nil {
+		if r := p.parseTermInfixCall(); r != nil {
 			if p.s.tok == tokens.RParen {
 				r.Location.Text = p.s.Text(offset, p.s.tokEnd)
 				term = r
@@ -883,10 +1118,11 @@ func (p *Parser) parseTerm() *Term {
 		}
 	default:
 		p.illegalToken()
-		return nil
 	}
 
-	return p.parseTermFinish(term)
+	term = p.parseTermFinish(term)
+	p.parsedTermCachePush(term, s0)
+	return term
 }
 
 func (p *Parser) parseTermFinish(head *Term) *Term {
@@ -1001,9 +1237,9 @@ func (p *Parser) parseCall(operator *Term, offset int) (term *Term) {
 		p.setLoc(term, loc, offset, end)
 	}()
 
-	p.scan()
+	p.scan() // steps over '('
 
-	if p.s.tok == tokens.RParen {
+	if p.s.tok == tokens.RParen { // no args, i.e. set() or any.func()
 		end = p.s.tokEnd
 		p.scanWS()
 		if operator.Equal(setConstructor) {
@@ -1065,7 +1301,7 @@ func (p *Parser) parseRef(head *Term, offset int) (term *Term) {
 			return term
 		case tokens.LBrack:
 			p.scan()
-			if term := p.parseTermRelation(); term != nil {
+			if term := p.parseTermInfixCall(); term != nil {
 				if p.s.tok != tokens.RBrack {
 					p.illegal("expected %v", tokens.LBrack)
 					return nil
@@ -1147,18 +1383,17 @@ func (p *Parser) parseArray() (term *Term) {
 			}
 		}
 		// fall back to parsing as a normal array definition
-		fallthrough
-	default:
-		p.restore(s)
-		if terms := p.parseTermList(tokens.RBrack, nil); terms != nil {
-			return NewTerm(NewArray(terms...))
-		}
-		return nil
 	}
+
+	p.restore(s)
+
+	if terms := p.parseTermList(tokens.RBrack, nil); terms != nil {
+		return NewTerm(NewArray(terms...))
+	}
+	return nil
 }
 
 func (p *Parser) parseSetOrObject() (term *Term) {
-
 	loc := p.s.Loc()
 	offset := p.s.loc.Offset
 
@@ -1190,7 +1425,6 @@ func (p *Parser) parseSetOrObject() (term *Term) {
 	//
 	// Note: We don't know yet if it is a set or object being defined.
 	head := p.parseTerm()
-
 	if head == nil {
 		return nil
 	}
@@ -1208,7 +1442,8 @@ func (p *Parser) parseSetOrObject() (term *Term) {
 
 	p.restore(s)
 
-	if head = p.parseTermRelation(); head == nil {
+	head = p.parseTermInfixCallInList()
+	if head == nil {
 		return nil
 	}
 
@@ -1218,10 +1453,9 @@ func (p *Parser) parseSetOrObject() (term *Term) {
 	case tokens.Colon:
 		// It still might be an object comprehension, eg { a+1: b | ... }
 		return p.parseObject(head, potentialComprehension)
-	default:
-		p.illegal("non-terminated set")
 	}
 
+	p.illegal("non-terminated set")
 	return nil
 }
 
@@ -1234,7 +1468,6 @@ func (p *Parser) parseSet(s *state, head *Term, potentialComprehension bool) *Te
 		if terms := p.parseTermList(tokens.RBrace, []*Term{head}); terms != nil {
 			return SetTerm(terms...)
 		}
-		return nil
 	case tokens.Or:
 		if potentialComprehension {
 			// Try to parse as if it is a set comprehension
@@ -1251,7 +1484,6 @@ func (p *Parser) parseSet(s *state, head *Term, potentialComprehension bool) *Te
 		if terms := p.parseTermList(tokens.RBrace, nil); terms != nil {
 			return SetTerm(terms...)
 		}
-		return nil
 	}
 	return nil
 }
@@ -1260,18 +1492,31 @@ func (p *Parser) parseObject(k *Term, potentialComprehension bool) *Term {
 	// NOTE(tsandall): Assumption: this function is called after parsing the key
 	// of the head element and then receiving a colon token from the scanner.
 	// Advance beyond the colon and attempt to parse an object.
+	if p.s.tok != tokens.Colon {
+		panic("expected colon")
+	}
 	p.scan()
 
 	s := p.save()
-	v := p.parseTerm()
 
+	// NOTE(sr): We first try to parse the value as a term (`v`), and see
+	// if we can parse `{ x: v | ...}` as a comprehension.
+	// However, if we encounter either a Comma or an RBace, it cannot be
+	// parsed as a comprehension -- so we save double work further down
+	// where `parseObjectFinish(k, v, false)` would only exercise the
+	// same code paths once more.
+	v := p.parseTerm()
 	if v == nil {
 		return nil
 	}
 
-	switch p.s.tok {
-	case tokens.RBrace, tokens.Comma, tokens.Or:
-		if potentialComprehension {
+	potentialRelation := true
+	if potentialComprehension {
+		switch p.s.tok {
+		case tokens.RBrace, tokens.Comma:
+			potentialRelation = false
+			fallthrough
+		case tokens.Or:
 			if term := p.parseObjectFinish(k, v, true); term != nil {
 				return term
 			}
@@ -1280,17 +1525,19 @@ func (p *Parser) parseObject(k *Term, potentialComprehension bool) *Term {
 
 	p.restore(s)
 
-	if v = p.parseTermRelation(); v == nil {
-		return nil
+	if potentialRelation {
+		v := p.parseTermInfixCallInList()
+		if v == nil {
+			return nil
+		}
+
+		switch p.s.tok {
+		case tokens.RBrace, tokens.Comma:
+			return p.parseObjectFinish(k, v, false)
+		}
 	}
 
-	switch p.s.tok {
-	case tokens.Comma, tokens.RBrace:
-		return p.parseObjectFinish(k, v, false)
-	default:
-		p.illegal("non-terminated object")
-	}
-
+	p.illegal("non-terminated object")
 	return nil
 }
 
@@ -1321,7 +1568,7 @@ func (p *Parser) parseTermList(end tokens.Token, r []*Term) []*Term {
 		return r
 	}
 	for {
-		term := p.parseTermRelation()
+		term := p.parseTermInfixCallInList()
 		if term != nil {
 			r = append(r, term)
 			switch p.s.tok {
@@ -1347,12 +1594,12 @@ func (p *Parser) parseTermPairList(end tokens.Token, r [][2]*Term) [][2]*Term {
 		return r
 	}
 	for {
-		key := p.parseTermRelation()
+		key := p.parseTermInfixCallInList()
 		if key != nil {
 			switch p.s.tok {
 			case tokens.Colon:
 				p.scan()
-				if val := p.parseTermRelation(); val != nil {
+				if val := p.parseTermInfixCallInList(); val != nil {
 					r = append(r, [2]*Term{key, val})
 					switch p.s.tok {
 					case end:
@@ -1388,6 +1635,21 @@ func (p *Parser) parseTermOp(values ...tokens.Token) *Term {
 	return nil
 }
 
+func (p *Parser) parseTermOpName(ref Ref, values ...tokens.Token) *Term {
+	for i := range values {
+		if p.s.tok == values[i] {
+			for _, r := range ref {
+				r.SetLocation(p.s.Loc())
+			}
+			t := RefTerm(ref...)
+			t.SetLocation(p.s.Loc())
+			p.scan()
+			return t
+		}
+	}
+	return nil
+}
+
 func (p *Parser) parseVar() *Term {
 
 	s := p.s.lit
@@ -1413,16 +1675,40 @@ func (p *Parser) error(loc *location.Location, reason string) {
 }
 
 func (p *Parser) errorf(loc *location.Location, f string, a ...interface{}) {
+	msg := strings.Builder{}
+	fmt.Fprintf(&msg, f, a...)
+
+	switch len(p.s.hints) {
+	case 0: // nothing to do
+	case 1:
+		msg.WriteString(" (hint: ")
+		msg.WriteString(p.s.hints[0])
+		msg.WriteRune(')')
+	default:
+		msg.WriteString(" (hints: ")
+		for i, h := range p.s.hints {
+			if i > 0 {
+				msg.WriteString(", ")
+			}
+			msg.WriteString(h)
+		}
+		msg.WriteRune(')')
+	}
+
 	p.s.errors = append(p.s.errors, &Error{
 		Code:     ParseErr,
-		Message:  fmt.Sprintf(f, a...),
+		Message:  msg.String(),
 		Location: loc,
 		Details:  newParserErrorDetail(p.s.s.Bytes(), loc.Offset),
 	})
+	p.s.hints = nil
+}
+
+func (p *Parser) hint(f string, a ...interface{}) {
+	p.s.hints = append(p.s.hints, fmt.Sprintf(f, a...))
 }
 
 func (p *Parser) illegal(note string, a ...interface{}) {
-
 	tok := p.s.tok.String()
 
 	if p.s.tok == tokens.Illegal {
@@ -1437,7 +1723,7 @@ func (p *Parser) illegal(note string, a ...interface{}) {
 
 	note = fmt.Sprintf(note, a...)
 	if len(note) > 0 {
-		p.errorf(p.s.Loc(), "unexpected %s %s: %v", tok, tokType, note)
+		p.errorf(p.s.Loc(), "unexpected %s %s: %s", tok, tokType, note)
 	} else {
 		p.errorf(p.s.Loc(), "unexpected %s %s", tok, tokType)
 	}
@@ -1701,5 +1987,54 @@ func convertYAMLMapKeyTypes(x interface{}, path []string) (interface{}, error) {
 		return x, nil
 	default:
 		return x, nil
+	}
+}
+
+// futureKeywords is the source of truth for future keywords that will
+// eventually become standard keywords inside of Rego.
+var futureKeywords = map[string]tokens.Token{
+	"in": tokens.In,
+}
+
+func (p *Parser) futureImport(imp *Import, allowedFutureKeywords map[string]tokens.Token) {
+	path := imp.Path.Value.(Ref)
+	if len(path) == 1 {
+		p.errorf(imp.Path.Location, "invalid import, use `import future.keywords` or `import.future.keywords.in`")
+		return
+	}
+
+	if !path[1].Equal(StringTerm("keywords")) {
+		p.errorf(imp.Path.Location, "invalid import, must be `future.keywords`")
+		return
+	}
+
+	if imp.Alias != "" {
+		p.errorf(imp.Path.Location, "future keyword imports cannot be aliased")
+		return
+	}
+
+	kwds := make([]string, 0, len(allowedFutureKeywords))
+	for k := range allowedFutureKeywords {
+		kwds = append(kwds, k)
+	}
+	switch len(path) {
+	case 2: // all keywords imported, nothing to do
+	case 3: // one keyword imported
+		kw, ok := path[2].Value.(String)
+		if !ok {
+			p.errorf(imp.Path.Location, "invalid import, must be `future.keywords.x`, e.g. `import future.keywords.in`")
+			return
+		}
+		keyword := string(kw)
+		_, ok = allowedFutureKeywords[keyword]
+		if !ok {
+			p.errorf(imp.Path.Location, "unexpected keyword, must be one of %v", kwds)
+			return
+		}
+
+		kwds = []string{keyword} // overwrite
+	}
+	for _, kw := range kwds {
+		p.s.s.AddKeyword(kw, allowedFutureKeywords[kw])
 	}
 }

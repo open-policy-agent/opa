@@ -10,8 +10,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"strings"
+
+	"github.com/open-policy-agent/opa/storage/disk"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/rego"
@@ -143,6 +146,38 @@ p = ["hello", "world"] { true }`,
 	// err: <nil>
 }
 
+func ExampleRego_Eval_allowed() {
+
+	ctx := context.Background()
+
+	// Create query that returns a single boolean value.
+	rego := rego.New(
+		rego.Query("data.authz.allow"),
+		rego.Module("example.rego",
+			`package authz
+
+default allow = false
+allow {
+	input.open == "sesame"
+}`,
+		),
+		rego.Input(map[string]interface{}{"open": "sesame"}),
+	)
+
+	// Run evaluation.
+	rs, err := rego.Eval(ctx)
+	if err != nil {
+		panic(err)
+	}
+
+	// Inspect result.
+	fmt.Println("allowed:", rs.Allowed())
+
+	// Output:
+	//
+	//	allowed: true
+}
+
 func ExampleRego_Eval_multipleDocuments() {
 
 	ctx := context.Background()
@@ -171,10 +206,10 @@ p = {"hello": "alice", "goodbye": "bob"} { true }`,
 	//
 	// len: 2
 	// err: <nil>
-	// bindings["x"]: hello (i=0)
-	// value: alice (i=0)
-	// bindings["x"]: goodbye (i=1)
-	// value: bob (i=1)
+	// bindings["x"]: goodbye (i=0)
+	// value: bob (i=0)
+	// bindings["x"]: hello (i=1)
+	// value: alice (i=1)
 }
 
 func ExampleRego_Eval_compiler() {
@@ -223,11 +258,13 @@ func ExampleRego_Eval_compiler() {
 	// Inspect results.
 	fmt.Println("len:", len(rs))
 	fmt.Println("value:", rs[0].Expressions[0].Value)
+	fmt.Println("allowed:", rs.Allowed()) // helper method
 
 	// Output:
 	//
 	// len: 1
 	// value: true
+	// allowed: true
 }
 
 func ExampleRego_Eval_storage() {
@@ -276,6 +313,94 @@ func ExampleRego_Eval_storage() {
 
 	// Output:
 	//
+	// value: [dogs clouds]
+}
+
+func ExampleRego_Eval_persistent_storage() {
+
+	ctx := context.Background()
+
+	data := `{
+        "example": {
+            "users": {
+				"alice": {
+					"likes": ["dogs", "clouds"]
+				},
+				"bob": {
+					"likes": ["pizza", "cats"]
+				}
+			}
+        }
+    }`
+
+	var json map[string]interface{}
+
+	err := util.UnmarshalJSON([]byte(data), &json)
+	if err != nil {
+		// Handle error.
+	}
+
+	// Manually create a persistent storage-layer in a temporary directory.
+	rootDir, err := ioutil.TempDir("", "rego_example")
+	if err != nil {
+		panic(err)
+	}
+
+	defer os.RemoveAll(rootDir)
+
+	// Configure the store to partition data at `/example/users` so that each
+	// user's data is stored on a different row. Assuming the policy only reads
+	// data for a single user to process the policy query, OPA can avoid loading
+	// _all_ user data into memory this way.
+	store, err := disk.New(ctx, disk.Options{
+		Dir:        rootDir,
+		Partitions: []storage.Path{{"example", "user"}},
+	})
+	if err != nil {
+		// Handle error.
+	}
+
+	err = storage.WriteOne(ctx, store, storage.AddOp, storage.Path{}, json)
+	if err != nil {
+		// Handle error
+	}
+
+	// Run a query that returns the value
+	rs, err := rego.New(
+		rego.Query(`data.example.users["alice"].likes`),
+		rego.Store(store)).Eval(ctx)
+	if err != nil {
+		// Handle error.
+	}
+
+	// Inspect the result.
+	fmt.Println("value:", rs[0].Expressions[0].Value)
+
+	// Re-open the store in the same directory.
+	store.Close(ctx)
+
+	store2, err := disk.New(ctx, disk.Options{
+		Dir:        rootDir,
+		Partitions: []storage.Path{{"example", "user"}},
+	})
+	if err != nil {
+		// Handle error.
+	}
+
+	// Run the same query with a new store.
+	rs, err = rego.New(
+		rego.Query(`data.example.users["alice"].likes`),
+		rego.Store(store2)).Eval(ctx)
+	if err != nil {
+		// Handle error.
+	}
+
+	// Inspect the result and observe the same result.
+	fmt.Println("value:", rs[0].Expressions[0].Value)
+
+	// Output:
+	//
+	// value: [dogs clouds]
 	// value: [dogs clouds]
 }
 
@@ -869,5 +994,36 @@ func ExampleRego_custom_function_global() {
 	// Output:
 	//
 	// [foo bar baz]
+}
 
+func ExampleRego_print_statements() {
+
+	var buf bytes.Buffer
+
+	r := rego.New(
+		rego.Query("data.example.rule_containing_print_call"),
+		rego.Module("example.rego", `
+			package example
+
+			rule_containing_print_call {
+				print("input.foo is:", input.foo, "and input.bar is:", input.bar)
+			}
+		`),
+		rego.Input(map[string]interface{}{
+			"foo": 7,
+		}),
+		rego.EnablePrintStatements(true),
+		rego.PrintHook(topdown.NewPrintHook(&buf)),
+	)
+
+	_, err := r.Eval(context.Background())
+	if err != nil {
+		// handle error
+	}
+
+	fmt.Println("buf:", buf.String())
+
+	// Output:
+	//
+	// buf: input.foo is: 7 and input.bar is: <undefined>
 }

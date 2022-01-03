@@ -1,9 +1,10 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 """
 changelog.py helps generate the CHANGELOG.md message for a particular release.
 """
 
 import argparse
+import os
 import subprocess
 import shlex
 import re
@@ -59,6 +60,20 @@ def is_maintainer(commit_message):
     author = author_email(commit_message)
     return author in maintainers
 
+org_members_usernames = []
+def get_org_members(token):
+    url = "https://api.github.com/orgs/open-policy-agent/members?per_page=100"
+    r = fetch(url, token)
+    for m in r:
+        user_url = m.get('url', '')
+        user_info = fetch(user_url, token)
+        email = user_info.get('email', '')
+        login = user_info.get('login', '')
+        if login:
+            org_members_usernames.append(str(login))
+        if email:
+            maintainers.append(str(email))
+            github_ids[email]=login
 
 def author_email(commit_message):
     match = re.search(r"<(.*@.*)>", commit_message)
@@ -86,10 +101,17 @@ def get_github_id(commit_message, commit_id, token):
 
 def mention_author(commit_message, commit_id, token):
     username = get_github_id(commit_message, commit_id, token)
-    if username:
+    if username not in org_members_usernames:
         return "authored by @[{author}](https://github.com/{author})".format(author=username)
     return ""
 
+def get_issue_reporter(issue_id, token):
+    url = "https://api.github.com/repos/open-policy-agent/opa/issues/{issue_id}".format(issue_id=issue_id)
+    issue_data = fetch(url, token)
+    username = issue_data.get("user", "").get("login", "")
+    if username not in org_members_usernames:
+        return "reported by @[{reporter}](https://github.com/{reporter})".format(reporter=username)
+    return ""
 
 def fixes_issue_id(commit_message):
     match = re.search(r"Fixes:?\s*#(\d+)", commit_message)
@@ -100,13 +122,17 @@ def fixes_issue_id(commit_message):
 def get_subject(commit_message):
     return commit_message.splitlines()[0]
 
-
-def get_changelog_message(commit_message, mention, repo_url):
-    issue_id = fixes_issue_id(commit_message)
+def get_changelog_message(commit_message, issue_id, mention, reporter, repo_url):
+    subject = get_subject(commit_message)
     if issue_id:
-        subject = get_subject(commit_message)
-        return "Fixes", "{subject} ([#{issue_id}]({repo_url}/issues/{issue_id})) {mention}".format(subject=subject, issue_id=issue_id, repo_url=repo_url, mention=mention)
-    return None, get_subject(commit_message)
+        if mention:
+            mention = " "+mention
+        if reporter:
+            reporter = " "+reporter
+        return "Fixes", "{subject} ([#{issue_id}]({repo_url}/issues/{issue_id})){mention}{reporter}".format(subject=subject, issue_id=issue_id, repo_url=repo_url, mention=mention, reporter=reporter)
+    if mention:
+        mention = " (" + mention + ")"
+    return None, "{subject}{mention}".format(subject=subject, mention=mention)
 
 
 def get_latest_tag():
@@ -115,10 +141,12 @@ def get_latest_tag():
 
 
 def parse_args():
+    if "GITHUB_TOKEN" in os.environ:
+        default_token = os.environ["GITHUB_TOKEN"]
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--repo_url", default="https://github.com/open-policy-agent/opa")
-    parser.add_argument("--token", default="", help="GitHub API token")
+    parser.add_argument("--token", default=default_token, help="GitHub API token")
     parser.add_argument("from_version", nargs="?",
                         default=get_latest_tag(), help="start of changes")
     parser.add_argument("to_commit", nargs="?",
@@ -130,12 +158,19 @@ def main():
 
     args = parse_args()
     changelog = {}
+    get_org_members(args.token)
     for commit_id in get_commit_ids(args.from_version, args.to_commit):
         mention = ""
+        reporter = ""
         commit_message = get_commit_message(commit_id)
         if not is_maintainer(commit_message):
             mention = mention_author(commit_message, commit_id, args.token)
-        group, line = get_changelog_message(commit_message, mention, args.repo_url)
+        issue_id = fixes_issue_id(commit_message)
+        if issue_id:
+            reporter = get_issue_reporter(issue_id, args.token)
+        if mention.split("/")[-1] == reporter.split("/")[-1]:
+            reporter = ""
+        group, line = get_changelog_message(commit_message, issue_id, mention, reporter, args.repo_url)
         changelog.setdefault(group, []).append(line)
 
     if "Fixes" in changelog:

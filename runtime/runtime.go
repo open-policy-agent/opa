@@ -22,13 +22,14 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/gorilla/mux"
-	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.uber.org/automaxprocs/maxprocs"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/internal/config"
+	internal_tracing "github.com/open-policy-agent/opa/internal/distributedtracing"
+	internal_logging "github.com/open-policy-agent/opa/internal/logging"
 	"github.com/open-policy-agent/opa/internal/prometheus"
 	"github.com/open-policy-agent/opa/internal/report"
 	"github.com/open-policy-agent/opa/internal/runtime"
@@ -44,6 +45,7 @@ import (
 	"github.com/open-policy-agent/opa/server"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
+	"github.com/open-policy-agent/opa/tracing"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/version"
 )
@@ -96,8 +98,20 @@ type Params struct {
 	// is nil, the server will NOT use TLS.
 	Certificate *tls.Certificate
 
+	// CertificateFile and CertificateKeyFile are the paths to the cert and its
+	// keyfile. It'll be used to periodically reload the files from disk if they
+	// have changed. The server will attempt to refresh every 5 minutes, unless
+	// a different CertificateRefresh time.Duration is provided
+	CertificateFile    string
+	CertificateKeyFile string
+	CertificateRefresh time.Duration
+
 	// CertPool holds the CA certs trusted by the OPA server.
 	CertPool *x509.CertPool
+
+	// MinVersion contains the minimum TLS version that is acceptable.
+	// If zero, TLS 1.2 is currently taken as the minimum.
+	MinTLSVersion uint16
 
 	// HistoryPath is the filename to store the interactive shell user
 	// input history.
@@ -136,12 +150,11 @@ type Params struct {
 	// sent by the server (in response to Data API queries.)
 	DecisionIDFactory func() string
 
-	// DiagnosticsBuffer is used by the server to record policy decisions.
-	// DEPRECATED. Use decision logging instead.
-	DiagnosticsBuffer server.Buffer
-
 	// Logging configures the logging behaviour.
 	Logging LoggingConfig
+
+	// Logger sets the logger implementation to use for debug logs.
+	Logger logging.Logger
 
 	// ConsoleLogger sets the logger implementation to use for console logs.
 	ConsoleLogger logging.Logger
@@ -188,6 +201,8 @@ type Params struct {
 	// Router uses a first-matching-route-wins strategy, so no existing routes are overridden
 	// If it is nil, a new mux.Router will be created
 	Router *mux.Router
+
+	DistributedTracingOpts tracing.Options
 }
 
 // LoggingConfig stores the configuration for OPA's logging behaviour.
@@ -211,9 +226,11 @@ type Runtime struct {
 	Store   storage.Store
 	Manager *plugins.Manager
 
-	server   *server.Server
-	metrics  *prometheus.Provider
-	reporter *report.Reporter
+	logger        logging.Logger
+	server        *server.Server
+	metrics       *prometheus.Provider
+	reporter      *report.Reporter
+	traceExporter *otlptrace.Exporter
 
 	serverInitialized bool
 	serverInitMtx     sync.RWMutex
@@ -232,23 +249,49 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		}
 	}
 
+	level, err := internal_logging.GetLevel(params.Logging.Level)
+	if err != nil {
+		return nil, err
+	}
+
+	// NOTE(tsandall): This is a temporary hack to ensure that log formatting
+	// and leveling is applied correctly. Currently there are a few places where
+	// the global logger is used as a fallback, however, that fallback _should_
+	// never be used. This ensures that _if_ the fallback is used accidentally,
+	// that the logging configuration is applied. Once we remove all usage of
+	// the global logger and we remove the API that allows callers to access the
+	// global logger, we can remove this.
+	logging.Get().SetFormatter(internal_logging.GetFormatter(params.Logging.Format))
+	logging.Get().SetLevel(level)
+
+	var logger logging.Logger
+
+	if params.Logger != nil {
+		logger = params.Logger
+	} else {
+		stdLogger := logging.New()
+		stdLogger.SetLevel(level)
+		stdLogger.SetFormatter(internal_logging.GetFormatter(params.Logging.Format))
+		logger = stdLogger
+	}
+
 	config, err := config.Load(params.ConfigFile, params.ConfigOverrides, params.ConfigOverrideFiles)
 	if err != nil {
-		return nil, errors.Wrap(err, "config error")
+		return nil, fmt.Errorf("config error: %w", err)
 	}
 
 	var reporter *report.Reporter
 	if params.EnableVersionCheck {
 		var err error
-		reporter, err = report.New(params.ID)
+		reporter, err = report.New(params.ID, report.Options{Logger: logger})
 		if err != nil {
-			return nil, errors.Wrap(err, "config error")
+			return nil, fmt.Errorf("config error: %w", err)
 		}
 	}
 
 	loaded, err := initload.LoadPaths(params.Paths, params.Filter, params.BundleMode, params.BundleVerificationConfig, params.SkipBundleVerification)
 	if err != nil {
-		return nil, errors.Wrap(err, "load error")
+		return nil, fmt.Errorf("load error: %w", err)
 	}
 
 	info, err := runtime.Term(runtime.Params{Config: config})
@@ -259,11 +302,15 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 	var consoleLogger logging.Logger
 
 	if params.ConsoleLogger == nil {
-		stdLogger := logging.NewStandardLogger()
-		stdLogger.SetFormatter(getFormatter(params.Logging.Format))
-		consoleLogger = stdLogger
+		l := logging.New()
+		l.SetFormatter(internal_logging.GetFormatter(params.Logging.Format))
+		consoleLogger = l
 	} else {
 		consoleLogger = params.ConsoleLogger
+	}
+
+	if params.Router == nil {
+		params.Router = mux.NewRouter()
 	}
 
 	manager, err := plugins.New(config,
@@ -274,31 +321,45 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		plugins.InitFiles(loaded.Files),
 		plugins.MaxErrors(params.ErrorLimit),
 		plugins.GracefulShutdownPeriod(params.GracefulShutdownPeriod),
-		plugins.ConsoleLogger(consoleLogger))
+		plugins.ConsoleLogger(consoleLogger),
+		plugins.Logger(logger),
+		plugins.EnablePrintStatements(logger.GetLevel() >= logging.Info),
+		plugins.PrintHook(loggingPrintHook{logger: logger}),
+		plugins.WithRouter(params.Router))
 	if err != nil {
-		return nil, errors.Wrap(err, "config error")
+		return nil, fmt.Errorf("config error: %w", err)
 	}
 
 	if err := manager.Init(ctx); err != nil {
-		return nil, errors.Wrap(err, "initialization error")
+		return nil, fmt.Errorf("initialization error: %w", err)
 	}
 
-	metrics := prometheus.New(metrics.New(), errorLogger)
+	metrics := prometheus.New(metrics.New(), errorLogger(logger))
+
+	traceExporter, distributedTracingOpts, err := internal_tracing.Init(ctx, config, params.ID)
+	if err != nil {
+		return nil, fmt.Errorf("config error: %w", err)
+	}
+	if distributedTracingOpts != nil {
+		params.DistributedTracingOpts = distributedTracingOpts
+	}
 
 	disco, err := discovery.New(manager, discovery.Factories(registeredPlugins), discovery.Metrics(metrics))
 	if err != nil {
-		return nil, errors.Wrap(err, "config error")
+		return nil, fmt.Errorf("config error: %w", err)
 	}
 
-	manager.Register("discovery", disco)
+	manager.Register(discovery.Name, disco)
 
 	rt := &Runtime{
 		Store:             manager.Store,
 		Params:            params,
 		Manager:           manager,
+		logger:            logger,
 		metrics:           metrics,
 		reporter:          reporter,
 		serverInitialized: false,
+		traceExporter:     traceExporter,
 	}
 
 	return rt, nil
@@ -326,36 +387,48 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 		rt.Params.DiagnosticAddrs = &[]string{}
 	}
 
-	setupLogging(rt.Params.Logging)
-
-	logrus.WithFields(logrus.Fields{
+	rt.logger.WithFields(map[string]interface{}{
 		"addrs":            *rt.Params.Addrs,
 		"diagnostic-addrs": *rt.Params.DiagnosticAddrs,
 	}).Info("Initializing server.")
 
 	if rt.Params.Authorization == server.AuthorizationOff && rt.Params.Authentication == server.AuthenticationToken {
-		logrus.Error("Token authentication enabled without authorization. Authentication will be ineffective. See https://www.openpolicyagent.org/docs/latest/security/#authentication-and-authorization for more information.")
+		rt.logger.Error("Token authentication enabled without authorization. Authentication will be ineffective. See https://www.openpolicyagent.org/docs/latest/security/#authentication-and-authorization for more information.")
 	}
 
 	// NOTE(tsandall): at some point, hopefully we can remove this because the
 	// Go runtime will just do the right thing. Until then, try to set
 	// GOMAXPROCS based on the CPU quota applied to the process.
 	undo, err := maxprocs.Set(maxprocs.Logger(func(f string, a ...interface{}) {
-		logrus.Debugf(f, a...)
+		rt.logger.Debug(f, a...)
 	}))
 
 	if err != nil {
-		logrus.WithFields(logrus.Fields{"err": err}).Debug("Failed to set GOMAXPROCS from CPU quota.")
+		rt.logger.WithFields(map[string]interface{}{"err": err}).Debug("Failed to set GOMAXPROCS from CPU quota.")
 	}
 
 	defer undo()
 
 	if err := rt.Manager.Start(ctx); err != nil {
-		logrus.WithField("err", err).Error("Failed to start plugins.")
+		rt.logger.WithFields(map[string]interface{}{"err": err}).Error("Failed to start plugins.")
 		return err
 	}
 
 	defer rt.Manager.Stop(ctx)
+
+	if rt.traceExporter != nil {
+		if err := rt.traceExporter.Start(ctx); err != nil {
+			rt.logger.WithFields(map[string]interface{}{"err": err}).Error("Failed to start OpenTelemetry trace exporter.")
+			return err
+		}
+
+		defer func() {
+			err := rt.traceExporter.Shutdown(ctx)
+			if err != nil {
+				rt.logger.WithFields(map[string]interface{}{"err": err}).Error("Failed to shutdown OpenTelemetry trace exporter gracefully.")
+			}
+		}()
+	}
 
 	rt.server = server.New().
 		WithRouter(rt.Params.Router).
@@ -366,13 +439,16 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 		WithAddresses(*rt.Params.Addrs).
 		WithH2CEnabled(rt.Params.H2CEnabled).
 		WithCertificate(rt.Params.Certificate).
+		WithCertificatePaths(rt.Params.CertificateFile, rt.Params.CertificateKeyFile, rt.Params.CertificateRefresh).
 		WithCertPool(rt.Params.CertPool).
 		WithAuthentication(rt.Params.Authentication).
 		WithAuthorization(rt.Params.Authorization).
 		WithDecisionIDFactory(rt.decisionIDFactory).
 		WithDecisionLoggerWithErr(rt.decisionLogger).
 		WithRuntime(rt.Manager.Info).
-		WithMetrics(rt.metrics)
+		WithMetrics(rt.metrics).
+		WithMinTLSVersion(rt.Params.MinTLSVersion).
+		WithDistributedTracingOpts(rt.Params.DistributedTracingOpts)
 
 	if rt.Params.DiagnosticAddrs != nil {
 		rt.server = rt.server.WithDiagnosticAddresses(*rt.Params.DiagnosticAddrs)
@@ -380,13 +456,13 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 
 	rt.server, err = rt.server.Init(ctx)
 	if err != nil {
-		logrus.WithField("err", err).Error("Unable to initialize server.")
+		rt.logger.WithFields(map[string]interface{}{"err": err}).Error("Unable to initialize server.")
 		return err
 	}
 
 	if rt.Params.Watch {
-		if err := rt.startWatcher(ctx, rt.Params.Paths, onReloadLogger); err != nil {
-			logrus.WithField("err", err).Error("Unable to open watch.")
+		if err := rt.startWatcher(ctx, rt.Params.Paths, rt.onReloadLogger); err != nil {
+			rt.logger.WithFields(map[string]interface{}{"err": err}).Error("Unable to open watch.")
 			return err
 		}
 	}
@@ -403,19 +479,19 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 		}
 	}()
 
-	rt.server.Handler = NewLoggingHandler(rt.server.Handler)
-	rt.server.DiagnosticHandler = NewLoggingHandler(rt.server.DiagnosticHandler)
+	rt.server.Handler = NewLoggingHandler(rt.logger, rt.server.Handler)
+	rt.server.DiagnosticHandler = NewLoggingHandler(rt.logger, rt.server.DiagnosticHandler)
 
 	if err := rt.waitPluginsReady(
 		100*time.Millisecond,
 		time.Second*time.Duration(rt.Params.ReadyTimeout)); err != nil {
-		logrus.WithField("err", err).Error("Failed to wait for plugins activation.")
+		rt.logger.WithFields(map[string]interface{}{"err": err}).Error("Failed to wait for plugins activation.")
 		return err
 	}
 
 	loops, err := rt.server.Listeners()
 	if err != nil {
-		logrus.WithField("err", err).Error("Unable to create listeners.")
+		rt.logger.WithFields(map[string]interface{}{"err": err}).Error("Unable to create listeners.")
 		return err
 	}
 
@@ -433,11 +509,15 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 	signalc := make(chan os.Signal, 1)
 	signal.Notify(signalc, syscall.SIGINT, syscall.SIGTERM)
 
+	// Note that there is a small chance the socket of the server listener is still
+	// closed by the time this block is executed, due to the serverLoop above
+	// executing in a goroutine.
 	rt.serverInitMtx.Lock()
 	rt.serverInitialized = true
 	rt.serverInitMtx.Unlock()
+	rt.Manager.ServerInitialized()
 
-	logrus.Debug("Server initialized.")
+	rt.logger.Debug("Server initialized.")
 
 	for {
 		select {
@@ -446,7 +526,8 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 		case <-signalc:
 			return rt.gracefulServerShutdown(rt.server)
 		case err := <-errc:
-			logrus.WithField("err", err).Fatal("Listener failed.")
+			rt.logger.WithFields(map[string]interface{}{"err": err}).Error("Listener failed.")
+			os.Exit(1)
 		}
 	}
 }
@@ -505,6 +586,12 @@ func (rt *Runtime) StartREPL(ctx context.Context) {
 	repl.Loop(ctx)
 }
 
+// SetDistributedTracingLogging configures the distributed tracing's ErrorHandler,
+// and logger instances.
+func (rt *Runtime) SetDistributedTracingLogging() {
+	internal_tracing.SetupLogging(rt.logger)
+}
+
 func (rt *Runtime) checkOPAUpdate(ctx context.Context) *report.DataResponse {
 	resp, _ := rt.reporter.SendReport(ctx)
 	return resp
@@ -517,14 +604,14 @@ func (rt *Runtime) checkOPAUpdateLoop(ctx context.Context, uploadDuration time.D
 	for {
 		resp, err := rt.reporter.SendReport(ctx)
 		if err != nil {
-			logrus.WithField("err", err).Debug("Unable to send OPA version report.")
+			rt.logger.WithFields(map[string]interface{}{"err": err}).Debug("Unable to send OPA version report.")
 		} else {
 			if resp.Latest.OPAUpToDate {
-				logrus.WithFields(logrus.Fields{
+				rt.logger.WithFields(map[string]interface{}{
 					"current_version": version.Version,
 				}).Debug("OPA is up to date.")
 			} else {
-				logrus.WithFields(logrus.Fields{
+				rt.logger.WithFields(map[string]interface{}{
 					"download_opa":    resp.Latest.Download,
 					"release_notes":   resp.Latest.ReleaseNotes,
 					"current_version": version.Version,
@@ -556,10 +643,6 @@ func (rt *Runtime) decisionIDFactory() string {
 
 func (rt *Runtime) decisionLogger(ctx context.Context, event *server.Info) error {
 
-	if rt.Params.DiagnosticsBuffer != nil {
-		rt.Params.DiagnosticsBuffer.Push(event)
-	}
-
 	plugin := logs.Lookup(rt.Manager)
 	if plugin == nil {
 		return nil
@@ -569,7 +652,7 @@ func (rt *Runtime) decisionLogger(ctx context.Context, event *server.Info) error
 }
 
 func (rt *Runtime) startWatcher(ctx context.Context, paths []string, onReload func(time.Duration, error)) error {
-	watcher, err := getWatcher(paths)
+	watcher, err := rt.getWatcher(paths)
 	if err != nil {
 		return err
 	}
@@ -582,9 +665,9 @@ func (rt *Runtime) readWatcher(ctx context.Context, watcher *fsnotify.Watcher, p
 		removalMask := fsnotify.Remove | fsnotify.Rename
 		mask := fsnotify.Create | fsnotify.Write | removalMask
 		if (evt.Op & mask) != 0 {
-			logrus.WithFields(logrus.Fields{
+			rt.logger.WithFields(map[string]interface{}{
 				"event": evt.String(),
-			}).Debugf("registered file event")
+			}).Debug("Registered file event.")
 			t0 := time.Now()
 			removed := ""
 			if (evt.Op & removalMask) != 0 {
@@ -665,19 +748,19 @@ func (rt *Runtime) getBanner() string {
 
 func (rt *Runtime) gracefulServerShutdown(s *server.Server) error {
 	if rt.Params.ShutdownWaitPeriod > 0 {
-		logrus.Infof("Waiting %vs before initiating shutdown...", rt.Params.ShutdownWaitPeriod)
+		rt.logger.Info("Waiting %vs before initiating shutdown...", rt.Params.ShutdownWaitPeriod)
 		time.Sleep(time.Duration(rt.Params.ShutdownWaitPeriod) * time.Second)
 	}
 
-	logrus.Info("Shutting down...")
+	rt.logger.Info("Shutting down...")
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(rt.Params.GracefulShutdownPeriod)*time.Second)
 	defer cancel()
 	err := s.Shutdown(ctx)
 	if err != nil {
-		logrus.WithField("err", err).Error("Failed to shutdown server gracefully.")
+		rt.logger.WithFields(map[string]interface{}{"err": err}).Error("Failed to shutdown server gracefully.")
 		return err
 	}
-	logrus.Info("Server shutdown.")
+	rt.logger.Info("Server shutdown.")
 	return nil
 }
 
@@ -696,12 +779,19 @@ func (rt *Runtime) waitPluginsReady(checkInterval, timeout time.Duration) error 
 		return true
 	}
 
-	logrus.Debugf("Waiting for plugins activation (%v).", timeout)
+	rt.logger.Debug("Waiting for plugins activation (%v).", timeout)
 
 	return util.WaitFunc(pluginsReady, checkInterval, timeout)
 }
 
-func getWatcher(rootPaths []string) (*fsnotify.Watcher, error) {
+func (rt *Runtime) onReloadLogger(d time.Duration, err error) {
+	rt.logger.WithFields(map[string]interface{}{
+		"duration": d,
+		"err":      err,
+	}).Warn("Processed file watch event.")
+}
+
+func (rt *Runtime) getWatcher(rootPaths []string) (*fsnotify.Watcher, error) {
 
 	watchPaths, err := getWatchPaths(rootPaths)
 	if err != nil {
@@ -714,13 +804,19 @@ func getWatcher(rootPaths []string) (*fsnotify.Watcher, error) {
 	}
 
 	for _, path := range watchPaths {
-		logrus.WithField("path", path).Debug("watching path")
+		rt.logger.WithFields(map[string]interface{}{"path": path}).Debug("watching path")
 		if err := watcher.Add(path); err != nil {
 			return nil, err
 		}
 	}
 
 	return watcher, nil
+}
+
+func errorLogger(logger logging.Logger) func(attrs map[string]interface{}, f string, a ...interface{}) {
+	return func(attrs map[string]interface{}, f string, a ...interface{}) {
+		logger.WithFields(map[string]interface{}(attrs)).Error(f, a...)
+	}
 }
 
 func getWatchPaths(rootPaths []string) ([]string, error) {
@@ -740,13 +836,6 @@ func getWatchPaths(rootPaths []string) ([]string, error) {
 	return paths, nil
 }
 
-func onReloadLogger(d time.Duration, err error) {
-	logrus.WithFields(logrus.Fields{
-		"duration": d,
-		"err":      err,
-	}).Warn("Processed file watch event.")
-}
-
 func onReloadPrinter(output io.Writer) func(time.Duration, error) {
 	return func(d time.Duration, err error) {
 		if err != nil {
@@ -755,39 +844,6 @@ func onReloadPrinter(output io.Writer) func(time.Duration, error) {
 			fmt.Fprintf(output, "\n# reloaded files (took %v)", d)
 		}
 	}
-}
-
-func getFormatter(format string) logrus.Formatter {
-	switch format {
-	case "text":
-		return &prettyFormatter{}
-	case "json-pretty":
-		return &logrus.JSONFormatter{PrettyPrint: true}
-	case "json":
-		fallthrough
-	default:
-		return &logrus.JSONFormatter{}
-	}
-}
-
-func setupLogging(config LoggingConfig) {
-	formatter := getFormatter(config.Format)
-	logrus.SetFormatter(formatter)
-	lvl := logrus.InfoLevel
-
-	if config.Level != "" {
-		var err error
-		lvl, err = logrus.ParseLevel(config.Level)
-		if err != nil {
-			logrus.Fatalf("Unable to parse log level: %v", err)
-		}
-	}
-
-	logrus.SetLevel(lvl)
-}
-
-func errorLogger(attrs map[string]interface{}, f string, a ...interface{}) {
-	logrus.WithFields(logrus.Fields(attrs)).Errorf(f, a...)
 }
 
 func generateInstanceID() (string, error) {

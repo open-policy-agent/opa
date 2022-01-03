@@ -10,6 +10,8 @@ import (
 	"path"
 	"strings"
 
+	"github.com/open-policy-agent/opa/plugins"
+
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/download"
 	"github.com/open-policy-agent/opa/keys"
@@ -31,7 +33,7 @@ func ParseConfig(config []byte, services []string) (*Config, error) {
 		return nil, err
 	}
 
-	if err := parsedConfig.validateAndInjectDefaults(services, nil); err != nil {
+	if err := parsedConfig.validateAndInjectDefaults(services, nil, nil); err != nil {
 		return nil, err
 	}
 
@@ -55,7 +57,8 @@ func ParseConfig(config []byte, services []string) (*Config, error) {
 // the defined `bundles`. This expects a map of bundle names to resource
 // configurations.
 func ParseBundlesConfig(config []byte, services []string) (*Config, error) {
-	return NewConfigBuilder().WithBytes(config).WithServices(services).Parse()
+	t := plugins.DefaultTriggerMode
+	return NewConfigBuilder().WithBytes(config).WithServices(services).WithTriggerMode(&t).Parse()
 }
 
 // NewConfigBuilder returns a new ConfigBuilder to build and parse the bundle config
@@ -81,6 +84,12 @@ func (b *ConfigBuilder) WithKeyConfigs(keys map[string]*keys.Config) *ConfigBuil
 	return b
 }
 
+// WithTriggerMode sets the plugin trigger mode
+func (b *ConfigBuilder) WithTriggerMode(trigger *plugins.TriggerMode) *ConfigBuilder {
+	b.trigger = trigger
+	return b
+}
+
 // Parse validates the config and injects default values for the defined `bundles`.
 func (b *ConfigBuilder) Parse() (*Config, error) {
 	if b.raw == nil {
@@ -101,7 +110,7 @@ func (b *ConfigBuilder) Parse() (*Config, error) {
 		}
 	}
 
-	err := c.validateAndInjectDefaults(b.services, b.keys)
+	err := c.validateAndInjectDefaults(b.services, b.keys, b.trigger)
 	if err != nil {
 		return nil, err
 	}
@@ -114,6 +123,7 @@ type ConfigBuilder struct {
 	raw      []byte
 	services []string
 	keys     map[string]*keys.Config
+	trigger  *plugins.TriggerMode
 }
 
 // Config represents the configuration of the plugin.
@@ -150,7 +160,7 @@ func (c *Config) IsMultiBundle() bool {
 	return c.Name == ""
 }
 
-func (c *Config) validateAndInjectDefaults(services []string, keys map[string]*keys.Config) error {
+func (c *Config) validateAndInjectDefaults(services []string, keys map[string]*keys.Config, trigger *plugins.TriggerMode) error {
 	if c.Bundles == nil {
 		return c.validateAndInjectDefaultsLegacy(services)
 	}
@@ -160,10 +170,8 @@ func (c *Config) validateAndInjectDefaults(services []string, keys map[string]*k
 			source.Resource = path.Join(defaultBundlePathPrefix, name)
 		}
 
-		var err error
-
 		if source.Signing != nil {
-			err = source.Signing.ValidateAndInjectDefaults(keys)
+			err := source.Signing.ValidateAndInjectDefaults(keys)
 			if err != nil {
 				return fmt.Errorf("invalid configuration for bundle %q: %s", name, err.Error())
 			}
@@ -173,23 +181,27 @@ func (c *Config) validateAndInjectDefaults(services []string, keys map[string]*k
 			}
 		}
 
-		// If the resource specifies a file:// URL then we can ignore the
-		// service configuration error.
-		ignoreServiceConfigErr := false
-
 		if strings.HasPrefix(source.Resource, "file://") {
 			if _, err := url.Parse(source.Resource); err != nil {
 				return fmt.Errorf("invalid URL for bundle %q: %v", name, err)
 			}
-			ignoreServiceConfigErr = true
+		} else {
+			svc, err := c.getServiceFromList(source.Service, services)
+			if err != nil {
+				return fmt.Errorf("invalid configuration for bundle %q: %s", name, err.Error())
+			}
+			source.Service = svc
 		}
 
-		source.Service, err = c.getServiceFromList(source.Service, services)
-		if err == nil || ignoreServiceConfigErr {
-			err = source.Config.ValidateAndInjectDefaults()
-		}
+		t, err := plugins.ValidateAndInjectDefaultsForTriggerMode(trigger, source.Trigger)
 		if err != nil {
-			return fmt.Errorf("invalid configuration for bundle %q: %s", name, err.Error())
+			return fmt.Errorf("invalid configuration for bundle %q: %w", name, err)
+		}
+
+		source.Trigger = t
+
+		if err := source.Config.ValidateAndInjectDefaults(); err != nil {
+			return fmt.Errorf("invalid configuration for bundle %q: %w", name, err)
 		}
 
 		if source.SizeLimitBytes <= 0 {

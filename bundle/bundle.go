@@ -139,6 +139,10 @@ func (m Manifest) Equal(other Manifest) bool {
 		}
 	}
 
+	if !reflect.DeepEqual(m.Metadata, other.Metadata) {
+		return false
+	}
+
 	return m.rootSet().Equal(other.rootSet())
 }
 
@@ -152,6 +156,15 @@ func (m Manifest) Copy() Manifest {
 	wasmModules := make([]WasmResolver, len(m.WasmResolvers))
 	copy(wasmModules, m.WasmResolvers)
 	m.WasmResolvers = wasmModules
+
+	metadata := m.Metadata
+
+	if metadata != nil {
+		m.Metadata = make(map[string]interface{})
+		for k, v := range metadata {
+			m.Metadata[k] = v
+		}
+	}
 
 	return m
 }
@@ -683,6 +696,10 @@ func (w *Writer) writeWasm(tw *tar.Writer, bundle Bundle) error {
 }
 
 func writeManifest(tw *tar.Writer, bundle Bundle) error {
+
+	if bundle.Manifest.Equal(Manifest{}) {
+		return nil
+	}
 
 	var buf bytes.Buffer
 

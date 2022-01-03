@@ -6,7 +6,8 @@ weight: 2
 
 Read this page if you are new to Kubernetes admission control with OPA and want
 to learn how to write policies for Kubernetes.  It covers the version
-that uses kube-mgmt. The [OPA Gatekeeper version](https://github.com/open-policy-agent/gatekeeper) has its own docs.
+that uses kube-mgmt. The [OPA Gatekeeper version](https://open-policy-agent.github.io/gatekeeper)
+has its own docs.
 
 ## Writing Policies
 
@@ -17,10 +18,10 @@ trusted registry.
 package kubernetes.admission                                                # line 1
 
 deny[msg] {                                                                 # line 2
-  input.request.kind.kind == "Pod"                                          # line 3
-  image := input.request.object.spec.containers[_].image                    # line 4
-  not startswith(image, "hooli.com/")                                       # line 5
-  msg := sprintf("image '%v' comes from untrusted registry", [image])       # line 6
+    input.request.kind.kind == "Pod"                                        # line 3
+    image := input.request.object.spec.containers[_].image                  # line 4
+    not startswith(image, "hooli.com/")                                     # line 5
+    msg := sprintf("image '%v' comes from untrusted registry", [image])     # line 6
 }
 ```
 
@@ -95,7 +96,7 @@ In OPA, `input` is a reserved, global variable whose value is the  Kubernetes Ad
 AdmissionReview objects have many fields.  The rule above uses `input.request.kind`, which includes the usual group/version/kind information.  The rule also uses `input.request.object`, which is the YAML that the user provided to `kubectl` (augmented with defaults, timestamps, etc.).  The full `input` object is 50+ lines of YAML, so below we show just the relevant parts.
 
 ```yaml
-apiVersion: admission.k8s.io/v1beta1
+apiVersion: admission.k8s.io/v1
 kind: AdmissionReview
 request:
   kind:
@@ -251,13 +252,13 @@ For example, it’s possible to accidentally configure two Kubernetes ingresses 
 Below is a partial example of the input OPA sees when someone creates an ingress.  To avoid conflicts, we want to prevent two ingresses from having the same `request.object.spec.rules.host`.  If OPA has only this one ingress configuration it doesn't have enough information to make an allow/deny decision; it also needs the configurations for all of the existing ingresses.
 
 ```yaml
-apiVersion: admission.k8s.io/v1beta1
+apiVersion: admission.k8s.io/v1
 kind: AdmissionReview
 request:
   kind:
-    group: extensions
+    group: networking.k8s.io
     kind: Ingress
-    version: v1beta1
+    version: v1
   object:
     metadata:
       name: prod
@@ -267,9 +268,12 @@ request:
         http:
           paths:
           - path: /finance
+            pathType: Prefix
             backend:
-              serviceName: banking
-              servicePort: 443
+              service:
+                name: banking
+                port:
+                  number: 443
 ```
 
 To avoid conflicting ingresses, you write a policy like the one that follows.
@@ -307,7 +311,7 @@ Here are two examples.
 <div style="float: left; width: 49%; padding: 3px">
 <center><b>data.kubernetes.ingresses[namespace][name]</b></center>
 <pre><code>
-apiVersion: extensions/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: prod
@@ -317,20 +321,23 @@ spec:
     http:
       paths:
       - path: /finance
+        pathType: Prefix
         backend:
-          serviceName: banking
-          servicePort: 443
+          service:
+            name: banking
+            port:
+              number: 443
 </code></pre></div>
 <div style="float: left; width: 49%; padding 3px;">
 <center><b>input</b></center>
 <pre><code>
-apiVersion: admission.k8s.io/v1beta1
+apiVersion: admission.k8s.io/v1
 kind: AdmissionReview
 request:
   kind:
-    group: extensions
+    group: networking.k8s.io
     kind: Ingress
-    version: v1beta1
+    version: v1
   operation: CREATE
   userInfo:
     groups:
@@ -344,13 +351,14 @@ request:
         http:
           paths:
           - path: /finance
+            pathType: Prefix
             backend:
-              serviceName: banking
-              servicePort: 443
+              service:
+                name: banking
+                port:
+                  number: 443
 </code></pre></div>
-
-
-<br>
+</div>
 
 ## Detailed Admission Control Flow
 
@@ -383,7 +391,7 @@ controller executes, the API server sends a webhook request to OPA containing an
 **AdmissionReview**:
 
 ```yaml
-apiVersion: admission.k8s.io/v1beta1
+apiVersion: admission.k8s.io/v1
 kind: AdmissionReview
 request:
   kind:
@@ -440,7 +448,7 @@ request:
     group: ''
     resource: pods
     version: v1
-  uid: bbfeef88-d98d-11e8-b280-080027868e77
+  uid: 8d836dfd-e0c0-4490-93ba-85ed4a04261e
   userInfo:
     groups:
     - system:masters
@@ -459,7 +467,7 @@ Content-Type: application/json
 
 ```json
 {
-  "apiVersion": "admission.k8s.io/v1beta1",
+  "apiVersion": "admission.k8s.io/v1",
   "kind": "AdmissionReview",
   "request": ...
 }
@@ -481,28 +489,32 @@ package system
 import data.kubernetes.admission
 
 main = {
-  "apiVersion": "admission.k8s.io/v1beta1",
+  "apiVersion": "admission.k8s.io/v1",
   "kind": "AdmissionReview",
   "response": response,
 }
 
-default response = {"allowed": true}
+default uid = ""
+
+uid = input.request.uid
 
 response = {
     "allowed": false,
+    "uid": uid,
     "status": {
-        "reason": reason,
+        "message": reason,
     },
 } {
-    reason = concat(", ", admission.deny)
+    reason := concat(", ", admission.deny)
     reason != ""
 }
+else = {"allowed": true, "uid": uid}
 ```
 
 The `system.main` policy MUST generate an **AdmissionReview** object containing
 a response that the API server can interpret. If the request should be allowed,
 the `response.allowed` field should be true. Otherwise, the `response.allowed`
-field should be set to `false` and the `response.status.reason` field should be
+field should be set to `false` and the `response.status.message` field should be
 set to include an error message that indicates why the request is being
 rejected. The error message will be returned to the API server caller (e.g., the
 user running `kubectl`). Often the error message is the concatenation of all the
@@ -512,12 +524,13 @@ For example, with the input and Image Registry Safety examples above, the
 response from OPA would be:
 
 ```yaml
-apiVersion: admission.k8s.io/v1beta1
+apiVersion: admission.k8s.io/v1
 kind: AdmissionReview
 response:
+  uid: 8d836dfd-e0c0-4490-93ba-85ed4a04261e
   allowed: false
   status:
-    reason: "image fails to come from trusted registry: nginx"
+    message: "image fails to come from trusted registry: nginx"
 ```
 
 For more detail on how Kubernetes Admission Control works, see [this blog

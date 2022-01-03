@@ -69,6 +69,13 @@ keys:
 caching:
   inter_query_builtin_cache:
     max_size_bytes: 10000000
+
+distributed_tracing:
+  enabled: true
+  address: localhost:4317
+  service_name: opa
+  sample_percentage: 50
+  encryption: "off"
 ```
 
 #### Environment Variable Substitution
@@ -202,7 +209,7 @@ opa run --set "decision_logs.plugin=my_plugin" --set "plugins.my_plugin=null"
 
 ###### Keys with Special Characters
 
-If you have a key which contains a special character (`.`, `=`, etc), like `opa.example.com`, and want to use
+If you have a key which contains a special character (`=`, `[`, `,`, `.`), like `opa.example.com`, and want to use
 the `--set` or `--set-file` options you will need to escape the character with a backslash (`\`).
 
 For example a config section like:
@@ -242,6 +249,8 @@ multiple services.
 | `services[_].url` | `string` | Yes | Base URL to contact the service with. |
 | `services[_].response_header_timeout_seconds` | `int64` | No (default: 10) | Amount of time to wait for a server's response headers after fully writing the request. This time does not include the time to read the response body. |
 | `services[_].headers` | `object` | No | HTTP headers to include in requests to the service. |
+| `services[_].tls.ca_cert` | `string` | No | The path to the root CA certificate.  If not provided, this defaults to TLS using the host's root CA set. |
+| `services[_].tls.system_ca_required` | `bool` | No (default: `false`) | Require system certificate appended with root CA certificate. |
 | `services[_].allow_insecure_tls` | `bool` | No | Allow insecure TLS. |
 
 Each service may optionally specify a credential mechanism by which OPA will authenticate
@@ -272,8 +281,6 @@ private key is encrypted.
 | `services[_].credentials.client_tls.cert` | `string` | Yes | The path to the client certificate to authenticate with. |
 | `services[_].credentials.client_tls.private_key` | `string` | Yes | The path to the private key of the client certificate. |
 | `services[_].credentials.client_tls.private_key_passphrase` | `string` | No | The passphrase to use for the private key. |
-| `services[_].credentials.client_tls.ca_cert` | `string` | No | The path to the root CA certificate. |
-| `services[_].credentials.client_tls.system_ca_required` | `bool` | No | Require system certificate appended with root CA certificate. |
 
 #### OAuth2 Client Credentials
 
@@ -387,6 +394,13 @@ keys:
     private_key: ${BUNDLE_SERVICE_SIGNING_KEY}
 ```
 
+{{< danger >}}
+OPA masks services authentication secrets which make use of the `credentials` field, in order to prevent the exposure of sensitive tokens.
+It is important to note that the [/v1/config API](../rest-api/#config-api) allows clients to read the runtime configuration of OPA. As such, any credentials used by
+custom configurations not utilizing the credentials field will be exposed to the caller.
+Consider requiring authentication in order to prevent unauthorized read access to OPA's runtime configuration.
+{{< /danger >}}
+
 #### AWS Signature
 
 OPA will authenticate with an [AWS4 HMAC](https://docs.aws.amazon.com/general/latest/gr/sigv4_signing.html) signature. Several methods of obtaining the
@@ -409,6 +423,19 @@ Please note that if you are using temporary IAM credentials (e.g. assumed IAM ro
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `services[_].credentials.s3_signing.environment_credentials` | `{}` | Yes | Enables AWS signing using environment variables to source the configuration and credentials |
+
+
+##### Using Named Profile Credentials
+If specifying `profile_credentials`, OPA will expect to find the `access key id`, `secret access key` and
+`session token` from the [named profiles](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-profiles.html)
+stored in the [credentials](https://docs.aws.amazon.com/sdkref/latest/guide/file-format.html) file on disk. On each
+request OPA will re-read the credentials from the file and use them for authentication.
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `services[_].credentials.s3_signing.profile_credentials.path` | `string` | No | The path to the shared credentials file. If empty, OPA will look for the `AWS_SHARED_CREDENTIALS_FILE` env variable. If the variable is not set, the path defaults to the current user's home directory. `~/.aws/credentials` (Linux & Mac) or `%USERPROFILE%\.aws\credentials` (Windows) |
+| `services[_].credentials.s3_signing.profile_credentials.profile` | `string` | No | AWS Profile to extract credentials from the credentials file. If empty, OPA will look for the `AWS_PROFILE` env variable. If the variable is not set, the `default` profile will be used |
+| `services[_].credentials.s3_signing.metadata_credentials.aws_region` | `string` | No | The AWS region to use for the AWS signing service credential method. If unset, the `AWS_REGION` environment variable must be set |
 
 ##### Using EC2 Metadata Credentials
 If specifying `metadata_credentials`, OPA will use the AWS metadata services for [EC2](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html)
@@ -512,6 +539,45 @@ bundles:
     resource: 'bundle.tar.gz?alt=media'
     persist: true
     polling:
+      min_delay_seconds: 60
+      max_delay_seconds: 120
+```
+
+#### Azure Managed Identities Token
+
+OPA will authenticate with an [Azure managed identities](https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/overview) token. 
+The [token request](https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/how-to-use-vm-token#get-a-token-using-http) 
+can be configured via the plugin to customize the base URL, API version, and resource. Specific managed identity IDs can be optionally provided as well.
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `services[_].credentials.azure_managed_identity.endpoint` | `string` | No | Request endpoint. (default: `http://169.254.169.254/metadata/identity/oauth2/token`, the Azure Instance Metadata Service endpoint (recommended))|
+| `services[_].credentials.azure_managed_identity.api_version` | `string` | No | API version to use. (default: `2018-02-01`, the minimum version) |
+| `services[_].credentials.azure_managed_identity.resource` | `string` | No | App ID URI of the target resource. (default: `https://storage.azure.com/`) |
+| `services[_].credentials.azure_managed_identity.object_id` | `string` | No | Optional object ID of the managed identity you would like the token for. Required, if your VM has multiple user-assigned managed identites. |
+| `services[_].credentials.azure_managed_identity.client_id` | `string` | No | Optional client ID of the managed identity you would like the token for. Required, if your VM has multiple user-assigned managed identites. |
+| `services[_].credentials.azure_managed_identity.mi_res_id` | `string` | No | Optional Azure Resource ID of the managed identity you would like the token for. Required, if your VM has multiple user-assigned managed identites. |
+
+##### Example
+Use an [Azure storage account](https://docs.microsoft.com/en-us/azure/storage/common/storage-account-overview) as a bundle service backend.
+Note that the `x-ms-version` header must be specified for the storage account service, and a minimum version of `2017-11-09` must be provided as per [Azure documentation](https://docs.microsoft.com/en-us/rest/api/storageservices/authorize-with-azure-active-directory#call-storage-operations-with-oauth-tokens).
+
+```yaml
+services: 
+  azure_storage_account: 
+    url: ${STORAGE_ACCOUNT_URL}
+    headers:
+      x-ms-version: 2017-11-09
+    response_header_timeout_seconds: 5
+    credentials: 
+      azure_managed_identity: {}
+
+bundles: 
+  authz: 
+    service: azure_storage_account
+    resource: bundles/http/example/authz.tar.gz
+    persist: true
+    polling: 
       min_delay_seconds: 60
       max_delay_seconds: 120
 ```
@@ -683,6 +749,7 @@ included in the actual bundle gzipped tarball.
 | `bundles[_].service` | `string` | Yes | Name of service to use to contact remote server. |
 | `bundles[_].polling.min_delay_seconds` | `int64` | No (default: `60`) | Minimum amount of time to wait between bundle downloads. |
 | `bundles[_].polling.max_delay_seconds` | `int64` | No (default: `120`) | Maximum amount of time to wait between bundle downloads. |
+| `bundles[_].trigger` | `string`  (default: `periodic`) | No | Controls how bundle is downloaded from the remote server. Allowed values are `periodic` and `manual`. |
 | `bundles[_].persist` | `bool` | No | Persist activated bundles to disk. |
 | `bundles[_].signing.keyid` | `string` | No | Name of the key to use for bundle signature verification. |
 | `bundles[_].signing.scope` | `string` | No | Scope to use for bundle signature verification. |
@@ -697,19 +764,21 @@ included in the actual bundle gzipped tarball.
 | `status.partition_name` | `string` | No | Path segment to include in status updates. |
 | `status.console` | `boolean` | No (default: `false`) | Log the status updates locally to the console. When enabled alongside a remote status update API the `service` must be configured, the default `service` selection will be disabled. |
 | `status.plugin` | `string` | No | Use the named plugin for status updates. If this field exists, the other configuration fields are not required. |
-
+| `status.trigger` | `string`  (default: `periodic`) | No | Controls how status updates are reported to the remote server. Allowed values are `periodic` and `manual`. |
 
 ### Decision Logs
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `decision_logs.service` | `string` | No | Name of the service to use to contact remote server. If no `plugin` is specified, and `console` logging is disabled, this will default to the first `service` name defined in the Services configuration. |
-| `decision_logs.partition_name` | `string` | No | Path segment to include in status updates. |
+| `decision_logs.partition_name` | `string` | No | Deprecated: Use `resource` instead. Path segment to include in status updates. |
+| `decision_logs.resource` | `string` | No (default: `/logs`) | Full path to use for sending decision logs to a remote server. |
 | `decision_logs.reporting.buffer_size_limit_bytes` | `int64` | No | Decision log buffer size limit in bytes. OPA will drop old events from the log if this limit is exceeded. By default, no limit is set. Only one of `buffer_size_limit_bytes`, `max_decisions_per_second` may be set. |
 | `decision_logs.reporting.max_decisions_per_second` | `float64` | No | Maximum number of decision log events to buffer per second. OPA will drop events if the rate limit is exceeded. Only one of `buffer_size_limit_bytes`, `max_decisions_per_second` may be set. |
 | `decision_logs.reporting.upload_size_limit_bytes` | `int64` | No (default: `32768`) | Decision log upload size limit in bytes. OPA will chunk uploads to cap message body to this limit. |
 | `decision_logs.reporting.min_delay_seconds` | `int64` | No (default: `300`) | Minimum amount of time to wait between uploads. |
 | `decision_logs.reporting.max_delay_seconds` | `int64` | No (default: `600`) | Maximum amount of time to wait between uploads. |
+| `decision_logs.reporting.trigger` | `string` | No (default: `periodic`) | Controls how decision logs are reported to the remote server. Allowed values are `periodic` and `manual`. |
 | `decision_logs.mask_decision` | `string` | No (default: `system/log/mask`) | Set path of masking decision. |
 | `decision_logs.plugin` | `string` | No | Use the named plugin for decision logging. If this field exists, the other configuration fields are not required. |
 | `decision_logs.console` | `boolean` | No (default: `false`) | Log the decisions locally to the console. When enabled alongside a remote decision logging API the `service` must be configured, the default `service` selection will be disabled. |
@@ -723,11 +792,43 @@ included in the actual bundle gzipped tarball.
 | `discovery.decision` | `string` | No | The path of the decision to evaluate in the discovery bundle. By default, OPA will evaluate `data` in the discovery bundle to produce the configuration. |
 | `discovery.polling.min_delay_seconds` | `int64` | No (default: `60`) | Minimum amount of time to wait between configuration downloads. |
 | `discovery.polling.max_delay_seconds` | `int64` | No (default: `120`) | Maximum amount of time to wait between configuration downloads. |
+| `discovery.trigger` | `string`  (default: `periodic`) | No | Controls how bundle is downloaded from the remote server. Allowed values are `periodic` and `manual`. |
 | `discovery.signing.keyid` | `string` | No | Name of the key to use for bundle signature verification. |
 | `discovery.signing.scope` | `string` | No | Scope to use for bundle signature verification. |
 | `discovery.signing.exclude_files` | `array` | No | Files in the bundle to exclude during verification. |
 
+> ⚠️ The plugin trigger mode configured on the discovery plugin will be inherited by the bundle, decision log
+> and status plugins. For example, if the discovery plugin is configured to use the manual trigger mode, all other
+> plugins will use manual triggering as well. If any of the plugins explicitly specify a different mode (for ex. periodic),
+> OPA will generate a configuration error.
+
 The following `discovery` configuration fields are supported but deprecated:
 
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
 | `discovery.prefix` | `string` | No (default: `bundles`) | Deprecated: Use `resource` instead. Path prefix to use to download configuration from remote server. |
 | `discovery.name` | `string` | No | Deprecated: Use `resource` instead. Name of the discovery configuration to download. If `discovery.name` is specified and `discovery.resource` is unset, the `discovery.decision` field will default to the `discovery.name` value. |
+
+### Distributed tracing
+
+Distributed tracing represents the configuration of the OpenTelemetry Tracing.
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `distributed_tracing.type` | `string` | No | Setting this to "grpc" enables distributed tracing with an collector gRPC endpoint |
+| `distributed_tracing.address` | `string` | No (default: `localhost:4317`) | Address of the OpenTelemetry Collector gRPC endpoint. |
+| `distributed_tracing.service_name` | `string` | No (default: `opa`) | Logical name of the service. |
+| `distributed_tracing.sample_percentage` | `int` | No (default: `100`) | Percentage of traces that are sampled and exported. |
+| `distributed_tracing.encryption` | `string` | No (default: `off`) | Configures TLS. |
+| `distributed_tracing.allow_insecure_tls` | `bool` | No (default: `false`) | Allow insecure TLS. |
+| `distributed_tracing.tls_ca_cert_file` | `string` | No | The path to the root CA certificate. |
+| `distributed_tracing.tls_cert_file` | `string` | No (unless `encryption` equals `mtls`) | The path to the client certificate to authenticate with. |
+| `distributed_tracing.tls_private_key_file` | `string` | No (unless `tls_cert_file` provided)  | The path to the private key of the client certificate. |
+
+The following encryption methods are supported:
+
+| Name | Description |
+| --- | --- |
+| `off` | Disable TLS |
+| `tls` | Enable TLS |
+| `mtls` | Enable mutual TLS |

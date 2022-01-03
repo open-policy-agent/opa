@@ -60,10 +60,10 @@ starts with a specific prefix.
 package kubernetes.admission
 
 deny[msg] {
-  input.request.kind.kinds == "Pod"
-  image := input.request.object.spec.containers[_].image
-  not startswith(image, "hooli.com/")
-  msg := sprintf("image '%v' comes from untrusted registry", [image])
+    input.request.kind.kinds == "Pod"
+    image := input.request.object.spec.containers[_].image
+    not startswith(image, "hooli.com/")
+    msg := sprintf("image '%v' comes from untrusted registry", [image])
 }
 ```
 
@@ -102,15 +102,15 @@ Consider the following input document:
   }
   ```
 
-  Clearly there are 2 image names that are in violation of the policy. However, when we evaluate the erroneous Rego code against this input we obtain:
+Clearly there are 2 image names that are in violation of the policy. However, when we evaluate the erroneous Rego code against this input we obtain:
   ```
   % opa eval data.kubernetes.admission --format pretty -i opa-schema-examples/kubernetes/input.json -d opa-schema-examples/kubernetes/policy.rego
   []
   ```
 
-  The empty value returned is indistinguishable from a situation where the input did not violate the policy. This error is therefore causing the policy not to catch violating inputs appropriately.
+The empty value returned is indistinguishable from a situation where the input did not violate the policy. This error is therefore causing the policy not to catch violating inputs appropriately.
 
-  If we fix the Rego code and change `input.request.kind.kinds` to `input.request.kind.kind`, then we obtain the expected result:
+If we fix the Rego code and change `input.request.kind.kinds` to `input.request.kind.kind`, then we obtain the expected result:
   ```
   [
   "image 'nginx' comes from untrusted registry",
@@ -118,15 +118,15 @@ Consider the following input document:
   ]
   ```
 
-  With this feature, it is possible to pass a schema to `opa eval`, written in JSON Schema. Consider the admission review schema provided at:
-  https://github.com/aavarghese/opa-schema-examples/blob/main/kubernetes/schemas/input.json
+With this feature, it is possible to pass a schema to `opa eval`, written in JSON Schema. Consider the admission review schema provided at:
+https://github.com/aavarghese/opa-schema-examples/blob/main/kubernetes/schemas/input.json
 
-  We can pass this schema to the evaluator as follows:
+We can pass this schema to the evaluator as follows:
   ```
   % opa eval data.kubernetes.admission --format pretty -i opa-schema-examples/kubernetes/input.json -d opa-schema-examples/kubernetes/policy.rego -s opa-schema-examples/kubernetes/schemas/input.json
   ```
 
-  With the erroneous Rego code, we now obtain the following type error:
+With the erroneous Rego code, we now obtain the following type error:
   ```
   1 error occurred: ../../aavarghese/opa-schema-examples/kubernetes/policy.rego:5: rego_type_error: undefined ref: input.request.kind.kinds
 	input.request.kind.kinds
@@ -135,7 +135,7 @@ Consider the following input document:
 	                   want (one of): ["kind" "version"]
   ```
 
-  This indicates the error to the Rego developer right away, without having the need to observe the results of runs on actual data, thereby improving productivity.
+This indicates the error to the Rego developer right away, without having the need to observe the results of runs on actual data, thereby improving productivity.
 
 ## Schema annotations
 
@@ -181,13 +181,13 @@ default allow = false
 #   - input: schema.input
 #   - data.acl: schema["acl-schema"]
 allow {
-        access = data.acl["alice"]
-        access[_] == input.operation
+    access := data.acl["alice"]
+    access[_] == input.operation
 }
 
 allow {
-        access = data.acl["bob"]
-        access[_] == input.operation
+    access := data.acl["bob"]
+    access[_] == input.operation
 }
 ```
 
@@ -249,8 +249,8 @@ annotation multiple times:
 #   - input: schema.input
 #   - data.acl: schema["acl-schema"]
 allow {
-        access = data.acl["alice"]
-        access[_] == input.operation
+    access := data.acl["alice"]
+    access[_] == input.operation
 }
 
 # METADATA
@@ -259,12 +259,12 @@ allow {
 #   - input: schema.input
 #   - data.acl: schema["acl-schema"]
 allow {
-        access = data.acl["bob"]
-        access[_] == input.operation
+    access := data.acl["bob"]
+    access[_] == input.operation
 }
 ```
 
-This is obviously redundant and error prone. To avoid this problem, we can
+This is obviously redundant and error-prone. To avoid this problem, we can
 define the annotation once on a rule with scope `document`:
 
 ```
@@ -274,13 +274,13 @@ define the annotation once on a rule with scope `document`:
 #   - input: schema.input
 #   - data.acl: schema["acl-schema"]
 allow {
-        access = data.acl["alice"]
-        access[_] == input.operation
+    access := data.acl["alice"]
+    access[_] == input.operation
 }
 
 allow {
-        access = data.acl["bob"]
-        access[_] == input.operation
+    access := data.acl["bob"]
+    access[_] == input.operation
 }
 ```
 
@@ -307,13 +307,13 @@ within the package:
 package example
 
 allow {
-        access = data.acl["alice"]
-        access[_] == input.operation
+    access := data.acl["alice"]
+    access[_] == input.operation
 }
 
 allow {
-        access = data.acl["bob"]
-        access[_] == input.operation
+    access := data.acl["bob"]
+    access[_] == input.operation
 }
 ```
 
@@ -333,7 +333,7 @@ package kubernetes.admission
 This snippet would declare the top-level schema for `input` for the
 `kubernetes.admission` package as well as all subpackages. If admission control
 rules were defined inside packages like `kubernetes.admission.workloads.pods`,
-they would be able to pickup that one schema declaration.
+they would be able to pick up that one schema declaration.
 
 ### Overriding
 
@@ -350,10 +350,10 @@ package kubernetes.admission
 # - input: schema.input
 # - input.request.object: schema.kubernetes.pod
 deny[msg] {
-        input.request.kind.kind == "Pod"
-        image := input.request.object.spec.containers[_].image
-        not startswith(image, "hooli.com/")
-        msg := sprintf("image '%v' comes from untrusted registry", [image])
+    input.request.kind.kind == "Pod"
+    image := input.request.object.spec.containers[_].image
+    not startswith(image, "hooli.com/")
+    msg := sprintf("image '%v' comes from untrusted registry", [image])
 }
 ```
 
@@ -416,8 +416,8 @@ default allow = false
 #  - input: schema["input"]
 #  - data.acl: schema["acl-schema"]
 allow {
-        access = data.acl[input.user]
-        access[_] == input.operation
+    access := data.acl[input.user]
+    access[_] == input.operation
 }
 
 # METADATA for whocan rule
@@ -426,8 +426,8 @@ allow {
 #   - input: schema["whocan-input-schema"]
 #   - data.acl: schema["acl-schema"]
 whocan[user] {
-        access = acl[user]
-        access[_] == input.operation
+    access := acl[user]
+    access[_] == input.operation
 }
 ```
 
@@ -450,6 +450,206 @@ When we derive a type from a schema, we try to match what is known and unknown i
 
 When overriding existing types, the dynamicity of the overridden prefix is preserved.
 
+### Supporting JSON Schema composition keywords
+
+JSON Schema provides keywords such as `anyOf` and `allOf` to structure a complex schema. For `anyOf`, at least one of the subschemas must be true, and for `allOf`, all subschemas must be true. The type checker is able to identify such keywords and derive a more robust Rego type through more complex schemas.
+
+#### `anyOf`
+
+Specifically, `anyOf` acts as an Rego Or type where at least one (can be more than one) of the subschemas is true. Consider the following Rego and schema file containing `anyOf`:
+
+`policy-anyOf.rego`
+```
+package kubernetes.admission  
+
+# METADATA
+# scope: rule
+# schemas: 
+#   - input: schema["input-anyOf"] 
+deny {                                                                
+    input.request.servers.versions == "Pod"                       
+}
+```
+
+`input-anyOf.json`
+```
+{
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "type": "object",
+    "properties": {
+        "kind": {"type": "string"},
+        "request": {
+            "type": "object",
+            "anyOf": [
+                {
+                   "properties": {
+                       "kind": {
+                           "type": "object",
+                           "properties": {
+                               "kind": {"type": "string"},
+                               "version": {"type": "string" }
+                           }
+                       }
+                   }
+                },
+                {
+                   "properties": {
+                       "server": {
+                           "type": "object",
+                           "properties": {
+                               "accessNum": {"type": "integer"},
+                               "version": {"type": "string"}
+                           }
+                       }
+                   }
+                }
+            ]
+        }
+    }
+}
+
+```
+
+We can see that `request` is an object with two options as indicated by the choices under `anyOf`:
+* contains property `kind`, which has properties `kind` and `version`
+* contains property `server`, which has properties `accessNum` and `version`
+
+The type checker finds the first error in the Rego code, suggesting that `servers` should be either `kind` or `server`.
+```
+	input.request.servers.versions
+	              ^
+	              have: "servers"
+	              want (one of): ["kind" "server"]
+```
+Once this is fixed, the second typo is highlighted, prompting the user to choose between `accessNum` and `version`.
+```
+	input.request.server.versions
+	                     ^
+	                     have: "versions"
+	                     want (one of): ["accessNum" "version"]
+```
+
+#### `allOf`
+
+Specifically, `allOf` keyword implies that all conditions under `allOf` within a schema must be met by the given data. `allOf` is implemented through merging the types from all of the JSON subSchemas listed under `allOf` before parsing the result to convert it to a Rego type. Merging of the JSON subSchemas essentially combines the passed in subSchemas based on what types they contain. Consider the following Rego and schema file containing `allOf`:
+
+`policy-allOf.rego`
+```
+package kubernetes.admission  
+
+# METADATA
+# scope: rule
+# schemas: 
+#   - input: schema["input-allof"] 
+deny {                                                                
+    input.request.servers.versions == "Pod"                       
+}
+```
+
+`input-allof.json`
+```
+{
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "type": "object",
+    "properties": {
+        "kind": {"type": "string"},
+        "request": {
+            "type": "object",
+            "allOf": [
+                {
+                   "properties": {
+                       "kind": {
+                           "type": "object",
+                           "properties": {
+                               "kind": {"type": "string"},
+                               "version": {"type": "string" }
+                           }
+                       }
+                   }
+                },
+                {
+                   "properties": {
+                       "server": {
+                           "type": "object",
+                           "properties": {
+                               "accessNum": {"type": "integer"},
+                               "version": {"type": "string"}
+                           }
+                       }
+                   }
+                }
+            ]
+        }
+    }
+}
+
+```
+
+We can see that `request` is an object with properties as indicated by the elements listed under `allOf`:
+* contains property `kind`, which has properties `kind` and `version`
+* contains property `server`, which has properties `accessNum` and `version`
+
+The type checker finds the first error in the Rego code, suggesting that `servers` should be `server`.
+```
+	input.request.servers.versions
+	              ^
+	              have: "servers"
+	              want (one of): ["kind" "server"]
+```
+Once this is fixed, the second typo is highlighted, informing the user that `versions` should be one of `accessNum` or `version`.
+```
+	input.request.server.versions
+	                     ^
+	                     have: "versions"
+	                     want (one of): ["accessNum" "version"]
+```
+Because the properties `kind`, `version`, and `accessNum` are all under the `allOf` keyword, the resulting schema that the given data must be validated against will contain the types contained in these properties children (string and integer).
+
+### Remote references in JSON schemas
+
+It is valid for JSON schemas to reference other JSON schemas via URLs, like this:
+```json
+{
+  "description": "Pod is a collection of containers that can run on a host.",
+  "type": "object",
+  "properties": {
+    "metadata": {
+      "$ref": "https://kubernetesjsonschema.dev/v1.14.0/_definitions.json#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta",
+      "description": "Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#metadata"
+    }
+  }
+}
+```
+
+OPA's type checker will fetch these remote references by default.
+To control the remote hosts schemas will be fetched from, pass a capabilities
+file to your `opa eval` or `opa check` call.
+
+Starting from the capabilities.json of your OPA version (which can be found [in the
+repository](https://github.com/open-policy-agent/opa/tree/main/capabilities)), add
+an `allow_net` key to it: its values are the IP addresses or host names that OPA is
+supposed to connect to for retrieving remote schemas.
+
+```json
+{
+  "builtins": [ ... ],
+  "allow_net": [ "kubernetesjsonschema.dev" ]
+}
+```
+
+#### Note
+
+- To forbid all network access in schema checking, set `allow_net` to `[]`
+- Host names are checked against the list as-is, so adding `127.0.0.1` to `allow_net`,
+  and referencing a schema from `http://localhost/` will _fail_.
+- Metaschemas for different JSON Schema draft versions are not subject to this
+  constraint, as they are already provided by OPA's schema checker without requiring
+  network access. These are:
+
+    - `http://json-schema.org/draft-04/schema`
+    - `http://json-schema.org/draft-06/schema`
+    - `http://json-schema.org/draft-07/schema`
+
 
 ## Limitations
 
@@ -460,7 +660,7 @@ In particular the following features are not yet supported:
 * pattern properties for objects
 * additional items for arrays
 * contains for arrays
-* allOf, anyOf, oneOf, not
+* oneOf, not
 * enum
 * if/then/else
 

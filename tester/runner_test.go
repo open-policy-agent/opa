@@ -6,6 +6,7 @@ package tester_test
 
 import (
 	"context"
+	"reflect"
 	"testing"
 	"time"
 
@@ -24,12 +25,12 @@ func TestRunner_EnableFailureLine(t *testing.T) {
 
 	files := map[string]string{
 		"/a_test.rego": `package foo
-			test_a { 
+			test_a {
 				true
 				false
 				true
 			}
-			test_b { 
+			test_b {
 				false
 				true
 			}
@@ -494,6 +495,55 @@ func testTimeout(t *testing.T, bench bool) {
 			if topdown.IsCancel(results[1].Error) {
 				t.Fatalf("Expected no error for second test, but it timed out")
 			}
+		}
+	})
+}
+
+func TestRunnerPrintOutput(t *testing.T) {
+
+	files := map[string]string{
+		"/test.rego": `package test
+
+		test_a { print("A") }
+		test_b { false; print("B") }
+		test_c { print("C"); false }`,
+	}
+
+	ctx := context.Background()
+
+	test.WithTempFS(files, func(d string) {
+		paths := []string{d}
+		modules, store, err := tester.Load(paths, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		txn := storage.NewTransactionOrDie(ctx, store)
+		runner := tester.NewRunner().SetStore(store).SetModules(modules).CapturePrintOutput(true)
+		ch, err := runner.RunTests(ctx, txn)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		var results []*tester.Result
+		for r := range ch {
+			results = append(results, r)
+		}
+
+		exp := map[string]string{
+			"test_a": "A\n",
+			"test_b": "",
+			"test_c": "C\n",
+		}
+
+		got := map[string]string{}
+
+		for _, tr := range results {
+			got[tr.Name] = string(tr.Output)
+		}
+
+		if !reflect.DeepEqual(exp, got) {
+			t.Fatal("expected:", exp, "got:", got)
 		}
 	})
 }

@@ -404,7 +404,7 @@ sites := [
 q[name] { name := sites[_].name }
 ```
 
-In this case, we evaluate `q` with a variable `x` (which is not bound to a value). As as result, the query returns all of the values for `x` and all of the values for `q[x]`, which are always the same because `q` is a set.
+In this case, we evaluate `q` with a variable `x` (which is not bound to a value). As a result, the query returns all of the values for `x` and all of the values for `q[x]`, which are always the same because `q` is a set.
 
 ```live:eg/variables:query:merge_down
 q[x]
@@ -736,7 +736,7 @@ apps_by_hostname[hostname] = app {
     some i
     server := sites[_].servers[_]
     hostname := server.hostname
-    apps[i].servers[_] = server.name
+    apps[i].servers[_] == server.name
     app := apps[i].name
 }
 ```
@@ -970,7 +970,7 @@ r(1, 2)
 On the other hand, if a call matches no functions, then the result is undefined.
 ```live:eg/double_function_define_undefined:module
 s(x, 2) = y {
-    y := x*4
+    y := x * 4
 }
 ```
 
@@ -1300,6 +1300,9 @@ The `some` keyword is not required but it's recommended to avoid situations like
 the one above where introduction of a rule inside a package could change
 behaviour of other rules.
 
+For using the `some` keyword with iteration, see
+[the documentation of the `in` operator](#membership-and-iteration-in).
+
 ## With Keyword
 
 The `with` keyword allows queries to programmatically specify values nested
@@ -1483,13 +1486,164 @@ limit imposed on the number of `else` clauses on a rule.
 
 ## Operators
 
+### Membership and iteration: `in`
+
+> To ensure backwards-compatibility, new keywords (like `in`) are introduced slowly.
+> In the first stage, users can opt-in to using the new keywords via a special import:
+> `import future.keywords` introduces _all_ future keywords, and
+> `import future.keywords.in` introduces the `in` keyword described here.
+>
+> At some point in the future, the keyword will become _standard_, and the import will
+> become a no-op that can safely be removed. This should give all users ample time to
+> update their policies, so that the new keyword will not cause clashes with existing
+> variable names.
+
+The membership operator `in` lets you check if an element is part of a collection (array, set, or object). It always evaluates to `true` or `false`:
+
+```live:eg/member1:module:merge_down
+import future.keywords.in
+
+p = [x, y, z] {
+    x := 3 in [1, 2, 3]            # array
+    y := 3 in {1, 2, 3}            # set
+    z := 3 in {"foo": 1, "bar": 3} # object
+}
+```
+```live:eg/member1:output
+```
+
+When providing two arguments on the left-hand side of the `in` operator,
+and an object or an array on the right-hand side, the first argument is
+taken to be the key (object) or index (array), respectively:
+
+```live:eg/member1c:module:merge_down
+import future.keywords.in
+
+p := [ x, y ] {
+    x := "foo", "bar" in {"foo": "bar"}    # key, val with object
+    y := 2, "baz" in ["foo", "bar", "baz"] # key, val with array
+}
+```
+```live:eg/member1c:output
+```
+
+**Note** that in list contexts, like set or array definitions and function
+arguments, parentheses are required to use the form with two left-hand side
+arguments -- compare:
+
+```live:eg/member1d:module:merge_down
+import future.keywords.in
+
+p := x {
+    x := { 0, 2 in [2] }
+}
+q := x {
+    x := { (0, 2 in [2]) }
+}
+w := x {
+    x := g((0, 2 in [2]))
+}
+z := x {
+    x := f(0, 2 in [2])
+}
+
+f(x, y) = sprintf("two function arguments: %v, %v", [x, y])
+g(x) = sprintf("one function argument: %v", [x])
+```
+```live:eg/member1d:output
+```
+
+Combined with `not`, the operator can be handy when asserting that an element is _not_
+member of an array:
+
+```live:eg/member1a:module:merge_down
+import future.keywords.in
+
+deny {
+    not "admin" in input.user.roles
+}
+
+test_deny {
+    deny with input.user.roles as ["operator", "user"]
+}
+```
+```live:eg/member1a:output
+```
+
+**Note** that expressions using the `in` operator _always return `true` or `false`_, even
+when called in non-collection arguments:
+
+```live:eg/member1b:module:merge_down
+import future.keywords.in
+
+q = x {
+    x := 3 in "three"
+}
+```
+```live:eg/member1b:output
+```
+
+Using the `some` variant, it can be used to introduce new variables based on a collections' items:
+
+```live:eg/member2:module:merge_down
+import future.keywords.in
+
+p[x] {
+    some x in ["a", "r", "r", "a", "y"]
+}
+
+q[x] {
+    some x in {"s", "e", "t"}
+}
+
+r[x] {
+    some x in {"foo": "bar", "baz": "quz"}
+}
+```
+```live:eg/member2:output
+```
+
+Furthermore, passing a second argument allows you to work with _object keys_ and _array indices_:
+```live:eg/member3:module:merge_down
+import future.keywords.in
+
+p[x] {
+    some x, "r" in ["a", "r", "r", "a", "y"] # key variable, value constant
+}
+
+q[x] = y {
+     some x, y in ["a", "r", "r", "a", "y"] # both variables
+}
+
+r[y] = x {
+    some x, y in {"foo": "bar", "baz": "quz"}
+}
+```
+```live:eg/member3:output
+```
+
+Any argument to the `some` variant can be a composite, non-ground value:
+
+```live:eg/member4:module:merge_down
+import future.keywords.in
+
+p[x] = y {
+    some x, {"foo": y} in [{"foo": 100}, {"bar": 200}]
+}
+p[x] = y {
+    some {"bar": x}, {"foo": y} in {{"bar": "b"}: {"foo": "f"}}
+}
+```
+```live:eg/member4:output
+```
+
 ### Equality: Assignment, Comparison, and Unification
 
-Rego supports three kinds of equality: assignment (`:=`), comparison (`==`), and unification `=`.  Both assignment (`:=`) and comparison (`==`) are only available inside of rules (and in the REPL), and we recommend using them whenever possible for policies that are easier to read and write.
+Rego supports three kinds of equality: assignment (`:=`), comparison (`==`), and unification `=`. We recommend using assignment (`:=`) and comparison (`==`) whenever possible for policies that are easier to read and write.
 
 #### Assignment `:=`
 
-The assignment operator (`:=`) is used to define local variables inside of a rule. Assigned variables are locally scoped to that rule and shadow global variables.
+The assignment operator (`:=`) is used to assign values to variables. Variables assigned inside a rule are locally scoped to that rule and shadow global variables.
 
 ```live:eg/assignment1:module:read_only
 x := 100
@@ -1515,6 +1669,20 @@ q {
 }
 ```
 ```live:eg/assignment2:output:expect_assigned_above,expect_referenced_above
+```
+
+A simple form of destructuring can be used to unpack values from arrays and assign them to variables:
+
+```live:eg/assignment3:module:read_only
+address := ["3 Abbey Road", "NW8 9AY", "London", "England"]
+
+in_london {
+    [_, _, city, country] := address
+    city == "London"
+    country == "England"
+}
+```
+```live:eg/assignment3:output
 ```
 
 
@@ -1550,7 +1718,7 @@ r {
 
 #### Unification `=`
 
-Unification (`=`) combines assignment and comparison.  Rego will assign variables to values that make the comparison true.  Unification lets you ask for values for variables that make an expression true.
+Unification (`=`) combines assignment and comparison. Rego will assign variables to values that make the comparison true. Unification lets you ask for values for variables that make an expression true.
 
 ```live:eg/unification1:query:merge_down
 # Find values for x and y that make the equality true
@@ -1573,12 +1741,12 @@ Here is a comparison of the three forms of equality.
 ```
 Equality  Applicable    Compiler Errors            Use Case
 --------  -----------   -------------------------  ----------------------
-:=        Inside rule   Var already assigned       Assign local variable
-==        Inside rule   Var not assigned           Compare values
+:=        Everywhere    Var already assigned       Assign variable
+==        Everywhere    Var not assigned           Compare values
 =         Everywhere    Values cannot be computed  Express query
 ```
 
-Best practice is to use assignment `:=` and comparison `==` wherever possible.  The additional compiler checks help avoid errors when writing policy, and the additional syntax helps make the intent clearer when reading policy.
+Best practice is to use assignment `:=` and comparison `==` wherever possible. The additional compiler checks help avoid errors when writing policy, and the additional syntax helps make the intent clearer when reading policy.
 
 Under the hood `:=` and `==` are syntactic sugar for `=`, local variable creation, and additional compiler checks.
 
@@ -1629,6 +1797,49 @@ them to avoid naming conflicts, e.g., `org.example.special_func`.
 
 See the [Policy Reference](../policy-reference#built-in-functions) document for
 details on each built-in function.
+
+### Errors
+
+By default, built-in function calls that encounter runtime errors evaluate to
+undefined (which can usually be treated as `false`) and do not halt policy
+evaluation. This ensures that built-in functions can be called with invalid
+inputs without causing the entire policy to stop evaluating.
+
+In most cases, policies do not have to implement any kind of error handling
+logic. If error handling is required, the built-in function call can be negated
+to test for undefined. For example:
+
+```live:eg/errors:module:merge_down
+allow {
+    io.jwt.verify_hs256(input.token, "secret")
+    [_, payload, _] := io.jwt.decode(input.token)
+    payload.role == "admin"
+}
+
+reason["invalid JWT supplied as input"] {
+    not io.jwt.decode(input.token)
+}
+```
+```live:eg/errors:input:merge_down
+{
+    "token": "a poorly formatted token"
+}
+```
+```live:eg/errors:output
+```
+
+If you wish to disable this behaviour and instead have built-in function call
+errors treated as exceptions that halt policy evaluation enable "strict built-in
+errors" in the caller:
+
+API | Flag
+--- | ---
+`POST v1/data` (HTTP) | `strict-builtin-errors` query parameter
+`GET v1/data` (HTTP) | `strict-builtin-errors` query parameter
+`opa eval` (CLI) | `--strict-builtin-errors`
+`opa run` (REPL) | `> strict-builtin-errors`
+`rego` Go module | `rego.StrictBuiltinErrors(true)` option
+Wasm | Not Available
 
 ## Example Data
 

@@ -6,10 +6,12 @@
 package bundle
 
 import (
+	"archive/tar"
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
 	"fmt"
+	"io"
 
 	"path/filepath"
 	"reflect"
@@ -23,10 +25,62 @@ import (
 )
 
 func TestManifestAddRoot(t *testing.T) {
-	var m Manifest
+	m := Manifest{Roots: &[]string{}}
 	m.AddRoot("x/y")
 	m.AddRoot("y/z")
-	m.rootSet().Equal(stringSet{"x/y": struct{}{}, "y/z": struct{}{}})
+	exp, act := stringSet{"x/y": struct{}{}, "y/z": struct{}{}}, m.rootSet()
+	if !act.Equal(exp) {
+		t.Fatalf("expected roots to be %v, got %v", exp, act)
+	}
+}
+
+func TestManifestEqual(t *testing.T) {
+	var m Manifest
+	var n Manifest
+
+	assertEqual := func() {
+		t.Helper()
+		if !m.Equal(n) {
+			t.Fatal("expected manifests to be equal")
+		}
+	}
+
+	assertNotEqual := func() {
+		t.Helper()
+		if m.Equal(n) {
+			t.Fatal("expected manifests to be different")
+		}
+	}
+
+	assertEqual()
+
+	n.Revision = "xxx"
+	assertNotEqual()
+
+	m.Revision = "xxx"
+	assertEqual()
+
+	n.WasmResolvers = append(n.WasmResolvers, WasmResolver{})
+	assertNotEqual()
+
+	m.WasmResolvers = append(m.WasmResolvers, WasmResolver{})
+	assertEqual()
+
+	n.WasmResolvers[0].Module = "yyy"
+	assertNotEqual()
+
+	m.WasmResolvers[0].Module = "yyy"
+	assertEqual()
+
+	n.Metadata = map[string]interface{}{
+		"foo": "bar",
+	}
+	assertNotEqual()
+
+	m.Metadata = map[string]interface{}{
+		"foo": "bar",
+	}
+	assertEqual()
 }
 
 func TestRead(t *testing.T) {
@@ -178,7 +232,7 @@ func TestManifestMetadata(t *testing.T) {
 			"metadata": {
 				"foo": {
 					"version": "1.0.0"
-				} 
+				}
 			}
 		}`},
 	}
@@ -855,6 +909,40 @@ func TestWriterUsePath(t *testing.T) {
 
 	if bundle2.Modules[0].URL != "/path.rego" || bundle2.Modules[0].Path != "/path.rego" {
 		t.Fatal("expected module path to be used but got:", bundle2.Modules[0])
+	}
+}
+
+func TestWriterSkipEmptyManifest(t *testing.T) {
+
+	bundle := Bundle{
+		Data:     map[string]interface{}{},
+		Manifest: Manifest{},
+	}
+
+	var buf bytes.Buffer
+
+	if err := NewWriter(&buf).Write(bundle); err != nil {
+		t.Fatal("Unexpected error:", err)
+	}
+
+	gr, err := gzip.NewReader(&buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tr := tar.NewReader(gr)
+	for {
+		f, err := tr.Next()
+		if err != nil {
+			if err != io.EOF {
+				t.Fatal(err)
+			}
+			break
+		}
+
+		if f.Name != "/data.json" {
+			t.Fatal("expected only /data.json but got:", f.Name)
+		}
 	}
 }
 

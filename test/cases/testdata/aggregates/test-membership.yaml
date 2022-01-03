@@ -1,0 +1,517 @@
+cases:
+- data:
+  modules:
+  - |
+    package test
+
+    p {
+      in := 1 == 2
+      in == false
+    }
+  note: aggregates/member without the future import, 'in' can still be used as variable
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+    import future.keywords.in
+    p {
+      1 in {1}
+    }
+  note: aggregates/member simple, set
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+    import future.keywords.in
+    p {
+      1 in [1]
+    }
+  note: aggregates/member simple, array
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+    import future.keywords.in
+    p {
+      1 in {"foo": 1}
+    }
+  note: aggregates/member simple, object
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+    import future.keywords.in
+    p {
+      "foo", 1 in {"foo": 1}
+    }
+  note: aggregates/member object with key
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+    import future.keywords.in
+    p {
+      1, "two" in ["one", "two", "three"]
+    }
+  note: aggregates/member array with index
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+    import future.keywords.in
+    p {
+      1, (2 in [2]) in [false, true]
+    }
+  note: aggregates/member array with index, nested
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+    import future.keywords.in
+    p {
+      0, 2 in [2] in [true]
+    }
+  note: aggregates/member array with index, nested, associativity without parens
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+    import future.keywords.in
+    p {
+      "foo", 2 in {"foo": 2} in [true]
+    }
+  note: aggregates/member object with key, nested, associativity without parens
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+    import future.keywords.in
+    p {
+      "foo", (2 in {"bar": 2}) in {"foo": true}
+    }
+  note: aggregates/member object with key, nested
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+    import future.keywords.in
+    p = x {
+      x := 1 in {2}
+    }
+  note: aggregates/member simple false, set
+  query: data.test.p = x
+  want_result:
+  - x: false
+- data:
+  modules:
+  - |
+    package test
+    import future.keywords.in
+    p = x {
+      x := 1 in [2]
+    }
+  note: aggregates/member simple false, array
+  query: data.test.p = x
+  want_result:
+  - x: false
+- data:
+  modules:
+  - |
+    package test
+    import future.keywords.in
+    p = x {
+      x := 1 in {"foo": 2}
+    }
+  note: aggregates/member simple false, object
+  query: data.test.p = x
+  want_result:
+  - x: false
+- data:
+  modules:
+  - |
+    package test
+    import future.keywords.in
+    p {
+      {1,2} in [{1,2}] in [true]
+    }
+  note: aggregates/member chained
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+    import future.keywords.in
+    p {
+      x := "foo"
+      xs := ["foo", "bar"]
+      x in xs
+    }
+  note: aggregates/member with vars
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+    import future.keywords.in
+    p {
+      not "foo" in ["fox"]
+    }
+  note: aggregates/member with not
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+    import future.keywords.in
+    p {
+      1+1 in [2]
+    }
+  note: aggregates/member operator precedence with other infix operator (+)
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+    import future.keywords.in
+    p {
+      x := { 1, 1 in [2] }
+      x == { 1, false }
+    }
+  note: aggregates/member operator precedence in list (set)
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+    import future.keywords.in
+    p {
+      x := { (1, 1 in [2]) }
+      x == { false }
+    }
+  note: aggregates/member operator precedence in list with parens (set)
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+    import future.keywords.in
+    p {
+      x := [ 1, 1 in [2] ]
+      x == [ 1, false ]
+    }
+  note: aggregates/member operator precedence in list (array)
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+    import future.keywords.in
+    p {
+      x := [ (1, 1 in [2]) ]
+      x == [ false ]
+    }
+  note: aggregates/member operator precedence in list with parens (array)
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+    import future.keywords.in
+    p {
+      f(1, 1 in [2])
+    }
+    f(_, _) = true
+  note: aggregates/member operator precedence in list (fun args)
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+    import future.keywords.in
+    p {
+      f((1, 1 in [2]))
+    }
+    f(_) = true
+  note: aggregates/member operator precedence in list with parens (fun args)
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+    import future.keywords.in
+    p {
+      {"foo": {"baz": 2000}} in [{"foo": {"baz": 2000}}]
+    }
+  note: aggregates/member composite containee
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+    import future.keywords.in
+    p = x {
+      x := 1 in "foo"
+    }
+  note: aggregates/member non-collection string
+  query: data.test.p = x
+  want_result:
+  - x: false
+- data:
+  modules:
+  - |
+    package test
+    import future.keywords.in
+    p = x {
+      x := "foo" in 1
+    }
+  note: aggregates/member non-collection number
+  query: data.test.p = x
+  want_result:
+  - x: false
+- data:
+  modules:
+  - |
+    package test
+    import future.keywords.in
+    p = x {
+      x := 1, "foo" in 1
+    }
+  note: aggregates/member with key in non-collection (number)
+  query: data.test.p = x
+  want_result:
+  - x: false
+- data:
+  modules:
+  - |
+    package test
+    import future.keywords.in
+    p[x] {
+      some x in [1,2,3]
+    }
+  note: aggregates/member+some simple, array
+  query: data.test.p = x
+  want_result:
+  - x: [1, 2, 3]
+- data:
+  modules:
+  - |
+    package test
+    import future.keywords.in
+    p {
+      some "foo" in ["foo"]
+    }
+  note: aggregates/member+some ground value
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+    import future.keywords.in
+    p {
+      some numbers.range(1,1) in [[1]]
+    }
+  note: aggregates/member+some containee is call
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+    import future.keywords.in
+    p = x {
+      some {"foo": x} in [{"foo": 100}, {"what": "ever"}]
+    }
+  note: aggregates/member+some non-ground composite containee
+  query: data.test.p = x
+  want_result:
+  - x: 100
+- data:
+  modules:
+  - |
+    package test
+    import future.keywords.in
+    p = x {
+      some {"foo": x, "what": y} in [{"foo": 100, "what": "ever"}]
+    }
+  note: aggregates/member+some non-ground composite containee, multiple bindings
+  query: data.test.p = x
+  want_result:
+  - x: 100
+- data:
+  modules:
+  - |
+    package test
+    import future.keywords.in
+    p {
+      some {"foo": 100} in [{"foo": 100}]
+    }
+  note: aggregates/member+some ground composite containee
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+    import future.keywords.in
+    p {
+      some {"foo": 0} in [{"foo": 100}]
+    }
+  note: aggregates/member+some ground composite containee (false)
+  query: data.test.p = x
+  want_result: []
+- data:
+  modules:
+  - |
+    package test
+    import future.keywords.in
+    p = x {
+      some "foo", x in {"foo": 100, "what": "ever"}
+    }
+  note: aggregates/member+some+key non-ground value
+  query: data.test.p = x
+  want_result:
+  - x: 100
+- data:
+  modules:
+  - |
+    package test
+    import future.keywords.in
+    p = x {
+      some x, "ever" in {"foo": 100, "what": "ever"}
+    }
+  note: aggregates/member+some+key non-ground key
+  query: data.test.p = x
+  want_result:
+  - x: what
+- data:
+  modules:
+  - |
+    package test
+    import future.keywords.in
+    p[k] = v {
+      some k, v in {"foo": 100, "what": "ever"}
+    }
+  note: aggregates/member+some+key non-ground key+value
+  query: data.test.p = x
+  want_result:
+  - x:
+      foo: 100
+      what: ever
+- data:
+  modules:
+  - |
+    package test
+    import future.keywords.in
+    p = x {
+      some {"foo": x}, "ever" in {{"foo": 100}: "ever"}
+    }
+  note: aggregates/member+some+key non-ground, composite key
+  query: data.test.p = x
+  want_result:
+  - x: 100
+- data:
+    array:
+    - a: 1
+    - b: 2
+    - c: 3
+  modules:
+  - |
+    package test
+    import future.keywords.in
+    p = x {
+      some {"a": x} in data.array
+    }
+  note: aggregates/member+some+ref
+  query: data.test.p = x
+  want_result:
+  - x: 1
+- data:
+    array:
+    - a: 1
+    - b: 2
+    - c: 3
+  modules:
+  - |
+    package test
+    import future.keywords.in
+    p = [x, y] {
+      some y, {"c": x} in data.array
+    }
+  note: aggregates/member+some+key+ref
+  query: data.test.p = x
+  want_result:
+  - x: [3, 2]
+- data:
+    object:
+      array:
+      - a: 1
+      - b: 2
+      - c: 3
+  modules:
+  - |
+    package test
+    import future.keywords.in
+    p = [x, y, i] {
+      some i
+      some y, {"c": x} in data.object[i]
+    }
+  note: aggregates/member+some+key+ref with other variable
+  query: data.test.p = x
+  want_result:
+  - x: [3, 2, "array"]

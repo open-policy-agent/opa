@@ -2,6 +2,7 @@
 #include "printf.h"
 
 #include "../std.h"
+#include "stdlib.h"
 
 struct _FILE {};
 

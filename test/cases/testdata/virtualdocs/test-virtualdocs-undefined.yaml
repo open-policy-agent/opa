@@ -1,0 +1,45 @@
+cases:
+- data:
+  modules:
+  - |
+    package test
+
+    p {
+      [1, 2, input]
+    } else = false { true }
+  note: 'virtualdocs/undefined: in array literal'
+  query: data.test.p = x
+  want_result:
+  - x: false
+- data:
+  modules:
+  - |
+    package test
+
+    p {
+      {1, 2, input}
+    } else = false { true }
+  note: 'virtualdocs/undefined: in set literal'
+  query: data.test.p = x
+  want_result:
+  - x: false
+- data:
+  modules:
+  - |
+    package test
+
+    p = {1 | input}
+  note: 'virtualdocs/undefined: in set coprehension body'
+  query: data.test.p = x
+  want_result:
+  - x: []
+- data:
+  modules:
+  - |
+    package test
+
+    p = [1 | input]
+  note: 'virtualdocs/undefined: in array coprehension body'
+  query: data.test.p = x
+  want_result:
+  - x: []

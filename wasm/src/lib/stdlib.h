@@ -7,6 +7,8 @@
 extern "C" {
 #endif
 
+void opa_abort(const char *msg);
+__attribute__((import_name("opa_abort"))) void opa_abort_(const char *msg);
 void abort(void);
 void *malloc(size_t size);
 void free(void *ptr);

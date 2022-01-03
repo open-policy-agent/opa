@@ -13,6 +13,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -33,12 +34,14 @@ import (
 )
 
 type evalCommandParams struct {
+	capabilities        *capabilitiesFlag
 	coverage            bool
 	partial             bool
 	unknowns            []string
 	disableInlining     []string
 	shallowInlining     bool
 	disableIndexing     bool
+	disableEarlyExit    bool
 	strictBuiltinErrors bool
 	dataPaths           repeatedStringFlag
 	inputPath           string
@@ -54,16 +57,19 @@ type evalCommandParams struct {
 	profile             bool
 	profileCriteria     repeatedStringFlag
 	profileLimit        intFlag
+	count               int
 	prettyLimit         intFlag
 	fail                bool
 	failDefined         bool
 	bundlePaths         repeatedStringFlag
-	schemaPath          string
+	schema              *schemaFlags
 	target              *util.EnumFlag
+	timeout             time.Duration
 }
 
 func newEvalCommandParams() evalCommandParams {
 	return evalCommandParams{
+		capabilities: newcapabilitiesFlag(),
 		outputFormat: util.NewEnumFlag(evalJSONOutput, []string{
 			evalJSONOutput,
 			evalValuesOutput,
@@ -72,8 +78,13 @@ func newEvalCommandParams() evalCommandParams {
 			evalSourceOutput,
 			evalRawOutput,
 		}),
-		explain: newExplainFlag([]string{explainModeOff, explainModeFull, explainModeNotes, explainModeFails}),
-		target:  util.NewEnumFlag(compile.TargetRego, []string{compile.TargetRego, compile.TargetWasm}),
+		explain:         newExplainFlag([]string{explainModeOff, explainModeFull, explainModeNotes, explainModeFails}),
+		target:          util.NewEnumFlag(compile.TargetRego, []string{compile.TargetRego, compile.TargetWasm}),
+		count:           1,
+		profileCriteria: newrepeatedStringFlag([]string{}),
+		profileLimit:    newIntFlag(defaultProfileLimit),
+		prettyLimit:     newIntFlag(defaultPrettyLimit),
+		schema:          &schemaFlags{},
 	}
 }
 
@@ -135,9 +146,6 @@ func (regoError) Error() string {
 func init() {
 
 	params := newEvalCommandParams()
-	params.profileCriteria = newrepeatedStringFlag([]string{})
-	params.profileLimit = newIntFlag(defaultProfileLimit)
-	params.prettyLimit = newIntFlag(defaultPrettyLimit)
 
 	evalCommand := &cobra.Command{
 		Use:   "eval <query>",
@@ -149,15 +157,15 @@ Examples
 
 To evaluate a simple query:
 
-	$ opa eval 'x = 1; y = 2; x < y'
+    $ opa eval 'x = 1; y = 2; x < y'
 
 To evaluate a query against JSON data:
 
-	$ opa eval --data data.json 'data.names[_] = name'
+    $ opa eval --data data.json 'data.names[_] = name'
 
 To evaluate a query against JSON data supplied with a file:// URL:
 
-	$ opa eval --data file:///path/to/file.json 'data'
+    $ opa eval --data file:///path/to/file.json 'data'
 
 
 File & Bundle Loading
@@ -167,19 +175,19 @@ The --bundle flag will load data files and Rego files contained
 in the bundle specified by the path. It can be either a
 compressed tar archive bundle file or a directory tree.
 
-	$ opa eval --bundle /some/path 'data'
+    $ opa eval --bundle /some/path 'data'
 
 Where /some/path contains:
 
-	foo/
-	  |
-	  +-- bar/
-	  |     |
-	  |     +-- data.json
-	  |
-	  +-- baz.rego
-	  |
-	  +-- manifest.yaml
+    foo/
+      |
+      +-- bar/
+      |     |
+      |     +-- data.json
+      |
+      +-- baz.rego
+      |
+      +-- manifest.yaml
 
 The JSON file 'foo/bar/data.json' would be loaded and rooted under
 'data.foo.bar' and the 'foo/baz.rego' would be loaded and rooted under the
@@ -198,10 +206,10 @@ Output Formats
 
 Set the output format with the --format flag.
 
-	--format=json      : output raw query results as JSON
-	--format=values    : output line separated JSON arrays containing expression values
-	--format=bindings  : output line separated JSON objects containing variable bindings
-	--format=pretty    : output query results in a human-readable format
+    --format=json      : output raw query results as JSON
+    --format=values    : output line separated JSON arrays containing expression values
+    --format=bindings  : output line separated JSON objects containing variable bindings
+    --format=pretty    : output query results in a human-readable format
 
 Schema
 ------
@@ -209,8 +217,30 @@ Schema
 The -s/--schema flag provides one or more JSON Schemas used to validate references to the input or data documents.
 Loads a single JSON file, applying it to the input document; or all the schema files under the specified directory.
 
-	$ opa eval --data policy.rego --input input.json --schema schema.json
-	$ opa eval --data policy.rego --input input.json --schema schemas/
+    $ opa eval --data policy.rego --input input.json --schema schema.json
+    $ opa eval --data policy.rego --input input.json --schema schemas/
+
+Capabilities
+------------
+
+When passing a capabilities definition file via --capabilities, one can restrict which
+hosts remote schema definitions can be retrieved from. For example, a capabilities.json
+containing
+
+    {
+        "builtins": [ ... ],
+        "allow_net": [ "kubernetesjsonschema.dev" ]
+    }
+
+would disallow fetching remote schemas from any host but "kubernetesjsonschema.dev".
+Setting allow_net to an empty array would prohibit fetching any remote schemas.
+
+Not providing a capabilities file, or providing a file without an allow_net key, will
+permit fetching remote schemas from any host.
+
+Note that the metaschemas http://json-schema.org/draft-04/schema, http://json-schema.org/draft-06/schema,
+and http://json-schema.org/draft-07/schema, are always available, even without network
+access.
 `,
 
 		PreRunE: func(cmd *cobra.Command, args []string) error {
@@ -237,6 +267,7 @@ Loads a single JSON file, applying it to the input document; or all the schema f
 	evalCommand.Flags().StringArrayVarP(&params.disableInlining, "disable-inlining", "", []string{}, "set paths of documents to exclude from inlining")
 	evalCommand.Flags().BoolVarP(&params.shallowInlining, "shallow-inlining", "", false, "disable inlining of rules that depend on unknowns")
 	evalCommand.Flags().BoolVar(&params.disableIndexing, "disable-indexing", false, "disable indexing optimizations")
+	evalCommand.Flags().BoolVar(&params.disableEarlyExit, "disable-early-exit", false, "disable 'early exit' optimizations")
 	evalCommand.Flags().BoolVarP(&params.strictBuiltinErrors, "strict-builtin-errors", "", false, "treat built-in function errors as fatal")
 	evalCommand.Flags().BoolVarP(&params.instrument, "instrument", "", false, "enable query instrumentation metrics (implies --metrics)")
 	evalCommand.Flags().BoolVarP(&params.profile, "profile", "", false, "perform expression profiling")
@@ -244,8 +275,10 @@ Loads a single JSON file, applying it to the input document; or all the schema f
 	evalCommand.Flags().VarP(&params.profileLimit, "profile-limit", "", "set number of profiling results to show")
 	evalCommand.Flags().VarP(&params.prettyLimit, "pretty-limit", "", "set limit after which pretty output gets truncated")
 	evalCommand.Flags().BoolVarP(&params.failDefined, "fail-defined", "", false, "exits with non-zero exit code on defined/non-empty result and errors")
+	evalCommand.Flags().DurationVar(&params.timeout, "timeout", 0, "set eval timeout (default unlimited)")
 
 	// Shared flags
+	addCapabilitiesFlag(evalCommand.Flags(), params.capabilities)
 	addPartialFlag(evalCommand.Flags(), &params.partial, false)
 	addUnknownsFlag(evalCommand.Flags(), &params.unknowns, []string{"input"})
 	addFailFlag(evalCommand.Flags(), &params.fail, false)
@@ -260,36 +293,116 @@ Loads a single JSON file, applying it to the input document; or all the schema f
 	addOutputFormat(evalCommand.Flags(), params.outputFormat)
 	addIgnoreFlag(evalCommand.Flags(), &params.ignore)
 	setExplainFlag(evalCommand.Flags(), params.explain)
-	addSchemaFlag(evalCommand.Flags(), &params.schemaPath)
+	addSchemaFlags(evalCommand.Flags(), params.schema)
 	addTargetFlag(evalCommand.Flags(), params.target)
+	addCountFlag(evalCommand.Flags(), &params.count, "benchmark")
 
 	RootCommand.AddCommand(evalCommand)
 }
 
 func eval(args []string, params evalCommandParams, w io.Writer) (bool, error) {
 
+	ctx := context.Background()
+	if params.timeout != 0 {
+		var cancel func()
+		ctx, cancel = context.WithTimeout(ctx, params.timeout)
+		defer cancel()
+	}
+
 	ectx, err := setupEval(args, params)
 	if err != nil {
 		return false, err
 	}
 
-	ctx := context.Background()
+	ectx.regoArgs = append(ectx.regoArgs,
+		rego.EnablePrintStatements(true),
+		rego.PrintHook(topdown.NewPrintHook(os.Stderr)))
 
+	results := make([]pr.Output, ectx.params.count)
+	profiles := make([][]profiler.ExprStats, ectx.params.count)
+	timers := make([]map[string]interface{}, ectx.params.count)
+
+	for i := 0; i < ectx.params.count; i++ {
+		results[i] = evalOnce(ctx, ectx)
+		profiles[i] = results[i].Profile
+		if ts, ok := results[i].Metrics.(metrics.TimerMetrics); ok {
+			timers[i] = ts.Timers()
+		}
+	}
+
+	result := results[0]
+
+	if ectx.params.count > 1 {
+		result.Profile = nil
+		result.Metrics = nil
+		result.AggregatedProfile = profiler.AggregateProfiles(profiles...)
+		timersAggregated := map[string]interface{}{}
+		for name := range timers[0] {
+			var vals []int64
+			for _, t := range timers {
+				val, ok := t[name].(int64)
+				if !ok {
+					return false, fmt.Errorf("missing timer for %s" + name)
+				}
+				vals = append(vals, val)
+			}
+			timersAggregated[name] = metrics.Statistics(vals...)
+		}
+		result.AggregatedMetrics = timersAggregated
+	}
+
+	switch ectx.params.outputFormat.String() {
+	case evalBindingsOutput:
+		err = pr.Bindings(w, result)
+	case evalValuesOutput:
+		err = pr.Values(w, result)
+	case evalPrettyOutput:
+		err = pr.Pretty(w, result)
+	case evalSourceOutput:
+		err = pr.Source(w, result)
+	case evalRawOutput:
+		err = pr.Raw(w, result)
+	default:
+		err = pr.JSON(w, result)
+	}
+
+	if err != nil {
+		return false, err
+	} else if len(result.Errors) > 0 {
+		// If the rego package returned an error, return a special error here so
+		// that the command doesn't print the same error twice. The error will
+		// have been printed above by the presentation package.
+		return false, regoError{}
+	} else if len(result.Result) == 0 {
+		return false, nil
+	}
+
+	return true, nil
+}
+
+func evalOnce(ctx context.Context, ectx *evalContext) pr.Output {
 	var result pr.Output
 	var resultErr error
-
 	var parsedModules map[string]*ast.Module
+
+	if ectx.metrics != nil {
+		ectx.metrics.Clear()
+	}
+	if ectx.profiler != nil {
+		ectx.profiler.reset()
+	}
+	r := rego.New(ectx.regoArgs...)
 
 	if !ectx.params.partial {
 		var pq rego.PreparedEvalQuery
-		pq, resultErr = ectx.r.PrepareForEval(ctx)
+		pq, resultErr = r.PrepareForEval(ctx)
 		if resultErr == nil {
 			parsedModules = pq.Modules()
 			result.Result, resultErr = pq.Eval(ctx, ectx.evalArgs...)
 		}
 	} else {
 		var pq rego.PreparedPartialQuery
-		pq, resultErr = ectx.r.PrepareForPartial(ctx)
+		pq, resultErr = r.PrepareForPartial(ctx)
 		if resultErr == nil {
 			parsedModules = pq.Modules()
 			result.Partial, resultErr = pq.Partial(ctx, ectx.evalArgs...)
@@ -321,7 +434,7 @@ func eval(args []string, params evalCommandParams, w io.Writer) (bool, error) {
 			sortOrder = getProfileSortOrder(strings.Split(ectx.params.profileCriteria.String(), ","))
 		}
 
-		result.Profile = ectx.profiler.ReportTopNResults(ectx.params.profileLimit.v, sortOrder)
+		result.Profile = ectx.profiler.p.ReportTopNResults(ectx.params.profileLimit.v, sortOrder)
 	}
 
 	if ectx.params.coverage {
@@ -329,42 +442,16 @@ func eval(args []string, params evalCommandParams, w io.Writer) (bool, error) {
 		result.Coverage = &report
 	}
 
-	switch params.outputFormat.String() {
-	case evalBindingsOutput:
-		err = pr.Bindings(w, result)
-	case evalValuesOutput:
-		err = pr.Values(w, result)
-	case evalPrettyOutput:
-		err = pr.Pretty(w, result)
-	case evalSourceOutput:
-		err = pr.Source(w, result)
-	case evalRawOutput:
-		err = pr.Raw(w, result)
-	default:
-		err = pr.JSON(w, result)
-	}
-
-	if err != nil {
-		return false, err
-	} else if len(result.Errors) > 0 {
-		// If the rego package returned an error, return a special error here so
-		// that the command doesn't print the same error twice. The error will
-		// have been printed above by the presentation package.
-		return false, regoError{}
-	} else if len(result.Result) == 0 {
-		return false, nil
-	} else {
-		return true, nil
-	}
+	return result
 }
 
 type evalContext struct {
 	params   evalCommandParams
 	metrics  metrics.Metrics
-	profiler *profiler.Profiler
+	profiler *resettableProfiler
 	cover    *cover.Cover
 	tracer   *topdown.BufferTracer
-	r        *rego.Rego
+	regoArgs []func(*rego.Rego)
 	evalArgs []rego.EvalOption
 }
 
@@ -387,7 +474,10 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 	}
 
 	regoArgs := []func(*rego.Rego){rego.Query(query), rego.Runtime(info)}
-	var evalArgs []rego.EvalOption
+	evalArgs := []rego.EvalOption{
+		rego.EvalRuleIndexing(!params.disableIndexing),
+		rego.EvalEarlyExit(!params.disableEarlyExit),
+	}
 
 	if len(params.imports.v) > 0 {
 		regoArgs = append(regoArgs, rego.Imports(params.imports.v))
@@ -418,7 +508,8 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 	inputBytes, err := readInputBytes(params)
 	if err != nil {
 		return nil, err
-	} else if inputBytes != nil {
+	}
+	if inputBytes != nil {
 		var input interface{}
 		err := util.Unmarshal(inputBytes, &input)
 		if err != nil {
@@ -431,11 +522,9 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 		regoArgs = append(regoArgs, rego.ParsedInput(inputValue))
 	}
 
-	/*
-		-s {file} (one input schema file)
-		-s {directory} (one schema directory with input and data schema files)
-	*/
-	schemaSet, err := loader.Schemas(params.schemaPath)
+	//	-s {file} (one input schema file)
+	//	-s {directory} (one schema directory with input and data schema files)
+	schemaSet, err := loader.Schemas(params.schema.path)
 	if err != nil {
 		return nil, err
 	}
@@ -452,10 +541,6 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 		}
 	}
 
-	if params.disableIndexing {
-		evalArgs = append(evalArgs, rego.EvalRuleIndexing(false))
-	}
-
 	var m metrics.Metrics
 	if params.metrics {
 		m = metrics.New()
@@ -470,10 +555,10 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 		evalArgs = append(evalArgs, rego.EvalInstrument(true))
 	}
 
-	var p *profiler.Profiler
+	rp := resettableProfiler{}
 	if params.profile {
-		p = profiler.New()
-		evalArgs = append(evalArgs, rego.EvalQueryTracer(p))
+		rp.p = profiler.New()
+		evalArgs = append(evalArgs, rego.EvalQueryTracer(&rp))
 	}
 
 	if params.partial {
@@ -493,20 +578,34 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 		regoArgs = append(regoArgs, rego.StrictBuiltinErrors(true))
 	}
 
-	eval := rego.New(regoArgs...)
+	if params.capabilities != nil {
+		regoArgs = append(regoArgs, rego.Capabilities(params.capabilities.C))
+	}
 
 	evalCtx := &evalContext{
 		params:   params,
 		metrics:  m,
-		profiler: p,
+		profiler: &rp,
 		cover:    c,
 		tracer:   tracer,
-		r:        eval,
+		regoArgs: regoArgs,
 		evalArgs: evalArgs,
 	}
 
 	return evalCtx, nil
 }
+
+type resettableProfiler struct {
+	p *profiler.Profiler
+}
+
+func (r *resettableProfiler) reset() {
+	r.p = profiler.New()
+}
+
+func (*resettableProfiler) Enabled() bool                 { return true }
+func (r *resettableProfiler) TraceEvent(ev topdown.Event) { r.p.TraceEvent(ev) }
+func (r *resettableProfiler) Config() topdown.TraceConfig { return r.p.Config() }
 
 func getProfileSortOrder(sortOrder []string) []string {
 
@@ -538,6 +637,8 @@ func readInputBytes(params evalCommandParams) ([]byte, error) {
 	return nil, nil
 }
 
+const stringType = "string"
+
 type repeatedStringFlag struct {
 	v     []string
 	isSet bool
@@ -551,7 +652,7 @@ func newrepeatedStringFlag(val []string) repeatedStringFlag {
 }
 
 func (f *repeatedStringFlag) Type() string {
-	return "string"
+	return stringType
 }
 
 func (f *repeatedStringFlag) String() string {
@@ -589,7 +690,7 @@ func (f *intFlag) String() string {
 }
 
 func (f *intFlag) Set(s string) error {
-	v, err := strconv.ParseInt(s, 0, 64)
+	v, err := strconv.ParseInt(s, 0, 32)
 	f.v = int(v)
 	f.isSet = true
 	return err

@@ -96,7 +96,7 @@ jobs:
           go-version: ${{ steps.go_version.outputs.go_version }}
 
       - name: Build Darwin
-        run: make ci-build-darwin
+        run: make ci-build-darwin ci-build-darwin-arm64-static
         timeout-minutes: 30
         env:
           TELEMETRY_URL: ${{ secrets.TELEMETRY_URL }}

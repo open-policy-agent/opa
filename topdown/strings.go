@@ -88,6 +88,18 @@ func builtinConcat(a, b ast.Value) (ast.Value, error) {
 }
 
 func builtinIndexOf(a, b ast.Value) (ast.Value, error) {
+	runesEqual := func(a, b []rune) bool {
+		if len(a) != len(b) {
+			return false
+		}
+		for i, v := range a {
+			if v != b[i] {
+				return false
+			}
+		}
+		return true
+	}
+
 	base, err := builtins.StringOperand(a, 1)
 	if err != nil {
 		return nil, err
@@ -97,9 +109,25 @@ func builtinIndexOf(a, b ast.Value) (ast.Value, error) {
 	if err != nil {
 		return nil, err
 	}
+	if len(string(search)) == 0 {
+		return nil, fmt.Errorf("empty search character")
+	}
 
-	index := strings.Index(string(base), string(search))
-	return ast.IntNumberTerm(index).Value, nil
+	baseRunes := []rune(string(base))
+	searchRunes := []rune(string(search))
+	searchLen := len(searchRunes)
+
+	for i, r := range baseRunes {
+		if r == searchRunes[0] {
+			if len(baseRunes) >= i+searchLen {
+				if runesEqual(baseRunes[i:i+searchLen], searchRunes) {
+					return ast.IntNumberTerm(i).Value, nil
+				}
+			}
+		}
+	}
+
+	return ast.IntNumberTerm(-1).Value, nil
 }
 
 func builtinSubstring(a, b, c ast.Value) (ast.Value, error) {
@@ -384,6 +412,25 @@ func builtinSprintf(a, b ast.Value) (ast.Value, error) {
 	return ast.String(fmt.Sprintf(string(s), args...)), nil
 }
 
+func builtinReverse(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	s, err := builtins.StringOperand(operands[0].Value, 1)
+	if err != nil {
+		return err
+	}
+
+	sRunes := []rune(string(s))
+	length := len(sRunes)
+	reversedRunes := make([]rune, length)
+
+	for index, r := range sRunes {
+		reversedRunes[length-index-1] = r
+	}
+
+	reversedString := string(reversedRunes)
+
+	return iter(ast.StringTerm(reversedString))
+}
+
 func init() {
 	RegisterFunctionalBuiltin2(ast.FormatInt.Name, builtinFormatInt)
 	RegisterFunctionalBuiltin2(ast.Concat.Name, builtinConcat)
@@ -404,4 +451,5 @@ func init() {
 	RegisterFunctionalBuiltin2(ast.TrimSuffix.Name, builtinTrimSuffix)
 	RegisterFunctionalBuiltin1(ast.TrimSpace.Name, builtinTrimSpace)
 	RegisterFunctionalBuiltin2(ast.Sprintf.Name, builtinSprintf)
+	RegisterBuiltinFunc(ast.StringReverse.Name, builtinReverse)
 }

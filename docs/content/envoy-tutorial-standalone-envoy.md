@@ -11,10 +11,9 @@ policies over the HTTP request body.
 
 ## Prerequisites
 
-This tutorial requires Kubernetes 1.14 or later. To run the tutorial locally, we
-recommend using
-[minikube](https://minikube.sigs.k8s.io/docs/start/) in
-version `v1.0+` with Kubernetes 1.14+.
+This tutorial requires Kubernetes 1.20 or later. To run the tutorial locally, we
+recommend using [minikube](https://minikube.sigs.k8s.io/docs/start/) in 
+version `v1.21+` with Kubernetes 1.20+.
 
 ## Steps
 
@@ -40,7 +39,7 @@ static_resources:
         port_value: 8000
     filter_chains:
     - filters:
-      - name: envoy.http_connection_manager
+      - name: envoy.filters.network.http_connection_manager
         typed_config:
           "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
           codec_type: auto
@@ -136,29 +135,29 @@ allow {
 }
 
 is_token_valid {
-  token.valid
-  now := time.now_ns() / 1000000000
-  token.payload.nbf <= now
-  now < token.payload.exp
+    token.valid
+    now := time.now_ns() / 1000000000
+    token.payload.nbf <= now
+    now < token.payload.exp
 }
 
 action_allowed {
-  http_request.method == "GET"
-  token.payload.role == "guest"
-  glob.match("/people", ["/"], http_request.path)
+    http_request.method == "GET"
+    token.payload.role == "guest"
+    glob.match("/people", ["/"], http_request.path)
 }
 
 action_allowed {
-  http_request.method == "GET"
-  token.payload.role == "admin"
-  glob.match("/people", ["/"], http_request.path)
+    http_request.method == "GET"
+    token.payload.role == "admin"
+    glob.match("/people", ["/"], http_request.path)
 }
 
 action_allowed {
-  http_request.method == "POST"
-  token.payload.role == "admin"
-  glob.match("/people", ["/"], http_request.path)
-  lower(input.parsed_body.firstname) != base64url.decode(token.payload.sub)
+    http_request.method == "POST"
+    token.payload.role == "admin"
+    glob.match("/people", ["/"], http_request.path)
+    lower(input.parsed_body.firstname) != base64url.decode(token.payload.sub)
 }
 
 token := {"valid": valid, "payload": payload} {
@@ -167,10 +166,10 @@ token := {"valid": valid, "payload": payload} {
 }
 ```
 
-Store the policy in Kubernetes as a Secret.
+Then, build an OPA bundle.
 
-```bash
-kubectl create secret generic opa-policy --from-file policy.rego
+```shell
+opa build policy.rego
 ```
 
 In the next step, OPA is configured to query for the `data.envoy.authz.allow`
@@ -204,12 +203,17 @@ With the input value above, the answer is:
 
 An example of the complete input received by OPA can be seen [here](https://github.com/open-policy-agent/opa-envoy-plugin#example-input).
 
-> In typical deployments the policy would either be built into the OPA container
-> image or it would fetched dynamically via the [Bundle
-> API](https://www.openpolicyagent.org/docs/latest/bundles/). ConfigMaps are
-> used in this tutorial for test purposes.
+### 4. Publish OPA Bundle
 
-### 4. Create App Deployment with OPA and Envoy sidecars
+We will now serve the OPA bundle created in the previous step using Nginx.
+
+```bash
+docker run --rm --name bundle-server -d -p 8888:80 -v ${PWD}:/usr/share/nginx/html:ro nginx:latest
+```
+
+The above command will start a Nginx server running on port `8888` on your host and act as a bundle server.
+
+### 5. Create App Deployment with OPA and Envoy sidecars
 
 Our deployment contains a sample Go app which provides information about
 employees in a company. It exposes a `/people` endpoint to `get` and `create`
@@ -218,7 +222,8 @@ employees. More information can on the app be found
 
 OPA is started with a configuration that sets the listening address of Envoy
 External Authorization gRPC server and specifies the name of the policy decision
-to query. More information on the configuration options can be found
+to query. OPA will also periodically download the policy bundle from the local Nginx server
+configured in the previous step. More information on the configuration options can be found
 [here](https://github.com/open-policy-agent/opa-envoy-plugin#configuration).
 
 Save the deployment as **deployment.yaml**:
@@ -261,7 +266,7 @@ spec:
         ports:
         - containerPort: 8080
       - name: envoy
-        image: envoyproxy/envoy:v1.17.0
+        image: envoyproxy/envoy:v1.20.0
         volumeMounts:
         - readOnly: true
           mountPath: /config
@@ -277,20 +282,18 @@ spec:
         # Note: openpolicyagent/opa:latest-envoy is created by retagging
         # the latest released image of OPA-Envoy.
         image: openpolicyagent/opa:{{< current_opa_envoy_docker_version >}}
-        volumeMounts:
-        - readOnly: true
-          mountPath: /policy
-          name: opa-policy
         args:
         - "run"
         - "--server"
         - "--addr=localhost:8181"
         - "--diagnostic-addr=0.0.0.0:8282"
+        - "--set=services.default.url=http://host.minikube.internal:8888"
+        - "--set=bundles.default.resource=bundle.tar.gz"
         - "--set=plugins.envoy_ext_authz_grpc.addr=:9191"
         - "--set=plugins.envoy_ext_authz_grpc.path=envoy/authz/allow"
         - "--set=decision_logs.console=true"
+        - "--set=status.console=true"
         - "--ignore=.*"
-        - "/policy/policy.rego"
         livenessProbe:
           httpGet:
             path: /health?plugins
@@ -309,9 +312,6 @@ spec:
       - name: proxy-config
         configMap:
           name: proxy-config
-      - name: opa-policy
-        secret:
-          secretName: opa-policy
 ```
 
 ```bash
@@ -329,10 +329,10 @@ example-app-67c644b9cb-bbqgh   3/3     Running   0          8s
 
 > The `proxy-init` container installs iptables rules to redirect all container
   traffic through the Envoy proxy sidecar. More information can be found
-  [here](https://github.com/open-policy-agent/contrib/tree/master/envoy_iptables).
+  [here](https://github.com/open-policy-agent/contrib/tree/main/envoy_iptables).
 
 
-### 5. Create a Service to expose HTTP server
+### 6. Create a Service to expose HTTP server
 
 In a second terminal, start a [minikube tunnel](https://minikube.sigs.k8s.io/docs/handbook/accessing/#using-minikube-tunnel) to allow for use of the `LoadBalancer` service type.
 
@@ -371,7 +371,7 @@ echo $SERVICE_URL
 10.109.64.199:8080
 ```
 
-### 6. Exercise the OPA policy
+### 7. Exercise the OPA policy
 
 For convenience, we’ll want to store Alice's and Bob's tokens in environment variables.
 
@@ -398,6 +398,18 @@ Check that `Bob` **cannot** create an employee with the same firstname as himsel
 
 ```bash
 curl -i  -H "Authorization: Bearer $BOB_TOKEN" -d '{"firstname":"Bob", "lastname":"Rego"}' -H "Content-Type: application/json" -X POST http://$SERVICE_URL/people
+```
+
+To remove the kubernetes resources created during this tutorial please use the following commands.
+```bash
+kubectl delete service example-app-service
+kubectl delete deployment example-app
+kubectl delete configmap proxy-config
+```
+
+To remove the bundle server run:
+```bash
+docker rm -f bundle-server
 ```
 
 ## Wrap Up

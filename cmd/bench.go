@@ -13,11 +13,10 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/open-policy-agent/opa/compile"
-
 	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
 
+	"github.com/open-policy-agent/opa/compile"
 	"github.com/open-policy-agent/opa/internal/presentation"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/rego"
@@ -46,6 +45,7 @@ func newBenchmarkEvalParams() benchmarkCommandParams {
 				benchmarkGoBenchOutput,
 			}),
 			target: util.NewEnumFlag(compile.TargetRego, []string{compile.TargetRego, compile.TargetWasm}),
+			schema: &schemaFlags{},
 		},
 	}
 }
@@ -75,7 +75,11 @@ The optional "gobench" output format conforms to the Go Benchmark Data Format.
 		},
 		Run: func(_ *cobra.Command, args []string) {
 			exit, err := benchMain(args, params, os.Stdout, &goBenchRunner{})
-			fmt.Fprintln(os.Stderr, err)
+			if err != nil {
+				// NOTE: err should only be non-nil if a (highly unlikely)
+				// presentation error occurs.
+				fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			}
 			os.Exit(exit)
 		},
 	}
@@ -94,7 +98,7 @@ The optional "gobench" output format conforms to the Go Benchmark Data Format.
 	addMetricsFlag(benchCommand.Flags(), &params.metrics, true)
 	addOutputFormat(benchCommand.Flags(), params.outputFormat)
 	addIgnoreFlag(benchCommand.Flags(), &params.ignore)
-	addSchemaFlag(benchCommand.Flags(), &params.schemaPath)
+	addSchemaFlags(benchCommand.Flags(), params.schema)
 	addTargetFlag(benchCommand.Flags(), params.target)
 
 	// Shared benchmark flags
@@ -117,10 +121,11 @@ func benchMain(args []string, params benchmarkCommandParams, w io.Writer, r benc
 
 	ctx := context.Background()
 	var benchFunc func(context.Context, ...rego.EvalOption) error
+	rg := rego.New(ectx.regoArgs...)
 
 	if !params.partial {
 		// Take the eval context and prepare anything else we possible can before benchmarking the evaluation
-		pq, err := ectx.r.PrepareForEval(ctx)
+		pq, err := rg.PrepareForEval(ctx)
 		if err != nil {
 			errRender := renderBenchmarkError(params, err, w)
 			return 1, errRender
@@ -137,7 +142,7 @@ func benchMain(args []string, params benchmarkCommandParams, w io.Writer, r benc
 		}
 	} else {
 		// As with normal evaluation, prepare as much as possible up front.
-		pq, err := ectx.r.PrepareForPartial(ctx)
+		pq, err := rg.PrepareForPartial(ctx)
 		if err != nil {
 			errRender := renderBenchmarkError(params, err, w)
 			return 1, errRender

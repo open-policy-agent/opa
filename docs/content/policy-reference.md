@@ -38,6 +38,11 @@ val := arr[0]
 
 # lookup last value
 val := arr[count(arr)-1]
+
+# with `import future.keywords.in`
+some 0, val in arr   # lookup value at index 0
+0, "foo" in arr      # check if value at index 0 is "foo"
+some i, "foo" in arr # find all indices i that have value "foo"
 ```
 
 ### Objects
@@ -65,6 +70,13 @@ obj.foo.bar.baz
 
 # check if path foo.bar.baz, foo.bar, or foo does not exist or is false
 not obj.foo.bar.baz
+
+# with `import future.keywords.in`
+o := {"foo": false}
+# check if value exists: the expression will be true
+false in o
+# check if value for key "foo" is false
+"foo", false in o
 ```
 
 ### Sets
@@ -81,6 +93,12 @@ a_set[["a", "b", "c"]]
 
 # find all arrays of the form [x, "b", z] in the set
 a_set[[x, "b", z]]
+
+# with `import future.keywords.in`
+"foo" in a_set
+not "foo" in a_set
+some ["a", "b", "c"] in a_set
+some [x, "b", z] in a_set
 ```
 
 ## Iteration
@@ -96,6 +114,11 @@ val := arr[_]
 
 # iterate over index/value pairs
 val := arr[i]
+
+# with `import future.keywords.in`
+some val in arr    # iterate over values
+some i, _ in arr   # iterate over indices
+some i, val in arr # iterate over index/value pairs
 ```
 
 ### Objects
@@ -109,6 +132,11 @@ val := obj[_]
 
 # iterate over key/value pairs
 val := obj[key]
+
+# with `import future.keywords.in`
+some val in obj      # iterate over values
+some key, _ in obj   # iterate over keys
+some key, val in obj # key/value pairs
 ```
 
 ### Sets
@@ -116,6 +144,9 @@ val := obj[key]
 ```live:iteration/sets:query:read_only
 # iterate over values
 set[val]
+
+# with `import future.keywords.in`
+some val in set
 ```
 
 ### Advanced
@@ -178,7 +209,7 @@ c = a | b
 
 ```live:rules/condbool:module:read_only
 # p is true if ...
-p = true { ...}
+p = true { ... }
 
 # OR
 
@@ -276,6 +307,7 @@ complex types.
 | <span class="opa-keep-it-together">``output := floor(x)``</span>    | ``output`` is ``x`` rounded down the nearest integer | ✅ |
 | <span class="opa-keep-it-together">``output := abs(x)``</span>    | ``output`` is the absolute value of ``x`` | ✅ |
 | <span class="opa-keep-it-together">``output := numbers.range(a, b)``</span> | ``output`` is the range of integer numbers between ``a`` and ``b`` (inclusive). If ``a`` == ``b`` then ``output`` == ``[a]``. If ``a`` < ``b`` the range is in ascending order. If ``a`` > ``b`` the range is in descending order. | ✅ |
+  <span class="opa-keep-it-together">``output := rand.intn(str, n)``</span> |  ``output`` is a ``number`` in the range [0, abs(``n``)). If ``n`` is 0, then ``output`` is 0. For any given (``str``, ``n``) pair the output will be consistent throughout a query evaluation. | SDK-dependent |
 
 ### Aggregates
 
@@ -292,6 +324,7 @@ complex types.
 | Built-in | Description | Wasm Support |
 | ------- |-------------|---------------|
 | <span class="opa-keep-it-together">``output := array.concat(array, array)``</span> | ``output`` is the result of concatenating the two input arrays together. | ✅ |
+| <span class="opa-keep-it-together">``output := array.reverse(array)``</span> | ``output`` is the result of reversing the order of the elements in ``array``. | ✅ |
   <span class="opa-keep-it-together">``output := array.slice(array, startIndex, stopIndex)``</span> | ``output`` is the part of the ``array`` from ``startIndex`` to ``stopIndex`` including the first but excluding the last. If `startIndex >= stopIndex` then `output == []`. If both `startIndex` and `stopIndex` are less than zero, `output == []`. Otherwise, `startIndex` and `stopIndex` are clamped to 0 and `count(array)` respectively. | ✅ |
 
 ### Sets
@@ -347,6 +380,7 @@ complex types.
 | <span class="opa-keep-it-together">``output := indexof(string, search)``</span> | ``output`` is the index inside ``string`` where ``search`` first occurs, or -1 if ``search`` does not exist | ✅ |
 | <span class="opa-keep-it-together">``output := lower(string)``</span> | ``output`` is ``string`` after converting to lower case | ✅ |
 | <span class="opa-keep-it-together">``output := replace(string, old, new)``</span> | ``output`` is a ``string`` representing ``string`` with all instances of ``old`` replaced by ``new`` | ✅ |
+| <span class="opa-keep-it-together">``output := strings.reverse(string)``</span> | ``output`` is ``string`` reversed | ✅ |
 | <span class="opa-keep-it-together">``output := strings.replace_n(patterns, string)``</span> | ``patterns`` is an object with old, new string key value pairs (e.g. ``{"old1": "new1", "old2": "new2", ...}``). ``output`` is a ``string`` with all old strings inside ``patterns`` replaced by the new strings | ✅ |
 | <span class="opa-keep-it-together">``output := split(string, delimiter)``</span> | ``output`` is ``array[string]`` representing elements of ``string`` separated by ``delimiter`` | ✅ |
 | <span class="opa-keep-it-together">``output := sprintf(string, values)``</span> | ``output`` is a ``string`` representing ``string`` formatted by the values in the ``array`` ``values``. | ``SDK-dependent`` |
@@ -364,7 +398,7 @@ complex types.
 | Built-in | Description | Wasm Support |
 | ------- |-------------|---------------|
 | <span class="opa-keep-it-together">``output := regex.match(pattern, value)``</span> | ``output`` is a ``boolean`` that indicates if ``value`` matches the regex ``pattern``. | ✅ |
-| <span class="opa-keep-it-together">``output := regex.is_valid(pattern)``</span> | ``output`` is a ``boolean`` that indicates if ``pattern` is a valid regex pattern. The detailed syntax for regex patterns is defined by https://github.com/google/re2/wiki/Syntax. | ✅ |
+| <span class="opa-keep-it-together">``output := regex.is_valid(pattern)``</span> | ``output`` is a ``boolean`` that indicates if ``pattern`` is a valid regex pattern. The detailed syntax for regex patterns is defined by https://github.com/google/re2/wiki/Syntax. | ✅ |
 | <span class="opa-keep-it-together">``output := regex.split(pattern, string)``</span> | ``output`` is ``array[string]`` representing elements of ``string`` separated by ``pattern`` | ``SDK-dependent`` |
 | <span class="opa-keep-it-together">``regex.globs_match(glob1, glob2)``</span> | true if the intersection of regex-style globs ``glob1`` and ``glob2`` matches a non-empty set of non-empty strings. The set of regex symbols is limited for this builtin: only ``.``, ``*``, ``+``, ``[``, ``-``, ``]`` and ``\`` are treated as special symbols. | ``SDK-dependent`` |
 | <span class="opa-keep-it-normal">``output := regex.template_match(pattern, string, delimiter_start, delimiter_end)``</span> | ``output`` is true if ``string`` matches ``pattern``. ``pattern`` is a string containing ``0..n`` regular expressions delimited by ``delimiter_start`` and ``delimiter_end``. Example ``regex.template_match("urn:foo:{.*}", "urn:foo:bar:baz", "{", "}")`` returns ``true``. | ``SDK-dependent`` |
@@ -436,7 +470,7 @@ The following table shows examples of how ``glob.match`` works:
 | <span class="opa-keep-it-together">``output := is_set(x)``</span> | ``output`` is ``true`` if ``x`` is a set; otherwise undefined | ✅ |
 | <span class="opa-keep-it-together">``output := is_object(x)``</span> | ``output`` is ``true`` if ``x`` is an object; otherwise undefined | ✅ |
 | <span class="opa-keep-it-together">``output := is_null(x)``</span> | ``output`` is ``true`` if ``x`` is null; otherwise undefined | ✅ |
-| <span class="opa-keep-it-together">``output := type_name(x)``</span> | ``output`` is the type of ``x`` |
+| <span class="opa-keep-it-together">``output := type_name(x)``</span> | ``output`` is the type of ``x`` (e.g. ``"number"``, ``"boolean"``, ...) | ✅ |
 
 ### Encoding
 
@@ -447,10 +481,10 @@ The following table shows examples of how ``glob.match`` works:
 | <span class="opa-keep-it-together">``output := base64url.encode(x)``</span> | ``output`` is ``x`` serialized to a base64url encoded string with padding | ✅ |
 | <span class="opa-keep-it-together">``output := base64url.encode_no_pad(x)``</span> | ``output`` is ``x`` serialized to a base64url encoded string without padding | ``SDK-dependent`` |
 | <span class="opa-keep-it-together">``output := base64url.decode(string)``</span> | ``output`` is ``string`` deserialized from a base64url encoded string with or without padding | ✅ |
-| <span class="opa-keep-it-together">``output := urlquery.encode(string)``</span> | ``output`` is ``string`` serialized to a URL query parameter encoded string | ``SDK-dependent`` |
-| <span class="opa-keep-it-together">``output := urlquery.encode_object(object)``</span> | ``output`` is ``object`` serialized to a URL query parameter encoded string | ``SDK-dependent`` |
-| <span class="opa-keep-it-together">``output := urlquery.decode(string)``</span> | ``output`` is ``string`` deserialized from a URL query parameter encoded string | ``SDK-dependent`` |
-| <span class="opa-keep-it-together">``output := urlquery.decode_object(string)``</span> | ``output`` is ``object`` deserialized from a URL query parameter string | ``SDK-dependent`` |
+| <span class="opa-keep-it-together">``output := urlquery.encode(string)``</span> | ``output`` is URL query parameter encoded ``string`` | ``SDK-dependent`` |
+| <span class="opa-keep-it-together">``output := urlquery.encode_object(object)``</span> | ``output`` is URL query parameter encoded ``object`` | ``SDK-dependent`` |
+| <span class="opa-keep-it-together">``output := urlquery.decode(string)``</span> | ``output`` is URL query parameter decoded ``string`` | ``SDK-dependent`` |
+| <span class="opa-keep-it-together">``output := urlquery.decode_object(string)``</span> | ``output`` is URL query parameter decoded ``string`` represented as an ``object`` | ``SDK-dependent`` |
 | <span class="opa-keep-it-together">``output := json.marshal(x)``</span> | ``output`` is ``x`` serialized to a JSON string | ✅ |
 | <span class="opa-keep-it-together">``output := json.unmarshal(string)``</span> | ``output`` is ``string`` deserialized to a term from a JSON encoded string | ✅ |
 | <span class="opa-keep-it-together">``output := json.is_valid(string)``</span> | ``output`` is a ``boolean`` that indicated whether ``string`` is a valid JSON document | ``SDK-dependent`` |
@@ -768,13 +802,13 @@ result_valid_hs256 := io.jwt.verify_hs256(result_hs256, "foo")
 | Built-in | Description | Wasm Support |
 | ------- |-------------|---------------|
 | <span class="opa-keep-it-together">``output := time.now_ns()``</span> | ``output`` is a ``number`` representing the current time since epoch in nanoseconds. | ``SDK-dependent`` |
-| <span class="opa-keep-it-together">``output := time.parse_ns(layout, value)``</span> | ``output`` is a ``number`` representing the time ``value`` in nanoseconds since epoch. See the [Go `time` package documentation](https://golang.org/pkg/time/#Parse) for more details on ``layout``. | ``SDK-dependent`` |
-| <span class="opa-keep-it-together">``output := time.parse_rfc3339_ns(value)``</span> | ``output`` is a ``number`` representing the time ``value`` in nanoseconds since epoch. | ``SDK-dependent`` |
+| <span class="opa-keep-it-together">``output := time.parse_ns(layout, value)``</span> | ``output`` is a ``number`` representing the time ``value`` in nanoseconds since epoch; or ``undefined`` if outside the valid time range that can fit within an ``int64``. See the [Go `time` package documentation](https://golang.org/pkg/time/#Parse) for more details on ``layout``. | ``SDK-dependent`` |
+| <span class="opa-keep-it-together">``output := time.parse_rfc3339_ns(value)``</span> | ``output`` is a ``number`` representing the time ``value`` in nanoseconds since epoch; or ``undefined`` if outside the valid time range that can fit within an ``int64``. | ``SDK-dependent`` |
 | <span class="opa-keep-it-together">``output := time.parse_duration_ns(duration)``</span> | ``output`` is a ``number`` representing the duration ``duration`` in nanoseconds. See the [Go `time` package documentation](https://golang.org/pkg/time/#ParseDuration) for more details on ``duration``. | ``SDK-dependent`` |
 | <span class="opa-keep-it-together">``output := time.date(ns)``<br/>``output := time.date([ns, tz])``</span> | ``output`` is of the form ``[year, month, day]``, which includes the ``year``, ``month`` (0-12), and ``day`` (0-31) as ``number``s representing the date from the nanoseconds since epoch (``ns``) in the timezone (``tz``), if supplied, or as UTC.| ``SDK-dependent`` |
 | <span class="opa-keep-it-together">``output := time.clock(ns)``<br/>``output := time.clock([ns, tz])``</span> | ``output`` is of the form ``[hour, minute, second]``, which outputs the ``hour``, ``minute`` (0-59), and ``second`` (0-59) as ``number``s representing the time of day for the nanoseconds since epoch (``ns``) in the timezone (``tz``), if supplied, or as UTC. | ``SDK-dependent`` |
 | <span class="opa-keep-it-together">``day := time.weekday(ns)``<br/>``day := time.weekday([ns, tz])``</span> | outputs the ``day`` as ``string`` representing the day of the week for the nanoseconds since epoch (``ns``) in the timezone (``tz``), if supplied, or as UTC. | ``SDK-dependent`` |
-| <span class="opa-keep-it-together">``output := time.add_date(ns, years, months, days)``</span> | ``output`` is a ``number`` representing the time since epoch in nanoseconds after adding the ``years``, ``months`` and ``days`` to ``ns``. See the [Go `time` package documentation](https://golang.org/pkg/time/#Time.AddDate) for more details on ``add_date``. | ``SDK-dependent`` |
+| <span class="opa-keep-it-together">``output := time.add_date(ns, years, months, days)``</span> | ``output`` is a ``number`` representing the time since epoch in nanoseconds after adding the ``years``, ``months`` and ``days`` to ``ns``; or ``undefined`` if outside the valid time range that can fit within an ``int64``. See the [Go `time` package documentation](https://golang.org/pkg/time/#Time.AddDate) for more details on ``add_date``. | ``SDK-dependent`` |
 | <span class="opa-keep-it-together">``output := time.diff(ns1, ns2)``<br/>``output := time.diff([ns1, tz1], [ns2, tz2])``</span> | ``output`` is of the form ``[year(s), month(s), day(s), hour(s), minute(s), second(s)]``, which outputs ``year(s)``, ``month(s)`` (0-11), ``day(s)`` (0-30),  ``hour(s)``(0-23), ``minute(s)``(0-59) and ``second(s)``(0-59)  as ``number``s representing the  difference between the the two timestamps in nanoseconds since epoch (``ns1`` and ``ns2``), in the timezones (``tz1`` and ``tz2``, respectively), if supplied, or as UTC. | ``SDK-dependent`` |
 
 > Multiple calls to the `time.now_ns` built-in function within a single policy
@@ -793,10 +827,16 @@ Note that the opa executable will need access to the timezone files in the envir
 | Built-in | Description | Wasm Support |
 | ------- |-------------|---------------|
 | <span class="opa-keep-it-together">``output := crypto.x509.parse_certificates(certs)``</span> | ``certs`` is base64 encoded DER or PEM data containing one or more certificates or a PEM string of one or more certificates. ``output`` is an array of X.509 certificates represented as JSON objects. | ``SDK-dependent`` |
+| <span class="opa-keep-it-together">``output := crypto.x509.parse_and_verify_certificates(certs)``</span> | ``certs`` is base64 encoded DER or PEM data containing two or more certificates where the first is a root CA, the last is a leaf certificate, and all others are intermediate CAs. ``output`` is of the form ``[valid, certs]``. If the input certificate chain could be verified then ``valid`` is ``true`` and ``certs`` is an array of X.509 certificates represented as JSON objects. If the input certificate chain could not be verified then ``valid`` is ``false`` and ``certs`` is ``[]``. | ``SDK-dependent`` |
 | <span class="opa-keep-it-together">``output := crypto.x509.parse_certificate_request(csr)``</span> | ``csr`` is a base64 string containing either a PEM encoded or DER CSR or a string containing a PEM CSR.``output`` is an X.509 CSR represented as a JSON object. | ``SDK-dependent`` |
+| <span class="opa-keep-it-together">``output := crypto.x509.parse_rsa_private_key(pem)``</span> | ``pem`` is a base64 string containing a PEM encoded RSA private key.``output`` is a JWK as a JSON object. | ``SDK-dependent`` |
 | <span class="opa-keep-it-together">``output := crypto.md5(string)``</span> | ``output`` is ``string`` md5 hashed. | ``SDK-dependent`` |
 | <span class="opa-keep-it-together">``output := crypto.sha1(string)``</span> | ``output`` is ``string`` sha1 hashed. | ``SDK-dependent`` |
 | <span class="opa-keep-it-together">``output := crypto.sha256(string)``</span> | ``output`` is ``string`` sha256 hashed. | ``SDK-dependent`` |
+| <span class="opa-keep-it-together">``output := crypto.hmac.md5(string, key)``</span> | ``output`` is HMAC-MD5 of ``string`` using ``key`` | ``SDK-dependent`` |
+| <span class="opa-keep-it-together">``output := crypto.hmac.sha1(string, key)``</span> | ``output`` is HMAC-SHA-1 of ``string`` using ``key`` | ``SDK-dependent`` |
+| <span class="opa-keep-it-together">``output := crypto.hmac.sha256(string, key)``</span> | ``output`` is HMAC-SHA-256 of ``string`` using ``key`` | ``SDK-dependent`` |
+| <span class="opa-keep-it-together">``output := crypto.hmac.sha512(string, key)``</span> | ``output`` is HMAC-SHA-512 of ``string`` using ``key`` | ``SDK-dependent`` |
 
 ### Graphs
 
@@ -843,6 +883,12 @@ org_chart_permissions[entity_name]
 | ------- |-------------|---------------|
 | <span class="opa-keep-it-together">``response := http.send(request)``</span> | ``http.send`` executes an HTTP `request` and returns a `response`. | ``SDK-dependent`` |
 
+{{< danger >}}
+This built-in function **must not** be used for effecting changes in
+external systems as OPA does not guarantee that the statement will be executed due
+to automatic performance optimizations that are applied during policy evaluation.
+{{< /danger >}}
+
 The `request` object parameter may contain the following fields:
 
 | Field | Required | Type | Description |
@@ -854,7 +900,7 @@ The `request` object parameter may contain the following fields:
 | `headers` | no | `object` | HTTP headers to include in the request (e.g,. `{"X-Opa": "rules"}`). |
 | `enable_redirect` | no | `boolean` | Follow HTTP redirects. Default: `false`. |
 | `force_json_decode` | no | `boolean` | Decode the HTTP response message body as JSON even if the `Content-Type` header is missing. Default: `false`. |
-| `tls_use_system_certs` | no | `boolean` | Use the system certificate pool. Default: `true` when `tls_ca_cert`, `tls_ca_cert_file`, `tls_ca_cert_env_variable` are unset. |
+| `tls_use_system_certs` | no | `boolean` | Use the system certificate pool. Default: `true` when `tls_ca_cert`, `tls_ca_cert_file`, `tls_ca_cert_env_variable` are unset. **Ignored on Windows** due to the system certificate pool not being accessible in the same way as it is for other platforms. |
 | `tls_ca_cert` | no | `string` | String containing a root certificate in PEM encoded format. |
 | `tls_ca_cert_file` | no | `string` | Path to file containing a root certificate in PEM encoded format. |
 | `tls_ca_cert_env_variable` | no | `string` | Environment variable containing a root certificate in PEM encoded format. |
@@ -870,6 +916,7 @@ The `request` object parameter may contain the following fields:
 | `cache` | no | `boolean` | Cache HTTP response across OPA queries. Default: `false`. |
 | `force_cache` | no | `boolean` | Cache HTTP response across OPA queries and override cache directives defined by the server. Default: `false`. |
 | `force_cache_duration_seconds` | no | `number` | If `force_cache` is set, this field specifies the duration in seconds for the freshness of a cached response. |
+| `caching_mode` | no | `string` | Controls the format in which items are inserted into the inter-query cache. Allowed modes are `serialized` and `deserialized`. In the `serialized` mode, items will be serialized before inserting into the cache. This mode is helpful if memory conservation is preferred over higher latency during cache lookup. This is the default mode. In the `deserialized` mode, an item will be inserted in the cache without any serialization. This means when items are fetched from the cache, there won't be a need to decode them. This mode helps to make the cache lookup faster at the expense of more memory consumption. If this mode is enabled, the configured `caching.inter_query_builtin_cache.max_size_bytes` value will be ignored. This means an unlimited cache size will be assumed. |
 | `raise_error` | no | `bool` | If `raise_error` is set, errors returned by `http.send` will halt policy evaluation. Default: `true`. |
 
 If the `Host` header is included in `headers`, its value will be used as the `Host` header of the request. The `url` parameter will continue to specify the server to connect to.
@@ -928,18 +975,29 @@ The table below shows examples of calling `http.send`:
 | Accessing Google using System Cert Pool | ``http.send({"method": "get", "url": "https://www.google.com", "tls_use_system_certs": true })`` |
 | Files containing TLS material | ``http.send({"method": "get", "url": "https://127.0.0.1:65331", "tls_ca_cert_file": "testdata/ca.pem", "tls_client_cert_file": "testdata/client-cert.pem", "tls_client_key_file": "testdata/client-key.pem"})`` |
 | Environment variables containing TLS material | ``http.send({"method": "get", "url": "https://127.0.0.1:65360", "tls_ca_cert_env_variable": "CLIENT_CA_ENV", "tls_client_cert_env_variable": "CLIENT_CERT_ENV", "tls_client_key_env_variable": "CLIENT_KEY_ENV"})`` |
+| Unix Socket URL Format| ``http.send({"method": "get", "url": "unix://localhost/?socket=%F2path%F2file.socket"})`` |
 
 ### Net
 
 | Built-in | Description | Wasm Support |
 | ------- |-------------|---------------|
+| <span class="opa-keep-it-together">``net.lookup_ip_addr(name)``</span> | `output` is a set of IP addresses (both v4 and v6, strings) that the domain name resolves to using standard name resolution, [see the notes below](#notes-on-name-resolution-netlookup_ip_addr). | ``SDK-dependent`` |
 | <span class="opa-keep-it-together">``net.cidr_contains(cidr, cidr_or_ip)``</span> | `output` is `true` if `cidr_or_ip` (e.g. `127.0.0.64/26` or `127.0.0.1`) is contained within `cidr` (e.g. `127.0.0.1/24`) and false otherwise. Supports both IPv4 and IPv6 notations.| ✅ |
 | <span class="opa-keep-it-together">``output := net.cidr_contains_matches(cidrs, cidrs_or_ips)``</span> | `output` is a `set` of tuples identifying matches where `cidrs_or_ips` are contained within `cidrs`. This function is similar to `net.cidr_contains` except it allows callers to pass collections of CIDRs or IPs as arguments and returns the matches (as opposed to a boolean result indicating a match between two CIDRs/IPs.) See below for examples. | ``SDK-dependent`` |
 | <span class="opa-keep-it-together">``net.cidr_intersects(cidr1, cidr2)``</span> | `output` is `true` if `cidr1` (e.g. `192.168.0.0/16`) overlaps with `cidr2` (e.g. `192.168.1.0/24`) and false otherwise. Supports both IPv4 and IPv6 notations.| ✅ |
 | <span class="opa-keep-it-together">``net.cidr_expand(cidr)``</span> | `output` is the set of hosts in `cidr`  (e.g., `net.cidr_expand("192.168.0.0/30")` generates 4 hosts: `{"192.168.0.0", "192.168.0.1", "192.168.0.2", "192.168.0.3"}` | ``SDK-dependent`` |
 | <span class="opa-keep-it-together">``net.cidr_merge(cidrs_or_ips)``</span> | `output` is the smallest possible set of CIDRs obtained after merging the provided list of IP addresses and subnets in `cidrs_or_ips`  (e.g., `net.cidr_merge(["192.0.128.0/24", "192.0.129.0/24"])` generates `{"192.0.128.0/23"}`. This function merges adjacent subnets where possible, those contained within others and also removes any duplicates. Supports both IPv4 and IPv6 notations. | ``SDK-dependent`` |
 
-**`net.cidr_contains_matches` examples**
+#### Notes on Name Resolution (`net.lookup_ip_addr`)
+
+The lookup mechanism uses either the pure-Go, or the cgo-based resolver, depending on the operating system and availability of cgo.
+The latter depends on flags that can be provided when building OPA as a Go library, and can be adjusted at runtime via the GODEBUG enviroment variable.
+See [these docs on the `net` package](https://pkg.go.dev/net@go1.17.3#hdr-Name_Resolution) for details.
+
+Note that the cgo-based resolver is often **preferrable**: It will take advantage of host-based DNS caching in place.
+This built-in function only caches DNS lookups within _a single_ policy evaluation.
+
+#### Examples of `net.cidr_contains_matches`
 
 The `output := net.cidr_contains_matches(a, b)` function allows callers to supply
 strings, arrays, sets, or objects for either `a` or `b`. The `output` value in
@@ -1020,7 +1078,29 @@ net.cidr_contains_matches({["1.1.0.0/16", "foo"], "1.1.2.0/24"}, {"x": "1.1.1.12
 
 | Built-in | Description | Wasm Support |
 | ------- |-------------|---------------|
-| <span class="opa-keep-it-together">``trace(string)``</span> | ``trace`` outputs the debug message ``string`` as a ``Note`` event in the query explanation. For example, ``trace("Hello There!")`` includes ``Note "Hello There!"`` in the query explanation. To print variables, use sprintf. For example, ``person := "Bob"; trace(sprintf("Hello There! %v", [person]))`` will emit ``Note "Hello There! Bob"``. | ``SDK-dependent`` |
+| <span class="opa-keep-it-together">``print(...)``</span> | ``print`` is used to output the values of variables for debugging purposes. ``print`` calls have no affect on the result of queries or rules. All variables passed to `print` must be assigned inside of the query or rule. If any of the `print` arguments are undefined, their values are represented as `<undefined>` in the output stream. Because policies can be invoked via different interfaces (e.g., CLI, HTTP API, etc.) the exact output format differs. See the table below for details. | ``SDK-dependent`` |
+
+API | Output | Memo
+--- | --- | ---
+`opa eval` | `stderr` |
+`opa run` (REPL)  | `stderr` |
+`opa test` | `stdout` | Specify `-v` to see output for passing tests. Output for failing tests is displayed automatically.
+`opa run -s` (server) | `stderr` | Specify `--log-level=info` (default) or higher. Output is sent to the log stream. Use `--log-format=text` for pretty output.
+Go (library) | `io.Writer` | [https://pkg.go.dev/github.com/open-policy-agent/opa/rego#example-Rego-Print_statements](https://pkg.go.dev/github.com/open-policy-agent/opa/rego#example-Rego-Print_statements)
+
+### Tracing
+
+| Built-in | Description | Wasm Support |
+| ------- |-------------|---------------|
+| <span class="opa-keep-it-together">``trace(string)``</span> | ``trace`` emits ``string`` as a ``Note`` event in the query explanation. Query explanations show the exact expressions evaluated by OPA during policy execution. For example, ``trace("Hello There!")`` includes ``Note "Hello There!"`` in the query explanation. To include variables in the message, use ``sprintf``. For example, ``person := "Bob"; trace(sprintf("Hello There! %v", [person]))`` will emit ``Note "Hello There! Bob"`` inside of the explanation. | ``SDK-dependent`` |
+
+By default, explanations are disabled. The following table summarizes how you can enable tracing:
+
+API | Parameter | Example | Memo
+--- | --- | --- | ---
+CLI | `--explain` | `opa eval --explain=notes --format=pretty 'trace("hello world")'` |
+HTTP | `explain=notes` | `curl localhost:8181/v1/data/example/allow?explain=notes&pretty` |
+REPL | `notes` | n/a | The "notes" command enables trace explanations. See `help` for more details.
 
 ## Reserved Names
 
@@ -1045,7 +1125,7 @@ with
 
 Rego’s syntax is defined by the following grammar:
 
-```
+```ebnf
 module          = package { import } policy
 package         = "package" ref
 import          = "import" package [ "as" var ]

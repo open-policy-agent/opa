@@ -346,16 +346,21 @@ func (t *Object) MarshalJSON() ([]byte, error) {
 
 // Select returns the type of the named property.
 func (t *Object) Select(name interface{}) Type {
-	for _, p := range t.static {
-		if util.Compare(p.Key, name) == 0 {
-			return p.Value
-		}
+
+	pos := sort.Search(len(t.static), func(x int) bool {
+		return util.Compare(t.static[x].Key, name) >= 0
+	})
+
+	if pos < len(t.static) && util.Compare(t.static[pos].Key, name) == 0 {
+		return t.static[pos].Value
 	}
+
 	if t.dynamic != nil {
 		if Contains(t.dynamic.Key, TypeOf(name)) {
 			return t.dynamic.Value
 		}
 	}
+
 	return nil
 }
 
@@ -371,6 +376,7 @@ func NewAny(of ...Type) Any {
 	for i := range sl {
 		sl[i] = of[i]
 	}
+	sort.Sort(typeSlice(sl))
 	return sl
 }
 
@@ -406,7 +412,14 @@ func (t Any) Merge(other Type) Any {
 	if t.Contains(other) {
 		return t
 	}
-	return append(t, other)
+	cpy := make(Any, len(t)+1)
+	idx := sort.Search(len(t), func(i int) bool {
+		return Compare(t[i], other) >= 0
+	})
+	copy(cpy, t[:idx])
+	cpy[idx] = other
+	copy(cpy[idx+1:], t[idx:])
+	return cpy
 }
 
 // Union returns a new Any type that is the union of the two Any types.
@@ -426,6 +439,7 @@ func (t Any) Union(other Any) Any {
 			cpy = append(cpy, other[i])
 		}
 	}
+	sort.Sort(typeSlice(cpy))
 	return cpy
 }
 
@@ -443,13 +457,34 @@ func (t Any) String() string {
 
 // Function represents a function type.
 type Function struct {
-	args   []Type
-	result Type
+	args     []Type
+	result   Type
+	variadic Type
 }
 
 // Args returns an argument list.
 func Args(x ...Type) []Type {
 	return x
+}
+
+// Void returns true if the function has no return value. This function returns
+// false if x is not a function.
+func Void(x Type) bool {
+	f, ok := x.(*Function)
+	return ok && f.Result() == nil
+}
+
+// Arity returns the number of arguments in the function signature or zero if x
+// is not a function. If the type is unknown, this function returns -1.
+func Arity(x Type) int {
+	if x == nil {
+		return -1
+	}
+	f, ok := x.(*Function)
+	if !ok {
+		return 0
+	}
+	return len(f.FuncArgs().Args)
 }
 
 // NewFunction returns a new Function object where xs[:len(xs)-1] are arguments
@@ -461,9 +496,31 @@ func NewFunction(args []Type, result Type) *Function {
 	}
 }
 
-// Args returns the function's argument types.
+// NewVariadicFunction returns a new Function object. This function sets the
+// variadic bit on the signature. Non-void variadic functions are not currently
+// supported.
+func NewVariadicFunction(args []Type, varargs Type, result Type) *Function {
+	if result != nil {
+		panic("illegal value: non-void variadic functions not supported")
+	}
+	return &Function{
+		args:     args,
+		variadic: varargs,
+		result:   nil,
+	}
+}
+
+// FuncArgs returns the function's arguments.
+func (t *Function) FuncArgs() FuncArgs {
+	return FuncArgs{Args: t.Args(), Variadic: t.variadic}
+}
+
+// Args returns the function's arguments as a slice, ignoring variadic arguments.
+// Deprecated: Use FuncArgs instead.
 func (t *Function) Args() []Type {
-	return t.args
+	cpy := make([]Type, len(t.args))
+	copy(cpy, t.args)
+	return cpy
 }
 
 // Result returns the function's result type.
@@ -472,19 +529,7 @@ func (t *Function) Result() Type {
 }
 
 func (t *Function) String() string {
-	var args string
-	if len(t.args) != 1 {
-		args = "("
-	}
-	buf := []string{}
-	for _, a := range t.Args() {
-		buf = append(buf, Sprint(a))
-	}
-	args += strings.Join(buf, ", ")
-	if len(t.args) != 1 {
-		args += ")"
-	}
-	return fmt.Sprintf("%v => %v", args, Sprint(t.Result()))
+	return fmt.Sprintf("%v => %v", t.FuncArgs(), Sprint(t.Result()))
 }
 
 // MarshalJSON returns the JSON encoding of t.
@@ -497,6 +542,9 @@ func (t *Function) MarshalJSON() ([]byte, error) {
 	}
 	if t.result != nil {
 		repr["result"] = t.result
+	}
+	if t.variadic != nil {
+		repr["variadic"] = t.variadic
 	}
 	return json.Marshal(repr)
 }
@@ -526,17 +574,55 @@ func (t *Function) Union(other *Function) *Function {
 	} else if t == nil {
 		return other
 	}
+
 	a := t.Args()
 	b := other.Args()
 	if len(a) != len(b) {
 		return nil
 	}
+
+	aIsVariadic := t.FuncArgs().Variadic != nil
+	bIsVariadic := other.FuncArgs().Variadic != nil
+
+	if aIsVariadic && !bIsVariadic {
+		return nil
+	} else if bIsVariadic && !aIsVariadic {
+		return nil
+	}
+
 	args := make([]Type, len(a))
 	for i := range a {
 		args[i] = Or(a[i], b[i])
 	}
 
-	return NewFunction(args, Or(t.Result(), other.Result()))
+	result := NewFunction(args, Or(t.Result(), other.Result()))
+	result.variadic = Or(t.FuncArgs().Variadic, other.FuncArgs().Variadic)
+
+	return result
+}
+
+// FuncArgs represents the arguments that can be passed to a function.
+type FuncArgs struct {
+	Args     []Type `json:"args,omitempty"`
+	Variadic Type   `json:"variadic,omitempty"`
+}
+
+func (a FuncArgs) String() string {
+	var buf []string
+	for i := range a.Args {
+		buf = append(buf, Sprint(a.Args[i]))
+	}
+	if a.Variadic != nil {
+		buf = append(buf, Sprint(a.Variadic)+"...")
+	}
+	return "(" + strings.Join(buf, ", ") + ")"
+}
+
+func (a FuncArgs) Arg(x int) Type {
+	if x < len(a.Args) {
+		return a.Args[x]
+	}
+	return a.Variadic
 }
 
 // Compare returns -1, 0, 1 based on comparison between a and b.
@@ -620,8 +706,6 @@ func Compare(a, b Type) int {
 	case Any:
 		sl1 := typeSlice(a.(Any))
 		sl2 := typeSlice(b.(Any))
-		sort.Sort(sl1)
-		sort.Sort(sl2)
 		return typeSliceCompare(sl1, sl2)
 	case *Function:
 		fA := a.(*Function)
@@ -636,7 +720,10 @@ func Compare(a, b Type) int {
 				return cmp
 			}
 		}
-		return Compare(fA.result, fB.result)
+		if cmp := Compare(fA.result, fB.result); cmp != 0 {
+			return cmp
+		}
+		return Compare(fA.variadic, fB.variadic)
 	default:
 		panic("unreachable")
 	}

@@ -2,6 +2,7 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
+//go:build slow
 // +build slow
 
 package logs
@@ -30,6 +31,7 @@ import (
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/topdown"
+	"github.com/open-policy-agent/opa/topdown/print"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/version"
 )
@@ -83,6 +85,70 @@ func TestPluginCustomBackend(t *testing.T) {
 		if len(e.Bundles) > 0 {
 			t.Errorf("Unexpected `bundles` in event")
 		}
+	}
+}
+
+func TestPluginCustomBackendAndHTTPServiceAndConsole(t *testing.T) {
+
+	ctx := context.Background()
+	backend := testPlugin{}
+	testLogger := test.New()
+
+	fixture := newTestFixture(t, testFixtureOptions{
+		ConsoleLogger: testLogger,
+		ExtraManagerConfig: map[string]interface{}{
+			"plugins": map[string]interface{}{"test_plugin": struct{}{}},
+		},
+		ExtraConfig: map[string]interface{}{
+			"plugin":  "test_plugin",
+			"console": true,
+		},
+		ManagerInit: func(m *plugins.Manager) {
+			m.Register("test_plugin", &backend)
+		},
+	})
+
+	defer fixture.server.stop()
+
+	fixture.server.ch = make(chan []EventV1, 1)
+
+	for i := 0; i < 2; i++ {
+		fixture.plugin.Log(ctx, &server.Info{
+			Revision: fmt.Sprint(i),
+		})
+	}
+	fixture.plugin.flushDecisions(ctx)
+
+	_, err := fixture.plugin.oneShot(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// check service
+	var evs []EventV1
+	select {
+	case evs = <-fixture.server.ch:
+	default:
+	}
+
+	if exp, act := 2, len(evs); exp != act {
+		t.Errorf("Service: expected chunk len %v but got: %v", exp, act)
+	}
+
+	// check plugin
+	if exp, act := 2, len(backend.events); exp != act {
+		t.Fatalf("Plugin: expected %d events, got %d", exp, act)
+	}
+	if exp, act := "0", backend.events[0].Revision; exp != act {
+		t.Errorf("Plugin: expected event 0 rev %s, got %s", exp, act)
+	}
+	if exp, act := "1", backend.events[1].Revision; exp != act {
+		t.Errorf("Plugin: expected event 1 rev %s, got %s", exp, act)
+	}
+
+	// check console logger
+	if exp, act := 2, len(testLogger.Entries()); exp != act {
+		t.Fatalf("Console: expected %d events, got %d", exp, act)
 	}
 }
 
@@ -188,7 +254,7 @@ func TestPluginStartSameInput(t *testing.T) {
 	fixture := newTestFixture(t)
 	defer fixture.server.stop()
 
-	fixture.server.ch = make(chan []EventV1, 4)
+	fixture.server.ch = make(chan []EventV1, 3)
 	var result interface{} = false
 
 	ts, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
@@ -221,14 +287,12 @@ func TestPluginStartSameInput(t *testing.T) {
 	chunk1 := <-fixture.server.ch
 	chunk2 := <-fixture.server.ch
 	chunk3 := <-fixture.server.ch
-	chunk4 := <-fixture.server.ch
 	expLen1 := 122
-	expLen2 := 121
-	expLen3 := 121
-	expLen4 := 36
+	expLen2 := 242
+	expLen3 := 36
 
-	if len(chunk1) != expLen1 || len(chunk2) != expLen2 || len(chunk3) != expLen3 || len(chunk4) != expLen4 {
-		t.Fatalf("Expected chunk lens %v, %v, %v and %v but got: %v, %v, %v and %v", expLen1, expLen2, expLen3, expLen4, len(chunk1), len(chunk2), len(chunk3), len(chunk4))
+	if len(chunk1) != expLen1 || len(chunk2) != expLen2 || len(chunk3) != expLen3 {
+		t.Fatalf("Expected chunk lens %v, %v, and %v but got: %v, %v, and %v", expLen1, expLen2, expLen3, len(chunk1), len(chunk2), len(chunk3))
 	}
 
 	var expInput interface{} = map[string]interface{}{"method": "GET"}
@@ -254,8 +318,8 @@ func TestPluginStartSameInput(t *testing.T) {
 		Metrics:     msAsFloat64,
 	}
 
-	if !reflect.DeepEqual(chunk4[expLen4-1], exp) {
-		t.Fatalf("Expected %+v but got %+v", exp, chunk4[expLen4-1])
+	if !reflect.DeepEqual(chunk3[expLen3-1], exp) {
+		t.Fatalf("Expected %+v but got %+v", exp, chunk3[expLen3-1])
 	}
 }
 
@@ -266,7 +330,7 @@ func TestPluginStartChangingInputValues(t *testing.T) {
 	fixture := newTestFixture(t)
 	defer fixture.server.stop()
 
-	fixture.server.ch = make(chan []EventV1, 4)
+	fixture.server.ch = make(chan []EventV1, 3)
 	var result interface{} = false
 
 	ts, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
@@ -298,14 +362,12 @@ func TestPluginStartChangingInputValues(t *testing.T) {
 	chunk1 := <-fixture.server.ch
 	chunk2 := <-fixture.server.ch
 	chunk3 := <-fixture.server.ch
-	chunk4 := <-fixture.server.ch
 	expLen1 := 124
-	expLen2 := 123
-	expLen3 := 123
-	expLen4 := 30
+	expLen2 := 247
+	expLen3 := 29
 
-	if len(chunk1) != expLen1 || len(chunk2) != expLen2 || len((chunk3)) != expLen3 || len(chunk4) != expLen4 {
-		t.Fatalf("Expected chunk lens %v, %v, %v and %v but got: %v, %v, %v and %v", expLen1, expLen2, expLen3, expLen4, len(chunk1), len(chunk2), len(chunk3), len(chunk4))
+	if len(chunk1) != expLen1 || len(chunk2) != expLen2 || len((chunk3)) != expLen3 {
+		t.Fatalf("Expected chunk lens %v, %v and %v but got: %v, %v and %v", expLen1, expLen2, expLen3, len(chunk1), len(chunk2), len(chunk3))
 	}
 
 	var expInput interface{} = input
@@ -325,8 +387,8 @@ func TestPluginStartChangingInputValues(t *testing.T) {
 		Timestamp:   ts,
 	}
 
-	if !reflect.DeepEqual(chunk4[expLen4-1], exp) {
-		t.Fatalf("Expected %+v but got %+v", exp, chunk4[expLen4-1])
+	if !reflect.DeepEqual(chunk3[expLen3-1], exp) {
+		t.Fatalf("Expected %+v but got %+v", exp, chunk3[expLen3-1])
 	}
 }
 
@@ -466,8 +528,8 @@ func TestPluginRequeBufferPreserved(t *testing.T) {
 	_ = fixture.plugin.Log(ctx, logServerInfo("ghi", input, result1))
 
 	bufLen := fixture.plugin.buffer.Len()
-	if bufLen < 2 {
-		t.Fatal("Expected buffer length of at least 2")
+	if bufLen < 1 {
+		t.Fatal("Expected buffer length of at least 1")
 	}
 
 	fixture.server.expCode = 500
@@ -560,6 +622,10 @@ func TestPluginRateLimitInt(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	if len(chunk) != 1 {
+		t.Fatalf("Expected 1 chunk but got %v", len(chunk))
+	}
+
 	exp = EventV1{
 		Labels: map[string]string{
 			"id":      "test-instance-id",
@@ -574,7 +640,7 @@ func TestPluginRateLimitInt(t *testing.T) {
 		Timestamp:   ts,
 	}
 
-	compareLogEvent(t, chunk, exp)
+	compareLogEvent(t, chunk[0], exp)
 }
 
 func TestPluginRateLimitFloat(t *testing.T) {
@@ -661,6 +727,10 @@ func TestPluginRateLimitFloat(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	if len(chunk) != 1 {
+		t.Fatalf("Expected 1 chunk but got %v", len(chunk))
+	}
+
 	exp = EventV1{
 		Labels: map[string]string{
 			"id":      "test-instance-id",
@@ -675,7 +745,7 @@ func TestPluginRateLimitFloat(t *testing.T) {
 		Timestamp:   ts,
 	}
 
-	compareLogEvent(t, chunk, exp)
+	compareLogEvent(t, chunk[0], exp)
 }
 
 func TestPluginRateLimitRequeue(t *testing.T) {
@@ -699,8 +769,8 @@ func TestPluginRateLimitRequeue(t *testing.T) {
 	_ = fixture.plugin.Log(ctx, logServerInfo("ghi", input, result1)) // event 3
 
 	bufLen := fixture.plugin.buffer.Len()
-	if bufLen < 2 {
-		t.Fatal("Expected buffer length of at least 2")
+	if bufLen < 1 {
+		t.Fatal("Expected buffer length of at least 1")
 	}
 
 	fixture.server.expCode = 500
@@ -720,9 +790,24 @@ func TestPluginRateLimitRequeue(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	events := decodeLogEvent(t, chunk)
-	if len(events) != 1 {
-		t.Fatalf("Expected 1 event but got %v", len(events))
+	if len(chunk) != 1 {
+		t.Fatalf("Expected 1 chunk but got %v", len(chunk))
+	}
+
+	events := decodeLogEvent(t, chunk[0])
+
+	if len(events) != 2 {
+		t.Fatalf("Expected 2 event but got %v", len(events))
+	}
+
+	exp := "def"
+	if events[0].DecisionID != exp {
+		t.Fatalf("Expected decision log event id %v but got %v", exp, events[0].DecisionID)
+	}
+
+	exp = "ghi"
+	if events[1].DecisionID != exp {
+		t.Fatalf("Expected decision log event id %v but got %v", exp, events[1].DecisionID)
 	}
 }
 
@@ -784,9 +869,9 @@ func TestPluginRateLimitDropCountStatus(t *testing.T) {
 	fixture.plugin.mtx.Unlock()
 
 	// Create a status plugin that logs to console
-	pluginConfig := []byte(fmt.Sprintf(`{
+	pluginConfig := []byte(`{
 			"console": true,
-		}`))
+		}`)
 
 	config, _ := status.ParseConfig(pluginConfig, fixture.manager.Services(), nil)
 	p := status.New(config, fixture.manager).WithMetrics(fixture.plugin.metrics)
@@ -849,6 +934,179 @@ func TestPluginRateLimitBadConfig(t *testing.T) {
 	if err.Error() != expected {
 		t.Fatalf("Expected error message %v but got %v", expected, err.Error())
 	}
+}
+
+func TestPluginTriggerManual(t *testing.T) {
+	ctx := context.Background()
+
+	fixture := newTestFixture(t)
+	defer fixture.server.stop()
+
+	fixture.server.ch = make(chan []EventV1, 4)
+	tr := plugins.TriggerManual
+	fixture.plugin.config.Reporting.Trigger = &tr
+
+	if err := fixture.plugin.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	testMetrics := getWellKnownMetrics()
+	msAsFloat64 := map[string]interface{}{}
+	for k, v := range testMetrics.All() {
+		msAsFloat64[k] = float64(v.(uint64))
+	}
+
+	var input interface{} = map[string]interface{}{"method": "GET"}
+	var result interface{} = false
+
+	ts, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
+	if err != nil {
+		panic(err)
+	}
+
+	exp := EventV1{
+		Labels: map[string]string{
+			"id":      "test-instance-id",
+			"app":     "example-app",
+			"version": version.Version,
+		},
+		Path:        "tda/bar",
+		Input:       &input,
+		Result:      &result,
+		RequestedBy: "test",
+		Timestamp:   ts,
+		Metrics:     msAsFloat64,
+	}
+
+	for i := 0; i < 400; i++ {
+		fixture.plugin.Log(ctx, &server.Info{
+			Revision:   fmt.Sprint(i),
+			DecisionID: fmt.Sprint(i),
+			Path:       "tda/bar",
+			Input:      &input,
+			Results:    &result,
+			RemoteAddr: "test",
+			Timestamp:  ts,
+			Metrics:    testMetrics,
+		})
+
+		// trigger the decision log upload
+		go func() {
+			fixture.plugin.Trigger(ctx)
+		}()
+
+		chunk := <-fixture.server.ch
+
+		expLen := 1
+		if len(chunk) != 1 {
+			t.Fatalf("Expected chunk len %v but got: %v", expLen, len(chunk))
+		}
+
+		exp.Revision = fmt.Sprint(i)
+		exp.DecisionID = fmt.Sprint(i)
+
+		if !reflect.DeepEqual(chunk[0], exp) {
+			t.Fatalf("Expected %+v but got %+v", exp, chunk[0])
+		}
+	}
+
+	fixture.plugin.Stop(ctx)
+}
+
+func TestPluginTriggerManualWithTimeout(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(3 * time.Second) // this should cause the context deadline to exceed
+	}))
+
+	// setup plugin pointing at fake server
+	managerConfig := []byte(fmt.Sprintf(`{
+			"labels": {
+				"app": "example-app"
+			},
+			"services": [
+				{
+					"name": "example",
+					"url": %q
+				}
+			]}`, s.URL))
+
+	manager, err := plugins.New(
+		managerConfig,
+		"test-instance-id",
+		inmem.New(),
+		plugins.GracefulShutdownPeriod(10))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	pluginConfig := make(map[string]interface{})
+
+	pluginConfig["service"] = "example"
+	pluginConfig["resource"] = "/"
+
+	pluginConfigBytes, err := json.MarshalIndent(pluginConfig, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	config, _ := ParseConfig(pluginConfigBytes, manager.Services(), nil)
+
+	tr := plugins.TriggerManual
+	config.Reporting.Trigger = &tr
+
+	if s, ok := manager.PluginStatus()[Name]; ok {
+		t.Fatalf("Unexpected status found in plugin manager for %s: %+v", Name, s)
+	}
+
+	p := New(config, manager)
+
+	ensurePluginState(t, p, plugins.StateNotReady)
+
+	if err := p.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	var input interface{} = map[string]interface{}{"method": "GET"}
+	var result interface{} = false
+
+	ts, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
+	if err != nil {
+		panic(err)
+	}
+
+	err = p.Log(ctx, &server.Info{
+		DecisionID: "0",
+		Path:       "tda/bar",
+		Input:      &input,
+		Results:    &result,
+		RemoteAddr: "test",
+		Timestamp:  ts,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	done := make(chan struct{})
+	go func() {
+		// this call should block till the context deadline exceeds
+		p.Trigger(ctx)
+		close(done)
+	}()
+	<-done
+
+	if ctx.Err() == nil {
+		t.Fatal("Expected error but got nil")
+	}
+
+	exp := "context deadline exceeded"
+	if ctx.Err().Error() != exp {
+		t.Fatalf("Expected error %v but got %v", exp, ctx.Err().Error())
+	}
+
+	p.Stop(ctx)
 }
 
 func TestPluginGracefulShutdownFlushesDecisions(t *testing.T) {
@@ -1030,12 +1288,22 @@ func TestPluginReconfigureUploadSizeLimit(t *testing.T) {
 	fixture.plugin.mtx.Unlock()
 }
 
+type appendingPrintHook struct {
+	printed *[]string
+}
+
+func (a appendingPrintHook) Print(_ print.Context, s string) error {
+	*a.printed = append(*a.printed, s)
+	return nil
+}
+
 func TestPluginMasking(t *testing.T) {
 	tests := []struct {
 		note        string
 		rawPolicy   []byte
 		expErased   []string
 		expMasked   []string
+		expPrinted  []string
 		errManager  error
 		expErr      error
 		input       interface{}
@@ -1239,6 +1507,24 @@ func TestPluginMasking(t *testing.T) {
 				"foo":          []interface{}{map[string]interface{}{"changed": json.Number("1")}},
 			},
 		},
+		{
+			note: "print() works",
+			rawPolicy: []byte(`
+				package system.log
+				mask["/input/password"] {
+					print("Erasing /input/password")
+					input.input.is_sensitive
+				}`),
+			expErased: []string{"/input/password"},
+			input: map[string]interface{}{
+				"is_sensitive": true,
+				"password":     "secret",
+			},
+			expected: map[string]interface{}{
+				"is_sensitive": true,
+			},
+			expPrinted: []string{"Erasing /input/password"},
+		},
 	}
 
 	for _, tc := range tests {
@@ -1257,9 +1543,17 @@ func TestPluginMasking(t *testing.T) {
 				t.Fatal(err)
 			}
 
+			var output []string
+
 			// Create and start manager. Start is required so that stored policies
 			// get compiled and made available to the plugin.
-			manager, err := plugins.New(nil, "test", store)
+			manager, err := plugins.New(
+				nil,
+				"test",
+				store,
+				plugins.EnablePrintStatements(true),
+				plugins.PrintHook(appendingPrintHook{printed: &output}),
+			)
 			if err != nil {
 				t.Fatal(err)
 			} else if err := manager.Start(ctx); err != nil {
@@ -1272,7 +1566,9 @@ func TestPluginMasking(t *testing.T) {
 
 			// Instantiate the plugin.
 			cfg := &Config{Service: "svc"}
-			cfg.validateAndInjectDefaults([]string{"svc"}, nil)
+			trigger := plugins.DefaultTriggerMode
+			cfg.validateAndInjectDefaults([]string{"svc"}, nil, &trigger)
+
 			plugin := New(cfg, manager)
 
 			if err := plugin.Start(ctx); err != nil {
@@ -1303,12 +1599,16 @@ func TestPluginMasking(t *testing.T) {
 				}
 			}
 
+			if !reflect.DeepEqual(tc.expPrinted, output) {
+				t.Errorf("Expected output %v, got %v", tc.expPrinted, output)
+			}
+
 			// if reconfigure in test is on
 			if tc.reconfigure {
 				// Reconfigure and ensure that mask is invalidated.
 				maskDecision := "dead/beef"
 				newConfig := &Config{Service: "svc", MaskDecision: &maskDecision}
-				if err := newConfig.validateAndInjectDefaults([]string{"svc"}, nil); err != nil {
+				if err := newConfig.validateAndInjectDefaults([]string{"svc"}, nil, &trigger); err != nil {
 					t.Fatal(err)
 				}
 
@@ -1336,6 +1636,12 @@ type testFixtureOptions struct {
 	ConsoleLogger                  *test.Logger
 	ReportingUploadSizeLimitBytes  int64
 	ReportingMaxDecisionsPerSecond float64
+	Resource                       *string
+	TestServerPath                 *string
+	PartitionName                  *string
+	ExtraConfig                    map[string]interface{}
+	ExtraManagerConfig             map[string]interface{}
+	ManagerInit                    func(*plugins.Manager)
 }
 
 type testFixture struct {
@@ -1346,6 +1652,11 @@ type testFixture struct {
 }
 
 func newTestFixture(t *testing.T, opts ...testFixtureOptions) testFixture {
+
+	var options testFixtureOptions
+	if len(opts) > 0 {
+		options = opts[0]
+	}
 
 	ts := testServer{
 		t:       t,
@@ -1371,10 +1682,17 @@ func newTestFixture(t *testing.T, opts ...testFixtureOptions) testFixture {
 				}
 			]}`, ts.server.URL))
 
-	var options testFixtureOptions
-
-	if len(opts) > 0 {
-		options = opts[0]
+	mgrCfg := make(map[string]interface{})
+	err := json.Unmarshal(managerConfig, &mgrCfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for k, v := range options.ExtraManagerConfig {
+		mgrCfg[k] = v
+	}
+	managerConfig, err = json.MarshalIndent(mgrCfg, "", "  ")
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	manager, err := plugins.New(
@@ -1386,8 +1704,39 @@ func newTestFixture(t *testing.T, opts ...testFixtureOptions) testFixture {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if init := options.ManagerInit; init != nil {
+		init(manager)
+	}
 
-	config, _ := ParseConfig([]byte(`{"service": "example"}`), manager.Services(), nil)
+	pluginConfig := map[string]interface{}{
+		"service": "example",
+	}
+
+	if options.Resource != nil {
+		pluginConfig["resource"] = *options.Resource
+	}
+
+	if options.PartitionName != nil {
+		pluginConfig["partition_name"] = *options.PartitionName
+	}
+
+	for k, v := range options.ExtraConfig {
+		pluginConfig[k] = v
+	}
+
+	pluginConfigBytes, err := json.MarshalIndent(pluginConfig, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	config, err := ParseConfig(pluginConfigBytes, manager.Services(), manager.Plugins())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if options.TestServerPath != nil {
+		ts.path = *options.TestServerPath
+	}
 
 	if options.ReportingMaxDecisionsPerSecond != 0 {
 		config.Reporting.MaxDecisionsPerSecond = &options.ReportingMaxDecisionsPerSecond
@@ -1421,9 +1770,9 @@ func TestParseConfigUseDefaultServiceNoConsole(t *testing.T) {
 		"s3",
 	}
 
-	loggerConfig := []byte(fmt.Sprintf(`{
+	loggerConfig := []byte(`{
 		"console": false
-	}`))
+	}`)
 
 	config, err := ParseConfig([]byte(loggerConfig), services, nil)
 
@@ -1443,9 +1792,9 @@ func TestParseConfigDefaultServiceWithConsole(t *testing.T) {
 		"s3",
 	}
 
-	loggerConfig := []byte(fmt.Sprintf(`{
+	loggerConfig := []byte(`{
 		"console": true
-	}`))
+	}`)
 
 	config, err := ParseConfig([]byte(loggerConfig), services, nil)
 
@@ -1459,12 +1808,72 @@ func TestParseConfigDefaultServiceWithConsole(t *testing.T) {
 }
 
 func TestParseConfigDefaultServiceWithNoServiceOrConsole(t *testing.T) {
-	loggerConfig := []byte(fmt.Sprintf(`{}`))
+	loggerConfig := []byte(`{}`)
 
 	_, err := ParseConfig([]byte(loggerConfig), []string{}, nil)
 
 	if err == nil {
 		t.Errorf("Expected an error but err==nil")
+	}
+}
+
+func TestParseConfigTriggerMode(t *testing.T) {
+	cases := []struct {
+		note     string
+		config   []byte
+		expected plugins.TriggerMode
+		wantErr  bool
+		err      error
+	}{
+		{
+			note:     "default trigger mode",
+			config:   []byte(`{}`),
+			expected: plugins.DefaultTriggerMode,
+		},
+		{
+			note:     "manual trigger mode",
+			config:   []byte(`{"reporting": {"trigger": "manual"}}`),
+			expected: plugins.TriggerManual,
+		},
+		{
+			note:     "trigger mode mismatch",
+			config:   []byte(`{"reporting": {"trigger": "manual"}}`),
+			expected: plugins.TriggerPeriodic,
+			wantErr:  true,
+			err:      fmt.Errorf("invalid decision_log config: trigger mode mismatch: periodic and manual (hint: check discovery configuration)"),
+		},
+		{
+			note:     "bad trigger mode",
+			config:   []byte(`{"reporting": {"trigger": "foo"}}`),
+			expected: "foo",
+			wantErr:  true,
+			err:      fmt.Errorf("invalid decision_log config: invalid trigger mode \"foo\" (want \"periodic\" or \"manual\")"),
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+
+			c, err := NewConfigBuilder().WithBytes(tc.config).WithServices([]string{"s0"}).WithTriggerMode(&tc.expected).Parse()
+
+			if tc.wantErr {
+				if err == nil {
+					t.Fatal("Expected error but got nil")
+				}
+
+				if tc.err != nil && tc.err.Error() != err.Error() {
+					t.Fatalf("Expected error message %v but got %v", tc.err.Error(), err.Error())
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("Unexpected error %v", err)
+				}
+
+				if *c.Reporting.Trigger != tc.expected {
+					t.Fatalf("Expected trigger mode %v but got %v", tc.expected, *c.Reporting.Trigger)
+				}
+			}
+		})
 	}
 }
 
@@ -1628,11 +2037,129 @@ func TestEventV1ToAST(t *testing.T) {
 	}
 }
 
+func TestPluginDefaultResourcePath(t *testing.T) {
+
+	ctx := context.Background()
+
+	testServerPath := "/logs"
+
+	fixture := newTestFixture(t, testFixtureOptions{
+		TestServerPath: &testServerPath,
+	})
+	defer fixture.server.stop()
+
+	fixture.server.ch = make(chan []EventV1, 1)
+
+	var input interface{} = map[string]interface{}{"method": "GET"}
+	var result1 interface{} = false
+
+	fixture.plugin.Log(ctx, &server.Info{
+		DecisionID: "abc",
+		Path:       "data.foo.bar",
+		Input:      &input,
+		Results:    &result1,
+		RemoteAddr: "test",
+		Timestamp:  time.Now().UTC(),
+	})
+
+	if *fixture.plugin.config.Resource != defaultResourcePath {
+		t.Errorf("Expected the resource path to be the default %s, actual = '%s'", defaultResourcePath, *fixture.plugin.config.Resource)
+	}
+
+	fixture.server.expCode = 200
+
+	_, err := fixture.plugin.oneShot(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestPluginResourcePathAndPartitionName(t *testing.T) {
+
+	ctx := context.Background()
+
+	resourcePath := "/resource/path"
+	partitionName := "partition"
+	expectedPath := fmt.Sprintf("/logs/%v", partitionName)
+
+	fixture := newTestFixture(t, testFixtureOptions{
+		Resource:       &resourcePath,
+		TestServerPath: &expectedPath,
+		PartitionName:  &partitionName,
+	})
+	defer fixture.server.stop()
+
+	fixture.server.ch = make(chan []EventV1, 1)
+
+	var input interface{} = map[string]interface{}{"method": "GET"}
+	var result1 interface{} = false
+
+	fixture.plugin.Log(ctx, &server.Info{
+		DecisionID: "abc",
+		Path:       "data.foo.bar",
+		Input:      &input,
+		Results:    &result1,
+		RemoteAddr: "test",
+		Timestamp:  time.Now().UTC(),
+	})
+
+	if *fixture.plugin.config.Resource != expectedPath {
+		t.Errorf("Expected resource to be %s, but got %s", expectedPath, *fixture.plugin.config.Resource)
+	}
+
+	fixture.server.expCode = 200
+
+	_, err := fixture.plugin.oneShot(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestPluginResourcePath(t *testing.T) {
+
+	ctx := context.Background()
+
+	resourcePath := "/plugin/log/path"
+	testServerPath := "/plugin/log/path"
+
+	fixture := newTestFixture(t, testFixtureOptions{
+		Resource:       &resourcePath,
+		TestServerPath: &testServerPath,
+	})
+	defer fixture.server.stop()
+
+	fixture.server.ch = make(chan []EventV1, 1)
+
+	var input interface{} = map[string]interface{}{"method": "GET"}
+	var result1 interface{} = false
+
+	fixture.plugin.Log(ctx, &server.Info{
+		DecisionID: "abc",
+		Path:       "data.foo.bar",
+		Input:      &input,
+		Results:    &result1,
+		RemoteAddr: "test",
+		Timestamp:  time.Now().UTC(),
+	})
+
+	if *fixture.plugin.config.Resource != resourcePath {
+		t.Errorf("Expected resource to be %s, but got %s", resourcePath, *fixture.plugin.config.Resource)
+	}
+
+	fixture.server.expCode = 200
+
+	_, err := fixture.plugin.oneShot(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 type testServer struct {
 	t       *testing.T
 	expCode int
 	server  *httptest.Server
 	ch      chan []EventV1
+	path    string
 }
 
 func (t *testServer) handle(w http.ResponseWriter, r *http.Request) {
@@ -1647,7 +2174,11 @@ func (t *testServer) handle(w http.ResponseWriter, r *http.Request) {
 	if err := gr.Close(); err != nil {
 		t.t.Fatal(err)
 	}
-	t.t.Logf("decision log test server received %d events", len(events))
+	if t.path != "" && r.URL.Path != t.path {
+		t.t.Fatalf("expecting the request path %s to equal the configured path: %s", r.URL.Path, t.path)
+	}
+
+	t.t.Logf("decision log test server received %d events at path %s", len(events), r.URL.Path)
 	t.ch <- events
 	w.WriteHeader(t.expCode)
 }

@@ -15,14 +15,12 @@ import (
 	"strings"
 
 	"github.com/ghodss/yaml"
-	"github.com/pkg/errors"
-
-	"github.com/open-policy-agent/opa/metrics"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
 	fileurl "github.com/open-policy-agent/opa/internal/file/url"
 	"github.com/open-policy-agent/opa/internal/merge"
+	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/util"
@@ -193,7 +191,7 @@ func (fl fileLoader) AsBundle(path string) (*bundle.Bundle, error) {
 
 	b, err := br.Read()
 	if err != nil {
-		err = errors.Wrap(err, fmt.Sprintf("bundle %s", path))
+		err = fmt.Errorf("bundle %s: %w", path, err)
 	}
 
 	return &b, err
@@ -345,9 +343,8 @@ func loadOneSchema(path string) (interface{}, error) {
 	}
 
 	var schema interface{}
-	err = util.Unmarshal(bs, &schema)
-	if err != nil {
-		return nil, errors.Wrap(err, path)
+	if err := util.Unmarshal(bs, &schema); err != nil {
+		return nil, fmt.Errorf("%s: %w", path, err)
 	}
 
 	return schema, nil
@@ -591,7 +588,7 @@ func loadKnownTypes(path string, bs []byte, m metrics.Metrics, opts ast.ParserOp
 		if strings.HasSuffix(path, ".tar.gz") {
 			r, err := loadBundleFile(path, bs, m)
 			if err != nil {
-				err = errors.Wrap(err, fmt.Sprintf("bundle %s", path))
+				err = fmt.Errorf("bundle %s: %w", path, err)
 			}
 			return r, err
 		}
@@ -646,7 +643,7 @@ func loadJSON(path string, bs []byte, m metrics.Metrics) (interface{}, error) {
 	err := decoder.Decode(&x)
 	m.Timer(metrics.RegoDataParse).Stop()
 	if err != nil {
-		return nil, errors.Wrap(err, path)
+		return nil, fmt.Errorf("%s: %w", path, err)
 	}
 	return x, nil
 }

@@ -12,6 +12,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -30,11 +31,13 @@ type runCmdParams struct {
 	tlsCertFile        string
 	tlsPrivateKeyFile  string
 	tlsCACertFile      string
+	tlsCertRefresh     time.Duration
 	ignore             []string
 	serverMode         bool
 	skipVersionCheck   bool
 	authentication     *util.EnumFlag
 	authorization      *util.EnumFlag
+	minTLSVersion      *util.EnumFlag
 	logLevel           *util.EnumFlag
 	logFormat          *util.EnumFlag
 	algorithm          string
@@ -50,6 +53,7 @@ func newRunParams() runCmdParams {
 		rt:             runtime.NewParams(),
 		authentication: util.NewEnumFlag("off", []string{"token", "tls", "off"}),
 		authorization:  util.NewEnumFlag("off", []string{"basic", "off"}),
+		minTLSVersion:  util.NewEnumFlag("1.2", []string{"1.0", "1.1", "1.2", "1.3"}),
 		logLevel:       util.NewEnumFlag("info", []string{"debug", "info", "error"}),
 		logFormat:      util.NewEnumFlag("json", []string{"text", "json", "json-pretty"}),
 	}
@@ -65,11 +69,11 @@ func init() {
 
 To run the interactive shell:
 
-	$ opa run
+    $ opa run
 
 To run the server:
 
-	$ opa run -s
+    $ opa run -s
 
 The 'run' command starts an instance of the OPA runtime. The OPA runtime can be
 started as an interactive shell or a server.
@@ -89,23 +93,23 @@ files.
 When loading from directories, only files with known extensions are considered.
 The current set of file extensions that OPA will consider are:
 
-	.json          # JSON data
-	.yaml or .yml  # YAML data
-	.rego          # Rego file
+    .json          # JSON data
+    .yaml or .yml  # YAML data
+    .rego          # Rego file
 
 Non-bundle data file and directory paths can be prefixed with the desired
 destination in the data document with the following syntax:
 
-	<dotted-path>:<file-path>
+    <dotted-path>:<file-path>
 
 To set a data file as the input document in the interactive shell use the
 "repl.input" path prefix with the input file:
 
-	repl.input:<file-path>
+    repl.input:<file-path>
 
 Example:
 
-	opa run repl.input:input.json
+    $ opa run repl.input:input.json
 
 Which will load the "input.json" file at path "data.repl.input".
 
@@ -114,7 +118,7 @@ Use the "help input" command in the interactive shell to see more options.
 
 File paths can be specified as URLs to resolve ambiguity in paths containing colons:
 
-	$ opa run file:///c:/path/to/data.json
+    $ opa run file:///c:/path/to/data.json
 
 The 'run' command can also verify the signature of a signed bundle.
 A signed bundle is a normal OPA bundle that includes a file
@@ -138,7 +142,7 @@ bundle signature verification.
 
 Example:
 
-	$ opa run --verification-key secret --signing-alg HS256 --bundle bundle.tar.gz
+    $ opa run --verification-key secret --signing-alg HS256 --bundle bundle.tar.gz
 
 The 'run' command will read the bundle "bundle.tar.gz", check the
 ".signatures.json" file and perform verification using the provided key.
@@ -168,18 +172,20 @@ To skip bundle verification, use the --skip-verify flag.
 	runCommand.Flags().StringVarP(&cmdParams.rt.HistoryPath, "history", "H", historyPath(), "set path of history file")
 	cmdParams.rt.Addrs = runCommand.Flags().StringSliceP("addr", "a", []string{defaultAddr}, "set listening address of the server (e.g., [ip]:<port> for TCP, unix://<path> for UNIX domain socket)")
 	cmdParams.rt.DiagnosticAddrs = runCommand.Flags().StringSlice("diagnostic-addr", []string{}, "set read-only diagnostic listening address of the server for /health and /metric APIs (e.g., [ip]:<port> for TCP, unix://<path> for UNIX domain socket)")
-	runCommand.Flags().BoolVarP(&cmdParams.rt.H2CEnabled, "h2c", "", false, "enable H2C for HTTP listeners")
+	runCommand.Flags().BoolVar(&cmdParams.rt.H2CEnabled, "h2c", false, "enable H2C for HTTP listeners")
 	runCommand.Flags().StringVarP(&cmdParams.rt.OutputFormat, "format", "f", "pretty", "set shell output format, i.e, pretty, json")
 	runCommand.Flags().BoolVarP(&cmdParams.rt.Watch, "watch", "w", false, "watch command line files for changes")
 	addMaxErrorsFlag(runCommand.Flags(), &cmdParams.rt.ErrorLimit)
-	runCommand.Flags().BoolVarP(&cmdParams.rt.PprofEnabled, "pprof", "", false, "enables pprof endpoints")
-	runCommand.Flags().StringVarP(&cmdParams.tlsCertFile, "tls-cert-file", "", "", "set path of TLS certificate file")
-	runCommand.Flags().StringVarP(&cmdParams.tlsPrivateKeyFile, "tls-private-key-file", "", "", "set path of TLS private key file")
-	runCommand.Flags().StringVarP(&cmdParams.tlsCACertFile, "tls-ca-cert-file", "", "", "set path of TLS CA cert file")
-	runCommand.Flags().VarP(cmdParams.authentication, "authentication", "", "set authentication scheme")
-	runCommand.Flags().VarP(cmdParams.authorization, "authorization", "", "set authorization scheme")
+	runCommand.Flags().BoolVar(&cmdParams.rt.PprofEnabled, "pprof", false, "enables pprof endpoints")
+	runCommand.Flags().StringVar(&cmdParams.tlsCertFile, "tls-cert-file", "", "set path of TLS certificate file")
+	runCommand.Flags().StringVar(&cmdParams.tlsPrivateKeyFile, "tls-private-key-file", "", "set path of TLS private key file")
+	runCommand.Flags().StringVar(&cmdParams.tlsCACertFile, "tls-ca-cert-file", "", "set path of TLS CA cert file")
+	runCommand.Flags().DurationVar(&cmdParams.tlsCertRefresh, "tls-cert-refresh-period", 0, "set certificate refresh period")
+	runCommand.Flags().Var(cmdParams.authentication, "authentication", "set authentication scheme")
+	runCommand.Flags().Var(cmdParams.authorization, "authorization", "set authorization scheme")
+	runCommand.Flags().Var(cmdParams.minTLSVersion, "min-tls-version", "set minimum TLS version to be used by OPA's server")
 	runCommand.Flags().VarP(cmdParams.logLevel, "log-level", "l", "set log level")
-	runCommand.Flags().VarP(cmdParams.logFormat, "log-format", "", "set log format")
+	runCommand.Flags().Var(cmdParams.logFormat, "log-format", "set log format")
 	runCommand.Flags().IntVar(&cmdParams.rt.GracefulShutdownPeriod, "shutdown-grace-period", 10, "set the time (in seconds) that the server will wait to gracefully shut down")
 	runCommand.Flags().IntVar(&cmdParams.rt.ShutdownWaitPeriod, "shutdown-wait-period", 0, "set the time (in seconds) that the server will wait before initiating shutdown")
 	addConfigOverrides(runCommand.Flags(), &cmdParams.rt.ConfigOverrides)
@@ -220,10 +226,21 @@ func initRuntime(ctx context.Context, params runCmdParams, args []string) (*runt
 		"off":   server.AuthorizationOff,
 	}
 
+	minTLSVersions := map[string]uint16{
+		"1.0": tls.VersionTLS10,
+		"1.1": tls.VersionTLS11,
+		"1.2": tls.VersionTLS12,
+		"1.3": tls.VersionTLS13,
+	}
+
 	cert, err := loadCertificate(params.tlsCertFile, params.tlsPrivateKeyFile)
 	if err != nil {
 		return nil, err
 	}
+
+	params.rt.CertificateFile = params.tlsCertFile
+	params.rt.CertificateKeyFile = params.tlsPrivateKeyFile
+	params.rt.CertificateRefresh = params.tlsCertRefresh
 
 	if params.tlsCACertFile != "" {
 		pool, err := loadCertPool(params.tlsCACertFile)
@@ -235,6 +252,7 @@ func initRuntime(ctx context.Context, params runCmdParams, args []string) (*runt
 
 	params.rt.Authentication = authenticationSchemes[params.authentication.String()]
 	params.rt.Authorization = authorizationScheme[params.authorization.String()]
+	params.rt.MinTLSVersion = minTLSVersions[params.minTLSVersion.String()]
 	params.rt.Certificate = cert
 	params.rt.Logging = runtime.LoggingConfig{
 		Level:  params.logLevel.String(),
@@ -263,6 +281,8 @@ func initRuntime(ctx context.Context, params runCmdParams, args []string) (*runt
 	if err != nil {
 		return nil, err
 	}
+
+	rt.SetDistributedTracingLogging()
 
 	return rt, nil
 }

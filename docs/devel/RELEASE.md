@@ -115,7 +115,7 @@ standard GitHub fork workflow. See [OPA Dev Instructions](DEVELOPMENT.md)
 	- Login to Netlify (requires permission for the project) and manually trigger a build.
 	- Post to the build webhook via:
 		```bash
-		curl -X POST -d {} https://api.netlify.com/build_hooks/5cc3aa86495f22c7a368f1d2
+		curl -X POST -d {} https://api.netlify.com/build_hooks/612e8941ffe30d2902bcce80
 		```
 
 # Bugfix Release Process

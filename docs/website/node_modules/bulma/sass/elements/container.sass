@@ -1,25 +1,29 @@
+@import "../utilities/mixins"
+
+$container-offset: (2 * $gap) !default
+$container-max-width: $fullhd !default
+
 .container
+  flex-grow: 1
   margin: 0 auto
   position: relative
+  width: auto
+  &.is-fluid
+    max-width: none !important
+    padding-left: $gap
+    padding-right: $gap
+    width: 100%
   +desktop
-    max-width: $desktop - (2 * $gap)
-    width: $desktop - (2 * $gap)
-    &.is-fluid
-      margin-left: $gap
-      margin-right: $gap
-      max-width: none
-      width: auto
+    max-width: $desktop - $container-offset
   +until-widescreen
-    &.is-widescreen
-      max-width: $widescreen - (2 * $gap)
-      width: auto
+    &.is-widescreen:not(.is-max-desktop)
+      max-width: min($widescreen, $container-max-width) - $container-offset
   +until-fullhd
-    &.is-fullhd
-      max-width: $fullhd - (2 * $gap)
-      width: auto
+    &.is-fullhd:not(.is-max-desktop):not(.is-max-widescreen)
+      max-width: min($fullhd, $container-max-width) - $container-offset
   +widescreen
-    max-width: $widescreen - (2 * $gap)
-    width: $widescreen - (2 * $gap)
+    &:not(.is-max-desktop)
+      max-width: min($widescreen, $container-max-width) - $container-offset
   +fullhd
-    max-width: $fullhd - (2 * $gap)
-    width: $fullhd - (2 * $gap)
+    &:not(.is-max-desktop):not(.is-max-widescreen)
+      max-width: min($fullhd, $container-max-width) - $container-offset

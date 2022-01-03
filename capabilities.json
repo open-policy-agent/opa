@@ -21,16 +21,16 @@
           {
             "of": [
               {
-                "of": {
-                  "type": "any"
-                },
-                "type": "set"
-              },
-              {
                 "dynamic": {
                   "type": "any"
                 },
                 "type": "array"
+              },
+              {
+                "of": {
+                  "type": "any"
+                },
+                "type": "set"
               }
             ],
             "type": "any"
@@ -76,16 +76,16 @@
           {
             "of": [
               {
-                "of": {
-                  "type": "any"
-                },
-                "type": "set"
-              },
-              {
                 "dynamic": {
                   "type": "any"
                 },
                 "type": "array"
+              },
+              {
+                "of": {
+                  "type": "any"
+                },
+                "type": "set"
               }
             ],
             "type": "any"
@@ -107,6 +107,26 @@
             },
             "type": "array"
           },
+          {
+            "dynamic": {
+              "type": "any"
+            },
+            "type": "array"
+          }
+        ],
+        "result": {
+          "dynamic": {
+            "type": "any"
+          },
+          "type": "array"
+        },
+        "type": "function"
+      }
+    },
+    {
+      "name": "array.reverse",
+      "decl": {
+        "args": [
           {
             "dynamic": {
               "type": "any"
@@ -472,16 +492,16 @@
           {
             "of": [
               {
-                "of": {
-                  "type": "string"
-                },
-                "type": "set"
-              },
-              {
                 "dynamic": {
                   "type": "string"
                 },
                 "type": "array"
+              },
+              {
+                "of": {
+                  "type": "string"
+                },
+                "type": "set"
               }
             ],
             "type": "any"
@@ -517,10 +537,7 @@
           {
             "of": [
               {
-                "of": {
-                  "type": "any"
-                },
-                "type": "set"
+                "type": "string"
               },
               {
                 "dynamic": {
@@ -540,7 +557,10 @@
                 "type": "object"
               },
               {
-                "type": "string"
+                "of": {
+                  "type": "any"
+                },
+                "type": "set"
               }
             ],
             "type": "any"
@@ -548,6 +568,74 @@
         ],
         "result": {
           "type": "number"
+        },
+        "type": "function"
+      }
+    },
+    {
+      "name": "crypto.hmac.md5",
+      "decl": {
+        "args": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "string"
+          }
+        ],
+        "result": {
+          "type": "string"
+        },
+        "type": "function"
+      }
+    },
+    {
+      "name": "crypto.hmac.sha1",
+      "decl": {
+        "args": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "string"
+          }
+        ],
+        "result": {
+          "type": "string"
+        },
+        "type": "function"
+      }
+    },
+    {
+      "name": "crypto.hmac.sha256",
+      "decl": {
+        "args": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "string"
+          }
+        ],
+        "result": {
+          "type": "string"
+        },
+        "type": "function"
+      }
+    },
+    {
+      "name": "crypto.hmac.sha512",
+      "decl": {
+        "args": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "string"
+          }
+        ],
+        "result": {
+          "type": "string"
         },
         "type": "function"
       }
@@ -595,6 +683,39 @@
       }
     },
     {
+      "name": "crypto.x509.parse_and_verify_certificates",
+      "decl": {
+        "args": [
+          {
+            "type": "string"
+          }
+        ],
+        "result": {
+          "static": [
+            {
+              "type": "boolean"
+            },
+            {
+              "dynamic": {
+                "dynamic": {
+                  "key": {
+                    "type": "string"
+                  },
+                  "value": {
+                    "type": "any"
+                  }
+                },
+                "type": "object"
+              },
+              "type": "array"
+            }
+          ],
+          "type": "array"
+        },
+        "type": "function"
+      }
+    },
+    {
       "name": "crypto.x509.parse_certificate_request",
       "decl": {
         "args": [
@@ -637,6 +758,28 @@
             "type": "object"
           },
           "type": "array"
+        },
+        "type": "function"
+      }
+    },
+    {
+      "name": "crypto.x509.parse_rsa_private_key",
+      "decl": {
+        "args": [
+          {
+            "type": "string"
+          }
+        ],
+        "result": {
+          "dynamic": {
+            "key": {
+              "type": "string"
+            },
+            "value": {
+              "type": "any"
+            }
+          },
+          "type": "object"
         },
         "type": "function"
       }
@@ -792,16 +935,16 @@
               "value": {
                 "of": [
                   {
-                    "of": {
-                      "type": "any"
-                    },
-                    "type": "set"
-                  },
-                  {
                     "dynamic": {
                       "type": "any"
                     },
                     "type": "array"
+                  },
+                  {
+                    "of": {
+                      "type": "any"
+                    },
+                    "type": "set"
                   }
                 ],
                 "type": "any"
@@ -812,16 +955,16 @@
           {
             "of": [
               {
-                "of": {
-                  "type": "any"
-                },
-                "type": "set"
-              },
-              {
                 "dynamic": {
                   "type": "any"
                 },
                 "type": "array"
+              },
+              {
+                "of": {
+                  "type": "any"
+                },
+                "type": "set"
               }
             ],
             "type": "any"
@@ -944,6 +1087,62 @@
         "result": {
           "type": "number"
         },
+        "type": "function"
+      }
+    },
+    {
+      "name": "internal.member_2",
+      "decl": {
+        "args": [
+          {
+            "type": "any"
+          },
+          {
+            "type": "any"
+          }
+        ],
+        "result": {
+          "type": "boolean"
+        },
+        "type": "function"
+      },
+      "infix": "in"
+    },
+    {
+      "name": "internal.member_3",
+      "decl": {
+        "args": [
+          {
+            "type": "any"
+          },
+          {
+            "type": "any"
+          },
+          {
+            "type": "any"
+          }
+        ],
+        "result": {
+          "type": "boolean"
+        },
+        "type": "function"
+      },
+      "infix": "in"
+    },
+    {
+      "name": "internal.print",
+      "decl": {
+        "args": [
+          {
+            "dynamic": {
+              "of": {
+                "type": "any"
+              },
+              "type": "set"
+            },
+            "type": "array"
+          }
+        ],
         "type": "function"
       }
     },
@@ -1692,16 +1891,16 @@
           {
             "of": [
               {
-                "of": {
-                  "type": "any"
-                },
-                "type": "set"
-              },
-              {
                 "dynamic": {
                   "type": "any"
                 },
                 "type": "array"
+              },
+              {
+                "of": {
+                  "type": "any"
+                },
+                "type": "set"
               }
             ],
             "type": "any"
@@ -1720,16 +1919,16 @@
           {
             "of": [
               {
-                "of": {
-                  "type": "any"
-                },
-                "type": "set"
-              },
-              {
                 "dynamic": {
                   "type": "any"
                 },
                 "type": "array"
+              },
+              {
+                "of": {
+                  "type": "any"
+                },
+                "type": "set"
               }
             ],
             "type": "any"
@@ -1872,23 +2071,6 @@
                 "type": "array"
               },
               {
-                "of": {
-                  "of": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "dynamic": {
-                        "type": "any"
-                      },
-                      "type": "array"
-                    }
-                  ],
-                  "type": "any"
-                },
-                "type": "set"
-              },
-              {
                 "dynamic": {
                   "key": {
                     "type": "string"
@@ -1909,6 +2091,23 @@
                   }
                 },
                 "type": "object"
+              },
+              {
+                "of": {
+                  "of": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "dynamic": {
+                        "type": "any"
+                      },
+                      "type": "array"
+                    }
+                  ],
+                  "type": "any"
+                },
+                "type": "set"
               }
             ],
             "type": "any"
@@ -1936,23 +2135,6 @@
                 "type": "array"
               },
               {
-                "of": {
-                  "of": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "dynamic": {
-                        "type": "any"
-                      },
-                      "type": "array"
-                    }
-                  ],
-                  "type": "any"
-                },
-                "type": "set"
-              },
-              {
                 "dynamic": {
                   "key": {
                     "type": "string"
@@ -1973,6 +2155,23 @@
                   }
                 },
                 "type": "object"
+              },
+              {
+                "of": {
+                  "of": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "dynamic": {
+                        "type": "any"
+                      },
+                      "type": "array"
+                    }
+                  ],
+                  "type": "any"
+                },
+                "type": "set"
               }
             ],
             "type": "any"
@@ -2083,6 +2282,23 @@
       }
     },
     {
+      "name": "net.lookup_ip_addr",
+      "decl": {
+        "args": [
+          {
+            "type": "string"
+          }
+        ],
+        "result": {
+          "of": {
+            "type": "string"
+          },
+          "type": "set"
+        },
+        "type": "function"
+      }
+    },
+    {
       "name": "numbers.range",
       "decl": {
         "args": [
@@ -2126,12 +2342,6 @@
                 "type": "array"
               },
               {
-                "of": {
-                  "type": "any"
-                },
-                "type": "set"
-              },
-              {
                 "dynamic": {
                   "key": {
                     "type": "any"
@@ -2141,6 +2351,12 @@
                   }
                 },
                 "type": "object"
+              },
+              {
+                "of": {
+                  "type": "any"
+                },
+                "type": "set"
               }
             ],
             "type": "any"
@@ -2204,12 +2420,6 @@
                 "type": "array"
               },
               {
-                "of": {
-                  "type": "any"
-                },
-                "type": "set"
-              },
-              {
                 "dynamic": {
                   "key": {
                     "type": "any"
@@ -2219,6 +2429,12 @@
                   }
                 },
                 "type": "object"
+              },
+              {
+                "of": {
+                  "type": "any"
+                },
+                "type": "set"
               }
             ],
             "type": "any"
@@ -2326,25 +2542,51 @@
       "infix": "+"
     },
     {
+      "name": "print",
+      "decl": {
+        "type": "function",
+        "variadic": {
+          "type": "any"
+        }
+      }
+    },
+    {
       "name": "product",
       "decl": {
         "args": [
           {
             "of": [
               {
-                "of": {
-                  "type": "number"
-                },
-                "type": "set"
-              },
-              {
                 "dynamic": {
                   "type": "number"
                 },
                 "type": "array"
+              },
+              {
+                "of": {
+                  "type": "number"
+                },
+                "type": "set"
               }
             ],
             "type": "any"
+          }
+        ],
+        "result": {
+          "type": "number"
+        },
+        "type": "function"
+      }
+    },
+    {
+      "name": "rand.intn",
+      "decl": {
+        "args": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "number"
           }
         ],
         "result": {
@@ -2758,6 +3000,20 @@
       }
     },
     {
+      "name": "strings.reverse",
+      "decl": {
+        "args": [
+          {
+            "type": "string"
+          }
+        ],
+        "result": {
+          "type": "string"
+        },
+        "type": "function"
+      }
+    },
+    {
       "name": "substring",
       "decl": {
         "args": [
@@ -2784,16 +3040,16 @@
           {
             "of": [
               {
-                "of": {
-                  "type": "number"
-                },
-                "type": "set"
-              },
-              {
                 "dynamic": {
                   "type": "number"
                 },
                 "type": "array"
+              },
+              {
+                "of": {
+                  "type": "number"
+                },
+                "type": "set"
               }
             ],
             "type": "any"
@@ -3070,16 +3326,16 @@
           {
             "of": [
               {
-                "type": "number"
-              },
-              {
-                "type": "string"
+                "type": "null"
               },
               {
                 "type": "boolean"
               },
               {
-                "type": "null"
+                "type": "number"
+              },
+              {
+                "type": "string"
               }
             ],
             "type": "any"
@@ -3449,10 +3705,17 @@
       }
     }
   ],
+  "future_keywords": [
+    "in"
+  ],
   "wasm_abi_versions": [
     {
       "version": 1,
       "minor_version": 1
+    },
+    {
+      "version": 1,
+      "minor_version": 2
     }
   ]
 }

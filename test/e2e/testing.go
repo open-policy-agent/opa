@@ -7,6 +7,7 @@ package e2e
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -20,8 +21,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sirupsen/logrus"
-
+	"github.com/open-policy-agent/opa/internal/uuid"
+	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/logging/test"
 	"github.com/open-policy-agent/opa/runtime"
 	"github.com/open-policy-agent/opa/server/types"
@@ -46,42 +47,60 @@ func NewAPIServerTestParams() runtime.Params {
 		Format: "json-pretty",
 	}
 
+	// unless overridden, don't log from tests
+	params.Logger = logging.NewNoOpLogger()
+
 	params.GracefulShutdownPeriod = 10 // seconds
 
+	params.DecisionIDFactory = func() string {
+		id, err := uuid.New(rand.Reader)
+		if err != nil {
+			return ""
+		}
+		return id
+	}
 	return params
 }
 
 // TestRuntime holds metadata and provides helper methods
 // to interact with the runtime being tested.
 type TestRuntime struct {
-	Params        runtime.Params
-	Runtime       *runtime.Runtime
-	Ctx           context.Context
-	Cancel        context.CancelFunc
-	Client        *http.Client
-	ConsoleLogger *test.Logger
-	url           string
-	urlMtx        *sync.Mutex
+	Params         runtime.Params
+	Runtime        *runtime.Runtime
+	Ctx            context.Context
+	Cancel         context.CancelFunc
+	Client         *http.Client
+	ConsoleLogger  *test.Logger
+	url            string
+	urlMtx         *sync.Mutex
+	waitForBundles bool
 }
 
-// NewTestRuntime returns a new TestRuntime which
+// NewTestRuntime returns a new TestRuntime.
 func NewTestRuntime(params runtime.Params) (*TestRuntime, error) {
+	return NewTestRuntimeWithOpts(TestRuntimeOpts{}, params)
+}
+
+// NewTestRuntimeWithOpts returns a new TestRuntime.
+func NewTestRuntimeWithOpts(opts TestRuntimeOpts, params runtime.Params) (*TestRuntime, error) {
+
 	ctx := context.Background()
 	ctx, cancel := context.WithCancel(ctx)
 
 	rt, err := runtime.NewRuntime(ctx, params)
 	if err != nil {
 		cancel()
-		return nil, fmt.Errorf("unable to create new runtime: %s", err)
+		return nil, fmt.Errorf("create new runtime: %w", err)
 	}
 
 	return &TestRuntime{
-		Params:  params,
-		Runtime: rt,
-		Ctx:     ctx,
-		Cancel:  cancel,
-		Client:  &http.Client{},
-		urlMtx:  new(sync.Mutex),
+		Params:         params,
+		Runtime:        rt,
+		Ctx:            ctx,
+		Cancel:         cancel,
+		Client:         &http.Client{},
+		urlMtx:         new(sync.Mutex),
+		waitForBundles: opts.WaitForBundles,
 	}, nil
 }
 
@@ -195,7 +214,7 @@ func (t *TestRuntime) runTests(m *testing.M, suppressLogs bool) int {
 	go func() {
 		// Suppress the stdlogger in the server
 		if suppressLogs {
-			logrus.SetOutput(ioutil.Discard)
+			logging.Get().SetOutput(ioutil.Discard)
 		}
 		err := t.Runtime.Serve(t.Ctx)
 		done <- err
@@ -204,7 +223,7 @@ func (t *TestRuntime) runTests(m *testing.M, suppressLogs bool) int {
 	// Turns out this thread gets a different stdlogger
 	// so we need to set the output on it here too.
 	if suppressLogs {
-		logrus.SetOutput(ioutil.Discard)
+		logging.Get().SetOutput(ioutil.Discard)
 	}
 
 	// wait for the server to be ready
@@ -229,6 +248,43 @@ func (t *TestRuntime) runTests(m *testing.M, suppressLogs bool) int {
 	return errc
 }
 
+// TestRuntimeOpts contains parameters for the test runtime.
+type TestRuntimeOpts struct {
+	WaitForBundles bool // indicates if readiness check should depend on bundle activation
+}
+
+// WithRuntime invokes f with a new TestRuntime after waiting for server
+// readiness. This function can be called inside of each test that requires a
+// runtime as opposed to RunTests which can only be called once.
+func WithRuntime(t *testing.T, opts TestRuntimeOpts, params runtime.Params, f func(rt *TestRuntime)) {
+
+	t.Helper()
+
+	rt, err := NewTestRuntimeWithOpts(opts, params)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	done := make(chan error)
+	go func() {
+		err := rt.Runtime.Serve(rt.Ctx)
+		done <- err
+	}()
+
+	err = rt.WaitForServer()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	f(rt)
+	rt.Cancel()
+	err = <-done
+
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 // WaitForServer will block until the server is running and passes a health check.
 func (t *TestRuntime) WaitForServer() error {
 	delay := time.Duration(100) * time.Millisecond
@@ -239,7 +295,7 @@ func (t *TestRuntime) WaitForServer() error {
 			// Then make sure it has started serving
 			err := t.HealthCheck(t.URL())
 			if err == nil {
-				logrus.Infof("Test server ready and listening on: %s", t.URL())
+				logging.Get().Info("Test server ready and listening on: %s", t.URL())
 				return nil
 			}
 		}
@@ -380,7 +436,13 @@ func (t *TestRuntime) GetDataWithInputTyped(path string, input interface{}, resp
 
 // HealthCheck will query /health and return an error if the server is not healthy
 func (t *TestRuntime) HealthCheck(url string) error {
-	req, err := http.NewRequest("GET", url+"/health", nil)
+
+	url += "/health"
+	if t.waitForBundles {
+		url += "?bundles"
+	}
+
+	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return fmt.Errorf("unexpected error creating request: %s", err)
 	}

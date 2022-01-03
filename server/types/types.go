@@ -370,12 +370,23 @@ type PartialEvaluationResultV1 struct {
 
 // QueryRequestV1 models the request message for Query API operations.
 type QueryRequestV1 struct {
-	Query string `json:"query"`
+	Query string       `json:"query"`
+	Input *interface{} `json:"input"`
 }
 
 // ConfigResponseV1 models the response message for Config API operations.
 type ConfigResponseV1 struct {
 	Result *interface{} `json:"result,omitempty"`
+}
+
+// StatusResponseV1 models the response message for Status API (pull) operations.
+type StatusResponseV1 struct {
+	Result *interface{} `json:"result,omitempty"`
+}
+
+// HealthResponseV1 models the response message for Health API operations.
+type HealthResponseV1 struct {
+	Error string `json:"error,omitempty"`
 }
 
 const (
@@ -429,6 +440,11 @@ const (
 	// indicates the client wants to include bundle status in the results
 	// of the health API.
 	ParamPluginsV1 = "plugins"
+
+	// ParamExcludePluginV1 defines the name of the HTTP URL parameter that
+	// indicates the client wants to exclude plugin status in the results
+	// of the health API for the specified plugin(s)
+	ParamExcludePluginV1 = "exclude-plugin"
 
 	// ParamStrictBuiltinErrors names the HTTP URL parameter that indicates the client
 	// wants built-in function errors to be treated as fatal.

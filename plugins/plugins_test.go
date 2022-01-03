@@ -301,7 +301,7 @@ func TestPluginManagerAuthPlugin(t *testing.T) {
 
 func TestPluginManagerLogger(t *testing.T) {
 
-	logger := logging.NewStandardLogger().WithFields(map[string]interface{}{"context": "myloggincontext"})
+	logger := logging.Get().WithFields(map[string]interface{}{"context": "myloggincontext"})
 
 	m, err := New([]byte(`{}`), "test", inmem.New(), Logger(logger))
 	if err != nil {
@@ -337,6 +337,39 @@ func TestPluginManagerConsoleLogger(t *testing.T) {
 
 	if !reflect.DeepEqual(exp, entries) {
 		t.Fatalf("want %v but got %v", exp, entries)
+	}
+}
+
+func TestPluginManagerServerInitialized(t *testing.T) {
+	// Verify that ServerInitializedChannel is closed when
+	// ServerInitialized is called.
+	m1, err := New([]byte{}, "test1", inmem.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	initChannel1 := m1.ServerInitializedChannel()
+	m1.ServerInitialized()
+	// Verify that ServerInitialized is idempotent and will not panic
+	m1.ServerInitialized()
+	select {
+	case <-initChannel1:
+		break
+	default:
+		t.Fatal("expected ServerInitializedChannel to be closed")
+	}
+
+	// Verify that ServerInitializedChannel is open when
+	// ServerInitialized is not called.
+	m2, err := New([]byte{}, "test2", inmem.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	initChannel2 := m2.ServerInitializedChannel()
+	select {
+	case <-initChannel2:
+		t.Fatal("expected ServerInitializedChannel to be open and have no messages")
+	default:
+		break
 	}
 }
 

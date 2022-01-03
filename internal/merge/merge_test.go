@@ -30,6 +30,10 @@ func TestMergeDocs(t *testing.T) {
 		if err := util.UnmarshalJSON([]byte(tc.a), &a); err != nil {
 			panic(err)
 		}
+		aInitial := map[string]interface{}{}
+		if err := util.UnmarshalJSON([]byte(tc.a), &aInitial); err != nil {
+			panic(err)
+		}
 
 		b := map[string]interface{}{}
 		if err := util.UnmarshalJSON([]byte(tc.b), &b); err != nil {
@@ -43,6 +47,10 @@ func TestMergeDocs(t *testing.T) {
 				t.Errorf("Expected merge(%v,%v) == false but got: %v", a, b, c)
 			}
 
+			if !reflect.DeepEqual(a, aInitial) {
+				t.Errorf("Expected conflicting merge to not mutate a (%v) but got a: %v", aInitial, a)
+			}
+
 		} else {
 
 			expected := map[string]interface{}{}
@@ -54,6 +62,11 @@ func TestMergeDocs(t *testing.T) {
 			if !ok || !reflect.DeepEqual(c, expected) {
 				t.Errorf("Expected merge(%v, %v) == %v but got: %v (ok: %v)", a, b, expected, c, ok)
 			}
+
+			if reflect.DeepEqual(a, aInitial) || !reflect.DeepEqual(a, c) {
+				t.Errorf("Expected merge to mutate a (%v) but got %v", aInitial, a)
+			}
+
 		}
 	}
 }

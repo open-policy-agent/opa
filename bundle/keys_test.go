@@ -291,6 +291,37 @@ qnby6ICFV1o3cV2WFc5PVToBVoPEyUZQ7KFz/3znYQ44fbclemgU/5mf
 	})
 }
 
+func TestGetPrivateKeyNoFilePrivateKey(t *testing.T) {
+
+	privateKey := `-----BEGIN RSA PRIVATE KEY-----
+MIICXAIBAAKBgQCv9GCKxswe5axmZ0XUVoi2JB6fZWtquTMq+EwIHfqDT6Ch252W
+sJNF0XxupVdzxLlGax2enE0i4oKf8fNNylX2cRTvHJxlwdJjwZ2oARYScqacZjA5
+JRDDUsuzW9Qqru2fB6lXkgN1Aklzgnf0bkx6CoqwsHBkPVNyts2fpDLFBQIDAQAB
+AoGAK4rUIUOU28iGY0kHNMa9SiWiFlvoux5dlTKgzhltFvWrkKJiWxoTN+HhYxgz
+jgiOuOhlCg0v4YQgQyiCxytdHhgI+2fwh8upknNMLJdO485wbSe/nOaX1HO49yR/
+LAL3RX4+7pjSdlofGzu+mLaactU4M6i2QxBYj1xSfqJkyTkCQQDkFooNmHZV9cLr
+8msT3Dp2QpVJ4/hIwLCSPkPJLGfMUBpW/mBSgrBP1WkF5Us1564WEe9gsX6eZur5
+rlZewYNbAkEAxXyesM/ZYe1j3AlBOnQ69882vyeXK1oou1pHbKv7zbIgTjnusk5N
+GeqQfLvB+9MMLF2XVzqfbnBGoLYs0BMnHwJAAxVi7GghQWw/JF10oSIbEDo6NnOE
+icdBG9kHpZKaHKMAmCh8OOFXbNzfvJqq96GYMugvKkl8Arw1dQasWD+ZfQJBAMMz
+4futBxcXucwFzdbEioDl7hxWOsMcNAS0QMM24Ac62VnZQ4o1gVprk3Pndt++hVrZ
+C72p8WsNSZKTX4owVEsCQHIe9bXtAS8M02ftqHpp4Lvvu5R3WdLV2Jg/tCa/YogM
+b6giP1ZPqZArXaaZaUXZrWcsYx956X6wA4RkjrvaG40=
+-----END RSA PRIVATE KEY-----`
+
+	sc := NewSigningConfig(privateKey, "RS256", "")
+
+	result, err := sc.GetPrivateKey()
+	if err != nil {
+		t.Fatalf("Unexpected error %v", err)
+	}
+
+	_, ok := result.(*rsa.PrivateKey)
+	if !ok {
+		t.Fatalf("Expected key type *rsa.PrivateKey but got %T", result)
+	}
+}
+
 func TestGetClaimsErrors(t *testing.T) {
 	files := map[string]string{
 		"claims.json": `["foo", "read"]`,

@@ -19,9 +19,11 @@ ifeq ($(WASM_ENABLED),1)
 GO_TAGS = -tags=opa_wasm
 endif
 
-GOVERSION := $(shell cat ./.go-version)
+GOVERSION ?= $(shell cat ./.go-version)
 GOARCH := $(shell go env GOARCH)
 GOOS := $(shell go env GOOS)
+
+GOLANGCI_LINT_VERSION := v1.43.0
 
 DOCKER_RUNNING := $(shell docker ps >/dev/null 2>&1 && echo 1 || echo 0)
 
@@ -80,6 +82,10 @@ all: build test perf wasm-sdk-e2e-test check
 version:
 	@echo $(VERSION)
 
+.PHONY: release-dir
+release-dir:
+	@echo $(RELEASE_DIR)
+
 .PHONY: generate
 generate: wasm-lib-build
 	$(GO) generate
@@ -89,7 +95,7 @@ build: go-build
 
 .PHONY: image
 image:
-	DOCKER_UID=$(shell id -u) DOCKER_GID=$(shell id -g) $(MAKE) ci-go-ci-build-linux
+	DOCKER_UID=$(shell id -u) DOCKER_GID=$(shell id -g) $(MAKE) ci-go-ci-build-linux ci-go-ci-build-linux-static
 	@$(MAKE) image-quick
 
 .PHONY: install
@@ -128,23 +134,20 @@ wasm-sdk-e2e-test: generate
 	$(GO) test $(GO_TAGS),slow,wasm_sdk_e2e $(GO_TEST_TIMEOUT) -v ./internal/wasm/sdk/test/e2e
 
 .PHONY: check
-check: check-fmt check-vet check-lint
-
-.PHONY: check-fmt
-check-fmt:
-	./build/check-fmt.sh
-
-.PHONY: check-vet
-check-vet:
-	./build/check-vet.sh
-
-.PHONY: check-lint
-check-lint:
-	./build/check-lint.sh
+check:
+ifeq ($(DOCKER_RUNNING), 1)
+	docker run --rm -v $(shell pwd):/app -w /app golangci/golangci-lint:${GOLANGCI_LINT_VERSION} golangci-lint run -v
+else
+	@echo "Docker not installed or running. Skipping golangci run."
+endif
 
 .PHONY: fmt
 fmt:
-	./build/run-fmt.sh
+ifeq ($(DOCKER_RUNNING), 1)
+	docker run --rm -v $(shell pwd):/app -w /app golangci/golangci-lint:${GOLANGCI_LINT_VERSION} golangci-lint run -v --fix
+else
+	@echo "Docker not installed or running. Skipping golangci run."
+endif
 
 .PHONY: clean
 clean: wasm-lib-clean
@@ -262,18 +265,28 @@ ci-build-linux: ensure-release-dir
 	@$(MAKE) build GOOS=linux
 	chmod +x opa_linux_$(GOARCH)
 	mv opa_linux_$(GOARCH) $(RELEASE_DIR)/
+	cd $(RELEASE_DIR)/ && shasum -a 256 opa_linux_$(GOARCH) > opa_linux_$(GOARCH).sha256
 
 .PHONY: ci-build-linux-static
 ci-build-linux-static: ensure-release-dir
 	@$(MAKE) build GOOS=linux WASM_ENABLED=0 CGO_ENABLED=0
 	chmod +x opa_linux_$(GOARCH)
 	mv opa_linux_$(GOARCH) $(RELEASE_DIR)/opa_linux_$(GOARCH)_static
+	cd $(RELEASE_DIR)/ && shasum -a 256 opa_linux_$(GOARCH)_static > opa_linux_$(GOARCH)_static.sha256
 
 .PHONY: ci-build-darwin
 ci-build-darwin: ensure-release-dir
 	@$(MAKE) build GOOS=darwin
 	chmod +x opa_darwin_$(GOARCH)
 	mv opa_darwin_$(GOARCH) $(RELEASE_DIR)/
+	cd $(RELEASE_DIR)/ && shasum -a 256 opa_darwin_$(GOARCH) > opa_darwin_$(GOARCH).sha256
+
+.PHONY: ci-build-darwin-arm64-static
+ci-build-darwin-arm64-static: ensure-release-dir
+	@$(MAKE) build GOOS=darwin GOARCH=arm64 WASM_ENABLED=0 CGO_ENABLED=0
+	chmod +x opa_darwin_arm64
+	mv opa_darwin_arm64 $(RELEASE_DIR)/opa_darwin_arm64_static
+	cd $(RELEASE_DIR)/ && shasum -a 256 opa_darwin_arm64_static > opa_darwin_arm64_static.sha256
 
 # NOTE: This target expects to be run as root on some debian/ubuntu variant
 # that can install the `gcc-mingw-w64-x86-64` package via apt-get.
@@ -282,38 +295,38 @@ ci-build-windows: ensure-release-dir
 	build/ensure-windows-toolchain.sh
 	@$(MAKE) build GOOS=windows CC=x86_64-w64-mingw32-gcc
 	mv opa_windows_$(GOARCH) $(RELEASE_DIR)/opa_windows_$(GOARCH).exe
+	cd $(RELEASE_DIR)/ && shasum -a 256 opa_windows_$(GOARCH).exe > opa_windows_$(GOARCH).exe.sha256
 
 .PHONY: ensure-release-dir
 ensure-release-dir:
 	mkdir -p $(RELEASE_DIR)
 
 .PHONY: build-all-platforms
-build-all-platforms: ci-build-linux ci-build-linux-static ci-build-darwin ci-build-windows
+build-all-platforms: ci-build-linux ci-build-linux-static ci-build-darwin ci-build-darwin-arm64-static ci-build-windows
 
 .PHONY: image-quick
 image-quick:
-	chmod +x $(RELEASE_DIR)/opa_linux_amd64*
+	chmod +x $(RELEASE_DIR)/opa_linux_$(GOARCH)*
 	$(DOCKER) build \
 		-t $(DOCKER_IMAGE):$(VERSION) \
 		--build-arg BASE=gcr.io/distroless/cc \
-		--build-arg BIN=$(RELEASE_DIR)/opa_linux_amd64 \
+		--build-arg BIN=$(RELEASE_DIR)/opa_linux_$(GOARCH) \
 		.
 	$(DOCKER) build \
 		-t $(DOCKER_IMAGE):$(VERSION)-debug \
 		--build-arg BASE=gcr.io/distroless/cc:debug \
-		--build-arg BIN=$(RELEASE_DIR)/opa_linux_amd64 \
+		--build-arg BIN=$(RELEASE_DIR)/opa_linux_$(GOARCH) \
 		.
 	$(DOCKER) build \
 		-t $(DOCKER_IMAGE):$(VERSION)-rootless \
 		--build-arg USER=1000 \
 		--build-arg BASE=gcr.io/distroless/cc \
-		--build-arg BIN=$(RELEASE_DIR)/opa_linux_amd64 \
+		--build-arg BIN=$(RELEASE_DIR)/opa_linux_$(GOARCH) \
 		.
-	# this isn't published, only used for smoke testing the binaries
 	$(DOCKER) build \
-		-t $(DOCKER_IMAGE):$(VERSION)-static-ci-only \
-		--build-arg BASE=alpine \
-		--build-arg BIN=$(RELEASE_DIR)/opa_linux_amd64_static \
+		-t $(DOCKER_IMAGE):$(VERSION)-static \
+		--build-arg BASE=gcr.io/distroless/static \
+		--build-arg BIN=$(RELEASE_DIR)/opa_linux_$(GOARCH)_static \
 		.
 
 .PHONY: ci-image-smoke-test
@@ -321,43 +334,51 @@ ci-image-smoke-test: image-quick
 	$(DOCKER) run $(DOCKER_IMAGE):$(VERSION) version
 	$(DOCKER) run $(DOCKER_IMAGE):$(VERSION)-debug version
 	$(DOCKER) run $(DOCKER_IMAGE):$(VERSION)-rootless version
-	$(DOCKER) run $(DOCKER_IMAGE):$(VERSION)-static-ci-only version
+	$(DOCKER) run $(DOCKER_IMAGE):$(VERSION)-static version
+
+.PHONY: ci-binary-smoke-test-%
+ci-binary-smoke-test-%:
+	chmod +x "$(RELEASE_DIR)/$(BINARY)"
+	"$(RELEASE_DIR)/$(BINARY)" eval -t "$*" 'time.now_ns()'
 
 .PHONY: push
 push:
 	$(DOCKER) push $(DOCKER_IMAGE):$(VERSION)
 	$(DOCKER) push $(DOCKER_IMAGE):$(VERSION)-debug
 	$(DOCKER) push $(DOCKER_IMAGE):$(VERSION)-rootless
+	$(DOCKER) push $(DOCKER_IMAGE):$(VERSION)-static
 
 .PHONY: tag-latest
 tag-latest:
 	$(DOCKER) tag $(DOCKER_IMAGE):$(VERSION) $(DOCKER_IMAGE):latest
 	$(DOCKER) tag $(DOCKER_IMAGE):$(VERSION)-debug $(DOCKER_IMAGE):latest-debug
 	$(DOCKER) tag $(DOCKER_IMAGE):$(VERSION)-rootless $(DOCKER_IMAGE):latest-rootless
+	$(DOCKER) tag $(DOCKER_IMAGE):$(VERSION)-static $(DOCKER_IMAGE):latest-static
 
 .PHONY: push-latest
 push-latest:
 	$(DOCKER) push $(DOCKER_IMAGE):latest
 	$(DOCKER) push $(DOCKER_IMAGE):latest-debug
 	$(DOCKER) push $(DOCKER_IMAGE):latest-rootless
+	$(DOCKER) push $(DOCKER_IMAGE):latest-static
 
 .PHONY: push-binary-edge
 push-binary-edge:
-	aws s3 cp $(RELEASE_DIR)/opa_darwin_$(GOARCH) s3://$(S3_RELEASE_BUCKET)/edge/opa_darwin_$(GOARCH)
-	aws s3 cp $(RELEASE_DIR)/opa_windows_$(GOARCH).exe s3://$(S3_RELEASE_BUCKET)/edge/opa_windows_$(GOARCH).exe
-	aws s3 cp $(RELEASE_DIR)/opa_linux_$(GOARCH) s3://$(S3_RELEASE_BUCKET)/edge/opa_linux_$(GOARCH)
+	aws s3 sync $(RELEASE_DIR) s3://$(S3_RELEASE_BUCKET)/edge/ --delete
 
 .PHONY: tag-edge
 tag-edge:
 	$(DOCKER) tag $(DOCKER_IMAGE):$(VERSION) $(DOCKER_IMAGE):edge
 	$(DOCKER) tag $(DOCKER_IMAGE):$(VERSION)-debug $(DOCKER_IMAGE):edge-debug
 	$(DOCKER) tag $(DOCKER_IMAGE):$(VERSION)-rootless $(DOCKER_IMAGE):edge-rootless
+	$(DOCKER) tag $(DOCKER_IMAGE):$(VERSION)-static $(DOCKER_IMAGE):edge-static
 
 .PHONY: push-edge
 push-edge:
 	$(DOCKER) push $(DOCKER_IMAGE):edge
 	$(DOCKER) push $(DOCKER_IMAGE):edge-debug
 	$(DOCKER) push $(DOCKER_IMAGE):edge-rootless
+	$(DOCKER) push $(DOCKER_IMAGE):edge-static
 
 .PHONY: docker-login
 docker-login:
@@ -393,6 +414,21 @@ netlify-preview: clean docs-clean build docs-live-blocks-install-deps docs-live-
 check-fuzz:
 	./build/check-fuzz.sh $(FUZZ_TIME)
 
+# GOPRIVATE=* causes go to fetch all dependencies from their corresponding VCS
+# source, not through the golang-provided proxy services. We're cleaning out
+# /src/.go by providing a tmpfs mount, so the `go mod vendor -v` command will
+# not be able to use any module cache.
+.PHONY: check-go-module
+check-go-module:
+	docker run \
+	  $(DOCKER_FLAGS) \
+	  -w /src \
+	  -v $(PWD):/src \
+	  -e 'GOPRIVATE=*' \
+	  --tmpfs /src/.go \
+	  golang:$(GOVERSION) \
+	  go mod vendor -v
+
 ######################################################
 #
 # Release targets
@@ -401,7 +437,11 @@ check-fuzz:
 
 .PHONY: release-patch
 release-patch:
+ifeq ($(GITHUB_TOKEN),)
+	@echo "\033[0;31mGITHUB_TOKEN environment variable missing.\033[33m Provide a GitHub Personal Access Token (PAT) with the 'read:org' scope.\033[0m"
+endif
 	@$(DOCKER) run $(DOCKER_FLAGS) \
+		-e GITHUB_TOKEN=$(GITHUB_TOKEN) \
 		-e LAST_VERSION=$(LAST_VERSION) \
 		-v $(PWD):/_src \
 		python:2.7 \

@@ -11,7 +11,6 @@ extern "C" {
 #define container_of(ptr, type, member)                             \
     ((type *)(void *)( ((char *)(ptr) - offsetof(type, member) )))
 
-void opa_abort(const char *msg);
 void opa_println(const char *msg);
 
 #ifdef DEBUG

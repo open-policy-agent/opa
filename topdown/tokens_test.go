@@ -445,3 +445,50 @@ func TestTopDownJWTEncodeSignES512(t *testing.T) {
 		t.Fatal("Failed to verify message")
 	}
 }
+
+// NOTE(sr): The stdlib ecdsa package will randomly read 1 byte from the source
+// and discard it: so passing a fixed-seed `rand.New(rand.Source(seed))` via
+// `rego.WithSeed` will not do the trick, the output would still randomly be
+// one of two possible signatures. To fix that for testing, we're reaching
+// deeper here, and use a "constant number generator". It doesn't matter if the
+// first byte is discarded, the second one looks just the same.
+type cng struct{}
+
+func (*cng) Read(p []byte) (int, error) {
+	for i := range p {
+		p[i] = 4
+	}
+	return len(p), nil
+}
+
+func TestTopdownJWTEncodeSignECWithSeedReturnsSameSignature(t *testing.T) {
+	query := `io.jwt.encode_sign({"alg": "ES256"},{"pay": "load"},
+	  {"kty":"EC",
+	   "crv":"P-256",
+	   "x":"f83OJ3D2xF1Bg8vub9tLe1gHMzV76e8Tus9uPHvRVEU",
+	   "y":"x_FEzRu9m36HLN_tue659LNpXW6pCyStikYjKIWI5a0",
+	   "d":"jpsQnnGQmL-YBIffH1136cspYG6-0iY7X1fCE9-E9LI"
+	  }, x)`
+	encodedSigned := "eyJhbGciOiAiRVMyNTYifQ.eyJwYXkiOiAibG9hZCJ9.-LoHxtbT8t_TnqlLyONI4BtjvfkySO8TcoCFENqTTH2AKxvn29nAjxOdlbY-0EKVM2nJ4ukCx4IGtZtuwXr0VQ"
+
+	for i := 0; i < 10; i++ {
+		q := NewQuery(ast.MustParseBody(query)).
+			WithSeed(&cng{}).
+			WithStrictBuiltinErrors(true).
+			WithCompiler(ast.NewCompiler())
+
+		qrs, err := q.Run(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		} else if len(qrs) != 1 {
+			t.Fatal("expected exactly one result but got:", qrs)
+		}
+
+		if exp, act := 1, len(qrs); exp != act {
+			t.Fatalf("expected %d results, got %d", exp, act)
+		}
+		if exp, act := ast.String(encodedSigned), qrs[0][ast.Var("x")].Value; !exp.Equal(act) {
+			t.Fatalf("unexpected result: want %v, got %v", exp, act)
+		}
+	}
+}

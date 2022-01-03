@@ -16,7 +16,7 @@ host-level access controls over SSH and sudo.
 Linux-PAM can be configured to delegate authorization decisions to plugins
 (shared libraries). In this case, we have created an OPA-based plugin that can
 be configured to authorize SSH and sudo access. The OPA-based Linux-PAM plugin
-used in this tutorial can be found at [open-policy-agent/contrib](https://github.com/open-policy-agent/contrib/tree/master/pam_opa).
+used in this tutorial can be found at [open-policy-agent/contrib](https://github.com/open-policy-agent/contrib/tree/main/pam_opa).
 
 For this tutorial, our desired policy is:
 
@@ -56,7 +56,7 @@ services:
   opa:
     image: openpolicyagent/opa:{{< current_docker_version >}}
     ports:
-      - 8181:8181
+      - "8181:8181"
     # WARNING: OPA is NOT running with an authorization policy configured. This
     # means that clients can read and write policies in OPA. If you are
     # deploying OPA in an insecure environment, be sure to configure
@@ -110,7 +110,7 @@ In another terminal, load the policies and data into OPA that will control acces
 
 First, create a policy that will tell the PAM module to collect context that is required for authorization.
 For more details on what this policy should look like, see
-[this documentation](https://github.com/open-policy-agent/contrib/tree/master/pam_authz/pam#pull).
+[this documentation](https://github.com/open-policy-agent/contrib/tree/main/pam_authz/pam#pull).
 
 **pull.rego**:
 
@@ -118,10 +118,10 @@ For more details on what this policy should look like, see
 package pull
 
 # Which files should be loaded into the context?
-files = ["/etc/host_identity.json"]
+files := ["/etc/host_identity.json"]
 
 # Which environment variables should be loaded into the context?
-env_vars = []
+env_vars := []
 ```
 Load this policy into OPA.
 
@@ -133,7 +133,7 @@ curl -X PUT --data-binary @pull.rego \
 Next, create the policies that will authorize SSH and sudo requests.
 The `input` which makes up the authorization context in the policy below will also
 include some default values, such as the username making the request. See
-[this documentation](https://github.com/open-policy-agent/contrib/tree/master/pam_authz/pam#authz)
+[this documentation](https://github.com/open-policy-agent/contrib/tree/main/pam_authz/pam#authz)
 to get a better understanding of what the `input` to the authorization policy will look like.
 
 Unlike the *pull* policy, we'll create separate *authz* policies
@@ -259,7 +259,7 @@ You will see a lot of verbose logs from `sudo` as the PAM module goes through th
 This is intended so you can study how the PAM module works.
 You can disable verbose logging by changing the `log_level` argument in the PAM
 configuration. For more details see
-[this documentation](https://github.com/open-policy-agent/contrib/tree/master/pam_authz/pam#configuration).
+[this documentation](https://github.com/open-policy-agent/contrib/tree/main/pam_authz/pam#configuration).
 
 ### 4. SSH as a user without the `admin` role.
 
@@ -314,7 +314,7 @@ First, we need to make the PAM module take input from the user.
 package display
 
 # What should be prompted to the user?
-display_spec = [
+display_spec := [
   {
     "message": "Please enter an elevation ticket if you have one:",
     "style": "prompt_echo_on",
@@ -343,7 +343,7 @@ import input.display_responses
 # Allow this user if the elevation ticket they provided matches our mock API
 # of an internal elevation system.
 allow {
-  elevate.tickets[sysinfo.pam_username] == display_responses.ticket
+    elevate.tickets[sysinfo.pam_username] == display_responses.ticket
 }
 ```
 

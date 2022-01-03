@@ -134,6 +134,8 @@ func TestSuite(t *testing.T) {
 		}
 	}()
 
+	SetAllowNet(nil)
+
 	err = filepath.Walk(wd, func(path string, fileInfo os.FileInfo, err error) error {
 		if fileInfo.IsDir() && path != wd && !testDirectories.MatchString(fileInfo.Name()) {
 			return filepath.SkipDir

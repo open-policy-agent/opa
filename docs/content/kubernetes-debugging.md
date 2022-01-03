@@ -10,7 +10,8 @@ configured correctly. If none of these tips work, feel free to join
 [slack.openpolicyagent.org](https://slack.openpolicyagent.org) and ask for help.
 
 The tips below cover the OPA-Kubernetes integration that uses kube-mgmt.
-The [OPA Gatekeeper version](https://github.com/open-policy-agent/gatekeeper) has its own docs.
+The [OPA Gatekeeper version](https://open-policy-agent.github.io/gatekeeper)
+has its own docs.
 
 ### Check for the `openpolicyagent.org/policy-status` annotation on ConfigMaps containing policies
 
@@ -119,19 +120,19 @@ package system
 **Correct**:
 
 ```live:patch/good:module:read_only,openable
-main = {
+main := {
 	"apiVersion": "admission.k8s.io/v1beta1",
 	"kind": "AdmissionReview",
 	"response": response,
 }
 
-response = {
+response := {
   "allowed": true,
   "patchType": "JSONPatch",
   "patch": base64.encode(json.marshal(patches))   # <-- GOOD: uses base64.encode
 }
 
-patches = [
+patches := [
   {
     "op": "add",
     "path": "/metadata/annotations/acmecorp.com~1myannotation",
@@ -143,19 +144,19 @@ patches = [
 **Incorrect**:
 
 ```live:patch/bad:module:read_only
-main = {
+main := {
 	"apiVersion": "admission.k8s.io/v1beta1",
 	"kind": "AdmissionReview",
 	"response": response,
 }
 
-response = {
+response := {
   "allowed": true,
   "patchType": "JSONPatch",
   "patch": base64url.encode(json.marshal(patches))   # <-- BAD: uses base64url.encode
 }
 
-patches = [
+patches := [
   {
     "op": "add",
     "path": "/metadata/annotations/acmecorp.com~1myannotation",

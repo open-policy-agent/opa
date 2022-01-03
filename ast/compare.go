@@ -23,17 +23,18 @@ import (
 // ArrayComprehension < ObjectComprehension < SetComprehension < Expr < SomeDecl
 // < With < Body < Rule < Import < Package < Module.
 //
-// Arrays and Refs are equal iff both a and b have the same length and all
-// corresponding elements are equal. If one element is not equal, the return
-// value is the same as for the first differing element. If all elements are
-// equal but a and b have different lengths, the shorter is considered less than
-// the other.
+// Arrays and Refs are equal if and only if both a and b have the same length
+// and all corresponding elements are equal. If one element is not equal, the
+// return value is the same as for the first differing element. If all elements
+// are equal but a and b have different lengths, the shorter is considered less
+// than the other.
 //
-// Objects are considered equal iff both a and b have the same sorted (key,
-// value) pairs and are of the same length. Other comparisons are consistent but
-// not defined.
+// Objects are considered equal if and only if both a and b have the same sorted
+// (key, value) pairs and are of the same length. Other comparisons are
+// consistent but not defined.
 //
-// Sets are considered equal iff the symmetric difference of a and b is empty.
+// Sets are considered equal if and only if the symmetric difference of a and b
+// is empty.
 // Other comparisons are consistent but not defined.
 func Compare(a, b interface{}) int {
 

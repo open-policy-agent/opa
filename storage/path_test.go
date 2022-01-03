@@ -5,6 +5,7 @@
 package storage
 
 import (
+	"math"
 	"reflect"
 	"testing"
 
@@ -179,6 +180,7 @@ func TestPathRef(t *testing.T) {
 		{"/", "data", "data"},
 		{"/foo/bar", "data", "data.foo.bar"},
 		{"/foo/bar/3", "data", "data.foo.bar[3]"},
+		{fmt.Sprintf("/foo/bar/%d", math.MaxInt64), "data", fmt.Sprintf("data.foo.bar[%d]", math.MaxInt64)},
 	}
 	for _, tc := range tests {
 		path := MustParsePath(tc.path)

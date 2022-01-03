@@ -1,6 +1,9 @@
 package cmd
 
 import (
+	"archive/tar"
+	"compress/gzip"
+	"io"
 	"os"
 	"path"
 	"path/filepath"
@@ -33,6 +36,33 @@ func TestBuildProducesBundle(t *testing.T) {
 		_, err = loader.NewFileLoader().AsBundle(params.outputFile)
 		if err != nil {
 			t.Fatal(err)
+		}
+
+		// Check that manifest is not written given no input manifest and no other flags
+		f, err := os.Open(params.outputFile)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer f.Close()
+
+		gr, err := gzip.NewReader(f)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		tr := tar.NewReader(gr)
+
+		for {
+			f, err := tr.Next()
+			if err == io.EOF {
+				break
+			} else if err != nil {
+				t.Fatal(err)
+			}
+			if f.Name == "/data.json" || strings.HasSuffix(f.Name, "/test.rego") {
+				continue
+			}
+			t.Fatal("unexpected file:", f.Name)
 		}
 	})
 }

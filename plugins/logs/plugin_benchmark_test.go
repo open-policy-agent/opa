@@ -127,7 +127,7 @@ const largeEvent = `{
 	  "response": {
 		"allowed": false,
 		"status": {
-		  "reason": "Resource Pod/demo/nginx includes container image 'nginx' from prohibited registry"
+		  "message": "Resource Pod/demo/nginx includes container image 'nginx' from prohibited registry"
 		}
 	  }
 	},
@@ -148,7 +148,8 @@ func BenchmarkMaskingNop(b *testing.B) {
 	}
 
 	cfg := &Config{Service: "svc"}
-	if err := cfg.validateAndInjectDefaults([]string{"svc"}, nil); err != nil {
+	t := plugins.DefaultTriggerMode
+	if err := cfg.validateAndInjectDefaults([]string{"svc"}, nil, &t); err != nil {
 		b.Fatal(err)
 	}
 	plugin := New(cfg, manager)
@@ -188,7 +189,8 @@ func BenchmarkMaskingRuleCountsNop(b *testing.B) {
 	}
 
 	cfg := &Config{Service: "svc"}
-	if err := cfg.validateAndInjectDefaults([]string{"svc"}, nil); err != nil {
+	t := plugins.DefaultTriggerMode
+	if err := cfg.validateAndInjectDefaults([]string{"svc"}, nil, &t); err != nil {
 		b.Fatal(err)
 	}
 	plugin := New(cfg, manager)
@@ -240,7 +242,8 @@ func BenchmarkMaskingErase(b *testing.B) {
 	}
 
 	cfg := &Config{Service: "svc"}
-	if err := cfg.validateAndInjectDefaults([]string{"svc"}, nil); err != nil {
+	t := plugins.DefaultTriggerMode
+	if err := cfg.validateAndInjectDefaults([]string{"svc"}, nil, &t); err != nil {
 		b.Fatal(err)
 	}
 	plugin := New(cfg, manager)

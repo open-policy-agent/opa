@@ -13,7 +13,6 @@ import (
 	"reflect"
 
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 
 	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/metrics"
@@ -50,27 +49,35 @@ type Plugin struct {
 	lastBundleStatuses map[string]*bundle.Status
 	discoCh            chan bundle.Status
 	lastDiscoStatus    *bundle.Status
+	pluginStatusCh     chan map[string]*plugins.Status
+	lastPluginStatuses map[string]*plugins.Status
+	queryCh            chan chan *UpdateRequestV1
 	stop               chan chan struct{}
 	reconfig           chan interface{}
 	metrics            metrics.Metrics
-	lastPluginStatuses map[string]*plugins.Status
-	pluginStatusCh     chan map[string]*plugins.Status
 	logger             logging.Logger
+	trigger            chan trigger
 }
 
 // Config contains configuration for the plugin.
 type Config struct {
-	Plugin        *string `json:"plugin"`
-	Service       string  `json:"service"`
-	PartitionName string  `json:"partition_name,omitempty"`
-	ConsoleLogs   bool    `json:"console"`
+	Plugin        *string              `json:"plugin"`
+	Service       string               `json:"service"`
+	PartitionName string               `json:"partition_name,omitempty"`
+	ConsoleLogs   bool                 `json:"console"`
+	Trigger       *plugins.TriggerMode `json:"trigger,omitempty"` // trigger mode
 }
 
-func (c *Config) validateAndInjectDefaults(services []string, plugins []string) error {
+type trigger struct {
+	ctx  context.Context
+	done chan error
+}
+
+func (c *Config) validateAndInjectDefaults(services []string, pluginsList []string, trigger *plugins.TriggerMode) error {
 
 	if c.Plugin != nil {
 		var found bool
-		for _, other := range plugins {
+		for _, other := range pluginsList {
 			if other == *c.Plugin {
 				found = true
 				break
@@ -105,23 +112,71 @@ func (c *Config) validateAndInjectDefaults(services []string, plugins []string) 
 		return fmt.Errorf("invalid status config, must have a `service`, `plugin`, or `console` logging specified")
 	}
 
+	t, err := plugins.ValidateAndInjectDefaultsForTriggerMode(trigger, c.Trigger)
+	if err != nil {
+		return errors.Wrap(err, "invalid status config")
+	}
+	c.Trigger = t
+
 	return nil
 }
 
 // ParseConfig validates the config and injects default values.
-func ParseConfig(config []byte, services []string, plugins []string) (*Config, error) {
+func ParseConfig(config []byte, services []string, pluginsList []string) (*Config, error) {
+	t := plugins.DefaultTriggerMode
+	return NewConfigBuilder().WithBytes(config).WithServices(services).WithPlugins(pluginsList).WithTriggerMode(&t).Parse()
+}
 
-	if config == nil {
+// ConfigBuilder assists in the construction of the plugin configuration.
+type ConfigBuilder struct {
+	raw      []byte
+	services []string
+	plugins  []string
+	trigger  *plugins.TriggerMode
+}
+
+// NewConfigBuilder returns a new ConfigBuilder to build and parse the plugin config.
+func NewConfigBuilder() *ConfigBuilder {
+	return &ConfigBuilder{}
+}
+
+// WithBytes sets the raw plugin config.
+func (b *ConfigBuilder) WithBytes(config []byte) *ConfigBuilder {
+	b.raw = config
+	return b
+}
+
+// WithServices sets the services that implement control plane APIs.
+func (b *ConfigBuilder) WithServices(services []string) *ConfigBuilder {
+	b.services = services
+	return b
+}
+
+// WithPlugins sets the list of named plugins for status updates.
+func (b *ConfigBuilder) WithPlugins(plugins []string) *ConfigBuilder {
+	b.plugins = plugins
+	return b
+}
+
+// WithTriggerMode sets the plugin trigger mode.
+func (b *ConfigBuilder) WithTriggerMode(trigger *plugins.TriggerMode) *ConfigBuilder {
+	b.trigger = trigger
+	return b
+}
+
+// Parse validates the config and injects default values.
+func (b *ConfigBuilder) Parse() (*Config, error) {
+	if b.raw == nil {
 		return nil, nil
 	}
 
 	var parsedConfig Config
 
-	if err := util.Unmarshal(config, &parsedConfig); err != nil {
+	if err := util.Unmarshal(b.raw, &parsedConfig); err != nil {
 		return nil, err
 	}
 
-	if err := parsedConfig.validateAndInjectDefaults(services, plugins); err != nil {
+	if err := parsedConfig.validateAndInjectDefaults(b.services, b.plugins, b.trigger); err != nil {
 		return nil, err
 	}
 
@@ -139,7 +194,9 @@ func New(parsedConfig *Config, manager *plugins.Manager) *Plugin {
 		stop:           make(chan chan struct{}),
 		reconfig:       make(chan interface{}),
 		pluginStatusCh: make(chan map[string]*plugins.Status),
+		queryCh:        make(chan chan *UpdateRequestV1),
 		logger:         manager.Logger().WithFields(map[string]interface{}{"plugin": Name}),
+		trigger:        make(chan trigger),
 	}
 
 	p.manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateNotReady})
@@ -217,28 +274,57 @@ func (p *Plugin) Reconfigure(_ context.Context, config interface{}) {
 	p.reconfig <- config
 }
 
+// Snapshot returns the current status.
+func (p *Plugin) Snapshot() *UpdateRequestV1 {
+	ch := make(chan *UpdateRequestV1)
+	p.queryCh <- ch
+	s := <-ch
+	return s
+}
+
+// Trigger can be used to control when the plugin attempts to upload
+//status in manual triggering mode.
+func (p *Plugin) Trigger(ctx context.Context) error {
+	done := make(chan error)
+	p.trigger <- trigger{ctx: ctx, done: done}
+
+	select {
+	case err := <-done:
+		return err
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
 func (p *Plugin) loop() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
 	for {
+
 		select {
 		case statuses := <-p.pluginStatusCh:
 			p.lastPluginStatuses = statuses
-			err := p.oneShot(ctx)
-			if err != nil {
-				p.logger.Error("%v.", err)
-			} else {
-				p.logger.Info("Status update sent successfully in response to plugin update.")
+			if *p.config.Trigger == plugins.TriggerPeriodic {
+				err := p.oneShot(ctx)
+				if err != nil {
+					p.logger.Error("%v.", err)
+				} else {
+					p.logger.Info("Status update sent successfully in response to plugin update.")
+				}
 			}
+
 		case statuses := <-p.bulkBundleCh:
 			p.lastBundleStatuses = statuses
-			err := p.oneShot(ctx)
-			if err != nil {
-				p.logger.Error("%v.", err)
-			} else {
-				p.logger.Info("Status update sent successfully in response to bundle update.")
+			if *p.config.Trigger == plugins.TriggerPeriodic {
+				err := p.oneShot(ctx)
+				if err != nil {
+					p.logger.Error("%v.", err)
+				} else {
+					p.logger.Info("Status update sent successfully in response to bundle update.")
+				}
 			}
+
 		case status := <-p.bundleCh:
 			p.lastBundleStatus = &status
 			err := p.oneShot(ctx)
@@ -249,16 +335,29 @@ func (p *Plugin) loop() {
 			}
 		case status := <-p.discoCh:
 			p.lastDiscoStatus = &status
-			err := p.oneShot(ctx)
-			if err != nil {
-				p.logger.Error("%v.", err)
-			} else {
-				p.logger.Info("Status update sent successfully in response to discovery update.")
+			if *p.config.Trigger == plugins.TriggerPeriodic {
+				err := p.oneShot(ctx)
+				if err != nil {
+					p.logger.Error("%v.", err)
+				} else {
+					p.logger.Info("Status update sent successfully in response to discovery update.")
+				}
 			}
-
 		case newConfig := <-p.reconfig:
 			p.reconfigure(newConfig)
-
+		case respCh := <-p.queryCh:
+			respCh <- p.snapshot()
+		case update := <-p.trigger:
+			err := p.oneShot(update.ctx)
+			if err != nil {
+				p.logger.Error("%v.", err)
+				if update.ctx.Err() == nil {
+					update.done <- err
+				}
+			} else {
+				p.logger.Info("Status update sent successfully in response to manual trigger.")
+			}
+			close(update.done)
 		case done := <-p.stop:
 			cancel()
 			done <- struct{}{}
@@ -269,17 +368,7 @@ func (p *Plugin) loop() {
 
 func (p *Plugin) oneShot(ctx context.Context) error {
 
-	req := &UpdateRequestV1{
-		Labels:    p.manager.Labels(),
-		Discovery: p.lastDiscoStatus,
-		Bundle:    p.lastBundleStatus,
-		Bundles:   p.lastBundleStatuses,
-		Plugins:   p.lastPluginStatuses,
-	}
-
-	if p.metrics != nil {
-		req.Metrics = map[string]interface{}{p.metrics.Info().Name: p.metrics.All()}
-	}
+	req := p.snapshot()
 
 	if p.config.ConsoleLogs {
 		err := p.logUpdate(req)
@@ -333,17 +422,34 @@ func (p *Plugin) reconfigure(config interface{}) {
 	p.config = *newConfig
 }
 
+func (p *Plugin) snapshot() *UpdateRequestV1 {
+
+	s := &UpdateRequestV1{
+		Labels:    p.manager.Labels(),
+		Discovery: p.lastDiscoStatus,
+		Bundle:    p.lastBundleStatus,
+		Bundles:   p.lastBundleStatuses,
+		Plugins:   p.lastPluginStatuses,
+	}
+
+	if p.metrics != nil {
+		s.Metrics = map[string]interface{}{p.metrics.Info().Name: p.metrics.All()}
+	}
+
+	return s
+}
+
 func (p *Plugin) logUpdate(update *UpdateRequestV1) error {
 	eventBuf, err := json.Marshal(&update)
 	if err != nil {
 		return err
 	}
-	fields := logrus.Fields{}
+	fields := map[string]interface{}{}
 	err = util.UnmarshalJSON(eventBuf, &fields)
 	if err != nil {
 		return err
 	}
-	p.manager.ConsoleLogger().WithFields(fields).WithFields(logrus.Fields{
+	p.manager.ConsoleLogger().WithFields(fields).WithFields(map[string]interface{}{
 		"type": "openpolicyagent.org/status",
 	}).Info("Status Log")
 	return nil

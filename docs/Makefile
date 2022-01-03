@@ -28,13 +28,13 @@ install-deps: live-blocks-install-deps
 # npm scripts in ./website/scripts/live-blocks
 .PHONY: live-blocks-%
 live-blocks-%:
-	cd $(CURDIR)/website/scripts/live-blocks && npm run --silent $*
+	cd $(CURDIR)/website/scripts/live-blocks && npm run $*
 
 .PHONY: serve-local
 serve-local: production-build
 	# must be run from root of repo for
 	# the netlify.toml config to work
-	cd $(CURDIR)/.. && netlify dev --offline
+	cd $(CURDIR)/.. && netlify dev --offline --dir $(CURDIR)/website/public
 
 .PHONY: serve-remote
 serve-remote: production-build

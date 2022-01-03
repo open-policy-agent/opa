@@ -2,6 +2,7 @@
 #include "mpd.h"
 #include "std.h"
 #include "unicode.h"
+#include "re2/util/utf.h"
 
 OPA_BUILTIN
 opa_value *opa_agg_count(opa_value *v)
@@ -11,13 +12,12 @@ opa_value *opa_agg_count(opa_value *v)
     case OPA_STRING: {
         opa_string_t *s = opa_cast_string(v);
         int units = 0;
+        Rune rune;
 
-        for (int i = 0, len = 0; i < s->len; units++, i += len)
+        for (int i = 0, len = 0; i < s->len; i += len)
         {
-            if (opa_unicode_decode_utf8(s->v, i, s->len, &len) == -1)
-            {
-                opa_abort("string: invalid unicode");
-            }
+            len = chartorune(&rune, &s->v[i]);
+            units++;
         }
 
         return opa_number_int(units);
@@ -338,4 +338,32 @@ opa_value *opa_agg_any(opa_value *v)
     default:
         return NULL;
     }
+}
+
+OPA_BUILTIN
+opa_value *builtin_member(opa_value *v, opa_value *collection)
+{
+    opa_value *prev = NULL;
+    opa_value *curr = NULL;
+    while ((curr = opa_value_iter(collection, prev)) != NULL)
+    {
+        if (opa_value_compare(v, opa_value_get(collection, curr)) == 0)
+        {
+            return opa_boolean(true);
+        }
+        prev = curr;
+    }
+    return opa_boolean(false);
+}
+
+OPA_BUILTIN
+opa_value *builtin_member3(opa_value *key, opa_value *val, opa_value *collection)
+{
+    switch (opa_value_type(collection))
+    {
+    case OPA_ARRAY:
+    case OPA_OBJECT:
+        return opa_boolean(opa_value_compare(val, opa_value_get(collection, key)) == 0);
+    }
+    return opa_boolean(false);
 }

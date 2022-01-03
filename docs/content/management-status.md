@@ -189,10 +189,6 @@ Status updates contain the following fields:
 | Field | Type | Description |
 | --- | --- | --- |
 | `labels` | `object` | Set of key-value pairs that uniquely identify the OPA instance. |
-| `bundle.name` | `string` | (Deprecated) Name of bundle that the OPA instance is configured to download. Omitted when `bundles` are configured. |
-| `bundle.active_revision` | `string` | (Deprecated) Opaque revision identifier of the last successful activation. Omitted when `bundles` are configured. |
-| `bundle.last_successful_download` | `string` | (Deprecated) RFC3339 timestamp of last successful bundle download. Omitted when `bundles` are configured. |
-| `bundle.last_successful_activation` | `string` | (Deprecated) RFC3339 timestamp of last successful bundle activation. Omitted when `bundles` are configured. |
 | `bundles` | `object` | Set of objects describing the status for each bundle configured with OPA. |
 | `bundles[_].name` | `string` | Name of bundle that the OPA instance is configured to download. |
 | `bundles[_].active_revision` | `string` | Opaque revision identifier of the last successful activation. |
@@ -201,6 +197,9 @@ Status updates contain the following fields:
 | `bundles[_].last_successful_download` | `string` | RFC3339 timestamp of last successful bundle download. |
 | `bundles[_].last_successful_activation` | `string` | RFC3339 timestamp of last successful bundle activation. |
 | `bundles[_].metrics` | `object` | Metrics from the last update of the bundle. |
+| `bundles[_].code` | `string` | If present, indicates error(s) occurred activating this bundle. |
+| `bundles[_].message` | `string` | Human readable messages describing the error(s). |
+| `bundles[_].errors` | `array` | Collection of detailed parse or compile errors that occurred during activation of this bundle. |
 | `discovery.name` | `string` | Name of discovery bundle that the OPA instance is configured to download. |
 | `discovery.active_revision` | `string` | Opaque revision identifier of the last successful discovery activation. |
 | `discovery.last_request` | `string` | RFC3339 timestamp of last discovery bundle request. This timestamp should be >= to the successful request timestamp in normal operation. |
@@ -210,15 +209,6 @@ Status updates contain the following fields:
 | `plugins` | `object` | A set of objects describing the state of configured plugins in OPA's runtime. |
 | `plugins[_].state` | `string` | The state of each plugin. |
 | `metrics.prometheus` | `object` | Global performance metrics for the OPA instance. |
-
-If the bundle download or activation failed, the status update will contain
-the following additional fields.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `bundle.code` | `string` | If present, indicates error(s) occurred. |
-| `bundle.message` | `string` | Human readable messages describing the error(s). |
-| `bundle.errors` | `array` | Collection of detailed parse or compile errors that occurred during activation. |
 
 If the discovery bundle download or activation failed, the status update will contain
 the following additional fields.

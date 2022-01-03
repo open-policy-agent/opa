@@ -5,14 +5,15 @@
 package ast
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"reflect"
 	"strings"
 	"testing"
-)
 
-var _ = fmt.Printf
+	"github.com/open-policy-agent/opa/ast/internal/tokens"
+)
 
 const (
 	testModule = `
@@ -474,6 +475,10 @@ func TestCalls(t *testing.T) {
 			IntNumberTerm(1)}))
 	assertParseOneExpr(t, "call-void", "foo()", NewExpr(
 		[]*Term{RefTerm(VarTerm("foo"))}))
+
+	opts := ParserOptions{FutureKeywords: []string{"in"}}
+	assertParseOneExpr(t, "internal.member_2", "x in xs", Member.Expr(VarTerm("x"), VarTerm("xs")), opts)
+	assertParseOneExpr(t, "internal.member_3", "x, y in xs", MemberWithKey.Expr(VarTerm("x"), VarTerm("y"), VarTerm("xs")), opts)
 }
 
 func TestInfixExpr(t *testing.T) {
@@ -654,6 +659,7 @@ func TestExprWithLocation(t *testing.T) {
 }
 
 func TestSomeDeclExpr(t *testing.T) {
+	opts := ParserOptions{FutureKeywords: []string{"in"}}
 
 	assertParseOneExpr(t, "one", "some x", &Expr{
 		Terms: &SomeDecl{
@@ -663,6 +669,32 @@ func TestSomeDeclExpr(t *testing.T) {
 		},
 	})
 
+	assertParseOneExpr(t, "internal.member_2", "some x in xs", &Expr{
+		Terms: &SomeDecl{
+			Symbols: []*Term{
+				Member.Call(
+					VarTerm("x"),
+					VarTerm("xs"),
+				),
+			},
+		},
+	}, opts)
+
+	assertParseOneExpr(t, "internal.member_3", "some x, y in xs", &Expr{
+		Terms: &SomeDecl{
+			Symbols: []*Term{
+				MemberWithKey.Call(
+					VarTerm("x"),
+					VarTerm("y"),
+					VarTerm("xs"),
+				),
+			},
+		},
+	}, opts)
+
+	assertParseErrorContains(t, "some + function call", "some f(x)",
+		"expected `x in xs` or `x, y in xs` expression")
+
 	assertParseOneExpr(t, "multiple", "some x, y", &Expr{
 		Terms: &SomeDecl{
 			Symbols: []*Term{
@@ -670,7 +702,7 @@ func TestSomeDeclExpr(t *testing.T) {
 				VarTerm("y"),
 			},
 		},
-	})
+	}, opts)
 
 	assertParseOneExpr(t, "multiple split across lines", `some x, y,
 		z`, &Expr{
@@ -696,6 +728,31 @@ func TestSomeDeclExpr(t *testing.T) {
 			NewExpr(RefTerm(VarTerm("q"), VarTerm("x"))),
 		),
 	})
+
+	assertParseRule(t, "whitespace separated, following `in` rule ref", `
+	p[x] {
+		some x
+		in[x]
+	}
+`, &Rule{
+		Head: NewHead(Var("p"), VarTerm("x")),
+		Body: NewBody(
+			NewExpr(&SomeDecl{Symbols: []*Term{VarTerm("x")}}),
+			NewExpr(RefTerm(VarTerm("in"), VarTerm("x"))),
+		),
+	})
+
+	assertParseErrorContains(t, "some x in ... usage is hinted properly", `
+	p[x] {
+		some x in {"foo": "bar"}
+	}`,
+		"unexpected ident token: expected \\n or ; or } (hint: `import future.keywords.in` for `some x in xs` expressions)")
+
+	assertParseErrorContains(t, "some x, y in ... usage is hinted properly", `
+	p[y] = x {
+		some x, y in {"foo": "bar"}
+	}`,
+		"unexpected ident token: expected \\n or ; or } (hint: `import future.keywords.in` for `some x in xs` expressions)")
 
 	assertParseRule(t, "whitespace terminated", `
 
@@ -1033,7 +1090,8 @@ func TestImport(t *testing.T) {
 	assertParseImport(t, "white space", "import input.foo.bar[\"white space\"]", &Import{Path: whitespace})
 	assertParseErrorContains(t, "non-ground ref", "import data.foo[x]", "rego_parse_error: unexpected var token: expecting string")
 	assertParseErrorContains(t, "non-string", "import input.foo[0]", "rego_parse_error: unexpected number token: expecting string")
-	assertParseErrorContains(t, "unknown root", "import foo.bar", "rego_parse_error: unexpected import path, must begin with one of: {data, input}, got: foo")
+	assertParseErrorContains(t, "unknown root", "import foo.bar", "rego_parse_error: unexpected import path, must begin with one of: {data, future, input}, got: foo")
+	assertParseErrorContains(t, "bad variable term", "import input as A(", "rego_parse_error: unexpected eof token: expected var")
 
 	_, _, err := ParseStatements("", "package foo\nimport bar.data\ndefault foo=1")
 	if err == nil {
@@ -1046,6 +1104,45 @@ func TestImport(t *testing.T) {
 	expected := "import bar.data"
 	if txt != expected {
 		t.Fatalf("Expected error detail text '%s' but got '%s'", expected, txt)
+	}
+}
+
+func TestFutureImports(t *testing.T) {
+	assertParseErrorContains(t, "future", "import future", "invalid import, use `import future.keywords` or `import.future.keywords.in`")
+	assertParseErrorContains(t, "future.a", "import future.a", "invalid import, must be `future.keywords`")
+	assertParseErrorContains(t, "unknown keyword", "import future.keywords.xyz", "unexpected keyword, must be one of [in]")
+	assertParseErrorContains(t, "all keyword import + alias", "import future.keywords as xyz", "future keyword imports cannot be aliased")
+	assertParseErrorContains(t, "keyword import + alias", "import future.keywords.in as xyz", "future keyword imports cannot be aliased")
+
+	tests := []struct {
+		note, imp string
+		exp       map[string]tokens.Token
+	}{
+		{
+			note: "simple import",
+			imp:  "import future.keywords.in",
+			exp:  map[string]tokens.Token{"in": tokens.In},
+		},
+		{
+			note: "all keywords imported",
+			imp:  "import future.keywords",
+			exp:  map[string]tokens.Token{"in": tokens.In},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			parser := NewParser().WithFilename("").WithReader(bytes.NewBufferString(tc.imp))
+			_, _, errs := parser.Parse()
+			if exp, act := 0, len(errs); exp != act {
+				t.Fatalf("expected %d errors, got %d: %v", exp, act, errs)
+			}
+			for kw, exp := range tc.exp {
+				act := parser.s.s.Keyword(kw)
+				if act != exp {
+					t.Errorf("expected keyword %q to yield token %v, got %v", kw, exp, act)
+				}
+			}
+		})
 	}
 }
 
@@ -2221,6 +2318,17 @@ p = true {
 			err: `1 error occurred: test.rego:4: rego_parse_error: unexpected as keyword
 	as
 	^`},
+		{
+			note: "input is tab and space tokens only",
+			exp: &ParserErrorDetail{
+				Line: "\t\v\f ",
+				Idx:  0,
+			},
+			input: "\t\v\f ",
+			// NOTE(sr): With the unprintable control characters, the output is pretty
+			// useless. But it's also quite an edge case.
+			err: "1 error occurred: test.rego:1: rego_parse_error: illegal token\n\t\v\f \n\t^",
+		},
 	}
 
 	for _, tc := range tests {
@@ -2231,7 +2339,7 @@ p = true {
 			}
 			detail := err.(Errors)[0].Details
 			if !reflect.DeepEqual(detail, tc.exp) {
-				t.Fatalf("Expected %v but got: %v", tc.exp, detail)
+				t.Errorf("Expected %v but got: %v", tc.exp, detail)
 			}
 			if tc.err != "" && tc.err != err.Error() {
 				t.Fatalf("Expected error string %q but got: %q", tc.err, err.Error())
@@ -3152,7 +3260,10 @@ func assertLocationText(t *testing.T, expected string, actual *Location) {
 }
 
 func assertParseError(t *testing.T, msg string, input string) {
-	assertParseErrorFunc(t, msg, input, func(string) {})
+	t.Helper()
+	t.Run(msg, func(t *testing.T) {
+		assertParseErrorFunc(t, msg, input, func(string) {})
+	})
 }
 
 func assertParseErrorContains(t *testing.T, msg string, input string, expected string) {
@@ -3220,14 +3331,22 @@ func assertParsePackage(t *testing.T, msg string, input string, correct *Package
 	})
 }
 
-func assertParseOne(t *testing.T, msg string, input string, correct func(interface{})) {
+func assertParseOne(t *testing.T, msg string, input string, correct func(interface{}), opts ...ParserOptions) {
 	t.Helper()
-	p, err := ParseStatement(input)
+	opt := ParserOptions{}
+	if len(opts) == 1 {
+		opt = opts[0]
+	}
+	stmts, _, err := ParseStatementsWithOpts("", input, opt)
+	if len(stmts) != 1 {
+		t.Errorf("Error on test \"%s\": parse error on %s: expected exactly one statement, got %d", msg, input, len(stmts))
+		return
+	}
 	if err != nil {
 		t.Errorf("Error on test \"%s\": parse error on %s: %s", msg, input, err)
 		return
 	}
-	correct(p)
+	correct(stmts[0])
 }
 
 func assertParseOneBody(t *testing.T, msg string, input string, correct Body) {
@@ -3241,7 +3360,7 @@ func assertParseOneBody(t *testing.T, msg string, input string, correct Body) {
 	}
 }
 
-func assertParseOneExpr(t *testing.T, msg string, input string, correct *Expr) {
+func assertParseOneExpr(t *testing.T, msg string, input string, correct *Expr, opts ...ParserOptions) {
 	t.Helper()
 	assertParseOne(t, msg, input, func(parsed interface{}) {
 		t.Helper()
@@ -3254,7 +3373,7 @@ func assertParseOneExpr(t *testing.T, msg string, input string, correct *Expr) {
 		if !expr.Equal(correct) {
 			t.Errorf("Error on test \"%s\": expressions not equal:\n%v (parsed)\n%v (correct)", msg, expr, correct)
 		}
-	})
+	}, opts...)
 }
 
 func assertParseOneExprNegated(t *testing.T, msg string, input string, correct *Expr) {
@@ -3264,7 +3383,9 @@ func assertParseOneExprNegated(t *testing.T, msg string, input string, correct *
 
 func assertParseOneTerm(t *testing.T, msg string, input string, correct *Term) {
 	t.Helper()
-	assertParseOneExpr(t, msg, input, &Expr{Terms: correct})
+	t.Run(msg, func(t *testing.T) {
+		assertParseOneExpr(t, msg, input, &Expr{Terms: correct})
+	})
 }
 
 func assertParseOneTermNegated(t *testing.T, msg string, input string, correct *Term) {

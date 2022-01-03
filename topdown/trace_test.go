@@ -56,7 +56,7 @@ func TestEventEqual(t *testing.T) {
 func TestPrettyTrace(t *testing.T) {
 	module := `package test
 
-	p = true { q[x]; plus(x, 1, n) }
+	p { q[x]; plus(x, 1, n) }
 	q[x] { x = data.a[_] }`
 
 	ctx := context.Background()
@@ -80,47 +80,32 @@ func TestPrettyTrace(t *testing.T) {
 
 	expected := `Enter data.test.p = _
 | Eval data.test.p = _
-| Index data.test.p (matched 1 rule)
+| Index data.test.p (matched 1 rule, early exit)
 | Enter data.test.p
 | | Eval data.test.q[x]
 | | Index data.test.q (matched 1 rule)
 | | Enter data.test.q
 | | | Eval x = data.a[_]
 | | | Exit data.test.q
+| | Redo data.test.q
+| | | Redo x = data.a[_]
+| | | Exit data.test.q
+| | Redo data.test.q
+| | | Redo x = data.a[_]
+| | | Exit data.test.q
+| | Redo data.test.q
+| | | Redo x = data.a[_]
+| | | Exit data.test.q
+| | Redo data.test.q
+| | | Redo x = data.a[_]
 | | Eval plus(x, 1, n)
-| | Exit data.test.p
+| | Exit data.test.p early
 | Exit data.test.p = _
 Redo data.test.p = _
 | Redo data.test.p = _
 | Redo data.test.p
 | | Redo plus(x, 1, n)
 | | Redo data.test.q[x]
-| | Redo data.test.q
-| | | Redo x = data.a[_]
-| | | Exit data.test.q
-| | Eval plus(x, 1, n)
-| | Exit data.test.p
-| Redo data.test.p
-| | Redo plus(x, 1, n)
-| | Redo data.test.q[x]
-| | Redo data.test.q
-| | | Redo x = data.a[_]
-| | | Exit data.test.q
-| | Eval plus(x, 1, n)
-| | Exit data.test.p
-| Redo data.test.p
-| | Redo plus(x, 1, n)
-| | Redo data.test.q[x]
-| | Redo data.test.q
-| | | Redo x = data.a[_]
-| | | Exit data.test.q
-| | Eval plus(x, 1, n)
-| | Exit data.test.p
-| Redo data.test.p
-| | Redo plus(x, 1, n)
-| | Redo data.test.q[x]
-| | Redo data.test.q
-| | | Redo x = data.a[_]
 `
 
 	a := strings.Split(expected, "\n")
@@ -149,7 +134,7 @@ Redo data.test.p = _
 func TestPrettyTraceWithLocation(t *testing.T) {
 	module := `package test
 
-	p = true { q[x]; plus(x, 1, n) }
+	p { q[x]; plus(x, 1, n) }
 	q[x] { x = data.a[_] }`
 
 	ctx := context.Background()
@@ -173,47 +158,32 @@ func TestPrettyTraceWithLocation(t *testing.T) {
 
 	expected := `query:1     Enter data.test.p = _
 query:1     | Eval data.test.p = _
-query:1     | Index data.test.p (matched 1 rule)
+query:1     | Index data.test.p (matched 1 rule, early exit)
 query:3     | Enter data.test.p
 query:3     | | Eval data.test.q[x]
 query:3     | | Index data.test.q (matched 1 rule)
 query:4     | | Enter data.test.q
 query:4     | | | Eval x = data.a[_]
 query:4     | | | Exit data.test.q
+query:4     | | Redo data.test.q
+query:4     | | | Redo x = data.a[_]
+query:4     | | | Exit data.test.q
+query:4     | | Redo data.test.q
+query:4     | | | Redo x = data.a[_]
+query:4     | | | Exit data.test.q
+query:4     | | Redo data.test.q
+query:4     | | | Redo x = data.a[_]
+query:4     | | | Exit data.test.q
+query:4     | | Redo data.test.q
+query:4     | | | Redo x = data.a[_]
 query:3     | | Eval plus(x, 1, n)
-query:3     | | Exit data.test.p
+query:3     | | Exit data.test.p early
 query:1     | Exit data.test.p = _
 query:1     Redo data.test.p = _
 query:1     | Redo data.test.p = _
 query:3     | Redo data.test.p
 query:3     | | Redo plus(x, 1, n)
 query:3     | | Redo data.test.q[x]
-query:4     | | Redo data.test.q
-query:4     | | | Redo x = data.a[_]
-query:4     | | | Exit data.test.q
-query:3     | | Eval plus(x, 1, n)
-query:3     | | Exit data.test.p
-query:3     | Redo data.test.p
-query:3     | | Redo plus(x, 1, n)
-query:3     | | Redo data.test.q[x]
-query:4     | | Redo data.test.q
-query:4     | | | Redo x = data.a[_]
-query:4     | | | Exit data.test.q
-query:3     | | Eval plus(x, 1, n)
-query:3     | | Exit data.test.p
-query:3     | Redo data.test.p
-query:3     | | Redo plus(x, 1, n)
-query:3     | | Redo data.test.q[x]
-query:4     | | Redo data.test.q
-query:4     | | | Redo x = data.a[_]
-query:4     | | | Exit data.test.q
-query:3     | | Eval plus(x, 1, n)
-query:3     | | Exit data.test.p
-query:3     | Redo data.test.p
-query:3     | | Redo plus(x, 1, n)
-query:3     | | Redo data.test.q[x]
-query:4     | | Redo data.test.q
-query:4     | | | Redo x = data.a[_]
 `
 
 	a := strings.Split(expected, "\n")
@@ -243,15 +213,13 @@ func TestPrettyTraceWithLocationTruncatedPaths(t *testing.T) {
 	ctx := context.Background()
 
 	compiler := ast.MustCompileModules(map[string]string{
-		"authz_bundle/com/foo/bar/baz/qux/acme/corp/internal/authz/policies/abac/v1/beta/policy.rego": `
-		package test
+		"authz_bundle/com/foo/bar/baz/qux/acme/corp/internal/authz/policies/abac/v1/beta/policy.rego": `package test
 
 		import data.utils.q
 
 		p = true { q[x]; plus(x, 1, n) }
 		`,
-		"authz_bundle/com/foo/bar/baz/qux/acme/corp/internal/authz/policies/utils/utils.rego": `
-		package utils
+		"authz_bundle/com/foo/bar/baz/qux/acme/corp/internal/authz/policies/utils/utils.rego": `package utils
 
 		q[x] { x = data.a[_] }
 		`,
@@ -275,47 +243,32 @@ func TestPrettyTraceWithLocationTruncatedPaths(t *testing.T) {
 
 	expected := `query:1                                                              Enter data.test.p = _
 query:1                                                              | Eval data.test.p = _
-query:1                                                              | Index data.test.p (matched 1 rule)
-authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:6     | Enter data.test.p
-authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:6     | | Eval data.utils.q[x]
-authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:6     | | Index data.utils.q (matched 1 rule)
-authz_bundle/...ternal/authz/policies/utils/utils.rego:4             | | Enter data.utils.q
-authz_bundle/...ternal/authz/policies/utils/utils.rego:4             | | | Eval x = data.a[_]
-authz_bundle/...ternal/authz/policies/utils/utils.rego:4             | | | Exit data.utils.q
-authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:6     | | Eval plus(x, 1, n)
-authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:6     | | Exit data.test.p
+query:1                                                              | Index data.test.p (matched 1 rule, early exit)
+authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:5     | Enter data.test.p
+authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:5     | | Eval data.utils.q[x]
+authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:5     | | Index data.utils.q (matched 1 rule)
+authz_bundle/...ternal/authz/policies/utils/utils.rego:3             | | Enter data.utils.q
+authz_bundle/...ternal/authz/policies/utils/utils.rego:3             | | | Eval x = data.a[_]
+authz_bundle/...ternal/authz/policies/utils/utils.rego:3             | | | Exit data.utils.q
+authz_bundle/...ternal/authz/policies/utils/utils.rego:3             | | Redo data.utils.q
+authz_bundle/...ternal/authz/policies/utils/utils.rego:3             | | | Redo x = data.a[_]
+authz_bundle/...ternal/authz/policies/utils/utils.rego:3             | | | Exit data.utils.q
+authz_bundle/...ternal/authz/policies/utils/utils.rego:3             | | Redo data.utils.q
+authz_bundle/...ternal/authz/policies/utils/utils.rego:3             | | | Redo x = data.a[_]
+authz_bundle/...ternal/authz/policies/utils/utils.rego:3             | | | Exit data.utils.q
+authz_bundle/...ternal/authz/policies/utils/utils.rego:3             | | Redo data.utils.q
+authz_bundle/...ternal/authz/policies/utils/utils.rego:3             | | | Redo x = data.a[_]
+authz_bundle/...ternal/authz/policies/utils/utils.rego:3             | | | Exit data.utils.q
+authz_bundle/...ternal/authz/policies/utils/utils.rego:3             | | Redo data.utils.q
+authz_bundle/...ternal/authz/policies/utils/utils.rego:3             | | | Redo x = data.a[_]
+authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:5     | | Eval plus(x, 1, n)
+authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:5     | | Exit data.test.p early
 query:1                                                              | Exit data.test.p = _
 query:1                                                              Redo data.test.p = _
 query:1                                                              | Redo data.test.p = _
-authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:6     | Redo data.test.p
-authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:6     | | Redo plus(x, 1, n)
-authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:6     | | Redo data.utils.q[x]
-authz_bundle/...ternal/authz/policies/utils/utils.rego:4             | | Redo data.utils.q
-authz_bundle/...ternal/authz/policies/utils/utils.rego:4             | | | Redo x = data.a[_]
-authz_bundle/...ternal/authz/policies/utils/utils.rego:4             | | | Exit data.utils.q
-authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:6     | | Eval plus(x, 1, n)
-authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:6     | | Exit data.test.p
-authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:6     | Redo data.test.p
-authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:6     | | Redo plus(x, 1, n)
-authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:6     | | Redo data.utils.q[x]
-authz_bundle/...ternal/authz/policies/utils/utils.rego:4             | | Redo data.utils.q
-authz_bundle/...ternal/authz/policies/utils/utils.rego:4             | | | Redo x = data.a[_]
-authz_bundle/...ternal/authz/policies/utils/utils.rego:4             | | | Exit data.utils.q
-authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:6     | | Eval plus(x, 1, n)
-authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:6     | | Exit data.test.p
-authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:6     | Redo data.test.p
-authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:6     | | Redo plus(x, 1, n)
-authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:6     | | Redo data.utils.q[x]
-authz_bundle/...ternal/authz/policies/utils/utils.rego:4             | | Redo data.utils.q
-authz_bundle/...ternal/authz/policies/utils/utils.rego:4             | | | Redo x = data.a[_]
-authz_bundle/...ternal/authz/policies/utils/utils.rego:4             | | | Exit data.utils.q
-authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:6     | | Eval plus(x, 1, n)
-authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:6     | | Exit data.test.p
-authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:6     | Redo data.test.p
-authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:6     | | Redo plus(x, 1, n)
-authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:6     | | Redo data.utils.q[x]
-authz_bundle/...ternal/authz/policies/utils/utils.rego:4             | | Redo data.utils.q
-authz_bundle/...ternal/authz/policies/utils/utils.rego:4             | | | Redo x = data.a[_]
+authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:5     | Redo data.test.p
+authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:5     | | Redo plus(x, 1, n)
+authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:5     | | Redo data.utils.q[x]
 `
 
 	a := strings.Split(expected, "\n")
@@ -423,7 +376,7 @@ func TestPrettyTracePartialWithLocationTruncatedPaths(t *testing.T) {
 
 	expected := `query:1                                                              Enter data.example_rbac.allow
 query:1                                                              | Eval data.example_rbac.allow
-query:1                                                              | Index data.example_rbac.allow (matched 1 rule)
+query:1                                                              | Index data.example_rbac.allow (matched 1 rule, early exit)
 authz_bundle/...ternal/authz/policies/rbac/v1/beta/policy.rego:6     | Enter data.example_rbac.allow
 authz_bundle/...ternal/authz/policies/rbac/v1/beta/policy.rego:7     | | Eval data.utils.user_has_role[role_name]
 authz_bundle/...ternal/authz/policies/rbac/v1/beta/policy.rego:7     | | Index data.utils.user_has_role (matched 1 rule)
@@ -530,6 +483,12 @@ query:1                                                              | Fail data
 }
 
 func TestTraceDuplicate(t *testing.T) {
+	// NOTE(sr): We're explicitly bypassing a caching optimization here:
+	// When the first query for a partial is `p[x]`, and `x` is not ground,
+	// we'll have the evaluation eval the full extent of the partial and
+	// cache that. Thus the second `p[1]` here will not trigger a duplicate
+	// event, because the query eval uses a different code path.
+	// Having `p[1]` queried first will side-step the caching optimization.
 	module := `package test
 
 	p[1]
@@ -545,7 +504,7 @@ func TestTraceDuplicate(t *testing.T) {
 	defer store.Abort(ctx, txn)
 
 	tracer := NewBufferTracer()
-	query := NewQuery(ast.MustParseBody("data.test.p[x] = _")).
+	query := NewQuery(ast.MustParseBody("data.test.p[1]; data.test.p[x] = _")).
 		WithCompiler(compiler).
 		WithStore(store).
 		WithTransaction(txn).
@@ -571,7 +530,7 @@ func TestTraceDuplicate(t *testing.T) {
 func TestTraceNote(t *testing.T) {
 	module := `package test
 
-	p = true { q[x]; plus(x, 1, n); trace(sprintf("n= %v", [n])) }
+	p { q[x]; plus(x, 1, n); trace(sprintf("n=%v", [n])) }
 	q[x] { x = data.a[_] }`
 
 	ctx := context.Background()
@@ -595,67 +554,37 @@ func TestTraceNote(t *testing.T) {
 
 	expected := `Enter data.test.p = _
 | Eval data.test.p = _
-| Index data.test.p (matched 1 rule)
+| Index data.test.p (matched 1 rule, early exit)
 | Enter data.test.p
 | | Eval data.test.q[x]
 | | Index data.test.q (matched 1 rule)
 | | Enter data.test.q
 | | | Eval x = data.a[_]
 | | | Exit data.test.q
+| | Redo data.test.q
+| | | Redo x = data.a[_]
+| | | Exit data.test.q
+| | Redo data.test.q
+| | | Redo x = data.a[_]
+| | | Exit data.test.q
+| | Redo data.test.q
+| | | Redo x = data.a[_]
+| | | Exit data.test.q
+| | Redo data.test.q
+| | | Redo x = data.a[_]
 | | Eval plus(x, 1, n)
-| | Eval sprintf("n= %v", [n], __local0__)
+| | Eval sprintf("n=%v", [n], __local0__)
 | | Eval trace(__local0__)
-| | Note "n= 2"
-| | Exit data.test.p
+| | Note "n=2"
+| | Exit data.test.p early
 | Exit data.test.p = _
 Redo data.test.p = _
 | Redo data.test.p = _
 | Redo data.test.p
 | | Redo trace(__local0__)
-| | Redo sprintf("n= %v", [n], __local0__)
+| | Redo sprintf("n=%v", [n], __local0__)
 | | Redo plus(x, 1, n)
 | | Redo data.test.q[x]
-| | Redo data.test.q
-| | | Redo x = data.a[_]
-| | | Exit data.test.q
-| | Eval plus(x, 1, n)
-| | Eval sprintf("n= %v", [n], __local0__)
-| | Eval trace(__local0__)
-| | Note "n= 3"
-| | Exit data.test.p
-| Redo data.test.p
-| | Redo trace(__local0__)
-| | Redo sprintf("n= %v", [n], __local0__)
-| | Redo plus(x, 1, n)
-| | Redo data.test.q[x]
-| | Redo data.test.q
-| | | Redo x = data.a[_]
-| | | Exit data.test.q
-| | Eval plus(x, 1, n)
-| | Eval sprintf("n= %v", [n], __local0__)
-| | Eval trace(__local0__)
-| | Note "n= 4"
-| | Exit data.test.p
-| Redo data.test.p
-| | Redo trace(__local0__)
-| | Redo sprintf("n= %v", [n], __local0__)
-| | Redo plus(x, 1, n)
-| | Redo data.test.q[x]
-| | Redo data.test.q
-| | | Redo x = data.a[_]
-| | | Exit data.test.q
-| | Eval plus(x, 1, n)
-| | Eval sprintf("n= %v", [n], __local0__)
-| | Eval trace(__local0__)
-| | Note "n= 5"
-| | Exit data.test.p
-| Redo data.test.p
-| | Redo trace(__local0__)
-| | Redo sprintf("n= %v", [n], __local0__)
-| | Redo plus(x, 1, n)
-| | Redo data.test.q[x]
-| | Redo data.test.q
-| | | Redo x = data.a[_]
 `
 
 	a := strings.Split(expected, "\n")
@@ -684,7 +613,7 @@ Redo data.test.p = _
 func TestTraceNoteWithLocation(t *testing.T) {
 	module := `package test
 
-	p = true { q[x]; plus(x, 1, n); trace(sprintf("n= %v", [n])) }
+	p { q[x]; plus(x, 1, n); trace(sprintf("n=%v", [n])) }
 	q[x] { x = data.a[_] }`
 
 	ctx := context.Background()
@@ -708,67 +637,37 @@ func TestTraceNoteWithLocation(t *testing.T) {
 
 	expected := `query:1     Enter data.test.p = _
 query:1     | Eval data.test.p = _
-query:1     | Index data.test.p (matched 1 rule)
+query:1     | Index data.test.p (matched 1 rule, early exit)
 query:3     | Enter data.test.p
 query:3     | | Eval data.test.q[x]
 query:3     | | Index data.test.q (matched 1 rule)
 query:4     | | Enter data.test.q
 query:4     | | | Eval x = data.a[_]
 query:4     | | | Exit data.test.q
+query:4     | | Redo data.test.q
+query:4     | | | Redo x = data.a[_]
+query:4     | | | Exit data.test.q
+query:4     | | Redo data.test.q
+query:4     | | | Redo x = data.a[_]
+query:4     | | | Exit data.test.q
+query:4     | | Redo data.test.q
+query:4     | | | Redo x = data.a[_]
+query:4     | | | Exit data.test.q
+query:4     | | Redo data.test.q
+query:4     | | | Redo x = data.a[_]
 query:3     | | Eval plus(x, 1, n)
-query:3     | | Eval sprintf("n= %v", [n], __local0__)
+query:3     | | Eval sprintf("n=%v", [n], __local0__)
 query:3     | | Eval trace(__local0__)
-query:3     | | Note "n= 2"
-query:3     | | Exit data.test.p
+query:3     | | Note "n=2"
+query:3     | | Exit data.test.p early
 query:1     | Exit data.test.p = _
 query:1     Redo data.test.p = _
 query:1     | Redo data.test.p = _
 query:3     | Redo data.test.p
 query:3     | | Redo trace(__local0__)
-query:3     | | Redo sprintf("n= %v", [n], __local0__)
+query:3     | | Redo sprintf("n=%v", [n], __local0__)
 query:3     | | Redo plus(x, 1, n)
 query:3     | | Redo data.test.q[x]
-query:4     | | Redo data.test.q
-query:4     | | | Redo x = data.a[_]
-query:4     | | | Exit data.test.q
-query:3     | | Eval plus(x, 1, n)
-query:3     | | Eval sprintf("n= %v", [n], __local0__)
-query:3     | | Eval trace(__local0__)
-query:3     | | Note "n= 3"
-query:3     | | Exit data.test.p
-query:3     | Redo data.test.p
-query:3     | | Redo trace(__local0__)
-query:3     | | Redo sprintf("n= %v", [n], __local0__)
-query:3     | | Redo plus(x, 1, n)
-query:3     | | Redo data.test.q[x]
-query:4     | | Redo data.test.q
-query:4     | | | Redo x = data.a[_]
-query:4     | | | Exit data.test.q
-query:3     | | Eval plus(x, 1, n)
-query:3     | | Eval sprintf("n= %v", [n], __local0__)
-query:3     | | Eval trace(__local0__)
-query:3     | | Note "n= 4"
-query:3     | | Exit data.test.p
-query:3     | Redo data.test.p
-query:3     | | Redo trace(__local0__)
-query:3     | | Redo sprintf("n= %v", [n], __local0__)
-query:3     | | Redo plus(x, 1, n)
-query:3     | | Redo data.test.q[x]
-query:4     | | Redo data.test.q
-query:4     | | | Redo x = data.a[_]
-query:4     | | | Exit data.test.q
-query:3     | | Eval plus(x, 1, n)
-query:3     | | Eval sprintf("n= %v", [n], __local0__)
-query:3     | | Eval trace(__local0__)
-query:3     | | Note "n= 5"
-query:3     | | Exit data.test.p
-query:3     | Redo data.test.p
-query:3     | | Redo trace(__local0__)
-query:3     | | Redo sprintf("n= %v", [n], __local0__)
-query:3     | | Redo plus(x, 1, n)
-query:3     | | Redo data.test.q[x]
-query:4     | | Redo data.test.q
-query:4     | | | Redo x = data.a[_]
 `
 
 	a := strings.Split(expected, "\n")

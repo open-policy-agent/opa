@@ -44,6 +44,30 @@ func DefaultTLSConfig(c Config) (*tls.Config, error) {
 	if url.Scheme == "https" {
 		t.InsecureSkipVerify = c.AllowInsecureTLS
 	}
+
+	if c.TLS != nil && c.TLS.CACert != "" {
+		caCert, err := ioutil.ReadFile(c.TLS.CACert)
+		if err != nil {
+			return nil, err
+		}
+
+		var rootCAs *x509.CertPool
+		if c.TLS.SystemCARequired {
+			rootCAs, err = x509.SystemCertPool()
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			rootCAs = x509.NewCertPool()
+		}
+
+		ok := rootCAs.AppendCertsFromPEM(caCert)
+		if !ok {
+			return nil, errors.New("unable to parse and append CA certificate to certificate pool")
+		}
+		t.RootCAs = rootCAs
+	}
+
 	return t, nil
 }
 
@@ -66,7 +90,7 @@ func DefaultRoundTripperClient(t *tls.Config, timeout int64) *http.Client {
 // defaultAuthPlugin represents baseline 'no auth' behavior if no alternative plugin is specified for a service
 type defaultAuthPlugin struct{}
 
-func (ap *defaultAuthPlugin) NewClient(c Config) (*http.Client, error) {
+func (*defaultAuthPlugin) NewClient(c Config) (*http.Client, error) {
 	t, err := DefaultTLSConfig(c)
 	if err != nil {
 		return nil, err
@@ -74,8 +98,13 @@ func (ap *defaultAuthPlugin) NewClient(c Config) (*http.Client, error) {
 	return DefaultRoundTripperClient(t, *c.ResponseHeaderTimeoutSeconds), nil
 }
 
-func (ap *defaultAuthPlugin) Prepare(req *http.Request) error {
+func (*defaultAuthPlugin) Prepare(*http.Request) error {
 	return nil
+}
+
+type serverTLSConfig struct {
+	CACert           string `json:"ca_cert,omitempty"`
+	SystemCARequired bool   `json:"system_ca_required,omitempty"`
 }
 
 // bearerAuthPlugin represents authentication via a bearer token in the HTTP Authorization header
@@ -190,7 +219,11 @@ func (ap *oauth2ClientCredentialsAuthPlugin) createAuthJWT(claims map[string]int
 		jwsHeaders = []byte(fmt.Sprintf(`{"typ":"JWT","alg":"%s"}`, ap.signingKey.Algorithm))
 	}
 
-	jwsCompact, err := jws.SignLiteral(payload, jwa.SignatureAlgorithm(ap.signingKey.Algorithm), signingKey, jwsHeaders)
+	jwsCompact, err := jws.SignLiteral(payload,
+		jwa.SignatureAlgorithm(ap.signingKey.Algorithm),
+		signingKey,
+		jwsHeaders,
+		rand.Reader)
 	if err != nil {
 		return nil, err
 	}
@@ -356,8 +389,8 @@ type clientTLSAuthPlugin struct {
 	Cert                 string `json:"cert"`
 	PrivateKey           string `json:"private_key"`
 	PrivateKeyPassphrase string `json:"private_key_passphrase,omitempty"`
-	CACert               string `json:"ca_cert,omitempty"`
-	SystemCARequired     bool   `json:"system_ca_required,omitempty"`
+	CACert               string `json:"ca_cert,omitempty"`            // Deprecated: Use `services[_].tls.ca_cert` instead
+	SystemCARequired     bool   `json:"system_ca_required,omitempty"` // Deprecated: Use `services[_].tls.system_ca_required` instead
 }
 
 func (ap *clientTLSAuthPlugin) NewClient(c Config) (*http.Client, error) {
@@ -424,32 +457,40 @@ func (ap *clientTLSAuthPlugin) NewClient(c Config) (*http.Client, error) {
 	if err != nil {
 		return nil, err
 	}
+	tlsConfig.Certificates = []tls.Certificate{cert}
 
-	if ap.CACert != "" {
-		caCert, err := ioutil.ReadFile(ap.CACert)
-		if err != nil {
-			return nil, err
-		}
+	var client *http.Client
 
-		var caCertPool *x509.CertPool
-		if ap.SystemCARequired {
-			caCertPool, err = x509.SystemCertPool()
+	if c.TLS != nil && c.TLS.CACert != "" {
+		client = DefaultRoundTripperClient(tlsConfig, *c.ResponseHeaderTimeoutSeconds)
+	} else {
+		if ap.CACert != "" {
+			c.logger.Warn("Deprecated 'services[_].credentials.client_tls.ca_cert' configuration specified. Use 'services[_].tls.ca_cert' instead. See https://www.openpolicyagent.org/docs/latest/configuration/#services")
+			caCert, err := ioutil.ReadFile(ap.CACert)
 			if err != nil {
 				return nil, err
 			}
-		} else {
-			caCertPool = x509.NewCertPool()
+
+			var caCertPool *x509.CertPool
+			if ap.SystemCARequired {
+				caCertPool, err = x509.SystemCertPool()
+				if err != nil {
+					return nil, err
+				}
+			} else {
+				caCertPool = x509.NewCertPool()
+			}
+
+			ok := caCertPool.AppendCertsFromPEM(caCert)
+			if !ok {
+				return nil, errors.New("unable to parse and append CA certificate to certificate pool")
+			}
+			tlsConfig.RootCAs = caCertPool
 		}
 
-		ok := caCertPool.AppendCertsFromPEM(caCert)
-		if !ok {
-			return nil, errors.New("unable to parse and append CA certificate to certicate pool")
-		}
-		tlsConfig.RootCAs = caCertPool
+		client = DefaultRoundTripperClient(tlsConfig, *c.ResponseHeaderTimeoutSeconds)
 	}
 
-	tlsConfig.Certificates = []tls.Certificate{cert}
-	client := DefaultRoundTripperClient(tlsConfig, *c.ResponseHeaderTimeoutSeconds)
 	return client, nil
 }
 
@@ -462,6 +503,7 @@ type awsSigningAuthPlugin struct {
 	AWSEnvironmentCredentials *awsEnvironmentCredentialService `json:"environment_credentials,omitempty"`
 	AWSMetadataCredentials    *awsMetadataCredentialService    `json:"metadata_credentials,omitempty"`
 	AWSWebIdentityCredentials *awsWebIdentityCredentialService `json:"web_identity_credentials,omitempty"`
+	AWSProfileCredentials     *awsProfileCredentialService     `json:"profile_credentials,omitempty"`
 	AWSService                string                           `json:"service,omitempty"`
 
 	logger logging.Logger
@@ -476,8 +518,12 @@ func (ap *awsSigningAuthPlugin) awsCredentialService() awsCredentialService {
 		ap.AWSWebIdentityCredentials.logger = ap.logger
 		return ap.AWSWebIdentityCredentials
 	}
-	ap.AWSMetadataCredentials.logger = ap.logger
-	return ap.AWSMetadataCredentials
+	if ap.AWSMetadataCredentials != nil {
+		ap.AWSMetadataCredentials.logger = ap.logger
+		return ap.AWSMetadataCredentials
+	}
+	ap.AWSProfileCredentials.logger = ap.logger
+	return ap.AWSProfileCredentials
 }
 
 func (ap *awsSigningAuthPlugin) NewClient(c Config) (*http.Client, error) {
@@ -486,31 +532,12 @@ func (ap *awsSigningAuthPlugin) NewClient(c Config) (*http.Client, error) {
 		return nil, err
 	}
 
-	if ap.AWSEnvironmentCredentials == nil && ap.AWSWebIdentityCredentials == nil && ap.AWSMetadataCredentials == nil {
-		return nil, errors.New("a AWS credential service must be specified when S3 signing is enabled")
-	}
-
-	if (ap.AWSEnvironmentCredentials != nil && ap.AWSMetadataCredentials != nil) ||
-		(ap.AWSEnvironmentCredentials != nil && ap.AWSWebIdentityCredentials != nil) ||
-		(ap.AWSWebIdentityCredentials != nil && ap.AWSMetadataCredentials != nil) {
-		return nil, errors.New("exactly one AWS credential service must be specified when S3 signing is enabled")
-	}
-	if ap.AWSMetadataCredentials != nil {
-		if ap.AWSMetadataCredentials.RegionName == "" {
-			return nil, errors.New("at least aws_region must be specified for AWS metadata credential service")
-		}
-	}
-	if ap.AWSWebIdentityCredentials != nil {
-		if err := ap.AWSWebIdentityCredentials.populateFromEnv(); err != nil {
-			return nil, err
-		}
+	if err := ap.validateConfig(); err != nil {
+		return nil, err
 	}
 
 	if ap.logger == nil {
 		ap.logger = c.logger
-	}
-	if ap.AWSService == "" {
-		ap.AWSService = awsSigv4SigningDefaultService
 	}
 
 	return DefaultRoundTripperClient(t, *c.ResponseHeaderTimeoutSeconds), nil
@@ -518,6 +545,35 @@ func (ap *awsSigningAuthPlugin) NewClient(c Config) (*http.Client, error) {
 
 func (ap *awsSigningAuthPlugin) Prepare(req *http.Request) error {
 	ap.logger.Debug("Signing request with AWS credentials.")
-	err := signV4(req, ap.AWSService, ap.awsCredentialService(), time.Now())
-	return err
+	return signV4(req, ap.AWSService, ap.awsCredentialService(), time.Now())
+}
+
+func (ap *awsSigningAuthPlugin) validateConfig() error {
+	cfgs := map[bool]int{}
+	cfgs[ap.AWSEnvironmentCredentials != nil]++
+	cfgs[ap.AWSMetadataCredentials != nil]++
+	cfgs[ap.AWSWebIdentityCredentials != nil]++
+	cfgs[ap.AWSProfileCredentials != nil]++
+
+	switch n := cfgs[true]; {
+	case n == 0:
+		return errors.New("a AWS credential service must be specified when S3 signing is enabled")
+	case n > 1:
+		return errors.New("exactly one AWS credential service must be specified when S3 signing is enabled")
+	}
+
+	if ap.AWSMetadataCredentials != nil {
+		if ap.AWSMetadataCredentials.RegionName == "" {
+			return errors.New("at least aws_region must be specified for AWS metadata credential service")
+		}
+	}
+	if ap.AWSWebIdentityCredentials != nil {
+		if err := ap.AWSWebIdentityCredentials.populateFromEnv(); err != nil {
+			return err
+		}
+	}
+	if ap.AWSService == "" {
+		ap.AWSService = awsSigv4SigningDefaultService
+	}
+	return nil
 }

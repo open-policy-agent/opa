@@ -7,9 +7,11 @@ package wasm
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"strconv"
 	"time"
@@ -20,20 +22,22 @@ import (
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/topdown"
 	"github.com/open-policy-agent/opa/topdown/builtins"
+	"github.com/open-policy-agent/opa/topdown/cache"
+	"github.com/open-policy-agent/opa/topdown/print"
 )
 
-func opaFunctions(dispatcher *builtinDispatcher, store *wasmtime.Store) map[string]*wasmtime.Extern {
+func opaFunctions(dispatcher *builtinDispatcher, store *wasmtime.Store) map[string]wasmtime.AsExtern {
 
 	i32 := wasmtime.NewValType(wasmtime.KindI32)
 
-	externs := map[string]*wasmtime.Extern{
-		"opa_abort":    wasmtime.NewFunc(store, wasmtime.NewFuncType([]*wasmtime.ValType{i32}, nil), opaAbort).AsExtern(),
-		"opa_builtin0": wasmtime.NewFunc(store, wasmtime.NewFuncType([]*wasmtime.ValType{i32, i32}, []*wasmtime.ValType{i32}), dispatcher.Call).AsExtern(),
-		"opa_builtin1": wasmtime.NewFunc(store, wasmtime.NewFuncType([]*wasmtime.ValType{i32, i32, i32}, []*wasmtime.ValType{i32}), dispatcher.Call).AsExtern(),
-		"opa_builtin2": wasmtime.NewFunc(store, wasmtime.NewFuncType([]*wasmtime.ValType{i32, i32, i32, i32}, []*wasmtime.ValType{i32}), dispatcher.Call).AsExtern(),
-		"opa_builtin3": wasmtime.NewFunc(store, wasmtime.NewFuncType([]*wasmtime.ValType{i32, i32, i32, i32, i32}, []*wasmtime.ValType{i32}), dispatcher.Call).AsExtern(),
-		"opa_builtin4": wasmtime.NewFunc(store, wasmtime.NewFuncType([]*wasmtime.ValType{i32, i32, i32, i32, i32, i32}, []*wasmtime.ValType{i32}), dispatcher.Call).AsExtern(),
-		"opa_println":  wasmtime.NewFunc(store, wasmtime.NewFuncType([]*wasmtime.ValType{i32}, nil), opaPrintln).AsExtern(),
+	externs := map[string]wasmtime.AsExtern{
+		"opa_abort":    wasmtime.NewFunc(store, wasmtime.NewFuncType([]*wasmtime.ValType{i32}, nil), opaAbort),
+		"opa_builtin0": wasmtime.NewFunc(store, wasmtime.NewFuncType([]*wasmtime.ValType{i32, i32}, []*wasmtime.ValType{i32}), dispatcher.Call),
+		"opa_builtin1": wasmtime.NewFunc(store, wasmtime.NewFuncType([]*wasmtime.ValType{i32, i32, i32}, []*wasmtime.ValType{i32}), dispatcher.Call),
+		"opa_builtin2": wasmtime.NewFunc(store, wasmtime.NewFuncType([]*wasmtime.ValType{i32, i32, i32, i32}, []*wasmtime.ValType{i32}), dispatcher.Call),
+		"opa_builtin3": wasmtime.NewFunc(store, wasmtime.NewFuncType([]*wasmtime.ValType{i32, i32, i32, i32, i32}, []*wasmtime.ValType{i32}), dispatcher.Call),
+		"opa_builtin4": wasmtime.NewFunc(store, wasmtime.NewFuncType([]*wasmtime.ValType{i32, i32, i32, i32, i32, i32}, []*wasmtime.ValType{i32}), dispatcher.Call),
+		"opa_println":  wasmtime.NewFunc(store, wasmtime.NewFuncType([]*wasmtime.ValType{i32}, nil), opaPrintln),
 	}
 
 	return externs
@@ -41,7 +45,7 @@ func opaFunctions(dispatcher *builtinDispatcher, store *wasmtime.Store) map[stri
 
 func opaAbort(caller *wasmtime.Caller, args []wasmtime.Val) ([]wasmtime.Val, *wasmtime.Trap) {
 
-	data := caller.GetExport("memory").Memory().UnsafeData()[args[0].I32():]
+	data := caller.GetExport("memory").Memory().UnsafeData(caller)[args[0].I32():]
 
 	n := bytes.IndexByte(data, 0)
 	if n == -1 {
@@ -52,7 +56,7 @@ func opaAbort(caller *wasmtime.Caller, args []wasmtime.Val) ([]wasmtime.Val, *wa
 }
 
 func opaPrintln(caller *wasmtime.Caller, args []wasmtime.Val) ([]wasmtime.Val, *wasmtime.Trap) {
-	data := caller.GetExport("memory").Memory().UnsafeData()[args[0].I32():]
+	data := caller.GetExport("memory").Memory().UnsafeData(caller)[args[0].I32():]
 
 	n := bytes.IndexByte(data, 0)
 	if n == -1 {
@@ -77,21 +81,34 @@ func (d *builtinDispatcher) SetMap(m map[int32]topdown.BuiltinFunc) {
 }
 
 // Reset is called in Eval before using the builtinDispatcher.
-func (d *builtinDispatcher) Reset(ctx context.Context, ns time.Time) {
+func (d *builtinDispatcher) Reset(ctx context.Context,
+	seed io.Reader,
+	ns time.Time,
+	iqbCache cache.InterQueryCache,
+	ph print.Hook,
+	capabilities *ast.Capabilities) {
 	if ns.IsZero() {
 		ns = time.Now()
 	}
+	if seed == nil {
+		seed = rand.Reader
+	}
 	d.ctx = &topdown.BuiltinContext{
-		Context:  ctx,
-		Cancel:   topdown.NewCancel(),
-		Runtime:  nil,
-		Time:     ast.NumberTerm(json.Number(strconv.FormatInt(ns.UnixNano(), 10))),
-		Metrics:  metrics.New(),
-		Cache:    make(builtins.Cache),
-		Location: nil,
-		Tracers:  nil,
-		QueryID:  0,
-		ParentID: 0,
+		Context:                ctx,
+		Metrics:                metrics.New(),
+		Seed:                   seed,
+		Time:                   ast.NumberTerm(json.Number(strconv.FormatInt(ns.UnixNano(), 10))),
+		Cancel:                 topdown.NewCancel(),
+		Runtime:                nil,
+		Cache:                  make(builtins.Cache),
+		Location:               nil,
+		Tracers:                nil,
+		QueryTracers:           nil,
+		QueryID:                0,
+		ParentID:               0,
+		InterQueryBuiltinCache: iqbCache,
+		PrintHook:              ph,
+		Capabilities:           capabilities,
 	}
 
 }
@@ -148,7 +165,7 @@ func (d *builtinDispatcher) Call(caller *wasmtime.Caller, args []wasmtime.Val) (
 	// first two args are the built-in identifier and context structure
 	for i := 2; i < len(args); i++ {
 
-		x, err := fromWasmValue(exports, args[i].I32())
+		x, err := fromWasmValue(caller, exports, args[i].I32())
 		if err != nil {
 			panic(builtinError{err: err})
 		}
@@ -179,7 +196,7 @@ func (d *builtinDispatcher) Call(caller *wasmtime.Caller, args []wasmtime.Val) (
 		return []wasmtime.Val{wasmtime.ValI32(0)}, nil
 	}
 
-	addr, err := toWasmValue(exports, output)
+	addr, err := toWasmValue(caller, exports, output)
 	if err != nil {
 		panic(builtinError{err: err})
 	}
@@ -203,38 +220,38 @@ func getExports(c *wasmtime.Caller) exports {
 	return e
 }
 
-func (e exports) Malloc(len int32) (int32, error) {
-	ptr, err := e.mallocFn.Call(len)
+func (e exports) Malloc(caller *wasmtime.Caller, len int32) (int32, error) {
+	ptr, err := e.mallocFn.Call(caller, len)
 	if err != nil {
 		return 0, err
 	}
 	return ptr.(int32), nil
 }
 
-func (e exports) ValueDump(addr int32) (int32, error) {
-	result, err := e.valueDumpFn.Call(addr)
+func (e exports) ValueDump(caller *wasmtime.Caller, addr int32) (int32, error) {
+	result, err := e.valueDumpFn.Call(caller, addr)
 	if err != nil {
 		return 0, err
 	}
 	return result.(int32), nil
 }
 
-func (e exports) ValueParse(addr int32, len int32) (int32, error) {
-	result, err := e.valueParseFn.Call(addr, len)
+func (e exports) ValueParse(caller *wasmtime.Caller, addr int32, len int32) (int32, error) {
+	result, err := e.valueParseFn.Call(caller, addr, len)
 	if err != nil {
 		return 0, err
 	}
 	return result.(int32), nil
 }
 
-func fromWasmValue(e exports, addr int32) (*ast.Term, error) {
+func fromWasmValue(caller *wasmtime.Caller, e exports, addr int32) (*ast.Term, error) {
 
-	serialized, err := e.ValueDump(addr)
+	serialized, err := e.ValueDump(caller, addr)
 	if err != nil {
 		return nil, err
 	}
 
-	data := e.Memory.UnsafeData()[serialized:]
+	data := e.Memory.UnsafeData(caller)[serialized:]
 	n := bytes.IndexByte(data, 0)
 	if n < 0 {
 		return nil, errors.New("invalid serialized value address")
@@ -243,17 +260,17 @@ func fromWasmValue(e exports, addr int32) (*ast.Term, error) {
 	return ast.ParseTerm(string(data[0:n]))
 }
 
-func toWasmValue(e exports, term *ast.Term) (int32, error) {
+func toWasmValue(caller *wasmtime.Caller, e exports, term *ast.Term) (int32, error) {
 
 	raw := []byte(term.String())
 	n := int32(len(raw))
-	p, err := e.Malloc(n)
+	p, err := e.Malloc(caller, n)
 	if err != nil {
 		return 0, err
 	}
 
-	copy(e.Memory.UnsafeData()[p:p+n], raw)
-	addr, err := e.ValueParse(p, n)
+	copy(e.Memory.UnsafeData(caller)[p:p+n], raw)
+	addr, err := e.ValueParse(caller, p, n)
 	if err != nil {
 		return 0, err
 	}

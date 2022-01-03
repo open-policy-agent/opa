@@ -33,6 +33,15 @@ var InputRootDocument = VarTerm("input")
 // SchemaRootDocument names the document containing external data schemas.
 var SchemaRootDocument = VarTerm("schema")
 
+// FunctionArgRootDocument names the document containing function arguments.
+// It's only for internal usage, for referencing function arguments between
+// the index and topdown.
+var FunctionArgRootDocument = VarTerm("args")
+
+// FutureRootDocument names the document containing new, to-become-default,
+// features.
+var FutureRootDocument = VarTerm("future")
+
 // RootDocumentNames contains the names of top-level documents that can be
 // referred to in modules and queries.
 //
@@ -404,6 +413,11 @@ func (mod *Module) Copy() *Module {
 	cpy.Annotations = make([]*Annotations, len(mod.Annotations))
 	for i := range mod.Annotations {
 		cpy.Annotations[i] = mod.Annotations[i].Copy(nodes[mod.Annotations[i].node])
+	}
+
+	cpy.Comments = make([]*Comment, len(mod.Comments))
+	for i := range mod.Comments {
+		cpy.Comments[i] = mod.Comments[i].Copy()
 	}
 
 	return &cpy
@@ -782,10 +796,10 @@ const (
 	CompleteDoc = iota
 
 	// PartialSetDoc represents a set document that is partially defined by the rule.
-	PartialSetDoc = iota
+	PartialSetDoc
 
 	// PartialObjectDoc represents an object document that is partially defined by the rule.
-	PartialObjectDoc = iota
+	PartialObjectDoc
 )
 
 // DocKind returns the type of document produced by this rule.
@@ -1220,12 +1234,12 @@ func (expr *Expr) NoWith() *Expr {
 
 // IsEquality returns true if this is an equality expression.
 func (expr *Expr) IsEquality() bool {
-	return isglobalbuiltin(expr, Var(Equality.Name))
+	return isGlobalBuiltin(expr, Var(Equality.Name))
 }
 
 // IsAssignment returns true if this an assignment expression.
 func (expr *Expr) IsAssignment() bool {
-	return isglobalbuiltin(expr, Var(Assign.Name))
+	return isGlobalBuiltin(expr, Var(Assign.Name))
 }
 
 // IsCall returns true if this expression calls a function.
@@ -1237,11 +1251,21 @@ func (expr *Expr) IsCall() bool {
 // Operator returns the name of the function or built-in this expression refers
 // to. If this expression is not a function call, returns nil.
 func (expr *Expr) Operator() Ref {
+	op := expr.OperatorTerm()
+	if op == nil {
+		return nil
+	}
+	return op.Value.(Ref)
+}
+
+// OperatorTerm returns the name of the function or built-in this expression
+// refers to. If this expression is not a function call, returns nil.
+func (expr *Expr) OperatorTerm() *Term {
 	terms, ok := expr.Terms.([]*Term)
 	if !ok || len(terms) == 0 {
 		return nil
 	}
-	return terms[0].Value.(Ref)
+	return terms[0]
 }
 
 // Operand returns the term at the zero-based pos. If the expr does not include
@@ -1357,6 +1381,12 @@ func NewBuiltinExpr(terms ...*Term) *Expr {
 }
 
 func (d *SomeDecl) String() string {
+	if call, ok := d.Symbols[0].Value.(Call); ok {
+		if len(call) == 4 {
+			return "some " + call[1].String() + ", " + call[2].String() + " in " + call[3].String()
+		}
+		return "some " + call[1].String() + " in " + call[2].String()
+	}
 	buf := make([]string, len(d.Symbols))
 	for i := range buf {
 		buf[i] = d.Symbols[i].String()
@@ -1573,7 +1603,7 @@ func validEqAssignArgCount(expr *Expr) bool {
 
 // this function checks if the expr refers to a non-namespaced (global) built-in
 // function like eq, gt, plus, etc.
-func isglobalbuiltin(expr *Expr, name Var) bool {
+func isGlobalBuiltin(expr *Expr, name Var) bool {
 	terms, ok := expr.Terms.([]*Term)
 	if !ok {
 		return false
@@ -1584,9 +1614,9 @@ func isglobalbuiltin(expr *Expr, name Var) bool {
 	ref, ok := terms[0].Value.(Ref)
 	if !ok || len(ref) != 1 {
 		return false
-	} else if head, ok := ref[0].Value.(Var); !ok {
-		return false
-	} else {
+	}
+	if head, ok := ref[0].Value.(Var); ok {
 		return head.Equal(name)
 	}
+	return false
 }

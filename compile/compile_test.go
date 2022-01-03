@@ -498,7 +498,7 @@ func TestCompilerWasmTargetWithCapabilitiesMismatch(t *testing.T) {
 
 		for note, wabis := range map[string][]ast.WasmABIVersion{
 			"none":     {},
-			"mismatch": {{Version: 0}, {Version: 1, Minor: 2}},
+			"mismatch": {{Version: 0}, {Version: 1, Minor: 2000}},
 		} {
 			t.Run(note, func(t *testing.T) {
 				caps := ast.CapabilitiesForThisVersion()
@@ -891,7 +891,7 @@ func TestOptimizerOutput(t *testing.T) {
 		},
 		{
 			note:        "multiple entrypoints",
-			entrypoints: []string{"data.test.p", "data.test.r"},
+			entrypoints: []string{"data.test.p", "data.test.r", "data.test.s"},
 			modules: map[string]string{
 				"test.rego": `
 					package test
@@ -901,6 +901,10 @@ func TestOptimizerOutput(t *testing.T) {
 					}
 
 					r {
+						q[input.x]
+					}
+
+					s {
 						q[input.x]
 					}
 
@@ -917,6 +921,11 @@ func TestOptimizerOutput(t *testing.T) {
 					package test
 
 					r = __result__ { 1 = input.x; __result__ = true }
+				`,
+				"optimized/test.2.rego": `
+					package test
+
+					s = __result__ { 1 = input.x; __result__ = true }
 				`,
 				"test.rego": `
 					package test
@@ -1072,8 +1081,8 @@ func TestOptimizerOutput(t *testing.T) {
 				"optimized/test.rego": `
 					package test
 
-					p = __result__ { data.external.users.foo = input.user; __result__ = true }
 					p = __result__ { data.external.users.bar = input.user; __result__ = true }
+					p = __result__ { data.external.users.foo = input.user; __result__ = true }
 				`,
 				"test.rego": `
 					package test

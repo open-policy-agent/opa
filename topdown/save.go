@@ -57,7 +57,7 @@ func (ss *saveSet) contains(t *ast.Term, b *bindings) bool {
 	return false
 }
 
-// ContainsRecursive retruns true if the term t is or contains a term that is
+// ContainsRecursive returns true if the term t is or contains a term that is
 // contained in the save set. This function will close over the binding list
 // when it encounters vars.
 func (ss *saveSet) ContainsRecursive(t *ast.Term, b *bindings) bool {
@@ -347,7 +347,7 @@ func saveRequired(c *ast.Compiler, ic *inliningControl, icIgnoreInternal bool, s
 				} else if ic.Disabled(v.ConstantPrefix(), icIgnoreInternal) {
 					found = true
 				} else {
-					for _, rule := range c.GetRulesDynamic(v) {
+					for _, rule := range c.GetRulesDynamicWithOpts(v, ast.RulesOptions{IncludeHiddenModules: false}) {
 						if saveRequired(c, ic, icIgnoreInternal, ss, b, rule, true) {
 							found = true
 							break

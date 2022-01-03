@@ -1,0 +1,2 @@
+go test fuzz v1
+string("package topdown.missing.input.value\n\n\t\tp = input.deadbeef")

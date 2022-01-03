@@ -6,6 +6,7 @@
 package bundle
 
 import (
+	"crypto/rand"
 	"encoding/json"
 	"fmt"
 
@@ -76,7 +77,11 @@ func (*DefaultSigner) GenerateSignedToken(files []FileInfo, sc *SigningConfig, k
 		return "", err
 	}
 
-	token, err := jws.SignLiteral(payload, jwa.SignatureAlgorithm(sc.Algorithm), privateKey, hdr)
+	token, err := jws.SignLiteral(payload,
+		jwa.SignatureAlgorithm(sc.Algorithm),
+		privateKey,
+		hdr,
+		rand.Reader)
 	if err != nil {
 		return "", err
 	}

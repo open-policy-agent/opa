@@ -1,0 +1,2 @@
+go test fuzz v1
+string("p = x { sprintf(\"hi %v\", [2e308], x) }")

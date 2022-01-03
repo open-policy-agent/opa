@@ -10,7 +10,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"testing"
+
+	"github.com/open-policy-agent/opa/util"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/loader"
@@ -36,6 +39,11 @@ func (t *testErrorWithMarshaller) MarshalJSON() ([]byte, error) {
 	})
 }
 
+type testErrorWithDetails struct{}
+
+func (*testErrorWithDetails) Error() string   { return "something went wrong" }
+func (*testErrorWithDetails) Lines() []string { return []string{"oh", "so", "wrong"} }
+
 func validateJSONOutput(t *testing.T, testErr error, expected string) {
 	t.Helper()
 	output := Output{Errors: NewOutputErrors(testErr)}
@@ -45,9 +53,11 @@ func validateJSONOutput(t *testing.T, testErr error, expected string) {
 		t.Fatalf("Unexpected error: %s", err)
 	}
 
-	if buf.String() != expected {
-		t.Fatalf("Unexpected marshalled error value.\n Expected (len=%d):\n>>>\n%s\n<<<\n\nActual (len=%d):\n>>>>\n%s\n<<<<\n",
-			len(expected), expected, len(buf.String()), buf.String())
+	result := util.MustUnmarshalJSON(buf.Bytes())
+	exp := util.MustUnmarshalJSON([]byte(expected))
+
+	if !reflect.DeepEqual(result, exp) {
+		t.Fatal("expected:", exp, "got:", result)
 	}
 }
 
@@ -73,6 +83,21 @@ func TestOutputJSONErrorCustomMarshaller(t *testing.T) {
   "errors": [
     {
       "message": "custom message"
+    }
+  ]
+}
+`
+
+	validateJSONOutput(t, err, expected)
+}
+
+func TestOutputJSONErrorWithDetails(t *testing.T) {
+	err := &testErrorWithDetails{}
+	expected := `{
+  "errors": [
+    {
+      "message": "something went wrong",
+      "details": "oh\nso\nwrong"
     }
   ]
 }
@@ -153,63 +178,64 @@ func TestOutputJSONErrorStructuredTopdownErr(t *testing.T) {
 func TestOutputJSONErrorStructuredAstErr(t *testing.T) {
 	_, err := rego.New(rego.Query("count(0)")).Eval(context.Background())
 	expected := `{
-  "errors": [
-    {
-      "message": "count: invalid argument(s)",
-      "code": "rego_type_error",
-      "location": {
-        "file": "",
-        "row": 1,
-        "col": 1
-      },
-      "details": {
-        "have": [
-          {
-            "type": "number"
-          },
-          null
-        ],
-        "want": [
-          {
-            "of": [
-              {
-                "of": {
-                  "type": "any"
-                },
-                "type": "set"
-              },
-              {
-                "dynamic": {
-                  "type": "any"
-                },
-                "type": "array"
-              },
-              {
-                "dynamic": {
-                  "key": {
-                    "type": "any"
-                  },
-                  "value": {
-                    "type": "any"
-                  }
-                },
-                "type": "object"
-              },
-              {
-                "type": "string"
-              }
-            ],
-            "type": "any"
-          },
-          {
-            "type": "number"
-          }
-        ]
-      }
-    }
-  ]
-}
-`
+		"errors": [
+		  {
+			"message": "count: invalid argument(s)",
+			"code": "rego_type_error",
+			"location": {
+			  "file": "",
+			  "row": 1,
+			  "col": 1
+			},
+			"details": {
+			  "have": [
+				{
+				  "type": "number"
+				},
+				null
+			  ],
+			  "want": {
+				"args": [
+				  {
+					"of": [
+					  {
+						"type": "string"
+					  },
+					  {
+						"dynamic": {
+						  "type": "any"
+						},
+						"type": "array"
+					  },
+					  {
+						"dynamic": {
+						  "key": {
+							"type": "any"
+						  },
+						  "value": {
+							"type": "any"
+						  }
+						},
+						"type": "object"
+					  },
+					  {
+						"of": {
+						  "type": "any"
+						},
+						"type": "set"
+					  }
+					],
+					"type": "any"
+				  },
+				  {
+					"type": "number"
+				  }
+				]
+			  }
+			}
+		  }
+		]
+	  }`
 
 	validateJSONOutput(t, err, expected)
 }
@@ -453,6 +479,17 @@ func TestRaw(t *testing.T) {
 				Errors: NewOutputErrors(fmt.Errorf("boom")),
 			},
 			want: "1 error occurred: boom\n",
+		},
+		{
+			// NOTE(sr): The presentation package outputs whatever Error() on
+			// the errors it is given yields. So even though NewOutputErrors
+			// will pick up the error details, they won't be output, as they
+			// are not included in the error's Error() string.
+			note: "error with details",
+			output: Output{
+				Errors: NewOutputErrors(&testErrorWithDetails{}),
+			},
+			want: "1 error occurred: something went wrong\noh\nso\nwrong\n",
 		},
 	}
 

@@ -778,6 +778,7 @@ func (o *optimizer) getSupportForEntrypoint(queries []ast.Body, e *ast.Term, res
 			return stop
 		})
 		if stop {
+			o.debug.Printf("optimizer: entrypoint: %v: discard due to self-reference", e)
 			return nil
 		}
 		module.Rules = append(module.Rules, &ast.Rule{
@@ -861,12 +862,13 @@ func (o *optimizer) getSupportModuleFilename(used map[string]int, module *ast.Mo
 
 	if err == nil && safePathPattern.MatchString(fileName) {
 		fileName = o.outputprefix + "/" + fileName
+		uniqueFileName := fileName
 		if c, ok := used[fileName]; ok {
-			fileName += fmt.Sprintf(".%d", c)
+			uniqueFileName += fmt.Sprintf(".%d", c)
 		}
 		used[fileName]++
-		fileName += ".rego"
-		return fileName
+		uniqueFileName += ".rego"
+		return uniqueFileName
 	}
 
 	return fmt.Sprintf("%v/%v/%v/%v.rego", o.outputprefix, o.nsprefix, entrypointIndex, supportIndex)

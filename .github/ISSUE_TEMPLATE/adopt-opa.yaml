@@ -1,0 +1,65 @@
+name: Adopt OPA
+description: Let the community know you have adopted OPA.
+title: organization_name has adopted OPA
+labels: "adopt-opa"
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for supporting the OPA project. Adding your organization to the list of adopters raises awareness for the project and is more help than you think!
+
+        Check the current list of adopters:
+        https://github.com/open-policy-agent/opa/blob/main/ADOPTERS.md
+  - type: input
+    id: org-name
+    attributes:
+      label: Organization Name
+      description: Name of the organization.
+      placeholder: ex. OPA, Inc.
+    validations:
+      required: false
+  - type: input
+    id: org-url
+    attributes:
+      label: Organization Website
+      description: Provide a link to the organization website.
+      placeholder: ex. openpolicyagent.org
+    validations:
+      required: false
+  - type: input
+    id: org-logo
+    attributes:
+      label: Organization Logo (optional)
+      description: Provide a link to the organization logo.
+      placeholder: ex. https://d33wubrfki0l68.cloudfront.net/a5bf5cefceefdba8ab3a9297fddab246355169a2/4a6f4/img/logo-white.png
+    validations:
+      required: false
+  - type: textarea
+    id: opa-use-case
+    attributes:
+      label: How is your organization using OPA?
+      description: 2 or 3 sentences about how your organization has incorporated OPA.
+      placeholder: We secure all the things!
+    validations:
+      required: false
+  - type: input
+    id: source-code
+    attributes:
+      label: Source Code Link (optional)
+      description: Is your use case open source? Provide a link.
+      placeholder: ex. https://github.com/open-policy-agent/opa
+    validations:
+      required: false
+  - type: textarea
+    id: content-links
+    attributes:
+      label: Want to link blogs or videos? Share them here.
+      description: Please copy and paste links to content that shows how you're using OPA.
+  - type: checkboxes
+    id: existing-entry
+    attributes:
+      label: Update entry
+      options:
+        - label: Check this box if you want to update an existing entry.
+          required: false

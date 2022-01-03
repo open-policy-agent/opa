@@ -40,18 +40,16 @@ default allow = false
 
 # Allow users to get their own salaries.
 allow {
-  some username
-  input.method == "GET"
-  input.path = ["finance", "salary", username]
-  input.user == username
+    input.method == "GET"
+    input.path == ["finance", "salary", input.user]
 }
 
 # Allow managers to get their subordinates' salaries.
 allow {
-  some username
-  input.method == "GET"
-  input.path = ["finance", "salary", username]
-  subordinates[input.user][_] == username
+    some username
+    input.method == "GET"
+    input.path = ["finance", "salary", username]
+    subordinates[input.user][_] == username
 }
 ```
 
@@ -118,7 +116,7 @@ docker-compose -f docker-compose.yml up
 
 Every time the demo web server receives an HTTP request, it
 asks OPA to decide whether an HTTP API is authorized or not
-using a single RESTful API call.  An example code is [here](https://github.com/open-policy-agent/contrib/blob/master/api_authz/docker/echo_server.py),
+using a single RESTful API call.  An example code is [here](https://github.com/open-policy-agent/contrib/blob/main/api_authz/docker/echo_server.py),
 but the crux of the (Python) code is shown below.
 
 ```python
@@ -206,14 +204,14 @@ package httpapi.authz
 
 # Allow HR members to get anyone's salary.
 allow {
-  input.method == "GET"
-  input.path = ["finance", "salary", _]
-  input.user == hr[_]
+    input.method == "GET"
+    input.path = ["finance", "salary", _]
+    input.user == hr[_]
 }
 
 # David is the only member of HR.
-hr = [
-  "david",
+hr := [
+    "david",
 ]
 ```
 
@@ -255,28 +253,28 @@ default allow = false
 
 # Allow users to get their own salaries.
 allow {
-  some username
-  input.method == "GET"
-  input.path = ["finance", "salary", username]
-  token.payload.user == username
-  user_owns_token
+    some username
+    input.method == "GET"
+    input.path = ["finance", "salary", username]
+    token.payload.user == username
+    user_owns_token
 }
 
 # Allow managers to get their subordinate' salaries.
 allow {
-  some username
-  input.method == "GET"
-  input.path = ["finance", "salary", username]
-  token.payload.subordinates[_] == username
-  user_owns_token
+    some username
+    input.method == "GET"
+    input.path = ["finance", "salary", username]
+    token.payload.subordinates[_] == username
+    user_owns_token
 }
 
 # Allow HR members to get anyone's salary.
 allow {
-  input.method == "GET"
-  input.path = ["finance", "salary", _]
-  token.payload.hr == true
-  user_owns_token
+    input.method == "GET"
+    input.path = ["finance", "salary", _]
+    token.payload.hr == true
+    user_owns_token
 }
 
 # Ensure that the token was issued to the user supplying it.
@@ -284,7 +282,7 @@ user_owns_token { input.user == token.payload.azp }
 
 # Helper to get the token payload.
 token = {"payload": payload} {
-  [header, payload, signature] := io.jwt.decode(input.token)
+    [header, payload, signature] := io.jwt.decode(input.token)
 }
 ```
 

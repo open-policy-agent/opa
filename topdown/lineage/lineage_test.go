@@ -66,9 +66,9 @@ Enter data.test.p = x
 			note: "disjunction",
 			module: `package test
 
-			p { trace("P1") }
-			p { false }
-			p { trace("P2") }
+			p = x { x := true; trace("P1") }
+			p = x { x := true; false }
+			p = x { x := true; trace("P2") }
 			`,
 			exp: `
 Enter data.test.p = x
@@ -82,9 +82,9 @@ Redo data.test.p = x
 			note: "disjunction (failure)",
 			module: `package test
 
-			p { trace("P1") }
-			p { trace("P2"); false }
-			p { trace("P3") }
+			p = x { x := true; trace("P1") }
+			p = x { x := true; trace("P2"); false }
+			p = x { x := true; trace("P3") }
 			`,
 			exp: `
 Enter data.test.p = x
@@ -106,9 +106,7 @@ Redo data.test.p = x
 Enter data.test.p = x
 | Enter data.test.p
 | | Note "x=1"
-Redo data.test.p = x
-| Redo data.test.p
-| | Note "x=2"`,
+`,
 		},
 		{
 			note: "parent child",

@@ -137,7 +137,11 @@ func builtinMinus(a, b ast.Value) (ast.Value, error) {
 		return nil, builtins.NewOperandTypeErr(1, a, "number", "set")
 	}
 
-	return nil, builtins.NewOperandTypeErr(2, b, "number", "set")
+	if ok2 {
+		return nil, builtins.NewOperandTypeErr(2, b, "set")
+	}
+
+	return nil, builtins.NewOperandTypeErr(2, b, "number")
 }
 
 func builtinRem(a, b ast.Value) (ast.Value, error) {

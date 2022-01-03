@@ -13,17 +13,6 @@ import (
 	"github.com/open-policy-agent/opa/topdown"
 )
 
-// Buffer defines an interface for recording decisions.
-// DEPRECATED. Use Decision Logging instead.
-type Buffer interface {
-	// Push adds the given Info into the buffer.
-	Push(*Info)
-
-	// Iter iterates over the buffer, from oldest present Info to newest. It should
-	// call fn on each Info.
-	Iter(fn func(*Info))
-}
-
 // Info contains information describing a policy decision.
 type Info struct {
 	Txn        storage.Transaction

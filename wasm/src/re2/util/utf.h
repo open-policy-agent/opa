@@ -20,7 +20,10 @@
 
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
 namespace re2 {
+#endif
 
 typedef signed int Rune;	/* Code-point values in Unicode 4.0 are 21 bits wide.*/
 
@@ -39,6 +42,9 @@ int fullrune(const char* s, int n);
 int utflen(const char* s);
 char* utfrune(const char*, Rune);
 
-}  // namespace re2
+#ifdef __cplusplus
+} // namespace re2
+} // extern "C"
+#endif
 
 #endif  // UTIL_UTF_H_

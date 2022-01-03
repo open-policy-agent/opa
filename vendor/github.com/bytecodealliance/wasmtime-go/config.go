@@ -17,8 +17,6 @@ const (
 	StrategyAuto Strategy = C.WASMTIME_STRATEGY_AUTO
 	// StrategyCranelift will force wasmtime to use the Cranelift backend
 	StrategyCranelift Strategy = C.WASMTIME_STRATEGY_CRANELIFT
-	// StrategyLightbeam will force wasmtime to use the lightbeam backend
-	StrategyLightbeam Strategy = C.WASMTIME_STRATEGY_LIGHTBEAM
 )
 
 // OptLevel decides what degree of optimization wasmtime will perform on generated machine code
@@ -97,6 +95,18 @@ func (cfg *Config) SetWasmMultiValue(enabled bool) {
 // SetWasmModuleLinking configures whether the wasm module linking proposal is enabled
 func (cfg *Config) SetWasmModuleLinking(enabled bool) {
 	C.wasmtime_config_wasm_module_linking_set(cfg.ptr(), C.bool(enabled))
+	runtime.KeepAlive(cfg)
+}
+
+// SetWasmMultiMemory configures whether the wasm multi memory proposal is enabled
+func (cfg *Config) SetWasmMultiMemory(enabled bool) {
+	C.wasmtime_config_wasm_multi_memory_set(cfg.ptr(), C.bool(enabled))
+	runtime.KeepAlive(cfg)
+}
+
+// SetWasmMemory64 configures whether the wasm memory64 proposal is enabled
+func (cfg *Config) SetWasmMemory64(enabled bool) {
+	C.wasmtime_config_wasm_memory64_set(cfg.ptr(), C.bool(enabled))
 	runtime.KeepAlive(cfg)
 }
 

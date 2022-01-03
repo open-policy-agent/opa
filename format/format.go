@@ -42,14 +42,20 @@ func MustAst(x interface{}) []byte {
 // Ast formats a Rego AST element. If the passed value is not a valid AST
 // element, Ast returns nil and an error. If AST nodes are missing locations
 // an arbitrary location will be used.
-func Ast(x interface{}) (formatted []byte, err error) {
+func Ast(x interface{}) ([]byte, error) {
 
 	// The node has to be deep copied because it may be mutated below. Alternatively,
-	// we could avoid the copy by checking if mtuation will occur first. For now,
+	// we could avoid the copy by checking if mutation will occur first. For now,
 	// since format is not latency sensitive, just deep copy in all cases.
 	x = ast.Copy(x)
 
 	wildcards := map[ast.Var]*ast.Term{}
+
+	// NOTE(sr): When the formatter encounters a call to internal.member_2
+	// or internal.member_3, it will sugarize them into usage of the `in`
+	// operator. It has to ensure that the proper future keyword import is
+	// present.
+	extraFutureKeywordImports := map[string]bool{}
 
 	// Preprocess the AST. Set any required defaults and calculate
 	// values required for printing the formatted output.
@@ -61,6 +67,13 @@ func Ast(x interface{}) (formatted []byte, err error) {
 			}
 		case *ast.Term:
 			unmangleWildcardVar(wildcards, n)
+
+		case *ast.Expr:
+			if n.IsCall() &&
+				ast.Member.Ref().Equal(n.Operator()) ||
+				ast.MemberWithKey.Ref().Equal(n.Operator()) {
+				extraFutureKeywordImports["in"] = true
+			}
 		}
 		if x.Loc() == nil {
 			x.SetLoc(defaultLocation(x))
@@ -68,9 +81,15 @@ func Ast(x interface{}) (formatted []byte, err error) {
 		return false
 	})
 
-	w := &writer{indent: "\t"}
+	w := &writer{
+		indent: "\t",
+	}
+
 	switch x := x.(type) {
 	case *ast.Module:
+		for kw := range extraFutureKeywordImports {
+			x.Imports = ensureFutureKeywordImport(x.Imports, kw)
+		}
 		w.writeModule(x)
 	case *ast.Package:
 		w.writePackage(x, nil)
@@ -438,20 +457,24 @@ func (w *writer) writeSomeDecl(decl *ast.SomeDecl, comments []*ast.Comment) []*a
 	row := decl.Location.Row
 
 	for i, term := range decl.Symbols {
+		switch val := term.Value.(type) {
+		case ast.Var:
+			if term.Location.Row > row {
+				w.endLine()
+				w.startLine()
+				w.write(w.indent)
+				row = term.Location.Row
+			} else if i > 0 {
+				w.write(" ")
+			}
 
-		if term.Location.Row > row {
-			w.endLine()
-			w.startLine()
-			w.write(w.indent)
-			row = term.Location.Row
-		} else if i > 0 {
-			w.write(" ")
-		}
+			comments = w.writeTerm(term, comments)
 
-		comments = w.writeTerm(term, comments)
-
-		if i < len(decl.Symbols)-1 {
-			w.write(",")
+			if i < len(decl.Symbols)-1 {
+				w.write(",")
+			}
+		case ast.Call:
+			comments = w.writeInOperator(false, val[1:], comments)
 		}
 	}
 
@@ -461,8 +484,14 @@ func (w *writer) writeSomeDecl(decl *ast.SomeDecl, comments []*ast.Comment) []*a
 func (w *writer) writeFunctionCall(expr *ast.Expr, comments []*ast.Comment) []*ast.Comment {
 
 	terms := expr.Terms.([]*ast.Term)
+	operator := terms[0].Value.String()
 
-	bi, ok := ast.BuiltinMap[terms[0].Value.String()]
+	switch operator {
+	case ast.Member.Name, ast.MemberWithKey.Name:
+		return w.writeInOperator(false, terms[1:], comments)
+	}
+
+	bi, ok := ast.BuiltinMap[operator]
 	if !ok || bi.Infix == "" {
 		return w.writeFunctionCallPlain(terms, comments)
 	}
@@ -470,13 +499,13 @@ func (w *writer) writeFunctionCall(expr *ast.Expr, comments []*ast.Comment) []*a
 	numDeclArgs := len(bi.Decl.Args())
 	numCallArgs := len(terms) - 1
 
-	if numCallArgs == numDeclArgs {
-		// Print infix where result is unassigned (e.g., x != y)
+	switch numCallArgs {
+	case numDeclArgs: // Print infix where result is unassigned (e.g., x != y)
 		comments = w.writeTerm(terms[1], comments)
 		w.write(" " + bi.Infix + " ")
 		return w.writeTerm(terms[2], comments)
-	} else if numCallArgs == numDeclArgs+1 {
-		// Print infix where result is assigned (e.g., z = x + y)
+
+	case numDeclArgs + 1: // Print infix where result is assigned (e.g., z = x + y)
 		comments = w.writeTerm(terms[3], comments)
 		w.write(" " + ast.Equality.Infix + " ")
 		comments = w.writeTerm(terms[1], comments)
@@ -484,21 +513,18 @@ func (w *writer) writeFunctionCall(expr *ast.Expr, comments []*ast.Comment) []*a
 		comments = w.writeTerm(terms[2], comments)
 		return comments
 	}
-
 	return w.writeFunctionCallPlain(terms, comments)
 }
 
 func (w *writer) writeFunctionCallPlain(terms []*ast.Term, comments []*ast.Comment) []*ast.Comment {
 	w.write(terms[0].String() + "(")
-	if len(terms) > 1 {
-		for _, v := range terms[1 : len(terms)-1] {
-			comments = w.writeTerm(v, comments)
-			w.write(", ")
-		}
-		comments = w.writeTerm(terms[len(terms)-1], comments)
+	defer w.write(")")
+	args := make([]interface{}, len(terms)-1)
+	for i, t := range terms[1:] {
+		args[i] = t
 	}
-	w.write(")")
-	return comments
+	loc := terms[0].Location
+	return w.writeIterable(args, loc, closingLoc(0, 0, '(', ')', loc), comments, w.listWriter())
 }
 
 func (w *writer) writeWith(with *ast.With, comments []*ast.Comment) []*ast.Comment {
@@ -560,14 +586,16 @@ func (w *writer) writeRef(x ast.Ref) {
 	if len(x) > 0 {
 		w.writeTerm(x[0], nil)
 		path := x[1:]
-		for _, p := range path {
-			switch p := p.Value.(type) {
+		for _, t := range path {
+			switch p := t.Value.(type) {
 			case ast.String:
 				w.writeRefStringPath(p)
 			case ast.Var:
 				w.writeBracketed(w.formatVar(p))
 			default:
-				w.writeBracketed(p.String())
+				w.write("[")
+				w.writeTerm(t, nil)
+				w.write("]")
 			}
 		}
 	}
@@ -596,10 +624,15 @@ func (w *writer) formatVar(v ast.Var) string {
 }
 
 func (w *writer) writeCall(parens bool, x ast.Call, comments []*ast.Comment) []*ast.Comment {
-
 	bi, ok := ast.BuiltinMap[x[0].String()]
 	if !ok || bi.Infix == "" {
 		return w.writeFunctionCallPlain(x, comments)
+	}
+
+	if bi.Infix == "in" {
+		// NOTE(sr): `in` requires special handling, mirroring what happens in the parser,
+		// since there can be one or two lhs arguments.
+		return w.writeInOperator(true, x[1:], comments)
 	}
 
 	// TODO(tsandall): improve to consider precedence?
@@ -613,6 +646,31 @@ func (w *writer) writeCall(parens bool, x ast.Call, comments []*ast.Comment) []*
 		w.write(")")
 	}
 
+	return comments
+}
+
+func (w *writer) writeInOperator(parens bool, operands []*ast.Term, comments []*ast.Comment) []*ast.Comment {
+	kw := "in"
+	switch len(operands) {
+	case 2:
+		comments = w.writeTermParens(true, operands[0], comments)
+		w.write(" ")
+		w.write(kw)
+		w.write(" ")
+		comments = w.writeTermParens(true, operands[1], comments)
+	case 3:
+		if parens {
+			w.write("(")
+			defer w.write(")")
+		}
+		comments = w.writeTermParens(true, operands[0], comments)
+		w.write(", ")
+		comments = w.writeTermParens(true, operands[1], comments)
+		w.write(" ")
+		w.write(kw)
+		w.write(" ")
+		comments = w.writeTermParens(true, operands[2], comments)
+	}
 	return comments
 }
 
@@ -810,10 +868,31 @@ func (w *writer) listWriter() entryWriter {
 	}
 }
 
-func groupIterable(elements []interface{}, last *ast.Location) (lines [][]interface{}) {
+// groupIterable will group the `elements` slice into slices according to their
+// location: anything on the same line will be put into a slice.
+func groupIterable(elements []interface{}, last *ast.Location) [][]interface{} {
+	// Generated vars occur in the AST when we're rendering the result of
+	// partial evaluation in a bundle build with optimization. For those vars,
+	// there is no location, and the grouping based on source location will
+	// yield a bad result. So if there's a generated variable among elements,
+	// we'll render the elements all in one line.
+	vis := ast.NewVarVisitor()
+	for _, elem := range elements {
+		vis.Walk(elem)
+	}
+	for v := range vis.Vars() {
+		if v.IsGenerated() {
+			return [][]interface{}{elements}
+		}
+	}
+	sort.Slice(elements, func(i, j int) bool {
+		return locLess(elements[i], elements[j])
+	})
+	var lines [][]interface{}
 	var cur []interface{}
 	for i, t := range elements {
-		loc := getLoc(t)
+		elem := t
+		loc := getLoc(elem)
 		lineDiff := loc.Row - last.Row
 		if lineDiff > 0 && i > 0 {
 			lines = append(lines, cur)
@@ -821,7 +900,7 @@ func groupIterable(elements []interface{}, last *ast.Location) (lines [][]interf
 		}
 
 		last = loc
-		cur = append(cur, t)
+		cur = append(cur, elem)
 	}
 	return append(lines, cur)
 }
@@ -847,20 +926,30 @@ func mapImportsToComments(imports []*ast.Import, comments []*ast.Comment) (map[*
 	return m, leftovers
 }
 
-func groupImports(imports []*ast.Import) (groups [][]*ast.Import) {
-	if len(imports) == 0 {
+func groupImports(imports []*ast.Import) [][]*ast.Import {
+	switch len(imports) { // shortcuts
+	case 0:
 		return nil
+	case 1:
+		return [][]*ast.Import{imports}
 	}
+	// there are >=2 imports to group
 
-	last := imports[0]
-	var group []*ast.Import
-	for _, i := range imports {
-		if i.Loc().Row-last.Loc().Row > 1 {
+	var groups [][]*ast.Import
+	group := []*ast.Import{imports[0]}
+
+	for _, i := range imports[1:] {
+		last := group[len(group)-1]
+
+		// nil-location imports have been sorted up to come first
+		if i.Loc() != nil && last.Loc() != nil && // first import with a location, or
+			i.Loc().Row-last.Loc().Row > 1 { // more than one row apart from previous import
+
+			// start a new group
 			groups = append(groups, group)
 			group = []*ast.Import{}
 		}
 		group = append(group, i)
-		last = i
 	}
 	if len(group) > 0 {
 		groups = append(groups, group)
@@ -919,21 +1008,29 @@ func locLess(a, b interface{}) bool {
 func locCmp(a, b interface{}) int {
 	al := getLoc(a)
 	bl := getLoc(b)
+	switch {
+	case al == nil && bl == nil:
+		return 0
+	case al == nil:
+		return -1
+	case bl == nil:
+		return 1
+	}
+
 	if cmp := al.Row - bl.Row; cmp != 0 {
 		return cmp
+
 	}
 	return al.Col - bl.Col
 }
 
 func getLoc(x interface{}) *ast.Location {
 	switch x := x.(type) {
-	case ast.Statement:
-		// Implicitly matches *ast.Head, *ast.Expr, *ast.With, *ast.Term.
+	case ast.Node: // *ast.Head, *ast.Expr, *ast.With, *ast.Term
 		return x.Loc()
 	case *ast.Location:
 		return x
-	case [2]*ast.Term:
-		// Special case to allow for easy printing of objects.
+	case [2]*ast.Term: // Special case to allow for easy printing of objects.
 		return x[0].Location
 	default:
 		panic("Not reached")
@@ -1090,4 +1187,15 @@ func (w *writer) down() {
 		panic("negative indentation level")
 	}
 	w.level--
+}
+
+func ensureFutureKeywordImport(imps []*ast.Import, kw string) []*ast.Import {
+	allKeywords := ast.MustParseTerm("future.keywords")
+	kwPath := ast.MustParseTerm("future.keywords." + kw)
+	for _, imp := range imps {
+		if allKeywords.Equal(imp.Path) || imp.Path.Equal(kwPath) {
+			return imps
+		}
+	}
+	return append(imps, &ast.Import{Path: kwPath})
 }

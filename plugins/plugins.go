@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gorilla/mux"
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/config"
@@ -24,6 +25,7 @@ import (
 	"github.com/open-policy-agent/opa/resolver/wasm"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/topdown/cache"
+	"github.com/open-policy-agent/opa/topdown/print"
 )
 
 // Factory defines the interface OPA uses to instantiate your plugin.
@@ -96,6 +98,11 @@ type Plugin interface {
 	Reconfigure(ctx context.Context, config interface{})
 }
 
+// Triggerable defines the interface plugins use for manual plugin triggers.
+type Triggerable interface {
+	Trigger(context.Context) error
+}
+
 // State defines the state that a Plugin instance is currently
 // in with pre-defined states.
 type State string
@@ -117,6 +124,21 @@ const (
 	// degraded state. It may be used to indicate manual remediation is needed, or to
 	// alert admins of some other noteworthy state.
 	StateWarn State = "WARN"
+)
+
+// TriggerMode defines the trigger mode utilized by a Plugin for bundle download,
+// log upload etc.
+type TriggerMode string
+
+const (
+	// TriggerPeriodic represents periodic polling mechanism
+	TriggerPeriodic TriggerMode = "periodic"
+
+	// TriggerManual represents manual triggering mechanism
+	TriggerManual TriggerMode = "manual"
+
+	// DefaultTriggerMode represents default trigger mechanism
+	DefaultTriggerMode TriggerMode = "periodic"
 )
 
 // Status has a Plugin's current status plus an optional Message.
@@ -160,6 +182,11 @@ type Manager struct {
 	registeredCacheTriggers      []func(*cache.Config)
 	logger                       logging.Logger
 	consoleLogger                logging.Logger
+	serverInitialized            chan struct{}
+	serverInitializedOnce        sync.Once
+	printHook                    print.Hook
+	enablePrintStatements        bool
+	router                       *mux.Router
 }
 
 type managerContextKey string
@@ -200,6 +227,46 @@ func getWasmResolversOnContext(context *storage.Context) []*wasm.Resolver {
 		return nil
 	}
 	return resolvers
+}
+
+func validateTriggerMode(mode TriggerMode) error {
+	switch mode {
+	case TriggerPeriodic, TriggerManual:
+		return nil
+	default:
+		return fmt.Errorf("invalid trigger mode %q (want %q or %q)", mode, TriggerPeriodic, TriggerManual)
+	}
+}
+
+// ValidateAndInjectDefaultsForTriggerMode validates the trigger mode and injects default values
+func ValidateAndInjectDefaultsForTriggerMode(a, b *TriggerMode) (*TriggerMode, error) {
+
+	if a == nil && b != nil {
+		err := validateTriggerMode(*b)
+		if err != nil {
+			return nil, err
+		}
+		return b, nil
+	} else if a != nil && b == nil {
+		err := validateTriggerMode(*a)
+		if err != nil {
+			return nil, err
+		}
+		return a, nil
+	} else if a != nil && b != nil {
+		if *a != *b {
+			return nil, fmt.Errorf("trigger mode mismatch: %s and %s (hint: check discovery configuration)", *a, *b)
+		}
+		err := validateTriggerMode(*a)
+		if err != nil {
+			return nil, err
+		}
+		return a, nil
+
+	} else {
+		t := DefaultTriggerMode
+		return &t, nil
+	}
 }
 
 type namedplugin struct {
@@ -259,6 +326,24 @@ func ConsoleLogger(logger logging.Logger) func(*Manager) {
 	}
 }
 
+func EnablePrintStatements(yes bool) func(*Manager) {
+	return func(m *Manager) {
+		m.enablePrintStatements = yes
+	}
+}
+
+func PrintHook(h print.Hook) func(*Manager) {
+	return func(m *Manager) {
+		m.printHook = h
+	}
+}
+
+func WithRouter(r *mux.Router) func(*Manager) {
+	return func(m *Manager) {
+		m.router = r
+	}
+}
+
 // New creates a new Manager using config.
 func New(raw []byte, id string, store storage.Store, opts ...func(*Manager)) (*Manager, error) {
 
@@ -286,14 +371,19 @@ func New(raw []byte, id string, store storage.Store, opts ...func(*Manager)) (*M
 		pluginStatusListeners:        map[string]StatusListener{},
 		maxErrors:                    -1,
 		interQueryBuiltinCacheConfig: interQueryBuiltinCacheConfig,
+		serverInitialized:            make(chan struct{}),
+	}
+
+	for _, f := range opts {
+		f(m)
 	}
 
 	if m.logger == nil {
-		m.logger = logging.NewStandardLogger()
+		m.logger = logging.Get()
 	}
 
 	if m.consoleLogger == nil {
-		m.consoleLogger = logging.NewStandardLogger()
+		m.consoleLogger = logging.New()
 	}
 
 	serviceOpts := cfg.ServiceOptions{
@@ -302,16 +392,13 @@ func New(raw []byte, id string, store storage.Store, opts ...func(*Manager)) (*M
 		Keys:       keys,
 		Logger:     m.logger,
 	}
+
 	services, err := cfg.ParseServicesConfig(serviceOpts)
 	if err != nil {
 		return nil, err
 	}
 
 	m.services = services
-
-	for _, f := range opts {
-		f(m)
-	}
 
 	return m, nil
 }
@@ -332,11 +419,12 @@ func (m *Manager) Init(ctx context.Context) error {
 	err := storage.Txn(ctx, m.Store, params, func(txn storage.Transaction) error {
 
 		result, err := initload.InsertAndCompile(ctx, initload.InsertAndCompileOptions{
-			Store:     m.Store,
-			Txn:       txn,
-			Files:     m.initFiles,
-			Bundles:   m.initBundles,
-			MaxErrors: m.maxErrors,
+			Store:                 m.Store,
+			Txn:                   txn,
+			Files:                 m.initFiles,
+			Bundles:               m.initBundles,
+			MaxErrors:             m.maxErrors,
+			EnablePrintStatements: m.enablePrintStatements,
 		})
 
 		if err != nil {
@@ -439,6 +527,13 @@ func (m *Manager) setCompiler(compiler *ast.Compiler) {
 	m.compiler = compiler
 }
 
+// GetRouter returns the managers router if set
+func (m *Manager) GetRouter() *mux.Router {
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
+	return m.router
+}
+
 // RegisterCompilerTrigger registers for change notifications when the compiler
 // is changed.
 func (m *Manager) RegisterCompilerTrigger(f func(txn storage.Transaction)) {
@@ -493,8 +588,11 @@ func (m *Manager) Start(ctx context.Context) error {
 	return nil
 }
 
-// Stop stops the manager, stopping all the plugins registered with it. Any plugin that needs to perform cleanup should
-// do so within the duration of the graceful shutdown period passed with the context as a timeout.
+// Stop stops the manager, stopping all the plugins registered with it.
+// Any plugin that needs to perform cleanup should do so within the duration
+// of the graceful shutdown period passed with the context as a timeout.
+// Note that a graceful shutdown period configured with the Manager instance
+// will override the timeout of the passed in context (if applicable).
 func (m *Manager) Stop(ctx context.Context) {
 	var toStop []Plugin
 
@@ -507,7 +605,12 @@ func (m *Manager) Stop(ctx context.Context) {
 		}
 	}()
 
-	ctx, cancel := context.WithTimeout(ctx, time.Duration(m.gracefulShutdownPeriod)*time.Second)
+	var cancel context.CancelFunc
+	if m.gracefulShutdownPeriod > 0 {
+		ctx, cancel = context.WithTimeout(ctx, time.Duration(m.gracefulShutdownPeriod)*time.Second)
+	} else {
+		ctx, cancel = context.WithCancel(ctx)
+	}
 	defer cancel()
 	for i := range toStop {
 		toStop[i].Stop(ctx)
@@ -632,7 +735,7 @@ func (m *Manager) onCommit(ctx context.Context, txn storage.Transaction, event s
 	// compiler on the context but the server does not (nor would users
 	// implementing their own policy loading.)
 	if compiler == nil && event.PolicyChanged() {
-		compiler, _ = loadCompilerFromStore(ctx, m.Store, txn)
+		compiler, _ = loadCompilerFromStore(ctx, m.Store, txn, m.enablePrintStatements)
 	}
 
 	if compiler != nil {
@@ -664,7 +767,7 @@ func (m *Manager) onCommit(ctx context.Context, txn storage.Transaction, event s
 	}
 }
 
-func loadCompilerFromStore(ctx context.Context, store storage.Store, txn storage.Transaction) (*ast.Compiler, error) {
+func loadCompilerFromStore(ctx context.Context, store storage.Store, txn storage.Transaction, enablePrintStatements bool) (*ast.Compiler, error) {
 	policies, err := store.ListPolicies(ctx, txn)
 	if err != nil {
 		return nil, err
@@ -683,7 +786,7 @@ func loadCompilerFromStore(ctx context.Context, store storage.Store, txn storage
 		modules[policy] = module
 	}
 
-	compiler := ast.NewCompiler()
+	compiler := ast.NewCompiler().WithEnablePrintStatements(enablePrintStatements)
 	compiler.Compile(modules)
 	return compiler, nil
 }
@@ -757,6 +860,30 @@ func (m *Manager) Logger() logging.Logger {
 // ConsoleLogger gets the console logger for this plugin manager.
 func (m *Manager) ConsoleLogger() logging.Logger {
 	return m.consoleLogger
+}
+
+func (m *Manager) PrintHook() print.Hook {
+	return m.printHook
+}
+
+func (m *Manager) EnablePrintStatements() bool {
+	return m.enablePrintStatements
+}
+
+// ServerInitialized signals a channel indicating that the OPA
+// server has finished initialization.
+func (m *Manager) ServerInitialized() {
+	m.serverInitializedOnce.Do(func() { close(m.serverInitialized) })
+}
+
+// ServerInitializedChannel returns a receive-only channel that
+// is closed when the OPA server has finished initialization.
+// Be aware that the socket of the server listener may not be
+// open by the time this channel is closed. There is a very
+// small window where the socket may still be closed, due to
+// a race condition.
+func (m *Manager) ServerInitializedChannel() <-chan struct{} {
+	return m.serverInitialized
 }
 
 // RegisterCacheTrigger accepts a func that receives new inter-query cache config generated by

@@ -62,8 +62,8 @@ func TestPretty(t *testing.T) {
      "foo"
      array
       set
-       1
        null
+       1
       true
  rule
   head

@@ -9,7 +9,10 @@ import (
 	"context"
 	"sync"
 
+	"github.com/bytecodealliance/wasmtime-go"
+
 	"github.com/open-policy-agent/opa/internal/wasm/sdk/opa/errors"
+	"github.com/open-policy-agent/opa/internal/wasm/util"
 	"github.com/open-policy-agent/opa/metrics"
 )
 
@@ -17,6 +20,7 @@ var errNotReady = errors.New(errors.NotReadyErr, "")
 
 // Pool maintains a pool of WebAssemly VM instances.
 type Pool struct {
+	engine         *wasmtime.Engine
 	available      chan struct{}
 	mutex          sync.Mutex
 	dataMtx        sync.Mutex
@@ -35,12 +39,17 @@ type Pool struct {
 
 // NewPool constructs a new pool with the pool and VM configuration provided.
 func NewPool(poolSize, memoryMinPages, memoryMaxPages uint32) *Pool {
+
+	cfg := wasmtime.NewConfig()
+	cfg.SetInterruptable(true)
+
 	available := make(chan struct{}, poolSize)
 	for i := uint32(0); i < poolSize; i++ {
 		available <- struct{}{}
 	}
 
 	return &Pool{
+		engine:         wasmtime.NewEngineWithConfig(cfg),
 		memoryMinPages: memoryMinPages,
 		memoryMaxPages: memoryMaxPages,
 		available:      available,
@@ -106,7 +115,7 @@ func (p *Pool) Acquire(ctx context.Context, metrics metrics.Metrics) (*VM, error
 		parsedDataAddr: parsedDataAddr,
 		memoryMin:      p.memoryMinPages,
 		memoryMax:      p.memoryMaxPages,
-	})
+	}, p.engine)
 	p.mutex.Lock()
 
 	if err != nil {
@@ -168,11 +177,11 @@ func (p *Pool) SetPolicyData(ctx context.Context, policy []byte, data []byte) er
 			parsedDataAddr: 0,
 			memoryMin:      p.memoryMinPages,
 			memoryMax:      p.memoryMaxPages,
-		})
+		}, p.engine)
 
 		if err == nil {
 			parsedDataAddr, parsedData := vm.cloneDataSegment()
-			p.memoryMinPages = Pages(uint32(vm.memory.DataSize()))
+			p.memoryMinPages = util.Pages(uint32(vm.memory.DataSize(vm.store)))
 			p.vms = append(p.vms, vm)
 			p.acquired = append(p.acquired, false)
 			p.initialized = true
@@ -280,7 +289,7 @@ func (p *Pool) updateVMs(update func(vm *VM, opts vmOpts) error) error {
 				activated = true
 				policy = vm.policy
 				parsedDataAddr, parsedData = vm.cloneDataSegment()
-				seedMemorySize = Pages(uint32(vm.memory.DataSize()))
+				seedMemorySize = util.Pages(uint32(vm.memory.DataSize(vm.store)))
 				p.activate(policy, parsedData, parsedDataAddr, seedMemorySize)
 			}
 

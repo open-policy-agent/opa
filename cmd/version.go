@@ -45,7 +45,7 @@ func generateCmdOutput(out io.Writer, check bool) {
 
 	var wasmAvailable string
 
-	if version.WasmRuntimeAvailable {
+	if version.WasmRuntimeAvailable() {
 		wasmAvailable = "available"
 	} else {
 		wasmAvailable = "unavailable"
@@ -68,7 +68,7 @@ func checkOPAUpdate(out io.Writer) error {
 		return err
 	}
 
-	reporter, err := report.New(id)
+	reporter, err := report.New(id, report.Options{})
 	if err != nil {
 		return err
 	}

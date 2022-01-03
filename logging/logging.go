@@ -1,6 +1,8 @@
 package logging
 
 import (
+	"io"
+
 	"github.com/sirupsen/logrus"
 )
 
@@ -32,17 +34,31 @@ type Logger interface {
 	SetLevel(Level)
 }
 
-// StandardLogger is the default OPA logger
+// StandardLogger is the default OPA logger implementation.
 type StandardLogger struct {
 	logger *logrus.Logger
 	fields map[string]interface{}
 }
 
-// NewStandardLogger instantiates new default OPA logger
-func NewStandardLogger() *StandardLogger {
+// New returns a new standard logger.
+func New() *StandardLogger {
+	return &StandardLogger{
+		logger: logrus.New(),
+	}
+}
+
+// Get returns the standard logger used throughout OPA.
+//
+// Deprecated. Do not rely on the global logger.
+func Get() *StandardLogger {
 	return &StandardLogger{
 		logger: logrus.StandardLogger(),
 	}
+}
+
+// SetOutput sets the underlying logrus output.
+func (l *StandardLogger) SetOutput(w io.Writer) {
+	l.logger.SetOutput(w)
 }
 
 // SetFormatter sets the underlying logrus formatter.

@@ -13,6 +13,11 @@ pygmentsGuessSyntax = true
 # the are loaded via shortcode helpers.
 ignorefiles = [ "/docs/v.*/code/.*" ]
 
+[markup]
+[markup.goldmark]
+[markup.goldmark.renderer]
+unsafe = true
+
 [params]
 description = "Policy-based control for cloud native environments"
 tagline = "Empower your administrators with flexible, fine-grained control across your entire stack."
@@ -23,31 +28,17 @@ twitter = "OpenPolicyAgent"
 medium = "https://blog.openpolicyagent.org"
 slack = "https://slack.openpolicyagent.org"
 github = "https://github.com/open-policy-agent/opa"
+discussions = "https://github.com/open-policy-agent/feedback/discussions"
 
 [params.logos]
 sidebar = "/img/logos/opa-horizontal-color.png"
 navbar = "/img/logos/opa-icon-white.png"
 
-[menu]
-[[menu.social]]
-name = "Medium"
-url = "https://blog.openpolicyagent.org"
-weight = 1
-
-[[menu.social]]
-name = "Twitter"
-url = "https://twitter.com/openpolicyagent"
-weight = 2
-
-[[menu.social]]
-name = "Slack"
-url = "https://slack.openpolicyagent.org/"
-weight = 3
-
-[[menu.social]]
-name = "GitHub"
-url = "https://github.com/open-policy-agent/opa"
-weight = 4
+[params.ui]
+[params.ui.feedback]
+# Requires googleAnalytics to be set to track feedback events
+# Set hide_feedback: true in a page's front matter to disable feedback for that page
+enable = true
 
 [mediaTypes."text/netlify"]
 delimiter = ""

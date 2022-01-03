@@ -6,8 +6,11 @@
 package rego
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -19,13 +22,14 @@ import (
 	"time"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/ast/location"
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/internal/storage/mock"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/topdown"
-	iCache "github.com/open-policy-agent/opa/topdown/cache"
+	"github.com/open-policy-agent/opa/topdown/cache"
 	"github.com/open-policy-agent/opa/types"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/util/test"
@@ -213,6 +217,22 @@ func TestRegoRewrittenVarsCapture(t *testing.T) {
 
 }
 
+func TestRegoDoNotCaptureVoidCalls(t *testing.T) {
+
+	ctx := context.Background()
+
+	r := New(Query("print(1)"))
+
+	rs, err := r.Eval(ctx)
+	if err != nil || len(rs) != 1 {
+		t.Fatal(err, "rs:", rs)
+	}
+
+	if !rs[0].Expressions[0].Value.(bool) {
+		t.Fatal("expected expression value to be true")
+	}
+}
+
 func TestRegoCancellation(t *testing.T) {
 
 	ast.RegisterBuiltin(&ast.Builtin{
@@ -236,8 +256,37 @@ func TestRegoCancellation(t *testing.T) {
 
 	if err == nil {
 		t.Fatalf("Expected cancellation error but got: %v", rs)
-	} else if topdownErr, ok := err.(*topdown.Error); !ok || topdownErr.Code != topdown.CancelErr {
-		t.Fatalf("Got unexpected error: %v", err)
+	}
+	exp := topdown.Error{Code: topdown.CancelErr, Message: "caller cancelled query execution"}
+	if !errors.Is(err, &exp) {
+		t.Errorf("error: expected %v, got: %v", exp, err)
+	}
+}
+
+func TestRegoCustomBuiltinHalt(t *testing.T) {
+
+	funOpt := Function1(
+		&Function{
+			Name: "halt_func",
+			Decl: types.NewFunction(
+				types.Args(types.S),
+				types.NewNull(),
+			),
+		},
+		func(BuiltinContext, *ast.Term) (*ast.Term, error) {
+			return nil, NewHaltError(fmt.Errorf("stop"))
+		},
+	)
+	r := New(Query(`halt_func("")`), funOpt)
+	rs, err := r.Eval(context.Background())
+	if err == nil {
+		t.Fatalf("Expected halt error but got: %v", rs)
+	}
+	// exp is the error topdown returns after unwrapping the Halt
+	exp := topdown.Error{Code: topdown.BuiltinErr, Message: "halt_func: stop",
+		Location: location.NewLocation([]byte(`halt_func("")`), "", 1, 1)}
+	if !errors.Is(err, &exp) {
+		t.Fatalf("error: expected %v, got: %v", exp, err)
 	}
 }
 
@@ -829,6 +878,48 @@ func TestPrepareAndEvalOriginal(t *testing.T) {
 	// as expected for Eval.
 
 	assertEval(t, r, "[[2]]")
+}
+
+func TestPrepareAndEvalNewPrintHook(t *testing.T) {
+	module := `
+	package test
+	x { print(input) }
+	`
+
+	r := New(
+		Query("data.test.x"),
+		Module("", module),
+		Package("foo"),
+		EnablePrintStatements(true),
+	)
+
+	pq, err := r.PrepareForEval(context.Background())
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err.Error())
+	}
+
+	var buf0 bytes.Buffer
+	ph0 := topdown.NewPrintHook(&buf0)
+	assertPreparedEvalQueryEval(t, pq, []EvalOption{
+		EvalInput("hello"),
+		EvalPrintHook(ph0),
+	}, "[[true]]")
+
+	if exp, act := "hello\n", buf0.String(); exp != act {
+		t.Fatalf("print hook, expected %q, got %q", exp, act)
+	}
+
+	// repeat
+	var buf1 bytes.Buffer
+	ph1 := topdown.NewPrintHook(&buf1)
+	assertPreparedEvalQueryEval(t, pq, []EvalOption{
+		EvalInput("world"),
+		EvalPrintHook(ph1),
+	}, "[[true]]")
+
+	if exp, act := "world\n", buf1.String(); exp != act {
+		t.Fatalf("print hook, expected %q, got %q", exp, act)
+	}
 }
 
 func TestPrepareAndPartialResult(t *testing.T) {
@@ -1824,7 +1915,6 @@ func TestPrepareWithWasmTargetNotSupported(t *testing.T) {
 }
 
 func TestEvalWithInterQueryCache(t *testing.T) {
-	query := `http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true})`
 	newHeaders := map[string][]string{"Cache-Control": {"max-age=290304000, public"}}
 
 	var requests []*http.Request
@@ -1840,20 +1930,21 @@ func TestEvalWithInterQueryCache(t *testing.T) {
 		_, _ = w.Write([]byte(`{"x": 1}`))
 	}))
 	defer ts.Close()
+	query := fmt.Sprintf(`http.send({"method": "get", "url": "%s", "force_json_decode": true, "cache": true})`, ts.URL)
 
 	// add an inter-query cache
-	config, _ := iCache.ParseCachingConfig(nil)
-	interQueryCache := iCache.NewInterQueryCache(config)
+	config, _ := cache.ParseCachingConfig(nil)
+	interQueryCache := cache.NewInterQueryCache(config)
 
 	ctx := context.Background()
-	_, err := New(Query(strings.ReplaceAll(query, "%URL%", ts.URL)), InterQueryBuiltinCache(interQueryCache)).Eval(ctx)
+	_, err := New(Query(query), InterQueryBuiltinCache(interQueryCache)).Eval(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// eval again with same query
 	// this request should be served by the cache
-	_, err = New(Query(strings.ReplaceAll(query, "%URL%", ts.URL)), InterQueryBuiltinCache(interQueryCache)).Eval(ctx)
+	_, err = New(Query(query), InterQueryBuiltinCache(interQueryCache)).Eval(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1979,4 +2070,15 @@ func TestPrepareAndCompileWithSchema(t *testing.T) {
 	if err != nil {
 		t.Errorf("Unexpected error when compiling: %s", err.Error())
 	}
+}
+
+func TestGenerateJSON(t *testing.T) {
+	r := New(
+		Query("input"),
+		Input("original-input"),
+		GenerateJSON(func(t *ast.Term, ectx *EvalContext) (interface{}, error) {
+			return "converted-input", nil
+		}),
+	)
+	assertEval(t, r, `[["converted-input"]]`)
 }
