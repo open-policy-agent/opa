@@ -623,6 +623,16 @@ func TestNew(t *testing.T) {
         }
 			}`,
 		},
+		{
+			name: "Unknown plugin",
+			input: `{
+				"name": "foo",
+				"url": "http://localhost",
+				"credentials": {
+					"plugin": "my_other_plugin"
+        }
+			}`,
+		},
 	}
 
 	var results []Client

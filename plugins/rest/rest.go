@@ -67,19 +67,29 @@ func (c *Config) authPlugin(authPluginLookup func(string) HTTPAuthPlugin) (HTTPA
 	var candidate HTTPAuthPlugin
 	if c.Credentials.Plugin != nil && authPluginLookup != nil {
 		candidate := authPluginLookup(*c.Credentials.Plugin)
-		if candidate != nil {
+		if candidate == nil {
+			c.logger.WithFields(map[string]interface{}{
+				"plugin": *c.Credentials.Plugin,
+			}).Warn("Could not resolve candidate auth plugin")
+		} else {
 			return candidate, nil
 		}
 	}
 	// reflection avoids need for this code to change as auth plugins are added
 	s := reflect.ValueOf(c.Credentials)
 	for i := 0; i < s.NumField(); i++ {
+		if s.Field(i).Type().String() == "*string" {
+			continue
+		}
+
 		if s.Field(i).IsNil() {
 			continue
 		}
+
 		if candidate != nil {
 			return nil, errors.New("a maximum one credential method must be specified")
 		}
+
 		candidate = s.Field(i).Interface().(HTTPAuthPlugin)
 	}
 	if candidate == nil {
