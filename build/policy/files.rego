@@ -9,13 +9,18 @@ package files
 
 import future.keywords.in
 
-filenames := [f | f := input[_].filename]
+import data.helpers.endswith_any
+import data.helpers.last_indexof
+
+filenames := {f.filename | some f in input}
 
 changes := {filename: attributes |
-	c := input[_]
-	filename := c.filename
-	attributes := object.remove(c, ["filename"])
+	some change in input
+	filename := change.filename
+	attributes := object.remove(change, ["filename"])
 }
+
+get_file_in_pr(filename) = http.send({"url": changes[filename].raw_url, "method": "GET"}).raw_body
 
 deny["Logo must be placed in docs/website/static/img/logos/integrations"] {
 	"docs/website/data/integrations.yaml" in filenames
@@ -37,10 +42,14 @@ deny["Logo must be a .png file"] {
 	not endswith(filename, ".png")
 }
 
-last_indexof(string, search) = i {
-	all := [i | chars := split(string, ""); chars[i] == search]
-	count(all) > 0
-	i := all[count(all) - 1]
-} else = -1 {
-	true
+# Helper rule to work around not being able to mock functions yet
+yaml_file_contents := {filename: get_file_in_pr(filename) |
+	some filename in filenames
+	endswith_any(filename, [".yml", ".yaml"])
+}
+
+deny[sprintf("%s is an invalid YAML file", [filename])] {
+	some filename, content in yaml_file_contents
+	changes[filename].status in {"added", "modified"}
+	not yaml.is_valid(content)
 }

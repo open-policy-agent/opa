@@ -287,11 +287,11 @@ jobs:
         uses: infracost/setup-opa@v1
 
       - name: Test policies
-        run: opa test .github/policy
+        run: opa test build/policy
 
       - name: Run policy checks on changed files
         run: |
           curl --silent --fail --header 'Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' \
           https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files \
-          | opa eval --data .github/policy/files.rego --format values --stdin-input --fail-defined 'data.files.deny[message]'
+          | opa eval --bundle build/policy/ --format values --stdin-input --fail-defined 'data.files.deny[message]'
 

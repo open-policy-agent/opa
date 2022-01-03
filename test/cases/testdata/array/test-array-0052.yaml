@@ -1,0 +1,43 @@
+cases:
+- note: 'array/reverse_123'
+  query: data.test.p = x
+  data:
+    foo:
+    - 1
+    - 2
+    - 3
+  modules:
+  - |
+    package test
+
+    p := array.reverse(data.foo)
+  want_result:
+  - x:
+    - 3
+    - 2
+    - 1
+- note: 'array/reverse_empty'
+  query: data.test.p = x
+  data:
+    foo: []
+  modules:
+  - |
+    package test
+
+    p := array.reverse(data.foo)
+  want_result:
+  - x: []
+- note: 'array/reverse_object_error'
+  query: data.test.p = x
+  data:
+    foo:
+      bar: baz
+      baz: bar
+  modules:
+  - |
+    package test
+
+    p := array.reverse(data.foo)
+  want_error: "array.reverse: operand 1 must be array but got object"
+  want_error_code: eval_type_error
+  strict_error: true
