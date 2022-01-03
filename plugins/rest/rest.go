@@ -79,6 +79,9 @@ func (c *Config) authPlugin(authPluginLookup func(string) HTTPAuthPlugin) (HTTPA
 	s := reflect.ValueOf(c.Credentials)
 	for i := 0; i < s.NumField(); i++ {
 		if s.Field(i).Type().String() == "*string" {
+			// if the field is `Plugin` we should have resolved that above, if we didn't
+			// we won't do it here, hence we avoid this check (which will fail anyways in casting)
+			// and let the rest of the code below handle it
 			continue
 		}
 
@@ -92,6 +95,7 @@ func (c *Config) authPlugin(authPluginLookup func(string) HTTPAuthPlugin) (HTTPA
 
 		candidate = s.Field(i).Interface().(HTTPAuthPlugin)
 	}
+
 	if candidate == nil {
 		return &defaultAuthPlugin{}, nil
 	}
