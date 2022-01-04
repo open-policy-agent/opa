@@ -11,6 +11,7 @@ import (
 	"io"
 	"math/big"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -2080,6 +2081,7 @@ func (p *Parser) futureImport(imp *Import, allowedFutureKeywords map[string]toke
 	for k := range allowedFutureKeywords {
 		kwds = append(kwds, k)
 	}
+
 	switch len(path) {
 	case 2: // all keywords imported, nothing to do
 	case 3: // one keyword imported
@@ -2091,6 +2093,7 @@ func (p *Parser) futureImport(imp *Import, allowedFutureKeywords map[string]toke
 		keyword := string(kw)
 		_, ok = allowedFutureKeywords[keyword]
 		if !ok {
+			sort.Strings(kwds) // so the error message is stable
 			p.errorf(imp.Path.Location, "unexpected keyword, must be one of %v", kwds)
 			return
 		}
