@@ -3,7 +3,102 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.36.0
+
+This release contains a number of fixes and enhancements.
+
+### OpenTelemetry and opa exec
+
+This release adds OpenTelemetry support to OPA. This makes it possible to emit spans to an OpenTelemetry collector via 
+gRPC on both incoming and outgoing (i.e. http.send) calls in the server. See the updated docs on 
+[monitoring](https://www.openpolicyagent.org/docs/latest/monitoring/) for more information and configuration options
+([#1469](https://github.com/open-policy-agent/opa/issues/1469)) authored by @[rvalkenaers](https://github.com/rvalkenaers)
+
+This release also adds a new `opa exec` command for doing one-off evaluations of policy against input similar to 
+`opa eval`, but using the full capabilities of the server (config file, plugins, etc). This is particularly useful in 
+contexts such as CI/CD or when enforcing policy for infrastructure as code, where one might want to run OPA with remote 
+bundles and decision logs but without having a running server. See the updated docs on
+[Terraform](https://www.openpolicyagent.org/docs/latest/terraform/) for an example use case.
+([#3525](https://github.com/open-policy-agent/opa/issues/3525))
+
+### Built-in Functions
+
+- Four new functions for working with HMAC (`crypto.hmac.md5`, `crypto.hmac.sha1`, `crypto.hmac.sha256`, and `crypto.hmac.sha512`) was added ([#1740](https://github.com/open-policy-agent/opa/issues/1740)) reported by @[jshaw86](https://github.com/jshaw86)
+- `array.reverse(array)` and `strings.reverse(string)` was added for reversing arrays and strings ([#3736](https://github.com/open-policy-agent/opa/issues/3736)) authored by @[kristiansvalland](https://github.com/kristiansvalland) and @[olamiko](https://github.com/olamiko)
+- The `http.send` built-in function now uses a metric for counting inter-query cache hits ([#4023](https://github.com/open-policy-agent/opa/issues/4023)) authored by @[mirayadav](https://github.com/mirayadav)
+- An overflow issue with dates very far in the future has been fixed in the `time.*` built-in functions ([#4098](https://github.com/open-policy-agent/opa/issues/4098)) reported by @[morgante](https://github.com/morgante)
+
+### Tooling
+
+- A problem with future keyword import of `in` was fixed for `opa fmt` ([#4111](https://github.com/open-policy-agent/opa/issues/4111)) reported by @[keshavprasadms](https://github.com/keshavprasadms)
+- An issue with `opa fmt` when refs contained operators was fixed (authored by @[jaspervdj-luminal](https://github.com/jaspervdj-luminal))
+- Fix file renaming check in optimization using `opa build` (authored by @[davidmarne-wf](https://github.com/davidmarne-wf))
+- The `allow_net` capability was added, allowing setting limits on what hosts can be reached in built-ins like `http.send` and `net.lookup_ip_addr` ([#3665](https://github.com/open-policy-agent/opa/issues/3665))
+
+### Server
+
+- A new credential provider for AWS credential files was added ([#2786](https://github.com/open-policy-agent/opa/issues/2786)) reported by @[rgueldem](https://github.com/rgueldem)
+- The new `--tls-cert-refresh-period` flag can now be provided to `opa run`. If used with a positive duration, such as "5m" (5 minutes), 
+  "24h", etc, the server will track the certificate and key files' contents. When their content changes, the certificates will be 
+  reloaded ([#2500](https://github.com/open-policy-agent/opa/issues/2500)) reported by @[patoarvizu](https://github.com/patoarvizu)
+- A new `v1/status` endpoint was added, providing the same data as the status plugin would send to a remote endpoint ([#4089](https://github.com/open-policy-agent/opa/issues/4089))
+- The HTTP router of OPA is now exposed to the plugin manager ([#2777](https://github.com/open-policy-agent/opa/issues/2777)) authored by @[bhoriuchi](https://github.com/bhoriuchi) reported by @[mneil](https://github.com/mneil)
+- Calling `print` now works in decision masking policies
+- An unintended switch between long/regular polling on 304 HTTP status was fixed ([#3923](https://github.com/open-policy-agent/opa/issues/3923)) authored by @[floriangasc](https://github.com/floriangasc)
+- The error message about prohibited config in the discovery plugin has been improved
+- The discovery plugin no longer panics in Trigger() if downloader is nil
+- The bundle plugin now ignores service errors for file:// resources
+- The bundle plugin file loader was updated to support directories
+- A timer to HTTP request was added to the downloader
+- The requested_by field in the logging plugin is now optional
+
+### Rego
+
+- The error message raised when using `-` with a number and a set is now more specific (as opposed to the correct usage with two sets, or two numbers) ([#1643](https://github.com/open-policy-agent/opa/issues/1643))
+- Fixed an edge case when using print and arrays in unification ([#4078](https://github.com/open-policy-agent/opa/issues/4078))
+- Improved performance of some array operations by caching an array's groundness bit ([#3679](https://github.com/open-policy-agent/opa/issues/3679))
+- ⚠️ Stricter check of arity in undefined function stage ([#4054](https://github.com/open-policy-agent/opa/issues/4054)). 
+  This change will fail evaluation in some unusual cases where it previously would succeed, but these policies should be very uncommon.
+  
+  An example policy that previously would succeed but no longer will (wrong arity):
+
+```rego
+package policy
+
+default p = false
+p {
+    x := is_blue()
+    input.bar[x]
+}
+
+is_blue(fruit) = y { # doesn't use fruit
+    y := input.foo
+}
+```
+
+### SDK
+
+- The `opa.runtime()` built-in is now made available to the SDK ([#4050](https://github.com/open-policy-agent/opa/issues/4050) authored by @[oren-zohar](https://github.com/oren-zohar) and @[cmschuetz](https://github.com/cmschuetz)
+- Plugins are now exposed on the SDK object
+- The SDK now supports graceful shutdown ([#3980](https://github.com/open-policy-agent/opa/issues/3980)) reported by @[brianchhun-chime](https://github.com/brianchhun-chime)
+- `print` output is now sent to the configured logger
+
+### Website and Documentation
+
+- All pages in the docs now have a feedback button ([#3664](https://github.com/open-policy-agent/opa/issues/3664)) authored by @[alan-ma](https://github.com/alan-ma)
+- The Kafka docs have been updated to use the new Kafka plugin, and to use the OPA management APIs
+- The Terraform tutorial was updated to use `opa exec` ([#3965](https://github.com/open-policy-agent/opa/issues/3965))
+- The docs on Contributing as well as the Vendor Guidelines have been updated
+- The term "whitelist" has been replaced by "allowlist" across the docs
+- A simple destructuring assignment example was added to the docs
+- The docs have been reviewed on the use of assignment, equality and comparison operators, to make sure they follow best practice
+
+### CI
+
+- SHA256 checksums of CI builds now published to release directory ([#3448](https://github.com/open-policy-agent/opa/issues/3448)) authored by @[johanneslarsson](https://github.com/johanneslarsson) reported by @[raesene](https://github.com/raesene)
+- golangci-lint upgraded to v1.43.0 (authored by @[shuheiktgw](https://github.com/shuheiktgw))
+- The build now creates an executable for darwin/arm64. This should work as expected, but is currently tested in the CI pipeline like the other binaries
+- PRs targeting the [ecosystem](https://www.openpolicyagent.org/docs/latest/ecosystem/) page are now checked for mistakes using Rego policies
 
 ## 0.35.0
 
