@@ -782,10 +782,13 @@ func TestEvery(t *testing.T) {
 			},
 		},
 		opts)
-	assertParseOneExpr(t, "with key", "every k, v in xs { true }",
+
+	assertParseOneExpr(t, "with key", "every k, v in [1,2] { true }",
 		&Expr{
 			Terms: &Every{
-				Domain: Call([]*Term{NewTerm(MemberWithKey.Ref()), VarTerm("k"), VarTerm("v"), VarTerm("xs")}),
+				Key:    VarTerm("k"),
+				Value:  VarTerm("v"),
+				Domain: ArrayTerm(IntNumberTerm(1), IntNumberTerm(2)),
 				Body: []*Expr{
 					NewExpr(BooleanTerm(true)),
 				},
