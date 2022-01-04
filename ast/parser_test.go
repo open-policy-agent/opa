@@ -769,6 +769,30 @@ func TestSomeDeclExpr(t *testing.T) {
 	})
 }
 
+func TestEvery(t *testing.T) {
+	opts := ParserOptions{FutureKeywords: []string{"in", "every"}} // TODO: "every" should imply "in"? it can't be used without it
+	assertParseOneExpr(t, "simple", "every x in xs { true }",
+		&Expr{
+			Terms: &Every{
+				Value:  VarTerm("x"),
+				Domain: VarTerm("xs"),
+				Body: []*Expr{
+					NewExpr(BooleanTerm(true)),
+				},
+			},
+		},
+		opts)
+	assertParseOneExpr(t, "with key", "every k, v in xs { true }",
+		&Expr{
+			Terms: &Every{
+				Domain: Call([]*Term{NewTerm(MemberWithKey.Ref()), VarTerm("k"), VarTerm("v"), VarTerm("xs")}),
+				Body: []*Expr{
+					NewExpr(BooleanTerm(true)),
+				},
+			},
+		}, opts)
+}
+
 func TestNestedExpressions(t *testing.T) {
 
 	n1 := IntNumberTerm(1)
@@ -1110,7 +1134,7 @@ func TestImport(t *testing.T) {
 func TestFutureImports(t *testing.T) {
 	assertParseErrorContains(t, "future", "import future", "invalid import, use `import future.keywords` or `import.future.keywords.in`")
 	assertParseErrorContains(t, "future.a", "import future.a", "invalid import, must be `future.keywords`")
-	assertParseErrorContains(t, "unknown keyword", "import future.keywords.xyz", "unexpected keyword, must be one of [in]")
+	assertParseErrorContains(t, "unknown keyword", "import future.keywords.xyz", "unexpected keyword, must be one of [every in]")
 	assertParseErrorContains(t, "all keyword import + alias", "import future.keywords as xyz", "future keyword imports cannot be aliased")
 	assertParseErrorContains(t, "keyword import + alias", "import future.keywords.in as xyz", "future keyword imports cannot be aliased")
 

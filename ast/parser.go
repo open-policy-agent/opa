@@ -787,6 +787,8 @@ func (p *Parser) parseLiteral() (expr *Expr) {
 	switch p.s.tok {
 	case tokens.Some:
 		return p.parseSome()
+	case tokens.Every:
+		return p.parseEvery()
 	case tokens.Not:
 		p.scan()
 		negated = true
@@ -917,6 +919,45 @@ func (p *Parser) parseSome() *Expr {
 	}
 
 	return NewExpr(decl).SetLocation(decl.Location)
+}
+
+func (p *Parser) parseEvery() *Expr {
+	qb := &Every{}
+	qb.SetLoc(p.s.Loc())
+
+	p.scan()
+	term := p.parseTermInfixCall()
+	if term == nil {
+		return nil
+	}
+	call, ok := term.Value.(Call)
+	if !ok {
+		return nil
+	}
+	switch call[0].String() {
+	case Member.Name: // x in xs
+		qb.Value = call[1]
+		qb.Domain = call[2]
+	case MemberWithKey.Name: // k, v in xs
+		qb.Key = call[1]
+		qb.Value = call[2]
+		qb.Domain = call[3]
+	default:
+		p.illegal("expected `x in xs` or `x, y in xs` expression")
+		return nil
+	}
+	if p.s.tok == tokens.LBrace { // every x in xs { ... }
+		p.scan()
+		body := p.parseBody(tokens.RBrace)
+		if body == nil {
+			return nil
+		}
+		p.scan()
+		qb.Body = body
+		return NewExpr(qb).SetLocation(qb.Location)
+	}
+
+	return nil
 }
 
 func (p *Parser) parseExpr() *Expr {
@@ -2014,7 +2055,8 @@ func convertYAMLMapKeyTypes(x interface{}, path []string) (interface{}, error) {
 // futureKeywords is the source of truth for future keywords that will
 // eventually become standard keywords inside of Rego.
 var futureKeywords = map[string]tokens.Token{
-	"in": tokens.In,
+	"in":    tokens.In,
+	"every": tokens.Every,
 }
 
 func (p *Parser) futureImport(imp *Import, allowedFutureKeywords map[string]tokens.Token) {

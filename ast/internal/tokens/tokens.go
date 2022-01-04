@@ -65,6 +65,8 @@ const (
 	Lte
 	Dot
 	Semicolon
+
+	Every
 )
 
 var strings = [...]string{
@@ -112,6 +114,7 @@ var strings = [...]string{
 	Lte:        "lte",
 	Dot:        ".",
 	Semicolon:  ";",
+	Every:      "every",
 }
 
 var keywords = map[string]Token{
