@@ -202,7 +202,6 @@ package example.authz
 default allow = false
 
 allow {
-    some id
     input.method == "GET"
     input.path == ["salary", input.subject.user]
 }
