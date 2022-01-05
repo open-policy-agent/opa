@@ -2153,6 +2153,41 @@ func TestPluginUsingFileLoader(t *testing.T) {
 
 }
 
+func TestPluginUsingDirectoryLoader(t *testing.T) {
+	test.WithTempFS(map[string]string{
+		"test.rego": `package test
+
+		p := 7`,
+	}, func(dir string) {
+
+		mgr := getTestManager()
+		url := "file://" + dir
+
+		p := New(&Config{Bundles: map[string]*Source{
+			"test": {
+				SizeLimitBytes: 1e5,
+				Resource:       url,
+			},
+		}}, mgr)
+
+		ch := make(chan Status)
+
+		p.Register("test", func(s Status) {
+			ch <- s
+		})
+
+		if err := p.Start(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+
+		s := <-ch
+
+		if s.LastSuccessfulActivation.IsZero() {
+			t.Fatal("expected successful activation")
+		}
+	})
+}
+
 func TestPluginManualTrigger(t *testing.T) {
 
 	ctx := context.Background()

@@ -115,6 +115,9 @@ opa_array_slice,opa_value_type
 opa_array_slice,opa_number_try_int
 opa_array_slice,opa_array_with_cap
 opa_array_slice,opa_array_append
+opa_array_reverse,opa_value_type
+opa_array_reverse,opa_array_with_cap
+opa_array_reverse,opa_array_append
 opa_bits_or,opa_number_to_bf
 opa_bits_or,mpd_isinteger
 opa_bits_or,opa_mpd_del
@@ -601,6 +604,12 @@ opa_strings_replace_n,memcpy
 opa_strings_replace_n,opa_string_allocated
 opa_strings_replace_n,opa_strings_replace
 opa_strings_replace_n,opa_value_free
+opa_strings_reverse,opa_value_type
+opa_strings_reverse,opa_malloc
+opa_strings_reverse,opa_unicode_decode_utf8
+opa_strings_reverse,opa_abort
+opa_strings_reverse,memcpy
+opa_strings_reverse,opa_string_allocated
 opa_strings_split,opa_value_type
 opa_strings_split,opa_array
 opa_strings_split,opa_strncmp

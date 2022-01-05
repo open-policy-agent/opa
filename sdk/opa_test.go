@@ -14,6 +14,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/open-policy-agent/opa/logging"
+
 	"github.com/fortytw2/leaktest"
 	loggingtest "github.com/open-policy-agent/opa/logging/test"
 	"github.com/open-policy-agent/opa/plugins"
@@ -702,5 +704,59 @@ func TestOpaRuntimeConfig(t *testing.T) {
 		t.Fatal(err)
 	} else if !reflect.DeepEqual(result.Result, exp) {
 		t.Fatalf("expected %v but got %v", exp, result.Result)
+	}
+}
+
+func TestPrintStatements(t *testing.T) {
+
+	ctx := context.Background()
+
+	s := sdktest.MustNewServer(sdktest.MockBundle("/bundles/b.tar.gz", map[string]string{
+		"x.rego": `package foo
+
+		p { print("XXX") }`,
+	}))
+
+	defer s.Stop()
+
+	config := fmt.Sprintf(`{
+		"services": {
+			"test": {
+				"url": %q
+			}
+		},
+		"bundles": {
+			"test": {
+				"resource": "/bundles/b.tar.gz"
+			}
+		}
+	}`, s.URL())
+
+	logger := loggingtest.New()
+	logger.SetLevel(logging.Info)
+
+	opa, err := sdk.New(ctx, sdk.Options{
+		Logger: logger,
+		Config: strings.NewReader(config),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer opa.Stop(ctx)
+
+	if _, err := opa.Decision(ctx, sdk.DecisionOptions{Path: "/foo/p"}); err != nil {
+		t.Fatal(err)
+	}
+
+	entries := logger.Entries()
+	if len(entries) == 0 {
+		t.Fatal("expected logs")
+	}
+
+	e := entries[len(entries)-1]
+
+	if e.Message != "XXX" || e.Fields["line"].(string) != "/x.rego:4" {
+		t.Fatal("expected print output but got:", e)
 	}
 }

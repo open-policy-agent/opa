@@ -11,6 +11,7 @@ opa_value *opa_strings_indexof(opa_value *a, opa_value *b);
 opa_value *opa_strings_lower(opa_value *a);
 opa_value *opa_strings_replace(opa_value *a, opa_value *b, opa_value *c);
 opa_value *opa_strings_replace_n(opa_value *a, opa_value *b);
+opa_value *opa_strings_reverse(opa_value *a);
 opa_value *opa_strings_split(opa_value *a, opa_value *b);
 opa_value *opa_strings_startswith(opa_value *a, opa_value *b);
 opa_value *opa_strings_substring(opa_value *a, opa_value *b, opa_value *c);

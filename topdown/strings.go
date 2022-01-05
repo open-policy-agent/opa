@@ -118,12 +118,12 @@ func builtinIndexOf(a, b ast.Value) (ast.Value, error) {
 	searchLen := len(searchRunes)
 
 	for i, r := range baseRunes {
-		if r == searchRunes[0] {
-			if len(baseRunes) >= i+searchLen {
-				if runesEqual(baseRunes[i:i+searchLen], searchRunes) {
-					return ast.IntNumberTerm(i).Value, nil
-				}
+		if len(baseRunes) >= i+searchLen {
+			if r == searchRunes[0] && runesEqual(baseRunes[i:i+searchLen], searchRunes) {
+				return ast.IntNumberTerm(i).Value, nil
 			}
+		} else {
+			break
 		}
 	}
 
@@ -412,6 +412,25 @@ func builtinSprintf(a, b ast.Value) (ast.Value, error) {
 	return ast.String(fmt.Sprintf(string(s), args...)), nil
 }
 
+func builtinReverse(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	s, err := builtins.StringOperand(operands[0].Value, 1)
+	if err != nil {
+		return err
+	}
+
+	sRunes := []rune(string(s))
+	length := len(sRunes)
+	reversedRunes := make([]rune, length)
+
+	for index, r := range sRunes {
+		reversedRunes[length-index-1] = r
+	}
+
+	reversedString := string(reversedRunes)
+
+	return iter(ast.StringTerm(reversedString))
+}
+
 func init() {
 	RegisterFunctionalBuiltin2(ast.FormatInt.Name, builtinFormatInt)
 	RegisterFunctionalBuiltin2(ast.Concat.Name, builtinConcat)
@@ -432,4 +451,5 @@ func init() {
 	RegisterFunctionalBuiltin2(ast.TrimSuffix.Name, builtinTrimSuffix)
 	RegisterFunctionalBuiltin1(ast.TrimSpace.Name, builtinTrimSpace)
 	RegisterFunctionalBuiltin2(ast.Sprintf.Name, builtinSprintf)
+	RegisterBuiltinFunc(ast.StringReverse.Name, builtinReverse)
 }

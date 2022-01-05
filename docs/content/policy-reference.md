@@ -324,6 +324,7 @@ complex types.
 | Built-in | Description | Wasm Support |
 | ------- |-------------|---------------|
 | <span class="opa-keep-it-together">``output := array.concat(array, array)``</span> | ``output`` is the result of concatenating the two input arrays together. | ✅ |
+| <span class="opa-keep-it-together">``output := array.reverse(array)``</span> | ``output`` is the result of reversing the order of the elements in ``array``. | ✅ |
   <span class="opa-keep-it-together">``output := array.slice(array, startIndex, stopIndex)``</span> | ``output`` is the part of the ``array`` from ``startIndex`` to ``stopIndex`` including the first but excluding the last. If `startIndex >= stopIndex` then `output == []`. If both `startIndex` and `stopIndex` are less than zero, `output == []`. Otherwise, `startIndex` and `stopIndex` are clamped to 0 and `count(array)` respectively. | ✅ |
 
 ### Sets
@@ -379,6 +380,7 @@ complex types.
 | <span class="opa-keep-it-together">``output := indexof(string, search)``</span> | ``output`` is the index inside ``string`` where ``search`` first occurs, or -1 if ``search`` does not exist | ✅ |
 | <span class="opa-keep-it-together">``output := lower(string)``</span> | ``output`` is ``string`` after converting to lower case | ✅ |
 | <span class="opa-keep-it-together">``output := replace(string, old, new)``</span> | ``output`` is a ``string`` representing ``string`` with all instances of ``old`` replaced by ``new`` | ✅ |
+| <span class="opa-keep-it-together">``output := strings.reverse(string)``</span> | ``output`` is ``string`` reversed | ✅ |
 | <span class="opa-keep-it-together">``output := strings.replace_n(patterns, string)``</span> | ``patterns`` is an object with old, new string key value pairs (e.g. ``{"old1": "new1", "old2": "new2", ...}``). ``output`` is a ``string`` with all old strings inside ``patterns`` replaced by the new strings | ✅ |
 | <span class="opa-keep-it-together">``output := split(string, delimiter)``</span> | ``output`` is ``array[string]`` representing elements of ``string`` separated by ``delimiter`` | ✅ |
 | <span class="opa-keep-it-together">``output := sprintf(string, values)``</span> | ``output`` is a ``string`` representing ``string`` formatted by the values in the ``array`` ``values``. | ``SDK-dependent`` |
