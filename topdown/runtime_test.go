@@ -44,3 +44,42 @@ func TestOPARuntime(t *testing.T) {
 	}
 
 }
+
+func TestOPARuntimeConfigMasking(t *testing.T) {
+
+	ctx := context.Background()
+	q := NewQuery(ast.MustParseBody("opa.runtime(x)")).WithRuntime(ast.MustParseTerm(`{"config": {
+		"labels": {"foo": "bar"},
+		"services": {
+			"foo": {
+				"url": "https://remote.example.com",
+				"credentials": {
+					"oauth2": {
+						"client_id": "opa_client",
+						"client_secret": "sup3rs3cr3t"
+					}
+				}
+			}
+		}
+	}}`))
+	rs, err := q.Run(ctx)
+	if err != nil {
+		t.Fatal(err)
+	} else if len(rs) != 1 {
+		t.Fatal("Expected result set to contain exactly one result")
+	}
+
+	term := rs[0][ast.Var("x")]
+	exp := ast.MustParseTerm(`{"config": {
+		"labels": {"foo": "bar"},
+		"services": {
+			"foo": {
+				"url": "https://remote.example.com"
+			}
+		}
+	}}`)
+
+	if ast.Compare(term, exp) != 0 {
+		t.Fatalf("Expected %v but got %v", exp, term)
+	}
+}
