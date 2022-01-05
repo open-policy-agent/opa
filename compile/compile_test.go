@@ -891,7 +891,7 @@ func TestOptimizerOutput(t *testing.T) {
 		},
 		{
 			note:        "multiple entrypoints",
-			entrypoints: []string{"data.test.p", "data.test.r"},
+			entrypoints: []string{"data.test.p", "data.test.r", "data.test.s"},
 			modules: map[string]string{
 				"test.rego": `
 					package test
@@ -901,6 +901,10 @@ func TestOptimizerOutput(t *testing.T) {
 					}
 
 					r {
+						q[input.x]
+					}
+
+					s {
 						q[input.x]
 					}
 
@@ -917,6 +921,11 @@ func TestOptimizerOutput(t *testing.T) {
 					package test
 
 					r = __result__ { 1 = input.x; __result__ = true }
+				`,
+				"optimized/test.2.rego": `
+					package test
+
+					s = __result__ { 1 = input.x; __result__ = true }
 				`,
 				"test.rego": `
 					package test

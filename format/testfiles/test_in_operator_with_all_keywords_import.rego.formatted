@@ -1,0 +1,9 @@
+package p
+
+import future.keywords
+import input.foo
+
+r {
+	1 in [1]
+	0, 1 in [1]
+}

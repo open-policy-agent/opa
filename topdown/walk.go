@@ -8,7 +8,7 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 )
 
-func evalWalk(bctx BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
+func evalWalk(_ BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
 	input := args[0]
 	filter := getOutputPath(args)
 	return walk(filter, nil, input, iter)
@@ -21,7 +21,7 @@ func walk(filter, path *ast.Array, input *ast.Term, iter func(*ast.Term) error) 
 			path = ast.NewArray()
 		}
 
-		if err := iter(ast.ArrayTerm(ast.NewTerm(path), input)); err != nil {
+		if err := iter(ast.ArrayTerm(ast.NewTerm(path.Copy()), input)); err != nil {
 			return err
 		}
 	}

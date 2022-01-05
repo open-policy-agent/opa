@@ -80,6 +80,7 @@ var DefaultBuiltins = [...]*Builtin{
 	// Arrays
 	ArrayConcat,
 	ArraySlice,
+	ArrayReverse,
 
 	// Conversions
 	ToNumber,
@@ -127,6 +128,7 @@ var DefaultBuiltins = [...]*Builtin{
 	TrimSuffix,
 	TrimSpace,
 	Sprintf,
+	StringReverse,
 
 	// Numbers
 	NumbersRange,
@@ -200,6 +202,10 @@ var DefaultBuiltins = [...]*Builtin{
 	CryptoSha256,
 	CryptoX509ParseCertificateRequest,
 	CryptoX509ParseRSAPrivateKey,
+	CryptoHmacMd5,
+	CryptoHmacSha1,
+	CryptoHmacSha256,
+	CryptoHmacSha512,
 
 	// Graphs
 	WalkBuiltin,
@@ -713,6 +719,17 @@ var ArraySlice = &Builtin{
 	),
 }
 
+// ArrayReverse returns a given array, reversed
+var ArrayReverse = &Builtin{
+	Name: "array.reverse",
+	Decl: types.NewFunction(
+		types.Args(
+			types.NewArray(nil, types.A),
+		),
+		types.NewArray(nil, types.A),
+	),
+}
+
 /**
  * Conversions
  */
@@ -1071,6 +1088,17 @@ var Sprintf = &Builtin{
 		types.Args(
 			types.S,
 			types.NewArray(nil, types.A),
+		),
+		types.S,
+	),
+}
+
+// StringReverse returns the given string, reversed.
+var StringReverse = &Builtin{
+	Name: "strings.reverse",
+	Decl: types.NewFunction(
+		types.Args(
+			types.S,
 		),
 		types.S,
 	),
@@ -1869,6 +1897,58 @@ var CryptoSha256 = &Builtin{
 	Name: "crypto.sha256",
 	Decl: types.NewFunction(
 		types.Args(types.S),
+		types.S,
+	),
+}
+
+// CryptoHmacMd5 returns a string representing the MD-5 HMAC of the input message using the input key
+// Inputs are message, key
+var CryptoHmacMd5 = &Builtin{
+	Name: "crypto.hmac.md5",
+	Decl: types.NewFunction(
+		types.Args(
+			types.S,
+			types.S,
+		),
+		types.S,
+	),
+}
+
+// CryptoHmacSha1 returns a string representing the SHA-1 HMAC of the input message using the input key
+// Inputs are message, key
+var CryptoHmacSha1 = &Builtin{
+	Name: "crypto.hmac.sha1",
+	Decl: types.NewFunction(
+		types.Args(
+			types.S,
+			types.S,
+		),
+		types.S,
+	),
+}
+
+// CryptoHmacSha256 returns a string representing the SHA-256 HMAC of the input message using the input key
+// Inputs are message, key
+var CryptoHmacSha256 = &Builtin{
+	Name: "crypto.hmac.sha256",
+	Decl: types.NewFunction(
+		types.Args(
+			types.S,
+			types.S,
+		),
+		types.S,
+	),
+}
+
+// CryptoHmacSha512 returns a string representing the SHA-512 HMAC of the input message using the input key
+// Inputs are message, key
+var CryptoHmacSha512 = &Builtin{
+	Name: "crypto.hmac.sha512",
+	Decl: types.NewFunction(
+		types.Args(
+			types.S,
+			types.S,
+		),
 		types.S,
 	),
 }

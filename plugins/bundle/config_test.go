@@ -341,7 +341,7 @@ b4:
 			resource: "/some/longer/path/bundle.tar.gz",
 		},
 		"b4": {
-			service:  "s1",
+			service:  "", // service will be unset because it is a file:// url
 			resource: "file:///foo/bar",
 		},
 	}
@@ -362,6 +362,17 @@ b4:
 			t.Errorf("Expected service '%s', found '%s'", expected.service, actual.Service)
 		}
 	}
+}
+
+func TestParseBundlesConfigSimpleFileURL(t *testing.T) {
+
+	config := []byte(`{"test": {"resource": "file:///b.tar.gz"}}`)
+
+	_, err := ParseBundlesConfig(config, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 }
 
 func TestConfigIsMultiBundle(t *testing.T) {

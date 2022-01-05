@@ -33,6 +33,7 @@ type Config struct {
 	DefaultAuthorizationDecision *string                    `json:"default_authorization_decision,omitempty"`
 	Caching                      json.RawMessage            `json:"caching,omitempty"`
 	PersistenceDirectory         *string                    `json:"persistence_directory,omitempty"`
+	DistributedTracing           json.RawMessage            `json:"distributed_tracing,omitempty"`
 }
 
 // ParseConfig returns a valid Config object with defaults injected. The id

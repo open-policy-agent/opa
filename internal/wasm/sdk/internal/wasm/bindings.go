@@ -81,7 +81,12 @@ func (d *builtinDispatcher) SetMap(m map[int32]topdown.BuiltinFunc) {
 }
 
 // Reset is called in Eval before using the builtinDispatcher.
-func (d *builtinDispatcher) Reset(ctx context.Context, seed io.Reader, ns time.Time, iqbCache cache.InterQueryCache, ph print.Hook) {
+func (d *builtinDispatcher) Reset(ctx context.Context,
+	seed io.Reader,
+	ns time.Time,
+	iqbCache cache.InterQueryCache,
+	ph print.Hook,
+	capabilities *ast.Capabilities) {
 	if ns.IsZero() {
 		ns = time.Now()
 	}
@@ -103,6 +108,7 @@ func (d *builtinDispatcher) Reset(ctx context.Context, seed io.Reader, ns time.T
 		ParentID:               0,
 		InterQueryBuiltinCache: iqbCache,
 		PrintHook:              ph,
+		Capabilities:           capabilities,
 	}
 
 }

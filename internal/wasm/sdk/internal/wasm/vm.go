@@ -275,9 +275,10 @@ func (i *VM) Eval(ctx context.Context,
 	seed io.Reader,
 	ns time.Time,
 	iqbCache cache.InterQueryCache,
-	ph print.Hook) ([]byte, error) {
+	ph print.Hook,
+	capabilities *ast.Capabilities) ([]byte, error) {
 	if i.abiMinorVersion < int32(2) {
-		return i.evalCompat(ctx, entrypoint, input, metrics, seed, ns, iqbCache, ph)
+		return i.evalCompat(ctx, entrypoint, input, metrics, seed, ns, iqbCache, ph, capabilities)
 	}
 
 	metrics.Timer("wasm_vm_eval").Start()
@@ -328,7 +329,7 @@ func (i *VM) Eval(ctx context.Context,
 	// make use of it (e.g. `http.send`); and it will spawn a go routine
 	// cancelling the builtins that use topdown.Cancel, when the context is
 	// cancelled.
-	i.dispatcher.Reset(ctx, seed, ns, iqbCache, ph)
+	i.dispatcher.Reset(ctx, seed, ns, iqbCache, ph, capabilities)
 
 	metrics.Timer("wasm_vm_eval_call").Start()
 	resultAddr, err := i.evalOneOff(ctx, int32(entrypoint), i.dataAddr, inputAddr, inputLen, heapPtr)
@@ -357,7 +358,8 @@ func (i *VM) evalCompat(ctx context.Context,
 	seed io.Reader,
 	ns time.Time,
 	iqbCache cache.InterQueryCache,
-	ph print.Hook) ([]byte, error) {
+	ph print.Hook,
+	capabilities *ast.Capabilities) ([]byte, error) {
 	metrics.Timer("wasm_vm_eval").Start()
 	defer metrics.Timer("wasm_vm_eval").Stop()
 
@@ -367,7 +369,7 @@ func (i *VM) evalCompat(ctx context.Context,
 	// make use of it (e.g. `http.send`); and it will spawn a go routine
 	// cancelling the builtins that use topdown.Cancel, when the context is
 	// cancelled.
-	i.dispatcher.Reset(ctx, seed, ns, iqbCache, ph)
+	i.dispatcher.Reset(ctx, seed, ns, iqbCache, ph, capabilities)
 
 	err := i.setHeapState(ctx, i.evalHeapPtr)
 	if err != nil {

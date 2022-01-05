@@ -31,8 +31,8 @@ const (
 // An HTTPAuthPlugin represents a mechanism to construct and configure HTTP authentication for a REST service
 type HTTPAuthPlugin interface {
 	// implementations can assume NewClient will be called before Prepare
-	NewClient(c Config) (*http.Client, error)
-	Prepare(req *http.Request) error
+	NewClient(Config) (*http.Client, error)
+	Prepare(*http.Request) error
 }
 
 // Config represents configuration for a REST client.
@@ -236,8 +236,7 @@ func (c Client) Do(ctx context.Context, method, path string) (*http.Response, er
 	var body io.Reader
 
 	if c.bytes != nil {
-		buf := bytes.NewBuffer(*c.bytes)
-		body = buf
+		body = bytes.NewReader(*c.bytes)
 	} else if c.json != nil {
 		var buf bytes.Buffer
 		if err := json.NewEncoder(&buf).Encode(*c.json); err != nil {

@@ -71,7 +71,24 @@ func builtinArraySlice(a, i, j ast.Value) (ast.Value, error) {
 	return arr.Slice(startIndex, stopIndex), nil
 }
 
+func builtinArrayReverse(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	arr, err := builtins.ArrayOperand(operands[0].Value, 1)
+	if err != nil {
+		return err
+	}
+
+	length := arr.Len()
+	reversedArr := make([]*ast.Term, length)
+
+	for index := 0; index < length; index++ {
+		reversedArr[index] = arr.Elem(length - index - 1)
+	}
+
+	return iter(ast.ArrayTerm(reversedArr...))
+}
+
 func init() {
 	RegisterFunctionalBuiltin2(ast.ArrayConcat.Name, builtinArrayConcat)
 	RegisterFunctionalBuiltin3(ast.ArraySlice.Name, builtinArraySlice)
+	RegisterBuiltinFunc(ast.ArrayReverse.Name, builtinArrayReverse)
 }

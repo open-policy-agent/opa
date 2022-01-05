@@ -740,6 +740,14 @@ func setTime(t time.Time) func(*Query) *Query {
 	}
 }
 
+func setAllowNet(a []string) func(*Query) *Query {
+	return func(q *Query) *Query {
+		c := q.compiler.Capabilities()
+		c.AllowNet = a
+		return q.WithCompiler(q.compiler.WithCapabilities(c))
+	}
+}
+
 func runTopDownTestCase(t *testing.T, data map[string]interface{}, note string, rules []string, expected interface{}, options ...func(*Query) *Query) {
 	t.Helper()
 

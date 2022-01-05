@@ -22,12 +22,13 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/gorilla/mux"
-	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.uber.org/automaxprocs/maxprocs"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/internal/config"
+	internal_tracing "github.com/open-policy-agent/opa/internal/distributedtracing"
 	internal_logging "github.com/open-policy-agent/opa/internal/logging"
 	"github.com/open-policy-agent/opa/internal/prometheus"
 	"github.com/open-policy-agent/opa/internal/report"
@@ -44,6 +45,7 @@ import (
 	"github.com/open-policy-agent/opa/server"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
+	"github.com/open-policy-agent/opa/tracing"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/version"
 )
@@ -95,6 +97,14 @@ type Params struct {
 	// Certificate is the certificate to use in server-mode. If the certificate
 	// is nil, the server will NOT use TLS.
 	Certificate *tls.Certificate
+
+	// CertificateFile and CertificateKeyFile are the paths to the cert and its
+	// keyfile. It'll be used to periodically reload the files from disk if they
+	// have changed. The server will attempt to refresh every 5 minutes, unless
+	// a different CertificateRefresh time.Duration is provided
+	CertificateFile    string
+	CertificateKeyFile string
+	CertificateRefresh time.Duration
 
 	// CertPool holds the CA certs trusted by the OPA server.
 	CertPool *x509.CertPool
@@ -191,6 +201,8 @@ type Params struct {
 	// Router uses a first-matching-route-wins strategy, so no existing routes are overridden
 	// If it is nil, a new mux.Router will be created
 	Router *mux.Router
+
+	DistributedTracingOpts tracing.Options
 }
 
 // LoggingConfig stores the configuration for OPA's logging behaviour.
@@ -214,10 +226,11 @@ type Runtime struct {
 	Store   storage.Store
 	Manager *plugins.Manager
 
-	logger   logging.Logger
-	server   *server.Server
-	metrics  *prometheus.Provider
-	reporter *report.Reporter
+	logger        logging.Logger
+	server        *server.Server
+	metrics       *prometheus.Provider
+	reporter      *report.Reporter
+	traceExporter *otlptrace.Exporter
 
 	serverInitialized bool
 	serverInitMtx     sync.RWMutex
@@ -236,7 +249,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		}
 	}
 
-	level, err := getLoggingLevel(params.Logging.Level)
+	level, err := internal_logging.GetLevel(params.Logging.Level)
 	if err != nil {
 		return nil, err
 	}
@@ -264,7 +277,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 
 	config, err := config.Load(params.ConfigFile, params.ConfigOverrides, params.ConfigOverrideFiles)
 	if err != nil {
-		return nil, errors.Wrap(err, "config error")
+		return nil, fmt.Errorf("config error: %w", err)
 	}
 
 	var reporter *report.Reporter
@@ -272,13 +285,13 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		var err error
 		reporter, err = report.New(params.ID, report.Options{Logger: logger})
 		if err != nil {
-			return nil, errors.Wrap(err, "config error")
+			return nil, fmt.Errorf("config error: %w", err)
 		}
 	}
 
 	loaded, err := initload.LoadPaths(params.Paths, params.Filter, params.BundleMode, params.BundleVerificationConfig, params.SkipBundleVerification)
 	if err != nil {
-		return nil, errors.Wrap(err, "load error")
+		return nil, fmt.Errorf("load error: %w", err)
 	}
 
 	info, err := runtime.Term(runtime.Params{Config: config})
@@ -314,21 +327,29 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		plugins.PrintHook(loggingPrintHook{logger: logger}),
 		plugins.WithRouter(params.Router))
 	if err != nil {
-		return nil, errors.Wrap(err, "config error")
+		return nil, fmt.Errorf("config error: %w", err)
 	}
 
 	if err := manager.Init(ctx); err != nil {
-		return nil, errors.Wrap(err, "initialization error")
+		return nil, fmt.Errorf("initialization error: %w", err)
 	}
 
 	metrics := prometheus.New(metrics.New(), errorLogger(logger))
 
-	disco, err := discovery.New(manager, discovery.Factories(registeredPlugins), discovery.Metrics(metrics))
+	traceExporter, distributedTracingOpts, err := internal_tracing.Init(ctx, config, params.ID)
 	if err != nil {
-		return nil, errors.Wrap(err, "config error")
+		return nil, fmt.Errorf("config error: %w", err)
+	}
+	if distributedTracingOpts != nil {
+		params.DistributedTracingOpts = distributedTracingOpts
 	}
 
-	manager.Register("discovery", disco)
+	disco, err := discovery.New(manager, discovery.Factories(registeredPlugins), discovery.Metrics(metrics))
+	if err != nil {
+		return nil, fmt.Errorf("config error: %w", err)
+	}
+
+	manager.Register(discovery.Name, disco)
 
 	rt := &Runtime{
 		Store:             manager.Store,
@@ -338,6 +359,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		metrics:           metrics,
 		reporter:          reporter,
 		serverInitialized: false,
+		traceExporter:     traceExporter,
 	}
 
 	return rt, nil
@@ -394,6 +416,20 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 
 	defer rt.Manager.Stop(ctx)
 
+	if rt.traceExporter != nil {
+		if err := rt.traceExporter.Start(ctx); err != nil {
+			rt.logger.WithFields(map[string]interface{}{"err": err}).Error("Failed to start OpenTelemetry trace exporter.")
+			return err
+		}
+
+		defer func() {
+			err := rt.traceExporter.Shutdown(ctx)
+			if err != nil {
+				rt.logger.WithFields(map[string]interface{}{"err": err}).Error("Failed to shutdown OpenTelemetry trace exporter gracefully.")
+			}
+		}()
+	}
+
 	rt.server = server.New().
 		WithRouter(rt.Params.Router).
 		WithStore(rt.Store).
@@ -403,6 +439,7 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 		WithAddresses(*rt.Params.Addrs).
 		WithH2CEnabled(rt.Params.H2CEnabled).
 		WithCertificate(rt.Params.Certificate).
+		WithCertificatePaths(rt.Params.CertificateFile, rt.Params.CertificateKeyFile, rt.Params.CertificateRefresh).
 		WithCertPool(rt.Params.CertPool).
 		WithAuthentication(rt.Params.Authentication).
 		WithAuthorization(rt.Params.Authorization).
@@ -410,7 +447,8 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 		WithDecisionLoggerWithErr(rt.decisionLogger).
 		WithRuntime(rt.Manager.Info).
 		WithMetrics(rt.metrics).
-		WithMinTLSVersion(rt.Params.MinTLSVersion)
+		WithMinTLSVersion(rt.Params.MinTLSVersion).
+		WithDistributedTracingOpts(rt.Params.DistributedTracingOpts)
 
 	if rt.Params.DiagnosticAddrs != nil {
 		rt.server = rt.server.WithDiagnosticAddresses(*rt.Params.DiagnosticAddrs)
@@ -546,6 +584,12 @@ func (rt *Runtime) StartREPL(ctx context.Context) {
 
 	}
 	repl.Loop(ctx)
+}
+
+// SetDistributedTracingLogging configures the distributed tracing's ErrorHandler,
+// and logger instances.
+func (rt *Runtime) SetDistributedTracingLogging() {
+	internal_tracing.SetupLogging(rt.logger)
 }
 
 func (rt *Runtime) checkOPAUpdate(ctx context.Context) *report.DataResponse {
@@ -812,21 +856,6 @@ func generateDecisionID() string {
 		return ""
 	}
 	return id
-}
-
-func getLoggingLevel(s string) (logging.Level, error) {
-	switch strings.ToLower(s) {
-	case "debug":
-		return logging.Debug, nil
-	case "", "info":
-		return logging.Info, nil
-	case "warn":
-		return logging.Warn, nil
-	case "error":
-		return logging.Error, nil
-	default:
-		return logging.Debug, fmt.Errorf("invalid log level: %v", s)
-	}
 }
 
 func init() {

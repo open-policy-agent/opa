@@ -6,14 +6,17 @@ package topdown
 
 import (
 	"bytes"
+	"crypto/hmac"
 	"crypto/md5"
 	"crypto/sha1"
 	"crypto/sha256"
+	"crypto/sha512"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	"hash"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -190,6 +193,42 @@ func builtinCryptoSha256(a ast.Value) (ast.Value, error) {
 	return hashHelper(a, func(s ast.String) string { return fmt.Sprintf("%x", sha256.Sum256([]byte(s))) })
 }
 
+func hmacHelper(args []*ast.Term, iter func(*ast.Term) error, h func() hash.Hash) error {
+	a1 := args[0].Value
+	message, err := builtins.StringOperand(a1, 1)
+	if err != nil {
+		return err
+	}
+
+	a2 := args[1].Value
+	key, err := builtins.StringOperand(a2, 2)
+	if err != nil {
+		return err
+	}
+
+	mac := hmac.New(h, []byte(key))
+	mac.Write([]byte(message))
+	messageDigest := mac.Sum(nil)
+
+	return iter(ast.StringTerm(fmt.Sprintf("%x", messageDigest)))
+}
+
+func builtinCryptoHmacMd5(_ BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
+	return hmacHelper(args, iter, md5.New)
+}
+
+func builtinCryptoHmacSha1(_ BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
+	return hmacHelper(args, iter, sha1.New)
+}
+
+func builtinCryptoHmacSha256(_ BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
+	return hmacHelper(args, iter, sha256.New)
+}
+
+func builtinCryptoHmacSha512(_ BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
+	return hmacHelper(args, iter, sha512.New)
+}
+
 func init() {
 	RegisterFunctionalBuiltin1(ast.CryptoX509ParseCertificates.Name, builtinCryptoX509ParseCertificates)
 	RegisterBuiltinFunc(ast.CryptoX509ParseAndVerifyCertificates.Name, builtinCryptoX509ParseAndVerifyCertificates)
@@ -198,6 +237,10 @@ func init() {
 	RegisterFunctionalBuiltin1(ast.CryptoSha256.Name, builtinCryptoSha256)
 	RegisterFunctionalBuiltin1(ast.CryptoX509ParseCertificateRequest.Name, builtinCryptoX509ParseCertificateRequest)
 	RegisterBuiltinFunc(ast.CryptoX509ParseRSAPrivateKey.Name, builtinCryptoX509ParseRSAPrivateKey)
+	RegisterBuiltinFunc(ast.CryptoHmacMd5.Name, builtinCryptoHmacMd5)
+	RegisterBuiltinFunc(ast.CryptoHmacSha1.Name, builtinCryptoHmacSha1)
+	RegisterBuiltinFunc(ast.CryptoHmacSha256.Name, builtinCryptoHmacSha256)
+	RegisterBuiltinFunc(ast.CryptoHmacSha512.Name, builtinCryptoHmacSha512)
 }
 
 func verifyX509CertificateChain(certs []*x509.Certificate) ([]*x509.Certificate, error) {

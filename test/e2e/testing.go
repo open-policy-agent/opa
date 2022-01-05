@@ -7,6 +7,7 @@ package e2e
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -20,6 +21,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/open-policy-agent/opa/internal/uuid"
 	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/logging/test"
 	"github.com/open-policy-agent/opa/runtime"
@@ -50,6 +52,13 @@ func NewAPIServerTestParams() runtime.Params {
 
 	params.GracefulShutdownPeriod = 10 // seconds
 
+	params.DecisionIDFactory = func() string {
+		id, err := uuid.New(rand.Reader)
+		if err != nil {
+			return ""
+		}
+		return id
+	}
 	return params
 }
 
