@@ -118,12 +118,12 @@ func builtinIndexOf(a, b ast.Value) (ast.Value, error) {
 	searchLen := len(searchRunes)
 
 	for i, r := range baseRunes {
-		if r == searchRunes[0] {
-			if len(baseRunes) >= i+searchLen {
-				if runesEqual(baseRunes[i:i+searchLen], searchRunes) {
-					return ast.IntNumberTerm(i).Value, nil
-				}
+		if len(baseRunes) >= i+searchLen {
+			if r == searchRunes[0] && runesEqual(baseRunes[i:i+searchLen], searchRunes) {
+				return ast.IntNumberTerm(i).Value, nil
 			}
+		} else {
+			break
 		}
 	}
 
