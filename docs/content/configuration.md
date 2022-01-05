@@ -71,7 +71,7 @@ caching:
     max_size_bytes: 10000000
 
 distributed_tracing:
-  enabled: true
+  type: grpc
   address: localhost:4317
   service_name: opa
   sample_percentage: 50
