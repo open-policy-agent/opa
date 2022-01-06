@@ -108,7 +108,6 @@ integrations:
           - name: Joe Beda
             organization: VMware
         link: https://www.youtube.com/watch?v=QU9BGPf0hBw
-
     blogs:
       - https://medium.com/@sbueringer/kubernetes-authorization-via-open-policy-agent-a9455d9d5ceb
       - https://medium.com/@jimmy.ray/policy-enabled-kubernetes-with-open-policy-agent-3b612b3f0203
@@ -123,9 +122,14 @@ integrations:
       Kubernetes Authorization is a pluggable mechanism that lets administrators control which users can run which APIs and
       is often handled by builtin RBAC.  OPA's policy language is more flexible than the RBAC, for example,
       writing policy using a prohibited list of APIs instead of the usual RBAC style of listing the permitted APIs.
+    code:
+      - https://github.com/open-policy-agent/contrib/tree/main/k8s_authorization
     blogs:
+      - https://blog.styra.com/blog/kubernetes-authorization-webhook
       - https://itnext.io/kubernetes-authorization-via-open-policy-agent-a9455d9d5ceb
       - https://itnext.io/optimizing-open-policy-agent-based-kubernetes-authorization-via-go-execution-tracer-7b439bb5dc5b
+    inventors:
+      - styra
 
   kubernetes-provisioning:
     title: Kubernetes Provisioning
@@ -314,7 +318,6 @@ integrations:
         venue: Kubecon Austin 2017
         link: https://www.youtube.com/watch?v=R6tUNpRpdnY
 
-
   istio-authorization-edge:
     title: Container Network Authorization with Istio (at the Edge)
     description: Istio is a networking abstraction for cloud-native applications that uses Envoy at the edge. OPA hooks into Envoy’s external authorization filter to provide fine-grained, context-aware authorization for network or HTTP requests.
@@ -469,6 +472,19 @@ integrations:
       - https://github.com/anderseknert/clj-opa
     inventors:
       - styra
+
+  open-service-mesh:
+    title: Open Service Mesh (OSM)
+    description: Open Service Mesh is a lightweight and extensible cloud native service mesh.
+    software:
+      - osm
+    labels:
+      category: servicemesh
+      layer: network
+    code:
+      - https://github.com/openservicemesh/osm/blob/main/docs/example/manifests/opa/deploy-opa-envoy.yaml
+    tutorials:
+      - https://release-v0-11.docs.openservicemesh.io/docs/guides/integrations/external_auth_opa/#osm-with-opa-plugin-external-authorization-walkthrough
 
   minio:
     title: Minio API Authorization
@@ -931,6 +947,8 @@ integrations:
     software:
       - SPIFFE
       - SPIRE
+    blogs:
+      - https://blog.styra.com/blog/zero-trust-with-envoy-spire-and-open-policy-agent-opa
     code:
       - https://github.com/spiffe/spire/blob/v1.0.2/doc/authorization_policy_engine.md
     tutorials:
@@ -1199,6 +1217,9 @@ software:
   javaspringsecurity:
     name: Spring Security
     link: https://spring.io/projects/spring-security
+  osm:
+    name: Open Service Mesh
+    link: https://openservicemesh.io/
   spinnaker:
     name: Spinnaker
     link: https://www.spinnaker.io/

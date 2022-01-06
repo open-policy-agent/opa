@@ -51,12 +51,6 @@ func (l *Logger) WithFields(fields map[string]interface{}) logging.Logger {
 	return &cp
 }
 
-// GetFields returns additional fields of this logger
-// Implemented here primarily to be able to switch between implementations without loss of data.
-func (l *Logger) GetFields() map[string]interface{} {
-	return l.fields
-}
-
 // Debug buffers a log message.
 func (l *Logger) Debug(f string, a ...interface{}) {
 	l.append(logging.Debug, f, a...)
