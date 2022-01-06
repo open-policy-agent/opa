@@ -378,6 +378,7 @@ complex types.
 | <span class="opa-keep-it-together">``endswith(string, search)``</span> | true if ``string`` ends with ``search`` | ✅ |
 | <span class="opa-keep-it-together">``output := format_int(number, base)``</span> | ``output`` is string representation of ``number`` in the given ``base`` | ✅ |
 | <span class="opa-keep-it-together">``output := indexof(string, search)``</span> | ``output`` is the index inside ``string`` where ``search`` first occurs, or -1 if ``search`` does not exist | ✅ |
+| <span class="opa-keep-it-together">``output := indexof_n(string, search)``</span> | ``output`` is ``array[number]`` representing the indexes inside ``string`` where ``search`` occurs | ``SDK-dependent`` |
 | <span class="opa-keep-it-together">``output := lower(string)``</span> | ``output`` is ``string`` after converting to lower case | ✅ |
 | <span class="opa-keep-it-together">``output := replace(string, old, new)``</span> | ``output`` is a ``string`` representing ``string`` with all instances of ``old`` replaced by ``new`` | ✅ |
 | <span class="opa-keep-it-together">``output := strings.reverse(string)``</span> | ``output`` is ``string`` reversed | ✅ |
