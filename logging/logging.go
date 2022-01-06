@@ -28,7 +28,6 @@ type Logger interface {
 	Warn(fmt string, a ...interface{})
 
 	WithFields(map[string]interface{}) Logger
-	GetFields() map[string]interface{}
 
 	GetLevel() Level
 	SetLevel(Level)
@@ -79,8 +78,8 @@ func (l *StandardLogger) WithFields(fields map[string]interface{}) Logger {
 	return &cp
 }
 
-// GetFields returns additional fields of this logger
-func (l *StandardLogger) GetFields() map[string]interface{} {
+// getFields returns additional fields of this logger
+func (l *StandardLogger) getFields() map[string]interface{} {
 	return l.fields
 }
 
@@ -128,22 +127,22 @@ func (l *StandardLogger) GetLevel() Level {
 
 // Debug logs at debug level
 func (l *StandardLogger) Debug(fmt string, a ...interface{}) {
-	l.logger.WithFields(l.GetFields()).Debugf(fmt, a...)
+	l.logger.WithFields(l.getFields()).Debugf(fmt, a...)
 }
 
 // Info logs at info level
 func (l *StandardLogger) Info(fmt string, a ...interface{}) {
-	l.logger.WithFields(l.GetFields()).Infof(fmt, a...)
+	l.logger.WithFields(l.getFields()).Infof(fmt, a...)
 }
 
 // Error logs at error level
 func (l *StandardLogger) Error(fmt string, a ...interface{}) {
-	l.logger.WithFields(l.GetFields()).Errorf(fmt, a...)
+	l.logger.WithFields(l.getFields()).Errorf(fmt, a...)
 }
 
 // Warn logs at warn level
 func (l *StandardLogger) Warn(fmt string, a ...interface{}) {
-	l.logger.WithFields(l.GetFields()).Errorf(fmt, a...)
+	l.logger.WithFields(l.getFields()).Errorf(fmt, a...)
 }
 
 // NoOpLogger logging implementation that does nothing
@@ -165,12 +164,6 @@ func (l *NoOpLogger) WithFields(fields map[string]interface{}) Logger {
 	cp := *l
 	cp.fields = fields
 	return &cp
-}
-
-// GetFields returns additional fields of this logger
-// Implemented here primarily to be able to switch between implementations without loss of data.
-func (l *NoOpLogger) GetFields() map[string]interface{} {
-	return l.fields
 }
 
 // Debug noop

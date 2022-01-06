@@ -113,6 +113,7 @@ type Client struct {
 	headers          map[string]string
 	authPluginLookup func(string) HTTPAuthPlugin
 	logger           logging.Logger
+	loggerFields     map[string]interface{}
 }
 
 // Name returns an option that overrides the service name on the client.
@@ -192,6 +193,11 @@ func (c Client) SetResponseHeaderTimeout(timeout *int64) Client {
 // Logger returns the logger assigned to the Client
 func (c Client) Logger() logging.Logger {
 	return c.logger
+}
+
+// LoggerFields returns the fields used for log statements used by Client
+func (c Client) LoggerFields() map[string]interface{} {
+	return c.loggerFields
 }
 
 // WithHeader returns a shallow copy of the client with a header to include the
@@ -276,22 +282,21 @@ func (c Client) Do(ctx context.Context, method, path string) (*http.Response, er
 		return nil, err
 	}
 
-	c.logger.WithFields(map[string]interface{}{
+	c.loggerFields = map[string]interface{}{
 		"method":  method,
 		"url":     url,
 		"headers": req.Header,
-	}).Debug("Sending request.")
+	}
+
+	c.logger.WithFields(c.loggerFields).Debug("Sending request.")
 
 	resp, err := httpClient.Do(req)
 	if resp != nil {
 		// Only log for debug purposes. If an error occurred, the caller should handle
 		// that. In the non-error case, the caller may not do anything.
-		c.logger.WithFields(map[string]interface{}{
-			"method":  method,
-			"url":     url,
-			"status":  resp.Status,
-			"headers": resp.Header,
-		}).Debug("Received response.")
+		c.loggerFields["status"] = resp.Status
+		c.loggerFields["headers"] = resp.Header
+		c.logger.WithFields(c.loggerFields).Debug("Received response.")
 	}
 
 	return resp, err
