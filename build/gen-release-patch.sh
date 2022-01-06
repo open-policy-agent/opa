@@ -42,7 +42,7 @@ if [ -z "$LAST_VERSION" ]; then
 fi
 
 update_makefile() {
-    sed -i='' -e "s/Version\s\+=\s\+\".\+\"$/Version = \"$VERSION\"/" version/version.go
+    sed -i'' -e "s/Version\s\+=\s\+\".\+\"$/Version = \"$VERSION\"/" version/version.go
 }
 
 update_changelog() {
@@ -76,10 +76,28 @@ update_capabilities() {
     git add --intent-to-add capabilities/v$VERSION.json
 }
 
+update_versioned_docs() {
+    local versions_dir="docs/versions"
+    local version_docs_dir="${versions_dir}/v$VERSION"
+
+    local major=$(cut -d. -f1 <<<$VERSION)
+    local minor=$(cut -d. -f2 <<<$VERSION)
+    shopt -s nullglob # no literal string when glob does not match
+    for prev in ${versions_dir}/v${major}.${minor}.*; do
+        rm -r $prev
+        ln -sf v$VERSION $prev
+    done
+
+    mkdir -p ${version_docs_dir}
+    cp -r docs/content/ ${version_docs_dir}
+    git add --intent-to-add ${versions_dir}
+}
+
 main() {
     update_makefile
     update_changelog
     update_capabilities
+    update_versioned_docs
     git --no-pager diff --no-color
 }
 

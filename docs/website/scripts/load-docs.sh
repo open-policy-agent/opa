@@ -81,24 +81,35 @@ echo 'Adding "latest" version to releases.yaml'
 echo "- latest" > ${RELEASES_YAML_FILE}
 
 for release in "${RELEASES[@]}"; do
-    version_docs_dir=${ROOT_DIR}/docs/website/generated/docs/${release}
-    mkdir -p ${version_docs_dir}
+    version_docs_target_dir=${ROOT_DIR}/docs/website/generated/docs/${release}
+    version_docs_dir=${ROOT_DIR}/docs/versions/${release}
 
-    echo "Checking out release ${release}"
-
-    # Don't error if the checkout fails
-    set +e
-    git archive --format=tar ${release} content | tar x -C ${version_docs_dir} --strip-components=1
-    errc=$?
-    set -e
-
-    # only add the version to the releases.yaml data file
-    # if we were able to check out the version, otherwise skip it..
-    if [[ "${errc}" == "0" ]]; then
+    if [ -d "$version_docs_dir" ]; then
+        mkdir -p $(dirname ${version_docs_target_dir})
+        # NOTE(sr): linking here isn't enough: if `latest` also points to the same
+        # location, hugo will ignore this and only build `latest`.
+        echo "Copying versioned docs for ${release} (${version_docs_dir})"
+        cp -r ${version_docs_dir} ${version_docs_target_dir}
         echo "Adding ${release} to releases.yaml"
         echo "- ${release}" >> ${RELEASES_YAML_FILE}
     else
-        echo "WARNING: Failed to check out version ${version}!!"
+        echo "Checking out release ${release}"
+        mkdir -p ${version_docs_target_dir}
+
+        # Don't error if the checkout fails
+        set +e
+        git archive --format=tar ${release} content | tar x -C ${version_docs_target_dir} --strip-components=1
+        errc=$?
+        set -e
+
+        # only add the version to the releases.yaml data file
+        # if we were able to check out the version, otherwise skip it..
+        if [[ "${errc}" == "0" ]]; then
+            echo "Adding ${release} to releases.yaml"
+            echo "- ${release}" >> ${RELEASES_YAML_FILE}
+        else
+            echo "WARNING: Failed to check out version ${release}!!"
+        fi
     fi
 done
 
@@ -111,4 +122,4 @@ echo "- edge" >> ${RELEASES_YAML_FILE}
 ln -s ../../../content ${ROOT_DIR}/docs/website/generated/docs/edge
 
 # Create a "latest" version from the latest semver found
-ln -s ${RELEASES[0]} ${ROOT_DIR}/docs/website/generated/docs/latest
+cp -r ${ROOT_DIR}/docs/versions/${RELEASES[0]} ${ROOT_DIR}/docs/website/generated/docs/latest
