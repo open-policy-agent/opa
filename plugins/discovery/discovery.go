@@ -257,7 +257,7 @@ func (c *Discovery) processBundle(ctx context.Context, b *bundleApi.Bundle) (*pl
 		Raw:        config.Services,
 		AuthPlugin: c.manager.AuthPlugin,
 		Keys:       c.manager.PublicKeys(),
-		Logger:     c.logger.WithFields(c.manager.Client(c.config.service).Logger().GetFields()),
+		Logger:     c.logger.WithFields(c.manager.Client(c.config.service).LoggerFields()),
 	}
 	services, err := cfg.ParseServicesConfig(opts)
 	if err != nil {
