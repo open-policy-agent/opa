@@ -233,7 +233,7 @@ http_filters:
 
 #### Example Input
 
-<details><summary>Example v3 Input</summary>
+{{<detail-tag "Example v3 Input">}}
 ```json
 {
   "attributes": {
@@ -289,9 +289,9 @@ http_filters:
   }
 }
 ```
-</details>
+{{</detail-tag>}}
 
-<details><summary>Example v2 Input</summary>
+{{<detail-tag "Example v2 Input">}}
 ```json
 {
   "attributes":{
@@ -353,7 +353,7 @@ http_filters:
   }
 }
 ```
-</details>
+{{</detail-tag>}}
 
 The `parsed_path` field in the input is generated from the `path` field in the HTTP request which is included in the
 Envoy External Authorization `CheckRequest` message type. This field provides the request path as a string array which
