@@ -332,6 +332,8 @@ curl -X PUT --data-binary @display.rego \
 
 Then we need to make sure that the authorization takes this input into account.
 
+**sudo_authz_elevated.rego**:
+
 ```live:sudo_authz/elevate:module:read_only
 # A package can be defined across multiple files.
 package sudo.authz
