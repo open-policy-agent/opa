@@ -72,8 +72,7 @@ EOF
 update_capabilities() {
     mkdir -p capabilities
     cp capabilities.json capabilities/v$VERSION.json
-    # Use --intent-to-add so that new file shows up in git diff
-    git add --intent-to-add capabilities/v$VERSION.json
+    git add capabilities/v$VERSION.json
 }
 
 update_versioned_docs() {
@@ -89,7 +88,7 @@ update_versioned_docs() {
 
     mkdir -p ${versions_dir}
     cp -r docs/content ${version_docs_dir}
-    git add --intent-to-add ${versions_dir}
+    git add ${versions_dir}
 }
 
 main() {
