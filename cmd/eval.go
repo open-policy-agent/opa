@@ -210,6 +210,8 @@ Set the output format with the --format flag.
     --format=values    : output line separated JSON arrays containing expression values
     --format=bindings  : output line separated JSON objects containing variable bindings
     --format=pretty    : output query results in a human-readable format
+    --format=source    : output partial evaluation results in a source format
+    --format=raw       : output the values from query results in a scripting friendly format
 
 Schema
 ------
