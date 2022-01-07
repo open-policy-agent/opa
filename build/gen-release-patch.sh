@@ -34,7 +34,7 @@ elif [ -z "$VERSION" ]; then
     exit 1
 fi
 
-git clone $SOURCE_URL $OPA_DIR
+git clone --quiet $SOURCE_URL $OPA_DIR
 cd $OPA_DIR
 
 if [ -z "$LAST_VERSION" ]; then
@@ -89,7 +89,7 @@ main() {
     update_changelog
     update_capabilities
     update_versioned_docs
-    git --no-pager diff --no-color HEAD
+    git --no-pager diff --no-color --binary HEAD
 }
 
 main
