@@ -234,6 +234,7 @@ http_filters:
 #### Example Input
 
 <details><summary>Example v3 Input</summary>
+<p>
 ```json
 {
   "attributes": {
@@ -289,9 +290,11 @@ http_filters:
   }
 }
 ```
+</p>
 </details>
 
 <details><summary>Example v2 Input</summary>
+<p>
 ```json
 {
   "attributes":{
@@ -353,6 +356,7 @@ http_filters:
   }
 }
 ```
+</p>
 </details>
 
 The `parsed_path` field in the input is generated from the `path` field in the HTTP request which is included in the
