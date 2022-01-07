@@ -84,12 +84,11 @@ update_versioned_docs() {
     local minor=$(cut -d. -f2 <<<$VERSION)
     shopt -s nullglob # no literal string when glob does not match
     for prev in ${versions_dir}/v${major}.${minor}.*; do
-        rm -r $prev
-        ln -sf v$VERSION $prev
+        git rm -r $prev
     done
 
-    mkdir -p ${version_docs_dir}
-    cp -r docs/content/ ${version_docs_dir}
+    mkdir -p ${versions_dir}
+    cp -r docs/content ${version_docs_dir}
     git add --intent-to-add ${versions_dir}
 }
 
@@ -98,7 +97,7 @@ main() {
     update_changelog
     update_capabilities
     update_versioned_docs
-    git --no-pager diff --no-color
+    git --no-pager diff --no-color HEAD
 }
 
 main
