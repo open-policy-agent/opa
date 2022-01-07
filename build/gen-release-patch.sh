@@ -79,13 +79,6 @@ update_versioned_docs() {
     local versions_dir="docs/versions"
     local version_docs_dir="${versions_dir}/v$VERSION"
 
-    local major=$(cut -d. -f1 <<<$VERSION)
-    local minor=$(cut -d. -f2 <<<$VERSION)
-    shopt -s nullglob # no literal string when glob does not match
-    for prev in ${versions_dir}/v${major}.${minor}.*; do
-        git rm -r $prev
-    done
-
     mkdir -p ${versions_dir}
     cp -r docs/content ${version_docs_dir}
     git add ${versions_dir}
