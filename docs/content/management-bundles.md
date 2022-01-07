@@ -525,6 +525,8 @@ bundles:
     resource: bundle.tar.gz
 ```
 
+**NOTE:** the S3 `url` is the bucket's regional endpoint.
+
 ##### Metadata Credentials
 
 In order for this to work it is required that the permissions you created in the "Authentication" steps above are embedded in an IAM Role, which is then assigned to the EC2 instance hosting OPA.
@@ -544,6 +546,8 @@ bundles:
     service: s3
     resource: bundle.tar.gz
 ```
+
+**NOTE:** the S3 `url` is the bucket's regional endpoint.
 
 ### Google Cloud Storage
 
