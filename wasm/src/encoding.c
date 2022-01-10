@@ -39,6 +39,7 @@
 #include <limits.h>
 
 #include "json.h"
+#include "malloc.h"
 #include "value.h"
 
 static const unsigned char base64_table[65] =
@@ -334,5 +335,6 @@ opa_value *opa_json_is_valid(opa_value *a)
 		return opa_boolean(false);
 	}
 
+	opa_free(r);
 	return opa_boolean(true);
 }
