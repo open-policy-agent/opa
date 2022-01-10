@@ -58,9 +58,7 @@ func builtinJSONIsValid(a ast.Value) (ast.Value, error) {
 		return nil, err
 	}
 
-	var x interface{}
-	err = util.UnmarshalJSON([]byte(str), &x)
-	return ast.Boolean(err == nil), nil
+	return ast.Boolean(json.Valid([]byte(str))), nil
 }
 
 func builtinBase64Encode(a ast.Value) (ast.Value, error) {
