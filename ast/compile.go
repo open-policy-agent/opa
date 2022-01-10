@@ -3035,6 +3035,8 @@ func outputVarsForExpr(expr *Expr, arity func(Ref) int, safe VarSet) VarSet {
 		}
 
 		return outputVarsForExprCall(expr, ar, safe, terms)
+	case *Every:
+		return outputVarsForTerms(terms.Domain, safe)
 	default:
 		panic("illegal expression")
 	}
@@ -3088,7 +3090,7 @@ func outputVarsForExprCall(expr *Expr, arity int, safe VarSet, terms []*Term) Va
 	return output
 }
 
-func outputVarsForTerms(expr *Expr, safe VarSet) VarSet {
+func outputVarsForTerms(expr interface{}, safe VarSet) VarSet {
 	output := VarSet{}
 	WalkTerms(expr, func(x *Term) bool {
 		switch r := x.Value.(type) {
@@ -3306,6 +3308,20 @@ func resolveRefsInExpr(globals map[Var]Ref, ignore *declaredVarStack, expr *Expr
 		if val, ok := ts.Symbols[0].Value.(Call); ok {
 			cpy.Terms = &SomeDecl{Symbols: []*Term{CallTerm(resolveRefsInTermSlice(globals, ignore, val)...)}}
 		}
+	case *Every:
+		locals := NewVarSet()
+		if ts.Key != nil {
+			locals.Update(ts.Key.Vars())
+		}
+		locals.Update(ts.Value.Vars())
+		ignore.Push(locals)
+		cpy.Terms = &Every{
+			Key:    ts.Key.Copy(),   // TODO(sr): do more?
+			Value:  ts.Value.Copy(), // TODO(sr): do more?
+			Domain: resolveRefsInTerm(globals, ignore, ts.Domain),
+			Body:   resolveRefsInBody(globals, ignore, ts.Body),
+		}
+		ignore.Pop()
 	}
 	for _, w := range cpy.With {
 		w.Target = resolveRefsInTerm(globals, ignore, w.Target)
@@ -3553,11 +3569,14 @@ func rewriteEquals(x interface{}) {
 func rewriteDynamics(f *equalityFactory, body Body) Body {
 	result := make(Body, 0, len(body))
 	for _, expr := range body {
-		if expr.IsEquality() {
+		switch {
+		case expr.IsEquality():
 			result = rewriteDynamicsEqExpr(f, expr, result)
-		} else if expr.IsCall() {
+		case expr.IsCall():
 			result = rewriteDynamicsCallExpr(f, expr, result)
-		} else {
+		case expr.IsEvery():
+			result = rewriteDynamicsEveryExpr(f, expr, result)
+		default:
 			result = rewriteDynamicsTermExpr(f, expr, result)
 		}
 	}
@@ -3584,6 +3603,13 @@ func rewriteDynamicsCallExpr(f *equalityFactory, expr *Expr, result Body) Body {
 	for i := 1; i < len(terms); i++ {
 		result, terms[i] = rewriteDynamicsOne(expr, f, terms[i], result)
 	}
+	return appendExpr(result, expr)
+}
+
+func rewriteDynamicsEveryExpr(f *equalityFactory, expr *Expr, result Body) Body {
+	ev := expr.Terms.(*Every)
+	result, ev.Domain = rewriteDynamicsOne(expr, f, ev.Domain, result)
+	ev.Body = rewriteDynamics(f, ev.Body)
 	return appendExpr(result, expr)
 }
 
@@ -3732,6 +3758,12 @@ func expandExpr(gen *localVarGenerator, expr *Expr) (result []*Expr) {
 			}
 			result = append(result, extras...)
 		}
+		result = append(result, expr)
+	case *Every:
+		var extras []*Expr
+		extras, terms.Domain = expandExprTerm(gen, terms.Domain)
+		terms.Body = rewriteExprTermsInBody(gen, terms.Body)
+		result = append(result, extras...)
 		result = append(result, expr)
 	}
 	return
@@ -3991,11 +4023,14 @@ func rewriteDeclaredVarsInBody(g *localVarGenerator, stack *localDeclaredVars, u
 
 	for i := range body {
 		var expr *Expr
-		if body[i].IsAssignment() {
+		switch {
+		case body[i].IsAssignment():
 			expr, errs = rewriteDeclaredAssignment(g, stack, body[i], errs, strict)
-		} else if _, ok := body[i].Terms.(*SomeDecl); ok {
+		case body[i].IsSome():
 			expr, errs = rewriteSomeDeclStatement(g, stack, body[i], errs, strict)
-		} else {
+		case body[i].IsEvery():
+			expr, errs = rewriteEveryStatement(g, stack, body[i], errs, strict)
+		default:
 			expr, errs = rewriteDeclaredVarsInExpr(g, stack, body[i], errs, strict)
 		}
 		if expr != nil {
@@ -4083,6 +4118,29 @@ func checkUnusedDeclaredVars(loc *Location, stack *localDeclaredVars, used VarSe
 	}
 
 	return errs
+}
+
+func rewriteEveryStatement(g *localVarGenerator, stack *localDeclaredVars, expr *Expr, errs Errors, strict bool) (*Expr, Errors) {
+	e := expr.Copy()
+	every := e.Terms.(*Every)
+	declared := NewVarSet()
+	if every.Key != nil {
+		declared.Update(every.Key.Vars())
+	}
+	declared.Update(every.Value.Vars())
+	for _, v := range declared.Sorted() {
+		if _, err := rewriteDeclaredVar(g, stack, v, declaredVar); err != nil {
+			return nil, append(errs, NewError(CompileErr, every.Loc(), err.Error()))
+		}
+	}
+	used := NewVarSet()
+	if every.Key != nil {
+		errs = rewriteDeclaredVarsInTermRecursive(g, stack, every.Key, errs, strict)
+	}
+	errs = rewriteDeclaredVarsInTermRecursive(g, stack, every.Value, errs, strict)
+	errs = rewriteDeclaredVarsInTermRecursive(g, stack, every.Domain, errs, strict)
+	every.Body, errs = rewriteDeclaredVarsInBody(g, stack, used, every.Body, errs, strict)
+	return e, errs
 }
 
 func rewriteSomeDeclStatement(g *localVarGenerator, stack *localDeclaredVars, expr *Expr, errs Errors, strict bool) (*Expr, Errors) {

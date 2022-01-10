@@ -1262,6 +1262,18 @@ func (expr *Expr) IsCall() bool {
 	return ok
 }
 
+// IsEvery returns true if this expression is an 'every' expression.
+func (expr *Expr) IsEvery() bool {
+	_, ok := expr.Terms.(*Every)
+	return ok
+}
+
+// IsSome returns true if this expression is a 'some' expression.
+func (expr *Expr) IsSome() bool {
+	_, ok := expr.Terms.(*SomeDecl)
+	return ok
+}
+
 // Operator returns the name of the function or built-in this expression refers
 // to. If this expression is not a function call, returns nil.
 func (expr *Expr) Operator() Ref {

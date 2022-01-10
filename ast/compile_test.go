@@ -203,12 +203,26 @@ func TestOutputVarsForNode(t *testing.T) {
 			query: `z = "abc"; x = split(z, a)[y]`,
 			exp:   `{z}`,
 		},
+		{
+			note:  "every: simple: no output vars",
+			query: `every k, v in [1, 2] { k < v }`,
+			exp:   `set()`,
+		},
+		{
+			note:  "every: output vars in domain",
+			query: `xs = []; every k, v in xs[i] { k < v }`,
+			exp:   `{xs, i}`,
+		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
 
-			body := MustParseBody(tc.query)
+			opts := ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true}
+			body, err := ParseBodyWithOpts(tc.query, opts)
+			if err != nil {
+				t.Fatal(err)
+			}
 			arity := func(r Ref) int {
 				a, ok := tc.arities[r.String()]
 				if !ok {
@@ -1654,6 +1668,19 @@ p[foo[bar[i]]] = {"baz": baz} { true }`)
 		r = [y | y = f(1)[0]]
 		`)
 
+	c.Modules["everykw"] = MustParseModuleWithOpts(`package everykw
+
+	nums = {1, 2, 3}
+	f(_) = true
+	x = 100
+	xs = [1, 2, 3]
+	p {
+		every x in xs {
+			nums[x]
+			x > 10
+		}
+	}`, ParserOptions{unreleasedKeywords: true, FutureKeywords: []string{"every", "in"}})
+
 	compileStages(c, c.resolveAllRefs)
 	assertNotFailed(t, c)
 
@@ -1780,6 +1807,17 @@ p[foo[bar[i]]] = {"baz": baz} { true }`)
 	assertTermEqual(t, someInAssignCall[2], VarTerm("v"))
 	collectionLastElem = someInAssignCall[3].Value.(*Array).Get(IntNumberTerm(2))
 	assertTermEqual(t, collectionLastElem, MustParseTerm("data.someinassignwithkey.y"))
+
+	mod16 := c.Modules["everykw"]
+	everyExpr := mod16.Rules[len(mod16.Rules)-1].Body[0].Terms.(*Every)
+	assertTermEqual(t, everyExpr.Body[0].Terms.(*Term), MustParseTerm("data.everykw.nums[x]"))
+	assertTermEqual(t, everyExpr.Domain, MustParseTerm("data.everykw.xs"))
+
+	// 'x' is not resolved
+	assertTermEqual(t, everyExpr.Value, VarTerm("x"))
+	gt10 := MustParseExpr("x > 10")
+	gt10.Index++ // TODO(sr): why?
+	assertExprEqual(t, everyExpr.Body[1], gt10)
 }
 
 func TestCompilerResolveErrors(t *testing.T) {
@@ -2615,6 +2653,29 @@ func TestRewriteDeclaredVars(t *testing.T) {
 			`,
 		},
 		{
+			note: "rewrite every",
+			module: `
+				package test
+				# import future.keywords.in
+				# import future.keywords.every
+				i = 0
+				xs = [1, 2]
+				k = "foo"
+				v = "bar"
+				p {
+					every k, v in xs { k + v > i }
+				}
+			`,
+			exp: `
+				package test
+				i = 0
+				xs = [1, 2]
+				k = "foo"
+				v = "bar"
+				p = true { __local3__ = data.test.xs; every __local0__, __local1__ in __local3__ { plus(__local0__, __local1__, __local2__); __local4__ = data.test.i; gt(__local2__, __local4__) } }
+			`,
+		},
+		{
 			note: "rewrite closures",
 			module: `
 				package test
@@ -2757,7 +2818,8 @@ func TestRewriteDeclaredVars(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			compiler, err := CompileModules(map[string]string{"test.rego": tc.module})
+			opts := CompileOpts{ParserOptions: ParserOptions{FutureKeywords: []string{"in", "every"}, unreleasedKeywords: true}}
+			compiler, err := CompileModulesWithOpt(map[string]string{"test.rego": tc.module}, opts)
 			if tc.wantErr != nil {
 				if err == nil {
 					t.Fatal("Expected error but got success")
@@ -2768,7 +2830,7 @@ func TestRewriteDeclaredVars(t *testing.T) {
 			} else if err != nil {
 				t.Fatal(err)
 			} else {
-				exp := MustParseModule(tc.exp)
+				exp := MustParseModuleWithOpts(tc.exp, opts.ParserOptions)
 				result := compiler.Modules["test.rego"]
 				if exp.Compare(result) != 0 {
 					t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", exp, result)
@@ -2938,10 +3000,10 @@ func TestCompilerRewriteDynamicTerms(t *testing.T) {
 		t.Run(tc.input, func(t *testing.T) {
 			c := NewCompiler()
 			module := fixture + tc.input
-			c.Modules["test"] = MustParseModule(module)
+			c.Modules["test"] = MustParseModuleWithOpts(module, ParserOptions{AllFutureKeywords: true})
 			compileStages(c, c.rewriteDynamicTerms)
 			assertNotFailed(t, c)
-			expected := MustParseBody(tc.expected)
+			expected := MustParseBodyWithOpts(tc.expected, ParserOptions{AllFutureKeywords: true})
 			result := c.Modules["test"].Rules[1].Body
 			if result.Compare(expected) != 0 {
 				t.Fatalf("\nExp: %v\nGot: %v", expected, result)
