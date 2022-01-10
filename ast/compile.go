@@ -3284,7 +3284,7 @@ func resolveRefsInRule(globals map[Var]Ref, rule *Rule) error {
 }
 
 func resolveRefsInBody(globals map[Var]Ref, ignore *declaredVarStack, body Body) Body {
-	r := Body{}
+	r := make([]*Expr, 0, len(body))
 	for _, expr := range body {
 		r = append(r, resolveRefsInExpr(globals, ignore, expr))
 	}
