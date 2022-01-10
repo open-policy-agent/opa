@@ -1790,6 +1790,8 @@ void test_json(void)
 {
     test("json/marshal", opa_value_compare(opa_json_marshal(opa_string_terminated("string")), opa_string_terminated("\"string\"")) == 0);
     test("json/unmarshal", opa_value_compare(opa_json_unmarshal(opa_string_terminated("\"string\"")), opa_string_terminated("string")) == 0);
+    test("json/is_valid_true", opa_value_compare(opa_json_is_valid(opa_string_terminated("\"string\"")), opa_boolean(true)) == 0);
+    test("json/is_valid_false", opa_value_compare(opa_json_is_valid(opa_string_terminated("\"string")), opa_boolean(false)) == 0);
 }
 
 WASM_EXPORT(test_object)

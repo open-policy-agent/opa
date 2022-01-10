@@ -137,6 +137,7 @@ var builtinsFunctions = map[string]string{
 	ast.GlobMatch.Name:                  "opa_glob_match",
 	ast.JSONMarshal.Name:                "opa_json_marshal",
 	ast.JSONUnmarshal.Name:              "opa_json_unmarshal",
+	ast.JSONIsValid.Name:                "opa_json_is_valid",
 	ast.ObjectFilter.Name:               "builtin_object_filter",
 	ast.ObjectGet.Name:                  "builtin_object_get",
 	ast.ObjectRemove.Name:               "builtin_object_remove",

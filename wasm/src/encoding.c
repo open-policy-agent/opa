@@ -316,3 +316,23 @@ opa_value *opa_json_marshal(opa_value *a)
 
     return opa_string_allocated(v, strlen(v));
 }
+
+OPA_BUILTIN
+opa_value *opa_json_is_valid(opa_value *a)
+{
+    if (opa_value_type(a) != OPA_STRING)
+    {
+        return NULL;
+    }
+
+
+    opa_string_t *s = opa_cast_string(a);
+    opa_value *r = opa_json_parse(s->v, s->len);
+
+	if (r == NULL)
+	{
+		return opa_boolean(false);
+	}
+
+	return opa_boolean(true);
+}
