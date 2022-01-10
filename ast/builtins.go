@@ -211,6 +211,7 @@ var DefaultBuiltins = [...]*Builtin{
 	// Graphs
 	WalkBuiltin,
 	ReachableBuiltin,
+	ReachablePathsBuiltin,
 
 	// Sort
 	Sort,
@@ -2004,6 +2005,26 @@ var ReachableBuiltin = &Builtin{
 			types.NewAny(types.NewSet(types.A), types.NewArray(nil, types.A)),
 		),
 		types.NewSet(types.A),
+	),
+}
+
+// ReachablePathsBuiltin computes the set of reachable paths in the graph from a set
+// of starting nodes.
+var ReachablePathsBuiltin = &Builtin{
+	Name: "graph.reachable_paths",
+	Decl: types.NewFunction(
+		types.Args(
+			types.NewObject(
+				nil,
+				types.NewDynamicProperty(
+					types.A,
+					types.NewAny(
+						types.NewSet(types.A),
+						types.NewArray(nil, types.A)),
+				)),
+			types.NewAny(types.NewSet(types.A), types.NewArray(nil, types.A)),
+		),
+		types.NewSet(types.NewArray(nil, types.A)),
 	),
 }
 
