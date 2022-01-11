@@ -102,7 +102,7 @@ def get_github_id(commit_message, commit_id, token):
 def mention_author(commit_message, commit_id, token):
     username = get_github_id(commit_message, commit_id, token)
     if username not in org_members_usernames:
-        return "authored by @[{author}](https://github.com/{author})".format(author=username)
+        return "authored by @{author}".format(author=username)
     return ""
 
 def get_issue_reporter(issue_id, token):
@@ -110,7 +110,7 @@ def get_issue_reporter(issue_id, token):
     issue_data = fetch(url, token)
     username = issue_data.get("user", "").get("login", "")
     if username not in org_members_usernames:
-        return "reported by @[{reporter}](https://github.com/{reporter})".format(reporter=username)
+        return "reported by @{reporter}".format(reporter=username)
     return ""
 
 def fixes_issue_id(commit_message):
