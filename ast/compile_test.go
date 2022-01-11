@@ -2480,7 +2480,7 @@ func TestRewriteDeclaredVars(t *testing.T) {
 			exp: `
 				package test
 				xs = ["a", "b", "c"]
-				p { __local2__ = data.test.xs[__local1__]; __local2__ = "a" }
+				p { __local1__ = data.test.xs[__local0__]; __local1__ = "a" }
 			`,
 		},
 		{

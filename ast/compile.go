@@ -4003,17 +4003,23 @@ func rewriteSomeDeclStatement(g *localVarGenerator, stack *localDeclaredVars, ex
 				return nil, append(errs, NewError(CompileErr, decl.Loc(), err.Error()))
 			}
 		case Call:
+			declared := NewVarSet()
+
 			var key, val, container *Term
 			switch len(v) {
-			case 4: // member3
+			case 4: // member_3
 				key = v[1]
 				val = v[2]
 				container = v[3]
-			case 3: // member
+				declared.Update(key.Vars())
+			case 3: // member_2
 				key = NewTerm(g.Generate())
 				val = v[1]
 				container = v[2]
 			}
+			declared.Update(val.Vars())
+
+			errs = rewriteDeclaredVarsInTermRecursive(g, stack, container, errs)
 
 			var rhs *Term
 			switch c := container.Value.(type) {
@@ -4026,12 +4032,16 @@ func rewriteSomeDeclStatement(g *localVarGenerator, stack *localDeclaredVars, ex
 				RefTerm(VarTerm(Equality.Name)), val, rhs,
 			}
 
-			for _, v0 := range outputVarsForExprEq(e, container.Vars()).Sorted() {
+			stack.Push()
+			for _, v0 := range declared.Sorted() {
 				if _, err := rewriteDeclaredVar(g, stack, v0, declaredVar); err != nil {
 					return nil, append(errs, NewError(CompileErr, decl.Loc(), err.Error()))
 				}
 			}
-			return rewriteDeclaredVarsInExpr(g, stack, e, errs)
+
+			errs = rewriteDeclaredVarsInTermRecursive(g, stack, key, errs)
+			errs = rewriteDeclaredVarsInTermRecursive(g, stack, val, errs)
+			return e, errs
 		}
 	}
 	return nil, errs
