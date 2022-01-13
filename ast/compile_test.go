@@ -1454,30 +1454,108 @@ func TestCompilerRewriteExprTerms(t *testing.T) {
 					t.Fatalf("Expected modules to be equal. Expected:\n\n%v\n\nGot:\n\n%v", expected, compiler.Modules["test"])
 				}
 			case Errors:
-				if len(exp) != len(compiler.Errors) {
-					t.Fatalf("Expected %d errors, got %d:\n\n%s\n", len(exp), len(compiler.Errors), compiler.Errors.Error())
-				}
-				incorrectErrs := false
-				for _, e := range exp {
-					found := false
-					for _, actual := range compiler.Errors {
-						if e.Message == actual.Message {
-							found = true
-							break
-						}
-					}
-					if !found {
-						incorrectErrs = true
-					}
-				}
-				if incorrectErrs {
-					t.Fatalf("Expected errors:\n\n%s\n\nGot:\n\n%s\n", exp.Error(), compiler.Errors.Error())
-				}
+				assertErrors(t, compiler.Errors, exp, false)
 			default:
 				t.Fatalf("Unsupported value type for test case 'expected' field: %v", exp)
 			}
 
 		})
+	}
+}
+
+func TestCompilerCheckDuplicateImports(t *testing.T) {
+	cases := []struct {
+		note           string
+		module         string
+		expectedErrors Errors
+		strict         bool
+	}{
+		{
+			note: "shadow",
+			module: `package test
+				import input.noconflict
+				import input.foo
+				import data.foo
+				import data.bar.foo
+			`,
+			expectedErrors: Errors{
+				&Error{
+					Location: NewLocation([]byte("import"), "", 4, 5),
+					Message:  "import must not shadow import input.foo",
+				},
+				&Error{
+					Location: NewLocation([]byte("import"), "", 5, 5),
+					Message:  "import must not shadow import input.foo",
+				},
+			},
+			strict: true,
+		}, {
+			note: "alias shadow",
+			module: `package test
+				import input.noconflict
+				import input.foo
+				import input.bar as foo
+			`,
+			expectedErrors: Errors{
+				&Error{
+					Location: NewLocation([]byte("import"), "", 4, 5),
+					Message:  "import must not shadow import input.foo",
+				},
+			},
+			strict: true,
+		}, {
+			note: "no strict",
+			module: `package test
+				import input.noconflict
+				import input.foo
+				import data.foo
+				import data.bar.foo
+				import input.bar as foo
+			`,
+			strict: false,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			compiler := NewCompiler().WithStrict(tc.strict)
+			compiler.Modules = map[string]*Module{
+				"test": MustParseModule(tc.module),
+			}
+
+			compileStages(compiler, compiler.checkDuplicateImports)
+
+			if len(tc.expectedErrors) > 0 {
+				assertErrors(t, compiler.Errors, tc.expectedErrors, true)
+			} else {
+				assertNotFailed(t, compiler)
+			}
+		})
+	}
+}
+
+func assertErrors(t *testing.T, actual Errors, expected Errors, assertLocation bool) {
+	t.Helper()
+	if len(expected) != len(actual) {
+		t.Fatalf("Expected %d errors, got %d:\n\n%s\n", len(expected), len(actual), actual.Error())
+	}
+	incorrectErrs := false
+	for _, e := range expected {
+		found := false
+		for _, actual := range actual {
+			if e.Message == actual.Message {
+				if !assertLocation || e.Location.Equal(actual.Location) {
+					found = true
+					break
+				}
+			}
+		}
+		if !found {
+			incorrectErrs = true
+		}
+	}
+	if incorrectErrs {
+		t.Fatalf("Expected errors:\n\n%s\n\nGot:\n\n%s\n", expected.Error(), actual.Error())
 	}
 }
 
