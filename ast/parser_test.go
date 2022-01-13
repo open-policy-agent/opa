@@ -794,6 +794,11 @@ func TestEvery(t *testing.T) {
 				},
 			},
 		}, opts)
+
+	assertParseErrorContains(t, "arbitrary term", "every 10", "expected `x[, y] in xs { ... }` expression", opts)
+	assertParseErrorContains(t, "arbitrary call", "every f(10)", "expected `x[, y] in xs { ... }` expression", opts)
+	assertParseErrorContains(t, "no body", "every x in xs", "missing body", opts)
+	assertParseErrorContains(t, "invalid body", "every x in xs { + }", "unexpected plus token", opts)
 }
 
 func TestNestedExpressions(t *testing.T) {
@@ -3326,21 +3331,28 @@ func assertParseError(t *testing.T, msg string, input string) {
 	})
 }
 
-func assertParseErrorContains(t *testing.T, msg string, input string, expected string) {
+func assertParseErrorContains(t *testing.T, msg string, input string, expected string, opts ...ParserOptions) {
 	t.Helper()
 	assertParseErrorFunc(t, msg, input, func(result string) {
 		t.Helper()
 		if !strings.Contains(result, expected) {
 			t.Errorf("Error on test \"%s\": expected parse error to contain:\n\n%v\n\nbut got:\n\n%v", msg, expected, result)
 		}
-	})
+	}, opts...)
 }
 
-func assertParseErrorFunc(t *testing.T, msg string, input string, f func(string)) {
+func assertParseErrorFunc(t *testing.T, msg string, input string, f func(string), opts ...ParserOptions) {
 	t.Helper()
-	p, err := ParseStatement(input)
+	opt := ParserOptions{}
+	if len(opts) == 1 {
+		opt = opts[0]
+	}
+	stmts, _, err := ParseStatementsWithOpts("", input, opt)
+	if err == nil && len(stmts) != 1 {
+		err = fmt.Errorf("expected exactly one statement")
+	}
 	if err == nil {
-		t.Errorf("Error on test \"%s\": expected parse error but parsed successfully:\n\n%v\n\n(parsed)", msg, p)
+		t.Errorf("Error on test \"%s\": expected parse error on %s: expected no statements, got %d: %v", msg, input, len(stmts), stmts)
 		return
 	}
 	result := err.Error()

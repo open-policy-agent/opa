@@ -933,6 +933,7 @@ func (p *Parser) parseEvery() *Expr {
 	}
 	call, ok := term.Value.(Call)
 	if !ok {
+		p.illegal("expected `x[, y] in xs { ... }` expression")
 		return nil
 	}
 	switch call[0].String() {
@@ -944,7 +945,7 @@ func (p *Parser) parseEvery() *Expr {
 		qb.Value = call[2]
 		qb.Domain = call[3]
 	default:
-		p.illegal("expected `x in xs` or `x, y in xs` expression")
+		p.illegal("expected `x[, y] in xs { ... }` expression")
 		return nil
 	}
 	if p.s.tok == tokens.LBrace { // every x in xs { ... }
@@ -958,6 +959,7 @@ func (p *Parser) parseEvery() *Expr {
 		return NewExpr(qb).SetLocation(qb.Location)
 	}
 
+	p.illegal("missing body")
 	return nil
 }
 
