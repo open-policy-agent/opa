@@ -632,7 +632,8 @@ func (s *Server) initHandlerAuth(handler http.Handler) http.Handler {
 			authorizer.Runtime(s.runtime),
 			authorizer.Decision(s.manager.Config.DefaultAuthorizationDecisionRef),
 			authorizer.PrintHook(s.manager.PrintHook()),
-			authorizer.EnablePrintStatements(s.manager.EnablePrintStatements()))
+			authorizer.EnablePrintStatements(s.manager.EnablePrintStatements()),
+			authorizer.InterQueryCache(s.interQueryBuiltinCache))
 	}
 
 	switch s.authentication {

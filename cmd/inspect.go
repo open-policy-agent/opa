@@ -42,9 +42,8 @@ func init() {
 	params := newInspectCommandParams()
 
 	var inspectCommand = &cobra.Command{
-		Use:    "inspect <path> [<path> [...]]",
-		Hidden: true,
-		Short:  "Inspect OPA bundle(s)",
+		Use:   "inspect <path> [<path> [...]]",
+		Short: "Inspect OPA bundle(s)",
 		Long: `Inspect OPA bundle(s).
 
 The 'inspect' command provides a summary of the contents in OPA bundle(s). Bundles are

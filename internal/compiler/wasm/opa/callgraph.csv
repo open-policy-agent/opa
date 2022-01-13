@@ -251,6 +251,10 @@ opa_json_unmarshal,opa_json_parse
 opa_json_marshal,opa_json_dump
 opa_json_marshal,strlen
 opa_json_marshal,opa_string_allocated
+opa_json_is_valid,opa_value_type
+opa_json_is_valid,opa_json_parse
+opa_json_is_valid,opa_free
+opa_json_is_valid,opa_boolean
 opa_runtime_error,opa_itoa
 opa_runtime_error,opa_strlen
 opa_runtime_error,opa_malloc
