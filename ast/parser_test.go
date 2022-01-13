@@ -1135,7 +1135,7 @@ func TestImport(t *testing.T) {
 }
 
 func TestFutureImports(t *testing.T) {
-	assertParseErrorContains(t, "future", "import future", "invalid import, use `import future.keywords` or `import.future.keywords.in`")
+	assertParseErrorContains(t, "future", "import future", "invalid import, must be `future.keywords`")
 	assertParseErrorContains(t, "future.a", "import future.a", "invalid import, must be `future.keywords`")
 	assertParseErrorContains(t, "unknown keyword", "import future.keywords.xyz", "unexpected keyword, must be one of [every in]")
 	assertParseErrorContains(t, "all keyword import + alias", "import future.keywords as xyz", "future keyword imports cannot be aliased")

@@ -2062,12 +2062,8 @@ var futureKeywords = map[string]tokens.Token{
 
 func (p *Parser) futureImport(imp *Import, allowedFutureKeywords map[string]tokens.Token) {
 	path := imp.Path.Value.(Ref)
-	if len(path) == 1 {
-		p.errorf(imp.Path.Location, "invalid import, use `import future.keywords` or `import.future.keywords.in`")
-		return
-	}
 
-	if !path[1].Equal(StringTerm("keywords")) {
+	if len(path) == 1 || !path[1].Equal(StringTerm("keywords")) {
 		p.errorf(imp.Path.Location, "invalid import, must be `future.keywords`")
 		return
 	}
