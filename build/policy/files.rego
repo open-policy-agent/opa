@@ -25,6 +25,7 @@ get_file_in_pr(filename) = http.send({
 	"method": "GET",
 	"headers": {"Authorization": sprintf("Bearer %v", [opa.runtime().env.GITHUB_TOKEN])},
 	"cache": true,
+	"enable_redirect": true,
 }).raw_body
 
 deny["Logo must be placed in docs/website/static/img/logos/integrations"] {
