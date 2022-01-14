@@ -6,7 +6,7 @@ weight: 4
 
 OPA can periodically report status updates to remote HTTP servers. The
 updates contain status information for OPA itself as well as the
-[Bundles](#bundles) that have been downloaded and activated.
+[Bundles](../management-bundles) that have been downloaded and activated.
 
 OPA sends status reports whenever one of the following happens:
 

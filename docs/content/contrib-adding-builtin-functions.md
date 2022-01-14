@@ -98,7 +98,7 @@ func init() {
 ```
 
 In the above code, `builtinRepeat` implements the `topdown.BuiltinFunc` function type. 
-The call to `RegisterBuiltinFunc(...)` in `init()` adds the built-in function to the evaluation engine; binding the implementation to `ast.Repeat` that was registered in [an earlier step](#register-the-function).
+The call to `RegisterBuiltinFunc(...)` in `init()` adds the built-in function to the evaluation engine; binding the implementation to `ast.Repeat` that was registered in [an earlier step](#declare-and-register).
 
 ### Test
 
