@@ -111,7 +111,7 @@ files in the bundle must be organized hierarchically into directories inside
 the tarball.
 
 > The hierarchical organization indicates to OPA where to load the data files
-> into the [the `data` Document](../#the-data-document).
+> into the [the `data` Document](../philosophy/#the-opa-document-model).
 
 You can list the content of a bundle with `tar`.
 
@@ -495,7 +495,7 @@ Both methods are going to need a policy for either the service account or the IA
 
 ##### Testing Authentication
 
-Use the [AWS CLI tools]([command line tools](https://aws.amazon.com/cli/)) (see "Upload Bundle" below).
+Use the [AWS CLI tools](https://aws.amazon.com/cli/) (see ["Upload Bundle"](#upload-bundle) below).
 
 #### Upload Bundle
 
