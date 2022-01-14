@@ -542,6 +542,8 @@ func (vis *VarVisitor) Vars() VarSet {
 	return vis.vars
 }
 
+// visit determines if the VarVisitor will recurse into x: if it returns `true`,
+// the visitor will _skip_ that branch of the AST
 func (vis *VarVisitor) visit(v interface{}) bool {
 	if vis.params.SkipObjectKeys {
 		if o, ok := v.(Object); ok {
@@ -560,9 +562,13 @@ func (vis *VarVisitor) visit(v interface{}) bool {
 		}
 	}
 	if vis.params.SkipClosures {
-		switch v.(type) {
-		case *ArrayComprehension, *ObjectComprehension, *SetComprehension, *Every:
+		switch v := v.(type) {
+		case *ArrayComprehension, *ObjectComprehension, *SetComprehension:
 			return true
+		case *Expr:
+			if _, ok := v.Terms.(*Every); ok {
+				return true
+			}
 		}
 	}
 	if vis.params.SkipWithTarget {
