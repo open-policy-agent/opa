@@ -16,6 +16,20 @@ integrations:
     blogs:
       - https://apisix.apache.org/blog/2021/12/24/open-policy-agent
       - https://medium.com/@ApacheAPISIX/apache-apisix-integrates-with-open-policy-agent-to-enrich-its-ecosystem-15569fe3ab9c
+
+  dapr:
+    title: Dapr
+    description: Middleware to apply Open Policy Agent policies on incoming requests
+    software:
+      - dapr
+    labels:
+      category: application
+      layer: network
+    tutorials:
+      - https://docs.dapr.io/reference/components-reference/supported-middleware/middleware-opa/
+    code:
+      - https://github.com/dapr/dapr
+
   sphinx-rego:
     title: Automatically document Rego policies
     description: Sphinx extension that automatically documents Open Policy Agent Rego policies using meta properties.
@@ -25,7 +39,6 @@ integrations:
       - https://github.com/zenitysec/sphinx-rego
     inventors:
       - zenity
-    category: tooling
     labels:
       category: tooling
       layer: cicd
@@ -851,7 +864,6 @@ integrations:
         venue: OPA Summit at Kubecon San Diego 2019
         link: https://www.youtube.com/watch?v=jrrW855xL3s
 
-
   sysdig-image-scanner:
     title: Kubernetes Sysdig Image Scanner Admission Controller
     description: Sysdig’s OPA Image Scanner combines Sysdig Secure image scanner with OPA policy-based rego language to evaluate the scan results and the admission context, providing great flexibility on the admission decision.
@@ -1175,6 +1187,9 @@ organizations:
     name: ARMO
     link: https://armosec.io
 software:
+  dapr:
+    name: Dapr
+    link: https://dapr.io/
   kubernetes:
     name: Kubernetes
     link: https://kubernetes.io
