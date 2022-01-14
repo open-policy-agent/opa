@@ -32,6 +32,7 @@ import (
 const (
 	RegoExt               = ".rego"
 	WasmFile              = "policy.wasm"
+	PlanFile              = "plan.json"
 	ManifestExt           = ".manifest"
 	SignaturesFile        = "signatures.json"
 	dataFile              = "data.json"
@@ -48,6 +49,7 @@ type Bundle struct {
 	Modules     []ModuleFile
 	Wasm        []byte // Deprecated. Use WasmModules instead
 	WasmModules []WasmModuleFile
+	PlanModules []PlanModuleFile
 }
 
 // SignaturesConfig represents an array of JWTs that encapsulate the signatures for the bundle.
@@ -303,6 +305,17 @@ type WasmModuleFile struct {
 	Raw         []byte
 }
 
+// PlanModuleFile represents a single plan module contained in a bundle.
+//
+// NOTE(tsandall): currently the plans are just opaque binary blobs. In the
+// future we could inject the entrypoints so that the plans could be executed
+// inside of OPA proper like we do for Wasm modules.
+type PlanModuleFile struct {
+	URL  string
+	Path string
+	Raw  []byte
+}
+
 // Reader contains the reader to load the bundle from.
 type Reader struct {
 	loader                DirectoryLoader
@@ -448,6 +461,12 @@ func (r *Reader) Read() (Bundle, error) {
 
 		} else if filepath.Base(path) == WasmFile {
 			bundle.WasmModules = append(bundle.WasmModules, WasmModuleFile{
+				URL:  f.URL(),
+				Path: r.fullPath(path),
+				Raw:  buf.Bytes(),
+			})
+		} else if filepath.Base(path) == PlanFile {
+			bundle.PlanModules = append(bundle.PlanModules, PlanModuleFile{
 				URL:  f.URL(),
 				Path: r.fullPath(path),
 				Raw:  buf.Bytes(),
@@ -657,6 +676,10 @@ func (w *Writer) Write(bundle Bundle) error {
 		return err
 	}
 
+	if err := w.writePlan(tw, bundle); err != nil {
+		return err
+	}
+
 	if err := writeManifest(tw, bundle); err != nil {
 		return err
 	}
@@ -687,6 +710,22 @@ func (w *Writer) writeWasm(tw *tar.Writer, bundle Bundle) error {
 
 	if len(bundle.Wasm) > 0 {
 		err := archive.WriteFile(tw, "/"+WasmFile, bundle.Wasm)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (w *Writer) writePlan(tw *tar.Writer, bundle Bundle) error {
+	for _, wm := range bundle.PlanModules {
+		path := wm.URL
+		if w.usePath {
+			path = wm.Path
+		}
+
+		err := archive.WriteFile(tw, path, wm.Raw)
 		if err != nil {
 			return err
 		}
@@ -748,6 +787,14 @@ func hashBundleFiles(hash SignatureHasher, b *Bundle) ([]FileInfo, error) {
 			return files, err
 		}
 		files = append(files, NewFile(strings.TrimPrefix(wasmModule.Path, "/"), hex.EncodeToString(bs), defaultHashingAlg))
+	}
+
+	for _, planmodule := range b.PlanModules {
+		bs, err := hash.HashFile(planmodule.Raw)
+		if err != nil {
+			return files, err
+		}
+		files = append(files, NewFile(strings.TrimPrefix(planmodule.Path, "/"), hex.EncodeToString(bs), defaultHashingAlg))
 	}
 
 	// Parse the manifest into a JSON structure;
@@ -1031,6 +1078,7 @@ func Merge(bundles []*Bundle) (*Bundle, error) {
 
 		result.Manifest.WasmResolvers = append(result.Manifest.WasmResolvers, b.Manifest.WasmResolvers...)
 		result.WasmModules = append(result.WasmModules, b.WasmModules...)
+		result.PlanModules = append(result.PlanModules, b.PlanModules...)
 
 	}
 
