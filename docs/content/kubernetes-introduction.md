@@ -46,7 +46,7 @@ OPA Gatekeeper adds the following on top of plain OPA:
 If you want to kick the tires:
 
 * See the [Installation
-  Instructions](https://github.com/open-policy-agent/gatekeeper#installation-instructions)
+  Instructions](https://open-policy-agent.github.io/gatekeeper/website/docs/install/)
   in the README.
 * See the
   [demo/basic](https://github.com/open-policy-agent/gatekeeper/tree/master/demo/basic)

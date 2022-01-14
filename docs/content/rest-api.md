@@ -818,7 +818,7 @@ Get a document that requires input.
 
 The path separator is used to access values inside object and array documents. If the path indexes into an array, the server will attempt to convert the array index to an integer. If the path element cannot be converted to an integer, the server will respond with 404.
 
-The request body contains an object that specifies a value for [The input Document](../#the-input-document).
+The request body contains an object that specifies a value for [The input Document](../philosophy/#the-opa-document-model).
 
 #### Request Headers
 
@@ -938,7 +938,7 @@ Use this API if you are enforcing policy decisions via webhooks that have pre-de
 request/response formats. Note, the API path prefix is `/v0` instead of `/v1`.
 
 The request message body defines the content of the [The input
-Document](../#the-input-document). The request message body
+Document](../philosophy/#the-opa-document-model). The request message body
 may be empty. The path separator is used to access values inside object and
 array documents.
 
@@ -1157,7 +1157,7 @@ produce a value for the `/data/system/main` document. You can configure OPA
 to use a different URL path to serve these queries. See the [Configuration Reference](../configuration)
 for more information.
 
-The request message body is mapped to the [Input Document](../#the-input-document).
+The request message body is mapped to the [Input Document](../philosophy/#the-opa-document-model).
 
 ```http
 PUT /v1/policies/example1 HTTP/1.1

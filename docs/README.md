@@ -96,7 +96,7 @@ This option provides the best preview of the site content, using the exact same 
    user account (which should have been configured in the previous step).
    
 1) Netlify will then upload the built content and serve it via their CDN. A URL to the preview will be given in the
-   CLI console output.
+   CLI console output. Be sure to select the `edge` version within the Documentation pages to see your reflected changes in the remote site.
 
 
 #### Local Preview via `netlify dev`
