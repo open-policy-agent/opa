@@ -8,6 +8,7 @@ package compile
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"regexp"
@@ -40,14 +41,20 @@ const (
 	// TargetWasm is an alternative target that compiles the policy into a wasm
 	// module instead of Rego. The target supports base documents.
 	TargetWasm = "wasm"
+
+	// TargetPlan is an altertive target that compiles the policy into an
+	// imperative query plan that can be further transpiled or interpreted.
+	TargetPlan = "plan"
 )
 
-const wasmResultVar = ast.Var("result")
-
-var validTargets = map[string]struct{}{
-	TargetRego: {},
-	TargetWasm: {},
+// Targets contains the list of targets supported by the compiler.
+var Targets = []string{
+	TargetRego,
+	TargetWasm,
+	TargetPlan,
 }
+
+const resultVar = ast.Var("result")
 
 // Compiler implements bundle compilation and linking.
 type Compiler struct {
@@ -63,6 +70,7 @@ type Compiler struct {
 	output            *io.Writer                 // output stream to write bundle to
 	entrypointrefs    []*ast.Term                // validated entrypoints computed from default decision or manually supplied entrypoints
 	compiler          *ast.Compiler              // rego ast compiler used for semantic checks and rewriting
+	policy            *ir.Policy                 // planner output when wasm or plan targets are enabled
 	debug             debug.Debug                // optionally outputs debug information produced during build
 	bvc               *bundle.VerificationConfig // represents the key configuration used to verify a signed bundle
 	bsc               *bundle.SigningConfig      // represents the key configuration used to generate a signed bundle
@@ -187,10 +195,28 @@ func (c *Compiler) Build(ctx context.Context) error {
 		return err
 	}
 
-	if c.target == TargetWasm {
+	switch c.target {
+	case TargetWasm:
 		if err := c.compileWasm(ctx); err != nil {
 			return err
 		}
+	case TargetPlan:
+		if err := c.compilePlan(ctx); err != nil {
+			return err
+		}
+
+		bs, err := json.Marshal(c.policy)
+		if err != nil {
+			return err
+		}
+
+		c.bundle.PlanModules = append(c.bundle.PlanModules, bundle.PlanModuleFile{
+			Path: bundle.PlanFile,
+			URL:  bundle.PlanFile,
+			Raw:  bs,
+		})
+	case TargetRego:
+		// nop
 	}
 
 	if c.revision != nil {
@@ -220,7 +246,15 @@ func (c *Compiler) init() error {
 		c.capabilities = ast.CapabilitiesForThisVersion()
 	}
 
-	if _, ok := validTargets[c.target]; !ok {
+	var found bool
+	for _, t := range Targets {
+		if c.target == t {
+			found = true
+			break
+		}
+	}
+
+	if !found {
 		return fmt.Errorf("invalid target %q", c.target)
 	}
 
@@ -238,8 +272,15 @@ func (c *Compiler) init() error {
 		return errors.New("bundle optimizations require at least one entrypoint")
 	}
 
-	if c.target == TargetWasm && len(c.entrypointrefs) == 0 {
-		return errors.New("wasm compilation requires at least one entrypoint")
+	switch c.target {
+	case TargetWasm:
+		if len(c.entrypointrefs) == 0 {
+			return errors.New("wasm compilation requires at least one entrypoint")
+		}
+	case TargetPlan:
+		if len(c.entrypointrefs) == 0 {
+			return errors.New("plan compilation requires at least one entrypoint")
+		}
 	}
 
 	return nil
@@ -342,7 +383,7 @@ func (c *Compiler) optimize(ctx context.Context) error {
 	return nil
 }
 
-func (c *Compiler) compileWasm(ctx context.Context) error {
+func (c *Compiler) compilePlan(ctx context.Context) error {
 
 	// Lazily compile the modules if needed. If optimizations were run, the
 	// AST compiler will not be set because the default target does not require it.
@@ -384,7 +425,7 @@ func (c *Compiler) compileWasm(ctx context.Context) error {
 	}
 
 	// Create query sets for each of the entrypoints.
-	resultSym := ast.NewTerm(wasmResultVar)
+	resultSym := ast.NewTerm(resultVar)
 	queries := make([]planner.QuerySet, len(c.entrypointrefs))
 
 	for i := range c.entrypointrefs {
@@ -414,7 +455,32 @@ func (c *Compiler) compileWasm(ctx context.Context) error {
 		builtins[bi.Name] = bi
 	}
 
+	// Plan the query sets.
+	p := planner.New().
+		WithQueries(queries).
+		WithModules(modules).
+		WithBuiltinDecls(builtins).
+		WithDebug(c.debug.Writer())
+	policy, err := p.Plan()
+	if err != nil {
+		return err
+	}
+
+	// dump policy IR (if "debug" wasn't requested, debug.Witer will discard it)
+	err = ir.Pretty(c.debug.Writer(), policy)
+	if err != nil {
+		return err
+	}
+
+	c.policy = policy
+
+	return nil
+}
+
+func (c *Compiler) compileWasm(ctx context.Context) error {
+
 	compiler := wasm.New()
+
 	found := false
 	have := compiler.ABIVersion()
 	if c.capabilities.WasmABIVersions == nil { // discern nil from len=0
@@ -434,25 +500,12 @@ func (c *Compiler) compileWasm(ctx context.Context) error {
 		)
 	}
 
-	// Plan the query sets.
-	p := planner.New().
-		WithQueries(queries).
-		WithModules(modules).
-		WithBuiltinDecls(builtins).
-		WithDebug(c.debug.Writer())
-	policy, err := p.Plan()
-	if err != nil {
-		return err
-	}
-
-	// dump policy IR (if "debug" wasn't requested, debug.Witer will discard it)
-	err = ir.Pretty(c.debug.Writer(), policy)
-	if err != nil {
+	if err := c.compilePlan(ctx); err != nil {
 		return err
 	}
 
 	// Compile the policy into a wasm binary.
-	m, err := compiler.WithPolicy(policy).WithDebug(c.debug.Writer()).Compile()
+	m, err := compiler.WithPolicy(c.policy).WithDebug(c.debug.Writer()).Compile()
 	if err != nil {
 		return err
 	}

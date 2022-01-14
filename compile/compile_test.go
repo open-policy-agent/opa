@@ -660,6 +660,28 @@ func ensureEntrypointRemoved(t *testing.T, b *bundle.Bundle, e string) {
 	}
 }
 
+func TestCompilerPlanTarget(t *testing.T) {
+	files := map[string]string{
+		"test.rego": `package test
+
+		p = 7
+		q = p+1`,
+	}
+
+	test.WithTempFS(files, func(root string) {
+
+		compiler := New().WithPaths(root).WithTarget("plan").WithEntrypoints("test/p", "test/q")
+		err := compiler.Build(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if len(compiler.bundle.PlanModules) == 0 {
+			t.Fatal("expected to find compiled plan module")
+		}
+	})
+}
+
 func TestCompilerSetRevision(t *testing.T) {
 	files := map[string]string{
 		"test.rego": `package test
