@@ -112,6 +112,21 @@ func (s *Scanner) WithKeywords(kws map[string]tokens.Token) *Scanner {
 	return &cpy
 }
 
+// WithoutKeywords returns a new copy of the Scanner struct `s`, with the
+// set of known keywords being that of `s` with `kws` removed.
+// The previously known keywords are returned for a convenient reset.
+func (s *Scanner) WithoutKeywords(kws map[string]tokens.Token) (*Scanner, map[string]tokens.Token) {
+	cpy := *s
+	kw := s.keywords
+	cpy.keywords = make(map[string]tokens.Token, len(s.keywords)-len(kws))
+	for kw, tok := range s.keywords {
+		if _, ok := kws[kw]; !ok {
+			cpy.AddKeyword(kw, tok)
+		}
+	}
+	return &cpy, kw
+}
+
 // Scan will increment the scanners position in the source
 // code until the next token is found. The token, starting position
 // of the token, string literal, and any errors encountered are

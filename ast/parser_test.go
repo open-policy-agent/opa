@@ -1114,6 +1114,32 @@ func TestFutureImports(t *testing.T) {
 	assertParseErrorContains(t, "all keyword import + alias", "import future.keywords as xyz", "future keyword imports cannot be aliased")
 	assertParseErrorContains(t, "keyword import + alias", "import future.keywords.in as xyz", "future keyword imports cannot be aliased")
 
+	assertParseImport(t, "import kw with kw in options",
+		"import future.keywords.in", &Import{Path: RefTerm(VarTerm("future"), StringTerm("keywords"), StringTerm("in"))},
+		ParserOptions{FutureKeywords: []string{"in"}})
+	assertParseImport(t, "import kw with all kw in options",
+		"import future.keywords.in", &Import{Path: RefTerm(VarTerm("future"), StringTerm("keywords"), StringTerm("in"))},
+		ParserOptions{AllFutureKeywords: true})
+
+	mod := `
+		package p
+		import future.keywords
+		import future.keywords.in
+	`
+	parsed := Module{
+		Package: MustParseStatement(`package p`).(*Package),
+		Imports: []*Import{
+			MustParseStatement("import future.keywords").(*Import),
+			MustParseStatement("import future.keywords.in").(*Import),
+		},
+	}
+	assertParseModule(t, "multiple imports, all kw in options", mod, &parsed, ParserOptions{AllFutureKeywords: true})
+	assertParseModule(t, "multiple imports, single in options", mod, &parsed, ParserOptions{FutureKeywords: []string{"in"}})
+}
+
+func TestFutureImportsExtraction(t *testing.T) {
+	// These tests assert that "import future..." statements in policies cause
+	// the proper keywords to be added to the parser's list of known keywords.
 	tests := []struct {
 		note, imp string
 		exp       map[string]tokens.Token
@@ -1127,6 +1153,13 @@ func TestFutureImports(t *testing.T) {
 			note: "all keywords imported",
 			imp:  "import future.keywords",
 			exp:  map[string]tokens.Token{"in": tokens.In},
+		},
+		{
+			note: "all keywords + single keyword imported",
+			imp: `
+				import future.keywords
+				import future.keywords.in`,
+			exp: map[string]tokens.Token{"in": tokens.In},
 		},
 	}
 	for _, tc := range tests {
@@ -3290,7 +3323,7 @@ func assertParseErrorFunc(t *testing.T, msg string, input string, f func(string)
 	f(result)
 }
 
-func assertParseImport(t *testing.T, msg string, input string, correct *Import) {
+func assertParseImport(t *testing.T, msg string, input string, correct *Import, opts ...ParserOptions) {
 	t.Helper()
 	assertParseOne(t, msg, input, func(parsed interface{}) {
 		t.Helper()
@@ -3298,12 +3331,15 @@ func assertParseImport(t *testing.T, msg string, input string, correct *Import) 
 		if !imp.Equal(correct) {
 			t.Errorf("Error on test \"%s\": imports not equal: %v (parsed), %v (correct)", msg, imp, correct)
 		}
-	})
+	}, opts...)
 }
 
-func assertParseModule(t *testing.T, msg string, input string, correct *Module) {
-
-	m, err := ParseModule("", input)
+func assertParseModule(t *testing.T, msg string, input string, correct *Module, opts ...ParserOptions) {
+	opt := ParserOptions{}
+	if len(opts) == 1 {
+		opt = opts[0]
+	}
+	m, err := ParseModuleWithOpts("", input, opt)
 	if err != nil {
 		t.Errorf("Error on test \"%s\": parse error on %s: %s", msg, input, err)
 		return
@@ -3338,12 +3374,12 @@ func assertParseOne(t *testing.T, msg string, input string, correct func(interfa
 		opt = opts[0]
 	}
 	stmts, _, err := ParseStatementsWithOpts("", input, opt)
-	if len(stmts) != 1 {
-		t.Errorf("Error on test \"%s\": parse error on %s: expected exactly one statement, got %d", msg, input, len(stmts))
-		return
-	}
 	if err != nil {
 		t.Errorf("Error on test \"%s\": parse error on %s: %s", msg, input, err)
+		return
+	}
+	if len(stmts) != 1 {
+		t.Errorf("Error on test \"%s\": parse error on %s: expected exactly one statement, got %d", msg, input, len(stmts))
 		return
 	}
 	correct(stmts[0])
