@@ -926,6 +926,8 @@ func (p *Parser) parseEvery() *Expr {
 	qb := &Every{}
 	qb.SetLoc(p.s.Loc())
 
+	// TODO(sr): We'd get more accurate error messages if we didn't rely on
+	// parseTermInfixCall here, but parsed "var [, var] in term" manually.
 	p.scan()
 	term := p.parseTermInfixCall()
 	if term == nil {
@@ -944,8 +946,16 @@ func (p *Parser) parseEvery() *Expr {
 		qb.Key = call[1]
 		qb.Value = call[2]
 		qb.Domain = call[3]
+		if _, ok := qb.Key.Value.(Var); !ok {
+			p.illegal("expected key to be a variable")
+			return nil
+		}
 	default:
 		p.illegal("expected `x[, y] in xs { ... }` expression")
+		return nil
+	}
+	if _, ok := qb.Value.Value.(Var); !ok {
+		p.illegal("expected value to be a variable")
 		return nil
 	}
 	if p.s.tok == tokens.LBrace { // every x in xs { ... }

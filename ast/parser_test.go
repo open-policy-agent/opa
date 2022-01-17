@@ -796,6 +796,8 @@ func TestEvery(t *testing.T) {
 		}, opts)
 
 	assertParseErrorContains(t, "arbitrary term", "every 10", "expected `x[, y] in xs { ... }` expression", opts)
+	assertParseErrorContains(t, "non-var value", "every 10 in xs { true }", "unexpected { token: expected value to be a variable", opts)
+	assertParseErrorContains(t, "non-var key", "every 10, x in xs { true }", "unexpected { token: expected key to be a variable", opts)
 	assertParseErrorContains(t, "arbitrary call", "every f(10)", "expected `x[, y] in xs { ... }` expression", opts)
 	assertParseErrorContains(t, "no body", "every x in xs", "missing body", opts)
 	assertParseErrorContains(t, "invalid body", "every x in xs { + }", "unexpected plus token", opts)
