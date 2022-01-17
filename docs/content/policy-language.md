@@ -867,7 +867,7 @@ pi := 3.14156   # Redeclaration error because 'pi' already declared above.
 
 ### Functions
 
-Rego supports user-defined functions that can be called with the same semantics as [Built-in Functions](#built-in-functions). They have access to both the [the data Document](../#the-data-document) and [the input Document](../#the-input-document).
+Rego supports user-defined functions that can be called with the same semantics as [Built-in Functions](#built-in-functions). They have access to both the [the data Document](../philosophy/#the-opa-document-model) and [the input Document](../philosophy/#the-opa-document-model).
 
 For example, the following function will return the result of trimming the spaces from a string and then splitting it by periods.
 
@@ -1306,8 +1306,7 @@ For using the `some` keyword with iteration, see
 ## With Keyword
 
 The `with` keyword allows queries to programmatically specify values nested
-under the [input Document](../##the-input-document) and the [data Document](../#the-data-document).
-
+under the [input Document](../philosophy/#the-opa-document-model) and the [data Document](../philosophy/#the-opa-document-model).
 For example, given the simple authorization policy in the [Imports](#imports)
 section, we can write a query that checks whether a particular request would be
 allowed:

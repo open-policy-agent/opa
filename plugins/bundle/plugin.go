@@ -27,6 +27,18 @@ import (
 	"github.com/open-policy-agent/opa/storage"
 )
 
+// maxActivationRetry represents the maximum number of attempts
+// to activate persisted bundles. Activation retries are useful
+// in scenarios where a persisted bundle may have a dependency on some
+// other persisted bundle. As there are no ordering guarantees for which
+// bundle loads first, retries could help in the bundle activation process.
+// Typically, multiple bundles are not encouraged. The value chosen for
+// maxActivationRetry allows upto 10 bundles to successfully activate
+// in the worst case that they depend on each other. At the same time, it also
+// ensures that too much time is not spent to activate bundles that will never
+// successfully activate.
+const maxActivationRetry = 10
+
 // Loader defines the interface that the bundle plugin uses to control bundle
 // loading via HTTP, disk, etc.
 type Loader interface {
@@ -102,10 +114,7 @@ func (p *Plugin) Start(ctx context.Context) error {
 		return err
 	}
 
-	err = p.loadAndActivateBundlesFromDisk(ctx)
-	if err != nil {
-		return err
-	}
+	p.loadAndActivateBundlesFromDisk(ctx)
 
 	p.initDownloaders()
 	for name, dl := range p.downloaders {
@@ -301,25 +310,42 @@ func (p *Plugin) initDownloaders() {
 	}
 }
 
-func (p *Plugin) loadAndActivateBundlesFromDisk(ctx context.Context) error {
+func (p *Plugin) loadAndActivateBundlesFromDisk(ctx context.Context) {
+
+	persistedBundles := map[string]*bundle.Bundle{}
+
 	for name, src := range p.config.Bundles {
 		if p.persistBundle(name) {
 			b, err := loadBundleFromDisk(p.bundlePersistPath, name, src)
 			if err != nil {
 				p.log(name).Error("Failed to load bundle from disk: %v", err)
-				return err
+				p.status[name].SetError(err)
+				continue
 			}
 
 			if b == nil {
-				return nil
+				continue
 			}
 
+			persistedBundles[name] = b
+		}
+	}
+
+	if len(persistedBundles) == 0 {
+		return
+	}
+
+	for retry := 0; retry < maxActivationRetry; retry++ {
+
+		numActivatedBundles := 0
+		for name, b := range persistedBundles {
 			p.status[name].Metrics = metrics.New()
 
-			err = p.activate(ctx, name, b)
+			err := p.activate(ctx, name, b)
 			if err != nil {
 				p.log(name).Error("Bundle activation failed: %v", err)
-				return err
+				p.status[name].SetError(err)
+				continue
 			}
 
 			p.status[name].SetError(nil)
@@ -328,9 +354,13 @@ func (p *Plugin) loadAndActivateBundlesFromDisk(ctx context.Context) error {
 			p.checkPluginReadiness()
 
 			p.log(name).Debug("Bundle loaded from disk and activated successfully.")
+			numActivatedBundles++
+		}
+
+		if numActivatedBundles == len(persistedBundles) {
+			return
 		}
 	}
-	return nil
 }
 
 func (p *Plugin) newDownloader(name string, source *Source) Loader {

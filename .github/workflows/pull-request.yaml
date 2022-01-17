@@ -294,4 +294,6 @@ jobs:
           curl --silent --fail --header 'Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' \
           https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files \
           | opa eval --bundle build/policy/ --format values --stdin-input --fail-defined 'data.files.deny[message]'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

@@ -4,7 +4,7 @@ go 1.16
 
 require (
 	github.com/OneOfOne/xxhash v1.2.8
-	github.com/bytecodealliance/wasmtime-go v0.32.0
+	github.com/bytecodealliance/wasmtime-go v0.33.1
 	github.com/dgraph-io/badger/v3 v3.2103.2
 	github.com/dgryski/go-farm v0.0.0-20200201041132-a6ae2369ad13 // indirect
 	github.com/fortytw2/leaktest v1.3.0

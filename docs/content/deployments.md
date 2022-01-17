@@ -443,7 +443,7 @@ When passing a capabilities definition file via `--capabilities`, one can restri
 
 Not providing a capabilities file, or providing a file without an `allow_net` key, will permit fetching remote schemas from any host.
 
-Note that the metaschemas http://json-schema.org/draft-04/schema, http://json-schema.org/draft-06/schema, and http://json-schema.org/draft-07/schema, are always available, even without network access.
+Note that the metaschemas [http://json-schema.org/draft-04/schema](http://json-schema.org/draft-04/schema), [http://json-schema.org/draft-06/schema](http://json-schema.org/draft-06/schema), and [http://json-schema.org/draft-07/schema](http://json-schema.org/draft-07/schema), are always available, even without network access.
 
 Similarly, the `allow_net` capability restricts what hosts the `http.send` built-in function may send requests to, and what hosts the `net.lookup_ip_addr` built-in function may resolve IP addresses for.
 

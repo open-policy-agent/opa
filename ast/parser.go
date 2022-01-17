@@ -206,6 +206,24 @@ func (p *Parser) futureParser() *Parser {
 	return &q
 }
 
+// presentParser returns a shallow copy of `p` with an empty
+// cache, and a scanner that knows none of the future keywords.
+// It is used to successfully parse keyword imports, like
+//
+//  import future.keywords.in
+//
+// even when the parser has already been informed about the
+// future keyword "in". This parser won't error out because
+// "in" is an identifier.
+func (p *Parser) presentParser() (*Parser, map[string]tokens.Token) {
+	var cpy map[string]tokens.Token
+	q := *p
+	q.s = p.save()
+	q.s.s, cpy = p.s.s.WithoutKeywords(futureKeywords)
+	q.cache = parsedTermCache{}
+	return &q, cpy
+}
+
 // Parse will read the Rego source and parse statements and
 // comments as they are found. Any errors encountered while
 // parsing will be accumulated and returned as a list of Errors.
@@ -433,8 +451,8 @@ func (p *Parser) parseImport() *Import {
 		p.error(p.s.Loc(), "expected ident")
 		return nil
 	}
-
-	term := p.parseTerm()
+	q, prev := p.presentParser()
+	term := q.parseTerm()
 	if term != nil {
 		switch v := term.Value.(type) {
 		case Var:
@@ -449,6 +467,9 @@ func (p *Parser) parseImport() *Import {
 			imp.Path = term
 		}
 	}
+	// keep advanced parser state, reset known keywords
+	p.s = q.s
+	p.s.s = q.s.s.WithKeywords(prev)
 
 	if imp.Path == nil {
 		p.error(p.s.Loc(), "expected path")

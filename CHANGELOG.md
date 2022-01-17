@@ -5,6 +5,24 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+## 0.36.1
+
+This release includes a number of documentation fixes.
+It also includes the experimental binary for darwin/arm64.
+
+There are no code changes.
+
+### Documentation
+
+- OpenTelemetry: fix configuration example, authored by @rvalkenaers
+- Configuration: fix typo for `tls-cert-refresh-period`, authored by @mattmahn
+- SSH and Sudo authorization: Add missing filename
+- Integration: fix example policy
+
+### Release
+
+- Build darwin/arm64 in post tag workflow
+
 ## 0.36.0
 
 This release contains a number of fixes and enhancements.
@@ -1467,7 +1485,7 @@ more information see https://openpolicyagent.org/docs/latest/privacy/.
 #### New `opa build` command
 
 The `opa build` command can now be used to package OPA policy and data files
-into [bundles](https://www.openpolicyagent.org/docs/latest/management/#bundles)
+into [bundles](https://www.openpolicyagent.org/docs/latest/management-bundles)
 that can be easily distributed via HTTP. See `opa build --help` for details.
 This change is backwards incompatible. If you were previously relying on `opa
 build` to compile policies to wasm, you can still do so:
@@ -2402,7 +2420,7 @@ pass `"force_json_decode": true` as in the `http.send` parameters.
 * This release adds support for scoping bundles to specific roots
   under `data`. This allows bundles to be used in conjunction with
   sidecars like `kube-mgmt` that load local data and policy into
-  OPA. See the [Bundles](https://www.openpolicyagent.org/docs/bundles.html)
+  OPA. See the [Bundles](https://www.openpolicyagent.org/docs/latest/management-bundles)
   page for more details.
 
 * This release includes a small but backwards incompatible change to
