@@ -146,6 +146,10 @@ func addTargetFlag(fs *pflag.FlagSet, target *util.EnumFlag) {
 	fs.VarP(target, "target", "t", "set the runtime to exercise")
 }
 
+func addStrictFlag(fs *pflag.FlagSet, strict *bool, value bool) {
+	fs.BoolVarP(strict, "strict", "S", value, "enable compiler strict mode")
+}
+
 const (
 	explainModeOff   = "off"
 	explainModeFull  = "full"
