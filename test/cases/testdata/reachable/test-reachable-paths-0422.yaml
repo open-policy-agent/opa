@@ -1,0 +1,190 @@
+cases:
+  - data: {}
+    modules:
+      - |
+        package reachable
+        
+        p = result {
+          graph.reachable_paths({}, {"a"}, result)
+        }
+    note: reachable_paths/empty
+    query: data.reachable.p = x
+    want_result:
+      - x: []
+  - data: {}
+    input_term: '{
+        "graph": {
+          "a": {"b"},
+          "b": {"c"},
+          "c": {"a"},
+        },
+        "initial": {"a"}
+      }'
+    modules:
+      - |
+        package reachable
+        
+        p = result {
+          graph.reachable_paths(input.graph, input.initial, result)
+        }
+    note: reachable_paths/cycle
+    query: data.reachable.p = x
+    want_result:
+      - x:
+          - - a
+            - b
+            - c
+  - data: {}
+    input_term: '{
+      "graph": {
+        "a": {"b", "c"},
+        "b": {"d"},
+        "c": {"d"},
+        "d": set(),
+        "e": {"f"},
+        "f": {"e"},
+        "x": {"x"},
+      },
+      "initial": {
+        "b", "e"
+      }
+    }'
+    modules:
+      - |
+        package reachable
+        
+        p = result {
+          graph.reachable_paths(input.graph, input.initial, result)
+        }
+    note: reachable_paths/components
+    query: data.reachable.p = x
+    want_result:
+      - x:
+          - - b
+            - d
+          - - e
+            - f
+  - data: {}
+    input_term: '{
+      "graph": {
+        "a": ["b"],
+        "b": ["c"],
+        "c": ["a"],
+      },
+      "initial": ["a"]
+    }'
+    modules:
+      - |
+        package reachable
+        
+        p = result {
+          graph.reachable_paths(input.graph, input.initial, result)
+        }
+    note: reachable_paths/arrays
+    query: data.reachable.p = x
+    want_result:
+      - x:
+          - - a
+            - b
+            - c
+  - data: {}
+    input_term: '{
+      "graph": 1,
+      "initial": [1]
+    }'
+    modules:
+      - |
+        package reachable
+        
+        p = result {
+          graph.reachable_paths(input.graph, input.initial, result)
+        }
+    note: reachable_paths/malformed 1
+    query: data.reachable.p = x
+    want_error_code: eval_type_error
+    strict_error: true
+  - data: {}
+    input_term: '{
+      "graph": {
+        "a": null
+      },
+      "initial": ["a"]
+    }'
+    modules:
+      - |
+        package reachable
+        
+        p = result {
+          graph.reachable_paths(input.graph, input.initial, result)
+        }
+    note: reachable_paths/malformed 2
+    query: data.reachable.p = x
+    want_result:
+      - x:
+          - - a
+  - data: {}
+    input_term: '{
+      "graph": {
+        "a": []
+      },
+      "initial": "a"
+    }'
+    modules:
+      - |
+        package reachable
+        
+        p = result {
+          graph.reachable_paths(input.graph, input.initial, result)
+        }
+    note: reachable_paths/malformed 3
+    query: data.reachable.p = x
+    want_result:
+      - x: []
+  - data: {}
+    input_term: '{
+      "graph": {
+        "a": ["b", "c"],
+        "b": ["c"],
+        "c": [],
+      },
+      "initial": {"a"}
+    }'
+    modules:
+      - |
+        package reachable
+        
+        p = result {
+          graph.reachable_paths(input.graph, input.initial, result)
+        }
+    note: reachable_paths/multiple_paths
+    query: data.reachable.p = x
+    want_result:
+      - x:
+          - - a
+            - b
+            - c
+          - - a
+            - c
+
+  - data: {}
+    input_term: '{
+      "graph": {
+        "a": ["b"],
+        "b": ["nonexistent"],
+      },
+      "initial": {"a", "b"}
+    }'
+    modules:
+      - |
+        package reachable
+        
+        p = result {
+          graph.reachable_paths(input.graph, input.initial, result)
+        }
+    note: reachable_paths/invalid_end
+    query: data.reachable.p = x
+    want_result:
+      - x:
+          - - a
+            - b
+          - - b
