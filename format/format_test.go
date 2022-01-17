@@ -89,6 +89,9 @@ func TestFormatSource(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed to read rego source: %v", err)
 			}
+			if bytes.Contains(contents, []byte(`import future.keywords.every`)) {
+				t.Skip("TODO: uncomment 'every' tests")
+			}
 
 			expected, err := ioutil.ReadFile(rego + ".formatted")
 			if err != nil {

@@ -95,10 +95,11 @@ func (e *parsedTermCacheItem) String() string {
 
 // ParserOptions defines the options for parsing Rego statements.
 type ParserOptions struct {
-	Capabilities      *Capabilities
-	ProcessAnnotation bool
-	AllFutureKeywords bool
-	FutureKeywords    []string
+	Capabilities       *Capabilities
+	ProcessAnnotation  bool
+	AllFutureKeywords  bool
+	FutureKeywords     []string
+	unreleasedKeywords bool
 }
 
 // NewParser creates and initializes a Parser.
@@ -151,6 +152,14 @@ func (p *Parser) WithFutureKeywords(kws ...string) *Parser {
 //     import future.keywords
 func (p *Parser) WithAllFutureKeywords(yes bool) *Parser {
 	p.po.AllFutureKeywords = yes
+	return p
+}
+
+// withUnreleasedKeywords allows using keywords that haven't surfaced
+// as future keywords (see above) yet, but have tests that require
+// them to be parsed
+func (p *Parser) withUnreleasedKeywords(yes bool) *Parser {
+	p.po.unreleasedKeywords = yes
 	return p
 }
 
@@ -248,6 +257,10 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 				},
 			}
 		}
+	}
+
+	if p.po.unreleasedKeywords { // TODO(sr): remove when capabilities include "every"
+		allowedFutureKeywords["every"] = tokens.Every
 	}
 
 	var err error
@@ -2092,6 +2105,12 @@ func (p *Parser) futureImport(imp *Import, allowedFutureKeywords map[string]toke
 
 	switch len(path) {
 	case 2: // all keywords imported, nothing to do
+		// TODO(sr): remove when ready
+		for i, kw := range kwds {
+			if kw == "every" {
+				kwds = append(kwds[:i], kwds[i+1:]...)
+			}
+		}
 	case 3: // one keyword imported
 		kw, ok := path[2].Value.(String)
 		if !ok {
