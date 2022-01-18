@@ -562,6 +562,50 @@ func TestSomeDeclString(t *testing.T) {
 	}
 }
 
+func TestEveryString(t *testing.T) {
+	tests := []struct {
+		every Every
+		exp   string
+	}{
+		{
+			exp: `every x in ["foo", "bar"] { true; true }`,
+			every: Every{
+				Value:  VarTerm("x"),
+				Domain: ArrayTerm(StringTerm("foo"), StringTerm("bar")),
+				Body: []*Expr{
+					{
+						Terms: BooleanTerm(true),
+					},
+					{
+						Terms: BooleanTerm(true),
+					},
+				},
+			},
+		},
+		{
+			exp: `every k, v in ["foo", "bar"] { true; true }`,
+			every: Every{
+				Key:    VarTerm("k"),
+				Value:  VarTerm("v"),
+				Domain: ArrayTerm(StringTerm("foo"), StringTerm("bar")),
+				Body: []*Expr{
+					{
+						Terms: BooleanTerm(true),
+					},
+					{
+						Terms: BooleanTerm(true),
+					},
+				},
+			},
+		},
+	}
+	for _, tc := range tests {
+		if act := tc.every.String(); act != tc.exp {
+			t.Errorf("expected %q, got %q", tc.exp, act)
+		}
+	}
+}
+
 func TestAnnotationsString(t *testing.T) {
 	a := &Annotations{
 		Scope: "foo",
