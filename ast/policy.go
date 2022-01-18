@@ -1172,12 +1172,14 @@ func (expr *Expr) Compare(other *Expr) int {
 
 func (expr *Expr) sortOrder() int {
 	switch expr.Terms.(type) {
-	case *SomeDecl, *Every: // TODO(sr): think about this more
+	case *SomeDecl:
 		return 0
 	case *Term:
 		return 1
 	case []*Term:
 		return 2
+	case *Every:
+		return 3
 	}
 	return -1
 }
