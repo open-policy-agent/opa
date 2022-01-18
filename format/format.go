@@ -426,6 +426,8 @@ func (w *writer) writeExpr(expr *ast.Expr, comments []*ast.Comment) []*ast.Comme
 	switch t := expr.Terms.(type) {
 	case *ast.SomeDecl:
 		comments = w.writeSomeDecl(t, comments)
+	case *ast.Every:
+		comments = w.writeEvery(t, comments)
 	case []*ast.Term:
 		comments = w.writeFunctionCall(expr, comments)
 	case *ast.Term:
@@ -478,6 +480,27 @@ func (w *writer) writeSomeDecl(decl *ast.SomeDecl, comments []*ast.Comment) []*a
 		}
 	}
 
+	return comments
+}
+
+func (w *writer) writeEvery(every *ast.Every, comments []*ast.Comment) []*ast.Comment {
+	comments = w.insertComments(comments, every.Location)
+	w.write("every ")
+	if every.Key != nil {
+		comments = w.writeTerm(every.Key, comments)
+		w.write(", ")
+	}
+	comments = w.writeTerm(every.Value, comments)
+	w.write(" in ")
+	comments = w.writeTerm(every.Domain, comments)
+	w.write(" {")
+	comments = w.writeComprehensionBody('{', '}', every.Body, every.Loc(), every.Loc(), comments)
+
+	if len(every.Body) == 1 &&
+		every.Body[0].Location.Row == every.Location.Row {
+		w.write(" ")
+	}
+	w.write("}")
 	return comments
 }
 
