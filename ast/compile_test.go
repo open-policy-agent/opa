@@ -2848,7 +2848,7 @@ func TestRewriteDeclaredVars(t *testing.T) {
 					data.test.f(__local2__, "bar")
 				}
 
-				 f(__local0__, __local1__) = true {
+				f(__local0__, __local1__) = true {
 					__local0__[__local1__]
 				}
 			`,
