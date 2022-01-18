@@ -692,15 +692,18 @@ func TestCompilerCheckSafetyBodyReordering(t *testing.T) {
 		contains(x, "oo")
 	`},
 		{"userfunc", `split(y, ".", z); data.a.b.funcs.fn("...foo.bar..", y)`, `data.a.b.funcs.fn("...foo.bar..", y); split(y, ".", z)`},
+		{"every", `every _ in [] { x != 1 }; x = 1`, `x = 1; every _ in [] { x != 1}`},
+		{"every-domain", `every _ in xs { true }; xs = [1]`, `xs = [1]; every _ in xs { true }`},
 	}
 
 	for i, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
+			opts := ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true}
 			c := NewCompiler()
 			c.Modules = getCompilerTestModules()
-			c.Modules["reordering"] = MustParseModule(fmt.Sprintf(
+			c.Modules["reordering"] = MustParseModuleWithOpts(fmt.Sprintf(
 				`package test
-				p { %s }`, tc.body))
+				p { %s }`, tc.body), opts)
 
 			compileStages(c, c.checkSafetyRuleBodies)
 
@@ -709,7 +712,7 @@ func TestCompilerCheckSafetyBodyReordering(t *testing.T) {
 				return
 			}
 
-			expected := MustParseBody(tc.expected)
+			expected := MustParseBodyWithOpts(tc.expected, opts)
 			result := c.Modules["reordering"].Rules[0].Body
 
 			if !expected.Equal(result) {
@@ -807,6 +810,7 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 		{"call-too-few", "p { f(1,x) } f(x,y) { true }", "{x,}"},
 		{"object-key-comprehension", "p { { {p|x}: 0 } }", "{x,}"},
 		{"set-value-comprehension", "p { {1, {p|x}} }", "{x,}"},
+		{"every", "p { every y in [10] { x > y } }", "{x,}"},
 	}
 
 	makeErrMsg := func(varName string) string {
@@ -827,15 +831,16 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 			sort.Strings(expected)
 
 			// Compile test module.
+			popts := ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true}
 			c := NewCompiler()
 			c.Modules = map[string]*Module{
-				"newMod": MustParseModule(fmt.Sprintf(`
+				"newMod": MustParseModuleWithOpts(fmt.Sprintf(`
 
 				%v
 
 				%v
 
-				`, moduleBegin, tc.moduleContent)),
+				`, moduleBegin, tc.moduleContent), popts),
 			}
 
 			compileStages(c, c.checkSafetyRuleBodies)

@@ -2864,7 +2864,8 @@ type bodySafetyTransformer struct {
 }
 
 func (xform *bodySafetyTransformer) Visit(x interface{}) bool {
-	if term, ok := x.(*Term); ok {
+	switch term := x.(type) {
+	case *Term:
 		switch x := term.Value.(type) {
 		case *object:
 			cpy, _ := x.Map(func(k, v *Term) (*Term, *Term, error) {
@@ -2892,6 +2893,12 @@ func (xform *bodySafetyTransformer) Visit(x interface{}) bool {
 			return true
 		case *SetComprehension:
 			xform.reorderSetComprehensionSafety(x)
+			return true
+		}
+	case *Expr:
+		if ev, ok := term.Terms.(*Every); ok {
+			xform.globals.Update(ev.Vars())
+			ev.Body = xform.reorderComprehensionSafety(NewVarSet(), ev.Body)
 			return true
 		}
 	}
@@ -4134,7 +4141,7 @@ func rewriteEveryStatement(g *localVarGenerator, stack *localDeclaredVars, expr 
 
 	// optionally rewrite the key
 	if every.Key != nil {
-		if v := every.Key.Value.(Var); !v.IsWildcard() { // TODO
+		if v := every.Key.Value.(Var); !v.IsWildcard() {
 			gv, err := rewriteDeclaredVar(g, stack, v, declaredVar)
 			if err != nil {
 				return nil, append(errs, NewError(CompileErr, every.Loc(), err.Error()))

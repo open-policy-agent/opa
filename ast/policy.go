@@ -1491,6 +1491,21 @@ func (q *Every) Compare(other *Every) int {
 	return q.Body.Compare(other.Body)
 }
 
+// Vars returns the key and val arguments of an every expression,
+// if they are non-nil and not wildcards.
+func (q *Every) Vars() VarSet {
+	r := NewVarSet()
+	if v := q.Value.Value.(Var); !v.IsWildcard() {
+		r.Add(v)
+	}
+	if q.Key != nil {
+		if v := q.Key.Value.(Var); !v.IsWildcard() {
+			r.Add(v)
+		}
+	}
+	return r
+}
+
 func (w *With) String() string {
 	return "with " + w.Target.String() + " as " + w.Value.String()
 }

@@ -160,9 +160,11 @@ func WalkVars(x interface{}, f func(Var) bool) {
 // returns true, AST nodes under the last node will not be visited.
 func WalkClosures(x interface{}, f func(interface{}) bool) {
 	vis := &GenericVisitor{func(x interface{}) bool {
-		switch x.(type) {
+		switch x := x.(type) {
 		case *ArrayComprehension, *ObjectComprehension, *SetComprehension:
 			return f(x)
+		case *Every:
+			return f(x.Body)
 		}
 		return false
 	}}
@@ -566,7 +568,9 @@ func (vis *VarVisitor) visit(v interface{}) bool {
 		case *ArrayComprehension, *ObjectComprehension, *SetComprehension:
 			return true
 		case *Expr:
-			if _, ok := v.Terms.(*Every); ok {
+			if ev, ok := v.Terms.(*Every); ok {
+				vis.Walk(ev.Domain)
+				// We're _not_ walking ev.Body -- that's the closure here
 				return true
 			}
 		}
