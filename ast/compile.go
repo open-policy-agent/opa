@@ -4123,22 +4123,28 @@ func checkUnusedDeclaredVars(loc *Location, stack *localDeclaredVars, used VarSe
 func rewriteEveryStatement(g *localVarGenerator, stack *localDeclaredVars, expr *Expr, errs Errors, strict bool) (*Expr, Errors) {
 	e := expr.Copy()
 	every := e.Terms.(*Every)
-	declared := NewVarSet()
+
+	errs = rewriteDeclaredVarsInTermRecursive(g, stack, every.Domain, errs, strict)
+
+	stack.Push()
+
+	// optionally rewrite the key
 	if every.Key != nil {
-		declared.Update(every.Key.Vars())
-	}
-	declared.Update(every.Value.Vars())
-	for _, v := range declared.Sorted() {
-		if _, err := rewriteDeclaredVar(g, stack, v, declaredVar); err != nil {
+		gv, err := rewriteDeclaredVar(g, stack, every.Key.Value.(Var), declaredVar)
+		if err != nil {
 			return nil, append(errs, NewError(CompileErr, every.Loc(), err.Error()))
 		}
+		every.Key.Value = gv
 	}
+
+	// value is always present
+	gv, err := rewriteDeclaredVar(g, stack, every.Value.Value.(Var), declaredVar)
+	if err != nil {
+		return nil, append(errs, NewError(CompileErr, every.Loc(), err.Error()))
+	}
+	every.Value.Value = gv
+
 	used := NewVarSet()
-	if every.Key != nil {
-		errs = rewriteDeclaredVarsInTermRecursive(g, stack, every.Key, errs, strict)
-	}
-	errs = rewriteDeclaredVarsInTermRecursive(g, stack, every.Value, errs, strict)
-	errs = rewriteDeclaredVarsInTermRecursive(g, stack, every.Domain, errs, strict)
 	every.Body, errs = rewriteDeclaredVarsInBody(g, stack, used, every.Body, errs, strict)
 	return e, errs
 }
