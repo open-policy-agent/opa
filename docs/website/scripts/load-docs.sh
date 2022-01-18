@@ -33,6 +33,11 @@ for release in ${ALL_RELEASES}; do
       continue
     fi
 
+    # ignore known missing/broken releases
+    if [[ "${CUR_SEM_VER}" == "0.29.0" ]] || [[ "${CUR_SEM_VER}" == "0.13.1" ]]; then
+      continue
+    fi
+
     SEMVER_REGEX='[^0-9]*\([0-9]*\)[.]\([0-9]*\)[.]\([0-9]*\)\([0-9A-Za-z-]*\)'
     CUR_MAJOR_VER=$(echo ${CUR_SEM_VER} | sed -e "s#${SEMVER_REGEX}#\1#")
     CUR_MINOR_VER=$(echo ${CUR_SEM_VER} | sed -e "s#${SEMVER_REGEX}#\2#")
