@@ -2764,6 +2764,23 @@ func TestRewriteDeclaredVars(t *testing.T) {
 			`,
 		},
 		{
+			note: "rewrite every: pops declared var stack",
+			module: `
+				package test
+				# import future.keywords.in
+				# import future.keywords.every
+				p[x] {
+					some x
+					x = 10
+					every _ in [1] { true }
+				}
+			`,
+			exp: `
+				package test
+				p[__local0__] { __local0__ = 10;  every _ in [1] { true } }
+			`,
+		},
+		{
 			note: "rewrite closures",
 			module: `
 				package test

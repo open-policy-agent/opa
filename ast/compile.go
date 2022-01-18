@@ -4127,6 +4127,7 @@ func rewriteEveryStatement(g *localVarGenerator, stack *localDeclaredVars, expr 
 	errs = rewriteDeclaredVarsInTermRecursive(g, stack, every.Domain, errs, strict)
 
 	stack.Push()
+	defer stack.Pop()
 
 	// optionally rewrite the key
 	if every.Key != nil {
