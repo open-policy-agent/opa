@@ -4130,19 +4130,23 @@ func rewriteEveryStatement(g *localVarGenerator, stack *localDeclaredVars, expr 
 
 	// optionally rewrite the key
 	if every.Key != nil {
-		gv, err := rewriteDeclaredVar(g, stack, every.Key.Value.(Var), declaredVar)
-		if err != nil {
-			return nil, append(errs, NewError(CompileErr, every.Loc(), err.Error()))
+		if v := every.Key.Value.(Var); !v.IsWildcard() { // TODO
+			gv, err := rewriteDeclaredVar(g, stack, v, declaredVar)
+			if err != nil {
+				return nil, append(errs, NewError(CompileErr, every.Loc(), err.Error()))
+			}
+			every.Key.Value = gv
 		}
-		every.Key.Value = gv
 	}
 
 	// value is always present
-	gv, err := rewriteDeclaredVar(g, stack, every.Value.Value.(Var), declaredVar)
-	if err != nil {
-		return nil, append(errs, NewError(CompileErr, every.Loc(), err.Error()))
+	if v := every.Value.Value.(Var); !v.IsWildcard() {
+		gv, err := rewriteDeclaredVar(g, stack, v, declaredVar)
+		if err != nil {
+			return nil, append(errs, NewError(CompileErr, every.Loc(), err.Error()))
+		}
+		every.Value.Value = gv
 	}
-	every.Value.Value = gv
 
 	used := NewVarSet()
 	every.Body, errs = rewriteDeclaredVarsInBody(g, stack, used, every.Body, errs, strict)

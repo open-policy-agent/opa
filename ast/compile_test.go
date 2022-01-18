@@ -2676,6 +2676,94 @@ func TestRewriteDeclaredVars(t *testing.T) {
 			`,
 		},
 		{
+			note: "rewrite every: unused key var",
+			module: `
+				package test
+				# import future.keywords.in
+				# import future.keywords.every
+				p {
+					every k, v in [1] { v >= i }
+				}
+			`,
+			wantErr: errors.New("declared var k unused"),
+		},
+		{
+			note: "rewrite every: unused value var",
+			module: `
+				package test
+				# import future.keywords.in
+				# import future.keywords.every
+				p {
+					every v in [1] { true }
+				}
+			`,
+			wantErr: errors.New("declared var v unused"),
+		},
+		{
+			note: "rewrite every: wildcard value var, used key",
+			module: `
+				package test
+				# import future.keywords.in
+				# import future.keywords.every
+				p {
+					every k, _ in [1] { k >= 0 }
+				}
+			`,
+			exp: `
+				package test
+				p = true { every __local0__, _ in [1] { gte(__local0__, 0) } }
+			`,
+		},
+		{
+			note: "rewrite every: wildcard key+value var", // NOTE(sr): may be silly, but valid
+			module: `
+				package test
+				# import future.keywords.in
+				# import future.keywords.every
+				p {
+					every _, _ in [1] { true }
+				}
+			`,
+			exp: `
+				package test
+				p = true { every _, _ in [1] { true } }
+			`,
+		},
+		{
+			note: "rewrite every: declared vars with different scopes",
+			module: `
+				package test
+				# import future.keywords.in
+				# import future.keywords.every
+				p {
+					some x
+					x = 10
+					every x in [1] { x == 1 }
+				}
+			`,
+			exp: `
+				package test
+				p = true { __local0__ = 10; every __local1__ in [1] { equal(__local1__, 1) } }
+			`,
+		},
+		{
+			note: "rewrite every: declared vars used in body",
+			module: `
+				package test
+				# import future.keywords.in
+				# import future.keywords.every
+				p {
+					some y
+					y = 10
+					every x in [1] { x == y }
+				}
+			`,
+			exp: `
+				package test
+				p = true { __local0__ = 10; every __local1__ in [1] { equal(__local1__, __local0__) } }
+			`,
+		},
+		{
 			note: "rewrite closures",
 			module: `
 				package test
