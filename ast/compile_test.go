@@ -213,6 +213,11 @@ func TestOutputVarsForNode(t *testing.T) {
 			query: `xs = []; every k, v in xs[i] { k < v }`,
 			exp:   `{xs, i}`,
 		},
+		{
+			note:  "every: output vars in body",
+			query: `every k, v in [] { k < v; i = 1 }`,
+			exp:   `{i}`,
+		},
 	}
 
 	for _, tc := range tests {

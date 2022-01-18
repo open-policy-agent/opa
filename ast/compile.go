@@ -3036,7 +3036,16 @@ func outputVarsForExpr(expr *Expr, arity func(Ref) int, safe VarSet) VarSet {
 
 		return outputVarsForExprCall(expr, ar, safe, terms)
 	case *Every:
-		return outputVarsForTerms(terms.Domain, safe)
+		s := outputVarsForTerms(terms.Domain, safe)
+
+		cpy := safe.Copy()
+		if terms.Key != nil {
+			cpy.Add(terms.Key.Value.(Var))
+		}
+		cpy.Add(terms.Value.Value.(Var))
+
+		s.Update(outputVarsForBody(terms.Body, arity, cpy))
+		return s
 	default:
 		panic("illegal expression")
 	}
@@ -3064,13 +3073,13 @@ func outputVarsForExprCall(expr *Expr, arity int, safe VarSet, terms []*Term) Va
 		return output
 	}
 
-	vis := NewVarVisitor().WithParams(VarVisitorParams{
+	params := VarVisitorParams{
 		SkipClosures:   true,
 		SkipSets:       true,
 		SkipObjectKeys: true,
 		SkipRefHead:    true,
-	})
-
+	}
+	vis := NewVarVisitor().WithParams(params)
 	vis.Walk(Args(terms[:numInputTerms]))
 	unsafe := vis.Vars().Diff(output).Diff(safe)
 
@@ -3078,13 +3087,7 @@ func outputVarsForExprCall(expr *Expr, arity int, safe VarSet, terms []*Term) Va
 		return VarSet{}
 	}
 
-	vis = NewVarVisitor().WithParams(VarVisitorParams{
-		SkipRefHead:    true,
-		SkipSets:       true,
-		SkipObjectKeys: true,
-		SkipClosures:   true,
-	})
-
+	vis = NewVarVisitor().WithParams(params)
 	vis.Walk(Args(terms[numInputTerms:]))
 	output.Update(vis.vars)
 	return output
