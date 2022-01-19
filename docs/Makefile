@@ -13,8 +13,12 @@ clean:
 	rm -rf $(CURDIR)/website/public
 	rm -rf $(CURDIR)/website/resources
 
+.PHONY: generate-cli-docs
+generate-cli-docs:
+	$(CURDIR)/../build/gen-cli-docs.sh "$(CURDIR)/content"
+
 .PHONY: generate
-generate:
+generate: generate-cli-docs
 	$(CURDIR)/website/scripts/load-docs.sh
 
 # The website has some npm dependencies saved in ./website/node_modules

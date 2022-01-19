@@ -45,6 +45,45 @@ jobs:
             echo "No generated changes to push!"
           fi
 
+  generate-cli-docs:
+    name: Sync Generated CLI Docs
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+        with:
+          token: ${{ secrets.GH_PUSH_TOKEN }}
+
+      - name: Generate
+        run: make docs-generate-cli-docs
+
+      - name: Commit & Push
+        shell: bash
+        run: |
+          # Commit any changes and push as needed.
+
+          # See https://github.com/actions/checkout#push-a-commit-using-the-built-in-token
+          AUTHOR=cli-docs-updater
+          git config user.name ${AUTHOR}
+          git config user.email ${AUTHOR}@github.com
+
+          # Prevent looping if the build was non-deterministic..
+          CAN_PUSH=1
+          if [[ "$(git log -1 --pretty=format:'%an')" == "${AUTHOR}" ]]; then
+              CAN_PUSH=0
+          fi
+
+          if ./build/commit-cli-docs.sh; then
+            if [[ "${CAN_PUSH}" == "1" ]]; then
+              git push
+            else
+              echo "Previous commit was auto-generated -- Aborting!"
+              exit 1
+            fi
+          else
+            echo "No generated changes to push!"
+          fi
+
   code-coverage:
     name: Update Go Test Coverage
     runs-on: ubuntu-18.04
