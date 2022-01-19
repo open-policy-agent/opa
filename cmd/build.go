@@ -317,6 +317,9 @@ func buildCommandLoaderFilter(bundleMode bool, ignore []string) func(string, os.
 			if !info.IsDir() && strings.HasSuffix(abspath, ".tar.gz") {
 				return true
 			}
+			if info.Name() == ".manifest" {
+				fmt.Println("warn: detected .manifest file will be ignored unless --bundle flag is provided.")
+			}
 		}
 		return loaderFilter{Ignore: ignore}.Apply(abspath, info, depth)
 	}
