@@ -3277,6 +3277,23 @@ func TestCompilerRewritePrintCalls(t *testing.T) {
 			p[__local2__] = __local3__ { data.test.f(true, __local5__); [__local1__, __local2__, __local3__] = __local5__; __local6__ = {__local4__ | __local4__ = __local2__}; internal.print([__local6__]) }
 			`,
 		},
+		{
+			note: "print call of vars altered with 'with' and call",
+			module: `package test
+			q = input
+			p {
+				x := q with input as json.unmarshal("{}")
+				print(x)
+			}`,
+			exp: `package test
+			q = __local3__ { true; __local3__ = input }
+			p = true {
+				json.unmarshal("{}", __local2__)
+				__local0__ = data.test.q with input as __local2__
+				__local4__ = {__local1__ | __local1__ = __local0__}
+				internal.print([__local4__])
+			}`,
+		},
 	}
 
 	for _, tc := range cases {
