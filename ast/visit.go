@@ -161,10 +161,8 @@ func WalkVars(x interface{}, f func(Var) bool) {
 func WalkClosures(x interface{}, f func(interface{}) bool) {
 	vis := &GenericVisitor{func(x interface{}) bool {
 		switch x := x.(type) {
-		case *ArrayComprehension, *ObjectComprehension, *SetComprehension:
+		case *ArrayComprehension, *ObjectComprehension, *SetComprehension, *Every:
 			return f(x)
-		case *Every:
-			return f(x.Body)
 		}
 		return false
 	}}

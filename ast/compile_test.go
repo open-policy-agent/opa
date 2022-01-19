@@ -3294,6 +3294,16 @@ func TestCompilerRewritePrintCallsErasure(t *testing.T) {
 			p { {"x": 1 | false} } `,
 		},
 		{
+			note: "every body",
+			module: `package test
+
+			p { every _ in [] { false; print(1) } }
+			`,
+			exp: `package test
+
+			p { every _ in [] { false } }`,
+		},
+		{
 			note: "in head",
 			module: `package test
 
@@ -3307,13 +3317,14 @@ func TestCompilerRewritePrintCallsErasure(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.note, func(t *testing.T) {
 			c := NewCompiler().WithEnablePrintStatements(false)
+			opts := ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true}
 			c.Compile(map[string]*Module{
-				"test.rego": MustParseModule(tc.module),
+				"test.rego": MustParseModuleWithOpts(tc.module, opts),
 			})
 			if c.Failed() {
 				t.Fatal(c.Errors)
 			}
-			exp := MustParseModule(tc.exp)
+			exp := MustParseModuleWithOpts(tc.exp, opts)
 			if !exp.Equal(c.Modules["test.rego"]) {
 				t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", exp, c.Modules["test.rego"])
 			}
@@ -3418,6 +3429,20 @@ func TestCompilerRewritePrintCalls(t *testing.T) {
 			p = true { x = 1; {"x": 2 | __local1__ = {__local0__ | __local0__ = x}; internal.print([__local1__])} }`,
 		},
 		{
+			note: "print inside every",
+			module: `package test
+
+			p { every x in [1,2] { print(x) } }`,
+			exp: `package test
+
+			p = true {
+				every __local0__ in [1, 2] {
+					__local2__ = {__local1__ | __local1__ = __local0__}
+					internal.print([__local2__])
+				}
+			}`,
+		},
+		{
 			note: "print output of nested call",
 			module: `package test
 
@@ -3503,13 +3528,14 @@ func TestCompilerRewritePrintCalls(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.note, func(t *testing.T) {
 			c := NewCompiler().WithEnablePrintStatements(true)
+			opts := ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true}
 			c.Compile(map[string]*Module{
-				"test.rego": MustParseModule(tc.module),
+				"test.rego": MustParseModuleWithOpts(tc.module, opts),
 			})
 			if c.Failed() {
 				t.Fatal(c.Errors)
 			}
-			exp := MustParseModule(tc.exp)
+			exp := MustParseModuleWithOpts(tc.exp, opts)
 			if !exp.Equal(c.Modules["test.rego"]) {
 				t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", exp, c.Modules["test.rego"])
 			}
