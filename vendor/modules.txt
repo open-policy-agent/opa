@@ -170,6 +170,9 @@ github.com/spf13/pflag
 ## explicit
 github.com/stretchr/testify/assert
 github.com/stretchr/testify/require
+# github.com/withfig/autocomplete-tools/packages/cobra v0.0.0-20211230151333-3975c11d83cc
+## explicit
+github.com/withfig/autocomplete-tools/packages/cobra
 # github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb
 ## explicit
 github.com/xeipuuv/gojsonpointer
