@@ -85,19 +85,11 @@ func (r PrettyReporter) Report(ch chan *Result) error {
 			}
 		} else if !tr.Pass() {
 			dirty = true
-			if r.FailureLine {
-				if tr.FailedAt != nil {
-					fmt.Fprintf(r.Output, "%v (%s:%d) \n", tr, tr.FailedAt.Location.File, tr.FailedAt.Location.Row)
-				} else {
-					fmt.Fprintf(r.Output, "%v (test skipped because success not possible) \n", tr)
-				}
-			} else {
-				fmt.Fprintln(r.Output, tr)
-				if len(tr.Output) > 0 {
-					fmt.Fprintln(r.Output)
-					fmt.Fprintln(newIndentingWriter(r.Output), strings.TrimSpace(string(tr.Output)))
-					fmt.Fprintln(r.Output)
-				}
+			fmt.Fprintln(r.Output, tr)
+			if len(tr.Output) > 0 {
+				fmt.Fprintln(r.Output)
+				fmt.Fprintln(newIndentingWriter(r.Output), strings.TrimSpace(string(tr.Output)))
+				fmt.Fprintln(r.Output)
 			}
 		}
 		if tr.Error != nil {
