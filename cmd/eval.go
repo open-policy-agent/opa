@@ -195,7 +195,7 @@ package path contained inside the file. Only data files named data.json or
 data.yaml will be loaded. In the example above the manifest.yaml would be
 ignored.
 
-See https://www.openpolicyagent.org/docs/latest/bundles/ for more details
+See https://www.openpolicyagent.org/docs/latest/management-bundles/ for more details
 on bundle directory structures.
 
 The --data flag can be used to recursively load ALL *.rego, *.json, and
