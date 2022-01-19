@@ -11,17 +11,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:build !go1.15
-// +build !go1.15
-
-package collectors
+package procfs
 
 import (
-	"database/sql"
+	"strings"
 
-	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/procfs/internal/util"
 )
 
-func (c *dbStatsCollector) describeNewInGo115(ch chan<- *prometheus.Desc) {}
+// CmdLine returns the command line of the kernel.
+func (fs FS) CmdLine() ([]string, error) {
+	data, err := util.ReadFileNoStat(fs.proc.Path("cmdline"))
+	if err != nil {
+		return nil, err
+	}
 
-func (c *dbStatsCollector) collectNewInGo115(ch chan<- prometheus.Metric, stats sql.DBStats) {}
+	return strings.Fields(string(data)), nil
+}
