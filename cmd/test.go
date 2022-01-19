@@ -358,6 +358,7 @@ func init() {
 	testCommand.Flags().Float64VarP(&testParams.threshold, "threshold", "", 0, "set coverage threshold and exit with non-zero status if coverage is less than threshold %")
 	testCommand.Flags().BoolVar(&testParams.benchmark, "bench", false, "benchmark the unit tests")
 	testCommand.Flags().StringVarP(&testParams.runRegex, "run", "r", "", "run only test cases matching the regular expression.")
+	
 	addBundleModeFlag(testCommand.Flags(), &testParams.bundleMode, false)
 	addBenchmemFlag(testCommand.Flags(), &testParams.benchMem, true)
 	addCountFlag(testCommand.Flags(), &testParams.count, "test")
