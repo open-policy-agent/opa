@@ -119,7 +119,6 @@ type Runner struct {
 	trace                 bool
 	enablePrintStatements bool
 	runtime               *ast.Term
-	failureLine           bool
 	timeout               time.Duration
 	modules               map[string]*ast.Module
 	bundles               map[string]*bundle.Bundle
@@ -185,12 +184,6 @@ func (r *Runner) EnableTracing(yes bool) *Runner {
 	if r.trace {
 		r.cover = nil
 	}
-	return r
-}
-
-// EnableFailureLine if set will provide the exact failure line
-func (r *Runner) EnableFailureLine(yes bool) *Runner {
-	r.failureLine = yes
 	return r
 }
 
@@ -415,9 +408,6 @@ func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.
 	} else if r.trace {
 		bufferTracer = topdown.NewBufferTracer()
 		tracer = bufferTracer
-	} else if r.failureLine {
-		bufFailureLineTracer = topdown.NewBufferTracer()
-		tracer = bufFailureLineTracer
 	}
 
 	ruleName := string(rule.Head.Name)
