@@ -750,10 +750,24 @@ func hashBundleFiles(hash SignatureHasher, b *Bundle) ([]FileInfo, error) {
 		files = append(files, NewFile(strings.TrimPrefix(wasmModule.Path, "/"), hex.EncodeToString(bs), defaultHashingAlg))
 	}
 
-	bs, err = hash.HashFile(b.Manifest)
+	// Parse the manifest into a JSON structure;
+	// then recursively order the fields of all objects alphabetically and then apply
+	// the hash function to result to compute the hash.
+	mbs, err := json.Marshal(b.Manifest)
 	if err != nil {
 		return files, err
 	}
+
+	var result map[string]interface{}
+	if err := util.Unmarshal(mbs, &result); err != nil {
+		return files, err
+	}
+
+	bs, err = hash.HashFile(result)
+	if err != nil {
+		return files, err
+	}
+
 	files = append(files, NewFile(strings.TrimPrefix(ManifestExt, "/"), hex.EncodeToString(bs), defaultHashingAlg))
 
 	return files, err

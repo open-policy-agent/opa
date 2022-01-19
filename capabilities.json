@@ -980,6 +980,65 @@
       }
     },
     {
+      "name": "graph.reachable_paths",
+      "decl": {
+        "args": [
+          {
+            "dynamic": {
+              "key": {
+                "type": "any"
+              },
+              "value": {
+                "of": [
+                  {
+                    "dynamic": {
+                      "type": "any"
+                    },
+                    "type": "array"
+                  },
+                  {
+                    "of": {
+                      "type": "any"
+                    },
+                    "type": "set"
+                  }
+                ],
+                "type": "any"
+              }
+            },
+            "type": "object"
+          },
+          {
+            "of": [
+              {
+                "dynamic": {
+                  "type": "any"
+                },
+                "type": "array"
+              },
+              {
+                "of": {
+                  "type": "any"
+                },
+                "type": "set"
+              }
+            ],
+            "type": "any"
+          }
+        ],
+        "result": {
+          "of": {
+            "dynamic": {
+              "type": "any"
+            },
+            "type": "array"
+          },
+          "type": "set"
+        },
+        "type": "function"
+      }
+    },
+    {
       "name": "gt",
       "decl": {
         "args": [

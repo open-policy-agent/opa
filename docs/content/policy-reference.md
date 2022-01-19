@@ -842,9 +842,10 @@ Note that the opa executable will need access to the timezone files in the envir
 ### Graphs
 
 | Built-in | Description | Wasm Support |
-| ------- |-------------|---------------|
+| ------- |-------------|--------------|
 | <span class="opa-keep-it-together">``walk(x, [path, value])``</span> | ``walk`` is a relation that produces ``path`` and ``value`` pairs for documents under ``x``. ``path`` is ``array`` representing a pointer to ``value`` in ``x``.  Queries can use ``walk`` to traverse documents nested under ``x`` (recursively). | ✅ |
 | <span class="opa-keep-it-together">``output := graph.reachable(graph, initial)``</span> | ``output`` is the set of vertices [reachable](https://en.wikipedia.org/wiki/Reachability) from the ``initial`` vertices in the directed ``graph``.  ``initial`` is a set or array of vertices, and ``graph`` is an object containing a set or array of neighboring vertices. | ✅ |
+| <span class="opa-keep-it-together">``output := graph.reachable_paths(graph, initial)``</span> | ``output`` is the set of arrays of paths reachable from the ``initial`` vertices in the directed ``graph``.  ``initial`` is a set or array of paths, and ``graph`` is an object containing a set or array of root vertices.    | `SDK-dependent` |
 
 A common class of recursive rules can be reduced to a graph reachability
 problem, so `graph.reachable` is useful for more than just graph analysis.
@@ -876,6 +877,29 @@ org_chart_permissions[entity_name] = access {
 org_chart_permissions[entity_name]
 ```
 ```live:graph/reachable/example:output
+```
+
+It may be useful to find all reachable paths from a root element. `graph.reachable_paths` can be used for this. Note that cyclical paths will terminate on the repeated node. If an element references a nonexistent element, the path will be terminated, and excludes the nonexistent node.
+
+```live:graph/reachable_paths/example:module
+package graph_reachable_paths_example
+
+path_data = {
+    "aTop": [],
+    "cMiddle": ["aTop"],
+    "bBottom": ["cMiddle"],
+    "dIgnored": []
+}
+
+all_paths[root] = paths {
+    path_data[root]
+    paths := graph.reachable_paths(path_data, {root})
+}
+```
+```live:graph/reachable_paths/example:query
+all_paths[entity_name]
+```
+```live:graph/reachable_paths/example:output
 ```
 
 ### HTTP

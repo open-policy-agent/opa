@@ -109,6 +109,7 @@ type Compiler struct {
 	debug                 debug.Debug                   // emits debug information produced during compilation
 	schemaSet             *SchemaSet                    // user-supplied schemas for input and data documents
 	inputType             types.Type                    // global input type retrieved from schema set
+	strict                bool                          // enforce strict compilation checks
 }
 
 // CompilerStage defines the interface for stages in the compiler.
@@ -254,6 +255,7 @@ func NewCompiler() *Compiler {
 		metricName string
 		f          func()
 	}{
+		{"CheckDuplicateImports", "compile_stage_check_duplicate_imports", c.checkDuplicateImports},
 		// Reference resolution should run first as it may be used to lazily
 		// load additional modules. If any stages run before resolution, they
 		// need to be re-run after resolution.
@@ -364,6 +366,12 @@ func (c *Compiler) WithUnsafeBuiltins(unsafeBuiltins map[string]struct{}) *Compi
 	for name := range unsafeBuiltins {
 		c.unsafeBuiltinsMap[name] = struct{}{}
 	}
+	return c
+}
+
+// WithStrict enables strict mode in the compiler.
+func (c *Compiler) WithStrict(strict bool) *Compiler {
+	c.strict = strict
 	return c
 }
 
@@ -1275,6 +1283,26 @@ func (c *Compiler) getExports() *util.HashMap {
 	}
 
 	return rules
+}
+
+func (c *Compiler) checkDuplicateImports() {
+	if !c.strict {
+		return
+	}
+
+	for _, name := range c.sorted {
+		mod := c.Modules[name]
+		processedImports := map[Var]*Import{}
+
+		for _, imp := range mod.Imports {
+			name := imp.Name()
+			if processed, conflict := processedImports[name]; conflict {
+				c.err(NewError(CompileErr, imp.Location, "import must not shadow %v", processed))
+			} else {
+				processedImports[name] = imp
+			}
+		}
+	}
 }
 
 // resolveAllRefs resolves references in expressions to their fully qualified values.

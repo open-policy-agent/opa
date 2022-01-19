@@ -851,7 +851,9 @@ func TestRoundtrip(t *testing.T) {
 			},
 		},
 		Manifest: Manifest{
+			Roots:    &[]string{""},
 			Revision: "quickbrownfaux",
+			Metadata: map[string]interface{}{"version": "v1", "hello": "world"},
 		},
 	}
 

@@ -88,14 +88,12 @@ func walk(v Visitor, x interface{}) {
 		}
 	case *Expr:
 		switch ts := x.Terms.(type) {
-		case *SomeDecl:
+		case *Term, *SomeDecl, *Every:
 			Walk(w, ts)
 		case []*Term:
 			for _, t := range ts {
 				Walk(w, t)
 			}
-		case *Term:
-			Walk(w, ts)
 		}
 		for i := range x.With {
 			Walk(w, x.With[i])
@@ -136,6 +134,13 @@ func walk(v Visitor, x interface{}) {
 		for _, t := range x {
 			Walk(w, t)
 		}
+	case *Every:
+		if x.Key != nil {
+			Walk(w, x.Key)
+		}
+		Walk(w, x.Value)
+		Walk(w, x.Domain)
+		Walk(w, x.Body)
 	}
 }
 
@@ -319,14 +324,12 @@ func (vis *GenericVisitor) Walk(x interface{}) {
 		}
 	case *Expr:
 		switch ts := x.Terms.(type) {
-		case *SomeDecl:
+		case *Term, *SomeDecl, *Every:
 			vis.Walk(ts)
 		case []*Term:
 			for _, t := range ts {
 				vis.Walk(t)
 			}
-		case *Term:
-			vis.Walk(ts)
 		}
 		for i := range x.With {
 			vis.Walk(x.With[i])
@@ -367,6 +370,13 @@ func (vis *GenericVisitor) Walk(x interface{}) {
 		for _, t := range x {
 			vis.Walk(t)
 		}
+	case *Every:
+		if x.Key != nil {
+			vis.Walk(x.Key)
+		}
+		vis.Walk(x.Value)
+		vis.Walk(x.Domain)
+		vis.Walk(x.Body)
 	}
 }
 
@@ -440,14 +450,12 @@ func (vis *BeforeAfterVisitor) Walk(x interface{}) {
 		}
 	case *Expr:
 		switch ts := x.Terms.(type) {
-		case *SomeDecl:
+		case *Term, *SomeDecl, *Every:
 			vis.Walk(ts)
 		case []*Term:
 			for _, t := range ts {
 				vis.Walk(t)
 			}
-		case *Term:
-			vis.Walk(ts)
 		}
 		for i := range x.With {
 			vis.Walk(x.With[i])
@@ -488,6 +496,13 @@ func (vis *BeforeAfterVisitor) Walk(x interface{}) {
 		for _, t := range x {
 			vis.Walk(t)
 		}
+	case *Every:
+		if x.Key != nil {
+			vis.Walk(x.Key)
+		}
+		vis.Walk(x.Value)
+		vis.Walk(x.Domain)
+		vis.Walk(x.Body)
 	}
 }
 
@@ -546,7 +561,7 @@ func (vis *VarVisitor) visit(v interface{}) bool {
 	}
 	if vis.params.SkipClosures {
 		switch v.(type) {
-		case *ArrayComprehension, *ObjectComprehension, *SetComprehension:
+		case *ArrayComprehension, *ObjectComprehension, *SetComprehension, *Every:
 			return true
 		}
 	}
@@ -643,14 +658,12 @@ func (vis *VarVisitor) Walk(x interface{}) {
 		}
 	case *Expr:
 		switch ts := x.Terms.(type) {
-		case *SomeDecl:
+		case *Term, *SomeDecl, *Every:
 			vis.Walk(ts)
 		case []*Term:
 			for _, t := range ts {
 				vis.Walk(t)
 			}
-		case *Term:
-			vis.Walk(ts)
 		}
 		for i := range x.With {
 			vis.Walk(x.With[i])
@@ -691,5 +704,12 @@ func (vis *VarVisitor) Walk(x interface{}) {
 		for _, t := range x {
 			vis.Walk(t)
 		}
+	case *Every:
+		if x.Key != nil {
+			vis.Walk(x.Key)
+		}
+		vis.Walk(x.Value)
+		vis.Walk(x.Domain)
+		vis.Walk(x.Body)
 	}
 }

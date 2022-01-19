@@ -1485,7 +1485,7 @@ more information see https://openpolicyagent.org/docs/latest/privacy/.
 #### New `opa build` command
 
 The `opa build` command can now be used to package OPA policy and data files
-into [bundles](https://www.openpolicyagent.org/docs/latest/management/#bundles)
+into [bundles](https://www.openpolicyagent.org/docs/latest/management-bundles)
 that can be easily distributed via HTTP. See `opa build --help` for details.
 This change is backwards incompatible. If you were previously relying on `opa
 build` to compile policies to wasm, you can still do so:
@@ -2420,7 +2420,7 @@ pass `"force_json_decode": true` as in the `http.send` parameters.
 * This release adds support for scoping bundles to specific roots
   under `data`. This allows bundles to be used in conjunction with
   sidecars like `kube-mgmt` that load local data and policy into
-  OPA. See the [Bundles](https://www.openpolicyagent.org/docs/bundles.html)
+  OPA. See the [Bundles](https://www.openpolicyagent.org/docs/latest/management-bundles)
   page for more details.
 
 * This release includes a small but backwards incompatible change to

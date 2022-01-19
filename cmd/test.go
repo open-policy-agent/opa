@@ -39,7 +39,6 @@ type testCommandParams struct {
 	threshold    float64
 	timeout      time.Duration
 	ignore       []string
-	failureLine  bool
 	bundleMode   bool
 	benchmark    bool
 	benchMem     bool
@@ -223,7 +222,6 @@ func opaTest(args []string) int {
 		CapturePrintOutput(true).
 		EnableTracing(testParams.verbose).
 		SetCoverageQueryTracer(coverTracer).
-		EnableFailureLine(testParams.failureLine).
 		SetRuntime(info).
 		SetModules(modules).
 		SetBundles(bundles).
@@ -247,7 +245,6 @@ func opaTest(args []string) int {
 		default:
 			reporter = tester.PrettyReporter{
 				Verbose:                  testParams.verbose,
-				FailureLine:              testParams.failureLine,
 				Output:                   os.Stdout,
 				BenchmarkResults:         testParams.benchmark,
 				BenchMarkShowAllocations: testParams.benchMem,
@@ -358,7 +355,6 @@ func init() {
 	testCommand.Flags().Float64VarP(&testParams.threshold, "threshold", "", 0, "set coverage threshold and exit with non-zero status if coverage is less than threshold %")
 	testCommand.Flags().BoolVar(&testParams.benchmark, "bench", false, "benchmark the unit tests")
 	testCommand.Flags().StringVarP(&testParams.runRegex, "run", "r", "", "run only test cases matching the regular expression.")
-	
 	addBundleModeFlag(testCommand.Flags(), &testParams.bundleMode, false)
 	addBenchmemFlag(testCommand.Flags(), &testParams.benchMem, true)
 	addCountFlag(testCommand.Flags(), &testParams.count, "test")
