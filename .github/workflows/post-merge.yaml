@@ -7,16 +7,14 @@ on:
 
 jobs:
   generate:
-    name: Sync Generated Code
+    name: Sync Generated Code and Docs
     runs-on: ubuntu-18.04
     steps:
       - name: Check out code
         uses: actions/checkout@v2
-        with:
-          token: ${{ secrets.GH_PUSH_TOKEN }}
 
       - name: Generate
-        run: make clean generate
+        run: make clean generate docs-generate-cli-docs
 
       - name: Commit & Push
         shell: bash
@@ -45,24 +43,6 @@ jobs:
             echo "No generated changes to push!"
           fi
 
-  generate-cli-docs:
-    name: Sync Generated CLI Docs
-    runs-on: ubuntu-18.04
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v2
-        with:
-          token: ${{ secrets.GH_PUSH_TOKEN }}
-
-      - name: Generate
-        run: make docs-generate-cli-docs
-
-      - name: Commit & Push
-        shell: bash
-        run: |
-          # Commit any changes and push as needed.
-
-          # See https://github.com/actions/checkout#push-a-commit-using-the-built-in-token
           AUTHOR=cli-docs-updater
           git config user.name ${AUTHOR}
           git config user.email ${AUTHOR}@github.com
