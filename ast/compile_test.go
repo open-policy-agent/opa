@@ -3136,16 +3136,20 @@ func TestCompilerRewriteDynamicTerms(t *testing.T) {
 		{`call_with { count(str) with input as 1 }`, `__local0__ = data.test.str with input as 1; count(__local0__) with input as 1`},
 		{`call_func { f(input, "foo") } f(x,y) { x[y] }`, `__local2__ = input; data.test.f(__local2__, "foo")`},
 		{`call_func2 { f(input.foo, "foo") } f(x,y) { x[y] }`, `__local2__ = input.foo; data.test.f(__local2__, "foo")`},
+		{`every_domain { every _ in str { true } }`, `__local0__ = data.test.str; every _ in __local0__ { true }`},
+		{`every_domain_call { every _ in numbers.range(1, 10) { true } }`, `numbers.range(1, 10, __local0__); every _ in __local0__ { true }`},
+		{`every_body { every _ in [] { [str] } }`, `every _ in [] { __local0__ = data.test.str; [__local0__] }`},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.input, func(t *testing.T) {
 			c := NewCompiler()
+			opts := ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true}
 			module := fixture + tc.input
-			c.Modules["test"] = MustParseModuleWithOpts(module, ParserOptions{AllFutureKeywords: true})
+			c.Modules["test"] = MustParseModuleWithOpts(module, opts)
 			compileStages(c, c.rewriteDynamicTerms)
 			assertNotFailed(t, c)
-			expected := MustParseBodyWithOpts(tc.expected, ParserOptions{AllFutureKeywords: true})
+			expected := MustParseBodyWithOpts(tc.expected, opts)
 			result := c.Modules["test"].Rules[1].Body
 			if result.Compare(expected) != 0 {
 				t.Fatalf("\nExp: %v\nGot: %v", expected, result)
