@@ -2791,6 +2791,33 @@ func TestRewriteDeclaredVars(t *testing.T) {
 			`,
 		},
 		{
+			note: "rewrite every: nested",
+			module: `
+				package test
+				# import future.keywords.in
+				# import future.keywords.every
+				p {
+					xs := [[1], [2]]
+					every v in [1] {
+						every w in xs[v] {
+							w == 2
+						}
+					}
+				}
+			`,
+			exp: `
+				package test
+				p = true {
+					__local0__ = [[1], [2]]
+					every __local1__ in [1] {
+						__local3__ = __local0__[__local1__]
+						every __local2__ in __local3__ {
+							equal(__local2__, 2)
+						}
+					}
+				}
+			`},
+		{
 			note: "rewrite closures",
 			module: `
 				package test
