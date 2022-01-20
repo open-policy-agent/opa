@@ -692,7 +692,7 @@ func TestCompilerCheckSafetyBodyReordering(t *testing.T) {
 		contains(x, "oo")
 	`},
 		{"userfunc", `split(y, ".", z); data.a.b.funcs.fn("...foo.bar..", y)`, `data.a.b.funcs.fn("...foo.bar..", y); split(y, ".", z)`},
-		{"every", `every _ in [] { x != 1 }; x = 1`, `x = 1; every _ in [] { x != 1}`},
+		{"every", `every _ in [] { x != 1 }; x = 1`, `__local3__ = []; x = 1; every _ in __local3__ { x != 1}`},
 		{"every-domain", `every _ in xs { true }; xs = [1]`, `xs = [1]; every _ in xs { true }`},
 	}
 
@@ -1458,13 +1458,26 @@ func TestCompilerRewriteExprTerms(t *testing.T) {
 
 				f(__local0__[0]) { true; __local0__ = [1] }`,
 		},
+		{
+			note: "every: domain",
+			module: `
+			package test
+
+			p { every x in [1,2] { x } }`,
+			expected: `
+			package test
+
+			p { __local1__ = [1, 2]; every __local0__ in __local1__ { __local0__ } }`,
+		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.note, func(t *testing.T) {
 			compiler := NewCompiler()
+			opts := ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true}
+
 			compiler.Modules = map[string]*Module{
-				"test": MustParseModule(tc.module),
+				"test": MustParseModuleWithOpts(tc.module, opts),
 			}
 			compileStages(compiler, compiler.rewriteExprTerms)
 
@@ -1472,7 +1485,7 @@ func TestCompilerRewriteExprTerms(t *testing.T) {
 			case string:
 				assertNotFailed(t, compiler)
 
-				expected := MustParseModule(exp)
+				expected := MustParseModuleWithOpts(exp, opts)
 
 				if !expected.Equal(compiler.Modules["test"]) {
 					t.Fatalf("Expected modules to be equal. Expected:\n\n%v\n\nGot:\n\n%v", expected, compiler.Modules["test"])
@@ -2682,8 +2695,14 @@ func TestRewriteDeclaredVars(t *testing.T) {
 				xs = [1, 2]
 				k = "foo"
 				v = "bar"
-				p = true { __local3__ = data.test.xs; every __local0__, __local1__ in __local3__ { plus(__local0__, __local1__, __local2__); __local4__ = data.test.i; gt(__local2__, __local4__) } }
-			`,
+				p = true {
+					__local2__ = data.test.xs
+					every __local0__, __local1__ in __local2__ {
+						plus(__local0__, __local1__, __local3__)
+						__local4__ = data.test.i
+						gt(__local3__, __local4__)
+					}
+				}			`,
 		},
 		{
 			note: "rewrite every: unused key var",
@@ -2721,7 +2740,10 @@ func TestRewriteDeclaredVars(t *testing.T) {
 			`,
 			exp: `
 				package test
-				p = true { every __local0__, _ in [1] { gte(__local0__, 0) } }
+				p = true {
+					__local1__ = [1]
+					every __local0__, _ in __local1__ { gte(__local0__, 0) }
+				}
 			`,
 		},
 		{
@@ -2736,7 +2758,7 @@ func TestRewriteDeclaredVars(t *testing.T) {
 			`,
 			exp: `
 				package test
-				p = true { every _, _ in [1] { true } }
+				p = true { __local0__ = [1]; every _, _ in __local0__ { true } }
 			`,
 		},
 		{
@@ -2753,7 +2775,11 @@ func TestRewriteDeclaredVars(t *testing.T) {
 			`,
 			exp: `
 				package test
-				p = true { __local0__ = 10; every __local1__ in [1] { equal(__local1__, 1) } }
+				p = true {
+					__local0__ = 10
+					__local2__ = [1]
+					every __local1__ in __local2__ { __local1__ == 1 }
+				}
 			`,
 		},
 		{
@@ -2770,7 +2796,13 @@ func TestRewriteDeclaredVars(t *testing.T) {
 			`,
 			exp: `
 				package test
-				p = true { __local0__ = 10; every __local1__ in [1] { equal(__local1__, __local0__) } }
+				p = true {
+					__local0__ = 10
+					__local2__ = [1]
+					every __local1__ in __local2__ {
+						__local1__ == __local0__
+					}
+				}
 			`,
 		},
 		{
@@ -2787,7 +2819,7 @@ func TestRewriteDeclaredVars(t *testing.T) {
 			`,
 			exp: `
 				package test
-				p[__local0__] { __local0__ = 10;  every _ in [1] { true } }
+				p[__local0__] { __local0__ = 10; __local1__ = [1]; every _ in __local1__ { true } }
 			`,
 		},
 		{
@@ -2809,10 +2841,11 @@ func TestRewriteDeclaredVars(t *testing.T) {
 				package test
 				p = true {
 					__local0__ = [[1], [2]]
-					every __local1__ in [1] {
-						__local3__ = __local0__[__local1__]
-						every __local2__ in __local3__ {
-							equal(__local2__, 2)
+					__local3__ = [1]
+					every __local1__ in __local3__ {
+						__local4__ = __local0__[__local1__]
+						every __local2__ in __local4__ {
+							__local2__ == 2
 						}
 					}
 				}
@@ -3138,7 +3171,8 @@ func TestCompilerRewriteDynamicTerms(t *testing.T) {
 		{`call_func2 { f(input.foo, "foo") } f(x,y) { x[y] }`, `__local2__ = input.foo; data.test.f(__local2__, "foo")`},
 		{`every_domain { every _ in str { true } }`, `__local0__ = data.test.str; every _ in __local0__ { true }`},
 		{`every_domain_call { every _ in numbers.range(1, 10) { true } }`, `numbers.range(1, 10, __local0__); every _ in __local0__ { true }`},
-		{`every_body { every _ in [] { [str] } }`, `every _ in [] { __local0__ = data.test.str; [__local0__] }`},
+		{`every_body { every _ in [] { [str] } }`,
+			`__local0__ = []; every _ in __local0__ { __local1__ = data.test.str; [__local1__] }`},
 	}
 
 	for _, tc := range tests {
@@ -3305,7 +3339,7 @@ func TestCompilerRewritePrintCallsErasure(t *testing.T) {
 			`,
 			exp: `package test
 
-			p { every _ in [] { false } }`,
+			p = true { __local0__ = []; every _ in __local0__ { false } }`,
 		},
 		{
 			note: "in head",
@@ -3440,9 +3474,10 @@ func TestCompilerRewritePrintCalls(t *testing.T) {
 			exp: `package test
 
 			p = true {
-				every __local0__ in [1, 2] {
-					__local2__ = {__local1__ | __local1__ = __local0__}
-					internal.print([__local2__])
+				__local2__ = [1, 2]
+				every __local0__ in __local2__ {
+					__local3__ = {__local1__ | __local1__ = __local0__}
+					internal.print([__local3__])
 				}
 			}`,
 		},
