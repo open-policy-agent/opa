@@ -41,6 +41,12 @@ endif
 
 DOCKER := docker
 
+# BuildKit is required for automatic platform arg injection (see Dockerfile)
+export DOCKER_BUILDKIT := 1
+
+# Supported platforms to include in image manifest lists
+DOCKER_PLATFORMS := linux/amd64,linux/arm64
+
 BIN := opa_$(GOOS)_$(GOARCH)
 
 # Optional external configuration useful for forks of OPA
@@ -238,6 +244,7 @@ CI_GOLANG_DOCKER_MAKE := $(DOCKER) run \
 	-v $(PWD):/src \
 	-w /src \
 	-e GOCACHE=/src/.go/cache \
+	-e GOARCH=$(GOARCH) \
 	-e CGO_ENABLED=$(CGO_ENABLED) \
 	-e WASM_ENABLED=$(WASM_ENABLED) \
 	-e FUZZ_TIME=$(FUZZ_TIME) \
@@ -261,7 +268,7 @@ ci-check-working-copy: generate
 ci-wasm: wasm-test
 
 .PHONY: ci-build-linux
-ci-build-linux: ensure-release-dir
+ci-build-linux: ensure-release-dir ensure-linux-toolchain
 	@$(MAKE) build GOOS=linux
 	chmod +x opa_linux_$(GOARCH)
 	mv opa_linux_$(GOARCH) $(RELEASE_DIR)/
@@ -301,84 +308,107 @@ ci-build-windows: ensure-release-dir
 ensure-release-dir:
 	mkdir -p $(RELEASE_DIR)
 
+.PHONY: ensure-executable-bin
+ensure-executable-bin:
+	find $(RELEASE_DIR) -type f ! -name "*.sha256" | xargs chmod +x
+
+.PHONY: ensure-linux-toolchain
+ensure-linux-toolchain:
+ifeq ($(CGO_ENABLED),1)
+	$(eval export CC = $(shell GOARCH=$(GOARCH) build/ensure-linux-toolchain.sh))
+else
+	@echo "CGO_ENABLED=$(CGO_ENABLED). No need to check gcc toolchain."
+endif
+
 .PHONY: build-all-platforms
 build-all-platforms: ci-build-linux ci-build-linux-static ci-build-darwin ci-build-darwin-arm64-static ci-build-windows
 
 .PHONY: image-quick
-image-quick:
-	chmod +x $(RELEASE_DIR)/opa_linux_$(GOARCH)*
+image-quick: image-quick-$(GOARCH)
+
+# % = arch
+.PHONY: image-quick-%
+image-quick-%: ensure-executable-bin
 	$(DOCKER) build \
 		-t $(DOCKER_IMAGE):$(VERSION) \
 		--build-arg BASE=gcr.io/distroless/cc \
-		--build-arg BIN=$(RELEASE_DIR)/opa_linux_$(GOARCH) \
+		--build-arg BIN_DIR=$(RELEASE_DIR) \
+		--platform linux/$* \
 		.
 	$(DOCKER) build \
 		-t $(DOCKER_IMAGE):$(VERSION)-debug \
 		--build-arg BASE=gcr.io/distroless/cc:debug \
-		--build-arg BIN=$(RELEASE_DIR)/opa_linux_$(GOARCH) \
+		--build-arg BIN_DIR=$(RELEASE_DIR) \
+		--platform linux/$* \
 		.
 	$(DOCKER) build \
 		-t $(DOCKER_IMAGE):$(VERSION)-rootless \
 		--build-arg USER=1000 \
 		--build-arg BASE=gcr.io/distroless/cc \
-		--build-arg BIN=$(RELEASE_DIR)/opa_linux_$(GOARCH) \
+		--build-arg BIN_DIR=$(RELEASE_DIR) \
+		--platform linux/$* \
 		.
 	$(DOCKER) build \
 		-t $(DOCKER_IMAGE):$(VERSION)-static \
 		--build-arg BASE=gcr.io/distroless/static \
-		--build-arg BIN=$(RELEASE_DIR)/opa_linux_$(GOARCH)_static \
+		--build-arg BIN_DIR=$(RELEASE_DIR) \
+		--build-arg BIN_SUFFIX=_static \
+		--platform linux/$* \
+		.
+
+# % = base tag
+.PHONY: push-manifest-list-%
+push-manifest-list-%: ensure-executable-bin
+	$(DOCKER) buildx build \
+		--tag $(DOCKER_IMAGE):$* \
+		--build-arg BASE=gcr.io/distroless/cc \
+		--build-arg BIN_DIR=$(RELEASE_DIR) \
+		--platform $(DOCKER_PLATFORMS) \
+		--push \
+		.
+	$(DOCKER) buildx build \
+		--tag $(DOCKER_IMAGE):$*-debug \
+		--build-arg BASE=gcr.io/distroless/cc:debug \
+		--build-arg BIN_DIR=$(RELEASE_DIR) \
+		--platform $(DOCKER_PLATFORMS) \
+		--push \
+		.
+	$(DOCKER) buildx build \
+		--tag $(DOCKER_IMAGE):$*-rootless \
+		--build-arg USER=1000 \
+		--build-arg BASE=gcr.io/distroless/cc \
+		--build-arg BIN_DIR=$(RELEASE_DIR) \
+		--platform $(DOCKER_PLATFORMS) \
+		--push \
+		.
+	$(DOCKER) buildx build \
+		--tag $(DOCKER_IMAGE):$*-static \
+		--build-arg BASE=gcr.io/distroless/static \
+		--build-arg BIN_DIR=$(RELEASE_DIR) \
+		--build-arg BIN_SUFFIX=_static \
+		--platform $(DOCKER_PLATFORMS) \
+		--push \
 		.
 
 .PHONY: ci-image-smoke-test
-ci-image-smoke-test: image-quick
-	$(DOCKER) run $(DOCKER_IMAGE):$(VERSION) version
-	$(DOCKER) run $(DOCKER_IMAGE):$(VERSION)-debug version
-	$(DOCKER) run $(DOCKER_IMAGE):$(VERSION)-rootless version
-	$(DOCKER) run $(DOCKER_IMAGE):$(VERSION)-static version
+ci-image-smoke-test: ci-image-smoke-test-$(GOARCH)
+
+# % = arch
+.PHONY: ci-image-smoke-test-%
+ci-image-smoke-test-%: image-quick-%
+	$(DOCKER) run --platform linux/$* $(DOCKER_IMAGE):$(VERSION) version
+	$(DOCKER) run --platform linux/$* $(DOCKER_IMAGE):$(VERSION)-debug version
+	$(DOCKER) run --platform linux/$* $(DOCKER_IMAGE):$(VERSION)-rootless version
+	$(DOCKER) run --platform linux/$* $(DOCKER_IMAGE):$(VERSION)-static version
 
 .PHONY: ci-binary-smoke-test-%
 ci-binary-smoke-test-%:
 	chmod +x "$(RELEASE_DIR)/$(BINARY)"
 	"$(RELEASE_DIR)/$(BINARY)" eval -t "$*" 'time.now_ns()'
 
-.PHONY: push
-push:
-	$(DOCKER) push $(DOCKER_IMAGE):$(VERSION)
-	$(DOCKER) push $(DOCKER_IMAGE):$(VERSION)-debug
-	$(DOCKER) push $(DOCKER_IMAGE):$(VERSION)-rootless
-	$(DOCKER) push $(DOCKER_IMAGE):$(VERSION)-static
-
-.PHONY: tag-latest
-tag-latest:
-	$(DOCKER) tag $(DOCKER_IMAGE):$(VERSION) $(DOCKER_IMAGE):latest
-	$(DOCKER) tag $(DOCKER_IMAGE):$(VERSION)-debug $(DOCKER_IMAGE):latest-debug
-	$(DOCKER) tag $(DOCKER_IMAGE):$(VERSION)-rootless $(DOCKER_IMAGE):latest-rootless
-	$(DOCKER) tag $(DOCKER_IMAGE):$(VERSION)-static $(DOCKER_IMAGE):latest-static
-
-.PHONY: push-latest
-push-latest:
-	$(DOCKER) push $(DOCKER_IMAGE):latest
-	$(DOCKER) push $(DOCKER_IMAGE):latest-debug
-	$(DOCKER) push $(DOCKER_IMAGE):latest-rootless
-	$(DOCKER) push $(DOCKER_IMAGE):latest-static
-
 .PHONY: push-binary-edge
 push-binary-edge:
 	aws s3 sync $(RELEASE_DIR) s3://$(S3_RELEASE_BUCKET)/edge/ --delete
-
-.PHONY: tag-edge
-tag-edge:
-	$(DOCKER) tag $(DOCKER_IMAGE):$(VERSION) $(DOCKER_IMAGE):edge
-	$(DOCKER) tag $(DOCKER_IMAGE):$(VERSION)-debug $(DOCKER_IMAGE):edge-debug
-	$(DOCKER) tag $(DOCKER_IMAGE):$(VERSION)-rootless $(DOCKER_IMAGE):edge-rootless
-	$(DOCKER) tag $(DOCKER_IMAGE):$(VERSION)-static $(DOCKER_IMAGE):edge-static
-
-.PHONY: push-edge
-push-edge:
-	$(DOCKER) push $(DOCKER_IMAGE):edge
-	$(DOCKER) push $(DOCKER_IMAGE):edge-debug
-	$(DOCKER) push $(DOCKER_IMAGE):edge-rootless
-	$(DOCKER) push $(DOCKER_IMAGE):edge-static
 
 .PHONY: docker-login
 docker-login:
@@ -386,14 +416,14 @@ docker-login:
 	@echo ${DOCKER_PASSWORD} | $(DOCKER) login -u ${DOCKER_USER} --password-stdin
 
 .PHONY: push-image
-push-image: docker-login image-quick push
+push-image: docker-login push-manifest-list-$(VERSION)
 
 .PHONY: push-wasm-builder-image
 push-wasm-builder-image: docker-login
 	$(MAKE) -C wasm push-builder
 
 .PHONY: deploy-ci
-deploy-ci: push-image tag-edge push-edge push-binary-edge
+deploy-ci: push-image push-manifest-list-edge push-binary-edge
 
 .PHONY: release-ci
 # Don't tag and push "latest" image tags if the version is a release candidate or a bugfix branch
@@ -401,7 +431,7 @@ deploy-ci: push-image tag-edge push-edge push-binary-edge
 ifneq (,$(or $(findstring rc,$(VERSION)), $(findstring release-,$(shell git branch --contains HEAD))))
 release-ci: push-image
 else
-release-ci: push-image tag-latest push-latest
+release-ci: push-image push-manifest-list-latest
 endif
 
 .PHONY: netlify-prod
