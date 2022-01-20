@@ -105,11 +105,15 @@ func fixupSection(path string) (string, error) {
 	builder := strings.Builder{}
 
 	for scanner.Scan() {
+		line := scanner.Text()
 		// Remove "See also" section
-		if strings.Contains(scanner.Text(), "### SEE ALSO") {
+		if strings.Contains(line, "### SEE ALSO") {
 			break
 		}
-		builder.WriteString(scanner.Text())
+		if home := os.Getenv("HOME"); home != "" {
+			line = strings.ReplaceAll(line, home, "$HOME")
+		}
+		builder.WriteString(line)
 		builder.WriteString("\n")
 	}
 
