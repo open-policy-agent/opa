@@ -697,7 +697,7 @@ opa run [flags]
   -f, --format string                        set shell output format, i.e, pretty, json (default "pretty")
       --h2c                                  enable H2C for HTTP listeners
   -h, --help                                 help for run
-  -H, --history string                       set path of history file (default "/home/runner/.opa_history")
+  -H, --history string                       set path of history file (default "$HOME/.opa_history")
       --ignore strings                       set file and directory names to ignore during loading (e.g., '.*' excludes hidden files)
       --log-format {text,json,json-pretty}   set log format (default json)
   -l, --log-level {debug,info,error}         set log level (default info)
