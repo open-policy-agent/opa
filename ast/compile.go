@@ -2962,6 +2962,10 @@ func reorderBodyForClosures(arity func(Ref) int, globals VarSet, body Body) (Bod
 			vs := VarSet{}
 			WalkClosures(e, func(x interface{}) bool {
 				vis := &VarVisitor{vars: vs}
+				if ev, ok := x.(*Every); ok {
+					vis.Walk(ev.Body)
+					return true
+				}
 				vis.Walk(x)
 				return true
 			})

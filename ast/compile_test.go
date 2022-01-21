@@ -693,7 +693,7 @@ func TestCompilerCheckSafetyBodyReordering(t *testing.T) {
 	`},
 		{"userfunc", `split(y, ".", z); data.a.b.funcs.fn("...foo.bar..", y)`, `data.a.b.funcs.fn("...foo.bar..", y); split(y, ".", z)`},
 		{"every", `every _ in [] { x != 1 }; x = 1`, `__local3__ = []; x = 1; every _ in __local3__ { x != 1}`},
-		{"every-domain", `every _ in xs { true }; xs = [1]`, `xs = [1]; every _ in xs { true }`},
+		{"every-domain", `every _ in xs { true }; xs = [1]`, `xs = [1]; __local3__ = xs; every _ in __local3__ { true }`},
 	}
 
 	for i, tc := range tests {
