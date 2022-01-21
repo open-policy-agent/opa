@@ -1464,7 +1464,7 @@ func rewritePrintCalls(gen *localVarGenerator, getArity func(Ref) int, globals V
 				case *ObjectComprehension:
 					errs = rewritePrintCalls(gen, getArity, safe, x.Body)
 				case *Every:
-					safe.Update(x.Vars())
+					safe.Update(x.KeyValueVars())
 					errs = rewritePrintCalls(gen, getArity, safe, x.Body)
 				}
 				return true
@@ -2902,7 +2902,7 @@ func (xform *bodySafetyTransformer) Visit(x interface{}) bool {
 		}
 	case *Expr:
 		if ev, ok := term.Terms.(*Every); ok {
-			xform.globals.Update(ev.Vars())
+			xform.globals.Update(ev.KeyValueVars())
 			ev.Body = xform.reorderComprehensionSafety(NewVarSet(), ev.Body)
 			return true
 		}

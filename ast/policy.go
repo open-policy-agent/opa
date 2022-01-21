@@ -1491,9 +1491,9 @@ func (q *Every) Compare(other *Every) int {
 	return q.Body.Compare(other.Body)
 }
 
-// Vars returns the key and val arguments of an every expression,
-// if they are non-nil and not wildcards.
-func (q *Every) Vars() VarSet {
+// KeyValueVars returns the key and val arguments of an `every`
+// expression, if they are non-nil and not wildcards.
+func (q *Every) KeyValueVars() VarSet {
 	r := NewVarSet()
 	if v := q.Value.Value.(Var); !v.IsWildcard() {
 		r.Add(v)
