@@ -216,7 +216,7 @@ func TestOutputVarsForNode(t *testing.T) {
 		{
 			note:  "every: output vars in body",
 			query: `every k, v in [] { k < v; i = 1 }`,
-			exp:   `{i}`,
+			exp:   `set()`,
 		},
 	}
 

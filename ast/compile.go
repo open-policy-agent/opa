@@ -3048,16 +3048,7 @@ func outputVarsForExpr(expr *Expr, arity func(Ref) int, safe VarSet) VarSet {
 
 		return outputVarsForExprCall(expr, ar, safe, terms)
 	case *Every:
-		s := outputVarsForTerms(terms.Domain, safe)
-
-		cpy := safe.Copy()
-		if terms.Key != nil {
-			cpy.Add(terms.Key.Value.(Var))
-		}
-		cpy.Add(terms.Value.Value.(Var))
-
-		s.Update(outputVarsForBody(terms.Body, arity, cpy))
-		return s
+		return outputVarsForTerms(terms.Domain, safe)
 	default:
 		panic("illegal expression")
 	}
