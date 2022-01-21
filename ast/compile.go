@@ -3003,15 +3003,11 @@ func outputVarsForExpr(expr *Expr, arity func(Ref) int, safe VarSet) VarSet {
 
 	// With modifier inputs must be safe.
 	for _, with := range expr.With {
-		unsafe := false
-		WalkVars(with, func(v Var) bool {
-			if !safe.Contains(v) {
-				unsafe = true
-				return true
-			}
-			return false
-		})
-		if unsafe {
+		vis := NewVarVisitor().WithParams(SafetyCheckVisitorParams)
+		vis.Walk(with)
+		vars := vis.Vars()
+		unsafe := vars.Diff(safe)
+		if len(unsafe) > 0 {
 			return VarSet{}
 		}
 	}
