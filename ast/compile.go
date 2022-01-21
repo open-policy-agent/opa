@@ -1652,6 +1652,7 @@ func (c *Compiler) rewriteLocalVars() {
 			nestedXform := &rewriteNestedHeadVarLocalTransform{
 				gen:           gen,
 				RewrittenVars: c.RewrittenVars,
+				strict:        c.strict,
 			}
 
 			NewGenericVisitor(nestedXform.Visit).Walk(rule.Head)
@@ -1675,7 +1676,7 @@ func (c *Compiler) rewriteLocalVars() {
 
 			c.rewriteLocalArgVars(gen, stack, rule)
 
-			body, declared, errs := rewriteLocalVars(gen, stack, used, rule.Body)
+			body, declared, errs := rewriteLocalVars(gen, stack, used, rule.Body, c.strict)
 			for _, err := range errs {
 				c.err(err)
 			}
@@ -1712,6 +1713,7 @@ type rewriteNestedHeadVarLocalTransform struct {
 	gen           *localVarGenerator
 	errs          Errors
 	RewrittenVars map[Var]Var
+	strict        bool
 }
 
 func (xform *rewriteNestedHeadVarLocalTransform) Visit(x interface{}) bool {
@@ -1741,13 +1743,13 @@ func (xform *rewriteNestedHeadVarLocalTransform) Visit(x interface{}) bool {
 			term.Value = cpy
 			stop = true
 		case *ArrayComprehension:
-			xform.errs = rewriteDeclaredVarsInArrayComprehension(xform.gen, stack, x, xform.errs)
+			xform.errs = rewriteDeclaredVarsInArrayComprehension(xform.gen, stack, x, xform.errs, xform.strict)
 			stop = true
 		case *SetComprehension:
-			xform.errs = rewriteDeclaredVarsInSetComprehension(xform.gen, stack, x, xform.errs)
+			xform.errs = rewriteDeclaredVarsInSetComprehension(xform.gen, stack, x, xform.errs, xform.strict)
 			stop = true
 		case *ObjectComprehension:
-			xform.errs = rewriteDeclaredVarsInObjectComprehension(xform.gen, stack, x, xform.errs)
+			xform.errs = rewriteDeclaredVarsInObjectComprehension(xform.gen, stack, x, xform.errs, xform.strict)
 			stop = true
 		}
 
@@ -1806,7 +1808,9 @@ func (vis *ruleArgLocalRewriter) Visit(x interface{}) Visitor {
 	switch v := t.Value.(type) {
 	case Var:
 		gv, ok := vis.stack.Declared(v)
-		if !ok {
+		if ok {
+			vis.stack.Seen(v)
+		} else {
 			gv = vis.gen.Generate()
 			vis.stack.Insert(v, gv, argVar)
 		}
@@ -2053,7 +2057,7 @@ func (qc *queryCompiler) rewriteExprTerms(_ *QueryContext, body Body) (Body, err
 func (qc *queryCompiler) rewriteLocalVars(_ *QueryContext, body Body) (Body, error) {
 	gen := newLocalVarGenerator("q", body)
 	stack := newLocalDeclaredVars()
-	body, _, err := rewriteLocalVars(gen, stack, nil, body)
+	body, _, err := rewriteLocalVars(gen, stack, nil, body, qc.compiler.strict)
 	if len(err) != 0 {
 		return nil, err
 	}
@@ -3865,6 +3869,7 @@ type declaredVarSet struct {
 	vs         map[Var]Var
 	reverse    map[Var]Var
 	occurrence map[Var]varOccurrence
+	count      map[Var]int
 }
 
 func newDeclaredVarSet() *declaredVarSet {
@@ -3872,6 +3877,7 @@ func newDeclaredVarSet() *declaredVarSet {
 		vs:         map[Var]Var{},
 		reverse:    map[Var]Var{},
 		occurrence: map[Var]varOccurrence{},
+		count:      map[Var]int{},
 	}
 }
 
@@ -3902,6 +3908,8 @@ func (s localDeclaredVars) Insert(x, y Var, occurrence varOccurrence) {
 	elem.vs[x] = y
 	elem.reverse[y] = x
 	elem.occurrence[x] = occurrence
+
+	elem.count[x] = 1
 
 	// If the variable has been rewritten (where x != y, with y being
 	// the generated value), store it in the map of rewritten vars.
@@ -3937,6 +3945,30 @@ func (s localDeclaredVars) GlobalOccurrence(x Var) (varOccurrence, bool) {
 	return newVar, false
 }
 
+// Seen marks x as seen by incrementing its counter
+func (s localDeclaredVars) Seen(x Var) {
+	for i := len(s.vars) - 1; i >= 0; i-- {
+		dvs := s.vars[i]
+		if c, ok := dvs.count[x]; ok {
+			dvs.count[x] = c + 1
+			return
+		}
+	}
+
+	s.vars[len(s.vars)-1].count[x] = 1
+}
+
+// Count returns how many times x has been seen
+func (s localDeclaredVars) Count(x Var) int {
+	for i := len(s.vars) - 1; i >= 0; i-- {
+		if c, ok := s.vars[i].count[x]; ok {
+			return c
+		}
+	}
+
+	return 0
+}
+
 // rewriteLocalVars rewrites bodies to remove assignment/declaration
 // expressions. For example:
 //
@@ -3947,24 +3979,24 @@ func (s localDeclaredVars) GlobalOccurrence(x Var) (varOccurrence, bool) {
 // __local0__ = 1; p[__local0__]
 //
 // During rewriting, assignees are validated to prevent use before declaration.
-func rewriteLocalVars(g *localVarGenerator, stack *localDeclaredVars, used VarSet, body Body) (Body, map[Var]Var, Errors) {
+func rewriteLocalVars(g *localVarGenerator, stack *localDeclaredVars, used VarSet, body Body, strict bool) (Body, map[Var]Var, Errors) {
 	var errs Errors
-	body, errs = rewriteDeclaredVarsInBody(g, stack, used, body, errs)
+	body, errs = rewriteDeclaredVarsInBody(g, stack, used, body, errs, strict)
 	return body, stack.Pop().vs, errs
 }
 
-func rewriteDeclaredVarsInBody(g *localVarGenerator, stack *localDeclaredVars, used VarSet, body Body, errs Errors) (Body, Errors) {
+func rewriteDeclaredVarsInBody(g *localVarGenerator, stack *localDeclaredVars, used VarSet, body Body, errs Errors, strict bool) (Body, Errors) {
 
 	var cpy Body
 
 	for i := range body {
 		var expr *Expr
 		if body[i].IsAssignment() {
-			expr, errs = rewriteDeclaredAssignment(g, stack, body[i], errs)
+			expr, errs = rewriteDeclaredAssignment(g, stack, body[i], errs, strict)
 		} else if _, ok := body[i].Terms.(*SomeDecl); ok {
-			expr, errs = rewriteSomeDeclStatement(g, stack, body[i], errs)
+			expr, errs = rewriteSomeDeclStatement(g, stack, body[i], errs, strict)
 		} else {
-			expr, errs = rewriteDeclaredVarsInExpr(g, stack, body[i], errs)
+			expr, errs = rewriteDeclaredVarsInExpr(g, stack, body[i], errs, strict)
 		}
 		if expr != nil {
 			cpy.Append(expr)
@@ -3978,7 +4010,43 @@ func rewriteDeclaredVarsInBody(g *localVarGenerator, stack *localDeclaredVars, u
 		cpy.Append(NewExpr(BooleanTerm(true)))
 	}
 
+	errs = checkUnusedAssignedVars(body[0].Loc(), stack, used, errs, strict)
 	return cpy, checkUnusedDeclaredVars(body[0].Loc(), stack, used, cpy, errs)
+}
+
+func checkUnusedAssignedVars(loc *Location, stack *localDeclaredVars, used VarSet, errs Errors, strict bool) Errors {
+
+	if !strict || len(errs) > 0 {
+		return errs
+	}
+
+	dvs := stack.Peek()
+	unused := NewVarSet()
+
+	for v, occ := range dvs.occurrence {
+		// A var that was assigned in this scope must have been seen (used) more than once (the time of assignment) in
+		// the same, or nested, scope to be counted as used.
+		if !v.IsWildcard() && occ == assignedVar && stack.Count(v) <= 1 {
+			unused.Add(dvs.vs[v])
+		}
+	}
+
+	rewrittenUsed := NewVarSet()
+	for v := range used {
+		if gv, ok := stack.Declared(v); ok {
+			rewrittenUsed.Add(gv)
+		} else {
+			rewrittenUsed.Add(v)
+		}
+	}
+
+	unused = unused.Diff(rewrittenUsed)
+
+	for _, gv := range unused.Sorted() {
+		errs = append(errs, NewError(CompileErr, loc, "assigned var %v unused", dvs.reverse[gv]))
+	}
+
+	return errs
 }
 
 func checkUnusedDeclaredVars(loc *Location, stack *localDeclaredVars, used VarSet, cpy Body, errs Errors) Errors {
@@ -4017,7 +4085,7 @@ func checkUnusedDeclaredVars(loc *Location, stack *localDeclaredVars, used VarSe
 	return errs
 }
 
-func rewriteSomeDeclStatement(g *localVarGenerator, stack *localDeclaredVars, expr *Expr, errs Errors) (*Expr, Errors) {
+func rewriteSomeDeclStatement(g *localVarGenerator, stack *localDeclaredVars, expr *Expr, errs Errors, strict bool) (*Expr, Errors) {
 	e := expr.Copy()
 	decl := e.Terms.(*SomeDecl)
 	for i := range decl.Symbols {
@@ -4055,20 +4123,20 @@ func rewriteSomeDeclStatement(g *localVarGenerator, stack *localDeclaredVars, ex
 					return nil, append(errs, NewError(CompileErr, decl.Loc(), err.Error()))
 				}
 			}
-			return rewriteDeclaredVarsInExpr(g, stack, e, errs)
+			return rewriteDeclaredVarsInExpr(g, stack, e, errs, strict)
 		}
 	}
 	return nil, errs
 }
 
-func rewriteDeclaredVarsInExpr(g *localVarGenerator, stack *localDeclaredVars, expr *Expr, errs Errors) (*Expr, Errors) {
+func rewriteDeclaredVarsInExpr(g *localVarGenerator, stack *localDeclaredVars, expr *Expr, errs Errors, strict bool) (*Expr, Errors) {
 	vis := NewGenericVisitor(func(x interface{}) bool {
 		var stop bool
 		switch x := x.(type) {
 		case *Term:
-			stop, errs = rewriteDeclaredVarsInTerm(g, stack, x, errs)
+			stop, errs = rewriteDeclaredVarsInTerm(g, stack, x, errs, strict)
 		case *With:
-			_, errs = rewriteDeclaredVarsInTerm(g, stack, x.Value, errs)
+			_, errs = rewriteDeclaredVarsInTerm(g, stack, x.Value, errs, strict)
 			stop = true
 		}
 		return stop
@@ -4077,7 +4145,7 @@ func rewriteDeclaredVarsInExpr(g *localVarGenerator, stack *localDeclaredVars, e
 	return expr, errs
 }
 
-func rewriteDeclaredAssignment(g *localVarGenerator, stack *localDeclaredVars, expr *Expr, errs Errors) (*Expr, Errors) {
+func rewriteDeclaredAssignment(g *localVarGenerator, stack *localDeclaredVars, expr *Expr, errs Errors, strict bool) (*Expr, Errors) {
 
 	if expr.Negated {
 		errs = append(errs, NewError(CompileErr, expr.Location, "cannot assign vars inside negated expression"))
@@ -4093,10 +4161,10 @@ func rewriteDeclaredAssignment(g *localVarGenerator, stack *localDeclaredVars, e
 	// Rewrite terms on right hand side capture seen vars and recursively
 	// process comprehensions before left hand side is processed. Also
 	// rewrite with modifier.
-	errs = rewriteDeclaredVarsInTermRecursive(g, stack, expr.Operand(1), errs)
+	errs = rewriteDeclaredVarsInTermRecursive(g, stack, expr.Operand(1), errs, strict)
 
 	for _, w := range expr.With {
-		errs = rewriteDeclaredVarsInTermRecursive(g, stack, w.Value, errs)
+		errs = rewriteDeclaredVarsInTermRecursive(g, stack, w.Value, errs, strict)
 	}
 
 	// Rewrite vars on left hand side with unique names. Catch redeclaration
@@ -4143,11 +4211,12 @@ func rewriteDeclaredAssignment(g *localVarGenerator, stack *localDeclaredVars, e
 	return expr, errs
 }
 
-func rewriteDeclaredVarsInTerm(g *localVarGenerator, stack *localDeclaredVars, term *Term, errs Errors) (bool, Errors) {
+func rewriteDeclaredVarsInTerm(g *localVarGenerator, stack *localDeclaredVars, term *Term, errs Errors, strict bool) (bool, Errors) {
 	switch v := term.Value.(type) {
 	case Var:
 		if gv, ok := stack.Declared(v); ok {
 			term.Value = gv
+			stack.Seen(v)
 		} else if stack.Occurrence(v) == newVar {
 			stack.Insert(v, v, seenVar)
 		}
@@ -4165,66 +4234,76 @@ func rewriteDeclaredVarsInTerm(g *localVarGenerator, stack *localDeclaredVars, t
 	case *object:
 		cpy, _ := v.Map(func(k, v *Term) (*Term, *Term, error) {
 			kcpy := k.Copy()
-			errs = rewriteDeclaredVarsInTermRecursive(g, stack, kcpy, errs)
-			errs = rewriteDeclaredVarsInTermRecursive(g, stack, v, errs)
+			errs = rewriteDeclaredVarsInTermRecursive(g, stack, kcpy, errs, strict)
+			errs = rewriteDeclaredVarsInTermRecursive(g, stack, v, errs, strict)
 			return kcpy, v, nil
 		})
 		term.Value = cpy
 	case Set:
 		cpy, _ := v.Map(func(elem *Term) (*Term, error) {
 			elemcpy := elem.Copy()
-			errs = rewriteDeclaredVarsInTermRecursive(g, stack, elemcpy, errs)
+			errs = rewriteDeclaredVarsInTermRecursive(g, stack, elemcpy, errs, strict)
 			return elemcpy, nil
 		})
 		term.Value = cpy
 	case *ArrayComprehension:
-		errs = rewriteDeclaredVarsInArrayComprehension(g, stack, v, errs)
+		errs = rewriteDeclaredVarsInArrayComprehension(g, stack, v, errs, strict)
 	case *SetComprehension:
-		errs = rewriteDeclaredVarsInSetComprehension(g, stack, v, errs)
+		errs = rewriteDeclaredVarsInSetComprehension(g, stack, v, errs, strict)
 	case *ObjectComprehension:
-		errs = rewriteDeclaredVarsInObjectComprehension(g, stack, v, errs)
+		errs = rewriteDeclaredVarsInObjectComprehension(g, stack, v, errs, strict)
 	default:
 		return false, errs
 	}
 	return true, errs
 }
 
-func rewriteDeclaredVarsInTermRecursive(g *localVarGenerator, stack *localDeclaredVars, term *Term, errs Errors) Errors {
+func rewriteDeclaredVarsInTermRecursive(g *localVarGenerator, stack *localDeclaredVars, term *Term, errs Errors, strict bool) Errors {
 	WalkNodes(term, func(n Node) bool {
 		var stop bool
 		switch n := n.(type) {
 		case *With:
-			_, errs = rewriteDeclaredVarsInTerm(g, stack, n.Value, errs)
+			_, errs = rewriteDeclaredVarsInTerm(g, stack, n.Value, errs, strict)
 			stop = true
 		case *Term:
-			stop, errs = rewriteDeclaredVarsInTerm(g, stack, n, errs)
+			stop, errs = rewriteDeclaredVarsInTerm(g, stack, n, errs, strict)
 		}
 		return stop
 	})
 	return errs
 }
 
-func rewriteDeclaredVarsInArrayComprehension(g *localVarGenerator, stack *localDeclaredVars, v *ArrayComprehension, errs Errors) Errors {
+func rewriteDeclaredVarsInArrayComprehension(g *localVarGenerator, stack *localDeclaredVars, v *ArrayComprehension, errs Errors, strict bool) Errors {
+	used := NewVarSet()
+	used.Update(v.Term.Vars())
+
 	stack.Push()
-	v.Body, errs = rewriteDeclaredVarsInBody(g, stack, nil, v.Body, errs)
-	errs = rewriteDeclaredVarsInTermRecursive(g, stack, v.Term, errs)
+	v.Body, errs = rewriteDeclaredVarsInBody(g, stack, used, v.Body, errs, strict)
+	errs = rewriteDeclaredVarsInTermRecursive(g, stack, v.Term, errs, strict)
 	stack.Pop()
 	return errs
 }
 
-func rewriteDeclaredVarsInSetComprehension(g *localVarGenerator, stack *localDeclaredVars, v *SetComprehension, errs Errors) Errors {
+func rewriteDeclaredVarsInSetComprehension(g *localVarGenerator, stack *localDeclaredVars, v *SetComprehension, errs Errors, strict bool) Errors {
+	used := NewVarSet()
+	used.Update(v.Term.Vars())
+
 	stack.Push()
-	v.Body, errs = rewriteDeclaredVarsInBody(g, stack, nil, v.Body, errs)
-	errs = rewriteDeclaredVarsInTermRecursive(g, stack, v.Term, errs)
+	v.Body, errs = rewriteDeclaredVarsInBody(g, stack, used, v.Body, errs, strict)
+	errs = rewriteDeclaredVarsInTermRecursive(g, stack, v.Term, errs, strict)
 	stack.Pop()
 	return errs
 }
 
-func rewriteDeclaredVarsInObjectComprehension(g *localVarGenerator, stack *localDeclaredVars, v *ObjectComprehension, errs Errors) Errors {
+func rewriteDeclaredVarsInObjectComprehension(g *localVarGenerator, stack *localDeclaredVars, v *ObjectComprehension, errs Errors, strict bool) Errors {
+	used := NewVarSet()
+	used.Update(v.Key.Vars())
+	used.Update(v.Value.Vars())
+
 	stack.Push()
-	v.Body, errs = rewriteDeclaredVarsInBody(g, stack, nil, v.Body, errs)
-	errs = rewriteDeclaredVarsInTermRecursive(g, stack, v.Key, errs)
-	errs = rewriteDeclaredVarsInTermRecursive(g, stack, v.Value, errs)
+	v.Body, errs = rewriteDeclaredVarsInBody(g, stack, used, v.Body, errs, strict)
+	errs = rewriteDeclaredVarsInTermRecursive(g, stack, v.Key, errs, strict)
+	errs = rewriteDeclaredVarsInTermRecursive(g, stack, v.Value, errs, strict)
 	stack.Pop()
 	return errs
 }
