@@ -2559,6 +2559,31 @@
       }
     },
     {
+      "name": "object.union_n",
+      "decl": {
+        "args": [
+          {
+            "dynamic": {
+              "dynamic": {
+                "key": {
+                  "type": "any"
+                },
+                "value": {
+                  "type": "any"
+                }
+              },
+              "type": "object"
+            },
+            "type": "array"
+          }
+        ],
+        "result": {
+          "type": "any"
+        },
+        "type": "function"
+      }
+    },
+    {
       "name": "opa.runtime",
       "decl": {
         "result": {
