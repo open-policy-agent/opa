@@ -22,6 +22,14 @@
     height: 100%;
 }
 
+#homebackground .banner-content,
+#homebackground .banner-subcontent {
+    padding-left: 15%;
+    padding-right: 15%;
+    text-align: left;
+    line-height: 1.3;
+}
+
 .support-card-content {
     height: 100%;
     overflow: hidden;
