@@ -109,10 +109,15 @@
 .line {
   align-items: center;
   margin: 1em -1em;
+  color: #2BB6E0;
+  font-weight: 700;
 }
 .line:before, .line:after {
   height: 1px;
   margin: 0 1em;
+}
+.line-first {
+  color: #fff;
 }
 
 .glow:before, .glow:after {
