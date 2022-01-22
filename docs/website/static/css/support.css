@@ -95,6 +95,40 @@
     object-fit: cover;
 }
 
+/* import adapted from https://codepen.io/benknight/pen/zxxeay for "light saber" lines  */
+
+.divider {
+  display: flex;
+  z-index: 99;
+}
+.divider:before, .divider:after {
+  content: "";
+  flex: 1;
+}
+
+.line {
+  align-items: center;
+  margin: 1em -1em;
+}
+.line:before, .line:after {
+  height: 1px;
+  margin: 0 1em;
+}
+
+.glow:before, .glow:after {
+  height: 6px;
+  filter: blur(5px);
+  border-radius: 5px;
+}
+.glow:before {
+  background: linear-gradient(to right, blue, #343a40);
+}
+.glow:after {
+  background: linear-gradient(to left, blue, #343a40);
+}
+
+/* END import */
+
 @media screen and (min-width: 350px) and (max-width: 400px) {
     .bg img {
         margin-top: unset;
