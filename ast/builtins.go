@@ -157,6 +157,7 @@ var DefaultBuiltins = [...]*Builtin{
 
 	// Object Manipulation
 	ObjectUnion,
+	ObjectUnionN,
 	ObjectRemove,
 	ObjectFilter,
 	ObjectGet,
@@ -1324,6 +1325,20 @@ var ObjectUnion = &Builtin{
 			types.NewObject(
 				nil,
 				types.NewDynamicProperty(types.A, types.A),
+			),
+		),
+		types.A,
+	),
+}
+
+// ObjectUnionN creates a new object that is the asymmetric union of all objects merged from left to right
+var ObjectUnionN = &Builtin{
+	Name: "object.union_n",
+	Decl: types.NewFunction(
+		types.Args(
+			types.NewArray(
+				nil,
+				types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)),
 			),
 		),
 		types.A,
