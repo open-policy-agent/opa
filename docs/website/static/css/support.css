@@ -31,6 +31,15 @@
     padding: 10px
 }
 
+.card-text .header {
+  font-weight: 700;
+}
+
+.card-text .subheader {
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
 .support-list {
     margin-top: 20px;
     z-index: 99;
