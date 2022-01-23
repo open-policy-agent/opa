@@ -29,6 +29,13 @@
     line-height: 1.3;
 }
 
+#homebackground .newsletter {
+  font-size: 24px;
+  line-height: 24px;
+  text-align: center;
+  padding: 0px 15px 30px 15px;
+}
+
 .support-card-content {
     height: 100%;
     overflow: hidden;
