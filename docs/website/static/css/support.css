@@ -45,6 +45,7 @@
 .card-text .subheader {
   margin-top: 0.5rem;
   margin-bottom: 0.5rem;
+  line-height: 1.3;
 }
 
 .support-list {
@@ -116,7 +117,7 @@
   height: 1px;
   margin: 0 1em;
 }
-.line-first {
+.line-darkbackground {
   color: #fff;
 }
 
