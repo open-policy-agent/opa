@@ -56,9 +56,10 @@
 }
 
 .support-list {
-    margin-top: 20px;
+    margin-top: -40px;
     z-index: 99;
     position: relative;
+    font-size: 18px;
 }
 
 .support-footer {
