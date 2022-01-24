@@ -1464,12 +1464,7 @@ func TestCompilerRewriteExprTerms(t *testing.T) {
 }
 
 func TestCompilerCheckDuplicateImports(t *testing.T) {
-	cases := []struct {
-		note           string
-		module         string
-		expectedErrors Errors
-		strict         bool
-	}{
+	cases := []strictnessTestCase{
 		{
 			note: "shadow",
 			module: `package test
@@ -1488,7 +1483,6 @@ func TestCompilerCheckDuplicateImports(t *testing.T) {
 					Message:  "import must not shadow import input.foo",
 				},
 			},
-			strict: true,
 		}, {
 			note: "alias shadow",
 			module: `package test
@@ -1502,35 +1496,86 @@ func TestCompilerCheckDuplicateImports(t *testing.T) {
 					Message:  "import must not shadow import input.foo",
 				},
 			},
-			strict: true,
-		}, {
-			note: "no strict",
-			module: `package test
-				import input.noconflict
-				import input.foo
-				import data.foo
-				import data.bar.foo
-				import input.bar as foo
-			`,
-			strict: false,
 		},
 	}
 
-	for _, tc := range cases {
-		t.Run(tc.note, func(t *testing.T) {
-			compiler := NewCompiler().WithStrict(tc.strict)
+	runStrictnessTestCase(t, cases, true)
+}
+
+func TestCompilerCheckDeprecatedMethods(t *testing.T) {
+	cases := []strictnessTestCase{
+		{
+			note: "all() built-in",
+			module: `package test
+				p := all([true, false])
+			`,
+			expectedErrors: Errors{
+				&Error{
+					Location: NewLocation([]byte("all([true, false])"), "", 2, 10),
+					Message:  "deprecated built-in function calls in expression: all",
+				},
+			},
+		},
+		{
+			note: "user-defined all()",
+			module: `package test
+				import future.keywords.in
+				all(arr) = {x | some x in arr} == {true}
+				p := all([true, false])
+			`,
+		},
+		{
+			note: "any() built-in",
+			module: `package test
+				p := any([true, false])
+			`,
+			expectedErrors: Errors{
+				&Error{
+					Location: NewLocation([]byte("any([true, false])"), "", 2, 10),
+					Message:  "deprecated built-in function calls in expression: any",
+				},
+			},
+		},
+		{
+			note: "user-defined any()",
+			module: `package test
+				import future.keywords.in
+				any(arr) = true in arr
+				p := any([true, false])
+			`,
+		},
+	}
+
+	runStrictnessTestCase(t, cases, true)
+}
+
+type strictnessTestCase struct {
+	note           string
+	module         string
+	expectedErrors Errors
+}
+
+func runStrictnessTestCase(t *testing.T, cases []strictnessTestCase, assertLocation bool) {
+	t.Helper()
+	makeTestRunner := func(tc strictnessTestCase, strict bool) func(t *testing.T) {
+		return func(t *testing.T) {
+			compiler := NewCompiler().WithStrict(strict)
 			compiler.Modules = map[string]*Module{
 				"test": MustParseModule(tc.module),
 			}
+			compileStages(compiler, nil)
 
-			compileStages(compiler, compiler.checkDuplicateImports)
-
-			if len(tc.expectedErrors) > 0 {
-				assertErrors(t, compiler.Errors, tc.expectedErrors, true)
+			if strict {
+				assertErrors(t, compiler.Errors, tc.expectedErrors, false)
 			} else {
 				assertNotFailed(t, compiler)
 			}
-		})
+		}
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note+"_strict", makeTestRunner(tc, true))
+		t.Run(tc.note+"_non-strict", makeTestRunner(tc, false))
 	}
 }
 
