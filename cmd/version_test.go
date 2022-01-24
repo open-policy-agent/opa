@@ -28,6 +28,7 @@ func TestGenerateCmdOutputDisableCheckFlag(t *testing.T) {
 		"Build Timestamp",
 		"Build Hostname",
 		"Go Version",
+		"Platform",
 		"WebAssembly",
 	})
 }
@@ -55,6 +56,7 @@ func TestGenerateCmdOutputWithCheckFlagNoError(t *testing.T) {
 		"Build Timestamp",
 		"Build Hostname",
 		"Go Version",
+		"Platform",
 		"WebAssembly",
 		"Latest Upstream Version",
 		"Release Notes",

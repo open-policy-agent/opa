@@ -42,6 +42,7 @@ func generateCmdOutput(out io.Writer, check bool) {
 	fmt.Fprintln(out, "Build Timestamp: "+version.Timestamp)
 	fmt.Fprintln(out, "Build Hostname: "+version.Hostname)
 	fmt.Fprintln(out, "Go Version: "+version.GoVersion)
+	fmt.Fprintln(out, "Platform: "+version.Platform)
 
 	var wasmAvailable string
 
