@@ -124,6 +124,7 @@ type Runner struct {
 	bundles               map[string]*bundle.Bundle
 	filter                string
 	target                string // target type (wasm, rego, etc.)
+	customBuiltins        []*Builtin
 }
 
 // NewRunner returns a new runner.
@@ -136,6 +137,16 @@ func NewRunner() *Runner {
 // SetCompiler sets the compiler used by the runner.
 func (r *Runner) SetCompiler(compiler *ast.Compiler) *Runner {
 	r.compiler = compiler
+	return r
+}
+
+type Builtin struct {
+	Decl *ast.Builtin
+	Func func(*rego.Rego)
+}
+
+func (r *Runner) AddCustomBuiltins(builtinsList []*Builtin) *Runner {
+	r.customBuiltins = builtinsList
 	return r
 }
 
@@ -275,7 +286,15 @@ func (r *Runner) runTests(ctx context.Context, txn storage.Transaction, enablePr
 	}
 
 	if r.compiler == nil {
+		capabilities := ast.CapabilitiesForThisVersion()
+
+		// Add custom builtins declarations to compiler
+		for _, builtin := range r.customBuiltins {
+			capabilities.Builtins = append(capabilities.Builtins, builtin.Decl)
+		}
+
 		r.compiler = ast.NewCompiler().
+			WithCapabilities(capabilities).
 			WithEnablePrintStatements(enablePrintStatements)
 	}
 
@@ -430,6 +449,11 @@ func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.
 		rego.Target(r.target),
 		rego.PrintHook(topdown.NewPrintHook(printbuf)),
 	)
+
+	// Register custom builtins on rego instance
+	for _, v := range r.customBuiltins {
+		v.Func(rg)
+	}
 
 	t0 := time.Now()
 	rs, err := rg.Eval(ctx)
