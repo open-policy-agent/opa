@@ -12,6 +12,7 @@ import (
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/cover"
+	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/tester"
 	"github.com/open-policy-agent/opa/topdown"
@@ -489,5 +490,85 @@ func registerSleepBuiltin() {
 		d, _ := time.ParseDuration(string(a.(ast.String)))
 		time.Sleep(d)
 		return ast.Null{}, nil
+	})
+}
+
+func TestRunnerWithCustomBuiltin(t *testing.T) {
+
+	var myBuiltinDecl = &ast.Builtin{
+		Name: "my_sum",
+		Decl: types.NewFunction(
+			types.Args(
+				types.N,
+				types.N,
+			),
+			types.N,
+		),
+	}
+
+	var myBuiltin = &tester.Builtin{
+		Decl: myBuiltinDecl,
+		Func: rego.Function2(
+			&rego.Function{
+				Name: myBuiltinDecl.Name,
+				Decl: myBuiltinDecl.Decl,
+			},
+			func(_ rego.BuiltinContext, a, b *ast.Term) (*ast.Term, error) {
+				var num1, num2 int
+				if err := ast.As(a.Value, &num1); err != nil {
+					return nil, err
+				}
+				if err := ast.As(b.Value, &num2); err != nil {
+					return nil, err
+				}
+				return ast.IntNumberTerm(num1 + num2), nil
+			},
+		),
+	}
+
+	files := map[string]string{
+		"/test.rego": `package test
+
+		test_a { my_sum(2,3) == 5 }
+		test_b { my_sum(5,4) == 1 }
+		test_c { my_sum(4,1.0) == 5 }`,
+	}
+
+	ctx := context.Background()
+
+	test.WithTempFS(files, func(d string) {
+		paths := []string{d}
+		modules, store, err := tester.Load(paths, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		txn := storage.NewTransactionOrDie(ctx, store)
+		runner := tester.NewRunner().SetStore(store).SetModules(modules).AddCustomBuiltins([]*tester.Builtin{myBuiltin})
+		ch, err := runner.RunTests(ctx, txn)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		var results []*tester.Result
+
+		for r := range ch {
+			results = append(results, r)
+		}
+
+		exp := map[string]bool{
+			"test_a": true,
+			"test_b": false,
+			"test_c": false,
+		}
+
+		got := map[string]bool{}
+
+		for _, tr := range results {
+			got[tr.Name] = tr.Pass()
+		}
+
+		if !reflect.DeepEqual(exp, got) {
+			t.Fatal("expected:", exp, "got:", got)
+		}
 	})
 }
