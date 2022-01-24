@@ -491,3 +491,54 @@ func registerSleepBuiltin() {
 		return ast.Null{}, nil
 	})
 }
+
+func TestRunnerWithUnknowns(t *testing.T) {
+	unknowns := []string{"data.my_unknown"}
+
+	files := map[string]string{
+		"/test.rego": `package test
+
+		test_a { true; data.my_unknown == "anyValue" }
+		test_b { data.my_unknown == "anyValue"; false }
+		test_c { true }
+		test_d { false }`,
+	}
+
+	ctx := context.Background()
+
+	test.WithTempFS(files, func(d string) {
+		paths := []string{d}
+		modules, store, err := tester.Load(paths, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		txn := storage.NewTransactionOrDie(ctx, store)
+		runner := tester.NewRunner().SetStore(store).SetModules(modules).SetUnknowns(unknowns)
+		ch, err := runner.RunTests(ctx, txn)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		var results []*tester.Result
+		for r := range ch {
+			results = append(results, r)
+		}
+
+		exp := map[string]bool{
+			"test_a": true,
+			"test_b": false,
+			"test_c": true,
+			"test_d": false,
+		}
+
+		got := map[string]bool{}
+
+		for _, tr := range results {
+			got[tr.Name] = tr.Pass()
+		}
+
+		if !reflect.DeepEqual(exp, got) {
+			t.Fatal("expected:", exp, "got:", got)
+		}
+	})
+}

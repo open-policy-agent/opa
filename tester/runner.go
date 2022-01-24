@@ -124,6 +124,7 @@ type Runner struct {
 	bundles               map[string]*bundle.Bundle
 	filter                string
 	target                string // target type (wasm, rego, etc.)
+	unknowns              []string
 }
 
 // NewRunner returns a new runner.
@@ -136,6 +137,11 @@ func NewRunner() *Runner {
 // SetCompiler sets the compiler used by the runner.
 func (r *Runner) SetCompiler(compiler *ast.Compiler) *Runner {
 	r.compiler = compiler
+	return r
+}
+
+func (r *Runner) SetUnknowns(unknowns []string) *Runner {
+	r.unknowns = unknowns
 	return r
 }
 
@@ -430,6 +436,15 @@ func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.
 		rego.Target(r.target),
 		rego.PrintHook(topdown.NewPrintHook(printbuf)),
 	)
+
+	// After this, I expect some logic to execute eval or partialEval (if there are or not unknowns)
+	// and the same output report for both the cases
+
+	//Register unknowns and evaluate partially
+	if len(r.unknowns) > 0 {
+		rego.Unknowns(r.unknowns)(rg)
+		// rg.PartialEval(ctx)
+	}
 
 	t0 := time.Now()
 	rs, err := rg.Eval(ctx)
