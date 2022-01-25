@@ -4,6 +4,7 @@ The following table lists OPA project maintainers and areas of expertise in alph
 
 | Name | GitHub | Email | Organization | Repositories/Area of Expertise | Added/Renewed On |
 | --- | --- | --- | --- | --- | --- |
+| Alistair Scott | @aliscott | ali.scott@gmail.com | Infracost | setup-opa | 2022-01-25 |
 | Ash Narkar | @ashutosh-narkar | anarkar4387@gmail.com | Styra | opa, opa-envoy-plugin | 2021-03-29 |
 | Craig Tabita | @ctab | ctab@google.com | Google | gatekeeper, gatekeeper-library, cert-controller  | 2021-03-29 |
 | Max Smythe | @maxsmythe | smythe@google.com | Google | frameworks/constraints, gatekeeper, gatekeeper-library, cert-controller | 2021-03-29 |
@@ -11,6 +12,7 @@ The following table lists OPA project maintainers and areas of expertise in alph
 | Rita Zhang | @ritazh | rita.z.zhang@gmail.com | Microsoft | frameworks/constraints, gatekeeper, gatekeeper-library, cert-controller | 2021-03-29 |
 | Sertaç Özercan | @sozercan | sozercan@gmail.com | Microsoft | gatekeeper, gatekeeper-library, cert-controller | 2021-03-29 |
 | Tim Hinrichs | @timothyhinrichs | timothy.l.hinrichs@gmail.com | Styra | all repositories | 2021-03-29 |
+| Tim McFadden | @tim775 | tim776@gmail.com | Infracost | setup-opa | 2022-01-25 |
 | Torin Sandall | @tsandall | torinsandall@gmail.com | Styra | all repositories | 2021-03-29 |
 
 ## Emeritus
