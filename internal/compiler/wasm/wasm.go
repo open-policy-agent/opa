@@ -1074,8 +1074,8 @@ func (c *Compiler) compileBlock(block *ir.Block) ([]instruction.Instruction, err
 				instrs = append(instrs, instruction.I32Eqz{})
 				instrs = append(instrs, instruction.BrIf{Index: 0})
 			} else {
-				// Booleans and strings would lead to the BrIf (since opa_value_get
-				// on them returns 0), so let's skip that.
+				// Booleans and string sources would lead to the BrIf (since opa_value_get
+				// on them returns 0), so let's skip trying that.
 				instrs = append(instrs, instruction.Br{Index: 0})
 				break
 			}
@@ -1484,7 +1484,7 @@ func (c *Compiler) compileCallDynamicStmt(stmt *ir.CallDynamicStmt, result *[]in
 		instruction.CallIndirect{Index: typeIndex}, // [arg0 arg1 tbl_idx] -> [res]
 		instruction.TeeLocal{Index: c.local(stmt.Result)},
 		instruction.I32Eqz{},
-		instruction.BrIf{Index: 2}, // mapping found, "undefined" result counts
+		instruction.BrIf{Index: 3}, // mapping found, "undefined" result counts
 	)
 
 	*result = append(*result, instrs...)
