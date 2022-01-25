@@ -26,6 +26,25 @@ func builtinObjectUnion(_ BuiltinContext, operands []*ast.Term, iter func(*ast.T
 	return iter(ast.NewTerm(r))
 }
 
+func builtinObjectUnionN(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	arr, err := builtins.ArrayOperand(operands[0].Value, 1)
+	if err != nil {
+		return err
+	}
+
+	r := ast.NewObject()
+	arr.Foreach(func(t *ast.Term) {
+		var o ast.Object
+		o, err = builtins.ObjectOperand(t.Value, 1)
+		r = mergeWithOverwrite(r, o)
+	})
+	if err != nil {
+		return err
+	}
+
+	return iter(ast.NewTerm(r))
+}
+
 func builtinObjectRemove(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	// Expect an object and an array/set/object of keys
 	obj, err := builtins.ObjectOperand(operands[0].Value, 1)
@@ -134,6 +153,7 @@ func mergeWithOverwrite(objA, objB ast.Object) ast.Object {
 
 func init() {
 	RegisterBuiltinFunc(ast.ObjectUnion.Name, builtinObjectUnion)
+	RegisterBuiltinFunc(ast.ObjectUnionN.Name, builtinObjectUnionN)
 	RegisterBuiltinFunc(ast.ObjectRemove.Name, builtinObjectRemove)
 	RegisterBuiltinFunc(ast.ObjectFilter.Name, builtinObjectFilter)
 	RegisterBuiltinFunc(ast.ObjectGet.Name, builtinObjectGet)

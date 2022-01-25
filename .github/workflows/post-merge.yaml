@@ -90,6 +90,13 @@ jobs:
         env:
           TELEMETRY_URL: ${{ secrets.TELEMETRY_URL }}
 
+      - name: Build Linux arm64
+        run: make ci-go-ci-build-linux ci-go-ci-build-linux-static
+        timeout-minutes: 30
+        env:
+          GOARCH: arm64
+          TELEMETRY_URL: ${{ secrets.TELEMETRY_URL }}
+
       - name: Upload binaries
         uses: actions/upload-artifact@v2
         if: always()
@@ -144,6 +151,9 @@ jobs:
         with:
           name: binaries
           path: _release
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
 
       - name: Deploy OPA Edge
         env:

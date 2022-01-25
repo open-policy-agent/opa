@@ -15,6 +15,9 @@ var Version = "0.37.0-dev"
 // GoVersion is the version of Go this was built with
 var GoVersion = runtime.Version()
 
+// Platform is the runtime OS and architecture of this OPA binary
+var Platform = runtime.GOOS + "/" + runtime.GOARCH
+
 // Additional version information that is displayed by the "version" command and used to
 // identify the version of running instances of OPA.
 var (
