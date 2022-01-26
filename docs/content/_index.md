@@ -651,9 +651,10 @@ On Linux (64-bit):
 curl -L -o opa https://openpolicyagent.org/downloads/{{< current_version >}}/opa_linux_amd64_static
 ```
 
-> Windows users can obtain the OPA executable from [here](https://openpolicyagent.org/downloads/{{< current_version >}}/opa_windows_amd64.exe).
-> The steps below
-> are the same for Windows users except the executable name will be different.
+{{< info >}}
+Windows users can obtain the OPA executable from [here](https://openpolicyagent.org/downloads/{{< current_version >}}/opa_windows_amd64.exe).
+The steps below are the same for Windows users except the executable name will be different.
+{{< /info >}}
 
 Set permissions on the OPA executable:
 
@@ -661,12 +662,16 @@ Set permissions on the OPA executable:
 chmod 755 ./opa
 ```
 
-> You can also download and run OPA via Docker. The latest stable image tag is
-> `openpolicyagent/opa:{{< current_docker_version >}}`.
+{{< info >}}
+You can also download and run OPA via Docker. The latest stable image tag is
+`openpolicyagent/opa:latest`.
+{{< /info >}}
 
 #### Checksums
+
 Checksums for all binaries are available in the download path by appending `.sha256` to the binary filename. 
 Verify the macOS binary checksum:
+
 ```shell
 curl -L -o opa_darwin_amd64 https://openpolicyagent.org/downloads/{{< current_version >}}/opa_darwin_amd64
 curl -L -o opa_darwin_amd64.sha256 https://openpolicyagent.org/downloads/{{< current_version >}}/opa_darwin_amd64.sha256
@@ -675,10 +680,10 @@ shasum -c opa_darwin_amd64.sha256
 
 ### 2. Try `opa eval`
 
-The simplest way to interact with OPA is via the command-line using the `opa
-eval` sub-command. `opa eval` is a swiss-army knife that you can use to evaluate
-arbitrary Rego expressions and policies. `opa eval` supports a large number of
-options for controlling evaluation. Commonly used flags include:
+The simplest way to interact with OPA is via the command-line using the [`opa eval` sub-command](cli/#opa-eval).
+It is a swiss-army knife that you can use to evaluate arbitrary Rego expressions and policies.
+`opa eval` supports a large number of options for controlling evaluation.
+Commonly used flags include:
 
 | Flag | Short | Description |
 | --- | --- | --- |
@@ -761,8 +766,9 @@ echo $?
 
 ### 3. Try `opa run` (interactive)
 
-OPA includes an interactive shell or REPL (Read-Eval-Print-Loop). You can use
-the REPL to experiment with policies and prototype new ones.
+OPA includes an interactive shell or REPL (Read-Eval-Print-Loop) accessible via
+the [`opa run` sub-command](cli/#opa-run).
+You can use the REPL to experiment with policies and prototype new ones.
 
 To start the REPL just:
 
@@ -838,10 +844,12 @@ opa run example.rego repl.input:input.json
 > data.example.public_server[s]
 ```
 
-> 💡 Prefixing file paths with a reference controls where file is loaded under
-> `data`. By convention, the REPL sets the `input` document that queries see by
-> reading `data.repl.input` each time a statement is evaluated. See `help input`
-> for details in the REPL.
+{{< info >}}
+Prefixing file paths with a reference controls where file is loaded under
+`data`. By convention, the REPL sets the `input` document that queries see by
+reading `data.repl.input` each time a statement is evaluated. See `help input`
+for details in the REPL.
+{{< /info >}}
 
 Quit out of the REPL by pressing Control-D or typing `exit`:
 
