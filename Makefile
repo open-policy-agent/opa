@@ -45,7 +45,8 @@ DOCKER := docker
 export DOCKER_BUILDKIT := 1
 
 # Supported platforms to include in image manifest lists
-DOCKER_PLATFORMS := linux/amd64,linux/arm64
+DOCKER_PLATFORMS := linux/amd64
+DOCKER_PLATFORMS_STATIC := linux/amd64,linux/arm64
 
 BIN := opa_$(GOOS)_$(GOARCH)
 
@@ -329,6 +330,7 @@ image-quick: image-quick-$(GOARCH)
 # % = arch
 .PHONY: image-quick-%
 image-quick-%: ensure-executable-bin
+ifneq ($(GOARCH),arm64) # build only static images for arm64
 	$(DOCKER) build \
 		-t $(DOCKER_IMAGE):$(VERSION) \
 		--build-arg BASE=gcr.io/distroless/cc \
@@ -348,6 +350,7 @@ image-quick-%: ensure-executable-bin
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		--platform linux/$* \
 		.
+endif
 	$(DOCKER) build \
 		-t $(DOCKER_IMAGE):$(VERSION)-static \
 		--build-arg BASE=gcr.io/distroless/static \
@@ -386,7 +389,7 @@ push-manifest-list-%: ensure-executable-bin
 		--build-arg BASE=gcr.io/distroless/static \
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		--build-arg BIN_SUFFIX=_static \
-		--platform $(DOCKER_PLATFORMS) \
+		--platform $(DOCKER_PLATFORMS_STATIC) \
 		--push \
 		.
 
@@ -396,11 +399,14 @@ ci-image-smoke-test: ci-image-smoke-test-$(GOARCH)
 # % = arch
 .PHONY: ci-image-smoke-test-%
 ci-image-smoke-test-%: image-quick-%
+ifneq ($(GOARCH),arm64) # we build only static images for arm64
 	$(DOCKER) run --platform linux/$* $(DOCKER_IMAGE):$(VERSION) version
 	$(DOCKER) run --platform linux/$* $(DOCKER_IMAGE):$(VERSION)-debug version
 	$(DOCKER) run --platform linux/$* $(DOCKER_IMAGE):$(VERSION)-rootless version
+endif
 	$(DOCKER) run --platform linux/$* $(DOCKER_IMAGE):$(VERSION)-static version
 
+# % = rego/wasm
 .PHONY: ci-binary-smoke-test-%
 ci-binary-smoke-test-%:
 	chmod +x "$(RELEASE_DIR)/$(BINARY)"

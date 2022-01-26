@@ -37,7 +37,7 @@ jobs:
             arch: amd64
           - os: linux
             run: ubuntu-18.04
-            targets: ci-go-ci-build-linux ci-go-ci-build-linux-static
+            targets: ci-go-ci-build-linux-static
             arch: arm64
           - os: windows
             run: ubuntu-18.04
