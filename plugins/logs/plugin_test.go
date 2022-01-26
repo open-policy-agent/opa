@@ -942,6 +942,8 @@ func TestPluginTriggerManual(t *testing.T) {
 	fixture := newTestFixture(t)
 	defer fixture.server.stop()
 
+	fixture.server.server.Config.SetKeepAlivesEnabled(false)
+
 	fixture.server.ch = make(chan []EventV1, 4)
 	tr := plugins.TriggerManual
 	fixture.plugin.config.Reporting.Trigger = &tr
