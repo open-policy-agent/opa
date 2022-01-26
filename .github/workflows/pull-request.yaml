@@ -78,7 +78,7 @@ jobs:
           path: _release
 
   go-test:
-    name: Go Test (${{ matrix.os }})
+    name: Go Test (${{ matrix.os }}${{ matrix.arch && format(' {0}', matrix.arch) || '' }})
     runs-on: ${{ matrix.run }}
     needs: generate
     strategy:
@@ -87,11 +87,20 @@ jobs:
         include:
           - os: linux
             run: ubuntu-18.04
+          - os: linux
+            run: ubuntu-18.04
+            arch: arm64
           - os: darwin
             run: macos-latest
     steps:
       - name: Check out code
         uses: actions/checkout@v2
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+        with:
+          platforms: arm64
+        if: matrix.arch == 'arm64'
 
       - id: go_version
         name: Read go version
@@ -101,6 +110,7 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: ${{ steps.go_version.outputs.go_version }}
+        if: matrix.arch != 'arm64'
 
       - name: Download generated artifacts
         uses: actions/download-artifact@v2
@@ -110,6 +120,16 @@ jobs:
       - name: Unit Test Golang
         run: make test-coverage
         timeout-minutes: 30
+        if: matrix.arch != 'arm64'
+
+      - name: Unit Test Golang (arm64)
+        run: make ci-go-test-coverage
+        env:
+          GOARCH: arm64
+          WASM_ENABLED: 0
+          CGO_ENABLED: 0
+        timeout-minutes: 30
+        if: matrix.arch == 'arm64'
 
   go-perf:
     name: Go Perf

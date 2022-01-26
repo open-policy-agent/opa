@@ -252,6 +252,7 @@ CI_GOLANG_DOCKER_MAKE := $(DOCKER) run \
 	golang:$(GOVERSION) \
 	make
 
+# % = another make target
 .PHONY: ci-go-%
 ci-go-%: generate
 	$(CI_GOLANG_DOCKER_MAKE) $*
