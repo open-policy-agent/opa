@@ -33,7 +33,7 @@ jobs:
           TELEMETRY_URL: ${{ secrets.TELEMETRY_URL }}
 
       - name: Build Linux arm64
-        run: make ci-go-ci-build-linux ci-go-ci-build-linux-static
+        run: make ci-go-ci-build-linux-static
         timeout-minutes: 30
         env:
           GOARCH: arm64
