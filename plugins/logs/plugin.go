@@ -18,7 +18,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pkg/errors"
 	"golang.org/x/time/rate"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -282,7 +281,7 @@ func (c *Config) validateAndInjectDefaults(services []string, pluginsList []stri
 
 	t, err := plugins.ValidateAndInjectDefaultsForTriggerMode(trigger, c.Reporting.Trigger)
 	if err != nil {
-		return errors.Wrap(err, "invalid decision_log config")
+		return fmt.Errorf("invalid decision_log config: %w", err)
 	}
 	c.Reporting.Trigger = t
 
@@ -336,7 +335,7 @@ func (c *Config) validateAndInjectDefaults(services []string, pluginsList []stri
 
 	c.maskDecisionRef, err = ref.ParseDataPath(*c.MaskDecision)
 	if err != nil {
-		return errors.Wrap(err, "invalid mask_decision in decision_logs")
+		return fmt.Errorf("invalid mask_decision in decision_logs: %w", err)
 	}
 
 	if c.PartitionName != "" {
@@ -891,7 +890,7 @@ func uploadChunk(ctx context.Context, client rest.Client, uploadPath string, dat
 		Do(ctx, "POST", uploadPath)
 
 	if err != nil {
-		return errors.Wrap(err, "Log upload failed")
+		return fmt.Errorf("log upload failed: %w", err)
 	}
 
 	defer util.Close(resp)
@@ -900,11 +899,11 @@ func uploadChunk(ctx context.Context, client rest.Client, uploadPath string, dat
 	case http.StatusOK:
 		return nil
 	case http.StatusNotFound:
-		return fmt.Errorf("Log upload failed, server replied with not found")
+		return fmt.Errorf("log upload failed, server replied with not found")
 	case http.StatusUnauthorized:
-		return fmt.Errorf("Log upload failed, server replied with not authorized")
+		return fmt.Errorf("log upload failed, server replied with not authorized")
 	default:
-		return fmt.Errorf("Log upload failed, server replied with HTTP %v", resp.StatusCode)
+		return fmt.Errorf("log upload failed, server replied with HTTP %v", resp.StatusCode)
 	}
 }
 
