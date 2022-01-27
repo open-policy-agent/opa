@@ -187,10 +187,6 @@ func ParseRuleFromExpr(module *Module, expr *Expr) (*Rule, error) {
 		return parseCompleteRuleFromEq(module, expr)
 	}
 
-	if _, ok := BuiltinMap[expr.Operator().String()]; ok {
-		return nil, fmt.Errorf("rule name conflicts with built-in function")
-	}
-
 	return ParseRuleFromCallExpr(module, expr.Terms.([]*Term))
 }
 

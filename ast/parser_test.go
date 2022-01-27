@@ -1959,7 +1959,6 @@ func TestModuleParseErrors(t *testing.T) {
 	x = 1			# expect package
 	package a  		# unexpected package
 	1 = 2			# non-var head
-	1 != 2			# non-equality expr
 	x = y; x = 1    # multiple exprs
 	`
 
@@ -1973,8 +1972,8 @@ func TestModuleParseErrors(t *testing.T) {
 		panic("unexpected error value")
 	}
 
-	if len(errs) != 5 {
-		t.Fatalf("Expected exactly 5 errors but got: %v", err)
+	if len(errs) != 4 {
+		t.Fatalf("Expected exactly 4 errors but got: %v", err)
 	}
 }
 
@@ -2016,6 +2015,7 @@ data = 2
 f(1) = 2
 f(1)
 d1 := 1234
+gt(pi, 3)
 `
 
 	assertParseModule(t, "rules from bodies", testModule, &Module{
@@ -2038,6 +2038,7 @@ d1 := 1234
 			MustParseRule(`f(1) = 2 { true }`),
 			MustParseRule(`f(1) = true { true }`),
 			MustParseRule("d1 := 1234 { true }"),
+			MustParseRule(`gt(pi, 3) = true { true }`),
 		},
 	})
 
@@ -2079,16 +2080,46 @@ data = {"bar": 2}`
 		},
 	})
 
+	infix := `package a.b.c
+
+    2 > 1
+	2 >= 1
+	1 < 2
+	1 <= 2
+	1 == 1
+	1 != 2
+	1 + 2
+	1 - 2
+	1 * 2
+	1 / 2
+	1 % 2
+	a & b
+	a | b
+    `
+
+	assertParseModule(t, "infix", infix, &Module{
+		Package: MustParsePackage("package a.b.c"),
+		Rules: []*Rule{
+			MustParseRule(`gt(2, 1) = true { true }`),
+			MustParseRule(`gte(2, 1) = true { true }`),
+			MustParseRule(`lt(1, 2) = true { true }`),
+			MustParseRule(`lte(1, 2) = true { true }`),
+			MustParseRule(`equal(1, 1) = true { true }`),
+			MustParseRule(`neq(1, 2) = true { true }`),
+			MustParseRule(`plus(1, 2) = true { true }`),
+			MustParseRule(`minus(1, 2) = true { true }`),
+			MustParseRule(`mul(1, 2) = true { true }`),
+			MustParseRule(`div(1, 2) = true { true }`),
+			MustParseRule(`rem(1, 2) = true { true }`),
+			MustParseRule(`and(a, b) = true { true }`),
+			MustParseRule(`or(a, b) = true { true }`),
+		},
+	})
+
 	multipleExprs := `
     package a.b.c
 
     pi = 3.14159; pi > 3
-    `
-
-	nonEquality := `
-    package a.b.c
-
-    pi > 3
     `
 
 	nonVarName := `
@@ -2168,7 +2199,6 @@ data = {"bar": 2}`
 	eq(x)`
 
 	assertParseModuleError(t, "multiple expressions", multipleExprs)
-	assertParseModuleError(t, "non-equality", nonEquality)
 	assertParseModuleError(t, "non-var name", nonVarName)
 	assertParseModuleError(t, "with expr", withExpr)
 	assertParseModuleError(t, "bad ref (too long)", badRefLen1)
@@ -3376,6 +3406,7 @@ func assertParseImport(t *testing.T, msg string, input string, correct *Import, 
 }
 
 func assertParseModule(t *testing.T, msg string, input string, correct *Module, opts ...ParserOptions) {
+	t.Helper()
 	opt := ParserOptions{}
 	if len(opts) == 1 {
 		opt = opts[0]
@@ -3393,6 +3424,7 @@ func assertParseModule(t *testing.T, msg string, input string, correct *Module, 
 }
 
 func assertParseModuleError(t *testing.T, msg, input string) {
+	t.Helper()
 	m, err := ParseModule("", input)
 	if err == nil {
 		t.Errorf("Error on test \"%s\": expected parse error: %v (parsed)", msg, m)
