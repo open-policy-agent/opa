@@ -817,6 +817,45 @@ func TestPluginOneShotCompileError(t *testing.T) {
 
 }
 
+func TestPluginOneShotHTTPError(t *testing.T) {
+	ctx := context.Background()
+	manager := getTestManager()
+	plugin := New(&Config{}, manager)
+	bundleName := "test-bundle"
+	plugin.status[bundleName] = &Status{Name: bundleName}
+	plugin.downloaders[bundleName] = download.New(download.Config{}, plugin.manager.Client(""), bundleName)
+	ch := make(chan Status)
+	listenerName := "test"
+	plugin.Register(listenerName, func(status Status) {
+		ch <- status
+	})
+	go plugin.oneShot(ctx, bundleName, download.Update{Error: download.HTTPError{StatusCode: 403}})
+	s := <-ch
+	if s.HTTPCode != "403" {
+		t.Fatal("expected http_code to be 403 instead of ", s.HTTPCode)
+	}
+
+	module := "package foo\n\ncorge=1"
+	b := bundle.Bundle{
+		Manifest: bundle.Manifest{Revision: "quickbrownfaux"},
+		Data:     util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}}`)).(map[string]interface{}),
+		Modules: []bundle.ModuleFile{
+			{
+				Path:   "/foo/bar",
+				Parsed: ast.MustParseModule(module),
+				Raw:    []byte(module),
+			},
+		},
+	}
+
+	b.Manifest.Init()
+	go plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b})
+	s = <-ch
+	if s.HTTPCode != "" {
+		t.Fatal("expected http_code to be empty instead of ", s.HTTPCode)
+	}
+}
+
 func TestPluginOneShotActivationRemovesOld(t *testing.T) {
 
 	ctx := context.Background()
