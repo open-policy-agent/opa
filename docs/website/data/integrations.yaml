@@ -30,6 +30,20 @@ integrations:
     code:
       - https://github.com/dapr/dapr
 
+  fig:
+    title: fig
+    description: Beautiful shell autocompletion for OPA and many other commands, for Mac OS
+    software:
+      - fig
+    labels:
+      category: utilities
+      layer: shell
+    code:
+      - https://github.com/open-policy-agent/contrib/tree/main/opa_fig_autocomplete
+      - https://github.com/withfig/autocomplete/blob/master/src/opa.ts
+    inventors:
+      - fig
+
   sphinx-rego:
     title: Automatically document Rego policies
     description: Sphinx extension that automatically documents Open Policy Agent Rego policies using meta properties.
@@ -1071,7 +1085,7 @@ organizations:
     link: https://google.com
   travelnest:
     name: TravelNest
-    link: http://travelnest.com
+    link: https://travelnest.com
   ticketmaster:
     name: TicketMaster
     link: https://www.ticketmaster.com/
@@ -1084,6 +1098,9 @@ organizations:
   ceph:
     name: Ceph
     link: https://ceph.io/
+  fig:
+    name: fig
+    link: https://fig.io
   redhat:
     name: RedHat
     link: https://www.redhat.com
@@ -1176,20 +1193,24 @@ organizations:
     link: https://permit.io
   alertavert:
     name: AlertAVert.com
-    link: http://www.alertavert.com/
+    link: https://www.alertavert.com/
   zenity:
     name: Zenity
-    link: http://www.zenity.io
+    link: https://www.zenity.io
   apache-apisix:
     name: Apache APISIX
     link: https://apisix.apache.org/
   armo:
     name: ARMO
     link: https://armosec.io
+
 software:
   dapr:
     name: Dapr
     link: https://dapr.io/
+  fig:
+    name: fig
+    link: https://fig.io
   kubernetes:
     name: Kubernetes
     link: https://kubernetes.io
@@ -1225,7 +1246,7 @@ software:
     link: https://cloud.google.com/
   azure:
     name: Microsoft Public Cloud
-    link: http://azure.microsoft.com/
+    link: https://azure.microsoft.com/
   java:
     name: Java
     link: https://www.java.com/

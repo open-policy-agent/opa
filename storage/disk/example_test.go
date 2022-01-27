@@ -75,6 +75,9 @@ func Example_store() {
 	value, err := storage.ReadOne(ctx, store2, storage.MustParsePath("/authz/tenants/acmecorp.openpolicyagent.org"))
 	check(err)
 
+	err = store2.Close(ctx)
+	check(err)
+
 	fmt.Println(value)
 
 	// Output:
