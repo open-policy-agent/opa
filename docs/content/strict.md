@@ -14,8 +14,9 @@ Compiler Strict mode is supported by the `check` command, and can be enabled thr
 -S, --strict enable compiler strict mode
 ```
 
-## Strict Mode Rules
+## Strict Mode Constraints and Checks
 
-Name | Description | Enforced in OPA version
+Name | Description | Enforced by default in OPA version
 --- | --- | ---
 Duplicate imports | Duplicate [imports](../policy-language/#imports), where one import shadows another, are prohibited. | 1.0
+Unused local assignments | Unused [assignments](../policy-reference/#assignment-and-equality) local to a rule, function or comprehension are prohibited | 1.0 

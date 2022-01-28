@@ -3341,6 +3341,439 @@ func TestCompilerMockVirtualDocumentPartially(t *testing.T) {
 	assertCompilerErrorStrings(t, c, []string{"rego_compile_error: with keyword cannot partially replace virtual document(s)"})
 }
 
+func TestCompilerCheckUnusedAssignedVar(t *testing.T) {
+	type testCase struct {
+		note           string
+		module         string
+		expectedErrors Errors
+	}
+
+	cases := []testCase{
+		{
+			note: "global var",
+			module: `package test
+				x := 1
+			`,
+		},
+		{
+			note: "simple rule with wildcard",
+			module: `package test
+				p {
+					_ := 1
+				}
+			`,
+		},
+		{
+			note: "simple rule",
+			module: `package test
+				p {
+					x := 1
+					y := 2
+					z := x + 3
+				}
+			`,
+			expectedErrors: Errors{
+				&Error{Message: "assigned var y unused"},
+				&Error{Message: "assigned var z unused"},
+			},
+		},
+		{
+			note: "rule with return",
+			module: `package test
+				p = x {
+					x := 2
+					y := 3
+				}
+			`,
+			expectedErrors: Errors{
+				&Error{Message: "assigned var y unused"},
+			},
+		},
+		{
+			note: "rule with function call",
+			module: `package test
+				p {
+					x := 2
+					y := f(x)
+				}
+			`,
+			expectedErrors: Errors{
+				&Error{Message: "assigned var y unused"},
+			},
+		},
+		{
+			note: "rule with nested array comprehension",
+			module: `package test
+				p {
+					x := 2
+					y := [z | z := 2 * x]
+				}
+			`,
+			expectedErrors: Errors{
+				&Error{Message: "assigned var y unused"},
+			},
+		},
+		{
+			note: "rule with nested array comprehension and shadowing",
+			module: `package test
+				p {
+					x := 2
+					y := [x | x := 2 * x]
+				}
+			`,
+			expectedErrors: Errors{
+				&Error{Message: "assigned var y unused"},
+			},
+		},
+		{
+			note: "rule with nested array comprehension and shadowing (unused shadowed var)",
+			module: `package test
+				p {
+					x := 2
+					y := [x | x := 2]
+				}
+			`,
+			expectedErrors: Errors{
+				&Error{Message: "assigned var x unused"},
+				&Error{Message: "assigned var y unused"},
+			},
+		},
+		{
+			note: "rule with nested array comprehension and shadowing (unused shadowing var)",
+			module: `package test
+				p {
+					x := 2
+					x > 1
+					[1 | x := 2]
+				}
+			`,
+			expectedErrors: Errors{
+				&Error{Message: "assigned var x unused"},
+			},
+		},
+		{
+			note: "rule with nested array comprehension and some declaration",
+			module: `package test
+				p {
+					some i
+					_ := [z | z := [1, 2][i]]
+				}
+			`,
+		},
+		{
+			note: "rule with nested set comprehension",
+			module: `package test
+				p {
+					x := 2
+					y := {z | z := 2 * x}
+				}
+			`,
+			expectedErrors: Errors{
+				&Error{Message: "assigned var y unused"},
+			},
+		},
+		{
+			note: "rule with nested set comprehension and unused inner var",
+			module: `package test
+				p {
+					x := 2
+					y := {z | z := 2 * x; a := 2}
+				}
+			`,
+			expectedErrors: Errors{
+				&Error{Message: "assigned var a unused"}, // y isn't reported, as we abort early on errors when moving through the stack
+			},
+		},
+		{
+			note: "rule with nested object comprehension",
+			module: `package test
+				p {
+					x := 2
+					y := {z: x | z := 2 * x}
+				}
+			`,
+			expectedErrors: Errors{
+				&Error{Message: "assigned var y unused"},
+			},
+		},
+		{
+			note: "rule with nested closure",
+			module: `package test
+				p { 
+					x := 1
+					a := 1
+					{ y | y := [ z | z:=[1,2,3][a]; z > 1 ][_] }
+				}
+			`,
+			expectedErrors: Errors{
+				&Error{Message: "assigned var x unused"},
+			},
+		},
+		{
+			note: "rule with nested closure and unused inner var",
+			module: `package test
+				p { 
+					x := 1
+					{ y | y := [ z | z:=[1,2,3][x]; z > 1; a := 2 ][_] }
+				}
+			`,
+			expectedErrors: Errors{
+				&Error{Message: "assigned var a unused"},
+			},
+		},
+		{
+			note: "simple function",
+			module: `package test
+				f() {
+					x := 1
+					y := 2
+				}
+			`,
+			expectedErrors: Errors{
+				&Error{Message: "assigned var x unused"},
+				&Error{Message: "assigned var y unused"},
+			},
+		},
+		{
+			note: "simple function with wildcard",
+			module: `package test
+				f() {
+					x := 1
+					_ := 2
+				}
+			`,
+			expectedErrors: Errors{
+				&Error{Message: "assigned var x unused"},
+			},
+		},
+		{
+			note: "function with return",
+			module: `package test
+				f() = x {
+					x := 1
+					y := 2
+				}
+			`,
+			expectedErrors: Errors{
+				&Error{Message: "assigned var y unused"},
+			},
+		},
+		{
+			note: "array comprehension",
+			module: `package test
+				comp = [ 1 |
+					x := [1, 2, 3]
+					y := 2
+					z := x[_]
+				]
+			`,
+			expectedErrors: Errors{
+				&Error{Message: "assigned var y unused"},
+				&Error{Message: "assigned var z unused"},
+			},
+		},
+		{
+			note: "array comprehension nested",
+			module: `package test
+				comp := [ 1 |
+					x := 1
+					y := [a | a := x]
+				]
+			`,
+			expectedErrors: Errors{
+				&Error{Message: "assigned var y unused"},
+			},
+		},
+		{
+			note: "array comprehension with wildcard",
+			module: `package test
+				comp = [ 1 |
+					x := [1, 2, 3]
+					_ := 2
+					z := x[_]
+				]
+			`,
+			expectedErrors: Errors{
+				&Error{Message: "assigned var z unused"},
+			},
+		},
+		{
+			note: "array comprehension with return",
+			module: `package test
+				comp = [ z |
+					x := [1, 2, 3]
+					y := 2
+					z := x[_]
+				]
+			`,
+			expectedErrors: Errors{
+				&Error{Message: "assigned var y unused"},
+			},
+		},
+		{
+			note: "array comprehension with some",
+			module: `package test
+				comp = [ i |
+					some i
+					y := 2
+				]
+			`,
+			expectedErrors: Errors{
+				&Error{Message: "assigned var y unused"},
+			},
+		},
+		{
+			note: "set comprehension",
+			module: `package test
+				comp = { 1 |
+					x := [1, 2, 3]
+					y := 2
+					z := x[_]
+				}
+			`,
+			expectedErrors: Errors{
+				&Error{Message: "assigned var y unused"},
+				&Error{Message: "assigned var z unused"},
+			},
+		},
+		{
+			note: "set comprehension nested",
+			module: `package test
+				comp := { 1 |
+					x := 1
+					y := [a | a := x]
+				}
+			`,
+			expectedErrors: Errors{
+				&Error{Message: "assigned var y unused"},
+			},
+		},
+		{
+			note: "set comprehension with wildcard",
+			module: `package test
+				comp = { 1 |
+					x := [1, 2, 3]
+					_ := 2
+					z := x[_]
+				}
+			`,
+			expectedErrors: Errors{
+				&Error{Message: "assigned var z unused"},
+			},
+		},
+		{
+			note: "set comprehension with return",
+			module: `package test
+				comp = { z |
+					x := [1, 2, 3]
+					y := 2
+					z := x[_]
+				}
+			`,
+			expectedErrors: Errors{
+				&Error{Message: "assigned var y unused"},
+			},
+		},
+		{
+			note: "set comprehension with some",
+			module: `package test
+				comp = { i |
+					some i
+					y := 2
+				}
+			`,
+			expectedErrors: Errors{
+				&Error{Message: "assigned var y unused"},
+			},
+		},
+		{
+			note: "object comprehension",
+			module: `package test
+				comp = { 1: 2 |
+					x := [1, 2, 3]
+					y := 2
+					z := x[_]
+				}
+			`,
+			expectedErrors: Errors{
+				&Error{Message: "assigned var y unused"},
+				&Error{Message: "assigned var z unused"},
+			},
+		},
+		{
+			note: "object comprehension nested",
+			module: `package test
+				comp := { 1: 1 |
+					x := 1
+					y := {a: x | a := x}
+				}
+			`,
+			expectedErrors: Errors{
+				&Error{Message: "assigned var y unused"},
+			},
+		},
+		{
+			note: "object comprehension with wildcard",
+			module: `package test
+				comp = { 1: 2 |
+					x := [1, 2, 3]
+					_ := 2
+					z := x[_]
+				}
+			`,
+			expectedErrors: Errors{
+				&Error{Message: "assigned var z unused"},
+			},
+		},
+		{
+			note: "object comprehension with return",
+			module: `package test
+				comp = { z: x |
+					x := [1, 2, 3]
+					y := 2
+					z := x[_]
+				}
+			`,
+			expectedErrors: Errors{
+				&Error{Message: "assigned var y unused"},
+			},
+		},
+		{
+			note: "object comprehension with some",
+			module: `package test
+				comp = { i |
+					some i
+					y := 2
+				}
+			`,
+			expectedErrors: Errors{
+				&Error{Message: "assigned var y unused"},
+			},
+		},
+	}
+
+	makeTestRunner := func(tc testCase, strict bool) func(t *testing.T) {
+		return func(t *testing.T) {
+			compiler := NewCompiler().WithStrict(strict)
+			compiler.Modules = map[string]*Module{
+				"test": MustParseModule(tc.module),
+			}
+			compileStages(compiler, compiler.rewriteLocalVars)
+
+			if strict {
+				assertErrors(t, compiler.Errors, tc.expectedErrors, false)
+			} else {
+				assertNotFailed(t, compiler)
+			}
+		}
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note+"_strict", makeTestRunner(tc, true))
+		t.Run(tc.note+"_non-strict", makeTestRunner(tc, false))
+	}
+}
+
 func TestCompilerSetGraph(t *testing.T) {
 	c := NewCompiler()
 	c.Modules = getCompilerTestModules()
@@ -4781,6 +5214,57 @@ func TestQueryCompilerWithUnsafeBuiltins(t *testing.T) {
 	_, err := c.QueryCompiler().WithUnsafeBuiltins(map[string]struct{}{}).Compile(MustParseBody("count([])"))
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestQueryCompilerWithUnusedAssignedVar(t *testing.T) {
+	type testCase struct {
+		note           string
+		query          string
+		expectedErrors error
+	}
+
+	cases := []testCase{
+		{
+			note:           "array comprehension",
+			query:          "[1 | x := 2]",
+			expectedErrors: fmt.Errorf("1 error occurred: 1:6: rego_compile_error: assigned var x unused"),
+		},
+		{
+			note:           "set comprehension",
+			query:          "{1 | x := 2}",
+			expectedErrors: fmt.Errorf("1 error occurred: 1:6: rego_compile_error: assigned var x unused"),
+		},
+		{
+			note:           "object comprehension",
+			query:          "{1: 2 | x := 2}",
+			expectedErrors: fmt.Errorf("1 error occurred: 1:9: rego_compile_error: assigned var x unused"),
+		},
+	}
+
+	makeTestRunner := func(tc testCase, strict bool) func(t *testing.T) {
+		return func(t *testing.T) {
+			c := NewCompiler().WithStrict(strict)
+			result, err := c.QueryCompiler().Compile(MustParseBody(tc.query))
+
+			if strict {
+				if err == nil {
+					t.Fatalf("Expected error from %v but got: %v", tc.query, result)
+				}
+				if !strings.Contains(err.Error(), tc.expectedErrors.Error()) {
+					t.Fatalf("Expected error %v but got: %v", tc.expectedErrors, err)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("Unexpected error from %v: %v", tc.query, err)
+				}
+			}
+		}
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note+"_strict", makeTestRunner(tc, true))
+		t.Run(tc.note+"_non-strict", makeTestRunner(tc, false))
 	}
 }
 
