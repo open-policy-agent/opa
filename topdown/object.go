@@ -6,6 +6,7 @@ package topdown
 
 import (
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/internal/ref"
 	"github.com/open-policy-agent/opa/topdown/builtins"
 	"github.com/open-policy-agent/opa/types"
 )
@@ -100,11 +101,29 @@ func builtinObjectGet(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Ter
 		return err
 	}
 
-	if ret := object.Get(operands[1]); ret != nil {
-		return iter(ret)
+	// if the get key is not an array, attempt to get the top level key for the operand value in the object
+	path, err := builtins.ArrayOperand(operands[1].Value, 2)
+	if err != nil {
+		if ret := object.Get(operands[1]); ret != nil {
+			return iter(ret)
+		}
+
+		return iter(operands[2])
 	}
 
-	return iter(operands[2])
+	// if the path is empty, then we skip selecting nested keys and return the whole object
+	if path.Len() == 0 {
+		return iter(operands[0])
+	}
+
+	// build an ast.Ref from the array and see if it matches within the object
+	pathRef := ref.ArrayPath(path)
+	value, err := object.Find(pathRef)
+	if err != nil {
+		return iter(operands[2])
+	}
+
+	return iter(ast.NewTerm(value))
 }
 
 // getObjectKeysParam returns a set of key values
