@@ -961,3 +961,109 @@ func TestBufferTracerTraceConfig(t *testing.T) {
 		t.Fatalf("Expected config: %+v, got %+v", expected, conf)
 	}
 }
+
+func TestTraceInput(t *testing.T) {
+	ctx := context.Background()
+	module := `
+		package test
+
+		rule = x {
+			x = input.v
+		}
+	`
+
+	compiler := compileModules([]string{module})
+	queryCompiler := compiler.QueryCompiler()
+
+	compiledQuery, err := queryCompiler.Compile(ast.MustParseBody("{x | v = [1, 2, 3][_];  x = data.test.rule with input.v as v}"))
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	tracer := NewBufferTracer()
+	query := NewQuery(compiledQuery).
+		WithQueryCompiler(queryCompiler).
+		WithCompiler(compiler).
+		WithStore(inmem.New()).
+		WithQueryTracer(tracer)
+
+	if _, err := query.Run(ctx); err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	num := 1
+	for i, evt := range *tracer {
+		if evt.Op == ExitOp && evt.HasRule() {
+			input := evt.Input().Value
+			expected := ast.NewObject([2]*ast.Term{ast.StringTerm("v"), ast.IntNumberTerm(num)})
+			if input.Compare(expected) != 0 {
+				t.Errorf("%v != %v at index %d", input, expected, i)
+			}
+			num++
+		}
+	}
+}
+
+func TestTracePlug(t *testing.T) {
+	ctx := context.Background()
+	module := `
+		package test
+
+		rule[[a, b]] {
+			a = [1, 2][_]
+			b = [2, 1][_]
+		}
+	`
+
+	compiler := compileModules([]string{module})
+	queryCompiler := compiler.QueryCompiler()
+
+	compiledQuery, err := queryCompiler.Compile(ast.MustParseBody("data.test.rule"))
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	tracer := plugRuleHeadKeyRecorder{}
+	query := NewQuery(compiledQuery).
+		WithQueryCompiler(queryCompiler).
+		WithCompiler(compiler).
+		WithStore(inmem.New()).
+		WithQueryTracer(&tracer)
+
+	if _, err := query.Run(ctx); err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	expected := []ast.Value{
+		ast.NewArray(ast.NumberTerm("1"), ast.NumberTerm("2")),
+		ast.NewArray(ast.NumberTerm("1"), ast.NumberTerm("1")),
+		ast.NewArray(ast.NumberTerm("2"), ast.NumberTerm("2")),
+		ast.NewArray(ast.NumberTerm("2"), ast.NumberTerm("1")),
+	}
+
+	if len(tracer) != len(expected) {
+		t.Fatalf("unexpected result length %d", len(tracer))
+	}
+
+	for i, value := range tracer {
+		if value.Compare(expected[i]) != 0 {
+			t.Errorf("%v != %v at index %d", value, expected[i], i)
+		}
+	}
+}
+
+type plugRuleHeadKeyRecorder []ast.Value
+
+func (plugRuleHeadKeyRecorder) Enabled() bool {
+	return true
+}
+
+func (pr *plugRuleHeadKeyRecorder) TraceEvent(evt Event) {
+	if evt.Op == ExitOp && evt.HasRule() {
+		*pr = append(*pr, evt.Plug(evt.Node.(*ast.Rule).Head.Key).Value)
+	}
+}
+
+func (plugRuleHeadKeyRecorder) Config() TraceConfig {
+	return TraceConfig{PlugLocalVars: false}
+}
