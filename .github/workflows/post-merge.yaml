@@ -13,7 +13,7 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v2
         with:
-          token: ${{ secrets.GITHUB_TOKEN_ACTION }} # required to push to protected branch below
+          token: ${{ secrets.GH_PUSH_TOKEN }} # required to push to protected branch below
 
       - name: Generate
         run: make clean generate docs-generate-cli-docs
