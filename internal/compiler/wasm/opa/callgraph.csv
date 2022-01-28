@@ -523,7 +523,7 @@ builtin_object_filter,opa_value_get
 builtin_object_filter,opa_object_get
 builtin_object_filter,opa_object_insert
 builtin_object_get,opa_value_type
-builtin_object_get,opa_object_get
+builtin_object_get,opa_value_get
 builtin_object_remove,opa_value_type
 builtin_object_remove,opa_set
 builtin_object_remove,opa_value_iter

@@ -12,6 +12,8 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@v2
+        with:
+          token: ${{ secrets.GH_PUSH_TOKEN }} # required to push to protected branch below
 
       - name: Generate
         run: make clean generate docs-generate-cli-docs
