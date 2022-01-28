@@ -107,11 +107,6 @@ func (c *Config) validateAndInjectDefaults(services []string, pluginsList []stri
 		}
 	}
 
-	// If a plugin or service wasn't found, and console logging isn't enabled.
-	if c.Plugin == nil && c.Service == "" && !c.ConsoleLogs {
-		return fmt.Errorf("invalid status config, must have a `service`, `plugin`, or `console` logging specified")
-	}
-
 	t, err := plugins.ValidateAndInjectDefaultsForTriggerMode(trigger, c.Trigger)
 	if err != nil {
 		return errors.Wrap(err, "invalid status config")
@@ -174,6 +169,11 @@ func (b *ConfigBuilder) Parse() (*Config, error) {
 
 	if err := util.Unmarshal(b.raw, &parsedConfig); err != nil {
 		return nil, err
+	}
+
+	if parsedConfig.Plugin == nil && parsedConfig.Service == "" && len(b.services) == 0 && !parsedConfig.ConsoleLogs {
+		// Nothing to validate or inject
+		return nil, nil
 	}
 
 	if err := parsedConfig.validateAndInjectDefaults(b.services, b.plugins, b.trigger); err != nil {
