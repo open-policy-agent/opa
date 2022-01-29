@@ -1452,7 +1452,7 @@ func rewritePrintCalls(gen *localVarGenerator, getArity func(Ref) int, globals V
 	// Visit comprehension bodies recursively to ensure print statements inside
 	// those bodies only close over variables that are safe.
 	for i := range body {
-		if ContainsComprehensions(body[i]) || body[i].IsEvery() {
+		if ContainsClosures(body[i]) {
 			safe := outputVarsForBody(body[:i], getArity, globals)
 			safe.Update(globals)
 			WalkClosures(body[i], func(x interface{}) bool {
