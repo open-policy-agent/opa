@@ -883,6 +883,37 @@ func TestRoundtrip(t *testing.T) {
 	}
 }
 
+func TestRoundtripWithPlanModules(t *testing.T) {
+
+	b := Bundle{
+		Data: map[string]interface{}{},
+		PlanModules: []PlanModuleFile{
+			{
+				URL:  "/plan.json",
+				Path: "/plan.json",
+				Raw:  []byte(`{"foo": 7}`), // NOTE(tsandall): contents are ignored
+			},
+		},
+	}
+
+	var buf bytes.Buffer
+	if err := Write(&buf, b); err != nil {
+		t.Fatal(err)
+	}
+
+	b2, err := NewReader(&buf).Read()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(b2.PlanModules) != 1 ||
+		b2.PlanModules[0].Path != b.PlanModules[0].Path ||
+		b2.PlanModules[0].URL != b.PlanModules[0].URL ||
+		!bytes.Equal(b2.PlanModules[0].Raw, b.PlanModules[0].Raw) {
+		t.Fatalf("expected %+v but got %+v", b, b2)
+	}
+}
+
 func TestWriterUsePath(t *testing.T) {
 
 	bundle := Bundle{
@@ -1143,18 +1174,29 @@ func TestHashBundleFiles(t *testing.T) {
 		data     map[string]interface{}
 		manifest Manifest
 		wasm     []byte
+		plan     []byte
 		exp      int
 	}{
-		"no_content":                 {map[string]interface{}{}, Manifest{}, []byte{}, 2},
-		"data":                       {map[string]interface{}{"foo": "bar"}, Manifest{}, []byte{}, 2},
-		"data_and_manifest":          {map[string]interface{}{"foo": "bar"}, Manifest{Revision: "quickbrownfaux"}, []byte{}, 2},
-		"data_and_manifest_and_wasm": {map[string]interface{}{"foo": "bar"}, Manifest{Revision: "quickbrownfaux"}, []byte("modules-compiled-as-wasm-binary"), 3},
+		"no_content":                 {map[string]interface{}{}, Manifest{}, nil, nil, 2},
+		"data":                       {map[string]interface{}{"foo": "bar"}, Manifest{}, nil, nil, 2},
+		"data_and_manifest":          {map[string]interface{}{"foo": "bar"}, Manifest{Revision: "quickbrownfaux"}, []byte{}, nil, 2},
+		"data_and_manifest_and_wasm": {map[string]interface{}{"foo": "bar"}, Manifest{Revision: "quickbrownfaux"}, []byte("modules-compiled-as-wasm-binary"), nil, 3},
+		"data_and_plan":              {map[string]interface{}{"foo": "bar"}, Manifest{Revision: "quickbrownfaux"}, nil, []byte("not a plan but good enough"), 3},
 	}
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
 
-			f, err := hashBundleFiles(h, &Bundle{Data: tc.data, Manifest: tc.manifest, Wasm: tc.wasm})
+			var plans []PlanModuleFile
+			if len(tc.plan) > 0 {
+				plans = append(plans, PlanModuleFile{
+					URL:  "/plan.json",
+					Path: "/plan.json",
+					Raw:  tc.plan,
+				})
+			}
+
+			f, err := hashBundleFiles(h, &Bundle{Data: tc.data, Manifest: tc.manifest, Wasm: tc.wasm, PlanModules: plans})
 			if err != nil {
 				t.Fatal("Unexpected error:", err)
 			}
@@ -1527,6 +1569,53 @@ func TestMerge(t *testing.T) {
 						"bar": "val1",
 					},
 					"baz": "val2",
+				},
+			},
+		},
+		{
+			note: "merge plans",
+			bundles: []*Bundle{
+				{
+					Manifest: Manifest{
+						Roots: &[]string{"a"},
+					},
+					PlanModules: []PlanModuleFile{
+						{
+							URL:  "a/plan.json",
+							Path: "a/plan.json",
+							Raw:  []byte("not a real plan but good enough"),
+						},
+					},
+				},
+				{
+					Manifest: Manifest{
+						Roots: &[]string{"b"},
+					},
+					PlanModules: []PlanModuleFile{
+						{
+							URL:  "b/plan.json",
+							Path: "b/plan.json",
+							Raw:  []byte("not a real plan but good enough"),
+						},
+					},
+				},
+			},
+			wantBundle: &Bundle{
+
+				Manifest: Manifest{
+					Roots: &[]string{"a", "b"},
+				},
+				PlanModules: []PlanModuleFile{
+					{
+						URL:  "a/plan.json",
+						Path: "a/plan.json",
+						Raw:  []byte("not a real plan but good enough"),
+					},
+					{
+						URL:  "b/plan.json",
+						Path: "b/plan.json",
+						Raw:  []byte("not a real plan but good enough"),
+					},
 				},
 			},
 		},

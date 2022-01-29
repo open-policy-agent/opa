@@ -585,7 +585,7 @@ a = true`},
 				&ir.CallStmt{}:         "<query>:1:1: data[y].a = x",
 				&ir.MakeObjectStmt{}:   "<query>:1:1: data[y].a = x",
 				&ir.ObjectInsertStmt{}: "<query>:1:1: data[y].a = x",
-				&ir.ResultSetAdd{}:     "<query>:1:1: data[y].a = x",
+				&ir.ResultSetAddStmt{}: "<query>:1:1: data[y].a = x",
 				&ir.DotStmt{}:          "<query>:1:1: data[y].a = x",
 			},
 			where: func(p *ir.Policy) interface{} {
@@ -603,7 +603,7 @@ a {
 				&ir.CallStmt{}:         "<query>:1:1: data.test.a = x",
 				&ir.MakeObjectStmt{}:   "<query>:1:1: data.test.a = x",
 				&ir.ObjectInsertStmt{}: "<query>:1:1: data.test.a = x",
-				&ir.ResultSetAdd{}:     "<query>:1:1: data.test.a = x",
+				&ir.ResultSetAddStmt{}: "<query>:1:1: data.test.a = x",
 				&ir.ScanStmt{}:         `module-0.rego:3:3: data.test1[_].y = "z"`,
 			},
 		},
@@ -738,7 +738,7 @@ func TestOptimizeLookup(t *testing.T) {
 		if exp, act := 3, len(path); exp != act {
 			t.Fatalf("expected path len %d, got %d\n", exp, act)
 		}
-		last, ok := path[len(path)-1].(ir.Local)
+		last, ok := path[len(path)-1].Value.(ir.Local)
 		if exp, act := true, ok; exp != act {
 			t.Fatalf("expected last path pieces to be local, got %T\n", last)
 		}
