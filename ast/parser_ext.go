@@ -22,7 +22,13 @@ import (
 // MustParseBody returns a parsed body.
 // If an error occurs during parsing, panic.
 func MustParseBody(input string) Body {
-	parsed, err := ParseBody(input)
+	return MustParseBodyWithOpts(input, ParserOptions{})
+}
+
+// MustParseBodyWithOpts returns a parsed body.
+// If an error occurs during parsing, panic.
+func MustParseBodyWithOpts(input string, opts ParserOptions) Body {
+	parsed, err := ParseBodyWithOpts(input, opts)
 	if err != nil {
 		panic(err)
 	}
@@ -52,7 +58,13 @@ func MustParseImports(input string) []*Import {
 // MustParseModule returns a parsed module.
 // If an error occurs during parsing, panic.
 func MustParseModule(input string) *Module {
-	parsed, err := ParseModule("", input)
+	return MustParseModuleWithOpts(input, ParserOptions{})
+}
+
+// MustParseModuleWithOpts returns a parsed module.
+// If an error occurs during parsing, panic.
+func MustParseModuleWithOpts(input string, opts ParserOptions) *Module {
+	parsed, err := ParseModuleWithOpts("", input, opts)
 	if err != nil {
 		panic(err)
 	}
