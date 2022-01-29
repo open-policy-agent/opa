@@ -4019,13 +4019,23 @@ func TestCompilerCheckUnusedAssignedVar(t *testing.T) {
 				&Error{Message: "assigned var y unused"},
 			},
 		},
+		{
+			note: "every: unused assigned var in body",
+			module: `package test
+				p { every i in [1] { y := 10; i == 1 } }
+			`,
+			expectedErrors: Errors{
+				&Error{Message: "assigned var y unused"},
+			},
+		},
 	}
 
 	makeTestRunner := func(tc testCase, strict bool) func(t *testing.T) {
 		return func(t *testing.T) {
 			compiler := NewCompiler().WithStrict(strict)
+			opts := ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true}
 			compiler.Modules = map[string]*Module{
-				"test": MustParseModule(tc.module),
+				"test": MustParseModuleWithOpts(tc.module, opts),
 			}
 			compileStages(compiler, compiler.rewriteLocalVars)
 
@@ -5509,12 +5519,18 @@ func TestQueryCompilerWithUnusedAssignedVar(t *testing.T) {
 			query:          "{1: 2 | x := 2}",
 			expectedErrors: fmt.Errorf("1 error occurred: 1:9: rego_compile_error: assigned var x unused"),
 		},
+		{
+			note:           "every: unused var in body",
+			query:          "every _ in [] { x := 10 }",
+			expectedErrors: fmt.Errorf("1 error occurred: 1:17: rego_compile_error: assigned var x unused"),
+		},
 	}
 
 	makeTestRunner := func(tc testCase, strict bool) func(t *testing.T) {
 		return func(t *testing.T) {
 			c := NewCompiler().WithStrict(strict)
-			result, err := c.QueryCompiler().Compile(MustParseBody(tc.query))
+			opts := ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true}
+			result, err := c.QueryCompiler().Compile(MustParseBodyWithOpts(tc.query, opts))
 
 			if strict {
 				if err == nil {
