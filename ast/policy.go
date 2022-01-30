@@ -148,8 +148,8 @@ type (
 
 	// Comment contains the raw text from the comment in the definition.
 	Comment struct {
-		Text     []byte
-		Location *Location
+		Text     []byte    `json:"text"`
+		Location *Location `json:"location,omitempty"`
 	}
 
 	// Annotations represents metadata attached to other AST nodes such as rules.
