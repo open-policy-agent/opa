@@ -203,12 +203,31 @@ func TestOutputVarsForNode(t *testing.T) {
 			query: `z = "abc"; x = split(z, a)[y]`,
 			exp:   `{z}`,
 		},
+		{
+			note:  "every: simple: no output vars",
+			query: `every k, v in [1, 2] { k < v }`,
+			exp:   `set()`,
+		},
+		{
+			note:  "every: output vars in domain",
+			query: `xs = []; every k, v in xs[i] { k < v }`,
+			exp:   `{xs, i}`,
+		},
+		{
+			note:  "every: output vars in body",
+			query: `every k, v in [] { k < v; i = 1 }`,
+			exp:   `set()`,
+		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
 
-			body := MustParseBody(tc.query)
+			opts := ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true}
+			body, err := ParseBodyWithOpts(tc.query, opts)
+			if err != nil {
+				t.Fatal(err)
+			}
 			arity := func(r Ref) int {
 				a, ok := tc.arities[r.String()]
 				if !ok {
@@ -673,15 +692,18 @@ func TestCompilerCheckSafetyBodyReordering(t *testing.T) {
 		contains(x, "oo")
 	`},
 		{"userfunc", `split(y, ".", z); data.a.b.funcs.fn("...foo.bar..", y)`, `data.a.b.funcs.fn("...foo.bar..", y); split(y, ".", z)`},
+		{"every", `every _ in [] { x != 1 }; x = 1`, `__local3__ = []; x = 1; every _ in __local3__ { x != 1}`},
+		{"every-domain", `every _ in xs { true }; xs = [1]`, `xs = [1]; __local3__ = xs; every _ in __local3__ { true }`},
 	}
 
 	for i, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
+			opts := ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true}
 			c := NewCompiler()
 			c.Modules = getCompilerTestModules()
-			c.Modules["reordering"] = MustParseModule(fmt.Sprintf(
+			c.Modules["reordering"] = MustParseModuleWithOpts(fmt.Sprintf(
 				`package test
-				p { %s }`, tc.body))
+				p { %s }`, tc.body), opts)
 
 			compileStages(c, c.checkSafetyRuleBodies)
 
@@ -690,7 +712,7 @@ func TestCompilerCheckSafetyBodyReordering(t *testing.T) {
 				return
 			}
 
-			expected := MustParseBody(tc.expected)
+			expected := MustParseBodyWithOpts(tc.expected, opts)
 			result := c.Modules["reordering"].Rules[0].Body
 
 			if !expected.Equal(result) {
@@ -788,6 +810,7 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 		{"call-too-few", "p { f(1,x) } f(x,y) { true }", "{x,}"},
 		{"object-key-comprehension", "p { { {p|x}: 0 } }", "{x,}"},
 		{"set-value-comprehension", "p { {1, {p|x}} }", "{x,}"},
+		{"every", "p { every y in [10] { x > y } }", "{x,}"},
 	}
 
 	makeErrMsg := func(varName string) string {
@@ -808,15 +831,16 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 			sort.Strings(expected)
 
 			// Compile test module.
+			popts := ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true}
 			c := NewCompiler()
 			c.Modules = map[string]*Module{
-				"newMod": MustParseModule(fmt.Sprintf(`
+				"newMod": MustParseModuleWithOpts(fmt.Sprintf(`
 
 				%v
 
 				%v
 
-				`, moduleBegin, tc.moduleContent)),
+				`, moduleBegin, tc.moduleContent), popts),
 			}
 
 			compileStages(c, c.checkSafetyRuleBodies)
@@ -1434,13 +1458,26 @@ func TestCompilerRewriteExprTerms(t *testing.T) {
 
 				f(__local0__[0]) { true; __local0__ = [1] }`,
 		},
+		{
+			note: "every: domain",
+			module: `
+			package test
+
+			p { every x in [1,2] { x } }`,
+			expected: `
+			package test
+
+			p { __local1__ = [1, 2]; every __local0__ in __local1__ { __local0__ } }`,
+		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.note, func(t *testing.T) {
 			compiler := NewCompiler()
+			opts := ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true}
+
 			compiler.Modules = map[string]*Module{
-				"test": MustParseModule(tc.module),
+				"test": MustParseModuleWithOpts(tc.module, opts),
 			}
 			compileStages(compiler, compiler.rewriteExprTerms)
 
@@ -1448,7 +1485,7 @@ func TestCompilerRewriteExprTerms(t *testing.T) {
 			case string:
 				assertNotFailed(t, compiler)
 
-				expected := MustParseModule(exp)
+				expected := MustParseModuleWithOpts(exp, opts)
 
 				if !expected.Equal(compiler.Modules["test"]) {
 					t.Fatalf("Expected modules to be equal. Expected:\n\n%v\n\nGot:\n\n%v", expected, compiler.Modules["test"])
@@ -1494,6 +1531,159 @@ func TestCompilerCheckDuplicateImports(t *testing.T) {
 				&Error{
 					Location: NewLocation([]byte("import"), "", 4, 5),
 					Message:  "import must not shadow import input.foo",
+				},
+			},
+		},
+	}
+
+	runStrictnessTestCase(t, cases, true)
+}
+
+func TestCompilerCheckKeywordOverrides(t *testing.T) {
+	cases := []strictnessTestCase{
+		{
+			note: "rule names",
+			module: `package test
+				input { true }
+				p { true }
+				data { true }
+			`,
+			expectedErrors: Errors{
+				&Error{
+					Location: NewLocation([]byte("input { true }"), "", 2, 5),
+					Message:  "rules must not shadow input (use a different rule name)",
+				},
+				&Error{
+					Location: NewLocation([]byte("data { true }"), "", 4, 5),
+					Message:  "rules must not shadow data (use a different rule name)",
+				},
+			},
+		},
+		{
+			note: "global assignments",
+			module: `package test
+				input = 1
+				p := 2
+				data := 3
+			`,
+			expectedErrors: Errors{
+				&Error{
+					Location: NewLocation([]byte("input = 1"), "", 2, 5),
+					Message:  "rules must not shadow input (use a different rule name)",
+				},
+				&Error{
+					Location: NewLocation([]byte("data := 3"), "", 4, 5),
+					Message:  "rules must not shadow data (use a different rule name)",
+				},
+			},
+		},
+		{
+			note: "rule-local assignments",
+			module: `package test
+				p {
+					input := 1
+					x := 2
+				} else {
+					data := 3
+				}
+				q {
+					input := 4
+				}
+			`,
+			expectedErrors: Errors{
+				&Error{
+					Location: NewLocation([]byte("input := 1"), "", 3, 6),
+					Message:  "variables must not shadow input (use a different variable name)",
+				},
+				&Error{
+					Location: NewLocation([]byte("data := 3"), "", 6, 6),
+					Message:  "variables must not shadow data (use a different variable name)",
+				},
+				&Error{
+					Location: NewLocation([]byte("input := 4"), "", 9, 6),
+					Message:  "variables must not shadow input (use a different variable name)",
+				},
+			},
+		},
+		{
+			note: "array comprehension-local assignments",
+			module: `package test
+				p = [ x |
+					input := 1
+					x := 2
+					data := 3
+				]
+			`,
+			expectedErrors: Errors{
+				&Error{
+					Location: NewLocation([]byte("input := 1"), "", 3, 6),
+					Message:  "variables must not shadow input (use a different variable name)",
+				},
+				&Error{
+					Location: NewLocation([]byte("data := 3"), "", 5, 6),
+					Message:  "variables must not shadow data (use a different variable name)",
+				},
+			},
+		},
+		{
+			note: "set comprehension-local assignments",
+			module: `package test
+				p = { x |
+					input := 1
+					x := 2
+					data := 3
+				}
+			`,
+			expectedErrors: Errors{
+				&Error{
+					Location: NewLocation([]byte("input := 1"), "", 3, 6),
+					Message:  "variables must not shadow input (use a different variable name)",
+				},
+				&Error{
+					Location: NewLocation([]byte("data := 3"), "", 5, 6),
+					Message:  "variables must not shadow data (use a different variable name)",
+				},
+			},
+		},
+		{
+			note: "object comprehension-local assignments",
+			module: `package test
+				p = { x: 1 |
+					input := 1
+					x := 2
+					data := 3
+				}
+			`,
+			expectedErrors: Errors{
+				&Error{
+					Location: NewLocation([]byte("input := 1"), "", 3, 6),
+					Message:  "variables must not shadow input (use a different variable name)",
+				},
+				&Error{
+					Location: NewLocation([]byte("data := 3"), "", 5, 6),
+					Message:  "variables must not shadow data (use a different variable name)",
+				},
+			},
+		},
+		{
+			note: "nested override",
+			module: `package test
+				p {
+					[ x |
+						input := 1
+						x := 2
+						data := 3
+					]
+				}
+			`,
+			expectedErrors: Errors{
+				&Error{
+					Location: NewLocation([]byte("input := 1"), "", 4, 7),
+					Message:  "variables must not shadow input (use a different variable name)",
+				},
+				&Error{
+					Location: NewLocation([]byte("data := 3"), "", 6, 7),
+					Message:  "variables must not shadow data (use a different variable name)",
 				},
 			},
 		},
@@ -1566,7 +1756,7 @@ func runStrictnessTestCase(t *testing.T, cases []strictnessTestCase, assertLocat
 			compileStages(compiler, nil)
 
 			if strict {
-				assertErrors(t, compiler.Errors, tc.expectedErrors, false)
+				assertErrors(t, compiler.Errors, tc.expectedErrors, assertLocation)
 			} else {
 				assertNotFailed(t, compiler)
 			}
@@ -1699,6 +1889,19 @@ p[foo[bar[i]]] = {"baz": baz} { true }`)
 		r = [y | y = f(1)[0]]
 		`)
 
+	c.Modules["everykw"] = MustParseModuleWithOpts(`package everykw
+
+	nums = {1, 2, 3}
+	f(_) = true
+	x = 100
+	xs = [1, 2, 3]
+	p {
+		every x in xs {
+			nums[x]
+			x > 10
+		}
+	}`, ParserOptions{unreleasedKeywords: true, FutureKeywords: []string{"every", "in"}})
+
 	compileStages(c, c.resolveAllRefs)
 	assertNotFailed(t, c)
 
@@ -1825,6 +2028,17 @@ p[foo[bar[i]]] = {"baz": baz} { true }`)
 	assertTermEqual(t, someInAssignCall[2], VarTerm("v"))
 	collectionLastElem = someInAssignCall[3].Value.(*Array).Get(IntNumberTerm(2))
 	assertTermEqual(t, collectionLastElem, MustParseTerm("data.someinassignwithkey.y"))
+
+	mod16 := c.Modules["everykw"]
+	everyExpr := mod16.Rules[len(mod16.Rules)-1].Body[0].Terms.(*Every)
+	assertTermEqual(t, everyExpr.Body[0].Terms.(*Term), MustParseTerm("data.everykw.nums[x]"))
+	assertTermEqual(t, everyExpr.Domain, MustParseTerm("data.everykw.xs"))
+
+	// 'x' is not resolved
+	assertTermEqual(t, everyExpr.Value, VarTerm("x"))
+	gt10 := MustParseExpr("x > 10")
+	gt10.Index++ // TODO(sr): why?
+	assertExprEqual(t, everyExpr.Body[1], gt10)
 }
 
 func TestCompilerResolveErrors(t *testing.T) {
@@ -2660,6 +2874,181 @@ func TestRewriteDeclaredVars(t *testing.T) {
 			`,
 		},
 		{
+			note: "rewrite every",
+			module: `
+				package test
+				# import future.keywords.in
+				# import future.keywords.every
+				i = 0
+				xs = [1, 2]
+				k = "foo"
+				v = "bar"
+				p {
+					every k, v in xs { k + v > i }
+				}
+			`,
+			exp: `
+				package test
+				i = 0
+				xs = [1, 2]
+				k = "foo"
+				v = "bar"
+				p = true {
+					__local2__ = data.test.xs
+					every __local0__, __local1__ in __local2__ {
+						plus(__local0__, __local1__, __local3__)
+						__local4__ = data.test.i
+						gt(__local3__, __local4__)
+					}
+				}			`,
+		},
+		{
+			note: "rewrite every: unused key var",
+			module: `
+				package test
+				# import future.keywords.in
+				# import future.keywords.every
+				p {
+					every k, v in [1] { v >= i }
+				}
+			`,
+			wantErr: errors.New("declared var k unused"),
+		},
+		{
+			note: "rewrite every: unused value var",
+			module: `
+				package test
+				# import future.keywords.in
+				# import future.keywords.every
+				p {
+					every v in [1] { true }
+				}
+			`,
+			wantErr: errors.New("declared var v unused"),
+		},
+		{
+			note: "rewrite every: wildcard value var, used key",
+			module: `
+				package test
+				# import future.keywords.in
+				# import future.keywords.every
+				p {
+					every k, _ in [1] { k >= 0 }
+				}
+			`,
+			exp: `
+				package test
+				p = true {
+					__local1__ = [1]
+					every __local0__, _ in __local1__ { gte(__local0__, 0) }
+				}
+			`,
+		},
+		{
+			note: "rewrite every: wildcard key+value var", // NOTE(sr): may be silly, but valid
+			module: `
+				package test
+				# import future.keywords.in
+				# import future.keywords.every
+				p {
+					every _, _ in [1] { true }
+				}
+			`,
+			exp: `
+				package test
+				p = true { __local0__ = [1]; every _, _ in __local0__ { true } }
+			`,
+		},
+		{
+			note: "rewrite every: declared vars with different scopes",
+			module: `
+				package test
+				# import future.keywords.in
+				# import future.keywords.every
+				p {
+					some x
+					x = 10
+					every x in [1] { x == 1 }
+				}
+			`,
+			exp: `
+				package test
+				p = true {
+					__local0__ = 10
+					__local2__ = [1]
+					every __local1__ in __local2__ { __local1__ == 1 }
+				}
+			`,
+		},
+		{
+			note: "rewrite every: declared vars used in body",
+			module: `
+				package test
+				# import future.keywords.in
+				# import future.keywords.every
+				p {
+					some y
+					y = 10
+					every x in [1] { x == y }
+				}
+			`,
+			exp: `
+				package test
+				p = true {
+					__local0__ = 10
+					__local2__ = [1]
+					every __local1__ in __local2__ {
+						__local1__ == __local0__
+					}
+				}
+			`,
+		},
+		{
+			note: "rewrite every: pops declared var stack",
+			module: `
+				package test
+				# import future.keywords.in
+				# import future.keywords.every
+				p[x] {
+					some x
+					x = 10
+					every _ in [1] { true }
+				}
+			`,
+			exp: `
+				package test
+				p[__local0__] { __local0__ = 10; __local1__ = [1]; every _ in __local1__ { true } }
+			`,
+		},
+		{
+			note: "rewrite every: nested",
+			module: `
+				package test
+				# import future.keywords.in
+				# import future.keywords.every
+				p {
+					xs := [[1], [2]]
+					every v in [1] {
+						every w in xs[v] {
+							w == 2
+						}
+					}
+				}
+			`,
+			exp: `
+				package test
+				p = true {
+					__local0__ = [[1], [2]]
+					__local3__ = [1]
+					every __local1__ in __local3__ {
+						__local4__ = __local0__[__local1__]
+						every __local2__ in __local4__ {
+							__local2__ == 2
+						}
+					}
+				}
+			`},
+		{
 			note: "rewrite closures",
 			module: `
 				package test
@@ -2727,7 +3116,7 @@ func TestRewriteDeclaredVars(t *testing.T) {
 					data.test.f(__local2__, "bar")
 				}
 
-				 f(__local0__, __local1__) = true {
+				f(__local0__, __local1__) = true {
 					__local0__[__local1__]
 				}
 			`,
@@ -2802,7 +3191,8 @@ func TestRewriteDeclaredVars(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			compiler, err := CompileModules(map[string]string{"test.rego": tc.module})
+			opts := CompileOpts{ParserOptions: ParserOptions{FutureKeywords: []string{"in", "every"}, unreleasedKeywords: true}}
+			compiler, err := CompileModulesWithOpt(map[string]string{"test.rego": tc.module}, opts)
 			if tc.wantErr != nil {
 				if err == nil {
 					t.Fatal("Expected error but got success")
@@ -2813,7 +3203,7 @@ func TestRewriteDeclaredVars(t *testing.T) {
 			} else if err != nil {
 				t.Fatal(err)
 			} else {
-				exp := MustParseModule(tc.exp)
+				exp := MustParseModuleWithOpts(tc.exp, opts.ParserOptions)
 				result := compiler.Modules["test.rego"]
 				if exp.Compare(result) != 0 {
 					t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", exp, result)
@@ -2977,16 +3367,21 @@ func TestCompilerRewriteDynamicTerms(t *testing.T) {
 		{`call_with { count(str) with input as 1 }`, `__local0__ = data.test.str with input as 1; count(__local0__) with input as 1`},
 		{`call_func { f(input, "foo") } f(x,y) { x[y] }`, `__local2__ = input; data.test.f(__local2__, "foo")`},
 		{`call_func2 { f(input.foo, "foo") } f(x,y) { x[y] }`, `__local2__ = input.foo; data.test.f(__local2__, "foo")`},
+		{`every_domain { every _ in str { true } }`, `__local0__ = data.test.str; every _ in __local0__ { true }`},
+		{`every_domain_call { every _ in numbers.range(1, 10) { true } }`, `numbers.range(1, 10, __local0__); every _ in __local0__ { true }`},
+		{`every_body { every _ in [] { [str] } }`,
+			`__local0__ = []; every _ in __local0__ { __local1__ = data.test.str; [__local1__] }`},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.input, func(t *testing.T) {
 			c := NewCompiler()
+			opts := ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true}
 			module := fixture + tc.input
-			c.Modules["test"] = MustParseModule(module)
+			c.Modules["test"] = MustParseModuleWithOpts(module, opts)
 			compileStages(c, c.rewriteDynamicTerms)
 			assertNotFailed(t, c)
-			expected := MustParseBody(tc.expected)
+			expected := MustParseBodyWithOpts(tc.expected, opts)
 			result := c.Modules["test"].Rules[1].Body
 			if result.Compare(expected) != 0 {
 				t.Fatalf("\nExp: %v\nGot: %v", expected, result)
@@ -3135,6 +3530,16 @@ func TestCompilerRewritePrintCallsErasure(t *testing.T) {
 			p { {"x": 1 | false} } `,
 		},
 		{
+			note: "every body",
+			module: `package test
+
+			p { every _ in [] { false; print(1) } }
+			`,
+			exp: `package test
+
+			p = true { __local0__ = []; every _ in __local0__ { false } }`,
+		},
+		{
 			note: "in head",
 			module: `package test
 
@@ -3148,13 +3553,14 @@ func TestCompilerRewritePrintCallsErasure(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.note, func(t *testing.T) {
 			c := NewCompiler().WithEnablePrintStatements(false)
+			opts := ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true}
 			c.Compile(map[string]*Module{
-				"test.rego": MustParseModule(tc.module),
+				"test.rego": MustParseModuleWithOpts(tc.module, opts),
 			})
 			if c.Failed() {
 				t.Fatal(c.Errors)
 			}
-			exp := MustParseModule(tc.exp)
+			exp := MustParseModuleWithOpts(tc.exp, opts)
 			if !exp.Equal(c.Modules["test.rego"]) {
 				t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", exp, c.Modules["test.rego"])
 			}
@@ -3259,6 +3665,21 @@ func TestCompilerRewritePrintCalls(t *testing.T) {
 			p = true { x = 1; {"x": 2 | __local1__ = {__local0__ | __local0__ = x}; internal.print([__local1__])} }`,
 		},
 		{
+			note: "print inside every",
+			module: `package test
+
+			p { every x in [1,2] { print(x) } }`,
+			exp: `package test
+
+			p = true {
+				__local2__ = [1, 2]
+				every __local0__ in __local2__ {
+					__local3__ = {__local1__ | __local1__ = __local0__}
+					internal.print([__local3__])
+				}
+			}`,
+		},
+		{
 			note: "print output of nested call",
 			module: `package test
 
@@ -3344,13 +3765,14 @@ func TestCompilerRewritePrintCalls(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.note, func(t *testing.T) {
 			c := NewCompiler().WithEnablePrintStatements(true)
+			opts := ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true}
 			c.Compile(map[string]*Module{
-				"test.rego": MustParseModule(tc.module),
+				"test.rego": MustParseModuleWithOpts(tc.module, opts),
 			})
 			if c.Failed() {
 				t.Fatal(c.Errors)
 			}
-			exp := MustParseModule(tc.exp)
+			exp := MustParseModuleWithOpts(tc.exp, opts)
 			if !exp.Equal(c.Modules["test.rego"]) {
 				t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", exp, c.Modules["test.rego"])
 			}
@@ -3795,13 +4217,23 @@ func TestCompilerCheckUnusedAssignedVar(t *testing.T) {
 				&Error{Message: "assigned var y unused"},
 			},
 		},
+		{
+			note: "every: unused assigned var in body",
+			module: `package test
+				p { every i in [1] { y := 10; i == 1 } }
+			`,
+			expectedErrors: Errors{
+				&Error{Message: "assigned var y unused"},
+			},
+		},
 	}
 
 	makeTestRunner := func(tc testCase, strict bool) func(t *testing.T) {
 		return func(t *testing.T) {
 			compiler := NewCompiler().WithStrict(strict)
+			opts := ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true}
 			compiler.Modules = map[string]*Module{
-				"test": MustParseModule(tc.module),
+				"test": MustParseModuleWithOpts(tc.module, opts),
 			}
 			compileStages(compiler, compiler.rewriteLocalVars)
 
@@ -5263,13 +5695,7 @@ func TestQueryCompilerWithUnsafeBuiltins(t *testing.T) {
 }
 
 func TestQueryCompilerWithUnusedAssignedVar(t *testing.T) {
-	type testCase struct {
-		note           string
-		query          string
-		expectedErrors error
-	}
-
-	cases := []testCase{
+	cases := []strictnessQueryTestCase{
 		{
 			note:           "array comprehension",
 			query:          "[1 | x := 2]",
@@ -5285,12 +5711,51 @@ func TestQueryCompilerWithUnusedAssignedVar(t *testing.T) {
 			query:          "{1: 2 | x := 2}",
 			expectedErrors: fmt.Errorf("1 error occurred: 1:9: rego_compile_error: assigned var x unused"),
 		},
+		{
+			note:           "every: unused var in body",
+			query:          "every _ in [] { x := 10 }",
+			expectedErrors: fmt.Errorf("1 error occurred: 1:17: rego_compile_error: assigned var x unused"),
+		},
 	}
 
-	makeTestRunner := func(tc testCase, strict bool) func(t *testing.T) {
+	runStrictnessQueryTestCase(t, cases)
+}
+
+func TestQueryCompilerCheckKeywordOverrides(t *testing.T) {
+	cases := []strictnessQueryTestCase{
+		{
+			note:           "input assigned",
+			query:          "input := 1",
+			expectedErrors: fmt.Errorf("1 error occurred: 1:1: rego_compile_error: variables must not shadow input (use a different variable name)"),
+		},
+		{
+			note:           "data assigned",
+			query:          "data := 1",
+			expectedErrors: fmt.Errorf("1 error occurred: 1:1: rego_compile_error: variables must not shadow data (use a different variable name)"),
+		},
+		{
+			note:           "nested input assigned",
+			query:          "d := [input | input := 1]",
+			expectedErrors: fmt.Errorf("1 error occurred: 1:15: rego_compile_error: variables must not shadow input (use a different variable name)"),
+		},
+	}
+
+	runStrictnessQueryTestCase(t, cases)
+}
+
+type strictnessQueryTestCase struct {
+	note           string
+	query          string
+	expectedErrors error
+}
+
+func runStrictnessQueryTestCase(t *testing.T, cases []strictnessQueryTestCase) {
+	t.Helper()
+	makeTestRunner := func(tc strictnessQueryTestCase, strict bool) func(t *testing.T) {
 		return func(t *testing.T) {
 			c := NewCompiler().WithStrict(strict)
-			result, err := c.QueryCompiler().Compile(MustParseBody(tc.query))
+			opts := ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true}
+			result, err := c.QueryCompiler().Compile(MustParseBodyWithOpts(tc.query, opts))
 
 			if strict {
 				if err == nil {

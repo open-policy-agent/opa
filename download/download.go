@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"path"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -260,8 +261,12 @@ func (d *Downloader) download(ctx context.Context, m metrics.Metrics) (*download
 	d.logger.Debug("Download starting.")
 
 	d.client = d.client.WithHeader("If-None-Match", d.etag)
+
+	preferences := []string{fmt.Sprintf("modes=%v,%v", defaultBundleMode, deltaBundleMode)}
+
 	if d.longPollingEnabled && d.config.Polling.LongPollingTimeoutSeconds != nil {
-		d.client = d.client.WithHeader("Prefer", fmt.Sprintf("wait=%s", strconv.FormatInt(*d.config.Polling.LongPollingTimeoutSeconds, 10)))
+		wait := fmt.Sprintf("wait=%s", strconv.FormatInt(*d.config.Polling.LongPollingTimeoutSeconds, 10))
+		preferences = append(preferences, wait)
 
 		// fetch existing response header timeout value on the http client's transport and
 		// clear it for the long poll request
@@ -271,9 +276,10 @@ func (d *Downloader) download(ctx context.Context, m metrics.Metrics) (*download
 			t := int64(0)
 			d.client = d.client.SetResponseHeaderTimeout(&t)
 		}
-	} else {
-		d.client = d.client.WithHeader("Prefer", "wait=0")
 	}
+
+	preferValue := fmt.Sprintf("%v", strings.Join(preferences, ";"))
+	d.client = d.client.WithHeader("Prefer", preferValue)
 
 	m.Timer(metrics.BundleRequest).Start()
 	resp, err := d.client.Do(ctx, "GET", d.path)

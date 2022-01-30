@@ -493,6 +493,20 @@ func ContainsComprehensions(v interface{}) bool {
 	return found
 }
 
+// ContainsClosures returns true if the Value v contains closures.
+func ContainsClosures(v interface{}) bool {
+	found := false
+	WalkClosures(v, func(x interface{}) bool {
+		switch x.(type) {
+		case *ArrayComprehension, *ObjectComprehension, *SetComprehension, *Every:
+			found = true
+			return found
+		}
+		return found
+	})
+	return found
+}
+
 // IsScalar returns true if the AST value is a scalar.
 func IsScalar(v Value) bool {
 	switch v.(type) {

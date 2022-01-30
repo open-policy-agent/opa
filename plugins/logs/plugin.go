@@ -275,10 +275,6 @@ func (c *Config) validateAndInjectDefaults(services []string, pluginsList []stri
 		}
 	}
 
-	if c.Plugin == nil && c.Service == "" && !c.ConsoleLogs {
-		return fmt.Errorf("invalid decision_log config, must have a `service`, `plugin`, or `console` logging enabled")
-	}
-
 	t, err := plugins.ValidateAndInjectDefaultsForTriggerMode(trigger, c.Reporting.Trigger)
 	if err != nil {
 		return fmt.Errorf("invalid decision_log config: %w", err)
@@ -432,6 +428,11 @@ func (b *ConfigBuilder) Parse() (*Config, error) {
 
 	if err := util.Unmarshal(b.raw, &parsedConfig); err != nil {
 		return nil, err
+	}
+
+	if parsedConfig.Plugin == nil && parsedConfig.Service == "" && len(b.services) == 0 && !parsedConfig.ConsoleLogs {
+		// Nothing to validate or inject
+		return nil, nil
 	}
 
 	if err := parsedConfig.validateAndInjectDefaults(b.services, b.plugins, b.trigger); err != nil {

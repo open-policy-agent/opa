@@ -153,6 +153,37 @@ func TestStopWithMultipleCalls(t *testing.T) {
 	}
 }
 
+func TestStartStopWithDeltaBundleMode(t *testing.T) {
+	ctx := context.Background()
+
+	updates := make(chan *Update)
+
+	config := Config{}
+
+	if err := config.ValidateAndInjectDefaults(); err != nil {
+		t.Fatal(err)
+	}
+
+	fixture := newTestFixture(t)
+
+	d := New(config, fixture.client, "/bundles/test/bundle2").WithCallback(func(_ context.Context, u Update) {
+		updates <- &u
+	})
+
+	d.Start(ctx)
+
+	// Give time for some download events to occur
+	time.Sleep(1 * time.Second)
+
+	u1 := <-updates
+
+	if u1.Bundle == nil || u1.Bundle.Manifest.Revision != deltaBundleMode {
+		t.Fatal("expected delta bundle but got:", u1)
+	}
+
+	d.Stop(ctx)
+}
+
 func TestStartStopWithLongPollNotSupported(t *testing.T) {
 	ctx := context.Background()
 
@@ -584,7 +615,8 @@ func TestOneShotLongPollingSwitch(t *testing.T) {
 func TestOneShotNotLongPollingSwitch(t *testing.T) {
 	ctx := context.Background()
 	config := Config{}
-	config.Polling.LongPollingTimeoutSeconds = nil
+	timeout := int64(3)
+	config.Polling.LongPollingTimeoutSeconds = &timeout
 	if err := config.ValidateAndInjectDefaults(); err != nil {
 		t.Fatal(err)
 	}
@@ -599,7 +631,7 @@ func TestOneShotNotLongPollingSwitch(t *testing.T) {
 	if err != nil {
 		t.Fatal("Unexpected:", err)
 	}
-	if fixture.d.longPollingEnabled != true {
+	if !fixture.d.longPollingEnabled {
 		t.Fatal("Expected long polling to be enabled")
 	}
 
@@ -624,6 +656,12 @@ type testFixture struct {
 
 func newTestFixture(t *testing.T) testFixture {
 
+	patch := bundle.PatchOperation{
+		Op:    "upsert",
+		Path:  "/a/c/d",
+		Value: []string{"foo", "bar"},
+	}
+
 	ts := testServer{
 		t:       t,
 		expAuth: "Bearer secret",
@@ -644,6 +682,12 @@ func newTestFixture(t *testing.T) testFixture {
 						Raw:  []byte("package foo\n\ncorge=1"),
 					},
 				},
+			},
+			"test/bundle2": {
+				Manifest: bundle.Manifest{
+					Revision: deltaBundleMode,
+				},
+				Patch: bundle.Patch{Data: []bundle.PatchOperation{patch}},
 			},
 		},
 	}
@@ -709,12 +753,8 @@ type testServer struct {
 func (t *testServer) handle(w http.ResponseWriter, r *http.Request) {
 
 	if t.longPoll {
-		parts := strings.Split(r.Header.Get("Prefer"), "=")
-		if len(parts) != 2 {
-			panic("Invalid \"wait\" Preference")
-		}
-
-		timeout, err := strconv.Atoi(parts[1])
+		wait := getPreferHeaderField(r, "wait")
+		timeout, err := strconv.Atoi(wait)
 		if err != nil {
 			panic(err)
 		}
@@ -740,6 +780,23 @@ func (t *testServer) handle(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		w.WriteHeader(404)
 		return
+	}
+
+	// check to verify if server can send a delta bundle to OPA
+	if b.Manifest.Revision == deltaBundleMode {
+		modes := strings.Split(getPreferHeaderField(r, "modes"), ",")
+
+		found := false
+		for _, m := range modes {
+			if m == deltaBundleMode {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			panic("delta bundle requested but OPA does not support it")
+		}
 	}
 
 	contentTypeShouldBeSend := true
@@ -785,4 +842,18 @@ func (t *testServer) start() {
 
 func (t *testServer) stop() {
 	t.server.Close()
+}
+
+func getPreferHeaderField(r *http.Request, field string) string {
+	for _, line := range r.Header.Values("prefer") {
+		for _, part := range strings.Split(line, ";") {
+			preference := strings.Split(strings.TrimSpace(part), "=")
+			if len(preference) == 2 {
+				if strings.ToLower(preference[0]) == field {
+					return preference[1]
+				}
+			}
+		}
+	}
+	return ""
 }

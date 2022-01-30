@@ -1262,6 +1262,18 @@ func (expr *Expr) IsCall() bool {
 	return ok
 }
 
+// IsEvery returns true if this expression is an 'every' expression.
+func (expr *Expr) IsEvery() bool {
+	_, ok := expr.Terms.(*Every)
+	return ok
+}
+
+// IsSome returns true if this expression is a 'some' expression.
+func (expr *Expr) IsSome() bool {
+	_, ok := expr.Terms.(*SomeDecl)
+	return ok
+}
+
 // Operator returns the name of the function or built-in this expression refers
 // to. If this expression is not a function call, returns nil.
 func (expr *Expr) Operator() Ref {
@@ -1477,6 +1489,17 @@ func (q *Every) Compare(other *Every) int {
 		}
 	}
 	return q.Body.Compare(other.Body)
+}
+
+// KeyValueVars returns the key and val arguments of an `every`
+// expression, if they are non-nil and not wildcards.
+func (q *Every) KeyValueVars() VarSet {
+	vis := &VarVisitor{vars: VarSet{}}
+	if q.Key != nil {
+		vis.Walk(q.Key)
+	}
+	vis.Walk(q.Value)
+	return vis.vars
 }
 
 func (w *With) String() string {

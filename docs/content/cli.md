@@ -231,7 +231,7 @@ opa build <path> [<path> [...]] [flags]
       --signing-alg string             name of the signing algorithm (default "RS256")
       --signing-key string             set the secret (HMAC) or path of the PEM file containing the private key (RSA and ECDSA)
       --signing-plugin string          name of the plugin to use for signing/verification (see https://www.openpolicyagent.org/docs/latest/management-bundles/#signature-plugin
-  -t, --target {rego,wasm}             set the output bundle target type (default rego)
+  -t, --target {rego,wasm,plan}        set the output bundle target type (default rego)
       --verification-key string        set the secret (HMAC) or path of the PEM file containing the public key (RSA and ECDSA)
       --verification-key-id string     name assigned to the verification key used for bundle verification (default "default")
 ```
