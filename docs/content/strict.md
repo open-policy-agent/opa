@@ -19,4 +19,5 @@ Compiler Strict mode is supported by the `check` command, and can be enabled thr
 Name | Description | Enforced by default in OPA version
 --- | --- | ---
 Duplicate imports | Duplicate [imports](../policy-language/#imports), where one import shadows another, are prohibited. | 1.0
-Unused local assignments | Unused [assignments](../policy-reference/#assignment-and-equality) local to a rule, function or comprehension are prohibited | 1.0 
+Unused local assignments | Unused [assignments](../policy-reference/#assignment-and-equality) local to a rule, function or comprehension are prohibited | 1.0
+`input` and `data` reserved keywords | `input` and `data` are reserved keywords, and may not be used as names for rules and variable assignment. | 1.0

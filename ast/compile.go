@@ -256,6 +256,7 @@ func NewCompiler() *Compiler {
 		f          func()
 	}{
 		{"CheckDuplicateImports", "compile_stage_check_duplicate_imports", c.checkDuplicateImports},
+		{"CheckKeywordOverrides", "compile_stage_check_keyword_overrides", c.checkKeywordOverrides},
 		// Reference resolution should run first as it may be used to lazily
 		// load additional modules. If any stages run before resolution, they
 		// need to be re-run after resolution.
@@ -1305,6 +1306,44 @@ func (c *Compiler) checkDuplicateImports() {
 	}
 }
 
+func (c *Compiler) checkKeywordOverrides() {
+	for _, name := range c.sorted {
+		mod := c.Modules[name]
+		errs := checkKeywordOverrides(mod, c.strict)
+		for _, err := range errs {
+			c.err(err)
+		}
+	}
+}
+
+func checkKeywordOverrides(node interface{}, strict bool) Errors {
+	if !strict {
+		return nil
+	}
+
+	errors := Errors{}
+
+	WalkRules(node, func(rule *Rule) bool {
+		name := rule.Head.Name.String()
+		if RootDocumentRefs.Contains(RefTerm(VarTerm(name))) {
+			errors = append(errors, NewError(CompileErr, rule.Location, "rules must not shadow %v (use a different rule name)", name))
+		}
+		return true
+	})
+
+	WalkExprs(node, func(expr *Expr) bool {
+		if expr.IsAssignment() {
+			name := expr.Operand(0).String()
+			if RootDocumentRefs.Contains(RefTerm(VarTerm(name))) {
+				errors = append(errors, NewError(CompileErr, expr.Location, "variables must not shadow %v (use a different variable name)", name))
+			}
+		}
+		return false
+	})
+
+	return errors
+}
+
 // resolveAllRefs resolves references in expressions to their fully qualified values.
 //
 // For instance, given the following module:
@@ -1963,6 +2002,7 @@ func (qc *queryCompiler) Compile(query Body) (Body, error) {
 		metricName string
 		f          func(*QueryContext, Body) (Body, error)
 	}{
+		{"CheckKeywordOverrides", "query_compile_stage_check_keyword_overrides", qc.checkKeywordOverrides},
 		{"ResolveRefs", "query_compile_stage_resolve_refs", qc.resolveRefs},
 		{"RewriteLocalVars", "query_compile_stage_rewrite_local_vars", qc.rewriteLocalVars},
 		{"CheckVoidCalls", "query_compile_stage_check_void_calls", qc.checkVoidCalls},
@@ -2008,6 +2048,13 @@ func (qc *queryCompiler) applyErrorLimit(err error) error {
 		}
 	}
 	return err
+}
+
+func (qc *queryCompiler) checkKeywordOverrides(_ *QueryContext, body Body) (Body, error) {
+	if errs := checkKeywordOverrides(body, qc.compiler.strict); len(errs) > 0 {
+		return nil, errs
+	}
+	return body, nil
 }
 
 func (qc *queryCompiler) resolveRefs(qctx *QueryContext, body Body) (Body, error) {

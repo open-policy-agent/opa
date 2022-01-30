@@ -1501,12 +1501,7 @@ func TestCompilerRewriteExprTerms(t *testing.T) {
 }
 
 func TestCompilerCheckDuplicateImports(t *testing.T) {
-	cases := []struct {
-		note           string
-		module         string
-		expectedErrors Errors
-		strict         bool
-	}{
+	cases := []strictnessTestCase{
 		{
 			note: "shadow",
 			module: `package test
@@ -1525,7 +1520,6 @@ func TestCompilerCheckDuplicateImports(t *testing.T) {
 					Message:  "import must not shadow import input.foo",
 				},
 			},
-			strict: true,
 		}, {
 			note: "alias shadow",
 			module: `package test
@@ -1539,35 +1533,192 @@ func TestCompilerCheckDuplicateImports(t *testing.T) {
 					Message:  "import must not shadow import input.foo",
 				},
 			},
-			strict: true,
-		}, {
-			note: "no strict",
-			module: `package test
-				import input.noconflict
-				import input.foo
-				import data.foo
-				import data.bar.foo
-				import input.bar as foo
-			`,
-			strict: false,
 		},
 	}
 
-	for _, tc := range cases {
-		t.Run(tc.note, func(t *testing.T) {
-			compiler := NewCompiler().WithStrict(tc.strict)
+	runStrictnessTestCase(t, cases, true)
+}
+
+func TestCompilerCheckKeywordOverrides(t *testing.T) {
+	cases := []strictnessTestCase{
+		{
+			note: "rule names",
+			module: `package test
+				input { true }
+				p { true }
+				data { true }
+			`,
+			expectedErrors: Errors{
+				&Error{
+					Location: NewLocation([]byte("input { true }"), "", 2, 5),
+					Message:  "rules must not shadow input (use a different rule name)",
+				},
+				&Error{
+					Location: NewLocation([]byte("data { true }"), "", 4, 5),
+					Message:  "rules must not shadow data (use a different rule name)",
+				},
+			},
+		},
+		{
+			note: "global assignments",
+			module: `package test
+				input = 1
+				p := 2
+				data := 3
+			`,
+			expectedErrors: Errors{
+				&Error{
+					Location: NewLocation([]byte("input = 1"), "", 2, 5),
+					Message:  "rules must not shadow input (use a different rule name)",
+				},
+				&Error{
+					Location: NewLocation([]byte("data := 3"), "", 4, 5),
+					Message:  "rules must not shadow data (use a different rule name)",
+				},
+			},
+		},
+		{
+			note: "rule-local assignments",
+			module: `package test
+				p {
+					input := 1
+					x := 2
+				} else {
+					data := 3
+				}
+				q {
+					input := 4
+				}
+			`,
+			expectedErrors: Errors{
+				&Error{
+					Location: NewLocation([]byte("input := 1"), "", 3, 6),
+					Message:  "variables must not shadow input (use a different variable name)",
+				},
+				&Error{
+					Location: NewLocation([]byte("data := 3"), "", 6, 6),
+					Message:  "variables must not shadow data (use a different variable name)",
+				},
+				&Error{
+					Location: NewLocation([]byte("input := 4"), "", 9, 6),
+					Message:  "variables must not shadow input (use a different variable name)",
+				},
+			},
+		},
+		{
+			note: "array comprehension-local assignments",
+			module: `package test
+				p = [ x |
+					input := 1
+					x := 2
+					data := 3
+				]
+			`,
+			expectedErrors: Errors{
+				&Error{
+					Location: NewLocation([]byte("input := 1"), "", 3, 6),
+					Message:  "variables must not shadow input (use a different variable name)",
+				},
+				&Error{
+					Location: NewLocation([]byte("data := 3"), "", 5, 6),
+					Message:  "variables must not shadow data (use a different variable name)",
+				},
+			},
+		},
+		{
+			note: "set comprehension-local assignments",
+			module: `package test
+				p = { x |
+					input := 1
+					x := 2
+					data := 3
+				}
+			`,
+			expectedErrors: Errors{
+				&Error{
+					Location: NewLocation([]byte("input := 1"), "", 3, 6),
+					Message:  "variables must not shadow input (use a different variable name)",
+				},
+				&Error{
+					Location: NewLocation([]byte("data := 3"), "", 5, 6),
+					Message:  "variables must not shadow data (use a different variable name)",
+				},
+			},
+		},
+		{
+			note: "object comprehension-local assignments",
+			module: `package test
+				p = { x: 1 |
+					input := 1
+					x := 2
+					data := 3
+				}
+			`,
+			expectedErrors: Errors{
+				&Error{
+					Location: NewLocation([]byte("input := 1"), "", 3, 6),
+					Message:  "variables must not shadow input (use a different variable name)",
+				},
+				&Error{
+					Location: NewLocation([]byte("data := 3"), "", 5, 6),
+					Message:  "variables must not shadow data (use a different variable name)",
+				},
+			},
+		},
+		{
+			note: "nested override",
+			module: `package test
+				p {
+					[ x |
+						input := 1
+						x := 2
+						data := 3
+					]
+				}
+			`,
+			expectedErrors: Errors{
+				&Error{
+					Location: NewLocation([]byte("input := 1"), "", 4, 7),
+					Message:  "variables must not shadow input (use a different variable name)",
+				},
+				&Error{
+					Location: NewLocation([]byte("data := 3"), "", 6, 7),
+					Message:  "variables must not shadow data (use a different variable name)",
+				},
+			},
+		},
+	}
+
+	runStrictnessTestCase(t, cases, true)
+}
+
+type strictnessTestCase struct {
+	note           string
+	module         string
+	expectedErrors Errors
+}
+
+func runStrictnessTestCase(t *testing.T, cases []strictnessTestCase, assertLocation bool) {
+	t.Helper()
+	makeTestRunner := func(tc strictnessTestCase, strict bool) func(t *testing.T) {
+		return func(t *testing.T) {
+			compiler := NewCompiler().WithStrict(strict)
 			compiler.Modules = map[string]*Module{
 				"test": MustParseModule(tc.module),
 			}
+			compileStages(compiler, nil)
 
-			compileStages(compiler, compiler.checkDuplicateImports)
-
-			if len(tc.expectedErrors) > 0 {
-				assertErrors(t, compiler.Errors, tc.expectedErrors, true)
+			if strict {
+				assertErrors(t, compiler.Errors, tc.expectedErrors, assertLocation)
 			} else {
 				assertNotFailed(t, compiler)
 			}
-		})
+		}
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note+"_strict", makeTestRunner(tc, true))
+		t.Run(tc.note+"_non-strict", makeTestRunner(tc, false))
 	}
 }
 
@@ -5497,13 +5648,7 @@ func TestQueryCompilerWithUnsafeBuiltins(t *testing.T) {
 }
 
 func TestQueryCompilerWithUnusedAssignedVar(t *testing.T) {
-	type testCase struct {
-		note           string
-		query          string
-		expectedErrors error
-	}
-
-	cases := []testCase{
+	cases := []strictnessQueryTestCase{
 		{
 			note:           "array comprehension",
 			query:          "[1 | x := 2]",
@@ -5526,7 +5671,40 @@ func TestQueryCompilerWithUnusedAssignedVar(t *testing.T) {
 		},
 	}
 
-	makeTestRunner := func(tc testCase, strict bool) func(t *testing.T) {
+	runStrictnessQueryTestCase(t, cases)
+}
+
+func TestQueryCompilerCheckKeywordOverrides(t *testing.T) {
+	cases := []strictnessQueryTestCase{
+		{
+			note:           "input assigned",
+			query:          "input := 1",
+			expectedErrors: fmt.Errorf("1 error occurred: 1:1: rego_compile_error: variables must not shadow input (use a different variable name)"),
+		},
+		{
+			note:           "data assigned",
+			query:          "data := 1",
+			expectedErrors: fmt.Errorf("1 error occurred: 1:1: rego_compile_error: variables must not shadow data (use a different variable name)"),
+		},
+		{
+			note:           "nested input assigned",
+			query:          "d := [input | input := 1]",
+			expectedErrors: fmt.Errorf("1 error occurred: 1:15: rego_compile_error: variables must not shadow input (use a different variable name)"),
+		},
+	}
+
+	runStrictnessQueryTestCase(t, cases)
+}
+
+type strictnessQueryTestCase struct {
+	note           string
+	query          string
+	expectedErrors error
+}
+
+func runStrictnessQueryTestCase(t *testing.T, cases []strictnessQueryTestCase) {
+	t.Helper()
+	makeTestRunner := func(tc strictnessQueryTestCase, strict bool) func(t *testing.T) {
 		return func(t *testing.T) {
 			c := NewCompiler().WithStrict(strict)
 			opts := ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true}
