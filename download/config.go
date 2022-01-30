@@ -14,6 +14,12 @@ import (
 const (
 	defaultMinDelaySeconds = int64(60)
 	defaultMaxDelaySeconds = int64(120)
+
+	// deltaBundleMode indicates that OPA supports delta bundle processing
+	deltaBundleMode = "delta"
+
+	// defaultBundleMode indicates that OPA supports snapshot bundle processing
+	defaultBundleMode = "snapshot"
 )
 
 // PollingConfig represents polling configuration for the downloader.
