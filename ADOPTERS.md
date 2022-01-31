@@ -229,6 +229,9 @@ pre-production (in alphabetical order):
   automated code review, defining access levels or blocking execution of
   unwanted code.
 
+* [Permit.io](https://permit.io) Permit.io empowers developers to bake in permissions and access-control into any product in minutes 
+  and takes away the pain of constantly rebuilding them. Powered by OPA + OPAL, we provide AuthZ from A to Z.
+
 Other adopters that have gone into production or various stages of
 testing include:
 
