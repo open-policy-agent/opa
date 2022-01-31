@@ -1073,17 +1073,17 @@ integrations:
       - https://hub.armo.cloud
 
   i2scim:
-    title: i2scim.io OPA Enabled User/Group Provisioning API
+    title: i2scim.io OPA Enabled User/Group Provisioning API 
     description: |
-      i2scim.io is an open source, Apache 2 Licensed implementation of RFC7643/7644 for cloud-native platforms. i2scim supports 
-      externalized access control decisions through OPA.
+      i2scim.io is an open source, Apache 2 Licensed, implementation of SCIM (System for Cross-domain Identity Management RFC7643/7644) for use
+      cloud-native kubernetes platforms. i2scim supports externalized access control decisions through OPA.
     labels:
       category: security
       layer: application
     software:
       - i2scim
     code:
-      - hhttps://github.com/i2-open/i2scim
+      - https://github.com/i2-open/i2scim
     inventors:
       - i2
     tutorials:
