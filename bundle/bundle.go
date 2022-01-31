@@ -180,7 +180,7 @@ func (m Manifest) Copy() Manifest {
 
 func (m Manifest) String() string {
 	m.Init()
-	return fmt.Sprintf("<revision: %q, roots: %v, wasm: %+v>", m.Revision, *m.Roots, m.WasmResolvers)
+	return fmt.Sprintf("<revision: %q, roots: %v, wasm: %+v, metadata: %+v>", m.Revision, *m.Roots, m.WasmResolvers, m.Metadata)
 }
 
 func (m Manifest) rootSet() stringSet {

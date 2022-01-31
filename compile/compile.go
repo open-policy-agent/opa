@@ -75,6 +75,7 @@ type Compiler struct {
 	bvc               *bundle.VerificationConfig // represents the key configuration used to verify a signed bundle
 	bsc               *bundle.SigningConfig      // represents the key configuration used to generate a signed bundle
 	keyID             string                     // represents the name of the default key used to verify a signed bundle
+	metadata          *map[string]interface{}    // represents additional data included in .manifest file
 }
 
 // New returns a new compiler instance that can be invoked.
@@ -180,6 +181,12 @@ func (c *Compiler) WithCapabilities(capabilities *ast.Capabilities) *Compiler {
 	return c
 }
 
+//WithMetadata sets the additional data to be included in .manifest
+func (c *Compiler) WithMetadata(metadata *map[string]interface{}) *Compiler {
+	c.metadata = metadata
+	return c
+}
+
 // Build compiles and links the input files and outputs a bundle to the writer.
 func (c *Compiler) Build(ctx context.Context) error {
 
@@ -221,6 +228,10 @@ func (c *Compiler) Build(ctx context.Context) error {
 
 	if c.revision != nil {
 		c.bundle.Manifest.Revision = *c.revision
+	}
+
+	if c.metadata != nil {
+		c.bundle.Manifest.Metadata = *c.metadata
 	}
 
 	if err := c.bundle.FormatModules(false); err != nil {
