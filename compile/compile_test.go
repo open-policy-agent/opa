@@ -703,6 +703,28 @@ func TestCompilerSetRevision(t *testing.T) {
 	})
 }
 
+func TestCompilerSetMetadata(t *testing.T) {
+	files := map[string]string{
+		"test.rego": `package test
+
+		p = true`,
+	}
+
+	test.WithTempFS(files, func(root string) {
+		metadata := map[string]interface{}{"OPA version": "0.36.1"}
+		compiler := New().WithPaths(root).WithMetadata(&metadata)
+
+		err := compiler.Build(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if compiler.bundle.Manifest.Metadata["OPA version"] != "0.36.1" {
+			t.Fatal("expected metadata to be set but got:", compiler.bundle.Manifest)
+		}
+	})
+}
+
 func TestCompilerOutput(t *testing.T) {
 	// NOTE(tsandall): must use format package here because the compiler formats.
 	files := map[string]string{
