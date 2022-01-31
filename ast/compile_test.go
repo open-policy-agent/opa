@@ -1692,6 +1692,53 @@ func TestCompilerCheckKeywordOverrides(t *testing.T) {
 	runStrictnessTestCase(t, cases, true)
 }
 
+func TestCompilerCheckDeprecatedMethods(t *testing.T) {
+	cases := []strictnessTestCase{
+		{
+			note: "all() built-in",
+			module: `package test
+				p := all([true, false])
+			`,
+			expectedErrors: Errors{
+				&Error{
+					Location: NewLocation([]byte("all([true, false])"), "", 2, 10),
+					Message:  "deprecated built-in function calls in expression: all",
+				},
+			},
+		},
+		{
+			note: "user-defined all()",
+			module: `package test
+				import future.keywords.in
+				all(arr) = {x | some x in arr} == {true}
+				p := all([true, false])
+			`,
+		},
+		{
+			note: "any() built-in",
+			module: `package test
+				p := any([true, false])
+			`,
+			expectedErrors: Errors{
+				&Error{
+					Location: NewLocation([]byte("any([true, false])"), "", 2, 10),
+					Message:  "deprecated built-in function calls in expression: any",
+				},
+			},
+		},
+		{
+			note: "user-defined any()",
+			module: `package test
+				import future.keywords.in
+				any(arr) = true in arr
+				p := any([true, false])
+			`,
+		},
+	}
+
+	runStrictnessTestCase(t, cases, true)
+}
+
 type strictnessTestCase struct {
 	note           string
 	module         string
@@ -5645,6 +5692,23 @@ func TestQueryCompilerWithUnsafeBuiltins(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestQueryCompilerWithDeprecatedBuiltins(t *testing.T) {
+	cases := []strictnessQueryTestCase{
+		{
+			note:           "all() built-in",
+			query:          "all([true, false])",
+			expectedErrors: fmt.Errorf("1 error occurred: 1:1: rego_type_error: deprecated built-in function calls in expression: all"),
+		},
+		{
+			note:           "any() built-in",
+			query:          "any([true, false])",
+			expectedErrors: fmt.Errorf("1 error occurred: 1:1: rego_type_error: deprecated built-in function calls in expression: any"),
+		},
+	}
+
+	runStrictnessQueryTestCase(t, cases)
 }
 
 func TestQueryCompilerWithUnusedAssignedVar(t *testing.T) {

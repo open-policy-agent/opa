@@ -103,6 +103,7 @@ type Compiler struct {
 	builtins              map[string]*Builtin           // universe of built-in functions
 	customBuiltins        map[string]*Builtin           // user-supplied custom built-in functions (deprecated: use capabilities)
 	unsafeBuiltinsMap     map[string]struct{}           // user-supplied set of unsafe built-ins functions to block (deprecated: use capabilities)
+	deprecatedBuiltinsMap map[string]struct{}           // set of deprecated, but not removed, built-in functions
 	enablePrintStatements bool                          // indicates if print statements should be elided (default)
 	comprehensionIndices  map[*Term]*ComprehensionIndex // comprehension key index
 	initialized           bool                          // indicates if init() has been called
@@ -240,11 +241,12 @@ func NewCompiler() *Compiler {
 		}, func(x util.T) int {
 			return x.(Ref).Hash()
 		}),
-		maxErrs:              CompileErrorLimitDefault,
-		after:                map[string][]CompilerStageDefinition{},
-		unsafeBuiltinsMap:    map[string]struct{}{},
-		comprehensionIndices: map[*Term]*ComprehensionIndex{},
-		debug:                debug.Discard(),
+		maxErrs:               CompileErrorLimitDefault,
+		after:                 map[string][]CompilerStageDefinition{},
+		unsafeBuiltinsMap:     map[string]struct{}{},
+		deprecatedBuiltinsMap: map[string]struct{}{},
+		comprehensionIndices:  map[*Term]*ComprehensionIndex{},
+		debug:                 debug.Discard(),
 	}
 
 	c.ModuleTree = NewModuleTree(nil)
@@ -284,6 +286,7 @@ func NewCompiler() *Compiler {
 		{"CheckRecursion", "compile_stage_check_recursion", c.checkRecursion},
 		{"CheckTypes", "compile_stage_check_types", c.checkTypes},
 		{"CheckUnsafeBuiltins", "compile_state_check_unsafe_builtins", c.checkUnsafeBuiltins},
+		{"CheckDeprecatedBuiltins", "compile_state_check_deprecated_builtins", c.checkDeprecatedBuiltins},
 		{"BuildRuleIndices", "compile_stage_rebuild_indices", c.buildRuleIndices},
 		{"BuildComprehensionIndices", "compile_stage_rebuild_comprehension_indices", c.buildComprehensionIndices},
 	}
@@ -1173,6 +1176,15 @@ func (c *Compiler) checkUnsafeBuiltins() {
 	}
 }
 
+func (c *Compiler) checkDeprecatedBuiltins() {
+	for _, name := range c.sorted {
+		errs := checkDeprecatedBuiltins(c.deprecatedBuiltinsMap, c.Modules[name], c.strict)
+		for _, err := range errs {
+			c.err(err)
+		}
+	}
+}
+
 func (c *Compiler) runStage(metricName string, f func()) {
 	if c.metrics != nil {
 		c.metrics.Timer(metricName).Start()
@@ -1225,6 +1237,9 @@ func (c *Compiler) init() {
 
 	for _, bi := range c.capabilities.Builtins {
 		c.builtins[bi.Name] = bi
+		if c.strict && bi.IsDeprecated() {
+			c.deprecatedBuiltinsMap[bi.Name] = struct{}{}
+		}
 	}
 
 	for name, bi := range c.customBuiltins {
@@ -2015,6 +2030,7 @@ func (qc *queryCompiler) Compile(query Body) (Body, error) {
 		{"RewriteDynamicTerms", "query_compile_stage_rewrite_dynamic_terms", qc.rewriteDynamicTerms},
 		{"CheckTypes", "query_compile_stage_check_types", qc.checkTypes},
 		{"CheckUnsafeBuiltins", "query_compile_stage_check_unsafe_builtins", qc.checkUnsafeBuiltins},
+		{"CheckDeprecatedBuiltins", "query_compile_stage_check_deprecated_builtins", qc.checkDeprecatedBuiltins},
 		{"BuildComprehensionIndex", "query_compile_stage_build_comprehension_index", qc.buildComprehensionIndices},
 	}
 
@@ -2179,6 +2195,14 @@ func (qc *queryCompiler) checkUnsafeBuiltins(_ *QueryContext, body Body) (Body, 
 		unsafe = qc.compiler.unsafeBuiltinsMap
 	}
 	errs := checkUnsafeBuiltins(unsafe, body)
+	if len(errs) > 0 {
+		return nil, errs
+	}
+	return body, nil
+}
+
+func (qc *queryCompiler) checkDeprecatedBuiltins(_ *QueryContext, body Body) (Body, error) {
+	errs := checkDeprecatedBuiltins(qc.compiler.deprecatedBuiltinsMap, body, qc.compiler.strict)
 	if len(errs) > 0 {
 		return nil, errs
 	}
@@ -4627,6 +4651,25 @@ func checkUnsafeBuiltins(unsafeBuiltinsMap map[string]struct{}, node interface{}
 			operator := x.Operator().String()
 			if _, ok := unsafeBuiltinsMap[operator]; ok {
 				errs = append(errs, NewError(TypeErr, x.Loc(), "unsafe built-in function calls in expression: %v", operator))
+			}
+		}
+		return false
+	})
+	return errs
+}
+
+func checkDeprecatedBuiltins(deprecatedBuiltinsMap map[string]struct{}, node interface{}, strict bool) Errors {
+	// Early out; deprecatedBuiltinsMap is only populated in strict-mode.
+	if !strict {
+		return nil
+	}
+
+	errs := make(Errors, 0)
+	WalkExprs(node, func(x *Expr) bool {
+		if x.IsCall() {
+			operator := x.Operator().String()
+			if _, ok := deprecatedBuiltinsMap[operator]; ok {
+				errs = append(errs, NewError(TypeErr, x.Loc(), "deprecated built-in function calls in expression: %v", operator))
 			}
 		}
 		return false
