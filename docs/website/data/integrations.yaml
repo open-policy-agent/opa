@@ -1073,10 +1073,12 @@ integrations:
       - https://hub.armo.cloud
 
   i2scim:
-    title: i2scim.io OPA Enabled User/Group Provisioning API 
+    title: i2scim.io OPA Enabled User/Group Provisioning API
     description: |
       i2scim.io is an open source, Apache 2 Licensed, implementation of SCIM (System for Cross-domain Identity Management RFC7643/7644) for use
-      cloud-native kubernetes platforms. i2scim supports externalized access control decisions through OPA.
+      cloud-native kubernetes platforms. i2scim supports externalized access control decisions through OPA. SCIM is a RESTful HTTP API that can be
+      used to provide a standardized way to provision accounts from Azure, OKTA, and other providers. SCIM can also be used as a backing identity
+      store for OAuth and other authentication services.
     labels:
       category: security
       layer: application
@@ -1084,11 +1086,12 @@ integrations:
       - i2scim
     code:
       - https://github.com/i2-open/i2scim
+      - https://i2scim.io
     inventors:
       - i2
     tutorials:
       - https://i2scim.io/OPA_AccessControl.html
-      
+
 organizations:
   styra:
     name: Styra
@@ -1218,7 +1221,7 @@ organizations:
     link: https://apisix.apache.org/
   armo:
     name: ARMO
-    link: https://armosec.io  
+    link: https://armosec.io
   i2:
     name: Independent Identity
     link: https://www.independentid.com
@@ -1370,7 +1373,7 @@ software:
     link: https://apisix.apache.org/
   kubescape:
     name: Kubescape
-    link: https://github.com/armosec/kubescape 
+    link: https://github.com/armosec/kubescape
   i2scim:
     name: i2 SCIM Server
     link: https://i2scim.io
