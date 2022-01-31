@@ -5694,6 +5694,23 @@ func TestQueryCompilerWithUnsafeBuiltins(t *testing.T) {
 	}
 }
 
+func TestQueryCompilerWithDeprecatedBuiltins(t *testing.T) {
+	cases := []strictnessQueryTestCase{
+		{
+			note:           "all() built-in",
+			query:          "all([true, false])",
+			expectedErrors: fmt.Errorf("1 error occurred: 1:1: rego_type_error: deprecated built-in function calls in expression: all"),
+		},
+		{
+			note:           "any() built-in",
+			query:          "any([true, false])",
+			expectedErrors: fmt.Errorf("1 error occurred: 1:1: rego_type_error: deprecated built-in function calls in expression: any"),
+		},
+	}
+
+	runStrictnessQueryTestCase(t, cases)
+}
+
 func TestQueryCompilerWithUnusedAssignedVar(t *testing.T) {
 	cases := []strictnessQueryTestCase{
 		{
