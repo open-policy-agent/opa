@@ -1,6 +1,6 @@
 .grid-container {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   grid-gap: 1rem;
   margin-left: 15%;
   margin-right: 15%;
@@ -59,7 +59,8 @@
 }
 
 .card-text {
-    padding: 10px
+    padding-top: 10px;
+    padding-bottom: 10px;
 }
 
 .card-text .header {
@@ -112,6 +113,7 @@
 .bg img {
     width: 100%;
     object-fit: cover;
+    margin-top: unset;
 }
 
 .cloud-top {
@@ -143,15 +145,12 @@
 .line {
   align-items: center;
   margin: 1em -1em;
-  color: #2BB6E0;
+  color: black;
   font-weight: 700;
 }
 .line:before, .line:after {
   height: 1px;
   margin: 0 1em;
-}
-.line-darkbackground {
-  color: #fff;
 }
 
 .glow:before, .glow:after {
@@ -168,58 +167,16 @@
 
 /* END import */
 
-@media screen and (min-width: 350px) and (max-width: 400px) {
-    .bg img {
-        margin-top: unset;
-    }
+@media screen and (min-width: 576px) {
+  .grid-container {
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  }
 }
 
-@media screen and (min-width: 401px) and (max-width: 450px) {
-    .bg img {
-        margin-top: unset;
-    }
-}
-
-@media screen and (min-width: 451px) and (max-width: 500px) {
-    .bg img {
-        margin-top: unset;
-    }
-}
-
-@media screen and (max-width: 550px) and (min-width: 501px) {
-    .bg img {
-        margin-top: unset;
-    }
-}
-
-@media screen and (max-width: 600px) and (min-width: 576px) {
-    .bg img {
-        margin-top: unset;
-    }
-}
-
-@media screen and (max-width: 650px) and (min-width: 601px) {
-    .bg img {
-        margin-top: unset;
-    }
-}
-
-@media screen and (max-width: 700px) and (min-width: 651px) {
-    .bg img {
-        margin-top: unset;
-    }
-}
-
-@media screen and (max-width: 750px) and (min-width: 701px) {
-    .bg img {
-        margin-top: unset;
-    }
-}
-
-@media screen and (max-width: 575px) and (min-width: 551px) {
-    .bg img {
-        margin-top: unset;
-    }
+@media screen and (min-width: 1200px) {
+  .grid-container {
+    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  }
 }
 
 @media screen and (max-width: 767px) {
@@ -229,11 +186,5 @@
 
     .cloud-top img {
         display: none;
-    }
-}
-
-@media screen and (max-width: 767px) and (min-width: 751px) {
-    .bg img {
-        margin-top: unset;
     }
 }
