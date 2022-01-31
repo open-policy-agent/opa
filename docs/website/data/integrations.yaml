@@ -1072,7 +1072,23 @@ integrations:
     tutorials:
       - https://hub.armo.cloud
 
-
+  i2scim:
+    title: i2scim.io OPA Enabled User/Group Provisioning API
+    description: |
+      i2scim.io is an open source, Apache 2 Licensed implementation of RFC7643/7644 for cloud-native platforms. i2scim supports 
+      externalized access control decisions through OPA.
+    labels:
+      category: security
+      layer: application
+    software:
+      - i2scim
+    code:
+      - hhttps://github.com/i2-open/i2scim
+    inventors:
+      - i2
+    tutorials:
+      - https://i2scim.io/OPA_AccessControl.html
+      
 organizations:
   styra:
     name: Styra
@@ -1202,7 +1218,10 @@ organizations:
     link: https://apisix.apache.org/
   armo:
     name: ARMO
-    link: https://armosec.io
+    link: https://armosec.io  
+  i2:
+    name: Independent Identity
+    link: https://www.independentid.com
 
 software:
   dapr:
@@ -1351,5 +1370,8 @@ software:
     link: https://apisix.apache.org/
   kubescape:
     name: Kubescape
-    link: https://github.com/armosec/kubescape
+    link: https://github.com/armosec/kubescape 
+  i2scim:
+    name: i2 SCIM Server
+    link: https://i2scim.io
 
