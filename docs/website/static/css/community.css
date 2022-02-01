@@ -85,6 +85,11 @@
   font-size: 20px;
 }
 
+.card-text .subheader img {
+    width: 20px;
+    height: 20px;
+}
+
 .support-list {
     margin-top: -40px;
     z-index: 99;
