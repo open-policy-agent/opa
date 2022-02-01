@@ -1473,23 +1473,26 @@ func (p *Planner) planRefData(virtual *ruletrie, base *baseptr, ref ast.Ref, ind
 
 			// We're planning a structure like this:
 			//
-			// block a
-			//   block b
-			//     block c1
-			//       opa_mapping_lookup || br c1
-			//       call_indirect      || br a
-			//       br b
+			// block res
+			//   block a
+			//     block b
+			//       block c1
+			//         opa_mapping_lookup || br c1
+			//         call_indirect      || br res
+			//         br b
+			//       end
+			//       block c2
+			//         dot i   || br c2
+			//         dot i+1 || br c2
+			//         br b
+			//       end
+			//       br a
 			//     end
-			//     block c2
-			//       dot i   || br c2
-			//       dot i+1 || br c2
-			//       br b
-			//     end
-			//     br a
-			//   end
-			//   dot i+2 || br a
-			//   dot i+3 || br a
-			// end
+			//     dot i+2 || br res
+			//     dot i+3 || br res
+			//   end; a
+			//   [add_to_result_set]
+			// end; res
 			//
 			// We have to do it like this because the dot IR stmts
 			// are compiled to `br 0`, the innermost block, if they
@@ -1531,7 +1534,7 @@ func (p *Planner) planRefData(virtual *ruletrie, base *baseptr, ref ast.Ref, ind
 						{ // block "b" in the sketch above
 							Stmts: []ir.Stmt{
 								&ir.BlockStmt{Blocks: []*ir.Block{callDynBlock, dotBlock}},
-								&ir.BreakStmt{Index: 1}},
+								&ir.BreakStmt{Index: 2}},
 						},
 					}},
 				}}

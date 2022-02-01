@@ -218,6 +218,14 @@ pre-production (in alphabetical order):
   December 2018, ~850 ORY Keto instances were running in a mix of
   pre-production and production environments.
 
+* [Permit.io](https://permit.io) Uses a combination of OPA and OPAL
+  to power fine-grained authorization policies at the core of the Permit.io platform.
+  Permit.io leverages the power of OPA's Rego language,
+  generating new Rego code on the fly from its UI policy editor.
+  The team behind Permit.io contributes to the OPA ecosystem - creating opens-source projects like
+  [OPAL- making OPA event-driven)](https://github.com/permitio/opal)
+  and [OPToggles - sync Frontend with open-policy](https://github.com/permitio/OPToggles).
+
 * [Scalr](https://scalr.com/) is a remote operations backend for Terraform
   that helps users scale their Terraform usage through automation and collaboration.
   [Scalr uses OPA](https://docs.scalr.com/en/latest/opa.html) to validate Terraform
