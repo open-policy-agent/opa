@@ -9,19 +9,15 @@
   z-index: 900;
 }
 
-.my-item {
-    /* border: 1px black solid; */
-    /* padding: 2rem; */
-}
-
 .card {
     border-radius: 20px;
     box-shadow: 2px 3px 6px rgba(51, 51, 51, 0.25);
     max-width: 500px;
-      flex: 1 0 80px;
+    flex: 1 0 80px;
 }
 
-.card-body {
+.card-text a {
+    text-decoration: none;
 }
 
 .card-img {
