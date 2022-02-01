@@ -14,7 +14,7 @@ authorization so that:
 - Traffic between OPA and clients is encrypted.
 - Clients verify the OPA API endpoint identity.
 - OPA verifies client identities.
-- Clients are only granted access to specific APIs or sections of [The `data` Document](../#the-data-document).
+- Clients are only granted access to specific APIs or sections of [The `data` Document](../philosophy/#the-opa-document-model).
 
 ## TLS and HTTPS
 
@@ -29,7 +29,7 @@ is specified.
 
 The server can track the certificate and key files' contents, and reload them if necessary:
 
-- ``--tls-cert-refresh=<duration>`` specifies how often OPA should check the TLS certificate and
+- ``--tls-cert-refresh-period=<duration>`` specifies how often OPA should check the TLS certificate and
   private key file for changes (defaults to 0s, disabling periodic refresh). This argument accepts
   any duration, such as "30s", "5m" or "24h".
 

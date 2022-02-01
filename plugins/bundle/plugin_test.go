@@ -97,6 +97,91 @@ func TestPluginOneShot(t *testing.T) {
 	}
 }
 
+func TestPluginOneShotDeltaBundle(t *testing.T) {
+
+	ctx := context.Background()
+	manager := getTestManager()
+	plugin := New(&Config{}, manager)
+	bundleName := "test-bundle"
+	plugin.status[bundleName] = &Status{Name: bundleName, Metrics: metrics.New()}
+	plugin.downloaders[bundleName] = download.New(download.Config{}, plugin.manager.Client(""), bundleName)
+
+	ensurePluginState(t, plugin, plugins.StateNotReady)
+
+	module := "package a\n\ncorge=1"
+
+	b := bundle.Bundle{
+		Manifest: bundle.Manifest{Revision: "quickbrownfaux", Roots: &[]string{"a"}},
+		Data: map[string]interface{}{
+			"a": map[string]interface{}{
+				"baz": "qux",
+			},
+		},
+		Modules: []bundle.ModuleFile{
+			{
+				Path:   "a/policy.rego",
+				Parsed: ast.MustParseModule(module),
+				Raw:    []byte(module),
+			},
+		},
+	}
+
+	plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New()})
+
+	ensurePluginState(t, plugin, plugins.StateOK)
+
+	// simulate a delta bundle download
+
+	// replace a value
+	p1 := bundle.PatchOperation{
+		Op:    "replace",
+		Path:  "a/baz",
+		Value: "bux",
+	}
+
+	// add a new object member
+	p2 := bundle.PatchOperation{
+		Op:    "upsert",
+		Path:  "/a/foo",
+		Value: []string{"hello", "world"},
+	}
+
+	b2 := bundle.Bundle{
+		Manifest: bundle.Manifest{Revision: "delta", Roots: &[]string{"a"}},
+		Patch:    bundle.Patch{Data: []bundle.PatchOperation{p1, p2}},
+	}
+
+	plugin.process(ctx, bundleName, download.Update{Bundle: &b2, Metrics: metrics.New()})
+
+	ensurePluginState(t, plugin, plugins.StateOK)
+
+	txn := storage.NewTransactionOrDie(ctx, manager.Store)
+	defer manager.Store.Abort(ctx, txn)
+
+	ids, err := manager.Store.ListPolicies(ctx, txn)
+	if err != nil {
+		t.Fatal(err)
+	} else if len(ids) != 1 {
+		t.Fatal("Expected 1 policy")
+	}
+
+	bs, err := manager.Store.GetPolicy(ctx, txn, ids[0])
+	exp := []byte("package a\n\ncorge=1")
+	if err != nil {
+		t.Fatal(err)
+	} else if !bytes.Equal(bs, exp) {
+		t.Fatalf("Bad policy content. Exp:\n%v\n\nGot:\n\n%v", string(exp), string(bs))
+	}
+
+	data, err := manager.Store.Read(ctx, txn, storage.Path{})
+	expData := util.MustUnmarshalJSON([]byte(`{"a": {"baz": "bux", "foo": ["hello", "world"]}, "system": {"bundles": {"test-bundle": {"manifest": {"revision": "delta", "roots": ["a"]}}}}}`))
+	if err != nil {
+		t.Fatal(err)
+	} else if !reflect.DeepEqual(data, expData) {
+		t.Fatalf("Bad data content. Exp:\n%v\n\nGot:\n\n%v", expData, data)
+	}
+}
+
 func TestPluginStart(t *testing.T) {
 
 	ctx := context.Background()
@@ -406,10 +491,7 @@ func TestLoadAndActivateBundlesFromDisk(t *testing.T) {
 	plugin := New(&Config{Bundles: bundles}, manager)
 	plugin.bundlePersistPath = filepath.Join(dir, ".opa")
 
-	err = plugin.loadAndActivateBundlesFromDisk(ctx)
-	if err != nil {
-		t.Fatal("unexpected error:", err)
-	}
+	plugin.loadAndActivateBundlesFromDisk(ctx)
 
 	// persist a bundle to disk and then load it
 	module := "package foo\n\ncorge=1"
@@ -439,10 +521,7 @@ func TestLoadAndActivateBundlesFromDisk(t *testing.T) {
 		t.Fatalf("unexpected error %v", err)
 	}
 
-	err = plugin.loadAndActivateBundlesFromDisk(ctx)
-	if err != nil {
-		t.Fatal("unexpected error:", err)
-	}
+	plugin.loadAndActivateBundlesFromDisk(ctx)
 
 	txn := storage.NewTransactionOrDie(ctx, manager.Store)
 	defer manager.Store.Abort(ctx, txn)
@@ -468,6 +547,186 @@ func TestLoadAndActivateBundlesFromDisk(t *testing.T) {
 		t.Fatal(err)
 	} else if !reflect.DeepEqual(data, expData) {
 		t.Fatalf("Bad data content. Exp:\n%v\n\nGot:\n\n%v", expData, data)
+	}
+}
+
+func TestLoadAndActivateDepBundlesFromDisk(t *testing.T) {
+	ctx := context.Background()
+	manager := getTestManager()
+
+	dir, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatalf("unexpected error %v", err)
+	}
+
+	defer os.RemoveAll(dir)
+
+	bundleName := "test-bundle-main"
+	bundleSource := Source{
+		Persist: true,
+	}
+
+	bundleNameOther := "test-bundle-lib"
+	bundleSourceOther := Source{
+		Persist: true,
+	}
+
+	bundles := map[string]*Source{}
+	bundles[bundleName] = &bundleSource
+	bundles[bundleNameOther] = &bundleSourceOther
+
+	plugin := New(&Config{Bundles: bundles}, manager)
+	plugin.bundlePersistPath = filepath.Join(dir, ".opa")
+
+	module1 := `
+package bar
+
+import data.foo
+
+default allow = false
+
+allow {
+	foo.is_one(1)
+}`
+
+	module2 := `
+package foo
+
+is_one(x) {
+	x == 1
+}`
+
+	b1 := bundle.Bundle{
+		Manifest: bundle.Manifest{Revision: "quickbrownfauxbar", Roots: &[]string{"bar"}},
+		Data:     map[string]interface{}{},
+		Modules: []bundle.ModuleFile{
+			{
+				URL:    "/bar/policy.rego",
+				Path:   "/bar/policy.rego",
+				Parsed: ast.MustParseModule(module1),
+				Raw:    []byte(module1),
+			},
+		},
+	}
+
+	b1.Manifest.Init()
+
+	b2 := bundle.Bundle{
+		Manifest: bundle.Manifest{Revision: "quickbrownfauxfoo", Roots: &[]string{"foo"}},
+		Data:     map[string]interface{}{},
+		Modules: []bundle.ModuleFile{
+			{
+				URL:    "/foo/policy.rego",
+				Path:   "/foo/policy.rego",
+				Parsed: ast.MustParseModule(module2),
+				Raw:    []byte(module2),
+			},
+		},
+	}
+
+	b2.Manifest.Init()
+
+	var buf1 bytes.Buffer
+	if err := bundle.NewWriter(&buf1).UseModulePath(true).Write(b1); err != nil {
+		t.Fatal("unexpected error:", err)
+	}
+
+	err = plugin.saveBundleToDisk(bundleName, &buf1)
+	if err != nil {
+		t.Fatalf("unexpected error %v", err)
+	}
+
+	var buf2 bytes.Buffer
+	if err := bundle.NewWriter(&buf2).UseModulePath(true).Write(b2); err != nil {
+		t.Fatal("unexpected error:", err)
+	}
+
+	err = plugin.saveBundleToDisk(bundleNameOther, &buf2)
+	if err != nil {
+		t.Fatalf("unexpected error %v", err)
+	}
+
+	plugin.loadAndActivateBundlesFromDisk(ctx)
+
+	txn := storage.NewTransactionOrDie(ctx, manager.Store)
+	defer manager.Store.Abort(ctx, txn)
+
+	ids, err := manager.Store.ListPolicies(ctx, txn)
+	if err != nil {
+		t.Fatal(err)
+	} else if len(ids) != 2 {
+		t.Fatal("Expected 2 policies")
+	}
+}
+
+func TestLoadAndActivateDepBundlesFromDiskMaxAttempts(t *testing.T) {
+	ctx := context.Background()
+	manager := getTestManager()
+
+	dir, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatalf("unexpected error %v", err)
+	}
+
+	defer os.RemoveAll(dir)
+
+	bundleName := "test-bundle-main"
+	bundleSource := Source{
+		Persist: true,
+	}
+
+	bundles := map[string]*Source{}
+	bundles[bundleName] = &bundleSource
+
+	plugin := New(&Config{Bundles: bundles}, manager)
+	plugin.bundlePersistPath = filepath.Join(dir, ".opa")
+
+	module := `
+package bar
+
+import data.foo
+
+default allow = false
+
+allow {
+	foo.is_one(1)
+}`
+
+	b := bundle.Bundle{
+		Manifest: bundle.Manifest{Revision: "quickbrownfaux", Roots: &[]string{"bar"}},
+		Data:     map[string]interface{}{},
+		Modules: []bundle.ModuleFile{
+			{
+				URL:    "/bar/policy.rego",
+				Path:   "/bar/policy.rego",
+				Parsed: ast.MustParseModule(module),
+				Raw:    []byte(module),
+			},
+		},
+	}
+
+	b.Manifest.Init()
+
+	var buf bytes.Buffer
+	if err := bundle.NewWriter(&buf).UseModulePath(true).Write(b); err != nil {
+		t.Fatal("unexpected error:", err)
+	}
+
+	err = plugin.saveBundleToDisk(bundleName, &buf)
+	if err != nil {
+		t.Fatalf("unexpected error %v", err)
+	}
+
+	plugin.loadAndActivateBundlesFromDisk(ctx)
+
+	txn := storage.NewTransactionOrDie(ctx, manager.Store)
+	defer manager.Store.Abort(ctx, txn)
+
+	ids, err := manager.Store.ListPolicies(ctx, txn)
+	if err != nil {
+		t.Fatal(err)
+	} else if len(ids) != 0 {
+		t.Fatal("Expected 0 policies")
 	}
 }
 
@@ -2151,6 +2410,41 @@ func TestPluginUsingFileLoader(t *testing.T) {
 		}
 	})
 
+}
+
+func TestPluginUsingDirectoryLoader(t *testing.T) {
+	test.WithTempFS(map[string]string{
+		"test.rego": `package test
+
+		p := 7`,
+	}, func(dir string) {
+
+		mgr := getTestManager()
+		url := "file://" + dir
+
+		p := New(&Config{Bundles: map[string]*Source{
+			"test": {
+				SizeLimitBytes: 1e5,
+				Resource:       url,
+			},
+		}}, mgr)
+
+		ch := make(chan Status)
+
+		p.Register("test", func(s Status) {
+			ch <- s
+		})
+
+		if err := p.Start(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+
+		s := <-ch
+
+		if s.LastSuccessfulActivation.IsZero() {
+			t.Fatal("expected successful activation")
+		}
+	})
 }
 
 func TestPluginManualTrigger(t *testing.T) {

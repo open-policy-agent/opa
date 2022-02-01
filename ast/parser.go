@@ -11,6 +11,7 @@ import (
 	"io"
 	"math/big"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -94,10 +95,11 @@ func (e *parsedTermCacheItem) String() string {
 
 // ParserOptions defines the options for parsing Rego statements.
 type ParserOptions struct {
-	Capabilities      *Capabilities
-	ProcessAnnotation bool
-	AllFutureKeywords bool
-	FutureKeywords    []string
+	Capabilities       *Capabilities
+	ProcessAnnotation  bool
+	AllFutureKeywords  bool
+	FutureKeywords     []string
+	unreleasedKeywords bool
 }
 
 // NewParser creates and initializes a Parser.
@@ -150,6 +152,14 @@ func (p *Parser) WithFutureKeywords(kws ...string) *Parser {
 //     import future.keywords
 func (p *Parser) WithAllFutureKeywords(yes bool) *Parser {
 	p.po.AllFutureKeywords = yes
+	return p
+}
+
+// withUnreleasedKeywords allows using keywords that haven't surfaced
+// as future keywords (see above) yet, but have tests that require
+// them to be parsed
+func (p *Parser) withUnreleasedKeywords(yes bool) *Parser {
+	p.po.unreleasedKeywords = yes
 	return p
 }
 
@@ -206,6 +216,24 @@ func (p *Parser) futureParser() *Parser {
 	return &q
 }
 
+// presentParser returns a shallow copy of `p` with an empty
+// cache, and a scanner that knows none of the future keywords.
+// It is used to successfully parse keyword imports, like
+//
+//  import future.keywords.in
+//
+// even when the parser has already been informed about the
+// future keyword "in". This parser won't error out because
+// "in" is an identifier.
+func (p *Parser) presentParser() (*Parser, map[string]tokens.Token) {
+	var cpy map[string]tokens.Token
+	q := *p
+	q.s = p.save()
+	q.s.s, cpy = p.s.s.WithoutKeywords(futureKeywords)
+	q.cache = parsedTermCache{}
+	return &q, cpy
+}
+
 // Parse will read the Rego source and parse statements and
 // comments as they are found. Any errors encountered while
 // parsing will be accumulated and returned as a list of Errors.
@@ -229,6 +257,10 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 				},
 			}
 		}
+	}
+
+	if p.po.unreleasedKeywords { // TODO(sr): remove when capabilities include "every"
+		allowedFutureKeywords["every"] = tokens.Every
 	}
 
 	var err error
@@ -433,8 +465,8 @@ func (p *Parser) parseImport() *Import {
 		p.error(p.s.Loc(), "expected ident")
 		return nil
 	}
-
-	term := p.parseTerm()
+	q, prev := p.presentParser()
+	term := q.parseTerm()
 	if term != nil {
 		switch v := term.Value.(type) {
 		case Var:
@@ -449,6 +481,9 @@ func (p *Parser) parseImport() *Import {
 			imp.Path = term
 		}
 	}
+	// keep advanced parser state, reset known keywords
+	p.s = q.s
+	p.s.s = q.s.s.WithKeywords(prev)
 
 	if imp.Path == nil {
 		p.error(p.s.Loc(), "expected path")
@@ -766,6 +801,8 @@ func (p *Parser) parseLiteral() (expr *Expr) {
 	switch p.s.tok {
 	case tokens.Some:
 		return p.parseSome()
+	case tokens.Every:
+		return p.parseEvery()
 	case tokens.Not:
 		p.scan()
 		negated = true
@@ -896,6 +933,57 @@ func (p *Parser) parseSome() *Expr {
 	}
 
 	return NewExpr(decl).SetLocation(decl.Location)
+}
+
+func (p *Parser) parseEvery() *Expr {
+	qb := &Every{}
+	qb.SetLoc(p.s.Loc())
+
+	// TODO(sr): We'd get more accurate error messages if we didn't rely on
+	// parseTermInfixCall here, but parsed "var [, var] in term" manually.
+	p.scan()
+	term := p.parseTermInfixCall()
+	if term == nil {
+		return nil
+	}
+	call, ok := term.Value.(Call)
+	if !ok {
+		p.illegal("expected `x[, y] in xs { ... }` expression")
+		return nil
+	}
+	switch call[0].String() {
+	case Member.Name: // x in xs
+		qb.Value = call[1]
+		qb.Domain = call[2]
+	case MemberWithKey.Name: // k, v in xs
+		qb.Key = call[1]
+		qb.Value = call[2]
+		qb.Domain = call[3]
+		if _, ok := qb.Key.Value.(Var); !ok {
+			p.illegal("expected key to be a variable")
+			return nil
+		}
+	default:
+		p.illegal("expected `x[, y] in xs { ... }` expression")
+		return nil
+	}
+	if _, ok := qb.Value.Value.(Var); !ok {
+		p.illegal("expected value to be a variable")
+		return nil
+	}
+	if p.s.tok == tokens.LBrace { // every x in xs { ... }
+		p.scan()
+		body := p.parseBody(tokens.RBrace)
+		if body == nil {
+			return nil
+		}
+		p.scan()
+		qb.Body = body
+		return NewExpr(qb).SetLocation(qb.Location)
+	}
+
+	p.illegal("missing body")
+	return nil
 }
 
 func (p *Parser) parseExpr() *Expr {
@@ -1993,17 +2081,14 @@ func convertYAMLMapKeyTypes(x interface{}, path []string) (interface{}, error) {
 // futureKeywords is the source of truth for future keywords that will
 // eventually become standard keywords inside of Rego.
 var futureKeywords = map[string]tokens.Token{
-	"in": tokens.In,
+	"in":    tokens.In,
+	"every": tokens.Every,
 }
 
 func (p *Parser) futureImport(imp *Import, allowedFutureKeywords map[string]tokens.Token) {
 	path := imp.Path.Value.(Ref)
-	if len(path) == 1 {
-		p.errorf(imp.Path.Location, "invalid import, use `import future.keywords` or `import.future.keywords.in`")
-		return
-	}
 
-	if !path[1].Equal(StringTerm("keywords")) {
+	if len(path) == 1 || !path[1].Equal(StringTerm("keywords")) {
 		p.errorf(imp.Path.Location, "invalid import, must be `future.keywords`")
 		return
 	}
@@ -2017,8 +2102,15 @@ func (p *Parser) futureImport(imp *Import, allowedFutureKeywords map[string]toke
 	for k := range allowedFutureKeywords {
 		kwds = append(kwds, k)
 	}
+
 	switch len(path) {
 	case 2: // all keywords imported, nothing to do
+		// TODO(sr): remove when ready
+		for i, kw := range kwds {
+			if kw == "every" {
+				kwds = append(kwds[:i], kwds[i+1:]...)
+			}
+		}
 	case 3: // one keyword imported
 		kw, ok := path[2].Value.(String)
 		if !ok {
@@ -2028,6 +2120,7 @@ func (p *Parser) futureImport(imp *Import, allowedFutureKeywords map[string]toke
 		keyword := string(kw)
 		_, ok = allowedFutureKeywords[keyword]
 		if !ok {
+			sort.Strings(kwds) // so the error message is stable
 			p.errorf(imp.Path.Location, "unexpected keyword, must be one of %v", kwds)
 			return
 		}

@@ -22,7 +22,7 @@
     "codemirror": "^5.58.2",
     "codemirror-rego": "^1.1.0",
     "esm": "^3.2.25",
-    "node-fetch": "^2.6.1",
+    "node-fetch": "^2.6.7",
     "tmp": "^0.2.1"
   },
   "devDependencies": {

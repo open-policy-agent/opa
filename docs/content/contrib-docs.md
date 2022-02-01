@@ -37,7 +37,7 @@ After the Frontmatter block, each page uses standard markdown formatting. For a 
 
 ## Create a local branch
 
-To get started, fork the OPA repository and create a local branch for your Docs changes. Check out the [Development Guide](../development/#fork-clone-create-a-branch) if you need some help setting this up. 
+To get started, fork the OPA repository and create a local branch for your Docs changes. Check out the [Development Guide](../contrib-development/#fork-clone-create-a-branch) if you need some help setting this up. 
 
 ## Update Existing Docs
 
@@ -52,7 +52,7 @@ In the case where you want to add a topic that doesn't fit nicely into any of th
 Once you have made your updates, the next step is to test that they look as expected. To test your changes, generate a local preview with your updated files and preview them with Netlify.
 
 Summary of steps:
-1. Install dependencies: [Hugo](#installing-hugo), [NodeJS](https://nodejs.org), and [Netlify CLI](https://www.netlify.com/products/dev/)
+1. Install dependencies: [Hugo](https://github.com/open-policy-agent/opa/tree/main/docs#installing-hugo), [NodeJS](https://nodejs.org), and [Netlify CLI](https://www.netlify.com/products/dev/)
 1. Build artifacts: `make build`
 1. Generate HTML files: `make docs-serve-local` (*This can take up to 5 min*)
 1. Start preview server: `netlify dev`

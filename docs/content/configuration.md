@@ -71,7 +71,7 @@ caching:
     max_size_bytes: 10000000
 
 distributed_tracing:
-  enabled: true
+  type: grpc
   address: localhost:4317
   service_name: opa
   sample_percentage: 50
@@ -750,6 +750,7 @@ included in the actual bundle gzipped tarball.
 | `bundles[_].polling.min_delay_seconds` | `int64` | No (default: `60`) | Minimum amount of time to wait between bundle downloads. |
 | `bundles[_].polling.max_delay_seconds` | `int64` | No (default: `120`) | Maximum amount of time to wait between bundle downloads. |
 | `bundles[_].trigger` | `string`  (default: `periodic`) | No | Controls how bundle is downloaded from the remote server. Allowed values are `periodic` and `manual`. |
+| `bundles[_].polling.long_polling_timeout_seconds` | `int64` | No | Maximum amount of time the server should wait before issuing a timeout if there's no update available. |
 | `bundles[_].persist` | `bool` | No | Persist activated bundles to disk. |
 | `bundles[_].signing.keyid` | `string` | No | Name of the key to use for bundle signature verification. |
 | `bundles[_].signing.scope` | `string` | No | Scope to use for bundle signature verification. |
@@ -793,6 +794,7 @@ included in the actual bundle gzipped tarball.
 | `discovery.polling.min_delay_seconds` | `int64` | No (default: `60`) | Minimum amount of time to wait between configuration downloads. |
 | `discovery.polling.max_delay_seconds` | `int64` | No (default: `120`) | Maximum amount of time to wait between configuration downloads. |
 | `discovery.trigger` | `string`  (default: `periodic`) | No | Controls how bundle is downloaded from the remote server. Allowed values are `periodic` and `manual`. |
+| `discovery.polling.long_polling_timeout_seconds` | `int64` | No | Maximum amount of time the server should wait before issuing a timeout if there's no update available. |
 | `discovery.signing.keyid` | `string` | No | Name of the key to use for bundle signature verification. |
 | `discovery.signing.scope` | `string` | No | Scope to use for bundle signature verification. |
 | `discovery.signing.exclude_files` | `array` | No | Files in the bundle to exclude during verification. |
@@ -815,7 +817,7 @@ Distributed tracing represents the configuration of the OpenTelemetry Tracing.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `distributed_tracing.enabled` | `bool` | No (default: `false`) | Enables distributed tracing. |
+| `distributed_tracing.type` | `string` | No | Setting this to "grpc" enables distributed tracing with an collector gRPC endpoint |
 | `distributed_tracing.address` | `string` | No (default: `localhost:4317`) | Address of the OpenTelemetry Collector gRPC endpoint. |
 | `distributed_tracing.service_name` | `string` | No (default: `opa`) | Logical name of the service. |
 | `distributed_tracing.sample_percentage` | `int` | No (default: `100`) | Percentage of traces that are sampled and exported. |

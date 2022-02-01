@@ -76,10 +76,7 @@ func TestHTTPGetRequest(t *testing.T) {
 		"test-header":    []interface{}{"test-value"},
 	}
 
-	resultObj, err := ast.InterfaceToValue(expectedResult)
-	if err != nil {
-		panic(err)
-	}
+	resultObj := ast.MustInterfaceToValue(expectedResult)
 
 	// run the test
 	tests := []struct {
@@ -130,10 +127,7 @@ func TestHTTPGetRequestTlsInsecureSkipVerify(t *testing.T) {
 		"content-type":   []interface{}{"text/plain; charset=utf-8"},
 	}
 
-	resultObj, err := ast.InterfaceToValue(expectedResult)
-	if err != nil {
-		panic(err)
-	}
+	resultObj := ast.MustInterfaceToValue(expectedResult)
 
 	// run the test
 	tests := []struct {
@@ -181,10 +175,7 @@ func TestHTTPEnableJSONDecode(t *testing.T) {
 		"content-type":   []interface{}{"text/plain; charset=utf-8"},
 	}
 
-	resultObj, err := ast.InterfaceToValue(expectedResult)
-	if err != nil {
-		panic(err)
-	}
+	resultObj := ast.MustInterfaceToValue(expectedResult)
 
 	// run the test
 	tests := []struct {
@@ -462,10 +453,7 @@ func TestHTTPDeleteRequest(t *testing.T) {
 		"content-type":   []interface{}{"application/json"},
 	}
 
-	resultObj, err := ast.InterfaceToValue(expectedResult)
-	if err != nil {
-		panic(err)
-	}
+	resultObj := ast.MustInterfaceToValue(expectedResult)
 
 	// delete a new person
 	personToDelete := Person{ID: "2", Firstname: "Joe"}
@@ -622,10 +610,7 @@ func TestHTTPRedirectDisable(t *testing.T) {
 		"location":       []interface{}{"/test"},
 	}
 
-	resultObj, err := ast.InterfaceToValue(expectedResult)
-	if err != nil {
-		panic(err)
-	}
+	resultObj := ast.MustInterfaceToValue(expectedResult)
 
 	data := loadSmallTestData()
 	rules := append(
@@ -655,10 +640,7 @@ func TestHTTPRedirectEnable(t *testing.T) {
 		"content-length": []interface{}{"0"},
 	}
 
-	resultObj, err := ast.InterfaceToValue(expectedResult)
-	if err != nil {
-		panic(err)
-	}
+	resultObj := ast.MustInterfaceToValue(expectedResult)
 
 	data := loadSmallTestData()
 	rules := append(
@@ -680,28 +662,19 @@ func TestHTTPSendRaiseError(t *testing.T) {
 	networkErrObj["code"] = HTTPSendNetworkErr
 	networkErrObj["message"] = "Get \"foo://foo.com\": unsupported protocol scheme \"foo\""
 
-	networkErr, err := ast.InterfaceToValue(networkErrObj)
-	if err != nil {
-		panic(err)
-	}
+	networkErr := ast.MustInterfaceToValue(networkErrObj)
 
 	internalErrObj := make(map[string]interface{})
 	internalErrObj["code"] = HTTPSendInternalErr
 	internalErrObj["message"] = fmt.Sprintf(`http.send({"method": "get", "url": "%s", "force_json_decode": true, "raise_error": false, "force_cache": true}): eval_builtin_error: http.send: 'force_cache' set but 'force_cache_duration_seconds' parameter is missing`, baseURL)
 
-	internalErr, err := ast.InterfaceToValue(internalErrObj)
-	if err != nil {
-		panic(err)
-	}
+	internalErr := ast.MustInterfaceToValue(internalErrObj)
 
 	responseObj := make(map[string]interface{})
 	responseObj["status_code"] = 0
 	responseObj["error"] = internalErrObj
 
-	response, err := ast.InterfaceToValue(responseObj)
-	if err != nil {
-		panic(err)
-	}
+	response := ast.MustInterfaceToValue(responseObj)
 
 	tests := []struct {
 		note         string
@@ -2601,10 +2574,7 @@ func TestSocketHTTPGetRequest(t *testing.T) {
 		"test-header":    []interface{}{"test-value"},
 	}
 
-	resultObj, err := ast.InterfaceToValue(expectedResult)
-	if err != nil {
-		panic(err)
-	}
+	resultObj := ast.MustInterfaceToValue(expectedResult)
 
 	// run the test
 	tests := []struct {
@@ -2679,5 +2649,87 @@ func TestDistributedTracingDisabled(t *testing.T) {
 
 	if exp, act := 0, mock.called; exp != act {
 		t.Errorf("calls to NewTransported: expected %d, got %d", exp, act)
+	}
+}
+
+func TestHTTPGetRequestAllowNet(t *testing.T) {
+
+	// test data
+	body := map[string]bool{"ok": true}
+
+	// test server
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(body)
+	}))
+
+	defer ts.Close()
+
+	// host
+	serverURL, err := url.Parse(ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	serverHost := strings.Split(serverURL.Host, ":")[0]
+
+	// expected result
+	expectedResult := make(map[string]interface{})
+	expectedResult["status"] = "200 OK"
+	expectedResult["status_code"] = http.StatusOK
+
+	expectedResult["body"] = body
+	expectedResult["raw_body"] = "{\"ok\":true}\n"
+
+	resultObj := ast.MustInterfaceToValue(expectedResult)
+
+	expectedError := &Error{Code: "eval_builtin_error", Message: fmt.Sprintf("http.send: unallowed host: %s", serverHost)}
+
+	rules := []string{fmt.Sprintf(
+		`p = x { http.send({"method": "get", "url": "%s", "force_json_decode": true}, resp); x := remove_headers(resp) }`, ts.URL)}
+
+	// run the test
+	tests := []struct {
+		note     string
+		rules    []string
+		options  func(*Query) *Query
+		expected interface{}
+	}{
+		{
+			"http.send allow_net nil",
+			rules,
+
+			setAllowNet(nil),
+			resultObj.String(),
+		},
+		{
+			"http.send allow_net match",
+			rules,
+			setAllowNet([]string{serverHost}),
+			resultObj.String(),
+		},
+		{
+			"http.send allow_net match + additional host",
+			rules,
+			setAllowNet([]string{serverHost, "example.com"}),
+			resultObj.String(),
+		},
+		{
+			"http.send allow_net empty",
+			rules,
+			setAllowNet([]string{}),
+			expectedError,
+		},
+		{
+			"http.send allow_net no match",
+			rules,
+			setAllowNet([]string{"example.com"}),
+			expectedError,
+		},
+	}
+
+	data := loadSmallTestData()
+
+	for _, tc := range tests {
+		runTopDownTestCase(t, data, tc.note, append(tc.rules, httpSendHelperRules...), tc.expected, tc.options)
 	}
 }

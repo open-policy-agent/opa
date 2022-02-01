@@ -12,84 +12,13 @@ import (
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/cover"
+	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/tester"
 	"github.com/open-policy-agent/opa/topdown"
 	"github.com/open-policy-agent/opa/types"
 	"github.com/open-policy-agent/opa/util/test"
 )
-
-func TestRunner_EnableFailureLine(t *testing.T) {
-
-	ctx := context.Background()
-
-	files := map[string]string{
-		"/a_test.rego": `package foo
-			test_a {
-				true
-				false
-				true
-			}
-			test_b {
-				false
-				true
-			}
-			test_c {
-				input.x = 1  # indexer understands this
-			}`,
-	}
-
-	tests := map[[2]string]struct {
-		wantErr  bool
-		wantFail bool
-		FailRow  int
-	}{
-		{"data.foo", "test_a"}: {false, true, 4},
-		{"data.foo", "test_b"}: {false, true, 8},
-		{"data.foo", "test_c"}: {false, true, 0},
-	}
-
-	test.WithTempFS(files, func(d string) {
-		paths := []string{d}
-		modules, store, err := tester.Load(paths, nil)
-		if err != nil {
-			t.Fatal(err)
-		}
-		ch, err := tester.NewRunner().EnableFailureLine(true).SetStore(store).Run(ctx, modules)
-		if err != nil {
-			t.Fatal(err)
-		}
-		var rs []*tester.Result
-		for r := range ch {
-			rs = append(rs, r)
-		}
-		seen := map[[2]string]struct{}{}
-		for i := range rs {
-			k := [2]string{rs[i].Package, rs[i].Name}
-			seen[k] = struct{}{}
-			exp, ok := tests[k]
-			if !ok {
-				t.Errorf("Unexpected result for %v", k)
-			} else if exp.wantErr != (rs[i].Error != nil) || exp.wantFail != rs[i].Fail {
-				t.Errorf("Expected %v for %v but got: %v", exp, k, rs[i])
-			} else if exp.FailRow != 0 {
-				if rs[i].FailedAt == nil || rs[i].FailedAt.Location == nil {
-					t.Errorf("Failed line not set")
-				} else if rs[i].FailedAt.Location.Row != exp.FailRow {
-					t.Errorf("Expected Failed Line %v but got: %v", exp.FailRow, rs[i].FailedAt.Location.Row)
-				}
-			} else if rs[i].FailedAt != nil {
-				t.Errorf("Failed line set, but expected not set.")
-			}
-		}
-		// This makes sure all tests were executed
-		for k := range tests {
-			if _, ok := seen[k]; !ok {
-				t.Errorf("Expected result for %v", k)
-			}
-		}
-	})
-}
 
 func TestRun(t *testing.T) {
 	testRun(t, testRunConfig{})
@@ -561,5 +490,85 @@ func registerSleepBuiltin() {
 		d, _ := time.ParseDuration(string(a.(ast.String)))
 		time.Sleep(d)
 		return ast.Null{}, nil
+	})
+}
+
+func TestRunnerWithCustomBuiltin(t *testing.T) {
+
+	var myBuiltinDecl = &ast.Builtin{
+		Name: "my_sum",
+		Decl: types.NewFunction(
+			types.Args(
+				types.N,
+				types.N,
+			),
+			types.N,
+		),
+	}
+
+	var myBuiltin = &tester.Builtin{
+		Decl: myBuiltinDecl,
+		Func: rego.Function2(
+			&rego.Function{
+				Name: myBuiltinDecl.Name,
+				Decl: myBuiltinDecl.Decl,
+			},
+			func(_ rego.BuiltinContext, a, b *ast.Term) (*ast.Term, error) {
+				var num1, num2 int
+				if err := ast.As(a.Value, &num1); err != nil {
+					return nil, err
+				}
+				if err := ast.As(b.Value, &num2); err != nil {
+					return nil, err
+				}
+				return ast.IntNumberTerm(num1 + num2), nil
+			},
+		),
+	}
+
+	files := map[string]string{
+		"/test.rego": `package test
+
+		test_a { my_sum(2,3) == 5 }
+		test_b { my_sum(5,4) == 1 }
+		test_c { my_sum(4,1.0) == 5 }`,
+	}
+
+	ctx := context.Background()
+
+	test.WithTempFS(files, func(d string) {
+		paths := []string{d}
+		modules, store, err := tester.Load(paths, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		txn := storage.NewTransactionOrDie(ctx, store)
+		runner := tester.NewRunner().SetStore(store).SetModules(modules).AddCustomBuiltins([]*tester.Builtin{myBuiltin})
+		ch, err := runner.RunTests(ctx, txn)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		var results []*tester.Result
+
+		for r := range ch {
+			results = append(results, r)
+		}
+
+		exp := map[string]bool{
+			"test_a": true,
+			"test_b": false,
+			"test_c": false,
+		}
+
+		got := map[string]bool{}
+
+		for _, tr := range results {
+			got[tr.Name] = tr.Pass()
+		}
+
+		if !reflect.DeepEqual(exp, got) {
+			t.Fatal("expected:", exp, "got:", got)
+		}
 	})
 }

@@ -142,6 +142,9 @@ func (c *Discovery) TriggerMode() *plugins.TriggerMode {
 }
 
 func (c *Discovery) Trigger(ctx context.Context) error {
+	if c.downloader == nil {
+		return nil
+	}
 	return c.downloader.Trigger(ctx)
 }
 
@@ -254,7 +257,7 @@ func (c *Discovery) processBundle(ctx context.Context, b *bundleApi.Bundle) (*pl
 		Raw:        config.Services,
 		AuthPlugin: c.manager.AuthPlugin,
 		Keys:       c.manager.PublicKeys(),
-		Logger:     c.logger.WithFields(c.manager.Client(c.config.service).Logger().GetFields()),
+		Logger:     c.logger.WithFields(c.manager.Client(c.config.service).LoggerFields()),
 	}
 	services, err := cfg.ParseServicesConfig(opts)
 	if err != nil {

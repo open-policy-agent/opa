@@ -75,6 +75,40 @@ func TestPluginStart(t *testing.T) {
 	}
 }
 
+func TestPluginNoLogging(t *testing.T) {
+	// Given no custom plugin, no service(s) and no console logging configured,
+	// this should not be an error, but neither do we need to initiate the plugin
+	cases := []struct {
+		note   string
+		config []byte
+	}{
+		{
+			note:   "no plugin attributes",
+			config: []byte(`{}`),
+		},
+		{
+			note:   "empty plugin configuration",
+			config: []byte(`{"status": {}}`),
+		},
+		{
+			note:   "only disabled console logger",
+			config: []byte(`{"status": {"console": "false"}}`),
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			config, err := ParseConfig(tc.config, []string{}, nil)
+			if err != nil {
+				t.Errorf("expected no error: %v", err)
+			}
+			if config != nil {
+				t.Errorf("excected no config for a no-op logging plugin")
+			}
+		})
+	}
+}
+
 func TestPluginStartTriggerManual(t *testing.T) {
 
 	fixture := newTestFixture(t, nil)
@@ -557,16 +591,6 @@ func TestParseConfigDefaultServiceWithConsole(t *testing.T) {
 
 	if config.Service != "" {
 		t.Errorf("Expected no service in config, actual = '%s'", config.Service)
-	}
-}
-
-func TestParseConfigDefaultServiceWithNoServiceOrConsole(t *testing.T) {
-	loggerConfig := []byte(`{}`)
-
-	_, err := ParseConfig(loggerConfig, []string{}, nil)
-
-	if err == nil {
-		t.Error("Expected an error but err==nil")
 	}
 }
 

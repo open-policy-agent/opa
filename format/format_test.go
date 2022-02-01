@@ -89,6 +89,9 @@ func TestFormatSource(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed to read rego source: %v", err)
 			}
+			if bytes.Contains(contents, []byte(`import future.keywords.every`)) {
+				t.Skip("TODO: uncomment 'every' tests")
+			}
 
 			expected, err := ioutil.ReadFile(rego + ".formatted")
 			if err != nil {
@@ -333,6 +336,52 @@ a[_x[y]]`,
 			expected: `_x
 a[_x[y][[z, w]]]`,
 		},
+		{
+			note: "expr with wildcard that has a default location",
+			toFmt: func() *ast.Expr {
+				expr := ast.MustParseExpr(`["foo", _] = split(input.foo, ":")`)
+				ast.WalkTerms(expr, func(term *ast.Term) bool {
+					v, ok := term.Value.(ast.Var)
+					if ok && v.IsWildcard() {
+						term.Location = defaultLocation(term)
+						return true
+					}
+					term.Location.File = "foo.rego"
+					term.Location.Row = 2
+					return false
+				})
+				return expr
+			}(),
+			expected: `["foo", _] = split(input.foo, ":")`,
+		},
+		{
+			note: "expr all terms having empty-file locations",
+			toFmt: ast.MustParseExpr(`[
+					"foo",
+					_
+					] = split(input.foo, ":")`),
+			expected: `
+[
+	"foo",
+	_,
+] = split(input.foo, ":")`,
+		},
+		{
+			note: "expr where all terms having empty-file locations, and one is a default location",
+			toFmt: func() *ast.Expr {
+				expr := ast.MustParseExpr(`
+["foo", __local1__] = split(input.foo, ":")`)
+				ast.WalkTerms(expr, func(term *ast.Term) bool {
+					if ast.VarTerm("__local1__").Equal(term) {
+						term.Location = defaultLocation(term)
+						return true
+					}
+					return false
+				})
+				return expr
+			}(),
+			expected: `["foo", __local1__] = split(input.foo, ":")`,
+		},
 	}
 
 	for _, tc := range cases {
@@ -344,7 +393,7 @@ a[_x[y][[z, w]]]`,
 			expected := strings.TrimSpace(tc.expected)
 			actual := strings.TrimSpace(string(bs))
 			if actual != expected {
-				t.Fatalf("Expected:\n\n%s\n\nGot:\n\n%s\n\n", expected, actual)
+				t.Fatalf("Expected:\n\n%q\n\nGot:\n\n%q\n\n", expected, actual)
 			}
 		})
 	}

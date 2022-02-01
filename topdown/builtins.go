@@ -52,6 +52,7 @@ type (
 		PrintHook              print.Hook            // provides callback function to use for printing
 		DistributedTracingOpts tracing.Options       // options to be used by distributed tracing.
 		rand                   *rand.Rand            // randomization source for non-security-sensitive operations
+		Capabilities           *ast.Capabilities
 	}
 
 	// BuiltinFunc defines an interface for implementing built-in functions.

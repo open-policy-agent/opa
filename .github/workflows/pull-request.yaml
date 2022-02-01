@@ -24,7 +24,7 @@ jobs:
             capabilities.json
 
   go-build:
-    name: Go Build (${{ matrix.os }})
+    name: Go Build (${{ matrix.os }}${{ matrix.arch && format(' {0}', matrix.arch) || '' }})
     runs-on: ${{ matrix.run }}
     needs: generate
     strategy:
@@ -34,6 +34,11 @@ jobs:
           - os: linux
             run: ubuntu-18.04
             targets: ci-go-ci-build-linux ci-go-ci-build-linux-static
+            arch: amd64
+          - os: linux
+            run: ubuntu-18.04
+            targets: ci-go-ci-build-linux-static
+            arch: arm64
           - os: windows
             run: ubuntu-18.04
             targets: ci-go-ci-build-windows
@@ -61,6 +66,8 @@ jobs:
 
       - name: Build
         run: make ${{ matrix.targets }}
+        env:
+          GOARCH: ${{ matrix.arch }}
         timeout-minutes: 30
 
       - name: Upload binaries
@@ -188,14 +195,24 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v2
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+        with:
+          platforms: arm64
+
       - name: Download release binaries
         uses: actions/download-artifact@v2
         with:
           name: binaries
           path: _release
 
-      - name: Test images
+      - name: Test amd64 images
         run: make ci-image-smoke-test
+
+      - name: Test arm64 images
+        run: make ci-image-smoke-test
+        env:
+          GOARCH: arm64
 
   smoke-test-binaries:
     runs-on: ${{ matrix.os }}
@@ -274,3 +291,25 @@ jobs:
       - name: Build
         run: make ci-go-ci-build-linux GOVERSION=${{ matrix.version }}
         timeout-minutes: 30
+
+  # Run PR metadata against Rego policies
+  rego-check-pr:
+    name: Rego PR checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Download OPA
+        uses: open-policy-agent/setup-opa@v1
+
+      - name: Test policies
+        run: opa test build/policy
+
+      - name: Run policy checks on changed files
+        run: |
+          curl --silent --fail --header 'Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' \
+          https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files \
+          | opa eval --bundle build/policy/ --format values --stdin-input --fail-defined 'data.files.deny[message]'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

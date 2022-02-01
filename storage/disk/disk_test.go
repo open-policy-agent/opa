@@ -40,6 +40,7 @@ func TestPolicies(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		defer s.Close(ctx)
 
 		err = storage.Txn(ctx, s, storage.WriteParams, func(txn storage.Transaction) error {
 			ids, err := s.ListPolicies(ctx, txn)
@@ -604,10 +605,10 @@ func TestDataPartitioningReadsAndWrites(t *testing.T) {
 
 				ctx := context.Background()
 				s, err := New(ctx, Options{Dir: dir, Partitions: partitions})
-
 				if err != nil {
 					t.Fatal(err)
 				}
+				defer s.Close(ctx)
 
 				for _, x := range tc.sequence {
 					switch x := x.(type) {
@@ -752,10 +753,10 @@ func TestDataPartitioningReadNotFoundErrors(t *testing.T) {
 
 				ctx := context.Background()
 				s, err := New(ctx, Options{Dir: dir, Partitions: partitions})
-
 				if err != nil {
 					t.Fatal(err)
 				}
+				defer s.Close(ctx)
 
 				for _, x := range tc.sequence {
 					switch x := x.(type) {
@@ -962,6 +963,7 @@ func TestDataPartitioningWriteNotFoundErrors(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
+				defer s.Close(ctx)
 
 				for _, x := range tc.sequence {
 					switch x := x.(type) {
@@ -998,6 +1000,7 @@ func TestDataPartitioningWriteInvalidPatchError(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		defer s.Close(ctx)
 
 		err = storage.WriteOne(ctx, s, storage.AddOp, storage.MustParsePath("/foo"), util.MustUnmarshalJSON([]byte(`[1,2,3]`)))
 		if err == nil {

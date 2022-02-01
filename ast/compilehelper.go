@@ -13,6 +13,7 @@ func CompileModules(modules map[string]string) (*Compiler, error) {
 // CompileOpts defines a set of options for the compiler.
 type CompileOpts struct {
 	EnablePrintStatements bool
+	ParserOptions         ParserOptions
 }
 
 // CompileModulesWithOpt takes a set of Rego modules represented as strings and
@@ -24,7 +25,7 @@ func CompileModulesWithOpt(modules map[string]string, opts CompileOpts) (*Compil
 	for f, module := range modules {
 		var pm *Module
 		var err error
-		if pm, err = ParseModule(f, module); err != nil {
+		if pm, err = ParseModuleWithOpts(f, module, opts.ParserOptions); err != nil {
 			return nil, err
 		}
 		parsed[f] = pm

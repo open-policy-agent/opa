@@ -50,6 +50,9 @@ func CapabilitiesForThisVersion() *Capabilities {
 	})
 
 	for kw := range futureKeywords {
+		if kw == "every" { // TODO(sr): drop when ready
+			continue
+		}
 		f.FutureKeywords = append(f.FutureKeywords, kw)
 	}
 	sort.Strings(f.FutureKeywords)

@@ -168,31 +168,31 @@ package earlyexit.examples
 # p, q, r and s could be evaluated with early-exit semantics:
 
 p {
-  # ...
+    # ...
 }
 q = 123 {
-  # ...
+    # ...
 }
 r = {"hello": "world"} {
-  # ...
+    # ...
 }
 s(x) = 12 {
-  # ...
+    # ...
 }
 
 # u, v, w, and y could _not_
 
 u[x] { # not a complete document rule, but a partial set
-  x := 911
+    x := 911
 }
 v = x { # x is a variable, not ground
-  x := true
+    x := true
 }
 w = { "foo": x } { # a compound term containing a variable
-  x := "bar"
+    x := "bar"
 }
 y(z) = r { # variable value, not ground
-  r := z + 1
+    r := z + 1
 }
 ```
 
@@ -301,18 +301,18 @@ To implement the policy above we could write:
 
 ```rego
 deny[msg] {
-  some i
-  count(exposed_ports_by_interface[i]) > 100
-  msg := sprintf("interface '%v' exposes too many ports", [i])
+    some i
+    count(exposed_ports_by_interface[i]) > 100
+    msg := sprintf("interface '%v' exposes too many ports", [i])
 }
 
 exposed_ports_by_interface := {intf: ports |
-  some i
-  intf := input.exposed[i].interface
-  ports := [port |
-    some j
-    input.exposed[j].interface == intf
-    port := input.exposed[j].port
+    some i
+    intf := input.exposed[i].interface
+    ports := [port |
+        some j
+        input.exposed[j].interface == intf
+        port := input.exposed[j].port
   ]
 }
 ```

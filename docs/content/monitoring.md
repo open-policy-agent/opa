@@ -5,6 +5,22 @@ weight: 30
 restrictedtoc: true
 ---
 
+## OpenTelemetry
+
+When run as a server and configured accordingly, OPA will emit spans to an
+[OpenTelemetry](https://opentelemetry.io/) collector via gRPC.
+
+Each [REST API](../rest-api/) request sent to the server will start a span.
+If processing the request involves policy evaluation, and that in turn uses
+[`http.send`](../policy-reference/#http), those HTTP clients will emit descendant spans.
+
+Furthermore, spans exported for policy evaluation requests will contain an
+attribute `opa.decision_id` of the evaluation's decision ID _if_ the server
+has decision logging enabled.
+
+See [the configuration documentation](../configuration/#distributed-tracing)
+for all OpenTelemetry-related configurables.
+
 ## Prometheus
 
 OPA exposes an HTTP endpoint that can be used to collect performance metrics

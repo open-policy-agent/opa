@@ -231,6 +231,14 @@ type (
 		Symbols  []*Term   `json:"symbols"`
 	}
 
+	Every struct {
+		Location *Location `json:"-"`
+		Key      *Term     `json:"key"`
+		Value    *Term     `json:"value"`
+		Domain   *Term     `json:"domain"`
+		Body     Body      `json:"body"`
+	}
+
 	// With represents a modifier on an expression.
 	With struct {
 		Location *Location `json:"-"`
@@ -1153,6 +1161,10 @@ func (expr *Expr) Compare(other *Expr) int {
 		if cmp := Compare(t, other.Terms.(*SomeDecl)); cmp != 0 {
 			return cmp
 		}
+	case *Every:
+		if cmp := Compare(t, other.Terms.(*Every)); cmp != 0 {
+			return cmp
+		}
 	}
 
 	return withSliceCompare(expr.With, other.With)
@@ -1166,6 +1178,8 @@ func (expr *Expr) sortOrder() int {
 		return 1
 	case []*Term:
 		return 2
+	case *Every:
+		return 3
 	}
 	return -1
 }
@@ -1245,6 +1259,18 @@ func (expr *Expr) IsAssignment() bool {
 // IsCall returns true if this expression calls a function.
 func (expr *Expr) IsCall() bool {
 	_, ok := expr.Terms.([]*Term)
+	return ok
+}
+
+// IsEvery returns true if this expression is an 'every' expression.
+func (expr *Expr) IsEvery() bool {
+	_, ok := expr.Terms.(*Every)
+	return ok
+}
+
+// IsSome returns true if this expression is a 'some' expression.
+func (expr *Expr) IsSome() bool {
+	_, ok := expr.Terms.(*SomeDecl)
 	return ok
 }
 
@@ -1344,9 +1370,7 @@ func (expr *Expr) String() string {
 		} else {
 			buf = append(buf, Call(t).String())
 		}
-	case *Term:
-		buf = append(buf, t.String())
-	case *SomeDecl:
+	case fmt.Stringer:
 		buf = append(buf, t.String())
 	}
 
@@ -1420,6 +1444,62 @@ func (d *SomeDecl) Compare(other *SomeDecl) int {
 // Hash returns a hash code of d.
 func (d *SomeDecl) Hash() int {
 	return termSliceHash(d.Symbols)
+}
+
+func (q *Every) String() string {
+	if q.Key != nil {
+		return fmt.Sprintf("every %s, %s in %s { %s }",
+			q.Key,
+			q.Value,
+			q.Domain,
+			q.Body)
+	}
+	return fmt.Sprintf("every %s in %s { %s }",
+		q.Value,
+		q.Domain,
+		q.Body)
+}
+
+func (q *Every) Loc() *Location {
+	return q.Location
+}
+
+func (q *Every) SetLoc(l *Location) {
+	q.Location = l
+}
+
+// Copy returns a deep copy of d.
+func (q *Every) Copy() *Every {
+	cpy := *q
+	cpy.Key = q.Key.Copy()
+	cpy.Value = q.Value.Copy()
+	cpy.Domain = q.Domain.Copy()
+	cpy.Body = q.Body.Copy()
+	return &cpy
+}
+
+func (q *Every) Compare(other *Every) int {
+	for _, terms := range [][2]*Term{
+		{q.Key, other.Key},
+		{q.Value, other.Value},
+		{q.Domain, other.Domain},
+	} {
+		if d := Compare(terms[0], terms[1]); d != 0 {
+			return d
+		}
+	}
+	return q.Body.Compare(other.Body)
+}
+
+// KeyValueVars returns the key and val arguments of an `every`
+// expression, if they are non-nil and not wildcards.
+func (q *Every) KeyValueVars() VarSet {
+	vis := &VarVisitor{vars: VarSet{}}
+	if q.Key != nil {
+		vis.Walk(q.Key)
+	}
+	vis.Walk(q.Value)
+	return vis.vars
 }
 
 func (w *With) String() string {
@@ -1502,6 +1582,8 @@ func Copy(x interface{}) interface{} {
 	case *With:
 		return x.Copy()
 	case *SomeDecl:
+		return x.Copy()
+	case *Every:
 		return x.Copy()
 	case *Term:
 		return x.Copy()

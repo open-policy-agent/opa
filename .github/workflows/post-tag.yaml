@@ -32,6 +32,13 @@ jobs:
         env:
           TELEMETRY_URL: ${{ secrets.TELEMETRY_URL }}
 
+      - name: Build Linux arm64
+        run: make ci-go-ci-build-linux-static
+        timeout-minutes: 30
+        env:
+          GOARCH: arm64
+          TELEMETRY_URL: ${{ secrets.TELEMETRY_URL }}
+
       - name: Upload binaries
         uses: actions/upload-artifact@v2
         if: always()
@@ -57,7 +64,7 @@ jobs:
           go-version: ${{ steps.go_version.outputs.go_version }}
 
       - name: Build Darwin
-        run: make ci-build-darwin
+        run: make ci-build-darwin ci-build-darwin-arm64-static
         timeout-minutes: 30
         env:
           TELEMETRY_URL: ${{ secrets.TELEMETRY_URL }}
@@ -86,6 +93,9 @@ jobs:
         with:
           name: binaries
           path: _release
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
 
       - name: Build and Deploy OPA Docker Images
         id: build-and-deploy

@@ -660,6 +660,28 @@ func ensureEntrypointRemoved(t *testing.T, b *bundle.Bundle, e string) {
 	}
 }
 
+func TestCompilerPlanTarget(t *testing.T) {
+	files := map[string]string{
+		"test.rego": `package test
+
+		p = 7
+		q = p+1`,
+	}
+
+	test.WithTempFS(files, func(root string) {
+
+		compiler := New().WithPaths(root).WithTarget("plan").WithEntrypoints("test/p", "test/q")
+		err := compiler.Build(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if len(compiler.bundle.PlanModules) == 0 {
+			t.Fatal("expected to find compiled plan module")
+		}
+	})
+}
+
 func TestCompilerSetRevision(t *testing.T) {
 	files := map[string]string{
 		"test.rego": `package test
@@ -677,6 +699,28 @@ func TestCompilerSetRevision(t *testing.T) {
 
 		if compiler.bundle.Manifest.Revision != "deadbeef" {
 			t.Fatal("expected revision to be set but got:", compiler.bundle.Manifest)
+		}
+	})
+}
+
+func TestCompilerSetMetadata(t *testing.T) {
+	files := map[string]string{
+		"test.rego": `package test
+
+		p = true`,
+	}
+
+	test.WithTempFS(files, func(root string) {
+		metadata := map[string]interface{}{"OPA version": "0.36.1"}
+		compiler := New().WithPaths(root).WithMetadata(&metadata)
+
+		err := compiler.Build(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if compiler.bundle.Manifest.Metadata["OPA version"] != "0.36.1" {
+			t.Fatal("expected metadata to be set but got:", compiler.bundle.Manifest)
 		}
 	})
 }
@@ -891,7 +935,7 @@ func TestOptimizerOutput(t *testing.T) {
 		},
 		{
 			note:        "multiple entrypoints",
-			entrypoints: []string{"data.test.p", "data.test.r"},
+			entrypoints: []string{"data.test.p", "data.test.r", "data.test.s"},
 			modules: map[string]string{
 				"test.rego": `
 					package test
@@ -901,6 +945,10 @@ func TestOptimizerOutput(t *testing.T) {
 					}
 
 					r {
+						q[input.x]
+					}
+
+					s {
 						q[input.x]
 					}
 
@@ -917,6 +965,11 @@ func TestOptimizerOutput(t *testing.T) {
 					package test
 
 					r = __result__ { 1 = input.x; __result__ = true }
+				`,
+				"optimized/test.2.rego": `
+					package test
+
+					s = __result__ { 1 = input.x; __result__ = true }
 				`,
 				"test.rego": `
 					package test

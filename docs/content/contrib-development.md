@@ -81,7 +81,7 @@ git commit -s
 git push origin somefeature
 ```
 
-> Make sure to use a [good commit message](../contributing/#commit-messages).
+> Make sure to use a [good commit message](../contrib-code/#commit-messages).
 
 Now, submit a Pull Request from your fork.
 See the official [GitHub Documentation](https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/creating-a-pull-request-from-a-fork)
@@ -111,17 +111,17 @@ the results are posted and can be viewed
 ## Dependencies
 
 OPA is a Go module [https://github.com/golang/go/wiki/Modules](https://github.com/golang/go/wiki/Modules)
-and dependencies are tracked with the standard [go.mod](../../go.mod) file.
+and dependencies are tracked with the standard [go.mod](https://github.com/open-policy-agent/opa/blob/main/go.mod) file.
 
-We also keep a full copy of the dependencies in the [vendor](../../vendor)
-directory. All `go` commands from the [Makefile](../../Makefile) will enable
+We also keep a full copy of the dependencies in the [vendor](https://github.com/open-policy-agent/opa/tree/main/vendor)
+directory. All `go` commands from the [Makefile](https://github.com/open-policy-agent/opa/blob/main/Makefile) will enable
 module mode by setting `GO111MODULE=on GOFLAGS=-mod=vendor` which will also
 force using the `vendor` directory.
 
 To update a dependency ensure that `GO111MODULE` is either on, or the repository
 qualifies for `auto` to enable module mode. Then simply use `go get ..` to get
-the version desired. This should update the [go.mod](../../go.mod) and (potentially)
-[go.sum](../../go.sum) files. After this you *MUST* run `go mod vendor` to ensure
+the version desired. This should update the [go.mod](https://github.com/open-policy-agent/opa/blob/main/go.mod) and (potentially)
+[go.sum](https://github.com/open-policy-agent/opa/blob/main/go.sum) files. After this you *MUST* run `go mod vendor` to ensure
 that the `vendor` directory is in sync.
 
 Example workflow for updating a dependency:
@@ -138,7 +138,7 @@ If dependencies have been removed ensure to run `go mod tidy` to clean them up.
 
 Sometimes we use some tools which are versioned and vendored
 with OPA as dependencies. For now, we have none, but any we use in the future
-should go in [tools.go](../../tools.go).
+should go in [tools.go](https://github.com/open-policy-agent/opa/blob/main/tools.go).
 
 More details on the pattern: [https://github.com/go-modules-by-example/index/blob/master/010_tools/README.md](https://github.com/go-modules-by-example/index/blob/master/010_tools/README.md)
 
@@ -155,7 +155,7 @@ files in the root of this repository:
 
 ## CI Configuration
 
-OPA uses Github Actions defined in the [.github/workflows](../../.github/workflows)
+OPA uses Github Actions defined in the [.github/workflows](https://github.com/open-policy-agent/opa/tree/main/.github/workflows)
 directory.
 
 ### Github Action Secrets

@@ -174,7 +174,7 @@ The output should be:
 Error response from daemon: authorization denied by plugin opa-docker-authz: request rejected by administrative policy
 ```
 
-To learn more about how rules define the content of documents, see: [How Does OPA Work?](../#how-does-opa-work)
+To learn more about how rules define the content of documents, see: [How Does OPA Work?](../#overview)
 
 With this policy in place, users will not be able to run any Docker commands. Go
 ahead and try other commands such as `docker run` or `docker pull`. They will

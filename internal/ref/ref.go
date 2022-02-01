@@ -26,3 +26,14 @@ func ParseDataPath(s string) (ast.Ref, error) {
 
 	return path.Ref(ast.DefaultRootDocument), nil
 }
+
+// ArrayPath will take an ast.Array and build an ast.Ref using the ast.Terms in the Array
+func ArrayPath(a *ast.Array) ast.Ref {
+	var ref ast.Ref
+
+	a.Foreach(func(term *ast.Term) {
+		ref = append(ref, term)
+	})
+
+	return ref
+}

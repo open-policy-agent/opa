@@ -13,7 +13,37 @@ integrations:
       - https://github.com/apache/apisix
     inventors:
       - apache-apisix
-    # blogs:
+    blogs:
+      - https://apisix.apache.org/blog/2021/12/24/open-policy-agent
+      - https://medium.com/@ApacheAPISIX/apache-apisix-integrates-with-open-policy-agent-to-enrich-its-ecosystem-15569fe3ab9c
+
+  dapr:
+    title: Dapr
+    description: Middleware to apply Open Policy Agent policies on incoming requests
+    software:
+      - dapr
+    labels:
+      category: application
+      layer: network
+    tutorials:
+      - https://docs.dapr.io/reference/components-reference/supported-middleware/middleware-opa/
+    code:
+      - https://github.com/dapr/dapr
+
+  fig:
+    title: fig
+    description: Beautiful shell autocompletion for OPA and many other commands, for Mac OS
+    software:
+      - fig
+    labels:
+      category: utilities
+      layer: shell
+    code:
+      - https://github.com/open-policy-agent/contrib/tree/main/opa_fig_autocomplete
+      - https://github.com/withfig/autocomplete/blob/master/src/opa.ts
+    inventors:
+      - fig
+
   sphinx-rego:
     title: Automatically document Rego policies
     description: Sphinx extension that automatically documents Open Policy Agent Rego policies using meta properties.
@@ -23,7 +53,6 @@ integrations:
       - https://github.com/zenitysec/sphinx-rego
     inventors:
       - zenity
-    category: tooling
     labels:
       category: tooling
       layer: cicd
@@ -106,7 +135,6 @@ integrations:
           - name: Joe Beda
             organization: VMware
         link: https://www.youtube.com/watch?v=QU9BGPf0hBw
-
     blogs:
       - https://medium.com/@sbueringer/kubernetes-authorization-via-open-policy-agent-a9455d9d5ceb
       - https://medium.com/@jimmy.ray/policy-enabled-kubernetes-with-open-policy-agent-3b612b3f0203
@@ -121,9 +149,14 @@ integrations:
       Kubernetes Authorization is a pluggable mechanism that lets administrators control which users can run which APIs and
       is often handled by builtin RBAC.  OPA's policy language is more flexible than the RBAC, for example,
       writing policy using a prohibited list of APIs instead of the usual RBAC style of listing the permitted APIs.
+    code:
+      - https://github.com/open-policy-agent/contrib/tree/main/k8s_authorization
     blogs:
+      - https://blog.styra.com/blog/kubernetes-authorization-webhook
       - https://itnext.io/kubernetes-authorization-via-open-policy-agent-a9455d9d5ceb
       - https://itnext.io/optimizing-open-policy-agent-based-kubernetes-authorization-via-go-execution-tracer-7b439bb5dc5b
+    inventors:
+      - styra
 
   kubernetes-provisioning:
     title: Kubernetes Provisioning
@@ -312,7 +345,6 @@ integrations:
         venue: Kubecon Austin 2017
         link: https://www.youtube.com/watch?v=R6tUNpRpdnY
 
-
   istio-authorization-edge:
     title: Container Network Authorization with Istio (at the Edge)
     description: Istio is a networking abstraction for cloud-native applications that uses Envoy at the edge. OPA hooks into Envoy’s external authorization filter to provide fine-grained, context-aware authorization for network or HTTP requests.
@@ -467,6 +499,19 @@ integrations:
       - https://github.com/anderseknert/clj-opa
     inventors:
       - styra
+
+  open-service-mesh:
+    title: Open Service Mesh (OSM)
+    description: Open Service Mesh is a lightweight and extensible cloud native service mesh.
+    software:
+      - osm
+    labels:
+      category: servicemesh
+      layer: network
+    code:
+      - https://github.com/openservicemesh/osm/blob/main/docs/example/manifests/opa/deploy-opa-envoy.yaml
+    tutorials:
+      - https://release-v0-11.docs.openservicemesh.io/docs/guides/integrations/external_auth_opa/#osm-with-opa-plugin-external-authorization-walkthrough
 
   minio:
     title: Minio API Authorization
@@ -833,7 +878,6 @@ integrations:
         venue: OPA Summit at Kubecon San Diego 2019
         link: https://www.youtube.com/watch?v=jrrW855xL3s
 
-
   sysdig-image-scanner:
     title: Kubernetes Sysdig Image Scanner Admission Controller
     description: Sysdig’s OPA Image Scanner combines Sysdig Secure image scanner with OPA policy-based rego language to evaluate the scan results and the admission context, providing great flexibility on the admission decision.
@@ -929,6 +973,8 @@ integrations:
     software:
       - SPIFFE
       - SPIRE
+    blogs:
+      - https://blog.styra.com/blog/zero-trust-with-envoy-spire-and-open-policy-agent-opa
     code:
       - https://github.com/spiffe/spire/blob/v1.0.2/doc/authorization_policy_engine.md
     tutorials:
@@ -983,13 +1029,13 @@ integrations:
       category: updates
       layer: application
     inventors:
-      - authorizon
+      - permitio
     software:
       - opal
     code:
-      - https://github.com/authorizon/opal
+      - https://github.com/permitio/opal
     tutorials:
-      - https://github.com/authorizon/opal/blob/master/docs/index.md
+      - https://github.com/permitio/opal/blob/master/docs/index.md
     videos:
       - https://www.youtube.com/watch?v=K1Zm2FPfrh8
 
@@ -1008,6 +1054,25 @@ integrations:
     blogs:
       - https://blog.lethalbit.com/open-policy-agent-for-bottle-web-framework/
 
+  kubescape:
+    title: Kubescape Kubernetes security posture scanner
+    description: |
+      This integration uses OPA for defining security controls over Kubernetes clusters. Kubescape is a simple extensible tool
+      finding security problems in your environment. OPA enables Kubescape to implement and extend very fast to answer new problems.
+    labels:
+      category: security
+      layer: application
+    software:
+      - kubescape
+    code:
+      - https://github.com/armosec/kubescape
+      - https://github.com/armosec/regolibrary
+    inventors:
+      - armo
+    tutorials:
+      - https://hub.armo.cloud
+
+
 organizations:
   styra:
     name: Styra
@@ -1020,7 +1085,7 @@ organizations:
     link: https://google.com
   travelnest:
     name: TravelNest
-    link: http://travelnest.com
+    link: https://travelnest.com
   ticketmaster:
     name: TicketMaster
     link: https://www.ticketmaster.com/
@@ -1033,6 +1098,9 @@ organizations:
   ceph:
     name: Ceph
     link: https://ceph.io/
+  fig:
+    name: fig
+    link: https://fig.io
   redhat:
     name: RedHat
     link: https://www.redhat.com
@@ -1120,19 +1188,29 @@ organizations:
   fairwinds:
     name: Fairwinds
     link: https://fairwinds.com
-  authorizon:
-    name: authorizon
-    link: https://authorizon.com
+  permitio:
+    name: Permit.io
+    link: https://permit.io
   alertavert:
     name: AlertAVert.com
-    link: http://www.alertavert.com/
+    link: https://www.alertavert.com/
   zenity:
     name: Zenity
-    link: http://www.zenity.io
+    link: https://www.zenity.io
   apache-apisix:
     name: Apache APISIX
     link: https://apisix.apache.org/
+  armo:
+    name: ARMO
+    link: https://armosec.io
+
 software:
+  dapr:
+    name: Dapr
+    link: https://dapr.io/
+  fig:
+    name: fig
+    link: https://fig.io
   kubernetes:
     name: Kubernetes
     link: https://kubernetes.io
@@ -1168,13 +1246,16 @@ software:
     link: https://cloud.google.com/
   azure:
     name: Microsoft Public Cloud
-    link: http://azure.microsoft.com/
+    link: https://azure.microsoft.com/
   java:
     name: Java
     link: https://www.java.com/
   javaspringsecurity:
     name: Spring Security
     link: https://spring.io/projects/spring-security
+  osm:
+    name: Open Service Mesh
+    link: https://openservicemesh.io/
   spinnaker:
     name: Spinnaker
     link: https://www.spinnaker.io/
@@ -1268,3 +1349,7 @@ software:
   apache-apisix:
     name: Apache APISIX
     link: https://apisix.apache.org/
+  kubescape:
+    name: Kubescape
+    link: https://github.com/armosec/kubescape
+
