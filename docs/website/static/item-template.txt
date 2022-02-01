@@ -1,35 +1,0 @@
-
-            <div class="col-6 pb-2 pt-2">
-              <div class="card">
-                <div class="card-body">
-                  <div class="support-card-content d-flex flex-column align-items-start">
-                    <img title="%1%" class="card-img align-middle" src="img/community-logos/%2%.png"/>
-                    <div class="card-text">
-                      <div class="header">%1%</div>
-                      <div class="subheader">
-                        %3%
-                      </div>
-                      <a href="%4%"
-                        class="btn btn-primary btn-lg" role="button" aria-pressed="true">%5%</a>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-----------------------------------------------
-This file should be opened in the right pane of a vim window.
-Load the @x and @y registers from the lines below.
-Open item-data.txt in the left pane and put the cursor at the top of the file.
-Open a blank buffer as the lower right pane and put your cursor there.
-Run @x to load the template (it will close this file, too)
-Run @y to generate and add each entry to the blank buffer.
-When finished, copy/paste the entries into support.html.
-----------------------------------------------
-
-macro x: load template (run once)
-1Gv/^$"ay:q
-
-macro y: fill template (run for each entry)
-"aP/Header Wv$h"cy:%s`%1%`c`gj0 Wv$h"cy:%s`%2%`c`gj0 Wv$h"cy:%s`%3%`c`gj0 Wv$h"cy:%s`%4%`c`gj0 Wv$h"cy:%s`%5%`c`gG
-
