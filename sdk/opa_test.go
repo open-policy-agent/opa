@@ -483,7 +483,7 @@ func TestStopWithDeadline(t *testing.T) {
 
 	dur := time.Since(before)
 	diff := dur - timeout
-	maxDelta := 6 * time.Millisecond
+	maxDelta := 10 * time.Millisecond
 	if diff > maxDelta || diff < -maxDelta {
 		t.Errorf("expected shutdown to have %v grace period, measured shutdown in %v (max delta %v)", timeout, dur, maxDelta)
 	}
