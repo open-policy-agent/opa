@@ -87,8 +87,11 @@ func TestInMemoryWrite(t *testing.T) {
 		{"add obj (existing)", "add", "/b/v2", `"x"`, nil, "/b", `{"v1": "hello", "v2": "x"}`},
 
 		{"append arr", "add", "/a/-", `"x"`, nil, "/a", `[1,2,3,4,"x"]`},
+		{"append arr-2", "add", "/a/4", `"x"`, nil, "/a", `[1,2,3,4,"x"]`},
 		{"append obj/arr", "add", `/c/0/x/-`, `"x"`, nil, "/c/0/x", `[true,false,"foo","x"]`},
+		{"append obj/arr-2", "add", `/c/0/x/3`, `"x"`, nil, "/c/0/x", `[true,false,"foo","x"]`},
 		{"append arr/arr", "add", `/h/0/-`, `"x"`, nil, `/h/0/3`, `"x"`},
+		{"append arr/arr-2", "add", `/h/0/3`, `"x"`, nil, `/h/0/3`, `"x"`},
 		{"append err", "remove", "/c/0/x/-", "", invalidPatchError("/c/0/x/-: invalid patch path"), "", nil},
 		{"append err-2", "replace", "/c/0/x/-", "", invalidPatchError("/c/0/x/-: invalid patch path"), "", nil},
 
@@ -255,12 +258,14 @@ func TestInMemoryTxnMultipleWrites(t *testing.T) {
 		{storage.AddOp, "/a/-", "[]"},
 		{storage.AddOp, "/a/4/-", "1"},
 		{storage.AddOp, "/a/4/-", "2"},
+		{storage.AddOp, "/a/4/2", "3"},
 		{storage.AddOp, "/b/foo", "{}"},
 		{storage.AddOp, "/b/foo/bar", "{}"},
 		{storage.AddOp, "/b/foo/bar/baz", "1"},
 		{storage.AddOp, "/arr", "[]"},
 		{storage.AddOp, "/arr/-", "1"},
 		{storage.AddOp, "/arr/0", "2"},
+		{storage.AddOp, "/arr/2", "3"},
 		{storage.AddOp, "/c/0/x/-", "0"},
 		{storage.AddOp, "/_", "null"}, // introduce new txn.log head
 		{storage.AddOp, "/c/0", `"new c[0]"`},
@@ -275,9 +280,9 @@ func TestInMemoryTxnMultipleWrites(t *testing.T) {
 		path     string
 		expected string
 	}{
-		{"/a", `[1,2,3,4,[1,2]]`},
+		{"/a", `[1,2,3,4,[1,2,3]]`},
 		{"/b/foo", `{"bar": {"baz": 1}}`},
-		{"/arr", `[2,1]`},
+		{"/arr", `[2,1,3]`},
 		{"/c/0", `"new c[0]"`},
 		{"/c/1", `"new c[1]"`},
 		{"/d/f", `{"g": {"h": 0, "i": {"j": 1}}}`},
@@ -337,6 +342,7 @@ func TestInMemoryTxnWriteFailures(t *testing.T) {
 		{storage.AddOp, "/a/0/beef", "", storage.NotFoundErr},
 		{storage.AddOp, "/arr", `[1,2,3]`, ""},
 		{storage.AddOp, "/arr/0/foo", "", storage.NotFoundErr},
+		{storage.AddOp, "/arr/4", "", storage.NotFoundErr},
 	}
 
 	for _, w := range writes {
