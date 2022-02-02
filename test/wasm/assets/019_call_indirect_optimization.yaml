@@ -121,3 +121,71 @@ cases:
           baz: 8
     want_result:
       - x: 100
+  - note: func lookup unsuccessful, data deref unsuccessful
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p {
+          x := "foo"
+          data.other[x].p
+        }
+      - |
+        package other.bar # not "foo", but existence triggers dynamic lookup
+
+        p = true
+    data: {}
+    want_defined: false
+  - note: func lookup successful, but call yields undefined
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p {
+          x := "foo"
+          data.other[x].p
+        }
+      - package other.foo # empty
+      - |
+        package other.bar # not foo
+
+        p = true
+    data: {}
+    want_defined: false
+  - note: func lookup successful, but call yields undefined (in a loop)
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        xs := {"foo", "baz", "123"}
+        p {
+          xs[x]
+          data.other[x].p
+        }
+      - package other.foo # empty
+      - |
+        package other.bar # not foo
+
+        p = true
+    data: {}
+    want_defined: false
+  - note: func lookup in a loop, one call yields a result
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        xs := {"fox", "baz", "123", "xyz"}
+        p = y {
+          xs[x]
+          y := data.other[x].p
+        }
+      - package other.foo # empty
+      - |
+        package other.xyz
+
+        p = "yay"
+    data: {}
+    want_result:
+      - x: yay
