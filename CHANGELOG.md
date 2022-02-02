@@ -5,6 +5,17 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+## 0.37.1
+
+This is a bug fix release that reverts the github.com/prometheus/client_golang
+upgrade in v0.37.0. The upgrade exposed an issue in the serialization of Go
+runtime metrics in the Status API
+([#4319](https://github.com/open-policy-agent/opa/issues/4319)).
+
+### Miscellaneous
+
+- Revert "build(deps): bump github.com/prometheus/client_golang (#4307)"
+
 ## 0.37.0
 
 This release contains a number of fixes and enhancements.
@@ -149,14 +160,14 @@ This release contains a number of fixes and enhancements.
 
 ### OpenTelemetry and opa exec
 
-This release adds OpenTelemetry support to OPA. This makes it possible to emit spans to an OpenTelemetry collector via 
-gRPC on both incoming and outgoing (i.e. http.send) calls in the server. See the updated docs on 
+This release adds OpenTelemetry support to OPA. This makes it possible to emit spans to an OpenTelemetry collector via
+gRPC on both incoming and outgoing (i.e. http.send) calls in the server. See the updated docs on
 [monitoring](https://www.openpolicyagent.org/docs/latest/monitoring/) for more information and configuration options
 ([#1469](https://github.com/open-policy-agent/opa/issues/1469)) authored by @[rvalkenaers](https://github.com/rvalkenaers)
 
-This release also adds a new `opa exec` command for doing one-off evaluations of policy against input similar to 
-`opa eval`, but using the full capabilities of the server (config file, plugins, etc). This is particularly useful in 
-contexts such as CI/CD or when enforcing policy for infrastructure as code, where one might want to run OPA with remote 
+This release also adds a new `opa exec` command for doing one-off evaluations of policy against input similar to
+`opa eval`, but using the full capabilities of the server (config file, plugins, etc). This is particularly useful in
+contexts such as CI/CD or when enforcing policy for infrastructure as code, where one might want to run OPA with remote
 bundles and decision logs but without having a running server. See the updated docs on
 [Terraform](https://www.openpolicyagent.org/docs/latest/terraform/) for an example use case.
 ([#3525](https://github.com/open-policy-agent/opa/issues/3525))
@@ -178,8 +189,8 @@ bundles and decision logs but without having a running server. See the updated d
 ### Server
 
 - A new credential provider for AWS credential files was added ([#2786](https://github.com/open-policy-agent/opa/issues/2786)) reported by @[rgueldem](https://github.com/rgueldem)
-- The new `--tls-cert-refresh-period` flag can now be provided to `opa run`. If used with a positive duration, such as "5m" (5 minutes), 
-  "24h", etc, the server will track the certificate and key files' contents. When their content changes, the certificates will be 
+- The new `--tls-cert-refresh-period` flag can now be provided to `opa run`. If used with a positive duration, such as "5m" (5 minutes),
+  "24h", etc, the server will track the certificate and key files' contents. When their content changes, the certificates will be
   reloaded ([#2500](https://github.com/open-policy-agent/opa/issues/2500)) reported by @[patoarvizu](https://github.com/patoarvizu)
 - A new `v1/status` endpoint was added, providing the same data as the status plugin would send to a remote endpoint ([#4089](https://github.com/open-policy-agent/opa/issues/4089))
 - The HTTP router of OPA is now exposed to the plugin manager ([#2777](https://github.com/open-policy-agent/opa/issues/2777)) authored by @[bhoriuchi](https://github.com/bhoriuchi) reported by @[mneil](https://github.com/mneil)
@@ -197,9 +208,9 @@ bundles and decision logs but without having a running server. See the updated d
 - The error message raised when using `-` with a number and a set is now more specific (as opposed to the correct usage with two sets, or two numbers) ([#1643](https://github.com/open-policy-agent/opa/issues/1643))
 - Fixed an edge case when using print and arrays in unification ([#4078](https://github.com/open-policy-agent/opa/issues/4078))
 - Improved performance of some array operations by caching an array's groundness bit ([#3679](https://github.com/open-policy-agent/opa/issues/3679))
-- ⚠️ Stricter check of arity in undefined function stage ([#4054](https://github.com/open-policy-agent/opa/issues/4054)). 
+- ⚠️ Stricter check of arity in undefined function stage ([#4054](https://github.com/open-policy-agent/opa/issues/4054)).
   This change will fail evaluation in some unusual cases where it previously would succeed, but these policies should be very uncommon.
-  
+
   An example policy that previously would succeed but no longer will (wrong arity):
 
 ```rego
