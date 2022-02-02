@@ -84,6 +84,18 @@ func TestPlugins(t *testing.T) {
 	defer opa.Stop(ctx)
 }
 
+func TestPluginPanic(t *testing.T) {
+	ctx := context.Background()
+
+	opa, err := sdk.New(ctx, sdk.Options{})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	opa.Stop(ctx)
+}
+
 func TestDecision(t *testing.T) {
 
 	ctx := context.Background()
