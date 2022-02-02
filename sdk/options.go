@@ -61,12 +61,16 @@ func (o *Options) init() error {
 		o.ConsoleLogger = l
 	}
 
-	bs, err := ioutil.ReadAll(o.Config)
-	if err != nil {
-		return err
+	if o.Config == nil {
+		o.config = []byte("{}")
+	} else {
+		bs, err := ioutil.ReadAll(o.Config)
+		if err != nil {
+			return err
+		}
+		o.config = bs
 	}
 
-	o.config = bs
 	return nil
 }
 
