@@ -4219,7 +4219,7 @@ func rewriteEveryStatement(g *localVarGenerator, stack *localDeclaredVars, expr 
 	stack.Push()
 	defer stack.Pop()
 
-	// optionally rewrite the key
+	// if the key exists, rewrite
 	if every.Key != nil {
 		if v := every.Key.Value.(Var); !v.IsWildcard() {
 			gv, err := rewriteDeclaredVar(g, stack, v, declaredVar)
@@ -4228,6 +4228,8 @@ func rewriteEveryStatement(g *localVarGenerator, stack *localDeclaredVars, expr 
 			}
 			every.Key.Value = gv
 		}
+	} else { // if the key doesn't exist, add dummy local
+		every.Key = NewTerm(g.Generate())
 	}
 
 	// value is always present

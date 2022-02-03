@@ -692,8 +692,8 @@ func TestCompilerCheckSafetyBodyReordering(t *testing.T) {
 		contains(x, "oo")
 	`},
 		{"userfunc", `split(y, ".", z); data.a.b.funcs.fn("...foo.bar..", y)`, `data.a.b.funcs.fn("...foo.bar..", y); split(y, ".", z)`},
-		{"every", `every _ in [] { x != 1 }; x = 1`, `__local3__ = []; x = 1; every _ in __local3__ { x != 1}`},
-		{"every-domain", `every _ in xs { true }; xs = [1]`, `xs = [1]; __local3__ = xs; every _ in __local3__ { true }`},
+		{"every", `every _ in [] { x != 1 }; x = 1`, `__local4__ = []; x = 1; every __local3__, _ in __local4__ { x != 1}`},
+		{"every-domain", `every _ in xs { true }; xs = [1]`, `xs = [1]; __local4__ = xs; every __local3__, _ in __local4__ { true }`},
 	}
 
 	for i, tc := range tests {
@@ -1467,7 +1467,7 @@ func TestCompilerRewriteExprTerms(t *testing.T) {
 			expected: `
 			package test
 
-			p { __local1__ = [1, 2]; every __local0__ in __local1__ { __local0__ } }`,
+			p { __local2__ = [1, 2]; every __local0__, __local1__ in __local2__ { __local1__ } }`,
 		},
 	}
 
@@ -2975,8 +2975,8 @@ func TestRewriteDeclaredVars(t *testing.T) {
 				package test
 				p = true {
 					__local0__ = 10
-					__local2__ = [1]
-					every __local1__ in __local2__ { __local1__ == 1 }
+					__local3__ = [1]
+					every __local1__, __local2__ in __local3__ { __local2__ == 1 }
 				}
 			`,
 		},
@@ -2996,9 +2996,9 @@ func TestRewriteDeclaredVars(t *testing.T) {
 				package test
 				p = true {
 					__local0__ = 10
-					__local2__ = [1]
-					every __local1__ in __local2__ {
-						__local1__ == __local0__
+					__local3__ = [1]
+					every __local1__, __local2__ in __local3__ {
+						__local2__ == __local0__
 					}
 				}
 			`,
@@ -3017,7 +3017,7 @@ func TestRewriteDeclaredVars(t *testing.T) {
 			`,
 			exp: `
 				package test
-				p[__local0__] { __local0__ = 10; __local1__ = [1]; every _ in __local1__ { true } }
+				p[__local0__] { __local0__ = 10; __local2__ = [1]; every __local1__, _ in __local2__ { true } }
 			`,
 		},
 		{
@@ -3039,11 +3039,11 @@ func TestRewriteDeclaredVars(t *testing.T) {
 				package test
 				p = true {
 					__local0__ = [[1], [2]]
-					__local3__ = [1]
-					every __local1__ in __local3__ {
-						__local4__ = __local0__[__local1__]
-						every __local2__ in __local4__ {
-							__local2__ == 2
+					__local5__ = [1]
+					every __local1__, __local2__ in __local5__ {
+						__local6__ = __local0__[__local2__]
+						every __local3__, __local4__ in __local6__ {
+							__local4__ == 2
 						}
 					}
 				}
@@ -3367,10 +3367,10 @@ func TestCompilerRewriteDynamicTerms(t *testing.T) {
 		{`call_with { count(str) with input as 1 }`, `__local0__ = data.test.str with input as 1; count(__local0__) with input as 1`},
 		{`call_func { f(input, "foo") } f(x,y) { x[y] }`, `__local2__ = input; data.test.f(__local2__, "foo")`},
 		{`call_func2 { f(input.foo, "foo") } f(x,y) { x[y] }`, `__local2__ = input.foo; data.test.f(__local2__, "foo")`},
-		{`every_domain { every _ in str { true } }`, `__local0__ = data.test.str; every _ in __local0__ { true }`},
-		{`every_domain_call { every _ in numbers.range(1, 10) { true } }`, `numbers.range(1, 10, __local0__); every _ in __local0__ { true }`},
+		{`every_domain { every _ in str { true } }`, `__local1__ = data.test.str; every __local0__, _ in __local1__ { true }`},
+		{`every_domain_call { every _ in numbers.range(1, 10) { true } }`, `numbers.range(1, 10, __local1__); every __local0__, _ in __local1__ { true }`},
 		{`every_body { every _ in [] { [str] } }`,
-			`__local0__ = []; every _ in __local0__ { __local1__ = data.test.str; [__local1__] }`},
+			`__local1__ = []; every __local0__, _ in __local1__ { __local2__ = data.test.str; [__local2__] }`},
 	}
 
 	for _, tc := range tests {
@@ -3537,7 +3537,7 @@ func TestCompilerRewritePrintCallsErasure(t *testing.T) {
 			`,
 			exp: `package test
 
-			p = true { __local0__ = []; every _ in __local0__ { false } }`,
+			p = true { __local1__ = []; every __local0__, _ in __local1__ { false } }`,
 		},
 		{
 			note: "in head",
@@ -3672,10 +3672,10 @@ func TestCompilerRewritePrintCalls(t *testing.T) {
 			exp: `package test
 
 			p = true {
-				__local2__ = [1, 2]
-				every __local0__ in __local2__ {
-					__local3__ = {__local1__ | __local1__ = __local0__}
-					internal.print([__local3__])
+				__local3__ = [1, 2]
+				every __local0__, __local1__ in __local3__ {
+					__local4__ = {__local2__ | __local2__ = __local1__}
+					internal.print([__local4__])
 				}
 			}`,
 		},
