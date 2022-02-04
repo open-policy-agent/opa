@@ -3849,6 +3849,7 @@ func expandExpr(gen *localVarGenerator, expr *Expr) (result []*Expr) {
 			eq := Equality.Expr(term, terms.Domain)
 			eq.Generated = true
 			eq.Location = terms.Domain.Location
+			eq.With = expr.With
 			extras = append(extras, eq)
 			terms.Domain = term
 		}
@@ -4243,7 +4244,8 @@ func rewriteEveryStatement(g *localVarGenerator, stack *localDeclaredVars, expr 
 
 	used := NewVarSet()
 	every.Body, errs = rewriteDeclaredVarsInBody(g, stack, used, every.Body, errs, strict)
-	return e, errs
+
+	return rewriteDeclaredVarsInExpr(g, stack, e, errs, strict)
 }
 
 func rewriteSomeDeclStatement(g *localVarGenerator, stack *localDeclaredVars, expr *Expr, errs Errors, strict bool) (*Expr, Errors) {

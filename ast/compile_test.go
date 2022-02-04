@@ -3047,7 +3047,71 @@ func TestRewriteDeclaredVars(t *testing.T) {
 						}
 					}
 				}
-			`},
+			`,
+		},
+		{
+			note: "rewrite every: with modifier on domain",
+			module: `
+				package test
+				# import future.keywords.in
+				# import future.keywords.every
+				p {
+					every x in input { x == 1 } with input as [1, 1, 1]
+				}
+			`,
+			exp: `
+				package test
+				p {
+					__local2__ = input with input as [1, 1, 1]
+					every __local0__, __local1__ in __local2__ {
+						__local1__ == 1
+					} with input as [1, 1, 1]
+				}
+			`,
+		},
+		{
+			note: "rewrite every: with modifier on domain with declared var",
+			module: `
+				package test
+				# import future.keywords.in
+				# import future.keywords.every
+				p {
+					xs := [1, 2]
+					every x in input { x == 1 } with input as xs
+				}
+			`,
+			exp: `
+				package test
+				p {
+					__local0__ = [1, 2]
+					__local3__ = input with input as __local0__
+					every __local1__, __local2__ in __local3__ {
+						__local2__ == 1
+					} with input as __local0__
+				}
+			`,
+		},
+		{
+			note: "rewrite every: with modifier on body",
+			module: `
+				package test
+				# import future.keywords.in
+				# import future.keywords.every
+				p {
+					every x in [2] { x == input } with input as 2
+				}
+			`,
+			exp: `
+				package test
+				p {
+					__local2__ = [2] with input as 2
+					every __local0__, __local1__ in __local2__ {
+						__local3__ = input
+						__local1__ == __local3__
+					} with input as 2
+				}
+			`,
+		},
 		{
 			note: "rewrite closures",
 			module: `

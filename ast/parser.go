@@ -988,7 +988,14 @@ func (p *Parser) parseEvery() *Expr {
 		}
 		p.scan()
 		qb.Body = body
-		return NewExpr(qb).SetLocation(qb.Location)
+		expr := NewExpr(qb).SetLocation(qb.Location)
+
+		if p.s.tok == tokens.With {
+			if expr.With = p.parseWith(); expr.With == nil {
+				return nil
+			}
+		}
+		return expr
 	}
 
 	p.illegal("missing body")
