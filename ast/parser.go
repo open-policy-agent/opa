@@ -798,15 +798,24 @@ func (p *Parser) parseLiteral() (expr *Expr) {
 	}()
 
 	var negated bool
-	switch p.s.tok {
-	case tokens.Some:
-		return p.parseSome()
-	case tokens.Every:
-		return p.parseEvery()
-	case tokens.Not:
+	if p.s.tok == tokens.Not {
 		p.scan()
 		negated = true
-		fallthrough
+	}
+
+	switch p.s.tok {
+	case tokens.Some:
+		if negated {
+			p.illegal("not is invalid")
+			return nil
+		}
+		return p.parseSome()
+	case tokens.Every:
+		if negated {
+			p.illegal("not is invalid")
+			return nil
+		}
+		return p.parseEvery()
 	default:
 		expr := p.parseExpr()
 		if expr != nil {
