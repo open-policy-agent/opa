@@ -1814,7 +1814,10 @@ func (p *Parser) illegal(note string, a ...interface{}) {
 	}
 
 	tokType := "token"
-	if p.s.tok >= tokens.Package && p.s.tok <= tokens.False {
+	if tokens.IsKeyword(p.s.tok) {
+		tokType = "keyword"
+	}
+	if _, ok := futureKeywords[p.s.tok.String()]; ok {
 		tokType = "keyword"
 	}
 
