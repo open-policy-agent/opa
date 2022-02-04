@@ -2713,7 +2713,8 @@ func TestStatusV1(t *testing.T) {
 	// Expect HTTP 200 and updated status after bundle update occurs
 	bs.BulkUpdateBundleStatus(map[string]*pluginBundle.Status{
 		"test": {
-			Name: "test",
+			Name:     "test",
+			HTTPCode: "403",
 		},
 	})
 
@@ -2729,7 +2730,8 @@ func TestStatusV1(t *testing.T) {
 		Result struct {
 			Bundles struct {
 				Test struct {
-					Name string
+					Name     string
+					HTTPCode json.Number `json:"http_code"`
 				}
 			}
 		}
@@ -2737,8 +2739,12 @@ func TestStatusV1(t *testing.T) {
 
 	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&resp2); err != nil {
 		t.Fatal(err)
-	} else if resp2.Result.Bundles.Test.Name != "test" {
+	}
+	if resp2.Result.Bundles.Test.Name != "test" {
 		t.Fatal("expected bundle to exist in status response but got:", resp2)
+	}
+	if resp2.Result.Bundles.Test.HTTPCode != "403" {
+		t.Fatal("expected HTTPCode to equal 403 but got:", resp2)
 	}
 }
 

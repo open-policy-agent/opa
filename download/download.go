@@ -342,15 +342,19 @@ func (d *Downloader) download(ctx context.Context, m metrics.Metrics) (*download
 			etag:     etag,
 			longPoll: d.longPollingEnabled,
 		}, nil
-	case http.StatusNotFound:
-		return nil, fmt.Errorf("server replied with not found")
-	case http.StatusUnauthorized:
-		return nil, fmt.Errorf("server replied with not authorized")
 	default:
-		return nil, fmt.Errorf("server replied with HTTP %v", resp.StatusCode)
+		return nil, HTTPError{StatusCode: resp.StatusCode}
 	}
 }
 
 func isLongPollSupported(header http.Header) bool {
 	return header.Get("Content-Type") == "application/vnd.openpolicyagent.bundles"
+}
+
+type HTTPError struct {
+	StatusCode int
+}
+
+func (e HTTPError) Error() string {
+	return fmt.Sprintf("server replied with %s", http.StatusText(e.StatusCode))
 }

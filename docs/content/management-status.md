@@ -199,6 +199,7 @@ Status updates contain the following fields:
 | `bundles[_].metrics` | `object` | Metrics from the last update of the bundle. |
 | `bundles[_].code` | `string` | If present, indicates error(s) occurred activating this bundle. |
 | `bundles[_].message` | `string` | Human readable messages describing the error(s). |
+| `bundles[_].http_code` | `number` | If present, indicates an erroneous HTTP status code that OPA received downloading this bundle. |
 | `bundles[_].errors` | `array` | Collection of detailed parse or compile errors that occurred during activation of this bundle. |
 | `discovery.name` | `string` | Name of discovery bundle that the OPA instance is configured to download. |
 | `discovery.active_revision` | `string` | Opaque revision identifier of the last successful discovery activation. |
