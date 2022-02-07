@@ -798,15 +798,24 @@ func (p *Parser) parseLiteral() (expr *Expr) {
 	}()
 
 	var negated bool
-	switch p.s.tok {
-	case tokens.Some:
-		return p.parseSome()
-	case tokens.Every:
-		return p.parseEvery()
-	case tokens.Not:
+	if p.s.tok == tokens.Not {
 		p.scan()
 		negated = true
-		fallthrough
+	}
+
+	switch p.s.tok {
+	case tokens.Some:
+		if negated {
+			p.illegal("not is invalid")
+			return nil
+		}
+		return p.parseSome()
+	case tokens.Every:
+		if negated {
+			p.illegal("not is invalid")
+			return nil
+		}
+		return p.parseEvery()
 	default:
 		expr := p.parseExpr()
 		if expr != nil {
@@ -979,7 +988,14 @@ func (p *Parser) parseEvery() *Expr {
 		}
 		p.scan()
 		qb.Body = body
-		return NewExpr(qb).SetLocation(qb.Location)
+		expr := NewExpr(qb).SetLocation(qb.Location)
+
+		if p.s.tok == tokens.With {
+			if expr.With = p.parseWith(); expr.With == nil {
+				return nil
+			}
+		}
+		return expr
 	}
 
 	p.illegal("missing body")
@@ -1805,7 +1821,10 @@ func (p *Parser) illegal(note string, a ...interface{}) {
 	}
 
 	tokType := "token"
-	if p.s.tok >= tokens.Package && p.s.tok <= tokens.False {
+	if tokens.IsKeyword(p.s.tok) {
+		tokType = "keyword"
+	}
+	if _, ok := futureKeywords[p.s.tok.String()]; ok {
 		tokType = "keyword"
 	}
 

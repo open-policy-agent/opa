@@ -692,6 +692,10 @@ func TestSomeDeclExpr(t *testing.T) {
 		},
 	}, opts)
 
+	assertParseErrorContains(t, "not some", "not some x, y in xs",
+		"unexpected some keyword: not is invalid",
+		opts)
+
 	assertParseErrorContains(t, "some + function call", "some f(x)",
 		"expected `x in xs` or `x, y in xs` expression")
 
@@ -801,6 +805,7 @@ func TestEvery(t *testing.T) {
 	assertParseErrorContains(t, "arbitrary call", "every f(10)", "expected `x[, y] in xs { ... }` expression", opts)
 	assertParseErrorContains(t, "no body", "every x in xs", "missing body", opts)
 	assertParseErrorContains(t, "invalid body", "every x in xs { + }", "unexpected plus token", opts)
+	assertParseErrorContains(t, "not every", "not every x in xs { true }", "unexpected every keyword: not is invalid", opts)
 }
 
 func TestNestedExpressions(t *testing.T) {
