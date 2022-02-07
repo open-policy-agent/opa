@@ -6,14 +6,12 @@ package topdown
 
 import (
 	"bytes"
-	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"math"
-	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -73,6 +71,7 @@ var (
 	requiredKeys                = ast.NewSet(ast.StringTerm("method"), ast.StringTerm("url"))
 	httpSendLatencyMetricKey    = "rego_builtin_" + strings.ReplaceAll(ast.HTTPSend.Name, ".", "_")
 	httpSendInterQueryCacheHits = httpSendLatencyMetricKey + "_interquery_cache_hits"
+	httpTransportPool           = NewPool()
 )
 
 type httpSendKey string
@@ -253,12 +252,7 @@ func useSocket(rawURL string, tlsConfig *tls.Config) (bool, string, *http.Transp
 		return false, rawURL, nil
 	}
 
-	tr := http.DefaultTransport.(*http.Transport).Clone()
-	tr.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
-		return http.DefaultTransport.(*http.Transport).DialContext(ctx, u.Scheme, v.Get("socket"))
-	}
-	tr.TLSClientConfig = tlsConfig
-	tr.DisableKeepAlives = true
+	tr := httpTransportPool.GetOrCreateTransport(tlsConfig, u, &v)
 
 	rawURL = strings.Replace(rawURL, "unix:", "http:", 1)
 	return true, rawURL, tr
@@ -535,10 +529,7 @@ func createHTTPRequest(bctx BuiltinContext, obj ast.Object) (*http.Request, *htt
 			client.Transport = tr
 			url = parsedURL
 		} else {
-			tr := http.DefaultTransport.(*http.Transport).Clone()
-			tr.TLSClientConfig = &tlsConfig
-			tr.DisableKeepAlives = true
-			client.Transport = tr
+			client.Transport = httpTransportPool.GetOrCreateTransport(&tlsConfig, nil, nil)
 		}
 	} else {
 		if ok, parsedURL, tr := useSocket(url, nil); ok {
