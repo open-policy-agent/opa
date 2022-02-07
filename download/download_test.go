@@ -11,6 +11,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -20,11 +21,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/open-policy-agent/opa/metrics"
-	"github.com/open-policy-agent/opa/plugins"
-
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/keys"
+	"github.com/open-policy-agent/opa/metrics"
+	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/plugins/rest"
 )
 
@@ -412,6 +412,13 @@ func TestFailureUnexpected(t *testing.T) {
 	err := d.oneShot(ctx)
 	if err == nil {
 		t.Fatal("expected error")
+	}
+	var hErr HTTPError
+	if !errors.As(err, &hErr) {
+		t.Fatal("expected HTTPError")
+	}
+	if hErr.StatusCode != 500 {
+		t.Fatal("expected status code 500")
 	}
 }
 
