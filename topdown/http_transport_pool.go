@@ -91,7 +91,6 @@ func connectionParamsKey(tlsConfig *tls.Config, url *url.URL, parsedQuery *url.V
 	}
 	if url != nil {
 		keyBuilder.WriteString(url.Scheme)
-		keyBuilder.WriteString(url.Hostname())
 	}
 	if parsedQuery != nil {
 		keyBuilder.WriteString(parsedQuery.Get("socket"))
