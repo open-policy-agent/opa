@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"math/big"
+	"net/url"
 	"regexp"
 	"sort"
 	"strconv"
@@ -1956,11 +1957,19 @@ func (p *Parser) validateDefaultRuleValue(rule *Rule) bool {
 }
 
 type rawAnnotation struct {
-	Scope   string                `json:"scope"`
-	Schemas []rawSchemaAnnotation `json:"schemas"`
+	Scope            string                `yaml:"scope"`
+	Title            string                `yaml:"title"`
+	Description      string                `yaml:"description"`
+	Organizations    []string              `yaml:"organizations"`
+	RelatedResources []string              `yaml:"related_resources"`
+	Authors          []string              `yaml:"authors"`
+	Schemas          []rawSchemaAnnotation `yaml:"schemas"`
+	Custom           []rawCustomAnnotation `yaml:"custom"`
 }
 
 type rawSchemaAnnotation map[string]interface{}
+
+type rawCustomAnnotation map[string]interface{}
 
 type metadataParser struct {
 	buf      *bytes.Buffer
@@ -2006,12 +2015,20 @@ func (b *metadataParser) Parse() (*Annotations, error) {
 
 	var result Annotations
 	result.Scope = raw.Scope
+	result.Title = raw.Title
+	result.Description = raw.Description
+	result.Organizations = raw.Organizations
+
+	for _, rr := range raw.RelatedResources {
+		u, err := url.Parse(rr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid related resource URL %s: %w", rr, err)
+		}
+		result.RelatedResources = append(result.RelatedResources, &RelatedResourceAnnotation{URL: *u})
+	}
 
 	for _, pair := range raw.Schemas {
-		var k string
-		var v interface{}
-		for k, v = range pair {
-		}
+		k, v := unwrapPair(pair)
 
 		var a SchemaAnnotation
 		var err error
@@ -2040,8 +2057,38 @@ func (b *metadataParser) Parse() (*Annotations, error) {
 		result.Schemas = append(result.Schemas, &a)
 	}
 
+	for _, str := range raw.Authors {
+		author, err := parseAuthor(str)
+		if err != nil {
+			return nil, fmt.Errorf("invalid author definition %s: %w", str, err)
+		}
+		result.Authors = append(result.Authors, author)
+	}
+
+	for _, pair := range raw.Custom {
+		k, v := unwrapPair(pair)
+		val, err := convertYAMLMapKeyTypes(v, nil)
+		if err != nil {
+			return nil, err
+		}
+		var customAnnotation CustomAnnotation
+		if v == nil {
+			// Avoid creating a pointer to a nil pointer, which won't behave in later nil-checks
+			customAnnotation = CustomAnnotation{Name: k}
+		} else {
+			customAnnotation = CustomAnnotation{Name: k, Value: &val}
+		}
+		result.Custom = append(result.Custom, &customAnnotation)
+	}
+
 	result.Location = b.loc
 	return &result, nil
+}
+
+func unwrapPair(pair map[string]interface{}) (k string, v interface{}) {
+	for k, v = range pair {
+	}
+	return
 }
 
 var errInvalidSchemaRef = fmt.Errorf("invalid schema reference")
@@ -2066,6 +2113,34 @@ func parseSchemaRef(s string) (Ref, error) {
 	}
 
 	return nil, errInvalidSchemaRef
+}
+
+const emailPrefix = "<"
+const emailSuffix = ">"
+
+// parseAuthor parses a string into an AuthorAnnotation. If the last word of the input string is enclosed within <>,
+// it is extracted as the author's email. The email may not contain whitelines, as it then will be interpreted as
+// multiple words.
+func parseAuthor(s string) (*AuthorAnnotation, error) {
+	parts := strings.Fields(s)
+
+	if len(parts) == 0 {
+		return nil, fmt.Errorf("author is an empty string")
+	}
+
+	namePartCount := len(parts)
+	trailing := parts[namePartCount-1]
+	var email string
+	if len(trailing) >= len(emailPrefix)+len(emailSuffix) && strings.HasPrefix(trailing, emailPrefix) &&
+		strings.HasSuffix(trailing, emailSuffix) {
+		email = trailing[len(emailPrefix):]
+		email = email[0 : len(email)-len(emailSuffix)]
+		namePartCount = namePartCount - 1
+	}
+
+	name := strings.Join(parts[0:namePartCount], " ")
+
+	return &AuthorAnnotation{Name: name, Email: email}, nil
 }
 
 func convertYAMLMapKeyTypes(x interface{}, path []string) (interface{}, error) {

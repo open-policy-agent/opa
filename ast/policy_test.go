@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"reflect"
 	"testing"
 
@@ -607,23 +608,78 @@ func TestEveryString(t *testing.T) {
 }
 
 func TestAnnotationsString(t *testing.T) {
+	var customList interface{} = []int{
+		1, 2, 3,
+	}
+	var customMap interface{} = map[string]interface{}{
+		"one": 1,
+		"two": map[int]interface{}{
+			3: "three",
+		},
+	}
+
 	a := &Annotations{
-		Scope: "foo",
+		Scope:       "foo",
+		Title:       "bar",
+		Description: "baz",
+		Authors: []*AuthorAnnotation{
+			{
+				Name:  "John Doe",
+				Email: "john@example.com",
+			},
+			{
+				Name: "Jane Doe",
+			},
+		},
+		Organizations: []string{"mi", "fa"},
+		RelatedResources: []*RelatedResourceAnnotation{
+			{
+				URL: mustParseURL("https://example.com"),
+			},
+		},
 		Schemas: []*SchemaAnnotation{
 			{
 				Path:   MustParseRef("data.bar"),
 				Schema: MustParseRef("schema.baz"),
 			},
 		},
+		Custom: []*CustomAnnotation{
+			{
+				Name:  "list",
+				Value: &customList,
+			},
+			{
+				Name:  "map",
+				Value: &customMap,
+			},
+			{
+				Name: "flag",
+			},
+		},
 	}
 
 	// NOTE(tsandall): for now, annotations are represented as JSON objects
 	// which are a subset of YAML. We could improve this in the future.
-	exp := `{"scope":"foo","schemas":[{"path":[{"type":"var","value":"data"},{"type":"string","value":"bar"}],"schema":[{"type":"var","value":"schema"},{"type":"string","value":"baz"}]}]}`
+	exp := `{"scope":"foo",` +
+		`"title":"bar",` +
+		`"description":"baz",` +
+		`"organizations":["mi","fa"],` +
+		`"related_resources":["https://example.com"],` +
+		`"authors":[{"name":"John Doe","email":"john@example.com"},{"name":"Jane Doe"}],` +
+		`"schemas":[{"path":[{"type":"var","value":"data"},{"type":"string","value":"bar"}],"schema":[{"type":"var","value":"schema"},{"type":"string","value":"baz"}]}],` +
+		`"custom":[{"name":"list","value":[1,2,3]},{"name":"map","value":{"one":1,"two":{"3":"three"}}},{"name":"flag"}]}`
 
 	if exp != a.String() {
 		t.Fatalf("expected %q but got %q", exp, a.String())
 	}
+}
+
+func mustParseURL(str string) url.URL {
+	parsed, err := url.Parse(str)
+	if err != nil {
+		panic(err)
+	}
+	return *parsed
 }
 
 func TestModuleStringAnnotations(t *testing.T) {

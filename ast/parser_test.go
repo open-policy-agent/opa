@@ -3194,6 +3194,28 @@ public_servers_1[server] {
 			},
 		},
 		{
+			note: "multiple metadata blocks on a single rule",
+			module: `package test
+
+# METADATA
+# title: My rule
+
+# METADATA
+# title: My rule 2
+p { input = "str" }`,
+			expNumComments: 4,
+			expAnnotations: []*Annotations{
+				{
+					Scope: annotationScopeRule,
+					Title: "My rule",
+				},
+				{
+					Scope: annotationScopeRule,
+					Title: "My rule 2",
+				},
+			},
+		},
+		{
 			note: "Empty annotation error due to whitespace following METADATA hint",
 			module: `package test
 
@@ -3215,6 +3237,33 @@ p := 7`,
 			expAnnotations: []*Annotations{
 				{Scope: annotationScopeRule},
 			},
+		},
+		{
+			note: "annotation on package",
+			module: `# METADATA
+# title: My package
+package test
+
+p { input = "str" }`,
+			expNumComments: 2,
+			expAnnotations: []*Annotations{
+				{
+					Scope: annotationScopePackage,
+					Title: "My package",
+				},
+			},
+		},
+		{
+			note: "annotation on import",
+			module: `package test
+
+# METADATA
+# title: My import
+import input.foo
+
+p { input = "str" }`,
+			expNumComments: 2,
+			expError:       "1 error occurred: test.rego:3: rego_parse_error: invalid annotation scope 'import'",
 		},
 		{
 			note: "Default rule scope",
@@ -3293,6 +3342,94 @@ p { input = "str" }`,
 				},
 			},
 		},
+		{
+			note: "Rich meta",
+			module: `package test
+
+# METADATA
+# title: My rule
+# description: |
+#  My rule has a
+#  multiline description.
+# organizations:
+# - Acme Corp.
+# - Soylent Corp.
+# - Tyrell Corp.
+# related_resources:
+# - https://example.com
+# - http://john:123@do.re/mi?foo=bar#baz
+# authors:
+# - John Doe <john@example.com>
+# - Jane Doe
+# custom:
+# - list:
+#   - a
+#   - b
+# - map:
+#    a: 1
+#    b: 2.2
+#    c:
+#     "3": d
+# - number: 42
+# - string: foo bar baz
+# - flag:
+p { input = "str" }`,
+			expNumComments: 27,
+			expAnnotations: []*Annotations{
+				{
+					Scope:         annotationScopeRule,
+					Title:         "My rule",
+					Description:   "My rule has a\nmultiline description.\n",
+					Organizations: []string{"Acme Corp.", "Soylent Corp.", "Tyrell Corp."},
+					RelatedResources: []*RelatedResourceAnnotation{
+						{
+							URL: mustParseURL("https://example.com"),
+						},
+						{
+							URL: mustParseURL("http://john:123@do.re/mi?foo=bar#baz"),
+						},
+					},
+					Authors: []*AuthorAnnotation{
+						{
+							Name:  "John Doe",
+							Email: "john@example.com",
+						},
+						{
+							Name: "Jane Doe",
+						},
+					},
+					Custom: []*CustomAnnotation{
+						{
+							Name: "list",
+							Value: asInterfacePtr([]interface{}{
+								"a", "b",
+							}),
+						},
+						{
+							Name: "map",
+							Value: asInterfacePtr(map[string]interface{}{
+								"a": 1,
+								"b": 2.2,
+								"c": map[string]interface{}{
+									"3": "d",
+								},
+							}),
+						},
+						{
+							Name:  "number",
+							Value: asInterfacePtr(42),
+						},
+						{
+							Name:  "string",
+							Value: asInterfacePtr("foo bar baz"),
+						},
+						{
+							Name: "flag",
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, tc := range tests {
@@ -3318,6 +3455,91 @@ p { input = "str" }`,
 			}
 		})
 	}
+}
+
+func TestAuthorAnnotation(t *testing.T) {
+	tests := []struct {
+		note     string
+		raw      string
+		expected interface{}
+	}{
+		{
+			note:     "no name",
+			raw:      "",
+			expected: fmt.Errorf("author is an empty string"),
+		},
+		{
+			note:     "only whitespaces",
+			raw:      " \t",
+			expected: fmt.Errorf("author is an empty string"),
+		},
+		{
+			note:     "one name only",
+			raw:      "John",
+			expected: AuthorAnnotation{Name: "John"},
+		},
+		{
+			note:     "multiple names",
+			raw:      "John Jr.\tDoe",
+			expected: AuthorAnnotation{Name: "John Jr. Doe"},
+		},
+		{
+			note:     "email only",
+			raw:      "<john@example.com>",
+			expected: AuthorAnnotation{Email: "john@example.com"},
+		},
+		{
+			note:     "name and email",
+			raw:      "John Doe <john@example.com>",
+			expected: AuthorAnnotation{Name: "John Doe", Email: "john@example.com"},
+		},
+		{
+			note:     "empty email",
+			raw:      "John Doe <>",
+			expected: AuthorAnnotation{Name: "John Doe"},
+		},
+		{
+			note:     "name with reserved characters",
+			raw:      "John Doe < >",
+			expected: AuthorAnnotation{Name: "John Doe < >"},
+		},
+		{
+			note:     "name with reserved characters (email with space)",
+			raw:      "<john@ example.com>",
+			expected: AuthorAnnotation{Name: "<john@ example.com>"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			parsed, err := parseAuthor(tc.raw)
+
+			switch expected := tc.expected.(type) {
+			case AuthorAnnotation:
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				if parsed.Compare(&expected) != 0 {
+					t.Fatalf("expected %v but got %v", tc.expected, parsed)
+				}
+			case error:
+				if err == nil {
+					t.Fatalf("expected '%v' error but got %v", tc.expected, parsed)
+				}
+
+				if strings.Compare(expected.Error(), err.Error()) != 0 {
+					t.Fatalf("expected %v but got %v", tc.expected, err)
+				}
+			default:
+				t.Fatalf("Unexpected result type: %T", expected)
+			}
+		})
+	}
+}
+
+func asInterfacePtr(v interface{}) *interface{} {
+	return &v
 }
 
 func assertLocationText(t *testing.T, expected string, actual *Location) {
