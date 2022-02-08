@@ -42,37 +42,54 @@ scrape_configs:
 
 The Prometheus endpoint exports Go runtime metrics as well as HTTP request latency metrics for all handlers (e.g., `v1/data`).
 
-| Metric name | Metric type | Description |
-| --- | --- | --- |
-| go_gc_duration_seconds | summary | A summary of the GC invocation durations. |
-| go_goroutines | gauge | Number of goroutines that currently exist. |
-| go_info | gauge | Information about the Go environment. |
-| go_memstats_alloc_bytes | gauge | Number of bytes allocated and still in use. |
-| go_memstats_alloc_bytes_total | counter | Total number of bytes allocated, even if freed. |
-| go_memstats_buck_hash_sys_bytes | gauge | Number of bytes used by the profiling bucket hash table. |
-| go_memstats_frees_total | counter | Total number of frees. |
-| go_memstats_gc_cpu_fraction | gauge | The fraction of this program's available CPU time used by the GC since the program started. |
-| go_memstats_gc_sys_bytes | gauge | Number of bytes used for garbage collection system metadata. |
-| go_memstats_heap_alloc_bytes | gauge | Number of heap bytes allocated and still in use. |
-| go_memstats_heap_idle_bytes | gauge | Number of heap bytes waiting to be used. |
-| go_memstats_heap_inuse_bytes | gauge | Number of heap bytes that are in use. |
-| go_memstats_heap_objects | gauge | Number of allocated objects. |
-| go_memstats_heap_released_bytes | gauge | Number of heap bytes released to OS. |
-| go_memstats_heap_sys_bytes | gauge | Number of heap bytes obtained from system. |
-| go_memstats_last_gc_time_seconds | gauge | Number of seconds since 1970 of last garbage collection. |
-| go_memstats_lookups_total | counter | Total number of pointer lookups. |
-| go_memstats_mallocs_total | counter | Total number of mallocs. |
-| go_memstats_mcache_inuse_bytes | gauge | Number of bytes in use by mcache structures. |
-| go_memstats_mcache_sys_bytes | gauge | Number of bytes used for mcache structures obtained from system. |
-| go_memstats_mspan_inuse_bytes | gauge | Number of bytes in use by mspan structures. |
-| go_memstats_mspan_sys_bytes | gauge | Number of bytes used for mspan structures obtained from system. |
-| go_memstats_next_gc_bytes | gauge | Number of heap bytes when next garbage collection will take place. |
-| go_memstats_other_sys_bytes | gauge | Number of bytes used for other system allocations. |
-| go_memstats_stack_inuse_bytes | gauge | Number of bytes in use by the stack allocator. |
-| go_memstats_stack_sys_bytes | gauge | Number of bytes obtained from system for stack allocator. |
-| go_memstats_sys_bytes | gauge | Number of bytes obtained from system. |
-| go_threads | gauge | Number of OS threads created. |
-| http_request_duration_seconds | histogram | A histogram of duration for requests. |
+| Metric name | Metric type | Description | Status |
+| --- | --- | --- | --- |
+| go_gc_duration_seconds | summary | A summary of the GC invocation durations. | STABLE |
+| go_goroutines | gauge | Number of goroutines that currently exist. | STABLE |
+| go_info | gauge | Information about the Go environment. | STABLE |
+| go_memstats_alloc_bytes | gauge | Number of bytes allocated and still in use. | STABLE |
+| go_memstats_alloc_bytes_total | counter | Total number of bytes allocated, even if freed. | STABLE |
+| go_memstats_buck_hash_sys_bytes | gauge | Number of bytes used by the profiling bucket hash table. | STABLE |
+| go_memstats_frees_total | counter | Total number of frees. | STABLE |
+| go_memstats_gc_cpu_fraction | gauge | The fraction of this program's available CPU time used by the GC since the program started. | STABLE |
+| go_memstats_gc_sys_bytes | gauge | Number of bytes used for garbage collection system metadata. | STABLE |
+| go_memstats_heap_alloc_bytes | gauge | Number of heap bytes allocated and still in use. | STABLE |
+| go_memstats_heap_idle_bytes | gauge | Number of heap bytes waiting to be used. | STABLE |
+| go_memstats_heap_inuse_bytes | gauge | Number of heap bytes that are in use. | STABLE |
+| go_memstats_heap_objects | gauge | Number of allocated objects. | STABLE |
+| go_memstats_heap_released_bytes | gauge | Number of heap bytes released to OS. | STABLE |
+| go_memstats_heap_sys_bytes | gauge | Number of heap bytes obtained from system. | STABLE |
+| go_memstats_last_gc_time_seconds | gauge | Number of seconds since 1970 of last garbage collection. | STABLE |
+| go_memstats_lookups_total | counter | Total number of pointer lookups. | STABLE |
+| go_memstats_mallocs_total | counter | Total number of mallocs. | STABLE |
+| go_memstats_mcache_inuse_bytes | gauge | Number of bytes in use by mcache structures. | STABLE |
+| go_memstats_mcache_sys_bytes | gauge | Number of bytes used for mcache structures obtained from system. | STABLE |
+| go_memstats_mspan_inuse_bytes | gauge | Number of bytes in use by mspan structures. | STABLE |
+| go_memstats_mspan_sys_bytes | gauge | Number of bytes used for mspan structures obtained from system. | STABLE |
+| go_memstats_next_gc_bytes | gauge | Number of heap bytes when next garbage collection will take place. | STABLE |
+| go_memstats_other_sys_bytes | gauge | Number of bytes used for other system allocations. | STABLE |
+| go_memstats_stack_inuse_bytes | gauge | Number of bytes in use by the stack allocator. | STABLE |
+| go_memstats_stack_sys_bytes | gauge | Number of bytes obtained from system for stack allocator. | STABLE |
+| go_memstats_sys_bytes | gauge | Number of bytes obtained from system. | STABLE |
+| go_threads | gauge | Number of OS threads created. | STABLE |
+| http_request_duration_seconds | histogram | A histogram of duration for requests. | STABLE |
+
+
+### Status Metrics
+
+When Prometheus is enabled in the status plugin (see [Configuration](../configuration/#status), the OPA instance's Prometheus endpoint also exposes these metrics:
+
+| Metric name | Metric type | Description                                              | Status |
+| --- | --- |----------------------------------------------------------|--------|
+| plugin_status_gauge | gauge | Number of plugins by name and status.                    | EXPERIMENTAL |
+| bundle_loaded_counter | counter | Number of bundles loaded with success.                   | EXPERIMENTAL |
+| bundle_failed_load_counter | counter | Number of bundles that failed to load.                   | EXPERIMENTAL |
+| last_bundle_request | gauge | Last bundle request in UNIX nanoseconds.                 | EXPERIMENTAL |
+| last_success_bundle_activation | gauge | Last successfully bundle activation in UNIX nanoseconds. | EXPERIMENTAL |
+| last_success_bundle_download | gauge | Last successfully bundle download in UNIX nanoseconds.   | EXPERIMENTAL |
+| last_success_bundle_request | gauge | Last successfully bundle request in UNIX nanoseconds.    | EXPERIMENTAL |
+| bundle_loading_duration_ns | histogram | A histogram of duration for bundle loading.              | EXPERIMENTAL |
+
 
 ## Health Checks
 

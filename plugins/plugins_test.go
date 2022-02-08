@@ -11,6 +11,8 @@ import (
 	"reflect"
 	"testing"
 
+	prom "github.com/prometheus/client_golang/prometheus"
+
 	"github.com/open-policy-agent/opa/internal/storage/mock"
 	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/logging/test"
@@ -340,6 +342,22 @@ func TestPluginManagerConsoleLogger(t *testing.T) {
 	}
 }
 
+func TestPluginManagerPrometheusRegister(t *testing.T) {
+	register := prometheusRegisterMock{Collectors: map[prom.Collector]bool{}}
+	mgr, err := New([]byte(`{}`), "", inmem.New(), WithPrometheusRegister(register))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	counter := prom.NewCounter(prom.CounterOpts{})
+	if err := mgr.PrometheusRegister().Register(counter); err != nil {
+		t.Fatal(err)
+	}
+	if register.Collectors[counter] != true {
+		t.Fatalf("Counter metric was not registered on prometheus")
+	}
+}
+
 func TestPluginManagerServerInitialized(t *testing.T) {
 	// Verify that ServerInitializedChannel is closed when
 	// ServerInitialized is called.
@@ -394,4 +412,24 @@ func (*myAuthPluginMock) Start(context.Context) error {
 func (*myAuthPluginMock) Stop(context.Context) {
 }
 func (*myAuthPluginMock) Reconfigure(context.Context, interface{}) {
+}
+
+type prometheusRegisterMock struct {
+	Collectors map[prom.Collector]bool
+}
+
+func (p prometheusRegisterMock) Register(collector prom.Collector) error {
+	p.Collectors[collector] = true
+	return nil
+}
+
+func (p prometheusRegisterMock) MustRegister(collector ...prom.Collector) {
+	for _, c := range collector {
+		p.Collectors[c] = true
+	}
+}
+
+func (p prometheusRegisterMock) Unregister(collector prom.Collector) bool {
+	delete(p.Collectors, collector)
+	return true
 }

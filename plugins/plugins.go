@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
+
 	"github.com/gorilla/mux"
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
@@ -187,6 +189,7 @@ type Manager struct {
 	printHook                    print.Hook
 	enablePrintStatements        bool
 	router                       *mux.Router
+	prometheusRegister           prometheus.Registerer
 }
 
 type managerContextKey string
@@ -341,6 +344,13 @@ func PrintHook(h print.Hook) func(*Manager) {
 func WithRouter(r *mux.Router) func(*Manager) {
 	return func(m *Manager) {
 		m.router = r
+	}
+}
+
+// WithPrometheusRegister sets the passed prometheus.Registerer to be used by plugins
+func WithPrometheusRegister(prometheusRegister prometheus.Registerer) func(*Manager) {
+	return func(m *Manager) {
+		m.prometheusRegister = prometheusRegister
 	}
 }
 
@@ -892,4 +902,9 @@ func (m *Manager) RegisterCacheTrigger(trigger func(*cache.Config)) {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
 	m.registeredCacheTriggers = append(m.registeredCacheTriggers, trigger)
+}
+
+// PrometheusRegister gets the prometheus.Registerer for this plugin manager.
+func (m *Manager) PrometheusRegister() prometheus.Registerer {
+	return m.prometheusRegister
 }

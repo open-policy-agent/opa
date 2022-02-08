@@ -15,12 +15,15 @@ import (
 	"testing"
 	"time"
 
+	prom "github.com/prometheus/client_golang/prometheus"
+
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/plugins/bundle"
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/version"
+	"github.com/prometheus/client_golang/prometheus/testutil"
 )
 
 func TestMain(m *testing.M) {
@@ -688,7 +691,10 @@ func newTestFixture(t *testing.T, m metrics.Metrics, options ...testPluginCustom
 				}
 			]}`, ts.server.URL))
 
-	manager, err := plugins.New(managerConfig, "test-instance-id", inmem.New())
+	registerMock := &prometheusRegisterMock{
+		Collectors: map[prom.Collector]bool{},
+	}
+	manager, err := plugins.New(managerConfig, "test-instance-id", inmem.New(), plugins.WithPrometheusRegister(registerMock))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -743,15 +749,18 @@ func (t *testServer) stop() {
 }
 
 func testStatus() *bundle.Status {
-
 	tDownload, _ := time.Parse(time.RFC3339Nano, "2018-01-01T00:00:00.0000000Z")
 	tActivate, _ := time.Parse(time.RFC3339Nano, "2018-01-01T00:00:01.0000000Z")
+	tSuccessfulRequest, _ := time.Parse(time.RFC3339Nano, "2018-01-01T00:00:02.0000000Z")
+	tRequest, _ := time.Parse(time.RFC3339Nano, "2018-01-01T00:00:03.0000000Z")
 
 	status := bundle.Status{
 		Name:                     "example/authz",
 		ActiveRevision:           "quickbrawnfaux",
 		LastSuccessfulDownload:   tDownload,
 		LastSuccessfulActivation: tActivate,
+		LastRequest:              tRequest,
+		LastSuccessfulRequest:    tSuccessfulRequest,
 	}
 
 	return &status
@@ -801,4 +810,110 @@ func TestPluginCustomBackend(t *testing.T) {
 	if len(backend.reqs) != 2 {
 		t.Fatalf("Unexpected number of reqs: expected 2, got %d: %v", len(backend.reqs), backend.reqs)
 	}
+}
+
+func TestPluginPrometheus(t *testing.T) {
+	fixture := newTestFixture(t, nil, func(c *Config) {
+		c.Prometheus = true
+	})
+	fixture.server.ch = make(chan UpdateRequestV1)
+	defer fixture.server.stop()
+
+	ctx := context.Background()
+
+	err := fixture.plugin.Start(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer fixture.plugin.Stop(ctx)
+	<-fixture.server.ch
+
+	status := testStatus()
+
+	fixture.plugin.BulkUpdateBundleStatus(map[string]*bundle.Status{"bundle": status})
+	<-fixture.server.ch
+
+	registerMock := fixture.manager.PrometheusRegister().(*prometheusRegisterMock)
+	if registerMock.Collectors[pluginStatus] != true {
+		t.Fatalf("Plugin status metric was not registered on prometheus")
+	}
+	if registerMock.Collectors[loaded] != true {
+		t.Fatalf("Loaded metric was not registered on prometheus")
+	}
+	if registerMock.Collectors[failLoad] != true {
+		t.Fatalf("FailLoad metric was not registered on prometheus")
+	}
+	if registerMock.Collectors[lastRequest] != true {
+		t.Fatalf("Last request metric was not registered on prometheus")
+	}
+	if registerMock.Collectors[lastSuccessfulActivation] != true {
+		t.Fatalf("Last Successful Activation metric was not registered on prometheus")
+	}
+	if registerMock.Collectors[lastSuccessfulDownload] != true {
+		t.Fatalf("Last Successful Download metric was not registered on prometheus")
+	}
+	if registerMock.Collectors[lastSuccessfulRequest] != true {
+		t.Fatalf("Last Successful Request metric was not registered on prometheus")
+	}
+	if registerMock.Collectors[bundleLoadDuration] != true {
+		t.Fatalf("Bundle Load Duration metric was not registered on prometheus")
+	}
+	if len(registerMock.Collectors) != 8 {
+		t.Fatalf("Number of collectors expected (%v), got %v", 8, len(registerMock.Collectors))
+	}
+
+	lastRequestMetricResult := time.UnixMilli(int64(testutil.ToFloat64(lastRequest) / 1e6))
+	if !lastRequestMetricResult.Equal(status.LastRequest) {
+		t.Fatalf("Last request expected (%v), got %v", status.LastRequest.UTC(), lastRequestMetricResult.UTC())
+	}
+
+	lastSuccessfulRequestMetricResult := time.UnixMilli(int64(testutil.ToFloat64(lastSuccessfulRequest) / 1e6))
+	if !lastSuccessfulRequestMetricResult.Equal(status.LastSuccessfulRequest) {
+		t.Fatalf("Last request expected (%v), got %v", status.LastSuccessfulRequest.UTC(), lastSuccessfulRequestMetricResult.UTC())
+	}
+
+	lastSuccessfulDownloadMetricResult := time.UnixMilli(int64(testutil.ToFloat64(lastSuccessfulDownload) / 1e6))
+	if !lastSuccessfulDownloadMetricResult.Equal(status.LastSuccessfulDownload) {
+		t.Fatalf("Last request expected (%v), got %v", status.LastSuccessfulDownload.UTC(), lastSuccessfulDownloadMetricResult.UTC())
+	}
+
+	lastSuccessfulActivationMetricResult := time.UnixMilli(int64(testutil.ToFloat64(lastSuccessfulActivation) / 1e6))
+	if !lastSuccessfulActivationMetricResult.Equal(status.LastSuccessfulActivation) {
+		t.Fatalf("Last request expected (%v), got %v", status.LastSuccessfulActivation.UTC(), lastSuccessfulActivationMetricResult.UTC())
+	}
+
+	bundlesLoaded := testutil.CollectAndCount(loaded)
+	if bundlesLoaded != 1 {
+		t.Fatalf("Unexpected number of bundle loads (%v), got %v", 1, bundlesLoaded)
+	}
+
+	bundlesFailedToLoad := testutil.CollectAndCount(failLoad)
+	if bundlesFailedToLoad != 0 {
+		t.Fatalf("Unexpected number of bundle fails load (%v), got %v", 0, bundlesFailedToLoad)
+	}
+
+	pluginsStatus := testutil.CollectAndCount(pluginStatus)
+	if pluginsStatus != 1 {
+		t.Fatalf("Unexpected number of plugins (%v), got %v", 1, pluginsStatus)
+	}
+}
+
+type prometheusRegisterMock struct {
+	Collectors map[prom.Collector]bool
+}
+
+func (p prometheusRegisterMock) Register(collector prom.Collector) error {
+	p.Collectors[collector] = true
+	return nil
+}
+
+func (p prometheusRegisterMock) MustRegister(collector ...prom.Collector) {
+	for _, c := range collector {
+		p.Collectors[c] = true
+	}
+}
+
+func (p prometheusRegisterMock) Unregister(collector prom.Collector) bool {
+	delete(p.Collectors, collector)
+	return true
 }
