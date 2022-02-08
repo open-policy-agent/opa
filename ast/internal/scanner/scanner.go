@@ -96,6 +96,11 @@ func (s *Scanner) Keyword(lit string) tokens.Token {
 // AddKeyword adds a string -> token mapping to this Scanner instance.
 func (s *Scanner) AddKeyword(kw string, tok tokens.Token) {
 	s.keywords[kw] = tok
+
+	switch tok {
+	case tokens.Every: // importing 'every' means also importing 'in'
+		s.keywords["in"] = tokens.In
+	}
 }
 
 // WithKeywords returns a new copy of the Scanner struct `s`, with the set

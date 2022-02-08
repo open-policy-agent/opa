@@ -376,6 +376,21 @@ func TestExprBadJSON(t *testing.T) {
 	assert(js, exp)
 }
 
+func TestExprEveryCopy(t *testing.T) {
+	opts := ParserOptions{AllFutureKeywords: true}
+	newEvery := func() *Expr {
+		return MustParseBodyWithOpts(
+			`every k, v in [1,2,3] { true }`, opts,
+		)[0]
+	}
+	e0 := newEvery()
+	e1 := e0.Copy()
+	e1.Terms.(*Every).Body = NewBody(NewExpr(BooleanTerm(false)))
+	if exp := newEvery(); exp.Compare(e0) != 0 {
+		t.Errorf("expected e0 unchanged (%v), found %v", exp, e0)
+	}
+}
+
 func TestRuleHeadEquals(t *testing.T) {
 	assertHeadsEqual(t, &Head{}, &Head{})
 
