@@ -238,3 +238,15 @@ This will dump all status updates to the console. See
 > Warning: Status update messages are somewhat infrequent but can be very verbose! The
 >`metrics.prometheus` portion of the status update in particular can create a considerable
 > amount of log text at info level.
+
+### Prometheus Status Metrics
+
+Prometheus status metrics can be enabled via the `prometheus` config option. (see [the configuration documentation](../configuration/#status))
+Example of minimal config to enable:
+
+```yaml
+status:
+    prometheus: true
+```
+
+When enabled the OPA instance's Prometheus endpoint exposes the metrics described on [the monitoring documentation](../monitoring/#status-metrics).

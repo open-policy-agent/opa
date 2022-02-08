@@ -313,6 +313,8 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		params.Router = mux.NewRouter()
 	}
 
+	metrics := prometheus.New(metrics.New(), errorLogger(logger))
+
 	manager, err := plugins.New(config,
 		params.ID,
 		inmem.New(),
@@ -325,7 +327,8 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		plugins.Logger(logger),
 		plugins.EnablePrintStatements(logger.GetLevel() >= logging.Info),
 		plugins.PrintHook(loggingPrintHook{logger: logger}),
-		plugins.WithRouter(params.Router))
+		plugins.WithRouter(params.Router),
+		plugins.WithPrometheusRegister(metrics))
 	if err != nil {
 		return nil, fmt.Errorf("config error: %w", err)
 	}
@@ -333,8 +336,6 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 	if err := manager.Init(ctx); err != nil {
 		return nil, fmt.Errorf("initialization error: %w", err)
 	}
-
-	metrics := prometheus.New(metrics.New(), errorLogger(logger))
 
 	traceExporter, distributedTracingOpts, err := internal_tracing.Init(ctx, config, params.ID)
 	if err != nil {

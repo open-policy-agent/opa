@@ -149,6 +149,21 @@ func (p *Provider) Clear() {
 	p.inner.Clear()
 }
 
+// Register register the collectors on OPA prometheus registry
+func (p *Provider) Register(c prometheus.Collector) error {
+	return p.registry.Register(c)
+}
+
+// MustRegister register the collectors on OPA prometheus registry and panics when an error occurs
+func (p *Provider) MustRegister(cs ...prometheus.Collector) {
+	p.registry.MustRegister(cs...)
+}
+
+// Unregister unregister the collectors on OPA prometheus registry
+func (p *Provider) Unregister(c prometheus.Collector) bool {
+	return p.registry.Unregister(c)
+}
+
 type captureStatusResponseWriter struct {
 	http.ResponseWriter
 	status int
