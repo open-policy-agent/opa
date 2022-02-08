@@ -1,7 +1,6 @@
 package p
 
 import future.keywords.every
-import future.keywords.in
 
 r {
 	every x in [1,3,5] {

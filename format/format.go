@@ -74,10 +74,11 @@ func Ast(x interface{}) ([]byte, error) {
 			unmangleWildcardVar(wildcards, n)
 
 		case *ast.Expr:
-			if n.IsCall() &&
-				ast.Member.Ref().Equal(n.Operator()) ||
-				ast.MemberWithKey.Ref().Equal(n.Operator()) {
+			switch {
+			case n.IsCall() && ast.Member.Ref().Equal(n.Operator()) || ast.MemberWithKey.Ref().Equal(n.Operator()):
 				extraFutureKeywordImports["in"] = true
+			case n.IsEvery():
+				extraFutureKeywordImports["every"] = true
 			}
 		}
 		if x.Loc() == nil {

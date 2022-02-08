@@ -693,7 +693,7 @@ func TestSomeDeclExpr(t *testing.T) {
 	}, opts)
 
 	assertParseErrorContains(t, "not some", "not some x, y in xs",
-		"unexpected some keyword: not is invalid",
+		"unexpected some keyword: illegal negation of 'some'",
 		opts)
 
 	assertParseErrorContains(t, "some + function call", "some f(x)",
@@ -805,7 +805,12 @@ func TestEvery(t *testing.T) {
 	assertParseErrorContains(t, "arbitrary call", "every f(10)", "expected `x[, y] in xs { ... }` expression", opts)
 	assertParseErrorContains(t, "no body", "every x in xs", "missing body", opts)
 	assertParseErrorContains(t, "invalid body", "every x in xs { + }", "unexpected plus token", opts)
-	assertParseErrorContains(t, "not every", "not every x in xs { true }", "unexpected every keyword: not is invalid", opts)
+	assertParseErrorContains(t, "not every", "not every x in xs { true }", "unexpected every keyword: illegal negation of 'every'", opts)
+
+	assertParseOneExpr(t, `"every" kw implies "in" kw`, "x in xs", Member.Expr(
+		VarTerm("x"),
+		VarTerm("xs"),
+	), opts)
 }
 
 func TestNestedExpressions(t *testing.T) {
@@ -1149,7 +1154,7 @@ func TestImport(t *testing.T) {
 func TestFutureImports(t *testing.T) {
 	assertParseErrorContains(t, "future", "import future", "invalid import, must be `future.keywords`")
 	assertParseErrorContains(t, "future.a", "import future.a", "invalid import, must be `future.keywords`")
-	assertParseErrorContains(t, "unknown keyword", "import future.keywords.xyz", "unexpected keyword, must be one of [in]")
+	assertParseErrorContains(t, "unknown keyword", "import future.keywords.xyz", "unexpected keyword, must be one of [every in]")
 	assertParseErrorContains(t, "all keyword import + alias", "import future.keywords as xyz", "future keyword imports cannot be aliased")
 	assertParseErrorContains(t, "keyword import + alias", "import future.keywords.in as xyz", "future keyword imports cannot be aliased")
 

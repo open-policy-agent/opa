@@ -1200,6 +1200,8 @@ func (expr *Expr) Copy() *Expr {
 		cpy.Terms = cpyTs
 	case *Term:
 		cpy.Terms = ts.Copy()
+	case *Every:
+		cpy.Terms = ts.Copy()
 	}
 
 	cpy.With = make([]*With, len(expr.With))

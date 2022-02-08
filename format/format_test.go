@@ -89,9 +89,6 @@ func TestFormatSource(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed to read rego source: %v", err)
 			}
-			if bytes.Contains(contents, []byte(`import future.keywords.every`)) {
-				t.Skip("TODO: uncomment 'every' tests")
-			}
 
 			expected, err := ioutil.ReadFile(rego + ".formatted")
 			if err != nil {
@@ -249,6 +246,53 @@ func TestFormatAST(t *testing.T) {
 				ast.MemberWithKey.Call(ast.VarTerm("x"), ast.VarTerm("y"), ast.VarTerm("xs")),
 			}}),
 			expected: `some x, y in xs`,
+		},
+		{
+			note: "every adds import if missing",
+			toFmt: ast.MustParseModuleWithOpts(`package test
+			p {
+				every k, v in [1, 2] { k != v }
+			}`,
+				ast.ParserOptions{FutureKeywords: []string{"every"}}),
+			expected: `package test
+
+import future.keywords.every
+
+p {
+	every k, v in [1, 2] { k != v }
+}`,
+		},
+		{
+			note: "every does not add import if all future KWs are there",
+			toFmt: ast.MustParseModuleWithOpts(`package test
+			import future.keywords
+			p {
+				every k, v in [1, 2] { k != v }
+			}`,
+				ast.ParserOptions{FutureKeywords: []string{"every"}}),
+			expected: `package test
+
+import future.keywords
+
+p {
+	every k, v in [1, 2] { k != v }
+}`,
+		},
+		{
+			note: "every does not add import if already present",
+			toFmt: ast.MustParseModuleWithOpts(`package test
+			import future.keywords
+			p {
+				every k, v in [1, 2] { k != v }
+			}`,
+				ast.ParserOptions{FutureKeywords: []string{"every"}}),
+			expected: `package test
+
+import future.keywords
+
+p {
+	every k, v in [1, 2] { k != v }
+}`,
 		},
 		{
 			note: "body shared wildcard",
