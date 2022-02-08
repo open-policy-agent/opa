@@ -514,16 +514,18 @@ func (p *Planner) planQuery(q ast.Body, index int, iter planiter) error {
 // TODO(tsandall): improve errors to include location information.
 func (p *Planner) planExpr(e *ast.Expr, iter planiter) error {
 
-	if e.Negated {
+	switch {
+	case e.Negated:
 		return p.planNot(e, iter)
-	}
 
-	if len(e.With) > 0 {
+	case len(e.With) > 0:
 		return p.planWith(e, iter)
-	}
 
-	if e.IsCall() {
+	case e.IsCall():
 		return p.planExprCall(e, iter)
+
+	case e.IsEvery():
+		return p.planExprEvery(e, iter)
 	}
 
 	return p.planExprTerm(e, iter)
@@ -712,6 +714,57 @@ func (p *Planner) planExprTerm(e *ast.Expr, iter planiter) error {
 		})
 		return iter()
 	})
+}
+
+func (p *Planner) planExprEvery(e *ast.Expr, iter planiter) error {
+	every := e.Terms.(*ast.Every)
+
+	not0 := &ir.NotStmt{
+		Block: &ir.Block{},
+	}
+	prev := p.curr
+	p.curr = not0.Block
+
+	// NOT { # not0
+	//   c0 = 1
+	//   SCAN domain
+	//     NOT { # not1
+	//       c1 = 1
+	//       QUERY
+	//       c1 = 0
+	//     } // check c1, break out of scan
+	//   c0 = 0
+	// } // check c0, break to undefined
+
+	err := p.planTerm(every.Domain, func() error {
+		return p.planScan(every.Key, func(ir.Local) error {
+			scan := p.curr
+
+			not1 := &ir.NotStmt{
+				Block: &ir.Block{},
+			}
+			p.curr = not1.Block
+
+			lval := p.ltarget
+			err := p.planUnifyLocal(lval, every.Value, func() error {
+				return p.planQuery(every.Body, 0, func() error {
+					p.appendStmtToBlock(not1, scan)
+					return nil
+				})
+			})
+			if err != nil {
+				return err
+			}
+			p.appendStmtToBlock(&ir.BreakStmt{Index: 2}, scan)
+			return nil
+		})
+	})
+	if err != nil {
+		return err
+	}
+
+	p.appendStmtToBlock(not0, prev)
+	return iter()
 }
 
 func (p *Planner) planExprCall(e *ast.Expr, iter planiter) error {
