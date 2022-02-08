@@ -142,6 +142,14 @@ func TestPlannerHelloWorld(t *testing.T) {
 			`},
 		},
 		{
+			note:    "every",
+			queries: []string{`data.test.p`},
+			modules: []string{`
+				package test
+				p { xs = [1]; every k, v in xs { k < v } }
+			`},
+		},
+		{
 			note:    "virtual extent",
 			queries: []string{`data`},
 			modules: []string{`
@@ -337,7 +345,8 @@ q = 2`,
 			modules := make([]*ast.Module, len(tc.modules))
 			for i := range modules {
 				file := fmt.Sprintf("module-%d.rego", i)
-				m, err := ast.ParseModule(file, tc.modules[i])
+				opts := ast.ParserOptions{AllFutureKeywords: true}
+				m, err := ast.ParseModuleWithOpts(file, tc.modules[i], opts)
 				if err != nil {
 					t.Fatal(err)
 				}
