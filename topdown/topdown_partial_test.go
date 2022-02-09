@@ -27,11 +27,13 @@ func TestTopDownPartialEval(t *testing.T) {
 		skipPartialNamespace bool
 		query                string
 		modules              []string
+		moduleASTs           []*ast.Module
 		data                 string
 		input                string
 		wantQueries          []string
 		wantQueryASTs        []ast.Body
 		wantSupport          []string
+		wantSupportASTs      []*ast.Module
 		ignoreOrder          bool
 	}{
 		{
@@ -2738,17 +2740,102 @@ func TestTopDownPartialEval(t *testing.T) {
 				p[__local1__1] { __local0__1 = {i1 | input[i1]}; neq(and(__local0__1, set()), __local0__1); sprintf("%v", [__local0__1], __local1__1) }
 			`},
 		},
+		{
+			note:  "every: empty domain, no unknowns",
+			query: "data.test.p",
+			modules: []string{`package test
+				p {
+					every x in [] { x }
+				}`},
+			wantQueries: []string{``},
+		},
+		{
+			note:  "every: no unknowns",
+			query: "data.test.p",
+			modules: []string{`package test
+				p {
+					every x in [1, 2, 3] { x != 4 }
+				}`},
+			wantQueries: []string{``},
+		},
+		{
+			note:  "every: empty domain, unknowns in body",
+			query: "data.test.p",
+			modules: []string{`package test
+				p {
+					every x in [] { x > input }
+				}`},
+			wantQueries: []string{`every __local0__, __local1__ in [] { __local3__ = input; __local1__ > __local3__ }`},
+		},
+		{
+			note:  "every: known domain, unknowns in body",
+			query: "data.test.p",
+			modules: []string{`package test
+				p {
+					every x in [1, 2, 3] { x > input }
+				}`},
+			wantQueries: []string{`every __local0__, __local1__ in [1, 2, 3] { __local3__ = input; __local1__ > __local3__ }`},
+		},
+		{
+			note:  "every: known domain, unknowns in body (with call+assignment)",
+			query: "data.test.p",
+			modules: []string{`package test
+				p {
+					every x in [1, 2, 3] { y := x+10; y > input }
+				}`},
+			wantQueries: []string{`every __local0__, __local1__ in [1, 2, 3] { plus(__local1__, 10, __local4__); __local2__ = __local4__; __local5__ = input; __local2__ > __local5__ }`},
+		},
+		{
+			note:  "every: known domain, unknowns in body, body impossible",
+			query: "data.test.p",
+			modules: []string{`package test
+				p {
+					every x in [1, 2, 3] { false; x > input }
+				}`},
+			wantQueries: []string{`every __local0__, __local1__ in [1, 2, 3] { false; __local3__ = input; __local1__ > __local3__ }`},
+		},
+		{
+			note:  "every: unknown domain",
+			query: "data.test.p",
+			modules: []string{`package test
+				p {
+					every x in input { x > 1 }
+				}`},
+			wantQueries: []string{`every __local0__, __local1__ in __local2__1 { __local1__ > 1 }; __local2__1 = input`}, // TODO(sr): ordering seems off?
+		},
+		{
+			note:  "every: in-scope var in body",
+			query: "data.test.p",
+			modules: []string{`package test
+				p {
+					y := 3
+					every x in [1, 2] { x != 0; input > y }
+				}`},
+			wantQueries: []string{`every __local1__, __local2__ in [1, 2] { __local2__ != 0; __local4__ = input; __local4__ > 3 }`},
+		},
+		{
+			note:  "every: unknown domain, call in body",
+			query: "data.test.p",
+			modules: []string{`package test
+				p {
+					every x in input {
+						y = concat(",", [x])
+					}
+				}`},
+			wantQueries: []string{`every __local0__, __local1__ in __local2__1 { concat(",", [__local1__], __local3__); y = __local3__ }; __local2__1 = input`},
+		},
 	}
 
 	ctx := context.Background()
 
 	for _, tc := range tests {
 		params := fixtureParams{
-			note:    tc.note,
-			query:   tc.query,
-			modules: tc.modules,
-			data:    tc.data,
-			input:   tc.input,
+			note:       tc.note,
+			query:      tc.query,
+			modules:    tc.modules,
+			moduleASTs: tc.moduleASTs,
+			data:       tc.data,
+			input:      tc.input,
 		}
 		prepareTest(ctx, t, params, func(ctx context.Context, t *testing.T, f fixture) {
 
@@ -2798,12 +2885,13 @@ func TestTopDownPartialEval(t *testing.T) {
 
 			var expectedQueries []ast.Body
 
+			opts := ast.ParserOptions{AllFutureKeywords: true}
 			if len(tc.wantQueryASTs) > 0 {
 				expectedQueries = tc.wantQueryASTs
 			} else {
 				expectedQueries = make([]ast.Body, len(tc.wantQueries))
 				for i := range tc.wantQueries {
-					expectedQueries[i] = ast.MustParseBody(tc.wantQueries[i])
+					expectedQueries[i] = ast.MustParseBodyWithOpts(tc.wantQueries[i], opts)
 				}
 			}
 
@@ -2814,9 +2902,13 @@ func TestTopDownPartialEval(t *testing.T) {
 				t.Errorf("Partial evaluation results differ. Expected %d queries but got %d queries:\nMissing:\n%v\nExtra:\n%v", len(queriesB), len(queriesA), missing, extra)
 			}
 
-			expectedSupport := make([]*ast.Module, len(tc.wantSupport))
-			for i := range tc.wantSupport {
-				expectedSupport[i] = ast.MustParseModule(tc.wantSupport[i])
+			var expectedSupport []*ast.Module
+			if len(tc.wantSupportASTs) > 0 {
+				expectedSupport = tc.wantSupportASTs
+			} else {
+				for i := range tc.wantSupport {
+					expectedSupport = append(expectedSupport, ast.MustParseModule(tc.wantSupport[i]))
+				}
 			}
 			supportA, supportB := moduleSet(support), moduleSet(expectedSupport)
 			if !supportA.Equal(supportB) {
@@ -2829,11 +2921,12 @@ func TestTopDownPartialEval(t *testing.T) {
 }
 
 type fixtureParams struct {
-	note    string
-	data    string
-	modules []string
-	query   string
-	input   string
+	note       string
+	data       string
+	modules    []string
+	moduleASTs []*ast.Module
+	query      string
+	input      string
 }
 
 type fixture struct {
@@ -2861,9 +2954,16 @@ func prepareTest(ctx context.Context, t *testing.T, params fixtureParams, f func
 
 			compiler := ast.NewCompiler()
 			modules := map[string]*ast.Module{}
+			opts := ast.ParserOptions{AllFutureKeywords: true}
 
+			if len(params.moduleASTs) > 0 {
+				for i, module := range params.moduleASTs {
+					modules[fmt.Sprint(i)] = module
+				}
+			}
 			for i, module := range params.modules {
-				modules[fmt.Sprint(i)] = ast.MustParseModule(module)
+				j := len(params.moduleASTs) + i
+				modules[fmt.Sprint(j)] = ast.MustParseModuleWithOpts(module, opts)
 			}
 
 			if compiler.Compile(modules); compiler.Failed() {

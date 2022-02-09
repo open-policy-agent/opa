@@ -1,0 +1,100 @@
+cases:
+- data:
+  input:
+    containers:
+    - image: bitcoin-miner
+    - image: acmecorp.com/webapp
+  modules:
+  - |
+    package test
+    import future.keywords.every
+
+    p {
+      every x in input.containers {
+        startswith(x.image, "acmecorp.com/")
+      }
+    }
+  note: every/example, fail
+  query: data.test.p = x
+  want_result: []
+- data:
+  input:
+    containers:
+    - image: acmecorp.com/bitcoin-miner
+    - image: acmecorp.com/webapp
+  modules:
+  - |
+    package test
+    import future.keywords.every
+
+    p {
+      every x in input.containers {
+        startswith(x.image, "acmecorp.com/")
+      }
+    }
+  note: every/example, success
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  input:
+    containers:
+    - image: acmecorp.com/bitcoin-miner
+    - image: acmecorp.com/webapp
+    init_containers:
+    - image: another/bitcoin-miner
+  modules:
+  - |
+    package test
+    import future.keywords.every
+
+    p {
+      every x in input.containers | input.init_containers {
+        startswith(x.image, "acmecorp.com/")
+      }
+    }
+  note: every/example with init_container
+  query: data.test.p = x
+  want_result: []
+- data:
+  input:
+    containers:
+    - image: hooli.com/bitcoin-miner
+    - image: acmecorp.net/webapp
+    - image: nginx
+  modules:
+  - |
+    package test
+    import future.keywords.every
+
+    allowed_repos := {"hooli.com/", "acmecorp.net/"}
+
+    p {
+      every c in input.containers {
+        some repo in allowed_repos
+        startswith(c.image, repo)
+      }
+    }
+  note: every/example every/some
+  query: data.test.p = x
+  want_result: []
+- data:
+  input:
+    servers:
+    - ports: [80, 443]
+    - ports: [80]
+  modules:
+  - |
+    package test
+    import future.keywords.every
+
+    deny {
+      some s in input.servers
+      every port in s.ports {
+        port != 443
+      }
+    }
+  note: every/example some/every
+  query: data.test.deny = x
+  want_result:
+  - x: true
