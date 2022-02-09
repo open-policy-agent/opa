@@ -1,0 +1,116 @@
+cases:
+- data:
+  modules:
+  - |
+    package test
+    import future.keywords.every
+
+    p {
+      every x in [] { x != x }
+    }
+  note: every/empty domain
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+    import future.keywords.every
+
+    p {
+      every _ in input { true }
+    }
+  note: every/domain undefined
+  query: data.test.p = x
+  want_result: []
+- data:
+  modules:
+  - |
+    package test
+    import future.keywords.every
+
+    p {
+      every x in numbers.range(1, 10) { x >= 1 }
+    }
+  note: every/domain is call
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+    import future.keywords.every
+
+    p {
+      every k, v in [1, 2] { k+1 == v }
+    }
+  note: every/simple key/val
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+    import future.keywords.every
+
+    p {
+      i := 10
+      every k, v in [1, 2] { k+v != i }
+    }
+  note: every/outer bindings
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+    import future.keywords.every
+
+    p {
+      every v in [1, 2] { v != 1 }
+    }
+  note: every/simple failure, first
+  query: data.test.p = x
+  want_result: []
+- data:
+  modules:
+  - |
+    package test
+    import future.keywords.every
+
+    p {
+      every v in [1, 2] { v != 2 }
+    }
+  note: every/simple failure, last
+  query: data.test.p = x
+  want_result: []
+- data:
+  modules:
+  - |
+    package test
+    import future.keywords.every
+
+    p {
+      every v in input { v == 1 } with input as [1, 1, 1]
+    }
+  note: 'every/with: domain'
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+    import future.keywords.every
+
+    p {
+      every v in [1, 2] { v in input } with input as [1, 2, 1, 0]
+    }
+  note: 'every/with: body'
+  query: data.test.p = x
+  want_result:
+  - x: true

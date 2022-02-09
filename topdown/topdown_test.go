@@ -220,12 +220,107 @@ func TestTopDownQueryCancellation(t *testing.T) {
 		cancel.Cancel()
 		close(done)
 	}()
-	<-done
 
 	qrs, err := query.Run(ctx)
 	if err == nil || err.(*Error).Code != CancelErr {
 		t.Errorf("Expected cancel error but got: %v (err: %v)", qrs, err)
 		PrettyTrace(os.Stdout, []*Event(*buf))
+	}
+
+	<-done
+}
+
+func TestTopDownQueryCancellationEvery(t *testing.T) {
+	ctx := context.Background()
+
+	module := func(ev ast.Every, extra ...interface{}) *ast.Module {
+		t.Helper()
+		m := ast.MustParseModule(`package test
+	p { true }`)
+		m.Rules[0].Body = ast.NewBody(ast.NewExpr(&ev))
+		return m
+	}
+
+	tests := []struct {
+		note   string
+		module *ast.Module
+	}{
+		{
+			note: "large domain, simple body",
+			module: module(ast.Every{ // every x in data.arr { ... }
+				Value:  ast.VarTerm("x"),
+				Domain: ast.RefTerm(ast.VarTerm("data"), ast.StringTerm("arr")),
+				Body:   ast.MustParseBody(`print(x); test.sleep("10ms")`),
+			}),
+		},
+		{
+			note: "simple domain, long evaluation time in body",
+			module: module(ast.Every{ // every x in [999] { ... }
+				Value:  ast.VarTerm("x"),
+				Domain: ast.MustParseTerm(`[999]`),
+				Body:   ast.MustParseBody(`data.arr[_] = y; test.sleep("10ms"); print(y); x == y`),
+			}),
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			compiler := ast.NewCompiler().WithEnablePrintStatements(true)
+			compiler.Compile(map[string]*ast.Module{"test.rego": tc.module})
+			if compiler.Failed() {
+				t.Fatalf("compiler: %v", compiler.Errors)
+			}
+
+			arr := make([]interface{}, 1000)
+			for i := 0; i < 1000; i++ {
+				arr[i] = i
+			}
+			data := map[string]interface{}{
+				"arr": arr,
+			}
+
+			store := inmem.NewFromObject(data)
+			txn := storage.NewTransactionOrDie(ctx, store)
+			cancel := NewCancel()
+			buf := bytes.Buffer{}
+			tr := NewBufferTracer()
+			ph := NewPrintHook(&buf)
+			query := NewQuery(ast.MustParseBody("data.test.p")).
+				WithCompiler(compiler).
+				WithStore(store).
+				WithTransaction(txn).
+				WithCancel(cancel).
+				WithTracer(tr).
+				WithPrintHook(ph)
+
+			done := make(chan struct{})
+			go func() {
+				time.Sleep(time.Millisecond * 50)
+				cancel.Cancel()
+				close(done)
+			}()
+
+			qrs, err := query.Run(ctx)
+			if err == nil || err.(*Error).Code != CancelErr {
+				t.Errorf("Expected cancel error but got: %v (err: %v)", qrs, err)
+			}
+
+			notes := strings.Split(buf.String(), "\n")
+			notes = notes[:len(notes)-1] // last one is empty-string because each line ends in "\n"
+			if len(notes) == 0 {
+				t.Errorf("expected prints, got nothing")
+			}
+			if len(notes) == len(arr) {
+				t.Errorf("expected less than %d prints, got %d", len(arr), len(notes))
+			}
+			t.Logf("got %d notes", len(notes))
+
+			if t.Failed() && testing.Verbose() {
+				PrettyTrace(os.Stdout, []*Event(*tr))
+			}
+
+			<-done
+		})
 	}
 }
 
@@ -494,6 +589,163 @@ func TestTopDownEarlyExit(t *testing.T) {
 	}
 }
 
+func TestTopDownEvery(t *testing.T) {
+	n := func(ns ...string) []string { return ns }
+
+	tests := []struct {
+		note   string
+		module string
+		notes  []string // expected note events, let's see if these are useful
+		fail   bool
+	}{
+		{
+			note: "domain empty",
+			module: `package test
+				p { every x in [] { print(x) } }
+			`,
+			notes: n(),
+		},
+		{
+			note: "domain undefined",
+			module: `package test
+				p { every x in input { print(x) } }
+			`,
+			fail: true,
+		},
+		{
+			note: "domain is call",
+			module: `package test
+				p {
+					d := numbers.range(1, 5)
+					every x in d { x >= 1; print(x) }
+				}`,
+			notes: n("1", "2", "3", "4", "5"),
+		},
+		{
+			note: "simple value",
+			module: `package test
+				p {
+					every x in [1, 2] { print(x) }
+				}`,
+			notes: n("1", "2"),
+		},
+		{
+			note: "simple key+value",
+			module: `package test
+				p {
+					every k, v in [1, 2] { k < v; print(v) }
+				}`,
+			notes: n("1", "2"),
+		},
+		{
+			note: "outer bindings",
+			module: `package test
+				p {
+					i = "outer"
+					every x in [1, 2] { print(x); print(i) }
+				}`,
+			notes: n("1", "outer", "2", "outer"),
+		},
+		{
+			note: "simple failure, last",
+			module: `package test
+				p {
+					every x in [1, 2] { x < 2; print(x) }
+				}`,
+			notes: n("1"),
+			fail:  true,
+		},
+		{
+			note: "simple failure, first",
+			module: `package test
+				p {
+					every x in [1, 2] { x > 1; print(x) }
+				}`,
+			notes: n(),
+			fail:  true,
+		},
+		{
+			note: "early exit in body eval on success",
+			module: `package test
+				p {
+					every x in [1, 2] { y := [false, true, true][_]; print(x); y }
+				}`,
+			notes: n("1", "1", "2", "2"), // Would be triples if EE in the body didn't work
+		},
+		{
+			note: "early exit suppressed in body eval",
+			module: `package test
+				q { print("q") }
+				p {
+					every x in [1, 2] { q; print(x) }
+				}`,
+			notes: n("q", "1", "2"), // Would be only "1" if the EE of q wasn't surppressed
+		},
+		{
+			note: "with: domain",
+			module: `package test
+				p {
+					every x in input { print(x) } with input as [1]
+				}`,
+			notes: n("1"),
+		},
+		{
+			note: "with: body",
+			module: `package test
+				p {
+					every x in [1, 2] { print(x); print(input) } with input as "input"
+				}`,
+			notes: n("1", "input", "2", "input"),
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			ctx := context.Background()
+			c := ast.NewCompiler().WithEnablePrintStatements(true)
+			mod := ast.MustParseModuleWithOpts(tc.module, ast.ParserOptions{FutureKeywords: []string{"every"}})
+			if c.Compile(map[string]*ast.Module{"test": mod}); c.Failed() {
+				t.Fatal(c.Errors)
+			}
+			if testing.Verbose() {
+				t.Log(c.Modules)
+			}
+			buf := bytes.Buffer{}
+			tr := NewBufferTracer()
+			ph := NewPrintHook(&buf)
+			query := NewQuery(ast.MustParseBody("data.test.p = x")).
+				WithCompiler(c).
+				WithPrintHook(ph).
+				WithTracer(tr)
+
+			res, err := query.Run(ctx)
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+			if !tc.fail {
+				if len(res) == 0 {
+					t.Errorf("unexpected failure, empty query result set")
+				}
+			} else {
+				if len(res) > 0 {
+					t.Errorf("unexpected results: %v, expected empty query result set", res)
+				}
+			}
+
+			notes := strings.Split(buf.String(), "\n")
+			notes = notes[:len(notes)-1] // last one is empty-string because each line ends in "\n"
+			if len(tc.notes) != 0 || len(tc.notes) == 0 && len(notes) != 0 {
+				if !reflect.DeepEqual(notes, tc.notes) {
+					t.Errorf("unexpected prints, expected %q, got %q", tc.notes, notes)
+				}
+			}
+
+			if t.Failed() || testing.Verbose() {
+				PrettyTrace(os.Stderr, *tr)
+			}
+		})
+	}
+}
+
 type contextPropagationMock struct{}
 
 // contextPropagationStore will accumulate values from the contexts provided to
@@ -506,15 +758,15 @@ type contextPropagationStore struct {
 	calls []interface{}
 }
 
-func (m *contextPropagationStore) NewTransaction(context.Context, ...storage.TransactionParams) (storage.Transaction, error) {
+func (*contextPropagationStore) NewTransaction(context.Context, ...storage.TransactionParams) (storage.Transaction, error) {
 	return nil, nil
 }
 
-func (m *contextPropagationStore) Commit(context.Context, storage.Transaction) error {
+func (*contextPropagationStore) Commit(context.Context, storage.Transaction) error {
 	return nil
 }
 
-func (m *contextPropagationStore) Abort(context.Context, storage.Transaction) {
+func (*contextPropagationStore) Abort(context.Context, storage.Transaction) {
 }
 
 func (m *contextPropagationStore) Read(ctx context.Context, txn storage.Transaction, path storage.Path) (interface{}, error) {

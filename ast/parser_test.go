@@ -774,7 +774,7 @@ func TestSomeDeclExpr(t *testing.T) {
 }
 
 func TestEvery(t *testing.T) {
-	opts := ParserOptions{unreleasedKeywords: true, FutureKeywords: []string{"in", "every"}} // TODO: "every" should imply "in"? it can't be used without it
+	opts := ParserOptions{unreleasedKeywords: true, FutureKeywords: []string{"every"}}
 	assertParseOneExpr(t, "simple", "every x in xs { true }",
 		&Expr{
 			Terms: &Every{
