@@ -904,10 +904,21 @@ func groupIterable(elements []interface{}, last *ast.Location) [][]interface{} {
 	// Those variables, and wildcard variables have the "default location",
 	// set in `Ast()`). That is no proper file location, and the grouping
 	// based on source location will yield a bad result.
+	// Another case is generated variables: they do have proper file locations,
+	// but their row/col information may no longer match their AST location.
+	// So, for generated variables, we also don't trust the location, but
+	// keep them ungrouped.
 	def := false // default location found?
 	for _, elem := range elements {
 		ast.WalkTerms(elem, func(t *ast.Term) bool {
 			if t.Location.File == defaultLocationFile {
+				def = true
+				return true
+			}
+			return false
+		})
+		ast.WalkVars(elem, func(v ast.Var) bool {
+			if v.IsGenerated() {
 				def = true
 				return true
 			}
