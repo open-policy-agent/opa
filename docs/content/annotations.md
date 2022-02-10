@@ -20,23 +20,25 @@ allow {
 The set of annotations must be specified as YAML within a comment block that **must** start with `# METADATA`. 
 Also, every line in the comment block containing the annotation **must** start at Column 1 in the module/file, or otherwise, they will be ignored.
 
-> 🚨 OPA will attempt to parse the YAML document in comments following the
-> initial `# METADATA` comment. If the YAML document cannot be parsed, OPA will
-> return an error. If you need to include additional comments between the
-> comment block and the next statement, include a blank line immediately after
-> the comment block containing the YAML document. This tells OPA that the
-> comment block containing the YAML document is finished
+{{< danger >}}
+🚨 OPA will attempt to parse the YAML document in comments following the
+initial `# METADATA` comment. If the YAML document cannot be parsed, OPA will
+return an error. If you need to include additional comments between the
+comment block and the next statement, include a blank line immediately after
+the comment block containing the YAML document. This tells OPA that the
+comment block containing the YAML document is finished
+{{< /danger >}}
 
 ## Annotations
 
 Name | Type | Description
 --- | --- | ---
-authors | list of strings | A list of authors for the annotation target. Read more [here](./#authors).
-custom | list of arbitrary data | A custom list of named parameters holding arbitrary data. Read more [here](./#custom).
-description | string | A description of the annotation target. Read more [here](./#description).
-organizations | list of strings | A list of organizations related to the annotation target. Read more [here](./#organizations).
-related_resources | list of URLs | A list of URLs pointing to related resources/documentation. Read more [here](./#related-resources).
-schemas | list of object | A list of associations between value paths and schema definitions. Read more [here](./#schemas).
+authors | list of strings | A list of authors for the annotation target. Read more [here](#authors).
+custom | list of arbitrary data | A custom list of named parameters holding arbitrary data. Read more [here](#custom).
+description | string | A description of the annotation target. Read more [here](#description).
+organizations | list of strings | A list of organizations related to the annotation target. Read more [here](#organizations).
+related_resources | list of URLs | A list of URLs pointing to related resources/documentation. Read more [here](#related-resources).
+schemas | list of object | A list of associations between value paths and schema definitions. Read more [here](#schemas).
 scope | string; one of `package`, `rule`, `document`, `subpackages` | The scope on which the `schemas` annotation is applied. Read more [here](./#scope).
 
 ### Authors
@@ -90,7 +92,10 @@ The `description` annotation is a string value describing the annotation target,
 
 ```rego
 # METADATA
-# description: The 'allow' rule evaluates to 'true' if ...
+# description: |
+#  The 'allow' rule...
+#  Is about allowing things.
+#  Not denying them.
 allow {
   ...
 }
