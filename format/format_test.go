@@ -382,6 +382,23 @@ a[_x[y][[z, w]]]`,
 			}(),
 			expected: `["foo", __local1__] = split(input.foo, ":")`,
 		},
+		{
+			note: "expr where generated var has an AST location not matching its source location",
+			toFmt: func() *ast.Expr {
+				e := ast.MustParseExpr(`__local0__ = concat(",", [__local1__])`)
+				ast.WalkTerms(e, func(t *ast.Term) bool {
+					t.Location.File = "t.rego"
+					return false
+				})
+				// mangling that may happen in PE
+				return ast.Concat.Expr(
+					e.Operand(1).Value.(ast.Call)[1],
+					e.Operand(1).Value.(ast.Call)[2],
+					e.Operand(0),
+				).SetLocation(e.Location)
+			}(),
+			expected: `concat(",", [__local1__], __local0__)`,
+		},
 	}
 
 	for _, tc := range cases {
