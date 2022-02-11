@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/open-policy-agent/opa/util"
@@ -502,6 +503,70 @@ func TestRaw(t *testing.T) {
 			}
 			if buf.String() != tc.want {
 				t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", tc.want, buf.String())
+			}
+		})
+	}
+}
+
+func TestDepsAnalysisPrettyOutput(t *testing.T) {
+	tests := []struct {
+		note   string
+		output DepAnalysisOutput
+		want   []string
+	}{
+		{
+			note:   "base document",
+			output: DepAnalysisOutput{Base: []ast.Ref{ast.InputRootRef}},
+			want: []string{
+				"+----------------+",
+				"| BASE DOCUMENTS |",
+				"+----------------+",
+				"| input          |",
+				"+----------------+",
+			},
+		},
+		{
+			note: "virtual document",
+			output: DepAnalysisOutput{
+				Virtual: []ast.Ref{[]*ast.Term{
+					ast.VarTerm("data"), ast.StringTerm("policy"), ast.StringTerm("allow")},
+				},
+			},
+			want: []string{
+				"+-------------------+",
+				"| VIRTUAL DOCUMENTS |",
+				"+-------------------+",
+				"| data.policy.allow |",
+				"+-------------------+",
+			},
+		},
+		{
+			note: "base document and virtual document",
+			output: DepAnalysisOutput{
+				Base: []ast.Ref{ast.InputRootRef},
+				Virtual: []ast.Ref{[]*ast.Term{
+					ast.VarTerm("data"), ast.StringTerm("policy"), ast.StringTerm("allow")},
+				},
+			},
+			want: []string{
+				"+----------------+-------------------+",
+				"| BASE DOCUMENTS | VIRTUAL DOCUMENTS |",
+				"+----------------+-------------------+",
+				"| input          | data.policy.allow |",
+				"+----------------+-------------------+",
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			buf := new(bytes.Buffer)
+			if err := tc.output.Pretty(buf); err != nil {
+				t.Fatalf("unexpected error %v", err)
+			}
+			expected := strings.Join(tc.want, "\n") + "\n"
+			if buf.String() != expected {
+				t.Errorf("expected %v, got %v", expected, buf.String())
 			}
 		})
 	}
