@@ -5,6 +5,19 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+## 0.37.2
+
+This is a bugfix release addressing two bugs:
+
+1. A regression introduced in the formatter fix for CVE-2022-23628.
+2. Support indices for appending to an array, conforming to JSON Patch (RFC6902)
+   for patch bundles.
+
+### Miscellaneous
+
+- format: generated vars may have a proper location
+- storage: Support index for array appends
+
 ## 0.37.1
 
 This is a bug fix release that reverts the github.com/prometheus/client_golang
