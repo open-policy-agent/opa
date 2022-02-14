@@ -418,6 +418,8 @@ func rewrite(event *Event) *Event {
 		node = v.Copy()
 	case *ast.Rule:
 		node = v.Copy()
+	case *ast.Term:
+		node = v.Copy()
 	}
 
 	_, _ = ast.TransformVars(node, func(v ast.Var) (ast.Value, error) {
