@@ -2801,7 +2801,7 @@ func TestTopDownPartialEval(t *testing.T) {
 				p {
 					every x in input { x > 1 }
 				}`},
-			wantQueries: []string{`every __local0__, __local1__ in __local2__1 { __local1__ > 1 }; __local2__1 = input`}, // TODO(sr): ordering seems off?
+			wantQueries: []string{`every __local0__, __local1__ in input { __local1__ > 1 }`},
 		},
 		{
 			note:  "every: in-scope var in body",
@@ -2822,7 +2822,7 @@ func TestTopDownPartialEval(t *testing.T) {
 						y = concat(",", [x])
 					}
 				}`},
-			wantQueries: []string{`every __local0__, __local1__ in __local2__1 { concat(",", [__local1__], __local3__); y = __local3__ }; __local2__1 = input`},
+			wantQueries: []string{`every __local0__, __local1__ in input { concat(",", [__local1__], __local3__); y = __local3__ }`},
 		},
 	}
 

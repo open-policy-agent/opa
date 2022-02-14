@@ -2979,19 +2979,6 @@ func (e *evalEvery) save(iter unifyIterator) error {
 		}
 	}
 
-	// TODO(sr): if we do this here, we'll fail TC because it's generating nested calls.
-	// If we don't do this, the saveExpr's CP run will not combine the calls, because
-	// its way of finding vars, ast.WalkVars, doesn't see the key/val vars.
-	//
-	// However, not doing it yields a correct (if ugly) result. Let's not do it for now.
-	//
-	// vars := e.e.saveSet.Vars(e.e.bindings) // ?
-	// for v := range every.KeyValueVars() {
-	// 	vars.Add(v)
-	// }
-	// cp := copypropagation.New(vars).WithCompiler(e.e.compiler)
-	// every.Body = applyCopyPropagation(cp, e.e.instr, every.Body)
-
 	every.Domain = e.e.bindings.plugNamespaced(every.Domain, e.e.caller.bindings)
 	cpy.Terms = every
 

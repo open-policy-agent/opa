@@ -2976,7 +2976,7 @@ func TestRewriteDeclaredVars(t *testing.T) {
 				p = true {
 					__local0__ = 10
 					__local3__ = [1]
-					every __local1__, __local2__ in __local3__ { __local2__ == 1 }
+					every __local1__, __local2__ in __local3__ { __local2__ = 1 }
 				}
 			`,
 		},
@@ -2998,7 +2998,7 @@ func TestRewriteDeclaredVars(t *testing.T) {
 					__local0__ = 10
 					__local3__ = [1]
 					every __local1__, __local2__ in __local3__ {
-						__local2__ == __local0__
+						__local2__ = __local0__
 					}
 				}
 			`,
@@ -3043,7 +3043,7 @@ func TestRewriteDeclaredVars(t *testing.T) {
 					every __local1__, __local2__ in __local5__ {
 						__local6__ = __local0__[__local2__]
 						every __local3__, __local4__ in __local6__ {
-							__local4__ == 2
+							__local4__ = 2
 						}
 					}
 				}
@@ -3064,7 +3064,7 @@ func TestRewriteDeclaredVars(t *testing.T) {
 				p {
 					__local2__ = input with input as [1, 1, 1]
 					every __local0__, __local1__ in __local2__ {
-						__local1__ == 1
+						__local1__ = 1
 					} with input as [1, 1, 1]
 				}
 			`,
@@ -3086,7 +3086,7 @@ func TestRewriteDeclaredVars(t *testing.T) {
 					__local0__ = [1, 2]
 					__local3__ = input with input as __local0__
 					every __local1__, __local2__ in __local3__ {
-						__local2__ == 1
+						__local2__ = 1
 					} with input as __local0__
 				}
 			`,
@@ -3106,8 +3106,7 @@ func TestRewriteDeclaredVars(t *testing.T) {
 				p {
 					__local2__ = [2] with input as 2
 					every __local0__, __local1__ in __local2__ {
-						__local3__ = input
-						__local1__ == __local3__
+						__local1__ = input
 					} with input as 2
 				}
 			`,
