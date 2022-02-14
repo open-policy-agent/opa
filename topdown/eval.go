@@ -2955,10 +2955,12 @@ func (e evalEvery) eval(iter unifyIterator) error {
 	if err != nil {
 		return err
 	}
-	domain.traceExit(every.Domain)
 	if all {
-		return iter()
+		err := iter()
+		domain.traceExit(every.Domain)
+		return err
 	}
+	domain.traceFail(every.Domain)
 	return nil
 }
 
