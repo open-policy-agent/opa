@@ -2965,7 +2965,6 @@ func (e evalEvery) eval(iter unifyIterator) error {
 }
 
 func (e *evalEvery) save(iter unifyIterator) error {
-	// TODO(sr): check traces
 	cpy := e.expr.Copy()
 	every := cpy.Terms.(*ast.Every)
 
