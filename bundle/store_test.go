@@ -500,28 +500,35 @@ func TestDeltaBundleLifecycle(t *testing.T) {
 		Value: map[string]string{"name": "alice"},
 	}
 
-	// replace a value
+	// insert value in array using add
 	p4 := PatchOperation{
+		Op:    "add",
+		Path:  "/a/x/1",
+		Value: map[string]string{"name": "mallory"},
+	}
+
+	// replace a value
+	p5 := PatchOperation{
 		Op:    "replace",
 		Path:  "a/b",
 		Value: "bar",
 	}
 
 	// remove a value
-	p5 := PatchOperation{
+	p6 := PatchOperation{
 		Op:   "remove",
 		Path: "a/e",
 	}
 
 	// add a new object with an escaped character in the path
-	p6 := PatchOperation{
+	p7 := PatchOperation{
 		Op:    "upsert",
 		Path:  "a/y/~0z",
 		Value: []int{1, 2, 3},
 	}
 
 	// add a new object root
-	p7 := PatchOperation{
+	p8 := PatchOperation{
 		Op:    "upsert",
 		Path:  "/c/d",
 		Value: []string{"foo", "bar"},
@@ -533,14 +540,14 @@ func TestDeltaBundleLifecycle(t *testing.T) {
 				Revision: "delta-1",
 				Roots:    &[]string{"a"},
 			},
-			Patch: Patch{Data: []PatchOperation{p1, p2, p3, p4, p5, p6}},
+			Patch: Patch{Data: []PatchOperation{p1, p2, p3, p4, p5, p6, p7}},
 		},
 		"bundle2": {
 			Manifest: Manifest{
 				Revision: "delta-2",
 				Roots:    &[]string{"b", "c"},
 			},
-			Patch: Patch{Data: []PatchOperation{p7}},
+			Patch: Patch{Data: []PatchOperation{p8}},
 		},
 		"bundle3": {
 			Manifest: Manifest{
@@ -593,12 +600,12 @@ func TestDeltaBundleLifecycle(t *testing.T) {
 	expectedRaw := `
 	{
 		"a": {
-           "b": "bar",
-	       "c": {
+			"b": "bar",
+			"c": {
 				"d": ["foo", "bar", "baz"]
-           },
-		   "x": [{"name": "john"}, {"name": "alice"}, {"name": "jane"}],
-		   "y": {"~z": [1, 2, 3]}
+			},
+			"x": [{"name": "john"}, {"name": "mallory"}, {"name": "alice"}, {"name": "jane"}],
+			"y": {"~z": [1, 2, 3]}
 		},
 		"c": {"d": ["foo", "bar"]},
 		"d": {"e": "foo"},

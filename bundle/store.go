@@ -693,7 +693,7 @@ func applyPatches(ctx context.Context, store storage.Store, txn storage.Transact
 
 		var op storage.PatchOp
 		switch pat.Op {
-		case "upsert":
+		case "add", "upsert":
 			op = storage.AddOp
 
 			_, err := store.Read(ctx, txn, path[:len(path)-1])
