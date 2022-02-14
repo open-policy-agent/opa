@@ -180,7 +180,8 @@ type (
 	}
 
 	RelatedResourceAnnotation struct {
-		URL url.URL `json:"url"`
+		Ref         url.URL `json:"ref"`
+		Description string  `json:"description,omitempty"`
 	}
 
 	// Package represents the namespace of the documents produced
@@ -450,12 +451,35 @@ func (a *AuthorAnnotation) String() string {
 	return string(bs)
 }
 
-func (r *RelatedResourceAnnotation) String() string {
-	return r.URL.String()
+// Compare returns an integer indicating if s is less than, equal to, or greater
+// than other.
+func (rr *RelatedResourceAnnotation) Compare(other *RelatedResourceAnnotation) int {
+	if cmp := strings.Compare(rr.Description, other.Description); cmp != 0 {
+		return cmp
+	}
+
+	if cmp := strings.Compare(rr.Ref.String(), other.Ref.String()); cmp != 0 {
+		return cmp
+	}
+
+	return 0
 }
 
-func (r *RelatedResourceAnnotation) MarshalJSON() ([]byte, error) {
-	return json.Marshal(r.URL.String())
+func (rr *RelatedResourceAnnotation) String() string {
+	bs, _ := json.Marshal(rr)
+	return string(bs)
+}
+
+func (rr *RelatedResourceAnnotation) MarshalJSON() ([]byte, error) {
+	d := map[string]interface{}{
+		"ref": rr.Ref.String(),
+	}
+
+	if len(rr.Description) > 0 {
+		d["description"] = rr.Description
+	}
+
+	return json.Marshal(d)
 }
 
 func scopeCompare(s1, s2 string) int {

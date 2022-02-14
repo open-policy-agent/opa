@@ -1963,7 +1963,7 @@ type rawAnnotation struct {
 	Title            string                 `yaml:"title"`
 	Description      string                 `yaml:"description"`
 	Organizations    []string               `yaml:"organizations"`
-	RelatedResources []string               `yaml:"related_resources"`
+	RelatedResources []interface{}          `yaml:"related_resources"`
 	Authors          []interface{}          `yaml:"authors"`
 	Schemas          []rawSchemaAnnotation  `yaml:"schemas"`
 	Custom           map[string]interface{} `yaml:"custom"`
@@ -2019,12 +2019,12 @@ func (b *metadataParser) Parse() (*Annotations, error) {
 	result.Description = raw.Description
 	result.Organizations = raw.Organizations
 
-	for _, rr := range raw.RelatedResources {
-		u, err := url.Parse(rr)
+	for _, v := range raw.RelatedResources {
+		rr, err := parseRelatedResource(v)
 		if err != nil {
-			return nil, fmt.Errorf("invalid related resource URL %s: %w", rr, err)
+			return nil, fmt.Errorf("invalid related-resource definition %s: %w", v, err)
 		}
-		result.RelatedResources = append(result.RelatedResources, &RelatedResourceAnnotation{URL: *u})
+		result.RelatedResources = append(result.RelatedResources, rr)
 	}
 
 	for _, pair := range raw.Schemas {
@@ -2057,10 +2057,10 @@ func (b *metadataParser) Parse() (*Annotations, error) {
 		result.Schemas = append(result.Schemas, &a)
 	}
 
-	for _, str := range raw.Authors {
-		author, err := parseAuthor(str)
+	for _, v := range raw.Authors {
+		author, err := parseAuthor(v)
 		if err != nil {
-			return nil, fmt.Errorf("invalid author definition %s: %w", str, err)
+			return nil, fmt.Errorf("invalid author definition %s: %w", v, err)
 		}
 		result.Authors = append(result.Authors, author)
 	}
@@ -2108,6 +2108,38 @@ func parseSchemaRef(s string) (Ref, error) {
 	return nil, errInvalidSchemaRef
 }
 
+func parseRelatedResource(rr interface{}) (*RelatedResourceAnnotation, error) {
+	rr, err := convertYAMLMapKeyTypes(rr, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	switch rr := rr.(type) {
+	case string:
+		if len(rr) > 0 {
+			u, err := url.Parse(rr)
+			if err != nil {
+				return nil, err
+			}
+			return &RelatedResourceAnnotation{Ref: *u}, nil
+		}
+		return nil, fmt.Errorf("ref URL may not be empty string")
+	case map[string]interface{}:
+		description := strings.TrimSpace(getSafeString(rr, "description"))
+		ref := strings.TrimSpace(getSafeString(rr, "ref"))
+		if len(ref) > 0 {
+			u, err := url.Parse(ref)
+			if err != nil {
+				return nil, err
+			}
+			return &RelatedResourceAnnotation{Description: description, Ref: *u}, nil
+		}
+		return nil, fmt.Errorf("'ref' value required in object")
+	}
+
+	return nil, fmt.Errorf("invalid value type, must be string or map")
+}
+
 func parseAuthor(a interface{}) (*AuthorAnnotation, error) {
 	a, err := convertYAMLMapKeyTypes(a, nil)
 	if err != nil {
@@ -2123,9 +2155,10 @@ func parseAuthor(a interface{}) (*AuthorAnnotation, error) {
 		if len(name) > 0 || len(email) > 0 {
 			return &AuthorAnnotation{name, email}, nil
 		}
+		return nil, fmt.Errorf("'name' and/or 'email' values required in object")
 	}
 
-	return nil, fmt.Errorf("'name' and/or 'email' entries required in map")
+	return nil, fmt.Errorf("invalid value type, must be string or map")
 }
 
 func getSafeString(m map[string]interface{}, k string) string {

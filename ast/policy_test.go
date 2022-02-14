@@ -624,7 +624,11 @@ func TestAnnotationsString(t *testing.T) {
 		Organizations: []string{"mi", "fa"},
 		RelatedResources: []*RelatedResourceAnnotation{
 			{
-				URL: mustParseURL("https://example.com"),
+				Ref: mustParseURL("https://example.com"),
+			},
+			{
+				Ref:         mustParseURL("https://example.com/2"),
+				Description: "Some resource",
 			},
 		},
 		Schemas: []*SchemaAnnotation{
@@ -653,7 +657,7 @@ func TestAnnotationsString(t *testing.T) {
 		`"title":"bar",` +
 		`"description":"baz",` +
 		`"organizations":["mi","fa"],` +
-		`"related_resources":["https://example.com"],` +
+		`"related_resources":[{"ref":"https://example.com"},{"description":"Some resource","ref":"https://example.com/2"}],` +
 		`"authors":[{"name":"John Doe","email":"john@example.com"},{"name":"Jane Doe"}],` +
 		`"schemas":[{"path":[{"type":"var","value":"data"},{"type":"string","value":"bar"}],"schema":[{"type":"var","value":"schema"},{"type":"string","value":"baz"}]}],` +
 		`"custom":{"flag":true,"list":[1,2,3],"map":{"one":1,"two":{"3":"three"}}}}`

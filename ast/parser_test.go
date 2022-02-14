@@ -3357,7 +3357,9 @@ p { input = "str" }`,
 # - Tyrell Corp.
 # related_resources:
 # - https://example.com
-# - http://john:123@do.re/mi?foo=bar#baz
+# - 
+#  ref: http://john:123@do.re/mi?foo=bar#baz
+#  description: foo bar
 # authors:
 # - John Doe <john@example.com>
 # - 
@@ -3377,7 +3379,7 @@ p { input = "str" }`,
 #  string: foo bar baz
 #  flag:
 p { input = "str" }`,
-			expNumComments: 30,
+			expNumComments: 32,
 			expAnnotations: []*Annotations{
 				{
 					Scope:         annotationScopeRule,
@@ -3386,10 +3388,11 @@ p { input = "str" }`,
 					Organizations: []string{"Acme Corp.", "Soylent Corp.", "Tyrell Corp."},
 					RelatedResources: []*RelatedResourceAnnotation{
 						{
-							URL: mustParseURL("https://example.com"),
+							Ref: mustParseURL("https://example.com"),
 						},
 						{
-							URL: mustParseURL("http://john:123@do.re/mi?foo=bar#baz"),
+							Ref:         mustParseURL("http://john:123@do.re/mi?foo=bar#baz"),
+							Description: "foo bar",
 						},
 					},
 					Authors: []*AuthorAnnotation{
@@ -3533,14 +3536,14 @@ func TestAuthorAnnotation(t *testing.T) {
 		{
 			note:     "empty map",
 			raw:      map[string]interface{}{},
-			expected: fmt.Errorf("'name' and/or 'email' entries required in map"),
+			expected: fmt.Errorf("'name' and/or 'email' values required in object"),
 		},
 		{
 			note: "map with empty name",
 			raw: map[string]interface{}{
 				"name": "",
 			},
-			expected: fmt.Errorf("'name' and/or 'email' entries required in map"),
+			expected: fmt.Errorf("'name' and/or 'email' values required in object"),
 		},
 		{
 			note: "map with email and empty name",
@@ -3555,7 +3558,7 @@ func TestAuthorAnnotation(t *testing.T) {
 			raw: map[string]interface{}{
 				"email": "",
 			},
-			expected: fmt.Errorf("'name' and/or 'email' entries required in map"),
+			expected: fmt.Errorf("'name' and/or 'email' values required in object"),
 		},
 		{
 			note: "map with name and empty email",
@@ -3573,6 +3576,118 @@ func TestAuthorAnnotation(t *testing.T) {
 
 			switch expected := tc.expected.(type) {
 			case AuthorAnnotation:
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				if parsed.Compare(&expected) != 0 {
+					t.Fatalf("expected %v but got %v", tc.expected, parsed)
+				}
+			case error:
+				if err == nil {
+					t.Fatalf("expected '%v' error but got %v", tc.expected, parsed)
+				}
+
+				if strings.Compare(expected.Error(), err.Error()) != 0 {
+					t.Fatalf("expected %v but got %v", tc.expected, err)
+				}
+			default:
+				t.Fatalf("Unexpected result type: %T", expected)
+			}
+		})
+	}
+}
+
+func TestRelatedResourceAnnotation(t *testing.T) {
+	tests := []struct {
+		note     string
+		raw      interface{}
+		expected interface{}
+	}{
+		{
+			note:     "empty ref URL",
+			raw:      "",
+			expected: fmt.Errorf("ref URL may not be empty string"),
+		},
+		{
+			note:     "only whitespaces in ref URL",
+			raw:      " \t",
+			expected: fmt.Errorf("parse \" \\t\": net/url: invalid control character in URL"),
+		},
+		{
+			note:     "invalid ref URL",
+			raw:      "https://foo:bar",
+			expected: fmt.Errorf("parse \"https://foo:bar\": invalid port \":bar\" after host"),
+		},
+		{
+			note:     "ref URL as string",
+			raw:      "https://example.com/foo?bar#baz",
+			expected: RelatedResourceAnnotation{Ref: mustParseURL("https://example.com/foo?bar#baz")},
+		},
+		{
+			note: "map with only ref",
+			raw: map[string]interface{}{
+				"ref": "https://example.com/foo?bar#baz",
+			},
+			expected: RelatedResourceAnnotation{Ref: mustParseURL("https://example.com/foo?bar#baz")},
+		},
+		{
+			note: "map with only description",
+			raw: map[string]interface{}{
+				"description": "foo bar",
+			},
+			expected: fmt.Errorf("'ref' value required in object"),
+		},
+		{
+			note: "map with ref and description",
+			raw: map[string]interface{}{
+				"ref":         "https://example.com/foo?bar#baz",
+				"description": "foo bar",
+			},
+			expected: RelatedResourceAnnotation{
+				Ref:         mustParseURL("https://example.com/foo?bar#baz"),
+				Description: "foo bar",
+			},
+		},
+		{
+			note: "map with ref and description",
+			raw: map[string]interface{}{
+				"ref":         "https://example.com/foo?bar#baz",
+				"description": "foo bar",
+				"foo":         "bar",
+			},
+			expected: RelatedResourceAnnotation{
+				Ref:         mustParseURL("https://example.com/foo?bar#baz"),
+				Description: "foo bar",
+			},
+		},
+		{
+			note:     "empty map",
+			raw:      map[string]interface{}{},
+			expected: fmt.Errorf("'ref' value required in object"),
+		},
+		{
+			note: "map with empty ref",
+			raw: map[string]interface{}{
+				"ref": "",
+			},
+			expected: fmt.Errorf("'ref' value required in object"),
+		},
+		{
+			note: "map with only whitespace in ref",
+			raw: map[string]interface{}{
+				"ref": " \t",
+			},
+			expected: fmt.Errorf("'ref' value required in object"),
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			parsed, err := parseRelatedResource(tc.raw)
+
+			switch expected := tc.expected.(type) {
+			case RelatedResourceAnnotation:
 				if err != nil {
 					t.Fatal(err)
 				}

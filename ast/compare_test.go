@@ -554,19 +554,22 @@ func TestCompareAnnotations(t *testing.T) {
 # - a`,
 			exp: 1,
 		},
-
 		{
 			note: "related_resources",
 			a: `
 # METADATA
 # related_resources: 
 # - https://a.example.com
-# - https://b.example.com`,
+# - 
+#  ref: https://b.example.com
+#  description: foo bar`,
 			b: `
 # METADATA
 # related_resources: 
 # - https://a.example.com
-# - https://b.example.com`,
+# - 
+#  ref: https://b.example.com
+#  description: foo bar`,
 			exp: 0,
 		},
 		{
@@ -625,6 +628,38 @@ func TestCompareAnnotations(t *testing.T) {
 # scope: rule
 # organizations:
 # - https://a.example.com`,
+			exp: 1,
+		},
+		{
+			note: "related_resources - less than (description)",
+			a: `
+# METADATA
+# related_resources:
+# -
+#  ref: https://example.com
+#  description: a`,
+			b: `
+# METADATA
+# related_resources:
+# -
+#  ref: https://example.com
+#  description: b`,
+			exp: -1,
+		},
+		{
+			note: "related_resources - greater than (description)",
+			a: `
+# METADATA
+# related_resources:
+# -
+#  ref: https://example.com
+#  description: b`,
+			b: `
+# METADATA
+# related_resources:
+# -
+#  ref: https://example.com
+#  description: a`,
 			exp: 1,
 		},
 		{

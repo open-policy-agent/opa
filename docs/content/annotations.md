@@ -43,11 +43,11 @@ scope | string; one of `package`, `rule`, `document`, `subpackages` | The scope 
 
 ### Authors
 
-The `authors` annotation is a list of author entries, where each entry denotes an `author`. 
-An `author` entry can either be an object or a short-form string.
+The `authors` annotation is a list of author entries, where each entry denotes an *author*. 
+An *author* entry can either be an object or a short-form string.
 
 #### Object Author Format
-When an `author` entry is presented as an object, it has two fields:
+When an *author* entry is presented as an object, it has two fields:
 
 * `name`: the name of the author
 * `email`: the email of the author
@@ -55,7 +55,7 @@ When an `author` entry is presented as an object, it has two fields:
 At least one of the above fields are required for a valid `author` entry.
 
 #### String Author Format
-When an `author` entry is presented as a string, it has the format `{ name } [ "<" email ">"]`; 
+When an *author* entry is presented as a string, it has the format `{ name } [ "<" email ">"]`; 
 where the name of the author is a sequence of whitespace-separated words. 
 Optionally, the last word may represent an email, if enclosed with `<>`.
 
@@ -145,7 +145,34 @@ allow {
 
 ### Related Resources
 
-The `related_resources` annotation is a list of URLs, linking to related resources, such as RFCs and other reading material.
+The `related_resources` annotation is a list of *related-resource* entries, where each links to some related external resource; such as RFCs and other reading material.
+A *related-resource* entry can either be an object or a short-form string holding a single URL.
+
+#### Object Related-resource Format
+When a *related-resource* entry is presented as an object, it has two fields:
+
+* `ref`: a URL pointing to the resource (required).
+* `description`: a text describing the resource.
+
+
+#### String Related-resource Format
+When a *related-resource* entry is presented as a string, it needs to be a valid URL.
+
+#### Examples
+
+```rego
+# METADATA
+# related-resources:
+# - 
+#  ref: https://example.com
+# ...
+# - 
+#  ref: https://example.com/foo
+#  description: A text describing this resource
+allow {
+  ...
+}
+```
 
 ```rego
 # METADATA
