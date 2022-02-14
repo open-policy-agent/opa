@@ -1956,6 +1956,8 @@ func (p *Parser) validateDefaultRuleValue(rule *Rule) bool {
 	return valid
 }
 
+// We explicitly use yaml unmarshalling, to accommodate for the '_' in 'related_resources',
+// which isn't handled properly by json for some reason.
 type rawAnnotation struct {
 	Scope            string                 `yaml:"scope"`
 	Title            string                 `yaml:"title"`
