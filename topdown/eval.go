@@ -2928,7 +2928,13 @@ func (e evalEvery) eval(iter unifyIterator) error {
 
 	child := e.e.closure(e.generator)
 	all := true // all generator evaluations yield one successful body evaluation
-	err := child.Run(func(child *eval) error {
+
+	every := e.expr.Terms.(*ast.Every)
+	child.traceEnter(every.Domain)
+
+	err := child.eval(func(child *eval) error {
+		child.traceExit(every.Domain)
+
 		if !all {
 			// NOTE(sr): Is this good enough? We don't have a "fail EE".
 			// This would do extra work, like iterating needlessly if domain was a large array.
@@ -2944,6 +2950,8 @@ func (e evalEvery) eval(iter unifyIterator) error {
 		if !done {
 			all = false
 		}
+
+		child.traceRedo(every.Domain)
 		return err
 	})
 	if err != nil {
