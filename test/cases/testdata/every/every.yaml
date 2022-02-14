@@ -114,3 +114,18 @@ cases:
   query: data.test.p = x
   want_result:
   - x: true
+- data:
+  modules:
+  - |
+    package test
+    import future.keywords.every
+
+    p[v] {
+      every v in [1, 2] { v < 3 }
+      v := 10
+      v > 3
+    }
+  note: 'every/followed by another query'
+  query: data.test.p = x
+  want_result:
+  - x: [10]

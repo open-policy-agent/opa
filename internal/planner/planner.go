@@ -719,43 +719,58 @@ func (p *Planner) planExprTerm(e *ast.Expr, iter planiter) error {
 func (p *Planner) planExprEvery(e *ast.Expr, iter planiter) error {
 	every := e.Terms.(*ast.Every)
 
-	not0 := &ir.NotStmt{
-		Block: &ir.Block{},
-	}
-	prev := p.curr
-	p.curr = not0.Block
+	cond0 := p.newLocal() // outer not
+	cond1 := p.newLocal() // inner not
 
-	// NOT { # not0
-	//   c0 = 1
-	//   SCAN domain
-	//     NOT { # not1
-	//       c1 = 1
-	//       QUERY
-	//       c1 = 0
-	//     } // check c1, break out of scan
-	//   c0 = 0
-	// } // check c0, break to undefined
+	// We're using condition variables together with IsDefinedStmt to encode
+	// this:
+	// every x, y in xs { p(x,y) }
+	// ~> p(x1, y1) AND p(x2, y2) AND ... AND p(xn, yn)
+	// ~> NOT (NOT p(x1, y1) OR NOT p(x2, y2) OR ... OR NOT p(xn, yn))
+	//
+	// cond1 is initialized to 0, and set to TRUE if p(xi, yi) succeeds for
+	// a binding of (xi, yi). We then use IsUndefined to check that this has NOT
+	// happened (NOT p(xi, yi)).
+	// cond0 is initialized to 0, and set to TRUE if cond1 happens to not
+	// be set: it's encoding the NOT ( ... OR ... OR ... ) part of this.
+
+	p.appendStmt(&ir.ResetLocalStmt{
+		Target: cond0,
+	})
 
 	err := p.planTerm(every.Domain, func() error {
 		return p.planScan(every.Key, func(ir.Local) error {
-			scan := p.curr
+			p.appendStmt(&ir.ResetLocalStmt{
+				Target: cond1,
+			})
+			nested := &ir.BlockStmt{Blocks: []*ir.Block{{}}}
 
-			not1 := &ir.NotStmt{
-				Block: &ir.Block{},
-			}
-			p.curr = not1.Block
+			prev := p.curr
+			p.curr = nested.Blocks[0]
 
 			lval := p.ltarget
 			err := p.planUnifyLocal(lval, every.Value, func() error {
 				return p.planQuery(every.Body, 0, func() error {
-					p.appendStmtToBlock(not1, scan)
+					p.appendStmt(&ir.AssignVarStmt{
+						Source: op(ir.Bool(true)),
+						Target: cond1,
+					})
 					return nil
 				})
 			})
 			if err != nil {
 				return err
 			}
-			p.appendStmtToBlock(&ir.BreakStmt{Index: 2}, scan)
+
+			p.curr = prev
+			p.appendStmt(nested)
+			p.appendStmt(&ir.IsUndefinedStmt{
+				Source: cond1,
+			})
+			p.appendStmt(&ir.AssignVarStmt{
+				Source: op(ir.Bool(true)),
+				Target: cond0,
+			})
 			return nil
 		})
 	})
@@ -763,7 +778,9 @@ func (p *Planner) planExprEvery(e *ast.Expr, iter planiter) error {
 		return err
 	}
 
-	p.appendStmtToBlock(not0, prev)
+	p.appendStmt(&ir.IsUndefinedStmt{
+		Source: cond0,
+	})
 	return iter()
 }
 
