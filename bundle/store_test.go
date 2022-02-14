@@ -479,60 +479,96 @@ func TestDeltaBundleLifecycle(t *testing.T) {
 
 	// create a delta bundle and activate it
 
-	// add a new object member
-	p1 := PatchOperation{
-		Op:    "upsert",
-		Path:  "/a/c/d",
-		Value: []string{"foo", "bar"},
-	}
+	PatchGroupDelta1 := []PatchOperation{}
 
-	// append value to array
-	p2 := PatchOperation{
-		Op:    "upsert",
-		Path:  "/a/c/d/-",
-		Value: "baz",
-	}
+	PatchGroupDelta1 = append(PatchGroupDelta1,
+		// add a new object member
+		PatchOperation{
+			Op:    "upsert",
+			Path:  "/a/c/d",
+			Value: []string{"foo", "bar"},
+		},
 
-	// insert value in array
-	p3 := PatchOperation{
-		Op:    "upsert",
-		Path:  "/a/x/1",
-		Value: map[string]string{"name": "alice"},
-	}
+		// add a new object member using add
+		PatchOperation{
+			Op:    "add",
+			Path:  "/a/c/e",
+			Value: []string{"foo2", "bar2"},
+		},
 
-	// insert value in array using add
-	p4 := PatchOperation{
-		Op:    "add",
-		Path:  "/a/x/1",
-		Value: map[string]string{"name": "mallory"},
-	}
+		// append value to array
+		PatchOperation{
+			Op:    "upsert",
+			Path:  "/a/c/d/-",
+			Value: "baz",
+		},
 
-	// replace a value
-	p5 := PatchOperation{
-		Op:    "replace",
-		Path:  "a/b",
-		Value: "bar",
-	}
+		// append value to array using add
+		PatchOperation{
+			Op:    "add",
+			Path:  "/a/c/e/-",
+			Value: "baz2",
+		},
 
-	// remove a value
-	p6 := PatchOperation{
-		Op:   "remove",
-		Path: "a/e",
-	}
+		// insert value in array
+		PatchOperation{
+			Op:    "upsert",
+			Path:  "/a/x/1",
+			Value: map[string]string{"name": "alice"},
+		},
 
-	// add a new object with an escaped character in the path
-	p7 := PatchOperation{
-		Op:    "upsert",
-		Path:  "a/y/~0z",
-		Value: []int{1, 2, 3},
-	}
+		// insert value in array using add
+		PatchOperation{
+			Op:    "add",
+			Path:  "/a/x/1",
+			Value: map[string]string{"name": "mallory"},
+		},
 
-	// add a new object root
-	p8 := PatchOperation{
-		Op:    "upsert",
-		Path:  "/c/d",
-		Value: []string{"foo", "bar"},
-	}
+		// replace a value
+		PatchOperation{
+			Op:    "replace",
+			Path:  "a/b",
+			Value: "bar",
+		},
+
+		// remove a value
+		PatchOperation{
+			Op:   "remove",
+			Path: "a/e",
+		},
+
+		// add a new object with an escaped character in the path
+		PatchOperation{
+			Op:    "upsert",
+			Path:  "a/y/~0z",
+			Value: []int{1, 2, 3},
+		},
+
+		// add a new object with an escaped character in the path using add
+		PatchOperation{
+			Op:    "add",
+			Path:  "a/z/~0z",
+			Value: []int{4, 5, 6},
+		},
+	)
+
+	PatchGroupDelta2 := []PatchOperation{}
+
+	PatchGroupDelta2 = append(PatchGroupDelta2,
+		// add a new object root
+		PatchOperation{
+			Op:    "upsert",
+			Path:  "/c/d",
+			Value: []string{"foo", "bar"},
+		},
+
+		// add a new object root using add
+		PatchOperation{
+			Op:    "add",
+			Path:  "/e/e",
+			Value: []string{"foo2", "bar2"},
+		},
+	)
 
 	deltaBundles := map[string]*Bundle{
 		"bundle1": {
@@ -540,14 +576,14 @@ func TestDeltaBundleLifecycle(t *testing.T) {
 				Revision: "delta-1",
 				Roots:    &[]string{"a"},
 			},
-			Patch: Patch{Data: []PatchOperation{p1, p2, p3, p4, p5, p6, p7}},
+			Patch: Patch{Data: PatchGroupDelta1},
 		},
 		"bundle2": {
 			Manifest: Manifest{
 				Revision: "delta-2",
 				Roots:    &[]string{"b", "c"},
 			},
-			Patch: Patch{Data: []PatchOperation{p8}},
+			Patch: Patch{Data: PatchGroupDelta2},
 		},
 		"bundle3": {
 			Manifest: Manifest{
@@ -602,13 +638,16 @@ func TestDeltaBundleLifecycle(t *testing.T) {
 		"a": {
 			"b": "bar",
 			"c": {
-				"d": ["foo", "bar", "baz"]
+				"d": ["foo", "bar", "baz"],
+				"e": ["foo2", "bar2", "baz2"]
 			},
 			"x": [{"name": "john"}, {"name": "mallory"}, {"name": "alice"}, {"name": "jane"}],
-			"y": {"~z": [1, 2, 3]}
+			"y": {"~z": [1, 2, 3]},
+			"z": {"~z": [4, 5, 6]}
 		},
 		"c": {"d": ["foo", "bar"]},
 		"d": {"e": "foo"},
+		"e": {"e": ["foo2", "bar2"]},
 		"system": {
 			"bundles": {
 				"bundle1": {
