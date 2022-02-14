@@ -1964,7 +1964,7 @@ type rawAnnotation struct {
 	Description      string                 `yaml:"description"`
 	Organizations    []string               `yaml:"organizations"`
 	RelatedResources []string               `yaml:"related_resources"`
-	Authors          []string               `yaml:"authors"`
+	Authors          []interface{}          `yaml:"authors"`
 	Schemas          []rawSchemaAnnotation  `yaml:"schemas"`
 	Custom           map[string]interface{} `yaml:"custom"`
 }
@@ -2108,13 +2108,42 @@ func parseSchemaRef(s string) (Ref, error) {
 	return nil, errInvalidSchemaRef
 }
 
+func parseAuthor(a interface{}) (*AuthorAnnotation, error) {
+	a, err := convertYAMLMapKeyTypes(a, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	switch a := a.(type) {
+	case string:
+		return parseAuthorString(a)
+	case map[string]interface{}:
+		name := strings.TrimSpace(getSafeString(a, "name"))
+		email := strings.TrimSpace(getSafeString(a, "email"))
+		if len(name) > 0 || len(email) > 0 {
+			return &AuthorAnnotation{name, email}, nil
+		}
+	}
+
+	return nil, fmt.Errorf("'name' and/or 'email' entries required in map")
+}
+
+func getSafeString(m map[string]interface{}, k string) string {
+	if v, found := m[k]; found {
+		if s, ok := v.(string); ok {
+			return s
+		}
+	}
+	return ""
+}
+
 const emailPrefix = "<"
 const emailSuffix = ">"
 
 // parseAuthor parses a string into an AuthorAnnotation. If the last word of the input string is enclosed within <>,
 // it is extracted as the author's email. The email may not contain whitelines, as it then will be interpreted as
 // multiple words.
-func parseAuthor(s string) (*AuthorAnnotation, error) {
+func parseAuthorString(s string) (*AuthorAnnotation, error) {
 	parts := strings.Fields(s)
 
 	if len(parts) == 0 {

@@ -3360,7 +3360,9 @@ p { input = "str" }`,
 # - http://john:123@do.re/mi?foo=bar#baz
 # authors:
 # - John Doe <john@example.com>
-# - Jane Doe
+# - 
+#  name: Jane Doe
+#  email: jane@example.com
 # custom:
 #  list:
 #   - a
@@ -3375,7 +3377,7 @@ p { input = "str" }`,
 #  string: foo bar baz
 #  flag:
 p { input = "str" }`,
-			expNumComments: 28,
+			expNumComments: 30,
 			expAnnotations: []*Annotations{
 				{
 					Scope:         annotationScopeRule,
@@ -3396,7 +3398,8 @@ p { input = "str" }`,
 							Email: "john@example.com",
 						},
 						{
-							Name: "Jane Doe",
+							Name:  "Jane Doe",
+							Email: "jane@example.com",
 						},
 					},
 					Custom: map[string]interface{}{
@@ -3448,7 +3451,7 @@ p { input = "str" }`,
 func TestAuthorAnnotation(t *testing.T) {
 	tests := []struct {
 		note     string
-		raw      string
+		raw      interface{}
 		expected interface{}
 	}{
 		{
@@ -3495,6 +3498,72 @@ func TestAuthorAnnotation(t *testing.T) {
 			note:     "name with reserved characters (email with space)",
 			raw:      "<john@ example.com>",
 			expected: AuthorAnnotation{Name: "<john@ example.com>"},
+		},
+		{
+			note: "map with name",
+			raw: map[string]interface{}{
+				"name": "John Doe",
+			},
+			expected: AuthorAnnotation{Name: "John Doe"},
+		},
+		{
+			note: "map with email",
+			raw: map[string]interface{}{
+				"email": "john@example.com",
+			},
+			expected: AuthorAnnotation{Email: "john@example.com"},
+		},
+		{
+			note: "map with name and email",
+			raw: map[string]interface{}{
+				"name":  "John Doe",
+				"email": "john@example.com",
+			},
+			expected: AuthorAnnotation{Name: "John Doe", Email: "john@example.com"},
+		},
+		{
+			note: "map with extra entry",
+			raw: map[string]interface{}{
+				"name":  "John Doe",
+				"email": "john@example.com",
+				"foo":   "bar",
+			},
+			expected: AuthorAnnotation{Name: "John Doe", Email: "john@example.com"},
+		},
+		{
+			note:     "empty map",
+			raw:      map[string]interface{}{},
+			expected: fmt.Errorf("'name' and/or 'email' entries required in map"),
+		},
+		{
+			note: "map with empty name",
+			raw: map[string]interface{}{
+				"name": "",
+			},
+			expected: fmt.Errorf("'name' and/or 'email' entries required in map"),
+		},
+		{
+			note: "map with email and empty name",
+			raw: map[string]interface{}{
+				"name":  "",
+				"email": "john@example.com",
+			},
+			expected: AuthorAnnotation{Email: "john@example.com"},
+		},
+		{
+			note: "map with empty email",
+			raw: map[string]interface{}{
+				"email": "",
+			},
+			expected: fmt.Errorf("'name' and/or 'email' entries required in map"),
+		},
+		{
+			note: "map with name and empty email",
+			raw: map[string]interface{}{
+				"name":  "John Doe",
+				"email": "",
+			},
+			expected: AuthorAnnotation{Name: "John Doe"},
 		},
 	}
 

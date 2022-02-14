@@ -43,11 +43,37 @@ scope | string; one of `package`, `rule`, `document`, `subpackages` | The scope 
 
 ### Authors
 
-The `authors` annotation is a list of strings, where each entry denotes an author and has the format `{ name } [ "<" email ">"]`; 
-where the name of the author is a sequence of whitespace-separated words. 
-Optionally, the last word may represent an email, if enclosed with `<>`. 
+The `authors` annotation is a list of author entries, where each entry denotes an `author`. 
+An `author` entry can either be an object or a short-form string.
 
-#### Example
+#### Object Author Format
+When an `author` entry is presented as an object, it has two fields:
+
+* `name`: the name of the author
+* `email`: the email of the author
+
+At least one of the above fields are required for a valid `author` entry.
+
+#### String Author Format
+When an `author` entry is presented as a string, it has the format `{ name } [ "<" email ">"]`; 
+where the name of the author is a sequence of whitespace-separated words. 
+Optionally, the last word may represent an email, if enclosed with `<>`.
+
+#### Examples
+
+```rego
+# METADATA
+# authors:
+# - 
+#  name: John Doe
+# ...
+# - 
+#  name: Jane Doe
+#  email: jane@example.com
+allow {
+  ...
+}
+```
 
 ```rego
 # METADATA
