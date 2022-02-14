@@ -608,16 +608,6 @@ func TestEveryString(t *testing.T) {
 }
 
 func TestAnnotationsString(t *testing.T) {
-	var customList interface{} = []int{
-		1, 2, 3,
-	}
-	var customMap interface{} = map[string]interface{}{
-		"one": 1,
-		"two": map[int]interface{}{
-			3: "three",
-		},
-	}
-
 	a := &Annotations{
 		Scope:       "foo",
 		Title:       "bar",
@@ -643,18 +633,17 @@ func TestAnnotationsString(t *testing.T) {
 				Schema: MustParseRef("schema.baz"),
 			},
 		},
-		Custom: []*CustomAnnotation{
-			{
-				Name:  "list",
-				Value: &customList,
+		Custom: map[string]interface{}{
+			"list": []int{
+				1, 2, 3,
 			},
-			{
-				Name:  "map",
-				Value: &customMap,
+			"map": map[string]interface{}{
+				"one": 1,
+				"two": map[int]interface{}{
+					3: "three",
+				},
 			},
-			{
-				Name: "flag",
-			},
+			"flag": true,
 		},
 	}
 
@@ -667,7 +656,7 @@ func TestAnnotationsString(t *testing.T) {
 		`"related_resources":["https://example.com"],` +
 		`"authors":[{"name":"John Doe","email":"john@example.com"},{"name":"Jane Doe"}],` +
 		`"schemas":[{"path":[{"type":"var","value":"data"},{"type":"string","value":"bar"}],"schema":[{"type":"var","value":"schema"},{"type":"string","value":"baz"}]}],` +
-		`"custom":[{"name":"list","value":[1,2,3]},{"name":"map","value":{"one":1,"two":{"3":"three"}}},{"name":"flag"}]}`
+		`"custom":{"flag":true,"list":[1,2,3],"map":{"one":1,"two":{"3":"three"}}}}`
 
 	if exp != a.String() {
 		t.Fatalf("expected %q but got %q", exp, a.String())

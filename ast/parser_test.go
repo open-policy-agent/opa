@@ -3362,19 +3362,20 @@ p { input = "str" }`,
 # - John Doe <john@example.com>
 # - Jane Doe
 # custom:
-# - list:
+#  list:
 #   - a
 #   - b
-# - map:
-#    a: 1
-#    b: 2.2
-#    c:
-#     "3": d
-# - number: 42
-# - string: foo bar baz
-# - flag:
+#  map:
+#   a: 1
+#   b: 2.2
+#   c:
+#    "3": d
+#    "4": e
+#  number: 42
+#  string: foo bar baz
+#  flag:
 p { input = "str" }`,
-			expNumComments: 27,
+			expNumComments: 28,
 			expAnnotations: []*Annotations{
 				{
 					Scope:         annotationScopeRule,
@@ -3398,34 +3399,21 @@ p { input = "str" }`,
 							Name: "Jane Doe",
 						},
 					},
-					Custom: []*CustomAnnotation{
-						{
-							Name: "list",
-							Value: asInterfacePtr([]interface{}{
-								"a", "b",
-							}),
+					Custom: map[string]interface{}{
+						"list": []interface{}{
+							"a", "b",
 						},
-						{
-							Name: "map",
-							Value: asInterfacePtr(map[string]interface{}{
-								"a": 1,
-								"b": 2.2,
-								"c": map[string]interface{}{
-									"3": "d",
-								},
-							}),
+						"map": map[string]interface{}{
+							"a": 1,
+							"b": 2.2,
+							"c": map[string]interface{}{
+								"3": "d",
+								"4": "e",
+							},
 						},
-						{
-							Name:  "number",
-							Value: asInterfacePtr(42),
-						},
-						{
-							Name:  "string",
-							Value: asInterfacePtr("foo bar baz"),
-						},
-						{
-							Name: "flag",
-						},
+						"number": 42,
+						"string": "foo bar baz",
+						"flag":   nil,
 					},
 				},
 			},
@@ -3536,10 +3524,6 @@ func TestAuthorAnnotation(t *testing.T) {
 			}
 		})
 	}
-}
-
-func asInterfacePtr(v interface{}) *interface{} {
-	return &v
 }
 
 func assertLocationText(t *testing.T, expected string, actual *Location) {

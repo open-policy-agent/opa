@@ -62,23 +62,22 @@ allow {
 
 ### Custom
 
-The `custom` annotation is a list key value pairs, where the value is arbitrary, user-defined data.
+The `custom` annotation is an associative array of user-defined data, mapping string keys to arbitrarily typed values.
 
 #### Example
 
 ```rego
 # METADATA
 # custom:
-# - my_int: 42
-# - my_string: Some text
-# - my_bool: true
-# - my_flag:
-# - my_list:
+#  my_int: 42
+#  my_string: Some text
+#  my_bool: true
+#  my_list:
 #   - a
 #   - b
-# - my_map:
-#    a: 1
-#    b: 2
+#  my_map:
+#   a: 1
+#   b: 2
 allow {
   ...
 }

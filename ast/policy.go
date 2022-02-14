@@ -163,7 +163,7 @@ type (
 		RelatedResources []*RelatedResourceAnnotation `json:"related_resources,omitempty"`
 		Authors          []*AuthorAnnotation          `json:"authors,omitempty"`
 		Schemas          []*SchemaAnnotation          `json:"schemas,omitempty"`
-		Custom           []*CustomAnnotation          `json:"custom,omitempty"`
+		Custom           map[string]interface{}       `json:"custom,omitempty"`
 		node             Node
 	}
 
@@ -172,11 +172,6 @@ type (
 		Path       Ref          `json:"path"`
 		Schema     Ref          `json:"schema,omitempty"`
 		Definition *interface{} `json:"definition,omitempty"`
-	}
-
-	CustomAnnotation struct {
-		Name  string       `json:"name"`
-		Value *interface{} `json:"value,omitempty"`
 	}
 
 	AuthorAnnotation struct {
@@ -315,14 +310,14 @@ func (s *Annotations) Compare(other *Annotations) int {
 		return cmp
 	}
 
-	if cmp := compareCustomAnnotations(s.Custom, other.Custom); cmp != 0 {
+	if cmp := util.Compare(s.Custom, other.Custom); cmp != 0 {
 		return cmp
 	}
 
 	return 0
 }
 
-func compareSchemas(a []*SchemaAnnotation, b []*SchemaAnnotation) int {
+func compareSchemas(a, b []*SchemaAnnotation) int {
 	max := len(a)
 	if len(b) < max {
 		max = len(b)
@@ -343,7 +338,7 @@ func compareSchemas(a []*SchemaAnnotation, b []*SchemaAnnotation) int {
 	return 0
 }
 
-func compareRelatedResources(a []*RelatedResourceAnnotation, b []*RelatedResourceAnnotation) int {
+func compareRelatedResources(a, b []*RelatedResourceAnnotation) int {
 	if len(a) > len(b) {
 		return 1
 	} else if len(a) < len(b) {
@@ -359,7 +354,7 @@ func compareRelatedResources(a []*RelatedResourceAnnotation, b []*RelatedResourc
 	return 0
 }
 
-func compareAuthors(a []*AuthorAnnotation, b []*AuthorAnnotation) int {
+func compareAuthors(a, b []*AuthorAnnotation) int {
 	if len(a) > len(b) {
 		return 1
 	} else if len(a) < len(b) {
@@ -375,23 +370,7 @@ func compareAuthors(a []*AuthorAnnotation, b []*AuthorAnnotation) int {
 	return 0
 }
 
-func compareCustomAnnotations(a []*CustomAnnotation, b []*CustomAnnotation) int {
-	if len(a) > len(b) {
-		return 1
-	} else if len(a) < len(b) {
-		return -1
-	}
-
-	for i := 0; i < len(a); i++ {
-		if cmp := a[i].Compare(b[i]); cmp != 0 {
-			return cmp
-		}
-	}
-
-	return 0
-}
-
-func compareStringLists(a []string, b []string) int {
+func compareStringLists(a, b []string) int {
 	if len(a) > len(b) {
 		return 1
 	} else if len(a) < len(b) {
@@ -468,29 +447,6 @@ func (a *AuthorAnnotation) Compare(other *AuthorAnnotation) int {
 
 func (a *AuthorAnnotation) String() string {
 	bs, _ := json.Marshal(a)
-	return string(bs)
-}
-
-// Compare returns an integer indicating if s is less than, equal to, or greater
-// than other.
-func (c *CustomAnnotation) Compare(other *CustomAnnotation) int {
-	if cmp := strings.Compare(c.Name, other.Name); cmp != 0 {
-		return cmp
-	}
-
-	if c.Value != nil && other.Value == nil {
-		return -1
-	} else if c.Value == nil && other.Value != nil {
-		return 1
-	} else if c.Value != nil && other.Value != nil {
-		return util.Compare(*c.Value, *other.Value)
-	}
-
-	return 0
-}
-
-func (c *CustomAnnotation) String() string {
-	bs, _ := json.Marshal(c)
 	return string(bs)
 }
 

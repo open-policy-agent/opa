@@ -632,27 +632,27 @@ func TestCompareAnnotations(t *testing.T) {
 			a: `
 # METADATA
 # custom: 
-# - a: 1
-# - b: true
-# - c:
-# - d:
-#   - 1
-#   - 2
-# - e:
-#     i: 1
-#     j: 2`,
+#  a: 1
+#  b: true
+#  c:
+#  d:
+#  - 1
+#  - 2
+#  e:
+#   i: 1
+#   j: 2`,
 			b: `
 # METADATA
 # custom: 
-# - a: 1
-# - b: true
-# - c:
-# - d:
-#   - 1
-#   - 2
-# - e:
-#     i: 1
-#     j: 2`,
+#  a: 1
+#  b: true
+#  c:
+#  d:
+#  - 1
+#  - 2
+#  e:
+#   i: 1
+#   j: 2`,
 			exp: 0,
 		},
 		{
@@ -660,11 +660,11 @@ func TestCompareAnnotations(t *testing.T) {
 			a: `
 # METADATA
 # custom: 
-# - a: 1`,
+#  a: 1`,
 			b: `
 # METADATA
 # custom: 
-# - b: 1`,
+#  b: 1`,
 			exp: -1,
 		},
 		{
@@ -672,11 +672,11 @@ func TestCompareAnnotations(t *testing.T) {
 			a: `
 # METADATA
 # custom: 
-# - b: 1`,
+#  b: 1`,
 			b: `
 # METADATA
 # custom: 
-# - a: 1`,
+#  a: 1`,
 			exp: 1,
 		},
 		{
@@ -684,11 +684,11 @@ func TestCompareAnnotations(t *testing.T) {
 			a: `
 # METADATA
 # custom: 
-# - a: 1`,
+#  a: 1`,
 			b: `
 # METADATA
 # custom: 
-# - a: 2`,
+#  a: 2`,
 			exp: -1,
 		},
 		{
@@ -696,11 +696,11 @@ func TestCompareAnnotations(t *testing.T) {
 			a: `
 # METADATA
 # custom: 
-# - a: 2`,
+#  a: 2`,
 			b: `
 # METADATA
 # custom: 
-# - a: 1`,
+#  a: 1`,
 			exp: 1,
 		},
 		{
@@ -708,12 +708,12 @@ func TestCompareAnnotations(t *testing.T) {
 			a: `
 # METADATA
 # custom: 
-# - a: 1`,
+#  a: 1`,
 			b: `
 # METADATA
 # custom: 
-# - a: 1
-# - b: 2`,
+#  a: 1
+#  b: 2`,
 			exp: -1,
 		},
 		{
@@ -721,12 +721,12 @@ func TestCompareAnnotations(t *testing.T) {
 			a: `
 # METADATA
 # custom: 
-# - a: 1
-# - b: 2`,
+#  a: 1
+#  b: 2`,
 			b: `
 # METADATA
 # custom: 
-# - a: 1`,
+#  a: 1`,
 			exp: 1,
 		},
 	}

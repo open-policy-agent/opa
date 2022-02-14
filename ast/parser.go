@@ -1957,19 +1957,17 @@ func (p *Parser) validateDefaultRuleValue(rule *Rule) bool {
 }
 
 type rawAnnotation struct {
-	Scope            string                `yaml:"scope"`
-	Title            string                `yaml:"title"`
-	Description      string                `yaml:"description"`
-	Organizations    []string              `yaml:"organizations"`
-	RelatedResources []string              `yaml:"related_resources"`
-	Authors          []string              `yaml:"authors"`
-	Schemas          []rawSchemaAnnotation `yaml:"schemas"`
-	Custom           []rawCustomAnnotation `yaml:"custom"`
+	Scope            string                 `yaml:"scope"`
+	Title            string                 `yaml:"title"`
+	Description      string                 `yaml:"description"`
+	Organizations    []string               `yaml:"organizations"`
+	RelatedResources []string               `yaml:"related_resources"`
+	Authors          []string               `yaml:"authors"`
+	Schemas          []rawSchemaAnnotation  `yaml:"schemas"`
+	Custom           map[string]interface{} `yaml:"custom"`
 }
 
 type rawSchemaAnnotation map[string]interface{}
-
-type rawCustomAnnotation map[string]interface{}
 
 type metadataParser struct {
 	buf      *bytes.Buffer
@@ -2065,20 +2063,13 @@ func (b *metadataParser) Parse() (*Annotations, error) {
 		result.Authors = append(result.Authors, author)
 	}
 
-	for _, pair := range raw.Custom {
-		k, v := unwrapPair(pair)
+	result.Custom = make(map[string]interface{})
+	for k, v := range raw.Custom {
 		val, err := convertYAMLMapKeyTypes(v, nil)
 		if err != nil {
 			return nil, err
 		}
-		var customAnnotation CustomAnnotation
-		if v == nil {
-			// Avoid creating a pointer to a nil pointer, which won't behave in later nil-checks
-			customAnnotation = CustomAnnotation{Name: k}
-		} else {
-			customAnnotation = CustomAnnotation{Name: k, Value: &val}
-		}
-		result.Custom = append(result.Custom, &customAnnotation)
+		result.Custom[k] = val
 	}
 
 	result.Location = b.loc
