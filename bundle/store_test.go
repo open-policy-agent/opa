@@ -479,9 +479,9 @@ func TestDeltaBundleLifecycle(t *testing.T) {
 
 	// create a delta bundle and activate it
 
-	PatchGroupDelta1 := []PatchOperation{}
+	patchGroupDelta1 := []PatchOperation{}
 
-	PatchGroupDelta1 = append(PatchGroupDelta1,
+	patchGroupDelta1 = append(patchGroupDelta1,
 		// add a new object member
 		PatchOperation{
 			Op:    "upsert",
@@ -552,9 +552,9 @@ func TestDeltaBundleLifecycle(t *testing.T) {
 		},
 	)
 
-	PatchGroupDelta2 := []PatchOperation{}
+	patchGroupDelta2 := []PatchOperation{}
 
-	PatchGroupDelta2 = append(PatchGroupDelta2,
+	patchGroupDelta2 = append(patchGroupDelta2,
 		// add a new object root
 		PatchOperation{
 			Op:    "upsert",
@@ -576,14 +576,14 @@ func TestDeltaBundleLifecycle(t *testing.T) {
 				Revision: "delta-1",
 				Roots:    &[]string{"a"},
 			},
-			Patch: Patch{Data: PatchGroupDelta1},
+			Patch: Patch{Data: patchGroupDelta1},
 		},
 		"bundle2": {
 			Manifest: Manifest{
 				Revision: "delta-2",
 				Roots:    &[]string{"b", "c"},
 			},
-			Patch: Patch{Data: PatchGroupDelta2},
+			Patch: Patch{Data: patchGroupDelta2},
 		},
 		"bundle3": {
 			Manifest: Manifest{
