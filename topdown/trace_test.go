@@ -854,6 +854,120 @@ func TestTraceRewrittenVars(t *testing.T) {
 	}
 }
 
+func TestTraceEveryEvaluation(t *testing.T) {
+	ctx := context.Background()
+
+	events := func(es ...string) []string {
+		return es
+	}
+
+	// NOTE(sr): String() on an *Event isn't stable, because iterating the underlying ast.ValueMap isn't.
+	// So we're stubbing out all captured events' value maps to be able to compare these as strings.
+	tests := []struct {
+		note   string
+		query  string
+		module string
+		exp    []string // these need to be found, extra events captured are ignored
+	}{
+		{
+			note:  "empty domain",
+			query: "data.test.p = x",
+			module: `package test
+			p { every k, v in [] { k != v } }`,
+			exp: events(
+				`Enter every __local0__, __local1__ in __local2__ { neq(__local0__, __local1__) } {} (qid=2, pqid=1)`,
+				`Exit every __local0__, __local1__ in __local2__ { neq(__local0__, __local1__) } {} (qid=2, pqid=1)`,
+			),
+		},
+		{
+			note:  "successful eval",
+			query: "data.test.p = x",
+			module: `package test
+			p { every k, v in [1] { k != v } }`,
+			exp: events(
+				`Enter every __local0__, __local1__ in __local2__ { neq(__local0__, __local1__) } {} (qid=2, pqid=1)`,
+				`Enter neq(__local0__, __local1__) {} (qid=3, pqid=2)`,
+				`Exit neq(__local0__, __local1__) {} (qid=3, pqid=2)`,
+				`Redo every __local0__, __local1__ in __local2__ { neq(__local0__, __local1__) } {} (qid=2, pqid=1)`,
+				`Exit every __local0__, __local1__ in __local2__ { neq(__local0__, __local1__) } {} (qid=2, pqid=1)`,
+			),
+		},
+		{
+			note:  "failure in first body query",
+			query: "data.test.p = x",
+			module: `package test
+			p { every v in [1, 2] { 1 != v } }`,
+			exp: events(
+				`Enter every __local0__, __local1__ in __local2__ { neq(1, __local1__) } {} (qid=2, pqid=1)`,
+				`Enter neq(1, __local1__) {} (qid=3, pqid=2)`,
+				`Fail neq(1, __local1__) {} (qid=3, pqid=2)`,
+				`Fail every __local0__, __local1__ in __local2__ { neq(1, __local1__) } {} (qid=2, pqid=1)`,
+				`Redo every __local0__, __local1__ in __local2__ { neq(1, __local1__) } {} (qid=2, pqid=1)`,
+			),
+		},
+		{
+			note:  "failure in last body query",
+			query: "data.test.p = x",
+			module: `package test
+			p { every v in [0, 1] { 1 != v } }`,
+			exp: events(
+				`Enter every __local0__, __local1__ in __local2__ { neq(1, __local1__) } {} (qid=2, pqid=1)`,
+				`Enter neq(1, __local1__) {} (qid=3, pqid=2)`,
+				`Exit neq(1, __local1__) {} (qid=3, pqid=2)`,
+				`Enter neq(1, __local1__) {} (qid=4, pqid=2)`,
+				`Fail neq(1, __local1__) {} (qid=4, pqid=2)`,
+				`Fail every __local0__, __local1__ in __local2__ { neq(1, __local1__) } {} (qid=2, pqid=1)`,
+				`Redo every __local0__, __local1__ in __local2__ { neq(1, __local1__) } {} (qid=2, pqid=1)`,
+			),
+		},
+	}
+
+	for _, tc := range tests {
+
+		opts := ast.CompileOpts{ParserOptions: ast.ParserOptions{FutureKeywords: []string{"every"}}}
+		compiler, err := ast.CompileModulesWithOpt(map[string]string{"test.rego": tc.module}, opts)
+		if err != nil {
+			t.Fatal(err)
+		}
+		queryCompiler := compiler.QueryCompiler()
+
+		compiledQuery, err := queryCompiler.Compile(ast.MustParseBody(tc.query))
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+
+		buf := NewBufferTracer()
+		query := NewQuery(compiledQuery).
+			WithQueryCompiler(queryCompiler).
+			WithCompiler(compiler).
+			WithStore(inmem.New()).
+			WithQueryTracer(buf)
+
+		if _, err := query.Run(ctx); err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+
+		for _, exp := range tc.exp {
+			found := false
+			for _, act := range *buf {
+				act.Locals = nil
+				if act.String() == exp {
+					found = true
+				}
+			}
+			if !found {
+				t.Errorf("expected event %v, found none", exp)
+			}
+		}
+		if t.Failed() {
+			t.Log("captured events:")
+			for _, ev := range *buf {
+				t.Log(ev.String())
+			}
+		}
+	}
+}
+
 func TestShortTraceFileNames(t *testing.T) {
 	longFilePath1 := "/really/long/file/path/longer/than/most/would/really/ever/be/policy.rego"
 	longFilePath1Similar := "/really/long/file/path/longer/than/most/policy.rego"
