@@ -100,9 +100,32 @@ cases:
         startswith(c.image, repo)
       }
     }
-  note: every/example every/some
+  note: every/example every/some, fail
   query: data.test.p = x
   want_result: []
+- data:
+  input:
+    containers:
+    - image: hooli.com/bitcoin-miner
+    - image: acmecorp.net/webapp
+    - image: hooli.com/nginx
+  modules:
+  - |
+    package test
+    import future.keywords.every
+
+    allowed_repos := {"hooli.com/", "acmecorp.net/"}
+
+    p {
+      every c in input.containers {
+        some repo in allowed_repos
+        startswith(c.image, repo)
+      }
+    }
+  note: every/example every/some, success
+  query: data.test.p = x
+  want_result:
+  - x: true
 - data:
   input:
     servers:
