@@ -18,6 +18,7 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"net/http/httptrace"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
@@ -36,6 +37,7 @@ type Transport struct {
 	spanStartOptions  []trace.SpanStartOption
 	filters           []Filter
 	spanNameFormatter func(string, *http.Request) string
+	clientTrace       func(context.Context) *httptrace.ClientTrace
 }
 
 var _ http.RoundTripper = &Transport{}
@@ -71,6 +73,7 @@ func (t *Transport) applyConfig(c *config) {
 	t.spanStartOptions = c.SpanStartOptions
 	t.filters = c.Filters
 	t.spanNameFormatter = c.SpanNameFormatter
+	t.clientTrace = c.ClientTrace
 }
 
 func defaultTransportFormatter(_ string, r *http.Request) string {
@@ -102,6 +105,10 @@ func (t *Transport) RoundTrip(r *http.Request) (*http.Response, error) {
 
 	ctx, span := tracer.Start(r.Context(), t.spanNameFormatter("", r), opts...)
 
+	if t.clientTrace != nil {
+		ctx = httptrace.WithClientTrace(ctx, t.clientTrace(ctx))
+	}
+
 	r = r.WithContext(ctx)
 	span.SetAttributes(semconv.HTTPClientAttributesFromHTTPRequest(r)...)
 	t.propagators.Inject(ctx, propagation.HeaderCarrier(r.Header))
@@ -116,18 +123,51 @@ func (t *Transport) RoundTrip(r *http.Request) (*http.Response, error) {
 
 	span.SetAttributes(semconv.HTTPAttributesFromHTTPStatusCode(res.StatusCode)...)
 	span.SetStatus(semconv.SpanStatusFromHTTPStatusCode(res.StatusCode))
-	res.Body = &wrappedBody{ctx: ctx, span: span, body: res.Body}
+	res.Body = newWrappedBody(span, res.Body)
 
 	return res, err
 }
 
+// newWrappedBody returns a new and appropriately scoped *wrappedBody as an
+// io.ReadCloser. If the passed body implements io.Writer, the returned value
+// will implement io.ReadWriteCloser.
+func newWrappedBody(span trace.Span, body io.ReadCloser) io.ReadCloser {
+	// The successful protocol switch responses will have a body that
+	// implement an io.ReadWriteCloser. Ensure this interface type continues
+	// to be satisfied if that is the case.
+	if _, ok := body.(io.ReadWriteCloser); ok {
+		return &wrappedBody{span: span, body: body}
+	}
+
+	// Remove the implementation of the io.ReadWriteCloser and only implement
+	// the io.ReadCloser.
+	return struct{ io.ReadCloser }{&wrappedBody{span: span, body: body}}
+}
+
+// wrappedBody is the response body type returned by the transport
+// instrumentation to complete a span. Errors encountered when using the
+// response body are recorded in span tracking the response.
+//
+// The span tracking the response is ended when this body is closed.
+//
+// If the response body implements the io.Writer interface (i.e. for
+// successful protocol switches), the wrapped body also will.
 type wrappedBody struct {
-	ctx  context.Context
 	span trace.Span
 	body io.ReadCloser
 }
 
-var _ io.ReadCloser = &wrappedBody{}
+var _ io.ReadWriteCloser = &wrappedBody{}
+
+func (wb *wrappedBody) Write(p []byte) (int, error) {
+	// This will not panic given the guard in newWrappedBody.
+	n, err := wb.body.(io.Writer).Write(p)
+	if err != nil {
+		wb.span.RecordError(err)
+		wb.span.SetStatus(codes.Error, err.Error())
+	}
+	return n, err
+}
 
 func (wb *wrappedBody) Read(b []byte) (int, error) {
 	n, err := wb.body.Read(b)
