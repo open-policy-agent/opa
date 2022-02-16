@@ -4585,6 +4585,14 @@ dataref = true { data }`,
 			x = "foo.bar"
 			foo(x, y)
 		}`),
+		"everyMod": MustParseModule(`package everymod
+		import future.keywords.every
+		everyp {
+			every x in [true, false] { x; everyp }
+		}
+		everyq[1] {
+			every x in everyq { x == 1 }
+		}`),
 	}
 
 	compileStages(c, c.checkRecursion)
@@ -4618,6 +4626,8 @@ dataref = true { data }`,
 		makeRuleErrMsg("bar", "bar", "p", "foo", "bar"),
 		makeRuleErrMsg("foo", "foo", "bar", "p", "foo"),
 		makeRuleErrMsg("p", "p", "foo", "bar", "p"),
+		makeRuleErrMsg("everyp", "everyp", "everyp"),
+		makeRuleErrMsg("everyq", "everyq", "everyq"),
 	}
 
 	result := compilerErrsToStringSlice(c.Errors)
