@@ -413,9 +413,18 @@ func rewrite(event *Event) *Event {
 
 	switch v := event.Node.(type) {
 	case *ast.Expr:
-		node = v.Copy()
-	case *ast.Every:
-		node = v.Copy()
+		expr := v.Copy()
+
+		// Hide generated local vars in 'key' position that have not been
+		// rewritten.
+		if ev, ok := v.Terms.(*ast.Every); ok {
+			if kv, ok := ev.Key.Value.(ast.Var); ok {
+				if rw, ok := cpy.LocalMetadata[kv]; !ok || rw.Name.IsGenerated() {
+					expr.Terms.(*ast.Every).Key = nil
+				}
+			}
+		}
+		node = expr
 	case ast.Body:
 		node = v.Copy()
 	case *ast.Rule:
