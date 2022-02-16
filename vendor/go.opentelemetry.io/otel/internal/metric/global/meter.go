@@ -92,18 +92,6 @@ type asyncImpl struct {
 	runner sdkapi.AsyncRunner
 }
 
-// SyncImpler is implemented by all of the sync metric
-// instruments.
-type SyncImpler interface {
-	SyncImpl() sdkapi.SyncImpl
-}
-
-// AsyncImpler is implemented by all of the async
-// metric instruments.
-type AsyncImpler interface {
-	AsyncImpl() sdkapi.AsyncImpl
-}
-
 var _ metric.MeterProvider = &meterProvider{}
 var _ sdkapi.MeterImpl = &meterImpl{}
 var _ sdkapi.InstrumentImpl = &syncImpl{}
