@@ -777,23 +777,80 @@ func TestTraceRewrittenQueryVars(t *testing.T) {
 	}
 }
 
-func TestTraceRewrittenVarsIssue2022(t *testing.T) {
+func TestTraceRewrittenVars(t *testing.T) {
 
-	input := &Event{
-		Node: &ast.Expr{
-			Terms: ast.VarTerm("foo"),
+	mustParse := func(s string) *ast.Expr {
+		return ast.MustParseBodyWithOpts(s, ast.ParserOptions{FutureKeywords: []string{"every"}})[0]
+	}
+	everyCheck := func(stmt string) func(*testing.T, *Event, *Event) {
+		return func(t *testing.T, _ *Event, output *Event) {
+			exp := mustParse(stmt)
+			if !exp.Equal(output.Node.(*ast.Expr)) {
+				t.Errorf("expected %v to equal %v", output, exp)
+			}
+		}
+	}
+
+	tests := []struct {
+		note string
+		evt  *Event
+		exp  func(*testing.T, *Event, *Event)
+	}{
+		{
+			note: "issue 2022",
+			evt: &Event{
+				Node: ast.NewExpr(ast.VarTerm("foo")),
+				LocalMetadata: map[ast.Var]VarMetadata{
+					ast.Var("foo"): {Name: ast.Var("bar")},
+				},
+			},
+			exp: func(t *testing.T, input *Event, output *Event) {
+				if input.Node == output.Node {
+					t.Fatal("expected node to have been copied")
+				} else if !output.Node.(*ast.Expr).Equal(ast.NewExpr(ast.VarTerm("bar"))) {
+					t.Fatal("expected copy to contain rewritten var")
+				}
+			},
 		},
-		LocalMetadata: map[ast.Var]VarMetadata{
-			ast.Var("foo"): {Name: ast.Var("bar")},
+		{
+			note: "every: key/val rewritten",
+			evt: &Event{
+				Node: mustParse(`every __local0__, __local1__ in __local2__ { __local1__ == __local0__ }`),
+				LocalMetadata: map[ast.Var]VarMetadata{
+					ast.Var("__local0__"): {Name: ast.Var("k")},
+					ast.Var("__local1__"): {Name: ast.Var("v")},
+				},
+			},
+			exp: everyCheck(`every k, v in __local2__ { v == k }`),
+		},
+		{
+			note: "every: key hidden if not rewritten",
+			evt: &Event{
+				Node: mustParse(`every __local0__, __local1__ in __local2__ { __local1__ == 1 }`),
+				LocalMetadata: map[ast.Var]VarMetadata{
+					ast.Var("__local1__"): {Name: ast.Var("v")},
+				},
+			},
+			exp: everyCheck(`every v in __local2__ { v == 1 }`),
+		},
+		{
+			note: "every: key hidden if rewritten to generated key", // NOTE(sr): this would happen for traceRedo
+			evt: &Event{
+				Node: mustParse(`every __local0__, __local1__ in __local2__ { __local1__ == 1 }`),
+				LocalMetadata: map[ast.Var]VarMetadata{
+					ast.Var("__local1__"): {Name: ast.Var("v")},
+					ast.Var("__local0__"): {Name: ast.Var("__local0__")},
+				},
+			},
+			exp: everyCheck(`every v in __local2__ { v == 1 }`),
 		},
 	}
 
-	output := rewrite(input)
-
-	if input.Node == output.Node {
-		t.Fatal("expected node to have been copied")
-	} else if !output.Node.(*ast.Expr).Equal(ast.NewExpr(ast.VarTerm("bar"))) {
-		t.Fatal("expected copy to contain rewritten var")
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			output := rewrite(tc.evt)
+			tc.exp(t, tc.evt, output)
+		})
 	}
 }
 
