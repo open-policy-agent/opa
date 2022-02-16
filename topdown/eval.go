@@ -2939,9 +2939,12 @@ func (e evalEvery) eval(iter unifyIterator) error {
 		}
 		body := child.closure(e.body)
 		body.findOne = true
+		body.traceEnter(e.body)
 		done := false
 		err := body.eval(func(*eval) error {
+			body.traceExit(e.body)
 			done = true
+			body.traceRedo(e.body)
 			return nil
 		})
 		if !done {
