@@ -2930,7 +2930,7 @@ func (e evalEvery) eval(iter unifyIterator) error {
 	all := true // all generator evaluations yield one successful body evaluation
 
 	every := e.expr.Terms.(*ast.Every)
-	domain.traceEnter(every.Domain)
+	domain.traceEnter(every)
 
 	err := domain.eval(func(child *eval) error {
 		if !all {
@@ -2949,7 +2949,7 @@ func (e evalEvery) eval(iter unifyIterator) error {
 			all = false
 		}
 
-		child.traceRedo(every.Domain)
+		child.traceRedo(every)
 		return err
 	})
 	if err != nil {
@@ -2957,10 +2957,10 @@ func (e evalEvery) eval(iter unifyIterator) error {
 	}
 	if all {
 		err := iter()
-		domain.traceExit(every.Domain)
+		domain.traceExit(every)
 		return err
 	}
-	domain.traceFail(every.Domain)
+	domain.traceFail(every)
 	return nil
 }
 

@@ -414,11 +414,11 @@ func rewrite(event *Event) *Event {
 	switch v := event.Node.(type) {
 	case *ast.Expr:
 		node = v.Copy()
+	case *ast.Every:
+		node = v.Copy()
 	case ast.Body:
 		node = v.Copy()
 	case *ast.Rule:
-		node = v.Copy()
-	case *ast.Term:
 		node = v.Copy()
 	}
 
