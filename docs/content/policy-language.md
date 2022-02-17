@@ -1071,9 +1071,10 @@ keyword, because the rule is true whenever there is SOME app that is not a
 bitcoin-miner:
 
 ```live:eg/data/incorrect_no_bitcoin_some:module
+import future.keywords.in
+
 no_bitcoin_miners {
-    some i
-    app := apps[i]
+    some app in apps
     app.name != "bitcoin-miner"
 }
 ```
@@ -1101,13 +1102,14 @@ quantifier.
 For example:
 
 ```live:eg/data/correct_negation:module
+import future.keywords.in
+
 no_bitcoin_miners_using_negation {
     not any_bitcoin_miners
 }
 
 any_bitcoin_miners {
-    some i
-    app := apps[i]
+    some app in apps
     app.name == "bitcoin-miner"
 }
 ```
@@ -1124,24 +1126,43 @@ no_bitcoin_miners_using_negation with apps as [{"name": "bitcoin-miner"}, {"name
 ```live:eg/data/correct_negation/2:output:expect_undefined
 ```
 
-> The `undefined` result above is expected because we did not define a default
-> value for `no_bitcoin_miners_using_negation`. Since the body of the rule fails
-> to match, there is no value generated.
+{{< info >}}
+The `undefined` result above is expected because we did not define a default
+value for `no_bitcoin_miners_using_negation`. Since the body of the rule fails
+to match, there is no value generated.
+{{< /info >}}
 
 Alternatively, we can implement the same kind of logic inside a single rule
 using [Comprehensions](#comprehensions).
 
 ```live:eg/data/comprehesion_alternative:module:read_only
 no_bitcoin_miners_using_comprehension {
-    bitcoin_miners := {app | app := apps[_]; app.name == "bitcoin-miner"}
+    bitcoin_miners := {app | some app in apps; app.name == "bitcoin-miner"}
     count(bitcoin_miners) == 0
 }
 ```
 
-> Whether you use negation or comprehensions to express FOR ALL is up to you.
-> The comprehension version is more concise and does not require a helper rule
-> while the negation version is more verbose but a bit simpler and allows for
-> more complex ORs.
+By importing the future keyword "every", you get another option to express universal
+quantification:
+
+```live:eg/data/every_alternative:module:read_only
+import future.keywords.every
+
+no_bitcoin_miners_using_every {
+    every app in apps {
+        app.name != "bitcoin-miner"
+    }
+}
+```
+
+{{< info >}}
+Whether you use negation, comprehensions, or `every` to express FOR ALL is up to you.
+The `every` keyword should lend itself nicely to a rule formulation that closely
+follows how requirements are stated, and thus enhances your policy's readability.
+
+The comprehension version is more concise than the negation variant, and does not
+require a helper rule while the negation version is more verbose but a bit simpler and allows for more complex ORs.
+{{< /info >}}
 
 ## Modules
 
@@ -1302,6 +1323,106 @@ behaviour of other rules.
 
 For using the `some` keyword with iteration, see
 [the documentation of the `in` operator](#membership-and-iteration-in).
+
+## Every Keyword
+
+{{< info >}}
+To ensure backwards-compatibility, new keywords (like `every`) are introduced slowly.
+In the first stage, users can opt-in to using the new keywords via a special import:
+`import future.keywords` introduces _all_ future keywords, and
+`import future.keywords.every` introduces the `every` keyword described here.
+
+There is no need to also import `future.keywords.in`, that is **implied** by importing
+`future.keywords.every`.
+
+At some point in the future, the keyword will become _standard_, and the import will
+become a no-op that can safely be removed. This should give all users ample time to
+update their policies, so that the new keyword will not cause clashes with existing
+variable names.
+{{< /info >}}
+
+```live:eg/data/every0:module:merge_down
+import future.keywords.every
+
+names_with_dev {
+    some site in sites
+    site.name == "dev"
+
+    every server in site.servers {
+        endswith(server.name, "-dev")
+    }
+}
+```
+```live:eg/data/every0:query:merge_down
+names_with_dev
+```
+```live:eg/data/every0:output
+```
+
+The `every` keyword takes an (optional) key argument, a value argument, a domain, and a
+block of further queries, its "body".
+
+The keyword is used to explicity assert that its body is true for *any element in the domain*.
+It will iterate over the domain, bind its variables, and check that the body holds
+for those bindings.
+If one of the bindings does not yield a successful evaluation of the body, the overall
+statement is undefined.
+
+If the domain is empty, the overall statement is true.
+
+Evaluating `every` does **not** introduce new bindings into the rule evaluation.
+
+Used with a key argument, the index, or property name (for objects), comes into the
+scope of the body evaluation:
+
+```live:eg/every1:module:merge_down
+import future.keywords.every
+
+p {
+    every i, x in [1, 2, 3] { x-i == 1 } # array domain
+}
+
+q {
+    every k, v in {"foo": "bar", "fox": "baz" } { # object domain
+        startswith(k, "f")
+        startswith(v, "b")
+    }
+}
+
+r {
+    every x in {1, 2, 3} { x != 4 } # set domain
+}
+```
+```live:eg/every1:output
+```
+
+Semantically, `every x in xs { p(x) }` is equivalent to, but shorter than, a "not-some-not"
+construct using a helper rule:
+
+```live:eg/every2:module:merge_down
+import future.keywords.every
+
+xs := [2, 2, 4, 8]
+p(x) = x > 1
+
+r {
+    every x in xs { p(x) }
+}
+
+s {
+    not lte_one
+}
+
+lte_one {
+    some x in xs
+    not p(x)
+}
+```
+```live:eg/every2:output
+```
+
+Negating `every` is forbidden. If you desire to express `not every x in xs { p(x) }`,
+please use `some x in xs; not p(x)` instead.
 
 ## With Keyword
 
@@ -1487,15 +1608,17 @@ limit imposed on the number of `else` clauses on a rule.
 
 ### Membership and iteration: `in`
 
-> To ensure backwards-compatibility, new keywords (like `in`) are introduced slowly.
-> In the first stage, users can opt-in to using the new keywords via a special import:
-> `import future.keywords` introduces _all_ future keywords, and
-> `import future.keywords.in` introduces the `in` keyword described here.
->
-> At some point in the future, the keyword will become _standard_, and the import will
-> become a no-op that can safely be removed. This should give all users ample time to
-> update their policies, so that the new keyword will not cause clashes with existing
-> variable names.
+{{< info >}}
+To ensure backwards-compatibility, new keywords (like `in`) are introduced slowly.
+In the first stage, users can opt-in to using the new keywords via a special import:
+`import future.keywords` introduces _all_ future keywords, and
+`import future.keywords.in` introduces the `in` keyword described here.
+
+At some point in the future, the keyword will become _standard_, and the import will
+become a no-op that can safely be removed. This should give all users ample time to
+update their policies, so that the new keyword will not cause clashes with existing
+variable names.
+{{< /info >}}
 
 The membership operator `in` lets you check if an element is part of a collection (array, set, or object). It always evaluates to `true` or `false`:
 

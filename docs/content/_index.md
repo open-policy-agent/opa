@@ -262,9 +262,11 @@ x != y  # y has not been assigned a value
 package example
 ```
 
-Like other declarative languages (e.g., SQL), Rego does not have an explicit
-loop or iteration construct. Instead, iteration happens implicitly when you
-inject variables into expressions.
+Like other declarative languages (e.g., SQL), iteration in Rego happens
+implicitly when you inject variables into expressions.
+
+There are explicit iteration constructs to express _FOR ALL_ and _FOR SOME_, [see
+below](#for-some-and-for-all).
 
 To understand how iteration works in Rego, imagine you need to check if any
 networks are public. Recall that the networks are supplied inside an array:
@@ -351,6 +353,112 @@ some i; input.servers[i].protocols[i] == "ssh"  # there is no assignment of i th
 ```
 ```live:example/iter/undefined:output:expect_undefined
 ```
+
+#### FOR SOME and FOR ALL
+
+While plain iteration serves as a powerful building block, Rego also features ways
+to express _FOR SOME_ and _FOR ALL_ more explicitly.
+
+{{< info >}}
+To ensure backwards-compatibility, the keywords discussed below introduced slowly.
+In the first stage, users can opt-in to using the new keywords via a special import:
+`import future.keywords` introduces _all_ future keywords, and
+`import future.keywords.every` introduces the `every` keyword described here.
+(Importing `every` means also importing `in` without an extra `import` statement.)
+
+At some point in the future, the keyword will become _standard_, and the import will
+become a no-op that can safely be removed. This should give all users ample time to
+update their policies, so that the new keyword will not cause clashes with existing
+variable names.
+{{< /info >}}
+
+##### FOR SOME (`some`)
+
+`some ... in ...` is used to iterate over the collection (its last argument),
+and will bind its variables (key, value position) to the collection items.
+It introduces new bindings to the evaluation of the rest of the rule body.
+
+Using `some`, we can express the rules introduced above in different ways:
+
+```live:example/iter/some1:module:merge_down
+import future.keywords.in
+
+public_network[net.id] {        # net.id is in the public_network set if...
+    some net in input.networks  # some network exists and..
+    net.public                  # it is public.
+}
+
+shell_accessible[server.id] {
+    some server in input.servers
+    "telnet" in server.protocols
+}
+
+shell_accessible[server.id] {
+    some server in input.servers
+    "ssh" in server.protocols
+}
+```
+```live:example/iter/some1:query:merge_down
+shell_accessible
+```
+```live:example/iter/some1:output
+```
+
+For details on `some ... in ...`, see [the documentation of the `in` operator](policy-language/#membership-and-iteration-in).
+
+##### FOR ALL (`every`)
+
+Expanding on the examples above, `every` allows us to succinctly express that
+a condition holds for all elements of a domain.
+
+```live:example/iter/every2:module:merge_down
+import future.keywords.every
+
+no_telnet_exposed {
+    every server in input.servers {
+        every protocol in server.protocols {
+            "telnet" != protocol
+        }
+    }
+}
+no_telnet_exposed_alt { # alternative: every + not-in
+    every server in input.servers {
+        not "telnet" in server.protocols
+    }
+}
+no_telnet_exposed_alt2 { # alternative: not + rule + some
+    not any_telnet_exposed
+}
+any_telnet_exposed {
+    some server in input.servers
+    "telnet" in server.protocols
+}
+```
+```live:example/iter/every2:input:merge_down
+{
+    "servers": [
+        {
+            "id": "busybox",
+            "protocols": ["http", "ftp"]
+        },
+        {
+            "id": "db",
+            "protocols": ["mysql", "ssh"]
+        },
+        {
+            "id": "web",
+            "protocols": ["https"]
+        }
+    ]
+}
+```
+```live:example/iter/every2:query:merge_down
+no_telnet_exposed
+```
+```live:example/iter/every2:output
+```
+
+For all the details, see [Every Keyword](policy-language/#every-keyword).
 
 ### Rules
 
@@ -581,7 +689,6 @@ shell_accessible
 ```
 
 <!---TBD: explain conflicts --->
-
 ### Putting It Together
 
 The sections above explain the core concepts in Rego. To put it all together
@@ -600,28 +707,32 @@ For example:
 
 ```live:example/final:module:openable,merge_down
 package example
+import future.keywords # we want "every" and "in"
 
 allow = true {                                      # allow is true if...
     count(violation) == 0                           # there are zero violations.
 }
 
 violation[server.id] {                              # a server is in the violation set if...
-    some server
-    public_server[server]                           # it exists in the 'public_server' set and...
-    server.protocols[_] == "http"                   # it contains the insecure "http" protocol.
+    some server in public_servers                   # it exists in the 'public_servers' set and...
+    "http" in server.protocols                      # it contains the insecure "http" protocol.
 }
 
 violation[server.id] {                              # a server is in the violation set if...
-    server := input.servers[_]                      # it exists in the input.servers collection and...
-    server.protocols[_] == "telnet"                 # it contains the "telnet" protocol.
+    some server in input.servers                    # it exists in the input.servers collection and...
+    "telnet" in server.protocols                    # it contains the "telnet" protocol.
 }
 
-public_server[server] {                             # a server exists in the public_server set if...
-    some i, j
-    server := input.servers[_]                      # it exists in the input.servers collection and...
-    server.ports[_] == input.ports[i].id            # it references a port in the input.ports collection and...
-    input.ports[i].network == input.networks[j].id  # the port references a network in the input.networks collection and...
-    input.networks[j].public                        # the network is public.
+public_servers[server] {                             # a server exists in the public_servers set if...
+    some server in input.servers                    # it exists in the input.servers collection and...
+
+    some port in server.ports                       # it references a port in the input.ports collection and...
+    some input_port in input.ports
+    port == input_port.id
+
+    some input_network in input.networks            # the port references a network in the input.networks collection and...
+    input_port.network == input_network.id
+    input_network.public                            # the network is public.
 }
 ```
 ```live:example/final:query:merge_down
