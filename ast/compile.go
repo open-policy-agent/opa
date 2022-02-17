@@ -3846,9 +3846,8 @@ func expandExpr(gen *localVarGenerator, expr *Expr) (result []*Expr) {
 			extras, terms.Domain = expandExprTerm(gen, terms.Domain)
 		} else {
 			term := NewTerm(gen.Generate()).SetLocation(terms.Domain.Location)
-			eq := Equality.Expr(term, terms.Domain)
+			eq := Equality.Expr(term, terms.Domain).SetLocation(terms.Domain.Location)
 			eq.Generated = true
-			eq.Location = terms.Domain.Location
 			eq.With = expr.With
 			extras = append(extras, eq)
 			terms.Domain = term

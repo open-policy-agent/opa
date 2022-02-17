@@ -54,6 +54,7 @@ type ReadOnlySpan interface {
 	// the span has not ended.
 	EndTime() time.Time
 	// Attributes returns the defining attributes of the span.
+	// The order of the returned attributes is not guaranteed to be stable across invocations.
 	Attributes() []attribute.KeyValue
 	// Links returns all the links the span has to other spans.
 	Links() []Link
@@ -126,35 +127,29 @@ type recordingSpan struct {
 	// childSpanCount holds the number of child spans created for this span.
 	childSpanCount int
 
-	// resource contains attributes representing an entity that produced this
-	// span.
-	resource *resource.Resource
-
-	// instrumentationLibrary defines the instrumentation library used to
-	// provide instrumentation.
-	instrumentationLibrary instrumentation.Library
-
 	// spanContext holds the SpanContext of this span.
 	spanContext trace.SpanContext
 
-	// attributes are capped at configured limit. When the capacity is reached
-	// an oldest entry is removed to create room for a new entry.
-	attributes *attributesMap
+	// attributes is a collection of user provided key/values. The collection
+	// is constrained by a configurable maximum held by the parent
+	// TracerProvider. When additional attributes are added after this maximum
+	// is reached these attributes the user is attempting to add are dropped.
+	// This dropped number of attributes is tracked and reported in the
+	// ReadOnlySpan exported when the span ends.
+	attributes        []attribute.KeyValue
+	droppedAttributes int
 
 	// events are stored in FIFO queue capped by configured limit.
-	events *evictedQueue
+	events evictedQueue
 
 	// links are stored in FIFO queue capped by configured limit.
-	links *evictedQueue
+	links evictedQueue
 
 	// executionTracerTaskEnd ends the execution tracer span.
 	executionTracerTaskEnd func()
 
 	// tracer is the SDK tracer that created this span.
 	tracer *tracer
-
-	// spanLimits holds the limits to this span.
-	spanLimits SpanLimits
 }
 
 var _ ReadWriteSpan = (*recordingSpan)(nil)
@@ -205,11 +200,80 @@ func (s *recordingSpan) SetStatus(code codes.Code, description string) {
 // will be overwritten with the value contained in attributes.
 //
 // If this span is not being recorded than this method does nothing.
+//
+// If adding attributes to the span would exceed the maximum amount of
+// attributes the span is configured to have, the last added attributes will
+// be dropped.
 func (s *recordingSpan) SetAttributes(attributes ...attribute.KeyValue) {
 	if !s.IsRecording() {
 		return
 	}
-	s.copyToCappedAttributes(attributes...)
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// If adding these attributes could exceed the capacity of s perform a
+	// de-duplication and truncation while adding to avoid over allocation.
+	if len(s.attributes)+len(attributes) > s.tracer.provider.spanLimits.AttributeCountLimit {
+		s.addOverCapAttrs(attributes)
+		return
+	}
+
+	// Otherwise, add without deduplication. When attributes are read they
+	// will be deduplicated, optimizing the operation.
+	for _, a := range attributes {
+		if !a.Valid() {
+			// Drop all invalid attributes.
+			s.droppedAttributes++
+			continue
+		}
+		s.attributes = append(s.attributes, a)
+	}
+}
+
+// addOverCapAttrs adds the attributes attrs to the span s while
+// de-duplicating the attributes of s and attrs and dropping attributes that
+// exceed the capacity of s.
+//
+// This method assumes s.mu.Lock is held by the caller.
+//
+// This method should only be called when there is a possibility that adding
+// attrs to s will exceed the capacity of s. Otherwise, attrs should be added
+// to s without checking for duplicates and all retrieval methods of the
+// attributes for s will de-duplicate as needed.
+func (s *recordingSpan) addOverCapAttrs(attrs []attribute.KeyValue) {
+	// In order to not allocate more capacity to s.attributes than needed,
+	// prune and truncate this addition of attributes while adding.
+
+	// Do not set a capacity when creating this map. Benchmark testing has
+	// showed this to only add unused memory allocations in general use.
+	exists := make(map[attribute.Key]int)
+	s.dedupeAttrsFromRecord(&exists)
+
+	// Now that s.attributes is deduplicated, adding unique attributes up to
+	// the capacity of s will not over allocate s.attributes.
+	for _, a := range attrs {
+		if !a.Valid() {
+			// Drop all invalid attributes.
+			s.droppedAttributes++
+			continue
+		}
+
+		if idx, ok := exists[a.Key]; ok {
+			// Perform all updates before dropping, even when at capacity.
+			s.attributes[idx] = a
+			continue
+		}
+
+		if len(s.attributes) >= s.tracer.provider.spanLimits.AttributeCountLimit {
+			// Do not just drop all of the remaining attributes, make sure
+			// updates are checked and performed.
+			s.droppedAttributes++
+		} else {
+			s.attributes = append(s.attributes, a)
+			exists[a.Key] = len(s.attributes) - 1
+		}
+	}
 }
 
 // End ends the span. This method does nothing if the span is already ended or
@@ -336,9 +400,9 @@ func (s *recordingSpan) addEvent(name string, o ...trace.EventOption) {
 	// Discard over limited attributes
 	attributes := c.Attributes()
 	var discarded int
-	if len(attributes) > s.spanLimits.AttributePerEventCountLimit {
-		discarded = len(attributes) - s.spanLimits.AttributePerEventCountLimit
-		attributes = attributes[:s.spanLimits.AttributePerEventCountLimit]
+	if len(attributes) > s.tracer.provider.spanLimits.AttributePerEventCountLimit {
+		discarded = len(attributes) - s.tracer.provider.spanLimits.AttributePerEventCountLimit
+		attributes = attributes[:s.tracer.provider.spanLimits.AttributePerEventCountLimit]
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -399,13 +463,45 @@ func (s *recordingSpan) EndTime() time.Time {
 }
 
 // Attributes returns the attributes of this span.
+//
+// The order of the returned attributes is not guaranteed to be stable.
 func (s *recordingSpan) Attributes() []attribute.KeyValue {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.attributes.evictList.Len() == 0 {
-		return []attribute.KeyValue{}
+	s.dedupeAttrs()
+	return s.attributes
+}
+
+// dedupeAttrs deduplicates the attributes of s to fit capacity.
+//
+// This method assumes s.mu.Lock is held by the caller.
+func (s *recordingSpan) dedupeAttrs() {
+	// Do not set a capacity when creating this map. Benchmark testing has
+	// showed this to only add unused memory allocations in general use.
+	exists := make(map[attribute.Key]int)
+	s.dedupeAttrsFromRecord(&exists)
+}
+
+// dedupeAttrsFromRecord deduplicates the attributes of s to fit capacity
+// using record as the record of unique attribute keys to their index.
+//
+// This method assumes s.mu.Lock is held by the caller.
+func (s *recordingSpan) dedupeAttrsFromRecord(record *map[attribute.Key]int) {
+	// Use the fact that slices share the same backing array.
+	unique := s.attributes[:0]
+	for _, a := range s.attributes {
+		if idx, ok := (*record)[a.Key]; ok {
+			unique[idx] = a
+		} else {
+			unique = append(unique, a)
+			(*record)[a.Key] = len(unique) - 1
+		}
 	}
-	return s.attributes.toKeyValue()
+	// s.attributes have element types of attribute.KeyValue. These types are
+	// not pointers and they themselves do not contain pointer fields,
+	// therefore the duplicate values do not need to be zeroed for them to be
+	// garbage collected.
+	s.attributes = unique
 }
 
 // Links returns the links of this span.
@@ -440,7 +536,7 @@ func (s *recordingSpan) Status() Status {
 func (s *recordingSpan) InstrumentationLibrary() instrumentation.Library {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.instrumentationLibrary
+	return s.tracer.instrumentationLibrary
 }
 
 // Resource returns the Resource associated with the Tracer that created this
@@ -448,7 +544,7 @@ func (s *recordingSpan) InstrumentationLibrary() instrumentation.Library {
 func (s *recordingSpan) Resource() *resource.Resource {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.resource
+	return s.tracer.provider.resource
 }
 
 func (s *recordingSpan) addLink(link trace.Link) {
@@ -461,9 +557,9 @@ func (s *recordingSpan) addLink(link trace.Link) {
 	var droppedAttributeCount int
 
 	// Discard over limited attributes
-	if len(link.Attributes) > s.spanLimits.AttributePerLinkCountLimit {
-		droppedAttributeCount = len(link.Attributes) - s.spanLimits.AttributePerLinkCountLimit
-		link.Attributes = link.Attributes[:s.spanLimits.AttributePerLinkCountLimit]
+	if len(link.Attributes) > s.tracer.provider.spanLimits.AttributePerLinkCountLimit {
+		droppedAttributeCount = len(link.Attributes) - s.tracer.provider.spanLimits.AttributePerLinkCountLimit
+		link.Attributes = link.Attributes[:s.tracer.provider.spanLimits.AttributePerLinkCountLimit]
 	}
 
 	s.links.add(Link{link.SpanContext, link.Attributes, droppedAttributeCount})
@@ -474,7 +570,7 @@ func (s *recordingSpan) addLink(link trace.Link) {
 func (s *recordingSpan) DroppedAttributes() int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.attributes.droppedCount
+	return s.droppedAttributes
 }
 
 // DroppedLinks returns the number of links dropped by the span due to limits
@@ -514,20 +610,21 @@ func (s *recordingSpan) snapshot() ReadOnlySpan {
 	defer s.mu.Unlock()
 
 	sd.endTime = s.endTime
-	sd.instrumentationLibrary = s.instrumentationLibrary
+	sd.instrumentationLibrary = s.tracer.instrumentationLibrary
 	sd.name = s.name
 	sd.parent = s.parent
-	sd.resource = s.resource
+	sd.resource = s.tracer.provider.resource
 	sd.spanContext = s.spanContext
 	sd.spanKind = s.spanKind
 	sd.startTime = s.startTime
 	sd.status = s.status
 	sd.childSpanCount = s.childSpanCount
 
-	if s.attributes.evictList.Len() > 0 {
-		sd.attributes = s.attributes.toKeyValue()
-		sd.droppedAttributeCount = s.attributes.droppedCount
+	if len(s.attributes) > 0 {
+		s.dedupeAttrs()
+		sd.attributes = s.attributes
 	}
+	sd.droppedAttributeCount = s.droppedAttributes
 	if len(s.events.queue) > 0 {
 		sd.events = s.interfaceArrayToEventArray()
 		sd.droppedEventCount = s.events.droppedCount
@@ -553,18 +650,6 @@ func (s *recordingSpan) interfaceArrayToEventArray() []Event {
 		eventArr = append(eventArr, value.(Event))
 	}
 	return eventArr
-}
-
-func (s *recordingSpan) copyToCappedAttributes(attributes ...attribute.KeyValue) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	for _, a := range attributes {
-		// Ensure attributes conform to the specification:
-		// https://github.com/open-telemetry/opentelemetry-specification/blob/v1.0.1/specification/common/common.md#attributes
-		if a.Valid() {
-			s.attributes.add(a)
-		}
-	}
 }
 
 func (s *recordingSpan) addChild() {

@@ -100,7 +100,7 @@ type ParserOptions struct {
 	ProcessAnnotation  bool
 	AllFutureKeywords  bool
 	FutureKeywords     []string
-	unreleasedKeywords bool
+	unreleasedKeywords bool // TODO(sr): cleanup
 }
 
 // NewParser creates and initializes a Parser.
@@ -258,10 +258,6 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 				},
 			}
 		}
-	}
-
-	if p.po.unreleasedKeywords { // TODO(sr): remove when capabilities include "every"
-		allowedFutureKeywords["every"] = tokens.Every
 	}
 
 	var err error
@@ -807,13 +803,13 @@ func (p *Parser) parseLiteral() (expr *Expr) {
 	switch p.s.tok {
 	case tokens.Some:
 		if negated {
-			p.illegal("not is invalid")
+			p.illegal("illegal negation of 'some'")
 			return nil
 		}
 		return p.parseSome()
 	case tokens.Every:
 		if negated {
-			p.illegal("not is invalid")
+			p.illegal("illegal negation of 'every'")
 			return nil
 		}
 		return p.parseEvery()
@@ -2254,12 +2250,6 @@ func (p *Parser) futureImport(imp *Import, allowedFutureKeywords map[string]toke
 
 	switch len(path) {
 	case 2: // all keywords imported, nothing to do
-		// TODO(sr): remove when ready
-		for i, kw := range kwds {
-			if kw == "every" {
-				kwds = append(kwds[:i], kwds[i+1:]...)
-			}
-		}
 	case 3: // one keyword imported
 		kw, ok := path[2].Value.(String)
 		if !ok {

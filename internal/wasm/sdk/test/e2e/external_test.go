@@ -72,6 +72,9 @@ func TestWasmE2E(t *testing.T) {
 			for i := range tc.Modules {
 				opts = append(opts, rego.Module(fmt.Sprintf("module-%d.rego", i), tc.Modules[i]))
 			}
+			if testing.Verbose() {
+				opts = append(opts, rego.Dump(os.Stderr))
+			}
 			cr, err := rego.New(opts...).Compile(ctx)
 			if err != nil {
 				t.Fatal(err)

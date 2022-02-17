@@ -48,7 +48,7 @@ var errMergeConflictSchemaURL = errors.New("cannot merge resource due to conflic
 func New(ctx context.Context, opts ...Option) (*Resource, error) {
 	cfg := config{}
 	for _, opt := range opts {
-		opt.apply(&cfg)
+		cfg = opt.apply(cfg)
 	}
 
 	resource, err := Detect(ctx, cfg.detectors...)
@@ -107,6 +107,17 @@ func (r *Resource) String() string {
 		return ""
 	}
 	return r.attrs.Encoded(attribute.DefaultEncoder())
+}
+
+// MarshalLog is the marshaling function used by the logging system to represent this exporter.
+func (r *Resource) MarshalLog() interface{} {
+	return struct {
+		Attributes attribute.Set
+		SchemaURL  string
+	}{
+		Attributes: r.attrs,
+		SchemaURL:  r.schemaURL,
+	}
 }
 
 // Attributes returns a copy of attributes from the resource in a sorted order.

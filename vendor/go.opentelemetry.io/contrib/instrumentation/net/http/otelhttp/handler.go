@@ -48,7 +48,7 @@ type Handler struct {
 	filters           []Filter
 	spanNameFormatter func(string, *http.Request) string
 	counters          map[string]metric.Int64Counter
-	valueRecorders    map[string]metric.Int64Histogram
+	valueRecorders    map[string]metric.Float64Histogram
 }
 
 func defaultHandlerFormatter(operation string, _ *http.Request) string {
@@ -94,7 +94,7 @@ func handleErr(err error) {
 
 func (h *Handler) createMeasures() {
 	h.counters = make(map[string]metric.Int64Counter)
-	h.valueRecorders = make(map[string]metric.Int64Histogram)
+	h.valueRecorders = make(map[string]metric.Float64Histogram)
 
 	requestBytesCounter, err := h.meter.NewInt64Counter(RequestContentLength)
 	handleErr(err)
@@ -102,7 +102,7 @@ func (h *Handler) createMeasures() {
 	responseBytesCounter, err := h.meter.NewInt64Counter(ResponseContentLength)
 	handleErr(err)
 
-	serverLatencyMeasure, err := h.meter.NewInt64Histogram(ServerLatency)
+	serverLatencyMeasure, err := h.meter.NewFloat64Histogram(ServerLatency)
 	handleErr(err)
 
 	h.counters[RequestContentLength] = requestBytesCounter
@@ -195,7 +195,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.counters[RequestContentLength].Add(ctx, bw.read, attributes...)
 	h.counters[ResponseContentLength].Add(ctx, rww.written, attributes...)
 
-	elapsedTime := time.Since(requestStartTime).Microseconds()
+	// Use floating point division here for higher precision (instead of Millisecond method).
+	elapsedTime := float64(time.Since(requestStartTime)) / float64(time.Millisecond)
 
 	h.valueRecorders[ServerLatency].Record(ctx, elapsedTime, attributes...)
 }
