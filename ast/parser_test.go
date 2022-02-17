@@ -3199,6 +3199,28 @@ public_servers_1[server] {
 			},
 		},
 		{
+			note: "multiple metadata blocks on a single rule",
+			module: `package test
+
+# METADATA
+# title: My rule
+
+# METADATA
+# title: My rule 2
+p { input = "str" }`,
+			expNumComments: 4,
+			expAnnotations: []*Annotations{
+				{
+					Scope: annotationScopeRule,
+					Title: "My rule",
+				},
+				{
+					Scope: annotationScopeRule,
+					Title: "My rule 2",
+				},
+			},
+		},
+		{
 			note: "Empty annotation error due to whitespace following METADATA hint",
 			module: `package test
 
@@ -3220,6 +3242,33 @@ p := 7`,
 			expAnnotations: []*Annotations{
 				{Scope: annotationScopeRule},
 			},
+		},
+		{
+			note: "annotation on package",
+			module: `# METADATA
+# title: My package
+package test
+
+p { input = "str" }`,
+			expNumComments: 2,
+			expAnnotations: []*Annotations{
+				{
+					Scope: annotationScopePackage,
+					Title: "My package",
+				},
+			},
+		},
+		{
+			note: "annotation on import",
+			module: `package test
+
+# METADATA
+# title: My import
+import input.foo
+
+p { input = "str" }`,
+			expNumComments: 2,
+			expError:       "1 error occurred: test.rego:3: rego_parse_error: invalid annotation scope 'import'",
 		},
 		{
 			note: "Default rule scope",
@@ -3298,6 +3347,87 @@ p { input = "str" }`,
 				},
 			},
 		},
+		{
+			note: "Rich meta",
+			module: `package test
+
+# METADATA
+# title: My rule
+# description: |
+#  My rule has a
+#  multiline description.
+# organizations:
+# - Acme Corp.
+# - Soylent Corp.
+# - Tyrell Corp.
+# related_resources:
+# - https://example.com
+# - 
+#  ref: http://john:123@do.re/mi?foo=bar#baz
+#  description: foo bar
+# authors:
+# - John Doe <john@example.com>
+# - name: Jane Doe
+#   email: jane@example.com
+# custom:
+#  list:
+#   - a
+#   - b
+#  map:
+#   a: 1
+#   b: 2.2
+#   c:
+#    "3": d
+#    "4": e
+#  number: 42
+#  string: foo bar baz
+#  flag:
+p { input = "str" }`,
+			expNumComments: 31,
+			expAnnotations: []*Annotations{
+				{
+					Scope:         annotationScopeRule,
+					Title:         "My rule",
+					Description:   "My rule has a\nmultiline description.\n",
+					Organizations: []string{"Acme Corp.", "Soylent Corp.", "Tyrell Corp."},
+					RelatedResources: []*RelatedResourceAnnotation{
+						{
+							Ref: mustParseURL("https://example.com"),
+						},
+						{
+							Ref:         mustParseURL("http://john:123@do.re/mi?foo=bar#baz"),
+							Description: "foo bar",
+						},
+					},
+					Authors: []*AuthorAnnotation{
+						{
+							Name:  "John Doe",
+							Email: "john@example.com",
+						},
+						{
+							Name:  "Jane Doe",
+							Email: "jane@example.com",
+						},
+					},
+					Custom: map[string]interface{}{
+						"list": []interface{}{
+							"a", "b",
+						},
+						"map": map[string]interface{}{
+							"a": 1,
+							"b": 2.2,
+							"c": map[string]interface{}{
+								"3": "d",
+								"4": "e",
+							},
+						},
+						"number": 42,
+						"string": "foo bar baz",
+						"flag":   nil,
+					},
+				},
+			},
+		},
 	}
 
 	for _, tc := range tests {
@@ -3320,6 +3450,265 @@ p { input = "str" }`,
 
 			if annotationsCompare(tc.expAnnotations, mod.Annotations) != 0 {
 				t.Fatalf("expected %v but got %v", tc.expAnnotations, mod.Annotations)
+			}
+		})
+	}
+}
+
+func TestAuthorAnnotation(t *testing.T) {
+	tests := []struct {
+		note     string
+		raw      interface{}
+		expected interface{}
+	}{
+		{
+			note:     "no name",
+			raw:      "",
+			expected: fmt.Errorf("author is an empty string"),
+		},
+		{
+			note:     "only whitespaces",
+			raw:      " \t",
+			expected: fmt.Errorf("author is an empty string"),
+		},
+		{
+			note:     "one name only",
+			raw:      "John",
+			expected: AuthorAnnotation{Name: "John"},
+		},
+		{
+			note:     "multiple names",
+			raw:      "John Jr.\tDoe",
+			expected: AuthorAnnotation{Name: "John Jr. Doe"},
+		},
+		{
+			note:     "email only",
+			raw:      "<john@example.com>",
+			expected: AuthorAnnotation{Email: "john@example.com"},
+		},
+		{
+			note:     "name and email",
+			raw:      "John Doe <john@example.com>",
+			expected: AuthorAnnotation{Name: "John Doe", Email: "john@example.com"},
+		},
+		{
+			note:     "empty email",
+			raw:      "John Doe <>",
+			expected: AuthorAnnotation{Name: "John Doe"},
+		},
+		{
+			note:     "name with reserved characters",
+			raw:      "John Doe < >",
+			expected: AuthorAnnotation{Name: "John Doe < >"},
+		},
+		{
+			note:     "name with reserved characters (email with space)",
+			raw:      "<john@ example.com>",
+			expected: AuthorAnnotation{Name: "<john@ example.com>"},
+		},
+		{
+			note: "map with name",
+			raw: map[string]interface{}{
+				"name": "John Doe",
+			},
+			expected: AuthorAnnotation{Name: "John Doe"},
+		},
+		{
+			note: "map with email",
+			raw: map[string]interface{}{
+				"email": "john@example.com",
+			},
+			expected: AuthorAnnotation{Email: "john@example.com"},
+		},
+		{
+			note: "map with name and email",
+			raw: map[string]interface{}{
+				"name":  "John Doe",
+				"email": "john@example.com",
+			},
+			expected: AuthorAnnotation{Name: "John Doe", Email: "john@example.com"},
+		},
+		{
+			note: "map with extra entry",
+			raw: map[string]interface{}{
+				"name":  "John Doe",
+				"email": "john@example.com",
+				"foo":   "bar",
+			},
+			expected: AuthorAnnotation{Name: "John Doe", Email: "john@example.com"},
+		},
+		{
+			note:     "empty map",
+			raw:      map[string]interface{}{},
+			expected: fmt.Errorf("'name' and/or 'email' values required in object"),
+		},
+		{
+			note: "map with empty name",
+			raw: map[string]interface{}{
+				"name": "",
+			},
+			expected: fmt.Errorf("'name' and/or 'email' values required in object"),
+		},
+		{
+			note: "map with email and empty name",
+			raw: map[string]interface{}{
+				"name":  "",
+				"email": "john@example.com",
+			},
+			expected: AuthorAnnotation{Email: "john@example.com"},
+		},
+		{
+			note: "map with empty email",
+			raw: map[string]interface{}{
+				"email": "",
+			},
+			expected: fmt.Errorf("'name' and/or 'email' values required in object"),
+		},
+		{
+			note: "map with name and empty email",
+			raw: map[string]interface{}{
+				"name":  "John Doe",
+				"email": "",
+			},
+			expected: AuthorAnnotation{Name: "John Doe"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			parsed, err := parseAuthor(tc.raw)
+
+			switch expected := tc.expected.(type) {
+			case AuthorAnnotation:
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				if parsed.Compare(&expected) != 0 {
+					t.Fatalf("expected %v but got %v", tc.expected, parsed)
+				}
+			case error:
+				if err == nil {
+					t.Fatalf("expected '%v' error but got %v", tc.expected, parsed)
+				}
+
+				if strings.Compare(expected.Error(), err.Error()) != 0 {
+					t.Fatalf("expected %v but got %v", tc.expected, err)
+				}
+			default:
+				t.Fatalf("Unexpected result type: %T", expected)
+			}
+		})
+	}
+}
+
+func TestRelatedResourceAnnotation(t *testing.T) {
+	tests := []struct {
+		note     string
+		raw      interface{}
+		expected interface{}
+	}{
+		{
+			note:     "empty ref URL",
+			raw:      "",
+			expected: fmt.Errorf("ref URL may not be empty string"),
+		},
+		{
+			note:     "only whitespaces in ref URL",
+			raw:      " \t",
+			expected: fmt.Errorf("parse \" \\t\": net/url: invalid control character in URL"),
+		},
+		{
+			note:     "invalid ref URL",
+			raw:      "https://foo:bar",
+			expected: fmt.Errorf("parse \"https://foo:bar\": invalid port \":bar\" after host"),
+		},
+		{
+			note:     "ref URL as string",
+			raw:      "https://example.com/foo?bar#baz",
+			expected: RelatedResourceAnnotation{Ref: mustParseURL("https://example.com/foo?bar#baz")},
+		},
+		{
+			note: "map with only ref",
+			raw: map[string]interface{}{
+				"ref": "https://example.com/foo?bar#baz",
+			},
+			expected: RelatedResourceAnnotation{Ref: mustParseURL("https://example.com/foo?bar#baz")},
+		},
+		{
+			note: "map with only description",
+			raw: map[string]interface{}{
+				"description": "foo bar",
+			},
+			expected: fmt.Errorf("'ref' value required in object"),
+		},
+		{
+			note: "map with ref and description",
+			raw: map[string]interface{}{
+				"ref":         "https://example.com/foo?bar#baz",
+				"description": "foo bar",
+			},
+			expected: RelatedResourceAnnotation{
+				Ref:         mustParseURL("https://example.com/foo?bar#baz"),
+				Description: "foo bar",
+			},
+		},
+		{
+			note: "map with ref and description",
+			raw: map[string]interface{}{
+				"ref":         "https://example.com/foo?bar#baz",
+				"description": "foo bar",
+				"foo":         "bar",
+			},
+			expected: RelatedResourceAnnotation{
+				Ref:         mustParseURL("https://example.com/foo?bar#baz"),
+				Description: "foo bar",
+			},
+		},
+		{
+			note:     "empty map",
+			raw:      map[string]interface{}{},
+			expected: fmt.Errorf("'ref' value required in object"),
+		},
+		{
+			note: "map with empty ref",
+			raw: map[string]interface{}{
+				"ref": "",
+			},
+			expected: fmt.Errorf("'ref' value required in object"),
+		},
+		{
+			note: "map with only whitespace in ref",
+			raw: map[string]interface{}{
+				"ref": " \t",
+			},
+			expected: fmt.Errorf("'ref' value required in object"),
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			parsed, err := parseRelatedResource(tc.raw)
+
+			switch expected := tc.expected.(type) {
+			case RelatedResourceAnnotation:
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				if parsed.Compare(&expected) != 0 {
+					t.Fatalf("expected %v but got %v", tc.expected, parsed)
+				}
+			case error:
+				if err == nil {
+					t.Fatalf("expected '%v' error but got %v", tc.expected, parsed)
+				}
+
+				if strings.Compare(expected.Error(), err.Error()) != 0 {
+					t.Fatalf("expected %v but got %v", tc.expected, err)
+				}
+			default:
+				t.Fatalf("Unexpected result type: %T", expected)
 			}
 		})
 	}
