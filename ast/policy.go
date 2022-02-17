@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/rand"
+	"net/url"
 	"strings"
 	"time"
 
@@ -154,10 +155,16 @@ type (
 
 	// Annotations represents metadata attached to other AST nodes such as rules.
 	Annotations struct {
-		Location *Location           `json:"-"`
-		Scope    string              `json:"scope"`
-		Schemas  []*SchemaAnnotation `json:"schemas,omitempty"`
-		node     Node
+		Location         *Location                    `json:"-"`
+		Scope            string                       `json:"scope"`
+		Title            string                       `json:"title,omitempty"`
+		Description      string                       `json:"description,omitempty"`
+		Organizations    []string                     `json:"organizations,omitempty"`
+		RelatedResources []*RelatedResourceAnnotation `json:"related_resources,omitempty"`
+		Authors          []*AuthorAnnotation          `json:"authors,omitempty"`
+		Schemas          []*SchemaAnnotation          `json:"schemas,omitempty"`
+		Custom           map[string]interface{}       `json:"custom,omitempty"`
+		node             Node
 	}
 
 	// SchemaAnnotation contains a schema declaration for the document identified by the path.
@@ -165,6 +172,16 @@ type (
 		Path       Ref          `json:"path"`
 		Schema     Ref          `json:"schema,omitempty"`
 		Definition *interface{} `json:"definition,omitempty"`
+	}
+
+	AuthorAnnotation struct {
+		Name  string `json:"name"`
+		Email string `json:"email,omitempty"`
+	}
+
+	RelatedResourceAnnotation struct {
+		Ref         url.URL `json:"ref"`
+		Description string  `json:"description,omitempty"`
 	}
 
 	// Package represents the namespace of the documents produced
@@ -270,21 +287,101 @@ func (s *Annotations) Compare(other *Annotations) int {
 		return cmp
 	}
 
-	max := len(s.Schemas)
-	if len(other.Schemas) < max {
-		max = len(other.Schemas)
+	if cmp := strings.Compare(s.Title, other.Title); cmp != 0 {
+		return cmp
+	}
+
+	if cmp := strings.Compare(s.Description, other.Description); cmp != 0 {
+		return cmp
+	}
+
+	if cmp := compareStringLists(s.Organizations, other.Organizations); cmp != 0 {
+		return cmp
+	}
+
+	if cmp := compareRelatedResources(s.RelatedResources, other.RelatedResources); cmp != 0 {
+		return cmp
+	}
+
+	if cmp := compareAuthors(s.Authors, other.Authors); cmp != 0 {
+		return cmp
+	}
+
+	if cmp := compareSchemas(s.Schemas, other.Schemas); cmp != 0 {
+		return cmp
+	}
+
+	if cmp := util.Compare(s.Custom, other.Custom); cmp != 0 {
+		return cmp
+	}
+
+	return 0
+}
+
+func compareSchemas(a, b []*SchemaAnnotation) int {
+	max := len(a)
+	if len(b) < max {
+		max = len(b)
 	}
 
 	for i := 0; i < max; i++ {
-		if cmp := s.Schemas[i].Compare(other.Schemas[i]); cmp != 0 {
+		if cmp := a[i].Compare(b[i]); cmp != 0 {
 			return cmp
 		}
 	}
 
-	if len(s.Schemas) > len(other.Schemas) {
+	if len(a) > len(b) {
 		return 1
-	} else if len(s.Schemas) < len(other.Schemas) {
+	} else if len(a) < len(b) {
 		return -1
+	}
+
+	return 0
+}
+
+func compareRelatedResources(a, b []*RelatedResourceAnnotation) int {
+	if len(a) > len(b) {
+		return 1
+	} else if len(a) < len(b) {
+		return -1
+	}
+
+	for i := 0; i < len(a); i++ {
+		if cmp := strings.Compare(a[i].String(), b[i].String()); cmp != 0 {
+			return cmp
+		}
+	}
+
+	return 0
+}
+
+func compareAuthors(a, b []*AuthorAnnotation) int {
+	if len(a) > len(b) {
+		return 1
+	} else if len(a) < len(b) {
+		return -1
+	}
+
+	for i := 0; i < len(a); i++ {
+		if cmp := a[i].Compare(b[i]); cmp != 0 {
+			return cmp
+		}
+	}
+
+	return 0
+}
+
+func compareStringLists(a, b []string) int {
+	if len(a) > len(b) {
+		return 1
+	} else if len(a) < len(b) {
+		return -1
+	}
+
+	for i := 0; i < len(a); i++ {
+		if cmp := strings.Compare(a[i], b[i]); cmp != 0 {
+			return cmp
+		}
 	}
 
 	return 0
@@ -333,6 +430,56 @@ func (s *SchemaAnnotation) Compare(other *SchemaAnnotation) int {
 func (s *SchemaAnnotation) String() string {
 	bs, _ := json.Marshal(s)
 	return string(bs)
+}
+
+// Compare returns an integer indicating if s is less than, equal to, or greater
+// than other.
+func (a *AuthorAnnotation) Compare(other *AuthorAnnotation) int {
+	if cmp := strings.Compare(a.Name, other.Name); cmp != 0 {
+		return cmp
+	}
+
+	if cmp := strings.Compare(a.Email, other.Email); cmp != 0 {
+		return cmp
+	}
+
+	return 0
+}
+
+func (a *AuthorAnnotation) String() string {
+	bs, _ := json.Marshal(a)
+	return string(bs)
+}
+
+// Compare returns an integer indicating if s is less than, equal to, or greater
+// than other.
+func (rr *RelatedResourceAnnotation) Compare(other *RelatedResourceAnnotation) int {
+	if cmp := strings.Compare(rr.Description, other.Description); cmp != 0 {
+		return cmp
+	}
+
+	if cmp := strings.Compare(rr.Ref.String(), other.Ref.String()); cmp != 0 {
+		return cmp
+	}
+
+	return 0
+}
+
+func (rr *RelatedResourceAnnotation) String() string {
+	bs, _ := json.Marshal(rr)
+	return string(bs)
+}
+
+func (rr *RelatedResourceAnnotation) MarshalJSON() ([]byte, error) {
+	d := map[string]interface{}{
+		"ref": rr.Ref.String(),
+	}
+
+	if len(rr.Description) > 0 {
+		d["description"] = rr.Description
+	}
+
+	return json.Marshal(d)
 }
 
 func scopeCompare(s1, s2 string) int {
