@@ -8,6 +8,12 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [1.4.1] - 2022-02-16
+
+### Fixed
+
+- Fix race condition in reading the dropped spans number for the `BatchSpanProcessor`. (#2615)
+
 ## [1.4.0] - 2022-02-11
 
 ### Added
@@ -1683,7 +1689,8 @@ It contains api and sdk for trace and meter.
 - CircleCI build CI manifest files.
 - CODEOWNERS file to track owners of this project.
 
-[Unreleased]: https://github.com/open-telemetry/opentelemetry-go/compare/v1.4.0...HEAD
+[Unreleased]: https://github.com/open-telemetry/opentelemetry-go/compare/v1.4.1...HEAD
+[1.4.1]: https://github.com/open-telemetry/opentelemetry-go/releases/tag/v1.4.1
 [1.4.0]: https://github.com/open-telemetry/opentelemetry-go/releases/tag/v1.4.0
 [1.3.0]: https://github.com/open-telemetry/opentelemetry-go/releases/tag/v1.3.0
 [1.2.0]: https://github.com/open-telemetry/opentelemetry-go/releases/tag/v1.2.0

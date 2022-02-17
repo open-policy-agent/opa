@@ -12,13 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-EXAMPLES := $(shell ./get_main_pkgs.sh ./example)
 TOOLS_MOD_DIR := ./internal/tools
 
-# All source code and documents. Used in spell check.
 ALL_DOCS := $(shell find . -name '*.md' -type f | sort)
-# All directories with go.mod files related to opentelemetry library. Used for building, testing and linting.
-ALL_GO_MOD_DIRS := $(filter-out $(TOOLS_MOD_DIR), $(shell find . -type f -name 'go.mod' -exec dirname {} \; | egrep -v '^./example' | sort)) $(shell find ./example -type f -name 'go.mod' -exec dirname {} \; | sort)
+ALL_GO_MOD_DIRS := $(shell find . -type f -name 'go.mod' -exec dirname {} \; | sort)
+OTEL_GO_MOD_DIRS := $(filter-out $(TOOLS_MOD_DIR), $(ALL_GO_MOD_DIRS))
 ALL_COVERAGE_MOD_DIRS := $(shell find . -type f -name 'go.mod' -exec dirname {} \; | egrep -v '^./example|^$(TOOLS_MOD_DIR)' | sort)
 
 GO = go
@@ -27,8 +25,8 @@ TIMEOUT = 60
 .DEFAULT_GOAL := precommit
 
 .PHONY: precommit ci
-precommit: dependabot-check license-check lint build examples test-default
-ci: precommit check-clean-work-tree test-coverage
+precommit: license-check misspell go-mod-tidy golangci-lint-fix test-default
+ci: dependabot-check license-check lint vanity-import-check build test-default check-clean-work-tree test-coverage
 
 # Tools
 
@@ -72,51 +70,47 @@ tools: $(CROSSLINK) $(GOLANGCI_LINT) $(MISSPELL) $(GOCOVMERGE) $(STRINGER) $(POR
 
 # Build
 
-.PHONY: examples generate build
-examples:
-	@set -e; for dir in $(EXAMPLES); do \
-	  echo "$(GO) build $${dir}/..."; \
-	  (cd "$${dir}" && \
-	   $(GO) build .); \
-	done
+.PHONY: generate build
 
-generate: $(STRINGER) $(PORTO)
-	set -e; for dir in $(ALL_GO_MOD_DIRS); do \
-	  echo "$(GO) generate $${dir}/..."; \
-	  (cd "$${dir}" && \
-	    PATH="$(TOOLS):$${PATH}" $(GO) generate ./... && \
-		$(PORTO) -w .); \
-	done
+generate: $(OTEL_GO_MOD_DIRS:%=generate/%)
+generate/%: DIR=$*
+generate/%: | $(STRINGER) $(PORTO)
+	@echo "$(GO) generate $(DIR)/..." \
+		&& cd $(DIR) \
+		&& PATH="$(TOOLS):$${PATH}" $(GO) generate ./... && $(PORTO) -w .
 
-build: generate
-	# Build all package code including testing code.
-	set -e; for dir in $(ALL_GO_MOD_DIRS); do \
-	  echo "$(GO) build $${dir}/..."; \
-	  (cd "$${dir}" && \
-	    $(GO) build ./... && \
-		$(GO) list ./... \
-		  | grep -v third_party \
-		  | xargs $(GO) test -vet=off -run xxxxxMatchNothingxxxxx >/dev/null); \
-	done
+build: generate $(OTEL_GO_MOD_DIRS:%=build/%) $(OTEL_GO_MOD_DIRS:%=build-tests/%)
+build/%: DIR=$*
+build/%:
+	@echo "$(GO) build $(DIR)/..." \
+		&& cd $(DIR) \
+		&& $(GO) build ./...
+
+build-tests/%: DIR=$*
+build-tests/%:
+	@echo "$(GO) build tests $(DIR)/..." \
+		&& cd $(DIR) \
+		&& $(GO) list ./... \
+		| grep -v third_party \
+		| xargs $(GO) test -vet=off -run xxxxxMatchNothingxxxxx >/dev/null
 
 # Tests
 
 TEST_TARGETS := test-default test-bench test-short test-verbose test-race
 .PHONY: $(TEST_TARGETS) test
-test-default: ARGS=-v -race
+test-default test-race: ARGS=-race
 test-bench:   ARGS=-run=xxxxxMatchNothingxxxxx -test.benchtime=1ms -bench=.
 test-short:   ARGS=-short
-test-verbose: ARGS=-v
-test-race:    ARGS=-race
+test-verbose: ARGS=-v -race
 $(TEST_TARGETS): test
-test:
-	@set -e; for dir in $(ALL_GO_MOD_DIRS); do \
-	  echo "$(GO) test -timeout $(TIMEOUT)s $(ARGS) $${dir}/..."; \
-	  (cd "$${dir}" && \
-	    $(GO) list ./... \
-		  | grep -v third_party \
-		  | xargs $(GO) test -timeout $(TIMEOUT)s $(ARGS)); \
-	done
+test: $(OTEL_GO_MOD_DIRS:%=test/%)
+test/%: DIR=$*
+test/%:
+	@echo "$(GO) test -timeout $(TIMEOUT)s $(ARGS) $(DIR)/..." \
+		&& cd $(DIR) \
+		&& $(GO) list ./... \
+		| grep -v third_party \
+		| xargs $(GO) test -timeout $(TIMEOUT)s $(ARGS)
 
 COVERAGE_MODE    = atomic
 COVERAGE_PROFILE = coverage.out
@@ -134,32 +128,42 @@ test-coverage: | $(GOCOVMERGE)
 	done; \
 	$(GOCOVMERGE) $$(find . -name coverage.out) > coverage.txt
 
+.PHONY: golangci-lint golangci-lint-fix
+golangci-lint-fix: ARGS=--fix
+golangci-lint-fix: golangci-lint
+golangci-lint: $(OTEL_GO_MOD_DIRS:%=golangci-lint/%)
+golangci-lint/%: DIR=$*
+golangci-lint/%: | $(GOLANGCI_LINT)
+	@echo 'golangci-lint $(if $(ARGS),$(ARGS) ,)$(DIR)' \
+		&& cd $(DIR) \
+		&& $(GOLANGCI_LINT) run --allow-serial-runners $(ARGS)
+
+.PHONY: crosslink
+crosslink: | $(CROSSLINK)
+	@echo "cross-linking all go modules" \
+		&& $(CROSSLINK)
+
+.PHONY: go-mod-tidy
+go-mod-tidy: $(ALL_GO_MOD_DIRS:%=go-mod-tidy/%)
+go-mod-tidy/%: DIR=$*
+go-mod-tidy/%: | crosslink
+	@echo "$(GO) mod tidy in $(DIR)" \
+		&& cd $(DIR) \
+		&& $(GO) mod tidy
+
+.PHONY: lint-modules
+lint-modules: go-mod-tidy
+
 .PHONY: lint
-lint: misspell lint-modules | $(GOLANGCI_LINT)
-	set -e; for dir in $(ALL_GO_MOD_DIRS); do \
-	  echo "golangci-lint in $${dir}"; \
-	  (cd "$${dir}" && \
-	    $(GOLANGCI_LINT) run --fix && \
-	    $(GOLANGCI_LINT) run); \
-	done
+lint: misspell lint-modules golangci-lint
 
 .PHONY: vanity-import-check
 vanity-import-check: | $(PORTO)
-	$(PORTO) --include-internal -l .
+	@$(PORTO) --include-internal -l .
 
 .PHONY: misspell
 misspell: | $(MISSPELL)
-	$(MISSPELL) -w $(ALL_DOCS)
-
-.PHONY: lint-modules
-lint-modules: | $(CROSSLINK)
-	set -e; for dir in $(ALL_GO_MOD_DIRS) $(TOOLS_MOD_DIR); do \
-	  echo "$(GO) mod tidy in $${dir}"; \
-	  (cd "$${dir}" && \
-	    $(GO) mod tidy); \
-	done
-	echo "cross-linking all go modules"
-	$(CROSSLINK)
+	@$(MISSPELL) -w $(ALL_DOCS)
 
 .PHONY: license-check
 license-check:
@@ -171,17 +175,18 @@ license-check:
 	           exit 1; \
 	   fi
 
+DEPENDABOT_PATH=./.github/dependabot.yml
 .PHONY: dependabot-check
 dependabot-check:
 	@result=$$( \
 		for f in $$( find . -type f -name go.mod -exec dirname {} \; | sed 's/^.//' ); \
-			do grep -q "directory: \+$$f" .github/dependabot.yml \
+			do grep -q "directory: \+$$f" $(DEPENDABOT_PATH) \
 			|| echo "$$f"; \
 		done; \
 	); \
 	if [ -n "$$result" ]; then \
-		echo "missing go.mod dependabot check:"; echo "$$result"; \
-		echo "new modules need to be added to the .github/dependabot.yml file"; \
+		echo "missing dependabot entry:"; echo "$$result"; \
+		echo "new modules need to be added to the $(DEPENDABOT_PATH) file"; \
 		exit 1; \
 	fi
 
