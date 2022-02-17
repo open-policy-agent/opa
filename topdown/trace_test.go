@@ -856,58 +856,6 @@ func TestTraceEveryEvaluation(t *testing.T) {
 	}
 }
 
-func TestTraceEveryEvaluationPretty(t *testing.T) {
-	// NOTE(sr): Golden tests like this one can be a nuisance on the long run.
-	// So there's no comprehensive coverage on "every" traces, but just this one
-	// test, used to assert a specialty in trace formatting of "every" evals.
-	module := `package test
-		import future.keywords.every
-
-		p { every x in [1, 2] { x != 2 } }`
-
-	ctx := context.Background()
-	compiler := compileModules([]string{module})
-	tracer := NewBufferTracer()
-	query := NewQuery(ast.MustParseBody("data.test.p = _")).
-		WithCompiler(compiler).
-		WithTracer(tracer)
-
-	_, err := query.Run(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	expected := `Enter data.test.p = _
-| Eval data.test.p = _
-| Index data.test.p (matched 1 rule, early exit)
-| Enter data.test.p
-| | Eval __local2__ = [1, 2]
-| | Eval every x in __local2__ { neq(x, 2) }
-| | Enter every x in __local2__ { neq(x, 2) }
-| | | Eval __local2__[__local0__] = x
-| | | Enter neq(x, 2)
-| | | | Eval neq(x, 2)
-| | | | Exit neq(x, 2) early
-| | | Redo neq(x, 2)
-| | | | Redo neq(x, 2)
-| | Redo every x in __local2__ { neq(x, 2) }
-| | | Redo __local2__[__local0__] = x
-| | | Enter neq(x, 2)
-| | | | Eval neq(x, 2)
-| | | | Fail neq(x, 2)
-| | Redo every x in __local2__ { neq(x, 2) }
-| | | Redo __local2__[__local0__] = x
-| | | Fail every x in __local2__ { neq(x, 2) }
-| | Fail every x in __local2__ { neq(x, 2) }
-| | Redo __local2__ = [1, 2]
-| Fail data.test.p = _
-`
-
-	var buf bytes.Buffer
-	PrettyTrace(&buf, *tracer)
-	compareBuffers(t, expected, buf.String())
-}
-
 func TestShortTraceFileNames(t *testing.T) {
 	longFilePath1 := "/really/long/file/path/longer/than/most/would/really/ever/be/policy.rego"
 	longFilePath1Similar := "/really/long/file/path/longer/than/most/policy.rego"

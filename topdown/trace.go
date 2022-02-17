@@ -293,8 +293,7 @@ func formatEventSpaces(event *Event, depth int) int {
 	case EnterOp:
 		return depth
 	case RedoOp:
-		expr, ok := event.Node.(*ast.Expr)
-		if !ok || expr.IsEvery() {
+		if _, ok := event.Node.(*ast.Expr); !ok {
 			return depth
 		}
 	}
