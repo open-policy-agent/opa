@@ -13,6 +13,7 @@ func TestTransform(t *testing.T) {
 
 import input.foo
 import data.bar.this as qux
+import future.keywords.every
 
 p = true { "this" = "that" }
 p = "this" { false }
@@ -22,6 +23,7 @@ p = true { ["this" | "this"] }
 p = n { count({"this", "that"}, n) with input.foo.this as {"this": true} }
 p { false } else = "this" { "this" } else = ["this"] { true }
 foo(x) = y { split(x, "this", y) }
+p { every x in ["this"] { x == "this" } }
 `)
 
 	result, err := Transform(&GenericTransformer{
@@ -46,6 +48,7 @@ foo(x) = y { split(x, "this", y) }
 
 import input.foo
 import data.bar.that as qux
+import future.keywords.every
 
 p = true { "that" = "that" }
 p = "that" { false }
@@ -55,6 +58,7 @@ p = true { ["that" | "that"] }
 p = n { count({"that"}, n) with input.foo.that as {"that": true} }
 p { false } else = "that" { "that" } else = ["that"] { true }
 foo(x) = y { split(x, "that", y) }
+p { every x in ["that"] { x == "that" } }
 `)
 
 	if !expected.Equal(resultMod) {

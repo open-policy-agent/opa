@@ -282,11 +282,10 @@ func formatEvent(event *Event, depth int) string {
 
 func formatEventPadding(event *Event, depth int) string {
 	spaces := formatEventSpaces(event, depth)
-	padding := ""
 	if spaces > 1 {
-		padding += strings.Repeat("| ", spaces-1)
+		return strings.Repeat("| ", spaces-1)
 	}
-	return padding
+	return ""
 }
 
 func formatEventSpaces(event *Event, depth int) int {
@@ -413,7 +412,18 @@ func rewrite(event *Event) *Event {
 
 	switch v := event.Node.(type) {
 	case *ast.Expr:
-		node = v.Copy()
+		expr := v.Copy()
+
+		// Hide generated local vars in 'key' position that have not been
+		// rewritten.
+		if ev, ok := v.Terms.(*ast.Every); ok {
+			if kv, ok := ev.Key.Value.(ast.Var); ok {
+				if rw, ok := cpy.LocalMetadata[kv]; !ok || rw.Name.IsGenerated() {
+					expr.Terms.(*ast.Every).Key = nil
+				}
+			}
+		}
+		node = expr
 	case ast.Body:
 		node = v.Copy()
 	case *ast.Rule:
