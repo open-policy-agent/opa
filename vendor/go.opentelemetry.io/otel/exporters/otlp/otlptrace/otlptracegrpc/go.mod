@@ -4,10 +4,10 @@ go 1.16
 
 require (
 	github.com/stretchr/testify v1.7.0
-	go.opentelemetry.io/otel v1.4.0
-	go.opentelemetry.io/otel/exporters/otlp/internal/retry v1.4.0
-	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.4.0
-	go.opentelemetry.io/otel/sdk v1.4.0
+	go.opentelemetry.io/otel v1.4.1
+	go.opentelemetry.io/otel/exporters/otlp/internal/retry v1.4.1
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.4.1
+	go.opentelemetry.io/otel/sdk v1.4.1
 	go.opentelemetry.io/proto/otlp v0.12.0
 	go.uber.org/goleak v1.1.12
 	google.golang.org/genproto v0.0.0-20200526211855-cb27e3aa2013
