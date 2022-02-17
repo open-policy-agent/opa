@@ -21,7 +21,7 @@ The set of annotations must be specified as YAML within a comment block that **m
 Also, every line in the comment block containing the annotation **must** start at Column 1 in the module/file, or otherwise, they will be ignored.
 
 {{< danger >}}
-🚨 OPA will attempt to parse the YAML document in comments following the
+OPA will attempt to parse the YAML document in comments following the
 initial `# METADATA` comment. If the YAML document cannot be parsed, OPA will
 return an error. If you need to include additional comments between the
 comment block and the next statement, include a blank line immediately after
