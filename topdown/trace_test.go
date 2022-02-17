@@ -108,27 +108,9 @@ Redo data.test.p = _
 | | Redo data.test.q[x]
 `
 
-	a := strings.Split(expected, "\n")
 	var buf bytes.Buffer
 	PrettyTrace(&buf, *tracer)
-	b := strings.Split(buf.String(), "\n")
-
-	min := len(a)
-	if min > len(b) {
-		min = len(b)
-	}
-
-	for i := 0; i < min; i++ {
-		if a[i] != b[i] {
-			t.Errorf("Line %v in trace is incorrect. Expected %v but got: %v", i+1, a[i], b[i])
-		}
-	}
-
-	if len(a) < len(b) {
-		t.Fatalf("Extra lines in trace:\n%v", strings.Join(b[min:], "\n"))
-	} else if len(b) < len(a) {
-		t.Fatalf("Missing lines in trace:\n%v", strings.Join(a[min:], "\n"))
-	}
+	compareBuffers(t, expected, buf.String())
 }
 
 func TestPrettyTraceWithLocation(t *testing.T) {
@@ -186,27 +168,9 @@ query:3     | | Redo plus(x, 1, n)
 query:3     | | Redo data.test.q[x]
 `
 
-	a := strings.Split(expected, "\n")
 	var buf bytes.Buffer
 	PrettyTraceWithLocation(&buf, *tracer)
-	b := strings.Split(buf.String(), "\n")
-
-	min := len(a)
-	if min > len(b) {
-		min = len(b)
-	}
-
-	for i := 0; i < min; i++ {
-		if a[i] != b[i] {
-			t.Errorf("Line %v in trace is incorrect. Expected %v but got: %v", i+1, a[i], b[i])
-		}
-	}
-
-	if len(a) < len(b) {
-		t.Fatalf("Extra lines in trace:\n%v", strings.Join(b[min:], "\n"))
-	} else if len(b) < len(a) {
-		t.Fatalf("Missing lines in trace:\n%v", strings.Join(a[min:], "\n"))
-	}
+	compareBuffers(t, expected, buf.String())
 }
 
 func TestPrettyTraceWithLocationTruncatedPaths(t *testing.T) {
@@ -271,27 +235,9 @@ authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:5     | | Redo pl
 authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:5     | | Redo data.utils.q[x]
 `
 
-	a := strings.Split(expected, "\n")
 	var buf bytes.Buffer
 	PrettyTraceWithLocation(&buf, *tracer)
-	b := strings.Split(buf.String(), "\n")
-
-	min := len(a)
-	if min > len(b) {
-		min = len(b)
-	}
-
-	for i := 0; i < min; i++ {
-		if a[i] != b[i] {
-			t.Errorf("Line %v in trace is incorrect. Expected %v but got: %v", i+1, a[i], b[i])
-		}
-	}
-
-	if len(a) < len(b) {
-		t.Fatalf("Extra lines in trace:\n%v", strings.Join(b[min:], "\n"))
-	} else if len(b) < len(a) {
-		t.Fatalf("Missing lines in trace:\n%v", strings.Join(a[min:], "\n"))
-	}
+	compareBuffers(t, expected, buf.String())
 }
 
 func TestPrettyTracePartialWithLocationTruncatedPaths(t *testing.T) {
@@ -454,32 +400,9 @@ query:1                                                              Redo data.e
 query:1                                                              | Fail data.example_rbac.allow
 `
 
-	a := strings.Split(expected, "\n")
 	var buf bytes.Buffer
 	PrettyTraceWithLocation(&buf, *tracer)
-	b := strings.Split(buf.String(), "\n")
-
-	min := len(a)
-	if min > len(b) {
-		min = len(b)
-	}
-
-	for i := 0; i < min; i++ {
-		if a[i] != b[i] {
-			t.Errorf("Line %v in trace is incorrect. Expected %v but got: %v", i+1, a[i], b[i])
-		}
-	}
-
-	if len(a) < len(b) {
-		t.Errorf("Extra lines in trace:\n%v", strings.Join(b[min:], "\n"))
-	} else if len(b) < len(a) {
-		t.Errorf("Missing lines in trace:\n%v", strings.Join(a[min:], "\n"))
-	}
-
-	if t.Failed() {
-		fmt.Println("Trace output:")
-		fmt.Println(buf.String())
-	}
+	compareBuffers(t, expected, buf.String())
 }
 
 func TestTraceDuplicate(t *testing.T) {
@@ -587,27 +510,9 @@ Redo data.test.p = _
 | | Redo data.test.q[x]
 `
 
-	a := strings.Split(expected, "\n")
 	var buf bytes.Buffer
 	PrettyTrace(&buf, *tracer)
-	b := strings.Split(buf.String(), "\n")
-
-	min := len(a)
-	if min > len(b) {
-		min = len(b)
-	}
-
-	for i := 0; i < min; i++ {
-		if a[i] != b[i] {
-			t.Errorf("Line %v in trace is incorrect. Expected %v but got: %v", i+1, a[i], b[i])
-		}
-	}
-
-	if len(a) < len(b) {
-		t.Fatalf("Extra lines in trace:\n%v", strings.Join(b[min:], "\n"))
-	} else if len(b) < len(a) {
-		t.Fatalf("Missing lines in trace:\n%v", strings.Join(a[min:], "\n"))
-	}
+	compareBuffers(t, expected, buf.String())
 }
 
 func TestTraceNoteWithLocation(t *testing.T) {
@@ -670,26 +575,9 @@ query:3     | | Redo plus(x, 1, n)
 query:3     | | Redo data.test.q[x]
 `
 
-	a := strings.Split(expected, "\n")
 	var buf bytes.Buffer
 	PrettyTraceWithLocation(&buf, *tracer)
-	b := strings.Split(buf.String(), "\n")
-	min := len(a)
-	if min > len(b) {
-		min = len(b)
-	}
-
-	for i := 0; i < min; i++ {
-		if a[i] != b[i] {
-			t.Errorf("Line %v in trace is incorrect. Expected %v but got: %v", i+1, a[i], b[i])
-		}
-	}
-
-	if len(a) < len(b) {
-		t.Fatalf("Extra lines in trace:\n%v", strings.Join(b[min:], "\n"))
-	} else if len(b) < len(a) {
-		t.Fatalf("Missing lines in trace:\n%v", strings.Join(a[min:], "\n"))
-	}
+	compareBuffers(t, expected, buf.String())
 }
 
 func TestMultipleTracers(t *testing.T) {
@@ -1237,4 +1125,31 @@ func (pr *plugRuleHeadKeyRecorder) TraceEvent(evt Event) {
 
 func (plugRuleHeadKeyRecorder) Config() TraceConfig {
 	return TraceConfig{PlugLocalVars: false}
+}
+
+func compareBuffers(t *testing.T, expected, actual string) {
+	t.Helper()
+	a := strings.Split(expected, "\n")
+	b := strings.Split(actual, "\n")
+	min := len(a)
+	if min > len(b) {
+		min = len(b)
+	}
+
+	for i := 0; i < min; i++ {
+		if a[i] != b[i] {
+			t.Errorf("Line %v in trace is incorrect. Expected %q but got: %q", i+1, a[i], b[i])
+		}
+	}
+
+	if len(a) < len(b) {
+		t.Errorf("Extra lines in trace:\n%v", strings.Join(b[min:], "\n"))
+	} else if len(b) < len(a) {
+		t.Errorf("Missing lines in trace:\n%v", strings.Join(a[min:], "\n"))
+	}
+
+	if t.Failed() {
+		fmt.Println("Trace output:")
+		fmt.Println(actual)
+	}
 }
