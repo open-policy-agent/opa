@@ -64,12 +64,10 @@ Optionally, the last word may represent an email, if enclosed with `<>`.
 ```rego
 # METADATA
 # authors:
-# - 
-#  name: John Doe
+# - name: John Doe
 # ...
-# - 
-#  name: Jane Doe
-#  email: jane@example.com
+# - name: Jane Doe
+#   email: jane@example.com
 allow {
   ...
 }

@@ -3362,9 +3362,8 @@ p { input = "str" }`,
 #  description: foo bar
 # authors:
 # - John Doe <john@example.com>
-# - 
-#  name: Jane Doe
-#  email: jane@example.com
+# - name: Jane Doe
+#   email: jane@example.com
 # custom:
 #  list:
 #   - a
@@ -3379,7 +3378,7 @@ p { input = "str" }`,
 #  string: foo bar baz
 #  flag:
 p { input = "str" }`,
-			expNumComments: 32,
+			expNumComments: 31,
 			expAnnotations: []*Annotations{
 				{
 					Scope:         annotationScopeRule,
