@@ -282,11 +282,10 @@ func formatEvent(event *Event, depth int) string {
 
 func formatEventPadding(event *Event, depth int) string {
 	spaces := formatEventSpaces(event, depth)
-	padding := ""
 	if spaces > 1 {
-		padding += strings.Repeat("| ", spaces-1)
+		return strings.Repeat("| ", spaces-1)
 	}
-	return padding
+	return ""
 }
 
 func formatEventSpaces(event *Event, depth int) int {
