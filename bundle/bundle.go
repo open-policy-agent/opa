@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"io"
 	"net/url"
+	//"os"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -331,6 +332,10 @@ type PlanModuleFile struct {
 	Raw  []byte
 }
 
+// Filter defines the interface for filtering files during loading. If the
+// filter returns true, the file should be excluded from the result.
+//type Filter func(abspath string, info os.FileInfo, depth int) bool
+
 // Reader contains the reader to load the bundle from.
 type Reader struct {
 	loader                DirectoryLoader
@@ -338,10 +343,11 @@ type Reader struct {
 	metrics               metrics.Metrics
 	baseDir               string
 	verificationConfig    *VerificationConfig
-	skipVerify            bool
-	processAnnotations    bool
-	files                 map[string]FileInfo // files in the bundle signature payload
-	sizeLimitBytes        int64
+	//	filter                Filter
+	skipVerify         bool
+	processAnnotations bool
+	files              map[string]FileInfo // files in the bundle signature payload
+	sizeLimitBytes     int64
 }
 
 // NewReader is deprecated. Use NewCustomReader instead.
@@ -367,6 +373,12 @@ func (r *Reader) IncludeManifestInData(includeManifestInData bool) *Reader {
 	r.includeManifestInData = includeManifestInData
 	return r
 }
+
+// WithFilter sets the filter object to be used while loading bundles
+//func (r *Reader) WithFilter(f Filter) *Reader {
+//	r.filter = f
+//	return r
+//}
 
 // WithMetrics sets the metrics object to be used while loading bundles
 func (r *Reader) WithMetrics(m metrics.Metrics) *Reader {

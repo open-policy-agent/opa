@@ -85,6 +85,7 @@ type FileLoader interface {
 	Filtered(paths []string, filter Filter) (*Result, error)
 	AsBundle(path string) (*bundle.Bundle, error)
 	WithMetrics(m metrics.Metrics) FileLoader
+	WithFilter(f Filter) FileLoader
 	WithBundleVerificationConfig(*bundle.VerificationConfig) FileLoader
 	WithSkipBundleVerification(skipVerify bool) FileLoader
 	WithProcessAnnotation(processAnnotation bool) FileLoader
@@ -102,8 +103,14 @@ type fileLoader struct {
 	metrics    metrics.Metrics
 	bvc        *bundle.VerificationConfig
 	skipVerify bool
+	filter     Filter
 	files      map[string]bundle.FileInfo
 	opts       ast.ParserOptions
+}
+
+func (fl *fileLoader) WithFilter(f Filter) FileLoader {
+	fl.filter = f
+	return fl
 }
 
 // WithMetrics provides the metrics instance to use while loading
