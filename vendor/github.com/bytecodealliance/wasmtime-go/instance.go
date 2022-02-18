@@ -113,7 +113,7 @@ func (i *Instance) GetExport(store Storelike, name string) *Extern {
 	return nil
 }
 
-// GetFunc attemps to find a function on this instance by `name`.
+// GetFunc attempts to find a function on this instance by `name`.
 //
 // May return `nil` if this instance has no function named `name`,
 // it is not a function, etc.
