@@ -112,7 +112,9 @@ func goTrampolineNew(
 	}()
 	if trap == nil && lastPanic != nil {
 		data.lastPanic = lastPanic
-		return nil
+		trap := NewTrap("go panicked")
+		runtime.SetFinalizer(trap, nil)
+		return trap.ptr()
 	}
 	if trap != nil {
 		runtime.SetFinalizer(trap, nil)
@@ -276,7 +278,9 @@ func goTrampolineWrap(
 	}()
 	if lastPanic != nil {
 		data.lastPanic = lastPanic
-		return nil
+		trap := NewTrap("go panicked")
+		runtime.SetFinalizer(trap, nil)
+		return trap.ptr()
 	}
 
 	// And now we write all the results into memory depending on the type

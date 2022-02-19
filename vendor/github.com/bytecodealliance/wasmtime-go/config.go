@@ -110,6 +110,12 @@ func (cfg *Config) SetWasmMemory64(enabled bool) {
 	runtime.KeepAlive(cfg)
 }
 
+// SetConsumFuel configures whether fuel is enabled
+func (cfg *Config) SetConsumeFuel(enabled bool) {
+	C.wasmtime_config_consume_fuel_set(cfg.ptr(), C.bool(enabled))
+	runtime.KeepAlive(cfg)
+}
+
 // SetStrategy configures what compilation strategy is used to compile wasm code
 func (cfg *Config) SetStrategy(strat Strategy) error {
 	err := C.wasmtime_config_strategy_set(cfg.ptr(), C.wasmtime_strategy_t(strat))

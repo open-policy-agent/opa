@@ -149,8 +149,8 @@ func (list *exportTypeList) mkGoList() []*ExportType {
 // If deserialization is successful then a compiled module is returned,
 // otherwise nil and an error are returned.
 //
-// Note that to deserialize successfully the bytes provided must have beeen
-// produced with an `Engine` that has the same commpilation options as the
+// Note that to deserialize successfully the bytes provided must have been
+// produced with an `Engine` that has the same compilation options as the
 // provided engine, and from the same version of this library.
 func NewModuleDeserialize(engine *Engine, encoded []byte) (*Module, error) {
 	var encodedPtr *C.uint8_t
