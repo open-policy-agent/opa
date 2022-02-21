@@ -6,11 +6,10 @@ package ast
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/url"
 	"strings"
 
-	"github.com/open-policy-agent/opa/internal/maps"
+	"github.com/open-policy-agent/opa/internal/deepcopy"
 	"github.com/open-policy-agent/opa/util"
 )
 
@@ -234,11 +233,7 @@ func (a *Annotations) Copy(node Node) *Annotations {
 		cpy.Schemas[i] = a.Schemas[i].Copy()
 	}
 
-	cpy.Custom = make(map[string]interface{}, len(a.Custom))
-	var err error
-	if cpy.Custom, err = maps.CopyMap(a.Custom); err != nil {
-		panic(fmt.Errorf("failed to copy custom annotation: %w", err)) // FIXME: Not happy about this ...
-	}
+	cpy.Custom = deepcopy.Map(a.Custom)
 
 	cpy.node = node
 

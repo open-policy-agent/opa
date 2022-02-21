@@ -285,9 +285,8 @@ func NewCompiler() *Compiler {
 		{"RewriteEquals", "compile_stage_rewrite_equals", c.rewriteEquals},
 		{"RewriteDynamicTerms", "compile_stage_rewrite_dynamic_terms", c.rewriteDynamicTerms},
 		{"CheckRecursion", "compile_stage_check_recursion", c.checkRecursion},
-		// must be run after CheckRecursion
-		{"SetAnnotationSet", "compile_stage_set_annotationset", c.setAnnotationSet},
-		{"CheckTypes", "compile_stage_check_types", c.checkTypes},
+		{"SetAnnotationSet", "compile_stage_set_annotationset", c.setAnnotationSet}, // must be run after CheckRecursion
+		{"CheckTypes", "compile_stage_check_types", c.checkTypes},                   // must be run after CheckRecursion
 		{"CheckUnsafeBuiltins", "compile_state_check_unsafe_builtins", c.checkUnsafeBuiltins},
 		{"CheckDeprecatedBuiltins", "compile_state_check_deprecated_builtins", c.checkDeprecatedBuiltins},
 		{"BuildRuleIndices", "compile_stage_rebuild_indices", c.buildRuleIndices},

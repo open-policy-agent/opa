@@ -16,12 +16,16 @@ func DeepCopy(val interface{}) interface{} {
 		}
 		return cpy
 	case map[string]interface{}:
-		cpy := make(map[string]interface{}, len(val))
-		for k := range val {
-			cpy[k] = DeepCopy(val[k])
-		}
-		return cpy
+		return Map(val)
 	default:
 		return val
 	}
+}
+
+func Map(val map[string]interface{}) map[string]interface{} {
+	cpy := make(map[string]interface{}, len(val))
+	for k := range val {
+		cpy[k] = DeepCopy(val[k])
+	}
+	return cpy
 }
