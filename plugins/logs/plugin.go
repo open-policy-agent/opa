@@ -651,7 +651,7 @@ func (p *Plugin) Trigger(ctx context.Context) error {
 // compilerUpdated is called when a compiler trigger on the plugin manager
 // fires. This indicates a new compiler instance is available. The decision
 // logger needs to prepare a new masking query.
-func (p *Plugin) compilerUpdated(txn storage.Transaction) {
+func (p *Plugin) compilerUpdated(storage.Transaction) {
 	p.maskMutex.Lock()
 	defer p.maskMutex.Unlock()
 	p.mask = nil

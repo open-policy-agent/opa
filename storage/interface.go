@@ -20,20 +20,20 @@ type Store interface {
 	Policy
 
 	// NewTransaction is called create a new transaction in the store.
-	NewTransaction(ctx context.Context, params ...TransactionParams) (Transaction, error)
+	NewTransaction(context.Context, ...TransactionParams) (Transaction, error)
 
 	// Read is called to fetch a document referred to by path.
-	Read(ctx context.Context, txn Transaction, path Path) (interface{}, error)
+	Read(context.Context, Transaction, Path) (interface{}, error)
 
 	// Write is called to modify a document referred to by path.
-	Write(ctx context.Context, txn Transaction, op PatchOp, path Path, value interface{}) error
+	Write(context.Context, Transaction, PatchOp, Path, interface{}) error
 
 	// Commit is called to finish the transaction. If Commit returns an error, the
 	// transaction must be automatically aborted by the Store implementation.
-	Commit(ctx context.Context, txn Transaction) error
+	Commit(context.Context, Transaction) error
 
 	// Abort is called to cancel the transaction.
-	Abort(ctx context.Context, txn Transaction)
+	Abort(context.Context, Transaction)
 }
 
 // TransactionParams describes a new transaction.
@@ -90,7 +90,7 @@ const (
 // interface which may be used if the backend does not support writes.
 type WritesNotSupported struct{}
 
-func (WritesNotSupported) Write(ctx context.Context, txn Transaction, op PatchOp, path Path, value interface{}) error {
+func (WritesNotSupported) Write(context.Context, Transaction, PatchOp, Path, interface{}) error {
 	return writesNotSupportedError()
 }
 
@@ -169,13 +169,13 @@ type TriggerConfig struct {
 	// OnCommit is invoked when a transaction is successfully committed. The
 	// callback is invoked with a handle to the write transaction that
 	// successfully committed before other clients see the changes.
-	OnCommit func(ctx context.Context, txn Transaction, event TriggerEvent)
+	OnCommit func(context.Context, Transaction, TriggerEvent)
 }
 
 // Trigger defines the interface that stores implement to register for change
 // notifications when the store is changed.
 type Trigger interface {
-	Register(ctx context.Context, txn Transaction, config TriggerConfig) (TriggerHandle, error)
+	Register(context.Context, Transaction, TriggerConfig) (TriggerHandle, error)
 }
 
 // TriggersNotSupported provides default implementations of the Trigger
@@ -190,5 +190,5 @@ func (TriggersNotSupported) Register(context.Context, Transaction, TriggerConfig
 // TriggerHandle defines the interface that can be used to unregister triggers that have
 // been registered on a Store.
 type TriggerHandle interface {
-	Unregister(ctx context.Context, txn Transaction)
+	Unregister(context.Context, Transaction)
 }

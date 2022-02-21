@@ -66,11 +66,9 @@ func MakeDir(ctx context.Context, store Store, txn Transaction, path Path) (err 
 
 		if err := MakeDir(ctx, store, txn, path[:len(path)-1]); err != nil {
 			return err
-		} else if err := store.Write(ctx, txn, AddOp, path, map[string]interface{}{}); err != nil {
-			return err
 		}
 
-		return nil
+		return store.Write(ctx, txn, AddOp, path, map[string]interface{}{})
 	}
 
 	if _, ok := node.(map[string]interface{}); ok {

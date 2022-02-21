@@ -128,7 +128,7 @@ func (opa *OPA) configure(ctx context.Context, bs []byte, ready chan struct{}, b
 		return err
 	}
 
-	manager.RegisterCompilerTrigger(func(_ storage.Transaction) {
+	manager.RegisterCompilerTrigger(func(storage.Transaction) {
 		opa.mtx.Lock()
 		opa.state.queryCache.Clear()
 		opa.mtx.Unlock()
