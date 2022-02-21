@@ -18,6 +18,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -655,6 +656,61 @@ func TestPartialRewriteEquals(t *testing.T) {
 	if pq.Queries[0].String() != expectedQuery {
 		t.Errorf("unexpected query in result, expected='%s' found='%s'",
 			expectedQuery, pq.Queries[0].String())
+	}
+}
+
+// NOTE(sr): https://github.com/open-policy-agent/opa/issues/4345
+func TestPrepareAndEvalRaceConditions(t *testing.T) {
+	tests := []struct {
+		note   string
+		module string
+		exp    string
+	}{
+		{
+			note: "object",
+			module: `package test
+			p[{"x":"y"}]`,
+			exp: `[[[{"x":"y"}]]]`,
+		},
+		{
+			note: "set",
+			module: `package test
+			p[{"x"}]`,
+			exp: `[[[["x"]]]]`,
+		},
+		{
+			note: "array",
+			module: `package test
+			p[["x"]]`,
+			exp: `[[[["x"]]]]`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			r := New(
+				Query("data.test.p"),
+				Module("", tc.module),
+				Package("foo"),
+			)
+
+			pq, err := r.PrepareForEval(context.Background())
+			if err != nil {
+				t.Fatalf("Unexpected error: %s", err.Error())
+			}
+
+			// run this 1000 times concurrently
+			var wg sync.WaitGroup
+			wg.Add(1000)
+			for i := 0; i < 1000; i++ {
+				go func(t *testing.T) {
+					t.Helper()
+					assertPreparedEvalQueryEval(t, pq, []EvalOption{}, tc.exp)
+					wg.Done()
+				}(t)
+			}
+			wg.Wait()
+		})
 	}
 }
 
