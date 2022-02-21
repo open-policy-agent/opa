@@ -285,8 +285,8 @@ func NewCompiler() *Compiler {
 		{"RewriteEquals", "compile_stage_rewrite_equals", c.rewriteEquals},
 		{"RewriteDynamicTerms", "compile_stage_rewrite_dynamic_terms", c.rewriteDynamicTerms},
 		{"CheckRecursion", "compile_stage_check_recursion", c.checkRecursion},
-		{"SetAnnotationSet", "compile_stage_set_annotationset", c.setAnnotationSet}, // must be run after CheckRecursion
-		{"CheckTypes", "compile_stage_check_types", c.checkTypes},                   // must be run after CheckRecursion
+		{"SetAnnotationSet", "compile_stage_set_annotationset", c.setAnnotationSet},
+		{"CheckTypes", "compile_stage_check_types", c.checkTypes}, // must be run after CheckRecursion
 		{"CheckUnsafeBuiltins", "compile_state_check_unsafe_builtins", c.checkUnsafeBuiltins},
 		{"CheckDeprecatedBuiltins", "compile_state_check_deprecated_builtins", c.checkDeprecatedBuiltins},
 		{"BuildRuleIndices", "compile_stage_rebuild_indices", c.buildRuleIndices},
@@ -1190,8 +1190,12 @@ func parseSchema(schema interface{}) (types.Type, error) {
 }
 
 func (c *Compiler) setAnnotationSet() {
-	// Recursion is caught in earlier step, so this cannot fail.
-	sorted, _ := c.Graph.Sort()
+	// Sorting modules by name for stable error reporting
+	sorted := make([]*Module, 0, len(c.Modules))
+	for _, mName := range c.sorted {
+		sorted = append(sorted, c.Modules[mName])
+	}
+
 	as, errs := buildAnnotationSet(sorted)
 	for _, err := range errs {
 		c.err(err)
