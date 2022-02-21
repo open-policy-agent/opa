@@ -112,7 +112,10 @@ func New(ctx context.Context, opts Options) (*Store, error) {
 	partitions = partitions.Sorted()
 
 	if !partitions.IsDisjoint() {
-		return nil, &storage.Error{Code: storage.InternalErr, Message: fmt.Sprintf("partitions are overlapped: %v", opts.Partitions)}
+		return nil, &storage.Error{
+			Code:    storage.InternalErr,
+			Message: fmt.Sprintf("partitions are overlapped: %v", opts.Partitions),
+		}
 	}
 
 	db, err := badger.Open(badger.DefaultOptions(opts.Dir).WithLogger(nil))
@@ -223,7 +226,7 @@ func (db *Store) DeletePolicy(ctx context.Context, txn storage.Transaction, id s
 }
 
 // Register implements the storage.Trigger interface.
-func (db *Store) Register(ctx context.Context, txn storage.Transaction, config storage.TriggerConfig) (storage.TriggerHandle, error) {
+func (db *Store) Register(_ context.Context, txn storage.Transaction, config storage.TriggerConfig) (storage.TriggerHandle, error) {
 	underlying, err := db.underlying(txn)
 	if err != nil {
 		return nil, err

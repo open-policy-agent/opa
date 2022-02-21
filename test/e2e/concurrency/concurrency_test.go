@@ -63,7 +63,6 @@ func TestConcurrencyGetV1Data(t *testing.T) {
 	}
 
 	wg.Wait()
-
 }
 
 func TestConcurrencyCompile(t *testing.T) {
