@@ -48,7 +48,7 @@ func (txn *transaction) ID() uint64 {
 
 func (txn *transaction) Commit(context.Context) (storage.TriggerEvent, error) {
 	// TODO(tsandall): This implementation does not provide any data or policy
-	// events because they are of minimal value given that the transcation
+	// events because they are of minimal value given that the transaction
 	// cannot be used for reads once the commit finishes. This differs from the
 	// in-memory store.
 	//

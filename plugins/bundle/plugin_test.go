@@ -1627,7 +1627,7 @@ func TestPluginSetCompilerOnContext(t *testing.T) {
 
 	if err := storage.Txn(ctx, manager.Store, storage.WriteParams, func(txn storage.Transaction) error {
 		_, err := manager.Store.Register(ctx, txn, storage.TriggerConfig{
-			OnCommit: func(ctx context.Context, txn storage.Transaction, event storage.TriggerEvent) {
+			OnCommit: func(_ context.Context, _ storage.Transaction, event storage.TriggerEvent) {
 				events = append(events, event)
 			},
 		})
