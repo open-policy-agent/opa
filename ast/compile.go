@@ -110,6 +110,7 @@ type Compiler struct {
 	debug                 debug.Debug                   // emits debug information produced during compilation
 	schemaSet             *SchemaSet                    // user-supplied schemas for input and data documents
 	inputType             types.Type                    // global input type retrieved from schema set
+	annotationSet         *annotationSet                // hierarchical set of annotations
 	strict                bool                          // enforce strict compilation checks
 }
 
@@ -284,7 +285,8 @@ func NewCompiler() *Compiler {
 		{"RewriteEquals", "compile_stage_rewrite_equals", c.rewriteEquals},
 		{"RewriteDynamicTerms", "compile_stage_rewrite_dynamic_terms", c.rewriteDynamicTerms},
 		{"CheckRecursion", "compile_stage_check_recursion", c.checkRecursion},
-		{"CheckTypes", "compile_stage_check_types", c.checkTypes},
+		{"SetAnnotationSet", "compile_stage_set_annotationset", c.setAnnotationSet}, // must be run after CheckRecursion
+		{"CheckTypes", "compile_stage_check_types", c.checkTypes},                   // must be run after CheckRecursion
 		{"CheckUnsafeBuiltins", "compile_state_check_unsafe_builtins", c.checkUnsafeBuiltins},
 		{"CheckDeprecatedBuiltins", "compile_state_check_deprecated_builtins", c.checkDeprecatedBuiltins},
 		{"BuildRuleIndices", "compile_stage_rebuild_indices", c.buildRuleIndices},
@@ -534,6 +536,42 @@ func (c *Compiler) GetRulesWithPrefix(ref Ref) (rules []*Rule) {
 	acc(node)
 
 	return rules
+}
+
+func (c *Compiler) GetPackageAnnotations(pkg *Package) *Annotations {
+	as := c.annotationSet
+
+	subPkgAnnot := as.getSubpackagesScope(pkg.Path)
+
+	result := make([]*Annotations, 0, len(subPkgAnnot)+1)
+
+	result = append(result, subPkgAnnot...)
+
+	if x := as.getPackageScope(pkg); x != nil {
+		result = append(result, x)
+	}
+
+	return mergeAnnotationsList(result)
+}
+
+func (c *Compiler) GetRuleAnnotations(rule *Rule) *Annotations {
+	as := c.annotationSet
+
+	ruleAnnot := as.getRuleScope(rule)
+
+	result := make([]*Annotations, 0, len(ruleAnnot)+2)
+
+	if a := c.GetPackageAnnotations(rule.Module.Package); a != nil {
+		result = append(result, a)
+	}
+
+	if a := as.getDocumentScope(rule.Path()); a != nil {
+		result = append(result, a)
+	}
+
+	result = append(result, ruleAnnot...)
+
+	return mergeAnnotationsList(result)
 }
 
 func extractRules(s []util.T) (rules []*Rule) {
@@ -1151,6 +1189,16 @@ func parseSchema(schema interface{}) (types.Type, error) {
 	return types.A, nil
 }
 
+func (c *Compiler) setAnnotationSet() {
+	// Recursion is caught in earlier step, so this cannot fail.
+	sorted, _ := c.Graph.Sort()
+	as, errs := buildAnnotationSet(sorted)
+	for _, err := range errs {
+		c.err(err)
+	}
+	c.annotationSet = as
+}
+
 // checkTypes runs the type checker on all rules. The type checker builds a
 // TypeEnv that is stored on the compiler.
 func (c *Compiler) checkTypes() {
@@ -1160,7 +1208,7 @@ func (c *Compiler) checkTypes() {
 		WithSchemaSet(c.schemaSet).
 		WithInputType(c.inputType).
 		WithVarRewriter(rewriteVarsInRef(c.RewrittenVars))
-	env, errs := checker.CheckTypes(c.TypeEnv, sorted)
+	env, errs := checker.CheckTypes(c.TypeEnv, sorted, c.annotationSet)
 	for _, err := range errs {
 		c.err(err)
 	}
