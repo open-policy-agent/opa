@@ -771,6 +771,20 @@ func TestSomeDeclExpr(t *testing.T) {
 			NewExpr(VarTerm("x")),
 		),
 	})
+
+	assertParseOneExpr(t, "with modifier on expr", "some x, y in input with input as []",
+		&Expr{
+			Terms: &SomeDecl{
+				Symbols: []*Term{
+					MemberWithKey.Call(
+						VarTerm("x"),
+						VarTerm("y"),
+						NewTerm(MustParseRef("input")),
+					),
+				},
+			},
+			With: []*With{{Value: ArrayTerm(), Target: NewTerm(MustParseRef("input"))}},
+		}, opts)
 }
 
 func TestEvery(t *testing.T) {
@@ -811,6 +825,18 @@ func TestEvery(t *testing.T) {
 		VarTerm("x"),
 		VarTerm("xs"),
 	), opts)
+
+	assertParseOneExpr(t, "with modifier on expr", "every x in input { x } with input as []",
+		&Expr{
+			Terms: &Every{
+				Value:  VarTerm("x"),
+				Domain: NewTerm(MustParseRef("input")),
+				Body: []*Expr{
+					NewExpr(VarTerm("x")),
+				},
+			},
+			With: []*With{{Value: ArrayTerm(), Target: NewTerm(MustParseRef("input"))}},
+		}, opts)
 }
 
 func TestNestedExpressions(t *testing.T) {

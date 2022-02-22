@@ -889,7 +889,13 @@ func (p *Parser) parseSome() *Expr {
 			}
 
 			decl.Symbols = []*Term{term}
-			return NewExpr(decl).SetLocation(decl.Location)
+			expr := NewExpr(decl).SetLocation(decl.Location)
+			if p.s.tok == tokens.With {
+				if expr.With = p.parseWith(); expr.With == nil {
+					return nil
+				}
+			}
+			return expr
 		}
 	}
 
