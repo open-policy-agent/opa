@@ -541,9 +541,11 @@ func (c *Compiler) GetRulesWithPrefix(ref Ref) (rules []*Rule) {
 func (c *Compiler) GetPackageAnnotations(pkg *Package) *Annotations {
 	as := c.annotationSet
 
-	result := make([]*Annotations, 0, 2)
+	subPkgAnnot := as.getSubpackagesScope(pkg.Path)
 
-	result = append(result, as.getSubpackagesScope(pkg.Path)...)
+	result := make([]*Annotations, 0, len(subPkgAnnot)+1)
+
+	result = append(result, subPkgAnnot...)
 
 	if x := as.getPackageScope(pkg); x != nil {
 		result = append(result, x)
@@ -555,7 +557,9 @@ func (c *Compiler) GetPackageAnnotations(pkg *Package) *Annotations {
 func (c *Compiler) GetRuleAnnotations(rule *Rule) *Annotations {
 	as := c.annotationSet
 
-	result := make([]*Annotations, 0, 3)
+	ruleAnnot := as.getRuleScope(rule)
+
+	result := make([]*Annotations, 0, len(ruleAnnot)+2)
 
 	if a := c.GetPackageAnnotations(rule.Module.Package); a != nil {
 		result = append(result, a)
@@ -565,7 +569,7 @@ func (c *Compiler) GetRuleAnnotations(rule *Rule) *Annotations {
 		result = append(result, a)
 	}
 
-	result = append(result, as.getRuleScope(rule)...)
+	result = append(result, ruleAnnot...)
 
 	return mergeAnnotationsList(result)
 }
