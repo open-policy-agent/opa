@@ -77,7 +77,7 @@ The Prometheus endpoint exports Go runtime metrics as well as HTTP request laten
 
 ### Status Metrics
 
-When Prometheus is enabled in the status plugin (see [Configuration](../configuration/#status), the OPA instance's Prometheus endpoint also exposes these metrics:
+When Prometheus is enabled in the status plugin (see [Configuration](../configuration/#status)), the OPA instance's Prometheus endpoint also exposes these metrics:
 
 | Metric name | Metric type | Description                                              | Status |
 | --- | --- |----------------------------------------------------------|--------|

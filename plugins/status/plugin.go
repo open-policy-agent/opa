@@ -411,7 +411,7 @@ func (p *Plugin) oneShot(ctx context.Context) error {
 			Do(ctx, "POST", fmt.Sprintf("/status/%v", p.config.PartitionName))
 
 		if err != nil {
-			return errors.Wrap(err, "Status update failed")
+			return fmt.Errorf("Status update failed: %w", err)
 		}
 
 		defer util.Close(resp)

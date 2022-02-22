@@ -76,7 +76,7 @@ type metric struct {
 	Value interface{}
 }
 
-func (m *metrics) Info() Info {
+func (*metrics) Info() Info {
 	return Info{
 		Name: "<built-in>",
 	}
