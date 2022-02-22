@@ -489,7 +489,8 @@ func TestCheckInferenceRules(t *testing.T) {
 
 			ref := MustParseRef(tc.ref)
 			checker := newTypeChecker()
-			env, err := checker.CheckTypes(nil, elems)
+			as, _ := buildAnnotationSet(elems)
+			env, err := checker.CheckTypes(nil, elems, as)
 
 			if err != nil {
 				t.Fatalf("Unexpected error %v:", err)
@@ -1020,9 +1021,12 @@ func TestFunctionTypeInferenceUnappliedWithObjectVarKey(t *testing.T) {
 		f(x) = y { y = {x: 1} }
 	`)
 
-	env, err := newTypeChecker().CheckTypes(newTypeChecker().Env(BuiltinMap), []util.T{
+	elems := []util.T{
 		module.Rules[0],
-	})
+	}
+
+	as, _ := buildAnnotationSet(elems)
+	env, err := newTypeChecker().CheckTypes(newTypeChecker().Env(BuiltinMap), elems, as)
 
 	if len(err) > 0 {
 		t.Fatal(err)
@@ -1218,8 +1222,10 @@ func TestCheckErrorOrdering(t *testing.T) {
 	inputReversed[1] = inputReversed[2]
 	inputReversed[2] = tmp
 
-	_, errs1 := newTypeChecker().CheckTypes(nil, input)
-	_, errs2 := newTypeChecker().CheckTypes(nil, inputReversed)
+	as, _ := buildAnnotationSet(input)
+	_, errs1 := newTypeChecker().CheckTypes(nil, input, as)
+	asReversed, _ := buildAnnotationSet(inputReversed)
+	_, errs2 := newTypeChecker().CheckTypes(nil, inputReversed, asReversed)
 
 	if errs1.Error() != errs2.Error() {
 		t.Fatalf("Expected error slices to be equal. errs1:\n\n%v\n\nerrs2:\n\n%v\n\n", errs1, errs2)
@@ -1265,7 +1271,8 @@ func newTestEnv(rs []string) *TypeEnv {
 		}
 	}
 
-	env, err := newTypeChecker().CheckTypes(newTypeChecker().Env(BuiltinMap), elems)
+	as, _ := buildAnnotationSet(elems)
+	env, err := newTypeChecker().CheckTypes(newTypeChecker().Env(BuiltinMap), elems, as)
 	if len(err) > 0 {
 		panic(err)
 	}
@@ -1983,7 +1990,9 @@ p { input = "foo" }`},
 			}
 
 			oldTypeEnv := newTypeChecker().WithSchemaSet(schemaSet).Env(BuiltinMap)
-			typeenv, errors := newTypeChecker().WithSchemaSet(schemaSet).CheckTypes(oldTypeEnv, elems)
+			as, errors := buildAnnotationSet(elems)
+			typeenv, checkErrors := newTypeChecker().WithSchemaSet(schemaSet).CheckTypes(oldTypeEnv, elems, as)
+			errors = append(errors, checkErrors...)
 			if len(errors) > 0 {
 				for _, e := range errors {
 					if tc.err == "" || !strings.Contains(e.Error(), tc.err) {

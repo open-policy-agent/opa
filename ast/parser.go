@@ -170,14 +170,6 @@ func (p *Parser) WithCapabilities(c *Capabilities) *Parser {
 	return p
 }
 
-const (
-	annotationScopePackage     = "package"
-	annotationScopeImport      = "import"
-	annotationScopeRule        = "rule"
-	annotationScopeDocument    = "document"
-	annotationScopeSubpackages = "subpackages"
-)
-
 func (p *Parser) parsedTermCacheLookup() (*Term, *state) {
 	l := p.s.loc.Offset
 	// stop comparing once the cached offsets are lower than l
