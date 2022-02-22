@@ -27,8 +27,8 @@ func TestGetAnnotations(t *testing.T) {
 				`package test
 
 # METADATA
-# title: doc
 # scope: document
+# title: doc
 # description: doc
 # organizations:
 # - doc
@@ -77,8 +77,8 @@ p = 1`,
 				`package test
 
 # METADATA
-# title: doc
 # scope: document
+# title: doc
 # description: doc
 # organizations:
 # - doc
@@ -138,8 +138,8 @@ p = 1`,
 			note: "document inherits package",
 			modules: []string{
 				`# METADATA
-# title: package
 # scope: subpackages
+# title: package
 # description: package
 # organizations:
 # - package
@@ -187,8 +187,8 @@ p = 1`,
 			note: "document overrides package",
 			modules: []string{
 				`# METADATA
-# title: package
 # scope: subpackages
+# title: package
 # description: package
 # organizations:
 # - package
@@ -250,8 +250,8 @@ p = 1`,
 			note: "package inherits super-package",
 			modules: []string{
 				`# METADATA
-# title: root
 # scope: subpackages
+# title: root
 # description: root
 # organizations:
 # - root
@@ -263,12 +263,8 @@ p = 1`,
 # - input: {"type": "string"}
 # custom:
 #  root: root
-package root
-
-p = 1`,
-				`package root.leaf
-
-p = 1`,
+package root`,
+				`package root.leaf`,
 			},
 			expected: map[expectedKey]Annotations{
 				{path: "data.root.leaf", isPackage: true}: {
@@ -302,8 +298,8 @@ p = 1`,
 			note: "package overrides super-package",
 			modules: []string{
 				`# METADATA
-# title: root
 # scope: subpackages
+# title: root
 # description: root
 # organizations:
 # - root
@@ -315,9 +311,7 @@ p = 1`,
 # - input: {"type": "string"}
 # custom:
 #  root: root
-package root
-
-p = 1`,
+package root`,
 				`# METADATA
 # title: leaf
 # description: leaf
@@ -331,9 +325,7 @@ p = 1`,
 # - input: {"type": "integer"}
 # custom:
 #  leaf: leaf
-package root.leaf
-
-p = 1`,
+package root.leaf`,
 			},
 			expected: map[expectedKey]Annotations{
 				{path: "data.root.leaf", isPackage: true}: {
@@ -373,9 +365,7 @@ p = 1`,
 # authors: 
 # - John Doe
 # scope: subpackages
-package root
-
-p = 1`, // FIXME: If this rule isn't included, annotations from this module aren't included in compilation (#4369)
+package root`,
 				`# METADATA
 # title: a package
 # description: the foo package

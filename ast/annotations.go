@@ -344,17 +344,11 @@ func newAnnotationSet() *annotationSet {
 	}
 }
 
-func buildAnnotationSet(rules []util.T) (*annotationSet, Errors) {
+func buildAnnotationSet(modules []*Module) (*annotationSet, Errors) {
 	as := newAnnotationSet()
-	processed := map[*Module]struct{}{}
 	var errs Errors
-	for _, x := range rules {
-		module := x.(*Rule).Module
-		if _, ok := processed[module]; ok {
-			continue
-		}
-		processed[module] = struct{}{}
-		for _, a := range module.Annotations {
+	for _, m := range modules {
+		for _, a := range m.Annotations {
 			if err := as.add(a); err != nil {
 				errs = append(errs, err)
 			}
