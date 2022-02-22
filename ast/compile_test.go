@@ -2874,6 +2874,25 @@ func TestRewriteDeclaredVars(t *testing.T) {
 			`,
 		},
 		{
+			note: "rewrite some: with modifier on domain",
+			module: `
+				package test
+				p {
+					some k, x in input with input as [1, 1, 1]
+					k == 0
+					x == 1
+				}
+			`,
+			exp: `
+				package test
+				p {
+					__local1__ = input[__local0__] with input as [1, 1, 1]
+					__local0__ = 0
+					__local1__ = 1
+				}
+			`,
+		},
+		{
 			note: "rewrite every",
 			module: `
 				package test

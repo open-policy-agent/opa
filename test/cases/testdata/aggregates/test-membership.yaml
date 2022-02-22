@@ -515,3 +515,16 @@ cases:
   query: data.test.p = x
   want_result:
   - x: [3, 2, "array"]
+- data:
+  modules:
+  - |
+    package test
+    import future.keywords.in
+    p[[k, v]] {
+      some k, v in input with input.foo as "bar"
+    }
+  note: aggregates/member+some+with
+  query: data.test.p = x
+  want_result:
+  - x:
+    - ["foo", "bar"]
