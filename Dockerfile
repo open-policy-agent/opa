@@ -8,6 +8,11 @@ FROM ${BASE}
 
 LABEL org.opencontainers.image.authors="Torin Sandall <torinsandall@gmail.com>"
 
+# Temporarily allow us to identify whether running from within an offical
+# Docker image, so that we may print a warning when uid or gid == 0 (root)
+# Remove once https://github.com/open-policy-agent/opa/issues/4295 is done
+ENV OPA_DOCKER_IMAGE="official"
+
 # Any non-zero number will do, and unfortunately a named user will not, as k8s
 # pod securityContext runAsNonRoot can't resolve the user ID:
 # https://github.com/kubernetes/kubernetes/issues/40958. Make root (uid 0) when
