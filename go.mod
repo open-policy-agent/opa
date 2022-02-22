@@ -4,7 +4,7 @@ go 1.16
 
 require (
 	github.com/OneOfOne/xxhash v1.2.8
-	github.com/bytecodealliance/wasmtime-go v0.33.1
+	github.com/bytecodealliance/wasmtime-go v0.34.0
 	github.com/dgraph-io/badger/v3 v3.2103.2
 	github.com/dgryski/go-farm v0.0.0-20200201041132-a6ae2369ad13 // indirect
 	github.com/fortytw2/leaktest v1.3.0
@@ -15,6 +15,7 @@ require (
 	github.com/go-logr/logr v1.2.2
 	github.com/gobwas/glob v0.2.3
 	github.com/golang/glog v1.0.0 // indirect
+	github.com/golang/protobuf v1.5.2
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/gorilla/mux v1.8.0
 	github.com/klauspost/compress v1.13.5 // indirect
@@ -24,7 +25,7 @@ require (
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/peterh/liner v0.0.0-20170211195444-bf27d3ba8e1d
 	github.com/pkg/errors v0.9.1
-	github.com/prometheus/client_golang v1.12.0
+	github.com/prometheus/client_golang v1.12.1
 	github.com/rcrowley/go-metrics v0.0.0-20200313005456-10cdbea86bc0
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/cobra v1.3.0

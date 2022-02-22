@@ -2926,9 +2926,12 @@ func (e evalEvery) eval(iter unifyIterator) error {
 		return e.save(iter)
 	}
 
-	child := e.e.closure(e.generator)
+	domain := e.e.closure(e.generator)
 	all := true // all generator evaluations yield one successful body evaluation
-	err := child.Run(func(child *eval) error {
+
+	domain.traceEnter(e.expr)
+
+	err := domain.eval(func(child *eval) error {
 		if !all {
 			// NOTE(sr): Is this good enough? We don't have a "fail EE".
 			// This would do extra work, like iterating needlessly if domain was a large array.
@@ -2936,27 +2939,34 @@ func (e evalEvery) eval(iter unifyIterator) error {
 		}
 		body := child.closure(e.body)
 		body.findOne = true
+		body.traceEnter(e.body)
 		done := false
 		err := body.eval(func(*eval) error {
+			body.traceExit(e.body)
 			done = true
+			body.traceRedo(e.body)
 			return nil
 		})
 		if !done {
 			all = false
 		}
+
+		child.traceRedo(e.expr)
 		return err
 	})
 	if err != nil {
 		return err
 	}
 	if all {
-		return iter()
+		err := iter()
+		domain.traceExit(e.expr)
+		return err
 	}
+	domain.traceFail(e.expr)
 	return nil
 }
 
 func (e *evalEvery) save(iter unifyIterator) error {
-	// TODO(sr): check traces
 	cpy := e.expr.Copy()
 	every := cpy.Terms.(*ast.Every)
 
@@ -2970,19 +2980,6 @@ func (e *evalEvery) save(iter unifyIterator) error {
 			}
 		}
 	}
-
-	// TODO(sr): if we do this here, we'll fail TC because it's generating nested calls.
-	// If we don't do this, the saveExpr's CP run will not combine the calls, because
-	// its way of finding vars, ast.WalkVars, doesn't see the key/val vars.
-	//
-	// However, not doing it yields a correct (if ugly) result. Let's not do it for now.
-	//
-	// vars := e.e.saveSet.Vars(e.e.bindings) // ?
-	// for v := range every.KeyValueVars() {
-	// 	vars.Add(v)
-	// }
-	// cp := copypropagation.New(vars).WithCompiler(e.e.compiler)
-	// every.Body = applyCopyPropagation(cp, e.e.instr, every.Body)
 
 	every.Domain = e.e.bindings.plugNamespaced(every.Domain, e.e.caller.bindings)
 	cpy.Terms = every

@@ -172,6 +172,26 @@ func Transform(t Transformer, x interface{}) (interface{}, error) {
 			if y.Terms, err = transformTerm(t, ts); err != nil {
 				return nil, err
 			}
+		case *Every:
+			if ts.Key != nil {
+				ts.Key, err = transformTerm(t, ts.Key)
+				if err != nil {
+					return nil, err
+				}
+			}
+			ts.Value, err = transformTerm(t, ts.Value)
+			if err != nil {
+				return nil, err
+			}
+			ts.Domain, err = transformTerm(t, ts.Domain)
+			if err != nil {
+				return nil, err
+			}
+			ts.Body, err = transformBody(t, ts.Body)
+			if err != nil {
+				return nil, err
+			}
+			y.Terms = ts
 		}
 		for i, w := range y.With {
 			w, err := Transform(t, w)

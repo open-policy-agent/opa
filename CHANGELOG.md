@@ -5,6 +5,111 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Backwards incompatible changes
+
+The JSON representation of the Status API's payloads -- both for `GET /v1/status`
+responses and the metrics sent to a remote Status API endpoint -- have changed:
+
+Previously, they had been serialized into JSON using the standard library "encoding/json"
+methods. However, the metrics coming from the Prometheus integration are only available
+in Golang structs generated from Protobuf definitions. For serializing these into JSON,
+the standard library functions are unsuited:
+
+- enums would be converted into numbers,
+- field names would be `snake_case`, not `camelCase`,
+- and NaNs would cause the encoder to panic.
+
+Now, we're using the protobuf ecosystem's `jsonpb` package, to serialize the Prometheus
+metrics into JSON in a way that is compliant with the Protobuf specification.
+
+Concretely, what would before be
+```
+  "metrics": {
+    "prometheus": {
+      "go_gc_duration_seconds": {
+        "help": "A summary of the GC invocation durations.",
+        "metric": [
+          {
+            "summary": {
+              "quantile": [
+                {
+                  "quantile": 0,
+                  "value": 0.000011799
+                },
+                {
+                  "quantile": 0.25,
+                  "value": 0.000011905
+                },
+                {
+                  "quantile": 0.5,
+                  "value": 0.000040002
+                },
+                {
+                  "quantile": 0.75,
+                  "value": 0.000065238
+                },
+                {
+                  "quantile": 1,
+                  "value": 0.000104897
+                }
+              ],
+              "sample_count": 7,
+              "sample_sum": 0.000309117
+            }
+          }
+        ],
+        "name": "go_gc_duration_seconds",
+        "type": 2
+      },
+```
+
+is *now*:
+```
+  "metrics": {
+    "prometheus": {
+      "go_gc_duration_seconds": {
+        "name": "go_gc_duration_seconds",
+        "help": "A summary of the pause duration of garbage collection cycles.",
+        "type": "SUMMARY",
+        "metric": [
+          {
+            "summary": {
+              "sampleCount": "1",
+              "sampleSum": 4.1765e-05,
+              "quantile": [
+                {
+                  "quantile": 0,
+                  "value": 4.1765e-05
+                },
+                {
+                  "quantile": 0.25,
+                  "value": 4.1765e-05
+                },
+                {
+                  "quantile": 0.5,
+                  "value": 4.1765e-05
+                },
+                {
+                  "quantile": 0.75,
+                  "value": 4.1765e-05
+                },
+                {
+                  "quantile": 1,
+                  "value": 4.1765e-05
+                }
+              ]
+            }
+          }
+        ]
+      },
+```
+
+Note that `sample_count` is now `sampleCount`, and the `type` is using the enum's
+string representation, `"SUMMARY"`, not `2`.
+
+Note: For compatibility reasons (the Prometheus golang client doesn't use the V2
+protobuf API), this change uses `jsonpb` and not `protojson`.
+
 ## 0.37.2
 
 This is a bugfix release addressing two bugs:
