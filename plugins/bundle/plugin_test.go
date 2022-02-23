@@ -23,20 +23,20 @@ import (
 	"testing"
 	"time"
 
-	"github.com/open-policy-agent/opa/internal/file/archive"
-
-	"github.com/open-policy-agent/opa/util/test"
-
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/config"
 	"github.com/open-policy-agent/opa/download"
+	"github.com/open-policy-agent/opa/internal/file/archive"
 	"github.com/open-policy-agent/opa/keys"
+	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/storage"
+	"github.com/open-policy-agent/opa/storage/disk"
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/util"
+	"github.com/open-policy-agent/opa/util/test"
 )
 
 func TestPluginOneShot(t *testing.T) {
@@ -95,6 +95,111 @@ func TestPluginOneShot(t *testing.T) {
 	} else if !reflect.DeepEqual(data, expData) {
 		t.Fatalf("Bad data content. Exp:\n%v\n\nGot:\n\n%v", expData, data)
 	}
+}
+
+func TestPluginOneShotDiskStorageMetrics(t *testing.T) {
+
+	test.WithTempFS(nil, func(dir string) {
+		ctx := context.Background()
+		met := metrics.New()
+		store, err := disk.New(ctx, logging.NewNoOpLogger(), nil, disk.Options{
+			Dir: dir,
+			Partitions: []storage.Path{
+				storage.MustParsePath("/foo"),
+			},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		manager := getTestManagerWithOpts(nil, store)
+		defer manager.Stop(ctx)
+		plugin := New(&Config{}, manager)
+		bundleName := "test-bundle"
+		plugin.status[bundleName] = &Status{Name: bundleName, Metrics: met}
+		plugin.downloaders[bundleName] = download.New(download.Config{}, plugin.manager.Client(""), bundleName)
+
+		ensurePluginState(t, plugin, plugins.StateNotReady)
+
+		module := "package foo\n\ncorge=1"
+
+		b := bundle.Bundle{
+			Manifest: bundle.Manifest{Revision: "quickbrownfaux"},
+			Data:     util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}}`)).(map[string]interface{}),
+			Modules: []bundle.ModuleFile{
+				{
+					Path:   "/foo/bar",
+					Parsed: ast.MustParseModule(module),
+					Raw:    []byte(module),
+				},
+			},
+		}
+
+		b.Manifest.Init()
+
+		met = metrics.New()
+		plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: met})
+
+		ensurePluginState(t, plugin, plugins.StateOK)
+
+		// NOTE(sr): These assertion reflect the current behaviour only! Not prescriptive.
+		name := "disk_deleted_keys"
+		if exp, act := 1, met.Counter(name).Value(); act.(uint64) != uint64(exp) {
+			t.Errorf("%s: expected %v, got %v", name, exp, act)
+		}
+		name = "disk_written_keys"
+		if exp, act := 7, met.Counter(name).Value(); act.(uint64) != uint64(exp) {
+			t.Errorf("%s: expected %v, got %v", name, exp, act)
+		}
+		name = "disk_read_keys"
+		if exp, act := 13, met.Counter(name).Value(); act.(uint64) != uint64(exp) {
+			t.Errorf("%s: expected %v, got %v", name, exp, act)
+		}
+		name = "disk_read_bytes"
+		if exp, act := 346, met.Counter(name).Value(); act.(uint64) != uint64(exp) {
+			t.Errorf("%s: expected %v, got %v", name, exp, act)
+		}
+		for _, timer := range []string{
+			"disk_commit",
+			"disk_write",
+			"disk_read",
+		} {
+			if act := met.Timer(timer).Int64(); act <= 0 {
+				t.Errorf("%s: expected non-zero timer, got %v", timer, act)
+			}
+		}
+		if t.Failed() {
+			t.Logf("all metrics: %v", met.All())
+		}
+
+		// Ensure we can read it all back -- this is the only bundle plugin test using disk storage,
+		// so some duplicating with TestPluginOneShot is OK:
+
+		txn := storage.NewTransactionOrDie(ctx, manager.Store)
+		defer manager.Store.Abort(ctx, txn)
+
+		ids, err := manager.Store.ListPolicies(ctx, txn)
+		if err != nil {
+			t.Fatal(err)
+		} else if len(ids) != 1 {
+			t.Fatal("Expected 1 policy")
+		}
+
+		bs, err := manager.Store.GetPolicy(ctx, txn, ids[0])
+		exp := []byte("package foo\n\ncorge=1")
+		if err != nil {
+			t.Fatal(err)
+		} else if !bytes.Equal(bs, exp) {
+			t.Fatalf("Bad policy content. Exp:\n%v\n\nGot:\n\n%v", string(exp), string(bs))
+		}
+
+		data, err := manager.Store.Read(ctx, txn, storage.Path{})
+		expData := util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}, "system": {"bundles": {"test-bundle": {"manifest": {"revision": "quickbrownfaux", "roots": [""]}}}}}`))
+		if err != nil {
+			t.Fatal(err)
+		} else if !reflect.DeepEqual(data, expData) {
+			t.Fatalf("Bad data content. Exp:\n%v\n\nGot:\n\n%v", expData, data)
+		}
+	})
 }
 
 func TestPluginOneShotDeltaBundle(t *testing.T) {
@@ -1654,8 +1759,12 @@ func getTestManager() *plugins.Manager {
 	return getTestManagerWithOpts(nil)
 }
 
-func getTestManagerWithOpts(config []byte) *plugins.Manager {
+func getTestManagerWithOpts(config []byte, stores ...storage.Store) *plugins.Manager {
 	store := inmem.New()
+	if len(stores) == 1 {
+		store = stores[0]
+	}
+
 	manager, err := plugins.New(config, "test-instance-id", store)
 	if err != nil {
 		panic(err)
