@@ -1222,7 +1222,8 @@ func (s *Server) v1CompilePost(w http.ResponseWriter, r *http.Request) {
 
 	m.Timer(metrics.RegoQueryParse).Stop()
 
-	txn, err := s.store.NewTransaction(ctx)
+	c := storage.NewContext().WithMetrics(m)
+	txn, err := s.store.NewTransaction(ctx, storage.TransactionParams{Context: c})
 	if err != nil {
 		writer.ErrorAuto(w, err)
 		return
@@ -1331,7 +1332,8 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 	m.Timer(metrics.RegoInputParse).Stop()
 
 	// Prepare for query.
-	txn, err := s.store.NewTransaction(ctx)
+	c := storage.NewContext().WithMetrics(m)
+	txn, err := s.store.NewTransaction(ctx, storage.TransactionParams{Context: c})
 	if err != nil {
 		writer.ErrorAuto(w, err)
 		return
@@ -1455,15 +1457,21 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) v1DataPatch(w http.ResponseWriter, r *http.Request) {
+	m := metrics.New()
+	m.Timer(metrics.ServerHandler).Start()
+	defer m.Timer(metrics.ServerHandler).Stop()
+
 	ctx := r.Context()
 	vars := mux.Vars(r)
-
+	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1, true)
 	ops := []types.PatchV1{}
 
+	m.Timer(metrics.RegoInputParse).Start()
 	if err := util.NewJSONDecoder(r.Body).Decode(&ops); err != nil {
 		writer.ErrorString(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
 		return
 	}
+	m.Timer(metrics.RegoInputParse).Stop()
 
 	patches, err := s.prepareV1PatchSlice(vars["path"], ops)
 	if err != nil {
@@ -1471,7 +1479,9 @@ func (s *Server) v1DataPatch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	txn, err := s.store.NewTransaction(ctx, storage.WriteParams)
+	params := storage.WriteParams
+	params.Context = storage.NewContext().WithMetrics(m)
+	txn, err := s.store.NewTransaction(ctx, params)
 	if err != nil {
 		writer.ErrorAuto(w, err)
 		return
@@ -1497,6 +1507,14 @@ func (s *Server) v1DataPatch(w http.ResponseWriter, r *http.Request) {
 
 	if err := s.store.Commit(ctx, txn); err != nil {
 		writer.ErrorAuto(w, err)
+		return
+	}
+
+	if includeMetrics {
+		result := types.DataResponseV1{
+			Metrics: m.All(),
+		}
+		writer.JSON(w, http.StatusOK, result, false)
 		return
 	}
 
@@ -1541,7 +1559,9 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 
 	m.Timer(metrics.RegoInputParse).Stop()
 
-	txn, err := s.store.NewTransaction(ctx)
+	params := storage.WriteParams
+	params.Context = storage.NewContext().WithMetrics(m)
+	txn, err := s.store.NewTransaction(ctx, params)
 	if err != nil {
 		writer.ErrorAuto(w, err)
 		return
@@ -1674,14 +1694,21 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) v1DataPut(w http.ResponseWriter, r *http.Request) {
+	m := metrics.New()
+	m.Timer(metrics.ServerHandler).Start()
+	defer m.Timer(metrics.ServerHandler).Stop()
+
 	ctx := r.Context()
 	vars := mux.Vars(r)
+	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1, true)
 
+	m.Timer(metrics.RegoInputParse).Start()
 	var value interface{}
 	if err := util.NewJSONDecoder(r.Body).Decode(&value); err != nil {
 		writer.ErrorString(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
 		return
 	}
+	m.Timer(metrics.RegoInputParse).Stop()
 
 	path, ok := storage.ParsePathEscaped("/" + strings.Trim(vars["path"], "/"))
 	if !ok {
@@ -1689,7 +1716,9 @@ func (s *Server) v1DataPut(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	txn, err := s.store.NewTransaction(ctx, storage.WriteParams)
+	params := storage.WriteParams
+	params.Context = storage.NewContext().WithMetrics(m)
+	txn, err := s.store.NewTransaction(ctx, params)
 	if err != nil {
 		writer.ErrorAuto(w, err)
 		return
@@ -1701,15 +1730,16 @@ func (s *Server) v1DataPut(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_, err = s.store.Read(ctx, txn, path)
-
 	if err != nil {
 		if !storage.IsNotFound(err) {
 			s.abortAuto(ctx, txn, w, err)
 			return
 		}
-		if err := storage.MakeDir(ctx, s.store, txn, path[:len(path)-1]); err != nil {
-			s.abortAuto(ctx, txn, w, err)
-			return
+		if len(path) > 0 {
+			if err := storage.MakeDir(ctx, s.store, txn, path[:len(path)-1]); err != nil {
+				s.abortAuto(ctx, txn, w, err)
+				return
+			}
 		}
 	} else if r.Header.Get("If-None-Match") == "*" {
 		s.store.Abort(ctx, txn)
@@ -1733,12 +1763,25 @@ func (s *Server) v1DataPut(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if includeMetrics {
+		result := types.DataResponseV1{
+			Metrics: m.All(),
+		}
+		writer.JSON(w, http.StatusOK, result, false)
+		return
+	}
+
 	writer.Bytes(w, http.StatusNoContent, nil)
 }
 
 func (s *Server) v1DataDelete(w http.ResponseWriter, r *http.Request) {
+	m := metrics.New()
+	m.Timer(metrics.ServerHandler).Start()
+	defer m.Timer(metrics.ServerHandler).Stop()
+
 	ctx := r.Context()
 	vars := mux.Vars(r)
+	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1, true)
 
 	path, ok := storage.ParsePathEscaped("/" + strings.Trim(vars["path"], "/"))
 	if !ok {
@@ -1746,7 +1789,9 @@ func (s *Server) v1DataDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	txn, err := s.store.NewTransaction(ctx, storage.WriteParams)
+	params := storage.WriteParams
+	params.Context = storage.NewContext().WithMetrics(m)
+	txn, err := s.store.NewTransaction(ctx, params)
 	if err != nil {
 		writer.ErrorAuto(w, err)
 		return
@@ -1773,6 +1818,14 @@ func (s *Server) v1DataDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if includeMetrics {
+		result := types.DataResponseV1{
+			Metrics: m.All(),
+		}
+		writer.JSON(w, http.StatusOK, result, false)
+		return
+	}
+
 	writer.Bytes(w, http.StatusNoContent, nil)
 }
 
@@ -1780,7 +1833,7 @@ func (s *Server) v1PoliciesDelete(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	vars := mux.Vars(r)
 	pretty := getBoolParam(r.URL, types.ParamPrettyV1, true)
-	includeMetrics := getBoolParam(r.URL, types.ParamPrettyV1, true)
+	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1, true)
 
 	id, err := url.PathUnescape(vars["path"])
 	if err != nil {
@@ -1789,8 +1842,9 @@ func (s *Server) v1PoliciesDelete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	m := metrics.New()
-
-	txn, err := s.store.NewTransaction(ctx, storage.WriteParams)
+	params := storage.WriteParams
+	params.Context = storage.NewContext().WithMetrics(m)
+	txn, err := s.store.NewTransaction(ctx, params)
 	if err != nil {
 		writer.ErrorAuto(w, err)
 		return
@@ -1948,7 +2002,9 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 
 	m.Timer("server_read_bytes").Stop()
 
-	txn, err := s.store.NewTransaction(ctx, storage.WriteParams)
+	params := storage.WriteParams
+	params.Context = storage.NewContext().WithMetrics(m)
+	txn, err := s.store.NewTransaction(ctx, params)
 	if err != nil {
 		writer.ErrorAuto(w, err)
 		return
@@ -2071,7 +2127,8 @@ func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
 	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1, true)
 	includeInstrumentation := getBoolParam(r.URL, types.ParamInstrumentV1, true)
 
-	txn, err := s.store.NewTransaction(ctx)
+	params := storage.TransactionParams{Context: storage.NewContext().WithMetrics(m)}
+	txn, err := s.store.NewTransaction(ctx, params)
 	if err != nil {
 		writer.ErrorAuto(w, err)
 		return
@@ -2140,7 +2197,8 @@ func (s *Server) v1QueryPost(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	txn, err := s.store.NewTransaction(ctx)
+	params := storage.TransactionParams{Context: storage.NewContext().WithMetrics(m)}
+	txn, err := s.store.NewTransaction(ctx, params)
 	if err != nil {
 		writer.ErrorAuto(w, err)
 		return

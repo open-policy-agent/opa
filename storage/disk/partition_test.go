@@ -18,11 +18,13 @@ func TestPartitionTrie(t *testing.T) {
 		storage.MustParsePath("/foo/bar"),
 		storage.MustParsePath("/foo/baz/qux"),
 		storage.MustParsePath("/corge"),
+		storage.MustParsePath("/tenants/*/bindings"), // wildcard in the middle
+		storage.MustParsePath("/users/*"),            // wildcard at the end
 	})
 
 	// Assert on counts...
-	if len(root.partitions) != 2 {
-		t.Fatal("expected root to contain two partitions")
+	if exp, act := 4, len(root.partitions); exp != act {
+		t.Fatalf("expected root to contain %d partitions, got %d", exp, act)
 	}
 
 	if len(root.partitions["foo"].partitions) != 2 {
@@ -82,6 +84,22 @@ func TestPartitionTrie(t *testing.T) {
 			path:    "/deadbeef",
 			wantIdx: 1,
 			wantPtr: nil,
+		}, {
+			path:    "/tenants/deadbeef/bindings/user01",
+			wantIdx: 4,
+			wantPtr: nil,
+		}, {
+			path:    "/tenants/deadbeef/bindings",
+			wantIdx: 3,
+			wantPtr: root.partitions["tenants"].partitions["*"].partitions["bindings"],
+		}, {
+			path:    "/tenants/deadbeef/foo",
+			wantIdx: 3,
+			wantPtr: nil,
+		}, {
+			path:    "/users/deadbeef",
+			wantIdx: 2,
+			wantPtr: root.partitions["users"].partitions["*"],
 		},
 	}
 
