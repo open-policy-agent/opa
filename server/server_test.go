@@ -27,6 +27,7 @@ import (
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/config"
 	"github.com/open-policy-agent/opa/internal/distributedtracing"
+	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/plugins"
 	pluginBundle "github.com/open-policy-agent/opa/plugins/bundle"
@@ -36,8 +37,10 @@ import (
 	"github.com/open-policy-agent/opa/server/types"
 	"github.com/open-policy-agent/opa/server/writer"
 	"github.com/open-policy-agent/opa/storage"
+	"github.com/open-policy-agent/opa/storage/disk"
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/util"
+	"github.com/open-policy-agent/opa/util/test"
 	"github.com/open-policy-agent/opa/version"
 )
 
@@ -991,35 +994,48 @@ func TestCompileV1(t *testing.T) {
 }
 
 func TestCompileV1Observability(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	test.WithTempFS(nil, func(root string) {
+		disk, err := disk.New(ctx, logging.NewNoOpLogger(), nil, disk.Options{Dir: root})
+		if err != nil {
+			t.Fatal(err)
+		}
+		f := newFixtureWithStore(t, disk)
 
-	f := newFixture(t)
-
-	err := f.v1(http.MethodPut, "/policies/test", `package test
+		err = f.v1(http.MethodPut, "/policies/test", `package test
 
 	p { input.x = 1 }`, 200, "")
-	if err != nil {
-		t.Fatal(err)
-	}
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	compileReq := newReqV1(http.MethodPost, "/compile?metrics&explain=full", `{
+		compileReq := newReqV1(http.MethodPost, "/compile?metrics&explain=full", `{
 		"query": "data.test.p = true"
 	}`)
 
-	f.reset()
-	f.server.Handler.ServeHTTP(f.recorder, compileReq)
+		f.reset()
+		f.server.Handler.ServeHTTP(f.recorder, compileReq)
 
-	var response types.CompileResponseV1
-	if err := json.NewDecoder(f.recorder.Body).Decode(&response); err != nil {
-		t.Fatal(err)
-	}
+		var response types.CompileResponseV1
+		if err := json.NewDecoder(f.recorder.Body).Decode(&response); err != nil {
+			t.Fatal(err)
+		}
 
-	if len(response.Explanation) == 0 {
-		t.Fatal("Expected non-empty explanation")
-	}
+		if len(response.Explanation) == 0 {
+			t.Fatal("Expected non-empty explanation")
+		}
 
-	if _, ok := response.Metrics["timer_rego_partial_eval_ns"]; !ok {
-		t.Fatal("Expected partial evaluation latency")
-	}
+		assertMetricsExist(t, response.Metrics, []string{
+			"timer_rego_partial_eval_ns",
+			"timer_rego_query_compile_ns",
+			"timer_rego_query_parse_ns",
+			"timer_server_handler_ns",
+			"counter_disk_read_keys",
+			"counter_disk_read_bytes",
+			"timer_disk_read_ns",
+		})
+	})
 }
 
 func TestCompileV1UnsafeBuiltin(t *testing.T) {
@@ -1175,12 +1191,22 @@ p = true { false }`
 		}},
 		{"patch root", []tr{
 			{http.MethodPatch, "/data", `[
-				{"op": "add",
-				 "path": "/",
-				 "value": {"a": 1, "b": 2}
+				{
+					"op": "add",
+					"path": "/",
+					"value": {"a": 1, "b": 2}
 				}
 			]`, 204, ""},
 			{http.MethodGet, "/data", "", 200, `{"result": {"a": 1, "b": 2}}`},
+		}},
+		{"patch root invalid", []tr{
+			{http.MethodPatch, "/data", `[
+				{
+					"op": "add",
+					"path": "/",
+					"value": [1,2,3]
+				}
+			]`, 400, ""},
 		}},
 		{"patch invalid", []tr{
 			{http.MethodPatch, "/data", `[
@@ -1547,9 +1573,61 @@ p = true { false }`
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			executeRequests(t, tc.reqs)
+			test.WithTempFS(nil, func(root string) {
+				ctx, cancel := context.WithCancel(context.Background())
+				defer cancel()
+				disk, err := disk.New(ctx, logging.NewNoOpLogger(), nil, disk.Options{Dir: root})
+				if err != nil {
+					t.Fatal(err)
+				}
+				executeRequests(t, tc.reqs,
+					variant{"inmem", nil},
+					variant{"disk", []func(*Server){
+						func(s *Server) {
+							s.WithStore(disk)
+						},
+					}},
+				)
+			})
 		})
 	}
+}
+
+func TestDataV1Metrics(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	test.WithTempFS(nil, func(root string) {
+		disk, err := disk.New(ctx, logging.NewNoOpLogger(), nil, disk.Options{Dir: root})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		f := newFixtureWithStore(t, disk)
+		put := newReqV1(http.MethodPut, `/data?metrics`, `{"foo":"bar"}`)
+		f.server.Handler.ServeHTTP(f.recorder, put)
+
+		if f.recorder.Code != 200 {
+			t.Fatalf("Expected success but got %v", f.recorder)
+		}
+
+		var result types.DataResponseV1
+		err = util.UnmarshalJSON(f.recorder.Body.Bytes(), &result)
+		if err != nil {
+			t.Fatalf("Unexpected error while unmarshalling result: %v", err)
+		}
+
+		assertMetricsExist(t, result.Metrics, []string{
+			"counter_disk_read_keys",
+			"counter_disk_deleted_keys",
+			"counter_disk_written_keys",
+			"counter_disk_read_bytes",
+			"timer_rego_input_parse_ns",
+			"timer_server_handler_ns",
+			"timer_disk_read_ns",
+			"timer_disk_write_ns",
+			"timer_disk_commit_ns",
+		})
+	})
 }
 
 func TestConfigV1(t *testing.T) {
@@ -1681,105 +1759,119 @@ func TestDataPutV1IfNoneMatch(t *testing.T) {
 
 func TestBundleScope(t *testing.T) {
 
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	test.WithTempFS(nil, func(root string) {
+		disk, err := disk.New(ctx, logging.NewNoOpLogger(), nil, disk.Options{Dir: root})
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	f := newFixture(t)
+		for _, v := range []variant{
+			{"inmem", nil},
+			{"disk", []func(*Server){func(s *Server) { s.WithStore(disk) }}},
+		} {
+			t.Run(v.name, func(t *testing.T) {
+				f := newFixture(t, v.opts...)
 
-	txn := storage.NewTransactionOrDie(ctx, f.server.store, storage.WriteParams)
+				txn := storage.NewTransactionOrDie(ctx, f.server.store, storage.WriteParams)
 
-	if err := bundle.WriteManifestToStore(ctx, f.server.store, txn, "test-bundle", bundle.Manifest{
-		Revision: "AAAAA",
-		Roots:    &[]string{"a/b/c", "x/y", "foobar"},
-	}); err != nil {
-		t.Fatal(err)
-	}
+				if err := bundle.WriteManifestToStore(ctx, f.server.store, txn, "test-bundle", bundle.Manifest{
+					Revision: "AAAAA",
+					Roots:    &[]string{"a/b/c", "x/y", "foobar"},
+				}); err != nil {
+					t.Fatal(err)
+				}
 
-	if err := f.server.store.UpsertPolicy(ctx, txn, "someid", []byte(`package x.y.z`)); err != nil {
-		t.Fatal(err)
-	}
+				if err := f.server.store.UpsertPolicy(ctx, txn, "someid", []byte(`package x.y.z`)); err != nil {
+					t.Fatal(err)
+				}
 
-	if err := f.server.store.Commit(ctx, txn); err != nil {
-		t.Fatal(err)
-	}
+				if err := f.server.store.Commit(ctx, txn); err != nil {
+					t.Fatal(err)
+				}
 
-	cases := []tr{
-		{
-			method: "PUT",
-			path:   "/data/a/b",
-			body:   "1",
-			code:   http.StatusBadRequest,
-			resp:   `{"code": "invalid_parameter", "message": "path a/b is owned by bundle \"test-bundle\""}`,
-		},
-		{
-			method: "PUT",
-			path:   "/data/a/b/c",
-			body:   "1",
-			code:   http.StatusBadRequest,
-			resp:   `{"code": "invalid_parameter", "message": "path a/b/c is owned by bundle \"test-bundle\""}`,
-		},
-		{
-			method: "PUT",
-			path:   "/data/a/b/c/d",
-			body:   "1",
-			code:   http.StatusBadRequest,
-			resp:   `{"code": "invalid_parameter", "message": "path a/b/c/d is owned by bundle \"test-bundle\""}`,
-		},
-		{
-			method: "PUT",
-			path:   "/data/a/b/d",
-			body:   "1",
-			code:   http.StatusNoContent,
-		},
-		{
-			method: "PATCH",
-			path:   "/data/a",
-			body:   `[{"path": "/b/c", "op": "add", "value": 1}]`,
-			code:   http.StatusBadRequest,
-			resp:   `{"code": "invalid_parameter", "message": "path a/b/c is owned by bundle \"test-bundle\""}`,
-		},
-		{
-			method: "DELETE",
-			path:   "/data/a",
-			code:   http.StatusBadRequest,
-			resp:   `{"code": "invalid_parameter", "message": "path a is owned by bundle \"test-bundle\""}`,
-		},
-		{
-			method: "PUT",
-			path:   "/policies/test1",
-			body:   `package a.b`,
-			code:   http.StatusBadRequest,
-			resp:   `{"code": "invalid_parameter", "message": "path a/b is owned by bundle \"test-bundle\""}`,
-		},
-		{
-			method: "DELETE",
-			path:   "/policies/someid",
-			code:   http.StatusBadRequest,
-			resp:   `{"code": "invalid_parameter", "message": "path x/y/z is owned by bundle \"test-bundle\""}`,
-		},
-		{
-			method: "PUT",
-			path:   "/data/foo/bar",
-			body:   "1",
-			code:   http.StatusNoContent,
-		},
-		{
-			method: "PUT",
-			path:   "/data/foo",
-			body:   "1",
-			code:   http.StatusNoContent,
-		},
-		{
-			method: "PUT",
-			path:   "/data",
-			body:   `{"a": "b"}`,
-			code:   http.StatusBadRequest,
-			resp:   `{"code": "invalid_parameter", "message": "can't write to document root with bundle roots configured"}`,
-		},
-	}
+				cases := []tr{
+					{
+						method: "PUT",
+						path:   "/data/a/b",
+						body:   "1",
+						code:   http.StatusBadRequest,
+						resp:   `{"code": "invalid_parameter", "message": "path a/b is owned by bundle \"test-bundle\""}`,
+					},
+					{
+						method: "PUT",
+						path:   "/data/a/b/c",
+						body:   "1",
+						code:   http.StatusBadRequest,
+						resp:   `{"code": "invalid_parameter", "message": "path a/b/c is owned by bundle \"test-bundle\""}`,
+					},
+					{
+						method: "PUT",
+						path:   "/data/a/b/c/d",
+						body:   "1",
+						code:   http.StatusBadRequest,
+						resp:   `{"code": "invalid_parameter", "message": "path a/b/c/d is owned by bundle \"test-bundle\""}`,
+					},
+					{
+						method: "PUT",
+						path:   "/data/a/b/d",
+						body:   "1",
+						code:   http.StatusNoContent,
+					},
+					{
+						method: "PATCH",
+						path:   "/data/a",
+						body:   `[{"path": "/b/c", "op": "add", "value": 1}]`,
+						code:   http.StatusBadRequest,
+						resp:   `{"code": "invalid_parameter", "message": "path a/b/c is owned by bundle \"test-bundle\""}`,
+					},
+					{
+						method: "DELETE",
+						path:   "/data/a",
+						code:   http.StatusBadRequest,
+						resp:   `{"code": "invalid_parameter", "message": "path a is owned by bundle \"test-bundle\""}`,
+					},
+					{
+						method: "PUT",
+						path:   "/policies/test1",
+						body:   `package a.b`,
+						code:   http.StatusBadRequest,
+						resp:   `{"code": "invalid_parameter", "message": "path a/b is owned by bundle \"test-bundle\""}`,
+					},
+					{
+						method: "DELETE",
+						path:   "/policies/someid",
+						code:   http.StatusBadRequest,
+						resp:   `{"code": "invalid_parameter", "message": "path x/y/z is owned by bundle \"test-bundle\""}`,
+					},
+					{
+						method: "PUT",
+						path:   "/data/foo/bar",
+						body:   "1",
+						code:   http.StatusNoContent,
+					},
+					{
+						method: "PUT",
+						path:   "/data/foo",
+						body:   "1",
+						code:   http.StatusNoContent,
+					},
+					{
+						method: "PUT",
+						path:   "/data",
+						body:   `{"a": "b"}`,
+						code:   http.StatusBadRequest,
+						resp:   `{"code": "invalid_parameter", "message": "can't write to document root with bundle roots configured"}`,
+					},
+				}
 
-	if err := f.v1TestRequests(cases); err != nil {
-		t.Fatal(err)
-	}
+				if err := f.v1TestRequests(cases); err != nil {
+					t.Fatal(err)
+				}
+			})
+		}
+	})
 }
 
 func TestBundleScopeMultiBundle(t *testing.T) {
@@ -2304,51 +2396,76 @@ func TestDataProvenanceMultiBundle(t *testing.T) {
 }
 
 func TestDataMetricsEval(t *testing.T) {
-	f := newFixture(t)
+	// These tests all use the POST /v1/data API with ?metrics appended.
+	// We're setting up the disk store because that injects a few extra metrics,
+	// which storage/inmem does not.
 
-	// Make a request to evaluate `data`
-	testDataMetrics(t, f, "/data?metrics", []string{
-		"counter_server_query_cache_hit",
-		"timer_rego_input_parse_ns",
-		"timer_rego_query_parse_ns",
-		"timer_rego_query_compile_ns",
-		"timer_rego_query_eval_ns",
-		"timer_server_handler_ns",
-		"timer_rego_external_resolve_ns",
-	})
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	test.WithTempFS(nil, func(root string) {
+		disk, err := disk.New(ctx, logging.NewNoOpLogger(), nil, disk.Options{Dir: root})
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	// Repeat previous request, expect to have hit the query cache
-	// so fewer timers should have been reported.
-	testDataMetrics(t, f, "/data?metrics", []string{
-		"counter_server_query_cache_hit",
-		"timer_rego_input_parse_ns",
-		"timer_rego_query_eval_ns",
-		"timer_server_handler_ns",
-		"timer_rego_external_resolve_ns",
-	})
+		f := newFixtureWithStore(t, disk)
 
-	// Make a request to evaluate `data` and use partial evaluation,
-	// this should not hit the same query cache result as the previous
-	// request.
-	testDataMetrics(t, f, "/data?metrics&partial", []string{
-		"counter_server_query_cache_hit",
-		"timer_rego_input_parse_ns",
-		"timer_rego_module_compile_ns",
-		"timer_rego_query_parse_ns",
-		"timer_rego_query_compile_ns",
-		"timer_rego_query_eval_ns",
-		"timer_rego_partial_eval_ns",
-		"timer_server_handler_ns",
-		"timer_rego_external_resolve_ns",
-	})
+		// Make a request to evaluate `data`
+		testDataMetrics(t, f, "/data?metrics", []string{
+			"counter_server_query_cache_hit",
+			"counter_disk_read_keys",
+			"counter_disk_read_bytes",
+			"timer_rego_input_parse_ns",
+			"timer_rego_query_parse_ns",
+			"timer_rego_query_compile_ns",
+			"timer_rego_query_eval_ns",
+			"timer_server_handler_ns",
+			"timer_disk_read_ns",
+			"timer_rego_external_resolve_ns",
+		})
 
-	// Repeat previous partial eval request, this time it should
-	// be cached
-	testDataMetrics(t, f, "/data?metrics&partial", []string{
-		"counter_server_query_cache_hit",
-		"timer_rego_input_parse_ns",
-		"timer_rego_query_eval_ns",
-		"timer_server_handler_ns",
+		// Repeat previous request, expect to have hit the query cache
+		// so fewer timers should have been reported.
+		testDataMetrics(t, f, "/data?metrics", []string{
+			"counter_server_query_cache_hit",
+			"counter_disk_read_keys",
+			"counter_disk_read_bytes",
+			"timer_rego_input_parse_ns",
+			"timer_rego_query_eval_ns",
+			"timer_server_handler_ns",
+			"timer_disk_read_ns",
+			"timer_rego_external_resolve_ns",
+		})
+
+		// Make a request to evaluate `data` and use partial evaluation,
+		// this should not hit the same query cache result as the previous
+		// request.
+		testDataMetrics(t, f, "/data?metrics&partial", []string{
+			"counter_server_query_cache_hit",
+			"counter_disk_read_keys",
+			"counter_disk_read_bytes",
+			"timer_rego_input_parse_ns",
+			"timer_rego_module_compile_ns",
+			"timer_rego_query_parse_ns",
+			"timer_rego_query_compile_ns",
+			"timer_rego_query_eval_ns",
+			"timer_rego_partial_eval_ns",
+			"timer_server_handler_ns",
+			"timer_disk_read_ns",
+			"timer_rego_external_resolve_ns",
+		})
+
+		// Repeat previous partial eval request, this time it should
+		// be cached
+		testDataMetrics(t, f, "/data?metrics&partial", []string{
+			"counter_server_query_cache_hit",
+			"counter_disk_read_keys",
+			"counter_disk_read_bytes",
+			"timer_rego_input_parse_ns",
+			"timer_rego_query_eval_ns",
+			"timer_server_handler_ns",
+			"timer_disk_read_ns",
+		})
 	})
 }
 
@@ -2363,9 +2480,14 @@ func testDataMetrics(t *testing.T, f *fixture, url string, expected []string) {
 	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&result); err != nil {
 		t.Fatalf("Unexpected JSON decode error: %v", err)
 	}
+	assertMetricsExist(t, result.Metrics, expected)
+}
+
+func assertMetricsExist(t *testing.T, metrics types.MetricsV1, expected []string) {
+	t.Helper()
 
 	for _, key := range expected {
-		v, ok := result.Metrics[key]
+		v, ok := metrics[key]
 		if !ok {
 			t.Errorf("Missing expected metric: %s", key)
 		} else if v == nil {
@@ -2374,8 +2496,8 @@ func testDataMetrics(t *testing.T, f *fixture, url string, expected []string) {
 
 	}
 
-	if len(expected) != len(result.Metrics) {
-		t.Errorf("Expected %d metrics, got %d\n\n\tValues: %+v", len(expected), len(result.Metrics), result.Metrics)
+	if len(expected) != len(metrics) {
+		t.Errorf("Expected %d metrics, got %d\n\n\tValues: %+v", len(expected), len(metrics), metrics)
 	}
 }
 
@@ -3139,31 +3261,50 @@ func TestDecisionLogErrorMessage(t *testing.T) {
 }
 
 func TestQueryV1(t *testing.T) {
-	f := newFixture(t)
-	get := newReqV1(http.MethodGet, `/query?q=a=[1,2,3]%3Ba[i]=x`, "")
-	f.server.Handler.ServeHTTP(f.recorder, get)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	test.WithTempFS(nil, func(root string) {
+		disk, err := disk.New(ctx, logging.NewNoOpLogger(), nil, disk.Options{Dir: root})
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	if f.recorder.Code != 200 {
-		t.Fatalf("Expected success but got %v", f.recorder)
-	}
+		f := newFixtureWithStore(t, disk)
+		get := newReqV1(http.MethodGet, `/query?q=a=[1,2,3]%3Ba[i]=x&metrics`, "")
+		f.server.Handler.ServeHTTP(f.recorder, get)
 
-	var expected types.QueryResponseV1
-	err := util.UnmarshalJSON([]byte(`{
+		if f.recorder.Code != 200 {
+			t.Fatalf("Expected success but got %v", f.recorder)
+		}
+
+		var expected types.QueryResponseV1
+		err = util.UnmarshalJSON([]byte(`{
 		"result": [{"a":[1,2,3],"i":0,"x":1},{"a":[1,2,3],"i":1,"x":2},{"a":[1,2,3],"i":2,"x":3}]
 	}`), &expected)
-	if err != nil {
-		panic(err)
-	}
+		if err != nil {
+			panic(err)
+		}
 
-	var result types.QueryResponseV1
-	err = util.UnmarshalJSON(f.recorder.Body.Bytes(), &result)
-	if err != nil {
-		t.Fatalf("Unexpected error while unmarshalling result: %v", err)
-	}
+		var result types.QueryResponseV1
+		err = util.UnmarshalJSON(f.recorder.Body.Bytes(), &result)
+		if err != nil {
+			t.Fatalf("Unexpected error while unmarshalling result: %v", err)
+		}
 
-	if !reflect.DeepEqual(result, expected) {
-		t.Fatalf("Expected %v but got: %v", expected, result)
-	}
+		assertMetricsExist(t, result.Metrics, []string{
+			"counter_disk_read_keys",
+			"counter_disk_read_bytes",
+			"timer_rego_query_compile_ns",
+			"timer_rego_query_eval_ns",
+			// "timer_server_handler_ns", // TODO(sr): we're not consistent about timing this?
+			"timer_disk_read_ns",
+		})
+
+		result.Metrics = nil
+		if !reflect.DeepEqual(result, expected) {
+			t.Fatalf("Expected %v but got: %v", expected, result)
+		}
+	})
 }
 
 func TestBadQueryV1(t *testing.T) {
@@ -3620,26 +3761,24 @@ type fixture struct {
 
 func newFixture(t *testing.T, opts ...func(*Server)) *fixture {
 	ctx := context.Background()
-	store := inmem.New()
-	m, err := plugins.New([]byte{}, "test", store)
-	if err != nil {
-		panic(err)
-	}
-
-	if err := m.Start(ctx); err != nil {
-		panic(err)
-	}
-
 	server := New().
 		WithAddresses([]string{"localhost:8182"}).
-		WithStore(store).
-		WithManager(m)
+		WithStore(inmem.New()) // potentially overridden via opts
 	for _, opt := range opts {
 		opt(server)
 	}
+
+	m, err := plugins.New([]byte{}, "test", server.store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	server = server.WithManager(m)
+	if err := m.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
 	server, err = server.Init(ctx)
 	if err != nil {
-		panic(err)
+		t.Fatal(err)
 	}
 	recorder := httptest.NewRecorder()
 
@@ -3684,7 +3823,7 @@ func newFixtureWithStore(t *testing.T, store storage.Store, opts ...func(*Server
 func (f *fixture) v1TestRequests(trs []tr) error {
 	for i, tr := range trs {
 		if err := f.v1(tr.method, tr.path, tr.body, tr.code, tr.resp); err != nil {
-			return errors.Wrapf(err, "error on test request #%d", i+1)
+			return fmt.Errorf("error on test request #%d: %w", i+1, err)
 		}
 	}
 	return nil
@@ -3750,13 +3889,22 @@ func (f *fixture) reset() {
 	f.recorder = httptest.NewRecorder()
 }
 
-func executeRequests(t *testing.T, reqs []tr) {
+type variant struct {
+	name string
+	opts []func(*Server)
+}
+
+func executeRequests(t *testing.T, reqs []tr, variants ...variant) {
 	t.Helper()
-	f := newFixture(t)
-	for i, req := range reqs {
-		if err := f.v1(req.method, req.path, req.body, req.code, req.resp); err != nil {
-			t.Errorf("Unexpected response on request %d: %v", i+1, err)
-		}
+	for _, v := range variants {
+		t.Run(v.name, func(t *testing.T) {
+			f := newFixture(t, v.opts...)
+			for i, req := range reqs {
+				if err := f.v1(req.method, req.path, req.body, req.code, req.resp); err != nil {
+					t.Errorf("Unexpected response on request %d: %v", i+1, err)
+				}
+			}
+		})
 	}
 }
 
@@ -4145,17 +4293,17 @@ func TestDistributedTracingDisabled(t *testing.T) {
 
 type mockHTTPHandler struct{}
 
-func (m *mockHTTPHandler) ServeHTTP(w http.ResponseWriter, _ *http.Request) {
+func (*mockHTTPHandler) ServeHTTP(w http.ResponseWriter, _ *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
 type mockMetricsProvider struct{}
 
-func (m *mockMetricsProvider) RegisterEndpoints(registrar func(path, method string, handler http.Handler)) {
+func (*mockMetricsProvider) RegisterEndpoints(registrar func(string, string, http.Handler)) {
 	registrar("/metrics", "GET", new(mockHTTPHandler))
 }
 
-func (m *mockMetricsProvider) InstrumentHandler(handler http.Handler, label string) http.Handler {
+func (*mockMetricsProvider) InstrumentHandler(handler http.Handler, _ string) http.Handler {
 	return handler
 }
 
@@ -4167,21 +4315,19 @@ type mockHTTPListener struct {
 	t            httpListenerType
 }
 
-var _ httpListener = (*mockHTTPListener)(nil)
-
 func (m mockHTTPListener) Addr() string {
 	return m.addrs
 }
 
-func (m mockHTTPListener) ListenAndServe() error {
+func (mockHTTPListener) ListenAndServe() error {
 	return errors.New("not implemented")
 }
 
-func (m mockHTTPListener) ListenAndServeTLS(certFile, keyFile string) error {
+func (mockHTTPListener) ListenAndServeTLS(string, string) error {
 	return errors.New("not implemented")
 }
 
-func (m mockHTTPListener) Shutdown(ctx context.Context) error {
+func (m mockHTTPListener) Shutdown(context.Context) error {
 	var err error
 	if m.shutdownHook != nil {
 		err = m.shutdownHook()

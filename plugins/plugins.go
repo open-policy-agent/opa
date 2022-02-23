@@ -625,6 +625,11 @@ func (m *Manager) Stop(ctx context.Context) {
 	for i := range toStop {
 		toStop[i].Stop(ctx)
 	}
+	if c, ok := m.Store.(interface{ Close(context.Context) error }); ok {
+		if err := c.Close(ctx); err != nil {
+			m.logger.Error("Error closing store: %v", err)
+		}
+	}
 }
 
 // Reconfigure updates the configuration on the manager.

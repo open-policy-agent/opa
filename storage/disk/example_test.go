@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"os"
 
+	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/disk"
 	"github.com/open-policy-agent/opa/util"
@@ -33,7 +34,7 @@ func Example_store() {
 	defer os.RemoveAll(dir)
 
 	// Create a new disk-based store.
-	store, err := disk.New(ctx, disk.Options{
+	store, err := disk.New(ctx, logging.NewNoOpLogger(), nil, disk.Options{
 		Dir: dir,
 		Partitions: []storage.Path{
 			storage.MustParsePath("/authz/tenants"),
@@ -63,7 +64,7 @@ func Example_store() {
 	check(err)
 
 	// Re-create the disk-based store using the same options.
-	store2, err := disk.New(ctx, disk.Options{
+	store2, err := disk.New(ctx, logging.NewNoOpLogger(), nil, disk.Options{
 		Dir: dir,
 		Partitions: []storage.Path{
 			storage.MustParsePath("/authz/tenants"),

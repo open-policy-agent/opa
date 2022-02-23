@@ -43,7 +43,7 @@ func TestShutdownWaitPeriod(t *testing.T) {
 
 	time.Sleep(1500 * time.Millisecond)
 
-	// Ensure that OPA i still running
+	// Ensure that OPA is still running
 	err = testRuntime.HealthCheck(testRuntime.URL())
 	if err != nil {
 		t.Fatalf("Expected health endpoint to be up but got:\n\n%v", err)

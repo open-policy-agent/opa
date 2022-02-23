@@ -26,6 +26,10 @@
 // to a single key). Similarly, values that fall outside of partitions are
 // stored under individual keys at the root (e.g., the full extent of the value
 // at /qux would be stored under one key.)
+// There is support for wildcards in partitions: {/foo/*} will cause /foo/bar/abc
+// and /foo/buz/def to be written to separate keys. Multiple wildcards are
+// supported (/tenants/*/users/*/bindings), and they can also appear at the end
+// of a partition (/users/*).
 //
 // All keys written by the disk.Store implementation are prefixed as follows:
 //
@@ -57,32 +61,45 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	badger "github.com/dgraph-io/badger/v3"
+	"github.com/prometheus/client_golang/prometheus"
+
+	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/util"
 )
 
-// TODO(tsandall): deal w/ slashes in paths
-// TODO(tsandall): support multi-level partitioning for use cases like k8s
 // TODO(tsandall): add support for migrations
+// TODO(sr): validate partition patterns properly: if the partitions were {/foo/bar}
+//           before and the new ones are {/foo/*}, it should be OK.
+
+// a value log file be rewritten if half the space can be discarded
+const valueLogGCDiscardRatio = 0.5
 
 // Options contains parameters that configure the disk-based store.
 type Options struct {
 	Dir        string         // specifies directory to store data inside of
 	Partitions []storage.Path // data prefixes that enable efficient layout
+	Badger     string         // badger-internal configurables
 }
 
 // Store provides a disk-based implementation of the storage.Store interface.
 type Store struct {
 	db         *badger.DB           // underlying key-value store
 	xid        uint64               // next transaction id
-	mu         sync.Mutex           // synchronizes trigger execution
+	rmu        sync.RWMutex         // reader-writer lock
+	wmu        sync.Mutex           // writer lock
 	pm         *pathMapper          // maps logical storage paths to underlying store keys
 	partitions *partitionTrie       // data structure to support path mapping
 	triggers   map[*handle]struct{} // registered triggers
+	gcTicker   *time.Ticker         // gc ticker
+	close      chan struct{}        // close-only channel for stopping the GC goroutine
 }
 
 const (
@@ -105,7 +122,7 @@ type metadata struct {
 }
 
 // New returns a new disk-based store based on the provided options.
-func New(ctx context.Context, opts Options) (*Store, error) {
+func New(ctx context.Context, logger logging.Logger, prom prometheus.Registerer, opts Options) (*Store, error) {
 
 	partitions := make(pathSet, len(opts.Partitions))
 	copy(partitions, opts.Partitions)
@@ -118,26 +135,72 @@ func New(ctx context.Context, opts Options) (*Store, error) {
 		}
 	}
 
-	db, err := badger.Open(badger.DefaultOptions(opts.Dir).WithLogger(nil))
+	db, err := badger.Open(badgerConfigFromOptions(opts).WithLogger(&wrap{logger}))
 	if err != nil {
 		return nil, wrapError(err)
+	}
+
+	if prom != nil {
+		if err := initPrometheus(prom); err != nil {
+			return nil, err
+		}
 	}
 
 	store := &Store{
 		db:         db,
 		partitions: buildPartitionTrie(partitions),
 		triggers:   map[*handle]struct{}{},
+		close:      make(chan struct{}),
+		gcTicker:   time.NewTicker(time.Minute),
 	}
 
-	return store, db.Update(func(txn *badger.Txn) error {
+	go store.GC(logger)
+
+	if err := db.Update(func(txn *badger.Txn) error {
 		return store.init(ctx, txn, partitions)
-	})
+	}); err != nil {
+		store.Close(ctx)
+		return nil, err
+	}
+
+	return store, store.diagnostics(ctx, partitions, logger)
+}
+
+func (db *Store) GC(logger logging.Logger) {
+	for {
+		select {
+		case <-db.close:
+			return
+		case <-db.gcTicker.C:
+			for err := error(nil); err == nil; err = db.db.RunValueLogGC(valueLogGCDiscardRatio) {
+				logger.Debug("RunValueLogGC: err=%v", err)
+			}
+		}
+	}
 }
 
 // Close finishes the DB connection and allows other processes to acquire it.
 func (db *Store) Close(context.Context) error {
+	db.gcTicker.Stop()
 	return wrapError(db.db.Close())
 }
+
+// If the log level is debug, we'll output the badger logs in their corresponding
+// log levels; if it's not debug, we'll suppress all badger logs.
+type wrap struct {
+	l logging.Logger
+}
+
+func (w *wrap) debugDo(f func(string, ...interface{}), fmt string, as ...interface{}) {
+	if w.l.GetLevel() >= logging.Debug {
+		f("badger: "+fmt, as...)
+	}
+}
+
+func (w *wrap) Debugf(f string, as ...interface{})   { w.debugDo(w.l.Debug, f, as...) }
+func (w *wrap) Infof(f string, as ...interface{})    { w.debugDo(w.l.Info, f, as...) }
+func (w *wrap) Warningf(f string, as ...interface{}) { w.debugDo(w.l.Warn, f, as...) }
+func (w *wrap) Errorf(f string, as ...interface{})   { w.debugDo(w.l.Error, f, as...) }
 
 // NewTransaction implements the storage.Store interface.
 func (db *Store) NewTransaction(ctx context.Context, params ...storage.TransactionParams) (storage.Transaction, error) {
@@ -150,6 +213,11 @@ func (db *Store) NewTransaction(ctx context.Context, params ...storage.Transacti
 	}
 
 	xid := atomic.AddUint64(&db.xid, uint64(1))
+	if write {
+		db.wmu.Lock() // only one concurrent write txn
+	} else {
+		db.rmu.RLock()
+	}
 	underlying := db.db.NewTransaction(write)
 
 	return newTransaction(xid, write, underlying, context, db.pm, db.partitions, db), nil
@@ -162,17 +230,23 @@ func (db *Store) Commit(ctx context.Context, txn storage.Transaction) error {
 		return err
 	}
 	if underlying.write {
+		db.rmu.Lock() // blocks until all readers are done
 		event, err := underlying.Commit(ctx)
 		if err != nil {
 			return err
 		}
-		db.mu.Lock()
-		defer db.mu.Unlock()
+		write := false // read only txn
+		readOnly := db.db.NewTransaction(write)
+		xid := atomic.AddUint64(&db.xid, uint64(1))
+		readTxn := newTransaction(xid, write, readOnly, nil, db.pm, db.partitions, db)
 		for h := range db.triggers {
-			h.cb(ctx, txn, event)
+			h.cb(ctx, readTxn, event)
 		}
-	} else {
+		db.rmu.Unlock()
+		db.wmu.Unlock()
+	} else { // committing read txn
 		underlying.Abort(ctx)
+		db.rmu.RUnlock()
 	}
 	return nil
 }
@@ -184,6 +258,11 @@ func (db *Store) Abort(ctx context.Context, txn storage.Transaction) {
 		panic(err)
 	}
 	underlying.Abort(ctx)
+	if underlying.write {
+		db.wmu.Unlock()
+	} else {
+		db.rmu.RUnlock()
+	}
 }
 
 // ListPolicies implements the storage.Policy interface.
@@ -238,8 +317,6 @@ func (db *Store) Register(_ context.Context, txn storage.Transaction, config sto
 		}
 	}
 	h := &handle{db: db, cb: config.OnCommit}
-	db.mu.Lock()
-	defer db.mu.Unlock()
 	db.triggers[h] = struct{}{}
 	return h, nil
 }
@@ -305,9 +382,7 @@ func (h *handle) Unregister(ctx context.Context, txn storage.Transaction) {
 			Message: "triggers must be unregistered with a write transaction",
 		})
 	}
-	h.db.mu.Lock()
 	delete(h.db.triggers, h)
-	h.db.mu.Unlock()
 }
 
 func (db *Store) loadMetadata(txn *badger.Txn, m *metadata) (bool, error) {
@@ -423,4 +498,164 @@ func (db *Store) validatePartitions(ctx context.Context, txn *badger.Txn, existi
 	}
 
 	return nil
+}
+
+// MakeDir makes Store a storage.MakeDirer, to avoid the superfluous MakeDir
+// steps -- MakeDir is implicit in the disk storage's data layout, since
+//     {"foo": {"bar": {"baz": 10}}}
+// writes value `10` to key `/foo/bar/baz`.
+//
+// Here, we only check if it's a write transaction, for consistency with
+// other implementations, and do nothing.
+func (db *Store) MakeDir(_ context.Context, txn storage.Transaction, path storage.Path) error {
+	underlying, err := db.underlying(txn)
+	if err != nil {
+		return err
+	}
+	if !underlying.write {
+		return &storage.Error{
+			Code:    storage.InvalidTransactionErr,
+			Message: "MakeDir must be called with a write transaction",
+		}
+	}
+	return nil
+}
+
+// diagnostics prints relevant partition and database related information at
+// debug level.
+func (db *Store) diagnostics(ctx context.Context, partitions pathSet, logger logging.Logger) error {
+	if logger.GetLevel() < logging.Debug {
+		return nil
+	}
+	if len(partitions) == 0 {
+		logger.Warn("no partitions configured")
+		if err := db.logPrefixStatistics(ctx, storage.MustParsePath("/"), logger); err != nil {
+			return err
+		}
+	}
+	for _, partition := range partitions {
+		if err := db.logPrefixStatistics(ctx, partition, logger); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (db *Store) logPrefixStatistics(ctx context.Context, partition storage.Path, logger logging.Logger) error {
+
+	if prefix, ok := hasWildcard(partition); ok {
+		return db.logPrefixStatisticsWildcardPartition(ctx, prefix, partition, logger)
+	}
+
+	key, err := db.pm.DataPrefix2Key(partition)
+	if err != nil {
+		return err
+	}
+
+	opt := badger.DefaultIteratorOptions
+	opt.PrefetchValues = false
+	opt.Prefix = key
+
+	var count, size uint64
+	if err := db.db.View(func(txn *badger.Txn) error {
+		it := txn.NewIterator(opt)
+		defer it.Close()
+		for it.Rewind(); it.Valid(); it.Next() {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+			count++
+			size += uint64(it.Item().EstimatedSize()) // key length + value length
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+	logger.Debug("partition %s: key count: %d (estimated size %d bytes)", partition, count, size)
+	return nil
+}
+
+func hasWildcard(path storage.Path) (storage.Path, bool) {
+	for i := range path {
+		if path[i] == pathWildcard {
+			return path[:i], true
+		}
+	}
+	return nil, false
+}
+
+func (db *Store) logPrefixStatisticsWildcardPartition(ctx context.Context, prefix, partition storage.Path, logger logging.Logger) error {
+	// we iterate all keys, and count things according to their concrete partition
+	type diagInfo struct{ count, size uint64 }
+	diag := map[string]*diagInfo{}
+
+	key, err := db.pm.DataPrefix2Key(prefix)
+	if err != nil {
+		return err
+	}
+
+	opt := badger.DefaultIteratorOptions
+	opt.PrefetchValues = false
+	opt.Prefix = key
+	if err := db.db.View(func(txn *badger.Txn) error {
+		it := txn.NewIterator(opt)
+		defer it.Close()
+		for it.Rewind(); it.Valid(); it.Next() {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+			if part, ok := db.prefixInPattern(it.Item().Key(), partition); ok {
+				p := part.String()
+				if diag[p] == nil {
+					diag[p] = &diagInfo{}
+				}
+				diag[p].count++
+				diag[p].size += uint64(it.Item().EstimatedSize()) // key length + value length
+			}
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+	if len(diag) == 0 {
+		logger.Debug("partition pattern %s: key count: 0 (estimated size 0 bytes)", toString(partition))
+	}
+	for part, diag := range diag {
+		logger.Debug("partition %s (pattern %s): key count: %d (estimated size %d bytes)", part, toString(partition), diag.count, diag.size)
+	}
+	return nil
+}
+
+func (db *Store) prefixInPattern(key []byte, partition storage.Path) (storage.Path, bool) {
+	var part storage.Path
+	path, err := db.pm.DataKey2Path(key)
+	if err != nil {
+		return nil, false
+	}
+	for i := range partition {
+		if path[i] != partition[i] && partition[i] != pathWildcard {
+			return nil, false
+		}
+		part = append(part, path[i])
+	}
+	return part, true
+}
+
+func toString(path storage.Path) string {
+	if len(path) == 0 {
+		return "/"
+	}
+	buf := strings.Builder{}
+	for _, p := range path {
+		fmt.Fprintf(&buf, "/%s", p)
+	}
+	return buf.String()
+}
+
+// dataDir prefixes the configured storage location: what it returns is
+// what we have badger write its files to. It is done to give us some
+// wiggle room in the future should we need to put further files on the
+// file system (like backups): we can then just use the opts.Dir.
+func dataDir(dir string) string {
+	return filepath.Join(dir, "data")
 }

@@ -1002,6 +1002,10 @@ If the path does not refer to an existing document, the server will attempt to c
 
 The server will respect the `If-None-Match` header if it is set to `*`. In this case, the server will not overwrite an existing document located at the path.
 
+#### Query Parameters
+
+- **metrics** - Return performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
+
 #### Status Codes
 
 - **204** - no content (success)
@@ -1093,6 +1097,10 @@ DELETE /v1/data/{path:.+}
 Delete a document.
 
 The server processes the DELETE method as if the client had sent a PATCH request containing a single remove operation.
+
+#### Query Parameters
+
+- **metrics** - Return performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
 
 #### Status Codes
 

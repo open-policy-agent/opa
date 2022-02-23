@@ -11,6 +11,8 @@ import (
 	"github.com/open-policy-agent/opa/storage"
 )
 
+const pathWildcard = "*"
+
 type pathMapper struct {
 	dataPrefix                string
 	dataPrefixNoTrailingSlash string
@@ -38,7 +40,7 @@ func (pm *pathMapper) PolicyID2Key(id string) []byte {
 }
 
 func (pm *pathMapper) DataKey2Path(key []byte) (storage.Path, error) {
-	p, ok := storage.ParsePath(string(key))
+	p, ok := storage.ParsePathEscaped(string(key))
 	if !ok {
 		return nil, &storage.Error{Code: storage.InternalErr, Message: fmt.Sprintf("corrupt key: %s", key)}
 	}
@@ -66,10 +68,27 @@ func (ps pathSet) IsDisjoint() bool {
 	for i := range ps {
 		for j := range ps {
 			if i != j {
-				if ps[i].HasPrefix(ps[j]) || ps[j].HasPrefix(ps[i]) {
+				if hasPrefixWithWildcard(ps[i], ps[j]) {
 					return false
 				}
 			}
+		}
+	}
+	return true
+}
+
+// hasPrefixWithWildcard returns true if p starts with other; respecting
+// wildcards
+func hasPrefixWithWildcard(p, other storage.Path) bool {
+	if len(other) > len(p) {
+		return false
+	}
+	for i := range other {
+		if p[i] == pathWildcard || other[i] == pathWildcard {
+			continue
+		}
+		if p[i] != other[i] {
+			return false
 		}
 	}
 	return true

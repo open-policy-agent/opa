@@ -6,6 +6,8 @@ package storage
 
 import (
 	"context"
+
+	"github.com/open-policy-agent/opa/metrics"
 )
 
 // Transaction defines the interface that identifies a consistent snapshot over
@@ -75,6 +77,27 @@ func (ctx *Context) Get(key interface{}) interface{} {
 // Put adds a key/value pair to the context.
 func (ctx *Context) Put(key, value interface{}) {
 	ctx.values[key] = value
+}
+
+var metricsKey = struct{}{}
+
+// WithMetrics allows passing metrics via the Context.
+// It puts the metrics object in the ctx, and returns the same
+// ctx (not a copy) for convenience.
+func (ctx *Context) WithMetrics(m metrics.Metrics) *Context {
+	ctx.values[metricsKey] = m
+	return ctx
+}
+
+// Metrics() allows using a Context's metrics. Returns nil if metrics
+// were not attached to the Context.
+func (ctx *Context) Metrics() metrics.Metrics {
+	if m, ok := ctx.values[metricsKey]; ok {
+		if met, ok := m.(metrics.Metrics); ok {
+			return met
+		}
+	}
+	return nil
 }
 
 // WriteParams specifies the TransactionParams for a write transaction.
