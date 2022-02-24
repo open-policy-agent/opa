@@ -1242,6 +1242,7 @@ func (s *Server) v1CompilePost(w http.ResponseWriter, r *http.Request) {
 		rego.ParsedQuery(request.Query),
 		rego.ParsedInput(request.Input),
 		rego.ParsedUnknowns(request.Unknowns),
+		rego.DisableInlining(request.Options.DisableInlining),
 		rego.QueryTracer(buf),
 		rego.Instrument(includeInstrumentation),
 		rego.Metrics(m),
@@ -2670,6 +2671,11 @@ type compileRequest struct {
 	Query    ast.Body
 	Input    ast.Value
 	Unknowns []*ast.Term
+	Options  compileRequestOptions
+}
+
+type compileRequestOptions struct {
+	DisableInlining []string
 }
 
 func readInputCompilePostV1(r io.ReadCloser) (*compileRequest, *types.ErrorV1) {
@@ -2716,6 +2722,9 @@ func readInputCompilePostV1(r io.ReadCloser) (*compileRequest, *types.ErrorV1) {
 		Query:    query,
 		Input:    input,
 		Unknowns: unknowns,
+		Options: compileRequestOptions{
+			DisableInlining: request.Options.DisableInlining,
+		},
 	}
 
 	return result, nil
