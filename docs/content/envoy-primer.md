@@ -97,34 +97,76 @@ With the input value above, the answer is:
 ```live:bool_example:output
 ```
 
-### Example Policy with Object Response
+## Example Policy with Additional Controls
 
-The `allow` rule in the above policy returns a `boolean` decision to indicate whether a request should be allowed or not.
-If you'd like your rule to not only indicate if a request is allowed or not but also provide optional response headers,
-body and HTTP status that can be sent to the downstream client or upstream, the below `allow` rule generates an `object`
-that provides additional details along with the status of the request (ie. `allowed` or `denied`).
+The `allow` variable in the above policy returns a `boolean` decision to indicate whether a request should be allowed or not.
+If you want, you can also control the HTTP status sent to the upstream or downstream client, along with the response body, and the response headers.  To do that, you can write rules like the ones below to fill in values for variables with the following types:
+
+* `headers` is an object whose keys are strings and values are strings
+* `body` is a string
+* `status_code` is a number
 
 ```live:obj_example:module:openable
 package envoy.authz
 
-default allow = {
-    "allowed": false,
-    "headers": {"x-ext-auth-allow": "no"},
-    "body": "Unauthorized Request",
-    "http_status": 301
+import input.attributes.request.http
+
+default allow = false
+
+allow {
+    is_token_valid
+    action_allowed
 }
 
-allow = response {
-    input.attributes.request.http.method == "GET"
-    response := {
-        "allowed": true,
-        "headers": {"x-ext-auth-allow": "yes"}
-    }
+headers["x-ext-auth-allow"] = "yes"
+headers["x-validated-by"] = "security-checkpoint"
+
+status_code = 200 {
+  allow
+} else = 401 {
+  not is_token_valid
+} else = 403 {
+  true
+}
+
+body = "Authentication Failed" { status_code == 401 }
+body = "Unauthorized Request" { status_code == 403 }
+
+is_token_valid {
+    token.valid
+    now := time.now_ns() / 1000000000
+    token.payload.nbf <= now
+    now < token.payload.exp
+}
+
+action_allowed {
+    http.method == "GET"
+    token.payload.role == "guest"
+    glob.match("/people/*", ["/"], http.path)
+}
+
+action_allowed {
+    http.method == "GET"
+    token.payload.role == "admin"
+    glob.match("/people/*", ["/"], http.path)
+}
+
+action_allowed {
+    http.method == "POST"
+    token.payload.role == "admin"
+    glob.match("/people", ["/"], http.path)
+    lower(input.parsed_body.firstname) != base64url.decode(token.payload.sub)
+}
+
+
+token := {"valid": valid, "payload": payload} {
+    [_, encoded] := split(http.headers.authorization, " ")
+    [valid, _, payload] := io.jwt.decode_verify(encoded, {"secret": "secret"})
 }
 ```
 
 ```live:obj_example:query:hidden
-data.envoy.authz.allow
+data.envoy.authz
 ```
 
 Sample input received by OPA is shown below:
@@ -145,12 +187,32 @@ Sample input received by OPA is shown below:
 }
 ```
 
-With the input value above, the answer is:
+With the input value above, the value of all the variables in the package are:
 
 ```live:obj_example:output
 ```
 
-### Input Document
+## Output Document
+
+When Envoy receives a policy decision, it expects a JSON object with the following fields:
+* `allowed` (required): a boolean deciding whether or not the request is allowed
+* `headers` (optional): an object mapping a string header name to a string header value (e.g. key "x-ext-auth-allow" has value "yes")
+* `http_status` (optional): a number representing the HTTP status code
+* `body` (optional): the response body
+
+To construct that output object using the policies demonstrated in the last section, you can use the following Rego snippet.  Notice that we are using partial object rules so that any variables with undefined values simply have no key in the `result` object.
+
+```rego
+result["allowed"] = allow
+result["headers"] = headers
+result["body"] = body
+result["http_status"] = status_code
+```
+
+For a single user, including this snippet in your normal policy is fine, but when you have multiple teams writing policies, you will typically pull this bit of boilerplate into a wrapper package, so your teams can focus on writing the policies shown in the previous sections.
+
+
+## Input Document
 
 In OPA, `input` is a reserved, global variable whose value is the request sent by the Envoy External Authorization filter
 to OPA. The OPA-Envoy plugin supports both [v2](https://www.envoyproxy.io/docs/envoy/latest/api-v2/service/auth/v2/external_auth.proto#service-auth-v2-checkrequest)
@@ -231,7 +293,7 @@ http_filters:
         target_uri: "127.0.0.1:9191"
 ```
 
-#### Example Input
+### Example Input
 
 {{<detail-tag "Example v3 Input">}}
 ```json
