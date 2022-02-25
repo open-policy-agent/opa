@@ -6,6 +6,7 @@ package ast
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/url"
 	"strings"
 
@@ -112,6 +113,18 @@ func (a *Annotations) Compare(other *Annotations) int {
 	}
 
 	return 0
+}
+
+// GetTargetPath returns the path of the node these Annotations are applied to (the target)
+func (a *Annotations) GetTargetPath() Ref {
+	switch n := a.node.(type) {
+	case *Package:
+		return n.Path
+	case *Rule:
+		return n.Path()
+	default:
+		return nil
+	}
 }
 
 func scopeCompare(s1, s2 string) int {
@@ -263,6 +276,16 @@ func (a *AuthorAnnotation) Compare(other *AuthorAnnotation) int {
 func (a *AuthorAnnotation) String() string {
 	bs, _ := json.Marshal(a)
 	return string(bs)
+}
+
+func (a *AuthorAnnotation) CompactString() string {
+	if len(a.Email) == 0 {
+		return a.Name
+	} else if len(a.Name) == 0 {
+		return fmt.Sprintf("<%s>", a.Email)
+	} else {
+		return fmt.Sprintf("%s <%s>", a.Name, a.Email)
+	}
 }
 
 // Copy returns a deep copy of rr.
@@ -541,4 +564,99 @@ func mergeAnnotations(a *Annotations, b *Annotations) *Annotations {
 	}
 
 	return result
+}
+
+func getPackageAnnotations(as *annotationSet, pkg *Package) *Annotations {
+	subPkgAnnot := as.getSubpackagesScope(pkg.Path)
+
+	result := make([]*Annotations, 0, len(subPkgAnnot)+1)
+
+	result = append(result, subPkgAnnot...)
+
+	if x := as.getPackageScope(pkg); x != nil {
+		result = append(result, x)
+	}
+
+	return mergeAnnotationsList(result)
+}
+
+func getRuleAnnotations(as *annotationSet, rule *Rule) *Annotations {
+	ruleAnnot := as.getRuleScope(rule)
+
+	result := make([]*Annotations, 0, len(ruleAnnot)+2)
+
+	if a := getPackageAnnotations(as, rule.Module.Package); a != nil {
+		result = append(result, a)
+	}
+
+	if a := as.getDocumentScope(rule.Path()); a != nil {
+		result = append(result, a)
+	}
+
+	result = append(result, ruleAnnot...)
+
+	return mergeAnnotationsList(result)
+}
+
+type AnnotationsRef struct {
+	Location    *Location
+	Path        Ref
+	Annotations *Annotations
+}
+
+func (ar *AnnotationsRef) MarshalJSON() ([]byte, error) {
+	tmp := map[string]interface{}{
+		"location": ar.Location.String(),
+		"path":     ar.Path.String(),
+	}
+
+	if ar.Annotations != nil {
+		tmp["annotations"] = ar.Annotations
+	}
+
+	return json.Marshal(tmp)
+}
+
+// TODO: Call from somewhere appropriate (rego.Rego?)
+func GetAnnotations(modules []*Module, paths ...Ref) ([]*AnnotationsRef, Errors) {
+	var refs []*AnnotationsRef
+
+	as, err := buildAnnotationSet(modules)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, m := range modules {
+		if len(paths) == 0 || contains(paths, m.Package.Path) {
+			a := getPackageAnnotations(as, m.Package)
+			refs = append(refs, &AnnotationsRef{
+				Location:    m.Package.Location,
+				Path:        m.Package.Path,
+				Annotations: a,
+			})
+		}
+
+		for _, r := range m.Rules {
+			p := r.Path()
+			if len(paths) == 0 || contains(paths, p) {
+				a := getRuleAnnotations(as, r)
+				refs = append(refs, &AnnotationsRef{
+					Location:    r.Location,
+					Path:        p,
+					Annotations: a,
+				})
+			}
+		}
+	}
+
+	return refs, nil
+}
+
+func contains(rs []Ref, ref Ref) bool {
+	for _, r := range rs {
+		if r.Equal(ref) {
+			return true
+		}
+	}
+	return false
 }

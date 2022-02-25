@@ -24,10 +24,14 @@ type Info struct {
 	Signatures  bundle.SignaturesConfig  `json:"signatures_config,omitempty"`
 	WasmModules []map[string]interface{} `json:"wasm_modules,omitempty"`
 	Namespaces  map[string][]string      `json:"namespaces,omitempty"`
+	Annotations []*ast.AnnotationsRef    `json:"annotations,omitempty"`
 }
 
-func File(path string) (*Info, error) {
-	b, err := loader.NewFileLoader().WithSkipBundleVerification(true).AsBundle(path)
+func File(path string, includeAnnotations bool, annotationsFilter []string) (*Info, error) {
+	b, err := loader.NewFileLoader().
+		WithSkipBundleVerification(true).
+		WithProcessAnnotation(true). // Always process annotations, for enriching namespace listing
+		AsBundle(path)
 	if err != nil {
 		return nil, err
 	}
@@ -35,24 +39,35 @@ func File(path string) (*Info, error) {
 	bi := &Info{Manifest: b.Manifest}
 
 	namespaces := map[string][]string{}
+	var modules []*ast.Module
 	for _, m := range b.Modules {
 		namespaces[m.Parsed.Package.Path.String()] = append(namespaces[m.Parsed.Package.Path.String()], filepath.Clean(m.Path))
+		modules = append(modules, m.Parsed)
 	}
 	bi.Namespaces = namespaces
+
+	if includeAnnotations {
+		af, err := toRefs(annotationsFilter)
+		var errs ast.Errors
+		bi.Annotations, errs = ast.GetAnnotations(modules, af...)
+		if len(errs) > 0 {
+			return nil, err
+		}
+	}
 
 	err = bi.getBundleDataWasmAndSignatures(path)
 	if err != nil {
 		return nil, err
 	}
 
-	wasmModules := []map[string]interface{}{}
+	var wasmModules []map[string]interface{}
 	for _, w := range b.WasmModules {
 		wasmModule := map[string]interface{}{
 			"url":  w.URL,
 			"path": w.Path,
 		}
 
-		entrypoints := []string{}
+		var entrypoints []string
 		for _, r := range w.Entrypoints {
 			entrypoints = append(entrypoints, r.String())
 		}
@@ -63,6 +78,18 @@ func File(path string) (*Info, error) {
 	bi.WasmModules = wasmModules
 
 	return bi, nil
+}
+
+func toRefs(strings []string) ([]ast.Ref, error) {
+	result := make([]ast.Ref, 0, len(strings))
+	for _, s := range strings {
+		ref, err := ast.ParseRef(s)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, ref)
+	}
+	return result, nil
 }
 
 func (bi *Info) getBundleDataWasmAndSignatures(name string) error {

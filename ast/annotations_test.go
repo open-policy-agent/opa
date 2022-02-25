@@ -426,6 +426,27 @@ p = 1`,
 				},
 			},
 		},
+		{
+			note: "one rule with multiple metadata blocks",
+			modules: []string{
+				`package test
+
+# METADATA
+# title: foo
+# description: hello
+
+# METADATA
+# title: bar
+p = 1
+`,
+			},
+			expected: map[expectedKey]Annotations{
+				{path: "data.test.p"}: {
+					Title:       "bar", // Last block overrides first
+					Description: "hello",
+				},
+			},
+		},
 	}
 
 	for _, tc := range tests {

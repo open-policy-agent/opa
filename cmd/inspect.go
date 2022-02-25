@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
 	ib "github.com/open-policy-agent/opa/internal/bundle/inspect"
 	pr "github.com/open-policy-agent/opa/internal/presentation"
@@ -25,7 +26,9 @@ import (
 const maxTableFieldLen = 50
 
 type inspectCommandParams struct {
-	outputFormat *util.EnumFlag
+	outputFormat      *util.EnumFlag
+	listAnnotations   bool
+	annotationsFilter []string
 }
 
 func newInspectCommandParams() inspectCommandParams {
@@ -34,6 +37,8 @@ func newInspectCommandParams() inspectCommandParams {
 			evalJSONOutput,
 			evalPrettyOutput,
 		}),
+		listAnnotations:   false,
+		annotationsFilter: []string{},
 	}
 }
 
@@ -55,6 +60,7 @@ the following:
 * manifest data
 * signature data
 * information about the Wasm module files
+* package- and rule annotations
 
 Example:
 
@@ -78,11 +84,13 @@ referring to a directory, the 'inspect' command will load that path as a bundle 
 	}
 
 	addOutputFormat(inspectCommand.Flags(), params.outputFormat)
+	addListAnnotations(inspectCommand.Flags(), &params.listAnnotations)
+	addAnnotationsFilter(inspectCommand.Flags(), &params.annotationsFilter)
 	RootCommand.AddCommand(inspectCommand)
 }
 
 func doInspect(params inspectCommandParams, path string, out io.Writer) error {
-	info, err := ib.File(path)
+	info, err := ib.File(path, params.listAnnotations, params.annotationsFilter)
 	if err != nil {
 		return err
 	}
@@ -103,6 +111,13 @@ func doInspect(params inspectCommandParams, path string, out io.Writer) error {
 				return err
 			}
 		}
+
+		if params.listAnnotations && len(info.Annotations) != 0 {
+			if err := populateAnnotations(out, info.Annotations); err != nil {
+				return err
+			}
+		}
+
 		return nil
 	}
 }
@@ -121,7 +136,7 @@ func validateInspectParams(p *inspectCommandParams, args []string) error {
 
 func populateManifest(out io.Writer, m bundle.Manifest) error {
 	t := generateTableWithKeys(out, "field", "value")
-	lines := [][]string{}
+	var lines [][]string
 
 	if m.Revision != "" {
 		lines = append(lines, []string{"Revision", truncateStr(m.Revision)})
@@ -160,7 +175,7 @@ func populateManifest(out io.Writer, m bundle.Manifest) error {
 
 func populateNamespaces(out io.Writer, n map[string][]string) error {
 	t := generateTableWithKeys(out, "namespace", "file")
-	lines := [][]string{}
+	var lines [][]string
 
 	var keys []string
 	for k := range n {
@@ -178,6 +193,57 @@ func populateNamespaces(out io.Writer, n map[string][]string) error {
 	if t.NumLines() > 0 {
 		fmt.Fprintln(out, "NAMESPACES:")
 		t.Render()
+	}
+
+	return nil
+}
+
+func populateAnnotations(out io.Writer, as []*ast.AnnotationsRef) error {
+	if len(as) > 0 {
+		fmt.Fprintln(out, "ANNOTATIONS:")
+		for _, a := range as {
+			fmt.Fprintln(out, "Path:", a.Path.String())
+			fmt.Fprintln(out, "Location:", a.Location.String())
+			if len(a.Annotations.Title) > 0 {
+				fmt.Fprintln(out, "Title:", a.Annotations.Title)
+			}
+			if len(a.Annotations.Description) > 0 {
+				fmt.Fprintln(out, "Description:", a.Annotations.Description)
+			}
+			if len(a.Annotations.Organizations) > 0 {
+				fmt.Fprintln(out, "Organizations:")
+				for i, o := range a.Annotations.Organizations {
+					fmt.Fprintf(out, " %d. %s\n", i+1, o)
+				}
+			}
+			if len(a.Annotations.Authors) > 0 {
+				fmt.Fprintln(out, "Authors:")
+				for i, a := range a.Annotations.Authors {
+					fmt.Fprintf(out, " %d. %s\n", i+1, a.CompactString())
+				}
+			}
+			if len(a.Annotations.Schemas) > 0 {
+				// NOTE(johanfylling): The Type Checker will MERGE all applicable schema annotations for a rule
+				// into one list. Here, child nodes OVERRIDE parent nodes' schema annotations instead (default annot. behavior).
+				// Should the former behavior be replicated here?
+				fmt.Fprintln(out, "Schemas:")
+				for i, s := range a.Annotations.Schemas {
+					fmt.Fprintf(out, " %d. %s: ", i+1, s.Path.String())
+					if len(s.Schema) > 0 {
+						fmt.Fprintf(out, "%s\n", s.Schema.String())
+					} else if s.Definition != nil {
+						pr.JSON(out, s.Definition)
+					}
+				}
+			}
+			if len(a.Annotations.Custom) > 0 {
+				fmt.Fprint(out, "Custom: ")
+				if len(a.Annotations.Custom) > 0 {
+					pr.JSON(out, a.Annotations.Custom)
+				}
+			}
+			fmt.Fprintln(out, "----------")
+		}
 	}
 
 	return nil
