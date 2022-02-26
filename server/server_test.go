@@ -845,6 +845,10 @@ func TestCompileV1(t *testing.T) {
 	default r = true
 
 	r { input.x = 1 }
+
+	custom_func(x) { data.a[i] == x }
+
+	s { custom_func(input.x) }
 	`
 
 	expQuery := func(s string) string {
@@ -912,6 +916,34 @@ func TestCompileV1(t *testing.T) {
 
 					r { input.x = 1 }
 					default r = true
+					`)},
+			},
+		},
+		{
+			note: "function without disableInlining",
+			trs: []tr{
+				{http.MethodPut, "/policies/test", mod, 200, ""},
+				{http.MethodPost, "/compile", `{
+					"unknowns": ["data.a"],
+					"query": "data.test.s = true",
+					"input": { "x": 1 }
+				}`, 200, expQuery("data.a[i2] = 1")},
+			},
+		},
+		{
+			note: "function with disableInlining",
+			trs: []tr{
+				{http.MethodPut, "/policies/test", mod, 200, ""},
+				{http.MethodPost, "/compile", `{
+					"unknowns": ["data.a"],
+					"query": "data.test.s = true",
+					"options": { "disableInlining": ["data.test"] },
+					"input": { "x": 1 }
+				}`, 200, expQueryAndSupport(
+					`data.partial.test.s = true`,
+					`package partial.test
+					s { data.partial.test.custom_func(1) }
+					custom_func(__local0__2) { data.a[i2] = __local0__2 }
 					`)},
 			},
 		},

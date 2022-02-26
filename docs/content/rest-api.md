@@ -1281,10 +1281,11 @@ Evaluation in OPA, see [this post on blog.openpolicyagent.org](https://blog.open
 
 Compile API requests contain the following fields:
 
-| Field | Type | Requried | Description |
+| Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `query` | `string` | Yes | The query to partially evaluate and compile. |
 | `input` | `any` | No | The input document to use during partial evaluation (default: undefined). |
+| `options`  | `object[string, any]`           | No | Additional options to use during partial evaluation. Only `disableInlining` option is supported. (default: undefined). |
 | `unknowns` | `array[string]` | No | The terms to treat as unknown during partial evaluation (default: `["input"]`]). |
 
 #### Query Parameters
@@ -1324,6 +1325,9 @@ Content-Type: application/json
     "subject": {
       "clearance_level": 4
     }
+  },
+  "options": {
+    "disableInlining": []
   },
   "unknowns": [
     "data.reports"
