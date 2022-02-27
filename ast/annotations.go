@@ -618,7 +618,6 @@ func (ar *AnnotationsRef) MarshalJSON() ([]byte, error) {
 }
 
 // GetAnnotations returns a list of annotations for every Package and Rule in the passed modules.
-// TODO: Call from somewhere appropriate (rego.Rego?)
 func GetAnnotations(modules []*Module, paths ...Ref) ([]*AnnotationsRef, Errors) {
 	var refs []*AnnotationsRef
 
