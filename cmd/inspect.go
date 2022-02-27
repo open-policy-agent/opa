@@ -136,6 +136,7 @@ func validateInspectParams(p *inspectCommandParams, args []string) error {
 
 func populateManifest(out io.Writer, m bundle.Manifest) error {
 	t := generateTableWithKeys(out, "field", "value")
+	t.SetAutoMergeCells(true)
 	var lines [][]string
 
 	if m.Revision != "" {
@@ -173,8 +174,9 @@ func populateManifest(out io.Writer, m bundle.Manifest) error {
 	return nil
 }
 
-func populateNamespaces(out io.Writer, n map[string][]string) error {
-	t := generateTableWithKeys(out, "namespace", "file")
+func populateNamespaces(out io.Writer, n map[string][]ib.NamespaceInfo) error {
+	t := generateTableWithKeys(out, "namespace", "file", "title", "organizations")
+	t.SetAutoMergeCellsByColumnIndex([]int{0}) // only auto-merge the namespace column
 	var lines [][]string
 
 	var keys []string
@@ -184,8 +186,17 @@ func populateNamespaces(out io.Writer, n map[string][]string) error {
 	sort.Strings(keys)
 
 	for _, k := range keys {
-		for _, file := range n[k] {
-			lines = append(lines, []string{k, truncateFileName(file)})
+		for _, info := range n[k] {
+			orgs := make([]string, 0, len(info.Organizations))
+			for _, o := range info.Organizations {
+				orgs = append(orgs, truncateStr(o))
+			}
+			lines = append(lines, []string{
+				k,
+				truncateFileName(info.File),
+				truncateStr(info.Title),
+				strings.Join(orgs, "\n"),
+			})
 		}
 	}
 
@@ -199,6 +210,7 @@ func populateNamespaces(out io.Writer, n map[string][]string) error {
 }
 
 func populateAnnotations(out io.Writer, as []*ast.AnnotationsRef) error {
+	// TODO: Sort by path, then location, for stable output
 	if len(as) > 0 {
 		fmt.Fprintln(out, "ANNOTATIONS:")
 		for _, a := range as {
@@ -260,7 +272,6 @@ func generateTableWithKeys(writer io.Writer, keys ...string) *tablewriter.Table 
 	table.SetHeader(hdrs)
 	table.SetAlignment(tablewriter.ALIGN_CENTER)
 	table.SetColumnAlignment(aligns)
-	table.SetAutoMergeCells(true)
 	table.SetRowLine(false)
 	table.SetAutoWrapText(false)
 	return table

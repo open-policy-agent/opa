@@ -20,11 +20,17 @@ import (
 
 // Info represents information about a bundle.
 type Info struct {
-	Manifest    bundle.Manifest          `json:"manifest,omitempty"`
-	Signatures  bundle.SignaturesConfig  `json:"signatures_config,omitempty"`
-	WasmModules []map[string]interface{} `json:"wasm_modules,omitempty"`
-	Namespaces  map[string][]string      `json:"namespaces,omitempty"`
-	Annotations []*ast.AnnotationsRef    `json:"annotations,omitempty"`
+	Manifest    bundle.Manifest            `json:"manifest,omitempty"`
+	Signatures  bundle.SignaturesConfig    `json:"signatures_config,omitempty"`
+	WasmModules []map[string]interface{}   `json:"wasm_modules,omitempty"`
+	Namespaces  map[string][]NamespaceInfo `json:"namespaces,omitempty"`
+	Annotations []*ast.AnnotationsRef      `json:"annotations,omitempty"`
+}
+
+type NamespaceInfo struct {
+	File          string
+	Title         string
+	Organizations []string
 }
 
 func File(path string, includeAnnotations bool, annotationsFilter []string) (*Info, error) {
@@ -38,10 +44,18 @@ func File(path string, includeAnnotations bool, annotationsFilter []string) (*In
 
 	bi := &Info{Manifest: b.Manifest}
 
-	namespaces := map[string][]string{}
+	namespaces := map[string][]NamespaceInfo{}
 	var modules []*ast.Module
 	for _, m := range b.Modules {
-		namespaces[m.Parsed.Package.Path.String()] = append(namespaces[m.Parsed.Package.Path.String()], filepath.Clean(m.Path))
+		ni := NamespaceInfo{
+			File: filepath.Clean(m.Path),
+		}
+		if pa := ast.FindPackageAnnotations(m.Parsed.Annotations); pa != nil {
+			// Regular annotations overriding not used for namespace info
+			ni.Title = pa.Title
+			ni.Organizations = pa.Organizations
+		}
+		namespaces[m.Parsed.Package.Path.String()] = append(namespaces[m.Parsed.Package.Path.String()], ni)
 		modules = append(modules, m.Parsed)
 	}
 	bi.Namespaces = namespaces
@@ -151,16 +165,16 @@ func (bi *Info) getBundleDataWasmAndSignatures(name string) error {
 		if len(key) > 1 {
 			key = key[:len(key)-1] // ignore file name ie. data.json / data.yaml
 			path := fmt.Sprintf("%v.%v", ast.DefaultRootDocument, strings.Join(key, "."))
-			bi.Namespaces[path] = append(bi.Namespaces[path], value)
+			bi.Namespaces[path] = append(bi.Namespaces[path], NamespaceInfo{File: value})
 		} else {
-			bi.Namespaces[ast.DefaultRootDocument.String()] = append(bi.Namespaces[ast.DefaultRootDocument.String()], value) // data file at bundle root
+			bi.Namespaces[ast.DefaultRootDocument.String()] = append(bi.Namespaces[ast.DefaultRootDocument.String()], NamespaceInfo{File: value}) // data file at bundle root
 		}
 	}
 
 	for _, item := range bi.Manifest.WasmResolvers {
 		key := strings.Split(strings.TrimPrefix(item.Entrypoint, "/"), "/")
 		path := fmt.Sprintf("%v.%v", ast.DefaultRootDocument, strings.Join(key, "."))
-		bi.Namespaces[path] = append(bi.Namespaces[path], item.Module)
+		bi.Namespaces[path] = append(bi.Namespaces[path], NamespaceInfo{File: item.Module})
 	}
 
 	return nil

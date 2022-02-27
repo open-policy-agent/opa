@@ -617,6 +617,7 @@ func (ar *AnnotationsRef) MarshalJSON() ([]byte, error) {
 	return json.Marshal(tmp)
 }
 
+// GetAnnotations returns a list of annotations for every Package and Rule in the passed modules.
 // TODO: Call from somewhere appropriate (rego.Rego?)
 func GetAnnotations(modules []*Module, paths ...Ref) ([]*AnnotationsRef, Errors) {
 	var refs []*AnnotationsRef
@@ -659,4 +660,13 @@ func contains(rs []Ref, ref Ref) bool {
 		}
 	}
 	return false
+}
+
+func FindPackageAnnotations(as []*Annotations) *Annotations {
+	for _, a := range as {
+		if _, found := a.node.(*Package); found {
+			return a
+		}
+	}
+	return nil
 }
