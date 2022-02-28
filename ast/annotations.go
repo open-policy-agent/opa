@@ -274,11 +274,6 @@ func (a *AuthorAnnotation) Compare(other *AuthorAnnotation) int {
 }
 
 func (a *AuthorAnnotation) String() string {
-	bs, _ := json.Marshal(a)
-	return string(bs)
-}
-
-func (a *AuthorAnnotation) CompactString() string {
 	if len(a.Email) == 0 {
 		return a.Name
 	} else if len(a.Name) == 0 {
@@ -599,19 +594,21 @@ func getRuleAnnotations(as *annotationSet, rule *Rule) *Annotations {
 }
 
 type AnnotationsRef struct {
-	Location    *Location
-	Path        Ref
-	Annotations *Annotations
+	Location    *Location    `json:"location"`
+	Path        Ref          `json:"path"`
+	Annotations *Annotations `json:"annotations,omitempty"`
 }
 
 func (ar *AnnotationsRef) MarshalJSON() ([]byte, error) {
 	tmp := map[string]interface{}{
-		"location": ar.Location.String(),
+		"location": ar.Location,
 		"path":     ar.Path.String(),
 	}
 
 	if ar.Annotations != nil {
 		tmp["annotations"] = ar.Annotations
+	} else {
+		tmp["annotations"] = map[string]interface{}{}
 	}
 
 	return json.Marshal(tmp)

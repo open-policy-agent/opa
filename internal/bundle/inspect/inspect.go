@@ -28,9 +28,9 @@ type Info struct {
 }
 
 type NamespaceInfo struct {
-	File          string
-	Title         string
-	Organizations []string
+	File          string   `json:"file"`
+	Title         string   `json:"title,omitempty"`
+	Organizations []string `json:"organizations,omitempty"`
 }
 
 func File(path string, includeAnnotations bool, annotationsFilter []string) (*Info, error) {
@@ -44,7 +44,7 @@ func File(path string, includeAnnotations bool, annotationsFilter []string) (*In
 
 	bi := &Info{Manifest: b.Manifest}
 
-	namespaces := map[string][]NamespaceInfo{}
+	namespaces := make(map[string][]NamespaceInfo, len(b.Modules))
 	var modules []*ast.Module
 	for _, m := range b.Modules {
 		ni := NamespaceInfo{
@@ -74,7 +74,7 @@ func File(path string, includeAnnotations bool, annotationsFilter []string) (*In
 		return nil, err
 	}
 
-	var wasmModules []map[string]interface{}
+	wasmModules := make([]map[string]interface{}, 0, len(b.WasmModules))
 	for _, w := range b.WasmModules {
 		wasmModule := map[string]interface{}{
 			"url":  w.URL,

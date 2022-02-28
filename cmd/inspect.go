@@ -231,7 +231,7 @@ func populateAnnotations(out io.Writer, as []*ast.AnnotationsRef) error {
 			if len(a.Annotations.Authors) > 0 {
 				fmt.Fprintln(out, "Authors:")
 				for i, a := range a.Annotations.Authors {
-					fmt.Fprintf(out, " %d. %s\n", i+1, a.CompactString())
+					fmt.Fprintf(out, " %d. %s\n", i+1, a.String())
 				}
 			}
 			if len(a.Annotations.Schemas) > 0 {
