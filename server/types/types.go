@@ -352,6 +352,9 @@ type CompileRequestV1 struct {
 	Input    *interface{} `json:"input"`
 	Query    string       `json:"query"`
 	Unknowns *[]string    `json:"unknowns"`
+	Options  struct {
+		DisableInlining []string `json:"disableInlining,omitempty"`
+	} `json:"options,omitempty"`
 }
 
 // CompileResponseV1 models the response message for Compile API operations.

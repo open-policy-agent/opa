@@ -145,21 +145,27 @@ kubectl apply -f https://raw.githubusercontent.com/istio/istio/master/samples/bo
 kubectl apply -f https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/networking/bookinfo-gateway.yaml
 ```
 
-### 4. Set the `GATEWAY_URL` environment variable in your shell to the public IP/port of the Istio Ingress gateway
+### 4. Set the `SERVICE_HOST` environment variable in your shell to the public IP/port of the Istio Ingress gateway
 
-**minikube**:
+Run this command in a new terminal window to start a Minikube tunnel that sends traffic to your Istio Ingress Gateway:
+
+```
+minikube tunnel
+```
+
+Check that the Service shows an `EXTERNAL-IP`:
 
 ```bash
-export INGRESS_PORT=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.spec.ports[?(@.name=="http2")].nodePort}')
-export INGRESS_HOST=$(minikube ip)
-export GATEWAY_URL=$INGRESS_HOST:$INGRESS_PORT
-echo $GATEWAY_URL
+kubectl -n istio-system get service istio-ingressgateway
+
+NAME                   TYPE           CLUSTER-IP     EXTERNAL-IP   PORT(S)                                                                      AGE
+istio-ingressgateway   LoadBalancer   10.98.42.178   127.0.0.1     15021:32290/TCP,80:30283/TCP,443:32497/TCP,31400:30216/TCP,15443:30690/TCP   5s
 ```
 
-**minikube (example)**:
+**minikube:**
 
-```
-192.168.99.100:31380
+```bash
+export SERVICE_HOST=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
 ```
 
 For other platforms see the [Istio documentation on determining ingress IP and ports.](https://istio.io/docs/tasks/traffic-management/ingress/#determining-the-ingress-ip-and-ports)
@@ -170,15 +176,15 @@ For other platforms see the [Istio documentation on determining ingress IP and p
 Check that **alice** can access `/productpage` **BUT NOT** `/api/v1/products`.
 
 ```bash
-curl --user alice:password -i http://$GATEWAY_URL/productpage
-curl --user alice:password -i http://$GATEWAY_URL/api/v1/products
+curl --user alice:password -i http://$SERVICE_HOST/productpage
+curl --user alice:password -i http://$SERVICE_HOST/api/v1/products
 ```
 
 Check that **bob** can access `/productpage` **AND** `/api/v1/products`.
 
 ```bash
-curl --user bob:password -i http://$GATEWAY_URL/productpage
-curl --user bob:password -i http://$GATEWAY_URL/api/v1/products
+curl --user bob:password -i http://$SERVICE_HOST/productpage
+curl --user bob:password -i http://$SERVICE_HOST/api/v1/products
 ```
 
 ## Wrap Up

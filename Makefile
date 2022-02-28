@@ -14,14 +14,18 @@ WASM_ENABLED ?= 1
 GO := CGO_ENABLED=$(CGO_ENABLED) GOFLAGS="-buildmode=exe" go
 GO_TEST_TIMEOUT := -timeout 30m
 
+GOVERSION ?= $(shell cat ./.go-version)
+GOARCH := $(shell go env GOARCH)
+GOOS := $(shell go env GOOS)
+
+ifeq ($(GOOS)/$(GOARCH),darwin/arm64)
+WASM_ENABLED=0
+endif
+
 GO_TAGS := -tags=
 ifeq ($(WASM_ENABLED),1)
 GO_TAGS = -tags=opa_wasm
 endif
-
-GOVERSION ?= $(shell cat ./.go-version)
-GOARCH := $(shell go env GOARCH)
-GOOS := $(shell go env GOOS)
 
 GOLANGCI_LINT_VERSION := v1.43.0
 
