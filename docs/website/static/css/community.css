@@ -174,15 +174,15 @@
 }
 
 .glow:before, .glow:after {
-  height: 6px;
-  filter: blur(5px);
+  height: 8px;
+  filter: blur(1px);
   border-radius: 5px;
 }
 .glow:before {
-  background: linear-gradient(to right, blue, #343a40);
+  background: linear-gradient(to right, rgba(67, 58, 238, 0.721), #343a40d4);
 }
 .glow:after {
-  background: linear-gradient(to left, blue, #343a40);
+  background: linear-gradient(to left, rgba(67, 58, 238, 0.721), #343a40d4);
 }
 
 /* END import */
