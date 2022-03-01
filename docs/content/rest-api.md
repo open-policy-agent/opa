@@ -725,7 +725,7 @@ The path separator is used to access values inside object and array documents. I
 #### Query Parameters
 
 - **input** - Provide an input document. Format is a JSON value that will be used as the value for the input document.
-- **pretty** - If parameter is `true`, response will formatted for humans.
+- **pretty** - If parameter is `true`, response will be formatted for humans.
 - **provenance** - If parameter is `true`, response will include build/version info in addition to the result.  See [Provenance](#provenance) for more detail.
 - **explain** - Return query explanation in addition to result. Values: **full**.
 - **metrics** - Return query performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
@@ -738,10 +738,7 @@ The path separator is used to access values inside object and array documents. I
 - **400** - bad request
 - **500** - server error
 
-The server returns 400 if either:
-
-- The query requires the input document and the caller does not provide it.
-- The caller provides the input document but the query already defines it programmatically.
+The server returns 400 if the input document is invalid (i.e. malformed JSON).
 
 The server returns 200 if the path refers to an undefined document. In this
 case, the response will not contain a `result` property.
@@ -839,10 +836,7 @@ The request body contains an object that specifies a value for [The input Docume
 - **400** - bad request
 - **500** - server error
 
-The server returns 400 if either:
-
-1. The query requires an input document and the client did not supply one.
-2. The query already defines an input document and the client did supply one.
+The server returns 400 if the input document is invalid (i.e. malformed JSON).
 
 The server returns 200 if the path refers to an undefined document. In this
 case, the response will not contain a `result` property.
