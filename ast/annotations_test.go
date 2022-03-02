@@ -340,7 +340,7 @@ p[v] {v = 2}`,
 
 			if len(flattened) != len(tc.expected) {
 				t.Fatalf("flattened AnnotationSet\n%v\ndoesn't match expected\n%v",
-					toJson(flattened), toJson(tc.expected))
+					toJSON(flattened), toJSON(tc.expected))
 			}
 
 			for i, expected := range tc.expected {
@@ -362,7 +362,7 @@ p[v] {v = 2}`,
 	}
 }
 
-func toJson(v interface{}) string {
+func toJSON(v interface{}) string {
 	b, _ := json.Marshal(v)
 	return string(b)
 }

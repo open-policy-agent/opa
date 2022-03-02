@@ -24,6 +24,7 @@ import (
 )
 
 const maxTableFieldLen = 50
+const PageWidth = 80
 
 type inspectCommandParams struct {
 	outputFormat    *util.EnumFlag
@@ -296,11 +297,9 @@ func printList(out io.Writer, list []listEntry, separator string) {
 			separator,
 			strings.Repeat(" ", keyLength-len(e.key)),
 			e.value)
-		fmt.Fprintln(out, truncateStr(line, PAGE_WIDTH))
+		fmt.Fprintln(out, truncateStr(line, PageWidth))
 	}
 }
-
-const PAGE_WIDTH = 80
 
 func printTitle(out io.Writer, ref *ast.AnnotationsRef) {
 	var title string
@@ -318,7 +317,7 @@ func printTitle(out io.Writer, ref *ast.AnnotationsRef) {
 	fmt.Fprintf(out, "%s\n", title)
 
 	var underline []byte
-	for i := 0; i < len(title) && i < PAGE_WIDTH; i++ {
+	for i := 0; i < len(title) && i < PageWidth; i++ {
 		underline = append(underline, '=')
 	}
 	fmt.Fprintln(out, string(underline))

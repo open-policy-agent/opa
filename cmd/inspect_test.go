@@ -114,19 +114,19 @@ func TestDoInspectPretty(t *testing.T) {
 		output := strings.TrimSpace(out.String())
 		expected := strings.TrimSpace(`
  MANIFEST:
-+----------+-------------------------------------------------------+
-|  FIELD   |                         VALUE                         |
-+----------+-------------------------------------------------------+
-| Revision | foobarfoobarfoobarfoobarfoobarfoobarfoobarfoobarfo... |
-| Roots    | a                                                     |
-|          | bar                                                   |
-|          | foo                                                   |
-|          | fuz                                                   |
-|          | http                                                  |
-|          | metadata/...oobarfoobarfoobarfoobarfoobar/features    |
-|          | x                                                     |
-| Metadata | {"hello":"worldworldworldworldworldworldworldworld... |
-+----------+-------------------------------------------------------+
++----------+----------------------------------------------------+
+|  FIELD   |                       VALUE                        |
++----------+----------------------------------------------------+
+| Revision | foobarfoobarfoobarfoobarfoobarfoobarfoobarfooba... |
+| Roots    | a                                                  |
+|          | bar                                                |
+|          | foo                                                |
+|          | fuz                                                |
+|          | http                                               |
+|          | metadata/...oobarfoobarfoobarfoobarfoobar/features |
+|          | x                                                  |
+| Metadata | {"hello":"worldworldworldworldworldworldworldwo... |
++----------+----------------------------------------------------+
 NAMESPACES:
 +-----------------------------+----------------------------------------------------+
 |          NAMESPACE          |                        FILE                        |
