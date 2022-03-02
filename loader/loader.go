@@ -20,6 +20,7 @@ import (
 	"github.com/open-policy-agent/opa/bundle"
 	fileurl "github.com/open-policy-agent/opa/internal/file/url"
 	"github.com/open-policy-agent/opa/internal/merge"
+	"github.com/open-policy-agent/opa/loader/filter"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
@@ -67,7 +68,7 @@ type RegoFile struct {
 
 // Filter defines the interface for filtering files during loading. If the
 // filter returns true, the file should be excluded from the result.
-type Filter func(abspath string, info os.FileInfo, depth int) bool
+type Filter = filter.LoaderFilter
 
 // GlobExcludeName excludes files and directories whose names do not match the
 // shell style pattern at minDepth or greater.
@@ -186,6 +187,7 @@ func (fl fileLoader) AsBundle(path string) (*bundle.Bundle, error) {
 
 	br := bundle.NewCustomReader(bundleLoader).
 		WithMetrics(fl.metrics).
+		WithFilter(fl.filter).
 		WithBundleVerificationConfig(fl.bvc).
 		WithSkipBundleVerification(fl.skipVerify).
 		WithProcessAnnotations(fl.opts.ProcessAnnotation)

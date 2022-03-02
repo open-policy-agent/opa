@@ -14,7 +14,7 @@ import (
 	"fmt"
 	"io"
 	"net/url"
-	//"os"
+	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -25,6 +25,7 @@ import (
 	"github.com/open-policy-agent/opa/format"
 	"github.com/open-policy-agent/opa/internal/file/archive"
 	"github.com/open-policy-agent/opa/internal/merge"
+	"github.com/open-policy-agent/opa/loader/filter"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/util"
 )
@@ -343,11 +344,11 @@ type Reader struct {
 	metrics               metrics.Metrics
 	baseDir               string
 	verificationConfig    *VerificationConfig
-	//	filter                Filter
-	skipVerify         bool
-	processAnnotations bool
-	files              map[string]FileInfo // files in the bundle signature payload
-	sizeLimitBytes     int64
+	filter                filter.LoaderFilter
+	skipVerify            bool
+	processAnnotations    bool
+	files                 map[string]FileInfo // files in the bundle signature payload
+	sizeLimitBytes        int64
 }
 
 // NewReader is deprecated. Use NewCustomReader instead.
@@ -375,10 +376,10 @@ func (r *Reader) IncludeManifestInData(includeManifestInData bool) *Reader {
 }
 
 // WithFilter sets the filter object to be used while loading bundles
-//func (r *Reader) WithFilter(f Filter) *Reader {
-//	r.filter = f
-//	return r
-//}
+func (r *Reader) WithFilter(f filter.LoaderFilter) *Reader {
+	r.filter = f
+	return r
+}
 
 // WithMetrics sets the metrics object to be used while loading bundles
 func (r *Reader) WithMetrics(m metrics.Metrics) *Reader {
@@ -445,6 +446,17 @@ func (r *Reader) Read() (Bundle, error) {
 			return bundle, err
 		}
 
+		path := f.Path()
+		info, err := os.Stat(path)
+		if err != nil {
+			return bundle, err
+		}
+
+		// filter out files to ignore
+		if r.filter != nil && r.filter(path, info, 0) {
+			continue
+		}
+
 		// verify the file content
 		if bundle.Type() == SnapshotBundleType && !bundle.Signatures.isEmpty() {
 			path := f.Path()
@@ -464,7 +476,7 @@ func (r *Reader) Read() (Bundle, error) {
 		}
 
 		// Normalize the paths to use `/` separators
-		path := filepath.ToSlash(f.Path())
+		path = filepath.ToSlash(f.Path())
 
 		if strings.HasSuffix(path, RegoExt) {
 			fullPath := r.fullPath(path)
