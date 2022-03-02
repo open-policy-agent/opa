@@ -376,3 +376,48 @@ allow {
 ```
 
 ## Accessing annotations
+
+### Inspect command
+
+Annotations can be listed through the `inspect` command by using the `-a` flag:
+
+```shell
+opa inspect -a
+```
+
+### Go API
+
+The `ast.AnnotationSet` is a collection of all `ast.Annotations` declared in a set of modules. 
+An `ast.AnnotationSet` can be created from a slice of compiled modules:
+
+```go
+var modules []*ast.Module
+...
+as, err := ast.BuildAnnotationSet(modules)
+if err != nil {
+    // Handle error.
+}
+```
+
+or can be retrieved from an `ast.Compiler` instance:
+
+```go
+var modules []*ast.Module
+...
+compiler := ast.NewCompiler()
+compiler.Compile(modules)
+as := compiler.GetAnnotationSet()
+```
+
+The `ast.AnnotationSet` can be flattened into a slice of `ast.AnnotationsRef`, which is a complete, sorted list of all 
+annotations, grouped by the path and location of their targeted package or -rule.
+
+```go
+flattened := as.Flatten()
+for _, entry := range flattened {
+    fmt.Printf("%v at %v has annotations %v\n",
+        entry.Path,
+        entry.Location,
+        entry.Annotations)
+}
+```
