@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"sort"
 	"strings"
 
 	"github.com/open-policy-agent/opa/internal/deepcopy"
@@ -73,78 +74,6 @@ type (
 		node        Node
 	}
 )
-
-func (t *annotationTreeNode) flatten(refs []*AnnotationsRef) []*AnnotationsRef {
-	if a := t.Value; a != nil {
-		refs = append(refs, &AnnotationsRef{
-			Location:    a.Location,
-			Path:        a.GetTargetPath(),
-			Annotations: a,
-			node:        a.node,
-		})
-	}
-	for _, c := range t.Children {
-		refs = c.flatten(refs)
-	}
-	return refs
-}
-
-func (as *AnnotationSet) Flatten() []*AnnotationsRef {
-	var refs []*AnnotationsRef
-
-	refs = as.byPath.flatten(refs)
-
-	for p, a := range as.byPackage {
-		refs = append(refs, &AnnotationsRef{
-			Location:    p.Location,
-			Path:        p.Path,
-			Annotations: a,
-			node:        p,
-		})
-	}
-
-	for r, as := range as.byRule {
-		for _, a := range as {
-			refs = append(refs, &AnnotationsRef{
-				Location:    r.Location,
-				Path:        r.Path(),
-				Annotations: a,
-				node:        r,
-			})
-		}
-	}
-
-	// TODO: Sort by path, then location, for stable output
-	return refs
-}
-
-func (as *AnnotationSet) Expand() []*AnnotationsRef {
-	var refs []*AnnotationsRef
-
-	for _, m := range as.modules {
-		a := getPackageAnnotations(as, m.Package)
-		refs = append(refs, &AnnotationsRef{
-			Location:    m.Package.Location,
-			Path:        m.Package.Path,
-			Annotations: a,
-			node:        m.Package,
-		})
-
-		for _, r := range m.Rules {
-			p := r.Path()
-			a := getRuleAnnotations(as, r)
-			refs = append(refs, &AnnotationsRef{
-				Location:    r.Location,
-				Path:        p,
-				Annotations: a,
-				node:        r,
-			})
-		}
-	}
-
-	// TODO: Sort by path, then location, for stable output
-	return refs
-}
 
 func (a *Annotations) String() string {
 	bs, _ := json.Marshal(a)
@@ -545,6 +474,47 @@ func (as *AnnotationSet) GetPackageScope(pkg *Package) *Annotations {
 	return as.byPackage[pkg]
 }
 
+// Flatten returns a flattened list view of this AnnotationSet.
+// The returned slice is sorted, first by the annotations' target path, then by their target location
+func (as *AnnotationSet) Flatten() []*AnnotationsRef {
+	var refs []*AnnotationsRef
+
+	refs = as.byPath.flatten(refs)
+
+	for p, a := range as.byPackage {
+		refs = append(refs, &AnnotationsRef{
+			Location:    p.Location,
+			Path:        p.Path,
+			Annotations: a,
+			node:        p,
+		})
+	}
+
+	for r, as := range as.byRule {
+		for _, a := range as {
+			refs = append(refs, &AnnotationsRef{
+				Location:    r.Location,
+				Path:        r.Path(),
+				Annotations: a,
+				node:        r,
+			})
+		}
+	}
+
+	// Sort by path, then location, for stable output
+	sort.SliceStable(refs, func(i, j int) bool {
+		if refs[i].Path.Compare(refs[j].Path) < 0 {
+			return true
+		}
+		if refs[i].Location.Compare(refs[j].Location) < 0 {
+			return true
+		}
+		return false
+	})
+
+	return refs
+}
+
 func newAnnotationTree() *annotationTreeNode {
 	return &annotationTreeNode{
 		Value:    nil,
@@ -598,126 +568,17 @@ func (t *annotationTreeNode) ancestors(path Ref) (result []*Annotations) {
 	return result
 }
 
-// mergeAnnotations merges a slice of annotations into one.
-// The passed annotations slice must be ordered less significant to more significant; e.g. [package x, package x.y, rule x.y.z].
-func mergeAnnotationsList(annotations []*Annotations) *Annotations {
-	if len(annotations) == 0 {
-		return nil
+func (t *annotationTreeNode) flatten(refs []*AnnotationsRef) []*AnnotationsRef {
+	if a := t.Value; a != nil {
+		refs = append(refs, &AnnotationsRef{
+			Location:    a.Location,
+			Path:        a.GetTargetPath(),
+			Annotations: a,
+			node:        a.node,
+		})
 	}
-
-	var result *Annotations
-
-	if len(annotations) == 1 {
-		result = annotations[0].Copy(nil)
-	} else {
-		result = annotations[0]
-
-		for _, b := range annotations[1:] {
-			result = mergeAnnotations(result, b)
-		}
+	for _, c := range t.Children {
+		refs = c.flatten(refs)
 	}
-
-	// It makes little sense to keep any of these annotations,
-	// as they're too specific to their respective set of annotations.
-	result.Location = nil
-	result.node = nil
-	result.Scope = ""
-
-	return result
-}
-
-// merge returns a new Annotations with any annotation present in the given other replaced.
-func mergeAnnotations(a *Annotations, b *Annotations) *Annotations {
-	result := a.Copy(nil)
-	bCopy := b.Copy(nil)
-
-	if len(bCopy.Title) > 0 {
-		result.Title = bCopy.Title
-	}
-
-	if len(bCopy.Description) > 0 {
-		result.Description = bCopy.Description
-	}
-
-	if len(bCopy.Organizations) > 0 {
-		result.Organizations = bCopy.Organizations
-	}
-
-	if len(bCopy.RelatedResources) > 0 {
-		result.RelatedResources = bCopy.RelatedResources
-	}
-
-	if len(bCopy.Authors) > 0 {
-		result.Authors = bCopy.Authors
-	}
-
-	if len(bCopy.Schemas) > 0 {
-		result.Schemas = bCopy.Schemas
-	}
-
-	if len(bCopy.Custom) > 0 {
-		result.Custom = bCopy.Custom
-	}
-
-	return result
-}
-
-func getPackageAnnotations(as *AnnotationSet, pkg *Package) *Annotations {
-	subPkgAnnot := as.GetSubpackagesScope(pkg.Path)
-
-	result := make([]*Annotations, 0, len(subPkgAnnot)+1)
-
-	result = append(result, subPkgAnnot...)
-
-	if x := as.GetPackageScope(pkg); x != nil {
-		result = append(result, x)
-	}
-
-	return mergeAnnotationsList(result)
-}
-
-func getRuleAnnotations(as *AnnotationSet, rule *Rule) *Annotations {
-	ruleAnnot := as.GetRuleScope(rule)
-
-	result := make([]*Annotations, 0, len(ruleAnnot)+2)
-
-	if a := getPackageAnnotations(as, rule.Module.Package); a != nil {
-		result = append(result, a)
-	}
-
-	if a := as.GetDocumentScope(rule.Path()); a != nil {
-		result = append(result, a)
-	}
-
-	result = append(result, ruleAnnot...)
-
-	return mergeAnnotationsList(result)
-}
-
-// GetAnnotations returns a list of annotations for every Package and Rule in the given modules.
-func GetAnnotations(modules []*Module, expand bool) ([]*AnnotationsRef, Errors) {
-	as, err := BuildAnnotationSet(modules)
-	if err != nil {
-		return nil, err
-	}
-
-	if expand {
-		return as.Expand(), nil
-	} else {
-		return as.Flatten(), nil
-	}
-}
-
-type AnnotationsTreeNode struct {
-	Key      Value
-	Children map[Value]*AnnotationsTreeNode
-}
-
-func FindPackageAnnotations(as []*Annotations) *Annotations {
-	for _, a := range as {
-		if _, found := a.node.(*Package); found {
-			return a
-		}
-	}
-	return nil
+	return refs
 }

@@ -26,9 +26,8 @@ import (
 const maxTableFieldLen = 50
 
 type inspectCommandParams struct {
-	outputFormat      *util.EnumFlag
-	listAnnotations   bool
-	annotationsFilter []string
+	outputFormat    *util.EnumFlag
+	listAnnotations bool
 }
 
 func newInspectCommandParams() inspectCommandParams {
@@ -37,8 +36,7 @@ func newInspectCommandParams() inspectCommandParams {
 			evalJSONOutput,
 			evalPrettyOutput,
 		}),
-		listAnnotations:   false,
-		annotationsFilter: []string{},
+		listAnnotations: false,
 	}
 }
 
@@ -85,12 +83,11 @@ referring to a directory, the 'inspect' command will load that path as a bundle 
 
 	addOutputFormat(inspectCommand.Flags(), params.outputFormat)
 	addListAnnotations(inspectCommand.Flags(), &params.listAnnotations)
-	addAnnotationsFilter(inspectCommand.Flags(), &params.annotationsFilter)
 	RootCommand.AddCommand(inspectCommand)
 }
 
 func doInspect(params inspectCommandParams, path string, out io.Writer) error {
-	info, err := ib.File(path, params.listAnnotations, params.annotationsFilter)
+	info, err := ib.File(path, params.listAnnotations)
 	if err != nil {
 		return err
 	}
@@ -173,8 +170,8 @@ func populateManifest(out io.Writer, m bundle.Manifest) error {
 	return nil
 }
 
-func populateNamespaces(out io.Writer, n map[string][]ib.NamespaceInfo) error {
-	t := generateTableWithKeys(out, "namespace", "file", "title")
+func populateNamespaces(out io.Writer, n map[string][]string) error {
+	t := generateTableWithKeys(out, "namespace", "file")
 	// only auto-merge the namespace column
 	t.SetAutoMergeCells(false)
 	t.SetAutoMergeCellsByColumnIndex([]int{0})
@@ -187,16 +184,8 @@ func populateNamespaces(out io.Writer, n map[string][]ib.NamespaceInfo) error {
 	sort.Strings(keys)
 
 	for _, k := range keys {
-		for _, info := range n[k] {
-			orgs := make([]string, 0, len(info.Organizations))
-			for _, o := range info.Organizations {
-				orgs = append(orgs, truncateTableStr(o))
-			}
-			lines = append(lines, []string{
-				k,
-				truncateFileName(info.File),
-				truncateTableStr(info.Title),
-			})
+		for _, file := range n[k] {
+			lines = append(lines, []string{k, truncateFileName(file)})
 		}
 	}
 

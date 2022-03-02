@@ -538,14 +538,6 @@ func (c *Compiler) GetRulesWithPrefix(ref Ref) (rules []*Rule) {
 	return rules
 }
 
-func (c *Compiler) GetPackageAnnotations(pkg *Package) *Annotations {
-	return getPackageAnnotations(c.annotationSet, pkg)
-}
-
-func (c *Compiler) GetRuleAnnotations(rule *Rule) *Annotations {
-	return getRuleAnnotations(c.annotationSet, rule)
-}
-
 func extractRules(s []util.T) (rules []*Rule) {
 	for _, r := range s {
 		rules = append(rules, r.(*Rule))
@@ -1323,6 +1315,10 @@ func (c *Compiler) getExports() *util.HashMap {
 	}
 
 	return rules
+}
+
+func (c *Compiler) GetAnnotationSet() *AnnotationSet {
+	return c.annotationSet
 }
 
 func (c *Compiler) checkDuplicateImports() {

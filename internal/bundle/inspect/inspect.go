@@ -20,20 +20,14 @@ import (
 
 // Info represents information about a bundle.
 type Info struct {
-	Manifest    bundle.Manifest            `json:"manifest,omitempty"`
-	Signatures  bundle.SignaturesConfig    `json:"signatures_config,omitempty"`
-	WasmModules []map[string]interface{}   `json:"wasm_modules,omitempty"`
-	Namespaces  map[string][]NamespaceInfo `json:"namespaces,omitempty"`
-	Annotations []*ast.AnnotationsRef      `json:"annotations,omitempty"`
+	Manifest    bundle.Manifest          `json:"manifest,omitempty"`
+	Signatures  bundle.SignaturesConfig  `json:"signatures_config,omitempty"`
+	WasmModules []map[string]interface{} `json:"wasm_modules,omitempty"`
+	Namespaces  map[string][]string      `json:"namespaces,omitempty"`
+	Annotations []*ast.AnnotationsRef    `json:"annotations,omitempty"`
 }
 
-type NamespaceInfo struct {
-	File          string   `json:"file"`
-	Title         string   `json:"title,omitempty"`
-	Organizations []string `json:"organizations,omitempty"`
-}
-
-func File(path string, includeAnnotations bool, annotationsFilter []string) (*Info, error) {
+func File(path string, includeAnnotations bool) (*Info, error) {
 	b, err := loader.NewFileLoader().
 		WithSkipBundleVerification(true).
 		WithProcessAnnotation(true). // Always process annotations, for enriching namespace listing
@@ -44,28 +38,21 @@ func File(path string, includeAnnotations bool, annotationsFilter []string) (*In
 
 	bi := &Info{Manifest: b.Manifest}
 
-	namespaces := make(map[string][]NamespaceInfo, len(b.Modules))
+	namespaces := make(map[string][]string, len(b.Modules))
 	var modules []*ast.Module
 	for _, m := range b.Modules {
-		ni := NamespaceInfo{
-			File: filepath.Clean(m.Path),
-		}
-		if pa := ast.FindPackageAnnotations(m.Parsed.Annotations); pa != nil {
-			// Regular annotations overriding not used for namespace info
-			ni.Title = pa.Title
-			ni.Organizations = pa.Organizations
-		}
-		namespaces[m.Parsed.Package.Path.String()] = append(namespaces[m.Parsed.Package.Path.String()], ni)
+		namespaces[m.Parsed.Package.Path.String()] = append(namespaces[m.Parsed.Package.Path.String()], filepath.Clean(m.Path))
 		modules = append(modules, m.Parsed)
 	}
 	bi.Namespaces = namespaces
 
 	if includeAnnotations {
 		var errs ast.Errors
-		bi.Annotations, errs = ast.GetAnnotations(modules, true)
+		as, err := ast.BuildAnnotationSet(modules)
 		if len(errs) > 0 {
 			return nil, err
 		}
+		bi.Annotations = as.Flatten()
 	}
 
 	err = bi.getBundleDataWasmAndSignatures(path)
@@ -91,18 +78,6 @@ func File(path string, includeAnnotations bool, annotationsFilter []string) (*In
 	bi.WasmModules = wasmModules
 
 	return bi, nil
-}
-
-func toRefs(strings []string) ([]ast.Ref, error) {
-	result := make([]ast.Ref, 0, len(strings))
-	for _, s := range strings {
-		ref, err := ast.ParseRef(s)
-		if err != nil {
-			return nil, err
-		}
-		result = append(result, ref)
-	}
-	return result, nil
 }
 
 func (bi *Info) getBundleDataWasmAndSignatures(name string) error {
@@ -164,16 +139,16 @@ func (bi *Info) getBundleDataWasmAndSignatures(name string) error {
 		if len(key) > 1 {
 			key = key[:len(key)-1] // ignore file name ie. data.json / data.yaml
 			path := fmt.Sprintf("%v.%v", ast.DefaultRootDocument, strings.Join(key, "."))
-			bi.Namespaces[path] = append(bi.Namespaces[path], NamespaceInfo{File: value})
+			bi.Namespaces[path] = append(bi.Namespaces[path], value)
 		} else {
-			bi.Namespaces[ast.DefaultRootDocument.String()] = append(bi.Namespaces[ast.DefaultRootDocument.String()], NamespaceInfo{File: value}) // data file at bundle root
+			bi.Namespaces[ast.DefaultRootDocument.String()] = append(bi.Namespaces[ast.DefaultRootDocument.String()], value) // data file at bundle root
 		}
 	}
 
 	for _, item := range bi.Manifest.WasmResolvers {
 		key := strings.Split(strings.TrimPrefix(item.Entrypoint, "/"), "/")
 		path := fmt.Sprintf("%v.%v", ast.DefaultRootDocument, strings.Join(key, "."))
-		bi.Namespaces[path] = append(bi.Namespaces[path], NamespaceInfo{File: item.Module})
+		bi.Namespaces[path] = append(bi.Namespaces[path], item.Module)
 	}
 
 	return nil

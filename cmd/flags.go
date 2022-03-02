@@ -74,10 +74,6 @@ func addListAnnotations(fs *pflag.FlagSet, value *bool) {
 	fs.BoolVarP(value, "annotations", "a", false, "list annotations")
 }
 
-func addAnnotationsFilter(fs *pflag.FlagSet, paths *[]string) {
-	fs.StringSliceVarP(paths, "annotation-filter", "p", []string{}, "filter annotations by path (e.g., 'data.foo.p')")
-}
-
 func addBenchmemFlag(fs *pflag.FlagSet, benchMem *bool, value bool) {
 	fs.BoolVar(benchMem, "benchmem", value, "report memory allocations with benchmark results")
 }
