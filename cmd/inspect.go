@@ -222,7 +222,7 @@ func populateAnnotations(out io.Writer, refs []*ast.AnnotationsRef) error {
 			}
 
 			if p := ref.GetPackage(); p != nil {
-				fmt.Fprintln(out, "Package: ", p.Path)
+				fmt.Fprintln(out, "Package: ", p.Path.DropHead()) // dropping data. prefix
 			}
 			if r := ref.GetRule(); r != nil {
 				fmt.Fprintln(out, "Rule:    ", r.Head.Name)
@@ -323,7 +323,7 @@ func printTitle(out io.Writer, ref *ast.AnnotationsRef) {
 	}
 
 	if len(title) == 0 {
-		title = ref.Path.String()
+		title = ref.Path.DropHead().String() // dropping data. prefix
 	}
 
 	fmt.Fprintf(out, "%s\n", title)
