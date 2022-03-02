@@ -110,7 +110,7 @@ type Compiler struct {
 	debug                 debug.Debug                   // emits debug information produced during compilation
 	schemaSet             *SchemaSet                    // user-supplied schemas for input and data documents
 	inputType             types.Type                    // global input type retrieved from schema set
-	annotationSet         *annotationSet                // hierarchical set of annotations
+	annotationSet         *AnnotationSet                // hierarchical set of annotations
 	strict                bool                          // enforce strict compilation checks
 }
 
@@ -1168,7 +1168,7 @@ func (c *Compiler) setAnnotationSet() {
 		sorted = append(sorted, c.Modules[mName])
 	}
 
-	as, errs := buildAnnotationSet(sorted)
+	as, errs := BuildAnnotationSet(sorted)
 	for _, err := range errs {
 		c.err(err)
 	}

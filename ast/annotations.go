@@ -54,7 +54,7 @@ type (
 		Description string  `json:"description,omitempty"`
 	}
 
-	annotationSet struct {
+	AnnotationSet struct {
 		byRule    map[*Rule][]*Annotations
 		byPackage map[*Package]*Annotations
 		byPath    *annotationTreeNode
@@ -89,7 +89,7 @@ func (t *annotationTreeNode) flatten(refs []*AnnotationsRef) []*AnnotationsRef {
 	return refs
 }
 
-func (as *annotationSet) Flatten() []*AnnotationsRef {
+func (as *AnnotationSet) Flatten() []*AnnotationsRef {
 	var refs []*AnnotationsRef
 
 	refs = as.byPath.flatten(refs)
@@ -118,7 +118,7 @@ func (as *annotationSet) Flatten() []*AnnotationsRef {
 	return refs
 }
 
-func (as *annotationSet) Expand() []*AnnotationsRef {
+func (as *AnnotationSet) Expand() []*AnnotationsRef {
 	var refs []*AnnotationsRef
 
 	for _, m := range as.modules {
@@ -459,15 +459,15 @@ func (s *SchemaAnnotation) String() string {
 	return string(bs)
 }
 
-func newAnnotationSet() *annotationSet {
-	return &annotationSet{
+func newAnnotationSet() *AnnotationSet {
+	return &AnnotationSet{
 		byRule:    map[*Rule][]*Annotations{},
 		byPackage: map[*Package]*Annotations{},
 		byPath:    newAnnotationTree(),
 	}
 }
 
-func buildAnnotationSet(modules []*Module) (*annotationSet, Errors) {
+func BuildAnnotationSet(modules []*Module) (*AnnotationSet, Errors) {
 	as := newAnnotationSet()
 	var errs Errors
 	for _, m := range modules {
@@ -484,7 +484,7 @@ func buildAnnotationSet(modules []*Module) (*annotationSet, Errors) {
 	return as, nil
 }
 
-func (as *annotationSet) add(a *Annotations) *Error {
+func (as *AnnotationSet) add(a *Annotations) *Error {
 	switch a.Scope {
 	case annotationScopeRule:
 		rule := a.node.(*Rule)
@@ -514,21 +514,21 @@ func (as *annotationSet) add(a *Annotations) *Error {
 	return nil
 }
 
-func (as *annotationSet) getRuleScope(r *Rule) []*Annotations {
+func (as *AnnotationSet) GetRuleScope(r *Rule) []*Annotations {
 	if as == nil {
 		return nil
 	}
 	return as.byRule[r]
 }
 
-func (as *annotationSet) getSubpackagesScope(path Ref) []*Annotations {
+func (as *AnnotationSet) GetSubpackagesScope(path Ref) []*Annotations {
 	if as == nil {
 		return nil
 	}
 	return as.byPath.ancestors(path)
 }
 
-func (as *annotationSet) getDocumentScope(path Ref) *Annotations {
+func (as *AnnotationSet) GetDocumentScope(path Ref) *Annotations {
 	if as == nil {
 		return nil
 	}
@@ -538,7 +538,7 @@ func (as *annotationSet) getDocumentScope(path Ref) *Annotations {
 	return nil
 }
 
-func (as *annotationSet) getPackageScope(pkg *Package) *Annotations {
+func (as *AnnotationSet) GetPackageScope(pkg *Package) *Annotations {
 	if as == nil {
 		return nil
 	}
@@ -662,22 +662,22 @@ func mergeAnnotations(a *Annotations, b *Annotations) *Annotations {
 	return result
 }
 
-func getPackageAnnotations(as *annotationSet, pkg *Package) *Annotations {
-	subPkgAnnot := as.getSubpackagesScope(pkg.Path)
+func getPackageAnnotations(as *AnnotationSet, pkg *Package) *Annotations {
+	subPkgAnnot := as.GetSubpackagesScope(pkg.Path)
 
 	result := make([]*Annotations, 0, len(subPkgAnnot)+1)
 
 	result = append(result, subPkgAnnot...)
 
-	if x := as.getPackageScope(pkg); x != nil {
+	if x := as.GetPackageScope(pkg); x != nil {
 		result = append(result, x)
 	}
 
 	return mergeAnnotationsList(result)
 }
 
-func getRuleAnnotations(as *annotationSet, rule *Rule) *Annotations {
-	ruleAnnot := as.getRuleScope(rule)
+func getRuleAnnotations(as *AnnotationSet, rule *Rule) *Annotations {
+	ruleAnnot := as.GetRuleScope(rule)
 
 	result := make([]*Annotations, 0, len(ruleAnnot)+2)
 
@@ -685,7 +685,7 @@ func getRuleAnnotations(as *annotationSet, rule *Rule) *Annotations {
 		result = append(result, a)
 	}
 
-	if a := as.getDocumentScope(rule.Path()); a != nil {
+	if a := as.GetDocumentScope(rule.Path()); a != nil {
 		result = append(result, a)
 	}
 
@@ -711,7 +711,7 @@ func (ar *AnnotationsRef) MarshalJSON() ([]byte, error) {
 
 // GetAnnotations returns a list of annotations for every Package and Rule in the given modules.
 func GetAnnotations(modules []*Module, expand bool) ([]*AnnotationsRef, Errors) {
-	as, err := buildAnnotationSet(modules)
+	as, err := BuildAnnotationSet(modules)
 	if err != nil {
 		return nil, err
 	}
