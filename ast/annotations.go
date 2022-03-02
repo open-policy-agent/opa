@@ -694,21 +694,6 @@ func getRuleAnnotations(as *AnnotationSet, rule *Rule) *Annotations {
 	return mergeAnnotationsList(result)
 }
 
-func (ar *AnnotationsRef) MarshalJSON() ([]byte, error) {
-	tmp := map[string]interface{}{
-		"location": ar.Location,
-		"path":     ar.Path.String(),
-	}
-
-	if ar.Annotations != nil {
-		tmp["annotations"] = ar.Annotations
-	} else {
-		tmp["annotations"] = map[string]interface{}{}
-	}
-
-	return json.Marshal(tmp)
-}
-
 // GetAnnotations returns a list of annotations for every Package and Rule in the given modules.
 func GetAnnotations(modules []*Module, expand bool) ([]*AnnotationsRef, Errors) {
 	as, err := BuildAnnotationSet(modules)
