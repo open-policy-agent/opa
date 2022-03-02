@@ -389,7 +389,7 @@ You will find that running `sudo ls /` as the `frontend-dev` user is disallowed 
 It is possible to configure the *display* policy to only make the PAM module prompt for the
 elevation ticket when our mock API has a non-empty `tickets` object. So when there are no
 elevated users, there will be no prompt for a ticket. This can be done using the Rego
-[`count` aggregate](http://www.openpolicyagent.org/docs/language-reference.html#aggregates).
+[`count` aggregate](../policy-reference/#aggregates).
 
 ## Wrap Up
 

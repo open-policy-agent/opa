@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-18.04
     steps:
       - name: Check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           token: ${{ secrets.GH_PUSH_TOKEN }} # required to push to protected branch below
 
@@ -72,7 +72,7 @@ jobs:
     needs: generate
     steps:
       - name: Check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Unit Test Golang
         run: make ci-go-test-coverage
@@ -84,7 +84,7 @@ jobs:
     needs: generate
     steps:
       - name: Check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Build Linux and Windows
         run: make ci-go-ci-build-linux ci-go-ci-build-linux-static ci-go-ci-build-windows
@@ -112,7 +112,7 @@ jobs:
     needs: generate
     steps:
       - name: Check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - id: go_version
         name: Read go version
@@ -142,7 +142,7 @@ jobs:
     needs: [release-build, release-build-darwin]
     steps:
       - name: Check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Test
         run: make ci-release-test
@@ -175,7 +175,7 @@ jobs:
     needs: generate
     steps:
       - name: Check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Build and Push opa-wasm-builder
         env:

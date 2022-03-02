@@ -344,3 +344,12 @@ integrations:
 Would need a file called `my-cool-integration.png` at `./website/static/img/logos/integrations/my-cool-integration.png`
 
 If it doesn't exist the OPA logo will be shown by default.
+
+## Google Analytics
+With the addition of the feedback button, we are now able to see how many users found a particular page of the docs useful.
+
+To view the metrics you will need access to [Google Analytics](https://analytics.google.com/analytics/web/).
+
+Feedback responses can be found in the right hand tree under Behavior -> Events -> Top Events.
+
+From here you can set the desired time frame you wish to monitor. Then drill down into the helpful category to see the specific pages and how many clicks they received. 
