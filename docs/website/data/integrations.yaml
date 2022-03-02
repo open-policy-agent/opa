@@ -1039,7 +1039,7 @@ integrations:
     videos:
       - https://www.youtube.com/watch?v=K1Zm2FPfrh8
 
-  optoggle:
+  optoggles:
     title: OPToggles (Open Policy Toggles)
     description:  |
       OPToggles uses OPA and OPAL to sync open-policy to your frontend with the help of feature flag solutions.
