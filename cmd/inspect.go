@@ -136,11 +136,10 @@ func validateInspectParams(p *inspectCommandParams, args []string) error {
 
 func populateManifest(out io.Writer, m bundle.Manifest) error {
 	t := generateTableWithKeys(out, "field", "value")
-	t.SetAutoMergeCells(true)
 	var lines [][]string
 
 	if m.Revision != "" {
-		lines = append(lines, []string{"Revision", truncateStr(m.Revision)})
+		lines = append(lines, []string{"Revision", truncateTableStr(m.Revision)})
 	}
 
 	if len(*m.Roots) != 0 {
@@ -162,7 +161,7 @@ func populateManifest(out io.Writer, m bundle.Manifest) error {
 		if err != nil {
 			return err
 		}
-		lines = append(lines, []string{"Metadata", truncateStr(string(metadata))})
+		lines = append(lines, []string{"Metadata", truncateTableStr(string(metadata))})
 	}
 
 	t.AppendBulk(lines)
@@ -175,8 +174,10 @@ func populateManifest(out io.Writer, m bundle.Manifest) error {
 }
 
 func populateNamespaces(out io.Writer, n map[string][]ib.NamespaceInfo) error {
-	t := generateTableWithKeys(out, "namespace", "file", "title", "organizations")
-	t.SetAutoMergeCellsByColumnIndex([]int{0}) // only auto-merge the namespace column
+	t := generateTableWithKeys(out, "namespace", "file", "title")
+	// only auto-merge the namespace column
+	t.SetAutoMergeCells(false)
+	t.SetAutoMergeCellsByColumnIndex([]int{0})
 	var lines [][]string
 
 	var keys []string
@@ -189,13 +190,12 @@ func populateNamespaces(out io.Writer, n map[string][]ib.NamespaceInfo) error {
 		for _, info := range n[k] {
 			orgs := make([]string, 0, len(info.Organizations))
 			for _, o := range info.Organizations {
-				orgs = append(orgs, truncateStr(o))
+				orgs = append(orgs, truncateTableStr(o))
 			}
 			lines = append(lines, []string{
 				k,
 				truncateFileName(info.File),
-				truncateStr(info.Title),
-				strings.Join(orgs, "\n"),
+				truncateTableStr(info.Title),
 			})
 		}
 	}
@@ -209,56 +209,130 @@ func populateNamespaces(out io.Writer, n map[string][]ib.NamespaceInfo) error {
 	return nil
 }
 
-func populateAnnotations(out io.Writer, as []*ast.AnnotationsRef) error {
-	// TODO: Sort by path, then location, for stable output
-	if len(as) > 0 {
+func populateAnnotations(out io.Writer, refs []*ast.AnnotationsRef) error {
+	if len(refs) > 0 {
 		fmt.Fprintln(out, "ANNOTATIONS:")
-		for _, a := range as {
-			fmt.Fprintln(out, "Path:", a.Path.String())
-			fmt.Fprintln(out, "Location:", a.Location.String())
-			if len(a.Annotations.Title) > 0 {
-				fmt.Fprintln(out, "Title:", a.Annotations.Title)
+		for _, ref := range refs {
+			printTitle(out, ref)
+			fmt.Fprintln(out)
+
+			if a := ref.Annotations; a != nil && len(a.Description) > 0 {
+				fmt.Fprintln(out, a.Description)
+				fmt.Fprintln(out)
 			}
-			if len(a.Annotations.Description) > 0 {
-				fmt.Fprintln(out, "Description:", a.Annotations.Description)
+
+			if p := ref.GetPackage(); p != nil {
+				fmt.Fprintln(out, "Package: ", p.Path)
 			}
-			if len(a.Annotations.Organizations) > 0 {
-				fmt.Fprintln(out, "Organizations:")
-				for i, o := range a.Annotations.Organizations {
-					fmt.Fprintf(out, " %d. %s\n", i+1, o)
-				}
+			if r := ref.GetRule(); r != nil {
+				fmt.Fprintln(out, "Rule:    ", r.Head.Name)
 			}
-			if len(a.Annotations.Authors) > 0 {
-				fmt.Fprintln(out, "Authors:")
-				for i, a := range a.Annotations.Authors {
-					fmt.Fprintf(out, " %d. %s\n", i+1, a.String())
-				}
-			}
-			if len(a.Annotations.Schemas) > 0 {
-				// NOTE(johanfylling): The Type Checker will MERGE all applicable schema annotations for a rule
-				// into one list. Here, child nodes OVERRIDE parent nodes' schema annotations instead (default annot. behavior).
-				// Should the former behavior be replicated here?
-				fmt.Fprintln(out, "Schemas:")
-				for i, s := range a.Annotations.Schemas {
-					fmt.Fprintf(out, " %d. %s: ", i+1, s.Path.String())
-					if len(s.Schema) > 0 {
-						fmt.Fprintf(out, "%s\n", s.Schema.String())
-					} else if s.Definition != nil {
-						pr.JSON(out, s.Definition)
+			fmt.Fprintln(out, "Location:", ref.Location.String())
+			fmt.Fprintln(out)
+
+			if a := ref.Annotations; a != nil {
+				if len(a.Organizations) > 0 {
+					fmt.Fprintln(out, "Organizations:")
+					l := make([]listEntry, 0, len(a.Organizations))
+					for _, o := range a.Organizations {
+						l = append(l, listEntry{"", removeNewLines(o)})
 					}
+					printList(out, l, "")
+					fmt.Fprintln(out)
+				}
+
+				if len(a.Authors) > 0 {
+					fmt.Fprintln(out, "Authors:")
+					l := make([]listEntry, 0, len(a.Authors))
+					for _, a := range a.Authors {
+						l = append(l, listEntry{"", removeNewLines(a.String())})
+					}
+					printList(out, l, "")
+					fmt.Fprintln(out)
+				}
+
+				if len(a.Schemas) > 0 {
+					// NOTE(johanfylling): The Type Checker will MERGE all applicable schema annotations for a rule
+					// into one list. Here, child nodes OVERRIDE parent nodes' schema annotations instead (default annot. behavior).
+					// Should the former behavior be replicated here?
+					fmt.Fprintln(out, "Schemas:")
+					l := make([]listEntry, 0, len(a.Schemas))
+					for _, s := range a.Schemas {
+						le := listEntry{key: s.Path.String()}
+						if len(s.Schema) > 0 {
+							le.value = s.Schema.String()
+						} else if s.Definition != nil {
+							b, _ := json.Marshal(s.Definition)
+							le.value = string(b)
+						}
+						l = append(l, le)
+					}
+					printList(out, l, ": ")
+					fmt.Fprintln(out)
+				}
+
+				if len(a.Custom) > 0 {
+					fmt.Fprintln(out, "Custom: ")
+					l := make([]listEntry, 0, len(a.Custom))
+					for k, v := range a.Custom {
+						b, _ := json.Marshal(v)
+						l = append(l, listEntry{k, string(b)})
+					}
+					printList(out, l, ": ")
+					fmt.Fprintln(out)
 				}
 			}
-			if len(a.Annotations.Custom) > 0 {
-				fmt.Fprint(out, "Custom: ")
-				if len(a.Annotations.Custom) > 0 {
-					pr.JSON(out, a.Annotations.Custom)
-				}
-			}
-			fmt.Fprintln(out, "----------")
 		}
 	}
 
 	return nil
+}
+
+type listEntry struct {
+	key   string
+	value string
+}
+
+func printList(out io.Writer, list []listEntry, separator string) {
+	keyLength := 0
+	for _, e := range list {
+		l := len(e.key)
+		if l > keyLength {
+			keyLength = l
+		}
+	}
+	for _, e := range list {
+		line := fmt.Sprintf(" %s%s%s%s",
+			e.key,
+			separator,
+			strings.Repeat(" ", keyLength-len(e.key)),
+			e.value)
+		fmt.Fprintln(out, truncateStr(line, PAGE_WIDTH))
+	}
+}
+
+const PAGE_WIDTH = 80
+
+func printTitle(out io.Writer, ref *ast.AnnotationsRef) {
+	var title string
+	if a := ref.Annotations; a != nil {
+		t := strings.TrimSpace(a.Title)
+		if len(t) > 0 {
+			title = t
+		}
+	}
+
+	if len(title) == 0 {
+		title = ref.Path.String()
+	}
+
+	fmt.Fprintf(out, "%s\n", title)
+
+	var underline []byte
+	for i := 0; i < len(title) && i < PAGE_WIDTH; i++ {
+		underline = append(underline, '=')
+	}
+	fmt.Fprintln(out, string(underline))
 }
 
 func generateTableWithKeys(writer io.Writer, keys ...string) *tablewriter.Table {
@@ -271,17 +345,26 @@ func generateTableWithKeys(writer io.Writer, keys ...string) *tablewriter.Table 
 	}
 	table.SetHeader(hdrs)
 	table.SetAlignment(tablewriter.ALIGN_CENTER)
+	table.SetAutoMergeCells(true)
 	table.SetColumnAlignment(aligns)
 	table.SetRowLine(false)
 	table.SetAutoWrapText(false)
 	return table
 }
 
-func truncateStr(s string) string {
-	if len(s) < maxTableFieldLen {
+func truncateTableStr(s string) string {
+	return truncateStr(s, maxTableFieldLen)
+}
+
+func truncateStr(s string, maxLen int) string {
+	if len(s) < maxLen {
 		return s
 	}
-	return fmt.Sprintf("%v...", s[:maxTableFieldLen])
+	return fmt.Sprintf("%v...", s[:maxLen-3])
+}
+
+func removeNewLines(s string) string {
+	return strings.ReplaceAll(s, "\n", " ")
 }
 
 func truncateFileName(s string) string {

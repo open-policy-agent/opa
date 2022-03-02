@@ -58,8 +58,93 @@ type (
 		byRule    map[*Rule][]*Annotations
 		byPackage map[*Package]*Annotations
 		byPath    *annotationTreeNode
+		modules   []*Module // Modules this set was constructed from
+	}
+
+	annotationTreeNode struct {
+		Value    *Annotations
+		Children map[Value]*annotationTreeNode // we assume key elements are hashable (vars and strings only!)
+	}
+
+	AnnotationsRef struct {
+		Location    *Location    `json:"location"`
+		Path        Ref          `json:"path"`
+		Annotations *Annotations `json:"annotations,omitempty"`
+		node        Node
 	}
 )
+
+func (t *annotationTreeNode) flatten(refs []*AnnotationsRef) []*AnnotationsRef {
+	if a := t.Value; a != nil {
+		refs = append(refs, &AnnotationsRef{
+			Location:    a.Location,
+			Path:        a.GetTargetPath(),
+			Annotations: a,
+			node:        a.node,
+		})
+	}
+	for _, c := range t.Children {
+		refs = c.flatten(refs)
+	}
+	return refs
+}
+
+func (as *annotationSet) Flatten() []*AnnotationsRef {
+	var refs []*AnnotationsRef
+
+	refs = as.byPath.flatten(refs)
+
+	for p, a := range as.byPackage {
+		refs = append(refs, &AnnotationsRef{
+			Location:    p.Location,
+			Path:        p.Path,
+			Annotations: a,
+			node:        p,
+		})
+	}
+
+	for r, as := range as.byRule {
+		for _, a := range as {
+			refs = append(refs, &AnnotationsRef{
+				Location:    r.Location,
+				Path:        r.Path(),
+				Annotations: a,
+				node:        r,
+			})
+		}
+	}
+
+	// TODO: Sort by path, then location, for stable output
+	return refs
+}
+
+func (as *annotationSet) Expand() []*AnnotationsRef {
+	var refs []*AnnotationsRef
+
+	for _, m := range as.modules {
+		a := getPackageAnnotations(as, m.Package)
+		refs = append(refs, &AnnotationsRef{
+			Location:    m.Package.Location,
+			Path:        m.Package.Path,
+			Annotations: a,
+			node:        m.Package,
+		})
+
+		for _, r := range m.Rules {
+			p := r.Path()
+			a := getRuleAnnotations(as, r)
+			refs = append(refs, &AnnotationsRef{
+				Location:    r.Location,
+				Path:        p,
+				Annotations: a,
+				node:        r,
+			})
+		}
+	}
+
+	// TODO: Sort by path, then location, for stable output
+	return refs
+}
 
 func (a *Annotations) String() string {
 	bs, _ := json.Marshal(a)
@@ -122,6 +207,26 @@ func (a *Annotations) GetTargetPath() Ref {
 		return n.Path
 	case *Rule:
 		return n.Path()
+	default:
+		return nil
+	}
+}
+
+func (ar *AnnotationsRef) GetPackage() *Package {
+	switch n := ar.node.(type) {
+	case *Package:
+		return n
+	case *Rule:
+		return n.Module.Package
+	default:
+		return nil
+	}
+}
+
+func (ar *AnnotationsRef) GetRule() *Rule {
+	switch n := ar.node.(type) {
+	case *Rule:
+		return n
 	default:
 		return nil
 	}
@@ -375,6 +480,7 @@ func buildAnnotationSet(modules []*Module) (*annotationSet, Errors) {
 	if len(errs) > 0 {
 		return nil, errs
 	}
+	as.modules = modules
 	return as, nil
 }
 
@@ -437,11 +543,6 @@ func (as *annotationSet) getPackageScope(pkg *Package) *Annotations {
 		return nil
 	}
 	return as.byPackage[pkg]
-}
-
-type annotationTreeNode struct {
-	Value    *Annotations
-	Children map[Value]*annotationTreeNode // we assume key elements are hashable (vars and strings only!)
 }
 
 func newAnnotationTree() *annotationTreeNode {
@@ -593,12 +694,6 @@ func getRuleAnnotations(as *annotationSet, rule *Rule) *Annotations {
 	return mergeAnnotationsList(result)
 }
 
-type AnnotationsRef struct {
-	Location    *Location    `json:"location"`
-	Path        Ref          `json:"path"`
-	Annotations *Annotations `json:"annotations,omitempty"`
-}
-
 func (ar *AnnotationsRef) MarshalJSON() ([]byte, error) {
 	tmp := map[string]interface{}{
 		"location": ar.Location,
@@ -614,48 +709,23 @@ func (ar *AnnotationsRef) MarshalJSON() ([]byte, error) {
 	return json.Marshal(tmp)
 }
 
-// GetAnnotations returns a list of annotations for every Package and Rule in the passed modules.
-func GetAnnotations(modules []*Module, paths ...Ref) ([]*AnnotationsRef, Errors) {
-	var refs []*AnnotationsRef
-
+// GetAnnotations returns a list of annotations for every Package and Rule in the given modules.
+func GetAnnotations(modules []*Module, expand bool) ([]*AnnotationsRef, Errors) {
 	as, err := buildAnnotationSet(modules)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, m := range modules {
-		if len(paths) == 0 || contains(paths, m.Package.Path) {
-			a := getPackageAnnotations(as, m.Package)
-			refs = append(refs, &AnnotationsRef{
-				Location:    m.Package.Location,
-				Path:        m.Package.Path,
-				Annotations: a,
-			})
-		}
-
-		for _, r := range m.Rules {
-			p := r.Path()
-			if len(paths) == 0 || contains(paths, p) {
-				a := getRuleAnnotations(as, r)
-				refs = append(refs, &AnnotationsRef{
-					Location:    r.Location,
-					Path:        p,
-					Annotations: a,
-				})
-			}
-		}
+	if expand {
+		return as.Expand(), nil
+	} else {
+		return as.Flatten(), nil
 	}
-
-	return refs, nil
 }
 
-func contains(rs []Ref, ref Ref) bool {
-	for _, r := range rs {
-		if r.Equal(ref) {
-			return true
-		}
-	}
-	return false
+type AnnotationsTreeNode struct {
+	Key      Value
+	Children map[Value]*AnnotationsTreeNode
 }
 
 func FindPackageAnnotations(as []*Annotations) *Annotations {

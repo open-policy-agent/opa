@@ -451,15 +451,11 @@ p = 1
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			modules := make(map[string]string, len(tc.modules))
-			for i, mod := range tc.modules {
-				modules[fmt.Sprintf("module%d", i)] = mod
-			}
+			modulesByName := toModuleMap(tc.modules)
+			compiler := MustCompileModulesWithOpts(modulesByName,
+				CompileOpts{ParserOptions: ParserOptions{ProcessAnnotation: true}})
 
 			for k, expAnnotations := range tc.expected {
-				compiler := MustCompileModulesWithOpts(modules,
-					CompileOpts{ParserOptions: ParserOptions{ProcessAnnotation: true}})
-
 				ref := MustParseRef(k.path)
 				var annotations *Annotations
 

@@ -2391,23 +2391,6 @@ func (r *Rego) compilerForTxn(ctx context.Context, store storage.Store, txn stor
 	return r.compiler.WithPathConflictsCheck(storage.NonEmpty(ctx, store, txn))
 }
 
-// GetAnnotations returns a list of annotations for every Package and Rule contained in this Rego.
-func (r *Rego) GetAnnotations(ctx context.Context, paths ...ast.Ref) ([]*ast.AnnotationsRef, error) {
-	if len(r.parsedModules) == 0 {
-		err := r.parseModules(ctx, r.txn, r.metrics)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	modules := make([]*ast.Module, 0, len(r.parsedModules))
-	for _, m := range r.parsedModules {
-		modules = append(modules, m)
-	}
-
-	return ast.GetAnnotations(modules, paths...)
-}
-
 func checkPartialResultForRecursiveRefs(body ast.Body, path ast.Ref) bool {
 	var stop bool
 	ast.WalkRefs(body, func(x ast.Ref) bool {

@@ -61,9 +61,8 @@ func File(path string, includeAnnotations bool, annotationsFilter []string) (*In
 	bi.Namespaces = namespaces
 
 	if includeAnnotations {
-		af, err := toRefs(annotationsFilter)
 		var errs ast.Errors
-		bi.Annotations, errs = ast.GetAnnotations(modules, af...)
+		bi.Annotations, errs = ast.GetAnnotations(modules, true)
 		if len(errs) > 0 {
 			return nil, err
 		}
