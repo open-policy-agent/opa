@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-18.04
     steps:
       - name: Check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Generate
         run: make clean generate
@@ -47,7 +47,7 @@ jobs:
             targets: ci-build-darwin ci-build-darwin-arm64-static
     steps:
       - name: Check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - id: go_version
         name: Read go version
@@ -91,7 +91,7 @@ jobs:
             run: macos-latest
     steps:
       - name: Check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - id: go_version
         name: Read go version
@@ -116,7 +116,7 @@ jobs:
     runs-on: ubuntu-18.04
     steps:
       - name: Check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Benchmark Test Golang
         run: make ci-go-perf
@@ -127,7 +127,7 @@ jobs:
     runs-on: ubuntu-18.04
     steps:
       - name: Check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Run fuzz check (3m)
         run: make ci-go-check-fuzz FUZZ_TIME=180
@@ -138,7 +138,7 @@ jobs:
     runs-on: ubuntu-18.04
     steps:
       - name: Check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Golang Style and Lint Check
         run: make check
@@ -149,7 +149,7 @@ jobs:
     runs-on: ubuntu-18.04
     steps:
       - name: Check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Build and Test WASM
         run: make ci-wasm
@@ -160,7 +160,7 @@ jobs:
     runs-on: ubuntu-18.04
     steps:
       - name: Check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Check Working Copy
         run: make ci-check-working-copy
@@ -171,7 +171,7 @@ jobs:
     runs-on: ubuntu-18.04
     steps:
       - name: Check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Build and Test Wasm SDK
         run: make ci-go-wasm-sdk-e2e-test
@@ -182,7 +182,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Test with Race Detector
         run: make ci-go-race-detector
@@ -193,7 +193,7 @@ jobs:
     needs: go-build
     steps:
       - name: Check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v1
@@ -232,7 +232,7 @@ jobs:
 
     steps:
       - name: Check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Download release binaries
         uses: actions/download-artifact@v2
@@ -265,7 +265,7 @@ jobs:
           echo $(pwd) >> $GITHUB_PATH
 
       - name: Check out npm-opa-wasm
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           repository: open-policy-agent/npm-opa-wasm
           path: npm-opa-wasm
@@ -286,7 +286,7 @@ jobs:
           - version: "1.15"
     steps:
       - name: Check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Build
         run: make ci-go-ci-build-linux GOVERSION=${{ matrix.version }}
@@ -298,7 +298,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Download OPA
         uses: open-policy-agent/setup-opa@v1
