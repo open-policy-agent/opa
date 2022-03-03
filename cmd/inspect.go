@@ -261,7 +261,7 @@ func populateAnnotations(out io.Writer, refs []*ast.AnnotationsRef) error {
 				}
 
 				if len(a.Custom) > 0 {
-					fmt.Fprintln(out, "Custom: ")
+					fmt.Fprintln(out, "Custom:")
 					l := make([]listEntry, 0, len(a.Custom))
 					for k, v := range a.Custom {
 						b, _ := json.Marshal(v)

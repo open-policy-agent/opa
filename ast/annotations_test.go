@@ -28,7 +28,7 @@ func TestAnnotationSetFlatten(t *testing.T) {
 # description: pkg
 # organizations:
 # - pkg
-# related_resources: 
+# related_resources:
 # - https://pkg
 # authors:
 # - pkg
@@ -44,7 +44,7 @@ package test
 # description: doc
 # organizations:
 # - doc
-# related_resources: 
+# related_resources:
 # - https://doc
 # authors:
 # - doc
@@ -58,7 +58,7 @@ package test
 # description: rule
 # organizations:
 # - rule
-# related_resources: 
+# related_resources:
 # - https://rule
 # authors:
 # - rule
