@@ -574,6 +574,7 @@ the following:
 * manifest data
 * signature data
 * information about the Wasm module files
+* package- and rule annotations
 
 Example:
 
@@ -593,6 +594,7 @@ opa inspect <path> [<path> [...]] [flags]
 ### Options
 
 ```
+  -a, --annotations            list annotations
   -f, --format {json,pretty}   set output format (default pretty)
   -h, --help                   help for inspect
 ```
