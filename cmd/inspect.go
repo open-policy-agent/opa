@@ -212,7 +212,7 @@ func populateAnnotations(out io.Writer, refs []*ast.AnnotationsRef) error {
 			}
 
 			if p := ref.GetPackage(); p != nil {
-				fmt.Fprintln(out, "Package: ", p.Path.DropHead()) // dropping data. prefix
+				fmt.Fprintln(out, "Package: ", dropDataPrefix(p.Path))
 			}
 			if r := ref.GetRule(); r != nil {
 				fmt.Fprintln(out, "Rule:    ", r.Head.Name)
@@ -311,7 +311,7 @@ func printTitle(out io.Writer, ref *ast.AnnotationsRef) {
 	}
 
 	if len(title) == 0 {
-		title = ref.Path.DropHead().String() // dropping data. prefix
+		title = dropDataPrefix(ref.Path).String()
 	}
 
 	fmt.Fprintf(out, "%s\n", title)
@@ -362,4 +362,16 @@ func truncateFileName(s string) string {
 
 	res, _ := iStrs.TruncateFilePaths(maxTableFieldLen, len(s), s)
 	return res[s]
+}
+
+// dropDataPrefix drops the first component of the passed Ref
+func dropDataPrefix(ref ast.Ref) ast.Ref {
+	if len(ref) <= 1 {
+		return ast.EmptyRef()
+	}
+	r := ref[1:].Copy()
+	if s, ok := r[0].Value.(ast.String); ok {
+		r[0].Value = ast.Var(s)
+	}
+	return r
 }
