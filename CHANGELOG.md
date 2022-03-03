@@ -3,6 +3,8 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
+## Unreleased
+
 ## 0.38.0
 
 This release contains a number of fixes and enhancements.
@@ -69,6 +71,7 @@ and the new section on [_FOR SOME and FOR ALL_ in the Intro docs](https://www.op
 - SDK: don't panic without config ([#4303](https://github.com/open-policy-agent/opa/issues/4303)) authored by @damienjburks
 - Storage: Support index for array appends (for JSON Patch compatibility)
 - `opa deps`: Fix pretty printed output to show virtual documents ([#4342](https://github.com/open-policy-agent/opa/issues/4342))
+
 ### Rego and Topdown
 
 - Parser: parse 'with' on 'some x in xs' expression ([#4226](https://github.com/open-policy-agent/opa/issues/4226))
