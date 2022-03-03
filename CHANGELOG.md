@@ -3,7 +3,97 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.38.0
+
+This release contains a number of fixes and enhancements.
+
+It contains one **backwards-incompatible change** to the JSON representation
+of metrics in **Status API** payloads, please see the section below.
+
+### Rich Metadata
+
+It is now possible to annotate Rego policies in a way that can be
+processed programmatically, using _Rich Metadata_.
+
+    # METADATA
+    # title: My rule
+    # description: A rule that determines if x is allowed.
+    # authors:
+    # - Jane Austin <jane@example.com>
+    allow {
+      ...
+    }
+
+The available keys are:
+
+- title
+- description
+- authors
+- organizations
+- related_resources
+- schemas
+- scope
+- custom
+
+Custom annotations can be used to annotate rules, packages, and
+documents with whatever you specifically need, beyond the generic
+keywords.
+
+Annotations can be retrieved using the [Golang library](https://www.openpolicyagent.org/docs/v0.38.0/annotations/#go-api)
+or via the CLI, `opa inspect -a`.
+
+All the details can be found in the documentation on [Annotations](https://www.openpolicyagent.org/docs/v0.38.0/annotations/).
+
+### Every Keyword
+
+A new keyword for explicit iteration is added to Rego: `every`.
+
+It comes in two forms, iterating values, or keys and values, of a
+collection, and asserting that the body evaluates successfully for
+each binding of key and value to the collection's elements:
+
+    every k, v in {"foo": "FOO", "bar": "BAR" } {
+      upper(k) == v
+    }
+
+To use it, `import future.keywords.every` or `future.keywords`.
+
+For further information, please refer to the [Every Keyword docs](https://www.openpolicyagent.org/docs/v0.38.0/policy-language/#every-keyword)
+and the new section on [_FOR SOME and FOR ALL_ in the Intro docs](https://www.openpolicyagent.org/docs/v0.38.0/#for-some-and-for-all).
+
+### Tooling, SDK, and Runtime
+
+- Compile API: add `disableInlining` option ([#4357](https://github.com/open-policy-agent/opa/issues/4357)) reported and fixed by @srlk
+- Status API: add `http_code` to response ([#4259](https://github.com/open-policy-agent/opa/issues/4259)) reported and fixed by @jkbschmid
+- Status plugin: publish experimental bundle-related metrics via prometheus endpoint (authored by @rafaelreinert) -- See [Status Metrics](https://www.openpolicyagent.org/docs/v0.38.0/monitoring/#status-metrics) for details.
+- SDK: don't panic without config ([#4303](https://github.com/open-policy-agent/opa/issues/4303)) authored by @damienjburks
+- Storage: Support index for array appends (for JSON Patch compatibility)
+- `opa deps`: Fix pretty printed output to show virtual documents ([#4342](https://github.com/open-policy-agent/opa/issues/4342))
+### Rego and Topdown
+
+- Parser: parse 'with' on 'some x in xs' expression ([#4226](https://github.com/open-policy-agent/opa/issues/4226))
+- AST: hash containers on insert/update ([#4345](https://github.com/open-policy-agent/opa/issues/4345)), fixing a data race reported by @skillcoder
+- Planner: Fix bug related to undefined results in dynamic lookups
+
+### Documentation and Website
+
+- Policy Reference: update EBNF to include "every" and "some x in ..." ([#4216](https://github.com/open-policy-agent/opa/issues/4216))
+- REST API: Update docs on 400 response
+- README: Include Google Analytic Instructions
+- Envoy primer: use variables instead of objects
+- Istio tutorial: expose application to outside traffic
+- New "Community" Webpage (authored by @msorens)
+
+### WebAssembly
+
+- OPA now uses Wasmtime 0.34.0 to evaluate its Wasm modules.
+
+### Miscellaneous
+
+- Build: `make build` now builds without errors (by disabling Wasm) on darwin/arm64 (M1)
+- Various dependency bumps.
+  - OpenTelemetry SDK: 1.4.1
+  - github.com/prometheus/client_golang: 1.12.1
 
 ### Backwards incompatible changes
 
