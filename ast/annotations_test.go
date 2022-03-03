@@ -6,8 +6,53 @@ package ast
 
 import (
 	"encoding/json"
+	"fmt"
 	"testing"
 )
+
+func ExampleAnnotationSet_Flatten() {
+	modules := map[string]string{
+		"foo.rego": `# METADATA
+# scope: subpackages
+# organizations:
+# - Acme Corp.
+package foo`,
+		"mod": `# METADATA
+# description: A couple of useful rules
+package foo.bar
+
+# METADATA
+# title: My Rule P
+p := 7`,
+	}
+
+	parsed := make([]*Module, 0, len(modules))
+	for f, module := range modules {
+		pm, err := ParseModuleWithOpts(f, module, ParserOptions{ProcessAnnotation: true})
+		if err != nil {
+			panic(err)
+		}
+		parsed = append(parsed, pm)
+	}
+
+	as, err := BuildAnnotationSet(parsed)
+	if err != nil {
+		panic(err)
+	}
+
+	flattened := as.Flatten()
+	for _, entry := range flattened {
+		fmt.Printf("%v at %v has annotations %v\n",
+			entry.Path,
+			entry.Location,
+			entry.Annotations)
+	}
+
+	// Output:
+	// data.foo at foo.rego:1 has annotations {"scope":"subpackages","organizations":["Acme Corp."]}
+	// data.foo.bar at mod:3 has annotations {"scope":"package","description":"A couple of useful rules"}
+	// data.foo.bar.p at mod:7 has annotations {"scope":"rule","title":"My Rule P"}
+}
 
 func TestAnnotationSetFlatten(t *testing.T) {
 	tests := []struct {
