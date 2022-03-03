@@ -260,6 +260,15 @@ func populateAnnotations(out io.Writer, refs []*ast.AnnotationsRef) error {
 					fmt.Fprintln(out)
 				}
 
+				if len(a.RelatedResources) > 0 {
+					fmt.Fprintln(out, "Related Resources:")
+					l := make([]listEntry, 0, len(a.RelatedResources))
+					for _, res := range a.RelatedResources {
+						l = append(l, listEntry{removeNewLines(res.Ref.String()), res.Description})
+					}
+					printList(out, l, " ")
+					fmt.Fprintln(out)
+				}
 				if len(a.Custom) > 0 {
 					fmt.Fprintln(out, "Custom:")
 					l := make([]listEntry, 0, len(a.Custom))

@@ -222,6 +222,8 @@ func TestDoInspectPrettyWithAnnotations(t *testing.T) {
 # - pkg-org
 # related_resources:
 # - https://pkg
+# - ref: https://pkg
+#   description: rr-pkg-note
 # authors:
 # - pkg-author
 # schemas:
@@ -238,6 +240,8 @@ package test
 # - doc-org
 # related_resources:
 # - https://doc
+# - ref: https://doc
+#   description: rr-doc-note
 # authors:
 # - doc-author
 # schemas:
@@ -252,6 +256,8 @@ package test
 # - rule-org
 # related_resources:
 # - https://rule
+# - ref: https://rule
+#   description: rr-rule-note
 # authors:
 # - rule-author
 # schemas:
@@ -281,7 +287,7 @@ pkg-title
 pkg-descr
 
 Package:  test
-Location: %[1]s/x.rego:14
+Location: %[1]s/x.rego:16
 
 Organizations:
  pkg-org
@@ -291,6 +297,10 @@ Authors:
 
 Schemas:
  input: {"type":"boolean"}
+
+Related Resources:
+ https://pkg 
+ https://pkg rr-pkg-note
 
 Custom:
  pkg: "pkg-custom"
@@ -302,7 +312,7 @@ doc-descr
 
 Package:  test
 Rule:     p
-Location: %[1]s/x.rego:16
+Location: %[1]s/x.rego:18
 
 Organizations:
  doc-org
@@ -312,6 +322,10 @@ Authors:
 
 Schemas:
  input: {"type":"integer"}
+
+Related Resources:
+ https://doc 
+ https://doc rr-doc-note
 
 Custom:
  doc: "doc-custom"
@@ -323,7 +337,7 @@ rule-title
 
 Package:  test
 Rule:     p
-Location: %[1]s/x.rego:44
+Location: %[1]s/x.rego:50
 
 Organizations:
  rule-org
@@ -333,6 +347,10 @@ Authors:
 
 Schemas:
  input: {"type":"string"}
+
+Related Resources:
+ https://rule 
+ https://rule rr-rule-note
 
 Custom:
  rule: "rule-custom"`, rootDir))
