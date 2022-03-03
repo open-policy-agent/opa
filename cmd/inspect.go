@@ -24,7 +24,7 @@ import (
 )
 
 const maxTableFieldLen = 50
-const PageWidth = 80
+const pageWidth = 80
 
 type inspectCommandParams struct {
 	outputFormat    *util.EnumFlag
@@ -63,10 +63,9 @@ the following:
 
 Example:
 
-  $ ls
-  bundle.tar.gz
-
-  $ opa inspect bundle.tar.gz
+    $ ls
+    bundle.tar.gz
+    $ opa inspect bundle.tar.gz
 
 You can provide exactly one OPA bundle or path to the 'inspect' command on the command-line. If you provide a path
 referring to a directory, the 'inspect' command will load that path as a bundle and summarize its structure and contents.
@@ -212,7 +211,7 @@ func populateAnnotations(out io.Writer, refs []*ast.AnnotationsRef) error {
 			}
 
 			if p := ref.GetPackage(); p != nil {
-				fmt.Fprintln(out, "Package: ", p.Path.DropHead()) // dropping data. prefix
+				fmt.Fprintln(out, "Package: ", dropDataPrefix(p.Path))
 			}
 			if r := ref.GetRule(); r != nil {
 				fmt.Fprintln(out, "Rule:    ", r.Head.Name)
@@ -261,8 +260,17 @@ func populateAnnotations(out io.Writer, refs []*ast.AnnotationsRef) error {
 					fmt.Fprintln(out)
 				}
 
+				if len(a.RelatedResources) > 0 {
+					fmt.Fprintln(out, "Related Resources:")
+					l := make([]listEntry, 0, len(a.RelatedResources))
+					for _, res := range a.RelatedResources {
+						l = append(l, listEntry{removeNewLines(res.Ref.String()), res.Description})
+					}
+					printList(out, l, " ")
+					fmt.Fprintln(out)
+				}
 				if len(a.Custom) > 0 {
-					fmt.Fprintln(out, "Custom: ")
+					fmt.Fprintln(out, "Custom:")
 					l := make([]listEntry, 0, len(a.Custom))
 					for k, v := range a.Custom {
 						b, _ := json.Marshal(v)
@@ -297,7 +305,7 @@ func printList(out io.Writer, list []listEntry, separator string) {
 			separator,
 			strings.Repeat(" ", keyLength-len(e.key)),
 			e.value)
-		fmt.Fprintln(out, truncateStr(line, PageWidth))
+		fmt.Fprintln(out, truncateStr(line, pageWidth))
 	}
 }
 
@@ -311,13 +319,13 @@ func printTitle(out io.Writer, ref *ast.AnnotationsRef) {
 	}
 
 	if len(title) == 0 {
-		title = ref.Path.DropHead().String() // dropping data. prefix
+		title = dropDataPrefix(ref.Path).String()
 	}
 
 	fmt.Fprintf(out, "%s\n", title)
 
 	var underline []byte
-	for i := 0; i < len(title) && i < PageWidth; i++ {
+	for i := 0; i < len(title) && i < pageWidth; i++ {
 		underline = append(underline, '=')
 	}
 	fmt.Fprintln(out, string(underline))
@@ -362,4 +370,16 @@ func truncateFileName(s string) string {
 
 	res, _ := iStrs.TruncateFilePaths(maxTableFieldLen, len(s), s)
 	return res[s]
+}
+
+// dropDataPrefix drops the first component of the passed Ref
+func dropDataPrefix(ref ast.Ref) ast.Ref {
+	if len(ref) <= 1 {
+		return ast.EmptyRef()
+	}
+	r := ref[1:].Copy()
+	if s, ok := r[0].Value.(ast.String); ok {
+		r[0].Value = ast.Var(s)
+	}
+	return r
 }

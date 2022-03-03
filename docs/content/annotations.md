@@ -160,13 +160,11 @@ When a *related-resource* entry is presented as a string, it needs to be a valid
 
 ```rego
 # METADATA
-# related-resources:
-# - 
-#  ref: https://example.com
+# related_resources:
+# - ref: https://example.com
 # ...
-# - 
-#  ref: https://example.com/foo
-#  description: A text describing this resource
+# - ref: https://example.com/foo
+#   description: A text describing this resource
 allow {
   ...
 }
