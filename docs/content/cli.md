@@ -578,10 +578,9 @@ the following:
 
 Example:
 
-  $ ls
-  bundle.tar.gz
-
-  $ opa inspect bundle.tar.gz
+    $ ls
+    bundle.tar.gz
+    $ opa inspect bundle.tar.gz
 
 You can provide exactly one OPA bundle or path to the 'inspect' command on the command-line. If you provide a path
 referring to a directory, the 'inspect' command will load that path as a bundle and summarize its structure and contents.
