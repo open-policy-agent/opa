@@ -110,7 +110,7 @@ type Compiler struct {
 	debug                 debug.Debug                   // emits debug information produced during compilation
 	schemaSet             *SchemaSet                    // user-supplied schemas for input and data documents
 	inputType             types.Type                    // global input type retrieved from schema set
-	annotationSet         *annotationSet                // hierarchical set of annotations
+	annotationSet         *AnnotationSet                // hierarchical set of annotations
 	strict                bool                          // enforce strict compilation checks
 }
 
@@ -536,42 +536,6 @@ func (c *Compiler) GetRulesWithPrefix(ref Ref) (rules []*Rule) {
 	acc(node)
 
 	return rules
-}
-
-func (c *Compiler) GetPackageAnnotations(pkg *Package) *Annotations {
-	as := c.annotationSet
-
-	subPkgAnnot := as.getSubpackagesScope(pkg.Path)
-
-	result := make([]*Annotations, 0, len(subPkgAnnot)+1)
-
-	result = append(result, subPkgAnnot...)
-
-	if x := as.getPackageScope(pkg); x != nil {
-		result = append(result, x)
-	}
-
-	return mergeAnnotationsList(result)
-}
-
-func (c *Compiler) GetRuleAnnotations(rule *Rule) *Annotations {
-	as := c.annotationSet
-
-	ruleAnnot := as.getRuleScope(rule)
-
-	result := make([]*Annotations, 0, len(ruleAnnot)+2)
-
-	if a := c.GetPackageAnnotations(rule.Module.Package); a != nil {
-		result = append(result, a)
-	}
-
-	if a := as.getDocumentScope(rule.Path()); a != nil {
-		result = append(result, a)
-	}
-
-	result = append(result, ruleAnnot...)
-
-	return mergeAnnotationsList(result)
 }
 
 func extractRules(s []util.T) (rules []*Rule) {
@@ -1196,7 +1160,7 @@ func (c *Compiler) setAnnotationSet() {
 		sorted = append(sorted, c.Modules[mName])
 	}
 
-	as, errs := buildAnnotationSet(sorted)
+	as, errs := BuildAnnotationSet(sorted)
 	for _, err := range errs {
 		c.err(err)
 	}
@@ -1351,6 +1315,10 @@ func (c *Compiler) getExports() *util.HashMap {
 	}
 
 	return rules
+}
+
+func (c *Compiler) GetAnnotationSet() *AnnotationSet {
+	return c.annotationSet
 }
 
 func (c *Compiler) checkDuplicateImports() {

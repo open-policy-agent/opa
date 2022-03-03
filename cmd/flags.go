@@ -70,6 +70,10 @@ func addOutputFormat(fs *pflag.FlagSet, outputFormat *util.EnumFlag) {
 	fs.VarP(outputFormat, "format", "f", "set output format")
 }
 
+func addListAnnotations(fs *pflag.FlagSet, value *bool) {
+	fs.BoolVarP(value, "annotations", "a", false, "list annotations")
+}
+
 func addBenchmemFlag(fs *pflag.FlagSet, benchMem *bool, value bool) {
 	fs.BoolVar(benchMem, "benchmem", value, "report memory allocations with benchmark results")
 }

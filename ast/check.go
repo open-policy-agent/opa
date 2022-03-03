@@ -136,7 +136,7 @@ func (tc *typeChecker) CheckBody(env *TypeEnv, body Body) (*TypeEnv, Errors) {
 // CheckTypes runs type checking on the rules returns a TypeEnv if no errors
 // are found. The resulting TypeEnv wraps the provided one. The resulting
 // TypeEnv will be able to resolve types of refs that refer to rules.
-func (tc *typeChecker) CheckTypes(env *TypeEnv, sorted []util.T, as *annotationSet) (*TypeEnv, Errors) {
+func (tc *typeChecker) CheckTypes(env *TypeEnv, sorted []util.T, as *AnnotationSet) (*TypeEnv, Errors) {
 	env = tc.newEnv(env)
 	for _, s := range sorted {
 		tc.checkRule(env, as, s.(*Rule))
@@ -173,7 +173,7 @@ func (tc *typeChecker) checkClosures(env *TypeEnv, expr *Expr) Errors {
 	return result
 }
 
-func (tc *typeChecker) checkRule(env *TypeEnv, as *annotationSet, rule *Rule) {
+func (tc *typeChecker) checkRule(env *TypeEnv, as *AnnotationSet, rule *Rule) {
 
 	env = env.wrap()
 
@@ -1162,21 +1162,21 @@ func getObjectType(ref Ref, o types.Type, rule *Rule, d *types.DynamicProperty) 
 	return getObjectTypeRec(keys, o, d), nil
 }
 
-func getRuleAnnotation(as *annotationSet, rule *Rule) (result []*SchemaAnnotation) {
+func getRuleAnnotation(as *AnnotationSet, rule *Rule) (result []*SchemaAnnotation) {
 
-	for _, x := range as.getSubpackagesScope(rule.Module.Package.Path) {
+	for _, x := range as.GetSubpackagesScope(rule.Module.Package.Path) {
 		result = append(result, x.Schemas...)
 	}
 
-	if x := as.getPackageScope(rule.Module.Package); x != nil {
+	if x := as.GetPackageScope(rule.Module.Package); x != nil {
 		result = append(result, x.Schemas...)
 	}
 
-	if x := as.getDocumentScope(rule.Path()); x != nil {
+	if x := as.GetDocumentScope(rule.Path()); x != nil {
 		result = append(result, x.Schemas...)
 	}
 
-	for _, x := range as.getRuleScope(rule) {
+	for _, x := range as.GetRuleScope(rule) {
 		result = append(result, x.Schemas...)
 	}
 

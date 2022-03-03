@@ -1085,6 +1085,18 @@ func (ref Ref) OutputVars() VarSet {
 	return vis.Vars()
 }
 
+// DropHead drops the first component of this ref.
+func (ref Ref) DropHead() Ref {
+	if len(ref) <= 1 {
+		return EmptyRef()
+	}
+	r := ref[1:].Copy()
+	if s, ok := r[0].Value.(String); ok {
+		r[0].Value = Var(s)
+	}
+	return r
+}
+
 // QueryIterator defines the interface for querying AST documents with references.
 type QueryIterator func(map[Var]Value, Value) error
 

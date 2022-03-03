@@ -1985,7 +1985,7 @@ p { input = "foo" }`},
 			}
 
 			oldTypeEnv := newTypeChecker().WithSchemaSet(schemaSet).Env(BuiltinMap)
-			as, errors := buildAnnotationSet(asModuleSlice(mod))
+			as, errors := BuildAnnotationSet(asModuleSlice(mod))
 			typeenv, checkErrors := newTypeChecker().WithSchemaSet(schemaSet).CheckTypes(oldTypeEnv, elems, as)
 			errors = append(errors, checkErrors...)
 			if len(errors) > 0 {
