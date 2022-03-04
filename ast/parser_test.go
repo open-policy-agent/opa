@@ -837,6 +837,20 @@ func TestEvery(t *testing.T) {
 			},
 			With: []*With{{Value: ArrayTerm(), Target: NewTerm(MustParseRef("input"))}},
 		}, opts)
+
+	assertParseErrorContains(t, "every x, y in ... usage is hinted properly", `
+	p {
+		every x, y in {"foo": "bar"} { is_string(x); is_string(y) }
+	}`,
+		"unexpected ident token: expected \\n or ; or } (hint: `import future.keywords.every` for `every x in xs { ... }` expressions)")
+
+	assertParseErrorContains(t, "not every 'every' gets a hint", `
+	p {
+		every x
+	}`,
+		"unexpected ident token: expected \\n or ; or }\n\tevery x\n", // this asserts that the tail of the error message doesn't contain a hint
+	)
+
 }
 
 func TestNestedExpressions(t *testing.T) {

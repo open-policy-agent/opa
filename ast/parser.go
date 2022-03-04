@@ -806,12 +806,27 @@ func (p *Parser) parseLiteral() (expr *Expr) {
 		}
 		return p.parseEvery()
 	default:
+		s := p.save()
 		expr := p.parseExpr()
 		if expr != nil {
 			expr.Negated = negated
 			if p.s.tok == tokens.With {
 				if expr.With = p.parseWith(); expr.With == nil {
 					return nil
+				}
+			}
+			// If we find a plain `every` identifier, attempt to parse an every expression,
+			// add hint if it succeeds.
+			if term, ok := expr.Terms.(*Term); ok && Var("every").Equal(term.Value) {
+				var hint bool
+				t := p.save()
+				p.restore(s)
+				if expr := p.futureParser().parseEvery(); expr != nil {
+					_, hint = expr.Terms.(*Every)
+				}
+				p.restore(t)
+				if hint {
+					p.hint("`import future.keywords.every` for `every x in xs { ... }` expressions")
 				}
 			}
 			return expr
