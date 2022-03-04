@@ -35,7 +35,7 @@ live-blocks-%:
 	cd $(CURDIR)/website/scripts/live-blocks && npm run $*
 
 .PHONY: serve-local
-serve-local: production-build
+serve-local: dev-build
 	# must be run from root of repo for
 	# the netlify.toml config to work
 	cd $(CURDIR)/.. && netlify dev --offline --dir $(CURDIR)/website/public
@@ -45,6 +45,10 @@ serve-remote: production-build
 	# must be run from root of repo for
 	# the netlify.toml config to work
 	cd $(CURDIR)/.. && netlify deploy
+
+.PHONY: dev-build
+dev-build:
+	make production-build DEV=true
 
 ######################################################
 #
