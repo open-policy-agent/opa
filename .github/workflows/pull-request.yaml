@@ -195,6 +195,9 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v3
 
+      - name: Download OPA
+        uses: open-policy-agent/setup-opa@v1
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v1
         with:
