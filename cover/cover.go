@@ -232,7 +232,7 @@ func (r Report) IsCovered(file string, row int) bool {
 }
 
 // CoverageThresholdError represents an error raised when the global
-// code coverage percenta is lower than the specified threshold.
+// code coverage percentage is lower than the specified threshold.
 type CoverageThresholdError struct {
 	Coverage  float64
 	Threshold float64
@@ -252,9 +252,11 @@ func sortedPositionSliceToRangeSlice(sorted []Position) (result []Range) {
 	start, end := sorted[0], sorted[0]
 	for i := 1; i < len(sorted); i++ {
 		curr := sorted[i]
-		if curr.Row == end.Row+1 {
+		switch {
+		case curr.Row == end.Row: // skip
+		case curr.Row == end.Row+1:
 			end = curr
-		} else {
+		default:
 			result = append(result, Range{start, end})
 			start, end = curr, curr
 		}

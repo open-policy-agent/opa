@@ -139,6 +139,99 @@ p {
 	}
 }
 
+func TestCoverNoDuplicates(t *testing.T) {
+
+	cover := New()
+
+	module := `package test
+
+# Both a rule and an expression, but should not be counted twice
+foo := 1
+
+allow { true }
+`
+
+	parsedModule, err := ast.ParseModule("test.rego", module)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	eval := rego.New(
+		rego.Module("test.rego", module),
+		rego.Query("data.test.allow"),
+		rego.QueryTracer(cover),
+	)
+
+	ctx := context.Background()
+	_, err = eval.Eval(ctx)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	report := cover.Report(map[string]*ast.Module{
+		"test.rego": parsedModule,
+	})
+
+	fr, ok := report.Files["test.rego"]
+	if !ok {
+		t.Fatal("Expected file report for test.rego")
+	}
+
+	expectedCovered := []Position{
+		{6}, // allow
+	}
+
+	expectedNotCovered := []Position{
+		{4}, // foo
+	}
+
+	for _, exp := range expectedCovered {
+		if !fr.IsCovered(exp.Row) {
+			t.Errorf("Expected %v to be covered", exp)
+		}
+	}
+
+	for _, exp := range expectedNotCovered {
+		if !fr.IsNotCovered(exp.Row) {
+			t.Errorf("Expected %v to NOT be covered", exp)
+		}
+	}
+
+	if len(expectedCovered) != fr.locCovered() {
+		t.Errorf(
+			"Expected %d loc to be covered, got %d instead",
+			len(expectedCovered),
+			fr.locCovered())
+	}
+
+	if len(expectedNotCovered) != fr.locNotCovered() {
+		t.Errorf(
+			"Expected %d loc to not be covered, got %d instead",
+			len(expectedNotCovered),
+			fr.locNotCovered())
+	}
+
+	expectedCoveragePercentage := round(100.0*float64(len(expectedCovered))/float64(len(expectedCovered)+len(expectedNotCovered)), 2)
+	if expectedCoveragePercentage != fr.Coverage {
+		t.Errorf("Expected coverage %f != %f", expectedCoveragePercentage, fr.Coverage)
+	}
+
+	if expectedCoveragePercentage != report.Coverage {
+		t.Errorf("Expected report coverage %f != %f",
+			expectedCoveragePercentage,
+			report.Coverage)
+	}
+
+	if t.Failed() {
+		bs, err := json.MarshalIndent(fr, "", "  ")
+		if err != nil {
+			t.Fatal(err)
+		}
+		fmt.Println(string(bs))
+	}
+}
+
 func TestCoverTraceConfig(t *testing.T) {
 	ct := topdown.QueryTracer(New())
 	conf := ct.Config()
