@@ -11,6 +11,11 @@ code and simple APIs to offload policy decision-making from your software. You
 can use OPA to enforce policies in microservices, Kubernetes, CI/CD pipelines,
 API gateways, and more.
 
+OPA was originally created by [Styra](https://www.styra.com) and is proud to be
+a graduated project in the [Cloud Native Computing Foundation
+(CNCF)](https://www.cncf.io/) landscape. For details read the CNCF
+[announcement](https://www.cncf.io/announcements/2021/02/04/cloud-native-computing-foundation-announces-open-policy-agent-graduation/).
+
 Read this page to learn about the core concepts in OPA's policy language
 ([Rego](policy-language)) as well as how to download, run, and integrate OPA.
 
@@ -780,7 +785,7 @@ You can also download and run OPA via Docker. The latest stable image tag is
 
 #### Checksums
 
-Checksums for all binaries are available in the download path by appending `.sha256` to the binary filename. 
+Checksums for all binaries are available in the download path by appending `.sha256` to the binary filename.
 Verify the macOS binary checksum:
 
 ```shell
