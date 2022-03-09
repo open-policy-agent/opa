@@ -1,6 +1,36 @@
 # This file is used to generate the OPA ecosystem page: https://www.openpolicyagent.org/docs/latest/ecosystem/
 # For instructions on how to add an entry, see https://github.com/open-policy-agent/opa/tree/main/docs#integration-index
 integrations:
+  styra-das:
+    title: Styra Declarative Authorization Service
+    description: Styra DAS provides a single pane of glass for authorization and policy across the cloud-native ecosystem of software systems. Beyond a simple control plane, Styra DAS pushes OPA’s potential, providing powerful impact analysis, policy authoring, and decision logging.
+    software:
+      - Styra DAS
+      - Kubernetes
+      - Envoy
+      - Terraform
+    labels:
+      category: authorization
+      type: poweredbyopa
+    tutorials:
+      - https://docs.styra.com/getting-started
+      - https://docs.styra.com/tutorials/kubernetes/introduction
+      - https://docs.styra.com/tutorials/envoy/introduction
+      - https://docs.styra.com/tutorials/ssh/introduction
+      - https://docs.styra.com/tutorials/terraform/introduction
+      - https://docs.styra.com/tutorials/entitlements/introduction
+    code:
+      - https://github.com/StyraInc/das-opa-samples
+      - https://github.com/StyraInc/example-policy-management
+      - https://github.com/StyraInc/entitlements-samples
+    inventors:
+      - styra
+    blogs:
+      - https://blog.styra.com/blog/six-of-my-favorite-styra-declarative-authorization-service-das-features
+      - https://blog.styra.com/blog/six-of-my-favorite-styra-declarative-authorization-service-das-features
+      - https://blog.styra.com/blog/styra-declarative-authorization-service-expands-service-mesh-use-case
+      - https://blog.styra.com/blog/opa-styra-terraform-protect-your-cloud-investment
+
   apache-apisix:
     title: Authorization Integration with Apache APISIX
     description: Apache APISIX provides a plugin for delegating fine-grained authorization decisions to OPA.
@@ -1395,4 +1425,3 @@ software:
   i2scim:
     name: i2 SCIM Server
     link: https://i2scim.io
-
