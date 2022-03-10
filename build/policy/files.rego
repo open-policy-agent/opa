@@ -58,6 +58,17 @@ deny[sprintf("Integration '%v' missing required attribute '%v'", [name, attr])] 
 	some attr in (required - {key | some key, _ in item})
 }
 
+deny[sprintf("Integration '%v' references unknown software '%v' (i.e. not in 'software' object)", [name, software])] {
+	"docs/website/data/integrations.yaml" in filenames
+
+	file := yaml.unmarshal(integrations_file)
+	software_list := {software | file.software[software]}
+
+	some name, item in file.integrations
+	some software in item.software
+	not software in software_list
+}
+
 deny[sprintf("%s is an invalid YAML file", [filename])] {
 	some filename, content in yaml_file_contents
 	changes[filename].status in {"added", "modified"}

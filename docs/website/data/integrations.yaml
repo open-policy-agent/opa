@@ -595,7 +595,7 @@ integrations:
       layer: network
       category: linux
     software:
-      - Linux
+      - linux
     tutorials:
       - https://github.com/open-policy-agent/contrib/blob/master/opa-iptables/docs/tutorial.md
     code:
@@ -773,15 +773,11 @@ integrations:
     code:
       - https://github.com/instrumenta/conftest
     software:
-      - CUE
-      - Kustomize
+      - kustomize
       - terraform
-      - Serverless Framework
-      - AWS SAM Framework
-      - INI
-      - TOML
-      - Dockerfile
-      - HCL2
+      - aws
+      - toml
+      - docker
     videos:
       - title: "Applying Policy Throughout the Application Lifecycle with Open Policy Agent"
         speakers:
@@ -809,9 +805,9 @@ integrations:
     title: Secure Kubernetes using eBPF & Open Policy Agent
     description: Ensure runtime security in any linux machine by combining Extended Berkeley Packet Filter(eBPF) and Open Policy Agent.
     software:
-      - Linux
-      - Kubernetes
-      - eBPF
+      - linux
+      - kubernetes
+      - ebpf
     labels:
       layer: application
       catagory: filtering
@@ -849,7 +845,6 @@ integrations:
       - java
       - groovy
       - kotlin
-      - jvm
     code:
       - https://github.com/Bisnode/opa-gradle-plugin
       - https://plugins.gradle.org/plugin/com.bisnode.opa
@@ -951,8 +946,7 @@ integrations:
       category: Infrastructure as Code
       layer: cicd
     software:
-      - Terraform
-      - Scalr
+      - terraform
     tutorials:
       - https://iacp.docs.scalr.com/en/latest/working-with-iacp/opa.html#creating-the-opa-policy
     code:
@@ -969,8 +963,8 @@ integrations:
       layer: network
       category: application
     software:
-      - SPIFFE
-      - SPIRE
+      - spiffe
+      - spire
     blogs:
       - https://blog.styra.com/blog/zero-trust-with-envoy-spire-and-open-policy-agent-opa
     code:
@@ -988,9 +982,9 @@ integrations:
     inventors:
       - fairwinds
     software:
-      - Kubernetes
-      - Docker
-      - Helm
+      - kubernetes
+      - docker
+      - helm
     tutorials:
       - https://insights.docs.fairwinds.com/features/policy/
       - https://insights.docs.fairwinds.com/reports/opa/
@@ -1048,8 +1042,6 @@ integrations:
       layer: application
     inventors:
       - permitio
-    software:
-      - optoggles
     code:
       - https://github.com/permitio/OPToggles
     tutorials:
@@ -1396,3 +1388,27 @@ software:
   styra-das:
     name: Styra DAS
     link: https://www.styra.com
+  kustomize:
+    name: Kustomize
+    link: https://kustomize.io
+  toml:
+    name: TOML
+    link: https://toml.io
+  groovy:
+    name: Groovy
+    link: https://groovy-lang.org
+  kotlin:
+    name: Kotlin
+    link: https://kotlinlang.org
+  linux:
+    name: Linux
+    link: https://www.kernel.org
+  ebpf:
+    name: eBPF
+    link: https://ebpf.io
+  git:
+    name: Git
+    link: https://git-scm.com
+  pre-commit:
+    name: pre-commit
+    link: https://pre-commit.com
