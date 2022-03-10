@@ -5,10 +5,10 @@ integrations:
     title: Styra Declarative Authorization Service
     description: Styra DAS provides a single pane of glass for authorization and policy across the cloud-native ecosystem of software systems. Beyond a simple control plane, Styra DAS pushes OPA’s potential, providing powerful impact analysis, policy authoring, and decision logging.
     software:
-      - Styra DAS
-      - Kubernetes
-      - Envoy
-      - Terraform
+      - styra-das
+      - kubernetes
+      - envoy
+      - terraform
     labels:
       category: authorization
       type: poweredbyopa
@@ -26,7 +26,6 @@ integrations:
     inventors:
       - styra
     blogs:
-      - https://blog.styra.com/blog/six-of-my-favorite-styra-declarative-authorization-service-das-features
       - https://blog.styra.com/blog/six-of-my-favorite-styra-declarative-authorization-service-das-features
       - https://blog.styra.com/blog/styra-declarative-authorization-service-expands-service-mesh-use-case
       - https://blog.styra.com/blog/opa-styra-terraform-protect-your-cloud-investment
@@ -706,37 +705,6 @@ integrations:
       - https://github.com/open-policy-agent/contrib/blob/master/data_filter_elasticsearch/README.md
     inventors:
       - styra
-
-  # These two exist in the contrib directory, but what kind of integration they are illustrating is less
-  #   clear than the others.  Need to come back to finish these.
-  # azure-cosmos-datafiltering:
-  #   title: Azure Cosmos Data Authorization
-  #   description:
-  #   labels:
-  #     layer: data
-  #     category: filtering
-  #   software:
-  #   - azurecosmos
-  #   code:
-  #   - https://github.com/open-policy-agent/contrib/tree/master/data_filter_azure
-  #   tutorials:
-  #   - https://github.com/open-policy-agent/contrib/blob/master/data_filter_azure/README.documentdb.md
-  #   inventors:
-  #   - microsoft
-
-  # azure-tablestorage-datasource:
-  #   title: Azure Table Storage as External Data
-  #   description:
-  #   labels:
-  #     type: datasource
-  #   software:
-  #   - azuretablestorage
-  #   code:
-  #   - https://github.com/open-policy-agent/contrib/tree/master/data_filter_azure
-  #   tutorials:
-  #   - https://github.com/open-policy-agent/contrib/blob/master/data_filter_azure/README.documentdb.md
-  #   inventors:
-  #   - microsoft
 
   sql-datafiltering:
     title: SQL Database Data Filtering
@@ -1425,3 +1393,6 @@ software:
   i2scim:
     name: i2 SCIM Server
     link: https://i2scim.io
+  styra-das:
+    name: Styra DAS
+    link: https://www.styra.com
