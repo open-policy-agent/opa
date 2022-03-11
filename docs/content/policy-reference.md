@@ -829,7 +829,6 @@ Below is an example that uses some of the Time built-in functions.
 This package will check if a container image is older than 2 months. We will run skopeo inspect for target image and stream the output to OPA. If the image creation time is older than 2 months it results output as `"unsafe"` else the output is `"safe"`.
 
 **time_example.rego**
-<<<<<<< HEAD
 ```live:example/time:module:openable,merge_down
 package time_example
 violation[image]{
@@ -865,43 +864,6 @@ violation[image]{
 some x; violation[x]
 ```
 ```live:example/time:output
-=======
-```live:example/using_time_builtin:module:openable,readonly
-package time_example
-
-nowns := time.now_ns()
-
-result = "safe"{
-    count(violation) == 0
-}
-result = "unsafe"{
-    count(violation) > 0
-}
-
-violation[image]{
-    image := input.Name
-    createdns := time.parse_rfc3339_ns(input.Created)
-    timediff := time.diff(createdns, nowns)
-    timediff[0] > 0
-}
-violation[image]{
-    image := input.Name
-    createdns := time.parse_rfc3339_ns(input.Created)
-    timediff := time.diff(createdns, nowns)
-    timediff[0] > 2
-}
-```
-Run skopeo inspect and stream the output to OPA.
-```bash
-skopeo inspect docker://kksingh04/nodejs17:slim|opa eval -I -d time_example.rego "data.time_example.result" --format pretty
-
-"safe"
-```
-```bash
-skopeo inspect docker://kksingh04/nodejs:4.8|opa eval -I -d time_example.rego "data.time_example.result" --format pretty
-
-"unsafe"
->>>>>>> 52811f63d34d0b2289c634ecf73dc7fab82213b9
 ```
 
 ### Cryptography
