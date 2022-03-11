@@ -909,6 +909,30 @@ func TestCompilerCheckTypesWithSchema(t *testing.T) {
 	assertNotFailed(t, c)
 }
 
+func TestCompilerCheckTypesWithRegexPatternInSchema(t *testing.T) {
+	c := NewCompiler()
+	var schema interface{}
+	// Negative lookahead is not supported in the Go regex dialect, but this is still a valid
+	// JSON schema. Since we don't rely on the "pattern" attribute for type checking, ensure
+	// that this still works (by being ignored)
+	err := util.Unmarshal([]byte(`{
+		"properties": {
+			"name": {
+				"pattern": "^(?!testing:.*)[a-z]+$",
+				"type": "string"
+			}
+		}
+	}`), &schema)
+	if err != nil {
+		t.Fatal("Unexpected error:", err)
+	}
+	schemaSet := NewSchemaSet()
+	schemaSet.Put(SchemaRootRef, schema)
+	c.WithSchemas(schemaSet)
+	compileStages(c, c.checkTypes)
+	assertNotFailed(t, c)
+}
+
 func TestCompilerCheckTypesWithAllOfSchema(t *testing.T) {
 
 	tests := []struct {
