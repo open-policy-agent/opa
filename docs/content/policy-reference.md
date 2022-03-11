@@ -833,7 +833,7 @@ This package will check if a container image is older than 2 months.
 package time_example
 violation[image]{
         some i
-		nowns := time.now_ns()
+        nowns := time.now_ns()
         image := input.images[i].Name
         createdns := time.parse_rfc3339_ns(input.images[i].Created)
         timediff := time.diff(createdns, nowns)
@@ -842,7 +842,7 @@ violation[image]{
 
 violation[image]{
         some i
-		nowns := time.now_ns()
+        nowns := time.now_ns()
         image := input.images[i].Name
         createdns := time.parse_rfc3339_ns(input.images[i].Created)
         timediff := time.diff(createdns, nowns)
