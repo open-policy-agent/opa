@@ -9,9 +9,9 @@
                 "valid": true
             },
             {
-                "description": "a non-matching pattern is invalid",
+                "description": "a non-matching pattern is invalid (but ignored)",
                 "data": "abc",
-                "valid": false
+                "valid": true
             },
             {
                 "description": "ignores non-strings",

@@ -5,10 +5,10 @@ integrations:
     title: Styra Declarative Authorization Service
     description: Styra DAS provides a single pane of glass for authorization and policy across the cloud-native ecosystem of software systems. Beyond a simple control plane, Styra DAS pushes OPA’s potential, providing powerful impact analysis, policy authoring, and decision logging.
     software:
-      - Styra DAS
-      - Kubernetes
-      - Envoy
-      - Terraform
+      - styra-das
+      - kubernetes
+      - envoy
+      - terraform
     labels:
       category: authorization
       type: poweredbyopa
@@ -26,7 +26,6 @@ integrations:
     inventors:
       - styra
     blogs:
-      - https://blog.styra.com/blog/six-of-my-favorite-styra-declarative-authorization-service-das-features
       - https://blog.styra.com/blog/six-of-my-favorite-styra-declarative-authorization-service-das-features
       - https://blog.styra.com/blog/styra-declarative-authorization-service-expands-service-mesh-use-case
       - https://blog.styra.com/blog/opa-styra-terraform-protect-your-cloud-investment
@@ -596,7 +595,7 @@ integrations:
       layer: network
       category: linux
     software:
-      - Linux
+      - linux
     tutorials:
       - https://github.com/open-policy-agent/contrib/blob/master/opa-iptables/docs/tutorial.md
     code:
@@ -707,37 +706,6 @@ integrations:
     inventors:
       - styra
 
-  # These two exist in the contrib directory, but what kind of integration they are illustrating is less
-  #   clear than the others.  Need to come back to finish these.
-  # azure-cosmos-datafiltering:
-  #   title: Azure Cosmos Data Authorization
-  #   description:
-  #   labels:
-  #     layer: data
-  #     category: filtering
-  #   software:
-  #   - azurecosmos
-  #   code:
-  #   - https://github.com/open-policy-agent/contrib/tree/master/data_filter_azure
-  #   tutorials:
-  #   - https://github.com/open-policy-agent/contrib/blob/master/data_filter_azure/README.documentdb.md
-  #   inventors:
-  #   - microsoft
-
-  # azure-tablestorage-datasource:
-  #   title: Azure Table Storage as External Data
-  #   description:
-  #   labels:
-  #     type: datasource
-  #   software:
-  #   - azuretablestorage
-  #   code:
-  #   - https://github.com/open-policy-agent/contrib/tree/master/data_filter_azure
-  #   tutorials:
-  #   - https://github.com/open-policy-agent/contrib/blob/master/data_filter_azure/README.documentdb.md
-  #   inventors:
-  #   - microsoft
-
   sql-datafiltering:
     title: SQL Database Data Filtering
     description: This integration enables the client of a SQL database to enhance a SQL query so that the results obey an OPA-defined policy.
@@ -805,15 +773,11 @@ integrations:
     code:
       - https://github.com/instrumenta/conftest
     software:
-      - CUE
-      - Kustomize
+      - kustomize
       - terraform
-      - Serverless Framework
-      - AWS SAM Framework
-      - INI
-      - TOML
-      - Dockerfile
-      - HCL2
+      - aws
+      - toml
+      - docker
     videos:
       - title: "Applying Policy Throughout the Application Lifecycle with Open Policy Agent"
         speakers:
@@ -841,9 +805,9 @@ integrations:
     title: Secure Kubernetes using eBPF & Open Policy Agent
     description: Ensure runtime security in any linux machine by combining Extended Berkeley Packet Filter(eBPF) and Open Policy Agent.
     software:
-      - Linux
-      - Kubernetes
-      - eBPF
+      - linux
+      - kubernetes
+      - ebpf
     labels:
       layer: application
       catagory: filtering
@@ -881,7 +845,6 @@ integrations:
       - java
       - groovy
       - kotlin
-      - jvm
     code:
       - https://github.com/Bisnode/opa-gradle-plugin
       - https://plugins.gradle.org/plugin/com.bisnode.opa
@@ -983,8 +946,7 @@ integrations:
       category: Infrastructure as Code
       layer: cicd
     software:
-      - Terraform
-      - Scalr
+      - terraform
     tutorials:
       - https://iacp.docs.scalr.com/en/latest/working-with-iacp/opa.html#creating-the-opa-policy
     code:
@@ -1001,8 +963,8 @@ integrations:
       layer: network
       category: application
     software:
-      - SPIFFE
-      - SPIRE
+      - spiffe
+      - spire
     blogs:
       - https://blog.styra.com/blog/zero-trust-with-envoy-spire-and-open-policy-agent-opa
     code:
@@ -1020,9 +982,9 @@ integrations:
     inventors:
       - fairwinds
     software:
-      - Kubernetes
-      - Docker
-      - Helm
+      - kubernetes
+      - docker
+      - helm
     tutorials:
       - https://insights.docs.fairwinds.com/features/policy/
       - https://insights.docs.fairwinds.com/reports/opa/
@@ -1080,8 +1042,6 @@ integrations:
       layer: application
     inventors:
       - permitio
-    software:
-      - optoggles
     code:
       - https://github.com/permitio/OPToggles
     tutorials:
@@ -1425,3 +1385,30 @@ software:
   i2scim:
     name: i2 SCIM Server
     link: https://i2scim.io
+  styra-das:
+    name: Styra DAS
+    link: https://www.styra.com
+  kustomize:
+    name: Kustomize
+    link: https://kustomize.io
+  toml:
+    name: TOML
+    link: https://toml.io
+  groovy:
+    name: Groovy
+    link: https://groovy-lang.org
+  kotlin:
+    name: Kotlin
+    link: https://kotlinlang.org
+  linux:
+    name: Linux
+    link: https://www.kernel.org
+  ebpf:
+    name: eBPF
+    link: https://ebpf.io
+  git:
+    name: Git
+    link: https://git-scm.com
+  pre-commit:
+    name: pre-commit
+    link: https://pre-commit.com
