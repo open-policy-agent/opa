@@ -65,6 +65,35 @@ test_deny_integration_allowed_with_required_attributes {
 	count(deny) == 0 with data.files.integrations_file as integrations with input as files
 }
 
+test_deny_unlisted_software {
+	files := [{"filename": "docs/website/data/integrations.yaml"}]
+	integrations := yaml.marshal({
+		"integrations": {"my-integration": {
+			"title": "My test integration",
+			"description": "This is a test integration",
+			"software": ["bitcoin-miner"],
+		}},
+		"software": {"kubernetes": {"name": "Kubernetes"}},
+	})
+	expected := "Integration 'my-integration' references unknown software 'bitcoin-miner' (i.e. not in 'software' object)"
+
+	deny[expected] with data.files.integrations_file as integrations with input as files
+}
+
+test_allow_listed_software {
+	files := [{"filename": "docs/website/data/integrations.yaml"}]
+	integrations := yaml.marshal({
+		"integrations": {"my-integration": {
+			"title": "My test integration",
+			"description": "This is a test integration",
+			"software": ["kubernetes"],
+		}},
+		"software": {"kubernetes": {"name": "Kubernetes"}},
+	})
+
+	count(deny) == 0 with data.files.integrations_file as integrations with input as files
+}
+
 test_deny_invalid_yaml_file {
 	expected := "invalid.yaml is an invalid YAML file"
 	deny[expected] with data.files.yaml_file_contents as {"invalid.yaml": "{null{}}"}
