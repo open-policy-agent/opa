@@ -201,6 +201,9 @@ func Compare(a, b interface{}) int {
 	case *SomeDecl:
 		b := b.(*SomeDecl)
 		return a.Compare(b)
+	case *Every:
+		b := b.(*Every)
+		return a.Compare(b)
 	case *With:
 		b := b.(*With)
 		return a.Compare(b)
@@ -272,6 +275,8 @@ func sortOrder(x interface{}) int {
 		return 100
 	case *SomeDecl:
 		return 101
+	case *Every:
+		return 102
 	case *With:
 		return 110
 	case *Head:

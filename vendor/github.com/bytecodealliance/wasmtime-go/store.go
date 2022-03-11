@@ -191,7 +191,7 @@ func insertFuncNew(data *storeData, ty *FuncType, callback func(*Caller, []Val) 
 		defer gEngineFuncLock.Unlock()
 		idx = gEngineFuncNewSlab.allocate()
 		gEngineFuncNew[idx] = &entry
-		idx = (idx << 1) | 0
+		idx = (idx << 1)
 	} else {
 		idx = len(data.funcNew)
 		data.funcNew = append(data.funcNew, entry)
@@ -218,7 +218,7 @@ func insertFuncWrap(data *storeData, callback reflect.Value) int {
 		defer gEngineFuncLock.Unlock()
 		idx = gEngineFuncWrapSlab.allocate()
 		gEngineFuncWrap[idx] = &entry
-		idx = (idx << 1) | 0
+		idx = (idx << 1)
 	} else {
 		idx = len(data.funcWrap)
 		data.funcWrap = append(data.funcWrap, entry)
@@ -263,4 +263,64 @@ func goFinalizeFuncWrap(env unsafe.Pointer) {
 	defer gEngineFuncLock.Unlock()
 	delete(gEngineFuncWrap, idx)
 	gEngineFuncWrapSlab.deallocate(idx)
+}
+
+// FuelConsumed returns the amount of fuel consumed by this context's store
+// execution so far.
+//
+// If fuel consumption is not enabled via `Config.SetConsumeFuel` then this function
+// will return false. Otherwise true is returned and the fuel parameter is
+// filled in with fuel consumed so far.
+//
+// Also note that fuel, if enabled, must be originally configured via `Store.AddFuel`.
+func (store *Store) FuelConsumed() (uint64, bool) {
+	fuel := C.uint64_t(0)
+	enable := C.wasmtime_context_fuel_consumed(store.Context(), &fuel)
+	runtime.KeepAlive(store)
+
+	return uint64(fuel), bool(enable)
+}
+
+// AddFuel adds fuel to this context's store for wasm to consume while executing.
+//
+// For this method to work fuel consumption must be enabled via
+// `Config.SetConsumeFuel`. By default a store starts with 0 fuel
+// for wasm to execute with (meaning it will immediately trap).
+// This function must be called for the store to have
+// some fuel to allow WebAssembly to execute.
+//
+// Note that at this time when fuel is entirely consumed it will cause
+// wasm to trap. More usages of fuel are planned for the future.
+//
+// If fuel is not enabled within this store then an error is returned.
+func (store *Store) AddFuel(fuel uint64) error {
+	err := C.wasmtime_context_add_fuel(store.Context(), C.uint64_t(fuel))
+	runtime.KeepAlive(store)
+	if err != nil {
+		return mkError(err)
+	}
+
+	return nil
+}
+
+// ConsumeFuel attempts to manually consume fuel from the store.
+//
+// If fuel consumption is not enabled via `Config.SetConsumeFuel` then
+// this function will return an error. Otherwise this will attempt to consume
+// the specified amount of `fuel` from the store. If successful the remaining
+// amount of fuel is returned. If `fuel` couldn't be consumed
+// then an error is returned.
+//
+// Also note that fuel, if enabled, must be originally configured via
+// `Store.AddFuel`.
+func (store *Store) ConsumeFuel(fuel uint64) (uint64, error) {
+	var remaining uint64
+	c_remaining := C.uint64_t(remaining)
+	err := C.wasmtime_context_consume_fuel(store.Context(), C.uint64_t(fuel), &c_remaining)
+	runtime.KeepAlive(store)
+	if err != nil {
+		return 0, mkError(err)
+	}
+
+	return uint64(c_remaining), nil
 }

@@ -34,3 +34,6 @@ policies
 
 # man pages
 man
+
+# generated when running local website build
+docs/website/.hugo_build.lock

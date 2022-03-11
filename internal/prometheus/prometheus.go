@@ -11,6 +11,10 @@ import (
 	"net/http"
 	"strconv"
 
+	// Need to keep deprecated package for compatibility with prometheus/client_golang
+	"github.com/golang/protobuf/jsonpb" // nolint:staticcheck
+	"github.com/golang/protobuf/proto"  // nolint:staticcheck
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -25,11 +29,13 @@ type Provider struct {
 	durationHistogram    *prometheus.HistogramVec
 	cancellationCounters *prometheus.CounterVec
 	inner                metrics.Metrics
-	logger               func(attrs map[string]interface{}, f string, a ...interface{})
+	logger               loggerFunc
 }
 
+type loggerFunc func(attrs map[string]interface{}, f string, a ...interface{})
+
 // New returns a new Provider object.
-func New(inner metrics.Metrics, logger func(attrs map[string]interface{}, f string, a ...interface{})) *Provider {
+func New(inner metrics.Metrics, logger loggerFunc) *Provider {
 	registry := prometheus.NewRegistry()
 	registry.MustRegister(collectors.NewGoCollector())
 	durationHistogram := prometheus.NewHistogramVec(
@@ -116,10 +122,19 @@ func (p *Provider) All() map[string]interface{} {
 	}
 
 	for _, f := range families {
-		all[f.GetName()] = f
+		all[f.GetName()] = wrap{family: f}
 	}
 
 	return all
+}
+
+type wrap struct{ family proto.Message }
+
+var marshaler = jsonpb.Marshaler{}
+
+func (w wrap) MarshalJSON() ([]byte, error) {
+	s, err := marshaler.MarshalToString(w.family)
+	return []byte(s), err
 }
 
 // MarshalJSON returns a JSON representation of the unioned metrics.
@@ -147,6 +162,21 @@ func (p *Provider) Histogram(name string) metrics.Histogram {
 // metrics tracked by Prometheus.
 func (p *Provider) Clear() {
 	p.inner.Clear()
+}
+
+// Register register the collectors on OPA prometheus registry
+func (p *Provider) Register(c prometheus.Collector) error {
+	return p.registry.Register(c)
+}
+
+// MustRegister register the collectors on OPA prometheus registry and panics when an error occurs
+func (p *Provider) MustRegister(cs ...prometheus.Collector) {
+	p.registry.MustRegister(cs...)
+}
+
+// Unregister unregister the collectors on OPA prometheus registry
+func (p *Provider) Unregister(c prometheus.Collector) bool {
+	return p.registry.Unregister(c)
 }
 
 type captureStatusResponseWriter struct {

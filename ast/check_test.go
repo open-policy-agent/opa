@@ -489,7 +489,7 @@ func TestCheckInferenceRules(t *testing.T) {
 
 			ref := MustParseRef(tc.ref)
 			checker := newTypeChecker()
-			env, err := checker.CheckTypes(nil, elems)
+			env, err := checker.CheckTypes(nil, elems, nil)
 
 			if err != nil {
 				t.Fatalf("Unexpected error %v:", err)
@@ -1020,9 +1020,11 @@ func TestFunctionTypeInferenceUnappliedWithObjectVarKey(t *testing.T) {
 		f(x) = y { y = {x: 1} }
 	`)
 
-	env, err := newTypeChecker().CheckTypes(newTypeChecker().Env(BuiltinMap), []util.T{
+	elems := []util.T{
 		module.Rules[0],
-	})
+	}
+
+	env, err := newTypeChecker().CheckTypes(newTypeChecker().Env(BuiltinMap), elems, nil)
 
 	if len(err) > 0 {
 		t.Fatal(err)
@@ -1218,8 +1220,8 @@ func TestCheckErrorOrdering(t *testing.T) {
 	inputReversed[1] = inputReversed[2]
 	inputReversed[2] = tmp
 
-	_, errs1 := newTypeChecker().CheckTypes(nil, input)
-	_, errs2 := newTypeChecker().CheckTypes(nil, inputReversed)
+	_, errs1 := newTypeChecker().CheckTypes(nil, input, nil)
+	_, errs2 := newTypeChecker().CheckTypes(nil, inputReversed, nil)
 
 	if errs1.Error() != errs2.Error() {
 		t.Fatalf("Expected error slices to be equal. errs1:\n\n%v\n\nerrs2:\n\n%v\n\n", errs1, errs2)
@@ -1265,7 +1267,7 @@ func newTestEnv(rs []string) *TypeEnv {
 		}
 	}
 
-	env, err := newTypeChecker().CheckTypes(newTypeChecker().Env(BuiltinMap), elems)
+	env, err := newTypeChecker().CheckTypes(newTypeChecker().Env(BuiltinMap), elems, nil)
 	if len(err) > 0 {
 		panic(err)
 	}
@@ -1983,7 +1985,9 @@ p { input = "foo" }`},
 			}
 
 			oldTypeEnv := newTypeChecker().WithSchemaSet(schemaSet).Env(BuiltinMap)
-			typeenv, errors := newTypeChecker().WithSchemaSet(schemaSet).CheckTypes(oldTypeEnv, elems)
+			as, errors := BuildAnnotationSet(asModuleSlice(mod))
+			typeenv, checkErrors := newTypeChecker().WithSchemaSet(schemaSet).CheckTypes(oldTypeEnv, elems, as)
+			errors = append(errors, checkErrors...)
 			if len(errors) > 0 {
 				for _, e := range errors {
 					if tc.err == "" || !strings.Contains(e.Error(), tc.err) {
@@ -2001,6 +2005,10 @@ p { input = "foo" }`},
 
 		})
 	}
+}
+
+func asModuleSlice(modules ...*Module) []*Module {
+	return modules
 }
 
 func TestCheckAnnotationInference(t *testing.T) {

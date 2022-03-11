@@ -96,6 +96,11 @@ func (s *Scanner) Keyword(lit string) tokens.Token {
 // AddKeyword adds a string -> token mapping to this Scanner instance.
 func (s *Scanner) AddKeyword(kw string, tok tokens.Token) {
 	s.keywords[kw] = tok
+
+	switch tok {
+	case tokens.Every: // importing 'every' means also importing 'in'
+		s.keywords["in"] = tokens.In
+	}
 }
 
 // WithKeywords returns a new copy of the Scanner struct `s`, with the set
@@ -110,6 +115,21 @@ func (s *Scanner) WithKeywords(kws map[string]tokens.Token) *Scanner {
 		cpy.AddKeyword(k, t)
 	}
 	return &cpy
+}
+
+// WithoutKeywords returns a new copy of the Scanner struct `s`, with the
+// set of known keywords being that of `s` with `kws` removed.
+// The previously known keywords are returned for a convenient reset.
+func (s *Scanner) WithoutKeywords(kws map[string]tokens.Token) (*Scanner, map[string]tokens.Token) {
+	cpy := *s
+	kw := s.keywords
+	cpy.keywords = make(map[string]tokens.Token, len(s.keywords)-len(kws))
+	for kw, tok := range s.keywords {
+		if _, ok := kws[kw]; !ok {
+			cpy.AddKeyword(kw, tok)
+		}
+	}
+	return &cpy, kw
 }
 
 // Scan will increment the scanners position in the source

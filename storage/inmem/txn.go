@@ -296,7 +296,7 @@ func newUpdate(data interface{}, op storage.PatchOp, path storage.Path, idx int,
 func newUpdateArray(data []interface{}, op storage.PatchOp, path storage.Path, idx int, value interface{}) (*update, error) {
 
 	if idx == len(path)-1 {
-		if path[idx] == "-" {
+		if path[idx] == "-" || path[idx] == strconv.Itoa(len(data)) {
 			if op != storage.AddOp {
 				return nil, invalidPatchError("%v: invalid patch path", path)
 			}

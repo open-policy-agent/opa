@@ -2,6 +2,7 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
+//go:build wasm_sdk_e2e
 // +build wasm_sdk_e2e
 
 package e2e
@@ -70,6 +71,9 @@ func TestWasmE2E(t *testing.T) {
 			}
 			for i := range tc.Modules {
 				opts = append(opts, rego.Module(fmt.Sprintf("module-%d.rego", i), tc.Modules[i]))
+			}
+			if testing.Verbose() {
+				opts = append(opts, rego.Dump(os.Stderr))
 			}
 			cr, err := rego.New(opts...).Compile(ctx)
 			if err != nil {

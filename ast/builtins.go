@@ -80,6 +80,7 @@ var DefaultBuiltins = [...]*Builtin{
 	// Arrays
 	ArrayConcat,
 	ArraySlice,
+	ArrayReverse,
 
 	// Conversions
 	ToNumber,
@@ -111,6 +112,7 @@ var DefaultBuiltins = [...]*Builtin{
 	Concat,
 	FormatInt,
 	IndexOf,
+	IndexOfN,
 	Substring,
 	Lower,
 	Upper,
@@ -127,6 +129,7 @@ var DefaultBuiltins = [...]*Builtin{
 	TrimSuffix,
 	TrimSpace,
 	Sprintf,
+	StringReverse,
 
 	// Numbers
 	NumbersRange,
@@ -154,6 +157,7 @@ var DefaultBuiltins = [...]*Builtin{
 
 	// Object Manipulation
 	ObjectUnion,
+	ObjectUnionN,
 	ObjectRemove,
 	ObjectFilter,
 	ObjectGet,
@@ -208,6 +212,7 @@ var DefaultBuiltins = [...]*Builtin{
 	// Graphs
 	WalkBuiltin,
 	ReachableBuiltin,
+	ReachablePathsBuiltin,
 
 	// Sort
 	Sort,
@@ -658,36 +663,6 @@ var Min = &Builtin{
 	),
 }
 
-// All takes a list and returns true if all of the items
-// are true. A collection of length 0 returns true.
-var All = &Builtin{
-	Name: "all",
-	Decl: types.NewFunction(
-		types.Args(
-			types.NewAny(
-				types.NewSet(types.A),
-				types.NewArray(nil, types.A),
-			),
-		),
-		types.B,
-	),
-}
-
-// Any takes a collection and returns true if any of the items
-// is true. A collection of length 0 returns false.
-var Any = &Builtin{
-	Name: "any",
-	Decl: types.NewFunction(
-		types.Args(
-			types.NewAny(
-				types.NewSet(types.A),
-				types.NewArray(nil, types.A),
-			),
-		),
-		types.B,
-	),
-}
-
 /**
  * Arrays
  */
@@ -712,6 +687,17 @@ var ArraySlice = &Builtin{
 			types.NewArray(nil, types.A),
 			types.NewNumber(),
 			types.NewNumber(),
+		),
+		types.NewArray(nil, types.A),
+	),
+}
+
+// ArrayReverse returns a given array, reversed
+var ArrayReverse = &Builtin{
+	Name: "array.reverse",
+	Decl: types.NewFunction(
+		types.Args(
+			types.NewArray(nil, types.A),
 		),
 		types.NewArray(nil, types.A),
 	),
@@ -879,6 +865,18 @@ var IndexOf = &Builtin{
 			types.S,
 		),
 		types.N,
+	),
+}
+
+// IndexOfN returns a list of all the indexes of a substring contained inside a string
+var IndexOfN = &Builtin{
+	Name: "indexof_n",
+	Decl: types.NewFunction(
+		types.Args(
+			types.S,
+			types.S,
+		),
+		types.NewArray(nil, types.N),
 	),
 }
 
@@ -1075,6 +1073,17 @@ var Sprintf = &Builtin{
 		types.Args(
 			types.S,
 			types.NewArray(nil, types.A),
+		),
+		types.S,
+	),
+}
+
+// StringReverse returns the given string, reversed.
+var StringReverse = &Builtin{
+	Name: "strings.reverse",
+	Decl: types.NewFunction(
+		types.Args(
+			types.S,
 		),
 		types.S,
 	),
@@ -1286,6 +1295,20 @@ var ObjectUnion = &Builtin{
 			types.NewObject(
 				nil,
 				types.NewDynamicProperty(types.A, types.A),
+			),
+		),
+		types.A,
+	),
+}
+
+// ObjectUnionN creates a new object that is the asymmetric union of all objects merged from left to right
+var ObjectUnionN = &Builtin{
+	Name: "object.union_n",
+	Decl: types.NewFunction(
+		types.Args(
+			types.NewArray(
+				nil,
+				types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)),
 			),
 		),
 		types.A,
@@ -1970,6 +1993,26 @@ var ReachableBuiltin = &Builtin{
 	),
 }
 
+// ReachablePathsBuiltin computes the set of reachable paths in the graph from a set
+// of starting nodes.
+var ReachablePathsBuiltin = &Builtin{
+	Name: "graph.reachable_paths",
+	Decl: types.NewFunction(
+		types.Args(
+			types.NewObject(
+				nil,
+				types.NewDynamicProperty(
+					types.A,
+					types.NewAny(
+						types.NewSet(types.A),
+						types.NewArray(nil, types.A)),
+				)),
+			types.NewAny(types.NewSet(types.A), types.NewArray(nil, types.A)),
+		),
+		types.NewSet(types.NewArray(nil, types.A)),
+	),
+}
+
 /**
  * Sorting
  */
@@ -2443,13 +2486,51 @@ var RegexMatchDeprecated = &Builtin{
 	),
 }
 
+// All takes a list and returns true if all of the items
+// are true. A collection of length 0 returns true.
+var All = &Builtin{
+	Name: "all",
+	Decl: types.NewFunction(
+		types.Args(
+			types.NewAny(
+				types.NewSet(types.A),
+				types.NewArray(nil, types.A),
+			),
+		),
+		types.B,
+	),
+	deprecated: true,
+}
+
+// Any takes a collection and returns true if any of the items
+// is true. A collection of length 0 returns false.
+var Any = &Builtin{
+	Name: "any",
+	Decl: types.NewFunction(
+		types.Args(
+			types.NewAny(
+				types.NewSet(types.A),
+				types.NewArray(nil, types.A),
+			),
+		),
+		types.B,
+	),
+	deprecated: true,
+}
+
 // Builtin represents a built-in function supported by OPA. Every built-in
 // function is uniquely identified by a name.
 type Builtin struct {
-	Name     string          `json:"name"`               // Unique name of built-in function, e.g., <name>(arg1,arg2,...,argN)
-	Decl     *types.Function `json:"decl"`               // Built-in function type declaration.
-	Infix    string          `json:"infix,omitempty"`    // Unique name of infix operator. Default should be unset.
-	Relation bool            `json:"relation,omitempty"` // Indicates if the built-in acts as a relation.
+	Name       string          `json:"name"`               // Unique name of built-in function, e.g., <name>(arg1,arg2,...,argN)
+	Decl       *types.Function `json:"decl"`               // Built-in function type declaration.
+	Infix      string          `json:"infix,omitempty"`    // Unique name of infix operator. Default should be unset.
+	Relation   bool            `json:"relation,omitempty"` // Indicates if the built-in acts as a relation.
+	deprecated bool            // Indicates if the built-in has been deprecated.
+}
+
+// IsDeprecated returns true if the Builtin function is deprecated and will be removed in a future release.
+func (b *Builtin) IsDeprecated() bool {
+	return b.deprecated
 }
 
 // Expr creates a new expression for the built-in with the given operands.

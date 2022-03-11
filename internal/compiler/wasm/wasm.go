@@ -91,6 +91,7 @@ var builtinsFunctions = map[string]string{
 	ast.Floor.Name:                      "opa_arith_floor",
 	ast.Rem.Name:                        "opa_arith_rem",
 	ast.ArrayConcat.Name:                "opa_array_concat",
+	ast.ArrayReverse.Name:               "opa_array_reverse",
 	ast.ArraySlice.Name:                 "opa_array_slice",
 	ast.SetDiff.Name:                    "opa_set_diff",
 	ast.And.Name:                        "opa_set_intersection",
@@ -136,6 +137,7 @@ var builtinsFunctions = map[string]string{
 	ast.GlobMatch.Name:                  "opa_glob_match",
 	ast.JSONMarshal.Name:                "opa_json_marshal",
 	ast.JSONUnmarshal.Name:              "opa_json_unmarshal",
+	ast.JSONIsValid.Name:                "opa_json_is_valid",
 	ast.ObjectFilter.Name:               "builtin_object_filter",
 	ast.ObjectGet.Name:                  "builtin_object_get",
 	ast.ObjectRemove.Name:               "builtin_object_remove",
@@ -149,6 +151,7 @@ var builtinsFunctions = map[string]string{
 	ast.Contains.Name:                   "opa_strings_contains",
 	ast.StartsWith.Name:                 "opa_strings_startswith",
 	ast.EndsWith.Name:                   "opa_strings_endswith",
+	ast.StringReverse.Name:              "opa_strings_reverse",
 	ast.Split.Name:                      "opa_strings_split",
 	ast.Replace.Name:                    "opa_strings_replace",
 	ast.ReplaceN.Name:                   "opa_strings_replace_n",
@@ -992,7 +995,7 @@ func (c *Compiler) compileBlock(block *ir.Block) ([]instruction.Instruction, err
 
 	for _, stmt := range block.Stmts {
 		switch stmt := stmt.(type) {
-		case *ir.ResultSetAdd:
+		case *ir.ResultSetAddStmt:
 			instrs = append(instrs, instruction.GetLocal{Index: c.lrs})
 			instrs = append(instrs, instruction.GetLocal{Index: c.local(stmt.Value)})
 			instrs = append(instrs, instruction.Call{Index: c.function(opaSetAdd)})
@@ -1063,7 +1066,7 @@ func (c *Compiler) compileBlock(block *ir.Block) ([]instruction.Instruction, err
 				return nil, err
 			}
 		case *ir.DotStmt:
-			if loc, ok := stmt.Source.(ir.Local); ok {
+			if loc, ok := stmt.Source.Value.(ir.Local); ok {
 				instrs = append(instrs, instruction.GetLocal{Index: c.local(loc)})
 				instrs = append(instrs, c.instrRead(stmt.Key))
 				instrs = append(instrs, instruction.Call{Index: c.function(opaValueGet)})
@@ -1071,8 +1074,8 @@ func (c *Compiler) compileBlock(block *ir.Block) ([]instruction.Instruction, err
 				instrs = append(instrs, instruction.I32Eqz{})
 				instrs = append(instrs, instruction.BrIf{Index: 0})
 			} else {
-				// Booleans and strings would lead to the BrIf (since opa_value_get
-				// on them returns 0), so let's skip that.
+				// Booleans and string sources would lead to the BrIf (since opa_value_get
+				// on them returns 0), so let's skip trying that.
 				instrs = append(instrs, instruction.Br{Index: 0})
 				break
 			}
@@ -1093,13 +1096,13 @@ func (c *Compiler) compileBlock(block *ir.Block) ([]instruction.Instruction, err
 				instrs = append(instrs, instruction.Br{Index: 0})
 				continue
 			}
-			_, okA := stmt.A.(ir.Bool)
-			if _, okB := stmt.B.(ir.Bool); okA && okB {
+			_, okA := stmt.A.Value.(ir.Bool)
+			if _, okB := stmt.B.Value.(ir.Bool); okA && okB {
 				// not equal (checked above), but both booleans => not equal
 				continue
 			}
-			_, okA = stmt.A.(ir.StringIndex)
-			if _, okB := stmt.B.(ir.StringIndex); okA && okB {
+			_, okA = stmt.A.Value.(ir.StringIndex)
+			if _, okB := stmt.B.Value.(ir.StringIndex); okA && okB {
 				// not equal (checked above), but both strings => not equal
 				continue
 			}
@@ -1131,7 +1134,7 @@ func (c *Compiler) compileBlock(block *ir.Block) ([]instruction.Instruction, err
 			instrs = append(instrs, instruction.Call{Index: c.function(opaSet)})
 			instrs = append(instrs, instruction.SetLocal{Index: c.local(stmt.Target)})
 		case *ir.IsArrayStmt:
-			if loc, ok := stmt.Source.(ir.Local); ok {
+			if loc, ok := stmt.Source.Value.(ir.Local); ok {
 				instrs = append(instrs, instruction.GetLocal{Index: c.local(loc)})
 				instrs = append(instrs, instruction.Call{Index: c.function(opaValueType)})
 				instrs = append(instrs, instruction.I32Const{Value: opaTypeArray})
@@ -1142,7 +1145,7 @@ func (c *Compiler) compileBlock(block *ir.Block) ([]instruction.Instruction, err
 				break
 			}
 		case *ir.IsObjectStmt:
-			if loc, ok := stmt.Source.(ir.Local); ok {
+			if loc, ok := stmt.Source.Value.(ir.Local); ok {
 				instrs = append(instrs, instruction.GetLocal{Index: c.local(loc)})
 				instrs = append(instrs, instruction.Call{Index: c.function(opaValueType)})
 				instrs = append(instrs, instruction.I32Const{Value: opaTypeObject})
@@ -1334,7 +1337,7 @@ func (c *Compiler) compileWithStmt(with *ir.WithStmt, result *[]instruction.Inst
 	return nil
 }
 
-func (c *Compiler) compileUpsert(local ir.Local, path []int, value ir.LocalOrConst, loc ir.Location, instrs []instruction.Instruction) []instruction.Instruction {
+func (c *Compiler) compileUpsert(local ir.Local, path []int, value ir.Operand, loc ir.Location, instrs []instruction.Instruction) []instruction.Instruction {
 
 	lcopy := c.genLocal() // holds copy of local
 	instrs = append(instrs, instruction.GetLocal{Index: c.local(local)})
@@ -1481,7 +1484,7 @@ func (c *Compiler) compileCallDynamicStmt(stmt *ir.CallDynamicStmt, result *[]in
 		instruction.CallIndirect{Index: typeIndex}, // [arg0 arg1 tbl_idx] -> [res]
 		instruction.TeeLocal{Index: c.local(stmt.Result)},
 		instruction.I32Eqz{},
-		instruction.BrIf{Index: 2}, // mapping found, "undefined" result counts
+		instruction.BrIf{Index: 3}, // mapping found, "undefined" result counts
 	)
 
 	*result = append(*result, instrs...)
@@ -1747,7 +1750,7 @@ func getLowestFreeElementSegmentOffset(m *module.Module) (int32, error) {
 // It returns the instructions that make up the function call with
 // arguments, followed by Unreachable.
 func (c *Compiler) runtimeErrorAbort(loc ir.Location, errType int) []instruction.Instruction {
-	index, row, col := loc.Index, loc.Row, loc.Col
+	index, row, col := loc.File, loc.Row, loc.Col
 	return []instruction.Instruction{
 		instruction.I32Const{Value: c.fileAddr(index)},
 		instruction.I32Const{Value: int32(row)},
@@ -1768,8 +1771,8 @@ func (c *Compiler) storeFunc(name string, code *module.CodeEntry) error {
 	return nil
 }
 
-func (c *Compiler) instrRead(lv ir.LocalOrConst) instruction.Instruction {
-	switch x := lv.(type) {
+func (c *Compiler) instrRead(lv ir.Operand) instruction.Instruction {
+	switch x := lv.Value.(type) {
 	case ir.Bool:
 		return instruction.I32Const{Value: c.opaBoolAddr(x)}
 	case ir.StringIndex:

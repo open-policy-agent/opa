@@ -66,3 +66,24 @@ opa_value *opa_array_slice(opa_value *a, opa_value *i, opa_value *j)
 
     return &r->hdr;
 }
+
+OPA_BUILTIN
+opa_value *opa_array_reverse(opa_value *a)
+{
+    if (opa_value_type(a) != OPA_ARRAY)
+    {
+        return NULL;
+    }
+
+    opa_array_t *arr = opa_cast_array(a);
+
+    opa_array_t *reversed = opa_cast_array(opa_array_with_cap(arr->len));
+
+    int n = arr->len;
+
+    for (int i = 0; i < n; i++) {
+        opa_array_append(reversed, arr->elems[n - 1 - i].v);
+    }
+
+    return &reversed->hdr;
+}

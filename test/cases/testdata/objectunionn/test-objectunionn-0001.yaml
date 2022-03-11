@@ -1,0 +1,67 @@
+cases:
+- note: objectunionn/empty array
+  modules:
+  - |
+    package test
+
+    p := object.union_n([{}])
+
+  query: data.test.p = x
+  want_result:
+  - x: {}
+
+- note: objectunionn/single item array
+  modules:
+  - |
+    package test
+
+    p := object.union_n([{"foo": "bar"}])
+
+  query: data.test.p = x
+  want_result:
+  - x: {"foo": "bar"}
+
+- note: objectunionn/merge objects
+  modules:
+    - |
+      package test
+
+      x := object.union_n([{"foo": "bar"}, {"x": "y"}])
+
+  query: data.test.x = x
+  want_result:
+    - x: {"foo": "bar", "x": "y"}
+
+- note: objectunionn/merge objects conflict
+  modules:
+    - |
+      package test
+
+      x := object.union_n([{"foo": "bar"}, {"foo": "baz"}])
+
+  query: data.test.x = x
+  want_result:
+    - x: {"foo": "baz"}
+
+- note: objectunionn/merge objects extended
+  modules:
+    - |
+      package test
+
+      x := object.union_n([{
+        "a": 1,
+        "b": 2,
+        "c": 3,
+      }, {
+        "foo": "baz",
+        "a": "a",
+        "b": 2,
+        "d": 4,
+      }, {
+        "a": "final A!",
+        "e": 5.0,
+      }])
+
+  query: data.test.x = x
+  want_result:
+    - x: {"foo": "baz", "a": "final A!", "b": 2, "c": 3, "d": 4, "e": 5.0}

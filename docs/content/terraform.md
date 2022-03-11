@@ -654,7 +654,7 @@ opa exec --decision terraform/analysis/score --bundle policy/ tfplan_large.json
 
 ### 6. (Optional) Run OPA using a remote policy bundle
 
-In addition to loading policies from the local filesystem, `opa exec` can fetch policies from remote locations via [Bundles](). To see this in action, first build the policies into a bundle:
+In addition to loading policies from the local filesystem, `opa exec` can fetch policies from remote locations via [Bundles](../management-bundles). To see this in action, first build the policies into a bundle:
 
 ```shell
 opa build policy/

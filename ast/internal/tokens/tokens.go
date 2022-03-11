@@ -65,6 +65,8 @@ const (
 	Lte
 	Dot
 	Semicolon
+
+	Every
 )
 
 var strings = [...]string{
@@ -112,6 +114,7 @@ var strings = [...]string{
 	Lte:        "lte",
 	Dot:        ".",
 	Semicolon:  ";",
+	Every:      "every",
 }
 
 var keywords = map[string]Token{
@@ -135,4 +138,10 @@ func Keywords() map[string]Token {
 		cpy[k] = v
 	}
 	return cpy
+}
+
+// IsKeyword returns if a token is a keyword
+func IsKeyword(tok Token) bool {
+	_, ok := keywords[strings[tok]]
+	return ok
 }

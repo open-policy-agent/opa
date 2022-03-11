@@ -85,6 +85,18 @@ func TestPlugins(t *testing.T) {
 	defer opa.Stop(ctx)
 }
 
+func TestPluginPanic(t *testing.T) {
+	ctx := context.Background()
+
+	opa, err := sdk.New(ctx, sdk.Options{})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	opa.Stop(ctx)
+}
+
 func TestDecision(t *testing.T) {
 
 	ctx := context.Background()
@@ -562,7 +574,7 @@ func TestStopWithDeadline(t *testing.T) {
 
 	dur := time.Since(before)
 	diff := dur - timeout
-	maxDelta := 6 * time.Millisecond
+	maxDelta := 10 * time.Millisecond
 	if diff > maxDelta || diff < -maxDelta {
 		t.Errorf("expected shutdown to have %v grace period, measured shutdown in %v (max delta %v)", timeout, dur, maxDelta)
 	}

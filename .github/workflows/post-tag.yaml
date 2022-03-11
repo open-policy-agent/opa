@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-18.04
     steps:
       - name: Check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           token: ${{ secrets.GH_PUSH_TOKEN }}
 
@@ -24,12 +24,19 @@ jobs:
     needs: generate
     steps:
       - name: Check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Build Linux and Windows
         run: make ci-go-ci-build-linux ci-go-ci-build-linux-static ci-go-ci-build-windows
         timeout-minutes: 30
         env:
+          TELEMETRY_URL: ${{ secrets.TELEMETRY_URL }}
+
+      - name: Build Linux arm64
+        run: make ci-go-ci-build-linux-static
+        timeout-minutes: 30
+        env:
+          GOARCH: arm64
           TELEMETRY_URL: ${{ secrets.TELEMETRY_URL }}
 
       - name: Upload binaries
@@ -45,7 +52,7 @@ jobs:
     needs: generate
     steps:
       - name: Check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - id: go_version
         name: Read go version
@@ -57,7 +64,7 @@ jobs:
           go-version: ${{ steps.go_version.outputs.go_version }}
 
       - name: Build Darwin
-        run: make ci-build-darwin
+        run: make ci-build-darwin ci-build-darwin-arm64-static
         timeout-minutes: 30
         env:
           TELEMETRY_URL: ${{ secrets.TELEMETRY_URL }}
@@ -75,7 +82,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Set TAG_NAME in Environment
         # Subsequent jobs will be have the computed tag name
@@ -86,6 +93,9 @@ jobs:
         with:
           name: binaries
           path: _release
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
 
       - name: Build and Deploy OPA Docker Images
         id: build-and-deploy

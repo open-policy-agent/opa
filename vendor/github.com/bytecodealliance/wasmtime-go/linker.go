@@ -193,7 +193,7 @@ func (l *Linker) DefineWasi() error {
 	return mkError(err)
 }
 
-// Instantiate instantates a module with all imports defined in this linker.
+// Instantiate instantiates a module with all imports defined in this linker.
 //
 // Returns an error if the instance's imports couldn't be satisfied, had the
 // wrong types, or if a trap happened executing the start function.

@@ -21,6 +21,7 @@ import (
 	"sync/atomic"
 
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/internal/global"
 	"go.opentelemetry.io/otel/sdk/instrumentation"
 	"go.opentelemetry.io/otel/sdk/resource"
 	"go.opentelemetry.io/otel/trace"
@@ -52,14 +53,34 @@ type tracerProviderConfig struct {
 	resource *resource.Resource
 }
 
+// MarshalLog is the marshaling function used by the logging system to represent this exporter.
+func (cfg tracerProviderConfig) MarshalLog() interface{} {
+	return struct {
+		SpanProcessors  []SpanProcessor
+		SamplerType     string
+		IDGeneratorType string
+		SpanLimits      SpanLimits
+		Resource        *resource.Resource
+	}{
+		SpanProcessors:  cfg.processors,
+		SamplerType:     fmt.Sprintf("%T", cfg.sampler),
+		IDGeneratorType: fmt.Sprintf("%T", cfg.idGenerator),
+		SpanLimits:      cfg.spanLimits,
+		Resource:        cfg.resource,
+	}
+}
+
 type TracerProvider struct {
 	mu             sync.Mutex
 	namedTracer    map[instrumentation.Library]*tracer
 	spanProcessors atomic.Value
-	sampler        Sampler
-	idGenerator    IDGenerator
-	spanLimits     SpanLimits
-	resource       *resource.Resource
+
+	// These fields are not protected by the lock mu. They are assumed to be
+	// immutable after creation of the TracerProvider.
+	sampler     Sampler
+	idGenerator IDGenerator
+	spanLimits  SpanLimits
+	resource    *resource.Resource
 }
 
 var _ trace.TracerProvider = &TracerProvider{}
@@ -75,13 +96,13 @@ var _ trace.TracerProvider = &TracerProvider{}
 // The passed opts are used to override these default values and configure the
 // returned TracerProvider appropriately.
 func NewTracerProvider(opts ...TracerProviderOption) *TracerProvider {
-	o := &tracerProviderConfig{}
+	o := tracerProviderConfig{}
 
 	for _, opt := range opts {
-		opt.apply(o)
+		o = opt.apply(o)
 	}
 
-	ensureValidTracerProviderConfig(o)
+	o = ensureValidTracerProviderConfig(o)
 
 	tp := &TracerProvider{
 		namedTracer: make(map[instrumentation.Library]*tracer),
@@ -90,6 +111,8 @@ func NewTracerProvider(opts ...TracerProviderOption) *TracerProvider {
 		spanLimits:  o.spanLimits,
 		resource:    o.resource,
 	}
+
+	global.Info("TracerProvider created", "config", o)
 
 	for _, sp := range o.processors {
 		tp.RegisterSpanProcessor(sp)
@@ -125,6 +148,7 @@ func (p *TracerProvider) Tracer(name string, opts ...trace.TracerOption) trace.T
 			instrumentationLibrary: il,
 		}
 		p.namedTracer[il] = t
+		global.Info("Tracer created", "name", name, "version", c.InstrumentationVersion(), "schemaURL", c.SchemaURL())
 	}
 	return t
 }
@@ -235,13 +259,13 @@ func (p *TracerProvider) Shutdown(ctx context.Context) error {
 }
 
 type TracerProviderOption interface {
-	apply(*tracerProviderConfig)
+	apply(tracerProviderConfig) tracerProviderConfig
 }
 
-type traceProviderOptionFunc func(*tracerProviderConfig)
+type traceProviderOptionFunc func(tracerProviderConfig) tracerProviderConfig
 
-func (fn traceProviderOptionFunc) apply(cfg *tracerProviderConfig) {
-	fn(cfg)
+func (fn traceProviderOptionFunc) apply(cfg tracerProviderConfig) tracerProviderConfig {
+	return fn(cfg)
 }
 
 // WithSyncer registers the exporter with the TracerProvider using a
@@ -264,8 +288,9 @@ func WithBatcher(e SpanExporter, opts ...BatchSpanProcessorOption) TracerProvide
 
 // WithSpanProcessor registers the SpanProcessor with a TracerProvider.
 func WithSpanProcessor(sp SpanProcessor) TracerProviderOption {
-	return traceProviderOptionFunc(func(cfg *tracerProviderConfig) {
+	return traceProviderOptionFunc(func(cfg tracerProviderConfig) tracerProviderConfig {
 		cfg.processors = append(cfg.processors, sp)
+		return cfg
 	})
 }
 
@@ -277,12 +302,13 @@ func WithSpanProcessor(sp SpanProcessor) TracerProviderOption {
 // If this option is not used, the TracerProvider will use the
 // resource.Default() Resource by default.
 func WithResource(r *resource.Resource) TracerProviderOption {
-	return traceProviderOptionFunc(func(cfg *tracerProviderConfig) {
+	return traceProviderOptionFunc(func(cfg tracerProviderConfig) tracerProviderConfig {
 		var err error
 		cfg.resource, err = resource.Merge(resource.Environment(), r)
 		if err != nil {
 			otel.Handle(err)
 		}
+		return cfg
 	})
 }
 
@@ -294,10 +320,11 @@ func WithResource(r *resource.Resource) TracerProviderOption {
 // If this option is not used, the TracerProvider will use a random number
 // IDGenerator by default.
 func WithIDGenerator(g IDGenerator) TracerProviderOption {
-	return traceProviderOptionFunc(func(cfg *tracerProviderConfig) {
+	return traceProviderOptionFunc(func(cfg tracerProviderConfig) tracerProviderConfig {
 		if g != nil {
 			cfg.idGenerator = g
 		}
+		return cfg
 	})
 }
 
@@ -309,10 +336,11 @@ func WithIDGenerator(g IDGenerator) TracerProviderOption {
 // If this option is not used, the TracerProvider will use a
 // ParentBased(AlwaysSample) Sampler by default.
 func WithSampler(s Sampler) TracerProviderOption {
-	return traceProviderOptionFunc(func(cfg *tracerProviderConfig) {
+	return traceProviderOptionFunc(func(cfg tracerProviderConfig) tracerProviderConfig {
 		if s != nil {
 			cfg.sampler = s
 		}
+		return cfg
 	})
 }
 
@@ -324,13 +352,14 @@ func WithSampler(s Sampler) TracerProviderOption {
 // If this option is not used, the TracerProvider will use the default
 // SpanLimits.
 func WithSpanLimits(sl SpanLimits) TracerProviderOption {
-	return traceProviderOptionFunc(func(cfg *tracerProviderConfig) {
+	return traceProviderOptionFunc(func(cfg tracerProviderConfig) tracerProviderConfig {
 		cfg.spanLimits = sl
+		return cfg
 	})
 }
 
 // ensureValidTracerProviderConfig ensures that given TracerProviderConfig is valid.
-func ensureValidTracerProviderConfig(cfg *tracerProviderConfig) {
+func ensureValidTracerProviderConfig(cfg tracerProviderConfig) tracerProviderConfig {
 	if cfg.sampler == nil {
 		cfg.sampler = ParentBased(AlwaysSample())
 	}
@@ -341,4 +370,5 @@ func ensureValidTracerProviderConfig(cfg *tracerProviderConfig) {
 	if cfg.resource == nil {
 		cfg.resource = resource.Default()
 	}
+	return cfg
 }

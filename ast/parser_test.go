@@ -692,6 +692,10 @@ func TestSomeDeclExpr(t *testing.T) {
 		},
 	}, opts)
 
+	assertParseErrorContains(t, "not some", "not some x, y in xs",
+		"unexpected some keyword: illegal negation of 'some'",
+		opts)
+
 	assertParseErrorContains(t, "some + function call", "some f(x)",
 		"expected `x in xs` or `x, y in xs` expression")
 
@@ -767,6 +771,86 @@ func TestSomeDeclExpr(t *testing.T) {
 			NewExpr(VarTerm("x")),
 		),
 	})
+
+	assertParseOneExpr(t, "with modifier on expr", "some x, y in input with input as []",
+		&Expr{
+			Terms: &SomeDecl{
+				Symbols: []*Term{
+					MemberWithKey.Call(
+						VarTerm("x"),
+						VarTerm("y"),
+						NewTerm(MustParseRef("input")),
+					),
+				},
+			},
+			With: []*With{{Value: ArrayTerm(), Target: NewTerm(MustParseRef("input"))}},
+		}, opts)
+}
+
+func TestEvery(t *testing.T) {
+	opts := ParserOptions{unreleasedKeywords: true, FutureKeywords: []string{"every"}}
+	assertParseOneExpr(t, "simple", "every x in xs { true }",
+		&Expr{
+			Terms: &Every{
+				Value:  VarTerm("x"),
+				Domain: VarTerm("xs"),
+				Body: []*Expr{
+					NewExpr(BooleanTerm(true)),
+				},
+			},
+		},
+		opts)
+
+	assertParseOneExpr(t, "with key", "every k, v in [1,2] { true }",
+		&Expr{
+			Terms: &Every{
+				Key:    VarTerm("k"),
+				Value:  VarTerm("v"),
+				Domain: ArrayTerm(IntNumberTerm(1), IntNumberTerm(2)),
+				Body: []*Expr{
+					NewExpr(BooleanTerm(true)),
+				},
+			},
+		}, opts)
+
+	assertParseErrorContains(t, "arbitrary term", "every 10", "expected `x[, y] in xs { ... }` expression", opts)
+	assertParseErrorContains(t, "non-var value", "every 10 in xs { true }", "unexpected { token: expected value to be a variable", opts)
+	assertParseErrorContains(t, "non-var key", "every 10, x in xs { true }", "unexpected { token: expected key to be a variable", opts)
+	assertParseErrorContains(t, "arbitrary call", "every f(10)", "expected `x[, y] in xs { ... }` expression", opts)
+	assertParseErrorContains(t, "no body", "every x in xs", "missing body", opts)
+	assertParseErrorContains(t, "invalid body", "every x in xs { + }", "unexpected plus token", opts)
+	assertParseErrorContains(t, "not every", "not every x in xs { true }", "unexpected every keyword: illegal negation of 'every'", opts)
+
+	assertParseOneExpr(t, `"every" kw implies "in" kw`, "x in xs", Member.Expr(
+		VarTerm("x"),
+		VarTerm("xs"),
+	), opts)
+
+	assertParseOneExpr(t, "with modifier on expr", "every x in input { x } with input as []",
+		&Expr{
+			Terms: &Every{
+				Value:  VarTerm("x"),
+				Domain: NewTerm(MustParseRef("input")),
+				Body: []*Expr{
+					NewExpr(VarTerm("x")),
+				},
+			},
+			With: []*With{{Value: ArrayTerm(), Target: NewTerm(MustParseRef("input"))}},
+		}, opts)
+
+	assertParseErrorContains(t, "every x, y in ... usage is hinted properly", `
+	p {
+		every x, y in {"foo": "bar"} { is_string(x); is_string(y) }
+	}`,
+		"unexpected ident token: expected \\n or ; or } (hint: `import future.keywords.every` for `every x in xs { ... }` expressions)")
+
+	assertParseErrorContains(t, "not every 'every' gets a hint", `
+	p {
+		every x
+	}`,
+		"unexpected ident token: expected \\n or ; or }\n\tevery x\n", // this asserts that the tail of the error message doesn't contain a hint
+	)
+
 }
 
 func TestNestedExpressions(t *testing.T) {
@@ -1108,12 +1192,38 @@ func TestImport(t *testing.T) {
 }
 
 func TestFutureImports(t *testing.T) {
-	assertParseErrorContains(t, "future", "import future", "invalid import, use `import future.keywords` or `import.future.keywords.in`")
+	assertParseErrorContains(t, "future", "import future", "invalid import, must be `future.keywords`")
 	assertParseErrorContains(t, "future.a", "import future.a", "invalid import, must be `future.keywords`")
-	assertParseErrorContains(t, "unknown keyword", "import future.keywords.xyz", "unexpected keyword, must be one of [in]")
+	assertParseErrorContains(t, "unknown keyword", "import future.keywords.xyz", "unexpected keyword, must be one of [every in]")
 	assertParseErrorContains(t, "all keyword import + alias", "import future.keywords as xyz", "future keyword imports cannot be aliased")
 	assertParseErrorContains(t, "keyword import + alias", "import future.keywords.in as xyz", "future keyword imports cannot be aliased")
 
+	assertParseImport(t, "import kw with kw in options",
+		"import future.keywords.in", &Import{Path: RefTerm(VarTerm("future"), StringTerm("keywords"), StringTerm("in"))},
+		ParserOptions{FutureKeywords: []string{"in"}})
+	assertParseImport(t, "import kw with all kw in options",
+		"import future.keywords.in", &Import{Path: RefTerm(VarTerm("future"), StringTerm("keywords"), StringTerm("in"))},
+		ParserOptions{AllFutureKeywords: true})
+
+	mod := `
+		package p
+		import future.keywords
+		import future.keywords.in
+	`
+	parsed := Module{
+		Package: MustParseStatement(`package p`).(*Package),
+		Imports: []*Import{
+			MustParseStatement("import future.keywords").(*Import),
+			MustParseStatement("import future.keywords.in").(*Import),
+		},
+	}
+	assertParseModule(t, "multiple imports, all kw in options", mod, &parsed, ParserOptions{AllFutureKeywords: true})
+	assertParseModule(t, "multiple imports, single in options", mod, &parsed, ParserOptions{FutureKeywords: []string{"in"}})
+}
+
+func TestFutureImportsExtraction(t *testing.T) {
+	// These tests assert that "import future..." statements in policies cause
+	// the proper keywords to be added to the parser's list of known keywords.
 	tests := []struct {
 		note, imp string
 		exp       map[string]tokens.Token
@@ -1127,6 +1237,13 @@ func TestFutureImports(t *testing.T) {
 			note: "all keywords imported",
 			imp:  "import future.keywords",
 			exp:  map[string]tokens.Token{"in": tokens.In},
+		},
+		{
+			note: "all keywords + single keyword imported",
+			imp: `
+				import future.keywords
+				import future.keywords.in`,
+			exp: map[string]tokens.Token{"in": tokens.In},
 		},
 	}
 	for _, tc := range tests {
@@ -3122,6 +3239,28 @@ public_servers_1[server] {
 			},
 		},
 		{
+			note: "multiple metadata blocks on a single rule",
+			module: `package test
+
+# METADATA
+# title: My rule
+
+# METADATA
+# title: My rule 2
+p { input = "str" }`,
+			expNumComments: 4,
+			expAnnotations: []*Annotations{
+				{
+					Scope: annotationScopeRule,
+					Title: "My rule",
+				},
+				{
+					Scope: annotationScopeRule,
+					Title: "My rule 2",
+				},
+			},
+		},
+		{
 			note: "Empty annotation error due to whitespace following METADATA hint",
 			module: `package test
 
@@ -3143,6 +3282,33 @@ p := 7`,
 			expAnnotations: []*Annotations{
 				{Scope: annotationScopeRule},
 			},
+		},
+		{
+			note: "annotation on package",
+			module: `# METADATA
+# title: My package
+package test
+
+p { input = "str" }`,
+			expNumComments: 2,
+			expAnnotations: []*Annotations{
+				{
+					Scope: annotationScopePackage,
+					Title: "My package",
+				},
+			},
+		},
+		{
+			note: "annotation on import",
+			module: `package test
+
+# METADATA
+# title: My import
+import input.foo
+
+p { input = "str" }`,
+			expNumComments: 2,
+			expError:       "1 error occurred: test.rego:3: rego_parse_error: invalid annotation scope 'import'",
 		},
 		{
 			note: "Default rule scope",
@@ -3221,6 +3387,87 @@ p { input = "str" }`,
 				},
 			},
 		},
+		{
+			note: "Rich meta",
+			module: `package test
+
+# METADATA
+# title: My rule
+# description: |
+#  My rule has a
+#  multiline description.
+# organizations:
+# - Acme Corp.
+# - Soylent Corp.
+# - Tyrell Corp.
+# related_resources:
+# - https://example.com
+# - 
+#  ref: http://john:123@do.re/mi?foo=bar#baz
+#  description: foo bar
+# authors:
+# - John Doe <john@example.com>
+# - name: Jane Doe
+#   email: jane@example.com
+# custom:
+#  list:
+#   - a
+#   - b
+#  map:
+#   a: 1
+#   b: 2.2
+#   c:
+#    "3": d
+#    "4": e
+#  number: 42
+#  string: foo bar baz
+#  flag:
+p { input = "str" }`,
+			expNumComments: 31,
+			expAnnotations: []*Annotations{
+				{
+					Scope:         annotationScopeRule,
+					Title:         "My rule",
+					Description:   "My rule has a\nmultiline description.\n",
+					Organizations: []string{"Acme Corp.", "Soylent Corp.", "Tyrell Corp."},
+					RelatedResources: []*RelatedResourceAnnotation{
+						{
+							Ref: mustParseURL("https://example.com"),
+						},
+						{
+							Ref:         mustParseURL("http://john:123@do.re/mi?foo=bar#baz"),
+							Description: "foo bar",
+						},
+					},
+					Authors: []*AuthorAnnotation{
+						{
+							Name:  "John Doe",
+							Email: "john@example.com",
+						},
+						{
+							Name:  "Jane Doe",
+							Email: "jane@example.com",
+						},
+					},
+					Custom: map[string]interface{}{
+						"list": []interface{}{
+							"a", "b",
+						},
+						"map": map[string]interface{}{
+							"a": 1,
+							"b": 2.2,
+							"c": map[string]interface{}{
+								"3": "d",
+								"4": "e",
+							},
+						},
+						"number": 42,
+						"string": "foo bar baz",
+						"flag":   nil,
+					},
+				},
+			},
+		},
 	}
 
 	for _, tc := range tests {
@@ -3248,6 +3495,265 @@ p { input = "str" }`,
 	}
 }
 
+func TestAuthorAnnotation(t *testing.T) {
+	tests := []struct {
+		note     string
+		raw      interface{}
+		expected interface{}
+	}{
+		{
+			note:     "no name",
+			raw:      "",
+			expected: fmt.Errorf("author is an empty string"),
+		},
+		{
+			note:     "only whitespaces",
+			raw:      " \t",
+			expected: fmt.Errorf("author is an empty string"),
+		},
+		{
+			note:     "one name only",
+			raw:      "John",
+			expected: AuthorAnnotation{Name: "John"},
+		},
+		{
+			note:     "multiple names",
+			raw:      "John Jr.\tDoe",
+			expected: AuthorAnnotation{Name: "John Jr. Doe"},
+		},
+		{
+			note:     "email only",
+			raw:      "<john@example.com>",
+			expected: AuthorAnnotation{Email: "john@example.com"},
+		},
+		{
+			note:     "name and email",
+			raw:      "John Doe <john@example.com>",
+			expected: AuthorAnnotation{Name: "John Doe", Email: "john@example.com"},
+		},
+		{
+			note:     "empty email",
+			raw:      "John Doe <>",
+			expected: AuthorAnnotation{Name: "John Doe"},
+		},
+		{
+			note:     "name with reserved characters",
+			raw:      "John Doe < >",
+			expected: AuthorAnnotation{Name: "John Doe < >"},
+		},
+		{
+			note:     "name with reserved characters (email with space)",
+			raw:      "<john@ example.com>",
+			expected: AuthorAnnotation{Name: "<john@ example.com>"},
+		},
+		{
+			note: "map with name",
+			raw: map[string]interface{}{
+				"name": "John Doe",
+			},
+			expected: AuthorAnnotation{Name: "John Doe"},
+		},
+		{
+			note: "map with email",
+			raw: map[string]interface{}{
+				"email": "john@example.com",
+			},
+			expected: AuthorAnnotation{Email: "john@example.com"},
+		},
+		{
+			note: "map with name and email",
+			raw: map[string]interface{}{
+				"name":  "John Doe",
+				"email": "john@example.com",
+			},
+			expected: AuthorAnnotation{Name: "John Doe", Email: "john@example.com"},
+		},
+		{
+			note: "map with extra entry",
+			raw: map[string]interface{}{
+				"name":  "John Doe",
+				"email": "john@example.com",
+				"foo":   "bar",
+			},
+			expected: AuthorAnnotation{Name: "John Doe", Email: "john@example.com"},
+		},
+		{
+			note:     "empty map",
+			raw:      map[string]interface{}{},
+			expected: fmt.Errorf("'name' and/or 'email' values required in object"),
+		},
+		{
+			note: "map with empty name",
+			raw: map[string]interface{}{
+				"name": "",
+			},
+			expected: fmt.Errorf("'name' and/or 'email' values required in object"),
+		},
+		{
+			note: "map with email and empty name",
+			raw: map[string]interface{}{
+				"name":  "",
+				"email": "john@example.com",
+			},
+			expected: AuthorAnnotation{Email: "john@example.com"},
+		},
+		{
+			note: "map with empty email",
+			raw: map[string]interface{}{
+				"email": "",
+			},
+			expected: fmt.Errorf("'name' and/or 'email' values required in object"),
+		},
+		{
+			note: "map with name and empty email",
+			raw: map[string]interface{}{
+				"name":  "John Doe",
+				"email": "",
+			},
+			expected: AuthorAnnotation{Name: "John Doe"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			parsed, err := parseAuthor(tc.raw)
+
+			switch expected := tc.expected.(type) {
+			case AuthorAnnotation:
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				if parsed.Compare(&expected) != 0 {
+					t.Fatalf("expected %v but got %v", tc.expected, parsed)
+				}
+			case error:
+				if err == nil {
+					t.Fatalf("expected '%v' error but got %v", tc.expected, parsed)
+				}
+
+				if strings.Compare(expected.Error(), err.Error()) != 0 {
+					t.Fatalf("expected %v but got %v", tc.expected, err)
+				}
+			default:
+				t.Fatalf("Unexpected result type: %T", expected)
+			}
+		})
+	}
+}
+
+func TestRelatedResourceAnnotation(t *testing.T) {
+	tests := []struct {
+		note     string
+		raw      interface{}
+		expected interface{}
+	}{
+		{
+			note:     "empty ref URL",
+			raw:      "",
+			expected: fmt.Errorf("ref URL may not be empty string"),
+		},
+		{
+			note:     "only whitespaces in ref URL",
+			raw:      " \t",
+			expected: fmt.Errorf("parse \" \\t\": net/url: invalid control character in URL"),
+		},
+		{
+			note:     "invalid ref URL",
+			raw:      "https://foo:bar",
+			expected: fmt.Errorf("parse \"https://foo:bar\": invalid port \":bar\" after host"),
+		},
+		{
+			note:     "ref URL as string",
+			raw:      "https://example.com/foo?bar#baz",
+			expected: RelatedResourceAnnotation{Ref: mustParseURL("https://example.com/foo?bar#baz")},
+		},
+		{
+			note: "map with only ref",
+			raw: map[string]interface{}{
+				"ref": "https://example.com/foo?bar#baz",
+			},
+			expected: RelatedResourceAnnotation{Ref: mustParseURL("https://example.com/foo?bar#baz")},
+		},
+		{
+			note: "map with only description",
+			raw: map[string]interface{}{
+				"description": "foo bar",
+			},
+			expected: fmt.Errorf("'ref' value required in object"),
+		},
+		{
+			note: "map with ref and description",
+			raw: map[string]interface{}{
+				"ref":         "https://example.com/foo?bar#baz",
+				"description": "foo bar",
+			},
+			expected: RelatedResourceAnnotation{
+				Ref:         mustParseURL("https://example.com/foo?bar#baz"),
+				Description: "foo bar",
+			},
+		},
+		{
+			note: "map with ref and description",
+			raw: map[string]interface{}{
+				"ref":         "https://example.com/foo?bar#baz",
+				"description": "foo bar",
+				"foo":         "bar",
+			},
+			expected: RelatedResourceAnnotation{
+				Ref:         mustParseURL("https://example.com/foo?bar#baz"),
+				Description: "foo bar",
+			},
+		},
+		{
+			note:     "empty map",
+			raw:      map[string]interface{}{},
+			expected: fmt.Errorf("'ref' value required in object"),
+		},
+		{
+			note: "map with empty ref",
+			raw: map[string]interface{}{
+				"ref": "",
+			},
+			expected: fmt.Errorf("'ref' value required in object"),
+		},
+		{
+			note: "map with only whitespace in ref",
+			raw: map[string]interface{}{
+				"ref": " \t",
+			},
+			expected: fmt.Errorf("'ref' value required in object"),
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			parsed, err := parseRelatedResource(tc.raw)
+
+			switch expected := tc.expected.(type) {
+			case RelatedResourceAnnotation:
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				if parsed.Compare(&expected) != 0 {
+					t.Fatalf("expected %v but got %v", tc.expected, parsed)
+				}
+			case error:
+				if err == nil {
+					t.Fatalf("expected '%v' error but got %v", tc.expected, parsed)
+				}
+
+				if strings.Compare(expected.Error(), err.Error()) != 0 {
+					t.Fatalf("expected %v but got %v", tc.expected, err)
+				}
+			default:
+				t.Fatalf("Unexpected result type: %T", expected)
+			}
+		})
+	}
+}
+
 func assertLocationText(t *testing.T, expected string, actual *Location) {
 	t.Helper()
 	if actual == nil || actual.Text == nil {
@@ -3266,21 +3772,28 @@ func assertParseError(t *testing.T, msg string, input string) {
 	})
 }
 
-func assertParseErrorContains(t *testing.T, msg string, input string, expected string) {
+func assertParseErrorContains(t *testing.T, msg string, input string, expected string, opts ...ParserOptions) {
 	t.Helper()
 	assertParseErrorFunc(t, msg, input, func(result string) {
 		t.Helper()
 		if !strings.Contains(result, expected) {
 			t.Errorf("Error on test \"%s\": expected parse error to contain:\n\n%v\n\nbut got:\n\n%v", msg, expected, result)
 		}
-	})
+	}, opts...)
 }
 
-func assertParseErrorFunc(t *testing.T, msg string, input string, f func(string)) {
+func assertParseErrorFunc(t *testing.T, msg string, input string, f func(string), opts ...ParserOptions) {
 	t.Helper()
-	p, err := ParseStatement(input)
+	opt := ParserOptions{}
+	if len(opts) == 1 {
+		opt = opts[0]
+	}
+	stmts, _, err := ParseStatementsWithOpts("", input, opt)
+	if err == nil && len(stmts) != 1 {
+		err = fmt.Errorf("expected exactly one statement")
+	}
 	if err == nil {
-		t.Errorf("Error on test \"%s\": expected parse error but parsed successfully:\n\n%v\n\n(parsed)", msg, p)
+		t.Errorf("Error on test \"%s\": expected parse error on %s: expected no statements, got %d: %v", msg, input, len(stmts), stmts)
 		return
 	}
 	result := err.Error()
@@ -3290,7 +3803,7 @@ func assertParseErrorFunc(t *testing.T, msg string, input string, f func(string)
 	f(result)
 }
 
-func assertParseImport(t *testing.T, msg string, input string, correct *Import) {
+func assertParseImport(t *testing.T, msg string, input string, correct *Import, opts ...ParserOptions) {
 	t.Helper()
 	assertParseOne(t, msg, input, func(parsed interface{}) {
 		t.Helper()
@@ -3298,12 +3811,15 @@ func assertParseImport(t *testing.T, msg string, input string, correct *Import) 
 		if !imp.Equal(correct) {
 			t.Errorf("Error on test \"%s\": imports not equal: %v (parsed), %v (correct)", msg, imp, correct)
 		}
-	})
+	}, opts...)
 }
 
-func assertParseModule(t *testing.T, msg string, input string, correct *Module) {
-
-	m, err := ParseModule("", input)
+func assertParseModule(t *testing.T, msg string, input string, correct *Module, opts ...ParserOptions) {
+	opt := ParserOptions{}
+	if len(opts) == 1 {
+		opt = opts[0]
+	}
+	m, err := ParseModuleWithOpts("", input, opt)
 	if err != nil {
 		t.Errorf("Error on test \"%s\": parse error on %s: %s", msg, input, err)
 		return
@@ -3338,12 +3854,12 @@ func assertParseOne(t *testing.T, msg string, input string, correct func(interfa
 		opt = opts[0]
 	}
 	stmts, _, err := ParseStatementsWithOpts("", input, opt)
-	if len(stmts) != 1 {
-		t.Errorf("Error on test \"%s\": parse error on %s: expected exactly one statement, got %d", msg, input, len(stmts))
-		return
-	}
 	if err != nil {
 		t.Errorf("Error on test \"%s\": parse error on %s: %s", msg, input, err)
+		return
+	}
+	if len(stmts) != 1 {
+		t.Errorf("Error on test \"%s\": parse error on %s: expected exactly one statement, got %d", msg, input, len(stmts))
 		return
 	}
 	correct(stmts[0])

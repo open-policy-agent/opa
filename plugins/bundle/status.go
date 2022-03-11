@@ -5,11 +5,14 @@
 package bundle
 
 import (
+	"encoding/json"
+	"strconv"
 	"time"
 
 	"github.com/pkg/errors"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/download"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/server/types"
 )
@@ -30,6 +33,7 @@ type Status struct {
 	Message                  string          `json:"message,omitempty"`
 	Errors                   []error         `json:"errors,omitempty"`
 	Metrics                  metrics.Metrics `json:"metrics,omitempty"`
+	HTTPCode                 json.Number     `json:"http_code,omitempty"`
 }
 
 // SetActivateSuccess updates the status object to reflect a successful
@@ -56,22 +60,29 @@ func (s *Status) SetError(err error) {
 
 	if err == nil {
 		s.Code = ""
+		s.HTTPCode = ""
 		s.Message = ""
 		s.Errors = nil
 		return
 	}
 
-	cause := errors.Cause(err)
-
-	if astErr, ok := cause.(ast.Errors); ok {
+	switch cause := errors.Cause(err).(type) {
+	case ast.Errors:
 		s.Code = errCode
+		s.HTTPCode = ""
 		s.Message = types.MsgCompileModuleError
-		s.Errors = make([]error, len(astErr))
-		for i := range astErr {
-			s.Errors[i] = astErr[i]
+		s.Errors = make([]error, len(cause))
+		for i := range cause {
+			s.Errors[i] = cause[i]
 		}
-	} else {
+	case download.HTTPError:
 		s.Code = errCode
+		s.HTTPCode = json.Number(strconv.Itoa(cause.StatusCode))
+		s.Message = err.Error()
+		s.Errors = nil
+	default:
+		s.Code = errCode
+		s.HTTPCode = ""
 		s.Message = err.Error()
 		s.Errors = nil
 	}

@@ -352,6 +352,33 @@ opa_value *opa_strings_replace_n(opa_value *a, opa_value *b)
 }
 
 OPA_BUILTIN
+opa_value *opa_strings_reverse(opa_value *a)
+{
+    if (opa_value_type(a) != OPA_STRING)
+    {
+        return NULL;
+    }
+
+    opa_string_t *s = opa_cast_string(a);
+
+    char *reversed = opa_malloc(s->len + 1);
+
+    for (int i = 0; i < s->len; )
+    {
+        int len = 0;
+        if (opa_unicode_decode_utf8(s->v, i, s->len, &len) == -1)
+        {
+            opa_abort("string: invalid unicode");
+        }
+        memcpy(&reversed[s->len - i - len], &s->v[i], len);
+        i += len;
+    }
+    reversed[s->len] = '\0';
+
+    return opa_string_allocated(reversed, s->len);
+}
+
+OPA_BUILTIN
 opa_value *opa_strings_split(opa_value *a, opa_value *b)
 {
     if (opa_value_type(a) != OPA_STRING || opa_value_type(b) != OPA_STRING)

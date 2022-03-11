@@ -42,6 +42,40 @@ func init() {
 	depsCommand := &cobra.Command{
 		Use:   "deps <query>",
 		Short: "Analyze Rego query dependencies",
+		Long: `Print dependencies of provided query.
+
+Dependencies are categorized as either base documents, which is any data loaded
+from the outside world, or virtual documents, i.e values that are computed from rules.
+
+Example
+-------
+Given a policy like this:
+
+	package policy
+
+	allow {
+		is_admin
+	}
+
+	is_admin {
+		"admin" == input.user.roles[_]
+	}
+
+To evaluate the dependencies of a simple query (e.g. data.policy.allow),
+we'd run opa deps like demonstrated below:
+
+	$ opa deps --data policy.rego data.policy.allow
+	+------------------+----------------------+
+	|  BASE DOCUMENTS  |  VIRTUAL DOCUMENTS   |
+	+------------------+----------------------+
+	| input.user.roles | data.policy.allow    |
+	|                  | data.policy.is_admin |
+	+------------------+----------------------+
+
+From the output we're able to determine that the allow rule depends on
+the input.user.roles base document, as well as the virtual document (rule)
+data.policy.is_admin.
+`,
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) != 1 {
 				return errors.New("specify exactly one query argument")

@@ -75,7 +75,7 @@ func (o DepAnalysisOutput) Pretty(w io.Writer) error {
 		}
 	} else if len(o.Virtual) > 0 {
 		headers = []string{"Virtual Documents"}
-		rows = make([][]string, len(o.Base))
+		rows = make([][]string, len(o.Virtual))
 		for i := range rows {
 			rows[i] = []string{o.Virtual[i].String()}
 		}

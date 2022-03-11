@@ -6,6 +6,14 @@
 This is a list of organizations that have spoken publicly about their adoption or
 production users that have added themselves (in alphabetical order):
 
+* [Appsflyer](https://www.appsflyer.com/) uses OPA to make consistent
+  authorization decisions by hundreds of microservices for UI and API data
+  access. All authorization decisions are delegated to OPA that is deployed as a
+  central service. The decisions are driven by flexible policy rules that take
+  into consideration data privacy regulations and policies, data consents and
+  application level access permissions. For more information, see the [Appsflyer
+  Engineering Blog post](https://medium.com/appsflyer/authorization-solution-for-microservices-architecture-a2ac0c3c510b).
+
 * [Atlassian](https://www.atlassian.com/) uses OPA in a heterogeneous cloud
   environment for microservice API authorization. OPA is deployed per-host and
   inside of their Slauth (AAA) system. Policies are tagged and categorized
@@ -93,9 +101,9 @@ production users that have added themselves (in alphabetical order):
   AWS resources to generate the final report.
 
 * [Mercari](https://www.mercari.com/) uses OPA to enforce admission control
-  policies in their multi-tenant Kubernetes clusters. It helps maintain 
-  the governance of the cluster, checking that developers are following 
-  the best practices in the admission controller. They also use [confest](https://github.com/open-policy-agent/conftest) to 
+  policies in their multi-tenant Kubernetes clusters. It helps maintain
+  the governance of the cluster, checking that developers are following
+  the best practices in the admission controller. They also use [confest](https://github.com/open-policy-agent/conftest) to
   enforce policies in their CI/CD pipeline.
 
 * [Netflix](https://www.netflix.com) uses OPA as a method of enforcing
@@ -187,13 +195,13 @@ remain anonymous.
 This is a list of adopters in early stages of production or
 pre-production (in alphabetical order):
 
-* [Aserto](https://www.aserto.com/) is a venture-backed developer API company 
-  that helps developers easily build permissions and roles into their SaaS 
-  applications. Aserto uses OPA as its core engine, and has contributed projects 
-  such as [Open Policy Registry](https://openpolicyregistry.io) and  
-  [OPA Runtime](https://github.com/aserto-dev/runtime) that make it easier for 
+* [Aserto](https://www.aserto.com/) is a venture-backed developer API company
+  that helps developers easily build permissions and roles into their SaaS
+  applications. Aserto uses OPA as its core engine, and has contributed projects
+  such as [Open Policy Registry](https://openpolicyregistry.io) and
+  [OPA Runtime](https://github.com/aserto-dev/runtime) that make it easier for
   developers to incorporate OPA policies and the OPA engine into their applications.
-  
+
 * [Cyral](https://www.cyral.com/) is a venture-funded data security
   company. Still in stealth mode but using OPA to manage and enforce
   fine-grained authorization policies.
@@ -209,6 +217,14 @@ pre-production (in alphabetical order):
   the ability to easily add high-level models like ACLs and RBAC. In
   December 2018, ~850 ORY Keto instances were running in a mix of
   pre-production and production environments.
+
+* [Permit.io](https://permit.io) Uses a combination of OPA and OPAL
+  to power fine-grained authorization policies at the core of the Permit.io platform.
+  Permit.io leverages the power of OPA's Rego language,
+  generating new Rego code on the fly from its UI policy editor.
+  The team behind Permit.io contributes to the OPA ecosystem - creating opens-source projects like
+  [OPAL- making OPA event-driven)](https://github.com/permitio/opal)
+  and [OPToggles - sync Frontend with open-policy](https://github.com/permitio/OPToggles).
 
 * [Scalr](https://scalr.com/) is a remote operations backend for Terraform
   that helps users scale their Terraform usage through automation and collaboration.

@@ -88,14 +88,12 @@ func walk(v Visitor, x interface{}) {
 		}
 	case *Expr:
 		switch ts := x.Terms.(type) {
-		case *SomeDecl:
+		case *Term, *SomeDecl, *Every:
 			Walk(w, ts)
 		case []*Term:
 			for _, t := range ts {
 				Walk(w, t)
 			}
-		case *Term:
-			Walk(w, ts)
 		}
 		for i := range x.With {
 			Walk(w, x.With[i])
@@ -136,6 +134,13 @@ func walk(v Visitor, x interface{}) {
 		for _, t := range x {
 			Walk(w, t)
 		}
+	case *Every:
+		if x.Key != nil {
+			Walk(w, x.Key)
+		}
+		Walk(w, x.Value)
+		Walk(w, x.Domain)
+		Walk(w, x.Body)
 	}
 }
 
@@ -155,8 +160,8 @@ func WalkVars(x interface{}, f func(Var) bool) {
 // returns true, AST nodes under the last node will not be visited.
 func WalkClosures(x interface{}, f func(interface{}) bool) {
 	vis := &GenericVisitor{func(x interface{}) bool {
-		switch x.(type) {
-		case *ArrayComprehension, *ObjectComprehension, *SetComprehension:
+		switch x := x.(type) {
+		case *ArrayComprehension, *ObjectComprehension, *SetComprehension, *Every:
 			return f(x)
 		}
 		return false
@@ -319,14 +324,12 @@ func (vis *GenericVisitor) Walk(x interface{}) {
 		}
 	case *Expr:
 		switch ts := x.Terms.(type) {
-		case *SomeDecl:
+		case *Term, *SomeDecl, *Every:
 			vis.Walk(ts)
 		case []*Term:
 			for _, t := range ts {
 				vis.Walk(t)
 			}
-		case *Term:
-			vis.Walk(ts)
 		}
 		for i := range x.With {
 			vis.Walk(x.With[i])
@@ -367,6 +370,13 @@ func (vis *GenericVisitor) Walk(x interface{}) {
 		for _, t := range x {
 			vis.Walk(t)
 		}
+	case *Every:
+		if x.Key != nil {
+			vis.Walk(x.Key)
+		}
+		vis.Walk(x.Value)
+		vis.Walk(x.Domain)
+		vis.Walk(x.Body)
 	}
 }
 
@@ -440,14 +450,12 @@ func (vis *BeforeAfterVisitor) Walk(x interface{}) {
 		}
 	case *Expr:
 		switch ts := x.Terms.(type) {
-		case *SomeDecl:
+		case *Term, *SomeDecl, *Every:
 			vis.Walk(ts)
 		case []*Term:
 			for _, t := range ts {
 				vis.Walk(t)
 			}
-		case *Term:
-			vis.Walk(ts)
 		}
 		for i := range x.With {
 			vis.Walk(x.With[i])
@@ -488,6 +496,13 @@ func (vis *BeforeAfterVisitor) Walk(x interface{}) {
 		for _, t := range x {
 			vis.Walk(t)
 		}
+	case *Every:
+		if x.Key != nil {
+			vis.Walk(x.Key)
+		}
+		vis.Walk(x.Value)
+		vis.Walk(x.Domain)
+		vis.Walk(x.Body)
 	}
 }
 
@@ -527,6 +542,8 @@ func (vis *VarVisitor) Vars() VarSet {
 	return vis.vars
 }
 
+// visit determines if the VarVisitor will recurse into x: if it returns `true`,
+// the visitor will _skip_ that branch of the AST
 func (vis *VarVisitor) visit(v interface{}) bool {
 	if vis.params.SkipObjectKeys {
 		if o, ok := v.(Object); ok {
@@ -545,9 +562,15 @@ func (vis *VarVisitor) visit(v interface{}) bool {
 		}
 	}
 	if vis.params.SkipClosures {
-		switch v.(type) {
+		switch v := v.(type) {
 		case *ArrayComprehension, *ObjectComprehension, *SetComprehension:
 			return true
+		case *Expr:
+			if ev, ok := v.Terms.(*Every); ok {
+				vis.Walk(ev.Domain)
+				// We're _not_ walking ev.Body -- that's the closure here
+				return true
+			}
 		}
 	}
 	if vis.params.SkipWithTarget {
@@ -643,14 +666,12 @@ func (vis *VarVisitor) Walk(x interface{}) {
 		}
 	case *Expr:
 		switch ts := x.Terms.(type) {
-		case *SomeDecl:
+		case *Term, *SomeDecl, *Every:
 			vis.Walk(ts)
 		case []*Term:
 			for _, t := range ts {
 				vis.Walk(t)
 			}
-		case *Term:
-			vis.Walk(ts)
 		}
 		for i := range x.With {
 			vis.Walk(x.With[i])
@@ -691,5 +712,12 @@ func (vis *VarVisitor) Walk(x interface{}) {
 		for _, t := range x {
 			vis.Walk(t)
 		}
+	case *Every:
+		if x.Key != nil {
+			vis.Walk(x.Key)
+		}
+		vis.Walk(x.Value)
+		vis.Walk(x.Domain)
+		vis.Walk(x.Body)
 	}
 }

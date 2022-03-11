@@ -7,6 +7,7 @@ package topdown
 import (
 	"context"
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 	"testing"
@@ -67,12 +68,14 @@ func testRun(t *testing.T, tc cases.TestCase) {
 		input = ast.NewTerm(ast.MustInterfaceToValue(*tc.Input))
 	}
 
+	buf := NewBufferTracer()
 	rs, err := NewQuery(query).
 		WithCompiler(compiler).
 		WithStore(store).
 		WithTransaction(txn).
 		WithInput(input).
 		WithStrictBuiltinErrors(tc.StrictError).
+		WithTracer(buf).
 		Run(ctx)
 
 	if tc.WantError != nil {
@@ -93,6 +96,10 @@ func testRun(t *testing.T, tc cases.TestCase) {
 
 	if tc.WantResult == nil && tc.WantErrorCode == nil && tc.WantError == nil {
 		t.Fatal("expected one of: 'want_result', 'want_error_code', or 'want_error'")
+	}
+
+	if testing.Verbose() {
+		PrettyTrace(os.Stderr, *buf)
 	}
 }
 

@@ -46,7 +46,7 @@ type buildParams struct {
 func newBuildParams() buildParams {
 	return buildParams{
 		capabilities: newcapabilitiesFlag(),
-		target:       util.NewEnumFlag(compile.TargetRego, []string{compile.TargetRego, compile.TargetWasm}),
+		target:       util.NewEnumFlag(compile.TargetRego, compile.Targets),
 	}
 }
 
@@ -85,9 +85,10 @@ Inside another terminal in the same directory, serve the bundle via HTTP:
 
     $ python3 -m http.server --bind localhost 8080
 
-For more information on bundles see https://www.openpolicyagent.org/docs/latest/management.
+For more information on bundles see https://www.openpolicyagent.org/docs/latest/management-bundles/.
 
-## Common Flags
+Common Flags
+------------
 
 When -b is specified the 'build' command assumes paths refer to existing bundle files
 or directories following the bundle structure. If multiple bundles are provided, their
@@ -117,7 +118,8 @@ The -e flag tells the 'build' command which documents will be queried by the sof
 asking for policy decisions, so that it can focus optimization efforts and ensure
 that document is not eliminated by the optimizer.
 
-## Signing
+Signing
+-------
 
 The 'build' command can be used to verify the signature of a signed bundle and
 also to generate a signature for the output bundle the command creates.
@@ -126,8 +128,8 @@ If the directory path(s) provided to the 'build' command contain a ".signatures.
 it will attempt to verify the signatures included in that file. The bundle files
 or directory path(s) to verify must be specified using --bundle.
 
-For more information on the bundle verification process see
-https://www.openpolicyagent.org/docs/latest/management/#signature-verification.
+For more information on the bundle signing and verification, see
+https://www.openpolicyagent.org/docs/latest/management-bundles/#signing.
 
 Example:
 
@@ -161,9 +163,10 @@ To include additional claims in the payload use the --claims-file flag to provid
 containing optional claims.
 
 For more information on the format of the ".signatures.json" file
-see https://www.openpolicyagent.org/docs/latest/management/#signature-format.
+see https://www.openpolicyagent.org/docs/latest/management-bundles/#signature-format.
 
-## Capabilities
+Capabilities
+------------
 
 The 'build' command can validate policies against a configurable set of OPA capabilities.
 The capabilities define the built-in functions and other language features that policies

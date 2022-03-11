@@ -111,4 +111,4 @@ echo "- edge" >> ${RELEASES_YAML_FILE}
 ln -s ../../../content ${ROOT_DIR}/docs/website/generated/docs/edge
 
 # Create a "latest" version from the latest semver found
-ln -s ${RELEASES[0]} ${ROOT_DIR}/docs/website/generated/docs/latest
+cp -r ${ROOT_DIR}/docs/website/generated/docs/${RELEASES[0]} ${ROOT_DIR}/docs/website/generated/docs/latest

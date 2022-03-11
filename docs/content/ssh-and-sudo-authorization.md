@@ -110,7 +110,7 @@ In another terminal, load the policies and data into OPA that will control acces
 
 First, create a policy that will tell the PAM module to collect context that is required for authorization.
 For more details on what this policy should look like, see
-[this documentation](https://github.com/open-policy-agent/contrib/tree/main/pam_authz/pam#pull).
+[this documentation](https://github.com/open-policy-agent/contrib/tree/main/pam_opa/pam#pull).
 
 **pull.rego**:
 
@@ -133,7 +133,7 @@ curl -X PUT --data-binary @pull.rego \
 Next, create the policies that will authorize SSH and sudo requests.
 The `input` which makes up the authorization context in the policy below will also
 include some default values, such as the username making the request. See
-[this documentation](https://github.com/open-policy-agent/contrib/tree/main/pam_authz/pam#authz)
+[this documentation](https://github.com/open-policy-agent/contrib/tree/main/pam_opa/pam#authz)
 to get a better understanding of what the `input` to the authorization policy will look like.
 
 Unlike the *pull* policy, we'll create separate *authz* policies
@@ -259,7 +259,7 @@ You will see a lot of verbose logs from `sudo` as the PAM module goes through th
 This is intended so you can study how the PAM module works.
 You can disable verbose logging by changing the `log_level` argument in the PAM
 configuration. For more details see
-[this documentation](https://github.com/open-policy-agent/contrib/tree/main/pam_authz/pam#configuration).
+[this documentation](https://github.com/open-policy-agent/contrib/tree/main/pam_opa/pam#configuration).
 
 ### 4. SSH as a user without the `admin` role.
 
@@ -332,6 +332,8 @@ curl -X PUT --data-binary @display.rego \
 
 Then we need to make sure that the authorization takes this input into account.
 
+**sudo_authz_elevated.rego**:
+
 ```live:sudo_authz/elevate:module:read_only
 # A package can be defined across multiple files.
 package sudo.authz
@@ -387,7 +389,7 @@ You will find that running `sudo ls /` as the `frontend-dev` user is disallowed 
 It is possible to configure the *display* policy to only make the PAM module prompt for the
 elevation ticket when our mock API has a non-empty `tickets` object. So when there are no
 elevated users, there will be no prompt for a ticket. This can be done using the Rego
-[`count` aggregate](http://www.openpolicyagent.org/docs/language-reference.html#aggregates).
+[`count` aggregate](../policy-reference/#aggregates).
 
 ## Wrap Up
 

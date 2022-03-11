@@ -845,6 +845,10 @@ func TestCompileV1(t *testing.T) {
 	default r = true
 
 	r { input.x = 1 }
+
+	custom_func(x) { data.a[i] == x }
+
+	s { custom_func(input.x) }
 	`
 
 	expQuery := func(s string) string {
@@ -912,6 +916,34 @@ func TestCompileV1(t *testing.T) {
 
 					r { input.x = 1 }
 					default r = true
+					`)},
+			},
+		},
+		{
+			note: "function without disableInlining",
+			trs: []tr{
+				{http.MethodPut, "/policies/test", mod, 200, ""},
+				{http.MethodPost, "/compile", `{
+					"unknowns": ["data.a"],
+					"query": "data.test.s = true",
+					"input": { "x": 1 }
+				}`, 200, expQuery("data.a[i2] = 1")},
+			},
+		},
+		{
+			note: "function with disableInlining",
+			trs: []tr{
+				{http.MethodPut, "/policies/test", mod, 200, ""},
+				{http.MethodPost, "/compile", `{
+					"unknowns": ["data.a"],
+					"query": "data.test.s = true",
+					"options": { "disableInlining": ["data.test"] },
+					"input": { "x": 1 }
+				}`, 200, expQueryAndSupport(
+					`data.partial.test.s = true`,
+					`package partial.test
+					s { data.partial.test.custom_func(1) }
+					custom_func(__local0__2) { data.a[i2] = __local0__2 }
 					`)},
 			},
 		},
@@ -1564,85 +1596,6 @@ func TestDataPutV1IfNoneMatch(t *testing.T) {
 	req.Header.Set("If-None-Match", "*")
 	if err := f.executeRequest(req, 304, ""); err != nil {
 		t.Fatalf("Unexpected error from PUT with If-None-Match=*: %v", err)
-	}
-}
-
-func TestParsePatchPathEscaped(t *testing.T) {
-	tests := []struct {
-		note         string
-		path         string
-		expectedPath storage.Path
-		expectedOK   bool
-	}{
-		// success-path tests
-		{
-			note:         "single-level",
-			path:         "/single-level",
-			expectedPath: storage.Path{"single-level"},
-			expectedOK:   true,
-		},
-		{
-			note:         "multi-level",
-			path:         "/a/multi-level/path",
-			expectedPath: storage.Path{"a", "multi-level", "path"},
-			expectedOK:   true,
-		},
-		{
-			note:         "end",
-			path:         "/-",
-			expectedPath: storage.Path{"-"},
-			expectedOK:   true,
-		},
-		{ // not strictly correct but included for backwards compatibility with existing OPA
-			note:         "url-escaped forward slash",
-			path:         "/github.com%2Fopen-policy-agent",
-			expectedPath: storage.Path{"github.com/open-policy-agent"},
-			expectedOK:   true,
-		},
-		{
-			note:         "json-pointer-escaped forward slash",
-			path:         "/github.com~1open-policy-agent",
-			expectedPath: storage.Path{"github.com/open-policy-agent"},
-			expectedOK:   true,
-		},
-		{
-			note:         "json-pointer-escaped tilde",
-			path:         "/~0opa",
-			expectedPath: storage.Path{"~opa"},
-			expectedOK:   true,
-		},
-		{
-			note:         "json-pointer-escape correctness",
-			path:         "/~01",
-			expectedPath: storage.Path{"~1"},
-			expectedOK:   true,
-		},
-
-		// failure-path tests
-		{ // not possible with existing callers but for completeness...
-			note:       "empty string",
-			path:       "",
-			expectedOK: false,
-		},
-		{ // not possible with existing callers but for completeness...
-			note:       "string that doesn't start with /",
-			path:       "foo",
-			expectedOK: false,
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.note, func(t *testing.T) {
-			actualPath, actualOK := parsePatchPathEscaped(tc.path)
-
-			if tc.expectedOK != actualOK {
-				t.Fatalf("Expected ok to be %v but was %v", tc.expectedOK, actualOK)
-			}
-
-			if !reflect.DeepEqual(tc.expectedPath, actualPath) {
-				t.Fatalf("Expected path to be %v but was %v", tc.expectedPath, actualPath)
-			}
-		})
 	}
 }
 
@@ -2792,7 +2745,8 @@ func TestStatusV1(t *testing.T) {
 	// Expect HTTP 200 and updated status after bundle update occurs
 	bs.BulkUpdateBundleStatus(map[string]*pluginBundle.Status{
 		"test": {
-			Name: "test",
+			Name:     "test",
+			HTTPCode: "403",
 		},
 	})
 
@@ -2808,7 +2762,8 @@ func TestStatusV1(t *testing.T) {
 		Result struct {
 			Bundles struct {
 				Test struct {
-					Name string
+					Name     string
+					HTTPCode json.Number `json:"http_code"`
 				}
 			}
 		}
@@ -2816,8 +2771,12 @@ func TestStatusV1(t *testing.T) {
 
 	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&resp2); err != nil {
 		t.Fatal(err)
-	} else if resp2.Result.Bundles.Test.Name != "test" {
+	}
+	if resp2.Result.Bundles.Test.Name != "test" {
 		t.Fatal("expected bundle to exist in status response but got:", resp2)
+	}
+	if resp2.Result.Bundles.Test.HTTPCode != "403" {
+		t.Fatal("expected HTTPCode to equal 403 but got:", resp2)
 	}
 }
 

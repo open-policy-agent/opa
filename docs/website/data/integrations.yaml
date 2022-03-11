@@ -1,6 +1,35 @@
 # This file is used to generate the OPA ecosystem page: https://www.openpolicyagent.org/docs/latest/ecosystem/
 # For instructions on how to add an entry, see https://github.com/open-policy-agent/opa/tree/main/docs#integration-index
 integrations:
+  styra-das:
+    title: Styra Declarative Authorization Service
+    description: Styra DAS provides a single pane of glass for authorization and policy across the cloud-native ecosystem of software systems. Beyond a simple control plane, Styra DAS pushes OPA’s potential, providing powerful impact analysis, policy authoring, and decision logging.
+    software:
+      - styra-das
+      - kubernetes
+      - envoy
+      - terraform
+    labels:
+      category: authorization
+      type: poweredbyopa
+    tutorials:
+      - https://docs.styra.com/getting-started
+      - https://docs.styra.com/tutorials/kubernetes/introduction
+      - https://docs.styra.com/tutorials/envoy/introduction
+      - https://docs.styra.com/tutorials/ssh/introduction
+      - https://docs.styra.com/tutorials/terraform/introduction
+      - https://docs.styra.com/tutorials/entitlements/introduction
+    code:
+      - https://github.com/StyraInc/das-opa-samples
+      - https://github.com/StyraInc/example-policy-management
+      - https://github.com/StyraInc/entitlements-samples
+    inventors:
+      - styra
+    blogs:
+      - https://blog.styra.com/blog/six-of-my-favorite-styra-declarative-authorization-service-das-features
+      - https://blog.styra.com/blog/styra-declarative-authorization-service-expands-service-mesh-use-case
+      - https://blog.styra.com/blog/opa-styra-terraform-protect-your-cloud-investment
+
   apache-apisix:
     title: Authorization Integration with Apache APISIX
     description: Apache APISIX provides a plugin for delegating fine-grained authorization decisions to OPA.
@@ -13,7 +42,37 @@ integrations:
       - https://github.com/apache/apisix
     inventors:
       - apache-apisix
-    # blogs:
+    blogs:
+      - https://apisix.apache.org/blog/2021/12/24/open-policy-agent
+      - https://medium.com/@ApacheAPISIX/apache-apisix-integrates-with-open-policy-agent-to-enrich-its-ecosystem-15569fe3ab9c
+
+  dapr:
+    title: Dapr
+    description: Middleware to apply Open Policy Agent policies on incoming requests
+    software:
+      - dapr
+    labels:
+      category: application
+      layer: network
+    tutorials:
+      - https://docs.dapr.io/reference/components-reference/supported-middleware/middleware-opa/
+    code:
+      - https://github.com/dapr/dapr
+
+  fig:
+    title: fig
+    description: Beautiful shell autocompletion for OPA and many other commands, for Mac OS
+    software:
+      - fig
+    labels:
+      category: utilities
+      layer: shell
+    code:
+      - https://github.com/open-policy-agent/contrib/tree/main/opa_fig_autocomplete
+      - https://github.com/withfig/autocomplete/blob/master/src/opa.ts
+    inventors:
+      - fig
+
   sphinx-rego:
     title: Automatically document Rego policies
     description: Sphinx extension that automatically documents Open Policy Agent Rego policies using meta properties.
@@ -23,7 +82,6 @@ integrations:
       - https://github.com/zenitysec/sphinx-rego
     inventors:
       - zenity
-    category: tooling
     labels:
       category: tooling
       layer: cicd
@@ -106,7 +164,6 @@ integrations:
           - name: Joe Beda
             organization: VMware
         link: https://www.youtube.com/watch?v=QU9BGPf0hBw
-
     blogs:
       - https://medium.com/@sbueringer/kubernetes-authorization-via-open-policy-agent-a9455d9d5ceb
       - https://medium.com/@jimmy.ray/policy-enabled-kubernetes-with-open-policy-agent-3b612b3f0203
@@ -121,9 +178,14 @@ integrations:
       Kubernetes Authorization is a pluggable mechanism that lets administrators control which users can run which APIs and
       is often handled by builtin RBAC.  OPA's policy language is more flexible than the RBAC, for example,
       writing policy using a prohibited list of APIs instead of the usual RBAC style of listing the permitted APIs.
+    code:
+      - https://github.com/open-policy-agent/contrib/tree/main/k8s_authorization
     blogs:
+      - https://blog.styra.com/blog/kubernetes-authorization-webhook
       - https://itnext.io/kubernetes-authorization-via-open-policy-agent-a9455d9d5ceb
       - https://itnext.io/optimizing-open-policy-agent-based-kubernetes-authorization-via-go-execution-tracer-7b439bb5dc5b
+    inventors:
+      - styra
 
   kubernetes-provisioning:
     title: Kubernetes Provisioning
@@ -312,7 +374,6 @@ integrations:
         venue: Kubecon Austin 2017
         link: https://www.youtube.com/watch?v=R6tUNpRpdnY
 
-
   istio-authorization-edge:
     title: Container Network Authorization with Istio (at the Edge)
     description: Istio is a networking abstraction for cloud-native applications that uses Envoy at the edge. OPA hooks into Envoy’s external authorization filter to provide fine-grained, context-aware authorization for network or HTTP requests.
@@ -468,6 +529,19 @@ integrations:
     inventors:
       - styra
 
+  open-service-mesh:
+    title: Open Service Mesh (OSM)
+    description: Open Service Mesh is a lightweight and extensible cloud native service mesh.
+    software:
+      - osm
+    labels:
+      category: servicemesh
+      layer: network
+    code:
+      - https://github.com/openservicemesh/osm/blob/main/docs/example/manifests/opa/deploy-opa-envoy.yaml
+    tutorials:
+      - https://release-v0-11.docs.openservicemesh.io/docs/guides/integrations/external_auth_opa/#osm-with-opa-plugin-external-authorization-walkthrough
+
   minio:
     title: Minio API Authorization
     description: Minio is an open source, on-premise object database compatible with the Amazon S3 API.  This integration lets OPA enforce policies on Minio's API.
@@ -521,7 +595,7 @@ integrations:
       layer: network
       category: linux
     software:
-      - Linux
+      - linux
     tutorials:
       - https://github.com/open-policy-agent/contrib/blob/master/opa-iptables/docs/tutorial.md
     code:
@@ -632,37 +706,6 @@ integrations:
     inventors:
       - styra
 
-  # These two exist in the contrib directory, but what kind of integration they are illustrating is less
-  #   clear than the others.  Need to come back to finish these.
-  # azure-cosmos-datafiltering:
-  #   title: Azure Cosmos Data Authorization
-  #   description:
-  #   labels:
-  #     layer: data
-  #     category: filtering
-  #   software:
-  #   - azurecosmos
-  #   code:
-  #   - https://github.com/open-policy-agent/contrib/tree/master/data_filter_azure
-  #   tutorials:
-  #   - https://github.com/open-policy-agent/contrib/blob/master/data_filter_azure/README.documentdb.md
-  #   inventors:
-  #   - microsoft
-
-  # azure-tablestorage-datasource:
-  #   title: Azure Table Storage as External Data
-  #   description:
-  #   labels:
-  #     type: datasource
-  #   software:
-  #   - azuretablestorage
-  #   code:
-  #   - https://github.com/open-policy-agent/contrib/tree/master/data_filter_azure
-  #   tutorials:
-  #   - https://github.com/open-policy-agent/contrib/blob/master/data_filter_azure/README.documentdb.md
-  #   inventors:
-  #   - microsoft
-
   sql-datafiltering:
     title: SQL Database Data Filtering
     description: This integration enables the client of a SQL database to enhance a SQL query so that the results obey an OPA-defined policy.
@@ -730,15 +773,11 @@ integrations:
     code:
       - https://github.com/instrumenta/conftest
     software:
-      - CUE
-      - Kustomize
+      - kustomize
       - terraform
-      - Serverless Framework
-      - AWS SAM Framework
-      - INI
-      - TOML
-      - Dockerfile
-      - HCL2
+      - aws
+      - toml
+      - docker
     videos:
       - title: "Applying Policy Throughout the Application Lifecycle with Open Policy Agent"
         speakers:
@@ -766,9 +805,9 @@ integrations:
     title: Secure Kubernetes using eBPF & Open Policy Agent
     description: Ensure runtime security in any linux machine by combining Extended Berkeley Packet Filter(eBPF) and Open Policy Agent.
     software:
-      - Linux
-      - Kubernetes
-      - eBPF
+      - linux
+      - kubernetes
+      - ebpf
     labels:
       layer: application
       catagory: filtering
@@ -806,7 +845,6 @@ integrations:
       - java
       - groovy
       - kotlin
-      - jvm
     code:
       - https://github.com/Bisnode/opa-gradle-plugin
       - https://plugins.gradle.org/plugin/com.bisnode.opa
@@ -832,7 +870,6 @@ integrations:
             organization: chef
         venue: OPA Summit at Kubecon San Diego 2019
         link: https://www.youtube.com/watch?v=jrrW855xL3s
-
 
   sysdig-image-scanner:
     title: Kubernetes Sysdig Image Scanner Admission Controller
@@ -909,8 +946,7 @@ integrations:
       category: Infrastructure as Code
       layer: cicd
     software:
-      - Terraform
-      - Scalr
+      - terraform
     tutorials:
       - https://iacp.docs.scalr.com/en/latest/working-with-iacp/opa.html#creating-the-opa-policy
     code:
@@ -927,8 +963,10 @@ integrations:
       layer: network
       category: application
     software:
-      - SPIFFE
-      - SPIRE
+      - spiffe
+      - spire
+    blogs:
+      - https://blog.styra.com/blog/zero-trust-with-envoy-spire-and-open-policy-agent-opa
     code:
       - https://github.com/spiffe/spire/blob/v1.0.2/doc/authorization_policy_engine.md
     tutorials:
@@ -944,9 +982,9 @@ integrations:
     inventors:
       - fairwinds
     software:
-      - Kubernetes
-      - Docker
-      - Helm
+      - kubernetes
+      - docker
+      - helm
     tutorials:
       - https://insights.docs.fairwinds.com/features/policy/
       - https://insights.docs.fairwinds.com/reports/opa/
@@ -993,6 +1031,22 @@ integrations:
     videos:
       - https://www.youtube.com/watch?v=K1Zm2FPfrh8
 
+  optoggles:
+    title: OPToggles (Open Policy Toggles)
+    description:  |
+      OPToggles uses OPA and OPAL to sync open-policy to your frontend with the help of feature flag solutions.
+      OPToggles creates user-targeted feature flags based on the policy rules you defined in OPA and keeps the users updated in real-time with OPAL's real-time policy and policy-data change detection.
+      OPToggles already supports launchdarkly.com and a generic REST API.
+    labels:
+      category: updates
+      layer: application
+    inventors:
+      - permitio
+    code:
+      - https://github.com/permitio/OPToggles
+    tutorials:
+      - https://optoggles.opal.ac/tutorials/demo
+
   bottle:
     title: Custom Bottle Application Authorization
     description:  |
@@ -1007,7 +1061,7 @@ integrations:
       - https://github.com/dolevf/bottle-acl-openpolicyagent
     blogs:
       - https://blog.lethalbit.com/open-policy-agent-for-bottle-web-framework/
-    
+
   kubescape:
     title: Kubescape Kubernetes security posture scanner
     description: |
@@ -1026,6 +1080,25 @@ integrations:
     tutorials:
       - https://hub.armo.cloud
 
+  i2scim:
+    title: i2scim.io SCIM Restful User/Group Provisioning API
+    description: |
+      i2scim.io is an open source, Apache 2 Licensed, implementation of SCIM (System for Cross-domain Identity Management RFC7643/7644) for use
+      cloud-native kubernetes platforms. i2scim supports externalized access control decisions through OPA. SCIM is a RESTful HTTP API that can be
+      used to provide a standardized way to provision accounts from Azure, Okta, PingIdentity and other providers and tools. SCIM can also be used
+      as a backing identity store for OAuth and other authentication services.
+    labels:
+      category: security
+      layer: application
+    software:
+      - i2scim
+    code:
+      - https://github.com/i2-open/i2scim
+      - https://i2scim.io
+    inventors:
+      - i2
+    tutorials:
+      - https://i2scim.io/OPA_AccessControl.html
 
 organizations:
   styra:
@@ -1039,7 +1112,7 @@ organizations:
     link: https://google.com
   travelnest:
     name: TravelNest
-    link: http://travelnest.com
+    link: https://travelnest.com
   ticketmaster:
     name: TicketMaster
     link: https://www.ticketmaster.com/
@@ -1052,6 +1125,9 @@ organizations:
   ceph:
     name: Ceph
     link: https://ceph.io/
+  fig:
+    name: fig
+    link: https://fig.io
   redhat:
     name: RedHat
     link: https://www.redhat.com
@@ -1144,17 +1220,27 @@ organizations:
     link: https://permit.io
   alertavert:
     name: AlertAVert.com
-    link: http://www.alertavert.com/
+    link: https://www.alertavert.com/
   zenity:
     name: Zenity
-    link: http://www.zenity.io
+    link: https://www.zenity.io
   apache-apisix:
     name: Apache APISIX
     link: https://apisix.apache.org/
-  armo: 
+  armo:
     name: ARMO
     link: https://armosec.io
+  i2:
+    name: Independent Identity
+    link: https://www.independentid.com
+
 software:
+  dapr:
+    name: Dapr
+    link: https://dapr.io/
+  fig:
+    name: fig
+    link: https://fig.io
   kubernetes:
     name: Kubernetes
     link: https://kubernetes.io
@@ -1190,13 +1276,16 @@ software:
     link: https://cloud.google.com/
   azure:
     name: Microsoft Public Cloud
-    link: http://azure.microsoft.com/
+    link: https://azure.microsoft.com/
   java:
     name: Java
     link: https://www.java.com/
   javaspringsecurity:
     name: Spring Security
     link: https://spring.io/projects/spring-security
+  osm:
+    name: Open Service Mesh
+    link: https://openservicemesh.io/
   spinnaker:
     name: Spinnaker
     link: https://www.spinnaker.io/
@@ -1290,7 +1379,36 @@ software:
   apache-apisix:
     name: Apache APISIX
     link: https://apisix.apache.org/
-  kubescape: 
+  kubescape:
     name: Kubescape
     link: https://github.com/armosec/kubescape
-
+  i2scim:
+    name: i2 SCIM Server
+    link: https://i2scim.io
+  styra-das:
+    name: Styra DAS
+    link: https://www.styra.com
+  kustomize:
+    name: Kustomize
+    link: https://kustomize.io
+  toml:
+    name: TOML
+    link: https://toml.io
+  groovy:
+    name: Groovy
+    link: https://groovy-lang.org
+  kotlin:
+    name: Kotlin
+    link: https://kotlinlang.org
+  linux:
+    name: Linux
+    link: https://www.kernel.org
+  ebpf:
+    name: eBPF
+    link: https://ebpf.io
+  git:
+    name: Git
+    link: https://git-scm.com
+  pre-commit:
+    name: pre-commit
+    link: https://pre-commit.com

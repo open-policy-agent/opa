@@ -123,7 +123,7 @@ File paths can be specified as URLs to resolve ambiguity in paths containing col
 The 'run' command can also verify the signature of a signed bundle.
 A signed bundle is a normal OPA bundle that includes a file
 named ".signatures.json". For more information on signed bundles
-see https://www.openpolicyagent.org/docs/latest/management/#signing.
+see https://www.openpolicyagent.org/docs/latest/management-bundles/#signing.
 
 The key to verify the signature of signed bundle can be provided
 using the --verification-key flag. For example, for RSA family of algorithms,
@@ -148,7 +148,7 @@ The 'run' command will read the bundle "bundle.tar.gz", check the
 ".signatures.json" file and perform verification using the provided key.
 An error will be generated if "bundle.tar.gz" does not contain a ".signatures.json" file.
 For more information on the bundle verification process see
-https://www.openpolicyagent.org/docs/latest/management/#signature-verification.
+https://www.openpolicyagent.org/docs/latest/management-bundles/#signature-verification.
 
 The 'run' command can ONLY be used with the --bundle flag to verify signatures
 for existing bundle files or directories following the bundle structure.
@@ -191,7 +191,7 @@ To skip bundle verification, use the --skip-verify flag.
 	addConfigOverrides(runCommand.Flags(), &cmdParams.rt.ConfigOverrides)
 	addConfigOverrideFiles(runCommand.Flags(), &cmdParams.rt.ConfigOverrideFiles)
 	addBundleModeFlag(runCommand.Flags(), &cmdParams.rt.BundleMode, false)
-	runCommand.Flags().BoolVar(&cmdParams.skipVersionCheck, "skip-version-check", false, "disables anonymous version reporting (see: https://openpolicyagent.org/docs/latest/privacy)")
+	runCommand.Flags().BoolVar(&cmdParams.skipVersionCheck, "skip-version-check", false, "disables anonymous version reporting (see: https://www.openpolicyagent.org/docs/latest/privacy)")
 	addIgnoreFlag(runCommand.Flags(), &cmdParams.ignore)
 
 	// bundle verification config

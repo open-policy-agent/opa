@@ -10,7 +10,9 @@ import (
 	"fmt"
 	"io"
 	"math/big"
+	"net/url"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -94,10 +96,11 @@ func (e *parsedTermCacheItem) String() string {
 
 // ParserOptions defines the options for parsing Rego statements.
 type ParserOptions struct {
-	Capabilities      *Capabilities
-	ProcessAnnotation bool
-	AllFutureKeywords bool
-	FutureKeywords    []string
+	Capabilities       *Capabilities
+	ProcessAnnotation  bool
+	AllFutureKeywords  bool
+	FutureKeywords     []string
+	unreleasedKeywords bool // TODO(sr): cleanup
 }
 
 // NewParser creates and initializes a Parser.
@@ -153,19 +156,19 @@ func (p *Parser) WithAllFutureKeywords(yes bool) *Parser {
 	return p
 }
 
+// withUnreleasedKeywords allows using keywords that haven't surfaced
+// as future keywords (see above) yet, but have tests that require
+// them to be parsed
+func (p *Parser) withUnreleasedKeywords(yes bool) *Parser {
+	p.po.unreleasedKeywords = yes
+	return p
+}
+
 // WithCapabilities sets the capabilities structure on the parser.
 func (p *Parser) WithCapabilities(c *Capabilities) *Parser {
 	p.po.Capabilities = c
 	return p
 }
-
-const (
-	annotationScopePackage     = "package"
-	annotationScopeImport      = "import"
-	annotationScopeRule        = "rule"
-	annotationScopeDocument    = "document"
-	annotationScopeSubpackages = "subpackages"
-)
 
 func (p *Parser) parsedTermCacheLookup() (*Term, *state) {
 	l := p.s.loc.Offset
@@ -204,6 +207,24 @@ func (p *Parser) futureParser() *Parser {
 	q.s.s = p.s.s.WithKeywords(futureKeywords)
 	q.cache = parsedTermCache{}
 	return &q
+}
+
+// presentParser returns a shallow copy of `p` with an empty
+// cache, and a scanner that knows none of the future keywords.
+// It is used to successfully parse keyword imports, like
+//
+//  import future.keywords.in
+//
+// even when the parser has already been informed about the
+// future keyword "in". This parser won't error out because
+// "in" is an identifier.
+func (p *Parser) presentParser() (*Parser, map[string]tokens.Token) {
+	var cpy map[string]tokens.Token
+	q := *p
+	q.s = p.save()
+	q.s.s, cpy = p.s.s.WithoutKeywords(futureKeywords)
+	q.cache = parsedTermCache{}
+	return &q, cpy
 }
 
 // Parse will read the Rego source and parse statements and
@@ -433,8 +454,8 @@ func (p *Parser) parseImport() *Import {
 		p.error(p.s.Loc(), "expected ident")
 		return nil
 	}
-
-	term := p.parseTerm()
+	q, prev := p.presentParser()
+	term := q.parseTerm()
 	if term != nil {
 		switch v := term.Value.(type) {
 		case Var:
@@ -449,6 +470,9 @@ func (p *Parser) parseImport() *Import {
 			imp.Path = term
 		}
 	}
+	// keep advanced parser state, reset known keywords
+	p.s = q.s
+	p.s.s = q.s.s.WithKeywords(prev)
 
 	if imp.Path == nil {
 		p.error(p.s.Loc(), "expected path")
@@ -763,20 +787,46 @@ func (p *Parser) parseLiteral() (expr *Expr) {
 	}()
 
 	var negated bool
-	switch p.s.tok {
-	case tokens.Some:
-		return p.parseSome()
-	case tokens.Not:
+	if p.s.tok == tokens.Not {
 		p.scan()
 		negated = true
-		fallthrough
+	}
+
+	switch p.s.tok {
+	case tokens.Some:
+		if negated {
+			p.illegal("illegal negation of 'some'")
+			return nil
+		}
+		return p.parseSome()
+	case tokens.Every:
+		if negated {
+			p.illegal("illegal negation of 'every'")
+			return nil
+		}
+		return p.parseEvery()
 	default:
+		s := p.save()
 		expr := p.parseExpr()
 		if expr != nil {
 			expr.Negated = negated
 			if p.s.tok == tokens.With {
 				if expr.With = p.parseWith(); expr.With == nil {
 					return nil
+				}
+			}
+			// If we find a plain `every` identifier, attempt to parse an every expression,
+			// add hint if it succeeds.
+			if term, ok := expr.Terms.(*Term); ok && Var("every").Equal(term.Value) {
+				var hint bool
+				t := p.save()
+				p.restore(s)
+				if expr := p.futureParser().parseEvery(); expr != nil {
+					_, hint = expr.Terms.(*Every)
+				}
+				p.restore(t)
+				if hint {
+					p.hint("`import future.keywords.every` for `every x in xs { ... }` expressions")
 				}
 			}
 			return expr
@@ -854,7 +904,13 @@ func (p *Parser) parseSome() *Expr {
 			}
 
 			decl.Symbols = []*Term{term}
-			return NewExpr(decl).SetLocation(decl.Location)
+			expr := NewExpr(decl).SetLocation(decl.Location)
+			if p.s.tok == tokens.With {
+				if expr.With = p.parseWith(); expr.With == nil {
+					return nil
+				}
+			}
+			return expr
 		}
 	}
 
@@ -896,6 +952,64 @@ func (p *Parser) parseSome() *Expr {
 	}
 
 	return NewExpr(decl).SetLocation(decl.Location)
+}
+
+func (p *Parser) parseEvery() *Expr {
+	qb := &Every{}
+	qb.SetLoc(p.s.Loc())
+
+	// TODO(sr): We'd get more accurate error messages if we didn't rely on
+	// parseTermInfixCall here, but parsed "var [, var] in term" manually.
+	p.scan()
+	term := p.parseTermInfixCall()
+	if term == nil {
+		return nil
+	}
+	call, ok := term.Value.(Call)
+	if !ok {
+		p.illegal("expected `x[, y] in xs { ... }` expression")
+		return nil
+	}
+	switch call[0].String() {
+	case Member.Name: // x in xs
+		qb.Value = call[1]
+		qb.Domain = call[2]
+	case MemberWithKey.Name: // k, v in xs
+		qb.Key = call[1]
+		qb.Value = call[2]
+		qb.Domain = call[3]
+		if _, ok := qb.Key.Value.(Var); !ok {
+			p.illegal("expected key to be a variable")
+			return nil
+		}
+	default:
+		p.illegal("expected `x[, y] in xs { ... }` expression")
+		return nil
+	}
+	if _, ok := qb.Value.Value.(Var); !ok {
+		p.illegal("expected value to be a variable")
+		return nil
+	}
+	if p.s.tok == tokens.LBrace { // every x in xs { ... }
+		p.scan()
+		body := p.parseBody(tokens.RBrace)
+		if body == nil {
+			return nil
+		}
+		p.scan()
+		qb.Body = body
+		expr := NewExpr(qb).SetLocation(qb.Location)
+
+		if p.s.tok == tokens.With {
+			if expr.With = p.parseWith(); expr.With == nil {
+				return nil
+			}
+		}
+		return expr
+	}
+
+	p.illegal("missing body")
+	return nil
 }
 
 func (p *Parser) parseExpr() *Expr {
@@ -1717,7 +1831,10 @@ func (p *Parser) illegal(note string, a ...interface{}) {
 	}
 
 	tokType := "token"
-	if p.s.tok >= tokens.Package && p.s.tok <= tokens.False {
+	if tokens.IsKeyword(p.s.tok) {
+		tokType = "keyword"
+	}
+	if _, ok := futureKeywords[p.s.tok.String()]; ok {
 		tokType = "keyword"
 	}
 
@@ -1848,9 +1965,17 @@ func (p *Parser) validateDefaultRuleValue(rule *Rule) bool {
 	return valid
 }
 
+// We explicitly use yaml unmarshalling, to accommodate for the '_' in 'related_resources',
+// which isn't handled properly by json for some reason.
 type rawAnnotation struct {
-	Scope   string                `json:"scope"`
-	Schemas []rawSchemaAnnotation `json:"schemas"`
+	Scope            string                 `yaml:"scope"`
+	Title            string                 `yaml:"title"`
+	Description      string                 `yaml:"description"`
+	Organizations    []string               `yaml:"organizations"`
+	RelatedResources []interface{}          `yaml:"related_resources"`
+	Authors          []interface{}          `yaml:"authors"`
+	Schemas          []rawSchemaAnnotation  `yaml:"schemas"`
+	Custom           map[string]interface{} `yaml:"custom"`
 }
 
 type rawSchemaAnnotation map[string]interface{}
@@ -1899,12 +2024,20 @@ func (b *metadataParser) Parse() (*Annotations, error) {
 
 	var result Annotations
 	result.Scope = raw.Scope
+	result.Title = raw.Title
+	result.Description = raw.Description
+	result.Organizations = raw.Organizations
+
+	for _, v := range raw.RelatedResources {
+		rr, err := parseRelatedResource(v)
+		if err != nil {
+			return nil, fmt.Errorf("invalid related-resource definition %s: %w", v, err)
+		}
+		result.RelatedResources = append(result.RelatedResources, rr)
+	}
 
 	for _, pair := range raw.Schemas {
-		var k string
-		var v interface{}
-		for k, v = range pair {
-		}
+		k, v := unwrapPair(pair)
 
 		var a SchemaAnnotation
 		var err error
@@ -1933,8 +2066,31 @@ func (b *metadataParser) Parse() (*Annotations, error) {
 		result.Schemas = append(result.Schemas, &a)
 	}
 
+	for _, v := range raw.Authors {
+		author, err := parseAuthor(v)
+		if err != nil {
+			return nil, fmt.Errorf("invalid author definition %s: %w", v, err)
+		}
+		result.Authors = append(result.Authors, author)
+	}
+
+	result.Custom = make(map[string]interface{})
+	for k, v := range raw.Custom {
+		val, err := convertYAMLMapKeyTypes(v, nil)
+		if err != nil {
+			return nil, err
+		}
+		result.Custom[k] = val
+	}
+
 	result.Location = b.loc
 	return &result, nil
+}
+
+func unwrapPair(pair map[string]interface{}) (k string, v interface{}) {
+	for k, v = range pair {
+	}
+	return
 }
 
 var errInvalidSchemaRef = fmt.Errorf("invalid schema reference")
@@ -1959,6 +2115,96 @@ func parseSchemaRef(s string) (Ref, error) {
 	}
 
 	return nil, errInvalidSchemaRef
+}
+
+func parseRelatedResource(rr interface{}) (*RelatedResourceAnnotation, error) {
+	rr, err := convertYAMLMapKeyTypes(rr, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	switch rr := rr.(type) {
+	case string:
+		if len(rr) > 0 {
+			u, err := url.Parse(rr)
+			if err != nil {
+				return nil, err
+			}
+			return &RelatedResourceAnnotation{Ref: *u}, nil
+		}
+		return nil, fmt.Errorf("ref URL may not be empty string")
+	case map[string]interface{}:
+		description := strings.TrimSpace(getSafeString(rr, "description"))
+		ref := strings.TrimSpace(getSafeString(rr, "ref"))
+		if len(ref) > 0 {
+			u, err := url.Parse(ref)
+			if err != nil {
+				return nil, err
+			}
+			return &RelatedResourceAnnotation{Description: description, Ref: *u}, nil
+		}
+		return nil, fmt.Errorf("'ref' value required in object")
+	}
+
+	return nil, fmt.Errorf("invalid value type, must be string or map")
+}
+
+func parseAuthor(a interface{}) (*AuthorAnnotation, error) {
+	a, err := convertYAMLMapKeyTypes(a, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	switch a := a.(type) {
+	case string:
+		return parseAuthorString(a)
+	case map[string]interface{}:
+		name := strings.TrimSpace(getSafeString(a, "name"))
+		email := strings.TrimSpace(getSafeString(a, "email"))
+		if len(name) > 0 || len(email) > 0 {
+			return &AuthorAnnotation{name, email}, nil
+		}
+		return nil, fmt.Errorf("'name' and/or 'email' values required in object")
+	}
+
+	return nil, fmt.Errorf("invalid value type, must be string or map")
+}
+
+func getSafeString(m map[string]interface{}, k string) string {
+	if v, found := m[k]; found {
+		if s, ok := v.(string); ok {
+			return s
+		}
+	}
+	return ""
+}
+
+const emailPrefix = "<"
+const emailSuffix = ">"
+
+// parseAuthor parses a string into an AuthorAnnotation. If the last word of the input string is enclosed within <>,
+// it is extracted as the author's email. The email may not contain whitelines, as it then will be interpreted as
+// multiple words.
+func parseAuthorString(s string) (*AuthorAnnotation, error) {
+	parts := strings.Fields(s)
+
+	if len(parts) == 0 {
+		return nil, fmt.Errorf("author is an empty string")
+	}
+
+	namePartCount := len(parts)
+	trailing := parts[namePartCount-1]
+	var email string
+	if len(trailing) >= len(emailPrefix)+len(emailSuffix) && strings.HasPrefix(trailing, emailPrefix) &&
+		strings.HasSuffix(trailing, emailSuffix) {
+		email = trailing[len(emailPrefix):]
+		email = email[0 : len(email)-len(emailSuffix)]
+		namePartCount = namePartCount - 1
+	}
+
+	name := strings.Join(parts[0:namePartCount], " ")
+
+	return &AuthorAnnotation{Name: name, Email: email}, nil
 }
 
 func convertYAMLMapKeyTypes(x interface{}, path []string) (interface{}, error) {
@@ -1993,17 +2239,14 @@ func convertYAMLMapKeyTypes(x interface{}, path []string) (interface{}, error) {
 // futureKeywords is the source of truth for future keywords that will
 // eventually become standard keywords inside of Rego.
 var futureKeywords = map[string]tokens.Token{
-	"in": tokens.In,
+	"in":    tokens.In,
+	"every": tokens.Every,
 }
 
 func (p *Parser) futureImport(imp *Import, allowedFutureKeywords map[string]tokens.Token) {
 	path := imp.Path.Value.(Ref)
-	if len(path) == 1 {
-		p.errorf(imp.Path.Location, "invalid import, use `import future.keywords` or `import.future.keywords.in`")
-		return
-	}
 
-	if !path[1].Equal(StringTerm("keywords")) {
+	if len(path) == 1 || !path[1].Equal(StringTerm("keywords")) {
 		p.errorf(imp.Path.Location, "invalid import, must be `future.keywords`")
 		return
 	}
@@ -2017,6 +2260,7 @@ func (p *Parser) futureImport(imp *Import, allowedFutureKeywords map[string]toke
 	for k := range allowedFutureKeywords {
 		kwds = append(kwds, k)
 	}
+
 	switch len(path) {
 	case 2: // all keywords imported, nothing to do
 	case 3: // one keyword imported
@@ -2028,6 +2272,7 @@ func (p *Parser) futureImport(imp *Import, allowedFutureKeywords map[string]toke
 		keyword := string(kw)
 		_, ok = allowedFutureKeywords[keyword]
 		if !ok {
+			sort.Strings(kwds) // so the error message is stable
 			p.errorf(imp.Path.Location, "unexpected keyword, must be one of %v", kwds)
 			return
 		}

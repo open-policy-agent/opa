@@ -28,6 +28,9 @@ standard GitHub fork workflow. See [OPA Dev Instructions](DEVELOPMENT.md)
 	git fetch --tags upstream
 	```
 
+1. Create a [personal access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token)
+   for GitHub with the 'read:org' scope. Export it to the `GITHUB_TOKEN` environment variable.
+
 1. Execute the release-patch target to generate boilerplate patch. Give the semantic version of the release:
 
 	```

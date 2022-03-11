@@ -15,6 +15,7 @@ import (
 	mr "math/rand"
 	"os"
 	"os/signal"
+	"os/user"
 	"strings"
 	"sync"
 	"syscall"
@@ -313,6 +314,8 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		params.Router = mux.NewRouter()
 	}
 
+	metrics := prometheus.New(metrics.New(), errorLogger(logger))
+
 	manager, err := plugins.New(config,
 		params.ID,
 		inmem.New(),
@@ -325,7 +328,8 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		plugins.Logger(logger),
 		plugins.EnablePrintStatements(logger.GetLevel() >= logging.Info),
 		plugins.PrintHook(loggingPrintHook{logger: logger}),
-		plugins.WithRouter(params.Router))
+		plugins.WithRouter(params.Router),
+		plugins.WithPrometheusRegister(metrics))
 	if err != nil {
 		return nil, fmt.Errorf("config error: %w", err)
 	}
@@ -333,8 +337,6 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 	if err := manager.Init(ctx); err != nil {
 		return nil, fmt.Errorf("initialization error: %w", err)
 	}
-
-	metrics := prometheus.New(metrics.New(), errorLogger(logger))
 
 	traceExporter, distributedTracingOpts, err := internal_tracing.Init(ctx, config, params.ID)
 	if err != nil {
@@ -394,6 +396,17 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 
 	if rt.Params.Authorization == server.AuthorizationOff && rt.Params.Authentication == server.AuthenticationToken {
 		rt.logger.Error("Token authentication enabled without authorization. Authentication will be ineffective. See https://www.openpolicyagent.org/docs/latest/security/#authentication-and-authorization for more information.")
+	}
+
+	usr, err := user.Current()
+	if err != nil {
+		rt.logger.Debug("Failed to determine uid/gid of process owner")
+	} else if usr.Uid == "0" || usr.Gid == "0" {
+		message := "OPA running with uid or gid 0. Running OPA with root privileges is not recommended."
+		if os.Getenv("OPA_DOCKER_IMAGE") == "official" {
+			message += " Use the -rootless image to avoid running with root privileges. This will be made the default in later OPA releases."
+		}
+		rt.logger.Warn(message)
 	}
 
 	// NOTE(tsandall): at some point, hopefully we can remove this because the

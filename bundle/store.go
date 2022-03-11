@@ -9,8 +9,10 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/internal/json/patch"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/util"
@@ -300,21 +302,28 @@ func activateBundles(opts *ActivateOpts) error {
 	// Build collections of bundle names, modules, and roots to erase
 	erase := map[string]struct{}{}
 	names := map[string]struct{}{}
+	deltaBundles := map[string]*Bundle{}
+	snapshotBundles := map[string]*Bundle{}
 
 	for name, b := range opts.Bundles {
-		names[name] = struct{}{}
+		if b.Type() == DeltaBundleType {
+			deltaBundles[name] = b
+		} else {
+			snapshotBundles[name] = b
+			names[name] = struct{}{}
 
-		if roots, err := ReadBundleRootsFromStore(opts.Ctx, opts.Store, opts.Txn, name); err == nil {
-			for _, root := range roots {
+			if roots, err := ReadBundleRootsFromStore(opts.Ctx, opts.Store, opts.Txn, name); err == nil {
+				for _, root := range roots {
+					erase[root] = struct{}{}
+				}
+			} else if !storage.IsNotFound(err) {
+				return err
+			}
+
+			// Erase data at new roots to prepare for writing the new data
+			for _, root := range *b.Manifest.Roots {
 				erase[root] = struct{}{}
 			}
-		} else if !storage.IsNotFound(err) {
-			return err
-		}
-
-		// Erase data at new roots to prepare for writing the new data
-		for _, root := range *b.Manifest.Roots {
-			erase[root] = struct{}{}
 		}
 	}
 
@@ -325,14 +334,21 @@ func activateBundles(opts *ActivateOpts) error {
 		return err
 	}
 
+	if len(deltaBundles) != 0 {
+		err := activateDeltaBundles(opts, deltaBundles)
+		if err != nil {
+			return err
+		}
+	}
+
 	// Erase data and policies at new + old roots, and remove the old
-	// manifests before activating a new bundles.
+	// manifests before activating a new snapshot bundle.
 	remaining, err := eraseBundles(opts.Ctx, opts.Store, opts.Txn, names, erase)
 	if err != nil {
 		return err
 	}
 
-	for _, b := range opts.Bundles {
+	for _, b := range snapshotBundles {
 		// Write data from each new bundle into the store. Only write under the
 		// roots contained in their manifest. This should be done *before* the
 		// policies so that path conflict checks can occur.
@@ -350,24 +366,67 @@ func activateBundles(opts *ActivateOpts) error {
 		remainingAndExtra[name] = mod
 	}
 
-	err = writeModules(opts.Ctx, opts.Store, opts.Txn, opts.Compiler, opts.Metrics, opts.Bundles, remainingAndExtra, opts.legacy)
+	err = writeModules(opts.Ctx, opts.Store, opts.Txn, opts.Compiler, opts.Metrics, snapshotBundles, remainingAndExtra, opts.legacy)
 	if err != nil {
 		return err
 	}
 
-	for name, b := range opts.Bundles {
-		// Always write manifests to the named location. If the plugin is in the older style config
-		// then also write to the old legacy unnamed location.
-		if err := WriteManifestToStore(opts.Ctx, opts.Store, opts.Txn, name, b.Manifest); err != nil {
+	for name, b := range snapshotBundles {
+		if err := writeManifestToStore(opts, name, b.Manifest); err != nil {
 			return err
-		}
-		if opts.legacy {
-			if err := LegacyWriteManifestToStore(opts.Ctx, opts.Store, opts.Txn, b.Manifest); err != nil {
-				return err
-			}
 		}
 
 		if err := writeWasmModulesToStore(opts.Ctx, opts.Store, opts.Txn, name, b); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func activateDeltaBundles(opts *ActivateOpts, bundles map[string]*Bundle) error {
+
+	// Check that the manifest roots and wasm resolvers in the delta bundle
+	// match with those currently in the store
+	for name, b := range bundles {
+		value, err := opts.Store.Read(opts.Ctx, opts.Txn, ManifestStoragePath(name))
+		if err != nil {
+			if storage.IsNotFound(err) {
+				continue
+			}
+			return err
+		}
+
+		bs, err := json.Marshal(value)
+		if err != nil {
+			return fmt.Errorf("corrupt manifest data: %w", err)
+		}
+
+		var manifest Manifest
+
+		err = util.UnmarshalJSON(bs, &manifest)
+		if err != nil {
+			return fmt.Errorf("corrupt manifest data: %w", err)
+		}
+
+		if !b.Manifest.equalWasmResolversAndRoots(manifest) {
+			return fmt.Errorf("delta bundle '%s' has wasm resolvers or manifest roots that are different from those in the store", name)
+		}
+	}
+
+	for _, b := range bundles {
+		err := applyPatches(opts.Ctx, opts.Store, opts.Txn, b.Patch.Data)
+		if err != nil {
+			return err
+		}
+	}
+
+	if err := ast.CheckPathConflicts(opts.Compiler, storage.NonEmpty(opts.Ctx, opts.Store, opts.Txn)); len(err) > 0 {
+		return err
+	}
+
+	for name, b := range bundles {
+		if err := writeManifestToStore(opts, name, b.Manifest); err != nil {
 			return err
 		}
 	}
@@ -460,6 +519,22 @@ func erasePolicies(ctx context.Context, store storage.Store, txn storage.Transac
 	}
 
 	return remaining, nil
+}
+
+func writeManifestToStore(opts *ActivateOpts, name string, manifest Manifest) error {
+	// Always write manifests to the named location. If the plugin is in the older style config
+	// then also write to the old legacy unnamed location.
+	if err := WriteManifestToStore(opts.Ctx, opts.Store, opts.Txn, name, manifest); err != nil {
+		return err
+	}
+
+	if opts.legacy {
+		if err := LegacyWriteManifestToStore(opts.Ctx, opts.Store, opts.Txn, manifest); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func writeData(ctx context.Context, store storage.Store, txn storage.Transaction, roots []string, data map[string]interface{}) error {
@@ -604,6 +679,47 @@ func hasRootsOverlap(ctx context.Context, store storage.Store, txn storage.Trans
 		}
 		return fmt.Errorf("detected overlapping roots in bundle manifest with: %s", bundleNames)
 	}
+	return nil
+}
+
+func applyPatches(ctx context.Context, store storage.Store, txn storage.Transaction, patches []PatchOperation) error {
+	for _, pat := range patches {
+
+		// construct patch path
+		path, ok := patch.ParsePatchPathEscaped("/" + strings.Trim(pat.Path, "/"))
+		if !ok {
+			return fmt.Errorf("error parsing patch path")
+		}
+
+		var op storage.PatchOp
+		switch pat.Op {
+		case "upsert":
+			op = storage.AddOp
+
+			_, err := store.Read(ctx, txn, path[:len(path)-1])
+			if err != nil {
+				if !storage.IsNotFound(err) {
+					return err
+				}
+
+				if err := storage.MakeDir(ctx, store, txn, path[:len(path)-1]); err != nil {
+					return err
+				}
+			}
+		case "remove":
+			op = storage.RemoveOp
+		case "replace":
+			op = storage.ReplaceOp
+		default:
+			return fmt.Errorf("bad patch operation: %v", pat.Op)
+		}
+
+		// apply the patch
+		if err := store.Write(ctx, txn, op, path, pat.Value); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 

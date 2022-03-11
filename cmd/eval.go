@@ -195,7 +195,7 @@ package path contained inside the file. Only data files named data.json or
 data.yaml will be loaded. In the example above the manifest.yaml would be
 ignored.
 
-See https://www.openpolicyagent.org/docs/latest/bundles/ for more details
+See https://www.openpolicyagent.org/docs/latest/management-bundles/ for more details
 on bundle directory structures.
 
 The --data flag can be used to recursively load ALL *.rego, *.json, and
@@ -210,6 +210,8 @@ Set the output format with the --format flag.
     --format=values    : output line separated JSON arrays containing expression values
     --format=bindings  : output line separated JSON objects containing variable bindings
     --format=pretty    : output query results in a human-readable format
+    --format=source    : output partial evaluation results in a source format
+    --format=raw       : output the values from query results in a scripting friendly format
 
 Schema
 ------

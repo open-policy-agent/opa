@@ -140,7 +140,7 @@ surfaced in virtual documents. Data loaded synchronously is kept outside of `dat
 avoid naming conflicts.
 
 The following table summarizes the different models for loading base documents into OPA,
-how they can referenced inside of policies, and the actual mechanism(s) for loading.
+how they can be referenced inside of policies, and the actual mechanism(s) for loading.
 
 | Model | How to access in Rego | How to integrate with OPA |
 | --- | --- | --- |
@@ -170,7 +170,7 @@ virtual documents named `data.iam.user_has_role` and `data.acme.user_is_assigned
 {{< figure src="data-model.svg" width="65" caption="Hypothetical Policy Document Model" >}}
 
 > [1] OPA has excellent support for loading JSON and YAML because they are prevalent
-> in modern systems however OPA is not tied to any particular data format. OPA
+> in modern systems; however, OPA is not tied to any particular data format. OPA
 > uses its own internal representation for structures like maps and lists (a.k.a.,
 > objects and arrays in JSON.)
 
@@ -181,5 +181,5 @@ virtual documents named `data.iam.user_has_role` and `data.acme.user_is_assigned
 > nested, hierarchical data structures containing several levels of embedded
 > maps and lists.
 
-> [3] Internally HTTP requests like `GET /v1/data` or `GET /v1/data/foo/bar` are turned
+> [3] Internally, HTTP requests like `GET /v1/data` or `GET /v1/data/foo/bar` are turned
 > into Rego queries that are almost identical to the HTTP path (e.g., `data` or `data.foo.bar`)

@@ -31,7 +31,7 @@ func TestGenerateBundleInfoWithFileDir(t *testing.T) {
 	}
 
 	test.WithTempFS(files, func(rootDir string) {
-		info, err := File(rootDir)
+		info, err := File(rootDir, false)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -104,7 +104,7 @@ func TestGenerateBundleInfoWithFile(t *testing.T) {
 			t.Fatalf("Unexpected error: %s", err)
 		}
 
-		info, err := File(bundleFile)
+		info, err := File(bundleFile, false)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -155,7 +155,7 @@ func TestGenerateBundleInfoWithBundleTarGz(t *testing.T) {
 			t.Fatalf("Unexpected error: %v", err)
 		}
 
-		info, err := File(bundleFile)
+		info, err := File(bundleFile, false)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}

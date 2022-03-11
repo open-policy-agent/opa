@@ -41,6 +41,24 @@ func (r testResolver) Resolve(ref Ref) (Value, error) {
 }
 
 func TestBaseDocEqIndexing(t *testing.T) {
+	opts := ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true}
+	everyMod := MustParseModuleWithOpts(`package test
+	p { every _ in [] { input.a = 1 } }`, opts)
+
+	// NOTE(sr): This looks a bit silly; but it's what
+	//
+	//   every x in input.a { input.x == x }
+	//
+	// will get rewritten to -- so to assert that the domain of 'every' expressions
+	// get respected in the rule indexing, we'll need to provide this "pseudo-compiled"
+	// module source here.
+	everyModWithDomain := MustParseModuleWithOpts(`package test
+	p {
+		__local0__ = input.a
+		every x in __local0__ { input.x = x }
+	} {
+		input.b = 1
+	}`, opts)
 
 	module := MustParseModule(`
 	package test
@@ -600,6 +618,20 @@ func TestBaseDocEqIndexing(t *testing.T) {
 				`f(x) = y { equal(x, 1, z); y = z }`,
 			},
 		},
+		{
+			note:       "every: do not index body",
+			module:     everyMod,
+			ruleset:    "p",
+			input:      `{"a": 2}`,
+			expectedRS: RuleSet(everyMod.Rules),
+		},
+		{
+			note:       "every: index domain",
+			module:     everyModWithDomain,
+			ruleset:    "p",
+			input:      `{"a": [1]}`,
+			expectedRS: RuleSet([]*Rule{everyModWithDomain.Rules[0]}),
+		},
 	}
 
 	for _, tc := range tests {
@@ -630,7 +662,7 @@ func TestBaseDocEqIndexing(t *testing.T) {
 			case RuleSet:
 				expectedRS = e
 			default:
-				panic("Unexpected test case expected value")
+				panic("Unexpected test case: expected value")
 			}
 
 			index := newBaseDocEqIndex(func(Ref) bool {

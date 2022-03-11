@@ -248,6 +248,53 @@ func TestFormatAST(t *testing.T) {
 			expected: `some x, y in xs`,
 		},
 		{
+			note: "every adds import if missing",
+			toFmt: ast.MustParseModuleWithOpts(`package test
+			p {
+				every k, v in [1, 2] { k != v }
+			}`,
+				ast.ParserOptions{FutureKeywords: []string{"every"}}),
+			expected: `package test
+
+import future.keywords.every
+
+p {
+	every k, v in [1, 2] { k != v }
+}`,
+		},
+		{
+			note: "every does not add import if all future KWs are there",
+			toFmt: ast.MustParseModuleWithOpts(`package test
+			import future.keywords
+			p {
+				every k, v in [1, 2] { k != v }
+			}`,
+				ast.ParserOptions{FutureKeywords: []string{"every"}}),
+			expected: `package test
+
+import future.keywords
+
+p {
+	every k, v in [1, 2] { k != v }
+}`,
+		},
+		{
+			note: "every does not add import if already present",
+			toFmt: ast.MustParseModuleWithOpts(`package test
+			import future.keywords
+			p {
+				every k, v in [1, 2] { k != v }
+			}`,
+				ast.ParserOptions{FutureKeywords: []string{"every"}}),
+			expected: `package test
+
+import future.keywords
+
+p {
+	every k, v in [1, 2] { k != v }
+}`,
+		},
+		{
 			note: "body shared wildcard",
 			toFmt: ast.Body{
 				&ast.Expr{
@@ -333,6 +380,69 @@ a[_x[y]]`,
 			expected: `_x
 a[_x[y][[z, w]]]`,
 		},
+		{
+			note: "expr with wildcard that has a default location",
+			toFmt: func() *ast.Expr {
+				expr := ast.MustParseExpr(`["foo", _] = split(input.foo, ":")`)
+				ast.WalkTerms(expr, func(term *ast.Term) bool {
+					v, ok := term.Value.(ast.Var)
+					if ok && v.IsWildcard() {
+						term.Location = defaultLocation(term)
+						return true
+					}
+					term.Location.File = "foo.rego"
+					term.Location.Row = 2
+					return false
+				})
+				return expr
+			}(),
+			expected: `["foo", _] = split(input.foo, ":")`,
+		},
+		{
+			note: "expr all terms having empty-file locations",
+			toFmt: ast.MustParseExpr(`[
+					"foo",
+					_
+					] = split(input.foo, ":")`),
+			expected: `
+[
+	"foo",
+	_,
+] = split(input.foo, ":")`,
+		},
+		{
+			note: "expr where all terms having empty-file locations, and one is a default location",
+			toFmt: func() *ast.Expr {
+				expr := ast.MustParseExpr(`
+["foo", __local1__] = split(input.foo, ":")`)
+				ast.WalkTerms(expr, func(term *ast.Term) bool {
+					if ast.VarTerm("__local1__").Equal(term) {
+						term.Location = defaultLocation(term)
+						return true
+					}
+					return false
+				})
+				return expr
+			}(),
+			expected: `["foo", __local1__] = split(input.foo, ":")`,
+		},
+		{
+			note: "expr where generated var has an AST location not matching its source location",
+			toFmt: func() *ast.Expr {
+				e := ast.MustParseExpr(`__local0__ = concat(",", [__local1__])`)
+				ast.WalkTerms(e, func(t *ast.Term) bool {
+					t.Location.File = "t.rego"
+					return false
+				})
+				// mangling that may happen in PE
+				return ast.Concat.Expr(
+					e.Operand(1).Value.(ast.Call)[1],
+					e.Operand(1).Value.(ast.Call)[2],
+					e.Operand(0),
+				).SetLocation(e.Location)
+			}(),
+			expected: `concat(",", [__local1__], __local0__)`,
+		},
 	}
 
 	for _, tc := range cases {
@@ -344,7 +454,7 @@ a[_x[y][[z, w]]]`,
 			expected := strings.TrimSpace(tc.expected)
 			actual := strings.TrimSpace(string(bs))
 			if actual != expected {
-				t.Fatalf("Expected:\n\n%s\n\nGot:\n\n%s\n\n", expected, actual)
+				t.Fatalf("Expected:\n\n%q\n\nGot:\n\n%q\n\n", expected, actual)
 			}
 		})
 	}

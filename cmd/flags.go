@@ -70,6 +70,10 @@ func addOutputFormat(fs *pflag.FlagSet, outputFormat *util.EnumFlag) {
 	fs.VarP(outputFormat, "format", "f", "set output format")
 }
 
+func addListAnnotations(fs *pflag.FlagSet, value *bool) {
+	fs.BoolVarP(value, "annotations", "a", false, "list annotations")
+}
+
 func addBenchmemFlag(fs *pflag.FlagSet, benchMem *bool, value bool) {
 	fs.BoolVar(benchMem, "benchmem", value, "report memory allocations with benchmark results")
 }
@@ -91,7 +95,7 @@ func addSigningAlgFlag(fs *pflag.FlagSet, alg *string, value string) {
 }
 
 func addClaimsFileFlag(fs *pflag.FlagSet, file *string) {
-	fs.StringVarP(file, "claims-file", "", "", "set path of JSON file containing optional claims (see: https://openpolicyagent.org/docs/latest/management/#signature-format)")
+	fs.StringVarP(file, "claims-file", "", "", "set path of JSON file containing optional claims (see: https://www.openpolicyagent.org/docs/latest/management-bundles/#signature-format)")
 }
 
 func addSigningKeyFlag(fs *pflag.FlagSet, key *string) {
@@ -99,7 +103,7 @@ func addSigningKeyFlag(fs *pflag.FlagSet, key *string) {
 }
 
 func addSigningPluginFlag(fs *pflag.FlagSet, plugin *string) {
-	fs.StringVarP(plugin, "signing-plugin", "", "", "name of the plugin to use for signing/verification (see https://openpolicyagent.org/docs/latest/management/#signature-plugin")
+	fs.StringVarP(plugin, "signing-plugin", "", "", "name of the plugin to use for signing/verification (see https://www.openpolicyagent.org/docs/latest/management-bundles/#signature-plugin")
 }
 
 func addVerificationKeyFlag(fs *pflag.FlagSet, key *string) {
@@ -144,6 +148,10 @@ func addSchemaFlags(fs *pflag.FlagSet, schema *schemaFlags) {
 
 func addTargetFlag(fs *pflag.FlagSet, target *util.EnumFlag) {
 	fs.VarP(target, "target", "t", "set the runtime to exercise")
+}
+
+func addStrictFlag(fs *pflag.FlagSet, strict *bool, value bool) {
+	fs.BoolVarP(strict, "strict", "S", value, "enable compiler strict mode")
 }
 
 const (

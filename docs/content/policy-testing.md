@@ -354,6 +354,10 @@ indicates one of two things:
 * If the line refers to the head of a rule, the body of the rule was never true.
 * If the line refers to an expression in a rule, the expression was never evaluated.
 
+It is also possible that [rule indexing](../policy-performance/#use-indexed-statements)
+has determined some path unnecessary for evaluation, thereby affecting the lines
+reported as covered.
+
 If we run the coverage report on the original **example.rego** file without
 `test_get_user_allowed` from **example_test**.rego the report will indicate
 that line 8 is not covered.

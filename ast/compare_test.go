@@ -325,6 +325,445 @@ func TestCompareAnnotations(t *testing.T) {
 # - input: {"type": "string"}`,
 			exp: 1,
 		},
+		{
+			note: "title",
+			a: `
+# METADATA
+# title: a`,
+			b: `
+# METADATA
+# title: a`,
+			exp: 0,
+		},
+		{
+			note: "title - less than",
+			a: `
+# METADATA
+# title: a`,
+			b: `
+# METADATA
+# title: b`,
+			exp: -1,
+		},
+		{
+			note: "title - greater than",
+			a: `
+# METADATA
+# title: b`,
+			b: `
+# METADATA
+# title: a`,
+			exp: 1,
+		},
+		{
+			note: "description",
+			a: `
+# METADATA
+# description: a`,
+			b: `
+# METADATA
+# description: a`,
+			exp: 0,
+		},
+		{
+			note: "description - less than",
+			a: `
+# METADATA
+# description: a`,
+			b: `
+# METADATA
+# description: b`,
+			exp: -1,
+		},
+		{
+			note: "description - greater than",
+			a: `
+# METADATA
+# description: b`,
+			b: `
+# METADATA
+# description: a`,
+			exp: 1,
+		},
+		{
+			note: "authors",
+			a: `
+# METADATA
+# authors: 
+# - John Doe
+# - Jane Doe`,
+			b: `
+# METADATA
+# authors: 
+# - John Doe
+# - Jane Doe`,
+			exp: 0,
+		},
+		{
+			note: "authors - less than",
+			a: `
+# METADATA
+# authors: 
+# - Jane Doe
+# - John Doe
+`,
+			b: `
+# METADATA
+# authors: 
+# - John Doe
+# - Jane Doe`,
+			exp: -1,
+		},
+		{
+			note: "authors - greater than",
+			a: `
+# METADATA
+# authors: 
+# - John Doe
+# - Jane Doe`,
+			b: `
+# METADATA
+# authors: 
+# - Jane Doe
+# - John Doe`,
+			exp: 1,
+		},
+		{
+			note: "authors - less than (fewer)",
+			a: `
+# METADATA
+# scope: rule
+# authors:
+# - John Doe`,
+			b: `
+# METADATA
+# scope: rule
+# authors:
+# - John Doe
+# - Jane Doe`,
+			exp: -1,
+		},
+		{
+			note: "authors - greater than (more)",
+			a: `
+# METADATA
+# scope: rule
+# authors:
+# - John Doe
+# - Jane Doe`,
+			b: `
+# METADATA
+# scope: rule
+# authors:
+# - John Doe`,
+			exp: 1,
+		},
+		{
+			note: "authors - less than (email)",
+			a: `
+# METADATA
+# authors: 
+# - John Doe <a@example.com>`,
+			b: `
+# METADATA
+# authors: 
+# - John Doe <b@example.com>`,
+			exp: -1,
+		},
+		{
+			note: "authors - greater than (email)",
+			a: `
+# METADATA
+# authors: 
+# - John Doe <b@example.com>`,
+			b: `
+# METADATA
+# authors: 
+# - John Doe <a@example.com>`,
+			exp: 1,
+		},
+		{
+			note: "organizations",
+			a: `
+# METADATA
+# organizations: 
+# - a
+# - b`,
+			b: `
+# METADATA
+# organizations: 
+# - a
+# - b`,
+			exp: 0,
+		},
+		{
+			note: "organizations - less than",
+			a: `
+# METADATA
+# organizations: 
+# - a
+# - b`,
+			b: `
+# METADATA
+# organizations: 
+# - c
+# - d`,
+			exp: -1,
+		},
+		{
+			note: "organizations - greater than",
+			a: `
+# METADATA
+# organizations: 
+# - c
+# - d`,
+			b: `
+# METADATA
+# organizations: 
+# - a
+# - b`,
+			exp: 1,
+		},
+		{
+			note: "organizations - less than (fewer)",
+			a: `
+# METADATA
+# scope: rule
+# organizations:
+# - a`,
+			b: `
+# METADATA
+# scope: rule
+# organizations:
+# - a
+# - b`,
+			exp: -1,
+		},
+		{
+			note: "organizations - greater than (more)",
+			a: `
+# METADATA
+# scope: rule
+# organizations:
+# - a
+# - b`,
+			b: `
+# METADATA
+# scope: rule
+# organizations:
+# - a`,
+			exp: 1,
+		},
+		{
+			note: "related_resources",
+			a: `
+# METADATA
+# related_resources: 
+# - https://a.example.com
+# - 
+#  ref: https://b.example.com
+#  description: foo bar`,
+			b: `
+# METADATA
+# related_resources: 
+# - https://a.example.com
+# - 
+#  ref: https://b.example.com
+#  description: foo bar`,
+			exp: 0,
+		},
+		{
+			note: "related_resources - less than",
+			a: `
+# METADATA
+# related_resources: 
+# - https://a.example.com
+# - https://b.example.com`,
+			b: `
+# METADATA
+# related_resources: 
+# - https://b.example.com
+# - https://c.example.com`,
+			exp: -1,
+		},
+		{
+			note: "related_resources - greater than",
+			a: `
+# METADATA
+# related_resources: 
+# - https://b.example.com
+# - https://c.example.com`,
+			b: `
+# METADATA
+# related_resources: 
+# - https://a.example.com
+# - https://b.example.com`,
+			exp: 1,
+		},
+		{
+			note: "related_resources - less than (fewer)",
+			a: `
+# METADATA
+# scope: rule
+# organizations:
+# - https://a.example.com`,
+			b: `
+# METADATA
+# scope: rule
+# organizations:
+# - https://a.example.com
+# - https://b.example.com`,
+			exp: -1,
+		},
+		{
+			note: "related_resources - greater than (more)",
+			a: `
+# METADATA
+# scope: rule
+# organizations:
+# - https://a.example.com
+# - https://b.example.com`,
+			b: `
+# METADATA
+# scope: rule
+# organizations:
+# - https://a.example.com`,
+			exp: 1,
+		},
+		{
+			note: "related_resources - less than (description)",
+			a: `
+# METADATA
+# related_resources:
+# -
+#  ref: https://example.com
+#  description: a`,
+			b: `
+# METADATA
+# related_resources:
+# -
+#  ref: https://example.com
+#  description: b`,
+			exp: -1,
+		},
+		{
+			note: "related_resources - greater than (description)",
+			a: `
+# METADATA
+# related_resources:
+# -
+#  ref: https://example.com
+#  description: b`,
+			b: `
+# METADATA
+# related_resources:
+# -
+#  ref: https://example.com
+#  description: a`,
+			exp: 1,
+		},
+		{
+			note: "custom",
+			a: `
+# METADATA
+# custom: 
+#  a: 1
+#  b: true
+#  c:
+#  d:
+#  - 1
+#  - 2
+#  e:
+#   i: 1
+#   j: 2`,
+			b: `
+# METADATA
+# custom: 
+#  a: 1
+#  b: true
+#  c:
+#  d:
+#  - 1
+#  - 2
+#  e:
+#   i: 1
+#   j: 2`,
+			exp: 0,
+		},
+		{
+			note: "custom - less than",
+			a: `
+# METADATA
+# custom: 
+#  a: 1`,
+			b: `
+# METADATA
+# custom: 
+#  b: 1`,
+			exp: -1,
+		},
+		{
+			note: "custom - greater than",
+			a: `
+# METADATA
+# custom: 
+#  b: 1`,
+			b: `
+# METADATA
+# custom: 
+#  a: 1`,
+			exp: 1,
+		},
+		{
+			note: "custom - less than (value)",
+			a: `
+# METADATA
+# custom: 
+#  a: 1`,
+			b: `
+# METADATA
+# custom: 
+#  a: 2`,
+			exp: -1,
+		},
+		{
+			note: "custom - greater than (value)",
+			a: `
+# METADATA
+# custom: 
+#  a: 2`,
+			b: `
+# METADATA
+# custom: 
+#  a: 1`,
+			exp: 1,
+		},
+		{
+			note: "custom - less than (fewer)",
+			a: `
+# METADATA
+# custom: 
+#  a: 1`,
+			b: `
+# METADATA
+# custom: 
+#  a: 1
+#  b: 2`,
+			exp: -1,
+		},
+		{
+			note: "custom - greater than (more)",
+			a: `
+# METADATA
+# custom: 
+#  a: 1
+#  b: 2`,
+			b: `
+# METADATA
+# custom: 
+#  a: 1`,
+			exp: 1,
+		},
 	}
 
 	for _, tc := range tests {
