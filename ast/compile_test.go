@@ -909,6 +909,30 @@ func TestCompilerCheckTypesWithSchema(t *testing.T) {
 	assertNotFailed(t, c)
 }
 
+func TestCompilerCheckTypesWithRegexPatternInSchema(t *testing.T) {
+	c := NewCompiler()
+	var schema interface{}
+	// Negative lookahead is not supported in the Go regex dialect, but this is still a valid
+	// JSON schema. Since we don't rely on the "pattern" attribute for type checking, ensure
+	// that this still works (by being ignored)
+	err := util.Unmarshal([]byte(`{
+		"properties": {
+			"name": {
+				"pattern": "^(?!testing:.*)[a-z]+$",
+				"type": "string"
+			}
+		}
+	}`), &schema)
+	if err != nil {
+		t.Fatal("Unexpected error:", err)
+	}
+	schemaSet := NewSchemaSet()
+	schemaSet.Put(SchemaRootRef, schema)
+	c.WithSchemas(schemaSet)
+	compileStages(c, c.checkTypes)
+	assertNotFailed(t, c)
+}
+
 func TestCompilerCheckTypesWithAllOfSchema(t *testing.T) {
 
 	tests := []struct {
@@ -1498,6 +1522,147 @@ func TestCompilerRewriteExprTerms(t *testing.T) {
 
 		})
 	}
+}
+
+func TestCompilerCheckUnusedImports(t *testing.T) {
+	cases := []strictnessTestCase{
+		{
+			note: "fail_case_1",
+			module: `package p
+			import data.foo.bar as bar
+			r {
+				input.bar == 11
+			  }
+			`,
+			expectedErrors: Errors{
+				&Error{
+					Location: NewLocation([]byte("import"), "", 2, 4),
+					Message:  "import data.foo.bar as bar unused",
+				},
+			},
+		},
+		{
+			note: "fail_case_2",
+			module: `package p
+			import data.foo # unused
+			r { data.foo == 10 }
+			`,
+			expectedErrors: Errors{
+				&Error{
+					Location: NewLocation([]byte("import"), "", 2, 4),
+					Message:  "import data.foo unused",
+				},
+			},
+		},
+		{
+			note: "fail_case_3",
+			module: `package p
+			import data.foo
+			import data.x.power #unused
+			r { foo == 10 }
+			`,
+			expectedErrors: Errors{
+				&Error{
+					Location: NewLocation([]byte("import"), "", 3, 4),
+					Message:  "import data.x.power unused",
+				},
+			},
+		},
+		{
+			note: "fail_case_4",
+			module: `package p
+			import data.foo
+			import data.x.power #unused
+			r { input.unused == 10 }
+			`,
+			expectedErrors: Errors{
+				&Error{
+					Location: NewLocation([]byte("import"), "", 2, 4),
+					Message:  "import data.foo unused",
+				},
+				&Error{
+					Location: NewLocation([]byte("import"), "", 3, 4),
+					Message:  "import data.x.power unused",
+				},
+			},
+		},
+		{
+			note: "pass_case_1",
+			module: `package p
+			import data.foo.x
+			r { x == 10 }
+			`,
+		},
+		{
+			note: "pass_case_2",
+			module: `package p
+			import data.foo.x
+			r { input.data == x }
+			`,
+		},
+		{
+			note: "pass_case_3",
+			module: `package p
+			import data.foo.x
+			import data.power.ranger
+			r { ranger == x }
+			`,
+		},
+		{
+			note: "pass_case_4",
+			module: `package p
+			import data.foo.x
+			import data.power.ranger
+			r { ranger == 23 }
+			t { x == 1 }
+			`,
+		},
+		{
+			note: "pass_case_5",
+			module: `package p
+			import data.foo
+			r = count(foo) > 1 # only one operand
+			`,
+		},
+		{
+			note: "pass_case_6",
+			module: `package p
+			import data.foo
+			r = sprintf("%v %d", [foo, 0]) # more complicated operands
+			`,
+		},
+		{
+			note: "pass_case_7",
+			module: `package p
+			import data.foo
+			r {
+				foo # not a call, plain term
+			}
+			`,
+		},
+		{
+			note: "pass_case_8",
+			module: `package p
+			import future.keywords.every
+			import data.foo
+			r {
+				every x in foo { x > 1 } # import in 'every' domain
+			}
+			`,
+		},
+		{
+			note: "pass_case_9",
+			module: `package p
+			import future.keywords.every
+			import data.foo
+			r {
+				every x in [1,2,3] { x > foo } # import in 'every' body
+			}
+			`,
+		},
+	}
+
+	runStrictnessTestCase(t, cases, true)
 }
 
 func TestCompilerCheckDuplicateImports(t *testing.T) {

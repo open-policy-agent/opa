@@ -259,6 +259,7 @@ func NewCompiler() *Compiler {
 		f          func()
 	}{
 		{"CheckDuplicateImports", "compile_stage_check_duplicate_imports", c.checkDuplicateImports},
+		{"CheckUnusedImports", "compile_stage_check_unused_imports", c.checkUnusedImports},
 		{"CheckKeywordOverrides", "compile_stage_check_keyword_overrides", c.checkKeywordOverrides},
 		// Reference resolution should run first as it may be used to lazily
 		// load additional modules. If any stages run before resolution, they
@@ -1321,6 +1322,62 @@ func (c *Compiler) GetAnnotationSet() *AnnotationSet {
 	return c.annotationSet
 }
 
+func (c *Compiler) checkUnusedImports() {
+	if !c.strict {
+		return
+	}
+
+	for _, name := range c.sorted {
+		mod := c.Modules[name]
+
+		for _, imp := range mod.Imports {
+			var impCounter int
+			importName := imp.Name().String()
+
+			WalkExprs(mod, func(expr *Expr) bool {
+				switch t := expr.Terms.(type) {
+				case *Every:
+					_ = t // term is unused
+					if strings.Contains(expr.String(), importName) {
+						impCounter++
+					}
+				default:
+					WalkTerms(mod, func(term *Term) bool {
+						termStr := term.Value.String()
+						if importName == "in" {
+							switch {
+							case termStr == "internal.member_2":
+								if importName == "in" {
+									impCounter++
+								}
+							case termStr == "internal.member_3":
+								if importName == "in" {
+									impCounter++
+								}
+							default:
+								if strings.Contains(expr.String(), termStr) {
+									impCounter++
+								}
+							}
+						} else {
+							if importName == termStr {
+								impCounter++
+							}
+						}
+						return false
+					})
+				}
+
+				return true
+			})
+
+			if impCounter == 0 {
+				c.err(NewError(CompileErr, imp.Location, "%v unused", imp.String()))
+			}
+		}
+	}
+}
+
 func (c *Compiler) checkDuplicateImports() {
 	if !c.strict {
 		return
@@ -1332,6 +1389,7 @@ func (c *Compiler) checkDuplicateImports() {
 
 		for _, imp := range mod.Imports {
 			name := imp.Name()
+
 			if processed, conflict := processedImports[name]; conflict {
 				c.err(NewError(CompileErr, imp.Location, "import must not shadow %v", processed))
 			} else {
