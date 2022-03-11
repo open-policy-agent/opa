@@ -44,20 +44,21 @@ type Logger interface {
 // the struct. Any changes here MUST be reflected in the AST()
 // implementation below.
 type EventV1 struct {
-	Labels      map[string]string       `json:"labels"`
-	DecisionID  string                  `json:"decision_id"`
-	Revision    string                  `json:"revision,omitempty"` // Deprecated: Use Bundles instead
-	Bundles     map[string]BundleInfoV1 `json:"bundles,omitempty"`
-	Path        string                  `json:"path,omitempty"`
-	Query       string                  `json:"query,omitempty"`
-	Input       *interface{}            `json:"input,omitempty"`
-	Result      *interface{}            `json:"result,omitempty"`
-	Erased      []string                `json:"erased,omitempty"`
-	Masked      []string                `json:"masked,omitempty"`
-	Error       error                   `json:"error,omitempty"`
-	RequestedBy string                  `json:"requested_by,omitempty"`
-	Timestamp   time.Time               `json:"timestamp"`
-	Metrics     map[string]interface{}  `json:"metrics,omitempty"`
+	Labels       map[string]string       `json:"labels"`
+	DecisionID   string                  `json:"decision_id"`
+	Revision     string                  `json:"revision,omitempty"` // Deprecated: Use Bundles instead
+	Bundles      map[string]BundleInfoV1 `json:"bundles,omitempty"`
+	Path         string                  `json:"path,omitempty"`
+	Query        string                  `json:"query,omitempty"`
+	Input        *interface{}            `json:"input,omitempty"`
+	Result       *interface{}            `json:"result,omitempty"`
+	MappedResult *interface{}            `json:"mapped_result,omitempty"`
+	Erased       []string                `json:"erased,omitempty"`
+	Masked       []string                `json:"masked,omitempty"`
+	Error        error                   `json:"error,omitempty"`
+	RequestedBy  string                  `json:"requested_by,omitempty"`
+	Timestamp    time.Time               `json:"timestamp"`
+	Metrics      map[string]interface{}  `json:"metrics,omitempty"`
 
 	inputAST ast.Value
 }
@@ -85,6 +86,7 @@ var pathKey = ast.StringTerm("path")
 var queryKey = ast.StringTerm("query")
 var inputKey = ast.StringTerm("input")
 var resultKey = ast.StringTerm("result")
+var mappedResultKey = ast.StringTerm("mapped_result")
 var erasedKey = ast.StringTerm("erased")
 var maskedKey = ast.StringTerm("masked")
 var errorKey = ast.StringTerm("error")
@@ -147,6 +149,14 @@ func (e *EventV1) AST() (ast.Value, error) {
 			return nil, err
 		}
 		event.Insert(resultKey, ast.NewTerm(results))
+	}
+
+	if e.MappedResult != nil {
+		mResults, err := roundtripJSONToAST(e.MappedResult)
+		if err != nil {
+			return nil, err
+		}
+		event.Insert(mappedResultKey, ast.NewTerm(mResults))
 	}
 
 	if len(e.Erased) > 0 {
@@ -547,17 +557,18 @@ func (p *Plugin) Log(ctx context.Context, decision *server.Info) error {
 	}
 
 	event := EventV1{
-		Labels:      p.manager.Labels(),
-		DecisionID:  decision.DecisionID,
-		Revision:    decision.Revision,
-		Bundles:     bundles,
-		Path:        decision.Path,
-		Query:       decision.Query,
-		Input:       decision.Input,
-		Result:      decision.Results,
-		RequestedBy: decision.RemoteAddr,
-		Timestamp:   decision.Timestamp,
-		inputAST:    decision.InputAST,
+		Labels:       p.manager.Labels(),
+		DecisionID:   decision.DecisionID,
+		Revision:     decision.Revision,
+		Bundles:      bundles,
+		Path:         decision.Path,
+		Query:        decision.Query,
+		Input:        decision.Input,
+		Result:       decision.Results,
+		MappedResult: decision.MappedResults,
+		RequestedBy:  decision.RemoteAddr,
+		Timestamp:    decision.Timestamp,
+		inputAST:     decision.InputAST,
 	}
 
 	if decision.Metrics != nil {
