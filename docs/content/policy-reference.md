@@ -829,41 +829,41 @@ Below is an example that uses some of the Time built-in functions.
 This package will check if a container image is older than 2 months. We will run skopeo inspect for target image and stream the output to OPA. If the image creation time is older than 2 months it results output as `"unsafe"` else the output is `"safe"`.
 
 **time_example.rego**
-```live:example/using_time_builtin:module:openable,readonly
+```live:example/time:module:openable,merge_down
 package time_example
-
-nowns := time.now_ns()
-
-result = "safe"{
-    count(violation) == 0
-}
-result = "unsafe"{
-    count(violation) > 0
+violation[image]{
+        some i
+		nowns := time.now_ns()
+        image := input.images[i].Name
+        createdns := time.parse_rfc3339_ns(input.images[i].Created)
+        timediff := time.diff(createdns, nowns)
+        timediff[0] > 0
 }
 
 violation[image]{
-    image := input.Name
-    createdns := time.parse_rfc3339_ns(input.Created)
-    timediff := time.diff(createdns, nowns)
-    timediff[0] > 0
-}
-violation[image]{
-    image := input.Name
-    createdns := time.parse_rfc3339_ns(input.Created)
-    timediff := time.diff(createdns, nowns)
-    timediff[0] > 2
+        some i
+		nowns := time.now_ns()
+        image := input.images[i].Name
+        createdns := time.parse_rfc3339_ns(input.images[i].Created)
+        timediff := time.diff(createdns, nowns)
+        timediff[0] = 0
+        timediff[1] > 2
 }
 ```
-Run skopeo inspect and stream the output to OPA.
-```bash
-skopeo inspect docker://kksingh04/nodejs17:slim|opa eval -I -d time_example.rego "data.time_example.result" --format pretty
-
-"safe"
+```live:example/time:input:merge_down
+{
+    "images": [
+        {"Name": "nodejs17:slim", "Created": "2022-03-02T09:59:54.523838673Z"},
+        {"Name": "nodejs:4.8", "Created": "2018-03-16T17:46:05.353958697Z"},
+        {"Name": "alpine:20210730", "Created": "2021-07-30T17:19:39.862433601Z"},
+        {"Name": "nginx:1.21.5-alpine", "Created": "2021-12-29T19:29:13.874392808Z"}
+    ]
+}
 ```
-```bash
-skopeo inspect docker://kksingh04/nodejs:4.8|opa eval -I -d time_example.rego "data.time_example.result" --format pretty
-
-"unsafe"
+```live:example/time:query:merge_down
+some x; violation[x]
+```
+```live:example/time:output
 ```
 
 ### Cryptography
