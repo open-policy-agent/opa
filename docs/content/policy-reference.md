@@ -826,7 +826,7 @@ Note that the opa executable will need access to the timezone files in the envir
 
 Below is an example that uses some of the Time built-in functions.
 
-This package will check if a container image is older than 2 months. We will run skopeo inspect for target image and stream the output to OPA. If the image creation time is older than 2 months it results output as `"unsafe"` else the output is `"safe"`.
+This package will check if a container image is older than 2 months. 
 
 **time_example.rego**
 ```live:example/time:module:openable,merge_down
