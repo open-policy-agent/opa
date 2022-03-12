@@ -311,6 +311,24 @@ func (d *Downloader) download(ctx context.Context, m metrics.Metrics) (*download
 			if d.sizeLimitBytes != nil {
 				reader = reader.WithSizeLimitBytes(*d.sizeLimitBytes)
 			}
+
+			if d.logger.GetLevel() >= logging.Debug {
+				expectedBundleContentType := []string{
+					"application/gzip",
+					"application/octet-stream",
+					"application/vnd.openpolicyagent.bundles",
+				}
+
+				contentType := resp.Header.Get("content-type")
+				if !contains(contentType, expectedBundleContentType) {
+					d.logger.Debug("Content-Type response header set to %v. Expected one of %v. "+
+						"Possibly not a bundle being downloaded.",
+						contentType,
+						expectedBundleContentType,
+					)
+				}
+			}
+
 			b, err := reader.Read()
 			if err != nil {
 				return nil, err
@@ -357,4 +375,13 @@ type HTTPError struct {
 
 func (e HTTPError) Error() string {
 	return fmt.Sprintf("server replied with %s", http.StatusText(e.StatusCode))
+}
+
+func contains(s string, strings []string) bool {
+	for _, str := range strings {
+		if s == str {
+			return true
+		}
+	}
+	return false
 }

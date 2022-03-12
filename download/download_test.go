@@ -23,6 +23,8 @@ import (
 
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/keys"
+	"github.com/open-policy-agent/opa/logging"
+	"github.com/open-policy-agent/opa/logging/test"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/plugins/rest"
@@ -687,6 +689,43 @@ func TestOneShotNotLongPollingSwitch(t *testing.T) {
 	}
 }
 
+func TestWarnOnNonBundleContentType(t *testing.T) {
+	ctx := context.Background()
+	fixture := newTestFixture(t)
+	fixture.server.bundles["not-a-bundle"] = bundle.Bundle{}
+
+	config := Config{}
+	if err := config.ValidateAndInjectDefaults(); err != nil {
+		t.Fatal(err)
+	}
+
+	d := New(config, fixture.client, "/bundles/not-a-bundle")
+	logger := test.New()
+	logger.SetLevel(logging.Debug)
+	d.logger = logger
+
+	d.Start(ctx)
+
+	time.Sleep(1 * time.Second)
+
+	d.Stop(ctx)
+
+	expectLogged := "Content-Type response header set to text/html. " +
+		"Expected one of [application/gzip application/octet-stream application/vnd.openpolicyagent.bundles]. " +
+		"Possibly not a bundle being downloaded."
+	var found bool
+	for _, entry := range logger.Entries() {
+		if entry.Message == expectLogged {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		t.Errorf("Expected log entry: %s", expectLogged)
+	}
+}
+
 type testFixture struct {
 	d                         *Downloader
 	client                    rest.Client
@@ -864,7 +903,11 @@ func (t *testServer) handle(w http.ResponseWriter, r *http.Request) {
 		// in 304 Content-Type is not send according https://datatracker.ietf.org/doc/html/rfc7232#section-4.1
 		w.Header().Add("Content-Type", "application/vnd.openpolicyagent.bundles")
 	} else {
-		w.Header().Add("Content-Type", "application/gzip")
+		if r.URL.Path == "/bundles/not-a-bundle" {
+			w.Header().Add("Content-Type", "text/html")
+		} else {
+			w.Header().Add("Content-Type", "application/gzip")
+		}
 	}
 
 	if t.expEtag != "" {
