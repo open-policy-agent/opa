@@ -36,6 +36,12 @@ type Store interface {
 	Abort(context.Context, Transaction)
 }
 
+// MakeDirer defines the interface a Store could realize to override the
+// generic MakeDir functionality in storage.MakeDir
+type MakeDirer interface {
+	MakeDir(context.Context, Transaction, Path) error
+}
+
 // TransactionParams describes a new transaction.
 type TransactionParams struct {
 
