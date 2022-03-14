@@ -51,14 +51,18 @@ func WriteOne(ctx context.Context, store Store, op PatchOp, path Path, value int
 
 // MakeDir inserts an empty object at path. If the parent path does not exist,
 // MakeDir will create it recursively.
-func MakeDir(ctx context.Context, store Store, txn Transaction, path Path) (err error) {
+func MakeDir(ctx context.Context, store Store, txn Transaction, path Path) error {
+
+	// Allow the Store implementation to deal with this in its own way.
+	if md, ok := store.(MakeDirer); ok {
+		return md.MakeDir(ctx, txn, path)
+	}
 
 	if len(path) == 0 {
 		return nil
 	}
 
 	node, err := store.Read(ctx, txn, path)
-
 	if err != nil {
 		if !IsNotFound(err) {
 			return err
@@ -74,9 +78,7 @@ func MakeDir(ctx context.Context, store Store, txn Transaction, path Path) (err 
 	if _, ok := node.(map[string]interface{}); ok {
 		return nil
 	}
-
 	return writeConflictError(path)
-
 }
 
 // Txn is a convenience function that executes f inside a new transaction
