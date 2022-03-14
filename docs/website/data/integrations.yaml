@@ -1100,6 +1100,19 @@ integrations:
     tutorials:
       - https://i2scim.io/OPA_AccessControl.html
 
+  rekor:
+    title: Rekor transparency log monitoring and alerting
+    description: |
+      Rekor Sidekick monitors a Rekor signature transparency log and forwards events of interest where ever you like.
+      Alert policies written in Rego determine if an event is of interest.
+    labels:
+      category: security
+      layer: application
+    software:
+      - rekor
+    code:
+      - https://github.com/nsmith5/rekor-sidekick
+
 organizations:
   styra:
     name: Styra
@@ -1412,3 +1425,6 @@ software:
   pre-commit:
     name: pre-commit
     link: https://pre-commit.com
+  rekor:
+    name: rekor
+    link: https://github.com/sigstore/rekor
