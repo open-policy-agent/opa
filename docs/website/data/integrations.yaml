@@ -1108,7 +1108,7 @@ integrations:
       layer: network
       category: application
     software:
-      - graphene-graphQL
+      - graphene-graphql
     code:
       - https://github.com/dolevf/graphql-open-policy-agent
 
