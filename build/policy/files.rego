@@ -9,10 +9,12 @@ package files
 
 import future.keywords.in
 
-import data.helpers.endswith_any
-import data.helpers.last_indexof
+import data.helpers.directory
+import data.helpers.extension
 
 filenames := {f.filename | some f in input}
+
+logo_exts := {"png", "svg"}
 
 changes := {filename: attributes |
 	some change in input
@@ -32,20 +34,18 @@ deny["Logo must be placed in docs/website/static/img/logos/integrations"] {
 	"docs/website/data/integrations.yaml" in filenames
 
 	some filename in filenames
-	endswith(filename, ".png")
+	extension(filename) in logo_exts
 	changes[filename].status == "added"
-	directory := substring(filename, 0, last_indexof(filename, "/"))
-	directory != "docs/website/static/img/logos/integrations"
+	directory(filename) != "docs/website/static/img/logos/integrations"
 }
 
-deny["Logo must be a .png file"] {
+deny["Logo must be a .png or .svg file"] {
 	"docs/website/data/integrations.yaml" in filenames
 
 	some filename in filenames
 	changes[filename].status == "added"
-	directory := substring(filename, 0, last_indexof(filename, "/"))
-	directory == "docs/website/static/img/logos/integrations"
-	not endswith(filename, ".png")
+	directory(filename) == "docs/website/static/img/logos/integrations"
+	not extension(filename) in logo_exts
 }
 
 deny[sprintf("Integration '%v' missing required attribute '%v'", [name, attr])] {
@@ -86,10 +86,10 @@ integrations_file := get_file_in_pr("docs/website/data/integrations.yaml")
 # Helper rules to work around not being able to mock functions yet
 yaml_file_contents := {filename: get_file_in_pr(filename) |
 	some filename in filenames
-	endswith_any(filename, [".yml", ".yaml"])
+	extension(filename) in {"yml", "yaml"}
 }
 
 json_file_contents := {filename: get_file_in_pr(filename) |
 	some filename in filenames
-	endswith(filename, ".json")
+	extension(filename) == "json"
 }
