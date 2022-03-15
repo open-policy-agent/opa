@@ -330,8 +330,10 @@ The future plan is to use the following labels to generate categories of integra
 As of now the labels are only displayed for each entry.
 
 ## Logos
-For each entry in the [integrations.yaml](./website/data/integrations.yaml) integrations section the UI will use a
-PNG logo with the same name as the key from [./website/static/img/logos/integrations](./website/static/img/logos/integrations)
+
+For each entry in the [integrations.yaml](./website/data/integrations.yaml)
+integrations section the UI will use a PNG or SVG logo with the same name as the key from
+[./website/static/img/logos/integrations](./website/static/img/logos/integrations)
 
 For example:
 
@@ -342,6 +344,7 @@ integrations:
 ```
 
 Would need a file called `my-cool-integration.png` at `./website/static/img/logos/integrations/my-cool-integration.png`
+(or `my-cool-integration.svg` in the same location).
 
 If it doesn't exist the OPA logo will be shown by default.
 
