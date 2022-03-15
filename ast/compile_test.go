@@ -3093,10 +3093,32 @@ func TestRewriteDeclaredVars(t *testing.T) {
 				# import future.keywords.in
 				# import future.keywords.every
 				p {
-					every k, v in [1] { v >= i }
+					every k, v in [1] { v >= 1 }
 				}
 			`,
 			wantErr: errors.New("declared var k unused"),
+		},
+		{
+			// NOTE(sr): this would happen when compiling modules twice:
+			// the first run rewrites every to include a generated key var,
+			// the second one bails because it's not used.
+			// Seen in the wild when using `opa test -b` on a bundle that
+			// used `every`, https://github.com/open-policy-agent/opa/issues/4420
+			note: "rewrite every: unused generated key var",
+			module: `
+				package test
+
+				p {
+					every __local0__, v in [1] { v >= 1 }
+				}
+			`,
+			exp: `
+				package test
+				p = true {
+					__local3__ = [1]
+					every __local1__, __local2__ in __local3__ { __local2__ >= 1 }
+				}
+		`,
 		},
 		{
 			note: "rewrite every: unused value var",
