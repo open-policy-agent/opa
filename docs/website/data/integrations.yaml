@@ -1100,6 +1100,17 @@ integrations:
     tutorials:
       - https://i2scim.io/OPA_AccessControl.html
 
+  graphene-graphql:
+    title: Custom Application with Field-level Authorization in Graphene GraphQL
+    description:  |
+      This integration demonstrates using Open Policy Agent to perform field-level Authorization with GraphQL for a custom Python application backed by Graphene.
+    labels:
+      layer: network
+      category: application
+    software:
+      - graphene-graphql
+    code:
+      - https://github.com/dolevf/graphql-open-policy-agent
   rekor:
     title: Rekor transparency log monitoring and alerting
     description: |
@@ -1398,6 +1409,9 @@ software:
   i2scim:
     name: i2 SCIM Server
     link: https://i2scim.io
+  graphene-graphql:
+    name: Graphene GraphQL
+    link: https://graphene-python.org
   styra-das:
     name: Styra DAS
     link: https://www.styra.com
