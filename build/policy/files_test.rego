@@ -30,7 +30,7 @@ test_allow_logo_if_added_in_correct_directory {
 }
 
 test_deny_logo_if_not_png_file {
-	expected := "Logo must be a .png file"
+	expected := "Logo must be a .png or .svg file"
 	deny[expected] with input as [
 		{
 			"filename": "docs/website/data/integrations.yaml",
@@ -75,6 +75,7 @@ test_deny_unlisted_software {
 		}},
 		"software": {"kubernetes": {"name": "Kubernetes"}},
 	})
+
 	expected := "Integration 'my-integration' references unknown software 'bitcoin-miner' (i.e. not in 'software' object)"
 
 	deny[expected] with data.files.integrations_file as integrations with input as files

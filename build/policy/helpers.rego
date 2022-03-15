@@ -10,7 +10,6 @@ last_indexof(string, search) = i {
 	true
 }
 
-endswith_any(string, suffixes) {
-	some suffix in suffixes
-	endswith(string, suffix)
-}
+extension(filename) = substring(filename, last_indexof(filename, ".") + 1, count(filename) - 1)
+
+directory(filename) = substring(filename, 0, last_indexof(filename, "/"))
