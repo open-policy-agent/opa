@@ -3,7 +3,7 @@
 github.com/OneOfOne/xxhash
 # github.com/beorn7/perks v1.0.1
 github.com/beorn7/perks/quantile
-# github.com/bytecodealliance/wasmtime-go v0.34.0
+# github.com/bytecodealliance/wasmtime-go v0.35.0
 ## explicit
 github.com/bytecodealliance/wasmtime-go
 github.com/bytecodealliance/wasmtime-go/build/include
@@ -80,6 +80,7 @@ github.com/gogo/protobuf/proto
 ## explicit
 github.com/golang/glog
 # github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da
+## explicit
 github.com/golang/groupcache/lru
 # github.com/golang/protobuf v1.5.2
 ## explicit
@@ -162,14 +163,14 @@ github.com/russross/blackfriday/v2
 # github.com/sirupsen/logrus v1.8.1
 ## explicit
 github.com/sirupsen/logrus
-# github.com/spf13/cobra v1.3.0
+# github.com/spf13/cobra v1.4.0
 ## explicit
 github.com/spf13/cobra
 github.com/spf13/cobra/doc
 # github.com/spf13/pflag v1.0.5
 ## explicit
 github.com/spf13/pflag
-# github.com/stretchr/testify v1.7.0
+# github.com/stretchr/testify v1.7.1
 ## explicit
 github.com/stretchr/testify/assert
 github.com/stretchr/testify/require
@@ -183,6 +184,7 @@ github.com/xeipuuv/gojsonreference
 ## explicit
 github.com/yashtewari/glob-intersection
 # go.opencensus.io v0.23.0
+## explicit
 go.opencensus.io
 go.opencensus.io/internal
 go.opencensus.io/trace
@@ -262,6 +264,7 @@ golang.org/x/sys/unix
 golang.org/x/sys/windows
 golang.org/x/sys/windows/registry
 # golang.org/x/text v0.3.7
+## explicit
 golang.org/x/text/secure/bidirule
 golang.org/x/text/transform
 golang.org/x/text/unicode/bidi
@@ -270,6 +273,7 @@ golang.org/x/text/unicode/norm
 ## explicit
 golang.org/x/time/rate
 # google.golang.org/genproto v0.0.0-20211208223120-3a66f561d7aa
+## explicit
 google.golang.org/genproto/googleapis/api/httpbody
 google.golang.org/genproto/googleapis/rpc/errdetails
 google.golang.org/genproto/googleapis/rpc/status
@@ -363,4 +367,5 @@ google.golang.org/protobuf/types/known/wrapperspb
 ## explicit
 gopkg.in/yaml.v2
 # gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
+## explicit
 gopkg.in/yaml.v3

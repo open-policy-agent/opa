@@ -4050,8 +4050,8 @@ type localDeclaredVars struct {
 
 	// rewritten contains a mapping of *all* user-defined variables
 	// that have been rewritten whereas vars contains the state
-	// from the current query (not not any nested queries, and all
-	// vars seen).
+	// from the current query (not any nested queries, and all vars
+	// seen).
 	rewritten map[Var]Var
 }
 
@@ -4282,7 +4282,10 @@ func checkUnusedDeclaredVars(loc *Location, stack *localDeclaredVars, used VarSe
 	unused := declared.Diff(bodyvars).Diff(used)
 
 	for _, gv := range unused.Sorted() {
-		errs = append(errs, NewError(CompileErr, loc, "declared var %v unused", dvs.reverse[gv]))
+		rv := dvs.reverse[gv]
+		if !rv.IsGenerated() {
+			errs = append(errs, NewError(CompileErr, loc, "declared var %v unused", rv))
+		}
 	}
 
 	return errs

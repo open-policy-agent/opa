@@ -214,6 +214,42 @@ func TestStartStopWithLongPollNotSupported(t *testing.T) {
 	}
 }
 
+func TestStartStopWithLongPollSupportedByServer(t *testing.T) {
+	ctx := context.Background()
+
+	config := Config{}
+	min := int64(1)
+	max := int64(2)
+	config.Polling.MinDelaySeconds = &min
+	config.Polling.MaxDelaySeconds = &max
+
+	// simulate scenario where server supports long polling but long polling timeout not provided
+	config.Polling.LongPollingTimeoutSeconds = nil
+
+	if err := config.ValidateAndInjectDefaults(); err != nil {
+		t.Fatal(err)
+	}
+
+	fixture := newTestFixture(t)
+	fixture.d = New(config, fixture.client, "/bundles/test/bundle1").WithCallback(fixture.oneShot)
+	fixture.server.longPoll = true
+	defer fixture.server.stop()
+
+	fixture.d.Start(ctx)
+
+	// Give time for some download events to occur
+	time.Sleep(3 * time.Second)
+
+	fixture.d.Stop(ctx)
+	if len(fixture.updates) == 0 {
+		t.Fatal("expected update but got none")
+	}
+
+	if *fixture.d.client.Config().ResponseHeaderTimeoutSeconds == 0 {
+		t.Fatal("expected non-zero value for response header timeout")
+	}
+}
+
 func TestStartStopWithLongPollSupported(t *testing.T) {
 	ctx := context.Background()
 
@@ -584,7 +620,6 @@ func TestDownloadLongPollNotModifiedOn304(t *testing.T) {
 	if resp.longPoll != fixture.d.longPollingEnabled {
 		t.Fatalf("Expected same value for longPoll and longPollingEnabled")
 	}
-
 }
 
 func TestOneShotLongPollingSwitch(t *testing.T) {
@@ -760,14 +795,20 @@ type testServer struct {
 func (t *testServer) handle(w http.ResponseWriter, r *http.Request) {
 
 	if t.longPoll {
+
+		var timeout time.Duration
+
 		wait := getPreferHeaderField(r, "wait")
-		timeout, err := strconv.Atoi(wait)
-		if err != nil {
-			panic(err)
+		if wait != "" {
+			waitTime, err := strconv.Atoi(wait)
+			if err != nil {
+				panic(err)
+			}
+			timeout = time.Duration(waitTime) * time.Second
 		}
 
 		// simulate long operation
-		time.Sleep(time.Duration(timeout) * time.Second)
+		time.Sleep(timeout)
 	}
 
 	if t.expCode != 0 {
