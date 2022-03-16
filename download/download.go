@@ -209,7 +209,7 @@ func (d *Downloader) loop(ctx context.Context) {
 		if err != nil {
 			delay = util.DefaultBackoff(float64(minRetryDelay), float64(*d.config.Polling.MaxDelaySeconds), retry)
 		} else {
-			if !d.longPollingEnabled {
+			if !d.longPollingEnabled || d.config.Polling.LongPollingTimeoutSeconds == nil {
 				// revert the response header timeout value on the http client's transport
 				if *d.client.Config().ResponseHeaderTimeoutSeconds == 0 {
 					d.client = d.client.SetResponseHeaderTimeout(&d.respHdrTimeoutSec)
