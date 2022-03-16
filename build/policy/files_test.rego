@@ -17,7 +17,12 @@ test_deny_logo_if_added_in_wrong_directory {
 }
 
 test_allow_logo_if_added_in_correct_directory {
-	count(deny) == 0 with input as [
+	integrations := yaml.marshal({"integrations": {"example": {
+		"title": "My test integration",
+		"description": "Testing",
+	}}})
+
+	count(deny) == 0 with data.files.integrations_file as integrations with input as [
 		{
 			"filename": "docs/website/data/integrations.yaml",
 			"status": "modified",
@@ -41,6 +46,48 @@ test_deny_logo_if_not_png_file {
 			"status": "added",
 		},
 	]
+}
+
+test_deny_logo_if_no_matching_integration {
+	integrations := yaml.marshal({"integrations": {"my-integration": {
+		"title": "My test integration",
+		"description": "Testing",
+	}}})
+
+	files := [
+		{
+			"filename": "docs/website/data/integrations.yaml",
+			"status": "modified",
+		},
+		{
+			"filename": "docs/website/static/img/logos/integrations/example.png",
+			"status": "added",
+		},
+	]
+
+	expected := "Logo name must match integration"
+
+	deny[expected] with data.files.integrations_file as integrations with input as files
+}
+
+test_allow_logo_if_no_matching_integration {
+	integrations := yaml.marshal({"integrations": {"my-integration": {
+		"title": "My test integration",
+		"description": "Testing",
+	}}})
+
+	files := [
+		{
+			"filename": "docs/website/data/integrations.yaml",
+			"status": "modified",
+		},
+		{
+			"filename": "docs/website/static/img/logos/integrations/my-integration.png",
+			"status": "added",
+		},
+	]
+
+	count(deny) == 0 with data.files.integrations_file as integrations with input as files
 }
 
 test_deny_integration_if_missing_required_attribute {

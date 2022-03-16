@@ -10,6 +10,8 @@ last_indexof(string, search) = i {
 	true
 }
 
+basename(filename) = substring(filename, last_indexof(filename, "/") + 1, count(filename) - 1)
+
 extension(filename) = substring(filename, last_indexof(filename, ".") + 1, count(filename) - 1)
 
 directory(filename) = substring(filename, 0, last_indexof(filename, "/"))
