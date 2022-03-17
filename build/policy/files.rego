@@ -9,6 +9,7 @@ package files
 
 import future.keywords.in
 
+import data.helpers.basename
 import data.helpers.directory
 import data.helpers.extension
 
@@ -46,6 +47,19 @@ deny["Logo must be a .png or .svg file"] {
 	changes[filename].status == "added"
 	directory(filename) == "docs/website/static/img/logos/integrations"
 	not extension(filename) in logo_exts
+}
+
+deny["Logo name must match integration"] {
+	"docs/website/data/integrations.yaml" in filenames
+
+	some filename in filenames
+	ext := extension(filename)
+	ext in logo_exts
+	changes[filename].status == "added"
+	logo_name := trim_suffix(basename(filename), concat("", [".", ext]))
+
+	integrations := {integration | some integration, _ in yaml.unmarshal(integrations_file).integrations}
+	not logo_name in integrations
 }
 
 deny[sprintf("Integration '%v' missing required attribute '%v'", [name, attr])] {
