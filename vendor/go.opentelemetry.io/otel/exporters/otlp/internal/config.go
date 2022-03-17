@@ -12,9 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package otel // import "go.opentelemetry.io/otel"
+// Package internal contains common functionality for all OTLP exporters.
+package internal // import "go.opentelemetry.io/otel/exporters/otlp/internal"
 
-// Version is the current release version of OpenTelemetry in use.
-func Version() string {
-	return "1.5.0"
+import (
+	"fmt"
+	"path"
+	"strings"
+)
+
+// CleanPath returns a path with all spaces trimmed and all redundancies removed. If urlPath is empty or cleaning it results in an empty string, defaultPath is returned instead.
+func CleanPath(urlPath string, defaultPath string) string {
+	tmp := path.Clean(strings.TrimSpace(urlPath))
+	if tmp == "." {
+		return defaultPath
+	}
+	if !path.IsAbs(tmp) {
+		tmp = fmt.Sprintf("/%s", tmp)
+	}
+	return tmp
 }
