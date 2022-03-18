@@ -1124,6 +1124,48 @@ integrations:
     code:
       - https://github.com/nsmith5/rekor-sidekick
 
+  open-policy-registry:
+    title: Open Policy Registry
+    description:  |
+      The Open Policy Registry project provides a docker workflow for OPA policies. The policy CLI can be used to build, tag, sign, push, and pull OPA policies as OCIv2 container images, 
+      in conjunction with any container registry. The Open Policy Registry (OPCR) is a reference implementation of a policy registry, built and hosted on GCP. 
+    labels:
+      category: containers
+      layer: application
+    inventors:
+      - aserto
+    software:
+      - open-policy-registry
+    code:
+      - https://github.com/opcr-io/policy
+    tutorials:
+      - https://www.openpolicyregistry.io/docs/tutorial
+    blogs:
+      - https://www.openpolicyregistry.io/blog/docker-workflow-for-opa
+
+  aserto:
+    title: Aserto
+    description:  |
+      Aserto is a cloud-native authorization service that makes it easy to add permissions and RBAC to your SaaS application. 
+      Aserto is based on the Open Policy Agent.
+    labels:
+      category: authorization
+      layer: application
+      type: poweredbyopa
+    inventors:
+      - aserto
+    software:
+      - aserto
+    code:
+      - https://github.com/aserto-dev
+    tutorials:
+      - https://docs.aserto.com/docs/
+    blogs:
+      - https://www.aserto.com/blog/how-do-aserto-rego-policies-work
+      - https://www.aserto.com/blog/testing-rego-policies
+      - https://www.aserto.com/blog/aserto-on-aserto-an-opa-authorization-policy-for-aserto-tenants
+      - https://www.aserto.com/blog/rego-getting-started
+
 organizations:
   styra:
     name: Styra
@@ -1257,6 +1299,9 @@ organizations:
   i2:
     name: Independent Identity
     link: https://www.independentid.com
+  aserto:
+    name: Aserto
+    link: https://www.aserto.com
 
 software:
   dapr:
@@ -1442,3 +1487,9 @@ software:
   rekor:
     name: rekor
     link: https://github.com/sigstore/rekor
+  open-policy-registry:
+    name: Open Policy Registry
+    link: https://github.com/opcr-io/policy
+  aserto:
+    name: Aserto
+    link: https://www.aserto.com
