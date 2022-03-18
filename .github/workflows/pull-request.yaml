@@ -280,20 +280,25 @@ jobs:
         working-directory: npm-opa-wasm
 
   go-version-build:
-    name: Go compat builds
-    runs-on: ubuntu-latest
+    name: Go compat build/test
+    needs: generate
+    runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
-        include:
-          - version: "1.16"
-          - version: "1.15"
+        os: [ubuntu-18.04, macos-latest]
+        version: ["1.17", "1.16"]
     steps:
-      - name: Check out code
-        uses: actions/checkout@v3
-
-      - name: Build
-        run: make ci-go-ci-build-linux GOVERSION=${{ matrix.version }}
-        timeout-minutes: 30
+      - uses: actions/checkout@v3
+      - name: Download generated artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: generated
+      - uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.version }}
+      - run: make build
+      - run: make go-test
 
   # Run PR metadata against Rego policies
   rego-check-pr:

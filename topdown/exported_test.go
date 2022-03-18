@@ -2,6 +2,13 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
+// NOTE(sr): x509-related errors that we assert in the exported tests looked different
+// before go1.17. Since they are still (non-strict) errors in both cases, we'll skip
+// running the exported tests on go1.16.
+// This can be removed when we drop support for go 1.16.
+//go:build !go1.16
+// +build !go1.16
+
 package topdown
 
 import (

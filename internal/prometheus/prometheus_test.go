@@ -2,6 +2,11 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
+// NOTE(sr): Different go runtime metrics on 1.16.
+// This can be removed when we drop support for go 1.16.
+//go:build !go1.16
+// +build !go1.16
+
 package prometheus
 
 import (
