@@ -80,6 +80,14 @@ using the non-extended version:
 error: failed to transform resource: TOCSS: failed to transform "sass/style.sass" (text/x-sass): this feature is not available in your current Hugo version
 ```
 
+Please also note that the current version of Hugo (e.g. installed with `brew install hugo`) is 
+not compatible with the docs. If you get errors like this, it means that you're using the 
+wrong version:
+
+```
+ERROR ... execute of template failed: template: partials/docs/sidenav.html:11:18: executing "partials/docs/sidenav.html" at <.URL>: can't evaluate field URL in type *hugolib.pageState
+```
+
 #### Remote Preview on Netlify
 
 This option provides the best preview of the site content, using the exact same infrastructure as the production website.
