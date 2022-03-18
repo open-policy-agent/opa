@@ -57,7 +57,7 @@ BIN := opa_$(GOOS)_$(GOARCH)
 # Optional external configuration useful for forks of OPA
 DOCKER_IMAGE ?= openpolicyagent/opa
 S3_RELEASE_BUCKET ?= opa-releases
-FUZZ_TIME ?= 3600  # 1hr
+FUZZ_TIME ?= 1h
 TELEMETRY_URL ?= #Default empty
 
 BUILD_COMMIT := $(shell ./build/get-build-commit.sh)
@@ -166,7 +166,8 @@ clean: wasm-lib-clean
 
 .PHONY: fuzz
 fuzz:
-	$(MAKE) -C ./build/fuzzer all
+	go test ./ast -fuzz FuzzParseStatementsAndCompileModules -fuzztime ${FUZZ_TIME} -v -run '^$$'
+
 
 ######################################################
 #
@@ -452,9 +453,9 @@ netlify-prod: clean docs-clean build docs-production-build
 .PHONY: netlify-preview
 netlify-preview: clean docs-clean build docs-live-blocks-install-deps docs-live-blocks-test docs-dev-generate docs-preview-build
 
+# Kept for compatibility. Use `make fuzz` instead.
 .PHONY: check-fuzz
-check-fuzz:
-	./build/check-fuzz.sh $(FUZZ_TIME)
+check-fuzz: fuzz
 
 # GOPRIVATE=* causes go to fetch all dependencies from their corresponding VCS
 # source, not through the golang-provided proxy services. We're cleaning out

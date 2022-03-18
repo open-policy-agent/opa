@@ -1,1 +1,0 @@
-p = [x, y, z] { is_string("Hello", x); is_string("There", y); is_string("OPA", z) }
