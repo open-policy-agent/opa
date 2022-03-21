@@ -112,6 +112,7 @@ type Compiler struct {
 	inputType             types.Type                    // global input type retrieved from schema set
 	annotationSet         *AnnotationSet                // hierarchical set of annotations
 	strict                bool                          // enforce strict compilation checks
+	selfUsage             map[string]bool
 }
 
 // CompilerStage defines the interface for stages in the compiler.
@@ -248,6 +249,7 @@ func NewCompiler() *Compiler {
 		deprecatedBuiltinsMap: map[string]struct{}{},
 		comprehensionIndices:  map[*Term]*ComprehensionIndex{},
 		debug:                 debug.Discard(),
+		selfUsage:             map[string]bool{},
 	}
 
 	c.ModuleTree = NewModuleTree(nil)
@@ -260,6 +262,7 @@ func NewCompiler() *Compiler {
 	}{
 		{"CheckDuplicateImports", "compile_stage_check_duplicate_imports", c.checkDuplicateImports},
 		{"CheckKeywordOverrides", "compile_stage_check_keyword_overrides", c.checkKeywordOverrides},
+		{"SetSelfUsage", "compile_stage_set_self_usage", c.setSelfUsage},
 		// Reference resolution should run first as it may be used to lazily
 		// load additional modules. If any stages run before resolution, they
 		// need to be re-run after resolution.
@@ -274,6 +277,8 @@ func NewCompiler() *Compiler {
 		{"CheckVoidCalls", "compile_stage_check_void_calls", c.checkVoidCalls},
 		{"RewritePrintCalls", "compile_stage_rewrite_print_calls", c.rewritePrintCalls},
 		{"RewriteExprTerms", "compile_stage_rewrite_expr_terms", c.rewriteExprTerms},
+		{"SetAnnotationSet", "compile_stage_set_annotationset", c.setAnnotationSet},
+		{"RewriteSelfCalls", "compile_stage_rewrite_self_calls", c.rewriteSelfCalls},
 		{"SetGraph", "compile_stage_set_graph", c.setGraph},
 		{"RewriteComprehensionTerms", "compile_stage_rewrite_comprehension_terms", c.rewriteComprehensionTerms},
 		{"RewriteRefsInHead", "compile_stage_rewrite_refs_in_head", c.rewriteRefsInHead},
@@ -285,7 +290,6 @@ func NewCompiler() *Compiler {
 		{"RewriteEquals", "compile_stage_rewrite_equals", c.rewriteEquals},
 		{"RewriteDynamicTerms", "compile_stage_rewrite_dynamic_terms", c.rewriteDynamicTerms},
 		{"CheckRecursion", "compile_stage_check_recursion", c.checkRecursion},
-		{"SetAnnotationSet", "compile_stage_set_annotationset", c.setAnnotationSet},
 		{"CheckTypes", "compile_stage_check_types", c.checkTypes}, // must be run after CheckRecursion
 		{"CheckUnsafeBuiltins", "compile_state_check_unsafe_builtins", c.checkUnsafeBuiltins},
 		{"CheckDeprecatedBuiltins", "compile_state_check_deprecated_builtins", c.checkDeprecatedBuiltins},
@@ -1726,6 +1730,201 @@ func (c *Compiler) rewriteDynamicTerms() {
 			return false
 		})
 	}
+}
+
+func (c *Compiler) setSelfUsage() {
+	for name, mod := range c.Modules {
+		c.selfUsage[name] = false
+		for _, imp := range mod.Imports {
+			if isSelfImport(imp) {
+				c.selfUsage[name] = true
+				break
+			}
+		}
+	}
+}
+
+func (c *Compiler) rewriteSelfCalls() {
+	for _, name := range c.sorted {
+		mod := c.Modules[name]
+		gen := c.localvargen
+
+		// Early exit if self keyword not explicitly imported
+		if !c.selfUsage[name] {
+			continue
+		}
+
+		WalkRules(mod, func(rule *Rule) bool {
+			var selfMetadataChainCalled bool
+			var selfMetadataRuleCalled bool
+
+			WalkExprs(rule, func(expr *Expr) bool {
+				if isSelfMetadataChainCall(expr) {
+					selfMetadataChainCalled = true
+				} else if isSelfMetadataRuleCall(expr) {
+					selfMetadataRuleCalled = true
+				}
+				return selfMetadataChainCalled && selfMetadataRuleCalled
+			})
+
+			if selfMetadataChainCalled || selfMetadataRuleCalled {
+				body := make(Body, 0, len(rule.Body)+2)
+
+				var metadataChainVar Var
+				if selfMetadataChainCalled {
+					// Create and inject metadata chain for rule
+
+					chain, err := createMetadataChain(c.annotationSet.Chain(rule))
+					if err != nil {
+						c.err(err)
+						return false
+					}
+
+					metadataChainVar = gen.Generate()
+					metadataChain := Equality.Expr(
+						NewTerm(metadataChainVar),
+						chain,
+					)
+					metadataChain.Generated = true
+					body.Append(metadataChain)
+				}
+
+				var metadataRuleVar Var
+				if selfMetadataRuleCalled {
+					// Create and inject metadata for rule
+
+					var metadataRuleTerm *Term
+
+					a := getPrimaryRuleAnnotations(c.annotationSet, rule)
+					if a != nil {
+						annotObj, err := a.toObject()
+						if err != nil {
+							c.err(err)
+							return false
+						}
+						metadataRuleTerm = NewTerm(*annotObj)
+					} else {
+						// If rule has no annotations, assign an empty object
+						metadataRuleTerm = ObjectTerm()
+					}
+
+					metadataRuleVar = gen.Generate()
+					metadataRule := Equality.Expr(
+						NewTerm(metadataRuleVar),
+						metadataRuleTerm,
+					)
+					metadataRule.Generated = true
+					body.Append(metadataRule)
+				}
+
+				for _, expr := range rule.Body {
+					body.Append(expr)
+				}
+				rule.Body = body
+
+				vis := func(b Body) bool {
+					for _, err := range rewriteSelfCalls(metadataChainVar, metadataRuleVar, b) {
+						c.err(err)
+					}
+					return false
+				}
+				WalkBodies(rule.Head, vis)
+				WalkBodies(rule.Body, vis)
+			}
+
+			return false
+		})
+	}
+}
+
+func getPrimaryRuleAnnotations(as *AnnotationSet, rule *Rule) *Annotations {
+	annots := as.GetRuleScope(rule)
+
+	if len(annots) == 0 {
+		return nil
+	}
+
+	if len(annots) > 1 {
+		// Sort by annotation location; chain must start with annotations declared closest to rule, then going outward
+		sort.SliceStable(annots, func(i, j int) bool {
+			return annots[i].Location.Compare(annots[j].Location) > 0
+		})
+	}
+
+	return annots[0]
+}
+
+func rewriteSelfCalls(metadataChainVar Var, metadataRuleVar Var, body Body) Errors {
+	var errs Errors
+
+	WalkClosures(body, func(x interface{}) bool {
+		switch x := x.(type) {
+		case *ArrayComprehension:
+			errs = rewriteSelfCalls(metadataChainVar, metadataRuleVar, x.Body)
+		case *SetComprehension:
+			errs = rewriteSelfCalls(metadataChainVar, metadataRuleVar, x.Body)
+		case *ObjectComprehension:
+			errs = rewriteSelfCalls(metadataChainVar, metadataRuleVar, x.Body)
+		case *Every:
+			errs = rewriteSelfCalls(metadataChainVar, metadataRuleVar, x.Body)
+		}
+		return true
+	})
+
+	for i := range body {
+		expr := body[i]
+		var metadataTerm *Term
+
+		if isSelfMetadataChainCall(expr) {
+			metadataTerm = NewTerm(metadataChainVar)
+		} else if isSelfMetadataRuleCall(expr) {
+			metadataTerm = NewTerm(metadataRuleVar)
+		} else {
+			continue
+		}
+
+		// NOTE(johanfylling): An alternative strategy would be to walk the body and replace all operands[0] usages with *metadataChainVar
+		operands := expr.Operands()
+		// FIXME: Should this be an assignment?
+		newExpr := Equality.Expr(operands[0], metadataTerm)
+		newExpr.Generated = true
+		body.Set(newExpr, i)
+	}
+
+	return errs
+}
+
+var selfMetadataChainRef = Ref{VarTerm("self"), StringTerm("metadata"), StringTerm("chain")}
+var selfMetadataRuleRef = Ref{VarTerm("self"), StringTerm("metadata"), StringTerm("rule")}
+
+func isSelfMetadataChainCall(x *Expr) bool {
+	return x.IsCall() && x.Operator().Equal(selfMetadataChainRef)
+}
+
+func isSelfMetadataRuleCall(x *Expr) bool {
+	return x.IsCall() && x.Operator().Equal(selfMetadataRuleRef)
+}
+
+func createMetadataChain(chain []*AnnotationsRef) (*Term, *Error) {
+
+	metaArray := NewArray()
+	for _, link := range chain {
+		p := link.Path.toArray().
+			Slice(1, -1) // Dropping leading 'data' element of path
+		obj := NewObject(
+			Item(StringTerm("path"), NewTerm(p)),
+		)
+		if link.Annotations != nil {
+			annotObj, err := link.Annotations.toObject()
+			if err != nil {
+				return nil, err
+			}
+			obj.Insert(StringTerm("annotations"), NewTerm(*annotObj))
+		}
+		metaArray = metaArray.Append(NewTerm(obj))
+	}
+
+	return NewTerm(metaArray), nil
 }
 
 func (c *Compiler) rewriteLocalVars() {
@@ -3288,10 +3487,18 @@ func getGlobals(pkg *Package, rules []Var, imports []*Import) map[Var]*usedRef {
 
 	// Populate globals with imports.
 	for _, i := range imports {
+		if isSelfImport(i) {
+			continue
+		}
 		globals[i.Name()] = &usedRef{ref: i.Path.Value.(Ref)}
 	}
 
 	return globals
+}
+
+func isSelfImport(imp *Import) bool {
+	path := imp.Path.Value.(Ref)
+	return len(path) == 2 && path[0].Value.(Var) == "future" && path[1].Value.(String) == "self"
 }
 
 func requiresEval(x *Term) bool {

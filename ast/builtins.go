@@ -265,6 +265,10 @@ var DefaultBuiltins = [...]*Builtin{
 	// Printing
 	Print,
 	InternalPrint,
+
+	// Self
+	SelfMetadataChain,
+	SelfMetadataRule,
 }
 
 // BuiltinMap provides a convenient mapping of built-in names to
@@ -399,6 +403,28 @@ var Equal = &Builtin{
 	Decl: types.NewFunction(
 		types.Args(types.A, types.A),
 		types.B,
+	),
+}
+
+/**
+ * Self
+ */
+
+// SelfMetadataChain returns the chain of metadata for the active rule
+var SelfMetadataChain = &Builtin{
+	Name: "self.metadata.chain",
+	Decl: types.NewFunction(
+		types.Args(),
+		types.NewArray(nil, types.A),
+	),
+}
+
+// SelfMetadataRule returns the metadata for the active rule
+var SelfMetadataRule = &Builtin{
+	Name: "self.metadata.rule",
+	Decl: types.NewFunction(
+		types.Args(),
+		types.A,
 	),
 }
 

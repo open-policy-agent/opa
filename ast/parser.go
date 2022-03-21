@@ -343,7 +343,20 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 		break
 	}
 
-	if p.po.ProcessAnnotation {
+	selfImported := false
+	// Only look for self imports if necessary
+	if !p.po.ProcessAnnotation {
+		for i := 0; i < len(stmts) && !selfImported; i++ {
+			switch stmt := stmts[i].(type) {
+			case *Import:
+				if isSelfImport(stmt) {
+					selfImported = true
+				}
+			}
+		}
+	}
+
+	if selfImported || p.po.ProcessAnnotation {
 		stmts = p.parseAnnotations(stmts)
 	}
 
@@ -2246,13 +2259,13 @@ var futureKeywords = map[string]tokens.Token{
 func (p *Parser) futureImport(imp *Import, allowedFutureKeywords map[string]tokens.Token) {
 	path := imp.Path.Value.(Ref)
 
-	if len(path) == 1 || !path[1].Equal(StringTerm("keywords")) {
-		p.errorf(imp.Path.Location, "invalid import, must be `future.keywords`")
+	if len(path) == 1 || !path[1].Equal(StringTerm("keywords")) && !path[1].Equal(StringTerm("self")) {
+		p.errorf(imp.Path.Location, "invalid import, must be `future.keywords` or `future.self`")
 		return
 	}
 
 	if imp.Alias != "" {
-		p.errorf(imp.Path.Location, "future keyword imports cannot be aliased")
+		p.errorf(imp.Path.Location, "`future` imports cannot be aliased")
 		return
 	}
 
@@ -2262,7 +2275,10 @@ func (p *Parser) futureImport(imp *Import, allowedFutureKeywords map[string]toke
 	}
 
 	switch len(path) {
-	case 2: // all keywords imported, nothing to do
+	case 2: // self or all keywords imported
+		if path[1].Equal(StringTerm("self")) {
+			return
+		}
 	case 3: // one keyword imported
 		kw, ok := path[2].Value.(String)
 		if !ok {

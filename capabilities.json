@@ -2934,6 +2934,27 @@
       }
     },
     {
+      "name": "self.metadata.chain",
+      "decl": {
+        "result": {
+          "dynamic": {
+            "type": "any"
+          },
+          "type": "array"
+        },
+        "type": "function"
+      }
+    },
+    {
+      "name": "self.metadata.rule",
+      "decl": {
+        "result": {
+          "type": "any"
+        },
+        "type": "function"
+      }
+    },
+    {
       "name": "semver.compare",
       "decl": {
         "args": [

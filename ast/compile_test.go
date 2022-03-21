@@ -2335,6 +2335,284 @@ elsekw {
 	assertRulesEqual(t, rule5, expected5)
 }
 
+func TestCompilerRewriteSelfCalls(t *testing.T) {
+	tests := []struct {
+		note   string
+		module string
+		exp    string
+	}{
+		{
+			note: "self not imported",
+			module: `package test
+
+p {
+	self.metadata.chain() == "foo"
+	self.metadata.rule() == "bar"
+}`,
+			exp: `package test
+				
+p = true { 
+	self.metadata.chain(__local0__) 
+	equal(__local0__, "foo")
+	self.metadata.rule(__local1__)
+	equal(__local1__, "bar")
+}`,
+		},
+		{
+			note: "self imported but not used",
+			module: `package test
+import future.self
+
+p {
+	1 != 2
+}`,
+			exp: `package test
+
+p = true { 
+	neq(1, 2)
+}`,
+		},
+		{
+			note: "self imported and accessed, no metadata",
+			module: `package test
+import future.self
+
+p {
+	self.metadata.chain()[0].path == ["test", "p"]
+	self.metadata.rule() == {}
+}`,
+			exp: `package test
+
+p = true { 
+	__local2__ = [{"path": ["test", "p"]}]
+	__local3__ = {}
+	__local0__ = __local2__
+	equal(__local0__[0].path, ["test", "p"])
+	__local1__ = __local3__
+	equal(__local1__, {}) 
+}`,
+		},
+		{
+			note: "self imported and accessed, with metadata",
+			module: `# METADATA
+# description: A test package
+package test
+
+import future.self
+
+# METADATA
+# title: My P Rule
+p {
+	self.metadata.chain()[0].title == "My P Rule"
+	self.metadata.chain()[1].description == "A test package"
+}
+
+# METADATA
+# title: My Other P Rule
+p {
+	self.metadata.rule().title == "My Other P Rule"
+}`,
+			exp: `# METADATA
+# {"scope":"package","description":"A test package"}
+package test
+
+# METADATA
+# {"scope":"rule","title":"My P Rule"}
+p = true { 
+	__local3__ = [
+		{"annotations": {"scope": "rule", "title": "My P Rule"}, "path": ["test", "p"]}, 
+		{"annotations": {"description": "A test package", "scope": "package"}, "path": ["test"]}
+	]
+	__local0__ = __local3__
+	equal(__local0__[0].title, "My P Rule")
+	__local1__ = __local3__
+	equal(__local1__[1].description, "A test package") 
+}
+
+# METADATA
+# {"scope":"rule","title":"My Other P Rule"}
+p = true { 
+	__local4__ = {"scope": "rule", "title": "My Other P Rule"}
+	__local2__ = __local4__
+	equal(__local2__.title, "My Other P Rule")
+}`,
+		},
+		{
+			note: "self referenced multiple times",
+			module: `# METADATA
+# description: TEST
+package test
+
+import future.self
+
+p {
+	self.metadata.chain()[0].path == ["test", "p"]
+	self.metadata.chain()[1].path == ["test"]
+}`,
+			exp: `# METADATA
+# {"scope":"package","description":"TEST"}
+package test
+
+p = true { 
+	__local2__ = [
+		{"path": ["test", "p"]}, 
+		{"annotations": {"description": "TEST", "scope": "package"}, "path": ["test"]}
+	]
+	__local0__ = __local2__
+	equal(__local0__[0].path, ["test", "p"])
+	__local1__ = __local2__
+	equal(__local1__[1].path, ["test"]) }`,
+		},
+		{
+			note: "self return value",
+			module: `package test
+import future.self
+
+p := self.metadata.chain()`,
+			exp: `package test
+
+p := __local0__ { 
+	__local1__ = [{"path": ["test", "p"]}]
+	true
+	__local0__ = __local1__ 
+}`,
+		},
+		{
+			note: "self argument in function call",
+			module: `package test
+import future.self
+
+p {
+	q(self.metadata.chain())
+}
+
+q(s) {
+	s == ["test", "p"]
+}`,
+			exp: `package test
+
+p = true { 
+	__local2__ = [{"path": ["test", "p"]}]
+	__local1__ = __local2__
+	data.test.q(__local1__) 
+}
+
+q(__local0__) = true { 
+	equal(__local0__, ["test", "p"]) 
+}`,
+		},
+		{
+			note: "self used in array comprehension",
+			module: `package test
+import future.self
+
+p = [x | x := self.metadata.chain()]`,
+			exp: `package test
+
+p = [__local0__ | __local1__ = __local2__; __local0__ = __local1__] { 
+	__local2__ = [{"path": ["test", "p"]}]
+	true 
+}`,
+		},
+		{
+			note: "self used in nested array comprehension",
+			module: `package test
+import future.self
+
+p {
+	y := [x | x := self.metadata.chain()]
+	y[0].path == ["test", "p"]
+}`,
+			exp: `package test
+
+p = true { 
+	__local3__ = [{"path": ["test", "p"]}]; 
+	__local1__ = [__local0__ | __local2__ = __local3__; __local0__ = __local2__]; 
+	equal(__local1__[0].path, ["test", "p"]) 
+}`,
+		},
+		{
+			note: "self used in set comprehension",
+			module: `package test
+import future.self
+
+p = {x | x := self.metadata.chain()}`,
+			exp: `package test
+
+p = {__local0__ | __local1__ = __local2__; __local0__ = __local1__} { 
+	__local2__ = [{"path": ["test", "p"]}]
+	true 
+}`,
+		},
+		{
+			note: "self used in nested set comprehension",
+			module: `package test
+import future.self
+
+p {
+	y := {x | x := self.metadata.chain()}
+	y[0].path == ["test", "p"]
+}`,
+			exp: `package test
+
+p = true { 
+	__local3__ = [{"path": ["test", "p"]}]
+	__local1__ = {__local0__ | __local2__ = __local3__; __local0__ = __local2__}
+	equal(__local1__[0].path, ["test", "p"]) 
+}`,
+		},
+		{
+			note: "self used in object comprehension",
+			module: `package test
+import future.self
+
+p = {i: x | x := self.metadata.chain()[i]}`,
+			exp: `package test
+
+p = {i: __local0__ | __local1__ = __local2__; __local0__ = __local1__[i]} { 
+	__local2__ = [{"path": ["test", "p"]}]
+	true 
+}`,
+		},
+		{
+			note: "self used in nested object comprehension",
+			module: `package test
+import future.self
+
+p {
+	y := {i: x | x := self.metadata.chain()[i]}
+	y[0].path == ["test", "p"]
+}`,
+			exp: `package test
+
+p = true { 
+	__local3__ = [{"path": ["test", "p"]}]
+	__local1__ = {i: __local0__ | __local2__ = __local3__; __local0__ = __local2__[i]}
+	equal(__local1__[0].path, ["test", "p"]) 
+}`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			c := NewCompiler()
+			c.Modules = map[string]*Module{
+				"test.rego": MustParseModuleWithOpts(tc.module, ParserOptions{ProcessAnnotation: true}),
+			}
+			compileStages(c, c.rewriteSelfCalls)
+			//compileStages(c, nil)
+			assertNotFailed(t, c)
+
+			result := c.Modules["test.rego"]
+			exp := MustParseModuleWithOpts(tc.exp, ParserOptions{ProcessAnnotation: true})
+
+			if result.Compare(exp) != 0 {
+				t.Fatalf("\nExpected:\n\n%v\n\nGot:\n\n%v", exp, result)
+			}
+		})
+	}
+}
+
 func TestCompilerRewriteLocalAssignments(t *testing.T) {
 
 	tests := []struct {
