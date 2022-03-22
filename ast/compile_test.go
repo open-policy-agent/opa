@@ -3710,7 +3710,7 @@ func TestCompilerRewriteWithValue(t *testing.T) {
 		{
 			note:    "invalid target",
 			input:   `p { true with foo.q as 1 }`,
-			wantErr: fmt.Errorf("rego_type_error: with keyword target must start with input or data"),
+			wantErr: fmt.Errorf("rego_type_error: with keyword target must reference existing input or data"),
 		},
 	}
 
@@ -5786,7 +5786,7 @@ func TestQueryCompiler(t *testing.T) {
 			q:        "x = 1 with foo.p as null",
 			pkg:      "",
 			imports:  nil,
-			expected: fmt.Errorf("1 error occurred: 1:12: rego_type_error: with keyword target must start with input or data"),
+			expected: fmt.Errorf("1 error occurred: 1:12: rego_type_error: with keyword target must reference existing input or data"),
 		},
 		{
 			note:     "rewrite with value",

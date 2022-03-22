@@ -4615,7 +4615,7 @@ func rewriteWithModifier(c *Compiler, f *equalityFactory, expr *Expr) ([]*Expr, 
 
 func validateTarget(c *Compiler, term *Term) *Error {
 	if !isInputRef(term) && !isDataRef(term) {
-		return NewError(TypeErr, term.Location, "with keyword target must start with %v or %v", InputRootDocument, DefaultRootDocument)
+		return NewError(TypeErr, term.Location, "with keyword target must reference existing %v or %v", InputRootDocument, DefaultRootDocument)
 	}
 
 	if isDataRef(term) {
