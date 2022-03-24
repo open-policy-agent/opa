@@ -149,6 +149,24 @@ type DataResponseV1 struct {
 	Explanation TraceV1       `json:"explanation,omitempty"`
 	Metrics     MetricsV1     `json:"metrics,omitempty"`
 	Result      *interface{}  `json:"result,omitempty"`
+	Warning     *Warning      `json:"warning,omitempty"`
+}
+
+// Warning models DataResponse warnings
+type Warning struct {
+	Code    string `json:"code,omitempty"`
+	Message string `json:"message,omitempty"`
+}
+
+// Warning Codes
+const CodeAPIUsageWarn = "api_usage_warning"
+
+// Warning Messages
+const MsgInputKeyMissing = "'input' key missing from the request"
+
+// NewWarning returns a new Warning object
+func NewWarning(code, message string) *Warning {
+	return &Warning{Code: code, Message: message}
 }
 
 // MetricsV1 models a collection of performance metrics.
