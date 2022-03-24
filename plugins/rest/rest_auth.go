@@ -155,15 +155,17 @@ type tokenEndpointResponse struct {
 // oauth2ClientCredentialsAuthPlugin represents authentication via a bearer token in the HTTP Authorization header
 // obtained through the OAuth2 client credentials flow
 type oauth2ClientCredentialsAuthPlugin struct {
-	GrantType    string                 `json:"grant_type"`
-	TokenURL     string                 `json:"token_url"`
-	ClientID     string                 `json:"client_id"`
-	ClientSecret string                 `json:"client_secret"`
-	SigningKeyID string                 `json:"signing_key"`
-	Thumbprint   string                 `json:"thumbprint"`
-	Claims       map[string]interface{} `json:"additional_claims"`
-	IncludeJti   bool                   `json:"include_jti_claim"`
-	Scopes       []string               `json:"scopes,omitempty"`
+	GrantType            string                 `json:"grant_type"`
+	TokenURL             string                 `json:"token_url"`
+	ClientID             string                 `json:"client_id"`
+	ClientSecret         string                 `json:"client_secret"`
+	SigningKeyID         string                 `json:"signing_key"`
+	Thumbprint           string                 `json:"thumbprint"`
+	Claims               map[string]interface{} `json:"additional_claims"`
+	IncludeJti           bool                   `json:"include_jti_claim"`
+	Scopes               []string               `json:"scopes,omitempty"`
+	AdditionalHeaders    map[string]string      `json:"additional_headers,omitempty"`
+	AdditionalParameters map[string]string      `json:"additional_parameters,omitempty"`
 
 	signingKey       *keys.Config
 	signingKeyParsed interface{}
@@ -328,6 +330,10 @@ func (ap *oauth2ClientCredentialsAuthPlugin) requestToken() (*oauth2Token, error
 		body.Add("scope", strings.Join(ap.Scopes, " "))
 	}
 
+	for k, v := range ap.AdditionalParameters {
+		body.Set(k, v)
+	}
+
 	r, err := http.NewRequest("POST", ap.TokenURL, strings.NewReader(body.Encode()))
 	if err != nil {
 		return nil, err
@@ -336,6 +342,10 @@ func (ap *oauth2ClientCredentialsAuthPlugin) requestToken() (*oauth2Token, error
 
 	if ap.GrantType == grantTypeClientCredentials && ap.ClientSecret != "" {
 		r.SetBasicAuth(ap.ClientID, ap.ClientSecret)
+	}
+
+	for k, v := range ap.AdditionalHeaders {
+		r.Header.Add(k, v)
 	}
 
 	client := DefaultRoundTripperClient(&tls.Config{InsecureSkipVerify: ap.tlsSkipVerify}, 10)

@@ -1198,6 +1198,20 @@ func TestOauth2ClientCredentials(t *testing.T) {
 				c.Credentials.OAuth2.Scopes = []string{"read", "opa"}
 			},
 		},
+		{
+			ts:  &testServer{t: t},
+			ots: &oauth2TestServer{t: t, expHeaders: map[string]string{"x-custom-header": "custom-value"}},
+			options: func(c *Config) {
+				c.Credentials.OAuth2.AdditionalHeaders = map[string]string{"x-custom-header": "custom-value"}
+			},
+		},
+		{
+			ts:  &testServer{t: t},
+			ots: &oauth2TestServer{t: t, expBody: map[string]string{"custom_field": "custom-value"}},
+			options: func(c *Config) {
+				c.Credentials.OAuth2.AdditionalParameters = map[string]string{"custom_field": "custom-value"}
+			},
+		},
 	}
 
 	for _, tc := range tests {
@@ -1552,6 +1566,8 @@ type oauth2TestServer struct {
 	expGrantType     string
 	expClientID      string
 	expClientSecret  string
+	expHeaders       map[string]string
+	expBody          map[string]string
 	expJwtCredential bool
 	expScope         *[]string
 	expAlgorithm     jwa.SignatureAlgorithm
@@ -1705,6 +1721,18 @@ func (t *oauth2TestServer) handle(w http.ResponseWriter, r *http.Request) {
 	}
 	if r.Form["grant_type"][0] != t.expGrantType {
 		t.t.Fatalf("Expected grant_type=%v", t.expGrantType)
+	}
+
+	for k, v := range t.expBody {
+		if r.Form[k][0] != v {
+			t.t.Fatalf("Expected header %s=%s got %s", k, v, r.Form[k][0])
+		}
+	}
+
+	for k, v := range t.expHeaders {
+		if r.Header.Get(k) != v {
+			t.t.Fatalf("Expected header %s=%s got %s", k, v, r.Header.Get(k))
+		}
 	}
 
 	if len(r.Form["scope"]) > 0 {
