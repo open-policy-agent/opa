@@ -492,10 +492,12 @@ patch.json
 Below is an example of the `patch.json` file:
 
 ```json
-[
-  {"op": "upsert", "path": "/a/b", "value": ["hello", "world"]},
-  {"op": "remove", "path": "/a/c"}
-]
+{
+  "data": [
+    {"op": "upsert", "path": "/a/b", "value": ["hello", "world"]},
+    {"op": "remove", "path": "/a/c"}
+  ]
+}
 ```
 
 A _delta_ bundle update for an existing _snapshot_ bundle, MUST have the same values for the manifest `roots` and `wasm`
