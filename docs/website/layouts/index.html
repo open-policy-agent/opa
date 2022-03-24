@@ -1,4 +1,8 @@
 {{ define "main" }}
+{{- $latest := "latest" -}}
+{{- if eq (len site.Data.releases) 1 -}}
+{{- $latest = "edge" -}}
+{{- end -}}
   <!doctype html>
   <html lang="en">
 
@@ -35,13 +39,13 @@
 
           <ul class="navbar-nav">
             <li class="nav-item">
-              <a class="nav-link" href="./docs/latest/">Documentation </a>
+              <a class="nav-link" href="./docs/{{ $latest }}/">Documentation </a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" href="./docs/latest/#running-opa">Download </a>
+              <a class="nav-link" href="./docs/{{ $latest }}/#running-opa">Download </a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" href="./docs/latest/ecosystem/">Ecosystem </a>
+              <a class="nav-link" href="./docs/{{ $latest }}/ecosystem/">Ecosystem </a>
             </li>
             <li class="nav-item">
               <a class="nav-link" href="./support">Support</a>
@@ -1421,14 +1425,14 @@ allowed_pets[pet] {
         <div class="col-12 mt-2">
           <div class="mt-4" style="font-weight:600"><label>Learn More</label></div>
           <div class="mt-2">
-            <a href="./docs/latest/kubernetes-introduction/" class="btn more-link btn-primary"
+            <a href="./docs/{{ $latest }}/kubernetes-introduction/" class="btn more-link btn-primary"
               target="_blank">Kubernetes</a>
-            <a href="./docs/latest/envoy-introduction/" class="btn btn-primary more-link" target="_blank">Envoy</a>
-            <a href="./docs/latest/terraform/" class="btn more-link btn-primary" target="_blank">Terraform</a>
-            <a href="./docs/latest/kafka-authorization/" class="btn more-link btn-primary" target="_blank">Kafka</a>
+            <a href="./docs/{{ $latest }}/envoy-introduction/" class="btn btn-primary more-link" target="_blank">Envoy</a>
+            <a href="./docs/{{ $latest }}/terraform/" class="btn more-link btn-primary" target="_blank">Terraform</a>
+            <a href="./docs/{{ $latest }}/kafka-authorization/" class="btn more-link btn-primary" target="_blank">Kafka</a>
             <a href="https://blog.openpolicyagent.org/write-policy-in-opa-enforce-policy-in-sql-d9d24db93bf4"
               class="btn more-link btn-primary" target="_blank">SQL</a>
-            <a href="./docs/latest/ssh-and-sudo-authorization/" class="btn more-link btn-primary" target="_blank">Linux</a>
+            <a href="./docs/{{ $latest }}/ssh-and-sudo-authorization/" class="btn more-link btn-primary" target="_blank">Linux</a>
           </div>
         </div>
       </div>
@@ -1534,8 +1538,8 @@ allowed_pets[pet] {
         <div class="col-12 mt-2">
           <div class="mt-4" style="font-weight:600"><label>Learn More</label></div>
           <div class="mt-2">
-            <a href="./docs/latest/deployments/" class="btn btn-primary more-link" target="_blank">Daemon</a>
-            <a href="./docs/latest/integration/#integrating-with-the-go-api" class="btn btn-primary more-link" target="_blank">Library</a>
+            <a href="./docs/{{ $latest }}/deployments/" class="btn btn-primary more-link" target="_blank">Daemon</a>
+            <a href="./docs/{{ $latest }}/integration/#integrating-with-the-go-api" class="btn btn-primary more-link" target="_blank">Library</a>
           </div>
         </div>
       </div>
@@ -1591,7 +1595,7 @@ allowed_pets[pet] {
           <div class="mt-2">
             <a href="https://marketplace.visualstudio.com/items?itemName=tsandall.opa" class="btn btn-primary more-link" target="_blank">VScode</a>
               <a href="https://play.openpolicyagent.org/" class="btn btn-primary more-link" target="_blank">Rego Playground</a>
-              <a href="./docs/latest/#running-opa" class="btn btn-primary more-link" target="_blank">General Tooling</a>
+              <a href="./docs/{{ $latest }}/#running-opa" class="btn btn-primary more-link" target="_blank">General Tooling</a>
           </div>
         </div>
       </div>
@@ -1612,7 +1616,7 @@ allowed_pets[pet] {
           <div class="footer-bottom">
             © {{ now.Format "2006"}} Open Policy Agent contributors. Licensed under the Apache
             License, Version 2.0. For information about
-            contributing, <a href="/docs/latest/contributing/">see documentation</a>.
+            contributing, <a href="/docs/{{ $latest }}/contributing/">see documentation</a>.
           </div>
         </div>
       </div>
