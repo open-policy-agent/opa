@@ -21,6 +21,10 @@ generate-cli-docs:
 generate: generate-cli-docs
 	$(CURDIR)/website/scripts/load-docs.sh
 
+.PHONY: dev-generate
+dev-generate: generate-cli-docs
+	DEV=true $(CURDIR)/website/scripts/load-docs.sh
+
 # The website has some npm dependencies saved in ./website/node_modules
 # As well as dependencies required for the "live-blocks".
 # Use this target to update them as needed.
@@ -47,8 +51,7 @@ serve-remote: production-build
 	cd $(CURDIR)/.. && netlify deploy
 
 .PHONY: dev-build
-dev-build:
-	make production-build DEV=true
+dev-build: clean dev-generate hugo-production-build live-blocks-inject
 
 ######################################################
 #
