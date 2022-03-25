@@ -661,9 +661,10 @@ func (p *Plugin) loop() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
+	var retry int
+
 	for {
 
-		var retry int
 		var waitC chan struct{}
 
 		if *p.config.Reporting.Trigger == plugins.TriggerPeriodic && p.config.Service != "" {
