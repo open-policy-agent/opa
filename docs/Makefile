@@ -35,9 +35,10 @@ install-deps: live-blocks-install-deps
 
 # The live-blocks-% pattern target will shim to the
 # npm scripts in ./website/scripts/live-blocks
+# NOTE(sr): we'll avoid an API call if we make use of releases.yaml to determine the latest release
 .PHONY: live-blocks-%
 live-blocks-%:
-	cd $(CURDIR)/website/scripts/live-blocks && npm run $*
+	cd $(CURDIR)/website/scripts/live-blocks && LATEST=$(shell sed -n '2s/- //p' $(CURDIR)/website/data/releases.yaml) npm run $*
 
 .PHONY: serve-local
 serve-local: dev-build
@@ -69,7 +70,8 @@ hugo-production-build:
 		--minify
 
 .PHONY: production-build
-production-build: clean generate hugo-production-build live-blocks-inject
+production-build: clean generate hugo-production-build
+	make live-blocks-inject
 
 .PHONY: preview-build
 preview-build:
