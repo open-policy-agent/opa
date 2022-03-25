@@ -450,7 +450,7 @@ endif
 netlify-prod: clean docs-clean build docs-generate docs-production-build
 
 .PHONY: netlify-preview
-netlify-preview: clean docs-clean build docs-live-blocks-install-deps docs-live-blocks-test docs-generate docs-preview-build
+netlify-preview: clean docs-clean build docs-live-blocks-install-deps docs-live-blocks-test docs-dev-generate docs-preview-build
 
 .PHONY: check-fuzz
 check-fuzz:
