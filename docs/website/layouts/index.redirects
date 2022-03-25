@@ -3,7 +3,11 @@
 {{- $docRedirects := site.Data.redirects }}
 
 # Redirect to latest doc version by default
-/docs     /docs/latest      301!
+{{- $latest := "latest" -}}
+{{- if eq (len site.Data.releases) 1 -}}
+{{- $latest = "edge" -}}
+{{- end -}}
+/docs     /docs/{{ $latest }}      301!
 
 # v0.14.0 re-org redirects
 # TODO: Remove at some point in the future when its more ok to break old links en-mass
