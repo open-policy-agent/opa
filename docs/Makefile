@@ -12,6 +12,7 @@ clean:
 	rm -rf $(CURDIR)/website/generated
 	rm -rf $(CURDIR)/website/public
 	rm -rf $(CURDIR)/website/resources
+	rm -rf $(CURDIR)/website/scripts/live-blocks/opa_versions/latest-*
 
 .PHONY: generate-cli-docs
 generate-cli-docs:
