@@ -50,7 +50,7 @@ function createAcquirer(version) {
 
     const path = pathToVersion(version)
 
-    if (await needsDownloading(version, path)) { // This does not protect against run conditions within a single preprocessing script run, simply allows (long-term) caching.
+    if (await needsDownloading(path)) { // This does not protect against run conditions within a single preprocessing script run, simply allows (long-term) caching.
 
       // Edge is required to have been built from the current source tree,
       // expect the binary to be available at the normal build output location.
@@ -115,8 +115,8 @@ async function getReleaseAssetURL(version) {
   throw new Error(`unable to get the OPA release asset URL for ${version} on ${PLATFORM} from ${releaseURL}`)
 }
 
-// Determines, based on the desired version and the path to where it should be downloaded, whether it needs to be downloaded. Will not throw an error.
-async function needsDownloading(version, path) {
+// Determines, based on the path to where it should be downloaded, whether it needs to be downloaded. Will not throw an error.
+async function needsDownloading(path) {
   try {
     await promFS.access(path, fsConsts.X_OK) // X_OK verifies that permissions-wise it's executable
   } catch (e) {

@@ -1630,6 +1630,10 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 		DecisionID: decisionID,
 	}
 
+	if input == nil {
+		result.Warning = types.NewWarning(types.CodeAPIUsageWarn, types.MsgInputKeyMissing)
+	}
+
 	if includeMetrics || includeInstrumentation {
 		result.Metrics = m.All()
 	}

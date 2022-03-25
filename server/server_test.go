@@ -1310,9 +1310,26 @@ p = true { false }`
 			{http.MethodGet, "/data", "", 200, `{"result": {"testmod": {"p": [1,2,3,4], "q": {"a":1, "b": 2}}, "x": [1,2,3,4]}}`},
 		}},
 		{"post root", []tr{
-			{http.MethodPost, "/data", "", 200, `{"result": {}}`},
+			{http.MethodPost, "/data", "", 200, `{
+				"result": {},
+				"warning": {
+					"code": "api_usage_warning",
+					"message": "'input' key missing from the request"
+				}
+			}`},
 			{http.MethodPut, "/policies/test", testMod2, 200, ""},
-			{http.MethodPost, "/data", "", 200, `{"result": {"testmod": {"p": [1,2,3,4], "q": {"b": 2, "a": 1}}}}`},
+			{http.MethodPost, "/data", "", 200, `{
+				"result": {
+					"testmod": {
+						"p": [1,2,3,4],
+						"q": {"b": 2, "a": 1}
+					}
+				},
+				"warning": {
+					"code": "api_usage_warning",
+					"message": "'input' key missing from the request"
+				}
+			}`},
 		}},
 		{"post input", []tr{
 			{http.MethodPut, "/policies/test", testMod1, 200, ""},
@@ -1325,7 +1342,13 @@ p = true { false }`
 			}`},
 		}},
 		{"post empty object", []tr{
-			{http.MethodPost, "/data", `{}`, 200, `{"result": {}}`},
+			{http.MethodPost, "/data", `{}`, 200, `{
+				"result": {},
+				"warning": {
+					"code": "api_usage_warning",
+					"message": "'input' key missing from the request"
+				}
+			}`},
 		}},
 		{"post partial", []tr{
 			{http.MethodPut, "/policies/test", testMod7, 200, ""},
@@ -1348,9 +1371,20 @@ p = true { false }`
 		}},
 		{"partial invalidate data", []tr{
 			{http.MethodPut, "/policies/test", testMod8, 200, ""},
-			{http.MethodPost, "/data/testmod/p?partial", "", 200, `{}`},
+			{http.MethodPost, "/data/testmod/p?partial", "", 200, `{
+				"warning": {
+					"code": "api_usage_warning",
+					"message": "'input' key missing from the request"
+				}
+			}`},
 			{http.MethodPut, "/data/x", `1`, 204, ""},
-			{http.MethodPost, "/data/testmod/p?partial", "", 200, `{"result": true}`},
+			{http.MethodPost, "/data/testmod/p?partial", "", 200, `{
+				"result": true,
+				"warning": {
+					"code": "api_usage_warning",
+					"message": "'input' key missing from the request"
+				}
+			}`},
 		}},
 		{"partial ineffective fallback to normal", []tr{
 			{http.MethodPut, "/policies/test", testMod7, 200, ""},
@@ -1361,6 +1395,10 @@ p = true { false }`
 					"q": [],
 					"r": []
 					}
+				},
+				"warning": {
+					"code": "api_usage_warning",
+					"message": "'input' key missing from the request"
 				}
 			}`},
 			{http.MethodPost, "/data", "", 200, `{
@@ -1370,6 +1408,10 @@ p = true { false }`
 					"q": [],
 					"r": []
 					}
+				},
+				"warning": {
+					"code": "api_usage_warning",
+					"message": "'input' key missing from the request"
 				}
 			}`},
 		}},
@@ -1417,10 +1459,32 @@ p = true { false }`
 			{http.MethodGet, "/data", "", 200, `{"result": {"a/b": {"c/d": 1}}}`},
 			{http.MethodGet, "/data/a%2Fb/c%2Fd", "", 200, `{"result": 1}`},
 			{http.MethodGet, "/data/a/b", "", 200, `{}`},
-			{http.MethodPost, "/data/a%2Fb/c%2Fd", "", 200, `{"result": 1}`},
-			{http.MethodPost, "/data/a/b", "", 200, `{}`},
+			{http.MethodPost, "/data/a%2Fb/c%2Fd", "", 200, `{
+				"result": 1,
+				"warning": {
+					"code": "api_usage_warning",
+					"message": "'input' key missing from the request"
+				}
+			}`},
+			{http.MethodPost, "/data/a/b", "", 200, `{
+				"warning": {
+					"code": "api_usage_warning",
+					"message": "'input' key missing from the request"
+				}
+			}`},
 			{http.MethodPatch, "/data/a%2Fb", `[{"op": "add", "path": "/e%2Ff", "value": 2}]`, 204, ""},
-			{http.MethodPost, "/data", "", 200, `{"result": {"a/b": {"c/d": 1, "e/f": 2}}}`},
+			{http.MethodPost, "/data", "", 200, `{
+				"result": {
+					"a/b": {
+						"c/d": 1,
+						"e/f": 2
+					}
+				},
+				"warning": {
+					"code": "api_usage_warning",
+					"message": "'input' key missing from the request"
+				}
+			}`},
 		}},
 		{"strict-builtin-errors", []tr{
 			{http.MethodPut, "/policies/test", `
@@ -1446,7 +1510,13 @@ p = true { false }`
 				  }
 				]
 			  }`},
-			{http.MethodPost, "/data/test/p", "", 200, `{"result": false}`},
+			{http.MethodPost, "/data/test/p", "", 200, `{
+				"result": false,
+				"warning": {
+					"code": "api_usage_warning",
+					"message": "'input' key missing from the request"
+				}
+			}`},
 			{http.MethodPost, "/data/test/p?strict-builtin-errors", "", 500, `{
 				"code": "internal_error",
 				"message": "error(s) occurred while evaluating query",
@@ -1462,6 +1532,16 @@ p = true { false }`
 				  }
 				]
 			  }`},
+		}},
+		{"post api usage warning", []tr{
+			{http.MethodPost, "/data", "", 200, `{
+				"result": {},
+				"warning": {
+					"code": "api_usage_warning",
+					"message": "'input' key missing from the request"
+				}
+			}`},
+			{http.MethodPost, "/data", `{"input": {}}`, 200, `{"result": {}}`},
 		}},
 	}
 
@@ -2823,7 +2903,13 @@ func TestDecisionIDs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := f.v1("POST", "/data/undefined", "", 200, `{"decision_id": "2"}`); err != nil {
+	if err := f.v1("POST", "/data/undefined", "", 200, `{
+		"decision_id": "2",
+		"warning": {
+			"code": "api_usage_warning",
+			"message": "'input' key missing from the request"
+		}
+	}`); err != nil {
 		t.Fatal(err)
 	}
 
@@ -2831,7 +2917,14 @@ func TestDecisionIDs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := f.v1("POST", "/data", "", 200, `{"decision_id": "4", "result": {}}`); err != nil {
+	if err := f.v1("POST", "/data", "", 200, `{
+		"decision_id": "4",
+		"result": {},
+		"warning": {
+			"code": "api_usage_warning",
+			"message": "'input' key missing from the request"
+		}
+	}`); err != nil {
 		t.Fatal(err)
 	}
 
@@ -2876,9 +2969,16 @@ func TestDecisionLogging(t *testing.T) {
 			response: "{}",
 		},
 		{
-			method:   "POST",
-			path:     "/data",
-			response: `{"result": {}, "decision_id": "1"}`,
+			method: "POST",
+			path:   "/data",
+			response: `{
+				"result": {},
+				"warning": {
+					"code": "api_usage_warning",
+					"message": "'input' key missing from the request"
+				},
+				"decision_id": "1"
+			}`,
 		},
 		{
 			method:   "GET",

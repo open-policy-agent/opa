@@ -102,9 +102,11 @@ With the input value above, the answer is:
 The `allow` variable in the above policy returns a `boolean` decision to indicate whether a request should be allowed or not.
 If you want, you can also control the HTTP status sent to the upstream or downstream client, along with the response body, and the response headers.  To do that, you can write rules like the ones below to fill in values for variables with the following types:
 
-* `headers` is an object whose keys are strings and values are strings
-* `body` is a string
-* `status_code` is a number
+* `headers` is an object whose keys are strings and values are strings. In case the request is denied, the object represents the HTTP response headers to be sent to the downstream client. If the request is allowed, the object represents additional request headers to be sent to the upstream.
+* `response_headers_to_add` is an object whose keys are strings and values are strings. It defines the HTTP response headers to be sent to the downstream client when a request is allowed.
+* `request_headers_to_remove` is an array of strings which describes the HTTP headers to remove from the original request before dispatching it to the upstream when a request is allowed.
+* `body` is a string which represents the response body data sent to the downstream client when a request is denied.
+* `status_code` is a number which represents the HTTP response status code sent to the downstream client when a request is denied.
 
 ```live:obj_example:module:openable
 package envoy.authz
@@ -120,6 +122,10 @@ allow {
 
 headers["x-ext-auth-allow"] = "yes"
 headers["x-validated-by"] = "security-checkpoint"
+
+request_headers_to_remove := ["one-auth-header", "another-auth-header"]
+
+response_headers_to_add["x-foo"] = "bar"
 
 status_code = 200 {
   allow
@@ -197,6 +203,8 @@ With the input value above, the value of all the variables in the package are:
 When Envoy receives a policy decision, it expects a JSON object with the following fields:
 * `allowed` (required): a boolean deciding whether or not the request is allowed
 * `headers` (optional): an object mapping a string header name to a string header value (e.g. key "x-ext-auth-allow" has value "yes")
+* `response_headers_to_add` (optional): an object mapping a string header name to a string header value
+* `request_headers_to_remove` (optional): is an array of string header names
 * `http_status` (optional): a number representing the HTTP status code
 * `body` (optional): the response body
 
@@ -205,6 +213,8 @@ To construct that output object using the policies demonstrated in the last sect
 ```rego
 result["allowed"] = allow
 result["headers"] = headers
+result["response_headers_to_add"] = response_headers_to_add
+result["request_headers_to_remove"] = request_headers_to_remove
 result["body"] = body
 result["http_status"] = status_code
 ```

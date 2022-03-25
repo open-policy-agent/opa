@@ -293,6 +293,8 @@ Following successful authentication at the token endpoint the returned token wil
 | `services[_].credentials.oauth2.client_id` | `string` | Yes | The client ID to use for authentication. |
 | `services[_].credentials.oauth2.client_secret` | `string` | Yes | The client secret to use for authentication. |
 | `services[_].credentials.oauth2.scopes` | `[]string` | No | Optional list of scopes to request for the token. |
+| `services[_].credentials.oauth2.additional_headers` | `map` | No | Map of additional headers to send to token endpoint at the OAuth2 authorization server |
+| `services[_].credentials.oauth2.additional_parameters` | `map` | No | Map of additional body parameters to send token endpoint at the OAuth2 authorization server |
 
 #### OAuth2 Client Credentials JWT authentication
 
