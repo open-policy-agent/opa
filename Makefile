@@ -447,7 +447,7 @@ release-ci: push-image push-manifest-list-latest
 endif
 
 .PHONY: netlify-prod
-netlify-prod: clean docs-clean build docs-generate docs-production-build
+netlify-prod: clean docs-clean build docs-production-build
 
 .PHONY: netlify-preview
 netlify-preview: clean docs-clean build docs-live-blocks-install-deps docs-live-blocks-test docs-dev-generate docs-preview-build
