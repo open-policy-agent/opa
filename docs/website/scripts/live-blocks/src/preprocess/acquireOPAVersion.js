@@ -59,7 +59,7 @@ function createAcquirer(version) {
         throw new Error(`binary for ${VERSION_EDGE} is not available at path ${path}, ensure it has been built for the current platform`)
       }
 
-      const assetURL = await getReleaseAssetURL(version)
+      const assetURL = getReleaseAssetURL(version);
 
       let file
       try {
@@ -89,30 +89,13 @@ function pathToVersion(version) {
   return path.resolve(OPA_CACHE_PATH, `${version}-${PLATFORM}${PLATFORM === PLATFORMS.WINDOWS ? '.exe' : ''}`)
 }
 
-// Gets the URL that can be used to download a given version of OPA for the current platform. May error with a user-friendly message.
-async function getReleaseAssetURL(version) {
-  // Releases are on GitHub
-  let releaseURL;
+// Gets the URL that can be used to download a given version of OPA for the current platform.
+// Releases are on GitHub, URLs are predictable
+function getReleaseAssetURL(version) {
   if (version === VERSION_LATEST) {
-    releaseURL = `https://api.github.com/repos/open-policy-agent/opa/releases/latest`
-  } else {
-    releaseURL = `https://api.github.com/repos/open-policy-agent/opa/releases/tags/${version}`;
+    version = process.env.LATEST;
   }
-
-  try {
-    const release = await (await fetch(releaseURL)).json()
-    for (let asset of Object.values(release.assets)) {
-      if (asset.name.indexOf(PLATFORM) != -1) {
-        if (asset.browser_download_url) { // If it's actually set, return it
-          return asset.browser_download_url
-        }
-        // Implicit else, throw error below.
-      }
-    }
-  } catch (e) {
-    throw new ChainedError(`error occurred while getting the OPA release asset URL for ${version} on ${PLATFORM} from ${releaseURL}`, e)
-  }
-  throw new Error(`unable to get the OPA release asset URL for ${version} on ${PLATFORM} from ${releaseURL}`)
+  return `https://github.com/open-policy-agent/opa/releases/download/${version}/opa_${PLATFORM}_${GOARCH}${PLATFORM === PLATFORMS.WINDOWS ? '.exe' : ''}`;
 }
 
 // Determines, based on the path to where it should be downloaded, whether it needs to be downloaded. Will not throw an error.
