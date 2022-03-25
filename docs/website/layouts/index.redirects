@@ -3,7 +3,6 @@
 {{- $docRedirects := site.Data.redirects }}
 
 # Redirect to latest doc version by default
-{{- $latest := "latest" -}}
 {{- if eq (len site.Data.releases) 1 -}}
 {{- $latest = "edge" -}}
 {{- end -}}
