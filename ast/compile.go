@@ -1496,12 +1496,14 @@ func (c *Compiler) rewritePrintCalls() {
 		WalkRules(mod, func(r *Rule) bool {
 			safe := r.Head.Args.Vars()
 			safe.Update(ReservedVars)
-			WalkBodies(r, func(b Body) bool {
+			vis := func(b Body) bool {
 				for _, err := range rewritePrintCalls(c.localvargen, c.GetArity, safe, b) {
 					c.err(err)
 				}
 				return false
-			})
+			}
+			WalkBodies(r.Head, vis)
+			WalkBodies(r.Body, vis)
 			return false
 		})
 	}
