@@ -34,9 +34,12 @@ import (
 	"github.com/open-policy-agent/opa/internal/jwx/jwa"
 	"github.com/open-policy-agent/opa/internal/jwx/jws"
 	"github.com/open-policy-agent/opa/keys"
+	"github.com/open-policy-agent/opa/logging"
 
 	"github.com/open-policy-agent/opa/internal/version"
 	"github.com/open-policy-agent/opa/util/test"
+
+	testlogger "github.com/open-policy-agent/opa/logging/test"
 )
 
 const keyID = "key1"
@@ -1511,6 +1514,53 @@ func TestS3SigningInstantiationInitializesLogger(t *testing.T) {
 
 	if authPlugin.logger == nil {
 		t.Errorf("Expected logger to be initialized")
+	}
+}
+
+func TestDebugLoggingRequestMaskAuthorizationHeader(t *testing.T) {
+	token := "secret"
+	ts := testServer{t: t, expBearerToken: token}
+	ts.start()
+	defer ts.stop()
+
+	config := fmt.Sprintf(`{
+		"name": "foo",
+		"url": %q,
+		"credentials": {
+			"bearer": {
+				"token": %q
+			}
+		}
+	}`, ts.server.URL, token)
+	client, err := New([]byte(config), map[string]*keys.Config{})
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	logger := testlogger.New()
+	logger.SetLevel(logging.Debug)
+	client.logger = logger
+
+	ctx := context.Background()
+	if _, err := client.Do(ctx, "GET", "test"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	var reqLogFound bool
+	for _, entry := range logger.Entries() {
+		if entry.Fields["headers"] != nil {
+			headers := entry.Fields["headers"].(http.Header)
+			authzHeader := headers.Get("Authorization")
+			if authzHeader != "" {
+				reqLogFound = true
+				if authzHeader != "REDACTED" {
+					t.Errorf("Excpected redacted Authorization header value, got %v", authzHeader)
+				}
+			}
+		}
+	}
+	if !reqLogFound {
+		t.Fatalf("Expected log entry from request")
 	}
 }
 
