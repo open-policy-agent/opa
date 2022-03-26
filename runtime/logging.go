@@ -14,6 +14,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -145,11 +146,31 @@ func (h *LoggingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if h.loggingEnabled(logging.Debug) {
-			fields["resp_body"] = recorder.buf.String()
+			if gzipAccepted(r.Header) || isPprofEndpoint(r) {
+				fields["resp_body"] = "[Payload Compressed]"
+			} else {
+				fields["resp_body"] = recorder.buf.String()
+			}
 		}
 
 		h.logger.WithFields(fields).Info("Sent response.")
 	}
+}
+
+func gzipAccepted(header http.Header) bool {
+	a := header.Get("Accept-Encoding")
+	parts := strings.Split(a, ",")
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "gzip" || strings.HasPrefix(part, "gzip;") {
+			return true
+		}
+	}
+	return false
+}
+
+func isPprofEndpoint(req *http.Request) bool {
+	return strings.HasPrefix(req.URL.Path, "/debug/pprof/")
 }
 
 type recorder struct {
