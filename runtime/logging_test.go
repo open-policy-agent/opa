@@ -7,6 +7,7 @@ package runtime
 
 import (
 	"fmt"
+	"net/http"
 	"net/url"
 	"testing"
 )
@@ -45,4 +46,63 @@ func TestDropInputParam(t *testing.T) {
 		t.Errorf("Expected %v but got: %v", expected, result)
 	}
 
+}
+
+func TestValidateGzipHeader(t *testing.T) {
+
+	httpHeader := http.Header{}
+
+	httpHeader.Add("Accept", "*/*")
+	result := gzipAccepted(httpHeader)
+	expected := false
+
+	if result != expected {
+		t.Errorf("Expected %v but got: %v", expected, result)
+	}
+
+	httpHeader.Add("Accept-Encoding", "gzip")
+
+	result = gzipAccepted(httpHeader)
+	expected = true
+
+	if result != expected {
+		t.Errorf("Expected %v but got: %v", expected, result)
+	}
+
+	httpHeader.Set("Accept-Encoding", "gzip, deflate, br")
+	result = gzipAccepted(httpHeader)
+	expected = true
+
+	if result != expected {
+		t.Errorf("Expected %v but got: %v", expected, result)
+	}
+
+	httpHeader.Set("Accept-Encoding", "br;q=1.0, gzip;q=0.8, *;q=0.1")
+	result = gzipAccepted(httpHeader)
+	expected = true
+
+	if result != expected {
+		t.Errorf("Expected %v but got: %v", expected, result)
+	}
+}
+
+func TestValidatePprofUrl(t *testing.T) {
+
+	req := http.Request{}
+
+	req.URL = &url.URL{Path: "/metrics"}
+	result := isPprofEndpoint(&req)
+	expected := false
+
+	if result != expected {
+		t.Errorf("Expected %v but got: %v", expected, result)
+	}
+
+	req.URL = &url.URL{Path: "/debug/pprof/"}
+	result = isPprofEndpoint(&req)
+	expected = true
+
+	if result != expected {
+		t.Errorf("Expected %v but got: %v", expected, result)
+	}
 }
