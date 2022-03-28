@@ -87,8 +87,8 @@ func (l *StandardLogger) getFields() map[string]interface{} {
 func (l *StandardLogger) SetLevel(level Level) {
 	var logrusLevel logrus.Level
 	switch level {
-	case Error:
-		logrusLevel = logrus.ErrorLevel
+	case Error: // set logging level report Warn or higher (includes Error)
+		logrusLevel = logrus.WarnLevel
 	case Warn:
 		logrusLevel = logrus.WarnLevel
 	case Info:
@@ -109,10 +109,8 @@ func (l *StandardLogger) GetLevel() Level {
 
 	var level Level
 	switch logrusLevel {
-	case logrus.ErrorLevel:
-		level = Error
 	case logrus.WarnLevel:
-		level = Warn
+		level = Error
 	case logrus.InfoLevel:
 		level = Info
 	case logrus.DebugLevel:
@@ -142,7 +140,7 @@ func (l *StandardLogger) Error(fmt string, a ...interface{}) {
 
 // Warn logs at warn level
 func (l *StandardLogger) Warn(fmt string, a ...interface{}) {
-	l.logger.WithFields(l.getFields()).Errorf(fmt, a...)
+	l.logger.WithFields(l.getFields()).Warnf(fmt, a...)
 }
 
 // NoOpLogger logging implementation that does nothing
