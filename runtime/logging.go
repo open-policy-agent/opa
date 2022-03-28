@@ -146,9 +146,16 @@ func (h *LoggingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if h.loggingEnabled(logging.Debug) {
-			if gzipAccepted(r.Header) || isPprofEndpoint(r) {
-				fields["resp_body"] = "[Payload Compressed]"
-			} else {
+			switch {
+			case isPprofEndpoint(r):
+				// pprof always sends binary data (protobuf)
+				fields["resp_body"] = "[binary payload]"
+
+			case gzipAccepted(r.Header) && isMetricsEndpoint(r):
+				// metrics endpoint does so when the client accepts it (e.g. prometheus)
+				fields["resp_body"] = "[compressed payload]"
+
+			default:
 				fields["resp_body"] = recorder.buf.String()
 			}
 		}
@@ -171,6 +178,10 @@ func gzipAccepted(header http.Header) bool {
 
 func isPprofEndpoint(req *http.Request) bool {
 	return strings.HasPrefix(req.URL.Path, "/debug/pprof/")
+}
+
+func isMetricsEndpoint(req *http.Request) bool {
+	return strings.HasPrefix(req.URL.Path, "/metrics")
 }
 
 type recorder struct {
