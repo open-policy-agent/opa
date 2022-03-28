@@ -6,16 +6,25 @@ package authz
 
 import (
 	"context"
+	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/storage"
+	"github.com/open-policy-agent/opa/storage/disk"
 	"github.com/open-policy-agent/opa/storage/inmem"
 )
 
 func BenchmarkAuthzForbidAuthn(b *testing.B) {
-	runAuthzBenchmark(b, ForbidIdentity, 10)
+	b.Run("inmem", func(b *testing.B) {
+		runAuthzBenchmark(b, ForbidIdentity, 10)
+	})
+	b.Run("disk", func(b *testing.B) {
+		runAuthzBenchmark(b, ForbidIdentity, 10, true)
+	})
 }
 
 func BenchmarkAuthzForbidPath(b *testing.B) {
@@ -38,7 +47,7 @@ func BenchmarkAuthzAllow1000Paths(b *testing.B) {
 	runAuthzBenchmark(b, Allow, 1000)
 }
 
-func runAuthzBenchmark(b *testing.B, mode InputMode, numPaths int) {
+func runAuthzBenchmark(b *testing.B, mode InputMode, numPaths int, extras ...bool) {
 
 	profile := DataSetProfile{
 		NumTokens: 1000,
@@ -47,7 +56,36 @@ func runAuthzBenchmark(b *testing.B, mode InputMode, numPaths int) {
 
 	ctx := context.Background()
 	data := GenerateDataset(profile)
-	store := inmem.NewFromObject(data)
+
+	useDisk := false
+	if len(extras) > 0 {
+		useDisk = extras[0]
+	}
+
+	var store storage.Store
+	if useDisk {
+		rootDir, err := ioutil.TempDir("", "test-e2e-bench-disk")
+		if err != nil {
+			panic(err)
+		}
+
+		defer os.RemoveAll(rootDir)
+		store, err = disk.New(ctx, logging.NewNoOpLogger(), nil, disk.Options{
+			Dir:        rootDir,
+			Partitions: nil,
+		})
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		err = storage.WriteOne(ctx, store, storage.AddOp, storage.Path{}, data)
+		if err != nil {
+			b.Fatal(err)
+		}
+	} else {
+		store = inmem.NewFromObject(data)
+	}
+
 	txn := storage.NewTransactionOrDie(ctx, store)
 	compiler := ast.NewCompiler()
 	module := ast.MustParseModule(Policy)

@@ -101,10 +101,14 @@ func write(ctx context.Context, store storage.Store, txn storage.Transaction, pa
 func EraseManifestFromStore(ctx context.Context, store storage.Store, txn storage.Transaction, name string) error {
 	path := namedBundlePath(name)
 	err := store.Write(ctx, txn, storage.RemoveOp, path, nil)
-	if err != nil && !storage.IsNotFound(err) {
-		return err
+	return suppressNotFound(err)
+}
+
+func suppressNotFound(err error) error {
+	if err == nil || storage.IsNotFound(err) {
+		return nil
 	}
-	return nil
+	return err
 }
 
 func writeWasmModulesToStore(ctx context.Context, store storage.Store, txn storage.Transaction, name string, b *Bundle) error {
@@ -123,10 +127,7 @@ func eraseWasmModulesFromStore(ctx context.Context, store storage.Store, txn sto
 	path := wasmModulePath(name)
 
 	err := store.Write(ctx, txn, storage.RemoveOp, path, nil)
-	if err != nil && !storage.IsNotFound(err) {
-		return err
-	}
-	return nil
+	return suppressNotFound(err)
 }
 
 // ReadWasmMetadataFromStore will read Wasm module resolver metadata from the store.
@@ -237,11 +238,7 @@ func ReadBundleMetadataFromStore(ctx context.Context, store storage.Store, txn s
 func readMetadataFromStore(ctx context.Context, store storage.Store, txn storage.Transaction, path storage.Path) (map[string]interface{}, error) {
 	value, err := store.Read(ctx, txn, path)
 	if err != nil {
-		if storageErr, ok := err.(*storage.Error); ok && storageErr.Code == storage.NotFoundErr {
-			return nil, nil
-		}
-
-		return nil, err
+		return nil, suppressNotFound(err)
 	}
 
 	data, ok := value.(map[string]interface{})
@@ -285,12 +282,12 @@ type DeactivateOpts struct {
 func Deactivate(opts *DeactivateOpts) error {
 	erase := map[string]struct{}{}
 	for name := range opts.BundleNames {
-		if roots, err := ReadBundleRootsFromStore(opts.Ctx, opts.Store, opts.Txn, name); err == nil {
-			for _, root := range roots {
-				erase[root] = struct{}{}
-			}
-		} else if !storage.IsNotFound(err) {
+		roots, err := ReadBundleRootsFromStore(opts.Ctx, opts.Store, opts.Txn, name)
+		if suppressNotFound(err) != nil {
 			return err
+		}
+		for _, root := range roots {
+			erase[root] = struct{}{}
 		}
 	}
 	_, err := eraseBundles(opts.Ctx, opts.Store, opts.Txn, opts.BundleNames, erase)
@@ -312,12 +309,12 @@ func activateBundles(opts *ActivateOpts) error {
 			snapshotBundles[name] = b
 			names[name] = struct{}{}
 
-			if roots, err := ReadBundleRootsFromStore(opts.Ctx, opts.Store, opts.Txn, name); err == nil {
-				for _, root := range roots {
-					erase[root] = struct{}{}
-				}
-			} else if !storage.IsNotFound(err) {
+			roots, err := ReadBundleRootsFromStore(opts.Ctx, opts.Store, opts.Txn, name)
+			if suppressNotFound(err) != nil {
 				return err
+			}
+			for _, root := range roots {
+				erase[root] = struct{}{}
 			}
 
 			// Erase data at new roots to prepare for writing the new data
@@ -448,15 +445,15 @@ func eraseBundles(ctx context.Context, store storage.Store, txn storage.Transact
 	}
 
 	for name := range names {
-		if err := EraseManifestFromStore(ctx, store, txn, name); err != nil && !storage.IsNotFound(err) {
+		if err := EraseManifestFromStore(ctx, store, txn, name); suppressNotFound(err) != nil {
 			return nil, err
 		}
 
-		if err := LegacyEraseManifestFromStore(ctx, store, txn); err != nil && !storage.IsNotFound(err) {
+		if err := LegacyEraseManifestFromStore(ctx, store, txn); suppressNotFound(err) != nil {
 			return nil, err
 		}
 
-		if err := eraseWasmModulesFromStore(ctx, store, txn, name); err != nil && !storage.IsNotFound(err) {
+		if err := eraseWasmModulesFromStore(ctx, store, txn, name); suppressNotFound(err) != nil {
 			return nil, err
 		}
 	}
@@ -471,10 +468,8 @@ func eraseData(ctx context.Context, store storage.Store, txn storage.Transaction
 			return fmt.Errorf("manifest root path invalid: %v", root)
 		}
 		if len(path) > 0 {
-			if err := store.Write(ctx, txn, storage.RemoveOp, path, nil); err != nil {
-				if !storage.IsNotFound(err) {
-					return err
-				}
+			if err := store.Write(ctx, txn, storage.RemoveOp, path, nil); suppressNotFound(err) != nil {
+				return err
 			}
 		}
 	}
@@ -632,7 +627,7 @@ func lookup(path storage.Path, data map[string]interface{}) (interface{}, bool) 
 func hasRootsOverlap(ctx context.Context, store storage.Store, txn storage.Transaction, bundles map[string]*Bundle) error {
 	collisions := map[string][]string{}
 	allBundles, err := ReadBundleNamesFromStore(ctx, store, txn)
-	if err != nil && !storage.IsNotFound(err) {
+	if suppressNotFound(err) != nil {
 		return err
 	}
 
@@ -641,7 +636,7 @@ func hasRootsOverlap(ctx context.Context, store storage.Store, txn storage.Trans
 	// Build a map of roots for existing bundles already in the system
 	for _, name := range allBundles {
 		roots, err := ReadBundleRootsFromStore(ctx, store, txn, name)
-		if err != nil && !storage.IsNotFound(err) {
+		if suppressNotFound(err) != nil {
 			return err
 		}
 		allRoots[name] = roots

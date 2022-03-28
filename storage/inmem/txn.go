@@ -311,20 +311,21 @@ func newUpdateArray(data []interface{}, op storage.PatchOp, path storage.Path, i
 			return nil, err
 		}
 
-		if op == storage.AddOp {
+		switch op {
+		case storage.AddOp:
 			cpy := make([]interface{}, len(data)+1)
 			copy(cpy[:pos], data[:pos])
 			copy(cpy[pos+1:], data[pos:])
 			cpy[pos] = value
 			return &update{path[:len(path)-1], false, cpy}, nil
 
-		} else if op == storage.RemoveOp {
+		case storage.RemoveOp:
 			cpy := make([]interface{}, len(data)-1)
 			copy(cpy[:pos], data[:pos])
 			copy(cpy[pos:], data[pos+1:])
 			return &update{path[:len(path)-1], false, cpy}, nil
 
-		} else {
+		default:
 			cpy := make([]interface{}, len(data))
 			copy(cpy, data)
 			cpy[pos] = value

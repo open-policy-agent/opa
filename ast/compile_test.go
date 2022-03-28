@@ -4113,6 +4113,45 @@ func TestCompilerRewritePrintCalls(t *testing.T) {
 	}
 }
 
+func TestRewritePrintCallsWithElseImplicitArgs(t *testing.T) {
+
+	module := `package test
+
+	f(x, y) {
+		x = y
+	}
+
+	else = false {
+		print(x, y)
+	}`
+
+	c := NewCompiler().WithEnablePrintStatements(true)
+	opts := ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true}
+	c.Compile(map[string]*Module{
+		"test.rego": MustParseModuleWithOpts(module, opts),
+	})
+
+	if c.Failed() {
+		t.Fatal(c.Errors)
+	}
+
+	exp := MustParseModuleWithOpts(`package test
+
+	f(__local0__, __local1__) = true { __local0__ = __local1__ }
+	else = false { __local6__ = {__local4__ | __local4__ = __local2__}; __local7__ = {__local5__ | __local5__ = __local3__}; internal.print([__local6__, __local7__]) }
+	`, opts)
+
+	// NOTE(tsandall): we have to patch the implicit args on the else rule
+	// because of how the parser copies the arg names across from the first
+	// rule.
+	exp.Rules[0].Else.Head.Args[0] = VarTerm("__local2__")
+	exp.Rules[0].Else.Head.Args[1] = VarTerm("__local3__")
+
+	if !exp.Equal(c.Modules["test.rego"]) {
+		t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", exp, c.Modules["test.rego"])
+	}
+}
+
 func TestCompilerMockFunction(t *testing.T) {
 	c := NewCompiler()
 	c.Modules["test"] = MustParseModule(`
@@ -4299,7 +4338,7 @@ func TestCompilerCheckUnusedAssignedVar(t *testing.T) {
 		{
 			note: "rule with nested closure",
 			module: `package test
-				p { 
+				p {
 					x := 1
 					a := 1
 					{ y | y := [ z | z:=[1,2,3][a]; z > 1 ][_] }
@@ -4312,7 +4351,7 @@ func TestCompilerCheckUnusedAssignedVar(t *testing.T) {
 		{
 			note: "rule with nested closure and unused inner var",
 			module: `package test
-				p { 
+				p {
 					x := 1
 					{ y | y := [ z | z:=[1,2,3][x]; z > 1; a := 2 ][_] }
 				}

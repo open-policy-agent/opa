@@ -28,7 +28,7 @@ func TestManagerCacheTriggers(t *testing.T) {
 	}
 
 	l1Called := false
-	m.RegisterCacheTrigger(func(c *cache.Config) {
+	m.RegisterCacheTrigger(func(*cache.Config) {
 		l1Called = true
 	})
 
@@ -37,7 +37,7 @@ func TestManagerCacheTriggers(t *testing.T) {
 	}
 
 	l2Called := false
-	m.RegisterCacheTrigger(func(c *cache.Config) {
+	m.RegisterCacheTrigger(func(*cache.Config) {
 		l2Called = true
 	})
 
@@ -150,16 +150,16 @@ type testPlugin struct {
 	m *Manager
 }
 
-func (p *testPlugin) Start(ctx context.Context) error {
+func (p *testPlugin) Start(context.Context) error {
 	p.m.UpdatePluginStatus("p1", &Status{State: StateOK})
 	return nil
 }
 
-func (p *testPlugin) Stop(ctx context.Context) {
+func (p *testPlugin) Stop(context.Context) {
 	p.m.UpdatePluginStatus("p1", &Status{State: StateNotReady})
 }
 
-func (p *testPlugin) Reconfigure(ctx context.Context, config interface{}) {
+func (p *testPlugin) Reconfigure(context.Context, interface{}) {
 	p.m.UpdatePluginStatus("p1", &Status{State: StateNotReady})
 }
 

@@ -137,7 +137,7 @@ func TestHTTPGetRequestTlsInsecureSkipVerify(t *testing.T) {
 		expectedError error
 	}{
 		{note: "http.send", rules: []string{fmt.Sprintf(
-			`p = x { http.send({"method": "get", "url": "%s", "force_json_decode": true}, x) }`, ts.URL)}, expected: &Error{Message: "x509: certificate signed by unknown authority"}},
+			`p = x { http.send({"method": "get", "url": "%s", "force_json_decode": true}, x) }`, ts.URL)}, expected: &Error{Message: fixupDarwinGo118("x509: certificate signed by unknown authority", `x509: “Acme Co” certificate is not trusted`)}},
 		{note: "http.send", rules: []string{fmt.Sprintf(
 			`p = x { http.send({"method": "get", "url": "%s", "force_json_decode": true, "tls_insecure_skip_verify": true}, resp); x := clean_headers(resp) }`, ts.URL)}, expected: resultObj.String()},
 		// This case verifies that `tls_insecure_skip_verify`
@@ -2041,7 +2041,7 @@ func TestHTTPSClient(t *testing.T) {
 
 	t.Run("Negative Test: No Root Ca", func(t *testing.T) {
 
-		expectedResult := &Error{Code: BuiltinErr, Message: "x509: certificate signed by unknown authority", Location: nil}
+		expectedResult := &Error{Code: BuiltinErr, Message: fixupDarwinGo118("x509: certificate signed by unknown authority", `“my-server” certificate is not standards compliant`), Location: nil}
 		data := loadSmallTestData()
 		rule := []string{fmt.Sprintf(
 			`p = x { http.send({"method": "get", "url": "%s", "tls_client_cert_file": "%s", "tls_client_key_file": "%s"}, x) }`, s.URL, localClientCertFile, localClientKeyFile)}
@@ -2063,7 +2063,7 @@ func TestHTTPSClient(t *testing.T) {
 
 	t.Run("Negative Test: System Certs do not include local rootCA", func(t *testing.T) {
 
-		expectedResult := &Error{Code: BuiltinErr, Message: "x509: certificate signed by unknown authority", Location: nil}
+		expectedResult := &Error{Code: BuiltinErr, Message: fixupDarwinGo118("x509: certificate signed by unknown authority", `“my-server” certificate is not standards compliant`), Location: nil}
 		data := loadSmallTestData()
 		rule := []string{fmt.Sprintf(
 			`p = x { http.send({"method": "get", "url": "%s", "tls_client_cert_file": "%s", "tls_client_key_file": "%s", "tls_use_system_certs": true}, x) }`, s.URL, localClientCertFile, localClientKeyFile)}
@@ -2307,7 +2307,7 @@ func TestHTTPSNoClientCerts(t *testing.T) {
 
 	t.Run("Negative Test: System Certs do not include local rootCA", func(t *testing.T) {
 
-		expectedResult := &Error{Code: BuiltinErr, Message: "x509: certificate signed by unknown authority", Location: nil}
+		expectedResult := &Error{Code: BuiltinErr, Message: fixupDarwinGo118("x509: certificate signed by unknown authority", `“my-server” certificate is not standards compliant`), Location: nil}
 		data := loadSmallTestData()
 		rule := []string{fmt.Sprintf(
 			`p = x { http.send({"method": "get", "url": "%s", "tls_use_system_certs": true}, x) }`, s.URL)}

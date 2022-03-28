@@ -41,16 +41,24 @@ const (
 	// i.e. 512
 	BatchSpanProcessorMaxExportBatchSizeKey = "OTEL_BSP_MAX_EXPORT_BATCH_SIZE"
 
-	// SpanAttributeValueLengthKey
+	// AttributeValueLengthKey
 	// Maximum allowed attribute value size.
+	AttributeValueLengthKey = "OTEL_ATTRIBUTE_VALUE_LENGTH_LIMIT"
+
+	// AttributeCountKey
+	// Maximum allowed span attribute count
+	AttributeCountKey = "OTEL_ATTRIBUTE_COUNT_LIMIT"
+
+	// SpanAttributeValueLengthKey
+	// Maximum allowed attribute value size for a span.
 	SpanAttributeValueLengthKey = "OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT"
 
 	// SpanAttributeCountKey
-	// Maximum allowed span attribute count
+	// Maximum allowed span attribute count for a span.
 	SpanAttributeCountKey = "OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT"
 
 	// SpanEventCountKey
-	// Maximum allowed span event count
+	// Maximum allowed span event count.
 	SpanEventCountKey = "OTEL_SPAN_EVENT_COUNT_LIMIT"
 
 	// SpanEventAttributeCountKey
@@ -58,13 +66,35 @@ const (
 	SpanEventAttributeCountKey = "OTEL_EVENT_ATTRIBUTE_COUNT_LIMIT"
 
 	// SpanLinkCountKey
-	// Maximum allowed span link count
+	// Maximum allowed span link count.
 	SpanLinkCountKey = "OTEL_SPAN_LINK_COUNT_LIMIT"
 
 	// SpanLinkAttributeCountKey
-	// Maximum allowed attribute per span link count
+	// Maximum allowed attribute per span link count.
 	SpanLinkAttributeCountKey = "OTEL_LINK_ATTRIBUTE_COUNT_LIMIT"
 )
+
+// firstInt returns the value of the first matching environment variable from
+// keys. If the value is not an integer or no match is found, defaultValue is
+// returned.
+func firstInt(defaultValue int, keys ...string) int {
+	for _, key := range keys {
+		value, ok := os.LookupEnv(key)
+		if !ok {
+			continue
+		}
+
+		intValue, err := strconv.Atoi(value)
+		if err != nil {
+			global.Info("Got invalid value, number value expected.", key, value)
+			return defaultValue
+		}
+
+		return intValue
+	}
+
+	return defaultValue
+}
 
 // IntEnvOr returns the int value of the environment variable with name key if
 // it exists and the value is an int. Otherwise, defaultValue is returned.
@@ -112,17 +142,19 @@ func BatchSpanProcessorMaxExportBatchSize(defaultValue int) int {
 }
 
 // SpanAttributeValueLength returns the environment variable value for the
-// OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT key if it exists, otherwise
-// defaultValue is returned.
+// OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT key if it exists. Otherwise, the
+// environment variable value for OTEL_ATTRIBUTE_VALUE_LENGTH_LIMIT is
+// returned or defaultValue if that is not set.
 func SpanAttributeValueLength(defaultValue int) int {
-	return IntEnvOr(SpanAttributeValueLengthKey, defaultValue)
+	return firstInt(defaultValue, SpanAttributeValueLengthKey, AttributeValueLengthKey)
 }
 
 // SpanAttributeCount returns the environment variable value for the
-// OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT key if it exists, otherwise defaultValue is
-// returned.
+// OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT key if it exists. Otherwise, the
+// environment variable value for OTEL_ATTRIBUTE_COUNT_LIMIT is returned or
+// defaultValue if that is not set.
 func SpanAttributeCount(defaultValue int) int {
-	return IntEnvOr(SpanAttributeCountKey, defaultValue)
+	return firstInt(defaultValue, SpanAttributeCountKey, AttributeCountKey)
 }
 
 // SpanEventCount returns the environment variable value for the
