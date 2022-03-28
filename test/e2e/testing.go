@@ -383,11 +383,24 @@ func (t *TestRuntime) GetData(url string) (io.ReadCloser, error) {
 	return t.request("GET", url, nil)
 }
 
-// CompileRequestWitInstrumentation will use the v1 compile API and POST with the given request and instrumentation enabled.
-func (t *TestRuntime) CompileRequestWitInstrumentation(req types.CompileRequestV1) (*types.CompileResponseV1, error) {
+// CompileRequestWithInstrumentation will use the v1 compile API and POST with the given request and instrumentation enabled.
+func (t *TestRuntime) CompileRequestWithInstrumentation(req types.CompileRequestV1) (*types.CompileResponseV1, error) {
+	return t.compileRequest(req, true)
+}
+
+// CompileRequest will use the v1 compile API and POST with the given request.
+func (t *TestRuntime) CompileRequest(req types.CompileRequestV1) (*types.CompileResponseV1, error) {
+	return t.compileRequest(req, false)
+}
+
+func (t *TestRuntime) compileRequest(req types.CompileRequestV1, instrument bool) (*types.CompileResponseV1, error) {
 	inputPayload := util.MustMarshalJSON(req)
 
-	resp, err := t.request("POST", t.URL()+"/v1/compile?instrument", bytes.NewReader(inputPayload))
+	url := t.URL() + "/v1/compile"
+	if instrument {
+		url += "?instrument"
+	}
+	resp, err := t.request("POST", url, bytes.NewReader(inputPayload))
 	if err != nil {
 		return nil, err
 	}
