@@ -664,18 +664,12 @@ func (e *eval) evalNotPartialSupport(negationID uint64, expr *ast.Expr, unknowns
 	}
 
 	// Save expression that refers to support rule set.
-
-	terms := expr.Terms
-	expr.Terms = nil // Prevent unnecessary copying the terms.
-	cpy := expr.Copy()
-	expr.Terms = terms
+	cpy := expr.CopyWithoutTerms()
 
 	if len(args) > 0 {
 		terms := make([]*ast.Term, len(args)+1)
 		terms[0] = term
-		for i := 0; i < len(args); i++ {
-			terms[i+1] = args[i]
-		}
+		copy(terms[1:], args)
 		cpy.Terms = terms
 	} else {
 		cpy.Terms = term
