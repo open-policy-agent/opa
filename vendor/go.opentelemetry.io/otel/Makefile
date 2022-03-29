@@ -48,7 +48,7 @@ CROSSLINK = $(TOOLS)/crosslink
 $(TOOLS)/crosslink: PACKAGE=go.opentelemetry.io/otel/$(TOOLS_MOD_DIR)/crosslink
 
 DBOTCONF = $(TOOLS)/dbotconf
-$(TOOLS)/dbotconf: PACKAGE=go.opentelemetry.io/otel/$(TOOLS_MOD_DIR)/dbotconf
+$(TOOLS)/dbotconf: PACKAGE=go.opentelemetry.io/build-tools/dbotconf
 
 GOLANGCI_LINT = $(TOOLS)/golangci-lint
 $(TOOLS)/golangci-lint: PACKAGE=github.com/golangci/golangci-lint/cmd/golangci-lint
@@ -178,26 +178,14 @@ license-check:
 	           exit 1; \
 	   fi
 
-DEPENDABOT_PATH=./.github/dependabot.yml
+DEPENDABOT_CONFIG = .github/dependabot.yml
 .PHONY: dependabot-check
-dependabot-check:
-	@result=$$( \
-		for f in $$( find . -type f -name go.mod -exec dirname {} \; | sed 's/^.//' ); \
-			do grep -q "directory: \+$$f" $(DEPENDABOT_PATH) \
-			|| echo "$$f"; \
-		done; \
-	); \
-	if [ -n "$$result" ]; then \
-		echo "missing dependabot entry:"; echo "$$result"; \
-		echo "new modules need to be added to the $(DEPENDABOT_PATH) file"; \
-		echo "(run: make dependabot-generate)"; \
-		exit 1; \
-	fi
+dependabot-check: | $(DBOTCONF)
+	@$(DBOTCONF) verify $(DEPENDABOT_CONFIG) || echo "(run: make dependabot-generate)"
 
 .PHONY: dependabot-generate
-dependabot-generate: $(DBOTCONF)
-	@echo "gerating dependabot configuration"; \
-	$(DBOTCONF)
+dependabot-generate: | $(DBOTCONF)
+	@$(DBOTCONF) generate > $(DEPENDABOT_CONFIG)
 
 .PHONY: check-clean-work-tree
 check-clean-work-tree:

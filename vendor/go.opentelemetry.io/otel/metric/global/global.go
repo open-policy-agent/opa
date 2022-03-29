@@ -12,12 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/*
-Package number provides a number abstraction for instruments that
-either support int64 or float64 input values.
+package global // import "go.opentelemetry.io/otel/metric/global"
 
-This package is currently in a pre-GA phase. Backwards incompatible changes
-may be introduced in subsequent minor version releases as we work to track the
-evolving OpenTelemetry specification and user feedback.
-*/
-package number // import "go.opentelemetry.io/otel/metric/number"
+import (
+	"go.opentelemetry.io/otel/metric"
+	"go.opentelemetry.io/otel/metric/internal/global"
+)
+
+// MeterProvider returns the registered global trace provider.
+// If none is registered then a No-op MeterProvider is returned.
+func MeterProvider() metric.MeterProvider {
+	return global.MeterProvider()
+}
+
+// SetMeterProvider registers `mp` as the global meter provider.
+func SetMeterProvider(mp metric.MeterProvider) {
+	global.SetMeterProvider(mp)
+}
