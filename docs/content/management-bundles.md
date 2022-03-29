@@ -363,12 +363,10 @@ following form:
     },
     {
       "name": "roles/bindings/data.json",
-      "hash": "42cfe6768b57bb5f7503c165c28dd07ac5b813554ebc850f2cc35843e7137b1d"
+      "hash": "42cfe6768b57bb5f7503c165c28dd07ac5b813554ebc850f2cc35843e7137b1d",
+      "algorithm": "SHA-256"
     }
-  ],
-  "iat": 1592248027,
-  "iss": "JWTService",
-  "scope": "write"
+  ]
 }
 ```
 
@@ -381,8 +379,17 @@ following form:
 | `iat` | `string` | No | Time of signature creation since epoch in seconds. For informational purposes only. |
 | `iss` | `string` | No | Identifies the issuer of the JWT. For informational purposes only. |
 
-> Note: OPA will first look for the `keyid` on the command-line. If the `keyid` is empty, OPA will look for it in it's
-> configuration. If `keyid` is still empty, OPA will finally look for `kid` in the JWT header.
+---
+**NOTE**
+
+OPA will first look for the `keyid` on the command-line. If the `keyid` is empty, OPA will look for it in it's
+configuration. If `keyid` is still empty, OPA will finally look for `kid` in the JWT header.
+
+To include additional claims in the JWT payload such as `scope`, `iat`, `iss` use the `--claims-file` flag
+in the `opa build` or `opa sign` commands to provide a JSON file containing optional claims. See `opa build --help`
+or `opa sign --help` for more details.
+
+---
 
 The following hashing algorithms are supported:
 
@@ -500,9 +507,15 @@ Below is an example of the `patch.json` file:
 }
 ```
 
-A _delta_ bundle update for an existing _snapshot_ bundle, MUST have the same values for the manifest `roots` and `wasm`
-fields from the original _snapshot_ bundle. This means a _delta_ bundle cannot be used to change the scope of the original
-bundle. A _delta_ bundle can however contain different values for the bundle's `revision` and `metadata`.
+If OPA has previously activated a _snapshot_ bundle that did not contain a .manifest file, then the _delta_ bundle
+must not contain a `.manifest` file.
+
+If OPA has a previously activated _snapshot_ bundle that did contain a `.manifest` file, then the _delta_ bundle may
+contain a `.manifest` file. Specifically if a previously activated _snapshot_ bundle contains a `.manifest` file that
+declares `roots` or `wasm` fields, a _delta_ bundle update MUST have the same values for the manifest
+`roots` and `wasm` fields from the original _snapshot_ bundle. This means a _delta_ bundle cannot be used to change
+the scope of the original bundle or update Wasm resolvers. A _delta_ bundle can however contain different
+values for the bundle's `revision` and `metadata`.
 
 #### Delta Bundle Patch Operations
 
@@ -515,6 +528,12 @@ operation to perform. Valid options include:
 | `"replace"` | The value at the specified `"path"` will be replaced by the new value defined by the `"value"` field. The target path must exist for the operation to be successful. |
 | `"upsert"` | The `"value"` will be set at the specified `"path"`. If the `"path"` specifies an array index, the `"value"` is inserted into the array at the specified index. If the `"path"` specifies an object member that does not already exist, a new member is added to the object. If the object member exists, its value is replaced. If the `"path"` does not exist, OPA will create and add it to its in-memory store. |
 
+---
+**NOTE**
+
+The `upsert` operation in not part of the [JSON Patch](https://datatracker.ietf.org/doc/html/rfc6902) standard.
+
+---
 
 The `"path"` field defines a JSON pointer path to the location to perform the operation on.
 
