@@ -14,7 +14,6 @@ require (
 	github.com/go-ini/ini v1.66.4
 	github.com/go-logr/logr v1.2.3
 	github.com/gobwas/glob v0.2.3
-	github.com/golang/glog v1.0.0 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.2
 	github.com/golang/snappy v0.0.4 // indirect
@@ -38,9 +37,9 @@ require (
 	go.opencensus.io v0.23.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.31.0
 	go.opentelemetry.io/otel v1.6.1
-	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.6.0
-	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.6.0
-	go.opentelemetry.io/otel/sdk v1.6.0
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.6.1
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.6.1
+	go.opentelemetry.io/otel/sdk v1.6.1
 	go.opentelemetry.io/otel/trace v1.6.1
 	go.uber.org/automaxprocs v1.4.0
 	golang.org/x/net v0.0.0-20211111083644-e5c967477495
