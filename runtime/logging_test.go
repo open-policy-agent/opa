@@ -7,7 +7,6 @@ package runtime
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -17,42 +16,6 @@ import (
 	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/logging/test"
 )
-
-func TestDropInputParam(t *testing.T) {
-
-	// Without other params.
-	abc := `a.b.c:{"foo":[1,2,3,4]}`
-	abcEncoded := url.QueryEscape(abc)
-
-	uri, err := url.ParseRequestURI(fmt.Sprintf(`http://localhost:8181/v1/data/foo/bar?input=%v`, abcEncoded))
-	if err != nil {
-		panic(err)
-	}
-
-	result := dropInputParam(uri)
-	expected := "/v1/data/foo/bar"
-
-	if result != expected {
-		t.Errorf("Expected %v but got: %v", expected, result)
-	}
-
-	// With other params.
-	def := `d.e.f:{"bar":{"baz":null}}`
-	defEncoded := url.QueryEscape(def)
-
-	uri, err = url.ParseRequestURI(fmt.Sprintf(`http://localhost:8181/v1/data/foo/bar?input=%v&pretty=true&depth=1&input=%v`, abcEncoded, defEncoded))
-	if err != nil {
-		panic(err)
-	}
-
-	result = dropInputParam(uri)
-	expected = "/v1/data/foo/bar?depth=1&pretty=true"
-
-	if result != expected {
-		t.Errorf("Expected %v but got: %v", expected, result)
-	}
-
-}
 
 func TestValidateGzipHeader(t *testing.T) {
 
