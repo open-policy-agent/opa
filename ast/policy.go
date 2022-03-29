@@ -1053,10 +1053,22 @@ func (expr *Expr) sortOrder() int {
 	return -1
 }
 
+// CopyWithoutTerms returns a deep copy of expr without its Terms
+func (expr *Expr) CopyWithoutTerms() *Expr {
+	cpy := *expr
+
+	cpy.With = make([]*With, len(expr.With))
+	for i := range expr.With {
+		cpy.With[i] = expr.With[i].Copy()
+	}
+
+	return &cpy
+}
+
 // Copy returns a deep copy of expr.
 func (expr *Expr) Copy() *Expr {
 
-	cpy := *expr
+	cpy := expr.CopyWithoutTerms()
 
 	switch ts := expr.Terms.(type) {
 	case *SomeDecl:
@@ -1073,12 +1085,7 @@ func (expr *Expr) Copy() *Expr {
 		cpy.Terms = ts.Copy()
 	}
 
-	cpy.With = make([]*With, len(expr.With))
-	for i := range expr.With {
-		cpy.With[i] = expr.With[i].Copy()
-	}
-
-	return &cpy
+	return cpy
 }
 
 // Hash returns the hash code of the Expr.
