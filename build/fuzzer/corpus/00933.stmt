@@ -1,1 +1,0 @@
-p = [x, y, z, i, j] { to_number("-42.0", x); to_number(false, y); to_number(100.1, z); to_number(null, i); to_number(true, j) }

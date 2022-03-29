@@ -1,1 +1,0 @@
-p[x] { walk(data.a[0], x) }
