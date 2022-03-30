@@ -188,6 +188,7 @@ func TestDataPartitioningValidation(t *testing.T) {
 			t.Fatal("unexpected code or message, got:", err)
 		}
 
+		// set up two partitions
 		s, err := New(ctx, logging.NewNoOpLogger(), nil, Options{Dir: dir, Partitions: []storage.Path{
 			storage.MustParsePath("/foo/bar"),
 			storage.MustParsePath("/foo/baz"),
@@ -198,6 +199,7 @@ func TestDataPartitioningValidation(t *testing.T) {
 
 		closeFn(ctx, s)
 
+		// init with same settings: nothing wrong
 		s, err = New(ctx, logging.NewNoOpLogger(), nil, Options{Dir: dir, Partitions: []storage.Path{
 			storage.MustParsePath("/foo/baz"),
 			storage.MustParsePath("/foo/bar"),
@@ -208,6 +210,7 @@ func TestDataPartitioningValidation(t *testing.T) {
 
 		closeFn(ctx, s)
 
+		// adding another partition
 		s, err = New(ctx, logging.NewNoOpLogger(), nil, Options{Dir: dir, Partitions: []storage.Path{
 			storage.MustParsePath("/foo/baz"),
 			storage.MustParsePath("/foo/bar"),
@@ -217,6 +220,9 @@ func TestDataPartitioningValidation(t *testing.T) {
 			t.Fatal(err)
 		}
 
+		// We're writing data under the partitions: this affects how
+		// some partition changes are treated: if they don't affect existing
+		// data, they are accepted.
 		err = storage.WriteOne(ctx, s, storage.AddOp, storage.MustParsePath("/foo/corge"), "x")
 		if err != nil {
 			t.Fatal(err)
@@ -234,7 +240,8 @@ func TestDataPartitioningValidation(t *testing.T) {
 			storage.MustParsePath("/foo/bar"),
 			storage.MustParsePath("/foo/qux/corge"),
 		}})
-		if err == nil || !strings.Contains(err.Error(), "partitions are backwards incompatible (old: [/foo/bar /foo/baz /foo/qux], new: [/foo/bar /foo/baz /foo/qux/corge], missing: [/foo/qux])") {
+		if err == nil || !strings.Contains(err.Error(),
+			"partitions are backwards incompatible (old: [/foo/bar /foo/baz /foo/qux /system/%2A], new: [/foo/bar /foo/baz /foo/qux/corge /system/%2A], missing: [/foo/qux])") {
 			t.Fatal(err)
 		}
 
@@ -276,6 +283,25 @@ func TestDataPartitioningValidation(t *testing.T) {
 
 		closeFn(ctx, s)
 	})
+}
+
+func TestDataPartitioningSystemPartitions(t *testing.T) {
+	ctx := context.Background()
+	dir := "unused"
+
+	for _, part := range []string{
+		"/system",
+		"/system/*",
+		"/system/a",
+		"/system/a/b",
+	} {
+		_, err := New(ctx, logging.NewNoOpLogger(), nil, Options{Dir: dir, Partitions: []storage.Path{
+			storage.MustParsePath(part),
+		}})
+		if err == nil || !strings.Contains(err.Error(), "system partitions are managed") {
+			t.Fatal(err)
+		}
+	}
 }
 
 func TestDataPartitioningReadsAndWrites(t *testing.T) {

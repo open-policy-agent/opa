@@ -88,6 +88,11 @@ are performance critical.
 To figure out suboptimal partitioning, please have a look at the exposed
 metrics.
 
+OPA stores some internal values (such as bundle metadata) in the data store,
+under `/system`. Partitions for that part of the data store are managed by
+OPA, and providing any overlapping partitions in the config will raise an
+error.
+
 ## Metrics
 
 Using the [REST API](../rest-api/), you can include the `?metrics` query string
