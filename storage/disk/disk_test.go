@@ -1155,43 +1155,47 @@ func TestDataPartitioningWriteNotFoundErrors(t *testing.T) {
 }
 
 func TestDataPartitioningWriteInvalidPatchError(t *testing.T) {
-	test.WithTempFS(map[string]string{}, func(dir string) {
-		ctx := context.Background()
-		s, err := New(ctx, logging.NewNoOpLogger(), nil, Options{Dir: dir, Partitions: []storage.Path{
-			storage.MustParsePath("/foo"),
-		}})
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer s.Close(ctx)
+	for _, pt := range []string{"/*", "/foo"} {
+		t.Run(pt, func(t *testing.T) {
+			test.WithTempFS(map[string]string{}, func(dir string) {
+				ctx := context.Background()
+				s, err := New(ctx, logging.NewNoOpLogger(), nil, Options{Dir: dir, Partitions: []storage.Path{
+					storage.MustParsePath("/foo"),
+				}})
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer s.Close(ctx)
 
-		err = storage.WriteOne(ctx, s, storage.AddOp, storage.MustParsePath("/foo"), util.MustUnmarshalJSON([]byte(`[1,2,3]`)))
-		if err == nil {
-			t.Fatal("expected error")
-		} else if sErr, ok := err.(*storage.Error); !ok {
-			t.Fatal("expected storage error but got:", err)
-		} else if sErr.Code != storage.InvalidPatchErr {
-			t.Fatal("expected invalid patch error but got:", err)
-		}
+				err = storage.WriteOne(ctx, s, storage.AddOp, storage.MustParsePath("/foo"), util.MustUnmarshalJSON([]byte(`[1,2,3]`)))
+				if err == nil {
+					t.Fatal("expected error")
+				} else if sErr, ok := err.(*storage.Error); !ok {
+					t.Fatal("expected storage error but got:", err)
+				} else if sErr.Code != storage.InvalidPatchErr {
+					t.Fatal("expected invalid patch error but got:", err)
+				}
 
-		err = storage.WriteOne(ctx, s, storage.AddOp, storage.MustParsePath("/"), util.MustUnmarshalJSON([]byte(`{"foo": [1,2,3]}`)))
-		if err == nil {
-			t.Fatal("expected error")
-		} else if sErr, ok := err.(*storage.Error); !ok {
-			t.Fatal("expected storage error but got:", err)
-		} else if sErr.Code != storage.InvalidPatchErr {
-			t.Fatal("expected invalid patch error but got:", err)
-		}
+				err = storage.WriteOne(ctx, s, storage.AddOp, storage.MustParsePath("/"), util.MustUnmarshalJSON([]byte(`{"foo": [1,2,3]}`)))
+				if err == nil {
+					t.Fatal("expected error")
+				} else if sErr, ok := err.(*storage.Error); !ok {
+					t.Fatal("expected storage error but got:", err)
+				} else if sErr.Code != storage.InvalidPatchErr {
+					t.Fatal("expected invalid patch error but got:", err)
+				}
 
-		err = storage.WriteOne(ctx, s, storage.AddOp, storage.MustParsePath("/"), util.MustUnmarshalJSON([]byte(`[1,2,3]`)))
-		if err == nil {
-			t.Fatal("expected error")
-		} else if sErr, ok := err.(*storage.Error); !ok {
-			t.Fatal("expected storage error but got:", err)
-		} else if sErr.Code != storage.InvalidPatchErr {
-			t.Fatal("expected invalid patch error but got:", err)
-		}
-	})
+				err = storage.WriteOne(ctx, s, storage.AddOp, storage.MustParsePath("/"), util.MustUnmarshalJSON([]byte(`[1,2,3]`)))
+				if err == nil {
+					t.Fatal("expected error")
+				} else if sErr, ok := err.(*storage.Error); !ok {
+					t.Fatal("expected storage error but got:", err)
+				} else if sErr.Code != storage.InvalidPatchErr {
+					t.Fatal("expected invalid patch error but got:", err)
+				}
+			})
+		})
+	}
 }
 
 func executeTestWrite(ctx context.Context, t *testing.T, s storage.Store, x testWrite) {
