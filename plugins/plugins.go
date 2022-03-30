@@ -171,7 +171,7 @@ type Manager struct {
 	services                     map[string]rest.Client
 	keys                         map[string]*keys.Config
 	plugins                      []namedplugin
-	registeredTriggers           []func(txn storage.Transaction)
+	registeredTriggers           []func(storage.Transaction)
 	mtx                          sync.Mutex
 	pluginStatus                 map[string]*Status
 	pluginStatusListeners        map[string]StatusListener
@@ -546,7 +546,7 @@ func (m *Manager) GetRouter() *mux.Router {
 
 // RegisterCompilerTrigger registers for change notifications when the compiler
 // is changed.
-func (m *Manager) RegisterCompilerTrigger(f func(txn storage.Transaction)) {
+func (m *Manager) RegisterCompilerTrigger(f func(storage.Transaction)) {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
 	m.registeredTriggers = append(m.registeredTriggers, f)
@@ -624,6 +624,11 @@ func (m *Manager) Stop(ctx context.Context) {
 	defer cancel()
 	for i := range toStop {
 		toStop[i].Stop(ctx)
+	}
+	if c, ok := m.Store.(interface{ Close(context.Context) error }); ok {
+		if err := c.Close(ctx); err != nil {
+			m.logger.Error("Error closing store: %v", err)
+		}
 	}
 }
 
@@ -816,10 +821,6 @@ func requiresWasmResolverReload(event storage.TriggerEvent) bool {
 func (m *Manager) updateWasmResolversData(ctx context.Context, event storage.TriggerEvent) error {
 	m.wasmResolversMtx.Lock()
 	defer m.wasmResolversMtx.Unlock()
-
-	if len(m.wasmResolvers) == 0 {
-		return nil
-	}
 
 	for _, resolver := range m.wasmResolvers {
 		for _, dataEvent := range event.Data {

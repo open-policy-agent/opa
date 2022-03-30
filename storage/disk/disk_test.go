@@ -7,9 +7,13 @@ package disk
 import (
 	"bytes"
 	"context"
+	"reflect"
 	"strings"
 	"testing"
 
+	badger "github.com/dgraph-io/badger/v3"
+
+	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/util/test"
@@ -32,11 +36,69 @@ type testWriteError struct {
 	value string
 }
 
+// testCount lets you assert the number of keys under a prefix.
+// Note that we don't do exact matches, so the assertions should be
+// as exact as possible:
+//   testCount{"/foo", 1}
+//   testCount{"/foo/bar", 1}
+// both of these would be true for one element under key `/foo/bar`.
+type testCount struct {
+	key   string
+	count int
+}
+
+func (tc *testCount) assert(t *testing.T, s *Store) {
+	t.Helper()
+	key, err := s.pm.DataPath2Key(storage.MustParsePath(tc.key))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	opt := badger.DefaultIteratorOptions
+	opt.PrefetchValues = false
+	opt.Prefix = key
+
+	var count int
+	if err := s.db.View(func(txn *badger.Txn) error {
+		it := txn.NewIterator(opt)
+		defer it.Close()
+		for it.Rewind(); it.Valid(); it.Next() {
+			count++
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	if tc.count != count {
+		t.Errorf("key %v: expected %d keys, found %d", tc.key, tc.count, count)
+	}
+}
+
+type testDump struct{} // for debugging purposes
+
+func (*testDump) do(t *testing.T, s *Store) {
+	t.Helper()
+	opt := badger.DefaultIteratorOptions
+	opt.PrefetchValues = true
+
+	if err := s.db.View(func(txn *badger.Txn) error {
+		it := txn.NewIterator(opt)
+		defer it.Close()
+		for it.Rewind(); it.Valid(); it.Next() {
+			t.Logf("%v -> %v", string(it.Item().Key()), it.Item().ValueSize())
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestPolicies(t *testing.T) {
 
 	test.WithTempFS(map[string]string{}, func(dir string) {
 		ctx := context.Background()
-		s, err := New(ctx, Options{Dir: dir, Partitions: nil})
+		s, err := New(ctx, logging.NewNoOpLogger(), nil, Options{Dir: dir, Partitions: nil})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -101,6 +163,9 @@ func TestDataPartitioningValidation(t *testing.T) {
 
 	closeFn := func(ctx context.Context, s *Store) {
 		t.Helper()
+		if s == nil {
+			return
+		}
 		if err := s.Close(ctx); err != nil {
 			t.Fatal(err)
 		}
@@ -110,7 +175,7 @@ func TestDataPartitioningValidation(t *testing.T) {
 
 		ctx := context.Background()
 
-		_, err := New(ctx, Options{Dir: dir, Partitions: []storage.Path{
+		_, err := New(ctx, logging.NewNoOpLogger(), nil, Options{Dir: dir, Partitions: []storage.Path{
 			storage.MustParsePath("/foo/bar"),
 			storage.MustParsePath("/foo/bar/baz"),
 		}})
@@ -123,7 +188,7 @@ func TestDataPartitioningValidation(t *testing.T) {
 			t.Fatal("unexpected code or message, got:", err)
 		}
 
-		s, err := New(ctx, Options{Dir: dir, Partitions: []storage.Path{
+		s, err := New(ctx, logging.NewNoOpLogger(), nil, Options{Dir: dir, Partitions: []storage.Path{
 			storage.MustParsePath("/foo/bar"),
 			storage.MustParsePath("/foo/baz"),
 		}})
@@ -133,7 +198,7 @@ func TestDataPartitioningValidation(t *testing.T) {
 
 		closeFn(ctx, s)
 
-		s, err = New(ctx, Options{Dir: dir, Partitions: []storage.Path{
+		s, err = New(ctx, logging.NewNoOpLogger(), nil, Options{Dir: dir, Partitions: []storage.Path{
 			storage.MustParsePath("/foo/baz"),
 			storage.MustParsePath("/foo/bar"),
 		}})
@@ -143,7 +208,7 @@ func TestDataPartitioningValidation(t *testing.T) {
 
 		closeFn(ctx, s)
 
-		s, err = New(ctx, Options{Dir: dir, Partitions: []storage.Path{
+		s, err = New(ctx, logging.NewNoOpLogger(), nil, Options{Dir: dir, Partitions: []storage.Path{
 			storage.MustParsePath("/foo/baz"),
 			storage.MustParsePath("/foo/bar"),
 			storage.MustParsePath("/foo/qux"),
@@ -164,7 +229,7 @@ func TestDataPartitioningValidation(t *testing.T) {
 
 		closeFn(ctx, s)
 
-		s, err = New(ctx, Options{Dir: dir, Partitions: []storage.Path{
+		s, err = New(ctx, logging.NewNoOpLogger(), nil, Options{Dir: dir, Partitions: []storage.Path{
 			storage.MustParsePath("/foo/baz"),
 			storage.MustParsePath("/foo/bar"),
 			storage.MustParsePath("/foo/qux/corge"),
@@ -175,7 +240,7 @@ func TestDataPartitioningValidation(t *testing.T) {
 
 		closeFn(ctx, s)
 
-		s, err = New(ctx, Options{Dir: dir, Partitions: []storage.Path{
+		s, err = New(ctx, logging.NewNoOpLogger(), nil, Options{Dir: dir, Partitions: []storage.Path{
 			storage.MustParsePath("/foo/baz"),
 			storage.MustParsePath("/foo/bar"),
 			storage.MustParsePath("/foo/qux"),
@@ -187,7 +252,7 @@ func TestDataPartitioningValidation(t *testing.T) {
 
 		closeFn(ctx, s)
 
-		s, err = New(ctx, Options{Dir: dir, Partitions: []storage.Path{
+		s, err = New(ctx, logging.NewNoOpLogger(), nil, Options{Dir: dir, Partitions: []storage.Path{
 			storage.MustParsePath("/foo/baz"),
 			storage.MustParsePath("/foo/bar"),
 			storage.MustParsePath("/foo/qux"),
@@ -199,7 +264,7 @@ func TestDataPartitioningValidation(t *testing.T) {
 
 		closeFn(ctx, s)
 
-		s, err = New(ctx, Options{Dir: dir, Partitions: []storage.Path{
+		s, err = New(ctx, logging.NewNoOpLogger(), nil, Options{Dir: dir, Partitions: []storage.Path{
 			storage.MustParsePath("/foo/baz"),
 			storage.MustParsePath("/foo/bar"),
 			storage.MustParsePath("/foo/qux"),
@@ -233,6 +298,7 @@ func TestDataPartitioningReadsAndWrites(t *testing.T) {
 					path: "/foo/bar",
 					exp:  `"x"`,
 				},
+				testCount{"/foo/bar", 1},
 			},
 		},
 		{
@@ -248,6 +314,7 @@ func TestDataPartitioningReadsAndWrites(t *testing.T) {
 					path: "/foo/bar/baz",
 					exp:  `"x"`,
 				},
+				testCount{"/foo/bar/baz", 1},
 			},
 		},
 		{
@@ -263,6 +330,8 @@ func TestDataPartitioningReadsAndWrites(t *testing.T) {
 					path: "/deadbeef",
 					exp:  `"x"`,
 				},
+				testCount{"/foo", 0},
+				testCount{"/deadbeef", 1},
 			},
 		},
 		{
@@ -302,6 +371,8 @@ func TestDataPartitioningReadsAndWrites(t *testing.T) {
 					path: "/foo/bar/baz",
 					exp:  `8`,
 				},
+				testCount{"/foo/bar", 1},
+				testCount{"/foo/bar/baz", 0},
 			},
 		},
 		{
@@ -365,7 +436,27 @@ func TestDataPartitioningReadsAndWrites(t *testing.T) {
 			},
 		},
 		{
-			note:       "read-modify-write: add: array overwrite",
+			note:       "read-modify-write: add: array append (via last index)",
+			partitions: []string{"/foo"},
+			sequence: []interface{}{
+				testWrite{
+					op:    storage.AddOp,
+					path:  "/foo/bar",
+					value: `[1]`,
+				},
+				testWrite{
+					op:    storage.AddOp,
+					path:  "/foo/bar/1",
+					value: `8`,
+				},
+				testRead{
+					path: "/foo/bar",
+					exp:  `[1, 8]`,
+				},
+			},
+		},
+		{
+			note:       "read-modify-write: add: array insert",
 			partitions: []string{"/foo"},
 			sequence: []interface{}{
 				testWrite{
@@ -380,7 +471,7 @@ func TestDataPartitioningReadsAndWrites(t *testing.T) {
 				},
 				testRead{
 					path: "/foo/bar",
-					exp:  `[8]`,
+					exp:  `[8, 7]`,
 				},
 			},
 		},
@@ -405,6 +496,26 @@ func TestDataPartitioningReadsAndWrites(t *testing.T) {
 			},
 		},
 		{
+			note:       "read-modify-write: replace: array",
+			partitions: []string{"/foo"},
+			sequence: []interface{}{
+				testWrite{
+					op:    storage.AddOp,
+					path:  "/foo/bar",
+					value: `[7]`,
+				},
+				testWrite{
+					op:    storage.ReplaceOp,
+					path:  "/foo/bar/0",
+					value: `8`,
+				},
+				testRead{
+					path: "/foo/bar",
+					exp:  `[8]`,
+				},
+			},
+		},
+		{
 			note:       "read-modify-write: remove",
 			partitions: []string{"/foo"},
 			sequence: []interface{}{
@@ -420,6 +531,25 @@ func TestDataPartitioningReadsAndWrites(t *testing.T) {
 				testRead{
 					path: "/foo/bar",
 					exp:  `{}`,
+				},
+			},
+		},
+		{
+			note:       "read-modify-write: remove: array",
+			partitions: []string{"/foo"},
+			sequence: []interface{}{
+				testWrite{
+					op:    storage.AddOp,
+					path:  "/foo/bar",
+					value: `[7, 8]`,
+				},
+				testWrite{
+					op:   storage.RemoveOp,
+					path: "/foo/bar/0",
+				},
+				testRead{
+					path: "/foo/bar",
+					exp:  `[8]`,
 				},
 			},
 		},
@@ -472,6 +602,8 @@ func TestDataPartitioningReadsAndWrites(t *testing.T) {
 					path:  "/foo",
 					value: `{"bar": 7, "baz": 8}`,
 				},
+
+				testCount{"/foo", 2},
 				testRead{
 					path: "/foo/bar",
 					exp:  `7`,
@@ -592,6 +724,87 @@ func TestDataPartitioningReadsAndWrites(t *testing.T) {
 				},
 			},
 		},
+		{
+			note:       "pattern partitions: middle wildcard: match",
+			partitions: []string{"/foo/*/bar"},
+			sequence: []interface{}{
+				testWrite{
+					op:    storage.AddOp,
+					path:  "/foo/a/bar",
+					value: `{"baz": 7}`,
+				},
+				testCount{"/foo/a/bar/baz", 1},
+				testRead{"/foo/a/bar/baz", `7`},
+			},
+		},
+		{
+			note:       "pattern partitions: middle wildcard: no-match",
+			partitions: []string{"/foo/*/bar"},
+			sequence: []interface{}{
+				testWrite{
+					op:    storage.AddOp,
+					path:  "/foo/b/baz",
+					value: `{"quz": 1}`,
+				},
+				testCount{"/foo/b/baz", 1},
+				testCount{"/foo/b/baz/quz", 0},
+				testRead{"/foo/b/baz/quz", `1`},
+			},
+		},
+		{
+			note:       "pattern partitions: middle wildcard: partial match",
+			partitions: []string{"/foo/*/bar"},
+			sequence: []interface{}{
+				testWrite{
+					op:    storage.AddOp,
+					path:  "/foo/b",
+					value: `{"bar": {"quz": 1}, "x": "y"}`,
+				},
+				testCount{"/foo/b/bar/quz", 1},
+				testRead{"/foo/b/bar/quz", `1`},
+				testCount{"/foo/b/x", 1},
+				testRead{"/foo/b/x", `"y"`},
+			},
+		},
+		{
+			note:       "pattern partitions: 2x middle wildcard: partial match",
+			partitions: []string{"/foo/*/*/bar"},
+			sequence: []interface{}{
+				testWrite{
+					op:    storage.AddOp,
+					path:  "/foo/b/c",
+					value: `{"bar": {"quz": 1}, "x": "y"}`,
+				},
+				testCount{"/foo/b/c/bar/quz", 1},
+				testRead{"/foo/b/c/bar/quz", `1`},
+				testCount{"/foo/b/c/x", 1},
+				testRead{"/foo/b/c/x", `"y"`},
+			},
+		},
+		{
+			note:       "pattern partitions: wildcard at the end",
+			partitions: []string{"/users/*"},
+			sequence: []interface{}{
+				testWrite{
+					op:    storage.AddOp,
+					path:  "/users",
+					value: `{"alice": {"bar": {"quz": 1}, "x": "y"}}`,
+				},
+				testWrite{
+					op:    storage.AddOp,
+					path:  "/users/bob",
+					value: `{"baz": {"one": 1}, "y": "x"}`,
+				},
+				testCount{"/users/alice/bar", 1},
+				testRead{"/users/alice/bar/quz", `1`},
+				testCount{"/users/alice/x", 1},
+				testRead{"/users/alice/x", `"y"`},
+				testCount{"/users/bob/baz", 1},
+				testRead{"/users/bob/baz/one", `1`},
+				testCount{"/users/bob/y", 1},
+				testRead{"/users/bob/y", `"x"`},
+			},
+		},
 	}
 
 	for _, tc := range tests {
@@ -604,7 +817,7 @@ func TestDataPartitioningReadsAndWrites(t *testing.T) {
 				}
 
 				ctx := context.Background()
-				s, err := New(ctx, Options{Dir: dir, Partitions: partitions})
+				s, err := New(ctx, logging.NewNoOpLogger(), nil, Options{Dir: dir, Partitions: partitions})
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -612,6 +825,8 @@ func TestDataPartitioningReadsAndWrites(t *testing.T) {
 
 				for _, x := range tc.sequence {
 					switch x := x.(type) {
+					case testCount:
+						x.assert(t, s)
 					case testWrite:
 						executeTestWrite(ctx, t, s, x)
 					case testRead:
@@ -626,6 +841,8 @@ func TestDataPartitioningReadsAndWrites(t *testing.T) {
 						if cmp := util.Compare(result, exp); cmp != 0 {
 							t.Fatalf("expected %v but got %v", x.exp, result)
 						}
+					case testDump:
+						x.do(t, s)
 					default:
 						panic("unexpected type")
 					}
@@ -752,7 +969,7 @@ func TestDataPartitioningReadNotFoundErrors(t *testing.T) {
 				}
 
 				ctx := context.Background()
-				s, err := New(ctx, Options{Dir: dir, Partitions: partitions})
+				s, err := New(ctx, logging.NewNoOpLogger(), nil, Options{Dir: dir, Partitions: partitions})
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -786,60 +1003,6 @@ func TestDataPartitioningWriteNotFoundErrors(t *testing.T) {
 		partitions []string
 		sequence   []interface{}
 	}{
-		{
-			note:       "unpartitioned",
-			partitions: []string{"/foo"},
-			sequence: []interface{}{
-				testWriteError{
-					op:    storage.AddOp,
-					path:  "/does/notexist",
-					value: `7`,
-				},
-			},
-		},
-		{
-			note:       "unpartitioned: nested",
-			partitions: []string{"/foo"},
-			sequence: []interface{}{
-				testWrite{
-					op:    storage.AddOp,
-					path:  "/deadbeef",
-					value: `{}`,
-				},
-				testWriteError{
-					op:    storage.AddOp,
-					path:  "/deadbeef/x/y",
-					value: `{}`,
-				},
-			},
-		},
-		{
-			note:       "partitioned: nested",
-			partitions: []string{"/foo"},
-			sequence: []interface{}{
-				testWriteError{
-					op:    storage.AddOp,
-					path:  "/foo/bar/baz",
-					value: `{}`,
-				},
-			},
-		},
-		{
-			note:       "partitioned: nested: 2-level",
-			partitions: []string{"/foo"},
-			sequence: []interface{}{
-				testWrite{
-					op:    storage.AddOp,
-					path:  "/foo/bar",
-					value: `{}`,
-				},
-				testWriteError{
-					op:    storage.AddOp,
-					path:  "/foo/bar/baz/qux",
-					value: `7`,
-				},
-			},
-		},
 		{
 			note:       "patch: remove: non-existent key",
 			partitions: []string{},
@@ -958,7 +1121,7 @@ func TestDataPartitioningWriteNotFoundErrors(t *testing.T) {
 				}
 
 				ctx := context.Background()
-				s, err := New(ctx, Options{Dir: dir, Partitions: partitions})
+				s, err := New(ctx, logging.NewNoOpLogger(), nil, Options{Dir: dir, Partitions: partitions})
 
 				if err != nil {
 					t.Fatal(err)
@@ -994,7 +1157,7 @@ func TestDataPartitioningWriteNotFoundErrors(t *testing.T) {
 func TestDataPartitioningWriteInvalidPatchError(t *testing.T) {
 	test.WithTempFS(map[string]string{}, func(dir string) {
 		ctx := context.Background()
-		s, err := New(ctx, Options{Dir: dir, Partitions: []storage.Path{
+		s, err := New(ctx, logging.NewNoOpLogger(), nil, Options{Dir: dir, Partitions: []storage.Path{
 			storage.MustParsePath("/foo"),
 		}})
 		if err != nil {
@@ -1041,4 +1204,275 @@ func executeTestWrite(ctx context.Context, t *testing.T, s storage.Store, x test
 	if err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestDiskTriggers(t *testing.T) {
+	test.WithTempFS(map[string]string{}, func(dir string) {
+		ctx := context.Background()
+		store, err := New(ctx, logging.NewNoOpLogger(), nil, Options{Dir: dir, Partitions: []storage.Path{
+			storage.MustParsePath("/foo"),
+		}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer store.Close(ctx)
+		writeTxn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
+		readTxn := storage.NewTransactionOrDie(ctx, store)
+
+		_, err = store.Register(ctx, readTxn, storage.TriggerConfig{
+			OnCommit: func(context.Context, storage.Transaction, storage.TriggerEvent) {},
+		})
+
+		if err == nil || !storage.IsInvalidTransaction(err) {
+			t.Fatalf("Expected transaction error: %v", err)
+		}
+
+		store.Abort(ctx, readTxn)
+
+		var event storage.TriggerEvent
+		modifiedPath := storage.MustParsePath("/a")
+		expectedValue := "hello"
+
+		_, err = store.Register(ctx, writeTxn, storage.TriggerConfig{
+			OnCommit: func(ctx context.Context, txn storage.Transaction, evt storage.TriggerEvent) {
+				result, err := store.Read(ctx, txn, modifiedPath)
+				if err != nil || !reflect.DeepEqual(result, expectedValue) {
+					t.Fatalf("Expected result to be hello for trigger read but got: %v (err: %v)", result, err)
+				}
+				event = evt
+			},
+		})
+		if err != nil {
+			t.Fatalf("Failed to register callback: %v", err)
+		}
+
+		if err := store.Write(ctx, writeTxn, storage.ReplaceOp, modifiedPath, expectedValue); err != nil {
+			t.Fatalf("Unexpected write error: %v", err)
+		}
+
+		id := "test"
+		data := []byte("package abc")
+		if err := store.UpsertPolicy(ctx, writeTxn, id, data); err != nil {
+			t.Fatalf("Unexpected upsert error: %v", err)
+		}
+
+		if err := store.Commit(ctx, writeTxn); err != nil {
+			t.Fatalf("Unexpected commit error: %v", err)
+		}
+
+		if event.IsZero() || !event.PolicyChanged() || !event.DataChanged() {
+			t.Fatalf("Expected policy and data change but got: %v", event)
+		}
+
+		expData := storage.DataEvent{Path: modifiedPath, Data: expectedValue, Removed: false}
+		if d := event.Data[0]; !reflect.DeepEqual(expData, d) {
+			t.Fatalf("Expected data event %v, got %v", expData, d)
+		}
+
+		expPolicy := storage.PolicyEvent{ID: id, Data: data, Removed: false}
+		if p := event.Policy[0]; !reflect.DeepEqual(expPolicy, p) {
+			t.Fatalf("Expected policy event %v, got %v", expPolicy, p)
+		}
+	})
+}
+
+func TestDiskDiagnostics(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("no partitions", func(t *testing.T) {
+		test.WithTempFS(nil, func(dir string) {
+			buf := bytes.Buffer{}
+			logger := logging.New()
+			logger.SetOutput(&buf)
+			logger.SetLevel(logging.Debug)
+			store, err := New(ctx, logger, nil, Options{Dir: dir})
+			if err != nil {
+				t.Fatal(err)
+			}
+			// store something, won't show up in the logs yet (they're calculated on startup only)
+			if err := storage.WriteOne(ctx, store, storage.AddOp, storage.MustParsePath("/foo"), util.MustUnmarshalJSON([]byte(`{"baz": 1000}`))); err != nil {
+				t.Fatal(err)
+			}
+			if err := storage.WriteOne(ctx, store, storage.AddOp, storage.MustParsePath("/bar"), util.MustUnmarshalJSON([]byte(`{"quz": 2000}`))); err != nil {
+				t.Fatal(err)
+			}
+			if err := store.Close(ctx); err != nil {
+				t.Fatal(err)
+			}
+
+			expected := []string{
+				`level=error msg="no partitions configured"`,
+				`level=debug msg="partition /: key count: 0 (estimated size 0 bytes)"`,
+			}
+			for _, exp := range expected {
+				if !strings.Contains(buf.String(), exp) {
+					t.Errorf("expected string %q not found in logs", exp)
+				}
+			}
+			if t.Failed() {
+				t.Log("log oputput: ", buf.String())
+			}
+
+			// re-open
+			buf = bytes.Buffer{}
+			logger = logging.New()
+			logger.SetOutput(&buf)
+			logger.SetLevel(logging.Debug)
+			store, err = New(ctx, logger, nil, Options{Dir: dir})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := store.Close(ctx); err != nil {
+				t.Fatal(err)
+			}
+
+			expected = []string{
+				`level=debug msg="partition /: key count: 2 (estimated size 50 bytes)"`,
+			}
+			for _, exp := range expected {
+				if !strings.Contains(buf.String(), exp) {
+					t.Errorf("expected string %q not found in logs", exp)
+				}
+			}
+			if t.Failed() {
+				t.Log("log oputput: ", buf.String())
+			}
+		})
+	})
+
+	t.Run("two partitions", func(t *testing.T) {
+		test.WithTempFS(nil, func(dir string) {
+			opts := Options{
+				Dir: dir,
+				Partitions: []storage.Path{
+					storage.MustParsePath("/foo"),
+					storage.MustParsePath("/bar"),
+				}}
+			buf := bytes.Buffer{}
+			logger := logging.New()
+			logger.SetOutput(&buf)
+			logger.SetLevel(logging.Debug)
+			store, err := New(ctx, logger, nil, opts)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			// store something, won't show up in the logs yet (they're calculated on startup only)
+			if err := storage.WriteOne(ctx, store, storage.AddOp, storage.MustParsePath("/foo"), util.MustUnmarshalJSON([]byte(`{"baz": 1000}`))); err != nil {
+				t.Fatal(err)
+			}
+
+			if err := store.Close(ctx); err != nil {
+				t.Fatal(err)
+			}
+
+			expected := []string{
+				`level=debug msg="partition /bar: key count: 0 (estimated size 0 bytes)"`,
+				`level=debug msg="partition /foo: key count: 0 (estimated size 0 bytes)"`,
+			}
+			for _, exp := range expected {
+				if !strings.Contains(buf.String(), exp) {
+					t.Errorf("expected string %q not found in logs", exp)
+				}
+			}
+			if t.Failed() {
+				t.Log("log oputput: ", buf.String())
+			}
+
+			// re-open
+			buf = bytes.Buffer{}
+			logger = logging.New()
+			logger.SetOutput(&buf)
+			logger.SetLevel(logging.Debug)
+			store, err = New(ctx, logger, nil, opts)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := store.Close(ctx); err != nil {
+				t.Fatal(err)
+			}
+
+			expected = []string{
+				`level=debug msg="partition /bar: key count: 0 (estimated size 0 bytes)"`,
+				`level=debug msg="partition /foo: key count: 1 (estimated size 21 bytes)"`,
+			}
+			for _, exp := range expected {
+				if !strings.Contains(buf.String(), exp) {
+					t.Errorf("expected string %q not found in logs", exp)
+				}
+			}
+			if t.Failed() {
+				t.Log("log oputput: ", buf.String())
+			}
+		})
+	})
+
+	t.Run("patterned partitions", func(t *testing.T) {
+		test.WithTempFS(nil, func(dir string) {
+			opts := Options{Dir: dir,
+				Partitions: []storage.Path{
+					storage.MustParsePath("/foo/*/bar"),
+					storage.MustParsePath("/bar"),
+				}}
+			buf := bytes.Buffer{}
+			logger := logging.New()
+			logger.SetOutput(&buf)
+			logger.SetLevel(logging.Debug)
+			store, err := New(ctx, logger, nil, opts)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			// store something, won't show up in the logs yet (they're calculated on startup only)
+			if err := storage.WriteOne(ctx, store, storage.AddOp, storage.MustParsePath("/foo/x/bar"), util.MustUnmarshalJSON([]byte(`{"baz": 1000}`))); err != nil {
+				t.Fatal(err)
+			}
+			if err := storage.WriteOne(ctx, store, storage.AddOp, storage.MustParsePath("/bar"), util.MustUnmarshalJSON([]byte(`{"quz": 1000}`))); err != nil {
+				t.Fatal(err)
+			}
+
+			if err := store.Close(ctx); err != nil {
+				t.Fatal(err)
+			}
+
+			expected := []string{
+				`level=debug msg="partition /bar: key count: 0 (estimated size 0 bytes)"`,
+				`level=debug msg="partition pattern /foo/*/bar: key count: 0 (estimated size 0 bytes)"`,
+			}
+			for _, exp := range expected {
+				if !strings.Contains(buf.String(), exp) {
+					t.Errorf("expected string %q not found in logs", exp)
+				}
+			}
+			if t.Failed() {
+				t.Log("log oputput: ", buf.String())
+			}
+
+			// re-open
+			buf = bytes.Buffer{}
+			logger = logging.New()
+			logger.SetOutput(&buf)
+			logger.SetLevel(logging.Debug)
+			store, err = New(ctx, logger, nil, opts)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := store.Close(ctx); err != nil {
+				t.Fatal(err)
+			}
+
+			expected = []string{
+				`level=debug msg="partition /bar: key count: 1 (estimated size 21 bytes)"`,
+				`level=debug msg="partition /foo/x/bar (pattern /foo/*/bar): key count: 1 (estimated size 27 bytes)"`,
+			}
+			for _, exp := range expected {
+				if !strings.Contains(buf.String(), exp) {
+					t.Errorf("expected string %q not found in logs", exp)
+				}
+			}
+			if t.Failed() {
+				t.Log("log oputput: ", buf.String())
+			}
+		})
+	})
 }

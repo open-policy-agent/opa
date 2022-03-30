@@ -188,7 +188,7 @@ func (p *Plugin) Reconfigure(ctx context.Context, config interface{}) {
 
 	// Deactivate the bundles that were removed
 	params := storage.WriteParams
-	params.Context = storage.NewContext()
+	params.Context = storage.NewContext() // TODO(sr): metrics?
 	err := storage.Txn(ctx, p.manager.Store, params, func(txn storage.Transaction) error {
 		opts := &bundle.DeactivateOpts{
 			Ctx:         ctx,
@@ -513,7 +513,7 @@ func (p *Plugin) activate(ctx context.Context, name string, b *bundle.Bundle) er
 	p.log(name).Debug("Bundle activation in progress. Opening storage transaction.")
 
 	params := storage.WriteParams
-	params.Context = storage.NewContext()
+	params.Context = storage.NewContext().WithMetrics(p.status[name].Metrics)
 
 	err := storage.Txn(ctx, p.manager.Store, params, func(txn storage.Transaction) error {
 		p.log(name).Debug("Opened storage transaction (%v).", txn.ID())

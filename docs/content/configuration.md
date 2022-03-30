@@ -837,3 +837,20 @@ The following encryption methods are supported:
 | `off` | Disable TLS |
 | `tls` | Enable TLS |
 | `mtls` | Enable mutual TLS |
+
+### Disk Storage
+
+The `storage` configuration key allows for enabling, and configuring, the
+persistent on-disk storage of an OPA instance.
+
+If `disk` is set to something, the server will enable the on-disk store
+with data put into the configured `directory`.
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `storage.disk.directory` | `string` | Yes | This is the directory to use for storing the persistent database. |
+| `storage.disk.auto_create` | `bool` | No (default: `false`) | If set to true, the configured directory will be created if it does not exist. |
+| `storage.disk.partitions` | `array[string]` | No | Non-overlapping `data` prefixes used for partitioning the data on disk. |
+| `storage.disk.badger` | `string` | No (default: empty) | "Superflags" passed to Badger allowing to modify advanced options. |
+
+See [the docs on disk storage](../misc-disk/) for details about the settings.
