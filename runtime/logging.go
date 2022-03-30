@@ -5,21 +5,16 @@
 package runtime
 
 import (
-	"bufio"
 	"bytes"
 	"context"
-	"errors"
 	"io"
 	"io/ioutil"
-	"net"
 	"net/http"
-	"net/url"
 	"strings"
 	"sync/atomic"
 	"time"
 
 	"github.com/open-policy-agent/opa/logging"
-	"github.com/open-policy-agent/opa/server/types"
 	"github.com/open-policy-agent/opa/topdown/print"
 	"github.com/sirupsen/logrus"
 )
@@ -146,9 +141,16 @@ func (h *LoggingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if h.loggingEnabled(logging.Debug) {
-			if gzipAccepted(r.Header) || isPprofEndpoint(r) {
-				fields["resp_body"] = "[Payload Compressed]"
-			} else {
+			switch {
+			case isPprofEndpoint(r):
+				// pprof always sends binary data (protobuf)
+				fields["resp_body"] = "[binary payload]"
+
+			case gzipAccepted(r.Header) && isMetricsEndpoint(r):
+				// metrics endpoint does so when the client accepts it (e.g. prometheus)
+				fields["resp_body"] = "[compressed payload]"
+
+			default:
 				fields["resp_body"] = recorder.buf.String()
 			}
 		}
@@ -171,6 +173,10 @@ func gzipAccepted(header http.Header) bool {
 
 func isPprofEndpoint(req *http.Request) bool {
 	return strings.HasPrefix(req.URL.Path, "/debug/pprof/")
+}
+
+func isMetricsEndpoint(req *http.Request) bool {
+	return strings.HasPrefix(req.URL.Path, "/metrics")
 }
 
 type recorder struct {
@@ -213,46 +219,6 @@ func (r *recorder) Write(bs []byte) (int, error) {
 func (r *recorder) WriteHeader(s int) {
 	r.statusCode = s
 	r.inner.WriteHeader(s)
-}
-
-func (r *recorder) Hijack() (net.Conn, *bufio.ReadWriter, error) {
-	h, ok := r.inner.(http.Hijacker)
-	if !ok {
-		return nil, nil, errors.New("response writer is not a http.Hijacker")
-	}
-
-	c, rw, err := h.Hijack()
-	if err != nil {
-		return nil, nil, err
-	}
-
-	fields := map[string]interface{}{
-		"client_addr": r.req.RemoteAddr,
-		"req_id":      r.id,
-		"req_method":  r.req.Method,
-		"req_path":    r.req.URL.EscapedPath(),
-	}
-
-	queries := r.req.URL.Query()[types.ParamQueryV1]
-	if len(queries) > 0 {
-		fields["req_query"] = queries[len(queries)-1]
-	}
-	r.logger.WithFields(fields).Info("Started watch.")
-
-	return c, rw, nil
-}
-
-func dropInputParam(u *url.URL) string {
-	cpy := url.Values{}
-	for k, v := range u.Query() {
-		if k != types.ParamInputV1 {
-			cpy[k] = v
-		}
-	}
-	if len(cpy) == 0 {
-		return u.Path
-	}
-	return u.Path + "?" + cpy.Encode()
 }
 
 func readBody(r io.ReadCloser) ([]byte, io.ReadCloser, error) {
