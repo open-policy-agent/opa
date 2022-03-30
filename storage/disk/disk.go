@@ -508,6 +508,9 @@ func (db *Store) validatePartitions(ctx context.Context, txn *badger.Txn, existi
 	}
 
 	for _, path := range addedPartitions.Diff(replacements) {
+		if prefix, wildcard := hasWildcard(path); wildcard {
+			path = prefix
+		}
 		for i := len(path); i > 0; i-- {
 			key, err := db.pm.DataPath2Key(path[:i])
 			if err != nil {

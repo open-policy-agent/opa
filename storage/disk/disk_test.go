@@ -324,6 +324,31 @@ func TestDataPartitioningValidation(t *testing.T) {
 		}
 		closeFn(ctx, s)
 
+		// adding a wildcard partition requires no content on the non-wildcard prefix
+		// we open the db with previously used partitions, write another key, and
+		// re-open with an extra wildcard partition
+		// switching to a partition with multiple wildcards
+		s, err = New(ctx, logging.NewNoOpLogger(), nil, Options{Dir: dir, Partitions: []storage.Path{
+			storage.MustParsePath("/fox/in/*/*/*"),
+			storage.MustParsePath("/foo/*"),
+		}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = storage.WriteOne(ctx, s, storage.AddOp, storage.MustParsePath("/peanutbutter/jelly"), true)
+		if err != nil {
+			t.Fatal(err)
+		}
+		closeFn(ctx, s)
+		s, err = New(ctx, logging.NewNoOpLogger(), nil, Options{Dir: dir, Partitions: []storage.Path{
+			storage.MustParsePath("/fox/in/*/*/*"),
+			storage.MustParsePath("/peanutbutter/*"),
+			storage.MustParsePath("/foo/*"),
+		}})
+		if err == nil || !strings.Contains(err.Error(), "partitions are backwards incompatible (existing data: /peanutbutter)") {
+			t.Fatal("expected to find existing key but got:", err)
+		}
+		closeFn(ctx, s)
 	})
 }
 
