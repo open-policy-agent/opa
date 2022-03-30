@@ -7,6 +7,7 @@ package disk
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/open-policy-agent/opa/storage"
 )
@@ -63,6 +64,22 @@ func (pm *pathMapper) DataPath2Key(path storage.Path) ([]byte, error) {
 }
 
 type pathSet []storage.Path
+
+func (ps pathSet) String() string {
+	if len(ps) == 0 {
+		return "[]"
+	}
+	buf := strings.Builder{}
+	buf.WriteRune('[')
+	for j, p := range ps.Sorted() {
+		if j != 0 {
+			buf.WriteRune(' ')
+		}
+		buf.WriteString(toString(p))
+	}
+	buf.WriteRune(']')
+	return buf.String()
+}
 
 func (ps pathSet) IsDisjoint() bool {
 	for i := range ps {

@@ -488,7 +488,7 @@ func (db *Store) validatePartitions(ctx context.Context, txn *badger.Txn, existi
 	if len(removedPartitions) > 0 {
 		return &storage.Error{
 			Code:    storage.InternalErr,
-			Message: fmt.Sprintf("partitions are backwards incompatible (old: %v, new: %v, missing: %v)", oldPathSet.Sorted(), newPathSet.Sorted(), removedPartitions.Sorted())}
+			Message: fmt.Sprintf("partitions are backwards incompatible (old: %v, new: %v, missing: %v)", oldPathSet, newPathSet, removedPartitions)}
 	}
 
 	for _, path := range addedPartitions {

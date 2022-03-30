@@ -241,7 +241,7 @@ func TestDataPartitioningValidation(t *testing.T) {
 			storage.MustParsePath("/foo/qux/corge"),
 		}})
 		if err == nil || !strings.Contains(err.Error(),
-			"partitions are backwards incompatible (old: [/foo/bar /foo/baz /foo/qux /system/%2A], new: [/foo/bar /foo/baz /foo/qux/corge /system/%2A], missing: [/foo/qux])") {
+			"partitions are backwards incompatible (old: [/foo/bar /foo/baz /foo/qux /system/*], new: [/foo/bar /foo/baz /foo/qux/corge /system/*], missing: [/foo/qux])") {
 			t.Fatal(err)
 		}
 
