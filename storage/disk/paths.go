@@ -111,6 +111,23 @@ func hasPrefixWithWildcard(p, other storage.Path) bool {
 	return true
 }
 
+// isMatchedBy returns true if p starts with other, or is matched by it
+// respecting wildcards _in other_ -- not in p.
+func isMatchedBy(p, other storage.Path) bool {
+	if len(other) != len(p) {
+		return false
+	}
+	for i := range other {
+		if other[i] == pathWildcard {
+			continue
+		}
+		if p[i] != other[i] {
+			return false
+		}
+	}
+	return true
+}
+
 func (ps pathSet) Diff(other pathSet) pathSet {
 	diff := pathSet{}
 	for _, x := range ps {

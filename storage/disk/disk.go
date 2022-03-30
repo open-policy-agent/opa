@@ -485,13 +485,29 @@ func (db *Store) validatePartitions(ctx context.Context, txn *badger.Txn, existi
 	removedPartitions := oldPathSet.Diff(newPathSet)
 	addedPartitions := newPathSet.Diff(oldPathSet)
 
-	if len(removedPartitions) > 0 {
-		return &storage.Error{
-			Code:    storage.InternalErr,
-			Message: fmt.Sprintf("partitions are backwards incompatible (old: %v, new: %v, missing: %v)", oldPathSet, newPathSet, removedPartitions)}
+	// It's OK to replace partitions with wildcard partitions that overlap them:
+	// REMOVED: /foo/bar
+	// ADDED:   /foo/*
+	// and the like.
+	replaced := make(pathSet, 0)
+	replacements := make(pathSet, 0)
+	for _, removed := range removedPartitions {
+		for _, added := range addedPartitions {
+			if isMatchedBy(removed, added) {
+				replaced = append(replaced, removed)
+				replacements = append(replacements, added)
+			}
+		}
 	}
 
-	for _, path := range addedPartitions {
+	rest := removedPartitions.Diff(replaced)
+	if len(rest) > 0 {
+		return &storage.Error{
+			Code:    storage.InternalErr,
+			Message: fmt.Sprintf("partitions are backwards incompatible (old: %v, new: %v, missing: %v)", oldPathSet, newPathSet, rest)}
+	}
+
+	for _, path := range addedPartitions.Diff(replacements) {
 		for i := len(path); i > 0; i-- {
 			key, err := db.pm.DataPath2Key(path[:i])
 			if err != nil {

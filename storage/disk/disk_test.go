@@ -282,6 +282,48 @@ func TestDataPartitioningValidation(t *testing.T) {
 		}
 
 		closeFn(ctx, s)
+
+		// switching to wildcard partition
+		s, err = New(ctx, logging.NewNoOpLogger(), nil, Options{Dir: dir, Partitions: []storage.Path{
+			storage.MustParsePath("/foo/*"),
+		}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		closeFn(ctx, s)
+
+		// adding another partition
+		s, err = New(ctx, logging.NewNoOpLogger(), nil, Options{Dir: dir, Partitions: []storage.Path{
+			storage.MustParsePath("/fox/in/the/snow/*"),
+			storage.MustParsePath("/foo/*"),
+		}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		closeFn(ctx, s)
+
+		// switching to a partition with multiple wildcards
+		s, err = New(ctx, logging.NewNoOpLogger(), nil, Options{Dir: dir, Partitions: []storage.Path{
+			storage.MustParsePath("/fox/in/*/*/*"),
+			storage.MustParsePath("/foo/*"),
+		}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		closeFn(ctx, s)
+
+		// there is no going back
+		s, err = New(ctx, logging.NewNoOpLogger(), nil, Options{Dir: dir, Partitions: []storage.Path{
+			storage.MustParsePath("/fox/in/the/snow/*"),
+			storage.MustParsePath("/foo/*"),
+		}})
+		if err == nil || !strings.Contains(err.Error(),
+			"partitions are backwards incompatible (old: [/foo/* /fox/in/*/*/* /system/*], new: [/foo/* /fox/in/the/snow/* /system/*], missing: [/fox/in/*/*/*])",
+		) {
+			t.Fatal(err)
+		}
+		closeFn(ctx, s)
+
 	})
 }
 
