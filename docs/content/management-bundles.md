@@ -90,7 +90,9 @@ with the bundle server. OPA will try to load and activate persisted bundles on a
 encountered during the process will be surfaced in the bundle's status update. When communication between OPA and
 the bundle server is restored, the latest bundle is downloaded, activated, and persisted.
 
-> By default, bundles are persisted under the current working directory of the OPA process (e.g., `./.opa/bundles/<bundle-name>/bundle.tar.gz`).
+{{< info >}}
+By default, bundles are persisted under the current working directory of the OPA process (e.g., `./.opa/bundles/<bundle-name>/bundle.tar.gz`).
+{{< /info >}}
 
 The optional `bundles[_].signing` field can be used to specify the `keyid` and `scope` that should be used
 for verifying the signature of the bundle. See [this](#signing) section for details.
@@ -151,8 +153,10 @@ Bundle files are gzipped tarballs that contain policies and data. The data
 files in the bundle must be organized hierarchically into directories inside
 the tarball.
 
-> The hierarchical organization indicates to OPA where to load the data files
-> into the [the `data` Document](../philosophy/#the-opa-document-model).
+{{< info >}}
+The hierarchical organization indicates to OPA where to load the data files
+into the [the `data` Document](../philosophy/#the-opa-document-model).
+{{< /info >}}
 
 You can list the content of a bundle with `tar`.
 
@@ -241,11 +245,12 @@ __Some important details for bundle files:__
 * OPA will only load Wasm modules named `policy.wasm`. Other WebAssembly binary
   files will be ignored.
 
-> YAML data loaded into OPA is converted to JSON. Since JSON is a subset of
-> YAML, you are not allowed to use binary or null keys in objects and boolean
-> and number keys are converted to strings. Also, YAML !!binary tags are not
-> supported.
-
+{{< info >}}
+YAML data loaded into OPA is converted to JSON. Since JSON is a subset of
+YAML, you are not allowed to use binary or null keys in objects and boolean
+and number keys are converted to strings. Also, YAML !!binary tags are not
+supported.
+{{< /info >}}
 
 ### Multiple Sources of Policy and Data
 
@@ -256,13 +261,15 @@ and data from multiple sources, you can implement your bundle service
 to generate bundles that are scoped to a subset of OPA's policy and
 data cache.
 
-> 🚨 We recommend that whenever possible, you implement policy and data
-> aggregation centrally, however, in some cases that's not possible
-> (e.g., due to latency requirements.).
-> When using multiple sources there are **no** ordering guarantees for which bundle loads first and
+{{< danger >}}
+We recommend that whenever possible, you implement policy and data
+aggregation centrally, however, in some cases that's not possible
+(e.g., due to latency requirements.).
+When using multiple sources there are **no** ordering guarantees for which bundle loads first and
 takes over some root. If multiple bundles conflict, but are loaded at different
 times, OPA may go into an error state. It is highly recommended to use
 the health check and include bundle state: [Monitoring OPA](../monitoring#health-checks)
+{{< /danger >}}
 
 To scope bundles to a subset of OPA's policy and data cache, include
 a top-level `roots` key in the bundle that defines the roots of the
@@ -322,9 +329,11 @@ When OPA receives a new bundle, it checks that it has been properly signed using
 configured with out-of-band.  Only if that verification succeeds does OPA activate the new bundle; otherwise, OPA
 continues using its existing bundle and reports an activation failure via the status API and error logging.
 
-> ⚠️ `opa run` performs bundle signature verification only when the `-b`/`--bundle` flag is given
-> or when Bundle downloading is enabled. Sub-commands primarily used in development and debug environments
-> (such as `opa eval`, `opa test`, etc.) DO NOT verify bundle signatures at this point in time.
+{{< info >}}
+⚠️ `opa run` performs bundle signature verification only when the `-b`/`--bundle` flag is given
+or when Bundle downloading is enabled. Sub-commands primarily used in development and debug environments
+(such as `opa eval`, `opa test`, etc.) DO NOT verify bundle signatures at this point in time.
+{{< /info >}}
 
 #### Signature Format
 
@@ -379,17 +388,14 @@ following form:
 | `iat` | `string` | No | Time of signature creation since epoch in seconds. For informational purposes only. |
 | `iss` | `string` | No | Identifies the issuer of the JWT. For informational purposes only. |
 
----
-**NOTE**
-
+{{< info >}}
 OPA will first look for the `keyid` on the command-line. If the `keyid` is empty, OPA will look for it in it's
 configuration. If `keyid` is still empty, OPA will finally look for `kid` in the JWT header.
 
 To include additional claims in the JWT payload such as `scope`, `iat`, `iss` use the `--claims-file` flag
 in the `opa build` or `opa sign` commands to provide a JSON file containing optional claims. See `opa build --help`
 or `opa sign --help` for more details.
-
----
+{{< /info >}}
 
 The following hashing algorithms are supported:
 
@@ -528,12 +534,9 @@ operation to perform. Valid options include:
 | `"replace"` | The value at the specified `"path"` will be replaced by the new value defined by the `"value"` field. The target path must exist for the operation to be successful. |
 | `"upsert"` | The `"value"` will be set at the specified `"path"`. If the `"path"` specifies an array index, the `"value"` is inserted into the array at the specified index. If the `"path"` specifies an object member that does not already exist, a new member is added to the object. If the object member exists, its value is replaced. If the `"path"` does not exist, OPA will create and add it to its in-memory store. |
 
----
-**NOTE**
-
+{{< info >}}
 The `upsert` operation in not part of the [JSON Patch](https://datatracker.ietf.org/doc/html/rfc6902) standard.
-
----
+{{< /info >}}
 
 The `"path"` field defines a JSON pointer path to the location to perform the operation on.
 
