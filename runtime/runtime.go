@@ -801,7 +801,7 @@ func (rt *Runtime) onReloadLogger(d time.Duration, err error) {
 	rt.logger.WithFields(map[string]interface{}{
 		"duration": d,
 		"err":      err,
-	}).Warn("Processed file watch event.")
+	}).Info("Processed file watch event.")
 }
 
 func (rt *Runtime) getWatcher(rootPaths []string) (*fsnotify.Watcher, error) {
