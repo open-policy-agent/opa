@@ -121,6 +121,10 @@ type metadata struct {
 	Partitions       []storage.Path `json:"partitions"`        // caller-supplied data layout
 }
 
+// systemPartition is the partition we add automatically: no user-defined partition
+// should apply to the /system path.
+const systemPartition = "/system/*"
+
 // New returns a new disk-based store based on the provided options.
 func New(ctx context.Context, logger logging.Logger, prom prometheus.Registerer, opts Options) (*Store, error) {
 
@@ -132,6 +136,14 @@ func New(ctx context.Context, logger logging.Logger, prom prometheus.Registerer,
 		return nil, &storage.Error{
 			Code:    storage.InternalErr,
 			Message: fmt.Sprintf("partitions are overlapped: %v", opts.Partitions),
+		}
+	}
+
+	partitions = append(partitions, storage.MustParsePath(systemPartition))
+	if !partitions.IsDisjoint() {
+		return nil, &storage.Error{
+			Code:    storage.InternalErr,
+			Message: fmt.Sprintf("system partitions are managed: %v", opts.Partitions),
 		}
 	}
 
@@ -473,13 +485,32 @@ func (db *Store) validatePartitions(ctx context.Context, txn *badger.Txn, existi
 	removedPartitions := oldPathSet.Diff(newPathSet)
 	addedPartitions := newPathSet.Diff(oldPathSet)
 
-	if len(removedPartitions) > 0 {
-		return &storage.Error{
-			Code:    storage.InternalErr,
-			Message: fmt.Sprintf("partitions are backwards incompatible (old: %v, new: %v, missing: %v)", oldPathSet.Sorted(), newPathSet.Sorted(), removedPartitions.Sorted())}
+	// It's OK to replace partitions with wildcard partitions that overlap them:
+	// REMOVED: /foo/bar
+	// ADDED:   /foo/*
+	// and the like.
+	replaced := make(pathSet, 0)
+	replacements := make(pathSet, 0)
+	for _, removed := range removedPartitions {
+		for _, added := range addedPartitions {
+			if isMatchedBy(removed, added) {
+				replaced = append(replaced, removed)
+				replacements = append(replacements, added)
+			}
+		}
 	}
 
-	for _, path := range addedPartitions {
+	rest := removedPartitions.Diff(replaced)
+	if len(rest) > 0 {
+		return &storage.Error{
+			Code:    storage.InternalErr,
+			Message: fmt.Sprintf("partitions are backwards incompatible (old: %v, new: %v, missing: %v)", oldPathSet, newPathSet, rest)}
+	}
+
+	for _, path := range addedPartitions.Diff(replacements) {
+		if prefix, wildcard := hasWildcard(path); wildcard {
+			path = prefix
+		}
 		for i := len(path); i > 0; i-- {
 			key, err := db.pm.DataPath2Key(path[:i])
 			if err != nil {
@@ -527,7 +558,7 @@ func (db *Store) diagnostics(ctx context.Context, partitions pathSet, logger log
 	if logger.GetLevel() < logging.Debug {
 		return nil
 	}
-	if len(partitions) == 0 {
+	if len(partitions) == 1 { // '/system/*' is always present
 		logger.Warn("no partitions configured")
 		if err := db.logPrefixStatistics(ctx, storage.MustParsePath("/"), logger); err != nil {
 			return err

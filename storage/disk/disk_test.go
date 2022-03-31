@@ -188,6 +188,7 @@ func TestDataPartitioningValidation(t *testing.T) {
 			t.Fatal("unexpected code or message, got:", err)
 		}
 
+		// set up two partitions
 		s, err := New(ctx, logging.NewNoOpLogger(), nil, Options{Dir: dir, Partitions: []storage.Path{
 			storage.MustParsePath("/foo/bar"),
 			storage.MustParsePath("/foo/baz"),
@@ -198,6 +199,7 @@ func TestDataPartitioningValidation(t *testing.T) {
 
 		closeFn(ctx, s)
 
+		// init with same settings: nothing wrong
 		s, err = New(ctx, logging.NewNoOpLogger(), nil, Options{Dir: dir, Partitions: []storage.Path{
 			storage.MustParsePath("/foo/baz"),
 			storage.MustParsePath("/foo/bar"),
@@ -208,6 +210,7 @@ func TestDataPartitioningValidation(t *testing.T) {
 
 		closeFn(ctx, s)
 
+		// adding another partition
 		s, err = New(ctx, logging.NewNoOpLogger(), nil, Options{Dir: dir, Partitions: []storage.Path{
 			storage.MustParsePath("/foo/baz"),
 			storage.MustParsePath("/foo/bar"),
@@ -217,6 +220,9 @@ func TestDataPartitioningValidation(t *testing.T) {
 			t.Fatal(err)
 		}
 
+		// We're writing data under the partitions: this affects how
+		// some partition changes are treated: if they don't affect existing
+		// data, they are accepted.
 		err = storage.WriteOne(ctx, s, storage.AddOp, storage.MustParsePath("/foo/corge"), "x")
 		if err != nil {
 			t.Fatal(err)
@@ -234,7 +240,8 @@ func TestDataPartitioningValidation(t *testing.T) {
 			storage.MustParsePath("/foo/bar"),
 			storage.MustParsePath("/foo/qux/corge"),
 		}})
-		if err == nil || !strings.Contains(err.Error(), "partitions are backwards incompatible (old: [/foo/bar /foo/baz /foo/qux], new: [/foo/bar /foo/baz /foo/qux/corge], missing: [/foo/qux])") {
+		if err == nil || !strings.Contains(err.Error(),
+			"partitions are backwards incompatible (old: [/foo/bar /foo/baz /foo/qux /system/*], new: [/foo/bar /foo/baz /foo/qux/corge /system/*], missing: [/foo/qux])") {
 			t.Fatal(err)
 		}
 
@@ -275,7 +282,93 @@ func TestDataPartitioningValidation(t *testing.T) {
 		}
 
 		closeFn(ctx, s)
+
+		// switching to wildcard partition
+		s, err = New(ctx, logging.NewNoOpLogger(), nil, Options{Dir: dir, Partitions: []storage.Path{
+			storage.MustParsePath("/foo/*"),
+		}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		closeFn(ctx, s)
+
+		// adding another partition
+		s, err = New(ctx, logging.NewNoOpLogger(), nil, Options{Dir: dir, Partitions: []storage.Path{
+			storage.MustParsePath("/fox/in/the/snow/*"),
+			storage.MustParsePath("/foo/*"),
+		}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		closeFn(ctx, s)
+
+		// switching to a partition with multiple wildcards
+		s, err = New(ctx, logging.NewNoOpLogger(), nil, Options{Dir: dir, Partitions: []storage.Path{
+			storage.MustParsePath("/fox/in/*/*/*"),
+			storage.MustParsePath("/foo/*"),
+		}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		closeFn(ctx, s)
+
+		// there is no going back
+		s, err = New(ctx, logging.NewNoOpLogger(), nil, Options{Dir: dir, Partitions: []storage.Path{
+			storage.MustParsePath("/fox/in/the/snow/*"),
+			storage.MustParsePath("/foo/*"),
+		}})
+		if err == nil || !strings.Contains(err.Error(),
+			"partitions are backwards incompatible (old: [/foo/* /fox/in/*/*/* /system/*], new: [/foo/* /fox/in/the/snow/* /system/*], missing: [/fox/in/*/*/*])",
+		) {
+			t.Fatal(err)
+		}
+		closeFn(ctx, s)
+
+		// adding a wildcard partition requires no content on the non-wildcard prefix
+		// we open the db with previously used partitions, write another key, and
+		// re-open with an extra wildcard partition
+		// switching to a partition with multiple wildcards
+		s, err = New(ctx, logging.NewNoOpLogger(), nil, Options{Dir: dir, Partitions: []storage.Path{
+			storage.MustParsePath("/fox/in/*/*/*"),
+			storage.MustParsePath("/foo/*"),
+		}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = storage.WriteOne(ctx, s, storage.AddOp, storage.MustParsePath("/peanutbutter/jelly"), true)
+		if err != nil {
+			t.Fatal(err)
+		}
+		closeFn(ctx, s)
+		s, err = New(ctx, logging.NewNoOpLogger(), nil, Options{Dir: dir, Partitions: []storage.Path{
+			storage.MustParsePath("/fox/in/*/*/*"),
+			storage.MustParsePath("/peanutbutter/*"),
+			storage.MustParsePath("/foo/*"),
+		}})
+		if err == nil || !strings.Contains(err.Error(), "partitions are backwards incompatible (existing data: /peanutbutter)") {
+			t.Fatal("expected to find existing key but got:", err)
+		}
+		closeFn(ctx, s)
 	})
+}
+
+func TestDataPartitioningSystemPartitions(t *testing.T) {
+	ctx := context.Background()
+	dir := "unused"
+
+	for _, part := range []string{
+		"/system",
+		"/system/*",
+		"/system/a",
+		"/system/a/b",
+	} {
+		_, err := New(ctx, logging.NewNoOpLogger(), nil, Options{Dir: dir, Partitions: []storage.Path{
+			storage.MustParsePath(part),
+		}})
+		if err == nil || !strings.Contains(err.Error(), "system partitions are managed") {
+			t.Fatal(err)
+		}
+	}
 }
 
 func TestDataPartitioningReadsAndWrites(t *testing.T) {
@@ -1155,43 +1248,47 @@ func TestDataPartitioningWriteNotFoundErrors(t *testing.T) {
 }
 
 func TestDataPartitioningWriteInvalidPatchError(t *testing.T) {
-	test.WithTempFS(map[string]string{}, func(dir string) {
-		ctx := context.Background()
-		s, err := New(ctx, logging.NewNoOpLogger(), nil, Options{Dir: dir, Partitions: []storage.Path{
-			storage.MustParsePath("/foo"),
-		}})
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer s.Close(ctx)
+	for _, pt := range []string{"/*", "/foo"} {
+		t.Run(pt, func(t *testing.T) {
+			test.WithTempFS(map[string]string{}, func(dir string) {
+				ctx := context.Background()
+				s, err := New(ctx, logging.NewNoOpLogger(), nil, Options{Dir: dir, Partitions: []storage.Path{
+					storage.MustParsePath("/foo"),
+				}})
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer s.Close(ctx)
 
-		err = storage.WriteOne(ctx, s, storage.AddOp, storage.MustParsePath("/foo"), util.MustUnmarshalJSON([]byte(`[1,2,3]`)))
-		if err == nil {
-			t.Fatal("expected error")
-		} else if sErr, ok := err.(*storage.Error); !ok {
-			t.Fatal("expected storage error but got:", err)
-		} else if sErr.Code != storage.InvalidPatchErr {
-			t.Fatal("expected invalid patch error but got:", err)
-		}
+				err = storage.WriteOne(ctx, s, storage.AddOp, storage.MustParsePath("/foo"), util.MustUnmarshalJSON([]byte(`[1,2,3]`)))
+				if err == nil {
+					t.Fatal("expected error")
+				} else if sErr, ok := err.(*storage.Error); !ok {
+					t.Fatal("expected storage error but got:", err)
+				} else if sErr.Code != storage.InvalidPatchErr {
+					t.Fatal("expected invalid patch error but got:", err)
+				}
 
-		err = storage.WriteOne(ctx, s, storage.AddOp, storage.MustParsePath("/"), util.MustUnmarshalJSON([]byte(`{"foo": [1,2,3]}`)))
-		if err == nil {
-			t.Fatal("expected error")
-		} else if sErr, ok := err.(*storage.Error); !ok {
-			t.Fatal("expected storage error but got:", err)
-		} else if sErr.Code != storage.InvalidPatchErr {
-			t.Fatal("expected invalid patch error but got:", err)
-		}
+				err = storage.WriteOne(ctx, s, storage.AddOp, storage.MustParsePath("/"), util.MustUnmarshalJSON([]byte(`{"foo": [1,2,3]}`)))
+				if err == nil {
+					t.Fatal("expected error")
+				} else if sErr, ok := err.(*storage.Error); !ok {
+					t.Fatal("expected storage error but got:", err)
+				} else if sErr.Code != storage.InvalidPatchErr {
+					t.Fatal("expected invalid patch error but got:", err)
+				}
 
-		err = storage.WriteOne(ctx, s, storage.AddOp, storage.MustParsePath("/"), util.MustUnmarshalJSON([]byte(`[1,2,3]`)))
-		if err == nil {
-			t.Fatal("expected error")
-		} else if sErr, ok := err.(*storage.Error); !ok {
-			t.Fatal("expected storage error but got:", err)
-		} else if sErr.Code != storage.InvalidPatchErr {
-			t.Fatal("expected invalid patch error but got:", err)
-		}
-	})
+				err = storage.WriteOne(ctx, s, storage.AddOp, storage.MustParsePath("/"), util.MustUnmarshalJSON([]byte(`[1,2,3]`)))
+				if err == nil {
+					t.Fatal("expected error")
+				} else if sErr, ok := err.(*storage.Error); !ok {
+					t.Fatal("expected storage error but got:", err)
+				} else if sErr.Code != storage.InvalidPatchErr {
+					t.Fatal("expected invalid patch error but got:", err)
+				}
+			})
+		})
+	}
 }
 
 func executeTestWrite(ctx context.Context, t *testing.T, s storage.Store, x testWrite) {
