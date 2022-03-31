@@ -1166,6 +1166,19 @@ integrations:
       - https://www.aserto.com/blog/aserto-on-aserto-an-opa-authorization-policy-for-aserto-tenants
       - https://www.aserto.com/blog/rego-getting-started
 
+  emissary-ingress:
+    title: Emissary-Ingress
+    description:  |
+      Emissary-Ingress is an open-source Kubernetes-native API Gateway, Layer 7 load balancer and Kubernetes Ingress built on Envoy Proxy.
+      OPA can be integrated with Emissary as an external authorization service to enforce authorization policies over APIs.
+    labels:
+      category: network
+      layer: gateway
+    software:
+      - emissary-ingress
+    blogs:
+      - https://www.infracloud.io/blogs/emissary-ingress-opa-integration/
+
 organizations:
   styra:
     name: Styra
@@ -1493,3 +1506,6 @@ software:
   aserto:
     name: Aserto
     link: https://www.aserto.com
+  emissary-ingress:
+    name: Emissary-Ingress
+    link: https://github.com/emissary-ingress/emissary
