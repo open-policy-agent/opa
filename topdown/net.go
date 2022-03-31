@@ -6,6 +6,7 @@ package topdown
 
 import (
 	"net"
+	"strings"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/topdown/builtins"
@@ -36,7 +37,7 @@ func builtinLookupIPAddr(bctx BuiltinContext, operands []*ast.Term, iter func(*a
 	addrs, err := resolv.LookupIPAddr(bctx.Context, name)
 	if err != nil {
 		// NOTE(sr): We can't do better than this right now, see https://github.com/golang/go/issues/36208
-		if err.Error() == "operation was canceled" || err.Error() == "i/o timeout" {
+		if strings.Contains(err.Error(), "operation was canceled") || strings.Contains(err.Error(), "i/o timeout") {
 			return Halt{
 				Err: &Error{
 					Code:     CancelErr,

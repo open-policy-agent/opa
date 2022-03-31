@@ -29,7 +29,12 @@ func newPartitionTrie() *partitionTrie {
 func (p *partitionTrie) Find(path storage.Path) (int, *partitionTrie) {
 	node := p
 	for i, x := range path {
-		next, ok := node.partitions[x]
+		next, ok := node.partitions[pathWildcard]
+		if ok {
+			node = next
+			continue
+		}
+		next, ok = node.partitions[x]
 		if !ok {
 			return i + 1, nil
 		}

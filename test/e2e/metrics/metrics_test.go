@@ -162,7 +162,7 @@ func TestRequestWithInstrumentationV1CompileAPI(t *testing.T) {
 		Unknowns: &[]string{"data.y"},
 	}
 
-	resp, err := testRuntime.CompileRequestWitInstrumentation(req)
+	resp, err := testRuntime.CompileRequestWithInstrumentation(req)
 	if err != nil {
 		t.Fatal(err)
 	}

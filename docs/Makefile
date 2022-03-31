@@ -12,6 +12,7 @@ clean:
 	rm -rf $(CURDIR)/website/generated
 	rm -rf $(CURDIR)/website/public
 	rm -rf $(CURDIR)/website/resources
+	rm -rf $(CURDIR)/website/scripts/live-blocks/opa_versions/latest-*
 
 .PHONY: generate-cli-docs
 generate-cli-docs:
@@ -20,6 +21,10 @@ generate-cli-docs:
 .PHONY: generate
 generate: generate-cli-docs
 	$(CURDIR)/website/scripts/load-docs.sh
+
+.PHONY: dev-generate
+dev-generate: generate-cli-docs
+	DEV=true $(CURDIR)/website/scripts/load-docs.sh
 
 # The website has some npm dependencies saved in ./website/node_modules
 # As well as dependencies required for the "live-blocks".
@@ -30,12 +35,13 @@ install-deps: live-blocks-install-deps
 
 # The live-blocks-% pattern target will shim to the
 # npm scripts in ./website/scripts/live-blocks
+# NOTE(sr): we'll avoid an API call if we make use of releases.yaml to determine the latest release
 .PHONY: live-blocks-%
 live-blocks-%:
-	cd $(CURDIR)/website/scripts/live-blocks && npm run $*
+	cd $(CURDIR)/website/scripts/live-blocks && LATEST=$(shell sed -n '2s/- //p' $(CURDIR)/website/data/releases.yaml) npm run $*
 
 .PHONY: serve-local
-serve-local: production-build
+serve-local: dev-build
 	# must be run from root of repo for
 	# the netlify.toml config to work
 	cd $(CURDIR)/.. && netlify dev --offline --dir $(CURDIR)/website/public
@@ -45,6 +51,9 @@ serve-remote: production-build
 	# must be run from root of repo for
 	# the netlify.toml config to work
 	cd $(CURDIR)/.. && netlify deploy
+
+.PHONY: dev-build
+dev-build: clean dev-generate hugo-production-build live-blocks-inject
 
 ######################################################
 #
@@ -61,7 +70,8 @@ hugo-production-build:
 		--minify
 
 .PHONY: production-build
-production-build: clean generate hugo-production-build live-blocks-inject
+production-build: clean generate hugo-production-build
+	make live-blocks-inject
 
 .PHONY: preview-build
 preview-build:

@@ -30,3 +30,10 @@ func NewNotFoundErrorf(f string, a ...interface{}) *storage.Error {
 		Message: msg,
 	}
 }
+
+func NewWriteConflictError(p storage.Path) *storage.Error {
+	return &storage.Error{
+		Code:    storage.WriteConflictErr,
+		Message: p.String(),
+	}
+}

@@ -34,6 +34,9 @@ type Config struct {
 	Caching                      json.RawMessage            `json:"caching,omitempty"`
 	PersistenceDirectory         *string                    `json:"persistence_directory,omitempty"`
 	DistributedTracing           json.RawMessage            `json:"distributed_tracing,omitempty"`
+	Storage                      *struct {
+		Disk json.RawMessage `json:"disk,omitempty"`
+	} `json:"storage,omitempty"`
 }
 
 // ParseConfig returns a valid Config object with defaults injected. The id

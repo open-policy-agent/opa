@@ -610,7 +610,7 @@ func TestInMemoryContext(t *testing.T) {
 	}
 
 	_, err = store.Register(ctx, txn, storage.TriggerConfig{
-		OnCommit: func(ctx context.Context, txn storage.Transaction, event storage.TriggerEvent) {
+		OnCommit: func(_ context.Context, _ storage.Transaction, event storage.TriggerEvent) {
 			if event.Context.Get("foo") != "bar" {
 				t.Fatalf("Expected foo/bar in context but got: %+v", event.Context)
 			} else if event.Context.Get("deadbeef") != nil {
