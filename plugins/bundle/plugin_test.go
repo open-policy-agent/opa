@@ -143,19 +143,19 @@ func TestPluginOneShotDiskStorageMetrics(t *testing.T) {
 
 		// NOTE(sr): These assertion reflect the current behaviour only! Not prescriptive.
 		name := "disk_deleted_keys"
-		if exp, act := 1, met.Counter(name).Value(); act.(uint64) != uint64(exp) {
+		if exp, act := 3, met.Counter(name).Value(); act.(uint64) != uint64(exp) {
 			t.Errorf("%s: expected %v, got %v", name, exp, act)
 		}
 		name = "disk_written_keys"
-		if exp, act := 7, met.Counter(name).Value(); act.(uint64) != uint64(exp) {
+		if exp, act := 5, met.Counter(name).Value(); act.(uint64) != uint64(exp) {
 			t.Errorf("%s: expected %v, got %v", name, exp, act)
 		}
 		name = "disk_read_keys"
-		if exp, act := 13, met.Counter(name).Value(); act.(uint64) != uint64(exp) {
+		if exp, act := 10, met.Counter(name).Value(); act.(uint64) != uint64(exp) {
 			t.Errorf("%s: expected %v, got %v", name, exp, act)
 		}
 		name = "disk_read_bytes"
-		if exp, act := 346, met.Counter(name).Value(); act.(uint64) != uint64(exp) {
+		if exp, act := 171, met.Counter(name).Value(); act.(uint64) != uint64(exp) {
 			t.Errorf("%s: expected %v, got %v", name, exp, act)
 		}
 		for _, timer := range []string{
