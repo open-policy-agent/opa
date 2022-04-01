@@ -5,13 +5,19 @@
 {{- end -}}
 {{ $version    := index (split .File.Path "/") 1 }}
 <article class="article">
-  {{ with (eq $version "edge") }}
+  {{- if (eq $version "edge") }}
   <div class="message is-danger">
     <div class="message-body">
       This version is still under development! Latest stable release is <a href="/docs/latest">{{ $latest }}</a>
     </div>
   </div>
-  {{ end }}
+  {{- else if (and (ne $version "latest") (ne $version $latest)) }}
+  <div class="message is-warning">
+    <div class="message-body">
+      These are the docs for an older version of OPA. Latest stable release is <a href="/docs/latest">{{ $latest }}</a>
+    </div>
+  </div>
+  {{- end }}
   <div class="container">
     {{ partial "docs/hero.html" . }}
 
