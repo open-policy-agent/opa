@@ -312,7 +312,7 @@ doc-descr
 
 Package:  test
 Rule:     p
-Location: %[1]s/x.rego:18
+Location: %[1]s/x.rego:50
 
 Organizations:
  doc-org
