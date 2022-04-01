@@ -237,6 +237,8 @@ pre-production (in alphabetical order):
   automated code review, defining access levels or blocking execution of
   unwanted code.
 
+* [Wealthsimple](https://www.wealthsimple.com/) is using OPA to power all authorization checks their microservice ecosystem by leveraging their existing authorization library make the transition to OPA as simple as possible for development teams.
+
 Other adopters that have gone into production or various stages of
 testing include:
 
