@@ -705,7 +705,7 @@ allowed_pets[pet] {
 
 # Employees can see all pets.
 allowed_pets[pet] {
-    [header, payload, signature] := io.jwt.decode(input.token)
+    [_, payload, _] := io.jwt.decode(input.token)
     payload.employee == true
     some i
     pet := input.pet_list[i]
@@ -726,7 +726,7 @@ allowed_pets[pet] {
                                 <button
                                     class="mt-4 btn btn-primary btn-playground"><a
                                     target=”_blank”
-                                    href="https://play.openpolicyagent.org/p/c6412EHjS7">Open In Playground
+                                    href="https://play.openpolicyagent.org/p/5loFkqN19G">Open In Playground
                                     <img src="/live-blocks/icons/playground-open.svg"
                                       class="launch-playground-icon"></a>
                                 </button>
@@ -1354,7 +1354,7 @@ allowed_pets[pet] {
 
 # Employees can see all pets.
 allowed_pets[pet] {
-    [header, payload, signature] := io.jwt.decode(input.token)
+    [_, payload, _] := io.jwt.decode(input.token)
     payload.employee == true
     some i
     pet := input.pet_list[i]
@@ -1374,7 +1374,7 @@ allowed_pets[pet] {
                           <button
                               class="mt-4 btn btn-primary btn-playground"><a
                               target=”_blank”
-                              href="https://play.openpolicyagent.org/p/c6412EHjS7">Open In Playground
+                              href="https://play.openpolicyagent.org/p/5loFkqN19G">Open In Playground
                               <img src="/live-blocks/icons/playground-open.svg"
                                 class="launch-playground-icon"></a>
                           </button>
