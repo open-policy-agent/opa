@@ -23,7 +23,6 @@ func TestWithWarnAsError(t *testing.T) {
 	logger := New()
 
 	logger.SetLevel(Error)
-
 	if logger.GetLevel() != Level(Error) {
 		t.Fatalf("Log level has not been set to ERROR. Current value: %v", logger.GetLevel())
 	}
