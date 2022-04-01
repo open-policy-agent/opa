@@ -4782,11 +4782,8 @@ func rewriteWithModifier(c *Compiler, f *equalityFactory, expr *Expr) ([]*Expr, 
 }
 
 func validateTarget(c *Compiler, term *Term) *Error {
-	if !isInputRef(term) && !isDataRef(term) {
-		return NewError(TypeErr, term.Location, "with keyword target must reference existing %v or %v", InputRootDocument, DefaultRootDocument)
-	}
-
-	if isDataRef(term) {
+	switch {
+	case isDataRef(term):
 		ref := term.Value.(Ref)
 		node := c.RuleTree
 		for i := 0; i < len(ref)-1; i++ {
@@ -4803,12 +4800,17 @@ func validateTarget(c *Compiler, term *Term) *Error {
 			if child := node.Child(ref[len(ref)-1].Value); child != nil {
 				for _, value := range child.Values {
 					if len(value.(*Rule).Head.Args) > 0 {
+						// TODO(sr): UDF
 						return NewError(CompileErr, term.Loc(), "with keyword cannot replace functions")
 					}
 				}
 			}
 		}
-
+	case isInputRef(term): // ok, valid
+	case isBuiltinRef(c.builtins, term):
+		fallthrough // TODO(sr): built-in
+	default:
+		return NewError(TypeErr, term.Location, "with keyword target must reference existing %v or %v", InputRootDocument, DefaultRootDocument)
 	}
 	return nil
 }
@@ -4827,6 +4829,14 @@ func isDataRef(term *Term) bool {
 		if ref.HasPrefix(DefaultRootRef) {
 			return true
 		}
+	}
+	return false
+}
+
+func isBuiltinRef(bs map[string]*Builtin, term *Term) bool {
+	if ref, ok := term.Value.(Ref); ok {
+		_, ok := bs[ref.String()]
+		return ok
 	}
 	return false
 }

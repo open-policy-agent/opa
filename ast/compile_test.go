@@ -4441,6 +4441,19 @@ func TestCompilerMockFunction(t *testing.T) {
 	assertCompilerErrorStrings(t, c, []string{"rego_compile_error: with keyword cannot replace functions"})
 }
 
+func TestCompilerMockBuiltinFunction(t *testing.T) {
+	c := NewCompiler()
+	c.Modules["test"] = MustParseModule(`
+	package test
+
+	now() = 123
+
+	p { true with time.now_ns as now }
+	`)
+	compileStages(c, c.rewriteWithModifiers)
+	assertCompilerErrorStrings(t, c, []string{"rego_type_error: with keyword target must reference existing input or data"})
+}
+
 func TestCompilerMockVirtualDocumentPartially(t *testing.T) {
 	c := NewCompiler()
 
