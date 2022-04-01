@@ -310,6 +310,8 @@ jobs:
 
       - name: Download OPA
         uses: open-policy-agent/setup-opa@v1
+        with:
+          version: edge
 
       - name: Test policies
         run: opa test build/policy
