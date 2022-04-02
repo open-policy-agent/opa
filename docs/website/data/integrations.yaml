@@ -1022,8 +1022,6 @@ integrations:
       layer: application
     inventors:
       - permitio
-    software:
-      - permit
     code:
       - https://github.com/permitio
     tutorials:
