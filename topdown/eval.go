@@ -488,8 +488,7 @@ func (e *eval) evalWith(iter evalIterator) error {
 		default: // ref must be builtin
 			_, _, ok := e.builtinFunc(ref.String())
 			if ok {
-				// TODO(sr): include test case where plugging matters
-				builtinMocks = append(builtinMocks, [...]*ast.Term{expr.With[i].Target, plugged})
+				builtinMocks = append(builtinMocks, [...]*ast.Term{expr.With[i].Target, expr.With[i].Value})
 			}
 		}
 		targets = append(targets, ref)
