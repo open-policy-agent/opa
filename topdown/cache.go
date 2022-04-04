@@ -235,3 +235,36 @@ func newComprehensionCacheHashMap() *util.HashMap {
 		return x.(*ast.Term).Hash()
 	})
 }
+
+type builtinMocksStack struct {
+	sl []builtinMocksElem
+}
+
+type builtinMocksElem map[string]ast.Ref
+
+func newBuiltinMocksStack() *builtinMocksStack {
+	return &builtinMocksStack{}
+}
+
+func (s *builtinMocksStack) Push(mocks [][2]*ast.Term) {
+	el := builtinMocksElem{}
+	for i := range mocks {
+		el[mocks[i][0].Value.String()] = mocks[i][1].Value.(ast.Ref)
+	}
+	s.sl = append(s.sl, el)
+}
+
+func (s *builtinMocksStack) Pop() {
+	s.sl = s.sl[:len(s.sl)-1]
+}
+
+func (s *builtinMocksStack) Get(builtinName string) (ast.Ref, bool) {
+	if s != nil {
+		for i := len(s.sl) - 1; i >= 0; i-- {
+			if r, ok := s.sl[i][builtinName]; ok {
+				return r, true
+			}
+		}
+	}
+	return nil, false
+}

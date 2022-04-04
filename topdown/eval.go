@@ -77,6 +77,7 @@ type eval struct {
 	instr                  *Instrumentation
 	builtins               map[string]*Builtin
 	builtinCache           builtins.Cache
+	builtinMocks           *builtinMocksStack
 	virtualCache           *virtualCache
 	comprehensionCache     *comprehensionCache
 	interQueryBuiltinCache cache.InterQueryCache
@@ -473,16 +474,25 @@ func (e *eval) evalWith(iter evalIterator) error {
 
 	pairsInput := [][2]*ast.Term{}
 	pairsData := [][2]*ast.Term{}
+	builtinMocks := [][2]*ast.Term{}
 	targets := []ast.Ref{}
 
 	for i := range expr.With {
+		ref := expr.With[i].Target.Value.(ast.Ref)
 		plugged := e.bindings.Plug(expr.With[i].Value)
-		if isInputRef(expr.With[i].Target) {
+		switch {
+		case isInputRef(expr.With[i].Target):
 			pairsInput = append(pairsInput, [...]*ast.Term{expr.With[i].Target, plugged})
-		} else if isDataRef(expr.With[i].Target) {
+		case isDataRef(expr.With[i].Target):
 			pairsData = append(pairsData, [...]*ast.Term{expr.With[i].Target, plugged})
+		default: // ref must be builtin
+			_, _, ok := e.builtinFunc(ref.String())
+			if ok {
+				// TODO(sr): include test case where plugging matters
+				builtinMocks = append(builtinMocks, [...]*ast.Term{expr.With[i].Target, plugged})
+			}
 		}
-		targets = append(targets, expr.With[i].Target.Value.(ast.Ref))
+		targets = append(targets, ref)
 	}
 
 	input, err := mergeTermWithValues(e.input, pairsInput)
@@ -503,12 +513,12 @@ func (e *eval) evalWith(iter evalIterator) error {
 		}
 	}
 
-	oldInput, oldData := e.evalWithPush(input, data, targets, disable)
+	oldInput, oldData := e.evalWithPush(input, data, builtinMocks, targets, disable)
 
 	err = e.evalStep(func(e *eval) error {
 		e.evalWithPop(oldInput, oldData)
 		err := e.next(iter)
-		oldInput, oldData = e.evalWithPush(input, data, targets, disable)
+		oldInput, oldData = e.evalWithPush(input, data, builtinMocks, targets, disable)
 		return err
 	})
 
@@ -517,7 +527,7 @@ func (e *eval) evalWith(iter evalIterator) error {
 	return err
 }
 
-func (e *eval) evalWithPush(input, data *ast.Term, targets, disable []ast.Ref) (*ast.Term, *ast.Term) {
+func (e *eval) evalWithPush(input, data *ast.Term, builtinMocks [][2]*ast.Term, targets, disable []ast.Ref) (*ast.Term, *ast.Term) {
 	var oldInput *ast.Term
 
 	if input != nil {
@@ -536,6 +546,7 @@ func (e *eval) evalWithPush(input, data *ast.Term, targets, disable []ast.Ref) (
 	e.virtualCache.Push()
 	e.targetStack.Push(targets)
 	e.inliningControl.PushDisable(disable, true)
+	e.builtinMocks.Push(builtinMocks)
 
 	return oldInput, oldData
 }
@@ -545,6 +556,7 @@ func (e *eval) evalWithPop(input, data *ast.Term) {
 	e.targetStack.Pop()
 	e.virtualCache.Pop()
 	e.comprehensionCache.Pop()
+	e.builtinMocks.Pop()
 	e.data = data
 	e.input = input
 }
@@ -709,8 +721,13 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 		return unsupportedBuiltinErr(e.query[e.index].Location)
 	}
 
-	if e.unknown(e.query[e.index], e.bindings) {
+	if e.unknown(e.query[e.index], e.bindings) { // TODO(sr): partial happens here: keep 'with' or replace?
 		return e.saveCall(len(bi.Decl.Args()), terms, iter)
+	}
+
+	if mock, ok := e.builtinMocks.Get(ref.String()); ok {
+		// TODO(sr) check traces we get here
+		return e.evalCall(append([]*ast.Term{ast.NewTerm(mock)}, terms[1:]...), iter) // TODO(sr): really?
 	}
 
 	var parentID uint64
@@ -3183,6 +3200,14 @@ func isDataRef(term *ast.Term) bool {
 		if ref.HasPrefix(ast.DefaultRootRef) {
 			return true
 		}
+	}
+	return false
+}
+
+func isBuiltinRef(bs map[string]*Builtin, term *ast.Term) bool {
+	if r, ok := term.Value.(ast.Ref); ok {
+		_, ok := bs[r.String()]
+		return ok
 	}
 	return false
 }
