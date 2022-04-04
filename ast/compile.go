@@ -4813,8 +4813,8 @@ func validateWith(c *Compiler, target, value *Term) (bool, *Error) {
 			return false, NewError(CompileErr, target.Loc(), "with keyword replacing built-in function: value must be a reference to a function")
 		}
 
-		if _, ok := target.Value.(Var); ok { // TODO(sr): ensure we're dealing with Refs only in topdown, write test case
-			target = RefTerm(target)
+		if v, ok := target.Value.(Var); ok { // TODO(sr): ensure we're dealing with Refs only in topdown, write test case
+			target.Value = Ref([]*Term{NewTerm(v)})
 		}
 
 		node := c.RuleTree

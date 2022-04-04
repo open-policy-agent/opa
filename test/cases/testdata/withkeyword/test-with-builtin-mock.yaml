@@ -1,0 +1,82 @@
+cases:
+- data:
+  modules:
+  - |
+    package test
+
+    f() = 1
+    p = y {
+      y = time.now_ns() with time.now_ns as f
+    }
+  note: 'withkeyword/builtin: direct call, arity 0'
+  query: data.test.p = x
+  want_result:
+  - x: 1
+- data:
+  modules:
+  - |
+    package test
+
+    f(_) = 1
+    p = y {
+      y = count([1,2,3]) with count as f
+    }
+  note: 'withkeyword/builtin: direct call, arity 1'
+  query: data.test.p = x
+  want_result:
+  - x: 1
+- data:
+  modules:
+  - |
+    package test
+
+    f(_) = 1
+    p {
+      q with count as f
+    }
+    q {
+      count([1,2,3]) == 1
+    }
+  note: 'withkeyword/builtin: indirect call, arity 1'
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+
+    f() = 1
+    p {
+      q with time.now_ns as f
+    }
+    q {
+      time.now_ns() == 1
+    }
+  note: 'withkeyword/builtin: indirect call, arity 0'
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+    import future.keywords.in
+
+    pass_resp = {"body": {"roles": ["admin"]}}
+    deny_resp = {"body": {"roles": []}}
+    mock_http_send(req) = pass_resp {
+      req.body.name == "alice"
+    } else = deny_resp
+
+    test_allow {
+      allow with http.send as mock_http_send with input.name as "alice"
+    }
+
+    allow {
+      "admin" in http.send({"method": "GET", "body": input}).body.roles
+    }
+  note: 'withkeyword/builtin: http.send example'
+  query: data.test.test_allow = x
+  want_result:
+  - x: true
