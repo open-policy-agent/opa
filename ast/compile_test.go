@@ -4051,9 +4051,33 @@ func TestCompilerRewriteWithValue(t *testing.T) {
 			wantErr: fmt.Errorf("rego_type_error: with keyword target must reference existing input, data, or a built-in function"),
 		},
 		{
-			note:    "built-in function",
+			note:    "built-in function: invalid",
 			input:   `p { true with time.now_ns as foo }`,
 			wantErr: fmt.Errorf("rego_compile_error: with keyword replacing built-in function: value must be a reference to a function"),
+		},
+		{
+			note: "built-in function: valid, arity 0",
+			input: `
+				p { true with time.now_ns as now }
+				now() = 1
+			`,
+			expected: `p { true with time.now_ns as data.test.now }`,
+		},
+		{
+			note: "built-in function: valid, arity 1",
+			input: `
+				p { true with http.send as mock_http_send }
+				mock_http_send(_) = { "body": "yay" }
+			`,
+			expected: `p { true with http.send as data.test.mock_http_send }`,
+		},
+		{
+			note: "built-in function: valid, arity 1, non-compound name",
+			input: `
+				p { concat("/", input) with concat as mock_concat }
+				mock_concat(_, _) = "foo/bar"
+			`,
+			expected: `p { concat("/", input) with concat as data.test.mock_concat }`,
 		},
 	}
 
@@ -4457,6 +4481,13 @@ func TestCompilerMockBuiltinFunction(t *testing.T) {
 			module: `package test
 				now() = 123
 				p { true with time.now_ns as now }
+			`,
+		},
+		{
+			note: "simple valid, simple name",
+			module: `package test
+				mock_concat(_, _) = "foo/bar"
+				p { concat("/", input) with concat as mock_concat }
 			`,
 		},
 		{

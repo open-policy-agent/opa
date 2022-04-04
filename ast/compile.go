@@ -4807,7 +4807,7 @@ func validateWith(c *Compiler, target, value *Term) (bool, *Error) {
 			}
 		}
 	case isInputRef(target): // ok, valid
-	case isBuiltinRef(c.builtins, target):
+	case isBuiltinRefOrVar(c.builtins, target):
 		ref, ok := value.Value.(Ref)
 		if !ok {
 			return false, NewError(CompileErr, target.Loc(), "with keyword replacing built-in function: value must be a reference to a function")
@@ -4822,7 +4822,7 @@ func validateWith(c *Compiler, target, value *Term) (bool, *Error) {
 			node = child
 		}
 
-		bi := c.builtins[target.Value.(Ref).String()] // safe because isBuiltinRef checked this
+		bi := c.builtins[target.Value.String()] // safe because isBuiltinRef checked this
 
 		for _, value := range node.Values {
 			arity := len(value.(*Rule).Head.Args)
@@ -4859,9 +4859,10 @@ func isDataRef(term *Term) bool {
 	return false
 }
 
-func isBuiltinRef(bs map[string]*Builtin, term *Term) bool {
-	if ref, ok := term.Value.(Ref); ok {
-		_, ok := bs[ref.String()]
+func isBuiltinRefOrVar(bs map[string]*Builtin, term *Term) bool {
+	switch v := term.Value.(type) {
+	case Ref, Var:
+		_, ok := bs[v.String()]
 		return ok
 	}
 	return false
