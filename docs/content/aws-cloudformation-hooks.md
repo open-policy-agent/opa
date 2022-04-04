@@ -105,11 +105,11 @@ aws cloudformation --region "$AWS_REGION" set-type-configuration \
 
 The hook is now installed, configured and activated!
 
-## 3. Learn the Domain
+### 3. Learn the Domain
 
 Before we proceed to write our first policy, let's take a closer look at the data we'll be working with.
 
-### AWS CloudFormation Templates
+#### AWS CloudFormation Templates
 
 A template file is commonly a YAML or JSON file, describing a set of AWS resources. While a template may describe 
 multiple resources, the hook will send each resource for validation separately. Important to note here is that the
@@ -127,7 +127,7 @@ Resources:
 For more information on templates, see the 
 [AWS User Guide](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/template-guide.html) on that topic.
 
-### Input and Response Format
+#### Input and Response Format
 
 The OPA configured to receive requests from the CFN hook will have its input provided in this format:
 
@@ -163,7 +163,7 @@ The hook expects the response to contain a boolean `allow` attribute, and a list
 
 Any request denied will be logged in [AWS CloudWatch](https://aws.amazon.com/cloudwatch/) for the same account.
 
-## 4. Write a CloudFormation Hook Policy
+### 4. Write a CloudFormation Hook Policy
 
 With knowledge of the domain and the data model, we're ready to write our first CloudFormation Hook policy. Since we'll
 have a single OPA endpoint servicing requests for all types of resources, we'll use the 
@@ -217,7 +217,27 @@ fail (i.e. not evaluate) as soon as the property was missing, leading to the res
 and negation is a good way to work with data that might or might not be present, and results in more readable policies,
 too.
 
-## 5. Policy Enforcement Testing 
+{{< danger >}}
+Surprisingly, boolean values from CloudFormation Templates are provided to the hook in the form of **strings** (i.e.
+"true" and "false"). Policy authors must take this into account, and explicitly check for the value of these
+attributes. An example S3 bucket policy might for example want to check that public ACLs are blocked:
+
+```live:example/boolean_fail:module:read_only
+# Wrong: will allow both "true" and "false" values as both are considered "truthy"
+block_public_acls {
+    input.resource.properties.PublicAccessBlockConfiguration.BlockPublicAcls
+}
+```
+
+```live:example/boolean_correct:module:read_only
+# Correct: will allow only when property set to "true"
+block_public_acls {
+    input.resource.properties.PublicAccessBlockConfiguration.BlockPublicAcls == "true"
+}
+```
+{{< /danger >}}
+
+### 5. Policy Enforcement Testing
 
 With the above policy loaded into OPA, we may proceed to try it out. Let's deploy the minimal S3 Bucket from the 
 previous template example. Save the below minimal template to a file called `s3bucket.yaml`:
