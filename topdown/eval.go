@@ -3202,14 +3202,6 @@ func isDataRef(term *ast.Term) bool {
 	return false
 }
 
-func isBuiltinRef(bs map[string]*Builtin, term *ast.Term) bool {
-	if r, ok := term.Value.(ast.Ref); ok {
-		_, ok := bs[r.String()]
-		return ok
-	}
-	return false
-}
-
 func merge(a, b ast.Value) (ast.Value, bool) {
 	aObj, ok1 := a.(ast.Object)
 	bObj, ok2 := b.(ast.Object)
