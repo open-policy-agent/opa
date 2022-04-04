@@ -1739,7 +1739,6 @@ func (c *Compiler) rewriteDynamicTerms() {
 func (c *Compiler) rewriteSelfCalls() {
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
-		gen := c.localvargen
 
 		// Early exit if self keyword not explicitly imported
 		selfImported := false
@@ -1779,13 +1778,10 @@ func (c *Compiler) rewriteSelfCalls() {
 						return false
 					}
 
-					metadataChainVar = gen.Generate()
-					metadataChain := Equality.Expr(
-						NewTerm(metadataChainVar),
-						chain,
-					)
-					metadataChain.Generated = true
-					body.Append(metadataChain)
+					f := newEqualityFactory(c.localvargen)
+					eq := f.Generate(chain)
+					metadataChainVar = eq.Operands()[0].Value.(Var)
+					body.Append(eq)
 				}
 
 				var metadataRuleVar Var
@@ -1807,13 +1803,10 @@ func (c *Compiler) rewriteSelfCalls() {
 						metadataRuleTerm = ObjectTerm()
 					}
 
-					metadataRuleVar = gen.Generate()
-					metadataRule := Equality.Expr(
-						NewTerm(metadataRuleVar),
-						metadataRuleTerm,
-					)
-					metadataRule.Generated = true
-					body.Append(metadataRule)
+					f := newEqualityFactory(c.localvargen)
+					eq := f.Generate(metadataRuleTerm)
+					metadataRuleVar = eq.Operands()[0].Value.(Var)
+					body.Append(eq)
 				}
 
 				for _, expr := range rule.Body {
@@ -1882,26 +1875,29 @@ func rewriteSelfCalls(metadataChainVar Var, metadataRuleVar Var, body Body) Erro
 			continue
 		}
 
-		// NOTE(johanfylling): An alternative strategy would be to walk the body and replace all operands[0] usages with *metadataChainVar
+		// NOTE(johanfylling): An alternative strategy would be to walk the body and replace all operands[0]
+		// usages with *metadataChainVar
 		operands := expr.Operands()
-		// FIXME: Should this be an assignment?
 		newExpr := Equality.Expr(operands[0], metadataTerm)
 		newExpr.Generated = true
+		newExpr.Location = expr.Location
 		body.Set(newExpr, i)
 	}
 
 	return errs
 }
 
-var selfMetadataChainRef = Ref{VarTerm("self"), StringTerm("metadata"), StringTerm("chain")}
-var selfMetadataRuleRef = Ref{VarTerm("self"), StringTerm("metadata"), StringTerm("rule")}
+func isSelfImport(imp *Import) bool {
+	selfImportRefTerm := RefTerm(VarTerm("future"), StringTerm("self"))
+	return imp.Path.Equal(selfImportRefTerm)
+}
 
 func isSelfMetadataChainCall(x *Expr) bool {
-	return x.IsCall() && x.Operator().Equal(selfMetadataChainRef)
+	return x.IsCall() && x.Operator().Equal(SelfMetadataChain.Ref())
 }
 
 func isSelfMetadataRuleCall(x *Expr) bool {
-	return x.IsCall() && x.Operator().Equal(selfMetadataRuleRef)
+	return x.IsCall() && x.Operator().Equal(SelfMetadataRule.Ref())
 }
 
 func createMetadataChain(chain []*AnnotationsRef) (*Term, *Error) {
@@ -3493,11 +3489,6 @@ func getGlobals(pkg *Package, rules []Var, imports []*Import) map[Var]*usedRef {
 	}
 
 	return globals
-}
-
-func isSelfImport(imp *Import) bool {
-	path := imp.Path.Value.(Ref)
-	return len(path) == 2 && path[0].Value.(Var) == "future" && path[1].Value.(String) == "self"
 }
 
 func requiresEval(x *Term) bool {
