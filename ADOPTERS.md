@@ -175,6 +175,12 @@ production users that have added themselves (in alphabetical order):
   [part 1](https://blog.verygoodsecurity.com/posts/building-a-fine-grained-permission-system-in-a-distributed-environment),
   [part 2](https://blog.verygoodsecurity.com/posts/building-a-fine-grained-permissions-system-in-a-distributed-environment).
 
+* [Wiz](https://www.wiz.io/) helps every organization rapidly remove the most critical risks in their cloud estate.
+  It simply connects in minutes, requires zero agents, and automatically correlates the entire security stack to uncover
+  the most pressing issues. Wiz policies leverage Open Policy Agent (OPA) for a unified framework across the
+  cloud-native stack. Whether for configurations, compliance, IaC, and more, OPA enables teams to move faster in the
+  cloud. For more information on how Wiz uses OPA, contact us.
+
 * [Xenit AB](https://www.xenit.se/) uses OPA to implement fine-grained control
   over resource formulation in its managed Kubernetes service as well as several
   customer-specific implementations. For more information, see the Kubernetes Terraform library [OPA Gatekeeper module](https://github.com/XenitAB/terraform-modules/tree/main/modules/kubernetes/opa-gatekeeper) and
