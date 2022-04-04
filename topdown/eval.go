@@ -478,7 +478,7 @@ func (e *eval) evalWith(iter evalIterator) error {
 	targets := []ast.Ref{}
 
 	for i := range expr.With {
-		ref := expr.With[i].Target.Value.(ast.Ref)
+		ref := ensureRef(expr.With[i].Target.Value)
 		plugged := e.bindings.Plug(expr.With[i].Value)
 		switch {
 		case isInputRef(expr.With[i].Target):
@@ -3266,4 +3266,17 @@ func suppressEarlyExit(err error) error {
 		return err
 	}
 	return ee.prev // nil if we're done
+}
+
+// ensureRef is used for looking up builtins by term:
+// 'concat' and the other "simple" names will be of type ast.Var
+// 'http.send' and other compound names will be a ast.Ref
+func ensureRef(v ast.Value) ast.Ref {
+	switch x := v.(type) {
+	case ast.Ref:
+		return x
+	case ast.Var:
+		return ast.Ref([]*ast.Term{ast.NewTerm(x)})
+	}
+	panic("unreachable")
 }
