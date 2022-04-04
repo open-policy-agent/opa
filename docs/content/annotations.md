@@ -50,149 +50,35 @@ a metadata block determines how that metadata block will be applied. If the
 immediately follows the annotation. The `scope` values that are currently
 supported are:
 
-* `rule` - applies to the individual rule statement. Default, when metadata block precedes rule.
-* `document` - applies to all of the rules with the same name in the same package
-* `package` - applies to all of the rules in the package, Default, when metadata block precedes package.
-* `subpackages` - applies to all of the rules in the package and all subpackages (recursively)
+* `rule` - applies to the individual rule statement (within the same file). Default, when metadata block precedes rule.
+* `document` - applies to all of the rules with the same name in the same package (across multiple files)
+* `package` - applies to all of the rules in the package (within the same file). Default, when metadata block precedes package.
+* `subpackages` - applies to all of the rules in the package and all subpackages (recursively, across multiple files)
 
-In case of overlap, schema annotations override each other as follows:
-
-```
-rule overrides document
-document overrides package
-package overrides subpackages
-```
-
-The following sections explain how the different scopes work.
-
-#### Rule and Document Scopes
-
-```
-# METADATA
-# scope: rule
-# schemas:
-#   - input: schema.input
-#   - data.acl: schema["acl-schema"]
-allow {
-    access := data.acl["alice"]
-    access[_] == input.operation
-}
-
-allow {
-    access := data.acl["bob"]
-    access[_] == input.operation
-}
-```
-
-In the example above, the second rule does not include an annotation, so type
-checking of the second rule would not take schemas into account. To enable type
-checking on the second (or other rules in the same file) we could specify the
-annotation multiple times:
-
-```
-# METADATA
-# scope: rule
-# schemas:
-#   - input: schema.input
-#   - data.acl: schema["acl-schema"]
-allow {
-    access := data.acl["alice"]
-    access[_] == input.operation
-}
-
-# METADATA
-# scope: rule
-# schemas:
-#   - input: schema.input
-#   - data.acl: schema["acl-schema"]
-allow {
-    access := data.acl["bob"]
-    access[_] == input.operation
-}
-```
-
-This is obviously redundant and error-prone. To avoid this problem, we can
-define the metadata block once on a rule with scope `document`:
-
-```
-# METADATA
-# scope: document
-# schemas:
-#   - input: schema.input
-#   - data.acl: schema["acl-schema"]
-allow {
-    access := data.acl["alice"]
-    access[_] == input.operation
-}
-
-allow {
-    access := data.acl["bob"]
-    access[_] == input.operation
-}
-```
-
-In this example, the metadata with `document` scope has the same affect as the
-two `rule` scoped metadata blocks in the previous example.
-
-Since the `document` scope annotation applies to all rules with the same name in
-the same package (which can span multiple files) and there is no ordering across
-files in the same package, `document` scope annotations can only be specified
-**once** per rule set. The `document` scope annotation can be applied to any
-rule in the set (i.e., ordering does not matter.)
-
-#### Package and Subpackage Scopes
-
-Annotations can be defined at the `package` level and are then applied to all rules
-within the package:
-
-```
-# METADATA
-# scope: package
-# schemas:
-#   - input: schema.input
-#   - data.acl: schema["acl-schema"]
-package example
-
-allow {
-    access := data.acl["alice"]
-    access[_] == input.operation
-}
-
-allow {
-    access := data.acl["bob"]
-    access[_] == input.operation
-}
-```
-
-`package` scoped schema annotations are useful when all rules in the same
-package operate on the same input structure. In some cases, when policies are
-organized into many sub-packages, it is useful to declare schemas recursively
-for them using the `subpackages` scope. For example:
-
-```
-# METADTA
-# scope: subpackages
-# schemas:
-# - input: schema.input
-package kubernetes.admission
-```
-
-This snippet would declare the top-level schema for `input` for the
-`kubernetes.admission` package as well as all subpackages. If admission control
-rules were defined inside packages like `kubernetes.admission.workloads.pods`,
-they would be able to pick up that one schema declaration.
+Since the `document` scope annotation applies to all rules with the same name in the same package 
+and the `subpackages` scope annotation applies to all packages with a matching path, metadata blocks with 
+these scopes are applied over all files with applicable package- and rule paths. 
+As there is no ordering across files in the same package, the `document` and `subpackages` scope annotations 
+can only be specified **once** per path. 
+The `document` scope annotation can be applied to any rule in the set (i.e., ordering does not matter.)
 
 #### Example
 
 ```rego
 # METADATA
 # scope: document
-# schemas:
-#   - input: schema.input
-#   - data.acl: schema["acl-schema"]
+# description: A set of rules that determines if x is allowed.
+
+# METADATA
+# title: Allow Ones
 allow {
-    access := data.acl["alice"]
-    access[_] == input.operation
+    x == 1
+}
+
+# METADATA
+# title: Allow Twos
+allow {
+    x == 2
 }
 ```
 
