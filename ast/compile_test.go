@@ -1738,6 +1738,9 @@ func TestCompilerCheckDuplicateImports(t *testing.T) {
 				import input.foo
 				import data.foo
 				import data.bar.foo
+				
+				p := noconflict
+				q := foo
 			`,
 			expectedErrors: Errors{
 				&Error{
@@ -1755,6 +1758,9 @@ func TestCompilerCheckDuplicateImports(t *testing.T) {
 				import input.noconflict
 				import input.foo
 				import input.bar as foo
+
+				p := noconflict
+				q := foo
 			`,
 			expectedErrors: Errors{
 				&Error{
@@ -2361,12 +2367,14 @@ p = true {
 		{
 			note: "self imported but not used",
 			module: `package test
+
 import future.self
 
 p {
 	1 != 2
 }`,
 			exp: `package test
+import future.self
 
 p = true { 
 	neq(1, 2)
@@ -2382,6 +2390,8 @@ p {
 	self.metadata.rule() == {}
 }`,
 			exp: `package test
+
+import future.self
 
 p = true { 
 	__local2__ = [{"path": ["test", "p"]}]
@@ -2415,6 +2425,8 @@ p {
 			exp: `# METADATA
 # {"scope":"package","description":"A test package"}
 package test
+
+import future.self
 
 # METADATA
 # {"scope":"rule","title":"My P Rule"}
@@ -2453,6 +2465,8 @@ p {
 # {"scope":"package","description":"TEST"}
 package test
 
+import future.self
+
 p = true { 
 	__local2__ = [
 		{"path": ["test", "p"]}, 
@@ -2470,6 +2484,8 @@ import future.self
 
 p := self.metadata.chain()`,
 			exp: `package test
+
+import future.self
 
 p := __local0__ { 
 	__local1__ = [{"path": ["test", "p"]}]
@@ -2491,6 +2507,8 @@ q(s) {
 }`,
 			exp: `package test
 
+import future.self
+
 p = true { 
 	__local2__ = [{"path": ["test", "p"]}]
 	__local1__ = __local2__
@@ -2509,6 +2527,8 @@ import future.self
 p = [x | x := self.metadata.chain()]`,
 			exp: `package test
 
+import future.self
+
 p = [__local0__ | __local1__ = __local2__; __local0__ = __local1__] { 
 	__local2__ = [{"path": ["test", "p"]}]
 	true 
@@ -2525,6 +2545,8 @@ p {
 }`,
 			exp: `package test
 
+import future.self
+
 p = true { 
 	__local3__ = [{"path": ["test", "p"]}]; 
 	__local1__ = [__local0__ | __local2__ = __local3__; __local0__ = __local2__]; 
@@ -2538,6 +2560,8 @@ import future.self
 
 p = {x | x := self.metadata.chain()}`,
 			exp: `package test
+
+import future.self
 
 p = {__local0__ | __local1__ = __local2__; __local0__ = __local1__} { 
 	__local2__ = [{"path": ["test", "p"]}]
@@ -2555,6 +2579,8 @@ p {
 }`,
 			exp: `package test
 
+import future.self
+
 p = true { 
 	__local3__ = [{"path": ["test", "p"]}]
 	__local1__ = {__local0__ | __local2__ = __local3__; __local0__ = __local2__}
@@ -2568,6 +2594,8 @@ import future.self
 
 p = {i: x | x := self.metadata.chain()[i]}`,
 			exp: `package test
+
+import future.self
 
 p = {i: __local0__ | __local1__ = __local2__; __local0__ = __local1__[i]} { 
 	__local2__ = [{"path": ["test", "p"]}]
@@ -2584,6 +2612,8 @@ p {
 	y[0].path == ["test", "p"]
 }`,
 			exp: `package test
+
+import future.self
 
 p = true { 
 	__local3__ = [{"path": ["test", "p"]}]

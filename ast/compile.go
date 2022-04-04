@@ -260,13 +260,12 @@ func NewCompiler() *Compiler {
 		metricName string
 		f          func()
 	}{
-		{"CheckDuplicateImports", "compile_stage_check_duplicate_imports", c.checkDuplicateImports},
-		{"CheckKeywordOverrides", "compile_stage_check_keyword_overrides", c.checkKeywordOverrides},
-		{"SetSelfUsage", "compile_stage_set_self_usage", c.setSelfUsage},
 		// Reference resolution should run first as it may be used to lazily
 		// load additional modules. If any stages run before resolution, they
 		// need to be re-run after resolution.
 		{"ResolveRefs", "compile_stage_resolve_refs", c.resolveAllRefs},
+		{"CheckKeywordOverrides", "compile_stage_check_keyword_overrides", c.checkKeywordOverrides},
+		{"CheckDuplicateImports", "compile_stage_check_duplicate_imports", c.checkDuplicateImports},
 		{"SetModuleTree", "compile_stage_set_module_tree", c.setModuleTree},
 		{"SetRuleTree", "compile_stage_set_rule_tree", c.setRuleTree},
 		// The local variable generator must be initialized after references are
@@ -279,6 +278,7 @@ func NewCompiler() *Compiler {
 		{"RewriteExprTerms", "compile_stage_rewrite_expr_terms", c.rewriteExprTerms},
 		{"SetAnnotationSet", "compile_stage_set_annotationset", c.setAnnotationSet},
 		{"RewriteSelfCalls", "compile_stage_rewrite_self_calls", c.rewriteSelfCalls},
+		{"RemoveImports", "compile_stage_remove_imports", c.removeImports},
 		{"SetGraph", "compile_stage_set_graph", c.setGraph},
 		{"RewriteComprehensionTerms", "compile_stage_rewrite_comprehension_terms", c.rewriteComprehensionTerms},
 		{"RewriteRefsInHead", "compile_stage_rewrite_refs_in_head", c.rewriteRefsInHead},
@@ -1429,9 +1429,6 @@ func (c *Compiler) resolveAllRefs() {
 				}
 			}
 		}
-
-		// Once imports have been resolved, they are no longer needed.
-		mod.Imports = nil
 	}
 
 	if c.moduleLoader != nil {
@@ -1453,6 +1450,13 @@ func (c *Compiler) resolveAllRefs() {
 
 		sort.Strings(c.sorted)
 		c.resolveAllRefs()
+	}
+}
+
+func (c *Compiler) removeImports() {
+	for _, name := range c.sorted {
+		mod := c.Modules[name]
+		mod.Imports = nil
 	}
 }
 
@@ -1732,25 +1736,20 @@ func (c *Compiler) rewriteDynamicTerms() {
 	}
 }
 
-func (c *Compiler) setSelfUsage() {
-	for name, mod := range c.Modules {
-		c.selfUsage[name] = false
-		for _, imp := range mod.Imports {
-			if isSelfImport(imp) {
-				c.selfUsage[name] = true
-				break
-			}
-		}
-	}
-}
-
 func (c *Compiler) rewriteSelfCalls() {
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
 		gen := c.localvargen
 
 		// Early exit if self keyword not explicitly imported
-		if !c.selfUsage[name] {
+		selfImported := false
+		for _, imp := range mod.Imports {
+			if isSelfImport(imp) {
+				selfImported = true
+				break
+			}
+		}
+		if !selfImported {
 			continue
 		}
 
