@@ -4760,7 +4760,7 @@ func rewriteWithModifier(c *Compiler, f *equalityFactory, expr *Expr) ([]*Expr, 
 
 	var result []*Expr
 	for i := range expr.With {
-		err := validateTarget(c, expr.With[i].Target)
+		err := validateWith(c, expr.With[i].Target, expr.With[i].Value)
 		if err != nil {
 			return nil, err
 		}
@@ -4781,17 +4781,17 @@ func rewriteWithModifier(c *Compiler, f *equalityFactory, expr *Expr) ([]*Expr, 
 	return result, nil
 }
 
-func validateTarget(c *Compiler, term *Term) *Error {
+func validateWith(c *Compiler, target, value *Term) *Error {
 	switch {
-	case isDataRef(term):
-		ref := term.Value.(Ref)
+	case isDataRef(target):
+		ref := target.Value.(Ref)
 		node := c.RuleTree
 		for i := 0; i < len(ref)-1; i++ {
 			child := node.Child(ref[i].Value)
 			if child == nil {
 				break
 			} else if len(child.Values) > 0 {
-				return NewError(CompileErr, term.Loc(), "with keyword cannot partially replace virtual document(s)")
+				return NewError(CompileErr, target.Loc(), "with keyword cannot partially replace virtual document(s)")
 			}
 			node = child
 		}
@@ -4801,15 +4801,41 @@ func validateTarget(c *Compiler, term *Term) *Error {
 				for _, value := range child.Values {
 					if len(value.(*Rule).Head.Args) > 0 {
 						// TODO(sr): UDF
-						return NewError(CompileErr, term.Loc(), "with keyword cannot replace functions")
+						return NewError(CompileErr, target.Loc(), "with keyword cannot replace functions")
 					}
 				}
 			}
 		}
-	case isInputRef(term): // ok, valid
-	case isBuiltinRef(c.builtins, term): // ok, valid
+	case isInputRef(target): // ok, valid
+	case isBuiltinRef(c.builtins, target):
+		ref, ok := value.Value.(Ref)
+		if !ok {
+			return NewError(CompileErr, target.Loc(), "with keyword replacing built-in function: value must be a reference to a function")
+		}
+
+		node := c.RuleTree
+		for _, r := range ref {
+			child := node.Child(r.Value)
+			if child == nil {
+				return NewError(CompileErr, target.Loc(), "with keyword replacing built-in function: value must be a reference to a function")
+			}
+			node = child
+		}
+
+		bi := c.builtins[target.Value.(Ref).String()] // safe because isBuiltinRef checked this
+
+		for _, value := range node.Values {
+			arity := len(value.(*Rule).Head.Args)
+			biArity := len(bi.Decl.Args())
+			switch {
+			case arity == 0 && biArity != 0:
+				return NewError(CompileErr, target.Loc(), "with keyword replacing built-in function: referenced value must be a function")
+			case arity != biArity:
+				return NewError(CompileErr, target.Loc(), "with keyword replacing built-in function: referenced value function must have same arity (have %d, want %d)", arity, biArity)
+			}
+		}
 	default:
-		return NewError(TypeErr, term.Location, "with keyword target must reference existing %v, %v, or a built-in function", InputRootDocument, DefaultRootDocument)
+		return NewError(TypeErr, target.Location, "with keyword target must reference existing %v, %v, or a built-in function", InputRootDocument, DefaultRootDocument)
 	}
 	return nil
 }

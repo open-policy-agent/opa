@@ -4051,9 +4051,9 @@ func TestCompilerRewriteWithValue(t *testing.T) {
 			wantErr: fmt.Errorf("rego_type_error: with keyword target must reference existing input, data, or a built-in function"),
 		},
 		{
-			note:     "built-in function",
-			input:    `p { true with time.now_ns as foo }`,
-			expected: `p { true with time.now_ns as foo }`,
+			note:    "built-in function",
+			input:   `p { true with time.now_ns as foo }`,
+			wantErr: fmt.Errorf("rego_compile_error: with keyword replacing built-in function: value must be a reference to a function"),
 		},
 	}
 
@@ -4447,18 +4447,95 @@ func TestCompilerMockFunction(t *testing.T) {
 }
 
 func TestCompilerMockBuiltinFunction(t *testing.T) {
-	c := NewCompiler()
-	c.Modules["test"] = MustParseModule(`
-	package test
-
-	now() = 123
-
-	p { true with time.now_ns as now }
-	`)
-	compileStages(c, c.rewriteWithModifiers)
-	if len(c.Errors) > 0 {
-		t.Errorf("expected no errors, got %v", c.Errors)
+	tests := []struct {
+		note          string
+		module, extra string
+		err           string
+	}{
+		{
+			note: "simple valid",
+			module: `package test
+				now() = 123
+				p { true with time.now_ns as now }
+			`,
+		},
+		{
+			note: "invalid ref: nonexistant",
+			module: `package test
+				p { true with time.now_ns as now }
+			`,
+			err: "rego_compile_error: with keyword replacing built-in function: value must be a reference to a function",
+		},
+		{
+			note: "valid ref: not a function, but arity = 0", // TODO: arity-0 is special: complete rule... are we OK with this?
+			module: `package test
+				now = 1
+				p { true with time.now_ns as now }
+			`,
+		},
+		{
+			note: "invalid ref: not a function, arity > 0",
+			module: `package test
+				http_send = { "body": "nope" }
+				p { true with http.send as http_send }
+			`,
+			err: "rego_compile_error: with keyword replacing built-in function: referenced value must be a function",
+		},
+		{
+			note: "invalid ref: arity mismatch",
+			module: `package test
+				http_send(_, _) = { "body": "nope" }
+				p { true with http.send as http_send }
+			`,
+			err: "rego_compile_error: with keyword replacing built-in function: referenced value function must have same arity (have 2, want 1)",
+		},
+		{
+			note: "invalid ref: value another built-in",
+			module: `package test
+				p { true with http.send as net.lookup_ip_addr }
+			`,
+			err: "rego_compile_error: with keyword replacing built-in function: value must be a reference to a function",
+		},
+		{
+			note: "valid: package import",
+			extra: `package mocks
+				http_send(_) = {}
+			`,
+			module: `package test
+				import data.mocks
+				p { true with http.send as mocks.http_send }
+			`,
+		},
+		{
+			note: "valid: function import",
+			extra: `package mocks
+				http_send(_) = {}
+			`,
+			module: `package test
+				import data.mocks.http_send
+				p { true with http.send as http_send }
+			`,
+		},
 	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			c := NewCompiler()
+			if tc.extra != "" {
+				c.Modules["extra"] = MustParseModule(tc.extra)
+			}
+			c.Modules["test"] = MustParseModule(tc.module)
+			compileStages(c, c.rewriteWithModifiers)
+			if tc.err != "" {
+				if !strings.Contains(c.Errors.Error(), tc.err) {
+					t.Errorf("expected error to contain %q, got %q", tc.err, c.Errors.Error())
+				}
+			} else if len(c.Errors) > 0 {
+				t.Errorf("expected no errors, got %v", c.Errors)
+			}
+		})
+	}
+
 }
 
 func TestCompilerMockVirtualDocumentPartially(t *testing.T) {
