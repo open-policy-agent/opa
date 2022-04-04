@@ -4048,7 +4048,12 @@ func TestCompilerRewriteWithValue(t *testing.T) {
 		{
 			note:    "invalid target",
 			input:   `p { true with foo.q as 1 }`,
-			wantErr: fmt.Errorf("rego_type_error: with keyword target must reference existing input or data"),
+			wantErr: fmt.Errorf("rego_type_error: with keyword target must reference existing input, data, or a built-in function"),
+		},
+		{
+			note:     "built-in function",
+			input:    `p { true with time.now_ns as foo }`,
+			expected: `p { true with time.now_ns as foo }`,
 		},
 	}
 
@@ -4451,7 +4456,9 @@ func TestCompilerMockBuiltinFunction(t *testing.T) {
 	p { true with time.now_ns as now }
 	`)
 	compileStages(c, c.rewriteWithModifiers)
-	assertCompilerErrorStrings(t, c, []string{"rego_type_error: with keyword target must reference existing input or data"})
+	if len(c.Errors) > 0 {
+		t.Errorf("expected no errors, got %v", c.Errors)
+	}
 }
 
 func TestCompilerMockVirtualDocumentPartially(t *testing.T) {
@@ -6176,7 +6183,7 @@ func TestQueryCompiler(t *testing.T) {
 			q:        "x = 1 with foo.p as null",
 			pkg:      "",
 			imports:  nil,
-			expected: fmt.Errorf("1 error occurred: 1:12: rego_type_error: with keyword target must reference existing input or data"),
+			expected: fmt.Errorf("1 error occurred: 1:12: rego_type_error: with keyword target must reference existing input, data, or a built-in function"),
 		},
 		{
 			note:     "rewrite with value",

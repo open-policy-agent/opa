@@ -4807,10 +4807,9 @@ func validateTarget(c *Compiler, term *Term) *Error {
 			}
 		}
 	case isInputRef(term): // ok, valid
-	case isBuiltinRef(c.builtins, term):
-		fallthrough // TODO(sr): built-in
+	case isBuiltinRef(c.builtins, term): // ok, valid
 	default:
-		return NewError(TypeErr, term.Location, "with keyword target must reference existing %v or %v", InputRootDocument, DefaultRootDocument)
+		return NewError(TypeErr, term.Location, "with keyword target must reference existing %v, %v, or a built-in function", InputRootDocument, DefaultRootDocument)
 	}
 	return nil
 }
