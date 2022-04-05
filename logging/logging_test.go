@@ -1,6 +1,8 @@
 package logging
 
 import (
+	"bytes"
+	"strings"
 	"testing"
 )
 
@@ -16,6 +18,26 @@ func TestWithFields(t *testing.T) {
 
 	if fieldvalue.(string) != "contextvalue" {
 		t.Fatal("Logger did not contain configured field value")
+	}
+}
+
+func TestCaptureWarningWithErrorSet(t *testing.T) {
+	buf := bytes.Buffer{}
+	logger := New()
+	logger.SetOutput(&buf)
+	logger.SetLevel(Error)
+
+	logger.Warn("This is a warning. Next time, I won't compile.")
+	logger.Error("Fix your issues. I'm not compiling.")
+
+	expected := []string{
+		`level=warning msg="This is a warning. Next time, I won't compile."`,
+		`level=error msg="Fix your issues. I'm not compiling."`,
+	}
+	for _, exp := range expected {
+		if !strings.Contains(buf.String(), exp) {
+			t.Errorf("expected string %q not found in logs", exp)
+		}
 	}
 }
 

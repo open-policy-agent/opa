@@ -1398,7 +1398,7 @@ func TestDiskDiagnostics(t *testing.T) {
 			}
 
 			expected := []string{
-				`level=error msg="no partitions configured"`,
+				`level=warning msg="no partitions configured"`,
 				`level=debug msg="partition /: key count: 0 (estimated size 0 bytes)"`,
 			}
 			for _, exp := range expected {
@@ -1407,7 +1407,7 @@ func TestDiskDiagnostics(t *testing.T) {
 				}
 			}
 			if t.Failed() {
-				t.Log("log oputput: ", buf.String())
+				t.Log("log output: ", buf.String())
 			}
 
 			// re-open
