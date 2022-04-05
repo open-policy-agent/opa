@@ -47,10 +47,9 @@ func File(path string, includeAnnotations bool) (*Info, error) {
 	bi.Namespaces = namespaces
 
 	if includeAnnotations {
-		var errs ast.Errors
-		as, err := ast.BuildAnnotationSet(modules)
+		as, errs := ast.BuildAnnotationSet(modules)
 		if len(errs) > 0 {
-			return nil, err
+			return nil, errs
 		}
 		bi.Annotations = as.Flatten()
 	}
