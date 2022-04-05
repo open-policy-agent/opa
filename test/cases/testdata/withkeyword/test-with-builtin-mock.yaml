@@ -80,3 +80,41 @@ cases:
   query: data.test.test_allow = x
   want_result:
   - x: true
+- data:
+  modules:
+  - |
+    package test
+    import future.keywords.in
+
+    pass_resp = {"body": {"jwt": "myjot"}}
+    deny_resp = {"body"}
+    mock_http_send(req) = pass_resp {
+      req.body.name == "alice"
+    } else = deny_resp
+
+    mock_decode_verify("myjot", _) = [true, {}, {"owner": "alice"}]
+
+    test_allow {
+      allow
+        with data.verification.cert as "cert"
+        with input.name as "alice"
+        with http.send as mock_http_send
+        with io.jwt.decode_verify as mock_decode_verify
+    }
+
+    allow {
+      payload.owner == input.name
+    }
+
+    claims[k] = v {
+      resp := http.send({"method": "GET", "body": input}).body
+      some k, v in resp
+    }
+    payload = p {
+      some p
+      [true, _, p] = io.jwt.decode_verify(claims.jwt, { "cert": data.verification.cert, "iss": "issuer"})
+    }
+  note: 'withkeyword/builtin: nested, multiple mocks'
+  query: data.test.test_allow = x
+  want_result:
+  - x: true
