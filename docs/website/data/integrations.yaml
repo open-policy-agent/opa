@@ -30,6 +30,21 @@ integrations:
       - https://blog.styra.com/blog/styra-declarative-authorization-service-expands-service-mesh-use-case
       - https://blog.styra.com/blog/opa-styra-terraform-protect-your-cloud-investment
 
+  aws-cloudformation-hook:
+    title: AWS CloudFormation Hook
+    description: AWS CloudFormation Hook that uses OPA to make policy decisions on infrastructure provisioned via AWS CloudFormation
+    software:
+      - aws
+      - cloudformation
+    labels:
+      type: poweredbyopa
+    tutorials:
+      - https://www.openpolicyagent.org/docs/latest/aws-cloudformation-hooks/
+    code:
+      - https://github.com/StyraInc/opa-aws-cloudformation-hook
+    inventors:
+      - styra
+
   apache-apisix:
     title: Authorization Integration with Apache APISIX
     description: Apache APISIX provides a plugin for delegating fine-grained authorization decisions to OPA.
@@ -1011,7 +1026,7 @@ integrations:
       - https://github.com/EliuX/flask-opa
     blogs:
       - https://github.com/EliuX/flask-opa/tree/master/examples
- 
+
   permit:
     title: Permit.io
     description:  |
@@ -1148,8 +1163,8 @@ integrations:
   open-policy-registry:
     title: Open Policy Registry
     description:  |
-      The Open Policy Registry project provides a docker workflow for OPA policies. The policy CLI can be used to build, tag, sign, push, and pull OPA policies as OCIv2 container images, 
-      in conjunction with any container registry. The Open Policy Registry (OPCR) is a reference implementation of a policy registry, built and hosted on GCP. 
+      The Open Policy Registry project provides a docker workflow for OPA policies. The policy CLI can be used to build, tag, sign, push, and pull OPA policies as OCIv2 container images,
+      in conjunction with any container registry. The Open Policy Registry (OPCR) is a reference implementation of a policy registry, built and hosted on GCP.
     labels:
       category: containers
       layer: application
@@ -1167,7 +1182,7 @@ integrations:
   aserto:
     title: Aserto
     description:  |
-      Aserto is a cloud-native authorization service that makes it easy to add permissions and RBAC to your SaaS application. 
+      Aserto is a cloud-native authorization service that makes it easy to add permissions and RBAC to your SaaS application.
       Aserto is based on the Open Policy Agent.
     labels:
       category: authorization
@@ -1380,6 +1395,9 @@ software:
   azure:
     name: Microsoft Public Cloud
     link: https://azure.microsoft.com/
+  cloudformation:
+    name: AWS CloudFormation
+    link: https://aws.amazon.com/cloudformation/
   java:
     name: Java
     link: https://www.java.com/
