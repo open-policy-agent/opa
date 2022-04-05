@@ -271,8 +271,8 @@ opa inspect -a
 
 ### Go API
 
-The `ast.AnnotationSet` is a collection of all `ast.Annotations` declared in a set of modules. 
-An `ast.AnnotationSet` can be created from a slice of compiled modules:
+The ``ast.AnnotationSet`` is a collection of all ``ast.Annotations`` declared in a set of modules. 
+An ``ast.AnnotationSet`` can be created from a slice of compiled modules:
 
 ```go
 var modules []*ast.Module
@@ -283,7 +283,7 @@ if err != nil {
 }
 ```
 
-or can be retrieved from an `ast.Compiler` instance:
+or can be retrieved from an ``ast.Compiler`` instance:
 
 ```go
 var modules []*ast.Module
@@ -293,7 +293,7 @@ compiler.Compile(modules)
 as := compiler.GetAnnotationSet()
 ```
 
-The `ast.AnnotationSet` can be flattened into a slice of `ast.AnnotationsRef`, which is a complete, sorted list of all 
+The ``ast.AnnotationSet`` can be flattened into a slice of ``ast.AnnotationsRef``, which is a complete, sorted list of all 
 annotations, grouped by the path and location of their targeted package or -rule.
 
 ```go
@@ -303,5 +303,20 @@ for _, entry := range flattened {
         entry.Path,
         entry.Location,
         entry.Annotations)
+}
+```
+
+Given an ``ast.Rule``, the ``ast.AnnotationSet`` can return the chain of annotations declared for that rule, and its path ancestry.
+The returned slice is ordered starting with the annotations for the rule, going outward to the farthest node with declared annotations 
+in the rule's path ancestry.
+
+```go
+var rule *ast.Rule
+...
+chain := ast.Chain(rule)
+for _, link := range chain {
+    fmt.Printf("link at %v has annotations %v\n",
+        link.Path,
+        link.Annotations)
 }
 ```
