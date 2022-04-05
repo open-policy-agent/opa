@@ -724,8 +724,12 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 		return e.saveCall(len(bi.Decl.Args()), terms, iter)
 	}
 
-	if mock, ok := e.builtinMocks.Get(ref.String()); ok {
-		return e.evalCall(append([]*ast.Term{ast.NewTerm(mock)}, terms[1:]...), iter) // TODO(sr): really?
+	builtinName := ref.String()
+	if mock, ok := e.builtinMocks.Get(builtinName); ok {
+		e.builtinMocks.Ignore(builtinName)
+		err := e.evalCall(append([]*ast.Term{ast.NewTerm(mock)}, terms[1:]...), iter) // TODO(sr): really?
+		e.builtinMocks.Unignore(builtinName)
+		return err
 	}
 
 	var parentID uint64

@@ -237,13 +237,16 @@ func newComprehensionCacheHashMap() *util.HashMap {
 }
 
 type builtinMocksStack struct {
-	sl []builtinMocksElem
+	sl      []builtinMocksElem
+	ignored map[string]struct{}
 }
 
 type builtinMocksElem map[string]ast.Ref
 
 func newBuiltinMocksStack() *builtinMocksStack {
-	return &builtinMocksStack{}
+	return &builtinMocksStack{
+		ignored: make(map[string]struct{}),
+	}
 }
 
 func (s *builtinMocksStack) Push(mocks [][2]*ast.Term) {
@@ -258,7 +261,18 @@ func (s *builtinMocksStack) Pop() {
 	s.sl = s.sl[:len(s.sl)-1]
 }
 
+func (s *builtinMocksStack) Ignore(builtinName string) {
+	s.ignored[builtinName] = struct{}{}
+}
+
+func (s *builtinMocksStack) Unignore(builtinName string) {
+	delete(s.ignored, builtinName)
+}
+
 func (s *builtinMocksStack) Get(builtinName string) (ast.Ref, bool) {
+	if _, ok := s.ignored[builtinName]; ok {
+		return nil, false
+	}
 	if s != nil {
 		for i := len(s.sl) - 1; i >= 0; i-- {
 			if r, ok := s.sl[i][builtinName]; ok {
