@@ -785,6 +785,10 @@ func TestSomeDeclExpr(t *testing.T) {
 			},
 			With: []*With{{Value: ArrayTerm(), Target: NewTerm(MustParseRef("input"))}},
 		}, opts)
+
+	assertParseErrorContains(t, "invalid domain (internal.member_2)", "some internal.member_2()", "illegal domain", opts)
+	assertParseErrorContains(t, "invalid domain (internal.member_3)", "some internal.member_3()", "illegal domain", opts)
+
 }
 
 func TestEvery(t *testing.T) {
@@ -851,6 +855,8 @@ func TestEvery(t *testing.T) {
 		"unexpected ident token: expected \\n or ; or }\n\tevery x\n", // this asserts that the tail of the error message doesn't contain a hint
 	)
 
+	assertParseErrorContains(t, "invalid domain (internal.member_2)", "every internal.member_2()", "illegal domain", opts)
+	assertParseErrorContains(t, "invalid domain (internal.member_3)", "every internal.member_3()", "illegal domain", opts)
 }
 
 func TestNestedExpressions(t *testing.T) {

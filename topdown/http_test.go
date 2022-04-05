@@ -154,43 +154,144 @@ func TestHTTPGetRequestTlsInsecureSkipVerify(t *testing.T) {
 	}
 }
 
-func TestHTTPEnableJSONDecode(t *testing.T) {
+func TestHTTPEnableJSONOrYAMLDecode(t *testing.T) {
 
-	// test server
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		body := "*Hello World®"
-		fmt.Fprint(w, body)
+		switch r.URL.Path {
+		case "/json-no-header":
+			fmt.Fprintf(w, `{"foo":"bar"}`)
+		case "/yaml-no-header":
+			fmt.Fprintf(w, `foo: bar`)
+		case "/json":
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			fmt.Fprintf(w, `{"foo":"bar"}`)
+		case "/yaml":
+			w.Header().Set("Content-Type", "application/yaml")
+			w.WriteHeader(http.StatusOK)
+			fmt.Fprintf(w, `foo: bar`)
+		case "/x-yaml":
+			w.Header().Set("Content-Type", "application/x-yaml")
+			w.WriteHeader(http.StatusOK)
+			fmt.Fprintf(w, `foo: bar`)
+		case "/text-no-header":
+			fmt.Fprintf(w, "*Hello World®")
+		}
 	}))
 
 	defer ts.Close()
 
-	// expected result
-	expectedResult := make(map[string]interface{})
-	expectedResult["status"] = "200 OK"
-	expectedResult["status_code"] = http.StatusOK
-	expectedResult["body"] = nil
-	expectedResult["raw_body"] = "*Hello World®"
-	expectedResult["headers"] = map[string]interface{}{
-		"content-length": []interface{}{"14"},
-		"content-type":   []interface{}{"text/plain; charset=utf-8"},
+	body := func(b interface{}) func(map[string]interface{}) {
+		return func(x map[string]interface{}) {
+			x["body"] = b
+		}
+	}
+	rawBody := func(b interface{}) func(map[string]interface{}) {
+		return func(x map[string]interface{}) {
+			x["raw_body"] = b
+		}
 	}
 
-	resultObj := ast.MustInterfaceToValue(expectedResult)
+	headers := func(xs ...string) func(map[string]interface{}) {
+		hdrs := map[string]interface{}{}
+		for i := 0; i < len(xs)/2; i++ {
+			hdrs[xs[2*i]] = []interface{}{xs[2*i+1]}
+		}
+		return func(x map[string]interface{}) {
+			x["headers"] = hdrs
+		}
+	}
 
-	// run the test
+	ok := func(and ...func(map[string]interface{})) ast.Value {
+		o := map[string]interface{}{
+			"status":      "200 OK",
+			"status_code": http.StatusOK,
+		}
+		for _, a := range and {
+			a(o)
+		}
+		return ast.MustInterfaceToValue(o)
+	}
+
+	resultObjText := ok(
+		body(nil),
+		rawBody("*Hello World®"),
+		headers("content-length", "14", "content-type", "text/plain; charset=utf-8"),
+	)
+
 	tests := []struct {
 		note     string
-		rules    []string
-		expected interface{}
+		rule     string
+		expected ast.Value
 	}{
-		{"http.send", []string{fmt.Sprintf(
-			`p = x { http.send({"method": "get", "url": "%s", "force_json_decode": true}, resp); x := clean_headers(resp) }`, ts.URL)}, resultObj.String()},
+		{
+			note:     "text response, force json",
+			rule:     fmt.Sprintf(`p = x { http.send({"method": "get", "url": "%s/text-no-header", "force_json_decode": true}, resp); x := clean_headers(resp) }`, ts.URL),
+			expected: resultObjText,
+		},
+		{
+			note:     "text response, force yaml",
+			rule:     fmt.Sprintf(`p = x { http.send({"method": "get", "url": "%s/text-no-header", "force_yaml_decode": true}, resp); x := clean_headers(resp) }`, ts.URL),
+			expected: resultObjText,
+		},
+		{
+			note: "json response, proper header",
+			rule: fmt.Sprintf(`p = x { http.send({"method": "get", "url": "%s/json"}, resp); x := clean_headers(resp) }`, ts.URL),
+			expected: ok(
+				body(map[string]interface{}{"foo": "bar"}),
+				rawBody(`{"foo":"bar"}`),
+				headers("content-length", "13", "content-type", "application/json"),
+			),
+		},
+		{
+			note: "yaml response, proper header",
+			rule: fmt.Sprintf(`p = x { http.send({"method": "get", "url": "%s/yaml"}, resp); x := clean_headers(resp) }`, ts.URL),
+			expected: ok(
+				body(map[string]interface{}{"foo": "bar"}),
+				rawBody(`foo: bar`),
+				headers("content-length", "8", "content-type", "application/yaml"),
+			),
+		},
+		{
+			note: "yaml response, x-yaml header",
+			rule: fmt.Sprintf(`p = x { http.send({"method": "get", "url": "%s/x-yaml"}, resp); x := clean_headers(resp) }`, ts.URL),
+			expected: ok(
+				body(map[string]interface{}{"foo": "bar"}),
+				rawBody(`foo: bar`),
+				headers("content-length", "8", "content-type", "application/x-yaml"),
+			),
+		},
+		{
+			note: "json response, no header",
+			rule: fmt.Sprintf(`p = x { http.send({"method": "get", "url": "%s/json-no-header", "force_json_decode": true}, resp); x := clean_headers(resp) }`, ts.URL),
+			expected: ok(
+				body(map[string]interface{}{"foo": "bar"}),
+				rawBody(`{"foo":"bar"}`),
+				headers("content-length", "13", "content-type", "text/plain; charset=utf-8"),
+			),
+		},
+		{
+			note: "yaml response, no header",
+			rule: fmt.Sprintf(`p = x { http.send({"method": "get", "url": "%s/yaml-no-header", "force_yaml_decode": true}, resp); x := clean_headers(resp) }`, ts.URL),
+			expected: ok(
+				body(map[string]interface{}{"foo": "bar"}),
+				rawBody(`foo: bar`),
+				headers("content-length", "8", "content-type", "text/plain; charset=utf-8"),
+			),
+		},
+		{
+			note: "json response, no header, yaml decode",
+			rule: fmt.Sprintf(`p = x { http.send({"method": "get", "url": "%s/json-no-header", "force_yaml_decode": true}, resp); x := clean_headers(resp) }`, ts.URL),
+			expected: ok(
+				body(map[string]interface{}{"foo": "bar"}),
+				rawBody(`{"foo":"bar"}`),
+				headers("content-length", "13", "content-type", "text/plain; charset=utf-8"),
+			),
+		},
 	}
 
-	data := loadSmallTestData()
-
 	for _, tc := range tests {
-		runTopDownTestCase(t, data, tc.note, append(tc.rules, httpSendHelperRules...), tc.expected)
+		runTopDownTestCase(t, map[string]interface{}{}, tc.note, append([]string{tc.rule}, httpSendHelperRules...), tc.expected.String())
 	}
 }
 
@@ -325,7 +426,6 @@ func TestHTTPPostRequest(t *testing.T) {
 		respHeaders string
 		expected    interface{}
 	}{
-
 		{
 			note: "basic",
 			params: `{
@@ -992,6 +1092,24 @@ func TestHTTPSendInterQueryCaching(t *testing.T) {
 									x = r1.body
 								}`,
 			headers:          map[string][]string{"Cache-Control": {"max-age=290304000, public"}},
+			response:         `{"x": 1}`,
+			expectedReqCount: 1,
+		},
+		{
+			note: "http.send GET cache hit serialized mode explicit (max_age_response_fresh), when parsing a yaml response",
+			ruleTemplate: `p = x {
+									r1 = http.send({"method": "get", "url": "%URL%", "cache": true, "caching_mode": "serialized"})
+									r2 = http.send({"method": "get", "url": "%URL%", "cache": true, "caching_mode": "serialized"})  # cached and fresh
+									r3 = http.send({"method": "get", "url": "%URL%", "cache": true, "caching_mode": "serialized"})  # cached and fresh
+									r1 == r2
+									r2 == r3
+									x = r1.body
+								}`,
+			headers: map[string][]string{
+				"Cache-Control": {"max-age=290304000, public"},
+				"Content-Type":  {"application/yaml"},
+			},
+			// NOTE: fed into runTopDownTestCase, so it has to be JSON; but we're making use of YAML being a superset of JSON
 			response:         `{"x": 1}`,
 			expectedReqCount: 1,
 		},
