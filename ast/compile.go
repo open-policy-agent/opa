@@ -1815,7 +1815,7 @@ func (c *Compiler) rewriteSelfCalls() {
 				rule.Body = body
 
 				vis := func(b Body) bool {
-					for _, err := range rewriteSelfCalls(metadataChainVar, metadataRuleVar, b) {
+					for _, err := range rewriteSelfCalls(metadataChainVar, metadataRuleVar, b, &c.RewrittenVars) {
 						c.err(err)
 					}
 					return false
@@ -1846,31 +1846,35 @@ func getPrimaryRuleAnnotations(as *AnnotationSet, rule *Rule) *Annotations {
 	return annots[0]
 }
 
-func rewriteSelfCalls(metadataChainVar Var, metadataRuleVar Var, body Body) Errors {
+func rewriteSelfCalls(metadataChainVar Var, metadataRuleVar Var, body Body, rewrittenVars *map[Var]Var) Errors {
 	var errs Errors
 
 	WalkClosures(body, func(x interface{}) bool {
 		switch x := x.(type) {
 		case *ArrayComprehension:
-			errs = rewriteSelfCalls(metadataChainVar, metadataRuleVar, x.Body)
+			errs = rewriteSelfCalls(metadataChainVar, metadataRuleVar, x.Body, rewrittenVars)
 		case *SetComprehension:
-			errs = rewriteSelfCalls(metadataChainVar, metadataRuleVar, x.Body)
+			errs = rewriteSelfCalls(metadataChainVar, metadataRuleVar, x.Body, rewrittenVars)
 		case *ObjectComprehension:
-			errs = rewriteSelfCalls(metadataChainVar, metadataRuleVar, x.Body)
+			errs = rewriteSelfCalls(metadataChainVar, metadataRuleVar, x.Body, rewrittenVars)
 		case *Every:
-			errs = rewriteSelfCalls(metadataChainVar, metadataRuleVar, x.Body)
+			errs = rewriteSelfCalls(metadataChainVar, metadataRuleVar, x.Body, rewrittenVars)
 		}
 		return true
 	})
 
 	for i := range body {
 		expr := body[i]
-		var metadataTerm *Term
+		var metadataVar Var
+		// We're replacing a function call, that we then need to replace in error reporting
+		var originalVar Var
 
 		if isSelfMetadataChainCall(expr) {
-			metadataTerm = NewTerm(metadataChainVar)
+			metadataVar = metadataChainVar
+			originalVar = Var(fmt.Sprintf("%s()", SelfMetadataChain.Ref().String()))
 		} else if isSelfMetadataRuleCall(expr) {
-			metadataTerm = NewTerm(metadataRuleVar)
+			metadataVar = metadataRuleVar
+			originalVar = Var(fmt.Sprintf("%s()", SelfMetadataRule.Ref().String()))
 		} else {
 			continue
 		}
@@ -1878,10 +1882,12 @@ func rewriteSelfCalls(metadataChainVar Var, metadataRuleVar Var, body Body) Erro
 		// NOTE(johanfylling): An alternative strategy would be to walk the body and replace all operands[0]
 		// usages with *metadataChainVar
 		operands := expr.Operands()
-		newExpr := Equality.Expr(operands[0], metadataTerm)
+		rewrittenVar := operands[0]
+		newExpr := Equality.Expr(rewrittenVar, NewTerm(metadataVar))
 		newExpr.Generated = true
 		newExpr.Location = expr.Location
 		body.Set(newExpr, i)
+		(*rewrittenVars)[rewrittenVar.Value.(Var)] = originalVar
 	}
 
 	return errs

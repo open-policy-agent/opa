@@ -2630,7 +2630,6 @@ p = true {
 				"test.rego": MustParseModuleWithOpts(tc.module, ParserOptions{ProcessAnnotation: true}),
 			}
 			compileStages(c, c.rewriteSelfCalls)
-			//compileStages(c, nil)
 			assertNotFailed(t, c)
 
 			result := c.Modules["test.rego"]
@@ -2638,6 +2637,76 @@ p = true {
 
 			if result.Compare(exp) != 0 {
 				t.Fatalf("\nExpected:\n\n%v\n\nGot:\n\n%v", exp, result)
+			}
+		})
+	}
+}
+
+func TestCompilerRewriteSelfCallsErrors(t *testing.T) {
+	tests := []struct {
+		note   string
+		module string
+		exp    []string
+	}{
+		{
+			note: "self.metadata.chain(): undefined chain 'annotations' member (func body)",
+			module: `package test
+
+import future.self
+
+p {
+    self.metadata.chain()[0].annotations
+}`,
+			exp: []string{"undefined ref: self.metadata.chain()[0].annotations"},
+		},
+		{
+			note: "self.metadata.chain(): undefined chain 'annotations' member (func value)",
+			module: `package test
+
+import future.self
+
+p = self.metadata.chain()[0].annotations`,
+			exp: []string{"undefined ref: self.metadata.chain()[0].annotations"},
+		},
+		{
+			note: "self.metadata.rule(): undefined 'title' annotation",
+			module: `package test
+
+import future.self
+
+# METADATA
+# title: foo
+p {
+    self.metadata.rule().title == 42
+}`,
+			exp: []string{"match error"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			c := NewCompiler()
+			c.Modules = map[string]*Module{
+				"test.rego": MustParseModuleWithOpts(tc.module, ParserOptions{ProcessAnnotation: true}),
+			}
+			compileStages(c, nil)
+
+			var result []string
+
+			for i := range c.Errors {
+				result = append(result, c.Errors[i].Message)
+			}
+
+			if len(tc.exp) != len(result) {
+				t.Fatalf("Expected %d errors but got %d:\n\n%v\n\nGot:\n\n%v",
+					len(tc.exp), len(result), strings.Join(tc.exp, "\n"), strings.Join(result, "\n"))
+			}
+
+			for i := range result {
+				if result[i] != tc.exp[i] {
+					t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v",
+						strings.Join(tc.exp, "\n"), strings.Join(result, "\n"))
+				}
 			}
 		})
 	}
