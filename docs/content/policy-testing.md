@@ -64,14 +64,14 @@ test_get_another_user_denied {
 
 Both of these files are saved in the same directory.
 
-```bash
+```console
 $ ls
 example.rego      example_test.rego
 ```
 
 To exercise the policy, run the `opa test` command in the directory containing the files.
 
-```bash
+```console
 $ opa test . -v
 data.authz.test_post_allowed: PASS (1.417µs)
 data.authz.test_get_anonymous_denied: PASS (426ns)
@@ -85,7 +85,7 @@ The `opa test` output indicates that all of the tests passed.
 
 Try exercising the tests a bit more by removing the first rule in **example.rego**.
 
-```bash
+```console
 $ opa test . -v
 FAILURES
 --------------------------------------------------------------------------------
@@ -170,7 +170,7 @@ todo_test_missing_implementation {
 By default, `opa test` reports the number of tests executed and displays all
 of the tests that failed or errored.
 
-```bash
+```console
 $ opa test pass_fail_error_test.rego
 data.example.test_failure: FAIL (253ns)
 data.example.test_error: ERROR (289ns)
@@ -185,7 +185,7 @@ By default, OPA prints the test results in a human-readable format. If you
 need to consume the test results programmatically, use the JSON output format.
 
 ```bash
-$ opa test --format=json pass_fail_error_test.rego
+opa test --format=json pass_fail_error_test.rego
 ```
 
 ```json
@@ -241,6 +241,7 @@ OPA's `with` keyword can be used to replace the data document. Both base and vir
 
 ```live:with_keyword:module:read_only,openable
 package authz
+import future.keywords.in
 
 allow {
     x := data.policies[_]
@@ -249,7 +250,7 @@ allow {
 }
 
 matches_role(my_role) {
-    data.roles[my_role][_] == input.user
+    input.user in data.roles[my_role]
 }
 ```
 
@@ -264,13 +265,15 @@ policies = [{"name": "test_policy"}]
 roles = {"admin": ["alice"]}
 
 test_allow_with_data {
-    allow with input as {"user": "alice", "role": "admin"}  with data.policies as policies  with data.roles as roles
+    allow with input as {"user": "alice", "role": "admin"}
+      with data.policies as policies
+      with data.roles as roles
 }
 ```
 
 To exercise the policy, run the `opa test` command.
 
-```bash
+```console
 $ opa test -v authz.rego authz_test.rego
 data.authz.test_allow_with_data: PASS (697ns)
 --------------------------------------------------------------------------------
@@ -303,7 +306,7 @@ test_replace_rule {
 }
 ```
 
-```bash
+```console
 $  opa test -v authz.rego authz_test.rego
 data.authz.test_replace_rule: PASS (328ns)
 --------------------------------------------------------------------------------
@@ -336,7 +339,7 @@ test_invalid_replace {
 }
 ```
 
-```bash
+```console
 $ opa test -v authz.rego authz_test.rego
 1 error occurred: authz_test.rego:4: rego_compile_error: with keyword cannot replace functions
 ```
