@@ -447,7 +447,15 @@ func (e *eval) evalNot(iter evalIterator) error {
 func (e *eval) evalWith(iter evalIterator) error {
 
 	expr := e.query[e.index]
+
+	// Disable inlining on all references in the expression so the result of
+	// partial evaluation has the same semantics w/ the with statements
+	// preserved.
 	var disable []ast.Ref
+	collectRefs := func(x ast.Ref) bool {
+		disable = append(disable, x.GroundPrefix())
+		return false
+	}
 
 	if e.partial() {
 
@@ -456,20 +464,25 @@ func (e *eval) evalWith(iter evalIterator) error {
 		// could be relaxed in certain cases (e.g., if the with statement would
 		// have no affect.)
 		for _, with := range expr.With {
-			if e.saveSet.ContainsRecursive(with.Value, e.bindings) {
-				return e.saveExprMarkUnknowns(expr, e.bindings, func() error {
-					return e.next(iter)
-				})
+			target, ok := with.Target.Value.(ast.Ref)
+			if !ok {
+				continue // simple built-in (ast.Var)
+			}
+
+			if ast.DefaultRootDocument.Equal(target[0]) ||
+				ast.InputRootDocument.Equal(target[0]) {
+
+				if e.saveSet.ContainsRecursive(with.Value, e.bindings) {
+					return e.saveExprMarkUnknowns(expr, e.bindings, func() error {
+						return e.next(iter)
+					})
+				}
+				ast.WalkRefs(with.Target, collectRefs)
+				ast.WalkRefs(with.Value, collectRefs)
 			}
 		}
 
-		// Disable inlining on all references in the expression so the result of
-		// partial evaluation has the same semantics w/ the with statements
-		// preserved.
-		ast.WalkRefs(expr, func(x ast.Ref) bool {
-			disable = append(disable, x.GroundPrefix())
-			return false
-		})
+		ast.WalkRefs(expr.NoWith(), collectRefs)
 	}
 
 	pairsInput := [][2]*ast.Term{}

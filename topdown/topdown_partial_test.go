@@ -760,6 +760,23 @@ func TestTopDownPartialEval(t *testing.T) {
 			wantQueries: []string{`{} = a`},
 		},
 		{
+			note:  "with+builtin: xxx",
+			query: "data.test.p = a",
+			modules: []string{
+				`package test
+
+				mock_concat(_, _) = "foo/bar"
+				p { q with concat as mock_concat}
+				q { concat("/", input, "foo/bar") }`,
+			},
+			wantQueries: []string{`data.partial.test.q = x_term_1_01 with concat as data.test.mock_concat; x_term_1_01 with concat as data.test.mock_concat; a = true`},
+			wantSupport: []string{
+				`package partial.test
+
+				q { concat("/", input, "foo/bar") }`,
+			},
+		},
+		{
 			note:  "save: sub path",
 			query: "input.x = 1; input.y = 2; input.z.a = 3; input.z.b = x",
 			input: `{"x": 1, "z": {"b": 4}}`,
