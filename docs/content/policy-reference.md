@@ -926,6 +926,7 @@ The `request` object parameter may contain the following fields:
 | `headers` | no | `object` | HTTP headers to include in the request (e.g,. `{"X-Opa": "rules"}`). |
 | `enable_redirect` | no | `boolean` | Follow HTTP redirects. Default: `false`. |
 | `force_json_decode` | no | `boolean` | Decode the HTTP response message body as JSON even if the `Content-Type` header is missing. Default: `false`. |
+| `force_yaml_decode` | no | `boolean` | Decode the HTTP response message body as YAML even if the `Content-Type` header is missing. Default: `false`. |
 | `tls_use_system_certs` | no | `boolean` | Use the system certificate pool. Default: `true` when `tls_ca_cert`, `tls_ca_cert_file`, `tls_ca_cert_env_variable` are unset. **Ignored on Windows** due to the system certificate pool not being accessible in the same way as it is for other platforms. |
 | `tls_ca_cert` | no | `string` | String containing a root certificate in PEM encoded format. |
 | `tls_ca_cert_file` | no | `string` | Path to file containing a root certificate in PEM encoded format. |
@@ -961,7 +962,7 @@ The `response` object parameter will contain the following fields:
 | --- | --- | --- |
 | `status` | `string` | HTTP status message (e.g., `"200 OK"`). |
 | `status_code` | `number` | HTTP status code (e.g., `200`). If `raise_error` is `false`, this field will be set to `0` if `http.send` encounters an error. |
-| `body` | `any` | Any JSON value. If the HTTP response message body was not deserialized from JSON, this field is set to `null`. |
+| `body` | `any` | Any value. If the HTTP response message body was not deserialized from JSON or YAML (by force or via the expected Content-Type headers `application/json`; or `application/yaml` or `application/x-yaml`), this field is set to `null`. |
 | `raw_body` | `string` | The entire raw HTTP response message body represented as a string. |
 | `headers` | `object` | An object containing the response headers. The values will be an array of strings, repeated headers are grouped under the same keys with all values in the array. |
 | `error` | `object` | If `raise_error` is `false`, this field will represent the error encountered while running `http.send`. The `error` object contains a `message` key which holds the actual error message and a `code` key which represents if the error was caused due to a network issue or during policy evaluation. |
@@ -988,11 +989,13 @@ conjunction with the `force_cache_duration_seconds` field. If `force_cache` is `
 
 Also, if `force_cache` is `true`, it overrides the `cache` field.
 
-> `http.send` uses the `Date` response header to calculate the current age of the response by comparing it with the current time.
-> This value is used to determine the freshness of the cached response. As per https://tools.ietf.org/html/rfc7231#section-7.1.1.2,
-> an origin server MUST NOT send a `Date` header field if it does not have a clock capable of providing a reasonable
-> approximation of the current instance in Coordinated Universal Time. Hence, if `http.send` encounters a scenario where current
-> age of the response is represented as a negative duration, the cached response will be considered as stale.
+{{< info >}}
+`http.send` uses the `Date` response header to calculate the current age of the response by comparing it with the current time.
+This value is used to determine the freshness of the cached response. As per https://tools.ietf.org/html/rfc7231#section-7.1.1.2,
+an origin server MUST NOT send a `Date` header field if it does not have a clock capable of providing a reasonable
+approximation of the current instance in Coordinated Universal Time. Hence, if `http.send` encounters a scenario where current
+age of the response is represented as a negative duration, the cached response will be considered as stale.
+{{< /info >}}
 
 The table below shows examples of calling `http.send`:
 

@@ -897,7 +897,16 @@ func (p *Parser) parseSome() *Expr {
 	if term := p.parseTermInfixCall(); term != nil {
 		if call, ok := term.Value.(Call); ok {
 			switch call[0].String() {
-			case Member.Name, MemberWithKey.Name: // OK
+			case Member.Name:
+				if len(call) != 3 {
+					p.illegal("illegal domain")
+					return nil
+				}
+			case MemberWithKey.Name:
+				if len(call) != 4 {
+					p.illegal("illegal domain")
+					return nil
+				}
 			default:
 				p.illegal("expected `x in xs` or `x, y in xs` expression")
 				return nil
@@ -972,9 +981,17 @@ func (p *Parser) parseEvery() *Expr {
 	}
 	switch call[0].String() {
 	case Member.Name: // x in xs
+		if len(call) != 3 {
+			p.illegal("illegal domain")
+			return nil
+		}
 		qb.Value = call[1]
 		qb.Domain = call[2]
 	case MemberWithKey.Name: // k, v in xs
+		if len(call) != 4 {
+			p.illegal("illegal domain")
+			return nil
+		}
 		qb.Key = call[1]
 		qb.Value = call[2]
 		qb.Domain = call[3]
