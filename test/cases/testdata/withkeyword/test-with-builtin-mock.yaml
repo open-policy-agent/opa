@@ -156,3 +156,56 @@ cases:
   query: data.test.p = x
   want_result:
   - x: true
+- data:
+  modules:
+  - |
+    package test
+    import future.keywords.in
+
+    mock_rand("one", _) = 10
+    mock_rand("one", x) = x
+
+    numbers := ["one", "one"]
+    p {
+      s := { rand.intn(n, 10) | some n in numbers } with rand.intn as mock_rand
+      10 in s
+      count(s) == 1
+    }
+  note: 'withkeyword/builtin: mock function returns same result for both rule defs'
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+    import future.keywords.in
+
+    mock_rand("one", _) = 123
+    mock_rand(x, y) = rand.intn(x, y) {
+      x != "one"
+    }
+
+    count_four(4) = 4
+    count_four(x) = count(x)
+
+    numbers := {"one", "two", "tree"}
+    q {
+      s := { rand.intn(n, 10) | some n in numbers }
+      123 in s
+      count(s) >= 2
+      r
+    }
+    r {
+      count(input.four) == 4
+    }
+    p {
+      q
+        with rand.intn as mock_rand
+        with count as count_four
+        with input.four as 4
+    }
+  note: 'withkeyword/builtin: nested, mock function calls original'
+  query: data.test.p = x
+  want_result:
+  - x: true

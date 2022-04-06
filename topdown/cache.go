@@ -237,42 +237,34 @@ func newComprehensionCacheHashMap() *util.HashMap {
 }
 
 type builtinMocksStack struct {
-	sl      []builtinMocksElem
-	ignored map[string]struct{}
+	sl []builtinMocksElem
 }
 
 type builtinMocksElem map[string]ast.Ref
 
 func newBuiltinMocksStack() *builtinMocksStack {
-	return &builtinMocksStack{
-		ignored: make(map[string]struct{}),
-	}
+	return &builtinMocksStack{}
 }
 
-func (s *builtinMocksStack) Push(mocks [][2]*ast.Term) {
+func (s *builtinMocksStack) PushPairs(mocks [][2]*ast.Term) {
 	el := builtinMocksElem{}
 	for i := range mocks {
 		el[mocks[i][0].Value.String()] = mocks[i][1].Value.(ast.Ref)
 	}
+	s.Push(el)
+}
+
+func (s *builtinMocksStack) Push(el builtinMocksElem) {
 	s.sl = append(s.sl, el)
 }
 
-func (s *builtinMocksStack) Pop() {
+func (s *builtinMocksStack) Pop() builtinMocksElem {
+	last := s.sl[len(s.sl)-1]
 	s.sl = s.sl[:len(s.sl)-1]
-}
-
-func (s *builtinMocksStack) Ignore(builtinName string) {
-	s.ignored[builtinName] = struct{}{}
-}
-
-func (s *builtinMocksStack) Unignore(builtinName string) {
-	delete(s.ignored, builtinName)
+	return last
 }
 
 func (s *builtinMocksStack) Get(builtinName string) (ast.Ref, bool) {
-	if _, ok := s.ignored[builtinName]; ok {
-		return nil, false
-	}
 	if s != nil {
 		for i := len(s.sl) - 1; i >= 0; i-- {
 			if r, ok := s.sl[i][builtinName]; ok {
