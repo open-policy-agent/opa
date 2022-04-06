@@ -40,7 +40,7 @@ related_resources | list of URLs | A list of URLs pointing to related resources/
 authors | list of strings | A list of authors for the annotation target. Read more [here](#authors).
 organizations | list of strings | A list of organizations related to the annotation target. Read more [here](#organizations).
 schemas | list of object | A list of associations between value paths and schema definitions. Read more [here](#schemas).
-custom | list of arbitrary data | A custom list of named parameters holding arbitrary data. Read more [here](#custom).
+custom | mapping of arbitrary data | A custom mapping of named parameters holding arbitrary data. Read more [here](#custom).
 
 ### Scope
 
@@ -352,7 +352,7 @@ allow {
 
 ### Custom
 
-The `custom` annotation is an associative array of user-defined data, mapping string keys to arbitrarily typed values.
+The `custom` annotation is a mapping of user-defined data, mapping string keys to arbitrarily typed values.
 
 #### Example
 
