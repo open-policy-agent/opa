@@ -233,9 +233,11 @@ opa test --format=json pass_fail_error_test.rego
 ]
 ```
 
-## Data Mocking
+## Data and Function Mocking
 
-OPA's `with` keyword can be used to replace the data document. Both base and virtual documents can be replaced. Below is a simple policy that depends on the data document.
+OPA's `with` keyword can be used to replace the data document or built-in functions by mocks.
+Both base and virtual documents can be replaced.
+Below is a simple policy that depends on the data document.
 
 **authz.rego**:
 
@@ -280,7 +282,7 @@ data.authz.test_allow_with_data: PASS (697ns)
 PASS: 1/1
 ```
 
-Below is an example to replace a rule without arguments.
+Below is an example to replace a **rule without arguments**.
 
 **authz.rego**:
 
@@ -313,7 +315,47 @@ data.authz.test_replace_rule: PASS (328ns)
 PASS: 1/1
 ```
 
-Functions cannot be replaced by the `with` keyword. For example, in the below policy the function `cannot_replace` cannot be replaced.
+Here is an example to replace a rule's **built-in function** with a user-defined function.
+
+**authz.rego**:
+
+```live:with_keyword_builtins:module:read_only
+package authz
+
+import data.jwks.cert
+
+allow {
+    [true, _, _] = io.jwt.decode_verify(input.headers["x-token"], {"cert": cert, "iss": "corp.issuer.com"})
+}
+```
+
+**authz_test.rego**:
+
+```live:with_keyword_builtins/tests:module:read_only
+package authz
+
+mock_decode_verify("my-jwt", _) = [true, {}, {}]
+mock_decode_verify(x, _) = [false, {}, {}] {
+    x != "my-jwt"
+}
+
+test_allow {
+    allow
+      with input.headers["x-token"] as "my-jwt"
+      with data.jwks.cert as "mock-cert"
+      with io.jwt.decode_verify as mock_decode_verify
+}
+```
+
+```console
+$  opa test -v authz.rego authz_test.rego
+data.authz.test_allow: PASS (458.752µs)
+--------------------------------------------------------------------------------
+PASS: 1/1
+```
+
+**User-defined functions** cannot be replaced by the `with` keyword.
+For example, in the below policy the function `cannot_replace` cannot be replaced.
 
 **authz.rego**:
 
