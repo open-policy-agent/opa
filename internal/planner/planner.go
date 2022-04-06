@@ -623,7 +623,7 @@ func (p *Planner) planWith(e *ast.Expr, iter planiter) error {
 		}
 
 		err := p.planWithRec(e, paths, locals, 0, func() error {
-			p.builtins.Pop()
+			_ = p.builtins.Pop()
 			if shadowing {
 				p.funcs.Pop()
 				for i := len(dataRefs) - 1; i >= 0; i-- {
@@ -635,6 +635,7 @@ func (p *Planner) planWith(e *ast.Expr, iter planiter) error {
 
 				err := iter()
 
+				p.builtins.Push(builtins)
 				if shadowing {
 					p.funcs.Push(map[string]string{})
 					for _, ref := range dataRefs {
@@ -647,6 +648,7 @@ func (p *Planner) planWith(e *ast.Expr, iter planiter) error {
 			return err
 		})
 
+		_ = p.builtins.Pop()
 		if shadowing {
 			p.funcs.Pop()
 			for i := len(dataRefs) - 1; i >= 0; i-- {
