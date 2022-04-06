@@ -166,3 +166,34 @@ func (t *ruletrie) Get(k ast.Value) *ruletrie {
 	}
 	return nodes[len(nodes)-1]
 }
+
+type builtinMocksStack struct {
+	sl []builtinMocksElem
+}
+
+type builtinMocksElem map[string]ast.Ref
+
+func newBuiltinMocksStack() *builtinMocksStack {
+	return &builtinMocksStack{}
+}
+
+func (s *builtinMocksStack) Push(el builtinMocksElem) {
+	s.sl = append(s.sl, el)
+}
+
+func (s *builtinMocksStack) Pop() builtinMocksElem {
+	last := s.sl[len(s.sl)-1]
+	s.sl = s.sl[:len(s.sl)-1]
+	return last
+}
+
+func (s *builtinMocksStack) Lookup(builtinName string) (ast.Ref, bool) {
+	if s != nil {
+		for i := len(s.sl) - 1; i >= 0; i-- {
+			if r, ok := s.sl[i][builtinName]; ok {
+				return r, true
+			}
+		}
+	}
+	return nil, false
+}
