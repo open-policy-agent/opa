@@ -4467,7 +4467,7 @@ func TestCompilerMockFunction(t *testing.T) {
 	p {true with data.test.is_allowed as "blah" }
 	`)
 	compileStages(c, c.rewriteWithModifiers)
-	assertCompilerErrorStrings(t, c, []string{"rego_compile_error: with keyword cannot replace functions"})
+	assertCompilerErrorStrings(t, c, []string{"rego_compile_error: with keyword cannot replace rego functions"})
 }
 
 func TestCompilerMockBuiltinFunction(t *testing.T) {

@@ -383,7 +383,7 @@ test_invalid_replace {
 
 ```console
 $ opa test -v authz.rego authz_test.rego
-1 error occurred: authz_test.rego:4: rego_compile_error: with keyword cannot replace functions
+1 error occurred: authz_test.rego:4: rego_compile_error: with keyword cannot replace rego functions
 ```
 
 
