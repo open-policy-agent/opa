@@ -4824,6 +4824,10 @@ func validateWith(c *Compiler, target, value *Term) (bool, *Error) {
 
 		bi := c.builtins[target.Value.String()] // safe because isBuiltinRef checked this
 
+		if bi.Relation {
+			return false, NewError(CompileErr, target.Loc(), "with keyword replacing built-in function: target must not be a relation")
+		}
+
 		for _, value := range node.Values {
 			arity := len(value.(*Rule).Head.Args)
 			biArity := len(bi.Decl.Args())

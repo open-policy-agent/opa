@@ -4547,6 +4547,14 @@ func TestCompilerMockBuiltinFunction(t *testing.T) {
 				p { true with http.send as http_send }
 			`,
 		},
+		{
+			note: "invalid target: relation",
+			module: `package test
+				my_walk(_, _)
+				p { true with walk as my_walk }
+			`,
+			err: "rego_compile_error: with keyword replacing built-in function: target must not be a relation",
+		},
 	}
 
 	for _, tc := range tests {
