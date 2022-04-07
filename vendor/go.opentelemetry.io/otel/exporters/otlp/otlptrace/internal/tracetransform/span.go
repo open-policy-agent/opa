@@ -32,11 +32,11 @@ func Spans(sdl []tracesdk.ReadOnlySpan) []*tracepb.ResourceSpans {
 
 	rsm := make(map[attribute.Distinct]*tracepb.ResourceSpans)
 
-	type ilsKey struct {
+	type key struct {
 		r  attribute.Distinct
 		il instrumentation.Library
 	}
-	ilsm := make(map[ilsKey]*tracepb.InstrumentationLibrarySpans)
+	ssm := make(map[key]*tracepb.ScopeSpans)
 
 	var resources int
 	for _, sd := range sdl {
@@ -45,30 +45,30 @@ func Spans(sdl []tracesdk.ReadOnlySpan) []*tracepb.ResourceSpans {
 		}
 
 		rKey := sd.Resource().Equivalent()
-		iKey := ilsKey{
+		k := key{
 			r:  rKey,
 			il: sd.InstrumentationLibrary(),
 		}
-		ils, iOk := ilsm[iKey]
+		scopeSpan, iOk := ssm[k]
 		if !iOk {
 			// Either the resource or instrumentation library were unknown.
-			ils = &tracepb.InstrumentationLibrarySpans{
-				InstrumentationLibrary: InstrumentationLibrary(sd.InstrumentationLibrary()),
-				Spans:                  []*tracepb.Span{},
-				SchemaUrl:              sd.InstrumentationLibrary().SchemaURL,
+			scopeSpan = &tracepb.ScopeSpans{
+				Scope:     InstrumentationScope(sd.InstrumentationLibrary()),
+				Spans:     []*tracepb.Span{},
+				SchemaUrl: sd.InstrumentationLibrary().SchemaURL,
 			}
 		}
-		ils.Spans = append(ils.Spans, span(sd))
-		ilsm[iKey] = ils
+		scopeSpan.Spans = append(scopeSpan.Spans, span(sd))
+		ssm[k] = scopeSpan
 
 		rs, rOk := rsm[rKey]
 		if !rOk {
 			resources++
 			// The resource was unknown.
 			rs = &tracepb.ResourceSpans{
-				Resource:                    Resource(sd.Resource()),
-				InstrumentationLibrarySpans: []*tracepb.InstrumentationLibrarySpans{ils},
-				SchemaUrl:                   sd.Resource().SchemaURL(),
+				Resource:   Resource(sd.Resource()),
+				ScopeSpans: []*tracepb.ScopeSpans{scopeSpan},
+				SchemaUrl:  sd.Resource().SchemaURL(),
 			}
 			rsm[rKey] = rs
 			continue
@@ -78,9 +78,9 @@ func Spans(sdl []tracesdk.ReadOnlySpan) []*tracepb.ResourceSpans {
 		// library lookup was unknown because if so we need to add it to the
 		// ResourceSpans. Otherwise, the instrumentation library has already
 		// been seen and the append we did above will be included it in the
-		// InstrumentationLibrarySpans reference.
+		// ScopeSpans reference.
 		if !iOk {
-			rs.InstrumentationLibrarySpans = append(rs.InstrumentationLibrarySpans, ils)
+			rs.ScopeSpans = append(rs.ScopeSpans, scopeSpan)
 		}
 	}
 
