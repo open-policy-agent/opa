@@ -396,6 +396,59 @@ func (a *Annotations) toObject() (*Object, *Error) {
 	return &obj, nil
 }
 
+func attachAnnotationsNodes(mod *Module) Errors {
+	var errs Errors
+
+	// Find first non-annotation statement following each annotation and attach
+	// the annotation to that statement.
+	for _, a := range mod.Annotations {
+		for _, stmt := range mod.stmts {
+			_, ok := stmt.(*Annotations)
+			if !ok {
+				if stmt.Loc().Row > a.Location.Row {
+					a.node = stmt
+					break
+				}
+			}
+		}
+
+		if a.Scope == "" {
+			switch a.node.(type) {
+			case *Rule:
+				a.Scope = annotationScopeRule
+			case *Package:
+				a.Scope = annotationScopePackage
+			case *Import:
+				a.Scope = annotationScopeImport
+			}
+		}
+
+		if err := validateAnnotationScopeAttachment(a); err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	return errs
+}
+
+func validateAnnotationScopeAttachment(a *Annotations) *Error {
+
+	switch a.Scope {
+	case annotationScopeRule, annotationScopeDocument:
+		if _, ok := a.node.(*Rule); ok {
+			return nil
+		}
+		return newScopeAttachmentErr(a, "rule")
+	case annotationScopePackage, annotationScopeSubpackages:
+		if _, ok := a.node.(*Package); ok {
+			return nil
+		}
+		return newScopeAttachmentErr(a, "package")
+	}
+
+	return NewError(ParseErr, a.Loc(), "invalid annotation scope '%v'", a.Scope)
+}
+
 // Copy returns a deep copy of a.
 func (a *AuthorAnnotation) Copy() *AuthorAnnotation {
 	cpy := *a

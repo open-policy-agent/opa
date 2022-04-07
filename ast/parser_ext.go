@@ -606,6 +606,7 @@ func parseModule(filename string, stmts []Statement, comments []*Comment) (*Modu
 
 	mod := &Module{
 		Package: _package,
+		stmts:   stmts,
 	}
 
 	// The comments slice only holds comments that were not their own statements.
@@ -645,58 +646,13 @@ func parseModule(filename string, stmts []Statement, comments []*Comment) (*Modu
 		return nil, errs
 	}
 
-	// Find first non-annotation statement following each annotation and attach
-	// the annotation to that statement.
-	for _, a := range mod.Annotations {
-		for _, stmt := range stmts {
-			_, ok := stmt.(*Annotations)
-			if !ok {
-				if stmt.Loc().Row > a.Location.Row {
-					a.node = stmt
-					break
-				}
-			}
-		}
-
-		if a.Scope == "" {
-			switch a.node.(type) {
-			case *Rule:
-				a.Scope = annotationScopeRule
-			case *Package:
-				a.Scope = annotationScopePackage
-			case *Import:
-				a.Scope = annotationScopeImport
-			}
-		}
-
-		if err := validateAnnotationScopeAttachment(a); err != nil {
-			errs = append(errs, err)
-		}
-	}
+	errs = append(errs, attachAnnotationsNodes(mod)...)
 
 	if len(errs) > 0 {
 		return nil, errs
 	}
 
 	return mod, nil
-}
-
-func validateAnnotationScopeAttachment(a *Annotations) *Error {
-
-	switch a.Scope {
-	case annotationScopeRule, annotationScopeDocument:
-		if _, ok := a.node.(*Rule); ok {
-			return nil
-		}
-		return newScopeAttachmentErr(a, "rule")
-	case annotationScopePackage, annotationScopeSubpackages:
-		if _, ok := a.node.(*Package); ok {
-			return nil
-		}
-		return newScopeAttachmentErr(a, "package")
-	}
-
-	return NewError(ParseErr, a.Loc(), "invalid annotation scope '%v'", a.Scope)
 }
 
 func newScopeAttachmentErr(a *Annotations, want string) *Error {

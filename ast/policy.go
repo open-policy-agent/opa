@@ -144,6 +144,7 @@ type (
 		Annotations []*Annotations `json:"annotations,omitempty"`
 		Rules       []*Rule        `json:"rules,omitempty"`
 		Comments    []*Comment     `json:"comments,omitempty"`
+		stmts       []Statement
 	}
 
 	// Comment contains the raw text from the comment in the definition.

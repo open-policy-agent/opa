@@ -522,7 +522,6 @@ p = 1`,
 						},
 					},
 				},
-
 				{
 					Path:     MustParseRef("data.test"),
 					Location: &Location{File: "module", Row: 14},
@@ -773,7 +772,7 @@ p = true`,
 			chain := as.Chain(rule)
 
 			if len(chain) != len(tc.expected) {
-				t.Fatalf("chained AnnotationSet\n%v\ndoesn't match expected\n%v",
+				t.Fatalf("chained AnnotationSet\n%v\n\ndoesn't match expected\n\n%v",
 					toJSON(chain), toJSON(tc.expected))
 			}
 
@@ -788,7 +787,7 @@ p = true`,
 						i, a.Location, expected.Location)
 				}
 				if expected.Annotations.Compare(a.Annotations) != 0 {
-					t.Fatalf("annotations of AnnotationRef at %d\n%v\ndoesn't match expected\n%v",
+					t.Fatalf("annotations of AnnotationRef at %d\n%v\n\ndoesn't match expected\n\n%v",
 						i, a.Annotations, expected.Annotations)
 				}
 			}

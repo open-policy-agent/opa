@@ -2348,50 +2348,14 @@ func TestCompilerRewriteSelfCalls(t *testing.T) {
 		exp    string
 	}{
 		{
-			note: "self not imported",
+			note: "self called, no metadata",
 			module: `package test
-
-p {
-	self.metadata.chain() == "foo"
-	self.metadata.rule() == "bar"
-}`,
-			exp: `package test
-				
-p = true { 
-	self.metadata.chain(__local0__) 
-	equal(__local0__, "foo")
-	self.metadata.rule(__local1__)
-	equal(__local1__, "bar")
-}`,
-		},
-		{
-			note: "self imported but not used",
-			module: `package test
-
-import future.self
-
-p {
-	1 != 2
-}`,
-			exp: `package test
-import future.self
-
-p = true { 
-	neq(1, 2)
-}`,
-		},
-		{
-			note: "self imported and accessed, no metadata",
-			module: `package test
-import future.self
 
 p {
 	self.metadata.chain()[0].path == ["test", "p"]
 	self.metadata.rule() == {}
 }`,
 			exp: `package test
-
-import future.self
 
 p = true { 
 	__local2__ = [{"path": ["test", "p"]}]
@@ -2403,12 +2367,10 @@ p = true {
 }`,
 		},
 		{
-			note: "self imported and accessed, with metadata",
+			note: "self called, with metadata",
 			module: `# METADATA
 # description: A test package
 package test
-
-import future.self
 
 # METADATA
 # title: My P Rule
@@ -2425,8 +2387,6 @@ p {
 			exp: `# METADATA
 # {"scope":"package","description":"A test package"}
 package test
-
-import future.self
 
 # METADATA
 # {"scope":"rule","title":"My P Rule"}
@@ -2455,8 +2415,6 @@ p = true {
 # description: TEST
 package test
 
-import future.self
-
 p {
 	self.metadata.chain()[0].path == ["test", "p"]
 	self.metadata.chain()[1].path == ["test"]
@@ -2464,8 +2422,6 @@ p {
 			exp: `# METADATA
 # {"scope":"package","description":"TEST"}
 package test
-
-import future.self
 
 p = true { 
 	__local2__ = [
@@ -2480,12 +2436,9 @@ p = true {
 		{
 			note: "self return value",
 			module: `package test
-import future.self
 
 p := self.metadata.chain()`,
 			exp: `package test
-
-import future.self
 
 p := __local0__ { 
 	__local1__ = [{"path": ["test", "p"]}]
@@ -2496,7 +2449,6 @@ p := __local0__ {
 		{
 			note: "self argument in function call",
 			module: `package test
-import future.self
 
 p {
 	q(self.metadata.chain())
@@ -2506,8 +2458,6 @@ q(s) {
 	s == ["test", "p"]
 }`,
 			exp: `package test
-
-import future.self
 
 p = true { 
 	__local2__ = [{"path": ["test", "p"]}]
@@ -2522,12 +2472,9 @@ q(__local0__) = true {
 		{
 			note: "self used in array comprehension",
 			module: `package test
-import future.self
 
 p = [x | x := self.metadata.chain()]`,
 			exp: `package test
-
-import future.self
 
 p = [__local0__ | __local1__ = __local2__; __local0__ = __local1__] { 
 	__local2__ = [{"path": ["test", "p"]}]
@@ -2537,15 +2484,12 @@ p = [__local0__ | __local1__ = __local2__; __local0__ = __local1__] {
 		{
 			note: "self used in nested array comprehension",
 			module: `package test
-import future.self
 
 p {
 	y := [x | x := self.metadata.chain()]
 	y[0].path == ["test", "p"]
 }`,
 			exp: `package test
-
-import future.self
 
 p = true { 
 	__local3__ = [{"path": ["test", "p"]}]; 
@@ -2556,12 +2500,9 @@ p = true {
 		{
 			note: "self used in set comprehension",
 			module: `package test
-import future.self
 
 p = {x | x := self.metadata.chain()}`,
 			exp: `package test
-
-import future.self
 
 p = {__local0__ | __local1__ = __local2__; __local0__ = __local1__} { 
 	__local2__ = [{"path": ["test", "p"]}]
@@ -2571,15 +2512,12 @@ p = {__local0__ | __local1__ = __local2__; __local0__ = __local1__} {
 		{
 			note: "self used in nested set comprehension",
 			module: `package test
-import future.self
 
 p {
 	y := {x | x := self.metadata.chain()}
 	y[0].path == ["test", "p"]
 }`,
 			exp: `package test
-
-import future.self
 
 p = true { 
 	__local3__ = [{"path": ["test", "p"]}]
@@ -2590,12 +2528,9 @@ p = true {
 		{
 			note: "self used in object comprehension",
 			module: `package test
-import future.self
 
 p = {i: x | x := self.metadata.chain()[i]}`,
 			exp: `package test
-
-import future.self
 
 p = {i: __local0__ | __local1__ = __local2__; __local0__ = __local1__[i]} { 
 	__local2__ = [{"path": ["test", "p"]}]
@@ -2605,15 +2540,12 @@ p = {i: __local0__ | __local1__ = __local2__; __local0__ = __local1__[i]} {
 		{
 			note: "self used in nested object comprehension",
 			module: `package test
-import future.self
 
 p {
 	y := {i: x | x := self.metadata.chain()[i]}
 	y[0].path == ["test", "p"]
 }`,
 			exp: `package test
-
-import future.self
 
 p = true { 
 	__local3__ = [{"path": ["test", "p"]}]
@@ -2627,7 +2559,7 @@ p = true {
 		t.Run(tc.note, func(t *testing.T) {
 			c := NewCompiler()
 			c.Modules = map[string]*Module{
-				"test.rego": MustParseModuleWithOpts(tc.module, ParserOptions{ProcessAnnotation: true}),
+				"test.rego": MustParseModule(tc.module),
 			}
 			compileStages(c, c.rewriteSelfCalls)
 			assertNotFailed(t, c)
@@ -2652,8 +2584,6 @@ func TestCompilerRewriteSelfCallsErrors(t *testing.T) {
 			note: "self.metadata.chain(): undefined chain 'annotations' member (func body)",
 			module: `package test
 
-import future.self
-
 p {
     self.metadata.chain()[0].annotations
 }`,
@@ -2663,16 +2593,12 @@ p {
 			note: "self.metadata.chain(): undefined chain 'annotations' member (func value)",
 			module: `package test
 
-import future.self
-
 p = self.metadata.chain()[0].annotations`,
 			exp: []string{"undefined ref: self.metadata.chain()[0].annotations"},
 		},
 		{
 			note: "self.metadata.rule(): undefined 'title' annotation",
 			module: `package test
-
-import future.self
 
 # METADATA
 # title: foo
@@ -2687,7 +2613,7 @@ p {
 		t.Run(tc.note, func(t *testing.T) {
 			c := NewCompiler()
 			c.Modules = map[string]*Module{
-				"test.rego": MustParseModuleWithOpts(tc.module, ParserOptions{ProcessAnnotation: true}),
+				"test.rego": MustParseModule(tc.module),
 			}
 			compileStages(c, nil)
 
@@ -2710,6 +2636,24 @@ p {
 			}
 		})
 	}
+}
+
+func TestCompilerOverridingSelfCalls(t *testing.T) {
+	c := NewCompiler()
+	c.Modules = map[string]*Module{
+		"self.rego": MustParseModule(`package self.metadata
+
+chain(x) = "foo"
+rule := "bar"`),
+		"test.rego": MustParseModule(`package test
+import data.self
+
+p := self.metadata.chain(42)
+q := self.metadata.rule`),
+	}
+
+	compileStages(c, nil)
+	assertNotFailed(t, c)
 }
 
 func TestCompilerRewriteLocalAssignments(t *testing.T) {

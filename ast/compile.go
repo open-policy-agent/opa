@@ -266,6 +266,7 @@ func NewCompiler() *Compiler {
 		{"ResolveRefs", "compile_stage_resolve_refs", c.resolveAllRefs},
 		{"CheckKeywordOverrides", "compile_stage_check_keyword_overrides", c.checkKeywordOverrides},
 		{"CheckDuplicateImports", "compile_stage_check_duplicate_imports", c.checkDuplicateImports},
+		{"RemoveImports", "compile_stage_remove_imports", c.removeImports},
 		{"SetModuleTree", "compile_stage_set_module_tree", c.setModuleTree},
 		{"SetRuleTree", "compile_stage_set_rule_tree", c.setRuleTree},
 		// The local variable generator must be initialized after references are
@@ -276,9 +277,9 @@ func NewCompiler() *Compiler {
 		{"CheckVoidCalls", "compile_stage_check_void_calls", c.checkVoidCalls},
 		{"RewritePrintCalls", "compile_stage_rewrite_print_calls", c.rewritePrintCalls},
 		{"RewriteExprTerms", "compile_stage_rewrite_expr_terms", c.rewriteExprTerms},
+		{"ParseMetadataBlocks", "compile_stage_parse_metadata_blocks", c.parseMetadataBlocks},
 		{"SetAnnotationSet", "compile_stage_set_annotationset", c.setAnnotationSet},
 		{"RewriteSelfCalls", "compile_stage_rewrite_self_calls", c.rewriteSelfCalls},
-		{"RemoveImports", "compile_stage_remove_imports", c.removeImports},
 		{"SetGraph", "compile_stage_set_graph", c.setGraph},
 		{"RewriteComprehensionTerms", "compile_stage_rewrite_comprehension_terms", c.rewriteComprehensionTerms},
 		{"RewriteRefsInHead", "compile_stage_rewrite_refs_in_head", c.rewriteRefsInHead},
@@ -1736,21 +1737,46 @@ func (c *Compiler) rewriteDynamicTerms() {
 	}
 }
 
+func (c *Compiler) parseMetadataBlocks() {
+	// Only parse annotations if self built-ins are called
+	selfCalled := false
+	for _, name := range c.sorted {
+		mod := c.Modules[name]
+		WalkRules(mod, func(rule *Rule) bool {
+			WalkExprs(rule, func(expr *Expr) bool {
+				if isSelfMetadataChainCall(expr) || isSelfMetadataRuleCall(expr) {
+					selfCalled = true
+				}
+				return selfCalled
+			})
+			return selfCalled
+		})
+
+		if selfCalled {
+			break
+		}
+	}
+
+	if selfCalled {
+		// NOTE: Possible optimization: only parse annotations for modules on the path of self-calling module
+		for _, name := range c.sorted {
+			mod := c.Modules[name]
+
+			if len(mod.Annotations) == 0 {
+				var errs Errors
+				mod.Annotations, errs = parseAnnotations(mod.Comments)
+				errs = append(errs, attachAnnotationsNodes(mod)...)
+				for _, err := range errs {
+					c.err(err)
+				}
+			}
+		}
+	}
+}
+
 func (c *Compiler) rewriteSelfCalls() {
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
-
-		// Early exit if self keyword not explicitly imported
-		selfImported := false
-		for _, imp := range mod.Imports {
-			if isSelfImport(imp) {
-				selfImported = true
-				break
-			}
-		}
-		if !selfImported {
-			continue
-		}
 
 		WalkRules(mod, func(rule *Rule) bool {
 			var selfMetadataChainCalled bool
@@ -1891,11 +1917,6 @@ func rewriteSelfCalls(metadataChainVar Var, metadataRuleVar Var, body Body, rewr
 	}
 
 	return errs
-}
-
-func isSelfImport(imp *Import) bool {
-	selfImportRefTerm := RefTerm(VarTerm("future"), StringTerm("self"))
-	return imp.Path.Equal(selfImportRefTerm)
 }
 
 func isSelfMetadataChainCall(x *Expr) bool {
@@ -3488,9 +3509,6 @@ func getGlobals(pkg *Package, rules []Var, imports []*Import) map[Var]*usedRef {
 
 	// Populate globals with imports.
 	for _, i := range imports {
-		if isSelfImport(i) {
-			continue
-		}
 		globals[i.Name()] = &usedRef{ref: i.Path.Value.(Ref)}
 	}
 
