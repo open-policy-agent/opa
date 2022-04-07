@@ -232,6 +232,8 @@ var DefaultBuiltins = [...]*Builtin{
 
 	// Rego
 	RegoParseModule,
+	RegoMetadataChain,
+	RegoMetadataRule,
 
 	// OPA
 	OPARuntime,
@@ -265,10 +267,6 @@ var DefaultBuiltins = [...]*Builtin{
 	// Printing
 	Print,
 	InternalPrint,
-
-	// Self
-	SelfMetadataChain,
-	SelfMetadataRule,
 }
 
 // BuiltinMap provides a convenient mapping of built-in names to
@@ -403,28 +401,6 @@ var Equal = &Builtin{
 	Decl: types.NewFunction(
 		types.Args(types.A, types.A),
 		types.B,
-	),
-}
-
-/**
- * Self
- */
-
-// SelfMetadataChain returns the chain of metadata for the active rule
-var SelfMetadataChain = &Builtin{
-	Name: "self.metadata.chain",
-	Decl: types.NewFunction(
-		types.Args(),
-		types.NewArray(nil, types.A),
-	),
-}
-
-// SelfMetadataRule returns the metadata for the active rule
-var SelfMetadataRule = &Builtin{
-	Name: "self.metadata.rule",
-	Decl: types.NewFunction(
-		types.Args(),
-		types.A,
 	),
 }
 
@@ -2184,6 +2160,24 @@ var RegoParseModule = &Builtin{
 			types.S,
 		),
 		types.NewObject(nil, types.NewDynamicProperty(types.S, types.A)), // TODO(tsandall): import AST schema
+	),
+}
+
+// RegoMetadataChain returns the chain of metadata for the active rule
+var RegoMetadataChain = &Builtin{
+	Name: "rego.metadata.chain",
+	Decl: types.NewFunction(
+		types.Args(),
+		types.NewArray(nil, types.A),
+	),
+}
+
+// RegoMetadataRule returns the metadata for the active rule
+var RegoMetadataRule = &Builtin{
+	Name: "rego.metadata.rule",
+	Decl: types.NewFunction(
+		types.Args(),
+		types.A,
 	),
 }
 

@@ -112,7 +112,6 @@ type Compiler struct {
 	inputType             types.Type                    // global input type retrieved from schema set
 	annotationSet         *AnnotationSet                // hierarchical set of annotations
 	strict                bool                          // enforce strict compilation checks
-	selfUsage             map[string]bool
 }
 
 // CompilerStage defines the interface for stages in the compiler.
@@ -249,7 +248,6 @@ func NewCompiler() *Compiler {
 		deprecatedBuiltinsMap: map[string]struct{}{},
 		comprehensionIndices:  map[*Term]*ComprehensionIndex{},
 		debug:                 debug.Discard(),
-		selfUsage:             map[string]bool{},
 	}
 
 	c.ModuleTree = NewModuleTree(nil)
@@ -279,7 +277,7 @@ func NewCompiler() *Compiler {
 		{"RewriteExprTerms", "compile_stage_rewrite_expr_terms", c.rewriteExprTerms},
 		{"ParseMetadataBlocks", "compile_stage_parse_metadata_blocks", c.parseMetadataBlocks},
 		{"SetAnnotationSet", "compile_stage_set_annotationset", c.setAnnotationSet},
-		{"RewriteSelfCalls", "compile_stage_rewrite_self_calls", c.rewriteSelfCalls},
+		{"RewriteRegoMetadataCalls", "compile_stage_rewrite_rego_metadata_calls", c.rewriteRegoMetadataCalls},
 		{"SetGraph", "compile_stage_set_graph", c.setGraph},
 		{"RewriteComprehensionTerms", "compile_stage_rewrite_comprehension_terms", c.rewriteComprehensionTerms},
 		{"RewriteRefsInHead", "compile_stage_rewrite_refs_in_head", c.rewriteRefsInHead},
@@ -1738,27 +1736,27 @@ func (c *Compiler) rewriteDynamicTerms() {
 }
 
 func (c *Compiler) parseMetadataBlocks() {
-	// Only parse annotations if self built-ins are called
-	selfCalled := false
+	// Only parse annotations if rego.metadata built-ins are called
+	regoMetadataCalled := false
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
 		WalkRules(mod, func(rule *Rule) bool {
 			WalkExprs(rule, func(expr *Expr) bool {
-				if isSelfMetadataChainCall(expr) || isSelfMetadataRuleCall(expr) {
-					selfCalled = true
+				if isRegoMetadataChainCall(expr) || isRegoMetadataRuleCall(expr) {
+					regoMetadataCalled = true
 				}
-				return selfCalled
+				return regoMetadataCalled
 			})
-			return selfCalled
+			return regoMetadataCalled
 		})
 
-		if selfCalled {
+		if regoMetadataCalled {
 			break
 		}
 	}
 
-	if selfCalled {
-		// NOTE: Possible optimization: only parse annotations for modules on the path of self-calling module
+	if regoMetadataCalled {
+		// NOTE: Possible optimization: only parse annotations for modules on the path of rego.metadata-calling module
 		for _, name := range c.sorted {
 			mod := c.Modules[name]
 
@@ -1774,28 +1772,28 @@ func (c *Compiler) parseMetadataBlocks() {
 	}
 }
 
-func (c *Compiler) rewriteSelfCalls() {
+func (c *Compiler) rewriteRegoMetadataCalls() {
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
 
 		WalkRules(mod, func(rule *Rule) bool {
-			var selfMetadataChainCalled bool
-			var selfMetadataRuleCalled bool
+			var regoMetadataChainCalled bool
+			var regoMetadataRuleCalled bool
 
 			WalkExprs(rule, func(expr *Expr) bool {
-				if isSelfMetadataChainCall(expr) {
-					selfMetadataChainCalled = true
-				} else if isSelfMetadataRuleCall(expr) {
-					selfMetadataRuleCalled = true
+				if isRegoMetadataChainCall(expr) {
+					regoMetadataChainCalled = true
+				} else if isRegoMetadataRuleCall(expr) {
+					regoMetadataRuleCalled = true
 				}
-				return selfMetadataChainCalled && selfMetadataRuleCalled
+				return regoMetadataChainCalled && regoMetadataRuleCalled
 			})
 
-			if selfMetadataChainCalled || selfMetadataRuleCalled {
+			if regoMetadataChainCalled || regoMetadataRuleCalled {
 				body := make(Body, 0, len(rule.Body)+2)
 
 				var metadataChainVar Var
-				if selfMetadataChainCalled {
+				if regoMetadataChainCalled {
 					// Create and inject metadata chain for rule
 
 					chain, err := createMetadataChain(c.annotationSet.Chain(rule))
@@ -1811,7 +1809,7 @@ func (c *Compiler) rewriteSelfCalls() {
 				}
 
 				var metadataRuleVar Var
-				if selfMetadataRuleCalled {
+				if regoMetadataRuleCalled {
 					// Create and inject metadata for rule
 
 					var metadataRuleTerm *Term
@@ -1841,7 +1839,7 @@ func (c *Compiler) rewriteSelfCalls() {
 				rule.Body = body
 
 				vis := func(b Body) bool {
-					for _, err := range rewriteSelfCalls(metadataChainVar, metadataRuleVar, b, &c.RewrittenVars) {
+					for _, err := range rewriteRegoMetadataCalls(metadataChainVar, metadataRuleVar, b, &c.RewrittenVars) {
 						c.err(err)
 					}
 					return false
@@ -1872,19 +1870,19 @@ func getPrimaryRuleAnnotations(as *AnnotationSet, rule *Rule) *Annotations {
 	return annots[0]
 }
 
-func rewriteSelfCalls(metadataChainVar Var, metadataRuleVar Var, body Body, rewrittenVars *map[Var]Var) Errors {
+func rewriteRegoMetadataCalls(metadataChainVar Var, metadataRuleVar Var, body Body, rewrittenVars *map[Var]Var) Errors {
 	var errs Errors
 
 	WalkClosures(body, func(x interface{}) bool {
 		switch x := x.(type) {
 		case *ArrayComprehension:
-			errs = rewriteSelfCalls(metadataChainVar, metadataRuleVar, x.Body, rewrittenVars)
+			errs = rewriteRegoMetadataCalls(metadataChainVar, metadataRuleVar, x.Body, rewrittenVars)
 		case *SetComprehension:
-			errs = rewriteSelfCalls(metadataChainVar, metadataRuleVar, x.Body, rewrittenVars)
+			errs = rewriteRegoMetadataCalls(metadataChainVar, metadataRuleVar, x.Body, rewrittenVars)
 		case *ObjectComprehension:
-			errs = rewriteSelfCalls(metadataChainVar, metadataRuleVar, x.Body, rewrittenVars)
+			errs = rewriteRegoMetadataCalls(metadataChainVar, metadataRuleVar, x.Body, rewrittenVars)
 		case *Every:
-			errs = rewriteSelfCalls(metadataChainVar, metadataRuleVar, x.Body, rewrittenVars)
+			errs = rewriteRegoMetadataCalls(metadataChainVar, metadataRuleVar, x.Body, rewrittenVars)
 		}
 		return true
 	})
@@ -1895,12 +1893,12 @@ func rewriteSelfCalls(metadataChainVar Var, metadataRuleVar Var, body Body, rewr
 		// We're replacing a function call, that we then need to replace in error reporting
 		var originalVar Var
 
-		if isSelfMetadataChainCall(expr) {
+		if isRegoMetadataChainCall(expr) {
 			metadataVar = metadataChainVar
-			originalVar = Var(fmt.Sprintf("%s()", SelfMetadataChain.Ref().String()))
-		} else if isSelfMetadataRuleCall(expr) {
+			originalVar = Var(fmt.Sprintf("%s()", RegoMetadataChain.Ref().String()))
+		} else if isRegoMetadataRuleCall(expr) {
 			metadataVar = metadataRuleVar
-			originalVar = Var(fmt.Sprintf("%s()", SelfMetadataRule.Ref().String()))
+			originalVar = Var(fmt.Sprintf("%s()", RegoMetadataRule.Ref().String()))
 		} else {
 			continue
 		}
@@ -1919,12 +1917,12 @@ func rewriteSelfCalls(metadataChainVar Var, metadataRuleVar Var, body Body, rewr
 	return errs
 }
 
-func isSelfMetadataChainCall(x *Expr) bool {
-	return x.IsCall() && x.Operator().Equal(SelfMetadataChain.Ref())
+func isRegoMetadataChainCall(x *Expr) bool {
+	return x.IsCall() && x.Operator().Equal(RegoMetadataChain.Ref())
 }
 
-func isSelfMetadataRuleCall(x *Expr) bool {
-	return x.IsCall() && x.Operator().Equal(SelfMetadataRule.Ref())
+func isRegoMetadataRuleCall(x *Expr) bool {
+	return x.IsCall() && x.Operator().Equal(RegoMetadataRule.Ref())
 }
 
 func createMetadataChain(chain []*AnnotationsRef) (*Term, *Error) {

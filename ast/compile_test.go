@@ -2341,19 +2341,19 @@ elsekw {
 	assertRulesEqual(t, rule5, expected5)
 }
 
-func TestCompilerRewriteSelfCalls(t *testing.T) {
+func TestCompilerRewriteRegoMetadataCalls(t *testing.T) {
 	tests := []struct {
 		note   string
 		module string
 		exp    string
 	}{
 		{
-			note: "self called, no metadata",
+			note: "rego.metadata called, no metadata",
 			module: `package test
 
 p {
-	self.metadata.chain()[0].path == ["test", "p"]
-	self.metadata.rule() == {}
+	rego.metadata.chain()[0].path == ["test", "p"]
+	rego.metadata.rule() == {}
 }`,
 			exp: `package test
 
@@ -2367,7 +2367,7 @@ p = true {
 }`,
 		},
 		{
-			note: "self called, with metadata",
+			note: "rego.metadata called, with metadata",
 			module: `# METADATA
 # description: A test package
 package test
@@ -2375,14 +2375,14 @@ package test
 # METADATA
 # title: My P Rule
 p {
-	self.metadata.chain()[0].title == "My P Rule"
-	self.metadata.chain()[1].description == "A test package"
+	rego.metadata.chain()[0].title == "My P Rule"
+	rego.metadata.chain()[1].description == "A test package"
 }
 
 # METADATA
 # title: My Other P Rule
 p {
-	self.metadata.rule().title == "My Other P Rule"
+	rego.metadata.rule().title == "My Other P Rule"
 }`,
 			exp: `# METADATA
 # {"scope":"package","description":"A test package"}
@@ -2410,14 +2410,14 @@ p = true {
 }`,
 		},
 		{
-			note: "self referenced multiple times",
+			note: "rego.metadata referenced multiple times",
 			module: `# METADATA
 # description: TEST
 package test
 
 p {
-	self.metadata.chain()[0].path == ["test", "p"]
-	self.metadata.chain()[1].path == ["test"]
+	rego.metadata.chain()[0].path == ["test", "p"]
+	rego.metadata.chain()[1].path == ["test"]
 }`,
 			exp: `# METADATA
 # {"scope":"package","description":"TEST"}
@@ -2434,10 +2434,10 @@ p = true {
 	equal(__local1__[1].path, ["test"]) }`,
 		},
 		{
-			note: "self return value",
+			note: "rego.metadata return value",
 			module: `package test
 
-p := self.metadata.chain()`,
+p := rego.metadata.chain()`,
 			exp: `package test
 
 p := __local0__ { 
@@ -2447,11 +2447,11 @@ p := __local0__ {
 }`,
 		},
 		{
-			note: "self argument in function call",
+			note: "rego.metadata argument in function call",
 			module: `package test
 
 p {
-	q(self.metadata.chain())
+	q(rego.metadata.chain())
 }
 
 q(s) {
@@ -2470,10 +2470,10 @@ q(__local0__) = true {
 }`,
 		},
 		{
-			note: "self used in array comprehension",
+			note: "rego.metadata used in array comprehension",
 			module: `package test
 
-p = [x | x := self.metadata.chain()]`,
+p = [x | x := rego.metadata.chain()]`,
 			exp: `package test
 
 p = [__local0__ | __local1__ = __local2__; __local0__ = __local1__] { 
@@ -2482,11 +2482,11 @@ p = [__local0__ | __local1__ = __local2__; __local0__ = __local1__] {
 }`,
 		},
 		{
-			note: "self used in nested array comprehension",
+			note: "rego.metadata used in nested array comprehension",
 			module: `package test
 
 p {
-	y := [x | x := self.metadata.chain()]
+	y := [x | x := rego.metadata.chain()]
 	y[0].path == ["test", "p"]
 }`,
 			exp: `package test
@@ -2498,10 +2498,10 @@ p = true {
 }`,
 		},
 		{
-			note: "self used in set comprehension",
+			note: "rego.metadata used in set comprehension",
 			module: `package test
 
-p = {x | x := self.metadata.chain()}`,
+p = {x | x := rego.metadata.chain()}`,
 			exp: `package test
 
 p = {__local0__ | __local1__ = __local2__; __local0__ = __local1__} { 
@@ -2510,11 +2510,11 @@ p = {__local0__ | __local1__ = __local2__; __local0__ = __local1__} {
 }`,
 		},
 		{
-			note: "self used in nested set comprehension",
+			note: "rego.metadata used in nested set comprehension",
 			module: `package test
 
 p {
-	y := {x | x := self.metadata.chain()}
+	y := {x | x := rego.metadata.chain()}
 	y[0].path == ["test", "p"]
 }`,
 			exp: `package test
@@ -2526,10 +2526,10 @@ p = true {
 }`,
 		},
 		{
-			note: "self used in object comprehension",
+			note: "rego.metadata used in object comprehension",
 			module: `package test
 
-p = {i: x | x := self.metadata.chain()[i]}`,
+p = {i: x | x := rego.metadata.chain()[i]}`,
 			exp: `package test
 
 p = {i: __local0__ | __local1__ = __local2__; __local0__ = __local1__[i]} { 
@@ -2538,11 +2538,11 @@ p = {i: __local0__ | __local1__ = __local2__; __local0__ = __local1__[i]} {
 }`,
 		},
 		{
-			note: "self used in nested object comprehension",
+			note: "rego.metadata used in nested object comprehension",
 			module: `package test
 
 p {
-	y := {i: x | x := self.metadata.chain()[i]}
+	y := {i: x | x := rego.metadata.chain()[i]}
 	y[0].path == ["test", "p"]
 }`,
 			exp: `package test
@@ -2561,7 +2561,7 @@ p = true {
 			c.Modules = map[string]*Module{
 				"test.rego": MustParseModule(tc.module),
 			}
-			compileStages(c, c.rewriteSelfCalls)
+			compileStages(c, c.rewriteRegoMetadataCalls)
 			assertNotFailed(t, c)
 
 			result := c.Modules["test.rego"]
@@ -2581,29 +2581,29 @@ func TestCompilerRewriteSelfCallsErrors(t *testing.T) {
 		exp    []string
 	}{
 		{
-			note: "self.metadata.chain(): undefined chain 'annotations' member (func body)",
+			note: "rego.metadata.chain(): undefined chain 'annotations' member (func body)",
 			module: `package test
 
 p {
-    self.metadata.chain()[0].annotations
+    rego.metadata.chain()[0].annotations
 }`,
-			exp: []string{"undefined ref: self.metadata.chain()[0].annotations"},
+			exp: []string{"undefined ref: rego.metadata.chain()[0].annotations"},
 		},
 		{
-			note: "self.metadata.chain(): undefined chain 'annotations' member (func value)",
+			note: "rego.metadata.chain(): undefined chain 'annotations' member (func value)",
 			module: `package test
 
-p = self.metadata.chain()[0].annotations`,
-			exp: []string{"undefined ref: self.metadata.chain()[0].annotations"},
+p = rego.metadata.chain()[0].annotations`,
+			exp: []string{"undefined ref: rego.metadata.chain()[0].annotations"},
 		},
 		{
-			note: "self.metadata.rule(): undefined 'title' annotation",
+			note: "rego.metadata.rule(): undefined 'title' annotation",
 			module: `package test
 
 # METADATA
 # title: foo
 p {
-    self.metadata.rule().title == 42
+    rego.metadata.rule().title == 42
 }`,
 			exp: []string{"match error"},
 		},
