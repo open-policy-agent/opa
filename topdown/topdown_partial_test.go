@@ -853,6 +853,34 @@ func TestTopDownPartialEval(t *testing.T) {
 			}`},
 		},
 		{
+			note:  "with+builtin: negation: save negated expr using plugged with value",
+			query: "data.test.p = true",
+			modules: []string{`
+				package test
+
+				mock_count(_) = 100
+				p {
+					x = 1
+					not q with input.x as x with count as mock_count
+				}
+
+				q {
+					r[input.x]
+					count([1,2,3]) = input.x
+				}
+
+				r[1]
+				r[2]
+			`},
+			wantQueries: []string{"not data.partial.test.q with input.x as 1 with count as data.partial.test.mock_count"},
+			wantSupport: []string{`
+				package partial.test
+
+				q { 1 = input.x; 100 = input.x }
+				q { 2 = input.x; 100 = input.x }
+			`},
+		},
+		{
 			note:  "save: sub path",
 			query: "input.x = 1; input.y = 2; input.z.a = 3; input.z.b = x",
 			input: `{"x": 1, "z": {"b": 4}}`,
