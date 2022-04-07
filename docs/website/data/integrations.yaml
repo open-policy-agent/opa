@@ -45,6 +45,22 @@ integrations:
     inventors:
       - styra
 
+  google-kubernetes-engine:
+    title: Google Kubernetes Engine (GKE)
+    description: OPA related tools and policy libraries for Kubernetes in the Google Cloud Platform
+    software:
+      - kubernetes
+      - google-kubernetes-engine
+    labels:
+      category: containers
+      layer: orchestration
+    code:
+      - https://github.com/google/gke-policy-automation
+    tutorials:
+      - https://github.com/google/gke-policy-automation/tree/main/gke-policies
+    inventors:
+      - google
+
   apache-apisix:
     title: Authorization Integration with Apache APISIX
     description: Apache APISIX provides a plugin for delegating fine-grained authorization decisions to OPA.
@@ -1218,8 +1234,8 @@ integrations:
   magda:
     title: Magda
     description:  |
-      Magda is a federated, Kubernetes-based, open-source data catalog system. 
-      Working as Magda's central authorisation policy engine, OPA helps not only the API endpoint authorisation. 
+      Magda is a federated, Kubernetes-based, open-source data catalog system.
+      Working as Magda's central authorisation policy engine, OPA helps not only the API endpoint authorisation.
       Magda also uses its partial evaluation feature to translate datasets authorisation decisions to other database-specific DSLs (e.g. SQL or Elasticsearch DSL) and use them for dataset authorisation enforcement in different databases.
     labels:
       type: poweredbyopa
@@ -1568,3 +1584,6 @@ software:
   magda:
     name: Magda
     link: https://github.com/magda-io/magda
+  google-kubernetes-engine:
+    name: Google Kubernetes Engine
+    link: https://cloud.google.com/kubernetes-engine/
