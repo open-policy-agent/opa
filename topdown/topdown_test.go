@@ -295,7 +295,7 @@ func TestTopDownQueryCancellationEvery(t *testing.T) {
 
 			done := make(chan struct{})
 			go func() {
-				time.Sleep(time.Millisecond * 50)
+				time.Sleep(time.Millisecond * 500)
 				cancel.Cancel()
 				close(done)
 			}()

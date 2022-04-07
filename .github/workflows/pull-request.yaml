@@ -298,7 +298,12 @@ jobs:
         with:
           go-version: ${{ matrix.version }}
       - run: make build
+        env:
+          DOCKER_RUNNING: 0
       - run: make go-test
+        env:
+          DOCKER_RUNNING: 0
+
 
   # Run PR metadata against Rego policies
   rego-check-pr:
