@@ -1153,7 +1153,7 @@ This means that even though a ``self.*`` function isn't explicitly used within a
 When multiple [annotations](../annotations) are declared along the path ancestry (chain) for a rule, how any given annotation should be selected, inherited or merged depends on the semantics of the annotation, the context of the rule, and the preferences of the developer. 
 OPA doesn't presume what merge strategy is appropriate; instead, this lies in the hands of the developer. The following example demonstrates how some string- and list type annotations in a metadata chain can be merged into a single metadata object.
 
-```rego
+```live:self/metadata:query:read_only
 # METADATA
 # title: My Example Package
 # description: A set of rules illustrating how metadata annotations can be merged.
