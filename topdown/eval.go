@@ -1255,8 +1255,7 @@ func (e *eval) biunifyComprehensionObject(x *ast.ObjectComprehension, b *ast.Ter
 }
 
 func (e *eval) saveExpr(expr *ast.Expr, b *bindings, iter unifyIterator) error {
-	expr.With = e.updateSavedMocks(e.query[e.index].With)
-	expr.Location = e.query[e.index].Location
+	e.updateFromQuery(expr)
 	e.saveStack.Push(expr, b, b)
 	e.traceSave(expr)
 	err := iter()
@@ -1265,8 +1264,7 @@ func (e *eval) saveExpr(expr *ast.Expr, b *bindings, iter unifyIterator) error {
 }
 
 func (e *eval) saveExprMarkUnknowns(expr *ast.Expr, b *bindings, iter unifyIterator) error {
-	expr.With = e.updateSavedMocks(e.query[e.index].With)
-	expr.Location = e.query[e.index].Location
+	e.updateFromQuery(expr)
 	declArgsLen, err := e.getDeclArgsLen(expr)
 	if err != nil {
 		return err
@@ -1291,8 +1289,7 @@ func (e *eval) saveExprMarkUnknowns(expr *ast.Expr, b *bindings, iter unifyItera
 func (e *eval) saveUnify(a, b *ast.Term, b1, b2 *bindings, iter unifyIterator) error {
 	e.instr.startTimer(partialOpSaveUnify)
 	expr := ast.Equality.Expr(a, b)
-	expr.With = e.updateSavedMocks(e.query[e.index].With)
-	expr.Location = e.query[e.index].Location
+	e.updateFromQuery(expr)
 	pops := 0
 	if pairs := getSavePairsFromTerm(a, b1, nil); len(pairs) > 0 {
 		pops += len(pairs)
@@ -1322,8 +1319,7 @@ func (e *eval) saveUnify(a, b *ast.Term, b1, b2 *bindings, iter unifyIterator) e
 
 func (e *eval) saveCall(declArgsLen int, terms []*ast.Term, iter unifyIterator) error {
 	expr := ast.NewExpr(terms)
-	expr.With = e.updateSavedMocks(e.query[e.index].With)
-	expr.Location = e.query[e.index].Location
+	e.updateFromQuery(expr)
 
 	// If call-site includes output value then partial eval must add vars in output
 	// position to the save set.
@@ -1621,6 +1617,15 @@ func (e *eval) getDeclArgsLen(x *ast.Expr) (int, error) {
 	}
 
 	return len(ir.Rules[0].Head.Args), nil
+}
+
+// updateFromQuery enriches the passed expression with Location and With
+// fields of the currently looked-at query item (`e.query[e.index]`).
+// With values are namespaced to ensure that replacement functions of
+// mocked built-ins are properly referenced in the support module.
+func (e *eval) updateFromQuery(expr *ast.Expr) {
+	expr.With = e.updateSavedMocks(e.query[e.index].With)
+	expr.Location = e.query[e.index].Location
 }
 
 type evalBuiltin struct {
