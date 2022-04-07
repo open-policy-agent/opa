@@ -760,21 +760,97 @@ func TestTopDownPartialEval(t *testing.T) {
 			wantQueries: []string{`{} = a`},
 		},
 		{
-			note:  "with+builtin: xxx",
+			note:  "with+builtin: no unknowns",
 			query: "data.test.p = a",
 			modules: []string{
 				`package test
 
 				mock_concat(_, _) = "foo/bar"
 				p { q with concat as mock_concat}
-				q { concat("/", input, "foo/bar") }`,
+				q { concat("/", ["a", "b"], "foo/bar") }`,
 			},
-			wantQueries: []string{`data.partial.test.q = x_term_1_01 with concat as data.test.mock_concat; x_term_1_01 with concat as data.test.mock_concat; a = true`},
+			wantQueries: []string{`a = true`},
+		},
+		{
+			note:  "with+builtin: unknowns in replacement function",
+			query: "data.test.p = a",
+			modules: []string{
+				`package test
+
+				mock_concat(x, _) = concat(x, input)
+				p { q with concat as mock_concat}
+				q { concat("/", ["a", "b"], "foo/bar") }`,
+			},
+			wantQueries: []string{`data.partial.test.mock_concat("/", ["a", "b"], "foo/bar"); a = true`},
 			wantSupport: []string{
 				`package partial.test
 
-				q { concat("/", input, "foo/bar") }`,
+				mock_concat(__local0__3, __local1__3) = __local2__3 {
+					__local3__3 = input
+					concat(__local0__3, __local3__3, __local2__3)
+				}`,
 			},
+		},
+		{
+			note:  "with+builtin: unknowns in replaced function's args",
+			query: "data.test.p = a",
+			modules: []string{
+				`package test
+
+				mock_concat(_, _) = "foo/bar"
+				p {
+					q with concat as mock_concat
+				}
+				q {
+					concat("/", input, "foo/bar")
+				}`,
+			},
+			wantQueries: []string{`
+				data.partial.test.q = x_term_1_01 with concat as data.partial.test.mock_concat
+				x_term_1_01 with concat as data.partial.test.mock_concat
+				a = true
+			`},
+			wantSupport: []string{`package partial.test
+
+				q {
+					data.partial.test.mock_concat("/", input, "foo/bar")
+				}
+				mock_concat(__local0__3, __local1__3) = "foo/bar"
+			`},
+		},
+		{
+			note:  "with+builtin: unknowns in replacement function's bodies",
+			query: "data.test.p = a",
+			modules: []string{
+				`package test
+
+				mock_concat(_, _) = "foo/bar" { input.foo }
+				mock_concat(_, _) = "bar/baz" { input.bar }
+
+				p { q with concat as mock_concat }
+				q { x := concat("/", input); startswith("foo/", x) }`,
+			},
+			wantQueries: []string{`
+				data.partial.test.q = x_term_1_01 with concat as data.partial.test.mock_concat
+				x_term_1_01 with concat as data.partial.test.mock_concat
+				a = true
+			`},
+			wantSupport: []string{`package partial.test
+
+			q {
+				__local6__2 = input
+				data.partial.test.mock_concat("/", __local6__2, __local5__2)
+				__local4__2 = __local5__2
+				startswith("foo/", __local4__2)
+			}
+			mock_concat(__local0__3, __local1__3) = "foo/bar" {
+				input.foo = x_term_3_03
+				x_term_3_03
+			}
+			mock_concat(__local2__4, __local3__4) = "bar/baz" {
+				input.bar = x_term_4_04
+				x_term_4_04
+			}`},
 		},
 		{
 			note:  "save: sub path",

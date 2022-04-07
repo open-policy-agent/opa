@@ -462,16 +462,12 @@ func (e *eval) evalWith(iter evalIterator) error {
 		// If the value is unknown the with statement cannot be evaluated and so
 		// the entire expression should be saved to be safe. In the future this
 		// could be relaxed in certain cases (e.g., if the with statement would
-		// have no affect.)
+		// have no effect.)
 		for _, with := range expr.With {
 			target, ok := with.Target.Value.(ast.Ref)
-			if !ok {
-				continue // simple built-in (ast.Var)
-			}
 
-			if ast.DefaultRootDocument.Equal(target[0]) ||
-				ast.InputRootDocument.Equal(target[0]) {
-
+			// with target is data or input (not built-in)
+			if ok && (ast.DefaultRootDocument.Equal(target[0]) || ast.InputRootDocument.Equal(target[0])) {
 				if e.saveSet.ContainsRecursive(with.Value, e.bindings) {
 					return e.saveExprMarkUnknowns(expr, e.bindings, func() error {
 						return e.next(iter)
@@ -479,7 +475,12 @@ func (e *eval) evalWith(iter evalIterator) error {
 				}
 				ast.WalkRefs(with.Target, collectRefs)
 				ast.WalkRefs(with.Value, collectRefs)
+				continue
 			}
+
+			// built-in replaced: either a simple one (target is ast.Var) or an ast.Ref
+			value := with.Value.Value.(ast.Ref)
+			_ = collectRefs(value)
 		}
 
 		ast.WalkRefs(expr.NoWith(), collectRefs)
@@ -733,18 +734,23 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 		return unsupportedBuiltinErr(e.query[e.index].Location)
 	}
 
-	if e.unknown(e.query[e.index], e.bindings) { // TODO(sr): partial happens here: keep 'with' or replace?
-		return e.saveCall(len(bi.Decl.Args()), terms, iter)
-	}
-
 	builtinName := ref.String()
 	if mock, ok := e.builtinMocks.Get(builtinName); ok {
+		mockCall := append([]*ast.Term{ast.NewTerm(mock)}, terms[1:]...)
+
 		prev := e.builtinMocks.Pop()
-		err := e.evalCall(append([]*ast.Term{ast.NewTerm(mock)}, terms[1:]...), func() error {
+		err := e.evalCall(mockCall, func() error {
 			e.builtinMocks.Push(prev)
-			return iter()
+			err := iter()
+			_ = e.builtinMocks.Pop() // prev won't change
+			return err
 		})
+		e.builtinMocks.Push(prev)
 		return err
+	}
+
+	if e.unknown(e.query[e.index], e.bindings) {
+		return e.saveCall(len(bi.Decl.Args()), terms, iter)
 	}
 
 	var parentID uint64
@@ -1249,7 +1255,7 @@ func (e *eval) biunifyComprehensionObject(x *ast.ObjectComprehension, b *ast.Ter
 }
 
 func (e *eval) saveExpr(expr *ast.Expr, b *bindings, iter unifyIterator) error {
-	expr.With = e.query[e.index].With
+	expr.With = e.updateSavedMocks(e.query[e.index].With)
 	expr.Location = e.query[e.index].Location
 	e.saveStack.Push(expr, b, b)
 	e.traceSave(expr)
@@ -1259,7 +1265,7 @@ func (e *eval) saveExpr(expr *ast.Expr, b *bindings, iter unifyIterator) error {
 }
 
 func (e *eval) saveExprMarkUnknowns(expr *ast.Expr, b *bindings, iter unifyIterator) error {
-	expr.With = e.query[e.index].With
+	expr.With = e.updateSavedMocks(e.query[e.index].With)
 	expr.Location = e.query[e.index].Location
 	declArgsLen, err := e.getDeclArgsLen(expr)
 	if err != nil {
@@ -1285,7 +1291,7 @@ func (e *eval) saveExprMarkUnknowns(expr *ast.Expr, b *bindings, iter unifyItera
 func (e *eval) saveUnify(a, b *ast.Term, b1, b2 *bindings, iter unifyIterator) error {
 	e.instr.startTimer(partialOpSaveUnify)
 	expr := ast.Equality.Expr(a, b)
-	expr.With = e.query[e.index].With
+	expr.With = e.updateSavedMocks(e.query[e.index].With)
 	expr.Location = e.query[e.index].Location
 	pops := 0
 	if pairs := getSavePairsFromTerm(a, b1, nil); len(pairs) > 0 {
@@ -1316,7 +1322,7 @@ func (e *eval) saveUnify(a, b *ast.Term, b1, b2 *bindings, iter unifyIterator) e
 
 func (e *eval) saveCall(declArgsLen int, terms []*ast.Term, iter unifyIterator) error {
 	expr := ast.NewExpr(terms)
-	expr.With = e.query[e.index].With
+	expr.With = e.updateSavedMocks(e.query[e.index].With)
 	expr.Location = e.query[e.index].Location
 
 	// If call-site includes output value then partial eval must add vars in output
@@ -1352,7 +1358,7 @@ func (e *eval) saveInlinedNegatedExprs(exprs []*ast.Expr, iter unifyIterator) er
 	}
 
 	for _, expr := range exprs {
-		expr.With = with
+		expr.With = e.updateSavedMocks(with)
 		e.saveStack.Push(expr, nil, nil)
 		e.traceSave(expr)
 	}
@@ -3298,4 +3304,16 @@ func ensureRef(v ast.Value) ast.Ref {
 		return ast.Ref([]*ast.Term{ast.NewTerm(x)})
 	}
 	panic("unreachable")
+}
+
+func (e *eval) updateSavedMocks(withs []*ast.With) []*ast.With {
+	ret := make([]*ast.With, len(withs))
+	for i, w := range withs {
+		v := w.Copy()
+		if ref, ok := v.Value.Value.(ast.Ref); ok {
+			v.Value.Value = e.namespaceRef(ref)
+		}
+		ret[i] = v
+	}
+	return ret
 }
