@@ -209,3 +209,21 @@ cases:
   query: data.test.p = x
   want_result:
   - x: true
+- data:
+  modules:
+  - |
+    package test
+
+    f(_) = 1
+    g(x) = count(x) # replaced with f by inner "with"
+
+    q = y {
+      y = count([1,2,3]) with count as f
+    }
+    p = y {
+      y = q with count as g
+    }
+  note: 'withkeyword/builtin: multiple with'
+  query: data.test.p = x
+  want_result:
+  - x: 1
