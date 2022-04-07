@@ -1,8 +1,14 @@
 {{ $isDocsPage := eq .Section "docs" }}
 {{ $app        := resources.Get "js/app.js" | resources.ExecuteAsTemplate "js/app.js" . | fingerprint }}
 <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/docsearch.js@2/dist/cdn/docsearch.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/tocbot/4.7.0/tocbot.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"
+        integrity="sha512-+NqPlbbtM1QqiK8ZAo4Yrj2c4lNQoGv8P79DPtKzj++l5jnN39rHA/xsqn8zE9l0uSoxaCdrOgFs6yjyfbBxSg=="
+        crossorigin="anonymous"
+        referrerpolicy="no-referrer"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tocbot/4.7.0/tocbot.min.js"
+        integrity="sha512-0yvqkr9Ldt1VsW3izBRlvZuz0Sd1Yu+ZRZSFg33ogi0FJi7FlzP3s1QOrA0Fd0XbAEXMdSrLQBlCFyHq4kNEEQ=="
+        crossorigin="anonymous"
+        referrerpolicy="no-referrer"></script>
 <script src="{{ $app.RelPermalink }}" integrity="{{ $app.Data.Integrity }}"></script>
 <script src="/js/anchor.min.js"></script>
 
