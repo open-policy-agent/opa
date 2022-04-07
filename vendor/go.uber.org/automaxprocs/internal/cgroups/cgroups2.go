@@ -89,7 +89,7 @@ func isCGroupV2(procPathMountInfo string) (bool, error) {
 	var (
 		isV2          bool
 		newMountPoint = func(mp *MountPoint) error {
-			isV2 = mp.FSType == _cgroupv2FSType && mp.MountPoint == _cgroupv2MountPoint
+			isV2 = isV2 || (mp.FSType == _cgroupv2FSType && mp.MountPoint == _cgroupv2MountPoint)
 			return nil
 		}
 	)
