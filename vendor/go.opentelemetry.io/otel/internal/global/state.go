@@ -50,14 +50,17 @@ func TracerProvider() trace.TracerProvider {
 // SetTracerProvider is the internal implementation for global.SetTracerProvider.
 func SetTracerProvider(tp trace.TracerProvider) {
 	current := TracerProvider()
-	if current == tp {
-		// Setting the provider to the prior default results in a noop. Return
-		// early.
-		Error(
-			errors.New("no delegate configured in tracer provider"),
-			"Setting tracer provider to it's current value. No delegate will be configured",
-		)
-		return
+
+	if _, cOk := current.(*tracerProvider); cOk {
+		if _, tpOk := tp.(*tracerProvider); tpOk && current == tp {
+			// Do not assign the default delegating TracerProvider to delegate
+			// to itself.
+			Error(
+				errors.New("no delegate configured in tracer provider"),
+				"Setting tracer provider to it's current value. No delegate will be configured",
+			)
+			return
+		}
 	}
 
 	delegateTraceOnce.Do(func() {
@@ -76,14 +79,17 @@ func TextMapPropagator() propagation.TextMapPropagator {
 // SetTextMapPropagator is the internal implementation for global.SetTextMapPropagator.
 func SetTextMapPropagator(p propagation.TextMapPropagator) {
 	current := TextMapPropagator()
-	if current == p {
-		// Setting the provider to the prior default results in a noop. Return
-		// early.
-		Error(
-			errors.New("no delegate configured in text map propagator"),
-			"Setting text map propagator to it's current value. No delegate will be configured",
-		)
-		return
+
+	if _, cOk := current.(*textMapPropagator); cOk {
+		if _, pOk := p.(*textMapPropagator); pOk && current == p {
+			// Do not assign the default delegating TextMapPropagator to
+			// delegate to itself.
+			Error(
+				errors.New("no delegate configured in text map propagator"),
+				"Setting text map propagator to it's current value. No delegate will be configured",
+			)
+			return
+		}
 	}
 
 	// For the textMapPropagator already returned by TextMapPropagator
