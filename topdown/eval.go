@@ -452,7 +452,7 @@ func (e *eval) evalWith(iter evalIterator) error {
 	// partial evaluation has the same semantics w/ the with statements
 	// preserved.
 	var disable []ast.Ref
-	collectRefs := func(x ast.Ref) bool {
+	disableRef := func(x ast.Ref) bool {
 		disable = append(disable, x.GroundPrefix())
 		return false
 	}
@@ -464,26 +464,24 @@ func (e *eval) evalWith(iter evalIterator) error {
 		// could be relaxed in certain cases (e.g., if the with statement would
 		// have no effect.)
 		for _, with := range expr.With {
-			target, ok := with.Target.Value.(ast.Ref)
-
-			// with target is data or input (not built-in)
-			if ok && (target[0].Equal(ast.DefaultRootDocument) || target[0].Equal(ast.InputRootDocument)) {
-				if e.saveSet.ContainsRecursive(with.Value, e.bindings) {
-					return e.saveExprMarkUnknowns(expr, e.bindings, func() error {
-						return e.next(iter)
-					})
-				}
-				ast.WalkRefs(with.Target, collectRefs)
-				ast.WalkRefs(with.Value, collectRefs)
+			if isOtherRef(with.Target) {
+				// built-in replaced: either a simple one (target is ast.Var) or an ast.Ref
+				_ = disableRef(with.Value.Value.(ast.Ref))
 				continue
 			}
 
-			// built-in replaced: either a simple one (target is ast.Var) or an ast.Ref
-			value := with.Value.Value.(ast.Ref)
-			_ = collectRefs(value)
+			// with target is data or input (not built-in)
+			if e.saveSet.ContainsRecursive(with.Value, e.bindings) {
+				return e.saveExprMarkUnknowns(expr, e.bindings, func() error {
+					return e.next(iter)
+				})
+			}
+
+			ast.WalkRefs(with.Target, disableRef)
+			ast.WalkRefs(with.Value, disableRef)
 		}
 
-		ast.WalkRefs(expr.NoWith(), collectRefs)
+		ast.WalkRefs(expr.NoWith(), disableRef)
 	}
 
 	pairsInput := [][2]*ast.Term{}
@@ -3230,6 +3228,10 @@ func isDataRef(term *ast.Term) bool {
 		}
 	}
 	return false
+}
+
+func isOtherRef(term *ast.Term) bool {
+	return !isDataRef(term) && !isInputRef(term)
 }
 
 func merge(a, b ast.Value) (ast.Value, bool) {
