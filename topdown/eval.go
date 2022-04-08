@@ -467,7 +467,7 @@ func (e *eval) evalWith(iter evalIterator) error {
 			target, ok := with.Target.Value.(ast.Ref)
 
 			// with target is data or input (not built-in)
-			if ok && (ast.DefaultRootDocument.Equal(target[0]) || ast.InputRootDocument.Equal(target[0])) {
+			if ok && (target[0].Equal(ast.DefaultRootDocument) || target[0].Equal(ast.InputRootDocument)) {
 				if e.saveSet.ContainsRecursive(with.Value, e.bindings) {
 					return e.saveExprMarkUnknowns(expr, e.bindings, func() error {
 						return e.next(iter)
