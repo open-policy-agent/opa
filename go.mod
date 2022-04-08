@@ -36,11 +36,11 @@ require (
 	github.com/yashtewari/glob-intersection v0.1.0
 	go.opencensus.io v0.23.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.31.0
-	go.opentelemetry.io/otel v1.6.2
-	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.6.2
-	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.6.2
-	go.opentelemetry.io/otel/sdk v1.6.2
-	go.opentelemetry.io/otel/trace v1.6.2
+	go.opentelemetry.io/otel v1.6.3
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.6.3
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.6.3
+	go.opentelemetry.io/otel/sdk v1.6.3
+	go.opentelemetry.io/otel/trace v1.6.3
 	go.uber.org/automaxprocs v1.5.1
 	golang.org/x/net v0.0.0-20211111083644-e5c967477495
 	golang.org/x/text v0.3.7 // indirect

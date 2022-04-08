@@ -5,10 +5,10 @@ go 1.16
 require (
 	github.com/google/go-cmp v0.5.7
 	github.com/stretchr/testify v1.7.1
-	go.opentelemetry.io/otel v1.6.2
-	go.opentelemetry.io/otel/exporters/otlp/internal/retry v1.6.2
-	go.opentelemetry.io/otel/sdk v1.6.2
-	go.opentelemetry.io/otel/trace v1.6.2
+	go.opentelemetry.io/otel v1.6.3
+	go.opentelemetry.io/otel/exporters/otlp/internal/retry v1.6.3
+	go.opentelemetry.io/otel/sdk v1.6.3
+	go.opentelemetry.io/otel/trace v1.6.3
 	go.opentelemetry.io/proto/otlp v0.15.0
 	google.golang.org/grpc v1.45.0
 	google.golang.org/protobuf v1.28.0
