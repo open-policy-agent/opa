@@ -12,24 +12,26 @@ import (
 
 // Test of example code in docs/content/annotations.md
 func ExampleAnnotationSet_Flatten() {
-	modules := map[string]string{
-		"foo.rego": `# METADATA
+	modules := [][]string{
+		{
+			"foo.rego", `# METADATA
 # scope: subpackages
 # organizations:
 # - Acme Corp.
-package foo`,
-		"mod": `# METADATA
+package foo`},
+		{
+			"mod", `# METADATA
 # description: A couple of useful rules
 package foo.bar
 
 # METADATA
 # title: My Rule P
-p := 7`,
+p := 7`},
 	}
 
 	parsed := make([]*Module, 0, len(modules))
-	for f, module := range modules {
-		pm, err := ParseModuleWithOpts(f, module, ParserOptions{ProcessAnnotation: true})
+	for _, entry := range modules {
+		pm, err := ParseModuleWithOpts(entry[0], entry[1], ParserOptions{ProcessAnnotation: true})
 		if err != nil {
 			panic(err)
 		}
@@ -57,24 +59,26 @@ p := 7`,
 
 // Test of example code in docs/content/annotations.md
 func ExampleAnnotationSet_Chain() {
-	modules := map[string]string{
-		"foo.rego": `# METADATA
+	modules := [][]string{
+		{
+			"foo.rego", `# METADATA
 # scope: subpackages
 # organizations:
 # - Acme Corp.
-package foo`,
-		"mod": `# METADATA
+package foo`},
+		{
+			"mod", `# METADATA
 # description: A couple of useful rules
 package foo.bar
 
 # METADATA
 # title: My Rule P
-p := 7`,
+p := 7`},
 	}
 
 	parsed := make([]*Module, 0, len(modules))
-	for f, module := range modules {
-		pm, err := ParseModuleWithOpts(f, module, ParserOptions{ProcessAnnotation: true})
+	for _, entry := range modules {
+		pm, err := ParseModuleWithOpts(entry[0], entry[1], ParserOptions{ProcessAnnotation: true})
 		if err != nil {
 			panic(err)
 		}
