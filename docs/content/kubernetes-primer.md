@@ -187,7 +187,7 @@ Often you don't want to invent new variable names for iteration.  OPA provides t
 
 ### Builtins
 
-On line 5 the *builtin* `startswith` checks if one string is a prefix of the other.  The builtin `sprintf` on line 6 formats a string with arguments.  OPA has 50+ builtins detailed at [openpolicyagent.org/docs/policy-reference](../policy-reference).
+On line 5 the *builtin* `startswith` checks if one string is a prefix of the other.  The builtin `sprintf` on line 6 formats a string with arguments.  OPA has 150+ builtins detailed in [the Policy Reference](../policy-reference/#built-in-functions).
 Builtins let you analyze and manipulate:
 
 * Numbers, Strings, Regexs, Networks
