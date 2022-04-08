@@ -853,31 +853,73 @@ func TestTopDownPartialEval(t *testing.T) {
 			}`},
 		},
 		{
-			note:  "with+builtin: negation: save negated expr using plugged with value",
+			note:  "with+builtin+negation: when replacement has no unknowns (args, defs), save negated expr without replacement",
 			query: "data.test.p = true",
 			modules: []string{`
 				package test
 
 				mock_count(_) = 100
 				p {
-					x = 1
-					not q with input.x as x with count as mock_count
+					not q with input.x as 1 with count as mock_count
 				}
 
 				q {
-					r[input.x]
 					count([1,2,3]) = input.x
 				}
+			`},
+			wantQueries: []string{"not data.partial.test.q with input.x as 1"},
+			wantSupport: []string{`
+				package partial.test
 
-				r[1]
-				r[2]
+				q { 100 = input.x }
+			`},
+		},
+		{
+			note:  "with+builtin+negation: when replacement args have unknowns, save negated expr with replacement",
+			query: "data.test.p = true",
+			modules: []string{`
+				package test
+
+				mock_count(_) = 100
+				p {
+					not q with input.x as 1 with count as mock_count
+				}
+
+				q {
+					count(input.y) = input.x # unknown arg for mocked func
+				}
 			`},
 			wantQueries: []string{"not data.partial.test.q with input.x as 1 with count as data.partial.test.mock_count"},
 			wantSupport: []string{`
 				package partial.test
 
-				q { 1 = input.x; 100 = input.x }
-				q { 2 = input.x; 100 = input.x }
+				q { data.partial.test.mock_count(input.y, __local1__3); __local1__3 = input.x }
+				mock_count(__local0__4) = 100 { true }
+			`},
+		},
+		{
+			note:  "with+builtin+negation: when replacement defs have unknowns, save negated expr with replacement",
+			query: "data.test.p = true",
+			modules: []string{`
+				package test
+
+				mock_count(_) = 100 { input.y }
+				mock_count(_) = 101 { input.z }
+				p {
+					not q with input.x as 1 with count as mock_count
+				}
+
+				q {
+					count([1]) = input.x # unknown arg for mocked func
+				}
+			`},
+			wantQueries: []string{"not data.partial.test.q with input.x as 1 with count as data.partial.test.mock_count"},
+			wantSupport: []string{`
+				package partial.test
+
+				q { data.partial.test.mock_count([1], __local2__3); __local2__3 = input.x }
+				mock_count(__local0__4) = 100 { input.y = x_term_4_04; x_term_4_04 }
+				mock_count(__local1__5) = 101 { input.z = x_term_5_05; x_term_5_05 }
 			`},
 		},
 		{

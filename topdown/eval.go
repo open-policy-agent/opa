@@ -3314,13 +3314,20 @@ func ensureRef(v ast.Value) ast.Ref {
 }
 
 func (e *eval) updateSavedMocks(withs []*ast.With) []*ast.With {
-	ret := make([]*ast.With, len(withs))
-	for i, w := range withs {
+	ret := make([]*ast.With, 0, len(withs))
+	for _, w := range withs {
 		v := w.Copy()
-		if ref, ok := v.Value.Value.(ast.Ref); ok {
-			v.Value.Value = e.namespaceRef(ref)
+		if isOtherRef(w.Target) {
+			if ref, ok := v.Value.Value.(ast.Ref); ok {
+				nref := e.namespaceRef(ref)
+				if e.saveSupport.Exists(nref) {
+					v.Value.Value = nref
+				} else {
+					continue // skip
+				}
+			}
 		}
-		ret[i] = v
+		ret = append(ret, v)
 	}
 	return ret
 }
