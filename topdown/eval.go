@@ -490,7 +490,7 @@ func (e *eval) evalWith(iter evalIterator) error {
 	targets := []ast.Ref{}
 
 	for i := range expr.With {
-		ref := ensureRef(expr.With[i].Target.Value)
+		target := expr.With[i].Target.Value
 		plugged := e.bindings.Plug(expr.With[i].Value)
 		switch {
 		case isInputRef(expr.With[i].Target):
@@ -498,12 +498,13 @@ func (e *eval) evalWith(iter evalIterator) error {
 		case isDataRef(expr.With[i].Target):
 			pairsData = append(pairsData, [...]*ast.Term{expr.With[i].Target, plugged})
 		default: // ref must be builtin
-			_, _, ok := e.builtinFunc(ref.String())
+			_, _, ok := e.builtinFunc(target.String())
 			if ok {
 				builtinMocks = append(builtinMocks, [...]*ast.Term{expr.With[i].Target, expr.With[i].Value})
 			}
+			continue
 		}
-		targets = append(targets, ref)
+		targets = append(targets, target.(ast.Ref))
 	}
 
 	input, err := mergeTermWithValues(e.input, pairsInput)
@@ -3298,19 +3299,6 @@ func suppressEarlyExit(err error) error {
 		return err
 	}
 	return ee.prev // nil if we're done
-}
-
-// ensureRef is used for looking up builtins by term:
-// 'concat' and the other "simple" names will be of type ast.Var
-// 'http.send' and other compound names will be a ast.Ref
-func ensureRef(v ast.Value) ast.Ref {
-	switch x := v.(type) {
-	case ast.Ref:
-		return x
-	case ast.Var:
-		return ast.Ref([]*ast.Term{ast.NewTerm(x)})
-	}
-	panic("unreachable")
 }
 
 func (e *eval) updateSavedMocks(withs []*ast.With) []*ast.With {
