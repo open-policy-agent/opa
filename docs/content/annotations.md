@@ -304,6 +304,26 @@ for _, entry := range flattened {
         entry.Location,
         entry.Annotations)
 }
+
+// Output:
+// data.foo at foo.rego:5 has annotations {"scope":"subpackages","organizations":["Acme Corp."]}
+// data.foo.bar at mod:3 has annotations {"scope":"package","description":"A couple of useful rules"}
+// data.foo.bar.p at mod:7 has annotations {"scope":"rule","title":"My Rule P"}
+//
+// For modules:
+// # METADATA
+// # scope: subpackages
+// # organizations:
+// # - Acme Corp.
+// package foo
+// ---
+// # METADATA
+// # description: A couple of useful rules
+// package foo.bar
+// 
+// # METADATA
+// # title: My Rule P
+// p := 7
 ```
 
 Given an ``ast.Rule``, the ``ast.AnnotationSet`` can return the chain of annotations declared for that rule, and its path ancestry.
@@ -319,4 +339,24 @@ for _, link := range chain {
         link.Path,
         link.Annotations)
 }
+
+// Output:
+// data.foo.bar.p at mod:7 has annotations {"scope":"rule","title":"My Rule P"}
+// data.foo.bar at mod:3 has annotations {"scope":"package","description":"A couple of useful rules"}
+// data.foo at foo.rego:5 has annotations {"scope":"subpackages","organizations":["Acme Corp."]}
+//
+// For modules:
+// # METADATA
+// # scope: subpackages
+// # organizations:
+// # - Acme Corp.
+// package foo
+// ---
+// # METADATA
+// # description: A couple of useful rules
+// package foo.bar
+// 
+// # METADATA
+// # title: My Rule P
+// p := 7
 ```

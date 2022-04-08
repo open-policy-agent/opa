@@ -10,6 +10,7 @@ import (
 	"testing"
 )
 
+// Test of example code in docs/content/annotations.md
 func ExampleAnnotationSet_Flatten() {
 	modules := map[string]string{
 		"foo.rego": `# METADATA
@@ -52,6 +53,53 @@ p := 7`,
 	// data.foo at foo.rego:5 has annotations {"scope":"subpackages","organizations":["Acme Corp."]}
 	// data.foo.bar at mod:3 has annotations {"scope":"package","description":"A couple of useful rules"}
 	// data.foo.bar.p at mod:7 has annotations {"scope":"rule","title":"My Rule P"}
+}
+
+// Test of example code in docs/content/annotations.md
+func ExampleAnnotationSet_Chain() {
+	modules := map[string]string{
+		"foo.rego": `# METADATA
+# scope: subpackages
+# organizations:
+# - Acme Corp.
+package foo`,
+		"mod": `# METADATA
+# description: A couple of useful rules
+package foo.bar
+
+# METADATA
+# title: My Rule P
+p := 7`,
+	}
+
+	parsed := make([]*Module, 0, len(modules))
+	for f, module := range modules {
+		pm, err := ParseModuleWithOpts(f, module, ParserOptions{ProcessAnnotation: true})
+		if err != nil {
+			panic(err)
+		}
+		parsed = append(parsed, pm)
+	}
+
+	as, err := BuildAnnotationSet(parsed)
+	if err != nil {
+		panic(err)
+	}
+
+	rule := parsed[1].Rules[0]
+
+	flattened := as.Chain(rule)
+	for _, entry := range flattened {
+		fmt.Printf("%v at %v has annotations %v\n",
+			entry.Path,
+			entry.Location,
+			entry.Annotations)
+	}
+
+	// Output:
+	// data.foo.bar.p at mod:7 has annotations {"scope":"rule","title":"My Rule P"}
+	// data.foo.bar at mod:3 has annotations {"scope":"package","description":"A couple of useful rules"}
+	// data.foo at foo.rego:5 has annotations {"scope":"subpackages","organizations":["Acme Corp."]}
 }
 
 func TestAnnotationSet_Flatten(t *testing.T) {

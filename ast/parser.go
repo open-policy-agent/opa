@@ -2285,8 +2285,8 @@ var futureKeywords = map[string]tokens.Token{
 func (p *Parser) futureImport(imp *Import, allowedFutureKeywords map[string]tokens.Token) {
 	path := imp.Path.Value.(Ref)
 
-	if len(path) == 1 || !path[1].Equal(StringTerm("keywords")) && !path[1].Equal(StringTerm("self")) {
-		p.errorf(imp.Path.Location, "invalid import, must be `future.keywords` or `future.self`")
+	if len(path) == 1 || !path[1].Equal(StringTerm("keywords")) {
+		p.errorf(imp.Path.Location, "invalid import, must be `future.keywords`")
 		return
 	}
 
@@ -2301,10 +2301,7 @@ func (p *Parser) futureImport(imp *Import, allowedFutureKeywords map[string]toke
 	}
 
 	switch len(path) {
-	case 2: // self or all keywords imported
-		if path[1].Equal(StringTerm("self")) {
-			return
-		}
+	case 2: // all keywords imported, nothing to do
 	case 3: // one keyword imported
 		kw, ok := path[2].Value.(String)
 		if !ok {

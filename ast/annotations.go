@@ -308,7 +308,7 @@ func (a *Annotations) Copy(node Node) *Annotations {
 	return &cpy
 }
 
-// toObject constructs an AST Object from a
+// toObject constructs an AST Object from a.
 func (a *Annotations) toObject() (*Object, *Error) {
 	obj := NewObject()
 
@@ -376,7 +376,7 @@ func (a *Annotations) toObject() (*Object, *Error) {
 			if s.Definition != nil {
 				def, err := InterfaceToValue(s.Definition)
 				if err != nil {
-					return nil, NewError(CompileErr, a.Location, "Invalid definition in schema annotation: %s", err.Error())
+					return nil, NewError(CompileErr, a.Location, "invalid definition in schema annotation: %s", err.Error())
 				}
 				sObj.Insert(StringTerm("definition"), NewTerm(def))
 			}
@@ -388,7 +388,7 @@ func (a *Annotations) toObject() (*Object, *Error) {
 	if len(a.Custom) > 0 {
 		c, err := InterfaceToValue(a.Custom)
 		if err != nil {
-			return nil, NewError(CompileErr, a.Location, "Invalid custom annotation %s", err.Error())
+			return nil, NewError(CompileErr, a.Location, "invalid custom annotation %s", err.Error())
 		}
 		obj.Insert(StringTerm("custom"), NewTerm(c))
 	}
