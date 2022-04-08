@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"sync"
 	"time"
 
@@ -420,6 +421,17 @@ func (p *Plugin) newDownloader(name string, source *Source) Loader {
 	callback := func(ctx context.Context, u download.Update) {
 		// wrap the callback to include the name of the bundle that was updated
 		p.oneShot(ctx, name, u)
+	}
+	if strings.ToLower(client.Config().Type) == "oci" {
+		ociStorePath := filepath.Join(os.TempDir(), "opa", "oci") // use temporary folder /tmp/opa/oci
+		if p.manager.Config.PersistenceDirectory != nil {
+			ociStorePath = filepath.Join(*p.manager.Config.PersistenceDirectory, "oci")
+		}
+		return download.NewOCI(conf, client, path, ociStorePath).
+			WithCallback(callback).
+			WithBundleVerificationConfig(source.Signing).
+			WithSizeLimitBytes(source.SizeLimitBytes).
+			WithBundlePersistence(p.persistBundle(name))
 	}
 	return download.New(conf, client, path).
 		WithCallback(callback).

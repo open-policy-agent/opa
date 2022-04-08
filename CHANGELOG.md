@@ -5,6 +5,12 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### OCI support
+
+The addition of the [OCI downloader](https://github.com/open-policy-agent/opa/blob/main/download/oci_download.go) allows the bundle and discovery plugins to download a bundle package from an OCI registry, and that is specified by the service type configuration value.
+
+For more details please refer to the [services configuration](https://www.openpolicyagent.org/docs/edge/configuration/#services) and [#4518](https://github.com/open-policy-agent/opa/issues/4518).
+
 ## 0.39.0
 
 This release contains a number of fixes and enhancements.

@@ -53,6 +53,7 @@ type Config struct {
 		AzureManagedIdentity *azureManagedIdentitiesAuthPlugin  `json:"azure_managed_identity,omitempty"`
 		Plugin               *string                            `json:"plugin,omitempty"`
 	} `json:"credentials"`
+	Type   string `json:"type,omitempty"`
 	keys   map[string]*keys.Config
 	logger logging.Logger
 }
