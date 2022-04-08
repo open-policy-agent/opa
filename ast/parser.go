@@ -353,10 +353,8 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 func (p *Parser) parseAnnotations(stmts []Statement) []Statement {
 
 	annotStmts, errs := parseAnnotations(p.s.comments)
-	if len(errs) > 0 {
-		for _, err := range errs {
-			p.error(err.Location, err.Message)
-		}
+	for _, err := range errs {
+		p.error(err.Location, err.Message)
 	}
 
 	for _, annotStmt := range annotStmts {

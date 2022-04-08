@@ -1453,9 +1453,8 @@ func (c *Compiler) resolveAllRefs() {
 }
 
 func (c *Compiler) removeImports() {
-	for _, name := range c.sorted {
-		mod := c.Modules[name]
-		mod.Imports = nil
+	for name := range c.Modules {
+		c.Modules[name].Imports = nil
 	}
 }
 
@@ -1740,13 +1739,10 @@ func (c *Compiler) parseMetadataBlocks() {
 	regoMetadataCalled := false
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
-		WalkRules(mod, func(rule *Rule) bool {
-			WalkExprs(rule, func(expr *Expr) bool {
-				if isRegoMetadataChainCall(expr) || isRegoMetadataRuleCall(expr) {
-					regoMetadataCalled = true
-				}
-				return regoMetadataCalled
-			})
+		WalkExprs(mod, func(expr *Expr) bool {
+			if isRegoMetadataChainCall(expr) || isRegoMetadataRuleCall(expr) {
+				regoMetadataCalled = true
+			}
 			return regoMetadataCalled
 		})
 
@@ -1773,27 +1769,29 @@ func (c *Compiler) parseMetadataBlocks() {
 }
 
 func (c *Compiler) rewriteRegoMetadataCalls() {
+	eqFactory := newEqualityFactory(c.localvargen)
+
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
 
 		WalkRules(mod, func(rule *Rule) bool {
-			var regoMetadataChainCalled bool
-			var regoMetadataRuleCalled bool
+			var chainCalled bool
+			var ruleCalled bool
 
 			WalkExprs(rule, func(expr *Expr) bool {
 				if isRegoMetadataChainCall(expr) {
-					regoMetadataChainCalled = true
+					chainCalled = true
 				} else if isRegoMetadataRuleCall(expr) {
-					regoMetadataRuleCalled = true
+					ruleCalled = true
 				}
-				return regoMetadataChainCalled && regoMetadataRuleCalled
+				return chainCalled && ruleCalled
 			})
 
-			if regoMetadataChainCalled || regoMetadataRuleCalled {
+			if chainCalled || ruleCalled {
 				body := make(Body, 0, len(rule.Body)+2)
 
 				var metadataChainVar Var
-				if regoMetadataChainCalled {
+				if chainCalled {
 					// Create and inject metadata chain for rule
 
 					chain, err := createMetadataChain(c.annotationSet.Chain(rule))
@@ -1802,14 +1800,13 @@ func (c *Compiler) rewriteRegoMetadataCalls() {
 						return false
 					}
 
-					f := newEqualityFactory(c.localvargen)
-					eq := f.Generate(chain)
+					eq := eqFactory.Generate(chain)
 					metadataChainVar = eq.Operands()[0].Value.(Var)
 					body.Append(eq)
 				}
 
 				var metadataRuleVar Var
-				if regoMetadataRuleCalled {
+				if ruleCalled {
 					// Create and inject metadata for rule
 
 					var metadataRuleTerm *Term
@@ -1827,8 +1824,7 @@ func (c *Compiler) rewriteRegoMetadataCalls() {
 						metadataRuleTerm = ObjectTerm()
 					}
 
-					f := newEqualityFactory(c.localvargen)
-					eq := f.Generate(metadataRuleTerm)
+					eq := eqFactory.Generate(metadataRuleTerm)
 					metadataRuleVar = eq.Operands()[0].Value.(Var)
 					body.Append(eq)
 				}
@@ -1860,12 +1856,10 @@ func getPrimaryRuleAnnotations(as *AnnotationSet, rule *Rule) *Annotations {
 		return nil
 	}
 
-	if len(annots) > 1 {
-		// Sort by annotation location; chain must start with annotations declared closest to rule, then going outward
-		sort.SliceStable(annots, func(i, j int) bool {
-			return annots[i].Location.Compare(annots[j].Location) > 0
-		})
-	}
+	// Sort by annotation location; chain must start with annotations declared closest to rule, then going outward
+	sort.SliceStable(annots, func(i, j int) bool {
+		return annots[i].Location.Compare(annots[j].Location) > 0
+	})
 
 	return annots[0]
 }
@@ -1906,12 +1900,16 @@ func rewriteRegoMetadataCalls(metadataChainVar Var, metadataRuleVar Var, body Bo
 		// NOTE(johanfylling): An alternative strategy would be to walk the body and replace all operands[0]
 		// usages with *metadataChainVar
 		operands := expr.Operands()
-		rewrittenVar := operands[0]
-		newExpr := Equality.Expr(rewrittenVar, NewTerm(metadataVar))
-		newExpr.Generated = true
-		newExpr.Location = expr.Location
-		body.Set(newExpr, i)
-		(*rewrittenVars)[rewrittenVar.Value.(Var)] = originalVar
+		if len(operands) > 0 { // There is an output var to rewrite
+			rewrittenVar := operands[0]
+			newExpr := Equality.Expr(rewrittenVar, NewTerm(metadataVar))
+			newExpr.Generated = true
+			newExpr.Location = expr.Location
+			body.Set(newExpr, i)
+			(*rewrittenVars)[rewrittenVar.Value.(Var)] = originalVar
+		} else { // No output var, just rewrite expr to metadataVar
+			body.Set(NewExpr(NewTerm(metadataVar)), i)
+		}
 	}
 
 	return errs

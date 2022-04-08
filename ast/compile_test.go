@@ -2367,6 +2367,23 @@ p = true {
 }`,
 		},
 		{
+			note: "rego.metadata called, no output var, no metadata",
+			module: `package test
+
+p {
+	rego.metadata.chain()
+	rego.metadata.rule()
+}`,
+			exp: `package test
+
+p = true { 
+	__local0__ = [{"path": ["test", "p"]}]
+	__local1__ = {}
+	__local0__
+	__local1__ 
+}`,
+		},
+		{
 			note: "rego.metadata called, with metadata",
 			module: `# METADATA
 # description: A test package
