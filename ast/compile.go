@@ -634,7 +634,8 @@ func (c *Compiler) GetRulesDynamicWithOpts(ref Ref, opts RulesOptions) []*Rule {
 	set := map[*Rule]struct{}{}
 	var walk func(node *TreeNode, i int)
 	walk = func(node *TreeNode, i int) {
-		if i >= len(ref) {
+		switch {
+		case i >= len(ref):
 			// We've reached the end of the reference and want to collect everything
 			// under this "prefix".
 			node.DepthFirst(func(descendant *TreeNode) bool {
@@ -644,7 +645,8 @@ func (c *Compiler) GetRulesDynamicWithOpts(ref Ref, opts RulesOptions) []*Rule {
 				}
 				return descendant.Hide
 			})
-		} else if i == 0 || IsConstant(ref[i].Value) {
+
+		case i == 0 || IsConstant(ref[i].Value):
 			// The head of the ref is always grounded.  In case another part of the
 			// ref is also grounded, we can lookup the exact child.  If it's not found
 			// we can immediately return...
@@ -658,7 +660,8 @@ func (c *Compiler) GetRulesDynamicWithOpts(ref Ref, opts RulesOptions) []*Rule {
 				// Otherwise, we continue using the child node.
 				walk(child, i+1)
 			}
-		} else {
+
+		default:
 			// This part of the ref is a dynamic term.  We can't know what it refers
 			// to and will just need to try all of the children.
 			for _, child := range node.Children {
@@ -2895,7 +2898,7 @@ func NewGraph(modules map[string]*Module, list func(Ref) []*Rule) *Graph {
 		})
 	}
 
-	// Walk over all rules, add them to graph, and build adjencency lists.
+	// Walk over all rules, add them to graph, and build adjacency lists.
 	for _, module := range modules {
 		WalkRules(module, func(a *Rule) bool {
 			graph.addNode(a)
