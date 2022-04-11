@@ -4801,7 +4801,7 @@ func validateWith(c *Compiler, target, value *Term) (bool, *Error) {
 				for _, value := range child.Values {
 					if len(value.(*Rule).Head.Args) > 0 {
 						// TODO(sr): UDF
-						return false, NewError(CompileErr, target.Loc(), "with keyword cannot replace rego functions")
+						return false, NewError(CompileErr, target.Loc(), "with keyword used on non-built-in function")
 					}
 				}
 			}
