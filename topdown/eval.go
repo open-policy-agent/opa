@@ -728,12 +728,12 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 		return eval.eval(iter)
 	}
 
-	bi, f, ok := e.builtinFunc(ref.String())
+	builtinName := ref.String()
+	bi, f, ok := e.builtinFunc(builtinName)
 	if !ok {
 		return unsupportedBuiltinErr(e.query[e.index].Location)
 	}
 
-	builtinName := ref.String()
 	if mock, ok := e.builtinMocks.Get(builtinName); ok {
 		mockCall := append([]*ast.Term{ast.NewTerm(mock)}, terms[1:]...)
 
