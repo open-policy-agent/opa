@@ -54,7 +54,7 @@ jobs:
         run: echo "::set-output name=go_version::$(cat .go-version)"
 
       - name: Install Go (${{ steps.go_version.outputs.go_version }})
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v3
         with:
           go-version: ${{ steps.go_version.outputs.go_version }}
         if: matrix.os == 'darwin'
@@ -98,7 +98,7 @@ jobs:
         run: echo "::set-output name=go_version::$(cat .go-version)"
 
       - name: Install Go (${{ steps.go_version.outputs.go_version }})
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v3
         with:
           go-version: ${{ steps.go_version.outputs.go_version }}
 
@@ -294,7 +294,7 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: generated
-      - uses: actions/setup-go@v2
+      - uses: actions/setup-go@v3
         with:
           go-version: ${{ matrix.version }}
       - run: make build
