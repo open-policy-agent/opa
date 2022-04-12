@@ -4788,16 +4788,11 @@ func rewriteWithModifier(c *Compiler, f *equalityFactory, expr *Expr) ([]*Expr, 
 		}
 	}
 
-	// If any of the with modifiers in this expression were rewritten then result
-	// will be non-empty. In this case, the expression will have been modified and
-	// it should also be added to the result.
-	if len(result) > 0 {
-		result = append(result, expr)
-	}
-	return result, nil
+	return append(result, expr), nil
 }
 
 func validateWith(c *Compiler, target, value *Term) (bool, *Error) {
+
 	switch {
 	case isDataRef(target):
 		ref := target.Value.(Ref)
@@ -4824,6 +4819,12 @@ func validateWith(c *Compiler, target, value *Term) (bool, *Error) {
 		}
 	case isInputRef(target): // ok, valid
 	case isBuiltinRefOrVar(c.builtins, target):
+		if v, ok := target.Value.(Var); ok {
+			target.Value = Ref([]*Term{NewTerm(v)})
+		}
+		if v, ok := value.Value.(Var); ok {
+			value.Value = Ref([]*Term{NewTerm(v)})
+		}
 		bi := c.builtins[target.Value.String()] // safe because isBuiltinRefOrVar checked this
 
 		if bi.Relation {

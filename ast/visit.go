@@ -614,7 +614,13 @@ func (vis *VarVisitor) visit(v interface{}) bool {
 					vis.Walk(t)
 				}
 			}
-			vis.Walk(v.Value)
+			if ref, ok := v.Value.Value.(Ref); ok {
+				for _, t := range ref[1:] {
+					vis.Walk(t)
+				}
+			} else {
+				vis.Walk(v.Value)
+			}
 			return true
 		}
 	}

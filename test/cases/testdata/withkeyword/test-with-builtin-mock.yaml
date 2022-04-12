@@ -327,3 +327,40 @@ cases:
   note: 'withkeyword/builtin-value: arity-1, input must still be defined'
   query: data.test.p = x
   want_result: []
+- data:
+  modules:
+  - |
+    package test
+
+    p = x {
+      x = time.now_ns() with time.now_ns as opa.runtime
+    }
+  note: 'withkeyword/builtin-builtin: arity 0'
+  query: data.test.p = x
+  want_result:
+  - x: {}
+- data:
+  modules:
+  - |
+    package test
+
+    p = x {
+      x = count([{}, {"foo": 3}]) with count as object.union_n
+    }
+  note: 'withkeyword/builtin-builtin: arity 1, replacement is compound'
+  query: data.test.p = x
+  want_result:
+  - x:
+      foo: 3
+- data:
+  modules:
+  - |
+    package test
+
+    p = x {
+      x = object.union_n([{}, {"foo": 3}]) with object.union_n as count
+    }
+  note: 'withkeyword/builtin-builtin: arity 1, replacement is simple'
+  query: data.test.p = x
+  want_result:
+  - x: 2
