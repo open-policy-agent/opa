@@ -465,7 +465,7 @@ func (e *eval) evalWith(iter evalIterator) error {
 		// have no effect.)
 		for _, with := range expr.With {
 			if isOtherRef(with.Target) {
-				// built-in replaced: either a simple one (target is ast.Var) or an ast.Ref
+				// built-in replaced
 				_ = disableRef(with.Value.Value.(ast.Ref))
 				continue
 			}
@@ -3247,7 +3247,11 @@ func isDataRef(term *ast.Term) bool {
 }
 
 func isOtherRef(term *ast.Term) bool {
-	return !isDataRef(term) && !isInputRef(term)
+	ref, ok := term.Value.(ast.Ref)
+	if !ok {
+		panic("unreachable")
+	}
+	return !ref.HasPrefix(ast.DefaultRootRef) && !ref.HasPrefix(ast.InputRootRef)
 }
 
 func merge(a, b ast.Value) (ast.Value, bool) {
@@ -3321,13 +3325,12 @@ func (e *eval) updateSavedMocks(withs []*ast.With) []*ast.With {
 	for _, w := range withs {
 		v := w.Copy()
 		if isOtherRef(w.Target) {
-			if ref, ok := v.Value.Value.(ast.Ref); ok {
-				nref := e.namespaceRef(ref)
-				if e.saveSupport.Exists(nref) {
-					v.Value.Value = nref
-				} else {
-					continue // skip
-				}
+			ref := v.Value.Value.(ast.Ref)
+			nref := e.namespaceRef(ref)
+			if e.saveSupport.Exists(nref) {
+				v.Value.Value = nref
+			} else {
+				continue // skip
 			}
 		}
 		ret = append(ret, v)

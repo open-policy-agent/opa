@@ -797,25 +797,25 @@ func TestTopDownPartialEval(t *testing.T) {
 			modules: []string{
 				`package test
 
-				mock_concat(_, _) = "foo/bar"
+				mock_concat(_, _) = ["foo", "bar"]
 				p {
-					q with concat as mock_concat
+					q with array.concat as mock_concat
 				}
 				q {
-					concat("/", input, "foo/bar")
+					array.concat(["foo"], input, ["foo", "bar"])
 				}`,
 			},
 			wantQueries: []string{`
-				data.partial.test.q = x_term_1_01 with concat as data.partial.test.mock_concat
-				x_term_1_01 with concat as data.partial.test.mock_concat
+				data.partial.test.q = x_term_1_01 with array.concat as data.partial.test.mock_concat
+				x_term_1_01 with array.concat as data.partial.test.mock_concat
 				a = true
 			`},
 			wantSupport: []string{`package partial.test
 
 				q {
-					data.partial.test.mock_concat("/", input, "foo/bar")
+					data.partial.test.mock_concat(["foo"], input, ["foo", "bar"])
 				}
-				mock_concat(__local0__3, __local1__3) = "foo/bar"
+				mock_concat(__local0__3, __local1__3) = ["foo", "bar"]
 			`},
 		},
 		{
@@ -824,30 +824,29 @@ func TestTopDownPartialEval(t *testing.T) {
 			modules: []string{
 				`package test
 
-				mock_concat(_, _) = "foo/bar" { input.foo }
-				mock_concat(_, _) = "bar/baz" { input.bar }
+				mock_concat(_, _) = ["foo", "bar"] { input.foo }
+				mock_concat(_, _) = ["bar", "baz"] { input.bar }
 
-				p { q with concat as mock_concat }
-				q { x := concat("/", input); startswith("foo/", x) }`,
+				p { q with array.concat as mock_concat }
+				q { x := array.concat(["foo"], input) }`,
 			},
 			wantQueries: []string{`
-				data.partial.test.q = x_term_1_01 with concat as data.partial.test.mock_concat
-				x_term_1_01 with concat as data.partial.test.mock_concat
+				data.partial.test.q = x_term_1_01 with array.concat as data.partial.test.mock_concat
+				x_term_1_01 with array.concat as data.partial.test.mock_concat
 				a = true
 			`},
 			wantSupport: []string{`package partial.test
 
 			q {
 				__local6__2 = input
-				data.partial.test.mock_concat("/", __local6__2, __local5__2)
+				data.partial.test.mock_concat(["foo"], __local6__2, __local5__2)
 				__local4__2 = __local5__2
-				startswith("foo/", __local4__2)
 			}
-			mock_concat(__local0__3, __local1__3) = "foo/bar" {
+			mock_concat(__local0__3, __local1__3) = ["foo", "bar"] {
 				input.foo = x_term_3_03
 				x_term_3_03
 			}
-			mock_concat(__local2__4, __local3__4) = "bar/baz" {
+			mock_concat(__local2__4, __local3__4) = ["bar", "baz"] {
 				input.bar = x_term_4_04
 				x_term_4_04
 			}`},
@@ -889,7 +888,11 @@ func TestTopDownPartialEval(t *testing.T) {
 					count(input.y) = input.x # unknown arg for mocked func
 				}
 			`},
-			wantQueries: []string{"not data.partial.test.q with input.x as 1 with count as data.partial.test.mock_count"},
+			wantQueryASTs: func() []ast.Body {
+				b := ast.MustParseBody("not data.partial.test.q with input.x as 1 with count as data.partial.test.mock_count")
+				b[0].With[1].Target.Value = ast.Ref([]*ast.Term{ast.VarTerm("count")})
+				return []ast.Body{b}
+			}(),
 			wantSupport: []string{`
 				package partial.test
 
@@ -913,7 +916,11 @@ func TestTopDownPartialEval(t *testing.T) {
 					count([1]) = input.x # unknown arg for mocked func
 				}
 			`},
-			wantQueries: []string{"not data.partial.test.q with input.x as 1 with count as data.partial.test.mock_count"},
+			wantQueryASTs: func() []ast.Body {
+				b := ast.MustParseBody("not data.partial.test.q with input.x as 1 with count as data.partial.test.mock_count")
+				b[0].With[1].Target.Value = ast.Ref([]*ast.Term{ast.VarTerm("count")})
+				return []ast.Body{b}
+			}(),
 			wantSupport: []string{`
 				package partial.test
 

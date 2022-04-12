@@ -4823,7 +4823,9 @@ func validateWith(c *Compiler, target, value *Term) (bool, *Error) {
 			target.Value = Ref([]*Term{NewTerm(v)})
 		}
 		if v, ok := value.Value.(Var); ok {
-			value.Value = Ref([]*Term{NewTerm(v)})
+			if _, ok := c.builtins[v.String()]; ok {
+				value.Value = Ref([]*Term{NewTerm(v)})
+			}
 		}
 		bi := c.builtins[target.Value.String()] // safe because isBuiltinRefOrVar checked this
 
@@ -4855,7 +4857,6 @@ func validateWith(c *Compiler, target, value *Term) (bool, *Error) {
 			return false, nil
 		}
 
-		return true, nil // value replacement: bound to local
 	default:
 		return false, NewError(TypeErr, target.Location, "with keyword target must reference existing %v, %v, or a built-in function", InputRootDocument, DefaultRootDocument)
 	}

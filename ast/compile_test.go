@@ -4005,10 +4005,11 @@ func TestCompilerRewriteWithValue(t *testing.T) {
 	`
 
 	tests := []struct {
-		note     string
-		input    string
-		expected string
-		wantErr  error
+		note         string
+		input        string
+		expected     string
+		expectedRule *Rule
+		wantErr      error
 	}{
 		{
 			note:     "nop",
@@ -4053,7 +4054,7 @@ func TestCompilerRewriteWithValue(t *testing.T) {
 		{
 			note:     "built-in function: replaced by (unknown) var",
 			input:    `p { true with time.now_ns as foo }`,
-			expected: `p { __local0__ = foo; true with time.now_ns as __local0__ }`,
+			expected: `p { true with time.now_ns as foo }`, // `foo` still a Var here
 		},
 		{
 			note: "built-in function: valid, arity 0",
@@ -4076,7 +4077,7 @@ func TestCompilerRewriteWithValue(t *testing.T) {
 			input: `
 				p { true with http.send as { "body": "yay" } }
 			`,
-			expected: `p { __local0__ = {"body": "yay"}; true with http.send as __local0__ }`,
+			expected: `p { true with http.send as {"body": "yay"} }`,
 		},
 		{
 			note: "built-in function: replaced by ref",
@@ -4098,7 +4099,11 @@ func TestCompilerRewriteWithValue(t *testing.T) {
 			input: `
 				p { true with http.send as count }
 			`,
-			expected: `p { true with http.send as count }`,
+			expectedRule: func() *Rule {
+				r := MustParseRule(`p { true with http.send as count }`)
+				r.Body[0].With[0].Value.Value = Ref([]*Term{VarTerm("count")})
+				return r
+			}(),
 		},
 		{
 			note: "built-in function: replaced by another built-in (simple), wrong arity",
@@ -4120,7 +4125,11 @@ func TestCompilerRewriteWithValue(t *testing.T) {
 				p { concat("/", input) with concat as mock_concat }
 				mock_concat(_, _) = "foo/bar"
 			`,
-			expected: `p { concat("/", input) with concat as data.test.mock_concat }`,
+			expectedRule: func() *Rule {
+				r := MustParseRule(`p { concat("/", input) with concat as data.test.mock_concat }`)
+				r.Body[0].With[0].Target.Value = Ref([]*Term{VarTerm("concat")})
+				return r
+			}(),
 		},
 	}
 
@@ -4132,7 +4141,10 @@ func TestCompilerRewriteWithValue(t *testing.T) {
 			compileStages(c, c.rewriteWithModifiers)
 			if tc.wantErr == nil {
 				assertNotFailed(t, c)
-				expected := MustParseRule(tc.expected)
+				expected := tc.expectedRule
+				if expected == nil {
+					expected = MustParseRule(tc.expected)
+				}
 				result := c.Modules["test"].Rules[1]
 				if result.Compare(expected) != 0 {
 					t.Fatalf("\nExp: %v\nGot: %v", expected, result)
