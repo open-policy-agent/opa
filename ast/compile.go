@@ -1889,6 +1889,7 @@ func rewriteRegoMetadataCalls(metadataChainVar Var, metadataRuleVar Var, body Bo
 
 		if isRegoMetadataChainCall(expr) {
 			metadataVar = metadataChainVar
+			// TODO: Find a less hacky way of finding the original function call to replace
 			originalVar = Var(fmt.Sprintf("%s()", RegoMetadataChain.Ref().String()))
 		} else if isRegoMetadataRuleCall(expr) {
 			metadataVar = metadataRuleVar

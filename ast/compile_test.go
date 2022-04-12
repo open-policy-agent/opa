@@ -2591,7 +2591,7 @@ p = true {
 	}
 }
 
-func TestCompilerRewriteSelfCallsErrors(t *testing.T) {
+func TestCompilerRewriteRegoMetadataCallsErrors(t *testing.T) {
 	tests := []struct {
 		note   string
 		module string
