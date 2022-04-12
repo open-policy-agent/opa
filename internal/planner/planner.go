@@ -558,7 +558,7 @@ func (p *Planner) planWith(e *ast.Expr, iter planiter) error {
 	values := make([]*ast.Term, 0, len(e.With)) // NOTE(sr): we could be overallocating if there are builtin replacements
 	targets := make([]ast.Ref, 0, len(e.With))
 
-	builtins := builtinMocksElem{}
+	builtins := frame{}
 
 	for _, w := range e.With {
 		switch v := w.Target.Value.(type) {
@@ -576,7 +576,7 @@ func (p *Planner) planWith(e *ast.Expr, iter planiter) error {
 
 	return p.planTermSlice(values, func(locals []ir.Operand) error {
 
-		p.builtins.Push(builtins)
+		p.builtins.PushFrame(builtins)
 
 		paths := make([][]int, len(targets))
 		saveVars := ast.NewVarSet()
@@ -623,7 +623,7 @@ func (p *Planner) planWith(e *ast.Expr, iter planiter) error {
 		}
 
 		err := p.planWithRec(e, paths, locals, 0, func() error {
-			_ = p.builtins.Pop()
+			p.builtins.PopFrame()
 			if shadowing {
 				p.funcs.Pop()
 				for i := len(dataRefs) - 1; i >= 0; i-- {
@@ -635,7 +635,7 @@ func (p *Planner) planWith(e *ast.Expr, iter planiter) error {
 
 				err := iter()
 
-				p.builtins.Push(builtins)
+				p.builtins.PushFrame(builtins)
 				if shadowing {
 					p.funcs.Push(map[string]string{})
 					for _, ref := range dataRefs {
@@ -648,7 +648,7 @@ func (p *Planner) planWith(e *ast.Expr, iter planiter) error {
 			return err
 		})
 
-		_ = p.builtins.Pop()
+		p.builtins.PopFrame()
 		if shadowing {
 			p.funcs.Pop()
 			for i := len(dataRefs) - 1; i >= 0; i-- {
@@ -820,14 +820,14 @@ func (p *Planner) planExprCall(e *ast.Expr, iter planiter) error {
 		op := e.Operator()
 		if replacement, ok := p.builtins.Lookup(operator); ok {
 			op = replacement
-			prev := p.builtins.Pop()
+			p.builtins.Push() // new scope
 			node := p.rules.Lookup(op)
 			if node != nil {
 				name, err = p.planRules(node.Rules())
 				if err != nil {
 					return err
 				}
-				p.builtins.Push(prev)
+				p.builtins.Pop()
 
 				arity = node.Arity()
 				args = []ir.Operand{

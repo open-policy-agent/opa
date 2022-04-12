@@ -168,31 +168,46 @@ func (t *ruletrie) Get(k ast.Value) *ruletrie {
 }
 
 type builtinMocksStack struct {
-	sl []builtinMocksElem
+	stack []*builtinMocksElem
 }
 
-type builtinMocksElem map[string]ast.Ref
+type builtinMocksElem []frame
+
+type frame map[string]ast.Ref
 
 func newBuiltinMocksStack() *builtinMocksStack {
-	return &builtinMocksStack{}
+	stack := &builtinMocksStack{}
+	stack.Push()
+	return stack
 }
 
-func (s *builtinMocksStack) Push(el builtinMocksElem) {
-	s.sl = append(s.sl, el)
+func newBuiltinMocksElem() *builtinMocksElem {
+	return &builtinMocksElem{}
 }
 
-func (s *builtinMocksStack) Pop() builtinMocksElem {
-	last := s.sl[len(s.sl)-1]
-	s.sl = s.sl[:len(s.sl)-1]
-	return last
+func (s *builtinMocksStack) Push() {
+	s.stack = append(s.stack, newBuiltinMocksElem())
+}
+
+func (s *builtinMocksStack) Pop() {
+	s.stack = s.stack[:len(s.stack)-1]
+}
+
+func (s *builtinMocksStack) PushFrame(f frame) {
+	current := s.stack[len(s.stack)-1]
+	*current = append(*current, f)
+}
+
+func (s *builtinMocksStack) PopFrame() {
+	current := s.stack[len(s.stack)-1]
+	*current = (*current)[:len(*current)-1]
 }
 
 func (s *builtinMocksStack) Lookup(builtinName string) (ast.Ref, bool) {
-	if s != nil {
-		for i := len(s.sl) - 1; i >= 0; i-- {
-			if r, ok := s.sl[i][builtinName]; ok {
-				return r, true
-			}
+	current := *s.stack[len(s.stack)-1]
+	for i := len(current) - 1; i >= 0; i-- {
+		if r, ok := current[i][builtinName]; ok {
+			return r, true
 		}
 	}
 	return nil, false
