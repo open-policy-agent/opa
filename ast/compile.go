@@ -1884,16 +1884,11 @@ func rewriteRegoMetadataCalls(metadataChainVar Var, metadataRuleVar Var, body Bo
 	for i := range body {
 		expr := body[i]
 		var metadataVar Var
-		// We're replacing a function call, that we then need to replace in error reporting
-		var originalVar Var
 
 		if isRegoMetadataChainCall(expr) {
 			metadataVar = metadataChainVar
-			// TODO: Find a less hacky way of finding the original function call to replace
-			originalVar = Var(fmt.Sprintf("%s()", RegoMetadataChain.Ref().String()))
 		} else if isRegoMetadataRuleCall(expr) {
 			metadataVar = metadataRuleVar
-			originalVar = Var(fmt.Sprintf("%s()", RegoMetadataRule.Ref().String()))
 		} else {
 			continue
 		}
@@ -1907,7 +1902,6 @@ func rewriteRegoMetadataCalls(metadataChainVar Var, metadataRuleVar Var, body Bo
 			newExpr.Generated = true
 			newExpr.Location = expr.Location
 			body.Set(newExpr, i)
-			(*rewrittenVars)[rewrittenVar.Value.(Var)] = originalVar
 		} else { // No output var, just rewrite expr to metadataVar
 			body.Set(NewExpr(NewTerm(metadataVar)), i)
 		}
