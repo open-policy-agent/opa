@@ -237,39 +237,54 @@ func newComprehensionCacheHashMap() *util.HashMap {
 }
 
 type builtinMocksStack struct {
-	sl []builtinMocksElem
+	stack []*builtinMocksElem
 }
 
-type builtinMocksElem map[string]ast.Ref
+type builtinMocksElem []frame
+
+type frame map[string]ast.Ref
 
 func newBuiltinMocksStack() *builtinMocksStack {
-	return &builtinMocksStack{}
+	stack := &builtinMocksStack{}
+	stack.Push()
+	return stack
 }
 
-func (s *builtinMocksStack) PushPairs(mocks [][2]*ast.Term) {
-	el := builtinMocksElem{}
+func newBuiltinMocksElem() *builtinMocksElem {
+	return &builtinMocksElem{}
+}
+
+func (s *builtinMocksStack) Push() {
+	s.stack = append(s.stack, newBuiltinMocksElem())
+}
+
+func (s *builtinMocksStack) Pop() {
+	s.stack = s.stack[:len(s.stack)-1]
+}
+
+func (s *builtinMocksStack) PopPairs() {
+	current := s.stack[len(s.stack)-1]
+	*current = (*current)[:len(*current)-1]
+}
+
+func (s *builtinMocksStack) PutPairs(mocks [][2]*ast.Term) {
+	el := frame{}
 	for i := range mocks {
 		el[mocks[i][0].Value.String()] = mocks[i][1].Value.(ast.Ref)
 	}
-	s.Push(el)
+	s.Put(el)
 }
 
-func (s *builtinMocksStack) Push(el builtinMocksElem) {
-	s.sl = append(s.sl, el)
-}
-
-func (s *builtinMocksStack) Pop() builtinMocksElem {
-	last := s.sl[len(s.sl)-1]
-	s.sl = s.sl[:len(s.sl)-1]
-	return last
+func (s *builtinMocksStack) Put(el frame) {
+	current := s.stack[len(s.stack)-1]
+	*current = append(*current, el)
 }
 
 func (s *builtinMocksStack) Get(builtinName string) (ast.Ref, bool) {
-	if s != nil {
-		for i := len(s.sl) - 1; i >= 0; i-- {
-			if r, ok := s.sl[i][builtinName]; ok {
-				return r, true
-			}
+	current := *s.stack[len(s.stack)-1]
+	for i := len(current) - 1; i >= 0; i-- {
+		if r, ok := current[i][builtinName]; ok {
+			return r, true
 		}
 	}
 	return nil, false

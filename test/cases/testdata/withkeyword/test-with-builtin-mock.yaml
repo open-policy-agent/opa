@@ -227,3 +227,45 @@ cases:
   query: data.test.p = x
   want_result:
   - x: 1
+- data:
+  modules:
+  - |
+    package test
+
+    f(x) = object.union_n(x) { { x: i | x := ["a", "a"][i]} } # never called, runtime error
+    g(x) = count(x)
+    p {
+      q with count as f
+    }
+    q {
+      r with object.union_n as g
+    }
+    r {
+      object.union_n([{}])
+    }
+  note: 'withkeyword/builtin: mock will not call other mock'
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+
+    f(x) = {"foo": 3} {
+      object.union_n(x) # b1
+      true
+    }
+    g(x) = 123 {
+      count(x) # b2
+      s with array.reverse as h
+    }
+    h(_) = ["replaced"]
+    p { q with object.union_n as f }
+    q { r with count as g }
+    r { x := [{}]; count(x) == 123; object.union_n(x) == {"foo": 3} }
+    s { x := [{}]; array.reverse(x) == ["replaced"] }
+  note: 'withkeyword/builtin: nested scope handling'
+  query: data.test.p = x
+  want_result:
+  - x: true

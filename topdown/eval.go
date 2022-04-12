@@ -558,7 +558,7 @@ func (e *eval) evalWithPush(input, data *ast.Term, builtinMocks [][2]*ast.Term, 
 	e.virtualCache.Push()
 	e.targetStack.Push(targets)
 	e.inliningControl.PushDisable(disable, true)
-	e.builtinMocks.PushPairs(builtinMocks)
+	e.builtinMocks.PutPairs(builtinMocks)
 
 	return oldInput, oldData
 }
@@ -568,7 +568,7 @@ func (e *eval) evalWithPop(input, data *ast.Term) {
 	e.targetStack.Pop()
 	e.virtualCache.Pop()
 	e.comprehensionCache.Pop()
-	_ = e.builtinMocks.Pop()
+	e.builtinMocks.PopPairs()
 	e.data = data
 	e.input = input
 }
@@ -737,14 +737,14 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 	if mock, ok := e.builtinMocks.Get(builtinName); ok {
 		mockCall := append([]*ast.Term{ast.NewTerm(mock)}, terms[1:]...)
 
-		prev := e.builtinMocks.Pop()
+		e.builtinMocks.Push()
 		err := e.evalCall(mockCall, func() error {
-			e.builtinMocks.Push(prev)
+			e.builtinMocks.Pop()
 			err := iter()
-			_ = e.builtinMocks.Pop() // prev won't change
+			e.builtinMocks.Push()
 			return err
 		})
-		e.builtinMocks.Push(prev)
+		e.builtinMocks.Pop()
 		return err
 	}
 
