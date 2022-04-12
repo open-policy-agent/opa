@@ -497,10 +497,10 @@ func (e *eval) evalWith(iter evalIterator) error {
 			pairsInput = append(pairsInput, [...]*ast.Term{expr.With[i].Target, plugged})
 		case isDataRef(expr.With[i].Target):
 			pairsData = append(pairsData, [...]*ast.Term{expr.With[i].Target, plugged})
-		default: // ref must be builtin
+		default: // target must be builtin
 			_, _, ok := e.builtinFunc(target.String())
 			if ok {
-				builtinMocks = append(builtinMocks, [...]*ast.Term{expr.With[i].Target, expr.With[i].Value})
+				builtinMocks = append(builtinMocks, [...]*ast.Term{expr.With[i].Target, plugged})
 			}
 			continue
 		}
@@ -735,17 +735,32 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 	}
 
 	if mock, ok := e.builtinMocks.Get(builtinName); ok {
-		mockCall := append([]*ast.Term{ast.NewTerm(mock)}, terms[1:]...)
+		switch m := mock.Value.(type) {
+		case ast.Ref: // builtin or data function
+			mockCall := append([]*ast.Term{ast.NewTerm(m)}, terms[1:]...)
 
-		e.builtinMocks.Push()
-		err := e.evalCall(mockCall, func() error {
-			e.builtinMocks.Pop()
-			err := iter()
 			e.builtinMocks.Push()
+			err := e.evalCall(mockCall, func() error {
+				e.builtinMocks.Pop()
+				err := iter()
+				e.builtinMocks.Push()
+				return err
+			})
+			e.builtinMocks.Pop()
 			return err
-		})
-		e.builtinMocks.Pop()
-		return err
+
+		default: // value replacement
+			switch {
+			case len(terms) == len(bi.Decl.Args())+2: // captured var
+				return e.unify(terms[len(terms)-1], mock, iter)
+
+			case len(terms) == len(bi.Decl.Args())+1:
+				if mock.Value.Compare(ast.Boolean(false)) != 0 {
+					return iter()
+				}
+				return nil
+			}
+		}
 	}
 
 	if e.unknown(e.query[e.index], e.bindings) {

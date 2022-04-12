@@ -2845,6 +2845,19 @@ func (n *TreeNode) Child(k Value) *TreeNode {
 	return nil
 }
 
+// Find dereferences ref along the tree
+func (n *TreeNode) Find(ref Ref) *TreeNode {
+	node := n
+	for _, r := range ref {
+		child := node.Child(r.Value)
+		if child == nil {
+			return nil
+		}
+		node = child
+	}
+	return node
+}
+
 // DepthFirst performs a depth-first traversal of the rule tree rooted at n. If
 // f returns true, traversal will not continue to the children of n.
 func (n *TreeNode) DepthFirst(f func(node *TreeNode) bool) {
@@ -4811,37 +4824,37 @@ func validateWith(c *Compiler, target, value *Term) (bool, *Error) {
 		}
 	case isInputRef(target): // ok, valid
 	case isBuiltinRefOrVar(c.builtins, target):
-		ref, ok := value.Value.(Ref)
-		if !ok {
-			return false, NewError(CompileErr, target.Loc(), "with keyword replacing built-in function: value must be a reference to a function")
-		}
-
-		node := c.RuleTree
-		for _, r := range ref {
-			child := node.Child(r.Value)
-			if child == nil {
-				return false, NewError(CompileErr, target.Loc(), "with keyword replacing built-in function: value must be a reference to a function")
-			}
-			node = child
-		}
-
-		bi := c.builtins[target.Value.String()] // safe because isBuiltinRef checked this
+		bi := c.builtins[target.Value.String()] // safe because isBuiltinRefOrVar checked this
 
 		if bi.Relation {
 			return false, NewError(CompileErr, target.Loc(), "with keyword replacing built-in function: target must not be a relation")
 		}
+		biArity := len(bi.Decl.Args())
 
-		for _, value := range node.Values {
-			arity := len(value.(*Rule).Head.Args)
-			biArity := len(bi.Decl.Args())
-			switch {
-			case arity == 0 && biArity != 0:
-				return false, NewError(CompileErr, target.Loc(), "with keyword replacing built-in function: referenced value must be a function")
-			case arity != biArity:
-				return false, NewError(CompileErr, target.Loc(), "with keyword replacing built-in function: referenced value function must have same arity (have %d, want %d)", arity, biArity)
+		if v, ok := value.Value.(Ref); ok {
+			if node := c.RuleTree.Find(v); node != nil { // check arity
+				// it's either a function of the same arity, or used as value
+				for _, value := range node.Values { // TODO(sr): loop looks superfluous
+					arity := len(value.(*Rule).Head.Args)
+					switch {
+					case arity == 0: // nothing to do, replacement by value
+					case arity != biArity:
+						return false, NewError(CompileErr, target.Loc(), "with keyword replacing built-in function: referenced value function must have same arity (have %d, want %d)", arity, biArity)
+					}
+					continue
+				}
+				return false, nil
 			}
 		}
-		return false, nil
+		// could be ref to built-in, e.g. "array.concat", or simple built-in, e.g. "count" -- check arity
+		if bi, ok := c.builtins[value.Value.String()]; ok {
+			if arity := len(bi.Decl.Args()); arity != biArity {
+				return false, NewError(CompileErr, target.Loc(), "with keyword replacing built-in function: referenced value built-in must have same arity (have %d, want %d)", arity, biArity)
+			}
+			return false, nil
+		}
+
+		return true, nil // value replacement: bound to local
 	default:
 		return false, NewError(TypeErr, target.Location, "with keyword target must reference existing %v, %v, or a built-in function", InputRootDocument, DefaultRootDocument)
 	}

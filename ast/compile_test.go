@@ -4051,9 +4051,9 @@ func TestCompilerRewriteWithValue(t *testing.T) {
 			wantErr: fmt.Errorf("rego_type_error: with keyword target must reference existing input, data, or a built-in function"),
 		},
 		{
-			note:    "built-in function: invalid",
-			input:   `p { true with time.now_ns as foo }`,
-			wantErr: fmt.Errorf("rego_compile_error: with keyword replacing built-in function: value must be a reference to a function"),
+			note:     "built-in function: replaced by (unknown) var",
+			input:    `p { true with time.now_ns as foo }`,
+			expected: `p { __local0__ = foo; true with time.now_ns as __local0__ }`,
 		},
 		{
 			note: "built-in function: valid, arity 0",
@@ -4064,12 +4064,55 @@ func TestCompilerRewriteWithValue(t *testing.T) {
 			expected: `p { true with time.now_ns as data.test.now }`,
 		},
 		{
-			note: "built-in function: valid, arity 1",
+			note: "built-in function: valid func ref, arity 1",
 			input: `
 				p { true with http.send as mock_http_send }
 				mock_http_send(_) = { "body": "yay" }
 			`,
 			expected: `p { true with http.send as data.test.mock_http_send }`,
+		},
+		{
+			note: "built-in function: replaced by value",
+			input: `
+				p { true with http.send as { "body": "yay" } }
+			`,
+			expected: `p { __local0__ = {"body": "yay"}; true with http.send as __local0__ }`,
+		},
+		{
+			note: "built-in function: replaced by ref",
+			input: `
+				p { true with http.send as resp }
+				resp := { "body": "yay" }
+			`,
+			expected: `p { true with http.send as data.test.resp }`,
+		},
+		{
+			note: "built-in function: replaced by another built-in (ref)",
+			input: `
+				p { true with http.send as object.union_n }
+			`,
+			expected: `p { true with http.send as object.union_n }`,
+		},
+		{
+			note: "built-in function: replaced by another built-in (simple)",
+			input: `
+				p { true with http.send as count }
+			`,
+			expected: `p { true with http.send as count }`,
+		},
+		{
+			note: "built-in function: replaced by another built-in (simple), wrong arity",
+			input: `
+				p { true with array.concat as count }
+			`,
+			wantErr: fmt.Errorf("rego_compile_error: with keyword replacing built-in function: referenced value built-in must have same arity (have 1, want 2)"),
+		},
+		{
+			note: "built-in function: replaced by another built-in (ref), wrong arity",
+			input: `
+				p { true with count as array.concat }
+			`,
+			wantErr: fmt.Errorf("rego_compile_error: with keyword replacing built-in function: referenced value built-in must have same arity (have 2, want 1)"),
 		},
 		{
 			note: "built-in function: valid, arity 1, non-compound name",
@@ -4495,22 +4538,20 @@ func TestCompilerMockBuiltinFunction(t *testing.T) {
 			module: `package test
 				p { true with time.now_ns as now }
 			`,
-			err: "rego_compile_error: with keyword replacing built-in function: value must be a reference to a function",
 		},
 		{
-			note: "valid ref: not a function, but arity = 0", // TODO: arity-0 is special: complete rule... are we OK with this?
+			note: "valid ref: not a function, but arity = 0",
 			module: `package test
 				now = 1
 				p { true with time.now_ns as now }
 			`,
 		},
 		{
-			note: "invalid ref: not a function, arity > 0",
+			note: "ref: not a function, arity > 0",
 			module: `package test
 				http_send = { "body": "nope" }
 				p { true with http.send as http_send }
 			`,
-			err: "rego_compile_error: with keyword replacing built-in function: referenced value must be a function",
 		},
 		{
 			note: "invalid ref: arity mismatch",
@@ -4521,11 +4562,10 @@ func TestCompilerMockBuiltinFunction(t *testing.T) {
 			err: "rego_compile_error: with keyword replacing built-in function: referenced value function must have same arity (have 2, want 1)",
 		},
 		{
-			note: "invalid ref: value another built-in",
+			note: "ref: value another built-in",
 			module: `package test
 				p { true with http.send as net.lookup_ip_addr }
 			`,
-			err: "rego_compile_error: with keyword replacing built-in function: value must be a reference to a function",
 		},
 		{
 			note: "valid: package import",

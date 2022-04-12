@@ -269,3 +269,61 @@ cases:
   query: data.test.p = x
   want_result:
   - x: true
+- data:
+  modules:
+  - |
+    package test
+
+    p = y {
+      y = time.now_ns() with time.now_ns as 12300
+    }
+  note: 'withkeyword/builtin-value: arity-0, captured output'
+  query: data.test.p = x
+  want_result:
+  - x: 12300
+- data:
+  modules:
+  - |
+    package test
+
+    p {
+      time.now_ns() with time.now_ns as false
+    }
+  note: 'withkeyword/builtin-value: arity-0'
+  query: data.test.p = x
+  want_result: []
+- data:
+  modules:
+  - |
+    package test
+
+    p {
+      count([]) == 1 with count as 1
+    }
+  note: 'withkeyword/builtin-value: arity-1'
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+
+    p {
+      count([], 1) with count as 1
+    }
+  note: 'withkeyword/builtin-value: arity-1, captured'
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+
+    p {
+      count(input) == 1 with count as 1
+    }
+  note: 'withkeyword/builtin-value: arity-1, input must still be defined'
+  query: data.test.p = x
+  want_result: []

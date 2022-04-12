@@ -242,7 +242,7 @@ type builtinMocksStack struct {
 
 type builtinMocksElem []frame
 
-type frame map[string]ast.Ref
+type frame map[string]*ast.Term
 
 func newBuiltinMocksStack() *builtinMocksStack {
 	stack := &builtinMocksStack{}
@@ -270,7 +270,7 @@ func (s *builtinMocksStack) PopPairs() {
 func (s *builtinMocksStack) PutPairs(mocks [][2]*ast.Term) {
 	el := frame{}
 	for i := range mocks {
-		el[mocks[i][0].Value.String()] = mocks[i][1].Value.(ast.Ref)
+		el[mocks[i][0].Value.String()] = mocks[i][1]
 	}
 	s.Put(el)
 }
@@ -280,7 +280,7 @@ func (s *builtinMocksStack) Put(el frame) {
 	*current = append(*current, el)
 }
 
-func (s *builtinMocksStack) Get(builtinName string) (ast.Ref, bool) {
+func (s *builtinMocksStack) Get(builtinName string) (*ast.Term, bool) {
 	current := *s.stack[len(s.stack)-1]
 	for i := len(current) - 1; i >= 0; i-- {
 		if r, ok := current[i][builtinName]; ok {
