@@ -1738,6 +1738,9 @@ func TestCompilerCheckDuplicateImports(t *testing.T) {
 				import input.foo
 				import data.foo
 				import data.bar.foo
+				
+				p := noconflict
+				q := foo
 			`,
 			expectedErrors: Errors{
 				&Error{
@@ -1755,6 +1758,9 @@ func TestCompilerCheckDuplicateImports(t *testing.T) {
 				import input.noconflict
 				import input.foo
 				import input.bar as foo
+
+				p := noconflict
+				q := foo
 			`,
 			expectedErrors: Errors{
 				&Error{
@@ -2333,6 +2339,274 @@ elsekw {
 	rule5 := c.Modules["head"].Rules[4]
 	expected5 := MustParseRule(`elsekw { false } else = __local5__ { true; __local5__ = input.qux }`)
 	assertRulesEqual(t, rule5, expected5)
+}
+
+func TestCompilerRewriteRegoMetadataCalls(t *testing.T) {
+	tests := []struct {
+		note   string
+		module string
+		exp    string
+	}{
+		{
+			note: "rego.metadata called, no metadata",
+			module: `package test
+
+p {
+	rego.metadata.chain()[0].path == ["test", "p"]
+	rego.metadata.rule() == {}
+}`,
+			exp: `package test
+
+p = true { 
+	__local2__ = [{"path": ["test", "p"]}]
+	__local3__ = {}
+	__local0__ = __local2__
+	equal(__local0__[0].path, ["test", "p"])
+	__local1__ = __local3__
+	equal(__local1__, {}) 
+}`,
+		},
+		{
+			note: "rego.metadata called, no output var, no metadata",
+			module: `package test
+
+p {
+	rego.metadata.chain()
+	rego.metadata.rule()
+}`,
+			exp: `package test
+
+p = true { 
+	__local0__ = [{"path": ["test", "p"]}]
+	__local1__ = {}
+	__local0__
+	__local1__ 
+}`,
+		},
+		{
+			note: "rego.metadata called, with metadata",
+			module: `# METADATA
+# description: A test package
+package test
+
+# METADATA
+# title: My P Rule
+p {
+	rego.metadata.chain()[0].title == "My P Rule"
+	rego.metadata.chain()[1].description == "A test package"
+}
+
+# METADATA
+# title: My Other P Rule
+p {
+	rego.metadata.rule().title == "My Other P Rule"
+}`,
+			exp: `# METADATA
+# {"scope":"package","description":"A test package"}
+package test
+
+# METADATA
+# {"scope":"rule","title":"My P Rule"}
+p = true { 
+	__local3__ = [
+		{"annotations": {"scope": "rule", "title": "My P Rule"}, "path": ["test", "p"]}, 
+		{"annotations": {"description": "A test package", "scope": "package"}, "path": ["test"]}
+	]
+	__local0__ = __local3__
+	equal(__local0__[0].title, "My P Rule")
+	__local1__ = __local3__
+	equal(__local1__[1].description, "A test package") 
+}
+
+# METADATA
+# {"scope":"rule","title":"My Other P Rule"}
+p = true { 
+	__local4__ = {"scope": "rule", "title": "My Other P Rule"}
+	__local2__ = __local4__
+	equal(__local2__.title, "My Other P Rule")
+}`,
+		},
+		{
+			note: "rego.metadata referenced multiple times",
+			module: `# METADATA
+# description: TEST
+package test
+
+p {
+	rego.metadata.chain()[0].path == ["test", "p"]
+	rego.metadata.chain()[1].path == ["test"]
+}`,
+			exp: `# METADATA
+# {"scope":"package","description":"TEST"}
+package test
+
+p = true { 
+	__local2__ = [
+		{"path": ["test", "p"]}, 
+		{"annotations": {"description": "TEST", "scope": "package"}, "path": ["test"]}
+	]
+	__local0__ = __local2__
+	equal(__local0__[0].path, ["test", "p"])
+	__local1__ = __local2__
+	equal(__local1__[1].path, ["test"]) }`,
+		},
+		{
+			note: "rego.metadata return value",
+			module: `package test
+
+p := rego.metadata.chain()`,
+			exp: `package test
+
+p := __local0__ { 
+	__local1__ = [{"path": ["test", "p"]}]
+	true
+	__local0__ = __local1__ 
+}`,
+		},
+		{
+			note: "rego.metadata argument in function call",
+			module: `package test
+
+p {
+	q(rego.metadata.chain())
+}
+
+q(s) {
+	s == ["test", "p"]
+}`,
+			exp: `package test
+
+p = true { 
+	__local2__ = [{"path": ["test", "p"]}]
+	__local1__ = __local2__
+	data.test.q(__local1__) 
+}
+
+q(__local0__) = true { 
+	equal(__local0__, ["test", "p"]) 
+}`,
+		},
+		{
+			note: "rego.metadata used in array comprehension",
+			module: `package test
+
+p = [x | x := rego.metadata.chain()]`,
+			exp: `package test
+
+p = [__local0__ | __local1__ = __local2__; __local0__ = __local1__] { 
+	__local2__ = [{"path": ["test", "p"]}]
+	true 
+}`,
+		},
+		{
+			note: "rego.metadata used in nested array comprehension",
+			module: `package test
+
+p {
+	y := [x | x := rego.metadata.chain()]
+	y[0].path == ["test", "p"]
+}`,
+			exp: `package test
+
+p = true { 
+	__local3__ = [{"path": ["test", "p"]}]; 
+	__local1__ = [__local0__ | __local2__ = __local3__; __local0__ = __local2__]; 
+	equal(__local1__[0].path, ["test", "p"]) 
+}`,
+		},
+		{
+			note: "rego.metadata used in set comprehension",
+			module: `package test
+
+p = {x | x := rego.metadata.chain()}`,
+			exp: `package test
+
+p = {__local0__ | __local1__ = __local2__; __local0__ = __local1__} { 
+	__local2__ = [{"path": ["test", "p"]}]
+	true 
+}`,
+		},
+		{
+			note: "rego.metadata used in nested set comprehension",
+			module: `package test
+
+p {
+	y := {x | x := rego.metadata.chain()}
+	y[0].path == ["test", "p"]
+}`,
+			exp: `package test
+
+p = true { 
+	__local3__ = [{"path": ["test", "p"]}]
+	__local1__ = {__local0__ | __local2__ = __local3__; __local0__ = __local2__}
+	equal(__local1__[0].path, ["test", "p"]) 
+}`,
+		},
+		{
+			note: "rego.metadata used in object comprehension",
+			module: `package test
+
+p = {i: x | x := rego.metadata.chain()[i]}`,
+			exp: `package test
+
+p = {i: __local0__ | __local1__ = __local2__; __local0__ = __local1__[i]} { 
+	__local2__ = [{"path": ["test", "p"]}]
+	true 
+}`,
+		},
+		{
+			note: "rego.metadata used in nested object comprehension",
+			module: `package test
+
+p {
+	y := {i: x | x := rego.metadata.chain()[i]}
+	y[0].path == ["test", "p"]
+}`,
+			exp: `package test
+
+p = true { 
+	__local3__ = [{"path": ["test", "p"]}]
+	__local1__ = {i: __local0__ | __local2__ = __local3__; __local0__ = __local2__[i]}
+	equal(__local1__[0].path, ["test", "p"]) 
+}`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			c := NewCompiler()
+			c.Modules = map[string]*Module{
+				"test.rego": MustParseModule(tc.module),
+			}
+			compileStages(c, c.rewriteRegoMetadataCalls)
+			assertNotFailed(t, c)
+
+			result := c.Modules["test.rego"]
+			exp := MustParseModuleWithOpts(tc.exp, ParserOptions{ProcessAnnotation: true})
+
+			if result.Compare(exp) != 0 {
+				t.Fatalf("\nExpected:\n\n%v\n\nGot:\n\n%v", exp, result)
+			}
+		})
+	}
+}
+
+func TestCompilerOverridingSelfCalls(t *testing.T) {
+	c := NewCompiler()
+	c.Modules = map[string]*Module{
+		"self.rego": MustParseModule(`package self.metadata
+
+chain(x) = "foo"
+rule := "bar"`),
+		"test.rego": MustParseModule(`package test
+import data.self
+
+p := self.metadata.chain(42)
+q := self.metadata.rule`),
+	}
+
+	compileStages(c, nil)
+	assertNotFailed(t, c)
 }
 
 func TestCompilerRewriteLocalAssignments(t *testing.T) {

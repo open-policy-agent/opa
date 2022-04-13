@@ -1085,6 +1085,18 @@ func (ref Ref) OutputVars() VarSet {
 	return vis.Vars()
 }
 
+func (ref Ref) toArray() *Array {
+	a := NewArray()
+	for _, term := range ref {
+		if _, ok := term.Value.(String); ok {
+			a = a.Append(term)
+		} else {
+			a = a.Append(StringTerm(term.Value.String()))
+		}
+	}
+	return a
+}
+
 // QueryIterator defines the interface for querying AST documents with references.
 type QueryIterator func(map[Var]Value, Value) error
 

@@ -1096,6 +1096,80 @@ net.cidr_contains_matches({["1.1.0.0/16", "foo"], "1.1.2.0/24"}, {"x": "1.1.1.12
 | Built-in | Description | Wasm Support |
 | ------- |-------------|---------------|
 | <span class="opa-keep-it-together">``output := rego.parse_module(filename, string)``</span> | ``rego.parse_module`` parses the input ``string`` as a Rego module and returns the AST as a JSON object ``output``. | ``SDK-dependent`` |
+| <span class="opa-keep-it-together">``output := rego.metadata.chain()``</span> | Each entry in the ``output`` array represents a node in the path ancestry (chain) of the active rule that also has declared [annotations](../annotations).``output`` is ordered starting at the active rule, going outward to the most distant node in its package ancestry. A chain entry is a JSON document with two members: ``path``, an array representing the path of the node; and ``annotations``, a JSON document containing the annotations declared for the node. The first entry in the chain always points to the active rule, even if it has no declared annotations (in which case the ``annotations`` member is not present). | ✅ |
+| <span class="opa-keep-it-together">``output := rego.metadata.rule()``</span> | Returns a JSON object ``output`` containing the set of [annotations](../annotations) declared for the active rule and using the `rule` [scope](../annotations#scope). If no annotations are declared, an empty object is returned. | ✅ |
+
+#### Metadata Merge strategies
+
+When multiple [annotations](../annotations) are declared along the path ancestry (chain) for a rule, how any given annotation should be selected, inherited or merged depends on the semantics of the annotation, the context of the rule, and the preferences of the developer.
+OPA doesn't presume what merge strategy is appropriate; instead, this lies in the hands of the developer. The following example demonstrates how some string and list type annotations in a metadata chain can be merged into a single metadata object.
+
+```live:rego/metadata:query:read_only
+# METADATA
+# title: My Example Package
+# description: A set of rules illustrating how metadata annotations can be merged.
+# authors:
+# - John Doe <john@example.com>
+# organizations:
+# - Acme Corp.
+package example
+
+import future.keywords.in
+
+# METADATA
+# scope: document
+# description: A rule that merges metadata annotations in various ways.
+
+# METADATA
+# title: My Allow Rule
+# authors:
+# - Jane Doe <jane@example.com>
+allow {
+    meta := merge(rego.metadata.chain())
+    meta.title == "My Allow Rule"                                                  # 'title' pulled from 'rule' scope
+    meta.description == "A rule that merges metadata annotations in various ways." # 'description' pulled from 'document' scope
+    meta.authors == {                                                              # 'authors' joined from 'package' and 'rule' scopes
+        {"email": "jane@example.com", "name": "Jane Doe"}, 
+        {"email": "john@example.com", "name": "John Doe"}
+    }
+    meta.organizations == {"Acme Corp."}                                           # 'organizations' pulled from 'package' scope
+}
+
+allow {
+    meta := merge(rego.metadata.chain())
+    meta.title == null                                                             # No 'title' present in 'rule' or 'document' scopes
+    meta.description == "A rule that merges metadata annotations in various ways." # 'description' pulled from 'document' scope
+    meta.authors == {                                                              # 'authors' pulled from 'package' scope
+        {"email": "john@example.com", "name": "John Doe"}
+    }
+    meta.organizations == {"Acme Corp."}                                           # 'organizations' pulled from 'package' scope
+}
+
+merge(chain) = meta {
+    ruleAndDoc := ["rule", "document"]
+    meta := {
+        "title": override_annot(chain, "title", ruleAndDoc),                         # looks for 'title' in 'rule' scope, then 'document' scope
+        "description": override_annot(chain, "description", ruleAndDoc),             # looks for 'description' in 'rule' scope, then 'document' scope
+        "related_resources": override_annot(chain, "related_resources", ruleAndDoc), # looks for 'related_resources' in 'rule' scope, then 'document' scope
+        "authors": merge_annot(chain, "authors"),                                    # merges all 'authors' across all scopes
+        "organizations": merge_annot(chain, "organizations"),                        # merges all 'organizations' across all scopes
+    }
+}
+
+override_annot(chain, name, scopes) = val {
+    val := [v | 
+        link := chain[_]
+        link.annotations.scope in scopes
+        v := link.annotations[name]
+    ][0]
+} else = null
+
+merge_annot(chain, name) = val {
+    val := {v | 
+        v := chain[_].annotations[name][_]
+    }
+} else = null
+```
 
 ### OPA
 

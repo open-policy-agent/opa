@@ -144,6 +144,7 @@ type (
 		Annotations []*Annotations `json:"annotations,omitempty"`
 		Rules       []*Rule        `json:"rules,omitempty"`
 		Comments    []*Comment     `json:"comments,omitempty"`
+		stmts       []Statement
 	}
 
 	// Comment contains the raw text from the comment in the definition.
@@ -260,11 +261,7 @@ func (mod *Module) Copy() *Module {
 	cpy := *mod
 	cpy.Rules = make([]*Rule, len(mod.Rules))
 
-	var nodes map[Node]Node
-
-	if len(mod.Annotations) > 0 {
-		nodes = make(map[Node]Node)
-	}
+	nodes := make(map[Node]Node)
 
 	for i := range mod.Rules {
 		cpy.Rules[i] = mod.Rules[i].Copy()
@@ -295,6 +292,11 @@ func (mod *Module) Copy() *Module {
 	cpy.Comments = make([]*Comment, len(mod.Comments))
 	for i := range mod.Comments {
 		cpy.Comments[i] = mod.Comments[i].Copy()
+	}
+
+	cpy.stmts = make([]Statement, len(mod.stmts))
+	for i := range mod.stmts {
+		cpy.stmts[i] = nodes[mod.stmts[i]]
 	}
 
 	return &cpy
