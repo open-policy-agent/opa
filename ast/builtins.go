@@ -232,6 +232,8 @@ var DefaultBuiltins = [...]*Builtin{
 
 	// Rego
 	RegoParseModule,
+	RegoMetadataChain,
+	RegoMetadataRule,
 
 	// OPA
 	OPARuntime,
@@ -2158,6 +2160,24 @@ var RegoParseModule = &Builtin{
 			types.S,
 		),
 		types.NewObject(nil, types.NewDynamicProperty(types.S, types.A)), // TODO(tsandall): import AST schema
+	),
+}
+
+// RegoMetadataChain returns the chain of metadata for the active rule
+var RegoMetadataChain = &Builtin{
+	Name: "rego.metadata.chain",
+	Decl: types.NewFunction(
+		types.Args(),
+		types.NewArray(nil, types.A),
+	),
+}
+
+// RegoMetadataRule returns the metadata for the active rule
+var RegoMetadataRule = &Builtin{
+	Name: "rego.metadata.rule",
+	Decl: types.NewFunction(
+		types.Args(),
+		types.A,
 	),
 }
 

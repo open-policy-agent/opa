@@ -258,12 +258,13 @@ func NewCompiler() *Compiler {
 		metricName string
 		f          func()
 	}{
-		{"CheckDuplicateImports", "compile_stage_check_duplicate_imports", c.checkDuplicateImports},
-		{"CheckKeywordOverrides", "compile_stage_check_keyword_overrides", c.checkKeywordOverrides},
 		// Reference resolution should run first as it may be used to lazily
 		// load additional modules. If any stages run before resolution, they
 		// need to be re-run after resolution.
 		{"ResolveRefs", "compile_stage_resolve_refs", c.resolveAllRefs},
+		{"CheckKeywordOverrides", "compile_stage_check_keyword_overrides", c.checkKeywordOverrides},
+		{"CheckDuplicateImports", "compile_stage_check_duplicate_imports", c.checkDuplicateImports},
+		{"RemoveImports", "compile_stage_remove_imports", c.removeImports},
 		{"SetModuleTree", "compile_stage_set_module_tree", c.setModuleTree},
 		{"SetRuleTree", "compile_stage_set_rule_tree", c.setRuleTree},
 		// The local variable generator must be initialized after references are
@@ -274,6 +275,9 @@ func NewCompiler() *Compiler {
 		{"CheckVoidCalls", "compile_stage_check_void_calls", c.checkVoidCalls},
 		{"RewritePrintCalls", "compile_stage_rewrite_print_calls", c.rewritePrintCalls},
 		{"RewriteExprTerms", "compile_stage_rewrite_expr_terms", c.rewriteExprTerms},
+		{"ParseMetadataBlocks", "compile_stage_parse_metadata_blocks", c.parseMetadataBlocks},
+		{"SetAnnotationSet", "compile_stage_set_annotationset", c.setAnnotationSet},
+		{"RewriteRegoMetadataCalls", "compile_stage_rewrite_rego_metadata_calls", c.rewriteRegoMetadataCalls},
 		{"SetGraph", "compile_stage_set_graph", c.setGraph},
 		{"RewriteComprehensionTerms", "compile_stage_rewrite_comprehension_terms", c.rewriteComprehensionTerms},
 		{"RewriteRefsInHead", "compile_stage_rewrite_refs_in_head", c.rewriteRefsInHead},
@@ -285,7 +289,6 @@ func NewCompiler() *Compiler {
 		{"RewriteEquals", "compile_stage_rewrite_equals", c.rewriteEquals},
 		{"RewriteDynamicTerms", "compile_stage_rewrite_dynamic_terms", c.rewriteDynamicTerms},
 		{"CheckRecursion", "compile_stage_check_recursion", c.checkRecursion},
-		{"SetAnnotationSet", "compile_stage_set_annotationset", c.setAnnotationSet},
 		{"CheckTypes", "compile_stage_check_types", c.checkTypes}, // must be run after CheckRecursion
 		{"CheckUnsafeBuiltins", "compile_state_check_unsafe_builtins", c.checkUnsafeBuiltins},
 		{"CheckDeprecatedBuiltins", "compile_state_check_deprecated_builtins", c.checkDeprecatedBuiltins},
@@ -1425,9 +1428,6 @@ func (c *Compiler) resolveAllRefs() {
 				}
 			}
 		}
-
-		// Once imports have been resolved, they are no longer needed.
-		mod.Imports = nil
 	}
 
 	if c.moduleLoader != nil {
@@ -1449,6 +1449,12 @@ func (c *Compiler) resolveAllRefs() {
 
 		sort.Strings(c.sorted)
 		c.resolveAllRefs()
+	}
+}
+
+func (c *Compiler) removeImports() {
+	for name := range c.Modules {
+		c.Modules[name].Imports = nil
 	}
 }
 
@@ -1726,6 +1732,212 @@ func (c *Compiler) rewriteDynamicTerms() {
 			return false
 		})
 	}
+}
+
+func (c *Compiler) parseMetadataBlocks() {
+	// Only parse annotations if rego.metadata built-ins are called
+	regoMetadataCalled := false
+	for _, name := range c.sorted {
+		mod := c.Modules[name]
+		WalkExprs(mod, func(expr *Expr) bool {
+			if isRegoMetadataChainCall(expr) || isRegoMetadataRuleCall(expr) {
+				regoMetadataCalled = true
+			}
+			return regoMetadataCalled
+		})
+
+		if regoMetadataCalled {
+			break
+		}
+	}
+
+	if regoMetadataCalled {
+		// NOTE: Possible optimization: only parse annotations for modules on the path of rego.metadata-calling module
+		for _, name := range c.sorted {
+			mod := c.Modules[name]
+
+			if len(mod.Annotations) == 0 {
+				var errs Errors
+				mod.Annotations, errs = parseAnnotations(mod.Comments)
+				errs = append(errs, attachAnnotationsNodes(mod)...)
+				for _, err := range errs {
+					c.err(err)
+				}
+			}
+		}
+	}
+}
+
+func (c *Compiler) rewriteRegoMetadataCalls() {
+	eqFactory := newEqualityFactory(c.localvargen)
+
+	for _, name := range c.sorted {
+		mod := c.Modules[name]
+
+		WalkRules(mod, func(rule *Rule) bool {
+			var chainCalled bool
+			var ruleCalled bool
+
+			WalkExprs(rule, func(expr *Expr) bool {
+				if isRegoMetadataChainCall(expr) {
+					chainCalled = true
+				} else if isRegoMetadataRuleCall(expr) {
+					ruleCalled = true
+				}
+				return chainCalled && ruleCalled
+			})
+
+			if chainCalled || ruleCalled {
+				body := make(Body, 0, len(rule.Body)+2)
+
+				var metadataChainVar Var
+				if chainCalled {
+					// Create and inject metadata chain for rule
+
+					chain, err := createMetadataChain(c.annotationSet.Chain(rule))
+					if err != nil {
+						c.err(err)
+						return false
+					}
+
+					eq := eqFactory.Generate(chain)
+					metadataChainVar = eq.Operands()[0].Value.(Var)
+					body.Append(eq)
+				}
+
+				var metadataRuleVar Var
+				if ruleCalled {
+					// Create and inject metadata for rule
+
+					var metadataRuleTerm *Term
+
+					a := getPrimaryRuleAnnotations(c.annotationSet, rule)
+					if a != nil {
+						annotObj, err := a.toObject()
+						if err != nil {
+							c.err(err)
+							return false
+						}
+						metadataRuleTerm = NewTerm(*annotObj)
+					} else {
+						// If rule has no annotations, assign an empty object
+						metadataRuleTerm = ObjectTerm()
+					}
+
+					eq := eqFactory.Generate(metadataRuleTerm)
+					metadataRuleVar = eq.Operands()[0].Value.(Var)
+					body.Append(eq)
+				}
+
+				for _, expr := range rule.Body {
+					body.Append(expr)
+				}
+				rule.Body = body
+
+				vis := func(b Body) bool {
+					for _, err := range rewriteRegoMetadataCalls(metadataChainVar, metadataRuleVar, b, &c.RewrittenVars) {
+						c.err(err)
+					}
+					return false
+				}
+				WalkBodies(rule.Head, vis)
+				WalkBodies(rule.Body, vis)
+			}
+
+			return false
+		})
+	}
+}
+
+func getPrimaryRuleAnnotations(as *AnnotationSet, rule *Rule) *Annotations {
+	annots := as.GetRuleScope(rule)
+
+	if len(annots) == 0 {
+		return nil
+	}
+
+	// Sort by annotation location; chain must start with annotations declared closest to rule, then going outward
+	sort.SliceStable(annots, func(i, j int) bool {
+		return annots[i].Location.Compare(annots[j].Location) > 0
+	})
+
+	return annots[0]
+}
+
+func rewriteRegoMetadataCalls(metadataChainVar Var, metadataRuleVar Var, body Body, rewrittenVars *map[Var]Var) Errors {
+	var errs Errors
+
+	WalkClosures(body, func(x interface{}) bool {
+		switch x := x.(type) {
+		case *ArrayComprehension:
+			errs = rewriteRegoMetadataCalls(metadataChainVar, metadataRuleVar, x.Body, rewrittenVars)
+		case *SetComprehension:
+			errs = rewriteRegoMetadataCalls(metadataChainVar, metadataRuleVar, x.Body, rewrittenVars)
+		case *ObjectComprehension:
+			errs = rewriteRegoMetadataCalls(metadataChainVar, metadataRuleVar, x.Body, rewrittenVars)
+		case *Every:
+			errs = rewriteRegoMetadataCalls(metadataChainVar, metadataRuleVar, x.Body, rewrittenVars)
+		}
+		return true
+	})
+
+	for i := range body {
+		expr := body[i]
+		var metadataVar Var
+
+		if isRegoMetadataChainCall(expr) {
+			metadataVar = metadataChainVar
+		} else if isRegoMetadataRuleCall(expr) {
+			metadataVar = metadataRuleVar
+		} else {
+			continue
+		}
+
+		// NOTE(johanfylling): An alternative strategy would be to walk the body and replace all operands[0]
+		// usages with *metadataChainVar
+		operands := expr.Operands()
+		if len(operands) > 0 { // There is an output var to rewrite
+			rewrittenVar := operands[0]
+			newExpr := Equality.Expr(rewrittenVar, NewTerm(metadataVar))
+			newExpr.Generated = true
+			newExpr.Location = expr.Location
+			body.Set(newExpr, i)
+		} else { // No output var, just rewrite expr to metadataVar
+			body.Set(NewExpr(NewTerm(metadataVar)), i)
+		}
+	}
+
+	return errs
+}
+
+func isRegoMetadataChainCall(x *Expr) bool {
+	return x.IsCall() && x.Operator().Equal(RegoMetadataChain.Ref())
+}
+
+func isRegoMetadataRuleCall(x *Expr) bool {
+	return x.IsCall() && x.Operator().Equal(RegoMetadataRule.Ref())
+}
+
+func createMetadataChain(chain []*AnnotationsRef) (*Term, *Error) {
+
+	metaArray := NewArray()
+	for _, link := range chain {
+		p := link.Path.toArray().
+			Slice(1, -1) // Dropping leading 'data' element of path
+		obj := NewObject(
+			Item(StringTerm("path"), NewTerm(p)),
+		)
+		if link.Annotations != nil {
+			annotObj, err := link.Annotations.toObject()
+			if err != nil {
+				return nil, err
+			}
+			obj.Insert(StringTerm("annotations"), NewTerm(*annotObj))
+		}
+		metaArray = metaArray.Append(NewTerm(obj))
+	}
+
+	return NewTerm(metaArray), nil
 }
 
 func (c *Compiler) rewriteLocalVars() {
