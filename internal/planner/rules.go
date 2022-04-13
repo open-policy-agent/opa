@@ -173,7 +173,7 @@ type builtinMocksStack struct {
 
 type builtinMocksElem []frame
 
-type frame map[string]ast.Ref
+type frame map[string]*ast.Term
 
 func newBuiltinMocksStack() *builtinMocksStack {
 	stack := &builtinMocksStack{}
@@ -203,12 +203,12 @@ func (s *builtinMocksStack) PopFrame() {
 	*current = (*current)[:len(*current)-1]
 }
 
-func (s *builtinMocksStack) Lookup(builtinName string) (ast.Ref, bool) {
+func (s *builtinMocksStack) Lookup(builtinName string) *ast.Term {
 	current := *s.stack[len(s.stack)-1]
 	for i := len(current) - 1; i >= 0; i-- {
-		if r, ok := current[i][builtinName]; ok {
-			return r, true
+		if t, ok := current[i][builtinName]; ok {
+			return t
 		}
 	}
-	return nil, false
+	return nil
 }

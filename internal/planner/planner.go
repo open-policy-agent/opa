@@ -571,7 +571,9 @@ func (p *Planner) planWith(e *ast.Expr, iter planiter) error {
 				continue
 			}
 		}
-		builtins[w.Target.String()] = w.Value.Value.(ast.Ref)
+
+		// target is a builtin
+		builtins[w.Target.String()] = w.Value
 	}
 
 	return p.planTermSlice(values, func(locals []ir.Operand) error {
@@ -817,23 +819,40 @@ func (p *Planner) planExprCall(e *ast.Expr, iter planiter) error {
 		var args []ir.Operand
 		var err error
 
+		operands := e.Operands()
 		op := e.Operator()
-		if replacement, ok := p.builtins.Lookup(operator); ok {
-			op = replacement
-			p.builtins.Push() // new scope
-			node := p.rules.Lookup(op)
-			if node != nil {
-				name, err = p.planRules(node.Rules())
-				if err != nil {
-					return err
-				}
-				p.builtins.Pop()
 
-				arity = node.Arity()
-				args = []ir.Operand{
-					p.vars.GetOpOrEmpty(ast.InputRootDocument.Value.(ast.Var)),
-					p.vars.GetOpOrEmpty(ast.DefaultRootDocument.Value.(ast.Var)),
+		if replacement := p.builtins.Lookup(operator); replacement != nil {
+			switch r := replacement.Value.(type) {
+			case ast.Ref:
+				if !r.HasPrefix(ast.DefaultRootRef) && !r.HasPrefix(ast.InputRootRef) {
+					// replacement is other builtin
+					operator = r.String()
+					decl := p.decls[operator]
+					relation = decl.Relation
+					arity = len(decl.Decl.Args())
+					void = decl.Decl.Result() == nil
+					name = operator
+					p.externs[operator] = decl
+				} else {
+					node := p.rules.Lookup(r)
+					if node != nil {
+						p.builtins.Push()                     // new scope
+						name, err = p.planRules(node.Rules()) // NOTE: `name` is used below in planExprCallFunc
+						if err != nil {
+							return err
+						}
+						p.builtins.Pop()
+
+						arity = node.Arity()
+						args = []ir.Operand{
+							p.vars.GetOpOrEmpty(ast.InputRootDocument.Value.(ast.Var)),
+							p.vars.GetOpOrEmpty(ast.DefaultRootDocument.Value.(ast.Var)),
+						}
+					}
 				}
+			default: // target is a builtin, value
+				return p.planExprCallValue(replacement, len(p.decls[operator].Decl.Args()), operands, iter)
 			}
 		} else if node := p.rules.Lookup(op); node != nil {
 			name, err = p.planRules(node.Rules())
@@ -854,8 +873,6 @@ func (p *Planner) planExprCall(e *ast.Expr, iter planiter) error {
 		} else {
 			return fmt.Errorf("illegal call: unknown operator %q", operator)
 		}
-
-		operands := e.Operands()
 
 		if len(operands) < arity || len(operands) > arity+1 {
 			return fmt.Errorf("illegal call: wrong number of operands: got %v, want %v)", len(operands), arity)
@@ -946,7 +963,7 @@ func (p *Planner) planExprCallFunc(name string, arity int, void bool, operands [
 	}
 
 	// definition: f(x) = y { ... }
-	// call: f(x, 1)  # caller captures result
+	// call: f(x, 1) # caller captures result
 	return p.planCallArgs(operands[:len(operands)-1], 0, args, func(args []ir.Operand) error {
 		result := p.newLocal()
 		p.appendStmt(&ir.CallStmt{
@@ -955,6 +972,29 @@ func (p *Planner) planExprCallFunc(name string, arity int, void bool, operands [
 			Result: result,
 		})
 		return p.planUnifyLocal(op(result), operands[len(operands)-1], iter)
+	})
+}
+
+func (p *Planner) planExprCallValue(value *ast.Term, arity int, operands []*ast.Term, iter planiter) error {
+	if len(operands) == arity { // call: f(x) # result not captured
+		return p.planCallArgs(operands, 0, nil, func([]ir.Operand) error {
+			p.ltarget = p.newOperand()
+			return p.planTerm(value, func() error {
+				p.appendStmt(&ir.NotEqualStmt{
+					A: p.ltarget,
+					B: op(ir.Bool(false)),
+				})
+				return iter()
+			})
+		})
+	}
+
+	// call: f(x, 1) # caller captures result
+	return p.planCallArgs(operands[:len(operands)-1], 0, nil, func([]ir.Operand) error {
+		p.ltarget = p.newOperand()
+		return p.planTerm(value, func() error {
+			return p.planUnifyLocal(p.ltarget, operands[len(operands)-1], iter)
+		})
 	})
 }
 
