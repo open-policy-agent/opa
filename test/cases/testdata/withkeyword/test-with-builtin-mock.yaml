@@ -289,9 +289,34 @@ cases:
     p {
       time.now_ns() with time.now_ns as false
     }
-  note: 'withkeyword/builtin-value: arity-0'
+  note: 'withkeyword/builtin-value: arity-0, false'
   query: data.test.p = x
   want_result: []
+- data:
+  modules:
+  - |
+    package test
+
+    p {
+      time.now_ns() with time.now_ns as true
+    }
+  note: 'withkeyword/builtin-value: arity-0'
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+
+    p {
+      x := true
+      time.now_ns() with time.now_ns as x
+    }
+  note: 'withkeyword/builtin-value: arity-0, var'
+  query: data.test.p = x
+  want_result:
+  - x: true
 - data:
   modules:
   - |

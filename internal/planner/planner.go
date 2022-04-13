@@ -829,41 +829,37 @@ func (p *Planner) planExprCall(e *ast.Expr, iter planiter) error {
 					// replacement is other builtin
 					operator = r.String()
 					decl := p.decls[operator]
-					relation = decl.Relation
-					arity = len(decl.Decl.Args())
-					void = decl.Decl.Result() == nil
-					name = operator
 					p.externs[operator] = decl
-				} else {
-					node := p.rules.Lookup(r)
-					if node != nil {
-						p.builtins.Push()                     // new scope
-						name, err = p.planRules(node.Rules()) // NOTE: `name` is used below in planExprCallFunc
-						if err != nil {
-							return err
-						}
-						p.builtins.Pop()
 
-						arity = node.Arity()
-						args = []ir.Operand{
-							p.vars.GetOpOrEmpty(ast.InputRootDocument.Value.(ast.Var)),
-							p.vars.GetOpOrEmpty(ast.DefaultRootDocument.Value.(ast.Var)),
-						}
-					}
+					// void functions and relations are forbidden; arity validation happened in compiler
+					return p.planExprCallFunc(operator, len(decl.Decl.Args()), void, operands, args, iter)
 				}
-			default: // target is a builtin, value
+
+				// replacement is a function (rule)
+				if node := p.rules.Lookup(r); node != nil {
+					p.builtins.Push() // new scope
+					name, err = p.planRules(node.Rules())
+					if err != nil {
+						return err
+					}
+					p.builtins.Pop()
+					return p.planExprCallFunc(name, node.Arity(), void, operands, p.defaultOperands(), iter)
+				}
+
+				return fmt.Errorf("illegal replacement of operator %q by %v", operator, replacement)
+
+			default: // target is a builtin, replacement a value
 				return p.planExprCallValue(replacement, len(p.decls[operator].Decl.Args()), operands, iter)
 			}
-		} else if node := p.rules.Lookup(op); node != nil {
+		}
+
+		if node := p.rules.Lookup(op); node != nil {
 			name, err = p.planRules(node.Rules())
 			if err != nil {
 				return err
 			}
 			arity = node.Arity()
-			args = []ir.Operand{
-				p.vars.GetOpOrEmpty(ast.InputRootDocument.Value.(ast.Var)),
-				p.vars.GetOpOrEmpty(ast.DefaultRootDocument.Value.(ast.Var)),
-			}
+			args = p.defaultOperands()
 		} else if decl, ok := p.decls[operator]; ok {
 			relation = decl.Relation
 			arity = len(decl.Decl.Args())
@@ -1713,11 +1709,8 @@ func (p *Planner) planRefData(virtual *ruletrie, base *baseptr, ref ast.Ref, ind
 			}
 
 			p.appendStmt(&ir.CallStmt{
-				Func: funcName,
-				Args: []ir.Operand{
-					p.vars.GetOpOrEmpty(ast.InputRootDocument.Value.(ast.Var)),
-					p.vars.GetOpOrEmpty(ast.DefaultRootDocument.Value.(ast.Var)),
-				},
+				Func:   funcName,
+				Args:   p.defaultOperands(),
 				Result: p.ltarget.Value.(ir.Local),
 			})
 
@@ -1874,11 +1867,8 @@ func (p *Planner) planRefDataExtent(virtual *ruletrie, base *baseptr, iter plani
 			// Add leaf to object if defined.
 			b := &ir.Block{}
 			p.appendStmtToBlock(&ir.CallStmt{
-				Func: funcName,
-				Args: []ir.Operand{
-					p.vars.GetOpOrEmpty(ast.InputRootDocument.Value.(ast.Var)),
-					p.vars.GetOpOrEmpty(ast.DefaultRootDocument.Value.(ast.Var)),
-				},
+				Func:   funcName,
+				Args:   p.defaultOperands(),
 				Result: lvalue,
 			}, b)
 			p.appendStmtToBlock(&ir.ObjectInsertStmt{
@@ -2265,6 +2255,13 @@ func (p *Planner) unseenVars(t *ast.Term) bool {
 		return unseen
 	})
 	return unseen
+}
+
+func (p *Planner) defaultOperands() []ir.Operand {
+	return []ir.Operand{
+		p.vars.GetOpOrEmpty(ast.InputRootDocument.Value.(ast.Var)),
+		p.vars.GetOpOrEmpty(ast.DefaultRootDocument.Value.(ast.Var)),
+	}
 }
 
 func op(v ir.Val) ir.Operand {
