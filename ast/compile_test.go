@@ -4110,14 +4110,14 @@ func TestCompilerRewriteWithValue(t *testing.T) {
 			input: `
 				p { true with array.concat as count }
 			`,
-			wantErr: fmt.Errorf("rego_compile_error: with keyword replacing built-in function: referenced value built-in must have same arity (have 1, want 2)"),
+			wantErr: fmt.Errorf("rego_compile_error: with keyword replacing built-in function: replacement built-in function must have same arity (have 1, want 2)"),
 		},
 		{
 			note: "built-in function: replaced by another built-in (ref), wrong arity",
 			input: `
 				p { true with count as array.concat }
 			`,
-			wantErr: fmt.Errorf("rego_compile_error: with keyword replacing built-in function: referenced value built-in must have same arity (have 2, want 1)"),
+			wantErr: fmt.Errorf("rego_compile_error: with keyword replacing built-in function: replacement built-in function must have same arity (have 2, want 1)"),
 		},
 		{
 			note: "built-in function: valid, arity 1, non-compound name",
@@ -4571,7 +4571,7 @@ func TestCompilerMockBuiltinFunction(t *testing.T) {
 				http_send(_, _) = { "body": "nope" }
 				p { true with http.send as http_send }
 			`,
-			err: "rego_compile_error: with keyword replacing built-in function: referenced value function must have same arity (have 2, want 1)",
+			err: "rego_compile_error: with keyword replacing built-in function: replacement function must have same arity (have 2, want 1)",
 		},
 		{
 			note: "ref: value another built-in",
@@ -4606,6 +4606,36 @@ func TestCompilerMockBuiltinFunction(t *testing.T) {
 				p { true with walk as my_walk }
 			`,
 			err: "rego_compile_error: with keyword replacing built-in function: target must not be a relation",
+		},
+		{
+			note: "invalid target: eq",
+			module: `package test
+				my_eq(_, _)
+				p { true with eq as my_eq }
+			`,
+			err: `rego_compile_error: with keyword replacing built-in function: replacement of "eq" invalid`,
+		},
+		{
+			note: "invalid target: rego.metadata.chain",
+			module: `package test
+				p { true with rego.metadata.chain as [] }
+			`,
+			err: `rego_compile_error: with keyword replacing built-in function: replacement of "rego.metadata.chain" invalid`,
+		},
+		{
+			note: "invalid target: rego.metadata.rule",
+			module: `package test
+				p { true with rego.metadata.rule as {} }
+			`,
+			err: `rego_compile_error: with keyword replacing built-in function: replacement of "rego.metadata.rule" invalid`,
+		},
+		{
+			note: "invalid target: internal.print",
+			module: `package test
+				my_print(_, _)
+				p { true with internal.print as my_print }
+			`,
+			err: `rego_compile_error: with keyword replacing built-in function: replacement of internal function "internal.print" invalid`,
 		},
 	}
 

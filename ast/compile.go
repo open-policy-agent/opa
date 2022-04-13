@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/open-policy-agent/opa/ast/location"
 	"github.com/open-policy-agent/opa/internal/debug"
 	"github.com/open-policy-agent/opa/internal/gojsonschema"
 	"github.com/open-policy-agent/opa/metrics"
@@ -4827,11 +4828,12 @@ func validateWith(c *Compiler, target, value *Term) (bool, *Error) {
 				value.Value = Ref([]*Term{NewTerm(v)})
 			}
 		}
-		bi := c.builtins[target.Value.String()] // safe because isBuiltinRefOrVar checked this
-
-		if bi.Relation {
-			return false, NewError(CompileErr, target.Loc(), "with keyword replacing built-in function: target must not be a relation")
+		targetRef := target.Value.(Ref)
+		bi := c.builtins[targetRef.String()] // safe because isBuiltinRefOrVar checked this
+		if err := validateWithBuiltinTarget(bi, targetRef, target.Loc()); err != nil {
+			return false, err
 		}
+
 		biArity := len(bi.Decl.Args())
 
 		if v, ok := value.Value.(Ref); ok {
@@ -4842,7 +4844,7 @@ func validateWith(c *Compiler, target, value *Term) (bool, *Error) {
 					switch {
 					case arity == 0: // nothing to do, replacement by value
 					case arity != biArity:
-						return false, NewError(CompileErr, target.Loc(), "with keyword replacing built-in function: referenced value function must have same arity (have %d, want %d)", arity, biArity)
+						return false, NewError(CompileErr, target.Loc(), "with keyword replacing built-in function: replacement function must have same arity (have %d, want %d)", arity, biArity)
 					}
 					continue
 				}
@@ -4852,7 +4854,7 @@ func validateWith(c *Compiler, target, value *Term) (bool, *Error) {
 		// could be ref to built-in, e.g. "array.concat", or simple built-in, e.g. "count" -- check arity
 		if bi, ok := c.builtins[value.Value.String()]; ok {
 			if arity := len(bi.Decl.Args()); arity != biArity {
-				return false, NewError(CompileErr, target.Loc(), "with keyword replacing built-in function: referenced value built-in must have same arity (have %d, want %d)", arity, biArity)
+				return false, NewError(CompileErr, target.Loc(), "with keyword replacing built-in function: replacement built-in function must have same arity (have %d, want %d)", arity, biArity)
 			}
 			return false, nil
 		}
@@ -4861,6 +4863,27 @@ func validateWith(c *Compiler, target, value *Term) (bool, *Error) {
 		return false, NewError(TypeErr, target.Location, "with keyword target must reference existing %v, %v, or a built-in function", InputRootDocument, DefaultRootDocument)
 	}
 	return requiresEval(value), nil
+}
+
+func validateWithBuiltinTarget(bi *Builtin, target Ref, loc *location.Location) *Error {
+	switch bi.Name {
+	case Equality.Name,
+		RegoMetadataChain.Name,
+		RegoMetadataRule.Name:
+		return NewError(CompileErr, loc, "with keyword replacing built-in function: replacement of %q invalid", bi.Name)
+	}
+
+	switch {
+	case target.HasPrefix(Ref([]*Term{VarTerm("internal")})):
+		return NewError(CompileErr, loc, "with keyword replacing built-in function: replacement of internal function %q invalid", target)
+
+	case bi.Relation:
+		return NewError(CompileErr, loc, "with keyword replacing built-in function: target must not be a relation")
+
+	case bi.Decl.Result() == nil:
+		return NewError(CompileErr, loc, "with keyword replacing built-in function: target must not be a void function")
+	}
+	return nil
 }
 
 func isInputRef(term *Term) bool {
