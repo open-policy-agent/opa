@@ -243,6 +243,7 @@ func TestBundleLifecycle(t *testing.T) {
 					Parsed: ast.MustParseModule(mod2),
 				},
 			},
+			Etag: "foo",
 		},
 		"bundle2": {
 			Manifest: Manifest{
@@ -318,13 +319,15 @@ func TestBundleLifecycle(t *testing.T) {
 				"manifest": {
 					"revision": "",
 					"roots": ["a"]
-				}
+				},
+				"etag": "foo"
 			},
 			"bundle2": {
 				"manifest": {
 					"revision": "",
 					"roots": ["b", "c"]
-				}
+				},
+				"etag": ""
 			}
 		}
 	}
@@ -415,6 +418,7 @@ func TestDeltaBundleLifecycle(t *testing.T) {
 					Parsed: ast.MustParseModule(mod1),
 				},
 			},
+			Etag: "foo",
 		},
 		"bundle2": {
 			Manifest: Manifest{
@@ -534,6 +538,7 @@ func TestDeltaBundleLifecycle(t *testing.T) {
 				Roots:    &[]string{"a"},
 			},
 			Patch: Patch{Data: []PatchOperation{p1, p2, p3, p4, p5, p6}},
+			Etag:  "bar",
 		},
 		"bundle2": {
 			Manifest: Manifest{
@@ -541,6 +546,7 @@ func TestDeltaBundleLifecycle(t *testing.T) {
 				Roots:    &[]string{"b", "c"},
 			},
 			Patch: Patch{Data: []PatchOperation{p7}},
+			Etag:  "baz",
 		},
 		"bundle3": {
 			Manifest: Manifest{
@@ -608,19 +614,22 @@ func TestDeltaBundleLifecycle(t *testing.T) {
 					"manifest": {
 						"revision": "delta-1",
 						"roots": ["a"]
-					}
+					},
+					"etag": "bar"
 				},
 				"bundle2": {
 					"manifest": {
 						"revision": "delta-2",
 						"roots": ["b", "c"]
-					}
+					},
+					"etag": "baz"
 				},
 				"bundle3": {
 					"manifest": {
 						"revision": "",
 						"roots": ["d"]
-					}
+					},
+					"etag": ""
 				}
 			}
 		}
@@ -659,6 +668,7 @@ func TestDeltaBundleActivate(t *testing.T) {
 				Roots:    &[]string{"a"},
 			},
 			Patch: Patch{Data: []PatchOperation{p1}},
+			Etag:  "foo",
 		},
 	}
 
@@ -722,7 +732,8 @@ func TestDeltaBundleActivate(t *testing.T) {
 					"manifest": {
 						"revision": "delta",
 						"roots": ["a"]
-					}
+					},
+					"etag": "foo"
 				}
 			}
 		}
