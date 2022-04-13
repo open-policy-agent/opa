@@ -1379,6 +1379,16 @@ func TestRule(t *testing.T) {
 		Body:    NewBody(NewExpr(BooleanTerm(true))),
 	})
 
+	assertParseRule(t, "default w/ assignment", `default allow := false`, &Rule{
+		Default: true,
+		Head: &Head{
+			Name:   "allow",
+			Value:  BooleanTerm(false),
+			Assign: true,
+		},
+		Body: NewBody(NewExpr(BooleanTerm(true))),
+	})
+
 	assertParseRule(t, "default w/ comprehension", `default widgets = [x | x = data.fooz[_]]`, &Rule{
 		Default: true,
 		Head:    NewHead(Var("widgets"), nil, MustParseTerm(`[x | x = data.fooz[_]]`)),
@@ -1477,6 +1487,45 @@ func TestRule(t *testing.T) {
 		Body: NewBody(NewExpr(BooleanTerm(true))),
 	})
 
+	assertParseRule(t, "else assignment", `x := 1 { false } else := 2`, &Rule{
+		Head: &Head{
+			Name:   "x",
+			Value:  IntNumberTerm(1),
+			Assign: true,
+		},
+		Body: NewBody(NewExpr(BooleanTerm(false))),
+		Else: &Rule{
+			Head: &Head{
+				Name:   "x",
+				Value:  IntNumberTerm(2),
+				Assign: true,
+			},
+			Body: NewBody(NewExpr(BooleanTerm(true))),
+		},
+	})
+
+	assertParseRule(t, "partial assignment", `p[x] := y { true }`, &Rule{
+		Head: &Head{
+			Name:   "p",
+			Value:  VarTerm("y"),
+			Key:    VarTerm("x"),
+			Assign: true,
+		},
+		Body: NewBody(NewExpr(BooleanTerm(true))),
+	})
+
+	assertParseRule(t, "function assignment", `f(x) := y { true }`, &Rule{
+		Head: &Head{
+			Name:  "f",
+			Value: VarTerm("y"),
+			Args: Args{
+				VarTerm("x"),
+			},
+			Assign: true,
+		},
+		Body: NewBody(NewExpr(BooleanTerm(true))),
+	})
+
 	// TODO: expect expressions instead?
 	assertParseErrorContains(t, "empty body", `f(_) = y {}`, "rego_parse_error: found empty body")
 	assertParseErrorContains(t, "empty rule body", "p {}", "rego_parse_error: found empty body")
@@ -1484,16 +1533,15 @@ func TestRule(t *testing.T) {
 
 	// TODO: how to highlight that assignment is incorrect here?
 	assertParseErrorContains(t, "no output", `f(_) = { "foo" = "bar" }`, "rego_parse_error: unexpected eq token: expected rule value term")
+	assertParseErrorContains(t, "no output", `f(_) := { "foo" = "bar" }`, "rego_parse_error: unexpected assign token: expected function value term")
+	assertParseErrorContains(t, "no output", `f := { "foo" = "bar" }`, "rego_parse_error: unexpected assign token: expected rule value term")
+	assertParseErrorContains(t, "no output", `f[_] := { "foo" = "bar" }`, "rego_parse_error: unexpected assign token: expected partial rule value term")
+	assertParseErrorContains(t, "no output", `default f :=`, "rego_parse_error: unexpected assign token: expected default rule value term")
 
 	// TODO(tsandall): improve error checking here. This is a common mistake
 	// and the current error message is not very good. Need to investigate if the
 	// parser can be improved.
 	assertParseError(t, "dangling semicolon", "p { true; false; }")
-
-	assertParseErrorContains(t, "default assignment", "default p := 1", `default rules must use = operator (not := operator)`)
-	assertParseErrorContains(t, "partial assignment", `p[x] := y { true }`, "partial rules must use = operator (not := operator)")
-	assertParseErrorContains(t, "function assignment", `f(x) := y { true }`, "functions must use = operator (not := operator)")
-	assertParseErrorContains(t, "else assignment", `p := y { true } else = 2 { true } `, "else keyword cannot be used on rule declared with := operator")
 
 	assertParseErrorContains(t, "default invalid rule name", `default 0[0`, "unexpected default keyword")
 	assertParseErrorContains(t, "default invalid rule value", `default a[0`, "illegal default rule (must have a value)")

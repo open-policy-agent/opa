@@ -1,0 +1,33 @@
+cases:
+  - note: assignments/file-level
+    query: data.test = x
+    modules:
+      - |
+        package test
+
+        # default value assignment
+        default a := 1
+        
+        # rule
+        b := 2
+
+        # else keyword
+        c := 3 {
+           false
+        } else := 4 {
+           true
+        }
+
+        # partial rule
+        d[msg] := 5 {
+           msg = [1, 2, 3][_]
+        }
+
+        # function return value
+        e := f(6)
+        f(x) := x
+    want_result: [{"x": {"a": 1,
+                         "b": 2,
+                         "c": 4,
+                         "d": {"1": 5, "2": 5, "3": 5},
+                         "e": 6}}]
