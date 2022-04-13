@@ -237,6 +237,14 @@ opa test --format=json pass_fail_error_test.rego
 
 OPA's `with` keyword can be used to replace the data document or built-in functions by mocks.
 Both base and virtual documents can be replaced.
+
+When replacing built-in functions, the following constraints are in place:
+
+1. Replacing `internal.*` functions, or `rego.metadata.*`, or `eq`; or relations (`walk`) is not allowed.
+2. Replacement and replaced function need to have the same arity.
+3. Replaced functions can call the functions they're replacing, and those calls
+   will call out to the original built-in function, and not cause recursion.
+
 Below is a simple policy that depends on the data document.
 
 **authz.rego**:
@@ -353,6 +361,23 @@ data.authz.test_allow: PASS (458.752µs)
 --------------------------------------------------------------------------------
 PASS: 1/1
 ```
+
+In simple cases, a built-in function can also be replaced with a value, as in
+
+```live:with_keyword_builtins/tests/value:module:read_only
+test_allow_value {
+    allow
+      with input.headers["x-token"] as "my-jwt"
+      with data.jwks.cert as "mock-cert"
+      with io.jwt.decode_verify as [true, {}, {}]
+}
+```
+
+Every invocation of the function will then return the replacement value, regardless
+of the function's arguments.
+
+Note that it's also possible to replace one built-in function by another.
+
 
 **User-defined functions** cannot be replaced by the `with` keyword.
 For example, in the below policy the function `cannot_replace` cannot be replaced.
