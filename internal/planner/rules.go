@@ -167,43 +167,43 @@ func (t *ruletrie) Get(k ast.Value) *ruletrie {
 	return nodes[len(nodes)-1]
 }
 
-type builtinMocksStack struct {
-	stack []*builtinMocksElem
+type functionMocksStack struct {
+	stack []*functionMocksElem
 }
 
-type builtinMocksElem []frame
+type functionMocksElem []frame
 
 type frame map[string]*ast.Term
 
-func newBuiltinMocksStack() *builtinMocksStack {
-	stack := &builtinMocksStack{}
+func newFunctionMocksStack() *functionMocksStack {
+	stack := &functionMocksStack{}
 	stack.Push()
 	return stack
 }
 
-func newBuiltinMocksElem() *builtinMocksElem {
-	return &builtinMocksElem{}
+func newFunctionMocksElem() *functionMocksElem {
+	return &functionMocksElem{}
 }
 
-func (s *builtinMocksStack) Push() {
-	s.stack = append(s.stack, newBuiltinMocksElem())
+func (s *functionMocksStack) Push() {
+	s.stack = append(s.stack, newFunctionMocksElem())
 }
 
-func (s *builtinMocksStack) Pop() {
+func (s *functionMocksStack) Pop() {
 	s.stack = s.stack[:len(s.stack)-1]
 }
 
-func (s *builtinMocksStack) PushFrame(f frame) {
+func (s *functionMocksStack) PushFrame(f frame) {
 	current := s.stack[len(s.stack)-1]
 	*current = append(*current, f)
 }
 
-func (s *builtinMocksStack) PopFrame() {
+func (s *functionMocksStack) PopFrame() {
 	current := s.stack[len(s.stack)-1]
 	*current = (*current)[:len(*current)-1]
 }
 
-func (s *builtinMocksStack) Lookup(builtinName string) *ast.Term {
+func (s *functionMocksStack) Lookup(builtinName string) *ast.Term {
 	current := *s.stack[len(s.stack)-1]
 	for i := len(current) - 1; i >= 0; i-- {
 		if t, ok := current[i][builtinName]; ok {

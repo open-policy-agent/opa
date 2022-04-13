@@ -77,7 +77,7 @@ type eval struct {
 	instr                  *Instrumentation
 	builtins               map[string]*Builtin
 	builtinCache           builtins.Cache
-	builtinMocks           *builtinMocksStack
+	functionMocks          *functionMocksStack
 	virtualCache           *virtualCache
 	comprehensionCache     *comprehensionCache
 	interQueryBuiltinCache cache.InterQueryCache
@@ -486,7 +486,7 @@ func (e *eval) evalWith(iter evalIterator) error {
 
 	pairsInput := [][2]*ast.Term{}
 	pairsData := [][2]*ast.Term{}
-	builtinMocks := [][2]*ast.Term{}
+	functionMocks := [][2]*ast.Term{}
 	targets := []ast.Ref{}
 
 	for i := range expr.With {
@@ -500,7 +500,7 @@ func (e *eval) evalWith(iter evalIterator) error {
 		default: // target must be builtin
 			_, _, ok := e.builtinFunc(target.String())
 			if ok {
-				builtinMocks = append(builtinMocks, [...]*ast.Term{expr.With[i].Target, plugged})
+				functionMocks = append(functionMocks, [...]*ast.Term{expr.With[i].Target, plugged})
 			}
 			continue
 		}
@@ -525,12 +525,12 @@ func (e *eval) evalWith(iter evalIterator) error {
 		}
 	}
 
-	oldInput, oldData := e.evalWithPush(input, data, builtinMocks, targets, disable)
+	oldInput, oldData := e.evalWithPush(input, data, functionMocks, targets, disable)
 
 	err = e.evalStep(func(e *eval) error {
 		e.evalWithPop(oldInput, oldData)
 		err := e.next(iter)
-		oldInput, oldData = e.evalWithPush(input, data, builtinMocks, targets, disable)
+		oldInput, oldData = e.evalWithPush(input, data, functionMocks, targets, disable)
 		return err
 	})
 
@@ -539,7 +539,7 @@ func (e *eval) evalWith(iter evalIterator) error {
 	return err
 }
 
-func (e *eval) evalWithPush(input, data *ast.Term, builtinMocks [][2]*ast.Term, targets, disable []ast.Ref) (*ast.Term, *ast.Term) {
+func (e *eval) evalWithPush(input, data *ast.Term, functionMocks [][2]*ast.Term, targets, disable []ast.Ref) (*ast.Term, *ast.Term) {
 	var oldInput *ast.Term
 
 	if input != nil {
@@ -558,7 +558,7 @@ func (e *eval) evalWithPush(input, data *ast.Term, builtinMocks [][2]*ast.Term, 
 	e.virtualCache.Push()
 	e.targetStack.Push(targets)
 	e.inliningControl.PushDisable(disable, true)
-	e.builtinMocks.PutPairs(builtinMocks)
+	e.functionMocks.PutPairs(functionMocks)
 
 	return oldInput, oldData
 }
@@ -568,7 +568,7 @@ func (e *eval) evalWithPop(input, data *ast.Term) {
 	e.targetStack.Pop()
 	e.virtualCache.Pop()
 	e.comprehensionCache.Pop()
-	e.builtinMocks.PopPairs()
+	e.functionMocks.PopPairs()
 	e.data = data
 	e.input = input
 }
@@ -734,19 +734,19 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 		return unsupportedBuiltinErr(e.query[e.index].Location)
 	}
 
-	if mock, ok := e.builtinMocks.Get(builtinName); ok {
+	if mock, ok := e.functionMocks.Get(builtinName); ok {
 		switch m := mock.Value.(type) {
 		case ast.Ref: // builtin or data function
 			mockCall := append([]*ast.Term{ast.NewTerm(m)}, terms[1:]...)
 
-			e.builtinMocks.Push()
+			e.functionMocks.Push()
 			err := e.evalCall(mockCall, func() error {
-				e.builtinMocks.Pop()
+				e.functionMocks.Pop()
 				err := iter()
-				e.builtinMocks.Push()
+				e.functionMocks.Push()
 				return err
 			})
-			e.builtinMocks.Pop()
+			e.functionMocks.Pop()
 			return err
 
 		default: // value replacement

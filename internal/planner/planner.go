@@ -28,23 +28,23 @@ type planiter func() error
 
 // Planner implements a query planner for Rego queries.
 type Planner struct {
-	policy   *ir.Policy              // result of planning
-	queries  []QuerySet              // input queries to plan
-	modules  []*ast.Module           // input modules to support queries
-	strings  map[string]int          // global string constant indices
-	files    map[string]int          // global file constant indices
-	externs  map[string]*ast.Builtin // built-in functions that are required in execution environment
-	decls    map[string]*ast.Builtin // built-in functions that may be provided in execution environment
-	rules    *ruletrie               // rules that may be planned
-	builtins *builtinMocksStack      // replacements for built-in functions
-	funcs    *funcstack              // functions that have been planned
-	plan     *ir.Plan                // in-progress query plan
-	curr     *ir.Block               // in-progress query block
-	vars     *varstack               // in-scope variables
-	ltarget  ir.Operand              // target variable or constant of last planned statement
-	lnext    ir.Local                // next variable to use
-	loc      *location.Location      // location currently "being planned"
-	debug    debug.Debug             // debug information produced during planning
+	policy  *ir.Policy              // result of planning
+	queries []QuerySet              // input queries to plan
+	modules []*ast.Module           // input modules to support queries
+	strings map[string]int          // global string constant indices
+	files   map[string]int          // global file constant indices
+	externs map[string]*ast.Builtin // built-in functions that are required in execution environment
+	decls   map[string]*ast.Builtin // built-in functions that may be provided in execution environment
+	rules   *ruletrie               // rules that may be planned
+	mocks   *functionMocksStack     // replacements for built-in functions
+	funcs   *funcstack              // functions that have been planned
+	plan    *ir.Plan                // in-progress query plan
+	curr    *ir.Block               // in-progress query block
+	vars    *varstack               // in-scope variables
+	ltarget ir.Operand              // target variable or constant of last planned statement
+	lnext   ir.Local                // next variable to use
+	loc     *location.Location      // location currently "being planned"
+	debug   debug.Debug             // debug information produced during planning
 }
 
 // debugf prepends the planner location. We're passing callstack depth 2 because
@@ -75,10 +75,10 @@ func New() *Planner {
 			ast.InputRootDocument.Value.(ast.Var):   ir.Input,
 			ast.DefaultRootDocument.Value.(ast.Var): ir.Data,
 		}),
-		rules:    newRuletrie(),
-		funcs:    newFuncstack(),
-		builtins: newBuiltinMocksStack(),
-		debug:    debug.Discard(),
+		rules: newRuletrie(),
+		funcs: newFuncstack(),
+		mocks: newFunctionMocksStack(),
+		debug: debug.Discard(),
 	}
 }
 
@@ -578,7 +578,7 @@ func (p *Planner) planWith(e *ast.Expr, iter planiter) error {
 
 	return p.planTermSlice(values, func(locals []ir.Operand) error {
 
-		p.builtins.PushFrame(builtins)
+		p.mocks.PushFrame(builtins)
 
 		paths := make([][]int, len(targets))
 		saveVars := ast.NewVarSet()
@@ -625,7 +625,7 @@ func (p *Planner) planWith(e *ast.Expr, iter planiter) error {
 		}
 
 		err := p.planWithRec(e, paths, locals, 0, func() error {
-			p.builtins.PopFrame()
+			p.mocks.PopFrame()
 			if shadowing {
 				p.funcs.Pop()
 				for i := len(dataRefs) - 1; i >= 0; i-- {
@@ -637,7 +637,7 @@ func (p *Planner) planWith(e *ast.Expr, iter planiter) error {
 
 				err := iter()
 
-				p.builtins.PushFrame(builtins)
+				p.mocks.PushFrame(builtins)
 				if shadowing {
 					p.funcs.Push(map[string]string{})
 					for _, ref := range dataRefs {
@@ -650,7 +650,7 @@ func (p *Planner) planWith(e *ast.Expr, iter planiter) error {
 			return err
 		})
 
-		p.builtins.PopFrame()
+		p.mocks.PopFrame()
 		if shadowing {
 			p.funcs.Pop()
 			for i := len(dataRefs) - 1; i >= 0; i-- {
@@ -822,7 +822,7 @@ func (p *Planner) planExprCall(e *ast.Expr, iter planiter) error {
 		operands := e.Operands()
 		op := e.Operator()
 
-		if replacement := p.builtins.Lookup(operator); replacement != nil {
+		if replacement := p.mocks.Lookup(operator); replacement != nil {
 			switch r := replacement.Value.(type) {
 			case ast.Ref:
 				if !r.HasPrefix(ast.DefaultRootRef) && !r.HasPrefix(ast.InputRootRef) {
@@ -837,12 +837,12 @@ func (p *Planner) planExprCall(e *ast.Expr, iter planiter) error {
 
 				// replacement is a function (rule)
 				if node := p.rules.Lookup(r); node != nil {
-					p.builtins.Push() // new scope
+					p.mocks.Push() // new scope
 					name, err = p.planRules(node.Rules())
 					if err != nil {
 						return err
 					}
-					p.builtins.Pop()
+					p.mocks.Pop()
 					return p.planExprCallFunc(name, node.Arity(), void, operands, p.defaultOperands(), iter)
 				}
 
