@@ -408,6 +408,40 @@ func TestEtagCachingLifecycle(t *testing.T) {
 	}
 }
 
+func TestOneShotWithBundleEtag(t *testing.T) {
+
+	ctx := context.Background()
+	fixture := newTestFixture(t)
+	fixture.d = New(Config{}, fixture.client, "/bundles/test/bundle1").WithCallback(fixture.oneShot)
+	fixture.server.expEtag = "some etag value"
+	defer fixture.server.stop()
+
+	// check etag on the downloader is empty
+	if fixture.d.etag != "" {
+		t.Fatalf("Expected empty downloader ETag but got %v", fixture.d.etag)
+	}
+
+	// simulate successful bundle activation and check updated etag on the downloader
+	fixture.server.expCode = 0
+	err := fixture.d.oneShot(ctx)
+	if err != nil {
+		t.Fatal("Unexpected:", err)
+	}
+
+	if fixture.d.etag != fixture.server.expEtag {
+		t.Fatalf("Expected downloader ETag %v but got %v", fixture.server.expEtag, fixture.d.etag)
+	}
+
+	if fixture.updates[0].Bundle == nil {
+		// 200 response on first request, bundle should be present
+		t.Errorf("Expected bundle in response")
+	}
+
+	if fixture.updates[0].Bundle.Etag != fixture.server.expEtag {
+		t.Fatalf("Expected bundle ETag %v but got %v", fixture.server.expEtag, fixture.updates[0].Bundle.Etag)
+	}
+}
+
 func TestFailureAuthn(t *testing.T) {
 
 	ctx := context.Background()
