@@ -500,6 +500,80 @@ func TestEvalWithSchemaFileWithRemoteRef(t *testing.T) {
 	})
 }
 
+func TestBuiltinsCapabilities(t *testing.T) {
+	tests := []struct {
+		note            string
+		policy          string
+		query           string
+		ruleName        string
+		expectedCode    string
+		expectedMessage string
+	}{
+		{
+			note:            "rego.metadata.chain() not allowed",
+			policy:          "package p\n r := rego.metadata.chain()",
+			query:           "data.p",
+			ruleName:        "rego.metadata.chain",
+			expectedCode:    "rego_type_error",
+			expectedMessage: "undefined function rego.metadata.chain",
+		},
+		{
+			note:            "rego.metadata.rule() not allowed",
+			policy:          "package p\n r := rego.metadata.rule()",
+			query:           "data.p",
+			ruleName:        "rego.metadata.rule",
+			expectedCode:    "rego_type_error",
+			expectedMessage: "undefined function rego.metadata.rule",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+
+			files := map[string]string{
+				"p.rego": tc.policy,
+			}
+
+			test.WithTempFS(files, func(path string) {
+				params := newEvalCommandParams()
+				params.capabilities.C = ast.CapabilitiesForThisVersion()
+				params.capabilities.C.Builtins = removeBuiltin(params.capabilities.C.Builtins, tc.ruleName)
+
+				_ = params.dataPaths.Set(filepath.Join(path, "p.rego"))
+
+				var buf bytes.Buffer
+				_, err := eval([]string{tc.query}, params, &buf)
+				if err == nil {
+					t.Fatal("expected error, got nil")
+				}
+				var output presentation.Output
+				if err := util.NewJSONDecoder(&buf).Decode(&output); err != nil {
+					t.Fatal(err)
+				}
+				if exp, act := 1, len(output.Errors); exp != act {
+					t.Fatalf("expected %d errors, got %d", exp, act)
+				}
+				if code := output.Errors[0].Code; code != tc.expectedCode {
+					t.Errorf("expected code '%v', got '%v'", tc.expectedCode, code)
+				}
+				if msg := output.Errors[0].Message; msg != tc.expectedMessage {
+					t.Errorf("expected message '%v', got '%v'", tc.expectedMessage, msg)
+				}
+			})
+		})
+	}
+}
+
+func removeBuiltin(builtins []*ast.Builtin, name string) []*ast.Builtin {
+	var cpy []*ast.Builtin
+	for _, builtin := range builtins {
+		if builtin.Name != name {
+			cpy = append(cpy, builtin)
+		}
+	}
+	return cpy
+}
+
 func TestEvalReturnsRegoError(t *testing.T) {
 	buf := new(bytes.Buffer)
 	_, err := eval([]string{`{k: v | k = ["a", "a"][_]; v = [0,1][_]}`}, newEvalCommandParams(), buf)

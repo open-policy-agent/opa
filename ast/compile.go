@@ -1771,6 +1771,9 @@ func (c *Compiler) parseMetadataBlocks() {
 func (c *Compiler) rewriteRegoMetadataCalls() {
 	eqFactory := newEqualityFactory(c.localvargen)
 
+	_, chainFuncAllowed := c.builtins[RegoMetadataChain.Name]
+	_, ruleFuncAllowed := c.builtins[RegoMetadataRule.Name]
+
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
 
@@ -1779,9 +1782,9 @@ func (c *Compiler) rewriteRegoMetadataCalls() {
 			var ruleCalled bool
 
 			WalkExprs(rule, func(expr *Expr) bool {
-				if isRegoMetadataChainCall(expr) {
+				if chainFuncAllowed && isRegoMetadataChainCall(expr) {
 					chainCalled = true
-				} else if isRegoMetadataRuleCall(expr) {
+				} else if ruleFuncAllowed && isRegoMetadataRuleCall(expr) {
 					ruleCalled = true
 				}
 				return chainCalled && ruleCalled
@@ -1835,7 +1838,7 @@ func (c *Compiler) rewriteRegoMetadataCalls() {
 				rule.Body = body
 
 				vis := func(b Body) bool {
-					for _, err := range rewriteRegoMetadataCalls(metadataChainVar, metadataRuleVar, b, &c.RewrittenVars) {
+					for _, err := range rewriteRegoMetadataCalls(&metadataChainVar, &metadataRuleVar, b, &c.RewrittenVars) {
 						c.err(err)
 					}
 					return false
@@ -1864,7 +1867,7 @@ func getPrimaryRuleAnnotations(as *AnnotationSet, rule *Rule) *Annotations {
 	return annots[0]
 }
 
-func rewriteRegoMetadataCalls(metadataChainVar Var, metadataRuleVar Var, body Body, rewrittenVars *map[Var]Var) Errors {
+func rewriteRegoMetadataCalls(metadataChainVar *Var, metadataRuleVar *Var, body Body, rewrittenVars *map[Var]Var) Errors {
 	var errs Errors
 
 	WalkClosures(body, func(x interface{}) bool {
@@ -1885,10 +1888,10 @@ func rewriteRegoMetadataCalls(metadataChainVar Var, metadataRuleVar Var, body Bo
 		expr := body[i]
 		var metadataVar Var
 
-		if isRegoMetadataChainCall(expr) {
-			metadataVar = metadataChainVar
-		} else if isRegoMetadataRuleCall(expr) {
-			metadataVar = metadataRuleVar
+		if metadataChainVar != nil && isRegoMetadataChainCall(expr) {
+			metadataVar = *metadataChainVar
+		} else if metadataRuleVar != nil && isRegoMetadataRuleCall(expr) {
+			metadataVar = *metadataRuleVar
 		} else {
 			continue
 		}
