@@ -176,12 +176,12 @@ func ParseRuleFromExpr(module *Module, expr *Expr) (*Rule, error) {
 	if expr.IsEquality() {
 		return parseCompleteRuleFromEq(module, expr)
 	} else if expr.IsAssignment() {
-		if rule, err := parseCompleteRuleFromEq(module, expr); err != nil {
+		rule, err := parseCompleteRuleFromEq(module, expr)
+		if err != nil {
 			return nil, err
-		} else {
-			rule.Head.Assign = true
-			return rule, nil
 		}
+		rule.Head.Assign = true
+		return rule, nil
 	}
 
 	if _, ok := BuiltinMap[expr.Operator().String()]; ok {
