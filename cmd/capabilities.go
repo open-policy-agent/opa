@@ -63,7 +63,7 @@ Print the capabilities of a specific version in json
         "future_keywords": null,
         "wasm_abi_versions": [...]
     }
-  
+
 `,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cs, err := doCapabilities(capabilitiesParams)
