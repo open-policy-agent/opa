@@ -83,3 +83,20 @@ func TestParserCapabilitiesWithWildcardOptInAndOlderOPA(t *testing.T) {
 		t.Fatal("unexpected error:", err)
 	}
 }
+
+func TestLoadCapabilitiesVersionJSON(t *testing.T) {
+
+	capabilitiesVersions, err := LoadCapabilitiesVersions()
+	if err != nil {
+		t.Fatal("expected success", err)
+	}
+
+	if len(capabilitiesVersions) == 0 {
+		t.Fatal("expected a non-empty array of capabilities versions")
+	}
+	for _, cv := range capabilitiesVersions {
+		if _, err := LoadCapabilitiesVersionJSON(cv); err != nil {
+			t.Fatal("expected success", err)
+		}
+	}
+}

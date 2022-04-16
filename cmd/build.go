@@ -201,7 +201,7 @@ The OPA repository contains a set of capabilities files for each OPA release. Fo
 the following command builds a directory of policies ('./policies') and validates them
 against OPA v0.22.0:
 
-    opa build ./policies --capabilities $OPA_SRC/capabilities/v0.22.0.json
+    opa build ./policies --capabilities v0.22.0
 `,
 		PreRunE: func(Cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
