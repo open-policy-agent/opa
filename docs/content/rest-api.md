@@ -2022,6 +2022,7 @@ Content-Type: application/json
 ```json
 {
   "metrics": {
+    "counter_server_query_cache_hit": 0,
     "timer_rego_query_compile_ns": 69994,
     "timer_rego_query_eval_ns": 48425,
     "timer_rego_query_parse_ns": 4096
