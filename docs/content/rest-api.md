@@ -2022,7 +2022,7 @@ Content-Type: application/json
 ```json
 {
   "metrics": {
-    "counter_server_query_cache_hit": 0,
+    "counter_server_query_cache_hit": 1,
     "timer_rego_query_compile_ns": 69994,
     "timer_rego_query_eval_ns": 48425,
     "timer_rego_query_parse_ns": 4096
@@ -2038,6 +2038,7 @@ Content-Type: application/json
 
 OPA currently supports the following query performance metrics:
 
+- **counter_server_query_cache_hit**: Count the number of times the query cache hits
 - **timer_rego_input_parse_ns**: time taken (in nanoseconds) to parse the input
 - **timer_rego_query_parse_ns**: time taken (in nanonseconds) to parse the query.
 - **timer_rego_query_compile_ns**: time taken (in nanonseconds) to compile the query.
