@@ -25,6 +25,7 @@ const (
 type Status struct {
 	Name                     string          `json:"name"`
 	ActiveRevision           string          `json:"active_revision,omitempty"`
+	FirstSuccessfulActivation time.Time       `json:"first_successful_activation,omitempty"`
 	LastSuccessfulActivation time.Time       `json:"last_successful_activation,omitempty"`
 	LastSuccessfulDownload   time.Time       `json:"last_successful_download,omitempty"`
 	LastSuccessfulRequest    time.Time       `json:"last_successful_request,omitempty"`
@@ -47,6 +48,10 @@ func (s *Status) SetActivateSuccess(revision string) {
 // download.
 func (s *Status) SetDownloadSuccess() {
 	s.LastSuccessfulDownload = time.Now().UTC()
+
+	if s.FirstSuccessfulActivation.IsZero() {
+		s.FirstSuccessfulActivation = s.LastSuccessfulDownload
+	}
 }
 
 // SetRequest updates the status object to reflect a download attempt.
