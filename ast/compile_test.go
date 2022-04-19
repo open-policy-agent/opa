@@ -4637,11 +4637,28 @@ func TestCompilerMockBuiltinFunction(t *testing.T) {
 			`,
 			err: `rego_compile_error: with keyword replacing built-in function: replacement of internal function "internal.print" invalid`,
 		},
+		{
+			note: "mocking custom built-in",
+			module: `package test
+				mock(_)
+				mock_mock(_)
+				p { bar(foo.bar(1)) with bar as mock with foo.bar as mock_mock }
+			`,
+		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			c := NewCompiler()
+			c := NewCompiler().WithBuiltins(map[string]*Builtin{
+				"bar": {
+					Name: "bar",
+					Decl: types.NewFunction([]types.Type{types.S}, types.A),
+				},
+				"foo.bar": {
+					Name: "foo.bar",
+					Decl: types.NewFunction([]types.Type{types.S}, types.A),
+				},
+			})
 			if tc.extra != "" {
 				c.Modules["extra"] = MustParseModule(tc.extra)
 			}
