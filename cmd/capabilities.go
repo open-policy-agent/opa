@@ -6,6 +6,7 @@ package cmd
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/util"
@@ -33,7 +34,7 @@ func init() {
 		Short: "Print the capabilities of OPA",
 		Long: `Show capabilities for OPA.
 
-The 'capabilities' command prints the OPA capabilities for a specific version.
+The 'capabilities' command prints the OPA capabilities, prior to and including the version of OPA used, for a specific version.
 
 Print a list of all existing capabilities versions
 
@@ -65,7 +66,7 @@ Print the capabilities of a specific version in json
     }
 
 `,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(*cobra.Command, []string) error {
 			cs, err := doCapabilities(capabilitiesParams)
 			if err != nil {
 				return err
@@ -74,14 +75,11 @@ Print the capabilities of a specific version in json
 			return nil
 		},
 	}
-	capabilitiesCommand.Flags().BoolVarP(&capabilitiesParams.showVersions, "versions", "", false, "list capabilities versions")
-	capabilitiesCommand.Flags().BoolVarP(&capabilitiesParams.showCurrent, "current", "", false, "print current capabilities in json")
+	capabilitiesCommand.Flags().BoolVar(&capabilitiesParams.showVersions, "versions", false, "list capabilities versions")
+	capabilitiesCommand.Flags().BoolVar(&capabilitiesParams.showCurrent, "current", false, "print current capabilities in json")
 
 	addCapabilitiesFlag(capabilitiesCommand.Flags(), capabilitiesParams.capabilitiesFlag)
 
-	// The version command can also be used to check for the latest released OPA version.
-	// Some tools could use this for feature flagging purposes and hence this option is OFF by-default.
-	// capabilitiesCommand.Flags().BoolVarP(&check, "check", "c", false, "check for latest OPA release")
 	RootCommand.AddCommand(capabilitiesCommand)
 }
 
@@ -92,10 +90,7 @@ func doCapabilities(params capabilitiesParams) (string, error) {
 			return "", err
 		}
 
-		var t string
-		for _, cv := range cvs {
-			t = t + cv + "\n"
-		}
+		t := strings.Join(cvs, "\n")
 		return t, nil
 	}
 
