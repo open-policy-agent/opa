@@ -42,8 +42,35 @@ integrations:
       - https://www.openpolicyagent.org/docs/latest/aws-cloudformation-hooks/
     code:
       - https://github.com/StyraInc/opa-aws-cloudformation-hook
+    blogs:
+      - https://blog.styra.com/blog/the-opa-aws-cloudformation-hook
     inventors:
       - styra
+
+  oauth2:
+    title: OAuth2
+    description: Integrating OAuth2 with Open Policy Agent
+    software:
+      - oauth
+    labels:
+      category: security
+    tutorials:
+      - https://www.openpolicyagent.org/docs/latest/oauth-oidc/
+    blogs:
+      - https://blog.styra.com/blog/integrating-identity-oauth2-and-openid-connect-in-open-policy-agent
+
+  oidc:
+    title: OpenID Connect (OIDC)
+    description: Integrating OpenID Connect (OIDC) with Open Policy Agent
+    software:
+      - oauth
+      - oidc
+    labels:
+      category: security
+    tutorials:
+      - https://www.openpolicyagent.org/docs/latest/oauth-oidc/
+    blogs:
+      - https://blog.styra.com/blog/integrating-identity-oauth2-and-openid-connect-in-open-policy-agent
 
   google-kubernetes-engine:
     title: Google Kubernetes Engine (GKE)
@@ -606,10 +633,11 @@ integrations:
       - https://github.com/fugue/regula
       - https://github.com/accurics/terrascan
       - https://github.com/Checkmarx/kics
-    policies:
       - https://github.com/open-policy-agent/library/tree/master/terraform
       - https://github.com/accurics/terrascan/tree/master/pkg/policies/opa/rego
       - https://github.com/Checkmarx/kics/tree/master/assets/queries/terraform
+    blogs:
+      - https://blog.styra.com/blog/policy-based-infrastructure-guardrails-with-terraform-and-opa
     inventors:
       - fugue
       - accurics
@@ -1386,6 +1414,12 @@ organizations:
     link: https://www.aserto.com
 
 software:
+  oauth:
+    name: OAuth
+    link: https://oauth.net/
+  oidc:
+    name: OpenID Connect (OIDC)
+    link: https://openid.net/connect/
   dapr:
     name: Dapr
     link: https://dapr.io/
