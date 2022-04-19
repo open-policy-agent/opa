@@ -4777,7 +4777,7 @@ func rewriteWithModifier(c *Compiler, f *equalityFactory, expr *Expr) ([]*Expr, 
 
 	var result []*Expr
 	for i := range expr.With {
-		eval, err := validateWith(c, expr.With[i].Target, expr.With[i].Value)
+		eval, err := validateWith(c, expr, i)
 		if err != nil {
 			return nil, err
 		}
@@ -4792,8 +4792,8 @@ func rewriteWithModifier(c *Compiler, f *equalityFactory, expr *Expr) ([]*Expr, 
 	return append(result, expr), nil
 }
 
-func validateWith(c *Compiler, target, value *Term) (bool, *Error) {
-
+func validateWith(c *Compiler, expr *Expr, i int) (bool, *Error) {
+	target, value := expr.With[i].Target, expr.With[i].Value
 	switch {
 	case isDataRef(target):
 		ref := target.Value.(Ref)
@@ -4820,6 +4820,9 @@ func validateWith(c *Compiler, target, value *Term) (bool, *Error) {
 		}
 	case isInputRef(target): // ok, valid
 	case isBuiltinRefOrVar(c.builtins, target):
+
+		// NOTE(sr): first we ensure that parsed Var builtins (`count`, `concat`, etc)
+		// are rewritten to their proper Ref convention
 		if v, ok := target.Value.(Var); ok {
 			target.Value = Ref([]*Term{NewTerm(v)})
 		}
@@ -4828,35 +4831,20 @@ func validateWith(c *Compiler, target, value *Term) (bool, *Error) {
 				value.Value = Ref([]*Term{NewTerm(v)})
 			}
 		}
+
 		targetRef := target.Value.(Ref)
 		bi := c.builtins[targetRef.String()] // safe because isBuiltinRefOrVar checked this
 		if err := validateWithBuiltinTarget(bi, targetRef, target.Loc()); err != nil {
 			return false, err
 		}
 
-		biArity := len(bi.Decl.Args())
-
 		if v, ok := value.Value.(Ref); ok {
-			if node := c.RuleTree.Find(v); node != nil { // check arity
-				// it's either a function of the same arity, or used as value
-				for _, value := range node.Values { // TODO(sr): loop looks superfluous
-					arity := len(value.(*Rule).Head.Args)
-					switch {
-					case arity == 0: // nothing to do, replacement by value
-					case arity != biArity:
-						return false, NewError(CompileErr, target.Loc(), "with keyword replacing built-in function: replacement function must have same arity (have %d, want %d)", arity, biArity)
-					}
-					continue
-				}
+			if c.RuleTree.Find(v) != nil { // ref exists in rule tree
 				return false, nil
 			}
-		}
-		// could be ref to built-in, e.g. "array.concat", or simple built-in, e.g. "count" -- check arity
-		if bi, ok := c.builtins[value.Value.String()]; ok {
-			if arity := len(bi.Decl.Args()); arity != biArity {
-				return false, NewError(CompileErr, target.Loc(), "with keyword replacing built-in function: replacement built-in function must have same arity (have %d, want %d)", arity, biArity)
+			if _, ok := c.builtins[v.String()]; ok { // built-in replaced by other built-in
+				return false, nil
 			}
-			return false, nil
 		}
 
 	default:

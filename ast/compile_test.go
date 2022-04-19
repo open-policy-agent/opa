@@ -4080,6 +4080,13 @@ func TestCompilerRewriteWithValue(t *testing.T) {
 			expected: `p { true with http.send as {"body": "yay"} }`,
 		},
 		{
+			note: "built-in function: replaced by comprehension",
+			input: `
+				p { true with http.send as { x: true | x := ["a", "b"][_] } }
+			`,
+			expected: `p { __local2__ = {__local0__: true | __local1__ = ["a", "b"]; __local0__ = __local1__[_]}; true with http.send as __local2__ }`,
+		},
+		{
 			note: "built-in function: replaced by ref",
 			input: `
 				p { true with http.send as resp }
@@ -4104,20 +4111,6 @@ func TestCompilerRewriteWithValue(t *testing.T) {
 				r.Body[0].With[0].Value.Value = Ref([]*Term{VarTerm("count")})
 				return r
 			}(),
-		},
-		{
-			note: "built-in function: replaced by another built-in (simple), wrong arity",
-			input: `
-				p { true with array.concat as count }
-			`,
-			wantErr: fmt.Errorf("rego_compile_error: with keyword replacing built-in function: replacement built-in function must have same arity (have 1, want 2)"),
-		},
-		{
-			note: "built-in function: replaced by another built-in (ref), wrong arity",
-			input: `
-				p { true with count as array.concat }
-			`,
-			wantErr: fmt.Errorf("rego_compile_error: with keyword replacing built-in function: replacement built-in function must have same arity (have 2, want 1)"),
 		},
 		{
 			note: "built-in function: valid, arity 1, non-compound name",
@@ -4550,6 +4543,7 @@ func TestCompilerMockBuiltinFunction(t *testing.T) {
 			module: `package test
 				p { true with time.now_ns as now }
 			`,
+			err: "rego_unsafe_var_error: var now is unsafe", // we're running all compiler stages here
 		},
 		{
 			note: "valid ref: not a function, but arity = 0",
@@ -4571,12 +4565,19 @@ func TestCompilerMockBuiltinFunction(t *testing.T) {
 				http_send(_, _) = { "body": "nope" }
 				p { true with http.send as http_send }
 			`,
-			err: "rego_compile_error: with keyword replacing built-in function: replacement function must have same arity (have 2, want 1)",
+			err: "rego_type_error: http.send: arity mismatch\n\thave: (any, any)\n\twant: (object[string: any])",
 		},
 		{
-			note: "ref: value another built-in",
+			note: "invalid ref: value another built-in with different type",
 			module: `package test
 				p { true with http.send as net.lookup_ip_addr }
+			`,
+			err: "rego_type_error: http.send: arity mismatch\n\thave: (string)\n\twant: (object[string: any])",
+		},
+		{
+			note: "ref: value another built-in with compatible type",
+			module: `package test
+				p { true with count as object.union_n }
 			`,
 		},
 		{
@@ -4642,7 +4643,7 @@ func TestCompilerMockBuiltinFunction(t *testing.T) {
 			module: `package test
 				mock(_)
 				mock_mock(_)
-				p { bar(foo.bar(1)) with bar as mock with foo.bar as mock_mock }
+				p { bar(foo.bar("one")) with bar as mock with foo.bar as mock_mock }
 			`,
 		},
 	}
@@ -4663,7 +4664,11 @@ func TestCompilerMockBuiltinFunction(t *testing.T) {
 				c.Modules["extra"] = MustParseModule(tc.extra)
 			}
 			c.Modules["test"] = MustParseModule(tc.module)
-			compileStages(c, c.rewriteWithModifiers)
+
+			// NOTE(sr): We're running all compiler stages here, since the type checking of
+			// built-in function replacements happens at the type check stage.
+			c.Compile(c.Modules)
+
 			if tc.err != "" {
 				if !strings.Contains(c.Errors.Error(), tc.err) {
 					t.Errorf("expected error to contain %q, got %q", tc.err, c.Errors.Error())
