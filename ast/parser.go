@@ -634,9 +634,7 @@ func (p *Parser) parseElse(head *Head) *Rule {
 	switch p.s.tok {
 	case tokens.LBrace:
 		rule.Head.Value = BooleanTerm(true)
-	case tokens.Assign:
-		fallthrough
-	case tokens.Unify:
+	case tokens.Assign, tokens.Unify:
 		p.scan()
 		rule.Head.Value = p.parseTermInfixCall()
 		if rule.Head.Value == nil {
@@ -730,13 +728,14 @@ func (p *Parser) parseHead(defaultRule bool) *Head {
 		head.Value = p.parseTermInfixCall()
 		if head.Value == nil {
 			p.restore(s)
-			if len(head.Args) > 0 {
+			switch {
+			case len(head.Args) > 0:
 				p.illegal("expected function value term (e.g., %s(...) := <VALUE> { ... })", head.Name)
-			} else if head.Key != nil {
+			case head.Key != nil:
 				p.illegal("expected partial rule value term (e.g., %s[...] := <VALUE> { ... })", head.Name)
-			} else if defaultRule {
+			case defaultRule:
 				p.illegal("expected default rule value term (e.g., default %s := <VALUE>)", head.Name)
-			} else {
+			default:
 				p.illegal("expected rule value term (e.g., %s := <VALUE> { ... })", head.Name)
 			}
 		}
