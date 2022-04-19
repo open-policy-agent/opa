@@ -252,10 +252,7 @@ cases:
   - |
     package test
 
-    f(x) = {"foo": 3} {
-      object.union_n(x) # b1
-      true
-    }
+    f(x) = object.union_n(x) # b1
     g(x) = 123 {
       count(x) # b2
       s with array.reverse as h
@@ -263,7 +260,7 @@ cases:
     h(_) = ["replaced"]
     p { q with object.union_n as f }
     q { r with count as g }
-    r { x := [{}]; count(x) == 123; object.union_n(x) == {"foo": 3} }
+    r { x := [{"foo": 4}, {"baz": 5}]; count(x) == 123; object.union_n(x) == {"foo": 4, "baz": 5} }
     s { x := [{}]; array.reverse(x) == ["replaced"] }
   note: 'withkeyword/builtin: nested scope handling'
   query: data.test.p = x
