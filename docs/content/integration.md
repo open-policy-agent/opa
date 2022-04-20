@@ -66,7 +66,7 @@ decisions: `example/authz/allow` and `example/authz/is_admin`.
 ```live:authz:module:openable,read_only
 package example.authz
 
-default allow = false
+default allow := false
 
 allow {
     input.method == "GET"
@@ -199,7 +199,7 @@ store, etc.
 module := `
 package example.authz
 
-default allow = false
+default allow := false
 
 allow {
     input.method == "GET"
@@ -323,7 +323,7 @@ func main() {
 		"example.rego": `
 				package authz
 
-				default allow = false
+				default allow := false
 
 				allow {
 					input.open == "sesame"
@@ -394,5 +394,3 @@ Integrating OPA via the REST API is the most common, at the time of writing.  OP
 Integrating OPA via the Go API only works for Go software.  Updates to OPA require re-vendoring and re-deploying the software.  Evaluation has less overhead than the REST API because all the communication happens in the same operating-system process.  All of the management functionality (bundles, decision logs, etc.) must be either enabled or implemented.  Security concerns are limited to those management features that are enabled or implemented.
 
 Integrating via WASM is still a work-in-progress.  But once it is finished, WASM policies will be embeddable in any programming language that has a WASM runtime.  Evaluation will have less overhead than the REST API (because it is evaluated in the same operating-system process) and should outperform the Go API (because the policies have been compiled to a lower-level instruction set).  Each programming language will need its own SDKs (also a WIP) that implement the management functionality and the evaluation interface. Typically new OPA language features will not require updating the service since neither the WASM runtime nor the SDKs will be impacted.  Updating the SDKs will require re-deploying the service.  Security will be analogous to the Go API integration: it is mainly the management functionality that presents security risks.
-
-

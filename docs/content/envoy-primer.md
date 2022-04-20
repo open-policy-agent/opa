@@ -17,7 +17,7 @@ package envoy.authz
 
 import input.attributes.request.http
 
-default allow = false
+default allow := false
 
 allow {
     is_token_valid
@@ -113,21 +113,21 @@ package envoy.authz
 
 import input.attributes.request.http
 
-default allow = false
+default allow := false
 
 allow {
     is_token_valid
     action_allowed
 }
 
-headers["x-ext-auth-allow"] = "yes"
-headers["x-validated-by"] = "security-checkpoint"
+headers["x-ext-auth-allow"] := "yes"
+headers["x-validated-by"] := "security-checkpoint"
 
 request_headers_to_remove := ["one-auth-header", "another-auth-header"]
 
-response_headers_to_add["x-foo"] = "bar"
+response_headers_to_add["x-foo"] := "bar"
 
-status_code = 200 {
+status_code := 200 {
   allow
 } else = 401 {
   not is_token_valid
@@ -135,8 +135,8 @@ status_code = 200 {
   true
 }
 
-body = "Authentication Failed" { status_code == 401 }
-body = "Unauthorized Request" { status_code == 403 }
+body := "Authentication Failed" { status_code == 401 }
+body := "Unauthorized Request" { status_code == 403 }
 
 is_token_valid {
     token.valid
@@ -211,12 +211,12 @@ When Envoy receives a policy decision, it expects a JSON object with the followi
 To construct that output object using the policies demonstrated in the last section, you can use the following Rego snippet.  Notice that we are using partial object rules so that any variables with undefined values simply have no key in the `result` object.
 
 ```rego
-result["allowed"] = allow
-result["headers"] = headers
-result["response_headers_to_add"] = response_headers_to_add
-result["request_headers_to_remove"] = request_headers_to_remove
-result["body"] = body
-result["http_status"] = status_code
+result["allowed"] := allow
+result["headers"] := headers
+result["response_headers_to_add"] := response_headers_to_add
+result["request_headers_to_remove"] := request_headers_to_remove
+result["body"] := body
+result["http_status"] := status_code
 ```
 
 For a single user, including this snippet in your normal policy is fine, but when you have multiple teams writing policies, you will typically pull this bit of boilerplate into a wrapper package, so your teams can focus on writing the policies shown in the previous sections.
@@ -449,7 +449,7 @@ the HTTP URL query as a map of string array. The below sample policy allows anyo
 ```live:parsed_query_example:module:read_only
 package envoy.authz
 
-default allow = false
+default allow := false
 
 allow {
     input.parsed_path == ["people"]
@@ -465,7 +465,7 @@ can then be used in a policy as shown below.
 ```live:parsed_body_example:module:read_only
 package envoy.authz
 
-default allow = false
+default allow := false
 
 allow {
     input.parsed_body.firstname == "Charlie"

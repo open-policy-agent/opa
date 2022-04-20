@@ -488,17 +488,17 @@ package system
 
 import data.kubernetes.admission
 
-main = {
+main := {
   "apiVersion": "admission.k8s.io/v1",
   "kind": "AdmissionReview",
   "response": response,
 }
 
-default uid = ""
+default uid := ""
 
-uid = input.request.uid
+uid := input.request.uid
 
-response = {
+response := {
     "allowed": false,
     "uid": uid,
     "status": {
@@ -508,7 +508,8 @@ response = {
     reason := concat(", ", admission.deny)
     reason != ""
 }
-else = {"allowed": true, "uid": uid}
+
+else := {"allowed": true, "uid": uid}
 ```
 
 The `system.main` policy MUST generate an **AdmissionReview** object containing

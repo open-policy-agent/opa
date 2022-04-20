@@ -426,14 +426,17 @@ no_telnet_exposed {
         }
     }
 }
+
 no_telnet_exposed_alt { # alternative: every + not-in
     every server in input.servers {
         not "telnet" in server.protocols
     }
 }
+
 no_telnet_exposed_alt2 { # alternative: not + rule + some
     not any_telnet_exposed
 }
+
 any_telnet_exposed {
     some server in input.servers
     "telnet" in server.protocols
@@ -478,7 +481,7 @@ For example:
 ```live:example/complete/1:module:openable
 package example.rules
 
-any_public_networks = true {  # is true if...
+any_public_networks := true {  # is true if...
     net := input.networks[_]  # some network exists and..
     net.public                # it is public.
 }
@@ -620,11 +623,11 @@ package example.logical_or
 
 default shell_accessible = false
 
-shell_accessible = true {
+shell_accessible := true {
     input.servers[_].protocols[_] == "telnet"
 }
 
-shell_accessible = true {
+shell_accessible := true {
     input.servers[_].protocols[_] == "ssh"
 }
 ```
@@ -714,7 +717,7 @@ For example:
 package example
 import future.keywords # we want "every" and "in"
 
-allow = true {                                      # allow is true if...
+allow := true {                                      # allow is true if...
     count(violation) == 0                           # there are zero violations.
 }
 
@@ -844,7 +847,7 @@ package example
 
 default allow = false                               # unless otherwise defined, allow is false
 
-allow = true {                                      # allow is true if...
+allow := true {                                     # allow is true if...
     count(violation) == 0                           # there are zero violations.
 }
 

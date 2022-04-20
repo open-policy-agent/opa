@@ -12,7 +12,7 @@ policies over the HTTP request body.
 ## Prerequisites
 
 This tutorial requires Kubernetes 1.20 or later. To run the tutorial locally, we
-recommend using [minikube](https://minikube.sigs.k8s.io/docs/start/) in 
+recommend using [minikube](https://minikube.sigs.k8s.io/docs/start/) in
 version `v1.21+` with Kubernetes 1.20+.
 
 ## Steps
@@ -127,7 +127,7 @@ package envoy.authz
 
 import input.attributes.request.http as http_request
 
-default allow = false
+default allow := false
 
 allow {
     is_token_valid
