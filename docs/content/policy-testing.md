@@ -254,7 +254,7 @@ package authz
 import future.keywords.in
 
 allow {
-    x := data.policies[_]
+    some x in data.policies
     x.name == "test_policy"
     matches_role(input.role)
 }
