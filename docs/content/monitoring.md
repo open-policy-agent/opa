@@ -89,7 +89,6 @@ When Prometheus is enabled in the status plugin (see [Configuration](../configur
 | last_success_bundle_download | gauge | Last successful bundle download in UNIX nanoseconds.   | EXPERIMENTAL |
 | last_success_bundle_request | gauge | Last successful bundle request in UNIX nanoseconds.    | EXPERIMENTAL |
 | bundle_loading_duration_ns | histogram | A histogram of duration for bundle loading.              | EXPERIMENTAL |
-| bundle_active_revision | gauge | First successful bundle activation in UNIX nanoseconds. Contains the activeRevision label. | EXPERIMENTAL |
 
 
 ## Health Checks

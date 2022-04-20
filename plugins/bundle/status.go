@@ -23,28 +23,24 @@ const (
 
 // Status represents the status of processing a bundle.
 type Status struct {
-	Name                      string          `json:"name"`
-	ActiveRevision            string          `json:"active_revision,omitempty"`
-	FirstSuccessfulActivation time.Time       `json:"first_successful_activation,omitempty"`
-	LastSuccessfulActivation  time.Time       `json:"last_successful_activation,omitempty"`
-	LastSuccessfulDownload    time.Time       `json:"last_successful_download,omitempty"`
-	LastSuccessfulRequest     time.Time       `json:"last_successful_request,omitempty"`
-	LastRequest               time.Time       `json:"last_request,omitempty"`
-	Code                      string          `json:"code,omitempty"`
-	Message                   string          `json:"message,omitempty"`
-	Errors                    []error         `json:"errors,omitempty"`
-	Metrics                   metrics.Metrics `json:"metrics,omitempty"`
-	HTTPCode                  json.Number     `json:"http_code,omitempty"`
+	Name                     string          `json:"name"`
+	ActiveRevision           string          `json:"active_revision,omitempty"`
+	LastSuccessfulActivation time.Time       `json:"last_successful_activation,omitempty"`
+	LastSuccessfulDownload   time.Time       `json:"last_successful_download,omitempty"`
+	LastSuccessfulRequest    time.Time       `json:"last_successful_request,omitempty"`
+	LastRequest              time.Time       `json:"last_request,omitempty"`
+	Code                     string          `json:"code,omitempty"`
+	Message                  string          `json:"message,omitempty"`
+	Errors                   []error         `json:"errors,omitempty"`
+	Metrics                  metrics.Metrics `json:"metrics,omitempty"`
+	HTTPCode                 json.Number     `json:"http_code,omitempty"`
 }
 
 // SetActivateSuccess updates the status object to reflect a successful
 // activation.
 func (s *Status) SetActivateSuccess(revision string) {
 	s.LastSuccessfulActivation = time.Now().UTC()
-	if s.ActiveRevision != revision {
-		s.FirstSuccessfulActivation = s.LastSuccessfulActivation
-		s.ActiveRevision = revision
-	}
+	s.ActiveRevision = revision
 }
 
 // SetDownloadSuccess updates the status object to reflect a successful

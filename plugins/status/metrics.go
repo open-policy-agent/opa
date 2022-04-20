@@ -11,12 +11,6 @@ var (
 			Help: "Gauge for the plugin by status."},
 		[]string{"name", "status"},
 	)
-	activeRevision = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "bundle_active_revision",
-			Help: "Gauge for the active revision."},
-		[]string{"name", "active_revision"},
-	)
 	loaded = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "bundle_loaded_counter",
@@ -39,7 +33,7 @@ var (
 		prometheus.GaugeOpts{
 			Name: "last_success_bundle_activation",
 			Help: "Gauge for the last success bundle activation."},
-		[]string{"name"},
+		[]string{"name", "active_revision"},
 	)
 	lastSuccessfulDownload = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{

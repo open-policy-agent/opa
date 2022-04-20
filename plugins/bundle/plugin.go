@@ -545,7 +545,7 @@ func (p *Plugin) checkPluginReadiness() {
 }
 
 func (p *Plugin) activate(ctx context.Context, name string, b *bundle.Bundle) error {
-	p.log(name).Debug("Bundle activation in progress. Opening storage transaction.")
+	p.log(name).Debug("Bundle activation in progress (%v). Opening storage transaction.", b.Manifest.Revision)
 
 	params := storage.WriteParams
 	params.Context = storage.NewContext().WithMetrics(p.status[name].Metrics)

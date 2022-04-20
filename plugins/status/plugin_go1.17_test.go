@@ -45,9 +45,6 @@ func TestPluginPrometheus(t *testing.T) {
 	if registerMock.Collectors[pluginStatus] != true {
 		t.Fatalf("Plugin status metric was not registered on prometheus")
 	}
-	if registerMock.Collectors[activeRevision] != true {
-		t.Fatalf("activeRevision metric was not registered on prometheus")
-	}
 	if registerMock.Collectors[loaded] != true {
 		t.Fatalf("Loaded metric was not registered on prometheus")
 	}
@@ -91,11 +88,6 @@ func TestPluginPrometheus(t *testing.T) {
 	lastSuccessfulActivationMetricResult := time.UnixMilli(int64(testutil.ToFloat64(lastSuccessfulActivation) / 1e6))
 	if !lastSuccessfulActivationMetricResult.Equal(status.LastSuccessfulActivation) {
 		t.Fatalf("Last request expected (%v), got %v", status.LastSuccessfulActivation.UTC(), lastSuccessfulActivationMetricResult.UTC())
-	}
-
-	activeRevisionMetricResult := time.UnixMilli(int64(testutil.ToFloat64(activeRevision) / 1e6))
-	if !activeRevisionMetricResult.Equal(status.FirstSuccessfulActivation) {
-		t.Fatalf("Active revision expected (%v), got %v", status.FirstSuccessfulActivation.UTC(), activeRevisionMetricResult.UTC())
 	}
 
 	bundlesLoaded := testutil.CollectAndCount(loaded)

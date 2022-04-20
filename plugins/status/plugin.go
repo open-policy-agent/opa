@@ -236,7 +236,7 @@ func (p *Plugin) Start(ctx context.Context) error {
 	if p.config.Prometheus && p.manager.PrometheusRegister() != nil {
 		p.register(p.manager.PrometheusRegister(), pluginStatus, loaded, failLoad,
 			lastRequest, lastSuccessfulActivation, lastSuccessfulDownload,
-			lastSuccessfulRequest, bundleLoadDuration, activeRevision)
+			lastSuccessfulRequest, bundleLoadDuration)
 	}
 
 	// Set the status plugin's status to OK now that everything is registered and
@@ -480,15 +480,14 @@ func updatePrometheusMetrics(u *UpdateRequestV1) {
 	for name, plugin := range u.Plugins {
 		pluginStatus.WithLabelValues(name, string(plugin.State)).Set(1)
 	}
-	activeRevision.Reset()
+	lastSuccessfulActivation.Reset()
 	for _, bundle := range u.Bundles {
 		if bundle.Code == "" && bundle.ActiveRevision != "" {
 			loaded.WithLabelValues(bundle.Name).Inc()
 		} else {
 			failLoad.WithLabelValues(bundle.Name, bundle.Code, bundle.Message).Inc()
 		}
-		activeRevision.WithLabelValues(bundle.Name, bundle.ActiveRevision).Set(float64(bundle.FirstSuccessfulActivation.UnixNano()))
-		lastSuccessfulActivation.WithLabelValues(bundle.Name).Set(float64(bundle.LastSuccessfulActivation.UnixNano()))
+		lastSuccessfulActivation.WithLabelValues(bundle.Name, bundle.ActiveRevision).Set(float64(bundle.LastSuccessfulActivation.UnixNano()))
 		lastSuccessfulDownload.WithLabelValues(bundle.Name).Set(float64(bundle.LastSuccessfulDownload.UnixNano()))
 		lastSuccessfulRequest.WithLabelValues(bundle.Name).Set(float64(bundle.LastSuccessfulRequest.UnixNano()))
 		lastRequest.WithLabelValues(bundle.Name).Set(float64(bundle.LastRequest.UnixNano()))
