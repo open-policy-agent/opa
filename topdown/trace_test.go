@@ -1153,3 +1153,92 @@ func compareBuffers(t *testing.T, expected, actual string) {
 		fmt.Println(actual)
 	}
 }
+
+func TestPrettyTraceWithLocationForMetadataCall(t *testing.T) {
+	module := `package test
+rule_no_output_var := rego.metadata.rule()
+
+rule_with_output_var {
+	foo := rego.metadata.rule()
+	foo == {}
+}
+
+chain_no_output_var := rego.metadata.chain()
+
+chain_with_output_var {
+	foo := rego.metadata.chain()
+	foo == []
+}`
+
+	ctx := context.Background()
+	compiler := compileModules([]string{module})
+	data := loadSmallTestData()
+	store := inmem.NewFromObject(data)
+	txn := storage.NewTransactionOrDie(ctx, store)
+	defer store.Abort(ctx, txn)
+
+	tracer := NewBufferTracer()
+	query := NewQuery(ast.MustParseBody("data.test = _")).
+		WithCompiler(compiler).
+		WithStore(store).
+		WithTransaction(txn).
+		WithTracer(tracer)
+
+	_, err := query.Run(ctx)
+	if err != nil {
+		panic(err)
+	}
+
+	expected := `query:1      Enter data.test = _
+query:1      | Eval data.test = _
+query:1      | Index data.test.chain_no_output_var (matched 1 rule)
+query:9      | Enter data.test.chain_no_output_var
+query:9      | | Eval __local8__ = [{"path": ["test", "chain_no_output_var"]}]
+query:9      | | Eval true
+query:9      | | Eval __local4__ = __local8__
+query:9      | | Exit data.test.chain_no_output_var
+query:9      | Redo data.test.chain_no_output_var
+query:9      | | Redo __local4__ = __local8__
+query:9      | | Redo true
+query:9      | | Redo __local8__ = [{"path": ["test", "chain_no_output_var"]}]
+query:1      | Index data.test.chain_with_output_var (matched 1 rule, early exit)
+query:11     | Enter data.test.chain_with_output_var
+query:12     | | Eval __local9__ = [{"path": ["test", "chain_with_output_var"]}]
+query:12     | | Eval __local5__ = __local9__
+query:12     | | Eval foo = __local5__
+query:13     | | Eval foo = []
+query:13     | | Fail foo = []
+query:12     | | Redo foo = __local5__
+query:12     | | Redo __local5__ = __local9__
+query:12     | | Redo __local9__ = [{"path": ["test", "chain_with_output_var"]}]
+query:1      | Index data.test.rule_no_output_var (matched 1 rule)
+query:2      | Enter data.test.rule_no_output_var
+query:2      | | Eval __local6__ = {}
+query:2      | | Eval true
+query:2      | | Eval __local2__ = __local6__
+query:2      | | Exit data.test.rule_no_output_var
+query:2      | Redo data.test.rule_no_output_var
+query:2      | | Redo __local2__ = __local6__
+query:2      | | Redo true
+query:2      | | Redo __local6__ = {}
+query:1      | Index data.test.rule_with_output_var (matched 1 rule, early exit)
+query:4      | Enter data.test.rule_with_output_var
+query:5      | | Eval __local7__ = {}
+query:5      | | Eval __local3__ = __local7__
+query:5      | | Eval foo = __local3__
+query:6      | | Eval foo = {}
+query:4      | | Exit data.test.rule_with_output_var early
+query:4      | Redo data.test.rule_with_output_var
+query:6      | | Redo foo = {}
+query:5      | | Redo foo = __local3__
+query:5      | | Redo __local3__ = __local7__
+query:5      | | Redo __local7__ = {}
+query:1      | Exit data.test = _
+query:1      Redo data.test = _
+query:1      | Redo data.test = _
+`
+
+	var buf bytes.Buffer
+	PrettyTraceWithLocation(&buf, *tracer)
+	compareBuffers(t, expected, buf.String())
+}
