@@ -1236,7 +1236,7 @@ policy          = { rule }
 rule            = [ "default" ] rule-head { rule-body }
 rule-head       = var [ "(" rule-args ")" ] [ "[" term "]" ] [ ( ":=" | "=" ) term ]
 rule-args       = term { "," term }
-rule-body       = [ "else" [ "=" term ] ] "{" query "}"
+rule-body       = [ "else" [ ( ":=" | "=" ) term ] ] "{" query "}"
 query           = literal { ( ";" | ( [CR] LF ) ) literal }
 literal         = ( some-decl | expr | "not" expr ) { with-modifier }
 with-modifier   = "with" term "as" term
