@@ -856,19 +856,19 @@ shows you how to "flatten" a hierarchy of access permissions.
 ```live:graph/reachable/example:module
 package graph_reachable_example
 
-org_chart_data = {
+org_chart_data := {
   "ceo": {},
   "human_resources": {"owner": "ceo", "access": ["salaries", "complaints"]},
   "staffing": {"owner": "human_resources", "access": ["interviews"]},
   "internships": {"owner": "staffing", "access": ["blog"]}
 }
 
-org_chart_graph[entity_name] = edges {
+org_chart_graph[entity_name] := edges {
   org_chart_data[entity_name]
   edges := {neighbor | org_chart_data[neighbor].owner == entity_name}
 }
 
-org_chart_permissions[entity_name] = access {
+org_chart_permissions[entity_name] := access {
   org_chart_data[entity_name]
   reachable := graph.reachable(org_chart_graph, {entity_name})
   access := {item | reachable[k]; item := org_chart_data[k].access[_]}
@@ -885,14 +885,14 @@ It may be useful to find all reachable paths from a root element. `graph.reachab
 ```live:graph/reachable_paths/example:module
 package graph_reachable_paths_example
 
-path_data = {
+path_data := {
     "aTop": [],
     "cMiddle": ["aTop"],
     "bBottom": ["cMiddle"],
     "dIgnored": []
 }
 
-all_paths[root] = paths {
+all_paths[root] := paths {
     path_data[root]
     paths := graph.reachable_paths(path_data, {root})
 }
@@ -1129,7 +1129,7 @@ allow {
     meta.title == "My Allow Rule"                                                  # 'title' pulled from 'rule' scope
     meta.description == "A rule that merges metadata annotations in various ways." # 'description' pulled from 'document' scope
     meta.authors == {                                                              # 'authors' joined from 'package' and 'rule' scopes
-        {"email": "jane@example.com", "name": "Jane Doe"}, 
+        {"email": "jane@example.com", "name": "Jane Doe"},
         {"email": "john@example.com", "name": "John Doe"}
     }
     meta.organizations == {"Acme Corp."}                                           # 'organizations' pulled from 'package' scope
@@ -1157,7 +1157,7 @@ merge(chain) = meta {
 }
 
 override_annot(chain, name, scopes) = val {
-    val := [v | 
+    val := [v |
         link := chain[_]
         link.annotations.scope in scopes
         v := link.annotations[name]
@@ -1165,7 +1165,7 @@ override_annot(chain, name, scopes) = val {
 } else = null
 
 merge_annot(chain, name) = val {
-    val := {v | 
+    val := {v |
         v := chain[_].annotations[name][_]
     }
 } else = null

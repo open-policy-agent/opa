@@ -90,7 +90,7 @@ docker run -v $PWD:/example openpolicyagent/opa eval -d /example 'data.example.g
 ```live:docker_hello_world:module:read_only
 package example
 
-greeting = msg {
+greeting := msg {
     info := opa.runtime()
     hostname := info.env["HOSTNAME"] # Docker sets the HOSTNAME environment variable.
     msg := sprintf("hello from container %q!", [hostname])
@@ -154,7 +154,7 @@ we recommend you store it as a Secret.
 ```live:k8s_deployment_hello_world:module:read_only
 package example
 
-greeting = msg {
+greeting := msg {
     info := opa.runtime()
     hostname := info.env["HOSTNAME"] # Kubernetes sets the HOSTNAME environment variable.
     msg := sprintf("hello from pod %q!", [hostname])
@@ -484,7 +484,7 @@ See [the ABI version docs](../wasm/#abi-versions) for details.
 
 ### Building your own capabilities JSON
 
-Use the following JSON structure to build more complex capability checks. 
+Use the following JSON structure to build more complex capability checks.
 
 ```json
 {
@@ -496,11 +496,11 @@ Use the following JSON structure to build more complex capability checks.
 
             "decl": {  // REQUIRED: Built-in function type declaration.
 
-                "type": "function", // REQUIRED: states this is a function 
+                "type": "function", // REQUIRED: states this is a function
 
-                "args": [ // REQUIRED: List of types to be passed in as an arguement: any, number, string, boolean, object, array, set. 
+                "args": [ // REQUIRED: List of types to be passed in as an arguement: any, number, string, boolean, object, array, set.
                     {
-                        "type": "number" 
+                        "type": "number"
                     },
                     {
                         "type": "number"

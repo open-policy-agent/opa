@@ -13,9 +13,9 @@ Rather than storing endpoints and other metadata as part of policy data, the aut
 ```live:oidc:module
 package oidc
 
-issuers = {"https://issuer1.example.com", "https://issuer2.example.com"}
+issuers := {"https://issuer1.example.com", "https://issuer2.example.com"}
 
-metadata_discovery(issuer) = http.send({
+metadata_discovery(issuer) := http.send({
     "url": concat("", [issuers[issuer], "/.well-known/openid-configuration"]),
     "method": "GET",
     "force_cache": true,
@@ -23,7 +23,7 @@ metadata_discovery(issuer) = http.send({
 }).body
 
 claims := jwt.decode(input.token)[1]
-metadata = metadata_discovery(claims.iss)
+metadata := metadata_discovery(claims.iss)
 
 jwks_endpoint := metadata.jwks_uri
 token_endpoint := metadata.token_endpoint
@@ -36,16 +36,16 @@ Below example uses the keys published at the JWKS endpoint of the authorization 
 ```live:oidc2:module
 package oidc
 
-jwks_request(url) = http.send({
+jwks_request(url) := http.send({
     "url": url,
     "method": "GET",
     "force_cache": true,
     "force_cache_duration_seconds": 3600 # Cache response for an hour
 })
 
-jwks = jwks_request("https://authorization-server.example.com/jwks").raw_body
+jwks := jwks_request("https://authorization-server.example.com/jwks").raw_body
 
-verified = io.jwt.verify_rs256(input.token, jwks)
+verified := io.jwt.verify_rs256(input.token, jwks)
 ```
 
 ### Key rotation
@@ -55,7 +55,7 @@ Use the keys published at the JWKS endpoint of the authorization server for toke
 ```live:oidc3:module
 package oidc
 
-jwks_request(url) = http.send({
+jwks_request(url) := http.send({
     "url": url,
     "method": "GET",
     "force_cache": true,

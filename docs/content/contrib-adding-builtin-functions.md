@@ -24,7 +24,7 @@ Adding a new built-in function involves the following steps:
 
 ## Example
 
-The following example adds a simple built-in function, `repeat(string, int)`, that returns a given string repeated a given number of times.  
+The following example adds a simple built-in function, `repeat(string, int)`, that returns a given string repeated a given number of times.
 
 ### Declare and Register
 
@@ -97,12 +97,12 @@ func init() {
 }
 ```
 
-In the above code, `builtinRepeat` implements the `topdown.BuiltinFunc` function type. 
+In the above code, `builtinRepeat` implements the `topdown.BuiltinFunc` function type.
 The call to `RegisterBuiltinFunc(...)` in `init()` adds the built-in function to the evaluation engine; binding the implementation to `ast.Repeat` that was registered in [an earlier step](#declare-and-register).
 
 ### Test
 
-All built-in function implementations must include a test suite. 
+All built-in function implementations must include a test suite.
 Test cases for built-in functions are written in YAML and located under `test/cases/testdata`.
 
 We create two new test cases (one positive, expecting a string output; and one negative, expecting an error) for our built-in function:
@@ -114,8 +114,8 @@ cases:
     modules:
       - |
         package test
-        
-        p = repeated {
+
+        p := repeated {
           repeated := repeat(input.str, input.count)
         }
     input: {"str": "Foo", "count": 3}
@@ -127,7 +127,7 @@ cases:
       - |
         package test
 
-        p = repeated {
+        p := repeated {
           repeated := repeat(input.str, input.count)
         }
     input: { "str": "Foo", "count": -3 }
@@ -141,7 +141,7 @@ The above test cases can be run separate from all other tests through: `go test 
 See [test/cases/testdata/helloworld](https://github.com/open-policy-agent/opa/blob/main/test/cases/testdata/helloworld)
 for a more detailed example of how to implement tests for your built-in functions.
 
-> Note: We can manually test our new built-in function by [building](../contrib-development#getting-started) 
+> Note: We can manually test our new built-in function by [building](../contrib-development#getting-started)
 > and running the `eval` command. E.g.: `$./opa_<OS>_<ARCH> eval 'repeat("Foo", 3)'`
 
 ### Document

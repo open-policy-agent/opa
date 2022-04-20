@@ -166,7 +166,7 @@ import input.sysinfo
 import data.hosts
 
 # By default, users are not authorized.
-default allow = false
+default allow := false
 
 # Allow access to any user that has the "admin" role.
 allow {
@@ -201,7 +201,7 @@ Create the `sudo` authorization policy. It should allow only admins to use `sudo
 package sudo.authz
 
 # By default, users are not authorized.
-default allow = false
+default allow := false
 
 # Allow access to any user that has the "admin" role.
 allow {
