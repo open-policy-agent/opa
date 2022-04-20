@@ -4568,6 +4568,14 @@ func TestCompilerMockBuiltinFunction(t *testing.T) {
 			err: "rego_type_error: http.send: arity mismatch\n\thave: (any, any)\n\twant: (object[string: any])",
 		},
 		{
+			note: "invalid ref: arity mismatch (in call)",
+			module: `package test
+				http_send(_, _) = { "body": "nope" }
+				p { http.send({}) with http.send as http_send }
+			`,
+			err: "rego_type_error: http.send: arity mismatch\n\thave: (any, any)\n\twant: (object[string: any])",
+		},
+		{
 			note: "invalid ref: value another built-in with different type",
 			module: `package test
 				p { true with http.send as net.lookup_ip_addr }

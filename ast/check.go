@@ -267,8 +267,11 @@ func (tc *typeChecker) checkRule(env *TypeEnv, as *AnnotationSet, rule *Rule) {
 }
 
 func (tc *typeChecker) checkExpr(env *TypeEnv, expr *Expr) *Error {
+	if err := tc.checkExprWith(env, expr, 0); err != nil {
+		return err
+	}
 	if !expr.IsCall() {
-		return tc.checkExprWith(env, expr, 0)
+		return nil
 	}
 
 	checker := tc.exprCheckers[expr.Operator().String()]
