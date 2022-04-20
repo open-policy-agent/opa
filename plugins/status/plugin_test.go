@@ -749,19 +749,17 @@ func (t *testServer) stop() {
 
 func testStatus() *bundle.Status {
 	tDownload, _ := time.Parse(time.RFC3339Nano, "2018-01-01T00:00:00.0000000Z")
-	tFirstActivation, _ := time.Parse(time.RFC3339Nano, "2018-01-01T00:00:01.0000000Z")
-	tActivate, _ := time.Parse(time.RFC3339Nano, "2018-01-01T00:00:02.0000000Z")
-	tSuccessfulRequest, _ := time.Parse(time.RFC3339Nano, "2018-01-01T00:00:03.0000000Z")
-	tRequest, _ := time.Parse(time.RFC3339Nano, "2018-01-01T00:00:04.0000000Z")
+	tActivate, _ := time.Parse(time.RFC3339Nano, "2018-01-01T00:00:01.0000000Z")
+	tSuccessfulRequest, _ := time.Parse(time.RFC3339Nano, "2018-01-01T00:00:02.0000000Z")
+	tRequest, _ := time.Parse(time.RFC3339Nano, "2018-01-01T00:00:03.0000000Z")
 
 	status := bundle.Status{
-		Name:                      "example/authz",
-		ActiveRevision:            "quickbrawnfaux",
-		FirstSuccessfulActivation: tFirstActivation,
-		LastSuccessfulDownload:    tDownload,
-		LastSuccessfulActivation:  tActivate,
-		LastRequest:               tRequest,
-		LastSuccessfulRequest:     tSuccessfulRequest,
+		Name:                     "example/authz",
+		ActiveRevision:           "quickbrawnfaux",
+		LastSuccessfulDownload:   tDownload,
+		LastSuccessfulActivation: tActivate,
+		LastRequest:              tRequest,
+		LastSuccessfulRequest:    tSuccessfulRequest,
 	}
 
 	return &status
