@@ -2857,6 +2857,27 @@
       }
     },
     {
+      "name": "rego.metadata.chain",
+      "decl": {
+        "result": {
+          "dynamic": {
+            "type": "any"
+          },
+          "type": "array"
+        },
+        "type": "function"
+      }
+    },
+    {
+      "name": "rego.metadata.rule",
+      "decl": {
+        "result": {
+          "type": "any"
+        },
+        "type": "function"
+      }
+    },
+    {
       "name": "rego.parse_module",
       "decl": {
         "args": [

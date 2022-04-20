@@ -352,34 +352,54 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 
 func (p *Parser) parseAnnotations(stmts []Statement) []Statement {
 
+	annotStmts, errs := parseAnnotations(p.s.comments)
+	for _, err := range errs {
+		p.error(err.Location, err.Message)
+	}
+
+	for _, annotStmt := range annotStmts {
+		stmts = append(stmts, annotStmt)
+	}
+
+	return stmts
+}
+
+func parseAnnotations(comments []*Comment) ([]*Annotations, Errors) {
+
 	var hint = []byte("METADATA")
 	var curr *metadataParser
 	var blocks []*metadataParser
 
-	for i := 0; i < len(p.s.comments); i++ {
+	for i := 0; i < len(comments); i++ {
 		if curr != nil {
-			if p.s.comments[i].Location.Row == p.s.comments[i-1].Location.Row+1 && p.s.comments[i].Location.Col == 1 {
-				curr.Append(p.s.comments[i])
+			if comments[i].Location.Row == comments[i-1].Location.Row+1 && comments[i].Location.Col == 1 {
+				curr.Append(comments[i])
 				continue
 			}
 			curr = nil
 		}
-		if bytes.HasPrefix(bytes.TrimSpace(p.s.comments[i].Text), hint) {
-			curr = newMetadataParser(p.s.comments[i].Location)
+		if bytes.HasPrefix(bytes.TrimSpace(comments[i].Text), hint) {
+			curr = newMetadataParser(comments[i].Location)
 			blocks = append(blocks, curr)
 		}
 	}
 
+	var stmts []*Annotations
+	var errs Errors
 	for _, b := range blocks {
 		a, err := b.Parse()
 		if err != nil {
-			p.error(b.loc, err.Error())
+			errs = append(errs, &Error{
+				Code:     ParseErr,
+				Message:  err.Error(),
+				Location: b.loc,
+			})
 		} else {
 			stmts = append(stmts, a)
 		}
 	}
 
-	return stmts
+	return stmts, errs
 }
 
 func (p *Parser) parsePackage() *Package {
@@ -2269,7 +2289,7 @@ func (p *Parser) futureImport(imp *Import, allowedFutureKeywords map[string]toke
 	}
 
 	if imp.Alias != "" {
-		p.errorf(imp.Path.Location, "future keyword imports cannot be aliased")
+		p.errorf(imp.Path.Location, "`future` imports cannot be aliased")
 		return
 	}
 

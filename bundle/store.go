@@ -28,6 +28,11 @@ func ManifestStoragePath(name string) storage.Path {
 	return append(BundlesBasePath, name, "manifest")
 }
 
+// EtagStoragePath is the storage path used for the given named bundle etag.
+func EtagStoragePath(name string) storage.Path {
+	return append(BundlesBasePath, name, "etag")
+}
+
 func namedBundlePath(name string) storage.Path {
 	return append(BundlesBasePath, name)
 }
@@ -79,6 +84,11 @@ func WriteManifestToStore(ctx context.Context, store storage.Store, txn storage.
 	return write(ctx, store, txn, ManifestStoragePath(name), manifest)
 }
 
+// WriteEtagToStore will write the bundle etag into the storage. This function is called when the bundle is activated.
+func WriteEtagToStore(ctx context.Context, store storage.Store, txn storage.Transaction, name, etag string) error {
+	return write(ctx, store, txn, EtagStoragePath(name), etag)
+}
+
 func write(ctx context.Context, store storage.Store, txn storage.Transaction, path storage.Path, value interface{}) error {
 	if err := util.RoundTrip(&value); err != nil {
 		return err
@@ -100,6 +110,14 @@ func write(ctx context.Context, store storage.Store, txn storage.Transaction, pa
 // when the bundle is deactivated.
 func EraseManifestFromStore(ctx context.Context, store storage.Store, txn storage.Transaction, name string) error {
 	path := namedBundlePath(name)
+	err := store.Write(ctx, txn, storage.RemoveOp, path, nil)
+	return suppressNotFound(err)
+}
+
+// eraseBundleEtagFromStore will remove the bundle etag from storage. This function is called
+// when the bundle is deactivated.
+func eraseBundleEtagFromStore(ctx context.Context, store storage.Store, txn storage.Transaction, name string) error {
+	path := EtagStoragePath(name)
 	err := store.Write(ctx, txn, storage.RemoveOp, path, nil)
 	return suppressNotFound(err)
 }
@@ -249,6 +267,27 @@ func readMetadataFromStore(ctx context.Context, store storage.Store, txn storage
 	return data, nil
 }
 
+// ReadBundleEtagFromStore returns the etag for the specified bundle.
+// If the bundle is not activated, this function will return
+// storage NotFound error.
+func ReadBundleEtagFromStore(ctx context.Context, store storage.Store, txn storage.Transaction, name string) (string, error) {
+	return readEtagFromStore(ctx, store, txn, EtagStoragePath(name))
+}
+
+func readEtagFromStore(ctx context.Context, store storage.Store, txn storage.Transaction, path storage.Path) (string, error) {
+	value, err := store.Read(ctx, txn, path)
+	if err != nil {
+		return "", err
+	}
+
+	str, ok := value.(string)
+	if !ok {
+		return "", fmt.Errorf("corrupt bundle etag")
+	}
+
+	return str, nil
+}
+
 // ActivateOpts defines options for the Activate API call.
 type ActivateOpts struct {
 	Ctx          context.Context
@@ -373,6 +412,10 @@ func activateBundles(opts *ActivateOpts) error {
 			return err
 		}
 
+		if err := writeEtagToStore(opts, name, b.Etag); err != nil {
+			return err
+		}
+
 		if err := writeWasmModulesToStore(opts.Ctx, opts.Store, opts.Txn, name, b); err != nil {
 			return err
 		}
@@ -426,6 +469,10 @@ func activateDeltaBundles(opts *ActivateOpts, bundles map[string]*Bundle) error 
 		if err := writeManifestToStore(opts, name, b.Manifest); err != nil {
 			return err
 		}
+
+		if err := writeEtagToStore(opts, name, b.Etag); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -450,6 +497,10 @@ func eraseBundles(ctx context.Context, store storage.Store, txn storage.Transact
 		}
 
 		if err := LegacyEraseManifestFromStore(ctx, store, txn); suppressNotFound(err) != nil {
+			return nil, err
+		}
+
+		if err := eraseBundleEtagFromStore(ctx, store, txn, name); suppressNotFound(err) != nil {
 			return nil, err
 		}
 
@@ -527,6 +578,14 @@ func writeManifestToStore(opts *ActivateOpts, name string, manifest Manifest) er
 		if err := LegacyWriteManifestToStore(opts.Ctx, opts.Store, opts.Txn, manifest); err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+func writeEtagToStore(opts *ActivateOpts, name, etag string) error {
+	if err := WriteEtagToStore(opts.Ctx, opts.Store, opts.Txn, name, etag); err != nil {
+		return err
 	}
 
 	return nil

@@ -118,6 +118,23 @@ func TestReadWithSizeLimit(t *testing.T) {
 	}
 }
 
+func TestReadWithBundleEtag(t *testing.T) {
+
+	files := [][2]string{
+		{"/.manifest", `{"revision": "quickbrownfaux"}`},
+	}
+
+	buf := archive.MustWriteTarGz(files)
+	bundle, err := NewReader(buf).WithBundleEtag("foo").Read()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if bundle.Etag != "foo" {
+		t.Fatalf("Expected bundle etag foo but got %v\n", bundle.Etag)
+	}
+}
+
 func testReadBundle(t *testing.T, baseDir string) {
 	module := `package example`
 

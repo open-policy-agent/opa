@@ -1201,8 +1201,8 @@ func TestFutureImports(t *testing.T) {
 	assertParseErrorContains(t, "future", "import future", "invalid import, must be `future.keywords`")
 	assertParseErrorContains(t, "future.a", "import future.a", "invalid import, must be `future.keywords`")
 	assertParseErrorContains(t, "unknown keyword", "import future.keywords.xyz", "unexpected keyword, must be one of [every in]")
-	assertParseErrorContains(t, "all keyword import + alias", "import future.keywords as xyz", "future keyword imports cannot be aliased")
-	assertParseErrorContains(t, "keyword import + alias", "import future.keywords.in as xyz", "future keyword imports cannot be aliased")
+	assertParseErrorContains(t, "all keyword import + alias", "import future.keywords as xyz", "`future` imports cannot be aliased")
+	assertParseErrorContains(t, "keyword import + alias", "import future.keywords.in as xyz", "`future` imports cannot be aliased")
 
 	assertParseImport(t, "import kw with kw in options",
 		"import future.keywords.in", &Import{Path: RefTerm(VarTerm("future"), StringTerm("keywords"), StringTerm("in"))},
@@ -3915,7 +3915,7 @@ func assertParseOneTermNegated(t *testing.T, msg string, input string, correct *
 	assertParseOneExprNegated(t, msg, input, &Expr{Terms: correct})
 }
 
-func assertParseRule(t *testing.T, msg string, input string, correct *Rule) {
+func assertParseRule(t *testing.T, msg string, input string, correct *Rule, opts ...ParserOptions) {
 	t.Helper()
 	assertParseOne(t, msg, input, func(parsed interface{}) {
 		t.Helper()
@@ -3923,5 +3923,6 @@ func assertParseRule(t *testing.T, msg string, input string, correct *Rule) {
 		if !rule.Equal(correct) {
 			t.Errorf("Error on test \"%s\": rules not equal: %v (parsed), %v (correct)", msg, rule, correct)
 		}
-	})
+	},
+		opts...)
 }
