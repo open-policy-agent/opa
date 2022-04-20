@@ -30,7 +30,7 @@ ask for `foo/authz`.
 
 ```live:conflict_resolution_deny_by_default:module:read_only
 # deny everything by default
-default authz = false
+default authz := false
 
 # deny overrides allow
 authz {
@@ -52,8 +52,8 @@ mean the same thing whichever order you write them in.
 ```live:unordered:module:openable
 package unordered
 
-ratelimit = 4 { input.name == "alice" }
-ratelimit = 5 { input.name == "bob" }
+ratelimit := 4 { input.name == "alice" }
+ratelimit := 5 { input.name == "bob" }
 ```
 
 ```live:unordered:input
@@ -74,9 +74,9 @@ Sometimes, though, you want the statement order to matter.  For example, you mig
 ```live:ordered:module:openable
 package ordered
 
-ratelimit = 4 {
+ratelimit := 4 {
     input.owner == "bob"
-} else = 5 {
+} else := 5 {
     input.name == "alice"
 }
 ```
@@ -163,7 +163,7 @@ One is the *function*, which is conceptually identical to functions from most pr
 ```live:functions:module:openable
 package functions
 
-trim_and_split(s) = result {
+trim_and_split(s) := result {
      t := trim(s, " ")
      result := split(t, ".")
 }
@@ -181,7 +181,7 @@ The other way to factor out common logic is with a *rule*.  Rules differ in that
 ```live:rules:module:openable
 package rules
 
-app_to_hostnames[app_name] = hostnames {
+app_to_hostnames[app_name] := hostnames {
   app := apps[_]
   app_name := app.name
   hostnames := [hostname | name := app.servers[_]
@@ -300,7 +300,7 @@ p[x] { some y; q[y]; r[y] }
 
 # Safe.  q and r are both rules
 #   Both q and r are finite; therefore p is also finite.
-p[x] = y { some x, y; q[x]; r[y] }
+p[x] := y { some x, y; q[x]; r[y] }
 
 # Unsafe: y appears inside a builtin (+) but not in the body.
 #   y has infinitely many possible values; so too does x.
@@ -406,7 +406,7 @@ Depending on the use case and the integration with OPA that you are using, the s
 
 ```rego
 # entry point is 'deny'
-default deny = false
+default deny := false
 deny { ... }
 deny { ... }
 ```
@@ -416,7 +416,7 @@ If you assume all of the rules you write are correct, then you know that every r
 
 ```rego
 # entry point is 'allow'
-default allow = false
+default allow := false
 allow { ... }
 allow { ... }
 ```
@@ -427,7 +427,7 @@ If you assume your rules are correct, the only requests that are accepted are kn
 
 ```rego
 # entry point is 'authz'
-default authz = false
+default authz := false
 authz {
   allow
   not deny
@@ -439,10 +439,3 @@ deny { ... }
 This hybrid approach to policy authoring combines the two previous styles.  These policies allow relatively coarse grained parts of the request space and then carve out of each part what should actually be denied.  Any deny statements that you forget lead to security problems; any allow statements you forget lead to operational problems.  But since this approach allows you to implement either of the other two, it is a common pattern across use cases.
 
 **Non-boolean policies**. The examples above focus on policies with boolean decisions.  Policies that make non-boolean decisions typically have similar tradeoffs.  Are you enumerating the conditions under which requests are permitted (e.g. the list of clusters to which an app SHOULD be deployed) or are you enumerating the conditions under which requests are prohibited (e.g. the list of clusters to which an app SHOULD NOT be deployed).  While the details differ, the concepts are often similar.
-
-
-
-
-
-
-

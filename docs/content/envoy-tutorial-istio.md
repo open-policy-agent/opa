@@ -39,48 +39,48 @@ The `quick_start.yaml` manifest defines the following resources:
 
 * OPA configuration file and an OPA policy into ConfigMaps in the namespace where the app will be deployed, e.g., `default`.
   The following is the example OPA policy:
-        
+
     * alice is granted a **guest** role and can perform a `GET` request to `/productpage`.
     * bob is granted an **admin** role and can perform a `GET` to `/productpage` and `/api/v1/products`.
 
     ```live:example:module:openable
     package istio.authz
-  
+
     import input.attributes.request.http as http_request
     import input.parsed_path
-    
-    default allow = false
-    
+
+    default allow := false
+
     allow {
         parsed_path[0] == "health"
         http_request.method == "GET"
     }
-    
+
     allow {
         roles_for_user[r]
         required_roles[r]
     }
-    
+
     roles_for_user[r] {
         r := user_roles[user_name][_]
     }
-    
+
     required_roles[r] {
         perm := role_perms[r][_]
         perm.method == http_request.method
         perm.path == http_request.path
     }
-    
-    user_name = parsed {
+
+    user_name := parsed {
         [_, encoded] := split(http_request.headers.authorization, " ")
         [parsed, _] := split(base64url.decode(encoded), ":")
     }
-    
+
     user_roles := {
         "alice": ["guest"],
         "bob": ["admin"]
     }
-    
+
     role_perms := {
         "guest": [
             {"method": "GET",  "path": "/productpage"},
@@ -99,7 +99,7 @@ The `quick_start.yaml` manifest defines the following resources:
     ```live:example:query:hidden
     data.istio.authz.allow
     ```
-  
+
     ```live:example:input
     {
         "attributes": {
@@ -117,7 +117,7 @@ The `quick_start.yaml` manifest defines the following resources:
     ```
 
     With the input value above, the answer is:
-    
+
     ```live:example:output
     ```
 
@@ -127,7 +127,7 @@ The `quick_start.yaml` manifest defines the following resources:
     > image or it would fetched dynamically via the [Bundle
     > API](https://www.openpolicyagent.org/docs/latest/bundles/). ConfigMaps are
     > used in this tutorial for test purposes.
-  
+
 ### 2. Enable automatic injection of the Istio Proxy and OPA-Envoy sidecars in the namespace where the app will be deployed, e.g., `default`
 
 ```bash

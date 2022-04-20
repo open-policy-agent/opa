@@ -127,7 +127,7 @@ package kubernetes.admission
 
 import data.kubernetes.namespaces
 
-operations = {"CREATE", "UPDATE"}
+operations := {"CREATE", "UPDATE"}
 
 deny[msg] {
 	input.request.kind.kind == "Ingress"
@@ -137,7 +137,7 @@ deny[msg] {
 	msg := sprintf("invalid ingress host %q", [host])
 }
 
-valid_ingress_hosts = {host |
+valid_ingress_hosts := {host |
 	allowlist := namespaces[input.request.namespace].metadata.annotations["ingress-allowlist"]
 	hosts := split(allowlist, ",")
 	host := hosts[_]
@@ -199,17 +199,17 @@ package system
 
 import data.kubernetes.admission
 
-main = {
+main := {
   "apiVersion": "admission.k8s.io/v1",
   "kind": "AdmissionReview",
   "response": response,
 }
 
-default uid = ""
+default uid := ""
 
-uid = input.request.uid
+uid := input.request.uid
 
-response = {
+response := {
     "allowed": false,
     "uid": uid,
     "status": {
@@ -219,7 +219,8 @@ response = {
     reason = concat(", ", admission.deny)
     reason != ""
 }
-else = {"allowed": true, "uid": uid}
+
+else := {"allowed": true, "uid": uid}
 ```
 
 > ⚠️ When OPA receives a request, it executes a query against the document defined `data.system.main` by default.
@@ -532,7 +533,7 @@ The second Ingress is rejected because its hostname does not match the allowlist
 It will report an error as follows:
 
 ```
-Error from server: error when creating "ingress-bad.yaml": admission webhook "validating-webhook.openpolicyagent.org" 
+Error from server: error when creating "ingress-bad.yaml": admission webhook "validating-webhook.openpolicyagent.org"
 denied the request: invalid ingress host "acmecorp.com"
 ```
 
@@ -563,8 +564,8 @@ kubectl create -f ingress-ok.yaml -n staging
 The above command will report an error as follows:
 
 ```
-Error from server (BadRequest): error when creating "ingress-ok.yaml": admission webhook 
-"validate.nginx.ingress.kubernetes.io" denied the request: host "signin.acmecorp.com" and 
+Error from server (BadRequest): error when creating "ingress-ok.yaml": admission webhook
+"validate.nginx.ingress.kubernetes.io" denied the request: host "signin.acmecorp.com" and
 path "/" is already defined in ingress production/ingress-ok
 ```
 

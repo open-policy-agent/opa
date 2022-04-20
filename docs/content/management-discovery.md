@@ -107,7 +107,7 @@ If the discovery bundle contained the following Rego file:
 ```ruby
 package example
 
-discovery = {
+discovery := {
   "bundles": {
     "main": {
       "service": "acmecorp",
@@ -117,7 +117,7 @@ discovery = {
   "default_decision": "acmecorp/httpauthz/allow"
 }
 
-bundle_name = "acmecorp/httpauthz"
+bundle_name := "acmecorp/httpauthz"
 ```
 
 The subsequent configuration would be:
