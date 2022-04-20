@@ -141,74 +141,69 @@ cases:
     package test
     import future.keywords.in
 
-    mock_rand("one", _) = 123
-    mock_rand(x, y) = rand.intn(x, y) {
+    mock_count("one") = 1
+    mock_count(x) = count(x) {
       x != "one"
     }
 
     numbers := {"one", "two", "tree"}
-    p {
-      s := { rand.intn(n, 10) | some n in numbers } with rand.intn as mock_rand
-      123 in s
-      count(s) >= 2
+    p = s {
+      s := { count(n) | some n in numbers } with count as mock_count
     }
   note: 'withkeyword/builtin: mock function calls original'
   query: data.test.p = x
   want_result:
-  - x: true
+  - x:
+    - 1
+    - 3
+    - 4
 - data:
   modules:
   - |
     package test
     import future.keywords.in
 
-    mock_rand("one", _) = 10
-    mock_rand("one", x) = x
+    mock_concat("one", _) = ["one"]
+    mock_concat("one", x) = x
 
     numbers := ["one", "one"]
-    p {
-      s := { rand.intn(n, 10) | some n in numbers } with rand.intn as mock_rand
-      10 in s
-      count(s) == 1
+    p = s {
+      s := { concat(n, [n]) | some n in numbers } with concat as mock_concat
     }
   note: 'withkeyword/builtin: mock function returns same result for both rule defs'
   query: data.test.p = x
   want_result:
-  - x: true
+  - x: [["one"]]
 - data:
   modules:
   - |
     package test
     import future.keywords.in
 
-    mock_rand("one", _) = 123
-    mock_rand(x, y) = rand.intn(x, y) {
-      x != "one"
-    }
+    mock_concat("one", _) = ["one"]
+    mock_concat("one", x) = x
 
     count_four(4) = 4
     count_four(x) = count(x)
 
     numbers := {"one", "two", "tree"}
-    q {
-      s := { rand.intn(n, 10) | some n in numbers }
-      123 in s
-      count(s) >= 2
+    q = s {
+      s := { concat(n, [n]) | some n in numbers } with concat as mock_concat
       r
     }
     r {
       count(input.four) == 4
     }
-    p {
-      q
-        with rand.intn as mock_rand
+    p = y {
+      y := q
+        with concat as mock_concat
         with count as count_four
         with input.four as 4
     }
   note: 'withkeyword/builtin: nested, mock function calls original'
   query: data.test.p = x
   want_result:
-  - x: true
+  - x: [["one"]]
 - data:
   modules:
   - |
