@@ -236,7 +236,7 @@ func (p *Plugin) Start(ctx context.Context) error {
 	if p.config.Prometheus && p.manager.PrometheusRegister() != nil {
 		p.register(p.manager.PrometheusRegister(), pluginStatus, loaded, failLoad,
 			lastRequest, lastSuccessfulActivation, lastSuccessfulDownload,
-			lastSuccessfulRequest, bundleLoadDuration)
+			lastSuccessfulRequest, bundleLoadDuration, activeRevision)
 	}
 
 	// Set the status plugin's status to OK now that everything is registered and

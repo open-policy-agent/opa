@@ -41,17 +41,16 @@ type Status struct {
 // activation.
 func (s *Status) SetActivateSuccess(revision string) {
 	s.LastSuccessfulActivation = time.Now().UTC()
-	s.ActiveRevision = revision
+	if s.ActiveRevision != revision {
+		s.FirstSuccessfulActivation = s.LastSuccessfulActivation
+		s.ActiveRevision = revision
+	}
 }
 
 // SetDownloadSuccess updates the status object to reflect a successful
 // download.
 func (s *Status) SetDownloadSuccess() {
 	s.LastSuccessfulDownload = time.Now().UTC()
-
-	if s.FirstSuccessfulActivation.IsZero() {
-		s.FirstSuccessfulActivation = s.LastSuccessfulDownload
-	}
 }
 
 // SetRequest updates the status object to reflect a download attempt.
