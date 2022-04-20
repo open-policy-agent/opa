@@ -178,6 +178,42 @@ func TestDisabledTracer(t *testing.T) {
 	}
 }
 
+func TestRegoMetadataBuiltinCall(t *testing.T) {
+	tests := []struct {
+		note          string
+		query         string
+		expectedError string
+	}{
+		{
+			note:          "rego.metadata.chain() call",
+			query:         "rego.metadata.chain()",
+			expectedError: "rego.metadata.chain(): eval_builtin_error: rego.metadata.chain: the rego.metadata.chain function must only be called within the scope of a rule",
+		},
+		{
+			note:          "rego.metadata.rule() call",
+			query:         "rego.metadata.rule()",
+			expectedError: "rego.metadata.rule(): eval_builtin_error: rego.metadata.rule: the rego.metadata.rule function must only be called within the scope of a rule",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			c := ast.NewCompiler()
+			q := NewQuery(ast.MustParseBody(tc.query)).WithCompiler(c).
+				WithStrictBuiltinErrors(true)
+			_, err := q.Run(context.Background())
+
+			if err == nil {
+				t.Fatalf("expected error")
+			}
+
+			if tc.expectedError != err.Error() {
+				t.Fatalf("expected error:\n\n%s\n\ngot:\n\n%s", tc.expectedError, err.Error())
+			}
+		})
+	}
+}
+
 func initTracerTestQuery() *Query {
 	ctx := context.Background()
 	store := inmem.New()
