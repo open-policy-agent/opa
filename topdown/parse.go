@@ -44,7 +44,7 @@ func builtinRegoParseModule(a, b ast.Value) (ast.Value, error) {
 }
 
 func registerRegoMetadataBuiltinFunction(builtin *ast.Builtin) {
-	f := func(_ BuiltinContext, _ []*ast.Term, _ func(*ast.Term) error) error {
+	f := func(BuiltinContext, []*ast.Term, func(*ast.Term) error) error {
 		// The compiler should replace all usage of this function, so the only way to get here is within a query;
 		// which cannot define rules.
 		return fmt.Errorf("the %s function must only be called within the scope of a rule", builtin.Name)
