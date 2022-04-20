@@ -204,7 +204,7 @@ func (f *capabilitiesFlag) Set(s string) error {
 	var errVersion error
 	f.C, errVersion = ast.LoadCapabilitiesVersionJSON(s)
 	if errVersion != nil && errPath != nil {
-		return fmt.Errorf("\n%v\nor\n%v", errPath, errVersion)
+		return fmt.Errorf("no such file or capabilities version found: %v", s)
 	}
 	return nil
 
