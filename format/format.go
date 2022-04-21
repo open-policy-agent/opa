@@ -60,7 +60,7 @@ func Ast(x interface{}) ([]byte, error) {
 	// or internal.member_3, it will sugarize them into usage of the `in`
 	// operator. It has to ensure that the proper future keyword import is
 	// present.
-	extraFutureKeywordImports := map[string]bool{}
+	extraFutureKeywordImports := map[string]struct{}{}
 
 	// Preprocess the AST. Set any required defaults and calculate
 	// values required for printing the formatted output.
@@ -76,9 +76,9 @@ func Ast(x interface{}) ([]byte, error) {
 		case *ast.Expr:
 			switch {
 			case n.IsCall() && ast.Member.Ref().Equal(n.Operator()) || ast.MemberWithKey.Ref().Equal(n.Operator()):
-				extraFutureKeywordImports["in"] = true
+				extraFutureKeywordImports["in"] = struct{}{}
 			case n.IsEvery():
-				extraFutureKeywordImports["every"] = true
+				extraFutureKeywordImports["every"] = struct{}{}
 			}
 		}
 		if x.Loc() == nil {
@@ -1239,11 +1239,22 @@ func (w *writer) down() {
 
 func ensureFutureKeywordImport(imps []*ast.Import, kw string) []*ast.Import {
 	allKeywords := ast.MustParseTerm("future.keywords")
-	kwPath := ast.MustParseTerm("future.keywords." + kw)
+	kwPath := keyword(kw)
+	every := keyword("every")
 	for _, imp := range imps {
-		if allKeywords.Equal(imp.Path) || imp.Path.Equal(kwPath) {
+		if allKeywords.Equal(imp.Path) ||
+			imp.Path.Equal(kwPath) ||
+			(imp.Path.Equal(every) && kw == "in") { // "every" implies "in", so we don't need to add both
 			return imps
 		}
 	}
-	return append(imps, &ast.Import{Path: kwPath})
+	imp := &ast.Import{
+		Path: kwPath,
+	}
+	imp.Location = defaultLocation(imp)
+	return append(imps, imp)
+}
+
+func keyword(kw string) *ast.Term {
+	return ast.MustParseTerm("future.keywords." + kw)
 }
