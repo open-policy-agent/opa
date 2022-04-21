@@ -1563,13 +1563,13 @@ package opa.examples
 import future.keywords.in
 
 f(x) = count(x) {
-    q with concat as "foo,bar"
+    rule_using_concat with concat as "foo,bar"
 }
 
 mock_count(x) = 0 { "x" in x }
 mock_count(x) = count(x) { not "x" in x }
 
-q {
+rule_using_concat {
     concat(",", input.x) == "foo,bar"
 }
 ```
