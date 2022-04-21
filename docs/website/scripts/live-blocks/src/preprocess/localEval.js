@@ -5,7 +5,7 @@ import {promises as promFS} from 'fs'
 import tmp from 'tmp'
 
 import {ChainedError, OPAErrors} from '../errors'
-import {EVAL_MODULE_NAME} from '../constants'
+import {EVAL_MODULE_NAME, VERSION_EDGE} from '../constants'
 import {getGroupData} from '../helpers'
 
 import {acquireOPAVersion} from './acquireOPAVersion'
@@ -21,10 +21,26 @@ const tmpFile = util.promisify(tmp.file)
 export default async function localEval(groups, groupName, opaVersion) {
   const opa = await acquireOPAVersion(opaVersion) // Get the path (and download if necessary) the required version of OPA.
 
-  const [args, moduleFilenameMap] = await prepEval(groups, groupName) // Save the group data to temporary files
+  const [evalArgs, fmtArgs, moduleFilenameMap] = await prepEval(groups, groupName) // Save the group data to temporary files
+
+  // Only check formatting for current edge version: we cannot fix all the history
+  // of live blocks in previous releases
+  if (opaVersion === VERSION_EDGE) {
+    try {
+      await execFile(opa, fmtArgs('--fail'));
+    } catch (e) {
+      const stderr = e.stderr.replace(/\n$/, '');
+      if (stderr === 'unexpected diff') {
+        const cmd = await execFile(opa, fmtArgs('--diff'));
+        console.error(cmd.stdout);
+      } else {
+        throw e;
+      }
+    }
+  }
 
   try {
-    return (await execFile(opa, args('pretty'))).stdout.replace(/\n$/, '') // Evaluate, retrieving the pretty-formatted output
+    return (await execFile(opa, evalArgs('pretty'))).stdout.replace(/\n$/, '') // Evaluate, retrieving the pretty-formatted output
   } catch (e) {
     if (e.stdout) { // OPA returned an error message
       let pretty = e.stdout.replace(/\n$/, '')
@@ -38,7 +54,7 @@ export default async function localEval(groups, groupName, opaVersion) {
 
       } else { // Some other error occurred, reevaluate to get the JSON-formatted version of the errors so that they can be compared against what the block expects.
         try {
-          await execFile(opa, args('json'))
+          await execFile(opa, evalArgs('json'))
           throw new Error('subsequent eval of failing evaluation did not fail')
         } catch (e2) {
           if (e2.stdout) { // Reevaluation seems to have worked
@@ -65,7 +81,12 @@ export default async function localEval(groups, groupName, opaVersion) {
   }
 }
 
-// Returns 1st a function that consumes a string for the output format you want and produces an array of arguments and 2nd a map of module file names to strings that should be replaced in error messages. May throw a user-friendly error.
+// Returns 
+// 1. a function that consumes a string for the output format you want and produces an array of arguments and
+// 2. a function that takes a string argument and returns an array of arguments for checking the code
+//    formatting of the combined module file via `opa fmt`
+// 3. a map of module file names to strings that should be replaced in error messages.
+// May throw a user-friendly error.
 async function prepEval(groups, groupName) {
   const {module, package: pkg, query, input, included} = getGroupData(groups, groupName)
   const base = ['eval', '--fail'] // Fail on undefined
@@ -109,7 +130,10 @@ async function prepEval(groups, groupName) {
       }
     }
 
-    return [(format) => [...base, `--format=${format}`, ...rest], moduleFilenameMap]
+    return [
+      (format) => [...base, `--format=${format}`, ...rest],
+      (arg) => ['fmt', arg, tmpModule],
+      moduleFilenameMap]
   } catch (e) {
     throw new ChainedError('a problem occurred while preparing to evaluate', e)
   }
