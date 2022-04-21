@@ -9,7 +9,7 @@ require (
 	github.com/dgryski/go-farm v0.0.0-20200201041132-a6ae2369ad13 // indirect
 	github.com/fortytw2/leaktest v1.3.0
 	github.com/foxcpp/go-mockdns v0.0.0-20210729171921-fb145fc6f897
-	github.com/fsnotify/fsnotify v1.5.1
+	github.com/fsnotify/fsnotify v1.5.2
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-ini/ini v1.66.4
 	github.com/go-logr/logr v1.2.3
