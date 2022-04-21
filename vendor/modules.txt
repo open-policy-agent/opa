@@ -49,7 +49,7 @@ github.com/fortytw2/leaktest
 # github.com/foxcpp/go-mockdns v0.0.0-20210729171921-fb145fc6f897
 ## explicit
 github.com/foxcpp/go-mockdns
-# github.com/fsnotify/fsnotify v1.5.1
+# github.com/fsnotify/fsnotify v1.5.2
 ## explicit
 github.com/fsnotify/fsnotify
 # github.com/ghodss/yaml v1.0.0
