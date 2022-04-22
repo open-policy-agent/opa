@@ -14,6 +14,15 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 )
 
+// Opts lets you control the code formatting via `AstWithOpts()`.
+type Opts struct {
+	// IgnoreLocations instructs the formatter not to use the AST nodes' locations
+	// into account when laying out the code: notably, when the input is the result
+	// of partial evaluation, arguments maybe have been shuffled around, but still
+	// carry along their original source locations.
+	IgnoreLocations bool
+}
+
 // defaultLocationFile is the file name used in `Ast()` for terms
 // without a location, as could happen when pretty-printing the
 // results of partial eval.
@@ -48,7 +57,10 @@ func MustAst(x interface{}) []byte {
 // element, Ast returns nil and an error. If AST nodes are missing locations
 // an arbitrary location will be used.
 func Ast(x interface{}) ([]byte, error) {
+	return AstWithOpts(x, Opts{})
+}
 
+func AstWithOpts(x interface{}, opts Opts) ([]byte, error) {
 	// The node has to be deep copied because it may be mutated below. Alternatively,
 	// we could avoid the copy by checking if mutation will occur first. For now,
 	// since format is not latency sensitive, just deep copy in all cases.
@@ -81,7 +93,8 @@ func Ast(x interface{}) ([]byte, error) {
 				extraFutureKeywordImports["every"] = struct{}{}
 			}
 		}
-		if x.Loc() == nil {
+
+		if opts.IgnoreLocations || x.Loc() == nil {
 			x.SetLoc(defaultLocation(x))
 		}
 		return false
