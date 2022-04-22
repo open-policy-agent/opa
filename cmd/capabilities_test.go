@@ -2,7 +2,6 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-// nolint: goconst // string duplication is for test readability.
 package cmd
 
 import "testing"
