@@ -1,0 +1,59 @@
+cases:
+- note: netcidrmerge/cidr ipv6 with prefix
+  modules:
+  - |
+    package test
+
+    p = x {
+      net.cidr_merge(["2601:600:8a80:207e:a57d:7567:e2c9:e7b3/128"], x)
+    }
+  query: data.test.p = x
+  want_result:
+  - x:
+    - "2601:600:8a80:207e:a57d:7567:e2c9:e7b3/128"
+- note: netcidrmerge/cidr ipv6 with prefix, same twice
+  modules:
+  - |
+    package test
+
+    p = x {
+      net.cidr_merge(["2601:600:8a80:207e:a57d:7567:e2c9:e7b3/128", "2601:600:8a80:207e:a57d:7567:e2c9:e7b3/128"], x)
+    }
+  query: data.test.p = x
+  want_result:
+  - x:
+    - "2601:600:8a80:207e:a57d:7567:e2c9:e7b3/128"
+- note: netcidrmerge/cidr ipv6 with prefix, two different prefixes
+  modules:
+  - |
+    package test
+
+    p = x {
+      net.cidr_merge(["2601:600:8a80:207e:a57d:7567:e2c9:e7b3/64", "2601:600:8a80:207e:a57d:7567:e2c9:e7b3/128"], x)
+    }
+  query: data.test.p = x
+  want_result:
+  - x:
+    - "2601:600:8a80:207e::/64"
+- note: netcidrmerge/cidr ipv6 without prefix
+  modules:
+  - |
+    package test
+
+    p = x {
+      net.cidr_merge(["2601:600:8a80:207e:a57d:7567:e2c9:e7b3"], x)
+    }
+  query: data.test.p = x
+  strict_error: true
+  want_error: "eval_builtin_error: net.cidr_merge: IPv6 invalid: needs prefix length"
+- note: netcidrmerge/cidr ipv6 without prefix, same twice
+  modules:
+  - |
+    package test
+
+    p = x {
+      net.cidr_merge(["2601:600:8a80:207e:a57d:7567:e2c9:e7b3", "2601:600:8a80:207e:a57d:7567:e2c9:e7b3"], x)
+    }
+  query: data.test.p = x
+  strict_error: true
+  want_error: "eval_builtin_error: net.cidr_merge: IPv6 invalid: needs prefix length"
