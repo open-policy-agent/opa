@@ -903,3 +903,40 @@ func kubeSchemaServer(t *testing.T) *httptest.Server {
 	}))
 	return ts
 }
+
+func TestEvalPartialFormattedOutput(t *testing.T) {
+
+	query := `time.clock(input.x) == time.clock(input.y)`
+	tests := []struct {
+		format, expected string
+	}{
+		{
+			format: evalPrettyOutput,
+			expected: `+---------+------------------------------------------+
+| Query 1 | time.clock(input.y, time.clock(input.x)) |
++---------+------------------------------------------+
+`},
+		{
+			format: evalSourceOutput,
+			expected: `# Query 1
+time.clock(input.y, time.clock(input.x))
+
+`},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.format, func(t *testing.T) {
+			buf := new(bytes.Buffer)
+			params := newEvalCommandParams()
+			params.partial = true
+			_ = params.outputFormat.Set(tc.format)
+			_, err := eval([]string{query}, params, buf)
+			if err != nil {
+				t.Fatal("unexpected error:", err)
+			}
+			if actual := buf.String(); actual != tc.expected {
+				t.Errorf("expected output %q\ngot %q", tc.expected, actual)
+			}
+		})
+	}
+}
