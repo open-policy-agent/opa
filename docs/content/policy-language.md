@@ -1031,53 +1031,40 @@ apps_not_in_prod[name]
 
 ## Universal Quantification (FOR ALL)
 
-Like SQL, Rego does not have a direct way to express _universal quantification_
-("FOR ALL"). However, like SQL, you can use other language primitives (e.g.,
-[Negation](#negation)) to express FOR ALL. For example, imagine you want to
-express a policy that says (in English):
+Rego allows for several ways to express universal quantification.
+
+For example, imagine you want to express a policy that says (in English):
 
 ```
 There must be no apps named "bitcoin-miner".
 ```
 
-A common mistake is to try encoding the policy with a rule named
-`no_bitcoin_miners` like so:
+The most expressive way to state this in Rego is using the `every` keyword:
 
-```live:eg/data/incorrect_no_bitcoin:module:read_only
-no_bitcoin_miners {
-    app := apps[_]
-    app.name != "bitcoin-miner"  # THIS IS NOT CORRECT.
+```live:eg/data/every_alternative:module:read_only
+import future.keywords.every
+
+no_bitcoin_miners_using_every {
+    every app in apps {
+        app.name != "bitcoin-miner"
+    }
 }
 ```
 
-It becomes clear that this is incorrect when you use the [`some`](#some-keyword)
-keyword, because the rule is true whenever there is SOME app that is not a
-bitcoin-miner:
+Variables in Rego are _existentially quantified_ by default: when you write
 
-```live:eg/data/incorrect_no_bitcoin_some:module
-import future.keywords.in
-
-no_bitcoin_miners {
-    some app in apps
-    app.name != "bitcoin-miner"
-}
+```live:eg/data/every_alternative/1:query:merge_down
+array := ["one", "two", "three"]; array[i] == "three"
 ```
 
-You can confirm this by querying the rule:
-
-```live:eg/data/incorrect_no_bitcoin_some:query:merge_down
-no_bitcoin_miners with apps as [{"name": "bitcoin-miner"}, {"name": "web"}]
-```
-```live:eg/data/incorrect_no_bitcoin_some:output
+The query will be satisfied **if there is an `i`** such that the query's
+expressions are simultaneously satisfied.
+```live:eg/data/every_alternative/1:output
 ```
 
-The reason the rule is incorrect is that variables in Rego are _existentially
-quantified_. This means that rule bodies and queries express FOR ANY and not FOR
-ALL. To express FOR ALL in Rego complement the logic in the rule body (e.g.,
-`!=` becomes `==`) and then complement the check using negation (e.g.,
-`no_bitcoin_miners` becomes `not any_bitcoin_miners`).
+Therefore, there are other ways to express the desired policy.
 
-For this policy, you define a rule that finds if there exists a bitcoin-mining
+For this policy, you can also define a rule that finds if there exists a bitcoin-mining
 app (which is easy using the `some` keyword). And then you use negation to check
 that there is NO bitcoin-mining app. Technically, you're using 2 negations and
 an existential quantifier, which is logically the same as a universal
@@ -1116,6 +1103,43 @@ value for `no_bitcoin_miners_using_negation`. Since the body of the rule fails
 to match, there is no value generated.
 {{< /info >}}
 
+A common mistake is to try encoding the policy with a rule named `no_bitcoin_miners`
+like so:
+
+```live:eg/data/incorrect_no_bitcoin:module:read_only
+no_bitcoin_miners {
+    app := apps[_]
+    app.name != "bitcoin-miner"  # THIS IS NOT CORRECT.
+}
+```
+
+It becomes clear that this is incorrect when you use the [`some`](#some-keyword)
+keyword, because the rule is true whenever there is SOME app that is not a
+bitcoin-miner:
+
+```live:eg/data/incorrect_no_bitcoin_some:module
+import future.keywords.in
+
+no_bitcoin_miners {
+    some app in apps
+    app.name != "bitcoin-miner"
+}
+```
+
+You can confirm this by querying the rule:
+
+```live:eg/data/incorrect_no_bitcoin_some:query:merge_down
+no_bitcoin_miners with apps as [{"name": "bitcoin-miner"}, {"name": "web"}]
+```
+```live:eg/data/incorrect_no_bitcoin_some:output
+```
+
+The reason the rule is incorrect is that variables in Rego are _existentially
+quantified_. This means that rule bodies and queries express FOR ANY and not FOR
+ALL. To express FOR ALL in Rego complement the logic in the rule body (e.g.,
+`!=` becomes `==`) and then complement the check using negation (e.g.,
+`no_bitcoin_miners` becomes `not any_bitcoin_miners`).
+
 Alternatively, we can implement the same kind of logic inside a single rule
 using [Comprehensions](#comprehensions).
 
@@ -1126,26 +1150,14 @@ no_bitcoin_miners_using_comprehension {
 }
 ```
 
-By importing the future keyword "every", you get another option to express universal
-quantification:
-
-```live:eg/data/every_alternative:module:read_only
-import future.keywords.every
-
-no_bitcoin_miners_using_every {
-    every app in apps {
-        app.name != "bitcoin-miner"
-    }
-}
-```
-
 {{< info >}}
 Whether you use negation, comprehensions, or `every` to express FOR ALL is up to you.
 The `every` keyword should lend itself nicely to a rule formulation that closely
 follows how requirements are stated, and thus enhances your policy's readability.
 
 The comprehension version is more concise than the negation variant, and does not
-require a helper rule while the negation version is more verbose but a bit simpler and allows for more complex ORs.
+require a helper rule while the negation version is more verbose but a bit simpler
+and allows for more complex ORs.
 {{< /info >}}
 
 ## Modules
@@ -1362,18 +1374,18 @@ scope of the body evaluation:
 ```live:eg/every1:module:merge_down
 import future.keywords.every
 
-p {
+array_domain {
     every i, x in [1, 2, 3] { x-i == 1 } # array domain
 }
 
-q {
+object_domain {
     every k, v in {"foo": "bar", "fox": "baz" } { # object domain
         startswith(k, "f")
         startswith(v, "b")
     }
 }
 
-r {
+set_domain {
     every x in {1, 2, 3} { x != 4 } # set domain
 }
 ```
@@ -1387,25 +1399,25 @@ construct using a helper rule:
 import future.keywords.every
 
 xs := [2, 2, 4, 8]
-p(x) := x > 1
+larger_than_one(x) := x > 1
 
-r {
-    every x in xs { p(x) }
+rule_every {
+    every x in xs { larger_than_one(x) }
 }
 
-s {
+not_less_or_equal_one {
     not lte_one
 }
 
 lte_one {
     some x in xs
-    not p(x)
+    not larger_than_one(x)
 }
 ```
 ```live:eg/every2:output
 ```
 
-Negating `every` is forbidden. If you desire to express `not every x in xs { p(x) }`,
+Negating `every` is forbidden. If you desire to express `not every x in xs { p(x) }`
 please use `some x in xs; not p(x)` instead.
 
 ## With Keyword
