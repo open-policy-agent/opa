@@ -67,9 +67,13 @@ func LoadCapabilitiesJSON(r io.Reader) (*Capabilities, error) {
 	return &c, d.Decode(&c)
 }
 
-// LoadCapabilitiesVersionJSON loads a JSON serialized capabilities structure from the the specific version.
+// LoadCapabilitiesVersionJSON loads a JSON serialized capabilities structure from the specific version.
 func LoadCapabilitiesVersionJSON(version string) (*Capabilities, error) {
-	cvs, _ := LoadCapabilitiesVersions()
+	cvs, err := LoadCapabilitiesVersions()
+	if err != nil {
+		return nil, err
+	}
+
 	for _, cv := range cvs {
 		if cv == version {
 			cont, err := caps.FS.ReadFile(cv + ".json")
