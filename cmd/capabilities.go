@@ -47,7 +47,7 @@ Print a list of all existing capabilities versions
     v0.38.0
     ...
 
-Print the capabilities of a the current version in json
+Print the capabilities of the current version in json
 
     $ opa capabilities --current
     {
