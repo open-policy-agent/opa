@@ -5,6 +5,7 @@
 package ast
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"sort"
@@ -67,8 +68,8 @@ func LoadCapabilitiesJSON(r io.Reader) (*Capabilities, error) {
 	return &c, d.Decode(&c)
 }
 
-// LoadCapabilitiesVersionJSON loads a JSON serialized capabilities structure from the specific version.
-func LoadCapabilitiesVersionJSON(version string) (*Capabilities, error) {
+// LoadCapabilitiesVersion loads a JSON serialized capabilities structure from the specific version.
+func LoadCapabilitiesVersion(version string) (*Capabilities, error) {
 	cvs, err := LoadCapabilitiesVersions()
 	if err != nil {
 		return nil, err
@@ -81,12 +82,11 @@ func LoadCapabilitiesVersionJSON(version string) (*Capabilities, error) {
 				return nil, err
 			}
 
-			var c Capabilities
-			err = util.UnmarshalJSON(cont, &c)
+			c, err := LoadCapabilitiesJSON(bytes.NewReader(cont))
 			if err != nil {
 				return nil, err
 			}
-			return &c, nil
+			return c, nil
 		}
 
 	}
