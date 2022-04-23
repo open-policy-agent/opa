@@ -246,7 +246,7 @@ Print the capabilities of OPA
 
 Show capabilities for OPA.
 
-The 'capabilities' command prints the OPA capabilities for a specific version.
+The 'capabilities' command prints the OPA capabilities, prior to and including the version of OPA used, for a specific version.
 
 Print a list of all existing capabilities versions
 
@@ -259,7 +259,7 @@ Print a list of all existing capabilities versions
     v0.38.0
     ...
 
-Print the capabilities of a the current version in json
+Print the capabilities of the current version in json
 
     $ opa capabilities --current
     {
