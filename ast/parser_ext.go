@@ -173,30 +173,15 @@ func ParseRuleFromExpr(module *Module, expr *Expr) (*Rule, error) {
 		return nil, errors.New("expression cannot be used for rule head")
 	}
 
-	if expr.IsAssignment() {
-
-		lhs, rhs := expr.Operand(0), expr.Operand(1)
-		if lhs == nil || rhs == nil {
-			return nil, errors.New("assignment requires two operands")
-		}
-
-		rule, err := ParseCompleteDocRuleFromAssignmentExpr(module, lhs, rhs)
-
-		if err == nil {
-			rule.Location = expr.Location
-			rule.Head.Location = expr.Location
-			return rule, nil
-		} else if _, ok := lhs.Value.(Call); ok {
-			return nil, errFunctionAssignOperator
-		} else if _, ok := lhs.Value.(Ref); ok {
-			return nil, errPartialRuleAssignOperator
-		}
-
-		return nil, errTermAssignOperator(lhs.Value)
-	}
-
 	if expr.IsEquality() {
 		return parseCompleteRuleFromEq(module, expr)
+	} else if expr.IsAssignment() {
+		rule, err := parseCompleteRuleFromEq(module, expr)
+		if err != nil {
+			return nil, err
+		}
+		rule.Head.Assign = true
+		return rule, nil
 	}
 
 	if _, ok := BuiltinMap[expr.Operator().String()]; ok {

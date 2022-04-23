@@ -307,7 +307,9 @@ func (d *Downloader) download(ctx context.Context, m metrics.Metrics) (*download
 				loader = bundle.NewTarballLoaderWithBaseURL(resp.Body, baseURL)
 			}
 
-			reader := bundle.NewCustomReader(loader).WithMetrics(m).WithBundleVerificationConfig(d.bvc)
+			etag := resp.Header.Get("ETag")
+			reader := bundle.NewCustomReader(loader).WithMetrics(m).WithBundleVerificationConfig(d.bvc).
+				WithBundleEtag(etag)
 			if d.sizeLimitBytes != nil {
 				reader = reader.WithSizeLimitBytes(*d.sizeLimitBytes)
 			}
@@ -337,7 +339,7 @@ func (d *Downloader) download(ctx context.Context, m metrics.Metrics) (*download
 			return &downloaderResponse{
 				b:        &b,
 				raw:      &buf,
-				etag:     resp.Header.Get("ETag"),
+				etag:     etag,
 				longPoll: isLongPollSupported(resp.Header),
 			}, nil
 		}

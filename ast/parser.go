@@ -569,11 +569,6 @@ func (p *Parser) parseRules() []*Rule {
 
 	if p.s.tok == tokens.Else {
 
-		if rule.Head.Assign {
-			p.error(p.s.Loc(), "else keyword cannot be used on rule declared with := operator")
-			return nil
-		}
-
 		if rule.Head.Key != nil {
 			p.error(p.s.Loc(), "else keyword cannot be used on partial rules")
 			return nil
@@ -639,7 +634,7 @@ func (p *Parser) parseElse(head *Head) *Rule {
 	switch p.s.tok {
 	case tokens.LBrace:
 		rule.Head.Value = BooleanTerm(true)
-	case tokens.Unify:
+	case tokens.Assign, tokens.Unify:
 		p.scan()
 		rule.Head.Value = p.parseTermInfixCall()
 		if rule.Head.Value == nil {
@@ -727,23 +722,22 @@ func (p *Parser) parseHead(defaultRule bool) *Head {
 			p.illegal("expected rule value term (e.g., %s[%s] = <VALUE> { ... })", head.Name, head.Key)
 		}
 	} else if p.s.tok == tokens.Assign {
-
-		if defaultRule {
-			p.error(p.s.Loc(), "default rules must use = operator (not := operator)")
-			return nil
-		} else if head.Key != nil {
-			p.error(p.s.Loc(), "partial rules must use = operator (not := operator)")
-			return nil
-		} else if len(head.Args) > 0 {
-			p.error(p.s.Loc(), "functions must use = operator (not := operator)")
-			return nil
-		}
-
+		s := p.save()
 		p.scan()
 		head.Assign = true
 		head.Value = p.parseTermInfixCall()
 		if head.Value == nil {
-			p.illegal("expected rule value term (e.g., %s := <VALUE> { ... })", head.Name)
+			p.restore(s)
+			switch {
+			case len(head.Args) > 0:
+				p.illegal("expected function value term (e.g., %s(...) := <VALUE> { ... })", head.Name)
+			case head.Key != nil:
+				p.illegal("expected partial rule value term (e.g., %s[...] := <VALUE> { ... })", head.Name)
+			case defaultRule:
+				p.illegal("expected default rule value term (e.g., default %s := <VALUE>)", head.Name)
+			default:
+				p.illegal("expected rule value term (e.g., %s := <VALUE> { ... })", head.Name)
+			}
 		}
 	}
 

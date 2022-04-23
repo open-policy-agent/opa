@@ -4,10 +4,10 @@ kind: tutorial
 weight: 1
 ---
 
-[AWS CloudFormation Hooks](https://docs.aws.amazon.com/cloudformation-cli/latest/userguide/hooks.html) allows users to 
-verify AWS infrastructure components defined in AWS CloudFormation 
+[AWS CloudFormation Hooks](https://docs.aws.amazon.com/cloudformation-cli/latest/userguide/hooks.html) allows users to
+verify AWS infrastructure components defined in AWS CloudFormation
 [templates](https://aws.amazon.com/cloudformation/resources/templates/), like S3 Buckets or EC2 instances, prior to
-deployment. This is done via **hooks**. Hooks are composed of custom code running in an AWS Lambda function, which is 
+deployment. This is done via **hooks**. Hooks are composed of custom code running in an AWS Lambda function, which is
 invoked before a resource is created, updated or deleted.
 
 AWS currently supports hooks written in either Java or Python, and provides a
@@ -19,9 +19,9 @@ the [OPA AWS CloudFormation Hook](https://github.com/StyraInc/opa-aws-cloudforma
 
 ## Goals
 
-This tutorial shows how to deploy an AWS CloudFormation Hook that forwards requests to OPA for policy decisions, 
-allowing us to use policy to determine whether a request to create, update or delete a resource should be 
-allowed or denied. We'll learn how to author policies that take the input structure of CloudFormation Templates into 
+This tutorial shows how to deploy an AWS CloudFormation Hook that forwards requests to OPA for policy decisions,
+allowing us to use policy to determine whether a request to create, update or delete a resource should be
+allowed or denied. We'll learn how to author policies that take the input structure of CloudFormation Templates into
 account, and some special considerations to be aware of in this environment.
 
 In addition, this tutorial shows how we can leverage dynamic policy composition to group and structure our policies in a
@@ -35,8 +35,8 @@ In order to complete this tutorial, the following prerequisites needs to be met:
 * The [AWS CLI](https://aws.amazon.com/cli/) (`aws`) tool
 * The [CloudFormation CLI](https://docs.aws.amazon.com/cloudformation-cli/latest/userguide/what-is-cloudformation-cli.html) (`cfn`) tool
 * Docker
-* OPA server running at an endpoint reachable by the AWS Lambda function, either within the same AWS environment, or 
-  elsewhere. While developing your CloudFormation policies, a good option is to run OPA locally, but exposed to the 
+* OPA server running at an endpoint reachable by the AWS Lambda function, either within the same AWS environment, or
+  elsewhere. While developing your CloudFormation policies, a good option is to run OPA locally, but exposed to the
   public via a service like [ngrok](https://ngrok.com/).
 
 ## Steps
@@ -50,7 +50,7 @@ git clone https://github.com/StyraInc/opa-aws-cloudformation-hook.git
 cd opa-aws-cloudformation-hook
 ```
 
-To install (but not activate) the hook provided in this repository into your AWS account, cd into the `hooks` directory 
+To install (but not activate) the hook provided in this repository into your AWS account, cd into the `hooks` directory
 and run:
 
 ```shell
@@ -64,8 +64,8 @@ When the command above is finished (this may take several minutes), you should s
 Successfully submitted type. Waiting for registration with token '16697881-de36-45b8-8bc4-d9744431fa82' to complete.
 Registration complete.
 {
-  'ProgressStatus': 'COMPLETE', 
-  'Description': 'Deployment is currently in DEPLOY_STAGE of status COMPLETED', 
+  'ProgressStatus': 'COMPLETE',
+  'Description': 'Deployment is currently in DEPLOY_STAGE of status COMPLETED',
   'TypeArn': 'arn:aws:cloudformation:eu-north-1:687803501377:type/hook/Styra-OPA-Hook',
   ...
 }
@@ -73,7 +73,7 @@ Registration complete.
 
 ### 2. Configure the OPA AWS CloudFormation Hook
 
-The hook is now installed but needs to be configured for your environment. First, copy the value of the `TypeArn` 
+The hook is now installed but needs to be configured for your environment. First, copy the value of the `TypeArn`
 attribute from the JSON output of the above command, and store it in an environment variable:
 
 ```shell
@@ -87,14 +87,14 @@ export AWS_REGION="eu-north-1"
 export OPA_URL="https://cfn-opa.example.com"
 ```
 
-**(OPTIONAL):** If you want to use a bearer token to authenticate against OPA, provide an ARN pointing to the AWS Secret 
+**(OPTIONAL):** If you want to use a bearer token to authenticate against OPA, provide an ARN pointing to the AWS Secret
 containing the token:
 
 ```shell
 export OPA_AUTH_TOKEN_SECRET="arn:aws:secretsmanager:eu-north-1:687803501377:secret:opa-cfn-token-l26bHK"
 ```
 
-With the configuration variables set, push the configuration to AWS (remove `opaAuthTokenSecret` if you don't intend to 
+With the configuration variables set, push the configuration to AWS (remove `opaAuthTokenSecret` if you don't intend to
 use it):
 
 ```shell
@@ -111,11 +111,11 @@ Before we proceed to write our first policy, let's take a closer look at the dat
 
 #### AWS CloudFormation Templates
 
-A template file is commonly a YAML or JSON file, describing a set of AWS resources. While a template may describe 
+A template file is commonly a YAML or JSON file, describing a set of AWS resources. While a template may describe
 multiple resources, the hook will send each resource for validation separately. Important to note here is that the
 resource presented to the hook will be shown **exactly** as provided in the template file. The hook does not perform any
 type preprocessing, such as adding default values where missing, or providing auto-generated names. Policy authors must
-hence take into account that even "obvious" attributes like name might not be present in the resource provided for 
+hence take into account that even "obvious" attributes like name might not be present in the resource provided for
 evaluation. As an example, a template to deploy an S3 Bucket with default attributes may be as minimal as this:
 
 ```yaml
@@ -124,7 +124,7 @@ Resources:
     Type: AWS::S3::Bucket
 ```
 
-For more information on templates, see the 
+For more information on templates, see the
 [AWS User Guide](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/template-guide.html) on that topic.
 
 #### Input and Response Format
@@ -166,8 +166,8 @@ Any request denied will be logged in [AWS CloudWatch](https://aws.amazon.com/clo
 ### 4. Write a CloudFormation Hook Policy
 
 With knowledge of the domain and the data model, we're ready to write our first CloudFormation Hook policy. Since we'll
-have a single OPA endpoint servicing requests for all types of resources, we'll use the 
-[default decision](../configuration/#miscellaneous) policy, which by default queries the `system.main` rule. Let's add a 
+have a single OPA endpoint servicing requests for all types of resources, we'll use the
+[default decision](../configuration/#miscellaneous) policy, which by default queries the `system.main` rule. Let's add a
 simple policy to block an S3 Bucket unless it has an `AccessControl` attribute set to `Private`:
 
 ```live:example/system:module
@@ -199,13 +199,13 @@ bucket_is_private {
 
 Since we know that CloudFormation Templates may contain only the bare minimum of information, we can't assume that there
 will be an `AccessControl` attribute present in the input at all. Using negation of boolean rules inside of our `deny`
-rules help alleviate the problem of values potentially being undefined. Compare to the following deny rule, which might 
+rules help alleviate the problem of values potentially being undefined. Compare to the following deny rule, which might
 look correct at a first glance:
 
 ```live:example/fail:module
 deny[msg] {
     bucket_create_or_update
-    
+
     input.resource.properties.AccessControl != "Private"
 
     msg := sprintf("S3 Bucket %s 'AccessControl' attribute value must be 'Private'", [input.resource.id])
@@ -239,7 +239,7 @@ block_public_acls {
 
 ### 5. Policy Enforcement Testing
 
-With the above policy loaded into OPA, we may proceed to try it out. Let's deploy the minimal S3 Bucket from the 
+With the above policy loaded into OPA, we may proceed to try it out. Let's deploy the minimal S3 Bucket from the
 previous template example. Save the below minimal template to a file called `s3bucket.yaml`:
 
 ```yaml
@@ -248,7 +248,7 @@ Resources:
     Type: AWS::S3::Bucket
 ```
 
-Since our S3 bucket doesn't have an `AccessControl` attribute, it should be denied by the hook. We 
+Since our S3 bucket doesn't have an `AccessControl` attribute, it should be denied by the hook. We
 deploy a template by creating a **stack**:
 
 ```shell
@@ -287,7 +287,7 @@ should now find an item describing that the hook denied the request, and its rea
 }
 ```
 
-Congratulations! You've just successfully enforced your first CloudFormation Hook policy using OPA. Let's update the 
+Congratulations! You've just successfully enforced your first CloudFormation Hook policy using OPA. Let's update the
 template so that it passes our policy requirement:
 
 **s3bucket.yaml**
@@ -299,7 +299,7 @@ Resources:
       AccessControl: Private
 ```
 
-Even though our stack did not create an S3 bucket (as the change got rolled back), the **stack** still exists. 
+Even though our stack did not create an S3 bucket (as the change got rolled back), the **stack** still exists.
 In order to try again, we'll first need to delete the existing stack:
 
 ```shell
@@ -350,7 +350,7 @@ other packages based on attributes from the input. A natural attribute to use fo
 example be the resource type, allowing us to group our policies by the resource type they're meant to act on. Let's
 take a look at what such a main policy might look like:
 
-**main.rego** 
+**main.rego**
 ```live:example/router:module
 # METADATA
 # description: |
@@ -410,11 +410,11 @@ violations["Missing input.action"] {
 # Helpers
 #
 
-document(component, type) = data.aws[component][type] {
+document(component, type) := data.aws[component][type] {
 	input.action != "DELETE"
 }
 
-document(component, type) = data.aws[component][type].delete {
+document(component, type) := data.aws[component][type].delete {
 	input.action == "DELETE"
 }
 ```
@@ -424,8 +424,8 @@ The above policy will invoke the `route` rule to determine which package should 
 where each rule named `deny` will be evaluated, and the result aggregated into the final decision.
 
 Since most of our policies will only deal with `CREATE` or `UPDATE` actions, we'd rather want to avoid having to check
-for this in all of our rules. Instead, we'll have the router append `.delete` to the package name for `DELETE` 
-operations, so that a request to delete e.g. an S3 bucket would invoke the `data.aws.s3.bucket.delete` package (if it 
+for this in all of our rules. Instead, we'll have the router append `.delete` to the package name for `DELETE`
+operations, so that a request to delete e.g. an S3 bucket would invoke the `data.aws.s3.bucket.delete` package (if it
 exists).
 
 Additionally, we'll also do some simple input validation at this stage, so that we may avoid doing so in our resource
@@ -445,17 +445,17 @@ bucket_is_private {
 }
 ```
 
-Note how we no longer need the `bucket_create_or_update` rule, as that is already asserted by the main policy. 
+Note how we no longer need the `bucket_create_or_update` rule, as that is already asserted by the main policy.
 Quite an improvement in terms of readability, and a good foundation for further policy authoring. If you'd like to see
-more examples of policy utilizing this pattern, check out the 
-[policy directory](https://github.com/StyraInc/opa-aws-cloudformation-hook/tree/main/policy) in the OPA AWS 
+more examples of policy utilizing this pattern, check out the
+[policy directory](https://github.com/StyraInc/opa-aws-cloudformation-hook/tree/main/policy) in the OPA AWS
 CloudFormation Hook repo.
 
 ### OPA Authentication via AWS Secrets
 
 #### OPA Configuration
 
-Since the OPA server does not run inside the AWS Lambda, it is a good idea to require authentication to access its REST 
+Since the OPA server does not run inside the AWS Lambda, it is a good idea to require authentication to access its REST
 API, as described in the OPA [documentation](https://www.openpolicyagent.org/docs/latest/security/#authentication-and-authorization).
 
 A simple authz policy for checking the bearer token might look something like this:
@@ -464,7 +464,7 @@ A simple authz policy for checking the bearer token might look something like th
 ```live:example/authz:module
 package system.authz
 
-default allow = false
+default allow := false
 
 allow {
     input.identity == "my_secret_token"

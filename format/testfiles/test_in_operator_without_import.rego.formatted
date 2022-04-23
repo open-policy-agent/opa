@@ -1,6 +1,7 @@
 package p
 
 import future.keywords.in
+
 import input.foo
 
 r {

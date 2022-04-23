@@ -54,6 +54,7 @@ type Bundle struct {
 	WasmModules []WasmModuleFile
 	PlanModules []PlanModuleFile
 	Patch       Patch
+	Etag        string
 }
 
 // Patch contains an array of objects wherein each object represents the patch operation to be
@@ -342,6 +343,7 @@ type Reader struct {
 	processAnnotations    bool
 	files                 map[string]FileInfo // files in the bundle signature payload
 	sizeLimitBytes        int64
+	etag                  string
 }
 
 // NewReader is deprecated. Use NewCustomReader instead.
@@ -403,6 +405,12 @@ func (r *Reader) WithProcessAnnotations(yes bool) *Reader {
 // than this, an error will be returned by the reader.
 func (r *Reader) WithSizeLimitBytes(n int64) *Reader {
 	r.sizeLimitBytes = n + 1
+	return r
+}
+
+// WithBundleEtag sets the given etag value on the bundle
+func (r *Reader) WithBundleEtag(etag string) *Reader {
+	r.etag = etag
 	return r
 }
 
@@ -583,6 +591,8 @@ func (r *Reader) Read() (Bundle, error) {
 			return bundle, errors.Wrapf(err, "bundle load failed on %v", legacyRevisionStoragePath)
 		}
 	}
+
+	bundle.Etag = r.etag
 
 	return bundle, nil
 }

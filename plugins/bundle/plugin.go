@@ -116,7 +116,7 @@ func (p *Plugin) Start(ctx context.Context) error {
 
 	p.loadAndActivateBundlesFromDisk(ctx)
 
-	p.initDownloaders()
+	p.initDownloaders(ctx)
 	for name, dl := range p.downloaders {
 		p.log(name).Info("Starting bundle loader.")
 		dl.Start(ctx)
@@ -222,8 +222,16 @@ func (p *Plugin) Reconfigure(ctx context.Context, config interface{}) {
 			} else {
 				p.log(name).Info("Bundle loader configuration changed. Restarting bundle loader.")
 			}
-			p.downloaders[name] = p.newDownloader(name, source)
+
+			downloader := p.newDownloader(name, source)
+
+			etag := p.readBundleEtagFromStore(ctx, name)
+			downloader.SetCache(etag)
+
+			p.downloaders[name] = downloader
+			p.etags[name] = etag
 			p.downloaders[name].Start(ctx)
+
 			readyNow = false
 		}
 	}
@@ -303,11 +311,38 @@ func (p *Plugin) Config() *Config {
 	return &p.config
 }
 
-func (p *Plugin) initDownloaders() {
+func (p *Plugin) initDownloaders(ctx context.Context) {
+
 	// Initialize a downloader for each bundle configured.
 	for name, source := range p.config.Bundles {
-		p.downloaders[name] = p.newDownloader(name, source)
+		downloader := p.newDownloader(name, source)
+
+		etag := p.readBundleEtagFromStore(ctx, name)
+		downloader.SetCache(etag)
+
+		p.downloaders[name] = downloader
+		p.etags[name] = etag
 	}
+}
+
+func (p *Plugin) readBundleEtagFromStore(ctx context.Context, name string) string {
+	var etag string
+	err := storage.Txn(ctx, p.manager.Store, storage.TransactionParams{}, func(txn storage.Transaction) error {
+		var loadErr error
+		etag, loadErr = bundle.ReadBundleEtagFromStore(ctx, p.manager.Store, txn, name)
+		if loadErr != nil && !storage.IsNotFound(loadErr) {
+			p.log(name).Error("Failed to load bundle etag from store: %v", loadErr)
+			return loadErr
+		}
+		return nil
+	})
+	if err != nil {
+		// TODO: This probably shouldn't panic. But OPA shouldn't
+		// continue in a potentially inconsistent state.
+		panic(errors.New("Unable to load bundle etag from store: " + err.Error()))
+	}
+
+	return etag
 }
 
 func (p *Plugin) loadAndActivateBundlesFromDisk(ctx context.Context) {

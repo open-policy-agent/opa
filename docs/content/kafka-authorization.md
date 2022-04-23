@@ -246,7 +246,7 @@ package kafka.authz
 
 import future.keywords.in
 
-default allow = false
+default allow := false
 
 allow {
 	not deny
@@ -264,9 +264,9 @@ deny {
 # data could be pulled from external sources like AD, Git, etc.
 #-----------------------------------------------------------------------------
 
-consumer_allowlist = {"pii": {"pii_consumer"}}
+consumer_allowlist := {"pii": {"pii_consumer"}}
 
-topic_metadata = {"credit-scores": {"tags": ["pii"]}}
+topic_metadata := {"credit-scores": {"tags": ["pii"]}}
 
 #-----------------------------------
 # Helpers for checking topic access.
@@ -298,18 +298,19 @@ is_topic_resource {
 	input.action.resourcePattern.resourceType == "TOPIC"
 }
 
-topic_name = input.action.resourcePattern.name {
+topic_name := input.action.resourcePattern.name {
 	is_topic_resource
 }
 
-principal = {"fqn": parsed.CN, "name": cn_parts[0]} {
+principal := {"fqn": parsed.CN, "name": cn_parts[0]} {
 	parsed := parse_user(input.requestContext.principal.name)
 	cn_parts := split(parsed.CN, ".")
-} 
-# If client certificates aren't used for authentication
-else = {"fqn": "", "name": input.requestContext.principal.name}
+}
 
-parse_user(user) = {key: value |
+# If client certificates aren't used for authentication
+else := {"fqn": "", "name": input.requestContext.principal.name}
+
+parse_user(user) := {key: value |
 	parts := split(user, ",")
 	[key, value] := split(parts[_], "=")
 }
@@ -445,7 +446,7 @@ deny {
     not producer_is_allowlisted_for_large_fanout
 }
 
-producer_allowlist = {
+producer_allowlist := {
     "large-fanout": {
         "fanout_producer",
     }
@@ -464,7 +465,7 @@ Next, update the `topic_metadata` data structure in the same file to indicate
 that the `click-stream` topic has a high fanout.
 
 ```live:updated_metadata:module:read_only
-topic_metadata = {
+topic_metadata := {
     "click-stream": {
         "tags": ["large-fanout"],
     },
