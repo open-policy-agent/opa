@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"os"
 	"sort"
 	"strings"
 
@@ -16,7 +17,7 @@ import (
 	"github.com/open-policy-agent/opa/util"
 )
 
-// Capabilities defines a structure containing data that describes the capablilities
+// Capabilities defines a structure containing data that describes the capabilities
 // or features supported by a particular version of OPA.
 type Capabilities struct {
 	Builtins        []*Builtin       `json:"builtins"`
@@ -91,6 +92,16 @@ func LoadCapabilitiesVersion(version string) (*Capabilities, error) {
 
 	}
 	return nil, fmt.Errorf("no capabilities version found %v", version)
+}
+
+// LoadCapabilitiesFile loads a JSON serialized capabilities structure from a file.
+func LoadCapabilitiesFile(file string) (*Capabilities, error) {
+	fd, err := os.Open(file)
+	if err != nil {
+		return nil, err
+	}
+	defer fd.Close()
+	return LoadCapabilitiesJSON(fd)
 }
 
 // LoadCapabilitiesVersions loads all capabilities versions

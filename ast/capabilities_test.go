@@ -1,7 +1,10 @@
 package ast
 
 import (
+	"path"
 	"testing"
+
+	"github.com/open-policy-agent/opa/util/test"
 )
 
 func TestParserCatchesIllegalCapabilities(t *testing.T) {
@@ -99,4 +102,23 @@ func TestLoadCapabilitiesVersion(t *testing.T) {
 			t.Fatal("expected success", err)
 		}
 	}
+}
+
+func TestLoadCapabilitiesFile(t *testing.T) {
+
+	files := map[string]string{
+		"test-capabilities.json": `
+		{
+			"builtins": []
+		}
+		`,
+	}
+
+	test.WithTempFS(files, func(root string) {
+		_, err := LoadCapabilitiesFile(path.Join(root, "test-capabilities.json"))
+		if err != nil {
+			t.Fatal("expected success", err)
+		}
+	})
+
 }
