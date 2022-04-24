@@ -14,31 +14,25 @@ import (
 )
 
 type capabilitiesParams struct {
-	capabilitiesFlag *capabilitiesFlag
-	showVersions     bool
-	showCurrent      bool
-}
-
-func newCapabilitiesParams() capabilitiesParams {
-	return capabilitiesParams{
-		capabilitiesFlag: newcapabilitiesFlag(),
-	}
+	showCurrent bool
+	version     string
+	file        string
 }
 
 func init() {
 
-	capabilitiesParams := newCapabilitiesParams()
+	capabilitiesParams := capabilitiesParams{}
 
 	var capabilitiesCommand = &cobra.Command{
 		Use:   "capabilities",
 		Short: "Print the capabilities of OPA",
 		Long: `Show capabilities for OPA.
 
-The 'capabilities' command prints the OPA capabilities, prior to and including the version of OPA used, for a specific version.
+The 'capabilities' command prints the OPA capabilities, prior to and including the version of OPA used.
 
-Print a list of all existing capabilities versions
+Print a list of all existing capabilities version names
 
-    $ opa capabilities --versions
+    $ opa capabilities
     v0.17.0
     v0.17.1
     ...
@@ -47,7 +41,7 @@ Print a list of all existing capabilities versions
     v0.38.0
     ...
 
-Print the capabilities of the current version in json
+Print the capabilities of the current version
 
     $ opa capabilities --current
     {
@@ -56,9 +50,18 @@ Print the capabilities of the current version in json
         "wasm_abi_versions": [...]
     }
 
-Print the capabilities of a specific version in json
+Print the capabilities of a specific version
 
-    $ opa capabilities --capabilities v0.32.1
+    $ opa capabilities --version v0.32.1
+    {
+        "builtins": [...],
+        "future_keywords": null,
+        "wasm_abi_versions": [...]
+    }
+
+Print the capabilities of a capabilities file
+
+    $ opa capabilities --file ./capabilities/v0.32.1.json
     {
         "builtins": [...],
         "future_keywords": null,
@@ -75,38 +78,47 @@ Print the capabilities of a specific version in json
 			return nil
 		},
 	}
-	capabilitiesCommand.Flags().BoolVar(&capabilitiesParams.showVersions, "versions", false, "list capabilities versions")
-	capabilitiesCommand.Flags().BoolVar(&capabilitiesParams.showCurrent, "current", false, "print current capabilities in json")
-
-	addCapabilitiesFlag(capabilitiesCommand.Flags(), capabilitiesParams.capabilitiesFlag)
+	capabilitiesCommand.Flags().BoolVar(&capabilitiesParams.showCurrent, "current", false, "print current capabilities")
+	capabilitiesCommand.Flags().StringVar(&capabilitiesParams.version, "version", "", "print capabilities of a specific version")
+	capabilitiesCommand.Flags().StringVar(&capabilitiesParams.file, "file", "", "print current capabilities")
 
 	RootCommand.AddCommand(capabilitiesCommand)
 }
 
 func doCapabilities(params capabilitiesParams) (string, error) {
-	if params.showVersions {
-		cvs, err := ast.LoadCapabilitiesVersions()
-		if err != nil {
-			return "", err
-		}
+	var (
+		c   *ast.Capabilities
+		err error
+	)
 
-		t := strings.Join(cvs, "\n")
-		return t, nil
-	}
-
-	var c *ast.Capabilities
-	if params.capabilitiesFlag.C != nil {
-		c = params.capabilitiesFlag.C
+	if len(params.version) > 0 {
+		c, err = ast.LoadCapabilitiesVersion(params.version)
+	} else if len(params.file) > 0 {
+		c, err = ast.LoadCapabilitiesFile(params.file)
 	} else if params.showCurrent {
 		c = ast.CapabilitiesForThisVersion()
+	} else {
+		return showVersions()
 	}
-	if c != nil {
-		bs, err := util.MarshalJSON(c)
-		if err != nil {
-			return "", err
-		}
 
-		return string(bs), nil
+	if err != nil {
+		return "", err
 	}
-	return "", fmt.Errorf("please use a flag")
+
+	bs, err := util.MarshalJSON(c)
+	if err != nil {
+		return "", err
+	}
+	return string(bs), nil
+
+}
+
+func showVersions() (string, error) {
+	cvs, err := ast.LoadCapabilitiesVersions()
+	if err != nil {
+		return "", err
+	}
+
+	t := strings.Join(cvs, "\n")
+	return t, nil
 }

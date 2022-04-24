@@ -4,25 +4,73 @@
 
 package cmd
 
-import "testing"
+import (
+	"path"
+	"testing"
 
-func TestCapabilitiesExitCode(t *testing.T) {
+	"github.com/open-policy-agent/opa/util/test"
+)
 
-	t.Run("test with --versions", func(t *testing.T) {
-		params := newCapabilitiesParams()
-		params.showVersions = true
+func TestCapabilitiesNoArgs(t *testing.T) {
+	t.Run("test with no arguments", func(t *testing.T) {
+		_, err := doCapabilities(capabilitiesParams{})
+		if err != nil {
+			t.Fatal("expected success", err)
+		}
+	})
+}
+
+func TestCapabilitiesVersion(t *testing.T) {
+	t.Run("test with version", func(t *testing.T) {
+		params := capabilitiesParams{
+			version: "v0.39.0",
+		}
 		_, err := doCapabilities(params)
 		if err != nil {
-			t.Fatal("expected success but got an error", err)
+			t.Fatal("expected success", err)
 		}
 	})
+}
 
-	t.Run("test with no arguments", func(t *testing.T) {
-		params := newCapabilitiesParams()
-		_, err := doCapabilities(params)
-		if err == nil {
-			t.Fatalf("expected error")
+func TestCapabilitiesFile(t *testing.T) {
+	t.Run("test with file", func(t *testing.T) {
+		files := map[string]string{
+			"test-capabilities.json": `
+			{
+				"builtins": [
+					{
+						"name": "plus",
+						"infix": "+",
+						"decl": {
+							"type": "function",
+							"args": [
+								{
+									"type": "number"
+								},
+								{
+									"type": "number"
+								}
+							],
+							"result": {
+								"type": "number"
+							}
+						}
+					}
+				]
+			}
+			`,
 		}
-	})
 
+		test.WithTempFS(files, func(root string) {
+			params := capabilitiesParams{
+				file: path.Join(root, "test-capabilities.json"),
+			}
+			_, err := doCapabilities(params)
+
+			if err != nil {
+				t.Fatal("expected success", err)
+			}
+		})
+
+	})
 }
