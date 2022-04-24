@@ -6,7 +6,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/spf13/pflag"
 
@@ -192,17 +191,13 @@ func (f *capabilitiesFlag) String() string {
 
 func (f *capabilitiesFlag) Set(s string) error {
 	f.pathOrVersion = s
-	fd, errPath := os.Open(s)
-	if errPath == nil {
-		defer fd.Close()
+	var errPath, errVersion error
 
-		var err error
-		f.C, err = ast.LoadCapabilitiesJSON(fd)
-		return err
+	f.C, errPath = ast.LoadCapabilitiesFile(s)
+	if errPath != nil {
+		f.C, errVersion = ast.LoadCapabilitiesVersion(s)
 	}
 
-	var errVersion error
-	f.C, errVersion = ast.LoadCapabilitiesVersion(s)
 	if errVersion != nil && errPath != nil {
 		return fmt.Errorf("no such file or capabilities version found: %v", s)
 	}
