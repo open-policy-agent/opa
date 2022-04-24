@@ -865,7 +865,8 @@ func (p *Parser) parseWith() []*With {
 			return nil
 		}
 
-		if with.Target = p.parseTerm(); with.Target == nil {
+		with.Target = p.parseTerm()
+		if with.Target == nil {
 			return nil
 		}
 

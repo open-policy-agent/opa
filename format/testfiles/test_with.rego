@@ -15,3 +15,11 @@ multi_line_with {
                     2,
                     3]
 }
+
+mock_f(_) = 123
+
+func_replacements {
+    count(array.concat(input.x, [])) with input.x as "foo"
+    with array.concat as true
+    with count as mock_f
+}

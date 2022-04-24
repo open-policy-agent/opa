@@ -3996,10 +3996,11 @@ func TestCompilerRewriteWithValue(t *testing.T) {
 	`
 
 	tests := []struct {
-		note     string
-		input    string
-		expected string
-		wantErr  error
+		note         string
+		input        string
+		expected     string
+		expectedRule *Rule
+		wantErr      error
 	}{
 		{
 			note:     "nop",
@@ -4039,7 +4040,80 @@ func TestCompilerRewriteWithValue(t *testing.T) {
 		{
 			note:    "invalid target",
 			input:   `p { true with foo.q as 1 }`,
-			wantErr: fmt.Errorf("rego_type_error: with keyword target must reference existing input or data"),
+			wantErr: fmt.Errorf("rego_type_error: with keyword target must reference existing input, data, or a built-in function"),
+		},
+		{
+			note:     "built-in function: replaced by (unknown) var",
+			input:    `p { true with time.now_ns as foo }`,
+			expected: `p { true with time.now_ns as foo }`, // `foo` still a Var here
+		},
+		{
+			note: "built-in function: valid, arity 0",
+			input: `
+				p { true with time.now_ns as now }
+				now() = 1
+			`,
+			expected: `p { true with time.now_ns as data.test.now }`,
+		},
+		{
+			note: "built-in function: valid func ref, arity 1",
+			input: `
+				p { true with http.send as mock_http_send }
+				mock_http_send(_) = { "body": "yay" }
+			`,
+			expected: `p { true with http.send as data.test.mock_http_send }`,
+		},
+		{
+			note: "built-in function: replaced by value",
+			input: `
+				p { true with http.send as { "body": "yay" } }
+			`,
+			expected: `p { true with http.send as {"body": "yay"} }`,
+		},
+		{
+			note: "built-in function: replaced by comprehension",
+			input: `
+				p { true with http.send as { x: true | x := ["a", "b"][_] } }
+			`,
+			expected: `p { __local2__ = {__local0__: true | __local1__ = ["a", "b"]; __local0__ = __local1__[_]}; true with http.send as __local2__ }`,
+		},
+		{
+			note: "built-in function: replaced by ref",
+			input: `
+				p { true with http.send as resp }
+				resp := { "body": "yay" }
+			`,
+			expected: `p { true with http.send as data.test.resp }`,
+		},
+		{
+			note: "built-in function: replaced by another built-in (ref)",
+			input: `
+				p { true with http.send as object.union_n }
+			`,
+			expected: `p { true with http.send as object.union_n }`,
+		},
+		{
+			note: "built-in function: replaced by another built-in (simple)",
+			input: `
+				p { true with http.send as count }
+			`,
+			expectedRule: func() *Rule {
+				r := MustParseRule(`p { true with http.send as count }`)
+				r.Body[0].With[0].Value.Value = Ref([]*Term{VarTerm("count")})
+				return r
+			}(),
+		},
+		{
+			note: "built-in function: valid, arity 1, non-compound name",
+			input: `
+				p { concat("/", input) with concat as mock_concat }
+				mock_concat(_, _) = "foo/bar"
+			`,
+			expectedRule: func() *Rule {
+				r := MustParseRule(`p { concat("/", input) with concat as data.test.mock_concat }`)
+				r.Body[0].With[0].Target.Value = Ref([]*Term{VarTerm("concat")})
+				return r
+			}(),
 		},
 	}
 
@@ -4051,7 +4125,10 @@ func TestCompilerRewriteWithValue(t *testing.T) {
 			compileStages(c, c.rewriteWithModifiers)
 			if tc.wantErr == nil {
 				assertNotFailed(t, c)
-				expected := MustParseRule(tc.expected)
+				expected := tc.expectedRule
+				if expected == nil {
+					expected = MustParseRule(tc.expected)
+				}
 				result := c.Modules["test"].Rules[1]
 				if result.Compare(expected) != 0 {
 					t.Fatalf("\nExp: %v\nGot: %v", expected, result)
@@ -4429,7 +4506,178 @@ func TestCompilerMockFunction(t *testing.T) {
 	p {true with data.test.is_allowed as "blah" }
 	`)
 	compileStages(c, c.rewriteWithModifiers)
-	assertCompilerErrorStrings(t, c, []string{"rego_compile_error: with keyword cannot replace functions"})
+	assertCompilerErrorStrings(t, c, []string{"rego_compile_error: with keyword used on non-built-in function"})
+}
+
+func TestCompilerMockBuiltinFunction(t *testing.T) {
+	tests := []struct {
+		note          string
+		module, extra string
+		err           string
+	}{
+		{
+			note: "simple valid",
+			module: `package test
+				now() = 123
+				p { true with time.now_ns as now }
+			`,
+		},
+		{
+			note: "simple valid, simple name",
+			module: `package test
+				mock_concat(_, _) = "foo/bar"
+				p { concat("/", input) with concat as mock_concat }
+			`,
+		},
+		{
+			note: "invalid ref: nonexistant",
+			module: `package test
+				p { true with time.now_ns as now }
+			`,
+			err: "rego_unsafe_var_error: var now is unsafe", // we're running all compiler stages here
+		},
+		{
+			note: "valid ref: not a function, but arity = 0",
+			module: `package test
+				now = 1
+				p { true with time.now_ns as now }
+			`,
+		},
+		{
+			note: "ref: not a function, arity > 0",
+			module: `package test
+				http_send = { "body": "nope" }
+				p { true with http.send as http_send }
+			`,
+		},
+		{
+			note: "invalid ref: arity mismatch",
+			module: `package test
+				http_send(_, _) = { "body": "nope" }
+				p { true with http.send as http_send }
+			`,
+			err: "rego_type_error: http.send: arity mismatch\n\thave: (any, any)\n\twant: (object[string: any])",
+		},
+		{
+			note: "invalid ref: arity mismatch (in call)",
+			module: `package test
+				http_send(_, _) = { "body": "nope" }
+				p { http.send({}) with http.send as http_send }
+			`,
+			err: "rego_type_error: http.send: arity mismatch\n\thave: (any, any)\n\twant: (object[string: any])",
+		},
+		{
+			note: "invalid ref: value another built-in with different type",
+			module: `package test
+				p { true with http.send as net.lookup_ip_addr }
+			`,
+			err: "rego_type_error: http.send: arity mismatch\n\thave: (string)\n\twant: (object[string: any])",
+		},
+		{
+			note: "ref: value another built-in with compatible type",
+			module: `package test
+				p { true with count as object.union_n }
+			`,
+		},
+		{
+			note: "valid: package import",
+			extra: `package mocks
+				http_send(_) = {}
+			`,
+			module: `package test
+				import data.mocks
+				p { true with http.send as mocks.http_send }
+			`,
+		},
+		{
+			note: "valid: function import",
+			extra: `package mocks
+				http_send(_) = {}
+			`,
+			module: `package test
+				import data.mocks.http_send
+				p { true with http.send as http_send }
+			`,
+		},
+		{
+			note: "invalid target: relation",
+			module: `package test
+				my_walk(_, _)
+				p { true with walk as my_walk }
+			`,
+			err: "rego_compile_error: with keyword replacing built-in function: target must not be a relation",
+		},
+		{
+			note: "invalid target: eq",
+			module: `package test
+				my_eq(_, _)
+				p { true with eq as my_eq }
+			`,
+			err: `rego_compile_error: with keyword replacing built-in function: replacement of "eq" invalid`,
+		},
+		{
+			note: "invalid target: rego.metadata.chain",
+			module: `package test
+				p { true with rego.metadata.chain as [] }
+			`,
+			err: `rego_compile_error: with keyword replacing built-in function: replacement of "rego.metadata.chain" invalid`,
+		},
+		{
+			note: "invalid target: rego.metadata.rule",
+			module: `package test
+				p { true with rego.metadata.rule as {} }
+			`,
+			err: `rego_compile_error: with keyword replacing built-in function: replacement of "rego.metadata.rule" invalid`,
+		},
+		{
+			note: "invalid target: internal.print",
+			module: `package test
+				my_print(_, _)
+				p { true with internal.print as my_print }
+			`,
+			err: `rego_compile_error: with keyword replacing built-in function: replacement of internal function "internal.print" invalid`,
+		},
+		{
+			note: "mocking custom built-in",
+			module: `package test
+				mock(_)
+				mock_mock(_)
+				p { bar(foo.bar("one")) with bar as mock with foo.bar as mock_mock }
+			`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			c := NewCompiler().WithBuiltins(map[string]*Builtin{
+				"bar": {
+					Name: "bar",
+					Decl: types.NewFunction([]types.Type{types.S}, types.A),
+				},
+				"foo.bar": {
+					Name: "foo.bar",
+					Decl: types.NewFunction([]types.Type{types.S}, types.A),
+				},
+			})
+			if tc.extra != "" {
+				c.Modules["extra"] = MustParseModule(tc.extra)
+			}
+			c.Modules["test"] = MustParseModule(tc.module)
+
+			// NOTE(sr): We're running all compiler stages here, since the type checking of
+			// built-in function replacements happens at the type check stage.
+			c.Compile(c.Modules)
+
+			if tc.err != "" {
+				if !strings.Contains(c.Errors.Error(), tc.err) {
+					t.Errorf("expected error to contain %q, got %q", tc.err, c.Errors.Error())
+				}
+			} else if len(c.Errors) > 0 {
+				t.Errorf("expected no errors, got %v", c.Errors)
+			}
+		})
+	}
+
 }
 
 func TestCompilerMockVirtualDocumentPartially(t *testing.T) {
@@ -6167,7 +6415,7 @@ func TestQueryCompiler(t *testing.T) {
 			q:        "x = 1 with foo.p as null",
 			pkg:      "",
 			imports:  nil,
-			expected: fmt.Errorf("1 error occurred: 1:12: rego_type_error: with keyword target must reference existing input or data"),
+			expected: fmt.Errorf("1 error occurred: 1:12: rego_type_error: with keyword target must reference existing input, data, or a built-in function"),
 		},
 		{
 			note:     "rewrite with value",
