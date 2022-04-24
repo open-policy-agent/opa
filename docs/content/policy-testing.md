@@ -260,8 +260,8 @@ Below is the Rego file to test the above policy.
 ```live:with_keyword/tests:module:read_only
 package authz
 
-policies = [{"name": "test_policy"}]
-roles = {"admin": ["alice"]}
+policies := [{"name": "test_policy"}]
+roles := {"admin": ["alice"]}
 
 test_allow_with_data {
     allow with input as {"user": "alice", "role": "admin"}  with data.policies as policies  with data.roles as roles
@@ -430,4 +430,3 @@ opa test --coverage --format=json example.rego example_test.rego
   }
 }
 ```
-

@@ -68,7 +68,7 @@ Here is an example policy from the [rule-indexing blog](https://blog.openpolicya
 ```live:indexed:module:openable
 package indexed
 
-default allow = false
+default allow := false
 
 allow {
     some user
@@ -170,13 +170,16 @@ package earlyexit.examples
 p {
     # ...
 }
-q = 123 {
+
+q := 123 {
     # ...
 }
-r = {"hello": "world"} {
+
+r := {"hello": "world"} {
     # ...
 }
-s(x) = 12 {
+
+s(x) := 12 {
     # ...
 }
 
@@ -185,13 +188,16 @@ s(x) = 12 {
 u[x] { # not a complete document rule, but a partial set
     x := 911
 }
-v = x { # x is a variable, not ground
+
+v := x { # x is a variable, not ground
     x := true
 }
-w = { "foo": x } { # a compound term containing a variable
+
+w := { "foo": x } { # a compound term containing a variable
     x := "bar"
 }
-y(z) = r { # variable value, not ground
+
+y(z) := r { # variable value, not ground
     r := z + 1
 }
 ```
@@ -444,7 +450,7 @@ roles := [
 
 # Example RBAC policy implementation.
 
-default allow = false
+default allow := false
 
 allow {
     some role_name
@@ -874,4 +880,3 @@ For high-performance use cases:
 * Write your policies with indexed statements so that [rule-indexing](https://blog.openpolicyagent.org/optimizing-opa-rule-indexing-59f03f17caf3) is effective.
 * Use the profiler to help identify portions of the policy that would benefit the most from improved performance.
 * Use the benchmark tools to help get real world timing data and detect policy performance changes.
-

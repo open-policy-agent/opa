@@ -1103,14 +1103,7 @@ g(1,2) { true }`,
 p { true }`,
 		"mod6.rego": `package badrules.existserr
 
-p { true }`,
-		"mod7.rego": `package badrules.redeclaration
-
-p1 := 1
-p1 := 2
-
-p2 = 1
-p2 := 2`})
+p { true }`})
 
 	c.WithPathConflictsCheck(func(path []string) (bool, error) {
 		if reflect.DeepEqual(path, []string{"badrules", "dataoverlap", "p"}) {
@@ -1133,8 +1126,6 @@ p2 := 2`})
 		"rego_type_error: multiple default rules named foo found",
 		"rego_type_error: package badrules.r conflicts with rule defined at mod1.rego:7",
 		"rego_type_error: package badrules.r conflicts with rule defined at mod1.rego:8",
-		"rego_type_error: rule named p1 redeclared at mod7.rego:4",
-		"rego_type_error: rule named p2 redeclared at mod7.rego:7",
 	}
 
 	assertCompilerErrorStrings(t, c, expected)
@@ -1738,7 +1729,7 @@ func TestCompilerCheckDuplicateImports(t *testing.T) {
 				import input.foo
 				import data.foo
 				import data.bar.foo
-				
+
 				p := noconflict
 				q := foo
 			`,
@@ -2357,13 +2348,13 @@ p {
 }`,
 			exp: `package test
 
-p = true { 
+p = true {
 	__local2__ = [{"path": ["test", "p"]}]
 	__local3__ = {}
 	__local0__ = __local2__
 	equal(__local0__[0].path, ["test", "p"])
 	__local1__ = __local3__
-	equal(__local1__, {}) 
+	equal(__local1__, {})
 }`,
 		},
 		{
@@ -2376,11 +2367,11 @@ p {
 }`,
 			exp: `package test
 
-p = true { 
+p = true {
 	__local0__ = [{"path": ["test", "p"]}]
 	__local1__ = {}
 	__local0__
-	__local1__ 
+	__local1__
 }`,
 		},
 		{
@@ -2407,20 +2398,20 @@ package test
 
 # METADATA
 # {"scope":"rule","title":"My P Rule"}
-p = true { 
+p = true {
 	__local3__ = [
-		{"annotations": {"scope": "rule", "title": "My P Rule"}, "path": ["test", "p"]}, 
+		{"annotations": {"scope": "rule", "title": "My P Rule"}, "path": ["test", "p"]},
 		{"annotations": {"description": "A test package", "scope": "package"}, "path": ["test"]}
 	]
 	__local0__ = __local3__
 	equal(__local0__[0].title, "My P Rule")
 	__local1__ = __local3__
-	equal(__local1__[1].description, "A test package") 
+	equal(__local1__[1].description, "A test package")
 }
 
 # METADATA
 # {"scope":"rule","title":"My Other P Rule"}
-p = true { 
+p = true {
 	__local4__ = {"scope": "rule", "title": "My Other P Rule"}
 	__local2__ = __local4__
 	equal(__local2__.title, "My Other P Rule")
@@ -2440,9 +2431,9 @@ p {
 # {"scope":"package","description":"TEST"}
 package test
 
-p = true { 
+p = true {
 	__local2__ = [
-		{"path": ["test", "p"]}, 
+		{"path": ["test", "p"]},
 		{"annotations": {"description": "TEST", "scope": "package"}, "path": ["test"]}
 	]
 	__local0__ = __local2__
@@ -2457,10 +2448,10 @@ p = true {
 p := rego.metadata.chain()`,
 			exp: `package test
 
-p := __local0__ { 
+p := __local0__ {
 	__local1__ = [{"path": ["test", "p"]}]
 	true
-	__local0__ = __local1__ 
+	__local0__ = __local1__
 }`,
 		},
 		{
@@ -2476,14 +2467,14 @@ q(s) {
 }`,
 			exp: `package test
 
-p = true { 
+p = true {
 	__local2__ = [{"path": ["test", "p"]}]
 	__local1__ = __local2__
-	data.test.q(__local1__) 
+	data.test.q(__local1__)
 }
 
-q(__local0__) = true { 
-	equal(__local0__, ["test", "p"]) 
+q(__local0__) = true {
+	equal(__local0__, ["test", "p"])
 }`,
 		},
 		{
@@ -2493,9 +2484,9 @@ q(__local0__) = true {
 p = [x | x := rego.metadata.chain()]`,
 			exp: `package test
 
-p = [__local0__ | __local1__ = __local2__; __local0__ = __local1__] { 
+p = [__local0__ | __local1__ = __local2__; __local0__ = __local1__] {
 	__local2__ = [{"path": ["test", "p"]}]
-	true 
+	true
 }`,
 		},
 		{
@@ -2508,10 +2499,10 @@ p {
 }`,
 			exp: `package test
 
-p = true { 
-	__local3__ = [{"path": ["test", "p"]}]; 
-	__local1__ = [__local0__ | __local2__ = __local3__; __local0__ = __local2__]; 
-	equal(__local1__[0].path, ["test", "p"]) 
+p = true {
+	__local3__ = [{"path": ["test", "p"]}];
+	__local1__ = [__local0__ | __local2__ = __local3__; __local0__ = __local2__];
+	equal(__local1__[0].path, ["test", "p"])
 }`,
 		},
 		{
@@ -2521,9 +2512,9 @@ p = true {
 p = {x | x := rego.metadata.chain()}`,
 			exp: `package test
 
-p = {__local0__ | __local1__ = __local2__; __local0__ = __local1__} { 
+p = {__local0__ | __local1__ = __local2__; __local0__ = __local1__} {
 	__local2__ = [{"path": ["test", "p"]}]
-	true 
+	true
 }`,
 		},
 		{
@@ -2536,10 +2527,10 @@ p {
 }`,
 			exp: `package test
 
-p = true { 
+p = true {
 	__local3__ = [{"path": ["test", "p"]}]
 	__local1__ = {__local0__ | __local2__ = __local3__; __local0__ = __local2__}
-	equal(__local1__[0].path, ["test", "p"]) 
+	equal(__local1__[0].path, ["test", "p"])
 }`,
 		},
 		{
@@ -2549,9 +2540,9 @@ p = true {
 p = {i: x | x := rego.metadata.chain()[i]}`,
 			exp: `package test
 
-p = {i: __local0__ | __local1__ = __local2__; __local0__ = __local1__[i]} { 
+p = {i: __local0__ | __local1__ = __local2__; __local0__ = __local1__[i]} {
 	__local2__ = [{"path": ["test", "p"]}]
-	true 
+	true
 }`,
 		},
 		{
@@ -2564,10 +2555,10 @@ p {
 }`,
 			exp: `package test
 
-p = true { 
+p = true {
 	__local3__ = [{"path": ["test", "p"]}]
 	__local1__ = {i: __local0__ | __local2__ = __local3__; __local0__ = __local2__[i]}
-	equal(__local1__[0].path, ["test", "p"]) 
+	equal(__local1__[0].path, ["test", "p"])
 }`,
 		},
 	}
@@ -6070,6 +6061,19 @@ func TestCompilerBuildComprehensionIndexKeySet(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestCompilerAllowMultipleAssignments(t *testing.T) {
+
+	_, err := CompileModules(map[string]string{"test.rego": `
+		package test
+
+		p := 7
+		p := 8
+	`})
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 

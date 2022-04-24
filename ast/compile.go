@@ -806,15 +806,11 @@ func (c *Compiler) checkRuleConflicts() {
 		kinds := map[DocKind]struct{}{}
 		defaultRules := 0
 		arities := map[int]struct{}{}
-		declared := false
 
 		for _, rule := range node.Values {
 			r := rule.(*Rule)
 			kinds[r.Head.DocKind()] = struct{}{}
 			arities[len(r.Head.Args)] = struct{}{}
-			if r.Head.Assign {
-				declared = true
-			}
 			if r.Default {
 				defaultRules++
 			}
@@ -822,9 +818,7 @@ func (c *Compiler) checkRuleConflicts() {
 
 		name := Var(node.Key.(String))
 
-		if declared && len(node.Values) > 1 {
-			c.err(NewError(TypeErr, node.Values[0].(*Rule).Loc(), "rule named %v redeclared at %v", name, node.Values[1].(*Rule).Loc()))
-		} else if len(kinds) > 1 || len(arities) > 1 {
+		if len(kinds) > 1 || len(arities) > 1 {
 			c.err(NewError(TypeErr, node.Values[0].(*Rule).Loc(), "conflicting rules named %v found", name))
 		} else if defaultRules > 1 {
 			c.err(NewError(TypeErr, node.Values[0].(*Rule).Loc(), "multiple default rules named %s found", name))
@@ -1778,17 +1772,20 @@ func (c *Compiler) rewriteRegoMetadataCalls() {
 		mod := c.Modules[name]
 
 		WalkRules(mod, func(rule *Rule) bool {
-			var chainCalled bool
-			var ruleCalled bool
+			var firstChainCall *Expr
+			var firstRuleCall *Expr
 
 			WalkExprs(rule, func(expr *Expr) bool {
-				if chainFuncAllowed && isRegoMetadataChainCall(expr) {
-					chainCalled = true
-				} else if ruleFuncAllowed && isRegoMetadataRuleCall(expr) {
-					ruleCalled = true
+				if chainFuncAllowed && firstChainCall == nil && isRegoMetadataChainCall(expr) {
+					firstChainCall = expr
+				} else if ruleFuncAllowed && firstRuleCall == nil && isRegoMetadataRuleCall(expr) {
+					firstRuleCall = expr
 				}
-				return chainCalled && ruleCalled
+				return firstChainCall != nil && firstRuleCall != nil
 			})
+
+			chainCalled := firstChainCall != nil
+			ruleCalled := firstRuleCall != nil
 
 			if chainCalled || ruleCalled {
 				body := make(Body, 0, len(rule.Body)+2)
@@ -1803,6 +1800,7 @@ func (c *Compiler) rewriteRegoMetadataCalls() {
 						return false
 					}
 
+					chain.Location = firstChainCall.Location
 					eq := eqFactory.Generate(chain)
 					metadataChainVar = eq.Operands()[0].Value.(Var)
 					body.Append(eq)
@@ -1827,6 +1825,7 @@ func (c *Compiler) rewriteRegoMetadataCalls() {
 						metadataRuleTerm = ObjectTerm()
 					}
 
+					metadataRuleTerm.Location = firstRuleCall.Location
 					eq := eqFactory.Generate(metadataRuleTerm)
 					metadataRuleVar = eq.Operands()[0].Value.(Var)
 					body.Append(eq)
@@ -1899,15 +1898,17 @@ func rewriteRegoMetadataCalls(metadataChainVar *Var, metadataRuleVar *Var, body 
 		// NOTE(johanfylling): An alternative strategy would be to walk the body and replace all operands[0]
 		// usages with *metadataChainVar
 		operands := expr.Operands()
+		var newExpr *Expr
 		if len(operands) > 0 { // There is an output var to rewrite
 			rewrittenVar := operands[0]
-			newExpr := Equality.Expr(rewrittenVar, NewTerm(metadataVar))
-			newExpr.Generated = true
-			newExpr.Location = expr.Location
-			body.Set(newExpr, i)
+			newExpr = Equality.Expr(rewrittenVar, NewTerm(metadataVar))
 		} else { // No output var, just rewrite expr to metadataVar
-			body.Set(NewExpr(NewTerm(metadataVar)), i)
+			newExpr = NewExpr(NewTerm(metadataVar))
 		}
+
+		newExpr.Generated = true
+		newExpr.Location = expr.Location
+		body.Set(newExpr, i)
 	}
 
 	return errs

@@ -167,7 +167,7 @@ package policy
 
 import data.acl
 
-default allow = false
+default allow := false
 
 # METADATA
 # schemas:
@@ -215,7 +215,7 @@ document overrides package
 package overrides subpackages
 ```
 
-The following sections explain how the different scopes affect `schema` annotation 
+The following sections explain how the different scopes affect `schema` annotation
 overriding for type checking.
 
 #### Rule and Document Scopes
@@ -385,7 +385,7 @@ package policy
 
 import data.acl
 
-default allow = false
+default allow := false
 
 # METADATA
 # scope: rule
@@ -437,14 +437,14 @@ Specifically, `anyOf` acts as an Rego Or type where at least one (can be more th
 
 `policy-anyOf.rego`
 ```
-package kubernetes.admission  
+package kubernetes.admission
 
 # METADATA
 # scope: rule
-# schemas: 
-#   - input: schema["input-anyOf"] 
-deny {                                                                
-    input.request.servers.versions == "Pod"                       
+# schemas:
+#   - input: schema["input-anyOf"]
+deny {
+    input.request.servers.versions == "Pod"
 }
 ```
 
@@ -512,14 +512,14 @@ Specifically, `allOf` keyword implies that all conditions under `allOf` within a
 
 `policy-allOf.rego`
 ```
-package kubernetes.admission  
+package kubernetes.admission
 
 # METADATA
 # scope: rule
-# schemas: 
-#   - input: schema["input-allof"] 
-deny {                                                                
-    input.request.servers.versions == "Pod"                       
+# schemas:
+#   - input: schema["input-allof"]
+deny {
+    input.request.servers.versions == "Pod"
 }
 ```
 

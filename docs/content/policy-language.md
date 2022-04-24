@@ -613,7 +613,7 @@ Array Comprehensions build array values out of sub-queries. Array Comprehensions
 For example, the following rule defines an object where the keys are application names and the values are hostnames of servers where the application is deployed. The hostnames of servers are represented as an array.
 
 ```live:eg/data/array_comprehension:module
-app_to_hostnames[app_name] = hostnames {
+app_to_hostnames[app_name] := hostnames {
     app := apps[_]
     app_name := app.name
     hostnames := [hostname | name := app.servers[_]
@@ -732,7 +732,7 @@ Third, the `name := sites[_].servers[_].hostname` expression binds the value of 
 Rules that define objects are very similar to rules that define sets.
 
 ```live:eg/data/rule_objects:module
-apps_by_hostname[hostname] = app {
+apps_by_hostname[hostname] := app {
     some i
     server := sites[_].servers[_]
     hostname := server.hostname
@@ -826,10 +826,10 @@ power_users := {"alice", "bob", "fred"}
 restricted_users := {"bob", "kim"}
 
 # Power users get 32GB memory.
-max_memory = 32 { power_users[user] }
+max_memory := 32 { power_users[user] }
 
 # Restricted users get 4GB memory.
-max_memory = 4 { restricted_users[user] }
+max_memory := 4 { restricted_users[user] }
 ```
 
 Error:
@@ -849,22 +849,6 @@ max_memory with user as "johnson"
 
 In some cases, having an undefined result for a document is not desirable. In those cases, policies can use the [Default Keyword](#default-keyword) to provide a fallback value.
 
-Like variables declared in rules, there can be at most one complete definition
-name declared with the `:=` operator per package. The compiler checks for
-redeclaration of complete definitions with the `:=` operator:
-
-```live:rule_redeclaration:module
-package example
-
-pi := 3.14
-
-# some other rules...
-
-pi := 3.14156   # Redeclaration error because 'pi' already declared above.
-```
-```live:rule_redeclaration:output:expect_rego_type_error
-```
-
 ### Functions
 
 Rego supports user-defined functions that can be called with the same semantics as [Built-in Functions](#built-in-functions). They have access to both the [the data Document](../philosophy/#the-opa-document-model) and [the input Document](../philosophy/#the-opa-document-model).
@@ -872,7 +856,7 @@ Rego supports user-defined functions that can be called with the same semantics 
 For example, the following function will return the result of trimming the spaces from a string and then splitting it by periods.
 
 ```live:eg/basic_function:module:merge_down
-trim_and_split(s) = x {
+trim_and_split(s) := x {
      t := trim(s, " ")
      x := split(t, ".")
 }
@@ -886,7 +870,7 @@ trim_and_split("   foo.bar ")
 Functions may have an arbitrary number of inputs, but exactly one output. Function arguments may be any kind of term. For example, suppose we have the following function:
 
 ```live:eg/function_input:module:read_only
-foo([x, {"bar": y}]) = z {
+foo([x, {"bar": y}]) := z {
     z := {x: y}
 }
 ```
@@ -914,7 +898,7 @@ f(x) = true {
 The outputs of user functions have some additional limitations, namely that they must resolve to a single value. If you write a function that has multiple possible bindings for an output variable, you will get a conflict error:
 
 ```live:eg/function_single_output:module:merge_down
-p(x) = y {
+p(x) := y {
     y := x[_]
 }
 ```
@@ -929,10 +913,10 @@ It is possible in Rego to define a function more than once, to achieve a conditi
 Functions can be defined incrementally.
 
 ```live:eg/double_function_define:module
-q(1, x) = y {
+q(1, x) := y {
     y := x
 }
-q(2, x) = y {
+q(2, x) := y {
     y := x*4
 }
 ```
@@ -952,11 +936,11 @@ q(2, 2)
 A given function call will execute all functions that match the signature given. If a call matches multiple functions, they must produce the same output, or else a conflict error will occur:
 
 ```live:eg/double_function_define_diff_out:module
-r(1, x) = y {
+r(1, x) := y {
     y := x
 }
 
-r(x, 2) = y {
+r(x, 2) := y {
     y := x*4
 }
 ```
@@ -969,7 +953,7 @@ r(1, 2)
 
 On the other hand, if a call matches no functions, then the result is undefined.
 ```live:eg/double_function_define_undefined:module
-s(x, 2) = y {
+s(x, 2) := y {
     y := x * 4
 }
 ```
@@ -1047,53 +1031,40 @@ apps_not_in_prod[name]
 
 ## Universal Quantification (FOR ALL)
 
-Like SQL, Rego does not have a direct way to express _universal quantification_
-("FOR ALL"). However, like SQL, you can use other language primitives (e.g.,
-[Negation](#negation)) to express FOR ALL. For example, imagine you want to
-express a policy that says (in English):
+Rego allows for several ways to express universal quantification.
+
+For example, imagine you want to express a policy that says (in English):
 
 ```
 There must be no apps named "bitcoin-miner".
 ```
 
-A common mistake is to try encoding the policy with a rule named
-`no_bitcoin_miners` like so:
+The most expressive way to state this in Rego is using the `every` keyword:
 
-```live:eg/data/incorrect_no_bitcoin:module:read_only
-no_bitcoin_miners {
-    app := apps[_]
-    app.name != "bitcoin-miner"  # THIS IS NOT CORRECT.
+```live:eg/data/every_alternative:module:read_only
+import future.keywords.every
+
+no_bitcoin_miners_using_every {
+    every app in apps {
+        app.name != "bitcoin-miner"
+    }
 }
 ```
 
-It becomes clear that this is incorrect when you use the [`some`](#some-keyword)
-keyword, because the rule is true whenever there is SOME app that is not a
-bitcoin-miner:
+Variables in Rego are _existentially quantified_ by default: when you write
 
-```live:eg/data/incorrect_no_bitcoin_some:module
-import future.keywords.in
-
-no_bitcoin_miners {
-    some app in apps
-    app.name != "bitcoin-miner"
-}
+```live:eg/data/every_alternative/1:query:merge_down
+array := ["one", "two", "three"]; array[i] == "three"
 ```
 
-You can confirm this by querying the rule:
-
-```live:eg/data/incorrect_no_bitcoin_some:query:merge_down
-no_bitcoin_miners with apps as [{"name": "bitcoin-miner"}, {"name": "web"}]
-```
-```live:eg/data/incorrect_no_bitcoin_some:output
+The query will be satisfied **if there is an `i`** such that the query's
+expressions are simultaneously satisfied.
+```live:eg/data/every_alternative/1:output
 ```
 
-The reason the rule is incorrect is that variables in Rego are _existentially
-quantified_. This means that rule bodies and queries express FOR ANY and not FOR
-ALL. To express FOR ALL in Rego complement the logic in the rule body (e.g.,
-`!=` becomes `==`) and then complement the check using negation (e.g.,
-`no_bitcoin_miners` becomes `not any_bitcoin_miners`).
+Therefore, there are other ways to express the desired policy.
 
-For this policy, you define a rule that finds if there exists a bitcoin-mining
+For this policy, you can also define a rule that finds if there exists a bitcoin-mining
 app (which is easy using the `some` keyword). And then you use negation to check
 that there is NO bitcoin-mining app. Technically, you're using 2 negations and
 an existential quantifier, which is logically the same as a universal
@@ -1132,6 +1103,43 @@ value for `no_bitcoin_miners_using_negation`. Since the body of the rule fails
 to match, there is no value generated.
 {{< /info >}}
 
+A common mistake is to try encoding the policy with a rule named `no_bitcoin_miners`
+like so:
+
+```live:eg/data/incorrect_no_bitcoin:module:read_only
+no_bitcoin_miners {
+    app := apps[_]
+    app.name != "bitcoin-miner"  # THIS IS NOT CORRECT.
+}
+```
+
+It becomes clear that this is incorrect when you use the [`some`](#some-keyword)
+keyword, because the rule is true whenever there is SOME app that is not a
+bitcoin-miner:
+
+```live:eg/data/incorrect_no_bitcoin_some:module
+import future.keywords.in
+
+no_bitcoin_miners {
+    some app in apps
+    app.name != "bitcoin-miner"
+}
+```
+
+You can confirm this by querying the rule:
+
+```live:eg/data/incorrect_no_bitcoin_some:query:merge_down
+no_bitcoin_miners with apps as [{"name": "bitcoin-miner"}, {"name": "web"}]
+```
+```live:eg/data/incorrect_no_bitcoin_some:output
+```
+
+The reason the rule is incorrect is that variables in Rego are _existentially
+quantified_. This means that rule bodies and queries express FOR ANY and not FOR
+ALL. To express FOR ALL in Rego complement the logic in the rule body (e.g.,
+`!=` becomes `==`) and then complement the check using negation (e.g.,
+`no_bitcoin_miners` becomes `not any_bitcoin_miners`).
+
 Alternatively, we can implement the same kind of logic inside a single rule
 using [Comprehensions](#comprehensions).
 
@@ -1142,26 +1150,14 @@ no_bitcoin_miners_using_comprehension {
 }
 ```
 
-By importing the future keyword "every", you get another option to express universal
-quantification:
-
-```live:eg/data/every_alternative:module:read_only
-import future.keywords.every
-
-no_bitcoin_miners_using_every {
-    every app in apps {
-        app.name != "bitcoin-miner"
-    }
-}
-```
-
 {{< info >}}
 Whether you use negation, comprehensions, or `every` to express FOR ALL is up to you.
 The `every` keyword should lend itself nicely to a rule formulation that closely
 follows how requirements are stated, and thus enhances your policy's readability.
 
 The comprehension version is more concise than the negation variant, and does not
-require a helper rule while the negation version is more verbose but a bit simpler and allows for more complex ORs.
+require a helper rule while the negation version is more verbose but a bit simpler
+and allows for more complex ORs.
 {{< /info >}}
 
 ## Modules
@@ -1378,18 +1374,18 @@ scope of the body evaluation:
 ```live:eg/every1:module:merge_down
 import future.keywords.every
 
-p {
+array_domain {
     every i, x in [1, 2, 3] { x-i == 1 } # array domain
 }
 
-q {
+object_domain {
     every k, v in {"foo": "bar", "fox": "baz" } { # object domain
         startswith(k, "f")
         startswith(v, "b")
     }
 }
 
-r {
+set_domain {
     every x in {1, 2, 3} { x != 4 } # set domain
 }
 ```
@@ -1403,25 +1399,25 @@ construct using a helper rule:
 import future.keywords.every
 
 xs := [2, 2, 4, 8]
-p(x) = x > 1
+larger_than_one(x) := x > 1
 
-r {
-    every x in xs { p(x) }
+rule_every {
+    every x in xs { larger_than_one(x) }
 }
 
-s {
+not_less_or_equal_one {
     not lte_one
 }
 
 lte_one {
     some x in xs
-    not p(x)
+    not larger_than_one(x)
 }
 ```
 ```live:eg/every2:output
 ```
 
-Negating `every` is forbidden. If you desire to express `not every x in xs { p(x) }`,
+Negating `every` is forbidden. If you desire to express `not every x in xs { p(x) }`
 please use `some x in xs; not p(x)` instead.
 
 ## With Keyword
@@ -1507,7 +1503,7 @@ default value is used when all of the rules sharing the same name are undefined.
 For example:
 
 ```live:eg/default:module
-default allow = false
+default allow := false
 
 allow {
     input.user == "bob"
@@ -1538,7 +1534,7 @@ Without the default definition, the `allow` document would simply be undefined f
 When the `default` keyword is used, the rule syntax is restricted to:
 
 ```
-default <name> = <term>
+default <name> := <term>
 ```
 
 The term may be any scalar, composite, or comprehension value but it may not be
@@ -1558,9 +1554,9 @@ The ``else`` keyword is useful if you are porting policies into Rego from an
 order-sensitive system like IPTables.
 
 ```live:eg/else:module
-authorize = "allow" {
+authorize := "allow" {
     input.user == "superuser"           # allow 'superuser' to perform any operation.
-} else = "deny" {
+} else := "deny" {
     input.path[0] == "admin"            # disallow 'admin' operations...
     input.source_network == "external"  # from external networks.
 } # ... more rules
@@ -1625,7 +1621,7 @@ The membership operator `in` lets you check if an element is part of a collectio
 ```live:eg/member1:module:merge_down
 import future.keywords.in
 
-p = [x, y, z] {
+p := [x, y, z] {
     x := 3 in [1, 2, 3]            # array
     y := 3 in {1, 2, 3}            # set
     z := 3 in {"foo": 1, "bar": 3} # object
@@ -1641,7 +1637,7 @@ taken to be the key (object) or index (array), respectively:
 ```live:eg/member1c:module:merge_down
 import future.keywords.in
 
-p := [ x, y ] {
+p := [x, y] {
     x := "foo", "bar" in {"foo": "bar"}    # key, val with object
     y := 2, "baz" in ["foo", "bar", "baz"] # key, val with array
 }
@@ -1669,8 +1665,8 @@ z := x {
     x := f(0, 2 in [2])
 }
 
-f(x, y) = sprintf("two function arguments: %v, %v", [x, y])
-g(x) = sprintf("one function argument: %v", [x])
+f(x, y) := sprintf("two function arguments: %v, %v", [x, y])
+g(x) := sprintf("one function argument: %v", [x])
 ```
 ```live:eg/member1d:output
 ```
@@ -1698,7 +1694,7 @@ when called in non-collection arguments:
 ```live:eg/member1b:module:merge_down
 import future.keywords.in
 
-q = x {
+q := x {
     x := 3 in "three"
 }
 ```

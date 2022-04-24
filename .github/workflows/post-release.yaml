@@ -4,6 +4,9 @@ on:
   release:
     types: [published]
 
+permissions:
+  contents: none
+
 jobs:
   kick-netlify:
     name: Kick Netlify
