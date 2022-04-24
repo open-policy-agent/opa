@@ -246,11 +246,11 @@ Print the capabilities of OPA
 
 Show capabilities for OPA.
 
-The 'capabilities' command prints the OPA capabilities, prior to and including the version of OPA used, for a specific version.
+The 'capabilities' command prints the OPA capabilities, prior to and including the version of OPA used.
 
-Print a list of all existing capabilities versions
+Print a list of all existing capabilities version names
 
-    $ opa capabilities --versions
+    $ opa capabilities
     v0.17.0
     v0.17.1
     ...
@@ -259,7 +259,7 @@ Print a list of all existing capabilities versions
     v0.38.0
     ...
 
-Print the capabilities of the current version in json
+Print the capabilities of the current version
 
     $ opa capabilities --current
     {
@@ -268,9 +268,18 @@ Print the capabilities of the current version in json
         "wasm_abi_versions": [...]
     }
 
-Print the capabilities of a specific version in json
+Print the capabilities of a specific version
 
-    $ opa capabilities --capabilities v0.32.1
+    $ opa capabilities --version v0.32.1
+    {
+        "builtins": [...],
+        "future_keywords": null,
+        "wasm_abi_versions": [...]
+    }
+
+Print the capabilities of a capabilities file
+
+    $ opa capabilities --file ./capabilities/v0.32.1.json
     {
         "builtins": [...],
         "future_keywords": null,
@@ -286,10 +295,10 @@ opa capabilities [flags]
 ### Options
 
 ```
-      --capabilities string   set capabilities version or capabilities.json file path
-      --current               print current capabilities in json
-  -h, --help                  help for capabilities
-      --versions              list capabilities versions
+      --current          print current capabilities
+      --file string      print current capabilities
+  -h, --help             help for capabilities
+      --version string   print capabilities of a specific version
 ```
 
 ____
