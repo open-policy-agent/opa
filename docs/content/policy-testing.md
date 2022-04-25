@@ -31,10 +31,8 @@ allow {
 }
 
 allow {
-    some profile_id
-    input.path = ["users", profile_id]
+    input.path == ["users", input.user_id]
     input.method == "GET"
-    profile_id == input.user_id
 }
 ```
 
@@ -342,8 +340,8 @@ allow {
 ```live:with_keyword_builtins/tests:module:read_only
 package authz
 
-mock_decode_verify("my-jwt", _) = [true, {}, {}]
-mock_decode_verify(x, _) = [false, {}, {}] {
+mock_decode_verify("my-jwt", _) := [true, {}, {}]
+mock_decode_verify(x, _) := [false, {}, {}] {
     x != "my-jwt"
 }
 
