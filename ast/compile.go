@@ -4798,6 +4798,14 @@ func rewriteWithModifier(c *Compiler, f *equalityFactory, expr *Expr) ([]*Expr, 
 
 func validateWith(c *Compiler, expr *Expr, i int) (bool, *Error) {
 	target, value := expr.With[i].Target, expr.With[i].Value
+
+	// Ensure that values that are built-ins are rewritten to Ref (not Var)
+	if v, ok := value.Value.(Var); ok {
+		if _, ok := c.builtins[v.String()]; ok {
+			value.Value = Ref([]*Term{NewTerm(v)})
+		}
+	}
+
 	switch {
 	case isDataRef(target):
 		ref := target.Value.(Ref)
@@ -4813,11 +4821,16 @@ func validateWith(c *Compiler, expr *Expr, i int) (bool, *Error) {
 		}
 
 		if node != nil {
+			// NOTE(sr): at this point in the compiler stages, we don't have a fully-populated
+			// TypeEnv yet -- so we have to make do with this check to see if the replacement
+			// target is a function. It's probably wrong for arity-0 functions, but those are
+			// and edge case anyways.
 			if child := node.Child(ref[len(ref)-1].Value); child != nil {
-				for _, value := range child.Values {
-					if len(value.(*Rule).Head.Args) > 0 {
-						// TODO(sr): UDF
-						return false, NewError(CompileErr, target.Loc(), "with keyword used on non-built-in function")
+				for _, v := range child.Values {
+					if len(v.(*Rule).Head.Args) > 0 {
+						if validateWithFunctionValue(c.builtins, c.RuleTree, value) {
+							return false, nil
+						}
 					}
 				}
 			}
@@ -4830,11 +4843,6 @@ func validateWith(c *Compiler, expr *Expr, i int) (bool, *Error) {
 		if v, ok := target.Value.(Var); ok {
 			target.Value = Ref([]*Term{NewTerm(v)})
 		}
-		if v, ok := value.Value.(Var); ok {
-			if _, ok := c.builtins[v.String()]; ok {
-				value.Value = Ref([]*Term{NewTerm(v)})
-			}
-		}
 
 		targetRef := target.Value.(Ref)
 		bi := c.builtins[targetRef.String()] // safe because isBuiltinRefOrVar checked this
@@ -4842,17 +4850,11 @@ func validateWith(c *Compiler, expr *Expr, i int) (bool, *Error) {
 			return false, err
 		}
 
-		if v, ok := value.Value.(Ref); ok {
-			if c.RuleTree.Find(v) != nil { // ref exists in rule tree
-				return false, nil
-			}
-			if _, ok := c.builtins[v.String()]; ok { // built-in replaced by other built-in
-				return false, nil
-			}
+		if validateWithFunctionValue(c.builtins, c.RuleTree, value) {
+			return false, nil
 		}
-
 	default:
-		return false, NewError(TypeErr, target.Location, "with keyword target must reference existing %v, %v, or a built-in function", InputRootDocument, DefaultRootDocument)
+		return false, NewError(TypeErr, target.Location, "with keyword target must reference existing %v, %v, or a function", InputRootDocument, DefaultRootDocument)
 	}
 	return requiresEval(value), nil
 }
@@ -4876,6 +4878,15 @@ func validateWithBuiltinTarget(bi *Builtin, target Ref, loc *location.Location) 
 		return NewError(CompileErr, loc, "with keyword replacing built-in function: target must not be a void function")
 	}
 	return nil
+}
+
+func validateWithFunctionValue(bs map[string]*Builtin, ruleTree *TreeNode, value *Term) bool {
+	if v, ok := value.Value.(Ref); ok {
+		if ruleTree.Find(v) != nil { // ref exists in rule tree
+			return true
+		}
+	}
+	return isBuiltinRefOrVar(bs, value)
 }
 
 func isInputRef(term *Term) bool {

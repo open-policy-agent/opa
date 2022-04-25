@@ -203,10 +203,10 @@ func (s *functionMocksStack) PopFrame() {
 	*current = (*current)[:len(*current)-1]
 }
 
-func (s *functionMocksStack) Lookup(builtinName string) *ast.Term {
+func (s *functionMocksStack) Lookup(f string) *ast.Term {
 	current := *s.stack[len(s.stack)-1]
 	for i := len(current) - 1; i >= 0; i-- {
-		if t, ok := current[i][builtinName]; ok {
+		if t, ok := current[i][f]; ok {
 			return t
 		}
 	}

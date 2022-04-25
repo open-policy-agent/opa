@@ -1487,7 +1487,7 @@ following syntax:
 ```
 
 The `<target>`s must be references to values in the input document (or the input
-document itself) or data document, or references to built-in functions.
+document itself) or data document, or references to functions (built-in or not).
 
 {{< info >}}
 When applied to the `data` document, the `<target>` must not attempt to
@@ -1516,7 +1516,7 @@ outer := result {
 }
 ```
 
-When `<target>` is a reference to a built-in function, like `http.send`, then
+When `<target>` is a reference to a function, like `http.send`, then
 its `<value>` can be any of the following:
 1. a value: `with http.send as {"body": {"success": true }}`
 2. a reference to another function: `with http.send as mock_http_send`
@@ -1533,10 +1533,10 @@ See the following example:
 package opa.examples
 import future.keywords.in
 
-f(x) = count(x)
+f(x) := count(x)
 
-mock_count(x) = 0 { "x" in x }
-mock_count(x) = count(x) { not "x" in x }
+mock_count(x) := 0 { "x" in x }
+mock_count(x) := count(x) { not "x" in x }
 ```
 
 ```live:with_builtins/1:query:merge_down
@@ -1558,12 +1558,12 @@ Each replacement function evaluation will start a new scope: it's valid to use
 package opa.examples
 import future.keywords.in
 
-f(x) = count(x) {
+f(x) := count(x) {
     rule_using_concat with concat as "foo,bar"
 }
 
-mock_count(x) = 0 { "x" in x }
-mock_count(x) = count(x) { not "x" in x }
+mock_count(x) := 0 { "x" in x }
+mock_count(x) := count(x) { not "x" in x }
 
 rule_using_concat {
     concat(",", input.x) == "foo,bar"

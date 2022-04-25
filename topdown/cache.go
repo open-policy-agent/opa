@@ -280,10 +280,10 @@ func (s *functionMocksStack) Put(el frame) {
 	*current = append(*current, el)
 }
 
-func (s *functionMocksStack) Get(builtinName string) (*ast.Term, bool) {
+func (s *functionMocksStack) Get(f ast.Ref) (*ast.Term, bool) {
 	current := *s.stack[len(s.stack)-1]
 	for i := len(current) - 1; i >= 0; i-- {
-		if r, ok := current[i][builtinName]; ok {
+		if r, ok := current[i][f.String()]; ok {
 			return r, true
 		}
 	}

@@ -233,15 +233,15 @@ opa test --format=json pass_fail_error_test.rego
 
 ## Data and Function Mocking
 
-OPA's `with` keyword can be used to replace the data document or built-in functions by mocks.
+OPA's `with` keyword can be used to replace the data document or called functions with mocks.
 Both base and virtual documents can be replaced.
 
-When replacing built-in functions, the following constraints are in place:
+When replacing functions, built-in or otherwise, the following constraints are in place:
 
 1. Replacing `internal.*` functions, or `rego.metadata.*`, or `eq`; or relations (`walk`) is not allowed.
 2. Replacement and replaced function need to have the same arity.
 3. Replaced functions can call the functions they're replacing, and those calls
-   will call out to the original built-in function, and not cause recursion.
+   will call out to the original function, and not cause recursion.
 
 Below is a simple policy that depends on the data document.
 
@@ -360,7 +360,7 @@ data.authz.test_allow: PASS (458.752µs)
 PASS: 1/1
 ```
 
-In simple cases, a built-in function can also be replaced with a value, as in
+In simple cases, a function can also be replaced with a value, as in
 
 ```live:with_keyword_builtins/tests/value:module:read_only
 test_allow_value {
@@ -374,22 +374,19 @@ test_allow_value {
 Every invocation of the function will then return the replacement value, regardless
 of the function's arguments.
 
-Note that it's also possible to replace one built-in function by another.
-
-
-**User-defined functions** cannot be replaced by the `with` keyword.
-For example, in the below policy the function `cannot_replace` cannot be replaced.
+Note that it's also possible to replace one built-in function by another; or a non-built-in
+function by a built-in function.
 
 **authz.rego**:
 
 ```live:with_keyword_funcs:module:read_only
 package authz
 
-invalid_replace {
-    cannot_replace(input.label)
+replace_rule {
+    replace(input.label)
 }
 
-cannot_replace(label) {
+replace(label) {
     label == "test_label"
 }
 ```
@@ -399,14 +396,16 @@ cannot_replace(label) {
 ```live:with_keyword_funcs/tests:module:read_only
 package authz
 
-test_invalid_replace {
-    invalid_replace with input as {"label": "test_label"} with cannot_replace as true
+test_replace_rule {
+    replace_rule with input.label as "does-not-matter" with replace as true
 }
 ```
 
 ```console
 $ opa test -v authz.rego authz_test.rego
-1 error occurred: authz_test.rego:4: rego_compile_error: with keyword cannot replace rego functions
+data.authz.test_replace_rule: PASS (648.314µs)
+--------------------------------------------------------------------------------
+PASS: 1/1
 ```
 
 

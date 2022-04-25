@@ -558,27 +558,29 @@ func (p *Planner) planWith(e *ast.Expr, iter planiter) error {
 	values := make([]*ast.Term, 0, len(e.With)) // NOTE(sr): we could be overallocating if there are builtin replacements
 	targets := make([]ast.Ref, 0, len(e.With))
 
-	builtins := frame{}
+	mocks := frame{}
 
 	for _, w := range e.With {
-		switch v := w.Target.Value.(type) {
-		case ast.Ref:
-			if ast.DefaultRootDocument.Equal(v[0]) ||
-				ast.InputRootDocument.Equal(v[0]) {
+		v := w.Target.Value.(ast.Ref)
 
-				values = append(values, w.Value)
-				targets = append(targets, w.Target.Value.(ast.Ref))
-				continue
-			}
+		switch {
+		case p.isFunction(v): // nothing to do
+
+		case ast.DefaultRootDocument.Equal(v[0]) ||
+			ast.InputRootDocument.Equal(v[0]):
+
+			values = append(values, w.Value)
+			targets = append(targets, w.Target.Value.(ast.Ref))
+
+			continue // not a mock
 		}
 
-		// target is a builtin
-		builtins[w.Target.String()] = w.Value
+		mocks[w.Target.String()] = w.Value
 	}
 
 	return p.planTermSlice(values, func(locals []ir.Operand) error {
 
-		p.mocks.PushFrame(builtins)
+		p.mocks.PushFrame(mocks)
 
 		paths := make([][]int, len(targets))
 		saveVars := ast.NewVarSet()
@@ -637,7 +639,7 @@ func (p *Planner) planWith(e *ast.Expr, iter planiter) error {
 
 				err := iter()
 
-				p.mocks.PushFrame(builtins)
+				p.mocks.PushFrame(mocks)
 				if shadowing {
 					p.funcs.Push(map[string]string{})
 					for _, ref := range dataRefs {
@@ -826,13 +828,13 @@ func (p *Planner) planExprCall(e *ast.Expr, iter planiter) error {
 			switch r := replacement.Value.(type) {
 			case ast.Ref:
 				if !r.HasPrefix(ast.DefaultRootRef) && !r.HasPrefix(ast.InputRootRef) {
-					// replacement is other builtin
+					// replacement is builtin
 					operator = r.String()
-					decl := p.decls[operator]
-					p.externs[operator] = decl
+					bi := p.decls[operator]
+					p.externs[operator] = bi
 
 					// void functions and relations are forbidden; arity validation happened in compiler
-					return p.planExprCallFunc(operator, len(decl.Decl.Args()), void, operands, args, iter)
+					return p.planExprCallFunc(operator, len(bi.Decl.FuncArgs().Args), void, operands, args, iter)
 				}
 
 				// replacement is a function (rule)
@@ -848,8 +850,13 @@ func (p *Planner) planExprCall(e *ast.Expr, iter planiter) error {
 
 				return fmt.Errorf("illegal replacement of operator %q by %v", operator, replacement)
 
-			default: // target is a builtin, replacement a value
-				return p.planExprCallValue(replacement, len(p.decls[operator].Decl.Args()), operands, iter)
+			default: // replacement is a value
+				if bi, ok := p.decls[operator]; ok {
+					return p.planExprCallValue(replacement, len(bi.Decl.FuncArgs().Args), operands, iter)
+				}
+				if node := p.rules.Lookup(op); node != nil {
+					return p.planExprCallValue(replacement, node.Arity(), operands, iter)
+				}
 			}
 		}
 
@@ -2262,6 +2269,13 @@ func (p *Planner) defaultOperands() []ir.Operand {
 		p.vars.GetOpOrEmpty(ast.InputRootDocument.Value.(ast.Var)),
 		p.vars.GetOpOrEmpty(ast.DefaultRootDocument.Value.(ast.Var)),
 	}
+}
+
+func (p *Planner) isFunction(r ast.Ref) bool {
+	if node := p.rules.Lookup(r); node != nil {
+		return node.Arity() > 0
+	}
+	return false
 }
 
 func op(v ir.Val) ir.Operand {
