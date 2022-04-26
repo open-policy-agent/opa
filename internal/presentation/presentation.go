@@ -346,7 +346,7 @@ func Source(w io.Writer, r Output) error {
 
 	for i := range r.Partial.Queries {
 		fmt.Fprintf(w, "# Query %d\n", i+1)
-		bs, err := format.Ast(r.Partial.Queries[i])
+		bs, err := format.AstWithOpts(r.Partial.Queries[i], format.Opts{IgnoreLocations: true})
 		if err != nil {
 			return err
 		}
@@ -355,7 +355,7 @@ func Source(w io.Writer, r Output) error {
 
 	for i := range r.Partial.Support {
 		fmt.Fprintf(w, "# Module %d\n", i+1)
-		bs, err := format.Ast(r.Partial.Support[i])
+		bs, err := format.AstWithOpts(r.Partial.Support[i], format.Opts{IgnoreLocations: true})
 		if err != nil {
 			return err
 		}
@@ -455,10 +455,11 @@ func prettyPartial(w io.Writer, pq *rego.PartialQueries) error {
 	return nil
 }
 
+// prettyASTNode is used for pretty-printing the result of partial eval
 func prettyASTNode(x interface{}) (string, int, error) {
-	bs, err := format.Ast(x)
+	bs, err := format.AstWithOpts(x, format.Opts{IgnoreLocations: true})
 	if err != nil {
-		return "", 0, fmt.Errorf("format error: %v", err)
+		return "", 0, fmt.Errorf("format error: %w", err)
 	}
 	var maxLineWidth int
 	s := strings.Trim(strings.Replace(string(bs), "\t", "  ", -1), "\n")
