@@ -85,9 +85,9 @@ When Prometheus is enabled in the status plugin (see [Configuration](../configur
 | bundle_loaded_counter | counter | Number of bundles loaded with success.                   | EXPERIMENTAL |
 | bundle_failed_load_counter | counter | Number of bundles that failed to load.                   | EXPERIMENTAL |
 | last_bundle_request | gauge | Last bundle request in UNIX nanoseconds.                 | EXPERIMENTAL |
-| last_success_bundle_activation | gauge | Last successfully bundle activation in UNIX nanoseconds. | EXPERIMENTAL |
-| last_success_bundle_download | gauge | Last successfully bundle download in UNIX nanoseconds.   | EXPERIMENTAL |
-| last_success_bundle_request | gauge | Last successfully bundle request in UNIX nanoseconds.    | EXPERIMENTAL |
+| last_success_bundle_activation | gauge | Last successful bundle activation in UNIX nanoseconds. | EXPERIMENTAL |
+| last_success_bundle_download | gauge | Last successful bundle download in UNIX nanoseconds.   | EXPERIMENTAL |
+| last_success_bundle_request | gauge | Last successful bundle request in UNIX nanoseconds.    | EXPERIMENTAL |
 | bundle_loading_duration_ns | histogram | A histogram of duration for bundle loading.              | EXPERIMENTAL |
 
 

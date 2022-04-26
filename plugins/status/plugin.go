@@ -480,21 +480,22 @@ func updatePrometheusMetrics(u *UpdateRequestV1) {
 	for name, plugin := range u.Plugins {
 		pluginStatus.WithLabelValues(name, string(plugin.State)).Set(1)
 	}
+	lastSuccessfulActivation.Reset()
 	for _, bundle := range u.Bundles {
 		if bundle.Code == "" && bundle.ActiveRevision != "" {
-			loaded.WithLabelValues(bundle.Name, bundle.ActiveRevision).Inc()
+			loaded.WithLabelValues(bundle.Name).Inc()
 		} else {
-			failLoad.WithLabelValues(bundle.Name, bundle.ActiveRevision, bundle.Code, bundle.Message).Inc()
+			failLoad.WithLabelValues(bundle.Name, bundle.Code, bundle.Message).Inc()
 		}
 		lastSuccessfulActivation.WithLabelValues(bundle.Name, bundle.ActiveRevision).Set(float64(bundle.LastSuccessfulActivation.UnixNano()))
-		lastSuccessfulDownload.WithLabelValues(bundle.Name, bundle.ActiveRevision).Set(float64(bundle.LastSuccessfulDownload.UnixNano()))
-		lastSuccessfulRequest.WithLabelValues(bundle.Name, bundle.ActiveRevision).Set(float64(bundle.LastSuccessfulRequest.UnixNano()))
-		lastRequest.WithLabelValues(bundle.Name, bundle.ActiveRevision).Set(float64(bundle.LastRequest.UnixNano()))
+		lastSuccessfulDownload.WithLabelValues(bundle.Name).Set(float64(bundle.LastSuccessfulDownload.UnixNano()))
+		lastSuccessfulRequest.WithLabelValues(bundle.Name).Set(float64(bundle.LastSuccessfulRequest.UnixNano()))
+		lastRequest.WithLabelValues(bundle.Name).Set(float64(bundle.LastRequest.UnixNano()))
 		if bundle.Metrics != nil {
 			for stage, metric := range bundle.Metrics.All() {
 				switch stage {
 				case "timer_bundle_request_ns", "timer_rego_data_parse_ns", "timer_rego_module_parse_ns", "timer_rego_module_compile_ns", "timer_rego_load_bundles_ns":
-					bundleLoadDuration.WithLabelValues(bundle.Name, bundle.ActiveRevision, stage).Observe(float64(metric.(int64)))
+					bundleLoadDuration.WithLabelValues(bundle.Name, stage).Observe(float64(metric.(int64)))
 				}
 			}
 		}
