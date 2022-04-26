@@ -83,11 +83,7 @@ func LoadCapabilitiesVersion(version string) (*Capabilities, error) {
 				return nil, err
 			}
 
-			c, err := LoadCapabilitiesJSON(bytes.NewReader(cont))
-			if err != nil {
-				return nil, err
-			}
-			return c, nil
+			return LoadCapabilitiesJSON(bytes.NewReader(cont))
 		}
 
 	}
