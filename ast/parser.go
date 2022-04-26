@@ -849,6 +849,13 @@ func (p *Parser) parseLiteral() (expr *Expr) {
 					p.hint("`import future.keywords.every` for `every x in xs { ... }` expressions")
 				}
 			}
+			// If we can't find `every or some` still check if import future.keywords.in
+			if term, ok := expr.Terms.(*Term); ok && (!Var("every").Equal(term.Value) && !Var("some").Equal(term.Value)) {
+				imp := p.parseImport()
+				if imp == nil {
+					p.hint("`import future.keywords.in` for `x in xs` expressions")
+				}
+			}
 			return expr
 		}
 		return nil

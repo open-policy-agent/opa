@@ -791,6 +791,14 @@ func TestSomeDeclExpr(t *testing.T) {
 
 }
 
+func TestParseImports(t *testing.T) {
+	assertParseErrorContains(t, "x in ... usage is hinted properly", `
+	p {
+		"foo" in {"foo": "bar"}
+	}`,
+		"unexpected ident token: expected \\n or ; or } (hint: `import future.keywords.in` for `x in xs` expressions")
+}
+
 func TestEvery(t *testing.T) {
 	opts := ParserOptions{unreleasedKeywords: true, FutureKeywords: []string{"every"}}
 	assertParseOneExpr(t, "simple", "every x in xs { true }",
