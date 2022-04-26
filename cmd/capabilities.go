@@ -5,11 +5,11 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
 	"github.com/open-policy-agent/opa/ast"
-	"github.com/open-policy-agent/opa/util"
 	"github.com/spf13/cobra"
 )
 
@@ -105,7 +105,7 @@ func doCapabilities(params capabilitiesParams) (string, error) {
 		return "", err
 	}
 
-	bs, err := util.MarshalJSON(c)
+	bs, err := json.MarshalIndent(c, "", " ")
 	if err != nil {
 		return "", err
 	}

@@ -38,11 +38,6 @@ func UnmarshalJSON(bs []byte, x interface{}) (err error) {
 	return nil
 }
 
-// MarshalJSON parse the JSON encoded data and returns the indented result.
-func MarshalJSON(x interface{}) ([]byte, error) {
-	return json.MarshalIndent(x, "", "  ")
-}
-
 // NewJSONDecoder returns a new decoder that reads from r.
 //
 // This function is intended to be used in place of the standard json.NewDecoder
@@ -70,7 +65,7 @@ func MustUnmarshalJSON(bs []byte) interface{} {
 // If the data cannot be encoded, this function will panic. This function is for
 // test purposes.
 func MustMarshalJSON(x interface{}) []byte {
-	bs, err := MarshalJSON(x)
+	bs, err := json.Marshal(x)
 	if err != nil {
 		panic(err)
 	}
