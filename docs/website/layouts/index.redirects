@@ -1,5 +1,5 @@
 {{- $latest       := index site.Data.releases 1 -}}
-{{- $allDocs      := where site.RegularPages "Section" "docs" }}
+{{- $releases     := site.Data.releases -}}
 {{- $docRedirects := site.Data.redirects }}
 
 # Redirect to latest doc version by default
@@ -31,13 +31,23 @@
 /docs/latest/development/                           /docs/latest/contrib-code/          301!
 
 {{- range $docRedirects }}
-/docs/{{ . }}     /docs/latest/{{ . }}      301!
-
-# Legacy git book redirects
-/docs/{{ . }}.html /docs/latest/{{ . }}     301!
+/docs/{{ . }}      /docs/latest/{{ . }} 301!
+/docs/{{ . }}.html /docs/latest/{{ . }} 301! # Legacy git book redirects
 {{- end }}
 
 # Download URLs
 /downloads/edge/*       https://opa-releases.s3.amazonaws.com/edge/:splat 200
 /downloads/latest/*     https://github.com/open-policy-agent/opa/releases/download/{{ $latest }}/:splat 200
 /downloads/*            https://github.com/open-policy-agent/opa/releases/download/:splat 200
+
+# previous patch versions
+{{- range $releases }}
+  {{- if (not (or (eq . "latest") (eq . "edge"))) }}
+    {{- $major := index (split . ".") 0 }}
+    {{- $minor := index (split . ".") 1 }}
+    {{- $patch := int (index (split . ".") 2) }}
+    {{- range after 1 (seq $patch -1 0) }}
+/docs/{{ $major }}.{{ $minor }}.{{ . }}/* /docs/{{ $major }}.{{ $minor }}.{{ $patch }}/:splat
+    {{- end }}
+  {{- end }}
+{{- end }}

@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/open-policy-agent/opa/ast/location"
 	"github.com/open-policy-agent/opa/internal/debug"
 	"github.com/open-policy-agent/opa/internal/gojsonschema"
 	"github.com/open-policy-agent/opa/metrics"
@@ -634,7 +635,8 @@ func (c *Compiler) GetRulesDynamicWithOpts(ref Ref, opts RulesOptions) []*Rule {
 	set := map[*Rule]struct{}{}
 	var walk func(node *TreeNode, i int)
 	walk = func(node *TreeNode, i int) {
-		if i >= len(ref) {
+		switch {
+		case i >= len(ref):
 			// We've reached the end of the reference and want to collect everything
 			// under this "prefix".
 			node.DepthFirst(func(descendant *TreeNode) bool {
@@ -644,7 +646,8 @@ func (c *Compiler) GetRulesDynamicWithOpts(ref Ref, opts RulesOptions) []*Rule {
 				}
 				return descendant.Hide
 			})
-		} else if i == 0 || IsConstant(ref[i].Value) {
+
+		case i == 0 || IsConstant(ref[i].Value):
 			// The head of the ref is always grounded.  In case another part of the
 			// ref is also grounded, we can lookup the exact child.  If it's not found
 			// we can immediately return...
@@ -658,7 +661,8 @@ func (c *Compiler) GetRulesDynamicWithOpts(ref Ref, opts RulesOptions) []*Rule {
 				// Otherwise, we continue using the child node.
 				walk(child, i+1)
 			}
-		} else {
+
+		default:
 			// This part of the ref is a dynamic term.  We can't know what it refers
 			// to and will just need to try all of the children.
 			for _, child := range node.Children {
@@ -2846,6 +2850,19 @@ func (n *TreeNode) Child(k Value) *TreeNode {
 	return nil
 }
 
+// Find dereferences ref along the tree
+func (n *TreeNode) Find(ref Ref) *TreeNode {
+	node := n
+	for _, r := range ref {
+		child := node.Child(r.Value)
+		if child == nil {
+			return nil
+		}
+		node = child
+	}
+	return node
+}
+
 // DepthFirst performs a depth-first traversal of the rule tree rooted at n. If
 // f returns true, traversal will not continue to the children of n.
 func (n *TreeNode) DepthFirst(f func(node *TreeNode) bool) {
@@ -2899,7 +2916,7 @@ func NewGraph(modules map[string]*Module, list func(Ref) []*Rule) *Graph {
 		})
 	}
 
-	// Walk over all rules, add them to graph, and build adjencency lists.
+	// Walk over all rules, add them to graph, and build adjacency lists.
 	for _, module := range modules {
 		WalkRules(module, func(a *Rule) bool {
 			graph.addNode(a)
@@ -4764,41 +4781,33 @@ func rewriteWithModifier(c *Compiler, f *equalityFactory, expr *Expr) ([]*Expr, 
 
 	var result []*Expr
 	for i := range expr.With {
-		err := validateTarget(c, expr.With[i].Target)
+		eval, err := validateWith(c, expr, i)
 		if err != nil {
 			return nil, err
 		}
 
-		if requiresEval(expr.With[i].Value) {
+		if eval {
 			eq := f.Generate(expr.With[i].Value)
 			result = append(result, eq)
 			expr.With[i].Value = eq.Operand(0)
 		}
 	}
 
-	// If any of the with modifiers in this expression were rewritten then result
-	// will be non-empty. In this case, the expression will have been modified and
-	// it should also be added to the result.
-	if len(result) > 0 {
-		result = append(result, expr)
-	}
-	return result, nil
+	return append(result, expr), nil
 }
 
-func validateTarget(c *Compiler, term *Term) *Error {
-	if !isInputRef(term) && !isDataRef(term) {
-		return NewError(TypeErr, term.Location, "with keyword target must reference existing %v or %v", InputRootDocument, DefaultRootDocument)
-	}
-
-	if isDataRef(term) {
-		ref := term.Value.(Ref)
+func validateWith(c *Compiler, expr *Expr, i int) (bool, *Error) {
+	target, value := expr.With[i].Target, expr.With[i].Value
+	switch {
+	case isDataRef(target):
+		ref := target.Value.(Ref)
 		node := c.RuleTree
 		for i := 0; i < len(ref)-1; i++ {
 			child := node.Child(ref[i].Value)
 			if child == nil {
 				break
 			} else if len(child.Values) > 0 {
-				return NewError(CompileErr, term.Loc(), "with keyword cannot partially replace virtual document(s)")
+				return false, NewError(CompileErr, target.Loc(), "with keyword cannot partially replace virtual document(s)")
 			}
 			node = child
 		}
@@ -4807,12 +4816,64 @@ func validateTarget(c *Compiler, term *Term) *Error {
 			if child := node.Child(ref[len(ref)-1].Value); child != nil {
 				for _, value := range child.Values {
 					if len(value.(*Rule).Head.Args) > 0 {
-						return NewError(CompileErr, term.Loc(), "with keyword cannot replace functions")
+						// TODO(sr): UDF
+						return false, NewError(CompileErr, target.Loc(), "with keyword used on non-built-in function")
 					}
 				}
 			}
 		}
+	case isInputRef(target): // ok, valid
+	case isBuiltinRefOrVar(c.builtins, target):
 
+		// NOTE(sr): first we ensure that parsed Var builtins (`count`, `concat`, etc)
+		// are rewritten to their proper Ref convention
+		if v, ok := target.Value.(Var); ok {
+			target.Value = Ref([]*Term{NewTerm(v)})
+		}
+		if v, ok := value.Value.(Var); ok {
+			if _, ok := c.builtins[v.String()]; ok {
+				value.Value = Ref([]*Term{NewTerm(v)})
+			}
+		}
+
+		targetRef := target.Value.(Ref)
+		bi := c.builtins[targetRef.String()] // safe because isBuiltinRefOrVar checked this
+		if err := validateWithBuiltinTarget(bi, targetRef, target.Loc()); err != nil {
+			return false, err
+		}
+
+		if v, ok := value.Value.(Ref); ok {
+			if c.RuleTree.Find(v) != nil { // ref exists in rule tree
+				return false, nil
+			}
+			if _, ok := c.builtins[v.String()]; ok { // built-in replaced by other built-in
+				return false, nil
+			}
+		}
+
+	default:
+		return false, NewError(TypeErr, target.Location, "with keyword target must reference existing %v, %v, or a built-in function", InputRootDocument, DefaultRootDocument)
+	}
+	return requiresEval(value), nil
+}
+
+func validateWithBuiltinTarget(bi *Builtin, target Ref, loc *location.Location) *Error {
+	switch bi.Name {
+	case Equality.Name,
+		RegoMetadataChain.Name,
+		RegoMetadataRule.Name:
+		return NewError(CompileErr, loc, "with keyword replacing built-in function: replacement of %q invalid", bi.Name)
+	}
+
+	switch {
+	case target.HasPrefix(Ref([]*Term{VarTerm("internal")})):
+		return NewError(CompileErr, loc, "with keyword replacing built-in function: replacement of internal function %q invalid", target)
+
+	case bi.Relation:
+		return NewError(CompileErr, loc, "with keyword replacing built-in function: target must not be a relation")
+
+	case bi.Decl.Result() == nil:
+		return NewError(CompileErr, loc, "with keyword replacing built-in function: target must not be a void function")
 	}
 	return nil
 }
@@ -4831,6 +4892,15 @@ func isDataRef(term *Term) bool {
 		if ref.HasPrefix(DefaultRootRef) {
 			return true
 		}
+	}
+	return false
+}
+
+func isBuiltinRefOrVar(bs map[string]*Builtin, term *Term) bool {
+	switch v := term.Value.(type) {
+	case Ref, Var:
+		_, ok := bs[v.String()]
+		return ok
 	}
 	return false
 }

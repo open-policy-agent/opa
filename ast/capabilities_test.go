@@ -1,7 +1,10 @@
 package ast
 
 import (
+	"path"
 	"testing"
+
+	"github.com/open-policy-agent/opa/util/test"
 )
 
 func TestParserCatchesIllegalCapabilities(t *testing.T) {
@@ -82,4 +85,40 @@ func TestParserCapabilitiesWithWildcardOptInAndOlderOPA(t *testing.T) {
 	} else if errs[0].Code != ParseErr || errs[0].Location.Row != 7 || errs[0].Message != "unexpected ident token: expected \\n or ; or }" {
 		t.Fatal("unexpected error:", err)
 	}
+}
+
+func TestLoadCapabilitiesVersion(t *testing.T) {
+
+	capabilitiesVersions, err := LoadCapabilitiesVersions()
+	if err != nil {
+		t.Fatal("expected success", err)
+	}
+
+	if len(capabilitiesVersions) == 0 {
+		t.Fatal("expected a non-empty array of capabilities versions")
+	}
+	for _, cv := range capabilitiesVersions {
+		if _, err := LoadCapabilitiesVersion(cv); err != nil {
+			t.Fatal("expected success", err)
+		}
+	}
+}
+
+func TestLoadCapabilitiesFile(t *testing.T) {
+
+	files := map[string]string{
+		"test-capabilities.json": `
+		{
+			"builtins": []
+		}
+		`,
+	}
+
+	test.WithTempFS(files, func(root string) {
+		_, err := LoadCapabilitiesFile(path.Join(root, "test-capabilities.json"))
+		if err != nil {
+			t.Fatal("expected success", err)
+		}
+	})
+
 }

@@ -1031,53 +1031,40 @@ apps_not_in_prod[name]
 
 ## Universal Quantification (FOR ALL)
 
-Like SQL, Rego does not have a direct way to express _universal quantification_
-("FOR ALL"). However, like SQL, you can use other language primitives (e.g.,
-[Negation](#negation)) to express FOR ALL. For example, imagine you want to
-express a policy that says (in English):
+Rego allows for several ways to express universal quantification.
+
+For example, imagine you want to express a policy that says (in English):
 
 ```
 There must be no apps named "bitcoin-miner".
 ```
 
-A common mistake is to try encoding the policy with a rule named
-`no_bitcoin_miners` like so:
+The most expressive way to state this in Rego is using the `every` keyword:
 
-```live:eg/data/incorrect_no_bitcoin:module:read_only
-no_bitcoin_miners {
-    app := apps[_]
-    app.name != "bitcoin-miner"  # THIS IS NOT CORRECT.
+```live:eg/data/every_alternative:module:read_only
+import future.keywords.every
+
+no_bitcoin_miners_using_every {
+    every app in apps {
+        app.name != "bitcoin-miner"
+    }
 }
 ```
 
-It becomes clear that this is incorrect when you use the [`some`](#some-keyword)
-keyword, because the rule is true whenever there is SOME app that is not a
-bitcoin-miner:
+Variables in Rego are _existentially quantified_ by default: when you write
 
-```live:eg/data/incorrect_no_bitcoin_some:module
-import future.keywords.in
-
-no_bitcoin_miners {
-    some app in apps
-    app.name != "bitcoin-miner"
-}
+```live:eg/data/every_alternative/1:query:merge_down
+array := ["one", "two", "three"]; array[i] == "three"
 ```
 
-You can confirm this by querying the rule:
-
-```live:eg/data/incorrect_no_bitcoin_some:query:merge_down
-no_bitcoin_miners with apps as [{"name": "bitcoin-miner"}, {"name": "web"}]
-```
-```live:eg/data/incorrect_no_bitcoin_some:output
+The query will be satisfied **if there is an `i`** such that the query's
+expressions are simultaneously satisfied.
+```live:eg/data/every_alternative/1:output
 ```
 
-The reason the rule is incorrect is that variables in Rego are _existentially
-quantified_. This means that rule bodies and queries express FOR ANY and not FOR
-ALL. To express FOR ALL in Rego complement the logic in the rule body (e.g.,
-`!=` becomes `==`) and then complement the check using negation (e.g.,
-`no_bitcoin_miners` becomes `not any_bitcoin_miners`).
+Therefore, there are other ways to express the desired policy.
 
-For this policy, you define a rule that finds if there exists a bitcoin-mining
+For this policy, you can also define a rule that finds if there exists a bitcoin-mining
 app (which is easy using the `some` keyword). And then you use negation to check
 that there is NO bitcoin-mining app. Technically, you're using 2 negations and
 an existential quantifier, which is logically the same as a universal
@@ -1116,6 +1103,43 @@ value for `no_bitcoin_miners_using_negation`. Since the body of the rule fails
 to match, there is no value generated.
 {{< /info >}}
 
+A common mistake is to try encoding the policy with a rule named `no_bitcoin_miners`
+like so:
+
+```live:eg/data/incorrect_no_bitcoin:module:read_only
+no_bitcoin_miners {
+    app := apps[_]
+    app.name != "bitcoin-miner"  # THIS IS NOT CORRECT.
+}
+```
+
+It becomes clear that this is incorrect when you use the [`some`](#some-keyword)
+keyword, because the rule is true whenever there is SOME app that is not a
+bitcoin-miner:
+
+```live:eg/data/incorrect_no_bitcoin_some:module
+import future.keywords.in
+
+no_bitcoin_miners {
+    some app in apps
+    app.name != "bitcoin-miner"
+}
+```
+
+You can confirm this by querying the rule:
+
+```live:eg/data/incorrect_no_bitcoin_some:query:merge_down
+no_bitcoin_miners with apps as [{"name": "bitcoin-miner"}, {"name": "web"}]
+```
+```live:eg/data/incorrect_no_bitcoin_some:output
+```
+
+The reason the rule is incorrect is that variables in Rego are _existentially
+quantified_. This means that rule bodies and queries express FOR ANY and not FOR
+ALL. To express FOR ALL in Rego complement the logic in the rule body (e.g.,
+`!=` becomes `==`) and then complement the check using negation (e.g.,
+`no_bitcoin_miners` becomes `not any_bitcoin_miners`).
+
 Alternatively, we can implement the same kind of logic inside a single rule
 using [Comprehensions](#comprehensions).
 
@@ -1126,26 +1150,14 @@ no_bitcoin_miners_using_comprehension {
 }
 ```
 
-By importing the future keyword "every", you get another option to express universal
-quantification:
-
-```live:eg/data/every_alternative:module:read_only
-import future.keywords.every
-
-no_bitcoin_miners_using_every {
-    every app in apps {
-        app.name != "bitcoin-miner"
-    }
-}
-```
-
 {{< info >}}
 Whether you use negation, comprehensions, or `every` to express FOR ALL is up to you.
 The `every` keyword should lend itself nicely to a rule formulation that closely
 follows how requirements are stated, and thus enhances your policy's readability.
 
 The comprehension version is more concise than the negation variant, and does not
-require a helper rule while the negation version is more verbose but a bit simpler and allows for more complex ORs.
+require a helper rule while the negation version is more verbose but a bit simpler
+and allows for more complex ORs.
 {{< /info >}}
 
 ## Modules
@@ -1210,12 +1222,13 @@ Modules use the same syntax to declare dependencies on [Base and Virtual Documen
 
 ```live:import_data:module:read_only
 package opa.examples
+import future.keywords.in
 
 import data.servers
 
 http_servers[server] {
-    server := servers[_]
-    server.protocols[_] == "http"
+    some server in servers
+    "http" in server.protocols
 }
 ```
 
@@ -1223,6 +1236,7 @@ Similarly, modules can declare dependencies on query arguments by specifying an 
 
 ```live:import_input:module:read_only
 package opa.examples
+import future.keywords.in
 
 import input.user
 import input.method
@@ -1239,7 +1253,14 @@ allow {
 # allows users assigned a "dev" role to perform read-only operations.
 allow {
     method == "GET"
-    data.roles["dev"][_] == input.user
+    input.user in data.roles["dev"]
+}
+
+# allows user catherine access on Saturday and Sunday
+allow {
+    user == "catherine"
+    day := time.weekday(time.now_ns())
+    day in ["Saturday", "Sunday"]
 }
 ```
 
@@ -1247,12 +1268,13 @@ Imports can include an optional `as` keyword to handle namespacing issues:
 
 ```live:import_namespacing:module:read_only
 package opa.examples
+import future.keywords.in
 
 import data.servers as my_servers
 
 http_servers[server] {
-    server := my_servers[_]
-    server.protocols[_] == "http"
+    some server in my_servers
+    "http" in server.protocols
 }
 ```
 
@@ -1362,18 +1384,18 @@ scope of the body evaluation:
 ```live:eg/every1:module:merge_down
 import future.keywords.every
 
-p {
+array_domain {
     every i, x in [1, 2, 3] { x-i == 1 } # array domain
 }
 
-q {
+object_domain {
     every k, v in {"foo": "bar", "fox": "baz" } { # object domain
         startswith(k, "f")
         startswith(v, "b")
     }
 }
 
-r {
+set_domain {
     every x in {1, 2, 3} { x != 4 } # set domain
 }
 ```
@@ -1387,31 +1409,33 @@ construct using a helper rule:
 import future.keywords.every
 
 xs := [2, 2, 4, 8]
-p(x) := x > 1
+larger_than_one(x) := x > 1
 
-r {
-    every x in xs { p(x) }
+rule_every {
+    every x in xs { larger_than_one(x) }
 }
 
-s {
+not_less_or_equal_one {
     not lte_one
 }
 
 lte_one {
     some x in xs
-    not p(x)
+    not larger_than_one(x)
 }
 ```
 ```live:eg/every2:output
 ```
 
-Negating `every` is forbidden. If you desire to express `not every x in xs { p(x) }`,
+Negating `every` is forbidden. If you desire to express `not every x in xs { p(x) }`
 please use `some x in xs; not p(x)` instead.
 
 ## With Keyword
 
 The `with` keyword allows queries to programmatically specify values nested
-under the [input Document](../philosophy/#the-opa-document-model) and the [data Document](../philosophy/#the-opa-document-model).
+under the [input Document](../philosophy/#the-opa-document-model) or the
+[data Document](../philosophy/#the-opa-document-model), or built-in functions.
+
 For example, given the simple authorization policy in the [Imports](#imports)
 section, we can write a query that checks whether a particular request would be
 allowed:
@@ -1446,6 +1470,14 @@ not allow with input as {"user": "charlie", "method": "GET"} with data.roles as 
 ```live:import_input/5:output
 ```
 
+```live:import_input/6:query:merge_down
+allow with input as {"user": "catherine", "method": "GET"}
+      with data.roles as {"dev": ["bob"]}
+      with time.weekday as "Sunday"
+```
+```live:import_input/6:output
+```
+
 The `with` keyword acts as a modifier on expressions. A single expression is
 allowed to have zero or more `with` modifiers. The `with` keyword has the
 following syntax:
@@ -1455,12 +1487,14 @@ following syntax:
 ```
 
 The `<target>`s must be references to values in the input document (or the input
-document itself) or data document.
+document itself) or data document, or references to built-in functions.
 
-> When applied to the `data` document, the `<target>` must not attempt to
-> partially define virtual documents. For example, given a virtual document at
-> path `data.foo.bar`, the compiler will generate an error if the policy
-> attempts to replace `data.foo.bar.baz`.
+{{< info >}}
+When applied to the `data` document, the `<target>` must not attempt to
+partially define virtual documents. For example, given a virtual document at
+path `data.foo.bar`, the compiler will generate an error if the policy
+attempts to replace `data.foo.bar.baz`.
+{{< /info >}}
 
 The `with` keyword only affects the attached expression. Subsequent expressions
 will see the unmodified value. The exception to this rule is when multiple
@@ -1480,6 +1514,81 @@ middle := [a, b] {
 outer := result {
     result := middle with input as {"foo": 200, "bar": 300}
 }
+```
+
+When `<target>` is a reference to a built-in function, like `http.send`, then
+its `<value>` can be any of the following:
+1. a value: `with http.send as {"body": {"success": true }}`
+2. a reference to another function: `with http.send as mock_http_send`
+3. a reference to another (possibly custom) built-in function: `with custom_builtin as less_strict_custom_builtin`.
+
+When the replacement value is a function, its arity needs to match the replaced
+function's arity; and the types must be compatible.
+
+Replacement functions can call the function they're replacing **without causing
+recursion**.
+See the following example:
+
+```live:with_builtins:module:read_only
+package opa.examples
+import future.keywords.in
+
+f(x) = count(x)
+
+mock_count(x) = 0 { "x" in x }
+mock_count(x) = count(x) { not "x" in x }
+```
+
+```live:with_builtins/1:query:merge_down
+f([1, 2, 3]) with count as mock_count
+```
+```live:with_builtins/1:output
+```
+
+```live:with_builtins/2:query:merge_down
+f(["x", "y", "z"]) with count as mock_count
+```
+```live:with_builtins/2:output
+```
+
+Each replacement function evaluation will start a new scope: it's valid to use
+`with <builtin1> as ...` in the body of the replacement function -- for example:
+
+```live:with_builtins_nested:module:read_only
+package opa.examples
+import future.keywords.in
+
+f(x) = count(x) {
+    rule_using_concat with concat as "foo,bar"
+}
+
+mock_count(x) = 0 { "x" in x }
+mock_count(x) = count(x) { not "x" in x }
+
+rule_using_concat {
+    concat(",", input.x) == "foo,bar"
+}
+```
+```live:with_builtins_nested/1:query:merge_down
+f(["x", "y", "z"]) with count as mock_count with input.x as ["baz"]
+```
+```live:with_builtins_nested/1:output
+```
+
+Note that function replacement via `with` does not affect the evaluation of
+the function arguments: if `input.x` is undefined, the replacement of `concat`
+does not change the result of the evaluation:
+
+```live:with_builtins_nested/2:query:merge_down
+count(input.x) with count as 3 with input.x as ["x"]
+```
+```live:with_builtins_nested/2:output
+```
+
+```live:with_builtins_nested/3:query:merge_down
+count(input.x) with count as 3 with input as {}
+```
+```live:with_builtins_nested/3:output:expect_undefined
 ```
 
 ## Default Keyword

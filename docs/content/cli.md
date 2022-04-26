@@ -206,7 +206,7 @@ The OPA repository contains a set of capabilities files for each OPA release. Fo
 the following command builds a directory of policies ('./policies') and validates them
 against OPA v0.22.0:
 
-    opa build ./policies --capabilities $OPA_SRC/capabilities/v0.22.0.json
+    opa build ./policies --capabilities v0.22.0
 
 
 ```
@@ -217,7 +217,7 @@ opa build <path> [<path> [...]] [flags]
 
 ```
   -b, --bundle                         load paths as bundle files or root directories
-      --capabilities string            set capabilities.json file path
+      --capabilities string            set capabilities version or capabilities.json file path
       --claims-file string             set path of JSON file containing optional claims (see: https://www.openpolicyagent.org/docs/latest/management-bundles/#signature-format)
       --debug                          enable debug output
   -e, --entrypoint string              set slash separated entrypoint path
@@ -234,6 +234,71 @@ opa build <path> [<path> [...]] [flags]
   -t, --target {rego,wasm,plan}        set the output bundle target type (default rego)
       --verification-key string        set the secret (HMAC) or path of the PEM file containing the public key (RSA and ECDSA)
       --verification-key-id string     name assigned to the verification key used for bundle verification (default "default")
+```
+
+____
+
+## opa capabilities
+
+Print the capabilities of OPA
+
+### Synopsis
+
+Show capabilities for OPA.
+
+The 'capabilities' command prints the OPA capabilities, prior to and including the version of OPA used.
+
+Print a list of all existing capabilities version names
+
+    $ opa capabilities
+    v0.17.0
+    v0.17.1
+    ...
+    v0.37.1
+    v0.37.2
+    v0.38.0
+    ...
+
+Print the capabilities of the current version
+
+    $ opa capabilities --current
+    {
+        "builtins": [...],
+        "future_keywords": [...],
+        "wasm_abi_versions": [...]
+    }
+
+Print the capabilities of a specific version
+
+    $ opa capabilities --version v0.32.1
+    {
+        "builtins": [...],
+        "future_keywords": null,
+        "wasm_abi_versions": [...]
+    }
+
+Print the capabilities of a capabilities file
+
+    $ opa capabilities --file ./capabilities/v0.32.1.json
+    {
+        "builtins": [...],
+        "future_keywords": null,
+        "wasm_abi_versions": [...]
+    }
+
+
+
+```
+opa capabilities [flags]
+```
+
+### Options
+
+```
+      --current          print current capabilities
+      --file string      print current capabilities
+  -h, --help             help for capabilities
+      --version string   print capabilities of a specific version
 ```
 
 ____
@@ -258,7 +323,7 @@ opa check <path> [path [...]] [flags]
 
 ```
   -b, --bundle                 load paths as bundle files or root directories
-      --capabilities string    set capabilities.json file path
+      --capabilities string    set capabilities version or capabilities.json file path
   -f, --format {pretty,json}   set output format (default pretty)
   -h, --help                   help for check
       --ignore strings         set file and directory names to ignore during loading (e.g., '.*' excludes hidden files)
@@ -435,7 +500,7 @@ opa eval <query> [flags]
 
 ```
   -b, --bundle string                                     set bundle file(s) or directory path(s). This flag can be repeated.
-      --capabilities string                               set capabilities.json file path
+      --capabilities string                               set capabilities version or capabilities.json file path
       --count int                                         number of times to repeat each benchmark (default 1)
       --coverage                                          report coverage
   -d, --data string                                       set policy or data file(s). This flag can be repeated.

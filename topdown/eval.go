@@ -77,6 +77,7 @@ type eval struct {
 	instr                  *Instrumentation
 	builtins               map[string]*Builtin
 	builtinCache           builtins.Cache
+	functionMocks          *functionMocksStack
 	virtualCache           *virtualCache
 	comprehensionCache     *comprehensionCache
 	interQueryBuiltinCache cache.InterQueryCache
@@ -446,43 +447,64 @@ func (e *eval) evalNot(iter evalIterator) error {
 func (e *eval) evalWith(iter evalIterator) error {
 
 	expr := e.query[e.index]
+
+	// Disable inlining on all references in the expression so the result of
+	// partial evaluation has the same semantics w/ the with statements
+	// preserved.
 	var disable []ast.Ref
+	disableRef := func(x ast.Ref) bool {
+		disable = append(disable, x.GroundPrefix())
+		return false
+	}
 
 	if e.partial() {
 
 		// If the value is unknown the with statement cannot be evaluated and so
 		// the entire expression should be saved to be safe. In the future this
 		// could be relaxed in certain cases (e.g., if the with statement would
-		// have no affect.)
+		// have no effect.)
 		for _, with := range expr.With {
+			if isOtherRef(with.Target) {
+				// built-in replaced
+				_ = disableRef(with.Value.Value.(ast.Ref))
+				continue
+			}
+
+			// with target is data or input (not built-in)
 			if e.saveSet.ContainsRecursive(with.Value, e.bindings) {
 				return e.saveExprMarkUnknowns(expr, e.bindings, func() error {
 					return e.next(iter)
 				})
 			}
+
+			ast.WalkRefs(with.Target, disableRef)
+			ast.WalkRefs(with.Value, disableRef)
 		}
 
-		// Disable inlining on all references in the expression so the result of
-		// partial evaluation has the same semantics w/ the with statements
-		// preserved.
-		ast.WalkRefs(expr, func(x ast.Ref) bool {
-			disable = append(disable, x.GroundPrefix())
-			return false
-		})
+		ast.WalkRefs(expr.NoWith(), disableRef)
 	}
 
 	pairsInput := [][2]*ast.Term{}
 	pairsData := [][2]*ast.Term{}
+	functionMocks := [][2]*ast.Term{}
 	targets := []ast.Ref{}
 
 	for i := range expr.With {
+		target := expr.With[i].Target.Value
 		plugged := e.bindings.Plug(expr.With[i].Value)
-		if isInputRef(expr.With[i].Target) {
+		switch {
+		case isInputRef(expr.With[i].Target):
 			pairsInput = append(pairsInput, [...]*ast.Term{expr.With[i].Target, plugged})
-		} else if isDataRef(expr.With[i].Target) {
+		case isDataRef(expr.With[i].Target):
 			pairsData = append(pairsData, [...]*ast.Term{expr.With[i].Target, plugged})
+		default: // target must be builtin
+			_, _, ok := e.builtinFunc(target.String())
+			if ok {
+				functionMocks = append(functionMocks, [...]*ast.Term{expr.With[i].Target, plugged})
+			}
+			continue
 		}
-		targets = append(targets, expr.With[i].Target.Value.(ast.Ref))
+		targets = append(targets, target.(ast.Ref))
 	}
 
 	input, err := mergeTermWithValues(e.input, pairsInput)
@@ -503,12 +525,12 @@ func (e *eval) evalWith(iter evalIterator) error {
 		}
 	}
 
-	oldInput, oldData := e.evalWithPush(input, data, targets, disable)
+	oldInput, oldData := e.evalWithPush(input, data, functionMocks, targets, disable)
 
 	err = e.evalStep(func(e *eval) error {
 		e.evalWithPop(oldInput, oldData)
 		err := e.next(iter)
-		oldInput, oldData = e.evalWithPush(input, data, targets, disable)
+		oldInput, oldData = e.evalWithPush(input, data, functionMocks, targets, disable)
 		return err
 	})
 
@@ -517,7 +539,7 @@ func (e *eval) evalWith(iter evalIterator) error {
 	return err
 }
 
-func (e *eval) evalWithPush(input, data *ast.Term, targets, disable []ast.Ref) (*ast.Term, *ast.Term) {
+func (e *eval) evalWithPush(input, data *ast.Term, functionMocks [][2]*ast.Term, targets, disable []ast.Ref) (*ast.Term, *ast.Term) {
 	var oldInput *ast.Term
 
 	if input != nil {
@@ -536,6 +558,7 @@ func (e *eval) evalWithPush(input, data *ast.Term, targets, disable []ast.Ref) (
 	e.virtualCache.Push()
 	e.targetStack.Push(targets)
 	e.inliningControl.PushDisable(disable, true)
+	e.functionMocks.PutPairs(functionMocks)
 
 	return oldInput, oldData
 }
@@ -545,6 +568,7 @@ func (e *eval) evalWithPop(input, data *ast.Term) {
 	e.targetStack.Pop()
 	e.virtualCache.Pop()
 	e.comprehensionCache.Pop()
+	e.functionMocks.PopPairs()
 	e.data = data
 	e.input = input
 }
@@ -704,9 +728,39 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 		return eval.eval(iter)
 	}
 
-	bi, f, ok := e.builtinFunc(ref.String())
+	builtinName := ref.String()
+	bi, f, ok := e.builtinFunc(builtinName)
 	if !ok {
 		return unsupportedBuiltinErr(e.query[e.index].Location)
+	}
+
+	if mock, ok := e.functionMocks.Get(builtinName); ok {
+		switch m := mock.Value.(type) {
+		case ast.Ref: // builtin or data function
+			mockCall := append([]*ast.Term{ast.NewTerm(m)}, terms[1:]...)
+
+			e.functionMocks.Push()
+			err := e.evalCall(mockCall, func() error {
+				e.functionMocks.Pop()
+				err := iter()
+				e.functionMocks.Push()
+				return err
+			})
+			e.functionMocks.Pop()
+			return err
+
+		default: // value replacement
+			switch {
+			case len(terms) == len(bi.Decl.Args())+2: // captured var
+				return e.unify(terms[len(terms)-1], mock, iter)
+
+			case len(terms) == len(bi.Decl.Args())+1:
+				if mock.Value.Compare(ast.Boolean(false)) != 0 {
+					return iter()
+				}
+				return nil
+			}
+		}
 	}
 
 	if e.unknown(e.query[e.index], e.bindings) {
@@ -1215,8 +1269,7 @@ func (e *eval) biunifyComprehensionObject(x *ast.ObjectComprehension, b *ast.Ter
 }
 
 func (e *eval) saveExpr(expr *ast.Expr, b *bindings, iter unifyIterator) error {
-	expr.With = e.query[e.index].With
-	expr.Location = e.query[e.index].Location
+	e.updateFromQuery(expr)
 	e.saveStack.Push(expr, b, b)
 	e.traceSave(expr)
 	err := iter()
@@ -1225,8 +1278,7 @@ func (e *eval) saveExpr(expr *ast.Expr, b *bindings, iter unifyIterator) error {
 }
 
 func (e *eval) saveExprMarkUnknowns(expr *ast.Expr, b *bindings, iter unifyIterator) error {
-	expr.With = e.query[e.index].With
-	expr.Location = e.query[e.index].Location
+	e.updateFromQuery(expr)
 	declArgsLen, err := e.getDeclArgsLen(expr)
 	if err != nil {
 		return err
@@ -1251,8 +1303,7 @@ func (e *eval) saveExprMarkUnknowns(expr *ast.Expr, b *bindings, iter unifyItera
 func (e *eval) saveUnify(a, b *ast.Term, b1, b2 *bindings, iter unifyIterator) error {
 	e.instr.startTimer(partialOpSaveUnify)
 	expr := ast.Equality.Expr(a, b)
-	expr.With = e.query[e.index].With
-	expr.Location = e.query[e.index].Location
+	e.updateFromQuery(expr)
 	pops := 0
 	if pairs := getSavePairsFromTerm(a, b1, nil); len(pairs) > 0 {
 		pops += len(pairs)
@@ -1282,8 +1333,7 @@ func (e *eval) saveUnify(a, b *ast.Term, b1, b2 *bindings, iter unifyIterator) e
 
 func (e *eval) saveCall(declArgsLen int, terms []*ast.Term, iter unifyIterator) error {
 	expr := ast.NewExpr(terms)
-	expr.With = e.query[e.index].With
-	expr.Location = e.query[e.index].Location
+	e.updateFromQuery(expr)
 
 	// If call-site includes output value then partial eval must add vars in output
 	// position to the save set.
@@ -1318,7 +1368,7 @@ func (e *eval) saveInlinedNegatedExprs(exprs []*ast.Expr, iter unifyIterator) er
 	}
 
 	for _, expr := range exprs {
-		expr.With = with
+		expr.With = e.updateSavedMocks(with)
 		e.saveStack.Push(expr, nil, nil)
 		e.traceSave(expr)
 	}
@@ -1581,6 +1631,15 @@ func (e *eval) getDeclArgsLen(x *ast.Expr) (int, error) {
 	}
 
 	return len(ir.Rules[0].Head.Args), nil
+}
+
+// updateFromQuery enriches the passed expression with Location and With
+// fields of the currently looked-at query item (`e.query[e.index]`).
+// With values are namespaced to ensure that replacement functions of
+// mocked built-ins are properly referenced in the support module.
+func (e *eval) updateFromQuery(expr *ast.Expr) {
+	expr.With = e.updateSavedMocks(e.query[e.index].With)
+	expr.Location = e.query[e.index].Location
 }
 
 type evalBuiltin struct {
@@ -3187,6 +3246,14 @@ func isDataRef(term *ast.Term) bool {
 	return false
 }
 
+func isOtherRef(term *ast.Term) bool {
+	ref, ok := term.Value.(ast.Ref)
+	if !ok {
+		panic("unreachable")
+	}
+	return !ref.HasPrefix(ast.DefaultRootRef) && !ref.HasPrefix(ast.InputRootRef)
+}
+
 func merge(a, b ast.Value) (ast.Value, bool) {
 	aObj, ok1 := a.(ast.Object)
 	bObj, ok2 := b.(ast.Object)
@@ -3251,4 +3318,22 @@ func suppressEarlyExit(err error) error {
 		return err
 	}
 	return ee.prev // nil if we're done
+}
+
+func (e *eval) updateSavedMocks(withs []*ast.With) []*ast.With {
+	ret := make([]*ast.With, 0, len(withs))
+	for _, w := range withs {
+		v := w.Copy()
+		if isOtherRef(w.Target) {
+			ref := v.Value.Value.(ast.Ref)
+			nref := e.namespaceRef(ref)
+			if e.saveSupport.Exists(nref) {
+				v.Value.Value = nref
+			} else {
+				continue // skip
+			}
+		}
+		ret = append(ret, v)
+	}
+	return ret
 }
