@@ -5,14 +5,19 @@
 package ast
 
 import (
+	"bytes"
+	"fmt"
 	"io"
+	"os"
 	"sort"
+	"strings"
 
+	caps "github.com/open-policy-agent/opa/capabilities"
 	"github.com/open-policy-agent/opa/internal/wasm/sdk/opa/capabilities"
 	"github.com/open-policy-agent/opa/util"
 )
 
-// Capabilities defines a structure containing data that describes the capablilities
+// Capabilities defines a structure containing data that describes the capabilities
 // or features supported by a particular version of OPA.
 type Capabilities struct {
 	Builtins        []*Builtin       `json:"builtins"`
@@ -62,4 +67,49 @@ func LoadCapabilitiesJSON(r io.Reader) (*Capabilities, error) {
 	d := util.NewJSONDecoder(r)
 	var c Capabilities
 	return &c, d.Decode(&c)
+}
+
+// LoadCapabilitiesVersion loads a JSON serialized capabilities structure from the specific version.
+func LoadCapabilitiesVersion(version string) (*Capabilities, error) {
+	cvs, err := LoadCapabilitiesVersions()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, cv := range cvs {
+		if cv == version {
+			cont, err := caps.FS.ReadFile(cv + ".json")
+			if err != nil {
+				return nil, err
+			}
+
+			return LoadCapabilitiesJSON(bytes.NewReader(cont))
+		}
+
+	}
+	return nil, fmt.Errorf("no capabilities version found %v", version)
+}
+
+// LoadCapabilitiesFile loads a JSON serialized capabilities structure from a file.
+func LoadCapabilitiesFile(file string) (*Capabilities, error) {
+	fd, err := os.Open(file)
+	if err != nil {
+		return nil, err
+	}
+	defer fd.Close()
+	return LoadCapabilitiesJSON(fd)
+}
+
+// LoadCapabilitiesVersions loads all capabilities versions
+func LoadCapabilitiesVersions() ([]string, error) {
+	ents, err := caps.FS.ReadDir(".")
+	if err != nil {
+		return nil, err
+	}
+
+	var capabilitiesVersions []string
+	for _, ent := range ents {
+		capabilitiesVersions = append(capabilitiesVersions, strings.Replace(ent.Name(), ".json", "", 1))
+	}
+	return capabilitiesVersions, nil
 }
