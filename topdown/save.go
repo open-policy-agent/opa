@@ -279,7 +279,7 @@ func newSaveSupport() *saveSupport {
 }
 
 func (s *saveSupport) List() []*ast.Module {
-	result := []*ast.Module{}
+	result := make([]*ast.Module, 0, len(s.modules))
 	for _, module := range s.modules {
 		result = append(result, module)
 	}

@@ -608,6 +608,20 @@ func (vis *VarVisitor) visit(v interface{}) bool {
 				vis.Walk(v[i])
 			}
 			return true
+		case *With:
+			if ref, ok := v.Target.Value.(Ref); ok {
+				for _, t := range ref[1:] {
+					vis.Walk(t)
+				}
+			}
+			if ref, ok := v.Value.Value.(Ref); ok {
+				for _, t := range ref[1:] {
+					vis.Walk(t)
+				}
+			} else {
+				vis.Walk(v.Value)
+			}
+			return true
 		}
 	}
 	if v, ok := v.(Var); ok {

@@ -36,6 +36,7 @@ type Planner struct {
 	externs map[string]*ast.Builtin // built-in functions that are required in execution environment
 	decls   map[string]*ast.Builtin // built-in functions that may be provided in execution environment
 	rules   *ruletrie               // rules that may be planned
+	mocks   *functionMocksStack     // replacements for built-in functions
 	funcs   *funcstack              // functions that have been planned
 	plan    *ir.Plan                // in-progress query plan
 	curr    *ir.Block               // in-progress query block
@@ -76,6 +77,7 @@ func New() *Planner {
 		}),
 		rules: newRuletrie(),
 		funcs: newFuncstack(),
+		mocks: newFunctionMocksStack(),
 		debug: debug.Discard(),
 	}
 }
@@ -551,23 +553,38 @@ func (p *Planner) planNot(e *ast.Expr, iter planiter) error {
 
 func (p *Planner) planWith(e *ast.Expr, iter planiter) error {
 
-	// Plan the values that will be applied by the with modifiers. All values
+	// Plan the values that will be applied by the `with` modifiers. All values
 	// must be defined for the overall expression to evaluate.
-	values := make([]*ast.Term, len(e.With))
+	values := make([]*ast.Term, 0, len(e.With)) // NOTE(sr): we could be overallocating if there are builtin replacements
+	targets := make([]ast.Ref, 0, len(e.With))
 
-	for i := range e.With {
-		values[i] = e.With[i].Value
+	builtins := frame{}
+
+	for _, w := range e.With {
+		switch v := w.Target.Value.(type) {
+		case ast.Ref:
+			if ast.DefaultRootDocument.Equal(v[0]) ||
+				ast.InputRootDocument.Equal(v[0]) {
+
+				values = append(values, w.Value)
+				targets = append(targets, w.Target.Value.(ast.Ref))
+				continue
+			}
+		}
+
+		// target is a builtin
+		builtins[w.Target.String()] = w.Value
 	}
 
 	return p.planTermSlice(values, func(locals []ir.Operand) error {
 
-		paths := make([][]int, len(e.With))
+		p.mocks.PushFrame(builtins)
+
+		paths := make([][]int, len(targets))
 		saveVars := ast.NewVarSet()
 		dataRefs := []ast.Ref{}
 
-		for i := range e.With {
-
-			target := e.With[i].Target.Value.(ast.Ref)
+		for i, target := range targets {
 			paths[i] = make([]int, len(target)-1)
 
 			for j := 1; j < len(target); j++ {
@@ -608,6 +625,7 @@ func (p *Planner) planWith(e *ast.Expr, iter planiter) error {
 		}
 
 		err := p.planWithRec(e, paths, locals, 0, func() error {
+			p.mocks.PopFrame()
 			if shadowing {
 				p.funcs.Pop()
 				for i := len(dataRefs) - 1; i >= 0; i-- {
@@ -619,6 +637,7 @@ func (p *Planner) planWith(e *ast.Expr, iter planiter) error {
 
 				err := iter()
 
+				p.mocks.PushFrame(builtins)
 				if shadowing {
 					p.funcs.Push(map[string]string{})
 					for _, ref := range dataRefs {
@@ -631,6 +650,7 @@ func (p *Planner) planWith(e *ast.Expr, iter planiter) error {
 			return err
 		})
 
+		p.mocks.PopFrame()
 		if shadowing {
 			p.funcs.Pop()
 			for i := len(dataRefs) - 1; i >= 0; i-- {
@@ -643,7 +663,7 @@ func (p *Planner) planWith(e *ast.Expr, iter planiter) error {
 }
 
 func (p *Planner) planWithRec(e *ast.Expr, targets [][]int, values []ir.Operand, index int, iter planiter) error {
-	if index >= len(e.With) {
+	if index >= len(targets) {
 		return p.planExpr(e.NoWith(), iter)
 	}
 
@@ -797,20 +817,49 @@ func (p *Planner) planExprCall(e *ast.Expr, iter planiter) error {
 		var arity int
 		var void bool
 		var args []ir.Operand
+		var err error
 
-		node := p.rules.Lookup(e.Operator())
+		operands := e.Operands()
+		op := e.Operator()
 
-		if node != nil {
-			var err error
+		if replacement := p.mocks.Lookup(operator); replacement != nil {
+			switch r := replacement.Value.(type) {
+			case ast.Ref:
+				if !r.HasPrefix(ast.DefaultRootRef) && !r.HasPrefix(ast.InputRootRef) {
+					// replacement is other builtin
+					operator = r.String()
+					decl := p.decls[operator]
+					p.externs[operator] = decl
+
+					// void functions and relations are forbidden; arity validation happened in compiler
+					return p.planExprCallFunc(operator, len(decl.Decl.Args()), void, operands, args, iter)
+				}
+
+				// replacement is a function (rule)
+				if node := p.rules.Lookup(r); node != nil {
+					p.mocks.Push() // new scope
+					name, err = p.planRules(node.Rules())
+					if err != nil {
+						return err
+					}
+					p.mocks.Pop()
+					return p.planExprCallFunc(name, node.Arity(), void, operands, p.defaultOperands(), iter)
+				}
+
+				return fmt.Errorf("illegal replacement of operator %q by %v", operator, replacement)
+
+			default: // target is a builtin, replacement a value
+				return p.planExprCallValue(replacement, len(p.decls[operator].Decl.Args()), operands, iter)
+			}
+		}
+
+		if node := p.rules.Lookup(op); node != nil {
 			name, err = p.planRules(node.Rules())
 			if err != nil {
 				return err
 			}
 			arity = node.Arity()
-			args = []ir.Operand{
-				p.vars.GetOpOrEmpty(ast.InputRootDocument.Value.(ast.Var)),
-				p.vars.GetOpOrEmpty(ast.DefaultRootDocument.Value.(ast.Var)),
-			}
+			args = p.defaultOperands()
 		} else if decl, ok := p.decls[operator]; ok {
 			relation = decl.Relation
 			arity = len(decl.Decl.Args())
@@ -820,8 +869,6 @@ func (p *Planner) planExprCall(e *ast.Expr, iter planiter) error {
 		} else {
 			return fmt.Errorf("illegal call: unknown operator %q", operator)
 		}
-
-		operands := e.Operands()
 
 		if len(operands) < arity || len(operands) > arity+1 {
 			return fmt.Errorf("illegal call: wrong number of operands: got %v, want %v)", len(operands), arity)
@@ -912,7 +959,7 @@ func (p *Planner) planExprCallFunc(name string, arity int, void bool, operands [
 	}
 
 	// definition: f(x) = y { ... }
-	// call: f(x, 1)  # caller captures result
+	// call: f(x, 1) # caller captures result
 	return p.planCallArgs(operands[:len(operands)-1], 0, args, func(args []ir.Operand) error {
 		result := p.newLocal()
 		p.appendStmt(&ir.CallStmt{
@@ -921,6 +968,29 @@ func (p *Planner) planExprCallFunc(name string, arity int, void bool, operands [
 			Result: result,
 		})
 		return p.planUnifyLocal(op(result), operands[len(operands)-1], iter)
+	})
+}
+
+func (p *Planner) planExprCallValue(value *ast.Term, arity int, operands []*ast.Term, iter planiter) error {
+	if len(operands) == arity { // call: f(x) # result not captured
+		return p.planCallArgs(operands, 0, nil, func([]ir.Operand) error {
+			p.ltarget = p.newOperand()
+			return p.planTerm(value, func() error {
+				p.appendStmt(&ir.NotEqualStmt{
+					A: p.ltarget,
+					B: op(ir.Bool(false)),
+				})
+				return iter()
+			})
+		})
+	}
+
+	// call: f(x, 1) # caller captures result
+	return p.planCallArgs(operands[:len(operands)-1], 0, nil, func([]ir.Operand) error {
+		p.ltarget = p.newOperand()
+		return p.planTerm(value, func() error {
+			return p.planUnifyLocal(p.ltarget, operands[len(operands)-1], iter)
+		})
 	})
 }
 
@@ -1639,11 +1709,8 @@ func (p *Planner) planRefData(virtual *ruletrie, base *baseptr, ref ast.Ref, ind
 			}
 
 			p.appendStmt(&ir.CallStmt{
-				Func: funcName,
-				Args: []ir.Operand{
-					p.vars.GetOpOrEmpty(ast.InputRootDocument.Value.(ast.Var)),
-					p.vars.GetOpOrEmpty(ast.DefaultRootDocument.Value.(ast.Var)),
-				},
+				Func:   funcName,
+				Args:   p.defaultOperands(),
 				Result: p.ltarget.Value.(ir.Local),
 			})
 
@@ -1800,11 +1867,8 @@ func (p *Planner) planRefDataExtent(virtual *ruletrie, base *baseptr, iter plani
 			// Add leaf to object if defined.
 			b := &ir.Block{}
 			p.appendStmtToBlock(&ir.CallStmt{
-				Func: funcName,
-				Args: []ir.Operand{
-					p.vars.GetOpOrEmpty(ast.InputRootDocument.Value.(ast.Var)),
-					p.vars.GetOpOrEmpty(ast.DefaultRootDocument.Value.(ast.Var)),
-				},
+				Func:   funcName,
+				Args:   p.defaultOperands(),
 				Result: lvalue,
 			}, b)
 			p.appendStmtToBlock(&ir.ObjectInsertStmt{
@@ -2191,6 +2255,13 @@ func (p *Planner) unseenVars(t *ast.Term) bool {
 		return unseen
 	})
 	return unseen
+}
+
+func (p *Planner) defaultOperands() []ir.Operand {
+	return []ir.Operand{
+		p.vars.GetOpOrEmpty(ast.InputRootDocument.Value.(ast.Var)),
+		p.vars.GetOpOrEmpty(ast.DefaultRootDocument.Value.(ast.Var)),
+	}
 }
 
 func op(v ir.Val) ir.Operand {

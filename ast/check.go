@@ -267,6 +267,9 @@ func (tc *typeChecker) checkRule(env *TypeEnv, as *AnnotationSet, rule *Rule) {
 }
 
 func (tc *typeChecker) checkExpr(env *TypeEnv, expr *Expr) *Error {
+	if err := tc.checkExprWith(env, expr, 0); err != nil {
+		return err
+	}
 	if !expr.IsCall() {
 		return nil
 	}
@@ -363,6 +366,27 @@ func (tc *typeChecker) checkExprEq(env *TypeEnv, expr *Expr) *Error {
 	}
 
 	return nil
+}
+
+func (tc *typeChecker) checkExprWith(env *TypeEnv, expr *Expr, i int) *Error {
+	if i == len(expr.With) {
+		return nil
+	}
+
+	target, value := expr.With[i].Target, expr.With[i].Value
+	targetType, valueType := env.Get(target), env.Get(value)
+
+	if t, ok := targetType.(*types.Function); ok { // built-in function replacement
+		switch v := valueType.(type) {
+		case *types.Function: // ...by function
+			if !unifies(targetType, valueType) {
+				return newArgError(expr.With[i].Loc(), target.Value.(Ref), "arity mismatch", v.Args(), t.FuncArgs())
+			}
+		default: // ... by value, nothing to check
+		}
+	}
+
+	return tc.checkExprWith(env, expr, i+1)
 }
 
 func unify2(env *TypeEnv, a *Term, typeA types.Type, b *Term, typeB types.Type) bool {
@@ -610,11 +634,11 @@ func (rc *refChecker) Visit(x interface{}) bool {
 }
 
 func (rc *refChecker) checkApply(curr *TypeEnv, ref Ref) *Error {
-	if tpe := curr.Get(ref); tpe != nil {
-		if _, ok := tpe.(*types.Function); ok {
-			return newRefErrUnsupported(ref[0].Location, rc.varRewriter(ref), len(ref)-1, tpe)
-		}
+	switch tpe := curr.Get(ref).(type) {
+	case *types.Function: // NOTE(sr): We don't support first-class functions, except for `with`.
+		return newRefErrUnsupported(ref[0].Location, rc.varRewriter(ref), len(ref)-1, tpe)
 	}
+
 	return nil
 }
 
@@ -797,7 +821,17 @@ func unifies(a, b types.Type) bool {
 		}
 		return unifies(types.Values(a), types.Values(b))
 	case *types.Function:
-		// TODO(tsandall): revisit once functions become first-class values.
+		// NOTE(sr): variadic functions can only be internal ones, and we've forbidden
+		// their replacement via `with`; so we disregard variadic here
+		if types.Arity(a) == types.Arity(b) {
+			b := b.(*types.Function)
+			for i := range a.FuncArgs().Args {
+				if !unifies(a.FuncArgs().Arg(i), b.FuncArgs().Arg(i)) {
+					return false
+				}
+			}
+			return true
+		}
 		return false
 	default:
 		panic("unreachable")
