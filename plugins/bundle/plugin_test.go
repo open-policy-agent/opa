@@ -71,6 +71,12 @@ func TestPluginOneShot(t *testing.T) {
 
 	ensurePluginState(t, plugin, plugins.StateOK)
 
+	if status, ok := plugin.status[bundleName]; !ok {
+		t.Fatalf("Expected to find status for %s, found nil", bundleName)
+	} else if status.Type != bundle.SnapshotBundleType {
+		t.Fatalf("expected snapshot bundle but got %v", status.Type)
+	}
+
 	txn := storage.NewTransactionOrDie(ctx, manager.Store)
 	defer manager.Store.Abort(ctx, txn)
 
@@ -261,6 +267,12 @@ func TestPluginOneShotDeltaBundle(t *testing.T) {
 	plugin.process(ctx, bundleName, download.Update{Bundle: &b2, Metrics: metrics.New()})
 
 	ensurePluginState(t, plugin, plugins.StateOK)
+
+	if status, ok := plugin.status[bundleName]; !ok {
+		t.Fatalf("Expected to find status for %s, found nil", bundleName)
+	} else if status.Type != bundle.DeltaBundleType {
+		t.Fatalf("expected delta bundle but got %v", status.Type)
+	}
 
 	txn := storage.NewTransactionOrDie(ctx, manager.Store)
 	defer manager.Store.Abort(ctx, txn)
