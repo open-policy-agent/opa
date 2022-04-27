@@ -121,7 +121,7 @@ package system
 
 ```live:patch/good:module:read_only,openable
 main := {
-	"apiVersion": "admission.k8s.io/v1beta1",
+	"apiVersion": "admission.k8s.io/v1",
 	"kind": "AdmissionReview",
 	"response": response,
 }
@@ -145,7 +145,7 @@ patches := [
 
 ```live:patch/bad:module:read_only
 main := {
-	"apiVersion": "admission.k8s.io/v1beta1",
+	"apiVersion": "admission.k8s.io/v1",
 	"kind": "AdmissionReview",
 	"response": response,
 }
