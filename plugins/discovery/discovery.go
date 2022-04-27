@@ -188,6 +188,7 @@ func (c *Discovery) processUpdate(ctx context.Context, u download.Update) {
 	c.status.LastSuccessfulRequest = c.status.LastRequest
 
 	if u.Bundle != nil {
+		c.status.Type = u.Bundle.Type()
 		c.status.LastSuccessfulDownload = c.status.LastSuccessfulRequest
 
 		if err := c.reconfigure(ctx, u); err != nil {

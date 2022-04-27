@@ -375,6 +375,7 @@ func (p *Plugin) loadAndActivateBundlesFromDisk(ctx context.Context) {
 		numActivatedBundles := 0
 		for name, b := range persistedBundles {
 			p.status[name].Metrics = metrics.New()
+			p.status[name].Type = b.Type()
 
 			err := p.activate(ctx, name, b)
 			if err != nil {
@@ -474,6 +475,7 @@ func (p *Plugin) process(ctx context.Context, name string, u download.Update) {
 	p.status[name].LastSuccessfulRequest = p.status[name].LastRequest
 
 	if u.Bundle != nil {
+		p.status[name].Type = u.Bundle.Type()
 		p.status[name].LastSuccessfulDownload = p.status[name].LastSuccessfulRequest
 
 		p.status[name].Metrics.Timer(metrics.RegoLoadBundles).Start()

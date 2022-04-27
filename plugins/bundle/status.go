@@ -26,6 +26,7 @@ type Status struct {
 	Name                     string          `json:"name"`
 	ActiveRevision           string          `json:"active_revision,omitempty"`
 	LastSuccessfulActivation time.Time       `json:"last_successful_activation,omitempty"`
+	Type                     string          `json:"type,omitempty"`
 	LastSuccessfulDownload   time.Time       `json:"last_successful_download,omitempty"`
 	LastSuccessfulRequest    time.Time       `json:"last_successful_request,omitempty"`
 	LastRequest              time.Time       `json:"last_request,omitempty"`

@@ -25,11 +25,12 @@ import (
 	"github.com/open-policy-agent/opa/logging/test"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/bundle"
 	bundleApi "github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/download"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/plugins"
-	"github.com/open-policy-agent/opa/plugins/bundle"
+	bundlePlugin "github.com/open-policy-agent/opa/plugins/bundle"
 	"github.com/open-policy-agent/opa/plugins/logs"
 	"github.com/open-policy-agent/opa/plugins/status"
 	"github.com/open-policy-agent/opa/server"
@@ -90,13 +91,13 @@ func TestEvaluateBundle(t *testing.T) {
 		t.Fatal("Expected a bundle configuration")
 	}
 
-	var parsedConfig bundle.Config
+	var parsedConfig bundlePlugin.Config
 
 	if err := util.Unmarshal(config.Bundle, &parsedConfig); err != nil {
 		t.Fatal("Unexpected error:", err)
 	}
 
-	expectedBundleConfig := bundle.Config{
+	expectedBundleConfig := bundlePlugin.Config{
 		Name:    "test/bundle1",
 		Service: "example",
 	}
@@ -416,6 +417,12 @@ func TestReconfigure(t *testing.T) {
 
 	disco.oneShot(ctx, download.Update{Bundle: initialBundle})
 
+	if disco.status == nil {
+		t.Fatal("Expected to find status, found nil")
+	} else if disco.status.Type != bundle.SnapshotBundleType {
+		t.Fatalf("expected snapshot bundle but got %v", disco.status.Type)
+	}
+
 	// Verify labels are unchanged
 	exp := map[string]string{"x": "y", "id": "test-id", "version": version.Version}
 	if !reflect.DeepEqual(manager.Labels(), exp) {
@@ -452,6 +459,12 @@ func TestReconfigure(t *testing.T) {
 	`)
 
 	disco.oneShot(ctx, download.Update{Bundle: updatedBundle})
+
+	if disco.status == nil {
+		t.Fatal("Expected to find status, found nil")
+	} else if disco.status.Type != bundle.SnapshotBundleType {
+		t.Fatalf("expected snapshot bundle but got %v", disco.status.Type)
+	}
 
 	if !reflect.DeepEqual(testPlugin.counts, map[string]int{"start": 1, "reconfig": 1}) {
 		t.Errorf("Expected one plugin start and one reconfig but got %v", testPlugin)
@@ -619,7 +632,7 @@ func TestReconfigureWithUpdates(t *testing.T) {
 		t.Fatalf("Expected two services but got %v\n", len(disco.manager.Services()))
 	}
 
-	bPlugin := bundle.Lookup(disco.manager)
+	bPlugin := bundlePlugin.Lookup(disco.manager)
 	config := bPlugin.Config()
 	expected := "acmecorp"
 	if config.Bundles["authz"].Service != expected {
@@ -648,7 +661,7 @@ func TestReconfigureWithUpdates(t *testing.T) {
 		t.Fatalf("Unexpected error %v", err)
 	}
 
-	bPlugin = bundle.Lookup(disco.manager)
+	bPlugin = bundlePlugin.Lookup(disco.manager)
 	config = bPlugin.Config()
 	expectedSvc := "localhost"
 	if config.Bundles["authz"].Service != expectedSvc {
@@ -1163,11 +1176,11 @@ bundle:
 		t.Fatalf("Unexpected error: %s", err)
 	}
 
-	p := manager.Plugin(bundle.Name)
+	p := manager.Plugin(bundlePlugin.Name)
 	if p == nil {
 		t.Fatal("Unable to find bundle plugin on manager")
 	}
-	bp := p.(*bundle.Plugin)
+	bp := p.(*bundlePlugin.Plugin)
 
 	// make sure the older style `bundle` config takes precedence
 	if bp.Config().Name != "bundle-classic" {
@@ -1200,11 +1213,11 @@ bundles:
 		t.Fatalf("Unexpected error: %s", err)
 	}
 
-	p := manager.Plugin(bundle.Name)
+	p := manager.Plugin(bundlePlugin.Name)
 	if p == nil {
 		t.Fatal("Unable to find bundle plugin on manager")
 	}
-	bp := p.(*bundle.Plugin)
+	bp := p.(*bundlePlugin.Plugin)
 
 	if len(bp.Config().Bundles) != 1 {
 		t.Fatal("Expected a single bundle configured")
@@ -1742,7 +1755,7 @@ func (t *testFixture) loop(ctx context.Context) {
 			close(done)
 
 		case done := <-t.bundleTrigger:
-			if p, ok := t.manager.Plugin(bundle.Name).(plugins.Triggerable); ok {
+			if p, ok := t.manager.Plugin(bundlePlugin.Name).(plugins.Triggerable); ok {
 				_ = p.Trigger(ctx)
 			}
 			close(done)
