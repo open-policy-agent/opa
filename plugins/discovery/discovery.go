@@ -9,6 +9,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -38,7 +40,7 @@ type Discovery struct {
 	manager      *plugins.Manager
 	config       *Config
 	factories    map[string]plugins.Factory
-	downloader   *download.Downloader                // discovery bundle downloader
+	downloader   bundle.Loader                       // discovery bundle downloader
 	status       *bundle.Status                      // discovery status
 	listenersMtx sync.Mutex                          // lock for listener map
 	listeners    map[interface{}]func(bundle.Status) // listeners for discovery update events
@@ -90,8 +92,18 @@ func New(manager *plugins.Manager, opts ...func(*Discovery)) (*Discovery, error)
 	}
 
 	result.config = config
-	result.downloader = download.New(config.Config, manager.Client(config.service), config.path).WithCallback(result.oneShot).
-		WithBundleVerificationConfig(config.Signing)
+	restClient := manager.Client(config.service)
+	if strings.ToLower(restClient.Config().Type) == "oci" {
+		ociStorePath := filepath.Join(os.TempDir(), "opa", "oci") // use temporary folder /tmp/opa/oci
+		if manager.Config.PersistenceDirectory != nil {
+			ociStorePath = filepath.Join(*manager.Config.PersistenceDirectory, "oci")
+		}
+		result.downloader = download.NewOCI(config.Config, restClient, config.path, ociStorePath).WithCallback(result.oneShot).
+			WithBundleVerificationConfig(config.Signing)
+	} else {
+		result.downloader = download.New(config.Config, restClient, config.path).WithCallback(result.oneShot).
+			WithBundleVerificationConfig(config.Signing)
+	}
 	result.status = &bundle.Status{
 		Name: Name,
 	}
