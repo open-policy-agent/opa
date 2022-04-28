@@ -6,7 +6,7 @@ weight: 18
 
 The package and individual rules in a module can be annotated with a rich set of metadata.
 
-```live:rego/metadata:query:read_only
+```live:rego/metadata:module:read_only
 # METADATA
 # title: My rule
 # description: A rule that determines if x is allowed.
@@ -64,7 +64,7 @@ The `document` scope annotation can be applied to any rule in the set (i.e., ord
 
 #### Example
 
-```live:rego/metadata/scope:query:read_only
+```live:rego/metadata/scope:module:read_only
 # METADATA
 # scope: document
 # description: A set of rules that determines if x is allowed.
@@ -88,7 +88,7 @@ The `title` annotation is a string value giving a human-readable name to the ann
 
 #### Example
 
-```live:rego/metadata/title:query:read_only
+```live:rego/metadata/title:module:read_only
 # METADATA
 # title: Allow Ones
 allow {
@@ -108,7 +108,7 @@ The `description` annotation is a string value describing the annotation target,
 
 #### Example
 
-```live:rego/metadata/description:query:read_only
+```live:rego/metadata/description:module:read_only
 # METADATA
 # description: |
 #  The 'allow' rule...
@@ -135,7 +135,7 @@ When a *related-resource* entry is presented as a string, it needs to be a valid
 
 #### Examples
 
-```live:rego/metadata/related_resources1:query:read_only
+```live:rego/metadata/related_resources1:module:read_only
 # METADATA
 # related_resources:
 # - ref: https://example.com
@@ -147,7 +147,7 @@ allow {
 }
 ```
 
-```live:rego/metadata/related_resources2:query:read_only
+```live:rego/metadata/related_resources2:module:read_only
 # METADATA
 # organizations:
 # - https://example.com/foo
@@ -178,7 +178,7 @@ Optionally, the last word may represent an email, if enclosed with `<>`.
 
 #### Examples
 
-```live:rego/metadata/authors1:query:read_only
+```live:rego/metadata/authors1:module:read_only
 # METADATA
 # authors:
 # - name: John Doe
@@ -190,7 +190,7 @@ allow {
 }
 ```
 
-```live:rego/metadata/authors2:query:read_only
+```live:rego/metadata/authors2:module:read_only
 # METADATA
 # authors:
 # - John Doe
@@ -207,7 +207,7 @@ The `organizations` annotation is a list of string values representing the organ
 
 #### Example
 
-```live:rego/metadata/organizations:query:read_only
+```live:rego/metadata/organizations:module:read_only
 # METADATA
 # organizations:
 # - Acme Corp.
@@ -225,7 +225,7 @@ In-depth information on this topic can be found [here](../schemas#schema-annotat
 
 #### Example
 
-```live:rego/metadata/schemas:query:read_only
+```live:rego/metadata/schemas:module:read_only
 # METADATA
 # schemas:
 #   - input: schema.input
@@ -242,7 +242,7 @@ The `custom` annotation is a mapping of user-defined data, mapping string keys t
 
 #### Example
 
-```live:rego/metadata/custom:query:read_only
+```live:rego/metadata/custom:module:read_only
 # METADATA
 # custom:
 #  my_int: 42
