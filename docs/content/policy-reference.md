@@ -1099,12 +1099,60 @@ net.cidr_contains_matches({["1.1.0.0/16", "foo"], "1.1.2.0/24"}, {"x": "1.1.1.12
 | <span class="opa-keep-it-together">``output := rego.metadata.chain()``</span> | Each entry in the ``output`` array represents a node in the path ancestry (chain) of the active rule that also has declared [annotations](../annotations).``output`` is ordered starting at the active rule, going outward to the most distant node in its package ancestry. A chain entry is a JSON document with two members: ``path``, an array representing the path of the node; and ``annotations``, a JSON document containing the annotations declared for the node. The first entry in the chain always points to the active rule, even if it has no declared annotations (in which case the ``annotations`` member is not present). | ✅ |
 | <span class="opa-keep-it-together">``output := rego.metadata.rule()``</span> | Returns a JSON object ``output`` containing the set of [annotations](../annotations) declared for the active rule and using the `rule` [scope](../annotations#scope). If no annotations are declared, an empty object is returned. | ✅ |
 
+#### Example
+
+Given the input document
+
+```live:example/metadata/1:input
+{
+    "number": 11,
+    "subject": {
+        "name": "John doe",
+        "role": "customer"
+    }
+}
+```
+
+the following policy
+
+```live:example/metadata/1:module
+package example
+
+# METADATA
+# title: Deny invalid numbers
+# description: Numbers may not be higer than 5
+# custom:
+#  severity: MEDIUM
+deny[format(rego.metadata.rule())] {
+    input.number > 5
+}
+
+# METADATA
+# title: Deny non-admin subjects
+# description: Subject must have the 'admin' role
+# custom:
+#  severity: HIGH
+deny[format(rego.metadata.rule())] {
+    input.subject.role != "admin"
+}
+
+format(meta) := {"severity": meta.custom.severity, "reason": meta.description}
+```
+
+will output
+
+```live:example/metadata/1:query:merge_down
+deny
+```
+```live:example/metadata/1:output
+```
+
 #### Metadata Merge strategies
 
 When multiple [annotations](../annotations) are declared along the path ancestry (chain) for a rule, how any given annotation should be selected, inherited or merged depends on the semantics of the annotation, the context of the rule, and the preferences of the developer.
 OPA doesn't presume what merge strategy is appropriate; instead, this lies in the hands of the developer. The following example demonstrates how some string and list type annotations in a metadata chain can be merged into a single metadata object.
 
-```live:rego/metadata:query:read_only
+```live:rego/metadata:module:read_only
 # METADATA
 # title: My Example Package
 # description: A set of rules illustrating how metadata annotations can be merged.
