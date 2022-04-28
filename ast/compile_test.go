@@ -4040,7 +4040,7 @@ func TestCompilerRewriteWithValue(t *testing.T) {
 		{
 			note:    "invalid target",
 			input:   `p { true with foo.q as 1 }`,
-			wantErr: fmt.Errorf("rego_type_error: with keyword target must reference existing input, data, or a built-in function"),
+			wantErr: fmt.Errorf("rego_type_error: with keyword target must reference existing input, data, or a function"),
 		},
 		{
 			note:     "built-in function: replaced by (unknown) var",
@@ -4495,21 +4495,6 @@ func TestRewritePrintCallsWithElseImplicitArgs(t *testing.T) {
 }
 
 func TestCompilerMockFunction(t *testing.T) {
-	c := NewCompiler()
-	c.Modules["test"] = MustParseModule(`
-	package test
-
-	is_allowed(label) {
-	    label == "test_label"
-	}
-
-	p {true with data.test.is_allowed as "blah" }
-	`)
-	compileStages(c, c.rewriteWithModifiers)
-	assertCompilerErrorStrings(t, c, []string{"rego_compile_error: with keyword used on non-built-in function"})
-}
-
-func TestCompilerMockBuiltinFunction(t *testing.T) {
 	tests := []struct {
 		note          string
 		module, extra string
@@ -4644,6 +4629,54 @@ func TestCompilerMockBuiltinFunction(t *testing.T) {
 				mock_mock(_)
 				p { bar(foo.bar("one")) with bar as mock with foo.bar as mock_mock }
 			`,
+		},
+		{
+			note: "non-built-in function replaced value",
+			module: `package test
+				original(_)
+				p { original(true) with original as 123 }
+			`,
+		},
+		{
+			note: "non-built-in function replaced by another, arity 0",
+			module: `package test
+				original() = 1
+				mock() = 2
+				p { original() with original as mock }
+			`,
+			err: "rego_type_error: undefined function data.test.original", // TODO(sr): file bug -- this doesn't depend on "with" used or not
+		},
+		{
+			note: "non-built-in function replaced by another, arity 1",
+			module: `package test
+				original(_)
+				mock(_)
+				p { original(true) with original as mock }
+			`,
+		},
+		{
+			note: "non-built-in function replaced by built-in",
+			module: `package test
+				original(_)
+				p { original([1]) with original as count }
+			`,
+		},
+		{
+			note: "non-built-in function replaced by another, arity mismatch",
+			module: `package test
+				original(_)
+				mock(_, _)
+				p { original([1]) with original as mock }
+			`,
+			err: "rego_type_error: data.test.original: arity mismatch\n\thave: (any, any)\n\twant: (any)",
+		},
+		{
+			note: "non-built-in function replaced by built-in, arity mismatch",
+			module: `package test
+				original(_)
+				p { original([1]) with original as concat }
+			`,
+			err: "rego_type_error: data.test.original: arity mismatch\n\thave: (string, any<array[string], set[string]>)\n\twant: (any)",
 		},
 	}
 
@@ -6415,7 +6448,7 @@ func TestQueryCompiler(t *testing.T) {
 			q:        "x = 1 with foo.p as null",
 			pkg:      "",
 			imports:  nil,
-			expected: fmt.Errorf("1 error occurred: 1:12: rego_type_error: with keyword target must reference existing input, data, or a built-in function"),
+			expected: fmt.Errorf("1 error occurred: 1:12: rego_type_error: with keyword target must reference existing input, data, or a function"),
 		},
 		{
 			note:     "rewrite with value",

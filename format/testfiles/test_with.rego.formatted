@@ -22,3 +22,10 @@ func_replacements {
 		with array.concat as true
 		with count as mock_f
 }
+
+original(x) = x + 1
+
+more_func_replacements {
+	original(1) with original as mock_f
+	original(1) with original as 1234
+}

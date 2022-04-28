@@ -16,6 +16,7 @@ import (
 	"github.com/open-policy-agent/opa/topdown/copypropagation"
 	"github.com/open-policy-agent/opa/topdown/print"
 	"github.com/open-policy-agent/opa/tracing"
+	"github.com/open-policy-agent/opa/types"
 )
 
 type evalIterator func(*eval) error
@@ -464,9 +465,10 @@ func (e *eval) evalWith(iter evalIterator) error {
 		// could be relaxed in certain cases (e.g., if the with statement would
 		// have no effect.)
 		for _, with := range expr.With {
-			if isOtherRef(with.Target) {
-				// built-in replaced
-				_ = disableRef(with.Value.Value.(ast.Ref))
+			if isFunction(e.compiler.TypeEnv, with.Target) || // non-builtin function replaced
+				isOtherRef(with.Target) { // built-in replaced
+
+				ast.WalkRefs(with.Value, disableRef)
 				continue
 			}
 
@@ -476,7 +478,6 @@ func (e *eval) evalWith(iter evalIterator) error {
 					return e.next(iter)
 				})
 			}
-
 			ast.WalkRefs(with.Target, disableRef)
 			ast.WalkRefs(with.Value, disableRef)
 		}
@@ -490,21 +491,26 @@ func (e *eval) evalWith(iter evalIterator) error {
 	targets := []ast.Ref{}
 
 	for i := range expr.With {
-		target := expr.With[i].Target.Value
+		target := expr.With[i].Target
 		plugged := e.bindings.Plug(expr.With[i].Value)
 		switch {
-		case isInputRef(expr.With[i].Target):
-			pairsInput = append(pairsInput, [...]*ast.Term{expr.With[i].Target, plugged})
-		case isDataRef(expr.With[i].Target):
-			pairsData = append(pairsData, [...]*ast.Term{expr.With[i].Target, plugged})
+		// NOTE(sr): ordering matters here: isFunction's ref is also covered by isDataRef
+		case isFunction(e.compiler.TypeEnv, target):
+			functionMocks = append(functionMocks, [...]*ast.Term{target, plugged})
+
+		case isInputRef(target):
+			pairsInput = append(pairsInput, [...]*ast.Term{target, plugged})
+
+		case isDataRef(target):
+			pairsData = append(pairsData, [...]*ast.Term{target, plugged})
+
 		default: // target must be builtin
-			_, _, ok := e.builtinFunc(target.String())
-			if ok {
-				functionMocks = append(functionMocks, [...]*ast.Term{expr.With[i].Target, plugged})
+			if _, _, ok := e.builtinFunc(target.String()); ok {
+				functionMocks = append(functionMocks, [...]*ast.Term{target, plugged})
+				continue // don't append to disabled targets below
 			}
-			continue
 		}
-		targets = append(targets, target.(ast.Ref))
+		targets = append(targets, target.Value.(ast.Ref))
 	}
 
 	input, err := mergeTermWithValues(e.input, pairsInput)
@@ -708,7 +714,32 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 
 	ref := terms[0].Value.(ast.Ref)
 
+	var mocked bool
+	mock, mocked := e.functionMocks.Get(ref)
+	if mocked {
+		if m, ok := mock.Value.(ast.Ref); ok { // builtin or data function
+			mockCall := append([]*ast.Term{ast.NewTerm(m)}, terms[1:]...)
+
+			e.functionMocks.Push()
+			err := e.evalCall(mockCall, func() error {
+				e.functionMocks.Pop()
+				err := iter()
+				e.functionMocks.Push()
+				return err
+			})
+			e.functionMocks.Pop()
+			return err
+		}
+	}
+	// 'mocked' true now indicates that the replacement is a value: if
+	// it was a ref to a function, we'd have called that above.
+
 	if ref[0].Equal(ast.DefaultRootDocument) {
+		if mocked {
+			f := e.compiler.TypeEnv.Get(ref).(*types.Function)
+			return e.evalCallValue(len(f.FuncArgs().Args), terms, mock, iter)
+		}
+
 		var ir *ast.IndexResult
 		var err error
 		if e.partial() {
@@ -719,6 +750,7 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 		if err != nil {
 			return err
 		}
+
 		eval := evalFunc{
 			e:     e,
 			ref:   ref,
@@ -734,33 +766,8 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 		return unsupportedBuiltinErr(e.query[e.index].Location)
 	}
 
-	if mock, ok := e.functionMocks.Get(builtinName); ok {
-		switch m := mock.Value.(type) {
-		case ast.Ref: // builtin or data function
-			mockCall := append([]*ast.Term{ast.NewTerm(m)}, terms[1:]...)
-
-			e.functionMocks.Push()
-			err := e.evalCall(mockCall, func() error {
-				e.functionMocks.Pop()
-				err := iter()
-				e.functionMocks.Push()
-				return err
-			})
-			e.functionMocks.Pop()
-			return err
-
-		default: // value replacement
-			switch {
-			case len(terms) == len(bi.Decl.Args())+2: // captured var
-				return e.unify(terms[len(terms)-1], mock, iter)
-
-			case len(terms) == len(bi.Decl.Args())+1:
-				if mock.Value.Compare(ast.Boolean(false)) != 0 {
-					return iter()
-				}
-				return nil
-			}
-		}
+	if mocked { // value replacement of built-in call
+		return e.evalCallValue(len(bi.Decl.Args()), terms, mock, iter)
 	}
 
 	if e.unknown(e.query[e.index], e.bindings) {
@@ -804,6 +811,20 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 		terms: terms[1:],
 	}
 	return eval.eval(iter)
+}
+
+func (e *eval) evalCallValue(arity int, terms []*ast.Term, mock *ast.Term, iter unifyIterator) error {
+	switch {
+	case len(terms) == arity+2: // captured var
+		return e.unify(terms[len(terms)-1], mock, iter)
+
+	case len(terms) == arity+1:
+		if mock.Value.Compare(ast.Boolean(false)) != 0 {
+			return iter()
+		}
+		return nil
+	}
+	panic("unreachable")
 }
 
 func (e *eval) unify(a, b *ast.Term, iter unifyIterator) error {
@@ -3254,6 +3275,15 @@ func isOtherRef(term *ast.Term) bool {
 	return !ref.HasPrefix(ast.DefaultRootRef) && !ref.HasPrefix(ast.InputRootRef)
 }
 
+func isFunction(env *ast.TypeEnv, ref *ast.Term) bool {
+	r, ok := ref.Value.(ast.Ref)
+	if !ok {
+		return false
+	}
+	_, ok = env.Get(r).(*types.Function)
+	return ok
+}
+
 func merge(a, b ast.Value) (ast.Value, bool) {
 	aObj, ok1 := a.(ast.Object)
 	bObj, ok2 := b.(ast.Object)
@@ -3323,17 +3353,10 @@ func suppressEarlyExit(err error) error {
 func (e *eval) updateSavedMocks(withs []*ast.With) []*ast.With {
 	ret := make([]*ast.With, 0, len(withs))
 	for _, w := range withs {
-		v := w.Copy()
-		if isOtherRef(w.Target) {
-			ref := v.Value.Value.(ast.Ref)
-			nref := e.namespaceRef(ref)
-			if e.saveSupport.Exists(nref) {
-				v.Value.Value = nref
-			} else {
-				continue // skip
-			}
+		if isOtherRef(w.Target) || isFunction(e.compiler.TypeEnv, w.Target) {
+			continue
 		}
-		ret = append(ret, v)
+		ret = append(ret, w.Copy())
 	}
 	return ret
 }
