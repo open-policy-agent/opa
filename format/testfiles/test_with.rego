@@ -16,6 +16,12 @@ multi_line_with {
                     3]
 }
 
+mixed_new_lines_with {
+    true with input.a as "a"
+      with input.b as "b" with input.c as "c"
+      with input.d as "d"
+}
+
 mock_f(_) = 123
 
 func_replacements {

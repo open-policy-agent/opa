@@ -455,7 +455,9 @@ func (w *writer) writeExpr(expr *ast.Expr, comments []*ast.Comment) []*ast.Comme
 
 	var indented bool
 	for i, with := range expr.With {
-		if i > 0 && with.Location.Row-expr.With[i-1].Location.Row > 0 {
+		if i == 0 || with.Location.Row == expr.With[i-1].Location.Row { // we're on the same line
+			comments = w.writeWith(with, comments, false)
+		} else { // we're on a new line
 			if !indented {
 				indented = true
 
@@ -464,8 +466,8 @@ func (w *writer) writeExpr(expr *ast.Expr, comments []*ast.Comment) []*ast.Comme
 			}
 			w.endLine()
 			w.startLine()
+			comments = w.writeWith(with, comments, true)
 		}
-		comments = w.writeWith(with, comments, indented)
 	}
 
 	return comments
