@@ -9,11 +9,13 @@ import (
 	"os"
 
 	"github.com/pkg/profile"
+	"github.com/spf13/cobra"
 
 	"github.com/open-policy-agent/opa/cmd"
 )
 
 func main() {
+	cobra.MousetrapHelpText = ""
 	defer profile.Start(profile.TraceProfile, profile.ProfilePath(".")).Stop()
 	if err := cmd.RootCommand.Execute(); err != nil {
 		fmt.Println(err)
