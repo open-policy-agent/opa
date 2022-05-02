@@ -6,7 +6,7 @@ github.com/Azure/go-ansiterm/winterm
 github.com/OneOfOne/xxhash
 # github.com/beorn7/perks v1.0.1
 github.com/beorn7/perks/quantile
-# github.com/bytecodealliance/wasmtime-go v0.35.0
+# github.com/bytecodealliance/wasmtime-go v0.36.0
 ## explicit
 github.com/bytecodealliance/wasmtime-go
 github.com/bytecodealliance/wasmtime-go/build/include

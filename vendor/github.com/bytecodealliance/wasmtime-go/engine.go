@@ -1,6 +1,6 @@
 package wasmtime
 
-// #include <wasm.h>
+// #include <wasmtime.h>
 import "C"
 import (
 	"runtime"
@@ -43,4 +43,14 @@ func (engine *Engine) ptr() *C.wasm_engine_t {
 	ret := engine._ptr
 	maybeGC()
 	return ret
+}
+
+// IncrementEpoch will increase the current epoch number by 1 within the
+// current engine which will cause any connected stores with their epoch
+// deadline exceeded to now be interrupted.
+//
+// This method is safe to call from any goroutine.
+func (engine *Engine) IncrementEpoch() {
+	C.wasmtime_engine_increment_epoch(engine.ptr())
+	runtime.KeepAlive(engine)
 }
