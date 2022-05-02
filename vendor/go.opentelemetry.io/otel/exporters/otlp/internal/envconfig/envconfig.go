@@ -25,17 +25,17 @@ import (
 	"time"
 )
 
-// ConfigFn is the generic function used to set a config
+// ConfigFn is the generic function used to set a config.
 type ConfigFn func(*EnvOptionsReader)
 
-// EnvOptionsReader reads the required environment variables
+// EnvOptionsReader reads the required environment variables.
 type EnvOptionsReader struct {
 	GetEnv    func(string) string
 	ReadFile  func(string) ([]byte, error)
 	Namespace string
 }
 
-// Apply runs every ConfigFn
+// Apply runs every ConfigFn.
 func (e *EnvOptionsReader) Apply(opts ...ConfigFn) {
 	for _, o := range opts {
 		o(e)
@@ -50,7 +50,7 @@ func (e *EnvOptionsReader) GetEnvValue(key string) (string, bool) {
 	return v, v != ""
 }
 
-// WithString retrieves the specified config and passes it to ConfigFn as a string
+// WithString retrieves the specified config and passes it to ConfigFn as a string.
 func WithString(n string, fn func(string)) func(e *EnvOptionsReader) {
 	return func(e *EnvOptionsReader) {
 		if v, ok := e.GetEnvValue(n); ok {
@@ -59,7 +59,7 @@ func WithString(n string, fn func(string)) func(e *EnvOptionsReader) {
 	}
 }
 
-// WithDuration retrieves the specified config and passes it to ConfigFn as a duration
+// WithDuration retrieves the specified config and passes it to ConfigFn as a duration.
 func WithDuration(n string, fn func(time.Duration)) func(e *EnvOptionsReader) {
 	return func(e *EnvOptionsReader) {
 		if v, ok := e.GetEnvValue(n); ok {
@@ -70,7 +70,7 @@ func WithDuration(n string, fn func(time.Duration)) func(e *EnvOptionsReader) {
 	}
 }
 
-// WithHeaders retrieves the specified config and passes it to ConfigFn as a map of HTTP headers
+// WithHeaders retrieves the specified config and passes it to ConfigFn as a map of HTTP headers.
 func WithHeaders(n string, fn func(map[string]string)) func(e *EnvOptionsReader) {
 	return func(e *EnvOptionsReader) {
 		if v, ok := e.GetEnvValue(n); ok {
@@ -79,7 +79,7 @@ func WithHeaders(n string, fn func(map[string]string)) func(e *EnvOptionsReader)
 	}
 }
 
-// WithURL retrieves the specified config and passes it to ConfigFn as a net/url.URL
+// WithURL retrieves the specified config and passes it to ConfigFn as a net/url.URL.
 func WithURL(n string, fn func(*url.URL)) func(e *EnvOptionsReader) {
 	return func(e *EnvOptionsReader) {
 		if v, ok := e.GetEnvValue(n); ok {
@@ -90,7 +90,7 @@ func WithURL(n string, fn func(*url.URL)) func(e *EnvOptionsReader) {
 	}
 }
 
-// WithTLSConfig retrieves the specified config and passes it to ConfigFn as a crypto/tls.Config
+// WithTLSConfig retrieves the specified config and passes it to ConfigFn as a crypto/tls.Config.
 func WithTLSConfig(n string, fn func(*tls.Config)) func(e *EnvOptionsReader) {
 	return func(e *EnvOptionsReader) {
 		if v, ok := e.GetEnvValue(n); ok {

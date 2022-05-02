@@ -19,6 +19,17 @@ import (
 	"go.opentelemetry.io/otel/metric/internal/global"
 )
 
+// Meter returns a Meter from the global MeterProvider. The
+// instrumentationName must be the name of the library providing
+// instrumentation. This name may be the same as the instrumented code only if
+// that code provides built-in instrumentation. If the instrumentationName is
+// empty, then a implementation defined default name will be used instead.
+//
+// This is short for MeterProvider().Meter(name).
+func Meter(instrumentationName string, opts ...metric.MeterOption) metric.Meter {
+	return MeterProvider().Meter(instrumentationName, opts...)
+}
+
 // MeterProvider returns the registered global trace provider.
 // If none is registered then a No-op MeterProvider is returned.
 func MeterProvider() metric.MeterProvider {
