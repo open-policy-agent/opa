@@ -31,7 +31,6 @@ type VM struct {
 	engine               *wasmtime.Engine
 	store                *wasmtime.Store
 	instance             *wasmtime.Instance // Pointer to avoid unintented destruction (triggering finalizers within).
-	intHandle            *wasmtime.InterruptHandle
 	policy               []byte
 	abiMajorVersion      int32
 	abiMinorVersion      int32
@@ -74,6 +73,7 @@ func newVM(opts vmOpts, engine *wasmtime.Engine) (*VM, error) {
 	ctx := context.Background()
 	v := &VM{engine: engine}
 	store := wasmtime.NewStore(engine)
+	store.SetEpochDeadline(1)
 	memorytype := wasmtime.NewMemoryType(opts.memoryMin, true, opts.memoryMax)
 	memory, err := wasmtime.NewMemory(store, memorytype)
 	if err != nil {
@@ -100,10 +100,6 @@ func newVM(opts vmOpts, engine *wasmtime.Engine) (*VM, error) {
 	i, err := linker.Instantiate(store, module)
 	if err != nil {
 		return nil, err
-	}
-	v.intHandle, err = store.InterruptHandle()
-	if err != nil {
-		return nil, fmt.Errorf("get interrupt handle: %w", err)
 	}
 
 	v.abiMajorVersion, v.abiMinorVersion, err = getABIVersion(i, store)
@@ -714,7 +710,7 @@ func callOrCancel(ctx context.Context, vm *VM, name string, args ...int32) (inte
 	go func() {
 		select {
 		case <-ctx.Done():
-			vm.intHandle.Interrupt()
+			vm.store.Engine.IncrementEpoch()
 		case <-done:
 		}
 		close(ctxdone)
@@ -747,9 +743,8 @@ func callOrCancel(ctx context.Context, vm *VM, name string, args ...int32) (inte
 		// if last err was trap, extract information
 		var t *wasmtime.Trap
 		if errors.As(err, &t) {
-			code := t.Code()
-			if code != nil && *code == wasmtime.Interrupt {
-				return 0, sdk_errors.New(sdk_errors.CancelledErr, getStack(t.Frames(), "interrupted"))
+			if t.Message() == "epoch deadline reached during execution" {
+				return 0, sdk_errors.New(sdk_errors.CancelledErr, "interrupted")
 			}
 			return 0, sdk_errors.New(sdk_errors.InternalErr, getStack(t.Frames(), "trapped"))
 		}
