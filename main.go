@@ -8,10 +8,13 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/pkg/profile"
+
 	"github.com/open-policy-agent/opa/cmd"
 )
 
 func main() {
+	defer profile.Start(profile.TraceProfile, profile.ProfilePath(".")).Stop()
 	if err := cmd.RootCommand.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
