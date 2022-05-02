@@ -169,6 +169,7 @@ func (m *meter) AsyncFloat64() asyncfloat64.InstrumentProvider {
 // and only on the instruments that were registered with this call.
 func (m *meter) RegisterCallback(insts []instrument.Asynchronous, function func(context.Context)) error {
 	if del, ok := m.delegate.Load().(metric.Meter); ok {
+		insts = unwrapInstruments(insts)
 		return del.RegisterCallback(insts, function)
 	}
 
@@ -182,7 +183,25 @@ func (m *meter) RegisterCallback(insts []instrument.Asynchronous, function func(
 	return nil
 }
 
-// SyncInt64 is the namespace for the Synchronous Integer instruments
+type wrapped interface {
+	unwrap() instrument.Asynchronous
+}
+
+func unwrapInstruments(instruments []instrument.Asynchronous) []instrument.Asynchronous {
+	out := make([]instrument.Asynchronous, 0, len(instruments))
+
+	for _, inst := range instruments {
+		if in, ok := inst.(wrapped); ok {
+			out = append(out, in.unwrap())
+		} else {
+			out = append(out, inst)
+		}
+	}
+
+	return out
+}
+
+// SyncInt64 is the namespace for the Synchronous Integer instruments.
 func (m *meter) SyncInt64() syncint64.InstrumentProvider {
 	if del, ok := m.delegate.Load().(metric.Meter); ok {
 		return del.SyncInt64()
@@ -190,7 +209,7 @@ func (m *meter) SyncInt64() syncint64.InstrumentProvider {
 	return (*siInstProvider)(m)
 }
 
-// SyncFloat64 is the namespace for the Synchronous Float instruments
+// SyncFloat64 is the namespace for the Synchronous Float instruments.
 func (m *meter) SyncFloat64() syncfloat64.InstrumentProvider {
 	if del, ok := m.delegate.Load().(metric.Meter); ok {
 		return del.SyncFloat64()
@@ -204,7 +223,8 @@ type delegatedCallback struct {
 }
 
 func (c *delegatedCallback) setDelegate(m metric.Meter) {
-	err := m.RegisterCallback(c.instruments, c.function)
+	insts := unwrapInstruments(c.instruments)
+	err := m.RegisterCallback(insts, c.function)
 	if err != nil {
 		otel.Handle(err)
 	}

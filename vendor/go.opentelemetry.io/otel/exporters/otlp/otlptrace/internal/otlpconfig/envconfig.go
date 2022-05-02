@@ -26,14 +26,14 @@ import (
 	"go.opentelemetry.io/otel/exporters/otlp/internal/envconfig"
 )
 
-// DefaultEnvOptionsReader is the default environments reader
+// DefaultEnvOptionsReader is the default environments reader.
 var DefaultEnvOptionsReader = envconfig.EnvOptionsReader{
 	GetEnv:    os.Getenv,
 	ReadFile:  ioutil.ReadFile,
 	Namespace: "OTEL_EXPORTER_OTLP",
 }
 
-// ApplyGRPCEnvConfigs applies the env configurations for gRPC
+// ApplyGRPCEnvConfigs applies the env configurations for gRPC.
 func ApplyGRPCEnvConfigs(cfg Config) Config {
 	opts := getOptionsFromEnv()
 	for _, opt := range opts {
@@ -42,7 +42,7 @@ func ApplyGRPCEnvConfigs(cfg Config) Config {
 	return cfg
 }
 
-// ApplyHTTPEnvConfigs applies the env configurations for HTTP
+// ApplyHTTPEnvConfigs applies the env configurations for HTTP.
 func ApplyHTTPEnvConfigs(cfg Config) Config {
 	opts := getOptionsFromEnv()
 	for _, opt := range opts {
@@ -113,7 +113,7 @@ func withEndpointForGRPC(u *url.URL) func(cfg Config) Config {
 	}
 }
 
-// WithEnvCompression retrieves the specified config and passes it to ConfigFn as a Compression
+// WithEnvCompression retrieves the specified config and passes it to ConfigFn as a Compression.
 func WithEnvCompression(n string, fn func(Compression)) func(e *envconfig.EnvOptionsReader) {
 	return func(e *envconfig.EnvOptionsReader) {
 		if v, ok := e.GetEnvValue(n); ok {

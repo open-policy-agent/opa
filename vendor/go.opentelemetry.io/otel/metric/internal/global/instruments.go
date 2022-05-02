@@ -54,6 +54,13 @@ func (i *afCounter) Observe(ctx context.Context, x float64, attrs ...attribute.K
 	}
 }
 
+func (i *afCounter) unwrap() instrument.Asynchronous {
+	if ctr := i.delegate.Load(); ctr != nil {
+		return ctr.(asyncfloat64.Counter)
+	}
+	return nil
+}
+
 type afUpDownCounter struct {
 	name string
 	opts []instrument.Option
@@ -78,6 +85,13 @@ func (i *afUpDownCounter) Observe(ctx context.Context, x float64, attrs ...attri
 	if ctr := i.delegate.Load(); ctr != nil {
 		ctr.(asyncfloat64.UpDownCounter).Observe(ctx, x, attrs...)
 	}
+}
+
+func (i *afUpDownCounter) unwrap() instrument.Asynchronous {
+	if ctr := i.delegate.Load(); ctr != nil {
+		return ctr.(asyncfloat64.UpDownCounter)
+	}
+	return nil
 }
 
 type afGauge struct {
@@ -106,6 +120,13 @@ func (i *afGauge) Observe(ctx context.Context, x float64, attrs ...attribute.Key
 	}
 }
 
+func (i *afGauge) unwrap() instrument.Asynchronous {
+	if ctr := i.delegate.Load(); ctr != nil {
+		return ctr.(asyncfloat64.Gauge)
+	}
+	return nil
+}
+
 type aiCounter struct {
 	name string
 	opts []instrument.Option
@@ -130,6 +151,13 @@ func (i *aiCounter) Observe(ctx context.Context, x int64, attrs ...attribute.Key
 	if ctr := i.delegate.Load(); ctr != nil {
 		ctr.(asyncint64.Counter).Observe(ctx, x, attrs...)
 	}
+}
+
+func (i *aiCounter) unwrap() instrument.Asynchronous {
+	if ctr := i.delegate.Load(); ctr != nil {
+		return ctr.(asyncint64.Counter)
+	}
+	return nil
 }
 
 type aiUpDownCounter struct {
@@ -158,6 +186,13 @@ func (i *aiUpDownCounter) Observe(ctx context.Context, x int64, attrs ...attribu
 	}
 }
 
+func (i *aiUpDownCounter) unwrap() instrument.Asynchronous {
+	if ctr := i.delegate.Load(); ctr != nil {
+		return ctr.(asyncint64.UpDownCounter)
+	}
+	return nil
+}
+
 type aiGauge struct {
 	name string
 	opts []instrument.Option
@@ -184,7 +219,14 @@ func (i *aiGauge) Observe(ctx context.Context, x int64, attrs ...attribute.KeyVa
 	}
 }
 
-//Sync Instruments
+func (i *aiGauge) unwrap() instrument.Asynchronous {
+	if ctr := i.delegate.Load(); ctr != nil {
+		return ctr.(asyncint64.Gauge)
+	}
+	return nil
+}
+
+//Sync Instruments.
 type sfCounter struct {
 	name string
 	opts []instrument.Option

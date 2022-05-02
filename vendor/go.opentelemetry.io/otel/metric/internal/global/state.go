@@ -15,9 +15,11 @@
 package global // import "go.opentelemetry.io/otel/metric/internal/global"
 
 import (
+	"errors"
 	"sync"
 	"sync/atomic"
 
+	"go.opentelemetry.io/otel/internal/global"
 	"go.opentelemetry.io/otel/metric"
 )
 
@@ -38,14 +40,21 @@ func MeterProvider() metric.MeterProvider {
 
 // SetMeterProvider is the internal implementation for global.SetMeterProvider.
 func SetMeterProvider(mp metric.MeterProvider) {
+	current := MeterProvider()
+	if _, cOk := current.(*meterProvider); cOk {
+		if _, mpOk := mp.(*meterProvider); mpOk && current == mp {
+			// Do not assign the default delegating MeterProvider to delegate
+			// to itself.
+			global.Error(
+				errors.New("no delegate configured in meter provider"),
+				"Setting meter provider to it's current value. No delegate will be configured",
+			)
+			return
+		}
+	}
+
 	delegateMeterOnce.Do(func() {
-		current := MeterProvider()
-		if current == mp {
-			// Setting the provider to the prior default is nonsense, panic.
-			// Panic is acceptable because we are likely still early in the
-			// process lifetime.
-			panic("invalid MeterProvider, the global instance cannot be reinstalled")
-		} else if def, ok := current.(*meterProvider); ok {
+		if def, ok := current.(*meterProvider); ok {
 			def.setDelegate(mp)
 		}
 	})
