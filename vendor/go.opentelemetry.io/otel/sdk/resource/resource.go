@@ -194,7 +194,7 @@ func Merge(a, b *Resource) (*Resource, error) {
 	mi := attribute.NewMergeIterator(b.Set(), a.Set())
 	combine := make([]attribute.KeyValue, 0, a.Len()+b.Len())
 	for mi.Next() {
-		combine = append(combine, mi.Label())
+		combine = append(combine, mi.Attribute())
 	}
 	merged := NewWithAttributes(schemaURL, combine...)
 	return merged, nil
