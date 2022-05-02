@@ -37,7 +37,7 @@ const (
 	GzipCompression
 )
 
-// Marshaler describes the kind of message format sent to the collector
+// Marshaler describes the kind of message format sent to the collector.
 type Marshaler int
 
 const (

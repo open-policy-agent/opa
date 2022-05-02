@@ -53,17 +53,17 @@ type SamplingParameters struct {
 // SamplingDecision indicates whether a span is dropped, recorded and/or sampled.
 type SamplingDecision uint8
 
-// Valid sampling decisions
+// Valid sampling decisions.
 const (
-	// Drop will not record the span and all attributes/events will be dropped
+	// Drop will not record the span and all attributes/events will be dropped.
 	Drop SamplingDecision = iota
 
 	// Record indicates the span's `IsRecording() == true`, but `Sampled` flag
-	// *must not* be set
+	// *must not* be set.
 	RecordOnly
 
 	// RecordAndSample has span's `IsRecording() == true` and `Sampled` flag
-	// *must* be set
+	// *must* be set.
 	RecordAndSample
 )
 
