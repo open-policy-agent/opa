@@ -31,7 +31,7 @@ const (
 	defaultTracerName = "go.opentelemetry.io/otel/sdk/tracer"
 )
 
-// tracerProviderConfig
+// tracerProviderConfig.
 type tracerProviderConfig struct {
 	// processors contains collection of SpanProcessors that are processing pipeline
 	// for spans in the trace signal.
@@ -156,7 +156,7 @@ func (p *TracerProvider) Tracer(name string, opts ...trace.TracerOption) trace.T
 	return t
 }
 
-// RegisterSpanProcessor adds the given SpanProcessor to the list of SpanProcessors
+// RegisterSpanProcessor adds the given SpanProcessor to the list of SpanProcessors.
 func (p *TracerProvider) RegisterSpanProcessor(s SpanProcessor) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -172,7 +172,7 @@ func (p *TracerProvider) RegisterSpanProcessor(s SpanProcessor) {
 	p.spanProcessors.Store(new)
 }
 
-// UnregisterSpanProcessor removes the given SpanProcessor from the list of SpanProcessors
+// UnregisterSpanProcessor removes the given SpanProcessor from the list of SpanProcessors.
 func (p *TracerProvider) UnregisterSpanProcessor(s SpanProcessor) {
 	p.mu.Lock()
 	defer p.mu.Unlock()

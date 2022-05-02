@@ -21,56 +21,47 @@ import (
 	"go.opentelemetry.io/otel/internal/global"
 )
 
-// Environment variable names
+// Environment variable names.
 const (
-	// BatchSpanProcessorScheduleDelayKey
-	// Delay interval between two consecutive exports.
-	// i.e. 5000
+	// BatchSpanProcessorScheduleDelayKey is the delay interval between two
+	// consecutive exports (i.e. 5000).
 	BatchSpanProcessorScheduleDelayKey = "OTEL_BSP_SCHEDULE_DELAY"
-	// BatchSpanProcessorExportTimeoutKey
-	// Maximum allowed time to export data.
-	// i.e. 3000
+	// BatchSpanProcessorExportTimeoutKey is the maximum allowed time to
+	// export data (i.e. 3000).
 	BatchSpanProcessorExportTimeoutKey = "OTEL_BSP_EXPORT_TIMEOUT"
-	// BatchSpanProcessorMaxQueueSizeKey
-	// Maximum queue size
-	// i.e. 2048
+	// BatchSpanProcessorMaxQueueSizeKey is the maximum queue size (i.e. 2048).
 	BatchSpanProcessorMaxQueueSizeKey = "OTEL_BSP_MAX_QUEUE_SIZE"
-	// BatchSpanProcessorMaxExportBatchSizeKey
-	// Maximum batch size
-	// Note: Must be less than or equal to EnvBatchSpanProcessorMaxQueueSize
-	// i.e. 512
+	// BatchSpanProcessorMaxExportBatchSizeKey is the maximum batch size (i.e.
+	// 512). Note: it must be less than or equal to
+	// EnvBatchSpanProcessorMaxQueueSize.
 	BatchSpanProcessorMaxExportBatchSizeKey = "OTEL_BSP_MAX_EXPORT_BATCH_SIZE"
 
-	// AttributeValueLengthKey
-	// Maximum allowed attribute value size.
+	// AttributeValueLengthKey is the maximum allowed attribute value size.
 	AttributeValueLengthKey = "OTEL_ATTRIBUTE_VALUE_LENGTH_LIMIT"
 
-	// AttributeCountKey
-	// Maximum allowed span attribute count
+	// AttributeCountKey is the maximum allowed span attribute count.
 	AttributeCountKey = "OTEL_ATTRIBUTE_COUNT_LIMIT"
 
-	// SpanAttributeValueLengthKey
-	// Maximum allowed attribute value size for a span.
+	// SpanAttributeValueLengthKey is the maximum allowed attribute value size
+	// for a span.
 	SpanAttributeValueLengthKey = "OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT"
 
-	// SpanAttributeCountKey
-	// Maximum allowed span attribute count for a span.
+	// SpanAttributeCountKey is the maximum allowed span attribute count for a
+	// span.
 	SpanAttributeCountKey = "OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT"
 
-	// SpanEventCountKey
-	// Maximum allowed span event count.
+	// SpanEventCountKey is the maximum allowed span event count.
 	SpanEventCountKey = "OTEL_SPAN_EVENT_COUNT_LIMIT"
 
-	// SpanEventAttributeCountKey
-	// Maximum allowed attribute per span event count.
+	// SpanEventAttributeCountKey is the maximum allowed attribute per span
+	// event count.
 	SpanEventAttributeCountKey = "OTEL_EVENT_ATTRIBUTE_COUNT_LIMIT"
 
-	// SpanLinkCountKey
-	// Maximum allowed span link count.
+	// SpanLinkCountKey is the maximum allowed span link count.
 	SpanLinkCountKey = "OTEL_SPAN_LINK_COUNT_LIMIT"
 
-	// SpanLinkAttributeCountKey
-	// Maximum allowed attribute per span link count.
+	// SpanLinkAttributeCountKey is the maximum allowed attribute per span
+	// link count.
 	SpanLinkAttributeCountKey = "OTEL_LINK_ATTRIBUTE_COUNT_LIMIT"
 )
 

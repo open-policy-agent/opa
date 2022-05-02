@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package semconv // import "go.opentelemetry.io/otel/semconv/v1.7.0"
+package semconv // import "go.opentelemetry.io/otel/semconv/v1.10.0"
 
 import (
 	"net/http"
