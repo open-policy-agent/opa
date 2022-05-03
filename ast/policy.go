@@ -188,6 +188,7 @@ type (
 	Head struct {
 		Location *Location `json:"-"`
 		Name     Var       `json:"name"`
+		Ref      Ref       `json:"ref"`
 		Args     Args      `json:"args,omitempty"`
 		Key      *Term     `json:"key,omitempty"`
 		Value    *Term     `json:"value,omitempty"`
@@ -598,11 +599,23 @@ func (rule *Rule) SetLoc(loc *Location) {
 
 // Path returns a ref referring to the document produced by this rule. If rule
 // is not contained in a module, this function panics.
+// Deprecated: Poor handling of ref rules. Use `(*Rule).Ref()` instead.
 func (rule *Rule) Path() Ref {
 	if rule.Module == nil {
 		panic("assertion failed")
 	}
-	return rule.Module.Package.Path.Append(StringTerm(string(rule.Head.Name)))
+	return rule.Module.Package.Path.Extend(rule.Head.Ref.GroundPrefix())
+}
+
+// Ref returns a ref referring to the document produced by this rule. If rule
+// is not contained in a module, this function panics. The returned ref may
+// contain variables in the last position.
+func (rule *Rule) Ref() Ref {
+	// TODO(sr): "in all positions", later
+	if rule.Module == nil {
+		panic("assertion failed")
+	}
+	return rule.Module.Package.Path.Extend(rule.Head.Ref)
 }
 
 func (rule *Rule) String() string {
@@ -648,7 +661,8 @@ func (rule *Rule) elseString() string {
 // used for the key and the second will be used for the value.
 func NewHead(name Var, args ...*Term) *Head {
 	head := &Head{
-		Name: name,
+		Name: name, // backcompat
+		Ref:  []*Term{NewTerm(name)},
 	}
 	if len(args) == 0 {
 		return head
@@ -658,6 +672,24 @@ func NewHead(name Var, args ...*Term) *Head {
 		return head
 	}
 	head.Value = args[1]
+	if head.Key != nil && head.Value != nil {
+		head.Ref = head.Ref.Append(args[0])
+	}
+	return head
+}
+
+// RefHead returns a new Head object with the passed Ref. If args are provided,
+// the first will be used for the value.
+func RefHead(ref Ref, args ...*Term) *Head {
+	head := &Head{
+		Ref: ref,
+	}
+	if len(ref) < 2 {
+		head.Name = ref[0].Value.(Var) // explodes?
+	}
+	if len(args) >= 1 {
+		head.Value = args[0]
+	}
 	return head
 }
 
@@ -673,7 +705,7 @@ const (
 
 	// PartialObjectDoc represents an object document that is partially defined by the rule.
 	PartialObjectDoc
-)
+) // TODO(sr): think about changing this
 
 // DocKind returns the type of document produced by this rule.
 func (head *Head) DocKind() DocKind {
@@ -705,6 +737,9 @@ func (head *Head) Compare(other *Head) int {
 	if cmp := Compare(head.Args, other.Args); cmp != 0 {
 		return cmp
 	}
+	if cmp := Compare(head.Ref, other.Ref); cmp != 0 {
+		return cmp
+	}
 	if cmp := Compare(head.Name, other.Name); cmp != 0 {
 		return cmp
 	}
@@ -730,12 +765,16 @@ func (head *Head) Equal(other *Head) bool {
 
 func (head *Head) String() string {
 	buf := strings.Builder{}
-	buf.WriteString(head.Name.String())
+	if head.Name != "" {
+		buf.WriteString(head.Name.String())
+	} else {
+		buf.WriteString(head.Ref.String())
+	}
 
 	switch {
 	case len(head.Args) != 0:
 		buf.WriteString(head.Args.String())
-	case head.Key != nil:
+	case head.Key != nil && head.Name != "": // backcompat `p[x] { .. }`
 		buf.WriteRune('[')
 		buf.WriteString(head.Key.String())
 		buf.WriteRune(']')

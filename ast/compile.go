@@ -64,6 +64,7 @@ type Compiler struct {
 	//  p[1] { true }
 	//  p[2] { true }
 	//  q = true
+	//  a.b.c = 3
 	//
 	//  root
 	//    |
@@ -74,6 +75,12 @@ type Compiler struct {
 	//                +--- p (2 rules)
 	//                |
 	//                +--- q (1 rule)
+	//                |
+	//                +--- a
+	//                     |
+	//                     +--- b
+	//                          |
+	//                          +--- c (1 rule)
 	RuleTree *TreeNode
 
 	// Graph contains dependencies between rules. An edge (u,v) is added to the
@@ -265,6 +272,7 @@ func NewCompiler() *Compiler {
 		// load additional modules. If any stages run before resolution, they
 		// need to be re-run after resolution.
 		{"ResolveRefs", "compile_stage_resolve_refs", c.resolveAllRefs},
+		{"CheckRuleHeadRefs", "compile_stage_check_rule_head_refs", c.checkRuleHeadRefs},
 		{"CheckKeywordOverrides", "compile_stage_check_keyword_overrides", c.checkKeywordOverrides},
 		{"CheckDuplicateImports", "compile_stage_check_duplicate_imports", c.checkDuplicateImports},
 		{"RemoveImports", "compile_stage_remove_imports", c.removeImports},
@@ -832,28 +840,44 @@ func astNodeToString(x interface{}) string {
 func (c *Compiler) checkRuleConflicts() {
 	c.RuleTree.DepthFirst(func(node *TreeNode) bool {
 		if len(node.Values) == 0 {
-			return false
+			return false // go deeper
 		}
 
 		kinds := map[DocKind]struct{}{}
 		defaultRules := 0
 		arities := map[int]struct{}{}
+		name := ""
+		var singleValueConflict *TreeNode
 
 		for _, rule := range node.Values {
 			r := rule.(*Rule)
+			name = r.Ref().GroundPrefix().String()
 			kinds[r.Head.DocKind()] = struct{}{}
 			arities[len(r.Head.Args)] = struct{}{}
 			if r.Default {
 				defaultRules++
 			}
+
+			// Single-value rules may not have any other rules in their extent: this is invalid
+			//   data.p.q.r { true }
+			//   data.p.q.r.s { true }
+			if len(node.Children) > 0 && r.Head.Value != nil {
+				if r.Head.Ref[len(r.Head.Ref)-1].IsGround() {
+					singleValueConflict = node
+				}
+			}
 		}
 
-		name := Var(node.Key.(String))
+		switch {
+		case singleValueConflict != nil:
+			others := singleValueConflict.flattenChildren()
+			c.err(NewError(TypeErr, node.Values[0].(*Rule).Loc(), "single-value rule %v conflicts with %v", name, others))
 
-		if len(kinds) > 1 || len(arities) > 1 {
-			c.err(NewError(TypeErr, node.Values[0].(*Rule).Loc(), "conflicting rules named %v found", name))
-		} else if defaultRules > 1 {
-			c.err(NewError(TypeErr, node.Values[0].(*Rule).Loc(), "multiple default rules named %s found", name))
+		case len(kinds) > 1 || len(arities) > 1:
+			c.err(NewError(TypeErr, node.Values[0].(*Rule).Loc(), "conflicting rules %v found", name))
+
+		case defaultRules > 1:
+			c.err(NewError(TypeErr, node.Values[0].(*Rule).Loc(), "multiple default rules %s found", name))
 		}
 
 		return false
@@ -865,13 +889,21 @@ func (c *Compiler) checkRuleConflicts() {
 		}
 	}
 
+	// NOTE(sr): depthfirst might better use sorted for stable errs?
 	c.ModuleTree.DepthFirst(func(node *ModuleTreeNode) bool {
 		for _, mod := range node.Modules {
 			for _, rule := range mod.Rules {
-				if childNode, ok := node.Children[String(rule.Head.Name)]; ok {
+				ref := rule.Head.Ref.GroundPrefix()
+				childNode, tail := node.find(ref)
+				if childNode != nil {
 					for _, childMod := range childNode.Modules {
-						msg := fmt.Sprintf("%v conflicts with rule defined at %v", childMod.Package, rule.Loc())
-						c.err(NewError(TypeErr, mod.Package.Loc(), msg))
+						if childMod.Equal(mod) {
+							continue // don't self-conflict
+						}
+						if len(tail) == 0 {
+							msg := fmt.Sprintf("%v conflicts with rule %v defined at %v", childMod.Package, rule.Head.Ref, rule.Loc())
+							c.err(NewError(TypeErr, mod.Package.Loc(), msg))
+						}
 					}
 				}
 			}
@@ -1363,19 +1395,34 @@ func (c *Compiler) getExports() *util.HashMap {
 
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
-		rv, ok := rules.Get(mod.Package.Path)
-		if !ok {
-			rv = []Var{}
-		}
-		rvs := rv.([]Var)
 
 		for _, rule := range mod.Rules {
-			rvs = append(rvs, rule.Head.Name)
+			ref := rule.Head.Ref.GroundPrefix()
+			name := ref[len(ref)-1]
+			if len(ref) == 1 {
+				hashMapAdd(rules, mod.Package.Path, name.Value.(Var))
+				continue
+			}
+			switch name := name.Value.(type) {
+			case Var:
+				hashMapAdd(rules, mod.Package.Path.Extend(ref[:len(ref)-1]), name)
+			case String:
+				hashMapAdd(rules, mod.Package.Path.Extend(ref[:len(ref)-1]), Var(name))
+			}
 		}
-		rules.Put(mod.Package.Path, rvs)
 	}
 
 	return rules
+}
+
+func hashMapAdd(rules *util.HashMap, ref Ref, rvs ...Var) {
+	// TODO(sr) we had been deduplicating here before
+	prev, ok := rules.Get(ref)
+	if ok {
+		rules.Put(ref, append(prev.([]Var), rvs...))
+	} else {
+		rules.Put(ref, rvs)
+	}
 }
 
 func (c *Compiler) GetAnnotationSet() *AnnotationSet {
@@ -1540,6 +1587,31 @@ func (c *Compiler) rewriteExprTerms() {
 			return false
 		})
 	}
+}
+
+func (c *Compiler) checkRuleHeadRefs() {
+	for _, name := range c.sorted {
+		mod := c.Modules[name]
+		for _, err := range checkRuleHeadRefs(mod) {
+			c.err(err)
+		}
+	}
+}
+
+func checkRuleHeadRefs(mod *Module) Errors {
+	var errs Errors
+	WalkRules(mod, func(r *Rule) bool {
+		ref := r.Head.Ref
+		// NOTE(sr): In the first iteraion, dynamic values in the refs are forbidden
+		// except for the last postion, e.g.
+		//     OK: p.q.r[s]
+		// NOT OK: p[q].r.s
+		if x := ref.Dynamic(); x != -1 && x != len(ref)-1 {
+			errs = append(errs, NewError(TypeErr, r.Loc(), "rule head must not contain dynamic values: %v", r.Head.Ref[x]))
+		}
+		return true
+	})
+	return errs
 }
 
 func (c *Compiler) checkVoidCalls() {
@@ -1755,10 +1827,16 @@ func (c *Compiler) rewriteRefsInHead() {
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
 		WalkRules(mod, func(rule *Rule) bool {
-			if requiresEval(rule.Head.Key) {
-				expr := f.Generate(rule.Head.Key)
-				rule.Head.Key = expr.Operand(0)
-				rule.Body.Append(expr)
+
+			for i := 1; i < len(rule.Head.Ref); i++ {
+				if requiresEval(rule.Head.Ref[i]) {
+					expr := f.Generate(rule.Head.Ref[i])
+					if i == len(rule.Head.Ref)-1 && rule.Head.Key.Equal(rule.Head.Ref[i]) {
+						rule.Head.Key = expr.Operand(0)
+					}
+					rule.Head.Ref[i] = expr.Operand(0)
+					rule.Body.Append(expr)
+				}
 			}
 			if requiresEval(rule.Head.Value) {
 				expr := f.Generate(rule.Head.Value)
@@ -2044,6 +2122,9 @@ func (c *Compiler) rewriteLocalVars() {
 			// Rewrite assignments in body.
 			used := NewVarSet()
 
+			last := rule.Head.Ref[len(rule.Head.Ref)-1]
+			used.Update(last.Vars())
+
 			if rule.Head.Key != nil {
 				used.Update(rule.Head.Key.Vars())
 			}
@@ -2076,6 +2157,9 @@ func (c *Compiler) rewriteLocalVars() {
 				rule.Head.Args[i], _ = transformTerm(localXform, rule.Head.Args[i])
 			}
 
+			for i := 1; i < len(rule.Head.Ref); i++ {
+				rule.Head.Ref[i], _ = transformTerm(localXform, rule.Head.Ref[i])
+			}
 			if rule.Head.Key != nil {
 				rule.Head.Key, _ = transformTerm(localXform, rule.Head.Key)
 			}
@@ -2792,6 +2876,16 @@ type ModuleTreeNode struct {
 	Hide     bool
 }
 
+func (n *ModuleTreeNode) String() string {
+	var rules []string
+	for _, m := range n.Modules {
+		for _, r := range m.Rules {
+			rules = append(rules, r.Head.String())
+		}
+	}
+	return fmt.Sprintf("<ModuleTreeNode key:%v children:%v rules:%v hide:%v>", n.Key, n.Children, rules, n.Hide)
+}
+
 // NewModuleTree returns a new ModuleTreeNode that represents the root
 // of the module tree populated with the given modules.
 func NewModuleTree(mods map[string]*Module) *ModuleTreeNode {
@@ -2836,6 +2930,35 @@ func (n *ModuleTreeNode) Size() int {
 	return s
 }
 
+// Child returns n's child with key k.
+func (n *ModuleTreeNode) child(k Value) *ModuleTreeNode {
+	switch k.(type) {
+	case String, Var:
+		return n.Children[k]
+	}
+	return nil
+}
+
+// Find dereferences ref along the tree. ref[0] is converted to a String
+// for convenience.
+func (n *ModuleTreeNode) find(ref Ref) (*ModuleTreeNode, Ref) {
+	if v, ok := ref[0].Value.(Var); ok {
+		ref = Ref{StringTerm(string(v))}.Concat(ref[1:])
+	}
+	node := n
+	for i, r := range ref {
+		next := node.child(r.Value)
+		if next == nil {
+			tail := make(Ref, len(ref)-i)
+			tail[0] = VarTerm(string(ref[i].Value.(String)))
+			copy(tail[1:], ref[i+1:])
+			return node, tail
+		}
+		node = next
+	}
+	return node, nil
+}
+
 // DepthFirst performs a depth-first traversal of the module tree rooted at n.
 // If f returns true, traversal will not continue to the children of n.
 func (n *ModuleTreeNode) DepthFirst(f func(*ModuleTreeNode) bool) {
@@ -2857,49 +2980,54 @@ type TreeNode struct {
 	Hide     bool
 }
 
+func (n *TreeNode) String() string {
+	return fmt.Sprintf("<TreeNode key:%v values:%v sorted:%v hide:%v>", n.Key, n.Values, n.Sorted, n.Hide)
+}
+
 // NewRuleTree returns a new TreeNode that represents the root
 // of the rule tree populated with the given rules.
 func NewRuleTree(mtree *ModuleTreeNode) *TreeNode {
+	root := TreeNode{
+		Key: mtree.Key,
+	}
 
-	ruleSets := map[String][]util.T{}
-
-	// Build rule sets for this package.
-	for _, mod := range mtree.Modules {
-		for _, rule := range mod.Rules {
-			key := String(rule.Head.Name)
-			ruleSets[key] = append(ruleSets[key], rule)
+	mtree.DepthFirst(func(m *ModuleTreeNode) bool {
+		for _, mod := range m.Modules {
+			if len(mod.Rules) == 0 {
+				root.add(mod.Package.Path, nil)
+			}
+			for _, rule := range mod.Rules {
+				root.add(rule.Ref().GroundPrefix(), rule)
+			}
 		}
-	}
-
-	// Each rule set becomes a leaf node.
-	children := map[Value]*TreeNode{}
-	sorted := make([]Value, 0, len(ruleSets))
-
-	for key, rules := range ruleSets {
-		sorted = append(sorted, key)
-		children[key] = &TreeNode{
-			Key:      key,
-			Children: nil,
-			Values:   rules,
-		}
-	}
-
-	// Each module in subpackage becomes child node.
-	for key, child := range mtree.Children {
-		sorted = append(sorted, key)
-		children[child.Key] = NewRuleTree(child)
-	}
-
-	sort.Slice(sorted, func(i, j int) bool {
-		return sorted[i].Compare(sorted[j]) < 0
+		return false
 	})
 
-	return &TreeNode{
-		Key:      mtree.Key,
-		Values:   nil,
-		Children: children,
-		Sorted:   sorted,
-		Hide:     mtree.Hide,
+	// ensure that data.system's TreeNode is hidden
+	node, _ := root.find(DefaultRootRef.Append(NewTerm(SystemDocumentKey)))
+	node.Hide = true
+
+	root.DepthFirst(func(x *TreeNode) bool {
+		x.sort()
+		return false
+	})
+
+	return &root
+}
+
+func (n *TreeNode) add(path Ref, rule *Rule) {
+	node, tail := n.find(path)
+	if len(tail) > 0 {
+		sub := treeNodeFromRef(tail, rule)
+		if node.Children == nil {
+			node.Children = make(map[Value]*TreeNode, 1)
+		}
+		node.Children[sub.Key] = sub
+		node.Sorted = append(node.Sorted, sub.Key)
+	} else {
+		if rule != nil {
+			node.Values = append(node.Values, rule)
+		}
 	}
 }
 
@@ -2925,13 +3053,26 @@ func (n *TreeNode) Child(k Value) *TreeNode {
 func (n *TreeNode) Find(ref Ref) *TreeNode {
 	node := n
 	for _, r := range ref {
-		child := node.Child(r.Value)
-		if child == nil {
+		node = node.Child(r.Value)
+		if node == nil {
 			return nil
 		}
-		node = child
 	}
 	return node
+}
+
+func (n *TreeNode) find(ref Ref) (*TreeNode, Ref) {
+	node := n
+	for i := range ref {
+		next := node.Child(ref[i].Value)
+		if next == nil {
+			tail := make(Ref, len(ref)-i)
+			copy(tail, ref[i:])
+			return node, tail
+		}
+		node = next
+	}
+	return node, nil
 }
 
 // DepthFirst performs a depth-first traversal of the rule tree rooted at n. If
@@ -2943,6 +3084,55 @@ func (n *TreeNode) DepthFirst(f func(*TreeNode) bool) {
 	for _, node := range n.Children {
 		node.DepthFirst(f)
 	}
+}
+
+func (n *TreeNode) sort() {
+	sort.Slice(n.Sorted, func(i, j int) bool {
+		return n.Sorted[i].Compare(n.Sorted[j]) < 0
+	})
+}
+
+func treeNodeFromRef(ref Ref, rule *Rule) *TreeNode {
+	// cut off the last bit if it's not ground
+	ref = ref.GroundPrefix()
+	depth := len(ref) - 1
+	key := ref[depth].Value
+	node := &TreeNode{
+		Key:      key,
+		Children: nil,
+	}
+	if rule != nil {
+		node.Values = []util.T{rule}
+	}
+
+	for i := len(ref) - 2; i >= 0; i-- {
+		key := ref[i].Value
+		node = &TreeNode{
+			Key:      key,
+			Children: map[Value]*TreeNode{ref[i+1].Value: node},
+			Sorted:   []Value{ref[i+1].Value},
+		}
+	}
+	return node
+}
+
+// flattenChildren flattens all children's rule refs into a sorted array.
+func (n *TreeNode) flattenChildren() []Ref {
+	ret := newRefSet()
+	for _, sub := range n.Children {
+		sub.DepthFirst(func(x *TreeNode) bool {
+			for _, r := range x.Values {
+				rule := r.(*Rule)
+				ret.AddPrefix(rule.Ref())
+			}
+			return false
+		})
+	}
+
+	sort.Slice(ret.s, func(i, j int) bool {
+		return ret.s[i].Compare(ret.s[j]) < 0
+	})
+	return ret.s
 }
 
 // Graph represents the graph of dependencies between rules.
@@ -3672,6 +3862,10 @@ func resolveRefsInRule(globals map[Var]*usedRef, rule *Rule) error {
 	ignore.Push(vars)
 	ignore.Push(declaredVars(rule.Body))
 
+	ref := rule.Head.Ref
+	for i := 1; i < len(ref); i++ {
+		ref[i] = resolveRefsInTerm(globals, ignore, ref[i])
+	}
 	if rule.Head.Key != nil {
 		rule.Head.Key = resolveRefsInTerm(globals, ignore, rule.Head.Key)
 	}
@@ -4987,7 +5181,7 @@ func isBuiltinRefOrVar(bs map[string]*Builtin, unsafeBuiltinsMap map[string]stru
 }
 
 func isVirtual(node *TreeNode, ref Ref) bool {
-	for i := 0; i < len(ref); i++ {
+	for i := range ref {
 		child := node.Child(ref[i].Value)
 		if child == nil {
 			return false
@@ -5096,4 +5290,55 @@ func rewriteVarsInRef(vars ...map[Var]Var) varRewriter {
 		})
 		return i.(Ref)
 	}
+}
+
+// TODO(sr): move into internal/refset or something
+type refSet struct {
+	s []Ref
+}
+
+func newRefSet(x ...Ref) *refSet {
+	result := &refSet{}
+	for i := range x {
+		result.AddPrefix(x[i])
+	}
+	return result
+}
+
+// ContainsPrefix returns true if r is prefixed by any of the existing refs in the set.
+func (rs *refSet) ContainsPrefix(r Ref) bool {
+	for i := range rs.s {
+		if r.HasPrefix(rs.s[i]) {
+			return true
+		}
+	}
+	return false
+}
+
+// AddPrefix inserts r into the set if r is not prefixed by any existing
+// refs in the set. If any existing refs are prefixed by r, those existing
+// refs are removed.
+func (rs *refSet) AddPrefix(r Ref) {
+	if rs.ContainsPrefix(r) {
+		return
+	}
+	cpy := []Ref{r}
+	for i := range rs.s {
+		if !rs.s[i].HasPrefix(r) {
+			cpy = append(cpy, rs.s[i])
+		}
+	}
+	rs.s = cpy
+}
+
+// Sorted returns a sorted slice of terms for refs in the set.
+func (rs *refSet) Sorted() []*Term {
+	terms := make([]*Term, len(rs.s))
+	for i := range rs.s {
+		terms[i] = NewTerm(rs.s[i])
+	}
+	sort.Slice(terms, func(i, j int) bool {
+		return terms[i].Value.Compare(terms[j].Value) < 0
+	})
+	return terms
 }

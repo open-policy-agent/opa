@@ -395,14 +395,16 @@ func TestExprEveryCopy(t *testing.T) {
 func TestRuleHeadEquals(t *testing.T) {
 	assertHeadsEqual(t, &Head{}, &Head{})
 
-	// Same name/key/value
+	// Same name/ref/key/value
 	assertHeadsEqual(t, &Head{Name: Var("p")}, &Head{Name: Var("p")})
+	assertHeadsEqual(t, &Head{Ref: Ref{VarTerm("p"), StringTerm("r")}}, &Head{Ref: Ref{VarTerm("p"), StringTerm("r")}}) // TODO: string for first section
 	assertHeadsEqual(t, &Head{Key: VarTerm("x")}, &Head{Key: VarTerm("x")})
 	assertHeadsEqual(t, &Head{Value: VarTerm("x")}, &Head{Value: VarTerm("x")})
 	assertHeadsEqual(t, &Head{Args: []*Term{VarTerm("x"), VarTerm("y")}}, &Head{Args: []*Term{VarTerm("x"), VarTerm("y")}})
 
-	// Different name/key/value
+	// Different name/ref/key/value
 	assertHeadsNotEqual(t, &Head{Name: Var("p")}, &Head{Name: Var("q")})
+	assertHeadsNotEqual(t, &Head{Ref: Ref{VarTerm("p")}}, &Head{Ref: Ref{VarTerm("q")}}) // TODO: string for first section
 	assertHeadsNotEqual(t, &Head{Key: VarTerm("x")}, &Head{Key: VarTerm("y")})
 	assertHeadsNotEqual(t, &Head{Value: VarTerm("x")}, &Head{Value: VarTerm("y")})
 	assertHeadsNotEqual(t, &Head{Args: []*Term{VarTerm("x"), VarTerm("z")}}, &Head{Args: []*Term{VarTerm("x"), VarTerm("y")}})
@@ -438,48 +440,122 @@ func TestRuleBodyEquals(t *testing.T) {
 }
 
 func TestRuleString(t *testing.T) {
+	trueBody := NewBody(NewExpr(BooleanTerm(true)))
 
-	rule1 := &Rule{
-		Head: NewHead(Var("p"), nil, BooleanTerm(true)),
-		Body: NewBody(
-			Equality.Expr(StringTerm("foo"), StringTerm("bar")),
-		),
-	}
-
-	rule2 := &Rule{
-		Head: NewHead(Var("p"), VarTerm("x"), VarTerm("y")),
-		Body: NewBody(
-			Equality.Expr(StringTerm("foo"), VarTerm("x")),
-			&Expr{
-				Negated: true,
-				Terms:   RefTerm(VarTerm("a"), StringTerm("b"), VarTerm("x")),
+	tests := []struct {
+		rule *Rule
+		exp  string
+	}{
+		{
+			rule: &Rule{
+				Head: NewHead(Var("p"), nil, BooleanTerm(true)),
+				Body: NewBody(
+					Equality.Expr(StringTerm("foo"), StringTerm("bar")),
+				),
 			},
-			Equality.Expr(StringTerm("b"), VarTerm("y")),
-		),
-	}
-
-	rule3 := &Rule{
-		Default: true,
-		Head:    NewHead("p", nil, BooleanTerm(true)),
-	}
-
-	rule4 := &Rule{
-		Head: &Head{
-			Name:  Var("f"),
-			Args:  Args{VarTerm("x"), VarTerm("y")},
-			Value: VarTerm("z"),
+			exp: `p = true { "foo" = "bar" }`,
 		},
-		Body: NewBody(Plus.Expr(VarTerm("x"), VarTerm("y"), VarTerm("z"))),
+		{
+			rule: &Rule{
+				Head: NewHead(Var("p"), VarTerm("x")),
+				Body: trueBody,
+			},
+			exp: `p[x] { true }`,
+		},
+		{
+			rule: &Rule{
+				Head: RefHead(MustParseRef("p[x]"), BooleanTerm(true)),
+				Body: MustParseBody("x = 1"),
+			},
+			exp: `p[x] = true { x = 1 }`,
+		},
+		{
+			rule: &Rule{
+				Head: NewHead(Var("p"), VarTerm("x"), VarTerm("y")),
+				Body: NewBody(
+					Equality.Expr(StringTerm("foo"), VarTerm("x")),
+					&Expr{
+						Negated: true,
+						Terms:   RefTerm(VarTerm("a"), StringTerm("b"), VarTerm("x")),
+					},
+					Equality.Expr(StringTerm("b"), VarTerm("y")),
+				),
+			},
+			exp: `p[x] = y { "foo" = x; not a.b[x]; "b" = y }`,
+		},
+		{
+			rule: &Rule{
+				Default: true,
+				Head:    NewHead("p", nil, BooleanTerm(true)),
+			},
+			exp: `default p = true`,
+		},
+		{
+			rule: &Rule{
+				Head: &Head{
+					Name:  Var("f"),
+					Args:  Args{VarTerm("x"), VarTerm("y")},
+					Value: VarTerm("z"),
+				},
+				Body: NewBody(Plus.Expr(VarTerm("x"), VarTerm("y"), VarTerm("z"))),
+			},
+			exp: "f(x, y) = z { plus(x, y, z) }",
+		},
+		{
+			rule: &Rule{
+				Head: &Head{
+					Name:   Var("p"),
+					Value:  BooleanTerm(true),
+					Assign: true,
+				},
+				Body: NewBody(
+					Equality.Expr(StringTerm("foo"), StringTerm("bar")),
+				),
+			},
+			exp: `p := true { "foo" = "bar" }`,
+		},
+		{
+			rule: &Rule{
+				Head: RefHead(MustParseRef("p.q.r")),
+				Body: trueBody,
+			},
+			exp: `p.q.r { true }`,
+		},
+		{
+			rule: &Rule{
+				Head: RefHead(MustParseRef("p.q.r"), StringTerm("foo")),
+				Body: trueBody,
+			},
+			exp: `p.q.r = "foo" { true }`,
+		},
+		{
+			rule: &Rule{
+				Head: RefHead(MustParseRef("p.q.r[x]"), StringTerm("foo")),
+				Body: MustParseBody(`x := 1`),
+			},
+			exp: `p.q.r[x] = "foo" { assign(x, 1) }`,
+		},
 	}
 
-	rule5 := rule1.Copy()
-	rule5.Head.Assign = true
+	for _, tc := range tests {
+		t.Run(tc.exp, func(t *testing.T) {
+			assertRuleString(t, tc.rule, tc.exp)
+		})
+	}
+}
 
-	assertRuleString(t, rule1, `p = true { "foo" = "bar" }`)
-	assertRuleString(t, rule2, `p[x] = y { "foo" = x; not a.b[x]; "b" = y }`)
-	assertRuleString(t, rule3, `default p = true`)
-	assertRuleString(t, rule4, "f(x, y) = z { plus(x, y, z) }")
-	assertRuleString(t, rule5, `p := true { "foo" = "bar" }`)
+func TestRulePath(t *testing.T) {
+	ruleWithMod := func(r string) Ref {
+		mod := MustParseModule("package pkg\n" + r)
+		return mod.Rules[0].Path()
+	}
+	if exp, act := MustParseRef("data.pkg.p.q.r"), ruleWithMod("p.q.r { true }"); !exp.Equal(act) {
+		t.Errorf("expected %v, got %v", exp, act)
+	}
+
+	if exp, act := MustParseRef("data.pkg.p"), ruleWithMod("p { true }"); !exp.Equal(act) {
+		t.Errorf("expected %v, got %v", exp, act)
+	}
 }
 
 func TestModuleString(t *testing.T) {
