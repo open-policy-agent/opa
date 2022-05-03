@@ -2482,7 +2482,7 @@ d1 := 1234
 			t.Fatalf("expected rule %v column to be 1 but got %v", module.Rules[i].Head.Name, col)
 		}
 		row := module.Rules[i].Location.Row
-		if row != 3+i { // 'pi' rule stats on row 3
+		if row != 3+i { // 'pi' rule starts on row 3
 			t.Fatalf("expected rule %v row to be %v but got %v", module.Rules[i].Head.Name, 3+i, row)
 		}
 		col = module.Rules[i].Head.Location.Col
@@ -2490,7 +2490,7 @@ d1 := 1234
 			t.Fatalf("expected rule head %v column to be 1 but got %v", module.Rules[i].Head.Name, col)
 		}
 		row = module.Rules[i].Head.Location.Row
-		if row != 3+i { // 'pi' rule stats on row 3
+		if row != 3+i { // 'pi' rule starts on row 3
 			t.Fatalf("expected rule head %v row to be %v but got %v", module.Rules[i].Head.Name, 3+i, row)
 		}
 	}

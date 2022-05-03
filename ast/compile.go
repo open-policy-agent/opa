@@ -2838,11 +2838,12 @@ func (n *ModuleTreeNode) Size() int {
 
 // DepthFirst performs a depth-first traversal of the module tree rooted at n.
 // If f returns true, traversal will not continue to the children of n.
-func (n *ModuleTreeNode) DepthFirst(f func(node *ModuleTreeNode) bool) {
-	if !f(n) {
-		for _, node := range n.Children {
-			node.DepthFirst(f)
-		}
+func (n *ModuleTreeNode) DepthFirst(f func(*ModuleTreeNode) bool) {
+	if f(n) {
+		return
+	}
+	for _, node := range n.Children {
+		node.DepthFirst(f)
 	}
 }
 
@@ -2935,11 +2936,12 @@ func (n *TreeNode) Find(ref Ref) *TreeNode {
 
 // DepthFirst performs a depth-first traversal of the rule tree rooted at n. If
 // f returns true, traversal will not continue to the children of n.
-func (n *TreeNode) DepthFirst(f func(node *TreeNode) bool) {
-	if !f(n) {
-		for _, node := range n.Children {
-			node.DepthFirst(f)
-		}
+func (n *TreeNode) DepthFirst(f func(*TreeNode) bool) {
+	if f(n) {
+		return
+	}
+	for _, node := range n.Children {
+		node.DepthFirst(f)
 	}
 }
 

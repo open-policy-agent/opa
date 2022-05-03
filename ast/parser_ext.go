@@ -154,7 +154,7 @@ func ParseRuleFromExpr(module *Module, expr *Expr) (*Rule, error) {
 	}
 
 	if _, ok := expr.Terms.(*SomeDecl); ok {
-		return nil, errors.New("some declarations cannot be used for rule head")
+		return nil, errors.New("'some' declarations cannot be used for rule head")
 	}
 
 	if term, ok := expr.Terms.(*Term); ok {

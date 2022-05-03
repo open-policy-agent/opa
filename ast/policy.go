@@ -729,23 +729,26 @@ func (head *Head) Equal(other *Head) bool {
 }
 
 func (head *Head) String() string {
-	var buf []string
-	if len(head.Args) != 0 {
-		buf = append(buf, head.Name.String()+head.Args.String())
-	} else if head.Key != nil {
-		buf = append(buf, head.Name.String()+"["+head.Key.String()+"]")
-	} else {
-		buf = append(buf, head.Name.String())
+	buf := strings.Builder{}
+	buf.WriteString(head.Name.String())
+
+	switch {
+	case len(head.Args) != 0:
+		buf.WriteString(head.Args.String())
+	case head.Key != nil:
+		buf.WriteRune('[')
+		buf.WriteString(head.Key.String())
+		buf.WriteRune(']')
 	}
 	if head.Value != nil {
 		if head.Assign {
-			buf = append(buf, ":=")
+			buf.WriteString(" := ")
 		} else {
-			buf = append(buf, "=")
+			buf.WriteString(" = ")
 		}
-		buf = append(buf, head.Value.String())
+		buf.WriteString(head.Value.String())
 	}
-	return strings.Join(buf, " ")
+	return buf.String()
 }
 
 // Vars returns a set of vars found in the head.
