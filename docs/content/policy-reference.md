@@ -478,9 +478,9 @@ The following table shows examples of how ``glob.match`` works:
 
 | Built-in | Description | Wasm Support |
 | ------- |-------------|---------------|
-| <span class="opa-keep-it-together">``output := base64.encode(x)``</span> | ``output`` is ``x`` serialized to a base64 encoded string without padding | ✅ |
-| <span class="opa-keep-it-together">``output := base64.decode(string)``</span> | ``output`` is ``x`` deserialized from a base64 encoding string without padding | ✅ |
-| <span class="opa-keep-it-together">``output := base64url.encode(x)``</span> | ``output`` is ``x`` serialized to a base64url encoded string with padding | ✅ |
+| <span class="opa-keep-it-together">``output := base64.encode(x)``</span> | ``output`` is ``x`` serialized to a base64 encoded string | ✅ |
+| <span class="opa-keep-it-together">``output := base64.decode(string)``</span> | ``output`` is ``x`` deserialized from a base64 encoding string | ✅ |
+| <span class="opa-keep-it-together">``output := base64url.encode(x)``</span> | ``output`` is ``x`` serialized to a base64url encoded string | ✅ |
 | <span class="opa-keep-it-together">``output := base64url.encode_no_pad(x)``</span> | ``output`` is ``x`` serialized to a base64url encoded string without padding | ``SDK-dependent`` |
 | <span class="opa-keep-it-together">``output := base64url.decode(string)``</span> | ``output`` is ``string`` deserialized from a base64url encoded string with or without padding | ✅ |
 | <span class="opa-keep-it-together">``output := urlquery.encode(string)``</span> | ``output`` is URL query parameter encoded ``string`` | ``SDK-dependent`` |
