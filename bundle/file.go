@@ -9,8 +9,11 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
+
+	"github.com/open-policy-agent/opa/storage"
 )
 
 // Descriptor contains information about a file and
@@ -192,6 +195,8 @@ type tarballLoader struct {
 type file struct {
 	name   string
 	reader io.Reader
+	path   storage.Path
+	raw    []byte
 }
 
 // NewTarballLoader is deprecated. Use NewTarballLoaderWithBaseURL instead.
@@ -264,4 +269,74 @@ func (t *tarballLoader) NextFile() (*Descriptor, error) {
 	t.idx++
 
 	return newDescriptor(path.Join(t.baseURL, f.name), f.name, f.reader), nil
+}
+
+// Next implements the storage.Iterator interface.
+// It iterates to the next policy or data file in the directory tree
+// and returns a storage.Update for the file.
+func (it *iterator) Next() (*storage.Update, error) {
+
+	if it.files == nil {
+		it.files = []file{}
+
+		for _, item := range it.raw {
+			f := file{name: item.Path}
+
+			fpath := strings.TrimLeft(filepath.ToSlash(filepath.Dir(f.name)), "/.")
+			if strings.HasSuffix(f.name, RegoExt) {
+				fpath = strings.Trim(f.name, "/")
+			}
+
+			p, ok := storage.ParsePathEscaped("/" + fpath)
+			if !ok {
+				return nil, fmt.Errorf("storage path invalid: %v", f.name)
+			}
+			f.path = p
+
+			f.raw = item.Value
+
+			it.files = append(it.files, f)
+		}
+
+		sortFilePathAscend(it.files)
+	}
+
+	// If done reading files then just return io.EOF
+	// errors for each NextFile() call
+	if it.idx >= len(it.files) {
+		return nil, io.EOF
+	}
+
+	f := it.files[it.idx]
+	it.idx++
+
+	isPolicy := false
+	if strings.HasSuffix(f.name, RegoExt) {
+		isPolicy = true
+	}
+
+	return &storage.Update{
+		Path:     f.path,
+		Value:    f.raw,
+		IsPolicy: isPolicy,
+	}, nil
+}
+
+type iterator struct {
+	raw   []Raw
+	files []file
+	idx   int
+}
+
+func NewIterator(raw []Raw) storage.Iterator {
+	it := iterator{
+		raw: raw,
+	}
+	return &it
+}
+
+func sortFilePathAscend(files []file) {
+	sort.Slice(files, func(i, j int) bool {
+		return len(files[i].path) < len(files[j].path)
+	})
 }

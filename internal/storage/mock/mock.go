@@ -247,6 +247,10 @@ func (s *Store) Abort(ctx context.Context, txn storage.Transaction) {
 	mockTxn.Aborted++
 }
 
+func (s *Store) Truncate(ctx context.Context, txn storage.Transaction, params storage.TransactionParams, it storage.Iterator) error {
+	return s.inmem.Truncate(ctx, getRealTxn(txn), params, it)
+}
+
 func getRealTxn(txn storage.Transaction) storage.Transaction {
 	return txn.(*Transaction).txn
 }
