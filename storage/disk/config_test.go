@@ -229,7 +229,7 @@ func TestBadgerConfigFromOptions(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			act := badgerConfigFromOptions(tc.opts)
+			act, _ := badgerConfigFromOptions(tc.opts)
 			for _, check := range tc.checks {
 				check(t, act)
 			}
