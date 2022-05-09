@@ -1640,3 +1640,7 @@ software:
   google-kubernetes-engine:
     name: Google Kubernetes Engine
     link: https://cloud.google.com/kubernetes-engine/
+  sansshell:
+    name: Sansshell
+    link: https://github.com/Snowflake-Labs/sansshell
+
