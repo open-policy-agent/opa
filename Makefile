@@ -306,7 +306,7 @@ ci-build-darwin-arm64-static: ensure-release-dir
 .PHONY: ci-build-windows
 ci-build-windows: ensure-release-dir
 	build/ensure-windows-toolchain.sh
-	@$(MAKE) build GOOS=windows CC=x86_64-w64-mingw32-gcc
+	@$(MAKE) build GOOS=windows CC=x86_64-w64-mingw32-gcc WASM_ENABLED=0 CGO_ENABLED=0
 	mv opa_windows_$(GOARCH) $(RELEASE_DIR)/opa_windows_$(GOARCH).exe
 	cd $(RELEASE_DIR)/ && shasum -a 256 opa_windows_$(GOARCH).exe > opa_windows_$(GOARCH).exe.sha256
 
