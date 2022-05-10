@@ -8,7 +8,8 @@ DEPLOY_PRIME_URL ?= "http://localhost:8888"
 
 .PHONY: clean
 clean:
-	rm -rf ${CURDIR}/website/data/releases.yaml
+	rm -f $(CURDIR)/website/data/releases.yaml
+	rm -f $(CURDIR)/website/data/builtin_metadata.json
 	rm -rf $(CURDIR)/website/generated
 	rm -rf $(CURDIR)/website/public
 	rm -rf $(CURDIR)/website/resources
@@ -19,11 +20,15 @@ generate-cli-docs:
 	$(CURDIR)/../build/gen-cli-docs.sh "$(CURDIR)/content"
 
 .PHONY: generate
-generate: generate-cli-docs
+generate: generate-cli-docs copy-builtin-metadata
 	$(CURDIR)/website/scripts/load-docs.sh
 
+.PHONY: copy-builtin-metadata
+copy-builtin-metadata:
+	cp -v $(CURDIR)/../builtin_metadata.json $(CURDIR)/website/data/builtin_metadata.json
+
 .PHONY: dev-generate
-dev-generate: generate-cli-docs
+dev-generate: generate-cli-docs copy-builtin-metadata
 	DEV=true $(CURDIR)/website/scripts/load-docs.sh
 
 # The website has some npm dependencies saved in ./website/node_modules
@@ -53,7 +58,7 @@ serve-remote: production-build
 	cd $(CURDIR)/.. && netlify deploy
 
 .PHONY: dev-build
-dev-build: clean dev-generate hugo-production-build live-blocks-inject
+dev-build: clean dev-generate copy-builtin-metadata hugo-production-build live-blocks-inject
 
 ######################################################
 #

@@ -1,0 +1,100 @@
+
+{{- $cat := .Get 0 }}
+{{ if .IsNamedParams }}{{- $cat = .Get "cat" }}{{- end }}
+{{- $id := $cat }}
+{{- $title := $cat }}
+{{- if .Get "id" }}{{ $id = .Get "id" }}{{ end }}
+{{- if .Get "title" }}{{ $title = .Get "title" }}{{ end }}
+
+{{- $version := index (split $.Page.File.Path "/") 1 -}}
+{{- if (eq $version "latest") -}}
+{{- $version = index site.Data.releases 1 -}}
+{{- end -}}
+
+<h3 id={{ $id }}>{{ $title | title }}</h3>
+<table class="table bi-cat is-hoverable">
+    <tbody>
+    {{- range $name := index site.Data.builtin_metadata._categories $cat }}
+    {{- $anchor := anchorize (printf "builtin-%s-%s" $cat $name) }}
+    {{- $bi := index site.Data.builtin_metadata $name }}
+    {{- if in $bi.available $version }}
+    <tr id="{{ $anchor }}">
+        <th>
+            <a class="self-link" href="#{{ $anchor }}">
+            {{- if isset $bi "infix" }}
+                <code>
+                {{ index (index $bi.args 0) "name" }} {{ $bi.infix }} {{ index (index $bi.args 1) "name" }}
+                </code>
+            {{- else }}
+                <code>{{ $name }}</code>
+            {{- end }}
+            </a>
+        </th>
+        <td>
+            <p>
+            {{- if isset $bi "infix" }}
+                <code>
+                {{ $bi.result.name }} := {{ index (index $bi.args 0) "name" }} {{ $bi.infix }} {{ index (index $bi.args 1) "name" }}
+                </code>
+            {{- else if isset $bi "relation" }}
+                <code>
+                {{ $name }}(
+                    {{- range $index, $element := $bi.args -}}
+                    {{- if gt $index 0 -}}, {{ end -}}
+                    {{- $element.name -}}
+                    {{- end -}}
+                    , {{ $bi.result.name -}}
+                )
+                </code>
+            {{- else }}
+                <code>
+                {{ $bi.result.name }} := {{ $name }}(
+                {{- range $index, $element := $bi.args -}}
+                {{- if gt $index 0 -}}, {{ end -}}
+                {{- $element.name -}}
+                {{- end -}}
+                )
+                </code>
+            {{- end }}
+            </p>
+            <p>{{ $bi.description | markdownify }}</p>
+
+            <div class="bi-args">
+            {{- range $element := $bi.args }}
+                <div class="name"><code>{{ $element.name }}</code></div>
+                <div class="type">({{ $element.type }})</div>
+                <div class="desc">{{ $element.description | markdownify }}</div>
+            {{- end }}
+            </div>
+
+            <emph>Returns:</emph>
+            <div class="bi-args">
+                <div class="name"><code>{{ $bi.result.name }}</code></div>
+                <div class="type">({{ $bi.result.type }})</div>
+                <div class="desc">{{ $bi.result.description | markdownify }}</div>
+            </dl>
+        </td>
+        <td>
+            <div class="tags">
+                {{- if eq $bi.introduced $version }}
+                    <span class="tag is-primary">New</span>
+                {{- end }}
+                {{- if and (ne $bi.introduced "v0.17.0") (ne $bi.introduced "edge") }}
+                <a href="https://github.com/open-policy-agent/opa/releases/{{ $bi.introduced }}" target="_blank">
+                    <span class="tag is-light">{{ $bi.introduced }}</span>
+                </a>
+                {{- else if eq $bi.introduced "edge" }}
+                <span class="tag is-danger">{{ $bi.introduced }}</span>
+                {{- end }}
+                {{- if index $bi "wasm" -}}
+                    <span class="tag is-success">Wasm</span>
+                {{- else -}}
+                    <span class="tag is-warning">SDK-dependent</span>
+                {{- end -}}
+            </div>
+        </td>
+    </tr>
+    {{- end }}
+    {{- end }}
+    </tbody>
+</table>

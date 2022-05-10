@@ -184,6 +184,11 @@ var builtinsUsingRE2 = [...]string{
 	builtinsFunctions[ast.GlobMatch.Name],
 }
 
+func IsWasmEnabled(bi string) bool {
+	_, ok := builtinsFunctions[bi]
+	return ok
+}
+
 type externalFunc struct {
 	ID   int32
 	Decl *opatypes.Function
