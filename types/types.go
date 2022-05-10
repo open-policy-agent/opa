@@ -48,6 +48,42 @@ func NewNull() Null {
 	return Null{}
 }
 
+type NamedType struct {
+	name, description string
+	t                 Type
+}
+
+func (n *NamedType) typeMarker() string { return n.t.typeMarker() }
+func (n *NamedType) String() string     { return n.t.String() }
+func (n *NamedType) MarshalJSON() ([]byte, error) {
+	var obj map[string]interface{}
+	switch x := n.t.(type) {
+	case interface{ toMap() map[string]interface{} }:
+		obj = x.toMap()
+	default:
+		obj = map[string]interface{}{
+			"type": n.t.typeMarker(),
+		}
+	}
+	obj["name"] = n.name
+	if n.description != "" {
+		obj["description"] = n.description
+	}
+	return json.Marshal(obj)
+}
+
+func (n *NamedType) Description(d string) *NamedType {
+	n.description = d
+	return n
+}
+
+func Named(name string, t Type) *NamedType {
+	return &NamedType{
+		t:    t,
+		name: name,
+	}
+}
+
 // MarshalJSON returns the JSON encoding of t.
 func (t Null) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]interface{}{
@@ -142,6 +178,10 @@ func NewArray(static []Type, dynamic Type) *Array {
 
 // MarshalJSON returns the JSON encoding of t.
 func (t *Array) MarshalJSON() ([]byte, error) {
+	return json.Marshal(t.toMap())
+}
+
+func (t *Array) toMap() map[string]interface{} {
 	repr := map[string]interface{}{
 		"type": t.typeMarker(),
 	}
@@ -151,7 +191,7 @@ func (t *Array) MarshalJSON() ([]byte, error) {
 	if t.dynamic != nil {
 		repr["dynamic"] = t.dynamic
 	}
-	return json.Marshal(repr)
+	return repr
 }
 
 func (t *Array) String() string {
@@ -207,13 +247,17 @@ func NewSet(of Type) *Set {
 
 // MarshalJSON returns the JSON encoding of t.
 func (t *Set) MarshalJSON() ([]byte, error) {
+	return json.Marshal(t.toMap())
+}
+
+func (t *Set) toMap() map[string]interface{} {
 	repr := map[string]interface{}{
 		"type": t.typeMarker(),
 	}
 	if t.of != nil {
 		repr["of"] = t.of
 	}
-	return json.Marshal(repr)
+	return repr
 }
 
 func (t *Set) String() string {
@@ -332,6 +376,10 @@ func (t *Object) Keys() []interface{} {
 
 // MarshalJSON returns the JSON encoding of t.
 func (t *Object) MarshalJSON() ([]byte, error) {
+	return json.Marshal(t.toMap())
+}
+
+func (t *Object) toMap() map[string]interface{} {
 	repr := map[string]interface{}{
 		"type": t.typeMarker(),
 	}
@@ -341,7 +389,7 @@ func (t *Object) MarshalJSON() ([]byte, error) {
 	if t.dynamic != nil {
 		repr["dynamic"] = t.dynamic
 	}
-	return json.Marshal(repr)
+	return repr
 }
 
 // Select returns the type of the named property.
@@ -395,13 +443,17 @@ func (t Any) Contains(other Type) bool {
 
 // MarshalJSON returns the JSON encoding of t.
 func (t Any) MarshalJSON() ([]byte, error) {
-	data := map[string]interface{}{
+	return json.Marshal(t.toMap())
+}
+
+func (t Any) toMap() map[string]interface{} {
+	repr := map[string]interface{}{
 		"type": t.typeMarker(),
 	}
 	if len(t) != 0 {
-		data["of"] = []Type(t)
+		repr["of"] = []Type(t)
 	}
-	return json.Marshal(data)
+	return repr
 }
 
 // Merge return a new Any type that is the superset of t and other.
@@ -487,8 +539,7 @@ func Arity(x Type) int {
 	return len(f.FuncArgs().Args)
 }
 
-// NewFunction returns a new Function object where xs[:len(xs)-1] are arguments
-// and xs[len(xs)-1] is the result type.
+// NewFunction returns a new Function object of the given argument and result types.
 func NewFunction(args []Type, result Type) *Function {
 	return &Function{
 		args:   args,
@@ -566,12 +617,13 @@ func (t *Function) UnmarshalJSON(bs []byte) error {
 	return nil
 }
 
-// Union returns a new function represnting the union of t and other. Functions
+// Union returns a new function representing the union of t and other. Functions
 // must have the same arity to be unioned.
 func (t *Function) Union(other *Function) *Function {
 	if other == nil {
 		return t
-	} else if t == nil {
+	}
+	if t == nil {
 		return other
 	}
 
