@@ -91,6 +91,15 @@ func (t Null) MarshalJSON() ([]byte, error) {
 	})
 }
 
+func unwrap(t Type) Type {
+	switch t := t.(type) {
+	case *NamedType:
+		return t.t
+	default:
+		return t
+	}
+}
+
 func (t Null) String() string {
 	return typeNull
 }
@@ -570,13 +579,15 @@ func (t *Function) FuncArgs() FuncArgs {
 // Deprecated: Use FuncArgs instead.
 func (t *Function) Args() []Type {
 	cpy := make([]Type, len(t.args))
-	copy(cpy, t.args)
+	for i := range t.args {
+		cpy[i] = unwrap(t.args[i])
+	}
 	return cpy
 }
 
 // Result returns the function's result type.
 func (t *Function) Result() Type {
-	return t.result
+	return unwrap(t.result)
 }
 
 func (t *Function) String() string {
@@ -679,6 +690,7 @@ func (a FuncArgs) Arg(x int) Type {
 
 // Compare returns -1, 0, 1 based on comparison between a and b.
 func Compare(a, b Type) int {
+	a, b = unwrap(a), unwrap(b)
 	x := typeOrder(a)
 	y := typeOrder(b)
 	if x > y {
@@ -783,7 +795,7 @@ func Compare(a, b Type) int {
 
 // Contains returns true if a is a superset or equal to b.
 func Contains(a, b Type) bool {
-	if any, ok := a.(Any); ok {
+	if any, ok := unwrap(a).(Any); ok {
 		return any.Contains(b)
 	}
 	return Compare(a, b) == 0
@@ -792,6 +804,7 @@ func Contains(a, b Type) bool {
 // Or returns a type that represents the union of a and b. If one type is a
 // superset of the other, the superset is returned unchanged.
 func Or(a, b Type) Type {
+	a, b = unwrap(a), unwrap(b)
 	if a == nil {
 		return b
 	} else if b == nil {
@@ -820,7 +833,7 @@ func Or(a, b Type) Type {
 
 // Select returns a property or item of a.
 func Select(a Type, x interface{}) Type {
-	switch a := a.(type) {
+	switch a := unwrap(a).(type) {
 	case *Array:
 		n, ok := x.(json.Number)
 		if !ok {
@@ -863,7 +876,7 @@ func Select(a Type, x interface{}) Type {
 // keys are always number types, for objects the keys are always string types,
 // and for sets the keys are always the type of the set element.
 func Keys(a Type) Type {
-	switch a := a.(type) {
+	switch a := unwrap(a).(type) {
 	case *Array:
 		return N
 	case *Object:
@@ -893,7 +906,7 @@ func Keys(a Type) Type {
 
 // Values returns the type of values that can be enumerated for a.
 func Values(a Type) Type {
-	switch a := a.(type) {
+	switch a := unwrap(a).(type) {
 	case *Array:
 		var tpe Type
 		for i := range a.static {
@@ -926,7 +939,7 @@ func Values(a Type) Type {
 
 // Nil returns true if a's type is unknown.
 func Nil(a Type) bool {
-	switch a := a.(type) {
+	switch a := unwrap(a).(type) {
 	case nil:
 		return true
 	case *Function:
@@ -1021,7 +1034,7 @@ func typeSliceCompare(a, b []Type) int {
 }
 
 func typeOrder(x Type) int {
-	switch x.(type) {
+	switch unwrap(x).(type) {
 	case Null:
 		return 0
 	case Boolean:
