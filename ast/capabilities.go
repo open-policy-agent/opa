@@ -49,7 +49,8 @@ func CapabilitiesForThisVersion() *Capabilities {
 		f.WasmABIVersions = append(f.WasmABIVersions, WasmABIVersion{Version: vers[0], Minor: vers[1]})
 	}
 
-	f.Builtins = append(f.Builtins, Builtins...)
+	f.Builtins = make([]*Builtin, len(Builtins))
+	copy(f.Builtins, Builtins)
 	sort.Slice(f.Builtins, func(i, j int) bool {
 		return f.Builtins[i].Name < f.Builtins[j].Name
 	})

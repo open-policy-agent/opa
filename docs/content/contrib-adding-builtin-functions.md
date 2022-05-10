@@ -32,16 +32,17 @@ The following example adds a simple built-in function, `repeat(string, int)`, th
 In `ast/builtins.go`, we declare the structure of our built-in function with a `Builtin` struct instance:
 
 ```go
-// Repeat returns, as a string, the given string repeated the given number of times.
 var Repeat = &Builtin{
-    Name: "repeat",  // The name of the function
-    Decl: types.NewFunction(
-        types.Args(  // The built-in takes two arguments, where ..
-            types.S, // .. the first is a string, and ..
-            types.N, // .. the second is a number.
-        ),
-        types.S, // The return type is a string.
-    ),
+	Name:        "repeat", // The name of the function
+	Description: "Returns, as a string, the given string repeated the given number of times.",
+	Decl: types.NewFunction(
+		types.Args( // The built-in takes two arguments, where ..
+			types.Named("str", types.S).Description("string to repeat"),            // named string argument
+			types.Named("count", types.N).Description("how often to repeat `str`"), // named number argument
+		),
+		types.Named("output", types.S).Description("the repetitions"), // The return type is a string.
+	),
+  Categories: category("strings"), // the category the built-in belongs to
 }
 ```
 
@@ -142,24 +143,16 @@ The above test cases can be run separate from all other tests through: `go test 
 See [test/cases/testdata/helloworld](https://github.com/open-policy-agent/opa/blob/main/test/cases/testdata/helloworld)
 for a more detailed example of how to implement tests for your built-in functions.
 
-> Note: We can manually test our new built-in function by [building](../contrib-development#getting-started)
-> and running the `eval` command. E.g.: `$./opa_<OS>_<ARCH> eval 'repeat("Foo", 3)'`
+{{< info >}}
+Note: We can manually test our new built-in function by [building](../contrib-development#getting-started)
+and running the `eval` command. E.g.: `$./opa_<OS>_<ARCH> eval 'repeat("Foo", 3)'`
+{{< /info >}}
 
 ### Document
 
-All built-in functions must be documented in `docs/content/policy-reference.md` under an appropriate subsection.
+All built-in functions will automatically be documented in `docs/content/policy-reference.md` under an appropriate subsection.
 
-For this example, we add an entry for our new function under the `Strings` section:
-
-```markdown
-### Strings
-
-| Built-in | Description | Wasm Support |
-| ------- |-------------|---------------|
-...
-| <span class="opa-keep-it-together">``output := repeat(string, count)``</span> | ``output`` is ``string`` repeated ``count``times | ``SDK-dependent`` |
-...
-```
+For this example, we'll get an entry for our new function under the `Strings` section.
 
 ### Add a capability
 
