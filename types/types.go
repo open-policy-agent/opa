@@ -54,7 +54,7 @@ type NamedType struct {
 }
 
 func (n *NamedType) typeMarker() string { return n.t.typeMarker() }
-func (n *NamedType) String() string     { return n.t.String() }
+func (n *NamedType) String() string     { return n.name + ": " + n.t.String() }
 func (n *NamedType) MarshalJSON() ([]byte, error) {
 	var obj map[string]interface{}
 	switch x := n.t.(type) {
@@ -145,7 +145,7 @@ func (t String) MarshalJSON() ([]byte, error) {
 	})
 }
 
-func (t String) String() string {
+func (String) String() string {
 	return typeString
 }
 
@@ -572,7 +572,7 @@ func NewVariadicFunction(args []Type, varargs Type, result Type) *Function {
 
 // FuncArgs returns the function's arguments.
 func (t *Function) FuncArgs() FuncArgs {
-	return FuncArgs{Args: t.Args(), Variadic: t.variadic}
+	return FuncArgs{Args: t.args, Variadic: t.variadic}
 }
 
 // Args returns the function's arguments as a slice, ignoring variadic arguments.
@@ -587,7 +587,7 @@ func (t *Function) Args() []Type {
 
 // Result returns the function's result type.
 func (t *Function) Result() Type {
-	return unwrap(t.result)
+	return t.result
 }
 
 func (t *Function) String() string {
@@ -683,9 +683,9 @@ func (a FuncArgs) String() string {
 
 func (a FuncArgs) Arg(x int) Type {
 	if x < len(a.Args) {
-		return a.Args[x]
+		return unwrap(a.Args[x])
 	}
-	return a.Variadic
+	return unwrap(a.Variadic)
 }
 
 // Compare returns -1, 0, 1 based on comparison between a and b.
