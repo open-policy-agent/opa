@@ -914,10 +914,10 @@ var StartsWith = &Builtin{
 	Name: "startswith",
 	Decl: types.NewFunction(
 		types.Args(
-			types.S,
-			types.S,
+			types.Named("base", types.S).Description("the base string"),
+			types.Named("search", types.S).Description("the search string"),
 		),
-		types.B,
+		types.Named("result", types.B).Description("the result of the prefix check"),
 	),
 }
 
@@ -926,10 +926,10 @@ var EndsWith = &Builtin{
 	Name: "endswith",
 	Decl: types.NewFunction(
 		types.Args(
-			types.S,
-			types.S,
+			types.Named("base", types.S).Description("the base string"),
+			types.Named("search", types.S).Description("the search string"),
 		),
-		types.B,
+		types.Named("result", types.B).Description("the result of the suffix check"),
 	),
 }
 
@@ -937,8 +937,10 @@ var EndsWith = &Builtin{
 var Lower = &Builtin{
 	Name: "lower",
 	Decl: types.NewFunction(
-		types.Args(types.S),
-		types.S,
+		types.Args(
+			types.Named("x", types.S).Description("the string that is converted to lower-case"),
+		),
+		types.Named("y", types.S).Description("the lower-case of x"),
 	),
 }
 
@@ -946,8 +948,10 @@ var Lower = &Builtin{
 var Upper = &Builtin{
 	Name: "upper",
 	Decl: types.NewFunction(
-		types.Args(types.S),
-		types.S,
+		types.Args(
+			types.Named("x", types.S).Description("the string that is converted to upper-case"),
+		),
+		types.Named("y", types.S).Description("the upper-case of x"),
 	),
 }
 
@@ -956,10 +960,10 @@ var Split = &Builtin{
 	Name: "split",
 	Decl: types.NewFunction(
 		types.Args(
-			types.S,
-			types.S,
+			types.Named("x", types.S).Description("the string that is split"),
+			types.Named("delimiter", types.S).Description("the delimiter used for splitting"),
 		),
-		types.NewArray(nil, types.S),
+		types.Named("ys", types.NewArray(nil, types.S)).Description("ys is x split on delimiter"),
 	),
 }
 
@@ -1335,17 +1339,17 @@ var ObjectRemove = &Builtin{
 	Name: "object.remove",
 	Decl: types.NewFunction(
 		types.Args(
-			types.NewObject(
+			types.Named("x", types.NewObject(
 				nil,
 				types.NewDynamicProperty(types.A, types.A),
-			),
-			types.NewAny(
+			)).Description("the object to remove keys from"),
+			types.Named("rem", types.NewAny(
 				types.NewArray(nil, types.A),
 				types.NewSet(types.A),
 				types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)),
-			),
+			)).Description("the array, set, or object specifying the keys ro remove from x"),
 		),
-		types.A,
+		types.Named("y", types.A).Description("the object x with the specified keys remvoed selected"),
 	),
 }
 
