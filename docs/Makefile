@@ -30,7 +30,7 @@ copy-capabilities:
 	cp -rv $(CURDIR)/../capabilities.json $(CURDIR)/website/data/capabilities/edge.json
 
 .PHONY: dev-generate
-dev-generate: generate-cli-docs
+dev-generate: generate-cli-docs copy-capabilities
 	DEV=true $(CURDIR)/website/scripts/load-docs.sh
 
 # The website has some npm dependencies saved in ./website/node_modules
