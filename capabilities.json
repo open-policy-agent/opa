@@ -807,13 +807,19 @@
       "decl": {
         "args": [
           {
+            "description": "the base string",
+            "name": "base",
             "type": "string"
           },
           {
+            "description": "the search string",
+            "name": "search",
             "type": "string"
           }
         ],
         "result": {
+          "description": "the result of the suffix check",
+          "name": "result",
           "type": "boolean"
         },
         "type": "function"
@@ -1918,10 +1924,14 @@
       "decl": {
         "args": [
           {
+            "description": "the string that is converted to lower-case",
+            "name": "x",
             "type": "string"
           }
         ],
         "result": {
+          "description": "the lower-case of x",
+          "name": "y",
           "type": "string"
         },
         "type": "function"
@@ -2480,6 +2490,7 @@
       "decl": {
         "args": [
           {
+            "description": "the object to remove keys from",
             "dynamic": {
               "key": {
                 "type": "any"
@@ -2488,9 +2499,12 @@
                 "type": "any"
               }
             },
+            "name": "x",
             "type": "object"
           },
           {
+            "description": "the array, set, or object specifying the keys ro remove from x",
+            "name": "rem",
             "of": [
               {
                 "dynamic": {
@@ -2520,6 +2534,8 @@
           }
         ],
         "result": {
+          "description": "the object x with the specified keys remvoed selected",
+          "name": "y",
           "type": "any"
         },
         "type": "function"
@@ -3047,16 +3063,22 @@
       "decl": {
         "args": [
           {
+            "description": "the string that is split",
+            "name": "x",
             "type": "string"
           },
           {
+            "description": "the delimiter used for splitting",
+            "name": "delimiter",
             "type": "string"
           }
         ],
         "result": {
+          "description": "ys is x split on delimiter",
           "dynamic": {
             "type": "string"
           },
+          "name": "ys",
           "type": "array"
         },
         "type": "function"
@@ -3087,13 +3109,19 @@
       "decl": {
         "args": [
           {
+            "description": "the base string",
+            "name": "base",
             "type": "string"
           },
           {
+            "description": "the search string",
+            "name": "search",
             "type": "string"
           }
         ],
         "result": {
+          "description": "the result of the prefix check",
+          "name": "result",
           "type": "boolean"
         },
         "type": "function"
@@ -3660,10 +3688,14 @@
       "decl": {
         "args": [
           {
+            "description": "the string that is converted to upper-case",
+            "name": "x",
             "type": "string"
           }
         ],
         "result": {
+          "description": "the upper-case of x",
+          "name": "y",
           "type": "string"
         },
         "type": "function"
