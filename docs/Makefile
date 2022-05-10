@@ -8,7 +8,8 @@ DEPLOY_PRIME_URL ?= "http://localhost:8888"
 
 .PHONY: clean
 clean:
-	rm -rf ${CURDIR}/website/data/releases.yaml
+	rm -rf $(CURDIR)/website/data/releases.yaml
+	rm -rf $(CURDIR)/website/data/capabilities
 	rm -rf $(CURDIR)/website/generated
 	rm -rf $(CURDIR)/website/public
 	rm -rf $(CURDIR)/website/resources
@@ -19,8 +20,14 @@ generate-cli-docs:
 	$(CURDIR)/../build/gen-cli-docs.sh "$(CURDIR)/content"
 
 .PHONY: generate
-generate: generate-cli-docs
+generate: generate-cli-docs copy-capabilities
 	$(CURDIR)/website/scripts/load-docs.sh
+
+.PHONY: copy-capabilities
+copy-capabilities:
+	mkdir -p $(CURDIR)/website/data/capabilities
+	cp -rv $(CURDIR)/../capabilities/*.json $(CURDIR)/website/data/capabilities
+	cp -rv $(CURDIR)/../capabilities.json $(CURDIR)/website/data/capabilities/edge.json
 
 .PHONY: dev-generate
 dev-generate: generate-cli-docs
@@ -53,7 +60,7 @@ serve-remote: production-build
 	cd $(CURDIR)/.. && netlify deploy
 
 .PHONY: dev-build
-dev-build: clean dev-generate hugo-production-build live-blocks-inject
+dev-build: clean dev-generate copy-capabilities hugo-production-build live-blocks-inject
 
 ######################################################
 #

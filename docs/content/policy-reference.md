@@ -396,6 +396,9 @@ complex types.
 | <span class="opa-keep-it-together">``output := trim_space(string)``</span> | ``output`` is a ``string`` representing ``string`` with all leading and trailing white space removed.| ✅ |
 | <span class="opa-keep-it-together">``output := upper(string)``</span> | ``output`` is ``string`` after converting to upper case | ✅ |
 
+
+{{< builtin name="split" >}}
+
 ### Regex
 | Built-in | Description | Wasm Support |
 | ------- |-------------|---------------|
