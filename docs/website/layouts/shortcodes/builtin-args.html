@@ -4,11 +4,11 @@
 {{- end -}}
 {{- $name := .Get 0 -}}
 
-{{- range where (index (index site.Data.capabilities $version) "builtins") "name" $name }}
-{{ .description | markdownify }}
+{{- $metadata := index site.Data.builtin_metadata $name }}
+{{ $metadata.description | markdownify }}
 
 <dl class="bi-args">
-{{- range $index, $element := .decl.args }}
+{{- range $element := $metadata.args }}
     <dt><code>{{ $element.name }}</code></dt>
     <dd>({{ $element.type }}) {{ $element.description | markdownify }}</dd>
 {{- end }}
@@ -16,7 +16,6 @@
 
 <emph>Returns:</emph>
 <dl class="bi-args">
-    <dt><code>{{ .decl.result.name }}</code></dt>
-    <dd>({{ .decl.result.type }}) {{ .decl.result.description | markdownify }}</dd>
+    <dt><code>{{ $metadata.result.name }}</code></dt>
+    <dd>({{ $metadata.result.type }}) {{ $metadata.result.description | markdownify }}</dd>
 </dl>
-{{- end }}

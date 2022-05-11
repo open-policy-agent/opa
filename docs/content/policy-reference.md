@@ -298,7 +298,7 @@ complex types.
 | Built-in | Description | Details |
 | ------- |-------------|---------------|
 | {{< builtin-sig plus >}} | {{< builtin-args plus >}} | {{< builtin-tags plus >}} |
-| <span class="opa-keep-it-together">``z := x - y``</span>  | ``z`` is the difference of ``x`` and ``y`` | {{< wasm-enabled >}} |
+| {{< builtin-sig minus >}} | {{< builtin-args minus >}} | {{< builtin-tags minus >}} |
 | <span class="opa-keep-it-together">``z := x * y``</span>   | ``z`` is the product of ``x`` and ``y`` | {{< wasm-enabled >}} |
 | <span class="opa-keep-it-together">``z := x / y``</span>   | ``z`` is the quotient of ``x`` and ``y``  | {{< wasm-enabled >}} |
 | <span class="opa-keep-it-together">``z := x % y``</span>   | ``z`` is the remainder from the division of ``x`` and ``y``  | {{< wasm-enabled >}} |

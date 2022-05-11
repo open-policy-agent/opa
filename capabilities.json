@@ -2031,9 +2031,11 @@
     },
     {
       "name": "minus",
+      "description": "Minus subtracts the second number from the first number or computes the difference between two sets.",
       "decl": {
         "args": [
           {
+            "name": "x",
             "of": [
               {
                 "type": "number"
@@ -2048,6 +2050,7 @@
             "type": "any"
           },
           {
+            "name": "y",
             "of": [
               {
                 "type": "number"
@@ -2063,6 +2066,8 @@
           }
         ],
         "result": {
+          "description": "the difference of `x` and `y`",
+          "name": "z",
           "of": [
             {
               "type": "number"

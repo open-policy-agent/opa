@@ -422,17 +422,16 @@ var Plus = &Builtin{
 	),
 }
 
-// Minus subtracts the second number from the first number or computes the diff
-// between two sets.
 var Minus = &Builtin{
-	Name:  "minus",
-	Infix: "-",
+	Name:        "minus",
+	Description: "Minus subtracts the second number from the first number or computes the difference between two sets.",
+	Infix:       "-",
 	Decl: types.NewFunction(
 		types.Args(
-			types.NewAny(types.N, types.NewSet(types.A)),
-			types.NewAny(types.N, types.NewSet(types.A)),
+			types.Named("x", types.NewAny(types.N, types.NewSet(types.A))),
+			types.Named("y", types.NewAny(types.N, types.NewSet(types.A))),
 		),
-		types.NewAny(types.N, types.NewSet(types.A)),
+		types.Named("z", types.NewAny(types.N, types.NewSet(types.A))).Description("the difference of `x` and `y`"),
 	),
 }
 

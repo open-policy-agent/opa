@@ -49,38 +49,38 @@ func NewNull() Null {
 }
 
 type NamedType struct {
-	name, description string
-	t                 Type
+	Name, Descr string
+	Type        Type
 }
 
-func (n *NamedType) typeMarker() string { return n.t.typeMarker() }
-func (n *NamedType) String() string     { return n.name + ": " + n.t.String() }
+func (n *NamedType) typeMarker() string { return n.Type.typeMarker() }
+func (n *NamedType) String() string     { return n.Name + ": " + n.Type.String() }
 func (n *NamedType) MarshalJSON() ([]byte, error) {
 	var obj map[string]interface{}
-	switch x := n.t.(type) {
+	switch x := n.Type.(type) {
 	case interface{ toMap() map[string]interface{} }:
 		obj = x.toMap()
 	default:
 		obj = map[string]interface{}{
-			"type": n.t.typeMarker(),
+			"type": n.Type.typeMarker(),
 		}
 	}
-	obj["name"] = n.name
-	if n.description != "" {
-		obj["description"] = n.description
+	obj["name"] = n.Name
+	if n.Descr != "" {
+		obj["description"] = n.Descr
 	}
 	return json.Marshal(obj)
 }
 
 func (n *NamedType) Description(d string) *NamedType {
-	n.description = d
+	n.Descr = d
 	return n
 }
 
 func Named(name string, t Type) *NamedType {
 	return &NamedType{
-		t:    t,
-		name: name,
+		Type: t,
+		Name: name,
 	}
 }
 
@@ -94,7 +94,7 @@ func (t Null) MarshalJSON() ([]byte, error) {
 func unwrap(t Type) Type {
 	switch t := t.(type) {
 	case *NamedType:
-		return t.t
+		return t.Type
 	default:
 		return t
 	}
@@ -596,6 +596,11 @@ func (t *Function) Args() []Type {
 // Result returns the function's result type.
 func (t *Function) Result() Type {
 	return unwrap(t.result)
+}
+
+// Result returns the function's result type, without stripping name and description.
+func (t *Function) NamedResult() Type {
+	return t.result
 }
 
 func (t *Function) String() string {

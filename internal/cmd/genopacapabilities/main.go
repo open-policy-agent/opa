@@ -10,6 +10,7 @@ import (
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/internal/compiler/wasm"
+	"github.com/open-policy-agent/opa/types"
 )
 
 func main() {
@@ -32,14 +33,47 @@ func main() {
 		panic(err)
 	}
 
-	sorted := sortedCaps()
+	sorted := append(sortedCaps(), versionedCaps{version: "edge", caps: f})
 
 	mdata := make(map[string]interface{})
 	for _, bi := range f.Builtins {
-		mdata[bi.Name] = map[string]interface{}{
+		latest := getLatest(bi.Name, sorted)
+		argTypes := make([]map[string]interface{}, len(latest.Decl.FuncArgs().Args))
+
+		for i, typ := range latest.Decl.NamedFuncArgs().Args {
+			if n, ok := typ.(*types.NamedType); ok {
+				argTypes[i] = map[string]interface{}{
+					"name":        n.Name,
+					"description": n.Descr,
+					"type":        n.Type.String(),
+				}
+			} else {
+				argTypes[i] = map[string]interface{}{
+					"type": typ.String(),
+				}
+			}
+		}
+		res := map[string]interface{}{}
+		resType := latest.Decl.NamedResult()
+		if n, ok := resType.(*types.NamedType); ok {
+			res["name"] = n.Name
+			if n.Descr != "" {
+				res["description"] = n.Descr
+			}
+			res["type"] = n.Type.String()
+		} else if resType != nil {
+			res["type"] = resType.String()
+		}
+		md := map[string]interface{}{
 			"introduced": getFirstVersion(bi.Name, sorted),
 			"wasm":       getWasm(bi.Name),
+			"args":       argTypes,
+			"result":     res,
 		}
+		if latest.Description != "" {
+			md["description"] = latest.Description
+		}
+		mdata[bi.Name] = md
 	}
 
 	md, err := os.Create(os.Args[2]) // metadata
@@ -64,6 +98,17 @@ func getFirstVersion(bi string, sorted []versionedCaps) string {
 		for j := range sorted[i].caps.Builtins {
 			if sorted[i].caps.Builtins[j].Name == bi {
 				return sorted[i].version
+			}
+		}
+	}
+	panic("unreachable")
+}
+
+func getLatest(bi string, sorted []versionedCaps) *ast.Builtin {
+	for i := len(sorted) - 1; i >= 0; i++ {
+		for j := range sorted[i].caps.Builtins {
+			if sorted[i].caps.Builtins[j].Name == bi {
+				return sorted[i].caps.Builtins[j]
 			}
 		}
 	}
